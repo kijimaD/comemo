@@ -19,7 +19,7 @@ Date:   Wed Nov 22 18:25:20 2017 +0000
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/auth.go             |  99 +++++++++++++++++++++++++++
  src/crypto/tls/auth_test.go        |  96 ++++++++++++++++++++++++++
  src/crypto/tls/handshake_client.go |  20 ++----
@@ -27,3 +27,590 @@ Date:   Wed Nov 22 18:25:20 2017 +0000
  src/crypto/tls/key_agreement.go    | 134 ++++++++-----------------------------
  src/crypto/tls/prf.go              |  31 +++------
  6 files changed, 243 insertions(+), 196 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+new file mode 100644
+index 0000000000..57efe085a1
+--- /dev/null
++++ b/src/crypto/tls/auth.go
+@@ -0,0 +1,99 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"crypto"
++	"crypto/ecdsa"
++	"crypto/rsa"
++	"encoding/asn1"
++	"errors"
++	"fmt"
++)
++
++// pickSignatureAlgorithm selects a signature algorithm that is compatible with
++// the given public key and the list of algorithms from the peer and this side.
++// The lists of signature algorithms (peerSigAlgs and ourSigAlgs) are ignored
++// for tlsVersion < VersionTLS12.
++//
++// The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
++// previous TLS versions have a fixed hash function.
++func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
++	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
++		// For TLS 1.1 and before, the signature algorithm could not be
++		// negotiated and the hash is fixed based on the signature type.
++		// For TLS 1.2, if the client didn't send signature_algorithms
++		// extension then we can assume that it supports SHA1. See
++		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
++		switch pubkey.(type) {
++		case *rsa.PublicKey:
++			if tlsVersion < VersionTLS12 {
++				return 0, signatureRSA, crypto.MD5SHA1, nil
++			} else {
++				return PKCS1WithSHA1, signatureRSA, crypto.SHA1, nil
++			}
++		case *ecdsa.PublicKey:
++			return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
++		default:
++			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
++		}
++	}
++	for _, sigAlg := range peerSigAlgs {
++		if !isSupportedSignatureAlgorithm(sigAlg, ourSigAlgs) {
++			continue
++		}
++		hashAlg, err := lookupTLSHash(sigAlg)
++		if err != nil {
++			panic("tls: supported signature algorithm has an unknown hash function")
++		}
++		sigType := signatureFromSignatureScheme(sigAlg)
++		switch pubkey.(type) {
++		case *rsa.PublicKey:
++			if sigType == signatureRSA {
++				return sigAlg, sigType, hashAlg, nil
++			}
++		case *ecdsa.PublicKey:
++			if sigType == signatureECDSA {
++				return sigAlg, sigType, hashAlg, nil
++			}
++		default:
++			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
++		}
++	}
++	return 0, 0, 0, errors.New("tls: peer doesn't support any common signature algorithms")
++}
++
++// verifyHandshakeSignature verifies a signature against pre-hashed handshake
++// contents.
++func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, digest, sig []byte) error {
++	switch sigType {
++	case signatureECDSA:
++		pubKey, ok := pubkey.(*ecdsa.PublicKey)
++		if !ok {
++			return errors.New("tls: ECDSA signing requires a ECDSA public key")
++		}
++		ecdsaSig := new(ecdsaSignature)
++		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
++			return err
++		}
++		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
++			return errors.New("tls: ECDSA signature contained zero or negative values")
++		}
++		if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
++			return errors.New("tls: ECDSA verification failure")
++		}
++	case signatureRSA:
++		pubKey, ok := pubkey.(*rsa.PublicKey)
++		if !ok {
++			return errors.New("tls: RSA signing requires a RSA public key")
++		}
++		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, digest, sig); err != nil {
++			return err
++		}
++	default:
++		return errors.New("tls: unknown signature algorithm")
++	}
++	return nil
++}
+diff --git a/src/crypto/tls/auth_test.go b/src/crypto/tls/auth_test.go
+new file mode 100644
+index 0000000000..4258a822d6
+--- /dev/null
++++ b/src/crypto/tls/auth_test.go
+@@ -0,0 +1,96 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"crypto"
++	"testing"
++)
++
++func TestSignatureSelection(t *testing.T) {
++	rsaCert := &testRSAPrivateKey.PublicKey
++	ecdsaCert := &testECDSAPrivateKey.PublicKey
++	sigsPKCS1WithSHA := []SignatureScheme{PKCS1WithSHA256, PKCS1WithSHA1}
++	sigsECDSAWithSHA := []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithSHA1}
++
++	tests := []struct {
++		pubkey      crypto.PublicKey
++		peerSigAlgs []SignatureScheme
++		ourSigAlgs  []SignatureScheme
++		tlsVersion  uint16
++
++		expectedSigAlg  SignatureScheme // or 0 if ignored
++		expectedSigType uint8
++		expectedHash    crypto.Hash
++	}{
++		// Hash is fixed for RSA in TLS 1.1 and before.
++		// https://tools.ietf.org/html/rfc4346#page-44
++		{rsaCert, nil, nil, VersionTLS11, 0, signatureRSA, crypto.MD5SHA1},
++		{rsaCert, nil, nil, VersionTLS10, 0, signatureRSA, crypto.MD5SHA1},
++		{rsaCert, nil, nil, VersionSSL30, 0, signatureRSA, crypto.MD5SHA1},
++
++		// Before TLS 1.2, there is no signature_algorithms extension
++		// nor field in CertificateRequest and digitally-signed and thus
++		// it should be ignored.
++		{rsaCert, sigsPKCS1WithSHA, nil, VersionTLS11, 0, signatureRSA, crypto.MD5SHA1},
++		{rsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS11, 0, signatureRSA, crypto.MD5SHA1},
++		// Use SHA-1 for TLS 1.0 and 1.1 with ECDSA, see https://tools.ietf.org/html/rfc4492#page-20
++		{ecdsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS11, 0, signatureECDSA, crypto.SHA1},
++		{ecdsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS10, 0, signatureECDSA, crypto.SHA1},
++
++		// TLS 1.2 without signature_algorithms extension
++		// https://tools.ietf.org/html/rfc5246#page-47
++		{rsaCert, nil, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA1, signatureRSA, crypto.SHA1},
++		{ecdsaCert, nil, sigsPKCS1WithSHA, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
++
++		{rsaCert, []SignatureScheme{PKCS1WithSHA1}, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA1, signatureRSA, crypto.SHA1},
++		{rsaCert, []SignatureScheme{PKCS1WithSHA256}, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA256, signatureRSA, crypto.SHA256},
++		// "sha_hash" may denote hashes other than SHA-1
++		// https://tools.ietf.org/html/draft-ietf-tls-rfc4492bis-17#page-17
++		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, sigsECDSAWithSHA, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
++		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, sigsECDSAWithSHA, VersionTLS12, ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
++	}
++
++	for testNo, test := range tests {
++		sigAlg, sigType, hashFunc, err := pickSignatureAlgorithm(test.pubkey, test.peerSigAlgs, test.ourSigAlgs, test.tlsVersion)
++		if err != nil {
++			t.Errorf("test[%d]: unexpected error: %v", testNo, err)
++		}
++		if test.expectedSigAlg != 0 && test.expectedSigAlg != sigAlg {
++			t.Errorf("test[%d]: expected signature scheme %#x, got %#x", testNo, test.expectedSigAlg, sigAlg)
++		}
++		if test.expectedSigType != sigType {
++			t.Errorf("test[%d]: expected signature algorithm %#x, got %#x", testNo, test.expectedSigType, sigType)
++		}
++		if test.expectedHash != hashFunc {
++			t.Errorf("test[%d]: expected hash function %#x, got %#x", testNo, test.expectedHash, hashFunc)
++		}
++	}
++
++	badTests := []struct {
++		pubkey      crypto.PublicKey
++		peerSigAlgs []SignatureScheme
++		ourSigAlgs  []SignatureScheme
++		tlsVersion  uint16
++	}{
++		{rsaCert, sigsECDSAWithSHA, sigsPKCS1WithSHA, VersionTLS12},
++		{ecdsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS12},
++		{ecdsaCert, sigsECDSAWithSHA, sigsPKCS1WithSHA, VersionTLS12},
++		{rsaCert, []SignatureScheme{0}, sigsPKCS1WithSHA, VersionTLS12},
++
++		// ECDSA is unspecified for SSL 3.0 in RFC 4492.
++		// TODO a SSL 3.0 client cannot advertise signature_algorithms,
++		// but if an application feeds an ECDSA certificate anyway, it
++		// will be accepted rather than trigger a handshake failure. Ok?
++		//{ecdsaCert, nil, nil, VersionSSL30},
++	}
++
++	for testNo, test := range badTests {
++		sigAlg, sigType, hashFunc, err := pickSignatureAlgorithm(test.pubkey, test.peerSigAlgs, test.ourSigAlgs, test.tlsVersion)
++		if err == nil {
++			t.Errorf("test[%d]: unexpected success, got %#x %#x %#x", testNo, sigAlg, sigType, hashFunc)
++		}
++	}
++}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index fd6df4251c..634f967cd0 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -479,26 +479,16 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			return fmt.Errorf("tls: client certificate private key of type %T does not implement crypto.Signer", chainToSend.PrivateKey)
+ 		}
+ 
+-		var signatureType uint8
+-		switch key.Public().(type) {
+-		case *ecdsa.PublicKey:
+-			signatureType = signatureECDSA
+-		case *rsa.PublicKey:
+-			signatureType = signatureRSA
+-		default:
++		signatureAlgorithm, sigType, hashFunc, err := pickSignatureAlgorithm(key.Public(), certReq.supportedSignatureAlgorithms, hs.hello.supportedSignatureAlgorithms, c.vers)
++		if err != nil {
+ 			c.sendAlert(alertInternalError)
+-			return fmt.Errorf("tls: failed to sign handshake with client certificate: unknown client certificate key type: %T", key)
++			return err
+ 		}
+-
+ 		// SignatureAndHashAlgorithm was introduced in TLS 1.2.
+ 		if certVerify.hasSignatureAndHash {
+-			certVerify.signatureAlgorithm, err = hs.finishedHash.selectClientCertSignatureAlgorithm(certReq.supportedSignatureAlgorithms, signatureType)
+-			if err != nil {
+-				c.sendAlert(alertInternalError)
+-				return err
+-			}
++			certVerify.signatureAlgorithm = signatureAlgorithm
+ 		}
+-		digest, hashFunc, err := hs.finishedHash.hashForClientCertificate(signatureType, certVerify.signatureAlgorithm, hs.masterSecret)
++		digest, err := hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret)
+ 		if err != nil {
+ 			c.sendAlert(alertInternalError)
+ 			return err
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index f8dd630a04..0d685927b3 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/subtle"
+ 	"crypto/x509"
+-	"encoding/asn1"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -520,59 +519,15 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		}
+ 
+ 		// Determine the signature type.
+-		var signatureAlgorithm SignatureScheme
+-		var sigType uint8
+-		if certVerify.hasSignatureAndHash {
+-			signatureAlgorithm = certVerify.signatureAlgorithm
+-			if !isSupportedSignatureAlgorithm(signatureAlgorithm, supportedSignatureAlgorithms) {
+-				return errors.New("tls: unsupported hash function for client certificate")
+-			}
+-			sigType = signatureFromSignatureScheme(signatureAlgorithm)
+-		} else {
+-			// Before TLS 1.2 the signature algorithm was implicit
+-			// from the key type, and only one hash per signature
+-			// algorithm was possible. Leave signatureAlgorithm
+-			// unset.
+-			switch pub.(type) {
+-			case *ecdsa.PublicKey:
+-				sigType = signatureECDSA
+-			case *rsa.PublicKey:
+-				sigType = signatureRSA
+-			}
++		_, sigType, hashFunc, err := pickSignatureAlgorithm(pub, []SignatureScheme{certVerify.signatureAlgorithm}, supportedSignatureAlgorithms, c.vers)
++		if err != nil {
++			c.sendAlert(alertIllegalParameter)
++			return err
+ 		}
+ 
+-		switch key := pub.(type) {
+-		case *ecdsa.PublicKey:
+-			if sigType != signatureECDSA {
+-				err = errors.New("tls: bad signature type for client's ECDSA certificate")
+-				break
+-			}
+-			ecdsaSig := new(ecdsaSignature)
+-			if _, err = asn1.Unmarshal(certVerify.signature, ecdsaSig); err != nil {
+-				break
+-			}
+-			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+-				err = errors.New("tls: ECDSA signature contained zero or negative values")
+-				break
+-			}
+-			var digest []byte
+-			if digest, _, err = hs.finishedHash.hashForClientCertificate(sigType, signatureAlgorithm, hs.masterSecret); err != nil {
+-				break
+-			}
+-			if !ecdsa.Verify(key, digest, ecdsaSig.R, ecdsaSig.S) {
+-				err = errors.New("tls: ECDSA verification failure")
+-			}
+-		case *rsa.PublicKey:
+-			if sigType != signatureRSA {
+-				err = errors.New("tls: bad signature type for client's RSA certificate")
+-				break
+-			}
+-			var digest []byte
+-			var hashFunc crypto.Hash
+-			if digest, hashFunc, err = hs.finishedHash.hashForClientCertificate(sigType, signatureAlgorithm, hs.masterSecret); err != nil {
+-				break
+-			}
+-			err = rsa.VerifyPKCS1v15(key, hashFunc, digest, certVerify.signature)
++		var digest []byte
++		if digest, err = hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret); err == nil {
++			err = verifyHandshakeSignature(sigType, pub, hashFunc, digest, certVerify.signature)
+ 		}
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 6685b47584..7dc54d5faa 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -6,13 +6,11 @@ package tls
+ 
+ import (
+ 	"crypto"
+-	"crypto/ecdsa"
+ 	"crypto/elliptic"
+ 	"crypto/md5"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/x509"
+-	"encoding/asn1"
+ 	"errors"
+ 	"io"
+ 	"math/big"
+@@ -110,58 +108,21 @@ func md5SHA1Hash(slices [][]byte) []byte {
+ }
+ 
+ // hashForServerKeyExchange hashes the given slices and returns their digest
+-// and the identifier of the hash function used. The signatureAlgorithm argument
+-// is only used for >= TLS 1.2 and identifies the hash function to use.
+-func hashForServerKeyExchange(sigType uint8, signatureAlgorithm SignatureScheme, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
++// using the given hash function (for >= TLS 1.2) or using a default based on
++// the sigType (for earlier TLS versions).
++func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) ([]byte, error) {
+ 	if version >= VersionTLS12 {
+-		if !isSupportedSignatureAlgorithm(signatureAlgorithm, supportedSignatureAlgorithms) {
+-			return nil, crypto.Hash(0), errors.New("tls: unsupported hash function used by peer")
+-		}
+-		hashFunc, err := lookupTLSHash(signatureAlgorithm)
+-		if err != nil {
+-			return nil, crypto.Hash(0), err
+-		}
+ 		h := hashFunc.New()
+ 		for _, slice := range slices {
+ 			h.Write(slice)
+ 		}
+ 		digest := h.Sum(nil)
+-		return digest, hashFunc, nil
++		return digest, nil
+ 	}
+ 	if sigType == signatureECDSA {
+-		return sha1Hash(slices), crypto.SHA1, nil
+-	}
+-	return md5SHA1Hash(slices), crypto.MD5SHA1, nil
+-}
+-
+-// pickTLS12HashForSignature returns a TLS 1.2 hash identifier for signing a
+-// ServerKeyExchange given the signature type being used and the client's
+-// advertised list of supported signature and hash combinations.
+-func pickTLS12HashForSignature(sigType uint8, clientList []SignatureScheme) (SignatureScheme, error) {
+-	if len(clientList) == 0 {
+-		// If the client didn't specify any signature_algorithms
+-		// extension then we can assume that it supports SHA1. See
+-		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+-		switch sigType {
+-		case signatureRSA:
+-			return PKCS1WithSHA1, nil
+-		case signatureECDSA:
+-			return ECDSAWithSHA1, nil
+-		default:
+-			return 0, errors.New("tls: unknown signature algorithm")
+-		}
++		return sha1Hash(slices), nil
+ 	}
+-
+-	for _, sigAlg := range clientList {
+-		if signatureFromSignatureScheme(sigAlg) != sigType {
+-			continue
+-		}
+-		if isSupportedSignatureAlgorithm(sigAlg, supportedSignatureAlgorithms) {
+-			return sigAlg, nil
+-		}
+-	}
+-
+-	return 0, errors.New("tls: client doesn't support any common hash functions")
++	return md5SHA1Hash(slices), nil
+ }
+ 
+ func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
+@@ -247,41 +208,25 @@ NextCandidate:
+ 	serverECDHParams[3] = byte(len(ecdhePublic))
+ 	copy(serverECDHParams[4:], ecdhePublic)
+ 
+-	var signatureAlgorithm SignatureScheme
+-
+-	if ka.version >= VersionTLS12 {
+-		var err error
+-		signatureAlgorithm, err = pickTLS12HashForSignature(ka.sigType, clientHello.supportedSignatureAlgorithms)
+-		if err != nil {
+-			return nil, err
+-		}
++	priv, ok := cert.PrivateKey.(crypto.Signer)
++	if !ok {
++		return nil, errors.New("tls: certificate private key does not implement crypto.Signer")
+ 	}
+ 
+-	digest, hashFunc, err := hashForServerKeyExchange(ka.sigType, signatureAlgorithm, ka.version, clientHello.random, hello.random, serverECDHParams)
++	signatureAlgorithm, sigType, hashFunc, err := pickSignatureAlgorithm(priv.Public(), clientHello.supportedSignatureAlgorithms, supportedSignatureAlgorithms, ka.version)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+-	priv, ok := cert.PrivateKey.(crypto.Signer)
+-	if !ok {
+-		return nil, errors.New("tls: certificate private key does not implement crypto.Signer")
++	if sigType != ka.sigType {
++		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
+ 	}
+-	var sig []byte
+-	switch ka.sigType {
+-	case signatureECDSA:
+-		_, ok := priv.Public().(*ecdsa.PublicKey)
+-		if !ok {
+-			return nil, errors.New("tls: ECDHE ECDSA requires an ECDSA server key")
+-		}
+-	case signatureRSA:
+-		_, ok := priv.Public().(*rsa.PublicKey)
+-		if !ok {
+-			return nil, errors.New("tls: ECDHE RSA requires a RSA server key")
+-		}
+-	default:
+-		return nil, errors.New("tls: unknown ECDHE signature algorithm")
++
++	digest, err := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, hello.random, serverECDHParams)
++	if err != nil {
++		return nil, err
+ 	}
+-	sig, err = priv.Sign(config.rand(), digest, hashFunc)
++
++	sig, err := priv.Sign(config.rand(), digest, hashFunc)
+ 	if err != nil {
+ 		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
+ 	}
+@@ -380,53 +325,30 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	if ka.version >= VersionTLS12 {
+ 		// handle SignatureAndHashAlgorithm
+ 		signatureAlgorithm = SignatureScheme(sig[0])<<8 | SignatureScheme(sig[1])
+-		if signatureFromSignatureScheme(signatureAlgorithm) != ka.sigType {
+-			return errServerKeyExchange
+-		}
+ 		sig = sig[2:]
+ 		if len(sig) < 2 {
+ 			return errServerKeyExchange
+ 		}
+ 	}
++	_, sigType, hashFunc, err := pickSignatureAlgorithm(cert.PublicKey, []SignatureScheme{signatureAlgorithm}, clientHello.supportedSignatureAlgorithms, ka.version)
++	if err != nil {
++		return err
++	}
++	if sigType != ka.sigType {
++		return errServerKeyExchange
++	}
++
+ 	sigLen := int(sig[0])<<8 | int(sig[1])
+ 	if sigLen+2 != len(sig) {
+ 		return errServerKeyExchange
+ 	}
+ 	sig = sig[2:]
+ 
+-	digest, hashFunc, err := hashForServerKeyExchange(ka.sigType, signatureAlgorithm, ka.version, clientHello.random, serverHello.random, serverECDHParams)
++	digest, err := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+ 	if err != nil {
+ 		return err
+ 	}
+-	switch ka.sigType {
+-	case signatureECDSA:
+-		pubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
+-		if !ok {
+-			return errors.New("tls: ECDHE ECDSA requires a ECDSA server public key")
+-		}
+-		ecdsaSig := new(ecdsaSignature)
+-		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+-			return err
+-		}
+-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+-			return errors.New("tls: ECDSA signature contained zero or negative values")
+-		}
+-		if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
+-			return errors.New("tls: ECDSA verification failure")
+-		}
+-	case signatureRSA:
+-		pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
+-		if !ok {
+-			return errors.New("tls: ECDHE RSA requires a RSA server public key")
+-		}
+-		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, digest, sig); err != nil {
+-			return err
+-		}
+-	default:
+-		return errors.New("tls: unknown ECDHE signature algorithm")
+-	}
+-
+-	return nil
++	return verifyHandshakeSignature(sigType, cert.PublicKey, hashFunc, digest, sig)
+ }
+ 
+ func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 367e0842b0..1d883260de 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -309,50 +309,35 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+ 	return out
+ }
+ 
+-// selectClientCertSignatureAlgorithm returns a SignatureScheme to sign a
+-// client's CertificateVerify with, or an error if none can be found.
+-func (h finishedHash) selectClientCertSignatureAlgorithm(serverList []SignatureScheme, sigType uint8) (SignatureScheme, error) {
+-	for _, v := range serverList {
+-		if signatureFromSignatureScheme(v) == sigType && isSupportedSignatureAlgorithm(v, supportedSignatureAlgorithms) {
+-			return v, nil
+-		}
+-	}
+-	return 0, errors.New("tls: no supported signature algorithm found for signing client certificate")
+-}
+-
+-// hashForClientCertificate returns a digest, hash function, and TLS 1.2 hash
+-// id suitable for signing by a TLS client certificate.
+-func (h finishedHash) hashForClientCertificate(sigType uint8, signatureAlgorithm SignatureScheme, masterSecret []byte) ([]byte, crypto.Hash, error) {
++// hashForClientCertificate returns a digest over the handshake messages so far,
++// suitable for signing by a TLS client certificate.
++func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
+ 	if (h.version == VersionSSL30 || h.version >= VersionTLS12) && h.buffer == nil {
+ 		panic("a handshake hash for a client-certificate was requested after discarding the handshake buffer")
+ 	}
+ 
+ 	if h.version == VersionSSL30 {
+ 		if sigType != signatureRSA {
+-			return nil, 0, errors.New("tls: unsupported signature type for client certificate")
++			return nil, errors.New("tls: unsupported signature type for client certificate")
+ 		}
+ 
+ 		md5Hash := md5.New()
+ 		md5Hash.Write(h.buffer)
+ 		sha1Hash := sha1.New()
+ 		sha1Hash.Write(h.buffer)
+-		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), crypto.MD5SHA1, nil
++		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), nil
+ 	}
+ 	if h.version >= VersionTLS12 {
+-		hashAlg, err := lookupTLSHash(signatureAlgorithm)
+-		if err != nil {
+-			return nil, 0, err
+-		}
+ 		hash := hashAlg.New()
+ 		hash.Write(h.buffer)
+-		return hash.Sum(nil), hashAlg, nil
++		return hash.Sum(nil), nil
+ 	}
+ 
+ 	if sigType == signatureECDSA {
+-		return h.server.Sum(nil), crypto.SHA1, nil
++		return h.server.Sum(nil), nil
+ 	}
+ 
+-	return h.Sum(), crypto.MD5SHA1, nil
++	return h.Sum(), nil
+ }
+ 
+ // discardHandshakeBuffer is called when there is no more need to

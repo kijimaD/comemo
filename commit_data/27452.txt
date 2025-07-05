@@ -17,7 +17,7 @@ Date:   Sun Mar 27 17:57:42 2016 -0700
     Change-Id: Ifb1691e0a07f906712c18c4a4cd23060807a5da5
     Reviewed-on: https://go-review.googlesource.com/21235
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go     | 2 +-
  src/cmd/compile/internal/gc/bexport.go   | 6 ++++--
  src/cmd/compile/internal/gc/fmt.go       | 2 +-
@@ -25,3 +25,127 @@ Date:   Sun Mar 27 17:57:42 2016 -0700
  src/cmd/compile/internal/gc/type.go      | 9 +++++++++
  src/cmd/compile/internal/gc/typecheck.go | 8 ++++----
  6 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index dd508a508f..61a3394337 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -256,7 +256,7 @@ func dowidth(t *Type) {
+ 			w = int64(sizeof_Array)
+ 			checkwidth(t.Type)
+ 			t.Align = uint8(Widthptr)
+-		} else if t.Bound == -100 {
++		} else if t.isDDDArray() {
+ 			if !t.Broke {
+ 				Yyerror("use of [...] array outside of array literal")
+ 				t.Broke = true
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 03f2cf48df..518666c767 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -503,8 +503,10 @@ func (p *exporter) typ(t *Type) {
+ 	// otherwise we have a type literal
+ 	switch t.Etype {
+ 	case TARRAY:
+-		// TODO(gri) define named constant for the -100
+-		if t.Bound >= 0 || t.Bound == -100 {
++		if t.isDDDArray() {
++			Fatalf("array bounds should be known at export time: %v", t)
++		}
++		if t.Bound >= 0 {
+ 			p.tag(arrayTag)
+ 			p.int64(t.Bound)
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 6199abec8a..8f809c82ee 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -589,7 +589,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		if t.Bound >= 0 {
+ 			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
+ 		}
+-		if t.Bound == -100 {
++		if t.isDDDArray() {
+ 			return "[...]" + t.Type.String()
+ 		}
+ 		return "[]" + t.Type.String()
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f72ea61ebb..e827464bde 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -897,7 +897,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	if src.Etype == TNIL {
+ 		switch dst.Etype {
+ 		case TARRAY:
+-			if dst.Bound != -100 { // not slice
++			if !dst.IsSlice() {
+ 				break
+ 			}
+ 			fallthrough
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index f8a436c655..ac870483ac 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -70,6 +70,8 @@ const (
+ 	NTYPE
+ )
+ 
++const dddBound = -100 // arrays declared as [...]T start life with Bound=dddBound
++
+ // Types stores pointers to predeclared named types.
+ //
+ // It also stores pointers to several special types:
+@@ -373,6 +375,13 @@ func (t *Type) SetFields(fields []*Field) {
+ 	t.Fields().Set(fields)
+ }
+ 
++func (t *Type) isDDDArray() bool {
++	if t.Etype != TARRAY {
++		return false
++	}
++	return t.Bound == dddBound
++}
++
+ func (t *Type) Size() int64 {
+ 	dowidth(t)
+ 	return t.Width
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1851bcc3c0..4e575d0df0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -336,7 +336,7 @@ OpSwitch:
+ 		if l == nil {
+ 			t.Bound = -1 // slice
+ 		} else if l.Op == ODDD {
+-			t.Bound = -100 // to be filled in
++			t.Bound = dddBound // to be filled in
+ 			if top&Ecomplit == 0 && n.Diag == 0 {
+ 				t.Broke = true
+ 				n.Diag = 1
+@@ -385,7 +385,7 @@ OpSwitch:
+ 		n.Type = t
+ 		n.Left = nil
+ 		n.Right = nil
+-		if t.Bound != -100 {
++		if !t.isDDDArray() {
+ 			checkwidth(t)
+ 		}
+ 
+@@ -1267,7 +1267,7 @@ OpSwitch:
+ 		n.Left = defaultlit(n.Left, nil)
+ 		l = n.Left
+ 		if l.Op == OTYPE {
+-			if n.Isddd || l.Type.Bound == -100 {
++			if n.Isddd || l.Type.isDDDArray() {
+ 				if !l.Type.Broke {
+ 					Yyerror("invalid use of ... in type conversion to %v", l.Type)
+ 				}
+@@ -2991,7 +2991,7 @@ func typecheckcomplit(n *Node) *Node {
+ 			l.Right = assignconv(r, t.Type, "array or slice literal")
+ 		}
+ 
+-		if t.Bound == -100 {
++		if t.isDDDArray() {
+ 			t.Bound = length
+ 		}
+ 		if t.Bound < 0 {

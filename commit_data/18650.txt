@@ -10,7 +10,66 @@ Date:   Wed Feb 26 07:56:41 2014 +1100
     R=aram, mikioh.mikioh, iant
     CC=golang-codereviews
     https://golang.org/cl/68720043
-
+---
  src/pkg/syscall/mmap_unix_test.go    | 22 ++++++++++++++++++++++
  src/pkg/syscall/syscall_unix_test.go | 12 +-----------
  2 files changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/syscall/mmap_unix_test.go b/src/pkg/syscall/mmap_unix_test.go
+new file mode 100644
+index 0000000000..01f7783022
+--- /dev/null
++++ b/src/pkg/syscall/mmap_unix_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package syscall_test
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestMmap(t *testing.T) {
++	b, err := syscall.Mmap(-1, 0, syscall.Getpagesize(), syscall.PROT_NONE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
++	if err != nil {
++		t.Fatalf("Mmap: %v", err)
++	}
++	if err := syscall.Munmap(b); err != nil {
++		t.Fatalf("Munmap: %v", err)
++	}
++}
+diff --git a/src/pkg/syscall/syscall_unix_test.go b/src/pkg/syscall/syscall_unix_test.go
+index acc355f0b2..32d7b9f2e4 100644
+--- a/src/pkg/syscall/syscall_unix_test.go
++++ b/src/pkg/syscall/syscall_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd dragonfly darwin linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package syscall_test
+ 
+@@ -77,16 +77,6 @@ func TestFcntlFlock(t *testing.T) {
+ 	}
+ }
+ 
+-func TestMmap(t *testing.T) {
+-	b, err := syscall.Mmap(-1, 0, syscall.Getpagesize(), syscall.PROT_NONE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
+-	if err != nil {
+-		t.Fatalf("Mmap: %v", err)
+-	}
+-	if err := syscall.Munmap(b); err != nil {
+-		t.Fatalf("Munmap: %v", err)
+-	}
+-}
+-
+ // TestPassFD tests passing a file descriptor over a Unix socket.
+ //
+ // This test involved both a parent and child process. The parent

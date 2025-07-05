@@ -13,7 +13,101 @@ Date:   Wed Aug 17 14:05:47 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/stmt.go            | 18 +++++++++++++++---
  src/go/types/testdata/stmt0.src | 12 ++++++++++--
  2 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 5764430b1b..b8c89a0afa 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -68,13 +68,19 @@ func (check *Checker) usage(scope *Scope) {
+ }
+ 
+ // stmtContext is a bitset describing which
+-// control-flow statements are permissible.
++// control-flow statements are permissible,
++// and provides additional context information
++// for better error messages.
+ type stmtContext uint
+ 
+ const (
++	// permissible control-flow statements
+ 	breakOk stmtContext = 1 << iota
+ 	continueOk
+ 	fallthroughOk
++
++	// additional context information
++	finalSwitchCase
+ )
+ 
+ func (check *Checker) simpleStmt(s ast.Stmt) {
+@@ -292,7 +298,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}(check.scope)
+ 	}
+ 
+-	inner := ctxt &^ fallthroughOk
++	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
+ 	switch s := s.(type) {
+ 	case *ast.BadStmt, *ast.EmptyStmt:
+ 		// ignore
+@@ -454,7 +460,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			}
+ 		case token.FALLTHROUGH:
+ 			if ctxt&fallthroughOk == 0 {
+-				check.error(s.Pos(), "fallthrough statement out of place")
++				msg := "fallthrough statement out of place"
++				if ctxt&finalSwitchCase != 0 {
++					msg = "cannot fallthrough final case in switch"
++				}
++				check.error(s.Pos(), msg)
+ 			}
+ 		default:
+ 			check.invalidAST(s.Pos(), "branch statement: %s", s.Tok)
+@@ -523,6 +533,8 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			inner := inner
+ 			if i+1 < len(s.Body.List) {
+ 				inner |= fallthroughOk
++			} else {
++				inner |= finalSwitchCase
+ 			}
+ 			check.stmtList(inner, clause.Body)
+ 			check.closeScope()
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index 0c727c3dd0..87f08e4314 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -536,7 +536,7 @@ func switches1() {
+ 	default:
+ 		fallthrough; ;
+ 	case 4:
+-		fallthrough /* ERROR "fallthrough statement out of place" */
++		fallthrough /* ERROR "cannot fallthrough final case in switch" */
+ 	}
+ 
+ 	var y interface{}
+@@ -573,7 +573,7 @@ func switches1() {
+ 		goto L6
+ 		goto L7
+ 		goto L8
+-		L6: L7: L8: fallthrough /* ERROR "fallthrough statement out of place" */
++		L6: L7: L8: fallthrough /* ERROR "cannot fallthrough final case in switch" */
+ 	}
+ 
+ 	switch x {
+@@ -589,6 +589,14 @@ func switches1() {
+ 		fallthrough /* ERROR "fallthrough statement out of place" */
+ 		{ /* empty block is not an empty statement */ }; ;
+ 	default:
++		fallthrough /* ERROR "cannot fallthrough final case in switch" */
++	}
++
++	switch x {
++	case 0:
++		{
++			fallthrough /* ERROR "fallthrough statement out of place" */
++		}
+ 	}
+ }
+ 

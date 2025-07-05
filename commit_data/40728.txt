@@ -14,6 +14,31 @@ Date:   Sat Jun 22 12:56:49 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/blank1.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/blank1.go b/test/blank1.go
+index bf94d1a0fb..1a9f012464 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -7,7 +7,7 @@
+ // Test that incorrect uses of the blank identifer are caught.
+ // Does not compile.
+ 
+-package _	// ERROR "invalid package name _"
++package _	// ERROR "invalid package name"
+ 
+ var t struct {
+ 	_ int
+@@ -22,8 +22,8 @@ type T struct {
+ }
+ 
+ func main() {
+-	_()	// ERROR "cannot use _ as value"
+-	x := _+1	// ERROR "cannot use _ as value"
++	_()	// ERROR "cannot use .* as value"
++	x := _+1	// ERROR "cannot use .* as value"
+ 	_ = x
+ 	_ = t._ // ERROR "cannot refer to blank field|invalid use of"
+ 

@@ -49,8 +49,103 @@ Date:   Fri Sep 30 15:29:52 2022 +0300
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/sha1/sha1.go     | 12 +++++++-----
  src/crypto/sha256/sha256.go | 12 +++++++-----
  src/crypto/sha512/sha512.go | 16 ++++++++++------
  3 files changed, 24 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index bef447c7f2..43ab72a485 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -154,18 +154,20 @@ func (d *digest) Sum(in []byte) []byte {
+ func (d *digest) checkSum() [Size]byte {
+ 	len := d.len
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+-	var tmp [64]byte
++	var tmp [64 + 8]byte // padding + length buffer
+ 	tmp[0] = 0x80
++	var t uint64
+ 	if len%64 < 56 {
+-		d.Write(tmp[0 : 56-len%64])
++		t = 56 - len%64
+ 	} else {
+-		d.Write(tmp[0 : 64+56-len%64])
++		t = 64 + 56 - len%64
+ 	}
+ 
+ 	// Length in bits.
+ 	len <<= 3
+-	binary.BigEndian.PutUint64(tmp[:], len)
+-	d.Write(tmp[0:8])
++	padlen := tmp[:t+8]
++	binary.BigEndian.PutUint64(padlen[t:], len)
++	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+ 		panic("d.nx != 0")
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 15c907ecf7..2deafbc9fc 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -214,18 +214,20 @@ func (d *digest) Sum(in []byte) []byte {
+ func (d *digest) checkSum() [Size]byte {
+ 	len := d.len
+ 	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
+-	var tmp [64]byte
++	var tmp [64 + 8]byte // padding + length buffer
+ 	tmp[0] = 0x80
++	var t uint64
+ 	if len%64 < 56 {
+-		d.Write(tmp[0 : 56-len%64])
++		t = 56 - len%64
+ 	} else {
+-		d.Write(tmp[0 : 64+56-len%64])
++		t = 64 + 56 - len%64
+ 	}
+ 
+ 	// Length in bits.
+ 	len <<= 3
+-	binary.BigEndian.PutUint64(tmp[:], len)
+-	d.Write(tmp[0:8])
++	padlen := tmp[:t+8]
++	binary.BigEndian.PutUint64(padlen[t+0:], len)
++	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+ 		panic("d.nx != 0")
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 3819478ed7..9ae1b3aae2 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -302,19 +302,23 @@ func (d *digest) Sum(in []byte) []byte {
+ func (d *digest) checkSum() [Size]byte {
+ 	// Padding. Add a 1 bit and 0 bits until 112 bytes mod 128.
+ 	len := d.len
+-	var tmp [128]byte
++	var tmp [128 + 16]byte // padding + length buffer
+ 	tmp[0] = 0x80
++	var t uint64
+ 	if len%128 < 112 {
+-		d.Write(tmp[0 : 112-len%128])
++		t = 112 - len%128
+ 	} else {
+-		d.Write(tmp[0 : 128+112-len%128])
++		t = 128 + 112 - len%128
+ 	}
+ 
+ 	// Length in bits.
+ 	len <<= 3
+-	binary.BigEndian.PutUint64(tmp[0:], 0) // upper 64 bits are always zero, because len variable has type uint64
+-	binary.BigEndian.PutUint64(tmp[8:], len)
+-	d.Write(tmp[0:16])
++	padlen := tmp[:t+16]
++	// Upper 64 bits are always zero, because len variable has type uint64,
++	// and tmp is already zeroed at that index, so we can skip updating it.
++	// binary.BigEndian.PutUint64(padlen[t+0:], 0)
++	binary.BigEndian.PutUint64(padlen[t+8:], len)
++	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+ 		panic("d.nx != 0")

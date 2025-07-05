@@ -8,6 +8,27 @@ Date:   Tue Mar 13 03:34:22 2012 +0800
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/5794057
-
+---
  src/make.bash | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 3668e92046..b3db71a6bd 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -86,7 +86,14 @@ echo cmd/dist
+ export GOROOT="$(cd .. && pwd)"
+ GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
+ DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
+-gcc -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
++
++mflag=""
++case "$GOHOSTARCH" in
++386) mflag=-m32;;
++amd64) mflag=-m64;;
++esac
++gcc $mflag -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
++
+ eval $(./cmd/dist/dist env -p)
+ echo
+ 

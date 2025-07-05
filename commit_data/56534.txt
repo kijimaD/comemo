@@ -23,7 +23,7 @@ Date:   Fri May 12 15:19:23 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/asan_test.go      | 2 ++
  src/cmd/cgo/internal/testsanitizers/cc_test.go        | 5 +++++
  src/cmd/cgo/internal/testsanitizers/cshared_test.go   | 2 ++
@@ -33,3 +33,116 @@ Date:   Fri May 12 15:19:23 2023 -0400
  src/cmd/cgo/internal/testsanitizers/tsan_test.go      | 2 ++
  src/cmd/dist/test.go                                  | 6 +-----
  8 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index 1e85a5dda0..9bf48915e2 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux || (freebsd && amd64)
++
+ package sanitizers_test
+ 
+ import (
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index 67d281a8c5..5facb37e68 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This test uses the Pdeathsig field of syscall.SysProcAttr, so it only works
++// on platforms that support that.
++
++//go:build linux || (freebsd && amd64)
++
+ // sanitizers_test checks the use of Go with sanitizers like msan, asan, etc.
+ // See https://github.com/google/sanitizers.
+ package sanitizers_test
+diff --git a/src/cmd/cgo/internal/testsanitizers/cshared_test.go b/src/cmd/cgo/internal/testsanitizers/cshared_test.go
+index 21b13ce4ed..5a8e93d101 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cshared_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cshared_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux || (freebsd && amd64)
++
+ package sanitizers_test
+ 
+ import (
+diff --git a/src/cmd/cgo/internal/testsanitizers/empty_test.go b/src/cmd/cgo/internal/testsanitizers/empty_test.go
+new file mode 100644
+index 0000000000..e7fed99551
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/empty_test.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// All of the actual test files have limited build constraints. This file
++// ensures there's at least one test file on every platform.
++
++package sanitizers_test
+diff --git a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+index 345751b9c7..f84c9f37ae 100644
+--- a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux || (freebsd && amd64)
++
+ package sanitizers_test
+ 
+ import (
+diff --git a/src/cmd/cgo/internal/testsanitizers/msan_test.go b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+index 96397e0a87..a05c545d2a 100644
+--- a/src/cmd/cgo/internal/testsanitizers/msan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux || (freebsd && amd64)
++
+ package sanitizers_test
+ 
+ import (
+diff --git a/src/cmd/cgo/internal/testsanitizers/tsan_test.go b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+index f65d842363..cb63f873f9 100644
+--- a/src/cmd/cgo/internal/testsanitizers/tsan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux || (freebsd && amd64)
++
+ package sanitizers_test
+ 
+ import (
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8cd8abc19e..1d8125c51d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -832,11 +832,7 @@ func (t *tester) registerTests() {
+ 		if t.supportedBuildmode("plugin") {
+ 			t.registerTest("cgo_testplugin", "", &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
+ 		}
+-		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
+-			// because Pdeathsig of syscall.SysProcAttr struct used in cmd/cgo/internal/testsanitizers is only
+-			// supported on Linux and FreeBSD.
+-			t.registerTest("cgo_testsanitizers", "", &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
+-		}
++		t.registerTest("cgo_testsanitizers", "", &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
+ 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
+ 			t.registerTest("cgo_errors", "", &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
+ 		}

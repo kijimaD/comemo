@@ -17,8 +17,63 @@ Date:   Thu Dec 17 19:36:43 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/client.go   |  5 +++--
  src/net/http/request.go  | 12 +++++++-----
  src/net/http/transfer.go |  2 +-
  3 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index c3f849e962..dd099bb316 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -179,10 +179,11 @@ func (c *Client) send(req *Request) (*Response, error) {
+ //
+ // Generally Get, Post, or PostForm will be used instead of Do.
+ func (c *Client) Do(req *Request) (resp *Response, err error) {
+-	if req.Method == "" || req.Method == "GET" || req.Method == "HEAD" {
++	method := valueOrDefault(req.Method, "GET")
++	if method == "" || method == "GET" || method == "HEAD" {
+ 		return c.doFollowingRedirects(req, shouldRedirectGet)
+ 	}
+-	if req.Method == "POST" || req.Method == "PUT" {
++	if method == "POST" || method == "PUT" {
+ 		return c.doFollowingRedirects(req, shouldRedirectPost)
+ 	}
+ 	return c.send(req)
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 01575f33a5..d706d8e1b6 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1057,11 +1057,13 @@ func (r *Request) closeBody() {
+ }
+ 
+ func (r *Request) isReplayable() bool {
+-	return r.Body == nil &&
+-		(r.Method == "GET" ||
+-			r.Method == "HEAD" ||
+-			r.Method == "OPTIONS" ||
+-			r.Method == "TRACE")
++	if r.Body == nil {
++		switch valueOrDefault(r.Method, "GET") {
++		case "GET", "HEAD", "OPTIONS", "TRACE":
++			return true
++		}
++	}
++	return false
+ }
+ 
+ func validHostHeader(h string) bool {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index b452f33ad6..480226af82 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -56,7 +56,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 		if rr.ContentLength != 0 && rr.Body == nil {
+ 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
+ 		}
+-		t.Method = rr.Method
++		t.Method = valueOrDefault(rr.Method, "GET")
+ 		t.Body = rr.Body
+ 		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength

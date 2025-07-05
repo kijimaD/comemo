@@ -11,7 +11,7 @@ Date:   Fri Dec 4 10:11:32 2009 -0800
     R=r
     CC=barry.d.silverman, bss, vadim
     https://golang.org/cl/165057
-
+---
  src/all-nacl.bash                  | 11 +++++++++++
  src/make.bash                      |  2 +-
  src/pkg/Makefile                   |  2 ++
@@ -30,3 +30,376 @@ Date:   Fri Dec 4 10:11:32 2009 -0800
  src/pkg/syscall/ztypes_nacl_386.go |  1 +
  test/run-nacl                      |  3 +++
  17 files changed, 158 insertions(+), 20 deletions(-)
+
+diff --git a/src/all-nacl.bash b/src/all-nacl.bash
+old mode 100644
+new mode 100755
+index b022b4341e..dce9e62545
+--- a/src/all-nacl.bash
++++ b/src/all-nacl.bash
+@@ -5,6 +5,9 @@
+ 
+ # TODO(rsc): delete in favor of all.bash once nacl support is complete
+ 
++export GOARCH=386
++export GOOS=nacl
++
+ set -e
+ bash make.bash
+ 
+@@ -22,6 +25,14 @@ make install
+ make install
+ ) || exit $?
+ 
++(xcd pkg/exp/4s
++make
++) || exit $?
++
++(xcd pkg/exp/spacewar
++make
++) || exit $?
++
+ (xcd ../test
+ ./run-nacl
+ ) || exit $?
+diff --git a/src/make.bash b/src/make.bash
+index c3e7c6c257..eb537eae97 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -82,7 +82,7 @@ bash clean.bash
+ for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
+ do
+ 	case "$i-$GOOS" in
+-	libcgo-nacl)
++	libcgo-nacl | cmd/*-nacl)
+ 		;;
+ 	*)
+ 		# The ( ) here are to preserve the current directory
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index dd2a8584e8..7643bee955 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -50,6 +50,7 @@ DIRS=\
+ 	encoding/pem\
+ 	exec\
+ 	exp/datafmt\
++	exp/draw\
+ 	exp/eval\
+ 	exp/exception\
+ 	exp/iterable\
+@@ -105,6 +106,7 @@ DIRS=\
+ 
+ NOTEST=\
+ 	debug/proc\
++	exp/draw\
+ 	go/ast\
+ 	go/doc\
+ 	go/token\
+diff --git a/src/pkg/exp/4s/4s.go b/src/pkg/exp/4s/4s.go
+index f230572016..ffd9d53705 100644
+--- a/src/pkg/exp/4s/4s.go
++++ b/src/pkg/exp/4s/4s.go
+@@ -5,6 +5,8 @@
+ // This is a simple demo of Go running under Native Client.
+ // It is a tetris clone built on top of the exp/nacl/av and exp/draw
+ // packages.
++//
++// See ../nacl/README for how to run it.
+ package main
+ 
+ import (
+diff --git a/src/pkg/exp/4s/4s.html b/src/pkg/exp/4s/4s.html
+index 3a4a3956ab..924f8b1182 100644
+--- a/src/pkg/exp/4s/4s.html
++++ b/src/pkg/exp/4s/4s.html
+@@ -1,10 +1,26 @@
+-<html>
+-<head>
+-<title>Go in Native Client</title>
+-</head>
+-<body>
++
++
+ <h1>games/4s</h1>
++<table><tr><td valign=top>
+ <embed name="nacl_module" id="pluginobj" src="8.out" type="application/x-nacl-srpc" width=400 height=600>
+-</body>
+-</html>
+-
++<td valign=top>
++This is a simple block stacking game, a port of Plan 9's
++<a href="http://plan9.bell-labs.com/magic/man2html/1/games">games/4s</a>
++<br><br>
++To play using the keyboard:
++as the blocks fall, the <i>a</i>, <i>s</i>, <i>d</i>, and <i>f</i> keys
++move the block left, rotate the block left, rotate the block right,
++anad move the block right, respectively.
++To drop a block, type the space key.
++<b>You may need to click on the game window to 
++focus the keyboard on it.</b>
++<br><br>
++To play using the mouse:
++as the blocks fall, moving the mouse horizontally positions
++the block; left or right clicks rotate the block left or right.
++A middle click drops the block.
++(Unfortunately, some environments seem to intercept
++the middle click before it gets to Native Client.)
++<br><br>
++To pause the game, type <i>z</i>, <i>p</i>, or the escape key.
++</table>
+diff --git a/src/pkg/exp/4s/5s.go b/src/pkg/exp/4s/5s.go
+new file mode 100644
+index 0000000000..08899193ee
+--- /dev/null
++++ b/src/pkg/exp/4s/5s.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Hack to produce a binary that defaults to 5s.
++
++package main
++
++func init()	{ pieces4 = pieces5 }
+diff --git a/src/pkg/exp/4s/5s.html b/src/pkg/exp/4s/5s.html
+new file mode 100644
+index 0000000000..5fa1107536
+--- /dev/null
++++ b/src/pkg/exp/4s/5s.html
+@@ -0,0 +1,26 @@
++
++
++<h1>games/5s</h1>
++<table><tr><td valign=top>
++<embed name="nacl_module" id="pluginobj" src="8.5s" type="application/x-nacl-srpc" width=400 height=600>
++<td valign=top>
++This is a simple block stacking game, a port of Plan 9's
++<a href="http://plan9.bell-labs.com/magic/man2html/1/games">games/5s</a>
++<br><br>
++To play using the keyboard:
++as the blocks fall, the <i>a</i>, <i>s</i>, <i>d</i>, and <i>f</i> keys
++move the block left, rotate the block left, rotate the block right,
++anad move the block right, respectively.
++To drop a block, type the space key.
++<b>You may need to click on the game window to 
++focus the keyboard on it.</b>
++<br><br>
++To play using the mouse:
++as the blocks fall, moving the mouse horizontally positions
++the block; left or right clicks rotate the block left or right.
++A middle click drops the block.
++(Unfortunately, some environments seem to intercept
++the middle click before it gets to Native Client.)
++<br><br>
++To pause the game, type <i>z</i>, <i>p</i>, or the escape key.
++</table>
+diff --git a/src/pkg/exp/4s/Makefile b/src/pkg/exp/4s/Makefile
+index a50048f543..8ad3905912 100644
+--- a/src/pkg/exp/4s/Makefile
++++ b/src/pkg/exp/4s/Makefile
+@@ -2,13 +2,19 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-all: 8.out
++all: 8.out 8.5s
+ 
+ 4s.8: 4s.go data.go xs.go
+ 	8g 4s.go data.go xs.go
+ 
++5s.8: 5s.go 4s.go data.go xs.go
++	8g 5s.go 4s.go data.go xs.go
++
+ 8.out: 4s.8
+ 	8l 4s.8
+ 
++8.5s: 5s.8
++	8l -o 8.5s 5s.8
++
+ clean:
+ 	rm -f *.8 8.out
+diff --git a/src/pkg/exp/4s/xs.go b/src/pkg/exp/4s/xs.go
+index 93509ccd88..ae994d2c36 100644
+--- a/src/pkg/exp/4s/xs.go
++++ b/src/pkg/exp/4s/xs.go
+@@ -726,7 +726,7 @@ func Play(pp []Piece, ctxt draw.Context) {
+ 	pieces = pp;
+ 	N = len(pieces[0].d);
+ 	initPieces();
+-	rand.Seed(int32(time.Nanoseconds() % (1e9 - 1)));
++	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)));
+ 	whitemask = draw.White.SetAlpha(0x7F);
+ 	tsleep = 50;
+ 	timerc = time.Tick(int64(tsleep/2) * 1e6);
+diff --git a/src/pkg/exp/nacl/README b/src/pkg/exp/nacl/README
+new file mode 100644
+index 0000000000..ec18f1d323
+--- /dev/null
++++ b/src/pkg/exp/nacl/README
+@@ -0,0 +1,36 @@
++Native Client support is still incomplete:
++Native Client does not yet allow runtime code generation,
++so Go's many uses of closures do not work.
++
++To try Native Client by running 4s (tetris) or 5s or Spacewar:
++
++1. Build the Go distribution for your native system.
++
++2. Download Native Client and install it.
++	http://nativeclient.googlecode.com/svn/trunk/src/native_client/documentation/getting_started.html
++    * You can stop after step 4 on those instructions
++    (the ./scons --prebuilt firefox_install).
++
++3. (optional) Install "./build/native_client/scons-out/opt-*/staging/sel_ldr"
++   from the Native Client distribution somewhere in your path as "nacl".
++   This will let you run binaries using "nacl 8.out".
++
++4. Build the Go distribution again, this time for Native Client:
++	cd $GOROOT/src
++	./all-nacl.bash
++   * If you didn't do step 3, the tests at the end will fail, but that's okay.
++   * If you are on a Mac, your dock will flicker as the "nacl" binary
++   starts and stops while the tests run.  You can stop the tests at any time.
++
++5. Run "godoc --http=:5103".
++   * This will run the godoc built for your host OS, not Native Client,
++   because all-nacl.bash doesn't install a nacl godoc.
++   * Note that there is a colon before the 5103 in the argument
++   (shorthand for 0.0.0.0:5103).
++   * The port must be 5103: that's the only port that Native Client
++   trusts to run binaries from.
++
++6. Open Firefox and visit one of:
++  * http://localhost:5103/src/pkg/exp/4s/4s.html
++  * http://localhost:5103/src/pkg/exp/4s/5s.html [sic]
++  * http://localhost:5103/src/pkg/exp/spacewar/spacewar.html
+diff --git a/src/pkg/exp/spacewar/pdp1.go b/src/pkg/exp/spacewar/pdp1.go
+index 5316841731..d961030d92 100644
+--- a/src/pkg/exp/spacewar/pdp1.go
++++ b/src/pkg/exp/spacewar/pdp1.go
+@@ -21,6 +21,7 @@
+ 
+ // This package and spacewar.go implement a simple PDP-1 emulator
+ // complete enough to run the original PDP-1 video game Spacewar!
++// See ../../nacl/README for details on running them.
+ //
+ // They are a translation of the Java emulator pdp1.java in
+ // http://spacewar.oversigma.com/sources/sources.zip.
+diff --git a/src/pkg/exp/spacewar/spacewar.go b/src/pkg/exp/spacewar/spacewar.go
+index 6edbcea587..40976a4207 100644
+--- a/src/pkg/exp/spacewar/spacewar.go
++++ b/src/pkg/exp/spacewar/spacewar.go
+@@ -19,6 +19,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++// See ../../nacl/README.
++
+ package main
+ 
+ import (
+diff --git a/src/pkg/exp/spacewar/spacewar.html b/src/pkg/exp/spacewar/spacewar.html
+index 88904573f7..8f49b1c348 100644
+--- a/src/pkg/exp/spacewar/spacewar.html
++++ b/src/pkg/exp/spacewar/spacewar.html
+@@ -1,10 +1,21 @@
+-<html>
+-<head>
+-<title>Go in Native Client</title>
+-</head>
+-<body>
++
+ <h1>Spacewar</h1>
++<table>
++<tr><td valign=top>
+ <embed name="nacl_module" id="pluginobj" src="8.out" type="application/x-nacl-srpc" width=512 height=512>
+-</body>
+-</html>
++<td valign=top>
++This is a Go translation of the Java emulator pdp1.java in
++<a href="http://spacewar.oversigma.com/sources/sources.zip">http://spacewar.oversigma.com/sources/sources.zip</a>.
++See <a href="pdp1.go">pdp1.go</a>, <a href="spacewar.go">spacewar.go</a>,
++and
++<a href="http://spacewar.oversigma.com/readme.html">http://spacewar.oversigma.com/readme.html</a>.
++<br><br>
++The <i>a</i>, <i>s</i>, <i>d</i>, <i>f</i> keys control one of the spaceships. The <i>k</i>,
++<i>l</i>, <i>;</i>, <i>'</i> keys control the other. The controls are spin one
++way, spin the other, thrust, and fire.
++<br>
++<br>
++<b>You may need to click on the game window to 
++focus the keyboard on it.</b>
+ 
++</table>
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index 7bd2b06fe1..b8a4ac5051 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -236,7 +236,9 @@ const (
+ 	TCP_NODELAY;
+ 	WNOHANG;
+ 	WSTOPPED;
+-	_PTRACE_TRACEME;
++	PTRACE_TRACEME;
++	SO_BROADCAST	= 0;
++	SHUT_RDWR	= 0;
+ )
+ 
+ func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
+@@ -263,6 +265,16 @@ func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+ 	return ENACL
+ }
+ 
++func Shutdown(fd, how int) (errno int)	{ return ENACL }
++
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
++	return 0, nil, ENACL
++}
++
++func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
++	return ENACL
++}
++
+ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
+ 	return ENACL
+ }
+diff --git a/src/pkg/syscall/types_nacl.c b/src/pkg/syscall/types_nacl.c
+index 76be783271..b99d203b25 100644
+--- a/src/pkg/syscall/types_nacl.c
++++ b/src/pkg/syscall/types_nacl.c
+@@ -50,7 +50,7 @@ enum {
+ 	$SYS_CHDIR = 0,
+ 	$SYS_DUP2 = 0,
+ 	$SYS_FCNTL = 0,
+-	$SYS_EXECVE = 0
++	$SYS_EXECVE = 0,
+ };
+ 
+ // Basic types
+diff --git a/src/pkg/syscall/ztypes_nacl_386.go b/src/pkg/syscall/ztypes_nacl_386.go
+index 4bf66a4aa8..27bcc43bf9 100644
+--- a/src/pkg/syscall/ztypes_nacl_386.go
++++ b/src/pkg/syscall/ztypes_nacl_386.go
+@@ -31,6 +31,7 @@ const (
+ 	O_SYNC		= 0x1000;
+ 	O_TRUNC		= 0x200;
+ 	O_CLOEXEC	= 0;
++	O_EXCL		= 0;
+ 	F_GETFD		= 0x1;
+ 	F_SETFD		= 0x2;
+ 	F_GETFL		= 0x3;
+diff --git a/test/run-nacl b/test/run-nacl
+index 894ad602a6..7b477fc412 100755
+--- a/test/run-nacl
++++ b/test/run-nacl
+@@ -5,6 +5,9 @@
+ 
+ case X"$GOARCH" in
+ X386)
++	# After downloading the Native Client binary distribution,
++	# copy build/native_client/scons-out/opt-*/obj/src/trusted/service_runtime/sel_ldr
++	# into your path as "nacl"
+ 	export A=8
+ 	export E=nacl
+ 	;;

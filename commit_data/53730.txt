@@ -16,6 +16,21 @@ Date:   Wed Aug 31 09:37:22 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6372054929..37fc5eaae0 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -718,7 +718,8 @@ func (t *tester) registerTests() {
+ 			name:    "pie_internal",
+ 			heading: "internal linking of -buildmode=pie",
+ 			fn: func(dt *distTest) error {
+-				t.addCmd(dt, "src", t.goTest(), "reflect", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
++				cmd := t.addCmd(dt, "src", t.goTest(), "reflect", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60))
++				setEnv(cmd, "CGO_ENABLED", "0")
+ 				return nil
+ 			},
+ 		})

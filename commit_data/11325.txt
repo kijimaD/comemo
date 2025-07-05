@@ -7,7 +7,55 @@ Date:   Mon Jan 23 01:32:07 2012 -0200
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5564046
-
+---
  src/pkg/encoding/xml/marshal.go | 9 ++++-----
  src/pkg/encoding/xml/read.go    | 5 +++--
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index 1cb6b5b146..7724e93f89 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -15,14 +15,13 @@ import (
+ )
+ 
+ const (
+-	// A generic XML header suitable for use with the output of Marshal and
+-	// MarshalIndent.  This is not automatically added to any output of this
+-	// package, it is provided as a convenience.
++	// A generic XML header suitable for use with the output of Marshal.
++	// This is not automatically added to any output of this package,
++	// it is provided as a convenience.
+ 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+ )
+ 
+ // A Marshaler can produce well-formatted XML representing its internal state.
+-// It is used by both Marshal and MarshalIndent.
+ type Marshaler interface {
+ 	MarshalXML() ([]byte, error)
+ }
+@@ -368,7 +367,7 @@ func (s *parentStack) push(parents []string) {
+ 	s.stack = append(s.stack, parents...)
+ }
+ 
+-// A MarshalXMLError is returned when Marshal or MarshalIndent encounter a type
++// A MarshalXMLError is returned when Marshal encounters a type
+ // that cannot be converted into XML.
+ type UnsupportedTypeError struct {
+ 	Type reflect.Type
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index a795fdec79..78e02018cf 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -78,8 +78,9 @@ import (
+ // field tag.
+ //
+ // Because Unmarshal uses the reflect package, it can only assign
+-// to exported (upper case) fields.  Unmarshal uses a case-insensitive
+-// comparison to match XML element names to struct field names.
++// to exported (upper case) fields.  Unmarshal uses a case-sensitive
++// comparison to match XML element names to tag values and struct
++// field names.
+ //
+ // Unmarshal maps an XML element to a struct using the following rules.
+ // In the rules, the tag of a field refers to the value associated with the

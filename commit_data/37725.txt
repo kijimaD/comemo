@@ -16,6 +16,21 @@ Date:   Fri Aug 3 14:52:39 2018 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 20e794b4be..019ee64c8e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1693,6 +1693,9 @@ func (p *Package) gccErrors(stdin []byte) string {
+ 		}
+ 	}
+ 
++	// Force -O0 optimization
++	nargs = append(nargs, "-O0")
++
+ 	if *debugGcc {
+ 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
+ 		os.Stderr.Write(stdin)

@@ -7,10 +7,161 @@ Date:   Fri Oct 1 14:14:18 2010 +1000
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2308043
-
+---
  misc/dashboard/builder/hg.go     |  3 ++-
  misc/dashboard/builder/main.go   | 20 ++++++++------------
  src/pkg/go/printer/printer.go    |  2 +-
  src/pkg/image/png/writer_test.go |  4 ++--
  src/pkg/rpc/jsonrpc/client.go    |  2 +-
  5 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/misc/dashboard/builder/hg.go b/misc/dashboard/builder/hg.go
+index b15a2e381c..63062cca13 100644
+--- a/misc/dashboard/builder/hg.go
++++ b/misc/dashboard/builder/hg.go
+@@ -1,6 +1,7 @@
+ package main
+ 
+ import (
++	"fmt"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -19,7 +20,7 @@ type Commit struct {
+ func getCommit(rev string) (c Commit, err os.Error) {
+ 	defer func() {
+ 		if err != nil {
+-			err = errf("getCommit: %s: %s", rev, err)
++			err = fmt.Errorf("getCommit: %s: %s", rev, err)
+ 		}
+ 	}()
+ 	parts, err := getCommitParts(rev)
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 374374b962..fa48e07f20 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -156,7 +156,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
+ 	if len(s) == 2 {
+ 		b.goos, b.goarch = s[0], s[1]
+ 	} else {
+-		return nil, errf("unsupported builder form: %s", builder)
++		return nil, fmt.Errorf("unsupported builder form: %s", builder)
+ 	}
+ 
+ 	// read keys from keyfile
+@@ -166,7 +166,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
+ 	}
+ 	c, err := ioutil.ReadFile(fn)
+ 	if err != nil {
+-		return nil, errf("readKeys %s (%s): %s", b.name, fn, err)
++		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
+ 	}
+ 	v := strings.Split(string(c), "\n", -1)
+ 	b.key = v[0]
+@@ -207,7 +207,7 @@ func (b *Builder) build() bool {
+ func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
+ 	defer func() {
+ 		if err != nil {
+-			err = errf("%s nextCommit: %s", b.name, err)
++			err = fmt.Errorf("%s nextCommit: %s", b.name, err)
+ 		}
+ 	}()
+ 	hw, err := b.getHighWater()
+@@ -229,7 +229,7 @@ func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
+ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	defer func() {
+ 		if err != nil {
+-			err = errf("%s buildCommit: %d: %s", b.name, c.num, err)
++			err = fmt.Errorf("%s buildCommit: %d: %s", b.name, c.num, err)
+ 		}
+ 	}()
+ 
+@@ -271,7 +271,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	// build
+ 	buildLog, status, err := runLog(env, srcDir, *buildCmd)
+ 	if err != nil {
+-		return errf("all.bash: %s", err)
++		return fmt.Errorf("all.bash: %s", err)
+ 	}
+ 	if status != 0 {
+ 		// record failure
+@@ -280,7 +280,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 
+ 	// record success
+ 	if err = b.recordResult("", c); err != nil {
+-		return errf("recordResult: %s", err)
++		return fmt.Errorf("recordResult: %s", err)
+ 	}
+ 
+ 	// send benchmark request if benchmarks are enabled
+@@ -303,13 +303,13 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 		// clean out build state
+ 		err = run(env, srcDir, "./clean.bash", "--nopkg")
+ 		if err != nil {
+-			return errf("clean.bash: %s", err)
++			return fmt.Errorf("clean.bash: %s", err)
+ 		}
+ 		// upload binary release
+ 		fn := fmt.Sprintf("%s.%s-%s.tar.gz", release, b.goos, b.goarch)
+ 		err = run(nil, workpath, "tar", "czf", fn, "go")
+ 		if err != nil {
+-			return errf("tar: %s", err)
++			return fmt.Errorf("tar: %s", err)
+ 		}
+ 		err = run(nil, workpath, "python",
+ 			path.Join(goroot, codePyScript),
+@@ -333,7 +333,3 @@ func isFile(name string) bool {
+ 	s, err := os.Stat(name)
+ 	return err == nil && (s.IsRegular() || s.IsSymlink())
+ }
+-
+-func errf(format string, args ...interface{}) os.Error {
+-	return os.NewError(fmt.Sprintf(format, args))
+-}
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index cdc8cf518d..f8b5871d09 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -1091,7 +1091,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+ 			p.useNodeComments = n.Comments == nil
+ 			p.file(n)
+ 		default:
+-			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
++			p.errors <- fmt.Errorf("printer.Fprint: unsupported node type %T", n)
+ 			runtime.Goexit()
+ 		}
+ 		p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index f25873ebe5..0fb7bebaed 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -15,14 +15,14 @@ import (
+ func diff(m0, m1 image.Image) os.Error {
+ 	b0, b1 := m0.Bounds(), m1.Bounds()
+ 	if !b0.Eq(b1) {
+-		return os.NewError(fmt.Sprintf("dimensions differ: %v vs %v", b0, b1))
++		return fmt.Errorf("dimensions differ: %v vs %v", b0, b1)
+ 	}
+ 	for y := b0.Min.Y; y < b0.Max.Y; y++ {
+ 		for x := b0.Min.X; x < b0.Max.X; x++ {
+ 			r0, g0, b0, a0 := m0.At(x, y).RGBA()
+ 			r1, g1, b1, a1 := m1.At(x, y).RGBA()
+ 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
+-				return os.NewError(fmt.Sprintf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y)))
++				return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y))
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/rpc/jsonrpc/client.go b/src/pkg/rpc/jsonrpc/client.go
+index b34ffab056..dcaa69f9df 100644
+--- a/src/pkg/rpc/jsonrpc/client.go
++++ b/src/pkg/rpc/jsonrpc/client.go
+@@ -87,7 +87,7 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
+ 	if c.resp.Error != nil {
+ 		x, ok := c.resp.Error.(string)
+ 		if !ok {
+-			return os.NewError(fmt.Sprintf("invalid error %v", c.resp.Error))
++			return fmt.Errorf("invalid error %v", c.resp.Error)
+ 		}
+ 		if x == "" {
+ 			x = "unspecified error"

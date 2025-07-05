@@ -12,10 +12,84 @@ Date:   Thu Nov 1 19:06:52 2012 +0100
     R=golang-dev, rsc, lvd
     CC=golang-dev
     https://golang.org/cl/6813067
-
+---
  src/cmd/gc/export.c             | 11 +++++++++++
  test/fixedbugs/bug467.dir/p1.go |  5 +++++
  test/fixedbugs/bug467.dir/p2.go |  5 +++++
  test/fixedbugs/bug467.dir/p3.go |  7 +++++++
  test/fixedbugs/bug467.go        | 10 ++++++++++
  5 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index d139808913..7f977874a1 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -119,6 +119,17 @@ reexportdep(Node *n)
+ 		}
+ 		break;
+ 
++	case ODCL:
++		// Local variables in the bodies need their type.
++		t = n->left->type;
++		if(t != types[t->etype] && t != idealbool && t != idealstring) {
++			if(isptr[t->etype])
++				t = t->type;
++			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
++				exportlist = list(exportlist, t->sym->def);
++			}
++		}
++		break;
+ 
+ 	case OLITERAL:
+ 		t = n->type;
+diff --git a/test/fixedbugs/bug467.dir/p1.go b/test/fixedbugs/bug467.dir/p1.go
+new file mode 100644
+index 0000000000..538b554f8e
+--- /dev/null
++++ b/test/fixedbugs/bug467.dir/p1.go
+@@ -0,0 +1,5 @@
++package p1
++
++type SockaddrUnix int
++
++func (s SockaddrUnix) Error() string { return "blah" }
+diff --git a/test/fixedbugs/bug467.dir/p2.go b/test/fixedbugs/bug467.dir/p2.go
+new file mode 100644
+index 0000000000..d80d3a30b1
+--- /dev/null
++++ b/test/fixedbugs/bug467.dir/p2.go
+@@ -0,0 +1,5 @@
++package p2
++
++import "./p1"
++
++func SockUnix() error { var s *p1.SockaddrUnix; return s }
+diff --git a/test/fixedbugs/bug467.dir/p3.go b/test/fixedbugs/bug467.dir/p3.go
+new file mode 100644
+index 0000000000..c795646472
+--- /dev/null
++++ b/test/fixedbugs/bug467.dir/p3.go
+@@ -0,0 +1,7 @@
++package main
++
++import "./p2"
++
++func main() {
++	_ = p2.SockUnix()
++}
+diff --git a/test/fixedbugs/bug467.go b/test/fixedbugs/bug467.go
+new file mode 100644
+index 0000000000..d73adbadff
+--- /dev/null
++++ b/test/fixedbugs/bug467.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Exported data for inlining could forget types of
++// local variables declared in inlinable bodies.
++
++package ignored

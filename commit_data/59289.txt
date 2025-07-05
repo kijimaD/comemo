@@ -15,6 +15,19 @@ Date:   Tue Feb 27 13:22:40 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/cgo/gcc_libinit.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 09ba38b6d0..33a9ff93ca 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -8,6 +8,7 @@
+ // and cause a compiler warning. This results in a build failure since
+ // cgo uses -Werror. See #65290.
+ #pragma GCC diagnostic ignored "-Wpragmas"
++#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+ #pragma GCC diagnostic ignored "-Watomic-alignment"
+ 
+ #include <pthread.h>

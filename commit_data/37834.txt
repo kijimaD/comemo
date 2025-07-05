@@ -32,8 +32,93 @@ Date:   Fri Aug 31 02:15:26 2018 +0200
     Change-Id: I3dbcb1955ac5a66a0dcbee500f41e8d219409be5
     Reviewed-on: https://go-review.googlesource.com/132495
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  9 +++++++--
  test/fixedbugs/issue27289.go          | 24 ++++++++++++++++++++++++
  test/prove.go                         |  4 +++-
  3 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index c20f8b7ebc..af2b9ef0ed 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -425,13 +425,13 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 			//
+ 			// Useful for i > 0; s[i-1].
+ 			lim, ok := ft.limits[x.ID]
+-			if ok && lim.min > opMin[v.Op] {
++			if ok && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
+ 				ft.update(parent, x, w, d, gt)
+ 			}
+ 		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
+ 			// v >= x+1 && x < max  ⇒  v > x
+ 			lim, ok := ft.limits[x.ID]
+-			if ok && lim.max < opMax[w.Op] {
++			if ok && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
+ 				ft.update(parent, v, x, d, gt)
+ 			}
+ 		}
+@@ -527,6 +527,11 @@ var opMax = map[Op]int64{
+ 	OpAdd32: math.MaxInt32, OpSub32: math.MaxInt32,
+ }
+ 
++var opUMax = map[Op]uint64{
++	OpAdd64: math.MaxUint64, OpSub64: math.MaxUint64,
++	OpAdd32: math.MaxUint32, OpSub32: math.MaxUint32,
++}
++
+ // isNonNegative reports whether v is known to be non-negative.
+ func (ft *factsTable) isNonNegative(v *Value) bool {
+ 	if isNonNegative(v) {
+diff --git a/test/fixedbugs/issue27289.go b/test/fixedbugs/issue27289.go
+new file mode 100644
+index 0000000000..293b9d0055
+--- /dev/null
++++ b/test/fixedbugs/issue27289.go
+@@ -0,0 +1,24 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we don't prove that the bounds check failure branch is unreachable.
++
++package main
++
++//go:noinline
++func f(a []int) {
++	_ = a[len(a)-1]
++}
++
++func main() {
++	defer func() {
++		if err := recover(); err != nil {
++			return
++		}
++		panic("f should panic")
++	}()
++	f(nil)
++}
+diff --git a/test/prove.go b/test/prove.go
+index 45cee9e8b5..79256893b3 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -542,7 +542,7 @@ func fence2(x, y int) {
+ 	}
+ }
+ 
+-func fence3(b []int, x, y int64) {
++func fence3(b, c []int, x, y int64) {
+ 	if x-1 >= y {
+ 		if x <= y { // Can't prove because x may have wrapped.
+ 			return
+@@ -555,6 +555,8 @@ func fence3(b []int, x, y int64) {
+ 		}
+ 	}
+ 
++	c[len(c)-1] = 0 // Can't prove because len(c) might be 0
++
+ 	if n := len(b); n > 0 {
+ 		b[n-1] = 0 // ERROR "Proved IsInBounds$"
+ 	}

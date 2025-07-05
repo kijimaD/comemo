@@ -20,8 +20,158 @@ Date:   Thu Aug 18 03:14:23 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go   | 64 +++++++++++++++++++-----------
  src/cmd/compile/internal/noder/writer.go   | 19 +++++++++
  src/cmd/compile/internal/test/inst_test.go |  4 --
  3 files changed, 59 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 155244e0b5..9280232fc9 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -795,18 +795,31 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
+ }
+ 
+ // shapify returns the shape type for targ.
+-func shapify(targ *types.Type) *types.Type {
+-	if targ.IsShape() {
+-		return targ
+-	}
+-
++//
++// If basic is true, then the type argument is used to instantiate a
++// type parameter whose constraint is a basic interface.
++func shapify(targ *types.Type, basic bool) *types.Type {
+ 	base.Assertf(targ.Kind() != types.TFORW, "%v is missing its underlying type", targ)
+ 
+-	// TODO(go.dev/issue/54513): Better shaping than merely converting
+-	// to underlying type. E.g., shape pointer types to unsafe.Pointer
+-	// when we know the element type doesn't matter, and then enable
+-	// cmd/compile/internal/test.TestInst.
++	// When a pointer type is used to instantiate a type parameter
++	// constrained by a basic interface, we know the pointer's element
++	// type can't matter to the generated code. In this case, we can use
++	// an arbitrary pointer type as the shape type. (To match the
++	// non-unified frontend, we use `*byte`.)
++	//
++	// Otherwise, we simply use the type's underlying type as its shape.
++	//
++	// TODO(mdempsky): It should be possible to do much more aggressive
++	// shaping still; e.g., collapsing all pointer-shaped types into a
++	// common type, collapsing scalars of the same size/alignment into a
++	// common type, recursively shaping the element types of composite
++	// types, and discarding struct field names and tags. However, we'll
++	// need to start tracking how type parameters are actually used to
++	// implement some of these optimizations.
+ 	under := targ.Underlying()
++	if basic && targ.IsPtr() && !targ.Elem().NotInHeap() {
++		under = types.NewPtr(types.Types[types.TUINT8])
++	}
+ 
+ 	sym := types.ShapePkg.Lookup(under.LinkString())
+ 	if sym.Def == nil {
+@@ -839,6 +852,20 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
+ 	dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
+ 	dict.implicits = nimplicits
+ 
++	// Within the compiler, we can just skip over the type parameters.
++	for range dict.targs[dict.implicits:] {
++		// Skip past bounds without actually evaluating them.
++		r.typInfo()
++	}
++
++	dict.derived = make([]derivedInfo, r.Len())
++	dict.derivedTypes = make([]*types.Type, len(dict.derived))
++	for i := range dict.derived {
++		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
++	}
++
++	// Runtime dictionary information; private to the compiler.
++
+ 	// If any type argument is already shaped, then we're constructing a
+ 	// shaped object, even if not explicitly requested (i.e., calling
+ 	// objIdx with shaped==true). This can happen with instantiating
+@@ -852,26 +879,15 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
+ 
+ 	// And if we're constructing a shaped object, then shapify all type
+ 	// arguments.
+-	if dict.shaped {
+-		for i, targ := range dict.targs {
+-			dict.targs[i] = shapify(targ)
++	for i, targ := range dict.targs {
++		basic := r.Bool()
++		if dict.shaped {
++			dict.targs[i] = shapify(targ, basic)
+ 		}
+ 	}
+ 
+ 	dict.baseSym = dict.mangle(sym)
+ 
+-	// For stenciling, we can just skip over the type parameters.
+-	for range dict.targs[dict.implicits:] {
+-		// Skip past bounds without actually evaluating them.
+-		r.typInfo()
+-	}
+-
+-	dict.derived = make([]derivedInfo, r.Len())
+-	dict.derivedTypes = make([]*types.Type, len(dict.derived))
+-	for i := range dict.derived {
+-		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+-	}
+-
+ 	dict.typeParamMethodExprs = make([]readerMethodExprInfo, r.Len())
+ 	for i := range dict.typeParamMethodExprs {
+ 		typeParamIdx := r.Len()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index a90b2d3bbd..a90aec9fc8 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -846,6 +846,25 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 	// N.B., the go/types importer reads up to the section, but doesn't
+ 	// read any further, so it's safe to change. (See TODO above.)
+ 
++	// For each type parameter, write out whether the constraint is a
++	// basic interface. This is used to determine how aggressively we
++	// can shape corresponding type arguments.
++	//
++	// This is somewhat redundant with writing out the full type
++	// parameter constraints above, but the compiler currently skips
++	// over those. Also, we don't care about the *declared* constraints,
++	// but how the type parameters are actually *used*. E.g., if a type
++	// parameter is constrained to `int | uint` but then never used in
++	// arithmetic/conversions/etc, we could shape those together.
++	for _, implicit := range dict.implicits {
++		tparam := implicit.Type().(*types2.TypeParam)
++		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
++	}
++	for i := 0; i < ntparams; i++ {
++		tparam := tparams.At(i)
++		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
++	}
++
+ 	w.Len(len(dict.typeParamMethodExprs))
+ 	for _, info := range dict.typeParamMethodExprs {
+ 		w.Len(info.typeParamIdx)
+diff --git a/src/cmd/compile/internal/test/inst_test.go b/src/cmd/compile/internal/test/inst_test.go
+index 951f6a05aa..d171bd5111 100644
+--- a/src/cmd/compile/internal/test/inst_test.go
++++ b/src/cmd/compile/internal/test/inst_test.go
+@@ -5,7 +5,6 @@
+ package test
+ 
+ import (
+-	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -18,9 +17,6 @@ import (
+ // TestInst tests that only one instantiation of Sort is created, even though generic
+ // Sort is used for multiple pointer types across two packages.
+ func TestInst(t *testing.T) {
+-	if goexperiment.Unified {
+-		t.Skip("unified currently does stenciling, not dictionaries")
+-	}
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveGoRun(t)
+ 

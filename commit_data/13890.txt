@@ -11,10 +11,350 @@ Date:   Fri Sep 21 12:51:39 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6489131
-
+---
  src/cmd/5l/asm.c | 25 ++++++++++----
  src/cmd/6l/asm.c | 25 ++++++++++----
  src/cmd/8l/asm.c | 25 ++++++++++----
  src/cmd/ld/elf.c | 99 +++++++++++++++++++++++++++++++++++++++++++++-----------
  src/cmd/ld/elf.h |  2 ++
  5 files changed, 136 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index f31c2f734f..b265a15cdb 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -77,6 +77,7 @@ enum {
+ 	ElfStrGnuVersion,
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
++	ElfStrNoteOpenbsdIdent,
+ 	ElfStrNoPtrData,
+ 	ElfStrNoPtrBss,
+ 	NElfStr
+@@ -504,6 +505,8 @@ doelf(void)
+ 	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
++	if(HEADTYPE == Hopenbsd)
++		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gcdata");
+ 	addstring(shstrtab, ".gcbss");
+@@ -685,7 +688,7 @@ asmb(void)
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
+-		if(HEADTYPE == Hnetbsd)
++		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
+ 			elftextsh += 1;
+ 	}
+ 
+@@ -846,12 +849,18 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
+-		if(HEADTYPE == Hnetbsd) {
+-			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
+-			sh->type = SHT_NOTE;
+-			sh->flags = SHF_ALLOC;
+-			sh->addralign = 4;
+-			resoff -= elfnetbsdsig(sh, startva, resoff);
++		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
++			sh = nil;
++			switch(HEADTYPE) {
++			case Hnetbsd:
++				sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
++				resoff -= elfnetbsdsig(sh, startva, resoff);
++				break;
++			case Hopenbsd:
++				sh = newElfShdr(elfstr[ElfStrNoteOpenbsdIdent]);
++				resoff -= elfopenbsdsig(sh, startva, resoff);
++				break;
++			}
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_NOTE;
+@@ -1027,6 +1036,8 @@ asmb(void)
+ 		a += elfwriteinterp(elfstr[ElfStrInterp]);
+ 		if(HEADTYPE == Hnetbsd)
+ 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
++		if(HEADTYPE == Hopenbsd)
++			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 3b7feeca43..05732d081d 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -95,6 +95,7 @@ enum {
+ 	ElfStrGnuVersion,
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
++	ElfStrNoteOpenbsdIdent,
+ 	ElfStrNoPtrData,
+ 	ElfStrNoPtrBss,
+ 	NElfStr
+@@ -577,6 +578,8 @@ doelf(void)
+ 	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
++	if(HEADTYPE == Hopenbsd)
++		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
+ 	addstring(shstrtab, ".elfdata");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gcdata");
+@@ -785,7 +788,7 @@ asmb(void)
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
+-		if(HEADTYPE == Hnetbsd)
++		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
+ 			elftextsh += 1;
+ 		break;
+ 	case Hwindows:
+@@ -956,12 +959,18 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
+-		if(HEADTYPE == Hnetbsd) {
+-			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
+-			sh->type = SHT_NOTE;
+-			sh->flags = SHF_ALLOC;
+-			sh->addralign = 4;
+-			resoff -= elfnetbsdsig(sh, startva, resoff);
++		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
++			sh = nil;
++			switch(HEADTYPE) {
++			case Hnetbsd:
++				sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
++				resoff -= elfnetbsdsig(sh, startva, resoff);
++				break;
++			case Hopenbsd:
++				sh = newElfShdr(elfstr[ElfStrNoteOpenbsdIdent]);
++				resoff -= elfopenbsdsig(sh, startva, resoff);
++				break;
++			}
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_NOTE;
+@@ -1151,6 +1160,8 @@ asmb(void)
+ 		a += elfwriteinterp(elfstr[ElfStrInterp]);
+ 		if(HEADTYPE == Hnetbsd)
+ 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
++		if(HEADTYPE == Hopenbsd)
++			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 87888d2bb2..4d7734f046 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -91,6 +91,7 @@ enum {
+ 	ElfStrGnuVersion,
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
++	ElfStrNoteOpenbsdIdent,
+ 	ElfStrNoPtrData,
+ 	ElfStrNoPtrBss,
+ 	NElfStr
+@@ -534,6 +535,8 @@ doelf(void)
+ 	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
++	if(HEADTYPE == Hopenbsd)
++		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
+ 	addstring(shstrtab, ".elfdata");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gcdata");
+@@ -723,7 +726,7 @@ asmb(void)
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
+-		if(HEADTYPE == Hnetbsd)
++		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
+ 			elftextsh += 1;
+ 	}
+ 
+@@ -997,12 +1000,18 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
+-		if(HEADTYPE == Hnetbsd) {
+-			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
+-			sh->type = SHT_NOTE;
+-			sh->flags = SHF_ALLOC;
+-			sh->addralign = 4;
+-			resoff -= elfnetbsdsig(sh, startva, resoff);
++		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
++			sh = nil;
++			switch(HEADTYPE) {
++			case Hnetbsd:
++				sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
++				resoff -= elfnetbsdsig(sh, startva, resoff);
++				break;
++			case Hopenbsd:
++				sh = newElfShdr(elfstr[ElfStrNoteOpenbsdIdent]);
++				resoff -= elfopenbsdsig(sh, startva, resoff);
++				break;
++			}
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_NOTE;
+@@ -1202,6 +1211,8 @@ asmb(void)
+ 		a += elfwriteinterp(elfstr[ElfStrInterp]);
+ 		if(HEADTYPE == Hnetbsd)
+ 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
++		if(HEADTYPE == Hopenbsd)
++			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index a4829da4e8..7e46c2767c 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -351,20 +351,16 @@ elfwriteinterp(vlong stridx)
+ 	return sh->size;
+ }
+ 
+-// Defined in NetBSD's sys/exec_elf.h
+-#define ELF_NOTE_TYPE_NETBSD_TAG	1
+-#define ELF_NOTE_NETBSD_NAMESZ		7
+-#define ELF_NOTE_NETBSD_DESCSZ		4
+-#define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
+-#define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
+-
+ int
+-elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
++elfnote(ElfShdr *sh, uint64 startva, uint64 resoff, int sz)
+ {
+-	int n;
++	uint64 n;
+ 
+-	n = sizeof(Elf_Note) + ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
+-	n += resoff % 4;
++	n = sizeof(Elf_Note) + sz + resoff % 4;
++
++	sh->type = SHT_NOTE;
++	sh->flags = SHF_ALLOC;
++	sh->addralign = 4;
+ 	sh->addr = startva + resoff - n;
+ 	sh->off = resoff - n;
+ 	sh->size = n;
+@@ -372,8 +368,9 @@ elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+ 	return n;
+ }
+ 
+-int
+-elfwritenetbsdsig(vlong stridx) {
++ElfShdr *
++elfwritenotehdr(vlong stridx, uint32 namesz, uint32 descsz, uint32 tag)
++{
+ 	ElfShdr *sh = nil;
+ 	int i;
+ 
+@@ -381,19 +378,83 @@ elfwritenetbsdsig(vlong stridx) {
+ 		if(shdr[i]->name == stridx)
+ 			sh = shdr[i];
+ 	if(sh == nil)
+-		return 0;
++		return nil;
+ 
+-	// Write Elf_Note header followed by NetBSD string.
++	// Write Elf_Note header.
+ 	cseek(sh->off);
+-	LPUT(ELF_NOTE_NETBSD_NAMESZ);
+-	LPUT(ELF_NOTE_NETBSD_DESCSZ);
+-	LPUT(ELF_NOTE_TYPE_NETBSD_TAG);
+-	cwrite(ELF_NOTE_NETBSD_NAME, 8);
++	LPUT(namesz);
++	LPUT(descsz);
++	LPUT(tag);
++
++	return sh;
++}
++
++// NetBSD Signature (as per sys/exec_elf.h)
++#define ELF_NOTE_NETBSD_NAMESZ		7
++#define ELF_NOTE_NETBSD_DESCSZ		4
++#define ELF_NOTE_NETBSD_TAG		1
++#define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
++#define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
++
++int
++elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
++{
++	int n;
++
++	n = ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
++	return elfnote(sh, startva, resoff, n);
++}
++
++int
++elfwritenetbsdsig(vlong stridx)
++{
++	ElfShdr *sh;
++
++	// Write Elf_Note header.
++	sh = elfwritenotehdr(stridx, ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG);
++	if(sh == nil)
++		return 0;
++
++	// Followed by NetBSD string and version.
++	cwrite(ELF_NOTE_NETBSD_NAME, ELF_NOTE_NETBSD_NAMESZ + 1);
+ 	LPUT(ELF_NOTE_NETBSD_VERSION);
+ 
+ 	return sh->size;
+ }
+ 
++// OpenBSD Signature
++#define ELF_NOTE_OPENBSD_NAMESZ		8
++#define ELF_NOTE_OPENBSD_DESCSZ		4
++#define ELF_NOTE_OPENBSD_TAG		1
++#define ELF_NOTE_OPENBSD_NAME		"OpenBSD\0"
++#define ELF_NOTE_OPENBSD_VERSION	0
++
++int
++elfopenbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
++{
++	int n;
++
++	n = ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ;
++	return elfnote(sh, startva, resoff, n);
++}
++
++int
++elfwriteopenbsdsig(vlong stridx)
++{
++	ElfShdr *sh;
++
++	// Write Elf_Note header.
++	sh = elfwritenotehdr(stridx, ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG);
++	if(sh == nil)
++		return 0;
++
++	// Followed by OpenBSD string and version.
++	cwrite(ELF_NOTE_OPENBSD_NAME, ELF_NOTE_OPENBSD_NAMESZ);
++	LPUT(ELF_NOTE_OPENBSD_VERSION);
++
++	return sh->size;
++}
++
+ extern int nelfsym;
+ int elfverneed;
+ 
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 13c3d4da1f..8568548a91 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -976,6 +976,8 @@ int	elfinterp(ElfShdr*, uint64, uint64, char*);
+ int	elfwriteinterp(vlong);
+ int	elfnetbsdsig(ElfShdr*, uint64, uint64);
+ int	elfwritenetbsdsig(vlong);
++int	elfopenbsdsig(ElfShdr*, uint64, uint64);
++int	elfwriteopenbsdsig(vlong);
+ void	elfdynhash(void);
+ ElfPhdr* elfphload(Segment*);
+ ElfShdr* elfshbits(Section*);

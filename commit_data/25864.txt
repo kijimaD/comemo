@@ -7,6 +7,20 @@ Date:   Sun Nov 29 18:06:23 2015 +0900
     Change-Id: Ibc55e98c43cebe5a21ab3b280489e1bce6405b8b
     Reviewed-on: https://go-review.googlesource.com/17218
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/lookup_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index e55b0ef48e..630c8a417f 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -395,7 +395,7 @@ func TestLookupIPDeadline(t *testing.T) {
+ 	t.Logf("%v succeeded, %v failed (%v timeout, %v temporary, %v other, %v unknown)", qstats.succeeded, qstats.failed, qstats.timeout, qstats.temporary, qstats.other, qstats.unknown)
+ }
+ 
+-func TestLookupDotsWithLocalSoruce(t *testing.T) {
++func TestLookupDotsWithLocalSource(t *testing.T) {
+ 	if !supportsIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}

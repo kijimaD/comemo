@@ -11,6 +11,37 @@ Date:   Mon Dec 17 11:06:30 2018 +0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index e68ec2f01e..9ae0bbff14 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3223,6 +3223,25 @@ type timeoutWriter struct {
+ 	code        int
+ }
+ 
++var _ Pusher = (*timeoutWriter)(nil)
++var _ Flusher = (*timeoutWriter)(nil)
++
++// Push implements the Pusher interface.
++func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
++	if pusher, ok := tw.w.(Pusher); ok {
++		return pusher.Push(target, opts)
++	}
++	return ErrNotSupported
++}
++
++// Flush implements the Flusher interface.
++func (tw *timeoutWriter) Flush() {
++	f, ok := tw.w.(Flusher)
++	if ok {
++		f.Flush()
++	}
++}
++
+ func (tw *timeoutWriter) Header() Header { return tw.h }
+ 
+ func (tw *timeoutWriter) Write(p []byte) (int, error) {

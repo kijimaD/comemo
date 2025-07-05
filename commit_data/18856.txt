@@ -10,6 +10,29 @@ Date:   Thu Mar 13 13:16:02 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/73980045
-
+---
  src/pkg/runtime/stack.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 4bdc24107c..bb7a32f8ae 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -662,13 +662,13 @@ runtime·newstack(void)
+ 			oldbase = (byte*)gp->stackbase + sizeof(Stktop);
+ 			oldsize = oldbase - oldstk;
+ 			newsize = oldsize * 2;
+-			if(newsize > runtime·maxstacksize) {
+-				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+-				runtime·throw("stack overflow");
+-			}
+ 			copystack(gp, nframes, newsize);
+ 			if(StackDebug >= 1)
+ 				runtime·printf("stack grow done\n");
++			if(gp->stacksize > runtime·maxstacksize) {
++				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
++				runtime·throw("stack overflow");
++			}
+ 			gp->status = oldstatus;
+ 			runtime·gogo(&gp->sched);
+ 		}

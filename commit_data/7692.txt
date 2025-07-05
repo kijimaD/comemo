@@ -7,7 +7,65 @@ Date:   Tue Mar 8 15:42:23 2011 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/4258041
-
+---
  misc/vim/indent/go.vim | 30 ++++++++++++++++++++++++++++++
  misc/vim/readme.txt    | 13 +++++++++++++
  2 files changed, 43 insertions(+)
+
+diff --git a/misc/vim/indent/go.vim b/misc/vim/indent/go.vim
+new file mode 100644
+index 0000000000..2e9f191f5b
+--- /dev/null
++++ b/misc/vim/indent/go.vim
+@@ -0,0 +1,30 @@
++" Copyright 2011 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" indent/go.vim: Vim indent file for Go.
++"
++
++if exists("b:did_indent")
++    finish
++endif
++let b:did_indent = 1
++
++" C indentation is mostly correct
++setlocal cindent
++
++" Options set:
++" +0 -- Don't indent continuation lines (because Go doesn't use semicolons
++"       much)
++" L0 -- Don't move jump labels (NOTE: this isn't correct when working with
++"       gofmt, but it does keep struct literals properly indented.)
++" :0 -- Align case labels with switch statement
++" l1 -- Always align case body relative to case labels
++" J1 -- Indent JSON-style objects (properly indents struct-literals)
++" (0, Ws -- Indent lines inside of unclosed parentheses by one shiftwidth
++" m1 -- Align closing parenthesis line with first non-blank of matching
++"       parenthesis line
++"
++" Known issue: Trying to do a multi-line struct literal in a short variable
++"              declaration will not indent properly.
++setlocal cinoptions+=+0,L0,:0,l1,J1,(0,Ws,m1
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index f836f58f3e..3c3255113b 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -35,3 +35,16 @@ To install one of the available filetype plugins for Go:
+   3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+ 
+      filetype plugin on
++
++
++Vim indentation plugin for Go
++=============================
++
++To install automatic indentation for Go:
++
++  1. Same as 1 above.
++  2. Copy or link indent/go.vim to the indent directory underneath your vim
++     runtime directory (normally $HOME/.vim/indent).
++  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
++
++     filetype indent on

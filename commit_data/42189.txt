@@ -12,8 +12,55 @@ Date:   Sun Nov 10 21:57:14 2019 -0500
     Change-Id: I93e8c4702b4d8fe6abaa6fc9c27def5c8aed1b59
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206419
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mkpreempt.go    | 6 ++++++
  src/runtime/preempt_arm64.s | 3 +++
  src/runtime/signal_arm64.go | 4 +---
  3 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 987740c2f7..615ec1868c 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -342,6 +342,12 @@ func genARM64() {
+ 	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
+ 	p("SUB $8, RSP, R29")  // set up new frame pointer
+ 	p("#endif")
++	// On darwin, save the LR again after decrementing SP. We run the
++	// signal handler on the G stack (as it doesn't support SA_ONSTACK),
++	// so any writes below SP may be clobbered.
++	p("#ifdef GOOS_darwin")
++	p("MOVD R30, (RSP)")
++	p("#endif")
+ 
+ 	l.save()
+ 	p("CALL ·asyncPreempt2(SB)")
+diff --git a/src/runtime/preempt_arm64.s b/src/runtime/preempt_arm64.s
+index 3a7cdf489b..3c27b52de1 100644
+--- a/src/runtime/preempt_arm64.s
++++ b/src/runtime/preempt_arm64.s
+@@ -10,6 +10,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD R29, -8(RSP)
+ 	SUB $8, RSP, R29
+ 	#endif
++	#ifdef GOOS_darwin
++	MOVD R30, (RSP)
++	#endif
+ 	MOVD R0, 8(RSP)
+ 	MOVD R1, 16(RSP)
+ 	MOVD R2, 24(RSP)
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index fb09aff6f9..db2ab2720b 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -79,9 +79,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-// TODO(issue 35439): enabling async preemption causes failures on darwin/arm64.
+-// Disable for now.
+-const pushCallSupported = GOOS != "darwin"
++const pushCallSupported = true
+ 
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to

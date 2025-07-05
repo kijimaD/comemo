@@ -81,7 +81,7 @@ Date:   Wed Jan 13 00:46:28 2016 -0500
     Change-Id: I2addb83f70d08db08c64d394f9d06ff0a063c500
     Reviewed-on: https://go-review.googlesource.com/18584
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/asm.html                             |  7 +++++++
  src/cmd/compile/internal/amd64/prog.go   |  1 +
  src/cmd/compile/internal/arm/prog.go     |  1 +
@@ -105,3 +105,439 @@ Date:   Wed Jan 13 00:46:28 2016 -0500
  src/syscall/syscall.go                   |  3 +++
  test/live_syscall.go                     | 28 ++++++++++++++++++++++++++++
  22 files changed, 135 insertions(+), 10 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index 3459033f82..2af2005143 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -510,6 +510,13 @@ the stack pointer may change during any function call:
+ even pointers to stack data must not be kept in local variables.
+ </p>
+ 
++<p>
++Assembly functions should always be given Go prototypes,
++both to provide pointer information for the arguments and results
++and to let <code>go</code> <code>vet</code> check that
++the offsets being used to access them are correct.
++</p>
++
+ <h2 id="architectures">Architecture-specific details</h2>
+ 
+ <p>
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 649b706245..b3724b4dd4 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -34,6 +34,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 8a304e2893..81be77a5b0 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -33,6 +33,7 @@ var progtable = [arm.ALAST]obj.ProgInfo{
+ 	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index a4b8ebea72..a8e8bc5f95 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -34,6 +34,7 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
+ 	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Power opcode.
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 7855db280b..ff983e717e 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1808,6 +1808,13 @@ recurse:
+ 	e.pdepth--
+ }
+ 
++// This special tag is applied to uintptr variables
++// that we believe may hold unsafe.Pointers for
++// calls into assembly functions.
++// It is logically a constant, but using a var
++// lets us take the address below to get a *string.
++var unsafeUintptrTag = "unsafe-uintptr"
++
+ func esctag(e *EscState, func_ *Node) {
+ 	func_.Esc = EscFuncTagged
+ 
+@@ -1822,6 +1829,29 @@ func esctag(e *EscState, func_ *Node) {
+ 			}
+ 		}
+ 
++		// Assume that uintptr arguments must be held live across the call.
++		// This is most important for syscall.Syscall.
++		// See golang.org/issue/13372.
++		// This really doesn't have much to do with escape analysis per se,
++		// but we are reusing the ability to annotate an individual function
++		// argument and pass those annotations along to importing code.
++		narg := 0
++		for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
++			narg++
++			if t.Type.Etype == TUINTPTR {
++				if Debug['m'] != 0 {
++					var name string
++					if t.Sym != nil {
++						name = t.Sym.Name
++					} else {
++						name = fmt.Sprintf("arg#%d", narg)
++					}
++					Warnl(int(func_.Lineno), "%v assuming %v is unsafe uintptr", funcSym(func_), name)
++				}
++				t.Note = &unsafeUintptrTag
++			}
++		}
++
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 27737b7b7a..377aee8a1c 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -605,6 +605,9 @@ func Tempname(nn *Node, t *Type) {
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = Curfn
+ 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
++	if Debug['h'] != 0 {
++		println("H", n, n.Orig, funcSym(Curfn).Name)
++	}
+ 
+ 	dowidth(t)
+ 	n.Xoffset = 0
+@@ -868,6 +871,9 @@ func gen(n *Node) {
+ 
+ 	case OVARKILL:
+ 		gvarkill(n.Left)
++
++	case OVARLIVE:
++		gvarlive(n.Left)
+ 	}
+ 
+ ret:
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 14d4d3da8f..30bf736e3e 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -185,7 +185,7 @@ func fixautoused(p *obj.Prog) {
+ 			continue
+ 		}
+ 
+-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
++		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL || p.As == obj.AVARLIVE) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 84b96c2d7b..a2e12284d0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -243,6 +243,12 @@ func cleantempnopop(mark *NodeList, order *Order, out **NodeList) {
+ 	var kill *Node
+ 
+ 	for l := order.temp; l != mark; l = l.Next {
++		if l.N.Name.Keepalive {
++			l.N.Name.Keepalive = false
++			kill = Nod(OVARLIVE, l.N, nil)
++			typecheck(&kill, Etop)
++			*out = list(*out, kill)
++		}
+ 		kill = Nod(OVARKILL, l.N, nil)
+ 		typecheck(&kill, Etop)
+ 		*out = list(*out, kill)
+@@ -375,6 +381,28 @@ func ordercall(n *Node, order *Order) {
+ 	orderexpr(&n.Left, order, nil)
+ 	orderexpr(&n.Right, order, nil) // ODDDARG temp
+ 	ordercallargs(&n.List, order)
++
++	if n.Op == OCALLFUNC {
++		for l, t := n.List, getinargx(n.Left.Type).Type; l != nil && t != nil; l, t = l.Next, t.Down {
++			// Check for "unsafe-uintptr" tag provided by escape analysis.
++			// If present and the argument is really a pointer being converted
++			// to uintptr, arrange for the pointer to be kept alive until the call
++			// returns, by copying it into a temp and marking that temp
++			// still alive when we pop the temp stack.
++			if t.Note != nil && *t.Note == unsafeUintptrTag {
++				xp := &l.N
++				for (*xp).Op == OCONVNOP && !Isptr[(*xp).Type.Etype] {
++					xp = &(*xp).Left
++				}
++				x := *xp
++				if Isptr[x.Type.Etype] {
++					x = ordercopyexpr(x, x.Type, order, 0)
++					x.Name.Keepalive = true
++					*xp = x
++				}
++			}
++		}
++	}
+ }
+ 
+ // Ordermapassign appends n to order->out, introducing temporaries
+@@ -464,7 +492,7 @@ func orderstmt(n *Node, order *Order) {
+ 	default:
+ 		Fatalf("orderstmt %v", Oconv(int(n.Op), 0))
+ 
+-	case OVARKILL:
++	case OVARKILL, OVARLIVE:
+ 		order.out = list(order.out, n)
+ 
+ 	case OAS:
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ea9b3687e1..ffc0ab9cfb 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -94,7 +94,11 @@ func gvardefx(n *Node, as int) {
+ 
+ 	switch n.Class {
+ 	case PAUTO, PPARAM, PPARAMOUT:
+-		Thearch.Gins(as, nil, n)
++		if as == obj.AVARLIVE {
++			Thearch.Gins(as, n, nil)
++		} else {
++			Thearch.Gins(as, nil, n)
++		}
+ 	}
+ }
+ 
+@@ -106,13 +110,17 @@ func gvarkill(n *Node) {
+ 	gvardefx(n, obj.AVARKILL)
+ }
+ 
++func gvarlive(n *Node) {
++	gvardefx(n, obj.AVARLIVE)
++}
++
+ func removevardef(firstp *obj.Prog) {
+ 	for p := firstp; p != nil; p = p.Link {
+-		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL) {
++		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL || p.Link.As == obj.AVARLIVE) {
+ 			p.Link = p.Link.Link
+ 		}
+ 		if p.To.Type == obj.TYPE_BRANCH {
+-			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL) {
++			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL || p.To.Val.(*obj.Prog).As == obj.AVARLIVE) {
+ 				p.To.Val = p.To.Val.(*obj.Prog).Link
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 5af78d17bd..feb66f625a 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -806,7 +806,7 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
+ 		return
+ 	}
+ 
+-	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %v\n", Curfn, n, n, n.Class, p)
++	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %p %v\n", funcSym(Curfn), n, n, n.Class, p, p)
+ 	for l := fn.Func.Dcl; l != nil; l = l.Next {
+ 		fmt.Printf("\t%v (%p; class=%d)\n", l.N, l.N, l.N.Class)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index ec94042562..8a6eba3964 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -143,7 +143,7 @@ func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
+ 		goto ret
+ 
+ 		// can't matter
+-	case OCFUNC, OVARKILL:
++	case OCFUNC, OVARKILL, OVARLIVE:
+ 		goto ret
+ 
+ 	case OBLOCK:
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index f575094389..14dc03b5f5 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1073,6 +1073,9 @@ func regopt(firstp *obj.Prog) {
+ 
+ 	for f := firstf; f != nil; f = f.Link {
+ 		p := f.Prog
++		// AVARLIVE must be considered a use, do not skip it.
++		// Otherwise the variable will be optimized away,
++		// and the whole point of AVARLIVE is to keep it on the stack.
+ 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 993e2ae048..a11b37e2ad 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -128,6 +128,7 @@ type Name struct {
+ 	Captured  bool // is the variable captured by a closure
+ 	Byval     bool // is the variable captured by value or by reference
+ 	Needzero  bool // if it contains pointers, needs to be zeroed on function entry
++	Keepalive bool // mark value live across unknown assembly call
+ }
+ 
+ type Param struct {
+@@ -342,6 +343,7 @@ const (
+ 	OCFUNC      // reference to c function pointer (not go func value)
+ 	OCHECKNIL   // emit code to ensure pointer/interface not nil
+ 	OVARKILL    // variable is dead
++	OVARLIVE    // variable is alive
+ 
+ 	// thearch-specific registers
+ 	OREGISTER // a register, such as AX.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8c1305f7f4..f74bb334aa 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2023,7 +2023,8 @@ OpSwitch:
+ 		OEMPTY,
+ 		OGOTO,
+ 		OXFALL,
+-		OVARKILL:
++		OVARKILL,
++		OVARLIVE:
+ 		ok |= Etop
+ 		break OpSwitch
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 25cd828b9b..e008317562 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -216,7 +216,8 @@ func walkstmt(np **Node) {
+ 		ODCLCONST,
+ 		ODCLTYPE,
+ 		OCHECKNIL,
+-		OVARKILL:
++		OVARKILL,
++		OVARLIVE:
+ 		break
+ 
+ 	case OBLOCK:
+diff --git a/src/cmd/compile/internal/mips64/prog.go b/src/cmd/compile/internal/mips64/prog.go
+index bf13d82a37..b07c7fe29f 100644
+--- a/src/cmd/compile/internal/mips64/prog.go
++++ b/src/cmd/compile/internal/mips64/prog.go
+@@ -34,6 +34,7 @@ var progtable = [mips.ALAST]obj.ProgInfo{
+ 	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the MIPS opcode.
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 92293be251..6b482564b7 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -34,6 +34,7 @@ var progtable = [ppc64.ALAST]obj.ProgInfo{
+ 	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Power opcode.
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index 22ee23db12..ccac290dc4 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -40,6 +40,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
++	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 511e4098d0..f7f7662ee7 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -282,6 +282,7 @@ const (
+ 	AUSEFIELD
+ 	AVARDEF
+ 	AVARKILL
++	AVARLIVE
+ 	A_ARCHSPECIFIC
+ )
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 3e29b58dac..1a974297ff 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -608,7 +608,7 @@ func RegisterOpcode(lo int, Anames []string) {
+ }
+ 
+ func Aconv(a int) string {
+-	if a < A_ARCHSPECIFIC {
++	if 0 <= a && a < len(Anames) {
+ 		return Anames[a]
+ 	}
+ 	for i := range aSpace {
+@@ -639,6 +639,7 @@ var Anames = []string{
+ 	"UNDEF",
+ 	"USEFIELD",
+ 	"VARDEF",
++	"VARLIVE",
+ 	"VARKILL",
+ }
+ 
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 791bcbbb67..769e6b9fd5 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -95,5 +95,8 @@ func (tv *Timeval) Nano() int64 {
+ 
+ // use is a no-op, but the compiler cannot see that it is.
+ // Calling use(p) ensures that p is kept live until that point.
++// This was needed until Go 1.6 to call syscall.Syscall correctly.
++// As of Go 1.6 the compiler handles that case automatically.
++// The uses and definition of use can be removed early in the Go 1.7 cycle.
+ //go:noescape
+ func use(p unsafe.Pointer)
+diff --git a/test/live_syscall.go b/test/live_syscall.go
+new file mode 100644
+index 0000000000..c9bf0f29c5
+--- /dev/null
++++ b/test/live_syscall.go
+@@ -0,0 +1,28 @@
++// errorcheck -0 -m -live
++
++// +build !windows
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis and liveness inferred for syscall.Syscall-like functions.
++
++package p
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func f(uintptr) // ERROR "f assuming arg#1 is unsafe uintptr"
++
++func g() {
++	var t int
++	f(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to f: autotmp" "g &t does not escape"
++}
++
++func h() {
++	var v int
++	syscall.Syscall(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to Syscall: autotmp" "h &v does not escape"
++}

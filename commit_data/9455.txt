@@ -7,8 +7,59 @@ Date:   Tue Aug 23 13:54:29 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4937047
-
+---
  doc/effective_go.html | 5 ++---
  doc/effective_go.tmpl | 2 +-
  doc/progs/eff_qr.go   | 3 +--
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 5f27284aaf..6adf7e5558 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2954,8 +2954,7 @@ const templateStr = `
+ &lt;/head&gt;
+ &lt;body&gt;
+ {{if .}}
+-&lt;img src=&#34;http://chart.apis.google.com/chart?chs=300x300&amp;amp;cht=qr&amp;amp;choe=UTF-8&amp;amp;chl={{urlquery .}}&#34;
+-/&gt;
++&lt;img src=&#34;http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={{urlquery .}}&#34; /&gt;
+ &lt;br&gt;
+ {{html .}}
+ &lt;br&gt;
+@@ -2994,7 +2993,7 @@ from data items passed to <code>templ.Execute</code>, in this case the
+ form value.  
+ Within the template text (<code>templateStr</code>),
+ double-brace-delimited pieces denote template actions.
+-The piece from the <code>{{if .}}</code>
++The piece from <code>{{if .}}</code>
+ to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
+ is non-empty.
+ That is, when the string is empty, this piece of the template is suppressed.
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index 6607894820..46d774ad4e 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -2884,7 +2884,7 @@ from data items passed to <code>templ.Execute</code>, in this case the
+ form value.  
+ Within the template text (<code>templateStr</code>),
+ double-brace-delimited pieces denote template actions.
+-The piece from the <code>{{html "{{if .}}"}}</code>
++The piece from <code>{{html "{{if .}}"}}</code>
+ to <code>{{html "{{end}}"}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
+ is non-empty.
+ That is, when the string is empty, this piece of the template is suppressed.
+diff --git a/doc/progs/eff_qr.go b/doc/progs/eff_qr.go
+index fc92bd0efa..5d1fd38e06 100644
+--- a/doc/progs/eff_qr.go
++++ b/doc/progs/eff_qr.go
+@@ -31,8 +31,7 @@ const templateStr = `
+ </head>
+ <body>
+ {{if .}}
+-<img src="http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={{urlquery .}}"
+-/>
++<img src="http://chart.apis.google.com/chart?chs=300x300&cht=qr&choe=UTF-8&chl={{urlquery .}}" />
+ <br>
+ {{html .}}
+ <br>

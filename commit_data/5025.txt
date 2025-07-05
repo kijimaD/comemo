@@ -7,6 +7,20 @@ Date:   Wed Mar 10 10:00:10 2010 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/369041
-
+---
  src/pkg/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 32accddf50..4134da67ee 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -848,7 +848,7 @@ type tiny struct {
+ 	b byte
+ }
+ 
+-// Call calls the function v with input parameters in.
++// Call calls the function fv with input parameters in.
+ // It returns the function's output parameters as Values.
+ func (fv *FuncValue) Call(in []Value) []Value {
+ 	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size()

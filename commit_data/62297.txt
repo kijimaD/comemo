@@ -15,8 +15,97 @@ Date:   Tue Feb 18 11:55:07 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/os_test.go               | 11 +++++++++++
  src/syscall/syscall_windows.go  | 22 +++++++++++++++++-----
  src/syscall/zsyscall_windows.go |  4 ++--
  3 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 6bb89f5870..03fe6b1134 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3844,3 +3844,14 @@ func TestRemoveReadOnlyFile(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestOpenFileDevNull(t *testing.T) {
++	// See https://go.dev/issue/71752.
++	t.Parallel()
++
++	f, err := OpenFile(DevNull, O_WRONLY|O_CREATE|O_TRUNC, 0o644)
++	if err != nil {
++		t.Fatalf("OpenFile(DevNull): %v", err)
++	}
++	f.Close()
++}
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 05c29c7b20..344f6c325c 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -235,7 +235,7 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	GetVersion() (ver uint32, err error)
+ //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
+ //sys	ExitProcess(exitcode uint32)
+-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
++//sys	createFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval == InvalidHandle || e1 == ERROR_ALREADY_EXISTS ] = CreateFileW
+ //sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
+ //sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
+ //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
+@@ -404,8 +404,8 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+ 		attrs |= _FILE_FLAG_WRITE_THROUGH
+ 	}
+-	h, err := CreateFile(namep, access, sharemode, sa, createmode, attrs, 0)
+-	if err != nil {
++	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
++	if h == InvalidHandle {
+ 		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
+ 			// We should return EISDIR when we are trying to open a directory with write access.
+ 			fa, e1 := GetFileAttributes(namep)
+@@ -413,9 +413,11 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 				err = EISDIR
+ 			}
+ 		}
+-		return InvalidHandle, err
++		return h, err
+ 	}
+-	if flag&O_TRUNC == O_TRUNC {
++	// Ignore O_TRUNC if the file has just been created.
++	if flag&O_TRUNC == O_TRUNC &&
++		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
+ 		err = Ftruncate(h, 0)
+ 		if err != nil {
+ 			CloseHandle(h)
+@@ -1454,3 +1456,13 @@ func GetStartupInfo(startupInfo *StartupInfo) error {
+ 	getStartupInfo(startupInfo)
+ 	return nil
+ }
++
++func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
++	handle, err = createFile(name, access, mode, sa, createmode, attrs, templatefile)
++	if handle != InvalidHandle {
++		// CreateFileW can return ERROR_ALREADY_EXISTS with a valid handle.
++		// We only want to return an error if the handle is invalid.
++		err = nil
++	}
++	return handle, err
++}
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index c0585a6df2..a58de3412c 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -502,10 +502,10 @@ func CreateFileMapping(fhandle Handle, sa *SecurityAttributes, prot uint32, maxS
+ 	return
+ }
+ 
+-func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
++func createFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
+ 	r0, _, e1 := Syscall9(procCreateFileW.Addr(), 7, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
+ 	handle = Handle(r0)
+-	if handle == InvalidHandle {
++	if handle == InvalidHandle || e1 == ERROR_ALREADY_EXISTS {
+ 		err = errnoErr(e1)
+ 	}
+ 	return

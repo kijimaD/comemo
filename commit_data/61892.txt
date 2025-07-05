@@ -10,6 +10,20 @@ Date:   Wed Dec 11 14:38:57 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/635217
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/log/slog/example_discard_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/example_discard_test.go b/src/log/slog/example_discard_test.go
+index c0cc2a65aa..3e3e37b189 100644
+--- a/src/log/slog/example_discard_test.go
++++ b/src/log/slog/example_discard_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"os"
+ )
+ 
+-func ExampleDiscardHandler() {
++func Example_discardHandler() {
+ 	// A slog.TextHandler can output log messages.
+ 	logger1 := slog.New(slog.NewTextHandler(
+ 		os.Stdout,

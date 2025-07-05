@@ -10,7 +10,57 @@ Date:   Thu Sep 17 23:08:15 2009 -0700
     DELTA=6  (1 added, 0 deleted, 5 changed)
     OCL=34771
     CL=34773
-
+---
  src/cmd/5g/gobj.c | 7 ++++---
  src/cmd/5l/pass.c | 4 ++--
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 6119f14f81..d2c86ad5b0 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -427,9 +427,10 @@ datagostring(Strlit *sval, Addr *a)
+ 
+ 	// $string len+ptr
+ 	datastring(sval->s, sval->len, &ap);
+-
++	ap.name = ap.type;
+ 	ap.type = D_CONST;
+ 	ap.etype = TINT32;
++
+ 	wi = types[TUINT32]->width;
+ 	wp = types[tptr]->width;
+ 
+@@ -470,7 +471,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	p->to.offset = sval->len;
+ 
+ 	p = pc;
+-	ggloblsym(ao.sym, types[TSTRING]->width, ao.type == D_EXTERN);
++	ggloblsym(ao.sym, types[TSTRING]->width, ao.name == D_EXTERN);
+ 	if(ao.name == D_STATIC)
+ 		p->from.name = D_STATIC;
+ 	text();
+@@ -549,7 +550,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
+ 	p->from.name = D_EXTERN;
+ 	p->from.sym = s;
+ 	p->from.offset = off;
+-	p->from.reg = widthptr;
++	p->reg = widthptr;
+ 	datagostring(lit, &p->to);
+ 	p->to.type = D_CONST;
+ 	p->to.etype = TINT32;
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 8387dead10..be0b50afcb 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -52,8 +52,8 @@ dodata(void)
+ 				s->type, s->name, p);
+ 		v = p->from.offset + p->reg;
+ 		if(v > s->value)
+-			diag("initialize bounds (%ld): %s\n%P",
+-				s->value, s->name, p);
++			diag("initialize bounds (%ld/%ld): %s\n%P",
++				v, s->value, s->name, p);
+ 		if((s->type == SBSS || s->type == SDATA) && (p->to.type == D_CONST || p->to.type == D_OCONST) && (p->to.name == D_EXTERN || p->to.name == D_STATIC)){
+ 			s = p->to.sym;
+ 			if(s != S && (s->type == STEXT || s->type == SLEAF || s->type == SCONST || s->type == SXREF))

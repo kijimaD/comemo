@@ -12,6 +12,16 @@ Date:   Wed Feb 10 17:59:13 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/291179
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/errors_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors_test.go b/src/cmd/compile/internal/types2/errors_test.go
+index 51ae5fdb73..cb21ff1ad3 100644
+--- a/src/cmd/compile/internal/types2/errors_test.go
++++ b/src/cmd/compile/internal/types2/errors_test.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

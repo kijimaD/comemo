@@ -15,6 +15,21 @@ Date:   Wed Jun 8 19:14:11 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Auto-Submit: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/list_replace_absolute_windows.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/list_replace_absolute_windows.txt b/src/cmd/go/testdata/script/list_replace_absolute_windows.txt
+index 6f5d737ade..b3ff2a7c2d 100644
+--- a/src/cmd/go/testdata/script/list_replace_absolute_windows.txt
++++ b/src/cmd/go/testdata/script/list_replace_absolute_windows.txt
+@@ -3,7 +3,8 @@
+ # whether the modindex logic cleans the modroot path before using
+ # it.
+ 
+-[!windows] [short] skip
++[!windows] skip
++[short] skip
+ 
+ go run print_go_mod.go # use this program to write a go.mod with an absolute path
+ cp stdout go.mod

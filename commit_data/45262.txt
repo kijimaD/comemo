@@ -17,7 +17,7 @@ Date:   Thu Oct 15 18:04:08 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/objfile/goobj.go           |  4 +--
  src/cmd/objdump/objdump_test.go             | 38 +++++++++++++++++++++++++++++
  src/cmd/objdump/testdata/testfilenum/a.go   |  7 ++++++
@@ -25,3 +25,117 @@ Date:   Thu Oct 15 18:04:08 2020 -0400
  src/cmd/objdump/testdata/testfilenum/c.go   |  7 ++++++
  src/cmd/objdump/testdata/testfilenum/go.mod |  3 +++
  6 files changed, 63 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 7f74a8256c..f19bec5dcb 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -267,13 +267,11 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 		}
+ 		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
+ 		var info *goobj.FuncInfo
+-		lengths := info.ReadFuncInfoLengths(b)
+ 		pcline := getSymData(info.ReadPcline(b))
+ 		line := int(pcValue(pcline, pc-addr, f.arch))
+ 		pcfile := getSymData(info.ReadPcfile(b))
+ 		fileID := pcValue(pcfile, pc-addr, f.arch)
+-		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
+-		fileName := r.File(int(globalFileID))
++		fileName := r.File(int(fileID))
+ 		// Note: we provide only the name in the Func structure.
+ 		// We could provide more if needed.
+ 		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: osym.Name(r)}}
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 85d1a2efb0..d136e2e6c3 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -333,3 +333,41 @@ func TestDisasmGoobj(t *testing.T) {
+ 		t.Logf("full disassembly:\n%s", text)
+ 	}
+ }
++
++func TestGoobjFileNumber(t *testing.T) {
++	// Test that file table in Go object file is parsed correctly.
++	testenv.MustHaveGoBuild(t)
++
++	t.Parallel()
++
++	tmpdir, err := ioutil.TempDir("", "TestGoobjFileNumber")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	obj := filepath.Join(tmpdir, "p.a")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", obj)
++	cmd.Dir = filepath.Join("testdata/testfilenum")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed: %v\n%s", err, out)
++	}
++
++	cmd = exec.Command(exe, obj)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("objdump failed: %v\n%s", err, out)
++	}
++
++	text := string(out)
++	for _, s := range []string{"a.go", "b.go", "c.go"} {
++		if !strings.Contains(text, s) {
++			t.Errorf("output missing '%s'", s)
++		}
++	}
++
++	if t.Failed() {
++		t.Logf("output:\n%s", text)
++	}
++}
+diff --git a/src/cmd/objdump/testdata/testfilenum/a.go b/src/cmd/objdump/testdata/testfilenum/a.go
+new file mode 100644
+index 0000000000..2729ae0abf
+--- /dev/null
++++ b/src/cmd/objdump/testdata/testfilenum/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func A() {}
+diff --git a/src/cmd/objdump/testdata/testfilenum/b.go b/src/cmd/objdump/testdata/testfilenum/b.go
+new file mode 100644
+index 0000000000..a632aafe7b
+--- /dev/null
++++ b/src/cmd/objdump/testdata/testfilenum/b.go
+@@ -0,0 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func B() {}
+diff --git a/src/cmd/objdump/testdata/testfilenum/c.go b/src/cmd/objdump/testdata/testfilenum/c.go
+new file mode 100644
+index 0000000000..d73efa7315
+--- /dev/null
++++ b/src/cmd/objdump/testdata/testfilenum/c.go
+@@ -0,0 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func C() {}
+diff --git a/src/cmd/objdump/testdata/testfilenum/go.mod b/src/cmd/objdump/testdata/testfilenum/go.mod
+new file mode 100644
+index 0000000000..db432883a9
+--- /dev/null
++++ b/src/cmd/objdump/testdata/testfilenum/go.mod
+@@ -0,0 +1,3 @@
++module objdumptest
++
++go 1.16

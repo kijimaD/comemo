@@ -12,7 +12,7 @@ Date:   Sat Oct 7 13:28:51 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go   |  2 +-
  src/cmd/link/internal/ld/data.go     |  2 +-
  src/cmd/link/internal/ld/deadcode.go |  2 +-
@@ -22,3 +22,190 @@ Date:   Sat Oct 7 13:28:51 2017 -0400
  src/cmd/link/internal/ld/link.go     |  5 +++--
  src/cmd/link/internal/ld/main.go     |  4 ++--
  8 files changed, 18 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 4d3873547c..2f2f2b07b5 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -208,7 +208,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	case BuildModeShared:
+ 		return true, "buildmode=shared"
+ 	}
+-	if *FlagLinkshared {
++	if ctxt.linkShared {
+ 		return true, "dynamically linking with a shared library"
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 84e073c42b..3851aa77a0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1206,7 +1206,7 @@ func (ctxt *Link) dodata() {
+ 	checkdatsize(ctxt, datsize, sym.SNOPTRDATA)
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+-	hasinitarr := *FlagLinkshared
++	hasinitarr := ctxt.linkShared
+ 
+ 	/* shared library initializer */
+ 	switch ctxt.BuildMode {
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index ad518adc3f..99e7789ad5 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -217,7 +217,7 @@ func (d *deadcodepass) init() {
+ 		// In a normal binary, start at main.main and the init
+ 		// functions and mark what is reachable from there.
+ 
+-		if *FlagLinkshared && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
++		if d.ctxt.linkShared && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
+ 			names = append(names, "main.main", "main.init")
+ 		} else {
+ 			// The external linker refers main symbol directly.
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index dc6cb7af6c..470eadf7a0 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1502,7 +1502,7 @@ func (ctxt *Link) doelf() {
+ 		}
+ 	}
+ 
+-	hasinitarr := *FlagLinkshared
++	hasinitarr := ctxt.linkShared
+ 
+ 	/* shared library initializer */
+ 	switch ctxt.BuildMode {
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index d8939febfb..b260ef28c8 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -103,7 +103,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ 	var pname string
+ 	isshlib := false
+ 
+-	if *FlagLinkshared && ctxt.PackageShlib[name] != "" {
++	if ctxt.linkShared && ctxt.PackageShlib[name] != "" {
+ 		pname = ctxt.PackageShlib[name]
+ 		isshlib = true
+ 	} else if ctxt.PackageFile != nil {
+@@ -129,7 +129,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ 			}
+ 			// try dot, -L "libdir", and then goroot.
+ 			for _, dir := range ctxt.Libdir {
+-				if *FlagLinkshared {
++				if ctxt.linkShared {
+ 					pname = dir + "/" + pkg + ".shlibname"
+ 					if _, err := os.Stat(pname); err == nil {
+ 						isshlib = true
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5d123396b2..53e53c7e91 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -141,7 +141,7 @@ func (ctxt *Link) DynlinkingGo() bool {
+ 	if !ctxt.Loaded {
+ 		panic("DynlinkingGo called before all symbols loaded")
+ 	}
+-	return ctxt.BuildMode == BuildModeShared || *FlagLinkshared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
++	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins()
+ }
+ 
+ // CanUsePlugins returns whether a plugins can be used
+@@ -156,7 +156,7 @@ func (ctxt *Link) UseRelro() bool {
+ 	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
+ 		return Iself
+ 	default:
+-		return *FlagLinkshared
++		return ctxt.linkShared
+ 	}
+ }
+ 
+@@ -270,7 +270,7 @@ func errorexit() {
+ }
+ 
+ func loadinternal(ctxt *Link, name string) *sym.Library {
+-	if *FlagLinkshared && ctxt.PackageShlib != nil {
++	if ctxt.linkShared && ctxt.PackageShlib != nil {
+ 		if shlib := ctxt.PackageShlib[name]; shlib != "" {
+ 			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
+ 		}
+@@ -284,7 +284,7 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ 	}
+ 
+ 	for i := 0; i < len(ctxt.Libdir); i++ {
+-		if *FlagLinkshared {
++		if ctxt.linkShared {
+ 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
+ 			if ctxt.Debugvlog != 0 {
+ 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
+@@ -404,7 +404,7 @@ func (ctxt *Link) loadlib() {
+ 			if lib.Shlib != "" {
+ 				ldshlibsyms(ctxt, lib.Shlib)
+ 			} else {
+-				if ctxt.BuildMode == BuildModeShared || *FlagLinkshared {
++				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
+ 					Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 				}
+ 				loadobjfile(ctxt, lib)
+@@ -655,7 +655,7 @@ func (ctxt *Link) loadlib() {
+ // those programs loaded dynamically in multiple parts need these
+ // symbols to have entries in the symbol table.
+ func typeSymbolMangling(ctxt *Link) bool {
+-	return ctxt.BuildMode == BuildModeShared || *FlagLinkshared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
++	return ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+ }
+ 
+ // typeSymbolMangle mangles the given symbol name into something shorter.
+@@ -1218,7 +1218,7 @@ func (ctxt *Link) hostlink() {
+ 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
+ 	argv = append(argv, hostobjCopy()...)
+ 
+-	if *FlagLinkshared {
++	if ctxt.linkShared {
+ 		seenDirs := make(map[string]bool)
+ 		seenLibs := make(map[string]bool)
+ 		addshlib := func(path string) {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 5847099df7..ea8dba363f 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -60,8 +60,9 @@ type Link struct {
+ 
+ 	Loaded bool // set after all inputs have been loaded as symbols
+ 
+-	LinkMode  LinkMode
+-	BuildMode BuildMode
++	linkShared bool // link against installed Go shared libraries
++	LinkMode   LinkMode
++	BuildMode  BuildMode
+ 
+ 	Tlsg         *sym.Symbol
+ 	Libdir       []string
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 12f39e4465..4a1e27e382 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -57,7 +57,6 @@ var (
+ 
+ 	flagOutfile    = flag.String("o", "", "write output to `file`")
+ 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
+-	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
+ 
+ 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
+ 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
+@@ -116,6 +115,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
++	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")
+ 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
+ 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
+ 	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+@@ -166,7 +166,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.computeTLSOffset()
+ 	Thearch.Archinit(ctxt)
+ 
+-	if *FlagLinkshared && !Iself {
++	if ctxt.linkShared && !Iself {
+ 		Exitf("-linkshared can only be used on elf systems")
+ 	}
+ 

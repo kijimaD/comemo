@@ -13,7 +13,52 @@ Date:   Tue Apr 2 00:10:47 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/error_posix.go     | 18 ------------------
  src/os/zero_copy_linux.go |  9 +++++++++
  2 files changed, 9 insertions(+), 18 deletions(-)
+
+diff --git a/src/os/error_posix.go b/src/os/error_posix.go
+deleted file mode 100644
+index b159c036c1..0000000000
+--- a/src/os/error_posix.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build unix || (js && wasm) || wasip1 || windows
+-
+-package os
+-
+-import "syscall"
+-
+-// wrapSyscallError takes an error and a syscall name. If the error is
+-// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+-func wrapSyscallError(name string, err error) error {
+-	if _, ok := err.(syscall.Errno); ok {
+-		err = NewSyscallError(name, err)
+-	}
+-	return err
+-}
+diff --git a/src/os/zero_copy_linux.go b/src/os/zero_copy_linux.go
+index 7c45aefeee..d9cf18c22f 100644
+--- a/src/os/zero_copy_linux.go
++++ b/src/os/zero_copy_linux.go
+@@ -16,6 +16,15 @@ var (
+ 	pollSendFile      = poll.SendFile
+ )
+ 
++// wrapSyscallError takes an error and a syscall name. If the error is
++// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
++func wrapSyscallError(name string, err error) error {
++	if _, ok := err.(syscall.Errno); ok {
++		err = NewSyscallError(name, err)
++	}
++	return err
++}
++
+ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
+ 	pfd, network := getPollFDAndNetwork(w)
+ 	// TODO(panjf2000): same as File.spliceToFile.

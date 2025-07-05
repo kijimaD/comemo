@@ -20,7 +20,89 @@ Date:   Wed Jul 9 12:33:13 2014 +0200
     R=0intro, gobot, ality
     CC=ality, golang-codereviews, jas, mischief
     https://golang.org/cl/106460044
-
+---
  src/cmd/addr2line/main.go      |  6 +-----
  src/pkg/debug/plan9obj/file.go | 27 +++++++++++++++------------
  2 files changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index b94ba12efd..c6e4563db7 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -237,10 +237,6 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	text, err := findPlan9Symbol(f, "text")
+-	if err != nil {
+-		return nil, err
+-	}
+ 	sect := f.Section("text")
+ 	if sect == nil {
+ 		return nil, err
+@@ -249,5 +245,5 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
++	return data[ssym.Value-(f.LoadAddress+f.HdrSize) : esym.Value-(f.LoadAddress+f.HdrSize)], nil
+ }
+diff --git a/src/pkg/debug/plan9obj/file.go b/src/pkg/debug/plan9obj/file.go
+index 60a5857193..b11ed86f18 100644
+--- a/src/pkg/debug/plan9obj/file.go
++++ b/src/pkg/debug/plan9obj/file.go
+@@ -15,10 +15,12 @@ import (
+ 
+ // A FileHeader represents a Plan 9 a.out file header.
+ type FileHeader struct {
+-	Magic   uint32
+-	Bss     uint32
+-	Entry   uint64
+-	PtrSize int
++	Magic       uint32
++	Bss         uint32
++	Entry       uint64
++	PtrSize     int
++	LoadAddress uint64
++	HdrSize     uint64
+ }
+ 
+ // A File represents an open Plan 9 a.out file.
+@@ -148,20 +150,21 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 
+ 	f := &File{FileHeader: FileHeader{
+-		Magic:   ph.Magic,
+-		Bss:     ph.Bss,
+-		Entry:   uint64(ph.Entry),
+-		PtrSize: 4,
++		Magic:       ph.Magic,
++		Bss:         ph.Bss,
++		Entry:       uint64(ph.Entry),
++		PtrSize:     4,
++		LoadAddress: 0x1000,
++		HdrSize:     4 * 8,
+ 	}}
+ 
+-	hdrSize := 4 * 8
+-
+ 	if ph.Magic&Magic64 != 0 {
+ 		if err := binary.Read(sr, binary.BigEndian, &f.Entry); err != nil {
+ 			return nil, err
+ 		}
+ 		f.PtrSize = 8
+-		hdrSize += 8
++		f.LoadAddress = 0x200000
++		f.HdrSize += 8
+ 	}
+ 
+ 	var sects = []struct {
+@@ -177,7 +180,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 	f.Sections = make([]*Section, 5)
+ 
+-	off := uint32(hdrSize)
++	off := uint32(f.HdrSize)
+ 
+ 	for i, sect := range sects {
+ 		s := new(Section)

@@ -9,6 +9,22 @@ Date:   Fri Nov 16 11:26:16 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/tsan_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/tsan_test.go b/misc/cgo/testsanitizers/tsan_test.go
+index 314b5072f3..1d769a98b6 100644
+--- a/misc/cgo/testsanitizers/tsan_test.go
++++ b/misc/cgo/testsanitizers/tsan_test.go
+@@ -5,9 +5,9 @@
+ package sanitizers_test
+ 
+ import (
++	"runtime"
+ 	"strings"
+ 	"testing"
+-	"runtime"
+ )
+ 
+ func TestTSAN(t *testing.T) {

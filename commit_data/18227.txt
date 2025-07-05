@@ -7,6 +7,29 @@ Date:   Mon Jan 13 13:24:59 2014 +0100
     R=rsc, dave, aram, jeremyjackins, lucio.dere
     CC=golang-codereviews, jas
     https://golang.org/cl/50980043
-
+---
  src/pkg/os/os_test.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index c2f811d882..6c2caa94aa 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -396,11 +396,12 @@ func touch(t *testing.T, name string) {
+ }
+ 
+ func TestReaddirStatFailures(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		// Windows already does this correctly, but is
+-		// structured with different syscalls such that it
+-		// doesn't use Lstat, so the hook below for testing it
+-		// wouldn't work.
++	switch runtime.GOOS {
++	case "windows", "plan9":
++		// Windows and Plan 9 already do this correctly,
++		// but are structured with different syscalls such
++		// that they don't use Lstat, so the hook below for
++		// testing it wouldn't work.
+ 		t.Skipf("skipping test on %v", runtime.GOOS)
+ 	}
+ 	dir, err := ioutil.TempDir("", "")

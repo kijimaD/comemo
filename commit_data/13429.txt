@@ -9,6 +9,19 @@ Date:   Sun Jul 1 21:59:50 2012 +0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6347056
-
+---
  test/closure.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/closure.go b/test/closure.go
+index ae38900baa..c4a312464b 100644
+--- a/test/closure.go
++++ b/test/closure.go
+@@ -81,6 +81,7 @@ func h() {
+ func newfunc() func(int) int { return func(x int) int { return x } }
+ 
+ func main() {
++	runtime.GOMAXPROCS(1)
+ 	var fail bool
+ 
+ 	go f()

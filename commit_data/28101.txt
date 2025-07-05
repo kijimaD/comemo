@@ -15,6 +15,20 @@ Date:   Fri Apr 29 10:37:37 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 53428bb1c6..f6c7a0152b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1213,7 +1213,7 @@ func hostlink() {
+ 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+ 			Ctxt.Diag("WriteFile trivial.c failed: %v", err)
+ 		}
+-		cmd := exec.Command(argv[0], "-no-pie", "trivial.c")
++		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
+ 		cmd.Dir = tmpdir
+ 		out, err := cmd.CombinedOutput()
+ 		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))

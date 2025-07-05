@@ -9,6 +9,20 @@ Date:   Sun Nov 15 12:57:33 2009 -0800
     
     R=r
     https://golang.org/cl/155050
-
+---
  doc/godocs.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index a5b59fea77..b2fc1b357b 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -13,7 +13,7 @@
+  */
+ if (window.addEventListener){
+   window.addEventListener('load', godocs_onload, false);
+-} else if (elm.attachEvent){
++} else if (window.attachEvent){
+   window.attachEvent('onload', godocs_onload);
+ }
+ 

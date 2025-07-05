@@ -17,7 +17,41 @@ Date:   Mon Feb 26 18:22:46 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go            | 8 ++++++++
  src/cmd/go/internal/work/exec.go | 6 +++++-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 773b8240d2..8f5a1f6c71 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5921,3 +5921,11 @@ echo $* >>`+tg.path("pkg-config.out"))
+ 		t.Errorf("got %q want %q", out, want)
+ 	}
+ }
++
++// Issue 23982
++func TestFilepathUnderCwdFormat(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-x", "-cover", "log")
++	tg.grepStderrNot(`\.log\.cover\.go`, "-x output should contain correctly formatted filepath under cwd")
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ab216e748f..e61d6d5cc4 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1364,7 +1364,11 @@ func mayberemovefile(s string) {
+ func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string {
+ 	cmd := fmt.Sprintf(format, args...)
+ 	if dir != "" && dir != "/" {
+-		cmd = strings.Replace(" "+cmd, " "+dir, " .", -1)[1:]
++		dot := " ."
++		if dir[len(dir)-1] == filepath.Separator {
++			dot += string(filepath.Separator)
++		}
++		cmd = strings.Replace(" "+cmd, " "+dir, dot, -1)[1:]
+ 		if b.scriptDir != dir {
+ 			b.scriptDir = dir
+ 			cmd = "cd " + dir + "\n" + cmd

@@ -9,9 +9,149 @@ Date:   Wed Feb 22 15:46:31 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5685078
-
+---
  doc/go1.html               |  4 +---
  doc/go1.tmpl               |  4 +---
  src/cmd/fix/oswait.go      | 56 ----------------------------------------------
  src/cmd/fix/oswait_test.go | 41 ---------------------------------
  4 files changed, 2 insertions(+), 103 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 38cd0e94f2..4bc4f66289 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1465,9 +1465,7 @@ the <code>Process</code> type persists.
+ 
+ <p>
+ <em>Updating</em>:
+-Gofix will rewrite calls to <code>os.Wait</code> with an explicit zero
+-argument, dropping the argument.
+-All other changes will be caught by the compiler and must be updated by hand.
++All changes will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index f61dcd5cce..2f0b32607e 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1368,9 +1368,7 @@ the <code>Process</code> type persists.
+ 
+ <p>
+ <em>Updating</em>:
+-Gofix will rewrite calls to <code>os.Wait</code> with an explicit zero
+-argument, dropping the argument.
+-All other changes will be caught by the compiler and must be updated by hand.
++All changes will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+diff --git a/src/cmd/fix/oswait.go b/src/cmd/fix/oswait.go
+deleted file mode 100644
+index fdc23f8537..0000000000
+--- a/src/cmd/fix/oswait.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(oswaitFix)
+-}
+-
+-var oswaitFix = fix{
+-	"oswait",
+-	"2012-02-20",
+-	oswait,
+-	`Delete options from os.Wait. If the option is the literal 0, rewrite the call.
+-
+-http://codereview.appspot.com/5688046
+-`,
+-}
+-
+-func oswait(f *ast.File) bool {
+-	if !imports(f, "os") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok {
+-			return
+-		}
+-		if !isPkgDot(call.Fun, "os", "Wait") {
+-			return
+-		}
+-		args := call.Args
+-		const warning = "call to Process.Wait must be fixed manually"
+-		if len(args) != 1 {
+-			// Shouldn't happen, but check.
+-			warn(call.Pos(), warning)
+-			return
+-		}
+-		if basicLit, ok := args[0].(*ast.BasicLit); !ok || basicLit.Value != "0" {
+-			warn(call.Pos(), warning)
+-			return
+-		}
+-		call.Args = nil
+-		fixed = true
+-	})
+-
+-	return fixed
+-}
+diff --git a/src/cmd/fix/oswait_test.go b/src/cmd/fix/oswait_test.go
+deleted file mode 100644
+index baff017487..0000000000
+--- a/src/cmd/fix/oswait_test.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(oswaitTests, oswait)
+-}
+-
+-var oswaitTests = []testCase{
+-	{
+-		Name: "oswait.0",
+-		In: `package main
+-
+-import (
+-	"os"
+-)
+-
+-func f() {
+-	os.Wait()
+-	os.Wait(0)
+-	os.Wait(1)
+-	os.Wait(A | B)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"os"
+-)
+-
+-func f() {
+-	os.Wait()
+-	os.Wait()
+-	os.Wait(1)
+-	os.Wait(A | B)
+-}
+-`,
+-	},
+-}

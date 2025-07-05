@@ -16,9 +16,133 @@ Date:   Tue Sep 12 11:49:41 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/gofmt/long_test.go     | 15 +--------------
  src/io/fs/walk.go              | 15 +--------------
  src/path/filepath/path.go      | 15 +--------------
  src/path/filepath/path_test.go | 15 +--------------
  4 files changed, 4 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 8db348a50f..21a01196cf 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -126,7 +126,7 @@ func genFilenames(t *testing.T, filenames chan<- string) {
+ 	if *files != "" {
+ 		for _, filename := range strings.Split(*files, ",") {
+ 			fi, err := os.Stat(filename)
+-			handleFile(filename, &statDirEntry{fi}, err)
++			handleFile(filename, fs.FileInfoToDirEntry(fi), err)
+ 		}
+ 		return // ignore files under -root
+ 	}
+@@ -170,16 +170,3 @@ func TestAll(t *testing.T) {
+ 		fmt.Printf("processed %d files\n", nfiles)
+ 	}
+ }
+-
+-type statDirEntry struct {
+-	info fs.FileInfo
+-}
+-
+-func (d *statDirEntry) Name() string               { return d.info.Name() }
+-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+-
+-func (d *statDirEntry) String() string {
+-	return fs.FormatDirEntry(d)
+-}
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index baf559ebca..eb98568cda 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -119,23 +119,10 @@ func WalkDir(fsys FS, root string, fn WalkDirFunc) error {
+ 	if err != nil {
+ 		err = fn(root, nil, err)
+ 	} else {
+-		err = walkDir(fsys, root, &statDirEntry{info}, fn)
++		err = walkDir(fsys, root, FileInfoToDirEntry(info), fn)
+ 	}
+ 	if err == SkipDir || err == SkipAll {
+ 		return nil
+ 	}
+ 	return err
+ }
+-
+-type statDirEntry struct {
+-	info FileInfo
+-}
+-
+-func (d *statDirEntry) Name() string            { return d.info.Name() }
+-func (d *statDirEntry) IsDir() bool             { return d.info.IsDir() }
+-func (d *statDirEntry) Type() FileMode          { return d.info.Mode().Type() }
+-func (d *statDirEntry) Info() (FileInfo, error) { return d.info, nil }
+-
+-func (d *statDirEntry) String() string {
+-	return FormatDirEntry(d)
+-}
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 41fa733af9..6dcb0e1fb9 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -545,7 +545,7 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
+ 	if err != nil {
+ 		err = fn(root, nil, err)
+ 	} else {
+-		err = walkDir(root, &statDirEntry{info}, fn)
++		err = walkDir(root, fs.FileInfoToDirEntry(info), fn)
+ 	}
+ 	if err == SkipDir || err == SkipAll {
+ 		return nil
+@@ -553,19 +553,6 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
+ 	return err
+ }
+ 
+-type statDirEntry struct {
+-	info fs.FileInfo
+-}
+-
+-func (d *statDirEntry) Name() string               { return d.info.Name() }
+-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+-
+-func (d *statDirEntry) String() string {
+-	return fs.FormatDirEntry(d)
+-}
+-
+ // Walk walks the file tree rooted at root, calling fn for each file or
+ // directory in the tree, including root.
+ //
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 621208d31e..51e6a20554 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -560,25 +560,12 @@ func tempDirCanonical(t *testing.T) string {
+ func TestWalk(t *testing.T) {
+ 	walk := func(root string, fn fs.WalkDirFunc) error {
+ 		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+-			return fn(path, &statDirEntry{info}, err)
++			return fn(path, fs.FileInfoToDirEntry(info), err)
+ 		})
+ 	}
+ 	testWalk(t, walk, 1)
+ }
+ 
+-type statDirEntry struct {
+-	info fs.FileInfo
+-}
+-
+-func (d *statDirEntry) Name() string               { return d.info.Name() }
+-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+-
+-func (d *statDirEntry) String() string {
+-	return fs.FormatDirEntry(d)
+-}
+-
+ func TestWalkDir(t *testing.T) {
+ 	testWalk(t, filepath.WalkDir, 2)
+ }

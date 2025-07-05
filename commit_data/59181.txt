@@ -20,7 +20,7 @@ Date:   Thu Feb 22 11:00:31 2024 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go   |  6 +++---
  src/cmd/compile/internal/types2/call.go       |  4 ++--
  src/cmd/compile/internal/types2/check.go      |  4 ++--
@@ -60,3 +60,799 @@ Date:   Thu Feb 22 11:00:31 2024 -0800
  src/go/types/typexpr.go                       |  2 +-
  src/go/types/universe.go                      |  2 +-
  38 files changed, 69 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 79ed6ad640..a87474ad6c 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -908,7 +908,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// trace is only available in test mode - no need to record signature
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	assert(x.mode != invalid)
+@@ -947,7 +947,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ 	case *Interface:
+ 		return isTypeParam(t)
+ 	case *Named, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	return false
+ }
+@@ -990,7 +990,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		case _Complex:
+ 			code = InvalidComplex
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
+ 
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 7e4cf8974f..55400d436c 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -757,7 +757,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 				x.id = exp.id
+ 			default:
+ 				check.dump("%v: unexpected object %v", atPos(e.Sel), exp)
+-				unreachable()
++				panic("unreachable")
+ 			}
+ 			x.expr = e
+ 			return
+@@ -910,7 +910,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 			check.addDeclDep(obj)
+ 
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 0582367083..8c2bac2850 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -513,7 +513,7 @@ func (check *Checker) recordUntyped() {
+ 	for x, info := range check.untyped {
+ 		if debug && isTyped(info.typ) {
+ 			check.dump("%v: %s (type %s) is typed", atPos(x), x, info.typ)
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
+ 	}
+@@ -578,7 +578,7 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
+ 		case *syntax.ParenExpr:
+ 			f = p.X
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/const.go b/src/cmd/compile/internal/types2/const.go
+index af27c727dd..5e5bc74ba3 100644
+--- a/src/cmd/compile/internal/types2/const.go
++++ b/src/cmd/compile/internal/types2/const.go
+@@ -118,7 +118,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 			case Uint64:
+ 				return 0 <= x
+ 			default:
+-				unreachable()
++				panic("unreachable")
+ 			}
+ 		}
+ 		// x does not fit into int64
+@@ -159,7 +159,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 		case UntypedFloat:
+ 			return true
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 
+ 	case isComplex(typ):
+@@ -191,7 +191,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 		case UntypedComplex:
+ 			return true
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 
+ 	case isString(typ):
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index f3e3418f4f..4408a0b168 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -162,7 +162,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 			}
+ 
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		assert(obj.Type() != nil)
+ 		return
+@@ -171,7 +171,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 	d := check.objMap[obj]
+ 	if d == nil {
+ 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	// save/restore current environment and set up object environment
+@@ -202,7 +202,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 		// functions may be recursive - no need to track dependencies
+ 		check.funcDecl(obj, d)
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ }
+ 
+@@ -216,7 +216,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
+ 		isPkgObj := obj.Parent() == check.pkg.scope
+ 		if isPkgObj != inObjMap {
+ 			check.dump("%v: inconsistent object map for %s (isPkgObj = %v, inObjMap = %v)", obj.Pos(), obj, isPkgObj, inObjMap)
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+@@ -266,7 +266,7 @@ loop:
+ 		case *Func:
+ 			// ignored for now
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 4326ca67ef..e7d8863c6f 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -28,10 +28,6 @@ func assert(p bool) {
+ 	}
+ }
+ 
+-func unreachable() {
+-	panic("unreachable")
+-}
+-
+ // An error_ represents a type-checking error.
+ // To report an error_, call Checker.report.
+ type error_ struct {
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index d7d60cc73c..ca499a17a9 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -268,7 +268,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
+ 		// upon assignment or use.
+ 		if debug {
+ 			check.dump("%v: found old type(%s): %s (new: %s)", atPos(x), x, old.typ, typ)
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		return
+ 
+@@ -337,7 +337,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
+ 		}
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	// If the new type is not final and still untyped, just
+@@ -546,7 +546,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
+ 		}
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	// comparison is ok
+@@ -1042,7 +1042,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
+ 
+ 	switch e := e.(type) {
+ 	case nil:
+-		unreachable()
++		panic("unreachable")
+ 
+ 	case *syntax.BadExpr:
+ 		goto Error // error was reported before
+@@ -1654,7 +1654,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
+ 			msg = "%s is not an expression"
+ 			code = NotAnExpr
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		check.errorf(x, code, msg, x)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/gcsizes.go b/src/cmd/compile/internal/types2/gcsizes.go
+index d204d9feef..15f3e00642 100644
+--- a/src/cmd/compile/internal/types2/gcsizes.go
++++ b/src/cmd/compile/internal/types2/gcsizes.go
+@@ -56,7 +56,7 @@ func (s *gcSizes) Alignof(T Type) (result int64) {
+ 			return s.WordSize
+ 		}
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	a := s.Sizeof(T) // may be 0 or negative
+ 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+@@ -154,7 +154,7 @@ func (s *gcSizes) Sizeof(T Type) int64 {
+ 		assert(!isTypeParam(T))
+ 		return s.WordSize * 2
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	return s.WordSize // catch-all
+ }
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 5aa8091a5c..3583a48407 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -472,7 +472,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		case field:
+ 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 193231794f..15ec86fb5e 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -226,7 +226,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
+ 	case syntax.StringLit:
+ 		kind = UntypedString
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	val := makeFromLiteral(lit, k)
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index bb2b53a942..938f8dcf8b 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -477,7 +477,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		// avoid a crash in case of nil type
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	return false
+diff --git a/src/cmd/compile/internal/types2/return.go b/src/cmd/compile/internal/types2/return.go
+index 01988b012e..4e9988755c 100644
+--- a/src/cmd/compile/internal/types2/return.go
++++ b/src/cmd/compile/internal/types2/return.go
+@@ -16,7 +16,7 @@ import (
+ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
+ 	switch s := s.(type) {
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 
+ 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.SendStmt,
+ 		*syntax.AssignStmt, *syntax.CallStmt:
+@@ -108,7 +108,7 @@ func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label strin
+ func hasBreak(s syntax.Stmt, label string, implicit bool) bool {
+ 	switch s := s.(type) {
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 
+ 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.ExprStmt,
+ 		*syntax.SendStmt, *syntax.AssignStmt, *syntax.CallStmt,
+diff --git a/src/cmd/compile/internal/types2/selection.go b/src/cmd/compile/internal/types2/selection.go
+index dfbf3a0191..2d882b2ee4 100644
+--- a/src/cmd/compile/internal/types2/selection.go
++++ b/src/cmd/compile/internal/types2/selection.go
+@@ -163,7 +163,7 @@ func SelectionString(s *Selection, qf Qualifier) string {
+ 	case MethodExpr:
+ 		k = "method expr "
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	var buf bytes.Buffer
+ 	buf.WriteString(k)
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 18a64ec1a0..72b57bc842 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -247,7 +247,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				case *TypeParam:
+ 					// The underlying type of a receiver base type cannot be a
+ 					// type parameter: "type T[P any] P" is not a valid declaration.
+-					unreachable()
++					panic("unreachable")
+ 				}
+ 				if cause != "" {
+ 					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 486c05c61c..7d20c97010 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -94,7 +94,7 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
+ 			return s.WordSize
+ 		}
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	a := s.Sizeof(T) // may be 0 or negative
+ 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+@@ -221,7 +221,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		assert(!isTypeParam(T))
+ 		return s.WordSize * 2
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	return s.WordSize // catch-all
+ }
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 272636ff39..0ec5829ee4 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -186,7 +186,7 @@ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
+ 	case statement:
+ 		return
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
+ }
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 1ad73c41ce..fa636a1e1e 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -283,7 +283,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		return subst.smap.lookup(t)
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	return typ
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index d131306a14..be7c306a8d 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -139,7 +139,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 		x.mode = nilvalue
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	x.typ = typ
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index c8be81b9eb..8e1e4a2bb7 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -279,7 +279,7 @@ func def(obj Object) {
+ 		case *Builtin:
+ 			obj.pkg = Unsafe
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 	if scope.Insert(obj) != nil {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 040b24f5cc..6519fa302a 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -910,7 +910,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// trace is only available in test mode - no need to record signature
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	assert(x.mode != invalid)
+@@ -949,7 +949,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ 	case *Interface:
+ 		return isTypeParam(t)
+ 	case *Named, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	return false
+ }
+@@ -992,7 +992,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		case _Complex:
+ 			code = InvalidComplex
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index dcd833d23c..b7775f6c6b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -758,7 +758,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 				x.id = exp.id
+ 			default:
+ 				check.dump("%v: unexpected object %v", e.Sel.Pos(), exp)
+-				unreachable()
++				panic("unreachable")
+ 			}
+ 			x.expr = e
+ 			return
+@@ -957,7 +957,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 			check.addDeclDep(obj)
+ 
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 1e2ca59392..be992215d1 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -518,7 +518,7 @@ func (check *Checker) recordUntyped() {
+ 	for x, info := range check.untyped {
+ 		if debug && isTyped(info.typ) {
+ 			check.dump("%v: %s (type %s) is typed", x.Pos(), x, info.typ)
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
+ 	}
+@@ -554,7 +554,7 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
+ 		case *ast.ParenExpr:
+ 			f = p.X
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ }
+diff --git a/src/go/types/const.go b/src/go/types/const.go
+index bffea146a0..4956d12883 100644
+--- a/src/go/types/const.go
++++ b/src/go/types/const.go
+@@ -119,7 +119,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 			case Uint64:
+ 				return 0 <= x
+ 			default:
+-				unreachable()
++				panic("unreachable")
+ 			}
+ 		}
+ 		// x does not fit into int64
+@@ -160,7 +160,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 		case UntypedFloat:
+ 			return true
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 
+ 	case isComplex(typ):
+@@ -192,7 +192,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 		case UntypedComplex:
+ 			return true
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 
+ 	case isString(typ):
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 9f8c44ab50..3994d1650f 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -160,7 +160,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 			}
+ 
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		assert(obj.Type() != nil)
+ 		return
+@@ -169,7 +169,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 	d := check.objMap[obj]
+ 	if d == nil {
+ 		check.dump("%v: %s should have been declared", obj.Pos(), obj)
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	// save/restore current environment and set up object environment
+@@ -200,7 +200,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 		// functions may be recursive - no need to track dependencies
+ 		check.funcDecl(obj, d)
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ }
+ 
+@@ -214,7 +214,7 @@ func (check *Checker) validCycle(obj Object) (valid bool) {
+ 		isPkgObj := obj.Parent() == check.pkg.scope
+ 		if isPkgObj != inObjMap {
+ 			check.dump("%v: inconsistent object map for %s (isPkgObj = %v, inObjMap = %v)", obj.Pos(), obj, isPkgObj, inObjMap)
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+@@ -264,7 +264,7 @@ loop:
+ 		case *Func:
+ 			// ignored for now
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 0345cf7844..0e4b8a8c44 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -29,10 +29,6 @@ func assert(p bool) {
+ 	}
+ }
+ 
+-func unreachable() {
+-	panic("unreachable")
+-}
+-
+ // An error_ represents a type-checking error.
+ // To report an error_, call Checker.report.
+ type error_ struct {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 927cb50d40..626dd0e775 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -255,7 +255,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool)
+ 		// upon assignment or use.
+ 		if debug {
+ 			check.dump("%v: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		return
+ 
+@@ -301,7 +301,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool)
+ 		}
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	// If the new type is not final and still untyped, just
+@@ -524,7 +524,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool)
+ 		}
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	// comparison is ok
+@@ -1601,7 +1601,7 @@ func (check *Checker) exclude(x *operand, modeset uint) {
+ 			msg = "%s is not an expression"
+ 			code = NotAnExpr
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 		check.errorf(x, code, msg, x)
+ 		x.mode = invalid
+diff --git a/src/go/types/gcsizes.go b/src/go/types/gcsizes.go
+index 4329cc22e8..99ab95fb90 100644
+--- a/src/go/types/gcsizes.go
++++ b/src/go/types/gcsizes.go
+@@ -58,7 +58,7 @@ func (s *gcSizes) Alignof(T Type) (result int64) {
+ 			return s.WordSize
+ 		}
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	a := s.Sizeof(T) // may be 0 or negative
+ 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+@@ -156,7 +156,7 @@ func (s *gcSizes) Sizeof(T Type) int64 {
+ 		assert(!isTypeParam(T))
+ 		return s.WordSize * 2
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	return s.WordSize // catch-all
+ }
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 436a7afbaa..68bfd885dc 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -474,7 +474,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		case field:
+ 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index e922ca5cc3..883ee62394 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -229,7 +229,7 @@ func (x *operand) setConst(k token.Token, lit string) {
+ 	case token.STRING:
+ 		kind = UntypedString
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	val := makeFromLiteral(lit, k)
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 677dff01a0..e1a32143f1 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -479,7 +479,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		// avoid a crash in case of nil type
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	return false
+diff --git a/src/go/types/return.go b/src/go/types/return.go
+index 95318e9002..91bd95b6e0 100644
+--- a/src/go/types/return.go
++++ b/src/go/types/return.go
+@@ -17,7 +17,7 @@ import (
+ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
+ 	switch s := s.(type) {
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 
+ 	case *ast.BadStmt, *ast.DeclStmt, *ast.EmptyStmt, *ast.SendStmt,
+ 		*ast.IncDecStmt, *ast.AssignStmt, *ast.GoStmt, *ast.DeferStmt,
+@@ -110,7 +110,7 @@ func (check *Checker) isTerminatingSwitch(body *ast.BlockStmt, label string) boo
+ func hasBreak(s ast.Stmt, label string, implicit bool) bool {
+ 	switch s := s.(type) {
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 
+ 	case *ast.BadStmt, *ast.DeclStmt, *ast.EmptyStmt, *ast.ExprStmt,
+ 		*ast.SendStmt, *ast.IncDecStmt, *ast.AssignStmt, *ast.GoStmt,
+diff --git a/src/go/types/selection.go b/src/go/types/selection.go
+index 50d340c738..18d3204fb1 100644
+--- a/src/go/types/selection.go
++++ b/src/go/types/selection.go
+@@ -165,7 +165,7 @@ func SelectionString(s *Selection, qf Qualifier) string {
+ 	case MethodExpr:
+ 		k = "method expr "
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	var buf bytes.Buffer
+ 	buf.WriteString(k)
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index cad42cb942..8d26a8776d 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -251,7 +251,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				case *TypeParam:
+ 					// The underlying type of a receiver base type cannot be a
+ 					// type parameter: "type T[P any] P" is not a valid declaration.
+-					unreachable()
++					panic("unreachable")
+ 				}
+ 				if cause != "" {
+ 					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 12a21401e2..b7a2bea0e8 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -96,7 +96,7 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
+ 			return s.WordSize
+ 		}
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	a := s.Sizeof(T) // may be 0 or negative
+ 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+@@ -223,7 +223,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		assert(!isTypeParam(T))
+ 		return s.WordSize * 2
+ 	case *TypeParam, *Union:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	return s.WordSize // catch-all
+ }
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index f16e288ffc..ca528368b5 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -183,7 +183,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
+ 	case statement:
+ 		return
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
+ }
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 178f717283..00796ac924 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -285,7 +285,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		return subst.smap.lookup(t)
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	return typ
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index afb94b9026..7179a2466c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -140,7 +140,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 		x.mode = value
+ 
+ 	default:
+-		unreachable()
++		panic("unreachable")
+ 	}
+ 
+ 	x.typ = typ
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index bde0293527..8154d29053 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -281,7 +281,7 @@ func def(obj Object) {
+ 		case *Builtin:
+ 			obj.pkg = Unsafe
+ 		default:
+-			unreachable()
++			panic("unreachable")
+ 		}
+ 	}
+ 	if scope.Insert(obj) != nil {

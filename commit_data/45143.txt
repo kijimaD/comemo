@@ -13,8 +13,54 @@ Date:   Sat Oct 3 23:36:58 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/259442
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/dist/test.go               | 2 +-
  src/cmd/internal/sys/supported.go  | 2 +-
  src/cmd/link/internal/ld/config.go | 8 +++++++-
  3 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4b07501b6d..d37454c651 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1023,7 +1023,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+ 			"android-amd64", "android-arm", "android-arm64", "android-386":
+ 			return true
+-		case "darwin-amd64":
++		case "darwin-amd64", "darwin-arm64":
+ 			return true
+ 		case "windows-amd64", "windows-386", "windows-arm":
+ 			return true
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 94fc92146c..f97f663f2a 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -86,7 +86,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+-			"darwin/amd64",
++			"darwin/amd64", "darwin/arm64",
+ 			"aix/ppc64",
+ 			"windows/386", "windows/amd64", "windows/arm":
+ 			return true
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index a3ed5f2307..aaf74b58de 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -39,7 +39,13 @@ func (mode *BuildMode) Set(s string) error {
+ 	case "pie":
+ 		switch objabi.GOOS {
+ 		case "aix", "android", "linux", "windows":
+-		case "darwin", "freebsd":
++		case "darwin":
++			switch objabi.GOARCH {
++			case "amd64", "arm64":
++			default:
++				return badmode()
++			}
++		case "freebsd":
+ 			switch objabi.GOARCH {
+ 			case "amd64":
+ 			default:

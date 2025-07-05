@@ -9,6 +9,20 @@ Date:   Fri May 1 22:05:50 2015 -0400
     Change-Id: I7ee78c825b0bb092c7a8b2c2ece5a6eda2f6cf95
     Reviewed-on: https://go-review.googlesource.com/9643
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/build.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index fecfc5e83d..124da40d3b 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -259,6 +259,8 @@ var Default Context = defaultContext()
+ var cgoEnabled = map[string]bool{
+ 	"darwin/386":      true,
+ 	"darwin/amd64":    true,
++	"darwin/arm":      true,
++	"darwin/arm64":    true,
+ 	"dragonfly/amd64": true,
+ 	"freebsd/386":     true,
+ 	"freebsd/amd64":   true,

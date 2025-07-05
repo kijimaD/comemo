@@ -8,6 +8,20 @@ Date:   Mon Feb 1 17:38:26 2010 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/196088
-
+---
  doc/devel/index.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/devel/index.html b/doc/devel/index.html
+index c8af0214ef..b9b526b943 100644
+--- a/doc/devel/index.html
++++ b/doc/devel/index.html
+@@ -3,5 +3,8 @@
+ <ul>
+ <li><a href="roadmap.html">Roadmap</a></li>
+ <li><a href="release.html">Release History</a></li>
++<li><a href="http://godashboard.appspot.com">Build and benchmark status</a></li>
++</ul>
++<ul>
+ <li><a href="../contribute.html">Contributing code</a></li>
+ </ul>

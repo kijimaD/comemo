@@ -20,10 +20,87 @@ Date:   Tue Apr 18 16:43:11 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go             | 14 --------------
  src/internal/types/testdata/fixedbugs/issue59371.go |  7 ++-----
  test/fixedbugs/issue30085.go                        |  2 +-
  test/fixedbugs/issue30087.go                        |  2 +-
  test/rename1.go                                     |  2 +-
  5 files changed, 5 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index f7c6a8e573..dd39c42037 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -416,20 +416,6 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
+ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 	assert(obj.typ == nil)
+ 
+-	// If we have undefined variable types due to errors,
+-	// mark variables as used to avoid follow-on errors.
+-	// Matches compiler behavior.
+-	defer func() {
+-		if obj.typ == Typ[Invalid] {
+-			obj.used = true
+-		}
+-		for _, lhs := range lhs {
+-			if lhs.typ == Typ[Invalid] {
+-				lhs.used = true
+-			}
+-		}
+-	}()
+-
+ 	// determine type, if any
+ 	if typ != nil {
+ 		obj.typ = check.varType(typ)
+diff --git a/src/internal/types/testdata/fixedbugs/issue59371.go b/src/internal/types/testdata/fixedbugs/issue59371.go
+index d60810a6f0..d5b4db6a85 100644
+--- a/src/internal/types/testdata/fixedbugs/issue59371.go
++++ b/src/internal/types/testdata/fixedbugs/issue59371.go
+@@ -12,9 +12,6 @@ func _() {
+ 
+ func _() {
+ 	var ok = undef /* ERROR "undefined: undef" */
+-	x, ok := m[0] // must not crash
+-	_ = x
+-	// The next line is only needed for go/types, not types2.
+-	// TODO(gri) find cause and fix
+-	_ = ok
++	x, ok := m[0]  // must not crash
++	_, _ = x, ok
+ }
+diff --git a/test/fixedbugs/issue30085.go b/test/fixedbugs/issue30085.go
+index 512355a443..f8595ab90c 100644
+--- a/test/fixedbugs/issue30085.go
++++ b/test/fixedbugs/issue30085.go
+@@ -9,5 +9,5 @@ package main
+ func main() {
+ 	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations|extra init expr"
+ 	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|wrong number of initializations|missing init expr"
+-	_, _, _, _ = c, d, e, f
++	_, _, _, _, _ = c, d, e, f, g
+ }
+diff --git a/test/fixedbugs/issue30087.go b/test/fixedbugs/issue30087.go
+index 3e4b0324a3..c55c47b064 100644
+--- a/test/fixedbugs/issue30087.go
++++ b/test/fixedbugs/issue30087.go
+@@ -11,5 +11,5 @@ func main() {
+ 	_ = 1, 2        // ERROR "assignment mismatch: 1 variable but 2 values|number of variables does not match|cannot assign"
+ 	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 value|wrong number of initializations|cannot initialize"
+ 	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations|cannot initialize"
+-	_, _, _, _ = c, d, e, f
++	_, _, _, _, _, _ = a, b, c, d, e, f
+ }
+diff --git a/test/rename1.go b/test/rename1.go
+index 058db4494a..56824e99ec 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -15,7 +15,7 @@ func main() {
+ 	const (
+ 		a = 1 + iota // ERROR "invalid operation|incompatible types|cannot convert"
+ 	)
+-
++	_, _ = n, y
+ }
+ 
+ const (

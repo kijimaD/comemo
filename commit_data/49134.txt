@@ -19,8 +19,178 @@ Date:   Tue Jul 20 09:37:35 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go |  23 +++---
  src/cmd/compile/internal/noder/stencil.go |   2 +-
  test/typeparam/builtins.go                | 114 ++++++++++++++++++++++++++++++
  3 files changed, 124 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index b0fb913ee8..7da5aa3102 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -126,22 +126,17 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	}
+ 
+ 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
+-		// For Builtin ops, we currently stay with using the old
+-		// typechecker to transform the call to a more specific expression
+-		// and possibly use more specific ops. However, for a bunch of the
+-		// ops, we delay doing the old typechecker if any of the args have
+-		// type params, for a variety of reasons:
++		// For most Builtin ops, we delay doing transformBuiltin if any of the
++		// args have type params, for a variety of reasons:
+ 		//
+-		// OMAKE: hard to choose specific ops OMAKESLICE, etc. until arg type is known
+-		// OREAL/OIMAG: can't determine type float32/float64 until arg type know
+-		// OLEN/OCAP: old typechecker will complain if arg is not obviously a slice/array.
+-		// OAPPEND: old typechecker will complain if arg is not obviously slice, etc.
+-		//
+-		// We will eventually break out the transforming functionality
+-		// needed for builtin's, and call it here or during stenciling, as
+-		// appropriate.
++		// OMAKE: transformMake can't choose specific ops OMAKESLICE, etc.
++		//    until arg type is known
++		// OREAL/OIMAG: transformRealImag can't determine type float32/float64
++		//    until arg type known
++		// OAPPEND: transformAppend requires that the arg is a slice
++		// ODELETE: transformDelete requires that the arg is a map
+ 		switch fun.BuiltinOp {
+-		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
++		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
+ 			hasTParam := false
+ 			for _, arg := range args {
+ 				if arg.Type().HasTParam() {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index cff36dd3bf..d1527c5d5c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1270,7 +1270,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				name := call.X.Name()
+ 				if name.BuiltinOp != ir.OXXX {
+ 					switch name.BuiltinOp {
+-					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
++					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
+ 						// Transform these builtins now that we
+ 						// know the type of the args.
+ 						m = transformBuiltin(call)
+diff --git a/test/typeparam/builtins.go b/test/typeparam/builtins.go
+new file mode 100644
+index 0000000000..3fe6f79391
+--- /dev/null
++++ b/test/typeparam/builtins.go
+@@ -0,0 +1,114 @@
++// compile -G=3
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file tests built-in calls on generic types.
++
++// derived and expanded from cmd/compile/internal/types2/testdata/check/builtins.go2
++
++package builtins
++
++// close
++
++type C0 interface{ int }
++type C1 interface{ chan int }
++type C2 interface{ chan int | <-chan int }
++type C3 interface{ chan int | chan float32 }
++type C4 interface{ chan int | chan<- int }
++type C5[T any] interface{ ~chan T | chan<- T }
++
++func _[T C1](ch T) {
++	close(ch)
++}
++
++func _[T C3](ch T) {
++	close(ch)
++}
++
++func _[T C4](ch T) {
++	close(ch)
++}
++
++func _[T C5[X], X any](ch T) {
++	close(ch)
++}
++
++// delete
++
++type M0 interface{ int }
++type M1 interface{ map[string]int }
++type M2 interface { map[string]int | map[string]float64 }
++type M3 interface{ map[string]int | map[rune]int }
++type M4[K comparable, V any] interface{ map[K]V | map[rune]V }
++
++func _[T M1](m T) {
++	delete(m, "foo")
++}
++
++func _[T M2](m T) {
++	delete(m, "foo")
++}
++
++func _[T M4[rune, V], V any](m T) {
++	delete(m, 'k')
++}
++
++// make
++
++type Bmc interface {
++	~map[rune]string | ~chan int
++}
++
++type Bms interface {
++	~map[string]int | ~[]int
++}
++
++type Bcs interface {
++	~chan bool | ~[]float64
++}
++
++type Bss interface {
++	~[]int | ~[]string
++}
++
++func _[T Bmc]() {
++	_ = make(T)
++	_ = make(T, 10)
++}
++
++func _[T Bms]() {
++	_ = make(T, 10)
++}
++
++func _[T Bcs]() {
++	_ = make(T, 10)
++}
++
++func _[T Bss]() {
++	_ = make(T, 10)
++	_ = make(T, 10, 20)
++}
++
++// len/cap
++
++type Slice[T any] interface {
++	type []T
++}
++
++func _[T any, S Slice[T]]() {
++	x := make(S, 5, 10)
++	_ = len(x)
++	_ = cap(x)
++}
++
++// append
++
++func _[T any, S Slice[T]]() {
++	x := make(S, 5)
++	y := make(S, 2)
++	var z T
++	_ = append(x, y...)
++	_ = append(x, z)
++}

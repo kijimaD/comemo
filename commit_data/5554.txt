@@ -7,7 +7,180 @@ Date:   Wed May 26 18:15:09 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1315042
-
+---
  src/pkg/fmt/scan.go      | 70 +++++++++++++++++++++++++++++++++++++-----------
  src/pkg/fmt/scan_test.go | 22 +++++++++++++++
  2 files changed, 76 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 42469b90e4..2a3a624911 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -21,6 +21,27 @@ type readRuner interface {
+ 	ReadRune() (rune int, size int, err os.Error)
+ }
+ 
++// ScanState represents the scanner state passed to custom scanners.
++// Scanners may do rune-at-a-time scanning or ask the ScanState
++// to discover the next space-delimited token.
++type ScanState interface {
++	// GetRune reads the next rune (Unicode code point) from the input.
++	GetRune() (rune int, err os.Error)
++	// UngetRune causes the next call to Get to return the rune.
++	UngetRune(rune int)
++	// Token returns the next space-delimited token from the input.
++	Token() (token string, err os.Error)
++}
++
++// Scanner is implemented by any value that has a Scan method, which scans
++// the input for the representation of a value and stores the result in the
++// receiver, which must be a pointer to be useful.  The Scan method is called
++// for any argument to Scan or Scanln that implements it.
++type Scanner interface {
++	Scan(ScanState) os.Error
++}
++
++// ss is the internal implementation of ScanState.
+ type ss struct {
+ 	rr        readRuner    // where to read input
+ 	buf       bytes.Buffer // token accumulator
+@@ -29,9 +50,29 @@ type ss struct {
+ 	err       os.Error
+ }
+ 
++func (s *ss) GetRune() (rune int, err os.Error) {
++	if s.peekRune >= 0 {
++		rune = s.peekRune
++		s.peekRune = -1
++		return
++	}
++	rune, _, err = s.rr.ReadRune()
++	return
++}
++
++func (s *ss) UngetRune(rune int) {
++	s.peekRune = rune
++}
++
++func (s *ss) Token() (tok string, err os.Error) {
++	tok = s.token()
++	err = s.err
++	return
++}
++
+ // readRune is a structure to enable reading UTF-8 encoded code points
+ // from an io.Reader.  It is used if the Reader given to the scanner does
+-// not already implement readRuner.
++// not already implement ReadRuner.
+ // TODO: readByteRune for things that can read bytes.
+ type readRune struct {
+ 	reader io.Reader
+@@ -97,17 +138,6 @@ func (s *ss) free() {
+ 	_ = ssFree <- s
+ }
+ 
+-// readRune reads the next rune, but checks the peeked item first.
+-func (s *ss) readRune() (rune int, err os.Error) {
+-	if s.peekRune >= 0 {
+-		rune = s.peekRune
+-		s.peekRune = -1
+-		return
+-	}
+-	rune, _, err = s.rr.ReadRune()
+-	return
+-}
+-
+ // token returns the next space-delimited string from the input.
+ // For Scanln, it stops at newlines.  For Scan, newlines are treated as
+ // spaces.
+@@ -115,7 +145,7 @@ func (s *ss) token() string {
+ 	s.buf.Reset()
+ 	// skip white space and maybe newline
+ 	for {
+-		rune, err := s.readRune()
++		rune, err := s.GetRune()
+ 		if err != nil {
+ 			s.err = err
+ 			return ""
+@@ -134,7 +164,7 @@ func (s *ss) token() string {
+ 	}
+ 	// read until white space or newline
+ 	for {
+-		rune, err := s.readRune()
++		rune, err := s.GetRune()
+ 		if err != nil {
+ 			if err == os.EOF {
+ 				break
+@@ -143,7 +173,7 @@ func (s *ss) token() string {
+ 			return ""
+ 		}
+ 		if unicode.IsSpace(rune) {
+-			s.peekRune = rune
++			s.UngetRune(rune)
+ 			break
+ 		}
+ 		s.buf.WriteRune(rune)
+@@ -324,6 +354,14 @@ func (s *ss) scanUint(tok string, bitSize uint) uint64 {
+ // doScan does the real work.  At the moment, it handles only pointers to basic types.
+ func (s *ss) doScan(a []interface{}) int {
+ 	for n, param := range a {
++		// If the parameter has its own Scan method, use that.
++		if v, ok := param.(Scanner); ok {
++			s.err = v.Scan(s)
++			if s.err != nil {
++				return n
++			}
++			continue
++		}
+ 		tok := s.token()
+ 		switch v := param.(type) {
+ 		case *bool:
+@@ -392,7 +430,7 @@ func (s *ss) doScan(a []interface{}) int {
+ 	// Check for newline if required.
+ 	if !s.nlIsSpace {
+ 		for {
+-			rune, err := s.readRune()
++			rune, err := s.GetRune()
+ 			if err != nil {
+ 				if err == os.EOF {
+ 					break
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 1c974e4d5a..95aaffef82 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -38,6 +38,25 @@ var complexVal complex
+ var complex64Val complex64
+ var complex128Val complex128
+ 
++// Xs accepts any non-empty run of x's.
++var xPat = testing.MustCompile("x+")
++
++type Xs string
++
++func (x *Xs) Scan(state ScanState) os.Error {
++	tok, err := state.Token()
++	if err != nil {
++		return err
++	}
++	if !xPat.MatchString(tok) {
++		return os.ErrorString("syntax error for xs")
++	}
++	*x = Xs(tok)
++	return nil
++}
++
++var xVal Xs
++
+ var scanTests = []ScanTest{
+ 	ScanTest{"T\n", &boolVal, true},
+ 	ScanTest{"21\n", &intVal, 21},
+@@ -72,6 +91,9 @@ var scanTests = []ScanTest{
+ 	ScanTest{"(3.4e1-2i)\n", &complexVal, 3.4e1 - 2i},
+ 	ScanTest{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
+ 	ScanTest{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
++
++	// Custom scanner.
++	ScanTest{"  xxx ", &xVal, Xs("xxx")},
+ }
+ 
+ var overflowTests = []ScanTest{

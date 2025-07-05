@@ -15,7 +15,7 @@ Date:   Mon Mar 15 22:28:31 2021 +0000
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Rob Pike <r@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/time/format.go        |  2 +-
  src/time/time.go          | 20 +++++++++++++-------
  src/time/time_test.go     | 36 ++++++++++++++++++++++++++++++++++++
@@ -23,3 +23,333 @@ Date:   Mon Mar 15 22:28:31 2021 +0000
  src/time/zoneinfo_read.go |  2 +-
  src/time/zoneinfo_test.go | 23 ++++++++++++-----------
  6 files changed, 86 insertions(+), 34 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index f11fb7ed30..c4f3358f59 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1152,7 +1152,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		name, offset, _, _ := local.lookup(t.unixSec())
++		name, offset, _, _, _ := local.lookup(t.unixSec())
+ 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+ 			t.setLoc(local)
+ 			return t, nil
+diff --git a/src/time/time.go b/src/time/time.go
+index 8ae62308e5..7e5192a0c9 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -440,7 +440,7 @@ func (t Time) abs() uint64 {
+ 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+ 			sec += int64(l.cacheZone.offset)
+ 		} else {
+-			_, offset, _, _ := l.lookup(sec)
++			_, offset, _, _, _ := l.lookup(sec)
+ 			sec += int64(offset)
+ 		}
+ 	}
+@@ -461,7 +461,7 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
+ 			name = l.cacheZone.name
+ 			offset = l.cacheZone.offset
+ 		} else {
+-			name, offset, _, _ = l.lookup(sec)
++			name, offset, _, _, _ = l.lookup(sec)
+ 		}
+ 		sec += int64(offset)
+ 	} else {
+@@ -1114,7 +1114,7 @@ func (t Time) Location() *Location {
+ // Zone computes the time zone in effect at time t, returning the abbreviated
+ // name of the zone (such as "CET") and its offset in seconds east of UTC.
+ func (t Time) Zone() (name string, offset int) {
+-	name, offset, _, _ = t.loc.lookup(t.unixSec())
++	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
+ 	return
+ }
+ 
+@@ -1212,7 +1212,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
+ 
+ 	if offset == -1*60 {
+ 		t.setLoc(&utcLoc)
+-	} else if _, localoff, _, _ := Local.lookup(t.unixSec()); offset == localoff {
++	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+ 		t.setLoc(Local)
+ 	} else {
+ 		t.setLoc(FixedZone("", offset))
+@@ -1302,6 +1302,12 @@ func Unix(sec int64, nsec int64) Time {
+ 	return unixTime(sec, int32(nsec))
+ }
+ 
++// IsDST reports whether the time in the configured location is in Daylight Savings Time.
++func (t *Time) IsDST() bool {
++	_, _, _, _, isDST := t.loc.lookup(t.Unix())
++	return isDST
++}
++
+ func isLeap(year int) bool {
+ 	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+ }
+@@ -1377,13 +1383,13 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 	// The lookup function expects UTC, so we pass t in the
+ 	// hope that it will not be too close to a zone transition,
+ 	// and then adjust if it is.
+-	_, offset, start, end := loc.lookup(unix)
++	_, offset, start, end, _ := loc.lookup(unix)
+ 	if offset != 0 {
+ 		switch utc := unix - int64(offset); {
+ 		case utc < start:
+-			_, offset, _, _ = loc.lookup(start - 1)
++			_, offset, _, _, _ = loc.lookup(start - 1)
+ 		case utc >= end:
+-			_, offset, _, _ = loc.lookup(end)
++			_, offset, _, _, _ = loc.lookup(end)
+ 		}
+ 		unix -= int64(offset)
+ 	}
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 154198a1ce..8884731e1d 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1465,3 +1465,39 @@ func TestConcurrentTimerResetStop(t *testing.T) {
+ 	}
+ 	wg.Wait()
+ }
++
++func TestTimeIsDST(t *testing.T) {
++	ForceZipFileForTesting(true)
++	defer ForceZipFileForTesting(false)
++
++	tzWithDST, err := LoadLocation("Australia/Sydney")
++	if err != nil {
++		t.Fatalf("could not load tz 'Australia/Sydney': %v", err)
++	}
++	tzWithoutDST, err := LoadLocation("Australia/Brisbane")
++	if err != nil {
++		t.Fatalf("could not load tz 'Australia/Brisbane': %v", err)
++	}
++	tzFixed := FixedZone("FIXED_TIME", 12345)
++
++	tests := [...]struct {
++		time   Time
++		want bool
++	}{
++		0: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
++		1: {Date(2009, 6, 1, 12, 0, 0, 0, UTC), false},
++		2: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithDST), true},
++		3: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithDST), false},
++		4: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithoutDST), false},
++		5: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithoutDST), false},
++		6: {Date(2009, 1, 1, 12, 0, 0, 0, tzFixed), false},
++		7: {Date(2009, 6, 1, 12, 0, 0, 0, tzFixed), false},
++	}
++
++	for i, tt := range tests {
++		got := tt.time.IsDST()
++		if got != tt.want {
++			t.Errorf("#%d:: (%#v).IsDST()=%t, want %t", i, tt.time.Format(RFC3339), got, tt.want)
++		}
++	}
++}
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 6db9443474..57aed03fec 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -121,7 +121,7 @@ func FixedZone(name string, offset int) *Location {
+ // the start and end times bracketing sec when that zone is in effect,
+ // the offset in seconds east of UTC (such as -5*60*60), and whether
+ // the daylight savings is being observed at that time.
+-func (l *Location) lookup(sec int64) (name string, offset int, start, end int64) {
++func (l *Location) lookup(sec int64) (name string, offset int, start, end int64, isDST bool) {
+ 	l = l.get()
+ 
+ 	if len(l.zone) == 0 {
+@@ -129,6 +129,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
+ 		offset = 0
+ 		start = alpha
+ 		end = omega
++		isDST = false
+ 		return
+ 	}
+ 
+@@ -137,6 +138,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
+ 		offset = zone.offset
+ 		start = l.cacheStart
+ 		end = l.cacheEnd
++		isDST = zone.isDST
+ 		return
+ 	}
+ 
+@@ -150,6 +152,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
+ 		} else {
+ 			end = omega
+ 		}
++		isDST = zone.isDST
+ 		return
+ 	}
+ 
+@@ -174,12 +177,13 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
+ 	offset = zone.offset
+ 	start = tx[lo].when
+ 	// end = maintained during the search
++	isDST = zone.isDST
+ 
+ 	// If we're at the end of the known zone transitions,
+ 	// try the extend string.
+ 	if lo == len(tx)-1 && l.extend != "" {
+-		if ename, eoffset, estart, eend, ok := tzset(l.extend, end, sec); ok {
+-			return ename, eoffset, estart, eend
++		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
++			return ename, eoffset, estart, eend, eisDST
+ 		}
+ 	}
+ 
+@@ -244,7 +248,7 @@ func (l *Location) firstZoneUsed() bool {
+ // We call this a tzset string since in C the function tzset reads TZ.
+ // The return values are as for lookup, plus ok which reports whether the
+ // parse succeeded.
+-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, ok bool) {
++func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
+ 	var (
+ 		stdName, dstName     string
+ 		stdOffset, dstOffset int
+@@ -255,7 +259,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 		stdOffset, s, ok = tzsetOffset(s)
+ 	}
+ 	if !ok {
+-		return "", 0, 0, 0, false
++		return "", 0, 0, 0, false, false
+ 	}
+ 
+ 	// The numbers in the tzset string are added to local time to get UTC,
+@@ -265,7 +269,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 
+ 	if len(s) == 0 || s[0] == ',' {
+ 		// No daylight savings time.
+-		return stdName, stdOffset, initEnd, omega, true
++		return stdName, stdOffset, initEnd, omega, false, true
+ 	}
+ 
+ 	dstName, s, ok = tzsetName(s)
+@@ -278,7 +282,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 		}
+ 	}
+ 	if !ok {
+-		return "", 0, 0, 0, false
++		return "", 0, 0, 0, false, false
+ 	}
+ 
+ 	if len(s) == 0 {
+@@ -287,19 +291,19 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 	}
+ 	// The TZ definition does not mention ';' here but tzcode accepts it.
+ 	if s[0] != ',' && s[0] != ';' {
+-		return "", 0, 0, 0, false
++		return "", 0, 0, 0, false, false
+ 	}
+ 	s = s[1:]
+ 
+ 	var startRule, endRule rule
+ 	startRule, s, ok = tzsetRule(s)
+ 	if !ok || len(s) == 0 || s[0] != ',' {
+-		return "", 0, 0, 0, false
++		return "", 0, 0, 0, false, false
+ 	}
+ 	s = s[1:]
+ 	endRule, s, ok = tzsetRule(s)
+ 	if !ok || len(s) > 0 {
+-		return "", 0, 0, 0, false
++		return "", 0, 0, 0, false, false
+ 	}
+ 
+ 	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
+@@ -313,10 +317,15 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 
+ 	startSec := int64(tzruleTime(year, startRule, stdOffset))
+ 	endSec := int64(tzruleTime(year, endRule, dstOffset))
++	dstIsDST, stdIsDST := true, false
++	// Note: this is a flipping of "DST" and "STD" while retaining the labels
++	// This happens in southern hemispheres. The labelling here thus is a little
++	// inconsistent with the goal.
+ 	if endSec < startSec {
+ 		startSec, endSec = endSec, startSec
+ 		stdName, dstName = dstName, stdName
+ 		stdOffset, dstOffset = dstOffset, stdOffset
++		stdIsDST, dstIsDST = dstIsDST, stdIsDST
+ 	}
+ 
+ 	// The start and end values that we return are accurate
+@@ -324,11 +333,11 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 	// just the start and end of the year. That suffices for
+ 	// the only caller that cares, which is Date.
+ 	if ysec < startSec {
+-		return stdName, stdOffset, abs, startSec + abs, true
++		return stdName, stdOffset, abs, startSec + abs, stdIsDST, true
+ 	} else if ysec >= endSec {
+-		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, true
++		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, stdIsDST, true
+ 	} else {
+-		return dstName, dstOffset, startSec + abs, endSec + abs, true
++		return dstName, dstOffset, startSec + abs, endSec + abs, dstIsDST, true
+ 	}
+ }
+ 
+@@ -587,7 +596,7 @@ func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
+ 	for i := range l.zone {
+ 		zone := &l.zone[i]
+ 		if zone.name == name {
+-			nam, offset, _, _ := l.lookup(unix - int64(zone.offset))
++			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
+ 			if nam == zone.name {
+ 				return offset, true
+ 			}
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index c739864815..7ac25b1e62 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -329,7 +329,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 			} else if l.extend != "" {
+ 				// If we're at the end of the known zone transitions,
+ 				// try the extend string.
+-				if name, _, estart, eend, ok := tzset(l.extend, l.cacheEnd, sec); ok {
++				if name, _, estart, eend, _, ok := tzset(l.extend, l.cacheEnd, sec); ok {
+ 					l.cacheStart = estart
+ 					l.cacheEnd = eend
+ 					// Find the zone that is returned by tzset,
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index d043e1e9f1..a3f41d0356 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -239,20 +239,21 @@ func TestTzset(t *testing.T) {
+ 		off   int
+ 		start int64
+ 		end   int64
++		isDST bool
+ 		ok    bool
+ 	}{
+-		{"", 0, 0, "", 0, 0, 0, false},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2159200800, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173599, "PST", -8 * 60 * 60, 2145916800, 2152173600, true},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173600, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173601, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733199, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733200, "PST", -8 * 60 * 60, 2172733200, 2177452800, true},
+-		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733201, "PST", -8 * 60 * 60, 2172733200, 2177452800, true},
++		{"", 0, 0, "", 0, 0, 0, false, false},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2159200800, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173599, "PST", -8 * 60 * 60, 2145916800, 2152173600, false, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173600, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173601, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733199, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733200, "PST", -8 * 60 * 60, 2172733200, 2177452800, false, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733201, "PST", -8 * 60 * 60, 2172733200, 2177452800, false, true},
+ 	} {
+-		name, off, start, end, ok := time.Tzset(test.inStr, test.inEnd, test.inSec)
+-		if name != test.name || off != test.off || start != test.start || end != test.end || ok != test.ok {
+-			t.Errorf("tzset(%q, %d, %d) = %q, %d, %d, %d, %t, want %q, %d, %d, %d, %t", test.inStr, test.inEnd, test.inSec, name, off, start, end, ok, test.name, test.off, test.start, test.end, test.ok)
++		name, off, start, end, isDST, ok := time.Tzset(test.inStr, test.inEnd, test.inSec)
++		if name != test.name || off != test.off || start != test.start || end != test.end || isDST != test.isDST || ok != test.ok {
++			t.Errorf("tzset(%q, %d, %d) = %q, %d, %d, %d, %t, %t, want %q, %d, %d, %d, %t, %t", test.inStr, test.inEnd, test.inSec, name, off, start, end, isDST, ok, test.name, test.off, test.start, test.end, test.isDST, test.ok)
+ 		}
+ 	}
+ }

@@ -14,7 +14,7 @@ Date:   Tue Nov 26 11:27:25 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                         |  4 ++--
  src/cmd/go.sum                                         |  8 ++++----
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go        | 18 +++++++++++-------
@@ -31,3 +31,325 @@ Date:   Tue Nov 26 11:27:25 2019 -0500
  .../x/tools/go/analysis/passes/unmarshal/unmarshal.go  |  4 ++--
  src/cmd/vendor/modules.txt                             |  4 ++--
  15 files changed, 56 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index ab756c8007..55ef2395c5 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+-	golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee
++	golang.org/x/mod v0.1.1-0.20191126161957-788aebd06792
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80
++	golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 09bfadab81..040f25b617 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,8 +7,8 @@ golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1/go.mod h1:flIaEI6LNU6xOCD5P
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 h1:ObdrDkeb4kJdCP557AjRjq69pTHfNouLtWZG7j9rPN8=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee h1:WG0RUwxtNT4qqaXX3DPA8zHFNm/D9xaBpxzHt1WcA/E=
+-golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
++golang.org/x/mod v0.1.1-0.20191126161957-788aebd06792 h1:04Uqz7R2BD7irAGgQtrKNW5tLa50RgSW71y4ofoaivk=
++golang.org/x/mod v0.1.1-0.20191126161957-788aebd06792/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+@@ -18,8 +18,8 @@ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dz
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80 h1:6CcDC1SXj4DrJP955osT9RJmKsH3LQBZJ59D5v4Rw0s=
+-golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e h1:aZzprAO9/8oim3qStq3wc1Xuxx4QmAGriC4VU4ojemQ=
++golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 h1:/atklqdjdhuosWIl6AIbOeHJjicWYPqR9bpxqxYG2pA=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 292d5b60b5..62af06889f 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -313,8 +313,8 @@ func isIndirect(line *Line) bool {
+ 	if len(line.Suffix) == 0 {
+ 		return false
+ 	}
+-	f := strings.Fields(line.Suffix[0].Token)
+-	return (len(f) == 2 && f[1] == "indirect" || len(f) > 2 && f[1] == "indirect;") && f[0] == "//"
++	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
++	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
+ }
+ 
+ // setIndirect sets line to have (or not have) a "// indirect" comment.
+@@ -329,13 +329,17 @@ func setIndirect(line *Line, indirect bool) {
+ 			line.Suffix = []Comment{{Token: "// indirect", Suffix: true}}
+ 			return
+ 		}
+-		// Insert at beginning of existing comment.
++
+ 		com := &line.Suffix[0]
+-		space := " "
+-		if len(com.Token) > 2 && com.Token[2] == ' ' || com.Token[2] == '\t' {
+-			space = ""
++		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
++		if text == "" {
++			// Empty comment.
++			com.Token = "// indirect"
++			return
+ 		}
+-		com.Token = "// indirect;" + space + com.Token[2:]
++
++		// Insert at beginning of existing comment.
++		com.Token = "// indirect; " + text
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 21f123957d..6cd37280a8 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -123,8 +123,12 @@ type Version struct {
+ 	Version string `json:",omitempty"`
+ }
+ 
+-// String returns the module version syntax Path@Version.
++// String returns a representation of the Version suitable for logging
++// (Path@Version, or just Path if Version is empty).
+ func (m Version) String() string {
++	if m.Version == "" {
++		return m.Path
++	}
+ 	return m.Path + "@" + m.Version
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index d2811def7a..37c764257e 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -234,6 +234,8 @@ func Create(w io.Writer, m module.Version, files []File) (err error) {
+ // belong in the module zip. In particular, CreateFromDir will not include
+ // files in modules found in subdirectories, most files in vendor directories,
+ // or irregular files (such as symbolic links) in the output archive.
++// Additionally, unlike Create, CreateFromDir will not include directories
++// named ".bzr", ".git", ".hg", or ".svn".
+ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
+ 	defer func() {
+ 		if zerr, ok := err.(*zipError); ok {
+@@ -257,6 +259,14 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
+ 				return nil
+ 			}
+ 
++			// Skip VCS directories.
++			// fossil repos are regular files with arbitrary names, so we don't try
++			// to exclude them.
++			switch filepath.Base(filePath) {
++			case ".bzr", ".git", ".hg", ".svn":
++				return filepath.SkipDir
++			}
++
+ 			// Skip some subdirectories inside vendor, but maintain bug
+ 			// golang.org/issue/31562, described in isVendoredPackage.
+ 			// We would like Create and CreateFromDir to produce the same result
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index c2e89ee2dc..5c93a4f703 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -22,9 +22,11 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ )
+ 
++const Doc = "report mismatches between assembly files and Go declarations"
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "asmdecl",
+-	Doc:  "report mismatches between assembly files and Go declarations",
++	Doc:  Doc,
+ 	Run:  run,
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+index fbc1f7ea91..5ae47d8948 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+@@ -17,9 +17,11 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
++const Doc = "check for common mistakes involving boolean operators"
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "bools",
+-	Doc:      "check for common mistakes involving boolean operators",
++	Doc:      Doc,
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index 5a441e609b..78176f1011 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -16,9 +16,11 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ )
+ 
++const Doc = "check that +build tags are well-formed and correctly located"
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "buildtag",
+-	Doc:  "check that +build tags are well-formed and correctly located",
++	Doc:  Doc,
+ 	Run:  runBuildTag,
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index d499f3c329..1b7b8d2de7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -23,7 +23,7 @@ import (
+ 
+ const debug = false
+ 
+-const doc = `detect some violations of the cgo pointer passing rules
++const Doc = `detect some violations of the cgo pointer passing rules
+ 
+ Check for invalid cgo pointer passing.
+ This looks for code that uses cgo to call C code passing values
+@@ -34,7 +34,7 @@ or slice to C, either directly, or via a pointer, array, or struct.`
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "cgocall",
+-	Doc:              doc,
++	Doc:              Doc,
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index cd37407144..b80271afb9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -16,14 +16,14 @@ import (
+ 	"golang.org/x/tools/go/types/typeutil"
+ )
+ 
+-const doc = `report passing non-pointer or non-error values to errors.As
++const Doc = `report passing non-pointer or non-error values to errors.As
+ 
+ The errorsas analysis reports calls to errors.As where the type
+ of the second argument is not a pointer to a type implementing error.`
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "errorsas",
+-	Doc:      doc,
++	Doc:      Doc,
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index 85e7ba7a8e..de6f840f68 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package lostcancel defines an Analyzer that checks for failure to
+-// call a context cancelation function.
++// call a context cancellation function.
+ package lostcancel
+ 
+ import (
+@@ -20,7 +20,7 @@ import (
+ 
+ const Doc = `check cancel func returned by context.WithCancel is called
+ 
+-The cancelation function returned by context.WithCancel, WithTimeout,
++The cancellation function returned by context.WithCancel, WithTimeout,
+ and WithDeadline must be called or the new context will remain live
+ until its parent context is cancelled.
+ (The background context is never cancelled.)`
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 38a752c957..a81dba9125 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -33,14 +33,14 @@ func init() {
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:       "printf",
+-	Doc:        doc,
++	Doc:        Doc,
+ 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:        run,
+ 	ResultType: reflect.TypeOf((*Result)(nil)),
+ 	FactTypes:  []analysis.Fact{new(isWrapper)},
+ }
+ 
+-const doc = `check consistency of Printf format strings and arguments
++const Doc = `check consistency of Printf format strings and arguments
+ 
+ The check applies to known functions (for example, those in package fmt)
+ as well as any detected wrappers of known functions.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+index 0db95dafb0..1f3df07ccd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+@@ -21,9 +21,11 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
++const Doc = "check for shifts that equal or exceed the width of the integer"
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "shift",
+-	Doc:      "check for shifts that equal or exceed the width of the integer",
++	Doc:      Doc,
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+index d019ecef15..f9cc993cbb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+@@ -16,14 +16,14 @@ import (
+ 	"golang.org/x/tools/go/types/typeutil"
+ )
+ 
+-const doc = `report passing non-pointer or non-interface values to unmarshal
++const Doc = `report passing non-pointer or non-interface values to unmarshal
+ 
+ The unmarshal analysis reports calls to functions such as json.Unmarshal
+ in which the argument type is not a pointer or an interface.`
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "unmarshal",
+-	Doc:      doc,
++	Doc:      Doc,
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e1a880c677..757a4c3793 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -29,7 +29,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee
++# golang.org/x/mod v0.1.1-0.20191126161957-788aebd06792
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -44,7 +44,7 @@ golang.org/x/mod/zip
+ ## explicit
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80
++# golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags

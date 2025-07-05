@@ -7,6 +7,20 @@ Date:   Fri Nov 16 23:09:37 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6843069
-
+---
  src/pkg/runtime/debug.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index e9d7601710..0211ce61b8 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-// Breakpoint() executes a breakpoint trap.
++// Breakpoint executes a breakpoint trap.
+ func Breakpoint()
+ 
+ // LockOSThread wires the calling goroutine to its current operating system thread.

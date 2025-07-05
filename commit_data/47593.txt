@@ -16,7 +16,50 @@ Date:   Mon Mar 22 22:27:25 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/parser.go                          |  5 +++++
  src/go/parser/testdata/resolution/issue45136.src | 10 ++++------
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index b86d6bad46..be87d3f9ee 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1804,6 +1804,11 @@ func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
+ 				p.error(t.Pos(), "cannot parenthesize type in composite literal")
+ 				// already progressed, no need to advance
+ 			}
++			if lhs {
++				// An error has already been reported above, but try to resolve the 'T'
++				// in (T){...} anyway.
++				p.resolve(t)
++			}
+ 			x = p.parseLiteralValue(x)
+ 		default:
+ 			return
+diff --git a/src/go/parser/testdata/resolution/issue45136.src b/src/go/parser/testdata/resolution/issue45136.src
+index 5e507fabe5..671001f5a3 100644
+--- a/src/go/parser/testdata/resolution/issue45136.src
++++ b/src/go/parser/testdata/resolution/issue45136.src
+@@ -12,17 +12,15 @@ func _ /* =@blank */ () {
+ 	var foo /* =@foo */ = "foo"
+ 	obj /* @obj */ ["foo"]
+ 	obj /* @obj */ .run()
+-
+-	// TODO(#45136): the next two statements are missing objects.
+-	obj{
++	obj /* @obj */ {
+ 		name: foo /* @foo */,
+ 	}
+-	obj{
++	obj /* @obj */ {
+ 		name: "bar",
+ 	}.run()
+ 
+-	var _ /* @=blank4 */ = File{key: obj /* @obj */{}}
+-	var _ /* @=blank3 */ = File{obj{}}
++	var _ /* @=blank4 */ = File{key: obj /* @obj */ {}}
++	var _ /* @=blank3 */ = File{obj /* @obj */ {}}
+ 
+ 	[]obj /* @obj */ {foo /* @foo */}
+ 	x /* =@x1 */ := obj /* @obj */{}

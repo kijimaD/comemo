@@ -33,7 +33,7 @@ Date:   Fri Aug 16 15:13:39 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/607955
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        | 50 ++++++++++++++++------
  src/cmd/compile/internal/types2/check.go           | 47 ++++++++------------
  src/go/types/api_test.go                           | 50 ++++++++++++++++------
@@ -46,3 +46,424 @@ Date:   Fri Aug 16 15:13:39 2024 -0400
  test/fixedbugs/issue63489a.go                      | 20 +++++----
  test/fixedbugs/issue63489b.go                      | 15 +++++--
  11 files changed, 174 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index d9ba620888..55b649af84 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -3031,22 +3031,48 @@ func TestFileVersions(t *testing.T) {
+ 		fileVersion string
+ 		wantVersion string
+ 	}{
+-		{"", "", ""},                   // no versions specified
+-		{"go1.19", "", "go1.19"},       // module version specified
+-		{"", "go1.20", ""},             // file upgrade ignored
+-		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+-		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+-		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
++		{"", "", ""},                    // no versions specified
++		{"go1.19", "", "go1.19"},        // module version specified
++		{"", "go1.20", "go1.21"},        // file version specified below minimum of 1.21
++		{"go1", "", "go1"},              // no file version specified
++		{"go1", "goo1.22", "go1"},       // invalid file version specified
++		{"go1", "go1.19", "go1.21"},     // file version specified below minimum of 1.21
++		{"go1", "go1.20", "go1.21"},     // file version specified below minimum of 1.21
++		{"go1", "go1.21", "go1.21"},     // file version specified at 1.21
++		{"go1", "go1.22", "go1.22"},     // file version specified above 1.21
++		{"go1.19", "", "go1.19"},        // no file version specified
++		{"go1.19", "goo1.22", "go1.19"}, // invalid file version specified
++		{"go1.19", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.19", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.19", "go1.22", "go1.22"},  // file version specified above 1.21
++		{"go1.20", "", "go1.20"},        // no file version specified
++		{"go1.20", "goo1.22", "go1.20"}, // invalid file version specified
++		{"go1.20", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.20", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.20", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.20", "go1.22", "go1.22"},  // file version specified above 1.21
++		{"go1.21", "", "go1.21"},        // no file version specified
++		{"go1.21", "goo1.22", "go1.21"}, // invalid file version specified
++		{"go1.21", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.21", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.21", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.21", "go1.22", "go1.22"},  // file version specified above 1.21
++		{"go1.22", "", "go1.22"},        // no file version specified
++		{"go1.22", "goo1.22", "go1.22"}, // invalid file version specified
++		{"go1.22", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.22", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.22", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.22", "go1.22", "go1.22"},  // file version specified above 1.21
+ 
+ 		// versions containing release numbers
+ 		// (file versions containing release numbers are considered invalid)
+ 		{"go1.19.0", "", "go1.19.0"},         // no file version specified
+-		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
+-		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
+-		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
+-		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
+-		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
+-		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
++		{"go1.20.1", "go1.19.1", "go1.20.1"}, // invalid file version
++		{"go1.20.1", "go1.21.1", "go1.20.1"}, // invalid file version
++		{"go1.21.1", "go1.19.1", "go1.21.1"}, // invalid file version
++		{"go1.21.1", "go1.21.1", "go1.21.1"}, // invalid file version
++		{"go1.22.1", "go1.19.1", "go1.22.1"}, // invalid file version
++		{"go1.22.1", "go1.21.1", "go1.22.1"}, // invalid file version
+ 	} {
+ 		var src string
+ 		if test.fileVersion != "" {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index cd1b2d513c..a60140c4e7 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -326,7 +326,6 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
+ 			check.version, go_current)
+ 	}
+-	downgradeOk := check.version.cmp(go1_21) >= 0
+ 
+ 	// determine Go version for each file
+ 	for _, file := range check.files {
+@@ -335,33 +334,18 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 		// unlike file versions which are Go language versions only, if valid.)
+ 		v := check.conf.GoVersion
+ 
+-		fileVersion := asGoVersion(file.GoVersion)
+-		if fileVersion.isValid() {
+-			// use the file version, if applicable
+-			// (file versions are either the empty string or of the form go1.dd)
+-			if pkgVersionOk {
+-				cmp := fileVersion.cmp(check.version)
+-				// Go 1.21 introduced the feature of setting the go.mod
+-				// go line to an early version of Go and allowing //go:build lines
+-				// to “upgrade” (cmp > 0) the Go version in a given file.
+-				// We can do that backwards compatibly.
+-				//
+-				// Go 1.21 also introduced the feature of allowing //go:build lines
+-				// to “downgrade” (cmp < 0) the Go version in a given file.
+-				// That can't be done compatibly in general, since before the
+-				// build lines were ignored and code got the module's Go version.
+-				// To work around this, downgrades are only allowed when the
+-				// module's Go version is Go 1.21 or later.
+-				//
+-				// If there is no valid check.version, then we don't really know what
+-				// Go version to apply.
+-				// Legacy tools may do this, and they historically have accepted everything.
+-				// Preserve that behavior by ignoring //go:build constraints entirely in that
+-				// case (!pkgVersionOk).
+-				if cmp > 0 || cmp < 0 && downgradeOk {
+-					v = file.GoVersion
+-				}
+-			}
++		// If the file specifies a version, use max(fileVersion, go1.21).
++		if fileVersion := asGoVersion(file.GoVersion); fileVersion.isValid() {
++			// Go 1.21 introduced the feature of allowing //go:build lines
++			// to sometimes set the Go version in a given file. Versions Go 1.21 and later
++			// can be set backwards compatibly as that was the first version
++			// files with go1.21 or later build tags could be built with.
++			//
++			// Set the version to max(fileVersion, go1.21): That will allow a
++			// downgrade to a version before go1.22, where the for loop semantics
++			// change was made, while being backwards compatible with versions of
++			// go before the new //go:build semantics were introduced.
++			v = string(versionMax(fileVersion, go1_21))
+ 
+ 			// Report a specific error for each tagged file that's too new.
+ 			// (Normally the build system will have filtered files by version,
+@@ -376,6 +360,13 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 	}
+ }
+ 
++func versionMax(a, b goVersion) goVersion {
++	if a.cmp(b) > 0 {
++		return a
++	}
++	return b
++}
++
+ // A bailout panic is used for early termination.
+ type bailout struct{}
+ 
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index f5bf49b4f8..b4b89a5096 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -3035,22 +3035,48 @@ func TestFileVersions(t *testing.T) {
+ 		fileVersion string
+ 		wantVersion string
+ 	}{
+-		{"", "", ""},                   // no versions specified
+-		{"go1.19", "", "go1.19"},       // module version specified
+-		{"", "go1.20", ""},             // file upgrade ignored
+-		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
+-		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
+-		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
++		{"", "", ""},                    // no versions specified
++		{"go1.19", "", "go1.19"},        // module version specified
++		{"", "go1.20", "go1.21"},        // file version specified below minimum of 1.21
++		{"go1", "", "go1"},              // no file version specified
++		{"go1", "goo1.22", "go1"},       // invalid file version specified
++		{"go1", "go1.19", "go1.21"},     // file version specified below minimum of 1.21
++		{"go1", "go1.20", "go1.21"},     // file version specified below minimum of 1.21
++		{"go1", "go1.21", "go1.21"},     // file version specified at 1.21
++		{"go1", "go1.22", "go1.22"},     // file version specified above 1.21
++		{"go1.19", "", "go1.19"},        // no file version specified
++		{"go1.19", "goo1.22", "go1.19"}, // invalid file version specified
++		{"go1.19", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.19", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.19", "go1.22", "go1.22"},  // file version specified above 1.21
++		{"go1.20", "", "go1.20"},        // no file version specified
++		{"go1.20", "goo1.22", "go1.20"}, // invalid file version specified
++		{"go1.20", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.20", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.20", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.20", "go1.22", "go1.22"},  // file version specified above 1.21
++		{"go1.21", "", "go1.21"},        // no file version specified
++		{"go1.21", "goo1.22", "go1.21"}, // invalid file version specified
++		{"go1.21", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.21", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.21", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.21", "go1.22", "go1.22"},  // file version specified above 1.21
++		{"go1.22", "", "go1.22"},        // no file version specified
++		{"go1.22", "goo1.22", "go1.22"}, // invalid file version specified
++		{"go1.22", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.22", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
++		{"go1.22", "go1.21", "go1.21"},  // file version specified at 1.21
++		{"go1.22", "go1.22", "go1.22"},  // file version specified above 1.21
+ 
+ 		// versions containing release numbers
+ 		// (file versions containing release numbers are considered invalid)
+ 		{"go1.19.0", "", "go1.19.0"},         // no file version specified
+-		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
+-		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
+-		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
+-		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
+-		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
+-		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
++		{"go1.20.1", "go1.19.1", "go1.20.1"}, // invalid file version
++		{"go1.20.1", "go1.21.1", "go1.20.1"}, // invalid file version
++		{"go1.21.1", "go1.19.1", "go1.21.1"}, // invalid file version
++		{"go1.21.1", "go1.21.1", "go1.21.1"}, // invalid file version
++		{"go1.22.1", "go1.19.1", "go1.22.1"}, // invalid file version
++		{"go1.22.1", "go1.21.1", "go1.22.1"}, // invalid file version
+ 	} {
+ 		var src string
+ 		if test.fileVersion != "" {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 2d56b0f75c..7487dceb1c 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -347,7 +347,6 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
+ 			check.version, go_current)
+ 	}
+-	downgradeOk := check.version.cmp(go1_21) >= 0
+ 
+ 	// determine Go version for each file
+ 	for _, file := range check.files {
+@@ -356,33 +355,19 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 		// unlike file versions which are Go language versions only, if valid.)
+ 		v := check.conf.GoVersion
+ 
+-		fileVersion := asGoVersion(file.GoVersion)
+-		if fileVersion.isValid() {
+-			// use the file version, if applicable
+-			// (file versions are either the empty string or of the form go1.dd)
+-			if pkgVersionOk {
+-				cmp := fileVersion.cmp(check.version)
+-				// Go 1.21 introduced the feature of setting the go.mod
+-				// go line to an early version of Go and allowing //go:build lines
+-				// to “upgrade” (cmp > 0) the Go version in a given file.
+-				// We can do that backwards compatibly.
+-				//
+-				// Go 1.21 also introduced the feature of allowing //go:build lines
+-				// to “downgrade” (cmp < 0) the Go version in a given file.
+-				// That can't be done compatibly in general, since before the
+-				// build lines were ignored and code got the module's Go version.
+-				// To work around this, downgrades are only allowed when the
+-				// module's Go version is Go 1.21 or later.
+-				//
+-				// If there is no valid check.version, then we don't really know what
+-				// Go version to apply.
+-				// Legacy tools may do this, and they historically have accepted everything.
+-				// Preserve that behavior by ignoring //go:build constraints entirely in that
+-				// case (!pkgVersionOk).
+-				if cmp > 0 || cmp < 0 && downgradeOk {
+-					v = file.GoVersion
+-				}
+-			}
++		// If the file specifies a version, use max(fileVersion, go1.21).
++		if fileVersion := asGoVersion(file.GoVersion); fileVersion.isValid() {
++			// Go 1.21 introduced the feature of setting the go.mod
++			// go line to an early version of Go and allowing //go:build lines
++			// to set the Go version in a given file. Versions Go 1.21 and later
++			// can be set backwards compatibly as that was the first version
++			// files with go1.21 or later build tags could be built with.
++			//
++			// Set the version to max(fileVersion, go1.21): That will allow a
++			// downgrade to a version before go1.22, where the for loop semantics
++			// change was made, while being backwards compatible with versions of
++			// go before the new //go:build semantics were introduced.
++			v = string(versionMax(fileVersion, go1_21))
+ 
+ 			// Report a specific error for each tagged file that's too new.
+ 			// (Normally the build system will have filtered files by version,
+@@ -397,6 +382,13 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	}
+ }
+ 
++func versionMax(a, b goVersion) goVersion {
++	if a.cmp(b) < 0 {
++		return b
++	}
++	return a
++}
++
+ // A bailout panic is used for early termination.
+ type bailout struct{}
+ 
+diff --git a/src/internal/types/testdata/check/go1_20_19.go b/src/internal/types/testdata/check/go1_20_19.go
+index 08365a7cfb..e040d396c7 100644
+--- a/src/internal/types/testdata/check/go1_20_19.go
++++ b/src/internal/types/testdata/check/go1_20_19.go
+@@ -14,4 +14,4 @@ type Slice []byte
+ type Array [8]byte
+ 
+ var s Slice
+-var p = (Array)(s /* ok because Go 1.20 ignored the //go:build go1.19 */)
++var p = (Array)(s /* ok because file versions below go1.21 set the langage version to go1.21 */)
+diff --git a/src/internal/types/testdata/check/go1_21_19.go b/src/internal/types/testdata/check/go1_21_19.go
+index 2acd25865d..5866033eaf 100644
+--- a/src/internal/types/testdata/check/go1_21_19.go
++++ b/src/internal/types/testdata/check/go1_21_19.go
+@@ -14,4 +14,4 @@ type Slice []byte
+ type Array [8]byte
+ 
+ var s Slice
+-var p = (Array)(s /* ERROR "requires go1.20 or later" */)
++var p = (Array)(s /* ok because file versions below go1.21 set the langage version to go1.21 */)
+diff --git a/src/internal/types/testdata/check/go1_21_22.go b/src/internal/types/testdata/check/go1_21_22.go
+new file mode 100644
+index 0000000000..3939b7b1d8
+--- /dev/null
++++ b/src/internal/types/testdata/check/go1_21_22.go
+@@ -0,0 +1,16 @@
++// -lang=go1.21
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++//go:build go1.22
++
++package p
++
++func f() {
++	for _ = range /* ok because of upgrade to 1.22 */ 10 {
++	}
++}
+diff --git a/src/internal/types/testdata/check/go1_22_21.go b/src/internal/types/testdata/check/go1_22_21.go
+new file mode 100644
+index 0000000000..f910ecb59c
+--- /dev/null
++++ b/src/internal/types/testdata/check/go1_22_21.go
+@@ -0,0 +1,16 @@
++// -lang=go1.22
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++//go:build go1.21
++
++package p
++
++func f() {
++	for _ = range 10 /* ERROR "requires go1.22 or later" */ {
++	}
++}
+diff --git a/src/internal/types/testdata/fixedbugs/issue66285.go b/src/internal/types/testdata/fixedbugs/issue66285.go
+index 9811fec3f3..4af76f05da 100644
+--- a/src/internal/types/testdata/fixedbugs/issue66285.go
++++ b/src/internal/types/testdata/fixedbugs/issue66285.go
+@@ -1,14 +1,9 @@
+-// -lang=go1.21
++// -lang=go1.13
+ 
+ // Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Note: Downgrading to go1.13 requires at least go1.21,
+-//       hence the need for -lang=go1.21 at the top.
+-
+-//go:build go1.13
+-
+ package p
+ 
+ import "io"
+diff --git a/test/fixedbugs/issue63489a.go b/test/fixedbugs/issue63489a.go
+index b88120f2c0..2b46814f95 100644
+--- a/test/fixedbugs/issue63489a.go
++++ b/test/fixedbugs/issue63489a.go
+@@ -1,16 +1,20 @@
+-// errorcheck -lang=go1.21
++// errorcheck -lang=go1.22
+ 
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build go1.4
++// This file has been changed from its original version as
++// //go:build file versions below 1.21 set the language version to 1.21.
++// The original tested a -lang version of 1.21 with a file version of
++// go1.4 while this new version tests a -lang version of go1.22
++// with a file version of go1.21.
+ 
+-package p
+-
+-const c = 0o123 // ERROR "file declares //go:build go1.4"
++//go:build go1.21
+ 
+-// ERROR "file declares //go:build go1.4"
++package p
+ 
+-//line issue63489a.go:13:1
+-const d = 0o124
++func f() {
++	for _ = range 10 { // ERROR "file declares //go:build go1.21"
++	}
++}
+diff --git a/test/fixedbugs/issue63489b.go b/test/fixedbugs/issue63489b.go
+index 2ad590dfc3..fd897dea97 100644
+--- a/test/fixedbugs/issue63489b.go
++++ b/test/fixedbugs/issue63489b.go
+@@ -1,11 +1,20 @@
+-// errorcheck -lang=go1.4
++// errorcheck -lang=go1.21
+ 
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build go1.4
++// This file has been changed from its original version as
++// //go:build file versions below 1.21 set the language version to 1.21.
++// The original tested a -lang version of 1.4 with a file version of
++// go1.4 while this new version tests a -lang version of go1.1
++// with a file version of go1.21.
++
++//go:build go1.21
+ 
+ package p
+ 
+-const c = 0o123 // ERROR "file declares //go:build go1.4"
++func f() {
++	for _ = range 10 { // ERROR "file declares //go:build go1.21"
++	}
++}

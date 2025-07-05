@@ -7,9 +7,76 @@ Date:   Tue May 24 14:12:35 2016 -0700
     Change-Id: Ib0683f27b44e2f107cca7a8dcc01d230cbcd5700
     Reviewed-on: https://go-review.googlesource.com/23404
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  doc/install-source.html         | 6 +++---
  src/container/list/list_test.go | 2 +-
  src/encoding/csv/reader.go      | 2 +-
  src/runtime/mgc.go              | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 9a817676c1..1d7df3d42c 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -63,19 +63,19 @@ architectures.
+ 	<code>arm64</code> (<code>AArch64</code>)
+ </dt>
+ <dd>
+-	Supports Linux and Darwin binaries. New in 1.5 and not as well excercised as other ports.
++	Supports Linux and Darwin binaries. New in 1.5 and not as well exercised as other ports.
+ </dd>
+ <dt>
+ 	<code>ppc64, ppc64le</code> (64-bit PowerPC big- and little-endian)
+ </dt>
+ <dd>
+-	Supports Linux binaries. New in 1.5 and not as well excercised as other ports.
++	Supports Linux binaries. New in 1.5 and not as well exercised as other ports.
+ </dd>
+ <dt>
+ 	<code>mips64, mips64le</code> (64-bit MIPS big- and little-endian)
+ </dt>
+ <dd>
+-	Supports Linux binaries. New in 1.6 and not as well excercised as other ports.
++	Supports Linux binaries. New in 1.6 and not as well exercised as other ports.
+ </dd>
+ </dl>
+ 
+diff --git a/src/container/list/list_test.go b/src/container/list/list_test.go
+index 4d8bfc2bf0..e3bfe53a49 100644
+--- a/src/container/list/list_test.go
++++ b/src/container/list/list_test.go
+@@ -326,7 +326,7 @@ func TestInsertAfterUnknownMark(t *testing.T) {
+ }
+ 
+ // Test that a list l is not modified when calling MoveAfter or MoveBefore with a mark that is not an element of l.
+-func TestMoveUnkownMark(t *testing.T) {
++func TestMoveUnknownMark(t *testing.T) {
+ 	var l1 List
+ 	e1 := l1.PushBack(1)
+ 
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 58f6eed1e6..5d5e3e5bf7 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -234,7 +234,7 @@ func (r *Reader) parseRecord() (fields []string, err error) {
+ 	for {
+ 		haveField, delim, err := r.parseField()
+ 		if haveField {
+-			// If FieldsPerRecord is greater then 0 we can assume the final
++			// If FieldsPerRecord is greater than 0 we can assume the final
+ 			// length of fields to be equal to FieldsPerRecord.
+ 			if r.FieldsPerRecord > 0 && fields == nil {
+ 				fields = make([]string, 0, r.FieldsPerRecord)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 3d4df104cb..1eabf43d6f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1388,7 +1388,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 	notewakeup(&work.bgMarkReady)
+ 
+ 	for {
+-		// Go to sleep until woken by gcContoller.findRunnable.
++		// Go to sleep until woken by gcController.findRunnable.
+ 		// We can't releasem yet since even the call to gopark
+ 		// may be preempted.
+ 		gopark(func(g *g, parkp unsafe.Pointer) bool {

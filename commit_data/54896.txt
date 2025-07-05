@@ -13,7 +13,7 @@ Date:   Tue Nov 15 19:32:43 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/next/56088.txt            |  2 ++
  src/crypto/ecdh/ecdh.go       |  8 ++++++++
  src/crypto/ecdsa/ecdsa.go     | 43 +++++++++++++++++++++++++++++++++++++++++++
@@ -22,3 +22,308 @@ Date:   Tue Nov 15 19:32:43 2022 +0100
  src/crypto/x509/sec1.go       | 11 +++++++++++
  src/crypto/x509/x509.go       | 38 ++++++++++++++++++++++++++++++++------
  7 files changed, 143 insertions(+), 21 deletions(-)
+
+diff --git a/api/next/56088.txt b/api/next/56088.txt
+new file mode 100644
+index 0000000000..be9a0aca07
+--- /dev/null
++++ b/api/next/56088.txt
+@@ -0,0 +1,2 @@
++pkg crypto/ecdsa, method (*PrivateKey) ECDH() (*ecdh.PrivateKey, error) #56088
++pkg crypto/ecdsa, method (*PublicKey) ECDH() (*ecdh.PublicKey, error) #56088
+diff --git a/src/crypto/ecdh/ecdh.go b/src/crypto/ecdh/ecdh.go
+index e5270d840b..d78b4d4432 100644
+--- a/src/crypto/ecdh/ecdh.go
++++ b/src/crypto/ecdh/ecdh.go
+@@ -56,6 +56,10 @@ type Curve interface {
+ }
+ 
+ // PublicKey is an ECDH public key, usually a peer's ECDH share sent over the wire.
++//
++// These keys can be parsed with [crypto/x509.ParsePKIXPublicKey] and encoded
++// with [crypto/x509.MarshalPKIXPublicKey]. For NIST curves, they then need to
++// be converted with [crypto/ecdsa.PublicKey.ECDH] after parsing.
+ type PublicKey struct {
+ 	curve     Curve
+ 	publicKey []byte
+@@ -91,6 +95,10 @@ func (k *PublicKey) Curve() Curve {
+ }
+ 
+ // PrivateKey is an ECDH private key, usually kept secret.
++//
++// These keys can be parsed with [crypto/x509.ParsePKCS8PrivateKey] and encoded
++// with [crypto/x509.MarshalPKCS8PrivateKey]. For NIST curves, they then need to
++// be converted with [crypto/ecdsa.PrivateKey.ECDH] after parsing.
+ type PrivateKey struct {
+ 	curve      Curve
+ 	privateKey []byte
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index d0e52ad864..3d7a6b055d 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -23,6 +23,7 @@ import (
+ 	"crypto"
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"crypto/ecdh"
+ 	"crypto/elliptic"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+@@ -61,6 +62,20 @@ type PublicKey struct {
+ // Any methods implemented on PublicKey might need to also be implemented on
+ // PrivateKey, as the latter embeds the former and will expose its methods.
+ 
++// ECDH returns k as a [ecdh.PublicKey]. It returns an error if the key is
++// invalid according to the definition of [ecdh.Curve.NewPublicKey], or if the
++// Curve is not supported by crypto/ecdh.
++func (k *PublicKey) ECDH() (*ecdh.PublicKey, error) {
++	c := curveToECDH(k.Curve)
++	if c == nil {
++		return nil, errors.New("ecdsa: unsupported curve by crypto/ecdh")
++	}
++	if !k.Curve.IsOnCurve(k.X, k.Y) {
++		return nil, errors.New("ecdsa: invalid public key")
++	}
++	return c.NewPublicKey(elliptic.Marshal(k.Curve, k.X, k.Y))
++}
++
+ // Equal reports whether pub and x have the same value.
+ //
+ // Two keys are only considered to have the same value if they have the same Curve value.
+@@ -85,6 +100,34 @@ type PrivateKey struct {
+ 	D *big.Int
+ }
+ 
++// ECDH returns k as a [ecdh.PrivateKey]. It returns an error if the key is
++// invalid according to the definition of [ecdh.Curve.NewPrivateKey], or if the
++// Curve is not supported by crypto/ecdh.
++func (k *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
++	c := curveToECDH(k.Curve)
++	if c == nil {
++		return nil, errors.New("ecdsa: unsupported curve by crypto/ecdh")
++	}
++	size := (k.Curve.Params().N.BitLen() + 7) / 8
++	if k.D.BitLen() > size*8 {
++		return nil, errors.New("ecdsa: invalid private key")
++	}
++	return c.NewPrivateKey(k.D.FillBytes(make([]byte, size)))
++}
++
++func curveToECDH(c elliptic.Curve) ecdh.Curve {
++	switch c {
++	case elliptic.P256():
++		return ecdh.P256()
++	case elliptic.P384():
++		return ecdh.P384()
++	case elliptic.P521():
++		return ecdh.P521()
++	default:
++		return nil
++	}
++}
++
+ // Public returns the public key corresponding to priv.
+ func (priv *PrivateKey) Public() crypto.PublicKey {
+ 	return &priv.PublicKey
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index 318dc24573..63bfa9987d 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -94,8 +94,8 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
+ // MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
+ //
+ // The following key types are currently supported: *rsa.PrivateKey,
+-// *ecdsa.PrivateKey, ed25519.PrivateKey (not a pointer), and *ecdh.PrivateKey
+-// (X25519 only). Unsupported key types result in an error.
++// *ecdsa.PrivateKey, ed25519.PrivateKey (not a pointer), and *ecdh.PrivateKey.
++// Unsupported key types result in an error.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
+@@ -114,19 +114,16 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
+ 		if !ok {
+ 			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
+ 		}
+-
+ 		oidBytes, err := asn1.Marshal(oid)
+ 		if err != nil {
+ 			return nil, errors.New("x509: failed to marshal curve OID: " + err.Error())
+ 		}
+-
+ 		privKey.Algo = pkix.AlgorithmIdentifier{
+ 			Algorithm: oidPublicKeyECDSA,
+ 			Parameters: asn1.RawValue{
+ 				FullBytes: oidBytes,
+ 			},
+ 		}
+-
+ 		if privKey.PrivateKey, err = marshalECPrivateKeyWithOID(k, nil); err != nil {
+ 			return nil, errors.New("x509: failed to marshal EC private key while building PKCS#8: " + err.Error())
+ 		}
+@@ -142,17 +139,33 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
+ 		privKey.PrivateKey = curvePrivateKey
+ 
+ 	case *ecdh.PrivateKey:
+-		if k.Curve() != ecdh.X25519() {
+-			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
+-		}
+-		privKey.Algo = pkix.AlgorithmIdentifier{
+-			Algorithm: oidPublicKeyX25519,
++		if k.Curve() == ecdh.X25519() {
++			privKey.Algo = pkix.AlgorithmIdentifier{
++				Algorithm: oidPublicKeyX25519,
++			}
++			var err error
++			if privKey.PrivateKey, err = asn1.Marshal(k.Bytes()); err != nil {
++				return nil, fmt.Errorf("x509: failed to marshal private key: %v", err)
++			}
++		} else {
++			oid, ok := oidFromECDHCurve(k.Curve())
++			if !ok {
++				return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
++			}
++			oidBytes, err := asn1.Marshal(oid)
++			if err != nil {
++				return nil, errors.New("x509: failed to marshal curve OID: " + err.Error())
++			}
++			privKey.Algo = pkix.AlgorithmIdentifier{
++				Algorithm: oidPublicKeyECDSA,
++				Parameters: asn1.RawValue{
++					FullBytes: oidBytes,
++				},
++			}
++			if privKey.PrivateKey, err = marshalECDHPrivateKey(k); err != nil {
++				return nil, errors.New("x509: failed to marshal EC private key while building PKCS#8: " + err.Error())
++			}
+ 		}
+-		curvePrivateKey, err := asn1.Marshal(k.Bytes())
+-		if err != nil {
+-			return nil, fmt.Errorf("x509: failed to marshal private key: %v", err)
+-		}
+-		privKey.PrivateKey = curvePrivateKey
+ 
+ 	default:
+ 		return nil, fmt.Errorf("x509: unknown key type while marshaling PKCS#8: %T", key)
+diff --git a/src/crypto/x509/pkcs8_test.go b/src/crypto/x509/pkcs8_test.go
+index f311f31844..d0328800bc 100644
+--- a/src/crypto/x509/pkcs8_test.go
++++ b/src/crypto/x509/pkcs8_test.go
+@@ -131,6 +131,25 @@ func TestPKCS8(t *testing.T) {
+ 			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+ 			continue
+ 		}
++
++		if ecKey, isEC := privKey.(*ecdsa.PrivateKey); isEC {
++			ecdhKey, err := ecKey.ECDH()
++			if err != nil {
++				if ecKey.Curve != elliptic.P224() {
++					t.Errorf("%s: failed to convert to ecdh: %s", test.name, err)
++				}
++				continue
++			}
++			reserialised, err := MarshalPKCS8PrivateKey(ecdhKey)
++			if err != nil {
++				t.Errorf("%s: failed to marshal into PKCS#8: %s", test.name, err)
++				continue
++			}
++			if !bytes.Equal(derBytes, reserialised) {
++				t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
++				continue
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index c01c6b0e55..027c17c43c 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/elliptic"
+ 	"encoding/asn1"
+@@ -66,6 +67,16 @@ func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier
+ 	})
+ }
+ 
++// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format
++// suitable for NIST curves.
++func marshalECDHPrivateKey(key *ecdh.PrivateKey) ([]byte, error) {
++	return asn1.Marshal(ecPrivateKey{
++		Version:    1,
++		PrivateKey: key.Bytes(),
++		PublicKey:  asn1.BitString{Bytes: key.PublicKey().Bytes()},
++	})
++}
++
+ // parseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
+ // The OID for the named curve may be provided from another source (such as
+ // the PKCS8 container) - if it is provided then use this instead of the OID
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index fce50455aa..c72010c1e3 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -115,11 +115,22 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
+ 		publicKeyBytes = pub
+ 		publicKeyAlgorithm.Algorithm = oidPublicKeyEd25519
+ 	case *ecdh.PublicKey:
+-		if pub.Curve() != ecdh.X25519() {
+-			return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported ECDH curve")
+-		}
+ 		publicKeyBytes = pub.Bytes()
+-		publicKeyAlgorithm.Algorithm = oidPublicKeyX25519
++		if pub.Curve() == ecdh.X25519() {
++			publicKeyAlgorithm.Algorithm = oidPublicKeyX25519
++		} else {
++			oid, ok := oidFromECDHCurve(pub.Curve())
++			if !ok {
++				return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: unsupported elliptic curve")
++			}
++			publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
++			var paramBytes []byte
++			paramBytes, err = asn1.Marshal(oid)
++			if err != nil {
++				return
++			}
++			publicKeyAlgorithm.Parameters.FullBytes = paramBytes
++		}
+ 	default:
+ 		return nil, pkix.AlgorithmIdentifier{}, fmt.Errorf("x509: unsupported public key type: %T", pub)
+ 	}
+@@ -132,8 +143,8 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
+ // (see RFC 5280, Section 4.1).
+ //
+ // The following key types are currently supported: *rsa.PublicKey,
+-// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey
+-// (X25519 only). Unsupported key types result in an error.
++// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey.
++// Unsupported key types result in an error.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+ func MarshalPKIXPublicKey(pub any) ([]byte, error) {
+@@ -542,6 +553,21 @@ func oidFromNamedCurve(curve elliptic.Curve) (asn1.ObjectIdentifier, bool) {
+ 	return nil, false
+ }
+ 
++func oidFromECDHCurve(curve ecdh.Curve) (asn1.ObjectIdentifier, bool) {
++	switch curve {
++	case ecdh.X25519():
++		return oidPublicKeyX25519, true
++	case ecdh.P256():
++		return oidNamedCurveP256, true
++	case ecdh.P384():
++		return oidNamedCurveP384, true
++	case ecdh.P521():
++		return oidNamedCurveP521, true
++	}
++
++	return nil, false
++}
++
+ // KeyUsage represents the set of actions that are valid for a given key. It's
+ // a bitmap of the KeyUsage* constants.
+ type KeyUsage int

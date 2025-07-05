@@ -10,7 +10,7 @@ Date:   Fri Aug 7 12:50:26 2009 -0700
     R=ken
     OCL=32855
     CL=32880
-
+---
  src/cmd/gc/Makefile    |   2 +-
  src/cmd/gc/align.c     |  29 +-
  src/cmd/gc/closure.c   | 194 +++++++++++++
@@ -28,3 +28,2714 @@ Date:   Fri Aug 7 12:50:26 2009 -0700
  src/cmd/gc/typecheck.c |  93 +++++-
  src/cmd/gc/walk.c      |  63 ++++-
  16 files changed, 990 insertions(+), 668 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 217c5c45ff..c7fa3d6d71 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -18,7 +18,7 @@ OFILES=\
+ 	align.$O\
+ 	bits.$O\
+ 	builtin.$O\
+-	compat.$O\
++	closure.$O\
+ 	const.$O\
+ 	dcl.$O\
+ 	export.$O\
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index b3abd57ba0..0ea7e8e971 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -61,10 +61,23 @@ widstruct(Type *t, uint32 o, int flag)
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
+ 		dowidth(f->type);
++		if(f->type->width < 0 || f->type->width > 100000000)
++			fatal("invalid width %lld", f->type->width);
+ 		w = f->type->width;
+ 		m = arrayelemwidth(f->type);
+ 		o = rnd(o, m);
+ 		f->width = o;	// really offset for TFIELD
++		if(f->nname != N) {
++			// this same stackparam logic is in addrescapes
++			// in typecheck.c.  usually addrescapes runs after
++			// widstruct, in which case we could drop this,
++			// but function closure functions are the exception.
++			if(f->nname->stackparam) {
++				f->nname->stackparam->xoffset = o;
++				f->nname->xoffset = 0;
++			} else
++				f->nname->xoffset = o;
++		}
+ 		o += w;
+ 	}
+ 	// final width is rounded
+@@ -91,6 +104,9 @@ dowidth(Type *t)
+ 	if(t == T)
+ 		return;
+ 
++	if(t->width > 0)
++		return;
++
+ 	if(t->width == -2) {
+ 		yyerror("invalid recursive type %T", t);
+ 		t->width = 0;
+@@ -99,7 +115,6 @@ dowidth(Type *t)
+ 
+ 	t->width = -2;
+ 
+-
+ 	et = t->etype;
+ 	switch(et) {
+ 	case TFUNC:
+@@ -165,13 +180,16 @@ dowidth(Type *t)
+ 		break;
+ 	case TFORW:		// should have been filled in
+ 	case TFORWSTRUCT:
+-		yyerror("incomplete type %T", t);
++		yyerror("undefined type %T", t);
+ 		w = widthptr;
+ 		break;
+-	case TANY:		// implemented as pointer
+-		w = widthptr;
++	case TANY:
++		// dummy type; should be replaced before use.
++		fatal("dowidth any");
+ 		break;
+ 	case TSTRING:
++		if(sizeof_String == 0)
++			fatal("early dowidth string");
+ 		w = sizeof_String;
+ 		break;
+ 	case TARRAY:
+@@ -413,6 +431,9 @@ typeinit(void)
+ 
+ 	// string is same as slice wo the cap
+ 	sizeof_String = rnd(Array_nel+types[TUINT32]->width, maxround);
++
++	dowidth(types[TSTRING]);
++	dowidth(idealstring);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+new file mode 100644
+index 0000000000..46bb2d7853
+--- /dev/null
++++ b/src/cmd/gc/closure.c
+@@ -0,0 +1,194 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * function literals aka closures
++ */
++
++#include "go.h"
++
++void
++closurehdr(Node *ntype)
++{
++	Node *n, *name;
++	NodeList *l;
++
++	n = nod(OCLOSURE, N, N);
++	n->ntype = ntype;
++	n->funcdepth = funcdepth;
++
++	funchdr(n);
++
++	// steal ntype's argument names and
++	// leave a fresh copy in their place.
++	// references to these variables need to
++	// refer to the variables in the external
++	// function declared below; see walkclosure.
++	n->list = ntype->list;
++	n->rlist = ntype->rlist;
++	ntype->list = nil;
++	ntype->rlist = nil;
++	for(l=n->list; l; l=l->next) {
++		name = l->n->left;
++		if(name)
++			name = newname(name->sym);
++		ntype->list = list(ntype->list, nod(ODCLFIELD, name, l->n->right));
++	}
++	for(l=n->rlist; l; l=l->next) {
++		name = l->n->left;
++		if(name)
++			name = newname(name->sym);
++		ntype->rlist = list(ntype->rlist, nod(ODCLFIELD, name, l->n->right));
++	}
++}
++
++Node*
++closurebody(NodeList *body)
++{
++	Node *func, *v;
++	NodeList *l;
++
++	if(body == nil)
++		body = list1(nod(OEMPTY, N, N));
++
++	func = curfn;
++	l = func->dcl;
++	func->nbody = body;
++	funcbody(func);
++
++	// closure-specific variables are hanging off the
++	// ordinary ones in the symbol table; see oldname.
++	// unhook them.
++	// make the list of pointers for the closure call.
++	for(l=func->cvars; l; l=l->next) {
++		v = l->n;
++		v->closure->closure = v->outer;
++		v->heapaddr = nod(OADDR, oldname(v->sym), N);
++	}
++
++	return func;
++}
++
++void
++typecheckclosure(Node *func)
++{
++	Node *oldfn;
++	NodeList *l;
++	Node *v;
++
++	oldfn = curfn;
++	typecheck(&func->ntype, Etype);
++	func->type = func->ntype->type;
++	if(func->type != T) {
++		curfn = func;
++		typechecklist(func->nbody, Etop);
++		curfn = oldfn;
++	}
++
++	// type check the & of closed variables outside the closure,
++	// so that the outer frame also grabs them and knows they
++	// escape.
++	func->enter = nil;
++	for(l=func->cvars; l; l=l->next) {
++		v = l->n;
++		if(v->type == T) {
++			// if v->type is nil, it means v looked like it was
++			// going to be used in the closure but wasn't.
++			// this happens because when parsing a, b, c := f()
++			// the a, b, c gets parsed as references to older
++			// a, b, c before the parser figures out this is a
++			// declaration.
++			v->op = 0;
++			continue;
++		}
++		typecheck(&v->heapaddr, Erv);
++		func->enter = list(func->enter, v->heapaddr);
++		v->heapaddr = N;
++	}
++}
++
++Node*
++walkclosure(Node *func, NodeList **init)
++{
++	int narg;
++	Node *xtype, *v, *addr, *xfunc, *call, *clos;
++	NodeList *l, *in;
++	static int closgen;
++
++	/*
++	 * wrap body in external function
++	 * with extra closure parameters.
++	 */
++	xtype = nod(OTFUNC, N, N);
++
++	// each closure variable has a corresponding
++	// address parameter.
++	narg = 0;
++	for(l=func->cvars; l; l=l->next) {
++		v = l->n;
++		if(v->op == 0)
++			continue;
++		addr = nod(ONAME, N, N);
++		snprint(namebuf, sizeof namebuf, "&%s", v->sym->name);
++		addr->sym = lookup(namebuf);
++		addr->ntype = nod(OIND, typenod(v->type), N);
++		addr->class = PPARAM;
++		addr->addable = 1;
++		addr->ullman = 1;
++		narg++;
++
++		v->heapaddr = addr;
++
++		xtype->list = list(xtype->list, nod(ODCLFIELD, addr, addr->ntype));
++	}
++
++	// then a dummy arg where the closure's caller pc sits
++	xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++
++	// then the function arguments
++	xtype->list = concat(xtype->list, func->list);
++	xtype->rlist = concat(xtype->rlist, func->rlist);
++
++	// create the function
++	xfunc = nod(ODCLFUNC, N, N);
++	snprint(namebuf, sizeof namebuf, "_f%.3ld·%s", ++closgen, filename);
++	xfunc->nname = newname(lookup(namebuf));
++	xfunc->nname->ntype = xtype;
++	declare(xfunc->nname, PFUNC);
++	xfunc->nname->funcdepth = func->funcdepth;
++	xfunc->funcdepth = func->funcdepth;
++	xfunc->nbody = func->nbody;
++	xfunc->dcl = func->dcl;
++	if(xfunc->nbody == nil)
++		fatal("empty body - won't generate any code");
++	typecheck(&xfunc, Etop);
++	closures = list(closures, xfunc);
++
++	// prepare call of sys.closure that turns external func into func literal value.
++	clos = syslook("closure", 1);
++	clos->type = T;
++	clos->ntype = nod(OTFUNC, N, N);
++	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// siz
++	in = list(in, nod(ODCLFIELD, N, xtype));
++	for(l=func->cvars; l; l=l->next) {
++		if(l->n->op == 0)
++			continue;
++		in = list(in, nod(ODCLFIELD, N, l->n->heapaddr->ntype));
++	}
++	clos->ntype->list = in;
++	clos->ntype->rlist = list1(nod(ODCLFIELD, N, typenod(func->type)));
++	typecheck(&clos, Erv);
++
++	call = nod(OCALL, clos, N);
++	if(narg*widthptr > 100)
++		yyerror("closure needs too many variables; runtime will reject it");
++	in = list1(nodintconst(narg*widthptr));
++	in = list(in, xfunc->nname);
++	in = concat(in, func->enter);
++	call->list = in;
++
++	typecheck(&call, Erv);
++	walkexpr(&call, init);
++	return call;
++}
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 054ce24121..80ba7f91dd 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -337,6 +337,7 @@ evconst(Node *n)
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
+ 	case OMAKECHAN:
++	case ODCLCONST:
+ 		return;
+ 	}
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 4bbbae14c7..d5864212b0 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -5,6 +5,8 @@
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
++static	void	funcargs(Node*);
++
+ int
+ dflag(void)
+ {
+@@ -50,6 +52,8 @@ pushdcl(Sym *s)
+ 
+ 	d = push();
+ 	dcopy(d, s);
++	if(dflag())
++		print("\t%L push %S %p\n", lineno, s, s->def);
+ 	return d;
+ }
+ 
+@@ -67,7 +71,7 @@ popdcl(void)
+ 		s = pkglookup(d->name, d->package);
+ 		dcopy(s, d);
+ 		if(dflag())
+-			print("\t%L pop %S\n", lineno, s);
++			print("\t%L pop %S %p\n", lineno, s, s->def);
+ 	}
+ 	if(d == S)
+ 		fatal("popdcl: no mark");
+@@ -157,15 +161,21 @@ declare(Node *n, int ctxt)
+ 	gen = 0;
+ 	if(ctxt == PEXTERN) {
+ 		externdcl = list(externdcl, n);
++		if(dflag())
++			print("\t%L global decl %S %p\n", lineno, s, n);
+ 	} else {
+-		if(autodcl != nil)
+-			autodcl = list(autodcl, n);
++		if(curfn == nil && ctxt == PAUTO)
++			fatal("automatic outside function");
++		if(curfn != nil)
++			curfn->dcl = list(curfn->dcl, n);
+ 		if(n->op == OTYPE)
+ 			gen = ++typegen;
+ 		else if(n->op == ONAME)
+ 			gen = ++vargen;
+ 		pushdcl(s);
+ 	}
++	if(ctxt == PAUTO)
++		n->xoffset = BADWIDTH;
+ 
+ 	if(s->block == block) {
+ 		what = "???";
+@@ -181,7 +191,7 @@ declare(Node *n, int ctxt)
+ 			break;
+ 		}
+ 
+-		yyerror("%s %S redeclared in this block", what, s);
++		yyerror("%s %S redeclared in this block %d", what, s, block);
+ 		print("\tprevious declaration at %L\n", s->lastlineno);
+ 	}
+ 	s->block = block;
+@@ -205,6 +215,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 	n->type = t;
+ }
+ 
++// TODO: cut use of below in sigtype and then delete
+ void
+ addtyp(Type *n, int ctxt)
+ {
+@@ -220,35 +231,11 @@ addtyp(Type *n, int ctxt)
+ 	typelist = list(typelist, def);
+ }
+ 
+-/*
+- * declare (possible list) n of type t.
+- * append ODCL nodes to *init
+- */
+-void
+-dodclvar(Node *n, Type *t, NodeList **init)
+-{
+-	if(n == N)
+-		return;
+-
+-	if(t != T && (t->etype == TIDEAL || t->etype == TNIL))
+-		fatal("dodclvar %T", t);
+-	dowidth(t);
+-
+-	// in case of type checking error,
+-	// use "undefined" type for variable type,
+-	// to avoid fatal in addvar.
+-	if(t == T)
+-		t = typ(TFORW);
+-
+-	addvar(n, t, dclcontext);
+-	if(funcdepth > 0)
+-		*init = list(*init, nod(ODCL, n, N));
+-}
+-
+ /*
+  * introduce a type named n
+  * but it is an unknown type for now
+  */
++// TODO(rsc): cut use of this in sigtype and then delete
+ Type*
+ dodcltype(Type *n)
+ {
+@@ -282,6 +269,7 @@ found:
+ /*
+  * now we know what n is: it's t
+  */
++// TODO(rsc): cut use of this in sigtype and then delete
+ void
+ updatetype(Type *n, Type *t)
+ {
+@@ -409,7 +397,7 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
+ 	Node *v, *c;
+ 	NodeList *vv;
+ 
+-	vv = vl;
++	vv = nil;
+ 	if(cl == nil) {
+ 		if(t != N)
+ 			yyerror("constdcl cannot have type without expr");
+@@ -435,6 +423,8 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
+ 
+ 		v->ntype = t;
+ 		v->defn = c;
++
++		vv = list(vv, nod(ODCLCONST, v, N));
+ 	}
+ 	if(cl != nil)
+ 		yyerror("extra expr in const dcl");
+@@ -451,6 +441,9 @@ newname(Sym *s)
+ {
+ 	Node *n;
+ 
++	if(s == S)
++		fatal("newname nil");
++
+ 	n = nod(ONAME, N, N);
+ 	n->sym = s;
+ 	n->type = T;
+@@ -473,14 +466,15 @@ dclname(Sym *s)
+ 	// top-level name: might already have been
+ 	// referred to, in which case s->def is already
+ 	// set to an ONONAME.
+-	if(dclcontext == PEXTERN && s->block == 0) {
++	if(dclcontext == PEXTERN && s->block <= 1) {
+ 		// toss predefined name like "close"
+ 		// TODO(rsc): put close in at the end.
+ 		if(s->def != N && s->def->etype)
+ 			s->def = N;
+ 		if(s->def == N)
+ 			oldname(s);
+-		return s->def;
++		if(s->def->op == ONONAME)
++			return s->def;
+ 	}
+ 
+ 	n = newname(s);
+@@ -524,20 +518,19 @@ oldname(Sym *s)
+ 		// inner func is referring to var
+ 		// in outer func.
+ 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
+-			typecheck(&n, Erv);
+ 			// create new closure var.
+ 			c = nod(ONAME, N, N);
+ 			c->sym = s;
+ 			c->class = PPARAMREF;
+-			c->type = n->type;
++			c->defn = n;
+ 			c->addable = 0;
+ 			c->ullman = 2;
+ 			c->funcdepth = funcdepth;
+ 			c->outer = n->closure;
+ 			n->closure = c;
+ 			c->closure = n;
+-			if(funclit != N)
+-				funclit->cvars = list(funclit->cvars, c);
++			c->xoffset = 0;
++			curfn->cvars = list(curfn->cvars, c);
+ 		}
+ 		// return ref to closure var, not original
+ 		return n->closure;
+@@ -644,6 +637,231 @@ colas(NodeList *left, NodeList *right)
+ 	return as;
+ }
+ 
++/*
++ * declare the function proper
++ * and declare the arguments.
++ * called in extern-declaration context
++ * returns in auto-declaration context.
++ */
++void
++funchdr(Node *n)
++{
++	Node *nt;
++
++	if(n->nname != N) {
++		// TODO(rsc): remove once forward declarations are gone
++		if(n->nname->sym->def && n->nname->sym->def->class == PFUNC) {
++			nt = n->nname->ntype;
++			n->nname = n->nname->sym->def;
++			n->nname->ntype = nt;
++			n->nname->type = T;
++		} else {
++			n->nname->op = ONAME;
++			declare(n->nname, PFUNC);
++		}
++	}
++
++	// change the declaration context from extern to auto
++	if(funcdepth == 0 && dclcontext != PEXTERN)
++		fatal("funchdr: dclcontext");
++
++	dclcontext = PAUTO;
++	markdcl();
++	funcdepth++;
++
++	n->outer = curfn;
++	curfn = n;
++	if(n->nname)
++		funcargs(n->nname->ntype);
++	else
++		funcargs(n->ntype);
++}
++
++static void
++funcargs(Node *nt)
++{
++	Node *n;
++	NodeList *l;
++
++	if(nt->op != OTFUNC)
++		fatal("funcargs %O", nt->op);
++
++	// declare the receiver and in arguments.
++	// no n->defn because type checking of func header
++	// will fill in the types before we can demand them.
++	if(nt->left != N) {
++		n = nt->left;
++		if(n->op != ODCLFIELD)
++			fatal("funcargs1 %O", n->op);
++		if(n->left != N) {
++			n->left->op = ONAME;
++			n->left->ntype = n->right;
++			declare(n->left, PPARAM);
++		}
++	}
++	for(l=nt->list; l; l=l->next) {
++		n = l->n;
++		if(n->op != ODCLFIELD)
++			fatal("funcargs2 %O", n->op);
++		if(n->left != N) {
++			n->left->op = ONAME;
++			n->left->ntype = n->right;
++			declare(n->left, PPARAM);
++		}
++	}
++
++	// declare the out arguments.
++	for(l=nt->rlist; l; l=l->next) {
++		n = l->n;
++		if(n->op != ODCLFIELD)
++			fatal("funcargs3 %O", n->op);
++		if(n->left != N) {
++			n->left->op = ONAME;
++			n->left->ntype = n->right;
++			declare(n->left, PPARAMOUT);
++		}
++	}
++}
++
++/*
++ * finish the body.
++ * called in auto-declaration context.
++ * returns in extern-declaration context.
++ */
++void
++funcbody(Node *n)
++{
++	// change the declaration context from auto to extern
++	if(dclcontext != PAUTO)
++		fatal("funcbody: dclcontext");
++	popdcl();
++	funcdepth--;
++	curfn = n->outer;
++	n->outer = N;
++	if(funcdepth == 0)
++		dclcontext = PEXTERN;
++}
++
++/*
++ * forward declarations of types
++ * TODO(rsc): delete!
++ */
++
++/*
++ * new type being defined with name s.
++ */
++Node*
++typedcl0(Sym *s)
++{
++	Node *o, *ot, *n;
++	int et;
++
++	// TODO(rsc): throw away once forward declarations are gone
++	if((o = s->def) != N && o != N && o->op == OTYPE && s->block == block) {
++		if((ot = o->ntype) != N && ot->op == OTYPE && ot->type != T)
++		if((et = ot->type->etype) == TFORWSTRUCT || et == TFORWINTER) {
++			// local forward declaration exists!
++			// use it instead of the node we just created.
++			if(ot->walkdef || ot->typecheck)
++				fatal("someone looked at the fwd decl");
++			return o;
++		}
++
++		if(o->type && ((et = o->type->etype) == TFORWSTRUCT || et == TFORWINTER)) {
++			// imported forward declaration exists.
++			// attach the fwd type to the node we just
++			// created, so that when we define the type in walkdef
++			// we will overwrite the fwd version.
++			o->nincr = nod(OXXX, N, N);
++			o->nincr->type = o->type;
++			o->type = T;
++			o->walkdef = 0;
++			o->typecheck = 0;
++			autoexport(o, PEXTERN);
++			return o;
++		}
++	}
++
++	// make a new one
++	n = dclname(s);
++	n->op = OTYPE;
++	declare(n, dclcontext);
++	return n;
++}
++
++/*
++ * node n, which was returned by typedcl0
++ * is being declared to have uncompiled type t.  if n was previously forward
++ * declared, update the forward declaration and undo the dclname.
++ * extra tricky because we have to deal with imported forward declarations.
++ * return the ODCLTYPE node to use.
++ */
++Node*
++typedcl1(Node *n, Node *t, int local)
++{
++	n->ntype = t;
++	n->local = local;
++	return nod(ODCLTYPE, n, N);
++}
++
++/*
++ * node n, which was returned by dclname (newname for imports)
++ * is being forward declared as et (TFORWSTRUCT or TFORWINTER).
++ * if n was previously forward declared, scream.
++ * return the ODCLTYPE node to use.
++ */
++Node*
++fwdtype(Node *n, int et)
++{
++	n->op = OTYPE;
++	n->ntype = typenod(typ(et));
++	return nod(ODCLTYPE, n, N);
++}
++
++/*
++ * typedcl1 but during imports
++ */
++void
++typedcl2(Type *pt, Type *t)
++{
++	Node *n;
++
++	if(pt->etype == TFORW)
++		goto ok;
++	if(pt->etype == TFORWSTRUCT && t->etype == TSTRUCT)
++		goto ok;
++	if(pt->etype == TFORWINTER && t->etype == TINTER)
++		goto ok;
++	if(pt->etype == TSTRUCT && t->etype == TFORWSTRUCT)
++		return;
++	if(pt->etype == TINTER && t->etype == TFORWINTER)
++		return;
++	if(!cvttype(pt, t)) {
++		yyerror("redeclaration of %T during imports\n\t%lT [%p]\n\t%lT [%p]", pt, pt, pt, t, t);
++		return;
++	}
++	return;
++
++ok:
++	n = pt->nod;
++	*pt = *t;
++	pt->method = nil;
++	pt->nod = n;
++	pt->sym = n->sym;
++	declare(n, PEXTERN);
++
++	switch(pt->etype) {
++	case TFORWINTER:
++	case TFORWSTRUCT:
++		// allow re-export in case it gets defined
++		pt->sym->flags &= ~(SymExport|SymPackage);
++		pt->sym->flags &= ~SymImported;
++		break;
++	default:
++		checkwidth(pt);
++		break;
++	}
++}
+ 
+ /*
+  * structs, functions, and methods.
+@@ -675,6 +893,8 @@ stotype(NodeList *l, int et, Type **t)
+ 		if(n->right != N) {
+ 			typecheck(&n->right, Etype);
+ 			n->type = n->right->type;
++			if(n->left != N)
++				n->left->type = n->type;
+ 			n->right = N;
+ 			if(n->embedded && n->type != T) {
+ 				t1 = n->type;
+@@ -791,14 +1011,15 @@ embedded(Sym *s)
+ 	}
+ 
+ 	n = newname(lookup(name));
+-	n = nod(ODCLFIELD, n, N);
++	n = nod(ODCLFIELD, n, oldname(s));
+ 	n->embedded = 1;
+-	if(s == S)
+-		return n;
+-	n->right = oldname(s);
+ 	return n;
+ }
+ 
++/*
++ * check that the list of declarations is either all anonymous or all named
++ */
++
+ static Node*
+ findtype(NodeList *l)
+ {
+@@ -808,59 +1029,11 @@ findtype(NodeList *l)
+ 	return N;
+ }
+ 
+-static Node*
+-xanondcl(Node *nt)
+-{
+-	Node *n;
+-	Type *t;
+-
+-	typecheck(&nt, Etype);
+-	t = nt->type;
+-	if(nt->op != OTYPE) {
+-		yyerror("%S is not a type", nt->sym);
+-		t = types[TINT32];
+-	}
+-	n = nod(ODCLFIELD, N, N);
+-	n->type = t;
+-	return n;
+-}
+-
+-static Node*
+-namedcl(Node *nn, Node *nt)
+-{
+-	Node *n;
+-	Type *t;
+-
+-	if(nn->op == OKEY)
+-		nn = nn->left;
+-	if(nn->sym == S) {
+-		typecheck(&nn, Etype);
+-		yyerror("cannot mix anonymous %T with named arguments", nn->type);
+-		return xanondcl(nn);
+-	}
+-	t = types[TINT32];
+-	if(nt == N)
+-		yyerror("missing type for argument %S", nn->sym);
+-	else {
+-		typecheck(&nt, Etype);
+-		if(nt->op != OTYPE)
+-			yyerror("%S is not a type", nt->sym);
+-		else
+-			t = nt->type;
+-	}
+-	n = nod(ODCLFIELD, newname(nn->sym), N);
+-	n->type = t;
+-	return n;
+-}
+-
+-/*
+- * check that the list of declarations is either all anonymous or all named
+- */
+ NodeList*
+ checkarglist(NodeList *all)
+ {
+ 	int named;
+-	Node *r;
++	Node *n, *t, *nextt;
+ 	NodeList *l;
+ 
+ 	named = 0;
+@@ -870,17 +1043,51 @@ checkarglist(NodeList *all)
+ 			break;
+ 		}
+ 	}
++	if(named) {
++		n = N;
++		for(l=all; l; l=l->next) {
++			n = l->n;
++			if(n->op != OKEY && n->sym == S) {
++				yyerror("mixed named and unnamed function parameters");
++				break;
++			}
++		}
++		if(l == nil && n != N && n->op != OKEY)
++			yyerror("final function parameter must have type");
++	}
+ 
++	nextt = nil;
+ 	for(l=all; l; l=l->next) {
+-		if(named)
+-			l->n = namedcl(l->n, findtype(l));
+-		else
+-			l->n = xanondcl(l->n);
+-		if(l->next != nil) {
+-			r = l->n;
+-			if(r != N && r->type != T && r->type->etype == TDDD)
+-				yyerror("only last argument can have type ...");
++		// can cache result from findtype to avoid
++		// quadratic behavior here, but unlikely to matter.
++		n = l->n;
++		if(named) {
++			if(n->op == OKEY) {
++				t = n->right;
++				n = n->left;
++				nextt = nil;
++			} else {
++				if(nextt == nil)
++					nextt = findtype(l);
++				t = nextt;
++			}
++		} else {
++			t = n;
++			n = N;
++		}
++		if(n != N && n->sym == S) {
++			t = n;
++			n = N;
+ 		}
++		if(n != N) {
++			if(n->op == ONONAME && n->sym->def == n)
++				n->sym->def = N;
++			n = newname(n->sym);
++		}
++		n = nod(ODCLFIELD, n, t);
++		if(l->next != nil && n->right != N && n->right->op == OTYPE && isddd(n->right->type))
++			yyerror("only last argument can have type ...");
++		l->n = n;
+ 	}
+ 	return all;
+ }
+@@ -891,8 +1098,7 @@ fakethis(void)
+ {
+ 	Node *n;
+ 
+-	n = nod(ODCLFIELD, N, N);
+-	n->type = ptrto(typ(TSTRUCT));
++	n = nod(ODCLFIELD, N, typenod(ptrto(typ(TSTRUCT))));
+ 	return n;
+ }
+ 
+@@ -943,8 +1149,8 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 		t->thistuple = 1;
+ 	t->outtuple = count(out);
+ 	t->intuple = count(in);
++	t->outnamed = t->outtuple > 0 && out->n->left != N;
+ 
+-	checkwidth(t);
+ 	return t;
+ }
+ 
+@@ -1003,7 +1209,6 @@ methodsym(Sym *nsym, Type *t0)
+ 		t0 = ptrto(t);
+ 
+ 	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
+-//print("methodname %s\n", buf);
+ 	return pkglookup(buf, s->package);
+ 
+ bad:
+@@ -1022,42 +1227,52 @@ methodname(Node *n, Type *t)
+ 	return newname(s);
+ }
+ 
++Node*
++methodname1(Node *n, Node *t)
++{
++	char *star;
++	char buf[NSYMB];
++
++	star = "";
++	if(t->op == OIND) {
++		star = "*";
++		t = t->left;
++	}
++	if(t->sym == S)
++		return n;
++	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
++	return newname(pkglookup(buf, t->sym->package));
++}
++
+ /*
+  * add a method, declared as a function,
+  * n is fieldname, pa is base type, t is function type
+  */
+ void
+-addmethod(Node *n, Type *t, int local)
++addmethod(Sym *sf, Type *t, int local)
+ {
+ 	Type *f, *d, *pa;
+-	Sym *sf;
++	Node *n;
+ 
+ 	pa = nil;
+-	sf = nil;
+ 
+ 	// get field sym
+-	if(n == N)
+-		goto bad;
+-	if(n->op != ONAME)
+-		goto bad;
+-	sf = n->sym;
+ 	if(sf == S)
+-		goto bad;
++		fatal("no method symbol");
+ 
+ 	// get parent type sym
+-	pa = *getthis(t);	// ptr to this structure
+-	if(pa == T)
+-		goto bad;
+-	pa = pa->type;		// ptr to this field
+-	if(pa == T)
+-		goto bad;
+-	pa = pa->type;		// ptr to this type
+-	if(pa == T)
+-		goto bad;
++	pa = getthisx(t)->type;	// ptr to this structure
++	if(pa == T) {
++		yyerror("missing receiver");
++		return;
++	}
+ 
++	pa = pa->type;
+ 	f = methtype(pa);
+-	if(f == T)
+-		goto bad;
++	if(f == T) {
++		yyerror("invalid receiver type %T", pa);
++		return;
++	}
+ 
+ 	pa = f;
+ 	if(pkgimportname != S && !exportname(sf->name))
+@@ -1093,295 +1308,35 @@ addmethod(Node *n, Type *t, int local)
+ 	else
+ 		stotype(list1(n), 0, &d->down);
+ 	return;
+-
+-bad:
+-	yyerror("invalid receiver type %T", pa);
+ }
+ 
+-/*
+- * declare the function proper.
+- * and declare the arguments
+- * called in extern-declaration context
+- * returns in auto-declaration context.
+- */
+ void
+-funchdr(Node *n)
++funccompile(Node *n)
+ {
+-	Node *on;
+-	Sym *s;
++	stksize = BADWIDTH;
++	maxarg = 0;
+ 
+-	s = n->nname->sym;
+-	on = s->def;
+-	if(on != N && (on->op != ONAME || on->builtin))
+-		on = N;
+-
+-	// check for same types
+-	if(on != N) {
+-		if(eqtype(n->type, on->type)) {
+-			if(!eqargs(n->type, on->type)) {
+-				yyerror("function arg names changed: %S", s);
+-				print("\t%T\n\t%T\n", on->type, n->type);
+-			}
+-		} else {
+-			yyerror("function redeclared: %S", s);
+-			print("\t%T\n\t%T\n", on->type, n->type);
+-			on = N;
+-		}
++	if(n->type == T) {
++		if(nerrors == 0)
++			fatal("funccompile missing type");
++		return;
+ 	}
+ 
+-	// check for forward declaration
+-	if(on == N) {
+-		// initial declaration or redeclaration
+-		// declare fun name, argument types and argument names
+-		n->nname->type = n->type;
+-		if(n->type->thistuple == 0)
+-			addvar(n->nname, n->type, PFUNC);
+-		else
+-			n->nname->class = PFUNC;
+-	} else {
+-		// identical redeclaration
+-		// steal previous names
+-		n->nname = on;
+-		n->type = on->type;
+-		n->class = on->class;
+-		n->sym = s;
+-	}
++	// assign parameter offsets
++	checkwidth(n->type);
+ 
+-	// change the declaration context from extern to auto
+-	autodcl = list1(nod(OXXX, N, N));
+-
+-	if(funcdepth == 0 && dclcontext != PEXTERN)
+-		fatal("funchdr: dclcontext");
++	if(curfn)
++		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
++	curfn = n;
++	typechecklist(n->nbody, Etop);
++	curfn = nil;
+ 
++	stksize = 0;
+ 	dclcontext = PAUTO;
+-	markdcl();
+-	funcargs(n->type);
+-}
+-
+-void
+-funcargs(Type *ft)
+-{
+-	Type *t;
+-	Iter save;
+-	int all;
+-
+-	funcdepth++;
+-
+-	// declare the this/in arguments
+-	t = funcfirst(&save, ft);
+-	while(t != T) {
+-		if(t->nname != N) {
+-			t->nname->xoffset = t->width;
+-			addvar(t->nname, t->type, PPARAM);
+-		}
+-		t = funcnext(&save);
+-	}
+-
+-	// declare the outgoing arguments
+-	all = 0;
+-	t = structfirst(&save, getoutarg(ft));
+-	while(t != T) {
+-		if(t->nname != N)
+-			t->nname->xoffset = t->width;
+-		if(t->nname != N) {
+-			addvar(t->nname, t->type, PPARAMOUT);
+-			all |= 1;
+-		} else
+-			all |= 2;
+-		t = structnext(&save);
+-	}
+-
+-	// this test is remarkedly similar to checkarglist
+-	if(all == 3)
+-		yyerror("cannot mix anonymous and named output arguments");
+-
+-	ft->outnamed = 0;
+-	if(all == 1)
+-		ft->outnamed = 1;
+-}
+-
+-/*
+- * compile the function.
+- * called in auto-declaration context.
+- * returns in extern-declaration context.
+- */
+-void
+-funcbody(Node *n)
+-{
+-
++	funcdepth = n->funcdepth + 1;
+ 	compile(n);
+-
+-	// change the declaration context from auto to extern
+-	if(dclcontext != PAUTO)
+-		fatal("funcbody: dclcontext");
+-	popdcl();
+-	funcdepth--;
+-	if(funcdepth == 0)
+-		dclcontext = PEXTERN;
+-}
+-
+-Node*
+-funclit0(Node *t)
+-{
+-	Node *n;
+-
+-	n = nod(OXXX, N, N);
+-	n->outer = funclit;
+-	n->dcl = autodcl;
+-	funclit = n;
+-
+-	// new declaration context
+-	autodcl = list1(nod(OEMPTY, N, N));
+-
+-	typecheck(&t, Etype);
+-	funcargs(t->type);
+-	return t;
++	curfn = nil;
++	funcdepth = 0;
++	dclcontext = PEXTERN;
+ }
+ 
+-Node*
+-funclit1(Node *ntype, NodeList *body)
+-{
+-	Node *func;
+-	Type *type;
+-	Node *a, *d, *f, *n, *clos;
+-	Type *ft, *t;
+-	Iter save;
+-	int narg, shift;
+-	NodeList *args, *l, *in, *out;
+-	static int closgen;
+-
+-	type = ntype->type;
+-	popdcl();
+-	func = funclit;
+-	funclit = func->outer;
+-
+-	// build up type of func f that we're going to compile.
+-	// as we referred to variables from the outer function,
+-	// we accumulated a list of PHEAP names in func->cvars.
+-	narg = 0;
+-	// add PHEAP versions as function arguments.
+-	in = nil;
+-	for(l=func->cvars; l; l=l->next) {
+-		a = l->n;
+-		d = nod(ODCLFIELD, a, N);
+-		d->type = ptrto(a->type);
+-		in = list(in, d);
+-
+-		// while we're here, set up a->heapaddr for back end
+-		n = nod(ONAME, N, N);
+-		snprint(namebuf, sizeof namebuf, "&%s", a->sym->name);
+-		n->sym = lookup(namebuf);
+-		n->type = ptrto(a->type);
+-		n->class = PPARAM;
+-		n->xoffset = narg*types[tptr]->width;
+-		n->addable = 1;
+-		n->ullman = 1;
+-		narg++;
+-		a->heapaddr = n;
+-
+-		a->xoffset = 0;
+-
+-		// unlink from actual ONAME in symbol table
+-		a->closure->closure = a->outer;
+-	}
+-
+-	// add a dummy arg for the closure's caller pc
+-	d = nod(ODCLFIELD, N, N);
+-	d->type = types[TUINTPTR];
+-	in = list(in, d);
+-
+-	// slide param offset to make room for ptrs above.
+-	// narg+1 to skip over caller pc.
+-	shift = (narg+1)*types[tptr]->width;
+-
+-	// now the original arguments.
+-	for(t=structfirst(&save, getinarg(type)); t; t=structnext(&save)) {
+-		d = nod(ODCLFIELD, t->nname, N);
+-		d->type = t->type;
+-		in = list(in, d);
+-
+-		a = t->nname;
+-		if(a != N) {
+-			if(a->stackparam != N)
+-				a = a->stackparam;
+-			a->xoffset += shift;
+-		}
+-	}
+-
+-	// out arguments
+-	out = nil;
+-	for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
+-		d = nod(ODCLFIELD, t->nname, N);
+-		d->type = t->type;
+-		out = list(out, d);
+-
+-		a = t->nname;
+-		if(a != N) {
+-			if(a->stackparam != N)
+-				a = a->stackparam;
+-			a->xoffset += shift;
+-		}
+-	}
+-
+-	ft = functype(N, in, out);
+-	ft->outnamed = type->outnamed;
+-
+-	// declare function.
+-	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", ++closgen, filename);
+-	f = newname(lookup(namebuf));
+-	addvar(f, ft, PFUNC);
+-	f->funcdepth = 0;
+-
+-	// compile function
+-	n = nod(ODCLFUNC, N, N);
+-	n->nname = f;
+-	n->type = ft;
+-	if(body == nil)
+-		body = list1(nod(OEMPTY, N, N));
+-	n->nbody = body;
+-	compile(n);
+-	funcdepth--;
+-	autodcl = func->dcl;
+-
+-	// build up type for this instance of the closure func.
+-	in = nil;
+-	d = nod(ODCLFIELD, N, N);	// siz
+-	d->type = types[TINT];
+-	in = list(in, d);
+-	d = nod(ODCLFIELD, N, N);	// f
+-	d->type = ft;
+-	in = list(in, d);
+-	for(l=func->cvars; l; l=l->next) {
+-		a = l->n;
+-		d = nod(ODCLFIELD, N, N);	// arg
+-		d->type = ptrto(a->type);
+-		in = list(in, d);
+-	}
+-
+-	d = nod(ODCLFIELD, N, N);
+-	d->type = type;
+-	out = list1(d);
+-
+-	clos = syslook("closure", 1);
+-	clos->type = functype(N, in, out);
+-
+-	// literal expression is sys.closure(siz, f, arg0, arg1, ...)
+-	// which builds a function that calls f after filling in arg0,
+-	// arg1, ... for the PHEAP arguments above.
+-	args = nil;
+-	if(narg*widthptr > 100)
+-		yyerror("closure needs too many variables; runtime will reject it");
+-	a = nodintconst(narg*widthptr);
+-	args = list(args, a);	// siz
+-	args = list(args, f);	// f
+-	for(l=func->cvars; l; l=l->next) {
+-		a = l->n;
+-		d = oldname(a->sym);
+-		args = list(args, nod(OADDR, d, N));
+-	}
+-	typechecklist(args, Erv);
+-
+-	n = nod(OCALL, clos, N);
+-	n->list = args;
+-	return n;
+-}
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 112dd27115..20831d1614 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -61,6 +61,8 @@ autoexport(Node *n, int ctxt)
+ 		return;
+ 	if((ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN)
+ 		return;
++	if(n->ntype && n->ntype->op == OTFUNC && n->ntype->left)	// method
++		return;
+ 	if(exportname(n->sym->name) || strcmp(n->sym->name, "init") == 0)
+ 		exportsym(n);
+ 	else
+@@ -347,7 +349,6 @@ importvar(Sym *s, Type *t, int ctxt)
+ 		warn("redeclare import var %S from %T to %T",
+ 			s, s->def->type, t);
+ 	}
+-	checkwidth(t);
+ 	n = newname(s);
+ 	n->type = t;
+ 	declare(n, ctxt);
+@@ -357,56 +358,19 @@ importvar(Sym *s, Type *t, int ctxt)
+ }
+ 
+ void
+-importtype(Sym *s, Type *t)
++importtype(Type *pt, Type *t)
+ {
+-	Node *n;
+-	Type *tt;
+-
+-	importsym(s, OTYPE);
+-	n = s->def;
+-	if(n != N && n->op == OTYPE) {
+-		if(cvttype(t, n->type))
+-			return;
+-		if(t->etype == TFORWSTRUCT && n->type->etype == TSTRUCT)
+-			return;
+-		if(t->etype == TFORWINTER && n->type->etype == TINTER)
+-			return;
+-		if(n->type->etype != TFORW && n->type->etype != TFORWSTRUCT && n->type->etype != TFORWINTER) {
+-			yyerror("redeclare import type %S from %lT to %lT", s, n->type, t);
+-			n = s->def = typenod(typ(0));
+-		}
+-	}
+-	if(n == N || n->op != OTYPE) {
+-		tt = typ(0);
+-		tt->sym = s;
+-		n = typenod(tt);
+-		s->def = n;
+-	}
+-	if(n->type == T)
+-		n->type = typ(0);
+-	*n->type = *t;
+-	n->type->sym = s;
+-	n->type->nod = n;
+-	switch(n->type->etype) {
+-	case TFORWINTER:
+-	case TFORWSTRUCT:
+-		// allow re-export in case it gets defined
+-		s->flags &= ~(SymExport|SymPackage);
+-		s->flags &= ~SymImported;
+-		break;
+-	default:
+-		checkwidth(n->type);
+-	}
++	typedcl2(pt, t);
+ 
+ 	if(debug['E'])
+-		print("import type %S %lT\n", s, t);
++		print("import type %T %lT\n", pt, t);
+ }
+ 
+ void
+ importmethod(Sym *s, Type *t)
+ {
+ 	checkwidth(t);
+-	addmethod(newname(s), t, 0);
++	addmethod(s, t, 0);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 7bf63baef7..d13af7a669 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -25,14 +25,25 @@ allocparams(void)
+ 	NodeList *l;
+ 	Node *n;
+ 	uint32 w;
++	Sym *s;
++
++	if(stksize < 0)
++		fatal("allocparams not during code generation");
+ 
+ 	/*
+ 	 * allocate (set xoffset) the stack
+ 	 * slots for all automatics.
+ 	 * allocated starting at -w down.
+ 	 */
+-	for(l=autodcl; l; l=l->next) {
++	for(l=curfn->dcl; l; l=l->next) {
+ 		n = l->n;
++		if(n->op == ONAME && n->class == PHEAP-1) {
++			// heap address variable; finish the job
++			// started in addrescapes.
++			s = n->sym;
++			tempname(n, n->type);
++			n->sym = s;
++		}
+ 		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
+ 		typecheck(&n, Erv);	// only needed for unused variables
+@@ -42,9 +53,10 @@ allocparams(void)
+ 		w = n->type->width;
+ 		if(n->class & PHEAP)
+ 			w = widthptr;
++		if(w >= 100000000)
++			fatal("bad width");
+ 		stksize += w;
+ 		stksize = rnd(stksize, w);
+-
+ 		n->xoffset = -stksize;
+ 	}
+ }
+@@ -161,6 +173,9 @@ gen(Node *n)
+ 	case OFALL:
+ 	case OXCASE:
+ 	case OXFALL:
++	case ODCLCONST:
++	case ODCLFUNC:
++	case ODCLTYPE:
+ 		break;
+ 
+ 	case OEMPTY:
+@@ -511,3 +526,90 @@ cgen_as(Node *nl, Node *nr)
+ ret:
+ 	;
+ }
++
++/*
++ * gather series of offsets
++ * >=0 is direct addressed field
++ * <0 is pointer to next field (+1)
++ */
++int
++dotoffset(Node *n, int *oary, Node **nn)
++{
++	int i;
++
++	switch(n->op) {
++	case ODOT:
++		if(n->xoffset == BADWIDTH) {
++			dump("bad width in dotoffset", n);
++			fatal("bad width in dotoffset");
++		}
++		i = dotoffset(n->left, oary, nn);
++		if(i > 0) {
++			if(oary[i-1] >= 0)
++				oary[i-1] += n->xoffset;
++			else
++				oary[i-1] -= n->xoffset;
++			break;
++		}
++		if(i < 10)
++			oary[i++] = n->xoffset;
++		break;
++
++	case ODOTPTR:
++		if(n->xoffset == BADWIDTH) {
++			dump("bad width in dotoffset", n);
++			fatal("bad width in dotoffset");
++		}
++		i = dotoffset(n->left, oary, nn);
++		if(i < 10)
++			oary[i++] = -(n->xoffset+1);
++		break;
++
++	default:
++		*nn = n;
++		return 0;
++	}
++	if(i >= 10)
++		*nn = N;
++	return i;
++}
++
++/*
++ * make a new off the books
++ */
++void
++tempname(Node *n, Type *t)
++{
++	Sym *s;
++	uint32 w;
++
++	if(stksize < 0)
++		fatal("tempname not during code generation");
++
++	if(t == T) {
++		yyerror("tempname called with nil type");
++		t = types[TINT32];
++	}
++
++	// give each tmp a different name so that there
++	// a chance to registerizer them
++	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
++	statuniqgen++;
++	s = lookup(namebuf);
++
++	memset(n, 0, sizeof(*n));
++	n->op = ONAME;
++	n->sym = s;
++	n->type = t;
++	n->class = PAUTO;
++	n->addable = 1;
++	n->ullman = 1;
++	n->noescape = 1;
++
++	dowidth(t);
++	w = t->width;
++	stksize += w;
++	stksize = rnd(stksize, w);
++	n->xoffset = -stksize;
++}
++
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d77b11f84d..3c11d038a0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -144,6 +144,7 @@ struct	Type
+ 	uchar	funarg;
+ 	uchar	copyany;
+ 	uchar	local;		// created in this file
++	uchar	deferwidth;
+ 
+ 	Node*	nod;		// canonical OTYPE node
+ 
+@@ -195,6 +196,7 @@ struct	Node
+ 	uchar	builtin;	// built-in name, like len or close
+ 	uchar	walkdef;
+ 	uchar	typecheck;
++	uchar	local;
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -217,17 +219,15 @@ struct	Node
+ 
+ 	// func
+ 	Node*	nname;
++	Node*	shortname;
+ 	NodeList*	enter;
+ 	NodeList*	exit;
+ 	NodeList*	cvars;	// closure params
+-	NodeList*	dcl;	// outer autodcl
++	NodeList*	dcl;	// autodcl for this func/closure
+ 
+ 	// OLITERAL/OREGISTER
+ 	Val	val;
+ 
+-	// OTFUNC
+-	Node*	rcvr;
+-
+ 	// ONAME
+ 	Node*	ntype;
+ 	Node*	defn;
+@@ -250,7 +250,7 @@ struct	Node
+ };
+ #define	N	((Node*)0)
+ 
+-struct NodeList
++struct	NodeList
+ {
+ 	Node*	n;
+ 	NodeList*	next;
+@@ -327,11 +327,12 @@ enum
+ 	OCAP,
+ 	OCLOSE,
+ 	OCLOSED,
++	OCLOSURE,
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+ 	OCOMPSLICE, OCOMPMAP,
+ 	OCONV, OCONVNOP, OCONVA2S, OCONVIFACE, OCONVSLICE,
+-	ODCL, ODCLFUNC, ODCLFIELD, ODCLARG,
++	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+@@ -624,8 +625,8 @@ EXTERN	Mpint*	maxintval[NTYPE];
+ EXTERN	Mpflt*	minfltval[NTYPE];
+ EXTERN	Mpflt*	maxfltval[NTYPE];
+ 
+-EXTERN	NodeList*	autodcl;
+ EXTERN	NodeList*	externdcl;
++EXTERN	NodeList*	closures;
+ EXTERN	NodeList*	exportlist;
+ EXTERN	NodeList*	typelist;
+ EXTERN	int	dclcontext;		// PEXTERN/PAUTO
+@@ -639,7 +640,6 @@ EXTERN	NodeList*	lastconst;
+ EXTERN	Node*	lasttype;
+ EXTERN	int32	maxarg;
+ EXTERN	int32	stksize;		// stack size for current frame
+-EXTERN	int32	initstksize;		// stack size for init function
+ EXTERN	int32	blockgen;		// max block number
+ EXTERN	int32	block;			// current block number
+ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+@@ -662,8 +662,8 @@ EXTERN	int	exporting;
+ EXTERN	int	noargnames;
+ 
+ EXTERN	int	funcdepth;
++EXTERN	int	typecheckok;
+ 
+-EXTERN	Node*	funclit;
+ 
+ /*
+  *	y.tab.c
+@@ -859,21 +859,20 @@ int	simsimtype(Type*);
+  *	dcl.c
+  */
+ void	declare(Node*, int);
+-void	dodclvar(Node*, Type*, NodeList**);
+ Type*	dodcltype(Type*);
+ void	updatetype(Type*, Type*);
+ void	defaultlit(Node**, Type*);
+ void	defaultlit2(Node**, Node**, int);
+ int	structcount(Type*);
+-void	addmethod(Node*, Type*, int);
++void	addmethod(Sym*, Type*, int);
+ Node*	methodname(Node*, Type*);
++Node*	methodname1(Node*, Node*);
+ Sym*	methodsym(Sym*, Type*);
+ Type*	functype(Node*, NodeList*, NodeList*);
+ char*	thistypenam(Node*);
+ void	funcnam(Type*, char*);
+ Node*	renameinit(Node*);
+ void	funchdr(Node*);
+-void	funcargs(Type*);
+ void	funcbody(Node*);
+ Node*	typenod(Type*);
+ Type*	dostruct(NodeList*, int);
+@@ -906,10 +905,23 @@ Node*	embedded(Sym*);
+ NodeList*	variter(NodeList*, Node*, NodeList*);
+ NodeList*	constiter(NodeList*, Node*, NodeList*);
+ 
+-Node*	funclit0(Node*);
+-Node*	funclit1(Node*, NodeList*);
+ Node*	unsafenmagic(Node*, NodeList*);
+ void	dclchecks(void);
++void	funccompile(Node*);
++
++Node*	typedcl0(Sym*);
++Node*	typedcl1(Node*, Node*, int);
++Node*	fwdtype(Node*, int);
++void	typedcl2(Type*, Type*);
++
++/*
++ * closure.c
++ */
++void	closurehdr(Node*);
++Node*	closurebody(NodeList*);
++void	typecheckclosure(Node*);
++Node*	walkclosure(Node*, NodeList**);
++
+ 
+ /*
+  * sinit.c
+@@ -932,10 +944,11 @@ void	dumpexportvar(Sym*);
+ void	dumpexportconst(Sym*);
+ void	importconst(Sym *s, Type *t, Node *v);
+ void	importmethod(Sym *s, Type *t);
+-void	importtype(Sym *s, Type *t);
++void	importtype(Type *s, Type *t);
+ void	importvar(Sym *s, Type *t, int ctxt);
+ void	checkimports(void);
+ Type*	pkgtype(Sym*);
++Sym*	importsym(Sym*, int);
+ 
+ /*
+  *	walk.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index bdb45f4042..4b59dfc3f2 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -56,7 +56,7 @@
+ %type	<node>	for_body for_header for_stmt if_header if_stmt
+ %type	<node>	keyval labelname name
+ %type	<node>	name_or_type non_expr_type
+-%type	<node>	new_name dcl_name oexpr
++%type	<node>	new_name dcl_name oexpr typedclname
+ %type	<node>	onew_name
+ %type	<node>	osimple_stmt pexpr
+ %type	<node>	pseudocall range_stmt select_stmt
+@@ -72,8 +72,7 @@
+ 
+ %type	<node>	convtype dotdotdot
+ %type	<node>	indcl interfacetype structtype ptrtype
+-%type	<type>	new_type typedclname
+-%type	<node>	chantype non_chan_type othertype non_fn_type fntype fnlitdcl
++%type	<node>	chantype non_chan_type othertype non_fn_type fntype
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+@@ -85,7 +84,7 @@
+ %type	<list>	hidden_interfacedcl_list ohidden_interfacedcl_list
+ %type	<list>	hidden_structdcl_list ohidden_structdcl_list
+ 
+-%type	<type>	hidden_type hidden_type1 hidden_type2
++%type	<type>	hidden_type hidden_type1 hidden_type2 hidden_pkgtype
+ 
+ %left		LOROR
+ %left		LANDAND
+@@ -121,13 +120,28 @@ file:
+ 	imports
+ 	xdcl_list
+ 	{
++		NodeList *l;
++
++		if(nsyntaxerrors == 0)
++			testdclstack();
++
++		typecheckok = 1;
+ 		if(debug['f'])
+ 			frame(1);
++		defercheckwidth();
+ 		typechecklist($4, Etop);
++		resumecheckwidth();
++		for(l=$4; l; l=l->next)
++			if(l->n->op == ODCLFUNC)
++				funccompile(l->n);
+ 		if(nerrors == 0)
+ 			fninit($4);
+-		if(nsyntaxerrors == 0)
+-			testdclstack();
++		while(closures) {
++			l = closures;
++			closures = nil;
++			for(; l; l=l->next)
++				funccompile(l->n);
++		}
+ 		dclchecks();
+ 	}
+ 
+@@ -266,16 +280,10 @@ import_done:
+  * declarations
+  */
+ xdcl:
+-	{ stksize = initstksize; } common_dcl
+-	{
+-		$$ = $2;
+-		initstksize = stksize;
+-	}
++	common_dcl
+ |	xfndcl
+ 	{
+-		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
+-			autoexport($1->nname, dclcontext);
+-		$$ = nil;
++		$$ = list1($1);
+ 	}
+ |	';'
+ 	{
+@@ -305,26 +313,23 @@ common_dcl:
+ 	}
+ |	LCONST constdcl
+ 	{
+-		$$ = nil;
++		$$ = $2;
+ 		iota = 0;
+ 		lastconst = nil;
+-		walkdeflist($2);
+ 	}
+ |	LCONST '(' constdcl osemi ')'
+ 	{
+-		$$ = nil;
++		$$ = $3;
+ 		iota = 0;
+ 		lastconst = nil;
+ 		yyoptsemi(0);
+-		walkdeflist($3);
+ 	}
+ |	LCONST '(' constdcl ';' constdcl_list osemi ')'
+ 	{
+-		$$ = nil;
++		$$ = concat($3, $5);
+ 		iota = 0;
+ 		lastconst = nil;
+ 		yyoptsemi(0);
+-		walkdeflist(concat($3, $5));
+ 	}
+ |	LCONST '(' ')'
+ 	{
+@@ -333,15 +338,13 @@ common_dcl:
+ 	}
+ |	LTYPE typedcl
+ 	{
+-		$$ = nil;
+-	//	$$ = list1($2);
++		$$ = list1($2);
+ 		if(yylast == LSEMIBRACE)
+ 			yyoptsemi(0);
+ 	}
+ |	LTYPE '(' typedcl_list osemi ')'
+ 	{
+-		$$ = nil;
+-	//	$$ = $3;
++		$$ = $3;
+ 		yyoptsemi(0);
+ 	}
+ |	LTYPE '(' ')'
+@@ -392,28 +395,29 @@ constdcl1:
+ 	}
+ 
+ typedclname:
+-	new_type
++	sym
+ 	{
+-		$$ = dodcltype($1);
+-		defercheckwidth();
++		// different from dclname because the name
++		// becomes visible right here, not at the end
++		// of the declaration.
++		$$ = typedcl0($1);
+ 	}
+ 
+ typedcl:
+ 	typedclname ntype
+ 	{
+-		typecheck(&$2, Etype);
+-		updatetype($1, $2->type);
+-		resumecheckwidth();
++		$$ = typedcl1($1, $2, 1);
+ 	}
++
++// TODO(rsc): delete
+ |	typedclname LSTRUCT
+ 	{
+-		updatetype($1, typ(TFORWSTRUCT));
+-		resumecheckwidth();
++		$$ = fwdtype($1, TFORWSTRUCT);
+ 	}
++// TODO(rsc): delete
+ |	typedclname LINTERFACE
+ 	{
+-		updatetype($1, typ(TFORWINTER));
+-		resumecheckwidth();
++		$$ = fwdtype($1, TFORWINTER);
+ 	}
+ 
+ simple_stmt:
+@@ -814,9 +818,6 @@ uexpr:
+ pseudocall:
+ 	pexpr '(' oexpr_or_type_list ')'
+ 	{
+-		$$ = unsafenmagic($1, $3);
+-		if($$)
+-			break;
+ 		$$ = nod(OCALL, $1, N);
+ 		$$->list = $3;
+ 	}
+@@ -918,12 +919,6 @@ dcl_name:
+ 		$$ = dclname($1);
+ 	}
+ 
+-new_type:
+-	sym
+-	{
+-		$$ = newtype($1);
+-	}
+-
+ onew_name:
+ 	{
+ 		$$ = N;
+@@ -940,7 +935,7 @@ name:
+ 	}
+ 
+ labelname:
+-	name
++	new_name
+ 
+ convtype:
+ 	'[' oexpr ']' ntype
+@@ -1104,14 +1099,10 @@ keyval:
+  * all in one place to show how crappy it all is
+  */
+ xfndcl:
+-	LFUNC
+-	{
+-		maxarg = 0;
+-		stksize = 0;
+-	} fndcl fnbody
++	LFUNC fndcl fnbody
+ 	{
+-		$$ = $3;
+-		$$->nbody = $4;
++		$$ = $2;
++		$$->nbody = $3;
+ 		funcbody($$);
+ 	}
+ 
+@@ -1127,13 +1118,13 @@ fndcl:
+ 		n = nod(OTFUNC, N, N);
+ 		n->list = $3;
+ 		n->rlist = $5;
+-		typecheck(&n, Etype);
+-		$$->type = n->type;
++		// TODO: check if nname already has an ntype
++		$$->nname->ntype = n;
+ 		funchdr($$);
+ 	}
+ |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
+ 	{
+-		Node *rcvr;
++		Node *rcvr, *t;
+ 
+ 		rcvr = $2->n;
+ 		if($2->next != nil || $2->n->op != ODCLFIELD) {
+@@ -1142,12 +1133,13 @@ fndcl:
+ 		}
+ 
+ 		$$ = nod(ODCLFUNC, N, N);
+-		$$->nname = $4;
+-		$$->nname = methodname($4, rcvr->type);
+-		$$->type = functype(rcvr, $6, $8);
++		$$->nname = methodname1($4, rcvr->right);
++		t = nod(OTFUNC, rcvr, N);
++		t->list = $6;
++		t->rlist = $8;
++		$$->nname->ntype = t;
++		$$->shortname = $4;
+ 		funchdr($$);
+-		if(rcvr != N)
+-			addmethod($4, $$->type, 1);
+ 	}
+ 
+ fntype:
+@@ -1158,19 +1150,6 @@ fntype:
+ 		$$->rlist = $5;
+ 	}
+ 
+-fnlitdcl:
+-	fntype
+-	{
+-		markdcl();
+-		$$ = funclit0($$);
+-	}
+-
+-fnliteral:
+-	fnlitdcl '{' stmt_list '}'
+-	{
+-		$$ = funclit1($1, $3);
+-	}
+-
+ fnbody:
+ 	{
+ 		$$ = nil;
+@@ -1197,6 +1176,19 @@ fnres:
+ 		$$ = $2;
+ 	}
+ 
++fnlitdcl:
++	fntype
++	{
++		closurehdr($1);
++	}
++
++fnliteral:
++	fnlitdcl '{' stmt_list '}'
++	{
++		$$ = closurebody($3);
++	}
++
++
+ /*
+  * lists of things
+  * note that they are left recursive
+@@ -1590,15 +1582,16 @@ hidden_import:
+ 	{
+ 		importconst($2, $3, $5);
+ 	}
+-|	LTYPE hidden_pkg_importsym hidden_type
++|	LTYPE hidden_pkgtype hidden_type
+ 	{
+ 		importtype($2, $3);
+ 	}
+-|	LTYPE hidden_pkg_importsym LSTRUCT
++// TODO(rsc): delete
++|	LTYPE hidden_pkgtype LSTRUCT
+ 	{
+ 		importtype($2, typ(TFORWSTRUCT));
+ 	}
+-|	LTYPE hidden_pkg_importsym LINTERFACE
++|	LTYPE hidden_pkgtype LINTERFACE
+ 	{
+ 		importtype($2, typ(TFORWINTER));
+ 	}
+@@ -1615,6 +1608,13 @@ hidden_import:
+ 		importmethod($5, functype($3->n, $7, $9));
+ 	}
+ 
++hidden_pkgtype:
++	hidden_pkg_importsym
++	{
++		$$ = pkgtype($1);
++		importsym($1, OTYPE);
++	}
++
+ hidden_type:
+ 	hidden_type1
+ |	hidden_type2
+@@ -1690,13 +1690,11 @@ hidden_type2:
+ hidden_dcl:
+ 	sym hidden_type
+ 	{
+-		$$ = nod(ODCLFIELD, newname($1), N);
+-		$$->type = $2;
++		$$ = nod(ODCLFIELD, newname($1), typenod($2));
+ 	}
+ |	'?' hidden_type
+ 	{
+-		$$ = nod(ODCLFIELD, N, N);
+-		$$->type = $2;
++		$$ = nod(ODCLFIELD, N, typenod($2));
+ 	}
+ 
+ hidden_structdcl:
+@@ -1734,11 +1732,7 @@ hidden_funres:
+ 	}
+ |	hidden_type1
+ 	{
+-		Node *n;
+-
+-		n = nod(ODCLFIELD, N, N);
+-		n->type = $1;
+-		$$ = list1(n);
++		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
+ 	}
+ 
+ hidden_constant:
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 445fa0d54f..ca6b1eb373 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -50,10 +50,20 @@ anyinit(NodeList *n)
+ {
+ 	uint32 h;
+ 	Sym *s;
+-
+-	// are there any init statements
+-	if(n != nil)
+-		return 1;
++	NodeList *l;
++
++	// are there any interesting init statements
++	for(l=n; l; l=l->next) {
++		switch(l->n->op) {
++		case ODCLFUNC:
++		case ODCLCONST:
++		case ODCLTYPE:
++		case OEMPTY:
++			break;
++		default:
++			return 1;
++		}
++	}
+ 
+ 	// is this main
+ 	if(strcmp(package, "main") == 0)
+@@ -93,6 +103,7 @@ fninit(NodeList *n)
+ 		return;
+ 	}
+ 
++	n = initfix(n);
+ 	if(!anyinit(n))
+ 		return;
+ 
+@@ -106,7 +117,6 @@ fninit(NodeList *n)
+ 	// (2)
+ 
+ 	maxarg = 0;
+-	stksize = initstksize;
+ 
+ 	snprint(namebuf, sizeof(namebuf), "Init·%s", filename);
+ 
+@@ -118,7 +128,7 @@ fninit(NodeList *n)
+ 	fn = nod(ODCLFUNC, N, N);
+ 	initsym = lookup(namebuf);
+ 	fn->nname = newname(initsym);
+-	fn->type = functype(N, nil, nil);
++	fn->nname->ntype = nod(OTFUNC, N, N);
+ 	funchdr(fn);
+ 
+ 	// (3)
+@@ -181,12 +191,14 @@ fninit(NodeList *n)
+ 	exportsym(fn->nname);
+ 
+ 	fn->nbody = r;
++
+ //dump("b", fn);
+ //dump("r", fn->nbody);
+ 
+-	popdcl();
+ 	initflag = 1;	// flag for loader static initialization
+-	compile(fn);
++	funcbody(fn);
++	typecheck(&fn, Etop);
++	funccompile(fn);
+ 	initflag = 0;
+ }
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3a8cba41bb..8770ee5361 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -310,6 +310,7 @@ importfile(Val *f)
+ 	curio.peekc = 0;
+ 	curio.peekc1 = 0;
+ 	curio.infile = file;
++	typecheckok = 1;
+ 	for(;;) {
+ 		c = getc();
+ 		if(c == EOF)
+@@ -343,6 +344,7 @@ unimportfile(void)
+ 	curio = pushedio;
+ 	pushedio.bin = nil;
+ 	inimportsys = 0;
++	typecheckok = 0;
+ }
+ 
+ void
+@@ -362,6 +364,7 @@ cannedimports(char *file, char *cp)
+ 	curio.cp = cp;
+ 
+ 	pkgmyname = S;
++	typecheckok = 1;
+ 	inimportsys = 1;
+ }
+ 
+@@ -1308,7 +1311,8 @@ lexinit(void)
+ 				t = typ(etype);
+ 				t->sym = s;
+ 
+-				dowidth(t);
++				if(etype != TANY && etype != TSTRING)
++					dowidth(t);
+ 				types[etype] = t;
+ 			}
+ 			s->def = typenod(t);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 02bc10ca57..5c58077129 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -389,6 +389,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	Type *elem;
+ 	char *p;
+ 
++	dowidth(t);
+ 	s1 = dextratype(t);
+ 
+ 	// empty interface pointing at this type.
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 485b7f6849..83db9bff1f 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -69,6 +69,12 @@ initlin(NodeList *l)
+ 
+ 	for(; l; l=l->next) {
+ 		n = l->n;
++		switch(n->op) {
++		case ODCLFUNC:
++		case ODCLCONST:
++		case ODCLTYPE:
++			continue;
++		}
+ 		initlin(n->ninit);
+ 		n->ninit = nil;
+ 		xxx.list = list(xxx.list, n);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index cf0811901c..6595b45a31 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -380,6 +380,7 @@ typ(int et)
+ 
+ 	t = mal(sizeof(*t));
+ 	t->etype = et;
++	t->width = BADWIDTH;
+ 	return t;
+ }
+ 
+@@ -471,7 +472,6 @@ aindex(Node *b, Type *t)
+ 	r = typ(TARRAY);
+ 	r->type = t;
+ 	r->bound = bound;
+-	checkwidth(r);
+ 	return r;
+ }
+ 
+@@ -517,7 +517,12 @@ dodump(Node *n, int dep)
+ 		break;
+ 
+ 	case OTYPE:
+-		print("%O %T\n", n->op, n->type);
++		print("%O %S type=%T\n", n->op, n->sym, n->type);
++		if(n->type == T && n->ntype) {
++			indent(dep);
++			print("%O-ntype\n", n->op);
++			dodump(n->ntype, dep+1);
++		}
+ 		break;
+ 
+ 	case OIF:
+@@ -577,7 +582,7 @@ dodump(Node *n, int dep)
+ 		break;
+ 	}
+ 
+-	if(n->ntype != nil) {
++	if(0 && n->ntype != nil) {
+ 		indent(dep);
+ 		print("%O-ntype\n", n->op);
+ 		dodump(n->ntype, dep+1);
+@@ -1930,7 +1935,9 @@ frame(int context)
+ 	int flag;
+ 
+ 	p = "stack";
+-	l = autodcl;
++	l = nil;
++	if(curfn)
++		l = curfn->dcl;
+ 	if(context) {
+ 		p = "external";
+ 		l = externdcl;
+@@ -2202,42 +2209,6 @@ brrev(int a)
+ 	return a;
+ }
+ 
+-/*
+- * make a new off the books
+- */
+-void
+-tempname(Node *n, Type *t)
+-{
+-	Sym *s;
+-	uint32 w;
+-
+-	if(t == T) {
+-		yyerror("tempname called with nil type");
+-		t = types[TINT32];
+-	}
+-
+-	// give each tmp a different name so that there
+-	// a chance to registerizer them
+-	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
+-	statuniqgen++;
+-	s = lookup(namebuf);
+-
+-	memset(n, 0, sizeof(*n));
+-	n->op = ONAME;
+-	n->sym = s;
+-	n->type = t;
+-	n->class = PAUTO;
+-	n->addable = 1;
+-	n->ullman = 1;
+-	n->noescape = 1;
+-
+-	dowidth(t);
+-	w = t->width;
+-	stksize += w;
+-	stksize = rnd(stksize, w);
+-	n->xoffset = -stksize;
+-}
+-
+ Node*
+ staticname(Type *t)
+ {
+@@ -2297,58 +2268,14 @@ setmaxarg(Type *t)
+ {
+ 	int32 w;
+ 
++	dowidth(t);
+ 	w = t->argwid;
++	if(t->argwid >= 100000000)
++		fatal("bad argwid %T", t);
+ 	if(w > maxarg)
+ 		maxarg = w;
+ }
+ 
+-/*
+- * gather series of offsets
+- * >=0 is direct addressed field
+- * <0 is pointer to next field (+1)
+- */
+-int
+-dotoffset(Node *n, int *oary, Node **nn)
+-{
+-	int i;
+-
+-	switch(n->op) {
+-	case ODOT:
+-		if(n->xoffset == BADWIDTH) {
+-			dump("bad width in dotoffset", n);
+-			fatal("bad width in dotoffset");
+-		}
+-		i = dotoffset(n->left, oary, nn);
+-		if(i > 0) {
+-			if(oary[i-1] >= 0)
+-				oary[i-1] += n->xoffset;
+-			else
+-				oary[i-1] -= n->xoffset;
+-			break;
+-		}
+-		if(i < 10)
+-			oary[i++] = n->xoffset;
+-		break;
+-
+-	case ODOTPTR:
+-		if(n->xoffset == BADWIDTH) {
+-			dump("bad width in dotoffset", n);
+-			fatal("bad width in dotoffset");
+-		}
+-		i = dotoffset(n->left, oary, nn);
+-		if(i < 10)
+-			oary[i++] = -(n->xoffset+1);
+-		break;
+-
+-	default:
+-		*nn = n;
+-		return 0;
+-	}
+-	if(i >= 10)
+-		*nn = N;
+-	return i;
+-}
+-
+ /*
+  * code to resolve elided DOTs
+  * in embedded types
+@@ -2644,8 +2571,7 @@ structargs(Type **tl, int mustname)
+ 			snprint(buf, sizeof buf, ".anon%d", gen++);
+ 			n = newname(lookup(buf));
+ 		}
+-		a = nod(ODCLFIELD, n, N);
+-		a->type = t->type;
++		a = nod(ODCLFIELD, n, typenod(t->type));
+ 		args = list(args, a);
+ 	}
+ 	return args;
+@@ -2677,7 +2603,7 @@ structargs(Type **tl, int mustname)
+ void
+ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ {
+-	Node *this, *fn, *call, *n;
++	Node *this, *fn, *call, *n, *t;
+ 	NodeList *l, *args, *in, *out;
+ 
+ 	if(debug['r'])
+@@ -2687,14 +2613,17 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 	dclcontext = PEXTERN;
+ 	markdcl();
+ 
+-	this = nod(ODCLFIELD, newname(lookup(".this")), N);
+-	this->type = rcvr;
++	this = nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr));
++	this->left->ntype = this->right;
+ 	in = structargs(getinarg(method->type), 1);
+ 	out = structargs(getoutarg(method->type), 0);
+ 
+ 	fn = nod(ODCLFUNC, N, N);
+ 	fn->nname = newname(newnam);
+-	fn->type = functype(this, in, out);
++	t = nod(OTFUNC, this, N);
++	t->list = in;
++	t->rlist = out;
++	fn->nname->ntype = t;
+ 	funchdr(fn);
+ 
+ 	// arg list
+@@ -2716,6 +2645,8 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 		dumplist("genwrapper body", fn->nbody);
+ 
+ 	funcbody(fn);
++	typecheck(&fn, Etop);
++	funccompile(fn);
+ }
+ 
+ /*
+@@ -3044,6 +2975,9 @@ checkwidth(Type *t)
+ 		dowidth(t);
+ 		return;
+ 	}
++	if(t->deferwidth)
++		return;
++	t->deferwidth = 1;
+ 
+ 	l = tlfree;
+ 	if(l != nil)
+@@ -3075,6 +3009,7 @@ resumecheckwidth(void)
+ 	defercalc = 0;
+ 
+ 	for(l = tlq; l != nil; l = tlq) {
++		l->t->deferwidth = 0;
+ 		dowidth(l->t);
+ 		tlq = l->next;
+ 		l->next = tlfree;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 1deb60582d..05efbba84c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -27,9 +27,10 @@ static void	typecheckcomplit(Node**);
+ static void	addrescapes(Node*);
+ static void	typecheckas2(Node*);
+ static void	typecheckas(Node*);
++static void	typecheckfunc(Node*);
+ static void	checklvalue(Node*, char*);
+-static void checkassign(Node*);
+-static void checkassignlist(NodeList*);
++static void	checkassign(Node*);
++static void	checkassignlist(NodeList*);
+ static int	islvalue(Node*);
+ 
+ void
+@@ -53,6 +54,10 @@ typecheck(Node **np, int top)
+ 	int lno, ok;
+ 	Type *t;
+ 
++	// cannot type check until all the source has been parsed
++	if(!typecheckok)
++		fatal("early typecheck");
++
+ 	n = *np;
+ 	if(n == N)
+ 		return N;
+@@ -392,9 +397,10 @@ reswitch:
+ 			if(t == T)
+ 				goto error;
+ 			n->op = ODOTPTR;
++			checkwidth(t);
+ 		}
+ 		if(!lookdot(n, t)) {
+-			yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
++			yyerror("%#N undefined (type %p %T has no field %S)", n, t, t, n->right->sym);
+ 			goto error;
+ 		}
+ 		switch(n->op) {
+@@ -566,6 +572,10 @@ reswitch:
+ 			n->right = N;
+ 			goto reswitch;
+ 		}
++		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
++			n = r;
++			goto reswitch;
++		}
+ 		typecheck(&n->left, Erv | Etype | Ecall);
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+@@ -575,7 +585,7 @@ reswitch:
+ 			typechecklist(n->list, Erv);
+ 		if((t = l->type) == T)
+ 			goto error;
+-		dowidth(t);
++		checkwidth(t);
+ 
+ 		switch(l->op) {
+ 		case OTYPE:
+@@ -818,6 +828,13 @@ reswitch:
+ 		typechecklist(n->list, Erv);
+ 		goto ret;
+ 
++	case OCLOSURE:
++		ok |= Erv;
++		typecheckclosure(n);
++		if(n->type == T)
++			goto error;
++		goto ret;
++
+ 	/*
+ 	 * statements
+ 	 */
+@@ -905,9 +922,40 @@ reswitch:
+ 		typechecklist(n->list, Erv);
+ 		typechecklist(n->nbody, Etop);
+ 		goto ret;
++
++	case ODCLFUNC:
++		ok |= Etop;
++		typecheckfunc(n);
++		goto ret;
++
++	case ODCLCONST:
++		ok |= Etop;
++		typecheck(&n->left, Erv);
++		goto ret;
++
++	case ODCLTYPE:
++		ok |= Etop;
++		typecheck(&n->left, Etype);
++		goto ret;
+ 	}
+ 
+ ret:
++	t = n->type;
++	if(t && !t->funarg && n->op != OTYPE) {
++		switch(t->etype) {
++		case TFUNC:	// might have TANY; wait until its called
++		case TANY:
++		case TFORW:
++		case TFORWINTER:
++		case TFORWSTRUCT:
++		case TIDEAL:
++		case TNIL:
++			break;
++		default:
++			checkwidth(t);
++		}
++	}
++
+ 	evconst(n);
+ 	if(n->op == OTYPE && !(top & Etype)) {
+ 		yyerror("type %T is not an expression", n->type);
+@@ -921,11 +969,12 @@ ret:
+ 		yyerror("must call %#N", n);
+ 		goto error;
+ 	}
+-	if((top & (Ecall|Erv|Etype)) && !(ok & (Erv|Etype|Ecall))) {
++	// TODO(rsc): simplify
++	if((top & (Ecall|Erv|Etype)) && !(top & Etop) && !(ok & (Erv|Etype|Ecall))) {
+ 		yyerror("%#N used as value", n);
+ 		goto error;
+ 	}
+-	if((top & Etop) && !(ok & Etop)) {
++	if((top & Etop) && !(top & (Ecall|Erv|Etype)) && !(ok & Etop)) {
+ 		yyerror("%#N not used", n);
+ 		goto error;
+ 	}
+@@ -1016,6 +1065,7 @@ lookdot(Node *n, Type *t)
+ 
+ 	s = n->right->sym;
+ 
++	dowidth(t);
+ 	f1 = T;
+ 	if(t->etype == TSTRUCT || t->etype == TINTER)
+ 		f1 = lookdot1(s, t, t->type);
+@@ -1042,6 +1092,7 @@ lookdot(Node *n, Type *t)
+ 
+ 	if(f2 != T) {
+ 		tt = n->left->type;
++		dowidth(tt);
+ 		rcvr = getthisx(f2->type)->type->type;
+ 		if(!eqtype(rcvr, tt)) {
+ 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
+@@ -1609,12 +1660,18 @@ addrescapes(Node *n)
+ 		case PPARAM:
+ 			// if func param, need separate temporary
+ 			// to hold heap pointer.
++			// the function type has already been checked
++			// (we're in the function body)
++			// so the param already has a valid xoffset.
+ 			if(n->class == PPARAM) {
+ 				// expression to refer to stack copy
+ 				n->stackparam = nod(OPARAM, n, N);
+ 				n->stackparam->type = n->type;
+ 				n->stackparam->addable = 1;
++				if(n->xoffset == BADWIDTH)
++					fatal("addrescapes before param assignment");
+ 				n->stackparam->xoffset = n->xoffset;
++				n->xoffset = 0;
+ 			}
+ 
+ 			n->class |= PHEAP;
+@@ -1624,10 +1681,12 @@ addrescapes(Node *n)
+ 			n->xoffset = 0;
+ 
+ 			// create stack variable to hold pointer to heap
+-			n->heapaddr = nod(0, N, N);
+-			tempname(n->heapaddr, ptrto(n->type));
++			n->heapaddr = nod(ONAME, N, N);
++			n->heapaddr->type = ptrto(n->type);
+ 			snprint(buf, sizeof buf, "&%S", n->sym);
+ 			n->heapaddr->sym = lookup(buf);
++			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
++			curfn->dcl = list(curfn->dcl, n->heapaddr);
+ 			break;
+ 		}
+ 		break;
+@@ -1846,3 +1905,21 @@ out:
+ 		if(ll->n->typecheck == 0)
+ 			typecheck(&ll->n, Erv);
+ }
++
++/*
++ * type check function definition
++ */
++static void
++typecheckfunc(Node *n)
++{
++	Type *t, *rcvr;
++
++	typecheck(&n->nname, Erv);
++	if((t = n->nname->type) == T)
++		return;
++	n->type = t;
++
++	rcvr = getthisx(t)->type;
++	if(rcvr != nil && n->shortname != N)
++		addmethod(n->shortname->sym, t, 1);
++}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1121915b5f..044a29643b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -52,16 +52,9 @@ loop:
+ 
+ 	case OGOTO:
+ 	case ORETURN:
++	case OPANIC:
++	case OPANICN:
+ 		return 0;
+-
+-	case OCALL:
+-		if(n->left->op == ONAME) {
+-			switch(n->left->etype) {
+-			case OPANIC:
+-			case OPANICN:
+-				return 0;
+-			}
+-		}
+ 		break;
+ 	}
+ 
+@@ -118,7 +111,7 @@ walkdeflist(NodeList *l)
+ void
+ walkdef(Node *n)
+ {
+-	int lno;
++	int lno, maplineno;
+ 	NodeList *init;
+ 	Node *e;
+ 	Type *t;
+@@ -147,6 +140,9 @@ walkdef(Node *n)
+ 
+ 	init = nil;
+ 	switch(n->op) {
++	default:
++		fatal("walkdef %O", n->op);
++
+ 	case OLITERAL:
+ 		if(n->ntype != N) {
+ 			typecheck(&n->ntype, Etype);
+@@ -189,8 +185,48 @@ walkdef(Node *n)
+ 			break;
+ 		if(n->defn == N)
+ 			fatal("var without type, init: %S", n->sym);
++		if(n->defn->op == ONAME) {
++			typecheck(&n->defn, Erv);
++			n->type = n->defn->type;
++			break;
++		}
+ 		typecheck(&n->defn, Etop);	// fills in n->type
+ 		break;
++
++	case OTYPE:
++		n->walkdef = 1;
++		if(n->nincr != N)	// fwd decl hack
++			n->type = n->nincr->type;
++		else
++			n->type = typ(TFORW);
++		n->type->sym = n->sym;
++		n->typecheck = 1;
++		typecheck(&n->ntype, Etype);
++		if((t = n->ntype->type) == T) {
++			n->diag = 1;
++			goto ret;
++		}
++
++		// copy new type and clear fields
++		// that don't come along
++		maplineno = n->type->maplineno;
++		*n->type = *t;
++		t = n->type;
++		t->sym = n->sym;
++		t->local = n->local;
++		t->vargen = n->vargen;
++		t->siggen = 0;
++		t->printed = 0;
++		t->method = nil;
++		t->nod = N;
++
++		// double-check use of type as map key
++		// TODO(rsc): also use of type as receiver?
++		if(maplineno) {
++			lineno = maplineno;
++			maptype(n->type, types[TBOOL]);
++		}
++		break;
+ 	}
+ 
+ ret:
+@@ -265,6 +301,8 @@ walkstmt(Node **np)
+ 	case OFALL:
+ 	case OGOTO:
+ 	case OLABEL:
++	case ODCLCONST:
++	case ODCLTYPE:
+ 		break;
+ 
+ 	case OBLOCK:
+@@ -919,6 +957,10 @@ walkexpr(Node **np, NodeList **init)
+ 		argtype(fn, n->type->type);			// any-2
+ 		n = mkcall1(fn, n->type, init, n->left, nodintconst(n->left->type->type->bound));
+ 		goto ret;
++
++	case OCLOSURE:
++		n = walkclosure(n, init);
++		goto ret;
+ 	}
+ 	fatal("missing switch %O", n->op);
+ 
+@@ -1658,6 +1700,7 @@ ifacecvt(Type *tl, Node *n, int et, NodeList **init)
+ 		break;
+ 	}
+ 
++	dowidth(on->type);
+ 	r = nod(OCALL, on, N);
+ 	r->list = args;
+ 	typecheck(&r, Erv | Efnstruct);

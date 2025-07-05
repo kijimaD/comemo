@@ -9,8 +9,203 @@ Date:   Sat Mar 5 14:35:15 2011 -0500
     R=bradfitzgo, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4240075
-
+---
  src/pkg/http/request.go           | 13 +++++----
  src/pkg/http/requestwrite_test.go | 59 ++++++++++++++++++++++++++++++++++++---
  src/pkg/http/transport.go         |  5 +++-
  3 files changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index a7dc328a00..22b19959dd 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -190,6 +190,8 @@ func (req *Request) Write(w io.Writer) os.Error {
+ // WriteProxy is like Write but writes the request in the form
+ // expected by an HTTP proxy.  It includes the scheme and host
+ // name in the URI instead of using a separate Host: header line.
++// If req.RawURL is non-empty, WriteProxy uses it unchanged
++// instead of URL but still omits the Host: header.
+ func (req *Request) WriteProxy(w io.Writer) os.Error {
+ 	return req.write(w, true)
+ }
+@@ -206,13 +208,12 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 		if req.URL.RawQuery != "" {
+ 			uri += "?" + req.URL.RawQuery
+ 		}
+-	}
+-
+-	if usingProxy {
+-		if uri == "" || uri[0] != '/' {
+-			uri = "/" + uri
++		if usingProxy {
++			if uri == "" || uri[0] != '/' {
++				uri = "/" + uri
++			}
++			uri = req.URL.Scheme + "://" + host + uri
+ 		}
+-		uri = req.URL.Scheme + "://" + host + uri
+ 	}
+ 
+ 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 55ca745d58..a0cc460666 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -10,8 +10,10 @@ import (
+ )
+ 
+ type reqWriteTest struct {
+-	Req Request
+-	Raw string
++	Req      Request
++	Body     []byte
++	Raw      string
++	RawProxy string
+ }
+ 
+ var reqWriteTests = []reqWriteTest{
+@@ -50,6 +52,8 @@ var reqWriteTests = []reqWriteTest{
+ 			Form:      map[string][]string{},
+ 		},
+ 
++		nil,
++
+ 		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
+ 			"Host: www.techcrunch.com\r\n" +
+ 			"User-Agent: Fake\r\n" +
+@@ -59,6 +63,15 @@ var reqWriteTests = []reqWriteTest{
+ 			"Accept-Language: en-us,en;q=0.5\r\n" +
+ 			"Keep-Alive: 300\r\n" +
+ 			"Proxy-Connection: keep-alive\r\n\r\n",
++
++		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
++			"User-Agent: Fake\r\n" +
++			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
++			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
++			"Accept-Encoding: gzip,deflate\r\n" +
++			"Accept-Language: en-us,en;q=0.5\r\n" +
++			"Keep-Alive: 300\r\n" +
++			"Proxy-Connection: keep-alive\r\n\r\n",
+ 	},
+ 	// HTTP/1.1 => chunked coding; body; empty trailer
+ 	{
+@@ -72,15 +85,21 @@ var reqWriteTests = []reqWriteTest{
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       1,
+ 			Header:           map[string][]string{},
+-			Body:             nopCloser{bytes.NewBufferString("abcdef")},
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+ 
++		[]byte("abcdef"),
++
+ 		"GET /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
++
++		"GET http://www.google.com/search HTTP/1.1\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			"6\r\nabcdef\r\n0\r\n\r\n",
+ 	},
+ 	// HTTP/1.1 POST => chunked coding; body; empty trailer
+ 	{
+@@ -95,16 +114,23 @@ var reqWriteTests = []reqWriteTest{
+ 			ProtoMinor:       1,
+ 			Header:           map[string][]string{},
+ 			Close:            true,
+-			Body:             nopCloser{bytes.NewBufferString("abcdef")},
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+ 
++		[]byte("abcdef"),
++
+ 		"POST /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
++
++		"POST http://www.google.com/search HTTP/1.1\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Connection: close\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			"6\r\nabcdef\r\n0\r\n\r\n",
+ 	},
+ 	// default to HTTP/1.1
+ 	{
+@@ -114,16 +140,26 @@ var reqWriteTests = []reqWriteTest{
+ 			Host:   "www.google.com",
+ 		},
+ 
++		nil,
++
+ 		"GET /search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"\r\n",
++
++		// Looks weird but RawURL overrides what WriteProxy would choose.
++		"GET /search HTTP/1.1\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"\r\n",
+ 	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+ 	for i := range reqWriteTests {
+ 		tt := &reqWriteTests[i]
++		if tt.Body != nil {
++			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
++		}
+ 		var braw bytes.Buffer
+ 		err := tt.Req.Write(&braw)
+ 		if err != nil {
+@@ -135,5 +171,20 @@ func TestRequestWrite(t *testing.T) {
+ 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
+ 			continue
+ 		}
++
++		if tt.Body != nil {
++			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
++		}
++		var praw bytes.Buffer
++		err = tt.Req.WriteProxy(&praw)
++		if err != nil {
++			t.Errorf("error writing #%d: %s", i, err)
++			continue
++		}
++		sraw = praw.String()
++		if sraw != tt.RawProxy {
++			t.Errorf("Test Proxy %d, expecting:\n%s\nGot:\n%s\n", i, tt.RawProxy, sraw)
++			continue
++		}
+ 	}
+ }
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index d68e347647..78d316a558 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -55,7 +55,10 @@ func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
+ 		}
+ 	}
+ 
++	var write = (*Request).Write
++
+ 	if proxy != "" {
++		write = (*Request).WriteProxy
+ 		proxyURL, err = ParseRequestURL(proxy)
+ 		if err != nil {
+ 			return nil, os.ErrorString("invalid proxy address")
+@@ -130,7 +133,7 @@ func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
+ 		}
+ 	}
+ 
+-	err = req.Write(conn)
++	err = write(req, conn)
+ 	if err != nil {
+ 		conn.Close()
+ 		return nil, err

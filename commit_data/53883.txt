@@ -13,6 +13,22 @@ Date:   Sat Sep 3 14:20:20 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/bytes_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 05c7ccc50a..7263af3ed0 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -2186,9 +2186,7 @@ func TestClone(t *testing.T) {
+ 			t.Errorf("Clone(%#v) return value should not be equal to nil slice.", input)
+ 		}
+ 
+-		inputHeader := (*reflect.SliceHeader)(unsafe.Pointer(&input))
+-		cloneHeader := (*reflect.SliceHeader)(unsafe.Pointer(&clone))
+-		if cap(input) != 0 && cloneHeader.Data == inputHeader.Data {
++		if cap(input) != 0 && unsafe.SliceData(input) == unsafe.SliceData(clone) {
+ 			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
+ 		}
+ 	}

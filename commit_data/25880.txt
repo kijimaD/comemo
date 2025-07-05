@@ -26,7 +26,262 @@ Date:   Thu Oct 1 01:35:15 2015 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go      | 110 +++++++++++++++++++----------------------
  src/archive/tar/reader_test.go |  99 +++++++++++++++++++++++++++----------
  2 files changed, 124 insertions(+), 85 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 2ecf396073..ac607fdb0f 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -680,85 +680,77 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
+ 	return sp
+ }
+ 
+-// readGNUSparseMap1x0 reads the sparse map as stored in GNU's PAX sparse format version 1.0.
+-// The sparse map is stored just before the file data and padded out to the nearest block boundary.
++// readGNUSparseMap1x0 reads the sparse map as stored in GNU's PAX sparse format
++// version 1.0. The format of the sparse map consists of a series of
++// newline-terminated numeric fields. The first field is the number of entries
++// and is always present. Following this are the entries, consisting of two
++// fields (offset, numBytes). This function must stop reading at the end
++// boundary of the block containing the last newline.
++//
++// Note that the GNU manual says that numeric values should be encoded in octal
++// format. However, the GNU tar utility itself outputs these values in decimal.
++// As such, this library treats values as being encoded in decimal.
+ func readGNUSparseMap1x0(r io.Reader) ([]sparseEntry, error) {
+-	buf := make([]byte, 2*blockSize)
+-	sparseHeader := buf[:blockSize]
+-
+-	// readDecimal is a helper function to read a decimal integer from the sparse map
+-	// while making sure to read from the file in blocks of size blockSize
+-	readDecimal := func() (int64, error) {
+-		// Look for newline
+-		nl := bytes.IndexByte(sparseHeader, '\n')
+-		if nl == -1 {
+-			if len(sparseHeader) >= blockSize {
+-				// This is an error
+-				return 0, ErrHeader
+-			}
+-			oldLen := len(sparseHeader)
+-			newLen := oldLen + blockSize
+-			if cap(sparseHeader) < newLen {
+-				// There's more header, but we need to make room for the next block
+-				copy(buf, sparseHeader)
+-				sparseHeader = buf[:newLen]
+-			} else {
+-				// There's more header, and we can just reslice
+-				sparseHeader = sparseHeader[:newLen]
+-			}
+-
+-			// Now that sparseHeader is large enough, read next block
+-			if _, err := io.ReadFull(r, sparseHeader[oldLen:newLen]); err != nil {
+-				return 0, err
++	var cntNewline int64
++	var buf bytes.Buffer
++	var blk = make([]byte, blockSize)
++
++	// feedTokens copies data in numBlock chunks from r into buf until there are
++	// at least cnt newlines in buf. It will not read more blocks than needed.
++	var feedTokens = func(cnt int64) error {
++		for cntNewline < cnt {
++			if _, err := io.ReadFull(r, blk); err != nil {
++				if err == io.EOF {
++					err = io.ErrUnexpectedEOF
++				}
++				return err
+ 			}
+-
+-			// Look for a newline in the new data
+-			nl = bytes.IndexByte(sparseHeader[oldLen:newLen], '\n')
+-			if nl == -1 {
+-				// This is an error
+-				return 0, ErrHeader
++			buf.Write(blk)
++			for _, c := range blk {
++				if c == '\n' {
++					cntNewline++
++				}
+ 			}
+-			nl += oldLen // We want the position from the beginning
+-		}
+-		// Now that we've found a newline, read a number
+-		n, err := strconv.ParseInt(string(sparseHeader[:nl]), 10, 0)
+-		if err != nil {
+-			return 0, ErrHeader
+ 		}
++		return nil
++	}
+ 
+-		// Update sparseHeader to consume this number
+-		sparseHeader = sparseHeader[nl+1:]
+-		return n, nil
++	// nextToken gets the next token delimited by a newline. This assumes that
++	// at least one newline exists in the buffer.
++	var nextToken = func() string {
++		cntNewline--
++		tok, _ := buf.ReadString('\n')
++		return tok[:len(tok)-1] // Cut off newline
+ 	}
+ 
+-	// Read the first block
+-	if _, err := io.ReadFull(r, sparseHeader); err != nil {
++	// Parse for the number of entries.
++	// Use integer overflow resistant math to check this.
++	if err := feedTokens(1); err != nil {
+ 		return nil, err
+ 	}
++	numEntries, err := strconv.ParseInt(nextToken(), 10, 0) // Intentionally parse as native int
++	if err != nil || numEntries < 0 || int(2*numEntries) < int(numEntries) {
++		return nil, ErrHeader
++	}
+ 
+-	// The first line contains the number of entries
+-	numEntries, err := readDecimal()
+-	if err != nil {
++	// Parse for all member entries.
++	// numEntries is trusted after this since a potential attacker must have
++	// committed resources proportional to what this library used.
++	if err := feedTokens(2 * numEntries); err != nil {
+ 		return nil, err
+ 	}
+-
+-	// Read all the entries
+ 	sp := make([]sparseEntry, 0, numEntries)
+ 	for i := int64(0); i < numEntries; i++ {
+-		// Read the offset
+-		offset, err := readDecimal()
++		offset, err := strconv.ParseInt(nextToken(), 10, 64)
+ 		if err != nil {
+-			return nil, err
++			return nil, ErrHeader
+ 		}
+-		// Read numBytes
+-		numBytes, err := readDecimal()
++		numBytes, err := strconv.ParseInt(nextToken(), 10, 64)
+ 		if err != nil {
+-			return nil, err
++			return nil, ErrHeader
+ 		}
+-
+ 		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
+ 	}
+-
+ 	return sp, nil
+ }
+ 
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 51d77c1683..387c92fd25 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -727,35 +727,82 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
+ }
+ 
+ func TestReadGNUSparseMap1x0(t *testing.T) {
+-	// This test uses lots of holes so the sparse header takes up more than two blocks
+-	numEntries := 100
+-	expected := make([]sparseEntry, 0, numEntries)
+-	sparseMap := new(bytes.Buffer)
+-
+-	fmt.Fprintf(sparseMap, "%d\n", numEntries)
+-	for i := 0; i < numEntries; i++ {
+-		offset := int64(2048 * i)
+-		numBytes := int64(1024)
+-		expected = append(expected, sparseEntry{offset: offset, numBytes: numBytes})
+-		fmt.Fprintf(sparseMap, "%d\n%d\n", offset, numBytes)
++	var sp = []sparseEntry{{1, 2}, {3, 4}}
++	for i := 0; i < 98; i++ {
++		sp = append(sp, sparseEntry{54321, 12345})
+ 	}
+ 
+-	// Make the header the smallest multiple of blockSize that fits the sparseMap
+-	headerBlocks := (sparseMap.Len() + blockSize - 1) / blockSize
+-	bufLen := blockSize * headerBlocks
+-	buf := make([]byte, bufLen)
+-	copy(buf, sparseMap.Bytes())
+-
+-	// Get an reader to read the sparse map
+-	r := bytes.NewReader(buf)
++	var vectors = []struct {
++		input     string        // Input data
++		sparseMap []sparseEntry // Expected sparse entries to be outputted
++		cnt       int           // Expected number of bytes read
++		err       error         // Expected errors that may be raised
++	}{{
++		input: "",
++		cnt:   0,
++		err:   io.ErrUnexpectedEOF,
++	}, {
++		input: "ab",
++		cnt:   2,
++		err:   io.ErrUnexpectedEOF,
++	}, {
++		input: strings.Repeat("\x00", 512),
++		cnt:   512,
++		err:   io.ErrUnexpectedEOF,
++	}, {
++		input: strings.Repeat("\x00", 511) + "\n",
++		cnt:   512,
++		err:   ErrHeader,
++	}, {
++		input: strings.Repeat("\n", 512),
++		cnt:   512,
++		err:   ErrHeader,
++	}, {
++		input:     "0\n" + strings.Repeat("\x00", 510) + strings.Repeat("a", 512),
++		sparseMap: []sparseEntry{},
++		cnt:       512,
++	}, {
++		input:     strings.Repeat("0", 512) + "0\n" + strings.Repeat("\x00", 510),
++		sparseMap: []sparseEntry{},
++		cnt:       1024,
++	}, {
++		input:     strings.Repeat("0", 1024) + "1\n2\n3\n" + strings.Repeat("\x00", 506),
++		sparseMap: []sparseEntry{{2, 3}},
++		cnt:       1536,
++	}, {
++		input: strings.Repeat("0", 1024) + "1\n2\n\n" + strings.Repeat("\x00", 509),
++		cnt:   1536,
++		err:   ErrHeader,
++	}, {
++		input: strings.Repeat("0", 1024) + "1\n2\n" + strings.Repeat("\x00", 508),
++		cnt:   1536,
++		err:   io.ErrUnexpectedEOF,
++	}, {
++		input: "-1\n2\n\n" + strings.Repeat("\x00", 506),
++		cnt:   512,
++		err:   ErrHeader,
++	}, {
++		input: "1\nk\n2\n" + strings.Repeat("\x00", 506),
++		cnt:   512,
++		err:   ErrHeader,
++	}, {
++		input:     "100\n1\n2\n3\n4\n" + strings.Repeat("54321\n0000000000000012345\n", 98) + strings.Repeat("\x00", 512),
++		cnt:       2560,
++		sparseMap: sp,
++	}}
+ 
+-	// Read the sparse map
+-	sp, err := readGNUSparseMap1x0(r)
+-	if err != nil {
+-		t.Errorf("Unexpected error: %v", err)
+-	}
+-	if !reflect.DeepEqual(sp, expected) {
+-		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
++	for i, v := range vectors {
++		r := strings.NewReader(v.input)
++		sp, err := readGNUSparseMap1x0(r)
++		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
++			t.Errorf("test %d, readGNUSparseMap1x0(...): got %v, want %v", i, sp, v.sparseMap)
++		}
++		if numBytes := len(v.input) - r.Len(); numBytes != v.cnt {
++			t.Errorf("test %d, bytes read: got %v, want %v", i, numBytes, v.cnt)
++		}
++		if err != v.err {
++			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
++		}
+ 	}
+ }
+ 

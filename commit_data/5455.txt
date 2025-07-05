@@ -10,6 +10,31 @@ Date:   Thu May 6 22:07:03 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1123043
-
+---
  src/pkg/runtime/proc.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 0fef16aa6e..a587a7fd43 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -551,15 +551,15 @@ void
+ ·entersyscall(void)
+ {
+ 	lock(&sched);
++	// Leave SP around for gc and traceback.
++	// Do before notewakeup so that gc
++	// never sees Gsyscall with wrong stack.
++	gosave(&g->sched);
+ 	if(sched.predawn) {
+ 		unlock(&sched);
+ 		return;
+ 	}
+ 	g->status = Gsyscall;
+-	// Leave SP around for gc and traceback.
+-	// Do before notewakeup so that gc
+-	// never sees Gsyscall with wrong stack.
+-	gosave(&g->sched);
+ 	sched.mcpu--;
+ 	sched.msyscall++;
+ 	if(sched.gwait != 0)

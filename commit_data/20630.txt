@@ -10,8 +10,61 @@ Date:   Thu Sep 25 13:08:37 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, r
     https://golang.org/cl/144560043
-
+---
  src/cmd/gc/align.c          |  4 +++-
  src/cmd/gc/subr.c           |  3 ++-
  test/fixedbugs/issue8507.go | 16 ++++++++++++++++
  3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index b809640e42..6e5d149c75 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -119,8 +119,10 @@ dowidth(Type *t)
+ 	if(t->width == -2) {
+ 		lno = lineno;
+ 		lineno = t->lineno;
+-		if(!t->broke)
++		if(!t->broke) {
++			t->broke = 1;
+ 			yyerror("invalid recursive type %T", t);
++		}
+ 		t->width = 0;
+ 		lineno = lno;
+ 		return;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 666be96679..c3bc5af3b8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -529,7 +529,8 @@ algtype1(Type *t, Type **bad)
+ 	
+ 	if(bad)
+ 		*bad = T;
+-
++	if(t->broke)
++		return AMEM;
+ 	if(t->noalg)
+ 		return ANOEQ;
+ 
+diff --git a/test/fixedbugs/issue8507.go b/test/fixedbugs/issue8507.go
+new file mode 100644
+index 0000000000..00a14aa88f
+--- /dev/null
++++ b/test/fixedbugs/issue8507.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 8507
++// used to call algtype on invalid recursive type and get into infinite recursion
++
++package p
++
++type T struct{ T } // ERROR "invalid recursive type T"
++
++func f() {
++	println(T{} == T{})
++}

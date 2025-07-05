@@ -7,6 +7,20 @@ Date:   Fri Feb 10 21:47:18 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5652066
-
+---
  src/cmd/gofmt/long_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 8a8617c2e8..1332b323af 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -83,7 +83,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 
+ 	// the first and 2nd result should be identical
+ 	if bytes.Compare(b1.Bytes(), b2.Bytes()) != 0 {
+-		t.Errorf("%s: not idempotent", filename)
++		t.Errorf("gofmt %s not idempotent", filename)
+ 	}
+ }
+ 

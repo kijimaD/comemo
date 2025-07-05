@@ -10,7 +10,7 @@ Date:   Mon Apr 13 19:37:04 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8898
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/env_plan9.go          | 4 ++--
  src/runtime/export_test.go        | 2 +-
  src/runtime/os1_darwin.go         | 2 +-
@@ -49,3 +49,522 @@ Date:   Mon Apr 13 19:37:04 2015 -0400
  src/runtime/sys_plan9_386.s       | 2 +-
  src/runtime/sys_plan9_amd64.s     | 2 +-
  37 files changed, 42 insertions(+), 42 deletions(-)
+
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index b988020d9c..0e2588b523 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -23,14 +23,14 @@ func gogetenv(key string) string {
+ 	}
+ 	n := seek(fd, 0, 2)
+ 	if n <= 0 {
+-		close(fd)
++		closefd(fd)
+ 		return ""
+ 	}
+ 
+ 	p := make([]byte, n)
+ 
+ 	r := pread(fd, unsafe.Pointer(&p[0]), int32(n), 0)
+-	close(fd)
++	closefd(fd)
+ 	if r < 0 {
+ 		return ""
+ 	}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 71fbcdeabd..58ac34283f 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -119,7 +119,7 @@ var Maxstring = &maxstring
+ type Uintreg uintreg
+ 
+ var Open = open
+-var Close = close
++var Close = closefd
+ var Read = read
+ var Write = write
+ 
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 9de6de9ff1..a4c9874700 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -51,7 +51,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
+ func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 54f19eff9f..a590aea39b 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -105,7 +105,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
+ func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index ceaa9162c0..8719a49286 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -104,7 +104,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
+ func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 44e7698bcf..4214fa7cf7 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -176,7 +176,7 @@ func getRandomData(r []byte) {
+ 	}
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 85b3df3397..8df74b5593 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -124,7 +124,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
+ func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 4f41864684..95729a56df 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -133,7 +133,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
+ func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 284f3381d7..c026218241 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -50,7 +50,7 @@ func getproccount() int32 {
+ 			}
+ 		}
+ 	}
+-	close(fd)
++	closefd(fd)
+ 	if ncpu == 0 {
+ 		ncpu = 1
+ 	}
+@@ -64,7 +64,7 @@ func getpid() uint64 {
+ 	fd := open(&pid[0], 0, 0)
+ 	if fd >= 0 {
+ 		read(fd, unsafe.Pointer(&b), int32(len(b)))
+-		close(fd)
++		closefd(fd)
+ 	}
+ 	c := b[:]
+ 	for c[0] == ' ' || c[0] == '\t' {
+@@ -162,10 +162,10 @@ func postnote(pid uint64, msg []byte) int {
+ 	}
+ 	len := findnull(&msg[0])
+ 	if write(uintptr(fd), (unsafe.Pointer)(&msg[0]), int32(len)) != int64(len) {
+-		close(fd)
++		closefd(fd)
+ 		return -1
+ 	}
+-	close(fd)
++	closefd(fd)
+ 	return 0
+ }
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 7a4d27e20e..f012943b0c 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -173,7 +173,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
+ func getRandomData(r []byte) {
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
++	closefd(fd)
+ 	extendRandom(r, int(n))
+ }
+ 
+@@ -351,7 +351,7 @@ func semawakeup(mp *m) {
+ }
+ 
+ //go:nosplit
+-func close(fd int32) int32 {
++func closefd(fd int32) int32 {
+ 	return int32(sysvicall1(libc_close, uintptr(fd)))
+ }
+ 
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index a6a796cd76..efa8fa12b9 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -55,5 +55,5 @@ func raiseproc(sig int32) {
+ 
+ // Stubs so tests can link correctly.  These should never be called.
+ func open(name *byte, mode, perm int32) int32
+-func close(fd int32) int32
++func closefd(fd int32) int32
+ func read(fd int32, p unsafe.Pointer, n int32) int32
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 870404b948..6def35ccad 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func close(fd int32) int32
++func closefd(fd int32) int32
+ 
+ //go:noescape
+ func open(name *byte, mode, perm int32) int32
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 31df064959..545b416201 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -18,7 +18,7 @@ func open(name *byte, mode, perm int32) int32 {
+ 	throw("unimplemented")
+ 	return -1
+ }
+-func close(fd int32) int32 {
++func closefd(fd int32) int32 {
+ 	throw("unimplemented")
+ 	return -1
+ }
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 60751dd343..1cb6f9123d 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -12,7 +12,7 @@ package runtime
+ import "unsafe"
+ 
+ func read(fd int32, p unsafe.Pointer, n int32) int32
+-func close(fd int32) int32
++func closefd(fd int32) int32
+ 
+ func exit(code int32)
+ func nanotime() int64
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 6e1234567b..abc5d3297a 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -34,7 +34,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 2ec43014c6..3d0d3395b8 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -43,7 +43,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$(0x2000000+6), AX	// syscall entry
+ 	SYSCALL
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 870c3bff8f..b4c1b27530 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -52,7 +52,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0
+ 	MOVW	$SYS_close, R12
+ 	SWI	$0x80
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 1227196cb7..efda4326a4 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -82,7 +82,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8
++TEXT runtime·closefd(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index eed6b8d691..94b8d95044 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -67,7 +67,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-4
++TEXT runtime·closefd(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index ecc40e3946..a9a621b095 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -72,7 +72,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8
++TEXT runtime·closefd(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 613c1dceed..2b5d754590 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -117,7 +117,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8
++TEXT runtime·closefd(SB),NOSPLIT,$-8
+ 	MOVW fd+0(FP), R0	// arg 1 fd
+ 	MOVW $SYS_close, R7
+ 	SWI $0
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index e3fae4cb93..d69054feb5 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -36,7 +36,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL	$6, AX		// syscall - close
+ 	MOVL	fd+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index e170b2e7f7..43a65b7ccd 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -34,7 +34,7 @@ TEXT runtime·open(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0-12
++TEXT runtime·closefd(SB),NOSPLIT,$0-12
+ 	MOVL	fd+0(FP), DI
+ 	MOVL	$3, AX			// syscall entry
+ 	SYSCALL
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index d422f95f08..bbd7eb9eb3 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -63,7 +63,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0
+ 	MOVW	$SYS_close, R7
+ 	SWI	$0
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index df7a9b4942..32404570fe 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -68,7 +68,7 @@ done:
+ 	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8-12
++TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+ 	MOVW	fd+0(FP), R0
+ 	MOVD	$SYS_close, R8
+ 	SVC
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index b0477d3c2f..fd7ce4fa48 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -67,7 +67,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
+ 	MOVW	R3, ret+16(FP)
+ 	RETURN
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8-12
++TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+ 	MOVW	fd+0(FP), R3
+ 	SYSCALL	$SYS_close
+ 	BVC	2(PC)
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index 242040dd97..f8e7196bd3 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -33,7 +33,7 @@ TEXT runtime·open(SB),NOSPLIT,$12
+ 	MOVL AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$4
++TEXT runtime·closefd(SB),NOSPLIT,$4
+ 	MOVL fd+0(FP), AX
+ 	MOVL AX, 0(SP)
+ 	NACL_SYSCALL(SYS_close)
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index 821610be89..0b29c9f889 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -32,7 +32,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL fd+0(FP), DI
+ 	NACL_SYSCALL(SYS_close)
+ 	MOVL AX, ret+8(FP)
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index 1bae0b31ec..39ef25a618 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -28,7 +28,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0
+ 	NACL_SYSCALL(SYS_close)
+ 	MOVW	R0, ret+4(FP)
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index bfa7928df7..b43a72e60f 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -32,7 +32,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-4
++TEXT runtime·closefd(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index a138286d86..5c1d957b37 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -96,7 +96,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8
++TEXT runtime·closefd(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index b421022831..d275d6d0b6 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -33,7 +33,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8
++TEXT runtime·closefd(SB),NOSPLIT,$-8
+ 	MOVW fd+0(FP), R0
+ 	SWI $0xa00006
+ 	MOVW.CS	$-1, R0
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 10877096d4..fa3f0d9bee 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -36,7 +36,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-4
++TEXT runtime·closefd(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index d05782c181..185b82db1a 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -106,7 +106,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-8
++TEXT runtime·closefd(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index f1be7751ae..e28d43eeaa 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -40,7 +40,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$-4
++TEXT runtime·closefd(SB),NOSPLIT,$-4
+ 	MOVW	path+0(FP), R0		// arg 1 - path
+ 	MOVW	$6, R12			// sys_close
+ 	SWI	$0
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index b9db8cbf1a..cae326ada6 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -52,7 +52,7 @@ TEXT runtime·seek(SB),NOSPLIT,$24
+ 	MOVL	$-1, ret_hi+20(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL	$4, AX
+ 	INT	$64
+ 	MOVL	AX, ret+4(FP)
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 02c7c8743e..6aefe5f125 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -51,7 +51,7 @@ TEXT runtime·seek(SB),NOSPLIT,$32
+ 	MOVQ	$-1, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVQ	$4, BP
+ 	SYSCALL
+ 	MOVL	AX, ret+8(FP)

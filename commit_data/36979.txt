@@ -11,6 +11,35 @@ Date:   Wed Jun 13 15:22:55 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue23720.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/misc/cgo/test/issue23720.go b/misc/cgo/test/issue23720.go
+new file mode 100644
+index 0000000000..934fff3420
+--- /dev/null
++++ b/misc/cgo/test/issue23720.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we can pass compatible typedefs.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++/*
++typedef int *issue23720A;
++
++typedef const int *issue23720B;
++
++void issue23720F(issue23720B a) {}
++*/
++import "C"
++
++func Issue23720F() {
++	var x C.issue23720A
++	C.issue23720F(x)
++}

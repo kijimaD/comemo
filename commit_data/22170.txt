@@ -38,10 +38,240 @@ Date:   Tue Feb 24 12:19:01 2015 -0500
     Change-Id: If1aa673bf3e583082dcfb5f223e67355c984bfc1
     Reviewed-on: https://go-review.googlesource.com/5952
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/go.go  |  1 +
  src/cmd/internal/gc/inl.go | 71 +++++++++++++++++++++++++++++++++-------------
  src/cmd/internal/gc/lex.go | 20 ++++++-------
  test/escape4.go            |  8 +++---
  test/inline.go             | 24 ++++++++++++++++
  5 files changed, 89 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index b87dcf7370..a1debbd9d6 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -226,6 +226,7 @@ type Node struct {
+ 	Escretval      *NodeList
+ 	Escloopdepth   int
+ 	Sym            *Sym
++	InlCost        int32
+ 	Vargen         int32
+ 	Lineno         int32
+ 	Endlineno      int32
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index 8b088a7f7f..57a0ab6502 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -15,7 +15,6 @@
+ //      2: early typechecking of all imported bodies
+ //      3: allow variadic functions
+ //      4: allow non-leaf functions , (breaks runtime.Caller)
+-//      5: transitive inlining
+ //
+ //  At some point this may get another default and become switch-offable with -N.
+ //
+@@ -125,8 +124,9 @@ func caninl(fn *Node) {
+ 		}
+ 	}
+ 
+-	budget := 40 // allowed hairyness
+-	if ishairylist(fn.Nbody, &budget) {
++	const maxBudget = 80
++	budget := maxBudget // allowed hairyness
++	if ishairylist(fn.Nbody, &budget) || budget < 0 {
+ 		return
+ 	}
+ 
+@@ -136,6 +136,7 @@ func caninl(fn *Node) {
+ 	fn.Nname.Inl = fn.Nbody
+ 	fn.Nbody = inlcopylist(fn.Nname.Inl)
+ 	fn.Nname.Inldcl = inlcopylist(fn.Nname.Defn.Dcl)
++	fn.Nname.InlCost = int32(maxBudget - budget)
+ 
+ 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
+ 	// this is so export can find the body of a method
+@@ -165,12 +166,42 @@ func ishairy(n *Node, budget *int) bool {
+ 		return false
+ 	}
+ 
+-	// Things that are too hairy, irrespective of the budget
+ 	switch n.Op {
++	// Call is okay if inlinable and we have the budget for the body.
++	case OCALLFUNC:
++		if n.Left.Inl != nil {
++			*budget -= int(n.Left.InlCost)
++			break
++		}
++		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
++			if n.Left.Sym.Def != nil && n.Left.Sym.Def.Inl != nil {
++				*budget -= int(n.Left.Sym.Def.InlCost)
++				break
++			}
++		}
++		if Debug['l'] < 4 {
++			return true
++		}
++
++	// Call is okay if inlinable and we have the budget for the body.
++	case OCALLMETH:
++		if n.Left.Type == nil {
++			Fatal("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
++		}
++		if n.Left.Type.Nname == nil {
++			Fatal("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
++		}
++		if n.Left.Type.Nname.Inl != nil {
++			*budget -= int(n.Left.Type.Nname.InlCost)
++			break
++		}
++		if Debug['l'] < 4 {
++			return true
++		}
++
++	// Things that are too hairy, irrespective of the budget
+ 	case OCALL,
+-		OCALLFUNC,
+ 		OCALLINTER,
+-		OCALLMETH,
+ 		OPANIC,
+ 		ORECOVER:
+ 		if Debug['l'] < 4 {
+@@ -778,20 +809,20 @@ func mkinlcall1(np **Node, fn *Node, isddd int) {
+ 	inlfn = saveinlfn
+ 
+ 	// transitive inlining
+-	// TODO do this pre-expansion on fn->inl directly.  requires
+-	// either supporting exporting statemetns with complex ninits
+-	// or saving inl and making inlinl
+-	if Debug['l'] >= 5 {
+-		body := fn.Inl
+-		fn.Inl = nil // prevent infinite recursion
+-		inlnodelist(call.Nbody)
+-		for ll := call.Nbody; ll != nil; ll = ll.Next {
+-			if ll.N.Op == OINLCALL {
+-				inlconv2stmt(ll.N)
+-			}
+-		}
+-		fn.Inl = body
+-	}
++	// might be nice to do this before exporting the body,
++	// but can't emit the body with inlining expanded.
++	// instead we emit the things that the body needs
++	// and each use must redo the inlining.
++	// luckily these are small.
++	body = fn.Inl
++	fn.Inl = nil // prevent infinite recursion (shouldn't happen anyway)
++	inlnodelist(call.Nbody)
++	for ll := call.Nbody; ll != nil; ll = ll.Next {
++		if ll.N.Op == OINLCALL {
++			inlconv2stmt(ll.N)
++		}
++	}
++	fn.Inl = body
+ 
+ 	if Debug['m'] > 2 {
+ 		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(*np, obj.FmtSign))
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 55c8d76bc2..2c90e7e062 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate go tool yacc go.y
++
+ package gc
+ 
+ import (
+@@ -413,18 +415,14 @@ func Main() {
+ 
+ 	if Debug['l'] != 0 {
+ 		// Find functions that can be inlined and clone them before walk expands them.
+-		for l := xtop; l != nil; l = l.Next {
+-			if l.N.Op == ODCLFUNC {
+-				caninl(l.N)
+-			}
+-		}
+-
+-		// Expand inlineable calls in all functions
+-		for l := xtop; l != nil; l = l.Next {
+-			if l.N.Op == ODCLFUNC {
+-				inlcalls(l.N)
++		visitBottomUp(xtop, func(list *NodeList, recursive bool) {
++			for l := list; l != nil; l = l.Next {
++				if l.N.Op == ODCLFUNC {
++					caninl(l.N)
++					inlcalls(l.N)
++				}
+ 			}
+-		}
++		})
+ 	}
+ 
+ 	// Phase 6: Escape analysis.
+diff --git a/test/escape4.go b/test/escape4.go
+index 83bc8eb123..248f8a96b9 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -22,11 +22,11 @@ func f1() {
+ 
+ 	// Escape analysis used to miss inlined code in closures.
+ 
+-	func() { // ERROR "func literal does not escape"
++	func() { // ERROR "func literal does not escape" "can inline f1.func1"
+ 		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+ 	}()
+ 
+-	f = func() { // ERROR "func literal escapes to heap"
++	f = func() { // ERROR "func literal escapes to heap" "can inline f1.func2"
+ 		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+ 	}
+ 	f()
+@@ -42,7 +42,7 @@ func f5() *byte {
+ 	type T struct {
+ 		x [1]byte
+ 	}
+-	t := new(T) // ERROR "new.T. escapes to heap"
++	t := new(T)    // ERROR "new.T. escapes to heap"
+ 	return &t.x[0] // ERROR "&t.x.0. escapes to heap"
+ }
+ 
+@@ -52,6 +52,6 @@ func f6() *byte {
+ 			y byte
+ 		}
+ 	}
+-	t := new(T) // ERROR "new.T. escapes to heap"
++	t := new(T)   // ERROR "new.T. escapes to heap"
+ 	return &t.x.y // ERROR "&t.x.y escapes to heap"
+ }
+diff --git a/test/inline.go b/test/inline.go
+new file mode 100644
+index 0000000000..54f7b3efb1
+--- /dev/null
++++ b/test/inline.go
+@@ -0,0 +1,24 @@
++// errorcheck -0 -m
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test, using compiler diagnostic flags, that inlining is working.
++// Compiles but does not run.
++
++package foo
++
++import "unsafe"
++
++func add2(p *byte, n uintptr) *byte { // ERROR "can inline add2" "leaking param: p to result"
++	return (*byte)(add1(unsafe.Pointer(p), n)) // ERROR "inlining call to add1"
++}
++
++func add1(p unsafe.Pointer, x uintptr) unsafe.Pointer { // ERROR "can inline add1" "leaking param: p to result"
++	return unsafe.Pointer(uintptr(p) + x)
++}
++
++func f(x *byte) *byte { // ERROR "can inline f" "leaking param: x to result"
++	return add2(x, 1) // ERROR "inlining call to add2" "inlining call to add1"
++}

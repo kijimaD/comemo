@@ -29,9 +29,147 @@ Date:   Tue Jul 21 16:50:59 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/244078
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go   | 15 ++++++++++-----
  src/cmd/go/internal/modload/load.go    | 10 +---------
  src/cmd/go/internal/modload/modfile.go |  7 +++++++
  src/cmd/go/internal/modload/mvs.go     |  8 +++-----
  4 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index a101681a1f..b6f955d591 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -126,8 +126,8 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 		Version:  m.Version,
+ 		Indirect: fromBuildList && loaded != nil && !loaded.direct[m.Path],
+ 	}
+-	if loaded != nil {
+-		info.GoVersion = loaded.goVersion[m.Path]
++	if v, ok := rawGoVersion.Load(m); ok {
++		info.GoVersion = v.(string)
+ 	}
+ 
+ 	// completeFromModCache fills in the extra fields in m using the module cache.
+@@ -155,6 +155,8 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 	}
+ 
+ 	if !fromBuildList {
++		// If this was an explicitly-versioned argument to 'go mod download' or
++		// 'go list -m', report the actual requested version, not its replacement.
+ 		completeFromModCache(info) // Will set m.Error in vendor mode.
+ 		return info
+ 	}
+@@ -178,9 +180,12 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 	// worth the cost, and we're going to overwrite the GoMod and Dir from the
+ 	// replacement anyway. See https://golang.org/issue/27859.
+ 	info.Replace = &modinfo.ModulePublic{
+-		Path:      r.Path,
+-		Version:   r.Version,
+-		GoVersion: info.GoVersion,
++		Path:    r.Path,
++		Version: r.Version,
++	}
++	if goV, ok := rawGoVersion.Load(r); ok {
++		info.Replace.GoVersion = goV.(string)
++		info.GoVersion = info.Replace.GoVersion
+ 	}
+ 	if r.Version == "" {
+ 		if filepath.IsAbs(r.Path) {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 686d491219..2a37f1d874 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -627,8 +627,7 @@ type loader struct {
+ 	pkgCache *par.Cache // map from string to *loadPkg
+ 
+ 	// computed at end of iterations
+-	direct    map[string]bool   // imported directly by main module
+-	goVersion map[string]string // go version recorded in each module
++	direct map[string]bool // imported directly by main module
+ }
+ 
+ // LoadTests controls whether the loaders load tests of the root packages.
+@@ -754,13 +753,6 @@ func (ld *loader) load(roots func() []string) {
+ 		}
+ 	}
+ 
+-	// Add Go versions, computed during walk.
+-	ld.goVersion = make(map[string]string)
+-	for _, m := range buildList {
+-		v, _ := reqs.(*mvsReqs).versions.Load(m)
+-		ld.goVersion[m.Path], _ = v.(string)
+-	}
+-
+ 	// Mix in direct markings (really, lack of indirect markings)
+ 	// from go.mod, unless we scanned the whole module
+ 	// and can therefore be sure we know better than go.mod.
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 9a166cae54..9ff00e9b5c 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -7,6 +7,7 @@ package modload
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"sync"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -164,3 +165,9 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
+ 
+ 	return false
+ }
++
++// rawGoVersion records the Go version parsed from each module's go.mod file.
++//
++// If a module is replaced, the version of the replacement is keyed by the
++// replacement module.Version, not the version being replaced.
++var rawGoVersion sync.Map // map[module.Version]string
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 39d0d69524..873f5891c9 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -11,7 +11,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+-	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -30,7 +29,6 @@ import (
+ type mvsReqs struct {
+ 	buildList []module.Version
+ 	cache     par.Cache
+-	versions  sync.Map
+ }
+ 
+ // Reqs returns the current module requirement graph.
+@@ -83,7 +81,7 @@ func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
+ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	if mod == Target {
+ 		if modFile != nil && modFile.Go != nil {
+-			r.versions.LoadOrStore(mod, modFile.Go.Version)
++			rawGoVersion.LoadOrStore(mod, modFile.Go.Version)
+ 		}
+ 		return append([]module.Version(nil), r.buildList[1:]...), nil
+ 	}
+@@ -113,7 +111,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
+ 			}
+ 			if f.Go != nil {
+-				r.versions.LoadOrStore(mod, f.Go.Version)
++				rawGoVersion.LoadOrStore(repl, f.Go.Version)
+ 			}
+ 			return r.modFileToList(f), nil
+ 		}
+@@ -147,7 +145,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	        but was required as: %s`, mpath, origPath))
+ 	}
+ 	if f.Go != nil {
+-		r.versions.LoadOrStore(mod, f.Go.Version)
++		rawGoVersion.LoadOrStore(mod, f.Go.Version)
+ 	}
+ 
+ 	return r.modFileToList(f), nil

@@ -30,7 +30,7 @@ Date:   Mon Sep 12 15:04:20 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/errors.go      | 21 ++++++++++----
  src/cmd/compile/internal/types2/lookup.go      |  4 ++-
  src/cmd/compile/internal/types2/typestring.go  | 29 ++++++++------------
@@ -40,3 +40,374 @@ Date:   Mon Sep 12 15:04:20 2022 -0700
  src/internal/types/testdata/check/issues0.go   | 20 +++++++-------
  src/internal/types/testdata/fixedbugs/54942.go | 38 ++++++++++++++++++++++++++
  8 files changed, 107 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 4ab05f8d21..7df6656543 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -7,6 +7,7 @@
+ package types2
+ 
+ import (
++	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"runtime"
+@@ -92,7 +93,7 @@ func (err *error_) errorf(at poser, format string, args ...interface{}) {
+ 	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
+ }
+ 
+-func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) string {
++func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+ 		case nil:
+@@ -119,26 +120,34 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
+ 		case Object:
+ 			arg = ObjectString(a, qf)
+ 		case Type:
+-			arg = typeString(a, qf, debug)
++			var buf bytes.Buffer
++			w := newTypeWriter(&buf, qf)
++			w.tpSubscripts = tpSubscripts
++			w.typ(a)
++			arg = buf.String()
+ 		case []Type:
+-			var buf strings.Builder
++			var buf bytes.Buffer
++			w := newTypeWriter(&buf, qf)
++			w.tpSubscripts = tpSubscripts
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+ 					buf.WriteString(", ")
+ 				}
+-				buf.WriteString(typeString(x, qf, debug))
++				w.typ(x)
+ 			}
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+ 		case []*TypeParam:
+-			var buf strings.Builder
++			var buf bytes.Buffer
++			w := newTypeWriter(&buf, qf)
++			w.tpSubscripts = tpSubscripts
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+ 					buf.WriteString(", ")
+ 				}
+-				buf.WriteString(typeString(x, qf, debug)) // use typeString so we get subscripts when debugging
++				w.typ(x)
+ 			}
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index b9770ae23e..1deea0ba39 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -425,7 +425,9 @@ func (check *Checker) funcString(f *Func) string {
+ 	if check != nil {
+ 		qf = check.qualifier
+ 	}
+-	WriteSignature(buf, f.typ.(*Signature), qf)
++	w := newTypeWriter(buf, qf)
++	w.paramNames = false
++	w.signature(f.typ.(*Signature))
+ 	return buf.String()
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index dbee4bf6bc..19f253c41e 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -45,14 +45,8 @@ func RelativeTo(pkg *Package) Qualifier {
+ // The Qualifier controls the printing of
+ // package-level objects, and may be nil.
+ func TypeString(typ Type, qf Qualifier) string {
+-	return typeString(typ, qf, false)
+-}
+-
+-func typeString(typ Type, qf Qualifier, debug bool) string {
+ 	var buf bytes.Buffer
+-	w := newTypeWriter(&buf, qf)
+-	w.debug = debug
+-	w.typ(typ)
++	WriteType(&buf, typ, qf)
+ 	return buf.String()
+ }
+ 
+@@ -72,21 +66,22 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+ }
+ 
+ type typeWriter struct {
+-	buf     *bytes.Buffer
+-	seen    map[Type]bool
+-	qf      Qualifier
+-	ctxt    *Context       // if non-nil, we are type hashing
+-	tparams *TypeParamList // local type parameters
+-	debug   bool           // if true, write debug annotations
++	buf          *bytes.Buffer
++	seen         map[Type]bool
++	qf           Qualifier
++	ctxt         *Context       // if non-nil, we are type hashing
++	tparams      *TypeParamList // local type parameters
++	paramNames   bool           // if set, write function parameter names, otherwise, write types only
++	tpSubscripts bool           // if set, write type parameter indices as subscripts
+ }
+ 
+ func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+-	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, false}
++	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false}
+ }
+ 
+ func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
+ 	assert(ctxt != nil)
+-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false}
++	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false}
+ }
+ 
+ func (w *typeWriter) byte(b byte) {
+@@ -304,7 +299,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			w.string(fmt.Sprintf("$%d", i))
+ 		} else {
+ 			w.string(t.obj.name)
+-			if w.debug || w.ctxt != nil {
++			if w.tpSubscripts || w.ctxt != nil {
+ 				w.string(subscript(t.id))
+ 			}
+ 		}
+@@ -407,7 +402,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 				w.byte(',')
+ 			}
+ 			// parameter names are ignored for type identity and thus type hashes
+-			if w.ctxt == nil && v.name != "" {
++			if w.ctxt == nil && v.name != "" && w.paramNames {
+ 				w.string(v.name)
+ 				w.byte(' ')
+ 			}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 4148287601..9869ec7d4a 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -138,7 +138,7 @@ func (check *Checker) sprintf(format string, args ...any) string {
+ 	return sprintf(fset, qf, false, format, args...)
+ }
+ 
+-func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...any) string {
++func sprintf(fset *token.FileSet, qf Qualifier, tpSubscripts bool, format string, args ...any) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+ 		case nil:
+@@ -162,26 +162,34 @@ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args
+ 		case Object:
+ 			arg = ObjectString(a, qf)
+ 		case Type:
+-			arg = typeString(a, qf, debug)
++			var buf bytes.Buffer
++			w := newTypeWriter(&buf, qf)
++			w.tpSubscripts = tpSubscripts
++			w.typ(a)
++			arg = buf.String()
+ 		case []Type:
+-			var buf strings.Builder
++			var buf bytes.Buffer
++			w := newTypeWriter(&buf, qf)
++			w.tpSubscripts = tpSubscripts
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+ 					buf.WriteString(", ")
+ 				}
+-				buf.WriteString(typeString(x, qf, debug))
++				w.typ(x)
+ 			}
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+ 		case []*TypeParam:
+-			var buf strings.Builder
++			var buf bytes.Buffer
++			w := newTypeWriter(&buf, qf)
++			w.tpSubscripts = tpSubscripts
+ 			buf.WriteByte('[')
+ 			for i, x := range a {
+ 				if i > 0 {
+ 					buf.WriteString(", ")
+ 				}
+-				buf.WriteString(typeString(x, qf, debug)) // use typeString so we get subscripts when debugging
++				w.typ(x)
+ 			}
+ 			buf.WriteByte(']')
+ 			arg = buf.String()
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 78bf6f66f6..935655853c 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -424,7 +424,9 @@ func (check *Checker) funcString(f *Func) string {
+ 	if check != nil {
+ 		qf = check.qualifier
+ 	}
+-	WriteSignature(buf, f.typ.(*Signature), qf)
++	w := newTypeWriter(buf, qf)
++	w.paramNames = false
++	w.signature(f.typ.(*Signature))
+ 	return buf.String()
+ }
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 080fe2d1f9..8fdafc2d4a 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -46,14 +46,8 @@ func RelativeTo(pkg *Package) Qualifier {
+ // The Qualifier controls the printing of
+ // package-level objects, and may be nil.
+ func TypeString(typ Type, qf Qualifier) string {
+-	return typeString(typ, qf, false)
+-}
+-
+-func typeString(typ Type, qf Qualifier, debug bool) string {
+ 	var buf bytes.Buffer
+-	w := newTypeWriter(&buf, qf)
+-	w.debug = debug
+-	w.typ(typ)
++	WriteType(&buf, typ, qf)
+ 	return buf.String()
+ }
+ 
+@@ -73,21 +67,22 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+ }
+ 
+ type typeWriter struct {
+-	buf     *bytes.Buffer
+-	seen    map[Type]bool
+-	qf      Qualifier
+-	ctxt    *Context       // if non-nil, we are type hashing
+-	tparams *TypeParamList // local type parameters
+-	debug   bool           // if true, write debug annotations
++	buf          *bytes.Buffer
++	seen         map[Type]bool
++	qf           Qualifier
++	ctxt         *Context       // if non-nil, we are type hashing
++	tparams      *TypeParamList // local type parameters
++	paramNames   bool           // if set, write function parameter names, otherwise, write types only
++	tpSubscripts bool           // if set, write type parameter indices as subscripts
+ }
+ 
+ func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+-	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, false}
++	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false}
+ }
+ 
+ func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
+ 	assert(ctxt != nil)
+-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false}
++	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false}
+ }
+ 
+ func (w *typeWriter) byte(b byte) {
+@@ -305,7 +300,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			w.string(fmt.Sprintf("$%d", i))
+ 		} else {
+ 			w.string(t.obj.name)
+-			if w.debug || w.ctxt != nil {
++			if w.tpSubscripts || w.ctxt != nil {
+ 				w.string(subscript(t.id))
+ 			}
+ 		}
+@@ -408,7 +403,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 				w.byte(',')
+ 			}
+ 			// parameter names are ignored for type identity and thus type hashes
+-			if w.ctxt == nil && v.name != "" {
++			if w.ctxt == nil && v.name != "" && w.paramNames {
+ 				w.string(v.name)
+ 				w.byte(' ')
+ 			}
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 95cfa2a910..bb9b8bdc43 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -139,21 +139,21 @@ func issue10260() {
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+ 
+-	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ .(*T1)
++	_ = i2 /* ERROR impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */ .(*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\) */
+ 	i1 = t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */
+-	i1 = i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
+-	i1 = t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */
+-	i2 = i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
+-	i2 = t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */
++	i1 = i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */
++	i1 = t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */
++	i2 = i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */
++	i2 = t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */
+ 
+ 	_ = func() I1 { return i0 /* ERROR cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\) */ }
+ 	_ = func() I1 { return t0 /* ERROR .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\) */ }
+-	_ = func() I1 { return i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
+-	_ = func() I1 { return t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
+-	_ = func() I2 { return i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
+-	_ = func() I2 { return t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(x int\) */ }
++	_ = func() I1 { return i2 /* ERROR .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */ }
++	_ = func() I1 { return t2 /* ERROR .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */ }
++	_ = func() I2 { return i1 /* ERROR .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */ }
++	_ = func() I2 { return t1 /* ERROR .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\) */ }
+ 
+ 	// a few more - less exhaustive now
+ 
+@@ -161,7 +161,7 @@ func issue10260() {
+ 	f(i0 /* ERROR missing method foo */ , i1 /* ERROR wrong type for method foo */ )
+ 
+ 	_ = [...]I1{i0 /* ERROR cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\) */ }
+-	_ = [...]I1{i2 /* ERROR cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(x int\)\n\t\twant foo\(\) */ }
++	_ = [...]I1{i2 /* ERROR cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\) */ }
+ 	_ = []I1{i0 /* ERROR missing method foo */ }
+ 	_ = []I1{i2 /* ERROR wrong type for method foo */ }
+ 	_ = map[int]I1{0: i0 /* ERROR missing method foo */ }
+diff --git a/src/internal/types/testdata/fixedbugs/54942.go b/src/internal/types/testdata/fixedbugs/54942.go
+new file mode 100644
+index 0000000000..f2e733b6e3
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/54942.go
+@@ -0,0 +1,38 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"context"
++	"database/sql"
++)
++
++type I interface {
++	m(int, int, *int, int)
++}
++
++type T struct{}
++
++func (_ *T) m(a, b, c, d int) {}
++
++var _ I = new /* ERROR have m\(int, int, int, int\)\n\t\twant m\(int, int, \*int, int\) */ (T)
++
++// (slightly modified) test case from issue
++
++type Result struct {
++	Value string
++}
++
++type Executor interface {
++	Execute(context.Context, sql.Stmt, int, []sql.NamedArg, int) (Result, error)
++}
++
++type myExecutor struct{}
++
++func (_ *myExecutor) Execute(ctx context.Context, stmt sql.Stmt, maxrows int, args []sql.NamedArg, urgency int) (*Result, error) {
++	return &Result{}, nil
++}
++
++var ex Executor = new /* ERROR have Execute\(context\.Context, sql\.Stmt, int, \[\]sql\.NamedArg, int\) \(\*Result, error\)\n\t\twant Execute\(context\.Context, sql\.Stmt, int, \[\]sql\.NamedArg, int\) \(Result, error\) */ (myExecutor)

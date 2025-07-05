@@ -17,6 +17,20 @@ Date:   Wed Sep 7 20:31:00 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcscavenge.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index bf38f87c77..c54ae34462 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -718,7 +718,7 @@ func (p *pageAlloc) scavengeOne(ci chunkIdx, searchIdx uint, max uintptr) uintpt
+ 	if p.summary[len(p.summary)-1][ci].max() >= uint(minPages) {
+ 		// We only bother looking for a candidate if there at least
+ 		// minPages free pages at all.
+-		base, npages := p.chunkOf(ci).findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
++		base, npages := p.chunkOf(ci).findScavengeCandidate(searchIdx, minPages, maxPages)
+ 
+ 		// If we found something, scavenge it and return!
+ 		if npages != 0 {

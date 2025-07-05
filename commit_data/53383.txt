@@ -15,8 +15,90 @@ Date:   Fri Jul 29 14:48:48 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/cpuprof.go     |  2 +-
  src/runtime/proc.go        | 13 ++++++++-----
  src/runtime/signal_unix.go |  4 ++--
  3 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 221e021a37..6ef374eaa4 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -110,7 +110,7 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ 		osyield()
+ 	}
+ 
+-	if prof.hz != 0 { // implies cpuprof.log != nil
++	if prof.hz.Load() != 0 { // implies cpuprof.log != nil
+ 		if p.numExtra > 0 || p.lostExtra > 0 || p.lostAtomic > 0 {
+ 			p.addExtra()
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a673e45071..04484da53f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4475,7 +4475,10 @@ func mcount() int32 {
+ 
+ var prof struct {
+ 	signalLock atomic.Uint32
+-	hz         int32
++
++	// Must hold signalLock to write. Reads may be lock-free, but
++	// signalLock should be taken to synchronize with changes.
++	hz atomic.Int32
+ }
+ 
+ func _System()                    { _System() }
+@@ -4490,7 +4493,7 @@ func _VDSO()                      { _VDSO() }
+ //
+ //go:nowritebarrierrec
+ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+-	if prof.hz == 0 {
++	if prof.hz.Load() == 0 {
+ 		return
+ 	}
+ 
+@@ -4587,7 +4590,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		}
+ 	}
+ 
+-	if prof.hz != 0 {
++	if prof.hz.Load() != 0 {
+ 		// Note: it can happen on Windows that we interrupted a system thread
+ 		// with no g, so gp could nil. The other nil checks are done out of
+ 		// caution, but not expected to be nil in practice.
+@@ -4631,9 +4634,9 @@ func setcpuprofilerate(hz int32) {
+ 	for !prof.signalLock.CompareAndSwap(0, 1) {
+ 		osyield()
+ 	}
+-	if prof.hz != hz {
++	if prof.hz.Load() != hz {
+ 		setProcessCPUProfiler(hz)
+-		prof.hz = hz
++		prof.hz.Store(hz)
+ 	}
+ 	prof.signalLock.Store(0)
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 545fe6abce..66a4650b58 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -502,7 +502,7 @@ var sigprofCallersUse uint32
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	if prof.hz != 0 {
++	if prof.hz.Load() != 0 {
+ 		c := &sigctxt{info, ctx}
+ 		// Some platforms (Linux) have per-thread timers, which we use in
+ 		// combination with the process-wide timer. Avoid double-counting.
+@@ -525,7 +525,7 @@ func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigprofNonGoPC(pc uintptr) {
+-	if prof.hz != 0 {
++	if prof.hz.Load() != 0 {
+ 		stk := []uintptr{
+ 			pc,
+ 			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,

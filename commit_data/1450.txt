@@ -8,7 +8,7 @@ Date:   Fri Jan 9 11:13:39 2009 -0800
     R=ken
     OCL=22406
     CL=22409
-
+---
  src/cmd/6g/align.c  |   4 ++
  src/cmd/6g/cgen.c   |   6 +--
  src/cmd/6g/gen.c    |   8 +---
@@ -22,3 +22,837 @@ Date:   Fri Jan 9 11:13:39 2009 -0800
  src/cmd/gc/subr.c   |  63 +++++++++++-------------
  src/cmd/gc/walk.c   | 134 +++++++++++++++-------------------------------------
  12 files changed, 87 insertions(+), 179 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 9ced220966..3aa7212464 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -219,6 +219,10 @@ belexinit(int lextype)
+ 	Sym *s;
+ 	Type *t;
+ 
++	simtype[TMAP] = tptr;
++	simtype[TCHAN] = tptr;
++	simtype[TSTRING] = tptr;
++
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
+ 	zprog.from.type = D_NONE;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 228916417f..5838ddef22 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -218,7 +218,7 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OLEN:
+-		if(isptrto(nl->type, TSTRING)) {
++		if(istype(nl->type, TSTRING)) {
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+ 
+@@ -237,7 +237,7 @@ cgen(Node *n, Node *res)
+ 			regfree(&n1);
+ 			break;
+ 		}
+-		if(isptrto(nl->type, TMAP)) {
++		if(istype(nl->type, TMAP)) {
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+ 			n1.op = OINDREG;
+@@ -964,7 +964,7 @@ sgen(Node *n, Node *ns, int32 w)
+ 			gconreg(AMOVQ, c, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+-		
++
+ 		} else
+ 		while(c > 0) {
+ 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 12e5a11bd3..121fb057ba 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -1141,13 +1141,11 @@ cgen_as(Node *nl, Node *nr)
+ 		iszer = 1;
+ 		nr = &nc;
+ 		memset(nr, 0, sizeof(*nr));
+-		switch(tl->etype) {
++		switch(simtype[tl->etype]) {
+ 		default:
+ 			fatal("cgen_as: tl %T", tl);
+ 			break;
+ 
+-		case TINT:
+-		case TUINT:
+ 		case TINT8:
+ 		case TUINT8:
+ 		case TINT16:
+@@ -1156,13 +1154,11 @@ cgen_as(Node *nl, Node *nr)
+ 		case TUINT32:
+ 		case TINT64:
+ 		case TUINT64:
+-		case TUINTPTR:
+ 			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
+ 			mpmovecfix(nr->val.u.xval, 0);
+ 			nr->val.ctype = CTINT;
+ 			break;
+ 
+-		case TFLOAT:
+ 		case TFLOAT32:
+ 		case TFLOAT64:
+ 		case TFLOAT80:
+@@ -1195,7 +1191,7 @@ cgen_as(Node *nl, Node *nr)
+ 	cgen(nr, nl);
+ 	if(iszer && nl->addable)
+ 		gins(ANOP, nl, N);	// used
+-		
++
+ 
+ ret:
+ 	;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index a70e011c25..4df9b790ad 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -998,7 +998,7 @@ naddr(Node *n, Addr *a)
+ 	case ONAME:
+ 		a->etype = 0;
+ 		if(n->type != T)
+-			a->etype = n->type->etype;
++			a->etype = simtype[n->type->etype];
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+ 		if(a->sym == S)
+@@ -1045,7 +1045,7 @@ naddr(Node *n, Addr *a)
+ 			a->offset = mpgetfix(n->val.u.xval);
+ 			break;
+ 		case CTSTR:
+-			a->etype = n->etype;
++			a->etype = simtype[n->etype];
+ 			a->sym = symstringo;
+ 			a->type = D_ADDR;
+ 			a->index = D_STATIC;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index eefc277a0f..8552812cbf 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -61,8 +61,6 @@ convlit1(Node *n, Type *t, int conv)
+ 		goto bad1;
+ 
+ 	case Wlitnil:
+-		if(isptrto(t, TSTRING))
+-			goto bad1;
+ 		switch(et) {
+ 		default:
+ 			goto bad1;
+@@ -71,6 +69,8 @@ convlit1(Node *n, Type *t, int conv)
+ 		case TPTR64:
+ 		case TINTER:
+ 		case TARRAY:
++		case TMAP:
++		case TCHAN:
+ 			break;
+ 		}
+ 		break;
+@@ -80,7 +80,7 @@ convlit1(Node *n, Type *t, int conv)
+ 			defaultlit(n);
+ 			return;
+ 		}
+-		if(isptrto(t, TSTRING))
++		if(et == TSTRING)
+ 			break;
+ 		goto bad1;
+ 
+@@ -127,7 +127,7 @@ convlit1(Node *n, Type *t, int conv)
+ 			goto bad1;
+ 
+ 		// only done as string(CONST)
+-		if(isptrto(t, TSTRING)) {
++		if(et == TSTRING) {
+ 			Rune rune;
+ 			int l;
+ 			String *s;
+@@ -180,7 +180,7 @@ convlit1(Node *n, Type *t, int conv)
+ 		goto bad1;
+ 	}
+ 	n->type = t;
+-	
++
+ 	return;
+ 
+ bad1:
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 38174b8282..162495e80e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -495,14 +495,6 @@ loop:
+ 	if(n->op != ODCLFIELD || n->type == T)
+ 		fatal("stotype: oops %N\n", n);
+ 
+-	switch(n->type->etype) {
+-	case TCHAN:
+-	case TMAP:
+-	case TSTRING:
+-		yyerror("%T can exist only in pointer form", n->type);
+-		break;
+-	}
+-
+ 	switch(n->val.ctype) {
+ 	case CTSTR:
+ 		note = n->val.u.sval;
+@@ -749,15 +741,6 @@ addvar(Node *n, Type *t, int ctxt)
+ 		pushdcl(s);
+ 	}
+ 
+-	if(t != T) {
+-		switch(t->etype) {
+-		case TCHAN:
+-		case TMAP:
+-		case TSTRING:
+-			yyerror("%T can exist only in pointer form", t);
+-		}
+-	}
+-
+ 	redeclare("variable", s);
+ 	s->vargen = gen;
+ 	s->oname = n;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index de5f990658..7b9fce63f8 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -59,7 +59,7 @@ dumpprereq(Type *t)
+ 	if(t == T)
+ 		return;
+ 
+-	if(t->printed || t == types[t->etype] || t == types[TSTRING])
++	if(t->printed || t == types[t->etype])
+ 		return;
+ 	t->printed = 1;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index da4f871893..a46e76af31 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -626,6 +626,7 @@ void	dump(char*, Node*);
+ Type*	aindex(Node*, Type*);
+ int	isnil(Node*);
+ int	isptrto(Type*, int);
++int	istype(Type*, int);
+ int	isptrsarray(Type*);
+ int	isptrdarray(Type*);
+ int	issarray(Type*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 313d480025..db12ee0813 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1031,7 +1031,6 @@ convtype:
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
+-		$$ = ptrto($$);
+ 	}
+ |	structtype
+ 
+@@ -1116,21 +1115,18 @@ Aothertype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
+-		$$ = ptrto($$);
+ 	}
+ |	LCHAN LCOMM Anon_chan_type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+-		$$ = ptrto($$);
+ 	}
+ |	LMAP '[' type ']' Atype
+ 	{
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
+-		$$ = ptrto($$);
+ 	}
+ |	'*' Atype
+ 	{
+@@ -1153,21 +1149,18 @@ Bothertype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
+-		$$ = ptrto($$);
+ 	}
+ |	LCHAN LCOMM Bnon_chan_type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+-		$$ = ptrto($$);
+ 	}
+ |	LMAP '[' type ']' Btype
+ 	{
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
+-		$$ = ptrto($$);
+ 	}
+ |	'*' Btype
+ 	{
+@@ -1184,7 +1177,6 @@ Achantype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
+-		$$ = ptrto($$);
+ 	}
+ 
+ Bchantype:
+@@ -1193,7 +1185,6 @@ Bchantype:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
+-		$$ = ptrto($$);
+ 	}
+ 
+ structtype:
+@@ -1865,7 +1856,6 @@ hidden_type1:
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
+-		$$ = ptrto($$);
+ 	}
+ |	LSTRUCT '{' ohidden_structdcl_list '}'
+ 	{
+@@ -1886,14 +1876,12 @@ hidden_type1:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
+-		$$ = ptrto($$);
+ 	}
+ |	LCHAN LCOMM hidden_type1
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+-		$$ = ptrto($$);
+ 	}
+ |	LDDD
+ 	{
+@@ -1906,7 +1894,6 @@ hidden_type2:
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
+-		$$ = ptrto($$);
+ 	}
+ |	'(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a98164e28b..c3a6511c9a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1150,6 +1150,8 @@ lexinit(void)
+ 		case TPTR32:
+ 		case TPTR64:
+ 		case TINTER:
++		case TMAP:
++		case TCHAN:
+ 			okforeq[i] = 1;
+ 			break;
+ 		}
+@@ -1196,8 +1198,6 @@ lexinit(void)
+ 			continue;
+ 		}
+ 		t = typ(etype);
+-		if(etype == TSTRING)
+-			t = ptrto(t);
+ 		t->sym = s;
+ 
+ 		dowidth(t);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ac79087799..98127e23b8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -295,10 +295,10 @@ algtype(Type *t)
+ 	if(issimple[t->etype])
+ 		a = ASIMP;	// simple mem
+ 	else
+-	if(isptrto(t, TSTRING))
++	if(t->etype == TSTRING)
+ 		a = ASTRING;	// string
+ 	else
+-	if(isptr[t->etype])
++	if(isptr[simtype[t->etype]])
+ 		a = APTR;	// pointer
+ 	else
+ 	if(t->etype == TARRAY && t->bound < 0)
+@@ -608,12 +608,8 @@ whatis(Node *n)
+ 		return Wtfloat;
+ 	case TBOOL:
+ 		return Wtbool;
+-
+-	case TPTR32:
+-	case TPTR64:
+-		if(isptrto(t, TSTRING))
+-			return Wtstr;
+-		break;
++	case TSTRING:
++		return Wtstr;
+ 	}
+ 	return Wtunkn;
+ }
+@@ -976,6 +972,7 @@ basicnames[] =
+ 	[TBOOL]		= "bool",
+ 	[TANY]		= "any",
+ 	[TDDD]		= "...",
++	[TSTRING]		= "string",
+ };
+ 
+ int
+@@ -988,7 +985,7 @@ Tpretty(Fmt *fp, Type *t)
+ 	&& t->sym != S
+ 	&& !(fp->flags&FmtLong)) {
+ 		s = t->sym;
+-		if(t == types[t->etype] || t == types[TSTRING])
++		if(t == types[t->etype])
+ 			return fmtprint(fp, "%s", s->name);
+ 		if(exporting) {
+ 			if(fp->flags & FmtShort)
+@@ -1012,28 +1009,21 @@ Tpretty(Fmt *fp, Type *t)
+ 	switch(t->etype) {
+ 	case TPTR32:
+ 	case TPTR64:
+-		t1 = t->type;
+-		if(t1 != T) {
+-			switch(t1->etype) {
+-			case TSTRING:
+-				return fmtprint(fp, "string");
+-			case TMAP:
+-				return fmtprint(fp, "map[%T] %T", t1->down, t1->type);
+-			case TCHAN:
+-				return fmtprint(fp, "chan %T", t1->type);
+-			}
+-		}
+ 		if(fp->flags&FmtShort)	// pass flag thru for methodsym
+-			return fmtprint(fp, "*%hT", t1);
+-		return fmtprint(fp, "*%T", t1);
++			return fmtprint(fp, "*%hT", t->type);
++		return fmtprint(fp, "*%T", t->type);
+ 
+-	// Should not see these: should see ptr instead, handled above.
+-	case TSTRING:
+-		return fmtprint(fp, "STRING", t->type);
+ 	case TCHAN:
+-		return fmtprint(fp, "CHAN %T", t->type);
++		switch(t->chan) {
++		case Crecv:
++			return fmtprint(fp, "<-chan %T", t->type);
++		case Csend:
++			return fmtprint(fp, "chan<- %T", t->type);
++		}
++		return fmtprint(fp, "chan %T", t->type);
++
+ 	case TMAP:
+-		return fmtprint(fp, "MAP[%T] %T", t->down, t->type);
++		return fmtprint(fp, "map[%T] %T", t->down, t->type);
+ 
+ 	case TFUNC:
+ 		// t->type is method struct
+@@ -1124,8 +1114,6 @@ Tpretty(Fmt *fp, Type *t)
+ 	return -1;
+ }
+ 
+-
+-
+ int
+ Tconv(Fmt *fp)
+ {
+@@ -1158,7 +1146,7 @@ Tconv(Fmt *fp)
+ 	}
+ 
+ 	et = t->etype;
+-	snprint(buf, sizeof buf, "%E.", et);
++	snprint(buf, sizeof buf, "%E ", et);
+ 	if(t->sym != S) {
+ 		snprint(buf1, sizeof(buf1), "<%S>", t->sym);
+ 		strncat(buf, buf1, sizeof(buf));
+@@ -1190,7 +1178,7 @@ Tconv(Fmt *fp)
+ 		break;
+ 
+ 	case TINTER:
+-		strncat(buf, "I{", sizeof(buf));
++		strncat(buf, "{", sizeof(buf));
+ 		if(fp->flags & FmtLong) {
+ 			for(t1=t->type; t1!=T; t1=t1->down) {
+ 				snprint(buf1, sizeof(buf1), "%lT;", t1);
+@@ -1212,7 +1200,7 @@ Tconv(Fmt *fp)
+ 		break;
+ 
+ 	case TMAP:
+-		snprint(buf, sizeof(buf), "MAP[%T]%T", t->down, t->type);
++		snprint(buf, sizeof(buf), "[%T]%T", t->down, t->type);
+ 		break;
+ 
+ 	case TARRAY:
+@@ -1225,7 +1213,7 @@ Tconv(Fmt *fp)
+ 
+ 	case TPTR32:
+ 	case TPTR64:
+-		snprint(buf1, sizeof(buf1), "*%T", t->type);
++		snprint(buf1, sizeof(buf1), "%T", t->type);
+ 		strncat(buf, buf1, sizeof(buf));
+ 		break;
+ 	}
+@@ -1441,6 +1429,12 @@ isptrto(Type *t, int et)
+ 	return 1;
+ }
+ 
++int
++istype(Type *t, int et)
++{
++	return t != T && t->etype == et;
++}
++
+ int
+ isptrsarray(Type *t)
+ {
+@@ -1627,10 +1621,9 @@ iscomposite(Type *t)
+ 	switch(t->etype) {
+ 	case TARRAY:
+ 	case TSTRUCT:
++	case TMAP:
+ 		return 1;
+ 	}
+-	if(isptr[t->etype] && t->type != T && t->type->etype == TMAP)
+-		return 1;
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 36398781d9..99dd118e2b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -441,7 +441,7 @@ loop:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = map[] - mapaccess2
+ 				walktype(r->left, Erv);
+-				if(!isptrto(r->left->type, TMAP))
++				if(!istype(r->left->type, TMAP))
+ 					break;
+ 				l = mapop(n, top);
+ 				if(l == N)
+@@ -455,7 +455,7 @@ loop:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = <chan - chanrecv2
+ 				walktype(r->left, Erv);
+-				if(!isptrto(r->left->type, TCHAN))
++				if(!istype(r->left->type, TCHAN))
+ 					break;
+ 				l = chanop(n, top);
+ 				if(l == N)
+@@ -499,7 +499,7 @@ loop:
+ 		case OINDEXPTR:
+ 			if(cl == 1 && cr == 2) {
+ 				// map[] = a,b - mapassign2
+-				if(!isptrto(l->left->type, TMAP))
++				if(!istype(l->left->type, TMAP))
+ 					break;
+ 				l = mapop(n, top);
+ 				if(l == N)
+@@ -580,7 +580,7 @@ loop:
+ 
+ 		// to string
+ 		if(l->type != T)
+-		if(isptrto(t, TSTRING)) {
++		if(istype(t, TSTRING)) {
+ 			if(isint[l->type->etype]) {
+ 				indir(n, stringop(n, top));
+ 				goto ret;
+@@ -659,7 +659,7 @@ loop:
+ 		}
+ 
+ 		// map literal
+-		if(isptr[t->etype] && t->type != t && t->type->etype == TMAP) {
++		if(t->etype == TMAP) {
+ 			r = maplit(n);
+ 			indir(n, r);
+ 			goto ret;
+@@ -700,7 +700,7 @@ loop:
+ 				goto shft;
+ 			goto com;
+ 		}
+-		if(!isptrto(l->left->type, TMAP))
++		if(!istype(l->left->type, TMAP))
+ 			goto com;
+ 		indir(n, mapop(n, top));
+ 		goto ret;
+@@ -771,7 +771,7 @@ loop:
+ 		case OGT:
+ 		case OADD:
+ 		case OASOP:
+-			if(isptrto(n->left->type, TSTRING)) {
++			if(istype(n->left->type, TSTRING)) {
+ 				indir(n, stringop(n, top));
+ 				goto ret;
+ 			}
+@@ -854,8 +854,7 @@ loop:
+ 
+ // BOTCH - convert each index opcode
+ // to look like this and get rid of OINDEXPTR
+-		if(isptr[t->etype])
+-		if(isptrto(t, TSTRING) || isptrto(t->type, TSTRING)) {
++		if(istype(t, TSTRING) || isptrto(t, TSTRING)) {
+ 			// right side must be an int
+ 			if(top != Erv)
+ 				goto nottop;
+@@ -889,8 +888,6 @@ loop:
+ 			}
+ 			if(!eqtype(n->right->type, t->down, 0))
+ 				goto badt;
+-			if(n->op != OINDEXPTR)
+-				goto badt;
+ 			n->op = OINDEX;
+ 			n->type = t->type;
+ 			if(top == Erv)
+@@ -945,7 +942,7 @@ loop:
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+-		if(isptr[t->etype])
++		if(isptr[t->etype])	//XXX?
+ 			t = t->type;
+ 		if(t->etype == TSTRING) {
+ 			indir(n, stringop(n, top));
+@@ -1088,9 +1085,8 @@ loop:
+ 		if(n->left->type == T)
+ 			goto ret;
+ 		et = n->left->type->etype;
+-		if(!okforadd[et])
+-			if(!isptrto(n->left->type, TSTRING))
+-				goto badt;
++		if(!okforadd[et] && et != TSTRING)
++			goto badt;
+ 		t = types[TBOOL];
+ 		break;
+ 
+@@ -1422,10 +1418,6 @@ selectas(Node *name, Node *expr)
+ 	if(expr == N || expr->op != ORECV)
+ 		goto bad;
+ 	t = expr->left->type;
+-	if(t == T)
+-		goto bad;
+-	if(isptr[t->etype])
+-		t = t->type;
+ 	if(t == T)
+ 		goto bad;
+ 	if(t->etype != TCHAN)
+@@ -2042,55 +2034,29 @@ nodpanic(int32 lineno)
+ Node*
+ makecompat(Node *n)
+ {
+-	Node *r, *on;
+-	Type *t, *t0;
+-
+-	t0 = n->type;
+-	if(t0 == T)
+-		goto bad;
+-
+-	if(t0->etype == TARRAY)
+-		return arrayop(n, Erv);
+-
+-	if(!isptr[t0->etype])
+-		goto bad;
++	Type *t;
+ 
+-	t = t0->type;
+-	if(t == T)
+-		goto bad;
++	t = n->type;
+ 
++	if(t != T)
+ 	switch(t->etype) {
+-	case TSTRING:
+-		goto bad;
+-
+-	// the call looks like new(MAP[int]int)
+-	// but internally we see new(*MAP[int]int)
++	case TARRAY:
++		return arrayop(n, Erv);
+ 	case TMAP:
+-		r = mapop(n, Erv);
+-		break;
+-
+-	// the call looks like new(CHAN int)
+-	// but internally we see new(*CHAN int)
++		return mapop(n, Erv);
+ 	case TCHAN:
+-		r = chanop(n, Erv);
+-		break;
+-
+-	default:
+-		if(n->left != N)
+-			yyerror("cannot make(%T, expr)", t0);
+-		dowidth(t);
+-		on = syslook("mal", 1);
+-		argtype(on, t);
+-		r = nodintconst(t->width);
+-		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
+-		break;
++		return chanop(n, Erv);
+ 	}
+ 
+-	return r;
++	/*
++	 * ken had code to malloc here,
++	 * but rsc cut it out so that make(int)
++	 * is diagnosed as an error (probably meant new).
++	 * might come back once we know the
++	 * language semantics for make(int).
++	 */
+ 
+-bad:
+-	yyerror("cannot make(%T)", t0);
++	yyerror("cannot make(%T)", t);
+ 	return n;
+ }
+ 
+@@ -2101,17 +2067,7 @@ newcompat(Node *n)
+ 	Type *t;
+ 
+ 	t = n->type;
+-	if(t == T)
+-		goto bad;
+-
+-	switch(t->etype) {
+-	case TFUNC:
+-	case TSTRING:
+-	case TMAP:
+-	case TCHAN:
+-		goto bad;
+-
+-	default:
++	if(t != T && t->etype != TFUNC) {
+ 		if(n->left != N)
+ 			yyerror("cannot new(%T, expr)", t);
+ 		dowidth(t);
+@@ -2120,12 +2076,9 @@ newcompat(Node *n)
+ 		r = nodintconst(t->width);
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, Erv);
+-		break;
++		return r;
+ 	}
+ 
+-	return r;
+-
+-bad:
+ 	yyerror("cannot new(%T)", t);
+ 	return n;
+ }
+@@ -2195,7 +2148,7 @@ stringop(Node *n, int top)
+ 	case OINDEX:
+ 		// sys_indexstring(s, i)
+ 		c = n->left;
+-		if(isptrto(c->type->type, TSTRING)) {
++		if(istype(c->type->type, TSTRING)) {
+ 			// lhs is string or *string
+ 			c = nod(OIND, c, N);
+ 			c->type = c->left->type->type;
+@@ -2228,11 +2181,8 @@ stringop(Node *n, int top)
+ }
+ 
+ Type*
+-fixmap(Type *tm)
++fixmap(Type *t)
+ {
+-	Type *t;
+-
+-	t = tm->type;
+ 	if(t == T)
+ 		goto bad;
+ 	if(t->etype != TMAP)
+@@ -2246,18 +2196,13 @@ fixmap(Type *tm)
+ 	return t;
+ 
+ bad:
+-	yyerror("not a map: %lT", tm);
++	yyerror("not a map: %lT", t);
+ 	return T;
+ }
+ 
+ Type*
+-fixchan(Type *tm)
++fixchan(Type *t)
+ {
+-	Type *t;
+-
+-	if(tm == T)
+-		goto bad;
+-	t = tm->type;
+ 	if(t == T)
+ 		goto bad;
+ 	if(t->etype != TCHAN)
+@@ -2270,7 +2215,7 @@ fixchan(Type *tm)
+ 	return t;
+ 
+ bad:
+-	yyerror("not a channel: %lT", tm);
++	yyerror("not a channel: %lT", t);
+ 	return T;
+ }
+ 
+@@ -2282,8 +2227,6 @@ mapop(Node *n, int top)
+ 	Node *on;
+ 	int cl, cr;
+ 
+-//dump("mapop", n);
+-
+ 	r = n;
+ 	switch(n->op) {
+ 	default:
+@@ -2460,7 +2403,7 @@ mapop(Node *n, int top)
+ 		// rewrite map[index] op= right
+ 		// into tmpi := index; map[tmpi] = map[tmpi] op right
+ 
+-		t = n->left->left->type->type;
++		t = n->left->left->type;
+ 		a = nod(OXXX, N, N);
+ 		tempname(a, t->down);			// tmpi
+ 		r = nod(OAS, a, n->left->right);	// tmpi := index
+@@ -2968,7 +2911,7 @@ convas(Node *n)
+ 		goto out;
+ 
+ 	if(n->left->op == OINDEX)
+-	if(isptrto(n->left->left->type, TMAP)) {
++	if(istype(n->left->left->type, TMAP)) {
+ 		indir(n, mapop(n, Elv));
+ 		goto out;
+ 	}
+@@ -3134,9 +3077,9 @@ multi:
+ 			goto badt;
+ 		walktype(nr->left, Erv);
+ 		t = nr->left->type;
+-		if(!isptrto(t, TCHAN))
++		if(!istype(t, TCHAN))
+ 			goto badt;
+-		a = old2new(nl->left, t->type->type);
++		a = old2new(nl->left, t->type);
+ 		n = a;
+ 		a = old2new(nl->right, types[TBOOL]);
+ 		n = list(n, a);
+@@ -3575,6 +3518,7 @@ arraylit(Node *n)
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, t);
+ 
++	nnew = nil;
+ 	if(b < 0) {
+ 		// slice
+ 		nnew = nod(OMAKE, N, N);
+@@ -3617,7 +3561,7 @@ maplit(Node *n)
+ 	Node *var, *r, *a;
+ 
+ 	t = n->type;
+-	if(!isptr[t->etype] || t->type == T || t->type->etype != TMAP)
++	if(t->etype != TMAP)
+ 		fatal("maplit: not map");
+ 
+ 	var = nod(OXXX, N, N);

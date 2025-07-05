@@ -35,9 +35,123 @@ Date:   Wed Apr 15 15:44:57 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_amd64.s  |  6 ++----
  src/runtime/debugcall.go | 13 +++++++++++++
  src/runtime/mgcmark.go   |  5 +++--
  src/runtime/stack.go     | 23 +----------------------
  4 files changed, 19 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ed7cec7233..fa25c55b96 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1560,10 +1560,8 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ // a stack pointer to an escaping argument. debugCallV1 cannot check
+ // this invariant.
+ TEXT runtime·debugCallV1(SB),NOSPLIT,$152-0
+-	// Save all registers that may contain pointers in GC register
+-	// map order (see ssa.registersAMD64). This makes it possible
+-	// to copy the stack while updating pointers currently held in
+-	// registers, and for the GC to find roots in registers.
++	// Save all registers that may contain pointers so they can be
++	// conservatively scanned.
+ 	//
+ 	// We can't do anything that might clobber any of these
+ 	// registers before this.
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 0644f71aaf..33c70b8c7f 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -99,6 +99,11 @@ func debugCallCheck(pc uintptr) string {
+ // the calling goroutine. On the goroutine, it prepares to recover
+ // panics from the debug call, and then calls the call dispatching
+ // function at PC dispatch.
++//
++// This must be deeply nosplit because there are untyped values on the
++// stack from debugCallV1.
++//
++//go:nosplit
+ func debugCallWrap(dispatch uintptr) {
+ 	var lockedm bool
+ 	var lockedExt uint32
+@@ -139,6 +144,12 @@ func debugCallWrap(dispatch uintptr) {
+ 			gp.lockedm = 0
+ 		}
+ 
++		// Mark the calling goroutine as being at an async
++		// safe-point, since it has a few conservative frames
++		// at the bottom of the stack. This also prevents
++		// stack shrinks.
++		gp.asyncSafePoint = true
++
+ 		// Stash newg away so we can execute it below (mcall's
+ 		// closure can't capture anything).
+ 		gp.schedlink.set(newg)
+@@ -175,6 +186,8 @@ func debugCallWrap(dispatch uintptr) {
+ 		mp.lockedg.set(gp)
+ 		gp.lockedm.set(mp)
+ 	}
++
++	gp.asyncSafePoint = false
+ }
+ 
+ // debugCallWrap1 is the continuation of debugCallWrap on the callee
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index ea73ccc1b1..dafb4634b4 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -961,7 +961,8 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 	}
+ 
+ 	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
+-	if state.conservative || isAsyncPreempt {
++	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV1
++	if state.conservative || isAsyncPreempt || isDebugCall {
+ 		if debugScanConservative {
+ 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
+ 		}
+@@ -988,7 +989,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 			scanConservative(frame.argp, frame.arglen, nil, gcw, state)
+ 		}
+ 
+-		if isAsyncPreempt {
++		if isAsyncPreempt || isDebugCall {
+ 			// This function's frame contained the
+ 			// registers for the asynchronously stopped
+ 			// parent frame. Scan the parent
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b5efac0117..eeac66d1ce 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1216,29 +1216,8 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 		minsize = sys.MinFrameSize
+ 	}
+ 	if size > minsize {
+-		var stkmap *stackmap
+ 		stackid := pcdata
+-		if f.funcID != funcID_debugCallV1 {
+-			stkmap = (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+-		} else {
+-			// debugCallV1's stack map is the register map
+-			// at its call site.
+-			callerPC := frame.lr
+-			caller := findfunc(callerPC)
+-			if !caller.valid() {
+-				println("runtime: debugCallV1 called by unknown caller", hex(callerPC))
+-				throw("bad debugCallV1")
+-			}
+-			stackid = int32(-1)
+-			if callerPC != caller.entry {
+-				callerPC--
+-				stackid = pcdatavalue(caller, _PCDATA_RegMapIndex, callerPC, cache)
+-			}
+-			if stackid == -1 {
+-				stackid = 0 // in prologue
+-			}
+-			stkmap = (*stackmap)(funcdata(caller, _FUNCDATA_RegPointerMaps))
+-		}
++		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+ 		if stkmap == nil || stkmap.n <= 0 {
+ 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+ 			throw("missing stackmap")

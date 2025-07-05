@@ -14,7 +14,7 @@ Date:   Fri Mar 10 17:15:46 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/articles/wiki/test.bash       |  2 +-
  lib/time/update.bash              |  2 +-
  misc/cgo/fortran/test.bash        |  2 +-
@@ -24,3 +24,217 @@ Date:   Fri Mar 10 17:15:46 2017 +0000
  src/make.bash                     |  4 ++--
  src/run.bash                      |  6 +++---
  8 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index 8bbb734750..cec51fd3de 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -20,7 +20,7 @@ trap cleanup 0 INT
+ rm -f get.bin final-test.bin a.out
+ 
+ # If called with -all, check that all code snippets compile.
+-if [ "$1" == "-all" ]; then
++if [ "$1" = "-all" ]; then
+ 	for fn in *.go; do
+ 		go build -o a.out $fn
+ 	done
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 4297c5f545..b1f9a93061 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -42,7 +42,7 @@ zip -0 -r ../../zoneinfo.zip *
+ cd ../..
+ 
+ echo
+-if [ "$1" == "-work" ]; then 
++if [ "$1" = "-work" ]; then 
+ 	echo Left workspace behind in work/.
+ else
+ 	rm -rf work
+diff --git a/misc/cgo/fortran/test.bash b/misc/cgo/fortran/test.bash
+index 3d1bc9de8e..1e0d59ea1c 100755
+--- a/misc/cgo/fortran/test.bash
++++ b/misc/cgo/fortran/test.bash
+@@ -12,7 +12,7 @@ FC=$1
+ goos=$(go env GOOS)
+ 
+ libext="so"
+-if [ "$goos" == "darwin" ]; then
++if [ "$goos" = "darwin" ]; then
+ 	libext="dylib"
+ fi
+ 
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 052ee0e758..a0b9f78658 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -27,7 +27,7 @@ fi
+ # Directory where cgo headers and outputs will be installed.
+ # The installation directory format varies depending on the platform.
+ installdir=pkg/${goos}_${goarch}_testcshared_shared
+-if [ "${goos}" == "darwin" ]; then
++if [ "${goos}" = "darwin" ]; then
+ 	installdir=pkg/${goos}_${goarch}_testcshared
+ fi
+ 
+@@ -40,13 +40,13 @@ function cleanup() {
+ 	rm -f testp testp2 testp3 testp4 testp5
+ 	rm -rf pkg "${goroot}/${installdir}"
+ 
+-	if [ "$goos" == "android" ]; then
++	if [ "$goos" = "android" ]; then
+ 		adb shell rm -rf "$androidpath"
+ 	fi
+ }
+ trap cleanup EXIT
+ 
+-if [ "$goos" == "android" ]; then
++if [ "$goos" = "android" ]; then
+ 	adb shell mkdir -p "$androidpath"
+ fi
+ 
+@@ -69,7 +69,7 @@ function run() {
+ 
+ function binpush() {
+ 	bin=${1}
+-	if [ "$goos" == "android" ]; then
++	if [ "$goos" = "android" ]; then
+ 		adb push "$bin"  "${androidpath}/${bin}" 2>/dev/null
+ 	fi
+ }
+@@ -79,7 +79,7 @@ rm -rf pkg
+ suffix="-installsuffix testcshared"
+ 
+ libext="so"
+-if [ "$goos" == "darwin" ]; then
++if [ "$goos" = "darwin" ]; then
+ 	libext="dylib"
+ fi
+ 
+@@ -89,7 +89,7 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
+ GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
+ binpush libgo.$libext
+ 
+-if [ "$goos" == "linux" ] || [ "$goos" == "android" ] ; then
++if [ "$goos" = "linux" ] || [ "$goos" = "android" ] ; then
+     if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
+         echo "libgo.$libext has TEXTREL set"
+         exit 1
+@@ -97,7 +97,7 @@ if [ "$goos" == "linux" ] || [ "$goos" == "android" ] ; then
+ fi
+ 
+ GOGCCFLAGS=$(go env GOGCCFLAGS)
+-if [ "$goos" == "android" ]; then
++if [ "$goos" = "android" ]; then
+ 	GOGCCFLAGS="${GOGCCFLAGS} -pie"
+ fi
+ 
+@@ -127,7 +127,7 @@ fi
+ GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext libgo2
+ binpush libgo2.$libext
+ linkflags="-Wl,--no-as-needed"
+-if [ "$goos" == "darwin" ]; then
++if [ "$goos" = "darwin" ]; then
+ 	linkflags=""
+ fi
+ $(go env CC) ${GOGCCFLAGS} -o testp2 main2.c $linkflags libgo2.$libext
+@@ -139,7 +139,7 @@ if [ "$output" != "PASS" ]; then
+ fi
+ 
+ # test3: tests main.main is exported on android.
+-if [ "$goos" == "android" ]; then
++if [ "$goos" = "android" ]; then
+ 	$(go env CC) ${GOGCCFLAGS} -o testp3 main3.c -ldl
+ 	binpush testp3
+ 	output=$(run ./testp ./libgo.so)
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 80de7388f6..3debb5499a 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -72,7 +72,7 @@ testmsanshared() {
+   goos=$(go env GOOS)
+   suffix="-installsuffix testsanitizers"
+   libext="so"
+-  if [ "$goos" == "darwin" ]; then
++  if [ "$goos" = "darwin" ]; then
+ 	  libext="dylib"
+   fi
+   go build -msan -buildmode=c-shared $suffix -o ${TMPDIR}/libmsanshared.$libext msan_shared.go
+@@ -135,7 +135,7 @@ testtsanshared() {
+   goos=$(go env GOOS)
+   suffix="-installsuffix tsan"
+   libext="so"
+-  if [ "$goos" == "darwin" ]; then
++  if [ "$goos" = "darwin" ]; then
+ 	  libext="dylib"
+   fi
+   go build -buildmode=c-shared $suffix -o ${TMPDIR}/libtsanshared.$libext tsan_shared.go
+diff --git a/src/iostest.bash b/src/iostest.bash
+index 5e09894852..595b675744 100755
+--- a/src/iostest.bash
++++ b/src/iostest.bash
+@@ -24,11 +24,11 @@ if [ "$GOARCH" != "arm" ] && [ "$GOARCH" != "arm64" ]; then
+ 	echo "iostest.bash requires GOARCH=arm or GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
+ 	exit 1
+ fi
+-if [ "$GOARCH" == "arm" ]; then
++if [ "$GOARCH" = "arm" ]; then
+ 	export GOARM=7
+ fi
+ 
+-if [ "$1" == "-restart" ]; then
++if [ "$1" = "-restart" ]; then
+ 	# Reboot to make sure previous runs do not interfere with the current run.
+ 	# It is reasonably easy for a bad program leave an iOS device in an
+ 	# almost unusable state.
+@@ -60,7 +60,7 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+ 	-o ../bin/go_darwin_${GOARCH}_exec \
+ 	../misc/ios/go_darwin_arm_exec.go
+ 
+-if [ "$GOIOS_DEV_ID" == "" ]; then
++if [ "$GOIOS_DEV_ID" = "" ]; then
+ 	echo "detecting iOS development identity"
+ 	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
+ fi
+diff --git a/src/make.bash b/src/make.bash
+index 6e6f96d5c7..71e75318f2 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -107,7 +107,7 @@ done
+ # Test for debian/kFreeBSD.
+ # cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
+ # disable cgo manually.
+-if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
++if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
+ 	export CGO_ENABLED=0
+ fi
+ 
+@@ -125,7 +125,7 @@ if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+ 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+ 	exit 1
+ fi
+-if [ "$GOROOT_BOOTSTRAP" == "$GOROOT" ]; then
++if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
+ 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
+ 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+ 	exit 1
+diff --git a/src/run.bash b/src/run.bash
+index c0029c51f4..1fde5f4610 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -36,12 +36,12 @@ ulimit -c 0
+ # This is a system misconfiguration and should be fixed on the
+ # broken system, not "fixed" by ignoring the failure here.
+ # See longer discussion on golang.org/issue/7381. 
+-[ "$(ulimit -H -n)" == "unlimited" ] || ulimit -S -n $(ulimit -H -n)
+-[ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -d $(ulimit -H -d)
++[ "$(ulimit -H -n)" = "unlimited" ] || ulimit -S -n $(ulimit -H -n)
++[ "$(ulimit -H -d)" = "unlimited" ] || ulimit -S -d $(ulimit -H -d)
+ 
+ # Thread count limit on NetBSD 7.
+ if ulimit -T &> /dev/null; then
+-	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
++	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+ fi
+ 
+ exec go tool dist test -rebuild "$@"

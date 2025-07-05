@@ -9,7 +9,7 @@ Date:   Thu Jan 19 15:51:29 2012 -0500
     R=sebastien.paolacci, rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/5531073
-
+---
  src/pkg/runtime/defs_darwin.go      |  3 +++
  src/pkg/runtime/defs_darwin_386.h   |  3 +++
  src/pkg/runtime/defs_darwin_amd64.h |  3 +++
@@ -17,3 +17,101 @@ Date:   Thu Jan 19 15:51:29 2012 -0500
  src/pkg/runtime/sys_darwin_386.s    |  7 +++++++
  src/pkg/runtime/sys_darwin_amd64.s  | 10 ++++++++++
  6 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_darwin.go b/src/pkg/runtime/defs_darwin.go
+index 80b7a4f277..7f22b0b8e5 100644
+--- a/src/pkg/runtime/defs_darwin.go
++++ b/src/pkg/runtime/defs_darwin.go
+@@ -34,6 +34,9 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
++	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_FREE     = C.MADV_FREE
++
+ 	MACH_MSG_TYPE_MOVE_RECEIVE   = C.MACH_MSG_TYPE_MOVE_RECEIVE
+ 	MACH_MSG_TYPE_MOVE_SEND      = C.MACH_MSG_TYPE_MOVE_SEND
+ 	MACH_MSG_TYPE_MOVE_SEND_ONCE = C.MACH_MSG_TYPE_MOVE_SEND_ONCE
+diff --git a/src/pkg/runtime/defs_darwin_386.h b/src/pkg/runtime/defs_darwin_386.h
+index 3606bad941..92732f4602 100644
+--- a/src/pkg/runtime/defs_darwin_386.h
++++ b/src/pkg/runtime/defs_darwin_386.h
+@@ -12,6 +12,9 @@ enum {
+ 	MAP_PRIVATE	= 0x2,
+ 	MAP_FIXED	= 0x10,
+ 
++	MADV_DONTNEED	= 0x4,
++	MADV_FREE	= 0x5,
++
+ 	MACH_MSG_TYPE_MOVE_RECEIVE	= 0x10,
+ 	MACH_MSG_TYPE_MOVE_SEND		= 0x11,
+ 	MACH_MSG_TYPE_MOVE_SEND_ONCE	= 0x12,
+diff --git a/src/pkg/runtime/defs_darwin_amd64.h b/src/pkg/runtime/defs_darwin_amd64.h
+index c28225f4cf..d4fbfef499 100644
+--- a/src/pkg/runtime/defs_darwin_amd64.h
++++ b/src/pkg/runtime/defs_darwin_amd64.h
+@@ -12,6 +12,9 @@ enum {
+ 	MAP_PRIVATE	= 0x2,
+ 	MAP_FIXED	= 0x10,
+ 
++	MADV_DONTNEED	= 0x4,
++	MADV_FREE	= 0x5,
++
+ 	MACH_MSG_TYPE_MOVE_RECEIVE	= 0x10,
+ 	MACH_MSG_TYPE_MOVE_SEND		= 0x11,
+ 	MACH_MSG_TYPE_MOVE_SEND_ONCE	= 0x12,
+diff --git a/src/pkg/runtime/mem_darwin.c b/src/pkg/runtime/mem_darwin.c
+index 3af7af99ae..cde5601cf7 100644
+--- a/src/pkg/runtime/mem_darwin.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -23,9 +23,8 @@ runtime·SysAlloc(uintptr n)
+ void
+ runtime·SysUnused(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call madvise MADV_DONTNEED
++	// Linux's MADV_DONTNEED is like BSD's MADV_FREE.
++	runtime·madvise(v, n, MADV_FREE);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 6ce1ba5533..b358509b19 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -48,6 +48,13 @@ TEXT runtime·mmap(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·madvise(SB),7,$0
++	MOVL	$75, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	runtime·notok(SB)
++	RET
++
+ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$73, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index e0dbdb7c16..095ba2fa53 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -55,6 +55,16 @@ TEXT runtime·setitimer(SB), 7, $0
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·madvise(SB), 7, $0
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVQ	16(SP), SI		// arg 2 len
++	MOVL	24(SP), DX		// arg 3 advice
++	MOVL	$(0x2000000+75), AX	// syscall entry madvise
++	SYSCALL
++	JCC	2(PC)
++	CALL	runtime·notok(SB)
++	RET
++
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+ 	MOVQ	SP, DI	// must be non-nil, unused

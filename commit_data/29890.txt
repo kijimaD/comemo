@@ -29,7 +29,72 @@ Date:   Fri Oct 14 00:59:19 2016 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/clone_test.go | 35 +++++++++++++++++++++++++++++++++++
  src/html/template/template.go   |  3 +++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index d7c62fa399..069064c98b 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"io/ioutil"
++	"sync"
+ 	"testing"
+ 	"text/template/parse"
+ )
+@@ -194,3 +195,37 @@ func TestFuncMapWorksAfterClone(t *testing.T) {
+ 		t.Errorf("clone error message mismatch want %q got %q", wantErr, gotErr)
+ 	}
+ }
++
++// https://golang.org/issue/16101
++func TestTemplateCloneExecuteRace(t *testing.T) {
++	const (
++		input   = `<title>{{block "a" .}}a{{end}}</title><body>{{block "b" .}}b{{end}}<body>`
++		overlay = `{{define "b"}}A{{end}}`
++	)
++	outer := Must(New("outer").Parse(input))
++	tmpl := Must(Must(outer.Clone()).Parse(overlay))
++
++	var wg sync.WaitGroup
++	for i := 0; i < 10; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 100; i++ {
++				if err := tmpl.Execute(ioutil.Discard, "data"); err != nil {
++					panic(err)
++				}
++			}
++		}()
++	}
++	wg.Wait()
++}
++
++func TestTemplateCloneLookup(t *testing.T) {
++	// Template.escape makes an assumption that the template associated
++	// with t.Name() is t. Check that this holds.
++	tmpl := Must(New("x").Parse("a"))
++	tmpl = Must(tmpl.Clone())
++	if tmpl.Lookup(tmpl.Name()) != tmpl {
++		t.Error("after Clone, tmpl.Lookup(tmpl.Name()) != tmpl")
++	}
++}
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 063e46d6bf..d5e195ff69 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -240,6 +240,9 @@ func (t *Template) Clone() (*Template, error) {
+ 	ret.set[ret.Name()] = ret
+ 	for _, x := range textClone.Templates() {
+ 		name := x.Name()
++		if name == ret.Name() {
++			continue
++		}
+ 		src := t.set[name]
+ 		if src == nil || src.escapeErr != nil {
+ 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())

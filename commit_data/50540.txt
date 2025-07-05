@@ -22,7 +22,59 @@ Date:   Mon Nov 1 06:42:01 2021 +0100
     Run-TryBot: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/strings/clone.go      |  5 +++++
  src/strings/clone_test.go | 11 ++++++++++-
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/strings/clone.go b/src/strings/clone.go
+index 6097c6cc88..edd1497d9e 100644
+--- a/src/strings/clone.go
++++ b/src/strings/clone.go
+@@ -16,7 +16,12 @@ import (
+ // overuse of Clone can make programs use more memory.
+ // Clone should typically be used only rarely, and only when
+ // profiling indicates that it is needed.
++// For strings of length zero the string "" will be returned
++// and no allocation is made.
+ func Clone(s string) string {
++	if len(s) == 0 {
++		return ""
++	}
+ 	b := make([]byte, len(s))
+ 	copy(b, s)
+ 	return *(*string)(unsafe.Pointer(&b))
+diff --git a/src/strings/clone_test.go b/src/strings/clone_test.go
+index 5396771047..a9ba8add23 100644
+--- a/src/strings/clone_test.go
++++ b/src/strings/clone_test.go
+@@ -11,9 +11,13 @@ import (
+ 	"unsafe"
+ )
+ 
++var emptyString string
++
+ func TestClone(t *testing.T) {
+ 	var cloneTests = []string{
+ 		"",
++		strings.Clone(""),
++		strings.Repeat("a", 42)[:0],
+ 		"short",
+ 		strings.Repeat("a", 42),
+ 	}
+@@ -25,9 +29,14 @@ func TestClone(t *testing.T) {
+ 
+ 		inputHeader := (*reflect.StringHeader)(unsafe.Pointer(&input))
+ 		cloneHeader := (*reflect.StringHeader)(unsafe.Pointer(&clone))
+-		if inputHeader.Data == cloneHeader.Data {
++		if len(input) != 0 && cloneHeader.Data == inputHeader.Data {
+ 			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
+ 		}
++
++		emptyHeader := (*reflect.StringHeader)(unsafe.Pointer(&emptyString))
++		if len(input) == 0 && cloneHeader.Data != emptyHeader.Data {
++			t.Errorf("Clone(%#v) return value should be equal to empty string.", inputHeader)
++		}
+ 	}
+ }
+ 

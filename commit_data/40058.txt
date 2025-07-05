@@ -13,7 +13,48 @@ Date:   Mon Jan 14 15:41:02 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/cookie.go      |  2 +-
  src/net/http/cookie_test.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 7d02796f30..fd8c71c645 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -173,7 +173,7 @@ func (c *Cookie) String() string {
+ 	const extraCookieLength = 110
+ 	var b strings.Builder
+ 	b.Grow(len(c.Name) + len(c.Value) + len(c.Domain) + len(c.Path) + extraCookieLength)
+-	b.WriteString(sanitizeCookieName(c.Name))
++	b.WriteString(c.Name)
+ 	b.WriteRune('=')
+ 	b.WriteString(sanitizeCookieValue(c.Value))
+ 
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 9536a69c20..bfaea46f8c 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -127,6 +127,22 @@ var writeSetCookiesTests = []struct {
+ 		&Cookie{Name: "\t"},
+ 		``,
+ 	},
++	{
++		&Cookie{Name: "\r"},
++		``,
++	},
++	{
++		&Cookie{Name: "a\nb", Value: "v"},
++		``,
++	},
++	{
++		&Cookie{Name: "a\nb", Value: "v"},
++		``,
++	},
++	{
++		&Cookie{Name: "a\rb", Value: "v"},
++		``,
++	},
+ }
+ 
+ func TestWriteSetCookies(t *testing.T) {

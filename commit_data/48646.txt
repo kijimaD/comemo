@@ -18,9 +18,87 @@ Date:   Thu Jun 3 18:25:47 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325109
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go    |  1 +
  src/cmd/compile/internal/ir/func.go    |  4 ++--
  src/cmd/compile/internal/walk/order.go | 14 ++++++--------
  test/fixedbugs/issue14999.go           |  4 ++--
  4 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 519120ed6b..856b255657 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -192,6 +192,7 @@ type ClosureExpr struct {
+ 	miniExpr
+ 	Func     *Func `mknode:"-"`
+ 	Prealloc *Name
++	IsGoWrap bool // whether this is wrapper closure of a go statement
+ }
+ 
+ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index ca6c8eca8b..1d76813a4c 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -301,8 +301,8 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
+ 			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
+ 		}
+ 	}
+-	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
+-		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
++	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap && !clo.IsGoWrap {
++		base.ErrorfAt(clo.Pos(), "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index b733d3a29f..19d9551566 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1570,8 +1570,9 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	// only in-register results?
+ 	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
+ 		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
+-			cloFunc := callX.(*ir.ClosureExpr).Func
+-			cloFunc.SetClosureCalled(false)
++			clo := callX.(*ir.ClosureExpr)
++			clo.Func.SetClosureCalled(false)
++			clo.IsGoWrap = true
+ 			c.PreserveClosure = true
+ 		}
+ 		return
+@@ -1777,12 +1778,9 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 
+ 	// Set escape properties for closure.
+ 	if n.Op() == ir.OGO {
+-		// For "go", assume that the closure is going to escape
+-		// (with an exception for the runtime, which doesn't
+-		// permit heap-allocated closures).
+-		if base.Ctxt.Pkgpath != "runtime" {
+-			clo.SetEsc(ir.EscHeap)
+-		}
++		// For "go", assume that the closure is going to escape.
++		clo.SetEsc(ir.EscHeap)
++		clo.IsGoWrap = true
+ 	} else {
+ 		// For defer, just use whatever result escape analysis
+ 		// has determined for the defer.
+diff --git a/test/fixedbugs/issue14999.go b/test/fixedbugs/issue14999.go
+index b648441fc2..a25a50e519 100644
+--- a/test/fixedbugs/issue14999.go
++++ b/test/fixedbugs/issue14999.go
+@@ -7,11 +7,11 @@
+ package p
+ 
+ func f(x int) func(int) int {
+-	return func(y int) int { return x + y } // ERROR "heap-allocated closure, not allowed in runtime"
++	return func(y int) int { return x + y } // ERROR "heap-allocated closure f\.func1, not allowed in runtime"
+ }
+ 
+ func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtime"
+-	return func(y int) int { // ERROR "heap-allocated closure, not allowed in runtime"
++	return func(y int) int { // ERROR "heap-allocated closure g\.func1, not allowed in runtime"
+ 		x += y
+ 		return x + y
+ 	}

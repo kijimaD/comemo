@@ -19,7 +19,58 @@ Date:   Sat Mar 29 13:04:25 2014 +0900
     R=jsing, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/80610044
-
+---
  src/pkg/net/sockopt_bsd.go  | 13 +++++++++++++
  src/pkg/syscall/net_nacl.go |  8 ++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index c0255f1644..77d51d7376 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -8,10 +8,23 @@ package net
+ 
+ import (
+ 	"os"
++	"runtime"
+ 	"syscall"
+ )
+ 
+ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	if runtime.GOOS == "dragonfly" && sotype != syscall.SOCK_RAW {
++		// On DragonFly BSD, we adjust the ephemeral port
++		// range because unlike other BSD systems its default
++		// port range doesn't conform to IANA recommendation
++		// as described in RFC 6355 and is pretty narrow.
++		switch family {
++		case syscall.AF_INET:
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IP, syscall.IP_PORTRANGE, syscall.IP_PORTRANGE_HIGH)
++		case syscall.AF_INET6:
++			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_PORTRANGE, syscall.IPV6_PORTRANGE_HIGH)
++		}
++	}
+ 	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
+ 		// Allow both IP versions even if the OS default
+ 		// is otherwise.  Note that some operating systems
+diff --git a/src/pkg/syscall/net_nacl.go b/src/pkg/syscall/net_nacl.go
+index a2588d0419..aaa8b71119 100644
+--- a/src/pkg/syscall/net_nacl.go
++++ b/src/pkg/syscall/net_nacl.go
+@@ -113,9 +113,17 @@ const (
+ 	SO_KEEPALIVE
+ 	SO_LINGER
+ 	SO_ERROR
++	IP_PORTRANGE
++	IP_PORTRANGE_DEFAULT
++	IP_PORTRANGE_LOW
++	IP_PORTRANGE_HIGH
+ 	IP_MULTICAST_IF
+ 	IP_MULTICAST_LOOP
+ 	IP_ADD_MEMBERSHIP
++	IPV6_PORTRANGE
++	IPV6_PORTRANGE_DEFAULT
++	IPV6_PORTRANGE_LOW
++	IPV6_PORTRANGE_HIGH
+ 	IPV6_MULTICAST_IF
+ 	IPV6_MULTICAST_LOOP
+ 	IPV6_JOIN_GROUP

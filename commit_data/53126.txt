@@ -16,6 +16,30 @@ Date:   Thu Jul 14 12:09:19 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/encoding/xml/read_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 58d1eddb61..35385c6490 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"errors"
+ 	"io"
+ 	"reflect"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -1112,8 +1111,8 @@ func TestCVE202228131(t *testing.T) {
+ }
+ 
+ func TestCVE202230633(t *testing.T) {
+-	if runtime.GOARCH == "wasm" {
+-		t.Skip("causes memory exhaustion on js/wasm")
++	if testing.Short() {
++		t.Skip("test requires significant memory")
+ 	}
+ 	defer func() {
+ 		p := recover()

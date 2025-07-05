@@ -9,6 +9,22 @@ Date:   Fri Mar 13 14:38:25 2015 +1100
     Change-Id: Ibb8ea9bcf512e7639c57a6f17afbe4495fa329cd
     Reviewed-on: https://go-review.googlesource.com/7494
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/image/jpeg/reader.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 12b20a6922..5c5465283a 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -331,6 +331,10 @@ func (d *decoder) processSOF(n int) error {
+ 		}
+ 
+ 		d.comp[i].tq = d.tmp[8+3*i]
++		if d.comp[i].tq > maxTq {
++			return FormatError("bad Tq value")
++		}
++
+ 		hv := d.tmp[7+3*i]
+ 		h, v := int(hv>>4), int(hv&0x0f)
+ 		if h < 1 || 4 < h || v < 1 || 4 < v {

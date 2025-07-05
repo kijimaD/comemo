@@ -8,8 +8,45 @@ Date:   Thu Aug 15 14:29:04 2013 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/12971043
-
+---
  src/pkg/os/exec/lp_plan9.go   | 1 +
  src/pkg/os/exec/lp_unix.go    | 1 +
  src/pkg/os/exec/lp_windows.go | 1 +
  3 files changed, 3 insertions(+)
+
+diff --git a/src/pkg/os/exec/lp_plan9.go b/src/pkg/os/exec/lp_plan9.go
+index 6846a35c85..5aa8a54ed8 100644
+--- a/src/pkg/os/exec/lp_plan9.go
++++ b/src/pkg/os/exec/lp_plan9.go
+@@ -28,6 +28,7 @@ func findExecutable(file string) error {
+ // in the directories named by the path environment variable.
+ // If file begins with "/", "#", "./", or "../", it is tried
+ // directly and the path is not consulted.
++// The result may be an absolute path or a path relative to the current directory.
+ func LookPath(file string) (string, error) {
+ 	// skip the path lookup for these prefixes
+ 	skip := []string{"/", "#", "./", "../"}
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index 1d1ec07da4..7aee50cb78 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -29,6 +29,7 @@ func findExecutable(file string) error {
+ // LookPath searches for an executable binary named file
+ // in the directories named by the PATH environment variable.
+ // If file contains a slash, it is tried directly and the PATH is not consulted.
++// The result may be an absolute path or a path relative to the current directory.
+ func LookPath(file string) (string, error) {
+ 	// NOTE(rsc): I wish we could use the Plan 9 behavior here
+ 	// (only bypass the path if file begins with / or ./ or ../)
+diff --git a/src/pkg/os/exec/lp_windows.go b/src/pkg/os/exec/lp_windows.go
+index 7c7289bcee..7ec4c74043 100644
+--- a/src/pkg/os/exec/lp_windows.go
++++ b/src/pkg/os/exec/lp_windows.go
+@@ -47,6 +47,7 @@ func findExecutable(file string, exts []string) (string, error) {
+ // If file contains a slash, it is tried directly and the PATH is not consulted.
+ // LookPath also uses PATHEXT environment variable to match
+ // a suitable candidate.
++// The result may be an absolute path or a path relative to the current directory.
+ func LookPath(file string) (f string, err error) {
+ 	x := os.Getenv(`PATHEXT`)
+ 	if x == `` {

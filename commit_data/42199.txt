@@ -16,7 +16,52 @@ Date:   Wed Nov 13 06:53:22 2019 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat.go      |  2 +-
  src/math/big/nat_test.go | 13 ++++++++++---
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 6667319100..9d7da1ee16 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -941,7 +941,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
+ 	}
+ 	c := subVV(u[0:len(qhatv)], u[0:len(qhatv)], qhatv)
+ 	if c > 0 {
+-		c = subVW(u[len(qhatv):B+n], u[len(qhatv):B+n], c)
++		c = subVW(u[len(qhatv):], u[len(qhatv):], c)
+ 	}
+ 	if c > 0 {
+ 		panic("impossible")
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index cbbaf02771..32f29e3876 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -765,16 +765,23 @@ func TestNatDiv(t *testing.T) {
+ 			if len(b) == 1 && b[0] == 1 {
+ 				b[0] = 2
+ 			}
++			// choose a remainder c < b
++			c := rndNat1(len(b))
++			if len(c) == len(b) && c[len(c)-1] >= b[len(b)-1] {
++				c[len(c)-1] = 0
++				c = c.norm()
++			}
++			// compute x = a*b+c
+ 			x := nat(nil).mul(a, b)
+-			addVW(x, x, 1)
++			x = x.add(x, c)
+ 
+ 			var q, r nat
+ 			q, r = q.div(r, x, b)
+ 			if q.cmp(a) != 0 {
+ 				t.Fatalf("wrong quotient: got %s; want %s for %s/%s", q.utoa(10), a.utoa(10), x.utoa(10), b.utoa(10))
+ 			}
+-			if len(r) != 1 || r[0] != 1 {
+-				t.Fatalf("wrong remainder: got %s; want 1 for %s/%s", r.utoa(10), x.utoa(10), b.utoa(10))
++			if r.cmp(c) != 0 {
++				t.Fatalf("wrong remainder: got %s; want %s for %s/%s", r.utoa(10), c.utoa(10), x.utoa(10), b.utoa(10))
+ 			}
+ 		}
+ 	}

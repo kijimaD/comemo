@@ -10,7 +10,98 @@ Date:   Tue May 21 21:18:10 2013 -0700
     R=rsc, nightlyone
     CC=golang-dev
     https://golang.org/cl/9611048
-
+---
  src/cmd/go/pkg.go  | 12 ++++++------
  src/cmd/go/tool.go | 34 ++++++++++++++++++++++++----------
  2 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index b33d800bfb..a629d610f4 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -272,11 +272,11 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ // isGoTool is the list of directories for Go programs that are installed in
+ // $GOROOT/pkg/tool.
+ var isGoTool = map[string]bool{
+-	"cmd/api":  true,
+-	"cmd/cgo":  true,
+-	"cmd/fix":  true,
+-	"cmd/vet":  true,
+-	"cmd/yacc": true,
++	"cmd/api":                            true,
++	"cmd/cgo":                            true,
++	"cmd/fix":                            true,
++	"cmd/yacc":                           true,
++	"code.google.com/p/go.tools/cmd/vet": true,
+ }
+ 
+ // expandScanner expands a scanner.List error into all the errors in the list.
+@@ -329,7 +329,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		if p.build.BinDir != "" {
+ 			p.target = filepath.Join(p.build.BinDir, elem)
+ 		}
+-		if p.Goroot && (isGoTool[p.ImportPath] || strings.HasPrefix(p.ImportPath, "exp/")) {
++		if isGoTool[p.ImportPath] {
+ 			p.target = filepath.Join(gorootPkg, "tool", full)
+ 		}
+ 		if p.target != "" && buildContext.GOOS == "windows" {
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 299b94cb36..2d7db29152 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -45,12 +45,30 @@ func init() {
+ 
+ const toolWindowsExtension = ".exe"
+ 
+-func tool(name string) string {
+-	p := filepath.Join(toolDir, name)
+-	if toolIsWindows && name != "pprof" {
+-		p += toolWindowsExtension
++func tool(toolName string) string {
++	toolPath := filepath.Join(toolDir, toolName)
++	if toolIsWindows && toolName != "pprof" {
++		toolPath += toolWindowsExtension
+ 	}
+-	return p
++	// Give a nice message if there is no tool with that name.
++	if _, err := os.Stat(toolPath); err != nil {
++		if isInGoToolsRepo(toolName) {
++			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo install code.google.com/p/go.tools/cmd/%s\n", toolName, toolName)
++		} else {
++			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
++		}
++		setExitStatus(3)
++		exit()
++	}
++	return toolPath
++}
++
++func isInGoToolsRepo(toolName string) bool {
++	switch toolName {
++	case "vet":
++		return true
++	}
++	return false
+ }
+ 
+ func runTool(cmd *Command, args []string) {
+@@ -70,10 +88,7 @@ func runTool(cmd *Command, args []string) {
+ 		}
+ 	}
+ 	toolPath := tool(toolName)
+-	// Give a nice message if there is no tool with that name.
+-	if _, err := os.Stat(toolPath); err != nil {
+-		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+-		setExitStatus(3)
++	if toolPath == "" {
+ 		return
+ 	}
+ 	if toolIsWindows && toolName == "pprof" {
+@@ -86,7 +101,6 @@ func runTool(cmd *Command, args []string) {
+ 			return
+ 		}
+ 	}
+-
+ 	if toolN {
+ 		fmt.Printf("%s %s\n", toolPath, strings.Join(args[1:], " "))
+ 		return

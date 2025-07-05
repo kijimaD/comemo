@@ -7,7 +7,32 @@ Date:   Thu Oct 11 11:20:01 2012 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6642068
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 9d205cc71e..e18726cee3 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -121,6 +121,7 @@ Jeff R. Allen <jra@nella.org>
+ Jeff Wendling <jeff@spacemonkey.com>
+ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
++Jimmy Zelinskie <jimmyzelinskie@gmail.com>
+ Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9bb0b2940b..9073ae7849 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -181,6 +181,7 @@ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jeff Wendling <jeff@spacemonkey.com>
+ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
++Jimmy Zelinskie <jimmyzelinskie@gmail.com>
+ Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Joel Sing <jsing@google.com>

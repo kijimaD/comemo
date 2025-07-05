@@ -20,8 +20,54 @@ Date:   Tue Oct 18 16:05:38 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5268044
-
+---
  src/cmd/5l/asm.c | 4 ++--
  src/cmd/6l/asm.c | 4 ++--
  src/cmd/8l/asm.c | 4 ++--
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 46fb6b6323..f7fa688be1 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -632,8 +632,8 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		cflush();
+-		if(a+elfwriteinterp() > ELFRESERVE)	
++		a += elfwriteinterp();
++		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	}
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index dfb065e51c..8c6bab8399 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -1095,8 +1095,8 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		cflush();
+-		if(a+elfwriteinterp() > ELFRESERVE)	
++		a += elfwriteinterp();
++		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 119c8364b0..948d4889ca 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -1160,8 +1160,8 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		cflush();
+-		if(a+elfwriteinterp() > ELFRESERVE)	
++		a += elfwriteinterp();
++		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 

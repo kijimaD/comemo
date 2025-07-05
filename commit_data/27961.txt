@@ -8,6 +8,20 @@ Date:   Thu Apr 21 15:55:50 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/22360
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index e2319ec94c..1a8bdc106a 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -393,7 +393,7 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
+   -Z int
+     	an int that defaults to zero
+   -maxT timeout
+-    	set timeout for dial
++    	set timeout for dial (default 0s)
+ `
+ 
+ func TestPrintDefaults(t *testing.T) {

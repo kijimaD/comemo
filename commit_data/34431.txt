@@ -15,6 +15,20 @@ Date:   Sat Sep 30 13:47:48 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/70988
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index eba817e706..13fa9faacb 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -161,7 +161,7 @@ func dialClosedPort() (actual, expected time.Duration) {
+ 	// but other platforms should be instantaneous.
+ 	if runtime.GOOS == "windows" {
+ 		expected = 1500 * time.Millisecond
+-	} else if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++	} else if runtime.GOOS == "darwin" {
+ 		expected = 150 * time.Millisecond
+ 	} else {
+ 		expected = 95 * time.Millisecond

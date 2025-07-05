@@ -14,6 +14,20 @@ Date:   Sat Aug 19 00:21:00 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/os/exec/lp_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 4d85a5f415..efa26e7c46 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -45,7 +45,7 @@ func cmdExec(args ...string) {
+ 		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
+ 		os.Exit(1)
+ 	}
+-	fmt.Printf("%s", string(output))
++	fmt.Printf("%s", output)
+ }
+ 
+ func installExe(t *testing.T, dest, src string) {

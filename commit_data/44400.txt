@@ -18,7 +18,75 @@ Date:   Wed Jun 24 20:59:18 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go | 16 +++++++---------
  test/fixedbugs/issue39459.go              | 22 ++++++++++++++++++++++
  2 files changed, 29 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 88af7a6f4a..0664013b39 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -73,9 +73,11 @@ func dse(f *Func) {
+ 		}
+ 
+ 		// Walk backwards looking for dead stores. Keep track of shadowed addresses.
+-		// An "address" is an SSA Value which encodes both the address and size of
+-		// the write. This code will not remove dead stores to the same address
+-		// of different types.
++		// A "shadowed address" is a pointer and a size describing a memory region that
++		// is known to be written. We keep track of shadowed addresses in the shadowed
++		// map, mapping the ID of the address to the size of the shadowed region.
++		// Since we're walking backwards, writes to a shadowed region are useless,
++		// as they will be immediately overwritten.
+ 		shadowed.clear()
+ 		v := last
+ 
+@@ -93,17 +95,13 @@ func dse(f *Func) {
+ 				sz = v.AuxInt
+ 			}
+ 			if shadowedSize := int64(shadowed.get(v.Args[0].ID)); shadowedSize != -1 && shadowedSize >= sz {
+-				// Modify store into a copy
++				// Modify the store/zero into a copy of the memory state,
++				// effectively eliding the store operation.
+ 				if v.Op == OpStore {
+ 					// store addr value mem
+ 					v.SetArgs1(v.Args[2])
+ 				} else {
+ 					// zero addr mem
+-					typesz := v.Args[0].Type.Elem().Size()
+-					if sz != typesz {
+-						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
+-							sz, typesz, v.LongString())
+-					}
+ 					v.SetArgs1(v.Args[1])
+ 				}
+ 				v.Aux = nil
+diff --git a/test/fixedbugs/issue39459.go b/test/fixedbugs/issue39459.go
+new file mode 100644
+index 0000000000..de78a17ce2
+--- /dev/null
++++ b/test/fixedbugs/issue39459.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct { // big enough to be an unSSAable type
++	a, b, c, d, e, f int
++}
++
++func f(x interface{}, p *int) {
++	_ = *p // trigger nil check here, removing it from below
++	switch x := x.(type) {
++	case *T:
++		// Zero twice, so one of them will be removed by the deadstore pass
++		*x = T{}
++		*p = 0 // store op to prevent Zero ops from being optimized by the earlier opt pass rewrite rules
++		*x = T{}
++	}
++}

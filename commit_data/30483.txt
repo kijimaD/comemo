@@ -15,6 +15,35 @@ Date:   Tue Nov 8 17:46:10 2016 +0530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 705c44d143..eb4454411f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1703,11 +1703,11 @@ func TestReadAtEOF(t *testing.T) {
+ 
+ func TestLongPath(t *testing.T) {
+ 	tmpdir := newDir("TestLongPath", t)
+-	defer func() {
+-		if err := RemoveAll(tmpdir); err != nil {
++	defer func(d string) {
++		if err := RemoveAll(d); err != nil {
+ 			t.Fatalf("RemoveAll failed: %v", err)
+ 		}
+-	}()
++	}(tmpdir)
+ 	for len(tmpdir) < 400 {
+ 		tmpdir += "/dir3456789"
+ 	}
+@@ -1751,7 +1751,7 @@ func TestLongPath(t *testing.T) {
+ 			}
+ 		}
+ 		if err := Truncate(tmpdir+"/bar.txt", 0); err != nil {
+-			t.Fatalf("Truncate failed: %v")
++			t.Fatalf("Truncate failed: %v", err)
+ 		}
+ 	}
+ }

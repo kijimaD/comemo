@@ -9,7 +9,53 @@ Date:   Sat Apr 28 09:47:15 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6133049
-
+---
  misc/dashboard/codereview/app.yaml        |  2 +-
  misc/dashboard/codereview/dashboard/cl.go | 19 +++++++++++--------
  2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/misc/dashboard/codereview/app.yaml b/misc/dashboard/codereview/app.yaml
+index 33592a45c4..372eca5a15 100644
+--- a/misc/dashboard/codereview/app.yaml
++++ b/misc/dashboard/codereview/app.yaml
+@@ -16,7 +16,7 @@ handlers:
+ - url: /_ah/queue/go/delay
+   script: _go_app
+   login: admin
+-- url: /update-cl
++- url: /(gc|update-cl)
+   script: _go_app
+   login: admin
+ - url: /.*
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index e427176109..80493aa5bd 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -80,16 +80,19 @@ func (cl *CL) LGTMHTML() template.HTML {
+ 
+ func (cl *CL) ModifiedAgo() string {
+ 	// Just the first non-zero unit.
+-	units := map[string]time.Duration{
+-		"d": 24 * time.Hour,
+-		"h": time.Hour,
+-		"m": time.Minute,
+-		"s": time.Second,
++	units := [...]struct {
++		suffix string
++		unit   time.Duration
++	}{
++		{"d", 24 * time.Hour},
++		{"h", time.Hour},
++		{"m", time.Minute},
++		{"s", time.Second},
+ 	}
+ 	d := time.Now().Sub(cl.Modified)
+-	for suffix, u := range units {
+-		if d > u {
+-			return fmt.Sprintf("%d%s", d/u, suffix)
++	for _, u := range units {
++		if d > u.unit {
++			return fmt.Sprintf("%d%s", d/u.unit, u.suffix)
+ 		}
+ 	}
+ 	return "just now"

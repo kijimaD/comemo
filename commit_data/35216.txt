@@ -9,8 +9,189 @@ Date:   Wed Jan 10 17:48:37 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 47 ++++++++++++++++
  misc/cgo/testcshared/cshared_test.go   | 97 ++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/exec.go       |  2 +-
  3 files changed, 145 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 7ba5faabeb..79633659da 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -642,3 +642,50 @@ func TestCompileWithoutShared(t *testing.T) {
+ 	t.Logf("%s", out)
+ 	expectSignal(t, err, syscall.SIGPIPE)
+ }
++
++// Test that installing a second time recreates the header files.
++func TestCachedInstall(t *testing.T) {
++	defer os.RemoveAll("pkg")
++
++	h1 := filepath.Join("pkg", libgodir, "libgo.h")
++	h2 := filepath.Join("pkg", libgodir, "p.h")
++
++	buildcmd := []string{"go", "install", "-i", "-buildmode=c-archive", "libgo"}
++
++	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
++	cmd.Env = gopathEnv
++	t.Log(buildcmd)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if _, err := os.Stat(h1); err != nil {
++		t.Errorf("libgo.h not installed: %v", err)
++	}
++	if _, err := os.Stat(h2); err != nil {
++		t.Errorf("p.h not installed: %v", err)
++	}
++
++	if err := os.Remove(h1); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Remove(h2); err != nil {
++		t.Fatal(err)
++	}
++
++	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
++	cmd.Env = gopathEnv
++	t.Log(buildcmd)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if _, err := os.Stat(h1); err != nil {
++		t.Errorf("libgo.h not installed in second run: %v", err)
++	}
++	if _, err := os.Stat(h2); err != nil {
++		t.Errorf("p.h not installed in second run: %v", err)
++	}
++}
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 49be092396..b9499fcf37 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -7,6 +7,7 @@ package cshared_test
+ import (
+ 	"debug/elf"
+ 	"fmt"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -477,3 +478,99 @@ func TestPIE(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that installing a second time recreates the header files.
++func TestCachedInstall(t *testing.T) {
++	tmpdir, err := ioutil.TempDir("", "cshared")
++	if err != nil {
++		t.Fatal(err)
++	}
++	// defer os.RemoveAll(tmpdir)
++
++	copyFile(t, filepath.Join(tmpdir, "src", "libgo", "libgo.go"), filepath.Join("src", "libgo", "libgo.go"))
++	copyFile(t, filepath.Join(tmpdir, "src", "p", "p.go"), filepath.Join("src", "p", "p.go"))
++
++	env := append(os.Environ(), "GOPATH="+tmpdir)
++
++	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "libgo"}
++
++	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
++	cmd.Env = env
++	t.Log(buildcmd)
++	out, err := cmd.CombinedOutput()
++	t.Logf("%s", out)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var libgoh, ph string
++
++	walker := func(path string, info os.FileInfo, err error) error {
++		if err != nil {
++			t.Fatal(err)
++		}
++		var ps *string
++		switch filepath.Base(path) {
++		case "libgo.h":
++			ps = &libgoh
++		case "p.h":
++			ps = &ph
++		}
++		if ps != nil {
++			if *ps != "" {
++				t.Fatalf("%s found again", *ps)
++			}
++			*ps = path
++		}
++		return nil
++	}
++
++	if err := filepath.Walk(tmpdir, walker); err != nil {
++		t.Fatal(err)
++	}
++
++	if libgoh == "" {
++		t.Fatal("libgo.h not installed")
++	}
++	if ph == "" {
++		t.Fatal("p.h not installed")
++	}
++
++	if err := os.Remove(libgoh); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Remove(ph); err != nil {
++		t.Fatal(err)
++	}
++
++	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
++	cmd.Env = env
++	t.Log(buildcmd)
++	out, err = cmd.CombinedOutput()
++	t.Logf("%s", out)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if _, err := os.Stat(libgoh); err != nil {
++		t.Errorf("libgo.h not installed in second run: %v", err)
++	}
++	if _, err := os.Stat(ph); err != nil {
++		t.Errorf("p.h not installed in second run: %v", err)
++	}
++}
++
++// copyFile copies src to dst.
++func copyFile(t *testing.T, dst, src string) {
++	t.Helper()
++	data, err := ioutil.ReadFile(src)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
++		t.Fatal(err)
++	}
++	if err := ioutil.WriteFile(dst, data, 0666); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index a91ee7702c..58bab5cb2f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -308,7 +308,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 			// Need to look for install header actions depending on this action,
+ 			// or depending on a link that depends on this action.
+ 			needHeader := false
+-			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-header") {
++			if (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
+ 				for _, t1 := range a.triggers {
+ 					if t1.Mode == "install header" {
+ 						needHeader = true

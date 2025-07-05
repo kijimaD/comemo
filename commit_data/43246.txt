@@ -17,7 +17,7 @@ Date:   Fri Mar 20 09:59:53 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        |   2 -
  src/cmd/compile/internal/ssa/gen/386Ops.go   |  30 +--
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  12 +-
@@ -25,3 +25,1242 @@ Date:   Fri Mar 20 09:59:53 2020 -0700
  src/cmd/compile/internal/ssa/opGen.go        | 387 +++++++++++----------------
  src/cmd/compile/internal/ssa/rewritePPC64.go | 168 ++++--------
  6 files changed, 255 insertions(+), 386 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index ce30c9ae37..0ab21604e5 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -794,7 +794,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.From.Index = v.Args[1].Reg()
+-		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+@@ -823,7 +822,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Index = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+-		gc.AddAux(&p.To, v)
+ 
+ 	case ssa.OpPPC64ISEL, ssa.OpPPC64ISELB:
+ 		// ISEL, ISELB
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 426fe48c2a..0663a34764 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -298,12 +298,12 @@ func init() {
+ 		{name: "XORLload", argLength: 3, reg: gp21load, asm: "XORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},  // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
+ 
+ 		// binary-op with an indexed memory source operand
+-		{name: "ADDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ADDL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},  // arg0 + tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
+-		{name: "SUBLloadidx4", argLength: 4, reg: gp21loadidx, asm: "SUBL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},  // arg0 - tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
+-		{name: "MULLloadidx4", argLength: 4, reg: gp21loadidx, asm: "IMULL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
+-		{name: "ANDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ANDL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},  // arg0 & tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
+-		{name: "ORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},    // arg0 | tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
+-		{name: "XORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "XORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},  // arg0 ^ tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
++		{name: "ADDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ADDL", aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},  // arg0 + tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
++		{name: "SUBLloadidx4", argLength: 4, reg: gp21loadidx, asm: "SUBL", aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},  // arg0 - tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
++		{name: "MULLloadidx4", argLength: 4, reg: gp21loadidx, asm: "IMULL", aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 * tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
++		{name: "ANDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ANDL", aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},  // arg0 & tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
++		{name: "ORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},    // arg0 | tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
++		{name: "XORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "XORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},  // arg0 ^ tmp, tmp loaded from  arg1+arg2*4+auxint+aux, arg3 = mem
+ 
+ 		// unary ops
+ 		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true, clobberFlags: true}, // -arg0
+@@ -386,11 +386,11 @@ func init() {
+ 		{name: "XORLmodify", argLength: 3, reg: gpstore, asm: "XORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) ^= arg1, arg2=mem
+ 
+ 		// direct binary-op on indexed memory (read-modify-write)
+-		{name: "ADDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ADDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) += arg2, arg3=mem
+-		{name: "SUBLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "SUBL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) -= arg2, arg3=mem
+-		{name: "ANDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ANDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) &= arg2, arg3=mem
+-		{name: "ORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+arg1*4+auxint+aux) |= arg2, arg3=mem
+-		{name: "XORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "XORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) ^= arg2, arg3=mem
++		{name: "ADDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ADDL", aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) += arg2, arg3=mem
++		{name: "SUBLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "SUBL", aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) -= arg2, arg3=mem
++		{name: "ANDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ANDL", aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) &= arg2, arg3=mem
++		{name: "ORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ORL", aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+arg1*4+auxint+aux) |= arg2, arg3=mem
++		{name: "XORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "XORL", aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+arg1*4+auxint+aux) ^= arg2, arg3=mem
+ 
+ 		// direct binary-op on memory with a constant (read-modify-write)
+ 		{name: "ADDLconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+@@ -399,10 +399,10 @@ func init() {
+ 		{name: "XORLconstmodify", argLength: 2, reg: gpstoreconst, asm: "XORL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // xor ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+ 
+ 		// direct binary-op on indexed memory with a constant (read-modify-write)
+-		{name: "ADDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // add ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
+-		{name: "ANDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // and ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
+-		{name: "ORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ORL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},   // or  ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
+-		{name: "XORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "XORL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // xor ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
++		{name: "ADDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // add ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
++		{name: "ANDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // and ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
++		{name: "ORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ORL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // or  ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
++		{name: "XORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "XORL", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // xor ValAndOff(AuxInt).Val() to arg0+arg1*4+ValAndOff(AuxInt).Off()+aux, arg2=mem
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBLZX", aux: "SymOff", symEffect: "Read"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index c53ec0fde1..740f9fbaa7 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -872,7 +872,7 @@
+     (MOVBstorezero [off1+off2] {sym} x mem)
+ 
+ // Stores with addressing that can be done as indexed stores
+-(MOV(D|W|H|B)store [off] {sym} p:(ADD ptr idx) val mem) && off == 0 && sym == nil && p.Uses == 1 -> (MOV(D|W|H|B)storeidx ptr idx val mem)
++(MOV(D|W|H|B)store [0] {sym} p:(ADD ptr idx) val mem) && sym == nil && p.Uses == 1 -> (MOV(D|W|H|B)storeidx ptr idx val mem)
+ 
+ // Stores with constant index values can be done without indexed instructions
+ (MOVDstoreidx ptr (MOVDconst [c]) val mem) && is16Bit(c) && c%4 == 0 -> (MOVDstore [c] ptr val mem)
+@@ -966,11 +966,11 @@
+ (MOVWstore [off] {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
+ (MOVBstore [off] {sym} ptr (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstore [off] {sym} ptr (SRWconst <typ.UInt32> x [c]) mem)
+ (MOVBstore [off] {sym} ptr (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstore [off] {sym} ptr (SRWconst <typ.UInt32> x [c]) mem)
+-(MOVBstoreidx [off] {sym} ptr idx (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstoreidx [off] {sym} ptr idx x mem)
+-(MOVHstoreidx [off] {sym} ptr idx (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstoreidx [off] {sym} ptr idx x mem)
+-(MOVWstoreidx [off] {sym} ptr idx (MOV(W|WZ)reg x) mem) -> (MOVWstoreidx [off] {sym} ptr idx x mem)
+-(MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+-(MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
++(MOVBstoreidx ptr idx (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstoreidx ptr idx x mem)
++(MOVHstoreidx ptr idx (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstoreidx ptr idx x mem)
++(MOVWstoreidx ptr idx (MOV(W|WZ)reg x) mem) -> (MOVWstoreidx ptr idx x mem)
++(MOVBstoreidx ptr idx (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
++(MOVBstoreidx ptr idx (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+ (MOVHBRstore {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHBRstore {sym} ptr x mem)
+ (MOVWBRstore {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWBRstore {sym} ptr x mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index d0a22c1f20..4509c48570 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -304,17 +304,18 @@ func init() {
+ 		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes zero extend reverse order
+ 
+ 		// In these cases an index register is used in addition to a base register
+-		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},  // zero extend uint8 to uint64
+-		{name: "MOVHloadidx", argLength: 3, reg: gploadidx, asm: "MOVH", aux: "SymOff", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"},    // sign extend int16 to int64
+-		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // zero extend uint16 to uint64
+-		{name: "MOVWloadidx", argLength: 3, reg: gploadidx, asm: "MOVW", aux: "SymOff", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"},    // sign extend int32 to int64
+-		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // zero extend uint32 to uint64
+-		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, asm: "MOVD", aux: "SymOff", typ: "Int64", faultOnNilArg0: true, symEffect: "Read"},
+-		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVHBR", aux: "SymOff", typ: "Int16", faultOnNilArg0: true, symEffect: "Read"}, // sign extend int16 to int64
+-		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVWBR", aux: "SymOff", typ: "Int32", faultOnNilArg0: true, symEffect: "Read"}, // sign extend int32 to int64
+-		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVDBR", aux: "SymOff", typ: "Int64", faultOnNilArg0: true, symEffect: "Read"},
+-		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"},
+-		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", aux: "SymOff", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"},
++		// Loads from memory location arg[0] + arg[1].
++		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, asm: "MOVBZ", typ: "UInt8"},  // zero extend uint8 to uint64
++		{name: "MOVHloadidx", argLength: 3, reg: gploadidx, asm: "MOVH", typ: "Int16"},    // sign extend int16 to int64
++		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, asm: "MOVHZ", typ: "UInt16"}, // zero extend uint16 to uint64
++		{name: "MOVWloadidx", argLength: 3, reg: gploadidx, asm: "MOVW", typ: "Int32"},    // sign extend int32 to int64
++		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, asm: "MOVWZ", typ: "UInt32"}, // zero extend uint32 to uint64
++		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, asm: "MOVD", typ: "Int64"},
++		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVHBR", typ: "Int16"}, // sign extend int16 to int64
++		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVWBR", typ: "Int32"}, // sign extend int32 to int64
++		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, asm: "MOVDBR", typ: "Int64"},
++		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", typ: "Float64"},
++		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", typ: "Float32"},
+ 
+ 		// Store bytes in the reverse endian order of the arch into arg0.
+ 		// These are indexed stores with no offset field in the instruction so the auxint fields are not used.
+@@ -337,15 +338,16 @@ func init() {
+ 		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store single float
+ 
+ 		// Stores using index and base registers
+-		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store bye
+-		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVH", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store half word
+-		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store word
+-		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store double word
+-		{name: "FMOVDstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store double float
+-		{name: "FMOVSstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store single float
+-		{name: "MOVHBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVHBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store half word reversed byte using index reg
+-		{name: "MOVWBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVWBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store word reversed byte using index reg
+-		{name: "MOVDBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVDBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store double word reversed byte using index reg
++		// Stores to arg[0] + arg[1]
++		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVB", typ: "Mem"},     // store bye
++		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVH", typ: "Mem"},     // store half word
++		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVW", typ: "Mem"},     // store word
++		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVD", typ: "Mem"},     // store double word
++		{name: "FMOVDstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVD", typ: "Mem"},   // store double float
++		{name: "FMOVSstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVS", typ: "Mem"},   // store single float
++		{name: "MOVHBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVHBR", typ: "Mem"}, // store half word reversed byte using index reg
++		{name: "MOVWBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVWBR", typ: "Mem"}, // store word reversed byte using index reg
++		{name: "MOVDBRstoreidx", argLength: 4, reg: gpstoreidx, asm: "MOVDBR", typ: "Mem"}, // store double word reversed byte using index reg
+ 
+ 		// The following ops store 0 into arg0+aux+auxint arg1=mem
+ 		{name: "MOVBstorezero", argLength: 2, reg: gpstorezero, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store zero 1 byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d7913eec9c..664e253c0f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4342,14 +4342,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ADDLloadidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		resultInArg0:   true,
+-		clobberFlags:   true,
+-		faultOnNilArg1: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AADDL,
++		name:         "ADDLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239},   // AX CX DX BX BP SI DI
+@@ -4362,14 +4361,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "SUBLloadidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		resultInArg0:   true,
+-		clobberFlags:   true,
+-		faultOnNilArg1: true,
+-		symEffect:      SymRead,
+-		asm:            x86.ASUBL,
++		name:         "SUBLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239},   // AX CX DX BX BP SI DI
+@@ -4382,14 +4380,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MULLloadidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		resultInArg0:   true,
+-		clobberFlags:   true,
+-		faultOnNilArg1: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AIMULL,
++		name:         "MULLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AIMULL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239},   // AX CX DX BX BP SI DI
+@@ -4402,14 +4399,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ANDLloadidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		resultInArg0:   true,
+-		clobberFlags:   true,
+-		faultOnNilArg1: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AANDL,
++		name:         "ANDLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239},   // AX CX DX BX BP SI DI
+@@ -4422,14 +4418,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ORLloadidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		resultInArg0:   true,
+-		clobberFlags:   true,
+-		faultOnNilArg1: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AORL,
++		name:         "ORLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239},   // AX CX DX BX BP SI DI
+@@ -4442,14 +4437,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "XORLloadidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		resultInArg0:   true,
+-		clobberFlags:   true,
+-		faultOnNilArg1: true,
+-		symEffect:      SymRead,
+-		asm:            x86.AXORL,
++		name:         "XORLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239},   // AX CX DX BX BP SI DI
+@@ -5196,13 +5190,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ADDLmodifyidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AADDL,
++		name:         "ADDLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5212,13 +5205,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "SUBLmodifyidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.ASUBL,
++		name:         "SUBLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5228,13 +5220,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ANDLmodifyidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AANDL,
++		name:         "ANDLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5244,13 +5235,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ORLmodifyidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AORL,
++		name:         "ORLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5260,13 +5250,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "XORLmodifyidx4",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AXORL,
++		name:         "XORLmodifyidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5332,13 +5321,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ADDLconstmodifyidx4",
+-		auxType:        auxSymValAndOff,
+-		argLen:         3,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AADDL,
++		name:         "ADDLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5347,13 +5335,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ANDLconstmodifyidx4",
+-		auxType:        auxSymValAndOff,
+-		argLen:         3,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AANDL,
++		name:         "ANDLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5362,13 +5349,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "ORLconstmodifyidx4",
+-		auxType:        auxSymValAndOff,
+-		argLen:         3,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AORL,
++		name:         "ORLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -5377,13 +5363,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "XORLconstmodifyidx4",
+-		auxType:        auxSymValAndOff,
+-		argLen:         3,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead | SymWrite,
+-		asm:            x86.AXORL,
++		name:         "XORLconstmodifyidx4",
++		auxType:      auxSymValAndOff,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymRead | SymWrite,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -23770,12 +23755,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVBZloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVBZ,
++		name:   "MOVBZloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVBZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23787,12 +23769,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVHloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVH,
++		name:   "MOVHloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23804,12 +23783,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVHZloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVHZ,
++		name:   "MOVHZloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVHZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23821,12 +23797,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVWloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVW,
++		name:   "MOVWloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23838,12 +23811,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVWZloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVWZ,
++		name:   "MOVWZloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVWZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23855,12 +23825,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVDloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVD,
++		name:   "MOVDloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23872,12 +23839,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVHBRloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVHBR,
++		name:   "MOVHBRloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVHBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23889,12 +23853,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVWBRloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVWBR,
++		name:   "MOVWBRloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVWBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23906,12 +23867,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVDBRloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AMOVDBR,
++		name:   "MOVDBRloadidx",
++		argLen: 3,
++		asm:    ppc64.AMOVDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23923,12 +23881,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "FMOVDloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AFMOVD,
++		name:   "FMOVDloadidx",
++		argLen: 3,
++		asm:    ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -23940,12 +23895,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "FMOVSloadidx",
+-		auxType:        auxSymOff,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		symEffect:      SymRead,
+-		asm:            ppc64.AFMOVS,
++		name:   "FMOVSloadidx",
++		argLen: 3,
++		asm:    ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24115,12 +24067,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVBstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVB,
++		name:   "MOVBstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24130,12 +24079,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVHstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVH,
++		name:   "MOVHstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24145,12 +24091,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVWstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVW,
++		name:   "MOVWstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24160,12 +24103,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVDstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVD,
++		name:   "MOVDstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24175,12 +24115,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "FMOVDstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AFMOVD,
++		name:   "FMOVDstoreidx",
++		argLen: 4,
++		asm:    ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -24190,12 +24127,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "FMOVSstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AFMOVS,
++		name:   "FMOVSstoreidx",
++		argLen: 4,
++		asm:    ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -24205,12 +24139,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVHBRstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVHBR,
++		name:   "MOVHBRstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVHBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24220,12 +24151,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVWBRstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVWBR,
++		name:   "MOVWBRstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVWBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -24235,12 +24163,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "MOVDBRstoreidx",
+-		auxType:        auxSymOff,
+-		argLen:         4,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            ppc64.AMOVDBR,
++		name:   "MOVDBRstoreidx",
++		argLen: 4,
++		asm:    ppc64.AMOVDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 0094ba1b74..695445a8bd 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -6579,11 +6579,13 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *Value) bool {
+ 		v.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstore [off] {sym} p:(ADD ptr idx) val mem)
+-	// cond: off == 0 && sym == nil && p.Uses == 1
++	// match: (MOVBstore [0] {sym} p:(ADD ptr idx) val mem)
++	// cond: sym == nil && p.Uses == 1
+ 	// result: (MOVBstoreidx ptr idx val mem)
+ 	for {
+-		off := v.AuxInt
++		if v.AuxInt != 0 {
++			break
++		}
+ 		sym := v.Aux
+ 		p := v_0
+ 		if p.Op != OpPPC64ADD {
+@@ -6593,7 +6595,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *Value) bool {
+ 		ptr := p.Args[0]
+ 		val := v_1
+ 		mem := v_2
+-		if !(off == 0 && sym == nil && p.Uses == 1) {
++		if !(sym == nil && p.Uses == 1) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBstoreidx)
+@@ -7296,11 +7298,9 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVBreg x) mem)
+-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVBstoreidx ptr idx (MOVBreg x) mem)
++	// result: (MOVBstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVBreg {
+@@ -7309,16 +7309,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVBZreg x) mem)
+-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVBstoreidx ptr idx (MOVBZreg x) mem)
++	// result: (MOVBstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVBZreg {
+@@ -7327,16 +7323,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVHreg x) mem)
+-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVBstoreidx ptr idx (MOVHreg x) mem)
++	// result: (MOVBstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVHreg {
+@@ -7345,16 +7337,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVHZreg x) mem)
+-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVBstoreidx ptr idx (MOVHZreg x) mem)
++	// result: (MOVBstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVHZreg {
+@@ -7363,16 +7351,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVWreg x) mem)
+-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVBstoreidx ptr idx (MOVWreg x) mem)
++	// result: (MOVBstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVWreg {
+@@ -7381,16 +7365,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVWZreg x) mem)
+-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVBstoreidx ptr idx (MOVWZreg x) mem)
++	// result: (MOVBstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVWZreg {
+@@ -7399,17 +7379,13 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVHreg x) [c]) mem)
++	// match: (MOVBstoreidx ptr idx (SRWconst (MOVHreg x) [c]) mem)
+ 	// cond: c <= 8
+-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
++	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64SRWconst {
+@@ -7426,20 +7402,16 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
+ 		v0.AuxInt = c
+ 		v0.AddArg(x)
+ 		v.AddArg4(ptr, idx, v0, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVHZreg x) [c]) mem)
++	// match: (MOVBstoreidx ptr idx (SRWconst (MOVHZreg x) [c]) mem)
+ 	// cond: c <= 8
+-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
++	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64SRWconst {
+@@ -7456,20 +7428,16 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
+ 		v0.AuxInt = c
+ 		v0.AddArg(x)
+ 		v.AddArg4(ptr, idx, v0, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVWreg x) [c]) mem)
++	// match: (MOVBstoreidx ptr idx (SRWconst (MOVWreg x) [c]) mem)
+ 	// cond: c <= 24
+-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
++	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64SRWconst {
+@@ -7486,20 +7454,16 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
+ 		v0.AuxInt = c
+ 		v0.AddArg(x)
+ 		v.AddArg4(ptr, idx, v0, mem)
+ 		return true
+ 	}
+-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVWZreg x) [c]) mem)
++	// match: (MOVBstoreidx ptr idx (SRWconst (MOVWZreg x) [c]) mem)
+ 	// cond: c <= 24
+-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
++	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64SRWconst {
+@@ -7516,8 +7480,6 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
+ 		v0.AuxInt = c
+ 		v0.AddArg(x)
+@@ -7788,11 +7750,13 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
+ 		v.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVDstore [off] {sym} p:(ADD ptr idx) val mem)
+-	// cond: off == 0 && sym == nil && p.Uses == 1
++	// match: (MOVDstore [0] {sym} p:(ADD ptr idx) val mem)
++	// cond: sym == nil && p.Uses == 1
+ 	// result: (MOVDstoreidx ptr idx val mem)
+ 	for {
+-		off := v.AuxInt
++		if v.AuxInt != 0 {
++			break
++		}
+ 		sym := v.Aux
+ 		p := v_0
+ 		if p.Op != OpPPC64ADD {
+@@ -7802,7 +7766,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
+ 		ptr := p.Args[0]
+ 		val := v_1
+ 		mem := v_2
+-		if !(off == 0 && sym == nil && p.Uses == 1) {
++		if !(sym == nil && p.Uses == 1) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstoreidx)
+@@ -8705,11 +8669,13 @@ func rewriteValuePPC64_OpPPC64MOVHstore(v *Value) bool {
+ 		v.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVHstore [off] {sym} p:(ADD ptr idx) val mem)
+-	// cond: off == 0 && sym == nil && p.Uses == 1
++	// match: (MOVHstore [0] {sym} p:(ADD ptr idx) val mem)
++	// cond: sym == nil && p.Uses == 1
+ 	// result: (MOVHstoreidx ptr idx val mem)
+ 	for {
+-		off := v.AuxInt
++		if v.AuxInt != 0 {
++			break
++		}
+ 		sym := v.Aux
+ 		p := v_0
+ 		if p.Op != OpPPC64ADD {
+@@ -8719,7 +8685,7 @@ func rewriteValuePPC64_OpPPC64MOVHstore(v *Value) bool {
+ 		ptr := p.Args[0]
+ 		val := v_1
+ 		mem := v_2
+-		if !(off == 0 && sym == nil && p.Uses == 1) {
++		if !(sym == nil && p.Uses == 1) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHstoreidx)
+@@ -8897,11 +8863,9 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVHreg x) mem)
+-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVHstoreidx ptr idx (MOVHreg x) mem)
++	// result: (MOVHstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVHreg {
+@@ -8910,16 +8874,12 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVHstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVHZreg x) mem)
+-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVHstoreidx ptr idx (MOVHZreg x) mem)
++	// result: (MOVHstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVHZreg {
+@@ -8928,16 +8888,12 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVHstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVWreg x) mem)
+-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVHstoreidx ptr idx (MOVWreg x) mem)
++	// result: (MOVHstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVWreg {
+@@ -8946,16 +8902,12 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVHstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVWZreg x) mem)
+-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVHstoreidx ptr idx (MOVWZreg x) mem)
++	// result: (MOVHstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVWZreg {
+@@ -8964,8 +8916,6 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVHstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+@@ -9891,11 +9841,13 @@ func rewriteValuePPC64_OpPPC64MOVWstore(v *Value) bool {
+ 		v.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVWstore [off] {sym} p:(ADD ptr idx) val mem)
+-	// cond: off == 0 && sym == nil && p.Uses == 1
++	// match: (MOVWstore [0] {sym} p:(ADD ptr idx) val mem)
++	// cond: sym == nil && p.Uses == 1
+ 	// result: (MOVWstoreidx ptr idx val mem)
+ 	for {
+-		off := v.AuxInt
++		if v.AuxInt != 0 {
++			break
++		}
+ 		sym := v.Aux
+ 		p := v_0
+ 		if p.Op != OpPPC64ADD {
+@@ -9905,7 +9857,7 @@ func rewriteValuePPC64_OpPPC64MOVWstore(v *Value) bool {
+ 		ptr := p.Args[0]
+ 		val := v_1
+ 		mem := v_2
+-		if !(off == 0 && sym == nil && p.Uses == 1) {
++		if !(sym == nil && p.Uses == 1) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWstoreidx)
+@@ -9991,11 +9943,9 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
+-	// match: (MOVWstoreidx [off] {sym} ptr idx (MOVWreg x) mem)
+-	// result: (MOVWstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVWstoreidx ptr idx (MOVWreg x) mem)
++	// result: (MOVWstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVWreg {
+@@ -10004,16 +9954,12 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVWstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}
+-	// match: (MOVWstoreidx [off] {sym} ptr idx (MOVWZreg x) mem)
+-	// result: (MOVWstoreidx [off] {sym} ptr idx x mem)
++	// match: (MOVWstoreidx ptr idx (MOVWZreg x) mem)
++	// result: (MOVWstoreidx ptr idx x mem)
+ 	for {
+-		off := v.AuxInt
+-		sym := v.Aux
+ 		ptr := v_0
+ 		idx := v_1
+ 		if v_2.Op != OpPPC64MOVWZreg {
+@@ -10022,8 +9968,6 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *Value) bool {
+ 		x := v_2.Args[0]
+ 		mem := v_3
+ 		v.reset(OpPPC64MOVWstoreidx)
+-		v.AuxInt = off
+-		v.Aux = sym
+ 		v.AddArg4(ptr, idx, x, mem)
+ 		return true
+ 	}

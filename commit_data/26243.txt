@@ -11,6 +11,18 @@ Date:   Wed Jan 6 15:12:43 2016 -0500
     Change-Id: Ic4a7fdcf258e1ff3b4a02ecb4f237ae7db2686c7
     Reviewed-on: https://go-review.googlesource.com/18335
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/play/pi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/play/pi.go b/doc/play/pi.go
+index f2f5dca748..f61884e888 100644
+--- a/doc/play/pi.go
++++ b/doc/play/pi.go
+@@ -1,5 +1,5 @@
+ // Concurrent computation of pi.
+-// See http://goo.gl/ZuTZM.
++// See https://goo.gl/la6Kli.
+ //
+ // This demonstrates Go's ability to handle
+ // large numbers of concurrent processes.

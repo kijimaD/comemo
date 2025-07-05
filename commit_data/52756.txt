@@ -14,7 +14,103 @@ Date:   Mon May 16 17:50:31 2022 -0400
     Change-Id: Iee20612ffd0a03b838b9e59615f4a0206fc8940b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/406714
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 23 ++++++++++++++++++++---
  test/typeparam/issue51832.go               | 25 +++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 8918b9890b..ffd00ec3a7 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1013,6 +1013,8 @@ type Tsubster struct {
+ 	Vars map[*ir.Name]*ir.Name
+ 	// If non-nil, function to substitute an incomplete (TFORW) type.
+ 	SubstForwFunc func(*types.Type) *types.Type
++	// Prevent endless recursion on functions. See #51832.
++	Funcs map[*types.Type]bool
+ }
+ 
+ // Typ computes the type obtained by substituting any type parameter or shape in t
+@@ -1030,7 +1032,8 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ }
+ 
+ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+-	if !t.HasTParam() && !t.HasShape() && t.Kind() != types.TFUNC {
++	hasParamOrShape := t.HasTParam() || t.HasShape()
++	if !hasParamOrShape && t.Kind() != types.TFUNC {
+ 		// Note: function types need to be copied regardless, as the
+ 		// types of closures may contain declarations that need
+ 		// to be copied. See #45738.
+@@ -1066,10 +1069,10 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 
+ 	var newsym *types.Sym
+ 	var neededTargs []*types.Type
+-	var targsChanged bool
++	var targsChanged bool // == are there any substitutions from this
+ 	var forw *types.Type
+ 
+-	if t.Sym() != nil && (t.HasTParam() || t.HasShape()) {
++	if t.Sym() != nil && hasParamOrShape {
+ 		// Need to test for t.HasTParam() again because of special TFUNC case above.
+ 		// Translate the type params for this type according to
+ 		// the tparam/targs mapping from subst.
+@@ -1144,6 +1147,17 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 		}
+ 
+ 	case types.TFUNC:
++		// watch out for endless recursion on plain function types that mention themselves, e.g. "type T func() T"
++		if !hasParamOrShape {
++			if ts.Funcs[t] { // Visit such function types only once.
++				return t
++			}
++			if ts.Funcs == nil {
++				// allocate lazily
++				ts.Funcs = make(map[*types.Type]bool)
++			}
++			ts.Funcs[t] = true
++		}
+ 		newrecvs := ts.tstruct(t.Recvs(), false)
+ 		newparams := ts.tstruct(t.Params(), false)
+ 		newresults := ts.tstruct(t.Results(), false)
+@@ -1179,6 +1193,9 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 			newt = types.NewSignature(t.Pkg(), newrecv, tparamfields,
+ 				newparams.FieldSlice(), newresults.FieldSlice())
+ 		}
++		if !hasParamOrShape {
++			delete(ts.Funcs, t)
++		}
+ 
+ 	case types.TINTER:
+ 		newt = ts.tinter(t, targsChanged)
+diff --git a/test/typeparam/issue51832.go b/test/typeparam/issue51832.go
+new file mode 100644
+index 0000000000..c325ae6c2e
+--- /dev/null
++++ b/test/typeparam/issue51832.go
+@@ -0,0 +1,25 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type F func() F
++
++func do[T any]() F {
++	return nil
++}
++
++type G[T any] func() G[T]
++
++//go:noinline
++func dog[T any]() G[T] {
++	return nil
++}
++
++func main() {
++	do[int]()
++	dog[int]()
++}

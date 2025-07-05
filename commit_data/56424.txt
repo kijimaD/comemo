@@ -15,9 +15,122 @@ Date:   Thu May 4 14:09:27 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go       | 13 ++++---------
  src/cmd/compile/internal/types2/predicates.go | 20 ++++++++++++++++++++
  src/go/types/expr.go                          | 13 ++++---------
  src/go/types/predicates.go                    | 20 ++++++++++++++++++++
  4 files changed, 48 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 19e3b9bc98..c4e8a4696c 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -688,19 +688,14 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+ 		return x.typ, nil, 0
+ 	}
++	// x is untyped
+ 
+ 	if isUntyped(target) {
+ 		// both x and target are untyped
+-		xkind := x.typ.(*Basic).kind
+-		tkind := target.(*Basic).kind
+-		if isNumeric(x.typ) && isNumeric(target) {
+-			if xkind < tkind {
+-				return target, nil, 0
+-			}
+-		} else if xkind != tkind {
+-			return nil, nil, InvalidUntypedConversion
++		if m := maxType(x.typ, target); m != nil {
++			return m, nil, 0
+ 		}
+-		return x.typ, nil, 0
++		return nil, nil, InvalidUntypedConversion
+ 	}
+ 
+ 	if x.isNil() {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 4f8441467e..13a3bf8af5 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -510,3 +510,23 @@ func Default(t Type) Type {
+ 	}
+ 	return t
+ }
++
++// maxType returns the "largest" type that encompasses both x and y.
++// If x and y are different untyped numeric types, the result is the type of x or y
++// that appears later in this list: integer, rune, floating-point, complex.
++// Otherwise, if x != y, the result is nil.
++func maxType(x, y Type) Type {
++	// We only care about untyped types (for now), so == is good enough.
++	// TODO(gri) investigate generalizing this function to simplify code elsewhere
++	if x == y {
++		return x
++	}
++	if isUntyped(x) && isUntyped(y) && isNumeric(x) && isNumeric(y) {
++		// untyped types are basic types
++		if x.(*Basic).kind > y.(*Basic).kind {
++			return x
++		}
++		return y
++	}
++	return nil
++}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 27f3c45ac6..2923d9eb36 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -652,19 +652,14 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+ 		return x.typ, nil, 0
+ 	}
++	// x is untyped
+ 
+ 	if isUntyped(target) {
+ 		// both x and target are untyped
+-		xkind := x.typ.(*Basic).kind
+-		tkind := target.(*Basic).kind
+-		if isNumeric(x.typ) && isNumeric(target) {
+-			if xkind < tkind {
+-				return target, nil, 0
+-			}
+-		} else if xkind != tkind {
+-			return nil, nil, InvalidUntypedConversion
++		if m := maxType(x.typ, target); m != nil {
++			return m, nil, 0
+ 		}
+-		return x.typ, nil, 0
++		return nil, nil, InvalidUntypedConversion
+ 	}
+ 
+ 	switch u := under(target).(type) {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index e09e774f2a..b821b584c1 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -512,3 +512,23 @@ func Default(t Type) Type {
+ 	}
+ 	return t
+ }
++
++// maxType returns the "largest" type that encompasses both x and y.
++// If x and y are different untyped numeric types, the result is the type of x or y
++// that appears later in this list: integer, rune, floating-point, complex.
++// Otherwise, if x != y, the result is nil.
++func maxType(x, y Type) Type {
++	// We only care about untyped types (for now), so == is good enough.
++	// TODO(gri) investigate generalizing this function to simplify code elsewhere
++	if x == y {
++		return x
++	}
++	if isUntyped(x) && isUntyped(y) && isNumeric(x) && isNumeric(y) {
++		// untyped types are basic types
++		if x.(*Basic).kind > y.(*Basic).kind {
++			return x
++		}
++		return y
++	}
++	return nil
++}

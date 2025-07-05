@@ -14,6 +14,20 @@ Date:   Mon Jul 22 16:11:45 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/strconv/quote.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index d626cd0837..1f4929a952 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -378,7 +378,7 @@ func QuotedPrefix(s string) (string, error) {
+ // or backquoted Go string literal, returning the string value
+ // that s quotes.  (If s is single-quoted, it would be a Go
+ // character literal; Unquote returns the corresponding
+-// one-character string.)
++// one-character string. For '' Unquote returns the empty string.)
+ func Unquote(s string) (string, error) {
+ 	out, rem, err := unquote(s, true)
+ 	if len(rem) > 0 {

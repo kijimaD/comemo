@@ -12,6 +12,19 @@ Date:   Tue Jun 18 18:48:57 2024 +0000
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/next/3-tools.md | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 73f931c102..7ae651e0b4 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -45,7 +45,6 @@ the files but instead print the necessary changes as a unified diff.
+ It exits with a non-zero code if updates are needed.
+ 
+ <!-- go.dev/issue/52792, CL 562775 -->
+-<!-- TODO: Improve this if needed. -->
+ The `go` `list` `-m` `-json` command now includes new `Sum` and `GoModSum` fields.
+ This is similar to the existing behavior of the `go` `mod` `download` `-json` command.
+ 

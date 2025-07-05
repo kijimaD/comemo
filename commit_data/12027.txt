@@ -10,6 +10,26 @@ Date:   Fri Feb 17 20:35:40 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5675085
-
+---
  test/fixedbugs/bug040.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug040.go b/test/fixedbugs/bug040.go
+index 912316cb6f..007f47f9f5 100644
+--- a/test/fixedbugs/bug040.go
++++ b/test/fixedbugs/bug040.go
+@@ -1,5 +1,4 @@
+-// ! $G $D/$F.go >/dev/null
+-// # ignoring error messages...
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,5 +6,6 @@
+ 
+ package main
+ 
+-func main (x, x int) {  // BUG redeclaration error
++func f (x,		// GCCGO_ERROR "previous"
++	x int) {	// ERROR "redeclared|redefinition" "duplicate"
+ }

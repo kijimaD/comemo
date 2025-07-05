@@ -12,7 +12,34 @@ Date:   Tue Sep 13 16:51:42 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go     | 2 +-
  src/cmd/compile/internal/ssa/config.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index db41172014..4e9b1e049a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -40,7 +40,7 @@ func shouldssa(fn *Node) bool {
+ 		if os.Getenv("SSATEST") == "" {
+ 			return false
+ 		}
+-	case "amd64", "amd64p32", "arm", "386", "arm64", "ppc64le", "mips64", "mips64le", "s390x":
++	case "amd64", "amd64p32", "arm", "386", "arm64", "ppc64", "ppc64le", "mips64", "mips64le", "s390x":
+ 		// Generally available.
+ 	}
+ 	if !ssaEnabled {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index cb5baa1c7b..b5837d7fc4 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -183,7 +183,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.FPReg = framepointerRegARM64
+ 		c.hasGReg = true
+ 		c.noDuffDevice = obj.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+-	case "ppc64le":
++	case "ppc64le", "ppc64":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
+ 		c.lowerBlock = rewriteBlockPPC64

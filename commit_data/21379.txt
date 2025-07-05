@@ -19,7 +19,42 @@ Date:   Sat Dec 27 20:52:17 2014 +0100
     Change-Id: Id036e10c54c4a7c1ee9952f6910858ecc2b84134
     Reviewed-on: https://go-review.googlesource.com/2109
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/encoding/json/decode.go      | 2 +-
  src/encoding/json/decode_test.go | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 705bc2e17a..212365cede 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -599,7 +599,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 			case string:
+ 				d.literalStore([]byte(qv), subv, true)
+ 			default:
+-				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into %v", item, v.Type()))
++				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into %v", subv.Type()))
+ 			}
+ 		} else {
+ 			d.value(subv)
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 7235969b9f..83b9d39ad6 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -688,6 +688,7 @@ var wrongStringTests = []wrongStringTest{
+ 	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
+ 	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
+ 	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
++	{`{"result":123}`, `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
+ }
+ 
+ // If people misuse the ,string modifier, the error message should be
+@@ -1085,7 +1086,7 @@ func TestNullString(t *testing.T) {
+ 	*s.C = 2
+ 	err := Unmarshal(data, &s)
+ 	if err != nil {
+-		t.Fatalf("Unmarshal: %v")
++		t.Fatalf("Unmarshal: %v", err)
+ 	}
+ 	if s.B != 1 || s.C != nil {
+ 		t.Fatalf("after Unmarshal, s.B=%d, s.C=%p, want 1, nil", s.B, s.C)

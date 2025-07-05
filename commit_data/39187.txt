@@ -9,6 +9,26 @@ Date:   Thu Jan 17 15:22:47 2019 -0800
     Change-Id: I92488dabe823b82e1ba534648fe6d63d25d0ae9f
     Reviewed-on: https://go-review.googlesource.com/c/158417
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/client.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index ea6c071911..921f86bd92 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -478,10 +478,10 @@ func urlErrorOp(method string) string {
+ // error.
+ //
+ // If the returned error is nil, the Response will contain a non-nil
+-// Body which the user is expected to close. If the Body is not
+-// closed, the Client's underlying RoundTripper (typically Transport)
+-// may not be able to re-use a persistent TCP connection to the server
+-// for a subsequent "keep-alive" request.
++// Body which the user is expected to close. If the Body is not both
++// read to EOF and closed, the Client's underlying RoundTripper
++// (typically Transport) may not be able to re-use a persistent TCP
++// connection to the server for a subsequent "keep-alive" request.
+ //
+ // The request Body, if non-nil, will be closed by the underlying
+ // Transport, even on errors.

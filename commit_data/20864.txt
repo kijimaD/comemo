@@ -11,6 +11,31 @@ Date:   Mon Oct 20 23:03:03 2014 +0200
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/159130044
-
+---
  src/runtime/env_plan9.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index 76e9867e03..e442c34835 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -30,7 +30,7 @@ func gogetenv(key string) string {
+ 	if fd < 0 {
+ 		return ""
+ 	}
+-	n := seek(fd, 0, 2) - 1
++	n := seek(fd, 0, 2)
+ 	if n <= 0 {
+ 		close(fd)
+ 		return ""
+@@ -44,6 +44,10 @@ func gogetenv(key string) string {
+ 		return ""
+ 	}
+ 
++	if p[r-1] == 0 {
++		r--
++	}
++
+ 	var s string
+ 	sp := (*_string)(unsafe.Pointer(&s))
+ 	sp.str = &p[0]

@@ -12,7 +12,91 @@ Date:   Mon May 12 23:35:56 2014 -0400
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/72410043
-
+---
  src/pkg/encoding/xml/marshal.go      | 11 +++++++++--
  src/pkg/encoding/xml/marshal_test.go | 36 +++++++++++++++++++++++++++++++++++-
  2 files changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index d9522e0b39..8c6342013d 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -184,10 +184,12 @@ var (
+ // EncodeToken does not call Flush, because usually it is part of a larger operation
+ // such as Encode or EncodeElement (or a custom Marshaler's MarshalXML invoked
+ // during those), and those will call Flush when finished.
+-//
+ // Callers that create an Encoder and then invoke EncodeToken directly, without
+ // using Encode or EncodeElement, need to call Flush when finished to ensure
+ // that the XML is written to the underlying writer.
++//
++// EncodeToken allows writing a ProcInst with Target set to "xml" only as the first token
++// in the stream.
+ func (enc *Encoder) EncodeToken(t Token) error {
+ 	p := &enc.p
+ 	switch t := t.(type) {
+@@ -210,7 +212,12 @@ func (enc *Encoder) EncodeToken(t Token) error {
+ 		p.WriteString("-->")
+ 		return p.cachedWriteError()
+ 	case ProcInst:
+-		if t.Target == "xml" || !isNameString(t.Target) {
++		// First token to be encoded which is also a ProcInst with target of xml
++		// is the xml declaration.  The only ProcInst where target of xml is allowed.
++		if t.Target == "xml" && p.Buffered() != 0 {
++			return fmt.Errorf("xml: EncodeToken of ProcInst xml target only valid for xml declaration, first token encoded")
++		}
++		if !isNameString(t.Target) {
+ 			return fmt.Errorf("xml: EncodeToken of ProcInst with invalid Target")
+ 		}
+ 		if bytes.Contains(t.Inst, endProcInst) {
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index ecb9998dac..638158397b 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -1203,7 +1203,7 @@ var encodeTokenTests = []struct {
+ 	{Comment("foo"), "<!--foo-->", true},
+ 	{Comment("foo-->"), "", false},
+ 	{ProcInst{"Target", []byte("Instruction")}, "<?Target Instruction?>", true},
+-	{ProcInst{"xml", []byte("Instruction")}, "", false},
++	{ProcInst{"", []byte("Instruction")}, "", false},
+ 	{ProcInst{"Target", []byte("Instruction?>")}, "", false},
+ 	{Directive("foo"), "<!foo>", true},
+ 	{Directive("foo>"), "", false},
+@@ -1230,3 +1230,37 @@ func TestEncodeToken(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestProcInstEncodeToken(t *testing.T) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++
++	if err := enc.EncodeToken(ProcInst{"xml", []byte("Instruction")}); err != nil {
++		t.Fatalf("enc.EncodeToken: expected to be able to encode xml target ProcInst as first token, %s", err)
++	}
++
++	if err := enc.EncodeToken(ProcInst{"Target", []byte("Instruction")}); err != nil {
++		t.Fatalf("enc.EncodeToken: expected to be able to add non-xml target ProcInst")
++	}
++
++	if err := enc.EncodeToken(ProcInst{"xml", []byte("Instruction")}); err == nil {
++		t.Fatalf("enc.EncodeToken: expected to not be allowed to encode xml target ProcInst when not first token")
++	}
++}
++
++func TestDecodeEncode(t *testing.T) {
++	var in, out bytes.Buffer
++	in.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
++<?Target Instruction?>
++<root>
++</root>	
++`)
++	dec := NewDecoder(&in)
++	enc := NewEncoder(&out)
++	for tok, err := dec.Token(); err == nil; tok, err = dec.Token() {
++		err = enc.EncodeToken(tok)
++		if err != nil {
++			t.Fatalf("enc.EncodeToken: Unable to encode token (%#v), %d", tok, err)
++		}
++	}
++}

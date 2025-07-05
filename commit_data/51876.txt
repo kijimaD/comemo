@@ -18,7 +18,7 @@ Date:   Mon Mar 21 11:24:24 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/dcl.go      |  2 --
  src/cmd/compile/internal/typecheck/syms.go     |  1 -
  src/cmd/compile/internal/typecheck/universe.go |  3 ---
@@ -26,3 +26,170 @@ Date:   Mon Mar 21 11:24:24 2022 -0700
  src/cmd/compile/internal/types/sizeof_test.go  |  2 +-
  src/cmd/compile/internal/types/sym.go          | 12 ++++++------
  6 files changed, 12 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index d1eec6d322..45e7a695ab 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -70,8 +70,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		n.SetFrameOffset(0)
+ 	}
+ 
+-	s.Block = types.Block
+-	s.Lastlineno = base.Pos
+ 	s.Def = n
+ 	n.Class = ctxt
+ 	if ctxt == ir.PFUNC {
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index ed3aaecc5a..6c2e84680b 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -67,7 +67,6 @@ func Lookup(name string) *types.Sym {
+ // but does not make them visible to user code.
+ func InitRuntime() {
+ 	base.Timer.Start("fe", "loadsys")
+-	types.Block = 1
+ 
+ 	typs := runtimeTypes()
+ 	for _, d := range &runtimeDecls {
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 204c31b758..a49bf5793e 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -91,14 +91,12 @@ func InitUniverse() {
+ 
+ 	s = Lookup("_")
+ 	types.BlankSym = s
+-	s.Block = -100
+ 	s.Def = NewName(s)
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 	ir.BlankNode = ir.AsNode(s.Def)
+ 	ir.BlankNode.SetTypecheck(1)
+ 
+ 	s = types.BuiltinPkg.Lookup("_")
+-	s.Block = -100
+ 	s.Def = NewName(s)
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 
+@@ -222,6 +220,5 @@ func DeclareUniverse() {
+ 		}
+ 
+ 		s1.Def = s.Def
+-		s1.Block = s.Block
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index d7c454f379..e577b7aa53 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -6,21 +6,15 @@ package types
+ 
+ import (
+ 	"cmd/compile/internal/base"
+-	"cmd/internal/src"
+ )
+ 
+ // Declaration stack & operations
+ 
+-var blockgen int32 = 1 // max block number
+-var Block int32 = 1    // current block number
+-
+ // A dsym stores a symbol's shadowed declaration so that it can be
+ // restored once the block scope ends.
+ type dsym struct {
+-	sym        *Sym // sym == nil indicates stack mark
+-	def        Object
+-	block      int32
+-	lastlineno src.XPos // last declaration for diagnostic
++	sym *Sym // sym == nil indicates stack mark
++	def Object
+ }
+ 
+ // dclstack maintains a stack of shadowed symbol declarations so that
+@@ -31,10 +25,8 @@ var dclstack []dsym
+ // it can be shadowed by a new declaration within a nested block scope.
+ func Pushdcl(s *Sym) {
+ 	dclstack = append(dclstack, dsym{
+-		sym:        s,
+-		def:        s.Def,
+-		block:      s.Block,
+-		lastlineno: s.Lastlineno,
++		sym: s,
++		def: s.Def,
+ 	})
+ }
+ 
+@@ -46,14 +38,11 @@ func Popdcl() {
+ 		s := d.sym
+ 		if s == nil {
+ 			// pop stack mark
+-			Block = d.block
+ 			dclstack = dclstack[:i-1]
+ 			return
+ 		}
+ 
+ 		s.Def = d.def
+-		s.Block = d.block
+-		s.Lastlineno = d.lastlineno
+ 
+ 		// Clear dead pointer fields.
+ 		d.sym = nil
+@@ -65,11 +54,8 @@ func Popdcl() {
+ // Markdcl records the start of a new block scope for declarations.
+ func Markdcl() {
+ 	dclstack = append(dclstack, dsym{
+-		sym:   nil, // stack mark
+-		block: Block,
++		sym: nil, // stack mark
+ 	})
+-	blockgen++
+-	Block = blockgen
+ }
+ 
+ func isDclstackValid() bool {
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index d37c173058..0c46077dfa 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 44, 72},
++		{Sym{}, 32, 64},
+ 		{Type{}, 64, 112},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index fb642f52f8..927ebc453a 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -7,7 +7,6 @@ package types
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/internal/obj"
+-	"cmd/internal/src"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -32,14 +31,15 @@ type Sym struct {
+ 	Pkg  *Pkg
+ 	Name string // object name
+ 
+-	// Def, Block, and Lastlineno are saved and restored by Pushdcl/Popdcl.
+-
+ 	// The unique ONAME, OTYPE, OPACK, or OLITERAL node that this symbol is
+ 	// bound to within the current scope. (Most parts of the compiler should
+ 	// prefer passing the Node directly, rather than relying on this field.)
+-	Def        Object
+-	Block      int32    // blocknumber to catch redeclaration
+-	Lastlineno src.XPos // last declaration for diagnostic
++	//
++	// Def is saved and restored by Pushdcl/Popdcl.
++	//
++	// Deprecated: New code should avoid depending on Sym.Def. Add
++	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
++	Def Object
+ 
+ 	flags bitset8
+ }

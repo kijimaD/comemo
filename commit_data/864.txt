@@ -8,7 +8,7 @@ Date:   Tue Oct 14 22:16:45 2008 -0700
     DELTA=335  (172 added, 156 deleted, 7 changed)
     OCL=17167
     CL=17180
-
+---
  src/lib/clean.bash                  |  2 +-
  src/lib/container/vector.go         |  4 ++++
  src/lib/make.bash                   |  2 +-
@@ -16,3 +16,110 @@ Date:   Tue Oct 14 22:16:45 2008 -0700
  src/lib/regexp/{main.go => test.go} |  2 +-
  src/run.bash                        |  6 ++++++
  6 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/lib/clean.bash b/src/lib/clean.bash
+index 93bb64a15a..e3d7b612f3 100755
+--- a/src/lib/clean.bash
++++ b/src/lib/clean.bash
+@@ -6,7 +6,7 @@
+ 
+ rm -f $GOROOT/pkg/*
+ 
+-for i in syscall os math net time
++for i in syscall os math net time http regexp
+ do
+ 	cd $i
+ 	make nuke
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 72a0fff742..c646917678 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -56,6 +56,10 @@ func (v *Vector) Remove(i int) Element {
+ }
+ 
+ 
++func (v *Vector) Reset() {
++	v.elem = v.elem[0:0];
++}
++
+ func (v *Vector) Insert(i int, e Element) {
+ 	n := v.Len();
+ 	// range check unnecessary - done by runtime
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index c791b23930..5cc976262c 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -33,7 +33,7 @@ do
+ 	6g -o $GOROOT/pkg/$base.6 $i
+ done
+ 
+-for i in net time http
++for i in net time http regexp
+ do
+ 	echo; echo; echo %%%% making lib/$i %%%%; echo
+ 	cd $i
+diff --git a/src/lib/regexp/Makefile b/src/lib/regexp/Makefile
+index ac466a0f19..86c1680f3e 100644
+--- a/src/lib/regexp/Makefile
++++ b/src/lib/regexp/Makefile
+@@ -5,16 +5,22 @@
+ A=6
+ G=$(A)g
+ L=$(A)l
++PKG=$(GOROOT)/pkg/regexp.$A
+ 
+-all: main
++test:	main.$A test.$A
++	$L -o test test.$A
++	./test
+ 
+-main:	main.6
+-	$L -o main main.6
++install:	regexp.$A
++	cp regexp.$A $(PKG)
+ 
+-main.6: regexp.6
++main:	main.$A
++	$L -o main main.$A
++
++main.$A: regexp.$A
+ 
+ clean:
+-	rm -f *.6 main
++	rm -f *.6 test
+ 
+ %.6:	%.go
+ 	$G $<
+diff --git a/src/lib/regexp/main.go b/src/lib/regexp/test.go
+similarity index 98%
+rename from src/lib/regexp/main.go
+rename to src/lib/regexp/test.go
+index c89f9b5579..223064c071 100644
+--- a/src/lib/regexp/main.go
++++ b/src/lib/regexp/test.go
+@@ -34,7 +34,7 @@ type StringError struct {
+ 	err	*os.Error;
+ }
+ var bad_re = []StringError{
+-	StringError{ `*`,	 	regexp.ErrBareClosure },	
++	StringError{ `*`,	 	regexp.ErrBareClosure },
+ 	StringError{ `(abc`,	regexp.ErrUnmatchedLpar },	
+ 	StringError{ `abc)`,	regexp.ErrUnmatchedRpar },	
+ 	StringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },	
+diff --git a/src/run.bash b/src/run.bash
+index cd33b891ed..72a5406215 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -10,6 +10,12 @@ xcd() {
+ 	echo --- cd $1
+ }
+ 
++(xcd lib/regexp
++make clean
++time make
++make test
++)
++
+ (xcd ../usr/gri/gosrc
+ make clean
+ time make

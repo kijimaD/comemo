@@ -14,6 +14,52 @@ Date:   Fri Oct 18 10:30:04 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/sym.go | 27 ++++++++++++++++++++++++++-
  1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 4c116d28f2..ab886bce36 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -184,7 +184,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
+ 
+ 	var idx, nonpkgidx int32 = 0, 0
+ 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
+-		if asm || s.Pkg == "_" || s.DuplicateOK() || ctxt.Flag_linkshared {
++		if isNonPkgSym(ctxt, asm, s) {
+ 			s.PkgIdx = goobj2.PkgIdxNone
+ 			s.SymIdx = nonpkgidx
+ 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
+@@ -232,6 +232,31 @@ func (ctxt *Link) NumberSyms(asm bool) {
+ 	})
+ }
+ 
++// Returns whether s is a non-package symbol, which needs to be referenced
++// by name instead of by index.
++func isNonPkgSym(ctxt *Link, asm bool, s *LSym) bool {
++	if asm && !s.Static() {
++		// asm symbols are referenced by name only, except static symbols
++		// which are file-local and can be referenced by index.
++		return true
++	}
++	if ctxt.Flag_linkshared {
++		// The referenced symbol may be in a different shared library so
++		// the linker cannot see its index.
++		return true
++	}
++	if s.Pkg == "_" {
++		// The frontend uses package "_" to mark symbols that should not
++		// be referenced by index, e.g. linkname'd symbols.
++		return true
++	}
++	if s.DuplicateOK() {
++		// Dupok symbol needs to be dedup'd by name.
++		return true
++	}
++	return false
++}
++
+ type traverseFlag uint32
+ 
+ const (

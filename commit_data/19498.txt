@@ -10,7 +10,47 @@ Date:   Tue Jun 3 15:40:12 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/103020044
-
+---
  src/pkg/compress/gzip/gunzip.go      |  6 +++++-
  src/pkg/compress/gzip/gunzip_test.go | 14 ++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index d18269cfd1..4f398b194a 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -94,7 +94,11 @@ func NewReader(r io.Reader) (*Reader, error) {
+ // This permits reusing a Reader rather than allocating a new one.
+ func (z *Reader) Reset(r io.Reader) error {
+ 	z.r = makeReader(r)
+-	z.digest.Reset()
++	if z.digest == nil {
++		z.digest = crc32.NewIEEE()
++	} else {
++		z.digest.Reset()
++	}
+ 	z.size = 0
+ 	z.err = nil
+ 	return z.readHeader(true)
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 1d5d8d9cc5..2471038f53 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -353,3 +353,17 @@ func TestIssue6550(t *testing.T) {
+ 		// ok
+ 	}
+ }
++
++func TestInitialReset(t *testing.T) {
++	var r Reader
++	if err := r.Reset(bytes.NewReader(gunzipTests[1].gzip)); err != nil {
++		t.Error(err)
++	}
++	var buf bytes.Buffer
++	if _, err := io.Copy(&buf, &r); err != nil {
++		t.Error(err)
++	}
++	if s := buf.String(); s != gunzipTests[1].raw {
++		t.Errorf("got %q want %q", s, gunzipTests[1].raw)
++	}
++}

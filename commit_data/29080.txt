@@ -11,7 +11,7 @@ Date:   Fri Aug 19 15:00:29 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/mksyscall.go          | 7 +++++++
  src/internal/syscall/windows/registry/mksyscall.go | 7 +++++++
  src/internal/syscall/windows/registry/syscall.go   | 2 --
@@ -20,3 +20,95 @@ Date:   Fri Aug 19 15:00:29 2016 +1000
  src/syscall/syscall.go                             | 2 ++
  src/syscall/syscall_windows.go                     | 2 --
  7 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+new file mode 100644
+index 0000000000..21a2b4e777
+--- /dev/null
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows
++
++//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
+diff --git a/src/internal/syscall/windows/registry/mksyscall.go b/src/internal/syscall/windows/registry/mksyscall.go
+new file mode 100644
+index 0000000000..3f8eb8eba6
+--- /dev/null
++++ b/src/internal/syscall/windows/registry/mksyscall.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package registry
++
++//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall.go
+diff --git a/src/internal/syscall/windows/registry/syscall.go b/src/internal/syscall/windows/registry/syscall.go
+index 5426cae909..a6525dac5d 100644
+--- a/src/internal/syscall/windows/registry/syscall.go
++++ b/src/internal/syscall/windows/registry/syscall.go
+@@ -8,8 +8,6 @@ package registry
+ 
+ import "syscall"
+ 
+-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall.go
+-
+ const (
+ 	_REG_OPTION_NON_VOLATILE = 0
+ 
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 7b2bc79ceb..47ca602ae1 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -6,8 +6,6 @@ package windows
+ 
+ import "syscall"
+ 
+-//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
+-
+ const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+ 
+ const (
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index 6a9aacbbff..987ac23625 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -275,7 +275,7 @@ solaris_amd64)
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ windows_*)
+-	echo 'run "go generate syscall_windows.go" instead' 1>&2
++	echo 'run "go generate" instead' 1>&2
+ 	exit 1
+ 	;;
+ *)
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index bb102c6e13..f07c3c75d0 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -28,6 +28,8 @@ package syscall
+ 
+ import "unsafe"
+ 
++//go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
++
+ // StringByteSlice converts a string to a NUL-terminated []byte,
+ // If s contains a NUL byte this function panics instead of
+ // returning an error.
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 703bb53db4..a2728e9292 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -14,8 +14,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-//go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
+-
+ type Handle uintptr
+ 
+ const InvalidHandle = ^Handle(0)

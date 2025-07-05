@@ -14,8 +14,112 @@ Date:   Thu Feb 4 17:40:18 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/examples/types.go2 | 18 +++++++++-
  src/cmd/compile/internal/types2/predicates.go      |  9 +++--
  test/typeparam/fact.go                             | 40 ++++++++++++----------
  3 files changed, 45 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/examples/types.go2 b/src/cmd/compile/internal/types2/examples/types.go2
+index f094880c49..a081f61c01 100644
+--- a/src/cmd/compile/internal/types2/examples/types.go2
++++ b/src/cmd/compile/internal/types2/examples/types.go2
+@@ -261,4 +261,20 @@ func _(_ comparable /* ERROR comparable */ , _ C /* ERROR comparable */ )
+ func _() {
+ 	var _ comparable /* ERROR comparable */
+ 	var _ C /* ERROR comparable */
+-}
+\ No newline at end of file
++}
++
++// Type parameters are never const types, i.e., it's
++// not possible to declare a constant of type parameter type.
++// (If a type list contains just a single const type, we could
++// allow it, but such type lists don't make much sense in the
++// first place.)
++func _[T interface { type int, float64 }]() {
++	// not valid
++	const _ = T /* ERROR not constant */ (0)
++	const _ T /* ERROR invalid constant type T */ = 1
++
++	// valid
++	var _ = T(0)
++	var _ T = 1
++	_ = T(0)
++}
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 94a9b64761..b8fa15cdb8 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -69,8 +69,13 @@ func isUntyped(typ Type) bool {
+ 	return !isTyped(typ)
+ }
+ 
+-func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
+-func isConstType(typ Type) bool { return is(typ, IsConstType) }
++func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
++
++func isConstType(typ Type) bool {
++	// Type parameters are never const types.
++	t, _ := typ.Under().(*Basic)
++	return t != nil && t.info&IsConstType != 0
++}
+ 
+ // IsInterface reports whether typ is an interface type.
+ func IsInterface(typ Type) bool {
+diff --git a/test/typeparam/fact.go b/test/typeparam/fact.go
+index e5e0ad4ff3..8ed9bce7d8 100644
+--- a/test/typeparam/fact.go
++++ b/test/typeparam/fact.go
+@@ -6,30 +6,32 @@
+ 
+ package main
+ 
+-import (
+-	"fmt"
+-)
++import "fmt"
+ 
++// TODO Stenciling doesn't do the right thing for T(1) at the moment.
+ 
+-func fact[T interface { type float64 }](n T) T {
+-	if n == T(1) {
+-		return T(1)
+-	}
+-	return n * fact(n - T(1))
++func fact[T interface { type int, int64, float64 }](n T) T {
++	// TODO remove this return in favor of the correct computation below
++	return n
++	// if n == T(1) {
++	// 	return T(1)
++	// }
++	// return n * fact(n - T(1))
+ }
+ 
+ func main() {
+-	got := fact(4.0)
+-	want := 24.0
+-	if got != want {
+-		panic(fmt.Sprintf("Got %f, want %f", got, want))
++	// TODO change this to 120 once we can compile the function body above
++	const want = 5 // 120
++
++	if got := fact(5); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+-	// Re-enable when types2 bug is fixed (can't do T(1) with more than one
+-	// type in the type list).
+-	//got = fact(5)
+-	//want = 120
+-	//if want != got {
+-	//	panic(fmt.Sprintf("Want %d, got %d", want, got))
+-	//}
++	if got := fact[int64](5); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := fact(5.0); got != want {
++		panic(fmt.Sprintf("got %f, want %f", got, want))
++	}
+ }

@@ -20,6 +20,24 @@ Date:   Sun Mar 31 15:23:07 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/map.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 1282a12193..d2ff19336f 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -181,10 +181,8 @@ type hiter struct {
+ 
+ // bucketShift returns 1<<b, optimized for code generation.
+ func bucketShift(b uint8) uintptr {
+-	if sys.GoarchAmd64|sys.GoarchAmd64p32|sys.Goarch386 != 0 {
+-		b &= sys.PtrSize*8 - 1 // help x86 archs remove shift overflow checks
+-	}
+-	return uintptr(1) << b
++	// Masking the shift amount allows overflow checks to be elided.
++	return uintptr(1) << (b & (sys.PtrSize*8 - 1))
+ }
+ 
+ // bucketMask returns 1<<b - 1, optimized for code generation.

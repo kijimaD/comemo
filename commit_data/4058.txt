@@ -8,7 +8,50 @@ Date:   Sun Nov 15 12:56:50 2009 -0800
     
     R=r
     https://golang.org/cl/154143
-
+---
  src/pkg/http/url.go      | 14 ++++++++------
  src/pkg/http/url_test.go |  4 ++--
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 9d7ac495f0..95d9bed738 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -52,14 +52,16 @@ func (e URLEscapeError) String() string {
+ 	return "invalid URL escape " + strconv.Quote(string(e))
+ }
+ 
+-// Return true if the specified character should be escaped when appearing in a
+-// URL string.
+-//
+-// TODO: for now, this is a hack; it only flags a few common characters that have
+-// special meaning in URLs.  That will get the job done in the common cases.
++// Return true if the specified character should be escaped when
++// appearing in a URL string, according to RFC 2396.
+ func shouldEscape(c byte) bool {
++	if c <= ' ' || c >= 0x7F {
++		return true
++	}
+ 	switch c {
+-	case ' ', '?', '&', '=', '#', '+', '%':
++	case '<', '>', '#', '%', '"',	// RFC 2396 delims
++		'{', '}', '|', '\\', '^', '[', ']', '`',	// RFC2396 unwise
++		'?', '&', '=', '+':	// RFC 2396 reserved in path
+ 		return true
+ 	}
+ 	return false;
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index b8df71971b..2f9707a2ec 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -335,8 +335,8 @@ var escapeTests = []URLEscapeTest{
+ 		nil,
+ 	},
+ 	URLEscapeTest{
+-		" ?&=#+%!",
+-		"+%3f%26%3d%23%2b%25!",
++		" ?&=#+%!<>#\"{}|\\^[]`☺\t",
++		"+%3f%26%3d%23%2b%25!%3c%3e%23%22%7b%7d%7c%5c%5e%5b%5d%60%e2%98%ba%09",
+ 		nil,
+ 	},
+ }

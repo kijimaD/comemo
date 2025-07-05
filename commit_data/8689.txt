@@ -7,7 +7,7 @@ Date:   Fri Jun 10 12:58:14 2011 -0400
     R=bradfitz, r
     CC=golang-dev
     https://golang.org/cl/4581051
-
+---
  src/pkg/crypto/openpgp/keys.go                     |  76 +++++++++++++++
  src/pkg/crypto/openpgp/packet/encrypted_key.go     |  61 +++++++++++-
  .../crypto/openpgp/packet/encrypted_key_test.go    |  77 ++++++++++++---
@@ -19,3 +19,618 @@ Date:   Fri Jun 10 12:58:14 2011 -0400
  src/pkg/crypto/openpgp/write.go                    | 103 ++++++++++++++++++++-
  src/pkg/crypto/openpgp/write_test.go               |  45 +++++++++
  10 files changed, 372 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/keys.go b/src/pkg/crypto/openpgp/keys.go
+index 2acb7e6123..f467cc0117 100644
+--- a/src/pkg/crypto/openpgp/keys.go
++++ b/src/pkg/crypto/openpgp/keys.go
+@@ -64,6 +64,78 @@ type KeyRing interface {
+ 	DecryptionKeys() []Key
+ }
+ 
++// primaryIdentity returns the Identity marked as primary or the first identity
++// if none are so marked.
++func (e *Entity) primaryIdentity() *Identity {
++	var firstIdentity *Identity
++	for _, ident := range e.Identities {
++		if firstIdentity == nil {
++			firstIdentity = ident
++		}
++		if ident.SelfSignature.IsPrimaryId != nil && *ident.SelfSignature.IsPrimaryId {
++			return ident
++		}
++	}
++	return firstIdentity
++}
++
++// encryptionKey returns the best candidate Key for encrypting a message to the
++// given Entity.
++func (e *Entity) encryptionKey() Key {
++	candidateSubkey := -1
++
++	for i, subkey := range e.Subkeys {
++		if subkey.Sig.FlagsValid && subkey.Sig.FlagEncryptCommunications && subkey.PublicKey.PubKeyAlgo.CanEncrypt() {
++			candidateSubkey = i
++			break
++		}
++	}
++
++	i := e.primaryIdentity()
++
++	if e.PrimaryKey.PubKeyAlgo.CanEncrypt() {
++		// If we don't have any candidate subkeys for encryption and
++		// the primary key doesn't have any usage metadata then we
++		// assume that the primary key is ok. Or, if the primary key is
++		// marked as ok to encrypt to, then we can obviously use it.
++		if candidateSubkey == -1 && !i.SelfSignature.FlagsValid || i.SelfSignature.FlagEncryptCommunications && i.SelfSignature.FlagsValid {
++			return Key{e, e.PrimaryKey, e.PrivateKey, i.SelfSignature}
++		}
++	}
++
++	if candidateSubkey != -1 {
++		subkey := e.Subkeys[candidateSubkey]
++		return Key{e, subkey.PublicKey, subkey.PrivateKey, subkey.Sig}
++	}
++
++	// This Entity appears to be signing only.
++	return Key{}
++}
++
++// signingKey return the best candidate Key for signing a message with this
++// Entity.
++func (e *Entity) signingKey() Key {
++	candidateSubkey := -1
++
++	for i, subkey := range e.Subkeys {
++		if subkey.Sig.FlagsValid && subkey.Sig.FlagSign && subkey.PublicKey.PubKeyAlgo.CanSign() {
++			candidateSubkey = i
++			break
++		}
++	}
++
++	i := e.primaryIdentity()
++
++	// If we have no candidate subkey then we assume that it's ok to sign
++	// with the primary key.
++	if candidateSubkey == -1 || i.SelfSignature.FlagsValid && i.SelfSignature.FlagSign {
++		return Key{e, e.PrimaryKey, e.PrivateKey, i.SelfSignature}
++	}
++
++	subkey := e.Subkeys[candidateSubkey]
++	return Key{e, subkey.PublicKey, subkey.PrivateKey, subkey.Sig}
++}
++
+ // An EntityList contains one or more Entities.
+ type EntityList []*Entity
+ 
+@@ -199,6 +271,10 @@ func readEntity(packets *packet.Reader) (*Entity, os.Error) {
+ 		}
+ 	}
+ 
++	if !e.PrimaryKey.PubKeyAlgo.CanSign() {
++		return nil, error.StructuralError("primary key cannot be used for signatures")
++	}
++
+ 	var current *Identity
+ EachPacket:
+ 	for {
+diff --git a/src/pkg/crypto/openpgp/packet/encrypted_key.go b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+index b11a9b8301..329493c08f 100644
+--- a/src/pkg/crypto/openpgp/packet/encrypted_key.go
++++ b/src/pkg/crypto/openpgp/packet/encrypted_key.go
+@@ -14,6 +14,8 @@ import (
+ 	"strconv"
+ )
+ 
++const encryptedKeyVersion = 3
++
+ // EncryptedKey represents a public-key encrypted session key. See RFC 4880,
+ // section 5.1.
+ type EncryptedKey struct {
+@@ -30,7 +32,7 @@ func (e *EncryptedKey) parse(r io.Reader) (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	if buf[0] != 3 {
++	if buf[0] != encryptedKeyVersion {
+ 		return error.UnsupportedError("unknown EncryptedKey version " + strconv.Itoa(int(buf[0])))
+ 	}
+ 	e.KeyId = binary.BigEndian.Uint64(buf[1:9])
+@@ -42,6 +44,14 @@ func (e *EncryptedKey) parse(r io.Reader) (err os.Error) {
+ 	return
+ }
+ 
++func checksumKeyMaterial(key []byte) uint16 {
++	var checksum uint16
++	for _, v := range key {
++		checksum += uint16(v)
++	}
++	return checksum
++}
++
+ // DecryptRSA decrypts an RSA encrypted session key with the given private key.
+ func (e *EncryptedKey) DecryptRSA(priv *rsa.PrivateKey) (err os.Error) {
+ 	if e.Algo != PubKeyAlgoRSA && e.Algo != PubKeyAlgoRSAEncryptOnly {
+@@ -54,13 +64,54 @@ func (e *EncryptedKey) DecryptRSA(priv *rsa.PrivateKey) (err os.Error) {
+ 	e.CipherFunc = CipherFunction(b[0])
+ 	e.Key = b[1 : len(b)-2]
+ 	expectedChecksum := uint16(b[len(b)-2])<<8 | uint16(b[len(b)-1])
+-	var checksum uint16
+-	for _, v := range e.Key {
+-		checksum += uint16(v)
+-	}
++	checksum := checksumKeyMaterial(e.Key)
+ 	if checksum != expectedChecksum {
+ 		return error.StructuralError("EncryptedKey checksum incorrect")
+ 	}
+ 
+ 	return
+ }
++
++// SerializeEncryptedKey serializes an encrypted key packet to w that contains
++// key, encrypted to pub.
++func SerializeEncryptedKey(w io.Writer, rand io.Reader, pub *PublicKey, cipherFunc CipherFunction, key []byte) os.Error {
++	var buf [10]byte
++	buf[0] = encryptedKeyVersion
++	binary.BigEndian.PutUint64(buf[1:9], pub.KeyId)
++	buf[9] = byte(pub.PubKeyAlgo)
++
++	keyBlock := make([]byte, 1 /* cipher type */ +len(key)+2 /* checksum */ )
++	keyBlock[0] = byte(cipherFunc)
++	copy(keyBlock[1:], key)
++	checksum := checksumKeyMaterial(key)
++	keyBlock[1+len(key)] = byte(checksum >> 8)
++	keyBlock[1+len(key)+1] = byte(checksum)
++
++	switch pub.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly:
++		return serializeEncryptedKeyRSA(w, rand, buf, pub.PublicKey.(*rsa.PublicKey), keyBlock)
++	case PubKeyAlgoDSA, PubKeyAlgoRSASignOnly:
++		return error.InvalidArgumentError("cannot encrypt to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
++	}
++
++	return error.UnsupportedError("encrypting a key to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
++}
++
++func serializeEncryptedKeyRSA(w io.Writer, rand io.Reader, header [10]byte, pub *rsa.PublicKey, keyBlock []byte) os.Error {
++	cipherText, err := rsa.EncryptPKCS1v15(rand, pub, keyBlock)
++	if err != nil {
++		return error.InvalidArgumentError("RSA encryption failed: " + err.String())
++	}
++
++	packetLen := 10 /* header length */ + 2 /* mpi size */ + len(cipherText)
++
++	err = serializeHeader(w, packetTypeEncryptedKey, packetLen)
++	if err != nil {
++		return err
++	}
++	_, err = w.Write(header[:])
++	if err != nil {
++		return err
++	}
++	return writeMPI(w, 8*uint16(len(cipherText)), cipherText)
++}
+diff --git a/src/pkg/crypto/openpgp/packet/encrypted_key_test.go b/src/pkg/crypto/openpgp/packet/encrypted_key_test.go
+index 755ae7a307..d4e147c0ef 100644
+--- a/src/pkg/crypto/openpgp/packet/encrypted_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/encrypted_key_test.go
+@@ -6,6 +6,8 @@ package packet
+ 
+ import (
+ 	"big"
++	"bytes"
++	"crypto/rand"
+ 	"crypto/rsa"
+ 	"fmt"
+ 	"testing"
+@@ -19,7 +21,21 @@ func bigFromBase10(s string) *big.Int {
+ 	return b
+ }
+ 
+-func TestEncryptedKey(t *testing.T) {
++
++var encryptedKeyPub = rsa.PublicKey{
++	E: 65537,
++	N: bigFromBase10("115804063926007623305902631768113868327816898845124614648849934718568541074358183759250136204762053879858102352159854352727097033322663029387610959884180306668628526686121021235757016368038585212410610742029286439607686208110250133174279811431933746643015923132833417396844716207301518956640020862630546868823"),
++}
++
++var encryptedKeyPriv = &rsa.PrivateKey{
++	PublicKey: encryptedKeyPub,
++	D:         bigFromBase10("32355588668219869544751561565313228297765464314098552250409557267371233892496951383426602439009993875125222579159850054973310859166139474359774543943714622292329487391199285040721944491839695981199720170366763547754915493640685849961780092241140181198779299712578774460837139360803883139311171713302987058393"),
++}
++
++func TestDecryptingEncryptedKey(t *testing.T) {
++	const encryptedKeyHex = "c18c032a67d68660df41c70104005789d0de26b6a50c985a02a13131ca829c413a35d0e6fa8d6842599252162808ac7439c72151c8c6183e76923fe3299301414d0c25a2f06a2257db3839e7df0ec964773f6e4c4ac7ff3b48c444237166dd46ba8ff443a5410dc670cb486672fdbe7c9dfafb75b4fea83af3a204fe2a7dfa86bd20122b4f3d2646cbeecb8f7be8"
++	const expectedKeyHex = "d930363f7e0308c333b9618617ea728963d8df993665ae7be1092d4926fd864b"
++
+ 	p, err := Read(readerFromHex(encryptedKeyHex))
+ 	if err != nil {
+ 		t.Errorf("error from Read: %s", err)
+@@ -36,23 +52,63 @@ func TestEncryptedKey(t *testing.T) {
+ 		return
+ 	}
+ 
+-	pub := rsa.PublicKey{
+-		E: 65537,
+-		N: bigFromBase10("115804063926007623305902631768113868327816898845124614648849934718568541074358183759250136204762053879858102352159854352727097033322663029387610959884180306668628526686121021235757016368038585212410610742029286439607686208110250133174279811431933746643015923132833417396844716207301518956640020862630546868823"),
++	err = ek.DecryptRSA(encryptedKeyPriv)
++	if err != nil {
++		t.Errorf("error from DecryptRSA: %s", err)
++		return
++	}
++
++	if ek.CipherFunc != CipherAES256 {
++		t.Errorf("unexpected EncryptedKey contents: %#v", ek)
++		return
++	}
++
++	keyHex := fmt.Sprintf("%x", ek.Key)
++	if keyHex != expectedKeyHex {
++		t.Errorf("bad key, got %s want %x", keyHex, expectedKeyHex)
++	}
++}
++
++func TestEncryptingEncryptedKey(t *testing.T) {
++	key := []byte{1, 2, 3, 4}
++	const expectedKeyHex = "01020304"
++	const keyId = 42
++
++	pub := &PublicKey{
++		PublicKey:  &encryptedKeyPub,
++		KeyId:      keyId,
++		PubKeyAlgo: PubKeyAlgoRSAEncryptOnly,
++	}
++
++	buf := new(bytes.Buffer)
++	err := SerializeEncryptedKey(buf, rand.Reader, pub, CipherAES128, key)
++	if err != nil {
++		t.Errorf("error writing encrypted key packet: %s", err)
++	}
++
++	p, err := Read(buf)
++	if err != nil {
++		t.Errorf("error from Read: %s", err)
++		return
++	}
++	ek, ok := p.(*EncryptedKey)
++	if !ok {
++		t.Errorf("didn't parse an EncryptedKey, got %#v", p)
++		return
+ 	}
+ 
+-	priv := &rsa.PrivateKey{
+-		PublicKey: pub,
+-		D:         bigFromBase10("32355588668219869544751561565313228297765464314098552250409557267371233892496951383426602439009993875125222579159850054973310859166139474359774543943714622292329487391199285040721944491839695981199720170366763547754915493640685849961780092241140181198779299712578774460837139360803883139311171713302987058393"),
++	if ek.KeyId != keyId || ek.Algo != PubKeyAlgoRSAEncryptOnly {
++		t.Errorf("unexpected EncryptedKey contents: %#v", ek)
++		return
+ 	}
+ 
+-	err = ek.DecryptRSA(priv)
++	err = ek.DecryptRSA(encryptedKeyPriv)
+ 	if err != nil {
+ 		t.Errorf("error from DecryptRSA: %s", err)
+ 		return
+ 	}
+ 
+-	if ek.CipherFunc != CipherAES256 {
++	if ek.CipherFunc != CipherAES128 {
+ 		t.Errorf("unexpected EncryptedKey contents: %#v", ek)
+ 		return
+ 	}
+@@ -62,6 +118,3 @@ func TestEncryptedKey(t *testing.T) {
+ 		t.Errorf("bad key, got %s want %x", keyHex, expectedKeyHex)
+ 	}
+ }
+-
+-const encryptedKeyHex = "c18c032a67d68660df41c70104005789d0de26b6a50c985a02a13131ca829c413a35d0e6fa8d6842599252162808ac7439c72151c8c6183e76923fe3299301414d0c25a2f06a2257db3839e7df0ec964773f6e4c4ac7ff3b48c444237166dd46ba8ff443a5410dc670cb486672fdbe7c9dfafb75b4fea83af3a204fe2a7dfa86bd20122b4f3d2646cbeecb8f7be8"
+-const expectedKeyHex = "d930363f7e0308c333b9618617ea728963d8df993665ae7be1092d4926fd864b"
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 640a5b76f3..60bd067e90 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -376,6 +376,26 @@ const (
+ 	PubKeyAlgoDSA            PublicKeyAlgorithm = 17
+ )
+ 
++// CanEncrypt returns true if it's possible to encrypt a message to a public
++// key of the given type.
++func (pka PublicKeyAlgorithm) CanEncrypt() bool {
++	switch pka {
++	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoElgamal:
++		return true
++	}
++	return false
++}
++
++// CanSign returns true if it's possible for a public key of the given type to
++// sign a message.
++func (pka PublicKeyAlgorithm) CanSign() bool {
++	switch pka {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly, PubKeyAlgoDSA:
++		return true
++	}
++	return false
++}
++
+ // CipherFunction represents the different block ciphers specified for OpenPGP. See
+ // http://www.iana.org/assignments/pgp-parameters/pgp-parameters.xhtml#pgp-parameters-13
+ type CipherFunction uint8
+@@ -387,8 +407,8 @@ const (
+ 	CipherAES256 CipherFunction = 9
+ )
+ 
+-// keySize returns the key size, in bytes, of cipher.
+-func (cipher CipherFunction) keySize() int {
++// KeySize returns the key size, in bytes, of cipher.
++func (cipher CipherFunction) KeySize() int {
+ 	switch cipher {
+ 	case CipherCAST5:
+ 		return cast5.KeySize
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index 92e7ee4226..6244661320 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -181,7 +181,7 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) os.Error {
+ 		return nil
+ 	}
+ 
+-	key := make([]byte, pk.cipher.keySize())
++	key := make([]byte, pk.cipher.KeySize())
+ 	pk.s2k(key, passphrase)
+ 	block := pk.cipher.new(key)
+ 	cfb := cipher.NewCFBDecrypter(block, pk.iv)
+diff --git a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+index 25d264acf9..ad4f1d6212 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+@@ -42,7 +42,7 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err os.Error) {
+ 	}
+ 	ske.CipherFunc = CipherFunction(buf[1])
+ 
+-	if ske.CipherFunc.keySize() == 0 {
++	if ske.CipherFunc.KeySize() == 0 {
+ 		return error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
+ 	}
+ 
+@@ -78,7 +78,7 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) os.Error {
+ 		return nil
+ 	}
+ 
+-	key := make([]byte, ske.CipherFunc.keySize())
++	key := make([]byte, ske.CipherFunc.KeySize())
+ 	ske.s2k(key, passphrase)
+ 
+ 	if len(ske.encryptedKey) == 0 {
+@@ -109,7 +109,7 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) os.Error {
+ // given passphrase. The session key is returned and must be passed to
+ // SerializeSymmetricallyEncrypted.
+ func SerializeSymmetricKeyEncrypted(w io.Writer, rand io.Reader, passphrase []byte, cipherFunc CipherFunction) (key []byte, err os.Error) {
+-	keySize := cipherFunc.keySize()
++	keySize := cipherFunc.KeySize()
+ 	if keySize == 0 {
+ 		return nil, error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
+ 	}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+index 236c367745..e33c9f3a06 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+@@ -47,7 +47,7 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
+ // packet can be read. An incorrect key can, with high probability, be detected
+ // immediately and this will result in a KeyIncorrect error being returned.
+ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.ReadCloser, os.Error) {
+-	keySize := c.keySize()
++	keySize := c.KeySize()
+ 	if keySize == 0 {
+ 		return nil, error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
+ 	}
+@@ -255,7 +255,7 @@ func (c noOpCloser) Close() os.Error {
+ // to w and returns a WriteCloser to which the to-be-encrypted packets can be
+ // written.
+ func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) (contents io.WriteCloser, err os.Error) {
+-	if c.keySize() != len(key) {
++	if c.KeySize() != len(key) {
+ 		return nil, error.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
+ 	}
+ 	writeCloser := noOpCloser{w}
+diff --git a/src/pkg/crypto/openpgp/read.go b/src/pkg/crypto/openpgp/read.go
+index 46fcde3630..9d9eaec36a 100644
+--- a/src/pkg/crypto/openpgp/read.go
++++ b/src/pkg/crypto/openpgp/read.go
+@@ -57,7 +57,6 @@ type MessageDetails struct {
+ 	// been consumed. Once EOF has been seen, the following fields are
+ 	// valid. (An authentication code failure is reported as a
+ 	// SignatureError error when reading from UnverifiedBody.)
+-
+ 	SignatureError os.Error          // nil if the signature is good.
+ 	Signature      *packet.Signature // the signature packet itself.
+ 
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index 48c86f604e..a7e9332c13 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -9,10 +9,12 @@ import (
+ 	"crypto/openpgp/armor"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/packet"
++	"crypto/openpgp/s2k"
+ 	"crypto/rand"
+ 	_ "crypto/sha256"
+ 	"io"
+ 	"os"
++	"strconv"
+ 	"time"
+ )
+ 
+@@ -98,7 +100,7 @@ type FileHints struct {
+ }
+ 
+ // SymmetricallyEncrypt acts like gpg -c: it encrypts a file with a passphrase.
+-// The resulting WriteCloser MUST be closed after the contents of the file have
++// The resulting WriteCloser must be closed after the contents of the file have
+ // been written.
+ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
+ 	if hints == nil {
+@@ -115,3 +117,102 @@ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHi
+ 	}
+ 	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
+ }
++
++// intersectPreferences mutates and returns a prefix of a that contains only
++// the values in the intersection of a and b. The order of a is preserved.
++func intersectPreferences(a []uint8, b []uint8) (intersection []uint8) {
++	var j int
++	for _, v := range a {
++		for _, v2 := range b {
++			if v == v2 {
++				a[j] = v
++				j++
++				break
++			}
++		}
++	}
++
++	return a[:j]
++}
++
++func hashToHashId(h crypto.Hash) uint8 {
++	v, ok := s2k.HashToHashId(h)
++	if !ok {
++		panic("tried to convert unknown hash")
++	}
++	return v
++}
++
++// Encrypt encrypts a message to a number of recipients and, optionally, signs
++// it. (Note: signing is not yet implemented.) hints contains optional
++// information, that is also encrypted, that aids the recipients in processing
++// the message. The resulting WriteCloser must be closed after the contents of
++// the file have been written.
++func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
++	// These are the possible ciphers that we'll use for the message.
++	candidateCiphers := []uint8{
++		uint8(packet.CipherAES128),
++		uint8(packet.CipherAES256),
++		uint8(packet.CipherCAST5),
++	}
++	// These are the possible hash functions that we'll use for the signature.
++	candidateHashes := []uint8{
++		hashToHashId(crypto.SHA256),
++		hashToHashId(crypto.SHA512),
++		hashToHashId(crypto.SHA1),
++		hashToHashId(crypto.RIPEMD160),
++	}
++	// In the event that a recipient doesn't specify any supported ciphers
++	// or hash functions, these are the ones that we assume that every
++	// implementation supports.
++	defaultCiphers := candidateCiphers[len(candidateCiphers)-1:]
++	defaultHashes := candidateHashes[len(candidateHashes)-1:]
++
++	encryptKeys := make([]Key, len(to))
++	for i := range to {
++		encryptKeys[i] = to[i].encryptionKey()
++		if encryptKeys[i].PublicKey == nil {
++			return nil, error.InvalidArgumentError("cannot encrypt a message to key id " + strconv.Uitob64(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
++		}
++
++		sig := to[i].primaryIdentity().SelfSignature
++
++		preferredSymmetric := sig.PreferredSymmetric
++		if len(preferredSymmetric) == 0 {
++			preferredSymmetric = defaultCiphers
++		}
++		preferredHashes := sig.PreferredHash
++		if len(preferredHashes) == 0 {
++			preferredHashes = defaultHashes
++		}
++		candidateCiphers = intersectPreferences(candidateCiphers, preferredSymmetric)
++		candidateHashes = intersectPreferences(candidateHashes, preferredHashes)
++	}
++
++	if len(candidateCiphers) == 0 || len(candidateHashes) == 0 {
++		return nil, error.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
++	}
++
++	cipher := packet.CipherFunction(candidateCiphers[0])
++	// hash := s2k.HashIdToHash(candidateHashes[0])
++	symKey := make([]byte, cipher.KeySize())
++	if _, err := io.ReadFull(rand.Reader, symKey); err != nil {
++		return nil, err
++	}
++
++	for _, key := range encryptKeys {
++		if err := packet.SerializeEncryptedKey(ciphertext, rand.Reader, key.PublicKey, cipher, symKey); err != nil {
++			return nil, err
++		}
++	}
++
++	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
++	if err != nil {
++		return
++	}
++
++	if hints == nil {
++		hints = &FileHints{}
++	}
++	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
++}
+diff --git a/src/pkg/crypto/openpgp/write_test.go b/src/pkg/crypto/openpgp/write_test.go
+index 8551aeb638..cfa1314184 100644
+--- a/src/pkg/crypto/openpgp/write_test.go
++++ b/src/pkg/crypto/openpgp/write_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/rand"
+ 	"os"
+ 	"io"
++	"io/ioutil"
+ 	"testing"
+ 	"time"
+ )
+@@ -120,3 +121,47 @@ func TestSymmetricEncryption(t *testing.T) {
+ 		t.Errorf("recovered message incorrect got '%s', want '%s'", messageBuf.Bytes(), message)
+ 	}
+ }
++
++func TestEncryption(t *testing.T) {
++	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2PrivateHex))
++
++	buf := new(bytes.Buffer)
++	w, err := Encrypt(buf, kring[:1], nil, /* not signed */ nil /* no hints */ )
++	if err != nil {
++		t.Errorf("error in Encrypt: %s", err)
++		return
++	}
++
++	const message = "testing"
++	_, err = w.Write([]byte(message))
++	if err != nil {
++		t.Errorf("error writing plaintext: %s", err)
++		return
++	}
++	err = w.Close()
++	if err != nil {
++		t.Errorf("error closing WriteCloser: %s", err)
++		return
++	}
++
++	md, err := ReadMessage(buf, kring, nil /* no prompt */ )
++	if err != nil {
++		t.Errorf("error reading message: %s", err)
++		return
++	}
++
++	plaintext, err := ioutil.ReadAll(md.UnverifiedBody)
++	if err != nil {
++		t.Errorf("error reading encrypted contents: %s", err)
++		return
++	}
++
++	expectedKeyId := kring[0].encryptionKey().PublicKey.KeyId
++	if len(md.EncryptedToKeyIds) != 1 || md.EncryptedToKeyIds[0] != expectedKeyId {
++		t.Errorf("expected message to be encrypted to %v, but got %#v", expectedKeyId, md.EncryptedToKeyIds)
++	}
++
++	if string(plaintext) != message {
++		t.Errorf("got: %s, want: %s", string(plaintext), message)
++	}
++}

@@ -12,6 +12,24 @@ Date:   Tue Oct 17 19:57:01 2017 +0200
     Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/flag/flag.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 5544a25282..fde7411f82 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -400,11 +400,7 @@ func isZeroValue(flag *Flag, value string) bool {
+ 	}
+ 
+ 	switch value {
+-	case "false":
+-		return true
+-	case "":
+-		return true
+-	case "0":
++	case "false", "", "0":
+ 		return true
+ 	}
+ 	return false

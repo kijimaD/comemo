@@ -12,6 +12,23 @@ Date:   Mon Mar 27 19:20:58 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_unix_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_unix_test.go b/src/runtime/runtime-gdb_unix_test.go
+index a276fdbe8f..f9cc64803e 100644
+--- a/src/runtime/runtime-gdb_unix_test.go
++++ b/src/runtime/runtime-gdb_unix_test.go
+@@ -70,6 +70,11 @@ func TestGdbCoreSignalBacktrace(t *testing.T) {
+ 		// to know how to enable/find core files on each OS.
+ 		t.Skip("Test only supported on Linux")
+ 	}
++	if runtime.GOARCH != "386" && runtime.GOARCH != "amd64" {
++		// TODO(go.dev/issue/25218): Other architectures use sigreturn
++		// via VDSO, which we somehow don't handle correctly.
++		t.Skip("Backtrace through signal handler only works on 386 and amd64")
++	}
+ 
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()

@@ -8,6 +8,20 @@ Date:   Wed Mar 17 10:08:27 2010 -0700
     TBR=rsc
     CC=golang-dev
     https://golang.org/cl/610043
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index f44de25d41..71ab072e01 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -125,7 +125,7 @@ mkversion: mkversion.c
+ 	$(QUOTED_GOBIN)/quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+ 
+ version.go: mkversion
+-	mkversion >version.go
++	./mkversion >version.go
+ 
+ %.c:	%.cgo cgo2c
+ 	./cgo2c $< > $@.tmp

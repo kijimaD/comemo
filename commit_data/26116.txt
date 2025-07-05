@@ -10,6 +10,38 @@ Date:   Thu Dec 17 16:50:03 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/17936
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 95c14df52e..5ef02a1477 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -515,7 +515,8 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
+ 
+ type fakeDNSConn struct {
+ 	// last query
+-	q *dnsMsg
++	qmu sync.Mutex // guards q
++	q   *dnsMsg
+ 	// reply handler
+ 	rh func(*dnsMsg) (*dnsMsg, error)
+ }
+@@ -533,10 +534,15 @@ func (f *fakeDNSConn) SetDeadline(time.Time) error {
+ }
+ 
+ func (f *fakeDNSConn) writeDNSQuery(q *dnsMsg) error {
++	f.qmu.Lock()
++	defer f.qmu.Unlock()
+ 	f.q = q
+ 	return nil
+ }
+ 
+ func (f *fakeDNSConn) readDNSResponse() (*dnsMsg, error) {
+-	return f.rh(f.q)
++	f.qmu.Lock()
++	q := f.q
++	f.qmu.Unlock()
++	return f.rh(q)
+ }

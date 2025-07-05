@@ -9,6 +9,20 @@ Date:   Fri Aug 14 14:41:50 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=33294
     CL=33294
-
+---
  src/pkg/runtime/symtab.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 6deb797f5e..a03c165af8 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -223,7 +223,7 @@ dosrcline(Sym *sym)
+ 			nhist = 0;
+ 			nfile = 0;
+ 			if(nfile == nelem(files))
+-				continue;
++				return;
+ 			files[nfile].srcstring = gostring(srcbuf);
+ 			files[nfile].aline = 0;
+ 			files[nfile++].delta = 0;

@@ -51,7 +51,7 @@ Date:   Tue Mar 8 14:14:28 2011 -0500
     R=r, cw
     CC=golang-dev
     https://golang.org/cl/4245072
-
+---
  src/cmd/5l/asm.c    |  2 ++
  src/cmd/5l/l.h      | 17 +----------------
  src/cmd/6l/asm.c    |  5 +++++
@@ -64,3 +64,324 @@ Date:   Tue Mar 8 14:14:28 2011 -0500
  src/cmd/ld/lib.h    | 31 +++++++++++++++++++++++++++++--
  src/cmd/ld/symtab.c | 42 ++++++++++++++++++++++++++++++++++++++++++
  11 files changed, 87 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index af6d1dfda0..95b12a9b49 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1978,6 +1978,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->hash) {
++			if(s->hide)
++				continue;
+ 			switch(s->type) {
+ 			case SCONST:
+ 			case SRODATA:
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 2e887dad73..9ce9d02c6c 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -136,6 +136,7 @@ struct	Sym
+ 	uchar	dynexport;
+ 	uchar	leaf;
+ 	uchar	stkcheck;
++	uchar	hide;
+ 	int32	dynid;
+ 	int32	plt;
+ 	int32	got;
+@@ -202,22 +203,6 @@ struct	Count
+ 
+ enum
+ {
+-	Sxxx,
+-	
+-	/* order here is order in output file */
+-	STEXT		= 1,
+-	SRODATA,
+-	SELFDATA,
+-	SDATA,
+-	SBSS,
+-
+-	SXREF,
+-	SFILE,
+-	SCONST,
+-	SDYNIMPORT,
+-
+-	SSUB	= 1<<8,
+-
+ 	LFROM		= 1<<0,
+ 	LTO		= 1<<1,
+ 	LPOOL		= 1<<2,
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index fb041d83a5..3e2fe69604 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -1105,12 +1105,17 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->hash) {
++			if(s->hide)
++				continue;
+ 			switch(s->type&~SSUB) {
+ 			case SCONST:
+ 			case SRODATA:
+ 			case SDATA:
+ 			case SELFDATA:
+ 			case SMACHOGOT:
++			case STYPE:
++			case SSTRING:
++			case SGOSTRING:
+ 			case SWINDOWS:
+ 				if(!s->reachable)
+ 					continue;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 6933d8eb19..139b06af89 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -132,6 +132,7 @@ struct	Sym
+ 	uchar	dynexport;
+ 	uchar	special;
+ 	uchar	stkcheck;
++	uchar	hide;
+ 	int32	dynid;
+ 	int32	sig;
+ 	int32	plt;
+@@ -177,28 +178,6 @@ struct	Movtab
+ 
+ enum
+ {
+-	Sxxx,
+-	
+-	/* order here is order in output file */
+-	STEXT		= 1,
+-	SELFDATA,
+-	SMACHOPLT,
+-	SRODATA,
+-	SDATA,
+-	SMACHOGOT,
+-	SWINDOWS,
+-	SBSS,
+-
+-	SXREF,
+-	SMACHODYNSTR,
+-	SMACHODYNSYM,
+-	SMACHOINDIRECTPLT,
+-	SMACHOINDIRECTGOT,
+-	SFILE,
+-	SCONST,
+-	SDYNIMPORT,
+-	SSUB	= 1<<8,
+-
+ 	NHASH		= 10007,
+ 	MINSIZ		= 8,
+ 	STRINGSZ	= 200,
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 1e760d89e5..19134d4a97 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -1158,6 +1158,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->hash) {
++			if(s->hide)
++				continue;
+ 			switch(s->type&~SSUB) {
+ 			case SCONST:
+ 			case SRODATA:
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index e4650ee58f..62f4702573 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -131,6 +131,7 @@ struct	Sym
+ 	uchar	dynexport;
+ 	uchar	special;
+ 	uchar	stkcheck;
++	uchar	hide;
+ 	int32	value;
+ 	int32	size;
+ 	int32	sig;
+@@ -168,30 +169,6 @@ struct	Optab
+ 
+ enum
+ {
+-	Sxxx,
+-	
+-	/* order here is order in output file */
+-	STEXT,
+-	SELFDATA,
+-	SMACHOPLT,
+-	SRODATA,
+-	SDATA,
+-	SMACHO,	/* Mach-O __nl_symbol_ptr */
+-	SMACHOGOT,
+-	SWINDOWS,
+-	SBSS,
+-
+-	SXREF,
+-	SMACHODYNSTR,
+-	SMACHODYNSYM,
+-	SMACHOINDIRECTPLT,
+-	SMACHOINDIRECTGOT,
+-	SFILE,
+-	SCONST,
+-	SDYNIMPORT,
+-
+-	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
+-
+ 	NHASH		= 10007,
+ 	MINSIZ		= 4,
+ 	STRINGSZ	= 200,
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index a20b057ce5..4066cd8143 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -732,6 +732,7 @@ dodata(void)
+ 
+ 	last = nil;
+ 	datap = nil;
++
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->hash){
+ 			if(!s->reachable || s->special)
+@@ -786,7 +787,7 @@ dodata(void)
+ 	s = datap;
+ 	for(; s != nil && s->type < SDATA; s = s->next) {
+ 		s->type = SRODATA;
+-		t = rnd(s->size, 4);
++		t = rnd(s->size, PtrSize);
+ 		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index f7c8e38341..ace38cbc53 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1467,7 +1467,7 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
+ 	if (strncmp(s, "type._.", 7) == 0)
+ 		return;
+ 
+-	if (strncmp(s, "type.", 5) == 0) {
++	if (strncmp(s, "type.", 5) == 0 && strcmp(s, "type.*") != 0) {
+ 		defgotype(sym);
+ 		return;
+ 	}
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 3c1e230b4b..a64153ff2f 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -662,6 +662,7 @@ deadcode(void)
+ 		if(strncmp(s->name, "weak.", 5) == 0) {
+ 			s->special = 1;  // do not lay out in data segment
+ 			s->reachable = 1;
++			s->hide = 1;
+ 		}
+ }
+ 
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index adde2c9ff2..fbd372b23d 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -28,8 +28,35 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-// Where symbol table data gets mapped into memory.
+-#define SYMDATVA 0x99LL<<24
++enum
++{
++	Sxxx,
++	
++	/* order here is order in output file */
++	STEXT,
++	SELFDATA,
++	SMACHOPLT,
++	STYPE,
++	SSTRING,
++	SGOSTRING,
++	SRODATA,
++	SDATA,
++	SMACHO,	/* Mach-O __nl_symbol_ptr */
++	SMACHOGOT,
++	SWINDOWS,
++	SBSS,
++
++	SXREF,
++	SMACHODYNSTR,
++	SMACHODYNSYM,
++	SMACHOINDIRECTPLT,
++	SMACHOINDIRECTGOT,
++	SFILE,
++	SCONST,
++	SDYNIMPORT,
++
++	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
++};
+ 
+ typedef struct Library Library;
+ struct Library
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 22777b6b5b..f1d44058e0 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -340,6 +340,9 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ void
+ symtab(void)
+ {
++	int32 h;
++	Sym *s;
++
+ 	// Define these so that they'll get put into the symbol table.
+ 	// data.c:/^address will provide the actual values.
+ 	xdefine("text", STEXT, 0);
+@@ -351,11 +354,50 @@ symtab(void)
+ 	xdefine("end", SBSS, 0);
+ 	xdefine("epclntab", SRODATA, 0);
+ 	xdefine("esymtab", SRODATA, 0);
++	
++	// pseudo-symbols to mark locations of type, string, and go string data.
++	s = lookup("type.*", 0);
++	s->type = STYPE;
++	s->size = 0;
++	s->reachable = 1;
++
++	s = lookup("string.*", 0);
++	s->type = SSTRING;
++	s->size = 0;
++	s->reachable = 1;
++
++	s = lookup("go.string.*", 0);
++	s->type = SGOSTRING;
++	s->size = 0;
++	s->reachable = 1;
+ 
+ 	symt = lookup("symtab", 0);
+ 	symt->type = SRODATA;
+ 	symt->size = 0;
+ 	symt->reachable = 1;
++	
++	// assign specific types so that they sort together.
++	// within a type they sort by size, so the .* symbols
++	// just defined above will be first.
++	// hide the specific symbols.
++	for(h=0; h<NHASH; h++) {
++		for(s=hash[h]; s!=S; s=s->hash){
++			if(!s->reachable || s->special || s->type != SRODATA)
++				continue;
++			if(strncmp(s->name, "type.", 5) == 0) {
++				s->type = STYPE;
++				s->hide = 1;
++			}
++			if(strncmp(s->name, "string.", 7) == 0) {
++				s->type = SSTRING;
++				s->hide = 1;
++			}
++			if(strncmp(s->name, "go.string.", 10) == 0) {
++				s->type = SGOSTRING;
++				s->hide = 1;
++			}
++		}
++	}
+ 
+ 	genasmsym(putsymb);
+ }

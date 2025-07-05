@@ -15,9 +15,189 @@ Date:   Thu Nov 21 17:32:22 2024 -0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/go/build/deps_test.go         | 10 ++++-----
  src/internal/synctest/synctest.go | 45 +++++++++++++++++++++++++++++++++++++++
  src/runtime/synctest.go           | 27 +++++++++++++++++++++++
  src/syscall/js/func.go            | 27 ++++++++++++++++++-----
  4 files changed, 99 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 90b1eed00e..cc7f4df7f3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -131,8 +131,12 @@ var depsRules = `
+ 
+ 	unicode !< path;
+ 
++	RUNTIME
++	< internal/synctest
++	< testing/synctest;
++
+ 	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
+-	RUNTIME, unicode/utf8, unicode/utf16
++	RUNTIME, unicode/utf8, unicode/utf16, internal/synctest
+ 	< internal/syscall/windows/sysdll, syscall/js
+ 	< syscall
+ 	< internal/syscall/unix, internal/syscall/windows, internal/syscall/windows/registry
+@@ -658,10 +662,6 @@ var depsRules = `
+ 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
+ 	< testing;
+ 
+-	RUNTIME
+-	< internal/synctest
+-	< testing/synctest;
+-
+ 	log/slog, testing
+ 	< testing/slogtest;
+ 
+diff --git a/src/internal/synctest/synctest.go b/src/internal/synctest/synctest.go
+index 7714a82bf4..19190d30f1 100644
+--- a/src/internal/synctest/synctest.go
++++ b/src/internal/synctest/synctest.go
+@@ -16,3 +16,48 @@ func Run(f func())
+ 
+ //go:linkname Wait
+ func Wait()
++
++//go:linkname acquire
++func acquire() any
++
++//go:linkname release
++func release(any)
++
++//go:linkname inBubble
++func inBubble(any, func())
++
++// A Bubble is a synctest bubble.
++//
++// Not a public API. Used by syscall/js to propagate bubble membership through syscalls.
++type Bubble struct {
++	b any
++}
++
++// Acquire returns a reference to the current goroutine's bubble.
++// The bubble will not become idle until Release is called.
++func Acquire() *Bubble {
++	if b := acquire(); b != nil {
++		return &Bubble{b}
++	}
++	return nil
++}
++
++// Release releases the reference to the bubble,
++// allowing it to become idle again.
++func (b *Bubble) Release() {
++	if b == nil {
++		return
++	}
++	release(b.b)
++	b.b = nil
++}
++
++// Run executes f in the bubble.
++// The current goroutine must not be part of a bubble.
++func (b *Bubble) Run(f func()) {
++	if b == nil {
++		f()
++	} else {
++		inBubble(b.b, f)
++	}
++}
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index 0fd5e7873e..09748d5c1c 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -270,3 +270,30 @@ func synctestwait_c(gp *g, _ unsafe.Pointer) bool {
+ 	unlock(&gp.syncGroup.mu)
+ 	return true
+ }
++
++//go:linkname synctest_acquire internal/synctest.acquire
++func synctest_acquire() any {
++	if sg := getg().syncGroup; sg != nil {
++		sg.incActive()
++		return sg
++	}
++	return nil
++}
++
++//go:linkname synctest_release internal/synctest.release
++func synctest_release(sg any) {
++	sg.(*synctestGroup).decActive()
++}
++
++//go:linkname synctest_inBubble internal/synctest.inBubble
++func synctest_inBubble(sg any, f func()) {
++	gp := getg()
++	if gp.syncGroup != nil {
++		panic("goroutine is already bubbled")
++	}
++	gp.syncGroup = sg.(*synctestGroup)
++	defer func() {
++		gp.syncGroup = nil
++	}()
++	f()
++}
+diff --git a/src/syscall/js/func.go b/src/syscall/js/func.go
+index 53a4d79a95..23530170ff 100644
+--- a/src/syscall/js/func.go
++++ b/src/syscall/js/func.go
+@@ -6,7 +6,10 @@
+ 
+ package js
+ 
+-import "sync"
++import (
++	"internal/synctest"
++	"sync"
++)
+ 
+ var (
+ 	funcsMu    sync.Mutex
+@@ -16,8 +19,9 @@ var (
+ 
+ // Func is a wrapped Go function to be called by JavaScript.
+ type Func struct {
+-	Value // the JavaScript function that invokes the Go function
+-	id    uint32
++	Value  // the JavaScript function that invokes the Go function
++	bubble *synctest.Bubble
++	id     uint32
+ }
+ 
+ // FuncOf returns a function to be used by JavaScript.
+@@ -42,11 +46,23 @@ func FuncOf(fn func(this Value, args []Value) any) Func {
+ 	funcsMu.Lock()
+ 	id := nextFuncID
+ 	nextFuncID++
++	bubble := synctest.Acquire()
++	if bubble != nil {
++		origFn := fn
++		fn = func(this Value, args []Value) any {
++			var r any
++			bubble.Run(func() {
++				r = origFn(this, args)
++			})
++			return r
++		}
++	}
+ 	funcs[id] = fn
+ 	funcsMu.Unlock()
+ 	return Func{
+-		id:    id,
+-		Value: jsGo.Call("_makeFuncWrapper", id),
++		id:     id,
++		bubble: bubble,
++		Value:  jsGo.Call("_makeFuncWrapper", id),
+ 	}
+ }
+ 
+@@ -54,6 +70,7 @@ func FuncOf(fn func(this Value, args []Value) any) Func {
+ // The function must not be invoked after calling Release.
+ // It is allowed to call Release while the function is still running.
+ func (c Func) Release() {
++	c.bubble.Release()
+ 	funcsMu.Lock()
+ 	delete(funcs, c.id)
+ 	funcsMu.Unlock()

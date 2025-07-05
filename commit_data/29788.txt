@@ -22,8 +22,201 @@ Date:   Thu Oct 6 22:42:20 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/30613
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/math/big/arith_amd64.s | 35 +++++++++++++++++++++++++++++++++++
  src/math/big/int_test.go   | 23 +++++++++++++++++++++++
  src/math/big/nat.go        | 46 ++++++++++++++++++++++++++++------------------
  3 files changed, 86 insertions(+), 18 deletions(-)
+
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index b69a2c616a..a7eba676b0 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -326,6 +326,41 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVQ r+56(FP), CX	// c = r
+ 	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
++	
++	CMPQ R11, $4
++	JL E5
++	
++U5:	// i+4 <= n
++	// regular loop body unrolled 4x
++	MOVQ (0*8)(R8)(BX*8), AX
++	MULQ R9
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ AX, (0*8)(R10)(BX*8)
++	MOVQ DX, CX
++	MOVQ (1*8)(R8)(BX*8), AX
++	MULQ R9
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ AX, (1*8)(R10)(BX*8)
++	MOVQ DX, CX
++	MOVQ (2*8)(R8)(BX*8), AX
++	MULQ R9
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ AX, (2*8)(R10)(BX*8)
++	MOVQ DX, CX
++	MOVQ (3*8)(R8)(BX*8), AX
++	MULQ R9
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ AX, (3*8)(R10)(BX*8)
++	MOVQ DX, CX
++	ADDQ $4, BX		// i += 4
++	
++	LEAQ 4(BX), DX
++	CMPQ DX, R11
++	JLE U5
+ 	JMP E5
+ 
+ L5:	MOVQ (R8)(BX*8), AX
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 0cae4a12c5..4df103a4fb 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -478,6 +478,18 @@ func TestQuoStepD6(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkQuoRem(b *testing.B) {
++	x, _ := new(Int).SetString("153980389784927331788354528594524332344709972855165340650588877572729725338415474372475094155672066328274535240275856844648695200875763869073572078279316458648124537905600131008790701752441155668003033945258023841165089852359980273279085783159654751552359397986180318708491098942831252291841441726305535546071", 0)
++	y, _ := new(Int).SetString("7746362281539803897849273317883545285945243323447099728551653406505888775727297253384154743724750941556720663282745352402758568446486952008757638690735720782793164586481245379056001310087907017524411556680030339452580238411650898523599802732790857831596547515523593979861803187084910989428312522918414417263055355460715745539358014631136245887418412633787074173796862711588221766398229333338511838891484974940633857861775630560092874987828057333663969469797013996401149696897591265769095952887917296740109742927689053276850469671231961384715398038978492733178835452859452433234470997285516534065058887757272972533841547437247509415567206632827453524027585684464869520087576386907357207827931645864812453790560013100879070175244115566800303394525802384116508985235998027327908578315965475155235939798618031870849109894283125229184144172630553554607112725169432413343763989564437170644270643461665184965150423819594083121075825", 0)
++	q := new(Int)
++	r := new(Int)
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		q.QuoRem(y, x, r)
++	}
++}
++
+ var bitLenTests = []struct {
+ 	in  string
+ 	out int
+@@ -794,6 +806,17 @@ func TestProbablyPrime(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkProbablyPrime(b *testing.B) {
++	p, _ := new(Int).SetString("203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123", 10)
++	for _, rep := range []int{1, 5, 10, 20} {
++		b.Run(fmt.Sprintf("Rep=%d", rep), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				p.ProbablyPrime(rep)
++			}
++		})
++	}
++}
++
+ type intShiftTest struct {
+ 	in    string
+ 	shift uint
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index b06df1c5f1..5a30fd500b 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -542,16 +542,21 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
+ 	return
+ }
+ 
+-// getNat returns a nat of len n. The contents may not be zero.
+-func getNat(n int) nat {
+-	var z nat
++// getNat returns a *nat of len n. The contents may not be zero.
++// The pool holds *nat to avoid allocation when converting to interface{}.
++func getNat(n int) *nat {
++	var z *nat
+ 	if v := natPool.Get(); v != nil {
+-		z = v.(nat)
++		z = v.(*nat)
+ 	}
+-	return z.make(n)
++	if z == nil {
++		z = new(nat)
++	}
++	*z = z.make(n)
++	return z
+ }
+ 
+-func putNat(x nat) {
++func putNat(x *nat) {
+ 	natPool.Put(x)
+ }
+ 
+@@ -575,7 +580,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	}
+ 	q = z.make(m + 1)
+ 
+-	qhatv := getNat(n + 1)
++	qhatvp := getNat(n + 1)
++	qhatv := *qhatvp
+ 	if alias(u, uIn) || alias(u, v) {
+ 		u = nil // u is an alias for uIn or v - cannot reuse
+ 	}
+@@ -583,36 +589,40 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	u.clear() // TODO(gri) no need to clear if we allocated a new u
+ 
+ 	// D1.
+-	var v1 nat
++	var v1p *nat
+ 	shift := nlz(v[n-1])
+ 	if shift > 0 {
+ 		// do not modify v, it may be used by another goroutine simultaneously
+-		v1 = getNat(n)
++		v1p = getNat(n)
++		v1 := *v1p
+ 		shlVU(v1, v, shift)
+ 		v = v1
+ 	}
+ 	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+ 
+ 	// D2.
++	vn1 := v[n-1]
+ 	for j := m; j >= 0; j-- {
+ 		// D3.
+ 		qhat := Word(_M)
+-		if u[j+n] != v[n-1] {
++		if ujn := u[j+n]; ujn != vn1 {
+ 			var rhat Word
+-			qhat, rhat = divWW(u[j+n], u[j+n-1], v[n-1])
++			qhat, rhat = divWW(ujn, u[j+n-1], vn1)
+ 
+ 			// x1 | x2 = q̂v_{n-2}
+-			x1, x2 := mulWW(qhat, v[n-2])
++			vn2 := v[n-2]
++			x1, x2 := mulWW(qhat, vn2)
+ 			// test if q̂v_{n-2} > br̂ + u_{j+n-2}
+-			for greaterThan(x1, x2, rhat, u[j+n-2]) {
++			ujn2 := u[j+n-2]
++			for greaterThan(x1, x2, rhat, ujn2) {
+ 				qhat--
+ 				prevRhat := rhat
+-				rhat += v[n-1]
++				rhat += vn1
+ 				// v[n-1] >= 0, so this tests for overflow.
+ 				if rhat < prevRhat {
+ 					break
+ 				}
+-				x1, x2 = mulWW(qhat, v[n-2])
++				x1, x2 = mulWW(qhat, vn2)
+ 			}
+ 		}
+ 
+@@ -628,10 +638,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 
+ 		q[j] = qhat
+ 	}
+-	if v1 != nil {
+-		putNat(v1)
++	if v1p != nil {
++		putNat(v1p)
+ 	}
+-	putNat(qhatv)
++	putNat(qhatvp)
+ 
+ 	q = q.norm()
+ 	shrVU(u, u, shift)

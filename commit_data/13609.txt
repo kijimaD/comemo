@@ -10,6 +10,23 @@ Date:   Thu Aug 9 08:47:43 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6453092
-
+---
  src/cmd/5l/asm.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 3e51ece462..e39fcc9641 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -963,6 +963,11 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 4;
+ 
++		ph = newElfPhdr();
++		ph->type = PT_PAX_FLAGS;
++		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
++		ph->align = 4;
++
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+ 		sh->type = SHT_STRTAB;
+ 		sh->addralign = 1;

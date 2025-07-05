@@ -7,6 +7,24 @@ Date:   Wed Oct 10 18:06:29 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6632051
-
+---
  src/pkg/runtime/race.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index a94298f055..97bfe6864e 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -92,8 +92,11 @@ runtime·racefuncexit(void)
+ void
+ runtime·racemalloc(void *p, uintptr sz, void *pc)
+ {
++	// use m->curg because runtime·stackalloc() is called from g0
++	if(m->curg == nil)
++		return;
+ 	m->racecall = true;
+-	runtime∕race·Malloc(g->goid-1, p, sz, pc);
++	runtime∕race·Malloc(m->curg->goid-1, p, sz, pc);
+ 	m->racecall = false;
+ }
+ 

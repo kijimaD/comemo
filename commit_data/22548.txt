@@ -13,6 +13,19 @@ Date:   Mon Mar 23 14:21:20 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/7942
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/type.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index ffda1f0ce5..c605a94787 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -22,6 +22,7 @@ var (
+ 		".js":   "application/x-javascript",
+ 		".pdf":  "application/pdf",
+ 		".png":  "image/png",
++		".svg":  "image/svg+xml",
+ 		".xml":  "text/xml; charset=utf-8",
+ 	}
+ 	mimeTypes = clone(mimeTypesLower)

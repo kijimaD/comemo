@@ -10,7 +10,53 @@ Date:   Mon Aug 9 10:25:54 2010 -0400
     R=agl1, gri
     CC=golang-dev
     https://golang.org/cl/1870047
-
+---
  src/pkg/asn1/marshal.go      | 17 ++++++++++++-----
  src/pkg/asn1/marshal_test.go |  4 ++++
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index d4f8f782d4..328042b2b2 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -123,13 +123,20 @@ func marshalInt64(out *forkableWriter, i int64) (err os.Error) {
+ }
+ 
+ func int64Length(i int64) (numBytes int) {
+-	if i == 0 {
+-		return 1
++	numBytes = 1
++
++	if i > 0 {
++		for i > 127 {
++			numBytes++
++			i >>= 8
++		}
+ 	}
+ 
+-	for i > 0 {
+-		numBytes++
+-		i >>= 8
++	if i < 0 {
++		for i < -128 {
++			numBytes++
++			i >>= 8
++		}
+ 	}
+ 
+ 	return
+diff --git a/src/pkg/asn1/marshal_test.go b/src/pkg/asn1/marshal_test.go
+index 67878f9bb9..492f39dace 100644
+--- a/src/pkg/asn1/marshal_test.go
++++ b/src/pkg/asn1/marshal_test.go
+@@ -59,6 +59,10 @@ type marshalTest struct {
+ 
+ var marshalTests = []marshalTest{
+ 	marshalTest{10, "02010a"},
++	marshalTest{127, "02017f"},
++	marshalTest{128, "02020080"},
++	marshalTest{-128, "020180"},
++	marshalTest{-129, "0202ff7f"},
+ 	marshalTest{intStruct{64}, "3003020140"},
+ 	marshalTest{twoIntStruct{64, 65}, "3006020140020141"},
+ 	marshalTest{nestedStruct{intStruct{127}}, "3005300302017f"},

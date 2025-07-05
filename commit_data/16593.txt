@@ -9,6 +9,28 @@ Date:   Tue Jun 18 15:26:15 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/10272051
-
+---
  doc/style.css | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/style.css b/doc/style.css
+index 5c8e17a298..ca8006b8dc 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -153,6 +153,8 @@ div#topbar.wide > .container {
+ }
+ div#plusone {
+ 	float: right;
++	clear: right;
++	margin-top: 5px;
+ }
+ 
+ div#footer {
+@@ -402,6 +404,7 @@ img.gopher {
+ 	float: right;
+ 	margin-left: 10px;
+ 	margin-bottom: 10px;
++	z-index: -1;
+ }
+ .pkgGopher {
+ 	text-align: right;

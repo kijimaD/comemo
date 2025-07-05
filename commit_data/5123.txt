@@ -7,6 +7,28 @@ Date:   Wed Mar 24 15:17:00 2010 -0700
     R=rsc, gri, iant, ken2
     CC=golang-dev
     https://golang.org/cl/738041
-
+---
  doc/go_spec.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 89fbcb73ae..828afd8dc5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1547,7 +1547,7 @@ Zero value:
+ 
+ Functions:
+ 	cap close closed cmplx copy imag len make
+-	new panic panicln print println real
++	new panic print println real
+ </pre>
+ 
+ 
+@@ -4525,7 +4525,6 @@ Function   Behavior
+ print      prints all arguments; formatting of arguments is implementation-specific
+ println    like print but prints spaces between arguments and a newline at the end
+ panic      like print, aborts execution after printing
+-panicln    like println, aborts execution after printing
+ </pre>
+ 
+ 

@@ -9,6 +9,20 @@ Date:   Wed Feb 17 09:41:12 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index a96b37a4be..fb3d8fb2cd 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -951,7 +951,7 @@ func defgotype(gotype *LSym) *DWDie {
+ 	}
+ 
+ 	if !strings.HasPrefix(gotype.Name, "type.") {
+-		Diag("dwarf: type name doesn't start with \".type\": %s", gotype.Name)
++		Diag("dwarf: type name doesn't start with \"type.\": %s", gotype.Name)
+ 		return mustFind(&dwtypes, "<unspecified>")
+ 	}
+ 

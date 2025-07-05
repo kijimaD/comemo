@@ -34,7 +34,74 @@ Date:   Wed May 1 21:57:52 2019 +0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 20 +++++++++++++-------
  test/fixedbugs/issue31777.go         | 24 ++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 54e4a15681..64716d8402 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1262,18 +1262,24 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 			if r.Op != OKEY {
+ 				Fatalf("OMAPLIT entry not OKEY: %v\n", r)
+ 			}
+-			if isStaticCompositeLiteral(r.Left) && isStaticCompositeLiteral(r.Right) {
+-				statics = append(statics, r)
+-			} else {
++
++			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
++				dynamics = append(dynamics, r)
++				continue
++			}
++
++			// Recursively ordering some static entries can change them to dynamic;
++			// e.g., OCONVIFACE nodes. See #31777.
++			r = o.expr(r, nil)
++			if !isStaticCompositeLiteral(r.Left) || !isStaticCompositeLiteral(r.Right) {
+ 				dynamics = append(dynamics, r)
++				continue
+ 			}
++
++			statics = append(statics, r)
+ 		}
+ 		n.List.Set(statics)
+ 
+-		// Note: we don't need to recursively call order on the statics.
+-		// But do it anyway, just in case that's not true in the future.
+-		o.exprList(n.List)
+-
+ 		if len(dynamics) == 0 {
+ 			break
+ 		}
+diff --git a/test/fixedbugs/issue31777.go b/test/fixedbugs/issue31777.go
+new file mode 100644
+index 0000000000..839e242c95
+--- /dev/null
++++ b/test/fixedbugs/issue31777.go
+@@ -0,0 +1,24 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Compile with static map literal.
++
++package p
++
++type i interface {
++	j()
++}
++
++type s struct{}
++
++func (s) j() {}
++
++type foo map[string]i
++
++var f = foo{
++	"1": s{},
++	"2": s{},
++}

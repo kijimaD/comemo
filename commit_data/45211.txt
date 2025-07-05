@@ -17,9 +17,154 @@ Date:   Mon Oct 12 16:19:49 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go  | 10 ++++++-
  src/cmd/compile/internal/gc/noder.go | 13 ++++++--
  test/run.go                          |  2 +-
  test/typeparam/smoketest.go          | 57 ++++++++++++++++++++++++++++++++++++
  4 files changed, 77 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e4e4ce72fd..21e4757a92 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -216,6 +216,7 @@ func Main(archInit func(*Arch)) {
+ 	objabi.Flagcount("C", "disable printing of columns in error messages", &Debug['C']) // TODO(gri) remove eventually
+ 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
+ 	objabi.Flagcount("E", "debug symbol export", &Debug['E'])
++	objabi.Flagcount("G", "accept generic code", &Debug['G'])
+ 	objabi.Flagfn1("I", "add `directory` to import search path", addidir)
+ 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
+ 	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
+@@ -571,9 +572,16 @@ func Main(archInit func(*Arch)) {
+ 	loadsys()
+ 
+ 	timings.Start("fe", "parse")
+-	lines := parseFiles(flag.Args())
++	lines := parseFiles(flag.Args(), Debug['G'] != 0)
+ 	timings.Stop()
+ 	timings.AddEvent(int64(lines), "lines")
++	if Debug['G'] != 0 {
++		// can only parse generic code for now
++		if nerrors+nsavederrors != 0 {
++			errorexit()
++		}
++		return
++	}
+ 
+ 	finishUniverse()
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8b11055983..e75c645a57 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -24,7 +24,7 @@ import (
+ // Each declaration in every *syntax.File is converted to a syntax tree
+ // and its root represented by *Node is appended to xtop.
+ // Returns the total count of parsed lines.
+-func parseFiles(filenames []string) uint {
++func parseFiles(filenames []string, allowGenerics bool) uint {
+ 	noders := make([]*noder, 0, len(filenames))
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@ -49,7 +49,11 @@ func parseFiles(filenames []string) uint {
+ 			}
+ 			defer f.Close()
+ 
+-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
++			mode := syntax.CheckBranches
++			if allowGenerics {
++				mode |= syntax.AllowGenerics
++			}
++			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, mode) // errors are tracked via p.error
+ 		}(filename)
+ 	}
+ 
+@@ -59,7 +63,10 @@ func parseFiles(filenames []string) uint {
+ 			p.yyerrorpos(e.Pos, "%s", e.Msg)
+ 		}
+ 
+-		p.node()
++		// noder cannot handle generic code yet
++		if !allowGenerics {
++			p.node()
++		}
+ 		lines += p.file.EOF.Line()
+ 		p.file = nil // release memory
+ 
+diff --git a/test/run.go b/test/run.go
+index 672861c8d7..7422e6922d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -58,7 +58,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "typeparam"}
+ 
+ 	// ratec controls the max number of tests running at a time.
+ 	ratec chan bool
+diff --git a/test/typeparam/smoketest.go b/test/typeparam/smoketest.go
+new file mode 100644
+index 0000000000..d17809eb63
+--- /dev/null
++++ b/test/typeparam/smoketest.go
+@@ -0,0 +1,57 @@
++// compile -G
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file checks simple code using type parameters.
++
++package smoketest
++
++// type parameters for functions
++func f1[P any]()
++func f2[P1, P2 any, P3 any]()
++func f3[P interface{}](x P, y T1[int])
++
++// function instantiations
++var _ = f1[int]
++var _ = f2[int, string, struct{}]
++var _ = f3[bool]
++
++// type parameters for types
++type T1[P any] struct{}
++type T2[P1, P2 any, P3 any] struct{}
++type T3[P interface{}] interface{}
++
++// type instantiations
++type _ T1[int]
++type _ T2[int, string, struct{}]
++type _ T3[bool]
++
++// methods
++func (T1[P]) m1() {}
++func (x T2[P1, P2, P3]) m1() {}
++func (_ T3[_]) m1() {}
++
++// type lists
++type _ interface {
++	m1()
++	m2()
++	type int, float32, string
++	m3()
++	type bool
++}
++
++// embedded instantiated types
++type _ struct {
++	f1, f2 int
++	T1[int]
++	T2[int, string, struct{}]
++	T3[bool]
++}
++
++type _ interface {
++	m1()
++	m2()
++	T3[bool]
++}

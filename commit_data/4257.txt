@@ -6,6 +6,27 @@ Date:   Tue Dec 1 11:35:34 2009 -0800
     
     R=rsc
     https://golang.org/cl/161050
-
+---
  src/cmd/prof/main.c | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index 462aab9f6c..2502b047c5 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -462,8 +462,14 @@ main(int argc, char *argv[])
+ 	}
+ 	if(argc > 0)
+ 		file = argv[0];
+-	else if(pid)
++	else if(pid) {
+ 		file = proctextfile(pid);
++		if (file == NULL) {
++			fprint(2, "prof: can't find file for pid %d: %r\n", pid);
++			fprint(2, "prof: on Darwin, need to provide file name explicitly\n");
++			exit(1);
++		}
++	}
+ 	fd = open(file, 0);
+ 	if(fd < 0) {
+ 		fprint(2, "prof: can't open %s: %r\n", file);

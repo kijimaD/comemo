@@ -11,7 +11,7 @@ Date:   Sat Sep 12 23:27:26 2015 -0700
     Change-Id: I00cc8aecd4c6f40ea5517cd660bb0ce759d91171
     Reviewed-on: https://go-review.googlesource.com/14538
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 210 +++++++++++++++-------
  src/cmd/compile/internal/gc/ssa_test.go           |   2 +
  src/cmd/compile/internal/gc/testdata/array_ssa.go | 147 +++++++++++++++
@@ -19,3 +19,461 @@ Date:   Sat Sep 12 23:27:26 2015 -0700
  src/cmd/compile/internal/ssa/type.go              |   2 +
  src/cmd/compile/internal/ssa/type_test.go         |   2 +
  6 files changed, 307 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0551ddbf08..738685b044 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -240,6 +240,9 @@ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimp
+ // dummy node for the memory variable
+ var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
+ 
++// dummy nodes for temporary variables
++var ptrvar = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
++
+ // startBlock sets the current block we're generating code in to b.
+ func (s *state) startBlock(b *ssa.Block) {
+ 	if s.curBlock != nil {
+@@ -1747,70 +1750,38 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		data := s.expr(n.Right)
+ 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
+ 
++	case OSLICE, OSLICEARR:
++		v := s.expr(n.Left)
++		var i, j *ssa.Value
++		if n.Right.Left != nil {
++			i = s.extendIndex(s.expr(n.Right.Left))
++		}
++		if n.Right.Right != nil {
++			j = s.extendIndex(s.expr(n.Right.Right))
++		}
++		p, l, c := s.slice(n.Left.Type, v, i, j, nil)
++		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
+ 	case OSLICESTR:
+-		// Evaluate the string once.
+-		str := s.expr(n.Left)
+-		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), str)
+-		len := s.newValue1(ssa.OpStringLen, Types[TINT], str)
+-		zero := s.constInt(Types[TINT], 0)
+-
+-		// Evaluate the slice indexes.
+-		var low, high *ssa.Value
+-		if n.Right.Left == nil {
+-			low = zero
+-		} else {
+-			low = s.extendIndex(s.expr(n.Right.Left))
++		v := s.expr(n.Left)
++		var i, j *ssa.Value
++		if n.Right.Left != nil {
++			i = s.extendIndex(s.expr(n.Right.Left))
+ 		}
+-		if n.Right.Right == nil {
+-			high = len
+-		} else {
+-			high = s.extendIndex(s.expr(n.Right.Right))
++		if n.Right.Right != nil {
++			j = s.extendIndex(s.expr(n.Right.Right))
+ 		}
+-
+-		// Panic if slice indices are not in bounds.
+-		s.sliceBoundsCheck(low, high)
+-		s.sliceBoundsCheck(high, len)
+-
+-		// Generate the following code assuming that indexes are in bounds.
+-		// The conditional is to make sure that we don't generate a string
+-		// that points to the next object in memory.
+-		// rlen = (SubPtr high low)
+-		// p = ptr
+-		// if rlen != 0 {
+-		//    p = (AddPtr ptr low)
+-		// }
+-		// result = (StringMake p size)
+-		rlen := s.newValue2(ssa.OpSubPtr, Types[TINT], high, low)
+-
+-		// Use n as the "variable" for p.
+-		s.vars[n] = ptr
+-
+-		// Generate code to test the resulting slice length.
+-		var cmp *ssa.Value
+-		if s.config.IntSize == 8 {
+-			cmp = s.newValue2(ssa.OpNeq64, Types[TBOOL], rlen, zero)
+-		} else {
+-			cmp = s.newValue2(ssa.OpNeq32, Types[TBOOL], rlen, zero)
++		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
++		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
++	case OSLICE3, OSLICE3ARR:
++		v := s.expr(n.Left)
++		var i *ssa.Value
++		if n.Right.Left != nil {
++			i = s.extendIndex(s.expr(n.Right.Left))
+ 		}
+-
+-		b := s.endBlock()
+-		b.Kind = ssa.BlockIf
+-		b.Likely = ssa.BranchLikely
+-		b.Control = cmp
+-
+-		// Generate code for non-zero length slice case.
+-		nz := s.f.NewBlock(ssa.BlockPlain)
+-		b.AddEdgeTo(nz)
+-		s.startBlock(nz)
+-		s.vars[n] = s.newValue2(ssa.OpAddPtr, Ptrto(Types[TUINT8]), ptr, low)
+-		s.endBlock()
+-
+-		// All done.
+-		merge := s.f.NewBlock(ssa.BlockPlain)
+-		b.AddEdgeTo(merge)
+-		nz.AddEdgeTo(merge)
+-		s.startBlock(merge)
+-		return s.newValue2(ssa.OpStringMake, Types[TSTRING], s.variable(n, Ptrto(Types[TUINT8])), rlen)
++		j := s.extendIndex(s.expr(n.Right.Right.Left))
++		k := s.extendIndex(s.expr(n.Right.Right.Right))
++		p, l, c := s.slice(n.Left.Type, v, i, j, k)
++		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
+ 
+ 	case OCALLFUNC, OCALLMETH:
+ 		left := n.Left
+@@ -2201,6 +2172,125 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
+ 	s.startBlock(bNext)
+ }
+ 
++// slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
++// i,j,k may be nil, in which case they are set to their default value.
++// t is a slice, ptr to array, or string type.
++func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
++	var elemtype *Type
++	var ptrtype *Type
++	var ptr *ssa.Value
++	var len *ssa.Value
++	var cap *ssa.Value
++	zero := s.constInt(Types[TINT], 0)
++	switch {
++	case t.IsSlice():
++		elemtype = t.Type
++		ptrtype = Ptrto(elemtype)
++		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
++		len = s.newValue1(ssa.OpSliceLen, Types[TINT], v)
++		cap = s.newValue1(ssa.OpSliceCap, Types[TINT], v)
++	case t.IsString():
++		elemtype = Types[TUINT8]
++		ptrtype = Ptrto(elemtype)
++		ptr = s.newValue1(ssa.OpStringPtr, ptrtype, v)
++		len = s.newValue1(ssa.OpStringLen, Types[TINT], v)
++		cap = len
++	case t.IsPtr():
++		if !t.Type.IsArray() {
++			s.Fatalf("bad ptr to array in slice %v\n", t)
++		}
++		elemtype = t.Type.Type
++		ptrtype = Ptrto(elemtype)
++		s.nilCheck(v)
++		ptr = v
++		len = s.constInt(Types[TINT], t.Type.Bound)
++		cap = len
++	default:
++		s.Fatalf("bad type in slice %v\n", t)
++	}
++
++	// Set default values
++	if i == nil {
++		i = zero
++	}
++	if j == nil {
++		j = len
++	}
++	if k == nil {
++		k = cap
++	}
++
++	// Panic if slice indices are not in bounds.
++	s.sliceBoundsCheck(i, j)
++	if j != k {
++		s.sliceBoundsCheck(j, k)
++	}
++	if k != cap {
++		s.sliceBoundsCheck(k, cap)
++	}
++
++	// Generate the following code assuming that indexes are in bounds.
++	// The conditional is to make sure that we don't generate a slice
++	// that points to the next object in memory.
++	// rlen = (SubPtr j i)
++	// rcap = (SubPtr k i)
++	// p = ptr
++	// if rcap != 0 {
++	//    p = (AddPtr ptr (MulPtr low (ConstPtr size)))
++	// }
++	// result = (SliceMake p size)
++	rlen := s.newValue2(ssa.OpSubPtr, Types[TINT], j, i)
++	var rcap *ssa.Value
++	switch {
++	case t.IsString():
++		// Capacity of the result is unimportant.  However, we use
++		// rcap to test if we've generated a zero-length slice.
++		// Use length of strings for that.
++		rcap = rlen
++	case j == k:
++		rcap = rlen
++	default:
++		rcap = s.newValue2(ssa.OpSubPtr, Types[TINT], k, i)
++	}
++
++	s.vars[&ptrvar] = ptr
++
++	// Generate code to test the resulting slice length.
++	var cmp *ssa.Value
++	if s.config.IntSize == 8 {
++		cmp = s.newValue2(ssa.OpNeq64, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
++	} else {
++		cmp = s.newValue2(ssa.OpNeq32, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
++	}
++
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Likely = ssa.BranchLikely
++	b.Control = cmp
++
++	// Generate code for non-zero length slice case.
++	nz := s.f.NewBlock(ssa.BlockPlain)
++	b.AddEdgeTo(nz)
++	s.startBlock(nz)
++	var inc *ssa.Value
++	if elemtype.Width == 1 {
++		inc = i
++	} else {
++		inc = s.newValue2(ssa.OpMulPtr, Types[TUINTPTR], i, s.constInt(Types[TINT], elemtype.Width))
++	}
++	s.vars[&ptrvar] = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, inc)
++	s.endBlock()
++
++	// All done.
++	merge := s.f.NewBlock(ssa.BlockPlain)
++	b.AddEdgeTo(merge)
++	nz.AddEdgeTo(merge)
++	s.startBlock(merge)
++	rptr := s.variable(&ptrvar, ptrtype)
++	delete(s.vars, &ptrvar)
++	return rptr, rlen, rcap
++}
++
+ type u2fcvtTab struct {
+ 	geq, cvt2F, and, rsh, or, add ssa.Op
+ 	one                           func(*state, ssa.Type, int64) *ssa.Value
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index feaea8b463..74415fd560 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -81,3 +81,5 @@ func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn_ssa.go") }
+ 
+ // TestClosure tests closure related behavior.
+ func TestClosure(t *testing.T) { runTest(t, "closure_ssa.go") }
++
++func TestArray(t *testing.T) { runTest(t, "array_ssa.go") }
+diff --git a/src/cmd/compile/internal/gc/testdata/array_ssa.go b/src/cmd/compile/internal/gc/testdata/array_ssa.go
+new file mode 100644
+index 0000000000..d7004ff26a
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/array_ssa.go
+@@ -0,0 +1,147 @@
++package main
++
++var failed = false
++
++func testSliceLenCap12_ssa(a [10]int, i, j int) (int, int) {
++	switch { // prevent inlining
++	}
++	b := a[i:j]
++	return len(b), cap(b)
++}
++
++func testSliceLenCap1_ssa(a [10]int, i, j int) (int, int) {
++	switch { // prevent inlining
++	}
++	b := a[i:]
++	return len(b), cap(b)
++}
++
++func testSliceLenCap2_ssa(a [10]int, i, j int) (int, int) {
++	switch { // prevent inlining
++	}
++	b := a[:j]
++	return len(b), cap(b)
++}
++
++func testSliceLenCap() {
++	a := [10]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
++	tests := [...]struct {
++		fn   func(a [10]int, i, j int) (int, int)
++		i, j int // slice range
++		l, c int // len, cap
++	}{
++		// -1 means the value is not used.
++		{testSliceLenCap12_ssa, 0, 0, 0, 10},
++		{testSliceLenCap12_ssa, 0, 1, 1, 10},
++		{testSliceLenCap12_ssa, 0, 10, 10, 10},
++		{testSliceLenCap12_ssa, 10, 10, 0, 0},
++		{testSliceLenCap12_ssa, 0, 5, 5, 10},
++		{testSliceLenCap12_ssa, 5, 5, 0, 5},
++		{testSliceLenCap12_ssa, 5, 10, 5, 5},
++		{testSliceLenCap1_ssa, 0, -1, 0, 10},
++		{testSliceLenCap1_ssa, 5, -1, 5, 5},
++		{testSliceLenCap1_ssa, 10, -1, 0, 0},
++		{testSliceLenCap2_ssa, -1, 0, 0, 10},
++		{testSliceLenCap2_ssa, -1, 5, 5, 10},
++		{testSliceLenCap2_ssa, -1, 10, 10, 10},
++	}
++
++	for i, t := range tests {
++		if l, c := t.fn(a, t.i, t.j); l != t.l && c != t.c {
++			println("#", i, " len(a[", t.i, ":", t.j, "]), cap(a[", t.i, ":", t.j, "]) =", l, c,
++				", want", t.l, t.c)
++			failed = true
++		}
++	}
++}
++
++func testSliceGetElement_ssa(a [10]int, i, j, p int) int {
++	switch { // prevent inlining
++	}
++	return a[i:j][p]
++}
++
++func testSliceGetElement() {
++	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
++	tests := [...]struct {
++		i, j, p int
++		want    int // a[i:j][p]
++	}{
++		{0, 10, 2, 20},
++		{0, 5, 4, 40},
++		{5, 10, 3, 80},
++		{1, 9, 7, 80},
++	}
++
++	for i, t := range tests {
++		if got := testSliceGetElement_ssa(a, t.i, t.j, t.p); got != t.want {
++			println("#", i, " a[", t.i, ":", t.j, "][", t.p, "] = ", got, " wanted ", t.want)
++			failed = true
++		}
++	}
++}
++
++func testSliceSetElement_ssa(a *[10]int, i, j, p, x int) {
++	switch { // prevent inlining
++	}
++	(*a)[i:j][p] = x
++}
++
++func testSliceSetElement() {
++	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
++	tests := [...]struct {
++		i, j, p int
++		want    int // a[i:j][p]
++	}{
++		{0, 10, 2, 17},
++		{0, 5, 4, 11},
++		{5, 10, 3, 28},
++		{1, 9, 7, 99},
++	}
++
++	for i, t := range tests {
++		testSliceSetElement_ssa(&a, t.i, t.j, t.p, t.want)
++		if got := a[t.i+t.p]; got != t.want {
++			println("#", i, " a[", t.i, ":", t.j, "][", t.p, "] = ", got, " wanted ", t.want)
++			failed = true
++		}
++	}
++}
++
++func testSlicePanic1() {
++	defer func() {
++		if r := recover(); r != nil {
++			println("paniced as expected")
++		}
++	}()
++
++	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
++	testSliceLenCap12_ssa(a, 3, 12)
++	println("expected to panic, but didn't")
++	failed = true
++}
++
++func testSlicePanic2() {
++	defer func() {
++		if r := recover(); r != nil {
++			println("paniced as expected")
++		}
++	}()
++
++	a := [10]int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
++	testSliceGetElement_ssa(a, 3, 7, 4)
++	println("expected to panic, but didn't")
++	failed = true
++}
++
++func main() {
++	testSliceLenCap()
++	testSliceGetElement()
++	testSliceSetElement()
++	testSlicePanic1()
++	testSlicePanic2()
++
++	if failed {
++		panic("failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index cdd9b3f14a..3e07df367d 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -84,6 +84,10 @@ func (t *Type) IsSlice() bool {
+ 	return t.Etype == TARRAY && t.Bound < 0
+ }
+ 
++func (t *Type) IsArray() bool {
++	return t.Etype == TARRAY && t.Bound >= 0
++}
++
+ func (t *Type) IsInterface() bool {
+ 	return t.Etype == TINTER
+ }
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index decde6889e..6800731de6 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -20,6 +20,7 @@ type Type interface {
+ 	IsPtr() bool
+ 	IsString() bool
+ 	IsSlice() bool
++	IsArray() bool
+ 	IsInterface() bool
+ 
+ 	IsMemory() bool // special ssa-package-only types
+@@ -50,6 +51,7 @@ func (t *CompilerType) IsComplex() bool      { return false }
+ func (t *CompilerType) IsPtr() bool          { return false }
+ func (t *CompilerType) IsString() bool       { return false }
+ func (t *CompilerType) IsSlice() bool        { return false }
++func (t *CompilerType) IsArray() bool        { return false }
+ func (t *CompilerType) IsInterface() bool    { return false }
+ func (t *CompilerType) IsMemory() bool       { return t.Memory }
+ func (t *CompilerType) IsFlags() bool        { return t.Flags }
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index b106688e84..f3ac0aec2c 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -16,6 +16,7 @@ type TypeImpl struct {
+ 	Ptr     bool
+ 	string  bool
+ 	slice   bool
++	array   bool
+ 	inter   bool
+ 	Elem_   Type
+ 
+@@ -32,6 +33,7 @@ func (t *TypeImpl) IsComplex() bool      { return t.Complex }
+ func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
+ func (t *TypeImpl) IsString() bool       { return t.string }
+ func (t *TypeImpl) IsSlice() bool        { return t.slice }
++func (t *TypeImpl) IsArray() bool        { return t.array }
+ func (t *TypeImpl) IsInterface() bool    { return t.inter }
+ func (t *TypeImpl) IsMemory() bool       { return false }
+ func (t *TypeImpl) IsFlags() bool        { return false }

@@ -7,7 +7,41 @@ Date:   Sat Nov 26 11:01:49 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5432071
-
+---
  src/pkg/os/file_windows.go | 3 +++
  src/pkg/os/os_test.go      | 8 ++++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 3a252fb2d8..81fdbe3051 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -89,6 +89,9 @@ func openDir(name string) (file *File, err error) {
+ // methods on the returned File can be used for I/O.
+ // It returns the File and an error, if any.
+ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
++	if name == "" {
++		return nil, &PathError{"open", name, syscall.ENOENT}
++	}
+ 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
+ 	r, e := openDir(name)
+ 	if e == nil {
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 7041136ec9..c2fbc9fdd5 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -901,6 +901,14 @@ func TestOpenError(t *testing.T) {
+ 	}
+ }
+ 
++func TestOpenNoName(t *testing.T) {
++	f, err := Open("")
++	if err == nil {
++		t.Fatal(`Open("") succeeded`)
++		f.Close()
++	}
++}
++
+ func run(t *testing.T, cmd []string) string {
+ 	// Run /bin/hostname and collect output.
+ 	r, w, err := Pipe()

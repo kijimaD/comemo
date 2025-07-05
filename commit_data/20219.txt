@@ -11,6 +11,21 @@ Date:   Mon Aug 25 23:24:18 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/129580043
-
+---
  src/pkg/runtime/time.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/time.go b/src/pkg/runtime/time.go
+index 97092c655e..c9df3a3643 100644
+--- a/src/pkg/runtime/time.go
++++ b/src/pkg/runtime/time.go
+@@ -34,6 +34,9 @@ var timers struct {
+ 	t            []*timer
+ }
+ 
++// nacl fake time support.
++var timens int64
++
+ // Package time APIs.
+ // Godoc uses the comments in package time, not these.
+ 

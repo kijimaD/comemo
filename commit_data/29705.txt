@@ -9,6 +9,20 @@ Date:   Tue Oct 4 14:40:38 2016 -0700
     Change-Id: Ib8d9f3111bf3dc01956dd776afeb345ede8bc933
     Reviewed-on: https://go-review.googlesource.com/30353
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/block.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 3ee27df5e7..e1c2f6d2ce 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -98,7 +98,7 @@ func (e Edge) Index() int {
+ //     Exit        return mem                []
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+-//     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
++//    Defer               mem  [nopanic, panic]  (control opcode should be OpDeferCall)
+ type BlockKind int8
+ 
+ // short form print

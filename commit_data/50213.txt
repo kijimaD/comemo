@@ -26,7 +26,7 @@ Date:   Wed Sep 22 10:05:33 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go        | 20 ++++++++++++++++++--
  src/cmd/compile/internal/noder/helpers.go     |  4 ----
  src/cmd/compile/internal/noder/stencil.go     |  6 ++++++
@@ -35,3 +35,205 @@ Date:   Wed Sep 22 10:05:33 2021 -0700
  src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
  test/typeparam/issue48537.go                  | 21 +++++++++++++++++++++
  7 files changed, 80 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 3dd7737c9f..65568f2307 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -154,7 +154,11 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.Operation:
+ 		if expr.Y == nil {
+-			return Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
++			n := Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
++			if n.Op() == ir.OADDR && !g.delayTransform() {
++				transformAddr(n.(*ir.AddrExpr))
++			}
++			return n
+ 		}
+ 		switch op := g.op(expr.Op, binOps[:]); op {
+ 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
+@@ -353,15 +357,27 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 				key = g.expr(elem.Key)
+ 			}
+ 			value := wrapname(g.pos(elem.Value), g.expr(elem.Value))
++			if value.Op() == ir.OPAREN {
++				// Make sure any PAREN node added by wrapper has a type
++				typed(value.(*ir.ParenExpr).X.Type(), value)
++			}
+ 			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, value)
+ 		default:
+ 			exprs[i] = wrapname(g.pos(elem), g.expr(elem))
++			if exprs[i].Op() == ir.OPAREN {
++				// Make sure any PAREN node added by wrapper has a type
++				typed(exprs[i].(*ir.ParenExpr).X.Type(), exprs[i])
++			}
+ 		}
+ 	}
+ 
+ 	n := ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, nil, exprs)
+ 	typed(g.typ(typ), n)
+-	return transformCompLit(n)
++	var r ir.Node = n
++	if !g.delayTransform() {
++		r = transformCompLit(n)
++	}
++	return r
+ }
+ 
+ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 83830a5d31..adb5a0e89f 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -77,10 +77,6 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
+ 
+ func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
+ 	n := typecheck.NodAddrAt(pos, x)
+-	switch x.Op() {
+-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
+-		n.SetOp(ir.OPTRLIT)
+-	}
+ 	typed(types.NewPtr(x.Type()), n)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 62d6a45819..447fe8a538 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -996,6 +996,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			case ir.OSELECT:
+ 				transformSelect(m.(*ir.SelectStmt))
+ 
++			case ir.OCOMPLIT:
++				transformCompLit(m.(*ir.CompLitExpr))
++
++			case ir.OADDR:
++				transformAddr(m.(*ir.AddrExpr))
++
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 9076db2822..29ee601d82 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -933,7 +933,7 @@ func transformArrayLit(elemType *types.Type, bound int64, elts []ir.Node) int64
+ 
+ // transformCompLit transforms n to an OARRAYLIT, OSLICELIT, OMAPLIT, or
+ // OSTRUCTLIT node, with any needed conversions. Corresponds to
+-// typecheck.tcCompLit.
++// typecheck.tcCompLit (and includes parts corresponding to tcStructLitKey).
+ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 	assert(n.Type() != nil && n.Typecheck() == 1)
+ 	lno := base.Pos
+@@ -1007,12 +1007,20 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 				if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
+ 					s = typecheck.Lookup(s.Name)
+ 				}
++				if types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
++					// Exported field names should always have
++					// local pkg. We only need to do this
++					// adjustment for generic functions that are
++					// being transformed after being imported
++					// from another package.
++					s = typecheck.Lookup(s.Name)
++				}
+ 
+ 				// An OXDOT uses the Sym field to hold
+ 				// the field to the right of the dot,
+ 				// so s will be non-nil, but an OXDOT
+ 				// is never a valid struct literal key.
+-				assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
++				assert(!(s == nil || key.Op() == ir.OXDOT || s.IsBlank()))
+ 
+ 				f := typecheck.Lookdot1(nil, s, t, t.Fields(), 0)
+ 				l := ir.NewStructKeyExpr(l.Pos(), f, kv.Value)
+@@ -1027,3 +1035,11 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 
+ 	return n
+ }
++
++// transformAddr corresponds to typecheck.tcAddr.
++func transformAddr(n *ir.AddrExpr) {
++	switch n.X.Op() {
++	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
++		n.SetOp(ir.OPTRLIT)
++	}
++}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index a2ad71dd4c..3c0b8bc319 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1746,7 +1746,17 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		}
+ 		w.localName(n)
+ 
+-	// case OPACK, ONONAME:
++	case ir.ONONAME:
++		w.op(ir.ONONAME)
++		// This should only be for OKEY nodes in generic functions
++		s := n.Sym()
++		w.string(s.Name)
++		w.pkg(s.Pkg)
++		if go117ExportTypes {
++			w.typ(n.Type())
++		}
++
++	// case OPACK:
+ 	// 	should have been resolved by typechecking - handled by default case
+ 
+ 	case ir.OTYPE:
+@@ -1818,7 +1828,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.typ(n.Type())
+ 		w.fieldList(n.List) // special handling of field names
+ 
+-	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
++	case ir.OCOMPLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+ 		n := n.(*ir.CompLitExpr)
+ 		if go117ExportTypes {
+ 			w.op(n.Op())
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 01ac1679b2..08850079eb 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1368,7 +1368,11 @@ func (r *importReader) node() ir.Node {
+ 		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.fieldList())
+ 
+ 	case ir.OCOMPLIT:
+-		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.exprList())
++		pos := r.pos()
++		t := r.typ()
++		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(t), r.exprList())
++		n.SetType(t)
++		return n
+ 
+ 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+ 		if !go117ExportTypes {
+diff --git a/test/typeparam/issue48537.go b/test/typeparam/issue48537.go
+new file mode 100644
+index 0000000000..a2dc5cf082
+--- /dev/null
++++ b/test/typeparam/issue48537.go
+@@ -0,0 +1,21 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++}
++
++type C interface {
++	map[int]string
++}
++
++func f[A C]() A {
++	return A{
++		1: "a",
++		2: "b",
++	}
++}

@@ -17,7 +17,36 @@ Date:   Thu Sep 26 16:32:34 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 2 +-
  test/const.go                        | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 510b1cd15d..3666ddbaa0 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -591,7 +591,7 @@ func evconst(n *Node) {
+ 			setconst(n, shiftOp(nl.Val(), op, nr.Val()))
+ 		}
+ 
+-	case OCONV:
++	case OCONV, ORUNESTR:
+ 		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
+ 			setconst(n, convertVal(nl.Val(), n.Type, true))
+ 		}
+diff --git a/test/const.go b/test/const.go
+index 3f4956497e..f8aa1dd9ab 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -24,6 +24,10 @@ const (
+ 
+ 	ctrue  = true
+ 	cfalse = !ctrue
++
++	// Issue #34563
++	_ = string(int(123))
++	_ = string(rune(456))
+ )
+ 
+ const (

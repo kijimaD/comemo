@@ -21,6 +21,29 @@ Date:   Mon May 1 20:35:08 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/android/go_android_exec.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index ebff845154..49b7ae902c 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -24,7 +24,16 @@ func run(args ...string) string {
+ 	buf := new(bytes.Buffer)
+ 	cmd := exec.Command("adb", args...)
+ 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
+-	cmd.Stderr = os.Stderr
++	// If the adb subprocess somehow hangs, go test will kill this wrapper
++	// and wait for our os.Stderr (and os.Stdout) to close as a result.
++	// However, if the os.Stderr (or os.Stdout) file descriptors are
++	// passed on, the hanging adb subprocess will hold them open and
++	// go test will hang forever.
++	//
++	// Avoid that by wrapping stderr, breaking the short circuit and
++	// forcing cmd.Run to use another pipe and goroutine to pass
++	// along stderr from adb.
++	cmd.Stderr = struct{ io.Writer }{os.Stderr}
+ 	log.Printf("adb %s", strings.Join(args, " "))
+ 	err := cmd.Run()
+ 	if err != nil {

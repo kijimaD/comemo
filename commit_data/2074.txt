@@ -13,7 +13,7 @@ Date:   Tue Apr 21 18:37:48 2009 -0700
     DELTA=625  (81 added, 510 deleted, 34 changed)
     OCL=27700
     CL=27702
-
+---
  usr/gri/pretty/Makefile       |  18 +---
  usr/gri/pretty/astprinter.go  |  18 +---
  usr/gri/pretty/compilation.go | 190 ------------------------------------------
@@ -26,3 +26,921 @@ Date:   Tue Apr 21 18:37:48 2009 -0700
  usr/gri/pretty/typechecker.go |  93 ---------------------
  usr/gri/pretty/utils.go       |  91 --------------------
  11 files changed, 113 insertions(+), 546 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 3546aaa212..c00163fb64 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -23,28 +23,16 @@ smoketest: pretty
+ 	./test.sh astprinter.go
+ 
+ install: pretty godoc untab
+-	cp pretty $(HOME)/bin/pretty
+ 	cp godoc $(HOME)/bin/godoc
++	cp pretty $(HOME)/bin/pretty
+ 	cp untab $(HOME)/bin/untab
+ 
+ clean:
+ 	rm -f pretty untab godoc *.6 *.a 6.out *~
+ 
+-godoc.6:	docprinter.6 compilation.6 comment.6
+-
+-pretty.6:	 platform.6 astprinter.6 compilation.6
+-
+-compilation.6:	 platform.6 typechecker.6
+-
+-symboltable.6:
+-
+-platform.6:	 utils.6
+-
+-astprinter.6:	 utils.6 symboltable.6
+-
+-docprinter.6:	astprinter.6
++godoc.6:	astprinter.6 comment.6 docprinter.6
+ 
+-comment.6:
++pretty.6:	 astprinter.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 70662e5f76..033cb1a3ac 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -5,17 +5,12 @@
+ package astPrinter
+ 
+ import (
+-	"container/vector";
+ 	"flag";
+ 	"fmt";
+ 	"go/ast";
+ 	"go/token";
+ 	"io";
+ 	"os";
+-	"strings";
+-	"tabwriter";
+-	"unicode";
+-	"utf8";
+ )
+ 
+ 
+@@ -56,16 +51,9 @@ func assert(pred bool) {
+ }
+ 
+ 
+-// TODO this should be an AST method
+-func isExported(name *ast.Ident) bool {
+-	ch, len := utf8.DecodeRuneInString(name.Value, 0);
+-	return unicode.IsUpper(ch);
+-}
+-
+-
+ func hasExportedNames(names []*ast.Ident) bool {
+ 	for i, name := range names {
+-		if isExported(name) {
++		if name.IsExported() {
+ 			return true;
+ 		}
+ 	}
+@@ -315,7 +303,7 @@ func (P *Printer) TaggedString(pos token.Position, tag, s, endtag string) {
+ 	nlcount := 0;
+ 	if P.full {
+ 		for ; P.hasComment(pos); P.nextComments() {
+-			// we have a comment group that comes before the string
++			// we have a comment that comes before the string
+ 			comment := P.comments[P.cindex];
+ 			ctext := string(comment.Text);  // TODO get rid of string conversion here
+ 
+@@ -508,7 +496,7 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
+ 			P.separator = blank;
+ 			P.state = inside_list;
+ 		}
+-		if full || isExported(x) {
++		if full || x.IsExported() {
+ 			P.Expr(x);
+ 			n++;
+ 		}
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+deleted file mode 100644
+index b03d6b33fc..0000000000
+--- a/usr/gri/pretty/compilation.go
++++ /dev/null
+@@ -1,190 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package Compilation
+-
+-import (
+-	"container/vector";
+-	"fmt";
+-	"go/ast";
+-	"go/parser";
+-	"go/scanner";
+-	"go/token";
+-	"os";
+-	"platform";
+-	"sort";
+-	"typechecker";
+-	"utf8";
+-	"utils";
+-)
+-
+-
+-func assert(b bool) {
+-	if !b {
+-		panic("assertion failed");
+-	}
+-}
+-
+-
+-type Flags struct {
+-	Verbose bool;
+-	Deps bool;
+-	Columns bool;
+-}
+-
+-
+-type Error struct {
+-	Pos token.Position;
+-	Msg string;
+-}
+-
+-
+-type ErrorList []Error
+-
+-func (list ErrorList) Len() int { return len(list); }
+-func (list ErrorList) Less(i, j int) bool { return list[i].Pos.Offset < list[j].Pos.Offset; }
+-func (list ErrorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
+-
+-
+-type errorHandler struct {
+-	filename string;
+-	columns bool;
+-	errline int;
+-	errors vector.Vector;
+-}
+-
+-
+-func (h *errorHandler) Init(filename string, columns bool) {
+-	h.filename = filename;
+-	h.columns = columns;
+-	h.errors.Init(0);
+-}
+-
+-
+-func (h *errorHandler) Error(pos token.Position, msg string) {
+-	// only report errors that are on a new line
+-	// in the hope to avoid most follow-up errors
+-	if pos.Line == h.errline {
+-		return;
+-	}
+-
+-	// report error
+-	fmt.Printf("%s:%d:", h.filename, pos.Line);
+-	if h.columns {
+-		fmt.Printf("%d:", pos.Column);
+-	}
+-	fmt.Printf(" %s\n", msg);
+-
+-	// collect the error
+-	h.errors.Push(Error{pos, msg});
+-	h.errline = pos.Line;
+-}
+-
+-
+-func Compile(filename string, flags *Flags) (*ast.Program, ErrorList) {
+-	src, os_err := os.Open(filename, os.O_RDONLY, 0);
+-	defer src.Close();
+-	if os_err != nil {
+-		fmt.Printf("cannot open %s (%s)\n", filename, os_err.String());
+-		return nil, nil;
+-	}
+-
+-	var err errorHandler;
+-	err.Init(filename, flags.Columns);
+-
+-	mode := parser.ParseComments;
+-	if flags.Verbose {
+-		mode |= parser.Trace;
+-	}
+-	prog, ok2 := parser.Parse(src, &err, mode);
+-
+-	if ok2 {
+-		TypeChecker.CheckProgram(&err, prog);
+-	}
+-
+-	// convert error list and sort it
+-	errors := make(ErrorList, err.errors.Len());
+-	for i := 0; i < err.errors.Len(); i++ {
+-		errors[i] = err.errors.At(i).(Error);
+-	}
+-	sort.Sort(errors);
+-
+-	return prog, errors;
+-}
+-
+-
+-func fileExists(name string) bool {
+-	dir, err := os.Stat(name);
+-	return err == nil;
+-}
+-
+-/*
+-func printDep(localset map [string] bool, wset *vector.Vector, decl ast.Decl2) {
+-	src := decl.Val.(*ast.BasicLit).Val;
+-	src = src[1 : len(src) - 1];  // strip "'s
+-
+-	// ignore files when they are seen a 2nd time
+-	dummy, found := localset[src];
+-	if !found {
+-		localset[src] = true;
+-		if fileExists(src + ".go") {
+-			wset.Push(src);
+-			fmt.Printf(" %s.6", src);
+-		} else if
+-			fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+-			fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
+-
+-		} else {
+-			// TODO should collect these and print later
+-			//print("missing file: ", src, "\n");
+-		}
+-	}
+-}
+-*/
+-
+-
+-func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, flags *Flags) {
+-	dummy, found := globalset[src_file];
+-	if !found {
+-		globalset[src_file] = true;
+-
+-		prog, errors := Compile(src_file, flags);
+-		if errors == nil || len(errors) > 0 {
+-			return;
+-		}
+-
+-		nimports := len(prog.Decls);
+-		if nimports > 0 {
+-			fmt.Printf("%s.6:\t", src_file);
+-
+-			localset := make(map [string] bool);
+-			for i := 0; i < nimports; i++ {
+-				decl := prog.Decls[i];
+-				panic();
+-				/*
+-				assert(decl.Tok == scanner.IMPORT);
+-				if decl.List == nil {
+-					printDep(localset, wset, decl);
+-				} else {
+-					for j := 0; j < decl.List.Len(); j++ {
+-						printDep(localset, wset, decl.List.At(j).(*ast.Decl));
+-					}
+-				}
+-				*/
+-			}
+-			print("\n\n");
+-		}
+-	}
+-}
+-
+-
+-func ComputeDeps(src_file string, flags *Flags) {
+-	panic("dependency printing currently disabled");
+-	globalset := make(map [string] bool);
+-	wset := vector.New(0);
+-	wset.Push(Utils.TrimExt(src_file, ".go"));
+-	for wset.Len() > 0 {
+-		addDeps(globalset, wset, wset.Pop().(string), flags);
+-	}
+-}
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+index 9f053e4d49..87b973e275 100644
+--- a/usr/gri/pretty/docprinter.go
++++ b/usr/gri/pretty/docprinter.go
+@@ -16,10 +16,6 @@ import (
+ 	"regexp";
+ 	"sort";
+ 	"strings";
+-	"unicode";
+-	"utf8";
+-
+-	"astprinter";
+ )
+ 
+ 
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 300081ec64..3f91d6510e 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -53,36 +53,30 @@ import (
+ )
+ 
+ 
+-// TODO
+-// - uniform use of path, filename, dirname, pakname, etc.
+-// - fix weirdness with double-/'s in paths
+-// - split http service into its own source file
+-
+ // TODO: tell flag package about usage string
+ const usageString =
+ 	"usage: godoc package [name ...]\n"
+ 	"	godoc -http=:6060\n"
+ 
+-var (
+-	goroot string;
++const Pkg = "/pkg/"	// name for auto-generated package documentation tree
+ 
++
++var (
+ 	verbose = flag.Bool("v", false, "verbose mode");
+ 
+-	// server control
+-	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')");
++	// file system roots
++	goroot string;
++	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width");
+ 	usetabs = flag.Bool("tabs", false, "align with tabs instead of spaces");
+-
+ 	html = flag.Bool("html", false, "print HTML in command-line mode");
+ 
+-	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
++	// server control
++	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')");
+ )
+ 
+-const (
+-	Pkg = "/pkg/"	// name for auto-generated package documentation tree
+-)
+ 
+ func init() {
+ 	var err os.Error;
+@@ -140,13 +134,16 @@ type rawError struct {
+ 	msg string;
+ }
+ 
++
+ type rawErrorVector struct {
+ 	vector.Vector;
+ }
+ 
++
+ func (v *rawErrorVector) At(i int) rawError { return v.Vector.At(i).(rawError) }
+ func (v *rawErrorVector) Less(i, j int) bool { return v.At(i).pos.Offset < v.At(j).pos.Offset; }
+ 
++
+ func (v *rawErrorVector) Error(pos token.Position, msg string) {
+ 	// only collect errors that are on a new line
+ 	// in the hope to avoid most follow-up errors
+@@ -167,17 +164,20 @@ type parseError struct {
+ 	msg string;	// error message
+ }
+ 
++
+ // All the errors in the parsed file, plus surrounding source code.
+ // Each error has a slice giving the source text preceding it
+ // (starting where the last error occurred).  The final element in list[]
+ // has msg = "", to give the remainder of the source code.
+ // This data structure is handed to the templates parseerror.txt and parseerror.html.
++//
+ type parseErrors struct {
+ 	filename string;	// path to file
+ 	list []parseError;	// the errors
+ 	src []byte;	// the file's entire source code
+ }
+ 
++
+ // Parses a file (path) and returns the corresponding AST and
+ // a sorted list (by file position) of errors, if any.
+ //
+@@ -425,12 +425,15 @@ func serveFile(c *http.Conn, req *http.Request) {
+ 
+ 	case req.Url.Path == "/doc/root.html":
+ 		// hide landing page from its real name
++		// TODO why - there is no reason for this (remove eventually)
+ 		http.NotFound(c, req);
+ 
+ 	case pathutil.Ext(req.Url.Path) == ".go":
+-		serveGoSource(c, req.Url.Path[1:len(req.Url.Path)]);
++		serveGoSource(c, req.Url.Path[1 : len(req.Url.Path)]);  // strip leading '/' from name
+ 
+ 	default:
++		// TODO not good enough - don't want to download files
++		// want to see them
+ 		fileServer.ServeHTTP(c, req);
+ 	}
+ }
+@@ -611,13 +614,13 @@ func servePackageList(c *http.Conn, info *pakInfo) {
+ 
+ // Return package or packages named by name.
+ // Name is either an import string or a directory,
+-// like you'd see in $GOROOT/pkg/ once the 6g
+-// tools can handle a hierarchy there.
++// like you'd see in $GOROOT/pkg/.
+ //
+ // Examples:
+ //	"math"	- single package made up of directory
+ //	"container"	- directory listing
+ //	"container/vector"	- single package in container directory
++//
+ func findPackages(name string) *pakInfo {
+ 	info := new(pakInfo);
+ 
+@@ -733,6 +736,7 @@ func main() {
+ 			log.Stderrf("Go Documentation Server\n");
+ 			log.Stderrf("address = %s\n", *httpaddr);
+ 			log.Stderrf("goroot = %s\n", goroot);
++			log.Stderrf("pkgroot = %s\n", *pkgroot);
+ 			handler = LoggingHandler(handler);
+ 		}
+ 
+diff --git a/usr/gri/pretty/package.html b/usr/gri/pretty/package.html
+index 5e3cbc40bd..f9fd763739 100644
+--- a/usr/gri/pretty/package.html
++++ b/usr/gri/pretty/package.html
+@@ -26,11 +26,11 @@
+ 	{.end}
+ {.end}
+ {.section Types}
+-	<hr />
+ 	{.repeated section @}
++		<hr />
+ 		<h2>type {.section Type}{Name|html}{.end}</h2>
+-		{Doc}
+-		<p><code>{Decl|html}</code></p>
++		{Doc|html-comment}
++		<p><pre>{Decl|html}</pre></p>
+ 		{.repeated section Factories}
+ 			<h3>func {Name|html}</h3>
+ 			<p><code>{Decl|html}</code></p>
+diff --git a/usr/gri/pretty/platform.go b/usr/gri/pretty/platform.go
+deleted file mode 100644
+index cbd4678e33..0000000000
+--- a/usr/gri/pretty/platform.go
++++ /dev/null
+@@ -1,84 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package Platform
+-
+-import IO "io"
+-import OS "os"
+-import Utils "utils"
+-
+-
+-// ----------------------------------------------------------------------------
+-// Environment
+-
+-var
+-	GOARCH,
+-	GOOS,
+-	GOROOT,
+-	USER string;
+-
+-func init() {
+-	var e OS.Error;
+-
+-	GOARCH, e = OS.Getenv("GOARCH");
+-	GOOS, e = OS.Getenv("GOOS");
+-	GOROOT, e = OS.Getenv("GOROOT");
+-	USER, e = OS.Getenv("USER");
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-// I/O
+-
+-const (
+-	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear that it cannot be a source file
+-	Src_file_ext = ".go";
+-	Obj_file_ext = ".7";
+-)
+-
+-func readfile(filename string) ([]byte, OS.Error) {
+-	f, err := OS.Open(filename, OS.O_RDONLY, 0);
+-	if err != nil {
+-		return []byte{}, err;
+-	}
+-	var buf [1<<20]byte;
+-	n, err1 := IO.FullRead(f, &buf);
+-	f.Close();
+-	if err1 == IO.ErrEOF {
+-		err1 = nil;
+-	}
+-	return buf[0:n], err1;
+-}
+-
+-func writefile(name, data string) OS.Error {
+-	fd, err := OS.Open(name, OS.O_WRONLY, 0);
+-	if err != nil {
+-		return err;
+-	}
+-	n, err1 := IO.WriteString(fd, data);
+-	fd.Close();
+-	return err1;
+-}
+-
+-func ReadObjectFile(filename string) ([]byte, bool) {
+-	data, err := readfile(filename + Obj_file_ext);
+-	magic := MAGIC_obj_file;  // TODO remove once len(constant) works
+-	if err == nil && len(data) >= len(magic) && string(data[0 : len(magic)]) == magic {
+-		return data, true;
+-	}
+-	return []byte{}, false;
+-}
+-
+-
+-func ReadSourceFile(name string) ([]byte, bool) {
+-	name = Utils.TrimExt(name, Src_file_ext) + Src_file_ext;
+-	data, err := readfile(name);
+-	return data, err == nil;
+-}
+-
+-
+-func WriteObjectFile(name string, data string) bool {
+-	name = Utils.TrimExt(Utils.BaseName(name), Src_file_ext) + Obj_file_ext;
+-	return writefile(name, data) != nil;
+-}
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 2db790d939..c342b72c29 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -5,31 +5,37 @@
+ package main
+ 
+ import (
+-	"astprinter";
+-	"compilation";
+ 	"flag";
++	"fmt";
+ 	"go/ast";
++	"go/parser";
++	"go/token";
++	"io";
++	"log";
+ 	"os";
+-	"platform";
+ 	"tabwriter";
++
++	"astprinter";
+ )
+ 
+ 
+ var (
+-	flags Compilation.Flags;
++	columnsDefault bool;
++
++	// operation modes
++	columns = flag.Bool("columns", columnsDefault, "report column no. in error messages");
+ 	silent = flag.Bool("s", false, "silent mode: no pretty print output");
++	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
+ 
+ 	// layout control
+-	html = flag.Bool("html", false, "generate html");
+-	tabwidth = flag.Int("pretty_tabwidth", 4, "tab width");
+-	usetabs = flag.Bool("pretty_usetabs", false, "align with tabs instead of blanks");
++	tabwidth = flag.Int("tabwidth", 4, "tab width");
++	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
+ )
+ 
+ 
+ func init() {
+-	flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
+-	flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
+-	flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
++	user, err := os.Getenv("USER");
++	columnsDefault = user == "gri";
+ }
+ 
+ 
+@@ -40,47 +46,90 @@ func usage() {
+ }
+ 
+ 
+-func print(prog *ast.Program) {
+-	// initialize tabwriter for nicely aligned output
++// TODO(gri) use library function for this once it exists
++func readFile(filename string) ([]byte, os.Error) {
++	f, err := os.Open(filename, os.O_RDONLY, 0);
++	if err != nil {
++		return nil, err;
++	}
++	defer f.Close();
++	var b io.ByteBuffer;
++	if n, err := io.Copy(f, &b); err != nil {
++		return nil, err;
++	}
++	return b.Data(), nil;
++}
++
++
++// TODO(gri) move this function into tabwriter.go? (also used in godoc)
++func makeTabwriter(writer io.Write) *tabwriter.Writer {
+ 	padchar := byte(' ');
+ 	if *usetabs {
+ 		padchar = '\t';
+ 	}
+-	writer := tabwriter.NewWriter(os.Stdout, *tabwidth, 1, padchar, tabwriter.FilterHTML);
++	return tabwriter.NewWriter(writer, *tabwidth, 1, padchar, tabwriter.FilterHTML);
++}
++
+ 
+-	// initialize printer
+-	var printer astPrinter.Printer;
+-	printer.Init(writer, nil, prog.Comments, *html);
++// TODO(gri) move this into parser as default handler
++type ErrorHandler struct {
++	filename string;
++	lastline int;
++	columns bool;
++}
+ 
+-	printer.DoProgram(prog);
+ 
+-	// flush any pending output
+-	writer.Flush();
++func (h *ErrorHandler) Error(pos token.Position, msg string) {
++	// only report errors that are on a new line
++	// in the hope to avoid most follow-up errors
++	if pos.Line == h.lastline {
++		return;
++	}
++
++	// report error
++	fmt.Printf("%s:%d:", h.filename, pos.Line);
++	if h.columns {
++		fmt.Printf("%d:", pos.Column);
++	}
++	fmt.Printf(" %s\n", msg);
+ }
+ 
+ 
+ func main() {
++	// handle flags
+ 	flag.Parse();
+-
+ 	if flag.NFlag() == 0 && flag.NArg() == 0 {
+ 		usage();
+ 	}
+ 
++	// determine parsing mode
++	mode := parser.ParseComments;
++	if *verbose {
++		mode |= parser.Trace;
++	}
++
+ 	// process files
+ 	for i := 0; i < flag.NArg(); i++ {
+-		src_file := flag.Arg(i);
+-
+-		if flags.Deps {
+-			Compilation.ComputeDeps(src_file, &flags);
+-
+-		} else {
+-			prog, errors := Compilation.Compile(src_file, &flags);
+-			if errors == nil || len(errors) > 0 {
+-				sys.Exit(1);
+-			}
+-			if !*silent {
+-				print(prog);
+-			}
++		filename := flag.Arg(i);
++
++		src, err := readFile(filename);
++		if err != nil {
++			log.Stderrf("ReadFile %s: %v", filename, err);
++			continue;
++		}
++
++		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0, false}, mode);
++		if !ok {
++			log.Stderr("Parse %s: syntax errors", filename);
++			continue;
++		}
++
++		if !*silent {
++			var printer astPrinter.Printer;
++			writer := makeTabwriter(os.Stdout);
++			printer.Init(writer, nil, nil /*prog.Comments*/, false);
++			printer.DoProgram(prog);
++			writer.Flush();
+ 		}
+ 	}
+ }
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index a3de38b1b1..783d72d9c3 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"vector";  // not needed
++	"container/vector";  // not needed
+ 	"utf8";  // not needed
+ 	Fmt "fmt"
+ )
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+deleted file mode 100644
+index 4dde63b1f5..0000000000
+--- a/usr/gri/pretty/typechecker.go
++++ /dev/null
+@@ -1,93 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package TypeChecker
+-
+-import (
+-	"go/ast";
+-	"go/scanner";
+-	"go/token";
+-)
+-
+-
+-type state struct {
+-	// setup
+-	err scanner.ErrorHandler;
+-}
+-
+-
+-func (s *state) Init(err scanner.ErrorHandler) {
+-	s.err = err;
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-// Support
+-
+-func unimplemented() {
+-	panic("unimplemented");
+-}
+-
+-
+-func unreachable() {
+-	panic("unreachable");
+-}
+-
+-
+-func assert(pred bool) {
+-	if !pred {
+-		panic("assertion failed");
+-	}
+-}
+-
+-
+-func (s *state) Error(pos token.Position, msg string) {
+-	s.err.Error(pos, msg);
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-
+-func (s *state) CheckType() {
+-}
+-
+-
+-/*
+-func (s *state) CheckDeclaration(d *AST.Decl) {
+-	if d.Tok != token.FUNC && d.List != nil {
+-		// group of parenthesized declarations
+-		for i := 0; i < d.List.Len(); i++ {
+-			s.CheckDeclaration(d.List.At(i).(*AST.Decl))
+-		}
+-
+-	} else {
+-		// single declaration
+-		switch d.Tok {
+-		case token.IMPORT:
+-		case token.CONST:
+-		case token.VAR:
+-		case token.TYPE:
+-		case token.FUNC:
+-		default:
+-			unreachable();
+-		}
+-	}
+-}
+-*/
+-
+-
+-func (s *state) CheckProgram(p *ast.Program) {
+-	for i := 0; i < len(p.Decls); i++ {
+-		//s.CheckDeclaration(p.Decls[i].(*AST.Decl));
+-	}
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-
+-func CheckProgram(err scanner.ErrorHandler, p *ast.Program) {
+-	var s state;
+-	s.Init(err);
+-	s.CheckProgram(p);
+-}
+diff --git a/usr/gri/pretty/utils.go b/usr/gri/pretty/utils.go
+deleted file mode 100644
+index baacc75de5..0000000000
+--- a/usr/gri/pretty/utils.go
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package Utils
+-
+-
+-func BaseName(s string) string {
+-	// TODO this is not correct for non-ASCII strings!
+-	i := len(s) - 1;
+-	for i >= 0 && s[i] != '/' {
+-		if s[i] > 128 {
+-			panic("non-ASCII string");
+-		}
+-		i--;
+-	}
+-	return s[i + 1 : len(s)];
+-}
+-
+-
+-func cleanPath(s string) string {
+-	for i := 0; i < len(s); i++ {
+-		if s[i] == '/' {
+-			i++;
+-			j := i;
+-			for j < len(s) && s[j] == '/' {
+-				j++;
+-			}
+-			if j > i {  // more then one '/'
+-				return s[0 : i] + cleanPath(s[j : len(s)]);
+-			}
+-		}
+-	}
+-	return s;
+-}
+-
+-
+-// Reduce sequences of multiple '/'s into a single '/' and
+-// strip any trailing '/' (may result in the empty string).
+-func SanitizePath(s string) string {
+-	s = cleanPath(s);
+-	if s[len(s)-1] == '/' {  // strip trailing '/'
+-		s = s[0 : len(s)-1];
+-	}
+-	return s;
+-}
+-
+-
+-func Contains(s, sub string, pos int) bool {
+-	end := pos + len(sub);
+-	return pos >= 0 && end <= len(s) && s[pos : end] == sub;
+-}
+-
+-
+-func TrimExt(s, ext string) string {
+-	i := len(s) - len(ext);
+-	if i >= 0 && s[i : len(s)] == ext {
+-		s = s[0 : i];
+-	}
+-	return s;
+-}
+-
+-
+-func IntToString(x, base int) string {
+-	x0 := x;
+-	if x < 0 {
+-		x = -x;
+-		if x < 0 {
+-			panic("smallest int not handled");
+-		}
+-	} else if x == 0 {
+-		return "0";
+-	}
+-
+-	// x > 0
+-	hex := "0123456789ABCDEF";
+-	var buf [32] byte;
+-	i := len(buf);
+-	for x > 0 {
+-		i--;
+-		buf[i] = hex[x % base];
+-		x /= base;
+-	}
+-
+-	if x0 < 0 {
+-		i--;
+-		buf[i] = '-';
+-	}
+-
+-	return string(buf[i : len(buf)]);
+-}

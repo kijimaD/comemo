@@ -9,6 +9,30 @@ Date:   Tue Oct 23 16:56:41 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/example_unix_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index cd8233ceb6..20ec8927b4 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -79,3 +79,18 @@ func ExampleJoin() {
+ 	// a/b/c
+ 	// a/b/c
+ }
++
++func ExampleMatch() {
++	fmt.Println("On Unix:")
++	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo"))
++	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo/bar"))
++	fmt.Println(filepath.Match("/home/?opher", "/home/gopher"))
++	fmt.Println(filepath.Match("/home/\\*", "/home/*"))
++
++	// Output:
++	// On Unix:
++	// true <nil>
++	// false <nil>
++	// true <nil>
++	// true <nil>
++}

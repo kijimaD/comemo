@@ -11,8 +11,131 @@ Date:   Tue Jul 1 10:40:27 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/108330043
-
+---
  src/cmd/gofmt/simplify.go             | 7 ++++---
  src/cmd/gofmt/testdata/slices1.golden | 6 ++++++
  src/cmd/gofmt/testdata/slices1.input  | 6 ++++++
  3 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gofmt/simplify.go b/src/cmd/gofmt/simplify.go
+index b1556be74e..b05aa2480d 100644
+--- a/src/cmd/gofmt/simplify.go
++++ b/src/cmd/gofmt/simplify.go
+@@ -68,9 +68,10 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
+ 		// a slice expression of the form: s[a:len(s)]
+ 		// can be simplified to: s[a:]
+ 		// if s is "simple enough" (for now we only accept identifiers)
+-		if s.hasDotImport {
+-			// if dot imports are present, we cannot be certain that an
+-			// unresolved "len" identifier refers to the predefined len()
++		if n.Max != nil || s.hasDotImport {
++			// - 3-index slices always require the 2nd and 3rd index
++			// - if dot imports are present, we cannot be certain that an
++			//   unresolved "len" identifier refers to the predefined len()
+ 			break
+ 		}
+ 		if s, _ := n.X.(*ast.Ident); s != nil && s.Obj != nil {
+diff --git a/src/cmd/gofmt/testdata/slices1.golden b/src/cmd/gofmt/testdata/slices1.golden
+index 61e074f68a..6633a5e001 100644
+--- a/src/cmd/gofmt/testdata/slices1.golden
++++ b/src/cmd/gofmt/testdata/slices1.golden
+@@ -15,6 +15,7 @@ var (
+ 	_ = a[3:(len(a))]
+ 	_ = a[len(a) : len(a)-1]
+ 	_ = a[0:len(b)]
++	_ = a[2:len(a):len(a)]
+ 
+ 	_ = a[:]
+ 	_ = a[:10]
+@@ -22,6 +23,7 @@ var (
+ 	_ = a[:(len(a))]
+ 	_ = a[:len(a)-1]
+ 	_ = a[:len(b)]
++	_ = a[:len(a):len(a)]
+ 
+ 	_ = s[0:]
+ 	_ = s[1:10]
+@@ -29,6 +31,7 @@ var (
+ 	_ = s[3:(len(s))]
+ 	_ = s[len(a) : len(s)-1]
+ 	_ = s[0:len(b)]
++	_ = s[2:len(s):len(s)]
+ 
+ 	_ = s[:]
+ 	_ = s[:10]
+@@ -36,6 +39,7 @@ var (
+ 	_ = s[:(len(s))]
+ 	_ = s[:len(s)-1]
+ 	_ = s[:len(b)]
++	_ = s[:len(s):len(s)]
+ 
+ 	_ = t.s[0:]
+ 	_ = t.s[1:10]
+@@ -43,6 +47,7 @@ var (
+ 	_ = t.s[3:(len(t.s))]
+ 	_ = t.s[len(a) : len(t.s)-1]
+ 	_ = t.s[0:len(b)]
++	_ = t.s[2:len(t.s):len(t.s)]
+ 
+ 	_ = t.s[:]
+ 	_ = t.s[:10]
+@@ -50,6 +55,7 @@ var (
+ 	_ = t.s[:(len(t.s))]
+ 	_ = t.s[:len(t.s)-1]
+ 	_ = t.s[:len(b)]
++	_ = t.s[:len(t.s):len(t.s)]
+ )
+ 
+ func _() {
+diff --git a/src/cmd/gofmt/testdata/slices1.input b/src/cmd/gofmt/testdata/slices1.input
+index 4d2cbfff40..27e9cb8fef 100644
+--- a/src/cmd/gofmt/testdata/slices1.input
++++ b/src/cmd/gofmt/testdata/slices1.input
+@@ -15,6 +15,7 @@ var (
+ 	_ = a[3:(len(a))]
+ 	_ = a[len(a) : len(a)-1]
+ 	_ = a[0:len(b)]
++	_ = a[2:len(a):len(a)]
+ 
+ 	_ = a[:]
+ 	_ = a[:10]
+@@ -22,6 +23,7 @@ var (
+ 	_ = a[:(len(a))]
+ 	_ = a[:len(a)-1]
+ 	_ = a[:len(b)]
++	_ = a[:len(a):len(a)]
+ 
+ 	_ = s[0:]
+ 	_ = s[1:10]
+@@ -29,6 +31,7 @@ var (
+ 	_ = s[3:(len(s))]
+ 	_ = s[len(a) : len(s)-1]
+ 	_ = s[0:len(b)]
++	_ = s[2:len(s):len(s)]
+ 
+ 	_ = s[:]
+ 	_ = s[:10]
+@@ -36,6 +39,7 @@ var (
+ 	_ = s[:(len(s))]
+ 	_ = s[:len(s)-1]
+ 	_ = s[:len(b)]
++	_ = s[:len(s):len(s)]
+ 
+ 	_ = t.s[0:]
+ 	_ = t.s[1:10]
+@@ -43,6 +47,7 @@ var (
+ 	_ = t.s[3:(len(t.s))]
+ 	_ = t.s[len(a) : len(t.s)-1]
+ 	_ = t.s[0:len(b)]
++	_ = t.s[2:len(t.s):len(t.s)]
+ 
+ 	_ = t.s[:]
+ 	_ = t.s[:10]
+@@ -50,6 +55,7 @@ var (
+ 	_ = t.s[:(len(t.s))]
+ 	_ = t.s[:len(t.s)-1]
+ 	_ = t.s[:len(b)]
++	_ = t.s[:len(t.s):len(t.s)]
+ )
+ 
+ func _() {

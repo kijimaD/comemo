@@ -7,10 +7,462 @@ Date:   Wed Apr 13 23:36:00 2011 -0400
     R=golang-dev, niemeyer, r
     CC=golang-dev
     https://golang.org/cl/4372052
-
+---
  src/pkg/asn1/asn1.go              | 24 ++++------
  src/pkg/encoding/binary/binary.go | 96 +++++++++++++++++----------------------
  src/pkg/exp/eval/bridge.go        | 65 ++++++++++++--------------
  src/pkg/net/dnsmsg.go             | 67 ++++++++++++---------------
  src/pkg/testing/quick/quick.go    | 63 ++++++++++++-------------
  5 files changed, 138 insertions(+), 177 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 9026359395..8c99bd7a0f 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -467,7 +467,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 
+ 	// Deal with the ANY type.
+ 	if ifaceType := fieldType; ifaceType.Kind() == reflect.Interface && ifaceType.NumMethod() == 0 {
+-		ifaceValue := v
+ 		var t tagAndLength
+ 		t, offset, err = parseTagAndLength(bytes, offset)
+ 		if err != nil {
+@@ -506,7 +505,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			return
+ 		}
+ 		if result != nil {
+-			ifaceValue.Set(reflect.NewValue(result))
++			v.Set(reflect.NewValue(result))
+ 		}
+ 		return
+ 	}
+@@ -536,9 +535,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 					err = StructuralError{"Zero length explicit tag was not an asn1.Flag"}
+ 					return
+ 				}
+-
+-				flagValue := v
+-				flagValue.SetBool(true)
++				v.SetBool(true)
+ 				return
+ 			}
+ 		} else {
+@@ -606,23 +603,20 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	switch fieldType {
+ 	case objectIdentifierType:
+ 		newSlice, err1 := parseObjectIdentifier(innerBytes)
+-		sliceValue := v
+-		sliceValue.Set(reflect.MakeSlice(sliceValue.Type(), len(newSlice), len(newSlice)))
++		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
+ 		if err1 == nil {
+-			reflect.Copy(sliceValue, reflect.NewValue(newSlice))
++			reflect.Copy(v, reflect.NewValue(newSlice))
+ 		}
+ 		err = err1
+ 		return
+ 	case bitStringType:
+-		structValue := v
+ 		bs, err1 := parseBitString(innerBytes)
+ 		if err1 == nil {
+-			structValue.Set(reflect.NewValue(bs))
++			v.Set(reflect.NewValue(bs))
+ 		}
+ 		err = err1
+ 		return
+ 	case timeType:
+-		ptrValue := v
+ 		var time *time.Time
+ 		var err1 os.Error
+ 		if universalTag == tagUTCTime {
+@@ -631,21 +625,19 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			time, err1 = parseGeneralizedTime(innerBytes)
+ 		}
+ 		if err1 == nil {
+-			ptrValue.Set(reflect.NewValue(time))
++			v.Set(reflect.NewValue(time))
+ 		}
+ 		err = err1
+ 		return
+ 	case enumeratedType:
+ 		parsedInt, err1 := parseInt(innerBytes)
+-		enumValue := v
+ 		if err1 == nil {
+-			enumValue.SetInt(int64(parsedInt))
++			v.SetInt(int64(parsedInt))
+ 		}
+ 		err = err1
+ 		return
+ 	case flagType:
+-		flagValue := v
+-		flagValue.SetBool(true)
++		v.SetBool(true)
+ 		return
+ 	}
+ 	switch val := v; val.Kind() {
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index dafe7e777c..a4b3907014 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -168,18 +168,18 @@ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+ }
+ 
+ func TotalSize(v reflect.Value) int {
+-	if sv := v; sv.Kind() == reflect.Slice {
++	if v.Kind() == reflect.Slice {
+ 		elem := sizeof(v.Type().Elem())
+ 		if elem < 0 {
+ 			return -1
+ 		}
+-		return sv.Len() * elem
++		return v.Len() * elem
+ 	}
+ 	return sizeof(v.Type())
+ }
+ 
+-func sizeof(v reflect.Type) int {
+-	switch t := v; t.Kind() {
++func sizeof(t reflect.Type) int {
++	switch t.Kind() {
+ 	case reflect.Array:
+ 		n := sizeof(t.Elem())
+ 		if n < 0 {
+@@ -198,12 +198,10 @@ func sizeof(v reflect.Type) int {
+ 		}
+ 		return sum
+ 
+-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+-		switch t := t.Kind(); t {
+-		case reflect.Int, reflect.Uint, reflect.Uintptr:
+-			return -1
+-		}
+-		return int(v.Size())
++	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
++		reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
++		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
++		return int(t.Size())
+ 	}
+ 	return -1
+ }
+@@ -297,51 +295,39 @@ func (d *decoder) value(v reflect.Value) {
+ 			d.value(v.Index(i))
+ 		}
+ 
+-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		switch v.Type().Kind() {
+-		case reflect.Int8:
+-			v.SetInt(int64(d.int8()))
+-		case reflect.Int16:
+-			v.SetInt(int64(d.int16()))
+-		case reflect.Int32:
+-			v.SetInt(int64(d.int32()))
+-		case reflect.Int64:
+-			v.SetInt(d.int64())
+-		}
+-
+-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		switch v.Type().Kind() {
+-		case reflect.Uint8:
+-			v.SetUint(uint64(d.uint8()))
+-		case reflect.Uint16:
+-			v.SetUint(uint64(d.uint16()))
+-		case reflect.Uint32:
+-			v.SetUint(uint64(d.uint32()))
+-		case reflect.Uint64:
+-			v.SetUint(d.uint64())
+-		}
+-
+-	case reflect.Float32, reflect.Float64:
+-		switch v.Type().Kind() {
+-		case reflect.Float32:
+-			v.SetFloat(float64(math.Float32frombits(d.uint32())))
+-		case reflect.Float64:
+-			v.SetFloat(math.Float64frombits(d.uint64()))
+-		}
+-
+-	case reflect.Complex64, reflect.Complex128:
+-		switch v.Type().Kind() {
+-		case reflect.Complex64:
+-			v.SetComplex(complex(
+-				float64(math.Float32frombits(d.uint32())),
+-				float64(math.Float32frombits(d.uint32())),
+-			))
+-		case reflect.Complex128:
+-			v.SetComplex(complex(
+-				math.Float64frombits(d.uint64()),
+-				math.Float64frombits(d.uint64()),
+-			))
+-		}
++	case reflect.Int8:
++		v.SetInt(int64(d.int8()))
++	case reflect.Int16:
++		v.SetInt(int64(d.int16()))
++	case reflect.Int32:
++		v.SetInt(int64(d.int32()))
++	case reflect.Int64:
++		v.SetInt(d.int64())
++
++	case reflect.Uint8:
++		v.SetUint(uint64(d.uint8()))
++	case reflect.Uint16:
++		v.SetUint(uint64(d.uint16()))
++	case reflect.Uint32:
++		v.SetUint(uint64(d.uint32()))
++	case reflect.Uint64:
++		v.SetUint(d.uint64())
++
++	case reflect.Float32:
++		v.SetFloat(float64(math.Float32frombits(d.uint32())))
++	case reflect.Float64:
++		v.SetFloat(math.Float64frombits(d.uint64()))
++
++	case reflect.Complex64:
++		v.SetComplex(complex(
++			float64(math.Float32frombits(d.uint32())),
++			float64(math.Float32frombits(d.uint32())),
++		))
++	case reflect.Complex128:
++		v.SetComplex(complex(
++			math.Float64frombits(d.uint64()),
++			math.Float64frombits(d.uint64()),
++		))
+ 	}
+ }
+ 
+diff --git a/src/pkg/exp/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+index 24fdaf44d1..d1efa2eb6f 100644
+--- a/src/pkg/exp/eval/bridge.go
++++ b/src/pkg/exp/eval/bridge.go
+@@ -37,41 +37,36 @@ func TypeFromNative(t reflect.Type) Type {
+ 	switch t.Kind() {
+ 	case reflect.Bool:
+ 		et = BoolType
+-	case reflect.Float32, reflect.Float64:
+-		switch t.Kind() {
+-		case reflect.Float32:
+-			et = Float32Type
+-		case reflect.Float64:
+-			et = Float64Type
+-		}
+-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		switch t.Kind() {
+-		case reflect.Int16:
+-			et = Int16Type
+-		case reflect.Int32:
+-			et = Int32Type
+-		case reflect.Int64:
+-			et = Int64Type
+-		case reflect.Int8:
+-			et = Int8Type
+-		case reflect.Int:
+-			et = IntType
+-		}
+-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		switch t.Kind() {
+-		case reflect.Uint16:
+-			et = Uint16Type
+-		case reflect.Uint32:
+-			et = Uint32Type
+-		case reflect.Uint64:
+-			et = Uint64Type
+-		case reflect.Uint8:
+-			et = Uint8Type
+-		case reflect.Uint:
+-			et = UintType
+-		case reflect.Uintptr:
+-			et = UintptrType
+-		}
++
++	case reflect.Float32:
++		et = Float32Type
++	case reflect.Float64:
++		et = Float64Type
++
++	case reflect.Int16:
++		et = Int16Type
++	case reflect.Int32:
++		et = Int32Type
++	case reflect.Int64:
++		et = Int64Type
++	case reflect.Int8:
++		et = Int8Type
++	case reflect.Int:
++		et = IntType
++
++	case reflect.Uint16:
++		et = Uint16Type
++	case reflect.Uint32:
++		et = Uint32Type
++	case reflect.Uint64:
++		et = Uint64Type
++	case reflect.Uint8:
++		et = Uint8Type
++	case reflect.Uint:
++		et = UintType
++	case reflect.Uintptr:
++		et = UintptrType
++
+ 	case reflect.String:
+ 		et = StringType
+ 	case reflect.Array:
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 546e713a0d..e8eb8d9589 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -400,28 +400,24 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
+ 			return len(msg), false
+ 		case reflect.Struct:
+ 			off, ok = packStructValue(fv, msg, off)
+-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		case reflect.Uint16:
++			if off+2 > len(msg) {
++				return len(msg), false
++			}
+ 			i := fv.Uint()
+-			switch fv.Type().Kind() {
+-			default:
+-				goto BadType
+-			case reflect.Uint16:
+-				if off+2 > len(msg) {
+-					return len(msg), false
+-				}
+-				msg[off] = byte(i >> 8)
+-				msg[off+1] = byte(i)
+-				off += 2
+-			case reflect.Uint32:
+-				if off+4 > len(msg) {
+-					return len(msg), false
+-				}
+-				msg[off] = byte(i >> 24)
+-				msg[off+1] = byte(i >> 16)
+-				msg[off+2] = byte(i >> 8)
+-				msg[off+3] = byte(i)
+-				off += 4
++			msg[off] = byte(i >> 8)
++			msg[off+1] = byte(i)
++			off += 2
++		case reflect.Uint32:
++			if off+4 > len(msg) {
++				return len(msg), false
+ 			}
++			i := fv.Uint()
++			msg[off] = byte(i >> 24)
++			msg[off+1] = byte(i >> 16)
++			msg[off+2] = byte(i >> 8)
++			msg[off+3] = byte(i)
++			off += 4
+ 		case reflect.Array:
+ 			if fv.Type().Elem().Kind() != reflect.Uint8 {
+ 				goto BadType
+@@ -481,25 +477,20 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
+ 			return len(msg), false
+ 		case reflect.Struct:
+ 			off, ok = unpackStructValue(fv, msg, off)
+-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-			switch fv.Type().Kind() {
+-			default:
+-				goto BadType
+-			case reflect.Uint16:
+-				if off+2 > len(msg) {
+-					return len(msg), false
+-				}
+-				i := uint16(msg[off])<<8 | uint16(msg[off+1])
+-				fv.SetUint(uint64(i))
+-				off += 2
+-			case reflect.Uint32:
+-				if off+4 > len(msg) {
+-					return len(msg), false
+-				}
+-				i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
+-				fv.SetUint(uint64(i))
+-				off += 4
++		case reflect.Uint16:
++			if off+2 > len(msg) {
++				return len(msg), false
++			}
++			i := uint16(msg[off])<<8 | uint16(msg[off+1])
++			fv.SetUint(uint64(i))
++			off += 2
++		case reflect.Uint32:
++			if off+4 > len(msg) {
++				return len(msg), false
+ 			}
++			i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
++			fv.SetUint(uint64(i))
++			off += 4
+ 		case reflect.Array:
+ 			if fv.Type().Elem().Kind() != reflect.Uint8 {
+ 				goto BadType
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 152dbad323..52fd38d9c8 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -60,39 +60,36 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 	switch concrete := t; concrete.Kind() {
+ 	case reflect.Bool:
+ 		return reflect.NewValue(rand.Int()&1 == 0), true
+-	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
+-		switch t.Kind() {
+-		case reflect.Float32:
+-			return reflect.NewValue(randFloat32(rand)), true
+-		case reflect.Float64:
+-			return reflect.NewValue(randFloat64(rand)), true
+-		case reflect.Complex64:
+-			return reflect.NewValue(complex(randFloat32(rand), randFloat32(rand))), true
+-		case reflect.Complex128:
+-			return reflect.NewValue(complex(randFloat64(rand), randFloat64(rand))), true
+-		case reflect.Int16:
+-			return reflect.NewValue(int16(randInt64(rand))), true
+-		case reflect.Int32:
+-			return reflect.NewValue(int32(randInt64(rand))), true
+-		case reflect.Int64:
+-			return reflect.NewValue(randInt64(rand)), true
+-		case reflect.Int8:
+-			return reflect.NewValue(int8(randInt64(rand))), true
+-		case reflect.Int:
+-			return reflect.NewValue(int(randInt64(rand))), true
+-		case reflect.Uint16:
+-			return reflect.NewValue(uint16(randInt64(rand))), true
+-		case reflect.Uint32:
+-			return reflect.NewValue(uint32(randInt64(rand))), true
+-		case reflect.Uint64:
+-			return reflect.NewValue(uint64(randInt64(rand))), true
+-		case reflect.Uint8:
+-			return reflect.NewValue(uint8(randInt64(rand))), true
+-		case reflect.Uint:
+-			return reflect.NewValue(uint(randInt64(rand))), true
+-		case reflect.Uintptr:
+-			return reflect.NewValue(uintptr(randInt64(rand))), true
+-		}
++	case reflect.Float32:
++		return reflect.NewValue(randFloat32(rand)), true
++	case reflect.Float64:
++		return reflect.NewValue(randFloat64(rand)), true
++	case reflect.Complex64:
++		return reflect.NewValue(complex(randFloat32(rand), randFloat32(rand))), true
++	case reflect.Complex128:
++		return reflect.NewValue(complex(randFloat64(rand), randFloat64(rand))), true
++	case reflect.Int16:
++		return reflect.NewValue(int16(randInt64(rand))), true
++	case reflect.Int32:
++		return reflect.NewValue(int32(randInt64(rand))), true
++	case reflect.Int64:
++		return reflect.NewValue(randInt64(rand)), true
++	case reflect.Int8:
++		return reflect.NewValue(int8(randInt64(rand))), true
++	case reflect.Int:
++		return reflect.NewValue(int(randInt64(rand))), true
++	case reflect.Uint16:
++		return reflect.NewValue(uint16(randInt64(rand))), true
++	case reflect.Uint32:
++		return reflect.NewValue(uint32(randInt64(rand))), true
++	case reflect.Uint64:
++		return reflect.NewValue(uint64(randInt64(rand))), true
++	case reflect.Uint8:
++		return reflect.NewValue(uint8(randInt64(rand))), true
++	case reflect.Uint:
++		return reflect.NewValue(uint(randInt64(rand))), true
++	case reflect.Uintptr:
++		return reflect.NewValue(uintptr(randInt64(rand))), true
+ 	case reflect.Map:
+ 		numElems := rand.Intn(complexSize)
+ 		m := reflect.MakeMap(concrete)

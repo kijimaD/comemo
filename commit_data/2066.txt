@@ -8,6 +8,24 @@ Date:   Tue Apr 21 00:05:19 2009 -0700
     DELTA=6  (6 added, 0 deleted, 0 changed)
     OCL=27654
     CL=27654
-
+---
  test/golden.out | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/golden.out b/test/golden.out
+index b3cc4fb543..f032651c13 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -121,6 +121,12 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
++=========== bugs/bug143.go
++bugs/bug143.go:19: assignment count mismatch: 2 = 1
++bugs/bug143.go:18: x: undefined
++bugs/bug143.go:18: ok: undefined
++BUG should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

@@ -23,7 +23,39 @@ Date:   Tue May 20 00:30:46 2014 -0400
     R=iant, khr, r, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/92540043
-
+---
  doc/go1.3.html          | 7 -------
  src/pkg/runtime/stack.h | 2 +-
  2 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index fa9e3f7784..5404f4ec66 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -118,13 +118,6 @@ Details including performance numbers are in this
+ <a href="http://golang.org/s/contigstacks">design document</a>.
+ </p>
+ 
+-<h3 id="stack_size">Stack size</h3>
+-
+-<p>
+-Go 1.2 increased the minimum stack size to 8 kilobytes; with the new stack model, it has been
+-put back to 4 kilobytes.
+-</p>
+-
+ <h3 id="garbage_collector">Changes to the garbage collector</h3>
+ 
+ <p>
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index a3a5d83a64..18ab30b69b 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -76,7 +76,7 @@ enum {
+ 	// The minimum stack segment size to allocate.
+ 	// If the amount needed for the splitting frame + StackExtra
+ 	// is less than this number, the stack will have this size instead.
+-	StackMin = 4096,
++	StackMin = 8192,
+ 	StackSystemRounded = StackSystem + (-StackSystem & (StackMin-1)),
+ 	FixedStack = StackMin + StackSystemRounded,
+ 

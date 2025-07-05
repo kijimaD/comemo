@@ -11,6 +11,21 @@ Date:   Fri Apr 24 16:37:31 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9324
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/proc1.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index a2956fe1ad..350d6bfbdf 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -3180,6 +3180,9 @@ func globrunqget(_p_ *p, max int32) *g {
+ // May run during STW, so write barriers are not allowed.
+ //go:nowritebarrier
+ func pidleput(_p_ *p) {
++	if !runqempty(_p_) {
++		throw("pidleput: P has non-empty run queue")
++	}
+ 	_p_.link = sched.pidle
+ 	sched.pidle.set(_p_)
+ 	xadd(&sched.npidle, 1) // TODO: fast atomic

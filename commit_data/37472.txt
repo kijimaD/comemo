@@ -14,6 +14,31 @@ Date:   Thu Aug 2 12:11:46 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/{mod => script}/mod_tidy.txt | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/mod/mod_tidy.txt b/src/cmd/go/testdata/script/mod_tidy.txt
+similarity index 82%
+rename from src/cmd/go/testdata/mod/mod_tidy.txt
+rename to src/cmd/go/testdata/script/mod_tidy.txt
+index 764797c254..86434af7f3 100644
+--- a/src/cmd/go/testdata/mod/mod_tidy.txt
++++ b/src/cmd/go/testdata/script/mod_tidy.txt
+@@ -19,11 +19,11 @@ require (
+ 	w.1 v1.2.0
+ )
+ 
+-replace x.1 v1.0.0 => ../x
+-replace y.1 v1.0.0 => ../y
+-replace z.1 v1.1.0 => ../z
+-replace z.1 v1.2.0 => ../z
+-replace w.1 => ../w
++replace x.1 v1.0.0 => ./x
++replace y.1 v1.0.0 => ./y
++replace z.1 v1.1.0 => ./z
++replace z.1 v1.2.0 => ./z
++replace w.1 => ./w
+ 
+ -- m.go --
+ package m

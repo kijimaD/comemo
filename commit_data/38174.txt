@@ -11,7 +11,7 @@ Date:   Mon Oct 8 01:19:51 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/zip/writer.go                          | 2 +-
  src/cmd/asm/internal/asm/testdata/386enc.s         | 2 +-
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 2 +-
@@ -26,3 +26,182 @@ Date:   Mon Oct 8 01:19:51 2018 +0000
  src/runtime/sys_linux_ppc64x.s                     | 2 +-
  test/run.go                                        | 4 ++--
  13 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 5f0c0a1a55..cdc534eaf0 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -178,7 +178,7 @@ func (w *Writer) Close() error {
+ 			return err
+ 		}
+ 
+-		// store max values in the regular end record to signal that
++		// store max values in the regular end record to signal
+ 		// that the zip64 values should be used instead
+ 		records = uint16max
+ 		size = uint32max
+diff --git a/src/cmd/asm/internal/asm/testdata/386enc.s b/src/cmd/asm/internal/asm/testdata/386enc.s
+index 15d1705c97..4af6de36d1 100644
+--- a/src/cmd/asm/internal/asm/testdata/386enc.s
++++ b/src/cmd/asm/internal/asm/testdata/386enc.s
+@@ -18,7 +18,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVL -2147483648(AX), AX // 8b8000000080
+ 	ADDL 2147483648(AX), AX  // 038000000080
+ 	ADDL -2147483648(AX), AX // 038000000080
+-	// Make sure MOV CR/DR continues to work after changing it's movtabs.
++	// Make sure MOV CR/DR continues to work after changing its movtabs.
+ 	MOVL CR0, AX // 0f20c0
+ 	MOVL CR0, DX // 0f20c2
+ 	MOVL CR4, DI // 0f20e7
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index 2f0d9ecf86..d7afecc230 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -302,7 +302,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	// Check that LEAL is permitted to use overflowing offset.
+ 	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
+ 	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
+-	// Make sure MOV CR/DR continues to work after changing it's movtabs.
++	// Make sure MOV CR/DR continues to work after changing its movtabs.
+ 	MOVQ CR0, AX // 0f20c0
+ 	MOVQ CR0, DX // 0f20c2
+ 	MOVQ CR4, DI // 0f20e7
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 94190f0020..eba66d9c67 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -946,7 +946,8 @@ opSwitch:
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+ 		e.esccall(n, parent)
+ 
+-		// esccall already done on n.Rlist.First(). tie it's Retval to n.List
++		// esccall already done on n.Rlist.First()
++		// tie its Retval to n.List
+ 	case OAS2FUNC: // x,y = f()
+ 		rs := e.nodeEscState(n.Rlist.First()).Retval.Slice()
+ 		where := n
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 0a7238850c..bd6ffbce53 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -967,7 +967,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpPPC64LoweredMove:
+ 
+ 		// This will be used when moving more
+-		// than 8 bytes.  Moves start with as
++		// than 8 bytes.  Moves start with
+ 		// as many 8 byte moves as possible, then
+ 		// 4, 2, or 1 byte(s) as remaining.  This will
+ 		// work and be efficient for power8 or later.
+diff --git a/src/cmd/internal/obj/x86/evex.go b/src/cmd/internal/obj/x86/evex.go
+index 30c0e62e0f..d8867283fa 100644
+--- a/src/cmd/internal/obj/x86/evex.go
++++ b/src/cmd/internal/obj/x86/evex.go
+@@ -194,7 +194,7 @@ func newEVEXSuffix() evexSuffix {
+ 	return evexSuffix{rounding: rcUnset}
+ }
+ 
+-// evexSuffixMap maps obj.X86suffix to it's decoded version.
++// evexSuffixMap maps obj.X86suffix to its decoded version.
+ // Filled during init().
+ var evexSuffixMap [255]evexSuffix
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8f3326d8cd..2284c347dc 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -646,7 +646,7 @@ func (ctxt *Link) loadlib() {
+ //
+ // These are the symbols that begin with the prefix 'type.' and
+ // contain run-time type information used by the runtime and reflect
+-// packages. All Go binaries contain these symbols, but only only
++// packages. All Go binaries contain these symbols, but only
+ // those programs loaded dynamically in multiple parts need these
+ // symbols to have entries in the symbol table.
+ func (ctxt *Link) mangleTypeSym() {
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index df84d6cc98..6b2125924d 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -232,10 +232,10 @@ func TestVetVerbose(t *testing.T) {
+ // this function will report an error.
+ // Likewise if outStr does not have an error for a line which has a comment,
+ // or if the error message does not match the <regexp>.
+-// The <regexp> syntax is Perl but its best to stick to egrep.
++// The <regexp> syntax is Perl but it's best to stick to egrep.
+ //
+ // Sources files are supplied as fullshort slice.
+-// It consists of pairs: full path to source file and it's base name.
++// It consists of pairs: full path to source file and its base name.
+ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
+ 	var errs []error
+ 	out := splitOutput(outStr, wantAuto)
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 1be9f770f1..82f3f316c6 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -597,7 +597,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
+ 	state := 0
+ 
+ 	// waiter will be called for all queries, including
+-	// initial setup queries. The state is only assigned when no
++	// initial setup queries. The state is only assigned when
+ 	// no queries are made.
+ 	//
+ 	// Only allow the first batch of queries to finish once the
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 2c6ba3231b..a41d034204 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -942,7 +942,7 @@ func (b *body) Close() error {
+ 		// no trailer and closing the connection next.
+ 		// no point in reading to EOF.
+ 	case b.doEarlyClose:
+-		// Read up to maxPostHandlerReadBytes bytes of the body, looking for
++		// Read up to maxPostHandlerReadBytes bytes of the body, looking
+ 		// for EOF (and trailers), so we can re-use this connection.
+ 		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
+ 			// There was a declared Content-Length, and we have more bytes remaining
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b92e27e4e0..1d672cdf21 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -673,7 +673,7 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 		// TODO(austin): This tends to sweep a large number of
+ 		// spans in order to find a few completely free spans
+ 		// (for example, in the garbage benchmark, this sweeps
+-		// ~30x the number of pages its trying to allocate).
++		// ~30x the number of pages it's trying to allocate).
+ 		// If GC kept a bit for whether there were any marks
+ 		// in a span, we could release these free spans
+ 		// at the end of GC and eliminate this entirely.
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index ed79b69257..5b5df50d41 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -320,7 +320,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+ 	// The stack unwinder, presumably written in C, may not be able to
+ 	// handle Go frame correctly. So, this function is NOFRAME, and we
+-	// we save/restore LR manually.
++	// save/restore LR manually.
+ 	MOVD	LR, R10
+ 
+ 	// We're coming from C code, initialize essential registers.
+diff --git a/test/run.go b/test/run.go
+index 3af6d1466b..0974e9fdb8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1071,10 +1071,10 @@ func splitOutput(out string, wantAuto bool) []string {
+ // this function will report an error.
+ // Likewise if outStr does not have an error for a line which has a comment,
+ // or if the error message does not match the <regexp>.
+-// The <regexp> syntax is Perl but its best to stick to egrep.
++// The <regexp> syntax is Perl but it's best to stick to egrep.
+ //
+ // Sources files are supplied as fullshort slice.
+-// It consists of pairs: full path to source file and it's base name.
++// It consists of pairs: full path to source file and its base name.
+ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
+ 	defer func() {
+ 		if *verbose && err != nil {

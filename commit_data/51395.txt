@@ -29,9 +29,229 @@ Date:   Fri Jan 21 16:52:56 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/export_futex_test.go | 19 ---------
  src/runtime/export_test.go       |  2 +
  src/runtime/futex_test.go        | 87 ----------------------------------------
  src/runtime/runtime_test.go      | 76 +++++++++++++++++++++++++++++++++++
  4 files changed, 78 insertions(+), 106 deletions(-)
+
+diff --git a/src/runtime/export_futex_test.go b/src/runtime/export_futex_test.go
+deleted file mode 100644
+index 03157d8eed..0000000000
+--- a/src/runtime/export_futex_test.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || linux
+-
+-package runtime
+-
+-var Futexwakeup = futexwakeup
+-
+-//go:nosplit
+-func Futexsleep(addr *uint32, val uint32, ns int64) {
+-	// Temporarily disable preemption so that a preemption signal
+-	// doesn't interrupt the system call.
+-	poff := debug.asyncpreemptoff
+-	debug.asyncpreemptoff = 1
+-	futexsleep(addr, val, ns)
+-	debug.asyncpreemptoff = poff
+-}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 3c8f9eb49b..0f21838721 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1328,3 +1328,5 @@ func Acquirem() {
+ func Releasem() {
+ 	releasem(getg().m)
+ }
++
++var Timediv = timediv
+diff --git a/src/runtime/futex_test.go b/src/runtime/futex_test.go
+deleted file mode 100644
+index 188d0c6525..0000000000
+--- a/src/runtime/futex_test.go
++++ /dev/null
+@@ -1,87 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Futex is only available on DragonFly BSD, FreeBSD and Linux.
+-// The race detector emits calls to split stack functions so it breaks
+-// the test.
+-
+-//go:build (dragonfly || freebsd || linux) && !race
+-
+-package runtime_test
+-
+-import (
+-	"runtime"
+-	"sync"
+-	"sync/atomic"
+-	"testing"
+-	"time"
+-)
+-
+-type futexsleepTest struct {
+-	mtx uint32
+-	ns  int64
+-	msg string
+-	ch  chan *futexsleepTest
+-}
+-
+-var futexsleepTests = []futexsleepTest{
+-	beforeY2038: {mtx: 0, ns: 86400 * 1e9, msg: "before the year 2038"},
+-	afterY2038:  {mtx: 0, ns: (1<<31 + 100) * 1e9, msg: "after the year 2038"},
+-}
+-
+-const (
+-	beforeY2038 = iota
+-	afterY2038
+-)
+-
+-func TestFutexsleep(t *testing.T) {
+-	if runtime.GOMAXPROCS(0) > 1 {
+-		// futexsleep doesn't handle EINTR or other signals,
+-		// so spurious wakeups may happen.
+-		t.Skip("skipping; GOMAXPROCS>1")
+-	}
+-
+-	start := time.Now()
+-	var wg sync.WaitGroup
+-	for i := range futexsleepTests {
+-		tt := &futexsleepTests[i]
+-		tt.mtx = 0
+-		tt.ch = make(chan *futexsleepTest, 1)
+-		wg.Add(1)
+-		go func(tt *futexsleepTest) {
+-			runtime.Entersyscall()
+-			runtime.Futexsleep(&tt.mtx, 0, tt.ns)
+-			runtime.Exitsyscall()
+-			tt.ch <- tt
+-			wg.Done()
+-		}(tt)
+-	}
+-loop:
+-	for {
+-		select {
+-		case tt := <-futexsleepTests[beforeY2038].ch:
+-			t.Errorf("futexsleep test %q finished early after %s", tt.msg, time.Since(start))
+-			break loop
+-		case tt := <-futexsleepTests[afterY2038].ch:
+-			// Looks like FreeBSD 10 kernel has changed
+-			// the semantics of timedwait on userspace
+-			// mutex to make broken stuff look broken.
+-			switch {
+-			case runtime.GOOS == "freebsd" && runtime.GOARCH == "386":
+-				t.Log("freebsd/386 may not work correctly after the year 2038, see golang.org/issue/7194")
+-			default:
+-				t.Errorf("futexsleep test %q finished early after %s", tt.msg, time.Since(start))
+-				break loop
+-			}
+-		case <-time.After(time.Second):
+-			break loop
+-		}
+-	}
+-	for i := range futexsleepTests {
+-		tt := &futexsleepTests[i]
+-		atomic.StoreUint32(&tt.mtx, 1)
+-		runtime.Futexwakeup(&tt.mtx, 1)
+-	}
+-	wg.Wait()
+-}
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 1ca1fa2f05..12f261bdd2 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"flag"
++	"fmt"
+ 	"io"
+ 	. "runtime"
+ 	"runtime/debug"
+@@ -362,3 +363,78 @@ func TestVersion(t *testing.T) {
+ 		t.Fatalf("cr/nl in version: %q", vers)
+ 	}
+ }
++
++func TestTimediv(t *testing.T) {
++	for _, tc := range []struct {
++		num int64
++		div int32
++		ret int32
++		rem int32
++	}{
++		{
++			num: 8,
++			div: 2,
++			ret: 4,
++			rem: 0,
++		},
++		{
++			num: 9,
++			div: 2,
++			ret: 4,
++			rem: 1,
++		},
++		{
++			// Used by runtime.check.
++			num: 12345*1000000000 + 54321,
++			div: 1000000000,
++			ret: 12345,
++			rem: 54321,
++		},
++		{
++			num: 1<<32 - 1,
++			div: 2,
++			ret: 1<<31 - 1, // no overflow.
++			rem: 1,
++		},
++		{
++			num: 1 << 32,
++			div: 2,
++			ret: 1<<31 - 1, // overflow.
++			rem: 0,
++		},
++		{
++			num: 1 << 40,
++			div: 2,
++			ret: 1<<31 - 1, // overflow.
++			rem: 0,
++		},
++		{
++			num: 1<<40 + 1,
++			div: 1 << 10,
++			ret: 1 << 30,
++			rem: 1,
++		},
++	} {
++		name := fmt.Sprintf("%d div %d", tc.num, tc.div)
++		t.Run(name, func(t *testing.T) {
++			// Double check that the inputs make sense using
++			// standard 64-bit division.
++			ret64 := tc.num / int64(tc.div)
++			rem64 := tc.num % int64(tc.div)
++			if ret64 != int64(int32(ret64)) {
++				// Simulate timediv overflow value.
++				ret64 = 1<<31 - 1
++				rem64 = 0
++			}
++			if ret64 != int64(tc.ret) {
++				t.Errorf("%d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret64, rem64, tc.ret, tc.rem)
++			}
++
++			var rem int32
++			ret := Timediv(tc.num, tc.div, &rem)
++			if ret != tc.ret || rem != tc.rem {
++				t.Errorf("timediv %d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret, rem, tc.ret, tc.rem)
++			}
++		})
++	}
++}

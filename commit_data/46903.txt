@@ -16,7 +16,101 @@ Date:   Thu Feb 11 10:17:39 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go             | 26 ++++++++++++++++++--------
  src/go/types/testdata/shifts.src | 12 +++++++-----
  2 files changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 1a3c486af7..7f8aaed411 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -730,14 +730,14 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ 
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+-	untypedx := isUntyped(x.typ)
++	// TODO(gri) This function seems overly complex. Revisit.
+ 
+ 	var xval constant.Value
+ 	if x.mode == constant_ {
+ 		xval = constant.ToInt(x.val)
+ 	}
+ 
+-	if isInteger(x.typ) || untypedx && xval != nil && xval.Kind() == constant.Int {
++	if isInteger(x.typ) || isUntyped(x.typ) && xval != nil && xval.Kind() == constant.Int {
+ 		// The lhs is of integer type or an untyped constant representable
+ 		// as an integer. Nothing to do.
+ 	} else {
+@@ -749,16 +749,26 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 
+ 	// spec: "The right operand in a shift expression must have integer type
+ 	// or be an untyped constant representable by a value of type uint."
+-	switch {
+-	case isInteger(y.typ):
+-		// nothing to do
+-	case isUntyped(y.typ):
++
++	// Provide a good error message for negative shift counts.
++	if y.mode == constant_ {
++		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
++		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
++			check.invalidOp(y, _InvalidShiftCount, "negative shift count %s", y)
++			x.mode = invalid
++			return
++		}
++	}
++
++	// Caution: Check for isUntyped first because isInteger includes untyped
++	//          integers (was bug #43697).
++	if isUntyped(y.typ) {
+ 		check.convertUntyped(y, Typ[Uint])
+ 		if y.mode == invalid {
+ 			x.mode = invalid
+ 			return
+ 		}
+-	default:
++	} else if !isInteger(y.typ) {
+ 		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
+ 		x.mode = invalid
+ 		return
+@@ -816,7 +826,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 		}
+ 
+ 		// non-constant shift with constant lhs
+-		if untypedx {
++		if isUntyped(x.typ) {
+ 			// spec: "If the left operand of a non-constant shift
+ 			// expression is an untyped constant, the type of the
+ 			// constant is what it would be if the shift expression
+diff --git a/src/go/types/testdata/shifts.src b/src/go/types/testdata/shifts.src
+index c9a38ae169..4d3c59a50f 100644
+--- a/src/go/types/testdata/shifts.src
++++ b/src/go/types/testdata/shifts.src
+@@ -20,7 +20,7 @@ func shifts0() {
+ 		// This depends on the exact spec wording which is not
+ 		// done yet.
+ 		// TODO(gri) revisit and adjust when spec change is done
+-		_ = 1<<- /* ERROR "truncated to uint" */ 1.0
++		_ = 1<<- /* ERROR "negative shift count" */ 1.0
+ 		_ = 1<<1075 /* ERROR "invalid shift" */
+ 		_ = 2.0<<1
+ 		_ = 1<<1.0
+@@ -60,11 +60,13 @@ func shifts1() {
+ 		_ uint = 1 << u
+ 		_ float32 = 1 /* ERROR "must be integer" */ << u
+ 
+-		// for issue 14822
++		// issue #14822
++		_ = 1<<( /* ERROR "overflows uint" */ 1<<64)
+ 		_ = 1<<( /* ERROR "invalid shift count" */ 1<<64-1)
+-		_ = 1<<( /* ERROR "invalid shift count" */ 1<<64)
+-		_ = u<<(1<<63) // valid
+-		_ = u<<(1<<64) // valid
++
++		// issue #43697
++		_ = u<<( /* ERROR "overflows uint" */ 1<<64)
++		_ = u<<(1<<64-1)
+ 	)
+ }
+ 

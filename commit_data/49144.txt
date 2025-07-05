@@ -17,9 +17,80 @@ Date:   Wed Jul 21 11:26:00 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go       | 4 ++--
  src/go/types/decl.go       | 2 +-
  src/go/types/subst.go      | 2 +-
  src/go/types/typestring.go | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 96d0429af9..16b8e4eb7c 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -61,7 +61,7 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
+ 
+ 	// instantiate function signature
+ 	res := check.Instantiate(x.Pos(), sig, targs, poslist, true).(*Signature)
+-	assert(res.tparams == nil) // signature is not generic anymore
++	assert(res.TParams().Len() == 0) // signature is not generic anymore
+ 	if inferred {
+ 		check.recordInferred(ix.Orig, targs, res)
+ 	}
+@@ -334,7 +334,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 
+ 		// compute result signature
+ 		rsig = check.Instantiate(call.Pos(), sig, targs, nil, true).(*Signature)
+-		assert(rsig.tparams == nil) // signature is not generic anymore
++		assert(rsig.TParams().Len() == 0) // signature is not generic anymore
+ 		check.recordInferred(call, targs, rsig)
+ 
+ 		// Optimization: Only if the parameter list was adjusted do we
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index be7753d9d1..ad88c30282 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -625,7 +625,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	named.underlying = under(named)
+ 
+ 	// If the RHS is a type parameter, it must be from this type declaration.
+-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams.list(), tpar) < 0 {
++	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TParams().list(), tpar) < 0 {
+ 		check.errorf(tdecl.Type, _Todo, "cannot use function type parameter %s as RHS in type declaration", tpar)
+ 		named.underlying = Typ[Invalid]
+ 	}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 197d79b6a8..60fc7ae819 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -193,7 +193,7 @@ func (subst *subster) typ(typ Type) Type {
+ 			}
+ 		}
+ 
+-		if t.TParams() == nil {
++		if t.TParams().Len() == 0 {
+ 			dump(">>> %s is not parameterized", t)
+ 			return t // type is not parameterized
+ 		}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 18c436e3ef..6a9e7f2ac8 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -276,7 +276,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			buf.WriteByte('[')
+ 			writeTypeList(buf, t.targs, qf, visited)
+ 			buf.WriteByte(']')
+-		} else if t.TParams() != nil {
++		} else if t.TParams().Len() != 0 {
+ 			// parameterized type
+ 			writeTParamList(buf, t.TParams().list(), qf, visited)
+ 		}
+@@ -424,7 +424,7 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+ }
+ 
+ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
+-	if sig.tparams != nil {
++	if sig.TParams().Len() != 0 {
+ 		writeTParamList(buf, sig.TParams().list(), qf, visited)
+ 	}
+ 

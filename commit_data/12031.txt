@@ -7,7 +7,58 @@ Date:   Sat Feb 18 04:45:43 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5673090
-
+---
  src/pkg/os/file_plan9.go | 8 +++++---
  src/pkg/os/file_posix.go | 2 ++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 70041f22aa..cb0e9ef928 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -276,7 +276,6 @@ func Remove(name string) error {
+ }
+ 
+ // Rename renames a file.
+-// If there is an error, it will be of type *PathError.
+ func Rename(oldname, newname string) error {
+ 	var d Dir
+ 	d.Null()
+@@ -340,12 +339,15 @@ func Pipe() (r *File, w *File, err error) {
+ // not supported on Plan 9
+ 
+ // Link creates a hard link.
++// If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+-	return ErrPlan9
++	return &LinkError{"link", oldname, newname, ErrPlan9}
+ }
+ 
++// Symlink creates newname as a symbolic link to oldname.
++// If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
+-	return ErrPlan9
++	return &LinkError{"symlink", oldname, newname, ErrPlan9}
+ }
+ 
+ func Readlink(name string) (string, error) {
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 8861af1c7d..2ffc2ee083 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -38,6 +38,7 @@ func (e *LinkError) Error() string {
+ }
+ 
+ // Link creates newname as a hard link to the oldname file.
++// If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+ 	e := syscall.Link(oldname, newname)
+ 	if e != nil {
+@@ -47,6 +48,7 @@ func Link(oldname, newname string) error {
+ }
+ 
+ // Symlink creates newname as a symbolic link to oldname.
++// If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
+ 	e := syscall.Symlink(oldname, newname)
+ 	if e != nil {

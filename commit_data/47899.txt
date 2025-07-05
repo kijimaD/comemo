@@ -15,8 +15,54 @@ Date:   Wed Apr 14 13:10:34 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go               |  2 +-
  src/cmd/compile/internal/syntax/testdata/issue43674.src | 13 +++++++++++++
  test/fixedbugs/bug228.go                                |  2 +-
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 026297432d..80250212dd 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1836,7 +1836,7 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
+ 		t.Elem = p.typeOrNil()
+ 		if t.Elem == nil {
+ 			t.Elem = p.badExpr()
+-			p.syntaxError("final argument in variadic function missing type")
++			p.syntaxError("... is missing type")
+ 		}
+ 		f.Type = t
+ 		return f
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue43674.src b/src/cmd/compile/internal/syntax/testdata/issue43674.src
+new file mode 100644
+index 0000000000..51c692ae69
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue43674.src
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(... /* ERROR [.][.][.] is missing type */ )
++func _(... /* ERROR [.][.][.] is missing type */ , int)
++
++func _(a, b ... /* ERROR [.][.][.] is missing type */ )
++func _(a, b ... /* ERROR [.][.][.] is missing type */ , x int)
++
++func _()(... /* ERROR [.][.][.] is missing type */ )
+diff --git a/test/fixedbugs/bug228.go b/test/fixedbugs/bug228.go
+index f7ac670689..50e895917f 100644
+--- a/test/fixedbugs/bug228.go
++++ b/test/fixedbugs/bug228.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func f(x int, y ...int)	// ok
+ 
+-func g(x int, y float32) (...)	// ERROR "[.][.][.]" "final argument"
++func g(x int, y float32) (...)	// ERROR "[.][.][.]"
+ 
+ func h(x, y ...int)		// ERROR "[.][.][.]"
+ 

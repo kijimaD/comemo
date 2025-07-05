@@ -10,6 +10,20 @@ Date:   Wed Feb 8 15:26:36 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5643054
-
+---
  src/pkg/runtime/cgo/gcc_amd64.S | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_amd64.S b/src/pkg/runtime/cgo/gcc_amd64.S
+index 8e6d506f38..706ee6b584 100644
+--- a/src/pkg/runtime/cgo/gcc_amd64.S
++++ b/src/pkg/runtime/cgo/gcc_amd64.S
+@@ -70,7 +70,7 @@ EXT(crosscall2):
+ 	movq  %rdx, 0(%rsp)	/* arg */
+ 	movq  %r8, 8(%rsp)	/* argsize (includes padding) */
+ 	
+-	call %rcx	/* fn */
++	call *%rcx	/* fn */
+ #else
+ 	movq  %rsi, 0(%rsp)	/* arg */
+ 	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */

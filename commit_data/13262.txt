@@ -9,6 +9,23 @@ Date:   Mon Jun 4 09:57:03 2012 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6268046
-
+---
  src/pkg/path/filepath/path_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index e6097d5146..cb84d98b47 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -876,7 +876,10 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ }
+ 
+ func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
+-	root := os.Getenv("GOROOT")
++	root, err := filepath.EvalSymlinks(os.Getenv("GOROOT"))
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	lib := filepath.Join(root, "lib")
+ 	src := filepath.Join(root, "src")
+ 	seenSrc := false

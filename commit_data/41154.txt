@@ -9,10 +9,179 @@ Date:   Mon Sep 9 15:58:46 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go             |  3 --
  src/cmd/compile/internal/gc/types.go           |  3 --
  src/cmd/compile/internal/types/etype_string.go | 47 ++++++++++++++++++++++++--
  src/cmd/compile/internal/types/sizeof_test.go  |  1 -
  src/cmd/compile/internal/types/type.go         | 24 -------------
  5 files changed, 45 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 30b4ebd315..53d6b9d2cc 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -864,9 +864,6 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 	case TUNSAFEPTR:
+ 		return "unsafe.Pointer"
+ 
+-	case TDDDFIELD:
+-		return mode.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
+-
+ 	case Txxx:
+ 		return "Txxx"
+ 	}
+diff --git a/src/cmd/compile/internal/gc/types.go b/src/cmd/compile/internal/gc/types.go
+index ce82c3a52e..748f8458bd 100644
+--- a/src/cmd/compile/internal/gc/types.go
++++ b/src/cmd/compile/internal/gc/types.go
+@@ -54,8 +54,5 @@ const (
+ 	TFUNCARGS = types.TFUNCARGS
+ 	TCHANARGS = types.TCHANARGS
+ 
+-	// pseudo-types for import/export
+-	TDDDFIELD = types.TDDDFIELD // wrapper: contained type is a ... field
+-
+ 	NTYPE = types.NTYPE
+ )
+diff --git a/src/cmd/compile/internal/types/etype_string.go b/src/cmd/compile/internal/types/etype_string.go
+index f234a31fd0..0ff05a8c2a 100644
+--- a/src/cmd/compile/internal/types/etype_string.go
++++ b/src/cmd/compile/internal/types/etype_string.go
+@@ -4,9 +4,52 @@ package types
+ 
+ import "strconv"
+ 
+-const _EType_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTRFUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRIDEALNILBLANKFUNCARGSCHANARGSDDDFIELDSSATUPLENTYPE"
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[Txxx-0]
++	_ = x[TINT8-1]
++	_ = x[TUINT8-2]
++	_ = x[TINT16-3]
++	_ = x[TUINT16-4]
++	_ = x[TINT32-5]
++	_ = x[TUINT32-6]
++	_ = x[TINT64-7]
++	_ = x[TUINT64-8]
++	_ = x[TINT-9]
++	_ = x[TUINT-10]
++	_ = x[TUINTPTR-11]
++	_ = x[TCOMPLEX64-12]
++	_ = x[TCOMPLEX128-13]
++	_ = x[TFLOAT32-14]
++	_ = x[TFLOAT64-15]
++	_ = x[TBOOL-16]
++	_ = x[TPTR-17]
++	_ = x[TFUNC-18]
++	_ = x[TSLICE-19]
++	_ = x[TARRAY-20]
++	_ = x[TSTRUCT-21]
++	_ = x[TCHAN-22]
++	_ = x[TMAP-23]
++	_ = x[TINTER-24]
++	_ = x[TFORW-25]
++	_ = x[TANY-26]
++	_ = x[TSTRING-27]
++	_ = x[TUNSAFEPTR-28]
++	_ = x[TIDEAL-29]
++	_ = x[TNIL-30]
++	_ = x[TBLANK-31]
++	_ = x[TFUNCARGS-32]
++	_ = x[TCHANARGS-33]
++	_ = x[TSSA-34]
++	_ = x[TTUPLE-35]
++	_ = x[NTYPE-36]
++}
++
++const _EType_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTRFUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRIDEALNILBLANKFUNCARGSCHANARGSSSATUPLENTYPE"
+ 
+-var _EType_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 68, 78, 85, 92, 96, 99, 103, 108, 113, 119, 123, 126, 131, 135, 138, 144, 153, 158, 161, 166, 174, 182, 190, 193, 198, 203}
++var _EType_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 68, 78, 85, 92, 96, 99, 103, 108, 113, 119, 123, 126, 131, 135, 138, 144, 153, 158, 161, 166, 174, 182, 185, 190, 195}
+ 
+ func (i EType) String() string {
+ 	if i >= EType(len(_EType_index)-1) {
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 2633ef2ddd..09b852f343 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -31,7 +31,6 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 8, 16},
+ 		{Chan{}, 8, 16},
+ 		{Array{}, 12, 16},
+-		{DDDField{}, 4, 8},
+ 		{FuncArgs{}, 4, 8},
+ 		{ChanArgs{}, 4, 8},
+ 		{Ptr{}, 4, 8},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 7b2b79c561..e61a5573dd 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -65,9 +65,6 @@ const (
+ 	TFUNCARGS
+ 	TCHANARGS
+ 
+-	// pseudo-types for import/export
+-	TDDDFIELD // wrapper: contained type is a ... field
+-
+ 	// SSA backend types
+ 	TSSA   // internal types used by SSA backend (flags, memory, etc.)
+ 	TTUPLE // a pair of types, used by SSA backend
+@@ -128,7 +125,6 @@ type Type struct {
+ 	// TFUNC: *Func
+ 	// TSTRUCT: *Struct
+ 	// TINTER: *Interface
+-	// TDDDFIELD: DDDField
+ 	// TFUNCARGS: FuncArgs
+ 	// TCHANARGS: ChanArgs
+ 	// TCHAN: *Chan
+@@ -305,11 +301,6 @@ type Ptr struct {
+ 	Elem *Type // element type
+ }
+ 
+-// DDDField contains Type fields specific to TDDDFIELD types.
+-type DDDField struct {
+-	T *Type // reference to a slice type for ... args
+-}
+-
+ // ChanArgs contains Type fields specific to TCHANARGS types.
+ type ChanArgs struct {
+ 	T *Type // reference to a chan type whose elements need a width check
+@@ -470,8 +461,6 @@ func New(et EType) *Type {
+ 		t.Extra = ChanArgs{}
+ 	case TFUNCARGS:
+ 		t.Extra = FuncArgs{}
+-	case TDDDFIELD:
+-		t.Extra = DDDField{}
+ 	case TCHAN:
+ 		t.Extra = new(Chan)
+ 	case TTUPLE:
+@@ -573,13 +562,6 @@ func NewPtr(elem *Type) *Type {
+ 	return t
+ }
+ 
+-// NewDDDField returns a new TDDDFIELD type for slice type s.
+-func NewDDDField(s *Type) *Type {
+-	t := New(TDDDFIELD)
+-	t.Extra = DDDField{T: s}
+-	return t
+-}
+-
+ // NewChanArgs returns a new TCHANARGS type for channel type c.
+ func NewChanArgs(c *Type) *Type {
+ 	t := New(TCHANARGS)
+@@ -799,12 +781,6 @@ func (t *Type) Elem() *Type {
+ 	return nil
+ }
+ 
+-// DDDField returns the slice ... type for TDDDFIELD type t.
+-func (t *Type) DDDField() *Type {
+-	t.wantEtype(TDDDFIELD)
+-	return t.Extra.(DDDField).T
+-}
+-
+ // ChanArgs returns the channel type for TCHANARGS type t.
+ func (t *Type) ChanArgs() *Type {
+ 	t.wantEtype(TCHANARGS)

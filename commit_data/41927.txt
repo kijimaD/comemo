@@ -22,6 +22,41 @@ Date:   Thu Oct 31 22:46:27 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/time.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6c1170bbc0..e6a24c5561 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -585,9 +585,10 @@ loop:
+ 		case timerNoStatus, timerRemoved:
+ 			// Timer was already run and t is no longer in a heap.
+ 			// Act like addtimer.
+-			wasRemoved = true
+-			atomic.Store(&t.status, timerWaiting)
+-			break loop
++			if atomic.Cas(&t.status, status, timerWaiting) {
++				wasRemoved = true
++				break loop
++			}
+ 		case timerRunning, timerRemoving, timerMoving:
+ 			// The timer is being run or moved, by a different P.
+ 			// Wait for it to complete.
+@@ -687,10 +688,11 @@ func resettimer(t *timer, when int64) {
+ 	for {
+ 		switch s := atomic.Load(&t.status); s {
+ 		case timerNoStatus, timerRemoved:
+-			atomic.Store(&t.status, timerWaiting)
+-			t.when = when
+-			addInitializedTimer(t)
+-			return
++			if atomic.Cas(&t.status, s, timerWaiting) {
++				t.when = when
++				addInitializedTimer(t)
++				return
++			}
+ 		case timerDeleted:
+ 			if atomic.Cas(&t.status, s, timerModifying) {
+ 				t.nextwhen = when

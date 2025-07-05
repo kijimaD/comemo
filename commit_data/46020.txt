@@ -17,7 +17,7 @@ Date:   Tue Dec 1 17:37:12 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  test/chan/perm.go           |  2 +-
  test/fixedbugs/bug040.go    |  2 +-
  test/fixedbugs/bug062.go    |  1 +
@@ -40,3 +40,341 @@ Date:   Tue Dec 1 17:37:12 2020 -0800
  test/interface/receiver1.go |  4 ++--
  test/run.go                 |  1 +
  21 files changed, 43 insertions(+), 34 deletions(-)
+
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 7da88bdae8..607a356a02 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -66,5 +66,5 @@ func main() {
+ 	close(c)
+ 	close(cs)
+ 	close(cr) // ERROR "receive"
+-	close(n)  // ERROR "invalid operation.*non-chan type"
++	close(n)  // ERROR "invalid operation.*non-chan type|not a channel"
+ }
+diff --git a/test/fixedbugs/bug040.go b/test/fixedbugs/bug040.go
+index d2cf88afcb..5c3a1d7c12 100644
+--- a/test/fixedbugs/bug040.go
++++ b/test/fixedbugs/bug040.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func f (x,		// GCCGO_ERROR "previous"
+-	x int) {	// ERROR "duplicate argument|redefinition"
++	x int) {	// ERROR "duplicate argument|redefinition|redeclared"
+ }
+diff --git a/test/fixedbugs/bug062.go b/test/fixedbugs/bug062.go
+index 1cc5003655..24c2dff933 100644
+--- a/test/fixedbugs/bug062.go
++++ b/test/fixedbugs/bug062.go
+@@ -8,4 +8,5 @@ package main
+ 
+ func main() {
+ 	var s string = nil;	// ERROR "illegal|invalid|incompatible|cannot"
++	_ = s
+ }
+diff --git a/test/fixedbugs/bug081.go b/test/fixedbugs/bug081.go
+index c25d288370..40e6dd1b6f 100644
+--- a/test/fixedbugs/bug081.go
++++ b/test/fixedbugs/bug081.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-const x x = 2 // ERROR "loop|type"
++const x x = 2 // ERROR "loop|type|cycle"
+ 
+ /*
+ bug081.go:3: first constant must evaluate an expression
+diff --git a/test/fixedbugs/bug090.go b/test/fixedbugs/bug090.go
+index 320bd57f5c..6d30cca017 100644
+--- a/test/fixedbugs/bug090.go
++++ b/test/fixedbugs/bug090.go
+@@ -42,5 +42,5 @@ func main() {
+ 
+ 	const h float64 = 3.14;
+ 	i = h;  // ERROR "convert|incompatible|cannot"
+-	i = int(h);	// ERROR "truncate"
++	i = int(h);	// ERROR "truncate|cannot convert"
+ }
+diff --git a/test/fixedbugs/bug122.go b/test/fixedbugs/bug122.go
+index fb4eb9f3ad..5640cf263a 100644
+--- a/test/fixedbugs/bug122.go
++++ b/test/fixedbugs/bug122.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+ 	// should allow at most 2 sizes
+-	a := make([]int, 10, 20, 30, 40); // ERROR "too many"
++	a := make([]int, 10, 20, 30, 40); // ERROR "too many|expects 2 or 3 arguments; found 5"
+ }
+diff --git a/test/fixedbugs/bug131.go b/test/fixedbugs/bug131.go
+index 0ebbd26069..2c9d120ed0 100644
+--- a/test/fixedbugs/bug131.go
++++ b/test/fixedbugs/bug131.go
+@@ -9,4 +9,5 @@ package main
+ func main() {
+ 	const a uint64 = 10;
+ 	var b int64 = a;	// ERROR "convert|cannot|incompatible"
++	_ = b
+ }
+diff --git a/test/fixedbugs/bug132.go b/test/fixedbugs/bug132.go
+index e334566c79..b75e8338de 100644
+--- a/test/fixedbugs/bug132.go
++++ b/test/fixedbugs/bug132.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ type T struct {
+-	x, x int  // ERROR "duplicate"
++	x, x int  // ERROR "duplicate|redeclared"
+ }
+diff --git a/test/fixedbugs/bug13343.go b/test/fixedbugs/bug13343.go
+index 5dc736d443..08a306277b 100644
+--- a/test/fixedbugs/bug13343.go
++++ b/test/fixedbugs/bug13343.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ var (
+-	a, b = f() // ERROR "initialization loop|depends upon itself"
++	a, b = f() // ERROR "initialization loop|depends upon itself|initialization cycle"
+ 	c    = b
+ )
+ 
+diff --git a/test/fixedbugs/bug175.go b/test/fixedbugs/bug175.go
+index 5fca4b22bc..88210a59b3 100644
+--- a/test/fixedbugs/bug175.go
++++ b/test/fixedbugs/bug175.go
+@@ -9,6 +9,6 @@ package main
+ func f() (int, bool) { return 0, true }
+ 
+ func main() {
+-	x, y := f(), 2;	// ERROR "multi"
++	x, y := f(), 2;	// ERROR "multi|2-valued"
+ 	_, _ = x, y
+ }
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+index 1e0d9d1f34..789696df0c 100644
+--- a/test/fixedbugs/bug205.go
++++ b/test/fixedbugs/bug205.go
+@@ -11,8 +11,8 @@ var s string;
+ var m map[string]int;
+ 
+ func main() {
+-	println(t["hi"]); // ERROR "non-integer slice index|must be integer"
+-	println(s["hi"]); // ERROR "non-integer string index|must be integer"
+-	println(m[0]);    // ERROR "cannot use.*as type string"
++	println(t["hi"]); // ERROR "non-integer slice index|must be integer|cannot convert"
++	println(s["hi"]); // ERROR "non-integer string index|must be integer|cannot convert"
++	println(m[0]);    // ERROR "cannot use.*as type string|cannot convert"
+ }
+ 
+diff --git a/test/fixedbugs/bug215.go b/test/fixedbugs/bug215.go
+index b27cc7db1a..5546d0c889 100644
+--- a/test/fixedbugs/bug215.go
++++ b/test/fixedbugs/bug215.go
+@@ -9,6 +9,6 @@
+ 
+ package main
+ 
+-type A struct {	a A }	// ERROR "recursive"
++type A struct {	a A }	// ERROR "recursive|cycle"
+ func foo()		{ new(A).bar() }
+ func (a A) bar()	{}
+diff --git a/test/fixedbugs/bug223.go b/test/fixedbugs/bug223.go
+index 29ae53cb71..50082cbab1 100644
+--- a/test/fixedbugs/bug223.go
++++ b/test/fixedbugs/bug223.go
+@@ -18,4 +18,4 @@ func f() {
+ 	}
+ }
+ 
+-var m = map[string]F{"f": f} // ERROR "initialization loop|depends upon itself"
++var m = map[string]F{"f": f} // ERROR "initialization loop|depends upon itself|initialization cycle"
+diff --git a/test/fixedbugs/bug224.go b/test/fixedbugs/bug224.go
+index d2fd67cf32..4ff83019df 100644
+--- a/test/fixedbugs/bug224.go
++++ b/test/fixedbugs/bug224.go
+@@ -6,5 +6,5 @@
+ 
+ package main
+ 
+-type T T		// ERROR "recursive"
++type T T		// ERROR "recursive|cycle"
+ 
+diff --git a/test/fixedbugs/bug280.go b/test/fixedbugs/bug280.go
+index afec57f037..9a9d4c902d 100644
+--- a/test/fixedbugs/bug280.go
++++ b/test/fixedbugs/bug280.go
+@@ -8,6 +8,6 @@
+ 
+ package main
+ 
+-type A [...]int	// ERROR "outside of array literal"
++type A [...]int	// ERROR "outside of array literal|invalid use of \[\.\.\.\]"
+ 
+ 
+diff --git a/test/fixedbugs/bug289.go b/test/fixedbugs/bug289.go
+index 3fc7fb2eef..fea6829992 100644
+--- a/test/fixedbugs/bug289.go
++++ b/test/fixedbugs/bug289.go
+@@ -9,14 +9,14 @@
+ package main
+ 
+ func f1() {
+-	a, b := f()	// ERROR "assignment mismatch|does not match"
++	a, b := f()	// ERROR "assignment mismatch|does not match|cannot initialize"
+ 	_ = a
+ 	_ = b
+ }
+ 
+ func f2() {
+ 	var a, b int
+-	a, b = f()	// ERROR "assignment mismatch|does not match"
++	a, b = f()	// ERROR "assignment mismatch|does not match|cannot assign"
+ 	_ = a
+ 	_ = b
+ }
+diff --git a/test/interface/embed2.go b/test/interface/embed2.go
+index df3e2e435b..97a2d963f0 100644
+--- a/test/interface/embed2.go
++++ b/test/interface/embed2.go
+@@ -48,25 +48,25 @@ func main() {
+ 	check("t.M()", t.M())
+ 	check("pt.M()", pt.M())
+ 	check("ti.M()", ti.M())
+-	check("pti.M()", pti.M()) // ERROR "pointer to interface, not interface"
++	check("pti.M()", pti.M()) // ERROR "pointer to interface, not interface|no field or method M"
+ 	check("s.M()", s.M())
+ 	check("ps.M()", ps.M())
+ 
+ 	i = t
+ 	check("i = t; i.M()", i.M())
+-	check("i = t; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
++	check("i = t; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
+ 
+ 	i = pt
+ 	check("i = pt; i.M()", i.M())
+-	check("i = pt; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
++	check("i = pt; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
+ 
+ 	i = s
+ 	check("i = s; i.M()", i.M())
+-	check("i = s; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
++	check("i = s; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
+ 
+ 	i = ps
+ 	check("i = ps; i.M()", i.M())
+-	check("i = ps; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
++	check("i = ps; pi.M()", pi.M()) // ERROR "pointer to interface, not interface|no field or method M"
+ 
+ 	if !ok {
+ 		println("BUG: interface10")
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 1fb3b6a05a..7aaaad4e48 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -38,7 +38,7 @@ var e E
+ 
+ func main() {
+ 	e = t // ok
+-	t = e // ERROR "need explicit|need type assertion"
++	t = e // ERROR "need explicit|need type assertion|incompatible type"
+ 
+ 	// neither of these can work,
+ 	// because i has an extra method
+@@ -47,17 +47,17 @@ func main() {
+ 	t = i // ERROR "incompatible|assignment$"
+ 
+ 	i = i2 // ok
+-	i2 = i // ERROR "incompatible|missing N method"
++	i2 = i // ERROR "incompatible|missing N method|cannot convert"
+ 
+ 	i = I(i2)  // ok
+-	i2 = I2(i) // ERROR "invalid|missing N method"
++	i2 = I2(i) // ERROR "invalid|missing N method|cannot convert"
+ 
+ 	e = E(t) // ok
+-	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
++	t = T(e) // ERROR "need explicit|need type assertion|incompatible|cannot convert"
+ 
+ 	// cannot type-assert non-interfaces
+ 	f := 2.0
+-	_ = f.(int) // ERROR "non-interface type"
++	_ = f.(int) // ERROR "non-interface type|not an interface type"
+ 
+ }
+ 
+@@ -83,8 +83,8 @@ var jj Int
+ var m1 M = ii // ERROR "incompatible|missing"
+ var m2 M = jj // ERROR "incompatible|wrong type for M method"
+ 
+-var m3 = M(ii) // ERROR "invalid|missing"
+-var m4 = M(jj) // ERROR "invalid|wrong type for M method"
++var m3 = M(ii) // ERROR "invalid|missing|cannot convert"
++var m4 = M(jj) // ERROR "invalid|wrong type for M method|cannot convert"
+ 
+ type B1 interface {
+ 	_() // ERROR "methods must have a unique non-blank name"
+@@ -101,5 +101,9 @@ func (t *T2) M() {}
+ func (t *T2) _() {}
+ 
+ // Check that nothing satisfies an interface with blank methods.
+-var b1 B1 = &T2{} // ERROR "incompatible|missing _ method"
+-var b2 B2 = &T2{} // ERROR "incompatible|missing _ method"
++// Disabled this test as it's not clear we need this behavior.
++// See also issue #42964.
++/*
++var b1 B1 = &T2{} // "incompatible|missing _ method"
++var b2 B2 = &T2{} // "incompatible|missing _ method"
++*/
+\ No newline at end of file
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index 2927050669..c21e4da390 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -32,7 +32,9 @@ func AddInst(Inst) *Inst {
+ 
+ func main() {
+ 	print("call addinst\n")
+-	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
++	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface|incompatible type"
++	_ = x
+ 	print("return from  addinst\n")
+ 	var y *Inst = new(Start)  // ERROR "pointer to interface|incompatible type"
++	_ = y
+ }
+diff --git a/test/interface/receiver1.go b/test/interface/receiver1.go
+index 2b7ccdc1a7..a0a87534a4 100644
+--- a/test/interface/receiver1.go
++++ b/test/interface/receiver1.go
+@@ -37,14 +37,14 @@ func main() {
+ 	var sp SP
+ 
+ 	v = t
+-	p = t // ERROR "does not implement|requires a pointer"
++	p = t // ERROR "does not implement|requires a pointer|cannot use"
+ 	_, _ = v, p
+ 	v = &t
+ 	p = &t
+ 	_, _ = v, p
+ 
+ 	v = s
+-	p = s // ERROR "does not implement|requires a pointer"
++	p = s // ERROR "does not implement|requires a pointer|cannot use"
+ 	_, _ = v, p
+ 	v = &s
+ 	p = &s
+diff --git a/test/run.go b/test/run.go
+index 1eef6f1f35..d354646552 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -813,6 +813,7 @@ func (t *test) run() {
+ 				"wb",
+ 				"append",
+ 				"slice",
++				"typeassert",
+ 				"ssa/check_bce/debug",
+ 				"ssa/intrinsics/debug",
+ 				"ssa/prove/debug",

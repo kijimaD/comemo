@@ -11,6 +11,20 @@ Date:   Mon May 31 12:33:28 2021 +0900
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7a2b3a80f0..561d44271a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4909,7 +4909,7 @@ if x := f(); x &lt; y {
+ 
+ <p>
+ "Switch" statements provide multi-way execution.
+-An expression or type specifier is compared to the "cases"
++An expression or type is compared to the "cases"
+ inside the "switch" to determine which branch
+ to execute.
+ </p>

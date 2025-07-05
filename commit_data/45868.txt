@@ -8,6 +8,14 @@ Date:   Tue Nov 24 12:35:33 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272986
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/_rex.20201123151057 | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/_rex.20201123151057 b/src/_rex.20201123151057
+deleted file mode 100644
+index 8b13789179..0000000000
+--- a/src/_rex.20201123151057
++++ /dev/null
+@@ -1 +0,0 @@
+-

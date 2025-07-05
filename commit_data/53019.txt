@@ -26,6 +26,39 @@ Date:   Wed Jun 15 21:19:04 2022 +0100
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/printer/performance_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/printer/performance_test.go b/src/go/printer/performance_test.go
+index e655fa13ee..ea6a98caa4 100644
+--- a/src/go/printer/performance_test.go
++++ b/src/go/printer/performance_test.go
+@@ -17,7 +17,10 @@ import (
+ 	"testing"
+ )
+ 
+-var testfile *ast.File
++var (
++	testfile *ast.File
++	testsize int64
++)
+ 
+ func testprint(out io.Writer, file *ast.File) {
+ 	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
+@@ -46,12 +49,15 @@ func initialize() {
+ 	}
+ 
+ 	testfile = file
++	testsize = int64(len(src))
+ }
+ 
+ func BenchmarkPrint(b *testing.B) {
+ 	if testfile == nil {
+ 		initialize()
+ 	}
++	b.ReportAllocs()
++	b.SetBytes(testsize)
+ 	for i := 0; i < b.N; i++ {
+ 		testprint(io.Discard, testfile)
+ 	}

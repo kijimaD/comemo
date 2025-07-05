@@ -9,7 +9,55 @@ Date:   Wed Oct 27 22:48:18 2010 +1100
     R=nigeltao, rsc
     CC=golang-dev
     https://golang.org/cl/2678041
-
+---
  src/pkg/image/png/writer.go      |  5 ++---
  src/pkg/image/png/writer_test.go | 16 ++++++++++++++++
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index a03cc16651..081d06bf57 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -311,9 +311,8 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 				cr[0][3*x+3] = uint8(b >> 8)
+ 			}
+ 		case cbP8:
+-			for x := b.Min.X; x < b.Max.X; x++ {
+-				cr[0][x+1] = paletted.ColorIndexAt(x, y)
+-			}
++			rowOffset := y * paletted.Stride
++			copy(cr[0][b.Min.X+1:], paletted.Pix[rowOffset+b.Min.X:rowOffset+b.Max.X])
+ 		case cbTCA8:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 0fb7bebaed..f218a5564b 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -5,6 +5,7 @@
+ package png
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"image"
+ 	"io"
+@@ -68,3 +69,18 @@ func TestWriter(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkEncodePaletted(b *testing.B) {
++	b.StopTimer()
++	img := image.NewPaletted(640, 480,
++		[]image.Color{
++			image.RGBAColor{0, 0, 0, 255},
++			image.RGBAColor{255, 255, 255, 255},
++		})
++	b.StartTimer()
++	buffer := new(bytes.Buffer)
++	for i := 0; i < b.N; i++ {
++		buffer.Reset()
++		Encode(buffer, img)
++	}
++}

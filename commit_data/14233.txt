@@ -11,7 +11,44 @@ Date:   Mon Oct 29 11:16:05 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6817048
-
+---
  src/pkg/encoding/asn1/marshal.go      | 5 ++---
  src/pkg/encoding/asn1/marshal_test.go | 2 +-
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index 3fd6be8ad9..0c216fdb3c 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -296,8 +296,7 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
+ }
+ 
+ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+-	utc := t.UTC()
+-	year, month, day := utc.Date()
++	year, month, day := t.Date()
+ 
+ 	switch {
+ 	case 1950 <= year && year < 2000:
+@@ -321,7 +320,7 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+ 		return
+ 	}
+ 
+-	hour, min, sec := utc.Clock()
++	hour, min, sec := t.Clock()
+ 
+ 	err = marshalTwoDigits(out, hour)
+ 	if err != nil {
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index c203533a91..55d34a709a 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -82,7 +82,7 @@ var marshalTests = []marshalTest{
+ 	{explicitTagTest{64}, "3005a503020140"},
+ 	{time.Unix(0, 0).UTC(), "170d3730303130313030303030305a"},
+ 	{time.Unix(1258325776, 0).UTC(), "170d3039313131353232353631365a"},
+-	{time.Unix(1258325776, 0).In(PST), "17113039313131353232353631362d30383030"},
++	{time.Unix(1258325776, 0).In(PST), "17113039313131353134353631362d30383030"},
+ 	{BitString{[]byte{0x80}, 1}, "03020780"},
+ 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
+ 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},

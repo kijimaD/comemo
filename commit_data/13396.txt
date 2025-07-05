@@ -12,6 +12,20 @@ Date:   Mon Jun 25 17:20:48 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6329060
-
+---
  src/pkg/go/build/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index 618eefe9e4..04e48c1547 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -60,7 +60,7 @@
+ // A build constraint is a line comment beginning with the directive +build
+ // that lists the conditions under which a file should be included in the package.
+ // Constraints may appear in any kind of source file (not just Go), but
+-// they must be appear near the top of the file, preceded
++// they must appear near the top of the file, preceded
+ // only by blank lines and other line comments.
+ //
+ // A build constraint is evaluated as the OR of space-separated options;

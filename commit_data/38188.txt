@@ -13,6 +13,31 @@ Date:   Tue Sep 25 17:24:30 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mcentral.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index d94b95792c..d9bc8b4719 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -117,8 +117,7 @@ havespan:
+ 	if trace.enabled && !traceDone {
+ 		traceGCSweepDone()
+ 	}
+-	cap := int32((s.npages << _PageShift) / s.elemsize)
+-	n := cap - int32(s.allocCount)
++	n := int(s.nelems) - int(s.allocCount)
+ 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
+ 		throw("span has no free objects")
+ 	}
+@@ -168,8 +167,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 		atomic.Store(&s.sweepgen, sg)
+ 	}
+ 
+-	cap := int32((s.npages << _PageShift) / s.elemsize)
+-	n := cap - int32(s.allocCount)
++	n := int(s.nelems) - int(s.allocCount)
+ 	if n > 0 {
+ 		// cacheSpan updated alloc assuming all objects on s
+ 		// were going to be allocated. Adjust for any that

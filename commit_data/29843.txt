@@ -11,6 +11,20 @@ Date:   Wed Oct 12 12:45:16 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index f740e4811f..c9ee8847ad 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -201,6 +201,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 			// Internal linking does not support TLS_IE.
+ 			return true, "buildmode=pie"
+ 		}
++	case BuildmodePlugin:
++		return true, "buildmode=plugin"
+ 	case BuildmodeShared:
+ 		return true, "buildmode=shared"
+ 	}

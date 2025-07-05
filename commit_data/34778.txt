@@ -20,8 +20,74 @@ Date:   Mon Nov 13 21:30:22 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78112
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go        | 8 ++++++++
  src/bytes/example_test.go | 2 +-
  src/strings/strings.go    | 8 ++++++++
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 260f32500a..9af177fa88 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -144,6 +144,10 @@ func IndexRune(s []byte, r rune) int {
+ // code points in chars. It returns -1 if chars is empty or if there is no code
+ // point in common.
+ func IndexAny(s []byte, chars string) int {
++	if chars == "" {
++		// Avoid scanning all of s.
++		return -1
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i, c := range s {
+@@ -176,6 +180,10 @@ func IndexAny(s []byte, chars string) int {
+ // the Unicode code points in chars. It returns -1 if chars is empty or if
+ // there is no code point in common.
+ func LastIndexAny(s []byte, chars string) int {
++	if chars == "" {
++		// Avoid scanning all of s.
++		return -1
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i := len(s) - 1; i >= 0; i-- {
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 00e39cadcb..5b7a46058f 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -155,7 +155,7 @@ func ExampleCount() {
+ 
+ func ExampleEqual() {
+ 	fmt.Println(bytes.Equal([]byte("Go"), []byte("Go")))
+-	fmt.Println(bytes.Equal([]byte("Go"), []byte("go")))
++	fmt.Println(bytes.Equal([]byte("Go"), []byte("C++")))
+ 	// Output:
+ 	// true
+ 	// false
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index c66c248c02..02c032046b 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -166,6 +166,10 @@ func IndexRune(s string, r rune) int {
+ // IndexAny returns the index of the first instance of any Unicode code point
+ // from chars in s, or -1 if no Unicode code point from chars is present in s.
+ func IndexAny(s, chars string) int {
++	if chars == "" {
++		// Avoid scanning all of s.
++		return -1
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i := 0; i < len(s); i++ {
+@@ -190,6 +194,10 @@ func IndexAny(s, chars string) int {
+ // point from chars in s, or -1 if no Unicode code point from chars is
+ // present in s.
+ func LastIndexAny(s, chars string) int {
++	if chars == "" {
++		// Avoid scanning all of s.
++		return -1
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i := len(s) - 1; i >= 0; i-- {

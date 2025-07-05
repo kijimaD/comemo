@@ -10,9 +10,85 @@ Date:   Mon Aug 28 17:49:37 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/cmd/link/internal/ld/lib.go            | 4 ----
  src/cmd/link/internal/ld/symkind.go        | 1 -
  src/cmd/link/internal/ld/symkind_string.go | 4 ++--
  src/cmd/link/internal/ld/symtab.go         | 7 +------
  4 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d9034a6527..14821d8271 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1929,7 +1929,6 @@ const (
+ 	BSSSym                  = 'B'
+ 	UndefinedSym            = 'U'
+ 	TLSSym                  = 't'
+-	FileSym                 = 'f'
+ 	FrameSym                = 'm'
+ 	ParamSym                = 'p'
+ 	AutoSym                 = 'a'
+@@ -2014,9 +2013,6 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			}
+ 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
+ 
+-		case SFILE:
+-			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
+-
+ 		case SHOSTOBJ:
+ 			if Headtype == objabi.Hwindows || Iself {
+ 				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
+diff --git a/src/cmd/link/internal/ld/symkind.go b/src/cmd/link/internal/ld/symkind.go
+index 5ac04cf45a..f8565e3a2e 100644
+--- a/src/cmd/link/internal/ld/symkind.go
++++ b/src/cmd/link/internal/ld/symkind.go
+@@ -97,7 +97,6 @@ const (
+ 	SMACHOSYMTAB
+ 	SMACHOINDIRECTPLT
+ 	SMACHOINDIRECTGOT
+-	SFILE
+ 	SFILEPATH
+ 	SCONST
+ 	SDYNIMPORT
+diff --git a/src/cmd/link/internal/ld/symkind_string.go b/src/cmd/link/internal/ld/symkind_string.go
+index 87da3c40bb..cd14f59786 100644
+--- a/src/cmd/link/internal/ld/symkind_string.go
++++ b/src/cmd/link/internal/ld/symkind_string.go
+@@ -4,9 +4,9 @@ package ld
+ 
+ import "fmt"
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILESFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOC"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOC"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 292, 304, 316, 333, 350, 355, 364, 370, 380, 388, 398, 408, 419, 428}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 292, 304, 316, 333, 350, 359, 365, 375, 383, 393, 403, 414, 423}
+ 
+ func (i SymKind) String() string {
+ 	if i < 0 || i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 78e9dc26bc..ca97cb23cf 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -223,7 +223,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
+ 		}
+ 		fallthrough
+ 
+-	case AutoSym, ParamSym, FileSym, FrameSym:
++	case AutoSym, ParamSym, FrameSym:
+ 		l := 4
+ 		if Headtype == objabi.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
+ 			Lputb(uint32(addr >> 32))
+@@ -234,11 +234,6 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
+ 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
+ 
+ 		var i int
+-
+-		/* skip the '<' in filenames */
+-		if t == FileSym {
+-			s = s[1:]
+-		}
+ 		for i = 0; i < len(s); i++ {
+ 			Cput(s[i])
+ 		}

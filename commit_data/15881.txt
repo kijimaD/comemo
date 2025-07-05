@@ -10,7 +10,64 @@ Date:   Thu Mar 21 15:56:15 2013 -0700
     R=cnicolaou
     CC=golang-dev
     https://golang.org/cl/7951043
-
+---
  src/cmd/godoc/doc.go   |  3 +++
  src/cmd/godoc/godoc.go | 21 +++++++++++----------
  2 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index ddb6d26872..e5f5324cd4 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -67,6 +67,9 @@ The flags are:
+ 	-maxresults=10000
+ 		maximum number of full text search results shown
+ 		(no full text index is built if maxresults <= 0)
++	-notes="BUG"
++		regular expression matching note markers to show
++		(e.g., "BUG|TODO", ".*")
+ 	-html
+ 		print HTML in command-line mode
+ 	-goroot=$GOROOT
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 82ede0d14e..5774321130 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -84,15 +84,11 @@ var (
+ 	cmdHandler docServer
+ 	pkgHandler docServer
+ 
+-	// which code 'Notes' to show
+-	notes = flag.String("notes", "BUG", "comma separated list of Note markers as per pkg:go/doc")
+-	// list of 'Notes' to show
+-	notesToShow []string
++	// source code notes
++	notes = flag.String("notes", "BUG", "regular expression matching note markers to show")
+ )
+ 
+ func initHandlers() {
+-	notesToShow = strings.Split(*notes, ",")
+-
+ 	fileServer = http.FileServer(&httpFS{fs})
+ 	cmdHandler = docServer{"/cmd/", "/src/cmd"}
+ 	pkgHandler = docServer{"/pkg/", "/src/pkg"}
+@@ -1100,10 +1096,15 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
+ 
+ 			// collect any notes that we want to show
+ 			if info.PDoc.Notes != nil {
+-				info.Notes = make(map[string][]*doc.Note)
+-				for _, m := range notesToShow {
+-					if n := info.PDoc.Notes[m]; n != nil {
+-						info.Notes[m] = n
++				// could regexp.Compile only once per godoc, but probably not worth it
++				if rx, err := regexp.Compile(*notes); err == nil {
++					for m, n := range info.PDoc.Notes {
++						if rx.MatchString(m) {
++							if info.Notes == nil {
++								info.Notes = make(map[string][]*doc.Note)
++							}
++							info.Notes[m] = n
++						}
+ 					}
+ 				}
+ 			}

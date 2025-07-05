@@ -10,7 +10,62 @@ Date:   Wed Jun 1 12:54:16 2011 -0400
     R=agl
     CC=golang-dev
     https://golang.org/cl/4553052
-
+---
  src/pkg/asn1/marshal.go      | 11 ++++-------
  src/pkg/asn1/marshal_test.go |  5 +++++
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 771ac28243..7212c91ef9 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -458,11 +458,12 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		return marshalField(out, v.Elem(), params)
+ 	}
+ 
++	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
++		return
++	}
++
+ 	if v.Type() == rawValueType {
+ 		rv := v.Interface().(RawValue)
+-		if rv.Class == 0 && rv.Tag == 0 && len(rv.Bytes) == 0 && params.optional {
+-			return
+-		}
+ 		err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
+ 		if err != nil {
+ 			return
+@@ -471,10 +472,6 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		return
+ 	}
+ 
+-	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+-		return
+-	}
+-
+ 	tag, isCompound, ok := getUniversalType(v.Type())
+ 	if !ok {
+ 		err = StructuralError{fmt.Sprintf("unknown Go type: %v", v.Type())}
+diff --git a/src/pkg/asn1/marshal_test.go b/src/pkg/asn1/marshal_test.go
+index cd165d2035..a9517634d8 100644
+--- a/src/pkg/asn1/marshal_test.go
++++ b/src/pkg/asn1/marshal_test.go
+@@ -45,6 +45,10 @@ type printableStringTest struct {
+ 	A string "printable"
+ }
+ 
++type optionalRawValueTest struct {
++	A RawValue "optional"
++}
++
+ type testSET []int
+ 
+ func setPST(t *time.Time) *time.Time {
+@@ -102,6 +106,7 @@ var marshalTests = []marshalTest{
+ 			"7878787878787878787878787878787878787878787878787878787878787878",
+ 	},
+ 	{ia5StringTest{"test"}, "3006160474657374"},
++	{optionalRawValueTest{}, "3000"},
+ 	{printableStringTest{"test"}, "3006130474657374"},
+ 	{printableStringTest{"test*"}, "30071305746573742a"},
+ 	{rawContentsStruct{nil, 64}, "3003020140"},

@@ -13,7 +13,34 @@ Date:   Fri Oct 26 05:03:15 2018 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/modload/help.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b0c10c8531..41f9f84046 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1605,7 +1605,7 @@
+ //
+ // 	module my/thing
+ // 	require other/thing v1.0.2
+-// 	require new/thing v2.3.4
++// 	require new/thing/v2 v2.3.4
+ // 	exclude old/thing v1.2.3
+ // 	replace bad/thing v1.4.5 => good/thing v1.4.5
+ //
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index f2f3419724..ddc2a7632f 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -394,7 +394,7 @@ verb followed by arguments. For example:
+ 
+ 	module my/thing
+ 	require other/thing v1.0.2
+-	require new/thing v2.3.4
++	require new/thing/v2 v2.3.4
+ 	exclude old/thing v1.2.3
+ 	replace bad/thing v1.4.5 => good/thing v1.4.5
+ 

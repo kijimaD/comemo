@@ -15,7 +15,53 @@ Date:   Mon Oct 4 14:17:50 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go | 6 ++++--
  src/go/types/call.go     | 8 +++++++-
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index f1a820988f..9044449e5c 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -347,8 +347,10 @@ func TestTypesInfo(t *testing.T) {
+ 		// parameterized functions
+ 		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
+ 		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
+-		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func[generic_p2.T₁ interface{}](generic_p2.T₁)`},
+-		{genericPkg + `p3; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
++		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func(int)`},
++		{genericPkg + `p3; func f[T any](T) {}; func _() { f[int](42) }`, `f[int]`, `func(int)`},
++		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[generic_p4.T₁ interface{}](generic_p4.T₁)`},
++		{genericPkg + `p5; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
+ 
+ 		// type parameters
+ 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 98a8fda9d1..a642f6f295 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -85,7 +85,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	} else {
+ 		check.exprOrType(x, call.Fun, true)
+ 	}
+-	// x.typ map be generic
++	// x.typ may be generic
+ 
+ 	switch x.mode {
+ 	case invalid:
+@@ -177,8 +177,14 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 
+ 	// evaluate arguments
+ 	args, _ := check.exprList(call.Args, false)
++	isGeneric := sig.TypeParams().Len() > 0
+ 	sig = check.arguments(call, sig, targs, args)
+ 
++	if isGeneric && sig.TypeParams().Len() == 0 {
++		// Update the recorded type of call.Fun to its instantiated type.
++		check.recordTypeAndValue(call.Fun, value, sig, nil)
++	}
++
+ 	// determine result
+ 	switch sig.results.Len() {
+ 	case 0:

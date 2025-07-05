@@ -16,6 +16,19 @@ Date:   Tue Mar 28 14:09:28 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/log_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/math/log_amd64.s b/src/math/log_amd64.s
+index bd2d06323c..3d7638979f 100644
+--- a/src/math/log_amd64.s
++++ b/src/math/log_amd64.s
+@@ -41,6 +41,7 @@ TEXT ·Log(SB),NOSPLIT,$0
+ 	SHRQ    $52, BX
+ 	ANDL    $0x7FF, BX
+ 	SUBL    $0x3FE, BX
++	XORPS   X1, X1 // break dependency for CVTSL2SD
+ 	CVTSL2SD BX, X1 // x1= k, x2= f1
+ 	// if f1 < math.Sqrt2/2 { k -= 1; f1 *= 2 }
+ 	MOVSD   $HSqrt2, X0 // x0= 0.7071, x1= k, x2= f1

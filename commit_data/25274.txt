@@ -17,6 +17,20 @@ Date:   Thu Oct 15 21:48:11 2015 +1300
     Change-Id: I7806d40aac80dcd1e56b95864d1cfeb1c42614e2
     Reviewed-on: https://go-review.googlesource.com/15870
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3ce22017cf..8784e9d38f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1006,7 +1006,7 @@ func hostlink() {
+ 		argv = append(argv, "-shared")
+ 	}
+ 
+-	if Linkshared && Iself {
++	if Iself && DynlinkingGo() {
+ 		// We force all symbol resolution to be done at program startup
+ 		// because lazy PLT resolution can use large amounts of stack at
+ 		// times we cannot allow it to do so.

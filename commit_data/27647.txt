@@ -18,9 +18,329 @@ Date:   Tue Apr 5 18:42:07 2016 +0300
     Reviewed-on: https://go-review.googlesource.com/21513
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/doc.go            |   9 +---
  src/cmd/vet/print.go          | 104 ++++++++++++++++++++----------------------
  src/cmd/vet/testdata/print.go |  38 +++++++++++++--
  src/cmd/vet/types.go          |  66 ---------------------------
  4 files changed, 86 insertions(+), 131 deletions(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index d295fb4345..2b5e8fcb59 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -188,13 +188,8 @@ These flags configure the behavior of vet:
+ 	-v
+ 		Verbose mode
+ 	-printfuncs
+-		A comma-separated list of print-like functions to supplement the
+-		standard list.  Each entry is in the form Name:N where N is the
+-		zero-based argument position of the first argument involved in the
+-		print: either the format or the first print argument for non-formatted
+-		prints.  For example, if you have Warn and Warnf functions that
+-		take an io.Writer as their first argument, like Fprintf,
+-			-printfuncs=Warn:1,Warnf:1
++		A comma-separated list of print-like function names
++		to supplement the standard list.
+ 		For more information, see the discussion of the -printf flag.
+ 	-shadowstrict
+ 		Whether to be strict about shadowing; can be noisy.
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 4e3252f2fb..07499e6ae6 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -35,20 +35,18 @@ func initPrintFlags() {
+ 		if len(name) == 0 {
+ 			flag.Usage()
+ 		}
+-		skip := 0
++
++		// Backwards compatibility: skip optional first argument
++		// index after the colon.
+ 		if colon := strings.LastIndex(name, ":"); colon > 0 {
+-			var err error
+-			skip, err = strconv.Atoi(name[colon+1:])
+-			if err != nil {
+-				errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
+-			}
+ 			name = name[:colon]
+ 		}
++
+ 		name = strings.ToLower(name)
+ 		if name[len(name)-1] == 'f' {
+ 			isFormattedPrint[name] = true
+ 		} else {
+-			printList[name] = skip
++			isPrint[name] = true
+ 		}
+ 	}
+ }
+@@ -65,17 +63,20 @@ var isFormattedPrint = map[string]bool{
+ 	"sprintf": true,
+ }
+ 
+-// printList records the unformatted-print functions. The value is the location
+-// of the first parameter to be printed. Names are lower-cased so the lookup is
+-// case insensitive.
+-var printList = map[string]int{
+-	"error":  0,
+-	"fatal":  0,
+-	"fprint": 1, "fprintln": 1,
+-	"log":   0,
+-	"panic": 0, "panicln": 0,
+-	"print": 0, "println": 0,
+-	"sprint": 0, "sprintln": 0,
++// isPrint records the unformatted-print functions. Names are lower-cased
++// so the lookup is case insensitive.
++var isPrint = map[string]bool{
++	"error":    true,
++	"fatal":    true,
++	"fprint":   true,
++	"fprintln": true,
++	"log":      true,
++	"panic":    true,
++	"panicln":  true,
++	"print":    true,
++	"println":  true,
++	"sprint":   true,
++	"sprintln": true,
+ }
+ 
+ // formatString returns the format string argument and its index within
+@@ -171,8 +172,8 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
+ 		f.checkPrintf(call, Name)
+ 		return
+ 	}
+-	if skip, ok := printList[name]; ok {
+-		f.checkPrint(call, Name, skip)
++	if _, ok := isPrint[name]; ok {
++		f.checkPrint(call, Name)
+ 		return
+ 	}
+ }
+@@ -583,25 +584,36 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, s
+ }
+ 
+ // checkPrint checks a call to an unformatted print routine such as Println.
+-// call.Args[firstArg] is the first argument to be printed.
+-func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
+-	isLn := strings.HasSuffix(name, "ln")
+-	isF := strings.HasPrefix(name, "F")
+-	args := call.Args
+-	if name == "Log" && len(args) > 0 {
+-		// Special case: Don't complain about math.Log or cmplx.Log.
+-		// Not strictly necessary because the only complaint likely is for Log("%d")
+-		// but it feels wrong to check that math.Log is a good print function.
+-		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+-			if x, ok := sel.X.(*ast.Ident); ok {
+-				if x.Name == "math" || x.Name == "cmplx" {
+-					return
+-				}
++func (f *File) checkPrint(call *ast.CallExpr, name string) {
++	firstArg := 0
++	typ := f.pkg.types[call.Fun].Type
++	if typ != nil {
++		if sig, ok := typ.(*types.Signature); ok {
++			if !sig.Variadic() {
++				// Skip checking non-variadic functions.
++				return
++			}
++			params := sig.Params()
++			firstArg = params.Len() - 1
++
++			typ := params.At(firstArg).Type()
++			typ = typ.(*types.Slice).Elem()
++			it, ok := typ.(*types.Interface)
++			if !ok || !it.Empty() {
++				// Skip variadic functions accepting non-interface{} args.
++				return
+ 			}
+ 		}
+ 	}
++	args := call.Args
++	if len(args) <= firstArg {
++		// Skip calls without variadic args.
++		return
++	}
++	args = args[firstArg:]
++
+ 	// check for Println(os.Stderr, ...)
+-	if firstArg == 0 && !isF && len(args) > 0 {
++	if firstArg == 0 {
+ 		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+ 			if x, ok := sel.X.(*ast.Ident); ok {
+ 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+@@ -610,31 +622,15 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
+ 			}
+ 		}
+ 	}
+-	if len(args) <= firstArg {
+-		// If we have a call to a method called Error that satisfies the Error interface,
+-		// then it's ok. Otherwise it's something like (*T).Error from the testing package
+-		// and we need to check it.
+-		if name == "Error" && f.isErrorMethodCall(call) {
+-			return
+-		}
+-		// If it's an Error call now, it's probably for printing errors.
+-		if !isLn {
+-			// Check the signature to be sure: there are niladic functions called "error".
+-			if firstArg != 0 || f.numArgsInSignature(call) != firstArg {
+-				f.Badf(call.Pos(), "no args in %s call", name)
+-			}
+-		}
+-		return
+-	}
+-	arg := args[firstArg]
++	arg := args[0]
+ 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+ 		if strings.Contains(lit.Value, "%") {
+ 			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
+ 		}
+ 	}
+-	if isLn {
++	if strings.HasSuffix(name, "ln") {
+ 		// The last item, if a string, should not have a newline.
+-		arg = args[len(call.Args)-1]
++		arg = args[len(args)-1]
+ 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+ 			if strings.HasSuffix(lit.Value, `\n"`) {
+ 				f.Badf(call.Pos(), "%s call ends with newline", name)
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 5c7ff35c90..261ee788c7 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -185,11 +185,11 @@ func PrintfTests() {
+ 	// Something that looks like an error interface but isn't, such as the (*T).Error method
+ 	// in the testing package.
+ 	var et1 errorTest1
+-	fmt.Println(et1.Error())        // ERROR "no args in Error call"
++	fmt.Println(et1.Error())        // ok
+ 	fmt.Println(et1.Error("hi"))    // ok
+ 	fmt.Println(et1.Error("%d", 3)) // ERROR "possible formatting directive in Error call"
+ 	var et2 errorTest2
+-	et2.Error()        // ERROR "no args in Error call"
++	et2.Error()        // ok
+ 	et2.Error("hi")    // ok, not an error method.
+ 	et2.Error("%d", 3) // ERROR "possible formatting directive in Error call"
+ 	var et3 errorTest3
+@@ -231,11 +231,41 @@ func PrintfTests() {
+ 	externalprintf.Logf(level, "%d", 42)                        // OK
+ 	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
+ 	externalprintf.Logf(level, "%d")                            // ERROR "format reads arg 1, have only 0 args"
++
++	// user-defined Println-like functions
++	ss := &someStruct{}
++	ss.Log(someFunction, "foo")          // OK
++	ss.Error(someFunction, someFunction) // OK
++	ss.Println()                         // OK
++	ss.Println(1.234, "foo")             // OK
++	ss.Println(1, someFunction)          // ERROR "arg someFunction in Println call is a function value, not a function call"
++	ss.log(someFunction)                 // OK
++	ss.log(someFunction, "bar", 1.33)    // OK
++	ss.log(someFunction, someFunction)   // ERROR "arg someFunction in log call is a function value, not a function call"
+ }
+ 
++type someStruct struct{}
++
++// Log is non-variadic user-define Println-like function.
++// Calls to this func must be skipped when checking
++// for Println-like arguments.
++func (ss *someStruct) Log(f func(), s string) {}
++
++// Error is variadic user-define Println-like function.
++// Calls to this func mustn't be checked for Println-like arguments,
++// since variadic arguments type isn't interface{}.
++func (ss *someStruct) Error(args ...func()) {}
++
++// Println is variadic user-defined Println-like function.
++// Calls to this func must be checked for Println-like arguments.
++func (ss *someStruct) Println(args ...interface{}) {}
++
++// log is variadic user-defined Println-like function.
++// Calls to this func must be checked for Println-like arguments.
++func (ss *someStruct) log(f func(), args ...interface{}) {}
++
+ // A function we use as a function value; it has no other purpose.
+-func someFunction() {
+-}
++func someFunction() {}
+ 
+ // Printf is used by the test so we must declare it.
+ func Printf(format string, args ...interface{}) {
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 692bae6192..4358955d93 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -292,72 +292,6 @@ func (f *File) matchStructArgType(t printfArgType, typ *types.Struct, arg ast.Ex
+ 	return true
+ }
+ 
+-// numArgsInSignature tells how many formal arguments the function type
+-// being called has.
+-func (f *File) numArgsInSignature(call *ast.CallExpr) int {
+-	// Check the type of the function or method declaration
+-	typ := f.pkg.types[call.Fun].Type
+-	if typ == nil {
+-		return 0
+-	}
+-	// The type must be a signature, but be sure for safety.
+-	sig, ok := typ.(*types.Signature)
+-	if !ok {
+-		return 0
+-	}
+-	return sig.Params().Len()
+-}
+-
+-// isErrorMethodCall reports whether the call is of a method with signature
+-//	func Error() string
+-// where "string" is the universe's string type. We know the method is called "Error".
+-func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
+-	typ := f.pkg.types[call].Type
+-	if typ != nil {
+-		// We know it's called "Error", so just check the function signature
+-		// (stringerType has exactly one method, String).
+-		if stringerType != nil && stringerType.NumMethods() == 1 {
+-			return types.Identical(f.pkg.types[call.Fun].Type, stringerType.Method(0).Type())
+-		}
+-	}
+-	// Without types, we can still check by hand.
+-	// Is it a selector expression? Otherwise it's a function call, not a method call.
+-	sel, ok := call.Fun.(*ast.SelectorExpr)
+-	if !ok {
+-		return false
+-	}
+-	// The package is type-checked, so if there are no arguments, we're done.
+-	if len(call.Args) > 0 {
+-		return false
+-	}
+-	// Check the type of the method declaration
+-	typ = f.pkg.types[sel].Type
+-	if typ == nil {
+-		return false
+-	}
+-	// The type must be a signature, but be sure for safety.
+-	sig, ok := typ.(*types.Signature)
+-	if !ok {
+-		return false
+-	}
+-	// There must be a receiver for it to be a method call. Otherwise it is
+-	// a function, not something that satisfies the error interface.
+-	if sig.Recv() == nil {
+-		return false
+-	}
+-	// There must be no arguments. Already verified by type checking, but be thorough.
+-	if sig.Params().Len() > 0 {
+-		return false
+-	}
+-	// Finally the real questions.
+-	// There must be one result.
+-	if sig.Results().Len() != 1 {
+-		return false
+-	}
+-	// It must have return type "string" from the universe.
+-	return sig.Results().At(0).Type() == types.Typ[types.String]
+-}
+-
+ // hasMethod reports whether the type contains a method with the given name.
+ // It is part of the workaround for Formatters and should be deleted when
+ // that workaround is no longer necessary.

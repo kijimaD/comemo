@@ -29,6 +29,28 @@ Date:   Fri Jan 25 17:40:40 2019 +0000
     Change-Id: I44a7e6586eca33b5f97b6d40418db53a8a7ae715
     Reviewed-on: https://go-review.googlesource.com/c/159500
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mheap.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1bf7bbecc0..055dfeed99 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1190,6 +1190,16 @@ HaveSpan:
+ 		// heap_released since we already did so earlier.
+ 		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+ 		s.scavenged = false
++
++		// Since we allocated out of a scavenged span, we just
++		// grew the RSS. Mitigate this by scavenging enough free
++		// space to make up for it.
++		//
++		// Also, scavengeLargest may cause coalescing, so prevent
++		// coalescing with s by temporarily changing its state.
++		s.state = mSpanManual
++		h.scavengeLargest(s.npages * pageSize)
++		s.state = mSpanFree
+ 	}
+ 	s.unusedsince = 0
+ 

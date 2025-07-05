@@ -11,7 +11,7 @@ Date:   Tue Aug 5 06:10:46 2014 +0900
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/105100046
-
+---
  src/pkg/net/fd_unix.go         |  4 ++--
  src/pkg/net/fd_windows.go      |  8 ++++----
  src/pkg/net/iprawsock_posix.go |  4 ++--
@@ -21,3 +21,317 @@ Date:   Tue Aug 5 06:10:46 2014 +0900
  src/pkg/net/udpsock_posix.go   |  6 +++---
  src/pkg/net/unixsock_posix.go  | 15 ++------------
  8 files changed, 54 insertions(+), 41 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index e22861abbd..7fa43f6ab7 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -401,7 +401,7 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
+ 	return
+ }
+ 
+-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err error) {
++func (fd *netFD) accept() (netfd *netFD, err error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return nil, err
+ 	}
+@@ -438,7 +438,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 		return nil, err
+ 	}
+ 	lsa, _ := syscall.Getsockname(netfd.sysfd)
+-	netfd.setAddr(toAddr(lsa), toAddr(rsa))
++	netfd.setAddr(netfd.addrFunc()(lsa), netfd.addrFunc()(rsa))
+ 	return netfd, nil
+ }
+ 
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index d1129dccc4..6d69e06249 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -520,7 +520,7 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	})
+ }
+ 
+-func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
++func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
+ 	// Get new socket.
+ 	s, err := sysSocket(fd.family, fd.sotype, 0)
+ 	if err != nil {
+@@ -559,7 +559,7 @@ func (fd *netFD) acceptOne(toAddr func(syscall.Sockaddr) Addr, rawsa []syscall.R
+ 	return netfd, nil
+ }
+ 
+-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
++func (fd *netFD) accept() (*netFD, error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return nil, err
+ 	}
+@@ -570,7 +570,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	var err error
+ 	var rawsa [2]syscall.RawSockaddrAny
+ 	for {
+-		netfd, err = fd.acceptOne(toAddr, rawsa[:], o)
++		netfd, err = fd.acceptOne(rawsa[:], o)
+ 		if err == nil {
+ 			break
+ 		}
+@@ -603,7 +603,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	lsa, _ := lrsa.Sockaddr()
+ 	rsa, _ := rrsa.Sockaddr()
+ 
+-	netfd.setAddr(toAddr(lsa), toAddr(rsa))
++	netfd.setAddr(netfd.addrFunc()(lsa), netfd.addrFunc()(rsa))
+ 	return netfd, nil
+ }
+ 
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index bbb3f3ed66..99b081ba8c 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -198,7 +198,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
+ 	if raddr == nil {
+ 		return nil, &OpError{Op: "dial", Net: netProto, Addr: nil, Err: errMissingAddress}
+ 	}
+-	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial")
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: netProto, Addr: raddr, Err: err}
+ 	}
+@@ -219,7 +219,7 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+ 	default:
+ 		return nil, &OpError{Op: "listen", Net: netProto, Addr: laddr, Err: UnknownNetworkError(netProto)}
+ 	}
+-	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
++	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen")
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: netProto, Addr: laddr, Err: err}
+ 	}
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 2ba4c8efd5..f9ebe40a21 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -132,9 +132,9 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 
+ // Internet sockets (TCP, UDP, IP)
+ 
+-func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string) (fd *netFD, err error) {
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+-	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
++	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline)
+ }
+ 
+ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index c80c7d6a2f..3f956df65a 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -36,7 +36,7 @@ type sockaddr interface {
+ 
+ // socket returns a network file descriptor that is ready for
+ // asynchronous I/O using the network poller.
+-func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time) (fd *netFD, err error) {
+ 	s, err := sysSocket(family, sotype, proto)
+ 	if err != nil {
+ 		return nil, err
+@@ -75,27 +75,51 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
+ 	if laddr != nil && raddr == nil {
+ 		switch sotype {
+ 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
+-			if err := fd.listenStream(laddr, listenerBacklog, toAddr); err != nil {
++			if err := fd.listenStream(laddr, listenerBacklog); err != nil {
+ 				fd.Close()
+ 				return nil, err
+ 			}
+ 			return fd, nil
+ 		case syscall.SOCK_DGRAM:
+-			if err := fd.listenDatagram(laddr, toAddr); err != nil {
++			if err := fd.listenDatagram(laddr); err != nil {
+ 				fd.Close()
+ 				return nil, err
+ 			}
+ 			return fd, nil
+ 		}
+ 	}
+-	if err := fd.dial(laddr, raddr, deadline, toAddr); err != nil {
++	if err := fd.dial(laddr, raddr, deadline); err != nil {
+ 		fd.Close()
+ 		return nil, err
+ 	}
+ 	return fd, nil
+ }
+ 
+-func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) error {
++func (fd *netFD) addrFunc() func(syscall.Sockaddr) Addr {
++	switch fd.family {
++	case syscall.AF_INET, syscall.AF_INET6:
++		switch fd.sotype {
++		case syscall.SOCK_STREAM:
++			return sockaddrToTCP
++		case syscall.SOCK_DGRAM:
++			return sockaddrToUDP
++		case syscall.SOCK_RAW:
++			return sockaddrToIP
++		}
++	case syscall.AF_UNIX:
++		switch fd.sotype {
++		case syscall.SOCK_STREAM:
++			return sockaddrToUnix
++		case syscall.SOCK_DGRAM:
++			return sockaddrToUnixgram
++		case syscall.SOCK_SEQPACKET:
++			return sockaddrToUnixpacket
++		}
++	}
++	return func(syscall.Sockaddr) Addr { return nil }
++}
++
++func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time) error {
+ 	var err error
+ 	var lsa syscall.Sockaddr
+ 	if laddr != nil {
+@@ -123,14 +147,14 @@ func (fd *netFD) dial(laddr, raddr sockaddr, deadline time.Time, toAddr func(sys
+ 	}
+ 	lsa, _ = syscall.Getsockname(fd.sysfd)
+ 	if rsa, _ = syscall.Getpeername(fd.sysfd); rsa != nil {
+-		fd.setAddr(toAddr(lsa), toAddr(rsa))
++		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(rsa))
+ 	} else {
+-		fd.setAddr(toAddr(lsa), raddr)
++		fd.setAddr(fd.addrFunc()(lsa), raddr)
+ 	}
+ 	return nil
+ }
+ 
+-func (fd *netFD) listenStream(laddr sockaddr, backlog int, toAddr func(syscall.Sockaddr) Addr) error {
++func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
+ 	if err := setDefaultListenerSockopts(fd.sysfd); err != nil {
+ 		return err
+ 	}
+@@ -148,11 +172,11 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int, toAddr func(syscall.S
+ 		return err
+ 	}
+ 	lsa, _ := syscall.Getsockname(fd.sysfd)
+-	fd.setAddr(toAddr(lsa), nil)
++	fd.setAddr(fd.addrFunc()(lsa), nil)
+ 	return nil
+ }
+ 
+-func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Addr) error {
++func (fd *netFD) listenDatagram(laddr sockaddr) error {
+ 	switch addr := laddr.(type) {
+ 	case *UDPAddr:
+ 		// We provide a socket that listens to a wildcard
+@@ -187,6 +211,6 @@ func (fd *netFD) listenDatagram(laddr sockaddr, toAddr func(syscall.Sockaddr) Ad
+ 		return err
+ 	}
+ 	lsa, _ := syscall.Getsockname(fd.sysfd)
+-	fd.setAddr(toAddr(lsa), nil)
++	fd.setAddr(fd.addrFunc()(lsa), nil)
+ 	return nil
+ }
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index b79b115ca5..dd78aefa77 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -153,7 +153,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ }
+ 
+ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
+-	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial")
+ 
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+ 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+@@ -183,7 +183,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
+ 		if err == nil {
+ 			fd.Close()
+ 		}
+-		fd, err = internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++		fd, err = internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial")
+ 	}
+ 
+ 	if err != nil {
+@@ -231,7 +231,7 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
+ 	if l == nil || l.fd == nil {
+ 		return nil, syscall.EINVAL
+ 	}
+-	fd, err := l.fd.accept(sockaddrToTCP)
++	fd, err := l.fd.accept()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -291,7 +291,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+ 	}
+-	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
++	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen")
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 5dfba94e9a..a0533366a4 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -175,7 +175,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ }
+ 
+ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
+-	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
++	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial")
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: net, Addr: raddr, Err: err}
+ 	}
+@@ -198,7 +198,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	if laddr == nil {
+ 		laddr = &UDPAddr{}
+ 	}
+-	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
++	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen")
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+@@ -218,7 +218,7 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
+ 	if gaddr == nil || gaddr.IP == nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: errMissingAddress}
+ 	}
+-	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
++	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen")
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: gaddr, Err: err}
+ 	}
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 2610779bfd..3c2e78bdca 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -42,14 +42,7 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
+ 		return nil, errors.New("unknown mode: " + mode)
+ 	}
+ 
+-	f := sockaddrToUnix
+-	if sotype == syscall.SOCK_DGRAM {
+-		f = sockaddrToUnixgram
+-	} else if sotype == syscall.SOCK_SEQPACKET {
+-		f = sockaddrToUnixpacket
+-	}
+-
+-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
++	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -286,11 +279,7 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	if l == nil || l.fd == nil {
+ 		return nil, syscall.EINVAL
+ 	}
+-	toAddr := sockaddrToUnix
+-	if l.fd.sotype == syscall.SOCK_SEQPACKET {
+-		toAddr = sockaddrToUnixpacket
+-	}
+-	fd, err := l.fd.accept(toAddr)
++	fd, err := l.fd.accept()
+ 	if err != nil {
+ 		return nil, err
+ 	}

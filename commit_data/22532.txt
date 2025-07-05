@@ -10,8 +10,48 @@ Date:   Mon Dec 22 18:16:15 2014 +0100
     Change-Id: I9635de9b86f00d20ec108097fee4d4a8f76237b2
     Reviewed-on: https://go-review.googlesource.com/1952
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/bytes/bytes.go     | 2 +-
  src/os/exec/exec.go    | 2 +-
  src/strings/strings.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index f24a071d14..60de451504 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -443,7 +443,7 @@ func isSeparator(r rune) bool {
+ // Title returns a copy of s with all Unicode letters that begin words
+ // mapped to their title case.
+ //
+-// BUG: The rule Title uses for word boundaries does not handle Unicode punctuation properly.
++// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+ func Title(s []byte) []byte {
+ 	// Use a closure here to remember state.
+ 	// Hackish but effective. Depends on Map scanning in order and calling
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 72b4905d56..bb0c3acf4f 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -80,7 +80,7 @@ type Cmd struct {
+ 	// new process. It does not include standard input, standard output, or
+ 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
+ 	//
+-	// BUG: on OS X 10.6, child processes may sometimes inherit unwanted fds.
++	// BUG(rsc): On OS X 10.6, child processes may sometimes inherit unwanted fds.
+ 	// http://golang.org/issue/2603
+ 	ExtraFiles []*os.File
+ 
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index f81a1e2b52..c6085f51d5 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -520,7 +520,7 @@ func isSeparator(r rune) bool {
+ // Title returns a copy of the string s with all Unicode letters that begin words
+ // mapped to their title case.
+ //
+-// BUG: The rule Title uses for word boundaries does not handle Unicode punctuation properly.
++// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+ func Title(s string) string {
+ 	// Use a closure here to remember state.
+ 	// Hackish but effective. Depends on Map scanning in order and calling

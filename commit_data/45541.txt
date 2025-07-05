@@ -21,7 +21,103 @@ Date:   Mon Aug 24 22:04:17 2020 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/database/sql/sql.go      | 14 +++++++-------
  src/database/sql/sql_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 7 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index fc7e3e4485..d8f19520c8 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2087,10 +2087,10 @@ func (tx *Tx) isDone() bool {
+ // that has already been committed or rolled back.
+ var ErrTxDone = errors.New("sql: transaction has already been committed or rolled back")
+ 
+-// closeLocked returns the connection to the pool and
++// close returns the connection to the pool and
+ // must only be called by Tx.rollback or Tx.Commit while
+-// closemu is Locked and tx already canceled.
+-func (tx *Tx) closeLocked(err error) {
++// tx is already canceled and won't be executed concurrently.
++func (tx *Tx) close(err error) {
+ 	tx.releaseConn(err)
+ 	tx.dc = nil
+ 	tx.txi = nil
+@@ -2164,7 +2164,7 @@ func (tx *Tx) Commit() error {
+ 	// to ensure no other connection has an active query.
+ 	tx.cancel()
+ 	tx.closemu.Lock()
+-	defer tx.closemu.Unlock()
++	tx.closemu.Unlock()
+ 
+ 	var err error
+ 	withLock(tx.dc, func() {
+@@ -2173,7 +2173,7 @@ func (tx *Tx) Commit() error {
+ 	if err != driver.ErrBadConn {
+ 		tx.closePrepared()
+ 	}
+-	tx.closeLocked(err)
++	tx.close(err)
+ 	return err
+ }
+ 
+@@ -2196,7 +2196,7 @@ func (tx *Tx) rollback(discardConn bool) error {
+ 	// to ensure no other connection has an active query.
+ 	tx.cancel()
+ 	tx.closemu.Lock()
+-	defer tx.closemu.Unlock()
++	tx.closemu.Unlock()
+ 
+ 	var err error
+ 	withLock(tx.dc, func() {
+@@ -2208,7 +2208,7 @@ func (tx *Tx) rollback(discardConn bool) error {
+ 	if discardConn {
+ 		err = driver.ErrBadConn
+ 	}
+-	tx.closeLocked(err)
++	tx.close(err)
+ 	return err
+ }
+ 
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 762d42f54b..8ae6e1339e 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2810,6 +2810,36 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 40985 transaction statement deadlock while context cancel.
++func TestTxStmtDeadlock(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
++	defer cancel()
++	tx, err := db.BeginTx(ctx, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	stmt, err := tx.Prepare("SELECT|people|name,age|age=?")
++	if err != nil {
++		t.Fatal(err)
++	}
++	// Run number of stmt queries to reproduce deadlock from context cancel
++	for i := 0; i < 1e3; i++ {
++		_, err = stmt.Query(1)
++		if err != nil {
++			// Encounter ErrTxDone here is expected due to context cancel
++			if err != ErrTxDone {
++				t.Fatalf("unexpected error while executing stmt, err: %v", err)
++			}
++			break
++		}
++	}
++	_ = tx.Rollback()
++}
++
+ // Issue32530 encounters an issue where a connection may
+ // expire right after it comes out of a used connection pool
+ // even when a new connection is requested.

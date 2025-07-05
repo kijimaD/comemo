@@ -13,6 +13,30 @@ Date:   Mon Nov 6 14:18:43 2023 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/cmd/link/internal/loadpe/ldpe.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 81c28415a2..2e9880bd6f 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -219,7 +219,7 @@ type peLoaderState struct {
+ // comdatDefinitions records the names of symbols for which we've
+ // previously seen a definition in COMDAT. Key is symbol name, value
+ // is symbol size (or -1 if we're using the "any" strategy).
+-var comdatDefinitions = make(map[string]int64)
++var comdatDefinitions map[string]int64
+ 
+ // Load loads the PE file pn from input.
+ // Symbols from the object file are created via the loader 'l',
+@@ -236,6 +236,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		pn:              pn,
+ 	}
+ 	createImportSymsState(state.l, state.arch)
++	if comdatDefinitions == nil {
++		comdatDefinitions = make(map[string]int64)
++	}
+ 
+ 	// Some input files are archives containing multiple of
+ 	// object files, and pe.NewFile seeks to the start of

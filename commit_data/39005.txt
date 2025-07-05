@@ -21,9 +21,114 @@ Date:   Thu Dec 13 23:55:22 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/script_test.go                          | 13 ++++++++++
  src/cmd/go/testdata/script/README                  |  4 ++++
  src/cmd/go/testdata/script/cgo_syso_issue29253.txt | 28 ++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go                    |  6 +++--
  4 files changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 284b3548c4..4aa92625dd 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/txtar"
++	"cmd/go/internal/work"
+ )
+ 
+ // TestScript runs the tests in testdata/script/*.txt.
+@@ -343,6 +344,7 @@ Script:
+ //
+ var scriptCmds = map[string]func(*testScript, bool, []string){
+ 	"addcrlf": (*testScript).cmdAddcrlf,
++	"cc":      (*testScript).cmdCc,
+ 	"cd":      (*testScript).cmdCd,
+ 	"chmod":   (*testScript).cmdChmod,
+ 	"cmp":     (*testScript).cmdCmp,
+@@ -378,6 +380,17 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
+ 	}
+ }
+ 
++// cc runs the C compiler along with platform specific options.
++func (ts *testScript) cmdCc(neg bool, args []string) {
++	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
++		ts.fatalf("usage: cc args... [&]")
++	}
++
++	var b work.Builder
++	b.Init()
++	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
++}
++
+ // cd changes to a different directory.
+ func (ts *testScript) cmdCd(neg bool, args []string) {
+ 	if neg {
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 76d4b36b01..a7b50fff16 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -84,6 +84,10 @@ when testing.Short() is false.
+ 
+ The commands are:
+ 
++- [!] cc args... [&]
++  Run the C compiler, the platform specific flags (i.e. `go env GOGCCFLAGS`) will be
++  added automatically before args.
++
+ - cd dir
+   Change to the given directory for future commands.
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+new file mode 100644
+index 0000000000..0d18fa91d6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+@@ -0,0 +1,28 @@
++# This test tests that we can link in-package syso files that provides symbols
++# for cgo. See issue 29253.
++[!cgo] stop
++[!gc] stop
++cc -c -o pkg/o.syso ext.c
++go build main.go
++
++-- ext.c --
++// +build ignore
++
++int f() { return 42; }
++-- pkg/pkg.go --
++package pkg
++
++// extern int f(void);
++import "C"
++
++func init() {
++	if v := C.f(); v != 42 {
++		panic(v)
++	}
++}
++-- main.go --
++package main
++
++import _ "pkg"
++
++func main() {}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 755693b27e..253a9f6847 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -872,8 +872,10 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 		// Skip other special (non-object-file) sections that
+ 		// build tools may have added. Such sections must have
+ 		// short names so that the suffix is not truncated.
+-		if len(arhdr.name) < 16 && !strings.HasSuffix(arhdr.name, ".o") {
+-			continue
++		if len(arhdr.name) < 16 {
++			if ext := filepath.Ext(arhdr.name); ext != ".o" && ext != ".syso" {
++				continue
++			}
+ 		}
+ 
+ 		pname := fmt.Sprintf("%s(%s)", lib.File, arhdr.name)

@@ -17,7 +17,7 @@ Date:   Fri Jun 26 19:17:33 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 26 ++++++-------
  src/cmd/link/internal/arm/asm.go     | 18 ++++-----
  src/cmd/link/internal/arm64/asm.go   | 38 +++++++++----------
@@ -30,3 +30,731 @@ Date:   Fri Jun 26 19:17:33 2020 -0400
  src/cmd/link/internal/s390x/asm.go   | 20 +++++-----
  src/cmd/link/internal/x86/asm.go     | 26 ++++++-------
  11 files changed, 169 insertions(+), 140 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index e07321f855..609daef078 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -384,8 +384,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	return false
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	ctxt.Out.Write64(uint64(sectoff))
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	out.Write64(uint64(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+@@ -394,21 +394,21 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		return false
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if siz == 4 {
+-			ctxt.Out.Write64(uint64(elf.R_X86_64_32) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_X86_64_32) | uint64(elfsym)<<32)
+ 		} else if siz == 8 {
+-			ctxt.Out.Write64(uint64(elf.R_X86_64_64) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_X86_64_64) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_LE:
+ 		if siz == 4 {
+-			ctxt.Out.Write64(uint64(elf.R_X86_64_TPOFF32) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_X86_64_TPOFF32) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_IE:
+ 		if siz == 4 {
+-			ctxt.Out.Write64(uint64(elf.R_X86_64_GOTTPOFF) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_X86_64_GOTTPOFF) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+@@ -416,12 +416,12 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		if siz == 4 {
+ 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
+ 				if ctxt.DynlinkingGo() {
+-					ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
++					out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 				} else {
+-					ctxt.Out.Write64(uint64(elf.R_X86_64_GOTPCREL) | uint64(elfsym)<<32)
++					out.Write64(uint64(elf.R_X86_64_GOTPCREL) | uint64(elfsym)<<32)
+ 				}
+ 			} else {
+-				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
++				out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+ 			}
+ 		} else {
+ 			return false
+@@ -429,22 +429,22 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 	case objabi.R_PCREL:
+ 		if siz == 4 {
+ 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
+-				ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
++				out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 			} else {
+-				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
++				out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+ 			}
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_GOTPCREL:
+ 		if siz == 4 {
+-			ctxt.Out.Write64(uint64(elf.R_X86_64_GOTPCREL) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_X86_64_GOTPCREL) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+ 	}
+ 
+-	ctxt.Out.Write64(uint64(r.Xadd))
++	out.Write64(uint64(r.Xadd))
+ 	return true
+ }
+ 
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index ea71d11356..a75dc9525f 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -248,8 +248,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	return false
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	ctxt.Out.Write32(uint32(sectoff))
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	out.Write32(uint32(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+@@ -258,33 +258,33 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		return false
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_ARM_ABS32) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_ARM_ABS32) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_PCREL:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_ARM_REL32) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_ARM_REL32) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_CALLARM:
+ 		if siz == 4 {
+ 			if r.Add()&0xff000000 == 0xeb000000 { // BL
+-				ctxt.Out.Write32(uint32(elf.R_ARM_CALL) | uint32(elfsym)<<8)
++				out.Write32(uint32(elf.R_ARM_CALL) | uint32(elfsym)<<8)
+ 			} else {
+-				ctxt.Out.Write32(uint32(elf.R_ARM_JUMP24) | uint32(elfsym)<<8)
++				out.Write32(uint32(elf.R_ARM_JUMP24) | uint32(elfsym)<<8)
+ 			}
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_LE:
+-		ctxt.Out.Write32(uint32(elf.R_ARM_TLS_LE32) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_ARM_TLS_LE32) | uint32(elfsym)<<8)
+ 	case objabi.R_TLS_IE:
+-		ctxt.Out.Write32(uint32(elf.R_ARM_TLS_IE32) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_ARM_TLS_IE32) | uint32(elfsym)<<8)
+ 	case objabi.R_GOTPCREL:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_ARM_GOT_PREL) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_ARM_GOT_PREL) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index bb23071783..4928d3eb2a 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -323,8 +323,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	return false
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	ctxt.Out.Write64(uint64(sectoff))
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	out.Write64(uint64(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+@@ -334,38 +334,38 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch siz {
+ 		case 4:
+-			ctxt.Out.Write64(uint64(elf.R_AARCH64_ABS32) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_AARCH64_ABS32) | uint64(elfsym)<<32)
+ 		case 8:
+-			ctxt.Out.Write64(uint64(elf.R_AARCH64_ABS64) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_AARCH64_ABS64) | uint64(elfsym)<<32)
+ 		default:
+ 			return false
+ 		}
+ 	case objabi.R_ADDRARM64:
+ 		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_ADD_ABS_LO12_NC
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_ADR_PREL_PG_HI21) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_ADD_ABS_LO12_NC) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_AARCH64_ADR_PREL_PG_HI21) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_AARCH64_ADD_ABS_LO12_NC) | uint64(elfsym)<<32)
+ 	case objabi.R_ARM64_TLS_LE:
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_TLSLE_MOVW_TPREL_G0) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_AARCH64_TLSLE_MOVW_TPREL_G0) | uint64(elfsym)<<32)
+ 	case objabi.R_ARM64_TLS_IE:
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC) | uint64(elfsym)<<32)
+ 	case objabi.R_ARM64_GOTPCREL:
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_ADR_GOT_PAGE) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_LD64_GOT_LO12_NC) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_AARCH64_ADR_GOT_PAGE) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_AARCH64_LD64_GOT_LO12_NC) | uint64(elfsym)<<32)
+ 	case objabi.R_CALLARM64:
+ 		if siz != 4 {
+ 			return false
+ 		}
+-		ctxt.Out.Write64(uint64(elf.R_AARCH64_CALL26) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_AARCH64_CALL26) | uint64(elfsym)<<32)
+ 
+ 	}
+-	ctxt.Out.Write64(uint64(r.Xadd))
++	out.Write64(uint64(r.Xadd))
+ 
+ 	return true
+ }
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index bb4e1715f4..8e4b2a3fe4 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -13,8 +13,10 @@ import (
+ 	"encoding/binary"
+ 	"encoding/hex"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strings"
++	"sync"
+ )
+ 
+ /*
+@@ -1342,7 +1344,7 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
+ 	return sh
+ }
+ 
+-func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
++func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+ 	// Also nothing to relocate in .shstrtab.
+ 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+@@ -1353,7 +1355,6 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+ 	}
+ 
+ 	ldr := ctxt.loader
+-	sect.Reloff = uint64(ctxt.Out.Offset())
+ 	for i, s := range syms {
+ 		if !ldr.AttrReachable(s) {
+ 			panic("should never happen")
+@@ -1387,13 +1388,11 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+ 			if !ldr.AttrReachable(r.Xsym) {
+ 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
+ 			}
+-			if !thearch.Elfreloc1(ctxt, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++			if !thearch.Elfreloc1(ctxt, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+ 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+ 			}
+ 		}
+ 	}
+-
+-	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+ }
+ 
+ func elfEmitReloc(ctxt *Link) {
+@@ -1412,7 +1411,9 @@ func elfEmitReloc(ctxt *Link) {
+ 	if thearch.ElfrelocSize != 0 {
+ 		for _, seg := range Segments {
+ 			for _, sect := range seg.Sections {
+-				sz += int64(thearch.ElfrelocSize * sect.Relcount)
++				sect.Reloff = uint64(ctxt.Out.Offset() + sz)
++				sect.Rellen = uint64(thearch.ElfrelocSize * sect.Relcount)
++				sz += int64(sect.Rellen)
+ 			}
+ 		}
+ 		filesz = ctxt.Out.Offset() + sz
+@@ -1420,22 +1421,54 @@ func elfEmitReloc(ctxt *Link) {
+ 	}
+ 
+ 	// Now emits the records.
++	var relocSect func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
++	var wg sync.WaitGroup
++	var sem chan int
++	if thearch.ElfrelocSize != 0 && ctxt.Out.isMmapped() {
++		// Write sections in parallel.
++		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
++		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
++			wg.Add(1)
++			sem <- 1
++			out, err := ctxt.Out.View(sect.Reloff)
++			if err != nil {
++				panic(err)
++			}
++			go func() {
++				elfrelocsect(ctxt, out, sect, syms)
++				// sanity check
++				if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
++					panic("elfEmitReloc: size mismatch")
++				}
++				wg.Done()
++				<-sem
++			}()
++		}
++	} else {
++		// Sizes and offsets are not precomputed, or we cannot Mmap.
++		// We have to write sequentially.
++		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
++			sect.Reloff = uint64(ctxt.Out.Offset()) // offset is not precomputed, so fill it in now
++			elfrelocsect(ctxt, ctxt.Out, sect, syms)
++			sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
++		}
++	}
+ 	for _, sect := range Segtext.Sections {
+ 		if sect.Name == ".text" {
+-			elfrelocsect(ctxt, sect, ctxt.Textp)
++			relocSect(ctxt, sect, ctxt.Textp)
+ 		} else {
+-			elfrelocsect(ctxt, sect, ctxt.datap)
++			relocSect(ctxt, sect, ctxt.datap)
+ 		}
+ 	}
+ 
+ 	for _, sect := range Segrodata.Sections {
+-		elfrelocsect(ctxt, sect, ctxt.datap)
++		relocSect(ctxt, sect, ctxt.datap)
+ 	}
+ 	for _, sect := range Segrelrodata.Sections {
+-		elfrelocsect(ctxt, sect, ctxt.datap)
++		relocSect(ctxt, sect, ctxt.datap)
+ 	}
+ 	for _, sect := range Segdata.Sections {
+-		elfrelocsect(ctxt, sect, ctxt.datap)
++		relocSect(ctxt, sect, ctxt.datap)
+ 	}
+ 	for i := 0; i < len(Segdwarf.Sections); i++ {
+ 		sect := Segdwarf.Sections[i]
+@@ -1444,13 +1477,9 @@ func elfEmitReloc(ctxt *Link) {
+ 			ctxt.loader.SymSect(si.secSym()) != sect {
+ 			panic("inconsistency between dwarfp and Segdwarf")
+ 		}
+-		elfrelocsect(ctxt, sect, si.syms)
+-	}
+-
+-	// sanity check
+-	if thearch.ElfrelocSize != 0 && ctxt.Out.Offset() != filesz {
+-		panic("elfEmitReloc: size mismatch")
++		relocSect(ctxt, sect, si.syms)
+ 	}
++	wg.Wait()
+ }
+ 
+ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d160139fd5..5d078d0e99 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -236,7 +236,7 @@ type Arch struct {
+ 	Asmb  func(*Link, *loader.Loader)
+ 	Asmb2 func(*Link, *loader.Loader)
+ 
+-	Elfreloc1    func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
++	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+ 	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1. Currently this can be 0, meaning that the size is not fixed (a Go reloc may turn into multiple ELF reloc).
+ 	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+ 	Gentext      func(*Link, *loader.Loader)
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index d0e0245a25..7e1b9b3730 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -43,8 +43,8 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+ 	return
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	ctxt.Out.Write32(uint32(sectoff))
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	out.Write32(uint32(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	switch r.Type() {
+@@ -54,15 +54,15 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		if r.Siz() != 4 {
+ 			return false
+ 		}
+-		ctxt.Out.Write32(uint32(elf.R_MIPS_32) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_MIPS_32) | uint32(elfsym)<<8)
+ 	case objabi.R_ADDRMIPS:
+-		ctxt.Out.Write32(uint32(elf.R_MIPS_LO16) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_MIPS_LO16) | uint32(elfsym)<<8)
+ 	case objabi.R_ADDRMIPSU:
+-		ctxt.Out.Write32(uint32(elf.R_MIPS_HI16) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_MIPS_HI16) | uint32(elfsym)<<8)
+ 	case objabi.R_ADDRMIPSTLS:
+-		ctxt.Out.Write32(uint32(elf.R_MIPS_TLS_TPREL_LO16) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_MIPS_TLS_TPREL_LO16) | uint32(elfsym)<<8)
+ 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
+-		ctxt.Out.Write32(uint32(elf.R_MIPS_26) | uint32(elfsym)<<8)
++		out.Write32(uint32(elf.R_MIPS_26) | uint32(elfsym)<<8)
+ 	}
+ 
+ 	return true
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index dcca72c930..d8760b45f5 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -41,7 +41,7 @@ import (
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 
+ 	// mips64 ELF relocation (endian neutral)
+ 	//		offset	uint64
+@@ -52,36 +52,36 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 	//		type	uint8
+ 	//		addend	int64
+ 
+-	ctxt.Out.Write64(uint64(sectoff))
++	out.Write64(uint64(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+-	ctxt.Out.Write32(uint32(elfsym))
+-	ctxt.Out.Write8(0)
+-	ctxt.Out.Write8(0)
+-	ctxt.Out.Write8(0)
++	out.Write32(uint32(elfsym))
++	out.Write8(0)
++	out.Write8(0)
++	out.Write8(0)
+ 	switch r.Type() {
+ 	default:
+ 		return false
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch r.Siz() {
+ 		case 4:
+-			ctxt.Out.Write8(uint8(elf.R_MIPS_32))
++			out.Write8(uint8(elf.R_MIPS_32))
+ 		case 8:
+-			ctxt.Out.Write8(uint8(elf.R_MIPS_64))
++			out.Write8(uint8(elf.R_MIPS_64))
+ 		default:
+ 			return false
+ 		}
+ 	case objabi.R_ADDRMIPS:
+-		ctxt.Out.Write8(uint8(elf.R_MIPS_LO16))
++		out.Write8(uint8(elf.R_MIPS_LO16))
+ 	case objabi.R_ADDRMIPSU:
+-		ctxt.Out.Write8(uint8(elf.R_MIPS_HI16))
++		out.Write8(uint8(elf.R_MIPS_HI16))
+ 	case objabi.R_ADDRMIPSTLS:
+-		ctxt.Out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
++		out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
+ 	case objabi.R_CALLMIPS,
+ 		objabi.R_JMPMIPS:
+-		ctxt.Out.Write8(uint8(elf.R_MIPS_26))
++		out.Write8(uint8(elf.R_MIPS_26))
+ 	}
+-	ctxt.Out.Write64(uint64(r.Xadd))
++	out.Write64(uint64(r.Xadd))
+ 
+ 	return true
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 6e2aac0d20..b8cd1c7bd3 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -441,7 +441,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
+ 	rt := r.Type()
+ 	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER {
+@@ -450,7 +450,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 			sectoff += 2
+ 		}
+ 	}
+-	ctxt.Out.Write64(uint64(sectoff))
++	out.Write64(uint64(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	switch rt {
+@@ -459,60 +459,60 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch r.Siz() {
+ 		case 4:
+-			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
+ 		case 8:
+-			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR64) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_PPC64_ADDR64) | uint64(elfsym)<<32)
+ 		default:
+ 			return false
+ 		}
+ 	case objabi.R_POWER_TLS:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
+ 	case objabi.R_POWER_TLS_LE:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
+ 	case objabi.R_POWER_TLS_IE:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
+ 	case objabi.R_ADDRPOWER:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_LO) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_ADDR16_LO) | uint64(elfsym)<<32)
+ 	case objabi.R_ADDRPOWER_DS:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_LO_DS) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_ADDR16_LO_DS) | uint64(elfsym)<<32)
+ 	case objabi.R_ADDRPOWER_GOT:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_GOT16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
+ 	case objabi.R_ADDRPOWER_PCREL:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_REL16_LO) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_REL16_LO) | uint64(elfsym)<<32)
+ 		r.Xadd += 4
+ 	case objabi.R_ADDRPOWER_TOCREL:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_TOC16_LO) | uint64(elfsym)<<32)
+ 	case objabi.R_ADDRPOWER_TOCREL_DS:
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
+-		ctxt.Out.Write64(uint64(r.Xadd))
+-		ctxt.Out.Write64(uint64(sectoff + 4))
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
+ 	case objabi.R_CALLPOWER:
+ 		if r.Siz() != 4 {
+ 			return false
+ 		}
+-		ctxt.Out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
++		out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
+ 
+ 	}
+-	ctxt.Out.Write64(uint64(r.Xadd))
++	out.Write64(uint64(r.Xadd))
+ 
+ 	return true
+ }
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 7bc511c374..bf8ce0c51e 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -18,8 +18,8 @@ import (
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	log.Fatalf("elfreloc2")
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	log.Fatalf("elfreloc1")
+ 	return false
+ }
+ 
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index f9bb12bb19..c2d0dc2ea5 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -219,8 +219,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	return false
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	ctxt.Out.Write64(uint64(sectoff))
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	out.Write64(uint64(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+@@ -233,30 +233,30 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 			return false
+ 		case 4:
+ 			// WARNING - silently ignored by linker in ELF64
+-			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE32) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_390_TLS_LE32) | uint64(elfsym)<<32)
+ 		case 8:
+ 			// WARNING - silently ignored by linker in ELF32
+-			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
+ 		}
+ 	case objabi.R_TLS_IE:
+ 		switch siz {
+ 		default:
+ 			return false
+ 		case 4:
+-			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
+ 		}
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch siz {
+ 		default:
+ 			return false
+ 		case 4:
+-			ctxt.Out.Write64(uint64(elf.R_390_32) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_390_32) | uint64(elfsym)<<32)
+ 		case 8:
+-			ctxt.Out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
+ 		}
+ 	case objabi.R_GOTPCREL:
+ 		if siz == 4 {
+-			ctxt.Out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
++			out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+@@ -308,10 +308,10 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		if elfrel == elf.R_390_NONE {
+ 			return false // unsupported size/dbl combination
+ 		}
+-		ctxt.Out.Write64(uint64(elfrel) | uint64(elfsym)<<32)
++		out.Write64(uint64(elfrel) | uint64(elfsym)<<32)
+ 	}
+ 
+-	ctxt.Out.Write64(uint64(r.Xadd))
++	out.Write64(uint64(r.Xadd))
+ 	return true
+ }
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 6683c790aa..5e3c452c3a 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -314,8 +314,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	return false
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+-	ctxt.Out.Write32(uint32(sectoff))
++func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
++	out.Write32(uint32(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+@@ -324,16 +324,16 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		return false
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_GOTPCREL:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_386_GOTPC))
++			out.Write32(uint32(elf.R_386_GOTPC))
+ 			if ldr.SymName(r.Xsym) != "_GLOBAL_OFFSET_TABLE_" {
+-				ctxt.Out.Write32(uint32(sectoff))
+-				ctxt.Out.Write32(uint32(elf.R_386_GOT32) | uint32(elfsym)<<8)
++				out.Write32(uint32(sectoff))
++				out.Write32(uint32(elf.R_386_GOT32) | uint32(elfsym)<<8)
+ 			}
+ 		} else {
+ 			return false
+@@ -341,30 +341,30 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 	case objabi.R_CALL:
+ 		if siz == 4 {
+ 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
+-				ctxt.Out.Write32(uint32(elf.R_386_PLT32) | uint32(elfsym)<<8)
++				out.Write32(uint32(elf.R_386_PLT32) | uint32(elfsym)<<8)
+ 			} else {
+-				ctxt.Out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
++				out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
+ 			}
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_PCREL:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_LE:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_386_TLS_LE) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_386_TLS_LE) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_IE:
+ 		if siz == 4 {
+-			ctxt.Out.Write32(uint32(elf.R_386_GOTPC))
+-			ctxt.Out.Write32(uint32(sectoff))
+-			ctxt.Out.Write32(uint32(elf.R_386_TLS_GOTIE) | uint32(elfsym)<<8)
++			out.Write32(uint32(elf.R_386_GOTPC))
++			out.Write32(uint32(sectoff))
++			out.Write32(uint32(elf.R_386_TLS_GOTIE) | uint32(elfsym)<<8)
+ 		} else {
+ 			return false
+ 		}

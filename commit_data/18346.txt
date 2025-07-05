@@ -45,10 +45,248 @@ Date:   Thu Jan 23 22:51:39 2014 -0500
     R=iant, dave
     CC=golang-codereviews
     https://golang.org/cl/56120043
-
+---
  src/cmd/ld/data.c         | 25 +++++++++++-----
  src/cmd/ld/lib.c          |  5 +---
  src/liblink/asm5.c        | 10 ++++++-
  src/liblink/obj5.c        | 74 -----------------------------------------------
  src/pkg/runtime/asm_arm.s | 35 ++++++++++++++--------
  5 files changed, 51 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 506bfd3b07..640fd6d6ef 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -167,6 +167,17 @@ relocsym(LSym *s)
+ 				diag("unknown reloc %d", r->type);
+ 			break;
+ 		case D_TLS:
++			if(linkmode == LinkInternal && iself && thechar == '5') {
++				// On ELF ARM, the thread pointer is 8 bytes before
++				// the start of the thread-local data block, so add 8
++				// to the actual TLS offset (r->sym->value).
++				// This 8 seems to be a fundamental constant of
++				// ELF on ARM (or maybe Glibc on ARM); it is not
++				// related to the fact that our own TLS storage happens
++				// to take up 8 bytes.
++				o = 8 + r->sym->value;
++				break;
++			}
+ 			r->done = 0;
+ 			o = 0;
+ 			if(thechar != '6')
+@@ -879,13 +890,13 @@ dodata(void)
+ 		}
+ 		sect->len = datsize;
+ 	} else {
+-		// References to STLSBSS symbols may be in the binary
+-		// but should not be used. Give them an invalid address
+-		// so that any uses will fault. Using 1 instead of 0 so that
+-		// if used as an offset on ARM it will result in an unaligned
+-		// address and still cause a fault.
+-		for(; s != nil && s->type == STLSBSS; s = s->next)
+-			s->value = 1;
++		// Might be internal linking but still using cgo.
++		// In that case, the only possible STLSBSS symbol is tlsgm.
++		// Give it offset 0, because it's the only thing here.
++		if(s != nil && s->type == STLSBSS && strcmp(s->name, "runtime.tlsgm") == 0) {
++			s->value = 0;
++			s = s->next;
++		}
+ 	}
+ 	
+ 	if(s != nil) {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index ac2417ee66..609fe8aa92 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -229,10 +229,7 @@ loadlib(void)
+ 	gmsym->type = STLSBSS;
+ 	gmsym->size = 2*PtrSize;
+ 	gmsym->hide = 1;
+-	if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd)
+-		gmsym->reachable = 1;
+-	else
+-		gmsym->reachable = 0;
++	gmsym->reachable = 1;
+ 
+ 	// Now that we know the link mode, trim the dynexp list.
+ 	x = CgoExportDynamic;
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 8d58fd38fe..d19283a197 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -1359,15 +1359,23 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 		aclass(ctxt, &p->to);
+ 		o1 = ctxt->instoffset;
+ 		if(p->to.sym != nil) {
++			// This case happens with words generated
++			// in the PC stream as part of the literal pool.
+ 			rel = addrel(ctxt->cursym);
+ 			rel->off = ctxt->pc;
+ 			rel->siz = 4;
+ 			rel->sym = p->to.sym;
+ 			rel->add = p->to.offset;
++			
++			// runtime.tlsgm (aka gmsym) is special.
++			// Its "address" is the offset from the TLS thread pointer
++			// to the thread-local g and m pointers.
++			// Emit a TLS relocation instead of a standard one.
++			// The TLS flag_shared case is not tested and probably now wrong.
+ 			if(rel->sym == ctxt->gmsym) {
+ 				rel->type = D_TLS;
+ 				if(ctxt->flag_shared)
+-					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
++					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz; // TODO: probably wrong
+ 				rel->xadd = rel->add;
+ 				rel->xsym = rel->sym;
+ 			} else if(ctxt->flag_shared) {
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 665108cb97..da688066a6 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -198,7 +198,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ {
+ 	Prog *p, *pl, *q, *q1, *q2;
+ 	int o;
+-	LSym *tlsfallback;
+ 	int32 autosize, autoffset;
+ 	
+ 	autosize = 0;
+@@ -206,7 +205,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	if(ctxt->symmorestack[0] == nil)
+ 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
+ 	
+-	tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
+ 	if(ctxt->gmsym == nil)
+ 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+ 	q = nil;
+@@ -349,78 +347,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				}
+ 			}
+ 			break;
+-		case AWORD:
+-			// Rewrite TLS register fetch: MRC 15, 0, <reg>, C13, C0, 3
+-			if((p->to.offset & 0xffff0fff) == 0xee1d0f70) {
+-				if(ctxt->headtype == Hopenbsd) {
+-					p->as = ARET;
+-					break;
+-				}
+-				if(ctxt->goarm < 7) {
+-					// BL runtime.read_tls_fallback(SB)
+-					p->as = ABL;
+-					p->to.type = D_BRANCH;
+-					p->to.sym = tlsfallback;
+-					p->to.offset = 0;
+-					cursym->text->mark &= ~LEAF;
+-				}
+-				// runtime.tlsgm is relocated with R_ARM_TLS_LE32
+-				// and $runtime.tlsgm will contain the TLS offset.
+-				//
+-				// MOV $runtime.tlsgm+ctxt->tlsoffset(SB), REGTMP
+-				// ADD REGTMP, <reg>
+-				//
+-				// In shared mode, runtime.tlsgm is relocated with
+-				// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
+-				// to the GOT entry containing the TLS offset.
+-				//
+-				// MOV runtime.tlsgm(SB), REGTMP
+-				// ADD REGTMP, <reg>
+-				// SUB -ctxt->tlsoffset, <reg>
+-				//
+-				// The SUB compensates for ctxt->tlsoffset
+-				// used in runtime.save_gm and runtime.load_gm.
+-				q = p;
+-				p = appendp(ctxt, p);
+-				p->as = AMOVW;
+-				p->scond = C_SCOND_NONE;
+-				p->reg = NREG;
+-				if(ctxt->flag_shared) {
+-					p->from.type = D_OREG;
+-					p->from.offset = 0;
+-				} else {
+-					p->from.type = D_CONST;
+-					p->from.offset = ctxt->tlsoffset;
+-				}
+-				p->from.sym = ctxt->gmsym;
+-				p->from.name = D_EXTERN;
+-				p->to.type = D_REG;
+-				p->to.reg = REGTMP;
+-				p->to.offset = 0;
+-
+-				p = appendp(ctxt, p);
+-				p->as = AADD;
+-				p->scond = C_SCOND_NONE;
+-				p->reg = NREG;
+-				p->from.type = D_REG;
+-				p->from.reg = REGTMP;
+-				p->to.type = D_REG;
+-				p->to.reg = (q->to.offset & 0xf000) >> 12;
+-				p->to.offset = 0;
+-
+-				if(ctxt->flag_shared) {
+-					p = appendp(ctxt, p);
+-					p->as = ASUB;
+-					p->scond = C_SCOND_NONE;
+-					p->reg = NREG;
+-					p->from.type = D_CONST;
+-					p->from.offset = -ctxt->tlsoffset;
+-					p->to.type = D_REG;
+-					p->to.reg = (q->to.offset & 0xf000) >> 12;
+-					p->to.offset = 0;
+-				}
+-				break;
+-			}
+ 		}
+ 		q = p;
+ 	}
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 164cd80292..1591136bc7 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -627,22 +627,33 @@ _next:
+ // Note: all three functions will clobber R0, and the last
+ // two can be called from 5c ABI code.
+ 
++// save_gm saves the g and m registers into pthread-provided
++// thread-local memory, so that we can call externally compiled
++// ARM code that will overwrite those registers.
++// NOTE: runtime.gogo assumes that R1 is preserved by this function.
+ TEXT runtime·save_gm(SB),NOSPLIT,$0
+-	// NOTE: Liblink adds some instructions following the MRC
+-	// to adjust R0 so that 8(R0) and 12(R0) are the TLS copies of
+-	// the g and m registers. It's a bit too magical for its own good.
+-	MRC		15, 0, R0, C13, C0, 3 // Fetch TLS register
+-	MOVW	g, 8(R0)
+-	MOVW	m, 12(R0)
++	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
++	// $runtime.tlsgm(SB) is a special linker symbol.
++	// It is the offset from the TLS base pointer to our
++	// thread-local storage for g and m.
++	MOVW	$runtime·tlsgm(SB), R11
++	ADD	R11, R0
++	MOVW	g, 0(R0)
++	MOVW	m, 4(R0)
+ 	RET
+ 
++// load_gm loads the g and m registers from pthread-provided
++// thread-local memory, for use after calling externally compiled
++// ARM code that overwrote those registers.
+ TEXT runtime·load_gm(SB),NOSPLIT,$0
+-	// NOTE: Liblink adds some instructions following the MRC
+-	// to adjust R0 so that 8(R0) and 12(R0) are the TLS copies of
+-	// the g and m registers. It's a bit too magical for its own good.
+-	MRC		15, 0, R0, C13, C0, 3 // Fetch TLS register
+-	MOVW	8(R0), g
+-	MOVW	12(R0), m
++	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
++	// $runtime.tlsgm(SB) is a special linker symbol.
++	// It is the offset from the TLS base pointer to our
++	// thread-local storage for g and m.
++	MOVW	$runtime·tlsgm(SB), R11
++	ADD	R11, R0
++	MOVW	0(R0), g
++	MOVW	4(R0), m
+ 	RET
+ 
+ // void setmg_gcc(M*, G*); set m and g called from gcc.

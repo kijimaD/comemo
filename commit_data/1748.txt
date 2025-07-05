@@ -8,6 +8,37 @@ Date:   Wed Mar 4 21:41:12 2009 -0800
     DELTA=3  (0 added, 1 deleted, 2 changed)
     OCL=25728
     CL=25728
-
+---
  src/lib/regexp/regexp.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 93dec5ad73..fe3a21885c 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -10,7 +10,6 @@
+ //		concatenation { '|' concatenation }
+ //	concatenation:
+ //		{ closure }
+-//
+ //	closure:
+ //		term [ '*' | '+' | '?' ]
+ //	term:
+@@ -31,7 +30,7 @@ import (
+ 
+ var debug = false;
+ 
+-// Error codes returned by faliures to parse an expression.
++// Error codes returned by failures to parse an expression.
+ var ErrInternal = os.NewError("internal error");
+ var ErrUnmatchedLpar = os.NewError("unmatched '('");
+ var ErrUnmatchedRpar = os.NewError("unmatched ')'");
+@@ -717,7 +716,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ // substrings matched by the expression.
+ //    s[a[0]:a[1]] is the substring matched by the entire expression.
+ //    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
+-// A value of -1 means the subexpression did not match any element of the string.
++// A negative value means the subexpression did not match any element of the string.
+ // An empty array means "no match".
+ // (Regexp is an internal type that implements the Regexp interface.)
+ func (re *Regexp) Execute(s string) (a []int) {

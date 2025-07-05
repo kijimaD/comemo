@@ -11,8 +11,104 @@ Date:   Tue Jun 12 00:36:39 2012 -0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6304064
-
+---
  src/pkg/encoding/gob/encode.go       |  8 ++++++-
  src/pkg/encoding/gob/encoder.go      |  6 +++++
  src/pkg/encoding/gob/encoder_test.go | 44 ++++++++++++++++++++++++++++++++++++
  3 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index 168e08b137..764351db6d 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -426,6 +426,12 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp e
+ // by the concrete value.  A nil value gets sent as the empty string for the name,
+ // followed by no value.
+ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
++	// Gobs can encode nil interface values but not typed interface
++	// values holding nil pointers, since nil pointers point to no value.
++	elem := iv.Elem()
++	if elem.Kind() == reflect.Ptr && elem.IsNil() {
++		errorf("gob: cannot encode nil pointer of type %s inside interface", iv.Elem().Type())
++	}
+ 	state := enc.newEncoderState(b)
+ 	state.fieldnum = -1
+ 	state.sendZero = true
+@@ -454,7 +460,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	enc.pushWriter(b)
+ 	data := new(bytes.Buffer)
+ 	data.Write(spaceForLength)
+-	enc.encode(data, iv.Elem(), ut)
++	enc.encode(data, elem, ut)
+ 	if enc.err != nil {
+ 		error_(enc.err)
+ 	}
+diff --git a/src/pkg/encoding/gob/encoder.go b/src/pkg/encoding/gob/encoder.go
+index a15b5a1f9a..51444bb526 100644
+--- a/src/pkg/encoding/gob/encoder.go
++++ b/src/pkg/encoding/gob/encoder.go
+@@ -218,6 +218,12 @@ func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
+ // EncodeValue transmits the data item represented by the reflection value,
+ // guaranteeing that all necessary type information has been transmitted first.
+ func (enc *Encoder) EncodeValue(value reflect.Value) error {
++	// Gobs contain values. They cannot represent nil pointers, which
++	// have no value to encode.
++	if value.Kind() == reflect.Ptr && value.IsNil() {
++		panic("gob: cannot encode nil pointer of type " + value.Type().String())
++	}
++
+ 	// Make sure we're single-threaded through here, so multiple
+ 	// goroutines can share an encoder.
+ 	enc.mutex.Lock()
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index c4947cbb8d..c3c87dc4f1 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -736,3 +736,47 @@ func TestPtrToMapOfMap(t *testing.T) {
+ 		t.Fatalf("expected %v got %v", data, newData)
+ 	}
+ }
++
++// A top-level nil pointer generates a panic with a helpful string-valued message.
++func TestTopLevelNilPointer(t *testing.T) {
++	errMsg := topLevelNilPanic(t)
++	if errMsg == "" {
++		t.Fatal("top-level nil pointer did not panic")
++	}
++	if !strings.Contains(errMsg, "nil pointer") {
++		t.Fatal("expected nil pointer error, got:", errMsg)
++	}
++}
++
++func topLevelNilPanic(t *testing.T) (panicErr string) {
++	defer func() {
++		e := recover()
++		if err, ok := e.(string); ok {
++			panicErr = err
++		}
++	}()
++	var ip *int
++	buf := new(bytes.Buffer)
++	if err := NewEncoder(buf).Encode(ip); err != nil {
++		t.Fatal("error in encode:", err)
++	}
++	return
++}
++
++func TestNilPointerInsideInterface(t *testing.T) {
++	var ip *int
++	si := struct {
++		I interface{}
++	}{
++		I: ip,
++	}
++	buf := new(bytes.Buffer)
++	err := NewEncoder(buf).Encode(si)
++	if err == nil {
++		t.Fatal("expected error, got none")
++	}
++	errMsg := err.Error()
++	if !strings.Contains(errMsg, "nil pointer") || !strings.Contains(errMsg, "interface") {
++		t.Fatal("expected error about nil pointer and interface, got:", errMsg)
++	}
++}

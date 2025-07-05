@@ -7,6 +7,20 @@ Date:   Fri Oct 24 21:02:51 2008 -0700
     R=rsc
     OCL=17841
     CL=17841
-
+---
  src/lib/reflect/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/reflect/test.go b/src/lib/reflect/test.go
+index 615dda8902..d899929fe9 100644
+--- a/src/lib/reflect/test.go
++++ b/src/lib/reflect/test.go
+@@ -149,7 +149,7 @@ func main() {
+ 		var i int = 7;
+ 		var tmp = &T{123, 456.0, "hello", &i};
+ 		value := reflect.NewValue(tmp);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int32(134980)}");
++		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, +4.560000e+02, hello, *int32(@)}");
+ 	}
+ 	{
+ 		type C chan *T;	// TODO: should not be necessary

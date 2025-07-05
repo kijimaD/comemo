@@ -12,6 +12,29 @@ Date:   Fri Nov 16 20:06:11 2012 +0400
     R=golang-dev, alex.brainman, iant
     CC=golang-dev
     https://golang.org/cl/6849057
-
+---
  src/pkg/runtime/race.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 23866f01d1..aae43852a3 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -34,9 +34,16 @@ static bool onstack(uintptr argp);
+ void
+ runtime·raceinit(void)
+ {
++	uintptr sz;
++
+ 	m->racecall = true;
+ 	runtime∕race·Initialize();
+-	runtime∕race·MapShadow(noptrdata, enoptrbss - noptrdata);
++	sz = (byte*)&runtime·mheap - noptrdata;
++	if(sz)
++		runtime∕race·MapShadow(noptrdata, sz);
++	sz = enoptrbss - (byte*)(&runtime·mheap+1);
++	if(sz)
++		runtime∕race·MapShadow(&runtime·mheap+1, sz);
+ 	m->racecall = false;
+ }
+ 

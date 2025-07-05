@@ -9,7 +9,34 @@ Date:   Wed Dec 9 17:51:23 2015 +0000
     Change-Id: I407daad8b94f6773d7949ba27981d26cbfd2cdf4
     Reviewed-on: https://go-review.googlesource.com/17682
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/race/race.go                 | 2 +-
  src/runtime/race/testdata/select_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/race.go b/src/runtime/race/race.go
+index 31deedd73d..15e20112a8 100644
+--- a/src/runtime/race/race.go
++++ b/src/runtime/race/race.go
+@@ -9,7 +9,7 @@ package race
+ // This file merely ensures that we link in runtime/cgo in race build,
+ // this is turn ensures that runtime uses pthread_create to create threads.
+ // The prebuilt race runtime lives in race_GOOS_GOARCH.syso.
+-// Calls to the runtime are done directly from src/runtime/race.c.
++// Calls to the runtime are done directly from src/runtime/race.go.
+ 
+ // void __race_unused_func(void);
+ import "C"
+diff --git a/src/runtime/race/testdata/select_test.go b/src/runtime/race/testdata/select_test.go
+index b4b1991155..9969f47e8e 100644
+--- a/src/runtime/race/testdata/select_test.go
++++ b/src/runtime/race/testdata/select_test.go
+@@ -19,7 +19,7 @@ func TestNoRaceSelect1(t *testing.T) {
+ 		x = 1
+ 		// At least two channels are needed because
+ 		// otherwise the compiler optimizes select out.
+-		// See comment in runtime/chan.c:^selectgo.
++		// See comment in runtime/select.go:^func selectgoImpl.
+ 		select {
+ 		case c <- true:
+ 		case c1 <- true:

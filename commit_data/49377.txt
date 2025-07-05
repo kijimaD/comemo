@@ -14,7 +14,34 @@ Date:   Mon Aug 9 17:12:37 2021 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/ioctl_aix.go | 2 +-
  src/net/interface_aix.go               | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/syscall/unix/ioctl_aix.go b/src/internal/syscall/unix/ioctl_aix.go
+index 19d56c36a1..d361533b5c 100644
+--- a/src/internal/syscall/unix/ioctl_aix.go
++++ b/src/internal/syscall/unix/ioctl_aix.go
+@@ -16,7 +16,7 @@ var libc_ioctl uintptr
+ // Implemented in syscall/syscall_aix.go.
+ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
+-func Ioctl(fd int, cmd int, args uintptr) (err error) {
++func Ioctl(fd int, cmd int, args unsafe.Pointer) (err error) {
+ 	_, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_ioctl)), 3, uintptr(fd), uintptr(cmd), uintptr(args), 0, 0, 0)
+ 	if e1 != 0 {
+ 		err = e1
+diff --git a/src/net/interface_aix.go b/src/net/interface_aix.go
+index 49f78c2abb..7ad45d1175 100644
+--- a/src/net/interface_aix.go
++++ b/src/net/interface_aix.go
+@@ -78,7 +78,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 				// Retrieve MTU
+ 				ifr := &ifreq{}
+ 				copy(ifr.Name[:], ifi.Name)
+-				err = unix.Ioctl(sock, syscall.SIOCGIFMTU, uintptr(unsafe.Pointer(ifr)))
++				err = unix.Ioctl(sock, syscall.SIOCGIFMTU, unsafe.Pointer(ifr))
+ 				if err != nil {
+ 					return nil, err
+ 				}

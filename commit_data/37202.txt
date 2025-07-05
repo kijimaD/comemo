@@ -17,8 +17,71 @@ Date:   Thu Jul 5 20:31:33 2018 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  6 ++++++
  test/fixedbugs/issue23545.go           |  4 ----
  test/fixedbugs/issue23546.go           | 22 ++++++++++++++++++++++
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index cbd65c2934..b9124b6317 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -958,6 +958,12 @@ func typesymprefix(prefix string, t *types.Type) *types.Sym {
+ 	p := prefix + "." + t.ShortString()
+ 	s := typeLookup(p)
+ 
++	// This function is for looking up type-related generated functions
++	// (e.g. eq and hash). Make sure they are indeed generated.
++	signatsetmu.Lock()
++	addsignat(t)
++	signatsetmu.Unlock()
++
+ 	//print("algsym: %s -> %+S\n", p, s);
+ 
+ 	return s
+diff --git a/test/fixedbugs/issue23545.go b/test/fixedbugs/issue23545.go
+index 24485c11c5..d97f64af5a 100644
+--- a/test/fixedbugs/issue23545.go
++++ b/test/fixedbugs/issue23545.go
+@@ -4,12 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gccgo
+-
+ // Issue 23545: gccgo didn't lower array comparison to
+ // proper equality function in some case.
+-// TODO: build only on gccgo for now, as it hits issue
+-// #23546.
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue23546.go b/test/fixedbugs/issue23546.go
+new file mode 100644
+index 0000000000..818f0cd6bf
+--- /dev/null
++++ b/test/fixedbugs/issue23546.go
+@@ -0,0 +1,22 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 23546: type..eq function not generated when
++// DWARF is disabled.
++
++package main
++
++func main() {
++	use(f() == f())
++}
++
++func f() [2]interface{} {
++	var out [2]interface{}
++	return out
++}
++
++//go:noinline
++func use(bool) {}

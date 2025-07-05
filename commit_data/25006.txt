@@ -9,6 +9,23 @@ Date:   Tue Sep 15 15:39:47 2015 -0700
     Change-Id: If9cf2bbb5016e40aa91cf1c8bb62982ae2aed5e4
     Reviewed-on: https://go-review.googlesource.com/14621
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/dist/test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5f8afd0cb3..2cc4610595 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -277,6 +277,11 @@ func (t *tester) registerStdTest(pkg string) {
+ 
+ // TODO: Remove when SSA codegen is used by default.
+ func (t *tester) registerSSATest(pkg string) {
++	switch pkg {
++	// known failures
++	case "runtime":
++		return
++	}
+ 	t.tests = append(t.tests, distTest{
+ 		name:    "go_test_ssa:" + pkg,
+ 		heading: "Testing packages with SSA codegen.",

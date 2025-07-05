@@ -13,6 +13,22 @@ Date:   Mon Sep 30 21:46:32 2019 +0000
     GitHub-Pull-Request: golang/go#33719
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190817
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/net/ip.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 1a1d0e7dba..7a55486933 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -65,8 +65,8 @@ func IPv4Mask(a, b, c, d byte) IPMask {
+ 	return p
+ }
+ 
+-// CIDRMask returns an IPMask consisting of `ones' 1 bits
+-// followed by 0s up to a total length of `bits' bits.
++// CIDRMask returns an IPMask consisting of 'ones' 1 bits
++// followed by 0s up to a total length of 'bits' bits.
+ // For a mask of this form, CIDRMask is the inverse of IPMask.Size.
+ func CIDRMask(ones, bits int) IPMask {
+ 	if bits != 8*IPv4len && bits != 8*IPv6len {

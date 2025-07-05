@@ -13,7 +13,53 @@ Date:   Wed Oct 26 16:48:53 2016 -0400
     Change-Id: Ia0b7a1a32810aa78157ae77bd0130b78154c460d
     Reviewed-on: https://go-review.googlesource.com/32176
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go      |  6 +++---
  src/net/mail/message_test.go | 10 ++++++++++
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index b1d526bba9..aa3a3e78c4 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -346,6 +346,9 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
+ 		// quoted-string
+ 		debug.Printf("consumeAddrSpec: parsing quoted-string")
+ 		localPart, err = p.consumeQuotedString()
++		if localPart == "" {
++			err = errors.New("mail: empty quoted string in addr-spec")
++		}
+ 	} else {
+ 		// dot-atom
+ 		debug.Printf("consumeAddrSpec: parsing dot-atom")
+@@ -463,9 +466,6 @@ Loop:
+ 		i += size
+ 	}
+ 	p.s = p.s[i+1:]
+-	if len(qsb) == 0 {
+-		return "", errors.New("mail: empty quoted-string")
+-	}
+ 	return string(qsb), nil
+ }
+ 
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index b29e375f2e..f0761ab09f 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -315,6 +315,16 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// Issue 14866
++		{
++			`"" <emptystring@example.com>`,
++			[]*Address{
++				{
++					Name:    "",
++					Address: "emptystring@example.com",
++				},
++			},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		if len(test.exp) == 1 {

@@ -22,7 +22,46 @@ Date:   Thu Nov 21 16:26:09 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                |  5 ++++-
  src/cmd/go/testdata/script/list_linkshared.txt | 16 ++++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 8fc33e35fa..0d63187e06 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1584,7 +1584,10 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		p.Target = ""
+ 	} else {
+ 		p.Target = p.Internal.Build.PkgObj
+-		if cfg.BuildLinkshared {
++		if cfg.BuildLinkshared && p.Target != "" {
++			// TODO(bcmills): The reliance on p.Target implies that -linkshared does
++			// not work for any package that lacks a Target — such as a non-main
++			// package in module mode. We should probably fix that.
+ 			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
+ 			shlib, err := ioutil.ReadFile(shlibnamefile)
+ 			if err != nil && !os.IsNotExist(err) {
+diff --git a/src/cmd/go/testdata/script/list_linkshared.txt b/src/cmd/go/testdata/script/list_linkshared.txt
+new file mode 100644
+index 0000000000..baae1e2be8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_linkshared.txt
+@@ -0,0 +1,16 @@
++env GO111MODULE=on
++
++# golang.org/issue/35759: 'go list -linkshared'
++# panicked if invoked on a test-only package.
++
++[!buildmode:shared] skip
++
++go list -f '{{.ImportPath}}: {{.Target}} {{.Shlib}}' -linkshared .
++stdout '^example.com:  $'
++
++-- go.mod --
++module example.com
++
++go 1.14
++-- x.go --
++package x

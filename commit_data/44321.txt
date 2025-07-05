@@ -22,7 +22,53 @@ Date:   Tue Jun 9 22:00:18 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/addr2line/addr2line_test.go | 8 +++++---
  src/run.bat                         | 5 -----
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index e12f0ae814..578d88e432 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -73,6 +73,8 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ 	if err != nil {
+ 		t.Fatalf("Stat failed: %v", err)
+ 	}
++	// Debug paths are stored slash-separated, so convert to system-native.
++	srcPath = filepath.FromSlash(srcPath)
+ 	fi2, err := os.Stat(srcPath)
+ 	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" && strings.HasPrefix(srcPath, gorootFinal) {
+ 		if os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2)) {
+@@ -88,12 +90,12 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ 	if !os.SameFile(fi1, fi2) {
+ 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
+ 	}
+-	if srcLineNo != "97" {
+-		t.Fatalf("line number = %v; want 97", srcLineNo)
++	if srcLineNo != "99" {
++		t.Fatalf("line number = %v; want 99", srcLineNo)
+ 	}
+ }
+ 
+-// This is line 96. The test depends on that.
++// This is line 98. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/run.bat b/src/run.bat
+index 90602b68cb..c299671c13 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -35,11 +35,6 @@ if errorlevel 1 goto fail
+ echo.
+ :norebuild
+ 
+-:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
+-:: correct access to source code, so if we have GOROOT_FINAL in effect,
+-:: at least runtime/debug test will fail.
+-set GOROOT_FINAL=
+-
+ :: get CGO_ENABLED
+ ..\bin\go env > env.bat
+ if errorlevel 1 goto fail

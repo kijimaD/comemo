@@ -7,7 +7,61 @@ Date:   Mon Oct 22 01:05:21 2012 +0800
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/6713043
-
+---
  misc/chrome/gophertool/popup.html | 10 +++++-----
  misc/chrome/gophertool/popup.js   | 16 ++++++++++++----
  2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index aec10048a3..8bb7795fac 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -9,11 +9,11 @@
+ <script src="popup.js"></script>
+ </head>
+ <body style='margin: 0.5em; font-family: sans;'>
+-<small><a href="#" onclick="openURL('http://code.google.com/p/go/issues/list')">issue</a>,
+-<a href="#" onclick="openURL('http://codereview.appspot.com/')">codereview</a>,
+-<a href="#" onclick="openURL('http://code.google.com/p/go/source/list')">commit</a>, or
+-<a href="#" onclick="openURL('http://golang.org/pkg/')">pkg</a> id/name:</small>
++<small><a href="#" url="http://code.google.com/p/go/issues/list">issue</a>,
++<a href="#" url="http://codereview.appspot.com/">codereview</a>,
++<a href="#" url="http://code.google.com/p/go/source/list">commit</a>, or
++<a href="#" url="http://golang.org/pkg/">pkg</a> id/name:</small>
+ <form style='margin: 0' id='navform'><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+-<small>Also: <a href="#" id='buildbotslink'>buildbots</small>
++<small>Also: <a href="#" url="http://build.golang.org">buildbots</a></small>
+ </body>
+ </html>
+diff --git a/misc/chrome/gophertool/popup.js b/misc/chrome/gophertool/popup.js
+index 717fc169cd..410d65120e 100644
+--- a/misc/chrome/gophertool/popup.js
++++ b/misc/chrome/gophertool/popup.js
+@@ -2,7 +2,19 @@ function openURL(url) {
+   chrome.tabs.create({ "url": url })
+ }
+ 
++function addLinks() {
++  var links = document.getElementsByTagName("a");
++  for (var i = 0; i < links.length; i++) {
++    var url = links[i].getAttribute("url");
++    if (url)
++      links[i].addEventListener("click", function () {
++        openURL(this.getAttribute("url"));
++      });
++  }
++}
++
+ window.addEventListener("load", function () {
++  addLinks();
+   console.log("hacking gopher pop-up loaded.");
+   document.getElementById("inputbox").focus();
+ });
+@@ -32,7 +44,3 @@ window.addEventListener("submit", function () {
+   console.log("no match for text: " + t)
+   return false;
+ });
+-
+-window.addEventListener("click", function () {
+-  openURL("http://build.golang.org/");
+-});

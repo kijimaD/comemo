@@ -12,7 +12,7 @@ Date:   Thu Mar 31 14:46:04 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  2 +-
  src/cmd/compile/internal/gc/align.go     |  4 ++--
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
@@ -28,3 +28,406 @@ Date:   Thu Mar 31 14:46:04 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
  src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
  14 files changed, 48 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 43876d8bef..448986203d 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -140,7 +140,7 @@ func algtype1(t *Type) (AlgKind, *Type) {
+ 			return ANOEQ, bad
+ 		}
+ 
+-		switch t.Bound {
++		switch t.NumElem() {
+ 		case 0:
+ 			// We checked above that the element type is comparable.
+ 			return AMEM, nil
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 85376c6b7e..b7ed9f19b9 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -242,12 +242,12 @@ func dowidth(t *Type) {
+ 			dowidth(t.Elem())
+ 			if t.Elem().Width != 0 {
+ 				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+-				if uint64(t.Bound) > cap {
++				if uint64(t.NumElem()) > cap {
+ 					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
+ 				}
+ 			}
+ 
+-			w = t.Bound * t.Elem().Width
++			w = t.NumElem() * t.Elem().Width
+ 			t.Align = t.Elem().Align
+ 		} else if t.IsSlice() {
+ 			w = int64(sizeof_Array)
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 95762caec8..15b3118f16 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -508,7 +508,7 @@ func (p *exporter) typ(t *Type) {
+ 		}
+ 		if t.IsArray() {
+ 			p.tag(arrayTag)
+-			p.int64(t.Bound)
++			p.int64(t.NumElem())
+ 		} else {
+ 			p.tag(sliceTag)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index d9c37df4d8..b7d9d2c88b 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1077,7 +1077,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 					Regalloc(&n4, Types[TUINT32], nil)
+ 					Thearch.Gmove(&n1, &n4)
+ 				} else {
+-					Nodconst(&n4, Types[TUINT32], nl.Type.Bound)
++					Nodconst(&n4, Types[TUINT32], nl.Type.NumElem())
+ 				}
+ 				p1 := Thearch.Ginscmp(OLT, Types[TUINT32], &n2, &n4, +1)
+ 				if n4.Op == OREGISTER {
+@@ -1235,7 +1235,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 					nlen.Type = t
+ 					nlen.Xoffset += int64(Array_nel)
+ 				} else {
+-					Nodconst(&nlen, t, nl.Type.Bound)
++					Nodconst(&nlen, t, nl.Type.NumElem())
+ 				}
+ 
+ 				p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
+@@ -1416,7 +1416,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			} else if nl.Type.IsSlice() || nl.Type.IsString() {
+ 				// nlen already initialized
+ 			} else {
+-				Nodconst(&nlen, t, nl.Type.Bound)
++				Nodconst(&nlen, t, nl.Type.NumElem())
+ 			}
+ 
+ 			p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
+@@ -3025,7 +3025,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			return
+ 		}
+ 		if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
+-			Nodconst(&xlen, indexRegType, n.Left.Type.Elem().Bound)
++			Nodconst(&xlen, indexRegType, n.Left.Type.Elem().NumElem())
+ 			return
+ 		}
+ 		if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
+@@ -3183,7 +3183,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 	// The func obvious below checks for out-of-order constant indexes.
+ 	var bound int64 = -1
+ 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
+-		bound = n.Left.Type.Elem().Bound
++		bound = n.Left.Type.Elem().NumElem()
+ 	} else if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
+ 		bound = int64(len(n.Left.Val().U.(string)))
+ 	}
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index b6136b2f71..b9a0a61638 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -587,7 +587,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 
+ 	case TARRAY:
+ 		if t.IsArray() {
+-			return fmt.Sprintf("[%d]%v", t.Bound, t.Elem())
++			return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
+ 		}
+ 		if t.isDDDArray() {
+ 			return "[...]" + t.Elem().String()
+@@ -729,6 +729,12 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 			return "@\"unsafe\".Pointer"
+ 		}
+ 		return "unsafe.Pointer"
++
++	case TDDDFIELD:
++		if fmtmode == FExp {
++			Fatalf("cannot use TDDDFIELD with old exporter")
++		}
++		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Wrapped())
+ 	}
+ 
+ 	if fmtmode == FExp {
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 1de63aed9f..f99e8d4a09 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1215,7 +1215,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 			return true
+ 		}
+ 
+-		for i := int64(0); i < t.Bound; i++ {
++		for i := int64(0); i < t.NumElem(); i++ {
+ 			if !visitComponents(t.Elem(), startOffset+i*t.Elem().Width, f) {
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 1e66920120..43f594e2ea 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -926,7 +926,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
+ 			*xoffset += t.Width
+ 		} else {
+-			for i := int64(0); i < t.Bound; i++ {
++			for i := int64(0); i < t.NumElem(); i++ {
+ 				onebitwalktype1(t.Elem(), xoffset, bv)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a5c85eb98e..7d07b4b064 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -684,7 +684,7 @@ func haspointers(t *Type) bool {
+ 			break
+ 		}
+ 
+-		if t.Bound == 0 { // empty array
++		if t.NumElem() == 0 { // empty array
+ 			ret = false
+ 			break
+ 		}
+@@ -747,8 +747,8 @@ func typeptrdata(t *Type) int64 {
+ 			// struct { byte *array; uintgo len; uintgo cap; }
+ 			return int64(Widthptr)
+ 		}
+-		// haspointers already eliminated t.Bound == 0.
+-		return (t.Bound-1)*t.Elem().Width + typeptrdata(t.Elem())
++		// haspointers already eliminated t.NumElem() == 0.
++		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		// Find the last field that has pointers.
+@@ -1127,7 +1127,7 @@ ok:
+ 			ot = dcommontype(s, ot, t)
+ 			ot = dsymptr(s, ot, s1, 0)
+ 			ot = dsymptr(s, ot, s2, 0)
+-			ot = duintptr(s, ot, uint64(t.Bound))
++			ot = duintptr(s, ot, uint64(t.NumElem()))
+ 		} else {
+ 			// ../../../../runtime/type.go:/sliceType
+ 			s1 := dtypesym(t.Elem())
+@@ -1637,16 +1637,16 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 			p.w.Ptr(offset / int64(Widthptr))
+ 			return
+ 		}
+-		if t.Bound == 0 {
++		if t.NumElem() == 0 {
+ 			// should have been handled by haspointers check above
+ 			Fatalf("GCProg.emit: empty array")
+ 		}
+ 
+ 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
+-		count := t.Bound
++		count := t.NumElem()
+ 		elem := t.Elem()
+ 		for elem.IsArray() {
+-			count *= elem.Bound
++			count *= elem.NumElem()
+ 			elem = elem.Elem()
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5144a2526e..7a4e68f15f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -945,7 +945,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a.Nbody.Set1(r)
+ 
+ 		a.Ninit.Set1(Nod(OAS, index, Nodintconst(0)))
+-		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
++		a.Left = Nod(OLT, index, Nodintconst(tarr.NumElem()))
+ 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+ 
+ 		a = typecheck(a, Etop)
+@@ -1112,7 +1112,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		}
+ 
+ 		// initialize of not completely specified
+-		if var_.isSimpleName() || int64(n.List.Len()) < t.Bound {
++		if var_.isSimpleName() || int64(n.List.Len()) < t.NumElem() {
+ 			a := Nod(OAS, var_, nil)
+ 			a = typecheck(a, Etop)
+ 			a = walkexpr(a, init)
+@@ -1399,7 +1399,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+ 
+ 			nam.Xoffset += int64(Array_nel) - int64(Array_array)
+ 			var nod1 Node
+-			Nodconst(&nod1, Types[TINT], nr.Type.Bound)
++			Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
+ 			gdata(&nam, &nod1, Widthint)
+ 
+ 			nam.Xoffset += int64(Array_cap) - int64(Array_nel)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5626feb694..45e58d5440 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1973,7 +1973,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		case n.Left.Type.IsMap(), n.Left.Type.IsChan():
+ 			return s.referenceTypeBuiltin(n, s.expr(n.Left))
+ 		default: // array
+-			return s.constInt(Types[TINT], n.Left.Type.Bound)
++			return s.constInt(Types[TINT], n.Left.Type.NumElem())
+ 		}
+ 
+ 	case OSPTR:
+@@ -2668,7 +2668,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			a := s.addr(n.Left, bounded)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			len := s.constInt(Types[TINT], n.Left.Type.Bound)
++			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+ 			}
+@@ -3157,7 +3157,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 		ptrtype = Ptrto(elemtype)
+ 		s.nilCheck(v)
+ 		ptr = v
+-		len = s.constInt(Types[TINT], t.Elem().Bound)
++		len = s.constInt(Types[TINT], t.Elem().NumElem())
+ 		cap = len
+ 	default:
+ 		s.Fatalf("bad type in slice %v\n", t)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b4acb5b1af..a643da8f41 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -739,7 +739,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 		return true
+ 
+ 	case TARRAY:
+-		if t1.Bound != t2.Bound {
++		if t1.NumElem() != t2.NumElem() {
+ 			return false
+ 		}
+ 
+@@ -2255,7 +2255,7 @@ func isdirectiface(t *Type) bool {
+ 
+ 	case TARRAY:
+ 		// Array of 1 direct iface type can be direct.
+-		return t.Bound == 1 && isdirectiface(t.Elem())
++		return t.NumElem() == 1 && isdirectiface(t.Elem())
+ 
+ 	case TSTRUCT:
+ 		// Struct with 1 field of direct iface type can be direct.
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index c452bcf301..d81ccbbbe7 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -812,8 +812,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		return ssa.CMPeq
+ 
+ 	case TARRAY:
+-		if t.Bound != x.Bound {
+-			return cmpForNe(t.Bound < x.Bound)
++		if t.NumElem() != x.NumElem() {
++			return cmpForNe(t.NumElem() < x.NumElem())
+ 		}
+ 
+ 	case TCHAN:
+@@ -931,9 +931,7 @@ func (t *Type) FieldOff(i int) int64 {
+ }
+ 
+ func (t *Type) NumElem() int64 {
+-	if t.Etype != TARRAY {
+-		panic("NumElem on non-TARRAY")
+-	}
++	t.wantEtype(TARRAY)
+ 	t.checkBound()
+ 	return t.Bound
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 68e29b620a..b61d16b021 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1011,8 +1011,8 @@ OpSwitch:
+ 				x := n.Right.Val().U.(*Mpint).Int64()
+ 				if x < 0 {
+ 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
+-				} else if t.IsArray() && x >= t.Bound {
+-					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
++				} else if t.IsArray() && x >= t.NumElem() {
++					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
+ 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
+ 					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+ 				} else if n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+@@ -1418,7 +1418,7 @@ OpSwitch:
+ 				break
+ 			}
+ 			var r Node
+-			Nodconst(&r, Types[TINT], t.Bound)
++			Nodconst(&r, Types[TINT], t.NumElem())
+ 			r.Orig = n
+ 			n = &r
+ 		}
+@@ -2215,8 +2215,8 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
+ 		if r.Val().U.(*Mpint).Int64() < 0 {
+ 			Yyerror("invalid slice index %v (index must be non-negative)", r)
+ 			return false
+-		} else if tp != nil && tp.Bound > 0 && r.Val().U.(*Mpint).Int64() > tp.Bound {
+-			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.Bound)
++		} else if tp != nil && tp.NumElem() > 0 && r.Val().U.(*Mpint).Int64() > tp.NumElem() {
++			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
+ 			return false
+ 		} else if Isconst(l, CTSTR) && r.Val().U.(*Mpint).Int64() > int64(len(l.Val().U.(string))) {
+ 			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
+@@ -2973,9 +2973,9 @@ func typecheckcomplit(n *Node) *Node {
+ 			i++
+ 			if int64(i) > length {
+ 				length = int64(i)
+-				if t.IsArray() && length > t.Bound {
++				if t.IsArray() && length > t.NumElem() {
+ 					setlineno(l)
+-					Yyerror("array index %d out of bounds [0:%d]", length-1, t.Bound)
++					Yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
+ 					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
+ 					t.Bound = sliceBound
+ 				}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 931017148b..3758aa0173 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -546,7 +546,7 @@ opswitch:
+ 		}
+ 		if t.IsArray() {
+ 			safeexpr(n.Left, init)
+-			Nodconst(n, n.Type, t.Bound)
++			Nodconst(n, n.Type, t.NumElem())
+ 			n.Typecheck = 1
+ 		}
+ 
+@@ -1158,7 +1158,7 @@ opswitch:
+ 			t = t.Elem()
+ 		}
+ 		if t.IsArray() {
+-			n.Bounded = bounded(r, t.Bound)
++			n.Bounded = bounded(r, t.NumElem())
+ 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+@@ -3145,12 +3145,12 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	var expr *Node
+-	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Elem().Etype] {
++	if t.Etype == TARRAY && t.NumElem() <= 4 && issimple[t.Elem().Etype] {
+ 		// Four or fewer elements of a basic type.
+ 		// Unroll comparisons.
+ 		var li *Node
+ 		var ri *Node
+-		for i := 0; int64(i) < t.Bound; i++ {
++		for i := 0; int64(i) < t.NumElem(); i++ {
+ 			li = Nod(OINDEX, l, Nodintconst(int64(i)))
+ 			ri = Nod(OINDEX, r, Nodintconst(int64(i)))
+ 			a = Nod(n.Op, li, ri)
+@@ -3170,7 +3170,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 
+ 	if t.Etype == TARRAY {
+ 		// Zero- or single-element array, of any type.
+-		switch t.Bound {
++		switch t.NumElem() {
+ 		case 0:
+ 			n = finishcompare(n, Nodbool(n.Op == OEQ), init)
+ 			return n

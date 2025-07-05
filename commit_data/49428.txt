@@ -14,6 +14,32 @@ Date:   Wed Aug 18 09:03:44 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_vet.txt | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_vet.txt b/src/cmd/go/testdata/script/test_vet.txt
+index 239a477a18..2e0ae1956a 100644
+--- a/src/cmd/go/testdata/script/test_vet.txt
++++ b/src/cmd/go/testdata/script/test_vet.txt
+@@ -51,10 +51,7 @@ func Test(t *testing.T) {
+ -- p1.go --
+ package p
+ 
+-import (
+-	"fmt"
+-	"net/http"
+-)
++import "fmt"
+ 
+ func F() {
+ 	fmt.Printf("%d") // oops
+@@ -62,6 +59,8 @@ func F() {
+ -- vetall/p.go --
+ package p
+ 
++import "net/http"
++
+ func F() {
+ 	resp, err := http.Head("example.com")
+ 	defer resp.Body.Close()

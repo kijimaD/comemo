@@ -9,6 +9,41 @@ Date:   Fri Jan 29 13:10:33 2010 -0800
     R=rsc, rog
     CC=golang-dev
     https://golang.org/cl/196061
-
+---
  src/pkg/time/tick.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index db3f68776b..bbbc469618 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -47,6 +47,7 @@ func (a *alarmer) set(ns int64) {
+ 		}
+ 		a.wakeMeAt = make(chan int64, 10)
+ 		go wakeLoop(a.wakeMeAt, a.wakeUp)
++		a.wakeTime = ns
+ 		a.wakeMeAt <- ns
+ 	}
+ }
+@@ -117,7 +118,7 @@ func tickerLoop() {
+ 					}
+ 					continue
+ 				}
+-				if tickers.nextTick <= now {
++				if t.nextTick <= now {
+ 					if len(t.c) == 0 {
+ 						// Only send if there's room.  We must not block.
+ 						// The channel is allocated with a one-element
+@@ -130,9 +131,9 @@ func tickerLoop() {
+ 						// Still behind; advance in one big step.
+ 						t.nextTick += (now - t.nextTick + t.ns) / t.ns * t.ns
+ 					}
+-					if t.nextTick > now && t.nextTick < wakeTime {
+-						wakeTime = t.nextTick
+-					}
++				}
++				if t.nextTick < wakeTime {
++					wakeTime = t.nextTick
+ 				}
+ 				prev = t
+ 			}

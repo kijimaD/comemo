@@ -21,10 +21,284 @@ Date:   Thu Aug 20 15:06:06 2020 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 19 +------
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 +--
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 12 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 36 ------------
  src/cmd/compile/internal/ssa/rewritePPC64.go | 82 ----------------------------
  5 files changed, 6 insertions(+), 152 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4d2ad48135..9c4c01e935 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -629,23 +629,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+-	case ssa.OpPPC64MaskIfNotCarry:
+-		r := v.Reg()
+-		p := s.Prog(v.Op.Asm())
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = ppc64.REGZERO
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-
+-	case ssa.OpPPC64ADDconstForCarry:
+-		r1 := v.Args[0].Reg()
+-		p := s.Prog(v.Op.Asm())
+-		p.Reg = r1
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+-
+ 	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL,
+ 		ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW,
+ 		ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS,
+@@ -1802,7 +1785,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		v.Fatalf("Pseudo-op should not make it to codegen: %s ###\n", v.LongString())
+ 	case ssa.OpPPC64InvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+-	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT, ssa.OpPPC64FlagCarrySet, ssa.OpPPC64FlagCarryClear:
++	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+ 	case ssa.OpClobber:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 14942d50f9..509cfe1c4f 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -276,18 +276,11 @@
+ (Rsh8Ux8 x y) => (SRW  (ZeroExt8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
+ (Lsh8x8 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
+ 
+-// Cleaning up shift ops when input is masked
+-(MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _))) && c < 0 && d > 0 && int64(c) + d < 0 => (MOVDconst [-1])
++// Cleaning up shift ops
+ (ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPU (ANDconst [d] y) (MOVDconst [c]))) && c >= d => (ANDconst [d] y)
+ (ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPUconst [c] (ANDconst [d] y))) && c >= d => (ANDconst [d] y)
+ (ORN x (MOVDconst [-1])) => x
+ 
+-(ADDconstForCarry [c] (MOVDconst [d])) && c < 0 && (c <  0 || int64(c) + d >= 0) => (FlagCarryClear)
+-(ADDconstForCarry [c] (MOVDconst [d])) && c < 0 &&  c >= 0 && int64(c) + d <  0  => (FlagCarrySet)
+-
+-(MaskIfNotCarry (FlagCarrySet)) => (MOVDconst [0])
+-(MaskIfNotCarry (FlagCarryClear)) => (MOVDconst [-1])
+-
+ (S(RAD|RD|LD) x (MOVDconst [c])) => (S(RAD|RD|LD)const [c&63 | (c>>6&1*63)] x)
+ (S(RAW|RW|LW) x (MOVDconst [c])) => (S(RAW|RW|LW)const [c&31 | (c>>5&1*31)] x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 825d0faf34..f91222446c 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -206,9 +206,7 @@ func init() {
+ 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
+ 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
+ 
+-		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
+-		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + auxint
+-		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
++		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
+ 
+ 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+ 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
+@@ -674,11 +672,9 @@ func init() {
+ 
+ 		// These ops are for temporary use by rewrite rules. They
+ 		// cannot appear in the generated assembly.
+-		{name: "FlagEQ"},         // equal
+-		{name: "FlagLT"},         // signed < or unsigned <
+-		{name: "FlagGT"},         // signed > or unsigned >
+-		{name: "FlagCarrySet"},   // carry flag set
+-		{name: "FlagCarryClear"}, // carry flag clear
++		{name: "FlagEQ"}, // equal
++		{name: "FlagLT"}, // signed < or unsigned <
++		{name: "FlagGT"}, // signed > or unsigned >
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4cd72799e8..e181174d11 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1853,8 +1853,6 @@ const (
+ 	OpPPC64ROTL
+ 	OpPPC64ROTLW
+ 	OpPPC64LoweredAdd64Carry
+-	OpPPC64ADDconstForCarry
+-	OpPPC64MaskIfNotCarry
+ 	OpPPC64SRADconst
+ 	OpPPC64SRAWconst
+ 	OpPPC64SRDconst
+@@ -2027,8 +2025,6 @@ const (
+ 	OpPPC64FlagEQ
+ 	OpPPC64FlagLT
+ 	OpPPC64FlagGT
+-	OpPPC64FlagCarrySet
+-	OpPPC64FlagCarryClear
+ 
+ 	OpRISCV64ADD
+ 	OpRISCV64ADDI
+@@ -24683,28 +24679,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:    "ADDconstForCarry",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     ppc64.AADDC,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			clobbers: 2147483648, // R31
+-		},
+-	},
+-	{
+-		name:   "MaskIfNotCarry",
+-		argLen: 1,
+-		asm:    ppc64.AADDME,
+-		reg: regInfo{
+-			outputs: []outputInfo{
+-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+ 	{
+ 		name:    "SRADconst",
+ 		auxType: auxInt64,
+@@ -26964,16 +26938,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
+-	{
+-		name:   "FlagCarrySet",
+-		argLen: 0,
+-		reg:    regInfo{},
+-	},
+-	{
+-		name:   "FlagCarryClear",
+-		argLen: 0,
+-		reg:    regInfo{},
+-	},
+ 
+ 	{
+ 		name:        "ADD",
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 7704b80dc6..1a0b03e81c 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -428,8 +428,6 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64ADD(v)
+ 	case OpPPC64ADDconst:
+ 		return rewriteValuePPC64_OpPPC64ADDconst(v)
+-	case OpPPC64ADDconstForCarry:
+-		return rewriteValuePPC64_OpPPC64ADDconstForCarry(v)
+ 	case OpPPC64AND:
+ 		return rewriteValuePPC64_OpPPC64AND(v)
+ 	case OpPPC64ANDN:
+@@ -570,8 +568,6 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64MOVWstorezero(v)
+ 	case OpPPC64MTVSRD:
+ 		return rewriteValuePPC64_OpPPC64MTVSRD(v)
+-	case OpPPC64MaskIfNotCarry:
+-		return rewriteValuePPC64_OpPPC64MaskIfNotCarry(v)
+ 	case OpPPC64NOR:
+ 		return rewriteValuePPC64_OpPPC64NOR(v)
+ 	case OpPPC64NotEqual:
+@@ -4075,40 +4071,6 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValuePPC64_OpPPC64ADDconstForCarry(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (ADDconstForCarry [c] (MOVDconst [d]))
+-	// cond: c < 0 && (c < 0 || int64(c) + d >= 0)
+-	// result: (FlagCarryClear)
+-	for {
+-		c := auxIntToInt16(v.AuxInt)
+-		if v_0.Op != OpPPC64MOVDconst {
+-			break
+-		}
+-		d := auxIntToInt64(v_0.AuxInt)
+-		if !(c < 0 && (c < 0 || int64(c)+d >= 0)) {
+-			break
+-		}
+-		v.reset(OpPPC64FlagCarryClear)
+-		return true
+-	}
+-	// match: (ADDconstForCarry [c] (MOVDconst [d]))
+-	// cond: c < 0 && c >= 0 && int64(c) + d < 0
+-	// result: (FlagCarrySet)
+-	for {
+-		c := auxIntToInt16(v.AuxInt)
+-		if v_0.Op != OpPPC64MOVDconst {
+-			break
+-		}
+-		d := auxIntToInt64(v_0.AuxInt)
+-		if !(c < 0 && c >= 0 && int64(c)+d < 0) {
+-			break
+-		}
+-		v.reset(OpPPC64FlagCarrySet)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValuePPC64_OpPPC64AND(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -10374,50 +10336,6 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValuePPC64_OpPPC64MaskIfNotCarry(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _)))
+-	// cond: c < 0 && d > 0 && int64(c) + d < 0
+-	// result: (MOVDconst [-1])
+-	for {
+-		if v_0.Op != OpPPC64ADDconstForCarry {
+-			break
+-		}
+-		c := auxIntToInt16(v_0.AuxInt)
+-		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpPPC64ANDconst {
+-			break
+-		}
+-		d := auxIntToInt64(v_0_0.AuxInt)
+-		if !(c < 0 && d > 0 && int64(c)+d < 0) {
+-			break
+-		}
+-		v.reset(OpPPC64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(-1)
+-		return true
+-	}
+-	// match: (MaskIfNotCarry (FlagCarrySet))
+-	// result: (MOVDconst [0])
+-	for {
+-		if v_0.Op != OpPPC64FlagCarrySet {
+-			break
+-		}
+-		v.reset(OpPPC64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(0)
+-		return true
+-	}
+-	// match: (MaskIfNotCarry (FlagCarryClear))
+-	// result: (MOVDconst [-1])
+-	for {
+-		if v_0.Op != OpPPC64FlagCarryClear {
+-			break
+-		}
+-		v.reset(OpPPC64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(-1)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValuePPC64_OpPPC64NOR(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

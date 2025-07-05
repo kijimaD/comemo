@@ -14,7 +14,34 @@ Date:   Thu Jan 30 00:25:19 2020 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testso/so_test.go    | 2 --
  misc/cgo/testsovar/so_test.go | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index 9c7f272439..73819b20c9 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -28,8 +28,6 @@ func requireTestSOSupported(t *testing.T) {
+ 		if runtime.GOOS == "linux" {
+ 			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+ 		}
+-	case "mips64le", "mips64":
+-		t.Skip("External linking not implemented on mips64.")
+ 	}
+ 	if runtime.GOOS == "android" {
+ 		t.Skip("No exec facility on Android.")
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index 9c7f272439..73819b20c9 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -28,8 +28,6 @@ func requireTestSOSupported(t *testing.T) {
+ 		if runtime.GOOS == "linux" {
+ 			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+ 		}
+-	case "mips64le", "mips64":
+-		t.Skip("External linking not implemented on mips64.")
+ 	}
+ 	if runtime.GOOS == "android" {
+ 		t.Skip("No exec facility on Android.")

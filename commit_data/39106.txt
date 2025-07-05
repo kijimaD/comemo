@@ -24,7 +24,60 @@ Date:   Sun Dec 30 20:04:16 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     |  3 +++
  src/runtime/mgcwork.go | 16 ++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9d21dc4fa0..f5d6374ce6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1519,6 +1519,9 @@ top:
+ 					print(" wbuf2.n=", gcw.wbuf2.nobj)
+ 				}
+ 				print("\n")
++				if gcw.pauseGen == gcw.putGen {
++					println("runtime: checkPut already failed at this generation")
++				}
+ 				throw("throwOnGCWork")
+ 			}
+ 		}
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 0ed0713442..f2c16d7d8c 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -98,6 +98,9 @@ type gcWork struct {
+ 	// gcWorkPauseGen if debugCachedWork is true.
+ 	pauseGen uint32
+ 
++	// putGen is the pauseGen of the last putGen.
++	putGen uint32
++
+ 	// pauseStack is the stack at which this P was paused if
+ 	// debugCachedWork is true.
+ 	pauseStack [16]uintptr
+@@ -121,10 +124,23 @@ func (w *gcWork) init() {
+ 
+ func (w *gcWork) checkPut(ptr uintptr, ptrs []uintptr) {
+ 	if debugCachedWork {
++		alreadyFailed := w.putGen == w.pauseGen
++		w.putGen = w.pauseGen
++		if m := getg().m; m.locks > 0 || m.mallocing != 0 || m.preemptoff != "" || m.p.ptr().status != _Prunning {
++			// If we were to spin, the runtime may
++			// deadlock: the condition above prevents
++			// preemption (see newstack), which could
++			// prevent gcMarkDone from finishing the
++			// ragged barrier and releasing the spin.
++			return
++		}
+ 		for atomic.Load(&gcWorkPauseGen) == w.pauseGen {
+ 		}
+ 		if throwOnGCWork {
+ 			printlock()
++			if alreadyFailed {
++				println("runtime: checkPut already failed at this generation")
++			}
+ 			println("runtime: late gcWork put")
+ 			if ptr != 0 {
+ 				gcDumpObject("ptr", ptr, ^uintptr(0))

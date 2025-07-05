@@ -14,6 +14,29 @@ Date:   Thu Apr 3 16:10:33 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/83930046
-
+---
  src/pkg/net/url/url_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 7578eb15b9..cad758f238 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -251,6 +251,17 @@ var urltests = []URLTest{
+ 		},
+ 		"file:///home/adg/rabbits",
+ 	},
++	// "Windows" paths are no exception to the rule.
++	// See golang.org/issue/6027, especially comment #9.
++	{
++		"file:///C:/FooBar/Baz.txt",
++		&URL{
++			Scheme: "file",
++			Host:   "",
++			Path:   "/C:/FooBar/Baz.txt",
++		},
++		"file:///C:/FooBar/Baz.txt",
++	},
+ 	// case-insensitive scheme
+ 	{
+ 		"MaIlTo:webmaster@golang.org",

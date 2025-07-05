@@ -20,8 +20,66 @@ Date:   Tue Mar 27 10:41:44 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5930044
-
+---
  src/cmd/go/get.go  | 4 +++-
  src/cmd/go/main.go | 8 ++++++++
  src/cmd/go/pkg.go  | 5 ++++-
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 6ad683a8be..f70b6761de 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -252,7 +252,9 @@ func downloadPackage(p *Package) error {
+ 
+ 	if p.build.SrcRoot == "" {
+ 		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
+-		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 {
++		// Guard against people setting GOPATH=$GOROOT.  We have to use
++		// $GOROOT's directory hierarchy (src/pkg, not just src) in that case.
++		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 && list[0] != goroot {
+ 			p.build.SrcRoot = filepath.Join(list[0], "src")
+ 			p.build.PkgRoot = filepath.Join(list[0], "pkg")
+ 		} else {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 2f8209c86f..73c2f54a76 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -16,6 +16,7 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ 	"text/template"
+@@ -121,6 +122,13 @@ func main() {
+ 		return
+ 	}
+ 
++	// Diagnose common mistake: GOPATH==GOROOT.
++	// This setting is equivalent to not setting GOPATH at all,
++	// which is not what most people want when they do it.
++	if gopath := os.Getenv("GOPATH"); gopath == runtime.GOROOT() {
++		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
++	}
++
+ 	for _, cmd := range commands {
+ 		if cmd.Name() == args[0] && cmd.Run != nil {
+ 			cmd.Flag.Usage = func() { cmd.Usage() }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 44dbd6798a..1a75019aca 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -217,7 +217,10 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 	// Load package.
+ 	// Import always returns bp != nil, even if an error occurs,
+ 	// in order to return partial information.
+-	bp, err := buildContext.Import(path, srcDir, build.AllowBinary)
++	//
++	// TODO: After Go 1, decide when to pass build.AllowBinary here.
++	// See issue 3268 for mistakes to avoid.
++	bp, err := buildContext.Import(path, srcDir, 0)
+ 	bp.ImportPath = importPath
+ 	p.load(stk, bp, err)
+ 	if p.Error != nil && len(importPos) > 0 {

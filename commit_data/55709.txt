@@ -21,6 +21,36 @@ Date:   Mon Mar 6 18:13:45 2023 +1030
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/ed25519/ed25519.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index a45d056851..a043eaf807 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -90,18 +90,21 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
+ 	if opts, ok := opts.(*Options); ok {
+ 		context = opts.Context
+ 	}
+-	if l := len(context); l > 255 {
+-		return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
+-	}
+ 	switch {
+ 	case hash == crypto.SHA512: // Ed25519ph
+ 		if l := len(message); l != sha512.Size {
+ 			return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
+ 		}
++		if l := len(context); l > 255 {
++			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
++		}
+ 		signature := make([]byte, SignatureSize)
+ 		sign(signature, priv, message, domPrefixPh, context)
+ 		return signature, nil
+ 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
++		if l := len(context); l > 255 {
++			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
++		}
+ 		signature := make([]byte, SignatureSize)
+ 		sign(signature, priv, message, domPrefixCtx, context)
+ 		return signature, nil

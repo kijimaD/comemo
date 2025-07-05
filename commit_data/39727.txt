@@ -15,6 +15,30 @@ Date:   Fri Mar 15 08:32:16 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index a53660f744..bac448cd47 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -540,6 +540,9 @@ func TestFuncWithDuplicateLines(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
++	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0444); err != nil {
++		t.Fatal(err)
++	}
+ 	if err := ioutil.WriteFile(lineDupGo, []byte(lineDupContents), 0444); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -554,7 +557,7 @@ func TestFuncWithDuplicateLines(t *testing.T) {
+ 
+ 	// testcover -func=TMPDIR/linedup.out
+ 	cmd = exec.Command(testcover, "-func", lineDupProfile)
+-	cmd.Dir = testTempDir
++	cmd.Dir = lineDupDir
+ 	run(cmd, t)
+ }
+ 

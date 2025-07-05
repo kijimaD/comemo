@@ -7,6 +7,25 @@ Date:   Sun Jan 6 22:43:32 2013 -0500
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/7057049
-
+---
  src/pkg/bytes/example_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/bytes/example_test.go b/src/pkg/bytes/example_test.go
+index 5f7e18c9f6..dc66b6a40f 100644
+--- a/src/pkg/bytes/example_test.go
++++ b/src/pkg/bytes/example_test.go
+@@ -59,10 +59,10 @@ func ExampleCompare_search() {
+ 	var needle []byte
+ 	var haystack [][]byte // Assume sorted
+ 	i := sort.Search(len(haystack), func(i int) bool {
+-		// Return needle <= haystack[i].
+-		return bytes.Compare(needle, haystack[i]) <= 0
++		// Return haystack[i] >= needle.
++		return bytes.Compare(haystack[i], needle) >= 0
+ 	})
+-	if i < len(haystack) && bytes.Equal(needle, haystack[i]) {
++	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
+ 		// Found it!
+ 	}
+ }

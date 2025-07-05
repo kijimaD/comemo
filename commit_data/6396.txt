@@ -9,6 +9,20 @@ Date:   Mon Sep 27 12:59:26 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2218046
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7ddcdd21d2..b46aa2ae08 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -378,7 +378,7 @@ findpkg(Strlit *name)
+ 	q[name->len] = '\0';
+ 	cleanname(q);
+ 	if(strlen(q) != name->len || memcmp(q, name->s, name->len) != 0) {
+-		yyerror("non-canonical import name %Z (%s)", name->s, q);
++		yyerror("non-canonical import path %Z (should be %s)", name, q);
+ 		return 0;
+ 	}
+ 

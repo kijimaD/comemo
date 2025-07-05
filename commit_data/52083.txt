@@ -13,7 +13,40 @@ Date:   Sun Mar 27 21:17:53 2022 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396075
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/reflect/type.go  | 4 +++-
  src/reflect/value.go | 6 +++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 209a7bae4d..53c17f9e55 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -72,7 +72,9 @@ type Type interface {
+ 
+ 	// NumMethod returns the number of methods accessible using Method.
+ 	//
+-	// Note that NumMethod counts unexported methods only for interface types.
++	// For a non-interface type, it returns the number of exported methods.
++	//
++	// For an interface type, it returns the number of exported and unexported methods.
+ 	NumMethod() int
+ 
+ 	// Name returns the type's name within its package for a defined type.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 8410dfc30a..f1454b8ae2 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1868,7 +1868,11 @@ func (v Value) Method(i int) Value {
+ 	return Value{v.typ, v.ptr, fl}
+ }
+ 
+-// NumMethod returns the number of exported methods in the value's method set.
++// NumMethod returns the number of methods in the value's method set.
++//
++// For a non-interface type, it returns the number of exported methods.
++//
++// For an interface type, it returns the number of exported and unexported methods.
+ func (v Value) NumMethod() int {
+ 	if v.typ == nil {
+ 		panic(&ValueError{"reflect.Value.NumMethod", Invalid})

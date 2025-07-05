@@ -13,6 +13,20 @@ Date:   Wed Sep 28 10:44:32 2022 +0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/tls/common.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 7d686fd088..f860ac9dfb 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1338,7 +1338,7 @@ func (c *Config) writeKeyLog(label string, clientRandom, secret []byte) error {
+ 		return nil
+ 	}
+ 
+-	logLine := []byte(fmt.Sprintf("%s %x %x\n", label, clientRandom, secret))
++	logLine := fmt.Appendf(nil, "%s %x %x\n", label, clientRandom, secret)
+ 
+ 	writerMutex.Lock()
+ 	_, err := c.KeyLogWriter.Write(logLine)

@@ -9,6 +9,20 @@ Date:   Tue Feb 25 06:53:17 2014 +1100
     R=dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/67820043
-
+---
  src/cmd/ld/data.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 8c6cfed862..8935621705 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -343,7 +343,7 @@ dynrelocsym(LSym *s)
+ 
+ 	for(r=s->r; r<s->r+s->nr; r++) {
+ 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256) {
+-			if(!r->sym->reachable)
++			if(r->sym != S && !r->sym->reachable)
+ 				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
+ 			adddynrel(s, r);
+ 		}

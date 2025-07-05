@@ -7,6 +7,24 @@ Date:   Thu Dec 7 18:07:57 2017 +0100
     Change-Id: Ib8ef626ae6bc66571ecf4569e37feb75b4b90d10
     Reviewed-on: https://go-review.googlesource.com/82555
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/editors.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 8228eb2578..4a8c7eab6b 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -178,9 +178,9 @@ The following feature matrix lists and compares the most significant features.
+   </tr>
+   <tr class="download">
+     <td></td>
+-    <td><a href="https://github.com/fatih/vim-go">Install<a/></td>
+-    <td><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Install<a/></td>
+-    <td><a href="https://www.jetbrains.com/go">Install<a/></td>
++    <td><a href="https://github.com/fatih/vim-go">Install</a></td>
++    <td><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Install</a></td>
++    <td><a href="https://www.jetbrains.com/go">Install</a></td>
+     <td><a href="https://atom.io/packages/go-plus">Install</a></td>
+   </tr>
+ </table>

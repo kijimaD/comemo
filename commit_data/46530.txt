@@ -16,9 +16,114 @@ Date:   Thu Jan 7 17:24:39 2021 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics.go             | 4 ++--
  src/runtime/metrics/description.go | 9 +++++++--
  src/runtime/metrics/doc.go         | 4 ++--
  src/runtime/metrics_test.go        | 8 ++++----
  4 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 4d37a56f4c..3e8dbda0ca 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -86,7 +86,7 @@ func initMetrics() {
+ 				out.scalar = in.sysStats.gcCyclesDone
+ 			},
+ 		},
+-		"/gc/heap/allocs-by-size:objects": {
++		"/gc/heap/allocs-by-size:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(sizeClassBuckets)
+@@ -98,7 +98,7 @@ func initMetrics() {
+ 				}
+ 			},
+ 		},
+-		"/gc/heap/frees-by-size:objects": {
++		"/gc/heap/frees-by-size:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(sizeClassBuckets)
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 32af5d1727..01c8a685ee 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -23,6 +23,11 @@ type Description struct {
+ 	// Examples of units might be "seconds", "bytes", "bytes/second", "cpu-seconds",
+ 	// "byte*cpu-seconds", and "bytes/second/second".
+ 	//
++	// For histograms, multiple units may apply. For instance, the units of the buckets and
++	// the count. By convention, for histograms, the units of the count are always "samples"
++	// with the type of sample evident by the metric's name, while the unit in the name
++	// specifies the buckets' unit.
++	//
+ 	// A complete name might look like "/memory/heap/free:bytes".
+ 	Name string
+ 
+@@ -69,12 +74,12 @@ var allDesc = []Description{
+ 		Cumulative:  true,
+ 	},
+ 	{
+-		Name:        "/gc/heap/allocs-by-size:objects",
++		Name:        "/gc/heap/allocs-by-size:bytes",
+ 		Description: "Distribution of all objects allocated by approximate size.",
+ 		Kind:        KindFloat64Histogram,
+ 	},
+ 	{
+-		Name:        "/gc/heap/frees-by-size:objects",
++		Name:        "/gc/heap/frees-by-size:bytes",
+ 		Description: "Distribution of all objects freed by approximate size.",
+ 		Kind:        KindFloat64Histogram,
+ 	},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index a68184ee82..021a0bddca 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -61,10 +61,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/cycles/total:gc-cycles
+ 		Count of all completed GC cycles.
+ 
+-	/gc/heap/allocs-by-size:objects
++	/gc/heap/allocs-by-size:bytes
+ 		Distribution of all objects allocated by approximate size.
+ 
+-	/gc/heap/frees-by-size:objects
++	/gc/heap/frees-by-size:bytes
+ 		Distribution of all objects freed by approximate size.
+ 
+ 	/gc/heap/goal:bytes
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 5109058ed1..8a3cf019bd 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -70,7 +70,7 @@ func TestReadMetrics(t *testing.T) {
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.BuckHashSys)
+ 		case "/memory/classes/total:bytes":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.Sys)
+-		case "/gc/heap/allocs-by-size:objects":
++		case "/gc/heap/allocs-by-size:bytes":
+ 			hist := samples[i].Value.Float64Histogram()
+ 			// Skip size class 0 in BySize, because it's always empty and not represented
+ 			// in the histogram.
+@@ -84,7 +84,7 @@ func TestReadMetrics(t *testing.T) {
+ 					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, m)
+ 				}
+ 			}
+-		case "/gc/heap/frees-by-size:objects":
++		case "/gc/heap/frees-by-size:bytes":
+ 			hist := samples[i].Value.Float64Histogram()
+ 			// Skip size class 0 in BySize, because it's always empty and not represented
+ 			// in the histogram.
+@@ -161,9 +161,9 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 			totalVirtual.got = samples[i].Value.Uint64()
+ 		case "/gc/heap/objects:objects":
+ 			objects.total = samples[i].Value.Uint64()
+-		case "/gc/heap/allocs-by-size:objects":
++		case "/gc/heap/allocs-by-size:bytes":
+ 			objects.alloc = samples[i].Value.Float64Histogram()
+-		case "/gc/heap/frees-by-size:objects":
++		case "/gc/heap/frees-by-size:bytes":
+ 			objects.free = samples[i].Value.Float64Histogram()
+ 		case "/gc/cycles:gc-cycles":
+ 			gc.numGC = samples[i].Value.Uint64()

@@ -7,6 +7,22 @@ Date:   Thu Nov 17 12:26:36 2016 -0500
     Change-Id: I0249b60e340710bea7b6671c9b7405c278b037bd
     Reviewed-on: https://go-review.googlesource.com/33351
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/amd64.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/amd64.go b/src/cmd/asm/internal/arch/amd64.go
+index 625e136d1d..ff20d32daa 100644
+--- a/src/cmd/asm/internal/arch/amd64.go
++++ b/src/cmd/asm/internal/arch/amd64.go
+@@ -13,8 +13,8 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-// IsAMD4OP reports whether the op (as defined by an ppc64.A* constant) is
+-// The FMADD-like instructions behave similarly.
++// IsAMD4OP reports whether the op (as defined by an amd64.A* constant) is
++// a 4-operand instruction.
+ func IsAMD4OP(op obj.As) bool {
+ 	switch op {
+ 	case x86.AVPERM2F128,

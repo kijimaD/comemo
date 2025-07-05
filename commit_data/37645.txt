@@ -12,6 +12,20 @@ Date:   Mon Jul 30 03:56:46 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/126623
     Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 2374043ea3..5350d2e98b 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -933,7 +933,7 @@ func (t Time) AddDate(years int, months int, days int) Time {
+ 
+ const (
+ 	secondsPerMinute = 60
+-	secondsPerHour   = 60 * 60
++	secondsPerHour   = 60 * secondsPerMinute
+ 	secondsPerDay    = 24 * secondsPerHour
+ 	secondsPerWeek   = 7 * secondsPerDay
+ 	daysPer400Years  = 365*400 + 97

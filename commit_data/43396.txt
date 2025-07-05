@@ -12,7 +12,7 @@ Date:   Mon Mar 30 10:04:00 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go            |  2 +-
  src/cmd/link/internal/ld/deadcode2.go       |  8 ++++----
  src/cmd/link/internal/ld/decodesym2.go      |  2 +-
@@ -23,3 +23,265 @@ Date:   Mon Mar 30 10:04:00 2020 -0400
  src/cmd/link/internal/loader/loader.go      | 30 +++++++++++++----------------
  src/cmd/link/internal/loader/loader_test.go |  4 ++--
  9 files changed, 29 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8ab67effa6..bf9c112e03 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -603,7 +603,7 @@ func (ctxt *Link) reloc() {
+ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 	var su *loader.SymbolBuilder
+ 	relocs := ctxt.loader.Relocs(s)
+-	for ri := 0; ri < relocs.Count; ri++ {
++	for ri := 0; ri < relocs.Count(); ri++ {
+ 		r := relocs.At2(ri)
+ 		targ := r.Sym()
+ 		if targ == 0 {
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index f1555809c6..59f207b278 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -86,7 +86,7 @@ func (d *deadcodePass2) init() {
+ 			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
+ 			if exportsIdx != 0 {
+ 				relocs := d.ldr.Relocs(exportsIdx)
+-				for i := 0; i < relocs.Count; i++ {
++				for i := 0; i < relocs.Count(); i++ {
+ 					d.mark(relocs.At2(i).Sym(), 0)
+ 				}
+ 			}
+@@ -139,14 +139,14 @@ func (d *deadcodePass2) flood() {
+ 		}
+ 
+ 		var methods []methodref2
+-		for i := 0; i < relocs.Count; i++ {
++		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At2(i)
+ 			t := r.Type()
+ 			if t == objabi.R_WEAKADDROFF {
+ 				continue
+ 			}
+ 			if t == objabi.R_METHODOFF {
+-				if i+2 >= relocs.Count {
++				if i+2 >= relocs.Count() {
+ 					panic("expect three consecutive R_METHODOFF relocs")
+ 				}
+ 				methods = append(methods, methodref2{src: symIdx, r: i})
+@@ -272,7 +272,7 @@ func deadcode2(ctxt *Link) {
+ 			s := loader.Sym(i)
+ 			if ldr.IsItabLink(s) {
+ 				relocs := ldr.Relocs(s)
+-				if relocs.Count > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
++				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
+ 					ldr.SetAttrReachable(s, true)
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/decodesym2.go b/src/cmd/link/internal/ld/decodesym2.go
+index d496721122..318ce36594 100644
+--- a/src/cmd/link/internal/ld/decodesym2.go
++++ b/src/cmd/link/internal/ld/decodesym2.go
+@@ -16,7 +16,7 @@ import (
+ // to decodesym.go once the rouetines there have been decprecated + removed.
+ 
+ func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc2 {
+-	for j := 0; j < relocs.Count; j++ {
++	for j := 0; j < relocs.Count(); j++ {
+ 		rel := relocs.At2(j)
+ 		if rel.Off() == off {
+ 			return rel
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 41dfa4f660..65d3daeffb 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1097,7 +1097,7 @@ func (d *dwctxt2) importInfoSymbol(ctxt *Link, dsym loader.Sym) {
+ 		log.Fatalf("error: DWARF info sym %d/%s with incorrect type %s", dsym, d.ldr.SymName(dsym), d.ldr.SymType(dsym).String())
+ 	}
+ 	relocs := d.ldr.Relocs(dsym)
+-	for i := 0; i < relocs.Count; i++ {
++	for i := 0; i < relocs.Count(); i++ {
+ 		r := relocs.At2(i)
+ 		if r.Type() != objabi.R_DWARFSECREF {
+ 			continue
+@@ -1850,7 +1850,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 				}
+ 
+ 				drelocs := d.ldr.Relocs(infosym)
+-				for ri := 0; ri < drelocs.Count; ri++ {
++				for ri := 0; ri < drelocs.Count(); ri++ {
+ 					r := drelocs.At2(ri)
+ 					if r.Type() == objabi.R_DWARFSECREF {
+ 						rsym := r.Sym()
+@@ -1932,7 +1932,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 				for _, s := range list {
+ 					symIdx := loader.Sym(s)
+ 					relocs := d.ldr.Relocs(symIdx)
+-					for i := 0; i < relocs.Count; i++ {
++					for i := 0; i < relocs.Count(); i++ {
+ 						r := relocs.At2(i)
+ 						if r.Type() == objabi.R_USETYPE {
+ 							d.defgotype(r.Sym())
+@@ -2045,7 +2045,7 @@ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) [
+ 	for _, u := range units {
+ 		for _, fn := range u.FuncDIEs2 {
+ 			relocs := d.ldr.Relocs(loader.Sym(fn))
+-			for i := 0; i < relocs.Count; i++ {
++			for i := 0; i < relocs.Count(); i++ {
+ 				reloc := relocs.At2(i)
+ 				if reloc.Type() != objabi.R_DWARFSECREF {
+ 					continue
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 0e4198572b..3b9d4ba7cc 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -403,7 +403,7 @@ func (ctxt *Link) addexport() {
+ 				continue
+ 			}
+ 			relocs := ctxt.loader.Relocs(s)
+-			for i := 0; i < relocs.Count; i++ {
++			for i := 0; i < relocs.Count(); i++ {
+ 				if rs := relocs.At2(i).Sym(); rs != 0 {
+ 					if ctxt.loader.SymType(rs) == sym.Sxxx && !ctxt.loader.AttrLocal(rs) {
+ 						// sanity check
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0d6cdab9fe..3f21fc54ef 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2370,7 +2370,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
+ 		}
+ 
+ 		// Process calls in this span.
+-		for i := 0; i < relocs.Count; i++ {
++		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At2(i)
+ 			if uint32(r.Off()) >= pcsp.NextPC {
+ 				break
+@@ -2707,7 +2707,7 @@ func (ctxt *Link) callgraph() {
+ 	ldr := ctxt.loader
+ 	for _, s := range ctxt.Textp2 {
+ 		relocs := ldr.Relocs(s)
+-		for i := 0; i < relocs.Count; i++ {
++		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At2(i)
+ 			rs := r.Sym()
+ 			if rs == 0 {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 527c199837..364e757985 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1479,7 +1479,7 @@ func addpersrc(ctxt *Link) {
+ 
+ 	// relocation
+ 	relocs := ctxt.loader.Relocs(rsrcsym)
+-	for i := 0; i < relocs.Count; i++ {
++	for i := 0; i < relocs.Count(); i++ {
+ 		r := relocs.At2(i)
+ 		p := data[r.Off():]
+ 		val := uint32(int64(h.virtualAddress) + r.Add())
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 9b71db6d7a..bf40f5b7d0 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -31,8 +31,6 @@ type Sym int
+ // Relocs encapsulates the set of relocations on a given symbol; an
+ // instance of this type is returned by the Loader Relocs() method.
+ type Relocs struct {
+-	Count int // == len(rs), TODO: remove
+-
+ 	rs []goobj2.Reloc2
+ 
+ 	li int      // local index of symbol whose relocs we're examining
+@@ -1477,6 +1475,8 @@ func (l *Loader) growExtAttrBitmaps() {
+ 	}
+ }
+ 
++func (relocs *Relocs) Count() int { return len(relocs.rs) }
++
+ // At2 returns the j-th reloc for a global symbol.
+ func (relocs *Relocs) At2(j int) Reloc2 {
+ 	if relocs.l.isExtReader(relocs.r) {
+@@ -1497,22 +1497,18 @@ func (l *Loader) Relocs(i Sym) Relocs {
+ 
+ // Relocs returns a Relocs object given a local sym index and reader.
+ func (l *Loader) relocs(r *oReader, li int) Relocs {
+-	var n int
+ 	var rs []goobj2.Reloc2
+ 	if l.isExtReader(r) {
+ 		pp := l.payloads[li]
+-		n = len(pp.relocs)
+ 		rs = pp.relocs
+ 	} else {
+ 		rs = r.Relocs2(li)
+-		n = len(rs)
+ 	}
+ 	return Relocs{
+-		Count: n,
+-		rs:    rs,
+-		li:    li,
+-		r:     r,
+-		l:     l,
++		rs: rs,
++		li: li,
++		r:  r,
++		l:  l,
+ 	}
+ }
+ 
+@@ -1966,8 +1962,8 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
+ 	for _, cand := range relocfixup {
+ 		s := l.Syms[cand]
+ 		relocs := l.Relocs(cand)
+-		if len(s.R) != relocs.Count {
+-			s.R = make([]sym.Reloc, relocs.Count)
++		if len(s.R) != relocs.Count() {
++			s.R = make([]sym.Reloc, relocs.Count())
+ 		}
+ 		l.convertRelocations(&relocs, s, true)
+ 	}
+@@ -2171,8 +2167,8 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 
+ 		// Copy relocations
+ 		relocs := l.Relocs(symIdx)
+-		pp.relocs = make([]goobj2.Reloc2, relocs.Count)
+-		pp.reltypes = make([]objabi.RelocType, relocs.Count)
++		pp.relocs = make([]goobj2.Reloc2, relocs.Count())
++		pp.reltypes = make([]objabi.RelocType, relocs.Count())
+ 		for i := range pp.relocs {
+ 			// Copy the relocs slice.
+ 			// Convert local reference to global reference.
+@@ -2385,8 +2381,8 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		// Relocs
+ 		relocs := l.relocs(r, i)
+ 		batch := l.relocBatch
+-		s.R = batch[:relocs.Count:relocs.Count]
+-		l.relocBatch = batch[relocs.Count:]
++		s.R = batch[:relocs.Count():relocs.Count()]
++		l.relocBatch = batch[relocs.Count():]
+ 		l.convertRelocations(&relocs, s, false)
+ 
+ 		// Aux symbol info
+@@ -2603,7 +2599,7 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
+ 	result := []Sym{}
+ 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
+ 		relocs := l.Relocs(si)
+-		for ri := 0; ri < relocs.Count; ri++ {
++		for ri := 0; ri < relocs.Count(); ri++ {
+ 			r := relocs.At2(ri)
+ 			rs := r.Sym()
+ 			if rs != 0 && l.SymType(rs) == sym.SXREF && l.RawSymName(rs) != ".got" {
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 8c9f7cfffb..b2f823d17e 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -209,10 +209,10 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ }
+ 
+ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
+-	if s1.Count != len(s2) {
++	if s1.Count() != len(s2) {
+ 		return false
+ 	}
+-	for i := 0; i < s1.Count; i++ {
++	for i := 0; i < s1.Count(); i++ {
+ 		r1 := s1.At2(i)
+ 		r2 := &s2[i]
+ 		if r1.Sym() != r2.Sym ||

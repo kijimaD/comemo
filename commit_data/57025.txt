@@ -19,6 +19,52 @@ Date:   Tue Jun 6 17:41:06 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/sock_cloexec.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 3f1cc9827a..f4c1165028 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -10,6 +10,7 @@
+ package net
+ 
+ import (
++	"internal/poll"
+ 	"os"
+ 	"syscall"
+ )
+@@ -18,8 +19,32 @@ import (
+ // descriptor as nonblocking and close-on-exec.
+ func sysSocket(family, sotype, proto int) (int, error) {
+ 	s, err := socketFunc(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
++	// On Linux the SOCK_NONBLOCK and SOCK_CLOEXEC flags were
++	// introduced in 2.6.27 kernel and on FreeBSD both flags were
++	// introduced in 10 kernel. If we get an EINVAL error on Linux
++	// or EPROTONOSUPPORT error on FreeBSD, fall back to using
++	// socket without them.
++	switch err {
++	case nil:
++		return s, nil
++	default:
++		return -1, os.NewSyscallError("socket", err)
++	case syscall.EPROTONOSUPPORT, syscall.EINVAL:
++	}
++
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	syscall.ForkLock.RLock()
++	s, err = socketFunc(family, sotype, proto)
++	if err == nil {
++		syscall.CloseOnExec(s)
++	}
++	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+ 		return -1, os.NewSyscallError("socket", err)
+ 	}
++	if err = syscall.SetNonblock(s, true); err != nil {
++		poll.CloseFunc(s)
++		return -1, os.NewSyscallError("setnonblock", err)
++	}
+ 	return s, nil
+ }

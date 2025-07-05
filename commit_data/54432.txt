@@ -15,6 +15,31 @@ Date:   Mon Oct 17 13:35:01 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/coverage/emitdata_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/coverage/emitdata_test.go b/src/runtime/coverage/emitdata_test.go
+index e74db3e332..0ccb2d27b0 100644
+--- a/src/runtime/coverage/emitdata_test.go
++++ b/src/runtime/coverage/emitdata_test.go
+@@ -22,6 +22,9 @@ import (
+ const fixedTestDir = false
+ 
+ func TestCoverageApis(t *testing.T) {
++	if testing.Short() {
++		t.Skipf("skipping test: too long for short mode")
++	}
+ 	if !goexperiment.CoverageRedesign {
+ 		t.Skipf("skipping new coverage tests (experiment not enabled)")
+ 	}
+@@ -388,6 +391,9 @@ func testEmitWithCounterClear(t *testing.T, harnessPath string, dir string) {
+ }
+ 
+ func TestApisOnNocoverBinary(t *testing.T) {
++	if testing.Short() {
++		t.Skipf("skipping test: too long for short mode")
++	}
+ 	testenv.MustHaveGoBuild(t)
+ 	dir := t.TempDir()
+ 

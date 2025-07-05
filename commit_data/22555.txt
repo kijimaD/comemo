@@ -15,9 +15,355 @@ Date:   Mon Mar 23 11:03:02 2015 +1100
     Reviewed-on: https://go-review.googlesource.com/7925
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go                 |  4 +-
  src/image/draw/draw.go                    | 83 +++-----------------------
  src/image/internal/imageutil/imageutil.go | 96 +++++++++++++++++++++++++++++++
  src/image/jpeg/reader.go                  | 79 +------------------------
  4 files changed, 107 insertions(+), 155 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 17f5282e55..5719ffcec6 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -207,9 +207,9 @@ var pkgDeps = map[string][]string{
+ 	"flag":                {"L4", "OS"},
+ 	"go/build":            {"L4", "OS", "GOPARSER"},
+ 	"html":                {"L4"},
+-	"image/draw":          {"L4"},
++	"image/draw":          {"L4", "image/internal/imageutil"},
+ 	"image/gif":           {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+-	"image/jpeg":          {"L4"},
++	"image/jpeg":          {"L4", "image/internal/imageutil"},
+ 	"image/png":           {"L4", "compress/zlib"},
+ 	"index/suffixarray":   {"L4", "regexp"},
+ 	"math/big":            {"L4"},
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index f704ff00df..420fd05e36 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -11,6 +11,7 @@ package draw
+ import (
+ 	"image"
+ 	"image/color"
++	"image/internal/imageutil"
+ )
+ 
+ // m is the maximum color value returned by image.Color.RGBA.
+@@ -124,7 +125,11 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 					drawNRGBAOver(dst0, r, src0, sp)
+ 					return
+ 				case *image.YCbCr:
+-					if drawYCbCr(dst0, r, src0, sp) {
++					// An image.YCbCr is always fully opaque, and so if the
++					// mask is nil (i.e. fully opaque) then the op is
++					// effectively always Src. Similarly for image.Gray and
++					// image.CMYK.
++					if imageutil.DrawYCbCr(dst0, r, src0, sp) {
+ 						return
+ 					}
+ 				case *image.Gray:
+@@ -154,7 +159,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 					drawNRGBASrc(dst0, r, src0, sp)
+ 					return
+ 				case *image.YCbCr:
+-					if drawYCbCr(dst0, r, src0, sp) {
++					if imageutil.DrawYCbCr(dst0, r, src0, sp) {
+ 						return
+ 					}
+ 				case *image.Gray:
+@@ -408,79 +413,7 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
+ 	}
+ }
+ 
+-// TODO(nigeltao): this function is copy/pasted to image/jpeg/reader.go. We
+-// should un-copy/paste it.
+-func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
+-	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
+-	// (i.e. fully opaque) then the op is effectively always Src.
+-	x0 := (r.Min.X - dst.Rect.Min.X) * 4
+-	x1 := (r.Max.X - dst.Rect.Min.X) * 4
+-	y0 := r.Min.Y - dst.Rect.Min.Y
+-	y1 := r.Max.Y - dst.Rect.Min.Y
+-	switch src.SubsampleRatio {
+-	case image.YCbCrSubsampleRatio444:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
+-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	case image.YCbCrSubsampleRatio422:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
+-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
+-				ci := ciBase + sx/2
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	case image.YCbCrSubsampleRatio420:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
+-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
+-				ci := ciBase + sx/2
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	case image.YCbCrSubsampleRatio440:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
+-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	default:
+-		return false
+-	}
+-	return true
+-}
+-
+ func drawGray(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Point) {
+-	// An image.Gray is always fully opaque, and so if the mask is implicitly nil
+-	// (i.e. fully opaque) then the op is effectively always Src.
+ 	i0 := (r.Min.X - dst.Rect.Min.X) * 4
+ 	i1 := (r.Max.X - dst.Rect.Min.X) * 4
+ 	si0 := (sp.X - src.Rect.Min.X) * 1
+@@ -503,8 +436,6 @@ func drawGray(dst *image.RGBA, r image.Rectangle, src *image.Gray, sp image.Poin
+ }
+ 
+ func drawCMYK(dst *image.RGBA, r image.Rectangle, src *image.CMYK, sp image.Point) {
+-	// An image.CMYK is always fully opaque, and so if the mask is implicitly nil
+-	// (i.e. fully opaque) then the op is effectively always Src.
+ 	i0 := (r.Min.X - dst.Rect.Min.X) * 4
+ 	i1 := (r.Max.X - dst.Rect.Min.X) * 4
+ 	si0 := (sp.X - src.Rect.Min.X) * 4
+diff --git a/src/image/internal/imageutil/imageutil.go b/src/image/internal/imageutil/imageutil.go
+new file mode 100644
+index 0000000000..4ef53f10d9
+--- /dev/null
++++ b/src/image/internal/imageutil/imageutil.go
+@@ -0,0 +1,96 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package imageutil contains code shared by image-related packages.
++package imageutil
++
++import (
++	"image"
++	"image/color"
++)
++
++// DrawYCbCr draws the YCbCr source image on the RGBA destination image with
++// r.Min in dst aligned with sp in src. It returns whether the draw was
++// successful. If it returns false, no dst pixels were changed.
++func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
++	// This function exists in the image/internal/imageutil package because it
++	// is needed by both the image/draw and image/jpeg packages, but it doesn't
++	// seem right for one of those two to depend on the other.
++	//
++	// Another option is to have this code be exported in the image package,
++	// but we'd need to make sure we're totally happy with the API (for the
++	// rest of Go 1 compatibility), and decide if we want to have a more
++	// general purpose DrawToRGBA method for other image types. One possibility
++	// is:
++	//
++	// func (src *YCbCr) CopyToRGBA(dst *RGBA, dr, sr Rectangle) (effectiveDr, effectiveSr Rectangle)
++	//
++	// in the spirit of the built-in copy function for 1-dimensional slices,
++	// that also allowed a CopyFromRGBA method if needed.
++
++	x0 := (r.Min.X - dst.Rect.Min.X) * 4
++	x1 := (r.Max.X - dst.Rect.Min.X) * 4
++	y0 := r.Min.Y - dst.Rect.Min.Y
++	y1 := r.Max.Y - dst.Rect.Min.Y
++	switch src.SubsampleRatio {
++	case image.YCbCrSubsampleRatio444:
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
++			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
++				dpix[x+0] = rr
++				dpix[x+1] = gg
++				dpix[x+2] = bb
++				dpix[x+3] = 255
++			}
++		}
++	case image.YCbCrSubsampleRatio422:
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
++			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
++				ci := ciBase + sx/2
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
++				dpix[x+0] = rr
++				dpix[x+1] = gg
++				dpix[x+2] = bb
++				dpix[x+3] = 255
++			}
++		}
++	case image.YCbCrSubsampleRatio420:
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
++			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
++				ci := ciBase + sx/2
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
++				dpix[x+0] = rr
++				dpix[x+1] = gg
++				dpix[x+2] = bb
++				dpix[x+3] = 255
++			}
++		}
++
++	case image.YCbCrSubsampleRatio440:
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
++			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
++			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
++				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
++				dpix[x+0] = rr
++				dpix[x+1] = gg
++				dpix[x+2] = bb
++				dpix[x+3] = 255
++			}
++		}
++	default:
++		return false
++	}
++	return true
++}
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 5c5465283a..6a86472046 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -10,6 +10,7 @@ package jpeg
+ import (
+ 	"image"
+ 	"image/color"
++	"image/internal/imageutil"
+ 	"io"
+ )
+ 
+@@ -676,7 +677,7 @@ func (d *decoder) applyBlack() (image.Image, error) {
+ 		// above, so in practice, only the fourth channel (black) is inverted.
+ 		bounds := d.img3.Bounds()
+ 		img := image.NewRGBA(bounds)
+-		drawYCbCr(img, bounds, d.img3, bounds.Min)
++		imageutil.DrawYCbCr(img, bounds, d.img3, bounds.Min)
+ 		for iBase, y := 0, bounds.Min.Y; y < bounds.Max.Y; iBase, y = iBase+img.Stride, y+1 {
+ 			for i, x := iBase+3, bounds.Min.X; x < bounds.Max.X; i, x = i+4, x+1 {
+ 				img.Pix[i] = 255 - d.blackPix[(y-bounds.Min.Y)*d.blackStride+(x-bounds.Min.X)]
+@@ -755,82 +756,6 @@ func (d *decoder) convertToRGB() (image.Image, error) {
+ 	return img, nil
+ }
+ 
+-// drawYCbCr is the non-exported drawYCbCr function copy/pasted from the
+-// image/draw package. It is copy/pasted because it doesn't seem right for the
+-// image/jpeg package to depend on image/draw.
+-//
+-// TODO(nigeltao): remove the copy/paste, possibly by moving this to be an
+-// exported method on *image.YCbCr. We'd need to make sure we're totally happy
+-// with the API (for the rest of Go 1 compatibility) though, and if we want to
+-// have a more general purpose DrawToRGBA method for other image types.
+-func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
+-	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
+-	// (i.e. fully opaque) then the op is effectively always Src.
+-	x0 := (r.Min.X - dst.Rect.Min.X) * 4
+-	x1 := (r.Max.X - dst.Rect.Min.X) * 4
+-	y0 := r.Min.Y - dst.Rect.Min.Y
+-	y1 := r.Max.Y - dst.Rect.Min.Y
+-	switch src.SubsampleRatio {
+-	case image.YCbCrSubsampleRatio444:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
+-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	case image.YCbCrSubsampleRatio422:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
+-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
+-				ci := ciBase + sx/2
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	case image.YCbCrSubsampleRatio420:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
+-			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
+-				ci := ciBase + sx/2
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	case image.YCbCrSubsampleRatio440:
+-		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride:]
+-			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+-			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
+-			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+-				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+-				dpix[x+0] = rr
+-				dpix[x+1] = gg
+-				dpix[x+2] = bb
+-				dpix[x+3] = 255
+-			}
+-		}
+-	default:
+-		return false
+-	}
+-	return true
+-}
+-
+ // Decode reads a JPEG image from r and returns it as an image.Image.
+ func Decode(r io.Reader) (image.Image, error) {
+ 	var d decoder

@@ -17,8 +17,98 @@ Date:   Wed Sep 7 22:34:48 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/internal/modindex/read.go    | 10 +---------
  src/hash/maphash/maphash.go             |  7 +++----
  src/internal/fuzz/counters_supported.go | 10 +---------
  3 files changed, 5 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 707f17e1ab..83a54c3ef8 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -14,7 +14,6 @@ import (
+ 	"go/token"
+ 	"internal/godebug"
+ 	"internal/goroot"
+-	"internal/unsafeheader"
+ 	"path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -948,14 +947,7 @@ func (sf *sourceFile) embeds() []embed {
+ }
+ 
+ func asString(b []byte) string {
+-	p := (*unsafeheader.Slice)(unsafe.Pointer(&b)).Data
+-
+-	var s string
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = p
+-	hdr.Len = len(b)
+-
+-	return s
++	return unsafe.String(unsafe.SliceData(b), len(b))
+ }
+ 
+ // A decoder helps decode the index format.
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index dfacd021db..690068a70a 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -13,7 +13,6 @@
+ package maphash
+ 
+ import (
+-	"internal/unsafeheader"
+ 	"unsafe"
+ )
+ 
+@@ -72,11 +71,11 @@ func String(seed Seed, s string) uint64 {
+ 		panic("maphash: use of uninitialized Seed")
+ 	}
+ 	for len(s) > bufSize {
+-		p := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
++		p := (*byte)(unsafe.StringData(s))
+ 		state = rthash(p, bufSize, state)
+ 		s = s[bufSize:]
+ 	}
+-	p := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
++	p := (*byte)(unsafe.StringData(s))
+ 	return rthash(p, len(s), state)
+ }
+ 
+@@ -190,7 +189,7 @@ func (h *Hash) WriteString(s string) (int, error) {
+ 	if len(s) > bufSize {
+ 		h.initSeed()
+ 		for len(s) > bufSize {
+-			ptr := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
++			ptr := (*byte)(unsafe.StringData(s))
+ 			h.state.s = rthash(ptr, bufSize, h.state.s)
+ 			s = s[bufSize:]
+ 		}
+diff --git a/src/internal/fuzz/counters_supported.go b/src/internal/fuzz/counters_supported.go
+index 7ef553aaf2..79e27d27e1 100644
+--- a/src/internal/fuzz/counters_supported.go
++++ b/src/internal/fuzz/counters_supported.go
+@@ -7,7 +7,6 @@
+ package fuzz
+ 
+ import (
+-	"internal/unsafeheader"
+ 	"unsafe"
+ )
+ 
+@@ -18,12 +17,5 @@ import (
+ func coverage() []byte {
+ 	addr := unsafe.Pointer(&_counters)
+ 	size := uintptr(unsafe.Pointer(&_ecounters)) - uintptr(addr)
+-
+-	var res []byte
+-	*(*unsafeheader.Slice)(unsafe.Pointer(&res)) = unsafeheader.Slice{
+-		Data: addr,
+-		Len:  int(size),
+-		Cap:  int(size),
+-	}
+-	return res
++	return unsafe.Slice((*byte)(addr), int(size))
+ }

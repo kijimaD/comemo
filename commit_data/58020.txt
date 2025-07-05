@@ -14,7 +14,7 @@ Date:   Fri Sep 15 12:13:09 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/528400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go        |  1 +
  src/cmd/compile/internal/base/flag.go         |  3 +
  src/cmd/compile/internal/base/hashdebug.go    | 31 ++++++++-
@@ -22,3 +22,253 @@ Date:   Fri Sep 15 12:13:09 2023 -0400
  src/cmd/compile/internal/inline/inl.go        |  5 ++
  src/cmd/compile/internal/test/pgo_inl_test.go | 96 +++++++++++++++++++--------
  6 files changed, 113 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 244ba1bc9d..390ddf3176 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -55,6 +55,7 @@ type DebugFlags struct {
+ 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
+ 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
+ 	PGODebug              int    `help:"debug profile-guided optimizations"`
++	PGOHash               string `help:"hash value for debugging profile-guided optimizations" concurrent:"ok"`
+ 	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
+ 	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 0e44deae71..36340cb70b 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -255,6 +255,9 @@ func ParseFlags() {
+ 	if Debug.Fmahash != "" {
+ 		FmaHash = NewHashDebug("fmahash", Debug.Fmahash, nil)
+ 	}
++	if Debug.PGOHash != "" {
++		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
++	}
+ 
+ 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 167b0df4f0..de7f01f09e 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -55,6 +55,7 @@ var hashDebug *HashDebug
+ 
+ var FmaHash *HashDebug     // for debugging fused-multiply-add floating point changes
+ var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
++var PGOHash *HashDebug     // for debugging PGO optimization decisions
+ 
+ // DebugHashMatchPkgFunc reports whether debug variable Gossahash
+ //
+@@ -274,8 +275,36 @@ func (d *HashDebug) MatchPos(pos src.XPos, desc func() string) bool {
+ }
+ 
+ func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) bool {
++	return d.matchPosWithInfo(ctxt, pos, nil, note)
++}
++
++func (d *HashDebug) matchPosWithInfo(ctxt *obj.Link, pos src.XPos, info any, note func() string) bool {
+ 	hash := d.hashPos(ctxt, pos)
+-	return d.matchAndLog(hash, func() string { return d.fmtPos(ctxt, pos) }, note)
++	if info != nil {
++		hash = bisect.Hash(hash, info)
++	}
++	return d.matchAndLog(hash,
++		func() string {
++			r := d.fmtPos(ctxt, pos)
++			if info != nil {
++				r += fmt.Sprintf(" (%v)", info)
++			}
++			return r
++		},
++		note)
++}
++
++// MatchPosWithInfo is similar to MatchPos, but with additional information
++// that is included for hash computation, so it can distinguish multiple
++// matches on the same source location.
++// Note that the default answer for no environment variable (d == nil)
++// is "yes", do the thing.
++func (d *HashDebug) MatchPosWithInfo(pos src.XPos, info any, desc func() string) bool {
++	if d == nil {
++		return true
++	}
++	// Written this way to make inlining likely.
++	return d.matchPosWithInfo(Ctxt, pos, info, desc)
+ }
+ 
+ // matchAndLog is the core matcher. It reports whether the hash matches the pattern.
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index b51028701e..a04ff16d60 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -155,6 +155,11 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+ 			return n
+ 		}
+ 
++		if !base.PGOHash.MatchPosWithInfo(n.Pos(), "devirt", nil) {
++			// De-selected by PGO Hash.
++			return n
++		}
++
+ 		if stat != nil {
+ 			stat.Devirtualized = ir.LinkFuncName(callee)
+ 			stat.DevirtualizedWeight = weight
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index f1dce85afb..cd5adc1421 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1044,6 +1044,11 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 		return false, inlineHotMaxBudget
+ 	}
+ 
++	if !base.PGOHash.MatchPosWithInfo(n.Pos(), "inline", nil) {
++		// De-selected by PGO Hash.
++		return false, maxCost
++	}
++
+ 	if base.Debug.PGODebug > 0 {
+ 		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+ 	}
+diff --git a/src/cmd/compile/internal/test/pgo_inl_test.go b/src/cmd/compile/internal/test/pgo_inl_test.go
+index 4d6b5a134a..7aabf8b010 100644
+--- a/src/cmd/compile/internal/test/pgo_inl_test.go
++++ b/src/cmd/compile/internal/test/pgo_inl_test.go
+@@ -6,6 +6,7 @@ package test
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"internal/profile"
+ 	"internal/testenv"
+@@ -17,11 +18,7 @@ import (
+ 	"testing"
+ )
+ 
+-// testPGOIntendedInlining tests that specific functions are inlined.
+-func testPGOIntendedInlining(t *testing.T, dir string) {
+-	testenv.MustHaveGoRun(t)
+-	t.Parallel()
+-
++func buildPGOInliningTest(t *testing.T, dir string, flags ...string) []byte {
+ 	const pkg = "example.com/pgo/inline"
+ 
+ 	// Add a go.mod so we have a consistent symbol names in this temp dir.
+@@ -32,6 +29,25 @@ go 1.19
+ 		t.Fatalf("error writing go.mod: %v", err)
+ 	}
+ 
++	exe := filepath.Join(dir, "test.exe")
++	args := []string{"test", "-c", "-o", exe}
++	args = append(args, flags...)
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), args...))
++	cmd.Dir = dir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed: %v, output:\n%s", err, out)
++	}
++	return out
++}
++
++// testPGOIntendedInlining tests that specific functions are inlined.
++func testPGOIntendedInlining(t *testing.T, dir string) {
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++
++	const pkg = "example.com/pgo/inline"
++
+ 	want := []string{
+ 		"(*BS).NS",
+ 	}
+@@ -71,25 +87,9 @@ go 1.19
+ 	// TODO: maybe adjust the test to work with default threshold.
+ 	pprof := filepath.Join(dir, "inline_hot.pprof")
+ 	gcflag := fmt.Sprintf("-gcflags=-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
+-	out := filepath.Join(dir, "test.exe")
+-	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", out, gcflag, "."))
+-	cmd.Dir = dir
+-
+-	pr, pw, err := os.Pipe()
+-	if err != nil {
+-		t.Fatalf("error creating pipe: %v", err)
+-	}
+-	defer pr.Close()
+-	cmd.Stdout = pw
+-	cmd.Stderr = pw
+-
+-	err = cmd.Start()
+-	pw.Close()
+-	if err != nil {
+-		t.Fatalf("error starting go test: %v", err)
+-	}
++	out := buildPGOInliningTest(t, dir, gcflag)
+ 
+-	scanner := bufio.NewScanner(pr)
++	scanner := bufio.NewScanner(bytes.NewReader(out))
+ 	curPkg := ""
+ 	canInline := regexp.MustCompile(`: can inline ([^ ]*)`)
+ 	haveInlined := regexp.MustCompile(`: inlining call to ([^ ]*)`)
+@@ -128,11 +128,8 @@ go 1.19
+ 			continue
+ 		}
+ 	}
+-	if err := cmd.Wait(); err != nil {
+-		t.Fatalf("error running go test: %v", err)
+-	}
+ 	if err := scanner.Err(); err != nil {
+-		t.Fatalf("error reading go test output: %v", err)
++		t.Fatalf("error reading output: %v", err)
+ 	}
+ 	for fullName, reason := range notInlinedReason {
+ 		t.Errorf("%s was not inlined: %s", fullName, reason)
+@@ -297,3 +294,48 @@ func copyFile(dst, src string) error {
+ 	_, err = io.Copy(d, s)
+ 	return err
+ }
++
++// TestPGOHash tests that PGO optimization decisions can be selected by pgohash.
++func TestPGOHash(t *testing.T) {
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("error getting wd: %v", err)
++	}
++	srcDir := filepath.Join(wd, "testdata/pgo/inline")
++
++	// Copy the module to a scratch location so we can add a go.mod.
++	dir := t.TempDir()
++
++	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", "inline_hot.pprof"} {
++		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
++			t.Fatalf("error copying %s: %v", file, err)
++		}
++	}
++
++	pprof := filepath.Join(dir, "inline_hot.pprof")
++	gcflag0 := fmt.Sprintf("-gcflags=-pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90,pgodebug=1,", pprof)
++
++	// Check that a hash match allows PGO inlining.
++	const srcPos = "example.com/pgo/inline/inline_hot.go:81:19"
++	const hashMatch = "pgohash triggered " + srcPos + " (inline)"
++	pgoDebugRE := regexp.MustCompile(`hot-budget check allows inlining for call .* at ` + strings.ReplaceAll(srcPos, ".", "\\."))
++	hash := "v1" // 1 matches srcPos, v for verbose (print source location)
++	gcflag := gcflag0 + ",pgohash=" + hash
++	// build with -trimpath so the source location (thus the hash)
++	// does not depend on the temporary directory path.
++	out := buildPGOInliningTest(t, dir, gcflag, "-trimpath")
++	if !bytes.Contains(out, []byte(hashMatch)) || !pgoDebugRE.Match(out) {
++		t.Errorf("output does not contain expected source line, out:\n%s", out)
++	}
++
++	// Check that a hash mismatch turns off PGO inlining.
++	hash = "v0" // 0 should not match srcPos
++	gcflag = gcflag0 + ",pgohash=" + hash
++	out = buildPGOInliningTest(t, dir, gcflag, "-trimpath")
++	if bytes.Contains(out, []byte(hashMatch)) || pgoDebugRE.Match(out) {
++		t.Errorf("output contains unexpected source line, out:\n%s", out)
++	}
++}

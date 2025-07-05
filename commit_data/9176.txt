@@ -7,6 +7,24 @@ Date:   Fri Jul 22 17:11:44 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4805048
-
+---
  src/pkg/http/fs_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index 0101ad88ca..c714795dcf 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -163,10 +163,10 @@ func TestDirJoin(t *testing.T) {
+ 		defer f.Close()
+ 		gfi, err := f.Stat()
+ 		if err != nil {
+-			t.Fatalf("stat of %s: %v", err)
++			t.Fatalf("stat of %s: %v", name, err)
+ 		}
+ 		if gfi.Ino != wfi.Ino {
+-			t.Errorf("%s got different inode")
++			t.Errorf("%s got different inode", name)
+ 		}
+ 	}
+ 	test(Dir("/etc/"), "/hosts")

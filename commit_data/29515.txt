@@ -9,7 +9,7 @@ Date:   Sat Sep 17 10:01:17 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/link/internal/amd64/asm.go  |  1 -
  src/cmd/link/internal/arm/asm.go    |  2 --
  src/cmd/link/internal/arm64/asm.go  |  1 -
@@ -24,3 +24,312 @@ Date:   Sat Sep 17 10:01:17 2016 -0400
  src/cmd/link/internal/s390x/asm.go  |  1 -
  src/cmd/link/internal/x86/asm.go    |  1 -
  13 files changed, 16 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 104d37e4cb..f074dbe6f9 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -98,7 +98,6 @@ func gentext(ctxt *ld.Link) {
+ 
+ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	targ := r.Sym
+-	ctxt.Cursym = s
+ 
+ 	switch r.Type {
+ 	default:
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 6aa24932b4..d822c20f43 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -114,7 +114,6 @@ func braddoff(a int32, b int32) int32 {
+ 
+ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	targ := r.Sym
+-	ctxt.Cursym = s
+ 
+ 	switch r.Type {
+ 	default:
+@@ -691,7 +690,6 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 	}
+ 
+-	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f header\n", obj.Cputime())
+ 	}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 8b22eaebb1..65f598fad5 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -499,7 +499,6 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 	}
+ 
+-	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f header\n", obj.Cputime())
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 52e2efbb8e..c9a2e13f2e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -323,7 +323,6 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 	var fl int32
+ 	var o int64
+ 
+-	ctxt.Cursym = s
+ 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
+ 		r = &s.R[ri]
+ 		r.Done = 1
+@@ -549,7 +548,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+ 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
+-			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != ctxt.Cursym.Sect || r.Type == obj.R_GOTPCREL) {
++			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != s.Sect || r.Type == obj.R_GOTPCREL) {
+ 				r.Done = 0
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+@@ -580,7 +579,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 						o -= int64(r.Off) // relative to section offset, not symbol
+ 					} else if SysArch.Family == sys.ARM {
+ 						// see ../arm/asm.go:/machoreloc1
+-						o += Symaddr(rs) - int64(ctxt.Cursym.Value) - int64(r.Off)
++						o += Symaddr(rs) - int64(s.Value) - int64(r.Off)
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+@@ -622,7 +621,6 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		}
+ 		switch siz {
+ 		default:
+-			ctxt.Cursym = s
+ 			Errorf(s, "bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
+ 			fallthrough
+ 
+@@ -842,7 +840,6 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
+ 		if s.Value >= eaddr {
+ 			break
+ 		}
+-		ctxt.Cursym = s
+ 		if s.Value < addr {
+ 			Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, s.Value, s.Type)
+ 			errorexit()
+@@ -1904,9 +1901,6 @@ func (ctxt *Link) textaddress() {
+ 		for sub := sym; sub != nil; sub = sub.Sub {
+ 			sub.Value += int64(va)
+ 		}
+-		if sym.Size == 0 && sym.Sub != nil {
+-			ctxt.Cursym = sym
+-		}
+ 		if sym.Size < MINFUNC {
+ 			va += MINFUNC // spacing required for findfunctab
+ 		} else {
+@@ -2060,7 +2054,6 @@ func (ctxt *Link) address() {
+ 	)
+ 
+ 	for _, s := range datap {
+-		ctxt.Cursym = s
+ 		if s.Sect != nil {
+ 			s.Value += int64(s.Sect.Vaddr)
+ 		}
+@@ -2070,7 +2063,6 @@ func (ctxt *Link) address() {
+ 	}
+ 
+ 	for _, sym := range dwarfp {
+-		ctxt.Cursym = sym
+ 		if sym.Sect != nil {
+ 			sym.Value += int64(sym.Sect.Vaddr)
+ 		}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 4b78184a25..8fd6f3f7a2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -999,8 +999,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 
+ 	var pcfile Pciter
+ 	var pcline Pciter
+-	for _, ctxt.Cursym = range ctxt.Textp {
+-		s := ctxt.Cursym
++	for _, s := range ctxt.Textp {
+ 
+ 		epc = s.Value + s.Size
+ 		epcs = s
+@@ -1152,8 +1151,7 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
+ 
+ 	var deltaBuf []byte
+ 	var pcsp Pciter
+-	for _, ctxt.Cursym = range ctxt.Textp {
+-		s := ctxt.Cursym
++	for _, s := range ctxt.Textp {
+ 		if s.FuncInfo == nil {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 5603df6f2e..a3d3360c7e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1759,8 +1759,6 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 		if sym.Value >= int64(eaddr) {
+ 			break
+ 		}
+-		ctxt.Cursym = sym
+-
+ 		for ri := 0; ri < len(sym.R); ri++ {
+ 			r := &sym.R[ri]
+ 			if r.Done != 0 {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 480c6e36c5..877fa8979e 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -189,7 +189,6 @@ type Link struct {
+ 	Shlibs    []Shlib
+ 	Tlsoffset int
+ 
+-	Cursym      *Symbol
+ 	Version     int
+ 	Textp       []*Symbol
+ 	Filesyms    []*Symbol
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 05ef137100..c587d7652e 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -243,24 +243,24 @@ func (ctxt *Link) pclntab() {
+ 
+ 	nfunc = 0
+ 	var last *Symbol
+-	for _, ctxt.Cursym = range ctxt.Textp {
+-		last = ctxt.Cursym
+-		if container(ctxt.Cursym) != 0 {
++	for _, s := range ctxt.Textp {
++		last = s
++		if container(s) != 0 {
+ 			continue
+ 		}
+-		pcln := ctxt.Cursym.FuncInfo
++		pcln := s.FuncInfo
+ 		if pcln == nil {
+ 			pcln = &pclntabZpcln
+ 		}
+ 
+ 		if pclntabFirstFunc == nil {
+-			pclntabFirstFunc = ctxt.Cursym
++			pclntabFirstFunc = s
+ 		}
+ 
+ 		funcstart := int32(len(ftab.P))
+ 		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
+ 
+-		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), ctxt.Cursym)
++		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
+ 		setuintxx(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
+ 
+ 		// fixed size of struct, checked below
+@@ -273,16 +273,16 @@ func (ctxt *Link) pclntab() {
+ 		Symgrow(ctxt, ftab, int64(end))
+ 
+ 		// entry uintptr
+-		off = int32(setaddr(ctxt, ftab, int64(off), ctxt.Cursym))
++		off = int32(setaddr(ctxt, ftab, int64(off), s))
+ 
+ 		// name int32
+-		off = int32(setuint32(ctxt, ftab, int64(off), uint32(ftabaddstring(ctxt, ftab, ctxt.Cursym.Name))))
++		off = int32(setuint32(ctxt, ftab, int64(off), uint32(ftabaddstring(ctxt, ftab, s.Name))))
+ 
+ 		// args int32
+ 		// TODO: Move into funcinfo.
+ 		args := uint32(0)
+-		if ctxt.Cursym.FuncInfo != nil {
+-			args = uint32(ctxt.Cursym.FuncInfo.Args)
++		if s.FuncInfo != nil {
++			args = uint32(s.FuncInfo.Args)
+ 		}
+ 		off = int32(setuint32(ctxt, ftab, int64(off), args))
+ 
+@@ -300,7 +300,7 @@ func (ctxt *Link) pclntab() {
+ 				var it Pciter
+ 				for pciterinit(ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
+ 					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
+-						Errorf(ctxt.Cursym, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
++						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
+ 						errorexit()
+ 					}
+ 				}
+@@ -339,7 +339,7 @@ func (ctxt *Link) pclntab() {
+ 		}
+ 
+ 		if off != end {
+-			Errorf(ctxt.Cursym, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
++			Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
+ 			errorexit()
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index ca968e7adf..6f23592e65 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -790,8 +790,6 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
+ 		if sym.Value >= int64(eaddr) {
+ 			break
+ 		}
+-		ctxt.Cursym = sym
+-
+ 		for ri := 0; ri < len(sym.R); ri++ {
+ 			r := &sym.R[ri]
+ 			if r.Done != 0 {
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 0a48a3e531..dc015ee0d6 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -278,7 +278,6 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 	}
+ 
+-	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f header\n", obj.Cputime())
+ 	}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 73f675190f..f8892727cf 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -242,7 +242,6 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
+ 
+ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	targ := r.Sym
+-	ctxt.Cursym = s
+ 
+ 	switch r.Type {
+ 	default:
+@@ -898,7 +897,6 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 	}
+ 
+-	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f header\n", obj.Cputime())
+ 	}
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index d25e2b26c5..5e194974e3 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -575,7 +575,6 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 	}
+ 
+-	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f header\n", obj.Cputime())
+ 	}
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 5db3489370..34fec5263e 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -164,7 +164,6 @@ func gentext(ctxt *ld.Link) {
+ 
+ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	targ := r.Sym
+-	ctxt.Cursym = s
+ 
+ 	switch r.Type {
+ 	default:

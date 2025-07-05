@@ -11,6 +11,46 @@ Date:   Mon Jul 13 23:52:59 2015 -0700
     Change-Id: I30291e1fa384a0819205218f1d1ec3aef6d538dd
     Reviewed-on: https://go-review.googlesource.com/12154
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 24 ++++++++++++++++++------
  1 file changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 60d2cd5460..15e8ace391 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -54,16 +54,28 @@ func schedule(f *Func) {
+ 			}
+ 		}
+ 
+-		// Topologically sort the values in b.
+ 		order = order[:0]
++
++		// Schedule phis first
+ 		for _, v := range b.Values {
+-			if v == b.Control {
+-				continue
+-			}
+ 			if v.Op == OpPhi {
+-				// Phis all go first.  We handle phis specially
+-				// because they may have self edges "a = phi(a, b, c)"
++				// TODO: what if a phi is also a control op?  It happens for
++				// mem ops all the time, which shouldn't matter.  But for
++				// regular ops we might be violating invariants about where
++				// control ops live.
++				if v == b.Control && !v.Type.IsMemory() {
++					f.Unimplementedf("phi is a control op %s %s", v, b)
++				}
+ 				order = append(order, v)
++			}
++		}
++
++		// Topologically sort the non-phi values in b.
++		for _, v := range b.Values {
++			if v.Op == OpPhi {
++				continue
++			}
++			if v == b.Control {
+ 				continue
+ 			}
+ 			if state[v.ID] != unmarked {

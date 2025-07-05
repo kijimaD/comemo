@@ -13,7 +13,52 @@ Date:   Mon Feb 8 16:32:39 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/io/fs/glob.go      | 5 ++---
  src/io/fs/glob_test.go | 3 ++-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/io/fs/glob.go b/src/io/fs/glob.go
+index 549f217542..45d9cb61b9 100644
+--- a/src/io/fs/glob.go
++++ b/src/io/fs/glob.go
+@@ -6,7 +6,6 @@ package fs
+ 
+ import (
+ 	"path"
+-	"runtime"
+ )
+ 
+ // A GlobFS is a file system with a Glob method.
+@@ -111,8 +110,8 @@ func glob(fs FS, dir, pattern string, matches []string) (m []string, e error) {
+ // recognized by path.Match.
+ func hasMeta(path string) bool {
+ 	for i := 0; i < len(path); i++ {
+-		c := path[i]
+-		if c == '*' || c == '?' || c == '[' || runtime.GOOS == "windows" && c == '\\' {
++		switch path[i] {
++		case '*', '?', '[', '\\':
+ 			return true
+ 		}
+ 	}
+diff --git a/src/io/fs/glob_test.go b/src/io/fs/glob_test.go
+index f0d791fab5..f19bebed77 100644
+--- a/src/io/fs/glob_test.go
++++ b/src/io/fs/glob_test.go
+@@ -17,6 +17,7 @@ var globTests = []struct {
+ }{
+ 	{os.DirFS("."), "glob.go", "glob.go"},
+ 	{os.DirFS("."), "gl?b.go", "glob.go"},
++	{os.DirFS("."), `gl\ob.go`, "glob.go"},
+ 	{os.DirFS("."), "*", "glob.go"},
+ 	{os.DirFS(".."), "*/glob.go", "fs/glob.go"},
+ }
+@@ -32,7 +33,7 @@ func TestGlob(t *testing.T) {
+ 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
+ 		}
+ 	}
+-	for _, pattern := range []string{"no_match", "../*/no_match"} {
++	for _, pattern := range []string{"no_match", "../*/no_match", `\*`} {
+ 		matches, err := Glob(os.DirFS("."), pattern)
+ 		if err != nil {
+ 			t.Errorf("Glob error for %q: %s", pattern, err)

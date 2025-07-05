@@ -11,6 +11,30 @@ Date:   Wed Feb 15 09:06:24 2012 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5666046
-
+---
  src/make.bash | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 5677b7012b..43183e786b 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -57,7 +57,6 @@ done
+ 
+ echo '# Building C bootstrap tool.'
+ echo cmd/dist
+-mkdir -p ../bin/tool
+ export GOROOT="$(cd .. && pwd)"
+ GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
+ DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
+@@ -67,6 +66,10 @@ echo
+ 
+ if [ "$1" = "--dist-tool" ]; then
+ 	# Stop after building dist tool.
++	mkdir -p $GOTOOLDIR
++	if [ "$2" != "" ]; then
++		cp cmd/dist/dist "$2"
++	fi
+ 	mv cmd/dist/dist $GOTOOLDIR/dist
+ 	exit 0
+ fi

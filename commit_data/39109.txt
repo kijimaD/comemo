@@ -11,6 +11,19 @@ Date:   Wed Jan 2 16:16:49 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/156020
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 063445cc9d..81ba20ff0f 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -121,6 +121,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ssa.rbrank %d":              "",
+ 	"cmd/compile/internal/ssa.regMask %d":             "",
+ 	"cmd/compile/internal/ssa.register %d":            "",
++	"cmd/compile/internal/ssa.relation %s":            "",
+ 	"cmd/compile/internal/syntax.Error %q":            "",
+ 	"cmd/compile/internal/syntax.Expr %#v":            "",
+ 	"cmd/compile/internal/syntax.Node %T":             "",

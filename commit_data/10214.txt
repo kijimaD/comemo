@@ -7,7 +7,7 @@ Date:   Wed Nov 2 15:54:16 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5319072
-
+---
  src/cmd/godoc/index.go                      | 2 +-
  src/cmd/godoc/snippet.go                    | 2 +-
  src/cmd/govet/govet.go                      | 2 +-
@@ -54,3 +54,678 @@ Date:   Wed Nov 2 15:54:16 2011 -0400
  src/pkg/unicode/maketables.go               | 2 +-
  src/pkg/xml/marshal_test.go                 | 6 +++---
  45 files changed, 52 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 68d1abe643..172eae3969 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -43,8 +43,8 @@ import (
+ 	"errors"
+ 	"go/ast"
+ 	"go/parser"
+-	"go/token"
+ 	"go/scanner"
++	"go/token"
+ 	"gob"
+ 	"index/suffixarray"
+ 	"io"
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index 68e27d9a0c..c2b74ee52f 100644
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -11,9 +11,9 @@ package main
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+-	"fmt"
+ )
+ 
+ type Snippet struct {
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index e826f89d71..e62c16feee 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -10,11 +10,11 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index d1a9079812..ff18fa7e70 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -45,12 +45,12 @@ package main
+ //
+ 
+ import (
++	"bufio"
++	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"bufio"
+ 	"os"
+ 	"strings"
+-	"bytes"
+ )
+ 
+ // the following are adjustable
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 64152b4245..b705ebe7ea 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -7,10 +7,10 @@ package zip
+ import (
+ 	"bufio"
+ 	"compress/flate"
++	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ 	"hash/crc32"
+-	"encoding/binary"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 6625e3a2b0..cb31ef6d30 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -5,8 +5,8 @@
+ package heap_test
+ 
+ import (
+-	"testing"
+ 	. "container/heap"
++	"testing"
+ )
+ 
+ type myHeap []int
+diff --git a/src/pkg/crypto/ecdsa/ecdsa_test.go b/src/pkg/crypto/ecdsa/ecdsa_test.go
+index d6b4039142..baa3c9e933 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa_test.go
++++ b/src/pkg/crypto/ecdsa/ecdsa_test.go
+@@ -7,8 +7,8 @@ package ecdsa
+ import (
+ 	"big"
+ 	"crypto/elliptic"
+-	"crypto/sha1"
+ 	"crypto/rand"
++	"crypto/sha1"
+ 	"encoding/hex"
+ 	"testing"
+ )
+diff --git a/src/pkg/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+index bcae63b8af..03431c92f7 100644
+--- a/src/pkg/crypto/hmac/hmac_test.go
++++ b/src/pkg/crypto/hmac/hmac_test.go
+@@ -5,8 +5,8 @@
+ package hmac
+ 
+ import (
+-	"hash"
+ 	"fmt"
++	"hash"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k_test.go b/src/pkg/crypto/openpgp/s2k/s2k_test.go
+index ec4012c238..3a094a10f1 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k_test.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k_test.go
+@@ -6,8 +6,8 @@ package s2k
+ 
+ import (
+ 	"bytes"
+-	"crypto/sha1"
+ 	"crypto/rand"
++	"crypto/sha1"
+ 	"encoding/hex"
+ 	"testing"
+ )
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index 41206e276b..ee8784ca69 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -9,10 +9,10 @@ package main
+ 
+ import (
+ 	"big"
+-	"crypto/x509/pkix"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/x509"
++	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"flag"
+ 	"log"
+diff --git a/src/pkg/crypto/x509/pkcs1.go b/src/pkg/crypto/x509/pkcs1.go
+index 0d3ade3757..8338ae1dd5 100644
+--- a/src/pkg/crypto/x509/pkcs1.go
++++ b/src/pkg/crypto/x509/pkcs1.go
+@@ -7,8 +7,8 @@ package x509
+ import (
+ 	"asn1"
+ 	"big"
+-	"errors"
+ 	"crypto/rsa"
++	"errors"
+ )
+ 
+ // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index e8449786c2..d113f850eb 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -6,8 +6,8 @@ package x509
+ 
+ import (
+ 	"asn1"
+-	"bytes"
+ 	"big"
++	"bytes"
+ 	"crypto/dsa"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index c83e64eabd..562e7a0a37 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -7,8 +7,8 @@ package gosym
+ import (
+ 	"debug/elf"
+ 	"os"
+-	"testing"
+ 	"syscall"
++	"testing"
+ )
+ 
+ func dotest() bool {
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 65b9f013fc..d2f8b1e624 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -9,8 +9,8 @@ package binary
+ 
+ import (
+ 	"errors"
+-	"math"
+ 	"io"
++	"math"
+ 	"reflect"
+ )
+ 
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index e3bf17ccc9..fd4fdb0157 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -5,8 +5,8 @@
+ package binary
+ 
+ import (
+-	"io"
+ 	"bytes"
++	"io"
+ 	"math"
+ 	"reflect"
+ 	"testing"
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 6d5e8933ff..8f63653c01 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -10,11 +10,11 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"testing"
+ 	"os"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"testing"
+ )
+ 
+ func helperCommand(s ...string) *Cmd {
+diff --git a/src/pkg/exp/inotify/inotify_linux_test.go b/src/pkg/exp/inotify/inotify_linux_test.go
+index aa72604eb9..a6bb46fe77 100644
+--- a/src/pkg/exp/inotify/inotify_linux_test.go
++++ b/src/pkg/exp/inotify/inotify_linux_test.go
+@@ -6,8 +6,8 @@ package inotify
+ 
+ import (
+ 	"os"
+-	"time"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestInotifyEvents(t *testing.T) {
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 6e27f638aa..744bb1cd6c 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -17,8 +17,8 @@ import (
+ 	"path"
+ 	"regexp"
+ 	"runtime"
+-	"strings"
+ 	"strconv"
++	"strings"
+ 	"time"
+ 	"utf8"
+ )
+diff --git a/src/pkg/exp/winfsnotify/winfsnotify_test.go b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+index ff7735aa6a..fb2b825e68 100644
+--- a/src/pkg/exp/winfsnotify/winfsnotify_test.go
++++ b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+@@ -6,8 +6,8 @@ package winfsnotify
+ 
+ import (
+ 	"os"
+-	"time"
+ 	"testing"
++	"time"
+ )
+ 
+ func expect(t *testing.T, eventstream <-chan *Event, name string, mask uint32) {
+diff --git a/src/pkg/exp/wingui/gui.go b/src/pkg/exp/wingui/gui.go
+index a2f16f282b..5df2ee0faa 100644
+--- a/src/pkg/exp/wingui/gui.go
++++ b/src/pkg/exp/wingui/gui.go
+@@ -6,8 +6,8 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"syscall"
+ 	"os"
++	"syscall"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/pkg/exp/wingui/winapi.go b/src/pkg/exp/wingui/winapi.go
+index 32015287c9..08059df2b9 100644
+--- a/src/pkg/exp/wingui/winapi.go
++++ b/src/pkg/exp/wingui/winapi.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"unsafe"
+ 	"syscall"
++	"unsafe"
+ )
+ 
+ type Wndclassex struct {
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index 2bfe18b1dc..fd0e099371 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -13,14 +13,14 @@ import (
+ 	"http"
+ 	"http/httptest"
+ 	"io"
+-	"os"
+ 	"net"
++	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+-	"runtime"
+ )
+ 
+ func newRequest(httpreq string) *http.Request {
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 6cb8625e7d..94772183f0 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -5,8 +5,8 @@
+ package http
+ 
+ import (
+-	"bytes"
+ 	"bufio"
++	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+diff --git a/src/pkg/http/transport_windows.go b/src/pkg/http/transport_windows.go
+index e0dc857aa9..2a20d2224a 100644
+--- a/src/pkg/http/transport_windows.go
++++ b/src/pkg/http/transport_windows.go
+@@ -5,8 +5,8 @@
+ package http
+ 
+ import (
+-	"os"
+ 	"net"
++	"os"
+ )
+ 
+ func init() {
+diff --git a/src/pkg/image/bmp/reader.go b/src/pkg/image/bmp/reader.go
+index ad56865499..58bd7812ff 100644
+--- a/src/pkg/image/bmp/reader.go
++++ b/src/pkg/image/bmp/reader.go
+@@ -9,8 +9,8 @@ package bmp
+ 
+ import (
+ 	"errors"
+-	"image/color"
+ 	"image"
++	"image/color"
+ 	"io"
+ )
+ 
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index 72cec93b3b..76b5281c08 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"image/color"
+ 	"image/png"
+ 	"io/ioutil"
+-	"rand"
+ 	"os"
++	"rand"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/io/multi_test.go b/src/pkg/io/multi_test.go
+index bb439f04b8..0de5cc312d 100644
+--- a/src/pkg/io/multi_test.go
++++ b/src/pkg/io/multi_test.go
+@@ -5,10 +5,10 @@
+ package io_test
+ 
+ import (
+-	. "io"
+ 	"bytes"
+ 	"crypto/sha1"
+ 	"fmt"
++	. "io"
+ 	"strings"
+ 	"testing"
+ )
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 55b7e9ef9e..b5368af531 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -16,10 +16,10 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"runtime"
+ 	"os"
+-	"time"
++	"runtime"
+ 	"sync"
++	"time"
+ )
+ 
+ // These flags define which text to prefix to each log entry generated by the Logger.
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 0ca315e7c0..df647ef73c 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -7,8 +7,8 @@ package net
+ import (
+ 	"bytes"
+ 	"reflect"
+-	"testing"
+ 	"runtime"
++	"testing"
+ )
+ 
+ func isEqual(a, b []byte) bool {
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index b515d0c851..61d8a8871e 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -5,10 +5,10 @@
+ package net
+ 
+ import (
+-	"syscall"
+-	"unsafe"
+ 	"os"
+ 	"sync"
++	"syscall"
++	"unsafe"
+ )
+ 
+ var (
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index 8d51eba18c..dfbaba4d9e 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -7,8 +7,8 @@ package net
+ import (
+ 	"bufio"
+ 	"os"
+-	"testing"
+ 	"runtime"
++	"testing"
+ )
+ 
+ func TestReadLine(t *testing.T) {
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 9e5444980f..7d17ccd53c 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -8,10 +8,10 @@ import (
+ 	"flag"
+ 	"io"
+ 	"os"
++	"runtime"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+-	"runtime"
+ )
+ 
+ // Do not test empty datagrams by default.
+diff --git a/src/pkg/old/netchan/export.go b/src/pkg/old/netchan/export.go
+index a4c4c6aeb5..d698dd53a9 100644
+--- a/src/pkg/old/netchan/export.go
++++ b/src/pkg/old/netchan/export.go
+@@ -23,8 +23,8 @@ package netchan
+ 
+ import (
+ 	"errors"
+-	"log"
+ 	"io"
++	"log"
+ 	"net"
+ 	"reflect"
+ 	"strconv"
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+index 795da21a44..ad6c8e306c 100644
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -9,8 +9,8 @@ package os
+ import (
+ 	"errors"
+ 	"syscall"
+-	"utf16"
+ 	"unsafe"
++	"utf16"
+ )
+ 
+ // ENOENV is the error indicating that an environment variable does not exist.
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index f0da186ac9..89d66c29ef 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -7,9 +7,9 @@ package os_test
+ import (
+ 	. "os"
+ 	"path/filepath"
+-	"testing"
+ 	"runtime"
+ 	"syscall"
++	"testing"
+ )
+ 
+ func TestMkdirAll(t *testing.T) {
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index c9f1c4e650..416aeea33d 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -5,8 +5,8 @@
+ package os
+ 
+ import (
+-	"unsafe"
+ 	"syscall"
++	"unsafe"
+ )
+ 
+ // Stat returns the FileInfo structure describing file.
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index cdf3b66a88..7bdc449bc1 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -6,8 +6,8 @@ package filepath_test
+ 
+ import (
+ 	. "path/filepath"
+-	"testing"
+ 	"runtime"
++	"testing"
+ )
+ 
+ type MatchTest struct {
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index 66ffa58cd5..76215a978a 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -6,8 +6,8 @@ package rand
+ 
+ import (
+ 	"errors"
+-	"math"
+ 	"fmt"
++	"math"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 0f7f0b47a6..d03153305c 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -117,8 +117,8 @@ import (
+ 	"errors"
+ 	"gob"
+ 	"http"
+-	"log"
+ 	"io"
++	"log"
+ 	"net"
+ 	"reflect"
+ 	"strings"
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index c99756efa4..9c3752fa30 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -6,8 +6,8 @@ package runtime_test
+ 
+ import (
+ 	"syscall"
+-	"unsafe"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ type DLL struct {
+diff --git a/src/pkg/sync/once_test.go b/src/pkg/sync/once_test.go
+index 157a3667a6..37075af171 100644
+--- a/src/pkg/sync/once_test.go
++++ b/src/pkg/sync/once_test.go
+@@ -5,9 +5,9 @@
+ package sync_test
+ 
+ import (
++	"runtime"
+ 	. "sync"
+ 	"sync/atomic"
+-	"runtime"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 5b02c8d234..029a6cca07 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -7,8 +7,8 @@ package time_test
+ import (
+ 	"errors"
+ 	"fmt"
+-	"testing"
+ 	"sort"
++	"testing"
+ 	. "time"
+ )
+ 
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index ba9295c65d..ba152e0882 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -5,9 +5,9 @@
+ package time
+ 
+ import (
+-	"syscall"
+-	"sync"
+ 	"os"
++	"sync"
++	"syscall"
+ )
+ 
+ // BUG(brainman): The Windows implementation assumes that
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index b7c23aed28..8f511fa53f 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -16,10 +16,10 @@ import (
+ 	"log"
+ 	"os"
+ 	"path/filepath"
++	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+-	"regexp"
+ 	"unicode"
+ )
+ 
+diff --git a/src/pkg/xml/marshal_test.go b/src/pkg/xml/marshal_test.go
+index 59007b3645..a6f7d2d0c2 100644
+--- a/src/pkg/xml/marshal_test.go
++++ b/src/pkg/xml/marshal_test.go
+@@ -5,11 +5,11 @@
+ package xml
+ 
+ import (
+-	"reflect"
+-	"testing"
+ 	"bytes"
+-	"strings"
++	"reflect"
+ 	"strconv"
++	"strings"
++	"testing"
+ )
+ 
+ type DriveType int

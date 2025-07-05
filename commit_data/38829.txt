@@ -17,9 +17,168 @@ Date:   Tue Nov 20 11:13:03 2018 +0530
     Reviewed-on: https://go-review.googlesource.com/c/150377
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/comment.go       | 48 +++++++++++++++++++++++++++------------------
  src/go/doc/comment_test.go  | 18 +++++++++++++++++
  src/go/doc/synopsis.go      |  1 +
  src/go/doc/synopsis_test.go |  1 +
  4 files changed, 49 insertions(+), 19 deletions(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index d9268b87fb..d2c026ea70 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -7,6 +7,7 @@
+ package doc
+ 
+ import (
++	"bytes"
+ 	"io"
+ 	"strings"
+ 	"text/template" // for HTMLEscape
+@@ -14,32 +15,38 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++const (
++	ldquo = "&ldquo;"
++	rdquo = "&rdquo;"
++	ulquo = "“"
++	urquo = "”"
++)
++
+ var (
+-	ldquo = []byte("&ldquo;")
+-	rdquo = []byte("&rdquo;")
++	htmlQuoteReplacer    = strings.NewReplacer(ulquo, ldquo, urquo, rdquo)
++	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
+ )
+ 
+ // Escape comment text for HTML. If nice is set,
+ // also turn `` into &ldquo; and '' into &rdquo;.
+ func commentEscape(w io.Writer, text string, nice bool) {
+-	last := 0
+ 	if nice {
+-		for i := 0; i < len(text)-1; i++ {
+-			ch := text[i]
+-			if ch == text[i+1] && (ch == '`' || ch == '\'') {
+-				template.HTMLEscape(w, []byte(text[last:i]))
+-				last = i + 2
+-				switch ch {
+-				case '`':
+-					w.Write(ldquo)
+-				case '\'':
+-					w.Write(rdquo)
+-				}
+-				i++ // loop will add one more
+-			}
+-		}
++		// In the first pass, we convert `` and '' into their unicode equivalents.
++		// This prevents them from being escaped in HTMLEscape.
++		text = convertQuotes(text)
++		var buf bytes.Buffer
++		template.HTMLEscape(&buf, []byte(text))
++		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
++		// We need to use a temp buffer to read the string back and do the conversion,
++		// otherwise HTMLEscape will escape & to &amp;
++		htmlQuoteReplacer.WriteString(w, buf.String())
++		return
+ 	}
+-	template.HTMLEscape(w, []byte(text[last:]))
++	template.HTMLEscape(w, []byte(text))
++}
++
++func convertQuotes(text string) string {
++	return unicodeQuoteReplacer.Replace(text)
+ }
+ 
+ const (
+@@ -248,7 +255,7 @@ func heading(line string) string {
+ 	}
+ 
+ 	// allow "." when followed by non-space
+-	for b := line;; {
++	for b := line; ; {
+ 		i := strings.IndexRune(b, '.')
+ 		if i < 0 {
+ 			break
+@@ -429,12 +436,14 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
+ 		case opPara:
+ 			// l.write will add leading newline if required
+ 			for _, line := range b.lines {
++				line = convertQuotes(line)
+ 				l.write(line)
+ 			}
+ 			l.flush()
+ 		case opHead:
+ 			w.Write(nl)
+ 			for _, line := range b.lines {
++				line = convertQuotes(line)
+ 				l.write(line + "\n")
+ 			}
+ 			l.flush()
+@@ -445,6 +454,7 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
+ 					w.Write([]byte("\n"))
+ 				} else {
+ 					w.Write([]byte(preIndent))
++					line = convertQuotes(line)
+ 					w.Write([]byte(line))
+ 				}
+ 			}
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index 0523ab899e..1e6cf84cdf 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -7,6 +7,7 @@ package doc
+ import (
+ 	"bytes"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -212,3 +213,20 @@ func TestPairedParensPrefixLen(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCommentEscape(t *testing.T) {
++	commentTests := []struct {
++		in, out string
++	}{
++		{"typically invoked as ``go tool asm'',", "typically invoked as " + ldquo + "go tool asm" + rdquo + ","},
++		{"For more detail, run ``go help test'' and ``go help testflag''", "For more detail, run " + ldquo + "go help test" + rdquo + " and " + ldquo + "go help testflag" + rdquo},
++	}
++	for i, tt := range commentTests {
++		var buf strings.Builder
++		commentEscape(&buf, tt.in, true)
++		out := buf.String()
++		if out != tt.out {
++			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
++		}
++	}
++}
+diff --git a/src/go/doc/synopsis.go b/src/go/doc/synopsis.go
+index c90080b7cc..3fa1616cd1 100644
+--- a/src/go/doc/synopsis.go
++++ b/src/go/doc/synopsis.go
+@@ -72,6 +72,7 @@ func Synopsis(s string) string {
+ 			return ""
+ 		}
+ 	}
++	s = convertQuotes(s)
+ 	return s
+ }
+ 
+diff --git a/src/go/doc/synopsis_test.go b/src/go/doc/synopsis_test.go
+index 59b253cb8d..3f443dc757 100644
+--- a/src/go/doc/synopsis_test.go
++++ b/src/go/doc/synopsis_test.go
+@@ -35,6 +35,7 @@ var tests = []struct {
+ 	{"All Rights reserved. Package foo does bar.", 20, ""},
+ 	{"All rights reserved. Package foo does bar.", 20, ""},
+ 	{"Authors: foo@bar.com. Package foo does bar.", 21, ""},
++	{"typically invoked as ``go tool asm'',", 37, "typically invoked as " + ulquo + "go tool asm" + urquo + ","},
+ }
+ 
+ func TestSynopsis(t *testing.T) {

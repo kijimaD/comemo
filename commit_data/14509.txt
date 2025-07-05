@@ -15,7 +15,137 @@ Date:   Tue Nov 27 12:58:27 2012 -0500
     R=remyoudompheng, r, rsc
     CC=golang-dev
     https://golang.org/cl/6846048
-
+---
  src/pkg/regexp/all_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/regexp/regexp.go   | 49 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 103 insertions(+)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index f7b41a6741..dd2ed042c5 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -5,6 +5,7 @@
+ package regexp
+ 
+ import (
++	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -416,6 +417,59 @@ func TestSubexp(t *testing.T) {
+ 	}
+ }
+ 
++var splitTests = []struct {
++	s   string
++	r   string
++	n   int
++	out []string
++}{
++	{"foo:and:bar", ":", -1, []string{"foo", "and", "bar"}},
++	{"foo:and:bar", ":", 1, []string{"foo:and:bar"}},
++	{"foo:and:bar", ":", 2, []string{"foo", "and:bar"}},
++	{"foo:and:bar", "foo", -1, []string{"", ":and:bar"}},
++	{"foo:and:bar", "bar", -1, []string{"foo:and:", ""}},
++	{"foo:and:bar", "baz", -1, []string{"foo:and:bar"}},
++	{"baabaab", "a", -1, []string{"b", "", "b", "", "b"}},
++	{"baabaab", "a*", -1, []string{"b", "b", "b"}},
++	{"baabaab", "ba*", -1, []string{"", "", "", ""}},
++	{"foobar", "f*b*", -1, []string{"", "o", "o", "a", "r"}},
++	{"foobar", "f+.*b+", -1, []string{"", "ar"}},
++	{"foobooboar", "o{2}", -1, []string{"f", "b", "boar"}},
++	{"a,b,c,d,e,f", ",", 3, []string{"a", "b", "c,d,e,f"}},
++	{"a,b,c,d,e,f", ",", 0, nil},
++	{",", ",", -1, []string{"", ""}},
++	{",,,", ",", -1, []string{"", "", "", ""}},
++	{"", ",", -1, []string{""}},
++	{"", ".*", -1, []string{""}},
++	{"", ".+", -1, []string{""}},
++	{"", "", -1, []string{}},
++	{"foobar", "", -1, []string{"f", "o", "o", "b", "a", "r"}},
++	{"abaabaccadaaae", "a*", 5, []string{"", "b", "b", "c", "cadaaae"}},
++	{":x:y:z:", ":", -1, []string{"", "x", "y", "z", ""}},
++}
++
++func TestSplit(t *testing.T) {
++	for i, test := range splitTests {
++		re, err := Compile(test.r)
++		if err != nil {
++			t.Errorf("#%d: %q: compile error: %s", i, test.r, err.Error())
++			continue
++		}
++
++		split := re.Split(test.s, test.n)
++		if !reflect.DeepEqual(split, test.out) {
++			t.Errorf("#%d: %q: got %q; want %q", i, test.r, split, test.out)
++		}
++
++		if QuoteMeta(test.r) == test.r {
++			strsplit := strings.SplitN(test.s, test.r, test.n)
++			if !reflect.DeepEqual(split, strsplit) {
++				t.Errorf("#%d: Split(%q, %q, %d): regexp vs strings mismatch\nregexp=%q\nstrings=%q", i, test.s, test.r, test.n, split, strsplit)
++			}
++		}
++	}
++}
++
+ func BenchmarkLiteral(b *testing.B) {
+ 	x := strings.Repeat("x", 50) + "y"
+ 	b.StopTimer()
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 2a1ae56bd8..bcf354b44d 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -1048,3 +1048,52 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
+ 	}
+ 	return result
+ }
++
++// Split slices s into substrings separated by the expression and returns a slice of
++// the substrings between those expression matches.
++//
++// The slice returned by this method consists of all the substrings of s
++// not contained in the slice returned by FindAllString. When called on an expression
++// that contains no metacharacters, it is equivalent to strings.SplitN.
++//
++// Example:
++//   s := regexp.MustCompile("a*").Split("abaabaccadaaae", 5)
++//   // s: ["", "b", "b", "c", "cadaaae"]
++//
++// The count determines the number of substrings to return:
++//   n > 0: at most n substrings; the last substring will be the unsplit remainder.
++//   n == 0: the result is nil (zero substrings)
++//   n < 0: all substrings
++func (re *Regexp) Split(s string, n int) []string {
++
++	if n == 0 {
++		return nil
++	}
++
++	if len(re.expr) > 0 && len(s) == 0 {
++		return []string{""}
++	}
++
++	matches := re.FindAllStringIndex(s, n)
++	strings := make([]string, 0, len(matches))
++
++	beg := 0
++	end := 0
++	for _, match := range matches {
++		if n > 0 && len(strings) >= n-1 {
++			break
++		}
++
++		end = match[0]
++		if match[1] != 0 {
++			strings = append(strings, s[beg:end])
++		}
++		beg = match[1]
++	}
++
++	if end != len(s) {
++		strings = append(strings, s[beg:])
++	}
++
++	return strings
++}

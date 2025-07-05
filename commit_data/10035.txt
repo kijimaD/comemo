@@ -19,8 +19,61 @@ Date:   Tue Oct 18 14:55:10 2011 -0400
     R=golang-dev, bradfitz, lvd
     CC=golang-dev
     https://golang.org/cl/5294042
-
+---
  src/Make.cmd | 4 ++--
  src/Make.pkg | 4 ++--
  test/run     | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 27c6a2e134..d663edbffc 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -20,7 +20,7 @@ $(TARG): _go_.$O
+ 	$(LD) $(LDIMPORTS) -o $@ _go_.$O
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+-	$(GC) $(GCIMPORTS) -o $@ $(GOFILES)
++	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES)
+ 
+ install: $(TARGDIR)/$(TARG)
+ 
+@@ -44,7 +44,7 @@ _test/main.a: _gotest_.$O
+ 	gopack grc $@ _gotest_.$O
+ 
+ _gotest_.$O: $(GOFILES) $(GOTESTFILES)
+-	$(GC) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
++	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+ importpath:
+ 	echo main
+diff --git a/src/Make.pkg b/src/Make.pkg
+index ad7d10bebf..6d0ba987f9 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -83,10 +83,10 @@ $(TARGDIR)/$(TARG).a: _obj/$(TARG).a
+ 	cp _obj/$(TARG).a "$@"
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+-	$(GC) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES)
++	$(GC) $(GCFLAGS) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES)
+ 
+ _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
+-	$(GC) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES) $(GOTESTFILES)
++	$(GC) $(GCFLAGS) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+ _obj/$(TARG).a: _go_.$O $(OFILES)
+ 	@mkdir -p _obj/$(dir)
+diff --git a/test/run b/test/run
+index 533b0d824b..03c91ee30e 100755
+--- a/test/run
++++ b/test/run
+@@ -23,7 +23,7 @@ Xarm)
+ 	exit 1
+ esac
+ 
+-export G=${A}g
++export G="${A}g ${GCFLAGS}"
+ export L=${A}l
+ export GOTRACEBACK=0
+ export LANG=C

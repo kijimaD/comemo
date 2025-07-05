@@ -21,7 +21,7 @@ Date:   Fri Feb 3 00:16:18 2012 -0200
     R=cw, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5448079
-
+---
  src/cmd/godoc/httpzip.go           |  1 +
  src/cmd/godoc/zip.go               |  4 ++++
  src/pkg/archive/zip/struct.go      |  1 +
@@ -41,3 +41,508 @@ Date:   Fri Feb 3 00:16:18 2012 -0200
  src/pkg/os/types.go                | 34 ++++++++++++++++++++--------------
  src/pkg/path/filepath/path_test.go |  2 +-
  18 files changed, 90 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+index 9f3da08749..12e99646df 100644
+--- a/src/cmd/godoc/httpzip.go
++++ b/src/cmd/godoc/httpzip.go
+@@ -47,6 +47,7 @@ func (fi *fileInfo) Mode() os.FileMode  { return fi.mode }
+ func (fi *fileInfo) Size() int64        { return fi.size }
+ func (fi *fileInfo) ModTime() time.Time { return fi.mtime }
+ func (fi *fileInfo) IsDir() bool        { return fi.mode.IsDir() }
++func (fi *fileInfo) Sys() interface{}   { return nil }
+ 
+ // httpZipFile is the zip-file based implementation of http.File
+ type httpZipFile struct {
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index cd38ed92bc..8c4b1101b5 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -65,6 +65,10 @@ func (fi zipFI) IsDir() bool {
+ 	return fi.file == nil
+ }
+ 
++func (fi zipFI) Sys() interface{} {
++	return nil
++}
++
+ // zipFS is the zip-file based implementation of FileSystem
+ type zipFS struct {
+ 	*zip.ReadCloser
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 3da84357e1..abbe635e28 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -71,6 +71,7 @@ func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSi
+ func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
+ func (fi headerFileInfo) ModTime() time.Time { return fi.fh.ModTime() }
+ func (fi headerFileInfo) Mode() os.FileMode  { return fi.fh.Mode() }
++func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
+ 
+ // FileInfoHeader creates a partially-populated FileHeader from an
+ // os.FileInfo.
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index acd3d93821..1a260cc569 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -85,4 +85,7 @@ func TestFileHeaderRoundTrip(t *testing.T) {
+ 	if !reflect.DeepEqual(fh, fh2) {
+ 		t.Errorf("mismatch\n input=%#v\noutput=%#v\nerr=%v", fh, fh2, err)
+ 	}
++	if sysfh, ok := fi.Sys().(*FileHeader); !ok && sysfh != fh {
++		t.Errorf("Sys didn't return original *FileHeader")
++	}
+ }
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 85cad3ec71..feea9209e6 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -190,7 +190,7 @@ func TestDirJoin(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("stat of %s: %v", name, err)
+ 		}
+-		if !gfi.(*os.FileStat).SameFile(wfi.(*os.FileStat)) {
++		if !os.SameFile(gfi, wfi) {
+ 			t.Errorf("%s got different file", name)
+ 		}
+ 	}
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index ae5e908339..e337d2b078 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -152,7 +152,7 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 		if err == nil {
+ 			fi[i] = fip
+ 		} else {
+-			fi[i] = &FileStat{name: filename}
++			fi[i] = &fileStat{name: filename}
+ 		}
+ 	}
+ 	return fi, err
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index a0d3c99a50..56836434db 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -30,7 +30,7 @@ func Getwd() (pwd string, err error) {
+ 	pwd = Getenv("PWD")
+ 	if len(pwd) > 0 && pwd[0] == '/' {
+ 		d, err := Stat(pwd)
+-		if err == nil && dot.(*FileStat).SameFile(d.(*FileStat)) {
++		if err == nil && SameFile(dot, d) {
+ 			return pwd, nil
+ 		}
+ 	}
+@@ -42,7 +42,7 @@ func Getwd() (pwd string, err error) {
+ 		// Can't stat root - no hope.
+ 		return "", err
+ 	}
+-	if root.(*FileStat).SameFile(dot.(*FileStat)) {
++	if SameFile(root, dot) {
+ 		return "/", nil
+ 	}
+ 
+@@ -67,7 +67,7 @@ func Getwd() (pwd string, err error) {
+ 			}
+ 			for _, name := range names {
+ 				d, _ := Lstat(parent + "/" + name)
+-				if d.(*FileStat).SameFile(dot.(*FileStat)) {
++				if SameFile(d, dot) {
+ 					pwd = "/" + name + pwd
+ 					goto Found
+ 				}
+@@ -82,7 +82,7 @@ func Getwd() (pwd string, err error) {
+ 			return "", err
+ 		}
+ 		fd.Close()
+-		if pd.(*FileStat).SameFile(root.(*FileStat)) {
++		if SameFile(pd, root) {
+ 			break
+ 		}
+ 		// Set up for next round.
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index ec8c50986f..25d9cbc73a 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -408,7 +408,7 @@ func TestHardLink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", from, err)
+ 	}
+-	if !tostat.(*FileStat).SameFile(fromstat.(*FileStat)) {
++	if !SameFile(tostat, fromstat) {
+ 		t.Errorf("link %q, %q did not create hard link", to, from)
+ 	}
+ }
+@@ -444,7 +444,7 @@ func TestSymLink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", from, err)
+ 	}
+-	if !tostat.(*FileStat).SameFile(fromstat.(*FileStat)) {
++	if !SameFile(tostat, fromstat) {
+ 		t.Errorf("symlink %q, %q did not create symlink", to, from)
+ 	}
+ 	fromstat, err = Lstat(from)
+@@ -658,7 +658,7 @@ func TestChtimes(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Stat %s: %s", f.Name(), err)
+ 	}
+-	preStat := st.(*FileStat)
++	preStat := st
+ 
+ 	// Move access and modification time back a second
+ 	at := Atime(preStat)
+@@ -672,7 +672,7 @@ func TestChtimes(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("second Stat %s: %s", f.Name(), err)
+ 	}
+-	postStat := st.(*FileStat)
++	postStat := st
+ 
+ 	/* Plan 9:
+ 		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index 1bdcd748bc..f8e330beba 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -18,7 +18,7 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err)
+ 	}
+-	sys := dir.(*FileStat).Sys.(*syscall.Stat_t)
++	sys := dir.Sys().(*syscall.Stat_t)
+ 	if int(sys.Uid) != uid {
+ 		t.Errorf("Stat %q: uid %d want %d", path, sys.Uid, uid)
+ 	}
+@@ -52,7 +52,7 @@ func TestChown(t *testing.T) {
+ 	if err = Chown(f.Name(), -1, gid); err != nil {
+ 		t.Fatalf("chown %s -1 %d: %s", f.Name(), gid, err)
+ 	}
+-	sys := dir.(*FileStat).Sys.(*syscall.Stat_t)
++	sys := dir.Sys().(*syscall.Stat_t)
+ 	checkUidGid(t, f.Name(), int(sys.Uid), gid)
+ 
+ 	// Then try all the auxiliary groups.
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index e1f93fac38..2e5967d5c8 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -9,18 +9,18 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
+-	sys1 := fs1.Sys.(*syscall.Stat_t)
+-	sys2 := fs2.Sys.(*syscall.Stat_t)
+-	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
++func sameFile(sys1, sys2 interface{}) bool {
++	stat1 := sys1.(*syscall.Stat_t)
++	stat2 := sys2.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+ }
+ 
+ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &FileStat{
++	fs := &fileStat{
+ 		name:    basename(name),
+ 		size:    int64(st.Size),
+ 		modTime: timespecToTime(st.Mtimespec),
+-		Sys:     st,
++		sys:     st,
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+@@ -57,5 +57,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atimespec)
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atimespec)
+ }
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index 4c1c19729d..6ba84f438a 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -9,18 +9,18 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
+-	sys1 := fs1.Sys.(*syscall.Stat_t)
+-	sys2 := fs2.Sys.(*syscall.Stat_t)
+-	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
++func sameFile(sys1, sys2 interface{}) bool {
++	stat1 := sys1.(*syscall.Stat_t)
++	stat2 := sys2.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+ }
+ 
+ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &FileStat{
++	fs := &fileStat{
+ 		name:    basename(name),
+ 		size:    int64(st.Size),
+ 		modTime: timespecToTime(st.Mtimespec),
+-		Sys:     st,
++		sys:     st,
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+@@ -57,5 +57,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atimespec)
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atimespec)
+ }
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index 8d1323af9c..00506b2b60 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -9,18 +9,18 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
+-	sys1 := fs1.Sys.(*syscall.Stat_t)
+-	sys2 := fs2.Sys.(*syscall.Stat_t)
+-	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
++func sameFile(sys1, sys2 interface{}) bool {
++	stat1 := sys1.(*syscall.Stat_t)
++	stat2 := sys2.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+ }
+ 
+ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &FileStat{
++	fs := &fileStat{
+ 		name:    basename(name),
+ 		size:    int64(st.Size),
+ 		modTime: timespecToTime(st.Mtim),
+-		Sys:     st,
++		sys:     st,
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+@@ -57,5 +57,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atim)
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
+ }
+diff --git a/src/pkg/os/stat_netbsd.go b/src/pkg/os/stat_netbsd.go
+index 8d1323af9c..c58a2874c7 100644
+--- a/src/pkg/os/stat_netbsd.go
++++ b/src/pkg/os/stat_netbsd.go
+@@ -9,14 +9,14 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
+-	sys1 := fs1.Sys.(*syscall.Stat_t)
+-	sys2 := fs2.Sys.(*syscall.Stat_t)
+-	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
++func sameFile(sys1, sys2 interface{}) bool {
++	stat1 := sys1.(*syscall.Stat_t)
++	stat2 := sys2.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+ }
+ 
+ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &FileStat{
++	fs := &fileStat{
+ 		name:    basename(name),
+ 		size:    int64(st.Size),
+ 		modTime: timespecToTime(st.Mtim),
+@@ -57,5 +57,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atim)
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
+ }
+diff --git a/src/pkg/os/stat_openbsd.go b/src/pkg/os/stat_openbsd.go
+index 8d1323af9c..00506b2b60 100644
+--- a/src/pkg/os/stat_openbsd.go
++++ b/src/pkg/os/stat_openbsd.go
+@@ -9,18 +9,18 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
+-	sys1 := fs1.Sys.(*syscall.Stat_t)
+-	sys2 := fs2.Sys.(*syscall.Stat_t)
+-	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
++func sameFile(sys1, sys2 interface{}) bool {
++	stat1 := sys1.(*syscall.Stat_t)
++	stat2 := sys2.(*syscall.Stat_t)
++	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
+ }
+ 
+ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+-	fs := &FileStat{
++	fs := &fileStat{
+ 		name:    basename(name),
+ 		size:    int64(st.Size),
+ 		modTime: timespecToTime(st.Mtim),
+-		Sys:     st,
++		sys:     st,
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+@@ -57,5 +57,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atim)
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
+ }
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index f731e43740..7c2d1bd4ef 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -9,18 +9,18 @@ import (
+ 	"time"
+ )
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
+-	a := fs1.Sys.(*Dir)
+-	b := fs2.Sys.(*Dir)
++func sameFile(sys1, sys2 interface{}) bool {
++	a := sys1.(*Dir)
++	b := sys2.(*Dir)
+ 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
+ }
+ 
+ func fileInfoFromStat(d *Dir) FileInfo {
+-	fs := &FileStat{
++	fs := &fileStat{
+ 		name:    d.Name,
+ 		size:    int64(d.Length),
+ 		modTime: time.Unix(int64(d.Mtime), 0),
+-		Sys:     d,
++		sys:     d,
+ 	}
+ 	fs.mode = FileMode(d.Mode & 0777)
+ 	if d.Mode&syscall.DMDIR != 0 {
+@@ -100,5 +100,5 @@ func Lstat(name string) (FileInfo, error) {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return time.Unix(int64(fi.(*FileStat).Sys.(*Dir).Atime), 0)
++	return time.Unix(int64(fi.Sys().(*Dir).Atime), 0)
+ }
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index e599583b2e..bbd95a17c9 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -82,8 +82,12 @@ type winTimes struct {
+ }
+ 
+ func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, mtime syscall.Filetime) FileInfo {
+-	fs := new(FileStat)
+-	fs.mode = 0
++	fs := &fileStat{
++		name:    name,
++		size:    int64(sizehi)<<32 + int64(sizelo),
++		modTime: time.Unix(0, mtime.Nanoseconds()),
++		sys:     &winTimes{atime, ctime},
++	}
+ 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+ 		fs.mode |= ModeDir
+ 	}
+@@ -92,14 +96,10 @@ func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, mtime sysc
+ 	} else {
+ 		fs.mode |= 0666
+ 	}
+-	fs.size = int64(sizehi)<<32 + int64(sizelo)
+-	fs.name = name
+-	fs.modTime = time.Unix(0, mtime.Nanoseconds())
+-	fs.Sys = &winTimes{atime, ctime}
+ 	return fs
+ }
+ 
+-func sameFile(fs1, fs2 *FileStat) bool {
++func sameFile(sys1, sys2 interface{}) bool {
+ 	// TODO(rsc): Do better than this, but this matches what
+ 	// used to happen when code compared .Dev and .Ino,
+ 	// which were both always zero.  Obviously not all files
+@@ -109,5 +109,5 @@ func sameFile(fs1, fs2 *FileStat) bool {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return time.Unix(0, fi.(*FileStat).Sys.(*winTimes).atime.Nanoseconds())
++	return time.Unix(0, fi.Sys().(*winTimes).atime.Nanoseconds())
+ }
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index a3f187c25c..c7c5199be1 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -19,6 +19,7 @@ type FileInfo interface {
+ 	Mode() FileMode     // file mode bits
+ 	ModTime() time.Time // modification time
+ 	IsDir() bool        // abbreviation for Mode().IsDir()
++	Sys() interface{}   // underlying data source (can return nil)
+ }
+ 
+ // A FileMode represents a file's mode and permission bits.
+@@ -92,28 +93,33 @@ func (m FileMode) Perm() FileMode {
+ 	return m & ModePerm
+ }
+ 
+-// A FileStat is the implementation of FileInfo returned by Stat and Lstat.
+-// Clients that need access to the underlying system-specific stat information
+-// can test for *os.FileStat and then consult the Sys field.
+-type FileStat struct {
++// A fileStat is the implementation of FileInfo returned by Stat and Lstat.
++type fileStat struct {
+ 	name    string
+ 	size    int64
+ 	mode    FileMode
+ 	modTime time.Time
+-
+-	Sys interface{}
++	sys     interface{}
+ }
+ 
+-func (fs *FileStat) Name() string       { return fs.name }
+-func (fs *FileStat) Size() int64        { return fs.size }
+-func (fs *FileStat) Mode() FileMode     { return fs.mode }
+-func (fs *FileStat) ModTime() time.Time { return fs.modTime }
+-func (fs *FileStat) IsDir() bool        { return fs.mode.IsDir() }
++func (fs *fileStat) Name() string       { return fs.name }
++func (fs *fileStat) Size() int64        { return fs.size }
++func (fs *fileStat) Mode() FileMode     { return fs.mode }
++func (fs *fileStat) ModTime() time.Time { return fs.modTime }
++func (fs *fileStat) IsDir() bool        { return fs.mode.IsDir() }
++func (fs *fileStat) Sys() interface{}   { return fs.sys }
+ 
+-// SameFile reports whether fs and other describe the same file.
++// SameFile reports whether fi1 and fi2 describe the same file.
+ // For example, on Unix this means that the device and inode fields
+ // of the two underlying structures are identical; on other systems
+ // the decision may be based on the path names.
+-func (fs *FileStat) SameFile(other *FileStat) bool {
+-	return sameFile(fs, other)
++// SameFile only applies to results returned by this package's Stat.
++// It returns false in other cases.
++func SameFile(fi1, fi2 FileInfo) bool {
++	fs1, ok1 := fi1.(*fileStat)
++	fs2, ok2 := fi2.(*fileStat)
++	if !ok1 || !ok2 {
++		return false
++	}
++	return sameFile(fs1.sys, fs2.sys)
+ }
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 5b0630fdc9..a1b0c9d584 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -667,7 +667,7 @@ func TestAbs(t *testing.T) {
+ 			continue
+ 		}
+ 		absinfo, err := os.Stat(abspath)
+-		if err != nil || !absinfo.(*os.FileStat).SameFile(info.(*os.FileStat)) {
++		if err != nil || !os.SameFile(absinfo, info) {
+ 			t.Errorf("Abs(%q)=%q, not the same file", path, abspath)
+ 		}
+ 		if !filepath.IsAbs(abspath) {

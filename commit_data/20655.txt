@@ -32,10 +32,151 @@ Date:   Fri Sep 26 14:41:26 2014 -0400
     R=golang-codereviews, r, tracey.brendan
     CC=adg, golang-codereviews, iant
     https://golang.org/cl/151730045
-
+---
  src/cmd/go/build.go  |  1 +
  src/cmd/go/doc.go    |  1 +
  src/cmd/go/pkg.go    | 18 +++++++++++++++++-
  src/cmd/go/test.bash | 28 +++++++++++++++++++++++++++-
  src/cmd/go/testgo.go | 21 +++++++++++++++++++++
  5 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 23ad765ba7..9c7b42650a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -57,6 +57,7 @@ and test commands:
+ 
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
++		In Go releases, does not apply to the standard library.
+ 	-n
+ 		print the commands but do not run them.
+ 	-p n
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index cffb53d995..8e2facd044 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -76,6 +76,7 @@ and test commands:
+ 
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
++		In Go releases, does not apply to the standard library.
+ 	-n
+ 		print the commands but do not run them.
+ 	-p n
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 4bbcc2b971..eafaa8ee67 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"time"
+@@ -685,6 +686,12 @@ func computeStale(pkgs ...*Package) {
+ 	}
+ }
+ 
++// The runtime version string takes one of two forms:
++// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
++// Determine whether we are in a released copy by
++// inspecting the version.
++var isGoRelease = !strings.HasPrefix(runtime.Version(), "go1")
++
+ // isStale reports whether package p needs to be rebuilt.
+ func isStale(p *Package, topRoot map[string]bool) bool {
+ 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
+@@ -705,7 +712,16 @@ func isStale(p *Package, topRoot map[string]bool) bool {
+ 		return false
+ 	}
+ 
+-	if buildA || p.target == "" || p.Stale {
++	// If we are running a release copy of Go, do not rebuild the standard packages.
++	// They may not be writable anyway, but they are certainly not changing.
++	// This makes 'go build -a' skip the standard packages when using an official release.
++	// See issue 4106 and issue 8290.
++	pkgBuildA := buildA
++	if p.Standard && isGoRelease {
++		pkgBuildA = false
++	}
++
++	if pkgBuildA || p.target == "" || p.Stale {
+ 		return true
+ 	}
+ 
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index bc2ce710a0..1284876193 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-go build -o testgo
++go build -tags testgo -o testgo
+ go() {
+ 	echo TEST ERROR: ran go, not testgo: go "$@" >&2
+ 	exit 2
+@@ -71,6 +71,32 @@ if ! grep -q "/tool/.*/$linker" $d/err.out; then
+ fi
+ rm -r $d
+ 
++TEST 'go build -a in dev branch'
++./testgo install math || ok=false # should be up to date already but just in case
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++if ! TESTGO_IS_GO_RELEASE=0 ./testgo build -v -a math 2>$d/err.out; then
++	cat $d/err.out
++	ok=false
++elif ! grep -q runtime $d/err.out; then
++	echo "testgo build -a math in dev branch DID NOT build runtime, but should have"
++	cat $d/err.out
++	ok=false
++fi
++rm -r $d
++
++TEST 'go build -a in release branch'
++./testgo install math || ok=false # should be up to date already but just in case
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++if ! TESTGO_IS_GO_RELEASE=1 ./testgo build -v -a math 2>$d/err.out; then
++	cat $d/err.out
++	ok=false
++elif grep -q runtime $d/err.out; then
++	echo "testgo build -a math in dev branch DID build runtime, but should NOT have"
++	cat $d/err.out
++	ok=false
++fi
++rm -r $d
++
+ # Test local (./) imports.
+ testlocal() {
+ 	local="$1"
+diff --git a/src/cmd/go/testgo.go b/src/cmd/go/testgo.go
+new file mode 100644
+index 0000000000..01923f74bd
+--- /dev/null
++++ b/src/cmd/go/testgo.go
+@@ -0,0 +1,21 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains extra hooks for testing the go command.
++// It is compiled into the Go binary only when building the
++// test copy; it does not get compiled into the standard go
++// command, so these testing hooks are not present in the
++// go command that everyone uses.
++
++// +build testgo
++
++package main
++
++import "os"
++
++func init() {
++	if v := os.Getenv("TESTGO_IS_GO_RELEASE"); v != "" {
++		isGoRelease = v == "1"
++	}
++}

@@ -33,7 +33,7 @@ Date:   Thu Feb 2 11:53:41 2017 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go                |   4 +-
  src/cmd/compile/internal/gc/fmt.go                |  14 ++-
  src/cmd/compile/internal/gc/inl.go                |   3 +-
@@ -51,3 +51,768 @@ Date:   Thu Feb 2 11:53:41 2017 -0500
  test/fixedbugs/issue10958.go                      |   2 +-
  test/loopbce.go                                   |   2 +-
  16 files changed, 162 insertions(+), 140 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index a2218346d8..b8aba08fff 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -654,7 +654,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 	// ninit logically runs at a different loopdepth than the rest of the for loop.
+ 	e.esclist(n.Ninit, n)
+ 
+-	if n.Op == OFOR || n.Op == ORANGE {
++	if n.Op == OFOR || n.Op == OFORUNTIL || n.Op == ORANGE {
+ 		e.loopdepth++
+ 	}
+ 
+@@ -700,7 +700,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 		e.esclist(n.Rlist, n)
+ 	}
+ 
+-	if n.Op == OFOR || n.Op == ORANGE {
++	if n.Op == OFOR || n.Op == OFORUNTIL || n.Op == ORANGE {
+ 		e.loopdepth--
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index cdf559adfe..b12bf5e4f9 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -169,6 +169,7 @@ var goopnames = []string{
+ 	OEQ:       "==",
+ 	OFALL:     "fallthrough",
+ 	OFOR:      "for",
++	OFORUNTIL: "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
+ 	OGE:       ">=",
+ 	OGOTO:     "goto",
+ 	OGT:       ">",
+@@ -787,7 +788,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
+ // Statements which may be rendered with a simplestmt as init.
+ func stmtwithinit(op Op) bool {
+ 	switch op {
+-	case OIF, OFOR, OSWITCH:
++	case OIF, OFOR, OFORUNTIL, OSWITCH:
+ 		return true
+ 	}
+ 
+@@ -882,13 +883,17 @@ func (n *Node) stmtfmt(s fmt.State) {
+ 			fmt.Fprintf(s, " else { %v }", n.Rlist)
+ 		}
+ 
+-	case OFOR:
++	case OFOR, OFORUNTIL:
++		opname := "for"
++		if n.Op == OFORUNTIL {
++			opname = "foruntil"
++		}
+ 		if fmtmode == FErr { // TODO maybe only if FmtShort, same below
+-			fmt.Fprint(s, "for loop")
++			fmt.Fprintf(s, "%s loop", opname)
+ 			break
+ 		}
+ 
+-		fmt.Fprint(s, "for")
++		fmt.Fprint(s, opname)
+ 		if simpleinit {
+ 			fmt.Fprintf(s, " %v;", n.Ninit.First())
+ 		} else if n.Right != nil {
+@@ -1089,6 +1094,7 @@ var opprec = []int{
+ 	OEMPTY:      -1,
+ 	OFALL:       -1,
+ 	OFOR:        -1,
++	OFORUNTIL:   -1,
+ 	OGOTO:       -1,
+ 	OIF:         -1,
+ 	OLABEL:      -1,
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6b8c958d91..22bd7ce743 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -249,6 +249,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
+ 		OCALLPART,
+ 		ORANGE,
+ 		OFOR,
++		OFORUNTIL,
+ 		OSELECT,
+ 		OTYPESW,
+ 		OPROC,
+@@ -429,7 +430,7 @@ func inlnode(n *Node) *Node {
+ 
+ 	n.Right = inlnode(n.Right)
+ 	if n.Right != nil && n.Right.Op == OINLCALL {
+-		if n.Op == OFOR {
++		if n.Op == OFOR || n.Op == OFORUNTIL {
+ 			inlconv2stmt(n.Right)
+ 		} else {
+ 			n.Right = inlconv2expr(n.Right)
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 445b193970..09442b595f 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -124,6 +124,7 @@ var opnames = []string{
+ 	OFALL:            "FALL",
+ 	OXFALL:           "XFALL",
+ 	OFOR:             "FOR",
++	OFORUNTIL:        "FORUNTIL",
+ 	OGOTO:            "GOTO",
+ 	OIF:              "IF",
+ 	OLABEL:           "LABEL",
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index a58284feea..dbf4e20236 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -372,7 +372,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
+ 		goto ret
+ 
+-	case OFOR:
++	case OFOR, OFORUNTIL:
+ 		if n.Left != nil {
+ 			instrumentnode(&n.Left, &n.Left.Ninit, 0, 0)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index b763861a94..9572418e9d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -133,7 +133,11 @@ out:
+ 	decldepth--
+ }
+ 
+-func walkrange(n *Node) {
++// walkrange transforms various forms of ORANGE into
++// simpler forms.  The result must be assigned back to n.
++// Node n may also be modified in place, and may also be
++// the returned node.
++func walkrange(n *Node) *Node {
+ 	// variable name conventions:
+ 	//	ohv1, hv1, hv2: hidden (old) val 1, 2
+ 	//	ha, hit: hidden aggregate, iterator
+@@ -160,6 +164,10 @@ func walkrange(n *Node) {
+ 		Fatalf("walkrange: v2 != nil while v1 == nil")
+ 	}
+ 
++	var ifGuard *Node
++
++	translatedLoopOp := OFOR
++
+ 	// n.List has no meaning anymore, clear it
+ 	// to avoid erroneous processing by racewalk.
+ 	n.List.Set(nil)
+@@ -173,7 +181,7 @@ func walkrange(n *Node) {
+ 	case TARRAY, TSLICE:
+ 		if memclrrange(n, v1, v2, a) {
+ 			lineno = lno
+-			return
++			return n
+ 		}
+ 
+ 		// orderstmt arranged for a copy of the array/slice variable if needed.
+@@ -185,6 +193,7 @@ func walkrange(n *Node) {
+ 
+ 		init = append(init, nod(OAS, hv1, nil))
+ 		init = append(init, nod(OAS, hn, nod(OLEN, ha, nil)))
++
+ 		if v2 != nil {
+ 			hp = temp(ptrto(n.Type.Elem()))
+ 			tmp := nod(OINDEX, ha, nodintconst(0))
+@@ -198,7 +207,11 @@ func walkrange(n *Node) {
+ 			body = nil
+ 		} else if v2 == nil {
+ 			body = []*Node{nod(OAS, v1, hv1)}
+-		} else {
++		} else { // for i,a := range thing { body }
++			ifGuard = nod(OIF, nil, nil)
++			ifGuard.Left = nod(OLT, hv1, hn)
++			translatedLoopOp = OFORUNTIL
++
+ 			a := nod(OAS2, nil, nil)
+ 			a.List.Set2(v1, v2)
+ 			a.Rlist.Set2(hv1, nod(OIND, hp, nil))
+@@ -360,17 +373,33 @@ func walkrange(n *Node) {
+ 		}
+ 	}
+ 
+-	n.Op = OFOR
++	n.Op = translatedLoopOp
+ 	typecheckslice(init, Etop)
+-	n.Ninit.Append(init...)
++
++	if ifGuard != nil {
++		ifGuard.Ninit.Append(init...)
++		typecheckslice(ifGuard.Left.Ninit.Slice(), Etop)
++		ifGuard.Left = typecheck(ifGuard.Left, Erv)
++	} else {
++		n.Ninit.Append(init...)
++	}
++
+ 	typecheckslice(n.Left.Ninit.Slice(), Etop)
++
+ 	n.Left = typecheck(n.Left, Erv)
+ 	n.Right = typecheck(n.Right, Etop)
+ 	typecheckslice(body, Etop)
+ 	n.Nbody.Prepend(body...)
++
++	if ifGuard != nil {
++		ifGuard.Nbody.Set1(n)
++		n = ifGuard
++	}
++
+ 	n = walkstmt(n)
+ 
+ 	lineno = lno
++	return n
+ }
+ 
+ // Lower n into runtime·memclr if possible, for
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 21a7c17aaa..8d1ae97b86 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -182,7 +182,7 @@ type state struct {
+ 	// function we're building
+ 	f *ssa.Func
+ 
+-	// labels and labeled control flow nodes (OFOR, OSWITCH, OSELECT) in f
++	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
+ 	labels       map[string]*ssaLabel
+ 	labeledNodes map[*Node]*ssaLabel
+ 
+@@ -594,7 +594,7 @@ func (s *state) stmt(n *Node) {
+ 		// Associate label with its control flow node, if any
+ 		if ctl := n.Name.Defn; ctl != nil {
+ 			switch ctl.Op {
+-			case OFOR, OSWITCH, OSELECT:
++			case OFOR, OFORUNTIL, OSWITCH, OSELECT:
+ 				s.labeledNodes[ctl] = lab
+ 			}
+ 		}
+@@ -840,24 +840,30 @@ func (s *state) stmt(n *Node) {
+ 			b.AddEdgeTo(to)
+ 		}
+ 
+-	case OFOR:
++	case OFOR, OFORUNTIL:
+ 		// OFOR: for Ninit; Left; Right { Nbody }
++		// For      = cond; body; incr
++		// Foruntil = body; incr; cond
+ 		bCond := s.f.NewBlock(ssa.BlockPlain)
+ 		bBody := s.f.NewBlock(ssa.BlockPlain)
+ 		bIncr := s.f.NewBlock(ssa.BlockPlain)
+ 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 
+-		// first, jump to condition test
++		// first, jump to condition test (OFOR) or body (OFORUNTIL)
+ 		b := s.endBlock()
+-		b.AddEdgeTo(bCond)
++		if n.Op == OFOR {
++			b.AddEdgeTo(bCond)
++			// generate code to test condition
++			s.startBlock(bCond)
++			if n.Left != nil {
++				s.condBranch(n.Left, bBody, bEnd, 1)
++			} else {
++				b := s.endBlock()
++				b.Kind = ssa.BlockPlain
++				b.AddEdgeTo(bBody)
++			}
+ 
+-		// generate code to test condition
+-		s.startBlock(bCond)
+-		if n.Left != nil {
+-			s.condBranch(n.Left, bBody, bEnd, 1)
+ 		} else {
+-			b := s.endBlock()
+-			b.Kind = ssa.BlockPlain
+ 			b.AddEdgeTo(bBody)
+ 		}
+ 
+@@ -898,6 +904,19 @@ func (s *state) stmt(n *Node) {
+ 		if b := s.endBlock(); b != nil {
+ 			b.AddEdgeTo(bCond)
+ 		}
++
++		if n.Op == OFORUNTIL {
++			// generate code to test condition
++			s.startBlock(bCond)
++			if n.Left != nil {
++				s.condBranch(n.Left, bBody, bEnd, 1)
++			} else {
++				b := s.endBlock()
++				b.Kind = ssa.BlockPlain
++				b.AddEdgeTo(bBody)
++			}
++		}
++
+ 		s.startBlock(bEnd)
+ 
+ 	case OSWITCH, OSELECT:
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index c84eace149..5399a03dab 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -492,6 +492,7 @@ const (
+ 	OFALL     // fallthrough (after processing)
+ 	OXFALL    // fallthrough (before processing)
+ 	OFOR      // for Ninit; Left; Right { Nbody }
++	OFORUNTIL // for Ninit; Left; Right { Nbody } ; test applied after executing body, not before
+ 	OGOTO     // goto Left
+ 	OIF       // if Ninit; Left { Nbody } else { Rlist }
+ 	OLABEL    // Left:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f49c4dd036..0c0782d40f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2022,7 +2022,7 @@ OpSwitch:
+ 		checkdefergo(n)
+ 		break OpSwitch
+ 
+-	case OFOR:
++	case OFOR, OFORUNTIL:
+ 		ok |= Etop
+ 		typecheckslice(n.Ninit.Slice(), Etop)
+ 		decldepth++
+@@ -3890,6 +3890,7 @@ func markbreak(n *Node, implicit *Node) {
+ 		}
+ 
+ 	case OFOR,
++		OFORUNTIL,
+ 		OSWITCH,
+ 		OTYPESW,
+ 		OSELECT,
+@@ -3915,7 +3916,7 @@ func markbreaklist(l Nodes, implicit *Node) {
+ 		}
+ 		if n.Op == OLABEL && i+1 < len(s) && n.Name.Defn == s[i+1] {
+ 			switch n.Name.Defn.Op {
+-			case OFOR, OSWITCH, OTYPESW, OSELECT, ORANGE:
++			case OFOR, OFORUNTIL, OSWITCH, OTYPESW, OSELECT, ORANGE:
+ 				n.Left.Sym.Label = n.Name.Defn
+ 				markbreak(n.Name.Defn, n.Name.Defn)
+ 				n.Left.Sym.Label = nil
+@@ -3958,7 +3959,7 @@ func (n *Node) isterminating() bool {
+ 		OXFALL:
+ 		return true
+ 
+-	case OFOR:
++	case OFOR, OFORUNTIL:
+ 		if n.Left != nil {
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1644418a3e..c15ca26926 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -261,7 +261,7 @@ func walkstmt(n *Node) *Node {
+ 		// make room for size & fn arguments.
+ 		adjustargs(n, 2*Widthptr)
+ 
+-	case OFOR:
++	case OFOR, OFORUNTIL:
+ 		if n.Left != nil {
+ 			walkstmtlist(n.Left.Ninit.Slice())
+ 			init := n.Left.Ninit
+@@ -351,7 +351,7 @@ func walkstmt(n *Node) *Node {
+ 		walkswitch(n)
+ 
+ 	case ORANGE:
+-		walkrange(n)
++		n = walkrange(n)
+ 
+ 	case OXFALL:
+ 		yyerror("fallthrough statement out of place")
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index ce2933d4e9..74bb08d5c2 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -32,11 +32,24 @@ type DummyFrontend struct {
+ 	t testing.TB
+ }
+ 
++type DummyAuto struct {
++	t Type
++	s string
++}
++
++func (d *DummyAuto) Typ() Type {
++	return d.t
++}
++
++func (d *DummyAuto) String() string {
++	return d.s
++}
++
+ func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }
+ func (DummyFrontend) Auto(t Type) GCNode {
+-	return nil
++	return &DummyAuto{t: t, s: "aDummyAuto"}
+ }
+ func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+ 	return LocalSlot{s.N, d.TypeBytePtr(), s.Off}, LocalSlot{s.N, d.TypeInt(), s.Off + 8}
+diff --git a/src/cmd/compile/internal/ssa/loop_test.go b/src/cmd/compile/internal/ssa/loop_test.go
+index 69a49627a1..0901263432 100644
+--- a/src/cmd/compile/internal/ssa/loop_test.go
++++ b/src/cmd/compile/internal/ssa/loop_test.go
+@@ -48,9 +48,8 @@ func TestLoopConditionS390X(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("SP", OpSP, TypeUInt64, 0, nil),
+-			Valu("Nptr", OpOffPtr, TypeInt64Ptr, 8, nil, "SP"),
+-			Valu("ret", OpOffPtr, TypeInt64Ptr, 16, nil, "SP"),
+-			Valu("N", OpLoad, TypeInt64, 0, nil, "Nptr", "mem"),
++			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
++			Valu("N", OpArg, TypeInt64, 0, c.fe.Auto(TypeInt64)),
+ 			Valu("starti", OpConst64, TypeInt64, 0, nil),
+ 			Valu("startsum", OpConst64, TypeInt64, 0, nil),
+ 			Goto("b1")),
+@@ -66,7 +65,8 @@ func TestLoopConditionS390X(t *testing.T) {
+ 			Valu("sum", OpAdd64, TypeInt64, 0, nil, "phisum", "c3"),
+ 			Goto("b1")),
+ 		Bloc("b3",
+-			Valu("store", OpStore, TypeMem, 8, nil, "ret", "phisum", "mem"),
++			Valu("retdef", OpVarDef, TypeMem, 0, nil, "mem"),
++			Valu("store", OpStore, TypeMem, 8, nil, "ret", "phisum", "retdef"),
+ 			Exit("store")))
+ 	CheckFunc(fun.f)
+ 	Compile(fun.f)
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 7e6f0d890b..dda0c86512 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -6,13 +6,12 @@ package ssa
+ 
+ import "fmt"
+ 
+-// an edgeMemCtr records a backedge, together with the memory and
+-// counter phi functions at the target of the backedge that must
++// an edgeMem records a backedge, together with the memory
++// phi functions at the target of the backedge that must
+ // be updated when a rescheduling check replaces the backedge.
+-type edgeMemCtr struct {
++type edgeMem struct {
+ 	e Edge
+ 	m *Value // phi for memory at dest of e
+-	c *Value // phi for counter at dest of e
+ }
+ 
+ // a rewriteTarget is a a value-argindex pair indicating
+@@ -38,32 +37,26 @@ func (r *rewrite) String() string {
+ 	return s
+ }
+ 
+-const initialRescheduleCounterValue = 1021 // Largest 10-bit prime. 97 nSec loop bodies will check every 100 uSec.
+-
+ // insertLoopReschedChecks inserts rescheduling checks on loop backedges.
+ func insertLoopReschedChecks(f *Func) {
+ 	// TODO: when split information is recorded in export data, insert checks only on backedges that can be reached on a split-call-free path.
+ 
+-	// Loop reschedule checks decrement a per-function counter
+-	// shared by all loops, and when the counter becomes non-positive
+-	// a call is made to a rescheduling check in the runtime.
++	// Loop reschedule checks compare the stack pointer with
++	// the per-g stack bound.  If the pointer appears invalid,
++	// that means a reschedule check is needed.
+ 	//
+ 	// Steps:
+ 	// 1. locate backedges.
+ 	// 2. Record memory definitions at block end so that
+-	//    the SSA graph for mem can be prperly modified.
+-	// 3. Define a counter and record its future uses (at backedges)
+-	//    (Same process as 2, applied to a single definition of the counter.
+-	//     difference for mem is that there are zero-to-many existing mem
+-	//     definitions, versus exactly one for the new counter.)
+-	// 4. Ensure that phi functions that will-be-needed for mem and counter
++	//    the SSA graph for mem can be properly modified.
++	// 3. Ensure that phi functions that will-be-needed for mem
+ 	//    are present in the graph, initially with trivial inputs.
+-	// 5. Record all to-be-modified uses of mem and counter;
++	// 4. Record all to-be-modified uses of mem;
+ 	//    apply modifications (split into two steps to simplify and
+ 	//    avoided nagging order-dependences).
+-	// 6. Rewrite backedges to include counter check, reschedule check,
++	// 5. Rewrite backedges to include reschedule check,
+ 	//    and modify destination phi function appropriately with new
+-	//    definitions for mem and counter.
++	//    definitions for mem.
+ 
+ 	if f.NoSplit { // nosplit functions don't reschedule.
+ 		return
+@@ -83,10 +76,10 @@ func insertLoopReschedChecks(f *Func) {
+ 		fmt.Printf("before %s = %s\n", f.Name, sdom.treestructure(f.Entry))
+ 	}
+ 
+-	tofixBackedges := []edgeMemCtr{}
++	tofixBackedges := []edgeMem{}
+ 
+ 	for _, e := range backedges { // TODO: could filter here by calls in loops, if declared and inferred nosplit are recorded in export data.
+-		tofixBackedges = append(tofixBackedges, edgeMemCtr{e, nil, nil})
++		tofixBackedges = append(tofixBackedges, edgeMem{e, nil})
+ 	}
+ 
+ 	// It's possible that there is no memory state (no global/pointer loads/stores or calls)
+@@ -108,40 +101,8 @@ func insertLoopReschedChecks(f *Func) {
+ 		memDefsAtBlockEnds[b.ID] = mem
+ 	}
+ 
+-	// Set up counter.  There are no phis etc pre-existing for it.
+-	counter0 := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), initialRescheduleCounterValue)
+-	ctrDefsAtBlockEnds := make([]*Value, f.NumBlocks()) // For each block, def visible at its end, if that def will be used.
+-
+-	// There's a minor difference between memDefsAtBlockEnds and ctrDefsAtBlockEnds;
+-	// because the counter only matter for loops and code that reaches them, it is nil for blocks where the ctr is no
+-	// longer live.  This will avoid creation of dead phi functions.  This optimization is ignored for the mem variable
+-	// because it is harder and also less likely to be helpful, though dead code elimination ought to clean this out anyhow.
+-
+-	for _, emc := range tofixBackedges {
+-		e := emc.e
+-		// set initial uses of counter zero (note available-at-bottom and use are the same thing initially.)
+-		// each back-edge will be rewritten to include a reschedule check, and that will use the counter.
+-		src := e.b.Preds[e.i].b
+-		ctrDefsAtBlockEnds[src.ID] = counter0
+-	}
+-
+-	// Push uses towards root
+-	for _, b := range f.postorder() {
+-		bd := ctrDefsAtBlockEnds[b.ID]
+-		if bd == nil {
+-			continue
+-		}
+-		for _, e := range b.Preds {
+-			p := e.b
+-			if ctrDefsAtBlockEnds[p.ID] == nil {
+-				ctrDefsAtBlockEnds[p.ID] = bd
+-			}
+-		}
+-	}
+-
+ 	// Maps from block to newly-inserted phi function in block.
+ 	newmemphis := make(map[*Block]rewrite)
+-	newctrphis := make(map[*Block]rewrite)
+ 
+ 	// Insert phi functions as necessary for future changes to flow graph.
+ 	for i, emc := range tofixBackedges {
+@@ -167,29 +128,14 @@ func insertLoopReschedChecks(f *Func) {
+ 		}
+ 		tofixBackedges[i].m = headerMemPhi
+ 
+-		var headerCtrPhi *Value
+-		rw, ok := newctrphis[h]
+-		if !ok {
+-			headerCtrPhi = newPhiFor(h, counter0)
+-			newctrphis[h] = rewrite{before: counter0, after: headerCtrPhi}
+-			addDFphis(counter0, h, h, f, ctrDefsAtBlockEnds, newctrphis)
+-		} else {
+-			headerCtrPhi = rw.after
+-		}
+-		tofixBackedges[i].c = headerCtrPhi
+ 	}
+ 
+ 	rewriteNewPhis(f.Entry, f.Entry, f, memDefsAtBlockEnds, newmemphis)
+-	rewriteNewPhis(f.Entry, f.Entry, f, ctrDefsAtBlockEnds, newctrphis)
+ 
+ 	if f.pass.debug > 0 {
+ 		for b, r := range newmemphis {
+ 			fmt.Printf("b=%s, rewrite=%s\n", b, r.String())
+ 		}
+-
+-		for b, r := range newctrphis {
+-			fmt.Printf("b=%s, rewrite=%s\n", b, r.String())
+-		}
+ 	}
+ 
+ 	// Apply collected rewrites.
+@@ -199,26 +145,15 @@ func insertLoopReschedChecks(f *Func) {
+ 		}
+ 	}
+ 
+-	for _, r := range newctrphis {
+-		for _, rw := range r.rewrites {
+-			rw.v.SetArg(rw.i, r.after)
+-		}
+-	}
+-
+-	zero := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 0)
+-	one := f.Entry.NewValue0I(f.Entry.Pos, OpConst32, f.Config.fe.TypeInt32(), 1)
+-
+ 	// Rewrite backedges to include reschedule checks.
+ 	for _, emc := range tofixBackedges {
+ 		e := emc.e
+ 		headerMemPhi := emc.m
+-		headerCtrPhi := emc.c
+ 		h := e.b
+ 		i := e.i
+ 		p := h.Preds[i]
+ 		bb := p.b
+ 		mem0 := headerMemPhi.Args[i]
+-		ctr0 := headerCtrPhi.Args[i]
+ 		// bb e->p h,
+ 		// Because we're going to insert a rare-call, make sure the
+ 		// looping edge still looks likely.
+@@ -236,22 +171,20 @@ func insertLoopReschedChecks(f *Func) {
+ 		//
+ 		// new block(s):
+ 		// test:
+-		//    ctr1 := ctr0 - 1
+-		//    if ctr1 <= 0 { goto sched }
++		//    if sp < g.limit { goto sched }
+ 		//    goto join
+ 		// sched:
+ 		//    mem1 := call resched (mem0)
+ 		//    goto join
+ 		// join:
+-		//    ctr2 := phi(ctr1, counter0) // counter0 is the constant
+ 		//    mem2 := phi(mem0, mem1)
+ 		//    goto h
+ 		//
+ 		// and correct arg i of headerMemPhi and headerCtrPhi
+ 		//
+-		// EXCEPT: block containing only phi functions is bad
++		// EXCEPT: join block containing only phi functions is bad
+ 		// for the register allocator.  Therefore, there is no
+-		// join, and instead branches targeting join instead target
++		// join, and branches targeting join must instead target
+ 		// the header, and the other phi functions within header are
+ 		// adjusted for the additional input.
+ 
+@@ -261,20 +194,30 @@ func insertLoopReschedChecks(f *Func) {
+ 		test.Pos = bb.Pos
+ 		sched.Pos = bb.Pos
+ 
+-		//    ctr1 := ctr0 - 1
+-		//    if ctr1 <= 0 { goto sched }
+-		//    goto header
+-		ctr1 := test.NewValue2(bb.Pos, OpSub32, f.Config.fe.TypeInt32(), ctr0, one)
+-		cmp := test.NewValue2(bb.Pos, OpLeq32, f.Config.fe.TypeBool(), ctr1, zero)
++		// if sp < g.limit { goto sched }
++		// goto header
++
++		pt := f.Config.Frontend().TypeUintptr()
++		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
++		sp := test.NewValue0(bb.Pos, OpSP, pt)
++		cmpOp := OpLess64U
++		if pt.Size() == 4 {
++			cmpOp = OpLess32U
++		}
++		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
++		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
++		cmp := test.NewValue2(bb.Pos, cmpOp, f.Config.fe.TypeBool(), sp, lim)
+ 		test.SetControl(cmp)
+-		test.AddEdgeTo(sched) // if true
+-		// if false -- rewrite edge to header.
++
++		// if true, goto sched
++		test.AddEdgeTo(sched)
++
++		// if false, rewrite edge to header.
+ 		// do NOT remove+add, because that will perturb all the other phi functions
+ 		// as well as messing up other edges to the header.
+ 		test.Succs = append(test.Succs, Edge{h, i})
+ 		h.Preds[i] = Edge{test, 1}
+ 		headerMemPhi.SetArg(i, mem0)
+-		headerCtrPhi.SetArg(i, ctr1)
+ 
+ 		test.Likely = BranchUnlikely
+ 
+@@ -285,16 +228,15 @@ func insertLoopReschedChecks(f *Func) {
+ 		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, TypeMem, resched, mem0)
+ 		sched.AddEdgeTo(h)
+ 		headerMemPhi.AddArg(mem1)
+-		headerCtrPhi.AddArg(counter0)
+ 
+ 		bb.Succs[p.i] = Edge{test, 0}
+ 		test.Preds = append(test.Preds, Edge{bb, p.i})
+ 
+ 		// Must correct all the other phi functions in the header for new incoming edge.
+-		// Except for mem and counter phis, it will be the same value seen on the original
++		// Except for mem phis, it will be the same value seen on the original
+ 		// backedge at index i.
+ 		for _, v := range h.Values {
+-			if v.Op == OpPhi && v != headerMemPhi && v != headerCtrPhi {
++			if v.Op == OpPhi && v != headerMemPhi {
+ 				v.AddArg(v.Args[i])
+ 			}
+ 		}
+@@ -354,7 +296,7 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
+ 		// in dominance frontier, self, and dominated.
+ 		// If the variable def reaching uses in b is itself defined in b, then the new phi function
+ 		// does not reach the successors of b.  (This assumes a bit about the structure of the
+-		// phi use-def graph, but it's true for memory and the inserted counter.)
++		// phi use-def graph, but it's true for memory.)
+ 		if dfu := defsForUses[b.ID]; dfu != nil && dfu.Block != b {
+ 			for _, e := range b.Succs {
+ 				s := e.b
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c9c451351c..f13746dee4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -232,22 +232,18 @@ func forcegchelper() {
+ 	}
+ }
+ 
+-//go:nosplit
+-
+ // Gosched yields the processor, allowing other goroutines to run. It does not
+ // suspend the current goroutine, so execution resumes automatically.
++//go:nosplit
+ func Gosched() {
+ 	mcall(gosched_m)
+ }
+ 
+-var alwaysFalse bool
+-
+-// goschedguarded does nothing, but is written in a way that guarantees a preemption check in its prologue.
+-// Calls to this function are inserted by the compiler in otherwise uninterruptible loops (see insertLoopReschedChecks).
++// goschedguarded yields the processor like gosched, but also checks
++// for forbidden states and opts out of the yield in those cases.
++//go:nosplit
+ func goschedguarded() {
+-	if alwaysFalse {
+-		goschedguarded()
+-	}
++	mcall(goschedguarded_m)
+ }
+ 
+ // Puts the current goroutine into a waiting state and calls unlockf.
+@@ -2294,6 +2290,19 @@ func gosched_m(gp *g) {
+ 	goschedImpl(gp)
+ }
+ 
++// goschedguarded is a forbidden-states-avoided version of gosched_m
++func goschedguarded_m(gp *g) {
++
++	if gp.m.locks != 0 || gp.m.mallocing != 0 || gp.m.preemptoff != "" || gp.m.p.ptr().status != _Prunning {
++		gogo(&gp.sched) // never return
++	}
++
++	if trace.enabled {
++		traceGoSched()
++	}
++	goschedImpl(gp)
++}
++
+ func gopreempt_m(gp *g) {
+ 	if trace.enabled {
+ 		traceGoPreempt()
+diff --git a/test/fixedbugs/issue10958.go b/test/fixedbugs/issue10958.go
+index 86d2057622..9c258a0bce 100644
+--- a/test/fixedbugs/issue10958.go
++++ b/test/fixedbugs/issue10958.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,disabled
++// +build !nacl
+ // buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+diff --git a/test/loopbce.go b/test/loopbce.go
+index 010f11f027..63bb4bae58 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -31,7 +31,7 @@ func f0c(a []int) int {
+ 
+ func f1(a []int) int {
+ 	x := 0
+-	for _, i := range a { // ERROR "Induction variable with minimum 0 and increment 1$"
++	for _, i := range a { // Change to "for i,e := range array/slice" hides IV report.
+ 		x += i
+ 	}
+ 	return x

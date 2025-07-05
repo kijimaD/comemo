@@ -13,6 +13,20 @@ Date:   Sun Jan 22 02:46:25 2017 +0300
     Change-Id: If252a5fca1dd666e70c2591a83d8714672d02932
     Reviewed-on: https://go-review.googlesource.com/35500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/struct.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index e92d02f8a2..0be210e8e7 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -5,7 +5,7 @@
+ /*
+ Package zip provides support for reading and writing ZIP archives.
+ 
+-See: https://www.pkware.com/documents/casestudies/APPNOTE.TXT
++See: https://www.pkware.com/appnote
+ 
+ This package does not support disk spanning.
+ 

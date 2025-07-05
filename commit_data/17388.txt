@@ -12,9 +12,129 @@ Date:   Sun Aug 25 08:44:31 2013 +0900
     R=golang-dev, bsiegert, bradfitz
     CC=golang-dev
     https://golang.org/cl/13170043
-
+---
  src/pkg/net/interface_test.go    |  8 ++++----
  src/pkg/syscall/route_bsd.go     | 28 +++++++++++++++++++++++-----
  src/pkg/syscall/sockcmsg_unix.go |  2 +-
  src/pkg/syscall/syscall_unix.go  |  5 ++++-
  4 files changed, 32 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+index 17b28b6456..efabb5f3c2 100644
+--- a/src/pkg/net/interface_test.go
++++ b/src/pkg/net/interface_test.go
+@@ -109,14 +109,14 @@ func testAddrs(t *testing.T, ifat []Addr) {
+ 	for _, ifa := range ifat {
+ 		switch ifa := ifa.(type) {
+ 		case *IPAddr:
+-			if ifa == nil {
+-				t.Errorf("\tunexpected value: %v", ifa)
++			if ifa == nil || ifa.IP == nil {
++				t.Errorf("\tunexpected value: %v, %v", ifa, ifa.IP)
+ 			} else {
+ 				t.Logf("\tinterface address %q", ifa.String())
+ 			}
+ 		case *IPNet:
+-			if ifa == nil {
+-				t.Errorf("\tunexpected value: %v", ifa)
++			if ifa == nil || ifa.IP == nil || ifa.Mask == nil {
++				t.Errorf("\tunexpected value: %v, %v, %v", ifa, ifa.IP, ifa.Mask)
+ 			} else {
+ 				_, prefixLen := ifa.Mask.Size()
+ 				if ifa.IP.To4() != nil && prefixLen != 8*IPv4len || ifa.IP.To16() != nil && ifa.IP.To4() == nil && prefixLen != 8*IPv6len {
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 103aa20f59..638073592d 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -13,10 +13,14 @@ import "unsafe"
+ // Round the length of a raw sockaddr up to align it properly.
+ func rsaAlignOf(salen int) int {
+ 	salign := sizeofPtr
+-	// NOTE: It seems like 64-bit Darwin kernel still requires 32-bit
+-	// aligned access to BSD subsystem.
+-	if darwinAMD64 {
++	// NOTE: It seems like 64-bit Darwin kernel still requires
++	// 32-bit aligned access to BSD subsystem. Also NetBSD 6
++	// kernel and beyond require 64-bit aligned access to routing
++	// facilities.
++	if darwin64Bit {
+ 		salign = 4
++	} else if netbsd32Bit {
++		salign = 8
+ 	}
+ 	if salen == 0 {
+ 		return salign
+@@ -142,6 +146,12 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 		return nil
+ 	}
+ 	b := m.Data[:]
++	// We still see AF_UNSPEC in socket addresses on some
++	// platforms. To identify each address family correctly, we
++	// will use the address family of RTAX_NETMASK as a preferred
++	// one on the 32-bit NetBSD kernel, also use the length of
++	// RTAX_NETMASK socket address on the FreeBSD kernel.
++	preferredFamily := uint8(AF_UNSPEC)
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+ 		if m.Header.Addrs&rtaIfaMask&(1<<i) == 0 {
+ 			continue
+@@ -149,21 +159,29 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+ 		switch i {
+ 		case RTAX_IFA:
++			if rsa.Family == AF_UNSPEC {
++				rsa.Family = preferredFamily
++			}
+ 			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+ 			if err != nil {
+ 				return nil
+ 			}
+ 			sas = append(sas, sa)
+ 		case RTAX_NETMASK:
+-			if rsa.Family == AF_UNSPEC {
++			switch rsa.Family {
++			case AF_UNSPEC:
+ 				switch rsa.Len {
+ 				case SizeofSockaddrInet4:
+ 					rsa.Family = AF_INET
+ 				case SizeofSockaddrInet6:
+ 					rsa.Family = AF_INET6
+ 				default:
+-					rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
++					rsa.Family = AF_INET // an old fashion, AF_UNSPEC means AF_INET
+ 				}
++			case AF_INET, AF_INET6:
++				preferredFamily = rsa.Family
++			default:
++				return nil
+ 			}
+ 			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+ 			if err != nil {
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+index d2aba7b5c7..a2d234f217 100644
+--- a/src/pkg/syscall/sockcmsg_unix.go
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -15,7 +15,7 @@ func cmsgAlignOf(salen int) int {
+ 	salign := sizeofPtr
+ 	// NOTE: It seems like 64-bit Darwin kernel still requires 32-bit
+ 	// aligned access to BSD subsystem.
+-	if darwinAMD64 {
++	if darwin64Bit {
+ 		salign = 4
+ 	}
+ 	return (salen + salign - 1) & ^(salign - 1)
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 4e4a366df5..6455dc29c5 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -18,7 +18,10 @@ var (
+ 	Stderr = 2
+ )
+ 
+-const darwinAMD64 = runtime.GOOS == "darwin" && runtime.GOARCH == "amd64"
++const (
++	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
++	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
++)
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)

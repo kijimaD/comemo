@@ -21,7 +21,7 @@ Date:   Fri Dec 16 15:33:58 2011 -0500
     R=r, iant, r, lucio.dere
     CC=golang-dev
     https://golang.org/cl/5490053
-
+---
  src/pkg/runtime/Makefile                           | 94 +++++++++++-----------
  src/pkg/runtime/{386/arch.h => arch_386.h}         |  0
  src/pkg/runtime/{amd64/arch.h => arch_amd64.h}     |  0
@@ -164,3 +164,1654 @@ Date:   Fri Dec 16 15:33:58 2011 -0500
  src/pkg/runtime/{386/vlrt.c => vlrt_386.c}         |  0
  src/pkg/runtime/{arm/vlrt.c => vlrt_arm.c}         |  0
  141 files changed, 172 insertions(+), 176 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index c390040c45..9fb3a2bbe7 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -4,16 +4,10 @@
+ 
+ include ../../Make.inc
+ 
+-TARG=runtime
+-
+-# Set SIZE to 32 or 64.
+-SIZE_386=32
+-SIZE_amd64=64
+-SIZE_arm=32
+-SIZE=$(SIZE_$(GOARCH))
++# Go tool will do this for package runtime.
++CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
+ 
+-CFLAGS_windows=-D__WINDOWS__
+-CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -FVw $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
++TARG=runtime
+ 
+ GOFILES=\
+ 	debug.go\
+@@ -49,29 +43,29 @@ OFILES_plan9=\
+ 	lock_sema.$O\
+ 
+ OFILES_windows=\
+-	callback.$O\
++	callback_windows_$(GOARCH).$O\
+ 	lock_sema.$O\
+-	syscall.$O\
++	syscall_windows.$O\
+ 
+ # 386-specific object files
+ OFILES_386=\
+-	vlop.$O\
+-	vlrt.$O\
++	vlop_386.$O\
++	vlrt_386.$O\
+ 
+ # arm-specific object files
+ OFILES_arm=\
+-	memset.$O\
+-	softfloat.$O\
+-	vlop.$O\
+-	vlrt.$O\
++	memset_arm.$O\
++	softfloat_arm.$O\
++	vlop_arm.$O\
++	vlrt_arm.$O\
+ 
+ OFILES=\
+ 	alg.$O\
+-	asm.$O\
+-	atomic.$O\
++	asm_$(GOARCH).$O\
++	atomic_$(GOARCH).$O\
+ 	cgocall.$O\
+ 	chan.$O\
+-	closure.$O\
++	closure_$(GOARCH).$O\
+ 	complex.$O\
+ 	cpuprof.$O\
+ 	float.$O\
+@@ -80,8 +74,8 @@ OFILES=\
+ 	malloc.$O\
+ 	mcache.$O\
+ 	mcentral.$O\
+-	mem.$O\
+-	memmove.$O\
++	mem_$(GOOS).$O\
++	memmove_$(GOARCH).$O\
+ 	mfinal.$O\
+ 	mfixalloc.$O\
+ 	mgc0.$O\
+@@ -90,33 +84,36 @@ OFILES=\
+ 	msize.$O\
+ 	print.$O\
+ 	proc.$O\
+-	rt0.$O\
++	rt0_$(GOOS)_$(GOARCH).$O\
+ 	rune.$O\
+ 	runtime.$O\
+ 	runtime1.$O\
+ 	sema.$O\
+-	signal.$O\
++	signal_$(GOOS)_$(GOARCH).$O\
+ 	sigqueue.$O\
+ 	slice.$O\
+ 	string.$O\
+ 	symtab.$O\
+-	sys.$O\
+-	thread.$O\
++	sys_$(GOOS)_$(GOARCH).$O\
++	thread_$(GOOS).$O\
+ 	time.$O\
+-	traceback.$O\
++	traceback_$(GOARCH).$O\
+ 	$(OFILES_$(GOARCH))\
+ 	$(OFILES_$(GOOS))\
+ 
++AUTOHFILES=\
++	arch_GOARCH.h\
++	os_GOOS.h\
++	signals_GOOS.h\
++	defs_GOOS_GOARCH.h\
++
+ HFILES=\
+ 	cgocall.h\
+ 	runtime.h\
+ 	hashmap.h\
+ 	malloc.h\
+ 	stack.h\
+-	$(GOARCH)/asm.h\
+-	$(GOOS)/os.h\
+-	$(GOOS)/signals.h\
+-	$(GOOS)/$(GOARCH)/defs.h\
++	$(AUTOHFILES)\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+@@ -135,9 +132,9 @@ $(pkgdir)/%.h: %.h
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f goc2c mkversion version.go */asm.h runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/')
++	rm -f goc2c mkversion version.go runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/') $(AUTOHFILES)
+ 
+-$(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
++asm_$(GOARCH).h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	./mkasmh.sh >$@.x
+ 	mv -f $@.x $@
+ 
+@@ -160,20 +157,7 @@ version_$(GOOS).go:
+ 	./goc2c "`pwd`/$<" > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+-%.$O:	$(GOARCH)/%.c $(HFILES)
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOOS)/%.c $(HFILES)
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOOS)/$(GOARCH)/%.c $(HFILES)
+-	$(CC) $(CFLAGS) $<
+-
+-%.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
+-	$(AS) $<
+-
+-%.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
+-	$(AS) $<
++%.$O: asm_$(GOARCH).h
+ 
+ # for discovering offsets inside structs when debugging
+ runtime.acid.$(GOARCH): runtime.h proc.c
+@@ -185,6 +169,18 @@ traceback.$O:	amd64/traceback.c
+ 	$(CC) $(CFLAGS) $<
+ endif
+ 
+-runtime_defs.go: proc.c iface.c hashmap.c chan.c
+-	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh $^ > $@.x
++runtime_defs.go: proc.c iface.c hashmap.c chan.c $(HFILES)
++	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh proc.c iface.c hashmap.c chan.c > $@.x
+ 	mv -f $@.x $@
++
++arch_GOARCH.h: arch_$(GOARCH).h
++	cp $^ $@
++
++defs_GOOS_GOARCH.h: defs_$(GOOS)_$(GOARCH).h
++	cp $^ $@
++
++os_GOOS.h: os_$(GOOS).h
++	cp $^ $@
++
++signals_GOOS.h: signals_$(GOOS).h
++	cp $^ $@
+diff --git a/src/pkg/runtime/386/arch.h b/src/pkg/runtime/arch_386.h
+similarity index 100%
+rename from src/pkg/runtime/386/arch.h
+rename to src/pkg/runtime/arch_386.h
+diff --git a/src/pkg/runtime/amd64/arch.h b/src/pkg/runtime/arch_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/amd64/arch.h
+rename to src/pkg/runtime/arch_amd64.h
+diff --git a/src/pkg/runtime/arm/arch.h b/src/pkg/runtime/arch_arm.h
+similarity index 100%
+rename from src/pkg/runtime/arm/arch.h
+rename to src/pkg/runtime/arch_arm.h
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/asm_386.s
+similarity index 99%
+rename from src/pkg/runtime/386/asm.s
+rename to src/pkg/runtime/asm_386.s
+index 04d4e214c3..c39f365d59 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 
+ TEXT _rt0_386(SB),7,$0
+ 	// Linux, Windows start the FPU in extended double precision.
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/asm_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/amd64/asm.s
+rename to src/pkg/runtime/asm_amd64.s
+index 18cdefb83d..d91421e9e3 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ TEXT _rt0_amd64(SB),7,$-8
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/asm_arm.s
+similarity index 99%
+rename from src/pkg/runtime/arm/asm.s
+rename to src/pkg/runtime/asm_arm.s
+index c03422f10c..533c0744d7 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "arm/asm.h"
++#include "asm_arm.h"
+ 
+ // using frame size $-4 means do not save LR on stack.
+ TEXT _rt0_arm(SB),7,$-4
+diff --git a/src/pkg/runtime/386/atomic.c b/src/pkg/runtime/atomic_386.c
+similarity index 100%
+rename from src/pkg/runtime/386/atomic.c
+rename to src/pkg/runtime/atomic_386.c
+diff --git a/src/pkg/runtime/amd64/atomic.c b/src/pkg/runtime/atomic_amd64.c
+similarity index 100%
+rename from src/pkg/runtime/amd64/atomic.c
+rename to src/pkg/runtime/atomic_amd64.c
+diff --git a/src/pkg/runtime/arm/atomic.c b/src/pkg/runtime/atomic_arm.c
+similarity index 100%
+rename from src/pkg/runtime/arm/atomic.c
+rename to src/pkg/runtime/atomic_arm.c
+diff --git a/src/pkg/runtime/windows/386/callback.c b/src/pkg/runtime/callback_windows_386.c
+similarity index 97%
+rename from src/pkg/runtime/windows/386/callback.c
+rename to src/pkg/runtime/callback_windows_386.c
+index 11b3d294d9..fcd292fbcd 100644
+--- a/src/pkg/runtime/windows/386/callback.c
++++ b/src/pkg/runtime/callback_windows_386.c
+@@ -4,8 +4,8 @@
+ 
+ #include "runtime.h"
+ #include "type.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ 
+ // Will keep all callbacks in a linked list, so they don't get garbage collected.
+ typedef	struct	Callback	Callback;
+diff --git a/src/pkg/runtime/windows/amd64/callback.c b/src/pkg/runtime/callback_windows_amd64.c
+similarity index 97%
+rename from src/pkg/runtime/windows/amd64/callback.c
+rename to src/pkg/runtime/callback_windows_amd64.c
+index f6fde4fb88..99d7cb9e38 100644
+--- a/src/pkg/runtime/windows/amd64/callback.c
++++ b/src/pkg/runtime/callback_windows_amd64.c
+@@ -4,8 +4,8 @@
+ 
+ #include "runtime.h"
+ #include "type.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ 
+ // Will keep all callbacks in a linked list, so they don't get garbage collected.
+ typedef	struct	Callback	Callback;
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 4fdb912fa9..b6f23302e4 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "stack.h"
+ #include "cgocall.h"
+ 
+diff --git a/src/pkg/runtime/386/closure.c b/src/pkg/runtime/closure_386.c
+similarity index 100%
+rename from src/pkg/runtime/386/closure.c
+rename to src/pkg/runtime/closure_386.c
+diff --git a/src/pkg/runtime/amd64/closure.c b/src/pkg/runtime/closure_amd64.c
+similarity index 100%
+rename from src/pkg/runtime/amd64/closure.c
+rename to src/pkg/runtime/closure_amd64.c
+diff --git a/src/pkg/runtime/arm/closure.c b/src/pkg/runtime/closure_arm.c
+similarity index 100%
+rename from src/pkg/runtime/arm/closure.c
+rename to src/pkg/runtime/closure_arm.c
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index b7cf134384..05fa0cf61a 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -49,7 +49,7 @@
+ // in the situation when normally the goroutine "owns" handoff.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/linux/defs1.go b/src/pkg/runtime/defs1_linux.go
+similarity index 100%
+rename from src/pkg/runtime/linux/defs1.go
+rename to src/pkg/runtime/defs1_linux.go
+diff --git a/src/pkg/runtime/linux/defs2.go b/src/pkg/runtime/defs2_linux.go
+similarity index 100%
+rename from src/pkg/runtime/linux/defs2.go
+rename to src/pkg/runtime/defs2_linux.go
+diff --git a/src/pkg/runtime/linux/defs_arm.go b/src/pkg/runtime/defs_arm_linux.go
+similarity index 100%
+rename from src/pkg/runtime/linux/defs_arm.go
+rename to src/pkg/runtime/defs_arm_linux.go
+diff --git a/src/pkg/runtime/darwin/defs.go b/src/pkg/runtime/defs_darwin.go
+similarity index 100%
+rename from src/pkg/runtime/darwin/defs.go
+rename to src/pkg/runtime/defs_darwin.go
+diff --git a/src/pkg/runtime/darwin/386/defs.h b/src/pkg/runtime/defs_darwin_386.h
+similarity index 100%
+rename from src/pkg/runtime/darwin/386/defs.h
+rename to src/pkg/runtime/defs_darwin_386.h
+diff --git a/src/pkg/runtime/darwin/amd64/defs.h b/src/pkg/runtime/defs_darwin_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/darwin/amd64/defs.h
+rename to src/pkg/runtime/defs_darwin_amd64.h
+diff --git a/src/pkg/runtime/freebsd/defs.go b/src/pkg/runtime/defs_freebsd.go
+similarity index 100%
+rename from src/pkg/runtime/freebsd/defs.go
+rename to src/pkg/runtime/defs_freebsd.go
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/defs_freebsd_386.h
+similarity index 100%
+rename from src/pkg/runtime/freebsd/386/defs.h
+rename to src/pkg/runtime/defs_freebsd_386.h
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/defs_freebsd_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/freebsd/amd64/defs.h
+rename to src/pkg/runtime/defs_freebsd_amd64.h
+diff --git a/src/pkg/runtime/linux/defs.go b/src/pkg/runtime/defs_linux.go
+similarity index 100%
+rename from src/pkg/runtime/linux/defs.go
+rename to src/pkg/runtime/defs_linux.go
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/defs_linux_386.h
+similarity index 100%
+rename from src/pkg/runtime/linux/386/defs.h
+rename to src/pkg/runtime/defs_linux_386.h
+diff --git a/src/pkg/runtime/linux/amd64/defs.h b/src/pkg/runtime/defs_linux_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/linux/amd64/defs.h
+rename to src/pkg/runtime/defs_linux_amd64.h
+diff --git a/src/pkg/runtime/linux/arm/defs.h b/src/pkg/runtime/defs_linux_arm.h
+similarity index 100%
+rename from src/pkg/runtime/linux/arm/defs.h
+rename to src/pkg/runtime/defs_linux_arm.h
+diff --git a/src/pkg/runtime/netbsd/defs.go b/src/pkg/runtime/defs_netbsd.go
+similarity index 100%
+rename from src/pkg/runtime/netbsd/defs.go
+rename to src/pkg/runtime/defs_netbsd.go
+diff --git a/src/pkg/runtime/netbsd/386/defs.h b/src/pkg/runtime/defs_netbsd_386.h
+similarity index 100%
+rename from src/pkg/runtime/netbsd/386/defs.h
+rename to src/pkg/runtime/defs_netbsd_386.h
+diff --git a/src/pkg/runtime/netbsd/amd64/defs.h b/src/pkg/runtime/defs_netbsd_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/netbsd/amd64/defs.h
+rename to src/pkg/runtime/defs_netbsd_amd64.h
+diff --git a/src/pkg/runtime/openbsd/defs.go b/src/pkg/runtime/defs_openbsd.go
+similarity index 100%
+rename from src/pkg/runtime/openbsd/defs.go
+rename to src/pkg/runtime/defs_openbsd.go
+diff --git a/src/pkg/runtime/openbsd/386/defs.h b/src/pkg/runtime/defs_openbsd_386.h
+similarity index 100%
+rename from src/pkg/runtime/openbsd/386/defs.h
+rename to src/pkg/runtime/defs_openbsd_386.h
+diff --git a/src/pkg/runtime/openbsd/amd64/defs.h b/src/pkg/runtime/defs_openbsd_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/openbsd/amd64/defs.h
+rename to src/pkg/runtime/defs_openbsd_amd64.h
+diff --git a/src/pkg/runtime/plan9/386/defs.h b/src/pkg/runtime/defs_plan9_386.h
+similarity index 100%
+rename from src/pkg/runtime/plan9/386/defs.h
+rename to src/pkg/runtime/defs_plan9_386.h
+diff --git a/src/pkg/runtime/windows/defs.go b/src/pkg/runtime/defs_windows.go
+similarity index 100%
+rename from src/pkg/runtime/windows/defs.go
+rename to src/pkg/runtime/defs_windows.go
+diff --git a/src/pkg/runtime/windows/386/defs.h b/src/pkg/runtime/defs_windows_386.h
+similarity index 100%
+rename from src/pkg/runtime/windows/386/defs.h
+rename to src/pkg/runtime/defs_windows_386.h
+diff --git a/src/pkg/runtime/windows/amd64/defs.h b/src/pkg/runtime/defs_windows_amd64.h
+similarity index 100%
+rename from src/pkg/runtime/windows/amd64/defs.h
+rename to src/pkg/runtime/defs_windows_amd64.h
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index c9d020fbeb..9f709355a8 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "type.h"
+ #include "malloc.h"
+ 
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 2f6f809127..b71f5e4330 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -8,10 +8,10 @@
+ 
+ package runtime
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "stack.h"
+ #include "malloc.h"
+-#include "defs.h"
++#include "defs_GOOS_GOARCH.h"
+ #include "type.h"
+ 
+ MHeap runtime·mheap;
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index b6e1c507a6..518e00c123 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -7,7 +7,7 @@
+ // See malloc.h for an overview.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ void*
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 8463d4eb88..ff0c2d11ad 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -15,7 +15,7 @@
+ // so that it is faster to move those lists between MCaches and MCentrals.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ static bool MCentral_Grow(MCentral *c);
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/mem_darwin.c
+similarity index 93%
+rename from src/pkg/runtime/darwin/mem.c
+rename to src/pkg/runtime/mem_darwin.c
+index 2fbd7a0c47..3af7af99ae 100644
+--- a/src/pkg/runtime/darwin/mem.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "defs.h"
+-#include "os.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "malloc.h"
+ 
+ void*
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/mem_freebsd.c
+similarity index 95%
+rename from src/pkg/runtime/freebsd/mem.c
+rename to src/pkg/runtime/mem_freebsd.c
+index b69bbdc6ec..d1c22583dc 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/mem_freebsd.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "defs.h"
+-#include "os.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "malloc.h"
+ 
+ void*
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/mem_linux.c
+similarity index 97%
+rename from src/pkg/runtime/linux/mem.c
+rename to src/pkg/runtime/mem_linux.c
+index 62e4eda2c2..fdf02c2cac 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "defs.h"
+-#include "os.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "malloc.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/openbsd/mem.c b/src/pkg/runtime/mem_netbsd.c
+similarity index 95%
+rename from src/pkg/runtime/openbsd/mem.c
+rename to src/pkg/runtime/mem_netbsd.c
+index dea5038771..34ff31d908 100644
+--- a/src/pkg/runtime/openbsd/mem.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "defs.h"
+-#include "os.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "malloc.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/netbsd/mem.c b/src/pkg/runtime/mem_openbsd.c
+similarity index 95%
+rename from src/pkg/runtime/netbsd/mem.c
+rename to src/pkg/runtime/mem_openbsd.c
+index dea5038771..34ff31d908 100644
+--- a/src/pkg/runtime/netbsd/mem.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "defs.h"
+-#include "os.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "malloc.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/plan9/mem.c b/src/pkg/runtime/mem_plan9.c
+similarity index 96%
+rename from src/pkg/runtime/plan9/mem.c
+rename to src/pkg/runtime/mem_plan9.c
+index af8b9f14e7..15cbc176b6 100644
+--- a/src/pkg/runtime/plan9/mem.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+-#include "os.h"
++#include "os_GOOS.h"
+ 
+ extern byte end[];
+ static byte *bloc = { end };
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/mem_windows.c
+similarity index 95%
+rename from src/pkg/runtime/windows/mem.c
+rename to src/pkg/runtime/mem_windows.c
+index f95a1a9825..7840daa22c 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "os.h"
+-#include "defs.h"
++#include "arch_GOARCH.h"
++#include "os_GOOS.h"
++#include "defs_GOOS_GOARCH.h"
+ #include "malloc.h"
+ 
+ enum {
+diff --git a/src/pkg/runtime/386/memmove.s b/src/pkg/runtime/memmove_386.s
+similarity index 100%
+rename from src/pkg/runtime/386/memmove.s
+rename to src/pkg/runtime/memmove_386.s
+diff --git a/src/pkg/runtime/amd64/memmove.s b/src/pkg/runtime/memmove_amd64.s
+similarity index 100%
+rename from src/pkg/runtime/amd64/memmove.s
+rename to src/pkg/runtime/memmove_amd64.s
+diff --git a/src/pkg/runtime/arm/memmove.s b/src/pkg/runtime/memmove_arm.s
+similarity index 100%
+rename from src/pkg/runtime/arm/memmove.s
+rename to src/pkg/runtime/memmove_arm.s
+diff --git a/src/pkg/runtime/arm/memset.s b/src/pkg/runtime/memset_arm.s
+similarity index 100%
+rename from src/pkg/runtime/arm/memset.s
+rename to src/pkg/runtime/memset_arm.s
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index efb42e1fbd..c6f2b54219 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ enum { debug = 0 };
+diff --git a/src/pkg/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+index 497b5bf132..c916d588fd 100644
+--- a/src/pkg/runtime/mfixalloc.c
++++ b/src/pkg/runtime/mfixalloc.c
+@@ -7,7 +7,7 @@
+ // See malloc.h for overview.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ // Initialize f to allocate objects of the given size,
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 89bad668fe..b2f22866de 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -5,7 +5,7 @@
+ // Garbage collector.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "stack.h"
+ 
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index ed2b248de6..d75c18d828 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -13,7 +13,7 @@
+ // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ static MSpan *MHeap_AllocLocked(MHeap*, uintptr, int32);
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 57923b846c..b297d41389 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -7,9 +7,9 @@
+ 
+ package runtime
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+-#include "defs.h"
++#include "defs_GOOS_GOARCH.h"
+ #include "type.h"
+ 
+ // NOTE(rsc): Everything here could use cas if contention became an issue.
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 5e4735a744..e6cfcdb02d 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -26,7 +26,7 @@
+ // TODO(rsc): Compute max waste for any given size.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ int32 runtime·class_to_size[NumSizeClasses];
+diff --git a/src/pkg/runtime/darwin/os.h b/src/pkg/runtime/os_darwin.h
+similarity index 100%
+rename from src/pkg/runtime/darwin/os.h
+rename to src/pkg/runtime/os_darwin.h
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/os_freebsd.h
+similarity index 100%
+rename from src/pkg/runtime/freebsd/os.h
+rename to src/pkg/runtime/os_freebsd.h
+diff --git a/src/pkg/runtime/linux/os.h b/src/pkg/runtime/os_linux.h
+similarity index 100%
+rename from src/pkg/runtime/linux/os.h
+rename to src/pkg/runtime/os_linux.h
+diff --git a/src/pkg/runtime/netbsd/os.h b/src/pkg/runtime/os_netbsd.h
+similarity index 100%
+rename from src/pkg/runtime/netbsd/os.h
+rename to src/pkg/runtime/os_netbsd.h
+diff --git a/src/pkg/runtime/openbsd/os.h b/src/pkg/runtime/os_openbsd.h
+similarity index 100%
+rename from src/pkg/runtime/openbsd/os.h
+rename to src/pkg/runtime/os_openbsd.h
+diff --git a/src/pkg/runtime/plan9/os.h b/src/pkg/runtime/os_plan9.h
+similarity index 100%
+rename from src/pkg/runtime/plan9/os.h
+rename to src/pkg/runtime/os_plan9.h
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/os_windows.h
+similarity index 100%
+rename from src/pkg/runtime/windows/os.h
+rename to src/pkg/runtime/os_windows.h
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 8f4d1ffb4c..cb45a0c299 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -3,10 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
+-#include "defs.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
+ #include "malloc.h"
+-#include "os.h"
++#include "os_GOOS.h"
+ #include "stack.h"
+ 
+ bool	runtime·iscgo;
+diff --git a/src/pkg/runtime/darwin/386/rt0.s b/src/pkg/runtime/rt0_darwin_386.s
+similarity index 100%
+rename from src/pkg/runtime/darwin/386/rt0.s
+rename to src/pkg/runtime/rt0_darwin_386.s
+diff --git a/src/pkg/runtime/darwin/amd64/rt0.s b/src/pkg/runtime/rt0_darwin_amd64.s
+similarity index 100%
+rename from src/pkg/runtime/darwin/amd64/rt0.s
+rename to src/pkg/runtime/rt0_darwin_amd64.s
+diff --git a/src/pkg/runtime/freebsd/386/rt0.s b/src/pkg/runtime/rt0_freebsd_386.s
+similarity index 100%
+rename from src/pkg/runtime/freebsd/386/rt0.s
+rename to src/pkg/runtime/rt0_freebsd_386.s
+diff --git a/src/pkg/runtime/freebsd/amd64/rt0.s b/src/pkg/runtime/rt0_freebsd_amd64.s
+similarity index 100%
+rename from src/pkg/runtime/freebsd/amd64/rt0.s
+rename to src/pkg/runtime/rt0_freebsd_amd64.s
+diff --git a/src/pkg/runtime/linux/386/rt0.s b/src/pkg/runtime/rt0_linux_386.s
+similarity index 100%
+rename from src/pkg/runtime/linux/386/rt0.s
+rename to src/pkg/runtime/rt0_linux_386.s
+diff --git a/src/pkg/runtime/linux/amd64/rt0.s b/src/pkg/runtime/rt0_linux_amd64.s
+similarity index 100%
+rename from src/pkg/runtime/linux/amd64/rt0.s
+rename to src/pkg/runtime/rt0_linux_amd64.s
+diff --git a/src/pkg/runtime/linux/arm/rt0.s b/src/pkg/runtime/rt0_linux_arm.s
+similarity index 100%
+rename from src/pkg/runtime/linux/arm/rt0.s
+rename to src/pkg/runtime/rt0_linux_arm.s
+diff --git a/src/pkg/runtime/netbsd/386/rt0.s b/src/pkg/runtime/rt0_netbsd_386.s
+similarity index 100%
+rename from src/pkg/runtime/netbsd/386/rt0.s
+rename to src/pkg/runtime/rt0_netbsd_386.s
+diff --git a/src/pkg/runtime/netbsd/amd64/rt0.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+similarity index 100%
+rename from src/pkg/runtime/netbsd/amd64/rt0.s
+rename to src/pkg/runtime/rt0_netbsd_amd64.s
+diff --git a/src/pkg/runtime/openbsd/386/rt0.s b/src/pkg/runtime/rt0_openbsd_386.s
+similarity index 100%
+rename from src/pkg/runtime/openbsd/386/rt0.s
+rename to src/pkg/runtime/rt0_openbsd_386.s
+diff --git a/src/pkg/runtime/openbsd/amd64/rt0.s b/src/pkg/runtime/rt0_openbsd_amd64.s
+similarity index 100%
+rename from src/pkg/runtime/openbsd/amd64/rt0.s
+rename to src/pkg/runtime/rt0_openbsd_amd64.s
+diff --git a/src/pkg/runtime/plan9/386/rt0.s b/src/pkg/runtime/rt0_plan9_386.s
+similarity index 100%
+rename from src/pkg/runtime/plan9/386/rt0.s
+rename to src/pkg/runtime/rt0_plan9_386.s
+diff --git a/src/pkg/runtime/windows/386/rt0.s b/src/pkg/runtime/rt0_windows_386.s
+similarity index 100%
+rename from src/pkg/runtime/windows/386/rt0.s
+rename to src/pkg/runtime/rt0_windows_386.s
+diff --git a/src/pkg/runtime/windows/amd64/rt0.s b/src/pkg/runtime/rt0_windows_amd64.s
+similarity index 93%
+rename from src/pkg/runtime/windows/amd64/rt0.s
+rename to src/pkg/runtime/rt0_windows_amd64.s
+index 35978bc746..5dc6b6e51b 100644
+--- a/src/pkg/runtime/windows/amd64/rt0.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ TEXT	_rt0_amd64_windows(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3bcb0cd008..7ab7a3fdd6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -241,7 +241,7 @@ struct	M
+ 	uint32	waitsemacount;
+ 	uint32	waitsemalock;
+ 
+-#ifdef __WINDOWS__
++#ifdef GOOS_windows
+ 	void*	thread;		// thread handle
+ #endif
+ 	uintptr	end[];
+@@ -299,7 +299,7 @@ struct	WinCall
+ 	uintptr	err;	// error number
+ };
+ 
+-#ifdef __WINDOWS__
++#ifdef GOOS_windows
+ enum {
+    Windows = 1
+ };
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index 9f3f4a2b39..67c90350b6 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -19,7 +19,7 @@
+ 
+ package runtime
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ 
+ typedef struct Sema Sema;
+ struct Sema
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/signal_darwin_386.c
+similarity index 98%
+rename from src/pkg/runtime/darwin/386/signal.c
+rename to src/pkg/runtime/signal_darwin_386.c
+index 95c48b2583..c1cab2ccaa 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/signal_darwin_386.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
+-#include "signals.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signals_GOOS.h"
+ 
+ void
+ runtime·dumpregs(Regs32 *r)
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/signal_darwin_amd64.c
+similarity index 98%
+rename from src/pkg/runtime/darwin/amd64/signal.c
+rename to src/pkg/runtime/signal_darwin_amd64.c
+index c0ef89fc60..fd75e78454 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/signal_darwin_amd64.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
+-#include "signals.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signals_GOOS.h"
+ 
+ void
+ runtime·dumpregs(Regs64 *r)
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/signal_freebsd_386.c
+similarity index 98%
+rename from src/pkg/runtime/freebsd/386/signal.c
+rename to src/pkg/runtime/signal_freebsd_386.c
+index 2fe7ecd707..ff4aaabdb5 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/signal_freebsd_386.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ extern void runtime·sigtramp(void);
+ 
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/signal_freebsd_amd64.c
+similarity index 98%
+rename from src/pkg/runtime/freebsd/amd64/signal.c
+rename to src/pkg/runtime/signal_freebsd_amd64.c
+index 8015e366e6..2683f4fd09 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/signal_freebsd_amd64.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ extern void runtime·sigtramp(void);
+ 
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/signal_linux_386.c
+similarity index 98%
+rename from src/pkg/runtime/linux/386/signal.c
+rename to src/pkg/runtime/signal_linux_386.c
+index 4045b2efc3..4f3abcebb3 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ void
+ runtime·dumpregs(Sigcontext *r)
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/signal_linux_amd64.c
+similarity index 98%
+rename from src/pkg/runtime/linux/amd64/signal.c
+rename to src/pkg/runtime/signal_linux_amd64.c
+index ee90271ed2..937d5c3478 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/signal_linux_amd64.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ void
+ runtime·dumpregs(Sigcontext *r)
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/signal_linux_arm.c
+similarity index 98%
+rename from src/pkg/runtime/linux/arm/signal.c
+rename to src/pkg/runtime/signal_linux_arm.c
+index 88a84d1120..b32ec7a226 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ void
+ runtime·dumpregs(Sigcontext *r)
+diff --git a/src/pkg/runtime/openbsd/386/signal.c b/src/pkg/runtime/signal_netbsd_386.c
+similarity index 98%
+rename from src/pkg/runtime/openbsd/386/signal.c
+rename to src/pkg/runtime/signal_netbsd_386.c
+index 8b0d4ac616..74fa1d490b 100644
+--- a/src/pkg/runtime/openbsd/386/signal.c
++++ b/src/pkg/runtime/signal_netbsd_386.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ extern void runtime·sigtramp(void);
+ 
+diff --git a/src/pkg/runtime/netbsd/amd64/signal.c b/src/pkg/runtime/signal_netbsd_amd64.c
+similarity index 98%
+rename from src/pkg/runtime/netbsd/amd64/signal.c
+rename to src/pkg/runtime/signal_netbsd_amd64.c
+index 01bc76d207..6c69fa7339 100644
+--- a/src/pkg/runtime/netbsd/amd64/signal.c
++++ b/src/pkg/runtime/signal_netbsd_amd64.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ extern void runtime·sigtramp(void);
+ 
+diff --git a/src/pkg/runtime/netbsd/386/signal.c b/src/pkg/runtime/signal_openbsd_386.c
+similarity index 98%
+rename from src/pkg/runtime/netbsd/386/signal.c
+rename to src/pkg/runtime/signal_openbsd_386.c
+index 8b0d4ac616..74fa1d490b 100644
+--- a/src/pkg/runtime/netbsd/386/signal.c
++++ b/src/pkg/runtime/signal_openbsd_386.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ extern void runtime·sigtramp(void);
+ 
+diff --git a/src/pkg/runtime/openbsd/amd64/signal.c b/src/pkg/runtime/signal_openbsd_amd64.c
+similarity index 98%
+rename from src/pkg/runtime/openbsd/amd64/signal.c
+rename to src/pkg/runtime/signal_openbsd_amd64.c
+index 01bc76d207..6c69fa7339 100644
+--- a/src/pkg/runtime/openbsd/amd64/signal.c
++++ b/src/pkg/runtime/signal_openbsd_amd64.c
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "signals.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++#include "os_GOOS.h"
+ 
+ extern void runtime·sigtramp(void);
+ 
+diff --git a/src/pkg/runtime/plan9/386/signal.c b/src/pkg/runtime/signal_plan9_386.c
+similarity index 100%
+rename from src/pkg/runtime/plan9/386/signal.c
+rename to src/pkg/runtime/signal_plan9_386.c
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/signal_windows_386.c
+similarity index 97%
+rename from src/pkg/runtime/windows/386/signal.c
+rename to src/pkg/runtime/signal_windows_386.c
+index 8d049c9f32..48d2a8bff9 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/signal_windows_386.c
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ 
+ void
+ runtime·dumpregs(Context *r)
+diff --git a/src/pkg/runtime/windows/amd64/signal.c b/src/pkg/runtime/signal_windows_amd64.c
+similarity index 98%
+rename from src/pkg/runtime/windows/amd64/signal.c
+rename to src/pkg/runtime/signal_windows_amd64.c
+index 97106c8b84..92cdb8054f 100644
+--- a/src/pkg/runtime/windows/amd64/signal.c
++++ b/src/pkg/runtime/signal_windows_amd64.c
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ 
+ extern void *runtime·sigtramp;
+ 
+diff --git a/src/pkg/runtime/darwin/signals.h b/src/pkg/runtime/signals_darwin.h
+similarity index 100%
+rename from src/pkg/runtime/darwin/signals.h
+rename to src/pkg/runtime/signals_darwin.h
+diff --git a/src/pkg/runtime/freebsd/signals.h b/src/pkg/runtime/signals_freebsd.h
+similarity index 100%
+rename from src/pkg/runtime/freebsd/signals.h
+rename to src/pkg/runtime/signals_freebsd.h
+diff --git a/src/pkg/runtime/linux/signals.h b/src/pkg/runtime/signals_linux.h
+similarity index 100%
+rename from src/pkg/runtime/linux/signals.h
+rename to src/pkg/runtime/signals_linux.h
+diff --git a/src/pkg/runtime/netbsd/signals.h b/src/pkg/runtime/signals_netbsd.h
+similarity index 100%
+rename from src/pkg/runtime/netbsd/signals.h
+rename to src/pkg/runtime/signals_netbsd.h
+diff --git a/src/pkg/runtime/openbsd/signals.h b/src/pkg/runtime/signals_openbsd.h
+similarity index 100%
+rename from src/pkg/runtime/openbsd/signals.h
+rename to src/pkg/runtime/signals_openbsd.h
+diff --git a/src/pkg/runtime/plan9/signals.h b/src/pkg/runtime/signals_plan9.h
+similarity index 100%
+rename from src/pkg/runtime/plan9/signals.h
+rename to src/pkg/runtime/signals_plan9.h
+diff --git a/src/pkg/runtime/windows/signals.h b/src/pkg/runtime/signals_windows.h
+similarity index 100%
+rename from src/pkg/runtime/windows/signals.h
+rename to src/pkg/runtime/signals_windows.h
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index 504590a54e..3c12e5caf5 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -38,7 +38,7 @@
+ 
+ package runtime
+ #include "runtime.h"
+-#include "defs.h"
++#include "defs_GOOS_GOARCH.h"
+ 
+ static struct {
+ 	Note;
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 3bc5cff080..e5726c93b9 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "type.h"
+ #include "malloc.h"
+ 
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/softfloat_arm.c
+similarity index 100%
+rename from src/pkg/runtime/arm/softfloat.c
+rename to src/pkg/runtime/softfloat_arm.c
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 483233876a..f56dac120f 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -57,7 +57,7 @@ enum {
+ 	// to each stack below the usual guard area for OS-specific
+ 	// purposes like signal handling. Used on Windows because
+ 	// it does not use a separate stack.
+-#ifdef __WINDOWS__
++#ifdef GOOS_windows
+ 	StackSystem = 512 * sizeof(uintptr),
+ #else
+ 	StackSystem = 0,
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 0e2dddda34..7e1f8a1e8b 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ String	runtime·emptystring;
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index d0468c6dd4..6cd59136f4 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -13,9 +13,9 @@
+ // and figure out exactly what we want.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
+-#include "arch.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "arch_GOARCH.h"
+ 
+ extern byte pclntab[], epclntab[], symtab[], esymtab[];
+ 
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/sys_darwin_386.s
+similarity index 99%
+rename from src/pkg/runtime/darwin/386/sys.s
+rename to src/pkg/runtime/sys_darwin_386.s
+index 426367b9e2..9a513468a0 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -6,7 +6,7 @@
+ // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 
+ TEXT runtime·notok(SB),7,$0
+ 	MOVL	$0xf1, 0xf1
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/sys_darwin_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/darwin/amd64/sys.s
+rename to src/pkg/runtime/sys_darwin_amd64.s
+index 5a504e3ecf..ac777656c5 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -11,7 +11,7 @@
+ // The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
+ //
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$0
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/sys_freebsd_386.s
+similarity index 99%
+rename from src/pkg/runtime/freebsd/386/sys.s
+rename to src/pkg/runtime/sys_freebsd_386.s
+index 41134ad61f..9833784efc 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 	
+ TEXT runtime·sys_umtx_op(SB),7,$-4
+ 	MOVL	$454, AX
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/sys_freebsd_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/freebsd/amd64/sys.s
+rename to src/pkg/runtime/sys_freebsd_amd64.s
+index bd63650236..991c33c825 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 	
+ TEXT runtime·sys_umtx_op(SB),7,$0
+ 	MOVQ 8(SP), DI
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/sys_linux_386.s
+similarity index 99%
+rename from src/pkg/runtime/linux/386/sys.s
+rename to src/pkg/runtime/sys_linux_386.s
+index d96c022d36..1763143f9e 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for 386, Linux
+ //
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 
+ TEXT runtime·exit(SB),7,$0
+ 	MOVL	$252, AX	// syscall number
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/sys_linux_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/linux/amd64/sys.s
+rename to src/pkg/runtime/sys_linux_amd64.s
+index 76bb48c75a..d55518686c 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for AMD64, Linux
+ //
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ TEXT runtime·exit(SB),7,$0-8
+ 	MOVL	8(SP), DI
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/sys_linux_arm.s
+similarity index 99%
+rename from src/pkg/runtime/linux/arm/sys.s
+rename to src/pkg/runtime/sys_linux_arm.s
+index 14ea337d02..d0b36dedf9 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for arm, Linux
+ //
+ 
+-#include "arm/asm.h"
++#include "asm_arm.h"
+ 
+ // OABI
+ //#define SYS_BASE 0x00900000
+diff --git a/src/pkg/runtime/netbsd/386/sys.s b/src/pkg/runtime/sys_netbsd_386.s
+similarity index 99%
+rename from src/pkg/runtime/netbsd/386/sys.s
+rename to src/pkg/runtime/sys_netbsd_386.s
+index 20ed09a6b5..bcb4fc5e71 100644
+--- a/src/pkg/runtime/netbsd/386/sys.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$-4
+diff --git a/src/pkg/runtime/netbsd/amd64/sys.s b/src/pkg/runtime/sys_netbsd_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/netbsd/amd64/sys.s
+rename to src/pkg/runtime/sys_netbsd_amd64.s
+index 693b51dff1..20817711fb 100644
+--- a/src/pkg/runtime/netbsd/amd64/sys.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ // int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+ TEXT runtime·rfork_thread(SB),7,$0
+diff --git a/src/pkg/runtime/openbsd/386/sys.s b/src/pkg/runtime/sys_openbsd_386.s
+similarity index 99%
+rename from src/pkg/runtime/openbsd/386/sys.s
+rename to src/pkg/runtime/sys_openbsd_386.s
+index 2b1be7ee6b..ae3275c852 100644
+--- a/src/pkg/runtime/openbsd/386/sys.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$-4
+diff --git a/src/pkg/runtime/openbsd/amd64/sys.s b/src/pkg/runtime/sys_openbsd_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/openbsd/amd64/sys.s
+rename to src/pkg/runtime/sys_openbsd_amd64.s
+index 9c2d403b25..f568ba4312 100644
+--- a/src/pkg/runtime/openbsd/amd64/sys.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ // int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+ TEXT runtime·rfork_thread(SB),7,$0
+diff --git a/src/pkg/runtime/plan9/386/sys.s b/src/pkg/runtime/sys_plan9_386.s
+similarity index 96%
+rename from src/pkg/runtime/plan9/386/sys.s
+rename to src/pkg/runtime/sys_plan9_386.s
+index 97be276be6..8c773eee9d 100644
+--- a/src/pkg/runtime/plan9/386/sys.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "defs.h"
+-#include "386/asm.h"
++#include "defs_GOOS_GOARCH.h"
++#include "asm_386.h"
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),7,$0
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/sys_windows_386.s
+similarity index 99%
+rename from src/pkg/runtime/windows/386/sys.s
+rename to src/pkg/runtime/sys_windows_386.s
+index 69b9b82e82..307b93d5c7 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "386/asm.h"
++#include "asm_386.h"
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),7,$0
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/sys_windows_amd64.s
+similarity index 99%
+rename from src/pkg/runtime/windows/amd64/sys.s
+rename to src/pkg/runtime/sys_windows_amd64.s
+index a1e36fe132..508759ff8f 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "amd64/asm.h"
++#include "asm_amd64.h"
+ 
+ // maxargs should be divisible by 2, as Windows stack
+ // must be kept 16-byte aligned on syscall entry.
+diff --git a/src/pkg/runtime/windows/syscall.goc b/src/pkg/runtime/syscall_windows.goc
+similarity index 99%
+rename from src/pkg/runtime/windows/syscall.goc
+rename to src/pkg/runtime/syscall_windows.goc
+index d97a6cafd6..781ec908d0 100644
+--- a/src/pkg/runtime/windows/syscall.goc
++++ b/src/pkg/runtime/syscall_windows.goc
+@@ -4,7 +4,7 @@
+ 
+ package syscall
+ #include "runtime.h"
+-#include "os.h"
++#include "os_GOOS.h"
+ #include "cgocall.h"
+ 
+ func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/thread_darwin.c
+similarity index 99%
+rename from src/pkg/runtime/darwin/thread.c
+rename to src/pkg/runtime/thread_darwin.c
+index 4665408725..12e79afda0 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/thread_freebsd.c
+similarity index 98%
+rename from src/pkg/runtime/freebsd/thread.c
+rename to src/pkg/runtime/thread_freebsd.c
+index 48532f6afc..779782ac96 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -2,8 +2,8 @@
+ // license that can be found in the LICENSE file.`
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/thread_linux.c
+similarity index 98%
+rename from src/pkg/runtime/linux/thread.c
+rename to src/pkg/runtime/thread_linux.c
+index 5502bbbcab..d72e9cb435 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+diff --git a/src/pkg/runtime/netbsd/thread.c b/src/pkg/runtime/thread_netbsd.c
+similarity index 98%
+rename from src/pkg/runtime/netbsd/thread.c
+rename to src/pkg/runtime/thread_netbsd.c
+index 3824a4f1b4..0aba02720e 100644
+--- a/src/pkg/runtime/netbsd/thread.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -2,8 +2,8 @@
+ // license that can be found in the LICENSE file.`
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "stack.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/openbsd/thread.c b/src/pkg/runtime/thread_openbsd.c
+similarity index 98%
+rename from src/pkg/runtime/openbsd/thread.c
+rename to src/pkg/runtime/thread_openbsd.c
+index 55ca64b80b..e1cd5bf2e4 100644
+--- a/src/pkg/runtime/openbsd/thread.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -2,8 +2,8 @@
+ // license that can be found in the LICENSE file.`
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ #include "stack.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/thread_plan9.c
+similarity index 98%
+rename from src/pkg/runtime/plan9/thread.c
+rename to src/pkg/runtime/thread_plan9.c
+index 07edb717e4..a9b156d028 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "os.h"
+-#include "arch.h"
++#include "os_GOOS.h"
++#include "arch_GOARCH.h"
+ 
+ int8 *goos = "plan9";
+ 
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/thread_windows.c
+similarity index 99%
+rename from src/pkg/runtime/windows/thread.c
+rename to src/pkg/runtime/thread_windows.c
+index dc7e06cd33..ad66c93a64 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -4,8 +4,8 @@
+ 
+ #include "runtime.h"
+ #include "type.h"
+-#include "defs.h"
+-#include "os.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ 
+ #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
+ #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 8306e61358..a6b8352470 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -7,9 +7,9 @@
+ package time
+ 
+ #include "runtime.h"
+-#include "defs.h"
+-#include "os.h"
+-#include "arch.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ static Timers timers;
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/traceback_amd64.c
+similarity index 99%
+rename from src/pkg/runtime/amd64/traceback.c
+rename to src/pkg/runtime/traceback_amd64.c
+index fc9021e40e..fedda797c2 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/traceback_amd64.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ static uintptr isclosureentry(uintptr);
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/traceback_arm.c
+similarity index 99%
+rename from src/pkg/runtime/arm/traceback.c
+rename to src/pkg/runtime/traceback_arm.c
+index 0319cdc9b6..22e0bc3a66 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "arch.h"
++#include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+ void runtime·deferproc(void);
+diff --git a/src/pkg/runtime/386/vlop.s b/src/pkg/runtime/vlop_386.s
+similarity index 100%
+rename from src/pkg/runtime/386/vlop.s
+rename to src/pkg/runtime/vlop_386.s
+diff --git a/src/pkg/runtime/arm/vlop.s b/src/pkg/runtime/vlop_arm.s
+similarity index 100%
+rename from src/pkg/runtime/arm/vlop.s
+rename to src/pkg/runtime/vlop_arm.s
+diff --git a/src/pkg/runtime/386/vlrt.c b/src/pkg/runtime/vlrt_386.c
+similarity index 100%
+rename from src/pkg/runtime/386/vlrt.c
+rename to src/pkg/runtime/vlrt_386.c
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/vlrt_arm.c
+similarity index 100%
+rename from src/pkg/runtime/arm/vlrt.c
+rename to src/pkg/runtime/vlrt_arm.c

@@ -7,7 +7,7 @@ Date:   Sun Jan 30 16:07:57 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4004045
-
+---
  src/cmd/gc/builtin.c.boot |   3 +
  src/cmd/gc/print.c        |   1 +
  src/cmd/gc/runtime.go     |   4 +
@@ -16,3 +16,674 @@ Date:   Sun Jan 30 16:07:57 2011 -0500
  src/cmd/gc/typecheck.c    |  55 +++++++++---
  src/pkg/runtime/chan.c    | 104 +++++++++++++++++++---
  7 files changed, 313 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index af16870fe0..421ce19552 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -72,11 +72,14 @@ char *runtimeimport =
+ 	"func \"\".chansend2 (hchan chan<- any, elem any) bool\n"
+ 	"func \"\".closechan (hchan any)\n"
+ 	"func \"\".closedchan (hchan any) bool\n"
++	"func \"\".selectnbsend (hchan chan<- any, elem any) bool\n"
++	"func \"\".selectnbrecv (elem *any, hchan <-chan any) bool\n"
+ 	"func \"\".newselect (size int) *uint8\n"
+ 	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem any) bool\n"
+ 	"func \"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) bool\n"
+ 	"func \"\".selectdefault (sel *uint8) bool\n"
+ 	"func \"\".selectgo (sel *uint8)\n"
++	"func \"\".block ()\n"
+ 	"func \"\".makeslice (typ *uint8, nel int64, cap int64) []any\n"
+ 	"func \"\".sliceslice1 (old []any, lb uint64, width uint64) []any\n"
+ 	"func \"\".sliceslice (old []any, lb uint64, hb uint64, width uint64) []any\n"
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 25c4126397..695a5a3979 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -48,6 +48,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ODOTMETH:
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
++	case OXDOT:
+ 	case OARRAYBYTESTR:
+ 	case OCAP:
+ 	case OCLOSE:
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 59a1171ed0..d7ab17f1ce 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -99,11 +99,15 @@ func chansend2(hchan chan<- any, elem any) (pres bool)
+ func closechan(hchan any)
+ func closedchan(hchan any) bool
+ 
++func selectnbsend(hchan chan<- any, elem any) bool
++func selectnbrecv(elem *any, hchan <-chan any) bool
++
+ func newselect(size int) (sel *byte)
+ func selectsend(sel *byte, hchan chan<- any, elem any) (selected bool)
+ func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
+ func selectdefault(sel *byte) (selected bool)
+ func selectgo(sel *byte)
++func block()
+ 
+ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
+ func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 1a37713114..5686e95995 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -45,27 +45,23 @@ typecheckselect(Node *sel)
+ 				break;
+ 
+ 			case OAS:
+-				// convert x = <-c into OSELRECV(x, c)
+-				// assignment might have introduced a
+-				// conversion.  throw it away.
+-				// it will come back when the select code
+-				// gets generated, because it always assigns
+-				// through a temporary.
++				// convert x = <-c into OSELRECV(x, <-c).
++				// remove implicit conversions; the eventual assignment
++				// will reintroduce them.
+ 				if((n->right->op == OCONVNOP || n->right->op == OCONVIFACE) && n->right->implicit)
+ 					n->right = n->right->left;
++
+ 				if(n->right->op != ORECV) {
+ 					yyerror("select assignment must have receive on right hand side");
+ 					break;
+ 				}
+ 				n->op = OSELRECV;
+-				n->right = n->right->left;
+ 				break;
+ 
+ 			case ORECV:
+-				// convert <-c into OSELRECV(N, c)
+-				n->op = OSELRECV;
+-				n->right = n->left;
+-				n->left = N;
++				// convert <-c into OSELRECV(N, <-c)
++				n = nod(OSELRECV, N, n);
++				ncase->left = n;
+ 				break;
+ 
+ 			case OSEND:
+@@ -81,11 +77,149 @@ typecheckselect(Node *sel)
+ void
+ walkselect(Node *sel)
+ {
+-	int lno;
+-	Node *n, *ncase, *r, *a, *tmp, *var;
++	int lno, i;
++	Node *n, *r, *a, *tmp, *var, *cas, *dflt, *ch;
+ 	NodeList *l, *init;
+-
++	
++	if(sel->list == nil && sel->xoffset != 0)
++		fatal("double walkselect");	// already rewrote
++	
+ 	lno = setlineno(sel);
++	i = count(sel->list);
++	
++	// optimization: zero-case select
++	if(i == 0) {
++		sel->nbody = list1(mkcall("block", nil, nil));
++		goto out;
++	}
++
++	// optimization: one-case select: single op.
++	if(i == 1) {
++		cas = sel->list->n;
++		l = cas->ninit;
++		if(cas->left != N) {  // not default:
++			n = cas->left;
++			l = concat(l, n->ninit);
++			n->ninit = nil;
++			switch(n->op) {
++			default:
++				fatal("select %O", n->op);
++
++			case OSEND:
++				ch = cheapexpr(n->left, &l);
++				n->left = ch;
++				break;
++
++			case OSELRECV:
++				r = n->right;
++				ch = cheapexpr(r->left, &l);
++				r->left = ch;
++
++				if(n->left == N)
++					n = r;
++				else {
++					n = nod(OAS, n->left, r);
++					typecheck(&n, Etop);
++				}
++				break;
++			}
++
++			// if ch == nil { block() }; n;
++			a = nod(OIF, N, N);
++			a->ntest = nod(OEQ, ch, nodnil());
++			a->nbody = list1(mkcall("block", nil, &l));
++			typecheck(&a, Etop);
++			l = list(l, a);
++			l = list(l, n);
++		}
++		l = concat(l, cas->nbody);
++		sel->nbody = l;
++		goto out;
++	}
++
++	// introduce temporary variables for OSELRECV where needed.
++	// this rewrite is used by both the general code and the next optimization.
++	for(l=sel->list; l; l=l->next) {
++		cas = l->n;
++		n = cas->left;
++		if(n == N)
++			continue;
++		switch(n->op) {
++		case OSELRECV:
++			ch = n->right->left;
++
++			// If we can use the address of the target without
++			// violating addressability or order of operations, do so.
++			// Otherwise introduce a temporary.
++			// Also introduce a temporary for := variables that escape,
++			// so that we can delay the heap allocation until the case
++			// is selected.
++			if(n->left == N || isblank(n->left))
++				n->left = nodnil();
++			else if(n->left->op == ONAME &&
++					(!n->colas || (n->class&PHEAP) == 0) &&
++					convertop(ch->type->type, n->left->type, nil) == OCONVNOP) {
++				n->left = nod(OADDR, n->left, N);
++				n->left->etype = 1;  // pointer does not escape
++				typecheck(&n->left, Erv);
++			} else {
++				tmp = nod(OXXX, N, N);
++				tempname(tmp, ch->type->type);
++				a = nod(OADDR, tmp, N);
++				a->etype = 1;  // pointer does not escape
++				typecheck(&a, Erv);
++				r = nod(OAS, n->left, tmp);
++				typecheck(&r, Etop);
++				cas->nbody = concat(n->ninit, cas->nbody);
++				n->ninit = nil;
++				cas->nbody = concat(list1(r), cas->nbody);
++				n->left = a;
++			}
++		}
++	}
++
++	// optimization: two-case select but one is default: single non-blocking op.
++	if(i == 2 && (sel->list->n->left == nil || sel->list->next->n->left == nil)) {
++		if(sel->list->n->left == nil) {
++			cas = sel->list->next->n;
++			dflt = sel->list->n;
++		} else {
++			dflt = sel->list->next->n;
++			cas = sel->list->n;
++		}
++		
++		n = cas->left;
++		r = nod(OIF, N, N);
++		r->ninit = cas->ninit;
++		switch(n->op) {
++		default:
++			fatal("select %O", n->op);
++
++		case OSEND:
++			// if c != nil && selectnbsend(c, v) { body } else { default body }
++			ch = cheapexpr(n->left, &r->ninit);
++			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
++				mkcall1(chanfn("selectnbsend", 2, ch->type),
++					types[TBOOL], &r->ninit, ch, n->right));
++			break;
++			
++		case OSELRECV:
++			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
++			r = nod(OIF, N, N);
++			r->ninit = cas->ninit;
++			ch = cheapexpr(n->right->left, &r->ninit);
++			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
++				mkcall1(chanfn("selectnbrecv", 2, ch->type),
++					types[TBOOL], &r->ninit, n->left, ch));
++			break;
++		}
++		typecheck(&r->ntest, Erv);
++		r->nbody = cas->nbody;
++		r->nelse = concat(dflt->ninit, dflt->nbody);
++		sel->nbody = list1(r);
++		goto out;
++	}		
++
+ 	init = sel->ninit;
+ 	sel->ninit = nil;
+ 
+@@ -96,16 +230,13 @@ walkselect(Node *sel)
+ 	typecheck(&r, Etop);
+ 	init = list(init, r);
+ 
+-	if(sel->list == nil && sel->xoffset != 0)
+-		fatal("double walkselect");	// already rewrote
+-
+ 	// register cases
+ 	for(l=sel->list; l; l=l->next) {
+-		ncase = l->n;
+-		n = ncase->left;
++		cas = l->n;
++		n = cas->left;
+ 		r = nod(OIF, N, N);
+-		r->nbody = ncase->ninit;
+-		ncase->ninit = nil;
++		r->nbody = cas->ninit;
++		cas->ninit = nil;
+ 		if(n != nil) {
+ 			r->nbody = concat(r->nbody, n->ninit);
+ 			n->ninit = nil;
+@@ -113,29 +244,24 @@ walkselect(Node *sel)
+ 		if(n == nil) {
+ 			// selectdefault(sel *byte);
+ 			r->ntest = mkcall("selectdefault", types[TBOOL], &init, var);
+-		} else if(n->op == OSEND) {
+-			// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+-			r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL], &init, var, n->left, n->right);
+-		} else if(n->op == OSELRECV) {
+-			tmp = N;
+-			if(n->left == N)
+-				a = nodnil();
+-			else {
+-				// introduce temporary until we're sure this will succeed.
+-				tmp = nod(OXXX, N, N);
+-				tempname(tmp, n->right->type->type);
+-				a = nod(OADDR, tmp, N);
+-			}
+-			// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+-			r->ntest = mkcall1(chanfn("selectrecv", 2, n->right->type), types[TBOOL], &init, var, n->right, a);
+-			if(tmp != N) {
+-				a = nod(OAS, n->left, tmp);
+-				typecheck(&a, Etop);
+-				r->nbody = list(r->nbody, a);
++		} else {
++			switch(n->op) {
++			default:
++				fatal("select %O", n->op);
++	
++			case OSEND:
++				// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
++				r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL],
++					&init, var, n->left, n->right);
++				break;
++			case OSELRECV:
++				// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++				r->ntest = mkcall1(chanfn("selectrecv", 2, n->right->left->type), types[TBOOL],
++					&init, var, n->right->left, n->left);
++				break;
+ 			}
+-		} else
+-			fatal("select %O", n->op);
+-		r->nbody = concat(r->nbody, ncase->nbody);
++		}
++		r->nbody = concat(r->nbody, cas->nbody);
+ 		r->nbody = list(r->nbody, nod(OBREAK, N, N));
+ 		init = list(init, r);
+ 	}
+@@ -143,8 +269,9 @@ walkselect(Node *sel)
+ 	// run the select
+ 	init = list(init, mkcall("selectgo", T, nil, var));
+ 	sel->nbody = init;
+-	sel->list = nil;
+-	walkstmtlist(init);
+ 
++out:
++	sel->list = nil;
++	walkstmtlist(sel->nbody);
+ 	lineno = lno;
+ }
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index be96a1477a..44e33dae90 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -95,6 +95,7 @@ init1(Node *n, NodeList **out)
+ 		case OAS2MAPR:
+ 		case OAS2DOTTYPE:
+ 		case OAS2RECV:
++		case OAS2RECVCLOSED:
+ 			if(n->defn->initorder)
+ 				break;
+ 			n->defn->initorder = 1;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6711f69f5c..8e8f8da29c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -18,7 +18,7 @@ static int	onearg(Node*, char*, ...);
+ static int	twoarg(Node*);
+ static int	lookdot(Node*, Type*, int);
+ static int	looktypedot(Node*, Type*, int);
+-static void	typecheckaste(int, int, Type*, NodeList*, char*);
++static void	typecheckaste(int, Node*, int, Type*, NodeList*, char*);
+ static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+@@ -504,7 +504,7 @@ reswitch:
+ 		l = n->left;
+ 		if((t = l->type) == T)
+ 			goto error;
+-		if(!(top & Eindir))
++		if(!(top & Eindir) && !n->etype)
+ 			addrescapes(n->left);
+ 		n->type = ptrto(t);
+ 		goto ret;
+@@ -668,6 +668,13 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OSEND:
++		if(0 && top == Erv) {
++			// can happen because grammar for if header accepts
++			// simple_stmt for condition.  Falling through would give
++			// an error "c <- v used as value" but we can do better.
++			yyerror("send statement %#N used as value; use select for non-blocking send", n);
++			goto error;
++		}
+ 		ok |= Etop | Erv;
+ 		l = typecheck(&n->left, Erv);
+ 		typecheck(&n->right, Erv);
+@@ -801,7 +808,7 @@ reswitch:
+ 
+ 		case ODOTMETH:
+ 			n->op = OCALLMETH;
+-			typecheckaste(OCALL, 0, getthisx(t), list1(l->left), "method receiver");
++			typecheckaste(OCALL, n->left, 0, getthisx(t), list1(l->left), "method receiver");
+ 			break;
+ 
+ 		default:
+@@ -812,7 +819,7 @@ reswitch:
+ 			}
+ 			break;
+ 		}
+-		typecheckaste(OCALL, n->isddd, getinargx(t), n->list, "function argument");
++		typecheckaste(OCALL, n->left, n->isddd, getinargx(t), n->list, "function argument");
+ 		ok |= Etop;
+ 		if(t->outtuple == 0)
+ 			goto ret;
+@@ -1246,7 +1253,7 @@ reswitch:
+ 		}
+ 		if(curfn->type->outnamed && n->list == nil)
+ 			goto ret;
+-		typecheckaste(ORETURN, 0, getoutargx(curfn->type), n->list, "return argument");
++		typecheckaste(ORETURN, nil, 0, getoutargx(curfn->type), n->list, "return argument");
+ 		goto ret;
+ 
+ 	case OSELECT:
+@@ -1591,7 +1598,7 @@ nokeys(NodeList *l)
+  * typecheck assignment: type list = expression list
+  */
+ static void
+-typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
++typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *desc)
+ {
+ 	Type *t, *tl, *tn;
+ 	Node *n;
+@@ -1610,16 +1617,24 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
+ 			if(tl->isddd) {
+ 				for(; tn; tn=tn->down) {
+ 					exportassignok(tn->type, desc);
+-					if(assignop(tn->type, tl->type->type, &why) == 0)
+-						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
++					if(assignop(tn->type, tl->type->type, &why) == 0) {
++						if(call != N)
++							yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type->type, desc, call, why);
++						else
++							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
++					}
+ 				}
+ 				goto out;
+ 			}
+ 			if(tn == T)
+ 				goto notenough;
+ 			exportassignok(tn->type, desc);
+-			if(assignop(tn->type, tl->type, &why) == 0)
+-				yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
++			if(assignop(tn->type, tl->type, &why) == 0) {
++				if(call != N)
++					yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type, desc, call, why);
++				else
++					yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
++			}
+ 			tn = tn->down;
+ 		}
+ 		if(tn != T)
+@@ -1664,19 +1679,29 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
+ 	}
+ 	if(nl != nil)
+ 		goto toomany;
+-	if(isddd)
+-		yyerror("invalid use of ... in %#O", op);
++	if(isddd) {
++		if(call != N)
++			yyerror("invalid use of ... in call to %#N", call);
++		else
++			yyerror("invalid use of ... in %#O", op);
++	}
+ 
+ out:
+ 	lineno = lno;
+ 	return;
+ 
+ notenough:
+-	yyerror("not enough arguments to %#O", op);
++	if(call != N)
++		yyerror("not enough arguments in call to %#N", call);
++	else
++		yyerror("not enough arguments to %#O", op);
+ 	goto out;
+ 
+ toomany:
+-	yyerror("too many arguments to %#O", op);
++	if(call != N)
++		yyerror("too many arguments in call to %#N", call);
++	else
++		yyerror("too many arguments to %#O", op);
+ 	goto out;
+ }
+ 
+@@ -2360,6 +2385,8 @@ typecheckas2(Node *n)
+ 		case ORECV:
+ 			n->op = OAS2RECV;
+ 			goto common;
++			yyerror("cannot use multiple-value assignment for non-blocking receive; use select");
++			goto out;
+ 		case ODOTTYPE:
+ 			n->op = OAS2DOTTYPE;
+ 			r->op = ODOTTYPE2;
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 6f9f16826c..f3b804df44 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -296,7 +296,8 @@ loop:
+ 
+ 	sg = dequeue(&c->sendq, c);
+ 	if(sg != nil) {
+-		c->elemalg->copy(c->elemsize, ep, sg->elem);
++		if(ep != nil)
++			c->elemalg->copy(c->elemsize, ep, sg->elem);
+ 		c->elemalg->copy(c->elemsize, sg->elem, nil);
+ 
+ 		gp = sg->g;
+@@ -311,7 +312,6 @@ loop:
+ 
+ 	if(pres != nil) {
+ 		runtime·unlock(c);
+-		c->elemalg->copy(c->elemsize, ep, nil);
+ 		*pres = false;
+ 		return;
+ 	}
+@@ -328,7 +328,8 @@ loop:
+ 	if(sg == nil)
+ 		goto loop;
+ 
+-	c->elemalg->copy(c->elemsize, ep, sg->elem);
++	if(ep != nil)
++		c->elemalg->copy(c->elemsize, ep, sg->elem);
+ 	c->elemalg->copy(c->elemsize, sg->elem, nil);
+ 	freesg(c, sg);
+ 	runtime·unlock(c);
+@@ -341,7 +342,6 @@ asynch:
+ 
+ 		if(pres != nil) {
+ 			runtime·unlock(c);
+-			c->elemalg->copy(c->elemsize, ep, nil);
+ 			*pres = false;
+ 			return;
+ 		}
+@@ -354,7 +354,8 @@ asynch:
+ 		runtime·lock(c);
+ 		goto asynch;
+ 	}
+-	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
++	if(ep != nil)
++		c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
+ 	c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
+ 	c->recvdataq = c->recvdataq->link;
+ 	c->qcount--;
+@@ -377,7 +378,8 @@ asynch:
+ closed:
+ 	if(closed != nil)
+ 		*closed = true;
+-	c->elemalg->copy(c->elemsize, ep, nil);
++	if(ep != nil)
++		c->elemalg->copy(c->elemsize, ep, nil);
+ 	c->closed |= Rclosed;
+ 	if(pres != nil)
+ 		*pres = true;
+@@ -441,12 +443,18 @@ runtime·chanrecv2(Hchan* c, ...)
+ 	int32 o;
+ 	byte *ae, *ap;
+ 
++	if(c == nil)
++		runtime·panicstring("receive from nil channel");
++
+ 	o = runtime·rnd(sizeof(c), Structrnd);
+ 	ae = (byte*)&c + o;
+ 	o = runtime·rnd(o+c->elemsize, 1);
+ 	ap = (byte*)&c + o;
+ 
+ 	runtime·chanrecv(c, ae, ap, nil);
++	
++	if(!*ap)
++		c->elemalg->copy(c->elemsize, ae, nil);
+ }
+ 
+ // chanrecv3(hchan *chan any) (elem any, closed bool);
+@@ -456,6 +464,9 @@ runtime·chanrecv3(Hchan* c, ...)
+ {
+ 	int32 o;
+ 	byte *ae, *ac;
++	
++	if(c == nil)
++		runtime·panicstring("range over nil channel");
+ 
+ 	o = runtime·rnd(sizeof(c), Structrnd);
+ 	ae = (byte*)&c + o;
+@@ -465,6 +476,66 @@ runtime·chanrecv3(Hchan* c, ...)
+ 	runtime·chanrecv(c, ae, nil, ac);
+ }
+ 
++// func selectnbsend(c chan any, elem any) bool
++//
++// compiler implements
++//
++//	select {
++//	case c <- v:
++//		... foo
++//	default:
++//		... bar
++//	}
++//
++// as
++//
++//	if c != nil && selectnbsend(c, v) {
++//		... foo
++//	} else {
++//		... bar
++//	}
++//
++#pragma textflag 7
++void
++runtime·selectnbsend(Hchan *c, ...)
++{
++	int32 o;
++	byte *ae, *ap;
++
++	o = runtime·rnd(sizeof(c), c->elemalign);
++	ae = (byte*)&c + o;
++	o = runtime·rnd(o+c->elemsize, Structrnd);
++	ap = (byte*)&c + o;
++
++	runtime·chansend(c, ae, ap);
++}
++
++// func selectnbrecv(elem *any, c chan any) bool
++//
++// compiler implements
++//
++//	select {
++//	case v = <-c:
++//		... foo
++//	default:
++//		... bar
++//	}
++//
++// as
++//
++//	if c != nil && selectnbrecv(&v, c) {
++//		... foo
++//	} else {
++//		... bar
++//	}
++//
++#pragma textflag 7
++void
++runtime·selectnbrecv(byte *v, Hchan *c, bool ok)
++{
++	runtime·chanrecv(c, v, &ok, nil);
++}	
++
+ // newselect(size uint32) (sel *byte);
+ #pragma textflag 7
+ void
+@@ -625,6 +696,13 @@ selunlock(Select *sel)
+ 	}
+ }
+ 
++void
++runtime·block(void)
++{
++	g->status = Gwaiting;	// forever
++	runtime·gosched();
++}
++
+ // selectgo(sel *byte);
+ //
+ // overwrites return pc on stack to signal which case of the select
+@@ -648,13 +726,13 @@ runtime·selectgo(Select *sel)
+ 	if(debug)
+ 		runtime·printf("select: sel=%p\n", sel);
+ 
+-	if(sel->ncase < 2) {
+-		if(sel->ncase < 1) {
+-			g->status = Gwaiting;	// forever
+-			runtime·gosched();
+-		}
+-		// TODO: make special case of one.
+-	}
++	// The compiler rewrites selects that statically have
++	// only 0 or 1 cases plus default into simpler constructs.
++	// The only way we can end up with such small sel->ncase
++	// values here is for a larger select in which most channels
++	// have been nilled out.  The general code handles those
++	// cases correctly, and they are rare enough not to bother
++	// optimizing (and needing to test).
+ 
+ 	// generate permuted order
+ 	for(i=0; i<sel->ncase; i++)

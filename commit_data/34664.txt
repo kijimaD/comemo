@@ -14,7 +14,52 @@ Date:   Sun Nov 5 19:35:14 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76019
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/build.go            | 6 +++---
  src/cmd/go/internal/work/exec.go | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a2f3a8c282..107990ea47 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1309,12 +1309,12 @@ func checkNotStale(goBinary string, targets ...string) {
+ 		append([]string{
+ 			goBinary,
+ 			"list", "-gcflags=" + gogcflags, "-ldflags=" + goldflags,
+-			"-f={{if .Stale}}\t{{.ImportPath}}: {{.StaleReason}}{{end}}",
++			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
+ 		}, targets...)...)
+-	if out != "" {
++	if strings.Contains(out, "\tSTALE ") {
+ 		os.Setenv("GODEBUG", "gocachehash=1")
+ 		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
+-			if strings.Contains(out, target) {
++			if strings.Contains(out, "STALE "+target) {
+ 				run(goroot, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+ 				break
+ 			}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d43a5f2417..39b39fa9de 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -168,8 +168,8 @@ func (b *Builder) Do(root *Action) {
+ 
+ // buildActionID computes the action ID for a build action.
+ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+-	h := cache.NewHash("actionID")
+ 	p := a.Package
++	h := cache.NewHash("build " + p.ImportPath)
+ 
+ 	// Configuration independent of compiler toolchain.
+ 	// Note: buildmode has already been accounted for in buildGcflags
+@@ -667,8 +667,8 @@ func (b *Builder) vet(a *Action) error {
+ 
+ // linkActionID computes the action ID for a link action.
+ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+-	h := cache.NewHash("link")
+ 	p := a.Package
++	h := cache.NewHash("link " + p.ImportPath)
+ 
+ 	// Toolchain-independent configuration.
+ 	fmt.Fprintf(h, "link\n")

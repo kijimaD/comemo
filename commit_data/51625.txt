@@ -22,10 +22,111 @@ Date:   Fri Feb 25 14:56:04 2022 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go  | 13 ++++++++-----
  src/cmd/compile/internal/typecheck/subr.go |  6 +++---
  test/typeparam/issue51367.dir/a.go         | 14 ++++++++++++++
  test/typeparam/issue51367.dir/main.go      | 13 +++++++++++++
  test/typeparam/issue51367.go               |  7 +++++++
  5 files changed, 45 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 807794dc30..9d17d5ffd1 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -641,6 +641,11 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
+ 		// over any pointer)
+ 		recvType := nameNode.Type().Recv().Type
+ 		recvType = deref(recvType)
++		if recvType.IsFullyInstantiated() {
++			// Get the type of the base generic type, so we get
++			// its original typeparams.
++			recvType = recvType.OrigSym().Def.(*ir.Name).Type()
++		}
+ 		tparams = recvType.RParams()
+ 	} else {
+ 		fields := nameNode.Type().TParams().Fields().Slice()
+@@ -657,11 +662,9 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
+ 	s1 := make([]*types.Type, len(shapes))
+ 	for i, t := range shapes {
+ 		var tparam *types.Type
+-		if tparams[i].Kind() == types.TTYPEPARAM {
+-			// Shapes are grouped differently for structural types, so we
+-			// pass the type param to Shapify(), so we can distinguish.
+-			tparam = tparams[i]
+-		}
++		// Shapes are grouped differently for structural types, so we
++		// pass the type param to Shapify(), so we can distinguish.
++		tparam = tparams[i]
+ 		if !t.IsShape() {
+ 			s1[i] = typecheck.Shapify(t, i, tparam)
+ 		} else {
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 9892471142..181066ba96 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1432,9 +1432,9 @@ func genericTypeName(sym *types.Sym) string {
+ // For now, we only consider two types to have the same shape, if they have exactly
+ // the same underlying type or they are both pointer types.
+ //
+-//  tparam is the associated typeparam. If there is a structural type for
+-//  the associated type param (not common), then a pointer type t is mapped to its
+-//  underlying type, rather than being merged with other pointers.
++//  tparam is the associated typeparam - it must be TTYPEPARAM type. If there is a
++//  structural type for the associated type param (not common), then a pointer type t
++//  is mapped to its underlying type, rather than being merged with other pointers.
+ //
+ //  Shape types are also distinguished by the index of the type in a type param/arg
+ //  list. We need to do this so we can distinguish and substitute properly for two
+diff --git a/test/typeparam/issue51367.dir/a.go b/test/typeparam/issue51367.dir/a.go
+new file mode 100644
+index 0000000000..be0c3b0688
+--- /dev/null
++++ b/test/typeparam/issue51367.dir/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A[T any] struct{}
++
++func (_ A[T]) Method() {}
++
++func DoSomething[P any]() {
++	a := A[*byte]{}
++	a.Method()
++}
+diff --git a/test/typeparam/issue51367.dir/main.go b/test/typeparam/issue51367.dir/main.go
+new file mode 100644
+index 0000000000..64273d313b
+--- /dev/null
++++ b/test/typeparam/issue51367.dir/main.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++)
++
++func main() {
++	a.DoSomething[byte]()
++}
+diff --git a/test/typeparam/issue51367.go b/test/typeparam/issue51367.go
+new file mode 100644
+index 0000000000..642f4bf49f
+--- /dev/null
++++ b/test/typeparam/issue51367.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

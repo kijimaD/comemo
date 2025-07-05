@@ -17,7 +17,7 @@ Date:   Wed Nov 18 11:25:29 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go    |  2 +-
  src/cmd/compile/internal/gc/fmt.go       |  8 ++++----
  src/cmd/compile/internal/gc/iexport.go   | 14 ++++++-------
@@ -30,3 +30,363 @@ Date:   Wed Nov 18 11:25:29 2020 -0500
  src/cmd/compile/internal/gc/typecheck.go | 10 ++++-----
  src/cmd/compile/internal/gc/walk.go      |  2 +-
  11 files changed, 60 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 07cc549825..497151d02f 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -476,7 +476,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 	default:
+ 		Fatalf("unexpected expr: %v", n)
+ 
+-	case OLITERAL, ONIL, OGETG, OCLOSUREVAR, OTYPE:
++	case OLITERAL, ONIL, OGETG, OCLOSUREVAR, OTYPE, OMETHEXPR:
+ 		// nop
+ 
+ 	case ONAME:
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index e62a526eeb..addb010e5c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1355,15 +1355,15 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			mode.Fprintf(s, ")")
+ 		}
+ 
+-	// Special case: name used as local variable in export.
+-	// _ becomes ~b%d internally; print as _ for export
+ 	case ONAME:
++		// Special case: name used as local variable in export.
++		// _ becomes ~b%d internally; print as _ for export
+ 		if mode == FErr && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+ 			fmt.Fprint(s, "_")
+ 			return
+ 		}
+ 		fallthrough
+-	case OPACK, ONONAME:
++	case OPACK, ONONAME, OMETHEXPR:
+ 		fmt.Fprint(s, smodeString(n.Sym, mode))
+ 
+ 	case OTYPE:
+@@ -1695,7 +1695,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 	case OLITERAL:
+ 		mode.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
+ 
+-	case ONAME, ONONAME:
++	case ONAME, ONONAME, OMETHEXPR:
+ 		if n.Sym != nil {
+ 			mode.Fprintf(s, "%v-%v%j", n.Op, n.Sym, n)
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index d661fca2d1..842025705b 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1218,18 +1218,16 @@ func (w *exportWriter) expr(n *Node) {
+ 		w.pos(n.Pos)
+ 		w.value(n.Type, n.Val())
+ 
+-	case ONAME:
++	case OMETHEXPR:
+ 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+ 		// but for export, this should be rendered as (*pkg.T).meth.
+ 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+-		if n.isMethodExpression() {
+-			w.op(OXDOT)
+-			w.pos(n.Pos)
+-			w.expr(n.Left) // n.Left.Op == OTYPE
+-			w.selector(n.Right.Sym)
+-			break
+-		}
++		w.op(OXDOT)
++		w.pos(n.Pos)
++		w.expr(n.Left) // n.Left.Op == OTYPE
++		w.selector(n.Right.Sym)
+ 
++	case ONAME:
+ 		// Package scope name.
+ 		if (n.Class() == PEXTERN || n.Class() == PFUNC) && !n.isBlank() {
+ 			w.op(ONONAME)
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index f82df04b73..ecbfc5631a 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -273,12 +273,11 @@ func (d *initDeps) inspectList(l Nodes) { inspectList(l, d.visit) }
+ // referenced by n, if any.
+ func (d *initDeps) visit(n *Node) bool {
+ 	switch n.Op {
+-	case ONAME:
+-		if n.isMethodExpression() {
+-			d.foundDep(n.MethodName())
+-			return false
+-		}
++	case OMETHEXPR:
++		d.foundDep(n.MethodName())
++		return false
+ 
++	case ONAME:
+ 		switch n.Class() {
+ 		case PEXTERN, PFUNC:
+ 			d.foundDep(n)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index db53b2aae1..0695b161f1 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -260,15 +260,14 @@ func inlFlood(n *Node) {
+ 	// because after inlining they might be callable.
+ 	inspectList(asNodes(n.Func.Inl.Body), func(n *Node) bool {
+ 		switch n.Op {
++		case OMETHEXPR:
++			inlFlood(n.MethodName())
++
+ 		case ONAME:
+ 			switch n.Class() {
+ 			case PFUNC:
+-				if n.isMethodExpression() {
+-					inlFlood(n.MethodName())
+-				} else {
+-					inlFlood(n)
+-					exportsym(n)
+-				}
++				inlFlood(n)
++				exportsym(n)
+ 			case PEXTERN:
+ 				exportsym(n)
+ 			}
+@@ -709,17 +708,16 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ func inlCallee(fn *Node) *Node {
+ 	fn = staticValue(fn)
+ 	switch {
+-	case fn.Op == ONAME && fn.Class() == PFUNC:
+-		if fn.isMethodExpression() {
+-			n := fn.MethodName()
+-			// Check that receiver type matches fn.Left.
+-			// TODO(mdempsky): Handle implicit dereference
+-			// of pointer receiver argument?
+-			if n == nil || !types.Identical(n.Type.Recv().Type, fn.Left.Type) {
+-				return nil
+-			}
+-			return n
++	case fn.Op == OMETHEXPR:
++		n := fn.MethodName()
++		// Check that receiver type matches fn.Left.
++		// TODO(mdempsky): Handle implicit dereference
++		// of pointer receiver argument?
++		if n == nil || !types.Identical(n.Type.Recv().Type, fn.Left.Type) {
++			return nil
+ 		}
++		return n
++	case fn.Op == ONAME && fn.Class() == PFUNC:
+ 		return fn
+ 	case fn.Op == OCLOSURE:
+ 		c := fn.Func.Decl
+@@ -963,7 +961,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 			ninit.AppendNodes(&callee.Ninit)
+ 			callee = callee.Left
+ 		}
+-		if callee.Op != ONAME && callee.Op != OCLOSURE {
++		if callee.Op != ONAME && callee.Op != OCLOSURE && callee.Op != OMETHEXPR {
+ 			Fatalf("unexpected callee expression: %v", callee)
+ 		}
+ 	}
+@@ -1323,6 +1321,9 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		}
+ 		return n
+ 
++	case OMETHEXPR:
++		return n
++
+ 	case OLITERAL, ONIL, OTYPE:
+ 		// If n is a named constant or type, we can continue
+ 		// using it in the inline copy. Otherwise, make a copy
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index 8e41ebac29..891012cbc9 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -77,15 +77,19 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 		switch n.Op {
+ 		case ONAME:
+ 			if n.Class() == PFUNC {
+-				if n.isMethodExpression() {
+-					n = n.MethodName()
+-				}
+ 				if n != nil && n.Name.Defn != nil {
+ 					if m := v.visit(n.Name.Defn); m < min {
+ 						min = m
+ 					}
+ 				}
+ 			}
++		case OMETHEXPR:
++			fn := n.MethodName()
++			if fn != nil && fn.Name.Defn != nil {
++				if m := v.visit(fn.Name.Defn); m < min {
++					min = m
++				}
++			}
+ 		case ODOTMETH:
+ 			fn := n.MethodName()
+ 			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5727245562..3b4056cf7d 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -68,7 +68,7 @@ func (s *InitSchedule) tryStaticInit(n *Node) bool {
+ // like staticassign but we are copying an already
+ // initialized value r.
+ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+-	if r.Op != ONAME {
++	if r.Op != ONAME && r.Op != OMETHEXPR {
+ 		return false
+ 	}
+ 	if r.Class() == PFUNC {
+@@ -95,7 +95,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 	}
+ 
+ 	switch r.Op {
+-	case ONAME:
++	case ONAME, OMETHEXPR:
+ 		if s.staticcopy(l, r) {
+ 			return true
+ 		}
+@@ -171,7 +171,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 	}
+ 
+ 	switch r.Op {
+-	case ONAME:
++	case ONAME, OMETHEXPR:
+ 		return s.staticcopy(l, r)
+ 
+ 	case ONIL:
+@@ -383,7 +383,7 @@ func readonlystaticname(t *types.Type) *Node {
+ }
+ 
+ func (n *Node) isSimpleName() bool {
+-	return n.Op == ONAME && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
++	return (n.Op == ONAME || n.Op == OMETHEXPR) && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
+ }
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+@@ -870,7 +870,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
+ 	default:
+ 		Fatalf("anylit: not lit, op=%v node=%v", n.Op, n)
+ 
+-	case ONAME:
++	case ONAME, OMETHEXPR:
+ 		a := nod(OAS, var_, n)
+ 		a = typecheck(a, ctxStmt)
+ 		init.Append(a)
+@@ -1007,7 +1007,7 @@ func stataddr(nam *Node, n *Node) bool {
+ 	}
+ 
+ 	switch n.Op {
+-	case ONAME:
++	case ONAME, OMETHEXPR:
+ 		*nam = *n
+ 		return true
+ 
+@@ -1172,7 +1172,7 @@ func genAsStatic(as *Node) {
+ 	switch {
+ 	case as.Right.Op == OLITERAL:
+ 		litsym(&nam, as.Right, int(as.Right.Type.Width))
+-	case as.Right.Op == ONAME && as.Right.Class() == PFUNC:
++	case (as.Right.Op == ONAME || as.Right.Op == OMETHEXPR) && as.Right.Class() == PFUNC:
+ 		pfuncsym(&nam, as.Right)
+ 	default:
+ 		Fatalf("genAsStatic: rhs %v", as.Right)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e23a189d71..88ff8d684c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2016,6 +2016,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OCFUNC:
+ 		aux := n.Left.Sym.Linksym()
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
++	case OMETHEXPR:
++		sym := funcsym(n.Sym).Linksym()
++		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), sym, s.sb)
+ 	case ONAME:
+ 		if n.Class() == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 343d5b171c..39f2996808 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -303,11 +303,6 @@ func (n *Node) mayBeShared() bool {
+ 	return false
+ }
+ 
+-// isMethodExpression reports whether n represents a method expression T.M.
+-func (n *Node) isMethodExpression() bool {
+-	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
+-}
+-
+ // funcname returns the name (without the package) of the function n.
+ func (n *Node) funcname() string {
+ 	if n == nil || n.Func == nil || n.Func.Nname == nil {
+@@ -599,15 +594,10 @@ func (p *Param) SetEmbedFiles(list []string) {
+ // will be the qualified method name (e.g., "T.m") and
+ // f.Func.Shortname is the bare method name (e.g., "m").
+ //
+-// A method expression (T.M) is represented as an ONAME node
+-// like a function name would be, but n.Left and n.Right point to
+-// the type and method, respectively. A method expression can
+-// be distinguished from a normal function ONAME by checking
+-// n.IsMethodExpression. Unlike ordinary ONAME nodes, each
+-// distinct mention of a method expression in the source code
+-// constructs a fresh ONAME node.
+-// TODO(rsc): Method expressions deserve their own opcode
+-// instead of violating invariants of ONAME.
++// A method expression (T.M) is represented as an OMETHEXPR node,
++// in which n.Left and n.Right point to the type and method, respectively.
++// Each distinct mention of a method expression in the source code
++// constructs a fresh node.
+ //
+ // A method value (t.M) is represented by ODOTMETH/ODOTINTER
+ // when it is called directly and by OCALLPART otherwise.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 11c1ae38ea..5cc7c8a34c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2408,7 +2408,7 @@ func typecheckMethodExpr(n *Node) (res *Node) {
+ 		return n
+ 	}
+ 
+-	n.Op = ONAME
++	n.Op = OMETHEXPR
+ 	if n.Name == nil {
+ 		n.Name = new(Name)
+ 	}
+@@ -2668,7 +2668,7 @@ notenough:
+ 			// call is the expression being called, not the overall call.
+ 			// Method expressions have the form T.M, and the compiler has
+ 			// rewritten those to ONAME nodes but left T in Left.
+-			if call.isMethodExpression() {
++			if call.Op == OMETHEXPR {
+ 				yyerror("not enough arguments in call to method expression %v%s", call, details)
+ 			} else {
+ 				yyerror("not enough arguments in call to %v%s", call, details)
+@@ -4032,10 +4032,10 @@ func (n *Node) MethodName() *Node {
+ 
+ // MethodFunc is like MethodName, but returns the types.Field instead.
+ func (n *Node) MethodFunc() *types.Field {
+-	switch {
+-	case n.Op == ODOTMETH || n.isMethodExpression():
++	switch n.Op {
++	case ODOTMETH, OMETHEXPR:
+ 		return n.Opt().(*types.Field)
+-	case n.Op == OCALLPART:
++	case OCALLPART:
+ 		return callpartMethod(n)
+ 	}
+ 	Fatalf("unexpected node: %v (%v)", n, n.Op)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ae344fc8e1..7bf5281a67 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -464,7 +464,7 @@ opswitch:
+ 		Dump("walk", n)
+ 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
+ 
+-	case ONONAME, OEMPTY, OGETG, ONEWOBJ:
++	case ONONAME, OEMPTY, OGETG, ONEWOBJ, OMETHEXPR:
+ 
+ 	case OTYPE, ONAME, OLITERAL, ONIL:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.

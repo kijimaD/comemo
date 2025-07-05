@@ -79,9 +79,163 @@ Date:   Mon Apr 6 18:17:20 2015 +0300
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/esc.go   | 15 ++++++++++++--
  test/escape2.go              | 22 ++++++++++++++++++++
  test/escape2n.go             | 22 ++++++++++++++++++++
  test/fixedbugs/issue10353.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 106 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index bcd3a83dab..6f894c9165 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -874,12 +874,19 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		OSTRARRAYBYTE,
+ 		OADDSTR,
+ 		ONEW,
+-		OCLOSURE,
+ 		OCALLPART,
+ 		ORUNESTR,
+ 		OCONVIFACE:
+ 		escflows(e, dst, src)
+ 
++	case OCLOSURE:
++		// OCLOSURE is lowered to OPTRLIT,
++		// insert OADDR to account for the additional indirection.
++		a := Nod(OADDR, src, nil)
++		a.Lineno = src.Lineno
++		a.Escloopdepth = src.Escloopdepth
++		escflows(e, dst, a)
++
+ 		// Flowing multiple returns to a single dst happens when
+ 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+@@ -1306,7 +1313,11 @@ func escwalk(e *EscState, level int, dst *Node, src *Node) {
+ 			src.Esc = EscHeap
+ 			addrescapes(src.Left)
+ 			if Debug['m'] != 0 {
+-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
++				p := src
++				if p.Left.Op == OCLOSURE {
++					p = p.Left // merely to satisfy error messages in tests
++				}
++				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
+ 			}
+ 		}
+ 
+diff --git a/test/escape2.go b/test/escape2.go
+index 65dbd7a2fe..6b25e68616 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1797,3 +1797,25 @@ func nonescapingEface(m map[interface{}]bool) bool { // ERROR "m does not escape
+ func nonescapingIface(m map[M]bool) bool { // ERROR "m does not escape"
+ 	return m[MV(0)] // ERROR "MV\(0\) does not escape"
+ }
++
++func issue10353() {
++	x := new(int) // ERROR "new\(int\) escapes to heap"
++	issue10353a(x)()
++}
++
++func issue10353a(x *int) func() { // ERROR "leaking param: x"
++	return func() { // ERROR "func literal escapes to heap"
++		println(*x)
++	}
++}
++
++func issue10353b() {
++	var f func()
++	for {
++		x := new(int) // ERROR "new\(int\) escapes to heap"
++		f = func() { // ERROR "func literal escapes to heap"
++			println(*x)
++		}
++	}
++	_ = f
++}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 59f64c01eb..fff1f95958 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1797,3 +1797,25 @@ func nonescapingEface(m map[interface{}]bool) bool { // ERROR "m does not escape
+ func nonescapingIface(m map[M]bool) bool { // ERROR "m does not escape"
+ 	return m[MV(0)] // ERROR "MV\(0\) does not escape"
+ }
++
++func issue10353() {
++	x := new(int) // ERROR "new\(int\) escapes to heap"
++	issue10353a(x)()
++}
++
++func issue10353a(x *int) func() { // ERROR "leaking param: x"
++	return func() { // ERROR "func literal escapes to heap"
++		println(*x)
++	}
++}
++
++func issue10353b() {
++	var f func()
++	for {
++		x := new(int) // ERROR "new\(int\) escapes to heap"
++		f = func() { // ERROR "func literal escapes to heap"
++			println(*x)
++		}
++	}
++	_ = f
++}
+diff --git a/test/fixedbugs/issue10353.go b/test/fixedbugs/issue10353.go
+new file mode 100644
+index 0000000000..4886337db9
+--- /dev/null
++++ b/test/fixedbugs/issue10353.go
+@@ -0,0 +1,49 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 10253: cmd/gc: incorrect escape analysis of closures
++// Partial call x.foo was not promoted to heap.
++
++package main
++
++func main() {
++	c := make(chan bool)
++	// Create a new goroutine to get a default-size stack segment.
++	go func() {
++		x := new(X)
++		clos(x.foo)()
++		c <- true
++	}()
++	<-c
++}
++
++type X int
++
++func (x *X) foo() {
++}
++
++func clos(x func()) func() {
++	f := func() {
++		print("")
++		x() // This statement crashed, because the partial call was allocated on the old stack.
++	}
++	// Grow stack so that partial call x becomes invalid if allocated on stack.
++	growstack(10000)
++	c := make(chan bool)
++	// Spoil the previous stack segment.
++	go func() {
++		c <- true
++	}()
++	<-c
++	return f
++}
++
++func growstack(x int) {
++	if x == 0 {
++		return
++	}
++	growstack(x-1)
++}

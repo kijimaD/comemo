@@ -7,6 +7,21 @@ Date:   Tue Apr 20 17:39:31 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/955041
-
+---
  src/cmd/gc/print.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index f9799c5231..8d85d04652 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -297,7 +297,8 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "[");
+ 		exprfmt(f, n->right->left, 0);
+ 		fmtprint(f, ":");
+-		exprfmt(f, n->right->right, 0);
++		if(n->right->right != N)
++			exprfmt(f, n->right->right, 0);
+ 		fmtprint(f, "]");
+ 		break;
+ 

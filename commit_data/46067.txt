@@ -14,8 +14,101 @@ Date:   Mon Oct 19 13:48:28 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/deps_test.go    |  2 +-
  src/internal/fuzz/mutator.go | 18 ++++++++++++++++++
  src/internal/fuzz/worker.go  | 28 +++++++++++++++++++++-------
  3 files changed, 40 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e5f38d4fbc..26f6ab2ec3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -467,7 +467,7 @@ var depsRules = `
+ 	FMT, flag, runtime/debug, runtime/trace
+ 	< testing;
+ 
+-	FMT, encoding/json
++	FMT, encoding/json, math/rand
+ 	< internal/fuzz;
+ 
+ 	internal/fuzz, internal/testlog, runtime/pprof, regexp
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+new file mode 100644
+index 0000000000..229bb31a11
+--- /dev/null
++++ b/src/internal/fuzz/mutator.go
+@@ -0,0 +1,18 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++import "math/rand"
++
++func mutate(b []byte) []byte {
++	mutated := make([]byte, len(b))
++	copy(mutated, b)
++
++	// Mutate a byte in a random position.
++	pos := rand.Intn(len(mutated))
++	mutated[pos] = byte(rand.Intn(256))
++
++	return mutated
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 543e352e7f..0aa7015c66 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -81,8 +81,8 @@ func (w *worker) runFuzzing() error {
+ 			inputC = nil // block new inputs until we finish with this one.
+ 			go func() {
+ 				args := fuzzArgs{
+-					Value:       input.b,
+-					DurationSec: workerFuzzDuration.Seconds(),
++					Value:    input.b,
++					Duration: workerFuzzDuration,
+ 				}
+ 				_, err := w.client.fuzz(args)
+ 				if err != nil {
+@@ -282,11 +282,14 @@ type call struct {
+ }
+ 
+ type fuzzArgs struct {
+-	Value       []byte
+-	DurationSec float64
++	Value    []byte
++	Duration time.Duration
+ }
+ 
+-type fuzzResponse struct{}
++type fuzzResponse struct {
++	Crasher []byte
++	Err     string
++}
+ 
+ // workerServer is a minimalist RPC server, run in fuzz worker processes.
+ type workerServer struct {
+@@ -326,8 +329,19 @@ func (ws *workerServer) serve(fuzzIn io.ReadCloser, fuzzOut io.WriteCloser) erro
+ // a given amount of time. fuzz returns early if it finds an input that crashes
+ // the fuzz function or an input that expands coverage.
+ func (ws *workerServer) fuzz(args fuzzArgs) fuzzResponse {
+-	// TODO(jayconrod, katiehockman): implement
+-	return fuzzResponse{}
++	t := time.NewTimer(args.Duration)
++	for {
++		select {
++		case <-t.C:
++			return fuzzResponse{}
++		default:
++			b := mutate(args.Value)
++			if err := ws.fn(b); err != nil {
++				return fuzzResponse{Crasher: b, Err: err.Error()}
++			}
++			// TODO(jayconrod,katiehockman): return early if coverage is expanded
++		}
++	}
+ }
+ 
+ // workerClient is a minimalist RPC client, run in the fuzz coordinator.

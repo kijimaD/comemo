@@ -19,7 +19,59 @@ Date:   Wed Nov 19 11:30:58 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/174430043
-
+---
  src/runtime/lfstack.go                |  4 ++++
  src/runtime/lfstack_linux_power64x.go | 20 +++++++++++++-------
  2 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index 4a20fff9d8..8a36a67b35 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -12,6 +12,10 @@ import "unsafe"
+ func lfstackpush(head *uint64, node *lfnode) {
+ 	node.pushcnt++
+ 	new := lfstackPack(node, node.pushcnt)
++	if node1, _ := lfstackUnpack(new); node1 != node {
++		println("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
++		gothrow("lfstackpush")
++	}
+ 	for {
+ 		old := atomicload64(head)
+ 		node.next, _ = lfstackUnpack(old)
+diff --git a/src/runtime/lfstack_linux_power64x.go b/src/runtime/lfstack_linux_power64x.go
+index 7a122bf92c..89e389fc72 100644
+--- a/src/runtime/lfstack_linux_power64x.go
++++ b/src/runtime/lfstack_linux_power64x.go
+@@ -9,18 +9,24 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// On Power64, Linux limits the user address space to 43 bits.
+-// (https://www.kernel.org/doc/ols/2001/ppc64.pdf)
+-// In addition to the 21 bits taken from the top, we can take 3 from the
+-// bottom, because node must be pointer-aligned, giving a total of 24 bits
++// On Power64, Linux limits the user address space to 46 bits (see
++// TASK_SIZE_USER64 in the Linux kernel).  This has grown over time,
++// so here we allow 48 bit addresses.
++//
++// In addition to the 16 bits taken from the top, we can take 3 from the
++// bottom, because node must be pointer-aligned, giving a total of 19 bits
+ // of count.
++const (
++	addrBits = 48
++	cntBits  = 64 - addrBits + 3
++)
+ 
+ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+-	return uint64(uintptr(unsafe.Pointer(node)))<<21 | uint64(cnt&(1<<24-1))
++	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
+ }
+ 
+ func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
+-	node = (*lfnode)(unsafe.Pointer(uintptr(val >> 24 << 3)))
+-	cnt = uintptr(val & (1<<24 - 1))
++	node = (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
++	cnt = uintptr(val & (1<<cntBits - 1))
+ 	return
+ }

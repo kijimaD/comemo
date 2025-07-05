@@ -12,6 +12,33 @@ Date:   Wed Aug 6 16:47:54 2014 -0400
     R=golang-codereviews, khr
     CC=adonovan, golang-codereviews
     https://golang.org/cl/126720044
-
+---
  src/pkg/runtime/alg.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index 251374a946..f2bb202c68 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -75,7 +75,7 @@ func f32hash(a *float32, s, h uintptr) uintptr {
+ 	case f != f:
+ 		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
+ 	default:
+-		return c1 * (c0 ^ h ^ uintptr(*(*uint32)(unsafe.Pointer(a))))
++		return memhash(unsafe.Pointer(a), 4, h)
+ 	}
+ }
+ 
+@@ -86,11 +86,8 @@ func f64hash(a *float64, s, h uintptr) uintptr {
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+ 		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
+-	case ptrSize == 4:
+-		x := (*[2]uintptr)(unsafe.Pointer(a))
+-		return c1 * (c0 ^ h ^ (x[1] * c1) ^ x[0])
+ 	default:
+-		return c1 * (c0 ^ h ^ *(*uintptr)(unsafe.Pointer(a)))
++		return memhash(unsafe.Pointer(a), 8, h)
+ 	}
+ }
+ 

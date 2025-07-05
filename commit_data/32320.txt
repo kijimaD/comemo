@@ -9,7 +9,7 @@ Date:   Wed Apr 19 10:03:35 2017 -0700
     Change-Id: I531727fe5ce162c403efefec82f4cc90afa326d7
     Reviewed-on: https://go-review.googlesource.com/41071
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go |  2 +-
  src/cmd/compile/internal/gc/closure.go |  2 +-
  src/cmd/compile/internal/gc/dcl.go     |  2 +-
@@ -19,3 +19,239 @@ Date:   Wed Apr 19 10:03:35 2017 -0700
  src/cmd/compile/internal/gc/subr.go    | 17 -----------------
  src/cmd/compile/internal/types/pkg.go  | 22 +++++++++++++++++++++-
  8 files changed, 45 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 245f421731..45d5ffdc77 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -291,7 +291,7 @@ func (p *importer) pkg() *types.Pkg {
+ 	// add package to pkgList
+ 	pkg := p.imp
+ 	if path != "" {
+-		pkg = mkpkg(path)
++		pkg = types.NewPkg(path)
+ 	}
+ 	if pkg.Name == "" {
+ 		pkg.Name = name
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index cc6f8eb6a6..67a9d17ee3 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -556,7 +556,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	}
+ 	if spkg == nil {
+ 		if makepartialcall_gopkg == nil {
+-			makepartialcall_gopkg = mkpkg("go")
++			makepartialcall_gopkg = types.NewPkg("go")
+ 		}
+ 		spkg = makepartialcall_gopkg
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 7dadc6224d..7a44d93bef 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -916,7 +916,7 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
+ 
+ 	if spkg == nil {
+ 		if methodsym_toppkg == nil {
+-			methodsym_toppkg = mkpkg("go")
++			methodsym_toppkg = types.NewPkg("go")
+ 		}
+ 		spkg = methodsym_toppkg
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 1c6b90905f..676d29744f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -173,13 +173,13 @@ func dumpexport() {
+ 
+ 		// verify that we can read the copied export data back in
+ 		// (use empty package map to avoid collisions)
+-		savedPkgMap := pkgMap
+-		savedPkgs := pkgs
+-		pkgMap = make(map[string]*types.Pkg)
+-		pkgs = nil
+-		Import(mkpkg(""), bufio.NewReader(&copy)) // must not die
+-		pkgs = savedPkgs
+-		pkgMap = savedPkgMap
++		savedPkgMap := types.PkgMap
++		savedPkgs := types.PkgList
++		types.PkgMap = make(map[string]*types.Pkg)
++		types.PkgList = nil
++		Import(types.NewPkg(""), bufio.NewReader(&copy)) // must not die
++		types.PkgList = savedPkgs
++		types.PkgMap = savedPkgMap
+ 	} else {
+ 		size = export(bout.Writer, Debug_export != 0)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c4b43fc53b..0da2e94f4e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -122,15 +122,15 @@ func Main(archInit func(*Arch)) {
+ 	Ctxt.DiagFunc = yyerror
+ 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+-	localpkg = mkpkg("")
++	localpkg = types.NewPkg("")
+ 	localpkg.Prefix = "\"\""
+ 
+ 	// pseudo-package, for scoping
+-	builtinpkg = mkpkg("go.builtin")
++	builtinpkg = types.NewPkg("go.builtin")
+ 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+-	unsafepkg = mkpkg("unsafe")
++	unsafepkg = types.NewPkg("unsafe")
+ 	unsafepkg.Name = "unsafe"
+ 
+ 	// Pseudo-package that contains the compiler's builtin
+@@ -138,28 +138,28 @@ func Main(archInit func(*Arch)) {
+ 	// separate package to avoid conflicts with package runtime's
+ 	// actual declarations, which may differ intentionally but
+ 	// insignificantly.
+-	Runtimepkg = mkpkg("go.runtime")
++	Runtimepkg = types.NewPkg("go.runtime")
+ 	Runtimepkg.Name = "runtime"
+ 	Runtimepkg.Prefix = "runtime"
+ 
+ 	// pseudo-packages used in symbol tables
+-	itabpkg = mkpkg("go.itab")
++	itabpkg = types.NewPkg("go.itab")
+ 	itabpkg.Name = "go.itab"
+ 	itabpkg.Prefix = "go.itab" // not go%2eitab
+ 
+-	itablinkpkg = mkpkg("go.itablink")
++	itablinkpkg = types.NewPkg("go.itablink")
+ 	itablinkpkg.Name = "go.itablink"
+ 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
+ 
+-	trackpkg = mkpkg("go.track")
++	trackpkg = types.NewPkg("go.track")
+ 	trackpkg.Name = "go.track"
+ 	trackpkg.Prefix = "go.track" // not go%2etrack
+ 
+-	typepkg = mkpkg("type")
++	typepkg = types.NewPkg("type")
+ 	typepkg.Name = "type"
+ 
+ 	// pseudo-package used for map zero values
+-	mappkg = mkpkg("go.map")
++	mappkg = types.NewPkg("go.map")
+ 	mappkg.Name = "go.map"
+ 	mappkg.Prefix = "go.map"
+ 
+@@ -261,11 +261,11 @@ func Main(archInit func(*Arch)) {
+ 	startProfile()
+ 
+ 	if flag_race {
+-		racepkg = mkpkg("runtime/race")
++		racepkg = types.NewPkg("runtime/race")
+ 		racepkg.Name = "race"
+ 	}
+ 	if flag_msan {
+-		msanpkg = mkpkg("runtime/msan")
++		msanpkg = types.NewPkg("runtime/msan")
+ 		msanpkg.Name = "msan"
+ 	}
+ 	if flag_race && flag_msan {
+@@ -850,7 +850,7 @@ func importfile(f *Val) *types.Pkg {
+ 		errorexit()
+ 	}
+ 
+-	importpkg := mkpkg(path_)
++	importpkg := types.NewPkg(path_)
+ 	if importpkg.Imported {
+ 		return importpkg
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index aa2146c5fb..c56ca3f4a8 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1501,7 +1501,7 @@ func dumptypestructs() {
+ 	}
+ 
+ 	// generate import strings for imported packages
+-	for _, p := range pkgs {
++	for _, p := range types.PkgList {
+ 		if p.Direct {
+ 			dimportpath(p)
+ 		}
+@@ -1535,7 +1535,7 @@ func dumptypestructs() {
+ 		if flag_msan {
+ 			dimportpath(msanpkg)
+ 		}
+-		dimportpath(mkpkg("main"))
++		dimportpath(types.NewPkg("main"))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f840c470fb..ff2d88614b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1957,23 +1957,6 @@ func ngotype(n *Node) *types.Sym {
+ 	return nil
+ }
+ 
+-var pkgMap = make(map[string]*types.Pkg)
+-var pkgs []*types.Pkg
+-
+-func mkpkg(path string) *types.Pkg {
+-	if p := pkgMap[path]; p != nil {
+-		return p
+-	}
+-
+-	p := new(types.Pkg)
+-	p.Path = path
+-	p.Prefix = objabi.PathToPrefix(path)
+-	p.Syms = make(map[string]*types.Sym)
+-	pkgMap[path] = p
+-	pkgs = append(pkgs, p)
+-	return p
+-}
+-
+ // The result of addinit MUST be assigned back to n, e.g.
+ // 	n.Left = addinit(n.Left, init)
+ func addinit(n *Node, init []*Node) *Node {
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 9885734bc2..947dc12cae 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -4,7 +4,10 @@
+ 
+ package types
+ 
+-import "cmd/internal/obj"
++import (
++	"cmd/internal/obj"
++	"cmd/internal/objabi"
++)
+ 
+ type Pkg struct {
+ 	Name     string // package name, e.g. "sys"
+@@ -16,6 +19,23 @@ type Pkg struct {
+ 	Syms     map[string]*Sym
+ }
+ 
++var PkgMap = make(map[string]*Pkg)
++var PkgList []*Pkg
++
++func NewPkg(path string) *Pkg {
++	if p := PkgMap[path]; p != nil {
++		return p
++	}
++
++	p := new(Pkg)
++	p.Path = path
++	p.Prefix = objabi.PathToPrefix(path)
++	p.Syms = make(map[string]*Sym)
++	PkgMap[path] = p
++	PkgList = append(PkgList, p)
++	return p
++}
++
+ var Nopkg = &Pkg{
+ 	Syms: make(map[string]*Sym),
+ }

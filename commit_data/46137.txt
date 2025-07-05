@@ -14,6 +14,77 @@ Date:   Tue Dec 8 01:28:57 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 26 +++++++++++++++++++++++---
  1 file changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index b1cc9a3dd9..14356013de 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -290,6 +290,10 @@ func iexport(out *bufio.Writer) {
+ 	w.writeIndex(p.inlineIndex, false)
+ 	w.flush()
+ 
++	if *base.Flag.LowerV {
++		fmt.Printf("export: hdr strings %v, data %v, index %v\n", p.strings.Len(), dataLen, p.data0.Len())
++	}
++
+ 	// Assemble header.
+ 	var hdr intWriter
+ 	hdr.WriteByte('i')
+@@ -389,6 +393,10 @@ func (p *iexporter) stringOff(s string) uint64 {
+ 		off = uint64(p.strings.Len())
+ 		p.stringIndex[s] = off
+ 
++		if *base.Flag.LowerV {
++			fmt.Printf("export: str %v %.40q\n", off, s)
++		}
++
+ 		p.strings.uint64(uint64(len(s)))
+ 		p.strings.WriteString(s)
+ 	}
+@@ -511,20 +519,28 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		base.Fatalf("unexpected node: %v", n)
+ 	}
+ 
+-	p.declIndex[n.Sym()] = w.flush()
++	w.finish("dcl", p.declIndex, n.Sym())
+ }
+ 
+ func (w *exportWriter) tag(tag byte) {
+ 	w.data.WriteByte(tag)
+ }
+ 
++func (w *exportWriter) finish(what string, index map[*types.Sym]uint64, sym *types.Sym) {
++	off := w.flush()
++	if *base.Flag.LowerV {
++		fmt.Printf("export: %v %v %v\n", what, off, sym)
++	}
++	index[sym] = off
++}
++
+ func (p *iexporter) doInline(f *ir.Name) {
+ 	w := p.newWriter()
+ 	w.setPkg(fnpkg(f), false)
+ 
+ 	w.stmtList(ir.AsNodes(f.Func().Inl.Body))
+ 
+-	p.inlineIndex[f.Sym()] = w.flush()
++	w.finish("inl", p.inlineIndex, f.Sym())
+ }
+ 
+ func (w *exportWriter) pos(pos src.XPos) {
+@@ -625,7 +641,11 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
+ 	if !ok {
+ 		w := p.newWriter()
+ 		w.doTyp(t)
+-		off = predeclReserved + w.flush()
++		rawOff := w.flush()
++		if *base.Flag.LowerV {
++			fmt.Printf("export: typ %v %v\n", rawOff, t)
++		}
++		off = predeclReserved + rawOff
+ 		p.typIndex[t] = off
+ 	}
+ 	return off

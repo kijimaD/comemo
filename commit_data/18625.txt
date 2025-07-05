@@ -8,7 +8,42 @@ Date:   Mon Feb 24 10:40:55 2014 -0800
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/66900044
-
+---
  src/pkg/crypto/md5/example_test.go  | 6 ++++++
  src/pkg/crypto/sha1/example_test.go | 9 ++++++++-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/md5/example_test.go b/src/pkg/crypto/md5/example_test.go
+index 28be770a7a..d47bb4570c 100644
+--- a/src/pkg/crypto/md5/example_test.go
++++ b/src/pkg/crypto/md5/example_test.go
+@@ -17,3 +17,9 @@ func ExampleNew() {
+ 	fmt.Printf("%x", h.Sum(nil))
+ 	// Output: e2c569be17396eca2a2e3c11578123ed
+ }
++
++func ExampleSum() {
++	data := []byte("These pretzels are making me thirsty.")
++	fmt.Printf("%x", md5.Sum(data))
++	// Output: b0804ec967f48520697662a204f5fe72
++}
+diff --git a/src/pkg/crypto/sha1/example_test.go b/src/pkg/crypto/sha1/example_test.go
+index 25fe5f3085..42aec8afa2 100644
+--- a/src/pkg/crypto/sha1/example_test.go
++++ b/src/pkg/crypto/sha1/example_test.go
+@@ -12,7 +12,14 @@ import (
+ 
+ func ExampleNew() {
+ 	h := sha1.New()
+-	io.WriteString(h, "His money is twice tainted: 'taint yours and 'taint mine.")
++	io.WriteString(h, "His money is twice tainted:")
++	io.WriteString(h, " 'taint yours and 'taint mine.")
+ 	fmt.Printf("% x", h.Sum(nil))
+ 	// Output: 59 7f 6a 54 00 10 f9 4c 15 d7 18 06 a9 9a 2c 87 10 e7 47 bd
+ }
++
++func ExampleSum() {
++	data := []byte("This page intentionally left blank.")
++	fmt.Printf("% x", sha1.Sum(data))
++	// Output: af 06 49 23 bb f2 30 15 96 aa c4 c2 73 ba 32 17 8e bc 4a 96
++}

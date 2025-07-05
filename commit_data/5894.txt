@@ -7,6 +7,20 @@ Date:   Tue Jul 27 15:03:30 2010 +1000
     R=gri
     CC=golang-dev
     https://golang.org/cl/1894043
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 13b3a90704..84ed9f4804 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1494,7 +1494,7 @@ Zero value:
+ 
+ Functions:
+ 	cap close closed cmplx copy imag len make
+-	new panic print println real
++	new panic print println real recover
+ </pre>
+ 
+ 

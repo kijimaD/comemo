@@ -10,8 +10,61 @@ Date:   Mon Jan 19 11:33:46 2015 -0500
     Change-Id: I961b6b8a07de912de174b758b2fb87d77080546d
     Reviewed-on: https://go-review.googlesource.com/3042
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  include/libc.h        |  2 ++
  src/cmd/dist/build.go |  2 ++
  src/lib9/goos.c       | 14 +++++++++++++-
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index e4d8799077..d82a19ccce 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -292,6 +292,8 @@ extern	char*	getgoversion(void);
+ extern	char*	getgoarm(void);
+ extern	char*	getgo386(void);
+ extern	char*	getgoextlinkenabled(void);
++extern	char*	getgohostos(void);
++extern	char*	getgohostarch(void);
+ 
+ extern	char*	mktempdir(void);
+ extern	void	removeall(char*);
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 9e4d1e3c22..366612cdd1 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -929,6 +929,8 @@ func install(dir string) {
+ 				compile = append(compile,
+ 					"-D", fmt.Sprintf("GOOS=%q", goos),
+ 					"-D", fmt.Sprintf("GOARCH=%q", goarch),
++					"-D", fmt.Sprintf("GOHOSTOS=%q", gohostos),
++					"-D", fmt.Sprintf("GOHOSTARCH=%q", gohostarch),
+ 					"-D", fmt.Sprintf("GOROOT=%q", goroot_final),
+ 					"-D", fmt.Sprintf("GOVERSION=%q", goversion),
+ 					"-D", fmt.Sprintf("GOARM=%q", goarm),
+diff --git a/src/lib9/goos.c b/src/lib9/goos.c
+index 2d4a800dd1..68b94d6114 100644
+--- a/src/lib9/goos.c
++++ b/src/lib9/goos.c
+@@ -52,8 +52,20 @@ getgo386(void)
+ 	return defgetenv("GO386", GO386);
+ }
+ 
+-char *
++char*
+ getgoextlinkenabled(void)
+ {
+ 	return GO_EXTLINK_ENABLED;
+ }
++
++char*
++getgohostarch(void)
++{
++	return GOHOSTARCH;
++}
++
++char*
++getgohostos(void)
++{
++	return GOHOSTOS;
++}

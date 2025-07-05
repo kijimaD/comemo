@@ -41,6 +41,43 @@ Date:   Tue Jan 14 08:22:08 2025 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/api/api_test.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index cac624af8a..32da68982b 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -57,7 +57,10 @@ func TestGolden(t *testing.T) {
+ 		// TODO(gri) remove extra pkg directory eventually
+ 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
+ 		w := NewWalker(nil, "testdata/src/pkg")
+-		pkg, _ := w.import_(fi.Name())
++		pkg, err := w.import_(fi.Name())
++		if err != nil {
++			t.Fatalf("import %s: %v", fi.Name(), err)
++		}
+ 		w.export(pkg)
+ 
+ 		if *updateGolden {
+@@ -205,6 +208,9 @@ func BenchmarkAll(b *testing.B) {
+ 				if _, nogo := err.(*build.NoGoError); nogo {
+ 					continue
+ 				}
++				if err != nil {
++					b.Fatalf("import %s (%s-%s): %v", name, context.GOOS, context.GOARCH, err)
++				}
+ 				w.export(pkg)
+ 			}
+ 			w.Features()
+@@ -242,8 +248,7 @@ func TestIssue21181(t *testing.T) {
+ 		w := NewWalker(context, "testdata/src/issue21181")
+ 		pkg, err := w.import_("p")
+ 		if err != nil {
+-			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
+-				pkg.Name(), w.imported)
++			t.Fatalf("import %s (%s-%s): %v", "p", context.GOOS, context.GOARCH, err)
+ 		}
+ 		w.export(pkg)
+ 	}

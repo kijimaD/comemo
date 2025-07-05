@@ -13,7 +13,7 @@ Date:   Wed Apr 13 18:37:18 2016 -0700
     Change-Id: Iccedf6fed4328240ee2257f57fe6d66688f237c4
     Reviewed-on: https://go-review.googlesource.com/22052
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  5 +-
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
  src/cmd/compile/internal/gc/closure.go   |  2 +-
@@ -34,3 +34,641 @@ Date:   Wed Apr 13 18:37:18 2016 -0700
  src/cmd/compile/internal/gc/unsafe.go    |  2 +-
  src/cmd/compile/internal/gc/walk.go      |  9 ++--
  19 files changed, 88 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index e9b5afe838..6e85438610 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -316,11 +316,12 @@ func genhash(sym *Sym, t *Type) {
+ 	// for a struct containing a reflect.Value, which itself has
+ 	// an unexported field of type unsafe.Pointer.
+ 	old_safemode := safemode
++	safemode = false
+ 
+-	safemode = 0
+ 	Disable_checknil++
+ 	funccompile(fn)
+ 	Disable_checknil--
++
+ 	safemode = old_safemode
+ }
+ 
+@@ -509,7 +510,7 @@ func geneq(sym *Sym, t *Type) {
+ 	// for a struct containing a reflect.Value, which itself has
+ 	// an unexported field of type unsafe.Pointer.
+ 	old_safemode := safemode
+-	safemode = 0
++	safemode = false
+ 
+ 	// Disable checknils while compiling this code.
+ 	// We are comparing a struct or an array,
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index eef2e2200d..e5fa3c39a6 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -261,7 +261,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 	}
+ 
+ 	// write compiler-specific flags
+-	p.bool(safemode != 0)
++	p.bool(safemode)
+ 	if p.trace {
+ 		p.tracef("\n")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 80c8d309af..db4eb3f14d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -419,7 +419,7 @@ func closuredebugruntimecheck(r *Node) {
+ 			Warnl(r.Lineno, "stack closure, captured vars = %v", r.Func.Cvars)
+ 		}
+ 	}
+-	if compiling_runtime > 0 && r.Esc == EscHeap {
++	if compiling_runtime && r.Esc == EscHeap {
+ 		yyerrorl(r.Lineno, "heap-allocated closure, not allowed in runtime.")
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index c652c65962..e1028f681c 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1330,7 +1330,7 @@ func makefuncsym(s *Sym) {
+ 	if isblanksym(s) {
+ 		return
+ 	}
+-	if compiling_runtime != 0 && s.Name == "getg" {
++	if compiling_runtime && s.Name == "getg" {
+ 		// runtime.getg() is not a real function and so does
+ 		// not get a funcsym.
+ 		return
+@@ -1440,7 +1440,7 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+ 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+ 		return
+ 	}
+-	if (compiling_runtime != 0 || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
++	if (compiling_runtime || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
+ 		return
+ 	}
+ 	defn := fn.Name.Defn
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index ae36657a65..cfe192f3ba 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -15,8 +15,8 @@ import (
+ )
+ 
+ var (
+-	newexport    int // if set, use new export format
+-	Debug_export int // if set, print debugging information about export data
++	newexport    bool // if set, use new export format
++	Debug_export int  // if set, print debugging information about export data
+ 	exportsize   int
+ )
+ 
+@@ -377,7 +377,7 @@ func dumpexport() {
+ 	}
+ 
+ 	size := 0 // size of export section without enclosing markers
+-	if forceNewExport || newexport != 0 {
++	if forceNewExport || newexport {
+ 		// binary export
+ 		// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+ 		exportf("\n$$B\n") // indicate binary format
+@@ -417,7 +417,7 @@ func dumpexport() {
+ 		exportf("\n$$\n") // indicate textual format
+ 		exportsize = 0
+ 		exportf("package %s", localpkg.Name)
+-		if safemode != 0 {
++		if safemode {
+ 			exportf(" safe")
+ 		}
+ 		exportf("\n")
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 7527452c93..cc624cce7a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -246,7 +246,7 @@ func cgen_dcl(n *Node) {
+ 	if n.Class&PHEAP == 0 {
+ 		return
+ 	}
+-	if compiling_runtime != 0 {
++	if compiling_runtime {
+ 		Yyerror("%v escapes to heap, not allowed in runtime.", n)
+ 	}
+ 	if prealloc[n] == nil {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 8411d2d0ac..af9aaf0dae 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -144,9 +144,9 @@ var nsyntaxerrors int
+ 
+ var decldepth int32
+ 
+-var safemode int
++var safemode bool
+ 
+-var nolocalimports int
++var nolocalimports bool
+ 
+ var Debug [256]int
+ 
+@@ -261,21 +261,21 @@ var Funcdepth int32
+ 
+ var typecheckok bool
+ 
+-var compiling_runtime int
++var compiling_runtime bool
+ 
+ var compiling_wrappers int
+ 
+-var use_writebarrier int
++var use_writebarrier bool
+ 
+-var pure_go int
++var pure_go bool
+ 
+ var flag_installsuffix string
+ 
+-var flag_race int
++var flag_race bool
+ 
+-var flag_msan int
++var flag_msan bool
+ 
+-var flag_largemodel int
++var flag_largemodel bool
+ 
+ // Whether we are adding any sort of code instrumentation, such as
+ // when the race detector is enabled.
+@@ -285,7 +285,7 @@ var debuglive int
+ 
+ var Ctxt *obj.Link
+ 
+-var writearchive int
++var writearchive bool
+ 
+ var bstdout *bufio.Writer
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index ea2394e7f9..f9e425618b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -71,7 +71,7 @@ func typecheckinl(fn *Node) {
+ 	}
+ 
+ 	save_safemode := safemode
+-	safemode = 0
++	safemode = false
+ 
+ 	savefn := Curfn
+ 	Curfn = fn
+@@ -492,7 +492,7 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
+ 	pkg := fnpkg(fn)
+ 
+ 	if pkg != localpkg && pkg != nil {
+-		safemode = 0
++		safemode = false
+ 	}
+ 	n = mkinlcall1(n, fn, isddd)
+ 	safemode = save_safemode
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 4b95bb7124..09fed98985 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -914,17 +914,17 @@ func (l *lexer) getlinepragma() rune {
+ 		case "go:noinline":
+ 			l.pragma |= Noinline
+ 		case "go:systemstack":
+-			if compiling_runtime == 0 {
++			if !compiling_runtime {
+ 				Yyerror("//go:systemstack only allowed in runtime")
+ 			}
+ 			l.pragma |= Systemstack
+ 		case "go:nowritebarrier":
+-			if compiling_runtime == 0 {
++			if !compiling_runtime {
+ 				Yyerror("//go:nowritebarrier only allowed in runtime")
+ 			}
+ 			l.pragma |= Nowritebarrier
+ 		case "go:nowritebarrierrec":
+-			if compiling_runtime == 0 {
++			if !compiling_runtime {
+ 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
+ 			}
+ 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 45a510d577..f41097b83b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -142,15 +142,14 @@ func Main() {
+ 
+ 	Nacl = goos == "nacl"
+ 	if Nacl {
+-		flag_largemodel = 1
++		flag_largemodel = true
+ 	}
+ 
+-	outfile = ""
+-	obj.Flagcount("+", "compiling runtime", &compiling_runtime)
++	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+ 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
+ 	obj.Flagcount("A", "for bootstrapping, allow 'any' type", &Debug['A'])
+ 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
+-	obj.Flagstr("D", "set relative `path` for local imports", &localimport)
++	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
+ 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
+ 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
+ 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
+@@ -162,57 +161,59 @@ func Main() {
+ 	obj.Flagcount("S", "print assembly listing", &Debug['S'])
+ 	obj.Flagfn0("V", "print compiler version", doversion)
+ 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+-	obj.Flagstr("asmhdr", "write assembly header to `file`", &asmhdr)
+-	obj.Flagstr("buildid", "record `id` as the build id in the export metadata", &buildid)
+-	obj.Flagcount("complete", "compiling complete package (no C or assembly)", &pure_go)
+-	obj.Flagstr("d", "print debug information about items in `list`", &debugstr)
++	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
++	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
++	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
++	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`")
+ 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	obj.Flagcount("f", "debug stack frames", &Debug['f'])
+ 	obj.Flagcount("g", "debug code generation", &Debug['g'])
+ 	obj.Flagcount("h", "halt on error", &Debug['h'])
+ 	obj.Flagcount("i", "debug line number stack", &Debug['i'])
+ 	obj.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
+-	obj.Flagstr("installsuffix", "set pkg directory `suffix`", &flag_installsuffix)
++	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
+ 	obj.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
+ 	obj.Flagcount("l", "disable inlining", &Debug['l'])
+ 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
+ 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
+-	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
+-	obj.Flagcount("newexport", "use new export format", &newexport) // TODO(gri) remove eventually (issue 13241)
+-	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
+-	obj.Flagstr("o", "write output to `file`", &outfile)
+-	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
+-	obj.Flagcount("pack", "write package file instead of object file", &writearchive)
++	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
++	flag.BoolVar(&newexport, "newexport", false, "use new export format") // TODO(gri) remove eventually (issue 13241)
++	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
++	flag.StringVar(&outfile, "o", "", "write output to `file`")
++	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
++	flag.BoolVar(&writearchive, "pack", false, "write package file instead of object file")
+ 	obj.Flagcount("r", "debug generated wrappers", &Debug['r'])
+-	obj.Flagcount("race", "enable race detector", &flag_race)
++	flag.BoolVar(&flag_race, "race", false, "enable race detector")
+ 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+-	obj.Flagstr("trimpath", "remove `prefix` from recorded source file paths", &Ctxt.LineHist.TrimPathPrefix)
+-	obj.Flagcount("u", "reject unsafe code", &safemode)
++	flag.StringVar(&Ctxt.LineHist.TrimPathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
++	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
+ 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
+ 	obj.Flagcount("w", "debug type checking", &Debug['w'])
+-	use_writebarrier = 1
+-	obj.Flagcount("wb", "enable write barrier", &use_writebarrier)
++	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+ 	obj.Flagcount("x", "debug lexer", &Debug['x'])
+ 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
+-	var flag_shared int
++	var flag_shared bool
+ 	var flag_dynlink bool
+ 	if supportsDynlink(Thearch.LinkArch.Arch) {
+-		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
++		flag.BoolVar(&flag_shared, "shared", false, "generate code that can be linked into a shared library")
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	}
+ 	if Thearch.LinkArch.Family == sys.AMD64 {
+-		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
++		flag.BoolVar(&flag_largemodel, "largemodel", false, "generate code that assumes a large memory model")
+ 	}
+-	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+-	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
+-	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
++	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
++	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
++	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+ 	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
+ 	obj.Flagparse(usage)
+ 
+ 	if flag_dynlink {
+-		flag_shared = 1
++		flag_shared = true
++	}
++	if flag_shared {
++		// TODO(mdempsky): Change Flag_shared to bool.
++		Ctxt.Flag_shared = 1
+ 	}
+-	Ctxt.Flag_shared = int32(flag_shared)
+ 	Ctxt.Flag_dynlink = flag_dynlink
+ 	Ctxt.Flag_optimize = Debug['N'] == 0
+ 
+@@ -225,17 +226,17 @@ func Main() {
+ 
+ 	startProfile()
+ 
+-	if flag_race != 0 {
++	if flag_race {
+ 		racepkg = mkpkg("runtime/race")
+ 		racepkg.Name = "race"
+ 	}
+-	if flag_msan != 0 {
++	if flag_msan {
+ 		msanpkg = mkpkg("runtime/msan")
+ 		msanpkg.Name = "msan"
+ 	}
+-	if flag_race != 0 && flag_msan != 0 {
++	if flag_race && flag_msan {
+ 		log.Fatal("cannot use both -race and -msan")
+-	} else if flag_race != 0 || flag_msan != 0 {
++	} else if flag_race || flag_msan {
+ 		instrumenting = true
+ 	}
+ 
+@@ -471,7 +472,7 @@ func Main() {
+ 		fninit(xtop)
+ 	}
+ 
+-	if compiling_runtime != 0 {
++	if compiling_runtime {
+ 		checknowritebarrierrec()
+ 	}
+ 
+@@ -569,7 +570,7 @@ func islocalname(name string) bool {
+ 
+ func findpkg(name string) (file string, ok bool) {
+ 	if islocalname(name) {
+-		if safemode != 0 || nolocalimports != 0 {
++		if safemode || nolocalimports {
+ 			return "", false
+ 		}
+ 
+@@ -612,10 +613,10 @@ func findpkg(name string) (file string, ok bool) {
+ 		if flag_installsuffix != "" {
+ 			suffixsep = "_"
+ 			suffix = flag_installsuffix
+-		} else if flag_race != 0 {
++		} else if flag_race {
+ 			suffixsep = "_"
+ 			suffix = "race"
+-		} else if flag_msan != 0 {
++		} else if flag_msan {
+ 			suffixsep = "_"
+ 			suffix = "msan"
+ 		}
+@@ -694,7 +695,7 @@ func importfile(f *Val, indent []byte) {
+ 	}
+ 
+ 	if path_ == "unsafe" {
+-		if safemode != 0 {
++		if safemode {
+ 			Yyerror("cannot import package unsafe")
+ 			errorexit()
+ 		}
+@@ -818,7 +819,7 @@ func importfile(f *Val, indent []byte) {
+ 		errorexit()
+ 	}
+ 
+-	if safemode != 0 && !importpkg.Safe {
++	if safemode && !importpkg.Safe {
+ 		Yyerror("cannot import unsafe package %q", importpkg.Path)
+ 	}
+ }
+@@ -896,7 +897,7 @@ func mkpackage(pkgname string) {
+ 			p = p[:i]
+ 		}
+ 		suffix := ".o"
+-		if writearchive > 0 {
++		if writearchive {
+ 			suffix = ".a"
+ 		}
+ 		outfile = p + suffix
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index eed0ed6e24..59ce0547c8 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -33,7 +33,7 @@ func dumpobj() {
+ 
+ 	startobj := int64(0)
+ 	var arhdr [ArhdrSize]byte
+-	if writearchive != 0 {
++	if writearchive {
+ 		bout.WriteString("!<arch>\n")
+ 		arhdr = [ArhdrSize]byte{}
+ 		bout.Write(arhdr[:])
+@@ -43,7 +43,7 @@ func dumpobj() {
+ 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+ 	dumpexport()
+ 
+-	if writearchive != 0 {
++	if writearchive {
+ 		bout.Flush()
+ 		size := bout.Offset() - startobj
+ 		if size&1 != 0 {
+@@ -62,7 +62,7 @@ func dumpobj() {
+ 	}
+ 
+ 	if pragcgobuf != "" {
+-		if writearchive != 0 {
++		if writearchive {
+ 			// write empty export section; must be before cgo section
+ 			fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+ 		}
+@@ -90,7 +90,7 @@ func dumpobj() {
+ 	dumpdata()
+ 	obj.Writeobjdirect(Ctxt, bout)
+ 
+-	if writearchive != 0 {
++	if writearchive {
+ 		bout.Flush()
+ 		size := bout.Offset() - startobj
+ 		if size&1 != 0 {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index baa960bf75..7b9b91e7b0 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -364,7 +364,7 @@ func compile(fn *Node) {
+ 	dowidth(Curfn.Type)
+ 
+ 	if len(fn.Nbody.Slice()) == 0 {
+-		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
++		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
+ 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f6e65146d6..a8a5e92485 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -54,14 +54,14 @@ func instrument(fn *Node) {
+ 		return
+ 	}
+ 
+-	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
++	if !flag_race || !ispkgin(norace_inst_pkgs) {
+ 		instrumentlist(fn.Nbody, nil)
+ 
+ 		// nothing interesting for race detector in fn->enter
+ 		instrumentlist(fn.Func.Exit, nil)
+ 	}
+ 
+-	if flag_race != 0 {
++	if flag_race {
+ 		// nodpc is the PC of the caller as extracted by
+ 		// getcallerpc. We use -widthptr(FP) for x86.
+ 		// BUG: this will not work on arm.
+@@ -503,7 +503,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 		n = treecopy(n, 0)
+ 		makeaddable(n)
+ 		var f *Node
+-		if flag_msan != 0 {
++		if flag_msan {
+ 			name := "msanread"
+ 			if wr != 0 {
+ 				name = "msanwrite"
+@@ -515,7 +515,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 				Fatalf("instrument: %v badwidth", t)
+ 			}
+ 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+-		} else if flag_race != 0 && (t.IsStruct() || t.IsArray()) {
++		} else if flag_race && (t.IsStruct() || t.IsArray()) {
+ 			name := "racereadrange"
+ 			if wr != 0 {
+ 				name = "racewriterange"
+@@ -527,7 +527,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 				Fatalf("instrument: %v badwidth", t)
+ 			}
+ 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+-		} else if flag_race != 0 {
++		} else if flag_race {
+ 			name := "raceread"
+ 			if wr != 0 {
+ 				name = "racewrite"
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 70a75f9324..df68f46d4c 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1424,10 +1424,10 @@ func dumptypestructs() {
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(Runtimepkg)
+ 
+-		if flag_race != 0 {
++		if flag_race {
+ 			dimportpath(racepkg)
+ 		}
+-		if flag_msan != 0 {
++		if flag_msan {
+ 			dimportpath(msanpkg)
+ 		}
+ 		dimportpath(mkpkg("main"))
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fdd14953e6..4a93dc1087 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -554,7 +554,7 @@ func (s *state) stmt(n *Node) {
+ 	case OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		s.call(n, callNormal)
+ 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC &&
+-			(compiling_runtime != 0 && n.Left.Sym.Name == "throw" ||
++			(compiling_runtime && n.Left.Sym.Name == "throw" ||
+ 				n.Left.Sym.Pkg == Runtimepkg && (n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo" || n.Left.Sym.Name == "block")) {
+ 			m := s.mem()
+ 			b := s.endBlock()
+@@ -579,7 +579,7 @@ func (s *state) stmt(n *Node) {
+ 		if n.Left.Class&PHEAP == 0 {
+ 			return
+ 		}
+-		if compiling_runtime != 0 {
++		if compiling_runtime {
+ 			Fatalf("%v escapes to heap, not allowed in runtime.", n)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 776eb9c64e..f6af11adba 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -750,7 +750,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
+ 	// https://golang.org/issue/2795
+-	if safemode != 0 && importpkg == nil && src != nil && src.Etype == TUNSAFEPTR {
++	if safemode && importpkg == nil && src != nil && src.Etype == TUNSAFEPTR {
+ 		Yyerror("cannot use unsafe.Pointer")
+ 		errorexit()
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7089d7de72..6067677738 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1354,7 +1354,7 @@ OpSwitch:
+ 		if t.Results().NumFields() == 1 {
+ 			n.Type = l.Type.Results().Field(0).Type
+ 
+-			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime != 0 || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
++			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
+ 				// Emit code for runtime.getg() directly instead of calling function.
+ 				// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
+ 				// so that the ordering pass can make sure to preserve the semantics of the original code
+@@ -2176,7 +2176,7 @@ OpSwitch:
+ 		}
+ 	}
+ 
+-	if safemode != 0 && incannedimport == 0 && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
++	if safemode && incannedimport == 0 && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+ 		Yyerror("cannot use unsafe.Pointer")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 338f3c0eae..e1d3b40098 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -9,7 +9,7 @@ func unsafenmagic(nn *Node) *Node {
+ 	fn := nn.Left
+ 	args := nn.List
+ 
+-	if safemode != 0 || fn == nil || fn.Op != ONAME {
++	if safemode || fn == nil || fn.Op != ONAME {
+ 		return nil
+ 	}
+ 	s := fn.Sym
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3e5f5161db..78bad8d348 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -594,8 +594,7 @@ opswitch:
+ 		// for a struct containing a reflect.Value, which itself has
+ 		// an unexported field of type unsafe.Pointer.
+ 		old_safemode := safemode
+-
+-		safemode = 0
++		safemode = false
+ 		n = walkcompare(n, init)
+ 		safemode = old_safemode
+ 
+@@ -1938,7 +1937,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 			on = substArgTypes(on, n.Type) // any-1
+ 		} else if Isint[et] {
+ 			if et == TUINT64 {
+-				if (t.Sym.Pkg == Runtimepkg || compiling_runtime != 0) && t.Sym.Name == "hex" {
++				if (t.Sym.Pkg == Runtimepkg || compiling_runtime) && t.Sym.Name == "hex" {
+ 					on = syslook("printhex")
+ 				} else {
+ 					on = syslook("printuint")
+@@ -2041,7 +2040,7 @@ func isglobal(n *Node) bool {
+ 
+ // Do we need a write barrier for the assignment l = r?
+ func needwritebarrier(l *Node, r *Node) bool {
+-	if use_writebarrier == 0 {
++	if !use_writebarrier {
+ 		return false
+ 	}
+ 
+@@ -2550,7 +2549,7 @@ func paramstoheap(params *Type, out bool) []*Node {
+ 		}
+ 
+ 		// generate allocation & copying code
+-		if compiling_runtime != 0 {
++		if compiling_runtime {
+ 			Yyerror("%v escapes to heap, not allowed in runtime.", v)
+ 		}
+ 		if prealloc[v] == nil {

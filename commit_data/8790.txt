@@ -7,7 +7,87 @@ Date:   Mon Jun 20 14:44:14 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4628050
-
+---
  src/cmd/goinstall/download.go |  2 +-
  src/cmd/goinstall/main.go     | 16 ++++++++--------
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 6647d39e25..12b1524ce0 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -173,7 +173,7 @@ func tryCommand(c chan *vcsMatch, v *vcs, prefixes []string) {
+ 		for _, prefix := range prefixes {
+ 			for _, suffix := range suffixes {
+ 				repo := proto + "://" + prefix + suffix
+-				vlogf("try: %s %s %s\n", v.cmd, v.check, repo)
++				printf("try: %s %s %s\n", v.cmd, v.check, repo)
+ 				if exec.Command(v.cmd, v.check, repo).Run() == nil {
+ 					c <- &vcsMatch{v, prefix, repo}
+ 					return
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 87135fd0cf..aad3ca8635 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -57,7 +57,7 @@ func logf(format string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, format, args...)
+ }
+ 
+-func vlogf(format string, args ...interface{}) {
++func printf(format string, args ...interface{}) {
+ 	if *verbose {
+ 		logf(format, args...)
+ 	}
+@@ -175,14 +175,14 @@ func install(pkg, parent string) (built bool) {
+ 		if parent == "" {
+ 			errorf("%s: can not goinstall the standard library\n", pkg)
+ 		} else {
+-			vlogf("%s: skipping standard library\n", pkg)
++			printf("%s: skipping standard library\n", pkg)
+ 		}
+ 		return
+ 	}
+ 	// Download remote packages if not found or forced with -u flag.
+ 	remote := isRemote(pkg)
+ 	if remote && (err == build.ErrNotFound || (err == nil && *update)) {
+-		vlogf("%s: download\n", pkg)
++		printf("%s: download\n", pkg)
+ 		err = download(pkg, tree.SrcDir())
+ 	}
+ 	if err != nil {
+@@ -220,22 +220,22 @@ func install(pkg, parent string) (built bool) {
+ 		return
+ 	}
+ 	if *nuke {
+-		vlogf("%s: nuke\n", pkg)
++		printf("%s: nuke\n", pkg)
+ 		script.Nuke()
+ 	} else if *clean {
+-		vlogf("%s: clean\n", pkg)
++		printf("%s: clean\n", pkg)
+ 		script.Clean()
+ 	}
+ 	if *doInstall {
+ 		if depBuilt || script.Stale() {
+-			vlogf("%s: install\n", pkg)
++			printf("%s: install\n", pkg)
+ 			if err := script.Run(); err != nil {
+ 				errorf("%s: install: %v\n", pkg, err)
+ 				return
+ 			}
+ 			built = true
+ 		} else {
+-			vlogf("%s: up-to-date\n", pkg)
++			printf("%s: up-to-date\n", pkg)
+ 		}
+ 	}
+ 	if remote {
+@@ -272,7 +272,7 @@ func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
+ 	cmd := exec.Command(arg[0], arg[1:]...)
+ 	cmd.Stdin = bytes.NewBuffer(stdin)
+ 	cmd.Dir = dir
+-	vlogf("%s: %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
++	printf("%s: %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		if !quiet || *verbose {

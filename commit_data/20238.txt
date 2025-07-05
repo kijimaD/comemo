@@ -15,6 +15,22 @@ Date:   Wed Aug 27 15:23:38 2014 +1000
     R=r, dvyukov, rsc
     CC=golang-codereviews
     https://golang.org/cl/134940044
-
+---
  src/cmd/gc/mparith3.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index 95618f1c61..6afd75c023 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -251,8 +251,8 @@ mpgetfltN(Mpflt *a, int prec, int bias)
+ 		s = minexp - e;
+ 		if(s > prec+1)
+ 			s = prec+1;
+-		if((v & ((1<<s)-1)) != 0)
+-			v |= 1<<s;
++		if((v & ((1ULL<<s)-1)) != 0)
++			v |= 1ULL<<s;
+ 		v >>= s;
+ 		e = minexp;
+ 	}

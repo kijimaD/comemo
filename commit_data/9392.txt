@@ -14,10 +14,409 @@ Date:   Wed Aug 17 16:00:02 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4867049
-
+---
  src/pkg/exp/template/html/Makefile        |   2 +-
  src/pkg/exp/template/html/escape.go       | 105 +++++++++++++++++++++++
  src/pkg/exp/template/html/escape_test.go  |  75 +++++++++++++++++
  src/pkg/exp/template/html/reverse.go      | 134 ------------------------------
  src/pkg/exp/template/html/reverse_test.go |  48 -----------
  5 files changed, 181 insertions(+), 183 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/exp/template/html/Makefile
+index e532950b30..2f107da111 100644
+--- a/src/pkg/exp/template/html/Makefile
++++ b/src/pkg/exp/template/html/Makefile
+@@ -6,6 +6,6 @@ include ../../../../Make.inc
+ 
+ TARG=exp/template/html
+ GOFILES=\
+-	reverse.go
++	escape.go
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+new file mode 100644
+index 0000000000..e0e87b98d0
+--- /dev/null
++++ b/src/pkg/exp/template/html/escape.go
+@@ -0,0 +1,105 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package html is a specialization of exp/template that automates the
++// construction of safe HTML output.
++// At the moment, the escaping is naive.  All dynamic content is assumed to be
++// plain text interpolated in an HTML PCDATA context.
++package html
++
++import (
++	"template"
++	"template/parse"
++)
++
++// Escape rewrites each action in the template to guarantee the output is
++// HTML-escaped.
++func Escape(t *template.Template) {
++	// If the parser shares trees based on common-subexpression
++	// joining then we will need to avoid multiply escaping the same action.
++	escapeListNode(t.Tree.Root)
++}
++
++// escapeNode dispatches to escape<NodeType> helpers by type.
++func escapeNode(node parse.Node) {
++	switch n := node.(type) {
++	case *parse.ListNode:
++		escapeListNode(n)
++	case *parse.TextNode:
++		// Nothing to do.
++	case *parse.ActionNode:
++		escapeActionNode(n)
++	case *parse.IfNode:
++		escapeIfNode(n)
++	case *parse.RangeNode:
++		escapeRangeNode(n)
++	case *parse.TemplateNode:
++		// Nothing to do.
++	case *parse.WithNode:
++		escapeWithNode(n)
++	default:
++		panic("handling for " + node.String() + " not implemented")
++		// TODO: Handle other inner node types.
++	}
++}
++
++// escapeListNode recursively escapes its input's children.
++func escapeListNode(node *parse.ListNode) {
++	if node == nil {
++		return
++	}
++	children := node.Nodes
++	for _, child := range children {
++		escapeNode(child)
++	}
++}
++
++// escapeActionNode adds a pipeline call to the end that escapes the result
++// of the expression before it is interpolated into the template output.
++func escapeActionNode(node *parse.ActionNode) {
++	pipe := node.Pipe
++
++	cmds := pipe.Cmds
++	nCmds := len(cmds)
++
++	// If it already has an escaping command, do not interfere.
++	if nCmds != 0 {
++		if lastCmd := cmds[nCmds-1]; len(lastCmd.Args) != 0 {
++			// TODO: Recognize url and js as escaping functions once
++			// we have enough context to know whether additional
++			// escaping is necessary.
++			if arg, ok := lastCmd.Args[0].(*parse.IdentifierNode); ok && arg.Ident == "html" {
++				return
++			}
++		}
++	}
++
++	htmlEscapeCommand := parse.CommandNode{
++		NodeType: parse.NodeCommand,
++		Args:     []parse.Node{parse.NewIdentifier("html")},
++	}
++
++	node.Pipe.Cmds = append(node.Pipe.Cmds, &htmlEscapeCommand)
++}
++
++// escapeIfNode recursively escapes the if and then clauses but leaves the
++// condition unchanged.
++func escapeIfNode(node *parse.IfNode) {
++	escapeListNode(node.List)
++	escapeListNode(node.ElseList)
++}
++
++// escapeRangeNode recursively escapes the loop body and else clause but
++// leaves the series unchanged.
++func escapeRangeNode(node *parse.RangeNode) {
++	escapeListNode(node.List)
++	escapeListNode(node.ElseList)
++}
++
++// escapeWithNode recursively escapes the scope body and else clause but
++// leaves the pipeline unchanged.
++func escapeWithNode(node *parse.WithNode) {
++	escapeListNode(node.List)
++	escapeListNode(node.ElseList)
++}
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+new file mode 100644
+index 0000000000..345a752a89
+--- /dev/null
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -0,0 +1,75 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"template"
++	"testing"
++)
++
++type data struct {
++	F, T    bool
++	C, G, H string
++	A, E    []string
++}
++
++var testData = data{
++	F: false,
++	T: true,
++	C: "<Cincinatti>",
++	G: "<Goodbye>",
++	H: "<Hello>",
++	A: []string{"<a>", "<b>"},
++	E: []string{},
++}
++
++type testCase struct {
++	name   string
++	input  string
++	output string
++}
++
++var testCases = []testCase{
++	{"if", "{{if .T}}Hello{{end}}, {{.C}}!", "Hello, &lt;Cincinatti&gt;!"},
++	{"else", "{{if .F}}{{.H}}{{else}}{{.G}}{{end}}!", "&lt;Goodbye&gt;!"},
++	{"overescaping", "Hello, {{.C | html}}!", "Hello, &lt;Cincinatti&gt;!"},
++	{"assignment", "{{if $x := .H}}{{$x}}{{end}}", "&lt;Hello&gt;"},
++	{"withBody", "{{with .H}}{{.}}{{end}}", "&lt;Hello&gt;"},
++	{"withElse", "{{with .E}}{{.}}{{else}}{{.H}}{{end}}", "&lt;Hello&gt;"},
++	{"rangeBody", "{{range .A}}{{.}}{{end}}", "&lt;a&gt;&lt;b&gt;"},
++	{"rangeElse", "{{range .E}}{{.}}{{else}}{{.H}}{{end}}", "&lt;Hello&gt;"},
++	{"nonStringValue", "{{.T}}", "true"},
++	{"constant", `<a href="{{"'str'"}}">`, `<a href="&#39;str&#39;">`},
++}
++
++func TestAutoesc(t *testing.T) {
++	for _, testCase := range testCases {
++		name := testCase.name
++		tmpl := template.New(name)
++		tmpl, err := tmpl.Parse(testCase.input)
++		if err != nil {
++			t.Errorf("%s: failed to parse template: %s", name, err)
++			continue
++		}
++
++		Escape(tmpl)
++
++		buffer := new(bytes.Buffer)
++
++		err = tmpl.Execute(buffer, testData)
++		if err != nil {
++			t.Errorf("%s: template execution failed: %s", name, err)
++			continue
++		}
++
++		output := testCase.output
++		actual := buffer.String()
++		if output != actual {
++			t.Errorf("%s: escaped output: %q != %q",
++				name, output, actual)
++		}
++	}
++}
+diff --git a/src/pkg/exp/template/html/reverse.go b/src/pkg/exp/template/html/reverse.go
+deleted file mode 100644
+index 9a806c2069..0000000000
+--- a/src/pkg/exp/template/html/reverse.go
++++ /dev/null
+@@ -1,134 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package html is a specialization of exp/template that automates the
+-// construction of safe HTML output.
+-// At the moment it is just skeleton code that demonstrates how to derive
+-// templates via AST -> AST transformations.
+-package html
+-
+-import (
+-	"fmt"
+-	"template"
+-	"template/parse"
+-)
+-
+-// Reverse reverses a template.
+-// After Reverse(t), t.Execute(wr, data) writes to wr the byte-wise reverse of
+-// what would have been written otherwise.
+-//
+-// E.g.
+-// Reverse(template.Parse("{{if .Coming}}Hello{{else}}Bye{{end}}, {{.World}}")
+-// behaves like
+-// template.Parse("{{.World | reverse}} ,{{if .Coming}}olleH{{else}}eyB{{end}}")
+-func Reverse(t *template.Template) {
+-	t.Funcs(supportFuncs)
+-
+-	// If the parser shares trees based on common-subexpression
+-	// joining then we will need to avoid multiply reversing the same tree.
+-	reverseListNode(t.Tree.Root)
+-}
+-
+-// reverseNode dispatches to reverse<NodeType> helpers by type.
+-func reverseNode(node parse.Node) {
+-	switch n := node.(type) {
+-	case *parse.ListNode:
+-		reverseListNode(n)
+-	case *parse.TextNode:
+-		reverseTextNode(n)
+-	case *parse.ActionNode:
+-		reverseActionNode(n)
+-	case *parse.IfNode:
+-		reverseIfNode(n)
+-	default:
+-		panic("handling for " + node.String() + " not implemented")
+-		// TODO: Handle other inner node types.
+-	}
+-}
+-
+-// reverseListNode recursively reverses its input's children and reverses their
+-// order.
+-func reverseListNode(node *parse.ListNode) {
+-	if node == nil {
+-		return
+-	}
+-	children := node.Nodes
+-	for _, child := range children {
+-		reverseNode(child)
+-	}
+-	for i, j := 0, len(children)-1; i < j; i, j = i+1, j-1 {
+-		children[i], children[j] = children[j], children[i]
+-	}
+-}
+-
+-// reverseTextNode reverses the text UTF-8 sequence by UTF-8 sequence.
+-func reverseTextNode(node *parse.TextNode) {
+-	runes := []int(string(node.Text))
+-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+-		runes[i], runes[j] = runes[j], runes[i]
+-	}
+-	node.Text = []byte(string(runes))
+-}
+-
+-// reverseActionNode adds a pipeline call to the end that reverses the result
+-// of the expression before it is interpolated into the template output.
+-func reverseActionNode(node *parse.ActionNode) {
+-	pipe := node.Pipe
+-
+-	cmds := pipe.Cmds
+-	nCmds := len(cmds)
+-
+-	// If it's already been reversed, just slice out the reverse command.
+-	// This makes (Reverse o Reverse) almost the identity function
+-	// modulo changes to the templates FuncMap.
+-	if nCmds != 0 {
+-		if lastCmd := cmds[nCmds-1]; len(lastCmd.Args) != 0 {
+-			if arg, ok := lastCmd.Args[0].(*parse.IdentifierNode); ok && arg.Ident == "reverse" {
+-				pipe.Cmds = pipe.Cmds[:nCmds-1]
+-				return
+-			}
+-		}
+-	}
+-
+-	reverseCommand := parse.CommandNode{
+-		NodeType: parse.NodeCommand,
+-		Args:     []parse.Node{parse.NewIdentifier("reverse")},
+-	}
+-
+-	node.Pipe.Cmds = append(node.Pipe.Cmds, &reverseCommand)
+-}
+-
+-// reverseIfNode recursively reverses the if and then clauses but leaves the
+-// condition unchanged.
+-func reverseIfNode(node *parse.IfNode) {
+-	reverseListNode(node.List)
+-	reverseListNode(node.ElseList)
+-}
+-
+-// reverse writes the reverse of the given byte buffer to the given Writer.
+-func reverse(x interface{}) string {
+-	var s string
+-	switch y := x.(type) {
+-	case nil:
+-		s = "<nil>"
+-	case []byte:
+-		// TODO: unnecessary buffer copy.
+-		s = string(y)
+-	case string:
+-		s = y
+-	case fmt.Stringer:
+-		s = y.String()
+-	default:
+-		s = fmt.Sprintf("<inconvertible of type %T>", x)
+-	}
+-	n := len(s)
+-	bytes := make([]byte, n)
+-	for i := 0; i < n; i++ {
+-		bytes[n-i-1] = s[i]
+-	}
+-	return string(bytes)
+-}
+-
+-// supportFuncs contains functions required by reversed template nodes.
+-var supportFuncs = template.FuncMap{"reverse": reverse}
+diff --git a/src/pkg/exp/template/html/reverse_test.go b/src/pkg/exp/template/html/reverse_test.go
+deleted file mode 100644
+index bc29c07b77..0000000000
+--- a/src/pkg/exp/template/html/reverse_test.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package html
+-
+-import (
+-	"bytes"
+-	"template"
+-	"testing"
+-)
+-
+-type data struct {
+-	World  string
+-	Coming bool
+-}
+-
+-func TestReverse(t *testing.T) {
+-	templateSource :=
+-		"{{if .Coming}}Hello{{else}}Goodbye{{end}}, {{.World}}!"
+-	templateData := data{
+-		World:  "Cincinatti",
+-		Coming: true,
+-	}
+-
+-	tmpl := template.New("test")
+-	tmpl, err := tmpl.Parse(templateSource)
+-	if err != nil {
+-		t.Errorf("failed to parse template: %s", err)
+-		return
+-	}
+-
+-	Reverse(tmpl)
+-
+-	buffer := new(bytes.Buffer)
+-
+-	err = tmpl.Execute(buffer, templateData)
+-	if err != nil {
+-		t.Errorf("failed to execute reversed template: %s", err)
+-		return
+-	}
+-
+-	golden := "!ittanicniC ,olleH"
+-	actual := buffer.String()
+-	if golden != actual {
+-		t.Errorf("reversed output: %q != %q", golden, actual)
+-	}
+-}

@@ -13,6 +13,21 @@ Date:   Wed May 11 15:41:21 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/405756
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f6e87fe8a4..069d33ba55 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -6809,7 +6809,8 @@ OuterLoop:
+ 
+ <p>
+ A "continue" statement begins the next iteration of the
+-innermost <a href="#For_statements">"for" loop</a> at its post statement.
++innermost enclosing <a href="#For_statements">"for" loop</a>
++by advancing control to the end of the loop block.
+ The "for" loop must be within the same function.
+ </p>
+ 

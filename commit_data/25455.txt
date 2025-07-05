@@ -13,6 +13,20 @@ Date:   Fri Oct 30 13:33:28 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/heapsampling.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/test/heapsampling.go b/test/heapsampling.go
+index d5ffc7f202..7461a76145 100644
+--- a/test/heapsampling.go
++++ b/test/heapsampling.go
+@@ -25,6 +25,8 @@ var a64k *[64 * 1024]byte
+ // vary for run to run. This test only checks that the resulting
+ // values appear reasonable.
+ func main() {
++	return // TODO: fix this flaky test; golang.org/issue/13098
++
+ 	const countInterleaved = 10000
+ 	allocInterleaved(countInterleaved)
+ 	checkAllocations(getMemProfileRecords(), "main.allocInterleaved", countInterleaved, []int64{256 * 1024, 1024, 256 * 1024, 512, 256 * 1024, 256})

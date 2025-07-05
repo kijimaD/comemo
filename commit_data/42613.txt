@@ -16,6 +16,24 @@ Date:   Sat Jan 25 02:39:59 2020 +1100
     Change-Id: I57d598ef737642f9c3aa7b280c6c680477ae7633
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216261
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go b/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
+new file mode 100644
+index 0000000000..fe9feb7980
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
+@@ -0,0 +1,11 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build riscv64
++
++package cpu
++
++const cacheLineSize = 32
++
++func doinit() {}

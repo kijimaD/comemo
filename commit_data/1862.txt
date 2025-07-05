@@ -8,10 +8,3813 @@ Date:   Fri Mar 20 17:18:48 2009 -0700
     R=r
     OCL=26608
     CL=26608
-
+---
  usr/gri/pretty/ast.go         | 775 +++++++++++++++++++++++----------------
  usr/gri/pretty/compilation.go |   2 +-
  usr/gri/pretty/parser.go      | 836 ++++++++++++++++++++++--------------------
  usr/gri/pretty/printer.go     | 508 +++++++++++++------------
  usr/gri/pretty/typechecker.go |   4 +-
  5 files changed, 1137 insertions(+), 988 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 142b875016..a963495c2f 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -2,45 +2,55 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The AST package declares the types used to represent
++// syntax trees for Go source files.
++//
+ package ast
+ 
+ import (
+-	"vector";
+ 	"token";
+ 	"scanner";
+ )
+ 
+ 
++// TODO rename Position to scanner.Position, possibly factor out
++type Position scanner.Location
++
++
++// TODO try to get rid of these
+ type (
+ 	Block struct;
+-	Expr interface;
+-	Decl interface;
+-	ExprVisitor interface;
+ 	Signature struct;
+ )
+ 
+ 
+-// TODO rename scanner.Location to scanner.Position, possibly factor out
+-type Position scanner.Location
+-
+-
+ // ----------------------------------------------------------------------------
+-// Comments
+-
+-type Comment struct {
+-	Loc scanner.Location;
+-	EndLine int;  // the line where the comment ends
+-	Text []byte;
+-}
+-
++// Interfaces
++//
++// There are 3 main classes of nodes: Expressions and type nodes,
++// statement nodes, and declaration nodes. The node names usually
++// match the corresponding Go spec production names to which they
++// correspond. The node fields correspond to the individual parts
++// of the respective productions.
++//
++// Nodes contain selective position information: a position field
++// marking the beginning of the corresponding source text segment
++// if necessary; and specific position information for language
++// constructs where comments may be found between parts of the
++// construct (typically any larger, parenthesized subpart). The
++// position information is needed to properly position comments
++// when printing the construct.
+ 
+-// A CommentGroup is a sequence of consequtive comments
+-// with no other tokens and no empty lines inbetween.
+-type CommentGroup []*Comment
++// TODO: For comment positioning only the byte position and not
++// a complete Position field is needed. May be able to trim node
++// sizes a bit.
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Expressions and types
++type (
++	ExprVisitor interface;
++	StatVisitor interface;
++	DeclVisitor interface;
++)
+ 
+ 
+ // All expression nodes implement the Expr interface.
+@@ -52,130 +62,161 @@ type Expr interface {
+ 	
+ 	// Pos returns the (beginning) position of the expression.
+ 	Pos() Position;
+-};
++}
++
++
++// All statement nodes implement the Stat interface.
++type Stat interface {
++	// For a (dynamic) node type X, calling Visit with a statement
++	// visitor v invokes the node-specific DoX function of the visitor.
++	//
++	Visit(v StatVisitor);
++	
++	// Pos returns the (beginning) position of the statement.
++	Pos() Position;
++}
+ 
+ 
++// All declaration nodes implement the Decl interface.
++type Decl interface {
++	// For a (dynamic) node type X, calling Visit with a declaration
++	// visitor v invokes the node-specific DoX function of the visitor.
++	//
++	Visit(v DeclVisitor);
++	
++	// Pos returns the (beginning) position of the declaration.
++	Pos() Position;
++}
++
++
++// ----------------------------------------------------------------------------
++// Comments
++
++// A Comment node represents a single //-style or /*-style comment.
++type Comment struct {
++	Pos_ Position;  // beginning position of the comment
++	Text []byte;  // the comment text (without '\n' for //-style comments)
++	EndLine int;  // the line where the comment ends
++}
++
++
++// A Comments node represents a sequence of single comments
++// with no other tokens and no empty lines between.
++//
++type Comments []*Comment
++
++
++// ----------------------------------------------------------------------------
++// Expressions and types
++
+ // An expression is represented by a tree consisting of one
+-// or several of the following concrete expression nodes.
++// or more of the following concrete expression nodes.
+ //
+ type (
+-	// A BadExpr node is a placeholder node for expressions containing
+-	// syntax errors for which not correct expression tree can be created.
++	// A BadExpr node is a placeholder for expressions containing
++	// syntax errors for which no correct expression nodes can be
++	// created.
+ 	//
+ 	BadExpr struct {
+-		Pos_ Position;  // bad expression position
++		Pos_ Position;  // beginning position of bad expression
+ 	};
+ 
+-
+-	// An Ident node represents an identifier (identifier).
++	// An Ident node represents an identifier.
+ 	Ident struct {
+-		Str string;  // identifier string (e.g. foobar)
+ 		Pos_ Position;  // identifier position
++		Lit []byte;  // identifier string (e.g. foobar)
+ 	};
+ 
+-
+-	// An basic literal is represented by a BasicLit node.
++	// A BasicLit node represents a basic literal.
+ 	BasicLit struct {
+-		Tok int;  // literal token
+-		Lit []byte;  // literal string
+ 		Pos_ Position;  // literal string position
++		Tok int;  // literal token (INT, FLOAT, CHAR, STRING)
++		Lit []byte;  // literal string
+ 	};
+ 
+-
+-	// A sequence of string literals (StringLit) is represented
+-	// by a StringLit node.
+-	//
++	// A StringLit node represents a sequence of string literals.
+ 	StringLit struct {
+ 		Strings []*BasicLit;  // sequence of strings
+ 	};
+ 
+-
+-	// A function literal (FunctionLit) is represented by a FunctionLit node.
++	// A FunctionLit node represents a function literal.
+ 	FunctionLit struct {
++		Func Position;  // position of "func" keyword
+ 		Typ *Signature;  // function signature
+ 		Body *Block;  // function body
+-		Func Position;  // position of "func" keyword
+ 	};
+ 
+-
+-	// A composite literal (CompositeLit) is represented by a CompositeLit node.
++	// A CompositeLit node represents a composite literal.
+ 	CompositeLit struct {
+ 		Typ Expr;  // literal type
++		Lbrace Position;  // position of "{"
+ 		Elts []Expr;  // list of composite elements
+-		Lbrace, Rbrace Position;  // positions of "{" and "}"
++		Rbrace Position;  // position of "}"
+ 	};
+ 
+-
+-	// A parenthesized expression is represented by a Group node.
+-	Group struct {
++	// A ParenExpr node represents a parenthesized expression.
++	ParenExpr struct {
++		Lparen Position;  // position of "("
+ 		X Expr;  // parenthesized expression
+-		Lparen, Rparen Position;  // positions of "(" and ")"
++		Rparen Position;  // position of ")"
+ 	};
+ 
+-
+-	// A primary expression followed by a selector is represented
+-	// by a Selector node.
+-	//
+-	Selector struct {
++	// A SelectorExpr node represents a primary expression followed by a selector.
++	SelectorExpr struct {
+ 		X Expr;  // primary expression
+ 		Sel *Ident;  // field selector
+-		Period Position;  // position of "."
+ 	};
+ 
+-
+-	// A primary expression followed by an index is represented
+-	// by an Index node.
+-	//
+-	Index struct {
++	// An IndexExpr node represents a primary expression followed by an index.
++	IndexExpr struct {
+ 		X Expr;  // primary expression
+ 		Index Expr;  // index expression
+-		Lbrack, Rbrack Position;  // positions of "[" and "]"
+ 	};
+ 
+-
+-	// A primary expression followed by a slice is represented
+-	// by a Slice node.
+-	//
+-	Slice struct {
++	// A SliceExpr node represents a primary expression followed by a slice.
++	SliceExpr struct {
+ 		X Expr;  // primary expression
+-		Beg, End Expr;  // slice range
+-		Lbrack, Colon, Rbrack Position;  // positions of "[", ":", and "]"
++		Begin, End Expr;  // slice range
+ 	};
+ 
+-
+-	// A primary expression followed by a type assertion is represented
+-	// by a TypeAssertion node.
++	// A TypeAssertExpr node represents a primary expression followed by a
++	// type assertion.
+ 	//
+-	TypeAssertion struct {
++	TypeAssertExpr struct {
+ 		X Expr;  // primary expression
+ 		Typ Expr;  // asserted type
+-		Period, Lparen, Rparen Position;  // positions of ".", "(", and ")"
+ 	};
+ 
+-
+-	// A primary expression followed by an argument list is represented
+-	// by a Call node.
+-	//
+-	Call struct {
++	// A CallExpr node represents a primary expression followed by an argument list.
++	CallExpr struct {
+ 		Fun Expr;  // function expression
++		Lparen Position;  // position of "("
+ 		Args []Expr;  // function arguments
+-		Lparen, Rparen Position;  // positions of "(" and ")"
++		Rparen Position;  // positions of ")"
+ 	};
+ 
++	// A StarExpr node represents an expression of the form "*" Expression.
++	// Semantically it could be a unary "*" expression, or a pointer type.
++	StarExpr struct {
++		Star Position;  // position of "*"
++		X Expr;  // operand
++	};
+ 
+-	// A unary expression (UnaryExpr) is represented by a UnaryExpr node.
++	// A UnaryExpr node represents a unary expression.
++	// Unary "*" expressions are represented via DerefExpr nodes.
++	//
+ 	UnaryExpr struct {
+-		Op int;  // operator token
++		Pos_ Position;  // token position
++		Tok int;  // operator
+ 		X Expr;  // operand
+-		Pos_ Position;  // operator position
+ 	};
+ 
+-
+-	// A binary expression (BinaryExpr) is represented by a BinaryExpr node.
++	// A BinaryExpr node represents a binary expression.
+ 	BinaryExpr struct {
+-		Op int;  // operator token
+-		X, Y Expr;  // left and right operand
+-		Pos_ Position;  // operator position
++		X Expr;  // left operand
++		Pos_ Position;  // token position
++		Tok int;  // operator
++		Y Expr;  // right operand
+ 	};
+ )
+ 
+@@ -183,81 +224,127 @@ type (
+ // The direction of a channel type is indicated by one
+ // of the following constants.
+ //
+-const /* channel direction */ (
+-	FULL = iota;
+-	SEND;
++type ChanDir int
++const (
++	SEND ChanDir = 1 << iota;
+ 	RECV;
+ )
+ 
+ 
++// A type is represented by a tree consisting of one
++// or more of the following type-specific expression
++// nodes.
++//
+ type (
+-	// Type literals are treated like expressions.
++	// An Ellipsis node stands for the "..." type in a
++	// parameter list or the "..." length in an array type.
++	//
+ 	Ellipsis struct {  // neither a type nor an expression
+-		Loc_ scanner.Location;
++		Pos_ Position;  // position of "..."
+ 	};
+ 	
+-	TypeType struct {  // for type switches
+-		Loc_ scanner.Location;  // location of "type"
++	// An ArrayType node represents an array type.
++	ArrayType struct {
++		Lbrack Position;  // position of "["
++		Len Expr;  // an Ellipsis node for [...]T array types
++		Elt Expr;  // element type
+ 	};
+ 
+-	ArrayType struct {
+-		Loc_ scanner.Location;  // location of "["
+-		Len Expr;
+-		Elt Expr;
++	// A SliceType node represents a slice type.
++	SliceType struct {
++		Lbrack Position;  // position of "["
++		Elt Expr;  // element type
+ 	};
+-	
++
++	// A Field represents a Field declaration list in a struct type,
++	// a method in an interface type, or a parameter declaration in
++	// a signature.
+ 	Field struct {
+-		Names []*Ident;
+-		Typ Expr;
+-		Tag Expr;  // nil = no tag
+-		Comment CommentGroup;
++		Doc Comments;  // associated documentation (struct types only)
++		Names []*Ident;  // field/method/parameter names; nil if anonymous field
++		Typ Expr;  // field/method/parameter type
++		Tag Expr;  // field tag; nil if no tag
+ 	};
+ 
++	// A StructType node represents a struct type.
+ 	StructType struct {
+-		Loc_ scanner.Location;  // location of "struct"
+-		Fields []*Field;
+-		End scanner.Location;  // location of "}"
++		Struct, Lbrace Position;  // positions of "struct" keyword, "{"
++		Fields []*Field;  // list of field declarations; nil if forward declaration
++		Rbrace Position;  // position of "}"
+ 	};
+-	
+-	PointerType struct {
+-		Loc_ scanner.Location;  // location of "*"
+-		Base Expr;
+-	};
+-	
++
++	// Note: pointer types are represented via StarExpr nodes.
++
++	// A signature node represents the parameter and result
++	// sections of a function type only.
++	//
+ 	Signature struct {
+ 		Params []*Field;
+ 		Result []*Field;
+ 	};
+ 
++	// A FunctionType node represents a function type.
+ 	FunctionType struct {
+-		Loc_ scanner.Location;  // location of "func"
++		Func Position;  // position of "func" keyword
+ 		Sig *Signature;
+ 	};
+ 
++	// An InterfaceType node represents an interface type.
+ 	InterfaceType struct {
+-		Loc_ scanner.Location;  // location of "interface"
+-		Methods []*Field;
+-		End scanner.Location;  // location of "}", End == 0 if forward declaration
++		Interface, Lbrace Position;  // positions of "interface" keyword, "{"
++		Methods []*Field; // list of methods; nil if forward declaration
++		Rbrace Position;  // position of "}"
+ 	};
+ 
+-	SliceType struct {
+-		Loc_ scanner.Location;  // location of "["
+-	};
+-	
++	// A MapType node represents a map type.
+ 	MapType struct {
+-		Loc_ scanner.Location;  // location of "map"
++		Map Position;  // position of "map" keyword
+ 		Key Expr;
+-		Val Expr;
++		Value Expr;
+ 	};
+-	
++
++	// A ChannelType node represents a channel type.
+ 	ChannelType struct {
+-		Loc_ scanner.Location;  // location of "chan" or "<-"
+-		Dir int;
+-		Val Expr;
++		Pos_ Position;  // position of "chan" keyword or "<-" (whichever comes first)
++		Dir ChanDir;
++		Value Expr;  // value type
+ 	};
+ )
+ 
+ 
++// Pos() implementations for all expression/type nodes.
++//
++func (x *BadExpr) Pos() Position  { return x.Pos_; }
++func (x *Ident) Pos() Position  { return x.Pos_; }
++func (x *BasicLit) Pos() Position  { return x.Pos_; }
++func (x *StringLit) Pos() Position  { return x.Strings[0].Pos(); }
++func (x *FunctionLit) Pos() Position  { return x.Func; }
++func (x *CompositeLit) Pos() Position  { return x.Typ.Pos(); }
++func (x *ParenExpr) Pos() Position  { return x.Lparen; }
++func (x *SelectorExpr) Pos() Position  { return x.X.Pos(); }
++func (x *IndexExpr) Pos() Position  { return x.X.Pos(); }
++func (x *SliceExpr) Pos() Position  { return x.X.Pos(); }
++func (x *TypeAssertExpr) Pos() Position  { return x.X.Pos(); }
++func (x *CallExpr) Pos() Position  { return x.Fun.Pos(); }
++func (x *StarExpr) Pos() Position  { return x.Star; }
++func (x *UnaryExpr) Pos() Position  { return x.Pos_; }
++func (x *BinaryExpr) Pos() Position  { return x.X.Pos(); }
++
++func (x *Ellipsis) Pos() Position { return x.Pos_; }
++func (x *ArrayType) Pos() Position { return x.Lbrack; }
++func (x *SliceType) Pos() Position { return x.Lbrack; }
++func (x *StructType) Pos() Position { return x.Struct; }
++func (x *FunctionType) Pos() Position { return x.Func; }
++func (x *InterfaceType) Pos() Position { return x.Interface; }
++func (x *MapType) Pos() Position { return x.Map; }
++func (x *ChannelType) Pos() Position { return x.Pos_; }
++
++
++// All expression/type nodes implement a Visit method which takes
++// an ExprVisitor as argument. For a given node x of type X, and
++// an implementation v of an ExprVisitor, calling x.Visit(v) will
++// result in a call of v.DoX(x) (through a double-dispatch).
++//
+ type ExprVisitor interface {
+ 	// Expressions
+ 	DoBadExpr(x *BadExpr);
+@@ -266,336 +353,391 @@ type ExprVisitor interface {
+ 	DoStringLit(x *StringLit);
+ 	DoFunctionLit(x *FunctionLit);
+ 	DoCompositeLit(x *CompositeLit);
+-	DoGroup(x *Group);
+-	DoSelector(x *Selector);
+-	DoIndex(x *Index);
+-	DoSlice(x *Slice);
+-	DoTypeAssertion(x *TypeAssertion);
+-	DoCall(x *Call);
++	DoParenExpr(x *ParenExpr);
++	DoSelectorExpr(x *SelectorExpr);
++	DoIndexExpr(x *IndexExpr);
++	DoSliceExpr(x *SliceExpr);
++	DoTypeAssertExpr(x *TypeAssertExpr);
++	DoCallExpr(x *CallExpr);
++	DoStarExpr(x *StarExpr);
+ 	DoUnaryExpr(x *UnaryExpr);
+ 	DoBinaryExpr(x *BinaryExpr);
+ 
+-	// Types
++	// Type expressions
+ 	DoEllipsis(x *Ellipsis);
+-	DoTypeType(x *TypeType);
+ 	DoArrayType(x *ArrayType);
++	DoSliceType(x *SliceType);
+ 	DoStructType(x *StructType);
+-	DoPointerType(x *PointerType);
+ 	DoFunctionType(x *FunctionType);
+ 	DoInterfaceType(x *InterfaceType);
+-	DoSliceType(x *SliceType);
+ 	DoMapType(x *MapType);
+ 	DoChannelType(x *ChannelType);
+ }
+ 
+ 
+-func (x *BadExpr) Pos() Position  { return x.Pos_; }
+-func (x *Ident) Pos() Position  { return x.Pos_; }
+-func (x *BasicLit) Pos() Position  { return x.Pos_; }
+-func (x *StringLit) Pos() Position  { return x.Strings[0].Pos(); }
+-func (x *FunctionLit) Pos() Position  { return x.Func; }
+-func (x *CompositeLit) Pos() Position  { return x.Typ.Pos(); }
+-func (x *Group) Pos() Position  { return x.Lparen; }
+-func (x *Selector) Pos() Position  { return x.X.Pos(); }
+-func (x *Index) Pos() Position  { return x.X.Pos(); }
+-func (x *Slice) Pos() Position  { return x.X.Pos(); }
+-func (x *TypeAssertion) Pos() Position  { return x.X.Pos(); }
+-func (x *Call) Pos() Position  { return x.Fun.Pos(); }
+-func (x *UnaryExpr) Pos() Position  { return x.Pos_; }
+-func (x *BinaryExpr) Pos() Position  { return x.X.Pos(); }
+-
+-func (x *Ellipsis) Pos() Position { return x.Loc_; }
+-func (x *TypeType) Pos() Position { return x.Loc_; }
+-func (x *ArrayType) Pos() Position { return x.Loc_; }
+-func (x *StructType) Pos() Position { return x.Loc_; }
+-func (x *PointerType) Pos() Position { return x.Loc_; }
+-func (x *FunctionType) Pos() Position { return x.Loc_; }
+-func (x *InterfaceType) Pos() Position { return x.Loc_; }
+-func (x *SliceType) Pos() Position { return x.Loc_; }
+-func (x *MapType) Pos() Position { return x.Loc_; }
+-func (x *ChannelType) Pos() Position { return x.Loc_; }
+-
+-
++// Visit() implementations for all expression/type nodes.
++//
+ func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
+ func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
+ func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
+ func (x *StringLit) Visit(v ExprVisitor) { v.DoStringLit(x); }
+ func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
+ func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
+-func (x *Group) Visit(v ExprVisitor) { v.DoGroup(x); }
+-func (x *Selector) Visit(v ExprVisitor) { v.DoSelector(x); }
+-func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
+-func (x *Slice) Visit(v ExprVisitor) { v.DoSlice(x); }
+-func (x *TypeAssertion) Visit(v ExprVisitor) { v.DoTypeAssertion(x); }
+-func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
++func (x *ParenExpr) Visit(v ExprVisitor) { v.DoParenExpr(x); }
++func (x *SelectorExpr) Visit(v ExprVisitor) { v.DoSelectorExpr(x); }
++func (x *IndexExpr) Visit(v ExprVisitor) { v.DoIndexExpr(x); }
++func (x *SliceExpr) Visit(v ExprVisitor) { v.DoSliceExpr(x); }
++func (x *TypeAssertExpr) Visit(v ExprVisitor) { v.DoTypeAssertExpr(x); }
++func (x *CallExpr) Visit(v ExprVisitor) { v.DoCallExpr(x); }
++func (x *StarExpr) Visit(v ExprVisitor) { v.DoStarExpr(x); }
+ func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
+ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
+ 
+ func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
+-func (x *TypeType) Visit(v ExprVisitor) { v.DoTypeType(x); }
+ func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
++func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
+ func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
+-func (x *PointerType) Visit(v ExprVisitor) { v.DoPointerType(x); }
+ func (x *FunctionType) Visit(v ExprVisitor) { v.DoFunctionType(x); }
+ func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
+-func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
+ func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
+ func (x *ChannelType) Visit(v ExprVisitor) { v.DoChannelType(x); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Blocks
+-//
+-// Syntactic constructs of the form:
++
++// A Block represents syntactic constructs of the form:
+ //
+ //   "{" StatementList "}"
+ //   ":" StatementList
+-
++//
+ type Block struct {
+-	Loc scanner.Location;
++	Pos_ Position;
+ 	Tok int;
+-	List *vector.Vector;
+-	End scanner.Location;  // location of closing "}" if present
+-}
+-
+-
+-func NewBlock(loc scanner.Location, tok int) *Block {
+-	if tok != token.LBRACE && tok != token.COLON {
+-		panic();
+-	}
+-	var end scanner.Location;
+-	return &Block{loc, tok, vector.New(0), end};
++	List []Stat;
++	Rparen Position;  // position of closing "}" if present
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
++// A statement is represented by a tree consisting of one
++// or more of the following concrete statement nodes.
++//
+ type (
+-	StatVisitor interface;
++	// A BadStat node is a placeholder for statements containing
++	// syntax errors for which no correct statement nodes can be
++	// created.
++	//
++	BadStat struct {
++		Pos_ Position;  // beginning position of bad statement
++	};
+ 
+-	Stat interface {
+-		Visit(v StatVisitor);
++	// A DeclStat node represents a declaration in a statement list.
++	DeclStat struct {
++		Decl Decl;
+ 	};
+-	
+-	BadStat struct {
+-		Loc scanner.Location;
++
++	// An EmptyStat node represents an empty statement.
++	// The "position" of the empty statement is the position
++	// of the immediately preceeding semicolon.
++	//
++	EmptyStat struct {
++		Semicolon Position;  // position of preceeding ";"
+ 	};
+ 
++	// A LabeledStat node represents a labeled statement.
+ 	LabeledStat struct {
+-		Loc scanner.Location;  // location of ":"
+ 		Label *Ident;
+ 		Stat Stat;
+ 	};
+ 
+-	DeclarationStat struct {
+-		Decl Decl;
++	// An ExprStat node represents a (stand-alone) expression
++	// in a statement list.
++	//
++	ExprStat struct {
++		X Expr;  // expression
+ 	};
+ 
+-	ExpressionStat struct {
+-		Loc scanner.Location;  // location of Tok
+-		Tok int;  // GO, DEFER
+-		Expr Expr;
++	// An IncDecStat node represents an increment or decrement statement.
++	IncDecStat struct {
++		X Expr;
++		Tok int;  // INC or DEC
+ 	};
+ 
++	// An AssignmentStat node represents an assignment or
++	// a short variable declaration.
+ 	AssignmentStat struct {
+-		Loc scanner.Location;  // location of Tok
+-		Tok int;  // assignment token
+-		Lhs, Rhs Expr;
++		Lhs []Expr;
++		Pos_ Position;  // token position
++		Tok int;  // assignment token, DEFINE
++		Rhs []Expr;
+ 	};
+ 
+-	TupleAssignStat struct {
+-		Loc scanner.Location;  // location of Tok
+-		Tok int;  // assignment token
+-		Lhs, Rhs []Expr;
++	// A GoStat node represents a go statement.
++	GoStat struct {
++		Go Position;  // position of "go" keyword
++		Call Expr;
+ 	};
+ 
+-	IncDecStat struct {
+-		Loc scanner.Location;  // location of '++' or '--'
+-		Tok int;  // token.INC or token.DEC
+-		Expr Expr;
++	// A DeferStat node represents a defer statement.
++	DeferStat struct {
++		Defer Position;  // position of "defer" keyword
++		Call Expr;
++	};
++
++	// A ReturnStat node represents a return statement.
++	ReturnStat struct {
++		Return Position;  // position of "return" keyword
++		Results []Expr;
+ 	};
+ 
++	// A ControlFlowStat node represents a break, continue, goto,
++	// or fallthrough statement.
++	//
++	ControlFlowStat struct {
++		Pos_ Position;  // position of keyword
++		Tok int;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
++		Label *Ident;
++	};
++
++	// A CompositeStat node represents a braced statement list.
+ 	CompositeStat struct {
+ 		Body *Block;
+ 	};
+ 
++	// An IfStat node represents an if statement.
+ 	IfStat struct {
+-		Loc scanner.Location;  // location of "if"
++		If Position;  // position of "if" keyword
+ 		Init Stat;
+ 		Cond Expr;
+ 		Body *Block;
+ 		Else Stat;
+ 	};
+-	
+-	RangeClause struct {  // appears only as Init stat in a ForStat
+-		Loc scanner.Location;  // location of "=" or ":="
+-		Tok int;  // token.ASSIGN or token.DEFINE
+-		Lhs []Expr;
+-		Rhs Expr;
+-	};
+-
+-	ForStat struct {
+-		Loc scanner.Location;  // location of "for"
+-		Init Stat;
+-		Cond Expr;
+-		Post Stat;
+-		Body *Block;
+-	};
+-
+-	TypeSwitchClause struct {  // appears only as Init stat in a SwitchStat
+-		Loc scanner.Location;  // location of ":="
+-		Lhs *Ident;
+-		Rhs Expr;
+-	};
+ 
++	// A CaseClause represents a case of an expression switch statement.
+ 	CaseClause struct {
+-		Loc scanner.Location;  // location of "case" or "default"
++		Case Position;  // position of "case" or "default" keyword
+ 		Values []Expr;  // nil means default case
+ 		Body *Block;
+ 	};
+ 
++	// A SwitchStat node represents an expression switch statement.
+ 	SwitchStat struct {
+-		Loc scanner.Location;  // location of "switch"
++		Switch Position;  // position of "switch" keyword
+ 		Init Stat;
+ 		Tag Expr;
++		Body *Block;  // CaseClauses only
++	};
++
++	// A TypeCaseClause represents a case of a type switch statement.
++	TypeCaseClause struct {
++		Case Position;  // position of "case" or "default" keyword
++		Typ Expr;  // nil means default case
+ 		Body *Block;
+ 	};
+ 
++	// An TypeSwitchStat node represents a type switch statement.
++	TypeSwitchStat struct {
++		Switch Position;  // position of "switch" keyword
++		Init Stat;
++		Assign Stat;  // x := y.(type)
++		Body *Block;  // TypeCaseClauses only
++	};
++
++	// A CommClause node represents a case of a select statement.
+ 	CommClause struct {
+-		Loc scanner.Location;  // location of "case" or "default"
+-		Tok int;  // token.ASSIGN, token.DEFINE (valid only if Lhs != nil)
++		Case Position;  // position of "case" or "default" keyword
++		Tok int;  // ASSIGN, DEFINE (valid only if Lhs != nil)
+ 		Lhs, Rhs Expr;  // Rhs == nil means default case
+ 		Body *Block;
+ 	};
+ 
++	// An SelectStat node represents a select statement.
+ 	SelectStat struct {
+-		Loc scanner.Location;  // location of "select"
+-		Body *Block;
++		Select Position;  // position of "select" keyword
++		Body *Block;  // CommClauses only
+ 	};
+-	
+-	ControlFlowStat struct {
+-		Loc scanner.Location;  // location of Tok
+-		Tok int;  // BREAK, CONTINUE, GOTO, FALLTHROUGH
+-		Label *Ident;  // if any, or nil
+-	};
+-	
+-	ReturnStat struct {
+-		Loc scanner.Location;  // location of "return"
+-		Results []Expr;
++
++	// A ForStat represents a for statement.
++	ForStat struct {
++		For Position;  // position of "for" keyword
++		Init Stat;
++		Cond Expr;
++		Post Stat;
++		Body *Block;
+ 	};
+-	
+-	EmptyStat struct {
+-		Loc scanner.Location;  // location of ";"
++
++	// A RangeStat represents a for statement with a range clause.
++	RangeStat struct {
++		For Position;  // position of "for" keyword
++		Range Stat;
++		Body *Block;
+ 	};
+ )
+ 
+ 
++// Pos() implementations for all statement nodes.
++//
++func (s *BadStat) Pos() Position { return s.Pos_; }
++func (s *DeclStat) Pos() Position { return s.Decl.Pos(); }
++func (s *EmptyStat) Pos() Position { return s.Semicolon; }
++func (s *LabeledStat) Pos() Position { return s.Label.Pos(); }
++func (s *ExprStat) Pos() Position { return s.X.Pos(); }
++func (s *IncDecStat) Pos() Position { return s.X.Pos(); }
++func (s *AssignmentStat) Pos() Position { return s.Lhs[0].Pos(); }
++func (s *GoStat) Pos() Position { return s.Go; }
++func (s *DeferStat) Pos() Position { return s.Defer; }
++func (s *ReturnStat) Pos() Position { return s.Return; }
++func (s *ControlFlowStat) Pos() Position { return s.Pos_; }
++func (s *CompositeStat) Pos() Position { return s.Body.Pos_; }
++func (s *IfStat) Pos() Position { return s.If; }
++func (s *CaseClause) Pos() Position { return s.Case; }
++func (s *SwitchStat) Pos() Position { return s.Switch; }
++func (s *TypeCaseClause) Pos() Position { return s.Case; }
++func (s *TypeSwitchStat) Pos() Position { return s.Switch; }
++func (s *CommClause) Pos() Position { return s.Case; }
++func (s *SelectStat) Pos() Position { return s.Select; }
++func (s *ForStat) Pos() Position { return s.For; }
++func (s *RangeStat) Pos() Position { return s.For; }
++
++
++// All statement nodes implement a Visit method which takes
++// a StatVisitor as argument. For a given node x of type X, and
++// an implementation v of a StatVisitor, calling x.Visit(v) will
++// result in a call of v.DoX(x) (through a double-dispatch).
++//
+ type StatVisitor interface {
+ 	DoBadStat(s *BadStat);
++	DoDeclStat(s *DeclStat);
++	DoEmptyStat(s *EmptyStat);
+ 	DoLabeledStat(s *LabeledStat);
+-	DoDeclarationStat(s *DeclarationStat);
+-	DoExpressionStat(s *ExpressionStat);
+-	DoAssignmentStat(s *AssignmentStat);
+-	DoTupleAssignStat(s *TupleAssignStat);
++	DoExprStat(s *ExprStat);
+ 	DoIncDecStat(s *IncDecStat);
++	DoAssignmentStat(s *AssignmentStat);
++	DoGoStat(s *GoStat);
++	DoDeferStat(s *DeferStat);
++	DoReturnStat(s *ReturnStat);
++	DoControlFlowStat(s *ControlFlowStat);
+ 	DoCompositeStat(s *CompositeStat);
+ 	DoIfStat(s *IfStat);
+-	DoRangeClause(s *RangeClause);
+-	DoForStat(s *ForStat);
+-	DoTypeSwitchClause(s *TypeSwitchClause);
+ 	DoCaseClause(s *CaseClause);
+ 	DoSwitchStat(s *SwitchStat);
++	DoTypeCaseClause(s *TypeCaseClause);
++	DoTypeSwitchStat(s *TypeSwitchStat);
+ 	DoCommClause(s *CommClause);
+ 	DoSelectStat(s *SelectStat);
+-	DoControlFlowStat(s *ControlFlowStat);
+-	DoReturnStat(s *ReturnStat);
+-	DoEmptyStat(s *EmptyStat);
++	DoForStat(s *ForStat);
++	DoRangeStat(s *RangeStat);
+ }
+ 
+ 
++// Visit() implementations for all statement nodes.
++//
+ func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
++func (s *DeclStat) Visit(v StatVisitor) { v.DoDeclStat(s); }
++func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
+ func (s *LabeledStat) Visit(v StatVisitor) { v.DoLabeledStat(s); }
+-func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
+-func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
+-func (s *AssignmentStat) Visit(v StatVisitor) { v.DoAssignmentStat(s); }
+-func (s *TupleAssignStat) Visit(v StatVisitor) { v.DoTupleAssignStat(s); }
++func (s *ExprStat) Visit(v StatVisitor) { v.DoExprStat(s); }
+ func (s *IncDecStat) Visit(v StatVisitor) { v.DoIncDecStat(s); }
++func (s *AssignmentStat) Visit(v StatVisitor) { v.DoAssignmentStat(s); }
++func (s *GoStat) Visit(v StatVisitor) { v.DoGoStat(s); }
++func (s *DeferStat) Visit(v StatVisitor) { v.DoDeferStat(s); }
++func (s *ReturnStat) Visit(v StatVisitor) { v.DoReturnStat(s); }
++func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
+ func (s *CompositeStat) Visit(v StatVisitor) { v.DoCompositeStat(s); }
+ func (s *IfStat) Visit(v StatVisitor) { v.DoIfStat(s); }
+-func (s *RangeClause) Visit(v StatVisitor) { v.DoRangeClause(s); }
+-func (s *ForStat) Visit(v StatVisitor) { v.DoForStat(s); }
+-func (s *TypeSwitchClause) Visit(v StatVisitor) { v.DoTypeSwitchClause(s); }
+ func (s *CaseClause) Visit(v StatVisitor) { v.DoCaseClause(s); }
+ func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
++func (s *TypeCaseClause) Visit(v StatVisitor) { v.DoTypeCaseClause(s); }
++func (s *TypeSwitchStat) Visit(v StatVisitor) { v.DoTypeSwitchStat(s); }
+ func (s *CommClause) Visit(v StatVisitor) { v.DoCommClause(s); }
+ func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
+-func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
+-func (s *ReturnStat) Visit(v StatVisitor) { v.DoReturnStat(s); }
+-func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
++func (s *ForStat) Visit(v StatVisitor) { v.DoForStat(s); }
++func (s *RangeStat) Visit(v StatVisitor) { v.DoRangeStat(s); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-type (
+-	DeclVisitor interface;
+-
+-	Decl interface {
+-		Visit(v DeclVisitor);
+-	};
+-	
++// A declaration is represented by one of the following declaration nodes.
++//
++type (	
++	// A BadDecl node is a placeholder for declarations containing
++	// syntax errors for which no correct declaration nodes can be
++	// created.
++	//
+ 	BadDecl struct {
+-		Loc scanner.Location;
++		Pos_ Position;  // beginning position of bad declaration
+ 	};
+ 
+ 	ImportDecl struct {
+-		Loc scanner.Location;  // if > 0: position of "import"
+-		Name *Ident;
+-		Path Expr;
++		Doc Comments;  // associated documentation
++		Import Position;  // position of "import" keyword
++		Name *Ident;  // local package name or nil
++		Path *StringLit;  // package path
+ 	};
+-	
++
+ 	ConstDecl struct {
+-		Loc scanner.Location;  // if > 0: position of "const"
++		Doc Comments;  // associated documentation
++		Const Position;  // position of "const" keyword
+ 		Names []*Ident;
+-		Typ Expr;
++		Typ Expr;  // constant type or nil
+ 		Values []Expr;
+-		Comment CommentGroup;
+ 	};
+-	
++
+ 	TypeDecl struct {
+-		Loc scanner.Location;  // if > 0: position of "type"
++		Doc Comments;  // associated documentation
++		Type Position;  // position of "type" keyword
+ 		Name *Ident;
+ 		Typ Expr;
+-		Comment CommentGroup;
+ 	};
+-	
++
+ 	VarDecl struct {
+-		Loc scanner.Location;  // if > 0: position of "var"
++		Doc Comments;  // associated documentation
++		Var Position;  // position of "var" keyword
+ 		Names []*Ident;
+-		Typ Expr;
++		Typ Expr;  // variable type or nil
+ 		Values []Expr;
+-		Comment CommentGroup;
+ 	};
+ 
+ 	FuncDecl struct {
+-		Loc scanner.Location;  // location of "func"
+-		Recv *Field;
+-		Name *Ident;
+-		Sig *Signature;
+-		Body *Block;
+-		Comment CommentGroup;
++		Doc Comments;  // associated documentation
++		Func Position;  // position of "func" keyword
++		Recv *Field;  // receiver (methods) or nil (functions)
++		Name *Ident;  // function/method name
++		Sig *Signature;  // parameters and results
++		Body *Block;  // function body or nil (forward declaration)
+ 	};
+-	
++
+ 	DeclList struct {
+-		Loc scanner.Location;  // location of Tok
+-		Tok int;
+-		List []Decl;
+-		End scanner.Location;
++		Doc Comments;  // associated documentation
++		Pos_ Position;  // position of token
++		Tok int;  // IMPORT, CONST, VAR, TYPE
++		Lparen Position;  // position of '('
++		List []Decl;  // the list of parenthesized declarations
++		Rparen Position;  // position of ')'
+ 	};
+ )
+ 
+ 
++// Pos() implementations for all declaration nodes.
++//
++func (d *BadDecl) Pos() Position { return d.Pos_; }
++func (d *ImportDecl) Pos() Position { return d.Import; }
++func (d *ConstDecl) Pos() Position { return d.Const; }
++func (d *TypeDecl) Pos() Position { return d.Type; }
++func (d *VarDecl) Pos() Position { return d.Var; }
++func (d *FuncDecl) Pos() Position { return d.Func; }
++func (d *DeclList) Pos() Position { return d.Lparen; }
++
++
++// All declaration nodes implement a Visit method which takes
++// a DeclVisitor as argument. For a given node x of type X, and
++// an implementation v of a DeclVisitor, calling x.Visit(v) will
++// result in a call of v.DoX(x) (through a double-dispatch).
++//
+ type DeclVisitor interface {
+ 	DoBadDecl(d *BadDecl);
+ 	DoImportDecl(d *ImportDecl);
+@@ -607,6 +749,8 @@ type DeclVisitor interface {
+ }
+ 
+ 
++// Visit() implementations for all declaration nodes.
++//
+ func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
+ func (d *ImportDecl) Visit(v DeclVisitor) { v.DoImportDecl(d); }
+ func (d *ConstDecl) Visit(v DeclVisitor) { v.DoConstDecl(d); }
+@@ -617,20 +761,13 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Program
+-
+-// TODO rename to Package
+-type Program struct {
+-	Loc scanner.Location;  // tok is token.PACKAGE
+-	Name *Ident;
+-	Decls []Decl;
+-	Comment CommentGroup;
+-	Comments []CommentGroup;
+-}
+-
+-
+-func NewProgram(loc scanner.Location) *Program {
+-	p := new(Program);
+-	p.Loc = loc;
+-	return p;
++// Packages
++
++// A Package node represents the root node of an AST.
++type Package struct {
++	Doc Comments;  // associated documentation
++	Package Position;  // position of "package" keyword
++	Name *Ident;  // package name
++	Decls []Decl;  // top-level declarations
++	Comments []*Comment;  // list of unassociated comments
+ }
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 5803f701b8..8a9065ac97 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -83,7 +83,7 @@ func (h *errorHandler) Error(loc scanner.Location, msg string) {
+ }
+ 
+ 
+-func Compile(src_file string, flags *Flags) (*ast.Program, ErrorList) {
++func Compile(src_file string, flags *Flags) (*ast.Package, ErrorList) {
+ 	src, ok := Platform.ReadSourceFile(src_file);
+ 	if !ok {
+ 		print("cannot open ", src_file, "\n");
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index ffe9615c9d..5c13e59987 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -25,6 +25,11 @@ import (
+ type Position scanner.Location
+ 
+ 
++type interval struct {
++	beg, end int;
++}
++
++
+ // A Parser holds the parser's internal state while processing
+ // a given text. It can be allocated as part of another data
+ // structure but must be initialized via Init before use.
+@@ -37,11 +42,11 @@ type Parser struct {
+ 	trace bool;
+ 	indent uint;
+ 
+-	comments vector.Vector;
+-	last_comment ast.CommentGroup;
++	comments vector.Vector;  // list of collected, unassociated comments
++	last_doc interval;  // last comments interval of consecutive comments
+ 
+ 	// The next token
+-	loc Position;  // token location
++	pos Position;  // token location
+ 	tok int;  // one token look-ahead
+ 	val []byte;  // token value
+ 
+@@ -51,9 +56,9 @@ type Parser struct {
+ };
+ 
+ 
+-// When we don't have a location use noloc.
++// When we don't have a location use nopos.
+ // TODO make sure we always have a location.
+-var noloc Position;
++var nopos Position;
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -95,32 +100,35 @@ func un/*trace*/(P *Parser) {
+ 
+ 
+ func (P *Parser) next0() {
+-	P.loc, P.tok, P.val = P.scanner.Scan();
++	P.pos, P.tok, P.val = P.scanner.Scan();
+ 	P.opt_semi = false;
+ 
+ 	if P.trace {
+ 		P.printIndent();
+ 		switch P.tok {
+ 		case token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING:
+-			fmt.Printf("%d:%d: %s = %s\n", P.loc.Line, P.loc.Col, token.TokenString(P.tok), P.val);
++			fmt.Printf("%d:%d: %s = %s\n", P.pos.Line, P.pos.Col, token.TokenString(P.tok), P.val);
+ 		case token.LPAREN:
+ 			// don't print '(' - screws up selection in terminal window
+-			fmt.Printf("%d:%d: LPAREN\n", P.loc.Line, P.loc.Col);
++			fmt.Printf("%d:%d: LPAREN\n", P.pos.Line, P.pos.Col);
+ 		case token.RPAREN:
+ 			// don't print ')' - screws up selection in terminal window
+-			fmt.Printf("%d:%d: RPAREN\n", P.loc.Line, P.loc.Col);
++			fmt.Printf("%d:%d: RPAREN\n", P.pos.Line, P.pos.Col);
+ 		default:
+-			fmt.Printf("%d:%d: %s\n", P.loc.Line, P.loc.Col, token.TokenString(P.tok));
++			fmt.Printf("%d:%d: %s\n", P.pos.Line, P.pos.Col, token.TokenString(P.tok));
+ 		}
+ 	}
+ }
+ 
+ 
+-func (P *Parser) getComment() *ast.Comment {
+-	defer P.next0();
+-
+-	// for /*-style comments, the comment may end on a different line
+-	endline := P.loc.Line;
++// Collect a comment in the parser's comment list and return the line
++// on which the comment ends.
++func (P *Parser) collectComment() int {
++	// For /*-style comments, the comment may end on a different line.
++	// Scan the comment for '\n' chars and adjust the end line accordingly.
++	// (Note that the position of the next token may be even further down
++	// as there may be more whitespace lines after the comment.)
++	endline := P.pos.Line;
+ 	if P.val[1] == '*' {
+ 		for i, b := range P.val {
+ 			if b == '\n' {
+@@ -128,51 +136,30 @@ func (P *Parser) getComment() *ast.Comment {
+ 			}
+ 		}
+ 	}
++	P.comments.Push(&ast.Comment{P.pos, P.val, endline});
++	P.next0();
+ 	
+-	return &ast.Comment{P.loc, endline, P.val};
+-}
+-
+-
+-func (P *Parser) getCommentGroup() ast.CommentGroup {
+-	list := vector.New(0);
+-	
+-	// group adjacent comments
+-	// (an empty line terminates a group)
+-	endline := P.loc.Line;
+-	for P.tok == token.COMMENT && endline+1 >= P.loc.Line {
+-		c := P.getComment();
+-		list.Push(c);
+-		endline = c.EndLine;
+-	}
+-
+-	// convert list
+-	group := make(ast.CommentGroup, list.Len());
+-	for i := 0; i < list.Len(); i++ {
+-		group[i] = list.At(i).(*ast.Comment);
+-	}
+-	
+-	return group;
++	return endline;
+ }
+ 
+ 
+-func (P *Parser) getLastComment() ast.CommentGroup {
+-	c := P.last_comment;
+-	if c != nil && c[len(c) - 1].EndLine + 1 < P.loc.Line {
+-		// empty line between last comment and current token,
+-		// at least one line of space between last comment
+-		// and current token; ignore this comment
+-		return nil;
++func (P *Parser) getComments() interval {
++	// group adjacent comments, an empty line terminates a group
++	beg := P.comments.Len();
++	endline := P.pos.Line;
++	for P.tok == token.COMMENT && endline+1 >= P.pos.Line {
++		endline = P.collectComment();
+ 	}
+-	return c;
++	end := P.comments.Len();
++	return interval {beg, end};
+ }
+ 
+ 
+ func (P *Parser) next() {
+ 	P.next0();
+-	P.last_comment = nil;
++	P.last_doc = interval{0, 0};
+ 	for P.tok == token.COMMENT {
+-		P.last_comment = P.getCommentGroup();
+-		P.comments.Push(P.last_comment);
++		P.last_doc = P.getComments();
+ 	}
+ }
+ 
+@@ -186,8 +173,8 @@ func (P *Parser) Init(scanner *scanner.Scanner, err scanner.ErrorHandler, trace
+ }
+ 
+ 
+-func (P *Parser) error(loc Position, msg string) {
+-	P.err.Error(loc, msg);
++func (P *Parser) error(pos Position, msg string) {
++	P.err.Error(pos, msg);
+ }
+ 
+ 
+@@ -197,14 +184,36 @@ func (P *Parser) expect(tok int) Position {
+ 		if token.IsLiteral(P.tok) {
+ 			msg += " " + string(P.val);
+ 		}
+-		P.error(P.loc, msg);
++		P.error(P.pos, msg);
+ 	}
+-	loc := P.loc;
++	loc := P.pos;
+ 	P.next();  // make progress in any case
+ 	return loc;
+ }
+ 
+ 
++func (P *Parser) getDoc() ast.Comments {
++	doc := P.last_doc;
++	n := doc.end - doc.beg;
++	
++	if n <= 0 || P.comments.At(doc.end - 1).(*ast.Comment).EndLine + 1 < P.pos.Line {
++		// no comments or empty line between last comment and current token;
++		// do not use as documentation
++		return nil;
++	}
++
++	// found immediately adjacent comment interval;
++	// use as documentation
++	c := make(ast.Comments, n);
++	for i := 0; i < n; i++ {
++		c[i] = P.comments.At(doc.beg + i).(*ast.Comment);
++		// TODO find a better way to do this
++		P.comments.Set(doc.beg + i, nil);  // remove the comment from the general list
++	}
++	return c;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+@@ -220,13 +229,13 @@ func (P *Parser) parseIdent() *ast.Ident {
+ 	}
+ 
+ 	if P.tok == token.IDENT {
+-		x := &ast.Ident{string(P.val), P.loc};
++		x := &ast.Ident{P.pos, P.val};
+ 		P.next();
+ 		return x;
+ 	}
+-
+ 	P.expect(token.IDENT);  // use expect() error handling
+-	return &ast.Ident{"", P.loc};
++
++	return &ast.Ident{P.pos, [0]byte{}};
+ }
+ 
+ 
+@@ -250,6 +259,7 @@ func (P *Parser) parseIdentList(x ast.Expr) []*ast.Ident {
+ 	for i := 0; i < list.Len(); i++ {
+ 		idents[i] = list.At(i).(*ast.Ident);
+ 	}
++
+ 	return idents;
+ }
+ 
+@@ -271,6 +281,7 @@ func (P *Parser) parseExpressionList() []ast.Expr {
+ 	for i := 0; i < list.Len(); i++ {
+ 		exprs[i] = list.At(i).(ast.Expr);
+ 	}
++
+ 	return exprs;
+ }
+ 
+@@ -283,13 +294,13 @@ func (P *Parser) parseType() ast.Expr {
+ 		defer un(trace(P, "Type"));
+ 	}
+ 
+-	t := P.tryType();
+-	if t == nil {
+-		P.error(P.loc, "type expected");
+-		t = &ast.BadExpr{P.loc};
++	typ := P.tryType();
++	if typ == nil {
++		P.error(P.pos, "type expected");
++		typ = &ast.BadExpr{P.pos};
+ 	}
+ 
+-	return t;
++	return typ;
+ }
+ 
+ 
+@@ -309,12 +320,10 @@ func (P *Parser) parseQualifiedIdent() ast.Expr {
+ 
+ 	var x ast.Expr = P.parseIdent();
+ 	for P.tok == token.PERIOD {
+-		pos := P.loc;
+ 		P.next();
+ 		sel := P.parseIdent();
+-		x = &ast.Selector{x, sel, pos};
++		x = &ast.SelectorExpr{x, sel};
+ 	}
+-
+ 	return x;
+ }
+ 
+@@ -333,11 +342,10 @@ func (P *Parser) parseArrayType() *ast.ArrayType {
+ 		defer un(trace(P, "ArrayType"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.LBRACK);
++	lbrack := P.expect(token.LBRACK);
+ 	var len ast.Expr;
+ 	if P.tok == token.ELLIPSIS {
+-		len = &ast.Ellipsis{P.loc};
++		len = &ast.Ellipsis{P.pos};
+ 		P.next();
+ 	} else if P.tok != token.RBRACK {
+ 		len = P.parseExpression(1);
+@@ -345,7 +353,7 @@ func (P *Parser) parseArrayType() *ast.ArrayType {
+ 	P.expect(token.RBRACK);
+ 	elt := P.parseType();
+ 
+-	return &ast.ArrayType{loc, len, elt};
++	return &ast.ArrayType{lbrack, len, elt};
+ }
+ 
+ 
+@@ -354,28 +362,28 @@ func (P *Parser) parseChannelType() *ast.ChannelType {
+ 		defer un(trace(P, "ChannelType"));
+ 	}
+ 
+-	loc := P.loc;
+-	mode := ast.FULL;
++	pos := P.pos;
++	dir := ast.SEND | ast.RECV;
+ 	if P.tok == token.CHAN {
+ 		P.next();
+ 		if P.tok == token.ARROW {
+ 			P.next();
+-			mode = ast.SEND;
++			dir = ast.SEND;
+ 		}
+ 	} else {
+ 		P.expect(token.ARROW);
+ 		P.expect(token.CHAN);
+-		mode = ast.RECV;
++		dir = ast.RECV;
+ 	}
+-	val := P.parseVarType();
++	value := P.parseVarType();
+ 
+-	return &ast.ChannelType{loc, mode, val};
++	return &ast.ChannelType{pos, dir, value};
+ }
+ 
+ 
+ func (P *Parser) tryParameterType() ast.Expr {
+ 	if P.tok == token.ELLIPSIS {
+-		loc  := P.loc;
++		loc  := P.pos;
+ 		P.next();
+ 		return &ast.Ellipsis{loc};
+ 	}
+@@ -386,9 +394,10 @@ func (P *Parser) tryParameterType() ast.Expr {
+ func (P *Parser) parseParameterType() ast.Expr {
+ 	typ := P.tryParameterType();
+ 	if typ == nil {
+-		P.error(P.loc, "type expected");
+-		typ = &ast.BadExpr{P.loc};
++		P.error(P.pos, "type expected");
++		typ = &ast.BadExpr{P.pos};
+ 	}
++
+ 	return typ;
+ }
+ 
+@@ -431,20 +440,20 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
+ 			idents[i] = list.At(i).(*ast.Ident);
+ 		}
+ 		list.Init(0);
+-		list.Push(&ast.Field{idents, typ, nil, nil});
++		list.Push(&ast.Field{nil, idents, typ, nil});
+ 
+ 		for P.tok == token.COMMA {
+ 			P.next();
+ 			idents := P.parseIdentList(nil);
+ 			typ := P.parseParameterType();
+-			list.Push(&ast.Field{idents, typ, nil, nil});
++			list.Push(&ast.Field{nil, idents, typ, nil});
+ 		}
+ 
+ 	} else {
+ 		// Type { "," Type }
+ 		// convert list of types into list of *Param
+ 		for i := 0; i < list.Len(); i++ {
+-			list.Set(i, &ast.Field{nil, list.At(i).(ast.Expr), nil, nil});
++			list.Set(i, &ast.Field{nil, nil, list.At(i).(ast.Expr), nil});
+ 		}
+ 	}
+ 
+@@ -487,7 +496,7 @@ func (P *Parser) parseResult() []*ast.Field {
+ 		typ := P.tryType();
+ 		if typ != nil {
+ 			result = make([]*ast.Field, 1);
+-			result[0] = &ast.Field{nil, typ, nil, nil};
++			result[0] = &ast.Field{nil, nil, typ, nil};
+ 		}
+ 	}
+ 
+@@ -507,7 +516,7 @@ func (P *Parser) parseSignature() *ast.Signature {
+ 	}
+ 
+ 	params := P.parseParameters(true);  // TODO find better solution
+-	//t.End = P.loc;
++	//t.End = P.pos;
+ 	result := P.parseResult();
+ 
+ 	return &ast.Signature{params, result};
+@@ -519,11 +528,10 @@ func (P *Parser) parseFunctionType() *ast.FunctionType {
+ 		defer un(trace(P, "FunctionType"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.FUNC);
++	pos := P.expect(token.FUNC);
+ 	sig := P.parseSignature();
+ 
+-	return &ast.FunctionType{loc, sig};
++	return &ast.FunctionType{pos, sig};
+ }
+ 
+ 
+@@ -532,19 +540,20 @@ func (P *Parser) parseMethodSpec() *ast.Field {
+ 		defer un(trace(P, "MethodSpec"));
+ 	}
+ 
++	doc := P.getDoc();
+ 	var idents []*ast.Ident;
+ 	var typ ast.Expr;
+ 	x := P.parseQualifiedIdent();
+ 	if tmp, is_ident := x.(*ast.Ident); is_ident && (P.tok == token.COMMA || P.tok == token.LPAREN) {
+ 		// method(s)
+ 		idents = P.parseIdentList(x);
+-		typ = &ast.FunctionType{noloc, P.parseSignature()};
++		typ = &ast.FunctionType{nopos, P.parseSignature()};
+ 	} else {
+ 		// embedded interface
+ 		typ = x;
+ 	}
+ 
+-	return &ast.Field{idents, typ, nil, nil};
++	return &ast.Field{doc, idents, typ, nil};
+ }
+ 
+ 
+@@ -553,12 +562,11 @@ func (P *Parser) parseInterfaceType() *ast.InterfaceType {
+ 		defer un(trace(P, "InterfaceType"));
+ 	}
+ 
+-	loc := P.loc;
+-	var end Position;
++	pos := P.expect(token.INTERFACE);
++	var lbrace, rbrace Position;
+ 	var methods []*ast.Field;
+-
+-	P.expect(token.INTERFACE);
+ 	if P.tok == token.LBRACE {
++		lbrace = P.pos;
+ 		P.next();
+ 
+ 		list := vector.New(0);
+@@ -569,8 +577,7 @@ func (P *Parser) parseInterfaceType() *ast.InterfaceType {
+ 			}
+ 		}
+ 
+-		end = P.loc;
+-		P.expect(token.RBRACE);
++		rbrace = P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 
+ 		// convert vector
+@@ -580,7 +587,7 @@ func (P *Parser) parseInterfaceType() *ast.InterfaceType {
+ 		}
+ 	}
+ 
+-	return &ast.InterfaceType{loc, methods, end};
++	return &ast.InterfaceType{pos, lbrace, methods, rbrace};
+ }
+ 
+ 
+@@ -589,25 +596,24 @@ func (P *Parser) parseMapType() *ast.MapType {
+ 		defer un(trace(P, "MapType"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.MAP);
++	pos := P.expect(token.MAP);
+ 	P.expect(token.LBRACK);
+ 	key := P.parseVarType();
+ 	P.expect(token.RBRACK);
+-	val := P.parseVarType();
++	value := P.parseVarType();
+ 
+-	return &ast.MapType{loc, key, val};
++	return &ast.MapType{pos, key, value};
+ }
+ 
+ 
+-func (P *Parser) parseStringLit() ast.Expr
++func (P *Parser) parseStringLit(x *ast.BasicLit) *ast.StringLit
+ 
+ func (P *Parser) parseFieldDecl() *ast.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "FieldDecl"));
+ 	}
+ 
+-	comment := P.getLastComment();
++	doc := P.getDoc();
+ 
+ 	// a list of identifiers looks like a list of type names
+ 	list := vector.New(0);
+@@ -627,7 +633,7 @@ func (P *Parser) parseFieldDecl() *ast.Field {
+ 	// optional tag
+ 	var tag ast.Expr;
+ 	if P.tok == token.STRING {
+-		tag = P.parseStringLit();
++		tag = P.parseStringLit(nil);
+ 	}
+ 
+ 	// analyze case
+@@ -648,25 +654,24 @@ func (P *Parser) parseFieldDecl() *ast.Field {
+ 			// TODO should do more checks here
+ 			typ = list.At(0).(ast.Expr);
+ 		} else {
+-			P.error(P.loc, "anonymous field expected");
++			P.error(P.pos, "anonymous field expected");
+ 		}
+ 	}
+ 
+-	return &ast.Field{idents, typ, tag, comment};
++	return &ast.Field{doc, idents, typ, tag};
+ }
+ 
+ 
+-func (P *Parser) parseStructType() ast.Expr {
++func (P *Parser) parseStructType() *ast.StructType {
+ 	if P.trace {
+ 		defer un(trace(P, "StructType"));
+ 	}
+ 
+-	loc := P.loc;
+-	var end Position;
++	pos := P.expect(token.STRUCT);
++	var lbrace, rbrace Position;
+ 	var fields []*ast.Field;
+-
+-	P.expect(token.STRUCT);
+ 	if P.tok == token.LBRACE {
++		lbrace = P.pos;
+ 		P.next();
+ 
+ 		list := vector.New(0);
+@@ -682,8 +687,7 @@ func (P *Parser) parseStructType() ast.Expr {
+ 			P.next();
+ 		}
+ 
+-		end = P.loc;
+-		P.expect(token.RBRACE);
++		rbrace = P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 
+ 		// convert vector
+@@ -693,20 +697,19 @@ func (P *Parser) parseStructType() ast.Expr {
+ 		}
+ 	}
+ 
+-	return &ast.StructType{loc, fields, end};
++	return &ast.StructType{pos, lbrace, fields, rbrace};
+ }
+ 
+ 
+-func (P *Parser) parsePointerType() ast.Expr {
++func (P *Parser) parsePointerType() *ast.StarExpr {
+ 	if P.trace {
+ 		defer un(trace(P, "PointerType"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.MUL);
++	star := P.expect(token.MUL);
+ 	base := P.parseType();
+ 
+-	return &ast.PointerType{loc, base};
++	return &ast.StarExpr{star, base};
+ }
+ 
+ 
+@@ -725,11 +728,11 @@ func (P *Parser) tryType() ast.Expr {
+ 	case token.STRUCT: return P.parseStructType();
+ 	case token.MUL: return P.parsePointerType();
+ 	case token.LPAREN:
+-		lparen := P.loc;
++		lparen := P.pos;
+ 		P.next();
+ 		x := P.parseType();
+ 		rparen := P.expect(token.RPAREN);
+-		return &ast.Group{x, lparen, rparen};
++		return &ast.ParenExpr{lparen, x, rparen};
+ 	}
+ 
+ 	// no type found
+@@ -740,12 +743,21 @@ func (P *Parser) tryType() ast.Expr {
+ // ----------------------------------------------------------------------------
+ // Blocks
+ 
++func asStatList(list *vector.Vector) []ast.Stat {
++	stats := make([]ast.Stat, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		stats[i] = list.At(i).(ast.Stat);
++	}
++	return stats;
++}
++
+ 
+-func (P *Parser) parseStatementList(list *vector.Vector) {
++func (P *Parser) parseStatementList() []ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "StatementList"));
+ 	}
+ 
++	list := vector.New(0);
+ 	expect_semi := false;
+ 	for P.tok != token.CASE && P.tok != token.DEFAULT && P.tok != token.RBRACE && P.tok != token.EOF {
+ 		if expect_semi {
+@@ -761,6 +773,8 @@ func (P *Parser) parseStatementList(list *vector.Vector) {
+ 			expect_semi = true;
+ 		}
+ 	}
++	
++	return asStatList(list);
+ }
+ 
+ 
+@@ -769,18 +783,15 @@ func (P *Parser) parseBlock(tok int) *ast.Block {
+ 		defer un(trace(P, "Block"));
+ 	}
+ 
+-	b := ast.NewBlock(P.loc, tok);
+-	P.expect(tok);
+-
+-	P.parseStatementList(b.List);
+-
++	pos := P.expect(tok);
++	list := P.parseStatementList();
++	var end scanner.Location;
+ 	if tok == token.LBRACE {
+-		b.End = P.loc;
+-		P.expect(token.RBRACE);
++		end = P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 	}
+ 
+-	return b;
++	return &ast.Block{pos, tok, list, end};
+ }
+ 
+ 
+@@ -792,29 +803,28 @@ func (P *Parser) parseFunctionLit() ast.Expr {
+ 		defer un(trace(P, "FunctionLit"));
+ 	}
+ 
+-	pos := P.loc;
+-	P.expect(token.FUNC);
++	pos := P.expect(token.FUNC);
+ 	typ := P.parseSignature();
+ 	P.expr_lev++;
+ 	body := P.parseBlock(token.LBRACE);
+ 	P.expr_lev--;
+ 
+-	return &ast.FunctionLit{typ, body, pos};
++	return &ast.FunctionLit{pos, typ, body};
+ }
+ 
+ 
+-func (P *Parser) parseStringLit() ast.Expr {
++func (P *Parser) parseStringLit(x *ast.BasicLit) *ast.StringLit {
+ 	if P.trace {
+ 		defer un(trace(P, "StringLit"));
+ 	}
+ 
+-	if P.tok != token.STRING {
+-		panic();
+-	}
+-
+ 	list := vector.New(0);
++	if x != nil {
++		list.Push(x);
++	}
++	
+ 	for P.tok == token.STRING {
+-		list.Push(&ast.BasicLit{token.STRING, P.val, P.loc});
++		list.Push(&ast.BasicLit{P.pos, token.STRING, P.val});
+ 		P.next();
+ 	}
+ 
+@@ -838,21 +848,26 @@ func (P *Parser) parseOperand() ast.Expr {
+ 		return P.parseIdent();
+ 
+ 	case token.INT, token.FLOAT, token.CHAR:
+-		x := &ast.BasicLit{P.tok, P.val, P.loc};
++		x := &ast.BasicLit{P.pos, P.tok, P.val};
+ 		P.next();
+ 		return x;
+ 
+ 	case token.STRING:
+-		return P.parseStringLit();
++		x := &ast.BasicLit{P.pos, token.STRING, P.val};
++		P.next();
++		if P.tok == token.STRING {
++			return P.parseStringLit(x);
++		}
++		return x;
+ 
+ 	case token.LPAREN:
+-		lparen := P.loc;
++		lparen := P.pos;
+ 		P.next();
+ 		P.expr_lev++;
+ 		x := P.parseExpression(1);
+ 		P.expr_lev--;
+ 		rparen := P.expect(token.RPAREN);
+-		return &ast.Group{x, lparen, rparen};
++		return &ast.ParenExpr{lparen, x, rparen};
+ 
+ 	case token.FUNC:
+ 		return P.parseFunctionLit();
+@@ -862,12 +877,12 @@ func (P *Parser) parseOperand() ast.Expr {
+ 		if t != nil {
+ 			return t;
+ 		} else {
+-			P.error(P.loc, "operand expected");
++			P.error(P.pos, "operand expected");
+ 			P.next();  // make progress
+ 		}
+ 	}
+ 
+-	return &ast.BadExpr{P.loc};
++	return &ast.BadExpr{P.pos};
+ }
+ 
+ 
+@@ -876,25 +891,29 @@ func (P *Parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ 		defer un(trace(P, "SelectorOrTypeAssertion"));
+ 	}
+ 
+-	period := P.expect(token.PERIOD);
+-
++	P.expect(token.PERIOD);
+ 	if P.tok == token.IDENT {
+ 		// selector
+ 		sel := P.parseIdent();
+-		return &ast.Selector{x, sel, period};
+-	}
+-	
+-	// type assertion
+-	lparen := P.expect(token.LPAREN);
+-	var typ ast.Expr;
+-	if P.tok == token.TYPE {
+-		typ = &ast.TypeType{P.loc};
+-		P.next();
++		return &ast.SelectorExpr{x, sel};
++		
+ 	} else {
+-		typ = P.parseType();
++		// type assertion
++		P.expect(token.LPAREN);
++		var typ ast.Expr;
++		if P.tok == token.TYPE {
++			// special case for type switch syntax
++			typ = &ast.Ident{P.pos, P.val};
++			P.next();
++		} else {
++			typ = P.parseType();
++		}
++		P.expect(token.RPAREN);
++		return &ast.TypeAssertExpr{x, typ};
+ 	}
+-	rparen := P.expect(token.RPAREN);
+-	return &ast.TypeAssertion{x, typ, period, lparen, rparen};
++
++	unreachable();
++	return nil;
+ }
+ 
+ 
+@@ -903,29 +922,28 @@ func (P *Parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 		defer un(trace(P, "IndexOrSlice"));
+ 	}
+ 
+-	lbrack := P.expect(token.LBRACK);
++	P.expect(token.LBRACK);
+ 	P.expr_lev++;
+ 	index := P.parseExpression(1);
+ 	P.expr_lev--;
+ 
+ 	if P.tok == token.RBRACK {
+ 		// index
+-		rbrack := P.loc;
+ 		P.next();
+-		return &ast.Index{x, index, lbrack, rbrack};
++		return &ast.IndexExpr{x, index};
+ 	}
+ 	
+ 	// slice
+-	colon := P.expect(token.COLON);
++	P.expect(token.COLON);
+ 	P.expr_lev++;
+ 	end := P.parseExpression(1);
+ 	P.expr_lev--;
+-	rbrack := P.expect(token.RBRACK);
+-	return &ast.Slice{x, index, end, lbrack, colon, rbrack};
++	P.expect(token.RBRACK);
++	return &ast.SliceExpr{x, index, end};
+ }
+ 
+ 
+-func (P *Parser) parseCall(fun ast.Expr) *ast.Call {
++func (P *Parser) parseCall(fun ast.Expr) *ast.CallExpr {
+ 	if P.trace {
+ 		defer un(trace(P, "Call"));
+ 	}
+@@ -936,54 +954,7 @@ func (P *Parser) parseCall(fun ast.Expr) *ast.Call {
+ 		args = P.parseExpressionList();
+ 	}
+ 	rparen := P.expect(token.RPAREN);
+-	return &ast.Call{fun, args, lparen, rparen};
+-}
+-
+-
+-func (P *Parser) parseCompositeElements(close int) ast.Expr {
+-	x := P.parseExpression(0);
+-	if P.tok == token.COMMA {
+-		loc := P.loc;
+-		P.next();
+-
+-		// first element determines mode
+-		singles := true;
+-		if t, is_binary := x.(*ast.BinaryExpr); is_binary && t.Op == token.COLON {
+-			singles = false;
+-		}
+-
+-		var last *ast.BinaryExpr;
+-		for P.tok != close && P.tok != token.EOF {
+-			y := P.parseExpression(0);
+-
+-			if singles {
+-				if t, is_binary := y.(*ast.BinaryExpr); is_binary && t.Op == token.COLON {
+-					P.error(t.X.Pos(), "single value expected; found pair");
+-				}
+-			} else {
+-				if t, is_binary := y.(*ast.BinaryExpr); !is_binary || t.Op != token.COLON {
+-					P.error(y.Pos(), "key:value pair expected; found single value");
+-				}
+-			}
+-
+-			if last == nil {
+-				last = &ast.BinaryExpr{token.COMMA, x, y, loc};
+-				x = last;
+-			} else {
+-				last.Y = &ast.BinaryExpr{token.COMMA, last.Y, y, loc};
+-				last = last.Y.(*ast.BinaryExpr);
+-			}
+-
+-			if P.tok == token.COMMA {
+-				loc = P.loc;
+-				P.next();
+-			} else {
+-				break;
+-			}
+-
+-		}
+-	}
+-	return x;
++	return &ast.CallExpr{fun, lparen, args, rparen};
+ }
+ 
+ 
+@@ -998,17 +969,17 @@ func (P *Parser) parseElementList() []ast.Expr {
+ 		x := P.parseExpression(0);
+ 		if list.Len() == 0 {
+ 			// first element determines syntax for remaining elements
+-			if t, is_binary := x.(*ast.BinaryExpr); is_binary && t.Op == token.COLON {
++			if t, is_binary := x.(*ast.BinaryExpr); is_binary && t.Tok == token.COLON {
+ 				singles = false;
+ 			}
+ 		} else {
+ 			// not the first element - check syntax
+ 			if singles {
+-				if t, is_binary := x.(*ast.BinaryExpr); is_binary && t.Op == token.COLON {
++				if t, is_binary := x.(*ast.BinaryExpr); is_binary && t.Tok == token.COLON {
+ 					P.error(t.X.Pos(), "single value expected; found pair");
+ 				}
+ 			} else {
+-				if t, is_binary := x.(*ast.BinaryExpr); !is_binary || t.Op != token.COLON {
++				if t, is_binary := x.(*ast.BinaryExpr); !is_binary || t.Tok != token.COLON {
+ 					P.error(x.Pos(), "key:value pair expected; found single value");
+ 				}
+ 			}
+@@ -1044,7 +1015,7 @@ func (P *Parser) parseCompositeLit(typ ast.Expr) ast.Expr {
+ 		elts = P.parseElementList();
+ 	}
+ 	rbrace := P.expect(token.RBRACE);
+-	return &ast.CompositeLit{typ, elts, lbrace, rbrace};
++	return &ast.CompositeLit{typ, lbrace, elts, rbrace};
+ }
+ 
+ 
+@@ -1081,11 +1052,18 @@ func (P *Parser) parseUnaryExpr() ast.Expr {
+ 	}
+ 
+ 	switch P.tok {
+-	case token.ADD, token.SUB, token.MUL, token.NOT, token.XOR, token.ARROW, token.AND:
+-		loc, tok := P.loc, P.tok;
++	case token.ADD, token.SUB, token.NOT, token.XOR, token.ARROW, token.AND, token.RANGE:
++		pos, tok := P.pos, P.tok;
+ 		P.next();
+-		y := P.parseUnaryExpr();
+-		return &ast.UnaryExpr{tok, y, loc};
++		x := P.parseUnaryExpr();
++		return &ast.UnaryExpr{pos, tok, x};
++
++	case token.MUL:
++		// unary "*" expression or pointer type
++		pos := P.pos;
++		P.next();
++		x := P.parseUnaryExpr();
++		return &ast.StarExpr{pos, x};
+ 	}
+ 
+ 	return P.parsePrimaryExpr();
+@@ -1100,10 +1078,10 @@ func (P *Parser) parseBinaryExpr(prec1 int) ast.Expr {
+ 	x := P.parseUnaryExpr();
+ 	for prec := token.Precedence(P.tok); prec >= prec1; prec-- {
+ 		for token.Precedence(P.tok) == prec {
+-			loc, tok := P.loc, P.tok;
++			pos, tok := P.pos, P.tok;
+ 			P.next();
+ 			y := P.parseBinaryExpr(prec + 1);
+-			x = &ast.BinaryExpr{tok, x, y, loc};
++			x = &ast.BinaryExpr{x, pos, tok, y};
+ 		}
+ 	}
+ 
+@@ -1128,13 +1106,7 @@ func (P *Parser) parseExpression(prec int) ast.Expr {
+ // Statements
+ 
+ 
+-const /* mode */ (
+-	label_ok = 1 << iota;
+-	range_ok;
+-)
+-
+-
+-func (P *Parser) parseSimpleStat(mode int) ast.Stat {
++func (P *Parser) parseSimpleStat() ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "SimpleStat"));
+ 	}
+@@ -1144,15 +1116,13 @@ func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ 	switch P.tok {
+ 	case token.COLON:
+ 		// labeled statement
+-		loc := P.loc;
+ 		P.expect(token.COLON);
+-		P.opt_semi = true;
+-		if mode & label_ok != 0 && len(x) == 1 {
++		if len(x) == 1 {
+ 			if label, is_ident := x[0].(*ast.Ident); is_ident {
+-				return &ast.LabeledStat{loc, label, P.parseStatement()};
++				return &ast.LabeledStat{label, P.parseStatement()};
+ 			}
+ 		}
+-		P.error(loc, "illegal label declaration");
++		P.error(x[0].Pos(), "illegal label declaration");
+ 		return nil;
+ 
+ 	case
+@@ -1161,34 +1131,29 @@ func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ 		token.REM_ASSIGN, token.AND_ASSIGN, token.OR_ASSIGN,
+ 		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
+ 		// assignment statement or range clause
+-		loc, tok := P.loc, P.tok;
++		pos, tok := P.pos, P.tok;
+ 		P.next();
++		/*
+ 		if mode & range_ok != 0 && P.tok == token.RANGE {
+ 			// range clause
+ 			P.next();
+ 			if len(x) != 1 && len(x) != 2 {
+-				P.error(loc, "expected 1 or 2 expressions on lhs of range clause");
++				P.error(x[0].Pos(), "expected 1 or 2 expressions on lhs of range clause");
+ 			}
+ 			if tok != token.DEFINE && tok != token.ASSIGN {
+-				P.error(loc, "expected '=' or ':=', found '" + token.TokenString(tok) + "'");
++				P.error(pos, "expected '=' or ':=', found '" + token.TokenString(tok) + "'");
+ 			}
+ 			y := P.parseExpression(1);
+-			return &ast.RangeClause{loc, tok, x, y};
++			return &ast.RangeClause{x, pos, tok, y};
+ 		} else {
+-			// assignment statement
+-			y := P.parseExpressionList();
+-			xl, yl := len(x), len(y);
+-			if xl > 1 && yl > 1 && xl != yl {
+-				P.error(loc, "arity of lhs doesn't match rhs");  // TODO use better loc for error
+-			}
+-			if xl == 1 && yl == 1 {
+-				// common case - use smaller node
+-				return &ast.AssignmentStat{loc, tok, x[0], y[0]};
+-			} else {
+-				// general case
+-				return &ast.TupleAssignStat{loc, tok, x, y};
+-			}
++		*/
++		// assignment statement
++		y := P.parseExpressionList();
++		xl, yl := len(x), len(y);
++		if xl > 1 && yl > 1 && xl != yl {
++			P.error(x[0].Pos(), "arity of lhs doesn't match rhs");  // TODO use better loc for error
+ 		}
++		return &ast.AssignmentStat{x, pos, tok, y};
+ 
+ 	default:
+ 		if len(x) > 1 {
+@@ -1196,13 +1161,12 @@ func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ 		}
+ 
+ 		if P.tok == token.INC || P.tok == token.DEC {
+-			s := &ast.IncDecStat{P.loc, P.tok, x[0]};
++			s := &ast.IncDecStat{x[0], P.tok};
+ 			P.next();  // consume "++" or "--"
+ 			return s;
+ 		}
+ 
+-		// TODO change ILLEGAL -> NONE
+-		return &ast.ExpressionStat{x[0].Pos(), token.ILLEGAL, x[0]};
++		return &ast.ExprStat{x[0]};
+ 	}
+ 
+ 	unreachable();
+@@ -1210,14 +1174,25 @@ func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ }
+ 
+ 
+-func (P *Parser) parseInvocationStat(keyword int) *ast.ExpressionStat {
++func (P *Parser) parseGoStat() *ast.GoStat {
+ 	if P.trace {
+-		defer un(trace(P, "InvocationStat"));
++		defer un(trace(P, "GoStat"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(keyword);
+-	return &ast.ExpressionStat{loc, keyword, P.parseExpression(1)};
++	pos := P.expect(token.GO);
++	call := P.parseExpression(1);
++	return &ast.GoStat{pos, call};
++}
++
++
++func (P *Parser) parseDeferStat() *ast.DeferStat {
++	if P.trace {
++		defer un(trace(P, "DeferStat"));
++	}
++
++	pos := P.expect(token.DEFER);
++	call := P.parseExpression(1);
++	return &ast.DeferStat{pos, call};
+ }
+ 
+ 
+@@ -1226,7 +1201,7 @@ func (P *Parser) parseReturnStat() *ast.ReturnStat {
+ 		defer un(trace(P, "ReturnStat"));
+ 	}
+ 
+-	loc := P.loc;
++	loc := P.pos;
+ 	P.expect(token.RETURN);
+ 	var x []ast.Expr;
+ 	if P.tok != token.SEMICOLON && P.tok != token.RBRACE {
+@@ -1242,7 +1217,7 @@ func (P *Parser) parseControlFlowStat(tok int) *ast.ControlFlowStat {
+ 		defer un(trace(P, "ControlFlowStat"));
+ 	}
+ 
+-	s := &ast.ControlFlowStat{P.loc, tok, nil};
++	s := &ast.ControlFlowStat{P.pos, tok, nil};
+ 	P.expect(tok);
+ 	if tok != token.FALLTHROUGH && P.tok == token.IDENT {
+ 		s.Label = P.parseIdent();
+@@ -1252,7 +1227,33 @@ func (P *Parser) parseControlFlowStat(tok int) *ast.ControlFlowStat {
+ }
+ 
+ 
+-func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Expr, post ast.Stat) {
++/*
++func (P *Parser) asIdent(x ast.Expr) *ast.Ident {
++	if name, ok := x.(*ast.Ident); ok {
++		return name;
++	}
++	P.error(x.Pos(), "identifier expected");
++	return &ast.Ident{x.Pos(), [...]byte{'B', 'A', 'D'}};
++}
++
++
++func (P *Parser) isTypeSwitch(init ast.Stat) (lhs *ast.Ident, rhs ast.Expr) {
++	if assign, ok := init.(*ast.AssignmentStat); ok {
++		if guard, ok := assign.Rhs.(*ast.TypeAssertion); ok {
++			if tmp, ok := guard.Typ.(*ast.TypeType); ok {
++				// we appear to have a type switch
++				// TODO various error checks
++				return P.asIdent(assign.Lhs), guard.X;
++			}
++		}
++	}
++	return nil, nil;
++}
++*/
++
++
++
++func (P *Parser) parseControlClause(isForStat bool) (s1, s2, s3 ast.Stat) {
+ 	if P.trace {
+ 		defer un(trace(P, "ControlClause"));
+ 	}
+@@ -1262,39 +1263,49 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
+ 		P.expr_lev = -1;
+ 
+ 		if P.tok != token.SEMICOLON {
+-			mode := 0;
+-			if isForStat {
+-				mode = range_ok;
+-			}
+-			init = P.parseSimpleStat(mode);
++			s1 = P.parseSimpleStat();
+ 		}
+-		if dummy, is_range := init.(*ast.RangeClause); !is_range {
+-			if P.tok == token.SEMICOLON {
+-				P.next();
+-				if P.tok != token.SEMICOLON && P.tok != token.LBRACE {
+-					expr = P.parseExpression(1);
+-				}
+-				if isForStat {
+-					P.expect(token.SEMICOLON);
+-					if P.tok != token.LBRACE {
+-						post = P.parseSimpleStat(0);
+-					}
+-				}
+-			} else {
+-				if init != nil {  // guard in case of errors
+-					if s, is_expr_stat := init.(*ast.ExpressionStat); is_expr_stat {
+-						expr, init = s.Expr, nil;
+-					} else {
+-						P.error(noloc, "illegal control clause");
+-					}
++		if P.tok == token.SEMICOLON {
++			P.next();
++			if P.tok != token.LBRACE && P.tok != token.SEMICOLON {
++				s2 = P.parseSimpleStat();
++			}
++			if isForStat {
++				// for statements have a 3rd section
++				P.expect(token.SEMICOLON);
++				if P.tok != token.LBRACE {
++					s3 = P.parseSimpleStat();
+ 				}
+ 			}
++		} else {
++			s1, s2 = nil, s1;
+ 		}
+-
++		
+ 		P.expr_lev = prev_lev;
+ 	}
+ 
+-	return init, expr, post;
++	return s1, s2, s3;
++}
++
++
++func (P *Parser) isExpr(s ast.Stat) bool {
++	if s == nil {
++		return true;
++	}
++	dummy, is_expr := s.(*ast.ExprStat);
++	return is_expr;
++}
++
++
++func (P *Parser) asExpr(s ast.Stat) ast.Expr {
++	if s == nil {
++		return nil;
++	}
++	if es, is_expr := s.(*ast.ExprStat); is_expr {
++		return es.X;
++	}
++	P.error(s.Pos(), "condition expected; found simple statement");
++	return &ast.BadExpr{s.Pos()};
+ }
+ 
+ 
+@@ -1303,9 +1314,8 @@ func (P *Parser) parseIfStat() *ast.IfStat {
+ 		defer un(trace(P, "IfStat"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.IF);
+-	init, cond, dummy := P.parseControlClause(false);
++	pos := P.expect(token.IF);
++	s1, s2, dummy := P.parseControlClause(false);
+ 	body := P.parseBlock(token.LBRACE);
+ 	var else_ ast.Stat;
+ 	if P.tok == token.ELSE {
+@@ -1313,92 +1323,84 @@ func (P *Parser) parseIfStat() *ast.IfStat {
+ 		else_ = P.parseStatement();
+ 	}
+ 
+-	return &ast.IfStat{loc, init, cond, body, else_};
++	return &ast.IfStat{pos, s1, P.asExpr(s2), body, else_};
+ }
+ 
+ 
+-func (P *Parser) parseForStat() *ast.ForStat {
++func (P *Parser) parseCaseClause() *ast.CaseClause {
+ 	if P.trace {
+-		defer un(trace(P, "ForStat"));
++		defer un(trace(P, "CaseClause"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.FOR);
+-	init, cond, post := P.parseControlClause(true);
+-	body := P.parseBlock(token.LBRACE);
+-
+-	return &ast.ForStat{loc, init, cond, post, body};
+-}
+-
+-
+-func (P *Parser) asIdent(x ast.Expr) *ast.Ident {
+-	if name, ok := x.(*ast.Ident); ok {
+-		return name;
++	// SwitchCase
++	loc := P.pos;
++	var x []ast.Expr;
++	if P.tok == token.CASE {
++		P.next();
++		x = P.parseExpressionList();
++	} else {
++		P.expect(token.DEFAULT);
+ 	}
+-	P.error(x.Pos(), "identifier expected");
+-	return &ast.Ident{"BAD", noloc};
+-}
+-
+ 
+-func (P *Parser) isTypeSwitch(init ast.Stat) (lhs *ast.Ident, rhs ast.Expr) {
+-	if assign, ok := init.(*ast.AssignmentStat); ok {
+-		if guard, ok := assign.Rhs.(*ast.TypeAssertion); ok {
+-			if tmp, ok := guard.Typ.(*ast.TypeType); ok {
+-				// we appear to have a type switch
+-				// TODO various error checks
+-				return P.asIdent(assign.Lhs), guard.X;
+-			}
+-		}
+-	}
+-	return nil, nil;
++	return &ast.CaseClause{loc, x, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+-func (P *Parser) parseCaseClause() *ast.CaseClause {
++func (P *Parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 	if P.trace {
+ 		defer un(trace(P, "CaseClause"));
+ 	}
+ 
+-	// SwitchCase
+-	loc := P.loc;
+-	var x []ast.Expr;
++	// TypeSwitchCase
++	pos := P.pos;
++	var typ ast.Expr;
+ 	if P.tok == token.CASE {
+ 		P.next();
+-		x = P.parseExpressionList();
++		typ = P.parseType();
+ 	} else {
+ 		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &ast.CaseClause{loc, x, P.parseBlock(token.COLON)};
++	return &ast.TypeCaseClause{pos, typ, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+-func (P *Parser) parseSwitchStat() *ast.SwitchStat {
++func (P *Parser) parseSwitchStat() ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "SwitchStat"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.SWITCH);
+-	init, tag, post := P.parseControlClause(false);
+-	body := ast.NewBlock(P.loc, token.LBRACE);
+-	P.expect(token.LBRACE);
+-	for P.tok != token.RBRACE && P.tok != token.EOF {
+-		body.List.Push(P.parseCaseClause());
+-	}
+-	body.End = P.loc;
+-	P.expect(token.RBRACE);
+-	P.opt_semi = true;
++	pos := P.expect(token.SWITCH);
++	s1, s2, dummy := P.parseControlClause(false);
+ 
+-	if lhs, rhs := P.isTypeSwitch(init); lhs != nil {
+-		if tag != nil {
+-			P.error(loc, "illegal type switch clause");
++	if P.isExpr(s2) {
++		// expression switch
++		lbrace := P.expect(token.LBRACE);
++		cases := vector.New(0);
++		for P.tok == token.CASE || P.tok == token.DEFAULT {
++			cases.Push(P.parseCaseClause());
+ 		}
+-		// TODO fix location
+-		init = &ast.TypeSwitchClause{loc, lhs, rhs};
++		rbrace := P.expect(token.RBRACE);
++		P.opt_semi = true;
++		body := &ast.Block{lbrace, token.LBRACE, asStatList(cases), rbrace};
++		return &ast.SwitchStat{pos, s1, P.asExpr(s2), body};
++
++	} else {
++		// type switch
++		// TODO do all the checks!
++		lbrace := P.expect(token.LBRACE);
++		cases := vector.New(0);
++		for P.tok == token.CASE || P.tok == token.DEFAULT {
++			cases.Push(P.parseTypeCaseClause());
++		}
++		rbrace := P.expect(token.RBRACE);
++		P.opt_semi = true;
++		body := &ast.Block{lbrace, token.LBRACE, asStatList(cases), rbrace};
++		return &ast.TypeSwitchStat{pos, s1, s2, body};
+ 	}
+ 
+-	return &ast.SwitchStat{loc, init, tag, body};
++	unreachable();
++	return nil;
+ }
+ 
+ 
+@@ -1408,7 +1410,7 @@ func (P *Parser) parseCommClause() *ast.CommClause {
+ 	}
+ 
+ 	// CommCase
+-	loc := P.loc;
++	loc := P.pos;
+ 	var tok int;
+ 	var lhs, rhs ast.Expr;
+ 	if P.tok == token.CASE {
+@@ -1445,18 +1447,40 @@ func (P *Parser) parseSelectStat() *ast.SelectStat {
+ 		defer un(trace(P, "SelectStat"));
+ 	}
+ 
+-	loc := P.loc;
+-	P.expect(token.SELECT);
+-	body := ast.NewBlock(P.loc, token.LBRACE);
+-	P.expect(token.LBRACE);
+-	for P.tok != token.RBRACE && P.tok != token.EOF {
+-		body.List.Push(P.parseCommClause());
++	pos := P.expect(token.SELECT);
++	lbrace := P.expect(token.LBRACE);
++	cases := vector.New(0);
++	for P.tok == token.CASE || P.tok == token.DEFAULT {
++		cases.Push(P.parseCommClause());
+ 	}
+-	body.End = P.loc;
+-	P.expect(token.RBRACE);
++	rbrace := P.expect(token.RBRACE);
+ 	P.opt_semi = true;
++	body := &ast.Block{lbrace, token.LBRACE, asStatList(cases), rbrace};
+ 
+-	return &ast.SelectStat{loc, body};
++	return &ast.SelectStat{pos, body};
++}
++
++
++func (P *Parser) parseForStat() ast.Stat {
++	if P.trace {
++		defer un(trace(P, "ForStat"));
++	}
++
++	pos := P.expect(token.FOR);
++	s1, s2, s3 := P.parseControlClause(true);
++	body := P.parseBlock(token.LBRACE);
++
++	if as, is_as := s2.(*ast.AssignmentStat); is_as {
++		// probably a for statement with a range clause
++		// TODO do all the checks!
++		return &ast.RangeStat{pos, s2, body};
++	} else {
++		// regular for statement
++		return &ast.ForStat{pos, s1, P.asExpr(s2), s3, body};
++	}
++	
++	unreachable();
++	return nil;
+ }
+ 
+ 
+@@ -1467,15 +1491,17 @@ func (P *Parser) parseStatement() ast.Stat {
+ 
+ 	switch P.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+-		return &ast.DeclarationStat{P.parseDeclaration()};
++		return &ast.DeclStat{P.parseDeclaration()};
+ 	case
+ 		// tokens that may start a top-level expression
+ 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
+ 		token.LBRACK, token.STRUCT,  // composite type
+ 		token.MUL, token.AND, token.ARROW:  // unary operators
+-		return P.parseSimpleStat(label_ok);
+-	case token.GO, token.DEFER:
+-		return P.parseInvocationStat(P.tok);
++		return P.parseSimpleStat();
++	case token.GO:
++		return P.parseGoStat();
++	case token.DEFER:
++		return P.parseDeferStat();
+ 	case token.RETURN:
+ 		return P.parseReturnStat();
+ 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
+@@ -1492,43 +1518,43 @@ func (P *Parser) parseStatement() ast.Stat {
+ 		return P.parseSelectStat();
+ 	case token.SEMICOLON, token.RBRACE:
+ 		// don't consume the ";", it is the separator following the empty statement
+-		return &ast.EmptyStat{P.loc};
++		return &ast.EmptyStat{P.pos};
+ 	}
+ 
+ 	// no statement found
+-	P.error(P.loc, "statement expected");
+-	return &ast.BadStat{P.loc};
++	P.error(P.pos, "statement expected");
++	return &ast.BadStat{P.pos};
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-func (P *Parser) parseImportSpec(loc Position) *ast.ImportDecl {
++func (P *Parser) parseImportSpec(pos Position, doc ast.Comments) *ast.ImportDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ImportSpec"));
+ 	}
+ 
+ 	var ident *ast.Ident;
+ 	if P.tok == token.PERIOD {
+-		P.error(P.loc, `"import ." not yet handled properly`);
++		P.error(P.pos, `"import ." not yet handled properly`);
+ 		P.next();
+ 	} else if P.tok == token.IDENT {
+ 		ident = P.parseIdent();
+ 	}
+ 
+-	var path ast.Expr;
++	var path *ast.StringLit;
+ 	if P.tok == token.STRING {
+-		path = P.parseStringLit();
++		path = P.parseStringLit(nil);
+ 	} else {
+ 		P.expect(token.STRING);  // use expect() error handling
+ 	}
+ 
+-	return &ast.ImportDecl{loc, ident, path};
++	return &ast.ImportDecl{doc, pos, ident, path};
+ }
+ 
+ 
+-func (P *Parser) parseConstSpec(loc Position, comment ast.CommentGroup) *ast.ConstDecl {
++func (P *Parser) parseConstSpec(pos Position, doc ast.Comments) *ast.ConstDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ConstSpec"));
+ 	}
+@@ -1541,11 +1567,11 @@ func (P *Parser) parseConstSpec(loc Position, comment ast.CommentGroup) *ast.Con
+ 		values = P.parseExpressionList();
+ 	}
+ 
+-	return &ast.ConstDecl{loc, names, typ, values, comment};
++	return &ast.ConstDecl{doc, pos, names, typ, values};
+ }
+ 
+ 
+-func (P *Parser) parseTypeSpec(loc Position, comment ast.CommentGroup) *ast.TypeDecl {
++func (P *Parser) parseTypeSpec(pos Position, doc ast.Comments) *ast.TypeDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "TypeSpec"));
+ 	}
+@@ -1553,11 +1579,11 @@ func (P *Parser) parseTypeSpec(loc Position, comment ast.CommentGroup) *ast.Type
+ 	ident := P.parseIdent();
+ 	typ := P.parseType();
+ 
+-	return &ast.TypeDecl{loc, ident, typ, comment};
++	return &ast.TypeDecl{doc, pos, ident, typ};
+ }
+ 
+ 
+-func (P *Parser) parseVarSpec(loc Position, comment ast.CommentGroup) *ast.VarDecl {
++func (P *Parser) parseVarSpec(pos Position, doc ast.Comments) *ast.VarDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "VarSpec"));
+ 	}
+@@ -1570,16 +1596,16 @@ func (P *Parser) parseVarSpec(loc Position, comment ast.CommentGroup) *ast.VarDe
+ 		values = P.parseExpressionList();
+ 	}
+ 
+-	return &ast.VarDecl{loc, names, typ, values, comment};
++	return &ast.VarDecl{doc, pos, names, typ, values};
+ }
+ 
+ 
+-func (P *Parser) parseSpec(loc Position, comment ast.CommentGroup, keyword int) ast.Decl {
++func (P *Parser) parseSpec(pos Position, doc ast.Comments, keyword int) ast.Decl {
+ 	switch keyword {
+-	case token.IMPORT: return P.parseImportSpec(loc);
+-	case token.CONST: return P.parseConstSpec(loc, comment);
+-	case token.TYPE: return P.parseTypeSpec(loc, comment);
+-	case token.VAR: return P.parseVarSpec(loc, comment);
++	case token.IMPORT: return P.parseImportSpec(pos, doc);
++	case token.CONST: return P.parseConstSpec(pos, doc);
++	case token.TYPE: return P.parseTypeSpec(pos, doc);
++	case token.VAR: return P.parseVarSpec(pos, doc);
+ 	}
+ 
+ 	unreachable();
+@@ -1592,22 +1618,21 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
+ 		defer un(trace(P, "Decl"));
+ 	}
+ 
+-	comment := P.getLastComment();
+-	loc := P.loc;
+-	P.expect(keyword);
++	doc := P.getDoc();
++	pos := P.expect(keyword);
+ 	if P.tok == token.LPAREN {
++		lparen := P.pos;
+ 		P.next();
+ 		list := vector.New(0);
+ 		for P.tok != token.RPAREN && P.tok != token.EOF {
+-			list.Push(P.parseSpec(noloc, nil, keyword));
++			list.Push(P.parseSpec(nopos, nil, keyword));
+ 			if P.tok == token.SEMICOLON {
+ 				P.next();
+ 			} else {
+ 				break;
+ 			}
+ 		}
+-		end := P.loc;
+-		P.expect(token.RPAREN);
++		rparen := P.expect(token.RPAREN);
+ 		P.opt_semi = true;
+ 
+ 		// convert vector
+@@ -1616,10 +1641,10 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
+ 			decls[i] = list.At(i).(ast.Decl);
+ 		}
+ 
+-		return &ast.DeclList{loc, keyword, decls, end};
++		return &ast.DeclList{doc, pos, keyword, lparen, decls, rparen};
+ 	}
+ 
+-	return P.parseSpec(loc, comment, keyword);
++	return P.parseSpec(pos, doc, keyword);
+ }
+ 
+ 
+@@ -1637,13 +1662,12 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
+ 		defer un(trace(P, "FunctionDecl"));
+ 	}
+ 
+-	comment := P.getLastComment();
+-	loc := P.loc;
+-	P.expect(token.FUNC);
++	doc := P.getDoc();
++	pos := P.expect(token.FUNC);
+ 
+ 	var recv *ast.Field;
+ 	if P.tok == token.LPAREN {
+-		loc := P.loc;
++		loc := P.pos;
+ 		tmp := P.parseParameters(true);
+ 		if len(tmp) == 1 {
+ 			recv = tmp[0];
+@@ -1660,7 +1684,7 @@ func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
+ 		body = P.parseBlock(token.LBRACE);
+ 	}
+ 
+-	return &ast.FuncDecl{loc, recv, ident, sig, body, comment};
++	return &ast.FuncDecl{doc, pos, recv, ident, sig, body};
+ }
+ 
+ 
+@@ -1676,7 +1700,7 @@ func (P *Parser) parseDeclaration() ast.Decl {
+ 		return P.parseFunctionDecl();
+ 	}
+ 
+-	loc := P.loc;
++	loc := P.pos;
+ 	P.error(loc, "declaration expected");
+ 	P.next();  // make progress
+ 	return &ast.BadDecl{loc};
+@@ -1686,16 +1710,6 @@ func (P *Parser) parseDeclaration() ast.Decl {
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+-func (P *Parser) getComments() []ast.CommentGroup {
+-	// convert comments vector
+-	list := make([]ast.CommentGroup, P.comments.Len());
+-	for i := 0; i < P.comments.Len(); i++ {
+-		list[i] = P.comments.At(i).(ast.CommentGroup);
+-	}
+-	return list;
+-}
+-
+-
+ // The Parse function is parametrized with one of the following
+ // constants. They control how much of the source text is parsed.
+ //
+@@ -1710,19 +1724,18 @@ const (
+ //      
+ // foo bar
+ //
+-func (P *Parser) Parse(mode int) *ast.Program {
++func (P *Parser) Parse(mode int) *ast.Package {
+ 	if P.trace {
+ 		defer un(trace(P, "Program"));
+ 	}
+ 
+ 	// package clause
+-	comment := P.getLastComment();
+-	loc := P.loc;
+-	P.expect(token.PACKAGE);
++	comment := P.getDoc();
++	pos := P.expect(token.PACKAGE);
+ 	name := P.parseIdent();
+ 	if P.tok == token.SEMICOLON {
+ 		// common error
+-		P.error(P.loc, "extra semicolon");
++		P.error(P.pos, "extra semicolon");
+ 		P.next();
+ 	}
+ 	
+@@ -1748,12 +1761,21 @@ func (P *Parser) Parse(mode int) *ast.Program {
+ 			}
+ 		}
+ 
+-		// convert list
++		// convert declaration list
+ 		decls = make([]ast.Decl, list.Len());
+ 		for i := 0; i < list.Len(); i++ {
+ 			decls[i] = list.At(i).(ast.Decl);
+ 		}
+ 	}
+ 
+-	return &ast.Program{loc, name, decls, comment, P.getComments()};
++	// convert comments list
++	comments := make([]*ast.Comment, P.comments.Len());
++	for i := 0; i < P.comments.Len(); i++ {
++		c := P.comments.At(i);
++		if c != nil {
++			comments[i] = c.(*ast.Comment);
++		}
++	}
++
++	return &ast.Package{comment, pos, name, decls, comments};
+ }
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index ac8e646a6e..49f77386fb 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -37,9 +37,9 @@ var (
+ )
+ 
+ 
+-// When we don't have a location use noloc.
++// When we don't have a location use nopos.
+ // TODO make sure we always have a location.
+-var noloc scanner.Location;
++var nopos scanner.Location;
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -64,7 +64,7 @@ func assert(pred bool) {
+ 
+ // TODO this should be an AST method
+ func isExported(name *ast.Ident) bool {
+-	ch, len := utf8.DecodeRuneInString(name.Str, 0);
++	ch, len := utf8.DecodeRune(name.Lit);
+ 	return unicode.IsUpper(ch);
+ }
+ 
+@@ -110,7 +110,7 @@ type Printer struct {
+ 	full bool;  // if false, print interface only; print all otherwise
+ 
+ 	// comments
+-	comments []ast.CommentGroup;  // the list of all comments groups
++	comments []*ast.Comment;  // the list of unassociated comments 
+ 	cindex int;  // the current comment group index
+ 	cloc scanner.Location;  // the position of the next comment group
+ 
+@@ -138,17 +138,17 @@ func (P *Printer) hasComment(loc scanner.Location) bool {
+ }
+ 
+ 
+-func (P *Printer) nextCommentGroup() {
++func (P *Printer) nextComments() {
+ 	P.cindex++;
+-	if P.comments != nil && P.cindex < len(P.comments) {
+-		P.cloc = P.comments[P.cindex][0].Loc;
++	if P.comments != nil && P.cindex < len(P.comments) && P.comments[P.cindex] != nil {
++		P.cloc = P.comments[P.cindex].Pos_;
+ 	} else {
+ 		P.cloc = scanner.Location{1<<30, 1<<30, 1};  // infinite
+ 	}
+ }
+ 
+ 
+-func (P *Printer) Init(text io.Write, comments []ast.CommentGroup, html bool) {
++func (P *Printer) Init(text io.Write, comments []*ast.Comment, html bool) {
+ 	// writers
+ 	P.text = text;
+ 	
+@@ -158,7 +158,7 @@ func (P *Printer) Init(text io.Write, comments []ast.CommentGroup, html bool) {
+ 	// comments
+ 	P.comments = comments;
+ 	P.cindex = -1;
+-	P.nextCommentGroup();
++	P.nextComments();
+ 
+ 	// formatting parameters & semantic state initialized correctly by default
+ 	
+@@ -271,9 +271,9 @@ func (P *Printer) TaggedString(loc scanner.Location, tag, s, endtag string) {
+ 	// interleave comments, if any
+ 	nlcount := 0;
+ 	if P.full {
+-		for ; P.hasComment(loc); P.nextCommentGroup() {
++		for ; P.hasComment(loc); P.nextComments() {
+ 			// we have a comment group that comes before the string
+-			comment := P.comments[P.cindex][0];  // TODO broken
++			comment := P.comments[P.cindex];
+ 			ctext := string(comment.Text);  // TODO get rid of string conversion here
+ 
+ 			// classify comment (len(ctext) >= 2)
+@@ -409,7 +409,7 @@ func (P *Printer) Error(loc scanner.Location, tok int, msg string) {
+ // HTML support
+ 
+ func (P *Printer) HtmlIdentifier(x *ast.Ident) {
+-	P.String(x.Pos_, x.Str);
++	P.String(x.Pos_, string(x.Lit));
+ 	/*
+ 	obj := x.Obj;
+ 	if P.html && obj.Kind != symbolTable.NONE {
+@@ -450,7 +450,7 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
+ 	n := 0;
+ 	for i, x := range list {
+ 		if n > 0 {
+-			P.Token(noloc, token.COMMA);
++			P.Token(nopos, token.COMMA);
+ 			P.separator = blank;
+ 			P.state = inside_list;
+ 		}
+@@ -466,7 +466,7 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
+ func (P *Printer) Exprs(list []ast.Expr) {
+ 	for i, x := range list {
+ 		if i > 0 {
+-			P.Token(noloc, token.COMMA);
++			P.Token(nopos, token.COMMA);
+ 			P.separator = blank;
+ 			P.state = inside_list;
+ 		}
+@@ -476,7 +476,7 @@ func (P *Printer) Exprs(list []ast.Expr) {
+ 
+ 
+ func (P *Printer) Parameters(list []*ast.Field) {
+-	P.Token(noloc, token.LPAREN);
++	P.Token(nopos, token.LPAREN);
+ 	if len(list) > 0 {
+ 		for i, par := range list {
+ 			if i > 0 {
+@@ -489,7 +489,7 @@ func (P *Printer) Parameters(list []*ast.Field) {
+ 			P.Expr(par.Typ);
+ 		}
+ 	}
+-	P.Token(noloc, token.RPAREN);
++	P.Token(nopos, token.RPAREN);
+ }
+ 
+ 
+@@ -515,10 +515,10 @@ func (P *Printer) Signature(sig *ast.Signature) {
+ }
+ 
+ 
+-func (P *Printer) Fields(list []*ast.Field, end scanner.Location, is_interface bool) {
++func (P *Printer) Fields(lbrace scanner.Location, list []*ast.Field, rbrace scanner.Location, is_interface bool) {
+ 	P.state = opening_scope;
+ 	P.separator = blank;
+-	P.Token(noloc, token.LBRACE);
++	P.Token(lbrace, token.LBRACE);
+ 
+ 	if len(list) > 0 {
+ 		P.newlines = 1;
+@@ -553,7 +553,7 @@ func (P *Printer) Fields(list []*ast.Field, end scanner.Location, is_interface b
+ 	}
+ 
+ 	P.state = closing_scope;
+-	P.Token(end, token.RBRACE);
++	P.Token(rbrace, token.RBRACE);
+ 	P.opt_semi = true;
+ }
+ 
+@@ -566,7 +566,7 @@ func (P *Printer) Expr1(x ast.Expr, prec1 int)
+ 
+ 
+ func (P *Printer) DoBadExpr(x *ast.BadExpr) {
+-	P.String(noloc, "BadExpr");
++	P.String(nopos, "BadExpr");
+ }
+ 
+ 
+@@ -576,30 +576,39 @@ func (P *Printer) DoIdent(x *ast.Ident) {
+ 
+ 
+ func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
+-	prec := token.Precedence(x.Op);
++	prec := token.Precedence(x.Tok);
+ 	if prec < P.prec {
+-		P.Token(noloc, token.LPAREN);
++		P.Token(nopos, token.LPAREN);
+ 	}
+ 	P.Expr1(x.X, prec);
+ 	P.separator = blank;
+-	P.Token(x.Pos_, x.Op);
++	P.Token(x.Pos_, x.Tok);
+ 	P.separator = blank;
+ 	P.Expr1(x.Y, prec);
+ 	if prec < P.prec {
+-		P.Token(noloc, token.RPAREN);
++		P.Token(nopos, token.RPAREN);
+ 	}
+ }
+ 
+ 
++func (P *Printer) DoStarExpr(x *ast.StarExpr) {
++	P.Token(x.Star, token.MUL);
++	P.Expr(x.X);
++}
++
++
+ func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
+ 	prec := token.UnaryPrec;
+ 	if prec < P.prec {
+-		P.Token(noloc, token.LPAREN);
++		P.Token(nopos, token.LPAREN);
++	}
++	P.Token(x.Pos_, x.Tok);
++	if x.Tok == token.RANGE {
++		P.separator = blank;
+ 	}
+-	P.Token(x.Pos_, x.Op);
+ 	P.Expr1(x.X, prec);
+ 	if prec < P.prec {
+-		P.Token(noloc, token.RPAREN);
++		P.Token(nopos, token.RPAREN);
+ 	}
+ }
+ 
+@@ -629,48 +638,48 @@ func (P *Printer) DoFunctionLit(x *ast.FunctionLit) {
+ }
+ 
+ 
+-func (P *Printer) DoGroup(x *ast.Group) {
++func (P *Printer) DoParenExpr(x *ast.ParenExpr) {
+ 	P.Token(x.Lparen, token.LPAREN);
+ 	P.Expr(x.X);
+ 	P.Token(x.Rparen, token.RPAREN);
+ }
+ 
+ 
+-func (P *Printer) DoSelector(x *ast.Selector) {
++func (P *Printer) DoSelectorExpr(x *ast.SelectorExpr) {
+ 	P.Expr1(x.X, token.HighestPrec);
+-	P.Token(x.Period, token.PERIOD);
++	P.Token(nopos, token.PERIOD);
+ 	P.Expr1(x.Sel, token.HighestPrec);
+ }
+ 
+ 
+-func (P *Printer) DoTypeAssertion(x *ast.TypeAssertion) {
++func (P *Printer) DoTypeAssertExpr(x *ast.TypeAssertExpr) {
+ 	P.Expr1(x.X, token.HighestPrec);
+-	P.Token(x.Period, token.PERIOD);
+-	P.Token(x.Lparen, token.LPAREN);
++	P.Token(nopos, token.PERIOD);
++	P.Token(nopos, token.LPAREN);
+ 	P.Expr(x.Typ);
+-	P.Token(x.Rparen, token.RPAREN);
++	P.Token(nopos, token.RPAREN);
+ }
+ 
+ 
+-func (P *Printer) DoIndex(x *ast.Index) {
++func (P *Printer) DoIndexExpr(x *ast.IndexExpr) {
+ 	P.Expr1(x.X, token.HighestPrec);
+-	P.Token(x.Lbrack, token.LBRACK);
++	P.Token(nopos, token.LBRACK);
+ 	P.Expr(x.Index);
+-	P.Token(x.Rbrack, token.RBRACK);
++	P.Token(nopos, token.RBRACK);
+ }
+ 
+ 
+-func (P *Printer) DoSlice(x *ast.Slice) {
++func (P *Printer) DoSliceExpr(x *ast.SliceExpr) {
+ 	P.Expr1(x.X, token.HighestPrec);
+-	P.Token(x.Lbrack, token.LBRACK);
+-	P.Expr(x.Beg);
+-	P.Token(x.Colon, token.COLON);
++	P.Token(nopos, token.LBRACK);
++	P.Expr(x.Begin);
++	P.Token(nopos, token.COLON);
+ 	P.Expr(x.End);
+-	P.Token(x.Rbrack, token.RBRACK);
++	P.Token(nopos, token.RBRACK);
+ }
+ 
+ 
+-func (P *Printer) DoCall(x *ast.Call) {
++func (P *Printer) DoCallExpr(x *ast.CallExpr) {
+ 	P.Expr1(x.Fun, token.HighestPrec);
+ 	P.Token(x.Lparen, token.LPAREN);
+ 	P.Exprs(x.Args);
+@@ -687,49 +696,38 @@ func (P *Printer) DoCompositeLit(x *ast.CompositeLit) {
+ 
+ 
+ func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
+-	P.Token(x.Loc_, token.ELLIPSIS);
++	P.Token(x.Pos_, token.ELLIPSIS);
+ }
+ 
+ 
+ func (P *Printer) DoArrayType(x *ast.ArrayType) {
+-	P.Token(x.Loc_, token.LBRACK);
++	P.Token(x.Lbrack, token.LBRACK);
+ 	if x.Len != nil {
+ 		P.Expr(x.Len);
+ 	}
+-	P.Token(noloc, token.RBRACK);
++	P.Token(nopos, token.RBRACK);
+ 	P.Expr(x.Elt);
+ }
+ 
+ 
+-func (P *Printer) DoTypeType(x *ast.TypeType) {
+-	P.Token(x.Loc_, token.TYPE);
+-}
+-
+-
+ func (P *Printer) DoStructType(x *ast.StructType) {
+-	P.Token(x.Loc_, token.STRUCT);
+-	if x.End.Pos > 0 {
+-		P.Fields(x.Fields, x.End, false);
++	P.Token(x.Struct, token.STRUCT);
++	if x.Fields != nil {
++		P.Fields(x.Lbrace, x.Fields, x.Rbrace, false);
+ 	}
+ }
+ 
+ 
+-func (P *Printer) DoPointerType(x *ast.PointerType) {
+-	P.Token(x.Loc_, token.MUL);
+-	P.Expr(x.Base);
+-}
+-
+-
+ func (P *Printer) DoFunctionType(x *ast.FunctionType) {
+-	P.Token(x.Loc_, token.FUNC);
++	P.Token(x.Func, token.FUNC);
+ 	P.Signature(x.Sig);
+ }
+ 
+ 
+ func (P *Printer) DoInterfaceType(x *ast.InterfaceType) {
+-	P.Token(x.Loc_, token.INTERFACE);
+-	if x.End.Pos > 0 {
+-		P.Fields(x.Methods, x.End, true);
++	P.Token(x.Interface, token.INTERFACE);
++	if x.Methods != nil {
++		P.Fields(x.Lbrace, x.Methods, x.Rbrace, true);
+ 	}
+ }
+ 
+@@ -740,29 +738,29 @@ func (P *Printer) DoSliceType(x *ast.SliceType) {
+ 
+ 
+ func (P *Printer) DoMapType(x *ast.MapType) {
+-	P.Token(x.Loc_, token.MAP);
++	P.Token(x.Map, token.MAP);
+ 	P.separator = blank;
+-	P.Token(noloc, token.LBRACK);
++	P.Token(nopos, token.LBRACK);
+ 	P.Expr(x.Key);
+-	P.Token(noloc, token.RBRACK);
+-	P.Expr(x.Val);
++	P.Token(nopos, token.RBRACK);
++	P.Expr(x.Value);
+ }
+ 
+ 
+ func (P *Printer) DoChannelType(x *ast.ChannelType) {
+ 	switch x.Dir {
+-	case ast.FULL:
+-		P.Token(x.Loc_, token.CHAN);
++	case ast.SEND | ast.RECV:
++		P.Token(x.Pos_, token.CHAN);
+ 	case ast.RECV:
+-		P.Token(x.Loc_, token.ARROW);
+-		P.Token(noloc, token.CHAN);
++		P.Token(x.Pos_, token.ARROW);
++		P.Token(nopos, token.CHAN);
+ 	case ast.SEND:
+-		P.Token(x.Loc_, token.CHAN);
++		P.Token(x.Pos_, token.CHAN);
+ 		P.separator = blank;
+-		P.Token(noloc, token.ARROW);
++		P.Token(nopos, token.ARROW);
+ 	}
+ 	P.separator = blank;
+-	P.Expr(x.Val);
++	P.Expr(x.Value);
+ }
+ 
+ 
+@@ -791,57 +789,27 @@ func (P *Printer) Stat(s ast.Stat) {
+ }
+ 
+ 
+-func (P *Printer) StatementList(list *vector.Vector) {
+-	for i := 0; i < list.Len(); i++ {
+-		if i == 0 {
+-			P.newlines = 1;
+-		} else {  // i > 0
+-			if !P.opt_semi || *optsemicolons {
+-				// semicolon is required
+-				P.separator = semicolon;
+-			}
+-		}
+-		P.Stat(list.At(i).(ast.Stat));
+-		P.newlines = 1;
+-		P.state = inside_list;
+-	}
++func (P *Printer) DoBadStat(s *ast.BadStat) {
++	panic();
+ }
+ 
+ 
+-func (P *Printer) Block(b *ast.Block, indent bool) {
+-	P.state = opening_scope;
+-	P.Token(b.Loc, b.Tok);
+-	if !indent {
+-		P.indentation--;
+-	}
+-	P.StatementList(b.List);
+-	if !indent {
+-		P.indentation++;
+-	}
+-	if !*optsemicolons {
+-		P.separator = none;
+-	}
+-	P.state = closing_scope;
+-	if b.Tok == token.LBRACE {
+-		P.Token(b.End, token.RBRACE);
+-		P.opt_semi = true;
+-	} else {
+-		P.String(noloc, "");  // process closing_scope state transition!
+-	}
+-}
++func (P *Printer) Decl(d ast.Decl);
+ 
++func (P *Printer) DoDeclStat(s *ast.DeclStat) {
++	P.Decl(s.Decl);
++}
+ 
+-func (P *Printer) Decl(d ast.Decl);
+ 
+-func (P *Printer) DoBadStat(s *ast.BadStat) {
+-	panic();
++func (P *Printer) DoEmptyStat(s *ast.EmptyStat) {
++	P.String(s.Semicolon, "");
+ }
+ 
+ 
+ func (P *Printer) DoLabeledStat(s *ast.LabeledStat) {
+ 	P.indentation--;
+ 	P.Expr(s.Label);
+-	P.Token(s.Loc, token.COLON);
++	P.Token(nopos, token.COLON);
+ 	P.indentation++;
+ 	// TODO be more clever if s.Stat is a labeled stat as well
+ 	P.separator = tab;
+@@ -849,52 +817,93 @@ func (P *Printer) DoLabeledStat(s *ast.LabeledStat) {
+ }
+ 
+ 
+-func (P *Printer) DoDeclarationStat(s *ast.DeclarationStat) {
+-	P.Decl(s.Decl);
++func (P *Printer) DoExprStat(s *ast.ExprStat) {
++	P.Expr(s.X);
+ }
+ 
+ 
+-func (P *Printer) DoExpressionStat(s *ast.ExpressionStat) {
+-	switch s.Tok {
+-	case token.ILLEGAL:
+-		P.Expr(s.Expr);
+-	case token.INC, token.DEC:
+-		P.Expr(s.Expr);
+-		P.Token(s.Loc, s.Tok);
+-	case token.RETURN, token.GO, token.DEFER:
+-		P.Token(s.Loc, s.Tok);
+-		if s.Expr != nil {
+-			P.separator = blank;
+-			P.Expr(s.Expr);
+-		}
+-	default:
+-		P.Error(s.Loc, s.Tok, "DoExpressionStat");
+-		unreachable();
+-	}
++func (P *Printer) DoIncDecStat(s *ast.IncDecStat) {
++	P.Expr(s.X);
++	P.Token(nopos, s.Tok);
+ }
+ 
+ 
+ func (P *Printer) DoAssignmentStat(s *ast.AssignmentStat) {
+-	P.Expr(s.Lhs);
++	P.Exprs(s.Lhs);
+ 	P.separator = blank;
+-	P.Token(s.Loc, s.Tok);
++	P.Token(s.Pos_, s.Tok);
+ 	P.separator = blank;
+-	P.Expr(s.Rhs);
++	P.Exprs(s.Rhs);
+ }
+ 
+ 
+-func (P *Printer) DoTupleAssignStat(s *ast.TupleAssignStat) {
+-	P.Exprs(s.Lhs);
++func (P *Printer) DoGoStat(s *ast.GoStat) {
++	P.Token(s.Go, token.GO);
+ 	P.separator = blank;
+-	P.Token(s.Loc, s.Tok);
++	P.Expr(s.Call);
++}
++
++
++func (P *Printer) DoDeferStat(s *ast.DeferStat) {
++	P.Token(s.Defer, token.DEFER);
+ 	P.separator = blank;
+-	P.Exprs(s.Rhs);
++	P.Expr(s.Call);
+ }
+ 
+ 
+-func (P *Printer) DoIncDecStat(s *ast.IncDecStat) {
+-	P.Expr(s.Expr);
+-	P.Token(s.Loc, s.Tok);
++func (P *Printer) DoReturnStat(s *ast.ReturnStat) {
++	P.Token(s.Return, token.RETURN);
++	P.separator = blank;
++	P.Exprs(s.Results);
++}
++
++
++func (P *Printer) DoControlFlowStat(s *ast.ControlFlowStat) {
++	P.Token(s.Pos_, s.Tok);
++	if s.Label != nil {
++		P.separator = blank;
++		P.Expr(s.Label);
++	}
++}
++
++
++func (P *Printer) StatementList(list []ast.Stat) {
++	for i, s := range list {
++		if i == 0 {
++			P.newlines = 1;
++		} else {  // i > 0
++			if !P.opt_semi || *optsemicolons {
++				// semicolon is required
++				P.separator = semicolon;
++			}
++		}
++		P.Stat(s);
++		P.newlines = 1;
++		P.state = inside_list;
++	}
++}
++
++
++func (P *Printer) Block(b *ast.Block, indent bool) {
++	P.state = opening_scope;
++	P.Token(b.Pos_, b.Tok);
++	if !indent {
++		P.indentation--;
++	}
++	P.StatementList(b.List);
++	if !indent {
++		P.indentation++;
++	}
++	if !*optsemicolons {
++		P.separator = none;
++	}
++	P.state = closing_scope;
++	if b.Tok == token.LBRACE {
++		P.Token(b.Rparen, token.RBRACE);
++		P.opt_semi = true;
++	} else {
++		P.String(nopos, "");  // process closing_scope state transition!
++	}
+ }
+ 
+ 
+@@ -910,12 +919,6 @@ func (P *Printer) ControlClause(isForStat bool, init ast.Stat, expr ast.Expr, po
+ 		if expr != nil {
+ 			P.Expr(expr);
+ 		}
+-	} else if range_clause, ok := init.(*ast.RangeClause); ok {
+-		// range clause
+-		P.Stat(range_clause);
+-	} else if typeswitch_clause, ok := init.(*ast.TypeSwitchClause); ok {
+-		// type switch clause
+-		P.Stat(typeswitch_clause);
+ 	} else {
+ 		// all semicolons required
+ 		// (they are not separators, print them explicitly)
+@@ -923,14 +926,14 @@ func (P *Printer) ControlClause(isForStat bool, init ast.Stat, expr ast.Expr, po
+ 			P.Stat(init);
+ 			P.separator = none;
+ 		}
+-		P.Token(noloc, token.SEMICOLON);
++		P.Token(nopos, token.SEMICOLON);
+ 		P.separator = blank;
+ 		if expr != nil {
+ 			P.Expr(expr);
+ 			P.separator = none;
+ 		}
+ 		if isForStat {
+-			P.Token(noloc, token.SEMICOLON);
++			P.Token(nopos, token.SEMICOLON);
+ 			P.separator = blank;
+ 			if post != nil {
+ 				P.Stat(post);
+@@ -942,60 +945,29 @@ func (P *Printer) ControlClause(isForStat bool, init ast.Stat, expr ast.Expr, po
+ 
+ 
+ func (P *Printer) DoIfStat(s *ast.IfStat) {
+-	P.Token(s.Loc, token.IF);
++	P.Token(s.If, token.IF);
+ 	P.ControlClause(false, s.Init, s.Cond, nil);
+ 	P.Block(s.Body, true);
+ 	if s.Else != nil {
+ 		P.separator = blank;
+-		P.Token(noloc, token.ELSE);
++		P.Token(nopos, token.ELSE);
+ 		P.separator = blank;
+ 		P.Stat(s.Else);
+ 	}
+ }
+ 
+ 
+-func (P *Printer) DoRangeClause(s *ast.RangeClause) {
+-	P.Exprs(s.Lhs);
+-	P.separator = blank;
+-	P.Token(s.Loc, s.Tok);
+-	P.separator = blank;
+-	P.Token(noloc, token.RANGE);
+-	P.separator = blank;
+-	P.Expr(s.Rhs);
+-}
+-
+-
+-func (P *Printer) DoForStat(s *ast.ForStat) {
+-	P.Token(s.Loc, token.FOR);
+-	P.ControlClause(true, s.Init, s.Cond, s.Post);
+-	P.Block(s.Body, true);
+-}
+-
+-
+-func (P *Printer) DoTypeSwitchClause(s *ast.TypeSwitchClause) {
+-	P.Expr(s.Lhs);
+-	P.separator = blank;
+-	P.Token(s.Loc, token.DEFINE);
+-	P.separator = blank;
+-	P.Expr(s.Rhs);
+-	P.Token(s.Loc, token.PERIOD);
+-	P.Token(s.Loc, token.LPAREN);
+-	P.Token(s.Loc, token.TYPE);
+-	P.Token(s.Loc, token.RPAREN);
+-}
+-
+-
+ func (P *Printer) DoCaseClause(s *ast.CaseClause) {
+ 	if s.Values != nil {
+-		P.Token(s.Loc, token.CASE);
++		P.Token(s.Case, token.CASE);
+ 		P.separator = blank;
+ 		P.Exprs(s.Values);
+ 	} else {
+-		P.Token(s.Loc, token.DEFAULT);
++		P.Token(s.Case, token.DEFAULT);
+ 	}
+ 	// TODO: try to use P.Block instead
+ 	// P.Block(s.Body, true);
+-	P.Token(s.Body.Loc, token.COLON);
++	P.Token(s.Body.Pos_, token.COLON);
+ 	P.indentation++;
+ 	P.StatementList(s.Body.List);
+ 	P.indentation--;
+@@ -1004,36 +976,62 @@ func (P *Printer) DoCaseClause(s *ast.CaseClause) {
+ 
+ 
+ func (P *Printer) DoSwitchStat(s *ast.SwitchStat) {
+-	P.Token(s.Loc, token.SWITCH);
++	P.Token(s.Switch, token.SWITCH);
+ 	P.ControlClause(false, s.Init, s.Tag, nil);
+ 	P.Block(s.Body, false);
+ }
+ 
+ 
+-func (P *Printer) DoTypeSwitchStat(s *ast.SwitchStat) {
+-	P.Token(s.Loc, token.SWITCH);
+-	P.ControlClause(false, s.Init, s.Tag, nil);
++func (P *Printer) DoTypeCaseClause(s *ast.TypeCaseClause) {
++	if s.Typ != nil {
++		P.Token(s.Case, token.CASE);
++		P.separator = blank;
++		P.Expr(s.Typ);
++	} else {
++		P.Token(s.Case, token.DEFAULT);
++	}
++	// TODO: try to use P.Block instead
++	// P.Block(s.Body, true);
++	P.Token(s.Body.Pos_, token.COLON);
++	P.indentation++;
++	P.StatementList(s.Body.List);
++	P.indentation--;
++	P.newlines = 1;
++}
++
++
++func (P *Printer) DoTypeSwitchStat(s *ast.TypeSwitchStat) {
++	P.Token(s.Switch, token.SWITCH);
++	P.separator = blank;
++	if s.Init != nil {
++		P.Stat(s.Init);
++		P.separator = none;
++		P.Token(nopos, token.SEMICOLON);
++	}
++	P.separator = blank;
++	P.Stat(s.Assign);
++	P.separator = blank;
+ 	P.Block(s.Body, false);
+ }
+ 
+ 
+ func (P *Printer) DoCommClause(s *ast.CommClause) {
+ 	if s.Rhs != nil {
+-		P.Token(s.Loc, token.CASE);
++		P.Token(s.Case, token.CASE);
+ 		P.separator = blank;
+ 		if s.Lhs != nil {
+ 			P.Expr(s.Lhs);
+ 			P.separator = blank;
+-			P.Token(noloc, s.Tok);
++			P.Token(nopos, s.Tok);
+ 			P.separator = blank;
+ 		}
+ 		P.Expr(s.Rhs);
+ 	} else {
+-		P.Token(s.Loc, token.DEFAULT);
++		P.Token(s.Case, token.DEFAULT);
+ 	}
+ 	// TODO: try to use P.Block instead
+ 	// P.Block(s.Body, true);
+-	P.Token(s.Body.Loc, token.COLON);
++	P.Token(s.Body.Pos_, token.COLON);
+ 	P.indentation++;
+ 	P.StatementList(s.Body.List);
+ 	P.indentation--;
+@@ -1042,30 +1040,25 @@ func (P *Printer) DoCommClause(s *ast.CommClause) {
+ 
+ 
+ func (P *Printer) DoSelectStat(s *ast.SelectStat) {
+-	P.Token(s.Loc, token.SELECT);
++	P.Token(s.Select, token.SELECT);
+ 	P.separator = blank;
+ 	P.Block(s.Body, false);
+ }
+ 
+ 
+-func (P *Printer) DoControlFlowStat(s *ast.ControlFlowStat) {
+-	P.Token(s.Loc, s.Tok);
+-	if s.Label != nil {
+-		P.separator = blank;
+-		P.Expr(s.Label);
+-	}
++func (P *Printer) DoForStat(s *ast.ForStat) {
++	P.Token(s.For, token.FOR);
++	P.ControlClause(true, s.Init, s.Cond, s.Post);
++	P.Block(s.Body, true);
+ }
+ 
+ 
+-func (P *Printer) DoReturnStat(s *ast.ReturnStat) {
+-	P.Token(s.Loc, token.RETURN);
++func (P *Printer) DoRangeStat(s *ast.RangeStat) {
++	P.Token(s.For, token.FOR);
+ 	P.separator = blank;
+-	P.Exprs(s.Results);
+-}
+-
+-
+-func (P *Printer) DoEmptyStat(s *ast.EmptyStat) {
+-	P.String(s.Loc, "");
++	P.Stat(s.Range);
++	P.separator = blank;
++	P.Block(s.Body, true);
+ }
+ 
+ 
+@@ -1073,13 +1066,13 @@ func (P *Printer) DoEmptyStat(s *ast.EmptyStat) {
+ // Declarations
+ 
+ func (P *Printer) DoBadDecl(d *ast.BadDecl) {
+-	P.String(d.Loc, "<BAD DECL>");
++	P.String(d.Pos_, "<BAD DECL>");
+ }
+ 
+ 
+ func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
+-	if d.Loc.Pos > 0 {
+-		P.Token(d.Loc, token.IMPORT);
++	if d.Import.Pos > 0 {
++		P.Token(d.Import, token.IMPORT);
+ 		P.separator = blank;
+ 	}
+ 	if d.Name != nil {
+@@ -1088,21 +1081,18 @@ func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
+ 		P.String(d.Path.Pos(), "");  // flush pending ';' separator/newlines
+ 	}
+ 	P.separator = tab;
+-	if lit, is_lit := d.Path.(*ast.StringLit); is_lit {
+-		// TODO incorrect (string lit could be a list of strings)
+-		P.HtmlPackageName(lit.Pos(), string(lit.Strings[0].Lit));
+-	} else {
+-		// we should only reach here for strange imports
+-		// import "foo" "bar"
+-		P.Expr(d.Path);
++	// TODO fix for longer package names
++	if len(d.Path.Strings) > 1 {
++		panic();
+ 	}
++	P.HtmlPackageName(d.Path.Pos(), string(d.Path.Strings[0].Lit));
+ 	P.newlines = 2;
+ }
+ 
+ 
+ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+-	if d.Loc.Pos > 0 {
+-		P.Token(d.Loc, token.CONST);
++	if d.Const.Pos > 0 {
++		P.Token(d.Const, token.CONST);
+ 		P.separator = blank;
+ 	}
+ 	P.Idents(d.Names, P.full);
+@@ -1112,7 +1102,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+ 	}
+ 	if d.Values != nil {
+ 		P.separator = tab;
+-		P.Token(noloc, token.ASSIGN);
++		P.Token(nopos, token.ASSIGN);
+ 		P.separator = blank;
+ 		P.Exprs(d.Values);
+ 	}
+@@ -1121,8 +1111,8 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+ 
+ 
+ func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
+-	if d.Loc.Pos > 0 {
+-		P.Token(d.Loc, token.TYPE);
++	if d.Type.Pos > 0 {
++		P.Token(d.Type, token.TYPE);
+ 		P.separator = blank;
+ 	}
+ 	P.Expr(d.Name);
+@@ -1133,8 +1123,8 @@ func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
+ 
+ 
+ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+-	if d.Loc.Pos > 0 {
+-		P.Token(d.Loc, token.VAR);
++	if d.Var.Pos > 0 {
++		P.Token(d.Var, token.VAR);
+ 		P.separator = blank;
+ 	}
+ 	P.Idents(d.Names, P.full);
+@@ -1145,7 +1135,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 	}
+ 	if d.Values != nil {
+ 		P.separator = tab;
+-		P.Token(noloc, token.ASSIGN);
++		P.Token(nopos, token.ASSIGN);
+ 		P.separator = blank;
+ 		P.Exprs(d.Values);
+ 	}
+@@ -1154,17 +1144,17 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 
+ 
+ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+-	P.Token(d.Loc, token.FUNC);
++	P.Token(d.Func, token.FUNC);
+ 	P.separator = blank;
+ 	if recv := d.Recv; recv != nil {
+ 		// method: print receiver
+-		P.Token(noloc, token.LPAREN);
++		P.Token(nopos, token.LPAREN);
+ 		if len(recv.Names) > 0 {
+ 			P.Expr(recv.Names[0]);
+ 			P.separator = blank;
+ 		}
+ 		P.Expr(recv.Typ);
+-		P.Token(noloc, token.RPAREN);
++		P.Token(nopos, token.RPAREN);
+ 		P.separator = blank;
+ 	}
+ 	P.Expr(d.Name);
+@@ -1173,17 +1163,17 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+ 		P.separator = blank;
+ 		P.Block(d.Body, true);
+ 	}
+-	P.newlines = 2;
++	P.newlines = 3;
+ }
+ 
+ 
+ func (P *Printer) DoDeclList(d *ast.DeclList) {
+-	P.Token(d.Loc, d.Tok);
++	P.Token(d.Pos_, d.Tok);
+ 	P.separator = blank;
+ 
+ 	// group of parenthesized declarations
+ 	P.state = opening_scope;
+-	P.Token(noloc, token.LPAREN);
++	P.Token(nopos, token.LPAREN);
+ 	if len(d.List) > 0 {
+ 		P.newlines = 1;
+ 		for i := 0; i < len(d.List); i++ {
+@@ -1195,7 +1185,7 @@ func (P *Printer) DoDeclList(d *ast.DeclList) {
+ 		}
+ 	}
+ 	P.state = closing_scope;
+-	P.Token(d.End, token.RPAREN);
++	P.Token(d.Rparen, token.RPAREN);
+ 	P.opt_semi = true;
+ 	P.newlines = 2;
+ }
+@@ -1231,7 +1221,7 @@ func cleanComment(s []byte) []byte {
+ }
+ 
+ 
+-func (P *Printer) printComment(comment ast.CommentGroup) {
++func (P *Printer) printComment(comment ast.Comments) {
+ 	in_paragraph := false;
+ 	for i, c := range comment {
+ 		s := cleanComment(c.Text);
+@@ -1254,7 +1244,7 @@ func (P *Printer) printComment(comment ast.CommentGroup) {
+ }
+ 
+ 
+-func (P *Printer) Interface(p *ast.Program) {
++func (P *Printer) Interface(p *ast.Package) {
+ 	P.full = false;
+ 	for i := 0; i < len(p.Decls); i++ {
+ 		switch d := p.Decls[i].(type) {
+@@ -1263,22 +1253,22 @@ func (P *Printer) Interface(p *ast.Program) {
+ 				P.Printf("<h2>Constants</h2>\n");
+ 				P.Printf("<p><pre>");
+ 				P.DoConstDecl(d);
+-				P.String(noloc, "");
++				P.String(nopos, "");
+ 				P.Printf("</pre></p>\n");
+-				if d.Comment != nil {
+-					P.printComment(d.Comment);
++				if d.Doc != nil {
++					P.printComment(d.Doc);
+ 				}
+ 			}
+ 
+ 		case *ast.TypeDecl:
+ 			if isExported(d.Name) {
+-				P.Printf("<h2>type %s</h2>\n", d.Name.Str);
++				P.Printf("<h2>type %s</h2>\n", d.Name.Lit);
+ 				P.Printf("<p><pre>");
+ 				P.DoTypeDecl(d);
+-				P.String(noloc, "");
++				P.String(nopos, "");
+ 				P.Printf("</pre></p>\n");
+-				if d.Comment != nil {
+-					P.printComment(d.Comment);
++				if d.Doc != nil {
++					P.printComment(d.Doc);
+ 				}
+ 			}
+ 
+@@ -1287,10 +1277,10 @@ func (P *Printer) Interface(p *ast.Program) {
+ 				P.Printf("<h2>Variables</h2>\n");
+ 				P.Printf("<p><pre>");
+ 				P.DoVarDecl(d);
+-				P.String(noloc, "");
++				P.String(nopos, "");
+ 				P.Printf("</pre></p>\n");
+-				if d.Comment != nil {
+-					P.printComment(d.Comment);
++				if d.Doc != nil {
++					P.printComment(d.Doc);
+ 				}
+ 			}
+ 
+@@ -1299,16 +1289,16 @@ func (P *Printer) Interface(p *ast.Program) {
+ 				if d.Recv != nil {
+ 					P.Printf("<h3>func (");
+ 					P.Expr(d.Recv.Typ);
+-					P.Printf(") %s</h3>\n", d.Name.Str);
++					P.Printf(") %s</h3>\n", d.Name.Lit);
+ 				} else {
+-					P.Printf("<h2>func %s</h2>\n", d.Name.Str);
++					P.Printf("<h2>func %s</h2>\n", d.Name.Lit);
+ 				}
+ 				P.Printf("<p><code>");
+ 				P.DoFuncDecl(d);
+-				P.String(noloc, "");
++				P.String(nopos, "");
+ 				P.Printf("</code></p>\n");
+-				if d.Comment != nil {
+-					P.printComment(d.Comment);
++				if d.Doc != nil {
++					P.printComment(d.Doc);
+ 				}
+ 			}
+ 			
+@@ -1322,9 +1312,9 @@ func (P *Printer) Interface(p *ast.Program) {
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+-func (P *Printer) Program(p *ast.Program) {
++func (P *Printer) Program(p *ast.Package) {
+ 	P.full = true;
+-	P.Token(p.Loc, token.PACKAGE);
++	P.Token(p.Package, token.PACKAGE);
+ 	P.separator = blank;
+ 	P.Expr(p.Name);
+ 	P.newlines = 1;
+@@ -1341,7 +1331,7 @@ func (P *Printer) Program(p *ast.Program) {
+ var templ = template.NewTemplateOrDie("template.html");
+ 
+ 
+-func Print(writer io.Write, prog *ast.Program, html bool) {
++func Print(writer io.Write, prog *ast.Package, html bool) {
+ 	// setup
+ 	var P Printer;
+ 	padchar := byte(' ');
+@@ -1353,12 +1343,12 @@ func Print(writer io.Write, prog *ast.Program, html bool) {
+ 		flags |= tabwriter.FilterHTML;
+ 	}
+ 	text := tabwriter.NewWriter(writer, *tabwidth, 1, padchar, flags);
+-	P.Init(text, nil /* prog.Comments */, html);
++	P.Init(text, prog.Comments, html);
+ 
+ 	if P.html {
+ 		err := templ.Apply(text, "<!--", template.Substitution {
+-			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Name.Str); },
+-			"PACKAGE_COMMENT-->": func() { P.printComment(prog.Comment); },
++			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Name.Lit); },
++			"PACKAGE_COMMENT-->": func() { P.printComment(prog.Doc); },
+ 			"PACKAGE_INTERFACE-->" : func() { P.Interface(prog); },
+ 			"PACKAGE_BODY-->" : func() { P.Program(prog); },
+ 		});
+@@ -1369,7 +1359,7 @@ func Print(writer io.Write, prog *ast.Program, html bool) {
+ 		P.Program(prog);
+ 	}
+ 
+-	P.String(noloc, "");  // flush pending separator/newlines
++	P.String(nopos, "");  // flush pending separator/newlines
+ 	err := text.Flush();
+ 	if err != nil {
+ 		panic("print error - exiting");
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index 8cc0d5975f..b027379275 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -77,7 +77,7 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
+ */
+ 
+ 
+-func (s *state) CheckProgram(p *ast.Program) {
++func (s *state) CheckProgram(p *ast.Package) {
+ 	for i := 0; i < len(p.Decls); i++ {
+ 		//s.CheckDeclaration(p.Decls[i].(*AST.Decl));
+ 	}
+@@ -86,7 +86,7 @@ func (s *state) CheckProgram(p *ast.Program) {
+ 
+ // ----------------------------------------------------------------------------
+ 
+-func CheckProgram(err scanner.ErrorHandler, p *ast.Program) {
++func CheckProgram(err scanner.ErrorHandler, p *ast.Package) {
+ 	var s state;
+ 	s.Init(err);
+ 	s.CheckProgram(p);

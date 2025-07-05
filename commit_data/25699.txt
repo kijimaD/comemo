@@ -9,7 +9,40 @@ Date:   Wed Nov 4 15:54:41 2015 -0500
     Change-Id: I01bf506d76260bcdf828bbde52791e328aa441a5
     Reviewed-on: https://go-review.googlesource.com/16921
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  3 +++
  test/fixedbugs/issue11699.go        | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index a40738375d..ea9b3687e1 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -129,6 +129,9 @@ func gcsymdup(s *Sym) {
+ }
+ 
+ func emitptrargsmap() {
++	if Curfn.Func.Nname.Sym.Name == "_" {
++		return
++	}
+ 	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
+ 
+ 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
+diff --git a/test/fixedbugs/issue11699.go b/test/fixedbugs/issue11699.go
+new file mode 100644
+index 0000000000..965c87fa8d
+--- /dev/null
++++ b/test/fixedbugs/issue11699.go
+@@ -0,0 +1,12 @@
++// compile
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 11699; used to fail with duplicate _.args_stackmap symbols.
++
++package p
++
++func _()
++func _()

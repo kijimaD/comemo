@@ -10,7 +10,122 @@ Date:   Fri Feb 26 13:03:11 2016 -0800
     Change-Id: Ib634705cc1bc3b1d8fc3795bd4ed2894e6abc284
     Reviewed-on: https://go-review.googlesource.com/19964
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen_test.go | 15 ++++----
  src/cmd/compile/internal/gc/syntax.go    | 63 --------------------------------
  2 files changed, 7 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 909b8a9507..58ed41f923 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"reflect"
++	"sort"
+ 	"testing"
+ )
+ 
+@@ -134,7 +135,7 @@ func nodelist2slice(nl *NodeList) []*Node {
+ 	return s
+ }
+ 
+-func TestListsort(t *testing.T) {
++func TestStackvarSort(t *testing.T) {
+ 	inp := []*Node{
+ 		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+ 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+@@ -173,13 +174,11 @@ func TestListsort(t *testing.T) {
+ 		haspointers(inp[i].Type)
+ 	}
+ 
+-	nl := slice2nodelist(inp)
+-	listsort(&nl, cmpstackvarlt)
+-	got := nodelist2slice(nl)
+-	if !reflect.DeepEqual(want, got) {
+-		t.Error("listsort failed")
+-		for i := range got {
+-			g := got[i]
++	sort.Sort(byStackVar(inp))
++	if !reflect.DeepEqual(want, inp) {
++		t.Error("sort failed")
++		for i := range inp {
++			g := inp[i]
+ 			w := want[i]
+ 			eq := reflect.DeepEqual(w, g)
+ 			if !eq {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index ff28507d10..f18733104f 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -411,69 +411,6 @@ func list(l *NodeList, n *Node) *NodeList {
+ 	return concat(l, list1(n))
+ }
+ 
+-// listsort sorts *l in place according to the comparison function lt.
+-// The algorithm expects lt(a, b) to be equivalent to a < b.
+-// The algorithm is mergesort, so it is guaranteed to be O(n log n).
+-func listsort(l **NodeList, lt func(*Node, *Node) bool) {
+-	if *l == nil || (*l).Next == nil {
+-		return
+-	}
+-
+-	l1 := *l
+-	l2 := *l
+-	for {
+-		l2 = l2.Next
+-		if l2 == nil {
+-			break
+-		}
+-		l2 = l2.Next
+-		if l2 == nil {
+-			break
+-		}
+-		l1 = l1.Next
+-	}
+-
+-	l2 = l1.Next
+-	l1.Next = nil
+-	l2.End = (*l).End
+-	(*l).End = l1
+-
+-	l1 = *l
+-	listsort(&l1, lt)
+-	listsort(&l2, lt)
+-
+-	if lt(l1.N, l2.N) {
+-		*l = l1
+-	} else {
+-		*l = l2
+-		l2 = l1
+-		l1 = *l
+-	}
+-
+-	// now l1 == *l; and l1 < l2
+-
+-	var le *NodeList
+-	for (l1 != nil) && (l2 != nil) {
+-		for (l1.Next != nil) && lt(l1.Next.N, l2.N) {
+-			l1 = l1.Next
+-		}
+-
+-		// l1 is last one from l1 that is < l2
+-		le = l1.Next // le is the rest of l1, first one that is >= l2
+-		if le != nil {
+-			le.End = (*l).End
+-		}
+-
+-		(*l).End = l1       // cut *l at l1
+-		*l = concat(*l, l2) // glue l2 to *l's tail
+-
+-		l1 = l2 // l1 is the first element of *l that is < the new l2
+-		l2 = le // ... because l2 now is the old tail of l1
+-	}
+-
+-	*l = concat(*l, l2) // any remainder
+-}
+-
+ // count returns the length of the list l.
+ func count(l *NodeList) int {
+ 	n := int64(0)

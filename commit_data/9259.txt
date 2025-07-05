@@ -7,6 +7,26 @@ Date:   Fri Jul 29 14:09:07 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4830043
-
+---
  src/pkg/xml/marshal.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/xml/marshal.go b/src/pkg/xml/marshal.go
+index 2ac03a91e2..f6e5bf5cdb 100644
+--- a/src/pkg/xml/marshal.go
++++ b/src/pkg/xml/marshal.go
+@@ -14,10 +14,10 @@ import (
+ )
+ 
+ const (
+-	// A generic XML header suitable for use with the output of Marshal and MarshalIndent.
+-	// This is not automatically added to any output of this package, it is provided as a
+-	// convenience.
+-	Header = `<?xml version="1.0" encoding="UTF-8">\n`
++	// A generic XML header suitable for use with the output of Marshal and
++	// MarshalIndent.  This is not automatically added to any output of this
++	// package, it is provided as a convenience.
++	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+ )
+ 
+ // A Marshaler can produce well-formatted XML representing its internal state.

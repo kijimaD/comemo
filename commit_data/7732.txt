@@ -11,7 +11,94 @@ Date:   Thu Mar 10 12:54:18 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4239078
-
+---
  src/cmd/gofmt/doc.go   | 16 ++++------------
  src/cmd/gofmt/gofmt.go | 13 +------------
  2 files changed, 5 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 2d2c9ae611..e44030eee9 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-
+ Gofmt formats Go programs.
+ 
+ Without an explicit path, it processes the standard input.  Given a file,
+@@ -16,14 +15,16 @@ Usage:
+ The flags are:
+ 
+ 	-l
+-		just list files whose formatting differs from gofmt's; generate no other output
+-		unless -w is also set.
++		just list files whose formatting differs from gofmt's;
++		generate no other output unless -w is also set.
+ 	-r rule
+ 		apply the rewrite rule to the source before reformatting.
+ 	-s
+ 		try to simplify code (after applying the rewrite rule, if any).
+ 	-w
+ 		if set, overwrite each input file with its output.
++	-comments=true
++		print comments; if false, all comments are elided from the output.
+ 	-spaces
+ 		align with spaces instead of tabs.
+ 	-tabindent
+@@ -31,15 +32,6 @@ The flags are:
+ 	-tabwidth=8
+ 		tab width in spaces.
+ 
+-Debugging flags:
+-
+-	-trace
+-		print parse trace.
+-	-ast
+-		print AST (before rewrites).
+-	-comments=true
+-		print comments; if false, all comments are elided from the output.
+-
+ The rewrite rule specified with the -r flag must be a string of the form:
+ 
+ 	pattern -> replacement
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 224aee717d..0262875413 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -27,12 +27,8 @@ var (
+ 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
+ 	simplifyAST = flag.Bool("s", false, "simplify code")
+ 
+-	// debugging support
+-	comments = flag.Bool("comments", true, "print comments")
+-	trace    = flag.Bool("trace", false, "print parse trace")
+-	printAST = flag.Bool("ast", false, "print AST (before rewrites)")
+-
+ 	// layout control
++	comments  = flag.Bool("comments", true, "print comments")
+ 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
+ 	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
+ 	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
+@@ -66,9 +62,6 @@ func initParserMode() {
+ 	if *comments {
+ 		parserMode |= parser.ParseComments
+ 	}
+-	if *trace {
+-		parserMode |= parser.Trace
+-	}
+ }
+ 
+ 
+@@ -101,10 +94,6 @@ func processFile(f *os.File) os.Error {
+ 		return err
+ 	}
+ 
+-	if *printAST {
+-		ast.Print(file)
+-	}
+-
+ 	if rewrite != nil {
+ 		file = rewrite(file)
+ 	}

@@ -10,6 +10,25 @@ Date:   Mon Jul 30 18:44:48 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6444049
-
+---
  src/cmd/cgo/gcc.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 93ecb3e3d0..18be64fc7c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -508,7 +508,12 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 			fmt.Fprintf(&b, "\t0,\n")
+ 		}
+ 	}
+-	fmt.Fprintf(&b, "\t0\n")
++	// for the last entry, we can not use 0, otherwise
++	// in case all __cgodebug_data is zero initialized,
++	// LLVM-based gcc will place the it in the __DATA.__common
++	// zero-filled section (our debug/macho doesn't support
++	// this)
++	fmt.Fprintf(&b, "\t1\n")
+ 	fmt.Fprintf(&b, "};\n")
+ 
+ 	d, bo, debugData := p.gccDebug(b.Bytes())

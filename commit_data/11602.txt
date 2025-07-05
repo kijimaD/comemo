@@ -9,7 +9,7 @@ Date:   Fri Feb 3 15:08:53 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5629044
-
+---
  src/pkg/crypto/cipher/cbc.go       |   2 +-
  src/pkg/crypto/cipher/ocfb.go      | 138 -------------------------------------
  src/pkg/crypto/cipher/ocfb_test.go |  44 ------------
@@ -20,3 +20,384 @@ Date:   Fri Feb 3 15:08:53 2012 -0500
  src/pkg/crypto/tls/tls.go          |  28 +++-----
  src/pkg/crypto/x509/pkix/pkix.go   |   2 +
  9 files changed, 34 insertions(+), 215 deletions(-)
+
+diff --git a/src/pkg/crypto/cipher/cbc.go b/src/pkg/crypto/cipher/cbc.go
+index 4632f882a4..a48929cf5d 100644
+--- a/src/pkg/crypto/cipher/cbc.go
++++ b/src/pkg/crypto/cipher/cbc.go
+@@ -56,7 +56,7 @@ type cbcDecrypter cbc
+ 
+ // NewCBCDecrypter returns a BlockMode which decrypts in cipher block chaining
+ // mode, using the given Block. The length of iv must be the same as the
+-// Block's block size as must match the iv used to encrypt the data.
++// Block's block size and must match the iv used to encrypt the data.
+ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+ 	return (*cbcDecrypter)(newCBC(b, iv))
+ }
+diff --git a/src/pkg/crypto/cipher/ocfb.go b/src/pkg/crypto/cipher/ocfb.go
+deleted file mode 100644
+index 031e74a9dc..0000000000
+--- a/src/pkg/crypto/cipher/ocfb.go
++++ /dev/null
+@@ -1,138 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// OpenPGP CFB Mode. http://tools.ietf.org/html/rfc4880#section-13.9
+-
+-package cipher
+-
+-type ocfbEncrypter struct {
+-	b       Block
+-	fre     []byte
+-	outUsed int
+-}
+-
+-// An OCFBResyncOption determines if the "resynchronization step" of OCFB is
+-// performed.
+-type OCFBResyncOption bool
+-
+-const (
+-	OCFBResync   OCFBResyncOption = true
+-	OCFBNoResync OCFBResyncOption = false
+-)
+-
+-// NewOCFBEncrypter returns a Stream which encrypts data with OpenPGP's cipher
+-// feedback mode using the given Block, and an initial amount of ciphertext.
+-// randData must be random bytes and be the same length as the Block's block
+-// size. Resync determines if the "resynchronization step" from RFC 4880, 13.9
+-// step 7 is performed. Different parts of OpenPGP vary on this point.
+-func NewOCFBEncrypter(block Block, randData []byte, resync OCFBResyncOption) (Stream, []byte) {
+-	blockSize := block.BlockSize()
+-	if len(randData) != blockSize {
+-		return nil, nil
+-	}
+-
+-	x := &ocfbEncrypter{
+-		b:       block,
+-		fre:     make([]byte, blockSize),
+-		outUsed: 0,
+-	}
+-	prefix := make([]byte, blockSize+2)
+-
+-	block.Encrypt(x.fre, x.fre)
+-	for i := 0; i < blockSize; i++ {
+-		prefix[i] = randData[i] ^ x.fre[i]
+-	}
+-
+-	block.Encrypt(x.fre, prefix[:blockSize])
+-	prefix[blockSize] = x.fre[0] ^ randData[blockSize-2]
+-	prefix[blockSize+1] = x.fre[1] ^ randData[blockSize-1]
+-
+-	if resync {
+-		block.Encrypt(x.fre, prefix[2:])
+-	} else {
+-		x.fre[0] = prefix[blockSize]
+-		x.fre[1] = prefix[blockSize+1]
+-		x.outUsed = 2
+-	}
+-	return x, prefix
+-}
+-
+-func (x *ocfbEncrypter) XORKeyStream(dst, src []byte) {
+-	for i := 0; i < len(src); i++ {
+-		if x.outUsed == len(x.fre) {
+-			x.b.Encrypt(x.fre, x.fre)
+-			x.outUsed = 0
+-		}
+-
+-		x.fre[x.outUsed] ^= src[i]
+-		dst[i] = x.fre[x.outUsed]
+-		x.outUsed++
+-	}
+-}
+-
+-type ocfbDecrypter struct {
+-	b       Block
+-	fre     []byte
+-	outUsed int
+-}
+-
+-// NewOCFBDecrypter returns a Stream which decrypts data with OpenPGP's cipher
+-// feedback mode using the given Block. Prefix must be the first blockSize + 2
+-// bytes of the ciphertext, where blockSize is the Block's block size. If an
+-// incorrect key is detected then nil is returned. On successful exit,
+-// blockSize+2 bytes of decrypted data are written into prefix. Resync
+-// determines if the "resynchronization step" from RFC 4880, 13.9 step 7 is
+-// performed. Different parts of OpenPGP vary on this point.
+-func NewOCFBDecrypter(block Block, prefix []byte, resync OCFBResyncOption) Stream {
+-	blockSize := block.BlockSize()
+-	if len(prefix) != blockSize+2 {
+-		return nil
+-	}
+-
+-	x := &ocfbDecrypter{
+-		b:       block,
+-		fre:     make([]byte, blockSize),
+-		outUsed: 0,
+-	}
+-	prefixCopy := make([]byte, len(prefix))
+-	copy(prefixCopy, prefix)
+-
+-	block.Encrypt(x.fre, x.fre)
+-	for i := 0; i < blockSize; i++ {
+-		prefixCopy[i] ^= x.fre[i]
+-	}
+-
+-	block.Encrypt(x.fre, prefix[:blockSize])
+-	prefixCopy[blockSize] ^= x.fre[0]
+-	prefixCopy[blockSize+1] ^= x.fre[1]
+-
+-	if prefixCopy[blockSize-2] != prefixCopy[blockSize] ||
+-		prefixCopy[blockSize-1] != prefixCopy[blockSize+1] {
+-		return nil
+-	}
+-
+-	if resync {
+-		block.Encrypt(x.fre, prefix[2:])
+-	} else {
+-		x.fre[0] = prefix[blockSize]
+-		x.fre[1] = prefix[blockSize+1]
+-		x.outUsed = 2
+-	}
+-	copy(prefix, prefixCopy)
+-	return x
+-}
+-
+-func (x *ocfbDecrypter) XORKeyStream(dst, src []byte) {
+-	for i := 0; i < len(src); i++ {
+-		if x.outUsed == len(x.fre) {
+-			x.b.Encrypt(x.fre, x.fre)
+-			x.outUsed = 0
+-		}
+-
+-		c := src[i]
+-		dst[i] = x.fre[x.outUsed] ^ src[i]
+-		x.fre[x.outUsed] = c
+-		x.outUsed++
+-	}
+-}
+diff --git a/src/pkg/crypto/cipher/ocfb_test.go b/src/pkg/crypto/cipher/ocfb_test.go
+deleted file mode 100644
+index 40938b5892..0000000000
+--- a/src/pkg/crypto/cipher/ocfb_test.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cipher
+-
+-import (
+-	"bytes"
+-	"crypto/aes"
+-	"crypto/rand"
+-	"testing"
+-)
+-
+-func testOCFB(t *testing.T, resync OCFBResyncOption) {
+-	block, err := aes.NewCipher(commonKey128)
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-
+-	plaintext := []byte("this is the plaintext, which is long enough to span several blocks.")
+-	randData := make([]byte, block.BlockSize())
+-	rand.Reader.Read(randData)
+-	ocfb, prefix := NewOCFBEncrypter(block, randData, resync)
+-	ciphertext := make([]byte, len(plaintext))
+-	ocfb.XORKeyStream(ciphertext, plaintext)
+-
+-	ocfbdec := NewOCFBDecrypter(block, prefix, resync)
+-	if ocfbdec == nil {
+-		t.Errorf("NewOCFBDecrypter failed (resync: %t)", resync)
+-		return
+-	}
+-	plaintextCopy := make([]byte, len(plaintext))
+-	ocfbdec.XORKeyStream(plaintextCopy, ciphertext)
+-
+-	if !bytes.Equal(plaintextCopy, plaintext) {
+-		t.Errorf("got: %x, want: %x (resync: %t)", plaintextCopy, plaintext, resync)
+-	}
+-}
+-
+-func TestOCFB(t *testing.T) {
+-	testOCFB(t, OCFBNoResync)
+-	testOCFB(t, OCFBResync)
+-}
+diff --git a/src/pkg/crypto/crypto.go b/src/pkg/crypto/crypto.go
+index c913494f61..ecefc65725 100644
+--- a/src/pkg/crypto/crypto.go
++++ b/src/pkg/crypto/crypto.go
+@@ -14,15 +14,15 @@ import (
+ type Hash uint
+ 
+ const (
+-	MD4       Hash = 1 + iota // in package crypto/md4
+-	MD5                       // in package crypto/md5
+-	SHA1                      // in package crypto/sha1
+-	SHA224                    // in package crypto/sha256
+-	SHA256                    // in package crypto/sha256
+-	SHA384                    // in package crypto/sha512
+-	SHA512                    // in package crypto/sha512
++	MD4       Hash = 1 + iota // import code.google.com/p/go.crypto/md4
++	MD5                       // import crypto/md5
++	SHA1                      // import crypto/sha1
++	SHA224                    // import crypto/sha256
++	SHA256                    // import crypto/sha256
++	SHA384                    // import crypto/sha512
++	SHA512                    // import crypto/sha512
+ 	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
+-	RIPEMD160                 // in package crypto/ripemd160
++	RIPEMD160                 // import code.google.com/p/go.crypto/ripemd160
+ 	maxHash
+ )
+ 
+@@ -50,8 +50,8 @@ func (h Hash) Size() int {
+ 
+ var hashes = make([]func() hash.Hash, maxHash)
+ 
+-// New returns a new hash.Hash calculating the given hash function. If the
+-// hash function is not linked into the binary, New returns nil.
++// New returns a new hash.Hash calculating the given hash function. New panics
++// if the hash function is not linked into the binary.
+ func (h Hash) New() hash.Hash {
+ 	if h > 0 && h < maxHash {
+ 		f := hashes[h]
+@@ -59,7 +59,12 @@ func (h Hash) New() hash.Hash {
+ 			return f()
+ 		}
+ 	}
+-	return nil
++	panic("crypto: requested hash function is unavailable")
++}
++
++// Available reports whether the given hash function is linked into the binary.
++func (h Hash) Available() bool {
++	return h < maxHash && hashes[h] != nil
+ }
+ 
+ // RegisterHash registers a function that returns a new instance of the given
+diff --git a/src/pkg/crypto/des/cipher.go b/src/pkg/crypto/des/cipher.go
+index fc252c8133..1c41e29a8b 100644
+--- a/src/pkg/crypto/des/cipher.go
++++ b/src/pkg/crypto/des/cipher.go
+@@ -34,13 +34,13 @@ func NewCipher(key []byte) (*Cipher, error) {
+ // BlockSize returns the DES block size, 8 bytes.
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 
+-// Encrypts the 8-byte buffer src and stores the result in dst.
++// Encrypt encrypts the 8-byte buffer src and stores the result in dst.
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+ // instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
+ func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c.subkeys[:], dst, src) }
+ 
+-// Decrypts the 8-byte buffer src and stores the result in dst.
++// Decrypt decrypts the 8-byte buffer src and stores the result in dst.
+ func (c *Cipher) Decrypt(dst, src []byte) { decryptBlock(c.subkeys[:], dst, src) }
+ 
+ // Reset zeros the key data, so that it will no longer
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index d7b053fec5..4f12cbea5c 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -65,7 +65,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
+ // about the plaintext.
+ // See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
+ // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
+-// (Crypto '98),
++// (Crypto '98).
+ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
+ 	k := (priv.N.BitLen() + 7) / 8
+ 	if k-(len(key)+3+8) < 0 {
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 9f3e8a804a..677d27be5d 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -412,7 +412,7 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
+ }
+ 
+ // DecryptOAEP decrypts ciphertext using RSA-OAEP.
+-// If rand != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
++// If random != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
+ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
+ 	k := (priv.N.BitLen() + 7) / 8
+ 	if len(ciphertext) > k ||
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 28e93a0be6..9184e8e811 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -33,16 +33,16 @@ func Client(conn net.Conn, config *Config) *Conn {
+ 	return &Conn{conn: conn, config: config, isClient: true}
+ }
+ 
+-// A Listener implements a network listener (net.Listener) for TLS connections.
+-type Listener struct {
+-	listener net.Listener
+-	config   *Config
++// A listener implements a network listener (net.Listener) for TLS connections.
++type listener struct {
++	net.Listener
++	config *Config
+ }
+ 
+ // Accept waits for and returns the next incoming TLS connection.
+ // The returned connection c is a *tls.Conn.
+-func (l *Listener) Accept() (c net.Conn, err error) {
+-	c, err = l.listener.Accept()
++func (l *listener) Accept() (c net.Conn, err error) {
++	c, err = l.Listener.Accept()
+ 	if err != nil {
+ 		return
+ 	}
+@@ -50,28 +50,22 @@ func (l *Listener) Accept() (c net.Conn, err error) {
+ 	return
+ }
+ 
+-// Close closes the listener.
+-func (l *Listener) Close() error { return l.listener.Close() }
+-
+-// Addr returns the listener's network address.
+-func (l *Listener) Addr() net.Addr { return l.listener.Addr() }
+-
+ // NewListener creates a Listener which accepts connections from an inner
+ // Listener and wraps each connection with Server.
+ // The configuration config must be non-nil and must have
+ // at least one certificate.
+-func NewListener(listener net.Listener, config *Config) (l *Listener) {
+-	l = new(Listener)
+-	l.listener = listener
++func NewListener(inner net.Listener, config *Config) net.Listener {
++	l := new(listener)
++	l.Listener = inner
+ 	l.config = config
+-	return
++	return l
+ }
+ 
+ // Listen creates a TLS listener accepting connections on the
+ // given network address using net.Listen.
+ // The configuration config must be non-nil and must have
+ // at least one certificate.
+-func Listen(network, laddr string, config *Config) (*Listener, error) {
++func Listen(network, laddr string, config *Config) (net.Listener, error) {
+ 	if config == nil || len(config.Certificates) == 0 {
+ 		return nil, errors.New("tls.Listen: no certificates in configuration")
+ 	}
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index 8eced55f93..738659011f 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -23,6 +23,8 @@ type RDNSequence []RelativeDistinguishedNameSET
+ 
+ type RelativeDistinguishedNameSET []AttributeTypeAndValue
+ 
++// AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
++// http://tools.ietf.org/html/rfc5280#section-4.1.2.4
+ type AttributeTypeAndValue struct {
+ 	Type  asn1.ObjectIdentifier
+ 	Value interface{}

@@ -11,6 +11,25 @@ Date:   Tue Apr 5 14:10:22 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/pkg_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg_test.go b/src/cmd/go/pkg_test.go
+index 79479c2af5..fba13636cd 100644
+--- a/src/cmd/go/pkg_test.go
++++ b/src/cmd/go/pkg_test.go
+@@ -161,9 +161,12 @@ func TestSharedLibName(t *testing.T) {
+ 				}
+ 				oldGopath := buildContext.GOPATH
+ 				defer func() {
+-					os.RemoveAll(tmpGopath)
+ 					buildContext.GOPATH = oldGopath
+ 					os.Chdir(cwd)
++					err := os.RemoveAll(tmpGopath)
++					if err != nil {
++						t.Error(err)
++					}
+ 				}()
+ 				root := filepath.Join(tmpGopath, "src", data.rootedAt)
+ 				err = os.MkdirAll(root, 0755)

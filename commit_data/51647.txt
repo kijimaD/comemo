@@ -19,7 +19,7 @@ Date:   Mon Feb 28 15:07:56 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/func.go             |   5 +-
  src/cmd/compile/internal/ir/sizeof_test.go      |   2 +-
  src/cmd/compile/internal/noder/transform.go     |   6 --
@@ -29,3 +29,283 @@ Date:   Mon Feb 28 15:07:56 2022 -0800
  src/cmd/compile/internal/typecheck/subr.go      |   4 -
  src/cmd/compile/internal/typecheck/typecheck.go |   7 --
  8 files changed, 2 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 23d56f7234..29c77444a2 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -31,8 +31,7 @@ import (
+ // using a special data structure passed in a register.
+ //
+ // A method declaration is represented like functions, except f.Sym
+-// will be the qualified method name (e.g., "T.m") and
+-// f.Func.Shortname is the bare method name (e.g., "m").
++// will be the qualified method name (e.g., "T.m").
+ //
+ // A method expression (T.M) is represented as an OMETHEXPR node,
+ // in which n.Left and n.Right point to the type and method, respectively.
+@@ -56,8 +55,6 @@ type Func struct {
+ 	Nname    *Name        // ONAME node
+ 	OClosure *ClosureExpr // OCLOSURE node
+ 
+-	Shortname *types.Sym
+-
+ 	// Extra entry code for the function. For example, allocate and initialize
+ 	// memory for escaping parameters.
+ 	Enter Nodes
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 72b6320261..a4421fcf53 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 196, 336},
++		{Func{}, 192, 328},
+ 		{Name{}, 112, 200},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 5f1f41163b..208630271d 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -1046,13 +1046,7 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 				kv := l.(*ir.KeyExpr)
+ 				key := kv.Key
+ 
+-				// Sym might have resolved to name in other top-level
+-				// package, because of import dot. Redirect to correct sym
+-				// before we do the lookup.
+ 				s := key.Sym()
+-				if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
+-					s = typecheck.Lookup(s.Name)
+-				}
+ 				if types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
+ 					// Exported field names should always have
+ 					// local pkg. We only need to do this
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index e9e4f0ba67..d1eec6d322 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -70,14 +70,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		n.SetFrameOffset(0)
+ 	}
+ 
+-	if s.Block == types.Block {
+-		// functype will print errors about duplicate function arguments.
+-		// Don't repeat the error here.
+-		if ctxt != ir.PPARAM && ctxt != ir.PPARAMOUT {
+-			Redeclared(n.Pos(), s, "in this block")
+-		}
+-	}
+-
+ 	s.Block = types.Block
+ 	s.Lastlineno = base.Pos
+ 	s.Def = n
+@@ -103,38 +95,6 @@ func Export(n *ir.Name) {
+ 	Target.Exports = append(Target.Exports, n)
+ }
+ 
+-// Redeclared emits a diagnostic about symbol s being redeclared at pos.
+-func Redeclared(pos src.XPos, s *types.Sym, where string) {
+-	if !s.Lastlineno.IsKnown() {
+-		var pkgName *ir.PkgName
+-		if s.Def == nil {
+-			for id, pkg := range DotImportRefs {
+-				if id.Sym().Name == s.Name {
+-					pkgName = pkg
+-					break
+-				}
+-			}
+-		} else {
+-			pkgName = DotImportRefs[s.Def.(*ir.Ident)]
+-		}
+-		base.ErrorfAt(pos, "%v redeclared %s\n"+
+-			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
+-	} else {
+-		prevPos := s.Lastlineno
+-
+-		// When an import and a declaration collide in separate files,
+-		// present the import as the "redeclared", because the declaration
+-		// is visible where the import is, but not vice versa.
+-		// See issue 4510.
+-		if s.Def == nil {
+-			pos, prevPos = prevPos, pos
+-		}
+-
+-		base.ErrorfAt(pos, "%v redeclared %s\n"+
+-			"\t%v: previous declaration", s, where, base.FmtPos(prevPos))
+-	}
+-}
+-
+ // declare the function proper
+ // and declare the arguments.
+ // called in extern-declaration context
+@@ -171,90 +131,6 @@ func CheckFuncStack() {
+ 	}
+ }
+ 
+-// Add a method, declared as a function.
+-// - msym is the method symbol
+-// - t is function type (with receiver)
+-// Returns a pointer to the existing or added Field; or nil if there's an error.
+-func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
+-	if msym == nil {
+-		base.Fatalf("no method symbol")
+-	}
+-
+-	// get parent type sym
+-	rf := t.Recv() // ptr to this structure
+-	if rf == nil {
+-		base.Errorf("missing receiver")
+-		return nil
+-	}
+-
+-	mt := types.ReceiverBaseType(rf.Type)
+-	if mt == nil || mt.Sym() == nil {
+-		pa := rf.Type
+-		t := pa
+-		if t != nil && t.IsPtr() {
+-			if t.Sym() != nil {
+-				base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
+-				return nil
+-			}
+-			t = t.Elem()
+-		}
+-
+-		switch {
+-		case t == nil || t.Broke():
+-			// rely on typecheck having complained before
+-		case t.Sym() == nil:
+-			base.Errorf("invalid receiver type %v (%v is not a defined type)", pa, t)
+-		case t.IsPtr():
+-			base.Errorf("invalid receiver type %v (%v is a pointer type)", pa, t)
+-		case t.IsInterface():
+-			base.Errorf("invalid receiver type %v (%v is an interface type)", pa, t)
+-		default:
+-			// Should have picked off all the reasons above,
+-			// but just in case, fall back to generic error.
+-			base.Errorf("invalid receiver type %v (%L / %L)", pa, pa, t)
+-		}
+-		return nil
+-	}
+-
+-	if local && mt.Sym().Pkg != types.LocalPkg {
+-		base.Errorf("cannot define new methods on non-local type %v", mt)
+-		return nil
+-	}
+-
+-	if msym.IsBlank() {
+-		return nil
+-	}
+-
+-	if mt.IsStruct() {
+-		for _, f := range mt.Fields().Slice() {
+-			if f.Sym == msym {
+-				base.Errorf("type %v has both field and method named %v", mt, msym)
+-				f.SetBroke(true)
+-				return nil
+-			}
+-		}
+-	}
+-
+-	for _, f := range mt.Methods().Slice() {
+-		if msym.Name != f.Sym.Name {
+-			continue
+-		}
+-		// types.Identical only checks that incoming and result parameters match,
+-		// so explicitly check that the receiver parameters match too.
+-		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
+-			base.Errorf("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
+-		}
+-		return f
+-	}
+-
+-	f := types.NewField(base.Pos, msym, t)
+-	f.Nname = n.Nname
+-	f.SetNointerface(nointerface)
+-
+-	mt.Methods().Append(f)
+-	return f
+-}
+-
+ func autoexport(n *ir.Name, ctxt ir.Class) {
+ 	if n.Sym().Pkg != types.LocalPkg {
+ 		return
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index eb316d33db..dea7e68855 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -375,13 +375,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
+ 	key := kv.Key
+ 
+-	// Sym might have resolved to name in other top-level
+-	// package, because of import dot. Redirect to correct sym
+-	// before we do the lookup.
+ 	sym := key.Sym()
+-	if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
+-		sym = Lookup(sym.Name)
+-	}
+ 
+ 	// An OXDOT uses the Sym field to hold
+ 	// the field to the right of the dot,
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 57b15b7a2b..c6fd273bd1 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -302,20 +302,6 @@ func tcFunc(n *ir.Func) {
+ 	}
+ 
+ 	n.Nname = AssignExpr(n.Nname).(*ir.Name)
+-	t := n.Nname.Type()
+-	if t == nil {
+-		return
+-	}
+-	rcvr := t.Recv()
+-	if rcvr != nil && n.Shortname != nil {
+-		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
+-		if m == nil {
+-			return
+-		}
+-
+-		n.Nname.SetSym(ir.MethodSym(rcvr.Type, n.Shortname))
+-		Declare(n.Nname, ir.PFUNC)
+-	}
+ }
+ 
+ // tcCall typechecks an OCALL node.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 5147ebbd2c..bc39015846 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -22,10 +22,6 @@ func AssignConv(n ir.Node, t *types.Type, context string) ir.Node {
+ 	return assignconvfn(n, t, func() string { return context })
+ }
+ 
+-// DotImportRefs maps idents introduced by importDot back to the
+-// ir.PkgName they were dot-imported through.
+-var DotImportRefs map[*ir.Ident]*ir.PkgName
+-
+ // LookupNum looks up the symbol starting with prefix and ending with
+ // the decimal n. If prefix is too long, LookupNum panics.
+ func LookupNum(prefix string, n int) *types.Sym {
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index f6be298667..55fa7654a2 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -145,13 +145,6 @@ func Resolve(n ir.Node) (res ir.Node) {
+ 	}
+ 
+ 	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
+-		// We might have an ir.Ident from oldname or importDot.
+-		if id, ok := n.(*ir.Ident); ok {
+-			if pkgName := DotImportRefs[id]; pkgName != nil {
+-				pkgName.Used = true
+-			}
+-		}
+-
+ 		return expandDecl(n)
+ 	}
+ 

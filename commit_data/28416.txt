@@ -12,7 +12,35 @@ Date:   Mon May 23 20:34:39 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 3 ++-
  src/go/build/build.go | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b667396761..987021ecca 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2804,7 +2804,8 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 	os.Remove(tg.path("src/p1/p1.go"))
+ 	tg.mustNotExist(tg.path("src/p1/p1.go"))
+ 
+-	tg.tempFile("src/p2/p2.go", `
++	tg.tempFile("src/p2/p2.go", `//go:binary-only-packages-are-not-great
++
+ 		package p2
+ 		import "p1"
+ 		func F() { p1.F(true) }
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index fa258d3dc6..9706b8b6b3 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1151,7 +1151,7 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
+ 		}
+ 		line = bytes.TrimSpace(line)
+ 		if bytes.HasPrefix(line, slashslash) {
+-			if bytes.HasPrefix(line, binaryOnlyComment) {
++			if bytes.Equal(line, binaryOnlyComment) {
+ 				sawBinaryOnly = true
+ 			}
+ 			line = bytes.TrimSpace(line[len(slashslash):])

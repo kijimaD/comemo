@@ -12,6 +12,32 @@ Date:   Sat Aug 21 12:40:25 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue47771.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/test/fixedbugs/issue47771.go b/test/fixedbugs/issue47771.go
+new file mode 100644
+index 0000000000..a434bffe4b
+--- /dev/null
++++ b/test/fixedbugs/issue47771.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gofrontend miscompiled some cases of append(s, make(typ, ln)...).
++
++package main
++
++var g int
++
++func main() {
++	a := []*int{&g, &g, &g, &g}
++	a = append(a[:0], make([]*int, len(a) - 1)...)
++	if len(a) != 3 || a[0] != nil || a[1] != nil || a[2] != nil {
++		panic(a)
++	}
++}

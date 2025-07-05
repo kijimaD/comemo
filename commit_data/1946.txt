@@ -12,10 +12,251 @@ Date:   Thu Apr 2 16:48:06 2009 -0700
     R=ken
     OCL=27043
     CL=27043
-
+---
  src/cmd/8g/gen.c             | 149 ++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/8g/gg.h              |   5 ++
  src/cmd/8l/8.out.h           |   1 +
  src/cmd/gc/go.h              |   1 +
  src/runtime/darwin/386/sys.s |   4 ++
  5 files changed, 158 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8g/gen.c b/src/cmd/8g/gen.c
+index 9f57464406..d610dc0d28 100644
+--- a/src/cmd/8g/gen.c
++++ b/src/cmd/8g/gen.c
+@@ -84,7 +84,10 @@ compile(Node *fn)
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
+ 
+ 	// fill in final stack size
+-	ptxt->to.offset = rnd(stksize+maxarg, maxround);
++	if(stksize > maxstksize)
++		maxstksize = stksize;
++	ptxt->to.offset = rnd(maxstksize+maxarg, maxround);
++	maxstksize = 0;
+ 
+ 	if(debug['f'])
+ 		frame(0);
+@@ -157,7 +160,115 @@ cgen_callinter(Node *n, Node *res, int proc)
+ void
+ cgen_call(Node *n, int proc)
+ {
+-	fatal("cgen_call");
++	Type *t;
++	Node nod, afun;
++
++	if(n == N)
++		return;
++
++	if(n->left->ullman >= UINF) {
++		// if name involves a fn call
++		// precompute the address of the fn
++		tempalloc(&afun, types[tptr]);
++		cgen(n->left, &afun);
++	}
++
++	gen(n->right);		// assign the args
++	t = n->left->type;
++
++	setmaxarg(t);
++
++	// call tempname pointer
++	if(n->left->ullman >= UINF) {
++		regalloc(&nod, types[tptr], N);
++		cgen_as(&nod, &afun);
++		tempfree(&afun);
++		nod.type = t;
++		ginscall(&nod, proc);
++		regfree(&nod);
++		return;
++	}
++
++	// call pointer
++	if(n->left->op != ONAME || n->left->class != PFUNC) {
++		regalloc(&nod, types[tptr], N);
++		cgen_as(&nod, n->left);
++		nod.type = t;
++		ginscall(&nod, proc);
++		regfree(&nod);
++		return;
++	}
++
++	// call direct
++	n->left->method = 1;
++	ginscall(n->left, proc);
++}
++
++/*
++ * call to n has already been generated.
++ * generate:
++ *	res = return value from call.
++ */
++void
++cgen_callret(Node *n, Node *res)
++{
++	Node nod;
++	Type *fp, *t;
++	Iter flist;
++
++	t = n->left->type;
++	if(t->etype == TPTR32 || t->etype == TPTR64)
++		t = t->type;
++
++	fp = structfirst(&flist, getoutarg(t));
++	if(fp == T)
++		fatal("cgen_callret: nil");
++
++	memset(&nod, 0, sizeof(nod));
++	nod.op = OINDREG;
++	nod.val.u.reg = D_SP;
++	nod.addable = 1;
++
++	nod.xoffset = fp->width;
++	nod.type = fp->type;
++	cgen_as(res, &nod);
++}
++
++/*
++ * call to n has already been generated.
++ * generate:
++ *	res = &return value from call.
++ */
++void
++cgen_aret(Node *n, Node *res)
++{
++	Node nod1, nod2;
++	Type *fp, *t;
++	Iter flist;
++
++	t = n->left->type;
++	if(isptr[t->etype])
++		t = t->type;
++
++	fp = structfirst(&flist, getoutarg(t));
++	if(fp == T)
++		fatal("cgen_aret: nil");
++
++	memset(&nod1, 0, sizeof(nod1));
++	nod1.op = OINDREG;
++	nod1.val.u.reg = D_SP;
++	nod1.addable = 1;
++
++	nod1.xoffset = fp->width;
++	nod1.type = fp->type;
++
++	if(res->op != OREGISTER) {
++		regalloc(&nod2, types[tptr], res);
++		gins(ALEAL, &nod1, &nod2);
++		gins(AMOVL, &nod2, res);
++		regfree(&nod2);
++	} else
++		gins(ALEAL, &nod1, res);
+ }
+ 
+ /*
+@@ -182,3 +293,37 @@ cgen_asop(Node *n)
+ 	fatal("cgen_asop");
+ }
+ 
++/*
++ * generate division according to op, one of:
++ *	res = nl / nr
++ *	res = nl % nr
++ */
++void
++cgen_div(int op, Node *nl, Node *nr, Node *res)
++{
++	fatal("cgen_div");
++}
++
++/*
++ * generate shift according to op, one of:
++ *	res = nl << nr
++ *	res = nl >> nr
++ */
++void
++cgen_shift(int op, Node *nl, Node *nr, Node *res)
++{
++	fatal("cgen_shift");
++}
++
++/*
++ * generate byte multiply:
++ *	res = nl * nr
++ * no byte multiply instruction so have to do
++ * 16-bit multiply and take bottom half.
++ */
++void
++cgen_bmul(int op, Node *nl, Node *nr, Node *res)
++{
++	fatal("cgen_bmul");
++}
++
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 7ad143e594..c7be24decb 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -57,6 +57,7 @@ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
+ EXTERN	Node*	throwreturn;
++EXTERN	int	maxstksize;
+ 
+ /*
+  * gen.c
+@@ -93,6 +94,8 @@ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+ void	naddr(Node*, Addr*);
+ void	cgen_aret(Node*, Node*);
++int	cgen64(Node*, Node*);
++int	is64(Type*);
+ 
+ /*
+  * gsubr.c
+@@ -114,6 +117,8 @@ void	ginit(void);
+ void	gclean(void);
+ void	regalloc(Node*, Type*, Node*);
+ void	regfree(Node*);
++void	tempalloc(Node*, Type*);
++void	tempfree(Node*);
+ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 1b9c88b1d9..a536242186 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -413,6 +413,7 @@ enum
+ 	D_DI,
+ 
+ 	D_F0		= 16,
++	D_F7		= D_F0 + 7,
+ 
+ 	D_CS		= 24,
+ 	D_SS,
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 20c859943e..2d8f092088 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -232,6 +232,7 @@ struct	Node
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+ 	vlong	xoffset;
++	int32	ostk;
+ };
+ #define	N	((Node*)0)
+ 
+diff --git a/src/runtime/darwin/386/sys.s b/src/runtime/darwin/386/sys.s
+index 1f9f82f17f..93dd4e300b 100644
+--- a/src/runtime/darwin/386/sys.s
++++ b/src/runtime/darwin/386/sys.s
+@@ -95,6 +95,10 @@ TEXT bsdthread_create(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT bsdthread_start(SB),7,$0
++	CALL	notok(SB)
++	RET
++
+ TEXT bsdthread_register(SB),7,$40
+ 	MOVL	$366, AX
+ 	MOVL	$bsdthread_start(SB), 0(SP)	// threadstart

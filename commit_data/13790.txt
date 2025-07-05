@@ -7,6 +7,19 @@ Date:   Tue Sep 11 11:33:34 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6496103
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0245194c99..6d5dd47636 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -79,6 +79,7 @@ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+ Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
++Brian Slesinskya <skybrian@google.com>
+ Brendan O'Dea <bod@golang.org>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>

@@ -8,8 +8,60 @@ Date:   Wed Aug 25 17:51:48 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2009041
-
+---
  src/Make.386   | 11 -----------
  src/Make.amd64 | 11 -----------
  src/Make.arm   | 11 -----------
  3 files changed, 33 deletions(-)
+
+diff --git a/src/Make.386 b/src/Make.386
+deleted file mode 100644
+index 9560cd0fd4..0000000000
+--- a/src/Make.386
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-O=8
+-AS=${O}a
+-CC=${O}c
+-GC=${O}g
+-LD=${O}l
+-OS=568vq
+-CFLAGS=-FVw
+diff --git a/src/Make.amd64 b/src/Make.amd64
+deleted file mode 100644
+index 20585c4a8e..0000000000
+--- a/src/Make.amd64
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-O=6
+-AS=${O}a
+-CC=${O}c
+-GC=${O}g
+-LD=${O}l
+-OS=568vq
+-CFLAGS=-FVw
+diff --git a/src/Make.arm b/src/Make.arm
+deleted file mode 100644
+index 9acef07554..0000000000
+--- a/src/Make.arm
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-O=5
+-AS=${O}a
+-CC=${O}c
+-GC=${O}g
+-LD=${O}l
+-OS=568vq
+-CFLAGS=-FVw

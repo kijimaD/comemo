@@ -16,7 +16,136 @@ Date:   Thu Oct 29 15:31:16 2020 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go    | 29 +++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/syntax.go | 25 +++++++++++++++++--------
  2 files changed, 46 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index d7ed1d2ff0..240b09bb6d 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -419,10 +419,17 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
+ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	c := flag & FmtShort
+ 
++	// Useful to see which nodes in an AST printout are actually identical
++	fmt.Fprintf(s, " p(%p)", n)
+ 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
+ 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+ 	}
+ 
++	if c == 0 && n.Name != nil && n.Name.Defn != nil {
++		// Useful to see where Defn is set and what node it points to
++		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
++	}
++
+ 	if n.Pos.IsKnown() {
+ 		pfx := ""
+ 		switch n.Pos.IsStmt() {
+@@ -492,6 +499,15 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		if n.Name.Assigned() {
+ 			fmt.Fprint(s, " assigned")
+ 		}
++		if n.Name.IsClosureVar() {
++			fmt.Fprint(s, " closurevar")
++		}
++		if n.Name.Captured() {
++			fmt.Fprint(s, " captured")
++		}
++		if n.Name.IsOutputParamHeapAddr() {
++			fmt.Fprint(s, " outputparamheapaddr")
++		}
+ 	}
+ 	if n.Bounded() {
+ 		fmt.Fprint(s, " bounded")
+@@ -1710,6 +1726,9 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 		}
+ 	}
+ 
++	if n.Op == OCLOSURE && n.Func.Closure != nil && n.Func.Closure.Func.Nname.Sym != nil {
++		mode.Fprintf(s, " fnName %v", n.Func.Closure.Func.Nname.Sym)
++	}
+ 	if n.Sym != nil && n.Op != ONAME {
+ 		mode.Fprintf(s, " %v", n.Sym)
+ 	}
+@@ -1725,6 +1744,16 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 		if n.Right != nil {
+ 			mode.Fprintf(s, "%v", n.Right)
+ 		}
++		if n.Func != nil && n.Func.Closure != nil && n.Func.Closure.Nbody.Len() != 0 {
++			indent(s)
++			// The function associated with a closure
++			mode.Fprintf(s, "%v-clofunc%v", n.Op, n.Func.Closure)
++		}
++		if n.Func != nil && n.Func.Dcl != nil && len(n.Func.Dcl) != 0 {
++			indent(s)
++			// The dcls for a func or closure
++			mode.Fprintf(s, "%v-dcl%v", n.Op, asNodes(n.Func.Dcl))
++		}
+ 		if n.List.Len() != 0 {
+ 			indent(s)
+ 			mode.Fprintf(s, "%v-list%v", n.Op, n.List)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 58de9b5e3f..649f7f4157 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -631,7 +631,7 @@ type Func struct {
+ 	Ntype      *Node // signature
+ 	Top        int   // top context (ctxCallee, etc)
+ 	Closure    *Node // OCLOSURE <-> ODCLFUNC
+-	Nname      *Node
++	Nname      *Node // The ONAME node associated with an ODCLFUNC (both have same Type)
+ 	lsym       *obj.LSym
+ 
+ 	Inl *Inline
+@@ -773,7 +773,7 @@ const (
+ 	OCALLPART  // Left.Right (method expression x.Method, not called)
+ 	OCAP       // cap(Left)
+ 	OCLOSE     // close(Left)
+-	OCLOSURE   // func Type { Body } (func literal)
++	OCLOSURE   // func Type { Func.Closure.Nbody } (func literal)
+ 	OCOMPLIT   // Right{List} (composite literal, not yet lowered to specific form)
+ 	OMAPLIT    // Type{List} (composite literal, Type is map)
+ 	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
+@@ -863,9 +863,14 @@ const (
+ 	OSIZEOF      // unsafe.Sizeof(Left)
+ 
+ 	// statements
+-	OBLOCK    // { List } (block of code)
+-	OBREAK    // break [Sym]
+-	OCASE     // case List: Nbody (List==nil means default)
++	OBLOCK // { List } (block of code)
++	OBREAK // break [Sym]
++	// OCASE:  case List: Nbody (List==nil means default)
++	//   For OTYPESW, List is a OTYPE node for the specified type (or OLITERAL
++	//   for nil), and, if a type-switch variable is specified, Rlist is an
++	//   ONAME for the version of the type-switch variable with the specified
++	//   type.
++	OCASE
+ 	OCONTINUE // continue [Sym]
+ 	ODEFER    // defer Left (Left must be call)
+ 	OEMPTY    // no-op (empty statement)
+@@ -889,15 +894,19 @@ const (
+ 	ORETURN // return List
+ 	OSELECT // select { List } (List is list of OCASE)
+ 	OSWITCH // switch Ninit; Left { List } (List is a list of OCASE)
+-	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
++	// OTYPESW:  Left := Right.(type) (appears as .Left of OSWITCH)
++	//   Left is nil if there is no type-switch variable
++	OTYPESW
+ 
+ 	// types
+ 	OTCHAN   // chan int
+ 	OTMAP    // map[string]int
+ 	OTSTRUCT // struct{}
+ 	OTINTER  // interface{}
+-	OTFUNC   // func()
+-	OTARRAY  // []int, [8]int, [N]int or [...]int
++	// OTFUNC: func() - Left is receiver field, List is list of param fields, Rlist is
++	// list of result fields.
++	OTFUNC
++	OTARRAY // []int, [8]int, [N]int or [...]int
+ 
+ 	// misc
+ 	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.

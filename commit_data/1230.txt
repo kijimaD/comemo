@@ -25,7 +25,7 @@ Date:   Mon Nov 24 13:24:15 2008 -0800
     TBR=r
     OCL=19920
     CL=19920
-
+---
  src/lib/fmt/fmt_test.go       | 164 ------------------------------------------
  src/lib/fmt/format.go         |  92 +++---------------------
  src/lib/fmt/print.go          |  72 ++++---------------
@@ -41,3 +41,1172 @@ Date:   Mon Nov 24 13:24:15 2008 -0800
  src/lib/utf8_test.go          |  68 ++++++++----------
  test/fmt_test.go              |  94 ++++++++++++++++++++++++
  14 files changed, 158 insertions(+), 636 deletions(-)
+
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+deleted file mode 100644
+index ec1e9951bf..0000000000
+--- a/src/lib/fmt/fmt_test.go
++++ /dev/null
+@@ -1,164 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fmt
+-
+-import (
+-	"fmt";
+-	"syscall";
+-	"testing";
+-)
+-
+-export func TestFmtInterface(t *testing.T) {
+-	var i1 interface{};
+-	i1 = "abc";
+-	s := fmt.sprintf("%s", i1);
+-	if s != "abc" {
+-		t.Errorf(`fmt.sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
+-	}
+-}
+-
+-type FmtTest struct {
+-	fmt string;
+-	val interface { };
+-	out string;
+-}
+-
+-func Bytes(s string) *[]byte {
+-	b := new([]byte, len(s)+1);
+-	syscall.StringToBytes(b, s);
+-	return b[0:len(s)];
+-}
+-
+-const B32 uint32 = 1<<32 - 1
+-const B64 uint64 = 1<<64 - 1
+-
+-var fmttests = []FmtTest{
+-	// basic string
+-	FmtTest{ "%s",	"abc",	"abc" },
+-	FmtTest{ "%x",	"abc",	"616263" },
+-	FmtTest{ "%x",	"xyz",	"78797a" },
+-	FmtTest{ "%X",	"xyz",	"78797A" },
+-	FmtTest{ "%q",	"abc",	`"abc"` },
+-
+-	// basic bytes
+-	FmtTest{ "%s",	Bytes("abc"),	"abc" },
+-	FmtTest{ "%x",	Bytes("abc"),	"616263" },
+-	FmtTest{ "%x",	Bytes("xyz"),	"78797a" },
+-	FmtTest{ "%X",	Bytes("xyz"),	"78797A" },
+-	FmtTest{ "%q",	Bytes("abc"),	`"abc"` },
+-
+-	// escaped strings
+-	FmtTest{ "%#q",	`abc`,		"`abc`" },
+-	FmtTest{ "%#q",	`"`,		"`\"`" },
+-	FmtTest{ "1 %#q", `\n`,		"1 `\\n`" },
+-	FmtTest{ "2 %#q", "\n",		`2 "\n"` },
+-	FmtTest{ "%q",	`"`,		`"\""` },
+-	FmtTest{ "%q",	"\a\b\f\r\n\t\v",	`"\a\b\f\r\n\t\v"` },
+-	FmtTest{ "%q",	"abc\xffdef",		`"abc\xffdef"` },
+-	FmtTest{ "%q",	"\u263a",	`"\u263a"` },
+-	FmtTest{ "%q",	"\U0010ffff",	`"\U0010ffff"` },
+-
+-	// width
+-	FmtTest{ "%5s",		"abc",	"  abc" },
+-	FmtTest{ "%-5s",	"abc",	"abc  " },
+-	FmtTest{ "%05s",	"abc",	"00abc" },
+-
+-	// integers
+-	FmtTest{ "%d",		12345,	"12345" },
+-	FmtTest{ "%d",		-12345,	"-12345" },
+-	FmtTest{ "%10d",	12345,	"     12345" },
+-	FmtTest{ "%10d",	-12345,	"    -12345" },
+-	FmtTest{ "%+10d",	12345,	"    +12345" },
+-	FmtTest{ "%010d",	12345,	"0000012345" },
+-	FmtTest{ "%010d",	-12345,	"-000012345" },
+-	FmtTest{ "%-10d",	12345,	"12345     " },
+-	FmtTest{ "%010.3d",	1,	"       001" },
+-	FmtTest{ "%010.3d",	-1,	"      -001" },
+-	FmtTest{ "%+d",		12345,	"+12345" },
+-	FmtTest{ "%+d",		-12345,	"-12345" },
+-	FmtTest{ "% d",		12345,	" 12345" },
+-	FmtTest{ "% d",		-12345,	"-12345" },
+-
+-	// old test/fmt_test.go
+-	FmtTest{ "%d",		1234,			"1234" },
+-	FmtTest{ "%d",		-1234,			"-1234" },
+-	FmtTest{ "%d",		uint(1234),		"1234" },
+-	FmtTest{ "%d",		uint32(B32),		"4294967295" },
+-	FmtTest{ "%d",		uint64(B64),		"18446744073709551615" },
+-	FmtTest{ "%o",		01234,			"1234" },
+-	FmtTest{ "%o",		uint32(B32),		"37777777777" },
+-	FmtTest{ "%o",		uint64(B64),		"1777777777777777777777" },
+-	FmtTest{ "%x",		0x1234abcd,		"1234abcd" },
+-	FmtTest{ "%x",		B32-0x1234567,		"fedcba98" },
+-	FmtTest{ "%X",		0x1234abcd,		"1234ABCD" },
+-	FmtTest{ "%X",		B32-0x1234567,		"FEDCBA98" },
+-	FmtTest{ "%x",		B64,			"ffffffffffffffff" },
+-	FmtTest{ "%b",		7,			"111" },
+-	FmtTest{ "%b",		B64,			"1111111111111111111111111111111111111111111111111111111111111111" },
+-	FmtTest{ "%e",		float64(1),		"1.000000e+00" },
+-	FmtTest{ "%e",		float64(1234.5678e3),	"1.234568e+06" },
+-	FmtTest{ "%e",		float64(1234.5678e-8),	"1.234568e-05" },
+-	FmtTest{ "%e",		float64(-7),		"-7.000000e+00" },
+-	FmtTest{ "%e",		float64(-1e-9),		"-1.000000e-09" },
+-	FmtTest{ "%f",		float64(1234.5678e3),	"1234567.800000" },
+-	FmtTest{ "%f",		float64(1234.5678e-8),	"0.000012" },
+-	FmtTest{ "%f",		float64(-7),		"-7.000000" },
+-	FmtTest{ "%f",		float64(-1e-9),		"-0.000000" },
+-	FmtTest{ "%g",		float64(1234.5678e3),	"1.2345678e+06" },
+-	FmtTest{ "%g",		float32(1234.5678e3),	"1.2345678e+06" },
+-	FmtTest{ "%g",		float64(1234.5678e-8),	"1.2345678e-05" },
+-	FmtTest{ "%g",		float64(-7),		"-7" },
+-	FmtTest{ "%g",		float64(-1e-9),		"-1e-09",	 },
+-	FmtTest{ "%g",		float32(-1e-9),		"-1e-09" },
+-	FmtTest{ "%c",		'x',			"x" },
+-	FmtTest{ "%c",		0xe4,			"ä" },
+-	FmtTest{ "%c",		0x672c,			"本" },
+-	FmtTest{ "%c",		'日',			"日" },
+-	FmtTest{ "%20.8d",	1234,			"            00001234" },
+-	FmtTest{ "%20.8d",	-1234,			"           -00001234" },
+-	FmtTest{ "%20d",	1234,			"                1234" },
+-	FmtTest{ "%-20.8d",	1234,			"00001234            " },
+-	FmtTest{ "%-20.8d",	-1234,			"-00001234           " },
+-	FmtTest{ "%.20b",	7,			"00000000000000000111" },
+-	FmtTest{ "%20.5s",	"qwertyuiop",		"               qwert" },
+-	FmtTest{ "%.5s",	"qwertyuiop",		"qwert" },
+-	FmtTest{ "%-20.5s",	"qwertyuiop",		"qwert               " },
+-	FmtTest{ "%20c",	'x',			"                   x" },
+-	FmtTest{ "%-20c",	'x',			"x                   " },
+-	FmtTest{ "%20.6e",	1.2345e3,		"        1.234500e+03" },
+-	FmtTest{ "%20.6e",	1.2345e-3,		"        1.234500e-03" },
+-	FmtTest{ "%20e",	1.2345e3,		"        1.234500e+03" },
+-	FmtTest{ "%20e",	1.2345e-3,		"        1.234500e-03" },
+-	FmtTest{ "%20.8e",	1.2345e3,		"      1.23450000e+03" },
+-	FmtTest{ "%20f",	float64(1.23456789e3),	"         1234.567890" },
+-	FmtTest{ "%20f",	float64(1.23456789e-3),	"            0.001235" },
+-	FmtTest{ "%20f",	float64(12345678901.23456789),	"  12345678901.234568" },
+-	FmtTest{ "%-20f",	float64(1.23456789e3),	"1234.567890         " },
+-	FmtTest{ "%20.8f",	float64(1.23456789e3),	"       1234.56789000" },
+-	FmtTest{ "%20.8f",	float64(1.23456789e-3),	"          0.00123457" },
+-	FmtTest{ "%g",		float64(1.23456789e3),	"1234.56789" },
+-	FmtTest{ "%g",		float64(1.23456789e-3),	"0.00123456789" },
+-	FmtTest{ "%g",		float64(1.23456789e20),	"1.23456789e+20" },
+-	FmtTest{ "%20e",	sys.Inf(1),		"                +Inf" },
+-	FmtTest{ "%-20f",	sys.Inf(-1),		"-Inf                " },
+-	FmtTest{ "%20g",	sys.NaN(),		"                 NaN" },
+-}
+-
+-export func TestSprintf(t *testing.T) {
+-	for i := 0; i < len(fmttests); i++ {
+-		tt := fmttests[i];
+-		s := fmt.sprintf(tt.fmt, tt.val);
+-		if s != tt.out {
+-			if ss, ok := tt.val.(string); ok {
+-				// Don't requote the already-quoted strings.
+-				// It's too confusing to read the errors.
+-				t.Errorf("fmt.sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
+-			} else {
+-				t.Errorf("fmt.sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
+-			}
+-		}
+-	}
+-}
+-
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 64d6c9bc99..058c619443 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -4,9 +4,7 @@
+ 
+ package fmt
+ 
+-import (
+-	"strconv";
+-)
++import "strconv"
+ 
+ /*
+ 	Raw formatter. See print.go for a more palatable interface.
+@@ -41,22 +39,11 @@ export type Fmt struct {
+ 	wid_present bool;
+ 	prec int;
+ 	prec_present bool;
+-	// flags
+-	minus bool;
+-	plus bool;
+-	sharp bool;
+-	space bool;
+-	zero bool;
+ }
+ 
+ func (f *Fmt) clearflags() {
+ 	f.wid_present = false;
+ 	f.prec_present = false;
+-	f.minus = false;
+-	f.plus = false;
+-	f.sharp = false;
+-	f.space = false;
+-	f.zero = false;
+ }
+ 
+ func (f *Fmt) clearbuf() {
+@@ -114,28 +101,24 @@ func (f *Fmt) w(x int) *Fmt {
+ 	return f;
+ }
+ 
+-// append s to buf, padded on left (w > 0) or right (w < 0 or f.minus)
++// append s to buf, padded on left (w > 0) or right (w < 0)
+ // padding is in bytes, not characters (agrees with ANSIC C, not Plan 9 C)
+ func (f *Fmt) pad(s string) {
+ 	if f.wid_present && f.wid != 0 {
+-		left := !f.minus;
++		left := true;
+ 		w := f.wid;
+ 		if w < 0 {
+ 			left = false;
+ 			w = -w;
+ 		}
+ 		w -= len(s);
+-		padchar := byte(' ');
+-		if left && f.zero {
+-			padchar = '0';
+-		}
+ 		if w > 0 {
+ 			if w > NByte {
+ 				w = NByte;
+ 			}
+ 			buf := new([]byte, w);
+ 			for i := 0; i < w; i++ {
+-				buf[i] = padchar;
++				buf[i] = ' ';
+ 			}
+ 			if left {
+ 				s = string(buf) + s;
+@@ -180,35 +163,16 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
+ 	if negative {
+ 		a = -a;
+ 	}
+-
+-	// two ways to ask for extra leading zero digits: %.3d or %03d.
+-	// apparently the first cancels the second.
+-	prec := 0;
++	i := putint(&buf, NByte-1, uint64(base), uint64(a), digits);
+ 	if f.prec_present {
+-		prec = f.prec;
+-		f.zero = false;
+-	} else if f.zero && f.wid_present && !f.minus && f.wid > 0{
+-		prec = f.wid;
+-		if negative || f.plus || f.space {
+-			prec--;  // leave room for sign
++		for i > 0 && f.prec > (NByte-1-i) {
++			buf[i] = '0';
++			i--;
+ 		}
+ 	}
+-
+-	i := putint(&buf, NByte-1, uint64(base), uint64(a), digits);
+-	for i > 0 && prec > (NByte-1-i) {
+-		buf[i] = '0';
+-		i--;
+-	}
+-
+ 	if negative {
+ 		buf[i] = '-';
+ 		i--;
+-	} else if f.plus {
+-		buf[i] = '+';
+-		i--;
+-	} else if f.space {
+-		buf[i] = ' ';
+-		i--;
+ 	}
+ 	return string(buf)[i+1:NByte];
+ }
+@@ -370,44 +334,6 @@ func (f *Fmt) s(s string) *Fmt {
+ 	return f;
+ }
+ 
+-// hexadecimal string
+-func (f *Fmt) sx(s string) *Fmt {
+-	t := "";
+-	for i := 0; i < len(s); i++ {
+-		v := s[i];
+-		t += string(ldigits[v>>4]);
+-		t += string(ldigits[v&0xF]);
+-	}
+-	f.pad(t);
+-	f.clearflags();
+-	return f;
+-}
+-
+-func (f *Fmt) sX(s string) *Fmt {
+-	t := "";
+-	for i := 0; i < len(s); i++ {
+-		v := s[i];
+-		t += string(udigits[v>>4]);
+-		t += string(udigits[v&0xF]);
+-	}
+-	f.pad(t);
+-	f.clearflags();
+-	return f;
+-}
+-
+-// quoted string
+-func (f *Fmt) q(s string) *Fmt {
+-	var quoted string;
+-	if f.sharp && strconv.CanBackquote(s) {
+-		quoted = "`"+s+"`";
+-	} else {
+-		quoted = strconv.Quote(s);
+-	}
+-	f.pad(quoted);
+-	f.clearflags();
+-	return f;
+-}
+-
+ // floating-point
+ 
+ func Prec(f *Fmt, def int) int {
+@@ -444,7 +370,7 @@ func (f *Fmt) fb64(a float64) *Fmt {
+ // cannot defer to float64 versions
+ // because it will get rounding wrong in corner cases.
+ func (f *Fmt) e32(a float32) *Fmt {
+-	return FmtString(f, strconv.ftoa32(a, 'e', Prec(f, 6)));
++	return FmtString(f, strconv.ftoa32(a, 'e', Prec(f, -1)));
+ }
+ 
+ func (f *Fmt) f32(a float32) *Fmt {
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 5a2dc67e9e..ce7a4f2d39 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -186,19 +186,6 @@ export func sprintln(a ...) string {
+ 	return s;
+ }
+ 
+-
+-// Get the i'th arg of the struct value.
+-// If the arg itself is an interface, return a value for
+-// the thing inside the interface, not the interface itself.
+-func getField(v reflect.StructValue, i int) reflect.Value {
+-	val := v.Field(i);
+-	if val.Kind() == reflect.InterfaceKind {
+-		inter := val.(reflect.InterfaceValue).Get();
+-		return reflect.NewValue(inter);
+-	}
+-	return val;
+-}
+-
+ // Getters for the fields of the argument structure.
+ 
+ func getBool(v reflect.Value) (val bool, ok bool) {
+@@ -240,9 +227,6 @@ func getString(v reflect.Value) (val string, ok bool) {
+ 	case reflect.StringKind:
+ 		return v.(reflect.StringValue).Get(), true;
+ 	}
+-	if valb, okb := v.Interface().(*[]byte); okb {
+-		return string(valb), true;
+-	}
+ 	return "", false;
+ }
+ 
+@@ -296,6 +280,12 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
+ 	if start >= end {
+ 		return 0, false, end
+ 	}
++	if s[start] == '-' {
++		a, b, c := parsenum(s, start+1, end);
++		if b {
++			return -a, b, c;
++		}
++	}
+ 	isnum := false;
+ 	num := 0;
+ 	for '0' <= s[start] && s[start] <= '9' {
+@@ -381,28 +371,10 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			i += w;
+ 			continue;
+ 		}
+-		i++;
+-		// flags
+-		F: for ; i < end; i++ {
+-			switch format[i] {
+-			case '#':
+-				p.fmt.sharp = true;
+-			case '0':
+-				p.fmt.zero = true;
+-			case '+':
+-				p.fmt.plus = true;
+-			case '-':
+-				p.fmt.minus = true;
+-			case ' ':
+-				p.fmt.space = true;
+-			default:
+-				break F;
+-			}
+-		}
+-		// do we have 20 (width)?
+-		p.wid, p.wid_ok, i = parsenum(format, i, end);
++		// saw % - do we have %20 (width)?
++		p.wid, p.wid_ok, i = parsenum(format, i+1, end);
+ 		p.prec_ok = false;
+-		// do we have .20 (precision)?
++		// do we have %.20 (precision)?
+ 		if i < end && format[i] == '.' {
+ 			p.prec, p.prec_ok, i = parsenum(format, i+1, end);
+ 		}
+@@ -419,7 +391,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			p.addstr("(missing)");
+ 			continue;
+ 		}
+-		field := getField(v, fieldnum);
++		field := v.Field(fieldnum);
+ 		fieldnum++;
+ 		if c != 'T' {	// don't want thing to describe itself if we're asking for its type
+ 			if formatter, ok := field.Interface().(Format); ok {
+@@ -491,20 +463,6 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 					} else {
+ 						s = p.fmt.ux64(uint64(v)).str()
+ 					}
+-				} else if v, ok := getString(field); ok {
+-					s = p.fmt.sx(v).str();
+-				} else {
+-					goto badtype
+-				}
+-			case 'X':
+-				if v, signed, ok := getInt(field); ok {
+-					if signed {
+-						s = p.fmt.X64(v).str()
+-					} else {
+-						s = p.fmt.uX64(uint64(v)).str()
+-					}
+-				} else if v, ok := getString(field); ok {
+-					s = p.fmt.sX(v).str();
+ 				} else {
+ 					goto badtype
+ 				}
+@@ -542,12 +500,6 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 				} else {
+ 					goto badtype
+ 				}
+-			case 'q':
+-				if v, ok := getString(field); ok {
+-					s = p.fmt.q(v).str()
+-				} else {
+-					goto badtype
+-				}
+ 
+ 			// pointer
+ 			case 'p':
+@@ -578,7 +530,7 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 	if fieldnum < v.Len() {
+ 		p.addstr("?(extra ");
+ 		for ; fieldnum < v.Len(); fieldnum++ {
+-			p.addstr(getField(v, fieldnum).Type().String());
++			p.addstr(v.Field(fieldnum).Type().String());
+ 			if fieldnum + 1 < v.Len() {
+ 				p.addstr(", ");
+ 			}
+@@ -591,7 +543,7 @@ func (p *P) doprint(v reflect.StructValue, addspace, addnewline bool) {
+ 	prev_string := false;
+ 	for fieldnum := 0; fieldnum < v.Len();  fieldnum++ {
+ 		// always add spaces if we're doing println
+-		field := getField(v, fieldnum);
++		field := v.Field(fieldnum);
+ 		if fieldnum > 0 {
+ 			if addspace {
+ 				p.add(' ')
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index a6ac1a7c79..203413e552 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -283,14 +283,3 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 		println(a[i]);
+ 	}
+ }
+-
+-export func TestInterfaceGet(t *testing.T) {
+-	var inter struct { e interface{ } };
+-	inter.e = 123.456;
+-	v1 := reflect.NewValue(&inter);
+-	v2 := v1.(reflect.PtrValue).Sub().(reflect.StructValue).Field(0);
+-	assert(v2.Type().String(), "interface { }");
+-	i2 := v2.(reflect.InterfaceValue).Get();
+-	v3 := reflect.NewValue(i2);
+-	assert(v3.Type().String(), "float");
+-}
+diff --git a/src/lib/reflect/cast_amd64.s b/src/lib/reflect/cast_amd64.s
+index d0e97a3c2c..a1363718ca 100644
+--- a/src/lib/reflect/cast_amd64.s
++++ b/src/lib/reflect/cast_amd64.s
+@@ -181,13 +181,3 @@ TEXT reflect·PtrRuntimeArrayToAddr(SB),7,$-8
+ 	MOVQ	AX, 16(SP)
+ 	RET
+ 
+-TEXT reflect·AddrToPtrInterface(SB),7,$-8
+-	MOVQ	8(SP), AX
+-	MOVQ	AX, 16(SP)
+-	RET
+-
+-TEXT reflect·PtrInterfaceToAddr(SB),7,$-8
+-	MOVQ	8(SP), AX
+-	MOVQ	AX, 16(SP)
+-	RET
+-
+diff --git a/src/lib/reflect/gencast.sh b/src/lib/reflect/gencast.sh
+index afb60de1a4..af90d8df2f 100755
+--- a/src/lib/reflect/gencast.sh
++++ b/src/lib/reflect/gencast.sh
+@@ -38,5 +38,4 @@ Float80
+ String
+ Bool
+ RuntimeArray
+-Interface
+ !
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 65d4b5ca97..ef6ddce7ae 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -36,13 +36,14 @@ func AddrToPtrString(Addr) *string
+ func AddrToPtrBool(Addr) *bool
+ func AddrToPtrRuntimeArray(Addr) *RuntimeArray
+ func PtrRuntimeArrayToAddr(*RuntimeArray) Addr
+-func AddrToPtrInterface(Addr) *interface{}
++
++export type Empty interface {}	// TODO(r): Delete when no longer needed?
+ 
+ export type Value interface {
+ 	Kind()	int;
+ 	Type()	Type;
+ 	Addr()	Addr;
+-	Interface()	interface {};
++	Interface()	Empty;
+ }
+ 
+ // Common fields and functionality for all values
+@@ -65,7 +66,7 @@ func (c *Common) Addr() Addr {
+ 	return c.addr
+ }
+ 
+-func (c *Common) Interface() interface {} {
++func (c *Common) Interface() Empty {
+ 	return sys.unreflect(*AddrToPtrAddr(c.addr), c.typ.String());
+ }
+ 
+@@ -713,17 +714,12 @@ func StructCreator(typ Type, addr Addr) Value {
+ export type InterfaceValue interface {
+ 	Kind()	int;
+ 	Type()	Type;
+-	Get()	interface {};
+ }
+ 
+ type InterfaceValueStruct struct {
+ 	Common
+ }
+ 
+-func (v *InterfaceValueStruct) Get() interface{} {
+-	return *AddrToPtrInterface(v.addr);
+-}
+-
+ func InterfaceCreator(typ Type, addr Addr) Value {
+ 	return &InterfaceValueStruct{ Common{InterfaceKind, typ, addr} }
+ }
+@@ -828,7 +824,7 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
+ 	return NewValueAddr(typ, PtrRuntimeArrayToAddr(array));
+ }
+ 
+-export func NewValue(e interface {}) Value {
++export func NewValue(e Empty) Value {
+ 	value, typestring  := sys.reflect(e);
+ 	p, ok := typecache[typestring];
+ 	if !ok {
+diff --git a/src/lib/strconv/Makefile b/src/lib/strconv/Makefile
+index cf74d58f73..399360a936 100644
+--- a/src/lib/strconv/Makefile
++++ b/src/lib/strconv/Makefile
+@@ -33,9 +33,8 @@ coverage: packages
+ 
+ O1=\
+ 	atoi.$O\
+-	itoa.$O\
+ 	decimal.$O\
+-	quote.$O\
++	itoa.$O\
+ 
+ O2=\
+ 	ftoa.$O\
+@@ -46,7 +45,7 @@ O3=\
+ strconv.a: a1 a2 a3
+ 
+ a1:	$(O1)
+-	$(AR) grc strconv.a atoi.$O itoa.$O decimal.$O quote.$O
++	$(AR) grc strconv.a atoi.$O decimal.$O itoa.$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+diff --git a/src/lib/strconv/ftoa_test.go b/src/lib/strconv/ftoa_test.go
+index 643abb0dd4..914ecd9e33 100644
+--- a/src/lib/strconv/ftoa_test.go
++++ b/src/lib/strconv/ftoa_test.go
+@@ -25,7 +25,6 @@ var ftests = []Test {
+ 	Test{ 1, 'g', 5, "1" },
+ 	Test{ 1, 'g', -1, "1" },
+ 	Test{ 20, 'g', -1, "20" },
+-	Test{ 1234567.8, 'g', -1, "1.2345678e+06" },
+ 	Test{ 200000, 'g', -1, "200000" },
+ 	Test{ 2000000, 'g', -1, "2e+06" },
+ 
+diff --git a/src/lib/strconv/quote.go b/src/lib/strconv/quote.go
+deleted file mode 100644
+index 122af92d72..0000000000
+--- a/src/lib/strconv/quote.go
++++ /dev/null
+@@ -1,76 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package strconv
+-
+-import (
+-	"utf8";
+-)
+-
+-const ldigits = "0123456789abcdef"
+-const udigits = "0123456789ABCDEF"
+-
+-export func Quote(s string) string {
+-	t := `"`;
+-	for i := 0; i < len(s); i++ {
+-		switch {
+-		case s[i] == '"':
+-			t += `\"`;
+-		case s[i] == '\\':
+-			t += `\\`;
+-		case ' ' <= s[i] && s[i] <= '~':
+-			t += string(s[i]);
+-		case s[i] == '\a':
+-			t += `\a`;
+-		case s[i] == '\b':
+-			t += `\b`;
+-		case s[i] == '\f':
+-			t += `\f`;
+-		case s[i] == '\n':
+-			t += `\n`;
+-		case s[i] == '\r':
+-			t += `\r`;
+-		case s[i] == '\t':
+-			t += `\t`;
+-		case s[i] == '\v':
+-			t += `\v`;
+-
+-		case utf8.FullRuneInString(s, i):
+-			r, size := utf8.DecodeRuneInString(s, i);
+-			if r == utf8.RuneError && size == 1 {
+-				goto EscX;
+-			}
+-			i += size-1;  // i++ on next iteration
+-			if r < 0x10000 {
+-				t += `\u`;
+-				for j:=uint(0); j<4; j++ {
+-					t += string(ldigits[(r>>(12-4*j))&0xF]);
+-				}
+-			} else {
+-				t += `\U`;
+-				for j:=uint(0); j<8; j++ {
+-					t += string(ldigits[(r>>(28-4*j))&0xF]);
+-				}
+-			}
+-
+-		default:
+-		EscX:
+-			t += `\x`;
+-			t += string(ldigits[s[i]>>4]);
+-			t += string(ldigits[s[i]&0xF]);
+-		}
+-	}
+-	t += `"`;
+-	return t;
+-}
+-
+-export func CanBackquote(s string) bool {
+-	for i := 0; i < len(s); i++ {
+-		if s[i] < ' ' || s[i] == '`' {
+-			return false;
+-		}
+-	}
+-	return true;
+-}
+-
+diff --git a/src/lib/strconv/quote_test.go b/src/lib/strconv/quote_test.go
+deleted file mode 100644
+index 2c0e98ed52..0000000000
+--- a/src/lib/strconv/quote_test.go
++++ /dev/null
+@@ -1,87 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package strconv
+-
+-import (
+-	"strconv";
+-	"testing";
+-)
+-
+-type QuoteTest struct {
+-	in string;
+-	out string;
+-}
+-
+-var quotetests = []QuoteTest {
+-	QuoteTest{ "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"` },
+-	QuoteTest{ "\\", `"\\"` },
+-	QuoteTest{ "abc\xffdef", `"abc\xffdef"` },
+-	QuoteTest{ "\u263a", `"\u263a"` },
+-	QuoteTest{ "\U0010ffff", `"\U0010ffff"` },
+-}
+-
+-export func TestQuote(t *testing.T) {
+-	for i := 0; i < len(quotetests); i++ {
+-		tt := quotetests[i];
+-		if out := Quote(tt.in); out != tt.out {
+-			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out);
+-		}
+-	}
+-}
+-
+-type CanBackquoteTest struct {
+-	in string;
+-	out bool;
+-}
+-
+-var canbackquotetests = []CanBackquoteTest {
+-	CanBackquoteTest{ "`", false },
+-	CanBackquoteTest{ string(0), false },
+-	CanBackquoteTest{ string(1), false },
+-	CanBackquoteTest{ string(2), false },
+-	CanBackquoteTest{ string(3), false },
+-	CanBackquoteTest{ string(4), false },
+-	CanBackquoteTest{ string(5), false },
+-	CanBackquoteTest{ string(6), false },
+-	CanBackquoteTest{ string(7), false },
+-	CanBackquoteTest{ string(8), false },
+-	CanBackquoteTest{ string(9), false },
+-	CanBackquoteTest{ string(10), false },
+-	CanBackquoteTest{ string(11), false },
+-	CanBackquoteTest{ string(12), false },
+-	CanBackquoteTest{ string(13), false },
+-	CanBackquoteTest{ string(14), false },
+-	CanBackquoteTest{ string(15), false },
+-	CanBackquoteTest{ string(16), false },
+-	CanBackquoteTest{ string(17), false },
+-	CanBackquoteTest{ string(18), false },
+-	CanBackquoteTest{ string(19), false },
+-	CanBackquoteTest{ string(20), false },
+-	CanBackquoteTest{ string(21), false },
+-	CanBackquoteTest{ string(22), false },
+-	CanBackquoteTest{ string(23), false },
+-	CanBackquoteTest{ string(24), false },
+-	CanBackquoteTest{ string(25), false },
+-	CanBackquoteTest{ string(26), false },
+-	CanBackquoteTest{ string(27), false },
+-	CanBackquoteTest{ string(28), false },
+-	CanBackquoteTest{ string(29), false },
+-	CanBackquoteTest{ string(30), false },
+-	CanBackquoteTest{ string(31), false },
+-	CanBackquoteTest{ `' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true },
+-	CanBackquoteTest{ `0123456789`, true },
+-	CanBackquoteTest{ `ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true },
+-	CanBackquoteTest{ `abcdefghijklmnopqrstuvwxyz`, true },
+-	CanBackquoteTest{ `☺`, true },
+-}
+-
+-export func TestCanBackquote(t *testing.T) {
+-	for i := 0; i < len(canbackquotetests); i++ {
+-		tt := canbackquotetests[i];
+-		if out := CanBackquote(tt.in); out != tt.out {
+-			t.Errorf("CanBackquote(%q) = %v, want %v", tt.in, out, tt.out);
+-		}
+-	}
+-}
+diff --git a/src/lib/utf8.go b/src/lib/utf8.go
+index 9ece25f6a5..1375e8e50c 100644
+--- a/src/lib/utf8.go
++++ b/src/lib/utf8.go
+@@ -7,10 +7,10 @@
+ package utf8
+ 
+ export const (
++	UTFMax = 4;
+ 	RuneError = 0xFFFD;
+ 	RuneSelf = 0x80;
+-	RuneMax = 0x10FFFF;
+-	UTFMax = 4;
++	RuneMax = 1<<21 - 1;
+ )
+ 
+ const (
+@@ -33,8 +33,7 @@ const (
+ )
+ 
+ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
+-	n := len(p);
+-	if n < 1 {
++	if len(p) < 1 {
+ 		return RuneError, 0, true;
+ 	}
+ 	c0 := p[0];
+@@ -50,7 +49,7 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
+ 	}
+ 
+ 	// need first continuation byte
+-	if n < 2 {
++	if len(p) < 2 {
+ 		return RuneError, 1, true
+ 	}
+ 	c1 := p[1];
+@@ -68,7 +67,7 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
+ 	}
+ 
+ 	// need second continuation byte
+-	if n < 3 {
++	if len(p) < 3 {
+ 		return RuneError, 1, true
+ 	}
+ 	c2 := p[2];
+@@ -86,7 +85,7 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
+ 	}
+ 
+ 	// need third continuation byte
+-	if n < 4 {
++	if len(p) < 4 {
+ 		return RuneError, 1, true
+ 	}
+ 	c3 := p[3];
+@@ -107,103 +106,17 @@ func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
+ 	return RuneError, 1, false
+ }
+ 
+-func DecodeRuneInStringInternal(s string, i int) (rune, size int, short bool) {
+-	n := len(s) - i;
+-	if n < 1 {
+-		return RuneError, 0, true;
+-	}
+-	c0 := s[i];
+-
+-	// 1-byte, 7-bit sequence?
+-	if c0 < Tx {
+-		return int(c0), 1, false
+-	}
+-
+-	// unexpected continuation byte?
+-	if c0 < T2 {
+-		return RuneError, 1, false
+-	}
+-
+-	// need first continuation byte
+-	if n < 2 {
+-		return RuneError, 1, true
+-	}
+-	c1 := s[i+1];
+-	if c1 < Tx || T2 <= c1 {
+-		return RuneError, 1, false
+-	}
+-
+-	// 2-byte, 11-bit sequence?
+-	if c0 < T3 {
+-		rune = int(c0&Mask2)<<6 | int(c1&Maskx);
+-		if rune <= Rune1Max {
+-			return RuneError, 1, false
+-		}
+-		return rune, 2, false
+-	}
+-
+-	// need second continuation byte
+-	if n < 3 {
+-		return RuneError, 1, true
+-	}
+-	c2 := s[i+2];
+-	if c2 < Tx || T2 <= c2 {
+-		return RuneError, 1, false
+-	}
+-
+-	// 3-byte, 16-bit sequence?
+-	if c0 < T4 {
+-		rune = int(c0&Mask3)<<12 | int(c1&Maskx)<<6 | int(c2&Maskx);
+-		if rune <= Rune2Max {
+-			return RuneError, 1, false
+-		}
+-		return rune, 3, false
+-	}
+-
+-	// need third continuation byte
+-	if n < 4 {
+-		return RuneError, 1, true
+-	}
+-	c3 := s[i+3];
+-	if c3 < Tx || T2 <= c3 {
+-		return RuneError, 1, false
+-	}
+-
+-	// 4-byte, 21-bit sequence?
+-	if c0 < T5 {
+-		rune = int(c0&Mask4)<<18 | int(c1&Maskx)<<12 | int(c2&Maskx)<<6 | int(c3&Maskx);
+-		if rune <= Rune3Max {
+-			return RuneError, 1, false
+-		}
+-		return rune, 4, false
+-	}
+-
+-	// error
+-	return RuneError, 1, false
+-}
+-
+ export func FullRune(p *[]byte) bool {
+ 	rune, size, short := DecodeRuneInternal(p);
+ 	return !short
+ }
+ 
+-export func FullRuneInString(s string, i int) bool {
+-	rune, size, short := DecodeRuneInStringInternal(s, i);
+-	return !short
+-}
+-
+ export func DecodeRune(p *[]byte) (rune, size int) {
+ 	var short bool;
+ 	rune, size, short = DecodeRuneInternal(p);
+ 	return;
+ }
+ 
+-export func DecodeRuneInString(s string, i int) (rune, size int) {
+-	var short bool;
+-	rune, size, short = DecodeRuneInStringInternal(s, i);
+-	return;
+-}
+-
+ export func RuneLen(rune int) int {
+ 	switch {
+ 	case rune <= Rune1Max:
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8_test.go
+index 18c06c2ce5..550f4ba14a 100644
+--- a/src/lib/utf8_test.go
++++ b/src/lib/utf8_test.go
+@@ -44,6 +44,27 @@ var utf8map = []Utf8Map {
+ 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
+ }
+ 
++func CEscape(s *[]byte) string {
++	t := "\"";
++	for i := 0; i < len(s); i++ {
++		switch {
++		case s[i] == '\\' || s[i] == '"':
++			t += `\`;
++			t += string(s[i]);
++		case s[i] == '\n':
++			t += `\n`;
++		case s[i] == '\t':
++			t += `\t`;
++		case ' ' <= s[i] && s[i] <= '~':
++			t += string(s[i]);
++		default:
++			t += fmt.sprintf(`\x%02x`, s[i]);
++		}
++	}
++	t += "\"";
++	return t;
++}
++
+ func Bytes(s string) *[]byte {
+ 	b := new([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+@@ -57,19 +78,10 @@ export func TestFullRune(t *testing.T) {
+ 		m := utf8map[i];
+ 		b := Bytes(m.str);
+ 		if !utf8.FullRune(b) {
+-			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
+-		}
+-		s := "xx"+m.str;
+-		if !utf8.FullRuneInString(s, 2) {
+-			t.Errorf("FullRuneInString(%q, 2) (rune %04x) = false, want true", s, m.rune);
++			t.Errorf("FullRune(%s) (rune %04x) = false, want true", CEscape(b), m.rune);
+ 		}
+-		b1 := b[0:len(b)-1];
+-		if utf8.FullRune(b1) {
+-			t.Errorf("FullRune(%q) = true, want false", b1);
+-		}
+-		s1 := "xxx"+string(b1);
+-		if utf8.FullRuneInString(s1, 3) {
+-			t.Errorf("FullRune(%q, 3) = true, want false", s1);
++		if b1 := b[0:len(b)-1]; utf8.FullRune(b1) {
++			t.Errorf("FullRune(%s) = true, want false", CEscape(b1));
+ 		}
+ 	}
+ }
+@@ -94,7 +106,7 @@ export func TestEncodeRune(t *testing.T) {
+ 		n := utf8.EncodeRune(m.rune, &buf);
+ 		b1 := (&buf)[0:n];
+ 		if !EqualBytes(b, b1) {
+-			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
++			t.Errorf("EncodeRune(0x%04x) = %s want %s", m.rune, CEscape(b1), CEscape(b));
+ 		}
+ 	}
+ }
+@@ -105,38 +117,23 @@ export func TestDecodeRune(t *testing.T) {
+ 		b := Bytes(m.str);
+ 		rune, size := utf8.DecodeRune(b);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
+-		}
+-		s := "xx"+m.str;
+-		rune, size = utf8.DecodeRuneInString(s, 2);
+-		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q, 2) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, m.rune, len(b));
+ 		}
+ 
+ 		// there's an extra byte that Bytes left behind - make sure trailing byte works
+ 		rune, size = utf8.DecodeRune(b[0:cap(b)]);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
+-		}
+-		s = "x"+m.str+"\x00";
+-		rune, size = utf8.DecodeRuneInString(s, 1);
+-		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRuneInString(%q, 1) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, m.rune, len(b));
+ 		}
+ 
+ 		// make sure missing bytes fail
++		rune, size = utf8.DecodeRune(b[0:len(b)-1]);
+ 		wantsize := 1;
+ 		if wantsize >= len(b) {
+ 			wantsize = 0;
+ 		}
+-		rune, size = utf8.DecodeRune(b[0:len(b)-1]);
+-		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize);
+-		}
+-		s = "xxx"+m.str[0:len(m.str)-1];
+-		rune, size = utf8.DecodeRuneInString(s, 3);
+ 		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRuneInString(%q, 3) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b[0:len(b)-1]), rune, size, RuneError, wantsize);
+ 		}
+ 
+ 		// make sure bad sequences fail
+@@ -147,12 +144,7 @@ export func TestDecodeRune(t *testing.T) {
+ 		}
+ 		rune, size = utf8.DecodeRune(b);
+ 		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, RuneError, 1);
+-		}
+-		s = "xxxx"+string(b);
+-		rune, size = utf8.DecodeRune(b);
+-		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRuneInString(%q, 4) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, RuneError, 1);
+ 		}
+ 	}
+ }
+diff --git a/test/fmt_test.go b/test/fmt_test.go
+new file mode 100644
+index 0000000000..27c986b43e
+--- /dev/null
++++ b/test/fmt_test.go
+@@ -0,0 +1,94 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && ./$A.out
++
++package main
++
++import fmt "fmt"  // BUG: shouldn't need the first 'fmt'.
++
++func E(f *fmt.Fmt, e string) {
++	g := f.str();
++	if sys.argc() > 1 {
++		print(g, "\n");
++		if g != e {
++			print("expected <", e, ">\n");
++		}
++		return;
++	}
++	if g != e {
++		print("expected <", e, ">\n");
++		print("got      <", g, ">\n");
++	}
++}
++
++const B32 = 1<<32 - 1
++const B64 = 1<<64 - 1
++
++func main() {
++	f := fmt.New();
++	E(f.s("d   ").d(1234), "d   1234");
++	E(f.s("Simple output\n"), "Simple output\n");
++	E(f.s("\td   ").d(-1234), "\td   -1234");
++	E(f.s("\tud  ").ud(B32), "\tud  4294967295");
++	E(f.s("\tud64  ").ud64(B64), "\tud64  18446744073709551615");
++	E(f.s("\to   ").o(01234), "\to   1234");
++	E(f.s("\tuo  ").uo(B32), "\tuo  37777777777");
++	E(f.s("\tuo64  ").uo64(B64), "\tuo64  1777777777777777777777");
++	E(f.s("\tx   ").x(0x1234abcd), "\tx   1234abcd");
++	E(f.s("\tux  ").ux(B32 - 0x01234567), "\tux  fedcba98");
++	E(f.s("\tX  ").X(0x1234abcd), "\tX  1234ABCD");
++	E(f.s("\tuX ").uX(B32 - 0x01234567), "\tuX FEDCBA98");
++	E(f.s("\tux64  ").ux64(B64), "\tux64  ffffffffffffffff");
++	E(f.s("\tb   ").b(7), "\tb   111");
++	E(f.s("\tb64   ").b64(B64), "\tb64   1111111111111111111111111111111111111111111111111111111111111111");
++	E(f.s("\te   ").e64(1.), "\te   1.000000e+00");
++	E(f.s("\te   ").e64(1234.5678e3), "\te   1.234568e+06");
++	E(f.s("\te   ").e64(1234.5678e-8), "\te   1.234568e-05");
++	E(f.s("\te   ").e64(-7.0), "\te   -7.000000e+00");
++	E(f.s("\te   ").e64(-1e-9), "\te   -1.000000e-09");
++	E(f.s("\tf   ").f64(1234.5678e3), "\tf   1234567.800000");
++	E(f.s("\tf   ").f64(1234.5678e-8), "\tf   0.000012");
++	E(f.s("\tf   ").f64(-7.0), "\tf   -7.000000");
++	E(f.s("\tf   ").f64(-1e-9), "\tf   -0.000000");
++	E(f.s("\tg   ").g64(1234.5678e3), "\tg   1.2345678e+06");
++	E(f.s("\tg   ").g64(1234.5678e-8), "\tg   1.2345678e-05");
++	E(f.s("\tg   ").g64(-7.0), "\tg   -7");
++	E(f.s("\tg   ").g64(-1e-9), "\tg   -1e-09");
++	E(f.s("\tc   ").c('x'), "\tc   x");
++	E(f.s("\tc   ").c(0xe4), "\tc   ä");
++	E(f.s("\tc   ").c(0x672c), "\tc   本");
++	E(f.s("\tc   ").c('日'), "\tc   日");
++
++	E(f.s("Flags, width, and precision"), "Flags, width, and precision");
++	E(f.s("\t\t|123456789_123456789_"), "\t\t|123456789_123456789_");
++	E(f.s("\t20.8d\t|").wp(20,8).d(1234).s("|"), "\t20.8d\t|            00001234|");
++	E(f.s("\t20.8d\t|").wp(20,8).d(-1234).s("|"), "\t20.8d\t|           -00001234|");
++	E(f.s("\t20d\t|").w(20).d(1234).s("|"), "\t20d\t|                1234|");
++	E(f.s("\t-20.8d\t|").wp(-20,8).d(1234).s("|"), "\t-20.8d\t|00001234            |");
++	E(f.s("\t-20.8d\t|").wp(-20,8).d(-1234).s("|"), "\t-20.8d\t|-00001234           |");
++	E(f.s("\t.20b\t|").p(20).b(7).s("|"), "\t.20b\t|00000000000000000111|");
++	E(f.s("\t20.5s\t|").wp(20,5).s("qwertyuiop").s("|"), "\t20.5s\t|               qwert|");
++	E(f.s("\t.5s\t|").p(5).s("qwertyuiop").s("|"), "\t.5s\t|qwert|");
++	E(f.s("\t-20.5s\t|").wp(-20,5).s("qwertyuiop").s("|"), "\t-20.5s\t|qwert               |");
++	E(f.s("\t20c\t|").w(20).c('x').s("|"), "\t20c\t|                   x|");
++	E(f.s("\t-20c\t|").w(-20).c('x').s("|"), "\t-20c\t|x                   |");
++	E(f.s("\t20e\t|").wp(20, 6).e(1.2345e3).s("|"), "\t20e\t|        1.234500e+03|");
++	E(f.s("\t20e\t|").wp(20, 6).e(1.2345e-3).s("|"), "\t20e\t|        1.234500e-03|");
++	E(f.s("\t-20e\t|").wp(-20, 6).e(1.2345e3).s("|"), "\t-20e\t|1.234500e+03        |");
++	E(f.s("\t20.8e\t|").wp(20,8).e(1.2345e3).s("|"), "\t20.8e\t|      1.23450000e+03|");
++	E(f.s("\t20f\t|").w(20).f64(1.23456789e3).s("|"), "\t20f\t|         1234.567890|");
++	E(f.s("\t20f\t|").w(20).f64(1.23456789e-3).s("|"), "\t20f\t|            0.001235|");
++	E(f.s("\t20f\t|").w(20).f64(12345678901.23456789).s("|"), "\t20f\t|  12345678901.234568|");
++	E(f.s("\t-20f\t|").w(-20).f64(1.23456789e3).s("|"), "\t-20f\t|1234.567890         |");
++	E(f.s("\t20.8f\t|").wp(20,8).f64(1.23456789e3).s("|"), "\t20.8f\t|       1234.56789000|");
++	E(f.s("\t20.8f\t|").wp(20,8).f64(1.23456789e-3).s("|"), "\t20.8f\t|          0.00123457|");
++	E(f.s("\tg\t|").g64(1.23456789e3).s("|"), "\tg\t|1234.56789|");
++	E(f.s("\tg\t|").g64(1.23456789e-3).s("|"), "\tg\t|0.00123456789|");
++	E(f.s("\tg\t|").g64(1.23456789e20).s("|"), "\tg\t|1.23456789e+20|");
++
++	E(f.s("\tE\t|").w(20).g64(sys.Inf(1)).s("|"), "\tE\t|                +Inf|");
++	E(f.s("\tF\t|").w(-20).g64(sys.Inf(-1)).s("|"), "\tF\t|-Inf                |");
++	E(f.s("\tG\t|").w(20).g64(sys.NaN()).s("|"), "\tG\t|                 NaN|");
++}

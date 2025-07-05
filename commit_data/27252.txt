@@ -13,7 +13,7 @@ Date:   Thu Mar 17 01:32:18 2016 -0700
     Change-Id: Ic1005ad45ae0b50c63e815e34e507e2d2644ba1a
     Reviewed-on: https://go-review.googlesource.com/20794
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     |  6 +++---
  src/cmd/compile/internal/gc/bexport.go   |  8 ++++----
  src/cmd/compile/internal/gc/closure.go   |  4 ++--
@@ -32,3 +32,682 @@ Date:   Thu Mar 17 01:32:18 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
  src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
  17 files changed, 69 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 94dca9adbd..8c9190d0cf 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -17,7 +17,7 @@ func Rnd(o int64, r int64) int64 {
+ 
+ func offmod(t *Type) {
+ 	o := int32(0)
+-	for f, it := IterFields(t); f != nil; f = it.Next() {
++	for _, f := range t.Fields().Slice() {
+ 		f.Width = int64(o)
+ 		o += int32(Widthptr)
+ 		if int64(o) >= Thearch.MAXWIDTH {
+@@ -35,7 +35,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 	}
+ 	lastzero := int64(0)
+ 	var w int64
+-	for f, it := IterFields(t); f != nil; f = it.Next() {
++	for _, f := range t.Fields().Slice() {
+ 		if f.Type == nil {
+ 			// broken field, just skip it so that other valid fields
+ 			// get a width.
+@@ -387,7 +387,7 @@ func Argsize(t *Type) int {
+ 	var w int64
+ 
+ 	for _, p := range recvsParamsResults {
+-		for f, it := IterFields(p(t)); f != nil; f = it.Next() {
++		for _, f := range p(t).Fields().Slice() {
+ 			if x := f.Width + f.Type.Width; x > w {
+ 				w = x
+ 			}
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c539fe579a..d6f3a51a44 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -465,7 +465,7 @@ func (p *exporter) typ(t *Type) {
+ 		// TODO(gri) Determine if they are already sorted
+ 		// in which case we can drop this step.
+ 		var methods []*Field
+-		for m, it := IterMethods(t); m != nil; m = it.Next() {
++		for _, m := range t.Methods().Slice() {
+ 			methods = append(methods, m)
+ 		}
+ 		sort.Sort(methodbyname(methods))
+@@ -565,7 +565,7 @@ func (p *exporter) fieldList(t *Type) {
+ 	}
+ 
+ 	p.int(countfield(t))
+-	for f, it := IterFields(t); f != nil; f = it.Next() {
++	for _, f := range t.Fields().Slice() {
+ 		if p.trace {
+ 			p.tracef("\n")
+ 		}
+@@ -594,7 +594,7 @@ func (p *exporter) methodList(t *Type) {
+ 	}
+ 
+ 	p.int(countfield(t))
+-	for m, it := IterFields(t); m != nil; m = it.Next() {
++	for _, m := range t.Fields().Slice() {
+ 		if p.trace {
+ 			p.tracef("\n")
+ 		}
+@@ -655,7 +655,7 @@ func (p *exporter) paramList(params *Type, numbered bool) {
+ 		n = -n
+ 	}
+ 	p.int(n)
+-	for q, it := IterFields(params); q != nil; q = it.Next() {
++	for _, q := range params.Fields().Slice() {
+ 		p.param(q, n, numbered)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 722a874452..ed373568ad 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -528,7 +528,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	Curfn = xfunc
+ 	var fld *Node
+ 	var n *Node
+-	for t, it := IterFields(t0.Params()); t != nil; t = it.Next() {
++	for _, t := range t0.Params().Fields().Slice() {
+ 		n = newname(Lookupf("a%d", i))
+ 		i++
+ 		n.Class = PPARAM
+@@ -547,7 +547,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	i = 0
+ 	l = nil
+ 	var retargs []*Node
+-	for t, it := IterFields(t0.Results()); t != nil; t = it.Next() {
++	for _, t := range t0.Results().Fields().Slice() {
+ 		n = newname(Lookupf("r%d", i))
+ 		i++
+ 		n.Class = PPARAMOUT
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6b65dd0a52..6d1e6f4223 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -656,7 +656,7 @@ func funcargs2(t *Type) {
+ 	}
+ 
+ 	if t.Thistuple != 0 {
+-		for ft, it := IterFields(t.Recvs()); ft != nil; ft = it.Next() {
++		for _, ft := range t.Recvs().Fields().Slice() {
+ 			if ft.Nname == nil || ft.Nname.Sym == nil {
+ 				continue
+ 			}
+@@ -667,7 +667,7 @@ func funcargs2(t *Type) {
+ 	}
+ 
+ 	if t.Intuple != 0 {
+-		for ft, it := IterFields(t.Params()); ft != nil; ft = it.Next() {
++		for _, ft := range t.Params().Fields().Slice() {
+ 			if ft.Nname == nil || ft.Nname.Sym == nil {
+ 				continue
+ 			}
+@@ -678,7 +678,7 @@ func funcargs2(t *Type) {
+ 	}
+ 
+ 	if t.Outtuple != 0 {
+-		for ft, it := IterFields(t.Results()); ft != nil; ft = it.Next() {
++		for _, ft := range t.Results().Fields().Slice() {
+ 			if ft.Nname == nil || ft.Nname.Sym == nil {
+ 				continue
+ 			}
+@@ -803,7 +803,7 @@ func checkdupfields(what string, ts ...*Type) {
+ 
+ 	seen := make(map[*Sym]bool)
+ 	for _, t := range ts {
+-		for f, it := IterFields(t); f != nil; f = it.Next() {
++		for _, f := range t.Fields().Slice() {
+ 			if f.Sym == nil || f.Nname == nil || isblank(f.Nname) {
+ 				continue
+ 			}
+@@ -962,7 +962,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 
+ 		if n.Left == nil && f.Type.Etype == TINTER {
+ 			// embedded interface, inline methods
+-			for t1, it := IterFields(f.Type); t1 != nil; t1 = it.Next() {
++			for _, t1 := range f.Type.Fields().Slice() {
+ 				f = newField()
+ 				f.Type = t1.Type
+ 				f.Broke = t1.Broke
+@@ -1258,7 +1258,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 	}
+ 
+ 	if pa.Etype == TSTRUCT {
+-		for f, it := IterFields(pa); f != nil; f = it.Next() {
++		for _, f := range pa.Fields().Slice() {
+ 			if f.Sym == msym {
+ 				Yyerror("type %v has both field and method named %v", pa, msym)
+ 				return
+@@ -1269,7 +1269,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 	n := Nod(ODCLFIELD, newname(msym), nil)
+ 	n.Type = t
+ 
+-	for f, it := IterMethods(pa); f != nil; f = it.Next() {
++	for _, f := range pa.Methods().Slice() {
+ 		if msym.Name != f.Sym.Name {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index f5c2ebdaff..21fc2695a0 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1386,7 +1386,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
+ 	i := 0
+ 	nE := e.nodeEscState(n)
+ 	nE.Escretval.Set(nil) // Suspect this is not nil for indirect calls.
+-	for t, it := IterFields(fntype.Results()); t != nil; t = it.Next() {
++	for _, t := range fntype.Results().Fields().Slice() {
+ 		src := Nod(ONAME, nil, nil)
+ 		buf := fmt.Sprintf(".out%d", i)
+ 		i++
+@@ -1967,7 +1967,7 @@ func esctag(e *EscState, func_ *Node) {
+ 	// unless //go:noescape is given before the declaration.
+ 	if len(func_.Nbody.Slice()) == 0 {
+ 		if func_.Noescape {
+-			for t, it := IterFields(func_.Type.Params()); t != nil; t = it.Next() {
++			for _, t := range func_.Type.Params().Fields().Slice() {
+ 				if haspointers(t.Type) {
+ 					t.Note = mktag(EscNone)
+ 				}
+@@ -1981,7 +1981,7 @@ func esctag(e *EscState, func_ *Node) {
+ 		// but we are reusing the ability to annotate an individual function
+ 		// argument and pass those annotations along to importing code.
+ 		narg := 0
+-		for t, it := IterFields(func_.Type.Params()); t != nil; t = it.Next() {
++		for _, t := range func_.Type.Params().Fields().Slice() {
+ 			narg++
+ 			if t.Type.Etype == TUINTPTR {
+ 				if Debug['m'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index d1d38b7741..ef0d856c8d 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -294,7 +294,7 @@ func dumpexporttype(t *Type) {
+ 
+ 	switch t.Etype {
+ 	case TSTRUCT, TINTER:
+-		for f, it := IterFields(t); f != nil; f = it.Next() {
++		for _, f := range t.Fields().Slice() {
+ 			dumpexporttype(f.Type)
+ 		}
+ 	case TFUNC:
+@@ -313,7 +313,7 @@ func dumpexporttype(t *Type) {
+ 	}
+ 
+ 	var m []*Field
+-	for f, it := IterMethods(t); f != nil; f = it.Next() {
++	for _, f := range t.Methods().Slice() {
+ 		dumpexporttype(f.Type)
+ 		m = append(m, f)
+ 	}
+@@ -601,7 +601,7 @@ func dumpasmhdr() {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+-			for t, it := IterFields(t); t != nil; t = it.Next() {
++			for _, t := range t.Fields().Slice() {
+ 				if !isblanksym(t.Sym) {
+ 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Width))
+ 				}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 2bae7885f5..5f01d4d6da 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1234,7 +1234,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 			Fatalf("struct not at offset 0")
+ 		}
+ 
+-		for field, it := IterFields(t); field != nil; field = it.Next() {
++		for _, field := range t.Fields().Slice() {
+ 			if !visitComponents(field.Type, startOffset+field.Width, f) {
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 82e165e2dd..abe576eed1 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -110,7 +110,7 @@ func caninl(fn *Node) {
+ 
+ 	// can't handle ... args yet
+ 	if Debug['l'] < 3 {
+-		for t, it := IterFields(fn.Type.Params()); t != nil; t = it.Next() {
++		for _, t := range fn.Type.Params().Fields().Slice() {
+ 			if t.Isddd {
+ 				return
+ 			}
+@@ -576,7 +576,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	// temporaries for return values.
+ 	var m *Node
+-	for t, it := IterFields(fn.Type.Results()); t != nil; t = it.Next() {
++	for _, t := range fn.Type.Results().Fields().Slice() {
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
+ 			m = inlvar(t.Nname)
+ 			typecheck(&m, Erv)
+@@ -617,7 +617,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	var varargtype *Type
+ 	varargcount := 0
+-	for t, it := IterFields(fn.Type.Params()); t != nil; t = it.Next() {
++	for _, t := range fn.Type.Params().Fields().Slice() {
+ 		if t.Isddd {
+ 			variadic = true
+ 			varargtype = t.Type
+@@ -683,7 +683,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	if !chkargcount {
+ 		// 0 or 1 expression on RHS.
+ 		var i int
+-		for t, it2 := IterFields(fn.Type.Params()); t != nil; t = it2.Next() {
++		for _, t := range fn.Type.Params().Fields().Slice() {
+ 			if variadic && t.Isddd {
+ 				vararg = tinlvar(t)
+ 				for i = 0; i < varargcount && li < n.List.Len(); i++ {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index dc1dbbddc3..14e70be10d 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -338,7 +338,7 @@ func copyret(n *Node, order *Order) []*Node {
+ 
+ 	var l1 []*Node
+ 	var l2 []*Node
+-	for t, it := IterFields(n.Type); t != nil; t = it.Next() {
++	for _, t := range n.Type.Fields().Slice() {
+ 		tmp := temp(t.Type)
+ 		l1 = append(l1, tmp)
+ 		l2 = append(l2, tmp)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d5145def8e..6abb57d490 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -377,7 +377,7 @@ func compile(fn *Node) {
+ 
+ 	if Curfn.Type.Outnamed {
+ 		// add clearing of the output parameters
+-		for t, it := IterFields(Curfn.Type.Results()); t != nil; t = it.Next() {
++		for _, t := range Curfn.Type.Results().Fields().Slice() {
+ 			if t.Nname != nil {
+ 				n := Nod(OAS, t.Nname, nil)
+ 				typecheck(&n, Etop)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index f7f51126fb..6403f266a4 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -938,7 +938,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 
+ 	case TSTRUCT:
+ 		var o int64
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			fieldoffset := t1.Width
+ 			*xoffset += fieldoffset - o
+ 			onebitwalktype1(t1.Type, xoffset, bv)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 874d9e0069..b5a7a97c85 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -241,7 +241,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
+ 	}
+ 
+ 	var d *Node
+-	for t, it := IterFields(f.Params()); t != nil; t = it.Next() {
++	for _, t := range f.Params().Fields().Slice() {
+ 		d = Nod(ODCLFIELD, nil, nil)
+ 		d.Type = t.Type
+ 		d.Isddd = t.Isddd
+@@ -249,7 +249,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
+ 	}
+ 
+ 	var out []*Node
+-	for t, it := IterFields(f.Results()); t != nil; t = it.Next() {
++	for _, t := range f.Results().Fields().Slice() {
+ 		d = Nod(ODCLFIELD, nil, nil)
+ 		d.Type = t.Type
+ 		out = append(out, d)
+@@ -356,7 +356,7 @@ func methods(t *Type) []*Sig {
+ // imethods returns the methods of the interface type t, sorted by name.
+ func imethods(t *Type) []*Sig {
+ 	var methods []*Sig
+-	for f, it := IterFields(t); f != nil; f = it.Next() {
++	for _, f := range t.Fields().Slice() {
+ 		if f.Type.Etype != TFUNC || f.Sym == nil {
+ 			continue
+ 		}
+@@ -590,7 +590,7 @@ func haspointers(t *Type) bool {
+ 
+ 	case TSTRUCT:
+ 		ret = false
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			if haspointers(t1.Type) {
+ 				ret = true
+ 				break
+@@ -650,7 +650,7 @@ func typeptrdata(t *Type) int64 {
+ 	case TSTRUCT:
+ 		// Find the last field that has pointers.
+ 		var lastPtrField *Field
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			if haspointers(t1.Type) {
+ 				lastPtrField = t1
+ 			}
+@@ -883,7 +883,7 @@ func isreflexive(t *Type) bool {
+ 		return isreflexive(t.Type)
+ 
+ 	case TSTRUCT:
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			if !isreflexive(t1.Type) {
+ 				return false
+ 			}
+@@ -933,7 +933,7 @@ func needkeyupdate(t *Type) bool {
+ 		return needkeyupdate(t.Type)
+ 
+ 	case TSTRUCT:
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			if needkeyupdate(t1.Type) {
+ 				return true
+ 			}
+@@ -1028,15 +1028,15 @@ ok:
+ 		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TFUNC:
+-		for t1, it := IterFields(t.Recvs()); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Recvs().Fields().Slice() {
+ 			dtypesym(t1.Type)
+ 		}
+ 		isddd := false
+-		for t1, it := IterFields(t.Params()); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Params().Fields().Slice() {
+ 			isddd = t1.Isddd
+ 			dtypesym(t1.Type)
+ 		}
+-		for t1, it := IterFields(t.Results()); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Results().Fields().Slice() {
+ 			dtypesym(t1.Type)
+ 		}
+ 
+@@ -1056,13 +1056,13 @@ ok:
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+-		for t1, it := IterFields(t.Recvs()); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Recvs().Fields().Slice() {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+ 		}
+-		for t1, it := IterFields(t.Params()); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Params().Fields().Slice() {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+ 		}
+-		for t1, it := IterFields(t.Results()); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Results().Fields().Slice() {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+ 		}
+ 
+@@ -1142,7 +1142,7 @@ ok:
+ 	case TSTRUCT:
+ 		n := 0
+ 
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			dtypesym(t1.Type)
+ 			n++
+ 		}
+@@ -1155,7 +1155,7 @@ ok:
+ 		dataAdd := n * structfieldSize()
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			// ../../../../runtime/type.go:/structField
+ 			if t1.Sym != nil && t1.Embedded == 0 {
+ 				ot = dgostringptr(s, ot, t1.Sym.Name)
+@@ -1521,7 +1521,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 		p.w.Repeat(elem.Width/int64(Widthptr), count-1)
+ 
+ 	case TSTRUCT:
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			p.emit(t1.Type, offset+t1.Width)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 06e317eb09..b0c7c5f5b3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2632,7 +2632,7 @@ func canSSAType(t *Type) bool {
+ 		if countfield(t) > ssa.MaxStruct {
+ 			return false
+ 		}
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			if !canSSAType(t1.Type) {
+ 				return false
+ 			}
+@@ -3950,7 +3950,7 @@ func fieldIdx(n *Node) int {
+ 	}
+ 
+ 	var i int
+-	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++	for _, t1 := range t.Fields().Slice() {
+ 		if t1.Sym != f.Sym {
+ 			i++
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index da4d036f71..126959b2c1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1570,7 +1570,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 
+ 	c := 0
+ 	if u.Etype == TSTRUCT || u.Etype == TINTER {
+-		for f, it := IterFields(u); f != nil; f = it.Next() {
++		for _, f := range u.Fields().Slice() {
+ 			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
+ 				if save != nil {
+ 					*save = f
+@@ -1582,7 +1582,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 
+ 	u = methtype(t, 0)
+ 	if u != nil {
+-		for f, it := IterMethods(u); f != nil; f = it.Next() {
++		for _, f := range u.Methods().Slice() {
+ 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
+ 				if save != nil {
+ 					*save = f
+@@ -1627,7 +1627,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
+ 		goto out
+ 	}
+ 
+-	for f, it := IterFields(u); f != nil; f = it.Next() {
++	for _, f := range u.Fields().Slice() {
+ 		if f.Embedded == 0 || f.Sym == nil {
+ 			continue
+ 		}
+@@ -1738,7 +1738,7 @@ func expand0(t *Type, followptr bool) {
+ 	}
+ 
+ 	if u.Etype == TINTER {
+-		for f, it := IterFields(u); f != nil; f = it.Next() {
++		for _, f := range u.Fields().Slice() {
+ 			if f.Sym.Flags&SymUniq != 0 {
+ 				continue
+ 			}
+@@ -1751,7 +1751,7 @@ func expand0(t *Type, followptr bool) {
+ 
+ 	u = methtype(t, 0)
+ 	if u != nil {
+-		for f, it := IterMethods(u); f != nil; f = it.Next() {
++		for _, f := range u.Methods().Slice() {
+ 			if f.Sym.Flags&SymUniq != 0 {
+ 				continue
+ 			}
+@@ -1781,7 +1781,7 @@ func expand1(t *Type, top, followptr bool) {
+ 		goto out
+ 	}
+ 
+-	for f, it := IterFields(u); f != nil; f = it.Next() {
++	for _, f := range u.Fields().Slice() {
+ 		if f.Embedded == 0 {
+ 			continue
+ 		}
+@@ -1802,7 +1802,7 @@ func expandmeth(t *Type) {
+ 
+ 	// mark top-level method symbols
+ 	// so that expand1 doesn't consider them.
+-	for f, it := IterMethods(t); f != nil; f = it.Next() {
++	for _, f := range t.Methods().Slice() {
+ 		f.Sym.Flags |= SymUniq
+ 	}
+ 
+@@ -1835,7 +1835,7 @@ func expandmeth(t *Type) {
+ 		ms = append(ms, f)
+ 	}
+ 
+-	for f, it := IterMethods(t); f != nil; f = it.Next() {
++	for _, f := range t.Methods().Slice() {
+ 		f.Sym.Flags &^= SymUniq
+ 	}
+ 
+@@ -1847,7 +1847,7 @@ func expandmeth(t *Type) {
+ func structargs(tl *Type, mustname bool) []*Node {
+ 	var args []*Node
+ 	gen := 0
+-	for t, it := IterFields(tl); t != nil; t = it.Next() {
++	for _, t := range tl.Fields().Slice() {
+ 		var n *Node
+ 		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
+ 			// invent a name so that we can refer to it in the trampoline
+@@ -2085,8 +2085,8 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
+ 	// and then do one loop.
+ 
+ 	if t.Etype == TINTER {
+-		for im, it := IterFields(iface); im != nil; im = it.Next() {
+-			for tm, it2 := IterFields(t); tm != nil; tm = it2.Next() {
++		for _, im := range iface.Fields().Slice() {
++			for _, tm := range t.Fields().Slice() {
+ 				if tm.Sym == im.Sym {
+ 					if Eqtype(tm.Type, im.Type) {
+ 						goto found
+@@ -2112,7 +2112,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
+ 	if t != nil {
+ 		expandmeth(t)
+ 	}
+-	for im, it := IterFields(iface); im != nil; im = it.Next() {
++	for _, im := range iface.Fields().Slice() {
+ 		if im.Broke {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 9e285c058d..d328d2b96d 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -263,13 +263,6 @@ func IterFields(t *Type) (*Field, Iter) {
+ 	return t.Fields().Iter()
+ }
+ 
+-// IterMethods returns the first method in type t's method set
+-// and an Iter value to continue iterating across the rest.
+-// IterMethods does not include promoted methods.
+-func IterMethods(t *Type) (*Field, Iter) {
+-	return t.Methods().Iter()
+-}
+-
+ // Iter returns the first field in fs and an Iter value to continue iterating
+ // across its successor fields.
+ // Deprecated: New code should use Slice instead.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9100672e10..d0de0834c2 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2568,7 +2568,7 @@ func nokeys(l Nodes) bool {
+ }
+ 
+ func hasddd(t *Type) bool {
+-	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
++	for _, tl := range t.Fields().Slice() {
+ 		if tl.Isddd {
+ 			return true
+ 		}
+@@ -2609,7 +2609,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 
+ 				tn, it := IterFields(n.Type)
+ 				var why string
+-				for tl, it2 := IterFields(tstruct); tl != nil; tl = it2.Next() {
++				for _, tl := range tstruct.Fields().Slice() {
+ 					if tl.Isddd {
+ 						for ; tn != nil; tn = it.Next() {
+ 							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
+@@ -2671,7 +2671,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 	}
+ 
+ 	i = 0
+-	for tl, it := IterFields(tstruct); tl != nil; tl = it.Next() {
++	for _, tl := range tstruct.Fields().Slice() {
+ 		t = tl.Type
+ 		if tl.Isddd {
+ 			if isddd {
+@@ -3489,7 +3489,7 @@ func domethod(n *Node) {
+ 	// value of its argument, a specific implementation of I may
+ 	// care. The _ would suppress the assignment to that argument
+ 	// while generating a call, so remove it.
+-	for t, it := IterFields(nt.Type.Params()); t != nil; t = it.Next() {
++	for _, t := range nt.Type.Params().Fields().Slice() {
+ 		if t.Sym != nil && t.Sym.Name == "_" {
+ 			t.Sym = nil
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 69c8390fe0..4e3079fd7e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1788,7 +1788,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
+ // helpers for shape errors
+ func dumptypes(nl *Type, what string) string {
+ 	s := ""
+-	for l, it := IterFields(nl); l != nil; l = it.Next() {
++	for _, l := range nl.Fields().Slice() {
+ 		if s != "" {
+ 			s += ", "
+ 		}
+@@ -1842,7 +1842,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
+ 		// copy into temporaries.
+ 		var alist []*Node
+ 
+-		for l, it := IterFields(r.Type); l != nil; l = it.Next() {
++		for _, l := range r.Type.Fields().Slice() {
+ 			tmp := temp(l.Type)
+ 			alist = append(alist, tmp)
+ 		}
+@@ -2560,7 +2560,7 @@ func vmatch1(l *Node, r *Node) bool {
+ // stack memory addresses.
+ func paramstoheap(params *Type, out bool) []*Node {
+ 	var nn []*Node
+-	for t, it := IterFields(params); t != nil; t = it.Next() {
++	for _, t := range params.Fields().Slice() {
+ 		v := t.Nname
+ 		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
+ 			v = nil
+@@ -2603,7 +2603,7 @@ func paramstoheap(params *Type, out bool) []*Node {
+ // back to the stack.
+ func returnsfromheap(params *Type) []*Node {
+ 	var nn []*Node
+-	for t, it := IterFields(params); t != nil; t = it.Next() {
++	for _, t := range params.Fields().Slice() {
+ 		v := t.Nname
+ 		if v == nil || v.Class != PHEAP|PPARAMOUT {
+ 			continue
+@@ -3223,7 +3223,7 @@ func walkcompare(np **Node, init *Nodes) {
+ 		// Inline comparisons.
+ 		var li *Node
+ 		var ri *Node
+-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
++		for _, t1 := range t.Fields().Slice() {
+ 			if isblanksym(t1.Sym) {
+ 				continue
+ 			}

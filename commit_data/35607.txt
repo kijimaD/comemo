@@ -14,8 +14,92 @@ Date:   Sat Dec 16 19:06:10 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go         | 11 ++++++++++-
  src/os/file_unix.go    |  8 ++++----
  src/os/os_unix_test.go | 20 ++++++++++++++++++++
  3 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index aecf9f5e99..eec0bc4d2e 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -221,12 +221,21 @@ func Mkdir(name string, perm FileMode) error {
+ 
+ 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
+ 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
+-		Chmod(name, perm)
++		setStickyBit(name)
+ 	}
+ 
+ 	return nil
+ }
+ 
++// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
++func setStickyBit(name string) error {
++	fi, err := Stat(name)
++	if err != nil {
++		return err
++	}
++	return Chmod(name, fi.Mode()|ModeSticky)
++}
++
+ // Chdir changes the current working directory to the named directory.
+ // If there is an error, it will be of type *PathError.
+ func Chdir(dir string) error {
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 8c95f49dae..fc6cad38d9 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -155,10 +155,10 @@ const DevNull = "/dev/null"
+ 
+ // openFileNolog is the Unix implementation of OpenFile.
+ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+-	chmod := false
++	setSticky := false
+ 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
+ 		if _, err := Stat(name); IsNotExist(err) {
+-			chmod = true
++			setSticky = true
+ 		}
+ 	}
+ 
+@@ -181,8 +181,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	}
+ 
+ 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
+-	if chmod {
+-		Chmod(name, perm)
++	if setSticky {
++		setStickyBit(name)
+ 	}
+ 
+ 	// There's a race here with fork/exec, which we are
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 56c885c666..51294ec419 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -204,3 +204,23 @@ func TestReaddirRemoveRace(t *testing.T) {
+ 		t.FailNow()
+ 	}
+ }
++
++// Issue 23120: respect umask when doing Mkdir with the sticky bit
++func TestMkdirStickyUmask(t *testing.T) {
++	const umask = 0077
++	dir := newDir("TestMkdirStickyUmask", t)
++	defer RemoveAll(dir)
++	oldUmask := syscall.Umask(umask)
++	defer syscall.Umask(oldUmask)
++	p := filepath.Join(dir, "dir1")
++	if err := Mkdir(p, ModeSticky|0755); err != nil {
++		t.Fatal(err)
++	}
++	fi, err := Stat(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if mode := fi.Mode(); (mode&umask) != 0 || (mode&^ModePerm) != (ModeDir|ModeSticky) {
++		t.Errorf("unexpected mode %s", mode)
++	}
++}

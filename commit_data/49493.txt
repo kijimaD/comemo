@@ -26,7 +26,7 @@ Date:   Mon Aug 23 11:34:51 2021 +0200
     Run-TryBot: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go     |  5 +++++
  src/internal/bytealg/bytealg.go    |  1 -
  src/internal/bytealg/compare_386.s |  5 +++--
@@ -43,3 +43,289 @@ Date:   Mon Aug 23 11:34:51 2021 +0200
  src/runtime/mkpreempt.go           | 10 ++++++----
  src/runtime/preempt_386.s          | 10 ++++------
  15 files changed, 31 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 74e14d0065..eee8adca94 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -374,6 +374,11 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 		args = append(args, "-compiling-runtime")
+ 	}
+ 
++	if cfg.Goarch == "386" {
++		// Define GO386_value from cfg.GO386.
++		args = append(args, "-D", "GO386_"+cfg.GO386)
++	}
++
+ 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
+ 		// Define GOMIPS_value from cfg.GOMIPS.
+ 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 6b2b540acc..ebebce75fe 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -11,7 +11,6 @@ import (
+ 
+ // Offsets into internal/cpu records for use in assembly.
+ const (
+-	offsetX86HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
+ 	offsetX86HasSSE42  = unsafe.Offsetof(cpu.X86.HasSSE42)
+ 	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+ 	offsetX86HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
+diff --git a/src/internal/bytealg/compare_386.s b/src/internal/bytealg/compare_386.s
+index 0981983d20..27b660ccf7 100644
+--- a/src/internal/bytealg/compare_386.s
++++ b/src/internal/bytealg/compare_386.s
+@@ -36,8 +36,9 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
+ 	JEQ	allsame
+ 	CMPL	BP, $4
+ 	JB	small
+-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE	mediumloop
++#ifdef GO386_softfloat
++	JMP	mediumloop
++#endif
+ largeloop:
+ 	CMPL	BP, $16
+ 	JB	mediumloop
+diff --git a/src/internal/bytealg/equal_386.s b/src/internal/bytealg/equal_386.s
+index 87233635a9..58b3cbe3d0 100644
+--- a/src/internal/bytealg/equal_386.s
++++ b/src/internal/bytealg/equal_386.s
+@@ -43,8 +43,9 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
+ hugeloop:
+ 	CMPL	BX, $64
+ 	JB	bigloop
+-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE	bigloop
++#ifdef GO386_softfloat
++	JMP	bigloop
++#endif
+ 	MOVOU	(SI), X0
+ 	MOVOU	(DI), X1
+ 	MOVOU	16(SI), X2
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index a87d8a2314..4f0c5d2896 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -37,7 +37,6 @@ var X86 struct {
+ 	HasPCLMULQDQ bool
+ 	HasPOPCNT    bool
+ 	HasRDTSCP    bool
+-	HasSSE2      bool
+ 	HasSSE3      bool
+ 	HasSSSE3     bool
+ 	HasSSE41     bool
+diff --git a/src/internal/cpu/cpu_386.go b/src/internal/cpu/cpu_386.go
+deleted file mode 100644
+index 561c81f808..0000000000
+--- a/src/internal/cpu/cpu_386.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cpu
+-
+-const GOARCH = "386"
+diff --git a/src/internal/cpu/cpu_amd64.go b/src/internal/cpu/cpu_amd64.go
+deleted file mode 100644
+index 9b0015362d..0000000000
+--- a/src/internal/cpu/cpu_amd64.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cpu
+-
+-const GOARCH = "amd64"
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index a3f1fb809a..1582e832a4 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -61,9 +61,6 @@ func doinit() {
+ 		{Name: "sse41", Feature: &X86.HasSSE41},
+ 		{Name: "sse42", Feature: &X86.HasSSE42},
+ 		{Name: "ssse3", Feature: &X86.HasSSSE3},
+-
+-		// These capabilities should always be enabled on amd64:
+-		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64"},
+ 	}
+ 
+ 	maxID, _, _, _ := cpuid(0, 0)
+@@ -74,8 +71,7 @@ func doinit() {
+ 
+ 	maxExtendedFunctionInformation, _, _, _ = cpuid(0x80000000, 0)
+ 
+-	_, _, ecx1, edx1 := cpuid(1, 0)
+-	X86.HasSSE2 = isSet(edx1, cpuid_SSE2)
++	_, _, ecx1, _ := cpuid(1, 0)
+ 
+ 	X86.HasSSE3 = isSet(ecx1, cpuid_SSE3)
+ 	X86.HasPCLMULQDQ = isSet(ecx1, cpuid_PCLMULQDQ)
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index e3e16cc161..de1c5fb3b0 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -10,7 +10,6 @@ package cpu_test
+ import (
+ 	. "internal/cpu"
+ 	"os"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -20,23 +19,6 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDisableSSE2(t *testing.T) {
+-	runDebugOptionsTest(t, "TestSSE2DebugOption", "cpu.sse2=off")
+-}
+-
+-func TestSSE2DebugOption(t *testing.T) {
+-	MustHaveDebugOptionsSupport(t)
+-
+-	if os.Getenv("GODEBUG") != "cpu.sse2=off" {
+-		t.Skipf("skipping test: GODEBUG=cpu.sse2=off not set")
+-	}
+-
+-	want := runtime.GOARCH != "386" // SSE2 can only be disabled on 386.
+-	if got := X86.HasSSE2; got != want {
+-		t.Errorf("X86.HasSSE2 on %s expected %v, got %v", runtime.GOARCH, want, got)
+-	}
+-}
+-
+ func TestDisableSSE3(t *testing.T) {
+ 	runDebugOptionsTest(t, "TestSSE3DebugOption", "cpu.sse3=off")
+ }
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b711356822..594cd5ed0d 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -838,8 +838,9 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	// When no SSE2 support is present do not enforce any serialization
+ 	// since using CPUID to serialize the instruction stream is
+ 	// very costly.
+-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE	rdtsc
++#ifdef GO386_softfloat
++	JMP	rdtsc  // no fence instructions available
++#endif
+ 	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
+ 	JNE	fences
+ 	// Instruction stream serializing RDTSCP is supported.
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index c5291ce4ee..bbe93c5bea 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -15,7 +15,6 @@ const (
+ 	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+ 	offsetX86HasERMS   = unsafe.Offsetof(cpu.X86.HasERMS)
+ 	offsetX86HasRDTSCP = unsafe.Offsetof(cpu.X86.HasRDTSCP)
+-	offsetX86HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
+ 
+ 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
+ 
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 046c344119..2627792ced 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -30,8 +30,9 @@ tail:
+ 	JBE	_5through8
+ 	CMPL	BX, $16
+ 	JBE	_9through16
+-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE	nosse2
++#ifdef GO386_softfloat
++	JMP	nosse2
++#endif
+ 	PXOR	X0, X0
+ 	CMPL	BX, $32
+ 	JBE	_17through32
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index 1a43a1f724..389ef88477 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -55,8 +55,9 @@ tail:
+ 	JBE	move_5through8
+ 	CMPL	BX, $16
+ 	JBE	move_9through16
+-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE	nosse2
++#ifdef GO386_softfloat
++	JMP	nosse2
++#endif
+ 	CMPL	BX, $32
+ 	JBE	move_17through32
+ 	CMPL	BX, $64
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index f2b90307ca..d87446d036 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -200,6 +200,8 @@ func gen386() {
+ 		l.add("MOVL", reg, 4)
+ 	}
+ 
++	softfloat := "GO386_softfloat"
++
+ 	// Save SSE state only if supported.
+ 	lSSE := layout{stack: l.stack, sp: "SP"}
+ 	for i := 0; i < 8; i++ {
+@@ -209,13 +211,13 @@ func gen386() {
+ 	p("ADJSP $%d", lSSE.stack)
+ 	p("NOP SP")
+ 	l.save()
+-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
++	p("#ifndef %s", softfloat)
+ 	lSSE.save()
+-	label("nosse:")
++	p("#endif")
+ 	p("CALL ·asyncPreempt2(SB)")
+-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
++	p("#ifndef %s", softfloat)
+ 	lSSE.restore()
+-	label("nosse2:")
++	p("#endif")
+ 	l.restore()
+ 	p("ADJSP $%d", -lSSE.stack)
+ 
+diff --git a/src/runtime/preempt_386.s b/src/runtime/preempt_386.s
+index c3a5fa1f36..d57bc3d37c 100644
+--- a/src/runtime/preempt_386.s
++++ b/src/runtime/preempt_386.s
+@@ -14,8 +14,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVL BP, 16(SP)
+ 	MOVL SI, 20(SP)
+ 	MOVL DI, 24(SP)
+-	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE nosse
++	#ifndef GO386_softfloat
+ 	MOVUPS X0, 28(SP)
+ 	MOVUPS X1, 44(SP)
+ 	MOVUPS X2, 60(SP)
+@@ -24,10 +23,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVUPS X5, 108(SP)
+ 	MOVUPS X6, 124(SP)
+ 	MOVUPS X7, 140(SP)
+-nosse:
++	#endif
+ 	CALL ·asyncPreempt2(SB)
+-	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE nosse2
++	#ifndef GO386_softfloat
+ 	MOVUPS 140(SP), X7
+ 	MOVUPS 124(SP), X6
+ 	MOVUPS 108(SP), X5
+@@ -36,7 +34,7 @@ nosse:
+ 	MOVUPS 60(SP), X2
+ 	MOVUPS 44(SP), X1
+ 	MOVUPS 28(SP), X0
+-nosse2:
++	#endif
+ 	MOVL 24(SP), DI
+ 	MOVL 20(SP), SI
+ 	MOVL 16(SP), BP

@@ -16,9 +16,91 @@ Date:   Sun Mar 6 18:59:50 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4245064
-
+---
  src/pkg/http/httptest/recorder.go | 9 ---------
  src/pkg/http/server.go            | 3 +++
  src/pkg/rpc/server.go             | 2 +-
  src/pkg/websocket/server.go       | 4 ++--
  4 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/http/httptest/recorder.go b/src/pkg/http/httptest/recorder.go
+index 44571ddd2b..ec7bde8aae 100644
+--- a/src/pkg/http/httptest/recorder.go
++++ b/src/pkg/http/httptest/recorder.go
+@@ -6,17 +6,13 @@
+ package httptest
+ 
+ import (
+-	"bufio"
+ 	"bytes"
+ 	"http"
+-	"io"
+ 	"os"
+ )
+ 
+ // ResponseRecorder is an implementation of http.ResponseWriter that
+ // records its mutations for later inspection in tests.
+-//
+-// Note that Hijack is not implemented and simply panics.
+ type ResponseRecorder struct {
+ 	Code    int           // the HTTP response code from WriteHeader
+ 	Header  http.Header   // if non-nil, the headers to populate
+@@ -81,8 +77,3 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
+ func (rw *ResponseRecorder) Flush() {
+ 	rw.Flushed = true
+ }
+-
+-// Hijack is not implemented in ResponseRecorder and instead panics.
+-func (rw *ResponseRecorder) Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error) {
+-	panic("Hijack not implemented in ResponseRecorder")
+-}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 977c8c2297..a2a0e14246 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -81,7 +81,10 @@ type ResponseWriter interface {
+ 
+ 	// Flush sends any buffered data to the client.
+ 	Flush()
++}
+ 
++// A Hijacker is an HTTP request which be taken over by an HTTP handler.
++type Hijacker interface {
+ 	// Hijack lets the caller take over the connection.
+ 	// After a call to Hijack(), the HTTP server library
+ 	// will not do anything else with the connection.
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 9dcda41480..f185cd16e5 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -527,7 +527,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 		io.WriteString(w, "405 must CONNECT\n")
+ 		return
+ 	}
+-	conn, _, err := w.Hijack()
++	conn, _, err := w.(http.Hijacker).Hijack()
+ 	if err != nil {
+ 		log.Print("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
+ 		return
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 25f057ba5b..37149f044d 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -58,7 +58,7 @@ func getKeyNumber(s string) (r uint32) {
+ 
+ // ServeHTTP implements the http.Handler interface for a Web Socket
+ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+-	rwc, buf, err := w.Hijack()
++	rwc, buf, err := w.(http.Hijacker).Hijack()
+ 	if err != nil {
+ 		panic("Hijack failed: " + err.String())
+ 		return
+@@ -184,7 +184,7 @@ func (f Draft75Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 		return
+ 	}
+ 
+-	rwc, buf, err := w.Hijack()
++	rwc, buf, err := w.(http.Hijacker).Hijack()
+ 	if err != nil {
+ 		panic("Hijack failed: " + err.String())
+ 		return

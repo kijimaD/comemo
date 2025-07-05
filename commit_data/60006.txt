@@ -16,9 +16,108 @@ Date:   Mon Mar 11 17:16:44 2024 -0400
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/66339.txt                         |  1 +
  doc/next/6-stdlib/99-minor/go/ast/66339.md |  2 ++
  src/go/ast/example_test.go                 | 35 ++++++++++++++++++++++++++++++
  src/go/ast/walk.go                         | 22 ++++++++++++++++++-
  4 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/66339.txt b/api/next/66339.txt
+new file mode 100644
+index 0000000000..a6b45adcd2
+--- /dev/null
++++ b/api/next/66339.txt
+@@ -0,0 +1 @@
++pkg go/ast, func Preorder(Node) iter.Seq[Node] #66339
+diff --git a/doc/next/6-stdlib/99-minor/go/ast/66339.md b/doc/next/6-stdlib/99-minor/go/ast/66339.md
+new file mode 100644
+index 0000000000..0eec51ecd6
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/ast/66339.md
+@@ -0,0 +1,2 @@
++The new [Preorder] function returns a convenient iterator over all the
++nodes of a syntax tree.
+diff --git a/src/go/ast/example_test.go b/src/go/ast/example_test.go
+index 4ce42fb153..31b32efece 100644
+--- a/src/go/ast/example_test.go
++++ b/src/go/ast/example_test.go
+@@ -140,6 +140,41 @@ func main() {
+ 	//     61  }
+ }
+ 
++func ExamplePreorder() {
++	src := `
++package p
++
++func f(x, y int) {
++	print(x + y)
++}
++`
++
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "", src, 0)
++	if err != nil {
++		panic(err)
++	}
++
++	// Print identifiers in order
++	for n := range ast.Preorder(f) {
++		id, ok := n.(*ast.Ident)
++		if !ok {
++			continue
++		}
++		fmt.Println(id.Name)
++	}
++
++	// Output:
++	// p
++	// f
++	// x
++	// y
++	// int
++	// print
++	// x
++	// y
++}
++
+ // This example illustrates how to remove a variable declaration
+ // in a Go program while maintaining correct comment association
+ // using an ast.CommentMap.
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 59e6fc174d..0cd604ef1f 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -4,7 +4,10 @@
+ 
+ package ast
+ 
+-import "fmt"
++import (
++	"fmt"
++	"iter"
++)
+ 
+ // A Visitor's Visit method is invoked for each node encountered by [Walk].
+ // If the result visitor w is not nil, [Walk] visits each of the children
+@@ -368,3 +371,20 @@ func (f inspector) Visit(node Node) Visitor {
+ func Inspect(node Node, f func(Node) bool) {
+ 	Walk(inspector(f), node)
+ }
++
++// Preorder returns an iterator over all the nodes of the syntax tree
++// beneath (and including) the specified root, in depth-first
++// preorder.
++//
++// For greater control over the traversal of each subtree, use [Inspect].
++func Preorder(root Node) iter.Seq[Node] {
++	return func(yield func(Node) bool) {
++		ok := true
++		Inspect(root, func(n Node) bool {
++			if n != nil && !yield(n) {
++				ok = false
++			}
++			return ok
++		})
++	}
++}

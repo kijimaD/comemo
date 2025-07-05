@@ -18,7 +18,7 @@ Date:   Sun Jun 20 11:45:53 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1736041
-
+---
  src/cmd/5g/gobj.c               |  2 +-
  src/cmd/6g/gobj.c               |  2 +-
  src/cmd/8g/gobj.c               |  2 +-
@@ -34,3 +34,649 @@ Date:   Sun Jun 20 11:45:53 2010 -0700
  src/pkg/rpc/server.go           | 45 +++++++++++++++++++------
  test/arm-pass.txt               |  2 --
  14 files changed, 139 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index c819be96e7..c4564ed665 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -645,7 +645,7 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam)
+ 
+ 	e = method->sym;
+ 	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(e, rcvr, d, nil);
++		c = adddot1(e, rcvr, d, nil, 0);
+ 		if(c == 1)
+ 			goto out;
+ 	}
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index e2db8c315f..7c05054b7a 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -645,7 +645,7 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam)
+ 
+ 	e = method->sym;
+ 	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(e, rcvr, d, nil);
++		c = adddot1(e, rcvr, d, nil, 0);
+ 		if(c == 1)
+ 			goto out;
+ 	}
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index e48d2e1965..1f4b106f74 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -651,7 +651,7 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam)
+ 
+ 	e = method->sym;
+ 	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(e, rcvr, d, nil);
++		c = adddot1(e, rcvr, d, nil, 0);
+ 		if(c == 1)
+ 			goto out;
+ 	}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1cf459cd8c..5279e659ae 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1035,7 +1035,7 @@ int	Tconv(Fmt *fp);
+ int	Tpretty(Fmt *fp, Type *t);
+ int	Zconv(Fmt *fp);
+ Node*	adddot(Node *n);
+-int	adddot1(Sym *s, Type *t, int d, Type **save);
++int	adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase);
+ Type*	aindex(Node *b, Type *t);
+ int	algtype(Type *t);
+ void	argtype(Node *on, Type *t);
+@@ -1066,7 +1066,7 @@ Type**	getoutarg(Type *t);
+ Type*	getoutargx(Type *t);
+ Type**	getthis(Type *t);
+ Type*	getthisx(Type *t);
+-int	implements(Type *t, Type *iface, Type **m, Type **samename);
++int	implements(Type *t, Type *iface, Type **missing, Type **have, int *ptr);
+ void	importdot(Pkg *opkg, Node *pack);
+ int	is64(Type *t);
+ int	isblank(Node *n);
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 97d92e1dc6..8738eb41b5 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -348,7 +348,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			fmtprint(f, "(%T)(", n->type);
+ 		else
+ 			fmtprint(f, "%T(", n->type);
+-		exprfmt(f, n->left, 0);
++		if(n->left == N)
++			exprlistfmt(f, n->list);
++		else
++			exprfmt(f, n->left, 0);
+ 		fmtprint(f, ")");
+ 		break;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 567ac5a499..b47ccbf73f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -807,6 +807,7 @@ goopnames[] =
+ 	[OAS]		= "=",
+ 	[OAS2]		= "=",
+ 	[OBREAK]	= "break",
++	[OCALL]	= "function call",
+ 	[OCAP]		= "cap",
+ 	[OCASE]		= "case",
+ 	[OCLOSED]	= "closed",
+@@ -1814,6 +1815,7 @@ int
+ assignop(Type *src, Type *dst, char **why)
+ {
+ 	Type *missing, *have;
++	int ptr;
+ 
+ 	if(why != nil)
+ 		*why = "";
+@@ -1839,17 +1841,24 @@ assignop(Type *src, Type *dst, char **why)
+ 
+ 	// 3. dst is an interface type and src implements dst.
+ 	if(dst->etype == TINTER && src->etype != TNIL) {
+-		if(implements(src, dst, &missing, &have))
++		if(implements(src, dst, &missing, &have, &ptr))
+ 			return OCONVIFACE;
+ 		if(why != nil) {
+ 			if(isptrto(src, TINTER))
+-				*why = smprint(": %T is pointer to interface, not interface", src);
++				*why = smprint(":\n\t%T is pointer to interface, not interface", src);
++			else if(have && have->sym == missing->sym)
++				*why = smprint(":\n\t%T does not implement %T (wrong type for %S method)\n"
++					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
++					have->sym, have->type, missing->sym, missing->type);
++			else if(ptr)
++				*why = smprint(":\n\t%T does not implement %T (%S method requires pointer receiver)",
++					src, dst, missing->sym);
+ 			else if(have)
+-				*why = smprint(": %T does not implement %T (wrong type for %S method)\n"
+-					"\thave %S%hhT\n\twant %S%hhT", src, dst, missing->sym,
++				*why = smprint(":\n\t%T does not implement %T (missing %S method)\n"
++					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
+ 					have->sym, have->type, missing->sym, missing->type);
+ 			else
+-				*why = smprint(": %T does not implement %T (missing %S method)",
++				*why = smprint(":\n\t%T does not implement %T (missing %S method)",
+ 					src, dst, missing->sym);
+ 		}
+ 		return 0;
+@@ -2655,6 +2664,30 @@ setmaxarg(Type *t)
+ 		maxarg = w;
+ }
+ 
++/* unicode-aware case-insensitive strcmp */
++
++static int
++cistrcmp(char *p, char *q)
++{
++	Rune rp, rq;
++
++	while(*p || *q) {
++		if(*p == 0)
++			return +1;
++		if(*q == 0)
++			return -1;
++		p += chartorune(&rp, p);
++		q += chartorune(&rq, q);
++		rp = tolowerrune(rp);
++		rq = tolowerrune(rq);
++		if(rp < rq)
++			return -1;
++		if(rp > rq)
++			return +1;
++	}
++	return 0;
++}
++
+ /*
+  * code to resolve elided DOTs
+  * in embedded types
+@@ -2664,7 +2697,7 @@ setmaxarg(Type *t)
+ // return count of fields+methods
+ // found with a given name
+ static int
+-lookdot0(Sym *s, Type *t, Type **save)
++lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
+ {
+ 	Type *f, *u;
+ 	int c;
+@@ -2676,7 +2709,7 @@ lookdot0(Sym *s, Type *t, Type **save)
+ 	c = 0;
+ 	if(u->etype == TSTRUCT || u->etype == TINTER) {
+ 		for(f=u->type; f!=T; f=f->down)
+-			if(f->sym == s) {
++			if(f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0)) {
+ 				if(save)
+ 					*save = f;
+ 				c++;
+@@ -2685,7 +2718,7 @@ lookdot0(Sym *s, Type *t, Type **save)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down)
+-			if(f->sym == s && f->embedded == 0) {
++			if(f->embedded == 0 && (f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0))) {
+ 				if(save)
+ 					*save = f;
+ 				c++;
+@@ -2700,7 +2733,7 @@ lookdot0(Sym *s, Type *t, Type **save)
+ // answer is in dotlist array and
+ // count of number of ways is returned.
+ int
+-adddot1(Sym *s, Type *t, int d, Type **save)
++adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase)
+ {
+ 	Type *f, *u;
+ 	int c, a;
+@@ -2710,7 +2743,7 @@ adddot1(Sym *s, Type *t, int d, Type **save)
+ 	t->trecur = 1;
+ 
+ 	if(d == 0) {
+-		c = lookdot0(s, t, save);
++		c = lookdot0(s, t, save, ignorecase);
+ 		goto out;
+ 	}
+ 
+@@ -2727,7 +2760,7 @@ adddot1(Sym *s, Type *t, int d, Type **save)
+ 			continue;
+ 		if(f->sym == S)
+ 			continue;
+-		a = adddot1(s, f->type, d, save);
++		a = adddot1(s, f->type, d, save, ignorecase);
+ 		if(a != 0 && c == 0)
+ 			dotlist[d].field = f;
+ 		c += a;
+@@ -2764,7 +2797,7 @@ adddot(Node *n)
+ 		goto ret;
+ 
+ 	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(s, t, d, nil);
++		c = adddot1(s, t, d, nil, 0);
+ 		if(c > 0)
+ 			goto out;
+ 	}
+@@ -2902,7 +2935,7 @@ expandmeth(Sym *s, Type *t)
+ 	for(sl=slist; sl!=nil; sl=sl->link) {
+ 		sl->field->sym->flags &= ~SymUniq;
+ 		for(d=0; d<nelem(dotlist); d++) {
+-			c = adddot1(sl->field->sym, t, d, &f);
++			c = adddot1(sl->field->sym, t, d, &f, 0);
+ 			if(c == 0)
+ 				continue;
+ 			if(c == 1) {
+@@ -3035,7 +3068,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ }
+ 
+ static Type*
+-ifacelookdot(Sym *s, Type *t, int *followptr)
++ifacelookdot(Sym *s, Type *t, int *followptr, int ignorecase)
+ {
+ 	int i, c, d;
+ 	Type *m;
+@@ -3046,7 +3079,7 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
+ 		return T;
+ 
+ 	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(s, t, d, &m);
++		c = adddot1(s, t, d, &m, ignorecase);
+ 		if(c > 1) {
+ 			yyerror("%T.%S is ambiguous", t, s);
+ 			return T;
+@@ -3069,7 +3102,7 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
+ }
+ 
+ int
+-implements(Type *t, Type *iface, Type **m, Type **samename)
++implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
+ {
+ 	Type *t0, *im, *tm, *rcvr, *imtype;
+ 	int followptr;
+@@ -3090,11 +3123,13 @@ implements(Type *t, Type *iface, Type **m, Type **samename)
+ 						goto found;
+ 					*m = im;
+ 					*samename = tm;
++					*ptr = 0;
+ 					return 0;
+ 				}
+ 			}
+ 			*m = im;
+ 			*samename = nil;
++			*ptr = 0;
+ 			return 0;
+ 		found:;
+ 		}
+@@ -3106,10 +3141,14 @@ implements(Type *t, Type *iface, Type **m, Type **samename)
+ 		expandmeth(t->sym, t);
+ 	for(im=iface->type; im; im=im->down) {
+ 		imtype = methodfunc(im->type, 0);
+-		tm = ifacelookdot(im->sym, t, &followptr);
++		tm = ifacelookdot(im->sym, t, &followptr, 0);
+ 		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
++print("try case\n");
++			if(tm == T)
++				tm = ifacelookdot(im->sym, t, &followptr, 1);
+ 			*m = im;
+ 			*samename = tm;
++			*ptr = 0;
+ 			return 0;
+ 		}
+ 		// if pointer receiver in method,
+@@ -3120,6 +3159,7 @@ implements(Type *t, Type *iface, Type **m, Type **samename)
+ 				yyerror("interface pointer mismatch");
+ 			*m = im;
+ 			*samename = nil;
++			*ptr = 1;
+ 			return 0;
+ 		}
+ 	}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 83537177cf..457b82b4cc 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -14,7 +14,7 @@
+ #include "go.h"
+ 
+ static void	implicitstar(Node**);
+-static int	onearg(Node*);
++static int	onearg(Node*, char*, ...);
+ static int	twoarg(Node*);
+ static int	lookdot(Node*, Type*, int);
+ static void	typecheckaste(int, Type*, NodeList*, char*);
+@@ -63,7 +63,7 @@ typechecklist(NodeList *l, int top)
+ Node*
+ typecheck(Node **np, int top)
+ {
+-	int et, op;
++	int et, op, ptr;
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+ 	int lno, ok, ntop;
+@@ -532,7 +532,7 @@ reswitch:
+ 				goto error;
+ 		}
+ 		if(n->type != T && n->type->etype != TINTER)
+-		if(!implements(n->type, t, &missing, &have)) {
++		if(!implements(n->type, t, &missing, &have, &ptr)) {
+ 			if(have)
+ 				yyerror("impossible type assertion: %+N cannot have dynamic type %T"
+ 					" (wrong type for %S method)\n\thave %S%hhT\n\twant %S%hhT",
+@@ -710,10 +710,10 @@ reswitch:
+ 			ok |= Erv;
+ 			// turn CALL(type, arg) into CONV(arg) w/ type
+ 			n->left = N;
+-			if(onearg(n) < 0)
+-				goto error;
+ 			n->op = OCONV;
+ 			n->type = l->type;
++			if(onearg(n, "conversion to %T", l->type) < 0)
++				goto error;
+ 			goto doconv;
+ 		}
+ 
+@@ -770,7 +770,7 @@ reswitch:
+ 	case OREAL:
+ 	case OIMAG:
+ 		ok |= Erv;
+-		if(onearg(n) < 0)
++		if(onearg(n, "%#O", n->op) < 0)
+ 			goto error;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, T);
+@@ -850,7 +850,7 @@ reswitch:
+ 
+ 	case OCLOSED:
+ 	case OCLOSE:
+-		if(onearg(n) < 0)
++		if(onearg(n, "%#O", n->op) < 0)
+ 			goto error;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, T);
+@@ -1053,7 +1053,7 @@ reswitch:
+ 
+ 	case OPANIC:
+ 		ok |= Etop;
+-		if(onearg(n) < 0)
++		if(onearg(n, "panic") < 0)
+ 			goto error;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, T);
+@@ -1273,20 +1273,30 @@ implicitstar(Node **nn)
+ }
+ 
+ static int
+-onearg(Node *n)
++onearg(Node *n, char *f, ...)
+ {
++	va_list arg;
++	char *p;
++
+ 	if(n->left != N)
+ 		return 0;
+ 	if(n->list == nil) {
+-		yyerror("missing argument to %#O - %#N", n->op, n);
++		va_start(arg, f);
++		p = vsmprint(f, arg);
++		va_end(arg);
++		yyerror("missing argument to %s: %#N", p, n);
+ 		return -1;
+ 	}
+-	n->left = n->list->n;
+ 	if(n->list->next != nil) {
+-		yyerror("too many arguments to %#O", n->op);
++		va_start(arg, f);
++		p = vsmprint(f, arg);
++		va_end(arg);
++		yyerror("too many arguments to %s: %#N", p, n);
++		n->left = n->list->n;
+ 		n->list = nil;
+ 		return -1;
+ 	}
++	n->left = n->list->n;
+ 	n->list = nil;
+ 	return 0;
+ }
+@@ -1307,7 +1317,7 @@ twoarg(Node *n)
+ 		return -1;
+ 	}
+ 	if(n->list->next->next != nil) {
+-		yyerror("too many arguments to %#O", n->op);
++		yyerror("too many arguments to %#O - %#N", n->op, n);
+ 		n->list = nil;
+ 		return -1;
+ 	}
+diff --git a/src/cmd/prof/gopprof b/src/cmd/prof/gopprof
+index dffeeffa13..4e9212957d 100755
+--- a/src/cmd/prof/gopprof
++++ b/src/cmd/prof/gopprof
+@@ -724,10 +724,8 @@ sub RunWeb {
+     "firefox",
+   );
+   foreach my $b (@alt) {
+-    if (-f $b) {
+-      if (system($b, $fname) == 0) {
+-        return;
+-      }
++    if (system($b, $fname) == 0) {
++      return;
+     }
+   }
+ 
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index fddb70423a..33f00eb776 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -14,6 +14,7 @@ import (
+ 	"image"
+ 	"io"
+ 	"os"
++	"strconv"
+ )
+ 
+ // Color type, as per the PNG spec.
+@@ -108,7 +109,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	}
+ 	crc.Write(d.tmp[0:13])
+ 	if d.tmp[8] != 8 {
+-		return UnsupportedError("bit depth")
++		return UnsupportedError("bit depth " + strconv.Itoa(int(d.tmp[8])))
+ 	}
+ 	if d.tmp[10] != 0 || d.tmp[11] != 0 || d.tmp[12] != 0 {
+ 		return UnsupportedError("compression, filter or interlace method")
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index d742d099fb..e6a861a1e7 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -93,7 +93,13 @@ func (client *Client) input() {
+ 		c := client.pending[seq]
+ 		client.pending[seq] = c, false
+ 		client.mutex.Unlock()
++		if c == nil {
++			err = os.NewError("invalid response sequence number")
++			break
++		}
+ 		err = client.codec.ReadResponseBody(c.Reply)
++		// TODO(rsc): Should look at err, but breaks tests.
++
+ 		// Empty strings should turn into nil os.Errors
+ 		if response.Error != "" {
+ 			c.Error = os.ErrorString(response.Error)
+diff --git a/src/pkg/rpc/jsonrpc/all_test.go b/src/pkg/rpc/jsonrpc/all_test.go
+index e94c594da0..5422cc7287 100644
+--- a/src/pkg/rpc/jsonrpc/all_test.go
++++ b/src/pkg/rpc/jsonrpc/all_test.go
+@@ -58,7 +58,8 @@ func TestServer(t *testing.T) {
+ 
+ 	cli, srv := net.Pipe()
+ 	defer cli.Close()
+-	go ServeConn(srv)
++	var ci rpc.ClientInfo
++	go ServeConn(srv, &ci)
+ 	dec := json.NewDecoder(cli)
+ 
+ 	// Send hand-coded requests to server, parse responses.
+@@ -84,8 +85,9 @@ func TestServer(t *testing.T) {
+ func TestClient(t *testing.T) {
+ 	// Assume server is okay (TestServer is above).
+ 	// Test client against server.
++	var ci rpc.ClientInfo
+ 	cli, srv := net.Pipe()
+-	go ServeConn(srv)
++	go ServeConn(srv, &ci)
+ 
+ 	client := NewClient(cli)
+ 	defer client.Close()
+diff --git a/src/pkg/rpc/jsonrpc/server.go b/src/pkg/rpc/jsonrpc/server.go
+index 9f3472a39c..40b5018774 100644
+--- a/src/pkg/rpc/jsonrpc/server.go
++++ b/src/pkg/rpc/jsonrpc/server.go
+@@ -118,6 +118,6 @@ func (c *serverCodec) Close() os.Error {
+ // ServeConn runs the JSON-RPC server on a single connection.
+ // ServeConn blocks, serving the connection until the client hangs up.
+ // The caller typically invokes ServeConn in a go statement.
+-func ServeConn(conn io.ReadWriteCloser) {
+-	rpc.ServeCodec(NewServerCodec(conn))
++func ServeConn(conn io.ReadWriteCloser, ci *rpc.ClientInfo) {
++	rpc.ServeCodec(NewServerCodec(conn), ci)
+ }
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 4c957597bc..7df89a8d7a 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -158,6 +158,12 @@ type Response struct {
+ 	Error         string // error, if any.
+ }
+ 
++// ClientInfo records information about an RPC client connection.
++type ClientInfo struct {
++	LocalAddr  string
++	RemoteAddr string
++}
++
+ type serverType struct {
+ 	sync.Mutex // protects the serviceMap
+ 	serviceMap map[string]*service
+@@ -208,7 +214,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 		}
+ 		// Method needs three ins: receiver, *args, *reply.
+ 		// The args and reply must be structs until gobs are more general.
+-		if mtype.NumIn() != 3 {
++		if mtype.NumIn() != 3 && mtype.NumIn() != 4 {
+ 			log.Stderr("method", mname, "has wrong number of ins:", mtype.NumIn())
+ 			continue
+ 		}
+@@ -238,6 +244,13 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 			log.Stderr(mname, "reply type not public:", replyType)
+ 			continue
+ 		}
++		if mtype.NumIn() == 4 {
++			t := mtype.In(3)
++			if t != reflect.Typeof((*ClientInfo)(nil)) {
++				log.Stderr(mname, "last argument not *ClientInfo")
++				continue
++			}
++		}
+ 		// Method needs one out: os.Error.
+ 		if mtype.NumOut() != 1 {
+ 			log.Stderr("method", mname, "has wrong number of outs:", mtype.NumOut())
+@@ -288,13 +301,19 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
+ 	sending.Unlock()
+ }
+ 
+-func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
++func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec, ci *ClientInfo) {
+ 	mtype.Lock()
+ 	mtype.numCalls++
+ 	mtype.Unlock()
+ 	function := mtype.method.Func
+ 	// Invoke the method, providing a new value for the reply.
+-	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv})
++	var args []reflect.Value
++	if mtype.method.Type.NumIn() == 3 {
++		args = []reflect.Value{s.rcvr, argv, replyv}
++	} else {
++		args = []reflect.Value{s.rcvr, argv, replyv, reflect.NewValue(ci)}
++	}
++	returnValues := function.Call(args)
+ 	// The return value for the method is an os.Error.
+ 	errInter := returnValues[0].Interface()
+ 	errmsg := ""
+@@ -329,7 +348,7 @@ func (c *gobServerCodec) Close() os.Error {
+ 	return c.rwc.Close()
+ }
+ 
+-func (server *serverType) input(codec ServerCodec) {
++func (server *serverType) input(codec ServerCodec, ci *ClientInfo) {
+ 	sending := new(sync.Mutex)
+ 	for {
+ 		// Grab the request header.
+@@ -376,7 +395,7 @@ func (server *serverType) input(codec ServerCodec) {
+ 			sendResponse(sending, req, replyv.Interface(), codec, err.String())
+ 			break
+ 		}
+-		go service.call(sending, mtype, req, argv, replyv, codec)
++		go service.call(sending, mtype, req, argv, replyv, codec, ci)
+ 	}
+ 	codec.Close()
+ }
+@@ -387,7 +406,7 @@ func (server *serverType) accept(lis net.Listener) {
+ 		if err != nil {
+ 			log.Exit("rpc.Serve: accept:", err.String()) // TODO(r): exit?
+ 		}
+-		go ServeConn(conn)
++		go ServeConn(conn, &ClientInfo{conn.LocalAddr().String(), conn.RemoteAddr().String()})
+ 	}
+ }
+ 
+@@ -419,14 +438,14 @@ type ServerCodec interface {
+ // The caller typically invokes ServeConn in a go statement.
+ // ServeConn uses the gob wire format (see package gob) on the
+ // connection.  To use an alternate codec, use ServeCodec.
+-func ServeConn(conn io.ReadWriteCloser) {
+-	ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)})
++func ServeConn(conn io.ReadWriteCloser, ci *ClientInfo) {
++	ServeCodec(&gobServerCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(conn)}, ci)
+ }
+ 
+ // ServeCodec is like ServeConn but uses the specified codec to
+ // decode requests and encode responses.
+-func ServeCodec(codec ServerCodec) {
+-	server.input(codec)
++func ServeCodec(codec ServerCodec, ci *ClientInfo) {
++	server.input(codec, ci)
+ }
+ 
+ // Accept accepts connections on the listener and serves requests
+@@ -452,7 +471,11 @@ func serveHTTP(c *http.Conn, req *http.Request) {
+ 		return
+ 	}
+ 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")
+-	ServeConn(conn)
++	ci := &ClientInfo{
++		LocalAddr:  conn.(net.Conn).LocalAddr().String(),
++		RemoteAddr: c.RemoteAddr,
++	}
++	ServeConn(conn, ci)
+ }
+ 
+ // HandleHTTP registers an HTTP handler for RPC messages.
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 8878f6dc8d..d96b15c8e0 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -48,7 +48,6 @@
+ # ./gc.go
+ # ./gc1.go
+ ./hashmap.go
+-./hilbert.go
+ ./helloworld.go
+ ./if.go
+ ./if1.go
+@@ -332,7 +331,6 @@ fixedbugs/bug149.go
+ fixedbugs/bug150.go
+ fixedbugs/bug151.go
+ fixedbugs/bug152.go
+-fixedbugs/bug153.go
+ # fixedbugs/bug154.go  # needs floating point
+ fixedbugs/bug155.go
+ fixedbugs/bug156.go

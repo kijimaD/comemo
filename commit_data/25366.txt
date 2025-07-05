@@ -7,6 +7,22 @@ Date:   Thu Oct 22 10:08:45 2015 -0700
     Change-Id: Ida9a82a5420a41ef656388866a1cf8fadf12ccc6
     Reviewed-on: https://go-review.googlesource.com/16220
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/internal/goobj/read.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 1b0c9646bc..7fdaf557c8 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -564,7 +564,9 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	var c1, c2, c3 byte
+ 	for {
+ 		c1, c2, c3 = c2, c3, r.readByte()
+-		if c3 == 0 { // NUL or EOF, either is bad
++		// The new export format can contain 0 bytes.
++		// Don't consider them errors, only look for r.err != nil.
++		if r.err != nil {
+ 			return errCorruptObject
+ 		}
+ 		if c1 == '\n' && c2 == '!' && c3 == '\n' {

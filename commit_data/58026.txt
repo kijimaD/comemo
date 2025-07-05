@@ -12,8 +12,126 @@ Date:   Tue Sep 19 09:17:42 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/pattern.go      | 20 ++++++++++++++++----
  src/net/http/pattern_test.go | 34 ++++++++++++++++++----------------
  src/net/http/server_test.go  |  2 +-
  3 files changed, 35 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/http/pattern.go b/src/net/http/pattern.go
+index eca179180f..2993aeccb9 100644
+--- a/src/net/http/pattern.go
++++ b/src/net/http/pattern.go
+@@ -80,31 +80,42 @@ type segment struct {
+ // The "{$}" and "{name...}" wildcard must occur at the end of PATH.
+ // PATH may end with a '/'.
+ // Wildcard names in a path must be distinct.
+-func parsePattern(s string) (*pattern, error) {
++func parsePattern(s string) (_ *pattern, err error) {
+ 	if len(s) == 0 {
+ 		return nil, errors.New("empty pattern")
+ 	}
+-	// TODO(jba): record the rune offset in s to provide more information in errors.
++	off := 0 // offset into string
++	defer func() {
++		if err != nil {
++			err = fmt.Errorf("at offset %d: %w", off, err)
++		}
++	}()
++
+ 	method, rest, found := strings.Cut(s, " ")
+ 	if !found {
+ 		rest = method
+ 		method = ""
+ 	}
+ 	if method != "" && !validMethod(method) {
+-		return nil, fmt.Errorf("net/http: invalid method %q", method)
++		return nil, fmt.Errorf("invalid method %q", method)
+ 	}
+ 	p := &pattern{str: s, method: method}
+ 
++	if found {
++		off = len(method) + 1
++	}
+ 	i := strings.IndexByte(rest, '/')
+ 	if i < 0 {
+ 		return nil, errors.New("host/path missing /")
+ 	}
+ 	p.host = rest[:i]
+ 	rest = rest[i:]
+-	if strings.IndexByte(p.host, '{') >= 0 {
++	if j := strings.IndexByte(p.host, '{'); j >= 0 {
++		off += j
+ 		return nil, errors.New("host contains '{' (missing initial '/'?)")
+ 	}
+ 	// At this point, rest is the path.
++	off += i
+ 
+ 	// An unclean path with a method that is not CONNECT can never match,
+ 	// because paths are cleaned before matching.
+@@ -116,6 +127,7 @@ func parsePattern(s string) (*pattern, error) {
+ 	for len(rest) > 0 {
+ 		// Invariant: rest[0] == '/'.
+ 		rest = rest[1:]
++		off = len(s) - len(rest)
+ 		if len(rest) == 0 {
+ 			// Trailing slash.
+ 			p.segments = append(p.segments, segment{wild: true, multi: true})
+diff --git a/src/net/http/pattern_test.go b/src/net/http/pattern_test.go
+index f67a2b5135..e71cba8632 100644
+--- a/src/net/http/pattern_test.go
++++ b/src/net/http/pattern_test.go
+@@ -108,22 +108,24 @@ func TestParsePatternError(t *testing.T) {
+ 		contains string
+ 	}{
+ 		{"", "empty pattern"},
+-		{"A=B /", "invalid method"},
+-		{" ", "missing /"},
+-		{"/{w}x", "bad wildcard segment"},
+-		{"/x{w}", "bad wildcard segment"},
+-		{"/{wx", "bad wildcard segment"},
+-		{"/{a$}", "bad wildcard name"},
+-		{"/{}", "empty wildcard"},
+-		{"/{...}", "empty wildcard"},
+-		{"/{$...}", "bad wildcard"},
+-		{"/{$}/", "{$} not at end"},
+-		{"/{$}/x", "{$} not at end"},
+-		{"/{a...}/", "not at end"},
+-		{"/{a...}/x", "not at end"},
+-		{"{a}/b", "missing initial '/'"},
+-		{"/a/{x}/b/{x...}", "duplicate wildcard name"},
+-		{"GET //", "unclean path"},
++		{"A=B /", "at offset 0: invalid method"},
++		{" ", "at offset 1: host/path missing /"},
++		{"/{w}x", "at offset 1: bad wildcard segment"},
++		{"/x{w}", "at offset 1: bad wildcard segment"},
++		{"/{wx", "at offset 1: bad wildcard segment"},
++		{"/{a$}", "at offset 1: bad wildcard name"},
++		{"/{}", "at offset 1: empty wildcard"},
++		{"POST a.com/x/{}/y", "at offset 13: empty wildcard"},
++		{"/{...}", "at offset 1: empty wildcard"},
++		{"/{$...}", "at offset 1: bad wildcard"},
++		{"/{$}/", "at offset 1: {$} not at end"},
++		{"/{$}/x", "at offset 1: {$} not at end"},
++		{"/abc/{$}/x", "at offset 5: {$} not at end"},
++		{"/{a...}/", "at offset 1: {...} wildcard not at end"},
++		{"/{a...}/x", "at offset 1: {...} wildcard not at end"},
++		{"{a}/b", "at offset 0: host contains '{' (missing initial '/'?)"},
++		{"/a/{x}/b/{x...}", "at offset 9: duplicate wildcard name"},
++		{"GET //", "at offset 4: non-CONNECT pattern with unclean path"},
+ 	} {
+ 		_, err := parsePattern(test.in)
+ 		if err == nil || !strings.Contains(err.Error(), test.contains) {
+diff --git a/src/net/http/server_test.go b/src/net/http/server_test.go
+index 0c361c7d66..a96d87656e 100644
+--- a/src/net/http/server_test.go
++++ b/src/net/http/server_test.go
+@@ -131,7 +131,7 @@ func TestRegisterErr(t *testing.T) {
+ 		{"", h, "invalid pattern"},
+ 		{"/", nil, "nil handler"},
+ 		{"/", HandlerFunc(nil), "nil handler"},
+-		{"/{x", h, `parsing "/\{x": bad wildcard segment`},
++		{"/{x", h, `parsing "/\{x": at offset 1: bad wildcard segment`},
+ 		{"/a", h, `conflicts with pattern.* \(registered at .*/server_test.go:\d+`},
+ 	} {
+ 		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func(t *testing.T) {

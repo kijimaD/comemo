@@ -12,8 +12,63 @@ Date:   Wed Jul 25 12:09:58 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6442043
-
+---
  src/pkg/exp/html/parse.go                           | 5 ++++-
  src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 4 ++--
  src/pkg/exp/html/testlogs/tests19.dat.log           | 4 ++--
  3 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 70c26c75f5..393a97d2ee 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -725,7 +725,10 @@ func inBodyIM(p *parser) bool {
+ 		}
+ 		p.reconstructActiveFormattingElements()
+ 		p.addText(d)
+-		p.framesetOK = false
++		if p.framesetOK && strings.TrimLeft(d, whitespace) != "" {
++			// There were non-whitespace characters inserted.
++			p.framesetOK = false
++		}
+ 	case StartTagToken:
+ 		switch p.tok.DataAtom {
+ 		case a.Html:
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+index 1d8aee8423..80f6f92d06 100644
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+@@ -1,9 +1,9 @@
+ PASS "FOO&#x000D;ZOO"
+ PASS "<html>\x00<frameset></frameset>"
+-FAIL "<html> \x00 <frameset></frameset>"
++PASS "<html> \x00 <frameset></frameset>"
+ PASS "<html>a\x00a<frameset></frameset>"
+ PASS "<html>\x00\x00<frameset></frameset>"
+-FAIL "<html>\x00\n <frameset></frameset>"
++PASS "<html>\x00\n <frameset></frameset>"
+ FAIL "<html><select>\x00"
+ PASS "\x00"
+ PASS "<body>\x00"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 61afadd73d..7025103d47 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -45,7 +45,7 @@ PASS "<html><frameset></frameset></html><!doctype html>"
+ PASS "<!doctype html><body><frameset>"
+ PASS "<!doctype html><p><frameset><frame>"
+ PASS "<!doctype html><p>a<frameset>"
+-FAIL "<!doctype html><p> <frameset><frame>"
++PASS "<!doctype html><p> <frameset><frame>"
+ PASS "<!doctype html><pre><frameset>"
+ PASS "<!doctype html><listing><frameset>"
+ PASS "<!doctype html><li><frameset>"
+@@ -72,7 +72,7 @@ PASS "<!doctype html><iframe></iframe><frameset>"
+ PASS "<!doctype html><select></select><frameset>"
+ PASS "<!doctype html><svg></svg><frameset><frame>"
+ PASS "<!doctype html><math></math><frameset><frame>"
+-FAIL "<!doctype html><svg><foreignObject><div> <frameset><frame>"
++PASS "<!doctype html><svg><foreignObject><div> <frameset><frame>"
+ PASS "<!doctype html><svg>a</svg><frameset><frame>"
+ PASS "<!doctype html><svg> </svg><frameset><frame>"
+ PASS "<html>aaa<frameset></frameset>"

@@ -16,7 +16,86 @@ Date:   Wed Sep 28 13:29:12 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/os/exec/exec.go      |  9 ++++++---
  src/os/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 67dd379b71..0dac34447f 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -490,6 +490,12 @@ func lookExtensions(path, dir string) (string, error) {
+ // After a successful call to Start the Wait method must be called in
+ // order to release associated system resources.
+ func (c *Cmd) Start() error {
++	// Check for doubled Start calls before we defer failure cleanup. If the prior
++	// call to Start succeeded, we don't want to spuriously close its pipes.
++	if c.Process != nil {
++		return errors.New("exec: already started")
++	}
++
+ 	started := false
+ 	defer func() {
+ 		c.closeDescriptors(c.childIOFiles)
+@@ -519,9 +525,6 @@ func (c *Cmd) Start() error {
+ 		}
+ 		c.Path = lp
+ 	}
+-	if c.Process != nil {
+-		return errors.New("exec: already started")
+-	}
+ 	if c.ctx != nil {
+ 		select {
+ 		case <-c.ctx.Done():
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 52001bf9e3..07ac0cf3d4 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1094,3 +1094,46 @@ func TestNoPath(t *testing.T) {
+ 		t.Errorf("new(Cmd).Start() = %v, want %q", err, want)
+ 	}
+ }
++
++// TestDoubleStartLeavesPipesOpen checks for a regression in which calling
++// Start twice, which returns an error on the second call, would spuriously
++// close the pipes established in the first call.
++func TestDoubleStartLeavesPipesOpen(t *testing.T) {
++	cmd := helperCommand(t, "pipetest")
++	in, err := cmd.StdinPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	out, err := cmd.StdoutPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := cmd.Start(); err != nil {
++		t.Fatal(err)
++	}
++	if err := cmd.Start(); err == nil || !strings.HasSuffix(err.Error(), "already started") {
++		t.Fatalf("second call to Start returned a nil; want an 'already started' error")
++	}
++
++	outc := make(chan []byte, 1)
++	go func() {
++		b, err := io.ReadAll(out)
++		if err != nil {
++			t.Error(err)
++		}
++		outc <- b
++	}()
++
++	const msg = "O:Hello, pipe!\n"
++
++	_, err = io.WriteString(in, msg)
++	if err != nil {
++		t.Fatal(err)
++	}
++	in.Close()
++
++	b := <-outc
++	if !bytes.Equal(b, []byte(msg)) {
++		t.Fatalf("read %q from stdout pipe; want %q", b, msg)
++	}
++}

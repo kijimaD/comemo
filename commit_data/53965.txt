@@ -25,7 +25,7 @@ Date:   Wed Sep 7 18:45:09 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go |   44 +-
  src/cmd/compile/internal/types2/builtins.go    |   79 +-
  src/cmd/compile/internal/types2/call.go        |   42 +-
@@ -47,3 +47,3944 @@ Date:   Wed Sep 7 18:45:09 2022 -0700
  src/cmd/compile/internal/types2/typexpr.go     |   52 +-
  src/cmd/compile/internal/types2/union.go       |   18 +-
  20 files changed, 1769 insertions(+), 313 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index f766c0b31d..52b724c456 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -27,7 +27,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// ok
+ 	default:
+ 		// we may get here because of other problems (issue #39634, crash 12)
+-		check.errorf(x, "cannot assign %s to %s in %s", x, T, context)
++		check.errorf(x, 0, "cannot assign %s to %s in %s", x, T, context)
+ 		return
+ 	}
+ 
+@@ -40,7 +40,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// complex, or string constant."
+ 		if x.isNil() {
+ 			if T == nil {
+-				check.errorf(x, "use of untyped nil in %s", context)
++				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -55,8 +55,10 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 				msg += " (truncated)"
+ 			case _NumericOverflow:
+ 				msg += " (overflows)"
++			default:
++				code = _IncompatibleAssign
+ 			}
+-			check.error(x, msg)
++			check.error(x, code, msg)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -73,7 +75,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 
+ 	// A generic (non-instantiated) function value cannot be assigned to a variable.
+ 	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+-		check.errorf(x, "cannot use generic function %s without instantiation in %s", x, context)
++		check.errorf(x, _WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
+ 	}
+ 
+ 	// spec: "If a left-hand side is the blank identifier, any typed or
+@@ -84,18 +86,18 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	}
+ 
+ 	reason := ""
+-	if ok, _ := x.assignableTo(check, T, &reason); !ok {
++	if ok, code := x.assignableTo(check, T, &reason); !ok {
+ 		if check.conf.CompilerErrorMessages {
+ 			if reason != "" {
+-				check.errorf(x, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
++				check.errorf(x, code, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
+ 			} else {
+-				check.errorf(x, "cannot use %s as type %s in %s", x, T, context)
++				check.errorf(x, code, "cannot use %s as type %s in %s", x, T, context)
+ 			}
+ 		} else {
+ 			if reason != "" {
+-				check.errorf(x, "cannot use %s as %s value in %s: %s", x, T, context, reason)
++				check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
+ 			} else {
+-				check.errorf(x, "cannot use %s as %s value in %s", x, T, context)
++				check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+ 			}
+ 		}
+ 		x.mode = invalid
+@@ -112,7 +114,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
+ 
+ 	// rhs must be a constant
+ 	if x.mode != constant_ {
+-		check.errorf(x, "%s is not constant", x)
++		check.errorf(x, _InvalidConstInit, "%s is not constant", x)
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
+@@ -150,7 +152,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 		if isUntyped(typ) {
+ 			// convert untyped types to default types
+ 			if typ == Typ[UntypedNil] {
+-				check.errorf(x, "use of untyped nil in %s", context)
++				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
+ 				lhs.typ = Typ[Invalid]
+ 				return nil
+ 			}
+@@ -226,11 +228,11 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 			var op operand
+ 			check.expr(&op, sel.X)
+ 			if op.mode == mapindex {
+-				check.errorf(&z, "cannot assign to struct field %s in map", syntax.String(z.expr))
++				check.errorf(&z, _UnaddressableFieldAssign, "cannot assign to struct field %s in map", syntax.String(z.expr))
+ 				return nil
+ 			}
+ 		}
+-		check.errorf(&z, "cannot assign to %s", &z)
++		check.errorf(&z, _UnassignableOperand, "cannot assign to %s", &z)
+ 		return nil
+ 	}
+ 
+@@ -308,11 +310,11 @@ func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+ 
+ 	if len(rhs) == 1 {
+ 		if call, _ := unparen(rhs0).(*syntax.CallExpr); call != nil {
+-			check.errorf(rhs0, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
++			check.errorf(rhs0, _WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
+ 			return
+ 		}
+ 	}
+-	check.errorf(rhs0, "assignment mismatch: %s but %s", vars, vals)
++	check.errorf(rhs0, _WrongAssignCount, "assignment mismatch: %s but %s", vars, vals)
+ }
+ 
+ // If returnStmt != nil, initVars is called to type-check the assignment
+@@ -353,7 +355,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 		if check.conf.CompilerErrorMessages {
+ 			check.assignError(orig_rhs, len(lhs), len(rhs))
+ 		} else {
+-			check.errorf(rhs[0], "cannot initialize %d variables with %d values", len(lhs), len(rhs))
++			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+ 		}
+ 		return
+ 	}
+@@ -401,7 +403,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 		if check.conf.CompilerErrorMessages {
+ 			check.assignError(orig_rhs, len(lhs), len(rhs))
+ 		} else {
+-			check.errorf(rhs[0], "cannot assign %d values to %d variables", len(rhs), len(lhs))
++			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
+ 		}
+ 		return
+ 	}
+@@ -466,7 +468,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 		ident, _ := lhs.(*syntax.Name)
+ 		if ident == nil {
+ 			check.use(lhs)
+-			check.errorf(lhs, "non-name %s on left side of :=", lhs)
++			check.errorf(lhs, _BadDecl, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+ 			continue
+ 		}
+@@ -474,7 +476,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 		name := ident.Value
+ 		if name != "_" {
+ 			if seen[name] {
+-				check.errorf(lhs, "%s repeated on left side of :=", lhs)
++				check.errorf(lhs, _RepeatedDecl, "%s repeated on left side of :=", lhs)
+ 				hasErr = true
+ 				continue
+ 			}
+@@ -491,7 +493,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 			if obj, _ := alt.(*Var); obj != nil {
+ 				lhsVars[i] = obj
+ 			} else {
+-				check.errorf(lhs, "cannot assign to %s", lhs)
++				check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
+ 				hasErr = true
+ 			}
+ 			continue
+@@ -519,7 +521,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 	check.processDelayed(top)
+ 
+ 	if len(newVars) == 0 && !hasErr {
+-		check.softErrorf(pos, "no new variables on left side of :=")
++		check.softErrorf(pos, _NoNewVar, "no new variables on left side of :=")
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 440a532396..6266fbd67d 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -21,7 +21,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	bin := predeclaredFuncs[id]
+ 	if call.HasDots && id != _Append {
+ 		//check.errorf(call.Ellipsis, invalidOp + "invalid use of ... with built-in %s", bin.name)
+-		check.errorf(call, invalidOp+"invalid use of ... with built-in %s", bin.name)
++		check.errorf(call, _InvalidDotDotDot, invalidOp+"invalid use of ... with built-in %s", bin.name)
+ 		check.use(call.ArgList...)
+ 		return
+ 	}
+@@ -67,7 +67,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			msg = "too many"
+ 		}
+ 		if msg != "" {
+-			check.errorf(call, invalidOp+"%s arguments for %v (expected %d, found %d)", msg, call, bin.nargs, nargs)
++			check.errorf(call, _WrongArgCount, invalidOp+"%s arguments for %v (expected %d, found %d)", msg, call, bin.nargs, nargs)
+ 			return
+ 		}
+ 	}
+@@ -98,7 +98,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 				cause = check.sprintf("have %s", x)
+ 			}
+ 			// don't use invalidArg prefix here as it would repeat "argument" in the error message
+-			check.errorf(x, "first argument to append must be a slice; %s", cause)
++			check.errorf(x, _InvalidAppend, "first argument to append must be a slice; %s", cause)
+ 			return
+ 		}
+ 
+@@ -214,7 +214,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		if mode == invalid && under(x.typ) != Typ[Invalid] {
+-			check.errorf(x, invalidArg+"%s for %s", x, bin.name)
++			code := _InvalidCap
++			if id == _Len {
++				code = _InvalidLen
++			}
++			check.errorf(x, code, invalidArg+"%s for %s", x, bin.name)
+ 			return
+ 		}
+ 
+@@ -232,11 +236,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if !underIs(x.typ, func(u Type) bool {
+ 			uch, _ := u.(*Chan)
+ 			if uch == nil {
+-				check.errorf(x, invalidOp+"cannot close non-channel %s", x)
++				check.errorf(x, _InvalidClose, invalidOp+"cannot close non-channel %s", x)
+ 				return false
+ 			}
+ 			if uch.dir == RecvOnly {
+-				check.errorf(x, invalidOp+"cannot close receive-only channel %s", x)
++				check.errorf(x, _InvalidClose, invalidOp+"cannot close receive-only channel %s", x)
+ 				return false
+ 			}
+ 			return true
+@@ -303,7 +307,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		// both argument types must be identical
+ 		if !Identical(x.typ, y.typ) {
+-			check.errorf(x, invalidOp+"%v (mismatched types %s and %s)", call, x.typ, y.typ)
++			check.errorf(x, _InvalidComplex, invalidOp+"%v (mismatched types %s and %s)", call, x.typ, y.typ)
+ 			return
+ 		}
+ 
+@@ -325,7 +329,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+-			check.errorf(x, invalidArg+"arguments have type %s, expected floating-point", x.typ)
++			check.errorf(x, _InvalidComplex, invalidArg+"arguments have type %s, expected floating-point", x.typ)
+ 			return
+ 		}
+ 
+@@ -358,12 +362,12 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		src, _ := src0.(*Slice)
+ 
+ 		if dst == nil || src == nil {
+-			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
++			check.errorf(x, _InvalidCopy, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+ 			return
+ 		}
+ 
+ 		if !Identical(dst.elem, src.elem) {
+-			check.errorf(x, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
++			check.errorf(x, _InvalidCopy, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
+ 			return
+ 		}
+ 
+@@ -382,11 +386,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if !underIs(map_, func(u Type) bool {
+ 			map_, _ := u.(*Map)
+ 			if map_ == nil {
+-				check.errorf(x, invalidArg+"%s is not a map", x)
++				check.errorf(x, _InvalidDelete, invalidArg+"%s is not a map", x)
+ 				return false
+ 			}
+ 			if key != nil && !Identical(map_.key, key) {
+-				check.errorf(x, invalidArg+"maps of %s must have identical key types", x)
++				check.errorf(x, _InvalidDelete, invalidArg+"maps of %s must have identical key types", x)
+ 				return false
+ 			}
+ 			key = map_.key
+@@ -453,7 +457,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+-			check.errorf(x, invalidArg+"argument has type %s, expected complex type", x.typ)
++			code := _InvalidImag
++			if id == _Real {
++				code = _InvalidReal
++			}
++			check.errorf(x, code, invalidArg+"argument has type %s, expected complex type", x.typ)
+ 			return
+ 		}
+ 
+@@ -491,14 +499,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		case *Map, *Chan:
+ 			min = 1
+ 		case nil:
+-			check.errorf(arg0, invalidArg+"cannot make %s: no core type", arg0)
++			check.errorf(arg0, _InvalidMake, invalidArg+"cannot make %s: no core type", arg0)
+ 			return
+ 		default:
+-			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
++			check.errorf(arg0, _InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
+ 			return
+ 		}
+ 		if nargs < min || min+1 < nargs {
+-			check.errorf(call, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
++			check.errorf(call, _WrongArgCount, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+ 			return
+ 		}
+ 
+@@ -512,7 +520,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			}
+ 		}
+ 		if len(sizes) == 2 && sizes[0] > sizes[1] {
+-			check.error(call.ArgList[1], invalidArg+"length and capacity swapped")
++			check.error(call.ArgList[1], _SwappedMakeArgs, invalidArg+"length and capacity swapped")
+ 			// safe to continue
+ 		}
+ 		x.mode = value
+@@ -606,7 +614,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		var y operand
+ 		arg(&y, 1)
+-		if !check.isValidIndex(&y, "length", true) {
++		if !check.isValidIndex(&y, _InvalidUnsafeAdd, "length", true) {
+ 			return
+ 		}
+ 
+@@ -641,7 +649,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		arg0 := call.ArgList[0]
+ 		selx, _ := unparen(arg0).(*syntax.SelectorExpr)
+ 		if selx == nil {
+-			check.errorf(arg0, invalidArg+"%s is not a selector expression", arg0)
++			check.errorf(arg0, _BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
+ 			check.use(arg0)
+ 			return
+ 		}
+@@ -656,18 +664,18 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
+ 		switch obj.(type) {
+ 		case nil:
+-			check.errorf(x, invalidArg+"%s has no single field %s", base, sel)
++			check.errorf(x, _MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
+ 			return
+ 		case *Func:
+ 			// TODO(gri) Using derefStructPtr may result in methods being found
+ 			// that don't actually exist. An error either way, but the error
+ 			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
+ 			// but go/types reports: "invalid argument: x.m is a method value".
+-			check.errorf(arg0, invalidArg+"%s is a method value", arg0)
++			check.errorf(arg0, _InvalidOffsetof, invalidArg+"%s is a method value", arg0)
+ 			return
+ 		}
+ 		if indirect {
+-			check.errorf(x, invalidArg+"field %s is embedded via a pointer in %s", sel, base)
++			check.errorf(x, _InvalidOffsetof, invalidArg+"field %s is embedded via a pointer in %s", sel, base)
+ 			return
+ 		}
+ 
+@@ -727,13 +735,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
+ 		if ptr == nil {
+-			check.errorf(x, invalidArg+"%s is not a pointer", x)
++			check.errorf(x, _InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
+ 			return
+ 		}
+ 
+ 		var y operand
+ 		arg(&y, 1)
+-		if !check.isValidIndex(&y, "length", false) {
++		if !check.isValidIndex(&y, _InvalidUnsafeSlice, "length", false) {
+ 			return
+ 		}
+ 
+@@ -752,7 +760,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
+ 		if slice == nil {
+-			check.errorf(x, invalidArg+"%s is not a slice", x)
++			check.errorf(x, _InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
+ 			return
+ 		}
+ 
+@@ -776,7 +784,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		var y operand
+ 		arg(&y, 1)
+-		if !check.isValidIndex(&y, "length", false) {
++		if !check.isValidIndex(&y, _InvalidUnsafeString, "length", false) {
+ 			return
+ 		}
+ 
+@@ -809,15 +817,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// The result of assert is the value of pred if there is no error.
+ 		// Note: assert is only available in self-test mode.
+ 		if x.mode != constant_ || !isBoolean(x.typ) {
+-			check.errorf(x, invalidArg+"%s is not a boolean constant", x)
++			check.errorf(x, _Test, invalidArg+"%s is not a boolean constant", x)
+ 			return
+ 		}
+ 		if x.val.Kind() != constant.Bool {
+-			check.errorf(x, "internal error: value of %s should be a boolean constant", x)
++			check.errorf(x, _Test, "internal error: value of %s should be a boolean constant", x)
+ 			return
+ 		}
+ 		if !constant.BoolVal(x.val) {
+-			check.errorf(call, "%v failed", call)
++			check.errorf(call, _Test, "%v failed", call)
+ 			// compile-time assertion failure - safe to continue
+ 		}
+ 		// result is constant - no need to record signature
+@@ -915,7 +923,18 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		// type parameter for the result. It's not clear what the API
+ 		// implications are here. Report an error for 1.18 but continue
+ 		// type-checking.
+-		check.softErrorf(x, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
++		var code errorCode
++		switch id {
++		case _Real:
++			code = _InvalidReal
++		case _Imag:
++			code = _InvalidImag
++		case _Complex:
++			code = _InvalidComplex
++		default:
++			unreachable()
++		}
++		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
+ 
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index bb0f86b2d6..ee63708ea1 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -32,7 +32,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ 	sig := x.typ.(*Signature)
+ 	got, want := len(targs), sig.TypeParams().Len()
+ 	if !useConstraintTypeInference && got != want || got > want {
+-		check.errorf(xlist[got-1], "got %d type arguments but want %d", got, want)
++		check.errorf(xlist[got-1], _WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+ 		x.mode = invalid
+ 		x.expr = inst
+ 		return
+@@ -84,7 +84,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
+ 			if i < len(xlist) {
+ 				pos = syntax.StartPos(xlist[i])
+ 			}
+-			check.softErrorf(pos, "%s", err)
++			check.softErrorf(pos, _InvalidTypeArg, "%s", err)
+ 		} else {
+ 			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
+ 		}
+@@ -126,25 +126,25 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		x.mode = invalid
+ 		switch n := len(call.ArgList); n {
+ 		case 0:
+-			check.errorf(call, "missing argument in conversion to %s", T)
++			check.errorf(call, _WrongArgCount, "missing argument in conversion to %s", T)
+ 		case 1:
+ 			check.expr(x, call.ArgList[0])
+ 			if x.mode != invalid {
+ 				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
+ 					if !t.IsMethodSet() {
+-						check.errorf(call, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
++						check.errorf(call, _MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
+ 						break
+ 					}
+ 				}
+ 				if call.HasDots {
+-					check.errorf(call.ArgList[0], "invalid use of ... in conversion to %s", T)
++					check.errorf(call.ArgList[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
+ 					break
+ 				}
+ 				check.conversion(x, T)
+ 			}
+ 		default:
+ 			check.use(call.ArgList...)
+-			check.errorf(call.ArgList[n-1], "too many arguments in conversion to %s", T)
++			check.errorf(call.ArgList[n-1], _WrongArgCount, "too many arguments in conversion to %s", T)
+ 		}
+ 		x.expr = call
+ 		return conversion
+@@ -170,7 +170,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	// a type parameter may be "called" if all types have the same signature
+ 	sig, _ := coreType(x.typ).(*Signature)
+ 	if sig == nil {
+-		check.errorf(x, invalidOp+"cannot call non-function %s", x)
++		check.errorf(x, _InvalidCall, invalidOp+"cannot call non-function %s", x)
+ 		x.mode = invalid
+ 		x.expr = call
+ 		return statement
+@@ -193,7 +193,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		// check number of type arguments (got) vs number of type parameters (want)
+ 		got, want := len(targs), sig.TypeParams().Len()
+ 		if got > want {
+-			check.errorf(xlist[want], "got %d type arguments but want %d", got, want)
++			check.errorf(xlist[want], _WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+ 			check.use(call.ArgList...)
+ 			x.mode = invalid
+ 			x.expr = call
+@@ -286,7 +286,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	for _, a := range args {
+ 		switch a.mode {
+ 		case typexpr:
+-			check.errorf(a, "%s used as value", a)
++			check.errorf(a, 0, "%s used as value", a)
+ 			return
+ 		case invalid:
+ 			return
+@@ -315,7 +315,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 			if len(call.ArgList) == 1 && nargs > 1 {
+ 				// f()... is not permitted if f() is multi-valued
+ 				//check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
+-				check.errorf(call, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
++				check.errorf(call, _InvalidDotDotDot, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
+ 				return
+ 			}
+ 		} else {
+@@ -343,7 +343,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		if ddd {
+ 			// standard_func(a, b, c...)
+ 			//check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+-			check.errorf(call, "cannot use ... in call to non-variadic %s", call.Fun)
++			check.errorf(call, _NonVariadicDotDotDot, "cannot use ... in call to non-variadic %s", call.Fun)
+ 			return
+ 		}
+ 		// standard_func(a, b, c)
+@@ -464,7 +464,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 					}
+ 				}
+ 				if exp == nil {
+-					check.errorf(e.Sel, "%s not declared by package C", sel)
++					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
+ 					goto Error
+ 				}
+ 				check.objDecl(exp, nil)
+@@ -473,15 +473,15 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 				if exp == nil {
+ 					if !pkg.fake {
+ 						if check.conf.CompilerErrorMessages {
+-							check.errorf(e.Sel, "undefined: %s.%s", pkg.name, sel)
++							check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s.%s", pkg.name, sel)
+ 						} else {
+-							check.errorf(e.Sel, "%s not declared by package %s", sel, pkg.name)
++							check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
+ 						}
+ 					}
+ 					goto Error
+ 				}
+ 				if !exp.Exported() {
+-					check.errorf(e.Sel, "%s not exported by package %s", sel, pkg.name)
++					check.errorf(e.Sel, _UnexportedName, "%s not exported by package %s", sel, pkg.name)
+ 					// ok to continue
+ 				}
+ 			}
+@@ -533,7 +533,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 			goto Error
+ 		}
+ 	case builtin:
+-		check.errorf(e.Pos(), "cannot select on %s", x)
++		check.errorf(e.Pos(), _UncalledBuiltin, "cannot select on %s", x)
+ 		goto Error
+ 	case invalid:
+ 		goto Error
+@@ -548,12 +548,12 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 
+ 		if index != nil {
+ 			// TODO(gri) should provide actual type where the conflict happens
+-			check.errorf(e.Sel, "ambiguous selector %s.%s", x.expr, sel)
++			check.errorf(e.Sel, _AmbiguousSelector, "ambiguous selector %s.%s", x.expr, sel)
+ 			goto Error
+ 		}
+ 
+ 		if indirect {
+-			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
++			check.errorf(e.Sel, _InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
+ 			goto Error
+ 		}
+ 
+@@ -577,7 +577,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 				}
+ 			}
+ 		}
+-		check.errorf(e.Sel, "%s.%s undefined (%s)", x.expr, sel, why)
++		check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
+ 		goto Error
+ 	}
+ 
+@@ -591,7 +591,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 		m, _ := obj.(*Func)
+ 		if m == nil {
+ 			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+-			check.errorf(e.Sel, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
++			check.errorf(e.Sel, _MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+ 			goto Error
+ 		}
+ 
+@@ -599,7 +599,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 
+ 		sig := m.typ.(*Signature)
+ 		if sig.recv == nil {
+-			check.error(e, "illegal cycle in method declaration")
++			check.error(e, _InvalidDeclCycle, "illegal cycle in method declaration")
+ 			goto Error
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index ff8ae3bc7e..7b8a6e78c8 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -267,7 +267,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 			if name != "_" {
+ 				pkg.name = name
+ 			} else {
+-				check.error(file.PkgName, "invalid package name _")
++				check.error(file.PkgName, _BlankPkgName, "invalid package name _")
+ 			}
+ 			fallthrough
+ 
+@@ -275,7 +275,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 			check.files = append(check.files, file)
+ 
+ 		default:
+-			check.errorf(file, "package %s; expected %s", name, pkg.name)
++			check.errorf(file, _MismatchedPkgName, "package %s; expected %s", name, pkg.name)
+ 			// ignore this file
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 1db28fc002..5e3bb28e70 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -378,7 +378,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
+ 			// don't report an error if the type is an invalid C (defined) type
+ 			// (issue #22090)
+ 			if under(t) != Typ[Invalid] {
+-				check.errorf(typ, "invalid constant type %s", t)
++				check.errorf(typ, _InvalidConstType, "invalid constant type %s", t)
+ 			}
+ 			obj.typ = Typ[Invalid]
+ 			return
+@@ -505,7 +505,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 	if alias && tdecl.TParamList != nil {
+ 		// The parser will ensure this but we may still get an invalid AST.
+ 		// Complain and continue as regular type definition.
+-		check.error(tdecl, "generic type cannot be alias")
++		check.error(tdecl, _BadDecl, "generic type cannot be alias")
+ 		alias = false
+ 	}
+ 
+@@ -548,7 +548,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 	// use its underlying type (like we do for any RHS in a type declaration), and its
+ 	// underlying type is an interface and the type declaration is well defined.
+ 	if isTypeParam(rhs) {
+-		check.error(tdecl.Type, "cannot use a type parameter as RHS in type declaration")
++		check.error(tdecl.Type, _MisplacedTypeParam, "cannot use a type parameter as RHS in type declaration")
+ 		named.underlying = Typ[Invalid]
+ 	}
+ }
+@@ -594,7 +594,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 				// the underlying type and thus type set of a type parameter is.
+ 				// But we may need some additional form of cycle detection within
+ 				// type parameter lists.
+-				check.error(f.Type, "cannot use a type parameter as constraint")
++				check.error(f.Type, _MisplacedTypeParam, "cannot use a type parameter as constraint")
+ 				bound = Typ[Invalid]
+ 			}
+ 		}
+@@ -674,6 +674,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		assert(m.name != "_")
+ 		if alt := mset.insert(m); alt != nil {
+ 			var err error_
++			err.code = _DuplicateMethod
+ 			if check.conf.CompilerErrorMessages {
+ 				err.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
+ 			} else {
+@@ -711,6 +712,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 					// For historical consistency, we report the primary error on the
+ 					// method, and the alt decl on the field.
+ 					var err error_
++					err.code = _DuplicateFieldAndMethod
+ 					err.errorf(alt, "field and method with the same name %s", fld.name)
+ 					err.recordAltDecl(fld)
+ 					check.report(&err)
+@@ -742,7 +744,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	obj.color_ = saved
+ 
+ 	if len(fdecl.TParamList) > 0 && fdecl.Body == nil {
+-		check.softErrorf(fdecl, "parameterized function is missing function body")
++		check.softErrorf(fdecl, _BadDecl, "parameterized function is missing function body")
+ 	}
+ 
+ 	// function body must be type-checked after global declarations
+@@ -887,7 +889,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
+ 			check.pop().setColor(black)
+ 
+ 		default:
+-			check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
++			check.errorf(s, 0, invalidAST+"unknown syntax.Decl node %T", s)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/errorcodes.go b/src/cmd/compile/internal/types2/errorcodes.go
+new file mode 100644
+index 0000000000..f8118aba87
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/errorcodes.go
+@@ -0,0 +1,1423 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++type errorCode int
++
++// This file defines the error codes that can be produced during type-checking.
++// Collectively, these codes provide an identifier that may be used to
++// implement special handling for certain types of errors.
++//
++// Error code values should not be changed: add new codes at the end.
++//
++// Error codes should be fine-grained enough that the exact nature of the error
++// can be easily determined, but coarse enough that they are not an
++// implementation detail of the type checking algorithm. As a rule-of-thumb,
++// errors should be considered equivalent if there is a theoretical refactoring
++// of the type checker in which they are emitted in exactly one place. For
++// example, the type checker emits different error messages for "too many
++// arguments" and "too few arguments", but one can imagine an alternative type
++// checker where this check instead just emits a single "wrong number of
++// arguments", so these errors should have the same code.
++//
++// Error code names should be as brief as possible while retaining accuracy and
++// distinctiveness. In most cases names should start with an adjective
++// describing the nature of the error (e.g. "invalid", "unused", "misplaced"),
++// and end with a noun identifying the relevant language object. For example,
++// "_DuplicateDecl" or "_InvalidSliceExpr". For brevity, naming follows the
++// convention that "bad" implies a problem with syntax, and "invalid" implies a
++// problem with types.
++
++const (
++	_ errorCode = iota
++
++	// _Test is reserved for errors that only apply while in self-test mode.
++	_Test
++
++	// _BlankPkgName occurs when a package name is the blank identifier "_".
++	//
++	// Per the spec:
++	//  "The PackageName must not be the blank identifier."
++	_BlankPkgName
++
++	// _MismatchedPkgName occurs when a file's package name doesn't match the
++	// package name already established by other files.
++	_MismatchedPkgName
++
++	// _InvalidPkgUse occurs when a package identifier is used outside of a
++	// selector expression.
++	//
++	// Example:
++	//  import "fmt"
++	//
++	//  var _ = fmt
++	_InvalidPkgUse
++
++	// _BadImportPath occurs when an import path is not valid.
++	_BadImportPath
++
++	// _BrokenImport occurs when importing a package fails.
++	//
++	// Example:
++	//  import "amissingpackage"
++	_BrokenImport
++
++	// _ImportCRenamed occurs when the special import "C" is renamed. "C" is a
++	// pseudo-package, and must not be renamed.
++	//
++	// Example:
++	//  import _ "C"
++	_ImportCRenamed
++
++	// _UnusedImport occurs when an import is unused.
++	//
++	// Example:
++	//  import "fmt"
++	//
++	//  func main() {}
++	_UnusedImport
++
++	// _InvalidInitCycle occurs when an invalid cycle is detected within the
++	// initialization graph.
++	//
++	// Example:
++	//  var x int = f()
++	//
++	//  func f() int { return x }
++	_InvalidInitCycle
++
++	// _DuplicateDecl occurs when an identifier is declared multiple times.
++	//
++	// Example:
++	//  var x = 1
++	//  var x = 2
++	_DuplicateDecl
++
++	// _InvalidDeclCycle occurs when a declaration cycle is not valid.
++	//
++	// Example:
++	//  type S struct {
++	//  	S
++	//  }
++	//
++	_InvalidDeclCycle
++
++	// _InvalidTypeCycle occurs when a cycle in type definitions results in a
++	// type that is not well-defined.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type T [unsafe.Sizeof(T{})]int
++	_InvalidTypeCycle
++
++	// _InvalidConstInit occurs when a const declaration has a non-constant
++	// initializer.
++	//
++	// Example:
++	//  var x int
++	//  const _ = x
++	_InvalidConstInit
++
++	// _InvalidConstVal occurs when a const value cannot be converted to its
++	// target type.
++	//
++	// TODO(findleyr): this error code and example are not very clear. Consider
++	// removing it.
++	//
++	// Example:
++	//  const _ = 1 << "hello"
++	_InvalidConstVal
++
++	// _InvalidConstType occurs when the underlying type in a const declaration
++	// is not a valid constant type.
++	//
++	// Example:
++	//  const c *int = 4
++	_InvalidConstType
++
++	// _UntypedNil occurs when the predeclared (untyped) value nil is used to
++	// initialize a variable declared without an explicit type.
++	//
++	// Example:
++	//  var x = nil
++	_UntypedNil
++
++	// _WrongAssignCount occurs when the number of values on the right-hand side
++	// of an assignment or initialization expression does not match the number
++	// of variables on the left-hand side.
++	//
++	// Example:
++	//  var x = 1, 2
++	_WrongAssignCount
++
++	// _UnassignableOperand occurs when the left-hand side of an assignment is
++	// not assignable.
++	//
++	// Example:
++	//  func f() {
++	//  	const c = 1
++	//  	c = 2
++	//  }
++	_UnassignableOperand
++
++	// _NoNewVar occurs when a short variable declaration (':=') does not declare
++	// new variables.
++	//
++	// Example:
++	//  func f() {
++	//  	x := 1
++	//  	x := 2
++	//  }
++	_NoNewVar
++
++	// _MultiValAssignOp occurs when an assignment operation (+=, *=, etc) does
++	// not have single-valued left-hand or right-hand side.
++	//
++	// Per the spec:
++	//  "In assignment operations, both the left- and right-hand expression lists
++	//  must contain exactly one single-valued expression"
++	//
++	// Example:
++	//  func f() int {
++	//  	x, y := 1, 2
++	//  	x, y += 1
++	//  	return x + y
++	//  }
++	_MultiValAssignOp
++
++	// _InvalidIfaceAssign occurs when a value of type T is used as an
++	// interface, but T does not implement a method of the expected interface.
++	//
++	// Example:
++	//  type I interface {
++	//  	f()
++	//  }
++	//
++	//  type T int
++	//
++	//  var x I = T(1)
++	_InvalidIfaceAssign
++
++	// _InvalidChanAssign occurs when a chan assignment is invalid.
++	//
++	// Per the spec, a value x is assignable to a channel type T if:
++	//  "x is a bidirectional channel value, T is a channel type, x's type V and
++	//  T have identical element types, and at least one of V or T is not a
++	//  defined type."
++	//
++	// Example:
++	//  type T1 chan int
++	//  type T2 chan int
++	//
++	//  var x T1
++	//  // Invalid assignment because both types are named
++	//  var _ T2 = x
++	_InvalidChanAssign
++
++	// _IncompatibleAssign occurs when the type of the right-hand side expression
++	// in an assignment cannot be assigned to the type of the variable being
++	// assigned.
++	//
++	// Example:
++	//  var x []int
++	//  var _ int = x
++	_IncompatibleAssign
++
++	// _UnaddressableFieldAssign occurs when trying to assign to a struct field
++	// in a map value.
++	//
++	// Example:
++	//  func f() {
++	//  	m := make(map[string]struct{i int})
++	//  	m["foo"].i = 42
++	//  }
++	_UnaddressableFieldAssign
++
++	// _NotAType occurs when the identifier used as the underlying type in a type
++	// declaration or the right-hand side of a type alias does not denote a type.
++	//
++	// Example:
++	//  var S = 2
++	//
++	//  type T S
++	_NotAType
++
++	// _InvalidArrayLen occurs when an array length is not a constant value.
++	//
++	// Example:
++	//  var n = 3
++	//  var _ = [n]int{}
++	_InvalidArrayLen
++
++	// _BlankIfaceMethod occurs when a method name is '_'.
++	//
++	// Per the spec:
++	//  "The name of each explicitly specified method must be unique and not
++	//  blank."
++	//
++	// Example:
++	//  type T interface {
++	//  	_(int)
++	//  }
++	_BlankIfaceMethod
++
++	// _IncomparableMapKey occurs when a map key type does not support the == and
++	// != operators.
++	//
++	// Per the spec:
++	//  "The comparison operators == and != must be fully defined for operands of
++	//  the key type; thus the key type must not be a function, map, or slice."
++	//
++	// Example:
++	//  var x map[T]int
++	//
++	//  type T []int
++	_IncomparableMapKey
++
++	// _InvalidIfaceEmbed occurs when a non-interface type is embedded in an
++	// interface (for go 1.17 or earlier).
++	_InvalidIfaceEmbed
++
++	// _InvalidPtrEmbed occurs when an embedded field is of the pointer form *T,
++	// and T itself is itself a pointer, an unsafe.Pointer, or an interface.
++	//
++	// Per the spec:
++	//  "An embedded field must be specified as a type name T or as a pointer to
++	//  a non-interface type name *T, and T itself may not be a pointer type."
++	//
++	// Example:
++	//  type T *int
++	//
++	//  type S struct {
++	//  	*T
++	//  }
++	_InvalidPtrEmbed
++
++	// _BadRecv occurs when a method declaration does not have exactly one
++	// receiver parameter.
++	//
++	// Example:
++	//  func () _() {}
++	_BadRecv
++
++	// _InvalidRecv occurs when a receiver type expression is not of the form T
++	// or *T, or T is a pointer type.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func (**T) m() {}
++	_InvalidRecv
++
++	// _DuplicateFieldAndMethod occurs when an identifier appears as both a field
++	// and method name.
++	//
++	// Example:
++	//  type T struct {
++	//  	m int
++	//  }
++	//
++	//  func (T) m() {}
++	_DuplicateFieldAndMethod
++
++	// _DuplicateMethod occurs when two methods on the same receiver type have
++	// the same name.
++	//
++	// Example:
++	//  type T struct {}
++	//  func (T) m() {}
++	//  func (T) m(i int) int { return i }
++	_DuplicateMethod
++
++	// _InvalidBlank occurs when a blank identifier is used as a value or type.
++	//
++	// Per the spec:
++	//  "The blank identifier may appear as an operand only on the left-hand side
++	//  of an assignment."
++	//
++	// Example:
++	//  var x = _
++	_InvalidBlank
++
++	// _InvalidIota occurs when the predeclared identifier iota is used outside
++	// of a constant declaration.
++	//
++	// Example:
++	//  var x = iota
++	_InvalidIota
++
++	// _MissingInitBody occurs when an init function is missing its body.
++	//
++	// Example:
++	//  func init()
++	_MissingInitBody
++
++	// _InvalidInitSig occurs when an init function declares parameters or
++	// results.
++	//
++	// Deprecated: no longer emitted by the type checker. _InvalidInitDecl is
++	// used instead.
++	_InvalidInitSig
++
++	// _InvalidInitDecl occurs when init is declared as anything other than a
++	// function.
++	//
++	// Example:
++	//  var init = 1
++	//
++	// Example:
++	//  func init() int { return 1 }
++	_InvalidInitDecl
++
++	// _InvalidMainDecl occurs when main is declared as anything other than a
++	// function, in a main package.
++	_InvalidMainDecl
++
++	// _TooManyValues occurs when a function returns too many values for the
++	// expression context in which it is used.
++	//
++	// Example:
++	//  func ReturnTwo() (int, int) {
++	//  	return 1, 2
++	//  }
++	//
++	//  var x = ReturnTwo()
++	_TooManyValues
++
++	// _NotAnExpr occurs when a type expression is used where a value expression
++	// is expected.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func f() {
++	//  	T
++	//  }
++	_NotAnExpr
++
++	// _TruncatedFloat occurs when a float constant is truncated to an integer
++	// value.
++	//
++	// Example:
++	//  var _ int = 98.6
++	_TruncatedFloat
++
++	// _NumericOverflow occurs when a numeric constant overflows its target type.
++	//
++	// Example:
++	//  var x int8 = 1000
++	_NumericOverflow
++
++	// _UndefinedOp occurs when an operator is not defined for the type(s) used
++	// in an operation.
++	//
++	// Example:
++	//  var c = "a" - "b"
++	_UndefinedOp
++
++	// _MismatchedTypes occurs when operand types are incompatible in a binary
++	// operation.
++	//
++	// Example:
++	//  var a = "hello"
++	//  var b = 1
++	//  var c = a - b
++	_MismatchedTypes
++
++	// _DivByZero occurs when a division operation is provable at compile
++	// time to be a division by zero.
++	//
++	// Example:
++	//  const divisor = 0
++	//  var x int = 1/divisor
++	_DivByZero
++
++	// _NonNumericIncDec occurs when an increment or decrement operator is
++	// applied to a non-numeric value.
++	//
++	// Example:
++	//  func f() {
++	//  	var c = "c"
++	//  	c++
++	//  }
++	_NonNumericIncDec
++
++	// _UnaddressableOperand occurs when the & operator is applied to an
++	// unaddressable expression.
++	//
++	// Example:
++	//  var x = &1
++	_UnaddressableOperand
++
++	// _InvalidIndirection occurs when a non-pointer value is indirected via the
++	// '*' operator.
++	//
++	// Example:
++	//  var x int
++	//  var y = *x
++	_InvalidIndirection
++
++	// _NonIndexableOperand occurs when an index operation is applied to a value
++	// that cannot be indexed.
++	//
++	// Example:
++	//  var x = 1
++	//  var y = x[1]
++	_NonIndexableOperand
++
++	// _InvalidIndex occurs when an index argument is not of integer type,
++	// negative, or out-of-bounds.
++	//
++	// Example:
++	//  var s = [...]int{1,2,3}
++	//  var x = s[5]
++	//
++	// Example:
++	//  var s = []int{1,2,3}
++	//  var _ = s[-1]
++	//
++	// Example:
++	//  var s = []int{1,2,3}
++	//  var i string
++	//  var _ = s[i]
++	_InvalidIndex
++
++	// _SwappedSliceIndices occurs when constant indices in a slice expression
++	// are decreasing in value.
++	//
++	// Example:
++	//  var _ = []int{1,2,3}[2:1]
++	_SwappedSliceIndices
++
++	// _NonSliceableOperand occurs when a slice operation is applied to a value
++	// whose type is not sliceable, or is unaddressable.
++	//
++	// Example:
++	//  var x = [...]int{1, 2, 3}[:1]
++	//
++	// Example:
++	//  var x = 1
++	//  var y = 1[:1]
++	_NonSliceableOperand
++
++	// _InvalidSliceExpr occurs when a three-index slice expression (a[x:y:z]) is
++	// applied to a string.
++	//
++	// Example:
++	//  var s = "hello"
++	//  var x = s[1:2:3]
++	_InvalidSliceExpr
++
++	// _InvalidShiftCount occurs when the right-hand side of a shift operation is
++	// either non-integer, negative, or too large.
++	//
++	// Example:
++	//  var (
++	//  	x string
++	//  	y int = 1 << x
++	//  )
++	_InvalidShiftCount
++
++	// _InvalidShiftOperand occurs when the shifted operand is not an integer.
++	//
++	// Example:
++	//  var s = "hello"
++	//  var x = s << 2
++	_InvalidShiftOperand
++
++	// _InvalidReceive occurs when there is a channel receive from a value that
++	// is either not a channel, or is a send-only channel.
++	//
++	// Example:
++	//  func f() {
++	//  	var x = 1
++	//  	<-x
++	//  }
++	_InvalidReceive
++
++	// _InvalidSend occurs when there is a channel send to a value that is not a
++	// channel, or is a receive-only channel.
++	//
++	// Example:
++	//  func f() {
++	//  	var x = 1
++	//  	x <- "hello!"
++	//  }
++	_InvalidSend
++
++	// _DuplicateLitKey occurs when an index is duplicated in a slice, array, or
++	// map literal.
++	//
++	// Example:
++	//  var _ = []int{0:1, 0:2}
++	//
++	// Example:
++	//  var _ = map[string]int{"a": 1, "a": 2}
++	_DuplicateLitKey
++
++	// _MissingLitKey occurs when a map literal is missing a key expression.
++	//
++	// Example:
++	//  var _ = map[string]int{1}
++	_MissingLitKey
++
++	// _InvalidLitIndex occurs when the key in a key-value element of a slice or
++	// array literal is not an integer constant.
++	//
++	// Example:
++	//  var i = 0
++	//  var x = []string{i: "world"}
++	_InvalidLitIndex
++
++	// _OversizeArrayLit occurs when an array literal exceeds its length.
++	//
++	// Example:
++	//  var _ = [2]int{1,2,3}
++	_OversizeArrayLit
++
++	// _MixedStructLit occurs when a struct literal contains a mix of positional
++	// and named elements.
++	//
++	// Example:
++	//  var _ = struct{i, j int}{i: 1, 2}
++	_MixedStructLit
++
++	// _InvalidStructLit occurs when a positional struct literal has an incorrect
++	// number of values.
++	//
++	// Example:
++	//  var _ = struct{i, j int}{1,2,3}
++	_InvalidStructLit
++
++	// _MissingLitField occurs when a struct literal refers to a field that does
++	// not exist on the struct type.
++	//
++	// Example:
++	//  var _ = struct{i int}{j: 2}
++	_MissingLitField
++
++	// _DuplicateLitField occurs when a struct literal contains duplicated
++	// fields.
++	//
++	// Example:
++	//  var _ = struct{i int}{i: 1, i: 2}
++	_DuplicateLitField
++
++	// _UnexportedLitField occurs when a positional struct literal implicitly
++	// assigns an unexported field of an imported type.
++	_UnexportedLitField
++
++	// _InvalidLitField occurs when a field name is not a valid identifier.
++	//
++	// Example:
++	//  var _ = struct{i int}{1: 1}
++	_InvalidLitField
++
++	// _UntypedLit occurs when a composite literal omits a required type
++	// identifier.
++	//
++	// Example:
++	//  type outer struct{
++	//  	inner struct { i int }
++	//  }
++	//
++	//  var _ = outer{inner: {1}}
++	_UntypedLit
++
++	// _InvalidLit occurs when a composite literal expression does not match its
++	// type.
++	//
++	// Example:
++	//  type P *struct{
++	//  	x int
++	//  }
++	//  var _ = P {}
++	_InvalidLit
++
++	// _AmbiguousSelector occurs when a selector is ambiguous.
++	//
++	// Example:
++	//  type E1 struct { i int }
++	//  type E2 struct { i int }
++	//  type T struct { E1; E2 }
++	//
++	//  var x T
++	//  var _ = x.i
++	_AmbiguousSelector
++
++	// _UndeclaredImportedName occurs when a package-qualified identifier is
++	// undeclared by the imported package.
++	//
++	// Example:
++	//  import "go/types"
++	//
++	//  var _ = types.NotAnActualIdentifier
++	_UndeclaredImportedName
++
++	// _UnexportedName occurs when a selector refers to an unexported identifier
++	// of an imported package.
++	//
++	// Example:
++	//  import "reflect"
++	//
++	//  type _ reflect.flag
++	_UnexportedName
++
++	// _UndeclaredName occurs when an identifier is not declared in the current
++	// scope.
++	//
++	// Example:
++	//  var x T
++	_UndeclaredName
++
++	// _MissingFieldOrMethod occurs when a selector references a field or method
++	// that does not exist.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  var x = T{}.f
++	_MissingFieldOrMethod
++
++	// _BadDotDotDotSyntax occurs when a "..." occurs in a context where it is
++	// not valid.
++	//
++	// Example:
++	//  var _ = map[int][...]int{0: {}}
++	_BadDotDotDotSyntax
++
++	// _NonVariadicDotDotDot occurs when a "..." is used on the final argument to
++	// a non-variadic function.
++	//
++	// Example:
++	//  func printArgs(s []string) {
++	//  	for _, a := range s {
++	//  		println(a)
++	//  	}
++	//  }
++	//
++	//  func f() {
++	//  	s := []string{"a", "b", "c"}
++	//  	printArgs(s...)
++	//  }
++	_NonVariadicDotDotDot
++
++	// _MisplacedDotDotDot occurs when a "..." is used somewhere other than the
++	// final argument in a function declaration.
++	//
++	// Example:
++	// 	func f(...int, int)
++	_MisplacedDotDotDot
++
++	_ // _InvalidDotDotDotOperand was removed.
++
++	// _InvalidDotDotDot occurs when a "..." is used in a non-variadic built-in
++	// function.
++	//
++	// Example:
++	//  var s = []int{1, 2, 3}
++	//  var l = len(s...)
++	_InvalidDotDotDot
++
++	// _UncalledBuiltin occurs when a built-in function is used as a
++	// function-valued expression, instead of being called.
++	//
++	// Per the spec:
++	//  "The built-in functions do not have standard Go types, so they can only
++	//  appear in call expressions; they cannot be used as function values."
++	//
++	// Example:
++	//  var _ = copy
++	_UncalledBuiltin
++
++	// _InvalidAppend occurs when append is called with a first argument that is
++	// not a slice.
++	//
++	// Example:
++	//  var _ = append(1, 2)
++	_InvalidAppend
++
++	// _InvalidCap occurs when an argument to the cap built-in function is not of
++	// supported type.
++	//
++	// See https://golang.org/ref/spec#Length_and_capacity for information on
++	// which underlying types are supported as arguments to cap and len.
++	//
++	// Example:
++	//  var s = 2
++	//  var x = cap(s)
++	_InvalidCap
++
++	// _InvalidClose occurs when close(...) is called with an argument that is
++	// not of channel type, or that is a receive-only channel.
++	//
++	// Example:
++	//  func f() {
++	//  	var x int
++	//  	close(x)
++	//  }
++	_InvalidClose
++
++	// _InvalidCopy occurs when the arguments are not of slice type or do not
++	// have compatible type.
++	//
++	// See https://golang.org/ref/spec#Appending_and_copying_slices for more
++	// information on the type requirements for the copy built-in.
++	//
++	// Example:
++	//  func f() {
++	//  	var x []int
++	//  	y := []int64{1,2,3}
++	//  	copy(x, y)
++	//  }
++	_InvalidCopy
++
++	// _InvalidComplex occurs when the complex built-in function is called with
++	// arguments with incompatible types.
++	//
++	// Example:
++	//  var _ = complex(float32(1), float64(2))
++	_InvalidComplex
++
++	// _InvalidDelete occurs when the delete built-in function is called with a
++	// first argument that is not a map.
++	//
++	// Example:
++	//  func f() {
++	//  	m := "hello"
++	//  	delete(m, "e")
++	//  }
++	_InvalidDelete
++
++	// _InvalidImag occurs when the imag built-in function is called with an
++	// argument that does not have complex type.
++	//
++	// Example:
++	//  var _ = imag(int(1))
++	_InvalidImag
++
++	// _InvalidLen occurs when an argument to the len built-in function is not of
++	// supported type.
++	//
++	// See https://golang.org/ref/spec#Length_and_capacity for information on
++	// which underlying types are supported as arguments to cap and len.
++	//
++	// Example:
++	//  var s = 2
++	//  var x = len(s)
++	_InvalidLen
++
++	// _SwappedMakeArgs occurs when make is called with three arguments, and its
++	// length argument is larger than its capacity argument.
++	//
++	// Example:
++	//  var x = make([]int, 3, 2)
++	_SwappedMakeArgs
++
++	// _InvalidMake occurs when make is called with an unsupported type argument.
++	//
++	// See https://golang.org/ref/spec#Making_slices_maps_and_channels for
++	// information on the types that may be created using make.
++	//
++	// Example:
++	//  var x = make(int)
++	_InvalidMake
++
++	// _InvalidReal occurs when the real built-in function is called with an
++	// argument that does not have complex type.
++	//
++	// Example:
++	//  var _ = real(int(1))
++	_InvalidReal
++
++	// _InvalidAssert occurs when a type assertion is applied to a
++	// value that is not of interface type.
++	//
++	// Example:
++	//  var x = 1
++	//  var _ = x.(float64)
++	_InvalidAssert
++
++	// _ImpossibleAssert occurs for a type assertion x.(T) when the value x of
++	// interface cannot have dynamic type T, due to a missing or mismatching
++	// method on T.
++	//
++	// Example:
++	//  type T int
++	//
++	//  func (t *T) m() int { return int(*t) }
++	//
++	//  type I interface { m() int }
++	//
++	//  var x I
++	//  var _ = x.(T)
++	_ImpossibleAssert
++
++	// _InvalidConversion occurs when the argument type cannot be converted to the
++	// target.
++	//
++	// See https://golang.org/ref/spec#Conversions for the rules of
++	// convertibility.
++	//
++	// Example:
++	//  var x float64
++	//  var _ = string(x)
++	_InvalidConversion
++
++	// _InvalidUntypedConversion occurs when an there is no valid implicit
++	// conversion from an untyped value satisfying the type constraints of the
++	// context in which it is used.
++	//
++	// Example:
++	//  var _ = 1 + new(int)
++	_InvalidUntypedConversion
++
++	// _BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
++	// that is not a selector expression.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Offsetof(x)
++	_BadOffsetofSyntax
++
++	// _InvalidOffsetof occurs when unsafe.Offsetof is called with a method
++	// selector, rather than a field selector, or when the field is embedded via
++	// a pointer.
++	//
++	// Per the spec:
++	//
++	//  "If f is an embedded field, it must be reachable without pointer
++	//  indirections through fields of the struct. "
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type T struct { f int }
++	//  type S struct { *T }
++	//  var s S
++	//  var _ = unsafe.Offsetof(s.f)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type S struct{}
++	//
++	//  func (S) m() {}
++	//
++	//  var s S
++	//  var _ = unsafe.Offsetof(s.m)
++	_InvalidOffsetof
++
++	// _UnusedExpr occurs when a side-effect free expression is used as a
++	// statement. Such a statement has no effect.
++	//
++	// Example:
++	//  func f(i int) {
++	//  	i*i
++	//  }
++	_UnusedExpr
++
++	// _UnusedVar occurs when a variable is declared but unused.
++	//
++	// Example:
++	//  func f() {
++	//  	x := 1
++	//  }
++	_UnusedVar
++
++	// _MissingReturn occurs when a function with results is missing a return
++	// statement.
++	//
++	// Example:
++	//  func f() int {}
++	_MissingReturn
++
++	// _WrongResultCount occurs when a return statement returns an incorrect
++	// number of values.
++	//
++	// Example:
++	//  func ReturnOne() int {
++	//  	return 1, 2
++	//  }
++	_WrongResultCount
++
++	// _OutOfScopeResult occurs when the name of a value implicitly returned by
++	// an empty return statement is shadowed in a nested scope.
++	//
++	// Example:
++	//  func factor(n int) (i int) {
++	//  	for i := 2; i < n; i++ {
++	//  		if n%i == 0 {
++	//  			return
++	//  		}
++	//  	}
++	//  	return 0
++	//  }
++	_OutOfScopeResult
++
++	// _InvalidCond occurs when an if condition is not a boolean expression.
++	//
++	// Example:
++	//  func checkReturn(i int) {
++	//  	if i {
++	//  		panic("non-zero return")
++	//  	}
++	//  }
++	_InvalidCond
++
++	// _InvalidPostDecl occurs when there is a declaration in a for-loop post
++	// statement.
++	//
++	// Example:
++	//  func f() {
++	//  	for i := 0; i < 10; j := 0 {}
++	//  }
++	_InvalidPostDecl
++
++	_ // _InvalidChanRange was removed.
++
++	// _InvalidIterVar occurs when two iteration variables are used while ranging
++	// over a channel.
++	//
++	// Example:
++	//  func f(c chan int) {
++	//  	for k, v := range c {
++	//  		println(k, v)
++	//  	}
++	//  }
++	_InvalidIterVar
++
++	// _InvalidRangeExpr occurs when the type of a range expression is not array,
++	// slice, string, map, or channel.
++	//
++	// Example:
++	//  func f(i int) {
++	//  	for j := range i {
++	//  		println(j)
++	//  	}
++	//  }
++	_InvalidRangeExpr
++
++	// _MisplacedBreak occurs when a break statement is not within a for, switch,
++	// or select statement of the innermost function definition.
++	//
++	// Example:
++	//  func f() {
++	//  	break
++	//  }
++	_MisplacedBreak
++
++	// _MisplacedContinue occurs when a continue statement is not within a for
++	// loop of the innermost function definition.
++	//
++	// Example:
++	//  func sumeven(n int) int {
++	//  	proceed := func() {
++	//  		continue
++	//  	}
++	//  	sum := 0
++	//  	for i := 1; i <= n; i++ {
++	//  		if i % 2 != 0 {
++	//  			proceed()
++	//  		}
++	//  		sum += i
++	//  	}
++	//  	return sum
++	//  }
++	_MisplacedContinue
++
++	// _MisplacedFallthrough occurs when a fallthrough statement is not within an
++	// expression switch.
++	//
++	// Example:
++	//  func typename(i interface{}) string {
++	//  	switch i.(type) {
++	//  	case int64:
++	//  		fallthrough
++	//  	case int:
++	//  		return "int"
++	//  	}
++	//  	return "unsupported"
++	//  }
++	_MisplacedFallthrough
++
++	// _DuplicateCase occurs when a type or expression switch has duplicate
++	// cases.
++	//
++	// Example:
++	//  func printInt(i int) {
++	//  	switch i {
++	//  	case 1:
++	//  		println("one")
++	//  	case 1:
++	//  		println("One")
++	//  	}
++	//  }
++	_DuplicateCase
++
++	// _DuplicateDefault occurs when a type or expression switch has multiple
++	// default clauses.
++	//
++	// Example:
++	//  func printInt(i int) {
++	//  	switch i {
++	//  	case 1:
++	//  		println("one")
++	//  	default:
++	//  		println("One")
++	//  	default:
++	//  		println("1")
++	//  	}
++	//  }
++	_DuplicateDefault
++
++	// _BadTypeKeyword occurs when a .(type) expression is used anywhere other
++	// than a type switch.
++	//
++	// Example:
++	//  type I interface {
++	//  	m()
++	//  }
++	//  var t I
++	//  var _ = t.(type)
++	_BadTypeKeyword
++
++	// _InvalidTypeSwitch occurs when .(type) is used on an expression that is
++	// not of interface type.
++	//
++	// Example:
++	//  func f(i int) {
++	//  	switch x := i.(type) {}
++	//  }
++	_InvalidTypeSwitch
++
++	// _InvalidExprSwitch occurs when a switch expression is not comparable.
++	//
++	// Example:
++	//  func _() {
++	//  	var a struct{ _ func() }
++	//  	switch a /* ERROR cannot switch on a */ {
++	//  	}
++	//  }
++	_InvalidExprSwitch
++
++	// _InvalidSelectCase occurs when a select case is not a channel send or
++	// receive.
++	//
++	// Example:
++	//  func checkChan(c <-chan int) bool {
++	//  	select {
++	//  	case c:
++	//  		return true
++	//  	default:
++	//  		return false
++	//  	}
++	//  }
++	_InvalidSelectCase
++
++	// _UndeclaredLabel occurs when an undeclared label is jumped to.
++	//
++	// Example:
++	//  func f() {
++	//  	goto L
++	//  }
++	_UndeclaredLabel
++
++	// _DuplicateLabel occurs when a label is declared more than once.
++	//
++	// Example:
++	//  func f() int {
++	//  L:
++	//  L:
++	//  	return 1
++	//  }
++	_DuplicateLabel
++
++	// _MisplacedLabel occurs when a break or continue label is not on a for,
++	// switch, or select statement.
++	//
++	// Example:
++	//  func f() {
++	//  L:
++	//  	a := []int{1,2,3}
++	//  	for _, e := range a {
++	//  		if e > 10 {
++	//  			break L
++	//  		}
++	//  		println(a)
++	//  	}
++	//  }
++	_MisplacedLabel
++
++	// _UnusedLabel occurs when a label is declared but not used.
++	//
++	// Example:
++	//  func f() {
++	//  L:
++	//  }
++	_UnusedLabel
++
++	// _JumpOverDecl occurs when a label jumps over a variable declaration.
++	//
++	// Example:
++	//  func f() int {
++	//  	goto L
++	//  	x := 2
++	//  L:
++	//  	x++
++	//  	return x
++	//  }
++	_JumpOverDecl
++
++	// _JumpIntoBlock occurs when a forward jump goes to a label inside a nested
++	// block.
++	//
++	// Example:
++	//  func f(x int) {
++	//  	goto L
++	//  	if x > 0 {
++	//  	L:
++	//  		print("inside block")
++	//  	}
++	// }
++	_JumpIntoBlock
++
++	// _InvalidMethodExpr occurs when a pointer method is called but the argument
++	// is not addressable.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func (*T) m() int { return 1 }
++	//
++	//  var _ = T.m(T{})
++	_InvalidMethodExpr
++
++	// _WrongArgCount occurs when too few or too many arguments are passed by a
++	// function call.
++	//
++	// Example:
++	//  func f(i int) {}
++	//  var x = f()
++	_WrongArgCount
++
++	// _InvalidCall occurs when an expression is called that is not of function
++	// type.
++	//
++	// Example:
++	//  var x = "x"
++	//  var y = x()
++	_InvalidCall
++
++	// _UnusedResults occurs when a restricted expression-only built-in function
++	// is suspended via go or defer. Such a suspension discards the results of
++	// these side-effect free built-in functions, and therefore is ineffectual.
++	//
++	// Example:
++	//  func f(a []int) int {
++	//  	defer len(a)
++	//  	return i
++	//  }
++	_UnusedResults
++
++	// _InvalidDefer occurs when a deferred expression is not a function call,
++	// for example if the expression is a type conversion.
++	//
++	// Example:
++	//  func f(i int) int {
++	//  	defer int32(i)
++	//  	return i
++	//  }
++	_InvalidDefer
++
++	// _InvalidGo occurs when a go expression is not a function call, for example
++	// if the expression is a type conversion.
++	//
++	// Example:
++	//  func f(i int) int {
++	//  	go int32(i)
++	//  	return i
++	//  }
++	_InvalidGo
++
++	// All codes below were added in Go 1.17.
++
++	// _BadDecl occurs when a declaration has invalid syntax.
++	_BadDecl
++
++	// _RepeatedDecl occurs when an identifier occurs more than once on the left
++	// hand side of a short variable declaration.
++	//
++	// Example:
++	//  func _() {
++	//  	x, y, y := 1, 2, 3
++	//  }
++	_RepeatedDecl
++
++	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
++	// length argument that is not of integer type.
++	// It also occurs if it is used in a package compiled for a
++	// language version before go1.17.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var p unsafe.Pointer
++	//  var _ = unsafe.Add(p, float64(1))
++	_InvalidUnsafeAdd
++
++	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
++	// pointer argument that is not of pointer type or a length argument
++	// that is not of integer type, negative, or out of bounds.
++	// It also occurs if it is used in a package compiled for a language
++	// version before go1.17.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(x, 1)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, float64(1))
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, -1)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
++	_InvalidUnsafeSlice
++
++	// All codes below were added in Go 1.18.
++
++	// _UnsupportedFeature occurs when a language feature is used that is not
++	// supported at this Go version.
++	_UnsupportedFeature
++
++	// _NotAGenericType occurs when a non-generic type is used where a generic
++	// type is expected: in type or function instantiation.
++	//
++	// Example:
++	//  type T int
++	//
++	//  var _ T[int]
++	_NotAGenericType
++
++	// _WrongTypeArgCount occurs when a type or function is instantiated with an
++	// incorrent number of type arguments, including when a generic type or
++	// function is used without instantiation.
++	//
++	// Errors inolving failed type inference are assigned other error codes.
++	//
++	// Example:
++	//  type T[p any] int
++	//
++	//  var _ T[int, string]
++	//
++	// Example:
++	//  func f[T any]() {}
++	//
++	//  var x = f
++	_WrongTypeArgCount
++
++	// _CannotInferTypeArgs occurs when type or function type argument inference
++	// fails to infer all type arguments.
++	//
++	// Example:
++	//  func f[T any]() {}
++	//
++	//  func _() {
++	//  	f()
++	//  }
++	_CannotInferTypeArgs
++
++	// _InvalidTypeArg occurs when a type argument does not satisfy its
++	// corresponding type parameter constraints.
++	//
++	// Example:
++	//  type T[P ~int] struct{}
++	//
++	//  var _ T[string]
++	_InvalidTypeArg // arguments? InferenceFailed
++
++	// _InvalidInstanceCycle occurs when an invalid cycle is detected
++	// within the instantiation graph.
++	//
++	// Example:
++	//  func f[T any]() { f[*T]() }
++	_InvalidInstanceCycle
++
++	// _InvalidUnion occurs when an embedded union or approximation element is
++	// not valid.
++	//
++	// Example:
++	//  type _ interface {
++	//   	~int | interface{ m() }
++	//  }
++	_InvalidUnion
++
++	// _MisplacedConstraintIface occurs when a constraint-type interface is used
++	// outside of constraint position.
++	//
++	// Example:
++	//   type I interface { ~int }
++	//
++	//   var _ I
++	_MisplacedConstraintIface
++
++	// _InvalidMethodTypeParams occurs when methods have type parameters.
++	//
++	// It cannot be encountered with an AST parsed using go/parser.
++	_InvalidMethodTypeParams
++
++	// _MisplacedTypeParam occurs when a type parameter is used in a place where
++	// it is not permitted.
++	//
++	// Example:
++	//  type T[P any] P
++	//
++	// Example:
++	//  type T[P any] struct{ *P }
++	_MisplacedTypeParam
++
++	// _InvalidUnsafeSliceData occurs when unsafe.SliceData is called with
++	// an argument that is not of slice type. It also occurs if it is used
++	// in a package compiled for a language version before go1.20.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.SliceData(x)
++	_InvalidUnsafeSliceData
++
++	// _InvalidUnsafeString occurs when unsafe.String is called with
++	// a length argument that is not of integer type, negative, or
++	// out of bounds. It also occurs if it is used in a package
++	// compiled for a language version before go1.20.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var b [10]byte
++	//  var _ = unsafe.String(&b[0], -1)
++	_InvalidUnsafeString
++
++	// _InvalidUnsafeStringData occurs if it is used in a package
++	// compiled for a language version before go1.20.
++	_InvalidUnsafeStringData
++)
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 3734db5910..4ab05f8d21 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -38,6 +38,7 @@ func unreachable() {
+ // To report an error_, call Checker.report.
+ type error_ struct {
+ 	desc []errorDesc
++	code errorCode
+ 	soft bool // TODO(gri) eventually determine this from an error code
+ }
+ 
+@@ -197,7 +198,7 @@ func (check *Checker) report(err *error_) {
+ 	if err.empty() {
+ 		panic("no error to report")
+ 	}
+-	check.err(err.pos(), err.msg(check.qualifier), err.soft)
++	check.err(err.pos(), err.code, err.msg(check.qualifier), err.soft)
+ }
+ 
+ func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) {
+@@ -213,7 +214,7 @@ func (check *Checker) dump(format string, args ...interface{}) {
+ 	fmt.Println(sprintf(check.qualifier, true, format, args...))
+ }
+ 
+-func (check *Checker) err(at poser, msg string, soft bool) {
++func (check *Checker) err(at poser, code errorCode, msg string, soft bool) {
+ 	// Cheap trick: Don't report errors with messages containing
+ 	// "invalid operand" or "invalid type" as those tend to be
+ 	// follow-on errors which don't add useful information. Only
+@@ -262,16 +263,16 @@ type poser interface {
+ 	Pos() syntax.Pos
+ }
+ 
+-func (check *Checker) error(at poser, msg string) {
+-	check.err(at, msg, false)
++func (check *Checker) error(at poser, code errorCode, msg string) {
++	check.err(at, code, msg, false)
+ }
+ 
+-func (check *Checker) errorf(at poser, format string, args ...interface{}) {
+-	check.err(at, check.sprintf(format, args...), false)
++func (check *Checker) errorf(at poser, code errorCode, format string, args ...interface{}) {
++	check.err(at, code, check.sprintf(format, args...), false)
+ }
+ 
+-func (check *Checker) softErrorf(at poser, format string, args ...interface{}) {
+-	check.err(at, check.sprintf(format, args...), true)
++func (check *Checker) softErrorf(at poser, code errorCode, format string, args ...interface{}) {
++	check.err(at, code, check.sprintf(format, args...), true)
+ }
+ 
+ func (check *Checker) versionErrorf(at poser, goVersion string, format string, args ...interface{}) {
+@@ -281,7 +282,7 @@ func (check *Checker) versionErrorf(at poser, goVersion string, format string, a
+ 	} else {
+ 		msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
+ 	}
+-	check.err(at, msg, true)
++	check.err(at, _UnsupportedFeature, msg, true)
+ }
+ 
+ // posFor reports the left (= start) position of at.
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 6e1e47c08f..e922118746 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -73,11 +73,11 @@ func init() {
+ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
+ 	if pred := m[op]; pred != nil {
+ 		if !pred(x.typ) {
+-			check.errorf(x, invalidOp+"operator %s not defined on %s", op, x)
++			check.errorf(x, _UndefinedOp, invalidOp+"operator %s not defined on %s", op, x)
+ 			return false
+ 		}
+ 	} else {
+-		check.errorf(x, invalidAST+"unknown operator %s", op)
++		check.errorf(x, 0, invalidAST+"unknown operator %s", op)
+ 		return false
+ 	}
+ 	return true
+@@ -93,7 +93,7 @@ func (check *Checker) overflow(x *operand) {
+ 		// TODO(gri) We should report exactly what went wrong. At the
+ 		//           moment we don't have the (go/constant) API for that.
+ 		//           See also TODO in go/constant/value.go.
+-		check.error(opPos(x.expr), "constant result is not representable")
++		check.error(opPos(x.expr), _InvalidConstVal, "constant result is not representable")
+ 		return
+ 	}
+ 
+@@ -113,7 +113,7 @@ func (check *Checker) overflow(x *operand) {
+ 		if op != "" {
+ 			op += " "
+ 		}
+-		check.errorf(opPos(x.expr), "constant %soverflow", op)
++		check.errorf(opPos(x.expr), _InvalidConstVal, "constant %soverflow", op)
+ 		x.val = constant.MakeUnknown()
+ 	}
+ }
+@@ -182,7 +182,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		// spec: "As an exception to the addressability
+ 		// requirement x may also be a composite literal."
+ 		if _, ok := unparen(e.X).(*syntax.CompositeLit); !ok && x.mode != variable {
+-			check.errorf(x, invalidOp+"cannot take address of %s", x)
++			check.errorf(x, _UnaddressableOperand, invalidOp+"cannot take address of %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -193,18 +193,18 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 	case syntax.Recv:
+ 		u := coreType(x.typ)
+ 		if u == nil {
+-			check.errorf(x, invalidOp+"cannot receive from %s: no core type", x)
++			check.errorf(x, _InvalidReceive, invalidOp+"cannot receive from %s: no core type", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+ 		ch, _ := u.(*Chan)
+ 		if ch == nil {
+-			check.errorf(x, invalidOp+"cannot receive from non-channel %s", x)
++			check.errorf(x, _InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+ 		if ch.dir == SendOnly {
+-			check.errorf(x, invalidOp+"cannot receive from send-only channel %s", x)
++			check.errorf(x, _InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -215,7 +215,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 
+ 	case syntax.Tilde:
+ 		// Provide a better error position and message than what check.op below could do.
+-		check.error(e, "cannot use ~ outside of interface or type constraint")
++		check.error(e, _UndefinedOp, "cannot use ~ outside of interface or type constraint")
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -435,30 +435,6 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 	return false
+ }
+ 
+-// An errorCode is a (constant) value uniquely identifing a specific error.
+-type errorCode int
+-
+-// The following error codes are "borrowed" from go/types which codes for
+-// all errors. Here we list the few codes currently needed by the various
+-// conversion checking functions.
+-// Eventually we will switch to reporting codes for all errors, using a
+-// an error code table shared between types2 and go/types.
+-const (
+-	_ = errorCode(iota)
+-	_TruncatedFloat
+-	_NumericOverflow
+-	_InvalidConstVal
+-	_InvalidUntypedConversion
+-
+-	// The following error codes are only returned by operand.assignableTo
+-	// and none of its callers use the error. Still, we keep returning the
+-	// error codes to make the transition to reporting error codes all the
+-	// time easier in the future.
+-	_IncompatibleAssign
+-	_InvalidIfaceAssign
+-	_InvalidChanAssign
+-)
+-
+ // representable checks that a constant operand is representable in the given
+ // basic type.
+ func (check *Checker) representable(x *operand, typ *Basic) {
+@@ -507,7 +483,7 @@ func (check *Checker) invalidConversion(code errorCode, x *operand, target Type)
+ 	case _NumericOverflow:
+ 		msg = "%s overflows %s"
+ 	}
+-	check.errorf(x, msg, x, target)
++	check.errorf(x, code, msg, x, target)
+ }
+ 
+ // updateExprType updates the type of x to typ and invokes itself
+@@ -641,9 +617,9 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
+ 		// as an integer if it is a constant.
+ 		if !allInteger(typ) {
+ 			if check.conf.CompilerErrorMessages {
+-				check.errorf(x, invalidOp+"%s (shift of type %s)", parent, typ)
++				check.errorf(x, _InvalidShiftOperand, invalidOp+"%s (shift of type %s)", parent, typ)
+ 			} else {
+-				check.errorf(x, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
++				check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+ 			}
+ 			return
+ 		}
+@@ -802,6 +778,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
+ 
+ 	// spec: "In any comparison, the first operand must be assignable
+ 	// to the type of the second operand, or vice versa."
++	code := _MismatchedTypes
+ 	ok, _ := x.assignableTo(check, y.typ, nil)
+ 	if !ok {
+ 		ok, _ = y.assignableTo(check, x.typ, nil)
+@@ -821,6 +798,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
+ 	}
+ 
+ 	// check if comparison is defined for operands
++	code = _UndefinedOp
+ 	switch op {
+ 	case syntax.Eql, syntax.Neq:
+ 		// spec: "The equality operators == and != apply to operands that are comparable."
+@@ -900,12 +878,12 @@ Error:
+ 		}
+ 	}
+ 	if switchCase {
+-		check.errorf(x, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
++		check.errorf(x, code, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
+ 	} else {
+ 		if check.conf.CompilerErrorMessages {
+-			check.errorf(errOp, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
++			check.errorf(errOp, code, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
+ 		} else {
+-			check.errorf(errOp, invalidOp+"cannot compare %s %s %s (%s)", x.expr, op, y.expr, cause)
++			check.errorf(errOp, code, invalidOp+"cannot compare %s %s %s (%s)", x.expr, op, y.expr, cause)
+ 		}
+ 	}
+ 	x.mode = invalid
+@@ -967,7 +945,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 		// as an integer. Nothing to do.
+ 	} else {
+ 		// shift has no chance
+-		check.errorf(x, invalidOp+"shifted operand %s must be integer", x)
++		check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -981,7 +959,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 		// Provide a good error message for negative shift counts.
+ 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+ 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+-			check.errorf(y, invalidOp+"negative shift count %s", y)
++			check.errorf(y, _InvalidShiftCount, invalidOp+"negative shift count %s", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1000,7 +978,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 		switch {
+ 		case allInteger(y.typ):
+ 			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-				check.errorf(y, invalidOp+"signed shift count %s requires go1.13 or later", y)
++				check.errorf(y, _InvalidShiftCount, invalidOp+"signed shift count %s requires go1.13 or later", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -1013,7 +991,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 				return
+ 			}
+ 		default:
+-			check.errorf(y, invalidOp+"shift count %s must be integer", y)
++			check.errorf(y, _InvalidShiftCount, invalidOp+"shift count %s must be integer", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1034,7 +1012,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+ 			s, ok := constant.Uint64Val(y.val)
+ 			if !ok || s > shiftBound {
+-				check.errorf(y, invalidOp+"invalid shift count %s", y)
++				check.errorf(y, _InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -1085,7 +1063,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 
+ 	// non-constant shift - lhs must be an integer
+ 	if !allInteger(x.typ) {
+-		check.errorf(x, invalidOp+"shifted operand %s must be integer", x)
++		check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -1177,9 +1155,9 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		// (otherwise we had an error reported elsewhere already)
+ 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+ 			if e != nil {
+-				check.errorf(x, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
++				check.errorf(x, _MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+ 			} else {
+-				check.errorf(x, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
++				check.errorf(x, _MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+ 			}
+ 		}
+ 		x.mode = invalid
+@@ -1194,7 +1172,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 	if op == syntax.Div || op == syntax.Rem {
+ 		// check for zero divisor
+ 		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+-			check.error(&y, invalidOp+"division by zero")
++			check.error(&y, _DivByZero, invalidOp+"division by zero")
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1204,7 +1182,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 			re, im := constant.Real(y.val), constant.Imag(y.val)
+ 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+ 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
+-				check.error(&y, invalidOp+"division by zero")
++				check.error(&y, _DivByZero, invalidOp+"division by zero")
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -1287,7 +1265,7 @@ func (check *Checker) nonGeneric(x *operand) {
+ 		}
+ 	}
+ 	if what != "" {
+-		check.errorf(x.expr, "cannot use generic %s %s without instantiation", what, x.expr)
++		check.errorf(x.expr, _WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
+ 		x.mode = invalid
+ 		x.typ = Typ[Invalid]
+ 	}
+@@ -1314,7 +1292,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 	case *syntax.DotsType:
+ 		// dots are handled explicitly where they are legal
+ 		// (array composite literals and parameter lists)
+-		check.error(e, "invalid use of '...'")
++		check.error(e, _BadDotDotDotSyntax, "invalid use of '...'")
+ 		goto Error
+ 
+ 	case *syntax.BasicLit:
+@@ -1335,7 +1313,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// allows for separators between all digits.
+ 			const limit = 10000
+ 			if len(e.Value) > limit {
+-				check.errorf(e, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
++				check.errorf(e, _InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
+ 				goto Error
+ 			}
+ 		}
+@@ -1345,7 +1323,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// If we reach here it's because of number under-/overflow.
+ 			// TODO(gri) setConst (and in turn the go/constant package)
+ 			// should return an error describing the issue.
+-			check.errorf(e, "malformed constant: %s", e.Value)
++			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
+ 			goto Error
+ 		}
+ 		// Ensure that integer values don't overflow (issue #54280).
+@@ -1371,7 +1349,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			x.mode = value
+ 			x.typ = sig
+ 		} else {
+-			check.errorf(e, invalidAST+"invalid function literal %v", e)
++			check.errorf(e, 0, invalidAST+"invalid function literal %v", e)
+ 			goto Error
+ 		}
+ 
+@@ -1399,13 +1377,13 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			typ = hint
+ 			base, _ = deref(coreType(typ)) // *T implies &T{}
+ 			if base == nil {
+-				check.errorf(e, "invalid composite literal element type %s: no core type", typ)
++				check.errorf(e, _InvalidLit, "invalid composite literal element type %s: no core type", typ)
+ 				goto Error
+ 			}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+-			check.error(e, "missing type in composite literal")
++			check.error(e, _UntypedLit, "missing type in composite literal")
+ 			goto Error
+ 		}
+ 
+@@ -1414,7 +1392,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// Prevent crash if the struct referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.fields == nil {
+-				check.error(e, "illegal cycle in type declaration")
++				check.error(e, _InvalidDeclCycle, "illegal cycle in type declaration")
+ 				goto Error
+ 			}
+ 			if len(e.ElemList) == 0 {
+@@ -1427,7 +1405,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 				for _, e := range e.ElemList {
+ 					kv, _ := e.(*syntax.KeyValueExpr)
+ 					if kv == nil {
+-						check.error(e, "mixture of field:value and value elements in struct literal")
++						check.error(e, _MixedStructLit, "mixture of field:value and value elements in struct literal")
+ 						continue
+ 					}
+ 					key, _ := kv.Key.(*syntax.Name)
+@@ -1435,15 +1413,15 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					// so we don't drop information on the floor
+ 					check.expr(x, kv.Value)
+ 					if key == nil {
+-						check.errorf(kv, "invalid field name %s in struct literal", kv.Key)
++						check.errorf(kv, _InvalidLitField, "invalid field name %s in struct literal", kv.Key)
+ 						continue
+ 					}
+ 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
+ 					if i < 0 {
+ 						if check.conf.CompilerErrorMessages {
+-							check.errorf(kv.Key, "unknown field '%s' in struct literal of type %s", key.Value, base)
++							check.errorf(kv.Key, _MissingLitField, "unknown field '%s' in struct literal of type %s", key.Value, base)
+ 						} else {
+-							check.errorf(kv.Key, "unknown field %s in struct literal", key.Value)
++							check.errorf(kv.Key, _MissingLitField, "unknown field %s in struct literal", key.Value)
+ 						}
+ 						continue
+ 					}
+@@ -1453,7 +1431,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					check.assignment(x, etyp, "struct literal")
+ 					// 0 <= i < len(fields)
+ 					if visited[i] {
+-						check.errorf(kv, "duplicate field name %s in struct literal", key.Value)
++						check.errorf(kv, _DuplicateLitField, "duplicate field name %s in struct literal", key.Value)
+ 						continue
+ 					}
+ 					visited[i] = true
+@@ -1462,25 +1440,25 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 				// no element must have a key
+ 				for i, e := range e.ElemList {
+ 					if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
+-						check.error(kv, "mixture of field:value and value elements in struct literal")
++						check.error(kv, _MixedStructLit, "mixture of field:value and value elements in struct literal")
+ 						continue
+ 					}
+ 					check.expr(x, e)
+ 					if i >= len(fields) {
+-						check.errorf(x, "too many values in %s{…}", base)
++						check.errorf(x, _InvalidStructLit, "too many values in %s{…}", base)
+ 						break // cannot continue
+ 					}
+ 					// i < len(fields)
+ 					fld := fields[i]
+ 					if !fld.Exported() && fld.pkg != check.pkg {
+-						check.errorf(x, "implicit assignment to unexported field %s in %s literal", fld.name, typ)
++						check.errorf(x, _UnexportedLitField, "implicit assignment to unexported field %s in %s literal", fld.name, typ)
+ 						continue
+ 					}
+ 					etyp := fld.typ
+ 					check.assignment(x, etyp, "struct literal")
+ 				}
+ 				if len(e.ElemList) < len(fields) {
+-					check.errorf(e.Rbrace, "too few values in %s{…}", base)
++					check.errorf(e.Rbrace, _InvalidStructLit, "too few values in %s{…}", base)
+ 					// ok to continue
+ 				}
+ 			}
+@@ -1490,7 +1468,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// This is a stop-gap solution. Should use Checker.objPath to report entire
+ 			// path starting with earliest declaration in the source. TODO(gri) fix this.
+ 			if utyp.elem == nil {
+-				check.error(e, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
+ 				goto Error
+ 			}
+ 			n := check.indexedElts(e.ElemList, utyp.elem, utyp.len)
+@@ -1517,7 +1495,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// Prevent crash if the slice referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.elem == nil {
+-				check.error(e, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
+ 				goto Error
+ 			}
+ 			check.indexedElts(e.ElemList, utyp.elem, -1)
+@@ -1526,7 +1504,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// Prevent crash if the map referred to is not yet set up.
+ 			// See analogous comment for *Array.
+ 			if utyp.key == nil || utyp.elem == nil {
+-				check.error(e, "illegal cycle in type declaration")
++				check.error(e, _InvalidTypeCycle, "illegal cycle in type declaration")
+ 				goto Error
+ 			}
+ 			// If the map key type is an interface (but not a type parameter),
+@@ -1537,7 +1515,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			for _, e := range e.ElemList {
+ 				kv, _ := e.(*syntax.KeyValueExpr)
+ 				if kv == nil {
+-					check.error(e, "missing key in map literal")
++					check.error(e, _MissingLitKey, "missing key in map literal")
+ 					continue
+ 				}
+ 				check.exprWithHint(x, kv.Key, utyp.key)
+@@ -1561,7 +1539,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 						visited[xkey] = nil
+ 					}
+ 					if duplicate {
+-						check.errorf(x, "duplicate key %s in map literal", x.val)
++						check.errorf(x, _DuplicateLitKey, "duplicate key %s in map literal", x.val)
+ 						continue
+ 					}
+ 				}
+@@ -1583,7 +1561,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			}
+ 			// if utyp is invalid, an error was reported before
+ 			if utyp != Typ[Invalid] {
+-				check.errorf(e, "invalid composite literal type %s", typ)
++				check.errorf(e, _InvalidLit, "invalid composite literal type %s", typ)
+ 				goto Error
+ 			}
+ 		}
+@@ -1620,16 +1598,16 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		}
+ 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
+ 		if isTypeParam(x.typ) {
+-			check.errorf(x, invalidOp+"cannot use type assertion on type parameter value %s", x)
++			check.errorf(x, _InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+ 			goto Error
+ 		}
+ 		if _, ok := under(x.typ).(*Interface); !ok {
+-			check.errorf(x, invalidOp+"%s is not an interface", x)
++			check.errorf(x, _InvalidAssert, invalidOp+"%s is not an interface", x)
+ 			goto Error
+ 		}
+ 		// x.(type) expressions are encoded via TypeSwitchGuards
+ 		if e.Type == nil {
+-			check.error(e, invalidAST+"invalid use of AssertExpr")
++			check.error(e, 0, invalidAST+"invalid use of AssertExpr")
+ 			goto Error
+ 		}
+ 		T := check.varType(e.Type)
+@@ -1642,7 +1620,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.TypeSwitchGuard:
+ 		// x.(type) expressions are handled explicitly in type switches
+-		check.error(e, invalidAST+"use of .(type) outside type switch")
++		check.error(e, 0, invalidAST+"use of .(type) outside type switch")
+ 		goto Error
+ 
+ 	case *syntax.CallExpr:
+@@ -1650,7 +1628,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.ListExpr:
+ 		// catch-all for unexpected expression lists
+-		check.error(e, "unexpected list of expressions")
++		check.error(e, 0, invalidAST+"unexpected list of expressions")
+ 		goto Error
+ 
+ 	// case *syntax.UnaryExpr:
+@@ -1690,11 +1668,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					if !underIs(x.typ, func(u Type) bool {
+ 						p, _ := u.(*Pointer)
+ 						if p == nil {
+-							check.errorf(x, invalidOp+"cannot indirect %s", x)
++							check.errorf(x, _InvalidIndirection, invalidOp+"cannot indirect %s", x)
+ 							return false
+ 						}
+ 						if base != nil && !Identical(p.base, base) {
+-							check.errorf(x, invalidOp+"pointers of %s must have identical base types", x)
++							check.errorf(x, _InvalidIndirection, invalidOp+"pointers of %s must have identical base types", x)
+ 							return false
+ 						}
+ 						base = p.base
+@@ -1727,7 +1705,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.KeyValueExpr:
+ 		// key:value expressions are handled in composite literals
+-		check.error(e, invalidAST+"no key:value expected")
++		check.error(e, 0, invalidAST+"no key:value expected")
+ 		goto Error
+ 
+ 	case *syntax.ArrayType, *syntax.SliceType, *syntax.StructType, *syntax.FuncType,
+@@ -1806,11 +1784,11 @@ func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitc
+ 	cause := check.missingMethodReason(T, x.typ, method, alt)
+ 
+ 	if typeSwitch {
+-		check.errorf(e, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
++		check.errorf(e, _ImpossibleAssert, "impossible type switch case: %s\n\t%s cannot have dynamic type %s %s", e, x, T, cause)
+ 		return
+ 	}
+ 
+-	check.errorf(e, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
++	check.errorf(e, _ImpossibleAssert, "impossible type assertion: %s\n\t%s does not implement %s %s", e, T, x.typ, cause)
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+@@ -1853,6 +1831,7 @@ func (check *Checker) exprOrType(x *operand, e syntax.Expr, allowGeneric bool) {
+ func (check *Checker) exclude(x *operand, modeset uint) {
+ 	if modeset&(1<<x.mode) != 0 {
+ 		var msg string
++		var code errorCode
+ 		switch x.mode {
+ 		case novalue:
+ 			if modeset&(1<<typexpr) != 0 {
+@@ -1860,14 +1839,17 @@ func (check *Checker) exclude(x *operand, modeset uint) {
+ 			} else {
+ 				msg = "%s used as value or type"
+ 			}
++			code = _TooManyValues
+ 		case builtin:
+ 			msg = "%s must be called"
++			code = _UncalledBuiltin
+ 		case typexpr:
+ 			msg = "%s is not an expression"
++			code = _NotAnExpr
+ 		default:
+ 			unreachable()
+ 		}
+-		check.errorf(x, msg, x)
++		check.errorf(x, code, msg, x)
+ 		x.mode = invalid
+ 	}
+ }
+@@ -1879,9 +1861,9 @@ func (check *Checker) singleValue(x *operand) {
+ 		if t, ok := x.typ.(*Tuple); ok {
+ 			assert(t.Len() != 1)
+ 			if check.conf.CompilerErrorMessages {
+-				check.errorf(x, "multiple-value %s in single-value context", x)
++				check.errorf(x, _TooManyValues, "multiple-value %s in single-value context", x)
+ 			} else {
+-				check.errorf(x, "%d-valued %s where single value is expected", t.Len(), x)
++				check.errorf(x, _TooManyValues, "%d-valued %s where single value is expected", t.Len(), x)
+ 			}
+ 			x.mode = invalid
+ 		}
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 37db50333c..b51205634e 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -182,7 +182,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 	}
+ 
+ 	if !valid {
+-		check.errorf(e.Pos(), invalidOp+"cannot index %s", x)
++		check.errorf(e.Pos(), _NonSliceableOperand, invalidOp+"cannot index %s", x)
+ 		x.mode = invalid
+ 		return false
+ 	}
+@@ -215,7 +215,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 	length := int64(-1) // valid if >= 0
+ 	switch u := coreString(x.typ).(type) {
+ 	case nil:
+-		check.errorf(x, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
++		check.errorf(x, _NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+@@ -226,7 +226,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 				if at == nil {
+ 					at = e // e.Index[2] should be present but be careful
+ 				}
+-				check.error(at, invalidOp+"3-index slice of string")
++				check.error(at, _InvalidSliceExpr, invalidOp+"3-index slice of string")
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -245,7 +245,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 		valid = true
+ 		length = u.len
+ 		if x.mode != variable {
+-			check.errorf(x, invalidOp+"%s (slice of unaddressable value)", x)
++			check.errorf(x, _NonSliceableOperand, invalidOp+"%s (slice of unaddressable value)", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -264,7 +264,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 	}
+ 
+ 	if !valid {
+-		check.errorf(x, invalidOp+"cannot slice %s", x)
++		check.errorf(x, _NonSliceableOperand, invalidOp+"cannot slice %s", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -273,7 +273,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	// spec: "Only the first index may be omitted; it defaults to 0."
+ 	if e.Full && (e.Index[1] == nil || e.Index[2] == nil) {
+-		check.error(e, invalidAST+"2nd and 3rd index required in 3-index slice")
++		check.error(e, 0, invalidAST+"2nd and 3rd index required in 3-index slice")
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -314,7 +314,7 @@ L:
+ 					// The value y corresponds to the expression e.Index[i+1+j].
+ 					// Because y >= 0, it must have been set from the expression
+ 					// when checking indices and thus e.Index[i+1+j] is not nil.
+-					check.errorf(e.Index[i+1+j], "invalid slice indices: %d < %d", y, x)
++					check.errorf(e.Index[i+1+j], _SwappedSliceIndices, "invalid slice indices: %d < %d", y, x)
+ 					break L // only report one error, ok to continue
+ 				}
+ 			}
+@@ -328,16 +328,16 @@ L:
+ func (check *Checker) singleIndex(e *syntax.IndexExpr) syntax.Expr {
+ 	index := e.Index
+ 	if index == nil {
+-		check.errorf(e, invalidAST+"missing index for %s", e.X)
++		check.errorf(e, 0, invalidAST+"missing index for %s", e.X)
+ 		return nil
+ 	}
+ 	if l, _ := index.(*syntax.ListExpr); l != nil {
+ 		if n := len(l.ElemList); n <= 1 {
+-			check.errorf(e, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
++			check.errorf(e, 0, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
+ 			return nil
+ 		}
+ 		// len(l.ElemList) > 1
+-		check.error(l.ElemList[1], invalidOp+"more than one index")
++		check.error(l.ElemList[1], _InvalidIndex, invalidOp+"more than one index")
+ 		index = l.ElemList[0] // continue with first index
+ 	}
+ 	return index
+@@ -353,7 +353,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 
+ 	var x operand
+ 	check.expr(&x, index)
+-	if !check.isValidIndex(&x, "index", false) {
++	if !check.isValidIndex(&x, _InvalidIndex, "index", false) {
+ 		return
+ 	}
+ 
+@@ -368,7 +368,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 	v, ok := constant.Int64Val(x.val)
+ 	assert(ok)
+ 	if max >= 0 && v >= max {
+-		check.errorf(&x, invalidArg+"index %s out of bounds [0:%d]", x.val.String(), max)
++		check.errorf(&x, _InvalidIndex, invalidArg+"index %s out of bounds [0:%d]", x.val.String(), max)
+ 		return
+ 	}
+ 
+@@ -380,7 +380,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ // index values. If allowNegative is set, a constant operand may be negative.
+ // If the operand is not valid, an error is reported (using what as context)
+ // and the result is false.
+-func (check *Checker) isValidIndex(x *operand, what string, allowNegative bool) bool {
++func (check *Checker) isValidIndex(x *operand, code errorCode, what string, allowNegative bool) bool {
+ 	if x.mode == invalid {
+ 		return false
+ 	}
+@@ -393,20 +393,20 @@ func (check *Checker) isValidIndex(x *operand, what string, allowNegative bool)
+ 
+ 	// spec: "the index x must be of integer type or an untyped constant"
+ 	if !allInteger(x.typ) {
+-		check.errorf(x, invalidArg+"%s %s must be integer", what, x)
++		check.errorf(x, code, invalidArg+"%s %s must be integer", what, x)
+ 		return false
+ 	}
+ 
+ 	if x.mode == constant_ {
+ 		// spec: "a constant index must be non-negative ..."
+ 		if !allowNegative && constant.Sign(x.val) < 0 {
+-			check.errorf(x, invalidArg+"%s %s must not be negative", what, x)
++			check.errorf(x, code, invalidArg+"%s %s must not be negative", what, x)
+ 			return false
+ 		}
+ 
+ 		// spec: "... and representable by a value of type int"
+ 		if !representableConst(x.val, check, Typ[Int], &x.val) {
+-			check.errorf(x, invalidArg+"%s %s overflows int", what, x)
++			check.errorf(x, code, invalidArg+"%s %s overflows int", what, x)
+ 			return false
+ 		}
+ 	}
+@@ -431,12 +431,12 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
+ 					index = i
+ 					validIndex = true
+ 				} else {
+-					check.errorf(e, "index %s must be integer constant", kv.Key)
++					check.errorf(e, _InvalidLitIndex, "index %s must be integer constant", kv.Key)
+ 				}
+ 			}
+ 			eval = kv.Value
+ 		} else if length >= 0 && index >= length {
+-			check.errorf(e, "index %d is out of bounds (>= %d)", index, length)
++			check.errorf(e, _OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
+ 		} else {
+ 			validIndex = true
+ 		}
+@@ -444,7 +444,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
+ 		// if we have a valid index, check for duplicate entries
+ 		if validIndex {
+ 			if visited[index] {
+-				check.errorf(e, "duplicate index %d in array or slice literal", index)
++				check.errorf(e, _DuplicateLitKey, "duplicate index %d in array or slice literal", index)
+ 			}
+ 			visited[index] = true
+ 		}
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 26e01e9ae5..e9d367e648 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -216,16 +216,20 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 				}
+ 			}
+ 			if allFailed {
+-				check.errorf(arg, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
++				check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+ 				return
+ 			}
+ 		}
+ 		smap := makeSubstMap(tparams, targs)
+ 		inferred := check.subst(arg.Pos(), tpar, smap, nil, check.context())
++		// _CannotInferTypeArgs indicates a failure of inference, though the actual
++		// error may be better attributed to a user-provided type argument (hence
++		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
++		// the more general _CannotInferTypeArgs.
+ 		if inferred != tpar {
+-			check.errorf(arg, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
++			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+ 		} else {
+-			check.errorf(arg, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
++			check.errorf(arg, _CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+ 		}
+ 	}
+ 
+@@ -319,7 +323,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// At least one type argument couldn't be inferred.
+ 	assert(targs != nil && index >= 0 && targs[index] == nil)
+ 	tpar := tparams[index]
+-	check.errorf(pos, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
++	check.errorf(pos, _CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
+ 	return nil
+ }
+ 
+@@ -532,7 +536,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 						if core.tilde {
+ 							tilde = "~"
+ 						}
+-						check.errorf(pos, "%s does not match %s%s", tpar, tilde, core.typ)
++						check.errorf(pos, _InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
+ 						return nil, 0
+ 					}
+ 
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index ddabeab72e..19efc4c51e 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -156,7 +156,7 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
+ 	if ntargs != ntparams {
+ 		// TODO(gri) provide better error message
+ 		if check != nil {
+-			check.errorf(pos, "got %d arguments but %d type parameters", ntargs, ntparams)
++			check.errorf(pos, _WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
+ 			return false
+ 		}
+ 		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 431b91f270..d05de8bf4f 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -132,7 +132,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		// We have a method with name f.Name.
+ 		name := f.Name.Value
+ 		if name == "_" {
+-			check.error(f.Name, "methods must have a unique non-blank name")
++			check.error(f.Name, _BlankIfaceMethod, "methods must have a unique non-blank name")
+ 			continue // ignore
+ 		}
+ 
+@@ -140,7 +140,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+ 			if typ != Typ[Invalid] {
+-				check.errorf(f.Type, invalidAST+"%s is not a method signature", typ)
++				check.errorf(f.Type, 0, invalidAST+"%s is not a method signature", typ)
+ 			}
+ 			continue // ignore
+ 		}
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 6f02e2fc96..7cb3ec8465 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -21,21 +21,24 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
+ 	// for the respective gotos.
+ 	for _, jmp := range fwdJumps {
+ 		var msg string
++		var code errorCode
+ 		name := jmp.Label.Value
+ 		if alt := all.Lookup(name); alt != nil {
+ 			msg = "goto %s jumps into block"
+ 			alt.(*Label).used = true // avoid another error
++			code = _JumpIntoBlock
+ 		} else {
+ 			msg = "label %s not declared"
++			code = _UndeclaredLabel
+ 		}
+-		check.errorf(jmp.Label, msg, name)
++		check.errorf(jmp.Label, code, msg, name)
+ 	}
+ 
+ 	// spec: "It is illegal to define a label that is never used."
+ 	for name, obj := range all.elems {
+ 		obj = resolve(name, obj)
+ 		if lbl := obj.(*Label); !lbl.used {
+-			check.softErrorf(lbl.pos, "label %s declared but not used", lbl.name)
++			check.softErrorf(lbl.pos, _UnusedLabel, "label %s declared but not used", lbl.name)
+ 		}
+ 	}
+ }
+@@ -149,6 +152,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 						if jumpsOverVarDecl(jmp) {
+ 							check.softErrorf(
+ 								jmp.Label,
++								_JumpOverDecl,
+ 								"goto %s jumps over variable declaration at line %d",
+ 								name,
+ 								varDeclPos.Line(),
+@@ -186,7 +190,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 					}
+ 				}
+ 				if !valid {
+-					check.errorf(s.Label, "invalid break label %s", name)
++					check.errorf(s.Label, _MisplacedLabel, "invalid break label %s", name)
+ 					return
+ 				}
+ 
+@@ -201,7 +205,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 					}
+ 				}
+ 				if !valid {
+-					check.errorf(s.Label, "invalid continue label %s", name)
++					check.errorf(s.Label, _MisplacedLabel, "invalid continue label %s", name)
+ 					return
+ 				}
+ 
+@@ -213,7 +217,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 				}
+ 
+ 			default:
+-				check.errorf(s, invalidAST+"branch statement: %s %s", s.Tok, name)
++				check.errorf(s, 0, invalidAST+"branch statement: %s %s", s.Tok, name)
+ 				return
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index b7ba083627..5301b64790 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -52,17 +52,18 @@ func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax
+ 	l := len(names)
+ 	r := len(inits)
+ 
++	const code = _WrongAssignCount
+ 	switch {
+ 	case l < r:
+ 		n := inits[l]
+ 		if inherited {
+-			check.errorf(pos, "extra init expr at %s", n.Pos())
++			check.errorf(pos, code, "extra init expr at %s", n.Pos())
+ 		} else {
+-			check.errorf(n, "extra init expr %s", n)
++			check.errorf(n, code, "extra init expr %s", n)
+ 		}
+ 	case l > r && (constDecl || r != 1): // if r == 1 it may be a multi-valued function and we can't say anything yet
+ 		n := names[r]
+-		check.errorf(n, "missing init expr for %s", n.Value)
++		check.errorf(n, code, "missing init expr for %s", n.Value)
+ 	}
+ }
+ 
+@@ -91,14 +92,14 @@ func (check *Checker) declarePkgObj(ident *syntax.Name, obj Object, d *declInfo)
+ 	// spec: "A package-scope or file-scope identifier with name init
+ 	// may only be declared to be a function with this (func()) signature."
+ 	if ident.Value == "init" {
+-		check.error(ident, "cannot declare init - must be func")
++		check.error(ident, _InvalidInitDecl, "cannot declare init - must be func")
+ 		return
+ 	}
+ 
+ 	// spec: "The main package must have package name main and declare
+ 	// a function main that takes no arguments and returns no value."
+ 	if ident.Value == "main" && check.pkg.name == "main" {
+-		check.error(ident, "cannot declare main - must be func")
++		check.error(ident, _InvalidMainDecl, "cannot declare main - must be func")
+ 		return
+ 	}
+ 
+@@ -158,7 +159,7 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
+ 			imp = nil // create fake package below
+ 		}
+ 		if err != nil {
+-			check.errorf(pos, "could not import %s (%s)", path, err)
++			check.errorf(pos, _BrokenImport, "could not import %s (%s)", path, err)
+ 			if imp == nil {
+ 				// create a new fake package
+ 				// come up with a sensible package name (heuristic)
+@@ -245,7 +246,7 @@ func (check *Checker) collectObjects() {
+ 				}
+ 				path, err := validatedImportPath(s.Path.Value)
+ 				if err != nil {
+-					check.errorf(s.Path, "invalid import path (%s)", err)
++					check.errorf(s.Path, _BadImportPath, "invalid import path (%s)", err)
+ 					continue
+ 				}
+ 
+@@ -260,13 +261,13 @@ func (check *Checker) collectObjects() {
+ 					name = s.LocalPkgName.Value
+ 					if path == "C" {
+ 						// match 1.17 cmd/compile (not prescribed by spec)
+-						check.error(s.LocalPkgName, `cannot rename import "C"`)
++						check.error(s.LocalPkgName, _ImportCRenamed, `cannot rename import "C"`)
+ 						continue
+ 					}
+ 				}
+ 
+ 				if name == "init" {
+-					check.error(s, "cannot import package as init - init must be a func")
++					check.error(s, _InvalidInitDecl, "cannot import package as init - init must be a func")
+ 					continue
+ 				}
+ 
+@@ -416,12 +417,16 @@ func (check *Checker) collectObjects() {
+ 				if s.Recv == nil {
+ 					// regular function
+ 					if name == "init" || name == "main" && pkg.name == "main" {
++						code := _InvalidInitDecl
++						if name == "main" {
++							code = _InvalidMainDecl
++						}
+ 						if len(s.TParamList) != 0 {
+-							check.softErrorf(s.TParamList[0], "func %s must have no type parameters", name)
++							check.softErrorf(s.TParamList[0], code, "func %s must have no type parameters", name)
+ 							hasTParamError = true
+ 						}
+ 						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
+-							check.softErrorf(s.Name, "func %s must have no arguments and no return values", name)
++							check.softErrorf(s.Name, code, "func %s must have no arguments and no return values", name)
+ 						}
+ 					}
+ 					// don't declare init functions in the package scope - they are invisible
+@@ -431,7 +436,7 @@ func (check *Checker) collectObjects() {
+ 						// init functions must have a body
+ 						if s.Body == nil {
+ 							// TODO(gri) make this error message consistent with the others above
+-							check.softErrorf(obj.pos, "missing function body")
++							check.softErrorf(obj.pos, _MissingInitBody, "missing function body")
+ 						}
+ 					} else {
+ 						check.declare(pkg.scope, s.Name, obj, nopos)
+@@ -460,7 +465,7 @@ func (check *Checker) collectObjects() {
+ 				obj.setOrder(uint32(len(check.objMap)))
+ 
+ 			default:
+-				check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
++				check.errorf(s, 0, invalidAST+"unknown syntax.Decl node %T", s)
+ 			}
+ 		}
+ 	}
+@@ -471,6 +476,7 @@ func (check *Checker) collectObjects() {
+ 			if alt := pkg.scope.Lookup(name); alt != nil {
+ 				obj = resolve(name, obj)
+ 				var err error_
++				err.code = _DuplicateDecl
+ 				if pkg, ok := obj.(*PkgName); ok {
+ 					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+ 					err.recordAltDecl(pkg)
+@@ -542,9 +548,9 @@ L: // unpack receiver type
+ 				case *syntax.BadExpr:
+ 					// ignore - error already reported by parser
+ 				case nil:
+-					check.error(ptyp, invalidAST+"parameterized receiver contains nil parameters")
++					check.error(ptyp, 0, invalidAST+"parameterized receiver contains nil parameters")
+ 				default:
+-					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
++					check.errorf(arg, _BadDecl, "receiver type parameter %s must be an identifier", arg)
+ 				}
+ 				if par == nil {
+ 					par = syntax.NewName(arg.Pos(), "_")
+@@ -721,15 +727,15 @@ func (check *Checker) errorUnusedPkg(obj *PkgName) {
+ 	}
+ 	if obj.name == "" || obj.name == "." || obj.name == elem {
+ 		if check.conf.CompilerErrorMessages {
+-			check.softErrorf(obj, "imported and not used: %q", path)
++			check.softErrorf(obj, _UnusedImport, "imported and not used: %q", path)
+ 		} else {
+-			check.softErrorf(obj, "%q imported but not used", path)
++			check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
+ 		}
+ 	} else {
+ 		if check.conf.CompilerErrorMessages {
+-			check.softErrorf(obj, "imported and not used: %q as %s", path, obj.name)
++			check.softErrorf(obj, _UnusedImport, "imported and not used: %q as %s", path, obj.name)
+ 		} else {
+-			check.softErrorf(obj, "%q imported but not used as %s", path, obj.name)
++			check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index d6a8e70902..3f1066e050 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -151,7 +151,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				// may lead to follow-on errors (see issues #51339, #51343).
+ 				// TODO(gri) find a better solution
+ 				got := measure(len(tparams), "type parameter")
+-				check.errorf(recvPar, "got %s, but receiver base type declares %d", got, len(recvTParams))
++				check.errorf(recvPar, _BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
+ 			}
+ 		}
+ 	}
+@@ -189,7 +189,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
+ 		default:
+ 			// more than one receiver
+-			check.error(recvList[len(recvList)-1].Pos(), "method must have exactly one receiver")
++			check.error(recvList[len(recvList)-1].Pos(), _InvalidRecv, "method must have exactly one receiver")
+ 			fallthrough // continue with first receiver
+ 		case 1:
+ 			recv = recvList[0]
+@@ -212,11 +212,11 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				// The receiver type may be an instantiated type referred to
+ 				// by an alias (which cannot have receiver parameters for now).
+ 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+-					check.errorf(recv, "cannot define new methods on instantiated type %s", rtyp)
++					check.errorf(recv, _InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
+ 					break
+ 				}
+ 				if T.obj.pkg != check.pkg {
+-					check.errorf(recv, "cannot define new methods on non-local type %s", rtyp)
++					check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 					break
+ 				}
+ 				var cause string
+@@ -234,12 +234,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 					unreachable()
+ 				}
+ 				if cause != "" {
+-					check.errorf(recv, "invalid receiver type %s (%s)", rtyp, cause)
++					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+ 				}
+ 			case *Basic:
+-				check.errorf(recv, "cannot define new methods on non-local type %s", rtyp)
++				check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 			default:
+-				check.errorf(recv, "invalid receiver type %s", recv.typ)
++				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+ 			}
+ 		}).describef(recv, "validate receiver %s", recv)
+ 	}
+@@ -270,7 +270,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
+ 				if variadicOk && i == len(list)-1 {
+ 					variadic = true
+ 				} else {
+-					check.softErrorf(t, "can only use ... with final parameter in list")
++					check.softErrorf(t, _MisplacedDotDotDot, "can only use ... with final parameter in list")
+ 					// ignore ... and continue
+ 				}
+ 			}
+@@ -282,7 +282,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
+ 			// named parameter
+ 			name := field.Name.Value
+ 			if name == "" {
+-				check.error(field.Name, invalidAST+"anonymous parameter")
++				check.error(field.Name, 0, invalidAST+"anonymous parameter")
+ 				// ok to continue
+ 			}
+ 			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
+@@ -299,7 +299,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
+ 	}
+ 
+ 	if named && anonymous {
+-		check.error(list[0], invalidAST+"list contains both named and anonymous parameters")
++		check.error(list[0], 0, invalidAST+"list contains both named and anonymous parameters")
+ 		// ok to continue
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index adb24d495d..e02217fb88 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -46,7 +46,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 	}
+ 
+ 	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
+-		check.error(body.Rbrace, "missing return")
++		check.error(body.Rbrace, _MissingReturn, "missing return")
+ 	}
+ 
+ 	// spec: "Implementation restriction: A compiler may make it illegal to
+@@ -66,7 +66,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		return unused[i].pos.Cmp(unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+-		check.softErrorf(v.pos, "%s declared but not used", v.name)
++		check.softErrorf(v.pos, _UnusedVar, "%s declared but not used", v.name)
+ 	}
+ 
+ 	for _, scope := range scope.children {
+@@ -128,7 +128,7 @@ func (check *Checker) multipleSwitchDefaults(list []*syntax.CaseClause) {
+ 	for _, c := range list {
+ 		if c.Cases == nil {
+ 			if first != nil {
+-				check.errorf(c, "multiple defaults (first at %s)", first.Pos())
++				check.errorf(c, _DuplicateDefault, "multiple defaults (first at %s)", first.Pos())
+ 				// TODO(gri) probably ok to bail out after first error (and simplify this code)
+ 			} else {
+ 				first = c
+@@ -142,7 +142,7 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
+ 	for _, c := range list {
+ 		if c.Comm == nil {
+ 			if first != nil {
+-				check.errorf(c, "multiple defaults (first at %s)", first.Pos())
++				check.errorf(c, _DuplicateDefault, "multiple defaults (first at %s)", first.Pos())
+ 				// TODO(gri) probably ok to bail out after first error (and simplify this code)
+ 			} else {
+ 				first = c
+@@ -166,8 +166,13 @@ func (check *Checker) closeScope() {
+ }
+ 
+ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
++	code := _InvalidDefer
++	if keyword == "go" {
++		code = _InvalidGo
++	}
++
+ 	if _, ok := call.(*syntax.CallExpr); !ok {
+-		check.errorf(call, "expression in %s must be function call", keyword)
++		check.errorf(call, code, "expression in %s must be function call", keyword)
+ 		check.use(call)
+ 		return
+ 	}
+@@ -179,12 +184,13 @@ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
+ 		msg = "requires function call, not conversion"
+ 	case expression:
+ 		msg = "discards result of"
++		code = _UnusedResults
+ 	case statement:
+ 		return
+ 	default:
+ 		unreachable()
+ 	}
+-	check.errorf(&x, "%s %s %s", keyword, msg, &x)
++	check.errorf(&x, code, "%s %s %s", keyword, msg, &x)
+ }
+ 
+ // goVal returns the Go value for val, or nil.
+@@ -395,18 +401,22 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		var x operand
+ 		kind := check.rawExpr(&x, s.X, nil, false)
+ 		var msg string
++		var code errorCode
+ 		switch x.mode {
+ 		default:
+ 			if kind == statement {
+ 				return
+ 			}
+ 			msg = "is not used"
++			code = _UnusedExpr
+ 		case builtin:
+ 			msg = "must be called"
++			code = _UncalledBuiltin
+ 		case typexpr:
+ 			msg = "is not an expression"
++			code = _NotAnExpr
+ 		}
+-		check.errorf(&x, "%s %s", &x, msg)
++		check.errorf(&x, code, "%s %s", &x, msg)
+ 
+ 	case *syntax.SendStmt:
+ 		var ch, val operand
+@@ -417,16 +427,16 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		}
+ 		u := coreType(ch.typ)
+ 		if u == nil {
+-			check.errorf(s, invalidOp+"cannot send to %s: no core type", &ch)
++			check.errorf(s, _InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
+ 			return
+ 		}
+ 		uch, _ := u.(*Chan)
+ 		if uch == nil {
+-			check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
++			check.errorf(s, _InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
+ 			return
+ 		}
+ 		if uch.dir == RecvOnly {
+-			check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
++			check.errorf(s, _InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
+ 			return
+ 		}
+ 		check.assignment(&val, uch.elem, "send")
+@@ -436,7 +446,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		if s.Rhs == nil {
+ 			// x++ or x--
+ 			if len(lhs) != 1 {
+-				check.errorf(s, invalidAST+"%s%s requires one operand", s.Op, s.Op)
++				check.errorf(s, 0, invalidAST+"%s%s requires one operand", s.Op, s.Op)
+ 				return
+ 			}
+ 			var x operand
+@@ -445,7 +455,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 				return
+ 			}
+ 			if !allNumeric(x.typ) {
+-				check.errorf(lhs[0], invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
++				check.errorf(lhs[0], _NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+ 				return
+ 			}
+ 			check.assignVar(lhs[0], &x)
+@@ -464,7 +474,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 		// assignment operations
+ 		if len(lhs) != 1 || len(rhs) != 1 {
+-			check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
++			check.errorf(s, _MultiValAssignOp, "assignment operation %s requires single-valued expressions", s.Op)
+ 			return
+ 		}
+ 
+@@ -516,11 +526,11 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		switch s.Tok {
+ 		case syntax.Break:
+ 			if ctxt&breakOk == 0 {
+-				check.error(s, "break not in for, switch, or select statement")
++				check.error(s, _MisplacedBreak, "break not in for, switch, or select statement")
+ 			}
+ 		case syntax.Continue:
+ 			if ctxt&continueOk == 0 {
+-				check.error(s, "continue not in for statement")
++				check.error(s, _MisplacedContinue, "continue not in for statement")
+ 			}
+ 		case syntax.Fallthrough:
+ 			if ctxt&fallthroughOk == 0 {
+@@ -533,13 +543,13 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 				default:
+ 					msg = "fallthrough statement out of place"
+ 				}
+-				check.error(s, msg)
++				check.error(s, _MisplacedFallthrough, msg)
+ 			}
+ 		case syntax.Goto:
+ 			// goto's must have labels, should have been caught above
+ 			fallthrough
+ 		default:
+-			check.errorf(s, invalidAST+"branch statement: %s", s.Tok)
++			check.errorf(s, 0, invalidAST+"branch statement: %s", s.Tok)
+ 		}
+ 
+ 	case *syntax.BlockStmt:
+@@ -556,7 +566,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		var x operand
+ 		check.expr(&x, s.Cond)
+ 		if x.mode != invalid && !allBoolean(x.typ) {
+-			check.error(s.Cond, "non-boolean condition in if statement")
++			check.error(s.Cond, _InvalidCond, "non-boolean condition in if statement")
+ 		}
+ 		check.stmt(inner, s.Then)
+ 		// The parser produces a correct AST but if it was modified
+@@ -567,7 +577,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		case *syntax.IfStmt, *syntax.BlockStmt:
+ 			check.stmt(inner, s.Else)
+ 		default:
+-			check.error(s.Else, "invalid else branch in if statement")
++			check.error(s.Else, 0, invalidAST+"invalid else branch in if statement")
+ 		}
+ 
+ 	case *syntax.SwitchStmt:
+@@ -615,7 +625,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			}
+ 
+ 			if !valid {
+-				check.error(clause.Comm, "select case must be send or receive (possibly with assignment)")
++				check.error(clause.Comm, _InvalidSelectCase, "select case must be send or receive (possibly with assignment)")
+ 				continue
+ 			}
+ 			end := s.Rbrace
+@@ -646,7 +656,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			var x operand
+ 			check.expr(&x, s.Cond)
+ 			if x.mode != invalid && !allBoolean(x.typ) {
+-				check.error(s.Cond, "non-boolean condition in for statement")
++				check.error(s.Cond, _InvalidCond, "non-boolean condition in for statement")
+ 			}
+ 		}
+ 		check.simpleStmt(s.Post)
+@@ -659,7 +669,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.stmt(inner, s.Body)
+ 
+ 	default:
+-		check.error(s, "invalid statement")
++		check.error(s, 0, invalidAST+"invalid statement")
+ 	}
+ }
+ 
+@@ -673,7 +683,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
+ 		// (as a compiler would), we get all the relevant checks.
+ 		check.assignment(&x, nil, "switch expression")
+ 		if x.mode != invalid && !Comparable(x.typ) && !hasNil(x.typ) {
+-			check.errorf(&x, "cannot switch on %s (%s is not comparable)", &x, x.typ)
++			check.errorf(&x, _InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ)
+ 			x.mode = invalid
+ 		}
+ 	} else {
+@@ -695,7 +705,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
+ 	seen := make(valueMap) // map of seen case values to positions and types
+ 	for i, clause := range s.Body {
+ 		if clause == nil {
+-			check.error(clause, invalidAST+"incorrect expression switch case")
++			check.error(clause, 0, invalidAST+"incorrect expression switch case")
+ 			continue
+ 		}
+ 		end := s.Rbrace
+@@ -726,7 +736,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	if lhs != nil {
+ 		if lhs.Value == "_" {
+ 			// _ := x.(type) is an invalid short variable declaration
+-			check.softErrorf(lhs, "no new variable on left side of :=")
++			check.softErrorf(lhs, _NoNewVar, "no new variable on left side of :=")
+ 			lhs = nil // avoid declared but not used error below
+ 		} else {
+ 			check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
+@@ -743,12 +753,12 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	// TODO(gri) we may want to permit type switches on type parameter values at some point
+ 	var sx *operand // switch expression against which cases are compared against; nil if invalid
+ 	if isTypeParam(x.typ) {
+-		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
++		check.errorf(&x, _InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
+ 	} else {
+ 		if _, ok := under(x.typ).(*Interface); ok {
+ 			sx = &x
+ 		} else {
+-			check.errorf(&x, "%s is not an interface", &x)
++			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
+ 		}
+ 	}
+ 
+@@ -758,7 +768,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	seen := make(map[Type]syntax.Expr) // map of seen types to positions
+ 	for i, clause := range s.Body {
+ 		if clause == nil {
+-			check.error(s, invalidAST+"incorrect type switch case")
++			check.error(s, 0, invalidAST+"incorrect type switch case")
+ 			continue
+ 		}
+ 		end := s.Rbrace
+@@ -810,7 +820,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 			v.used = true // avoid usage error when checking entire function
+ 		}
+ 		if !used {
+-			check.softErrorf(lhs, "%s declared but not used", lhs.Value)
++			check.softErrorf(lhs, _UnusedVar, "%s declared but not used", lhs.Value)
+ 		}
+ 	}
+ }
+@@ -821,7 +831,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	var sValue, sExtra syntax.Expr
+ 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
+ 		if len(p.ElemList) < 2 {
+-			check.error(s, invalidAST+"invalid lhs in range clause")
++			check.error(s, 0, invalidAST+"invalid lhs in range clause")
+ 			return
+ 		}
+ 		// len(p.ElemList) >= 2
+@@ -845,7 +855,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 		u := coreType(x.typ)
+ 		if t, _ := u.(*Chan); t != nil {
+ 			if sValue != nil {
+-				check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
++				check.softErrorf(sValue, _InvalidIterVar, "range over %s permits only one iteration variable", &x)
+ 				// ok to continue
+ 			}
+ 			if t.dir == SendOnly {
+@@ -853,7 +863,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 			}
+ 		} else {
+ 			if sExtra != nil {
+-				check.softErrorf(sExtra, "range clause permits at most two iteration variables")
++				check.softErrorf(sExtra, _InvalidIterVar, "range clause permits at most two iteration variables")
+ 				// ok to continue
+ 			}
+ 			if u == nil {
+@@ -863,9 +873,9 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 		key, val = rangeKeyVal(u)
+ 		if key == nil || cause != "" {
+ 			if cause == "" {
+-				check.softErrorf(&x, "cannot range over %s", &x)
++				check.softErrorf(&x, _InvalidRangeExpr, "cannot range over %s", &x)
+ 			} else {
+-				check.softErrorf(&x, "cannot range over %s (%s)", &x, cause)
++				check.softErrorf(&x, _InvalidRangeExpr, "cannot range over %s (%s)", &x, cause)
+ 			}
+ 			// ok to continue
+ 		}
+@@ -903,7 +913,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 					vars = append(vars, obj)
+ 				}
+ 			} else {
+-				check.errorf(lhs, "cannot declare %s", lhs)
++				check.errorf(lhs, 0, invalidAST+"cannot declare %s", lhs)
+ 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
+ 
+@@ -926,7 +936,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 				check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+ 			}
+ 		} else {
+-			check.error(s, "no new variables on left side of :=")
++			check.error(s, _NoNewVar, "no new variables on left side of :=")
+ 		}
+ 	} else {
+ 		// ordinary assignment
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 31a3b1af5b..00cae4c800 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -129,7 +129,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 			pos := syntax.StartPos(f.Type)
+ 			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+-				check.errorf(pos, "invalid embedded field type %s", f.Type)
++				check.errorf(pos, 0, invalidAST+"invalid embedded field type %s", f.Type)
+ 				name = &syntax.Name{Value: "_"} // TODO(gri) need to set position to pos
+ 				addInvalid(name, pos)
+ 				continue
+@@ -152,17 +152,20 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 					}
+ 					// unsafe.Pointer is treated like a regular pointer
+ 					if u.kind == UnsafePointer {
+-						check.error(embeddedPos, "embedded field type cannot be unsafe.Pointer")
++						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
+ 					}
+ 				case *Pointer:
+-					check.error(embeddedPos, "embedded field type cannot be a pointer")
++					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
+ 				case *Interface:
+ 					if isTypeParam(t) {
+-						check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
++						// The error code here is inconsistent with other error codes for
++						// invalid embedding, because this restriction may be relaxed in the
++						// future, and so it did not warrant a new error code.
++						check.error(embeddedPos, _MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
+ 						break
+ 					}
+ 					if isPtr {
+-						check.error(embeddedPos, "embedded field type cannot be a pointer to an interface")
++						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
+ 					}
+ 				}
+ 			}).describef(embeddedPos, "check embedded type %s", embeddedTyp)
+@@ -212,7 +215,7 @@ func (check *Checker) tag(t *syntax.BasicLit) string {
+ 				return val
+ 			}
+ 		}
+-		check.errorf(t, invalidAST+"incorrect tag syntax: %q", t.Value)
++		check.errorf(t, 0, invalidAST+"incorrect tag syntax: %q", t.Value)
+ 	}
+ 	return ""
+ }
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 9ac3b6349c..9bbe0bef90 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -421,7 +421,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
+ 		allTerms = allTerms.union(terms)
+ 		if len(allTerms) > maxTermCount {
+ 			if check != nil {
+-				check.errorf(pos, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
++				check.errorf(pos, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+ 			}
+ 			unionSets[utyp] = &invalidTypeSet
+ 			return unionSets[utyp]
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 262f5af332..6953203788 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -34,13 +34,13 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 				x.mode = typexpr
+ 				x.typ = tpar
+ 			} else {
+-				check.error(e, "cannot use _ as value or type")
++				check.error(e, _InvalidBlank, "cannot use _ as value or type")
+ 			}
+ 		} else {
+ 			if check.conf.CompilerErrorMessages {
+-				check.errorf(e, "undefined: %s", e.Value)
++				check.errorf(e, _UndeclaredName, "undefined: %s", e.Value)
+ 			} else {
+-				check.errorf(e, "undeclared name: %s", e.Value)
++				check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Value)
+ 			}
+ 		}
+ 		return
+@@ -77,7 +77,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+-		check.errorf(e, "use of package %s not in selector", obj.name)
++		check.errorf(e, _InvalidPkgUse, "use of package %s not in selector", obj.name)
+ 		return
+ 
+ 	case *Const:
+@@ -87,7 +87,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		}
+ 		if obj == universeIota {
+ 			if check.iota == nil {
+-				check.error(e, "cannot use iota outside constant declaration")
++				check.error(e, _InvalidIota, "cannot use iota outside constant declaration")
+ 				return
+ 			}
+ 			x.val = check.iota
+@@ -99,7 +99,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 
+ 	case *TypeName:
+ 		if check.isBrokenAlias(obj) {
+-			check.errorf(e, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
++			check.errorf(e, _InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
+ 			return
+ 		}
+ 		x.mode = typexpr
+@@ -167,9 +167,9 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
+ 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+ 			if !tset.IsMethodSet() {
+ 				if tset.comparable {
+-					check.softErrorf(pos, "cannot use type %s outside a type constraint: interface is (or embeds) comparable", typ)
++					check.softErrorf(pos, _MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface is (or embeds) comparable", typ)
+ 				} else {
+-					check.softErrorf(pos, "cannot use type %s outside a type constraint: interface contains type constraints", typ)
++					check.softErrorf(pos, _MisplacedConstraintIface, "cannot use type %s outside a type constraint: interface contains type constraints", typ)
+ 				}
+ 			}
+ 		}
+@@ -184,7 +184,7 @@ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
+ 	typ := check.typInternal(e, def)
+ 	assert(isTyped(typ))
+ 	if isGeneric(typ) {
+-		check.errorf(e, "cannot use generic type %s without instantiation", typ)
++		check.errorf(e, _WrongTypeArgCount, "cannot use generic type %s without instantiation", typ)
+ 		typ = Typ[Invalid]
+ 	}
+ 	check.recordTypeAndValue(e, typexpr, typ, nil)
+@@ -252,9 +252,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		case invalid:
+ 			// ignore - error reported before
+ 		case novalue:
+-			check.errorf(&x, "%s used as type", &x)
++			check.errorf(&x, _NotAType, "%s used as type", &x)
+ 		default:
+-			check.errorf(&x, "%s is not a type", &x)
++			check.errorf(&x, _NotAType, "%s is not a type", &x)
+ 		}
+ 
+ 	case *syntax.SelectorExpr:
+@@ -269,9 +269,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		case invalid:
+ 			// ignore - error reported before
+ 		case novalue:
+-			check.errorf(&x, "%s used as type", &x)
++			check.errorf(&x, _NotAType, "%s used as type", &x)
+ 		default:
+-			check.errorf(&x, "%s is not a type", &x)
++			check.errorf(&x, _NotAType, "%s is not a type", &x)
+ 		}
+ 
+ 	case *syntax.IndexExpr:
+@@ -292,7 +292,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			typ.len = check.arrayLength(e.Len)
+ 		} else {
+ 			// [...]array
+-			check.error(e, "invalid use of [...] array (outside a composite literal)")
++			check.error(e, _BadDotDotDotSyntax, "invalid use of [...] array (outside a composite literal)")
+ 			typ.len = -1
+ 		}
+ 		typ.elem = check.varType(e.Elem)
+@@ -310,7 +310,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 	case *syntax.DotsType:
+ 		// dots are handled explicitly where they are legal
+ 		// (array composite literals and parameter lists)
+-		check.error(e, "invalid use of '...'")
++		check.error(e, _InvalidDotDotDot, "invalid use of '...'")
+ 		check.use(e.Elem)
+ 
+ 	case *syntax.StructType:
+@@ -335,7 +335,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 			return typ
+ 		}
+ 
+-		check.errorf(e0, "%s is not a type", e0)
++		check.errorf(e0, _NotAType, "%s is not a type", e0)
+ 		check.use(e0)
+ 
+ 	case *syntax.FuncType:
+@@ -369,7 +369,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 				if isTypeParam(typ.key) {
+ 					why = " (missing comparable constraint)"
+ 				}
+-				check.errorf(e.Key, "invalid map key type %s%s", typ.key, why)
++				check.errorf(e.Key, _IncomparableMapKey, "invalid map key type %s%s", typ.key, why)
+ 			}
+ 		}).describef(e.Key, "check map key %s", typ.key)
+ 
+@@ -388,7 +388,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		case syntax.RecvOnly:
+ 			dir = RecvOnly
+ 		default:
+-			check.errorf(e, invalidAST+"unknown channel direction %d", e.Dir)
++			check.errorf(e, 0, invalidAST+"unknown channel direction %d", e.Dir)
+ 			// ok to continue
+ 		}
+ 
+@@ -397,7 +397,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		return typ
+ 
+ 	default:
+-		check.errorf(e0, "%s is not a type", e0)
++		check.errorf(e0, _NotAType, "%s is not a type", e0)
+ 		check.use(e0)
+ 	}
+ 
+@@ -420,7 +420,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	var reason string
+ 	gtyp := check.genericType(x, &reason)
+ 	if reason != "" {
+-		check.errorf(x, invalidOp+"%s%s (%s)", x, xlist, reason)
++		check.errorf(x, _NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, reason)
+ 	}
+ 	if gtyp == Typ[Invalid] {
+ 		return gtyp // error already reported
+@@ -456,7 +456,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 				if i < len(xlist) {
+ 					pos = syntax.StartPos(xlist[i])
+ 				}
+-				check.softErrorf(pos, "%s", err)
++				check.softErrorf(pos, _InvalidTypeArg, "%s", err)
+ 			} else {
+ 				check.mono.recordInstance(check.pkg, x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), xlist)
+ 			}
+@@ -482,11 +482,11 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ 	if name, _ := e.(*syntax.Name); name != nil {
+ 		obj := check.lookup(name.Value)
+ 		if obj == nil {
+-			check.errorf(name, "undeclared name %s for array length", name.Value)
++			check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Value)
+ 			return -1
+ 		}
+ 		if _, ok := obj.(*Const); !ok {
+-			check.errorf(name, "invalid array length %s", name.Value)
++			check.errorf(name, _InvalidArrayLen, "invalid array length %s", name.Value)
+ 			return -1
+ 		}
+ 	}
+@@ -495,7 +495,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ 	check.expr(&x, e)
+ 	if x.mode != constant_ {
+ 		if x.mode != invalid {
+-			check.errorf(&x, "array length %s must be constant", &x)
++			check.errorf(&x, _InvalidArrayLen, "array length %s must be constant", &x)
+ 		}
+ 		return -1
+ 	}
+@@ -506,13 +506,13 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
+ 					return n
+ 				}
+-				check.errorf(&x, "invalid array length %s", &x)
++				check.errorf(&x, _InvalidArrayLen, "invalid array length %s", &x)
+ 				return -1
+ 			}
+ 		}
+ 	}
+ 
+-	check.errorf(&x, "array length %s must be integer", &x)
++	check.errorf(&x, _InvalidArrayLen, "array length %s must be integer", &x)
+ 	return -1
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 0ed125fb29..782e5d2a63 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -64,7 +64,7 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 		}
+ 		if len(terms) >= maxTermCount {
+ 			if u != Typ[Invalid] {
+-				check.errorf(x, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
++				check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+ 				u = Typ[Invalid]
+ 			}
+ 		} else {
+@@ -94,12 +94,12 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 			f, _ := u.(*Interface)
+ 			if t.tilde {
+ 				if f != nil {
+-					check.errorf(tlist[i], "invalid use of ~ (%s is an interface)", t.typ)
++					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (%s is an interface)", t.typ)
+ 					continue // don't report another error for t
+ 				}
+ 
+ 				if !Identical(u, t.typ) {
+-					check.errorf(tlist[i], "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
++					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+ 					continue
+ 				}
+ 			}
+@@ -112,11 +112,11 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 				tset := f.typeSet()
+ 				switch {
+ 				case tset.NumMethods() != 0:
+-					check.errorf(tlist[i], "cannot use %s in union (%s contains methods)", t, t)
++					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
+ 				case t.typ == universeComparable.Type():
+-					check.error(tlist[i], "cannot use comparable in union")
++					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
+ 				case tset.comparable:
+-					check.errorf(tlist[i], "cannot use %s in union (%s embeds comparable)", t, t)
++					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
+ 				}
+ 				continue // terms with interface types are not subject to the no-overlap rule
+ 			}
+@@ -124,7 +124,7 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 			// Report overlapping (non-disjoint) terms such as
+ 			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
+ 			if j := overlappingTerm(terms[:i], t); j >= 0 {
+-				check.softErrorf(tlist[i], "overlapping terms %s and %s", t, terms[j])
++				check.softErrorf(tlist[i], _InvalidUnion, "overlapping terms %s and %s", t, terms[j])
+ 			}
+ 		}
+ 	}).describef(uexpr, "check term validity %s", uexpr)
+@@ -147,9 +147,9 @@ func parseTilde(check *Checker, tx syntax.Expr) *Term {
+ 	// and since the underlying type is an interface the embedding is well defined.
+ 	if isTypeParam(typ) {
+ 		if tilde {
+-			check.errorf(x, "type in term %s cannot be a type parameter", tx)
++			check.errorf(x, _MisplacedTypeParam, "type in term %s cannot be a type parameter", tx)
+ 		} else {
+-			check.error(x, "term cannot be a type parameter")
++			check.error(x, _MisplacedTypeParam, "term cannot be a type parameter")
+ 		}
+ 		typ = Typ[Invalid]
+ 	}

@@ -14,9 +14,89 @@ Date:   Tue Oct 31 16:49:27 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/74852
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  4 ++--
  src/cmd/compile/internal/gc/ssa.go           |  3 +++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 ++++---
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 14 ++++++++++++++
  4 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5bf8f0e4d8..ce322e5e99 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -855,8 +855,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64ROUNDSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		val := v.AuxInt
+-		// 1 means math.Floor, 2 Ceil, 3 Trunc
+-		if val != 1 && val != 2 && val != 3 {
++		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc
++		if val != 0 && val != 1 && val != 2 && val != 3 {
+ 			v.Fatalf("Invalid rounding mode")
+ 		}
+ 		p.From.Offset = val
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4bb88b62ef..a02b2ec25f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2860,6 +2860,9 @@ func init() {
+ 			return s.variable(n, types.Types[TFLOAT64])
+ 		}
+ 	}
++	addF("math", "RoundToEven",
++		makeRoundAMD64(ssa.OpRoundToEven),
++		sys.AMD64)
+ 	addF("math", "Floor",
+ 		makeRoundAMD64(ssa.OpFloor),
+ 		sys.AMD64)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index d26cdfba56..238515dfcb 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -113,9 +113,10 @@
+ 
+ (Sqrt x) -> (SQRTSD x)
+ 
+-(Floor x) -> (ROUNDSD [1] x)
+-(Ceil x)  -> (ROUNDSD [2] x)
+-(Trunc x) -> (ROUNDSD [3] x)
++(RoundToEven x) -> (ROUNDSD [0] x)
++(Floor x)	-> (ROUNDSD [1] x)
++(Ceil x)  	-> (ROUNDSD [2] x)
++(Trunc x) 	-> (ROUNDSD [3] x)
+ 
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e6f574b6c1..c54949fd9d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -795,6 +795,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpRound32F_0(v)
+ 	case OpRound64F:
+ 		return rewriteValueAMD64_OpRound64F_0(v)
++	case OpRoundToEven:
++		return rewriteValueAMD64_OpRoundToEven_0(v)
+ 	case OpRsh16Ux16:
+ 		return rewriteValueAMD64_OpRsh16Ux16_0(v)
+ 	case OpRsh16Ux32:
+@@ -45652,6 +45654,18 @@ func rewriteValueAMD64_OpRound64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpRoundToEven_0(v *Value) bool {
++	// match: (RoundToEven x)
++	// cond:
++	// result: (ROUNDSD [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpAMD64ROUNDSD)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpRsh16Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b

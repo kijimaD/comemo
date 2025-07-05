@@ -10,6 +10,20 @@ Date:   Tue Mar 24 02:07:20 2015 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/6g/galign.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/galign.go b/src/cmd/6g/galign.go
+index 8dab0369e3..a73ddc6475 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/6g/galign.go
+@@ -65,7 +65,7 @@ func betypeinit() {
+ 
+ func main() {
+ 	if obj.Getgoos() == "nacl" {
+-		resvd = append(resvd, x86.REG_BP, x86.REG_SI)
++		resvd = append(resvd, x86.REG_BP, x86.REG_R15)
+ 	} else if obj.Framepointer_enabled != 0 {
+ 		resvd = append(resvd, x86.REG_BP)
+ 	}

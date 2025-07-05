@@ -15,6 +15,25 @@ Date:   Mon Nov 4 18:11:57 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/ppc64/obj9.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 266c982549..4b6910d5ca 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -961,6 +961,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
+ 				p.Spadj = int32(-p.From.Offset)
+ 			}
++		case AMOVDU:
++			if p.To.Type == obj.TYPE_MEM && p.To.Reg == REGSP {
++				p.Spadj = int32(-p.To.Offset)
++			}
++			if p.From.Type == obj.TYPE_MEM && p.From.Reg == REGSP {
++				p.Spadj = int32(-p.From.Offset)
++			}
+ 		case obj.AGETCALLERPC:
+ 			if cursym.Leaf() {
+ 				/* MOVD LR, Rd */

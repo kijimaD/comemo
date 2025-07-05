@@ -7,7 +7,64 @@ Date:   Mon Dec 13 17:08:40 2010 -0800
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/3541044
-
+---
  src/pkg/go/token/position.go      | 22 ++++++++++++++++++++++
  src/pkg/go/token/position_test.go | 18 ++++++++++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 8eb8d138e6..0044a0ed77 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -385,3 +385,25 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 	s.files = append(s.files, f)
+ 	return f
+ }
++
++
++// Files returns the files added to the file set.
++func (s *FileSet) Files() <-chan *File {
++	ch := make(chan *File)
++	go func() {
++		for i := 0; ; i++ {
++			var f *File
++			s.mutex.RLock()
++			if i < len(s.files) {
++				f = s.files[i]
++			}
++			s.mutex.RUnlock()
++			if f == nil {
++				break
++			}
++			ch <- f
++		}
++		close(ch)
++	}()
++	return ch
++}
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+index bc10ef6c0a..1cffcc3c27 100644
+--- a/src/pkg/go/token/position_test.go
++++ b/src/pkg/go/token/position_test.go
+@@ -138,3 +138,21 @@ func TestLineInfo(t *testing.T) {
+ 		checkPos(t, msg, fset.Position(p), Position{"bar", offs, 42, col})
+ 	}
+ }
++
++
++func TestFiles(t *testing.T) {
++	fset := NewFileSet()
++	for i, test := range tests {
++		fset.AddFile(test.filename, fset.Base(), test.size)
++		j := 0
++		for g := range fset.Files() {
++			if g.Name() != tests[j].filename {
++				t.Errorf("expected filename = %s; got %s", tests[j].filename, g.Name())
++			}
++			j++
++		}
++		if j != i+1 {
++			t.Errorf("expected %d files; got %d", i+1, j)
++		}
++	}
++}

@@ -9,6 +9,34 @@ Date:   Fri May 12 13:45:55 2017 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 73489ca274..041773ba91 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4055,7 +4055,9 @@ func TestCgoFlagContainsSpace(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 
+-	tg.tempFile(fmt.Sprintf("src/%s/main.go", testCC), fmt.Sprintf(`package main
++	ccName := filepath.Base(testCC)
++
++	tg.tempFile(fmt.Sprintf("src/%s/main.go", ccName), fmt.Sprintf(`package main
+ 		import (
+ 			"os"
+ 			"os/exec"
+@@ -4095,9 +4097,9 @@ func TestCgoFlagContainsSpace(t *testing.T) {
+ 			}
+ 		}
+ 	`, testCC))
+-	tg.cd(tg.path(fmt.Sprintf("src/%s", testCC)))
++	tg.cd(tg.path(fmt.Sprintf("src/%s", ccName)))
+ 	tg.run("build")
+-	tg.setenv("CC", tg.path(fmt.Sprintf("src/%s/%s", testCC, testCC)))
++	tg.setenv("CC", tg.path(fmt.Sprintf("src/%s/%s", ccName, ccName)))
+ 
+ 	tg.tempFile("src/cgo/main.go", `package main
+ 		// #cgo CFLAGS: -I"c flags"

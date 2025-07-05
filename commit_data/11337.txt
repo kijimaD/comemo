@@ -8,6 +8,21 @@ Date:   Mon Jan 23 08:40:34 2012 -0800
     R=iant, fullung, rsc
     CC=golang-dev
     https://golang.org/cl/5563049
-
+---
  src/pkg/encoding/gob/debug.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/encoding/gob/debug.go b/src/pkg/encoding/gob/debug.go
+index 4a61d0fb2f..6dc7fc9aca 100644
+--- a/src/pkg/encoding/gob/debug.go
++++ b/src/pkg/encoding/gob/debug.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Delete the next line to include this file in the gob package.
++// +build ignore
++
+ package gob
+ 
+ // This file is not normally included in the gob package.  Used only for debugging the package itself.

@@ -20,6 +20,27 @@ Date:   Thu Apr 24 11:10:05 2025 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/mbitmap.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 7d528b94b4..f9a4c4ce3d 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -219,8 +219,13 @@ func (tp typePointers) nextFast() (typePointers, uintptr) {
+ 	} else {
+ 		i = sys.TrailingZeros32(uint32(tp.mask))
+ 	}
+-	// BTCQ
+-	tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
++	if GOARCH == "amd64" {
++		// BTCQ
++		tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
++	} else {
++		// SUB, AND
++		tp.mask &= tp.mask - 1
++	}
+ 	// LEAQ (XX)(XX*8)
+ 	return tp, tp.addr + uintptr(i)*goarch.PtrSize
+ }

@@ -39,8 +39,95 @@ Date:   Tue Sep 14 10:48:18 2021 +0800
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/proc.go     | 11 ++++-------
  src/runtime/runtime2.go |  2 +-
  src/runtime/stubs.go    | 17 +++++++++++++++--
  3 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 605e133000..b744d0e71e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -680,10 +680,10 @@ func schedinit() {
+ 	moduledataverify()
+ 	stackinit()
+ 	mallocinit()
++	cpuinit()      // must run before alginit
++	alginit()      // maps, hash, fastrand must not be used before this call
+ 	fastrandinit() // must run before mcommoninit
+ 	mcommoninit(_g_.m, -1)
+-	cpuinit()       // must run before alginit
+-	alginit()       // maps must not be used before this call
+ 	modulesinit()   // provides activeModules
+ 	typelinksinit() // uses maps, activeModules
+ 	itabsinit()     // uses activeModules
+@@ -787,11 +787,8 @@ func mcommoninit(mp *m, id int64) {
+ 		mp.id = mReserveID()
+ 	}
+ 
+-	mp.fastrand[0] = uint32(int64Hash(uint64(mp.id), fastrandseed))
+-	mp.fastrand[1] = uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
+-	if mp.fastrand[0]|mp.fastrand[1] == 0 {
+-		mp.fastrand[1] = 1
+-	}
++	// cputicks is not very random in startup virtual machine
++	mp.fastrand = uint64(int64Hash(uint64(mp.id), fastrandseed^uintptr(cputicks())))
+ 
+ 	mpreinit(mp)
+ 	if mp.gsignal != nil {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 271d57e5d0..04bd5cb887 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -538,7 +538,7 @@ type m struct {
+ 	printlock     int8
+ 	incgo         bool   // m is executing a cgo call
+ 	freeWait      uint32 // if == 0, safe to free g0 and delete m (atomic)
+-	fastrand      [2]uint32
++	fastrand      uint64
+ 	needextram    bool
+ 	traceback     uint8
+ 	ncgocall      uint64      // number of cgo calls in total
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index c85b7d7330..91380a0d51 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
++	"runtime/internal/math"
+ 	"unsafe"
+ )
+ 
+@@ -124,15 +125,27 @@ const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
+ //go:nosplit
+ func fastrand() uint32 {
+ 	mp := getg().m
++	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
++	// Only the platform that math.Mul64 can be lowered
++	// by the compiler should be in this list.
++	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
++		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
++		goarch.IsS390x|goarch.IsRiscv64 == 1 {
++		mp.fastrand += 0xa0761d6478bd642f
++		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
++		return uint32(hi ^ lo)
++	}
++
+ 	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
+ 	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
+ 	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+ 	// This generator passes the SmallCrush suite, part of TestU01 framework:
+ 	// http://simul.iro.umontreal.ca/testu01/tu01.html
+-	s1, s0 := mp.fastrand[0], mp.fastrand[1]
++	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
++	s1, s0 := t[0], t[1]
+ 	s1 ^= s1 << 17
+ 	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
+-	mp.fastrand[0], mp.fastrand[1] = s0, s1
++	t[0], t[1] = s0, s1
+ 	return s0 + s1
+ }
+ 

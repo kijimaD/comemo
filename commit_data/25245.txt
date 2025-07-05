@@ -10,7 +10,77 @@ Date:   Tue Oct 13 13:58:11 2015 -0400
     Change-Id: I56c5949d27303d44a4fd0de38951b85e20cef167
     Reviewed-on: https://go-review.googlesource.com/15810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/main2.c   |  2 +-
  misc/cgo/testcshared/test.bash | 15 ++++++++++-----
  2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/main2.c
+index 402338339f..14a8b3f4db 100644
+--- a/misc/cgo/testcshared/main2.c
++++ b/misc/cgo/testcshared/main2.c
+@@ -25,7 +25,7 @@ int main(void) {
+     n = read(fd, buf, sizeof buf);
+     if (n >= 0)
+       break;
+-    if (errno != EBADF) {
++    if (errno != EBADF && errno != EINVAL) {
+       fprintf(stderr, "BUG: read: %s\n", strerror(errno));
+       return 2;
+     }
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 1b7fec1549..9b50522046 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -20,7 +20,7 @@ goarch=$(go env GOARCH)
+ # Directory where cgo headers and outputs will be installed.
+ # The installation directory format varies depending on the platform.
+ installdir=pkg/${goos}_${goarch}_testcshared_shared
+-if [ "${goos}/${goarch}" == "android/arm" ] || [ "${goos}/${goarch}" == "darwin/amd64" ]; then
++if [ "${goos}/${goarch}" == "darwin/amd64" ]; then
+ 	installdir=pkg/${goos}_${goarch}_testcshared
+ fi
+ 
+@@ -88,9 +88,14 @@ if [ "$goos" == "linux" ]; then
+     fi
+ fi
+ 
++GOGCCFLAGS=$(go env GOGCCFLAGS)
++if [ "$goos" == "android" ]; then
++	GOGCCFLAGS="${GOGCCFLAGS} -pie"
++fi
++
+ # test0: exported symbols in shared lib are accessible.
+ # TODO(iant): using _shared here shouldn't really be necessary.
+-$(go env CC) $(go env GOGCCFLAGS) -I ${installdir} -o testp main0.c libgo.$libext
++$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
+ binpush testp
+ 
+ output=$(run LD_LIBRARY_PATH=. ./testp)
+@@ -100,7 +105,7 @@ if [ "$output" != "PASS" ]; then
+ fi
+ 
+ # test1: shared library can be dynamically loaded and exported symbols are accessible.
+-$(go env CC) $(go env GOGCCFLAGS) -o testp main1.c -ldl
++$(go env CC) ${GOGCCFLAGS} -o testp main1.c -ldl
+ binpush testp
+ output=$(run ./testp ./libgo.$libext)
+ if [ "$output" != "PASS" ]; then
+@@ -115,7 +120,7 @@ linkflags="-Wl,--no-as-needed"
+ if [ "$goos" == "darwin" ]; then
+ 	linkflags=""
+ fi
+-$(go env CC) $(go env GOGCCFLAGS) -o testp2 main2.c $linkflags libgo2.$libext
++$(go env CC) ${GOGCCFLAGS} -o testp2 main2.c $linkflags libgo2.$libext
+ binpush testp2
+ output=$(run LD_LIBRARY_PATH=. ./testp2)
+ if [ "$output" != "PASS" ]; then
+@@ -125,7 +130,7 @@ fi
+ 
+ # test3: tests main.main is exported on android.
+ if [ "$goos" == "android" ]; then
+-	$(go env CC) $(go env GOGCCFLAGS) -o testp3 main3.c -ldl
++	$(go env CC) ${GOGCCFLAGS} -o testp3 main3.c -ldl
+ 	binpush testp3
+ 	output=$(run ./testp ./libgo.so)
+ 	if [ "$output" != "PASS" ]; then

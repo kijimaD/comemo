@@ -13,6 +13,38 @@ Date:   Fri Mar 25 10:36:22 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4312053
-
+---
  src/pkg/runtime/chan.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 9630c436f6..abb1b690dd 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -366,6 +366,8 @@ asynch:
+ 		if(selected != nil) {
+ 			runtime·unlock(c);
+ 			*selected = false;
++			if(received != nil)
++				*received = false;
+ 			return;
+ 		}
+ 		sg = allocsg(c);
+@@ -521,7 +523,7 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
+ // compiler implements
+ //
+ //	select {
+-//	case v = <-c:
++//	case v, ok = <-c:
+ //		... foo
+ //	default:
+ //		... bar
+@@ -529,7 +531,7 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
+ //
+ // as
+ //
+-//	if c != nil && selectnbrecv(&v, c) {
++//	if c != nil && selectnbrecv2(&v, &ok, c) {
+ //		... foo
+ //	} else {
+ //		... bar

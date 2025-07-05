@@ -13,8 +13,61 @@ Date:   Mon Jun 10 09:52:33 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/bitvec/bv.go      | 5 +++--
  src/cmd/compile/internal/liveness/arg.go   | 2 +-
  src/cmd/compile/internal/liveness/plive.go | 2 +-
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/bitvec/bv.go b/src/cmd/compile/internal/bitvec/bv.go
+index ad7ed0a196..aab10433c8 100644
+--- a/src/cmd/compile/internal/bitvec/bv.go
++++ b/src/cmd/compile/internal/bitvec/bv.go
+@@ -8,6 +8,7 @@ import (
+ 	"math/bits"
+ 
+ 	"cmd/compile/internal/base"
++	"cmd/internal/src"
+ )
+ 
+ const (
+@@ -33,11 +34,11 @@ type Bulk struct {
+ 	nword int32
+ }
+ 
+-func NewBulk(nbit int32, count int32) Bulk {
++func NewBulk(nbit int32, count int32, pos src.XPos) Bulk {
+ 	nword := (nbit + wordBits - 1) / wordBits
+ 	size := int64(nword) * int64(count)
+ 	if int64(int32(size*4)) != size*4 {
+-		base.Fatalf("NewBulk too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
++		base.FatalfAt(pos, "NewBulk too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
+ 	}
+ 	return Bulk{
+ 		words: make([]uint32, size),
+diff --git a/src/cmd/compile/internal/liveness/arg.go b/src/cmd/compile/internal/liveness/arg.go
+index e1269a10b7..77960f5e15 100644
+--- a/src/cmd/compile/internal/liveness/arg.go
++++ b/src/cmd/compile/internal/liveness/arg.go
+@@ -132,7 +132,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
+ 	}
+ 
+ 	nargs := int32(len(lv.args))
+-	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2))
++	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2), fn.Pos())
+ 	for _, b := range f.Blocks {
+ 		be := &lv.be[b.ID]
+ 		be.livein = bulk.Next()
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 708f0f2023..c5003ddca6 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -431,7 +431,7 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
+ 
+ 	nblocks := int32(len(f.Blocks))
+ 	nvars := int32(len(vars))
+-	bulk := bitvec.NewBulk(nvars, nblocks*7)
++	bulk := bitvec.NewBulk(nvars, nblocks*7, fn.Pos())
+ 	for _, b := range f.Blocks {
+ 		be := lv.blockEffects(b)
+ 

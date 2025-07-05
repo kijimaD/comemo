@@ -15,7 +15,7 @@ Date:   Wed Aug 17 13:36:02 2011 +1000
     R=dsymonds, bradfitz, rsc, gustavo, r
     CC=golang-dev
     https://golang.org/cl/4893043
-
+---
  misc/dashboard/builder/http.go      |   3 +-
  src/cmd/godoc/main.go               |   3 +-
  src/cmd/gofix/Makefile              |   1 +
@@ -45,3 +45,1851 @@ Date:   Wed Aug 17 13:36:02 2011 +1000
  src/pkg/websocket/client.go         |   9 +-
  src/pkg/websocket/websocket_test.go |   5 +-
  28 files changed, 566 insertions(+), 265 deletions(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 98400c51a8..abef8faa48 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -12,6 +12,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"strconv"
++	"url"
+ )
+ 
+ type param map[string]string
+@@ -26,7 +27,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
+ 		log.Println("dash", cmd, args)
+ 	}
+ 	cmd = "http://" + *dashboard + "/" + cmd
+-	vals := make(http.Values)
++	vals := make(url.Values)
+ 	for k, v := range args {
+ 		vals.Add(k, v)
+ 	}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index e4c3023969..89b12b9acb 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -44,6 +44,7 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"time"
++	"url"
+ )
+ 
+ const defaultAddr = ":6060" // default webserver address
+@@ -160,7 +161,7 @@ func loggingHandler(h http.Handler) http.Handler {
+ }
+ 
+ func remoteSearch(query string) (res *http.Response, err os.Error) {
+-	search := "/search?f=text&q=" + http.URLEscape(query)
++	search := "/search?f=text&q=" + url.QueryEscape(query)
+ 
+ 	// list of addresses to try
+ 	var addrs []string
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 7ce21e8aab..22033d7f81 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -23,6 +23,7 @@ GOFILES=\
+ 	sortslice.go\
+ 	stringssplit.go\
+ 	typecheck.go\
++	url.go\
+ 
+ include ../../Make.cmd
+ 
+diff --git a/src/cmd/gofix/url.go b/src/cmd/gofix/url.go
+new file mode 100644
+index 0000000000..047fb192fb
+--- /dev/null
++++ b/src/cmd/gofix/url.go
+@@ -0,0 +1,116 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"go/ast"
++)
++
++var _ fmt.Stringer
++var _ os.Error
++
++var urlFix = fix{
++	"url",
++	url,
++	`Move the URL pieces of package http into a new package, url.
++
++http://codereview.appspot.com/4893043
++`,
++}
++
++func init() {
++	register(urlFix)
++}
++
++var urlRenames = []struct{ in, out string }{
++	{"ParseURL", "Parse"},
++	{"ParseURLReference", "ParseWithReference"},
++	{"ParseQuery", "ParseQuery"},
++	{"Values", "Values"},
++	{"URLEscape", "QueryEscape"},
++	{"URLUnescape", "QueryUnescape"},
++	{"URLError", "Error"},
++	{"URLEscapeError", "EscapeError"},
++}
++
++func url(f *ast.File) bool {
++	if imports(f, "url") || !imports(f, "http") {
++		return false
++	}
++
++	fixed := false
++
++	// Update URL code.
++	urlWalk := func(n interface{}) {
++		// Is it an identifier?
++		if ident, ok := n.(*ast.Ident); ok && ident.Name == "url" {
++			ident.Name = "url_"
++			return
++		}
++		// Find declared identifiers called url that might be confused.
++		// TODO: Why does gofix not walk the Names in a ValueSpec?
++		// TODO: Just a bug; fix later as it will have consequences.
++		if valSpec, ok := n.(*ast.ValueSpec); ok {
++			for _, ident := range valSpec.Names {
++				if ident.Name == "url" {
++					ident.Name = "url_"
++				}
++			}
++		}
++		// Parameter and result names.
++		if fn, ok := n.(*ast.FuncType); ok {
++			fixed = urlDoFields(fn.Params) || fixed
++			fixed = urlDoFields(fn.Results) || fixed
++		}
++	}
++
++	// Fix up URL code and add import, at most once.
++	fix := func() {
++		if fixed {
++			return
++		}
++		walk(f, urlWalk)
++		addImport(f, "url")
++		fixed = true
++	}
++
++	walk(f, func(n interface{}) {
++		// Rename functions and methods.
++		if expr, ok := n.(ast.Expr); ok {
++			for _, s := range urlRenames {
++				if isPkgDot(expr, "http", s.in) {
++					fix()
++					expr.(*ast.SelectorExpr).X.(*ast.Ident).Name = "url"
++					expr.(*ast.SelectorExpr).Sel.Name = s.out
++					return
++				}
++			}
++		}
++	})
++
++	// Remove the http import if no longer needed.
++	if fixed && !usesImport(f, "http") {
++		deleteImport(f, "http")
++	}
++
++	return fixed
++}
++
++func urlDoFields(list *ast.FieldList) (fixed bool) {
++	if list == nil {
++		return
++	}
++	for _, field := range list.List {
++		for _, ident := range field.Names {
++			if ident.Name == "url" {
++				fixed = true
++				ident.Name = "url_"
++			}
++		}
++	}
++	return
++}
+diff --git a/src/cmd/gofix/url_test.go b/src/cmd/gofix/url_test.go
+new file mode 100644
+index 0000000000..1a7095a5da
+--- /dev/null
++++ b/src/cmd/gofix/url_test.go
+@@ -0,0 +1,147 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(urlTests)
++}
++
++var urlTests = []testCase{
++	{
++		Name: "url.0",
++		In: `package main
++
++import (
++	"http"
++)
++
++func f() {
++	http.ParseURL(a)
++	http.ParseURLReference(a)
++	http.ParseQuery(a)
++	m := http.Values{a: b}
++	http.URLEscape(a)
++	http.URLUnescape(a)
++	var x http.URLError
++	var y http.URLEscapeError
++}
++`,
++		Out: `package main
++
++import "url"
++
++func f() {
++	url.Parse(a)
++	url.ParseWithReference(a)
++	url.ParseQuery(a)
++	m := url.Values{a: b}
++	url.QueryEscape(a)
++	url.QueryUnescape(a)
++	var x url.Error
++	var y url.EscapeError
++}
++`,
++	},
++	{
++		Name: "url.1",
++		In: `package main
++
++import (
++	"http"
++)
++
++func f() {
++	http.ParseURL(a)
++	var x http.Request
++}
++`,
++		Out: `package main
++
++import (
++	"http"
++	"url"
++)
++
++func f() {
++	url.Parse(a)
++	var x http.Request
++}
++`,
++	},
++	{
++		Name: "url.2",
++		In: `package main
++
++import (
++	"http"
++)
++
++func f() {
++	http.ParseURL(a)
++	var url = 23
++	url, x := 45, y
++}
++
++func g(url string) string {
++	return url
++}
++
++func h() (url string) {
++	return url
++}
++`,
++		Out: `package main
++
++import "url"
++
++func f() {
++	url.Parse(a)
++	var url_ = 23
++	url_, x := 45, y
++}
++
++func g(url_ string) string {
++	return url_
++}
++
++func h() (url_ string) {
++	return url_
++}
++`,
++	},
++	{
++		Name: "url.3",
++		In: `package main
++
++import "http"
++
++type U struct{ url string }
++
++func f() {
++	var u U
++	u.url = "x"
++}
++
++func (url *T) m() string {
++	return url
++}
++`,
++		Out: `package main
++
++import "http"
++
++type U struct{ url string }
++
++func f() {
++	var u U
++	u.url = "x"
++}
++
++func (url *T) m() string {
++	return url
++}
++`,
++	},
++}
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ec9a070bd1..388e2a1d31 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -164,6 +164,7 @@ DIRS=\
+ 	time\
+ 	try\
+ 	unicode\
++	url\
+ 	utf16\
+ 	utf8\
+ 	websocket\
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index 6de46aa451..feb1fd82c7 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -7,12 +7,12 @@ package template
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"os"
+ 	"reflect"
+ 	"strings"
+ 	"unicode"
++	"url"
+ 	"utf8"
+ )
+ 
+@@ -364,5 +364,5 @@ func URLQueryEscaper(args ...interface{}) string {
+ 	if !ok {
+ 		s = fmt.Sprint(args...)
+ 	}
+-	return http.URLEscape(s)
++	return url.QueryEscape(s)
+ }
+diff --git a/src/pkg/http/Makefile b/src/pkg/http/Makefile
+index b8bc093d49..df4ab95101 100644
+--- a/src/pkg/http/Makefile
++++ b/src/pkg/http/Makefile
+@@ -22,6 +22,5 @@ GOFILES=\
+ 	status.go\
+ 	transfer.go\
+ 	transport.go\
+-	url.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/http/cgi/child.go b/src/pkg/http/cgi/child.go
+index 8b74d70548..8d0eca8d55 100644
+--- a/src/pkg/http/cgi/child.go
++++ b/src/pkg/http/cgi/child.go
+@@ -18,6 +18,7 @@ import (
+ 	"os"
+ 	"strconv"
+ 	"strings"
++	"url"
+ )
+ 
+ // Request returns the HTTP request as represented in the current
+@@ -93,7 +94,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+ 		// Hostname is provided, so we can reasonably construct a URL,
+ 		// even if we have to assume 'http' for the scheme.
+ 		r.RawURL = "http://" + r.Host + params["REQUEST_URI"]
+-		url, err := http.ParseURL(r.RawURL)
++		url, err := url.Parse(r.RawURL)
+ 		if err != nil {
+ 			return nil, os.NewError("cgi: failed to parse host and REQUEST_URI into a URL: " + r.RawURL)
+ 		}
+@@ -103,7 +104,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+ 	// failed to parse
+ 	if r.URL == nil {
+ 		r.RawURL = params["REQUEST_URI"]
+-		url, err := http.ParseURL(r.RawURL)
++		url, err := url.Parse(r.RawURL)
+ 		if err != nil {
+ 			return nil, os.NewError("cgi: failed to parse REQUEST_URI into a URL: " + r.RawURL)
+ 		}
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 93825b3919..f7de89f997 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -276,7 +276,7 @@ func (h *Handler) printf(format string, v ...interface{}) {
+ }
+ 
+ func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Request, path string) {
+-	url, err := req.URL.ParseURL(path)
++	url, err := req.URL.Parse(path)
+ 	if err != nil {
+ 		rw.WriteHeader(http.StatusInternalServerError)
+ 		h.printf("cgi: error resolving local URI path %q: %v", path, err)
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 6ea7dee03f..44b3443fc4 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"strings"
++	"url"
+ )
+ 
+ // A Client is an HTTP client. Its zero value (DefaultClient) is a usable client
+@@ -158,7 +159,7 @@ func (c *Client) Get(url string) (r *Response, err os.Error) {
+ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error) {
+ 	// TODO: if/when we add cookie support, the redirected request shouldn't
+ 	// necessarily supply the same cookies as the original.
+-	var base *URL
++	var base *url.URL
+ 	redirectChecker := c.CheckRedirect
+ 	if redirectChecker == nil {
+ 		redirectChecker = defaultCheckRedirect
+@@ -166,13 +167,13 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
+ 	var via []*Request
+ 
+ 	req := ireq
+-	url := "" // next relative or absolute URL to fetch (after first request)
++	urlStr := "" // next relative or absolute URL to fetch (after first request)
+ 	for redirect := 0; ; redirect++ {
+ 		if redirect != 0 {
+ 			req = new(Request)
+ 			req.Method = ireq.Method
+ 			req.Header = make(Header)
+-			req.URL, err = base.ParseURL(url)
++			req.URL, err = base.Parse(urlStr)
+ 			if err != nil {
+ 				break
+ 			}
+@@ -190,13 +191,13 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
+ 			}
+ 		}
+ 
+-		url = req.URL.String()
++		urlStr = req.URL.String()
+ 		if r, err = send(req, c.Transport); err != nil {
+ 			break
+ 		}
+ 		if shouldRedirect(r.StatusCode) {
+ 			r.Body.Close()
+-			if url = r.Header.Get("Location"); url == "" {
++			if urlStr = r.Header.Get("Location"); urlStr == "" {
+ 				err = os.NewError(fmt.Sprintf("%d response missing Location header", r.StatusCode))
+ 				break
+ 			}
+@@ -208,7 +209,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
+ 	}
+ 
+ 	method := ireq.Method
+-	err = &URLError{method[0:1] + strings.ToLower(method[1:]), url, err}
++	err = &url.Error{method[0:1] + strings.ToLower(method[1:]), urlStr, err}
+ 	return
+ }
+ 
+@@ -246,7 +247,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
+ // Caller should close r.Body when done reading from it.
+ //
+ // PostForm is a wrapper around DefaultClient.PostForm
+-func PostForm(url string, data Values) (r *Response, err os.Error) {
++func PostForm(url string, data url.Values) (r *Response, err os.Error) {
+ 	return DefaultClient.PostForm(url, data)
+ }
+ 
+@@ -254,7 +255,7 @@ func PostForm(url string, data Values) (r *Response, err os.Error) {
+ // with data's keys and values urlencoded as the request body.
+ //
+ // Caller should close r.Body when done reading from it.
+-func (c *Client) PostForm(url string, data Values) (r *Response, err os.Error) {
++func (c *Client) PostForm(url string, data url.Values) (r *Response, err os.Error) {
+ 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+ }
+ 
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 3b85585353..f22cce50b8 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++	"url"
+ )
+ 
+ var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -109,18 +110,18 @@ func TestPostFormRequestFormat(t *testing.T) {
+ 	tr := &recordingTransport{}
+ 	client := &Client{Transport: tr}
+ 
+-	url := "http://dummy.faketld/"
+-	form := make(Values)
++	urlStr := "http://dummy.faketld/"
++	form := make(url.Values)
+ 	form.Set("foo", "bar")
+ 	form.Add("foo", "bar2")
+ 	form.Set("bar", "baz")
+-	client.PostForm(url, form) // Note: doesn't hit network
++	client.PostForm(urlStr, form) // Note: doesn't hit network
+ 
+ 	if tr.req.Method != "POST" {
+ 		t.Errorf("got method %q, want %q", tr.req.Method, "POST")
+ 	}
+-	if tr.req.URL.String() != url {
+-		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
++	if tr.req.URL.String() != urlStr {
++		t.Errorf("got URL %q, want %q", tr.req.URL.String(), urlStr)
+ 	}
+ 	if tr.req.Header == nil {
+ 		t.Fatalf("expected non-nil request Header")
+@@ -281,7 +282,7 @@ func TestClientWrites(t *testing.T) {
+ 	}
+ 
+ 	writes = 0
+-	_, err = c.PostForm(ts.URL, Values{"foo": {"bar"}})
++	_, err = c.PostForm(ts.URL, url.Values{"foo": {"bar"}})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index 823770ec4f..bb6d0158b7 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
++	"url"
+ )
+ 
+ const (
+@@ -49,7 +50,7 @@ func TestServeFile(t *testing.T) {
+ 	// set up the Request (re-used for all tests)
+ 	var req Request
+ 	req.Header = make(Header)
+-	if req.URL, err = ParseURL(ts.URL); err != nil {
++	if req.URL, err = url.Parse(ts.URL); err != nil {
+ 		t.Fatal("ParseURL:", err)
+ 	}
+ 	req.Method = "GET"
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 79f8de70d3..f6dc99e2e0 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"testing"
++	"url"
+ )
+ 
+ type reqTest struct {
+@@ -40,7 +41,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			RawURL: "http://www.techcrunch.com/",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Raw:          "http://www.techcrunch.com/",
+ 				Scheme:       "http",
+ 				RawPath:      "/",
+@@ -67,7 +68,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 7,
+ 			Host:          "www.techcrunch.com",
+-			Form:          Values{},
++			Form:          url.Values{},
+ 		},
+ 
+ 		"abcdef\n",
+@@ -83,7 +84,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			RawURL: "/",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Raw:     "/",
+ 				Path:    "/",
+ 				RawPath: "/",
+@@ -94,7 +95,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "foo.com",
+-			Form:          Values{},
++			Form:          url.Values{},
+ 		},
+ 
+ 		noBody,
+@@ -110,7 +111,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			RawURL: "//user@host/is/actually/a/path/",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Raw:          "//user@host/is/actually/a/path/",
+ 				Scheme:       "",
+ 				RawPath:      "//user@host/is/actually/a/path/",
+@@ -128,7 +129,7 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: 0,
+ 			Host:          "test",
+-			Form:          Values{},
++			Form:          url.Values{},
+ 		},
+ 
+ 		noBody,
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 7aae8b4235..9126920810 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -22,6 +22,7 @@ import (
+ 	"os"
+ 	"strconv"
+ 	"strings"
++	"url"
+ )
+ 
+ const (
+@@ -72,9 +73,9 @@ var reqWriteExcludeHeader = map[string]bool{
+ 
+ // A Request represents a parsed HTTP request header.
+ type Request struct {
+-	Method string // GET, POST, PUT, etc.
+-	RawURL string // The raw URL given in the request.
+-	URL    *URL   // Parsed URL.
++	Method string   // GET, POST, PUT, etc.
++	RawURL string   // The raw URL given in the request.
++	URL    *url.URL // Parsed URL.
+ 
+ 	// The protocol version for incoming requests.
+ 	// Outgoing requests always use HTTP/1.1.
+@@ -124,7 +125,7 @@ type Request struct {
+ 	Host string
+ 
+ 	// The parsed form. Only available after ParseForm is called.
+-	Form Values
++	Form url.Values
+ 
+ 	// The parsed multipart form, including file uploads.
+ 	// Only available after ParseMultipartForm is called.
+@@ -289,22 +290,22 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 		host = req.URL.Host
+ 	}
+ 
+-	uri := req.RawURL
+-	if uri == "" {
+-		uri = valueOrDefault(urlEscape(req.URL.Path, encodePath), "/")
++	urlStr := req.RawURL
++	if urlStr == "" {
++		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
+ 		if req.URL.RawQuery != "" {
+-			uri += "?" + req.URL.RawQuery
++			urlStr += "?" + req.URL.RawQuery
+ 		}
+ 		if usingProxy {
+-			if uri == "" || uri[0] != '/' {
+-				uri = "/" + uri
++			if urlStr == "" || urlStr[0] != '/' {
++				urlStr = "/" + urlStr
+ 			}
+-			uri = req.URL.Scheme + "://" + host + uri
++			urlStr = req.URL.Scheme + "://" + host + urlStr
+ 		}
+ 	}
+ 
+ 	bw := bufio.NewWriter(w)
+-	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
++	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), urlStr)
+ 
+ 	// Header lines
+ 	fmt.Fprintf(bw, "Host: %s\r\n", host)
+@@ -481,8 +482,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+ }
+ 
+ // NewRequest returns a new Request given a method, URL, and optional body.
+-func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
+-	u, err := ParseURL(url)
++func NewRequest(method, urlStr string, body io.Reader) (*Request, os.Error) {
++	u, err := url.Parse(urlStr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -547,7 +548,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 		return nil, &badStringError{"malformed HTTP version", req.Proto}
+ 	}
+ 
+-	if req.URL, err = ParseRequestURL(req.RawURL); err != nil {
++	if req.URL, err = url.ParseRequest(req.RawURL); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -607,77 +608,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	return req, nil
+ }
+ 
+-// Values maps a string key to a list of values.
+-// It is typically used for query parameters and form values.
+-// Unlike in the Header map, the keys in a Values map
+-// are case-sensitive.
+-type Values map[string][]string
+-
+-// Get gets the first value associated with the given key.
+-// If there are no values associated with the key, Get returns
+-// the empty string. To access multiple values, use the map
+-// directly.
+-func (v Values) Get(key string) string {
+-	if v == nil {
+-		return ""
+-	}
+-	vs, ok := v[key]
+-	if !ok || len(vs) == 0 {
+-		return ""
+-	}
+-	return vs[0]
+-}
+-
+-// Set sets the key to value. It replaces any existing
+-// values.
+-func (v Values) Set(key, value string) {
+-	v[key] = []string{value}
+-}
+-
+-// Add adds the key to value. It appends to any existing
+-// values associated with key.
+-func (v Values) Add(key, value string) {
+-	v[key] = append(v[key], value)
+-}
+-
+-// Del deletes the values associated with key.
+-func (v Values) Del(key string) {
+-	v[key] = nil, false
+-}
+-
+-// ParseQuery parses the URL-encoded query string and returns
+-// a map listing the values specified for each key.
+-// ParseQuery always returns a non-nil map containing all the
+-// valid query parameters found; err describes the first decoding error
+-// encountered, if any.
+-func ParseQuery(query string) (m Values, err os.Error) {
+-	m = make(Values)
+-	err = parseQuery(m, query)
+-	return
+-}
+-
+-func parseQuery(m Values, query string) (err os.Error) {
+-	for _, kv := range strings.Split(query, "&") {
+-		if len(kv) == 0 {
+-			continue
+-		}
+-		kvPair := strings.SplitN(kv, "=", 2)
+-
+-		var key, value string
+-		var e os.Error
+-		key, e = URLUnescape(kvPair[0])
+-		if e == nil && len(kvPair) > 1 {
+-			value, e = URLUnescape(kvPair[1])
+-		}
+-		if e != nil {
+-			err = e
+-			continue
+-		}
+-		m[key] = append(m[key], value)
+-	}
+-	return err
+-}
+-
+ // ParseForm parses the raw query.
+ // For POST requests, it also parses the request body as a form.
+ // ParseMultipartForm calls ParseForm automatically.
+@@ -687,9 +617,10 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		return
+ 	}
+ 
+-	r.Form = make(Values)
+ 	if r.URL != nil {
+-		err = parseQuery(r.Form, r.URL.RawQuery)
++		r.Form, err = url.ParseQuery(r.URL.RawQuery)
++	} else {
++		r.Form = make(url.Values) // TODO: remove when nil maps work.
+ 	}
+ 	if r.Method == "POST" {
+ 		if r.Body == nil {
+@@ -709,10 +640,17 @@ func (r *Request) ParseForm() (err os.Error) {
+ 			if int64(len(b)) > maxFormSize {
+ 				return os.NewError("http: POST too large")
+ 			}
+-			e = parseQuery(r.Form, string(b))
++			var newValues url.Values
++			newValues, e = url.ParseQuery(string(b))
+ 			if err == nil {
+ 				err = e
+ 			}
++			// Copy values into r.Form. TODO: make this smoother.
++			for k, vs := range newValues {
++				for _, value := range vs {
++					r.Form.Add(k, value)
++				}
++			}
+ 		case "multipart/form-data":
+ 			// handled by ParseMultipartForm
+ 		default:
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index b5482db38b..869cd57b69 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"regexp"
+ 	"strings"
+ 	"testing"
++	"url"
+ )
+ 
+ type stringMultimap map[string][]string
+@@ -43,7 +44,7 @@ var parseTests = []parseTest{
+ 
+ func TestParseForm(t *testing.T) {
+ 	for i, test := range parseTests {
+-		form, err := ParseQuery(test.query)
++		form, err := url.ParseQuery(test.query)
+ 		if err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err)
+ 			continue
+@@ -72,7 +73,7 @@ func TestParseForm(t *testing.T) {
+ 
+ func TestQuery(t *testing.T) {
+ 	req := &Request{Method: "GET"}
+-	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar")
++	req.URL, _ = url.Parse("http://www.google.com/search?q=foo&q=bar")
+ 	if q := req.FormValue("q"); q != "foo" {
+ 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
+ 	}
+@@ -80,7 +81,7 @@ func TestQuery(t *testing.T) {
+ 
+ func TestPostQuery(t *testing.T) {
+ 	req := &Request{Method: "POST"}
+-	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar&both=x")
++	req.URL, _ = url.Parse("http://www.google.com/search?q=foo&q=bar&both=x")
+ 	req.Header = Header{
+ 		"Content-Type": {"application/x-www-form-urlencoded; boo!"},
+ 	}
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 0052c0cfc5..458f0bd7f4 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"strings"
+ 	"testing"
++	"url"
+ )
+ 
+ type reqWriteTest struct {
+@@ -27,7 +28,7 @@ var reqWriteTests = []reqWriteTest{
+ 		Request{
+ 			Method: "GET",
+ 			RawURL: "http://www.techcrunch.com/",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Raw:          "http://www.techcrunch.com/",
+ 				Scheme:       "http",
+ 				RawPath:      "http://www.techcrunch.com/",
+@@ -82,7 +83,7 @@ var reqWriteTests = []reqWriteTest{
+ 	{
+ 		Request{
+ 			Method: "GET",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Scheme: "http",
+ 				Host:   "www.google.com",
+ 				Path:   "/search",
+@@ -111,7 +112,7 @@ var reqWriteTests = []reqWriteTest{
+ 	{
+ 		Request{
+ 			Method: "POST",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Scheme: "http",
+ 				Host:   "www.google.com",
+ 				Path:   "/search",
+@@ -144,7 +145,7 @@ var reqWriteTests = []reqWriteTest{
+ 	{
+ 		Request{
+ 			Method: "POST",
+-			URL: &URL{
++			URL: &url.URL{
+ 				Scheme: "http",
+ 				Host:   "www.google.com",
+ 				Path:   "/search",
+diff --git a/src/pkg/http/reverseproxy.go b/src/pkg/http/reverseproxy.go
+index 015f87f246..3f8bfdc80c 100644
+--- a/src/pkg/http/reverseproxy.go
++++ b/src/pkg/http/reverseproxy.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"time"
++	"url"
+ )
+ 
+ // ReverseProxy is an HTTP Handler that takes an incoming request and
+@@ -53,7 +54,7 @@ func singleJoiningSlash(a, b string) string {
+ // URLs to the scheme, host, and base path provided in target. If the
+ // target's path is "/base" and the incoming request was for "/dir",
+ // the target request will be for /base/dir.
+-func NewSingleHostReverseProxy(target *URL) *ReverseProxy {
++func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+ 	director := func(req *Request) {
+ 		req.URL.Scheme = target.Scheme
+ 		req.URL.Host = target.Host
+diff --git a/src/pkg/http/reverseproxy_test.go b/src/pkg/http/reverseproxy_test.go
+index b2dd24633a..8078c8d10d 100644
+--- a/src/pkg/http/reverseproxy_test.go
++++ b/src/pkg/http/reverseproxy_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"http/httptest"
+ 	"io/ioutil"
+ 	"testing"
++	"url"
+ )
+ 
+ func TestReverseProxy(t *testing.T) {
+@@ -32,7 +33,7 @@ func TestReverseProxy(t *testing.T) {
+ 		w.Write([]byte(backendResponse))
+ 	}))
+ 	defer backend.Close()
+-	backendURL, err := ParseURL(backend.URL)
++	backendURL, err := url.Parse(backend.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 2725c3b428..ac04033459 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"syscall"
+ 	"testing"
+ 	"time"
++	"url"
+ )
+ 
+ type dummyAddr string
+@@ -183,7 +184,7 @@ func TestHostHandlers(t *testing.T) {
+ 	for _, vt := range vtests {
+ 		var r *Response
+ 		var req Request
+-		if req.URL, err = ParseURL(vt.url); err != nil {
++		if req.URL, err = url.Parse(vt.url); err != nil {
+ 			t.Errorf("cannot parse url: %v", err)
+ 			continue
+ 		}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 1955b67e65..b634e27d6d 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -25,6 +25,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"time"
++	"url"
+ )
+ 
+ // Errors introduced by the HTTP server.
+@@ -716,8 +717,8 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
+-func Redirect(w ResponseWriter, r *Request, url string, code int) {
+-	if u, err := ParseURL(url); err == nil {
++func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
++	if u, err := url.Parse(urlStr); err == nil {
+ 		// If url was relative, make absolute by
+ 		// combining with request path.
+ 		// The browser would probably do this for us,
+@@ -740,35 +741,35 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 		}
+ 		if u.Scheme == "" {
+ 			// no leading http://server
+-			if url == "" || url[0] != '/' {
++			if urlStr == "" || urlStr[0] != '/' {
+ 				// make relative path absolute
+ 				olddir, _ := path.Split(oldpath)
+-				url = olddir + url
++				urlStr = olddir + urlStr
+ 			}
+ 
+ 			var query string
+-			if i := strings.Index(url, "?"); i != -1 {
+-				url, query = url[:i], url[i:]
++			if i := strings.Index(urlStr, "?"); i != -1 {
++				urlStr, query = urlStr[:i], urlStr[i:]
+ 			}
+ 
+ 			// clean up but preserve trailing slash
+-			trailing := url[len(url)-1] == '/'
+-			url = path.Clean(url)
+-			if trailing && url[len(url)-1] != '/' {
+-				url += "/"
++			trailing := urlStr[len(urlStr)-1] == '/'
++			urlStr = path.Clean(urlStr)
++			if trailing && urlStr[len(urlStr)-1] != '/' {
++				urlStr += "/"
+ 			}
+-			url += query
++			urlStr += query
+ 		}
+ 	}
+ 
+-	w.Header().Set("Location", url)
++	w.Header().Set("Location", urlStr)
+ 	w.WriteHeader(code)
+ 
+ 	// RFC2616 recommends that a short note "SHOULD" be included in the
+ 	// response because older user agents may not understand 301/307.
+ 	// Shouldn't send the response for POST or HEAD; that leaves GET.
+ 	if r.Method == "GET" {
+-		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
++		note := "<a href=\"" + htmlEscape(urlStr) + "\">" + statusText[code] + "</a>.\n"
+ 		fmt.Fprintln(w, note)
+ 	}
+ }
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index d03aadfd34..4302ffab1e 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -17,6 +17,7 @@ import (
+ 	"os"
+ 	"strings"
+ 	"sync"
++	"url"
+ )
+ 
+ // DefaultTransport is the default implementation of Transport and is
+@@ -46,7 +47,7 @@ type Transport struct {
+ 	// Request. If the function returns a non-nil error, the
+ 	// request is aborted with the provided error.
+ 	// If Proxy is nil or returns a nil *URL, no proxy is used.
+-	Proxy func(*Request) (*URL, os.Error)
++	Proxy func(*Request) (*url.URL, os.Error)
+ 
+ 	// Dial specifies the dial function for creating TCP
+ 	// connections.
+@@ -66,7 +67,7 @@ type Transport struct {
+ // given request, as indicated by the environment variables
+ // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
+ // Either URL or an error is returned.
+-func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
++func ProxyFromEnvironment(req *Request) (*url.URL, os.Error) {
+ 	proxy := getenvEitherCase("HTTP_PROXY")
+ 	if proxy == "" {
+ 		return nil, nil
+@@ -74,12 +75,12 @@ func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
+ 	if !useProxy(canonicalAddr(req.URL)) {
+ 		return nil, nil
+ 	}
+-	proxyURL, err := ParseRequestURL(proxy)
++	proxyURL, err := url.ParseRequest(proxy)
+ 	if err != nil {
+ 		return nil, os.NewError("invalid proxy address")
+ 	}
+ 	if proxyURL.Host == "" {
+-		proxyURL, err = ParseRequestURL("http://" + proxy)
++		proxyURL, err = url.ParseRequest("http://" + proxy)
+ 		if err != nil {
+ 			return nil, os.NewError("invalid proxy address")
+ 		}
+@@ -89,16 +90,16 @@ func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
+ 
+ // ProxyURL returns a proxy function (for use in a Transport)
+ // that always returns the same URL.
+-func ProxyURL(url *URL) func(*Request) (*URL, os.Error) {
+-	return func(*Request) (*URL, os.Error) {
+-		return url, nil
++func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, os.Error) {
++	return func(*Request) (*url.URL, os.Error) {
++		return fixedURL, nil
+ 	}
+ }
+ 
+ // RoundTrip implements the RoundTripper interface.
+ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+ 	if req.URL == nil {
+-		if req.URL, err = ParseURL(req.RawURL); err != nil {
++		if req.URL, err = url.Parse(req.RawURL); err != nil {
+ 			return
+ 		}
+ 	}
+@@ -413,9 +414,9 @@ func useProxy(addr string) bool {
+ // Note: no support to https to the proxy yet.
+ //
+ type connectMethod struct {
+-	proxyURL     *URL   // "" for no proxy, else full proxy URL
+-	targetScheme string // "http" or "https"
+-	targetAddr   string // Not used if proxy + http targetScheme (4th example in table)
++	proxyURL     *url.URL // nil for no proxy, else full proxy URL
++	targetScheme string   // "http" or "https"
++	targetAddr   string   // Not used if proxy + http targetScheme (4th example in table)
+ }
+ 
+ func (ck *connectMethod) String() string {
+@@ -642,7 +643,7 @@ var portMap = map[string]string{
+ }
+ 
+ // canonicalAddr returns url.Host but always with a ":port" suffix
+-func canonicalAddr(url *URL) string {
++func canonicalAddr(url *url.URL) string {
+ 	addr := url.Host
+ 	if !hasPort(addr) {
+ 		return addr + ":" + portMap[url.Scheme]
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index 20895da869..eafde7f899 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"time"
++	"url"
+ )
+ 
+ // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
+@@ -77,7 +78,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
+ 		fetch := func(n int) string {
+ 			req := new(Request)
+ 			var err os.Error
+-			req.URL, err = ParseURL(ts.URL + fmt.Sprintf("?close=%v", connectionClose))
++			req.URL, err = url.Parse(ts.URL + fmt.Sprintf("?close=%v", connectionClose))
+ 			if err != nil {
+ 				t.Fatalf("URL parse error: %v", err)
+ 			}
+@@ -119,7 +120,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
+ 		fetch := func(n int) string {
+ 			req := new(Request)
+ 			var err os.Error
+-			req.URL, err = ParseURL(ts.URL)
++			req.URL, err = url.Parse(ts.URL)
+ 			if err != nil {
+ 				t.Fatalf("URL parse error: %v", err)
+ 			}
+@@ -552,7 +553,7 @@ func TestTransportProxy(t *testing.T) {
+ 	}))
+ 	defer proxy.Close()
+ 
+-	pu, err := ParseURL(proxy.URL)
++	pu, err := url.Parse(proxy.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/url/Makefile b/src/pkg/url/Makefile
+new file mode 100644
+index 0000000000..b9267bd085
+--- /dev/null
++++ b/src/pkg/url/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=url
++GOFILES=\
++	url.go\
++
++include ../../Make.pkg
+diff --git a/src/pkg/http/url.go b/src/pkg/url/url.go
+similarity index 75%
+rename from src/pkg/http/url.go
+rename to src/pkg/url/url.go
+index b38585ac20..d07b016118 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/url/url.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Parse URLs (actually URIs, but that seems overly pedantic).
+-// RFC 3986
+-
+-package http
++// Package URL parses URLs and implements query escaping.
++// See RFC 3986.
++package url
+ 
+ import (
+ 	"os"
+@@ -13,14 +12,14 @@ import (
+ 	"strings"
+ )
+ 
+-// URLError reports an error and the operation and URL that caused it.
+-type URLError struct {
++// Error reports an error and the operation and URL that caused it.
++type Error struct {
+ 	Op    string
+ 	URL   string
+ 	Error os.Error
+ }
+ 
+-func (e *URLError) String() string { return e.Op + " " + e.URL + ": " + e.Error.String() }
++func (e *Error) String() string { return e.Op + " " + e.URL + ": " + e.Error.String() }
+ 
+ func ishex(c byte) bool {
+ 	switch {
+@@ -56,9 +55,9 @@ const (
+ 	encodeOpaque
+ )
+ 
+-type URLEscapeError string
++type EscapeError string
+ 
+-func (e URLEscapeError) String() string {
++func (e EscapeError) String() string {
+ 	return "invalid URL escape " + strconv.Quote(string(e))
+ }
+ 
+@@ -113,19 +112,16 @@ func shouldEscape(c byte, mode encoding) bool {
+ 	return true
+ }
+ 
+-// URLUnescape unescapes a string in ``URL encoded'' form,
+-// converting %AB into the byte 0xAB and '+' into ' ' (space).
+-// It returns an error if any % is not followed
+-// by two hexadecimal digits.
+-// Despite the name, this encoding applies only to individual
+-// components of the query portion of the URL.
+-func URLUnescape(s string) (string, os.Error) {
+-	return urlUnescape(s, encodeQueryComponent)
++// QueryUnescape does the inverse transformation of QueryEscape, converting
++// %AB into the byte 0xAB and '+' into ' ' (space). It returns an error if
++// any % is not followed by two hexadecimal digits.
++func QueryUnescape(s string) (string, os.Error) {
++	return unescape(s, encodeQueryComponent)
+ }
+ 
+-// urlUnescape is like URLUnescape but mode specifies
+-// which section of the URL is being unescaped.
+-func urlUnescape(s string, mode encoding) (string, os.Error) {
++// unescape unescapes a string; the mode specifies
++// which section of the URL string is being unescaped.
++func unescape(s string, mode encoding) (string, os.Error) {
+ 	// Count %, check that they're well-formed.
+ 	n := 0
+ 	hasPlus := false
+@@ -138,7 +134,7 @@ func urlUnescape(s string, mode encoding) (string, os.Error) {
+ 				if len(s) > 3 {
+ 					s = s[0:3]
+ 				}
+-				return "", URLEscapeError(s)
++				return "", EscapeError(s)
+ 			}
+ 			i += 3
+ 		case '+':
+@@ -178,14 +174,13 @@ func urlUnescape(s string, mode encoding) (string, os.Error) {
+ 	return string(t), nil
+ }
+ 
+-// URLEscape converts a string into ``URL encoded'' form.
+-// Despite the name, this encoding applies only to individual
+-// components of the query portion of the URL.
+-func URLEscape(s string) string {
+-	return urlEscape(s, encodeQueryComponent)
++// QueryEscape escapes the string so it can be safely placed
++// inside a URL query.
++func QueryEscape(s string) string {
++	return escape(s, encodeQueryComponent)
+ }
+ 
+-func urlEscape(s string, mode encoding) string {
++func escape(s string, mode encoding) string {
+ 	spaceCount, hexCount := 0, 0
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i]
+@@ -233,10 +228,10 @@ func urlEscape(s string, mode encoding) string {
+ // security risk in almost every case where it has been used.''
+ func UnescapeUserinfo(rawUserinfo string) (user, password string, err os.Error) {
+ 	u, p := split(rawUserinfo, ':', true)
+-	if user, err = urlUnescape(u, encodeUserPassword); err != nil {
++	if user, err = unescape(u, encodeUserPassword); err != nil {
+ 		return "", "", err
+ 	}
+-	if password, err = urlUnescape(p, encodeUserPassword); err != nil {
++	if password, err = unescape(p, encodeUserPassword); err != nil {
+ 		return "", "", err
+ 	}
+ 	return
+@@ -252,9 +247,9 @@ func UnescapeUserinfo(rawUserinfo string) (user, password string, err os.Error)
+ // information in clear text (such as URI) has proven to be a
+ // security risk in almost every case where it has been used.''
+ func EscapeUserinfo(user, password string) string {
+-	raw := urlEscape(user, encodeUserPassword)
++	raw := escape(user, encodeUserPassword)
+ 	if password != "" {
+-		raw += ":" + urlEscape(password, encodeUserPassword)
++		raw += ":" + escape(password, encodeUserPassword)
+ 	}
+ 	return raw
+ }
+@@ -324,28 +319,28 @@ func split(s string, c byte, cutc bool) (string, string) {
+ 	return s, ""
+ }
+ 
+-// ParseURL parses rawurl into a URL structure.
++// Parse parses rawurl into a URL structure.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+ // The rawurl may be relative or absolute.
+-func ParseURL(rawurl string) (url *URL, err os.Error) {
+-	return parseURL(rawurl, false)
++func Parse(rawurl string) (url *URL, err os.Error) {
++	return parse(rawurl, false)
+ }
+ 
+-// ParseRequestURL parses rawurl into a URL structure.  It assumes that
++// ParseRequest parses rawurl into a URL structure.  It assumes that
+ // rawurl was received from an HTTP request, so the rawurl is interpreted
+ // only as an absolute URI or an absolute path.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+-func ParseRequestURL(rawurl string) (url *URL, err os.Error) {
+-	return parseURL(rawurl, true)
++func ParseRequest(rawurl string) (url *URL, err os.Error) {
++	return parse(rawurl, true)
+ }
+ 
+-// parseURL parses a URL from a string in one of two contexts.  If
++// parse parses a URL from a string in one of two contexts.  If
+ // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
+ // in which case only absolute URLs or path-absolute relative URLs are allowed.
+ // If viaRequest is false, all forms of relative URLs are allowed.
+-func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
++func parse(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 	var (
+ 		leadingSlash bool
+ 		path         string
+@@ -372,7 +367,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 		// This is the case that handles mailto:name@example.com.
+ 		url.RawPath = path
+ 
+-		if url.Path, err = urlUnescape(path, encodeOpaque); err != nil {
++		if url.Path, err = unescape(path, encodeOpaque); err != nil {
+ 			goto Error
+ 		}
+ 		url.OpaquePath = true
+@@ -417,30 +412,30 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 		}
+ 		url.Host = rawHost
+ 
+-		if url.Path, err = urlUnescape(path, encodePath); err != nil {
++		if url.Path, err = unescape(path, encodePath); err != nil {
+ 			goto Error
+ 		}
+ 	}
+ 	return url, nil
+ 
+ Error:
+-	return nil, &URLError{"parse", rawurl, err}
++	return nil, &Error{"parse", rawurl, err}
+ 
+ }
+ 
+-// ParseURLReference is like ParseURL but allows a trailing #fragment.
+-func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
++// ParseWithReference is like Parse but allows a trailing #fragment.
++func ParseWithReference(rawurlref string) (url *URL, err os.Error) {
+ 	// Cut off #frag.
+ 	rawurl, frag := split(rawurlref, '#', false)
+-	if url, err = ParseURL(rawurl); err != nil {
++	if url, err = Parse(rawurl); err != nil {
+ 		return nil, err
+ 	}
+ 	url.Raw += frag
+ 	url.RawPath += frag
+ 	if len(frag) > 1 {
+ 		frag = frag[1:]
+-		if url.Fragment, err = urlUnescape(frag, encodeFragment); err != nil {
+-			return nil, &URLError{"parse", rawurl, err}
++		if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
++			return nil, &Error{"parse", rawurl, err}
+ 		}
+ 	}
+ 	return url, nil
+@@ -474,19 +469,90 @@ func (url *URL) String() string {
+ 			result += "%2f"
+ 			path = path[1:]
+ 		}
+-		result += urlEscape(path, encodeOpaque)
++		result += escape(path, encodeOpaque)
+ 	} else {
+-		result += urlEscape(url.Path, encodePath)
++		result += escape(url.Path, encodePath)
+ 	}
+ 	if url.RawQuery != "" {
+ 		result += "?" + url.RawQuery
+ 	}
+ 	if url.Fragment != "" {
+-		result += "#" + urlEscape(url.Fragment, encodeFragment)
++		result += "#" + escape(url.Fragment, encodeFragment)
+ 	}
+ 	return result
+ }
+ 
++// Values maps a string key to a list of values.
++// It is typically used for query parameters and form values.
++// Unlike in the http.Header map, the keys in a Values map
++// are case-sensitive.
++type Values map[string][]string
++
++// Get gets the first value associated with the given key.
++// If there are no values associated with the key, Get returns
++// the empty string. To access multiple values, use the map
++// directly.
++func (v Values) Get(key string) string {
++	if v == nil {
++		return ""
++	}
++	vs, ok := v[key]
++	if !ok || len(vs) == 0 {
++		return ""
++	}
++	return vs[0]
++}
++
++// Set sets the key to value. It replaces any existing
++// values.
++func (v Values) Set(key, value string) {
++	v[key] = []string{value}
++}
++
++// Add adds the key to value. It appends to any existing
++// values associated with key.
++func (v Values) Add(key, value string) {
++	v[key] = append(v[key], value)
++}
++
++// Del deletes the values associated with key.
++func (v Values) Del(key string) {
++	v[key] = nil, false
++}
++
++// ParseQuery parses the URL-encoded query string and returns
++// a map listing the values specified for each key.
++// ParseQuery always returns a non-nil map containing all the
++// valid query parameters found; err describes the first decoding error
++// encountered, if any.
++func ParseQuery(query string) (m Values, err os.Error) {
++	m = make(Values)
++	err = parseQuery(m, query)
++	return
++}
++
++func parseQuery(m Values, query string) (err os.Error) {
++	for _, kv := range strings.Split(query, "&") {
++		if len(kv) == 0 {
++			continue
++		}
++		kvPair := strings.SplitN(kv, "=", 2)
++
++		var key, value string
++		var e os.Error
++		key, e = QueryUnescape(kvPair[0])
++		if e == nil && len(kvPair) > 1 {
++			value, e = QueryUnescape(kvPair[1])
++		}
++		if e != nil {
++			err = e
++			continue
++		}
++		m[key] = append(m[key], value)
++	}
++	return err
++}
++
+ // Encode encodes the values into ``URL encoded'' form.
+ // e.g. "foo=bar&bar=baz"
+ func (v Values) Encode() string {
+@@ -495,9 +561,9 @@ func (v Values) Encode() string {
+ 	}
+ 	parts := make([]string, 0, len(v)) // will be large enough for most uses
+ 	for k, vs := range v {
+-		prefix := URLEscape(k) + "="
++		prefix := QueryEscape(k) + "="
+ 		for _, v := range vs {
+-			parts = append(parts, prefix+URLEscape(v))
++			parts = append(parts, prefix+QueryEscape(v))
+ 		}
+ 	}
+ 	return strings.Join(parts, "&")
+@@ -538,11 +604,11 @@ func (url *URL) IsAbs() bool {
+ 	return url.Scheme != ""
+ }
+ 
+-// ParseURL parses a URL in the context of a base URL.  The URL in ref
+-// may be relative or absolute.  ParseURL returns nil, err on parse
++// Parse parses a URL in the context of a base URL.  The URL in ref
++// may be relative or absolute.  Parse returns nil, err on parse
+ // failure, otherwise its return value is the same as ResolveReference.
+-func (base *URL) ParseURL(ref string) (*URL, os.Error) {
+-	refurl, err := ParseURL(ref)
++func (base *URL) Parse(ref string) (*URL, os.Error) {
++	refurl, err := Parse(ref)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -604,3 +670,8 @@ func (u *URL) Query() Values {
+ 	v, _ := ParseQuery(u.RawQuery)
+ 	return v
+ }
++
++// EncodedPath returns the URL's path in "URL path encoded" form.
++func (u *URL) EncodedPath() string {
++	return escape(u.Path, encodePath)
++}
+diff --git a/src/pkg/http/url_test.go b/src/pkg/url/url_test.go
+similarity index 87%
+rename from src/pkg/http/url_test.go
+rename to src/pkg/url/url_test.go
+index eaec5872ae..af394d4fb4 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/url/url_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package http
++package url
+ 
+ import (
+ 	"fmt"
+@@ -12,9 +12,9 @@ import (
+ )
+ 
+ // TODO(rsc):
+-//	test URLUnescape
+-//	test URLEscape
+-//	test ParseURL
++//	test Unescape
++//	test Escape
++//	test Parse
+ 
+ type URLTest struct {
+ 	in        string
+@@ -218,7 +218,7 @@ var urltests = []URLTest{
+ 	},
+ 	// Three leading slashes isn't an authority, but doesn't return an error.
+ 	// (We can't return an error, as this code is also used via
+-	// ServeHTTP -> ReadRequest -> ParseURL, which is arguably a
++	// ServeHTTP -> ReadRequest -> Parse, which is arguably a
+ 	// different URL parsing context, but currently shares the
+ 	// same codepath)
+ 	{
+@@ -325,14 +325,14 @@ func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, test
+ 	}
+ }
+ 
+-func TestParseURL(t *testing.T) {
+-	DoTest(t, ParseURL, "ParseURL", urltests)
+-	DoTest(t, ParseURL, "ParseURL", urlnofragtests)
++func TestParse(t *testing.T) {
++	DoTest(t, Parse, "Parse", urltests)
++	DoTest(t, Parse, "Parse", urlnofragtests)
+ }
+ 
+-func TestParseURLReference(t *testing.T) {
+-	DoTest(t, ParseURLReference, "ParseURLReference", urltests)
+-	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests)
++func TestParseWithReference(t *testing.T) {
++	DoTest(t, ParseWithReference, "ParseWithReference", urltests)
++	DoTest(t, ParseWithReference, "ParseWithReference", urlfragtests)
+ }
+ 
+ const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
+@@ -351,16 +351,16 @@ var parseRequestUrlTests = []struct {
+ 	{"../dir/", false},
+ }
+ 
+-func TestParseRequestURL(t *testing.T) {
++func TestParseRequest(t *testing.T) {
+ 	for _, test := range parseRequestUrlTests {
+-		_, err := ParseRequestURL(test.url)
++		_, err := ParseRequest(test.url)
+ 		valid := err == nil
+ 		if valid != test.expectedValid {
+ 			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
+ 		}
+ 	}
+ 
+-	url, err := ParseRequestURL(pathThatLooksSchemeRelative)
++	url, err := ParseRequest(pathThatLooksSchemeRelative)
+ 	if err != nil {
+ 		t.Fatalf("Unexpected error %v", err)
+ 	}
+@@ -388,19 +388,19 @@ func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string
+ }
+ 
+ func TestURLString(t *testing.T) {
+-	DoTestString(t, ParseURL, "ParseURL", urltests)
+-	DoTestString(t, ParseURL, "ParseURL", urlnofragtests)
+-	DoTestString(t, ParseURLReference, "ParseURLReference", urltests)
+-	DoTestString(t, ParseURLReference, "ParseURLReference", urlfragtests)
++	DoTestString(t, Parse, "Parse", urltests)
++	DoTestString(t, Parse, "Parse", urlnofragtests)
++	DoTestString(t, ParseWithReference, "ParseWithReference", urltests)
++	DoTestString(t, ParseWithReference, "ParseWithReference", urlfragtests)
+ }
+ 
+-type URLEscapeTest struct {
++type EscapeTest struct {
+ 	in  string
+ 	out string
+ 	err os.Error
+ }
+ 
+-var unescapeTests = []URLEscapeTest{
++var unescapeTests = []EscapeTest{
+ 	{
+ 		"",
+ 		"",
+@@ -434,40 +434,40 @@ var unescapeTests = []URLEscapeTest{
+ 	{
+ 		"%", // not enough characters after %
+ 		"",
+-		URLEscapeError("%"),
++		EscapeError("%"),
+ 	},
+ 	{
+ 		"%a", // not enough characters after %
+ 		"",
+-		URLEscapeError("%a"),
++		EscapeError("%a"),
+ 	},
+ 	{
+ 		"%1", // not enough characters after %
+ 		"",
+-		URLEscapeError("%1"),
++		EscapeError("%1"),
+ 	},
+ 	{
+ 		"123%45%6", // not enough characters after %
+ 		"",
+-		URLEscapeError("%6"),
++		EscapeError("%6"),
+ 	},
+ 	{
+ 		"%zzzzz", // invalid hex digits
+ 		"",
+-		URLEscapeError("%zz"),
++		EscapeError("%zz"),
+ 	},
+ }
+ 
+-func TestURLUnescape(t *testing.T) {
++func TestUnescape(t *testing.T) {
+ 	for _, tt := range unescapeTests {
+-		actual, err := URLUnescape(tt.in)
++		actual, err := QueryUnescape(tt.in)
+ 		if actual != tt.out || (err != nil) != (tt.err != nil) {
+-			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
++			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
+ 		}
+ 	}
+ }
+ 
+-var escapeTests = []URLEscapeTest{
++var escapeTests = []EscapeTest{
+ 	{
+ 		"",
+ 		"",
+@@ -495,17 +495,17 @@ var escapeTests = []URLEscapeTest{
+ 	},
+ }
+ 
+-func TestURLEscape(t *testing.T) {
++func TestEscape(t *testing.T) {
+ 	for _, tt := range escapeTests {
+-		actual := URLEscape(tt.in)
++		actual := QueryEscape(tt.in)
+ 		if tt.out != actual {
+-			t.Errorf("URLEscape(%q) = %q, want %q", tt.in, actual, tt.out)
++			t.Errorf("QueryEscape(%q) = %q, want %q", tt.in, actual, tt.out)
+ 		}
+ 
+ 		// for bonus points, verify that escape:unescape is an identity.
+-		roundtrip, err := URLUnescape(actual)
++		roundtrip, err := QueryUnescape(actual)
+ 		if roundtrip != tt.in || err != nil {
+-			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
++			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
+ 		}
+ 	}
+ }
+@@ -629,16 +629,16 @@ var resolveReferenceTests = []struct {
+ }
+ 
+ func TestResolveReference(t *testing.T) {
+-	mustParseURL := func(url string) *URL {
+-		u, err := ParseURLReference(url)
++	mustParse := func(url string) *URL {
++		u, err := ParseWithReference(url)
+ 		if err != nil {
+ 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+ 		}
+ 		return u
+ 	}
+ 	for _, test := range resolveReferenceTests {
+-		base := mustParseURL(test.base)
+-		rel := mustParseURL(test.rel)
++		base := mustParse(test.base)
++		rel := mustParse(test.rel)
+ 		url := base.ResolveReference(rel)
+ 		urlStr := url.String()
+ 		if urlStr != test.expected {
+@@ -647,33 +647,33 @@ func TestResolveReference(t *testing.T) {
+ 	}
+ 
+ 	// Test that new instances are returned.
+-	base := mustParseURL("http://foo.com/")
+-	abs := base.ResolveReference(mustParseURL("."))
++	base := mustParse("http://foo.com/")
++	abs := base.ResolveReference(mustParse("."))
+ 	if base == abs {
+ 		t.Errorf("Expected no-op reference to return new URL instance.")
+ 	}
+-	barRef := mustParseURL("http://bar.com/")
++	barRef := mustParse("http://bar.com/")
+ 	abs = base.ResolveReference(barRef)
+ 	if abs == barRef {
+ 		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
+ 	}
+ 
+ 	// Test the convenience wrapper too
+-	base = mustParseURL("http://foo.com/path/one/")
+-	abs, _ = base.ParseURL("../two")
++	base = mustParse("http://foo.com/path/one/")
++	abs, _ = base.Parse("../two")
+ 	expected := "http://foo.com/path/two"
+ 	if abs.String() != expected {
+-		t.Errorf("ParseURL wrapper got %q; expected %q", abs.String(), expected)
++		t.Errorf("Parse wrapper got %q; expected %q", abs.String(), expected)
+ 	}
+-	_, err := base.ParseURL("")
++	_, err := base.Parse("")
+ 	if err == nil {
+-		t.Errorf("Expected an error from ParseURL wrapper parsing an empty string.")
++		t.Errorf("Expected an error from Parse wrapper parsing an empty string.")
+ 	}
+ 
+ }
+ 
+ func TestQueryValues(t *testing.T) {
+-	u, _ := ParseURL("http://x.com?foo=bar&bar=1&bar=2")
++	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2")
+ 	v := u.Query()
+ 	if len(v) != 2 {
+ 		t.Errorf("got %d keys in Query values, want 2", len(v))
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index f24c463608..74bede4249 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -15,6 +15,7 @@ import (
+ 	"os"
+ 	"rand"
+ 	"strings"
++	"url"
+ )
+ 
+ type ProtocolError struct {
+@@ -99,10 +100,10 @@ A trivial example client:
+ 		// use msg[0:n]
+ 	}
+ */
+-func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
++func Dial(url_, protocol, origin string) (ws *Conn, err os.Error) {
+ 	var client net.Conn
+ 
+-	parsedUrl, err := http.ParseURL(url)
++	parsedUrl, err := url.Parse(url_)
+ 	if err != nil {
+ 		goto Error
+ 	}
+@@ -121,14 +122,14 @@ func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
+ 		goto Error
+ 	}
+ 
+-	ws, err = newClient(parsedUrl.RawPath, parsedUrl.Host, origin, url, protocol, client, handshake)
++	ws, err = newClient(parsedUrl.RawPath, parsedUrl.Host, origin, url_, protocol, client, handshake)
+ 	if err != nil {
+ 		goto Error
+ 	}
+ 	return
+ 
+ Error:
+-	return nil, &DialError{url, protocol, origin, err}
++	return nil, &DialError{url_, protocol, origin, err}
+ }
+ 
+ /*
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 84788b416e..71c3c8514b 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"net"
+ 	"sync"
+ 	"testing"
++	"url"
+ )
+ 
+ var serverAddr string
+@@ -155,9 +156,9 @@ func TestHTTP(t *testing.T) {
+ 		t.Error("Get: unexpected success")
+ 		return
+ 	}
+-	urlerr, ok := err.(*http.URLError)
++	urlerr, ok := err.(*url.Error)
+ 	if !ok {
+-		t.Errorf("Get: not URLError %#v", err)
++		t.Errorf("Get: not url.Error %#v", err)
+ 		return
+ 	}
+ 	if urlerr.Error != io.ErrUnexpectedEOF {

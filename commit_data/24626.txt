@@ -11,10 +11,234 @@ Date:   Fri Aug 14 13:23:11 2015 +0200
     Change-Id: I2c336686d86249393a8079a471c6ff74e6228f3d
     Reviewed-on: https://go-review.googlesource.com/13642
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 ++--
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +
  src/cmd/compile/internal/ssa/opGen.go        | 27 +++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 69 ++++++++++++++++++++++++++--
  5 files changed, 100 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 882efc0dae..ef6ca692a4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1909,7 +1909,7 @@ func genValue(v *ssa.Value) {
+ 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
+ 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
+ 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
+-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
++		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB:
+ 		r := regnum(v)
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v.Args[1])
+@@ -1996,7 +1996,7 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst:
++	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
+ 		r := regnum(v)
+ 		x := regnum(v.Args[0])
+ 		if r != x {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index a53f2ca388..00a321ad3b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -25,10 +25,7 @@
+ (MulPtr x y) -> (MULQ x y)
+ (Mul32 x y) -> (MULL x y)
+ (Mul16 x y) -> (MULW x y)
+-// Note: we use 16-bit multiply instructions for 8-bit multiplies because
+-// the 16-bit multiply instructions are more forgiving (they operate on
+-// any register instead of just AX/DX).
+-(Mul8 x y) -> (MULW x y)
++(Mul8 x y) -> (MULB x y)
+ 
+ (And64 x y) -> (ANDQ x y)
+ (And32 x y) -> (ANDL x y)
+@@ -294,6 +291,8 @@
+ (MULL (MOVLconst [c]) x) -> (MULLconst [c] x)
+ (MULW x (MOVWconst [c])) -> (MULWconst [c] x)
+ (MULW (MOVWconst [c]) x) -> (MULWconst [c] x)
++(MULB x (MOVBconst [c])) -> (MULBconst [c] x)
++(MULB (MOVBconst [c]) x) -> (MULBconst [c] x)
+ 
+ (ANDQ x (MOVQconst [c])) && is32Bit(c) -> (ANDQconst [c] x)
+ (ANDQ (MOVQconst [c]) x) && is32Bit(c) -> (ANDQconst [c] x)
+@@ -498,6 +497,7 @@
+ (MULQconst [c] (MOVQconst [d])) -> (MOVQconst [c*d])
+ (MULLconst [c] (MOVLconst [d])) -> (MOVLconst [c*d])
+ (MULWconst [c] (MOVWconst [d])) -> (MOVWconst [c*d])
++(MULBconst [c] (MOVBconst [d])) -> (MOVBconst [c*d])
+ (ANDQconst [c] (MOVQconst [d])) -> (MOVQconst [c&d])
+ (ANDLconst [c] (MOVLconst [d])) -> (MOVLconst [c&d])
+ (ANDWconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 6c517a950e..0a7268a2f6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -133,9 +133,11 @@ func init() {
+ 		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
+ 		{name: "MULL", reg: gp21, asm: "IMULL"},      // arg0 * arg1
+ 		{name: "MULW", reg: gp21, asm: "IMULW"},      // arg0 * arg1
++		{name: "MULB", reg: gp21, asm: "IMULW"},      // arg0 * arg1
+ 		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
+ 		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
+ 		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
++		{name: "MULBconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
+ 
+ 		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
+ 		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index dd4462d258..6a5acadde6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -70,9 +70,11 @@ const (
+ 	OpAMD64MULQ
+ 	OpAMD64MULL
+ 	OpAMD64MULW
++	OpAMD64MULB
+ 	OpAMD64MULQconst
+ 	OpAMD64MULLconst
+ 	OpAMD64MULWconst
++	OpAMD64MULBconst
+ 	OpAMD64ANDQ
+ 	OpAMD64ANDL
+ 	OpAMD64ANDW
+@@ -630,6 +632,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "MULB",
++		asm:  x86.AIMULW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "MULQconst",
+ 		asm:  x86.AIMULQ,
+@@ -666,6 +681,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "MULBconst",
++		asm:  x86.AIMULW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "ANDQ",
+ 		asm:  x86.AANDQ,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 6d74aad352..70cd4e6e15 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3511,6 +3511,67 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end4e7df15ee55bdd73d8ecd61b759134d4
+ 	end4e7df15ee55bdd73d8ecd61b759134d4:
+ 		;
++	case OpAMD64MULB:
++		// match: (MULB x (MOVBconst [c]))
++		// cond:
++		// result: (MULBconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBconst {
++				goto end66c6419213ddeb52b1c53fb589a70e5f
++			}
++			c := v.Args[1].AuxInt
++			v.Op = OpAMD64MULBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end66c6419213ddeb52b1c53fb589a70e5f
++	end66c6419213ddeb52b1c53fb589a70e5f:
++		;
++		// match: (MULB (MOVBconst [c]) x)
++		// cond:
++		// result: (MULBconst [c] x)
++		{
++			if v.Args[0].Op != OpAMD64MOVBconst {
++				goto end7e82c8dbbba265b78035ca7df394bb06
++			}
++			c := v.Args[0].AuxInt
++			x := v.Args[1]
++			v.Op = OpAMD64MULBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		goto end7e82c8dbbba265b78035ca7df394bb06
++	end7e82c8dbbba265b78035ca7df394bb06:
++		;
++	case OpAMD64MULBconst:
++		// match: (MULBconst [c] (MOVBconst [d]))
++		// cond:
++		// result: (MOVBconst [c*d])
++		{
++			c := v.AuxInt
++			if v.Args[0].Op != OpAMD64MOVBconst {
++				goto endf2db9f96016085f8cb4082b4af01b2aa
++			}
++			d := v.Args[0].AuxInt
++			v.Op = OpAMD64MOVBconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = c * d
++			return true
++		}
++		goto endf2db9f96016085f8cb4082b4af01b2aa
++	endf2db9f96016085f8cb4082b4af01b2aa:
++		;
+ 	case OpAMD64MULL:
+ 		// match: (MULL x (MOVLconst [c]))
+ 		// cond:
+@@ -3913,11 +3974,11 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpMul8:
+ 		// match: (Mul8 x y)
+ 		// cond:
+-		// result: (MULW x y)
++		// result: (MULB x y)
+ 		{
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			v.Op = OpAMD64MULW
++			v.Op = OpAMD64MULB
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+@@ -3925,8 +3986,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(y)
+ 			return true
+ 		}
+-		goto end861428e804347e8489a6424f2e6ce71c
+-	end861428e804347e8489a6424f2e6ce71c:
++		goto endd876d6bc42a2285b801f42dadbd8757c
++	endd876d6bc42a2285b801f42dadbd8757c:
+ 		;
+ 	case OpMulPtr:
+ 		// match: (MulPtr x y)

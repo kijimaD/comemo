@@ -7,6 +7,20 @@ Date:   Mon Oct 19 14:30:35 2015 -0700
     Change-Id: Iaf33fae7043f21df2dba0bb7e1addb0ff002c508
     Reviewed-on: https://go-review.googlesource.com/16088
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 9def81af6b..7a008274e7 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2348,7 +2348,7 @@ func TestHeaderToWire(t *testing.T) {
+ 					return errors.New("no content-length")
+ 				}
+ 				if !strings.Contains(got, "Content-Type: text/plain") {
+-					return errors.New("no content-length")
++					return errors.New("no content-type")
+ 				}
+ 				return nil
+ 			},

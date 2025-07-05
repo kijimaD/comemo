@@ -51,7 +51,7 @@ Date:   Tue Oct 12 12:59:18 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2419042
-
+---
  src/cmd/godoc/codewalk.go           |   6 +-
  src/cmd/godoc/godoc.go              |  34 +++----
  src/cmd/godoc/main.go               |  28 +++---
@@ -89,3 +89,2230 @@ Date:   Tue Oct 12 12:59:18 2010 -0700
  src/pkg/testing/iotest/logger.go    |  12 +--
  src/pkg/websocket/websocket_test.go |   2 +-
  36 files changed, 358 insertions(+), 303 deletions(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 442ba7b1dd..bda63a9f60 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -58,7 +58,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
+ 	// a codewalk description.
+ 	cw, err := loadCodewalk(abspath + ".xml")
+ 	if err != nil {
+-		log.Stderr(err)
++		log.Print(err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -186,7 +186,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
+ 
+ 	dir, err := ioutil.ReadDir(abspath)
+ 	if err != nil {
+-		log.Stderr(err)
++		log.Print(err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -218,7 +218,7 @@ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
+ 	abspath := absolutePath(f, *goroot)
+ 	data, err := ioutil.ReadFile(abspath)
+ 	if err != nil {
+-		log.Stderr(err)
++		log.Print(err)
+ 		serveError(w, r, f, err)
+ 		return
+ 	}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index a101eb24c5..930956c98a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -198,7 +198,7 @@ func updateFilterFile() {
+ 
+ 	// update filter file
+ 	if err := writeFileAtomically(*filter, buf.Bytes()); err != nil {
+-		log.Stderrf("writeFileAtomically(%s): %s", *filter, err)
++		log.Printf("writeFileAtomically(%s): %s", *filter, err)
+ 		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
+ 	} else {
+ 		filterDelay.set(*filterMin) // revert to regular filter update schedule
+@@ -211,9 +211,9 @@ func initDirTrees() {
+ 	if *filter != "" {
+ 		list, err := readDirList(*filter)
+ 		if err != nil {
+-			log.Stderrf("%s", err)
++			log.Printf("%s", err)
+ 		} else if len(list) == 0 {
+-			log.Stderrf("no directory paths in file %s", *filter)
++			log.Printf("no directory paths in file %s", *filter)
+ 		}
+ 		setPathFilter(list)
+ 	}
+@@ -231,12 +231,12 @@ func initDirTrees() {
+ 		go func() {
+ 			for {
+ 				if *verbose {
+-					log.Stderrf("start update of %s", *filter)
++					log.Printf("start update of %s", *filter)
+ 				}
+ 				updateFilterFile()
+ 				delay, _ := filterDelay.get()
+ 				if *verbose {
+-					log.Stderrf("next filter update in %dmin", delay.(int))
++					log.Printf("next filter update in %dmin", delay.(int))
+ 				}
+ 				time.Sleep(int64(delay.(int)) * 60e9)
+ 			}
+@@ -627,7 +627,7 @@ func urlFmt(w io.Writer, x interface{}, format string) {
+ 	default:
+ 		// we should never reach here, but be resilient
+ 		// and assume the url-pkg format instead
+-		log.Stderrf("INTERNAL ERROR: urlFmt(%s)", format)
++		log.Printf("INTERNAL ERROR: urlFmt(%s)", format)
+ 		fallthrough
+ 	case "url-pkg":
+ 		// because of the irregular mapping under goroot
+@@ -814,7 +814,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
+ 	}
+ 
+ 	if err := godocHTML.Execute(&d, w); err != nil {
+-		log.Stderrf("godocHTML.Execute: %s", err)
++		log.Printf("godocHTML.Execute: %s", err)
+ 	}
+ }
+ 
+@@ -848,7 +848,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
+ 	// get HTML body contents
+ 	src, err := ioutil.ReadFile(abspath)
+ 	if err != nil {
+-		log.Stderrf("ioutil.ReadFile: %s", err)
++		log.Printf("ioutil.ReadFile: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -882,7 +882,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
+ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+ 	var buf bytes.Buffer
+ 	if err := t.Execute(data, &buf); err != nil {
+-		log.Stderrf("%s.Execute: %s", name, err)
++		log.Printf("%s.Execute: %s", name, err)
+ 	}
+ 	return buf.Bytes()
+ }
+@@ -891,7 +891,7 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+ func serveGoSource(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+ 	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
+ 	if err != nil {
+-		log.Stderrf("parser.ParseFile: %s", err)
++		log.Printf("parser.ParseFile: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -974,7 +974,7 @@ func isTextFile(path string) bool {
+ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+ 	src, err := ioutil.ReadFile(abspath)
+ 	if err != nil {
+-		log.Stderrf("ioutil.ReadFile: %s", err)
++		log.Printf("ioutil.ReadFile: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -995,7 +995,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
+ 
+ 	list, err := ioutil.ReadDir(abspath)
+ 	if err != nil {
+-		log.Stderrf("ioutil.ReadDir: %s", err)
++		log.Printf("ioutil.ReadDir: %s", err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -1045,7 +1045,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 
+ 	dir, err := os.Lstat(abspath)
+ 	if err != nil {
+-		log.Stderr(err)
++		log.Print(err)
+ 		serveError(w, r, relpath, err)
+ 		return
+ 	}
+@@ -1256,7 +1256,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
+ 	if info.Err != nil {
+-		log.Stderr(info.Err)
++		log.Print(info.Err)
+ 		serveError(w, r, relpath, info.Err)
+ 		return
+ 	}
+@@ -1359,11 +1359,11 @@ func indexer() {
+ 			if *verbose {
+ 				secs := float64((stop-start)/1e6) / 1e3
+ 				nwords, nspots := index.Size()
+-				log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots)
++				log.Printf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots)
+ 			}
+-			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
++			log.Printf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+ 			runtime.GC()
+-			log.Stderrf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
++			log.Printf("bytes=%d footprint=%d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+ 		}
+ 		time.Sleep(1 * 60e9) // try once a minute
+ 	}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 4a913a0172..616983b378 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -74,20 +74,20 @@ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.E
+ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 	r, w, err := os.Pipe()
+ 	if err != nil {
+-		log.Stderrf("os.Pipe(): %v\n", err)
++		log.Printf("os.Pipe(): %v\n", err)
+ 		return 2
+ 	}
+ 
+ 	bin := args[0]
+ 	fds := []*os.File{nil, w, w}
+ 	if *verbose {
+-		log.Stderrf("executing %v", args)
++		log.Printf("executing %v", args)
+ 	}
+ 	pid, err := os.ForkExec(bin, args, os.Environ(), *goroot, fds)
+ 	defer r.Close()
+ 	w.Close()
+ 	if err != nil {
+-		log.Stderrf("os.ForkExec(%q): %v\n", bin, err)
++		log.Printf("os.ForkExec(%q): %v\n", bin, err)
+ 		return 2
+ 	}
+ 
+@@ -96,13 +96,13 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 	wait, err := os.Wait(pid, 0)
+ 	if err != nil {
+ 		os.Stderr.Write(buf.Bytes())
+-		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err)
++		log.Printf("os.Wait(%d, 0): %v\n", pid, err)
+ 		return 2
+ 	}
+ 	status = wait.ExitStatus()
+ 	if !wait.Exited() || status > 1 {
+ 		os.Stderr.Write(buf.Bytes())
+-		log.Stderrf("executing %v failed (exit status = %d)", args, status)
++		log.Printf("executing %v failed (exit status = %d)", args, status)
+ 		return
+ 	}
+ 
+@@ -151,7 +151,7 @@ func usage() {
+ 
+ func loggingHandler(h http.Handler) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+-		log.Stderrf("%s\t%s", w.RemoteAddr(), req.URL)
++		log.Printf("%s\t%s", w.RemoteAddr(), req.URL)
+ 		h.ServeHTTP(w, req)
+ 	})
+ }
+@@ -237,13 +237,13 @@ func main() {
+ 		// HTTP server mode.
+ 		var handler http.Handler = http.DefaultServeMux
+ 		if *verbose {
+-			log.Stderrf("Go Documentation Server\n")
+-			log.Stderrf("version = %s\n", runtime.Version())
+-			log.Stderrf("address = %s\n", *httpAddr)
+-			log.Stderrf("goroot = %s\n", *goroot)
+-			log.Stderrf("tabwidth = %d\n", *tabwidth)
++			log.Printf("Go Documentation Server\n")
++			log.Printf("version = %s\n", runtime.Version())
++			log.Printf("address = %s\n", *httpAddr)
++			log.Printf("goroot = %s\n", *goroot)
++			log.Printf("tabwidth = %d\n", *tabwidth)
+ 			if !fsMap.IsEmpty() {
+-				log.Stderr("user-defined mapping:")
++				log.Print("user-defined mapping:")
+ 				fsMap.Fprint(os.Stderr)
+ 			}
+ 			handler = loggingHandler(handler)
+@@ -272,7 +272,7 @@ func main() {
+ 					dosync(nil, nil)
+ 					delay, _ := syncDelay.get()
+ 					if *verbose {
+-						log.Stderrf("next sync in %dmin", delay.(int))
++						log.Printf("next sync in %dmin", delay.(int))
+ 					}
+ 					time.Sleep(int64(delay.(int)) * 60e9)
+ 				}
+@@ -377,6 +377,6 @@ func main() {
+ 	}
+ 
+ 	if err := packageText.Execute(info, os.Stdout); err != nil {
+-		log.Stderrf("packageText.Execute: %s", err)
++		log.Printf("packageText.Execute: %s", err)
+ 	}
+ }
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index b1bc55fb6d..8250456234 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -69,7 +69,7 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
+ 				quoted := string(spec.(*ast.ImportSpec).Path.Value)
+ 				unquoted, err := strconv.Unquote(quoted)
+ 				if err != nil {
+-					log.Crashf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
++					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+ 				}
+ 				imports[unquoted] = filename
+ 			}
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index 984d686f9a..bdc70f1cf6 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -62,14 +62,14 @@ func main() {
+ 	}
+ 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+ 	certOut.Close()
+-	log.Stdoutf("written cert.pem\n")
++	log.Print("written cert.pem\n")
+ 
+ 	keyOut, err := os.Open("key.pem", os.O_WRONLY|os.O_CREAT, 0600)
+ 	if err != nil {
+-		log.Exitf("failed to open key.pem for writing: %s", err)
++		log.Print("failed to open key.pem for writing:", err)
+ 		return
+ 	}
+ 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+ 	keyOut.Close()
+-	log.Stdoutf("written key.pem\n")
++	log.Print("written key.pem\n")
+ }
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/draw/x11/conn.go
+index fdf6281b41..da2181536f 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/draw/x11/conn.go
+@@ -69,7 +69,7 @@ func (c *conn) writeSocket() {
+ 		// TODO(nigeltao): See what XCB's xcb_put_image does in this situation.
+ 		units := 6 + b.Dx()
+ 		if units > 0xffff || b.Dy() > 0xffff {
+-			log.Stderr("x11: window is too large for PutImage")
++			log.Print("x11: window is too large for PutImage")
+ 			return
+ 		}
+ 
+@@ -86,7 +86,7 @@ func (c *conn) writeSocket() {
+ 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
+ 			if _, err := c.w.Write(c.flushBuf0[0:24]); err != nil {
+ 				if err != os.EOF {
+-					log.Stderr("x11: " + err.String())
++					log.Println("x11:", err.String())
+ 				}
+ 				return
+ 			}
+@@ -104,7 +104,7 @@ func (c *conn) writeSocket() {
+ 				x += nx
+ 				if _, err := c.w.Write(c.flushBuf1[0 : 4*nx]); err != nil {
+ 					if err != os.EOF {
+-						log.Stderr("x11: " + err.String())
++						log.Println("x11:", err.String())
+ 					}
+ 					return
+ 				}
+@@ -112,7 +112,7 @@ func (c *conn) writeSocket() {
+ 		}
+ 		if err := c.w.Flush(); err != nil {
+ 			if err != os.EOF {
+-				log.Stderr("x11: " + err.String())
++				log.Println("x11:", err.String())
+ 			}
+ 			return
+ 		}
+diff --git a/src/pkg/exp/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+index c53febc8a1..84ff518e24 100644
+--- a/src/pkg/exp/eval/bridge.go
++++ b/src/pkg/exp/eval/bridge.go
+@@ -79,7 +79,7 @@ func TypeFromNative(t reflect.Type) Type {
+ 	case *reflect.ArrayType:
+ 		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
+ 	case *reflect.ChanType:
+-		log.Crashf("%T not implemented", t)
++		log.Panicf("%T not implemented", t)
+ 	case *reflect.FuncType:
+ 		nin := t.NumIn()
+ 		// Variadic functions have DotDotDotType at the end
+@@ -97,9 +97,9 @@ func TypeFromNative(t reflect.Type) Type {
+ 		}
+ 		et = NewFuncType(in, variadic, out)
+ 	case *reflect.InterfaceType:
+-		log.Crashf("%T not implemented", t)
++		log.Panicf("%T not implemented", t)
+ 	case *reflect.MapType:
+-		log.Crashf("%T not implemented", t)
++		log.Panicf("%T not implemented", t)
+ 	case *reflect.PtrType:
+ 		et = NewPtrType(TypeFromNative(t.Elem()))
+ 	case *reflect.SliceType:
+@@ -116,9 +116,9 @@ func TypeFromNative(t reflect.Type) Type {
+ 		}
+ 		et = NewStructType(fields)
+ 	case *reflect.UnsafePointerType:
+-		log.Crashf("%T not implemented", t)
++		log.Panicf("%T not implemented", t)
+ 	default:
+-		log.Crashf("unexpected reflect.Type: %T", t)
++		log.Panicf("unexpected reflect.Type: %T", t)
+ 	}
+ 
+ 	if nt != nil {
+diff --git a/src/pkg/exp/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+index fcdbeb85c0..6900a41b35 100644
+--- a/src/pkg/exp/eval/eval_test.go
++++ b/src/pkg/exp/eval/eval_test.go
+@@ -195,7 +195,7 @@ func toValue(val interface{}) Value {
+ 	case Func:
+ 		return &funcV{val}
+ 	}
+-	log.Crashf("toValue(%T) not implemented", val)
++	log.Panicf("toValue(%T) not implemented", val)
+ 	panic("unreachable")
+ }
+ 
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 8a051495ce..2cde189692 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -87,7 +87,7 @@ func (a *exprInfo) diagOpTypes(op token.Token, lt Type, rt Type) {
+ // TODO(austin) Rename to resolveIdeal or something?
+ func (a *expr) convertTo(t Type) *expr {
+ 	if !a.t.isIdeal() {
+-		log.Crashf("attempted to convert from %v, expected ideal", a.t)
++		log.Panicf("attempted to convert from %v, expected ideal", a.t)
+ 	}
+ 
+ 	var rat *big.Rat
+@@ -109,7 +109,7 @@ func (a *expr) convertTo(t Type) *expr {
+ 		i := a.asIdealInt()()
+ 		rat = new(big.Rat).SetInt(i)
+ 	default:
+-		log.Crashf("unexpected ideal type %v", a.t)
++		log.Panicf("unexpected ideal type %v", a.t)
+ 	}
+ 
+ 	// Check bounds
+@@ -149,7 +149,7 @@ func (a *expr) convertTo(t Type) *expr {
+ 	case *idealFloatType:
+ 		res.eval = func() *big.Rat { return rat }
+ 	default:
+-		log.Crashf("cannot convert to type %T", t)
++		log.Panicf("cannot convert to type %T", t)
+ 	}
+ 
+ 	return res
+@@ -202,7 +202,7 @@ func (a *expr) derefArray() *expr {
+ 		if _, ok := pt.Elem.lit().(*ArrayType); ok {
+ 			deref := a.compileStarExpr(a)
+ 			if deref == nil {
+-				log.Crashf("failed to dereference *array")
++				log.Panicf("failed to dereference *array")
+ 			}
+ 			return deref
+ 		}
+@@ -370,7 +370,7 @@ func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
+ 		a.rs = make([]*expr, len(a.rmt.Elems))
+ 		for i, t := range a.rmt.Elems {
+ 			if t.isIdeal() {
+-				log.Crashf("Right side of unpack contains ideal: %s", rmt)
++				log.Panicf("Right side of unpack contains ideal: %s", rmt)
+ 			}
+ 			a.rs[i] = orig.newExpr(t, orig.desc)
+ 			index := i
+@@ -496,7 +496,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		case token.STRING:
+ 			return ei.compileStringLit(string(x.Value))
+ 		default:
+-			log.Crashf("unexpected basic literal type %v", x.Kind)
++			log.Panicf("unexpected basic literal type %v", x.Kind)
+ 		}
+ 
+ 	case *ast.CompositeLit:
+@@ -649,7 +649,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		}
+ 		return ei.compileUnaryExpr(x.Op, v)
+ 	}
+-	log.Crashf("unexpected ast node type %T", x)
++	log.Panicf("unexpected ast node type %T", x)
+ 	panic("unreachable")
+ 
+ typeexpr:
+@@ -711,7 +711,7 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
+ 		a.diag("type %v used as expression", name)
+ 		return nil
+ 	}
+-	log.Crashf("name %s has unknown type %T", name, def)
++	log.Panicf("name %s has unknown type %T", name, def)
+ 	panic("unreachable")
+ }
+ 
+@@ -770,7 +770,7 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
+ func (a *exprInfo) compileFloatLit(lit string) *expr {
+ 	f, ok := new(big.Rat).SetString(lit)
+ 	if !ok {
+-		log.Crashf("malformed float literal %s at %v passed parser", lit, a.pos)
++		log.Panicf("malformed float literal %s at %v passed parser", lit, a.pos)
+ 	}
+ 	expr := a.newExpr(IdealFloatType, "float literal")
+ 	expr.eval = func() *big.Rat { return f }
+@@ -828,7 +828,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 			ambig = true
+ 
+ 		default:
+-			log.Crashf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth)
++			log.Panicf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth)
+ 		}
+ 		amberr += "\n\t" + pathName[1:]
+ 	}
+@@ -870,7 +870,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 			_, ok := ti.methods[name]
+ 			if ok {
+ 				mark(depth, pathName+"."+name)
+-				log.Crash("Methods not implemented")
++				log.Panic("Methods not implemented")
+ 			}
+ 			t = ti.Def
+ 		}
+@@ -1002,7 +1002,7 @@ func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
+ 		}
+ 
+ 	default:
+-		log.Crashf("unexpected left operand type %T", arr.t.lit())
++		log.Panicf("unexpected left operand type %T", arr.t.lit())
+ 	}
+ 
+ 	return expr
+@@ -1126,7 +1126,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 		}
+ 
+ 	default:
+-		log.Crashf("unexpected left operand type %T", l.t.lit())
++		log.Panicf("unexpected left operand type %T", l.t.lit())
+ 	}
+ 
+ 	return expr
+@@ -1463,7 +1463,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 		return expr
+ 	}
+ 
+-	log.Crashf("unexpected built-in function '%s'", ft.builtin)
++	log.Panicf("unexpected built-in function '%s'", ft.builtin)
+ 	panic("unreachable")
+ }
+ 
+@@ -1530,10 +1530,10 @@ func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
+ 		t = NewPtrType(v.t)
+ 
+ 	case token.ARROW:
+-		log.Crashf("Unary op %v not implemented", op)
++		log.Panicf("Unary op %v not implemented", op)
+ 
+ 	default:
+-		log.Crashf("unknown unary operator %v", op)
++		log.Panicf("unknown unary operator %v", op)
+ 	}
+ 
+ 	desc, ok := unaryOpDescs[op]
+@@ -1564,7 +1564,7 @@ func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
+ 		expr.eval = func(t *Thread) Value { return vf(t) }
+ 
+ 	default:
+-		log.Crashf("Compilation of unary op %v not implemented", op)
++		log.Panicf("Compilation of unary op %v not implemented", op)
+ 	}
+ 
+ 	return expr
+@@ -1688,7 +1688,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 			if l.t.isIdeal() && !r.t.isInteger() {
+ 				r = r.convertTo(IdealIntType)
+ 				if r == nil {
+-					log.Crashf("conversion to uintType succeeded, but conversion to idealIntType failed")
++					log.Panicf("conversion to uintType succeeded, but conversion to idealIntType failed")
+ 				}
+ 			}
+ 		} else if _, ok := r.t.lit().(*uintType); !ok {
+@@ -1731,7 +1731,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 		// The operands in channel sends differ in type: one
+ 		// is always a channel and the other is a variable or
+ 		// value of the channel's element type.
+-		log.Crash("Binary op <- not implemented")
++		log.Panic("Binary op <- not implemented")
+ 		t = BoolType
+ 
+ 	case token.LSS, token.GTR, token.LEQ, token.GEQ:
+@@ -1799,7 +1799,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 		t = BoolType
+ 
+ 	default:
+-		log.Crashf("unknown binary operator %v", op)
++		log.Panicf("unknown binary operator %v", op)
+ 	}
+ 
+ 	desc, ok := binOpDescs[op]
+@@ -1901,7 +1901,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 		expr.genBinOpLogOr(l, r)
+ 
+ 	default:
+-		log.Crashf("Compilation of binary op %v not implemented", op)
++		log.Panicf("Compilation of binary op %v not implemented", op)
+ 	}
+ 
+ 	return expr
+@@ -1934,7 +1934,7 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
+ 	case *uintType:
+ 		return int64(lenExpr.asUint()(nil)), true
+ 	}
+-	log.Crashf("unexpected integer type %T", lenExpr.t)
++	log.Panicf("unexpected integer type %T", lenExpr.t)
+ 	return 0, false
+ }
+ 
+@@ -1943,7 +1943,7 @@ func (a *compiler) compileExpr(b *block, constant bool, expr ast.Expr) *expr {
+ 	nerr := a.numError()
+ 	e := ec.compile(expr, false)
+ 	if e == nil && nerr == a.numError() {
+-		log.Crashf("expression compilation failed without reporting errors")
++		log.Panicf("expression compilation failed without reporting errors")
+ 	}
+ 	return e
+ }
+@@ -1981,7 +1981,7 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
+ 		case tempType.isFloat():
+ 			tempType = FloatType
+ 		default:
+-			log.Crashf("unexpected ideal type %v", tempType)
++			log.Panicf("unexpected ideal type %v", tempType)
+ 		}
+ 	}
+ 	temp := b.DefineTemp(tempType)
+@@ -1990,7 +1990,7 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
+ 	// Create "temp := rhs"
+ 	assign := ac.compile(b, tempType)
+ 	if assign == nil {
+-		log.Crashf("compileAssign type check failed")
++		log.Panicf("compileAssign type check failed")
+ 	}
+ 
+ 	effect := func(t *Thread) {
+diff --git a/src/pkg/exp/eval/expr1.go b/src/pkg/exp/eval/expr1.go
+index 81bc3a2202..ae0cfc7237 100755
+--- a/src/pkg/exp/eval/expr1.go
++++ b/src/pkg/exp/eval/expr1.go
+@@ -84,7 +84,7 @@ func (a *expr) asInterface() func(*Thread) interface{} {
+ 	case func(t *Thread) Map:
+ 		return func(t *Thread) interface{} { return sf(t) }
+ 	default:
+-		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
++		log.Panicf("unexpected expression node type %T at %v", a.eval, a.pos)
+ 	}
+ 	panic("fail")
+ }
+@@ -124,7 +124,7 @@ func (a *expr) genConstant(v Value) {
+ 	case *MapType:
+ 		a.eval = func(t *Thread) Map { return v.(MapValue).Get(t) }
+ 	default:
+-		log.Crashf("unexpected constant type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected constant type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -154,7 +154,7 @@ func (a *expr) genIdentOp(level, index int) {
+ 	case *MapType:
+ 		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get(t) }
+ 	default:
+-		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected identifier type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -186,7 +186,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
+ 	case *MultiType:
+ 		a.eval = func(t *Thread) []Value { return call(t) }
+ 	default:
+-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -216,7 +216,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
+ 	case *MapType:
+ 		a.eval = func(t *Thread) Map { return vf(t).(MapValue).Get(t) }
+ 	default:
+-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -240,7 +240,7 @@ func (a *expr) genUnaryOpNeg(v *expr) {
+ 		val.Neg(val)
+ 		a.eval = func() *big.Rat { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -250,7 +250,7 @@ func (a *expr) genUnaryOpNot(v *expr) {
+ 		vf := v.asBool()
+ 		a.eval = func(t *Thread) bool { v := vf(t); return !v }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -267,7 +267,7 @@ func (a *expr) genUnaryOpXor(v *expr) {
+ 		val.Not(val)
+ 		a.eval = func() *big.Int { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -325,7 +325,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -367,7 +367,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -400,7 +400,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
+ 				return float64(float(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()()
+@@ -415,7 +415,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
+ 			return l + r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -461,7 +461,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -503,7 +503,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -536,7 +536,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
+ 				return float64(float(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()()
+@@ -544,7 +544,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
+ 		val := l.Sub(l, r)
+ 		a.eval = func() *big.Rat { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -590,7 +590,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -632,7 +632,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -665,7 +665,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
+ 				return float64(float(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()()
+@@ -673,7 +673,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
+ 		val := l.Mul(l, r)
+ 		a.eval = func() *big.Rat { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -734,7 +734,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -791,7 +791,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -833,7 +833,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 				return float64(float(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()()
+@@ -841,7 +841,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 		val := l.Quo(l, r)
+ 		a.eval = func() *big.Rat { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -902,7 +902,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -959,7 +959,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -967,7 +967,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
+ 		val := l.Rem(l, r)
+ 		a.eval = func() *big.Int { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1013,7 +1013,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -1055,7 +1055,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -1063,7 +1063,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
+ 		val := l.And(l, r)
+ 		a.eval = func() *big.Int { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1109,7 +1109,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -1151,7 +1151,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -1159,7 +1159,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
+ 		val := l.Or(l, r)
+ 		a.eval = func() *big.Int { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1205,7 +1205,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -1247,7 +1247,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -1255,7 +1255,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
+ 		val := l.Xor(l, r)
+ 		a.eval = func() *big.Int { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1301,7 +1301,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -1343,7 +1343,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *idealIntType:
+ 		l := l.asIdealInt()()
+@@ -1351,7 +1351,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
+ 		val := l.AndNot(l, r)
+ 		a.eval = func() *big.Int { return val }
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1397,7 +1397,7 @@ func (a *expr) genBinOpShl(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -1439,10 +1439,10 @@ func (a *expr) genBinOpShl(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1488,7 +1488,7 @@ func (a *expr) genBinOpShr(l, r *expr) {
+ 				return uint64(uint(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	case *intType:
+ 		lf := l.asInt()
+@@ -1530,10 +1530,10 @@ func (a *expr) genBinOpShr(l, r *expr) {
+ 				return int64(int(ret))
+ 			}
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1578,7 +1578,7 @@ func (a *expr) genBinOpLss(l, r *expr) {
+ 			return l < r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1623,7 +1623,7 @@ func (a *expr) genBinOpGtr(l, r *expr) {
+ 			return l > r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1668,7 +1668,7 @@ func (a *expr) genBinOpLeq(l, r *expr) {
+ 			return l <= r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1713,7 +1713,7 @@ func (a *expr) genBinOpGeq(l, r *expr) {
+ 			return l >= r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1786,7 +1786,7 @@ func (a *expr) genBinOpEql(l, r *expr) {
+ 			return l == r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1859,7 +1859,7 @@ func (a *expr) genBinOpNeq(l, r *expr) {
+ 			return l != r
+ 		}
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -1899,7 +1899,7 @@ func genAssign(lt Type, r *expr) func(lv Value, t *Thread) {
+ 		rf := r.asMap()
+ 		return func(lv Value, t *Thread) { lv.(MapValue).Set(t, rf(t)) }
+ 	default:
+-		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
++		log.Panicf("unexpected left operand type %v at %v", lt, r.pos)
+ 	}
+ 	panic("fail")
+ }
+diff --git a/src/pkg/exp/eval/gen.go b/src/pkg/exp/eval/gen.go
+index 80179c89aa..b8f4dc8aed 100644
+--- a/src/pkg/exp/eval/gen.go
++++ b/src/pkg/exp/eval/gen.go
+@@ -184,7 +184,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
+ «.end»
+ «.end»
+ 	default:
+-		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
++		log.Panicf("unexpected expression node type %T at %v", a.eval, a.pos)
+ 	}
+ 	panic("fail")
+ }
+@@ -205,7 +205,7 @@ func (a *expr) genConstant(v Value) {
+ «.end»
+ «.end»
+ 	default:
+-		log.Crashf("unexpected constant type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected constant type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -220,7 +220,7 @@ func (a *expr) genIdentOp(level, index int) {
+ «.end»
+ «.end»
+ 	default:
+-		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected identifier type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -237,7 +237,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
+ 	case *MultiType:
+ 		a.eval = func(t *Thread) []Value { return call(t) }
+ 	default:
+-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -252,7 +252,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
+ «.end»
+ «.end»
+ 	default:
+-		log.Crashf("unexpected result type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected result type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -271,7 +271,7 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
+ «.end»
+ «.end»
+ 	default:
+-		log.Crashf("unexpected type %v at %v", a.t, a.pos)
++		log.Panicf("unexpected type %v at %v", a.t, a.pos)
+ 	}
+ }
+ 
+@@ -327,7 +327,7 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
+ 			}
+ 		«.end»
+ 		default:
+-			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
++			log.Panicf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
+ 		}
+ 		«.or»
+ 		a.eval = func(t *Thread) «Native» {
+@@ -339,7 +339,7 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
+ 	«.end»
+ 	«.end»
+ 	default:
+-		log.Crashf("unexpected type %v at %v", l.t, a.pos)
++		log.Panicf("unexpected type %v at %v", l.t, a.pos)
+ 	}
+ }
+ 
+@@ -355,7 +355,7 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
+ «.end»
+ «.end»
+ 	default:
+-		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
++		log.Panicf("unexpected left operand type %v at %v", lt, r.pos)
+ 	}
+ 	panic("fail")
+ }
+diff --git a/src/pkg/exp/eval/scope.go b/src/pkg/exp/eval/scope.go
+index 74ce32b594..8eee38e034 100644
+--- a/src/pkg/exp/eval/scope.go
++++ b/src/pkg/exp/eval/scope.go
+@@ -74,7 +74,7 @@ type Scope struct {
+ 
+ func (b *block) enterChild() *block {
+ 	if b.inner != nil && b.inner.scope == b.scope {
+-		log.Crash("Failed to exit child block before entering another child")
++		log.Panic("Failed to exit child block before entering another child")
+ 	}
+ 	sub := &block{
+ 		outer:  b,
+@@ -88,14 +88,14 @@ func (b *block) enterChild() *block {
+ 
+ func (b *block) exit() {
+ 	if b.outer == nil {
+-		log.Crash("Cannot exit top-level block")
++		log.Panic("Cannot exit top-level block")
+ 	}
+ 	if b.outer.scope == b.scope {
+ 		if b.outer.inner != b {
+-			log.Crash("Already exited block")
++			log.Panic("Already exited block")
+ 		}
+ 		if b.inner != nil && b.inner.scope == b.scope {
+-			log.Crash("Exit of parent block without exit of child block")
++			log.Panic("Exit of parent block without exit of child block")
+ 		}
+ 	}
+ 	b.outer.inner = nil
+@@ -103,7 +103,7 @@ func (b *block) exit() {
+ 
+ func (b *block) ChildScope() *Scope {
+ 	if b.inner != nil && b.inner.scope == b.scope {
+-		log.Crash("Failed to exit child block before entering a child scope")
++		log.Panic("Failed to exit child block before entering a child scope")
+ 	}
+ 	sub := b.enterChild()
+ 	sub.offset = 0
+@@ -125,7 +125,7 @@ func (b *block) DefineTemp(t Type) *Variable { return b.defineSlot(t, true) }
+ 
+ func (b *block) defineSlot(t Type, temp bool) *Variable {
+ 	if b.inner != nil && b.inner.scope == b.scope {
+-		log.Crash("Failed to exit child block before defining variable")
++		log.Panic("Failed to exit child block before defining variable")
+ 	}
+ 	index := -1
+ 	if !b.global || temp {
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index 2c63890ff3..a665eb2844 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -82,7 +82,7 @@ func newFlowBuf(cb *codeBuf) *flowBuf {
+ func (f *flowBuf) put(cond bool, term bool, jumps []*uint) {
+ 	pc := f.cb.nextPC()
+ 	if ent, ok := f.ents[pc]; ok {
+-		log.Crashf("Flow entry already exists at PC %d: %+v", pc, ent)
++		log.Panicf("Flow entry already exists at PC %d: %+v", pc, ent)
+ 	}
+ 	f.ents[pc] = &flowEnt{cond, term, jumps, false}
+ }
+@@ -138,7 +138,7 @@ func (f *flowBuf) putLabel(name string, b *block) {
+ func (f *flowBuf) reachesEnd(pc uint) bool {
+ 	endPC := f.cb.nextPC()
+ 	if pc > endPC {
+-		log.Crashf("Reached bad PC %d past end PC %d", pc, endPC)
++		log.Panicf("Reached bad PC %d past end PC %d", pc, endPC)
+ 	}
+ 
+ 	for ; pc < endPC; pc++ {
+@@ -239,7 +239,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
+ 
+ func (a *stmtCompiler) compile(s ast.Stmt) {
+ 	if a.block.inner != nil {
+-		log.Crash("Child scope still entered")
++		log.Panic("Child scope still entered")
+ 	}
+ 
+ 	notimpl := false
+@@ -309,7 +309,7 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
+ 		notimpl = true
+ 
+ 	default:
+-		log.Crashf("unexpected ast node type %T", s)
++		log.Panicf("unexpected ast node type %T", s)
+ 	}
+ 
+ 	if notimpl {
+@@ -317,7 +317,7 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
+ 	}
+ 
+ 	if a.block.inner != nil {
+-		log.Crash("Forgot to exit child scope")
++		log.Panic("Forgot to exit child scope")
+ 	}
+ }
+ 
+@@ -329,16 +329,16 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
+ 
+ 	case *ast.FuncDecl:
+ 		if !a.block.global {
+-			log.Crash("FuncDecl at statement level")
++			log.Panic("FuncDecl at statement level")
+ 		}
+ 
+ 	case *ast.GenDecl:
+ 		if decl.Tok == token.IMPORT && !a.block.global {
+-			log.Crash("import at statement level")
++			log.Panic("import at statement level")
+ 		}
+ 
+ 	default:
+-		log.Crashf("Unexpected Decl type %T", s.Decl)
++		log.Panicf("Unexpected Decl type %T", s.Decl)
+ 	}
+ 	a.compileDecl(s.Decl)
+ }
+@@ -350,7 +350,7 @@ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
+ 			// Declaration without assignment
+ 			if spec.Type == nil {
+ 				// Parser should have caught
+-				log.Crash("Type and Values nil")
++				log.Panic("Type and Values nil")
+ 			}
+ 			t := a.compileType(a.block, spec.Type)
+ 			// Define placeholders even if type compile failed
+@@ -400,9 +400,9 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 	case *ast.GenDecl:
+ 		switch d.Tok {
+ 		case token.IMPORT:
+-			log.Crashf("%v not implemented", d.Tok)
++			log.Panicf("%v not implemented", d.Tok)
+ 		case token.CONST:
+-			log.Crashf("%v not implemented", d.Tok)
++			log.Panicf("%v not implemented", d.Tok)
+ 		case token.TYPE:
+ 			a.compileTypeDecl(a.block, d)
+ 		case token.VAR:
+@@ -410,7 +410,7 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 		}
+ 
+ 	default:
+-		log.Crashf("Unexpected Decl type %T", decl)
++		log.Panicf("Unexpected Decl type %T", decl)
+ 	}
+ }
+ 
+@@ -486,7 +486,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
+ 		op = token.SUB
+ 		desc = "decrement statement"
+ 	default:
+-		log.Crashf("Unexpected IncDec token %v", s.Tok)
++		log.Panicf("Unexpected IncDec token %v", s.Tok)
+ 	}
+ 
+ 	effect, l := l.extractEffect(bc.block, desc)
+@@ -502,7 +502,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
+ 
+ 	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "", "")
+ 	if assign == nil {
+-		log.Crashf("compileAssign type check failed")
++		log.Panicf("compileAssign type check failed")
+ 	}
+ 
+ 	lf := l.evalAddr
+@@ -607,7 +607,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
+ 				case ac.rmt.Elems[i].isFloat():
+ 					lt = FloatType
+ 				default:
+-					log.Crashf("unexpected ideal type %v", rs[i].t)
++					log.Panicf("unexpected ideal type %v", rs[i].t)
+ 				}
+ 
+ 			default:
+@@ -780,7 +780,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
+ 
+ 	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "assignment", "value")
+ 	if assign == nil {
+-		log.Crashf("compileAssign type check failed")
++		log.Panicf("compileAssign type check failed")
+ 	}
+ 
+ 	lf := l.evalAddr
+@@ -911,7 +911,7 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
+ 		return
+ 
+ 	default:
+-		log.Crash("Unexpected branch token %v", s.Tok)
++		log.Panic("Unexpected branch token %v", s.Tok)
+ 	}
+ 
+ 	a.flow.put1(false, pc)
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 5a7ffb99c8..534bc3587c 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -417,7 +417,7 @@ func (t *floatType) minVal() *big.Rat {
+ 	case 64:
+ 		return minFloat64Val
+ 	}
+-	log.Crashf("unexpected floating point bit count: %d", bits)
++	log.Panicf("unexpected floating point bit count: %d", bits)
+ 	panic("unreachable")
+ }
+ 
+@@ -432,7 +432,7 @@ func (t *floatType) maxVal() *big.Rat {
+ 	case 64:
+ 		return maxFloat64Val
+ 	}
+-	log.Crashf("unexpected floating point bit count: %d", bits)
++	log.Panicf("unexpected floating point bit count: %d", bits)
+ 	panic("unreachable")
+ }
+ 
+@@ -1121,7 +1121,7 @@ func NewNamedType(name string) *NamedType {
+ 
+ func (t *NamedType) Complete(def Type) {
+ 	if !t.incomplete {
+-		log.Crashf("cannot complete already completed NamedType %+v", *t)
++		log.Panicf("cannot complete already completed NamedType %+v", *t)
+ 	}
+ 	// We strip the name from def because multiple levels of
+ 	// naming are useless.
+diff --git a/src/pkg/exp/eval/typec.go b/src/pkg/exp/eval/typec.go
+index 5c202a4812..7ee323ef14 100644
+--- a/src/pkg/exp/eval/typec.go
++++ b/src/pkg/exp/eval/typec.go
+@@ -51,7 +51,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+ 	case Type:
+ 		return def
+ 	}
+-	log.Crashf("name %s has unknown type %T", x.Name, def)
++	log.Panicf("name %s has unknown type %T", x.Name, def)
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/exp/nacl/av/av.go b/src/pkg/exp/nacl/av/av.go
+index 93486f38b8..2b980f5968 100644
+--- a/src/pkg/exp/nacl/av/av.go
++++ b/src/pkg/exp/nacl/av/av.go
+@@ -182,7 +182,7 @@ func AudioStream(data []uint16) (nextSize int, err os.Error) {
+ 		return int(audioSize), nil
+ 	}
+ 	if uintptr(len(data))*2 != audioSize {
+-		log.Stdoutf("invalid audio size want %d got %d", audioSize, len(data))
++		log.Printf("invalid audio size want %d got %d", audioSize, len(data))
+ 	}
+ 	e := os.NewSyscallError("audio_stream", syscall.AudioStream(&data[0], &audioSize))
+ 	return int(audioSize), e
+diff --git a/src/pkg/exp/nacl/av/event.go b/src/pkg/exp/nacl/av/event.go
+index 4b0c3f5805..f8fe329b8a 100644
+--- a/src/pkg/exp/nacl/av/event.go
++++ b/src/pkg/exp/nacl/av/event.go
+@@ -412,7 +412,7 @@ func (w *Window) readEvents() {
+ 		var e event
+ 		switch buf[0] {
+ 		default:
+-			log.Stdout("unsupported event type", buf[0])
++			log.Print("unsupported event type", buf[0])
+ 			continue
+ 		case eventActive:
+ 			ea = new(activeEvent)
+@@ -435,10 +435,10 @@ func (w *Window) readEvents() {
+ 		}
+ 		r := reader(buf)
+ 		if err := binary.Read(&r, binary.LittleEndian, e); err != nil {
+-			log.Stdout("unpacking %T event: %s", e, err)
++			log.Print("unpacking %T event: %s", e, err)
+ 			continue
+ 		}
+-		// log.Stdoutf("%#v\n", e);
++		// log.Printf("%#v\n", e);
+ 		switch buf[0] {
+ 		case eventExpose:
+ 			w.eventc <- draw.ConfigEvent{image.Config{ColorModel, w.Image.Bounds().Dx(), w.Image.Bounds().Dy()}}
+diff --git a/src/pkg/exp/nacl/srpc/client.go b/src/pkg/exp/nacl/srpc/client.go
+index f45730ffaf..3e421e4c01 100644
+--- a/src/pkg/exp/nacl/srpc/client.go
++++ b/src/pkg/exp/nacl/srpc/client.go
+@@ -64,7 +64,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
+ 	}
+ 	m.unpackResponse()
+ 	if m.status != OK {
+-		log.Stderrf("NewClient service_discovery: %s", m.status)
++		log.Printf("NewClient service_discovery: %s", m.status)
+ 		return nil, m.status
+ 	}
+ 	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, -1) {
+@@ -88,7 +88,7 @@ func (c *Client) input() {
+ 			log.Exitf("client recv: %s", err)
+ 		}
+ 		if m.unpackResponse(); m.status != OK {
+-			log.Stderrf("invalid message: %s", m.status)
++			log.Printf("invalid message: %s", m.status)
+ 			continue
+ 		}
+ 		c.mu.Lock()
+@@ -98,7 +98,7 @@ func (c *Client) input() {
+ 		}
+ 		c.mu.Unlock()
+ 		if !ok {
+-			log.Stderrf("unexpected response")
++			log.Print("unexpected response")
+ 			continue
+ 		}
+ 		rpc.Ret = m.Ret
+diff --git a/src/pkg/exp/nacl/srpc/server.go b/src/pkg/exp/nacl/srpc/server.go
+index af2b855f51..433484b4ea 100644
+--- a/src/pkg/exp/nacl/srpc/server.go
++++ b/src/pkg/exp/nacl/srpc/server.go
+@@ -94,10 +94,10 @@ func serveLoop(fd int) {
+ 		}
+ 		m.unpackRequest()
+ 		if !m.gotHeader {
+-			log.Stderrf("cannot unpack header: %s", m.status)
++			log.Printf("cannot unpack header: %s", m.status)
+ 			continue
+ 		}
+-		// log.Stdoutf("<- %#v", m);
++		// log.Printf("<- %#v", m);
+ 		m.isReq = false // set up for response
+ 		go serveMsg(m, c)
+ 	}
+@@ -108,7 +108,7 @@ func sendLoop(fd int, c <-chan *msg) {
+ 	var s msgSender
+ 	s.fd = fd
+ 	for m := range c {
+-		// log.Stdoutf("-> %#v", m);
++		// log.Printf("-> %#v", m);
+ 		m.packResponse()
+ 		s.send(m)
+ 	}
+diff --git a/src/pkg/exp/ogle/process.go b/src/pkg/exp/ogle/process.go
+index 970a7497ae..a3aa22f9f4 100644
+--- a/src/pkg/exp/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -452,7 +452,7 @@ func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
+ 		action, err = p.goroutineExitHook.handle(ev)
+ 
+ 	default:
+-		log.Crashf("Unknown event type %T in queue", p.event)
++		log.Panicf("Unknown event type %T in queue", p.event)
+ 	}
+ 
+ 	if err != nil {
+diff --git a/src/pkg/exp/ogle/rtype.go b/src/pkg/exp/ogle/rtype.go
+index ce4fdb6637..fd77f1bc24 100644
+--- a/src/pkg/exp/ogle/rtype.go
++++ b/src/pkg/exp/ogle/rtype.go
+@@ -103,7 +103,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 		rt = &remoteType{t, offset, fieldAlign, mk}
+ 
+ 	default:
+-		log.Crashf("cannot manually construct type %T", t)
++		log.Panicf("cannot manually construct type %T", t)
+ 	}
+ 
+ 	typeMap[t] = rt
+@@ -142,7 +142,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 		if sym != nil {
+ 			name = sym.Name
+ 		}
+-		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name)
++		log.Printf("%sParsing type at %#x (%s)", prtIndent, addr, name)
+ 		prtIndent += " "
+ 		defer func() { prtIndent = prtIndent[0 : len(prtIndent)-1] }()
+ 	}
+diff --git a/src/pkg/exp/ogle/vars.go b/src/pkg/exp/ogle/vars.go
+index eed60acec5..8a3a14791d 100644
+--- a/src/pkg/exp/ogle/vars.go
++++ b/src/pkg/exp/ogle/vars.go
+@@ -140,7 +140,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 		// Symbol name
+ 		name := s.BaseName()
+ 		if _, ok := pkg[name]; ok {
+-			log.Stderrf("Multiple definitions of symbol %s", s.Name)
++			log.Printf("Multiple definitions of symbol %s", s.Name)
+ 			continue
+ 		}
+ 
+@@ -191,7 +191,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 
+ 		err := w.DefineConst(pkgName, pkgType, pkgVal)
+ 		if err != nil {
+-			log.Stderrf("while defining package %s: %v", pkgName, err)
++			log.Printf("while defining package %s: %v", pkgName, err)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 7a52441439..6068fbb4de 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -161,12 +161,12 @@ var mutex sync.Mutex
+ 
+ // Publish declares an named exported variable. This should be called from a
+ // package's init function when it creates its Vars. If the name is already
+-// registered then this will log.Crash.
++// registered then this will log.Panic.
+ func Publish(name string, v Var) {
+ 	mutex.Lock()
+ 	defer mutex.Unlock()
+ 	if _, existing := vars[name]; existing {
+-		log.Crash("Reuse of exported var name:", name)
++		log.Panicln("Reuse of exported var name:", name)
+ 	}
+ 	vars[name] = v
+ }
+diff --git a/src/pkg/gob/debug.go b/src/pkg/gob/debug.go
+index 02f2602ed1..0e07bb588e 100644
+--- a/src/pkg/gob/debug.go
++++ b/src/pkg/gob/debug.go
+@@ -69,7 +69,7 @@ func (dec *Decoder) debug() {
+ 		break
+ 	}
+ 	if dec.state.err != nil {
+-		log.Stderr("debug:", dec.state.err)
++		log.Print("debug:", dec.state.err)
+ 	}
+ }
+ 
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 03653ef87d..44ad8f1df9 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -212,11 +212,11 @@ func (w *response) SetHeader(hdr, val string) { w.header[CanonicalHeaderKey(hdr)
+ // WriteHeader implements the ResponseWriter.WriteHeader method
+ func (w *response) WriteHeader(code int) {
+ 	if w.conn.hijacked {
+-		log.Stderr("http: response.WriteHeader on hijacked connection")
++		log.Print("http: response.WriteHeader on hijacked connection")
+ 		return
+ 	}
+ 	if w.wroteHeader {
+-		log.Stderr("http: multiple response.WriteHeader calls")
++		log.Print("http: multiple response.WriteHeader calls")
+ 		return
+ 	}
+ 	w.wroteHeader = true
+@@ -248,7 +248,7 @@ func (w *response) WriteHeader(code int) {
+ // Write implements the ResponseWriter.Write method
+ func (w *response) Write(data []byte) (n int, err os.Error) {
+ 	if w.conn.hijacked {
+-		log.Stderr("http: response.Write on hijacked connection")
++		log.Print("http: response.Write on hijacked connection")
+ 		return 0, ErrHijacked
+ 	}
+ 	if !w.wroteHeader {
+@@ -721,7 +721,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
+ //
+ //	func main() {
+ //		http.HandleFunc("/", handler)
+-//		log.Stdoutf("About to listen on 10443. Go to https://127.0.0.1:10443/")
++//		log.Printf("About to listen on 10443. Go to https://127.0.0.1:10443/")
+ //		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
+ //		if err != nil {
+ //			log.Exit(err)
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 23823a792c..03cfafa7b8 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -119,7 +119,7 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
+ }
+ 
+ func Logger(w http.ResponseWriter, req *http.Request) {
+-	log.Stdout(req.URL.Raw)
++	log.Print(req.URL.Raw)
+ 	w.WriteHeader(404)
+ 	w.Write([]byte("oops"))
+ }
+@@ -144,6 +144,6 @@ func main() {
+ 	http.Handle("/date", http.HandlerFunc(DateServer))
+ 	err := http.ListenAndServe(":12345", nil)
+ 	if err != nil {
+-		log.Crash("ListenAndServe: ", err)
++		log.Panicln("ListenAndServe:", err)
+ 	}
+ }
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index f6612205fb..1978358c28 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -2,13 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Rudimentary logging package. Defines a type, Logger, with simple
+-// methods for formatting output to one or two destinations. Also has
+-// predefined Loggers accessible through helper functions Stdout[f],
+-// Stderr[f], Exit[f], and Crash[f], which are easier to use than creating
+-// a Logger manually.
+-// Exit exits when written to.
+-// Crash causes a crash when written to.
++// Simple logging package. It defines a type, Logger, with simple
++// methods for formatting output to one or two destinations. It also
++// has a predefined 'standard' Logger accessible through helper
++// functions Print[f|ln], Exit[f|ln], and Panic[f|ln], which are
++// easier to use than creating a Logger manually.  That logger writes
++// to standard error and prints the date and time of each logged
++// message.
++// The Exit functions call os.Exit(1) after writing the log message.
++// The Panic functions call panic after writing the log message.
+ package log
+ 
+ import (
+@@ -19,12 +21,8 @@ import (
+ 	"time"
+ )
+ 
+-// These flags define the properties of the Logger and the output they produce.
++// These flags define the output Loggers produce.
+ const (
+-	// Flags
+-	Lok    = iota
+-	Lexit  // terminate execution when written
+-	Lcrash // crash (panic) when written
+ 	// Bits or'ed together to control what's printed. There is no control over the
+ 	// order they appear (the order listed here) or the format they present (as
+ 	// described in the comments).  A colon appears after these items:
+@@ -34,34 +32,29 @@ const (
+ 	Lmicroseconds             // microsecond resolution: 01:23:23.123123.  assumes Ltime.
+ 	Llongfile                 // full file name and line number: /a/b/c/d.go:23
+ 	Lshortfile                // final file name element and line number: d.go:23. overrides Llongfile
+-	lAllBits      = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile
++	lallBits      = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile
+ )
+ 
+ // Logger represents an active logging object.
+ type Logger struct {
+-	out0   io.Writer // first destination for output
+-	out1   io.Writer // second destination for output; may be nil
++	out    io.Writer // destination for output
+ 	prefix string    // prefix to write at beginning of each line
+ 	flag   int       // properties
+ }
+ 
+-// New creates a new Logger.   The out0 and out1 variables set the
+-// destinations to which log data will be written; out1 may be nil.
++// New creates a new Logger.   The out variable sets the
++// destination to which log data will be written.
+ // The prefix appears at the beginning of each generated log line.
+ // The flag argument defines the logging properties.
+-func New(out0, out1 io.Writer, prefix string, flag int) *Logger {
+-	return &Logger{out0, out1, prefix, flag}
++func New(out io.Writer, prefix string, flag int) *Logger {
++	return &Logger{out, prefix, flag}
+ }
+ 
+ var (
+-	stdout = New(os.Stdout, nil, "", Lok|Ldate|Ltime)
+-	stderr = New(os.Stderr, nil, "", Lok|Ldate|Ltime)
+-	exit   = New(os.Stderr, nil, "", Lexit|Ldate|Ltime)
+-	crash  = New(os.Stderr, nil, "", Lcrash|Ldate|Ltime)
++	std    = New(os.Stderr, "", Ldate|Ltime)
++	stdout = New(os.Stdout, "", Ldate|Ltime) // Deprecated.
+ )
+ 
+-var shortnames = make(map[string]string) // cache of short names to avoid allocation.
+-
+ // Cheap integer to fixed-width decimal ASCII.  Use a negative width to avoid zero-padding
+ func itoa(i int, wid int) string {
+ 	var u uint = uint(i)
+@@ -100,16 +93,12 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
+ 		_, file, line, ok := runtime.Caller(calldepth)
+ 		if ok {
+ 			if l.flag&Lshortfile != 0 {
+-				short, ok := shortnames[file]
+-				if !ok {
+-					short = file
+-					for i := len(file) - 1; i > 0; i-- {
+-						if file[i] == '/' {
+-							short = file[i+1:]
+-							break
+-						}
++				short := file
++				for i := len(file) - 1; i > 0; i-- {
++					if file[i] == '/' {
++						short = file[i+1:]
++						break
+ 					}
+-					shortnames[file] = short
+ 				}
+ 				file = short
+ 			}
+@@ -132,50 +121,124 @@ func (l *Logger) Output(calldepth int, s string) os.Error {
+ 		newline = ""
+ 	}
+ 	s = l.formatHeader(now, calldepth+1) + s + newline
+-	_, err := io.WriteString(l.out0, s)
+-	if l.out1 != nil {
+-		_, err1 := io.WriteString(l.out1, s)
+-		if err == nil && err1 != nil {
+-			err = err1
+-		}
+-	}
+-	switch l.flag & ^lAllBits {
+-	case Lcrash:
+-		panic("log: fatal error")
+-	case Lexit:
+-		os.Exit(1)
+-	}
++	_, err := io.WriteString(l.out, s)
+ 	return err
+ }
+ 
++// Printf prints to the logger in the manner of fmt.Printf.
++func (l *Logger) Printf(format string, v ...interface{}) {
++	l.Output(2, fmt.Sprintf(format, v...))
++}
++
++// Print prints to the logger in the manner of fmt.Print.
++func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
++
++// Println prints to the logger in the manner of fmt.Println.
++func (l *Logger) Println(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
++
++// SetOutput sets the output destination for the standard logger.
++func SetOutput(w io.Writer) {
++	std.out = w
++}
++
++// SetFlags sets the output flags for the standard logger.
++func SetFlags(flag int) {
++	std.flag = flag & lallBits
++}
++
++// SetPrefix sets the output prefix for the standard logger.
++func SetPrefix(prefix string) {
++	std.prefix = prefix
++}
++
++// These functions write to the standard logger.
++
++// Print prints to the standard logger in the manner of fmt.Print.
++func Print(v ...interface{}) {
++	std.Output(2, fmt.Sprint(v...))
++}
++
++// Printf prints to the standard logger in the manner of fmt.Printf.
++func Printf(format string, v ...interface{}) {
++	std.Output(2, fmt.Sprintf(format, v...))
++}
++
++// Println prints to the standard logger in the manner of fmt.Println.
++func Println(v ...interface{}) {
++	std.Output(2, fmt.Sprintln(v...))
++}
++
++// Exit is equivalent to Print() followed by a call to os.Exit(1).
++func Exit(v ...interface{}) {
++	std.Output(2, fmt.Sprint(v...))
++	os.Exit(1)
++}
++
++// Exitf is equivalent to Printf() followed by a call to os.Exit(1).
++func Exitf(format string, v ...interface{}) {
++	std.Output(2, fmt.Sprintf(format, v...))
++	os.Exit(1)
++}
++
++// Exitln is equivalent to Println() followed by a call to os.Exit(1).
++func Exitln(v ...interface{}) {
++	std.Output(2, fmt.Sprintln(v...))
++	os.Exit(1)
++}
++
++// Panic is equivalent to Print() followed by a call to panic().
++func Panic(v ...interface{}) {
++	s := fmt.Sprint(v...)
++	std.Output(2, s)
++	panic(s)
++}
++
++// Panicf is equivalent to Printf() followed by a call to panic().
++func Panicf(format string, v ...interface{}) {
++	s := fmt.Sprintf(format, v...)
++	std.Output(2, s)
++	panic(s)
++}
++
++// Panicln is equivalent to Println() followed by a call to panic().
++func Panicln(v ...interface{}) {
++	s := fmt.Sprintln(v...)
++	std.Output(2, s)
++	panic(s)
++}
++
++// Everything from here on is deprecated and will be removed after the next release.
++
+ // Logf is analogous to Printf() for a Logger.
++// Deprecated.
+ func (l *Logger) Logf(format string, v ...interface{}) {
+ 	l.Output(2, fmt.Sprintf(format, v...))
+ }
+ 
+ // Log is analogous to Print() for a Logger.
++// Deprecated.
+ func (l *Logger) Log(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
+ 
+ // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
++// Deprecated.
+ func Stdout(v ...interface{}) { stdout.Output(2, fmt.Sprint(v...)) }
+ 
+ // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
+-func Stderr(v ...interface{}) { stderr.Output(2, fmt.Sprintln(v...)) }
++// Deprecated.
++func Stderr(v ...interface{}) { std.Output(2, fmt.Sprintln(v...)) }
+ 
+ // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
++// Deprecated.
+ func Stdoutf(format string, v ...interface{}) { stdout.Output(2, fmt.Sprintf(format, v...)) }
+ 
+ // Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
+-func Stderrf(format string, v ...interface{}) { stderr.Output(2, fmt.Sprintf(format, v...)) }
+-
+-// Exit is equivalent to Stderr() followed by a call to os.Exit(1).
+-func Exit(v ...interface{}) { exit.Output(2, fmt.Sprintln(v...)) }
+-
+-// Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
+-func Exitf(format string, v ...interface{}) { exit.Output(2, fmt.Sprintf(format, v...)) }
++// Deprecated.
++func Stderrf(format string, v ...interface{}) { std.Output(2, fmt.Sprintf(format, v...)) }
+ 
+ // Crash is equivalent to Stderr() followed by a call to panic().
+-func Crash(v ...interface{}) { crash.Output(2, fmt.Sprintln(v...)) }
++// Deprecated.
++func Crash(v ...interface{}) { Panicln(v...) }
+ 
+ // Crashf is equivalent to Stderrf() followed by a call to panic().
+-func Crashf(format string, v ...interface{}) { crash.Output(2, fmt.Sprintf(format, v...)) }
++// Deprecated.
++func Crashf(format string, v ...interface{}) { Panicf(format, v...) }
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index eb4b69a2e7..a5b1f281de 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -7,8 +7,7 @@ package log
+ // These tests are too simple.
+ 
+ import (
+-	"bufio"
+-	"os"
++	"bytes"
+ 	"regexp"
+ 	"testing"
+ )
+@@ -17,7 +16,7 @@ const (
+ 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
+ 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
+ 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
+-	Rline         = `(58|60):` // must update if the calls to l.Logf / l.Log below move
++	Rline         = `(53|55):` // must update if the calls to l.Printf / l.Print below move
+ 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
+ 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
+ )
+@@ -32,37 +31,30 @@ var tests = []tester{
+ 	// individual pieces:
+ 	tester{0, "", ""},
+ 	tester{0, "XXX", "XXX"},
+-	tester{Lok | Ldate, "", Rdate + " "},
+-	tester{Lok | Ltime, "", Rtime + " "},
+-	tester{Lok | Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
+-	tester{Lok | Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
+-	tester{Lok | Llongfile, "", Rlongfile + " "},
+-	tester{Lok | Lshortfile, "", Rshortfile + " "},
+-	tester{Lok | Llongfile | Lshortfile, "", Rshortfile + " "}, // shortfile overrides longfile
++	tester{Ldate, "", Rdate + " "},
++	tester{Ltime, "", Rtime + " "},
++	tester{Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
++	tester{Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
++	tester{Llongfile, "", Rlongfile + " "},
++	tester{Lshortfile, "", Rshortfile + " "},
++	tester{Llongfile | Lshortfile, "", Rshortfile + " "}, // shortfile overrides longfile
+ 	// everything at once:
+-	tester{Lok | Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
+-	tester{Lok | Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
++	tester{Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
++	tester{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
+ }
+ 
+-// Test using Log("hello", 23, "world") or using Logf("hello %d world", 23)
+-func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool) {
+-	r, w, err1 := os.Pipe()
+-	if err1 != nil {
+-		t.Fatal("pipe", err1)
+-	}
+-	defer r.Close()
+-	defer w.Close()
+-	buf := bufio.NewReader(r)
+-	l := New(w, nil, prefix, flag)
+-	if useLogf {
+-		l.Logf("hello %d world", 23)
++// Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)
++func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat bool) {
++	buf := new(bytes.Buffer)
++	SetOutput(buf)
++	SetFlags(flag)
++	SetPrefix(prefix)
++	if useFormat {
++		Printf("hello %d world", 23)
+ 	} else {
+-		l.Log("hello", 23, "world")
+-	}
+-	line, err3 := buf.ReadString('\n')
+-	if err3 != nil {
+-		t.Fatal("log error", err3)
++		Println("hello", 23, "world")
+ 	}
++	line := buf.String()
+ 	line = line[0 : len(line)-1]
+ 	pattern = "^" + pattern + "hello 23 world$"
+ 	matched, err4 := regexp.MatchString(pattern, line)
+@@ -74,9 +66,9 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	}
+ }
+ 
+-func TestAllLog(t *testing.T) {
++func TestAll(t *testing.T) {
+ 	for _, testcase := range tests {
+-		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, false)
+-		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, true)
++		testPrint(t, testcase.flag, testcase.prefix, testcase.pattern, false)
++		testPrint(t, testcase.flag, testcase.prefix, testcase.pattern, true)
+ 	}
+ }
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index 5680a55b94..642fc6596b 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -34,7 +34,7 @@ import (
+ // expLog is a logging convenience function.  The first argument must be a string.
+ func expLog(args ...interface{}) {
+ 	args[0] = "netchan export: " + args[0].(string)
+-	log.Stderr(args...)
++	log.Print(args...)
+ }
+ 
+ // An Exporter allows a set of channels to be published on a single
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index fadfc7a99b..034cc2f9d4 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -17,7 +17,7 @@ import (
+ // impLog is a logging convenience function.  The first argument must be a string.
+ func impLog(args ...interface{}) {
+ 	args[0] = "netchan import: " + args[0].(string)
+-	log.Stderr(args...)
++	log.Print(args...)
+ }
+ 
+ // An Importer allows a set of channels to be imported from a single
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 50b8838358..98b992bae0 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -115,7 +115,7 @@ func (client *Client) input() {
+ 	}
+ 	client.mutex.Unlock()
+ 	if err != os.EOF || !client.closing {
+-		log.Stderr("rpc: client protocol error:", err)
++		log.Println("rpc: client protocol error:", err)
+ 	}
+ }
+ 
+@@ -220,7 +220,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
+ 		// RPCs that will be using that channel.  If the channel
+ 		// is totally unbuffered, it's best not to run at all.
+ 		if cap(done) == 0 {
+-			log.Crash("rpc: done channel is unbuffered")
++			log.Panic("rpc: done channel is unbuffered")
+ 		}
+ 	}
+ 	c.Done = done
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index db46e35db7..792201515e 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -197,7 +197,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 	}
+ 	if s.typ.PkgPath() != "" && !isPublic(sname) {
+ 		s := "rpc Register: type " + sname + " is not public"
+-		log.Stderr(s)
++		log.Print(s)
+ 		return os.ErrorString(s)
+ 	}
+ 	if _, present := server.serviceMap[sname]; present {
+@@ -216,41 +216,41 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 		}
+ 		// Method needs three ins: receiver, *args, *reply.
+ 		if mtype.NumIn() != 3 {
+-			log.Stderr("method", mname, "has wrong number of ins:", mtype.NumIn())
++			log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+ 			continue
+ 		}
+ 		argType, ok := mtype.In(1).(*reflect.PtrType)
+ 		if !ok {
+-			log.Stderr(mname, "arg type not a pointer:", mtype.In(1))
++			log.Println(mname, "arg type not a pointer:", mtype.In(1))
+ 			continue
+ 		}
+ 		replyType, ok := mtype.In(2).(*reflect.PtrType)
+ 		if !ok {
+-			log.Stderr(mname, "reply type not a pointer:", mtype.In(2))
++			log.Println(mname, "reply type not a pointer:", mtype.In(2))
+ 			continue
+ 		}
+ 		if argType.Elem().PkgPath() != "" && !isPublic(argType.Elem().Name()) {
+-			log.Stderr(mname, "argument type not public:", argType)
++			log.Println(mname, "argument type not public:", argType)
+ 			continue
+ 		}
+ 		if replyType.Elem().PkgPath() != "" && !isPublic(replyType.Elem().Name()) {
+-			log.Stderr(mname, "reply type not public:", replyType)
++			log.Println(mname, "reply type not public:", replyType)
+ 			continue
+ 		}
+ 		if mtype.NumIn() == 4 {
+ 			t := mtype.In(3)
+ 			if t != reflect.Typeof((*ClientInfo)(nil)) {
+-				log.Stderr(mname, "last argument not *ClientInfo")
++				log.Println(mname, "last argument not *ClientInfo")
+ 				continue
+ 			}
+ 		}
+ 		// Method needs one out: os.Error.
+ 		if mtype.NumOut() != 1 {
+-			log.Stderr("method", mname, "has wrong number of outs:", mtype.NumOut())
++			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+ 			continue
+ 		}
+ 		if returnType := mtype.Out(0); returnType != typeOfOsError {
+-			log.Stderr("method", mname, "returns", returnType.String(), "not os.Error")
++			log.Println("method", mname, "returns", returnType.String(), "not os.Error")
+ 			continue
+ 		}
+ 		s.method[mname] = &methodType{method: method, argType: argType, replyType: replyType}
+@@ -258,7 +258,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 
+ 	if len(s.method) == 0 {
+ 		s := "rpc Register: type " + sname + " has no public methods of suitable type"
+-		log.Stderr(s)
++		log.Print(s)
+ 		return os.ErrorString(s)
+ 	}
+ 	server.serviceMap[s.name] = s
+@@ -289,7 +289,7 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
+ 	sending.Lock()
+ 	err := codec.WriteResponse(resp, reply)
+ 	if err != nil {
+-		log.Stderr("rpc: writing response: ", err)
++		log.Println("rpc: writing response:", err)
+ 	}
+ 	sending.Unlock()
+ }
+@@ -344,7 +344,7 @@ func (server *serverType) input(codec ServerCodec) {
+ 		if err != nil {
+ 			if err == os.EOF || err == io.ErrUnexpectedEOF {
+ 				if err == io.ErrUnexpectedEOF {
+-					log.Stderr("rpc: ", err)
++					log.Println("rpc:", err)
+ 				}
+ 				break
+ 			}
+@@ -378,7 +378,7 @@ func (server *serverType) input(codec ServerCodec) {
+ 		replyv := _new(mtype.replyType)
+ 		err = codec.ReadRequestBody(argv.Interface())
+ 		if err != nil {
+-			log.Stderr("rpc: tearing down", serviceMethod[0], "connection:", err)
++			log.Println("rpc: tearing down", serviceMethod[0], "connection:", err)
+ 			sendResponse(sending, req, replyv.Interface(), codec, err.String())
+ 			break
+ 		}
+@@ -454,7 +454,7 @@ func serveHTTP(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 	conn, _, err := w.Hijack()
+ 	if err != nil {
+-		log.Stderr("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
++		log.Print("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
+ 		return
+ 	}
+ 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 9ece79b347..1d4c48c958 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -72,17 +72,17 @@ func startServer() {
+ 		log.Exitf("net.Listen tcp :0: %v", e)
+ 	}
+ 	serverAddr = l.Addr().String()
+-	log.Stderr("Test RPC server listening on ", serverAddr)
++	log.Println("Test RPC server listening on", serverAddr)
+ 	go Accept(l)
+ 
+ 	HandleHTTP()
+ 	l, e = net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+-		log.Stderrf("net.Listen tcp :0: %v", e)
++		log.Printf("net.Listen tcp :0: %v", e)
+ 		os.Exit(1)
+ 	}
+ 	httpServerAddr = l.Addr().String()
+-	log.Stderr("Test HTTP RPC server listening on ", httpServerAddr)
++	log.Println("Test HTTP RPC server listening on", httpServerAddr)
+ 	go http.Serve(l, nil)
+ }
+ 
+diff --git a/src/pkg/syslog/syslog.go b/src/pkg/syslog/syslog.go
+index 527321f576..4924a76d0c 100644
+--- a/src/pkg/syslog/syslog.go
++++ b/src/pkg/syslog/syslog.go
+@@ -140,5 +140,5 @@ func NewLogger(p Priority, flag int) *log.Logger {
+ 	if err != nil {
+ 		return nil
+ 	}
+-	return log.New(s, nil, "", flag)
++	return log.New(s, "", flag)
+ }
+diff --git a/src/pkg/testing/iotest/logger.go b/src/pkg/testing/iotest/logger.go
+index 5e511bdf6e..c3bf5df3c3 100644
+--- a/src/pkg/testing/iotest/logger.go
++++ b/src/pkg/testing/iotest/logger.go
+@@ -18,15 +18,15 @@ type writeLogger struct {
+ func (l *writeLogger) Write(p []byte) (n int, err os.Error) {
+ 	n, err = l.w.Write(p)
+ 	if err != nil {
+-		log.Stdoutf("%s %x: %v", l.prefix, p[0:n], err)
++		log.Printf("%s %x: %v", l.prefix, p[0:n], err)
+ 	} else {
+-		log.Stdoutf("%s %x", l.prefix, p[0:n])
++		log.Printf("%s %x", l.prefix, p[0:n])
+ 	}
+ 	return
+ }
+ 
+ // NewWriteLogger returns a writer that behaves like w except
+-// that it logs (using log.Stdout) each write to standard output,
++// that it logs (using log.Printf) each write to standard error,
+ // printing the prefix and the hexadecimal data written.
+ func NewWriteLogger(prefix string, w io.Writer) io.Writer {
+ 	return &writeLogger{prefix, w}
+@@ -40,15 +40,15 @@ type readLogger struct {
+ func (l *readLogger) Read(p []byte) (n int, err os.Error) {
+ 	n, err = l.r.Read(p)
+ 	if err != nil {
+-		log.Stdoutf("%s %x: %v", l.prefix, p[0:n], err)
++		log.Printf("%s %x: %v", l.prefix, p[0:n], err)
+ 	} else {
+-		log.Stdoutf("%s %x", l.prefix, p[0:n])
++		log.Printf("%s %x", l.prefix, p[0:n])
+ 	}
+ 	return
+ }
+ 
+ // NewReadLogger returns a reader that behaves like r except
+-// that it logs (using log.Stdout) each read to standard output,
++// that it logs (using log.Print) each read to standard error,
+ // printing the prefix and the hexadecimal data written.
+ func NewReadLogger(prefix string, r io.Reader) io.Reader {
+ 	return &readLogger{prefix, r}
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 4cd84617c7..9639d8f88b 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -26,7 +26,7 @@ func startServer() {
+ 		log.Exitf("net.Listen tcp :0 %v", e)
+ 	}
+ 	serverAddr = l.Addr().String()
+-	log.Stderr("Test WebSocket server listening on ", serverAddr)
++	log.Print("Test WebSocket server listening on ", serverAddr)
+ 	http.Handle("/echo", Handler(echoServer))
+ 	http.Handle("/echoDraft75", Draft75Handler(echoServer))
+ 	go http.Serve(l, nil)

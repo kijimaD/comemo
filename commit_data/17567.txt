@@ -31,7 +31,7 @@ Date:   Thu Sep 12 00:15:28 2013 +0200
     R=golang-dev, bradfitz, cshapiro, dave, daniel.morsing, rsc, khr, khr
     CC=golang-dev
     https://golang.org/cl/9101048
-
+---
  src/cmd/5g/cgen.c              | 17 +++++++++
  src/cmd/5g/gsubr.c             | 10 ++++++
  src/cmd/6g/cgen.c              | 17 +++++++++
@@ -46,3 +46,427 @@ Date:   Thu Sep 12 00:15:28 2013 +0200
  src/cmd/gc/walk.c              | 78 +++++++++++++++++++++++++++++++++++++-----
  src/pkg/runtime/append_test.go | 40 ++++++++++++++++++++++
  13 files changed, 210 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 467be22b5b..2d260e72d5 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -79,6 +79,7 @@ cgen(Node *n, Node *res)
+ 	// can't do in walk because n->left->addable
+ 	// changes if n->left is an escaping local variable.
+ 	switch(n->op) {
++	case OSPTR:
+ 	case OLEN:
+ 		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
+ 			n->addable = n->left->addable;
+@@ -317,6 +318,22 @@ cgen(Node *n, Node *res)
+ 		regfree(&n1);
+ 		break;
+ 
++	case OSPTR:
++		// pointer is the first word of string or slice.
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n1, types[tptr], res);
++			p1 = gins(AMOVW, N, &n1);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		igen(nl, &n1, res);
++		n1.type = n->type;
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
+ 	case OLEN:
+ 		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
+ 			// map has len in the first 32-bit word.
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 481174b21c..27749b7a7f 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1361,6 +1361,16 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;	// len(nil)
+ 		break;
+ 
++	case OSPTR:
++		// pointer in a string or slice
++		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// ptr(nil)
++		a->etype = simtype[TUINTPTR];
++		a->offset += Array_array;
++		a->width = widthptr;
++		break;
++
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index fd79c099b1..d034dc055e 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -136,6 +136,7 @@ cgen(Node *n, Node *res)
+ 	// can't do in walk because n->left->addable
+ 	// changes if n->left is an escaping local variable.
+ 	switch(n->op) {
++	case OSPTR:
+ 	case OLEN:
+ 		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
+ 			n->addable = n->left->addable;
+@@ -314,6 +315,22 @@ cgen(Node *n, Node *res)
+ 		regfree(&n1);
+ 		break;
+ 
++	case OSPTR:
++		// pointer is the first word of string or slice.
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n1, types[tptr], res);
++			p1 = gins(ALEAQ, N, &n1);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		igen(nl, &n1, res);
++		n1.type = n->type;
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
+ 	case OLEN:
+ 		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
+ 			// map and chan have len in the first int-sized word.
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e68a0899e9..7318909bb3 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -562,6 +562,7 @@ ismem(Node *n)
+ {
+ 	switch(n->op) {
+ 	case OITAB:
++	case OSPTR:
+ 	case OLEN:
+ 	case OCAP:
+ 	case OINDREG:
+@@ -1267,6 +1268,16 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->width = widthptr;
+ 		break;
+ 
++	case OSPTR:
++		// pointer in a string or slice
++		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// ptr(nil)
++		a->etype = simtype[TUINTPTR];
++		a->offset += Array_array;
++		a->width = widthptr;
++		break;
++
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 1662fe6028..9b79c175bf 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -109,6 +109,7 @@ cgen(Node *n, Node *res)
+ 	// can't do in walk because n->left->addable
+ 	// changes if n->left is an escaping local variable.
+ 	switch(n->op) {
++	case OSPTR:
+ 	case OLEN:
+ 		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
+ 			n->addable = n->left->addable;
+@@ -288,6 +289,22 @@ cgen(Node *n, Node *res)
+ 		regfree(&n1);
+ 		break;
+ 
++	case OSPTR:
++		// pointer is the first word of string or slice.
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n1, types[tptr], res);
++			p1 = gins(ALEAL, N, &n1);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		igen(nl, &n1, res);
++		n1.type = n->type;
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
+ 	case OLEN:
+ 		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
+ 			// map has len in the first 32-bit word.
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 4d4e55e375..34703ba6e7 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1157,6 +1157,7 @@ ismem(Node *n)
+ {
+ 	switch(n->op) {
+ 	case OITAB:
++	case OSPTR:
+ 	case OLEN:
+ 	case OCAP:
+ 	case OINDREG:
+@@ -2321,6 +2322,16 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->width = widthptr;
+ 		break;
+ 
++	case OSPTR:
++		// pointer in a string or slice
++		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// ptr(nil)
++		a->etype = simtype[TUINTPTR];
++		a->offset += Array_array;
++		a->width = widthptr;
++		break;
++
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index baa7d7845a..77deece47f 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -94,6 +94,7 @@ char *runtimeimport =
+ 	"func @\"\".block ()\n"
+ 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n"
+ 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int64) (@\"\".ary·1 []any)\n"
++	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr)\n"
+ 	"func @\"\".memequal (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+ 	"func @\"\".memequal8 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+ 	"func @\"\".memequal16 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d7d626be46..103aedb41e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -577,6 +577,7 @@ enum
+ 	OINLCALL,	// intermediary representation of an inlined call.
+ 	OEFACE,	// itable and data words of an empty-interface value.
+ 	OITAB,	// itable word of an interface value.
++	OSPTR,  // base pointer of a slice or string.
+ 	OCLOSUREVAR, // variable reference at beginning of closure function
+ 	OCFUNC,	// reference to c function pointer (not go func value)
+ 	OCHECKNIL, // emit code to ensure pointer/interface not nil
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index f8f6312806..d6a5b3cce3 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -238,6 +238,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		callinstr(&n, init, wr, skip);
+ 		goto ret;
+ 
++	case OSPTR:
+ 	case OLEN:
+ 	case OCAP:
+ 		racewalknode(&n->left, init, 0, 0);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index d7032957b1..6054aafd25 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -124,6 +124,7 @@ func block()
+ 
+ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
+ func growslice(typ *byte, old []any, n int64) (ary []any)
++func memmove(to *any, frm *any, length uintptr)
+ 
+ func memequal(eq *bool, size uintptr, x, y *any)
+ func memequal8(eq *bool, size uintptr, x, y *any)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 23de614ac0..31a2f2c5cb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1572,7 +1572,20 @@ reswitch:
+ 			fatal("OITAB of %T", t);
+ 		n->type = ptrto(types[TUINTPTR]);
+ 		goto ret;
+-	
++
++	case OSPTR:
++		ok |= Erv;
++		typecheck(&n->left, Erv);
++		if((t = n->left->type) == T)
++			goto error;
++		if(!isslice(t) && t->etype != TSTRING)
++			fatal("OSPTR of %T", t);
++		if(t->etype == TSTRING)
++			n->type = ptrto(types[TUINT8]);
++		else
++			n->type = ptrto(t->type);
++		goto ret;
++
+ 	case OCLOSUREVAR:
+ 		ok |= Erv;
+ 		goto ret;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b170d6e387..e9a594d1ef 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -21,6 +21,7 @@ static	NodeList*	reorder3(NodeList*);
+ static	Node*	addstr(Node*, NodeList**);
+ static	Node*	appendslice(Node*, NodeList**);
+ static	Node*	append(Node*, NodeList**);
++static	Node*	copyany(Node*, NodeList**);
+ static	Node*	sliceany(Node*, NodeList**);
+ static	void	walkcompare(Node**, NodeList**);
+ static	void	walkrotate(Node**);
+@@ -174,6 +175,8 @@ walkstmt(Node **np)
+ 		n->ninit = nil;
+ 		walkexpr(&n, &init);
+ 		addinit(&n, init);
++		if((*np)->op == OCOPY && n->op == OCONVNOP)
++			n->op = OEMPTY; // don't leave plain values as statements.
+ 		break;
+ 
+ 	case OBREAK:
+@@ -432,6 +435,7 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->right, init);
+ 		goto ret;
+ 
++	case OSPTR:
+ 	case OITAB:
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+@@ -1243,15 +1247,19 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OCOPY:
+-		if(n->right->type->etype == TSTRING)
+-			fn = syslook("slicestringcopy", 1);
+-		else
+-			fn = syslook("copy", 1);
+-		argtype(fn, n->left->type);
+-		argtype(fn, n->right->type);
+-		n = mkcall1(fn, n->type, init,
+-			n->left, n->right,
+-			nodintconst(n->left->type->type->width));
++		if(flag_race) {
++			if(n->right->type->etype == TSTRING)
++				fn = syslook("slicestringcopy", 1);
++			else
++				fn = syslook("copy", 1);
++			argtype(fn, n->left->type);
++			argtype(fn, n->right->type);
++			n = mkcall1(fn, n->type, init,
++					n->left, n->right,
++					nodintconst(n->left->type->type->width));
++			goto ret;
++		}
++		n = copyany(n, init);
+ 		goto ret;
+ 
+ 	case OCLOSE:
+@@ -2618,6 +2626,58 @@ append(Node *n, NodeList **init)
+ 	return ns;
+ }
+ 
++// Lower copy(a, b) to a memmove call.
++//
++// init {
++//   n := len(a)
++//   if n > len(b) { n = len(b) }
++//   memmove(a.ptr, b.ptr, n*sizeof(elem(a)))
++// }
++// n;
++//
++// Also works if b is a string.
++//
++static Node*
++copyany(Node *n, NodeList **init)
++{
++	Node *nl, *nr, *nfrm, *nto, *nif, *nlen, *nwid, *fn;
++	NodeList *l;
++
++	walkexpr(&n->left, init);
++	walkexpr(&n->right, init);
++	nl = temp(n->left->type);
++	nr = temp(n->right->type);
++	l = nil;
++	l = list(l, nod(OAS, nl, n->left));
++	l = list(l, nod(OAS, nr, n->right));
++
++	nfrm = nod(OSPTR, nr, N);
++	nto = nod(OSPTR, nl, N);
++
++	nlen = temp(types[TINT]);
++	// n = len(to)
++	l = list(l, nod(OAS, nlen, nod(OLEN, nl, N)));
++	// if n > len(frm) { n = len(frm) }
++	nif = nod(OIF, N, N);
++	nif->ntest = nod(OGT, nlen, nod(OLEN, nr, N));
++	nif->nbody = list(nif->nbody,
++		nod(OAS, nlen, nod(OLEN, nr, N)));
++	l = list(l, nif);
++
++	// Call memmove.
++	fn = syslook("memmove", 1);
++	argtype(fn, nl->type->type);
++	argtype(fn, nl->type->type);
++	nwid = temp(types[TUINTPTR]);
++	l = list(l, nod(OAS, nwid, conv(nlen, types[TUINTPTR])));
++	nwid = nod(OMUL, nwid, nodintconst(nl->type->type->width));
++	l = list(l, mkcall1(fn, T, init, nto, nfrm, nwid));
++
++	typechecklist(l, Etop);
++	walkstmtlist(l);
++	*init = concat(*init, l);
++	return nlen;
++}
+ 
+ // Generate frontend part for OSLICE[3][ARR|STR]
+ // 
+diff --git a/src/pkg/runtime/append_test.go b/src/pkg/runtime/append_test.go
+index 8a4e4a383d..937c8259fd 100644
+--- a/src/pkg/runtime/append_test.go
++++ b/src/pkg/runtime/append_test.go
+@@ -129,3 +129,43 @@ func TestAppendOverlap(t *testing.T) {
+ 		t.Errorf("overlap failed: got %q want %q", got, want)
+ 	}
+ }
++
++func benchmarkCopySlice(b *testing.B, l int) {
++	s := make([]byte, l)
++	buf := make([]byte, 4096)
++	var n int
++	for i := 0; i < b.N; i++ {
++		n = copy(buf, s)
++	}
++	b.SetBytes(int64(n))
++}
++
++func benchmarkCopyStr(b *testing.B, l int) {
++	s := string(make([]byte, l))
++	buf := make([]byte, 4096)
++	var n int
++	for i := 0; i < b.N; i++ {
++		n = copy(buf, s)
++	}
++	b.SetBytes(int64(n))
++}
++
++func BenchmarkCopy1Byte(b *testing.B)    { benchmarkCopySlice(b, 1) }
++func BenchmarkCopy2Byte(b *testing.B)    { benchmarkCopySlice(b, 2) }
++func BenchmarkCopy4Byte(b *testing.B)    { benchmarkCopySlice(b, 4) }
++func BenchmarkCopy8Byte(b *testing.B)    { benchmarkCopySlice(b, 8) }
++func BenchmarkCopy12Byte(b *testing.B)   { benchmarkCopySlice(b, 12) }
++func BenchmarkCopy16Byte(b *testing.B)   { benchmarkCopySlice(b, 16) }
++func BenchmarkCopy32Byte(b *testing.B)   { benchmarkCopySlice(b, 32) }
++func BenchmarkCopy128Byte(b *testing.B)  { benchmarkCopySlice(b, 128) }
++func BenchmarkCopy1024Byte(b *testing.B) { benchmarkCopySlice(b, 1024) }
++
++func BenchmarkCopy1String(b *testing.B)    { benchmarkCopyStr(b, 1) }
++func BenchmarkCopy2String(b *testing.B)    { benchmarkCopyStr(b, 2) }
++func BenchmarkCopy4String(b *testing.B)    { benchmarkCopyStr(b, 4) }
++func BenchmarkCopy8String(b *testing.B)    { benchmarkCopyStr(b, 8) }
++func BenchmarkCopy12String(b *testing.B)   { benchmarkCopyStr(b, 12) }
++func BenchmarkCopy16String(b *testing.B)   { benchmarkCopyStr(b, 16) }
++func BenchmarkCopy32String(b *testing.B)   { benchmarkCopyStr(b, 32) }
++func BenchmarkCopy128String(b *testing.B)  { benchmarkCopyStr(b, 128) }
++func BenchmarkCopy1024String(b *testing.B) { benchmarkCopyStr(b, 1024) }

@@ -29,8 +29,144 @@ Date:   Mon Sep 29 18:16:15 2014 -0700
     R=golang-codereviews, dvyukov, adg
     CC=golang-codereviews, rsc
     https://golang.org/cl/148970043
-
+---
  src/net/http/export_test.go    | 20 ++++++++++++++++++++
  src/net/http/transport.go      | 20 +++++++++++++++-----
  src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 74 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index e5bc02afa2..a6980b5389 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -57,6 +57,26 @@ func (t *Transport) IdleConnChMapSizeForTesting() int {
+ 	return len(t.idleConnCh)
+ }
+ 
++func (t *Transport) IsIdleForTesting() bool {
++	t.idleMu.Lock()
++	defer t.idleMu.Unlock()
++	return t.wantIdle
++}
++
++func (t *Transport) RequestIdleConnChForTesting() {
++	t.getIdleConnCh(connectMethod{nil, "http", "example.com"})
++}
++
++func (t *Transport) PutIdleTestConn() bool {
++	c, _ := net.Pipe()
++	return t.putIdleConn(&persistConn{
++		t:        t,
++		conn:     c,                   // dummy
++		closech:  make(chan struct{}), // so it can be closed
++		cacheKey: connectMethodKey{"", "http", "example.com"},
++	})
++}
++
+ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+ 	f := func() <-chan time.Time {
+ 		return ch
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index f1a6837527..70e574fc86 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -47,13 +47,16 @@ const DefaultMaxIdleConnsPerHost = 2
+ // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
+ // Transport can also cache connections for future re-use.
+ type Transport struct {
+-	idleMu      sync.Mutex
+-	idleConn    map[connectMethodKey][]*persistConn
+-	idleConnCh  map[connectMethodKey]chan *persistConn
++	idleMu     sync.Mutex
++	wantIdle   bool // user has requested to close all idle conns
++	idleConn   map[connectMethodKey][]*persistConn
++	idleConnCh map[connectMethodKey]chan *persistConn
++
+ 	reqMu       sync.Mutex
+ 	reqCanceler map[*Request]func()
+-	altMu       sync.RWMutex
+-	altProto    map[string]RoundTripper // nil or map of URI scheme => RoundTripper
++
++	altMu    sync.RWMutex
++	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
+ 
+ 	// Proxy specifies a function to return a proxy for a given
+ 	// Request. If the function returns a non-nil error, the
+@@ -262,6 +265,7 @@ func (t *Transport) CloseIdleConnections() {
+ 	m := t.idleConn
+ 	t.idleConn = nil
+ 	t.idleConnCh = nil
++	t.wantIdle = true
+ 	t.idleMu.Unlock()
+ 	for _, conns := range m {
+ 		for _, pconn := range conns {
+@@ -385,6 +389,11 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
+ 			delete(t.idleConnCh, key)
+ 		}
+ 	}
++	if t.wantIdle {
++		t.idleMu.Unlock()
++		pconn.close()
++		return false
++	}
+ 	if t.idleConn == nil {
+ 		t.idleConn = make(map[connectMethodKey][]*persistConn)
+ 	}
+@@ -413,6 +422,7 @@ func (t *Transport) getIdleConnCh(cm connectMethod) chan *persistConn {
+ 	key := cm.key()
+ 	t.idleMu.Lock()
+ 	defer t.idleMu.Unlock()
++	t.wantIdle = false
+ 	if t.idleConnCh == nil {
+ 		t.idleConnCh = make(map[connectMethodKey]chan *persistConn)
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 2ffd359794..66fcc3c7d4 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2177,6 +2177,45 @@ func TestRoundTripReturnsProxyError(t *testing.T) {
+ 	}
+ }
+ 
++// tests that putting an idle conn after a call to CloseIdleConns does return it
++func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
++	tr := &Transport{}
++	wantIdle := func(when string, n int) bool {
++		got := tr.IdleConnCountForTesting("|http|example.com") // key used by PutIdleTestConn
++		if got == n {
++			return true
++		}
++		t.Errorf("%s: idle conns = %d; want %d", when, got, n)
++		return false
++	}
++	wantIdle("start", 0)
++	if !tr.PutIdleTestConn() {
++		t.Fatal("put failed")
++	}
++	if !tr.PutIdleTestConn() {
++		t.Fatal("second put failed")
++	}
++	wantIdle("after put", 2)
++	tr.CloseIdleConnections()
++	if !tr.IsIdleForTesting() {
++		t.Error("should be idle after CloseIdleConnections")
++	}
++	wantIdle("after close idle", 0)
++	if tr.PutIdleTestConn() {
++		t.Fatal("put didn't fail")
++	}
++	wantIdle("after second put", 0)
++
++	tr.RequestIdleConnChForTesting() // should toggle the transport out of idle mode
++	if tr.IsIdleForTesting() {
++		t.Error("shouldn't be idle after RequestIdleConnChForTesting")
++	}
++	if !tr.PutIdleTestConn() {
++		t.Fatal("after re-activation")
++	}
++	wantIdle("after final put", 1)
++}
++
+ func wantBody(res *http.Response, err error, want string) error {
+ 	if err != nil {
+ 		return err

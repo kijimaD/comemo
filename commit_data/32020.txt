@@ -22,10 +22,224 @@ Date:   Mon Jan 23 09:14:35 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm.go        |  4 ++--
  src/cmd/asm/internal/asm/testdata/arm.s | 20 +++++++++++++++++
  src/cmd/internal/obj/arm/a.out.go       | 10 +++++++++
  src/cmd/internal/obj/arm/anames.go      | 10 +++++++++
  src/cmd/internal/obj/arm/asm5.go        | 39 ++++++++++++++++++++++++++++++++-
  5 files changed, 80 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 967dedce13..40443d5eca 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -158,10 +158,10 @@ func ARMMRCOffset(op obj.As, cond string, x0, x1, x2, x3, x4, x5 int64) (offset
+ }
+ 
+ // IsARMMULA reports whether the op (as defined by an arm.A* constant) is
+-// MULA, MULAWT or MULAWB, the 4-operand instructions.
++// MULA, MULS, MMULA, MMULS, MULABB, MULAWB or MULAWT, the 4-operand instructions.
+ func IsARMMULA(op obj.As) bool {
+ 	switch op {
+-	case arm.AMULA, arm.AMULAWB, arm.AMULAWT:
++	case arm.AMULA, arm.AMULS, arm.AMMULA, arm.AMMULS, arm.AMULABB, arm.AMULAWB, arm.AMULAWT:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 33bebd4219..47a2283f17 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -945,6 +945,26 @@ jmp_label_3:
+ 	SLL	R5, R7               // 1775a0e1
+ 	SLL.S	R5, R7               // 1775b0e1
+ 
++// MULA / MULS
++	MULAWT	R1, R2, R3, R4       // c23124e1
++	MULAWB	R1, R2, R3, R4       // 823124e1
++	MULS	R1, R2, R3, R4       // 923164e0
++	MMULA	R1, R2, R3, R4       // 123154e7
++	MMULS	R1, R2, R3, R4       // d23154e7
++	MULABB	R1, R2, R3, R4       // 823104e1
++
++// MUL
++	MMUL	R1, R2, R3           // 12f153e7
++	MULBB	R1, R2, R3           // 82f163e1
++	MULWB	R1, R2, R3           // a20123e1
++	MULWT	R1, R2, R3           // e20123e1
++
++// REV
++	REV	R1, R2               // 312fbfe6
++	REV16	R1, R2               // b12fbfe6
++	REVSH	R1, R2               // b12fffe6
++	RBIT	R1, R2               // 312fffe6
++
+ //
+ // END
+ //
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index ad19f2d312..8b43984a7a 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -243,6 +243,7 @@ const (
+ 	AMULU
+ 	ADIVU
+ 	AMUL
++	AMMUL
+ 	ADIV
+ 	AMOD
+ 	AMODU
+@@ -261,6 +262,9 @@ const (
+ 	ARFE
+ 	ASWI
+ 	AMULA
++	AMULS
++	AMMULA
++	AMMULS
+ 
+ 	AWORD
+ 
+@@ -281,11 +285,17 @@ const (
+ 	APLD
+ 
+ 	ACLZ
++	AREV
++	AREV16
++	AREVSH
++	ARBIT
+ 
+ 	AMULWT
+ 	AMULWB
++	AMULBB
+ 	AMULAWT
+ 	AMULAWB
++	AMULABB
+ 
+ 	ADATABUNDLE
+ 	ADATABUNDLEEND
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index 6d7db2dee6..4ee1835628 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -67,6 +67,7 @@ var Anames = []string{
+ 	"MULU",
+ 	"DIVU",
+ 	"MUL",
++	"MMUL",
+ 	"DIV",
+ 	"MOD",
+ 	"MODU",
+@@ -83,6 +84,9 @@ var Anames = []string{
+ 	"RFE",
+ 	"SWI",
+ 	"MULA",
++	"MULS",
++	"MMULA",
++	"MMULS",
+ 	"WORD",
+ 	"MULL",
+ 	"MULAL",
+@@ -97,10 +101,16 @@ var Anames = []string{
+ 	"STREXD",
+ 	"PLD",
+ 	"CLZ",
++	"REV",
++	"REV16",
++	"REVSH",
++	"RBIT",
+ 	"MULWT",
+ 	"MULWB",
++	"MULBB",
+ 	"MULAWT",
+ 	"MULAWB",
++	"MULABB",
+ 	"DATABUNDLE",
+ 	"DATABUNDLEEND",
+ 	"MRC",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 8b95619db1..476a47b40d 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1440,9 +1440,21 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case AMULWT:
+ 			opset(AMULWB, r0)
++			opset(AMULBB, r0)
++			opset(AMMUL, r0)
+ 
+ 		case AMULAWT:
+ 			opset(AMULAWB, r0)
++			opset(AMULABB, r0)
++			opset(AMULS, r0)
++			opset(AMMULA, r0)
++			opset(AMMULS, r0)
++
++		case ACLZ:
++			opset(AREV, r0)
++			opset(AREV16, r0)
++			opset(AREVSH, r0)
++			opset(ARBIT, r0)
+ 
+ 		case AMULA,
+ 			ALDREX,
+@@ -1452,7 +1464,6 @@ func buildop(ctxt *obj.Link) {
+ 			ATST,
+ 			APLD,
+ 			obj.AUNDEF,
+-			ACLZ,
+ 			obj.AFUNCDATA,
+ 			obj.APCDATA,
+ 			obj.ANOP,
+@@ -2413,6 +2424,14 @@ func oprrr(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
+ 		ctxt.Diag(".nil/.W on dp instruction")
+ 	}
+ 	switch a {
++	case AMMUL:
++		return o | 0x75<<20 | 0xf<<12 | 0x1<<4
++	case AMULS:
++		return o | 0x6<<20 | 0x9<<4
++	case AMMULA:
++		return o | 0x75<<20 | 0x1<<4
++	case AMMULS:
++		return o | 0x75<<20 | 0xd<<4
+ 	case AMULU, AMUL:
+ 		return o | 0x0<<21 | 0x9<<4
+ 	case AMULA:
+@@ -2547,18 +2566,36 @@ func oprrr(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
+ 	case ACLZ:
+ 		return o&(0xf<<28) | 0x16f<<16 | 0xf1<<4
+ 
++	case AREV:
++		return o&(0xf<<28) | 0x6bf<<16 | 0xf3<<4
++
++	case AREV16:
++		return o&(0xf<<28) | 0x6bf<<16 | 0xfb<<4
++
++	case AREVSH:
++		return o&(0xf<<28) | 0x6ff<<16 | 0xfb<<4
++
++	case ARBIT:
++		return o&(0xf<<28) | 0x6ff<<16 | 0xf3<<4
++
+ 	case AMULWT:
+ 		return o&(0xf<<28) | 0x12<<20 | 0xe<<4
+ 
+ 	case AMULWB:
+ 		return o&(0xf<<28) | 0x12<<20 | 0xa<<4
+ 
++	case AMULBB:
++		return o&(0xf<<28) | 0x16<<20 | 0xf<<12 | 0x8<<4
++
+ 	case AMULAWT:
+ 		return o&(0xf<<28) | 0x12<<20 | 0xc<<4
+ 
+ 	case AMULAWB:
+ 		return o&(0xf<<28) | 0x12<<20 | 0x8<<4
+ 
++	case AMULABB:
++		return o&(0xf<<28) | 0x10<<20 | 0x8<<4
++
+ 	case ABL: // BLX REG
+ 		return o&(0xf<<28) | 0x12fff3<<4
+ 	}

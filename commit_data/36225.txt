@@ -11,7 +11,96 @@ Date:   Thu Apr 12 08:23:00 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go |  7 ++++
  test/fixedbugs/issue24817.go        | 64 +++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 330d921ee7..e84d96a8a4 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1275,6 +1275,13 @@ opswitch:
+ 		}
+ 		if cs != nil {
+ 			cmp := n.SubOp()
++			// Our comparison below assumes that the non-constant string
++			// is on the left hand side, so rewrite "" cmp x to x cmp "".
++			// See issue 24817.
++			if Isconst(n.Left, CTSTR) {
++				cmp = brrev(cmp)
++			}
++
+ 			// maxRewriteLen was chosen empirically.
+ 			// It is the value that minimizes cmd/go file size
+ 			// across most architectures.
+diff --git a/test/fixedbugs/issue24817.go b/test/fixedbugs/issue24817.go
+new file mode 100644
+index 0000000000..ba2a138ed3
+--- /dev/null
++++ b/test/fixedbugs/issue24817.go
+@@ -0,0 +1,64 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check all ways to compare a non-constant string to the empty string.
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++var (
++	s      = "abc"
++	e      = ""
++	failed bool
++)
++
++func main() {
++	want(true, "" < s, `"" < s`)
++	want(false, s < "", `s < ""`)
++	want(false, "" < e, `"" < e`)
++	want(false, e < "", `e < ""`)
++
++	want(true, "" <= s, `"" <= s`)
++	want(false, s <= "", `s <= ""`)
++	want(true, "" <= e, `"" <= e`)
++	want(true, e <= "", `e <= ""`)
++
++	want(false, "" > s, `"" > s`)
++	want(true, s > "", `s > ""`)
++	want(false, "" > e, `"" > e`)
++	want(false, e > "", `e > ""`)
++
++	want(false, "" >= s, `"" >= s`)
++	want(true, s >= "", `s >= ""`)
++	want(true, "" >= e, `"" >= e`)
++	want(true, e >= "", `e >= ""`)
++
++	want(false, "" == s, `"" == s`)
++	want(false, s == "", `s == ""`)
++	want(true, "" == e, `"" == e`)
++	want(true, e == "", `e == ""`)
++
++	want(true, "" != s, `"" != s`)
++	want(true, s != "", `s != ""`)
++	want(false, "" != e, `"" != e`)
++	want(false, e != "", `e != ""`)
++
++	if failed {
++		os.Exit(1)
++	}
++}
++
++//go:noinline
++func want(b bool, have bool, msg string) {
++	if b != have {
++		fmt.Println(msg)
++		failed = true
++	}
++}

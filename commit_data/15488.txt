@@ -14,7 +14,41 @@ Date:   Thu Feb 28 16:09:48 2013 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/7427044
-
+---
  misc/dist/darwin/Distribution       | 8 +++++++-
  misc/dist/darwin/scripts/preinstall | 8 ++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dist/darwin/Distribution b/misc/dist/darwin/Distribution
+index 1468a629a2..8b764b69f4 100644
+--- a/misc/dist/darwin/Distribution
++++ b/misc/dist/darwin/Distribution
+@@ -13,7 +13,13 @@ function installCheck() {
+         my.result.type = 'Fatal';
+         return false;
+     }
+-    return true;
++    if(system.files.fileExistsAtPath('/usr/local/go/bin/go')) {
++	    my.result.title = 'Previous Installation Detected';
++	    my.result.message = 'A previous installation of Go exists at /usr/local/go. This installer will remove the previous installation prior to installing. Please back up any data before proceeding.';
++	    my.result.type = 'Warning';
++	    return false;
++	}
++    return true;    
+ }
+     </script>
+     <choices-outline>
+diff --git a/misc/dist/darwin/scripts/preinstall b/misc/dist/darwin/scripts/preinstall
+new file mode 100644
+index 0000000000..4cdaaa4bca
+--- /dev/null
++++ b/misc/dist/darwin/scripts/preinstall
+@@ -0,0 +1,8 @@
++#!/bin/bash
++
++GOROOT=/usr/local/go
++
++echo "Removing previous installation"
++if [ -d $GOROOT ]; then
++	rm -r $GOROOT
++fi

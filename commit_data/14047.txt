@@ -9,7 +9,7 @@ Date:   Sun Oct 7 06:53:57 2012 +0200
     R=golang-dev, dave, minux.ma, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6543057
-
+---
  src/cmd/gc/align.c             |  2 +-
  src/cmd/gc/dcl.c               |  2 +-
  src/cmd/gc/fmt.c               |  2 +-
@@ -20,3 +20,162 @@ Date:   Sun Oct 7 06:53:57 2012 +0200
  test/fixedbugs/bug460.go       | 10 ++++++++++
  test/fixedbugs/bug461.go       | 23 +++++++++++++++++++++++
  9 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 36a33d4827..2440a4b3e2 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -607,7 +607,7 @@ typeinit(void)
+ 			fatal("typeinit: %s already defined", s->name);
+ 
+ 		t = typ(etype);
+-		t->sym = s;
++		t->sym = s1;
+ 
+ 		dowidth(t);
+ 		types[etype] = t;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1f50910526..d090380d7e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -982,7 +982,7 @@ embedded(Sym *s)
+ 		*utfrune(name, CenterDot) = 0;
+ 	}
+ 
+-	if(exportname(name) || s->pkg == builtinpkg)  // old behaviour, tests pass, but is it correct?
++	if(exportname(name))
+ 		n = newname(lookup(name));
+ 	else
+ 		n = newname(pkglookup(name, s->pkg));
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index c59d1b9fcd..5a1f679301 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1181,7 +1181,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 					t = l->n->left->type->type;
+ 					if(t->sym == S)
+ 						t = t->type;
+-					fmtprint(f, " %T:%N", t, l->n->right);
++					fmtprint(f, " %hhS:%N", t->sym, l->n->right);
+ 				} else
+ 					fmtprint(f, " %hhS:%N", l->n->left->sym, l->n->right);
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6bf00161b7..46728c904d 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1831,16 +1831,16 @@ lexinit(void)
+ 		if(etype != Txxx) {
+ 			if(etype < 0 || etype >= nelem(types))
+ 				fatal("lexinit: %s bad etype", s->name);
++			s1 = pkglookup(syms[i].name, builtinpkg);
+ 			t = types[etype];
+ 			if(t == T) {
+ 				t = typ(etype);
+-				t->sym = s;
++				t->sym = s1;
+ 
+ 				if(etype != TANY && etype != TSTRING)
+ 					dowidth(t);
+ 				types[etype] = t;
+ 			}
+-			s1 = pkglookup(syms[i].name, builtinpkg);
+ 			s1->lexical = LNAME;
+ 			s1->def = typenod(t);
+ 			continue;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index ad1d8d8606..8e4f0a4d27 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -866,7 +866,10 @@ ok:
+ 					ot = dgopkgpath(s, ot, t1->sym->pkg);
+ 			} else {
+ 				ot = dgostringptr(s, ot, nil);
+-				ot = dgostringptr(s, ot, nil);
++				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
++					ot = dgopkgpath(s, ot, localpkg);
++				else
++					ot = dgostringptr(s, ot, nil);
+ 			}
+ 			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
+ 			ot = dgostrlitptr(s, ot, t1->note);
+diff --git a/test/fixedbugs/bug460.dir/a.go b/test/fixedbugs/bug460.dir/a.go
+new file mode 100644
+index 0000000000..02a287b317
+--- /dev/null
++++ b/test/fixedbugs/bug460.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Foo struct {
++	int
++}
+diff --git a/test/fixedbugs/bug460.dir/b.go b/test/fixedbugs/bug460.dir/b.go
+new file mode 100644
+index 0000000000..1868afe073
+--- /dev/null
++++ b/test/fixedbugs/bug460.dir/b.go
+@@ -0,0 +1,14 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var x a.Foo
++
++func main() {
++	x.int = 20 // ERROR "unexported field"
++}
++
+diff --git a/test/fixedbugs/bug460.go b/test/fixedbugs/bug460.go
+new file mode 100644
+index 0000000000..79234a3b96
+--- /dev/null
++++ b/test/fixedbugs/bug460.go
+@@ -0,0 +1,10 @@
++// errorcheckdir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// part one of issue 4124. Make sure that the compiler rejects access attempts.
++
++package ignored
++
+diff --git a/test/fixedbugs/bug461.go b/test/fixedbugs/bug461.go
+new file mode 100644
+index 0000000000..f0f7b0e69b
+--- /dev/null
++++ b/test/fixedbugs/bug461.go
+@@ -0,0 +1,23 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// part two of issue 4124. Make sure reflect doesn't mark the field as exported.
++
++package main
++
++import "reflect"
++
++var T struct {
++	int
++}
++
++func main() {
++	v := reflect.ValueOf(&T)
++	v = v.Elem().Field(0)
++	if v.CanSet() {
++		panic("int should be unexported")
++	}
++}

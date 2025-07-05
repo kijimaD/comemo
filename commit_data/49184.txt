@@ -13,8 +13,57 @@ Date:   Tue Jul 27 09:49:55 2021 +0000
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go              | 4 ++--
  src/cmd/go/internal/modcmd/edit.go | 2 +-
  src/cmd/go/internal/modcmd/init.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 954caae9fb..7f88d3216c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1078,7 +1078,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod edit [editing flags] [go.mod]
++// 	go mod edit [editing flags] [-fmt|-print|-json] [go.mod]
+ //
+ // Edit provides a command-line interface for editing go.mod,
+ // for use primarily by tools or scripts. It reads only go.mod;
+@@ -1204,7 +1204,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod init [module]
++// 	go mod init [module-path]
+ //
+ // Init initializes and writes a new go.mod file in the current directory, in
+ // effect creating a new module rooted at the current directory. The go.mod file
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index e856e7c630..bb3d521092 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -25,7 +25,7 @@ import (
+ )
+ 
+ var cmdEdit = &base.Command{
+-	UsageLine: "go mod edit [editing flags] [go.mod]",
++	UsageLine: "go mod edit [editing flags] [-fmt|-print|-json] [go.mod]",
+ 	Short:     "edit go.mod from tools or scripts",
+ 	Long: `
+ Edit provides a command-line interface for editing go.mod,
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index 73cc282d81..958c3066ac 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ var cmdInit = &base.Command{
+-	UsageLine: "go mod init [module]",
++	UsageLine: "go mod init [module-path]",
+ 	Short:     "initialize new module in current directory",
+ 	Long: `
+ Init initializes and writes a new go.mod file in the current directory, in

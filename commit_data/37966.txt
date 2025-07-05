@@ -8,6 +8,20 @@ Date:   Tue Sep 18 01:13:04 2018 +0300
     Reviewed-on: https://go-review.googlesource.com/135836
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2993e08fc2..2c0bc4b22e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1418,7 +1418,7 @@ opswitch:
+ 			// Maximum key and value size is 128 bytes, larger objects
+ 			// are stored with an indirection. So max bucket size is 2048+eps.
+ 			if !Isconst(hint, CTINT) ||
+-				!(hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) > 0) {
++				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+ 				// var bv bmap
+ 				bv := temp(bmap(t))
+ 

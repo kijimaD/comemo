@@ -13,8 +13,207 @@ Date:   Thu Jul 5 19:30:00 2018 +0200
     Change-Id: I568609569983791d50d35b8d80c44f3472203511
     Reviewed-on: https://go-review.googlesource.com/122375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js    | 23 +++++++++++++--
  src/syscall/js/js.go      | 72 ++++++++++++++++++++++++++++++++++++++++++++---
  src/syscall/js/js_test.go | 27 ++++++++++++++++++
  3 files changed, 115 insertions(+), 7 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 5790effb4a..565dc928bc 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -97,9 +97,11 @@
+ 			}
+ 
+ 			const storeValue = (addr, v) => {
++				const nanHead = 0x7FF80000;
++
+ 				if (typeof v === "number") {
+ 					if (isNaN(v)) {
+-						mem().setUint32(addr + 4, 0x7FF80000, true); // NaN
++						mem().setUint32(addr + 4, nanHead, true);
+ 						mem().setUint32(addr, 0, true);
+ 						return;
+ 					}
+@@ -107,19 +109,21 @@
+ 					return;
+ 				}
+ 
+-				mem().setUint32(addr + 4, 0x7FF80000, true); // NaN
+-
+ 				switch (v) {
+ 					case undefined:
++						mem().setUint32(addr + 4, nanHead, true);
+ 						mem().setUint32(addr, 1, true);
+ 						return;
+ 					case null:
++						mem().setUint32(addr + 4, nanHead, true);
+ 						mem().setUint32(addr, 2, true);
+ 						return;
+ 					case true:
++						mem().setUint32(addr + 4, nanHead, true);
+ 						mem().setUint32(addr, 3, true);
+ 						return;
+ 					case false:
++						mem().setUint32(addr + 4, nanHead, true);
+ 						mem().setUint32(addr, 4, true);
+ 						return;
+ 				}
+@@ -130,6 +134,19 @@
+ 					this._values.push(v);
+ 					this._refs.set(v, ref);
+ 				}
++				let typeFlag = 0;
++				switch (typeof v) {
++					case "string":
++						typeFlag = 1;
++						break;
++					case "symbol":
++						typeFlag = 2;
++						break;
++					case "function":
++						typeFlag = 3;
++						break;
++				}
++				mem().setUint32(addr + 4, nanHead | typeFlag, true);
+ 				mem().setUint32(addr, ref, true);
+ 			}
+ 
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 7f0a5a1a8a..cc7907a928 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -17,11 +17,11 @@ import (
+ 
+ // ref is used to identify a JavaScript value, since the value itself can not be passed to WebAssembly.
+ // A JavaScript number (64-bit float, except NaN) is represented by its IEEE 754 binary representation.
+-// All other values are represented as an IEEE 754 binary representation of NaN with the low 32 bits
+-// used as an ID.
++// All other values are represented as an IEEE 754 binary representation of NaN with bits 0-31 used as
++// an ID and bits 32-33 used to differentiate between string, symbol, function and object.
+ type ref uint64
+ 
+-// nanHead are the upper 32 bits of a ref if the value is not a JavaScript number or NaN itself.
++// nanHead are the upper 32 bits of a ref which are set if the value is not a JavaScript number or NaN itself.
+ const nanHead = 0x7FF80000
+ 
+ // Value represents a JavaScript value.
+@@ -145,6 +145,70 @@ func ValueOf(x interface{}) Value {
+ 
+ func stringVal(x string) ref
+ 
++// Type represents the JavaScript type of a Value.
++type Type int
++
++const (
++	TypeUndefined Type = iota
++	TypeNull
++	TypeBoolean
++	TypeNumber
++	TypeString
++	TypeSymbol
++	TypeObject
++	TypeFunction
++)
++
++func (t Type) String() string {
++	switch t {
++	case TypeUndefined:
++		return "undefined"
++	case TypeNull:
++		return "null"
++	case TypeBoolean:
++		return "boolean"
++	case TypeNumber:
++		return "number"
++	case TypeString:
++		return "string"
++	case TypeSymbol:
++		return "symbol"
++	case TypeObject:
++		return "object"
++	case TypeFunction:
++		return "function"
++	default:
++		panic("bad type")
++	}
++}
++
++// Type returns the JavaScript type of the value v. It is similar to JavaScript's typeof operator,
++// except that it returns TypeNull instead of TypeObject for null.
++func (v Value) Type() Type {
++	switch v.ref {
++	case valueUndefined.ref:
++		return TypeUndefined
++	case valueNull.ref:
++		return TypeNull
++	case valueTrue.ref, valueFalse.ref:
++		return TypeBoolean
++	}
++	if v.isNumber() {
++		return TypeNumber
++	}
++	typeFlag := v.ref >> 32 & 3
++	switch typeFlag {
++	case 1:
++		return TypeString
++	case 2:
++		return TypeSymbol
++	case 3:
++		return TypeFunction
++	default:
++		return TypeObject
++	}
++}
++
+ // Get returns the JavaScript property p of value v.
+ func (v Value) Get(p string) Value {
+ 	return makeValue(valueGet(v.ref, p))
+@@ -225,7 +289,7 @@ func (v Value) New(args ...interface{}) Value {
+ func valueNew(v ref, args []ref) (ref, bool)
+ 
+ func (v Value) isNumber() bool {
+-	return v.ref>>32 != nanHead || v.ref == valueNaN.ref
++	return v.ref>>32&nanHead != nanHead || v.ref == valueNaN.ref
+ }
+ 
+ // Float returns the value v as a float64. It panics if v is not a JavaScript number.
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 69b5209821..d47afe1da7 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -221,6 +221,33 @@ func TestInstanceOf(t *testing.T) {
+ 	}
+ }
+ 
++func TestType(t *testing.T) {
++	if got, want := js.Undefined().Type(), js.TypeUndefined; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.Null().Type(), js.TypeNull; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.ValueOf(true).Type(), js.TypeBoolean; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.ValueOf(42).Type(), js.TypeNumber; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.ValueOf("test").Type(), js.TypeString; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.Global().Get("Symbol").Invoke("test").Type(), js.TypeSymbol; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.Global().Get("Array").New().Type(), js.TypeObject; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++	if got, want := js.Global().Get("Array").Type(), js.TypeFunction; got != want {
++		t.Errorf("got %s, want %s", got, want)
++	}
++}
++
+ func TestCallback(t *testing.T) {
+ 	c := make(chan struct{})
+ 	cb := js.NewCallback(func(args []js.Value) {

@@ -9,9 +9,102 @@ Date:   Wed Nov 9 18:30:54 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5372041
-
+---
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/typecheck.c   |  4 ++++
  src/cmd/gc/unsafe.c      | 19 +++++++++++++++++--
  test/fixedbugs/bug376.go | 11 +++++++++++
  4 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 52344e7563..faae7bd9ea 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1247,6 +1247,7 @@ void	queuemethod(Node *n);
+ /*
+  *	unsafe.c
+  */
++int	isunsafebuiltin(Node *n);
+ Node*	unsafenmagic(Node *n);
+ 
+ /*
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f84f8440c4..ed5c35ae01 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -210,6 +210,10 @@ reswitch:
+ 			}
+ 			n->used = 1;
+ 		}
++		if(!(top &Ecall) && isunsafebuiltin(n)) {
++			yyerror("%N is not an expression, must be called", n);
++			goto error;
++		}
+ 		ok |= Erv;
+ 		goto ret;
+ 
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 7504b51c99..21496b08cc 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -10,6 +10,7 @@
+  * look for
+  *	unsafe.Sizeof
+  *	unsafe.Offsetof
++ *	unsafe.Alignof
+  * rewrite with a constant
+  */
+ Node*
+@@ -22,7 +23,7 @@ unsafenmagic(Node *nn)
+ 	Val val;
+ 	Node *fn;
+ 	NodeList *args;
+-	
++
+ 	fn = nn->left;
+ 	args = nn->list;
+ 
+@@ -83,7 +84,7 @@ bad:
+ 	yyerror("invalid expression %N", nn);
+ 	v = 0;
+ 	goto ret;
+-	
++
+ yes:
+ 	if(args->next != nil)
+ 		yyerror("extra arguments for %S", s);
+@@ -97,3 +98,17 @@ ret:
+ 	n->type = types[TUINTPTR];
+ 	return n;
+ }
++
++int
++isunsafebuiltin(Node *n)
++{
++	if(n == N || n->op != ONAME || n->sym == S || n->sym->pkg != unsafepkg)
++		return 0;
++	if(strcmp(n->sym->name, "Sizeof") == 0)
++		return 1;
++	if(strcmp(n->sym->name, "Offsetof") == 0)
++		return 1;
++	if(strcmp(n->sym->name, "Alignof") == 0)
++		return 1;
++	return 0;
++}
+diff --git a/test/fixedbugs/bug376.go b/test/fixedbugs/bug376.go
+new file mode 100644
+index 0000000000..1efbeecf21
+--- /dev/null
++++ b/test/fixedbugs/bug376.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1951
++package foo
++import "unsafe"
++var v = unsafe.Sizeof  // ERROR "must be called"
++

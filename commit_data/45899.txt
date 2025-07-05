@@ -20,7 +20,66 @@ Date:   Wed Nov 25 14:02:46 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 13 ++++++-------
  src/cmd/compile/internal/gc/iimport.go | 14 ++++----------
  2 files changed, 10 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index ef52e40f21..7c42e43bee 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1146,18 +1146,17 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 		w.op(ir.OFALL)
+ 		w.pos(n.Pos())
+ 
+-	case ir.OBREAK, ir.OCONTINUE:
+-		w.op(op)
+-		w.pos(n.Pos())
+-		w.exprsOrNil(n.Left(), nil)
+-
+ 	case ir.OEMPTY:
+ 		// nothing to emit
+ 
+-	case ir.OGOTO, ir.OLABEL:
++	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO, ir.OLABEL:
+ 		w.op(op)
+ 		w.pos(n.Pos())
+-		w.string(n.Sym().Name)
++		label := ""
++		if sym := n.Sym(); sym != nil {
++			label = sym.Name
++		}
++		w.string(label)
+ 
+ 	default:
+ 		base.Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op())
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 77078c118a..066d956b93 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -1052,20 +1052,14 @@ func (r *importReader) node() ir.Node {
+ 		n := ir.NodAt(r.pos(), ir.OFALL, nil, nil)
+ 		return n
+ 
+-	case ir.OBREAK, ir.OCONTINUE:
+-		pos := r.pos()
+-		left, _ := r.exprsOrNil()
+-		if left != nil {
+-			left = NewName(left.Sym())
+-		}
+-		return ir.NodAt(pos, op, left, nil)
+-
+ 	// case OEMPTY:
+ 	// 	unreachable - not emitted by exporter
+ 
+-	case ir.OGOTO, ir.OLABEL:
++	case ir.OBREAK, ir.OCONTINUE, ir.OGOTO, ir.OLABEL:
+ 		n := ir.NodAt(r.pos(), op, nil, nil)
+-		n.SetSym(lookup(r.string()))
++		if label := r.string(); label != "" {
++			n.SetSym(lookup(label))
++		}
+ 		return n
+ 
+ 	case ir.OEND:

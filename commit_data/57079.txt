@@ -13,6 +13,67 @@ Date:   Thu Jun 15 09:34:22 2023 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Eli Bendersky <eliben@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/slices/sort_benchmark_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/slices/sort_benchmark_test.go b/src/slices/sort_benchmark_test.go
+index edf29994cf..0f08842594 100644
+--- a/src/slices/sort_benchmark_test.go
++++ b/src/slices/sort_benchmark_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"math/rand"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -50,6 +51,15 @@ func BenchmarkSortInts(b *testing.B) {
+ 	}
+ }
+ 
++func makeSortedStrings(n int) []string {
++	x := make([]string, n)
++	for i := 0; i < n; i++ {
++		x[i] = strconv.Itoa(i)
++	}
++	Sort(x)
++	return x
++}
++
+ func BenchmarkSlicesSortInts(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		b.StopTimer()
+@@ -153,6 +163,15 @@ func BenchmarkSortStrings(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSortStrings_Sorted(b *testing.B) {
++	ss := makeSortedStrings(N)
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		sort.Strings(ss)
++	}
++}
++
+ func BenchmarkSlicesSortStrings(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		b.StopTimer()
+@@ -162,6 +181,15 @@ func BenchmarkSlicesSortStrings(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSlicesSortStrings_Sorted(b *testing.B) {
++	ss := makeSortedStrings(N)
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		Sort(ss)
++	}
++}
++
+ // These benchmarks compare sorting a slice of structs with sort.Sort vs.
+ // slices.SortFunc.
+ type myStruct struct {

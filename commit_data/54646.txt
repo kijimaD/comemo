@@ -12,6 +12,20 @@ Date:   Thu Nov 3 15:34:35 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/math/logb.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/logb.go b/src/math/logb.go
+index 04ba3e968e..1a46464127 100644
+--- a/src/math/logb.go
++++ b/src/math/logb.go
+@@ -44,7 +44,7 @@ func Ilogb(x float64) int {
+ 	return ilogb(x)
+ }
+ 
+-// logb returns the binary exponent of x. It assumes x is finite and
++// ilogb returns the binary exponent of x. It assumes x is finite and
+ // non-zero.
+ func ilogb(x float64) int {
+ 	x, exp := normalize(x)

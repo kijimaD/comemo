@@ -7,6 +7,23 @@ Date:   Fri May 15 16:11:25 2015 -0400
     Change-Id: I2ebb36c6c5de9d34e52ed523e9c888452591924a
     Reviewed-on: https://go-review.googlesource.com/10152
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/gc/go.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 31692bdf00..5fa85e25a7 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -786,8 +786,9 @@ type Arch struct {
+ 	//
+ 	// Ginscmp must be able to handle all kinds of arguments for n1 and n2,
+ 	// not just simple registers, although it can assume that there are no
+-	// function calls needed during the evaluation, so no in-memory temporaries
+-	// are necessary.
++	// function calls needed during the evaluation, and on 32-bit systems
++	// the values are guaranteed not to be 64-bit values, so no in-memory
++	// temporaries are necessary.
+ 	Ginscmp func(op int, t *Type, n1, n2 *Node, likely int) *obj.Prog
+ 
+ 	// Ginsboolval inserts instructions to convert the result

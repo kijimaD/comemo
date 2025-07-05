@@ -7,6 +7,29 @@ Date:   Wed Sep 17 14:26:01 2008 -0700
     R=r
     OCL=15448
     CL=15448
-
+---
  usr/gri/gosrc/printer.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index bcd7edb6c3..d0c5a08f2d 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -238,14 +238,12 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.CHANNEL:
+-		print("chan");
+ 		switch typ.flags {
+-		case Type.SEND: print(" -<");
+-		case Type.RECV: print(" <-");
+-		case Type.SEND + Type.RECV:  // nothing to print
++		case Type.SEND: print("chan <- ");
++		case Type.RECV: print("<- chan ");
++		case Type.SEND + Type.RECV: print("chan ");
+ 		default: panic("UNREACHABLE");
+ 		}
+-		print(" ");
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.FUNCTION:

@@ -20,7 +20,7 @@ Date:   Thu Sep 17 15:54:13 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go       | 46 ++++++++++++-----------------------
  src/cmd/go/internal/modload/import.go |  7 ------
  src/cmd/go/internal/modload/init.go   | 14 +----------
@@ -28,3 +28,345 @@ Date:   Thu Sep 17 15:54:13 2020 -0400
  src/cmd/go/internal/work/exec.go      |  3 ++-
  src/cmd/go/internal/work/init.go      |  4 +--
  6 files changed, 53 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 71fd9b5538..d06e65737d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -28,27 +28,13 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modinfo"
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ )
+ 
+-var (
+-	// module initialization hook; never nil, no-op if module use is disabled
+-	ModInit func()
+-
+-	// module hooks; nil if module use is disabled
+-	ModBinDir            func() string                                                                            // return effective bin directory
+-	ModLookup            func(parentPath string, parentIsStd bool, path string) (dir, realPath string, err error) // lookup effective meaning of import
+-	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                                                  // return module info for Package struct
+-	ModImportPaths       func(ctx context.Context, args []string) []*search.Match                                 // expand import paths
+-	ModPackageBuildInfo  func(main string, deps []string) string                                                  // return module info to embed in binary
+-	ModInfoProg          func(info string, isgccgo bool) []byte                                                   // wrap module info in .go code for binary
+-	ModImportFromFiles   func(context.Context, []string)                                                          // update go.mod to add modules for imports in these files
+-	ModDirImportPath     func(string) string                                                                      // return effective import path for directory
+-)
+-
+ var IgnoreImports bool // control whether we ignore imports in packages
+ 
+ // A Package describes a single package found in a directory.
+@@ -770,7 +756,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 			r.dir = filepath.Join(parentDir, path)
+ 			r.path = dirToImportPath(r.dir)
+ 		} else if cfg.ModulesEnabled {
+-			r.dir, r.path, r.err = ModLookup(parentPath, parentIsStd, path)
++			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
+ 		} else if mode&ResolveImport != 0 {
+ 			// We do our own path resolution, because we want to
+ 			// find out the key to use in packageCache without the
+@@ -801,7 +787,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 			}
+ 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
+ 			if data.p.Root == "" && cfg.ModulesEnabled {
+-				if info := ModPackageModuleInfo(path); info != nil {
++				if info := modload.PackageModuleInfo(path); info != nil {
+ 					data.p.Root = info.Dir
+ 				}
+ 			}
+@@ -827,7 +813,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 			if cfg.GOBIN != "" {
+ 				data.p.BinDir = cfg.GOBIN
+ 			} else if cfg.ModulesEnabled {
+-				data.p.BinDir = ModBinDir()
++				data.p.BinDir = modload.BinDir()
+ 			}
+ 		}
+ 
+@@ -895,8 +881,8 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
+ // to ensure preload goroutines are no longer active. This is necessary
+ // because of global mutable state that cannot safely be read and written
+ // concurrently. In particular, packageDataCache may be cleared by "go get"
+-// in GOPATH mode, and modload.loaded (accessed via ModLookup) may be
+-// modified by modload.ImportPaths (ModImportPaths).
++// in GOPATH mode, and modload.loaded (accessed via modload.Lookup) may be
++// modified by modload.ImportPaths (modload.ImportPaths).
+ type preload struct {
+ 	cancel chan struct{}
+ 	sema   chan struct{}
+@@ -1006,7 +992,7 @@ func ResolveImportPath(parent *Package, path string) (found string) {
+ 
+ func resolveImportPath(path, parentPath, parentDir, parentRoot string, parentIsStd bool) (found string) {
+ 	if cfg.ModulesEnabled {
+-		if _, p, e := ModLookup(parentPath, parentIsStd, path); e == nil {
++		if _, p, e := modload.Lookup(parentPath, parentIsStd, path); e == nil {
+ 			return p
+ 		}
+ 		return path
+@@ -1369,7 +1355,7 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
+ 			// directory containing them.
+ 			// If the directory is outside the main module, this will resolve to ".",
+ 			// which is not a prefix of any valid module.
+-			importerPath = ModDirImportPath(importer.Dir)
++			importerPath = modload.DirImportPath(importer.Dir)
+ 		}
+ 		parentOfInternal := p.ImportPath[:i]
+ 		if str.HasPathPrefix(importerPath, parentOfInternal) {
+@@ -1652,7 +1638,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
+ 			elem = full
+ 		}
+ 		if p.Internal.Build.BinDir == "" && cfg.ModulesEnabled {
+-			p.Internal.Build.BinDir = ModBinDir()
++			p.Internal.Build.BinDir = modload.BinDir()
+ 		}
+ 		if p.Internal.Build.BinDir != "" {
+ 			// Install to GOBIN or bin of GOPATH entry.
+@@ -1861,9 +1847,9 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
+ 		if p.Internal.CmdlineFiles {
+ 			mainPath = "command-line-arguments"
+ 		}
+-		p.Module = ModPackageModuleInfo(mainPath)
++		p.Module = modload.PackageModuleInfo(mainPath)
+ 		if p.Name == "main" && len(p.DepsErrors) == 0 {
+-			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
++			p.Internal.BuildInfo = modload.PackageBuildInfo(mainPath, p.Deps)
+ 		}
+ 	}
+ }
+@@ -2229,8 +2215,8 @@ func setToolFlags(pkgs ...*Package) {
+ }
+ 
+ func ImportPaths(ctx context.Context, args []string) []*search.Match {
+-	if ModInit(); cfg.ModulesEnabled {
+-		return ModImportPaths(ctx, args)
++	if modload.Init(); cfg.ModulesEnabled {
++		return modload.ImportPaths(ctx, args)
+ 	}
+ 	return search.ImportPaths(args)
+ }
+@@ -2282,7 +2268,7 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
+ // (typically named on the command line). The target is named p.a for
+ // package p or named after the first Go file for package main.
+ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+-	ModInit()
++	modload.Init()
+ 
+ 	for _, f := range gofiles {
+ 		if !strings.HasSuffix(f, ".go") {
+@@ -2329,7 +2315,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+ 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
+ 
+ 	if cfg.ModulesEnabled {
+-		ModImportFromFiles(ctx, gofiles)
++		modload.ImportFromFiles(ctx, gofiles)
+ 	}
+ 
+ 	var err error
+@@ -2357,7 +2343,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+ 		if cfg.GOBIN != "" {
+ 			pkg.Target = filepath.Join(cfg.GOBIN, exe)
+ 		} else if cfg.ModulesEnabled {
+-			pkg.Target = filepath.Join(ModBinDir(), exe)
++			pkg.Target = filepath.Join(modload.BinDir(), exe)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 10b1e7f4b8..e93eebcb81 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -17,7 +17,6 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+@@ -38,8 +37,6 @@ type ImportMissingError struct {
+ 	newMissingVersion string
+ }
+ 
+-var _ load.ImportPathError = (*ImportMissingError)(nil)
+-
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
+ 		if search.IsStandardImportPath(e.Path) {
+@@ -105,8 +102,6 @@ func (e *AmbiguousImportError) Error() string {
+ 	return buf.String()
+ }
+ 
+-var _ load.ImportPathError = &AmbiguousImportError{}
+-
+ type invalidImportError struct {
+ 	importPath string
+ 	err        error
+@@ -124,8 +119,6 @@ func (e *invalidImportError) Unwrap() error {
+ 	return e.err
+ }
+ 
+-var _ load.ImportPathError = &invalidImportError{}
+-
+ // importFromBuildList finds the module and directory in the build list
+ // containing the package with the given import path. The answer must be unique:
+ // importFromBuildList returns an error if multiple modules attempt to provide
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 60aadf23ea..2c95fa4263 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -22,7 +22,6 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modconv"
+ 	"cmd/go/internal/modfetch"
+@@ -210,14 +209,7 @@ func Init() {
+ 	}
+ 
+ 	cfg.ModulesEnabled = true
+-	load.ModBinDir = BinDir
+-	load.ModLookup = Lookup
+-	load.ModPackageModuleInfo = PackageModuleInfo
+-	load.ModImportPaths = ImportPaths
+-	load.ModPackageBuildInfo = PackageBuildInfo
+-	load.ModInfoProg = ModInfoProg
+-	load.ModImportFromFiles = ImportFromFiles
+-	load.ModDirImportPath = DirImportPath
++	// load.ModDirImportPath = DirImportPath
+ 
+ 	if modRoot == "" {
+ 		// We're in module mode, but not inside a module.
+@@ -243,10 +235,6 @@ func Init() {
+ 	}
+ }
+ 
+-func init() {
+-	load.ModInit = Init
+-}
+-
+ // WillBeEnabled checks whether modules should be enabled but does not
+ // initialize modules by installing hooks. If Init has already been called,
+ // WillBeEnabled returns the same result as Enabled.
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index e535998d89..90bf10244d 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -21,7 +21,6 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
+ 	"cmd/go/internal/web"
+ )
+ 
+@@ -664,7 +663,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
+ 	if err == errUnknownSite {
+ 		rr, err = repoRootForImportDynamic(importPath, mod, security)
+ 		if err != nil {
+-			err = load.ImportErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
++			err = importErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
+ 		}
+ 	}
+ 	if err != nil {
+@@ -679,7 +678,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
+ 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.Root, "...") {
+ 		// Do not allow wildcards in the repo root.
+ 		rr = nil
+-		err = load.ImportErrorf(importPath, "cannot expand ... in %q", importPath)
++		err = importErrorf(importPath, "cannot expand ... in %q", importPath)
+ 	}
+ 	return rr, err
+ }
+@@ -703,7 +702,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
+ 		m := srv.regexp.FindStringSubmatch(importPath)
+ 		if m == nil {
+ 			if srv.prefix != "" {
+-				return nil, load.ImportErrorf(importPath, "invalid %s import path %q", srv.prefix, importPath)
++				return nil, importErrorf(importPath, "invalid %s import path %q", srv.prefix, importPath)
+ 			}
+ 			continue
+ 		}
+@@ -1185,3 +1184,32 @@ func launchpadVCS(match map[string]string) error {
+ 	}
+ 	return nil
+ }
++
++// importError is a copy of load.importError, made to avoid a dependency cycle
++// on cmd/go/internal/load. It just needs to satisfy load.ImportPathError.
++type importError struct {
++	importPath string
++	err        error
++}
++
++func importErrorf(path, format string, args ...interface{}) error {
++	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
++	if errStr := err.Error(); !strings.Contains(errStr, path) {
++		panic(fmt.Sprintf("path %q not in error %q", path, errStr))
++	}
++	return err
++}
++
++func (e *importError) Error() string {
++	return e.err.Error()
++}
++
++func (e *importError) Unwrap() error {
++	// Don't return e.err directly, since we're only wrapping an error if %w
++	// was passed to ImportErrorf.
++	return errors.Unwrap(e.err)
++}
++
++func (e *importError) ImportPath() string {
++	return e.importPath
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 9da5a44e17..afd6fd6d3f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -31,6 +31,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ )
+@@ -692,7 +693,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 	}
+ 
+ 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
+-		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
++		if err := b.writeFile(objdir+"_gomod_.go", modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
+ 			return err
+ 		}
+ 		gofiles = append(gofiles, objdir+"_gomod_.go")
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index d71387d323..42692acd3b 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -9,7 +9,7 @@ package work
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
++	"cmd/go/internal/modload"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"flag"
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ func BuildInit() {
+-	load.ModInit()
++	modload.Init()
+ 	instrumentInit()
+ 	buildModeInit()
+ 

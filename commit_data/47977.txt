@@ -12,7 +12,32 @@ Date:   Tue Apr 20 14:29:53 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 1 +
  src/cmd/compile/internal/typecheck/iimport.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 911d758083..b59a610cf7 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -749,6 +749,7 @@ func (w *exportWriter) exoticParam(f *types.Field) {
+ 	w.uint64(uint64(f.Offset))
+ 	w.exoticType(f.Type)
+ 	w.bool(f.IsDDD())
++	w.string(f.Note)
+ }
+ func (w *exportWriter) exoticSym(s *types.Sym) {
+ 	if s == nil {
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index c55e3fbe2a..53576bf725 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -592,6 +592,7 @@ func (r *importReader) exoticParam() *types.Field {
+ 		f.Nname = ir.NewNameAt(pos, sym)
+ 	}
+ 	f.SetIsDDD(ddd)
++	f.Note = r.string()
+ 	return f
+ }
+ 

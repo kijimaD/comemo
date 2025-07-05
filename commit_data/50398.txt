@@ -18,7 +18,47 @@ Date:   Sat Oct 23 10:16:41 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/fuse_branchredirect.go |  6 +++++-
  test/fixedbugs/issue49122.go                        | 16 ++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse_branchredirect.go b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+index 1b8b307bca..ba5220bd87 100644
+--- a/src/cmd/compile/internal/ssa/fuse_branchredirect.go
++++ b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+@@ -78,7 +78,11 @@ func fuseBranchRedirect(f *Func) bool {
+ 					if v.Op != OpPhi {
+ 						continue
+ 					}
+-					v.RemoveArg(k)
++					n := len(v.Args)
++					v.Args[k].Uses--
++					v.Args[k] = v.Args[n-1]
++					v.Args[n-1] = nil
++					v.Args = v.Args[:n-1]
+ 					phielimValue(v)
+ 				}
+ 				// Fix up child to have one more predecessor.
+diff --git a/test/fixedbugs/issue49122.go b/test/fixedbugs/issue49122.go
+new file mode 100644
+index 0000000000..c62a627dae
+--- /dev/null
++++ b/test/fixedbugs/issue49122.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var B []bool
++var N int
++
++func f(p bool, m map[bool]bool) bool {
++	var q bool
++	_ = p || N&N < N || B[0] || B[0]
++	return p && q && m[q]
++}

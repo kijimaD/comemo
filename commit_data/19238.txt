@@ -13,6 +13,19 @@ Date:   Sat Apr 26 19:59:00 2014 -0700
     R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
     https://golang.org/cl/99800044
-
+---
  src/pkg/net/fd_unix.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 5ed0d3ac5a..b82ecd11c1 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -482,7 +482,6 @@ func dupCloseOnExecOld(fd int) (newfd int, err error) {
+ func (fd *netFD) dup() (f *os.File, err error) {
+ 	ns, err := dupCloseOnExec(fd.sysfd)
+ 	if err != nil {
+-		syscall.ForkLock.RUnlock()
+ 		return nil, &OpError{"dup", fd.net, fd.laddr, err}
+ 	}
+ 

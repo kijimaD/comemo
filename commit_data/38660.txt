@@ -22,7 +22,51 @@ Date:   Tue Nov 13 13:34:42 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go      |  3 +++
  src/bufio/bufio_test.go | 18 ++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 46df619228..ffb278ad9e 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -128,6 +128,9 @@ func (b *Reader) Peek(n int) ([]byte, error) {
+ 		return nil, ErrNegativeCount
+ 	}
+ 
++	b.lastByte = -1
++	b.lastRuneSize = -1
++
+ 	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
+ 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
+ 	}
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 34d70312f7..f7a0682e70 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -285,6 +285,24 @@ func TestUnreadRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestNoUnreadRuneAfterPeek(t *testing.T) {
++	br := NewReader(strings.NewReader("example"))
++	br.ReadRune()
++	br.Peek(1)
++	if err := br.UnreadRune(); err == nil {
++		t.Error("UnreadRune didn't fail after Peek")
++	}
++}
++
++func TestNoUnreadByteAfterPeek(t *testing.T) {
++	br := NewReader(strings.NewReader("example"))
++	br.ReadByte()
++	br.Peek(1)
++	if err := br.UnreadByte(); err == nil {
++		t.Error("UnreadByte didn't fail after Peek")
++	}
++}
++
+ func TestUnreadByte(t *testing.T) {
+ 	segments := []string{"Hello, ", "world"}
+ 	r := NewReader(&StringReader{data: segments})

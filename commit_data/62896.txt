@@ -22,7 +22,38 @@ Date:   Fri Apr 25 19:43:16 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/work/buildid.go | 4 ++--
  src/cmd/internal/objabi/flag.go     | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 3497ad7a27..9bf3ab9acc 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -169,10 +169,10 @@ func (b *Builder) toolID(name string) string {
+ 
+ 		line := stdout.String()
+ 		f := strings.Fields(line)
+-		if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
++		if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || strings.Contains(f[2], "devel") && !strings.HasPrefix(f[len(f)-1], "buildID=") {
+ 			base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
+ 		}
+-		if f[2] == "devel" {
++		if strings.Contains(f[2], "devel") {
+ 			// On the development branch, use the content ID part of the build ID.
+ 			return contentID(f[len(f)-1])
+ 		}
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index cfd86dc6dc..1bb46e3bcd 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -113,7 +113,7 @@ func (versionFlag) Set(s string) error {
+ 	// build ID of the binary, so that if the compiler is changed and
+ 	// rebuilt, we notice and rebuild all packages.
+ 	if s == "full" {
+-		if strings.HasPrefix(buildcfg.Version, "devel") {
++		if strings.Contains(buildcfg.Version, "devel") {
+ 			p += " buildID=" + buildID
+ 		}
+ 	}

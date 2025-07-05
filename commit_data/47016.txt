@@ -13,6 +13,14 @@ Date:   Fri Feb 19 13:39:43 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  codereview.cfg | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/codereview.cfg b/codereview.cfg
+new file mode 100644
+index 0000000000..77a74f108e
+--- /dev/null
++++ b/codereview.cfg
+@@ -0,0 +1 @@
++branch: master

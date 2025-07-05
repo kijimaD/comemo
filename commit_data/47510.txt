@@ -47,6 +47,25 @@ Date:   Fri Mar 19 22:01:10 2021 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/net/http/transport.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 6358c3897e..f30ca881ac 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -786,10 +786,12 @@ func (t *Transport) CancelRequest(req *Request) {
+ // Cancel an in-flight request, recording the error value.
+ // Returns whether the request was canceled.
+ func (t *Transport) cancelRequest(key cancelKey, err error) bool {
++	// This function must not return until the cancel func has completed.
++	// See: https://golang.org/issue/34658
+ 	t.reqMu.Lock()
++	defer t.reqMu.Unlock()
+ 	cancel := t.reqCanceler[key]
+ 	delete(t.reqCanceler, key)
+-	t.reqMu.Unlock()
+ 	if cancel != nil {
+ 		cancel(err)
+ 	}

@@ -7,7 +7,75 @@ Date:   Wed Feb 16 15:05:48 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4172045
-
+---
  src/pkg/net/iprawsock.go |  2 +-
  src/pkg/net/ipsock.go    | 29 ++++++++++++++++++++++-------
  2 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 262b69d068..81a918ce5c 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -245,7 +245,7 @@ func hostToIP(host string) (ip IP, err os.Error) {
+ 			err = err1
+ 			goto Error
+ 		}
+-		addr = ParseIP(addrs[0])
++		addr = firstSupportedAddr(addrs)
+ 		if addr == nil {
+ 			// should not happen
+ 			err = &AddrError{"LookupHost returned invalid address", addrs[0]}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 4ba6a55b96..ae4204b48a 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -18,19 +18,34 @@ import (
+ // Unfortunately, we need to run on kernels built without IPv6 support too.
+ // So probe the kernel to figure it out.
+ func kernelSupportsIPv6() bool {
+-	// FreeBSD does not support this sort of interface.
+-	if syscall.OS == "freebsd" {
++	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++	if err != 0 {
+ 		return false
+ 	}
+-	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+-	if fd >= 0 {
+-		closesocket(fd)
++	defer closesocket(s)
++
++	la := &TCPAddr{IP: IPv4(127, 0, 0, 1)}
++	sa, oserr := la.toAddr().sockaddr(syscall.AF_INET6)
++	if oserr != nil {
++		return false
+ 	}
+-	return e == 0
++
++	return syscall.Bind(s, sa) == 0
+ }
+ 
+ var preferIPv4 = !kernelSupportsIPv6()
+ 
++func firstSupportedAddr(addrs []string) (addr IP) {
++	for _, s := range addrs {
++		addr = ParseIP(s)
++		if !preferIPv4 || addr.To4() != nil {
++			break
++		}
++		addr = nil
++	}
++	return addr
++}
++
+ // TODO(rsc): if syscall.OS == "linux", we're supposd to read
+ // /proc/sys/net/core/somaxconn,
+ // to take advantage of kernels that have raised the limit.
+@@ -208,7 +223,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 				err = err1
+ 				goto Error
+ 			}
+-			addr = ParseIP(addrs[0])
++			addr = firstSupportedAddr(addrs)
+ 			if addr == nil {
+ 				// should not happen
+ 				err = &AddrError{"LookupHost returned invalid address", addrs[0]}

@@ -15,7 +15,7 @@ Date:   Tue Dec 6 14:04:32 2022 -0800
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                         |  2 +-
  src/cmd/go.sum                                         |  4 ++--
  .../vendor/golang.org/x/sys/windows/syscall_windows.go |  1 +
@@ -26,3 +26,189 @@ Date:   Tue Dec 6 14:04:32 2022 -0800
  src/net/http/h2_bundle.go                              | 18 +++++++++++-------
  src/vendor/modules.txt                                 |  6 +++---
  9 files changed, 35 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index de652f289f..c1f0e0eac1 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a
+ 	golang.org/x/mod v0.7.0
+ 	golang.org/x/sync v0.1.0
+-	golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669
++	golang.org/x/sys v0.3.0
+ 	golang.org/x/term v0.2.0
+ 	golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 432cbde88d..bb72137ecf 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -8,8 +8,8 @@ golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
+ golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.1.0 h1:wsuoTGHzEhffawBOhz5CYhcrV4IdKZbEyZjBMuTp12o=
+ golang.org/x/sync v0.1.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+-golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669 h1:pvmSpBoSG0gD2LLPAX15QHPig8xsbU0tu1sSAmResqk=
+-golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/sys v0.3.0 h1:w8ZOecv6NaNa/zC8944JTU3vz4u6Lagfk4RPQxv92NQ=
++golang.org/x/sys v0.3.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.2.0 h1:z85xZCsEl7bi/KwbNADeBYoOP0++7W1ipu+aGnpwzRM=
+ golang.org/x/term v0.2.0/go.mod h1:TVmDHMZPmdnySmBfhjOoOdhjzdE1h4u1VwSiw2l1Nuc=
+ golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674 h1:Lv0Y+JVwLQF2YThz8ImE7rP2FSv/IzV9lS2k7bvua6U=
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 7a6ba43a7e..a49853e9d3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -367,6 +367,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	IsWindowUnicode(hwnd HWND) (isUnicode bool) = user32.IsWindowUnicode
+ //sys	IsWindowVisible(hwnd HWND) (isVisible bool) = user32.IsWindowVisible
+ //sys	GetGUIThreadInfo(thread uint32, info *GUIThreadInfo) (err error) = user32.GetGUIThreadInfo
++//sys	GetLargePageMinimum() (size uintptr)
+ 
+ // Volume Management Functions
+ //sys	DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) = DefineDosDeviceW
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 96ba8559c3..ac60052e44 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -252,6 +252,7 @@ var (
+ 	procGetFileType                                          = modkernel32.NewProc("GetFileType")
+ 	procGetFinalPathNameByHandleW                            = modkernel32.NewProc("GetFinalPathNameByHandleW")
+ 	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
++	procGetLargePageMinimum                                  = modkernel32.NewProc("GetLargePageMinimum")
+ 	procGetLastError                                         = modkernel32.NewProc("GetLastError")
+ 	procGetLogicalDriveStringsW                              = modkernel32.NewProc("GetLogicalDriveStringsW")
+ 	procGetLogicalDrives                                     = modkernel32.NewProc("GetLogicalDrives")
+@@ -2180,6 +2181,12 @@ func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (
+ 	return
+ }
+ 
++func GetLargePageMinimum() (size uintptr) {
++	r0, _, _ := syscall.Syscall(procGetLargePageMinimum.Addr(), 0, 0, 0, 0)
++	size = uintptr(r0)
++	return
++}
++
+ func GetLastError() (lasterr error) {
+ 	r0, _, _ := syscall.Syscall(procGetLastError.Addr(), 0, 0, 0, 0)
+ 	if r0 != 0 {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e092e672e9..414d8eb743 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -37,7 +37,7 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.1.0
+ ## explicit
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669
++# golang.org/x/sys v0.3.0
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+diff --git a/src/go.mod b/src/go.mod
+index 874b035dd2..2a1261f925 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,10 +4,10 @@ go 1.20
+ 
+ require (
+ 	golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
+-	golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e
++	golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10
+ )
+ 
+ require (
+-	golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669 // indirect
+-	golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1 // indirect
++	golang.org/x/sys v0.3.0 // indirect
++	golang.org/x/text v0.5.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 3ff1619712..ef6748d596 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+ golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a h1:diz9pEYuTIuLMJLs3rGDkeaTsNyRs6duYdFyPAxzE/U=
+ golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a/go.mod h1:hebNnKkNXi2UzZN1eVRvBB7co0a+JxK6XbPiWVs/3J4=
+-golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e h1:IVOjWZQH/57UDcpX19vSmMz8w3ohroOMWohn8qWpRkg=
+-golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e/go.mod h1:KqCZLdyyvdV855qA2rE3GC2aiw5xGR5TEjj8smXukLY=
+-golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669 h1:pvmSpBoSG0gD2LLPAX15QHPig8xsbU0tu1sSAmResqk=
+-golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1 h1:MeNvOWn/3xRkkONM8Kq3bqSSC5YU33Xf00gGusqEuss=
+-golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
++golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10 h1:Frnccbp+ok2GkUS2tC84yAq/U9Vg+0sIO7aRL3T4Xnc=
++golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10/go.mod h1:MBQ8lrhLObU/6UmLb4fmbmk5OcyYmqtbGd/9yIeKjEE=
++golang.org/x/sys v0.3.0 h1:w8ZOecv6NaNa/zC8944JTU3vz4u6Lagfk4RPQxv92NQ=
++golang.org/x/sys v0.3.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/text v0.5.0 h1:OLmvp0KP+FVG99Ct/qFiL/Fhk4zp4QQnZ7b2U+5piUM=
++golang.org/x/text v0.5.0/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index e36b31dfc3..1e0b83d493 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -4327,6 +4327,7 @@ type http2serverConn struct {
+ 	maxFrameSize                int32
+ 	peerMaxHeaderListSize       uint32            // zero means unknown (default)
+ 	canonHeader                 map[string]string // http2-lower-case -> Go-Canonical-Case
++	canonHeaderKeysSize         int               // canonHeader keys size in bytes
+ 	writingFrame                bool              // started writing a frame (on serve goroutine or separate)
+ 	writingFrameAsync           bool              // started a frame on its own goroutine but haven't heard back on wroteFrameCh
+ 	needsFrameFlush             bool              // last frame write wasn't a flush
+@@ -4508,6 +4509,13 @@ func (sc *http2serverConn) condlogf(err error, format string, args ...interface{
+ 	}
+ }
+ 
++// maxCachedCanonicalHeadersKeysSize is an arbitrarily-chosen limit on the size
++// of the entries in the canonHeader cache.
++// This should be larger than the size of unique, uncommon header keys likely to
++// be sent by the peer, while not so high as to permit unreasonable memory usage
++// if the peer sends an unbounded number of unique header keys.
++const http2maxCachedCanonicalHeadersKeysSize = 2048
++
+ func (sc *http2serverConn) canonicalHeader(v string) string {
+ 	sc.serveG.check()
+ 	http2buildCommonHeaderMapsOnce()
+@@ -4523,14 +4531,10 @@ func (sc *http2serverConn) canonicalHeader(v string) string {
+ 		sc.canonHeader = make(map[string]string)
+ 	}
+ 	cv = CanonicalHeaderKey(v)
+-	// maxCachedCanonicalHeaders is an arbitrarily-chosen limit on the number of
+-	// entries in the canonHeader cache. This should be larger than the number
+-	// of unique, uncommon header keys likely to be sent by the peer, while not
+-	// so high as to permit unreasonable memory usage if the peer sends an unbounded
+-	// number of unique header keys.
+-	const maxCachedCanonicalHeaders = 32
+-	if len(sc.canonHeader) < maxCachedCanonicalHeaders {
++	size := 100 + len(v)*2 // 100 bytes of map overhead + key + value
++	if sc.canonHeaderKeysSize+size <= http2maxCachedCanonicalHeadersKeysSize {
+ 		sc.canonHeader[v] = cv
++		sc.canonHeaderKeysSize += size
+ 	}
+ 	return cv
+ }
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 0854beacdd..3e4bb5b90b 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.2.1-0.20221117215542-ecf7fda6a59e
++# golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,10 +17,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.2.1-0.20221110211117-d684c6f88669
++# golang.org/x/sys v0.3.0
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.4.1-0.20221110184632-c8236a6712b1
++# golang.org/x/text v0.5.0
+ ## explicit; go 1.17
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

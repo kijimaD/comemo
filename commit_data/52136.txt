@@ -10,7 +10,33 @@ Date:   Fri Apr 8 16:23:35 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/go/build/build.go | 1 -
  src/go/build/read.go  | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 2666b8acb7..3b09cce84b 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1380,7 +1380,6 @@ type fileInfo struct {
+ 	parseErr error
+ 	imports  []fileImport
+ 	embeds   []fileEmbed
+-	embedErr error
+ }
+ 
+ type fileImport struct {
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index de5c33a4f8..52adfeab9a 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -390,7 +390,7 @@ func readComments(f io.Reader) ([]byte, error) {
+ // readGoInfo expects a Go file as input and reads the file up to and including the import section.
+ // It records what it learned in *info.
+ // If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
+-// info.imports, info.embeds, and info.embedErr.
++// info.imports and info.embeds.
+ //
+ // It only returns an error if there are problems reading the file,
+ // not for syntax errors in the file itself.

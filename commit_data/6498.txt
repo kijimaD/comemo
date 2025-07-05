@@ -11,6 +11,20 @@ Date:   Mon Oct 11 23:58:51 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2416042
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3688a1c235..24c6af06de 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -797,7 +797,7 @@ newstack(void)
+ 	label.sp = sp;
+ 	label.pc = (byte*)·lessstack;
+ 	label.g = m->curg;
+-	gogocall(&label, m->morepc, 4);
++	gogocall(&label, m->morepc, 0);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }

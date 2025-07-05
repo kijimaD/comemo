@@ -17,8 +17,150 @@ Date:   Mon Aug 21 10:03:07 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules |  5 ++
  src/cmd/compile/internal/ssa/rewriteARM64.go  | 66 +++++++++++++++++++++++++++
  test/codegen/noextend.go                      |  5 ++
  3 files changed, 76 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 9af771a472..4a99771e3b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1574,6 +1574,11 @@
+ // zero upper bit of the register; no need to zero-extend
+ (MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
+ 
++// Don't bother extending if we're not using the higher bits.
++(MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
++(MOV(H|HU)reg x) && v.Type.Size() <= 2 => x
++(MOV(W|WU)reg x) && v.Type.Size() <= 4 => x
++
+ // omit unsign extension
+ (MOVWUreg x) && zeroUpper32Bits(x, 3) => x
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a29eff1db5..84274bd506 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -8472,6 +8472,17 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg x)
++	// cond: v.Type.Size() <= 1
++	// result: x
++	for {
++		x := v_0
++		if !(v.Type.Size() <= 1) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVBUreg (SLLconst [lc] x))
+ 	// cond: lc >= 8
+ 	// result: (MOVDconst [0])
+@@ -8735,6 +8746,17 @@ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(int8(c)))
+ 		return true
+ 	}
++	// match: (MOVBreg x)
++	// cond: v.Type.Size() <= 1
++	// result: x
++	for {
++		x := v_0
++		if !(v.Type.Size() <= 1) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVBreg <t> (ANDconst x [c]))
+ 	// cond: uint64(c) & uint64(0xffffffffffffff80) == 0
+ 	// result: (ANDconst <t> x [c])
+@@ -10386,6 +10408,17 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint16(c)))
+ 		return true
+ 	}
++	// match: (MOVHUreg x)
++	// cond: v.Type.Size() <= 2
++	// result: x
++	for {
++		x := v_0
++		if !(v.Type.Size() <= 2) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVHUreg (SLLconst [lc] x))
+ 	// cond: lc >= 16
+ 	// result: (MOVDconst [0])
+@@ -10832,6 +10865,17 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(int16(c)))
+ 		return true
+ 	}
++	// match: (MOVHreg x)
++	// cond: v.Type.Size() <= 2
++	// result: x
++	for {
++		x := v_0
++		if !(v.Type.Size() <= 2) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVHreg <t> (ANDconst x [c]))
+ 	// cond: uint64(c) & uint64(0xffffffffffff8000) == 0
+ 	// result: (ANDconst <t> x [c])
+@@ -12011,6 +12055,17 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWUreg x)
++	// cond: v.Type.Size() <= 4
++	// result: x
++	for {
++		x := v_0
++		if !(v.Type.Size() <= 4) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVWUreg x)
+ 	// cond: zeroUpper32Bits(x, 3)
+ 	// result: x
+ 	for {
+@@ -12525,6 +12580,17 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(int32(c)))
+ 		return true
+ 	}
++	// match: (MOVWreg x)
++	// cond: v.Type.Size() <= 4
++	// result: x
++	for {
++		x := v_0
++		if !(v.Type.Size() <= 4) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVWreg <t> (ANDconst x [c]))
+ 	// cond: uint64(c) & uint64(0xffffffff80000000) == 0
+ 	// result: (ANDconst <t> x [c])
+diff --git a/test/codegen/noextend.go b/test/codegen/noextend.go
+index 61c98a796a..98ad0ece89 100644
+--- a/test/codegen/noextend.go
++++ b/test/codegen/noextend.go
+@@ -279,3 +279,8 @@ func shouldSignEXT(x int) int64 {
+ 	return ret
+ 
+ }
++
++func noIntermediateExtension(a, b, c uint32) uint32 {
++	// arm64:-"MOVWU"
++	return a*b*9 + c
++}

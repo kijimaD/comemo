@@ -9,9 +9,109 @@ Date:   Mon Jul 25 12:25:37 2011 -0400
     R=fullung, rsc
     CC=golang-dev
     https://golang.org/cl/4825043
-
+---
  src/cmd/gc/go.h              |  2 +-
  src/cmd/gc/select.c          |  2 +-
  src/cmd/gc/subr.c            | 15 ++++++++-------
  src/pkg/runtime/chan_test.go | 16 ++++++++++++++++
  4 files changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c61e8a9942..ee4ee6c89b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1136,7 +1136,7 @@ Sym*	restrictlookup(char *name, Pkg *pkg);
+ Node*	safeexpr(Node *n, NodeList **init);
+ void	saveerrors(void);
+ Node*	cheapexpr(Node *n, NodeList **init);
+-Node*	localexpr(Node *n, NodeList **init);
++Node*	localexpr(Node *n, Type *t, NodeList **init);
+ int32	setlineno(Node *n);
+ void	setmaxarg(Type *t);
+ Type*	shallow(Type *t);
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 14ec015f2d..095c764159 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -311,7 +311,7 @@ walkselect(Node *sel)
+ 			case OSEND:
+ 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 				n->left = safeexpr(n->left, &r->ninit);
+-				n->right = localexpr(n->right, &r->ninit);
++				n->right = localexpr(n->right, n->left->type->type, &r->ninit);
+ 				n->right = nod(OADDR, n->right, N);
+ 				n->right->etype = 1;  // pointer does not escape
+ 				typecheck(&n->right, Erv);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9ec630bcf2..96675be3fd 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2728,12 +2728,12 @@ safeexpr(Node *n, NodeList **init)
+ }
+ 
+ static Node*
+-copyexpr(Node *n, NodeList **init)
++copyexpr(Node *n, Type *t, NodeList **init)
+ {
+ 	Node *a, *l;
+ 	
+ 	l = nod(OXXX, N, N);
+-	tempname(l, n->type);
++	tempname(l, t);
+ 	a = nod(OAS, l, n);
+ 	typecheck(&a, Etop);
+ 	walkexpr(&a, init);
+@@ -2754,20 +2754,21 @@ cheapexpr(Node *n, NodeList **init)
+ 		return n;
+ 	}
+ 
+-	return copyexpr(n, init);
++	return copyexpr(n, n->type, init);
+ }
+ 
+ /*
+- * return n in a local variable if it is not already.
++ * return n in a local variable of type t if it is not already.
+  */
+ Node*
+-localexpr(Node *n, NodeList **init)
++localexpr(Node *n, Type *t, NodeList **init)
+ {
+ 	if(n->op == ONAME &&
+-		 (n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT))
++		(n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT) &&
++		convertop(n->type, t, nil) == OCONVNOP)
+ 		return n;
+ 	
+-	return copyexpr(n, init);
++	return copyexpr(n, t, init);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/chan_test.go b/src/pkg/runtime/chan_test.go
+index 31f6856e77..c5ffe93acc 100644
+--- a/src/pkg/runtime/chan_test.go
++++ b/src/pkg/runtime/chan_test.go
+@@ -10,6 +10,22 @@ import (
+ 	"testing"
+ )
+ 
++func TestChanSendInterface(t *testing.T) {
++	type mt struct{}
++	m := &mt{}
++	c := make(chan interface{}, 1)
++	c <- m
++	select {
++	case c <- m:
++	default:
++	}
++	select {
++	case c <- m:
++	case c <- &mt{}:
++	default:
++	}
++}
++
+ func BenchmarkSelectUncontended(b *testing.B) {
+ 	const CallsPerSched = 1000
+ 	procs := runtime.GOMAXPROCS(-1)

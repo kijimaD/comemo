@@ -22,9 +22,207 @@ Date:   Sun Jul 18 08:12:23 2021 +0000
     Trust: Than McIntosh <thanm@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                   |  3 +-
  src/cmd/go/internal/test/test.go        |  3 +-
  src/cmd/go/internal/test/testflag.go    | 60 ++++++++++++++++++++-------------
  src/cmd/go/testdata/script/test_vet.txt | 23 ++++++++++++-
  4 files changed, 63 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ddf7bb5318..592ea4932e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1405,7 +1405,8 @@
+ // used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
+ // 'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
+ // the documentation for these and other vet tests via "go doc cmd/vet".
+-// To disable the running of go vet, use the -vet=off flag.
++// To disable the running of go vet, use the -vet=off flag. To run all
++// checks, use the -vet=all flag.
+ //
+ // All test output and summary lines are printed to the go command's
+ // standard output, even if the test printed them to its own standard
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index e8bf0e198e..efebc12363 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -78,7 +78,8 @@ binary. Only a high-confidence subset of the default go vet checks are
+ used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
+ 'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
+ the documentation for these and other vet tests via "go doc cmd/vet".
+-To disable the running of go vet, use the -vet=off flag.
++To disable the running of go vet, use the -vet=off flag. To run all
++checks, use the -vet=all flag.
+ 
+ All test output and summary lines are printed to the go command's
+ standard output, even if the test printed them to its own standard
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 08f1efa2c0..45118cb638 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -5,6 +5,10 @@
+ package test
+ 
+ import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/cmdflag"
++	"cmd/go/internal/work"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -13,11 +17,6 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
+-
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/cmdflag"
+-	"cmd/go/internal/work"
+ )
+ 
+ //go:generate go run ./genflags.go
+@@ -134,6 +133,7 @@ type outputdirFlag struct {
+ func (f *outputdirFlag) String() string {
+ 	return f.abs
+ }
++
+ func (f *outputdirFlag) Set(value string) (err error) {
+ 	if value == "" {
+ 		f.abs = ""
+@@ -142,6 +142,7 @@ func (f *outputdirFlag) Set(value string) (err error) {
+ 	}
+ 	return err
+ }
++
+ func (f *outputdirFlag) getAbs() string {
+ 	if f.abs == "" {
+ 		return base.Cwd()
+@@ -150,8 +151,12 @@ func (f *outputdirFlag) getAbs() string {
+ }
+ 
+ // vetFlag implements the special parsing logic for the -vet flag:
+-// a comma-separated list, with a distinguished value "off" and
+-// a boolean tracking whether it was set explicitly.
++// a comma-separated list, with distinguished values "all" and
++// "off", plus a boolean tracking whether it was set explicitly.
++//
++// "all" is encoded as vetFlag{true, false, nil}, since it will
++// pass no flags to the vet binary, and by default, it runs all
++// analyzers.
+ type vetFlag struct {
+ 	explicit bool
+ 	off      bool
+@@ -159,7 +164,10 @@ type vetFlag struct {
+ }
+ 
+ func (f *vetFlag) String() string {
+-	if f.off {
++	switch {
++	case !f.off && !f.explicit && len(f.flags) == 0:
++		return "all"
++	case f.off:
+ 		return "off"
+ 	}
+ 
+@@ -174,32 +182,38 @@ func (f *vetFlag) String() string {
+ }
+ 
+ func (f *vetFlag) Set(value string) error {
+-	if value == "" {
++	switch {
++	case value == "":
+ 		*f = vetFlag{flags: defaultVetFlags}
+ 		return nil
+-	}
+-
+-	if value == "off" {
+-		*f = vetFlag{
+-			explicit: true,
+-			off:      true,
+-		}
+-		return nil
+-	}
+-
+-	if strings.Contains(value, "=") {
++	case strings.Contains(value, "="):
+ 		return fmt.Errorf("-vet argument cannot contain equal signs")
+-	}
+-	if strings.Contains(value, " ") {
++	case strings.Contains(value, " "):
+ 		return fmt.Errorf("-vet argument is comma-separated list, cannot contain spaces")
+ 	}
+ 	*f = vetFlag{explicit: true}
++	var single string
+ 	for _, arg := range strings.Split(value, ",") {
+-		if arg == "" {
++		switch arg {
++		case "":
+ 			return fmt.Errorf("-vet argument contains empty list element")
++		case "all":
++			single = arg
++			*f = vetFlag{explicit: true}
++			continue
++		case "off":
++			single = arg
++			*f = vetFlag{
++				explicit: true,
++				off:      true,
++			}
++			continue
+ 		}
+ 		f.flags = append(f.flags, "-"+arg)
+ 	}
++	if len(f.flags) > 1 && single != "" {
++		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/test_vet.txt b/src/cmd/go/testdata/script/test_vet.txt
+index 5af26b54f9..239a477a18 100644
+--- a/src/cmd/go/testdata/script/test_vet.txt
++++ b/src/cmd/go/testdata/script/test_vet.txt
+@@ -16,6 +16,11 @@ go test -vet=off p1.go
+ ! stderr '[\\/]vet.*-shift'
+ stdout '\[no test files\]'
+ 
++# ensure all runs non-default vet
++! go test -vet=all ./vetall/...
++stderr 'using resp before checking for errors'
++
++
+ # Test issue #22890
+ go test m/vetcycle
+ stdout 'm/vetcycle.*\[no test files\]'
+@@ -46,11 +51,27 @@ func Test(t *testing.T) {
+ -- p1.go --
+ package p
+ 
+-import "fmt"
++import (
++	"fmt"
++	"net/http"
++)
+ 
+ func F() {
+ 	fmt.Printf("%d") // oops
+ }
++-- vetall/p.go --
++package p
++
++func F() {
++	resp, err := http.Head("example.com")
++	defer resp.Body.Close()
++	if err != nil {
++		panic(err)
++	}
++	// (defer statement belongs here)
++}
++-- vetall/p_test.go --
++package p
+ -- vetcycle/p.go --
+ package p
+ 

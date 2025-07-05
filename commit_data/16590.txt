@@ -7,7 +7,77 @@ Date:   Mon Jun 17 16:53:27 2013 -0700
     R=rsc, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/10082044
-
+---
  src/pkg/net/smtp/smtp.go      | 11 +++++++++--
  src/pkg/net/smtp/smtp_test.go |  3 +++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/smtp/smtp.go b/src/pkg/net/smtp/smtp.go
+index 4b91778770..dc7e1ceb8f 100644
+--- a/src/pkg/net/smtp/smtp.go
++++ b/src/pkg/net/smtp/smtp.go
+@@ -41,12 +41,13 @@ type Client struct {
+ }
+ 
+ // Dial returns a new Client connected to an SMTP server at addr.
++// The addr must include a port number.
+ func Dial(addr string) (*Client, error) {
+ 	conn, err := net.Dial("tcp", addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	host := addr[:strings.Index(addr, ":")]
++	host, _, _ := net.SplitHostPort(addr)
+ 	return NewClient(conn, host)
+ }
+ 
+@@ -63,6 +64,11 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
+ 	return c, nil
+ }
+ 
++// Close closes the connection.
++func (c *Client) Close() error {
++	return c.Text.Close()
++}
++
+ // hello runs a hello exchange if needed.
+ func (c *Client) hello() error {
+ 	if !c.didHello {
+@@ -264,7 +270,8 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if err := c.hello(); err != nil {
++	defer c.Close()
++	if err = c.hello(); err != nil {
+ 		return err
+ 	}
+ 	if ok, _ := c.Extension("STARTTLS"); ok {
+diff --git a/src/pkg/net/smtp/smtp_test.go b/src/pkg/net/smtp/smtp_test.go
+index c190b32c05..b696dbe3cb 100644
+--- a/src/pkg/net/smtp/smtp_test.go
++++ b/src/pkg/net/smtp/smtp_test.go
+@@ -238,6 +238,7 @@ func TestNewClient(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("NewClient: %v\n(after %v)", err, out())
+ 	}
++	defer c.Close()
+ 	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
+ 		t.Fatalf("Expected AUTH supported")
+ 	}
+@@ -278,6 +279,7 @@ func TestNewClient2(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("NewClient: %v", err)
+ 	}
++	defer c.Close()
+ 	if ok, _ := c.Extension("DSN"); ok {
+ 		t.Fatalf("Shouldn't support DSN")
+ 	}
+@@ -323,6 +325,7 @@ func TestHello(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("NewClient: %v", err)
+ 		}
++		defer c.Close()
+ 		c.localName = "customhost"
+ 		err = nil
+ 

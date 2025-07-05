@@ -7,7 +7,7 @@ Date:   Sun Nov 13 22:42:42 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5372081
-
+---
  src/pkg/bufio/bufio_test.go          |  7 +++----
  src/pkg/compress/lzw/reader.go       |  5 +++--
  src/pkg/compress/lzw/writer.go       |  9 ++++-----
@@ -24,3 +24,375 @@ Date:   Sun Nov 13 22:42:42 2011 -0500
  src/pkg/text/tabwriter/tabwriter.go  |  3 +--
  src/pkg/websocket/websocket.go       | 10 ++++++----
  15 files changed, 36 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 1f893951c1..54029cd40f 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"os"
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
+@@ -425,9 +424,9 @@ var errorWriterTests = []errorWriterTest{
+ 	{0, 1, nil, io.ErrShortWrite},
+ 	{1, 2, nil, io.ErrShortWrite},
+ 	{1, 1, nil, nil},
+-	{0, 1, os.EPIPE, os.EPIPE},
+-	{1, 2, os.EPIPE, os.EPIPE},
+-	{1, 1, os.EPIPE, os.EPIPE},
++	{0, 1, io.ErrClosedPipe, io.ErrClosedPipe},
++	{1, 2, io.ErrClosedPipe, io.ErrClosedPipe},
++	{1, 1, io.ErrClosedPipe, io.ErrClosedPipe},
+ }
+ 
+ func TestWriteErrors(t *testing.T) {
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index c787a9568b..0ed742c897 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -19,7 +19,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"os"
+ )
+ 
+ // Order specifies the bit ordering in an LZW data stream.
+@@ -212,8 +211,10 @@ func (d *decoder) flush() {
+ 	d.o = 0
+ }
+ 
++var errClosed = errors.New("compress/lzw: reader/writer is closed")
++
+ func (d *decoder) Close() error {
+-	d.err = os.EINVAL // in case any Reads come along
++	d.err = errClosed // in case any Reads come along
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/compress/lzw/writer.go b/src/pkg/compress/lzw/writer.go
+index 3f380fadce..642bfc481e 100644
+--- a/src/pkg/compress/lzw/writer.go
++++ b/src/pkg/compress/lzw/writer.go
+@@ -9,7 +9,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"os"
+ )
+ 
+ // A writer is a buffered, flushable writer.
+@@ -64,7 +63,7 @@ type encoder struct {
+ 	// call. It is equal to invalidCode if there was no such call.
+ 	savedCode uint32
+ 	// err is the first error encountered during writing. Closing the encoder
+-	// will make any future Write calls return os.EINVAL.
++	// will make any future Write calls return errClosed
+ 	err error
+ 	// table is the hash table from 20-bit keys to 12-bit values. Each table
+ 	// entry contains key<<12|val and collisions resolve by linear probing.
+@@ -191,13 +190,13 @@ loop:
+ // flush e's underlying writer.
+ func (e *encoder) Close() error {
+ 	if e.err != nil {
+-		if e.err == os.EINVAL {
++		if e.err == errClosed {
+ 			return nil
+ 		}
+ 		return e.err
+ 	}
+-	// Make any future calls to Write return os.EINVAL.
+-	e.err = os.EINVAL
++	// Make any future calls to Write return errClosed.
++	e.err = errClosed
+ 	// Write the savedCode if valid.
+ 	if e.savedCode != invalidCode {
+ 		if err := e.write(e, e.savedCode); err != nil {
+diff --git a/src/pkg/compress/lzw/writer_test.go b/src/pkg/compress/lzw/writer_test.go
+index 154cdf8090..d249a09b29 100644
+--- a/src/pkg/compress/lzw/writer_test.go
++++ b/src/pkg/compress/lzw/writer_test.go
+@@ -50,10 +50,6 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
+ 				return
+ 			}
+ 			_, err1 := lzww.Write(b[:n])
+-			if err1 == os.EPIPE {
+-				// Fail, but do not report the error, as some other (presumably reportable) error broke the pipe.
+-				return
+-			}
+ 			if err1 != nil {
+ 				t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err1)
+ 				return
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index 32f05ab685..a71894da32 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -59,10 +59,6 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
+ 		}
+ 		defer zlibw.Close()
+ 		_, err = zlibw.Write(b0)
+-		if err == os.EPIPE {
+-			// Fail, but do not report the error, as some other (presumably reported) error broke the pipe.
+-			return
+-		}
+ 		if err != nil {
+ 			t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
+ 			return
+diff --git a/src/pkg/crypto/rand/util.go b/src/pkg/crypto/rand/util.go
+index b44ae9897b..fc5fe6c65e 100644
+--- a/src/pkg/crypto/rand/util.go
++++ b/src/pkg/crypto/rand/util.go
+@@ -5,16 +5,16 @@
+ package rand
+ 
+ import (
++	"errors"
+ 	"io"
+ 	"math/big"
+-	"os"
+ )
+ 
+ // Prime returns a number, p, of the given size, such that p is prime
+ // with high probability.
+ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
+ 	if bits < 1 {
+-		err = os.EINVAL
++		err = errors.New("crypto/rand: prime size must be positive")
+ 	}
+ 
+ 	b := uint(bits % 8)
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index f4178e30c5..b8fa2737f6 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -93,7 +93,8 @@ func (c *Conn) SetTimeout(nsec int64) error {
+ }
+ 
+ // SetReadTimeout sets the time (in nanoseconds) that
+-// Read will wait for data before returning os.EAGAIN.
++// Read will wait for data before returning a net.Error
++// with Timeout() == true.
+ // Setting nsec == 0 (the default) disables the deadline.
+ func (c *Conn) SetReadTimeout(nsec int64) error {
+ 	return c.conn.SetReadTimeout(nsec)
+@@ -737,7 +738,7 @@ func (c *Conn) Write(b []byte) (n int, err error) {
+ 	return c.writeRecord(recordTypeApplicationData, b)
+ }
+ 
+-// Read can be made to time out and return err == os.EAGAIN
++// Read can be made to time out and return a net.Error with Timeout() == true
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *Conn) Read(b []byte) (n int, err error) {
+ 	if err = c.Handshake(); err != nil {
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index 6c874fadb7..4c2d196d7b 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -7,7 +7,6 @@ package xml
+ import (
+ 	"bytes"
+ 	"io"
+-	"os"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -205,7 +204,7 @@ func (d *downCaser) ReadByte() (c byte, err error) {
+ 
+ func (d *downCaser) Read(p []byte) (int, error) {
+ 	d.t.Fatalf("unexpected Read call on downCaser reader")
+-	return 0, os.EINVAL
++	panic("unreachable")
+ }
+ 
+ func TestRawTokenAltEncoding(t *testing.T) {
+diff --git a/src/pkg/image/tiff/buffer.go b/src/pkg/image/tiff/buffer.go
+index ce350738ed..27533c6047 100644
+--- a/src/pkg/image/tiff/buffer.go
++++ b/src/pkg/image/tiff/buffer.go
+@@ -4,10 +4,7 @@
+ 
+ package tiff
+ 
+-import (
+-	"io"
+-	"os"
+-)
++import "io"
+ 
+ // buffer buffers an io.Reader to satisfy io.ReaderAt.
+ type buffer struct {
+@@ -19,7 +16,7 @@ func (b *buffer) ReadAt(p []byte, off int64) (int, error) {
+ 	o := int(off)
+ 	end := o + len(p)
+ 	if int64(end) != off+int64(len(p)) {
+-		return 0, os.EINVAL
++		return 0, io.ErrUnexpectedEOF
+ 	}
+ 
+ 	m := len(b.buf)
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 26a2f736b1..546bc296a5 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -8,6 +8,7 @@
+ package syslog
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"log"
+ 	"net"
+@@ -75,7 +76,7 @@ func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, e
+ // Write sends a log message to the syslog daemon.
+ func (w *Writer) Write(b []byte) (int, error) {
+ 	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
+-		return 0, os.EINVAL
++		return 0, errors.New("log/syslog: invalid priority")
+ 	}
+ 	return w.conn.writeBytes(w.priority, w.prefix, b)
+ }
+diff --git a/src/pkg/mime/multipart/formdata.go b/src/pkg/mime/multipart/formdata.go
+index d9982e5b9c..ec643c1476 100644
+--- a/src/pkg/mime/multipart/formdata.go
++++ b/src/pkg/mime/multipart/formdata.go
+@@ -160,7 +160,7 @@ type sliceReaderAt []byte
+ 
+ func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
+ 	if int(off) >= len(r) || off < 0 {
+-		return 0, os.EINVAL
++		return 0, io.ErrUnexpectedEOF
+ 	}
+ 	n := copy(b, r[int(off):])
+ 	return n, nil
+diff --git a/src/pkg/net/http/httputil/persist.go b/src/pkg/net/http/httputil/persist.go
+index d7b670110c..1266bd3ad2 100644
+--- a/src/pkg/net/http/httputil/persist.go
++++ b/src/pkg/net/http/httputil/persist.go
+@@ -22,6 +22,10 @@ var (
+ 	ErrPipeline   = &http.ProtocolError{"pipeline error"}
+ )
+ 
++// This is an API usage error - the local side is closed.
++// ErrPersistEOF (above) reports that the remote side is closed.
++var errClosed = errors.New("i/o operation on closed connection")
++
+ // A ServerConn reads requests and sends responses over an underlying
+ // connection, until the HTTP keepalive logic commands an end. ServerConn
+ // also allows hijacking the underlying connection by calling Hijack
+@@ -108,7 +112,7 @@ func (sc *ServerConn) Read() (req *http.Request, err error) {
+ 	}
+ 	if sc.r == nil { // connection closed by user in the meantime
+ 		defer sc.lk.Unlock()
+-		return nil, os.EBADF
++		return nil, errClosed
+ 	}
+ 	r := sc.r
+ 	lastbody := sc.lastbody
+@@ -313,7 +317,7 @@ func (cc *ClientConn) Write(req *http.Request) (err error) {
+ 	}
+ 	if cc.c == nil { // connection closed by user in the meantime
+ 		defer cc.lk.Unlock()
+-		return os.EBADF
++		return errClosed
+ 	}
+ 	c := cc.c
+ 	if req.Close {
+@@ -369,7 +373,7 @@ func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
+ 	}
+ 	if cc.r == nil { // connection closed by user in the meantime
+ 		defer cc.lk.Unlock()
+-		return nil, os.EBADF
++		return nil, errClosed
+ 	}
+ 	r := cc.r
+ 	lastbody := cc.lastbody
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index da5244b2c1..e622e41f0a 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -504,7 +504,7 @@ func (pc *persistConn) expectingResponse() bool {
+ var remoteSideClosedFunc func(error) bool // or nil to use default
+ 
+ func remoteSideClosed(err error) bool {
+-	if err == io.EOF || err == os.EINVAL {
++	if err == io.EOF {
+ 		return true
+ 	}
+ 	if remoteSideClosedFunc != nil {
+diff --git a/src/pkg/text/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+index c136ca2a17..201a685c63 100644
+--- a/src/pkg/text/tabwriter/tabwriter.go
++++ b/src/pkg/text/tabwriter/tabwriter.go
+@@ -13,7 +13,6 @@ package tabwriter
+ import (
+ 	"bytes"
+ 	"io"
+-	"os"
+ 	"unicode/utf8"
+ )
+ 
+@@ -221,7 +220,7 @@ type osError struct {
+ func (b *Writer) write0(buf []byte) {
+ 	n, err := b.output.Write(buf)
+ 	if n != len(buf) && err == nil {
+-		err = os.EIO
++		err = io.ErrShortWrite
+ 	}
+ 	if err != nil {
+ 		panic(osError{err})
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index 1e4036ce39..df4416e22e 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -10,12 +10,12 @@ import (
+ 	"bufio"
+ 	"crypto/tls"
+ 	"encoding/json"
++	"errors"
+ 	"io"
+ 	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"net/url"
+-	"os"
+ 	"sync"
+ )
+ 
+@@ -243,12 +243,14 @@ func (ws *Conn) RemoteAddr() net.Addr {
+ 	return &Addr{ws.config.Origin}
+ }
+ 
++var errSetTimeout = errors.New("websocket: cannot set timeout: not using a net.Conn")
++
+ // SetTimeout sets the connection's network timeout in nanoseconds.
+ func (ws *Conn) SetTimeout(nsec int64) error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetTimeout(nsec)
+ 	}
+-	return os.EINVAL
++	return errSetTimeout
+ }
+ 
+ // SetReadTimeout sets the connection's network read timeout in nanoseconds.
+@@ -256,7 +258,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetReadTimeout(nsec)
+ 	}
+-	return os.EINVAL
++	return errSetTimeout
+ }
+ 
+ // SetWriteTimeout sets the connection's network write timeout in nanoseconds.
+@@ -264,7 +266,7 @@ func (ws *Conn) SetWriteTimeout(nsec int64) error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetWriteTimeout(nsec)
+ 	}
+-	return os.EINVAL
++	return errSetTimeout
+ }
+ 
+ // Config returns the WebSocket config.

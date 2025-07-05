@@ -14,6 +14,35 @@ Date:   Tue Feb 25 14:10:00 2025 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/unicode/utf8/utf8.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 180c008ed5..82fa7c0d4d 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -263,10 +263,7 @@ func DecodeLastRune(p []byte) (r rune, size int) {
+ 	// guard against O(n^2) behavior when traversing
+ 	// backwards through strings with long sequences of
+ 	// invalid UTF-8.
+-	lim := end - UTFMax
+-	if lim < 0 {
+-		lim = 0
+-	}
++	lim := max(end - UTFMax, 0)
+ 	for start--; start >= lim; start-- {
+ 		if RuneStart(p[start]) {
+ 			break
+@@ -303,10 +300,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
+ 	// guard against O(n^2) behavior when traversing
+ 	// backwards through strings with long sequences of
+ 	// invalid UTF-8.
+-	lim := end - UTFMax
+-	if lim < 0 {
+-		lim = 0
+-	}
++	lim := max(end - UTFMax, 0)
+ 	for start--; start >= lim; start-- {
+ 		if RuneStart(s[start]) {
+ 			break

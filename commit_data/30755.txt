@@ -10,6 +10,20 @@ Date:   Wed Nov 30 15:48:33 2016 -0500
     Change-Id: I095ccb01f245197054252545f37b40605a550dec
     Reviewed-on: https://go-review.googlesource.com/33718
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8a5b0df310..f52190661c 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -666,7 +666,7 @@ func readvarint(p []byte) (newp []byte, val uint32) {
+ type stackmap struct {
+ 	n        int32   // number of bitmaps
+ 	nbit     int32   // number of bits in each bitmap
+-	bytedata [1]byte // bitmaps, each starting on a 32-bit boundary
++	bytedata [1]byte // bitmaps, each starting on a byte boundary
+ }
+ 
+ //go:nowritebarrier

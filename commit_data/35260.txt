@@ -7,6 +7,20 @@ Date:   Tue Jan 23 22:19:34 2018 -0800
     Change-Id: If8609dd7c4bdc261056804759ec254f8af0156df
     Reviewed-on: https://go-review.googlesource.com/89417
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/types/stmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index ab320088b0..5221bcc7c1 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -732,7 +732,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if s, _ := s.Post.(*ast.AssignStmt); s != nil && s.Tok == token.DEFINE {
+ 			check.softErrorf(s.Pos(), "cannot declare in post statement")
+ 			// Don't call useLHS here because we want to use the lhs in
+-			// this errroneous statement so that we don't get errors about
++			// this erroneous statement so that we don't get errors about
+ 			// these lhs variables being declared but not used.
+ 			check.use(s.Lhs...) // avoid follow-up errors
+ 		}

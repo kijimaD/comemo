@@ -7,7 +7,7 @@ Date:   Thu Jan 28 13:24:48 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194126
-
+---
  src/pkg/exp/parser/parser.go                    |  8 ++++----
  src/pkg/go/ast/ast.go                           |  3 ++-
  src/pkg/go/parser/interface.go                  |  2 +-
@@ -17,3 +17,200 @@ Date:   Thu Jan 28 13:24:48 2010 -0800
  src/pkg/go/printer/testdata/declarations.golden | 24 ++++++++++++++++++++++++
  src/pkg/go/printer/testdata/declarations.input  | 24 ++++++++++++++++++++++++
  8 files changed, 68 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/exp/parser/parser.go b/src/pkg/exp/parser/parser.go
+index 199ce172db..8336bdb08f 100644
+--- a/src/pkg/exp/parser/parser.go
++++ b/src/pkg/exp/parser/parser.go
+@@ -379,7 +379,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
+ 	lbrack := p.expect(token.LBRACK)
+ 	var len ast.Expr
+ 	if ellipsisOk && p.tok == token.ELLIPSIS {
+-		len = &ast.Ellipsis{p.pos}
++		len = &ast.Ellipsis{p.pos, nil}
+ 		p.next()
+ 	} else if p.tok != token.RBRACK {
+ 		len = p.parseExpr()
+@@ -499,11 +499,11 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
+ 	if ellipsisOk && p.tok == token.ELLIPSIS {
+ 		pos := p.pos
+ 		p.next()
++		typ := p.tryType()
+ 		if p.tok != token.RPAREN {
+-			// "..." always must be at the very end of a parameter list
+-			p.Error(pos, "expected type, found '...'")
++			p.Error(pos, "can use '...' for last parameter only")
+ 		}
+-		return &ast.Ellipsis{pos}
++		return &ast.Ellipsis{pos, typ}
+ 	}
+ 	return p.tryType()
+ }
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index d29dee63e3..ed87039a7e 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -125,7 +125,8 @@ type (
+ 	// parameter list or the "..." length in an array type.
+ 	//
+ 	Ellipsis struct {
+-		token.Position // position of "..."
++		token.Position      // position of "..."
++		Elt            Expr // ellipsis element type (parameter lists only)
+ 	}
+ 
+ 	// A BasicLit node represents a literal of basic type.
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index c940e47029..1bd63dd49d 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -164,7 +164,7 @@ func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*as
+ 		return nil, err
+ 	}
+ 
+-	scope := ast.NewScope(nil)
++	var scope *ast.Scope = nil // for now tracking of declarations is disabled
+ 	pkgs := make(map[string]*ast.Package)
+ 	for i := 0; i < len(list); i++ {
+ 		entry := &list[i]
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 76e9783637..140b954f9b 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -81,10 +81,7 @@ func (p *parser) init(filename string, src []byte, scope *ast.Scope, mode uint)
+ 	p.mode = mode
+ 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+ 	if scope != nil {
+-		// Disabled for now.  Causes error with "godoc http":
+-		//    parser.parseDir: src/pkg/http/server.go:159:16: 'Write' declared already at src/pkg/http/request.go:140:21 (and 4 more errors)
+-
+-		// p.checkDecl = true
++		p.checkDecl = true
+ 	} else {
+ 		scope = ast.NewScope(nil) // provide a dummy scope
+ 	}
+@@ -480,7 +477,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
+ 	lbrack := p.expect(token.LBRACK)
+ 	var len ast.Expr
+ 	if ellipsisOk && p.tok == token.ELLIPSIS {
+-		len = &ast.Ellipsis{p.pos}
++		len = &ast.Ellipsis{p.pos, nil}
+ 		p.next()
+ 	} else if p.tok != token.RBRACK {
+ 		len = p.parseExpr()
+@@ -600,11 +597,11 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
+ 	if ellipsisOk && p.tok == token.ELLIPSIS {
+ 		pos := p.pos
+ 		p.next()
++		typ := p.tryType()
+ 		if p.tok != token.RPAREN {
+-			// "..." always must be at the very end of a parameter list
+-			p.Error(pos, "expected type, found '...'")
++			p.Error(pos, "can use '...' for last parameter only")
+ 		}
+-		return &ast.Ellipsis{pos}
++		return &ast.Ellipsis{pos, typ}
+ 	}
+ 	return p.tryType()
+ }
+@@ -1824,6 +1821,9 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ 		p.next()
+ 	} else if p.tok == token.IDENT {
+ 		ident = p.parseIdent(ast.Pkg)
++		// TODO(gri) Make sure the ident is not already declared in the
++		//           package scope. Also, cannot add the same name to
++		//           the package scope later.
+ 		p.declIdent(p.fileScope, ident)
+ 	}
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 0d43d2ca70..9db695bd4e 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -36,6 +36,8 @@ var validPrograms = []interface{}{
+ 	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
+ 	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
+ 	`package main; func f(func() func() func())` + "\n",
++	`package main; func f(...)` + "\n",
++	`package main; func f(float, ...int)` + "\n",
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 29dc1737b6..65b19e9f5d 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -759,6 +759,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.Ellipsis:
+ 		p.print(token.ELLIPSIS)
++		if x.Elt != nil {
++			p.expr(x.Elt, multiLine)
++		}
+ 
+ 	case *ast.ArrayType:
+ 		p.print(token.LBRACK)
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 17d8bfaff0..d21316969f 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -547,3 +547,27 @@ func _() {	// opening "{" must move up
+ 
+ 	var _ = x	// comment
+ }
++
++
++// ellipsis parameters
++func _(...)
++func _(...int)
++func _(...*int)
++func _(...[]int)
++func _(...struct{})
++func _(bool, ...interface{})
++func _(bool, ...func())
++func _(bool, ...func(...))
++func _(bool, ...map[string]int)
++func _(bool, ...chan int)
++
++func _(b bool, x ...)
++func _(b bool, x ...int)
++func _(b bool, x ...*int)
++func _(b bool, x ...[]int)
++func _(b bool, x ...struct{})
++func _(x ...interface{})
++func _(x ...func())
++func _(x ...func(...))
++func _(x ...map[string]int)
++func _(x ...chan int)
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index c54a1c0467..948755a9a6 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -551,3 +551,27 @@ func _()  // opening "{" must move up
+ 	var _  // comment
+ 	= x;
+ }
++
++
++// ellipsis parameters
++func _(...)
++func _(...int)
++func _(...*int)
++func _(...[]int)
++func _(...struct{})
++func _(bool, ...interface{})
++func _(bool, ...func())
++func _(bool, ...func(...))
++func _(bool, ...map[string]int)
++func _(bool, ...chan int)
++
++func _(b bool, x ...)
++func _(b bool, x ...int)
++func _(b bool, x ...*int)
++func _(b bool, x ...[]int)
++func _(b bool, x ...struct{})
++func _(x ...interface{})
++func _(x ...func())
++func _(x ...func(...))
++func _(x ...map[string]int)
++func _(x ...chan int)

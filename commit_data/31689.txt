@@ -12,7 +12,7 @@ Date:   Mon Mar 6 18:39:02 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd.go                  |  4 +---
  src/internal/poll/fd_plan9.go            |  7 +++++++
  src/internal/poll/fd_poll_nacl.go        |  9 +++++----
@@ -26,3 +26,256 @@ Date:   Mon Mar 6 18:39:02 2017 +0900
  src/internal/poll/sockopt_windows.go     |  4 +---
  src/internal/poll/{str.go => strconv.go} |  4 ++--
  12 files changed, 31 insertions(+), 32 deletions(-)
+
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 0752876be2..3d3f36edb3 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -9,9 +9,7 @@
+ // runtime scheduler.
+ package poll
+ 
+-import (
+-	"errors"
+-)
++import "errors"
+ 
+ // ErrClosing is returned when a descriptor is used after it has been closed.
+ var ErrClosing = errors.New("use of closed file or network connection")
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 5b2c674b36..a8c4b1c201 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -90,14 +90,17 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
+ 	return n, err
+ }
+ 
++// SetDeadline sets the read and write deadlines associated with fd.
+ func (fd *FD) SetDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r'+'w')
+ }
+ 
++// SetReadDeadline sets the read deadline associated with fd.
+ func (fd *FD) SetReadDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r')
+ }
+ 
++// SetWriteDeadline sets the write deadline associated with fd.
+ func (fd *FD) SetWriteDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'w')
+ }
+@@ -163,10 +166,12 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 
+ // On Plan 9 only, expose the locking for the net code.
+ 
++// ReadLock wraps FD.readLock.
+ func (fd *FD) ReadLock() error {
+ 	return fd.readLock()
+ }
+ 
++// ReadUnlock wraps FD.readUnlock.
+ func (fd *FD) ReadUnlock() {
+ 	fd.readUnlock()
+ }
+@@ -179,6 +184,8 @@ func isInterrupted(err error) bool {
+ 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
+ }
+ 
++// PollDescriptor returns the descriptor being used by the poller,
++// or ^uintptr(0) if there isn't one. This is only used for testing.
+ func PollDescriptor() uintptr {
+ 	return ^uintptr(0)
+ }
+diff --git a/src/internal/poll/fd_poll_nacl.go b/src/internal/poll/fd_poll_nacl.go
+index 8cf54ef6d5..45256a42d3 100644
+--- a/src/internal/poll/fd_poll_nacl.go
++++ b/src/internal/poll/fd_poll_nacl.go
+@@ -49,18 +49,17 @@ func (pd *pollDesc) waitWrite() error { return pd.wait('w') }
+ 
+ func (pd *pollDesc) waitCanceled(mode int) {}
+ 
+-func (pd *pollDesc) waitCanceledRead() {}
+-
+-func (pd *pollDesc) waitCanceledWrite() {}
+-
++// SetDeadline sets the read and write deadlines associated with fd.
+ func (fd *FD) SetDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r'+'w')
+ }
+ 
++// SetReadDeadline sets the read deadline associated with fd.
+ func (fd *FD) SetReadDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r')
+ }
+ 
++// SetWriteDeadline sets the write deadline associated with fd.
+ func (fd *FD) SetWriteDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'w')
+ }
+@@ -86,6 +85,8 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 	return nil
+ }
+ 
++// PollDescriptor returns the descriptor being used by the poller,
++// or ^uintptr(0) if there isn't one. This is only used for testing.
+ func PollDescriptor() uintptr {
+ 	return ^uintptr(0)
+ }
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 032a0f71bb..b1e3a84fc2 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -114,14 +114,17 @@ func convertErr(res int) error {
+ 	panic("unreachable")
+ }
+ 
++// SetDeadline sets the read and write deadlines associated with fd.
+ func (fd *FD) SetDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r'+'w')
+ }
+ 
++// SetReadDeadline sets the read deadline associated with fd.
+ func (fd *FD) SetReadDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r')
+ }
+ 
++// SetWriteDeadline sets the write deadline associated with fd.
+ func (fd *FD) SetWriteDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'w')
+ }
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 0cf3d933aa..8aaec14cc4 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -313,11 +313,6 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ 	}
+ }
+ 
+-// WaitWrite waits until data can be written to fd.
+-func (fd *FD) WaitWrite() error {
+-	return fd.pd.waitWrite()
+-}
+-
+ // Accept wraps the accept network call.
+ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+ 	if err := fd.readLock(); err != nil {
+@@ -397,3 +392,10 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
+ 	defer fd.decref()
+ 	return syscall.Fstat(fd.Sysfd, s)
+ }
++
++// On Unix variants only, expose the IO event for the net code.
++
++// WaitWrite waits until data can be read from fd.
++func (fd *FD) WaitWrite() error {
++	return fd.pd.waitWrite()
++}
+diff --git a/src/internal/poll/hook_unix.go b/src/internal/poll/hook_unix.go
+index 4a6ff6cd49..85e102dd73 100644
+--- a/src/internal/poll/hook_unix.go
++++ b/src/internal/poll/hook_unix.go
+@@ -6,9 +6,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ // CloseFunc is used to hook the close call.
+ var CloseFunc func(int) error = syscall.Close
+diff --git a/src/internal/poll/hook_windows.go b/src/internal/poll/hook_windows.go
+index 97665554e8..0bd950ebe4 100644
+--- a/src/internal/poll/hook_windows.go
++++ b/src/internal/poll/hook_windows.go
+@@ -4,9 +4,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ // CloseFunc is used to hook the close call.
+ var CloseFunc func(syscall.Handle) error = syscall.Closesocket
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index 28b950c330..705f2c8f79 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -9,9 +9,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ // Wrapper around the accept system call that marks the returned file
+ // descriptor as nonblocking and close-on-exec.
+diff --git a/src/internal/poll/sockopt.go b/src/internal/poll/sockopt.go
+index b841699a9c..f86ce707a1 100644
+--- a/src/internal/poll/sockopt.go
++++ b/src/internal/poll/sockopt.go
+@@ -6,9 +6,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ // SetsockoptInt wraps the setsockopt network call with an int argument.
+ func (fd *FD) SetsockoptInt(level, name, arg int) error {
+diff --git a/src/internal/poll/sockopt_linux.go b/src/internal/poll/sockopt_linux.go
+index ba616db855..acd75f68f4 100644
+--- a/src/internal/poll/sockopt_linux.go
++++ b/src/internal/poll/sockopt_linux.go
+@@ -4,9 +4,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ // SetsockoptIPMreqn wraps the setsockopt network call with a IPMreqn argument.
+ func (fd *FD) SetsockoptIPMreqn(level, name int, mreq *syscall.IPMreqn) error {
+diff --git a/src/internal/poll/sockopt_windows.go b/src/internal/poll/sockopt_windows.go
+index 70501a0965..7d63fc362c 100644
+--- a/src/internal/poll/sockopt_windows.go
++++ b/src/internal/poll/sockopt_windows.go
+@@ -4,9 +4,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ // Setsockopt wraps the Windows setsockopt network call.
+ func (fd *FD) Setsockopt(level, optname int32, optval *byte, optlen int32) error {
+diff --git a/src/internal/poll/str.go b/src/internal/poll/strconv.go
+similarity index 100%
+rename from src/internal/poll/str.go
+rename to src/internal/poll/strconv.go
+index 57ec9d9c21..21cb40db70 100644
+--- a/src/internal/poll/str.go
++++ b/src/internal/poll/strconv.go
+@@ -1,9 +1,9 @@
+-// +build plan9
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build plan9
++
+ // Simple conversions to avoid depending on strconv.
+ 
+ package poll

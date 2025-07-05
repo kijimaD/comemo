@@ -10,6 +10,20 @@ Date:   Fri Sep 27 15:38:39 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/14015044
-
+---
  src/pkg/encoding/json/stream.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index 67f6be87b2..1928abadb7 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -148,7 +148,7 @@ func NewEncoder(w io.Writer) *Encoder {
+ 	return &Encoder{w: w}
+ }
+ 
+-// Encode writes the JSON encoding of v to the connection.
++// Encode writes the JSON encoding of v to the stream.
+ //
+ // See the documentation for Marshal for details about the
+ // conversion of Go values to JSON.

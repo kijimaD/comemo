@@ -11,9 +11,71 @@ Date:   Tue Oct 1 13:53:42 2019 -0300
     Run-TryBot: Dan Peterson <dpiddy@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                     | 3 +++
  src/cmd/go/internal/base/flag.go          | 5 +++++
  src/cmd/go/internal/fmtcmd/fmt.go         | 4 ++++
  src/cmd/go/testdata/script/mod_vendor.txt | 1 +
  4 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 115eec4167..bf00e1f4c9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -435,6 +435,9 @@
+ // The -n flag prints commands that would be executed.
+ // The -x flag prints commands as they are executed.
+ //
++// The -mod flag's value sets which module download mode
++// to use: readonly or vendor. See 'go help modules' for more.
++//
+ // To run gofmt with specific options, run gofmt itself.
+ //
+ // See also: go fix, go vet.
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index 5e03e64058..6727196816 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -33,3 +33,8 @@ func AddBuildFlagsNX(flags *flag.FlagSet) {
+ 	flags.BoolVar(&cfg.BuildN, "n", false, "")
+ 	flags.BoolVar(&cfg.BuildX, "x", false, "")
+ }
++
++// AddLoadFlags adds the -mod build flag to the flag set.
++func AddLoadFlags(flags *flag.FlagSet) {
++	flags.StringVar(&cfg.BuildMod, "mod", "", "")
++}
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 8e4ef37281..e898d73d60 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -22,6 +22,7 @@ import (
+ 
+ func init() {
+ 	base.AddBuildFlagsNX(&CmdFmt.Flag)
++	base.AddLoadFlags(&CmdFmt.Flag)
+ }
+ 
+ var CmdFmt = &base.Command{
+@@ -38,6 +39,9 @@ For more about specifying packages, see 'go help packages'.
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
++The -mod flag's value sets which module download mode
++to use: readonly or vendor. See 'go help modules' for more.
++
+ To run gofmt with specific options, run gofmt itself.
+ 
+ See also: go fix, go vet.
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 5d872c3c80..74ef2d827e 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -63,6 +63,7 @@ go build
+ go build -mod=vendor
+ go test -mod=vendor . ./subdir
+ go test -mod=vendor ./...
++go fmt -mod=vendor ./...
+ 
+ -- go.mod --
+ module m

@@ -11,6 +11,55 @@ Date:   Fri Oct 22 08:58:52 2010 -0700
     R=r, rsc, iant, ken2
     CC=golang-dev
     https://golang.org/cl/2661041
-
+---
  doc/go_spec.html | 18 +++++++++++++++---
  1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2373490c24..41368309de 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of Sep 28, 2010 -->
++<!-- subtitle Version of Oct 21, 2010 -->
+ 
+ <!--
+ TODO
+@@ -1971,15 +1971,16 @@ a single expression or a key-value pair.
+ </p>
+ 
+ <pre class="ebnf">
+-CompositeLit  = LiteralType "{" [ ElementList [ "," ] ] "}" .
++CompositeLit  = LiteralType LiteralValue .
+ LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
+                 SliceType | MapType | TypeName .
++LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
+ ElementList   = Element { "," Element } .
+ Element       = [ Key ":" ] Value .
+ Key           = FieldName | ElementIndex .
+ FieldName     = identifier .
+ ElementIndex  = Expression .
+-Value         = Expression .
++Value         = Expression | LiteralValue .
+ </pre>
+ 
+ <p>
+@@ -2093,6 +2094,17 @@ and is a shortcut for a slice operation applied to an array literal:
+ [n]T{x1, x2, ... xn}[0 : n]
+ </pre>
+ 
++<p>
++Within a composite literal of array, slice, or map type <code>T</code>,
++elements that are themselves composite literals may elide the respective
++literal type if it is identical to the element type of <code>T</code>.
++</p>
++
++<pre>
++[...]Point{{1.5, -3.5}, {0, 0}}  // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
++[][]int{{1, 2, 3}, {4, 5}}       // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
++</pre>
++
+ <p>
+ A parsing ambiguity arises when a composite literal using the
+ TypeName form of the LiteralType appears between the

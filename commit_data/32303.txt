@@ -15,10 +15,284 @@ Date:   Mon Apr 17 10:17:09 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/40872
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/fmt_test.go                  |  1 -
  src/cmd/compile/internal/ssa/check.go        | 17 ++++++++++
  src/cmd/compile/internal/ssa/dom.go          | 48 +++++++++++++++-------------
  src/cmd/compile/internal/ssa/dom_test.go     | 40 ++++++++++++++++++++---
  src/cmd/compile/internal/ssa/likelyadjust.go | 35 +++++++++++++++++---
  5 files changed, 108 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 01c522c704..a36c625bdb 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -638,7 +638,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ssa.Type %s":                "",
+ 	"cmd/compile/internal/ssa.Type %v":                "",
+ 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
+-	"cmd/compile/internal/ssa.markKind %d":            "",
+ 	"cmd/compile/internal/ssa.rbrank %d":              "",
+ 	"cmd/compile/internal/ssa.regMask %d":             "",
+ 	"cmd/compile/internal/ssa.register %d":            "",
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 9fcfe9c855..e5de48965b 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -273,6 +273,23 @@ func checkFunc(f *Func) {
+ 		}
+ 	}
+ 
++	// Check loop construction
++	if f.RegAlloc == nil && f.pass != nil { // non-nil pass allows better-targeted debug printing
++		ln := f.loopnest()
++		po := f.postorder() // use po to avoid unreachable blocks.
++		for _, b := range po {
++			for _, s := range b.Succs {
++				bb := s.Block()
++				if ln.b2l[b.ID] == nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header {
++					f.Fatalf("block %s not in loop branches to non-header block %s in loop", b.String(), bb.String())
++				}
++				if ln.b2l[b.ID] != nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header && !ln.b2l[b.ID].isWithinOrEq(ln.b2l[bb.ID]) {
++					f.Fatalf("block %s in loop branches to non-header block %s in non-containing loop", b.String(), bb.String())
++				}
++			}
++		}
++	}
++
+ 	// Check use counts
+ 	uses := make([]int32, f.NumValues())
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 89347be54f..db991f6b7e 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -22,40 +22,42 @@ const (
+ func postorder(f *Func) []*Block {
+ 	return postorderWithNumbering(f, []int32{})
+ }
++
++type blockAndIndex struct {
++	b     *Block
++	index int // index is the number of successor edges of b that have already been explored.
++}
++
++// postorderWithNumbering provides a DFS postordering.
++// This seems to make loop-finding more robust.
+ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
+ 	mark := make([]markKind, f.NumBlocks())
+ 
+ 	// result ordering
+ 	var order []*Block
+ 
+-	// stack of blocks
+-	var s []*Block
+-	s = append(s, f.Entry)
+-	mark[f.Entry.ID] = notExplored
++	// stack of blocks and next child to visit
++	var s []blockAndIndex
++	s = append(s, blockAndIndex{b: f.Entry})
++	mark[f.Entry.ID] = explored
+ 	for len(s) > 0 {
+-		b := s[len(s)-1]
+-		switch mark[b.ID] {
+-		case explored:
+-			// Children have all been visited. Pop & output block.
+-			s = s[:len(s)-1]
+-			mark[b.ID] = done
++		tos := len(s) - 1
++		x := s[tos]
++		b := x.b
++		i := x.index
++		if i < len(b.Succs) {
++			s[tos].index++
++			bb := b.Succs[i].Block()
++			if mark[bb.ID] == notFound {
++				mark[bb.ID] = explored
++				s = append(s, blockAndIndex{b: bb})
++			}
++		} else {
++			s = s[:tos]
+ 			if len(ponums) > 0 {
+ 				ponums[b.ID] = int32(len(order))
+ 			}
+ 			order = append(order, b)
+-		case notExplored:
+-			// Children have not been visited yet. Mark as explored
+-			// and queue any children we haven't seen yet.
+-			mark[b.ID] = explored
+-			for _, e := range b.Succs {
+-				c := e.b
+-				if mark[c.ID] == notFound {
+-					mark[c.ID] = notExplored
+-					s = append(s, c)
+-				}
+-			}
+-		default:
+-			b.Fatalf("bad stack state %v %d", b, mark[b.ID])
+ 		}
+ 	}
+ 	return order
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 40f2b35b39..c199c46ef3 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -454,7 +454,39 @@ func generateDominatorMap(fut fun) map[string]string {
+ 	return doms
+ }
+ 
+-func TestDominatorsPostTricky(t *testing.T) {
++func TestDominatorsPostTrickyA(t *testing.T) {
++	testDominatorsPostTricky(t, "b8", "b11", "b10", "b8", "b14", "b15")
++}
++
++func TestDominatorsPostTrickyB(t *testing.T) {
++	testDominatorsPostTricky(t, "b11", "b8", "b10", "b8", "b14", "b15")
++}
++
++func TestDominatorsPostTrickyC(t *testing.T) {
++	testDominatorsPostTricky(t, "b8", "b11", "b8", "b10", "b14", "b15")
++}
++
++func TestDominatorsPostTrickyD(t *testing.T) {
++	testDominatorsPostTricky(t, "b11", "b8", "b8", "b10", "b14", "b15")
++}
++
++func TestDominatorsPostTrickyE(t *testing.T) {
++	testDominatorsPostTricky(t, "b8", "b11", "b10", "b8", "b15", "b14")
++}
++
++func TestDominatorsPostTrickyF(t *testing.T) {
++	testDominatorsPostTricky(t, "b11", "b8", "b10", "b8", "b15", "b14")
++}
++
++func TestDominatorsPostTrickyG(t *testing.T) {
++	testDominatorsPostTricky(t, "b8", "b11", "b8", "b10", "b15", "b14")
++}
++
++func TestDominatorsPostTrickyH(t *testing.T) {
++	testDominatorsPostTricky(t, "b11", "b8", "b8", "b10", "b15", "b14")
++}
++
++func testDominatorsPostTricky(t *testing.T, b7then, b7else, b12then, b12else, b13then, b13else string) {
+ 	c := testConfig(t)
+ 	fun := c.Fun("b1",
+ 		Bloc("b1",
+@@ -466,11 +498,11 @@ func TestDominatorsPostTricky(t *testing.T) {
+ 		Bloc("b5",
+ 			Goto("b7")),
+ 		Bloc("b7",
+-			If("p", "b8", "b11")),
++			If("p", b7then, b7else)),
+ 		Bloc("b8",
+ 			Goto("b13")),
+ 		Bloc("b13",
+-			If("p", "b14", "b15")),
++			If("p", b13then, b13else)),
+ 		Bloc("b14",
+ 			Goto("b10")),
+ 		Bloc("b15",
+@@ -482,7 +514,7 @@ func TestDominatorsPostTricky(t *testing.T) {
+ 		Bloc("b11",
+ 			Goto("b12")),
+ 		Bloc("b12",
+-			If("p", "b10", "b8")),
++			If("p", b12then, b12else)),
+ 		Bloc("b10",
+ 			Goto("b6")),
+ 		Bloc("b6",
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 72f0ae9c48..1d95cfd82e 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -35,6 +35,9 @@ type loop struct {
+ func (sdom SparseTree) outerinner(outer, inner *loop) {
+ 	// There could be other outer loops found in some random order,
+ 	// locate the new outer loop appropriately among them.
++
++	// Outer loop headers dominate inner loop headers.
++	// Use this to put the "new" "outer" loop in the right place.
+ 	oldouter := inner.outer
+ 	for oldouter != nil && sdom.isAncestor(outer.header, oldouter.header) {
+ 		inner = oldouter
+@@ -44,7 +47,7 @@ func (sdom SparseTree) outerinner(outer, inner *loop) {
+ 		return
+ 	}
+ 	if oldouter != nil {
+-		outer.outer = oldouter
++		sdom.outerinner(oldouter, outer)
+ 	}
+ 
+ 	inner.outer = outer
+@@ -259,6 +262,18 @@ func (l *loop) LongString() string {
+ 	return fmt.Sprintf("hdr:%s%s%s", l.header, i, o)
+ }
+ 
++func (l *loop) isWithinOrEq(ll *loop) bool {
++	if ll == nil { // nil means whole program
++		return true
++	}
++	for ; l != nil; l = l.outer {
++		if l == ll {
++			return true
++		}
++	}
++	return false
++}
++
+ // nearestOuterLoop returns the outer loop of loop most nearly
+ // containing block b; the header must dominate b.  loop itself
+ // is assumed to not be that loop. For acceptable performance,
+@@ -278,8 +293,8 @@ func loopnestfor(f *Func) *loopnest {
+ 
+ 	// Reducible-loop-nest-finding.
+ 	for _, b := range po {
+-		if f.pass.debug > 3 {
+-			fmt.Printf("loop finding (0) at %s\n", b)
++		if f.pass != nil && f.pass.debug > 3 {
++			fmt.Printf("loop finding at %s\n", b)
+ 		}
+ 
+ 		var innermost *loop // innermost header reachable from this block
+@@ -299,6 +314,9 @@ func loopnestfor(f *Func) *loopnest {
+ 			l := b2l[bb.ID]
+ 
+ 			if sdom.isAncestorEq(bb, b) { // Found a loop header
++				if f.pass != nil && f.pass.debug > 4 {
++					fmt.Printf("loop finding    succ %s of %s is header\n", bb.String(), b.String())
++				}
+ 				if l == nil {
+ 					l = &loop{header: bb, isInner: true}
+ 					loops = append(loops, l)
+@@ -311,6 +329,13 @@ func loopnestfor(f *Func) *loopnest {
+ 				if l != nil && !sdom.isAncestorEq(l.header, b) {
+ 					l = l.nearestOuterLoop(sdom, b)
+ 				}
++				if f.pass != nil && f.pass.debug > 4 {
++					if l == nil {
++						fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
++					} else {
++						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.header.String())
++					}
++				}
+ 			}
+ 
+ 			if l == nil || innermost == l {
+@@ -340,7 +365,7 @@ func loopnestfor(f *Func) *loopnest {
+ 	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops}
+ 
+ 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
+-	if f.pass.stats > 0 && len(loops) > 0 {
++	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {
+ 		ln.assembleChildren()
+ 		ln.calculateDepths()
+ 		ln.findExits()
+@@ -365,7 +390,7 @@ func loopnestfor(f *Func) *loopnest {
+ 		}
+ 	}
+ 
+-	if f.pass.debug > 1 && len(loops) > 0 {
++	if f.pass != nil && f.pass.debug > 1 && len(loops) > 0 {
+ 		fmt.Printf("Loops in %s:\n", f.Name)
+ 		for _, l := range loops {
+ 			fmt.Printf("%s, b=", l.LongString())

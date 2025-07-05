@@ -10,6 +10,29 @@ Date:   Thu Nov 1 20:52:30 2012 +0100
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6819067
-
+---
  src/pkg/net/timeout_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 3343c4a551..f6f92409df 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -201,7 +201,7 @@ func TestReadWriteDeadline(t *testing.T) {
+ 
+ 	go func() {
+ 		var buf [10]byte
+-		_, err = c.Read(buf[:])
++		_, err := c.Read(buf[:])
+ 		if err == nil {
+ 			t.Errorf("Read should not succeed")
+ 		}
+@@ -212,7 +212,7 @@ func TestReadWriteDeadline(t *testing.T) {
+ 	go func() {
+ 		var buf [10000]byte
+ 		for {
+-			_, err = c.Write(buf[:])
++			_, err := c.Write(buf[:])
+ 			if err != nil {
+ 				break
+ 			}

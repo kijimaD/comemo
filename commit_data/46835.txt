@@ -14,7 +14,90 @@ Date:   Fri Feb 5 10:55:12 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/testing/fstest/testfs.go      | 25 ++++++++++++++++++-------
  src/testing/fstest/testfs_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 7 deletions(-)
+
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index a7f8007333..8fc8acaaf3 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -403,9 +403,10 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
+ 		return
+ 	}
+ 	fentry := formatEntry(entry)
+-	finfo := formatInfoEntry(info)
+-	if fentry != finfo {
+-		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
++	fientry := formatInfoEntry(info)
++	// Note: mismatch here is OK for symlink, because Open dereferences symlink.
++	if fentry != fientry && entry.Type()&fs.ModeSymlink == 0 {
++		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, fientry)
+ 	}
+ 
+ 	einfo, err := entry.Info()
+@@ -413,12 +414,22 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
+ 		t.errorf("%s: entry.Info: %v", path, err)
+ 		return
+ 	}
+-	fentry = formatInfo(einfo)
+-	finfo = formatInfo(info)
+-	if fentry != finfo {
+-		t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, fentry, finfo)
++	finfo := formatInfo(info)
++	if entry.Type()&fs.ModeSymlink != 0 {
++		// For symlink, just check that entry.Info matches entry on common fields.
++		// Open deferences symlink, so info itself may differ.
++		feentry := formatInfoEntry(einfo)
++		if fentry != feentry {
++			t.errorf("%s: mismatch\n\tentry = %s\n\tentry.Info() = %s\n", path, fentry, feentry)
++		}
++	} else {
++		feinfo := formatInfo(einfo)
++		if feinfo != finfo {
++			t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, feinfo, finfo)
++		}
+ 	}
+ 
++	// Stat should be the same as Open+Stat, even for symlinks.
+ 	info2, err := fs.Stat(t.fsys, path)
+ 	if err != nil {
+ 		t.errorf("%s: fs.Stat: %v", path, err)
+diff --git a/src/testing/fstest/testfs_test.go b/src/testing/fstest/testfs_test.go
+new file mode 100644
+index 0000000000..5b8813c343
+--- /dev/null
++++ b/src/testing/fstest/testfs_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fstest
++
++import (
++	"internal/testenv"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestSymlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	tmp := t.TempDir()
++	tmpfs := os.DirFS(tmp)
++
++	if err := os.WriteFile(filepath.Join(tmp, "hello"), []byte("hello, world\n"), 0644); err != nil {
++		t.Fatal(err)
++	}
++
++	if err := os.Symlink(filepath.Join(tmp, "hello"), filepath.Join(tmp, "hello.link")); err != nil {
++		t.Fatal(err)
++	}
++
++	if err := TestFS(tmpfs, "hello", "hello.link"); err != nil {
++		t.Fatal(err)
++	}
++}

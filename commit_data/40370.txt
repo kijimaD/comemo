@@ -9,7 +9,34 @@ Date:   Wed May 8 16:29:27 2019 +0000
     GitHub-Pull-Request: golang/go#31914
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176017
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/elliptic/p256_asm_s390x.s | 2 +-
  src/runtime/write_err_android.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/elliptic/p256_asm_s390x.s b/src/crypto/elliptic/p256_asm_s390x.s
+index c5b55a04c3..cf37e204c7 100644
+--- a/src/crypto/elliptic/p256_asm_s390x.s
++++ b/src/crypto/elliptic/p256_asm_s390x.s
+@@ -2465,7 +2465,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
+ #define PL    V30
+ #define PH    V31
+ /*
+- * https://choucroutage.com/Papers/SideChannelAttacks/ctrsa-2011-brown.pdf "Software Implementation of the NIST Elliptic Curves Over Prime Fields"
++ * https://delta.cs.cinvestav.mx/~francisco/arith/julio.pdf "Software Implementation of the NIST Elliptic Curves Over Prime Fields"
+  *
+  * A = X₁×Z₂²
+  * B = Y₁×Z₂³
+diff --git a/src/runtime/write_err_android.go b/src/runtime/write_err_android.go
+index bf99b5f6c5..2419fc8663 100644
+--- a/src/runtime/write_err_android.go
++++ b/src/runtime/write_err_android.go
+@@ -21,7 +21,7 @@ var (
+ // in kernel ring buffers. In Android-L, those /dev/log files are no longer
+ // accessible and logging is done through a centralized user-mode logger, logd.
+ //
+-// https://android.googlesource.com/platform/system/core/+/master/liblog/logd_write.c
++// https://android.googlesource.com/platform/system/core/+/refs/tags/android-6.0.1_r78/liblog/logd_write.c
+ type loggerType int32
+ 
+ const (

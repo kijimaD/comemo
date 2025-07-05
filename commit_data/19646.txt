@@ -10,9 +10,100 @@ Date:   Tue Jul 1 09:32:03 2014 -0700
     R=golang-codereviews, bradfitz, gri
     CC=golang-codereviews
     https://golang.org/cl/101410046
-
+---
  src/cmd/gofmt/gofmt_test.go             |  5 +++--
  src/cmd/gofmt/simplify.go               | 29 +++++++++++++++++++++++++++++
  src/cmd/gofmt/testdata/emptydecl.golden | 10 ++++++++++
  src/cmd/gofmt/testdata/emptydecl.input  | 12 ++++++++++++
  4 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index b9335b8f3d..b767a6bf55 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -87,8 +87,9 @@ var tests = []struct {
+ 	{"testdata/stdin*.input", "-stdin"},
+ 	{"testdata/comments.input", ""},
+ 	{"testdata/import.input", ""},
+-	{"testdata/crlf.input", ""},       // test case for issue 3961; see also TestCRLF
+-	{"testdata/typeswitch.input", ""}, // test case for issue 4470
++	{"testdata/crlf.input", ""},        // test case for issue 3961; see also TestCRLF
++	{"testdata/typeswitch.input", ""},  // test case for issue 4470
++	{"testdata/emptydecl.input", "-s"}, // test case for issue 7631
+ }
+ 
+ func TestRewrite(t *testing.T) {
+diff --git a/src/cmd/gofmt/simplify.go b/src/cmd/gofmt/simplify.go
+index 45d000d675..b1556be74e 100644
+--- a/src/cmd/gofmt/simplify.go
++++ b/src/cmd/gofmt/simplify.go
+@@ -117,5 +117,34 @@ func simplify(f *ast.File) {
+ 		}
+ 	}
+ 
++	// remove empty declarations such as "const ()", etc
++	removeEmptyDeclGroups(f)
++
+ 	ast.Walk(&s, f)
+ }
++
++func removeEmptyDeclGroups(f *ast.File) {
++	i := 0
++	for _, d := range f.Decls {
++		if g, ok := d.(*ast.GenDecl); !ok || !isEmpty(f, g) {
++			f.Decls[i] = d
++			i++
++		}
++	}
++	f.Decls = f.Decls[:i]
++}
++
++func isEmpty(f *ast.File, g *ast.GenDecl) bool {
++	if g.Doc != nil || g.Specs != nil {
++		return false
++	}
++
++	for _, c := range f.Comments {
++		// if there is a comment in the declaration, it is not considered empty
++		if g.Pos() <= c.Pos() && c.End() <= g.End() {
++			return false
++		}
++	}
++
++	return true
++}
+diff --git a/src/cmd/gofmt/testdata/emptydecl.golden b/src/cmd/gofmt/testdata/emptydecl.golden
+new file mode 100644
+index 0000000000..9fe62c9738
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/emptydecl.golden
+@@ -0,0 +1,10 @@
++package main
++
++// Keep this declaration
++var ()
++
++const (
++// Keep this declaration
++)
++
++func main() {}
+diff --git a/src/cmd/gofmt/testdata/emptydecl.input b/src/cmd/gofmt/testdata/emptydecl.input
+new file mode 100644
+index 0000000000..d1cab00ef7
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/emptydecl.input
+@@ -0,0 +1,12 @@
++package main
++
++// Keep this declaration
++var ()
++
++const (
++// Keep this declaration
++)
++
++type ()
++
++func main() {}
+\ No newline at end of file

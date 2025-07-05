@@ -26,8 +26,167 @@ Date:   Wed Oct 26 11:44:34 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/testenv/testenv.go | 57 -----------------------------------------
  src/runtime/crash_test.go       | 19 +++++++++++---
  src/runtime/runtime-gdb_test.go |  6 ++++-
  3 files changed, 20 insertions(+), 62 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index f71f5cdd41..b61a44c855 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -11,7 +11,6 @@
+ package testenv
+ 
+ import (
+-	"bytes"
+ 	"context"
+ 	"errors"
+ 	"flag"
+@@ -505,62 +504,6 @@ func SkipIfOptimizationOff(t testing.TB) {
+ 	}
+ }
+ 
+-// RunWithTimeout runs cmd and returns its combined output. If the
+-// subprocess exits with a non-zero status, it will log that status
+-// and return a non-nil error, but this is not considered fatal.
+-func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
+-	args := cmd.Args
+-	if args == nil {
+-		args = []string{cmd.Path}
+-	}
+-
+-	var b bytes.Buffer
+-	cmd.Stdout = &b
+-	cmd.Stderr = &b
+-	if err := cmd.Start(); err != nil {
+-		t.Fatalf("starting %s: %v", args, err)
+-	}
+-
+-	// If the process doesn't complete within 1 minute,
+-	// assume it is hanging and kill it to get a stack trace.
+-	p := cmd.Process
+-	done := make(chan bool)
+-	go func() {
+-		scale := 1
+-		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
+-		// TODO(iant): Have cmd/dist update the environment variable.
+-		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
+-			scale = 2
+-		}
+-		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+-			if sc, err := strconv.Atoi(s); err == nil {
+-				scale = sc
+-			}
+-		}
+-
+-		select {
+-		case <-done:
+-		case <-time.After(time.Duration(scale) * time.Minute):
+-			p.Signal(Sigquit)
+-			// If SIGQUIT doesn't do it after a little
+-			// while, kill the process.
+-			select {
+-			case <-done:
+-			case <-time.After(time.Duration(scale) * 30 * time.Second):
+-				p.Signal(os.Kill)
+-			}
+-		}
+-	}()
+-
+-	err := cmd.Wait()
+-	if err != nil {
+-		t.Logf("%s exit status: %v", args, err)
+-	}
+-	close(done)
+-
+-	return b.Bytes(), err
+-}
+-
+ // WriteImportcfg writes an importcfg file used by the compiler or linker to
+ // dstPath containing entries for the packages in std and cmd in addition
+ // to the package to package file mappings in additionalPackageFiles.
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index d5f755296b..6e00489b49 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -18,6 +19,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
++	"time"
+ )
+ 
+ var toRemove []string
+@@ -58,18 +60,27 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
+ }
+ 
+ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
++	t.Helper()
++
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+ 	}
+ 
+-	testenv.MustHaveGoBuild(t)
+-
+-	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
++	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
++	defer cancel()
++	cmd := testenv.CleanCmdEnv(testenv.CommandContext(t, ctx, exe, name))
+ 	cmd.Env = append(cmd.Env, env...)
+ 	if testing.Short() {
+ 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
+ 	}
+-	out, _ := testenv.RunWithTimeout(t, cmd)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		if _, ok := err.(*exec.ExitError); ok {
++			t.Logf("%v: %v", cmd, err)
++		} else {
++			t.Fatalf("%v failed to start: %v", cmd, err)
++		}
++	}
+ 	return string(out)
+ }
+ 
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index efc09c67e4..d3a30870c1 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+@@ -16,6 +17,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ // NOTE: In some configurations, GDB will segfault when sent a SIGWINCH signal.
+@@ -428,7 +430,9 @@ func TestGdbBacktrace(t *testing.T) {
+ 		"-ex", "continue",
+ 		filepath.Join(dir, "a.exe"),
+ 	}
+-	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
++	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
++	defer cancel()
++	got, err := testenv.CommandContext(t, ctx, "gdb", args...).CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+ 		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {

@@ -18,7 +18,49 @@ Date:   Thu Mar 18 11:35:45 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue42686.go | 2 +-
  test/run.go                  | 6 +++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/issue42686.go b/test/fixedbugs/issue42686.go
+index 962bdd35cb..9f9075ca7d 100644
+--- a/test/fixedbugs/issue42686.go
++++ b/test/fixedbugs/issue42686.go
+@@ -1,4 +1,4 @@
+-// compile -d=fieldtrack
++// compile -goexperiment fieldtrack
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 4c01886560..7d5a558f2d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -513,7 +513,7 @@ func (t *test) run() {
+ 		return
+ 	}
+ 
+-	var args, flags []string
++	var args, flags, runenv []string
+ 	var tim int
+ 	wantError := false
+ 	wantAuto := false
+@@ -572,6 +572,9 @@ func (t *test) run() {
+ 			if err != nil {
+ 				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
+ 			}
++		case "-goexperiment": // set GOEXPERIMENT environment
++			args = args[1:]
++			runenv = append(runenv, "GOEXPERIMENT="+args[0])
+ 
+ 		default:
+ 			flags = append(flags, args[0])
+@@ -628,6 +631,7 @@ func (t *test) run() {
+ 		if tempDirIsGOPATH {
+ 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
+ 		}
++		cmd.Env = append(cmd.Env, runenv...)
+ 
+ 		var err error
+ 

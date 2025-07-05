@@ -7,6 +7,20 @@ Date:   Tue Apr 5 13:51:49 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4339055
-
+---
  src/cmd/gotest/gotest.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 5af82dec3c..210798c63f 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -267,7 +267,7 @@ func doRun(argv []string, returnStdout bool) string {
+ 		argv = []string{"cmd", "/c", "sh", "-c", cmd}
+ 	}
+ 	var err os.Error
+-	argv[0], err = exec.LookPath(command)
++	argv[0], err = exec.LookPath(argv[0])
+ 	if err != nil {
+ 		Fatalf("can't find %s: %s", command, err)
+ 	}

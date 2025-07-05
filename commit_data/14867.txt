@@ -9,7 +9,71 @@ Date:   Fri Jan 11 14:46:49 2013 -0800
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/7096046
-
+---
  src/pkg/database/sql/example_test.go | 45 ++++++++++++++++++++++++++++++++++++
  src/pkg/database/sql/sql.go          |  1 +
  2 files changed, 46 insertions(+)
+
+diff --git a/src/pkg/database/sql/example_test.go b/src/pkg/database/sql/example_test.go
+new file mode 100644
+index 0000000000..d47eed50c0
+--- /dev/null
++++ b/src/pkg/database/sql/example_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sql_test
++
++import (
++	"database/sql"
++	"fmt"
++	"log"
++)
++
++var db *sql.DB
++
++func ExampleDB_Query() {
++	age := 27
++	rows, err := db.Query("SELECT name FROM users WHERE age=?", age)
++	if err != nil {
++		log.Fatal(err)
++	}
++	for rows.Next() {
++		var name string
++		if err := rows.Scan(&name); err != nil {
++			log.Fatal(err)
++		}
++		fmt.Printf("%s is %d\n", name, age)
++	}
++	if err := rows.Err(); err != nil {
++		log.Fatal(err)
++	}
++}
++
++func ExampleDB_QueryRow() {
++	id := 123
++	var username string
++	err := db.QueryRow("SELECT username FROM users WHERE id=?", id).Scan(&username)
++	switch {
++	case err == sql.ErrNoRows:
++		log.Printf("No user with that ID.")
++	case err != nil:
++		log.Fatal(err)
++	default:
++		fmt.Printf("Username is %s\n", username)
++	}
++}
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 31fc830bb3..29aef78b24 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -373,6 +373,7 @@ func (db *DB) exec(query string, args []interface{}) (res Result, err error) {
+ }
+ 
+ // Query executes a query that returns rows, typically a SELECT.
++// The args are for any placeholder parameters in the query.
+ func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
+ 	stmt, err := db.Prepare(query)
+ 	if err != nil {

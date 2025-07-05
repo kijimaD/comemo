@@ -19,8 +19,95 @@ Date:   Thu Aug 14 09:21:58 2014 -0700
     R=iant, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/129160043
-
+---
  misc/cgo/errors/issue8442.go | 17 +++++++++++++++++
  misc/cgo/errors/test.bash    |  1 +
  src/cmd/cgo/gcc.go           | 15 ++++++++++++---
  3 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/errors/issue8442.go b/misc/cgo/errors/issue8442.go
+new file mode 100644
+index 0000000000..45daf8e59e
+--- /dev/null
++++ b/misc/cgo/errors/issue8442.go
+@@ -0,0 +1,17 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Issue 8442.  Cgo output unhelpful error messages for
++// invalid C preambles.
++
++/*
++void issue8442foo(UNDEF*); // ERROR HERE
++*/
++import "C"
++
++func main() {
++	C.issue8442foo(nil)
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index e5bf47a0dd..c96264389c 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -28,6 +28,7 @@ check err1.go
+ check err2.go
+ check err3.go
+ check issue7757.go
++check issue8442.go
+ 
+ rm -rf errs _obj
+ exit 0
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 482b35197c..d77d56c22a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -332,6 +332,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	const (
+ 		notType = 1 << iota
+ 		notConst
++		notDeclared
+ 	)
+ 	for _, line := range strings.Split(stderr, "\n") {
+ 		if !strings.Contains(line, ": error:") {
+@@ -366,7 +367,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			completed = true
+ 
+ 		case "not-declared":
+-			error_(token.NoPos, "%s", strings.TrimSpace(line[c2+1:]))
++			sniff[i] |= notDeclared
+ 		case "not-type":
+ 			sniff[i] |= notType
+ 		case "not-const":
+@@ -375,12 +376,12 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	}
+ 
+ 	if !completed {
+-		fatalf("%s did not produce error at completed:1\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
++		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", p.gccBaseCmd()[0], b.Bytes(), stderr)
+ 	}
+ 
+ 	for i, n := range names {
+ 		switch sniff[i] {
+-		case 0:
++		default:
+ 			error_(token.NoPos, "could not determine kind of name for C.%s", fixGo(n.Go))
+ 		case notType:
+ 			n.Kind = "const"
+@@ -391,6 +392,14 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		}
+ 	}
+ 	if nerrors > 0 {
++		// Check if compiling the preamble by itself causes any errors,
++		// because the messages we've printed out so far aren't helpful
++		// to users debugging preamble mistakes.  See issue 8442.
++		preambleErrors := p.gccErrors([]byte(f.Preamble))
++		if len(preambleErrors) > 0 {
++			error_(token.NoPos, "\n%s errors for preamble:\n%s", p.gccBaseCmd()[0], preambleErrors)
++		}
++
+ 		fatalf("unresolved names")
+ 	}
+ 

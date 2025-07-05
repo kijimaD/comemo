@@ -23,7 +23,7 @@ Date:   Fri Oct 12 19:17:21 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu.go          | 70 ++++++++++++++++++++++++++++------------
  src/internal/cpu/cpu_arm.go      |  4 +--
  src/internal/cpu/cpu_arm64.go    | 48 +++++++++++++--------------
@@ -33,3 +33,319 @@ Date:   Fri Oct 12 19:17:21 2018 +0200
  src/internal/cpu/cpu_x86.go      | 30 ++++++++---------
  src/internal/cpu/cpu_x86_test.go | 17 ++++++++++
  8 files changed, 128 insertions(+), 80 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 1f3411cc72..925e4f7f6e 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -153,16 +153,18 @@ var options []option
+ 
+ // Option names should be lower case. e.g. avx instead of AVX.
+ type option struct {
+-	Name    string
+-	Feature *bool
++	Name      string
++	Feature   *bool
++	Specified bool // Stores if feature value was specified in GODEBUGCPU.
++	Enable    bool // Stores if feature should be enabled.
+ }
+ 
+-// processOptions disables CPU feature values based on the parsed env string.
+-// The env string is expected to be of the form feature1=off,feature2=off...
++// processOptions enables or disables CPU feature values based on the parsed env string.
++// The env string is expected to be of the form feature1=value1,feature2=value2...
+ // where feature names is one of the architecture specifc list stored in the
+-// cpu packages options variable. If env contains all=off then all capabilities
+-// referenced through the options variable are disabled. Other feature
+-// names and values other than 'off' are silently ignored.
++// cpu packages options variable and values are either 'on' or 'off'.
++// If env contains all=off then all cpu features referenced through the options
++// variable are disabled. Other feature names and values result in warning messages.
+ func processOptions(env string) {
+ field:
+ 	for env != "" {
+@@ -175,26 +177,52 @@ field:
+ 		}
+ 		i = indexByte(field, '=')
+ 		if i < 0 {
++			print("GODEBUGCPU: no value specified for \"", field, "\"\n")
+ 			continue
+ 		}
+ 		key, value := field[:i], field[i+1:]
+ 
+-		// Only allow turning off CPU features by specifying 'off'.
+-		if value == "off" {
+-			if key == "all" {
+-				for _, v := range options {
+-					*v.Feature = false
+-				}
+-				return
+-			} else {
+-				for _, v := range options {
+-					if v.Name == key {
+-						*v.Feature = false
+-						continue field
+-					}
+-				}
++		var enable bool
++		switch value {
++		case "on":
++			enable = true
++		case "off":
++			enable = false
++		default:
++			print("GODEBUGCPU: value \"", value, "\" not supported for option ", key, "\n")
++			continue field
++		}
++
++		if key == "all" {
++			for i := range options {
++				options[i].Specified = true
++				options[i].Enable = enable
+ 			}
++			continue field
++		}
++
++		for i := range options {
++			if options[i].Name == key {
++				options[i].Specified = true
++				options[i].Enable = enable
++				continue field
++			}
++		}
++
++		print("GODEBUGCPU: unknown cpu feature \"", key, "\"\n")
++	}
++
++	for _, o := range options {
++		if !o.Specified {
++			continue
+ 		}
++
++		if o.Enable && !*o.Feature {
++			print("GODEBUGCPU: can not enable \"", o.Name, "\", missing hardware support\n")
++			continue
++		}
++
++		*o.Feature = o.Enable
+ 	}
+ }
+ 
+diff --git a/src/internal/cpu/cpu_arm.go b/src/internal/cpu/cpu_arm.go
+index 1c3e529190..772b67147c 100644
+--- a/src/internal/cpu/cpu_arm.go
++++ b/src/internal/cpu/cpu_arm.go
+@@ -21,8 +21,8 @@ const (
+ 
+ func doinit() {
+ 	options = []option{
+-		{"vfpv4", &ARM.HasVFPv4},
+-		{"idiva", &ARM.HasIDIVA},
++		{Name: "vfpv4", Feature: &ARM.HasVFPv4},
++		{Name: "idiva", Feature: &ARM.HasIDIVA},
+ 	}
+ 
+ 	// HWCAP feature bits
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index ad930af005..25482a1f7e 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -42,32 +42,32 @@ const (
+ 
+ func doinit() {
+ 	options = []option{
+-		{"evtstrm", &ARM64.HasEVTSTRM},
+-		{"aes", &ARM64.HasAES},
+-		{"pmull", &ARM64.HasPMULL},
+-		{"sha1", &ARM64.HasSHA1},
+-		{"sha2", &ARM64.HasSHA2},
+-		{"crc32", &ARM64.HasCRC32},
+-		{"atomics", &ARM64.HasATOMICS},
+-		{"fphp", &ARM64.HasFPHP},
+-		{"asimdhp", &ARM64.HasASIMDHP},
+-		{"cpuid", &ARM64.HasCPUID},
+-		{"asimdrdm", &ARM64.HasASIMDRDM},
+-		{"jscvt", &ARM64.HasJSCVT},
+-		{"fcma", &ARM64.HasFCMA},
+-		{"lrcpc", &ARM64.HasLRCPC},
+-		{"dcpop", &ARM64.HasDCPOP},
+-		{"sha3", &ARM64.HasSHA3},
+-		{"sm3", &ARM64.HasSM3},
+-		{"sm4", &ARM64.HasSM4},
+-		{"asimddp", &ARM64.HasASIMDDP},
+-		{"sha512", &ARM64.HasSHA512},
+-		{"sve", &ARM64.HasSVE},
+-		{"asimdfhm", &ARM64.HasASIMDFHM},
++		{Name: "evtstrm", Feature: &ARM64.HasEVTSTRM},
++		{Name: "aes", Feature: &ARM64.HasAES},
++		{Name: "pmull", Feature: &ARM64.HasPMULL},
++		{Name: "sha1", Feature: &ARM64.HasSHA1},
++		{Name: "sha2", Feature: &ARM64.HasSHA2},
++		{Name: "crc32", Feature: &ARM64.HasCRC32},
++		{Name: "atomics", Feature: &ARM64.HasATOMICS},
++		{Name: "fphp", Feature: &ARM64.HasFPHP},
++		{Name: "asimdhp", Feature: &ARM64.HasASIMDHP},
++		{Name: "cpuid", Feature: &ARM64.HasCPUID},
++		{Name: "asimdrdm", Feature: &ARM64.HasASIMDRDM},
++		{Name: "jscvt", Feature: &ARM64.HasJSCVT},
++		{Name: "fcma", Feature: &ARM64.HasFCMA},
++		{Name: "lrcpc", Feature: &ARM64.HasLRCPC},
++		{Name: "dcpop", Feature: &ARM64.HasDCPOP},
++		{Name: "sha3", Feature: &ARM64.HasSHA3},
++		{Name: "sm3", Feature: &ARM64.HasSM3},
++		{Name: "sm4", Feature: &ARM64.HasSM4},
++		{Name: "asimddp", Feature: &ARM64.HasASIMDDP},
++		{Name: "sha512", Feature: &ARM64.HasSHA512},
++		{Name: "sve", Feature: &ARM64.HasSVE},
++		{Name: "asimdfhm", Feature: &ARM64.HasASIMDFHM},
+ 
+ 		// These capabilities should always be enabled on arm64:
+-		//  {"fp", &ARM64.HasFP},
+-		//  {"asimd", &ARM64.HasASIMD},
++		//  {Name: "fp", Feature: &ARM64.HasFP},
++		//  {Name: "asimd", Feature: &ARM64.HasASIMD},
+ 	}
+ 
+ 	// HWCAP feature bits
+diff --git a/src/internal/cpu/cpu_ppc64x.go b/src/internal/cpu/cpu_ppc64x.go
+index 0195e663c6..b39f5f5bbb 100644
+--- a/src/internal/cpu/cpu_ppc64x.go
++++ b/src/internal/cpu/cpu_ppc64x.go
+@@ -34,17 +34,17 @@ const (
+ 
+ func doinit() {
+ 	options = []option{
+-		{"htm", &PPC64.HasHTM},
+-		{"htmnosc", &PPC64.HasHTMNOSC},
+-		{"darn", &PPC64.HasDARN},
+-		{"scv", &PPC64.HasSCV},
++		{Name: "htm", Feature: &PPC64.HasHTM},
++		{Name: "htmnosc", Feature: &PPC64.HasHTMNOSC},
++		{Name: "darn", Feature: &PPC64.HasDARN},
++		{Name: "scv", Feature: &PPC64.HasSCV},
+ 
+ 		// These capabilities should always be enabled on ppc64 and ppc64le:
+-		//  {"vmx", &PPC64.HasVMX},
+-		//  {"dfp", &PPC64.HasDFP},
+-		//  {"vsx", &PPC64.HasVSX},
+-		//  {"isel", &PPC64.HasISEL},
+-		//  {"vcrypto", &PPC64.HasVCRYPTO},
++		//  {Name: "vmx", Feature: &PPC64.HasVMX},
++		//  {Name: "dfp", Feature: &PPC64.HasDFP},
++		//  {Name: "vsx", Feature: &PPC64.HasVSX},
++		//  {Name: "isel", Feature: &PPC64.HasISEL},
++		//  {Name: "vcrypto", Feature: &PPC64.HasVCRYPTO},
+ 	}
+ 
+ 	// HWCAP feature bits
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+index 23484b2950..eab77e6ee5 100644
+--- a/src/internal/cpu/cpu_s390x.go
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -107,14 +107,14 @@ func klmdQuery() queryResult
+ 
+ func doinit() {
+ 	options = []option{
+-		{"zarch", &S390X.HasZArch},
+-		{"stfle", &S390X.HasSTFLE},
+-		{"ldisp", &S390X.HasLDisp},
+-		{"msa", &S390X.HasMSA},
+-		{"eimm", &S390X.HasEImm},
+-		{"dfp", &S390X.HasDFP},
+-		{"etf3eh", &S390X.HasETF3Enhanced},
+-		{"vx", &S390X.HasVX},
++		{Name: "zarch", Feature: &S390X.HasZArch},
++		{Name: "stfle", Feature: &S390X.HasSTFLE},
++		{Name: "ldisp", Feature: &S390X.HasLDisp},
++		{Name: "msa", Feature: &S390X.HasMSA},
++		{Name: "eimm", Feature: &S390X.HasEImm},
++		{Name: "dfp", Feature: &S390X.HasDFP},
++		{Name: "etf3eh", Feature: &S390X.HasETF3Enhanced},
++		{Name: "vx", Feature: &S390X.HasVX},
+ 	}
+ 
+ 	aes := []function{aes128, aes192, aes256}
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 6e7375fa7c..6b4baa1694 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -30,7 +30,10 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ 	cmd.Env = append(cmd.Env, env)
+ 
+ 	output, err := cmd.CombinedOutput()
+-	got := strings.TrimSpace(string(output))
++	lines := strings.Fields(string(output))
++	lastline := lines[len(lines)-1]
++
++	got := strings.TrimSpace(lastline)
+ 	want := "PASS"
+ 	if err != nil || got != want {
+ 		t.Fatalf("%s with %s: want %s, got %v", test, env, want, got)
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 0b00779a90..014c8018f3 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -40,23 +40,23 @@ const (
+ 
+ func doinit() {
+ 	options = []option{
+-		{"adx", &X86.HasADX},
+-		{"aes", &X86.HasAES},
+-		{"avx", &X86.HasAVX},
+-		{"avx2", &X86.HasAVX2},
+-		{"bmi1", &X86.HasBMI1},
+-		{"bmi2", &X86.HasBMI2},
+-		{"erms", &X86.HasERMS},
+-		{"fma", &X86.HasFMA},
+-		{"pclmulqdq", &X86.HasPCLMULQDQ},
+-		{"popcnt", &X86.HasPOPCNT},
+-		{"sse3", &X86.HasSSE3},
+-		{"sse41", &X86.HasSSE41},
+-		{"sse42", &X86.HasSSE42},
+-		{"ssse3", &X86.HasSSSE3},
++		{Name: "adx", Feature: &X86.HasADX},
++		{Name: "aes", Feature: &X86.HasAES},
++		{Name: "avx", Feature: &X86.HasAVX},
++		{Name: "avx2", Feature: &X86.HasAVX2},
++		{Name: "bmi1", Feature: &X86.HasBMI1},
++		{Name: "bmi2", Feature: &X86.HasBMI2},
++		{Name: "erms", Feature: &X86.HasERMS},
++		{Name: "fma", Feature: &X86.HasFMA},
++		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
++		{Name: "popcnt", Feature: &X86.HasPOPCNT},
++		{Name: "sse3", Feature: &X86.HasSSE3},
++		{Name: "sse41", Feature: &X86.HasSSE41},
++		{Name: "sse42", Feature: &X86.HasSSE42},
++		{Name: "ssse3", Feature: &X86.HasSSSE3},
+ 
+ 		// sse2 set as last element so it can easily be removed again. See code below.
+-		{"sse2", &X86.HasSSE2},
++		{Name: "sse2", Feature: &X86.HasSSE2},
+ 	}
+ 
+ 	// Remove sse2 from options on amd64(p32) because SSE2 is a mandatory feature for these GOARCHs.
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index 59c51770c5..a8d0466e06 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -45,3 +45,20 @@ func TestSSE2DebugOption(t *testing.T) {
+ 		t.Errorf("X86.HasSSE2 on %s expected %v, got %v", runtime.GOARCH, want, got)
+ 	}
+ }
++
++func TestDisableSSE3(t *testing.T) {
++	runDebugOptionsTest(t, "TestSSE3DebugOption", "sse3=off")
++}
++
++func TestSSE3DebugOption(t *testing.T) {
++	MustHaveDebugOptionsSupport(t)
++
++	if os.Getenv("GODEBUGCPU") != "sse3=off" {
++		t.Skipf("skipping test: GODEBUGCPU=sse3=off not set")
++	}
++
++	want := false
++	if got := X86.HasSSE3; got != want {
++		t.Errorf("X86.HasSSE3 expected %v, got %v", want, got)
++	}
++}

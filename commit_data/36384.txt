@@ -17,6 +17,37 @@ Date:   Fri Apr 20 10:34:38 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/108556
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/env_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 0198f1925d..7a45fca132 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -62,19 +62,24 @@ func TestExpand(t *testing.T) {
+ 	}
+ }
+ 
++var global interface{}
++
+ func BenchmarkExpand(b *testing.B) {
+-	var s string
+ 	b.Run("noop", func(b *testing.B) {
++		var s string
+ 		b.ReportAllocs()
+ 		for i := 0; i < b.N; i++ {
+ 			s = Expand("tick tick tick tick", func(string) string { return "" })
+ 		}
++		global = s
+ 	})
+ 	b.Run("multiple", func(b *testing.B) {
++		var s string
+ 		b.ReportAllocs()
+ 		for i := 0; i < b.N; i++ {
+ 			s = Expand("$a $a $a $a", func(string) string { return "boom" })
+ 		}
++		global = s
+ 	})
+ }
+ 

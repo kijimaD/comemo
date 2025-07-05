@@ -12,7 +12,78 @@ Date:   Mon Oct 16 15:47:08 2023 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/objw/objw.go  |  9 +++++++++
  src/cmd/compile/internal/ssagen/ssa.go | 18 ++----------------
  2 files changed, 11 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/objw/objw.go b/src/cmd/compile/internal/objw/objw.go
+index ec1be325f7..77744672c1 100644
+--- a/src/cmd/compile/internal/objw/objw.go
++++ b/src/cmd/compile/internal/objw/objw.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/compile/internal/bitvec"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"encoding/binary"
+ )
+ 
+ // Uint8 writes an unsigned byte v into s at offset off,
+@@ -29,6 +30,14 @@ func Uintptr(s *obj.LSym, off int, v uint64) int {
+ 	return UintN(s, off, v, types.PtrSize)
+ }
+ 
++// Uvarint writes a varint v into s at offset off,
++// and returns the next unused offset.
++func Uvarint(s *obj.LSym, off int, v uint64) int {
++	var buf [binary.MaxVarintLen64]byte
++	n := binary.PutUvarint(buf[:], v)
++	return int(s.WriteBytes(base.Ctxt, int64(off), buf[:n]))
++}
++
+ func Bool(s *obj.LSym, off int, v bool) int {
+ 	w := 0
+ 	if v {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d3671a9773..5d5c79e581 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7,7 +7,6 @@ package ssagen
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+ 	"html"
+@@ -257,19 +256,6 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+ 	return a
+ }
+ 
+-// dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
+-func dvarint(x *obj.LSym, off int, v int64) int {
+-	if v < 0 {
+-		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
+-	}
+-	var buf [binary.MaxVarintLen64]byte
+-	n := binary.PutUvarint(buf[:], uint64(v))
+-	for _, b := range buf[:n] {
+-		off = objw.Uint8(x, off, b)
+-	}
+-	return off
+-}
+-
+ // emitOpenDeferInfo emits FUNCDATA information about the defers in a function
+ // that is using open-coded defers.  This funcdata is used to determine the active
+ // defers in a function and execute those defers during panic processing.
+@@ -298,8 +284,8 @@ func (s *state) emitOpenDeferInfo() {
+ 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
+ 
+ 	off := 0
+-	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
+-	off = dvarint(x, off, -firstOffset)
++	off = objw.Uvarint(x, off, uint64(-s.deferBitsTemp.FrameOffset()))
++	off = objw.Uvarint(x, off, uint64(-firstOffset))
+ }
+ 
+ // buildssa builds an SSA function for fn.

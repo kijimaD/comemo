@@ -10,6 +10,29 @@ Date:   Fri Oct 7 12:41:58 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/query.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index e981c2f026..2d6ba8e5a0 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -1009,17 +1009,6 @@ func (e *PackageNotInModuleError) ImportPath() string {
+ 	return ""
+ }
+ 
+-// moduleHasRootPackage returns whether module m contains a package m.Path.
+-func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+-	needSum := false
+-	root, isLocal, err := fetch(ctx, m, needSum)
+-	if err != nil {
+-		return false, err
+-	}
+-	_, ok, err := dirInModule(m.Path, m.Path, root, isLocal)
+-	return ok, err
+-}
+-
+ // versionHasGoMod returns whether a version has a go.mod file.
+ //
+ // versionHasGoMod fetches the go.mod file (possibly a fake) and true if it

@@ -7,7 +7,34 @@ Date:   Sat Apr 14 18:39:10 2018 +0200
     Change-Id: I67b8b501290f6e321030967a19e3cb3bb9d678c6
     Reviewed-on: https://go-review.googlesource.com/107016
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 606995e3f7..6c3ac3db61 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -353,7 +353,7 @@ Elena Grahovac <elena@grahovac.me>
+ Elias Naur <elias.naur@gmail.com>
+ Elliot Morrison-Reed <elliotmr@gmail.com>
+ Emerson Lin <linyintor@gmail.com>
+-Emil Hessman <c.emil.hessman@gmail.com> <emil@hessman.se>
++Emil Hessman <emil@hessman.se>
+ Emilien Kenler <hello@emilienkenler.com>
+ Emmanuel Odeke <emm.odeke@gmail.com> <odeke@ualberta.ca>
+ Empirical Interfaces Inc.
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index faa8934e29..7ad96a4874 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -473,7 +473,7 @@ Elena Grahovac <elena@grahovac.me>
+ Elias Naur <elias.naur@gmail.com>
+ Elliot Morrison-Reed <elliotmr@gmail.com>
+ Emerson Lin <linyintor@gmail.com>
+-Emil Hessman <c.emil.hessman@gmail.com> <emil@hessman.se>
++Emil Hessman <emil@hessman.se>
+ Emilien Kenler <hello@emilienkenler.com>
+ Emmanuel Odeke <emm.odeke@gmail.com> <odeke@ualberta.ca>
+ Eoghan Sherry <ejsherry@gmail.com>

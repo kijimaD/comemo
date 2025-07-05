@@ -16,3 +16,4 @@ Date:   Wed Dec 6 02:46:24 2017 -0500
  src/crypto/sha512/sha512.go  |   3 +-
  src/hash/marshal_test.go     | 107 +++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 147 insertions(+), 36 deletions(-)
+

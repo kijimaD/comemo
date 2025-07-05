@@ -15,8 +15,60 @@ Date:   Sun Oct 31 11:33:00 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/parser.go     | 6 ++++--
  src/go/parser/short_test.go | 2 +-
  src/go/types/decl.go        | 2 +-
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 8952a2bc29..7c1a8be2fa 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2539,9 +2539,11 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
+ 	list := p.parseParameterList(name0, token.RBRACK)
+ 	closePos := p.expect(token.RBRACK)
+ 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+-	// Type alias cannot have type parameters. Accept them for robustness but complain.
++	// Let the type checker decide whether to accept type parameters on aliases:
++	// see issue #46477.
+ 	if p.tok == token.ASSIGN {
+-		p.error(p.pos, "generic type cannot be alias")
++		// type alias
++		spec.Assign = p.pos
+ 		p.next()
+ 	}
+ 	spec.Type = p.parseType()
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 20450bfe8e..90a4ec9ecd 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -123,6 +123,7 @@ var validWithTParamsOnly = []string{
+ 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2 interface{ I1[int] }`,
+ 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2[T any] interface{ I1[T] }`,
+ 	`package p; type _ interface { f[ /* ERROR "expected ';', found '\['" */ T any]() }`,
++	`package p; type T[P any /* ERROR "expected ']'" */ ] = T0`,
+ }
+ 
+ func TestValid(t *testing.T) {
+@@ -240,7 +241,6 @@ var invalidNoTParamErrs = []string{
+ // error messages produced when ParseTypeParams is set.
+ var invalidTParamErrs = []string{
+ 	`package p; type _[_ any] int; var _ = T[] /* ERROR "expected operand" */ {}`,
+-	`package p; type T[P any] = /* ERROR "cannot be alias" */ T0`,
+ 	`package p; var _ func[ /* ERROR "cannot have type parameters" */ T any](T)`,
+ 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 0188bdaaf9..64d5bd195e 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -631,7 +631,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	if alias && tdecl.TypeParams.NumFields() != 0 {
+ 		// The parser will ensure this but we may still get an invalid AST.
+ 		// Complain and continue as regular type definition.
+-		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
++		check.error(atPos(tdecl.Assign), _Todo, "generic type cannot be alias")
+ 		alias = false
+ 	}
+ 

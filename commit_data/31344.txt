@@ -21,8 +21,50 @@ Date:   Sun Feb 12 13:18:22 2017 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go | 2 +-
  src/runtime/select.go | 2 +-
  src/runtime/stubs.go  | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 11c49f6657..25ae261bb2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -877,7 +877,7 @@ func nextSampleNoFP() int32 {
+ 		rate = 0x3fffffff
+ 	}
+ 	if rate != 0 {
+-		return int32(int(fastrand()) % (2 * rate))
++		return int32(fastrand() % uint32(2*rate))
+ 	}
+ 	return 0
+ }
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 0d846b1470..4a744a1967 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -270,7 +270,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
+ 	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
+ 	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
+ 	for i := 1; i < int(sel.ncase); i++ {
+-		j := int(fastrand()) % (i + 1)
++		j := fastrand() % uint32(i+1)
+ 		pollorder[i] = pollorder[j]
+ 		pollorder[j] = uint16(i)
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 101c8cfd10..e839c59d55 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -97,8 +97,8 @@ var hashLoad = loadFactor
+ func fastrand() uint32 {
+ 	mp := getg().m
+ 	fr := mp.fastrand
+-	fr <<= 1
+-	fr ^= uint32(int32(fr)>>31) & 0x88888eef
++	mx := uint32(int32(fr)>>31) & 0xa8888eef
++	fr = fr<<1 ^ mx
+ 	mp.fastrand = fr
+ 	return fr
+ }

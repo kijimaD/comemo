@@ -11,7 +11,7 @@ Date:   Thu Nov 14 14:32:24 2019 -0500
     Change-Id: I21c9e18573909e092ed8dcec91b8542bb97e9f5a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207263
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/articles/wiki/final-noclosure.go     |   2 +
  doc/articles/wiki/final-noerror.go       |   2 +
  doc/articles/wiki/final-parsetemplate.go |   2 +
@@ -35,3 +35,677 @@ Date:   Thu Nov 14 14:32:24 2019 -0500
  doc/progs/run.go                         |   8 +-
  src/cmd/dist/test.go                     |   8 +-
  22 files changed, 279 insertions(+), 174 deletions(-)
+
+diff --git a/doc/articles/wiki/final-noclosure.go b/doc/articles/wiki/final-noclosure.go
+index e7a5a34519..d894e7d319 100644
+--- a/doc/articles/wiki/final-noclosure.go
++++ b/doc/articles/wiki/final-noclosure.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/final-noerror.go b/doc/articles/wiki/final-noerror.go
+index 42a22da9dd..250236d42e 100644
+--- a/doc/articles/wiki/final-noerror.go
++++ b/doc/articles/wiki/final-noerror.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/final-parsetemplate.go b/doc/articles/wiki/final-parsetemplate.go
+index a9aa7f2894..0b90cbd3bc 100644
+--- a/doc/articles/wiki/final-parsetemplate.go
++++ b/doc/articles/wiki/final-parsetemplate.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/final-template.go b/doc/articles/wiki/final-template.go
+index 7ea480e50a..5028664fe8 100644
+--- a/doc/articles/wiki/final-template.go
++++ b/doc/articles/wiki/final-template.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/final-test.patch b/doc/articles/wiki/final-test.patch
+deleted file mode 100644
+index fd7d625368..0000000000
+--- a/doc/articles/wiki/final-test.patch
++++ /dev/null
+@@ -1,27 +0,0 @@
+---- final.go	2017-08-31 13:19:00.422925489 -0700
+-+++ final-test.go	2017-08-31 13:23:43.381391659 -0700
+-@@ -8,6 +8,7 @@
+- 	"html/template"
+- 	"io/ioutil"
+- 	"log"
+-+	"net"
+- 	"net/http"
+- 	"regexp"
+- )
+-@@ -86,5 +87,15 @@
+- 	http.HandleFunc("/edit/", makeHandler(editHandler))
+- 	http.HandleFunc("/save/", makeHandler(saveHandler))
+- 
+--	log.Fatal(http.ListenAndServe(":8080", nil))
+-+	l, err := net.Listen("tcp", "127.0.0.1:0")
+-+	if err != nil {
+-+		log.Fatal(err)
+-+	}
+-+	err = ioutil.WriteFile("final-test-port.txt", []byte(l.Addr().String()), 0644)
+-+	if err != nil {
+-+		log.Fatal(err)
+-+	}
+-+	s := &http.Server{}
+-+	s.Serve(l)
+-+	return
+- }
+diff --git a/doc/articles/wiki/final.go b/doc/articles/wiki/final.go
+index 0f6646ba87..b1439b08a9 100644
+--- a/doc/articles/wiki/final.go
++++ b/doc/articles/wiki/final.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/final_test.go b/doc/articles/wiki/final_test.go
+new file mode 100644
+index 0000000000..764469976e
+--- /dev/null
++++ b/doc/articles/wiki/final_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++import (
++	"fmt"
++	"log"
++	"net"
++	"net/http"
++)
++
++func serve() error {
++	l, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println(l.Addr().String())
++	s := &http.Server{}
++	return s.Serve(l)
++}
+diff --git a/doc/articles/wiki/get.go b/doc/articles/wiki/get.go
+deleted file mode 100644
+index b3e464b344..0000000000
+--- a/doc/articles/wiki/get.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"flag"
+-	"fmt"
+-	"io"
+-	"log"
+-	"net"
+-	"net/http"
+-	"os"
+-	"strings"
+-	"time"
+-)
+-
+-var (
+-	post = flag.String("post", "", "urlencoded form data to POST")
+-	addr = flag.Bool("addr", false, "find open address and print to stdout")
+-	wait = flag.Duration("wait_for_port", 0, "if non-zero, the amount of time to wait for the address to become available")
+-)
+-
+-func main() {
+-	flag.Parse()
+-	if *addr {
+-		l, err := net.Listen("tcp", "127.0.0.1:0")
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		defer l.Close()
+-		fmt.Print(l.Addr())
+-		return
+-	}
+-	url := flag.Arg(0)
+-	if url == "" {
+-		log.Fatal("no url supplied")
+-	}
+-	var r *http.Response
+-	var err error
+-	loopUntil := time.Now().Add(*wait)
+-	for {
+-		if *post != "" {
+-			b := strings.NewReader(*post)
+-			r, err = http.Post(url, "application/x-www-form-urlencoded", b)
+-		} else {
+-			r, err = http.Get(url)
+-		}
+-		if err == nil || *wait == 0 || time.Now().After(loopUntil) {
+-			break
+-		}
+-		time.Sleep(100 * time.Millisecond)
+-	}
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	defer r.Body.Close()
+-	_, err = io.Copy(os.Stdout, r.Body)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-}
+diff --git a/doc/articles/wiki/go.mod b/doc/articles/wiki/go.mod
+new file mode 100644
+index 0000000000..38153ed79f
+--- /dev/null
++++ b/doc/articles/wiki/go.mod
+@@ -0,0 +1,3 @@
++module doc/articles/wiki
++
++go 1.14
+diff --git a/doc/articles/wiki/http-sample.go b/doc/articles/wiki/http-sample.go
+index 9bc2084c67..803b88c4eb 100644
+--- a/doc/articles/wiki/http-sample.go
++++ b/doc/articles/wiki/http-sample.go
+@@ -1,3 +1,5 @@
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/notemplate.go b/doc/articles/wiki/notemplate.go
+index 0fda7a98ce..4b358f298a 100644
+--- a/doc/articles/wiki/notemplate.go
++++ b/doc/articles/wiki/notemplate.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/part1-noerror.go b/doc/articles/wiki/part1-noerror.go
+index 7577b7b468..913c6dce2e 100644
+--- a/doc/articles/wiki/part1-noerror.go
++++ b/doc/articles/wiki/part1-noerror.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/part1.go b/doc/articles/wiki/part1.go
+index d7bf1be974..2ff1abd281 100644
+--- a/doc/articles/wiki/part1.go
++++ b/doc/articles/wiki/part1.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/part2.go b/doc/articles/wiki/part2.go
+index 30f9dcf146..db92f4c710 100644
+--- a/doc/articles/wiki/part2.go
++++ b/doc/articles/wiki/part2.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/part3-errorhandling.go b/doc/articles/wiki/part3-errorhandling.go
+index 34b13a6086..2c8b42d05a 100644
+--- a/doc/articles/wiki/part3-errorhandling.go
++++ b/doc/articles/wiki/part3-errorhandling.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/part3.go b/doc/articles/wiki/part3.go
+index 5e5d5056c4..437ea336cb 100644
+--- a/doc/articles/wiki/part3.go
++++ b/doc/articles/wiki/part3.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+deleted file mode 100755
+index cec51fd3de..0000000000
+--- a/doc/articles/wiki/test.bash
++++ /dev/null
+@@ -1,58 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-if ! which patch > /dev/null; then
+-	echo "Skipping test; patch command not found."
+-	exit 0
+-fi
+-
+-wiki_pid=
+-cleanup() {
+-	kill $wiki_pid
+-	rm -f test_*.out Test.txt final-test.go final-test.bin final-test-port.txt a.out get.bin
+-}
+-trap cleanup 0 INT
+-
+-rm -f get.bin final-test.bin a.out
+-
+-# If called with -all, check that all code snippets compile.
+-if [ "$1" = "-all" ]; then
+-	for fn in *.go; do
+-		go build -o a.out $fn
+-	done
+-fi
+-
+-go build -o get.bin get.go
+-cp final.go final-test.go
+-patch final-test.go final-test.patch > /dev/null
+-go build -o final-test.bin final-test.go
+-./final-test.bin &
+-wiki_pid=$!
+-
+-l=0
+-while [ ! -f ./final-test-port.txt ]
+-do
+-	l=$(($l+1))
+-	if [ "$l" -gt 5 ]
+-	then
+-		echo "port not available within 5 seconds"
+-		exit 1
+-		break
+-	fi
+-	sleep 1
+-done
+-
+-addr=$(cat final-test-port.txt)
+-./get.bin http://$addr/edit/Test > test_edit.out
+-diff -u test_edit.out test_edit.good
+-./get.bin -post=body=some%20content http://$addr/save/Test > test_save.out
+-diff -u test_save.out test_view.good # should be the same as viewing
+-diff -u Test.txt test_Test.txt.good
+-./get.bin http://$addr/view/Test > test_view.out
+-diff -u test_view.out test_view.good
+-
+-echo PASS
+diff --git a/doc/articles/wiki/wiki_test.go b/doc/articles/wiki/wiki_test.go
+new file mode 100644
+index 0000000000..1d976fd77e
+--- /dev/null
++++ b/doc/articles/wiki/wiki_test.go
+@@ -0,0 +1,165 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main_test
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"net/http"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func TestSnippetsCompile(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping slow builds in short mode")
++	}
++
++	goFiles, err := filepath.Glob("*.go")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, f := range goFiles {
++		if strings.HasSuffix(f, "_test.go") {
++			continue
++		}
++		f := f
++		t.Run(f, func(t *testing.T) {
++			t.Parallel()
++
++			cmd := exec.Command("go", "build", "-o", os.DevNull, f)
++			out, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++			}
++		})
++	}
++}
++
++func TestWikiServer(t *testing.T) {
++	must := func(err error) {
++		if err != nil {
++			t.Helper()
++			t.Fatal(err)
++		}
++	}
++
++	dir, err := ioutil.TempDir("", t.Name())
++	must(err)
++	defer os.RemoveAll(dir)
++
++	// We're testing a walkthrough example of how to write a server.
++	//
++	// That server hard-codes a port number to make the walkthrough simpler, but
++	// we can't assume that the hard-coded port is available on an arbitrary
++	// builder. So we'll patch out the hard-coded port, and replace it with a
++	// function that writes the server's address to stdout
++	// so that we can read it and know where to send the test requests.
++
++	finalGo, err := ioutil.ReadFile("final.go")
++	must(err)
++	const patchOld = `log.Fatal(http.ListenAndServe(":8080", nil))`
++	patched := bytes.ReplaceAll(finalGo, []byte(patchOld), []byte(`log.Fatal(serve())`))
++	if bytes.Equal(patched, finalGo) {
++		t.Fatalf("Can't patch final.go: %q not found.", patchOld)
++	}
++	must(ioutil.WriteFile(filepath.Join(dir, "final_patched.go"), patched, 0644))
++
++	// Build the server binary from the patched sources.
++	// The 'go' command requires that they all be in the same directory.
++	// final_test.go provides the implemtation for our serve function.
++	must(copyFile(filepath.Join(dir, "final_srv.go"), "final_test.go"))
++	cmd := exec.Command("go", "build",
++		"-o", filepath.Join(dir, "final.exe"),
++		filepath.Join(dir, "final_patched.go"),
++		filepath.Join(dir, "final_srv.go"))
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++
++	// Run the server in our temporary directory so that it can
++	// write its content there. It also needs a couple of template files,
++	// and looks for them in the same directory.
++	must(copyFile(filepath.Join(dir, "edit.html"), "edit.html"))
++	must(copyFile(filepath.Join(dir, "view.html"), "view.html"))
++	cmd = exec.Command(filepath.Join(dir, "final.exe"))
++	cmd.Dir = dir
++	stderr := bytes.NewBuffer(nil)
++	cmd.Stderr = stderr
++	stdout, err := cmd.StdoutPipe()
++	must(err)
++	must(cmd.Start())
++
++	defer func() {
++		cmd.Process.Kill()
++		err := cmd.Wait()
++		if stderr.Len() > 0 {
++			t.Logf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, stderr)
++		}
++	}()
++
++	var addr string
++	if _, err := fmt.Fscanln(stdout, &addr); err != nil || addr == "" {
++		t.Fatalf("Failed to read server address: %v", err)
++	}
++
++	// The server is up and has told us its address.
++	// Make sure that its HTTP API works as described in the article.
++
++	r, err := http.Get(fmt.Sprintf("http://%s/edit/Test", addr))
++	must(err)
++	responseMustMatchFile(t, r, "test_edit.good")
++
++	r, err = http.Post(fmt.Sprintf("http://%s/save/Test", addr),
++		"application/x-www-form-urlencoded",
++		strings.NewReader("body=some%20content"))
++	must(err)
++	responseMustMatchFile(t, r, "test_view.good")
++
++	gotTxt, err := ioutil.ReadFile(filepath.Join(dir, "Test.txt"))
++	must(err)
++	wantTxt, err := ioutil.ReadFile("test_Test.txt.good")
++	must(err)
++	if !bytes.Equal(wantTxt, gotTxt) {
++		t.Fatalf("Test.txt differs from expected after posting to /save.\ngot:\n%s\nwant:\n%s", gotTxt, wantTxt)
++	}
++
++	r, err = http.Get(fmt.Sprintf("http://%s/view/Test", addr))
++	must(err)
++	responseMustMatchFile(t, r, "test_view.good")
++}
++
++func responseMustMatchFile(t *testing.T, r *http.Response, filename string) {
++	t.Helper()
++
++	defer r.Body.Close()
++	body, err := ioutil.ReadAll(r.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	wantBody, err := ioutil.ReadFile(filename)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if !bytes.Equal(body, wantBody) {
++		t.Fatalf("%v: body does not match %s.\ngot:\n%s\nwant:\n%s", r.Request.URL, filename, body, wantBody)
++	}
++}
++
++func copyFile(dst, src string) error {
++	buf, err := ioutil.ReadFile(src)
++	if err != nil {
++		return err
++	}
++	return ioutil.WriteFile(dst, buf, 0644)
++}
+diff --git a/doc/codewalk/codewalk_test.go b/doc/codewalk/codewalk_test.go
+new file mode 100644
+index 0000000000..31f078ac26
+--- /dev/null
++++ b/doc/codewalk/codewalk_test.go
+@@ -0,0 +1,52 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main_test
++
++import (
++	"bytes"
++	"os"
++	"os/exec"
++	"strings"
++	"testing"
++)
++
++// TestMarkov tests the code dependency of markov.xml.
++func TestMarkov(t *testing.T) {
++	cmd := exec.Command("go", "run", "markov.go")
++	cmd.Stdin = strings.NewReader("foo")
++	cmd.Stderr = bytes.NewBuffer(nil)
++	out, err := cmd.Output()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++	}
++
++	if !bytes.Equal(out, []byte("foo\n")) {
++		t.Fatalf(`%s with input "foo" did not output "foo":\n%s`, strings.Join(cmd.Args, " "), out)
++	}
++}
++
++// TestPig tests the code dependency of functions.xml.
++func TestPig(t *testing.T) {
++	cmd := exec.Command("go", "run", "pig.go")
++	cmd.Stderr = bytes.NewBuffer(nil)
++	out, err := cmd.Output()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++	}
++
++	const want = "Wins, losses staying at k = 100: 210/990 (21.2%), 780/990 (78.8%)\n"
++	if !bytes.Contains(out, []byte(want)) {
++		t.Fatalf(`%s: unexpected output\ngot:\n%s\nwant output containing:\n%s`, strings.Join(cmd.Args, " "), out, want)
++	}
++}
++
++// TestURLPoll tests the code dependency of sharemem.xml.
++func TestURLPoll(t *testing.T) {
++	cmd := exec.Command("go", "build", "-o", os.DevNull, "urlpoll.go")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++}
+diff --git a/doc/codewalk/run b/doc/codewalk/run
+deleted file mode 100755
+index afc64c1f91..0000000000
+--- a/doc/codewalk/run
++++ /dev/null
+@@ -1,21 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2013 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-function fail {
+-	echo FAIL: doc/codewalk/$1
+-	exit 1
+-}
+-
+-# markov.xml
+-echo foo | go run markov.go | grep foo > /dev/null || fail markov
+-
+-# functions.xml
+-go run pig.go | grep 'Wins, losses staying at k = 100: 210/990 (21.2%), 780/990 (78.8%)' > /dev/null || fail pig
+-
+-# sharemem.xml: only build the example, as it uses the network
+-go build urlpoll.go || fail urlpoll
+-rm -f urlpoll
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+index 06ea130d99..baef3f79f9 100644
+--- a/doc/progs/run.go
++++ b/doc/progs/run.go
+@@ -16,6 +16,7 @@ import (
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
++	"time"
+ )
+ 
+ const usage = `go run run.go [tests]
+@@ -26,6 +27,8 @@ Tests may be specified without their .go suffix.
+ `
+ 
+ func main() {
++	start := time.Now()
++
+ 	flag.Usage = func() {
+ 		fmt.Fprintf(os.Stderr, usage)
+ 		flag.PrintDefaults()
+@@ -70,6 +73,9 @@ func main() {
+ 		}
+ 	}
+ 	os.Remove(tmpdir)
++	if rc == 0 {
++		fmt.Printf("ok\t%s\t%s\n", filepath.Base(os.Args[0]), time.Since(start).Round(time.Millisecond))
++	}
+ 	os.Exit(rc)
+ }
+ 
+@@ -78,7 +84,7 @@ func main() {
+ // and checks that the output matches the regexp want.
+ func test(tmpdir, file, want string) error {
+ 	// Build the program.
+-	prog := filepath.Join(tmpdir, file)
++	prog := filepath.Join(tmpdir, file+".exe")
+ 	cmd := exec.Command("go", "build", "-o", prog, file+".go")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9488b9744c..2a452f0453 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -710,10 +710,10 @@ func (t *tester) registerTests() {
+ 
+ 	// Doc tests only run on builders.
+ 	// They find problems approximately never.
+-	if t.hasBash() && goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
+-		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
+-		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
+-		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
++	if goos != "js" && goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
++		t.registerTest("doc_progs", "../doc/progs", "go", "run", "run.go")
++		t.registerTest("wiki", "../doc/articles/wiki", t.goTest(), ".")
++		t.registerTest("codewalk", "../doc/codewalk", t.goTest(), "codewalk_test.go")
+ 	}
+ 
+ 	if goos != "android" && !t.iOS() {

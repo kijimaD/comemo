@@ -12,7 +12,7 @@ Date:   Wed Apr 20 17:07:14 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/50599.txt             |   1 +
  doc/go1.19.html                |  15 +++++
  src/os/exec/example_test.go    |  15 +++++
@@ -20,3 +20,363 @@ Date:   Wed Apr 20 17:07:14 2022 -0400
  src/os/exec/exec_posix_test.go | 149 +++++++++++++++++++++++++++++++++++++++++
  src/os/exec/exec_test.go       |  20 +++++-
  6 files changed, 248 insertions(+), 11 deletions(-)
+
+diff --git a/api/next/50599.txt b/api/next/50599.txt
+new file mode 100644
+index 0000000000..be271ea5e4
+--- /dev/null
++++ b/api/next/50599.txt
+@@ -0,0 +1 @@
++pkg os/exec, method (*Cmd) Environ() []string #50599
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index a813d59cb8..8305decece 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -132,6 +132,21 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- net -->
+ 
++<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
++  <dd><!-- https://go.dev/issue/50599 -->
++    <p>
++      An <code>exec.Cmd</code> with a non-empty <code>Dir</code> and a
++      nil <code>Env</code> now implicitly sets the <code>PWD</code> environment
++      variable for the subprocess to match <code>Dir</code>.
++    </p>
++    <p>
++      The new method <code>(*exec.Cmd).Environ</code> reports the
++      environment that would be used to run the command, including the
++      aforementioned <code>PWD</code> variable.
++    </p>
++  </dd>
++</dl> <!-- os/exec -->
++
+ <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/51461 -->
+diff --git a/src/os/exec/example_test.go b/src/os/exec/example_test.go
+index a66890be69..bb166ceaf4 100644
+--- a/src/os/exec/example_test.go
++++ b/src/os/exec/example_test.go
+@@ -144,6 +144,21 @@ func ExampleCmd_CombinedOutput() {
+ 	fmt.Printf("%s\n", stdoutStderr)
+ }
+ 
++func ExampleCmd_Environ() {
++	cmd := exec.Command("pwd")
++
++	// Set Dir before calling cmd.Environ so that it will include an
++	// updated PWD variable (on platforms where that is used).
++	cmd.Dir = ".."
++	cmd.Env = append(cmd.Environ(), "POSIXLY_CORRECT=1")
++
++	out, err := cmd.Output()
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Printf("%s\n", out)
++}
++
+ func ExampleCommandContext() {
+ 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+ 	defer cancel()
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 58f8bbf84d..eeca83713b 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -223,13 +223,6 @@ func interfaceEqual(a, b any) bool {
+ 	return a == b
+ }
+ 
+-func (c *Cmd) envv() ([]string, error) {
+-	if c.Env != nil {
+-		return c.Env, nil
+-	}
+-	return execenv.Default(c.SysProcAttr)
+-}
+-
+ func (c *Cmd) argv() []string {
+ 	if len(c.Args) > 0 {
+ 		return c.Args
+@@ -414,7 +407,7 @@ func (c *Cmd) Start() error {
+ 	}
+ 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
+ 
+-	envv, err := c.envv()
++	env, err := c.environ()
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -422,7 +415,7 @@ func (c *Cmd) Start() error {
+ 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+ 		Dir:   c.Dir,
+ 		Files: c.childFiles,
+-		Env:   addCriticalEnv(dedupEnv(envv)),
++		Env:   env,
+ 		Sys:   c.SysProcAttr,
+ 	})
+ 	if err != nil {
+@@ -735,6 +728,54 @@ func minInt(a, b int) int {
+ 	return b
+ }
+ 
++// environ returns a best-effort copy of the environment in which the command
++// would be run as it is currently configured. If an error occurs in computing
++// the environment, it is returned alongside the best-effort copy.
++func (c *Cmd) environ() ([]string, error) {
++	var err error
++
++	env := c.Env
++	if env == nil {
++		env, err = execenv.Default(c.SysProcAttr)
++		if err != nil {
++			env = os.Environ()
++			// Note that the non-nil err is preserved despite env being overridden.
++		}
++
++		if c.Dir != "" {
++			switch runtime.GOOS {
++			case "windows", "plan9":
++				// Windows and Plan 9 do not use the PWD variable, so we don't need to
++				// keep it accurate.
++			default:
++				// On POSIX platforms, PWD represents “an absolute pathname of the
++				// current working directory.” Since we are changing the working
++				// directory for the command, we should also update PWD to reflect that.
++				//
++				// Unfortunately, we didn't always do that, so (as proposed in
++				// https://go.dev/issue/50599) to avoid unintended collateral damage we
++				// only implicitly update PWD when Env is nil. That way, we're much
++				// less likely to override an intentional change to the variable.
++				if pwd, absErr := filepath.Abs(c.Dir); absErr == nil {
++					env = append(env, "PWD="+pwd)
++				} else if err == nil {
++					err = absErr
++				}
++			}
++		}
++	}
++
++	return addCriticalEnv(dedupEnv(env)), err
++}
++
++// Environ returns a copy of the environment in which the command would be run
++// as it is currently configured.
++func (c *Cmd) Environ() []string {
++	//  Intentionally ignore errors: environ returns a best-effort environment no matter what.
++	env, _ := c.environ()
++	return env
++}
++
+ // dedupEnv returns a copy of env with any duplicates removed, in favor of
+ // later values.
+ // Items not of the normal environment "key=value" form are preserved unchanged.
+diff --git a/src/os/exec/exec_posix_test.go b/src/os/exec/exec_posix_test.go
+index ce83a9e4b3..a0880c43ed 100644
+--- a/src/os/exec/exec_posix_test.go
++++ b/src/os/exec/exec_posix_test.go
+@@ -7,9 +7,15 @@
+ package exec_test
+ 
+ import (
++	"internal/testenv"
++	"os"
++	"os/exec"
+ 	"os/user"
++	"path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"strconv"
++	"strings"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -86,3 +92,146 @@ func TestWaitid(t *testing.T) {
+ 
+ 	<-ch
+ }
++
++// https://go.dev/issue/50599: if Env is not set explicitly, setting Dir should
++// implicitly update PWD to the correct path, and Environ should list the
++// updated value.
++func TestImplicitPWD(t *testing.T) {
++	testenv.MustHaveExec(t)
++	_, pwdErr := exec.LookPath("pwd")
++
++	t.Parallel()
++
++	cwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cases := []struct {
++		name string
++		dir  string
++		want string
++	}{
++		{"empty", "", cwd},
++		{"dot", ".", cwd},
++		{"dotdot", "..", filepath.Dir(cwd)},
++		{"PWD", cwd, cwd},
++		{"PWDdotdot", cwd + string(filepath.Separator) + "..", filepath.Dir(cwd)},
++	}
++
++	for _, tc := range cases {
++		tc := tc
++		t.Run(tc.name, func(t *testing.T) {
++			t.Parallel()
++
++			// Note: we're using the actual "pwd" command here (instead of helperCommand)
++			// because the implementation of helperCommand requires a non-empty Env.
++			// (We could perhaps refactor helperCommand to use a flag or switch on the
++			// value of argv[0] instead, but that doesn't seem worth the trouble at
++			// the moment.)
++			cmd := exec.Command("pwd")
++			cmd.Dir = tc.dir
++
++			var pwds []string
++			for _, kv := range cmd.Environ() {
++				if strings.HasPrefix(kv, "PWD=") {
++					pwds = append(pwds, strings.TrimPrefix(kv, "PWD="))
++				}
++			}
++
++			wantPWDs := []string{tc.want}
++			if tc.dir == "" {
++				if _, ok := os.LookupEnv("PWD"); !ok {
++					wantPWDs = nil
++				}
++			}
++			if !reflect.DeepEqual(pwds, wantPWDs) {
++				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
++			}
++
++			if pwdErr != nil {
++				t.Skipf("not running `pwd` because it was not found: %v", pwdErr)
++			}
++			cmd.Stderr = new(strings.Builder)
++			out, err := cmd.Output()
++			if err != nil {
++				t.Fatalf("%v:\n%s", err, cmd.Stderr)
++			}
++			got := strings.Trim(string(out), "\r\n")
++			t.Logf("in\n\t%s\n`pwd` reported\n\t%s", tc.dir, got)
++			if got != tc.want {
++				t.Errorf("want\n\t%s", tc.want)
++			}
++		})
++	}
++}
++
++// However, if cmd.Env is set explicitly, setting Dir should not override it.
++// (This checks that the implementation for https://go.dev/issue/50599 doesn't
++// break existing users who may have explicitly mismatched the PWD variable.)
++func TestExplicitPWD(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	cwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	link := filepath.Join(t.TempDir(), "link")
++	if err := os.Symlink(cwd, link); err != nil {
++		t.Fatal(err)
++	}
++
++	// Now link is another equally-valid name for cwd. If we set Dir to one and
++	// PWD to the other, the subprocess should report the PWD version.
++	cases := []struct {
++		name string
++		dir  string
++		pwd  string
++	}{
++		{name: "original PWD", pwd: cwd},
++		{name: "link PWD", pwd: link},
++		{name: "in link with original PWD", dir: link, pwd: cwd},
++		{name: "in dir with link PWD", dir: cwd, pwd: link},
++		// Ideally we would also like to test what happens if we set PWD to
++		// something totally bogus (or the empty string), but then we would have no
++		// idea what output the subprocess should actually produce: cwd itself may
++		// contain symlinks preserved from the PWD value in the test's environment.
++	}
++	for _, tc := range cases {
++		tc := tc
++		t.Run(tc.name, func(t *testing.T) {
++			t.Parallel()
++
++			cmd := helperCommand(t, "pwd")
++			// This is intentionally opposite to the usual order of setting cmd.Dir
++			// and then calling cmd.Environ. Here, we *want* PWD not to match cmd.Dir,
++			// so we don't care whether cmd.Dir is reflected in cmd.Environ.
++			cmd.Env = append(cmd.Environ(), "PWD="+tc.pwd)
++			cmd.Dir = tc.dir
++
++			var pwds []string
++			for _, kv := range cmd.Environ() {
++				if strings.HasPrefix(kv, "PWD=") {
++					pwds = append(pwds, strings.TrimPrefix(kv, "PWD="))
++				}
++			}
++
++			wantPWDs := []string{tc.pwd}
++			if !reflect.DeepEqual(pwds, wantPWDs) {
++				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
++			}
++
++			cmd.Stderr = new(strings.Builder)
++			out, err := cmd.Output()
++			if err != nil {
++				t.Fatalf("%v:\n%s", err, cmd.Stderr)
++			}
++			got := strings.Trim(string(out), "\r\n")
++			t.Logf("in\n\t%s\nwith PWD=%s\nsubprocess os.Getwd() reported\n\t%s", tc.dir, tc.pwd, got)
++			if got != tc.pwd {
++				t.Errorf("want\n\t%s", tc.pwd)
++			}
++		})
++	}
++}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 73aa35f1ae..f90066cea3 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -57,12 +57,20 @@ func init() {
+ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
+ 	testenv.MustHaveExec(t)
+ 
++	// Use os.Executable instead of os.Args[0] in case the caller modifies
++	// cmd.Dir: if the test binary is invoked like "./exec.test", it should
++	// not fail spuriously.
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++
+ 	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+ 	if ctx != nil {
+-		cmd = exec.CommandContext(ctx, os.Args[0], cs...)
++		cmd = exec.CommandContext(ctx, exe, cs...)
+ 	} else {
+-		cmd = exec.Command(os.Args[0], cs...)
++		cmd = exec.Command(exe, cs...)
+ 	}
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	return cmd
+@@ -831,6 +839,14 @@ func TestHelperProcess(*testing.T) {
+ 		}
+ 		pipe.Close()
+ 		os.Exit(0)
++	case "pwd":
++		pwd, err := os.Getwd()
++		if err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			os.Exit(1)
++		}
++		fmt.Println(pwd)
++		os.Exit(0)
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
+ 		os.Exit(2)

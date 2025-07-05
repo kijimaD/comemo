@@ -10,9 +10,92 @@ Date:   Wed Jun 2 17:05:37 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/testdata/check/typeinst2.go2  |  4 ++--
  .../compile/internal/types2/testdata/examples/constraints.go2 |  9 +++++++++
  .../compile/internal/types2/testdata/fixedbugs/issue39634.go2 |  4 ++--
  src/cmd/compile/internal/types2/union.go                      | 11 ++++++-----
  4 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+index 37745dfcba..14d8f0ea8c 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+@@ -176,12 +176,12 @@ type _ interface {
+ // Interface type lists can contain any type, incl. *Named types.
+ // Verify that we use the underlying type to compute the operational type.
+ type MyInt int
+-func add1[T interface{~MyInt}](x T) T {
++func add1[T interface{MyInt}](x T) T {
+ 	return x + 1
+ }
+ 
+ type MyString string
+-func double[T interface{~MyInt | ~MyString}](x T) T {
++func double[T interface{MyInt|MyString}](x T) T {
+ 	return x + x
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/constraints.go2 b/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
+index f6291ccf7d..efefaa2a25 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
+@@ -24,6 +24,15 @@ type (
+ 	_ interface{int|interface /* ERROR cannot use interface */ {}}
+ )
+ 
++type (
++	// Tilde is not permitted on defined types or interfaces.
++	foo int
++	bar interface{}
++	_ interface{foo}
++	_ interface{~ /* ERROR invalid use of ~ */ foo }
++	_ interface{~ /* ERROR invalid use of ~ */ bar }
++)
++
+ // Multiple embedded union elements are intersected. The order in which they
+ // appear in the interface doesn't matter since intersection is a symmetric
+ // operation.
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+index 39ec5d7b30..6d002f5d2f 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+@@ -36,8 +36,8 @@ func bar8[A foo8[A]](a A) {}
+ func main8() {}
+ 
+ // crash 9
+-type foo9[A any] interface { ~/* ERROR cannot use interface */ foo9[A] }
+-func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
++type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
++func _() { var _ = new(foo9 /* ERROR illegal cycle */ [int]) }
+ 
+ // crash 12
+ var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 671e36111b..30570b5e80 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -106,17 +106,18 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
+ 			}
+ 
+ 			u := under(t)
+-			if tilde[i] {
+-				// TODO(gri) enable this check once we have converted tests
+-				// if !Identical(u, t) {
+-				// 	check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
+-				// }
++			if tilde[i] && !Identical(u, t) {
++				check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
++				continue // don't report another error for t
+ 			}
+ 			if _, ok := u.(*Interface); ok {
++				// A single type with a ~ is a single-term union.
+ 				check.errorf(pos, "cannot use interface %s with ~ or inside a union (implementation restriction)", t)
++				continue // don't report another error for t
+ 			}
+ 
+ 			// Complain about duplicate entries a|a, but also a|~a, and ~a|~a.
++			// TODO(gri) We should also exclude myint|~int since myint is included in ~int.
+ 			if includes(types[:i], t) {
+ 				// TODO(gri) this currently doesn't print the ~ if present
+ 				check.softErrorf(pos, "duplicate term %s in union element", t)

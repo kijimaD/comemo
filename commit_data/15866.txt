@@ -21,10 +21,115 @@ Date:   Thu Mar 21 12:54:19 2013 +0400
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/7870043
-
+---
  src/pkg/net/fd_unix.go           |  4 +++-
  src/pkg/runtime/netpoll.goc      |  3 +++
  src/pkg/runtime/netpoll_epoll.c  | 14 +++++++++++++-
  src/pkg/runtime/netpoll_kqueue.c |  9 +++++++++
  src/pkg/runtime/runtime.h        |  1 +
  5 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index cc5a030acb..2b418a8681 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -124,8 +124,10 @@ func (fd *netFD) decref() {
+ 	fd.sysmu.Lock()
+ 	fd.sysref--
+ 	if fd.closing && fd.sysref == 0 && fd.sysfile != nil {
+-		fd.sysfile.Close()
++		// Poller may want to unregister fd in readiness notification mechanism,
++		// so this must be executed before sysfile.Close().
+ 		fd.pd.Close()
++		fd.sysfile.Close()
+ 		fd.sysfile = nil
+ 		fd.sysfd = -1
+ 	}
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index b314c65338..06b6d61727 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -25,6 +25,7 @@ struct PollDesc
+ {
+ 	PollDesc* link;	// in pollcache, protected by pollcache.Lock
+ 	Lock;		// protectes the following fields
++	int32	fd;
+ 	bool	closing;
+ 	uintptr	seq;	// protects from stale timers and ready notifications
+ 	G*	rg;	// G waiting for read or READY (binary semaphore)
+@@ -69,6 +70,7 @@ func runtime_pollOpen(fd int) (pd *PollDesc, errno int) {
+ 		runtime·throw("runtime_pollOpen: blocked write on free descriptor");
+ 	if(pd->rg != nil && pd->rg != READY)
+ 		runtime·throw("runtime_pollOpen: blocked read on free descriptor");
++	pd->fd = fd;
+ 	pd->closing = false;
+ 	pd->seq++;
+ 	pd->rg = nil;
+@@ -87,6 +89,7 @@ func runtime_pollClose(pd *PollDesc) {
+ 		runtime·throw("runtime_pollClose: blocked write on closing descriptor");
+ 	if(pd->rg != nil && pd->rg != READY)
+ 		runtime·throw("runtime_pollClose: blocked read on closing descriptor");
++	runtime·netpollclose(pd->fd);
+ 	runtime·lock(&pollcache);
+ 	pd->link = pollcache.first;
+ 	pollcache.first = pd;
+diff --git a/src/pkg/runtime/netpoll_epoll.c b/src/pkg/runtime/netpoll_epoll.c
+index 34ed78addb..d6ef0d1446 100644
+--- a/src/pkg/runtime/netpoll_epoll.c
++++ b/src/pkg/runtime/netpoll_epoll.c
+@@ -34,10 +34,22 @@ int32
+ runtime·netpollopen(int32 fd, PollDesc *pd)
+ {
+ 	EpollEvent ev;
++	int32 res;
+ 
+ 	ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
+ 	ev.data = (uint64)pd;
+-	return runtime·epollctl(epfd, EPOLL_CTL_ADD, fd, &ev);
++	res = runtime·epollctl(epfd, EPOLL_CTL_ADD, fd, &ev);
++	return -res;
++}
++
++int32
++runtime·netpollclose(int32 fd)
++{
++	EpollEvent ev;
++	int32 res;
++
++	res = runtime·epollctl(epfd, EPOLL_CTL_DEL, fd, &ev);
++	return -res;
+ }
+ 
+ // polls for ready network connections
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index 7603260565..ad721e293e 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -57,6 +57,15 @@ runtime·netpollopen(int32 fd, PollDesc *pd)
+ 	return 0;
+ }
+ 
++int32
++runtime·netpollclose(int32 fd)
++{
++	// Don't need to unregister because calling close()
++	// on fd will remove any kevents that reference the descriptor.
++	USED(fd);
++	return 0;
++}
++
+ // Polls for ready network connections.
+ // Returns list of goroutines that become runnable.
+ G*
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d209a4dfca..46c77e3fd5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -792,6 +792,7 @@ bool	runtime·deltimer(Timer*);
+ G*	runtime·netpoll(bool);
+ void	runtime·netpollinit(void);
+ int32	runtime·netpollopen(int32, PollDesc*);
++int32   runtime·netpollclose(int32);
+ void	runtime·netpollready(G**, PollDesc*, int32);
+ void	runtime·crash(void);
+ 

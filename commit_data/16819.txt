@@ -14,7 +14,52 @@ Date:   Fri Jul 19 23:44:22 2013 +1000
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/11568043
-
+---
  src/pkg/regexp/exec2_test.go | 20 ++++++++++++++++++++
  src/pkg/regexp/exec_test.go  |  7 -------
  2 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/regexp/exec2_test.go b/src/pkg/regexp/exec2_test.go
+new file mode 100644
+index 0000000000..7b86b41156
+--- /dev/null
++++ b/src/pkg/regexp/exec2_test.go
+@@ -0,0 +1,20 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++package regexp
++
++import (
++	"testing"
++)
++
++// This test is excluded when running under the race detector because
++// it is a very expensive test and takes too long.
++func TestRE2Exhaustive(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping TestRE2Exhaustive during short test")
++	}
++	testRE2(t, "testdata/re2-exhaustive.txt.bz2")
++}
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index 9dfaed713f..f6fcd4be4a 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -67,13 +67,6 @@ func TestRE2Search(t *testing.T) {
+ 	testRE2(t, "testdata/re2-search.txt")
+ }
+ 
+-func TestRE2Exhaustive(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping TestRE2Exhaustive during short test")
+-	}
+-	testRE2(t, "testdata/re2-exhaustive.txt.bz2")
+-}
+-
+ func testRE2(t *testing.T, file string) {
+ 	f, err := os.Open(file)
+ 	if err != nil {

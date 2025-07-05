@@ -9,6 +9,21 @@ Date:   Wed Jan 18 01:10:18 2017 +0100
     Change-Id: I19da4d59a1b6293c9a4722aa696e2cb58d982a15
     Reviewed-on: https://go-review.googlesource.com/35333
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index f99c5ea96c..608b4802be 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -93,7 +93,8 @@ On OpenBSD, Go now requires OpenBSD 5.9 or later. <!-- CL 34093 -->
+ <p>
+ The Plan 9 port's networking support is now much more complete
+ and matches the behavior of Unix and Windows with respect to deadlines
+-and cancelation.
++and cancelation. For Plan 9 kernel requirements, see the
++<a href="https://golang.org/wiki/Plan9">Plan 9 wiki page</a>.
+ </p>
+ 
+ <p>

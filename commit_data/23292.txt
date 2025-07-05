@@ -7,6 +7,20 @@ Date:   Sun May 3 23:29:34 2015 +0900
     Change-Id: I0e1519d429a295faa70013687d6faf2f5ce0be24
     Reviewed-on: https://go-review.googlesource.com/9713
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/platform_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index a1e766dbcd..eb680b8e34 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -40,7 +40,7 @@ func testableNetwork(network string) bool {
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "nacl", "openbsd", "plan9", "windows":
++		case "android", "darwin", "nacl", "plan9", "windows":
+ 			fallthrough
+ 		case "freebsd": // FreeBSD 8 and below don't support unixpacket
+ 			return false

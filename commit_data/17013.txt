@@ -9,7 +9,7 @@ Date:   Sat Aug 3 11:36:47 2013 -0700
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/12388043
-
+---
  src/libbio/bflush.c   |  2 +-
  src/libbio/bgetc.c    |  4 ++--
  src/libbio/bgetrune.c |  4 ++--
@@ -22,3 +22,270 @@ Date:   Sat Aug 3 11:36:47 2013 -0700
  src/libbio/bseek.c    |  4 ++--
  src/libbio/bwrite.c   |  6 +++---
  11 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/src/libbio/bflush.c b/src/libbio/bflush.c
+index 8a071cb5cb..ea7ae2c62b 100644
+--- a/src/libbio/bflush.c
++++ b/src/libbio/bflush.c
+@@ -37,7 +37,7 @@ Bflush(Biobuf *bp)
+ 		n = bp->bsize+bp->ocount;
+ 		if(n == 0)
+ 			return 0;
+-		c = write(bp->fid, bp->bbuf, n);
++		c = (int)write(bp->fid, bp->bbuf, (size_t)n);
+ 		if(n == c) {
+ 			bp->offset += n;
+ 			bp->ocount = -bp->bsize;
+diff --git a/src/libbio/bgetc.c b/src/libbio/bgetc.c
+index 52ed241f9b..4ddfba1526 100644
+--- a/src/libbio/bgetc.c
++++ b/src/libbio/bgetc.c
+@@ -49,7 +49,7 @@ loop:
+ 	 * buffer to allow that many ungets.
+ 	 */
+ 	memmove(bp->bbuf-Bungetsize, bp->ebuf-Bungetsize, Bungetsize);
+-	i = read(bp->fid, bp->bbuf, bp->bsize);
++	i = (int)read(bp->fid, bp->bbuf, (size_t)bp->bsize);
+ 	bp->gbuf = bp->bbuf;
+ 	if(i <= 0) {
+ 		bp->state = Bracteof;
+@@ -58,7 +58,7 @@ loop:
+ 		return Beof;
+ 	}
+ 	if(i < bp->bsize) {
+-		memmove(bp->ebuf-i-Bungetsize, bp->bbuf-Bungetsize, i+Bungetsize);
++		memmove(bp->ebuf-i-Bungetsize, bp->bbuf-Bungetsize, (size_t)(i+Bungetsize));
+ 		bp->gbuf = bp->ebuf-i;
+ 	}
+ 	bp->icount = -i;
+diff --git a/src/libbio/bgetrune.c b/src/libbio/bgetrune.c
+index 1538f3ea74..dd59eb38ff 100644
+--- a/src/libbio/bgetrune.c
++++ b/src/libbio/bgetrune.c
+@@ -40,13 +40,13 @@ Bgetrune(Biobuf *bp)
+ 		bp->runesize = 1;
+ 		return c;
+ 	}
+-	str[0] = c;
++	str[0] = (char)c;
+ 
+ 	for(i=1;;) {
+ 		c = Bgetc(bp);
+ 		if(c < 0)
+ 			return c;
+-		str[i++] = c;
++		str[i++] = (char)c;
+ 
+ 		if(fullrune(str, i)) {
+ 			bp->runesize = chartorune(&rune, str);
+diff --git a/src/libbio/bprint.c b/src/libbio/bprint.c
+index b5d3e9ece0..301dc0c7f3 100644
+--- a/src/libbio/bprint.c
++++ b/src/libbio/bprint.c
+@@ -49,7 +49,7 @@ bflush(Fmt *f)
+ 		return 0;
+ 
+ 	bp = f->farg;
+-	bp->ocount = (char*)f->to - (char*)f->stop;
++	bp->ocount = (int)((char*)f->to - (char*)f->stop);
+ 	if(Bflush(bp) < 0) {
+ 		f->stop = nil;
+ 		f->to = nil;
+@@ -76,7 +76,7 @@ Bvprint(Biobuf *bp, char *fmt, va_list arg)
+ 	n = fmtvprint(&f, fmt, arg);
+ 
+ 	if(f.stop != nil)
+-		bp->ocount = (char*)f.to - (char*)f.stop;
++		bp->ocount = (int)((char*)f.to - (char*)f.stop);
+ 
+ 	return n;
+ }
+diff --git a/src/libbio/bputc.c b/src/libbio/bputc.c
+index 4cdbe8f7ac..ec98144a47 100644
+--- a/src/libbio/bputc.c
++++ b/src/libbio/bputc.c
+@@ -35,7 +35,7 @@ Bputc(Biobuf *bp, int c)
+ 	for(;;) {
+ 		i = bp->ocount;
+ 		if(i) {
+-			bp->ebuf[i++] = c;
++			bp->ebuf[i++] = (unsigned char)c;
+ 			bp->ocount = i;
+ 			return 0;
+ 		}
+diff --git a/src/libbio/bputrune.c b/src/libbio/bputrune.c
+index e46f3c7101..34f4fffdd8 100644
+--- a/src/libbio/bputrune.c
++++ b/src/libbio/bputrune.c
+@@ -35,9 +35,9 @@ Bputrune(Biobuf *bp, long c)
+ 	char str[UTFmax];
+ 	int n;
+ 
+-	rune = c;
++	rune = (Rune)c;
+ 	if(rune < Runeself) {
+-		Bputc(bp, rune);
++		Bputc(bp, (int)rune);
+ 		return 1;
+ 	}
+ 	n = runetochar(str, &rune);
+diff --git a/src/libbio/brdline.c b/src/libbio/brdline.c
+index a02bf106d5..1c3093ecf3 100644
+--- a/src/libbio/brdline.c
++++ b/src/libbio/brdline.c
+@@ -51,9 +51,9 @@ Brdline(Biobuf *bp, int delim)
+ 	 * first try in remainder of buffer (gbuf doesn't change)
+ 	 */
+ 	ip = (char*)bp->ebuf - i;
+-	ep = memchr(ip, delim, i);
++	ep = memchr(ip, delim, (size_t)i);
+ 	if(ep) {
+-		j = (ep - ip) + 1;
++		j = (int)((ep - ip) + 1);
+ 		bp->rdline = j;
+ 		bp->icount += j;
+ 		return ip;
+@@ -63,7 +63,7 @@ Brdline(Biobuf *bp, int delim)
+ 	 * copy data to beginning of buffer
+ 	 */
+ 	if(i < bp->bsize)
+-		memmove(bp->bbuf, ip, i);
++		memmove(bp->bbuf, ip, (size_t)i);
+ 	bp->gbuf = bp->bbuf;
+ 
+ 	/*
+@@ -71,12 +71,12 @@ Brdline(Biobuf *bp, int delim)
+ 	 */
+ 	ip = (char*)bp->bbuf + i;
+ 	while(i < bp->bsize) {
+-		j = read(bp->fid, ip, bp->bsize-i);
++		j = (int)read(bp->fid, ip, (size_t)(bp->bsize-i));
+ 		if(j <= 0) {
+ 			/*
+ 			 * end of file with no delim
+ 			 */
+-			memmove(bp->ebuf-i, bp->bbuf, i);
++			memmove(bp->ebuf-i, bp->bbuf, (size_t)i);
+ 			bp->rdline = i;
+ 			bp->icount = -i;
+ 			bp->gbuf = bp->ebuf-i;
+@@ -84,7 +84,7 @@ Brdline(Biobuf *bp, int delim)
+ 		}
+ 		bp->offset += j;
+ 		i += j;
+-		ep = memchr(ip, delim, j);
++		ep = memchr(ip, delim, (size_t)j);
+ 		if(ep) {
+ 			/*
+ 			 * found in new piece
+@@ -92,10 +92,10 @@ Brdline(Biobuf *bp, int delim)
+ 			 */
+ 			ip = (char*)bp->ebuf - i;
+ 			if(i < bp->bsize){
+-				memmove(ip, bp->bbuf, i);
++				memmove(ip, bp->bbuf, (size_t)i);
+ 				bp->gbuf = (unsigned char*)ip;
+ 			}
+-			j = (ep - (char*)bp->bbuf) + 1;
++			j = (int)((ep - (char*)bp->bbuf) + 1);
+ 			bp->rdline = j;
+ 			bp->icount = j - i;
+ 			return ip;
+diff --git a/src/libbio/brdstr.c b/src/libbio/brdstr.c
+index 0398ab07bd..6a90cf69b2 100644
+--- a/src/libbio/brdstr.c
++++ b/src/libbio/brdstr.c
+@@ -37,14 +37,14 @@ Brdstr(Biobuf *bp, int delim, int nulldelim)
+ 		linelen = Blinelen(bp);
+ 		if(n == 0 && linelen == 0)
+ 			return nil;
+-		nq = realloc(q, n+linelen+1);
++		nq = realloc(q, (size_t)(n+linelen+1));
+ 		if(nq == nil) {
+ 			free(q);
+ 			return nil;
+ 		}
+ 		q = nq;
+ 		if(p != nil) {
+-			memmove(q+n, p, linelen);
++			memmove(q+n, p, (size_t)linelen);
+ 			n += linelen;
+ 			if(nulldelim)
+ 				q[n-1] = '\0';
+diff --git a/src/libbio/bread.c b/src/libbio/bread.c
+index 5cf9a05c86..343a0bf29b 100644
+--- a/src/libbio/bread.c
++++ b/src/libbio/bread.c
+@@ -41,11 +41,11 @@ Bread(Biobuf *bp, void *ap, long count)
+ 	while(c > 0) {
+ 		n = -ic;
+ 		if(n > c)
+-			n = c;
++			n = (int)c;
+ 		if(n == 0) {
+ 			if(bp->state != Bractive)
+ 				break;
+-			i = read(bp->fid, bp->bbuf, bp->bsize);
++			i = (int)read(bp->fid, bp->bbuf, (size_t)bp->bsize);
+ 			if(i <= 0) {
+ 				bp->state = Bracteof;
+ 				if(i < 0)
+@@ -55,13 +55,13 @@ Bread(Biobuf *bp, void *ap, long count)
+ 			bp->gbuf = bp->bbuf;
+ 			bp->offset += i;
+ 			if(i < bp->bsize) {
+-				memmove(bp->ebuf-i, bp->bbuf, i);
++				memmove(bp->ebuf-i, bp->bbuf, (size_t)i);
+ 				bp->gbuf = bp->ebuf-i;
+ 			}
+ 			ic = -i;
+ 			continue;
+ 		}
+-		memmove(p, bp->ebuf+ic, n);
++		memmove(p, bp->ebuf+ic, (size_t)n);
+ 		c -= n;
+ 		ic += n;
+ 		p += n;
+diff --git a/src/libbio/bseek.c b/src/libbio/bseek.c
+index 2914981089..eb426ccfc9 100644
+--- a/src/libbio/bseek.c
++++ b/src/libbio/bseek.c
+@@ -62,9 +62,9 @@ Bseek(Biobuf *bp, vlong offset, int base)
+ 		 */
+ 		if(base == 0) {
+ 			d = n - Boffset(bp);
+-			bufsz = bp->ebuf - bp->gbuf;
++			bufsz = (int)(bp->ebuf - bp->gbuf);
+ 			if(-bufsz <= d && d <= bufsz){
+-				bp->icount += d;
++				bp->icount += (int)d;
+ 				if(d >= 0) {
+ 					if(bp->icount <= 0)
+ 						return n;
+diff --git a/src/libbio/bwrite.c b/src/libbio/bwrite.c
+index daed161cbf..8b9943ab08 100644
+--- a/src/libbio/bwrite.c
++++ b/src/libbio/bwrite.c
+@@ -41,11 +41,11 @@ Bwrite(Biobuf *bp, void *ap, long count)
+ 	while(c > 0) {
+ 		n = -oc;
+ 		if(n > c)
+-			n = c;
++			n = (int)c;
+ 		if(n == 0) {
+ 			if(bp->state != Bwactive)
+ 				return Beof;
+-			i = write(bp->fid, bp->bbuf, bp->bsize);
++			i = (int)write(bp->fid, bp->bbuf, (size_t)bp->bsize);
+ 			if(i != bp->bsize) {
+ 				bp->state = Binactive;
+ 				return Beof;
+@@ -54,7 +54,7 @@ Bwrite(Biobuf *bp, void *ap, long count)
+ 			oc = -bp->bsize;
+ 			continue;
+ 		}
+-		memmove(bp->ebuf+oc, p, n);
++		memmove(bp->ebuf+oc, p, (size_t)n);
+ 		oc += n;
+ 		c -= n;
+ 		p += n;

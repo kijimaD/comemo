@@ -14,7 +14,213 @@ Date:   Wed Aug 24 12:59:01 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/28514
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/binary/binary.go      | 54 +++++++++++++++++++++++++++++++++++---
  src/encoding/binary/binary_test.go | 39 +++++++++++++++++++++++----
  2 files changed, 85 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 46c6add062..fd360a2e54 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -169,6 +169,8 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 			return err
+ 		}
+ 		switch data := data.(type) {
++		case *bool:
++			*data = b[0] != 0
+ 		case *int8:
+ 			*data = int8(b[0])
+ 		case *uint8:
+@@ -185,8 +187,12 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 			*data = int64(order.Uint64(bs))
+ 		case *uint64:
+ 			*data = order.Uint64(bs)
+-		case []int8:
++		case []bool:
+ 			for i, x := range bs { // Easier to loop over the input for 8-bit values.
++				data[i] = x != 0
++			}
++		case []int8:
++			for i, x := range bs {
+ 				data[i] = int8(x)
+ 			}
+ 		case []uint8:
+@@ -258,6 +264,26 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 			bs = b[:n]
+ 		}
+ 		switch v := data.(type) {
++		case *bool:
++			if *v {
++				b[0] = 1
++			} else {
++				b[0] = 0
++			}
++		case bool:
++			if v {
++				b[0] = 1
++			} else {
++				b[0] = 0
++			}
++		case []bool:
++			for i, x := range v {
++				if x {
++					bs[i] = 1
++				} else {
++					bs[i] = 0
++				}
++			}
+ 		case *int8:
+ 			b[0] = byte(*v)
+ 		case int8:
+@@ -378,7 +404,8 @@ func sizeof(t reflect.Type) int {
+ 		}
+ 		return sum
+ 
+-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
++	case reflect.Bool,
++		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+ 		reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+ 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+ 		return int(t.Size())
+@@ -395,6 +422,21 @@ type coder struct {
+ type decoder coder
+ type encoder coder
+ 
++func (d *decoder) bool() bool {
++	x := d.buf[0]
++	d.buf = d.buf[1:]
++	return x != 0
++}
++
++func (e *encoder) bool(x bool) {
++	if x {
++		e.buf[0] = 1
++	} else {
++		e.buf[0] = 0
++	}
++	e.buf = e.buf[1:]
++}
++
+ func (d *decoder) uint8() uint8 {
+ 	x := d.buf[0]
+ 	d.buf = d.buf[1:]
+@@ -485,6 +527,9 @@ func (d *decoder) value(v reflect.Value) {
+ 			d.value(v.Index(i))
+ 		}
+ 
++	case reflect.Bool:
++		v.SetBool(d.bool())
++
+ 	case reflect.Int8:
+ 		v.SetInt(int64(d.int8()))
+ 	case reflect.Int16:
+@@ -547,6 +592,9 @@ func (e *encoder) value(v reflect.Value) {
+ 			e.value(v.Index(i))
+ 		}
+ 
++	case reflect.Bool:
++		e.bool(v.Bool())
++
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		switch v.Type().Kind() {
+ 		case reflect.Int8:
+@@ -609,7 +657,7 @@ func (e *encoder) skip(v reflect.Value) {
+ // It returns zero if the type cannot be implemented by the fast path in Read or Write.
+ func intDataSize(data interface{}) int {
+ 	switch data := data.(type) {
+-	case int8, uint8, *int8, *uint8:
++	case bool, int8, uint8, *bool, *int8, *uint8:
+ 		return 1
+ 	case []int8:
+ 		return len(data)
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index c0728e943e..fc7f2765ef 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -27,6 +27,8 @@ type Struct struct {
+ 	Complex64  complex64
+ 	Complex128 complex128
+ 	Array      [4]uint8
++	Bool       bool
++	BoolArray  [4]bool
+ }
+ 
+ type T struct {
+@@ -58,6 +60,9 @@ var s = Struct{
+ 	),
+ 
+ 	[4]uint8{0x43, 0x44, 0x45, 0x46},
++
++	true,
++	[4]bool{true, false, true, false},
+ }
+ 
+ var big = []byte{
+@@ -76,6 +81,9 @@ var big = []byte{
+ 	51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
+ 
+ 	67, 68, 69, 70,
++
++	1,
++	1, 0, 1, 0,
+ }
+ 
+ var little = []byte{
+@@ -94,6 +102,9 @@ var little = []byte{
+ 	58, 57, 56, 55, 54, 53, 52, 51, 66, 65, 64, 63, 62, 61, 60, 59,
+ 
+ 	67, 68, 69, 70,
++
++	1,
++	1, 0, 1, 0,
+ }
+ 
+ var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+@@ -141,6 +152,25 @@ func TestWriteSlice(t *testing.T) {
+ 	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+ }
+ 
++func TestReadBool(t *testing.T) {
++	var res bool
++	var err error
++	err = Read(bytes.NewReader([]byte{0}), BigEndian, &res)
++	checkResult(t, "ReadBool", BigEndian, err, res, false)
++	res = false
++	err = Read(bytes.NewReader([]byte{1}), BigEndian, &res)
++	checkResult(t, "ReadBool", BigEndian, err, res, true)
++	res = false
++	err = Read(bytes.NewReader([]byte{2}), BigEndian, &res)
++	checkResult(t, "ReadBool", BigEndian, err, res, true)
++}
++
++func TestReadBoolSlice(t *testing.T) {
++	slice := make([]bool, 4)
++	err := Read(bytes.NewReader([]byte{0, 1, 2, 255}), BigEndian, slice)
++	checkResult(t, "ReadBoolSlice", BigEndian, err, slice, []bool{false, true, true, true})
++}
++
+ // Addresses of arrays are easier to manipulate with reflection than are slices.
+ var intArrays = []interface{}{
+ 	&[100]int8{},
+@@ -422,16 +452,15 @@ func BenchmarkReadInts(b *testing.B) {
+ 		Read(r, BigEndian, &ls.Uint32)
+ 		Read(r, BigEndian, &ls.Uint64)
+ 	}
+-
++	b.StopTimer()
+ 	want := s
+ 	want.Float32 = 0
+ 	want.Float64 = 0
+ 	want.Complex64 = 0
+ 	want.Complex128 = 0
+-	for i := range want.Array {
+-		want.Array[i] = 0
+-	}
+-	b.StopTimer()
++	want.Array = [4]uint8{0, 0, 0, 0}
++	want.Bool = false
++	want.BoolArray = [4]bool{false, false, false, false}
+ 	if b.N > 0 && !reflect.DeepEqual(ls, want) {
+ 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
+ 	}

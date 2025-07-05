@@ -8,6 +8,33 @@ Date:   Thu Oct 9 14:38:45 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/155190043
-
+---
  src/debug/elf/file.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index c908e7a889..de8a3a24fe 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -564,6 +564,10 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
+ 			continue
+ 		}
+ 
++		// There are relocations, so this must be a normal
++		// object file, and we only look at section symbols,
++		// so we assume that the symbol value is 0.
++
+ 		switch t {
+ 		case R_X86_64_64:
+ 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
+@@ -646,6 +650,10 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
+ 			continue
+ 		}
+ 
++		// There are relocations, so this must be a normal
++		// object file, and we only look at section symbols,
++		// so we assume that the symbol value is 0.
++
+ 		switch t {
+ 		case R_AARCH64_ABS64:
+ 			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {

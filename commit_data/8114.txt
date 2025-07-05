@@ -9,8 +9,57 @@ Date:   Thu Apr 14 23:58:08 2011 -0400
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/4413051
-
+---
  src/cmd/5g/peep.c | 4 ++--
  src/cmd/5l/obj.c  | 2 +-
  src/libmach/obj.c | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index ca12d70f26..6f36e12d42 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1134,7 +1134,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1152,7 +1152,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index c82494bc53..c4a2bfc3f0 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -317,7 +317,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	a->sym = h[c];
+ 	a->name = Bgetc(f);
+ 
+-	if(a->reg < 0 || a->reg > NREG) {
++	if((schar)a->reg < 0 || a->reg > NREG) {
+ 		print("register out of range %d\n", a->reg);
+ 		Bputc(f, ALAST+1);
+ 		return;	/*  force real diagnostic */
+diff --git a/src/libmach/obj.c b/src/libmach/obj.c
+index 1ffe7a0ee1..7d660787b5 100644
+--- a/src/libmach/obj.c
++++ b/src/libmach/obj.c
+@@ -215,7 +215,7 @@ processprog(Prog *p, int doautos)
+ {
+ 	if(p->kind == aNone)
+ 		return 1;
+-	if(p->sym < 0 || p->sym >= NNAMES)
++	if((schar)p->sym < 0 || p->sym >= NNAMES)
+ 		return 0;
+ 	switch(p->kind)
+ 	{

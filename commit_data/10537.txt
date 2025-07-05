@@ -7,8 +7,211 @@ Date:   Tue Nov 29 19:24:57 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5441053
-
+---
  misc/dashboard/app/app.yaml       |  2 +-
  misc/dashboard/app/build/build.go | 47 +++++++++++++++++++++++++++++-----
  misc/dashboard/app/build/test.go  | 54 +++++++++++++++++++++++++++++++--------
  3 files changed, 86 insertions(+), 17 deletions(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index ef101b5e9b..8e43e774ff 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -6,7 +6,7 @@ api_version: 3
+ handlers:
+ - url: /log/.+
+   script: _go_app
+-- url: /(commit|tag|todo|result)
++- url: /(commit|package|result|tag|todo)
+   script: _go_app
+ - url: /buildtest
+   script: _go_app
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index fa415f9334..802d343ddc 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -105,6 +105,16 @@ func (com *Commit) HasResult(builder string) bool {
+ 	return false
+ }
+ 
++func (com *Commit) HasGoHashResult(builder, goHash string) bool {
++	for _, r := range com.Result {
++		p := strings.SplitN(r, "|", 4)
++		if len(p) == 4 && p[0] == builder && p[3] == goHash {
++			return true
++		}
++	}
++	return false
++}
++
+ // A Result describes a build result for a Commit on an OS/architecture.
+ //
+ // Each Result entity is a descendant of its associated Commit entity.
+@@ -299,11 +309,8 @@ func todoHandler(w http.ResponseWriter, r *http.Request) {
+ 		Ancestor(p.Key(c)).
+ 		Limit(commitsPerPage).
+ 		Order("-Num")
+-	if goHash != "" && p.Path != "" {
+-		q.Filter("GoHash =", goHash)
+-	}
+ 	var nextHash string
+-	for t := q.Run(c); ; {
++	for t := q.Run(c); nextHash == ""; {
+ 		com := new(Commit)
+ 		if _, err := t.Next(com); err == datastore.Done {
+ 			break
+@@ -311,14 +318,41 @@ func todoHandler(w http.ResponseWriter, r *http.Request) {
+ 			logErr(w, r, err)
+ 			return
+ 		}
+-		if !com.HasResult(builder) {
++		var hasResult bool
++		if goHash != "" {
++			hasResult = com.HasGoHashResult(builder, goHash)
++		} else {
++			hasResult = com.HasResult(builder)
++		}
++		if !hasResult {
+ 			nextHash = com.Hash
+-			break
+ 		}
+ 	}
+ 	fmt.Fprint(w, nextHash)
+ }
+ 
++// packagesHandler returns a JSON-encoded list of the non-Go Packages
++// monitored by the dashboard.
++func packagesHandler(w http.ResponseWriter, r *http.Request) {
++	c := appengine.NewContext(r)
++	var pkgs []*Package
++	for t := datastore.NewQuery("Package").Run(c); ; {
++		pkg := new(Package)
++		if _, err := t.Next(pkg); err == datastore.Done {
++			break
++		} else if err != nil {
++			logErr(w, r, err)
++			return
++		}
++		if pkg.Path != "" {
++			pkgs = append(pkgs, pkg)
++		}
++	}
++	if err := json.NewEncoder(w).Encode(pkgs); err != nil {
++		logErr(w, r, err)
++	}
++}
++
+ // resultHandler records a build result.
+ // It reads a JSON-encoded Result value from the request body,
+ // creates a new Result entity, and updates the relevant Commit entity.
+@@ -408,6 +442,7 @@ func AuthHandler(h http.HandlerFunc) http.HandlerFunc {
+ func init() {
+ 	// authenticated handlers
+ 	http.HandleFunc("/commit", AuthHandler(commitHandler))
++	http.HandleFunc("/packages", AuthHandler(packagesHandler))
+ 	http.HandleFunc("/result", AuthHandler(resultHandler))
+ 	http.HandleFunc("/tag", AuthHandler(tagHandler))
+ 	http.HandleFunc("/todo", AuthHandler(todoHandler))
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 83df0529af..10dd0c44fb 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -4,8 +4,6 @@
+ 
+ package build
+ 
+-// TODO(adg): test branches
+-// TODO(adg): test non-Go packages
+ // TODO(adg): test authentication
+ 
+ import (
+@@ -32,33 +30,67 @@ var testEntityKinds = []string{
+ 	"Log",
+ }
+ 
++const testPkg = "code.google.com/p/go.more"
++
++var testPackage = &Package{Name: "Test", Path: testPkg}
++
++var testPackages = []*Package{
++	&Package{Name: "Go", Path: ""},
++	testPackage,
++}
++
+ var testRequests = []struct {
+ 	path string
+ 	vals url.Values
+ 	req  interface{}
+ 	res  interface{}
+ }{
++	// Packages
++	{"/packages", nil, nil, []*Package{testPackage}},
++
++	// Go repo
+ 	{"/commit", nil, &Commit{Hash: "0001", ParentHash: "0000"}, nil},
+ 	{"/commit", nil, &Commit{Hash: "0002", ParentHash: "0001"}, nil},
+ 	{"/commit", nil, &Commit{Hash: "0003", ParentHash: "0002"}, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+ 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
+-
+ 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+-
+-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: false, Log: []byte("test")}, nil},
++	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: true}, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+-	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
+ 
++	// multiple builders
++	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
+ 	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0003", OK: true}, nil},
+ 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+ 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0002"},
+-}
+ 
+-var testPackages = []*Package{
+-	&Package{Name: "Go", Path: ""},
+-	&Package{Name: "Other", Path: "code.google.com/p/go.other"},
++	// branches
++	{"/commit", nil, &Commit{Hash: "0004", ParentHash: "0003"}, nil},
++	{"/commit", nil, &Commit{Hash: "0005", ParentHash: "0002"}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0005"},
++	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0004"},
++	{"/result", nil, &Result{Builder: "linux-386", Hash: "0004", OK: true}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
++
++	// logs
++	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: []byte("test")}, nil},
++	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
++	{"/todo", url.Values{"builder": {"linux-386"}}, nil, ""},
++
++	// non-Go repos
++	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
++	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1002", ParentHash: "1001"}, nil},
++	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1003", ParentHash: "1002"}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1003"},
++	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1003", GoHash: "0001", OK: true}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1002"},
++	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1002", GoHash: "0001", OK: true}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1001"},
++	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
++	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, ""},
++	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, "1003"},
+ }
+ 
+ func testHandler(w http.ResponseWriter, r *http.Request) {
+@@ -106,11 +138,13 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
+ 		http.DefaultServeMux.ServeHTTP(rec, req)
+ 		if rec.Code != 0 && rec.Code != 200 {
+ 			errorf(rec.Body.String())
++			return
+ 		}
+ 		if e, ok := t.res.(string); ok {
+ 			g := rec.Body.String()
+ 			if g != e {
+ 				errorf("body mismatch: got %q want %q", g, e)
++				return
+ 			}
+ 		}
+ 	}

@@ -8,8 +8,48 @@ Date:   Fri Oct 8 09:59:15 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/354729
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httputil/dump.go | 2 +-
  src/net/http/serve_test.go    | 2 +-
  src/net/http/transfer.go      | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 2948f27e5d..d7baecd9c1 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -292,7 +292,7 @@ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
+ // can detect that the lack of body was intentional.
+ var errNoBody = errors.New("sentinel error value")
+ 
+-// failureToReadBody is a io.ReadCloser that just returns errNoBody on
++// failureToReadBody is an io.ReadCloser that just returns errNoBody on
+ // Read. It's swapped in when we don't actually want to consume
+ // the body, but need a non-nil one, and want to distinguish the
+ // error from reading the dummy body.
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index e8fb77446c..27dff2bf45 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6557,7 +6557,7 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
+ 
+ 	rwc, ok := resp.Body.(io.ReadWriteCloser)
+ 	if !ok {
+-		t.Fatalf("Response.Body is not a io.ReadWriteCloser: %T", resp.Body)
++		t.Fatalf("Response.Body is not an io.ReadWriteCloser: %T", resp.Body)
+ 	}
+ 
+ 	_, err = rwc.Write([]byte("hello"))
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 5ff89cc17f..2be1c9fa3c 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -1030,7 +1030,7 @@ func (b *body) registerOnHitEOF(fn func()) {
+ 	b.onHitEOF = fn
+ }
+ 
+-// bodyLocked is a io.Reader reading from a *body when its mutex is
++// bodyLocked is an io.Reader reading from a *body when its mutex is
+ // already held.
+ type bodyLocked struct {
+ 	b *body

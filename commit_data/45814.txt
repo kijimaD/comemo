@@ -19,6 +19,23 @@ Date:   Thu Nov 19 13:26:51 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/build.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e0aa691659..ca88f0efa1 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -840,11 +840,6 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 	}
+ 
+ 	// Check that named packages are all provided by the same module.
+-	for _, mod := range modload.LoadedModules() {
+-		if mod.Path == installMod.Path && mod.Version != installMod.Version {
+-			base.Fatalf("go install: %s: module requires a higher version of itself (%s)", installMod, mod.Version)
+-		}
+-	}
+ 	for _, pkg := range mainPkgs {
+ 		if pkg.Module == nil {
+ 			// Packages in std, cmd, and their vendored dependencies

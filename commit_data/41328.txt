@@ -13,7 +13,36 @@ Date:   Wed Sep 25 00:14:58 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197118
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go      | 1 -
  src/cmd/compile/internal/gc/typecheck.go | 5 -----
  2 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index dff33ee530..f75e35c3be 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -238,7 +238,6 @@ func Main(archInit func(*Arch)) {
+ 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+ 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
+ 	}
+-	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+ 	if enableTrace {
+ 		flag.BoolVar(&trace, "t", false, "trace type-checking")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 48a3e1100e..b35ab543ec 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2747,11 +2747,6 @@ func pushtype(n *Node, t *types.Type) {
+ 		n.Right = typenod(t)
+ 		n.SetImplicit(true)       // don't print
+ 		n.Right.SetImplicit(true) // * is okay
+-	} else if Debug['s'] != 0 {
+-		n.Right = typecheck(n.Right, ctxType)
+-		if n.Right.Type != nil && types.Identical(n.Right.Type, t) {
+-			fmt.Printf("%v: redundant type: %v\n", n.Line(), t)
+-		}
+ 	}
+ }
+ 

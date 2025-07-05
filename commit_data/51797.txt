@@ -15,7 +15,83 @@ Date:   Tue Mar 15 17:49:01 2022 +0000
     Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/rlimit.go      | 31 -------------------------------
  src/os/rlimit_test.go | 32 --------------------------------
  2 files changed, 63 deletions(-)
+
+diff --git a/src/os/rlimit.go b/src/os/rlimit.go
+deleted file mode 100644
+index 3e29db9562..0000000000
+--- a/src/os/rlimit.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+-
+-package os
+-
+-import "syscall"
+-
+-// Some systems set an artificially low soft limit on open file count, for compatibility
+-// with code that uses select and its hard-coded maximum file descriptor
+-// (limited by the size of fd_set).
+-//
+-// Go does not use select, so it should not be subject to these limits.
+-// On some systems the limit is 256, which is very easy to run into,
+-// even in simple programs like gofmt when they parallelize walking
+-// a file tree.
+-//
+-// After a long discussion on go.dev/issue/46279, we decided the
+-// best approach was for Go to raise the limit unconditionally for itself,
+-// and then leave old software to set the limit back as needed.
+-// Code that really wants Go to leave the limit alone can set the hard limit,
+-// which Go of course has no choice but to respect.
+-func init() {
+-	var lim syscall.Rlimit
+-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
+-		lim.Cur = lim.Max
+-		syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
+-	}
+-}
+diff --git a/src/os/rlimit_test.go b/src/os/rlimit_test.go
+deleted file mode 100644
+index 9bb6858a86..0000000000
+--- a/src/os/rlimit_test.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os_test
+-
+-import (
+-	. "os"
+-	"testing"
+-)
+-
+-func TestOpenFileLimit(t *testing.T) {
+-	// For open file count,
+-	// macOS sets the default soft limit to 256 and no hard limit.
+-	// CentOS and Fedora set the default soft limit to 1024,
+-	// with hard limits of 4096 and 524288, respectively.
+-	// Check that we can open 1200 files, which proves
+-	// that the rlimit is being raised appropriately on those systems.
+-	var files []*File
+-	for i := 0; i < 1200; i++ {
+-		f, err := Open("rlimit.go")
+-		if err != nil {
+-			t.Error(err)
+-			break
+-		}
+-		files = append(files, f)
+-	}
+-
+-	for _, f := range files {
+-		f.Close()
+-	}
+-}

@@ -18,7 +18,81 @@ Date:   Mon Dec 2 12:07:22 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/race/timer_test.go | 33 +++++++++++++++++++++++++++++++++
  src/runtime/time.go            | 11 ++++++-----
  2 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/race/timer_test.go b/src/runtime/race/timer_test.go
+new file mode 100644
+index 0000000000..a6c34a8352
+--- /dev/null
++++ b/src/runtime/race/timer_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package race_test
++
++import (
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestTimers(t *testing.T) {
++	const goroutines = 8
++	var wg sync.WaitGroup
++	wg.Add(goroutines)
++	var mu sync.Mutex
++	for i := 0; i < goroutines; i++ {
++		go func() {
++			defer wg.Done()
++			ticker := time.NewTicker(1)
++			defer ticker.Stop()
++			for c := 0; c < 1000; c++ {
++				<-ticker.C
++				mu.Lock()
++				mu.Unlock()
++			}
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index a7d14cf877..d64bea814f 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -805,10 +805,11 @@ func runtimer(pp *p, now int64) int64 {
+ //go:systemstack
+ func runOneTimer(pp *p, t *timer, now int64) {
+ 	if raceenabled {
+-		if pp.timerRaceCtx == 0 {
+-			pp.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
++		ppcur := getg().m.p.ptr()
++		if ppcur.timerRaceCtx == 0 {
++			ppcur.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
+ 		}
+-		raceacquirectx(pp.timerRaceCtx, unsafe.Pointer(t))
++		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
+ 	}
+ 
+ 	f := t.f
+@@ -836,12 +837,12 @@ func runOneTimer(pp *p, t *timer, now int64) {
+ 	}
+ 
+ 	if raceenabled {
+-		// Temporarily use the P's racectx for g0.
++		// Temporarily use the current P's racectx for g0.
+ 		gp := getg()
+ 		if gp.racectx != 0 {
+ 			throw("runOneTimer: unexpected racectx")
+ 		}
+-		gp.racectx = pp.timerRaceCtx
++		gp.racectx = gp.m.p.ptr().timerRaceCtx
+ 	}
+ 
+ 	unlock(&pp.timersLock)

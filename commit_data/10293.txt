@@ -7,7 +7,7 @@ Date:   Tue Nov 8 15:41:54 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5345045
-
+---
  src/pkg/math/big/int.go                        | 2 +-
  src/pkg/math/big/int_test.go                   | 2 +-
  src/pkg/math/big/nat.go                        | 2 +-
@@ -96,3 +96,1387 @@ Date:   Tue Nov 8 15:41:54 2011 -0800
  src/pkg/websocket/websocket.go                 | 6 +++---
  src/pkg/websocket/websocket_test.go            | 6 +++---
  87 files changed, 126 insertions(+), 126 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index f325723804..533a97f749 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -10,7 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"rand"
++	"math/rand"
+ 	"strings"
+ )
+ 
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index d66bb5fa05..163c662b0b 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -6,9 +6,9 @@ package big
+ 
+ import (
+ 	"bytes"
++	"encoding/gob"
+ 	"encoding/hex"
+ 	"fmt"
+-	"gob"
+ 	"testing"
+ 	"testing/quick"
+ )
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index a46f782ac2..3fa41e7565 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -21,7 +21,7 @@ package big
+ import (
+ 	"errors"
+ 	"io"
+-	"rand"
++	"math/rand"
+ )
+ 
+ // An unsigned integer x of the form
+diff --git a/src/pkg/math/big/rat_test.go b/src/pkg/math/big/rat_test.go
+index 2443450411..f7f31ae1a2 100644
+--- a/src/pkg/math/big/rat_test.go
++++ b/src/pkg/math/big/rat_test.go
+@@ -6,8 +6,8 @@ package big
+ 
+ import (
+ 	"bytes"
++	"encoding/gob"
+ 	"fmt"
+-	"gob"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index ce2a27c441..89ff5e489e 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -6,10 +6,10 @@ package multipart
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"json"
+ 	"strings"
+ 	"testing"
+ )
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index e66f28c195..f4ed8b87cc 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -7,7 +7,7 @@ package net
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"rand"
++	"math/rand"
+ 	"sort"
+ )
+ 
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index e321ed9abe..bab5f2a9b6 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -17,7 +17,7 @@
+ package net
+ 
+ import (
+-	"rand"
++	"math/rand"
+ 	"sync"
+ 	"time"
+ )
+diff --git a/src/pkg/net/http/cgi/child.go b/src/pkg/net/http/cgi/child.go
+index 1618268914..e188cd4a25 100644
+--- a/src/pkg/net/http/cgi/child.go
++++ b/src/pkg/net/http/cgi/child.go
+@@ -12,14 +12,14 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"io/ioutil"
+ 	"net"
++	"net/http"
++	"net/url"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+-	"url"
+ )
+ 
+ // Request returns the HTTP request as represented in the current
+diff --git a/src/pkg/net/http/cgi/host.go b/src/pkg/net/http/cgi/host.go
+index 8c999c0a36..615d366aed 100644
+--- a/src/pkg/net/http/cgi/host.go
++++ b/src/pkg/net/http/cgi/host.go
+@@ -16,12 +16,12 @@ package cgi
+ 
+ import (
+ 	"bufio"
+-	"exec"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index fd0e099371..635a85521e 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -8,13 +8,13 @@ package cgi
+ 
+ import (
+ 	"bufio"
+-	"exec"
+ 	"fmt"
+-	"http"
+-	"http/httptest"
+ 	"io"
+ 	"net"
++	"net/http"
++	"net/http/httptest"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strconv"
+diff --git a/src/pkg/net/http/cgi/matryoshka_test.go b/src/pkg/net/http/cgi/matryoshka_test.go
+index 3e4a6addfa..1a44df2040 100644
+--- a/src/pkg/net/http/cgi/matryoshka_test.go
++++ b/src/pkg/net/http/cgi/matryoshka_test.go
+@@ -10,7 +10,7 @@ package cgi
+ 
+ import (
+ 	"fmt"
+-	"http"
++	"net/http"
+ 	"os"
+ 	"testing"
+ )
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 17b4adc17e..211ac44c58 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -14,8 +14,8 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"net/url"
+ 	"strings"
+-	"url"
+ )
+ 
+ // A Client is an HTTP client. Its zero value (DefaultClient) is a usable client
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index fdad2cdf54..d224380298 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -10,15 +10,15 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+-	. "http"
+-	"http/httptest"
+ 	"io"
+ 	"io/ioutil"
+ 	"net"
++	. "net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+-	"url"
+ )
+ 
+ var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 9a537f90cb..24adf20298 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -5,8 +5,8 @@
+ package http
+ 
+ import (
++	"encoding/json"
+ 	"fmt"
+-	"json"
+ 	"reflect"
+ 	"testing"
+ 	"time"
+diff --git a/src/pkg/net/http/fcgi/child.go b/src/pkg/net/http/fcgi/child.go
+index f6591e081e..7b563951cc 100644
+--- a/src/pkg/net/http/fcgi/child.go
++++ b/src/pkg/net/http/fcgi/child.go
+@@ -8,10 +8,10 @@ package fcgi
+ 
+ import (
+ 	"fmt"
+-	"http"
+-	"http/cgi"
+ 	"io"
+ 	"net"
++	"net/http"
++	"net/http/cgi"
+ 	"os"
+ 	"time"
+ )
+diff --git a/src/pkg/net/http/filetransport_test.go b/src/pkg/net/http/filetransport_test.go
+index aaee73e9c3..265a3b903e 100644
+--- a/src/pkg/net/http/filetransport_test.go
++++ b/src/pkg/net/http/filetransport_test.go
+@@ -5,8 +5,8 @@
+ package http_test
+ 
+ import (
+-	"http"
+ 	"io/ioutil"
++	"net/http"
+ 	"path/filepath"
+ 	"testing"
+ )
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index eb0c67dfa1..5f91ff5cbf 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -17,7 +17,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A Dir implements http.FileSystem using the native file
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 76312e8bf0..e1a784c1f6 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -6,14 +6,14 @@ package http_test
+ 
+ import (
+ 	"fmt"
+-	. "http"
+-	"http/httptest"
+ 	"io/ioutil"
++	. "net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+-	"url"
+ )
+ 
+ const (
+diff --git a/src/pkg/net/http/httptest/recorder.go b/src/pkg/net/http/httptest/recorder.go
+index f69279f7c1..9aa0d510bd 100644
+--- a/src/pkg/net/http/httptest/recorder.go
++++ b/src/pkg/net/http/httptest/recorder.go
+@@ -7,7 +7,7 @@ package httptest
+ 
+ import (
+ 	"bytes"
+-	"http"
++	"net/http"
+ )
+ 
+ // ResponseRecorder is an implementation of http.ResponseWriter that
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index ea719cfbd5..f09e826d9c 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -11,8 +11,8 @@ import (
+ 	"crypto/tls"
+ 	"flag"
+ 	"fmt"
+-	"http"
+ 	"net"
++	"net/http"
+ 	"os"
+ 	"time"
+ )
+diff --git a/src/pkg/net/http/httputil/chunked.go b/src/pkg/net/http/httputil/chunked.go
+index 8286692086..34e47c796c 100644
+--- a/src/pkg/net/http/httputil/chunked.go
++++ b/src/pkg/net/http/httputil/chunked.go
+@@ -6,8 +6,8 @@ package httputil
+ 
+ import (
+ 	"bufio"
+-	"http"
+ 	"io"
++	"net/http"
+ 	"strconv"
+ 	"strings"
+ )
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index 5b861b7dc3..31696aec86 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -8,10 +8,10 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"io/ioutil"
+ 	"net"
++	"net/http"
+ 	"strings"
+ )
+ 
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index b9856ce94e..819efb5847 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -7,11 +7,11 @@ package httputil
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"io/ioutil"
++	"net/http"
++	"net/url"
+ 	"testing"
+-	"url"
+ )
+ 
+ type dumpTest struct {
+diff --git a/src/pkg/net/http/httputil/persist.go b/src/pkg/net/http/httputil/persist.go
+index 5d22cdd4ab..d7b670110c 100644
+--- a/src/pkg/net/http/httputil/persist.go
++++ b/src/pkg/net/http/httputil/persist.go
+@@ -9,9 +9,9 @@ package httputil
+ import (
+ 	"bufio"
+ 	"errors"
+-	"http"
+ 	"io"
+ 	"net"
++	"net/http"
+ 	"net/textproto"
+ 	"os"
+ 	"sync"
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index 1c5a4463a0..bfcb3ca6b1 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -7,14 +7,14 @@
+ package httputil
+ 
+ import (
+-	"http"
+ 	"io"
+ 	"log"
+ 	"net"
++	"net/http"
++	"net/url"
+ 	"strings"
+ 	"sync"
+ 	"time"
+-	"url"
+ )
+ 
+ // ReverseProxy is an HTTP Handler that takes an incoming request and
+diff --git a/src/pkg/net/http/httputil/reverseproxy_test.go b/src/pkg/net/http/httputil/reverseproxy_test.go
+index d76829a3c5..655784b30d 100644
+--- a/src/pkg/net/http/httputil/reverseproxy_test.go
++++ b/src/pkg/net/http/httputil/reverseproxy_test.go
+@@ -7,11 +7,11 @@
+ package httputil
+ 
+ import (
+-	"http"
+-	"http/httptest"
+ 	"io/ioutil"
++	"net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"testing"
+-	"url"
+ )
+ 
+ func TestReverseProxy(t *testing.T) {
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index a118a259b6..c0327a9482 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -28,8 +28,8 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
+-	"http"
+ 	"io"
++	"net/http"
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
+diff --git a/src/pkg/net/http/readrequest_test.go b/src/pkg/net/http/readrequest_test.go
+index 524b208dba..2219d43316 100644
+--- a/src/pkg/net/http/readrequest_test.go
++++ b/src/pkg/net/http/readrequest_test.go
+@@ -9,9 +9,9 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"net/url"
+ 	"reflect"
+ 	"testing"
+-	"url"
+ )
+ 
+ type reqTest struct {
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 0cf1224ddb..4410ca1d11 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -18,9 +18,9 @@ import (
+ 	"mime"
+ 	"mime/multipart"
+ 	"net/textproto"
++	"net/url"
+ 	"strconv"
+ 	"strings"
+-	"url"
+ )
+ 
+ const (
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index d6487e1974..714cb64f47 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -7,17 +7,17 @@ package http_test
+ import (
+ 	"bytes"
+ 	"fmt"
+-	. "http"
+-	"http/httptest"
+ 	"io"
+ 	"io/ioutil"
+ 	"mime/multipart"
++	. "net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"os"
+ 	"reflect"
+ 	"regexp"
+ 	"strings"
+ 	"testing"
+-	"url"
+ )
+ 
+ func TestQuery(t *testing.T) {
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index 3da8ad719b..8081589f5f 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -10,9 +10,9 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"net/url"
+ 	"strings"
+ 	"testing"
+-	"url"
+ )
+ 
+ type reqWriteTest struct {
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 7be7150ef1..ae314b5ac9 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -11,9 +11,9 @@ import (
+ 	"errors"
+ 	"io"
+ 	"net/textproto"
++	"net/url"
+ 	"strconv"
+ 	"strings"
+-	"url"
+ )
+ 
+ var respExcludeHeader = map[string]bool{
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index 6a141796bb..be717aa83c 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -12,9 +12,9 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"net/url"
+ 	"reflect"
+ 	"testing"
+-	"url"
+ )
+ 
+ type respTest struct {
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index fac2f5afed..e278396091 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -11,20 +11,20 @@ import (
+ 	"bytes"
+ 	"crypto/tls"
+ 	"fmt"
+-	. "http"
+-	"http/httptest"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"net"
++	. "net/http"
++	"net/http/httptest"
+ 	"net/http/httputil"
++	"net/url"
+ 	"os"
+ 	"reflect"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+-	"url"
+ )
+ 
+ type dummyAddr string
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index f2a4f01ad8..8c4889436f 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -20,13 +20,13 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"net"
++	"net/url"
+ 	"path"
+ 	"runtime/debug"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"time"
+-	"url"
+ )
+ 
+ // Errors introduced by the HTTP server.
+diff --git a/src/pkg/net/http/sniff_test.go b/src/pkg/net/http/sniff_test.go
+index e9195a5e16..a414e6420d 100644
+--- a/src/pkg/net/http/sniff_test.go
++++ b/src/pkg/net/http/sniff_test.go
+@@ -6,10 +6,10 @@ package http_test
+ 
+ import (
+ 	"bytes"
+-	. "http"
+-	"http/httptest"
+ 	"io/ioutil"
+ 	"log"
++	. "net/http"
++	"net/http/httptest"
+ 	"strconv"
+ 	"testing"
+ )
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 5e167fef8e..da5244b2c1 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -20,10 +20,10 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"net"
++	"net/url"
+ 	"os"
+ 	"strings"
+ 	"sync"
+-	"url"
+ )
+ 
+ // DefaultTransport is the default implementation of Transport and is
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index b2d0ebaf6b..7729797244 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -11,15 +11,15 @@ import (
+ 	"compress/gzip"
+ 	"crypto/rand"
+ 	"fmt"
+-	. "http"
+-	"http/httptest"
+ 	"io"
+ 	"io/ioutil"
++	. "net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+-	"url"
+ )
+ 
+ // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
+diff --git a/src/pkg/net/http/triv.go b/src/pkg/net/http/triv.go
+index a8fd99aa4b..994fc0e32f 100644
+--- a/src/pkg/net/http/triv.go
++++ b/src/pkg/net/http/triv.go
+@@ -9,9 +9,9 @@ import (
+ 	"expvar"
+ 	"flag"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"strconv"
+ )
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index ecc84decf2..6fb414e089 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -6,12 +6,12 @@ package rpc
+ 
+ import (
+ 	"bufio"
++	"encoding/gob"
+ 	"errors"
+-	"gob"
+-	"http"
+ 	"io"
+ 	"log"
+ 	"net"
++	"net/http"
+ 	"sync"
+ )
+ 
+diff --git a/src/pkg/net/rpc/debug.go b/src/pkg/net/rpc/debug.go
+index 02d577f677..663663fe94 100644
+--- a/src/pkg/net/rpc/debug.go
++++ b/src/pkg/net/rpc/debug.go
+@@ -11,9 +11,9 @@ package rpc
+ 
+ import (
+ 	"fmt"
+-	"http"
++	"net/http"
+ 	"sort"
+-	"template"
++	"text/template"
+ )
+ 
+ const debugText = `<html>
+diff --git a/src/pkg/net/rpc/jsonrpc/all_test.go b/src/pkg/net/rpc/jsonrpc/all_test.go
+index 1451a0fed8..e6c7441f06 100644
+--- a/src/pkg/net/rpc/jsonrpc/all_test.go
++++ b/src/pkg/net/rpc/jsonrpc/all_test.go
+@@ -5,12 +5,12 @@
+ package jsonrpc
+ 
+ import (
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"json"
+ 	"net"
+-	"rpc"
++	"net/rpc"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/net/rpc/jsonrpc/client.go b/src/pkg/net/rpc/jsonrpc/client.go
+index f0475f060a..3fa8cbf08a 100644
+--- a/src/pkg/net/rpc/jsonrpc/client.go
++++ b/src/pkg/net/rpc/jsonrpc/client.go
+@@ -7,11 +7,11 @@
+ package jsonrpc
+ 
+ import (
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+-	"json"
+ 	"net"
+-	"rpc"
++	"net/rpc"
+ 	"sync"
+ )
+ 
+diff --git a/src/pkg/net/rpc/jsonrpc/server.go b/src/pkg/net/rpc/jsonrpc/server.go
+index 9fe3470c02..4c54553a72 100644
+--- a/src/pkg/net/rpc/jsonrpc/server.go
++++ b/src/pkg/net/rpc/jsonrpc/server.go
+@@ -5,10 +5,10 @@
+ package jsonrpc
+ 
+ import (
++	"encoding/json"
+ 	"errors"
+ 	"io"
+-	"json"
+-	"rpc"
++	"net/rpc"
+ 	"sync"
+ )
+ 
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index d03153305c..920ae9137a 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -114,17 +114,17 @@ package rpc
+ 
+ import (
+ 	"bufio"
++	"encoding/gob"
+ 	"errors"
+-	"gob"
+-	"http"
+ 	"io"
+ 	"log"
+ 	"net"
++	"net/http"
+ 	"reflect"
+ 	"strings"
+ 	"sync"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ const (
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index 119de7f89b..f2895217aa 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -7,10 +7,10 @@ package rpc
+ import (
+ 	"errors"
+ 	"fmt"
+-	"http/httptest"
+ 	"io"
+ 	"log"
+ 	"net"
++	"net/http/httptest"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+diff --git a/src/pkg/old/netchan/common.go b/src/pkg/old/netchan/common.go
+index 855b7175f7..dfd1fd0342 100644
+--- a/src/pkg/old/netchan/common.go
++++ b/src/pkg/old/netchan/common.go
+@@ -5,8 +5,8 @@
+ package netchan
+ 
+ import (
++	"encoding/gob"
+ 	"errors"
+-	"gob"
+ 	"io"
+ 	"reflect"
+ 	"sync"
+diff --git a/src/pkg/old/regexp/regexp.go b/src/pkg/old/regexp/regexp.go
+index 720aaf36e4..86df4dedd9 100644
+--- a/src/pkg/old/regexp/regexp.go
++++ b/src/pkg/old/regexp/regexp.go
+@@ -72,7 +72,7 @@ import (
+ 	"bytes"
+ 	"io"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ var debug = false
+diff --git a/src/pkg/old/template/parse.go b/src/pkg/old/template/parse.go
+index fc9885feef..b8c806472e 100644
+--- a/src/pkg/old/template/parse.go
++++ b/src/pkg/old/template/parse.go
+@@ -14,7 +14,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Errors returned during parsing and execution.  Users may extract the information and reformat
+diff --git a/src/pkg/old/template/template_test.go b/src/pkg/old/template/template_test.go
+index c88346995a..9462c7ee3c 100644
+--- a/src/pkg/old/template/template_test.go
++++ b/src/pkg/old/template/template_test.go
+@@ -6,10 +6,10 @@ package template
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"json"
+ 	"strings"
+ 	"testing"
+ )
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+index ad6c8e306c..4e90385da9 100644
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -9,8 +9,8 @@ package os
+ import (
+ 	"errors"
+ 	"syscall"
++	"unicode/utf16"
+ 	"unsafe"
+-	"utf16"
+ )
+ 
+ // ENOENV is the error indicating that an environment variable does not exist.
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index bc0930e98b..8cf1f9ad10 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -9,7 +9,7 @@ import (
+ 	"os"
+ 	"sort"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ var ErrBadPattern = errors.New("syntax error in pattern")
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index bc685f48fb..ba7e4de321 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -7,7 +7,7 @@ package path
+ import (
+ 	"errors"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ var ErrBadPattern = errors.New("syntax error in pattern")
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index 499d1a529f..d981f5495e 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -9,15 +9,15 @@ import (
+ 	"compress/bzip2"
+ 	"fmt"
+ 	"io"
++	"math/rand"
+ 	old "old/regexp"
+ 	"os"
+ 	"path/filepath"
+-	"rand"
+ 	"regexp/syntax"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // TestRE2 tests this package's regexp API against test cases
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 9e9fb856dc..b906076f9e 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -60,7 +60,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ var debug = false
+diff --git a/src/pkg/regexp/syntax/parse.go b/src/pkg/regexp/syntax/parse.go
+index 29ad4d2f89..6c37df9707 100644
+--- a/src/pkg/regexp/syntax/parse.go
++++ b/src/pkg/regexp/syntax/parse.go
+@@ -8,7 +8,7 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // An Error describes a failure to parse a regular expression
+diff --git a/src/pkg/runtime/softfloat64_test.go b/src/pkg/runtime/softfloat64_test.go
+index fb7f3d3c00..df63010fbd 100644
+--- a/src/pkg/runtime/softfloat64_test.go
++++ b/src/pkg/runtime/softfloat64_test.go
+@@ -6,7 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"math"
+-	"rand"
++	"math/rand"
+ 	. "runtime"
+ 	"testing"
+ )
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index a5640151cb..ee8a9d0e84 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -7,7 +7,7 @@ package sort_test
+ import (
+ 	"fmt"
+ 	"math"
+-	"rand"
++	"math/rand"
+ 	. "sort"
+ 	"strconv"
+ 	"testing"
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 24b19be383..9b48c07fb1 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ const lowerhex = "0123456789abcdef"
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index 4f24b5b638..8ff851f36a 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -7,7 +7,7 @@ package strings
+ import (
+ 	"errors"
+ 	"io"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A Reader implements the io.Reader, io.ByteScanner, and
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 4f6e8a6fe3..b4d920714a 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -7,7 +7,7 @@ package strings
+ 
+ import (
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n < 0 means no limit).
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 2cf4bdec13..304d69a19d 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -12,8 +12,8 @@ import (
+ 	. "strings"
+ 	"testing"
+ 	"unicode"
++	"unicode/utf8"
+ 	"unsafe"
+-	"utf8"
+ )
+ 
+ func eq(a, b []string) bool {
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index e4fafdb992..56eeb52da7 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -8,8 +8,8 @@ package syscall
+ 
+ import (
+ 	"sync"
++	"unicode/utf16"
+ 	"unsafe"
+-	"utf16"
+ )
+ 
+ var ForkLock sync.RWMutex
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index ea62df6a1f..124cdf9faf 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -7,8 +7,8 @@
+ package syscall
+ 
+ import (
++	"unicode/utf16"
+ 	"unsafe"
+-	"utf16"
+ )
+ 
+ const OS = "windows"
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 9e6b84bc29..f94c541f2b 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -9,7 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"math"
+-	"rand"
++	"math/rand"
+ 	"reflect"
+ 	"strings"
+ )
+diff --git a/src/pkg/testing/quick/quick_test.go b/src/pkg/testing/quick/quick_test.go
+index e9ff1aa449..a6cf0dc396 100644
+--- a/src/pkg/testing/quick/quick_test.go
++++ b/src/pkg/testing/quick/quick_test.go
+@@ -5,7 +5,7 @@
+ package quick
+ 
+ import (
+-	"rand"
++	"math/rand"
+ 	"reflect"
+ 	"testing"
+ )
+diff --git a/src/pkg/testing/script/script.go b/src/pkg/testing/script/script.go
+index 98f3625198..d8f8093af9 100644
+--- a/src/pkg/testing/script/script.go
++++ b/src/pkg/testing/script/script.go
+@@ -7,7 +7,7 @@ package script
+ 
+ import (
+ 	"fmt"
+-	"rand"
++	"math/rand"
+ 	"reflect"
+ 	"strings"
+ )
+diff --git a/src/pkg/text/scanner/scanner.go b/src/pkg/text/scanner/scanner.go
+index 9e230174ca..f46f63d0ee 100644
+--- a/src/pkg/text/scanner/scanner.go
++++ b/src/pkg/text/scanner/scanner.go
+@@ -31,7 +31,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // TODO(gri): Consider changing this to use the new (token) Position package.
+diff --git a/src/pkg/text/scanner/scanner_test.go b/src/pkg/text/scanner/scanner_test.go
+index b07e559e1a..bb3adb55a7 100644
+--- a/src/pkg/text/scanner/scanner_test.go
++++ b/src/pkg/text/scanner/scanner_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	"strings"
+ 	"testing"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // A StringReader delivers its data one string segment at a time via Read.
+diff --git a/src/pkg/text/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+index d588b385d2..c136ca2a17 100644
+--- a/src/pkg/text/tabwriter/tabwriter.go
++++ b/src/pkg/text/tabwriter/tabwriter.go
+@@ -14,7 +14,7 @@ import (
+ 	"bytes"
+ 	"io"
+ 	"os"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 8ebd52bf3f..19108825d5 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -10,7 +10,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"strings"
+-	"template/parse"
++	"text/template/parse"
+ )
+ 
+ // state represents the state of an execution. It's not part of the
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 1eff7165fa..2ca09a7c17 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -8,11 +8,11 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"net/url"
+ 	"reflect"
+ 	"strings"
+ 	"unicode"
+-	"url"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // FuncMap is the type of the map defining the mapping from names to functions.
+diff --git a/src/pkg/text/template/parse.go b/src/pkg/text/template/parse.go
+index 6ecd2f50b4..fa562141c2 100644
+--- a/src/pkg/text/template/parse.go
++++ b/src/pkg/text/template/parse.go
+@@ -6,7 +6,7 @@ package template
+ 
+ import (
+ 	"reflect"
+-	"template/parse"
++	"text/template/parse"
+ )
+ 
+ // Template is the representation of a parsed template.
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 04c105d161..97c19a160b 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // item represents a token or text string returned from the scanner.
+diff --git a/src/pkg/text/template/set.go b/src/pkg/text/template/set.go
+index ba5dc00544..747cc7802b 100644
+--- a/src/pkg/text/template/set.go
++++ b/src/pkg/text/template/set.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"reflect"
+-	"template/parse"
++	"text/template/parse"
+ )
+ 
+ // Set holds a set of related templates that can refer to one another by name.
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 8f511fa53f..a405da3076 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -11,9 +11,9 @@ import (
+ 	"bufio"
+ 	"flag"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+diff --git a/src/pkg/unicode/utf16/utf16_test.go b/src/pkg/unicode/utf16/utf16_test.go
+index 7ea290a529..d453b2f984 100644
+--- a/src/pkg/unicode/utf16/utf16_test.go
++++ b/src/pkg/unicode/utf16/utf16_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"reflect"
+ 	"testing"
+ 	"unicode"
+-	. "utf16"
++	. "unicode/utf16"
+ )
+ 
+ type encodeTest struct {
+diff --git a/src/pkg/unicode/utf8/string_test.go b/src/pkg/unicode/utf8/string_test.go
+index 920d2a0ea3..2c139bea98 100644
+--- a/src/pkg/unicode/utf8/string_test.go
++++ b/src/pkg/unicode/utf8/string_test.go
+@@ -5,9 +5,9 @@
+ package utf8_test
+ 
+ import (
+-	"rand"
++	"math/rand"
+ 	"testing"
+-	. "utf8"
++	. "unicode/utf8"
+ )
+ 
+ func TestScanForwards(t *testing.T) {
+diff --git a/src/pkg/unicode/utf8/utf8_test.go b/src/pkg/unicode/utf8/utf8_test.go
+index 857bcf6e1a..63514265bb 100644
+--- a/src/pkg/unicode/utf8/utf8_test.go
++++ b/src/pkg/unicode/utf8/utf8_test.go
+@@ -7,7 +7,7 @@ package utf8_test
+ import (
+ 	"bytes"
+ 	"testing"
+-	. "utf8"
++	. "unicode/utf8"
+ )
+ 
+ type Utf8Map struct {
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 3da39a0ce4..5dfd824e6e 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -9,7 +9,7 @@ import (
+ 	"crypto/tls"
+ 	"io"
+ 	"net"
+-	"url"
++	"net/url"
+ )
+ 
+ // DialError is an error that occurs while dialling a websocket server.
+diff --git a/src/pkg/websocket/hixie.go b/src/pkg/websocket/hixie.go
+index 63eebc9502..4d5360ff4b 100644
+--- a/src/pkg/websocket/hixie.go
++++ b/src/pkg/websocket/hixie.go
+@@ -13,13 +13,13 @@ import (
+ 	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"io/ioutil"
+-	"rand"
++	"math/rand"
++	"net/http"
++	"net/url"
+ 	"strconv"
+ 	"strings"
+-	"url"
+ )
+ 
+ // An aray of characters to be randomly inserted to construct Sec-WebSocket-Key
+diff --git a/src/pkg/websocket/hixie_test.go b/src/pkg/websocket/hixie_test.go
+index 40cb53f4ea..bf537c01b7 100644
+--- a/src/pkg/websocket/hixie_test.go
++++ b/src/pkg/websocket/hixie_test.go
+@@ -8,11 +8,11 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
+-	"http"
+ 	"io"
++	"net/http"
++	"net/url"
+ 	"strings"
+ 	"testing"
+-	"url"
+ )
+ 
+ // Test the getChallengeResponse function with values from section
+diff --git a/src/pkg/websocket/hybi.go b/src/pkg/websocket/hybi.go
+index d3d4258e98..b17d9470bb 100644
+--- a/src/pkg/websocket/hybi.go
++++ b/src/pkg/websocket/hybi.go
+@@ -15,11 +15,11 @@ import (
+ 	"encoding/base64"
+ 	"encoding/binary"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"io/ioutil"
++	"net/http"
++	"net/url"
+ 	"strings"
+-	"url"
+ )
+ 
+ const (
+diff --git a/src/pkg/websocket/hybi_test.go b/src/pkg/websocket/hybi_test.go
+index df0f555265..60375ff32a 100644
+--- a/src/pkg/websocket/hybi_test.go
++++ b/src/pkg/websocket/hybi_test.go
+@@ -8,11 +8,11 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
+-	"http"
+ 	"io"
++	"net/http"
++	"net/url"
+ 	"strings"
+ 	"testing"
+-	"url"
+ )
+ 
+ // Test the getNonceAccept function with values in
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 8f16517c03..57dc4fd1df 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -7,8 +7,8 @@ package websocket
+ import (
+ 	"bufio"
+ 	"fmt"
+-	"http"
+ 	"io"
++	"net/http"
+ )
+ 
+ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Request) (conn *Conn, err error) {
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index 9732ae1173..1e4036ce39 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -9,14 +9,14 @@ package websocket
+ import (
+ 	"bufio"
+ 	"crypto/tls"
+-	"http"
++	"encoding/json"
+ 	"io"
+ 	"io/ioutil"
+-	"json"
+ 	"net"
++	"net/http"
++	"net/url"
+ 	"os"
+ 	"sync"
+-	"url"
+ )
+ 
+ const (
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 25fe264673..f41c355fac 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -7,15 +7,15 @@ package websocket
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"http"
+-	"http/httptest"
+ 	"io"
+ 	"log"
+ 	"net"
++	"net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+-	"url"
+ )
+ 
+ var serverAddr string

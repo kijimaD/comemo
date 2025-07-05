@@ -15,6 +15,29 @@ Date:   Tue Feb 27 21:13:15 2024 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/coverage/encodemeta/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/coverage/encodemeta/encode.go b/src/internal/coverage/encodemeta/encode.go
+index d211c7c08e..549b3f55a8 100644
+--- a/src/internal/coverage/encodemeta/encode.go
++++ b/src/internal/coverage/encodemeta/encode.go
+@@ -54,7 +54,7 @@ func NewCoverageMetaDataBuilder(pkgpath string, pkgname string, modulepath strin
+ 
+ func h32(x uint32, h hash.Hash, tmp []byte) {
+ 	tmp = tmp[:0]
+-	tmp = append(tmp, []byte{0, 0, 0, 0}...)
++	tmp = append(tmp, 0, 0, 0, 0)
+ 	binary.LittleEndian.PutUint32(tmp, x)
+ 	h.Write(tmp)
+ }
+@@ -117,7 +117,7 @@ func (b *CoverageMetaDataBuilder) reportWriteError(err error) {
+ 
+ func (b *CoverageMetaDataBuilder) wrUint32(w io.WriteSeeker, v uint32) {
+ 	b.tmp = b.tmp[:0]
+-	b.tmp = append(b.tmp, []byte{0, 0, 0, 0}...)
++	b.tmp = append(b.tmp, 0, 0, 0, 0)
+ 	binary.LittleEndian.PutUint32(b.tmp, v)
+ 	if nw, err := w.Write(b.tmp); err != nil {
+ 		b.reportWriteError(err)

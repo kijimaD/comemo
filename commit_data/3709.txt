@@ -8,7 +8,7 @@ Date:   Sun Nov 1 20:59:49 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1016011
-
+---
  src/cmd/godoc/main.go                |  2 +-
  src/pkg/archive/tar/reader.go        |  4 ++--
  src/pkg/archive/tar/writer.go        |  2 +-
@@ -29,3 +29,414 @@ Date:   Sun Nov 1 20:59:49 2009 -0800
  src/pkg/io/utils.go                  |  2 +-
  src/pkg/os/os_test.go                |  4 ++--
  19 files changed, 38 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 1d4617a465..76ebab07b8 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -71,7 +71,7 @@ func exec(c *http.Conn, args []string) (status int) {
+ 	}
+ 
+ 	var buf bytes.Buffer;
+-	io.Copy(r, &buf);
++	io.Copy(&buf, r);
+ 	wait, err := os.Wait(pid, 0);
+ 	if err != nil {
+ 		os.Stderr.Write(buf.Bytes());
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 083301b5f4..d5e45288c8 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -34,7 +34,7 @@ var (
+ //			// end of tar archive
+ //			break
+ //		}
+-//		io.Copy(tr, data);
++//		io.Copy(data, tr);
+ //	}
+ type Reader struct {
+ 	r	io.Reader;
+@@ -99,7 +99,7 @@ func (tr *Reader) skipUnread() {
+ 	if sr, ok := tr.r.(io.Seeker); ok {
+ 		_, tr.err = sr.Seek(nr, 1);
+ 	} else {
+-		_, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
++		_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr);
+ 	}
+ 	tr.nb, tr.pad = 0, 0;
+ }
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 5e0626493c..68ec2afe9c 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -33,7 +33,7 @@ var (
+ //	if err := tw.WriteHeader(hdr); err != nil {
+ //		// handle error
+ //	}
+-//	io.Copy(data, tw);
++//	io.Copy(tw, data);
+ //	tw.Close();
+ type Writer struct {
+ 	w		io.Writer;
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 867f61efab..5d470d7f15 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -293,7 +293,7 @@ func TestInflater(t *testing.T) {
+ 			t.Errorf("%s: got name %s", tt.name, gzip.Name);
+ 		}
+ 		b.Reset();
+-		n, err := io.Copy(gzip, b);
++		n, err := io.Copy(b, gzip);
+ 		if err != tt.err {
+ 			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
+ 		}
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index 075ecf62b6..037c9bf6ff 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -80,7 +80,7 @@ func TestInflater(t *testing.T) {
+ 		}
+ 		defer zlib.Close();
+ 		b.Reset();
+-		n, err := io.Copy(zlib, b);
++		n, err := io.Copy(b, zlib);
+ 		if err != nil {
+ 			if err != tt.err {
+ 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err);
+diff --git a/src/pkg/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+index e2e0446fdc..5149e058c6 100644
+--- a/src/pkg/crypto/block/cbc_aes_test.go
++++ b/src/pkg/crypto/block/cbc_aes_test.go
+@@ -78,7 +78,7 @@ func TestCBC_AES(t *testing.T) {
+ 		var crypt bytes.Buffer;
+ 		w := NewCBCEncrypter(c, tt.iv, &crypt);
+ 		var r io.Reader = bytes.NewBuffer(tt.in);
+-		n, err := io.Copy(r, w);
++		n, err := io.Copy(w, r);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: CBCEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+ 		} else if d := crypt.Bytes(); !same(tt.out, d) {
+@@ -88,7 +88,7 @@ func TestCBC_AES(t *testing.T) {
+ 		var plain bytes.Buffer;
+ 		r = NewCBCDecrypter(c, tt.iv, bytes.NewBuffer(tt.out));
+ 		w = &plain;
+-		n, err = io.Copy(r, w);
++		n, err = io.Copy(w, r);
+ 		if n != int64(len(tt.out)) || err != nil {
+ 			t.Errorf("%s: CBCDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+ 		} else if d := plain.Bytes(); !same(tt.in, d) {
+diff --git a/src/pkg/crypto/block/cfb_aes_test.go b/src/pkg/crypto/block/cfb_aes_test.go
+index 46747efc10..521ebd1d28 100644
+--- a/src/pkg/crypto/block/cfb_aes_test.go
++++ b/src/pkg/crypto/block/cfb_aes_test.go
+@@ -287,7 +287,7 @@ func TestCFB_AES(t *testing.T) {
+ 		var crypt bytes.Buffer;
+ 		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt);
+ 		var r io.Reader = bytes.NewBuffer(tt.in);
+-		n, err := io.Copy(r, w);
++		n, err := io.Copy(w, r);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+ 		} else if d := crypt.Bytes(); !same(tt.out, d) {
+@@ -297,7 +297,7 @@ func TestCFB_AES(t *testing.T) {
+ 		var plain bytes.Buffer;
+ 		r = NewCFBDecrypter(c, tt.s, tt.iv, bytes.NewBuffer(tt.out));
+ 		w = &plain;
+-		n, err = io.Copy(r, w);
++		n, err = io.Copy(w, r);
+ 		if n != int64(len(tt.out)) || err != nil {
+ 			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+ 		} else if d := plain.Bytes(); !same(tt.in, d) {
+diff --git a/src/pkg/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+index c075f96f66..5cef931841 100644
+--- a/src/pkg/crypto/block/ctr_aes_test.go
++++ b/src/pkg/crypto/block/ctr_aes_test.go
+@@ -82,7 +82,7 @@ func TestCTR_AES(t *testing.T) {
+ 			in := tt.in[0 : len(tt.in)-j];
+ 			w := NewCTRWriter(c, tt.iv, &crypt);
+ 			var r io.Reader = bytes.NewBuffer(in);
+-			n, err := io.Copy(r, w);
++			n, err := io.Copy(w, r);
+ 			if n != int64(len(in)) || err != nil {
+ 				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+ 			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
+@@ -95,7 +95,7 @@ func TestCTR_AES(t *testing.T) {
+ 			out := tt.out[0 : len(tt.out)-j];
+ 			r := NewCTRReader(c, tt.iv, bytes.NewBuffer(out));
+ 			w := &plain;
+-			n, err := io.Copy(r, w);
++			n, err := io.Copy(w, r);
+ 			if n != int64(len(out)) || err != nil {
+ 				t.Errorf("%s/%d: CTRReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
+ 			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
+diff --git a/src/pkg/crypto/block/eax_aes_test.go b/src/pkg/crypto/block/eax_aes_test.go
+index 36578b8117..5fbf835d29 100644
+--- a/src/pkg/crypto/block/eax_aes_test.go
++++ b/src/pkg/crypto/block/eax_aes_test.go
+@@ -105,7 +105,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
+ 		}
+ 		b.Reset();
+ 		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b);
+-		n, err := io.Copy(bytes.NewBuffer(tt.msg), enc);
++		n, err := io.Copy(enc, bytes.NewBuffer(tt.msg));
+ 		if n != int64(len(tt.msg)) || err != nil {
+ 			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err);
+ 		}
+@@ -129,7 +129,7 @@ func TestEAXDecrypt_AES(t *testing.T) {
+ 		}
+ 		b.Reset();
+ 		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, bytes.NewBuffer(tt.cipher));
+-		n, err := io.Copy(dec, b);
++		n, err := io.Copy(b, dec);
+ 		if n != int64(len(tt.msg)) || err != nil {
+ 			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);
+ 		}
+diff --git a/src/pkg/crypto/block/ecb_aes_test.go b/src/pkg/crypto/block/ecb_aes_test.go
+index 40c1371d82..74dc006829 100644
+--- a/src/pkg/crypto/block/ecb_aes_test.go
++++ b/src/pkg/crypto/block/ecb_aes_test.go
+@@ -103,7 +103,7 @@ func TestECB_AES(t *testing.T) {
+ 		var crypt bytes.Buffer;
+ 		w := NewECBEncrypter(c, &crypt);
+ 		var r io.Reader = bytes.NewBuffer(tt.in);
+-		n, err := io.Copy(r, w);
++		n, err := io.Copy(w, r);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+ 		} else if d := crypt.Bytes(); !same(tt.out, d) {
+@@ -113,7 +113,7 @@ func TestECB_AES(t *testing.T) {
+ 		var plain bytes.Buffer;
+ 		r = NewECBDecrypter(c, bytes.NewBuffer(tt.out));
+ 		w = &plain;
+-		n, err = io.Copy(r, w);
++		n, err = io.Copy(w, r);
+ 		if n != int64(len(tt.out)) || err != nil {
+ 			t.Errorf("%s: ECBWriter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+ 		} else if d := plain.Bytes(); !same(tt.in, d) {
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index b06cd3e2d8..9576d4e285 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -75,20 +75,20 @@ func TestECBEncrypter(t *testing.T) {
+ 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 			// if frag != 0, move the 1 to the end to cause fragmentation.
+ 			if frag == 0 {
+-				_, err := io.Copyn(r, w, 1);
++				_, err := io.Copyn(w, r, 1);
+ 				if err != nil {
+ 					t.Errorf("block=%d frag=0: first Copyn: %s", block, err);
+ 					continue;
+ 				}
+ 			}
+ 			for n := 1; n <= len(plain)/2; n *= 2 {
+-				_, err := io.Copyn(r, w, int64(n));
++				_, err := io.Copyn(w, r, int64(n));
+ 				if err != nil {
+ 					t.Errorf("block=%d frag=%d: Copyn %d: %s", block, frag, n, err);
+ 				}
+ 			}
+ 			if frag != 0 {
+-				_, err := io.Copyn(r, w, 1);
++				_, err := io.Copyn(w, r, 1);
+ 				if err != nil {
+ 					t.Errorf("block=%d frag=1: last Copyn: %s", block, err);
+ 					continue;
+@@ -140,20 +140,20 @@ func testECBDecrypter(t *testing.T, maxio int) {
+ 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 				// if frag == 1, move the 1 to the end to cause fragmentation.
+ 				if frag == 0 {
+-					_, err := io.Copyn(r, b, 1);
++					_, err := io.Copyn(b, r, 1);
+ 					if err != nil {
+ 						t.Errorf("%s: first Copyn: %s", test, err);
+ 						continue;
+ 					}
+ 				}
+ 				for n := 1; n <= maxio/2; n *= 2 {
+-					_, err := io.Copyn(r, b, int64(n));
++					_, err := io.Copyn(b, r, int64(n));
+ 					if err != nil {
+ 						t.Errorf("%s: Copyn %d: %s", test, n, err);
+ 					}
+ 				}
+ 				if frag != 0 {
+-					_, err := io.Copyn(r, b, 1);
++					_, err := io.Copyn(b, r, 1);
+ 					if err != nil {
+ 						t.Errorf("%s: last Copyn: %s", test, err);
+ 						continue;
+diff --git a/src/pkg/crypto/block/ofb_aes_test.go b/src/pkg/crypto/block/ofb_aes_test.go
+index 31622c3649..3db92215ab 100644
+--- a/src/pkg/crypto/block/ofb_aes_test.go
++++ b/src/pkg/crypto/block/ofb_aes_test.go
+@@ -80,7 +80,7 @@ func TestOFB_AES(t *testing.T) {
+ 			in := tt.in[0 : len(tt.in)-j];
+ 			w := NewOFBWriter(c, tt.iv, &crypt);
+ 			var r io.Reader = bytes.NewBuffer(in);
+-			n, err := io.Copy(r, w);
++			n, err := io.Copy(w, r);
+ 			if n != int64(len(in)) || err != nil {
+ 				t.Errorf("%s/%d: OFBWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+ 			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
+@@ -93,7 +93,7 @@ func TestOFB_AES(t *testing.T) {
+ 			out := tt.out[0 : len(tt.out)-j];
+ 			r := NewOFBReader(c, tt.iv, bytes.NewBuffer(out));
+ 			w := &plain;
+-			n, err := io.Copy(r, w);
++			n, err := io.Copy(w, r);
+ 			if n != int64(len(out)) || err != nil {
+ 				t.Errorf("%s/%d: OFBReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
+ 			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
+diff --git a/src/pkg/crypto/block/xor_test.go b/src/pkg/crypto/block/xor_test.go
+index 2bee99cc98..6c686f6cd0 100644
+--- a/src/pkg/crypto/block/xor_test.go
++++ b/src/pkg/crypto/block/xor_test.go
+@@ -60,14 +60,14 @@ func testXorWriter(t *testing.T, maxio int) {
+ 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 			// if frag != 0, move the 1 to the end to cause fragmentation.
+ 			if frag == 0 {
+-				_, err := io.Copyn(r, w, 1);
++				_, err := io.Copyn(w, r, 1);
+ 				if err != nil {
+ 					t.Errorf("%s: first Copyn: %s", test, err);
+ 					continue;
+ 				}
+ 			}
+ 			for n := 1; n <= len(plain)/2; n *= 2 {
+-				_, err := io.Copyn(r, w, int64(n));
++				_, err := io.Copyn(w, r, int64(n));
+ 				if err != nil {
+ 					t.Errorf("%s: Copyn %d: %s", test, n, err);
+ 				}
+@@ -130,14 +130,14 @@ func testXorReader(t *testing.T, maxio int) {
+ 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 				// if frag == 1, move the 1 to the end to cause fragmentation.
+ 				if frag == 0 {
+-					_, err := io.Copyn(r, b, 1);
++					_, err := io.Copyn(b, r, 1);
+ 					if err != nil {
+ 						t.Errorf("%s: first Copyn: %s", test, err);
+ 						continue;
+ 					}
+ 				}
+ 				for n := 1; n <= maxio/2; n *= 2 {
+-					_, err := io.Copyn(r, b, int64(n));
++					_, err := io.Copyn(b, r, int64(n));
+ 					if err != nil {
+ 						t.Errorf("%s: Copyn %d: %s", test, n, err);
+ 					}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index ce5ad75133..44f1d5ec21 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -36,7 +36,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 			}
+ 		case io.Reader:
+ 			var buf bytes.Buffer;
+-			_, err := io.Copy(s, &buf);
++			_, err := io.Copy(&buf, s);
+ 			if err != nil {
+ 				return nil, err;
+ 			}
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 312f65a748..cbc3a1e60f 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -151,7 +151,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 		}
+ 		c.Write(b);
+ 	}
+-	io.Copy(f, c);
++	io.Copy(c, f);
+ }
+ 
+ // ServeFile replies to the request with the contents of the named file or directory.
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 183e7fdc62..172806ee5d 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -43,7 +43,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+ 		ctr.n++;
+ 	case "POST":
+ 		buf := new(bytes.Buffer);
+-		io.Copy(req.Body, buf);
++		io.Copy(buf, req.Body);
+ 		body := buf.String();
+ 		if n, err := strconv.Atoi(body); err != nil {
+ 			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
+@@ -69,7 +69,7 @@ func FileServer(c *http.Conn, req *http.Request) {
+ 		fmt.Fprintf(c, "open %s: %v\n", path, err);
+ 		return;
+ 	}
+-	n, err1 := io.Copy(f, c);
++	n, err1 := io.Copy(c, f);
+ 	fmt.Fprintf(c, "[%d bytes]\n", n);
+ 	f.Close();
+ }
+@@ -128,7 +128,7 @@ func DateServer(c *http.Conn, req *http.Request) {
+ 		fmt.Fprintf(c, "fork/exec: %s\n", err);
+ 		return;
+ 	}
+-	io.Copy(r, c);
++	io.Copy(c, r);
+ 	wait, err := os.Wait(pid, 0);
+ 	if err != nil {
+ 		fmt.Fprintf(c, "wait: %s\n", err);
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 286ca69dd2..50b0873fa1 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -179,7 +179,7 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+ 
+ // Copyn copies n bytes (or until an error) from src to dst.
+ // It returns the number of bytes copied and the error, if any.
+-func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
++func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+@@ -212,7 +212,7 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ // Copy copies from src to dst until either EOF is reached
+ // on src or an error occurs.  It returns the number of bytes
+ // copied and the error, if any.
+-func Copy(src Reader, dst Writer) (written int64, err os.Error) {
++func Copy(dst Writer, src Reader) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for {
+ 		nr, er := src.Read(buf);
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index bdf2348747..d7057d3eca 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -15,7 +15,7 @@ import (
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+ func ReadAll(r Reader) ([]byte, os.Error) {
+ 	var buf bytes.Buffer;
+-	_, err := Copy(r, &buf);
++	_, err := Copy(&buf, r);
+ 	return buf.Bytes(), err;
+ }
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index ff45ab5787..4601c45b9e 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -325,7 +325,7 @@ func TestForkExec(t *testing.T) {
+ 	w.Close();
+ 
+ 	var b bytes.Buffer;
+-	io.Copy(r, &b);
++	io.Copy(&b, r);
+ 	output := b.String();
+ 	expect := "/\n";
+ 	if output != expect {
+@@ -603,7 +603,7 @@ func run(t *testing.T, cmd []string) string {
+ 	w.Close();
+ 
+ 	var b bytes.Buffer;
+-	io.Copy(r, &b);
++	io.Copy(&b, r);
+ 	Wait(pid, 0);
+ 	output := b.String();
+ 	if n := len(output); n > 0 && output[n-1] == '\n' {

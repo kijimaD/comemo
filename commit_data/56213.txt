@@ -18,8 +18,79 @@ Date:   Mon Apr 17 16:42:18 2023 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/verify.go           |  2 +-
  src/cmd/go/internal/modload/buildlist.go       |  2 +-
  src/cmd/go/testdata/script/work_issue54372.txt | 37 ++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index a5f7f24563..20fa966792 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -58,7 +58,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Use a slice of result channels, so that the output is deterministic.
+ 	const defaultGoVersion = ""
+-	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[1:]
++	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[modload.MainModules.Len():]
+ 	errsChans := make([]<-chan []error, len(mods))
+ 
+ 	for i, mod := range mods {
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 005f306ff4..046743b59e 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -448,7 +448,7 @@ func (mg *ModuleGraph) WalkBreadthFirst(f func(m module.Version)) {
+ }
+ 
+ // BuildList returns the selected versions of all modules present in the graph,
+-// beginning with Target.
++// beginning with the main modules.
+ //
+ // The order of the remaining elements in the list is deterministic
+ // but arbitrary.
+diff --git a/src/cmd/go/testdata/script/work_issue54372.txt b/src/cmd/go/testdata/script/work_issue54372.txt
+new file mode 100644
+index 0000000000..bd3108abab
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_issue54372.txt
+@@ -0,0 +1,37 @@
++# go mod verify should not try to verify the workspace modules.
++# This is a test for #54372.
++
++go mod verify
++stdout 'all modules verified'
++! stderr .
++
++-- go.work --
++go 1.21
++
++use (
++    ./a
++    ./b
++    ./c
++    ./d
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.21
++
++require rsc.io/quote v1.1.0
++-- a/a.go --
++package a
++import _ "rsc.io/quote"
++-- b/go.mod --
++module example.com/b
++
++go 1.21
++-- c/go.mod --
++module example.com/c
++
++go 1.21
++-- d/go.mod --
++module example.com/d
++
++go 1.21
+\ No newline at end of file

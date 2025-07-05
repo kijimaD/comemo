@@ -21,7 +21,63 @@ Date:   Thu Aug 24 15:36:47 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go   | 27 ---------------------------
  src/cmd/compile/internal/gc/noder.go |  6 +++++-
  2 files changed, 5 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 88dfb39732..6052cd438f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -760,33 +760,6 @@ func tointerface0(t *types.Type, l []*Node) *types.Type {
+ 	return t
+ }
+ 
+-func embedded(s *types.Sym, pkg *types.Pkg) *Node {
+-	const (
+-		CenterDot = 0xB7
+-	)
+-	// Names sometimes have disambiguation junk
+-	// appended after a center dot. Discard it when
+-	// making the name for the embedded struct field.
+-	name := s.Name
+-
+-	if i := strings.Index(s.Name, string(CenterDot)); i >= 0 {
+-		name = s.Name[:i]
+-	}
+-
+-	var n *Node
+-	if exportname(name) {
+-		n = newname(lookup(name))
+-	} else if s.Pkg == builtinpkg {
+-		// The name of embedded builtins belongs to pkg.
+-		n = newname(pkg.Lookup(name))
+-	} else {
+-		n = newname(s.Pkg.Lookup(name))
+-	}
+-	n = nod(ODCLFIELD, n, oldname(s))
+-	n.SetEmbedded(true)
+-	return n
+-}
+-
+ func fakeRecv() *Node {
+ 	return anonfield(types.FakeRecvType())
+ }
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 5872640eca..f4089599fe 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -689,7 +689,11 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
+ 		}
+ 		typ = op.X
+ 	}
+-	n := embedded(p.packname(typ), localpkg)
++
++	sym := p.packname(typ)
++	n := nod(ODCLFIELD, newname(lookup(sym.Name)), oldname(sym))
++	n.SetEmbedded(true)
++
+ 	if isStar {
+ 		n.Right = p.nod(op, OIND, n.Right, nil)
+ 	}

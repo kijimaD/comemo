@@ -8,6 +8,20 @@ Date:   Sun May 11 14:46:29 2014 -0700
     R=crawshaw
     CC=golang-codereviews
     https://golang.org/cl/99180043
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 60dc553d93..90700b5760 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -170,7 +170,7 @@ David Barnett <dbarnett@google.com>
+ David Bürgin <676c7473@gmail.com>
+ David Calavera <david.calavera@gmail.com>
+ David Covert <davidhcovert@gmail.com>
+-David Crawshaw <david.crawshaw@zentus.com> <crawshaw@google.com>
++David Crawshaw <david.crawshaw@zentus.com> <crawshaw@google.com> <crawshaw@golang.org>
+ David du Colombier <0intro@gmail.com>
+ David Forsythe <dforsythe@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>

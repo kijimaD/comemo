@@ -7,6 +7,23 @@ Date:   Mon Oct 20 12:51:18 2008 -0700
     R=r
     OCL=17463
     CL=17463
-
+---
  usr/gri/gosrc/globals.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 14e588ee9d..e971a1462d 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -190,11 +190,6 @@ func (obj *Object) Copy() *Object {
+ // ----------------------------------------------------------------------------
+ // List methods
+ 
+-func (L* List) len_() int {
+-	return L.len_;
+-}
+-
+-
+ func (L *List) at(i int) *Elem {
+ 	if i < 0 || L.len_ <= i {
+ 		panic("index out of bounds");

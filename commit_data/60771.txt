@@ -12,8 +12,101 @@ Date:   Fri Aug 9 10:57:51 2024 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go  |  2 ++
  src/internal/syscall/windows/zsyscall_windows.go | 10 +++++++
  src/os/user/user_windows_test.go                 | 38 ++++++++++++++++++++++++
  3 files changed, 50 insertions(+)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 944e4e2450..b8168678c3 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -500,3 +500,5 @@ func QueryPerformanceCounter() int64 // Implemented in runtime package.
+ //
+ //go:linkname QueryPerformanceFrequency
+ func QueryPerformanceFrequency() int64 // Implemented in runtime package.
++
++//sys   GetModuleHandle(modulename *uint16) (handle syscall.Handle, err error) = kernel32.GetModuleHandleW
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 7e4d91112b..07627bb6ca 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -69,6 +69,7 @@ var (
+ 	procGetFileInformationByHandleEx      = modkernel32.NewProc("GetFileInformationByHandleEx")
+ 	procGetFinalPathNameByHandleW         = modkernel32.NewProc("GetFinalPathNameByHandleW")
+ 	procGetModuleFileNameW                = modkernel32.NewProc("GetModuleFileNameW")
++	procGetModuleHandleW                  = modkernel32.NewProc("GetModuleHandleW")
+ 	procGetTempPath2W                     = modkernel32.NewProc("GetTempPath2W")
+ 	procGetVolumeInformationByHandleW     = modkernel32.NewProc("GetVolumeInformationByHandleW")
+ 	procGetVolumeNameForVolumeMountPointW = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
+@@ -287,6 +288,15 @@ func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32,
+ 	return
+ }
+ 
++func GetModuleHandle(modulename *uint16) (handle syscall.Handle, err error) {
++	r0, _, e1 := syscall.Syscall(procGetModuleHandleW.Addr(), 1, uintptr(unsafe.Pointer(modulename)), 0, 0)
++	handle = syscall.Handle(r0)
++	if handle == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) {
+ 	r0, _, e1 := syscall.Syscall(procGetTempPath2W.Addr(), 2, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
+ 	n = uint32(r0)
+diff --git a/src/os/user/user_windows_test.go b/src/os/user/user_windows_test.go
+index 3364d7c9ea..deb3db6a87 100644
+--- a/src/os/user/user_windows_test.go
++++ b/src/os/user/user_windows_test.go
+@@ -8,7 +8,11 @@ import (
+ 	"crypto/rand"
+ 	"encoding/base64"
+ 	"errors"
++	"fmt"
+ 	"internal/syscall/windows"
++	"internal/testenv"
++	"os"
++	"os/exec"
+ 	"runtime"
+ 	"strconv"
+ 	"syscall"
+@@ -143,3 +147,37 @@ func TestImpersonated(t *testing.T) {
+ 	}
+ 	compare(t, want, got)
+ }
++
++func TestCurrentNetapi32(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		// Test that Current does not load netapi32.dll.
++		// First call Current.
++		Current()
++
++		// Then check if netapi32.dll is loaded.
++		netapi32, err := syscall.UTF16PtrFromString("netapi32.dll")
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
++			os.Exit(9)
++			return
++		}
++		mod, _ := windows.GetModuleHandle(netapi32)
++		if mod != 0 {
++			fmt.Fprintf(os.Stderr, "netapi32.dll is loaded\n")
++			os.Exit(9)
++			return
++		}
++		os.Exit(0)
++		return
++	}
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++	cmd := testenv.CleanCmdEnv(exec.Command(exe, "-test.run=^TestCurrentNetapi32$"))
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%v\n%s", err, out)
++	}
++}

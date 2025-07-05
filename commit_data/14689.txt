@@ -7,6 +7,19 @@ Date:   Wed Dec 19 10:14:05 2012 +1100
     R=golang-dev, agl, iant
     CC=golang-dev
     https://golang.org/cl/6955043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f4f843827c..668e1bbaf5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -336,6 +336,7 @@ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@correia.cc>
+ Shane Hansen <shanemhansen@gmail.com>
++Shawn Ledbetter <sledbetter@google.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>

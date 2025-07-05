@@ -18,7 +18,7 @@ Date:   Mon Jan 4 17:53:37 2021 +0800
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go |  2 +-
  src/runtime/asan.go       | 43 +++++++++++++++++++++++++++
  src/runtime/asan/asan.go  | 52 ++++++++++++++++++++++++++++++++
@@ -26,3 +26,304 @@ Date:   Mon Jan 4 17:53:37 2021 +0800
  src/runtime/asan_amd64.s  | 76 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/asan_arm64.s  | 63 +++++++++++++++++++++++++++++++++++++++
  6 files changed, 258 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a92bb3893b..64f084152a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -331,7 +331,7 @@ var depsRules = `
+ 	< C
+ 	< runtime/cgo
+ 	< CGO
+-	< runtime/race, runtime/msan;
++	< runtime/race, runtime/msan, runtime/asan;
+ 
+ 	# Bulk of the standard library must not use cgo.
+ 	# The prohibition stops at net and os/user.
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+new file mode 100644
+index 0000000000..7ff5f26bfb
+--- /dev/null
++++ b/src/runtime/asan.go
+@@ -0,0 +1,43 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++// +build asan
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// Public address sanitizer API.
++
++func ASanRead(addr unsafe.Pointer, len int) {
++	asanread(addr, uintptr(len))
++}
++
++func ASanWrite(addr unsafe.Pointer, len int) {
++	asanwrite(addr, uintptr(len))
++}
++
++// Private interface for the runtime.
++const asanenabled = true
++
++//go:noescape
++func asanread(addr unsafe.Pointer, sz uintptr)
++
++//go:noescape
++func asanwrite(addr unsafe.Pointer, sz uintptr)
++
++//go:noescape
++func asanunpoison(addr unsafe.Pointer, sz uintptr)
++
++//go:noescape
++func asanpoison(addr unsafe.Pointer, sz uintptr)
++
++// These are called from asan_GOARCH.s
++//go:cgo_import_static __asan_read_go
++//go:cgo_import_static __asan_write_go
++//go:cgo_import_static __asan_unpoison_go
++//go:cgo_import_static __asan_poison_go
+diff --git a/src/runtime/asan/asan.go b/src/runtime/asan/asan.go
+new file mode 100644
+index 0000000000..40ebf96824
+--- /dev/null
++++ b/src/runtime/asan/asan.go
+@@ -0,0 +1,52 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan && linux && (arm64 || amd64)
++// +build asan
++// +build linux
++// +build arm64 amd64
++
++package asan
++
++/*
++#cgo CFLAGS: -fsanitize=address
++#cgo LDFLAGS: -fsanitize=address
++
++#include <stdint.h>
++#include <sanitizer/asan_interface.h>
++
++void __asan_read_go(void *addr, uintptr_t sz) {
++	if (__asan_region_is_poisoned(addr, sz)) {
++		switch (sz) {
++		case 1: __asan_report_load1(addr); break;
++		case 2: __asan_report_load2(addr); break;
++		case 4: __asan_report_load4(addr); break;
++		case 8: __asan_report_load8(addr); break;
++		default: __asan_report_load_n(addr, sz); break;
++		}
++	}
++}
++
++void __asan_write_go(void *addr, uintptr_t sz) {
++	if (__asan_region_is_poisoned(addr, sz)) {
++		switch (sz) {
++		case 1: __asan_report_store1(addr); break;
++		case 2: __asan_report_store2(addr); break;
++		case 4: __asan_report_store4(addr); break;
++		case 8: __asan_report_store8(addr); break;
++		default: __asan_report_store_n(addr, sz); break;
++		}
++	}
++}
++
++void __asan_unpoison_go(void *addr, uintptr_t sz) {
++	__asan_unpoison_memory_region(addr, sz);
++}
++
++void __asan_poison_go(void *addr, uintptr_t sz) {
++	__asan_poison_memory_region(addr, sz);
++}
++
++*/
++import "C"
+diff --git a/src/runtime/asan0.go b/src/runtime/asan0.go
+new file mode 100644
+index 0000000000..dad069bbe6
+--- /dev/null
++++ b/src/runtime/asan0.go
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !asan
++// +build !asan
++
++// Dummy ASan support API, used when not built with -asan.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++const asanenabled = false
++
++// Because asanenabled is false, none of these functions should be called.
++
++func asanread(addr unsafe.Pointer, sz uintptr)     { throw("asan") }
++func asanwrite(addr unsafe.Pointer, sz uintptr)    { throw("asan") }
++func asanunpoison(addr unsafe.Pointer, sz uintptr) { throw("asan") }
++func asanpoison(addr unsafe.Pointer, sz uintptr)   { throw("asan") }
+diff --git a/src/runtime/asan_amd64.s b/src/runtime/asan_amd64.s
+new file mode 100644
+index 0000000000..01bd612dc3
+--- /dev/null
++++ b/src/runtime/asan_amd64.s
+@@ -0,0 +1,76 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++// +build asan
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "funcdata.h"
++#include "textflag.h"
++
++// This is like race_amd64.s, but for the asan calls.
++// See race_amd64.s for detailed comments.
++
++#ifdef GOOS_windows
++#define RARG0 CX
++#define RARG1 DX
++#else
++#define RARG0 DI
++#define RARG1 SI
++#endif
++
++// Called from intrumented code.
++// func runtime·asanread(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanread(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __asan_read_go(void *addr, uintptr_t sz);
++	MOVQ	$__asan_read_go(SB), AX
++	JMP	asancall<>(SB)
++
++// func runtime·asanwrite(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanwrite(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __asan_write_go(void *addr, uintptr_t sz);
++	MOVQ	$__asan_write_go(SB), AX
++	JMP	asancall<>(SB)
++
++// func runtime·asanunpoison(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __asan_unpoison_go(void *addr, uintptr_t sz);
++	MOVQ	$__asan_unpoison_go(SB), AX
++	JMP	asancall<>(SB)
++
++// func runtime·asanpoison(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
++	// void __asan_poison_go(void *addr, uintptr_t sz);
++	MOVQ	$__asan_poison_go(SB), AX
++	JMP	asancall<>(SB)
++
++// Switches SP to g0 stack and calls (AX). Arguments already set.
++TEXT	asancall<>(SB), NOSPLIT, $0-0
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	MOVQ	SP, R12		// callee-saved, preserved across the CALL
++	CMPQ	R14, $0
++	JE	call	// no g; still on a system stack
++
++	MOVQ	g_m(R14), R13
++	// Switch to g0 stack.
++	MOVQ	m_g0(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on g0
++
++	MOVQ	(g_sched+gobuf_sp)(R10), SP
++call:
++	ANDQ	$~15, SP	// alignment for gcc ABI
++	CALL	AX
++	MOVQ	R12, SP
++	RET
+diff --git a/src/runtime/asan_arm64.s b/src/runtime/asan_arm64.s
+new file mode 100644
+index 0000000000..eb0f9bd71e
+--- /dev/null
++++ b/src/runtime/asan_arm64.s
+@@ -0,0 +1,63 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++// +build asan
++
++#include "go_asm.h"
++#include "textflag.h"
++
++#define RARG0 R0
++#define RARG1 R1
++#define FARG R3
++
++// Called from instrumented code.
++// func runtime·asanread(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanread(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __asan_read_go(void *addr, uintptr_t sz);
++	MOVD	$__asan_read_go(SB), FARG
++	JMP	asancall<>(SB)
++
++// func runtime·asanwrite(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanwrite(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __asan_write_go(void *addr, uintptr_t sz);
++	MOVD	$__asan_write_go(SB), FARG
++	JMP	asancall<>(SB)
++
++// func runtime·asanunpoison(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __asan_unpoison_go(void *addr, uintptr_t sz);
++	MOVD	$__asan_unpoison_go(SB), FARG
++	JMP	asancall<>(SB)
++
++// func runtime·asanpoison(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), RARG0
++	MOVD	size+8(FP), RARG1
++	// void __asan_poison_go(void *addr, uintptr_t sz);
++	MOVD	$__asan_poison_go(SB), FARG
++	JMP	asancall<>(SB)
++
++// Switches SP to g0 stack and calls (FARG). Arguments already set.
++TEXT	asancall<>(SB), NOSPLIT, $0-0
++	MOVD	RSP, R19                  // callee-saved
++	CBZ	g, g0stack                // no g, still on a system stack
++	MOVD	g_m(g), R10
++	MOVD	m_g0(R10), R11
++	CMP	R11, g
++	BEQ	g0stack
++
++	MOVD	(g_sched+gobuf_sp)(R11), R4
++	MOVD	R4, RSP
++
++g0stack:
++	BL	(FARG)
++	MOVD	R19, RSP
++	RET

@@ -7,7 +7,37 @@ Date:   Wed Jun 30 17:56:51 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1729046
-
+---
  lib/godoc/codewalk.html   | 2 +-
  src/cmd/godoc/codewalk.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/codewalk.html b/lib/godoc/codewalk.html
+index 1ce6393ec6..47f8a22e2b 100644
+--- a/lib/godoc/codewalk.html
++++ b/lib/godoc/codewalk.html
+@@ -15,7 +15,7 @@
+     <div id="code-area">
+       <div id="code-header" align="center">
+         <a id="code-popout-link" href="" target="_blank">
+-          <img title="View code in new window" alt="Pop Out Code" src="popout.png" style="display: block; float: right;"/>
++          <img title="View code in new window" alt="Pop Out Code" src="/doc/codewalk/popout.png" style="display: block; float: right;"/>
+         </a>
+         <select id="code-selector">
+           {.repeated section File}
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 412214b8f5..806849c00b 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -63,6 +63,11 @@ func codewalk(c *http.Conn, r *http.Request) {
+ 		return
+ 	}
+ 
++	// Canonicalize the path and redirect if changed
++	if redirect(c, r) {
++		return
++	}
++
+ 	b := applyTemplate(codewalkHTML, "codewalk", cw)
+ 	servePage(c, "Codewalk: "+cw.Title, "", "", b)
+ }

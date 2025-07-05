@@ -13,7 +13,7 @@ Date:   Sat Nov 18 11:58:34 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/devirtualize/devirtualize.go | 2 +-
  src/cmd/compile/internal/escape/graph.go              | 2 +-
  src/cmd/compile/internal/ir/expr.go                   | 2 +-
@@ -35,3 +35,264 @@ Date:   Sat Nov 18 11:58:34 2023 +0000
  src/strings/strings.go                                | 2 +-
  src/sync/map_test.go                                  | 2 +-
  20 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index b5e55c6d48..9e26f66a1c 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -70,7 +70,7 @@ func staticCall(call *ir.CallExpr) {
+ 		return
+ 	}
+ 
+-	// If typ *has* a shape type, then it's an shaped, instantiated
++	// If typ *has* a shape type, then it's a shaped, instantiated
+ 	// type like T[go.shape.int], and its methods (may) have an extra
+ 	// dictionary parameter. We could devirtualize this call if we
+ 	// could derive an appropriate dictionary argument.
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index f3baa67223..75e2546a7b 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -38,7 +38,7 @@ import (
+ //        e.value(k, n.Left)
+ //    }
+ 
+-// An location represents an abstract location that stores a Go
++// A location represents an abstract location that stores a Go
+ // variable.
+ type location struct {
+ 	n         ir.Node  // represented variable or expression, if any
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 1bf9a15ae0..1bcd648282 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -350,7 +350,7 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
+ 	return n
+ }
+ 
+-// A StructKeyExpr is an Field: Value composite literal key.
++// A StructKeyExpr is a Field: Value composite literal key.
+ type StructKeyExpr struct {
+ 	miniExpr
+ 	Field *types.Field
+diff --git a/src/cmd/compile/internal/ssa/magic.go b/src/cmd/compile/internal/ssa/magic.go
+index df4b568134..235b0e5e5c 100644
+--- a/src/cmd/compile/internal/ssa/magic.go
++++ b/src/cmd/compile/internal/ssa/magic.go
+@@ -170,7 +170,7 @@ func smagicOK(n uint, c int64) bool {
+ 	return c&(c-1) != 0
+ }
+ 
+-// smagicOKn reports whether we should strength reduce an signed n-bit divide by c.
++// smagicOKn reports whether we should strength reduce a signed n-bit divide by c.
+ func smagicOK8(c int8) bool   { return smagicOK(8, int64(c)) }
+ func smagicOK16(c int16) bool { return smagicOK(16, int64(c)) }
+ func smagicOK32(c int32) bool { return smagicOK(32, int64(c)) }
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 01b8e46304..575a1daed2 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -954,7 +954,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ }
+ 
+ // applyTypeFunc applies f to x. If x is a type parameter,
+-// the result is a type parameter constrained by an new
++// the result is a type parameter constrained by a new
+ // interface bound. The type bounds for that interface
+ // are computed by applying f to each of the type bounds
+ // of x. If any of these applications of f return nil,
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 6fc2317afb..38c6c03dc4 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -144,7 +144,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 	return walkExpr(cfn, init)
+ }
+ 
+-// closureArgs returns a slice of expressions that an be used to
++// closureArgs returns a slice of expressions that can be used to
+ // initialize the given closure's free variables. These correspond
+ // one-to-one with the variables in clo.Func.ClosureVars, and will be
+ // either an ONAME node (if the variable is captured by value) or an
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 1eedd46c69..d15d0dfd4c 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -290,7 +290,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				//	NOP
+ 				//
+ 				// The NOP is needed to give the jumps somewhere to land.
+-				// It is a liblink NOP, not an hardware NOP: it encodes to 0 instruction bytes.
++				// It is a liblink NOP, not a hardware NOP: it encodes to 0 instruction bytes.
+ 				//
+ 				// We don't generate this for leafs because that means the wrapped
+ 				// function was inlined into the wrapper.
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 5dd657b4d7..3edb5e2f6f 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -988,7 +988,7 @@ func (l *Loader) AttrExternal(i Sym) bool {
+ 	return l.attrExternal.Has(l.extIndex(i))
+ }
+ 
+-// SetAttrExternal sets the "external" property for an host object
++// SetAttrExternal sets the "external" property for a host object
+ // symbol (see AttrExternal).
+ func (l *Loader) SetAttrExternal(i Sym, v bool) {
+ 	if !l.IsExternal(i) {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 72b4c5370d..3a3cee1726 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -953,7 +953,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ }
+ 
+ // applyTypeFunc applies f to x. If x is a type parameter,
+-// the result is a type parameter constrained by an new
++// the result is a type parameter constrained by a new
+ // interface bound. The type bounds for that interface
+ // are computed by applying f to each of the type bounds
+ // of x. If any of these applications of f return nil,
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 649ebcfb18..15d73cf6ce 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -522,7 +522,7 @@ func isGateway(h string) bool {
+ 	return stringsEqualFold(h, "_gateway")
+ }
+ 
+-// isOutbound reports whether h should be considered a "outbound"
++// isOutbound reports whether h should be considered an "outbound"
+ // name for the myhostname NSS module.
+ func isOutbound(h string) bool {
+ 	return stringsEqualFold(h, "_outbound")
+diff --git a/src/net/fd_fake.go b/src/net/fd_fake.go
+index b9361a3c4e..ae567acc69 100644
+--- a/src/net/fd_fake.go
++++ b/src/net/fd_fake.go
+@@ -30,7 +30,7 @@ type netFD struct {
+ 	raddr       Addr
+ 
+ 	// The only networking available in WASI preview 1 is the ability to
+-	// sock_accept on an pre-opened socket, and then fd_read, fd_write,
++	// sock_accept on a pre-opened socket, and then fd_read, fd_write,
+ 	// fd_close, and sock_shutdown on the resulting connection. We
+ 	// intercept applicable netFD calls on this instance, and then pass
+ 	// the remainder of the netFD calls to fakeNetFD.
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 1cf41a5474..170ba86cc4 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -237,7 +237,7 @@ type Transport struct {
+ 
+ 	// TLSNextProto specifies how the Transport switches to an
+ 	// alternate protocol (such as HTTP/2) after a TLS ALPN
+-	// protocol negotiation. If Transport dials an TLS connection
++	// protocol negotiation. If Transport dials a TLS connection
+ 	// with a non-empty protocol name and TLSNextProto contains a
+ 	// map entry for that key (such as "h2"), then the func is
+ 	// called with the request's authority (such as "example.com"
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index f8edaeb876..7436b9a969 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -581,7 +581,7 @@ func TestStatLxSymLink(t *testing.T) {
+ 	}
+ 	if m := fi.Mode(); m&fs.ModeSymlink != 0 {
+ 		// This can happen depending on newer WSL versions when running as admin or in developer mode.
+-		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of a IO_REPARSE_TAG_LX_SYMLINK")
++		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of an IO_REPARSE_TAG_LX_SYMLINK")
+ 	}
+ 	// Stat'ing a IO_REPARSE_TAG_LX_SYMLINK from outside WSL always return ERROR_CANT_ACCESS_FILE.
+ 	// We check this condition to validate that os.Stat has tried to follow the link.
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index a28f2a4bed..e77537c9a5 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4755,7 +4755,7 @@ func TestConvertSlice2Array(t *testing.T) {
+ 	// Converting a slice to non-empty array needs to return
+ 	// a non-addressable copy of the original memory.
+ 	if v.CanAddr() {
+-		t.Fatalf("convert slice to non-empty array returns a addressable copy array")
++		t.Fatalf("convert slice to non-empty array returns an addressable copy array")
+ 	}
+ 	for i := range s {
+ 		ov.Index(i).Set(ValueOf(i + 1))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 4563809a9d..b8c7caeebc 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -567,7 +567,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
+ 	return case_, tab
+ }
+ 
+-// buildInterfaceSwitchCache constructs a interface switch cache
++// buildInterfaceSwitchCache constructs an interface switch cache
+ // containing all the entries from oldC plus the new entry
+ // (typ,case_,tab).
+ func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_ int, tab *itab) *abi.InterfaceSwitchCache {
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 1e82897381..acaa5ca375 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -40,7 +40,7 @@ func TestReadMetrics(t *testing.T) {
+ 	oldLimit := debug.SetMemoryLimit(limit)
+ 	defer debug.SetMemoryLimit(oldLimit)
+ 
+-	// Set an GC percent to check the metric for it
++	// Set a GC percent to check the metric for it
+ 	gcPercent := 99
+ 	oldGCPercent := debug.SetGCPercent(gcPercent)
+ 	defer debug.SetGCPercent(oldGCPercent)
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 716e3efccc..3d07cc70e8 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1377,7 +1377,7 @@ func (c *gcControllerState) needIdleMarkWorker() bool {
+ 	return n < max
+ }
+ 
+-// removeIdleMarkWorker must be called when an new idle mark worker stops executing.
++// removeIdleMarkWorker must be called when a new idle mark worker stops executing.
+ func (c *gcControllerState) removeIdleMarkWorker() {
+ 	for {
+ 		old := c.idleMarkWorkers.Load()
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index f9cbc1f54b..ca4f051979 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -179,7 +179,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+ 				// Ignore wrappers, unless we're at the outermost frame of u.
+ 				// A non-inlined wrapper frame always means we have a physical
+ 				// frame consisting entirely of wrappers, in which case we'll
+-				// take a outermost wrapper over nothing.
++				// take an outermost wrapper over nothing.
+ 				continue
+ 			}
+ 
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index ce79bccf8c..f3f0723721 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -521,7 +521,7 @@ func Map(mapping func(rune) rune, s string) string {
+ 			if r < utf8.RuneSelf {
+ 				b.WriteByte(byte(r))
+ 			} else {
+-				// r is not a ASCII rune.
++				// r is not an ASCII rune.
+ 				b.WriteRune(r)
+ 			}
+ 		}
+diff --git a/src/sync/map_test.go b/src/sync/map_test.go
+index 20872f3b72..316f87bacc 100644
+--- a/src/sync/map_test.go
++++ b/src/sync/map_test.go
+@@ -278,7 +278,7 @@ func TestCompareAndSwap_NonExistingKey(t *testing.T) {
+ 	m := &sync.Map{}
+ 	if m.CompareAndSwap(m, nil, 42) {
+ 		// See https://go.dev/issue/51972#issuecomment-1126408637.
+-		t.Fatalf("CompareAndSwap on an non-existing key succeeded")
++		t.Fatalf("CompareAndSwap on a non-existing key succeeded")
+ 	}
+ }
+ 

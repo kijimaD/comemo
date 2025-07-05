@@ -17,7 +17,230 @@ Date:   Mon Jan 13 11:10:45 2014 -0800
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/50630043
-
+---
  src/pkg/go/scanner/scanner.go      | 47 +++++++++++++-----------
  src/pkg/go/scanner/scanner_test.go | 75 +++++++++++++++++++++-----------------
  2 files changed, 67 insertions(+), 55 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 1e259d5ed2..073bebd36d 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -402,29 +402,30 @@ func (s *Scanner) scanEscape(quote rune) {
+ 	}
+ }
+ 
+-func (s *Scanner) scanChar() string {
++func (s *Scanner) scanRune() string {
+ 	// '\'' opening already consumed
+ 	offs := s.offset - 1
+ 
+ 	n := 0
+-	for s.ch != '\'' {
++	for {
+ 		ch := s.ch
+-		n++
+-		s.next()
+ 		if ch == '\n' || ch < 0 {
+-			s.error(offs, "character literal not terminated")
+-			n = 1
++			s.error(offs, "rune literal not terminated")
++			n = 1 // avoid further errors
++			break
++		}
++		s.next()
++		if ch == '\'' {
+ 			break
+ 		}
++		n++
+ 		if ch == '\\' {
+ 			s.scanEscape('\'')
+ 		}
+ 	}
+ 
+-	s.next()
+-
+ 	if n != 1 {
+-		s.error(offs, "illegal character literal")
++		s.error(offs, "illegal rune literal")
+ 	}
+ 
+ 	return string(s.src[offs:s.offset])
+@@ -434,11 +435,14 @@ func (s *Scanner) scanString() string {
+ 	// '"' opening already consumed
+ 	offs := s.offset - 1
+ 
+-	for s.ch != '"' {
++	for {
+ 		ch := s.ch
+-		s.next()
+ 		if ch == '\n' || ch < 0 {
+-			s.error(offs, "string not terminated")
++			s.error(offs, "string literal not terminated")
++			break
++		}
++		s.next()
++		if ch == '"' {
+ 			break
+ 		}
+ 		if ch == '\\' {
+@@ -446,8 +450,6 @@ func (s *Scanner) scanString() string {
+ 		}
+ 	}
+ 
+-	s.next()
+-
+ 	return string(s.src[offs:s.offset])
+ }
+ 
+@@ -468,20 +470,21 @@ func (s *Scanner) scanRawString() string {
+ 	offs := s.offset - 1
+ 
+ 	hasCR := false
+-	for s.ch != '`' {
++	for {
+ 		ch := s.ch
++		if ch < 0 {
++			s.error(offs, "raw string literal not terminated")
++			break
++		}
+ 		s.next()
++		if ch == '`' {
++			break
++		}
+ 		if ch == '\r' {
+ 			hasCR = true
+ 		}
+-		if ch < 0 {
+-			s.error(offs, "string not terminated")
+-			break
+-		}
+ 	}
+ 
+-	s.next()
+-
+ 	lit := s.src[offs:s.offset]
+ 	if hasCR {
+ 		lit = stripCR(lit)
+@@ -617,7 +620,7 @@ scanAgain:
+ 		case '\'':
+ 			insertSemi = true
+ 			tok = token.CHAR
+-			lit = s.scanChar()
++			lit = s.scanRune()
+ 		case '`':
+ 			insertSemi = true
+ 			tok = token.STRING
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 8c64c2b95f..a26785ebc4 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -631,7 +631,7 @@ type errorCollector struct {
+ 	pos token.Position // last error position encountered
+ }
+ 
+-func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
++func checkError(t *testing.T, src string, tok token.Token, pos int, lit, err string) {
+ 	var s Scanner
+ 	var h errorCollector
+ 	eh := func(pos token.Position, msg string) {
+@@ -640,7 +640,7 @@ func checkError(t *testing.T, src string, tok token.Token, pos int, err string)
+ 		h.pos = pos
+ 	}
+ 	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), eh, ScanComments|dontInsertSemis)
+-	_, tok0, _ := s.Scan()
++	_, tok0, lit0 := s.Scan()
+ 	_, tok1, _ := s.Scan()
+ 	if tok0 != tok {
+ 		t.Errorf("%q: got %s, expected %s", src, tok0, tok)
+@@ -648,6 +648,9 @@ func checkError(t *testing.T, src string, tok token.Token, pos int, err string)
+ 	if tok1 != token.EOF {
+ 		t.Errorf("%q: got %s, expected EOF", src, tok1)
+ 	}
++	if tok0 != token.ILLEGAL && lit0 != lit {
++		t.Errorf("%q: got literal %q, expected %q", src, lit0, lit)
++	}
+ 	cnt := 0
+ 	if err != "" {
+ 		cnt = 1
+@@ -667,43 +670,49 @@ var errors = []struct {
+ 	src string
+ 	tok token.Token
+ 	pos int
++	lit string
+ 	err string
+ }{
+-	{"\a", token.ILLEGAL, 0, "illegal character U+0007"},
+-	{`#`, token.ILLEGAL, 0, "illegal character U+0023 '#'"},
+-	{`…`, token.ILLEGAL, 0, "illegal character U+2026 '…'"},
+-	{`' '`, token.CHAR, 0, ""},
+-	{`''`, token.CHAR, 0, "illegal character literal"},
+-	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},
+-	{`'\08'`, token.CHAR, 3, "illegal character in escape sequence"},
+-	{`'\x0g'`, token.CHAR, 4, "illegal character in escape sequence"},
+-	{`'\Uffffffff'`, token.CHAR, 2, "escape sequence is invalid Unicode code point"},
+-	{`'`, token.CHAR, 0, "character literal not terminated"},
+-	{`""`, token.STRING, 0, ""},
+-	{`"`, token.STRING, 0, "string not terminated"},
+-	{"``", token.STRING, 0, ""},
+-	{"`", token.STRING, 0, "string not terminated"},
+-	{"/**/", token.COMMENT, 0, ""},
+-	{"/*", token.COMMENT, 0, "comment not terminated"},
+-	{"077", token.INT, 0, ""},
+-	{"078.", token.FLOAT, 0, ""},
+-	{"07801234567.", token.FLOAT, 0, ""},
+-	{"078e0", token.FLOAT, 0, ""},
+-	{"078", token.INT, 0, "illegal octal number"},
+-	{"07800000009", token.INT, 0, "illegal octal number"},
+-	{"0x", token.INT, 0, "illegal hexadecimal number"},
+-	{"0X", token.INT, 0, "illegal hexadecimal number"},
+-	{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
+-	{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
+-	{"\ufeff\ufeff", token.ILLEGAL, 3, "illegal byte order mark"},            // only first BOM is ignored
+-	{"//\ufeff", token.COMMENT, 2, "illegal byte order mark"},                // only first BOM is ignored
+-	{"'\ufeff" + `'`, token.CHAR, 1, "illegal byte order mark"},              // only first BOM is ignored
+-	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, "illegal byte order mark"}, // only first BOM is ignored
++	{"\a", token.ILLEGAL, 0, "", "illegal character U+0007"},
++	{`#`, token.ILLEGAL, 0, "", "illegal character U+0023 '#'"},
++	{`…`, token.ILLEGAL, 0, "", "illegal character U+2026 '…'"},
++	{`' '`, token.CHAR, 0, `' '`, ""},
++	{`''`, token.CHAR, 0, `''`, "illegal rune literal"},
++	{`'123'`, token.CHAR, 0, `'123'`, "illegal rune literal"},
++	{`'\8'`, token.CHAR, 2, `'\8'`, "unknown escape sequence"},
++	{`'\08'`, token.CHAR, 3, `'\08'`, "illegal character in escape sequence"},
++	{`'\x0g'`, token.CHAR, 4, `'\x0g'`, "illegal character in escape sequence"},
++	{`'\Uffffffff'`, token.CHAR, 2, `'\Uffffffff'`, "escape sequence is invalid Unicode code point"},
++	{`'`, token.CHAR, 0, `'`, "rune literal not terminated"},
++	{"'\n", token.CHAR, 0, "'", "rune literal not terminated"},
++	{"'\n   ", token.CHAR, 0, "'", "rune literal not terminated"},
++	{`""`, token.STRING, 0, `""`, ""},
++	{`"abc`, token.STRING, 0, `"abc`, "string literal not terminated"},
++	{"\"abc\n", token.STRING, 0, `"abc`, "string literal not terminated"},
++	{"\"abc\n   ", token.STRING, 0, `"abc`, "string literal not terminated"},
++	{"``", token.STRING, 0, "``", ""},
++	{"`", token.STRING, 0, "`", "raw string literal not terminated"},
++	{"/**/", token.COMMENT, 0, "/**/", ""},
++	{"/*", token.COMMENT, 0, "/*", "comment not terminated"},
++	{"077", token.INT, 0, "077", ""},
++	{"078.", token.FLOAT, 0, "078.", ""},
++	{"07801234567.", token.FLOAT, 0, "07801234567.", ""},
++	{"078e0", token.FLOAT, 0, "078e0", ""},
++	{"078", token.INT, 0, "078", "illegal octal number"},
++	{"07800000009", token.INT, 0, "07800000009", "illegal octal number"},
++	{"0x", token.INT, 0, "0x", "illegal hexadecimal number"},
++	{"0X", token.INT, 0, "0X", "illegal hexadecimal number"},
++	{"\"abc\x00def\"", token.STRING, 4, "\"abc\x00def\"", "illegal character NUL"},
++	{"\"abc\x80def\"", token.STRING, 4, "\"abc\x80def\"", "illegal UTF-8 encoding"},
++	{"\ufeff\ufeff", token.ILLEGAL, 3, "\ufeff\ufeff", "illegal byte order mark"},                        // only first BOM is ignored
++	{"//\ufeff", token.COMMENT, 2, "//\ufeff", "illegal byte order mark"},                                // only first BOM is ignored
++	{"'\ufeff" + `'`, token.CHAR, 1, "'\ufeff" + `'`, "illegal byte order mark"},                         // only first BOM is ignored
++	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
+ }
+ 
+ func TestScanErrors(t *testing.T) {
+ 	for _, e := range errors {
+-		checkError(t, e.src, e.tok, e.pos, e.err)
++		checkError(t, e.src, e.tok, e.pos, e.lit, e.err)
+ 	}
+ }
+ 

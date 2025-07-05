@@ -12,6 +12,20 @@ Date:   Fri Mar 15 07:33:32 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/x86/pcrelative_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/pcrelative_test.go b/src/cmd/internal/obj/x86/pcrelative_test.go
+index 3827100123..f92b43c72f 100644
+--- a/src/cmd/internal/obj/x86/pcrelative_test.go
++++ b/src/cmd/internal/obj/x86/pcrelative_test.go
+@@ -93,7 +93,7 @@ LOOP:
+ 		data := bytes.Split(objout, []byte("\n"))
+ 		for idx := len(data) - 1; idx >= 0; idx-- {
+ 			// check that RET wasn't overwritten.
+-			if bytes.Index(data[idx], []byte("RET")) != -1 {
++			if bytes.Contains(data[idx], []byte("RET")) {
+ 				if testing.Short() {
+ 					break LOOP
+ 				}

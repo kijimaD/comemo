@@ -11,6 +11,33 @@ Date:   Thu Dec 26 13:39:04 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212617
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f774c0c8dd..029e10feda 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -607,6 +607,21 @@ func (l *Loader) SymName(i Sym) string {
+ 	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+ }
+ 
++// Returns the version of the i-th symbol.
++func (l *Loader) SymVersion(i Sym) int {
++	if l.IsExternal(i) {
++		if s := l.Syms[i]; s != nil {
++			return int(s.Version)
++		}
++		pp := l.getPayload(i)
++		return pp.ver
++	}
++	r, li := l.toLocal(i)
++	osym := goobj2.Sym{}
++	osym.Read(r.Reader, r.SymOff(li))
++	return int(abiToVer(osym.ABI, r.version))
++}
++
+ // Returns the type of the i-th symbol.
+ func (l *Loader) SymType(i Sym) sym.SymKind {
+ 	if l.IsExternal(i) {

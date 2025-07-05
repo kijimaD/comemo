@@ -7,6 +7,29 @@ Date:   Mon Jul 20 12:30:06 2015 -0700
     Change-Id: If1c12b43ef467c3ef2cbbaaba1bda4ea98032c7e
     Reviewed-on: https://go-review.googlesource.com/12430
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 282f0685b2..56adaa1558 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -1097,6 +1097,17 @@ For details, see the documentation for
+ <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>.
+ </li>
+ 
++<li>
++There is a new method to cancel a <a href="/pkg/net/http/"><code>net/http</code></a>
++<code>Request</code> by setting the new
++<a href="/pkg/net/http/#Request"><code>Request.Cancel</code></a>
++field.
++It is supported by <code>http.Transport</code>.
++The <code>Cancel</code> field's type is compatible with the
++<a href="https://godoc.org/golang.org/x/net/context"><code>context.Context.Done</code></a>
++return value.
++</li>
++
+ <li>
+ Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
+ there is code to ignore the zero <a href="/pkg/time/#Time"><code>Time</code></a> value

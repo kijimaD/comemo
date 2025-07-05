@@ -17,6 +17,10 @@ Date:   Thu Jun 21 18:30:04 2018 +0100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+old mode 100755
+new mode 100644

@@ -57,7 +57,200 @@ Date:   Sun Dec 18 20:13:58 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/38061
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/range.go | 108 +++++++++++++++++++++++------------
  test/live.go                         |  26 ++++++---
  2 files changed, 89 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index aaf8641255..32f22172c8 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"unicode/utf8"
+ )
+ 
+@@ -137,6 +138,22 @@ out:
+ 	decldepth--
+ }
+ 
++func cheapComputableIndex(width int64) bool {
++	switch thearch.LinkArch.Family {
++	// MIPS does not have R+R addressing
++	// Arm64 may lack ability to generate this code in our assembler,
++	// but the architecture supports it.
++	case sys.PPC64, sys.S390X:
++		return width == 1
++	case sys.AMD64, sys.I386, sys.ARM64, sys.ARM:
++		switch width {
++		case 1, 2, 4, 8:
++			return true
++		}
++	}
++	return false
++}
++
+ // walkrange transforms various forms of ORANGE into
+ // simpler forms.  The result must be assigned back to n.
+ // Node n may also be modified in place, and may also be
+@@ -202,57 +219,76 @@ func walkrange(n *Node) *Node {
+ 
+ 		hv1 := temp(types.Types[TINT])
+ 		hn := temp(types.Types[TINT])
+-		var hp *Node
+ 
+ 		init = append(init, nod(OAS, hv1, nil))
+ 		init = append(init, nod(OAS, hn, nod(OLEN, ha, nil)))
+ 
+-		if v2 != nil {
+-			hp = temp(types.NewPtr(n.Type.Elem()))
+-			tmp := nod(OINDEX, ha, nodintconst(0))
+-			tmp.SetBounded(true)
+-			init = append(init, nod(OAS, hp, nod(OADDR, tmp, nil)))
+-		}
+-
+ 		n.Left = nod(OLT, hv1, hn)
+ 		n.Right = nod(OAS, hv1, nod(OADD, hv1, nodintconst(1)))
++
++		// for range ha { body }
+ 		if v1 == nil {
+-			body = nil
+-		} else if v2 == nil {
++			break
++		}
++
++		// for v1 := range ha { body }
++		if v2 == nil {
+ 			body = []*Node{nod(OAS, v1, hv1)}
+-		} else { // for i,a := range thing { body }
+-			if objabi.Preemptibleloops_enabled != 0 {
+-				// Doing this transformation makes a bounds check removal less trivial; see #20711
+-				// TODO enhance the preemption check insertion so that this transformation is not necessary.
+-				ifGuard = nod(OIF, nil, nil)
+-				ifGuard.Left = nod(OLT, hv1, hn)
+-				translatedLoopOp = OFORUNTIL
+-			}
++			break
++		}
+ 
++		// for v1, v2 := range ha { body }
++		if cheapComputableIndex(n.Type.Elem().Width) {
++			// v1, v2 = hv1, ha[hv1]
++			tmp := nod(OINDEX, ha, hv1)
++			tmp.SetBounded(true)
++			// Use OAS2 to correctly handle assignments
++			// of the form "v1, a[v1] := range".
+ 			a := nod(OAS2, nil, nil)
+ 			a.List.Set2(v1, v2)
+-			a.Rlist.Set2(hv1, nod(OIND, hp, nil))
++			a.Rlist.Set2(hv1, tmp)
+ 			body = []*Node{a}
++			break
++		}
+ 
+-			// Advance pointer as part of increment.
+-			// We used to advance the pointer before executing the loop body,
+-			// but doing so would make the pointer point past the end of the
+-			// array during the final iteration, possibly causing another unrelated
+-			// piece of memory not to be garbage collected until the loop finished.
+-			// Advancing during the increment ensures that the pointer p only points
+-			// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
+-			// after which p is dead, so it cannot confuse the collector.
+-			tmp := nod(OADD, hp, nodintconst(t.Elem().Width))
+-
+-			tmp.Type = hp.Type
+-			tmp.SetTypecheck(1)
+-			tmp.Right.Type = types.Types[types.Tptr]
+-			tmp.Right.SetTypecheck(1)
+-			a = nod(OAS, hp, tmp)
+-			a = typecheck(a, Etop)
+-			n.Right.Ninit.Set1(a)
++		if objabi.Preemptibleloops_enabled != 0 {
++			// Doing this transformation makes a bounds check removal less trivial; see #20711
++			// TODO enhance the preemption check insertion so that this transformation is not necessary.
++			ifGuard = nod(OIF, nil, nil)
++			ifGuard.Left = nod(OLT, hv1, hn)
++			translatedLoopOp = OFORUNTIL
+ 		}
+ 
++		hp := temp(types.NewPtr(n.Type.Elem()))
++		tmp := nod(OINDEX, ha, nodintconst(0))
++		tmp.SetBounded(true)
++		init = append(init, nod(OAS, hp, nod(OADDR, tmp, nil)))
++
++		// Use OAS2 to correctly handle assignments
++		// of the form "v1, a[v1] := range".
++		a := nod(OAS2, nil, nil)
++		a.List.Set2(v1, v2)
++		a.Rlist.Set2(hv1, nod(OIND, hp, nil))
++		body = append(body, a)
++
++		// Advance pointer as part of increment.
++		// We used to advance the pointer before executing the loop body,
++		// but doing so would make the pointer point past the end of the
++		// array during the final iteration, possibly causing another unrelated
++		// piece of memory not to be garbage collected until the loop finished.
++		// Advancing during the increment ensures that the pointer p only points
++		// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
++		// after which p is dead, so it cannot confuse the collector.
++		tmp = nod(OADD, hp, nodintconst(t.Elem().Width))
++
++		tmp.Type = hp.Type
++		tmp.SetTypecheck(1)
++		tmp.Right.Type = types.Types[types.Tptr]
++		tmp.Right.SetTypecheck(1)
++		a = nod(OAS, hp, tmp)
++		a = typecheck(a, Etop)
++		n.Right.Ninit.Set1(a)
++
+ 	case TMAP:
+ 		// orderstmt allocated the iterator for us.
+ 		// we only use a once, so no copy needed.
+diff --git a/test/live.go b/test/live.go
+index 2eb442cd2f..dd45e38025 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -463,22 +463,30 @@ func f29(b bool) {
+ }
+ 
+ // copy of array of pointers should die at end of range loop
++var pstructarr [10]pstruct
+ 
+-var ptrarr [10]*int
++// Struct size choosen to make pointer to element in pstructarr
++// not computable by strength reduction.
++type pstruct struct {
++	intp *int
++	_    [8]byte
++}
+ 
+ func f30(b bool) {
+-	// two live temps during print(p):
+-	// the copy of ptrarr and the internal iterator pointer.
++	// two live temps during printintpointer(p):
++	// in the copy of p.intp and
++	// the internal iterator pointer if a pointer to pstruct in pstructarr
++	// can not be easily computed by strength reduction.
+ 	if b {
+-		for _, p := range ptrarr {
+-			printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
++		for _, p := range pstructarr {
++			printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+ 		}
+ 	}
+-	for _, p := range ptrarr {
+-		printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
++	for _, p := range pstructarr {
++		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+ 	}
+-	for _, p := range ptrarr {
+-		printintpointer(p) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
++	for _, p := range pstructarr {
++		printintpointer(p.intp) // ERROR "live at call to printintpointer: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+ 	}
+ }
+ 

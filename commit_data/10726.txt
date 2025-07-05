@@ -7,8 +7,87 @@ Date:   Mon Dec 12 18:01:06 2011 -0500
     R=golang-dev, r, tux21b, rsc
     CC=golang-dev
     https://golang.org/cl/5479062
-
+---
  lib/godoc/godoc.html     |  3 +++
  lib/godoc/opensearch.xml | 11 +++++++++++
  src/cmd/godoc/godoc.go   | 15 ++++++++++++++-
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 671160d5a8..e99b758586 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -12,6 +12,9 @@
+ <link rel="stylesheet" href="/doc/ie.css" type="text/css">
+ <![endif]-->
+ <script type="text/javascript" src="/doc/godocs.js"></script>
++{{if .SearchBox}}
++<link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
++{{end}}
+ </head>
+ <body>
+ <div id="container">
+diff --git a/lib/godoc/opensearch.xml b/lib/godoc/opensearch.xml
+new file mode 100644
+index 0000000000..1b652db376
+--- /dev/null
++++ b/lib/godoc/opensearch.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
++  <ShortName>godoc</ShortName>
++  <Description>The Go Programming Language</Description>
++  <Tags>go golang</Tags>
++  <Contact />
++  <Url type="text/html" template="{{.BaseURL}}/search?q={searchTerms}" />
++  <Image height="15" width="16" type="image/x-icon">/favicon.ico</Image>
++  <OutputEncoding>UTF-8</OutputEncoding>
++  <InputEncoding>UTF-8</InputEncoding>
++</OpenSearchDescription>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 35d5665b92..dfaadc4dfe 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -105,6 +105,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
+ 	mux.HandleFunc("/doc/codewalk/", codewalk)
+ 	mux.HandleFunc("/search", search)
+ 	mux.Handle("/robots.txt", fileServer)
++	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
+ 	mux.HandleFunc("/", serveFile)
+ }
+ 
+@@ -600,7 +601,8 @@ var (
+ 	packageHTML,
+ 	packageText,
+ 	searchHTML,
+-	searchText *template.Template
++	searchText,
++	searchDescXML *template.Template
+ )
+ 
+ func readTemplates() {
+@@ -615,6 +617,7 @@ func readTemplates() {
+ 	packageText = readTemplate("package.txt")
+ 	searchHTML = readTemplate("search.html")
+ 	searchText = readTemplate("search.txt")
++	searchDescXML = readTemplate("opensearch.xml")
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -809,6 +812,16 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 	fileServer.ServeHTTP(w, r)
+ }
+ 
++func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
++	data := map[string]interface{}{
++		"BaseURL": fmt.Sprintf("http://%s", r.Host),
++	}
++	if err := searchDescXML.Execute(w, &data); err != nil {
++		log.Printf("searchDescXML.Execute: %s", err)
++	}
++}
++
+ // ----------------------------------------------------------------------------
+ // Packages
+ 

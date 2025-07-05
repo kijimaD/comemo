@@ -17,9 +17,71 @@ Date:   Mon Sep 25 18:54:14 2017 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/fd_unix.go    | 1 +
  src/internal/poll/fd_windows.go | 5 +++--
  src/net/fd_windows.go           | 2 +-
  src/os/file_windows.go          | 2 +-
  4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index c40c701f59..d9538e364b 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -42,6 +42,7 @@ type FD struct {
+ // This can be called multiple times on a single FD.
+ // The net argument is a network name from the net package (e.g., "tcp"),
+ // or "file".
++// Set pollable to true if fd should be managed by runtime netpoll.
+ func (fd *FD) Init(net string, pollable bool) error {
+ 	// We don't actually care about the various network types.
+ 	if net == "file" {
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index f416158bbc..b0991a29f2 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -302,7 +302,8 @@ var logInitFD func(net string, fd *FD, err error)
+ // This can be called multiple times on a single FD.
+ // The net argument is a network name from the net package (e.g., "tcp"),
+ // or "file" or "console" or "dir".
+-func (fd *FD) Init(net string) (string, error) {
++// Set pollable to true if fd should be managed by runtime netpoll.
++func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 	if initErr != nil {
+ 		return "", initErr
+ 	}
+@@ -323,7 +324,7 @@ func (fd *FD) Init(net string) (string, error) {
+ 	}
+ 
+ 	var err error
+-	if !fd.isFile && !fd.isConsole && !fd.isDir {
++	if pollable {
+ 		// Only call init for a network socket.
+ 		// This means that we don't add files to the runtime poller.
+ 		// Adding files to the runtime poller can confuse matters
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index c2156b255e..563558dc52 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -52,7 +52,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
+ }
+ 
+ func (fd *netFD) init() error {
+-	errcall, err := fd.pfd.Init(fd.net)
++	errcall, err := fd.pfd.Init(fd.net, true)
+ 	if errcall != "" {
+ 		err = wrapSyscallError(errcall, err)
+ 	}
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 93b6c135c7..e2be192bcb 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -54,7 +54,7 @@ func newFile(h syscall.Handle, name string, kind string) *File {
+ 
+ 	// Ignore initialization errors.
+ 	// Assume any problems will show up in later I/O.
+-	f.pfd.Init(kind)
++	f.pfd.Init(kind, false)
+ 
+ 	return f
+ }

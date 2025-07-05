@@ -7,10 +7,153 @@ Date:   Fri Aug 13 12:53:27 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1995041
-
+---
  src/pkg/Makefile          |  1 -
  src/pkg/once/Makefile     | 11 ---------
  src/pkg/once/once.go      | 59 -----------------------------------------------
  src/pkg/once/once_test.go | 30 ------------------------
  test/garbage/parser.go    |  1 -
  5 files changed, 102 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 7d135962f1..5c4bbadb10 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -100,7 +100,6 @@ DIRS=\
+ 	net/textproto\
+ 	netchan\
+ 	nntp\
+-	once\
+ 	os\
+ 	os/signal\
+ 	patch\
+diff --git a/src/pkg/once/Makefile b/src/pkg/once/Makefile
+deleted file mode 100644
+index e87fbf8103..0000000000
+--- a/src/pkg/once/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.$(GOARCH)
+-
+-TARG=once
+-GOFILES=\
+-	once.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/once/once.go b/src/pkg/once/once.go
+deleted file mode 100644
+index 43949ee197..0000000000
+--- a/src/pkg/once/once.go
++++ /dev/null
+@@ -1,59 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This package provides a single function, Do, to run a function
+-// exactly once, usually used as part of initialization.
+-package once
+-
+-import "sync"
+-
+-type job struct {
+-	done       bool
+-	sync.Mutex // should probably be sync.Notification or some such
+-}
+-
+-var jobs = make(map[func()]*job)
+-var joblock sync.Mutex
+-
+-// Do is the the only exported piece of the package.
+-// For one-time initialization that is not done during init,
+-// wrap the initialization in a niladic function f() and call
+-//	Do(f)
+-// If multiple processes call Do(f) simultaneously
+-// with the same f argument, only one will call f, and the
+-// others will block until f finishes running.
+-//
+-// Since a func() expression typically evaluates to a differerent
+-// function value each time it is evaluated, it is incorrect to
+-// pass such values to Do.  For example,
+-//	func f(x int) {
+-//		Do(func() { fmt.Println(x) })
+-//	}
+-// behaves the same as
+-//	func f(x int) {
+-//		fmt.Println(x)
+-//	}
+-// because the func() expression in the first creates a new
+-// func each time f runs, and each of those funcs is run once.
+-func Do(f func()) {
+-	joblock.Lock()
+-	j := jobs[f]
+-	if j == nil {
+-		// run it
+-		j = new(job)
+-		j.Lock()
+-		jobs[f] = j
+-		joblock.Unlock()
+-		f()
+-		j.done = true
+-		j.Unlock()
+-	} else {
+-		// wait for it
+-		joblock.Unlock()
+-		if j.done != true {
+-			j.Lock()
+-			j.Unlock()
+-		}
+-	}
+-}
+diff --git a/src/pkg/once/once_test.go b/src/pkg/once/once_test.go
+deleted file mode 100644
+index e7aaec3120..0000000000
+--- a/src/pkg/once/once_test.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package once_test
+-
+-import (
+-	"once"
+-	"testing"
+-)
+-
+-var ncall int
+-
+-func call() { ncall++ }
+-
+-func TestDo(t *testing.T) {
+-	ncall = 0
+-	once.Do(call)
+-	if ncall != 1 {
+-		t.Fatalf("once.Do(call) didn't call(): ncall=%d", ncall)
+-	}
+-	once.Do(call)
+-	if ncall != 1 {
+-		t.Fatalf("second once.Do(call) did call(): ncall=%d", ncall)
+-	}
+-	once.Do(call)
+-	if ncall != 1 {
+-		t.Fatalf("third once.Do(call) did call(): ncall=%d", ncall)
+-	}
+-}
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index e8e049474c..a0fd19a621 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -185,7 +185,6 @@ var packages = []string{
+ 	"mime",
+ 	"net",
+ 	"nntp",
+-	"once",
+ 	"os",
+ 	"os/signal",
+ 	"patch",

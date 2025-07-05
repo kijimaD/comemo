@@ -15,6 +15,27 @@ Date:   Fri Oct 2 10:55:27 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/15284
     Reviewed-by: Jason Buberel <jbuberel@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  README.md | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/README.md b/README.md
+index 4e6d7bde1f..281deecdfb 100644
+--- a/README.md
++++ b/README.md
+@@ -12,14 +12,12 @@ in your web browser.
+ Our canonical Git repository is located at https://go.googlesource.com/go.
+ There is a mirror of the repository at https://github.com/golang/go.
+ 
+-Please report issues here: https://golang.org/issue/new
+-
+ Go is the work of hundreds of contributors. We appreciate your help!
+ 
+ To contribute, please read the contribution guidelines:
+ 	https://golang.org/doc/contribute.html
+ 
+-##### Please note that we do not use pull requests.
++##### Note that we do not accept pull requests and that we use the issue tracker for bug reports and proposals only. Please ask questions on https://forum.golangbridge.org or https://groups.google.com/forum/#!forum/golang-nuts.
+ 
+ Unless otherwise noted, the Go source files are distributed
+ under the BSD-style license found in the LICENSE file.

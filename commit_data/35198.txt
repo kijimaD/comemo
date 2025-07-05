@@ -11,8 +11,66 @@ Date:   Fri Dec 15 12:38:59 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go              | 21 +++++++++++++++++++++
  src/cmd/go/internal/test/test.go   |  2 +-
  src/cmd/go/internal/work/action.go |  4 ++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 83c126e11e..42eea06dc2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5590,3 +5590,24 @@ func init() {}
+ 	tg.run("build", "-o", tg.path("a.exe"), "a")
+ 	tg.run("test", "a")
+ }
++
++// Issue 23150.
++func TestCpuprofileTwice(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("prof/src/x/x_test.go", `
++		package x_test
++		import (
++			"testing"
++			"time"
++		)
++		func TestSleep(t *testing.T) { time.Sleep(10 * time.Millisecond) }`)
++	tg.setenv("GOPATH", tg.path("prof"))
++	bin := tg.path("x.test")
++	out := tg.path("cpu.out")
++	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
++	tg.must(os.Remove(out))
++	tg.run("test", "-o="+bin, "-cpuprofile="+out, "x")
++	tg.mustExist(out)
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b224d8a46d..f7f6c64a86 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1321,7 +1321,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 	if !c.disableCache && len(execCmd) == 0 {
+ 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
+ 	}
+-	args := str.StringList(execCmd, a.Deps[0].Target, testlogArg, testArgs)
++	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, testArgs)
+ 
+ 	if testCoverProfile != "" {
+ 		// Write coverage to temporary profile, for merging later.
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 46ba3447c6..f752301323 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -98,6 +98,10 @@ func (a *Action) BuildContentID() string { return contentID(a.buildID) }
+ // BuildID returns a's build ID.
+ func (a *Action) BuildID() string { return a.buildID }
+ 
++// BuiltTarget returns the actual file that was built. This differs
++// from Target when the result was cached.
++func (a *Action) BuiltTarget() string { return a.built }
++
+ // An actionQueue is a priority queue of actions.
+ type actionQueue []*Action
+ 

@@ -7,6 +7,19 @@ Date:   Mon Feb 25 12:21:12 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7365057
-
+---
  src/cmd/5g/gg.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 2c89129f2d..fc17bf3c99 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -24,6 +24,7 @@ struct	Addr
+ 	} u;
+ 
+ 	Sym*	sym;
++	Sym*	gotype;
+ 	Node*	node;
+ 	int	width;
+ 	uchar	type;

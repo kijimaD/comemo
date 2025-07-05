@@ -13,6 +13,29 @@ Date:   Fri Jul 16 14:54:21 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/interface.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 91270cfcd3..686dd7a786 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -72,17 +72,6 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 		}
+ 	}
+ 
+-	// TODO(rfindley): this guard is not present in types2. Remove it?
+-	// All embedded types should be interfaces; however, defined types
+-	// may not yet be fully resolved. Only verify that non-defined types
+-	// are interfaces. This matches the behavior of the code before the
+-	// fix for #25301 (issue #25596).
+-	for _, t := range embeddeds {
+-		if _, ok := t.(*Named); !ok && !IsInterface(t) {
+-			panic("embedded type is not an interface")
+-		}
+-	}
+-
+ 	// sort for API stability
+ 	sortMethods(methods)
+ 

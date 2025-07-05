@@ -10,7 +10,53 @@ Date:   Wed Jun 24 18:51:06 2015 +0200
     Change-Id: I90a0325fc9aaa16c3ef16b9c4c642581da2bb10c
     Reviewed-on: https://go-review.googlesource.com/11416
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/race/race_test.go         | 5 ++++-
  src/runtime/race/testdata/mop_test.go | 4 ++--
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index f4caff0ed4..37272c751c 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -36,7 +36,7 @@ var (
+ 
+ const (
+ 	visibleLen = 40
+-	testPrefix = "=== RUN Test"
++	testPrefix = "=== RUN   Test"
+ )
+ 
+ func TestRace(t *testing.T) {
+@@ -63,6 +63,9 @@ func TestRace(t *testing.T) {
+ 		}
+ 	}
+ 
++	if totalTests == 0 {
++		t.Fatalf("failed to parse test output")
++	}
+ 	fmt.Printf("\nPassed %d of %d tests (%.02f%%, %d+, %d-)\n",
+ 		passedTests, totalTests, 100*float64(passedTests)/float64(totalTests), falsePos, falseNeg)
+ 	fmt.Printf("%d expected failures (%d has not fail)\n", failingPos+failingNeg, failingNeg)
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index 7f95051a8c..b4b0ba04ce 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -1598,7 +1598,7 @@ func TestRaceSliceSlice(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestRaceSliceSlice2(t *testing.T) {
++func TestRaceSliceSlice2Failing(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	x := make([]int, 10)
+ 	i := 2
+@@ -1610,7 +1610,7 @@ func TestRaceSliceSlice2(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestRaceSliceString(t *testing.T) {
++func TestRaceSliceStringFailing(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	x := "hello"
+ 	go func() {

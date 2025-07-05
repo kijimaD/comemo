@@ -11,8 +11,76 @@ Date:   Tue Dec 8 17:56:35 2020 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/initorder.go |  6 +++++-
  test/run.go                                  | 26 --------------------------
  test/typecheckloop.go                        |  4 ++--
  3 files changed, 7 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/initorder.go b/src/cmd/compile/internal/types2/initorder.go
+index 4ef24764a6..a9cabecdf2 100644
+--- a/src/cmd/compile/internal/types2/initorder.go
++++ b/src/cmd/compile/internal/types2/initorder.go
+@@ -151,7 +151,11 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
+ // reportCycle reports an error for the given cycle.
+ func (check *Checker) reportCycle(cycle []Object) {
+ 	obj := cycle[0]
+-	check.errorf(obj, "initialization cycle for %s", obj.Name())
++	if check.conf.CompilerErrorMessages {
++		check.errorf(obj, "initialization loop for %s", obj.Name())
++	} else {
++		check.errorf(obj, "initialization cycle for %s", obj.Name())
++	}
+ 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+ 	for i := len(cycle) - 1; i >= 0; i-- {
+ 		check.errorf(obj, "\t%s refers to", obj.Name()) // secondary error, \t indented
+diff --git a/test/run.go b/test/run.go
+index 891b9572b7..3c8a20712b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2089,32 +2089,6 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue6403.go":   true,
+ 	"fixedbugs/issue6500.go":   true,
+ 	"fixedbugs/issue6572.go":   true,
+-	"fixedbugs/issue6703a.go":  true,
+-	"fixedbugs/issue6703b.go":  true,
+-	"fixedbugs/issue6703c.go":  true,
+-	"fixedbugs/issue6703d.go":  true,
+-	"fixedbugs/issue6703e.go":  true,
+-	"fixedbugs/issue6703f.go":  true,
+-	"fixedbugs/issue6703g.go":  true,
+-	"fixedbugs/issue6703h.go":  true,
+-	"fixedbugs/issue6703i.go":  true,
+-	"fixedbugs/issue6703j.go":  true,
+-	"fixedbugs/issue6703k.go":  true,
+-	"fixedbugs/issue6703l.go":  true,
+-	"fixedbugs/issue6703m.go":  true,
+-	"fixedbugs/issue6703n.go":  true,
+-	"fixedbugs/issue6703o.go":  true,
+-	"fixedbugs/issue6703p.go":  true,
+-	"fixedbugs/issue6703q.go":  true,
+-	"fixedbugs/issue6703r.go":  true,
+-	"fixedbugs/issue6703s.go":  true,
+-	"fixedbugs/issue6703t.go":  true,
+-	"fixedbugs/issue6703u.go":  true,
+-	"fixedbugs/issue6703v.go":  true,
+-	"fixedbugs/issue6703w.go":  true,
+-	"fixedbugs/issue6703x.go":  true,
+-	"fixedbugs/issue6703y.go":  true,
+-	"fixedbugs/issue6703z.go":  true,
+ 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ 	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
+diff --git a/test/typecheckloop.go b/test/typecheckloop.go
+index a143e0984c..13f413cfc9 100644
+--- a/test/typecheckloop.go
++++ b/test/typecheckloop.go
+@@ -9,6 +9,6 @@
+ 
+ package main
+ 
+-const A = 1 + B // ERROR "constant definition loop\n.*A uses B\n.*B uses C\n.*C uses A|initialization cycle"
+-const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initialization cycle"
++const A = 1 + B // ERROR "constant definition loop\n.*A uses B\n.*B uses C\n.*C uses A|initialization loop"
++const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initialization loop"
+ const C = A + B + 1

@@ -18,8 +18,96 @@ Date:   Wed Oct 25 10:51:58 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
  src/runtime/internal/atomic/atomic_riscv64.go    | 18 +++++++++++
  src/runtime/internal/atomic/atomic_riscv64.s     | 40 ++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_andor_test.go b/src/runtime/internal/atomic/atomic_andor_test.go
+index 03c2c754f3..73e8a3320d 100644
+--- a/src/runtime/internal/atomic/atomic_andor_test.go
++++ b/src/runtime/internal/atomic/atomic_andor_test.go
+@@ -1,4 +1,4 @@
+-//go:build wasm || ppc64 || ppc64le
++//go:build ppc64 || ppc64le || riscv64 || wasm
+ 
+ //
+ // Copyright 2023 The Go Authors. All rights reserved.
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.go b/src/runtime/internal/atomic/atomic_riscv64.go
+index 8f24d61625..9fc38376ae 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.go
++++ b/src/runtime/internal/atomic/atomic_riscv64.go
+@@ -57,6 +57,24 @@ func And(ptr *uint32, val uint32)
+ //go:noescape
+ func Or(ptr *uint32, val uint32)
+ 
++//go:noescape
++func And32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func Or32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func And64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Or64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Anduintptr(ptr *uintptr, val uintptr) uintptr
++
++//go:noescape
++func Oruintptr(ptr *uintptr, val uintptr) uintptr
++
+ //go:noescape
+ func Cas64(ptr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index 21d5adcdbc..bf6bd35ed7 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -282,3 +282,43 @@ TEXT ·Or(SB), NOSPLIT, $0-12
+ 	MOVW	val+8(FP), A1
+ 	AMOORW	A1, (A0), ZERO
+ 	RET
++
++// func Or32(ptr *uint32, val uint32) uint32
++TEXT ·Or32(SB), NOSPLIT, $0-20
++	MOV	ptr+0(FP), A0
++	MOVW	val+8(FP), A1
++	AMOORW	A1, (A0), A2
++	MOVW	A2, ret+16(FP)
++	RET
++
++// func And32(ptr *uint32, val uint32) uint32
++TEXT ·And32(SB), NOSPLIT, $0-20
++	MOV	ptr+0(FP), A0
++	MOVW	val+8(FP), A1
++	AMOANDW	A1, (A0), A2
++	MOVW	A2, ret+16(FP)
++	RET
++
++// func Or64(ptr *uint64, val uint64) uint64
++TEXT ·Or64(SB), NOSPLIT, $0-24
++	MOV	ptr+0(FP), A0
++	MOV	val+8(FP), A1
++	AMOORD	A1, (A0), A2
++	MOV	A2, ret+16(FP)
++	RET
++
++// func And64(ptr *uint64, val uint64) uint64
++TEXT ·And64(SB), NOSPLIT, $0-24
++	MOV	ptr+0(FP), A0
++	MOV	val+8(FP), A1
++	AMOANDD	A1, (A0), A2
++	MOV	A2, ret+16(FP)
++	RET
++
++// func Anduintptr(ptr *uintptr, val uintptr) uintptr
++TEXT ·Anduintptr(SB), NOSPLIT, $0-24
++	JMP	·And64(SB)
++
++// func Oruintptr(ptr *uintptr, val uintptr) uintptr
++TEXT ·Oruintptr(SB), NOSPLIT, $0-24
++	JMP	·Or64(SB)

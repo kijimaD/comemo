@@ -15,6 +15,19 @@ Date:   Tue Feb 16 15:55:54 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3ce32388d0..d14b2328bf 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -811,6 +811,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	// so that we can change files.
+ 	for _, copydir := range []string{
+ 		"src/runtime",
++		"src/internal/abi",
+ 		"src/internal/bytealg",
+ 		"src/internal/cpu",
+ 		"src/math/bits",

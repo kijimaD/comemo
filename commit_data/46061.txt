@@ -11,6 +11,36 @@ Date:   Tue Oct 6 17:13:26 2020 -0400
     Trust: Katie Hockman <katie@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index d9aa718987..8f3242dc5e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -41,21 +41,21 @@ stdout ok
+ ! stdout ^ok
+ ! stdout 'fatal here'
+ stdout FAIL
+-stdout illegal
++stdout 'f.Fuzz function'
+ 
+ # Test that f.Error within f.Fuzz panics
+ ! go test error_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ ! stdout 'error here'
+ stdout FAIL
+-stdout illegal
++stdout 'f.Fuzz function'
+ 
+ # Test that f.Skip within f.Fuzz panics
+ ! go test skip_fuzz_fn_fuzz_test.go
+ ! stdout ^ok
+ ! stdout 'skip here'
+ stdout FAIL
+-stdout illegal
++stdout 'f.Fuzz function'
+ 
+ # Test that multiple calls to f.Fuzz causes a non-zero exit status.
+ ! go test multiple_fuzz_calls_fuzz_test.go

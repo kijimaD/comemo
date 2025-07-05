@@ -9,9 +9,65 @@ Date:   Fri Oct 14 15:54:45 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/5275048
-
+---
  src/cmd/gofmt/gofmt_test.go            | 1 +
  src/cmd/gofmt/testdata/comments.golden | 9 +++++++++
  src/cmd/gofmt/testdata/comments.input  | 9 +++++++++
  src/pkg/go/scanner/scanner.go          | 2 +-
  4 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 87b02dad7d..6587f06a02 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -77,6 +77,7 @@ var tests = []struct {
+ 	{"testdata/rewrite1.input", "-r=Foo->Bar"},
+ 	{"testdata/rewrite2.input", "-r=int->bool"},
+ 	{"testdata/stdin*.input", "-stdin"},
++	{"testdata/comments.input", ""},
+ }
+ 
+ func TestRewrite(t *testing.T) {
+diff --git a/src/cmd/gofmt/testdata/comments.golden b/src/cmd/gofmt/testdata/comments.golden
+new file mode 100644
+index 0000000000..ad6bcafafa
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/comments.golden
+@@ -0,0 +1,9 @@
++package main
++
++func main() {}
++
++// comment here
++
++func f() {}
++
++//line foo.go:1
+diff --git a/src/cmd/gofmt/testdata/comments.input b/src/cmd/gofmt/testdata/comments.input
+new file mode 100644
+index 0000000000..ad6bcafafa
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/comments.input
+@@ -0,0 +1,9 @@
++package main
++
++func main() {}
++
++// comment here
++
++func f() {}
++
++//line foo.go:1
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 9f855fc197..589ec68a67 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -151,7 +151,7 @@ func (S *Scanner) interpretLineComment(text []byte) {
+ 					filename = filepath.Join(S.dir, filename)
+ 				}
+ 				// update scanner position
+-				S.file.AddLineInfo(S.lineOffset, filename, line-1) // -1 since comment applies to next line
++				S.file.AddLineInfo(S.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
+ 			}
+ 		}
+ 	}

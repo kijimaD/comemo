@@ -9,7 +9,40 @@ Date:   Tue May 19 14:00:27 2015 -0400
     Change-Id: Id0641e3c0f259812b41ed871e83c68740feb2b19
     Reviewed-on: https://go-review.googlesource.com/10261
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue8745.go      | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 8af9f084e2..0395ec5f5b 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -1027,7 +1027,7 @@ OpSwitch:
+ 		case TSTRING, TARRAY:
+ 			indexlit(&n.Right)
+ 			if t.Etype == TSTRING {
+-				n.Type = Types[TUINT8]
++				n.Type = bytetype
+ 			} else {
+ 				n.Type = t.Type
+ 			}
+diff --git a/test/fixedbugs/issue8745.go b/test/fixedbugs/issue8745.go
+new file mode 100644
+index 0000000000..f3a70aff71
+--- /dev/null
++++ b/test/fixedbugs/issue8745.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that the error says s[2] is a byte, not a uint8.
++
++package p
++
++func f(s string) {
++	var _ float64 = s[2] // ERROR "cannot use.*type byte.*as type float64"
++}

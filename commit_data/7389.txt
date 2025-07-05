@@ -7,6 +7,29 @@ Date:   Mon Feb 7 17:21:04 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4105058
-
+---
  src/cmd/5g/peep.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 783934f9d4..3b31870981 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -366,7 +366,8 @@ subprop(Reg *r0)
+ 		case ADIVD:
+ 		case ADIVF:
+ 			if(p->to.type == v1->type)
+-			if(p->to.reg == v1->reg) {
++			if(p->to.reg == v1->reg)
++			if(p->scond == 0) {
+ 				if(p->reg == NREG)
+ 					p->reg = p->to.reg;
+ 				goto gotit;
+@@ -378,6 +379,7 @@ subprop(Reg *r0)
+ 		case AMOVW:
+ 			if(p->to.type == v1->type)
+ 			if(p->to.reg == v1->reg)
++			if(p->scond == 0)
+ 				goto gotit;
+ 			break;
+ 

@@ -10,8 +10,68 @@ Date:   Tue Nov 3 20:00:21 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/16593
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcsweep.go |  2 +-
  src/runtime/mheap.go    |  4 ++--
  src/runtime/mprof.go    | 11 +++--------
  3 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 02d3d6078b..ace5618213 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -233,7 +233,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 					y := special
+ 					special = special.next
+ 					*specialp = special
+-					freespecial(y, unsafe.Pointer(p), size, false)
++					freespecial(y, unsafe.Pointer(p), size)
+ 				} else {
+ 					// This is profile record, but the object has finalizers (so kept alive).
+ 					// Keep special record.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 4f01aa7505..08b10ee925 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1143,7 +1143,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ 
+ // Do whatever cleanup needs to be done to deallocate s.  It has
+ // already been unlinked from the MSpan specials list.
+-func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) {
++func freespecial(s *special, p unsafe.Pointer, size uintptr) {
+ 	switch s.kind {
+ 	case _KindSpecialFinalizer:
+ 		sf := (*specialfinalizer)(unsafe.Pointer(s))
+@@ -1153,7 +1153,7 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) {
+ 		unlock(&mheap_.speciallock)
+ 	case _KindSpecialProfile:
+ 		sp := (*specialprofile)(unsafe.Pointer(s))
+-		mProf_Free(sp.b, size, freed)
++		mProf_Free(sp.b, size)
+ 		lock(&mheap_.speciallock)
+ 		fixAlloc_Free(&mheap_.specialprofilealloc, unsafe.Pointer(sp))
+ 		unlock(&mheap_.speciallock)
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index a618bd5e81..d4ffb3eafd 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -250,16 +250,11 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
+ }
+ 
+ // Called when freeing a profiled block.
+-func mProf_Free(b *bucket, size uintptr, freed bool) {
++func mProf_Free(b *bucket, size uintptr) {
+ 	lock(&proflock)
+ 	mp := b.mp()
+-	if freed {
+-		mp.recent_frees++
+-		mp.recent_free_bytes += size
+-	} else {
+-		mp.prev_frees++
+-		mp.prev_free_bytes += size
+-	}
++	mp.prev_frees++
++	mp.prev_free_bytes += size
+ 	unlock(&proflock)
+ }
+ 

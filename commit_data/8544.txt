@@ -7,6 +7,33 @@ Date:   Mon May 30 18:23:16 2011 -0400
     R=adg, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4526084
-
+---
  src/cmd/goinstall/main.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 6cd92907a4..ffa37aa417 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -131,6 +131,11 @@ func logPackage(pkg string) {
+ 
+ // install installs the package named by path, which is needed by parent.
+ func install(pkg, parent string) {
++	if isStandardPath(pkg) {
++		visit[pkg] = done
++		return
++	}
++
+ 	// Make sure we're not already trying to install pkg.
+ 	switch visit[pkg] {
+ 	case done:
+@@ -160,9 +165,6 @@ func install(pkg, parent string) {
+ 	if isLocalPath(pkg) {
+ 		dir = pkg
+ 		local = true
+-	} else if isStandardPath(pkg) {
+-		dir = filepath.Join(root, filepath.FromSlash(pkg))
+-		local = true
+ 	} else {
+ 		proot = findPkgroot(pkg)
+ 		err := download(pkg, proot.srcDir())

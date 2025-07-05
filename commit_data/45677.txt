@@ -16,7 +16,60 @@ Date:   Fri Oct 30 21:00:41 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/mvs.go      |  2 +-
  src/cmd/go/internal/modload/mvs_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 94373bc5f3..045cbead3b 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -58,7 +58,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+ // be chosen over other versions of the same module in the module dependency
+ // graph.
+ func (*mvsReqs) Max(v1, v2 string) string {
+-	if v1 != "" && semver.Compare(v1, v2) == -1 {
++	if v1 != "" && (v2 == "" || semver.Compare(v1, v2) == -1) {
+ 		return v2
+ 	}
+ 	return v1
+diff --git a/src/cmd/go/internal/modload/mvs_test.go b/src/cmd/go/internal/modload/mvs_test.go
+new file mode 100644
+index 0000000000..0cb376ec3c
+--- /dev/null
++++ b/src/cmd/go/internal/modload/mvs_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package modload_test
++
++import (
++	"testing"
++
++	"cmd/go/internal/modload"
++)
++
++func TestReqsMax(t *testing.T) {
++	type testCase struct {
++		a, b, want string
++	}
++	reqs := modload.Reqs()
++	for _, tc := range []testCase{
++		{a: "v0.1.0", b: "v0.2.0", want: "v0.2.0"},
++		{a: "v0.2.0", b: "v0.1.0", want: "v0.2.0"},
++		{a: "", b: "v0.1.0", want: ""}, // "" is Target.Version
++		{a: "v0.1.0", b: "", want: ""},
++		{a: "none", b: "v0.1.0", want: "v0.1.0"},
++		{a: "v0.1.0", b: "none", want: "v0.1.0"},
++		{a: "none", b: "", want: ""},
++		{a: "", b: "none", want: ""},
++	} {
++		max := reqs.Max(tc.a, tc.b)
++		if max != tc.want {
++			t.Errorf("Reqs().Max(%q, %q) = %q; want %q", tc.a, tc.b, max, tc.want)
++		}
++	}
++}

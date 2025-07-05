@@ -13,6 +13,19 @@ Date:   Mon Feb 6 19:15:52 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/token/position.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 4d129d938f..c9dba9e79a 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -401,7 +401,6 @@ func (s *FileSet) Base() int {
+ 	b := s.base
+ 	s.mutex.RUnlock()
+ 	return b
+-
+ }
+ 
+ // AddFile adds a new file with a given filename, base offset, and file size

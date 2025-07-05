@@ -9,7 +9,62 @@ Date:   Thu Jun 20 12:14:16 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10426043
-
+---
  src/pkg/crypto/x509/sec1.go      | 14 ++++++++++++++
  src/pkg/crypto/x509/sec1_test.go | 10 +++++++++-
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/sec1.go b/src/pkg/crypto/x509/sec1.go
+index 3a0e29a03e..7de66754ee 100644
+--- a/src/pkg/crypto/x509/sec1.go
++++ b/src/pkg/crypto/x509/sec1.go
+@@ -33,6 +33,20 @@ func ParseECPrivateKey(der []byte) (key *ecdsa.PrivateKey, err error) {
+ 	return parseECPrivateKey(nil, der)
+ }
+ 
++// MarshalECPrivateKey marshals an EC private key into ASN.1, DER format.
++func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
++	oid, ok := oidFromNamedCurve(key.Curve)
++	if !ok {
++		return nil, errors.New("x509: unknown elliptic curve")
++	}
++	return asn1.Marshal(ecPrivateKey{
++		Version:       1,
++		PrivateKey:    key.D.Bytes(),
++		NamedCurveOID: oid,
++		PublicKey:     asn1.BitString{Bytes: elliptic.Marshal(key.Curve, key.X, key.Y)},
++	})
++}
++
+ // parseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
+ // The OID for the named curve may be provided from another source (such as
+ // the PKCS8 container) - if it is provided then use this instead of the OID
+diff --git a/src/pkg/crypto/x509/sec1_test.go b/src/pkg/crypto/x509/sec1_test.go
+index 7135699d28..95f18e77de 100644
+--- a/src/pkg/crypto/x509/sec1_test.go
++++ b/src/pkg/crypto/x509/sec1_test.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"bytes"
+ 	"encoding/hex"
+ 	"testing"
+ )
+@@ -15,8 +16,15 @@ var ecPrivateKeyHex = `3081a40201010430bdb9839c08ee793d1157886a7a758a3c8b2a17a4d
+ 
+ func TestParseECPrivateKey(t *testing.T) {
+ 	derBytes, _ := hex.DecodeString(ecPrivateKeyHex)
+-	_, err := ParseECPrivateKey(derBytes)
++	key, err := ParseECPrivateKey(derBytes)
+ 	if err != nil {
+ 		t.Errorf("failed to decode EC private key: %s", err)
+ 	}
++	serialized, err := MarshalECPrivateKey(key)
++	if err != nil {
++		t.Fatalf("failed to encode EC private key: %s", err)
++	}
++	if !bytes.Equal(serialized, derBytes) {
++		t.Fatalf("serialized key differs: got %x, want %x", serialized, derBytes)
++	}
+ }

@@ -16,7 +16,97 @@ Date:   Mon Dec 2 13:36:50 2013 -0800
     R=golang-dev, dvyukov, rsc, iant, khr
     CC=golang-dev
     https://golang.org/cl/26970044
-
+---
  src/pkg/reflect/all_test.go | 24 ++++++++++++++++++++++++
  src/pkg/reflect/value.go    | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 56 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index e9a20963fb..17d078753c 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -3616,3 +3616,27 @@ func (x *exhaustive) Choose(max int) int {
+ func (x *exhaustive) Maybe() bool {
+ 	return x.Choose(2) == 1
+ }
++
++func GCFunc(args []Value) []Value {
++	runtime.GC()
++	return []Value{}
++}
++
++func TestReflectFuncTraceback(t *testing.T) {
++	f := MakeFunc(TypeOf(func() {}), GCFunc)
++	f.Call([]Value{})
++}
++
++func (p Point) GCMethod(k int) int {
++	runtime.GC()
++	return k + p.x
++}
++
++func TestReflectMethodTraceback(t *testing.T) {
++	p := Point{3, 4}
++	m := ValueOf(p).MethodByName("GCMethod")
++	i := ValueOf(m.Interface()).Call([]Value{ValueOf(5)})[0].Int()
++	if i != 8 {
++		t.Errorf("Call returned %d; want 8", i)
++	}
++}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 761308708f..7e709e6207 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -358,6 +358,11 @@ func (v Value) CallSlice(in []Value) []Value {
+ 	return v.call("CallSlice", in)
+ }
+ 
++var makeFuncStubFn = makeFuncStub
++var makeFuncStubCode = **(**uintptr)(unsafe.Pointer(&makeFuncStubFn))
++var methodValueCallFn = methodValueCall
++var methodValueCallCode = **(**uintptr)(unsafe.Pointer(&methodValueCallFn))
++
+ func (v Value) call(op string, in []Value) []Value {
+ 	// Get function pointer, type.
+ 	t := v.typ
+@@ -377,6 +382,17 @@ func (v Value) call(op string, in []Value) []Value {
+ 		panic("reflect.Value.Call: call of nil function")
+ 	}
+ 
++	// If target is makeFuncStub, short circuit the unpack onto stack /
++	// pack back into []Value for the args and return values.  Just do the
++	// call directly.
++	// We need to do this here because otherwise we have a situation where
++	// reflect.callXX calls makeFuncStub, neither of which knows the
++	// layout of the args.  That's bad for precise gc & stack copying.
++	x := (*makeFuncImpl)(fn)
++	if x.code == makeFuncStubCode {
++		return x.fn(in)
++	}
++
+ 	isSlice := op == "CallSlice"
+ 	n := t.NumIn()
+ 	if isSlice {
+@@ -470,6 +486,22 @@ func (v Value) call(op string, in []Value) []Value {
+ 	}
+ 	off = (off + ptrSize - 1) &^ (ptrSize - 1)
+ 
++	// If the target is methodValueCall, do its work here: add the receiver
++	// argument and call the real target directly.
++	// We need to do this here because otherwise we have a situation where
++	// reflect.callXX calls methodValueCall, neither of which knows the
++	// layout of the args.  That's bad for precise gc & stack copying.
++	y := (*methodValue)(fn)
++	if y.fn == methodValueCallCode {
++		_, fn, rcvr = methodReceiver("call", y.rcvr, y.method)
++		args = append(args, unsafe.Pointer(nil))
++		copy(args[1:], args)
++		args[0] = unsafe.Pointer(rcvr)
++		ptr = unsafe.Pointer(&args[0])
++		off += ptrSize
++		size += ptrSize
++	}
++
+ 	// Call.
+ 	call(fn, ptr, uint32(size))
+ 

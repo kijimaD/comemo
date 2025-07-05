@@ -20,7 +20,7 @@ Date:   Wed Jan 25 17:08:16 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/stmt.go          |  2 +
  src/cmd/compile/internal/ir/fmt.go               |  6 +++
  src/cmd/compile/internal/ir/stmt.go              | 36 ++++++++-------
@@ -33,3 +33,384 @@ Date:   Wed Jan 25 17:08:16 2023 -0500
  src/cmd/compile/internal/walk/complit.go         |  2 +-
  src/cmd/compile/internal/walk/range.go           |  3 +-
  11 files changed, 112 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index 98cd2d53a6..5ae78e35fc 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -80,6 +80,7 @@ func (e *escape) stmt(n ir.Node) {
+ 
+ 	case ir.OFOR:
+ 		n := n.(*ir.ForStmt)
++		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
+ 		e.loopDepth++
+ 		e.discard(n.Cond)
+ 		e.stmt(n.Post)
+@@ -89,6 +90,7 @@ func (e *escape) stmt(n ir.Node) {
+ 	case ir.ORANGE:
+ 		// for Key, Value = range X { Body }
+ 		n := n.(*ir.RangeStmt)
++		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
+ 
+ 		// X is evaluated outside the loop.
+ 		tmp := e.newLoc(nil, false)
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index ccd295d7e1..83f4523425 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -417,6 +417,9 @@ func stmtFmt(n Node, s fmt.State) {
+ 		}
+ 
+ 		fmt.Fprint(s, "for")
++		if n.DistinctVars {
++			fmt.Fprint(s, " /* distinct */")
++		}
+ 		if simpleinit {
+ 			fmt.Fprintf(s, " %v;", n.Init()[0])
+ 		} else if n.Post != nil {
+@@ -451,6 +454,9 @@ func stmtFmt(n Node, s fmt.State) {
+ 			fmt.Fprint(s, " =")
+ 		}
+ 		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
++		if n.DistinctVars {
++			fmt.Fprint(s, " /* distinct vars */")
++		}
+ 
+ 	case OSELECT:
+ 		n := n.(*SelectStmt)
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index dd3908e665..e6f0757ba2 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -216,14 +216,15 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
+ // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
+ type ForStmt struct {
+ 	miniStmt
+-	Label    *types.Sym
+-	Cond     Node
+-	Post     Node
+-	Body     Nodes
+-	HasBreak bool
++	Label        *types.Sym
++	Cond         Node
++	Post         Node
++	Body         Nodes
++	HasBreak     bool
++	DistinctVars bool
+ }
+ 
+-func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt {
++func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinctVars bool) *ForStmt {
+ 	n := &ForStmt{Cond: cond, Post: post}
+ 	n.pos = pos
+ 	n.op = OFOR
+@@ -231,6 +232,7 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt
+ 		n.init = []Node{init}
+ 	}
+ 	n.Body = body
++	n.DistinctVars = distinctVars
+ 	return n
+ }
+ 
+@@ -341,15 +343,16 @@ func (n *LabelStmt) Sym() *types.Sym { return n.Label }
+ // A RangeStmt is a range loop: for Key, Value = range X { Body }
+ type RangeStmt struct {
+ 	miniStmt
+-	Label    *types.Sym
+-	Def      bool
+-	X        Node
+-	RType    Node `mknode:"-"` // see reflectdata/helpers.go
+-	Key      Node
+-	Value    Node
+-	Body     Nodes
+-	HasBreak bool
+-	Prealloc *Name
++	Label        *types.Sym
++	Def          bool
++	X            Node
++	RType        Node `mknode:"-"` // see reflectdata/helpers.go
++	Key          Node
++	Value        Node
++	Body         Nodes
++	HasBreak     bool
++	DistinctVars bool
++	Prealloc     *Name
+ 
+ 	// When desugaring the RangeStmt during walk, the assignments to Key
+ 	// and Value may require OCONVIFACE operations. If so, these fields
+@@ -360,11 +363,12 @@ type RangeStmt struct {
+ 	ValueSrcRType Node `mknode:"-"`
+ }
+ 
+-func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
++func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node, distinctVars bool) *RangeStmt {
+ 	n := &RangeStmt{X: x, Key: key, Value: value}
+ 	n.pos = pos
+ 	n.op = ORANGE
+ 	n.Body = body
++	n.DistinctVars = distinctVars
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index bc288657ab..0ecb70570f 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -21,10 +21,14 @@ import (
+ // subject to this change, that may (once transformed) be heap allocated in the
+ // process. (This allows checking after escape analysis to call out any such
+ // variables, in case it causes allocation/performance problems).
+-
+-// For this code, the meaningful debug and hash flag settings
+ //
+-// base.Debug.LoopVar <= 0 => do not transform
++// The decision to transform loops is normally encoded in the For/Range loop node
++// field DistinctVars but is also dependent on base.LoopVarHash, and some values
++// of base.Debug.LoopVar (which is set per-package).  Decisions encoded in DistinctVars
++// are preserved across inlining, so if package a calls b.F and loops in b.F are
++// transformed, then they are always transformed, whether b.F is inlined or not.
++//
++// Per-package, the debug flag settings that affect this transformer:
+ //
+ // base.LoopVarHash != nil => use hash setting to govern transformation.
+ // note that LoopVarHash != nil sets base.Debug.LoopVar to 1 (unless it is >= 11, for testing/debugging).
+@@ -32,13 +36,7 @@ import (
+ // base.Debug.LoopVar == 11 => transform ALL loops ignoring syntactic/potential escape. Do not log, can be in addition to GOEXPERIMENT.
+ //
+ // The effect of GOEXPERIMENT=loopvar is to change the default value (0) of base.Debug.LoopVar to 1 for all packages.
+-
+ func ForCapture(fn *ir.Func) []*ir.Name {
+-	if base.Debug.LoopVar <= 0 { // code in base:flags.go ensures >= 1 if loopvarhash != ""
+-		// TODO remove this when the transformation is made sensitive to inlining; this is least-risk for 1.21
+-		return nil
+-	}
+-
+ 	// if a loop variable is transformed it is appended to this slice for later logging
+ 	var transformed []*ir.Name
+ 
+@@ -86,7 +84,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 		}
+ 
+ 		// scanChildrenThenTransform processes node x to:
+-		//  1. if x is a for/range, note declared iteration variables possiblyLeaked (PL)
++		//  1. if x is a for/range w/ DistinctVars, note declared iteration variables possiblyLeaked (PL)
+ 		//  2. search all of x's children for syntactically escaping references to v in PL,
+ 		//     meaning either address-of-v or v-captured-by-a-closure
+ 		//  3. for all v in PL that had a syntactically escaping reference, transform the declaration
+@@ -122,7 +120,9 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 				}
+ 
+ 			case *ir.RangeStmt:
+-				if !x.Def {
++				if !(x.Def && x.DistinctVars) {
++					// range loop must define its iteration variables AND have distinctVars.
++					x.DistinctVars = false
+ 					break
+ 				}
+ 				noteMayLeak(x.Key)
+@@ -130,9 +130,13 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 				ir.DoChildren(n, scanChildrenThenTransform)
+ 				x.Key = maybeReplaceVar(x.Key, x)
+ 				x.Value = maybeReplaceVar(x.Value, x)
++				x.DistinctVars = false
+ 				return false
+ 
+ 			case *ir.ForStmt:
++				if !x.DistinctVars {
++					break
++				}
+ 				forAllDefInInit(x, noteMayLeak)
+ 				ir.DoChildren(n, scanChildrenThenTransform)
+ 				var leaked []*ir.Name
+@@ -335,6 +339,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 					// (11) post' = {}
+ 					x.Post = nil
+ 				}
++				x.DistinctVars = false
+ 
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/loopvar/loopvar_test.go b/src/cmd/compile/internal/loopvar/loopvar_test.go
+index 6ff4fc9e22..6f4e73bb27 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar_test.go
++++ b/src/cmd/compile/internal/loopvar/loopvar_test.go
+@@ -102,6 +102,63 @@ func TestLoopVar(t *testing.T) {
+ 	}
+ }
+ 
++func TestLoopVarInlines(t *testing.T) {
++	switch runtime.GOOS {
++	case "linux", "darwin":
++	default:
++		t.Skipf("Slow test, usually avoid it, os=%s not linux or darwin", runtime.GOOS)
++	}
++	switch runtime.GOARCH {
++	case "amd64", "arm64":
++	default:
++		t.Skipf("Slow test, usually avoid it, arch=%s not amd64 or arm64", runtime.GOARCH)
++	}
++
++	testenv.MustHaveGoBuild(t)
++	gocmd := testenv.GoToolPath(t)
++	tmpdir := t.TempDir()
++
++	root := "cmd/compile/internal/loopvar/testdata/inlines"
++
++	f := func(pkg string) string {
++		// This disables the loopvar change, except for the specified package.
++		// The effect should follow the package, even though everything (except "c")
++		// is inlined.
++		cmd := testenv.Command(t, gocmd, "run", "-gcflags="+pkg+"=-d=loopvar=1", root)
++		cmd.Env = append(cmd.Env, "GOEXPERIMENT=noloopvar", "HOME="+tmpdir)
++		cmd.Dir = filepath.Join("testdata", "inlines")
++
++		b, e := cmd.CombinedOutput()
++		if e != nil {
++			t.Error(e)
++		}
++		return string(b)
++	}
++
++	a := f(root + "/a")
++	b := f(root + "/b")
++	c := f(root + "/c")
++	m := f(root)
++
++	t.Logf(a)
++	t.Logf(b)
++	t.Logf(c)
++	t.Logf(m)
++
++	if !strings.Contains(a, "f, af, bf, abf, cf sums = 100, 45, 100, 100, 100") {
++		t.Errorf("Did not see expected value of a")
++	}
++	if !strings.Contains(b, "f, af, bf, abf, cf sums = 100, 100, 45, 45, 100") {
++		t.Errorf("Did not see expected value of b")
++	}
++	if !strings.Contains(c, "f, af, bf, abf, cf sums = 100, 100, 100, 100, 45") {
++		t.Errorf("Did not see expected value of c")
++	}
++	if !strings.Contains(m, "f, af, bf, abf, cf sums = 45, 100, 100, 100, 100") {
++		t.Errorf("Did not see expected value of m")
++	}
++}
++
+ func TestLoopVarHashes(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "linux", "darwin":
+@@ -148,5 +205,4 @@ func TestLoopVarHashes(t *testing.T) {
+ 	if !strings.Contains(m, ", 100, 100, 100, 100") {
+ 		t.Errorf("Did not see expected value of m run")
+ 	}
+-
+ }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 64173312ac..6098c92ac9 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1857,7 +1857,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
+ 
+ 	if r.Bool() {
+ 		pos := r.pos()
+-		rang := ir.NewRangeStmt(pos, nil, nil, nil, nil)
++		rang := ir.NewRangeStmt(pos, nil, nil, nil, nil, false)
+ 		rang.Label = label
+ 
+ 		names, lhs := r.assignList()
+@@ -1881,6 +1881,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
+ 		}
+ 
+ 		rang.Body = r.blockStmt()
++		rang.DistinctVars = r.Bool()
+ 		r.closeAnotherScope()
+ 
+ 		return rang
+@@ -1891,9 +1892,10 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
+ 	cond := r.optExpr()
+ 	post := r.stmt()
+ 	body := r.blockStmt()
++	dv := r.Bool()
+ 	r.closeAnotherScope()
+ 
+-	stmt := ir.NewForStmt(pos, init, cond, post, body)
++	stmt := ir.NewForStmt(pos, init, cond, post, body, dv)
+ 	stmt.Label = label
+ 	return stmt
+ }
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 5dd8d1de2d..97862938ee 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1445,6 +1445,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+ 	}
+ 
+ 	w.blockStmt(stmt.Body)
++	w.Bool(base.Debug.LoopVar > 0)
+ 	w.closeAnotherScope()
+ }
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index a2ba1a2bbe..10240b2f1f 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -166,7 +166,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ 		init := ir.NewAssignStmt(base.Pos, ni, ir.NewInt(base.Pos, 0))
+ 		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, ir.NewInt(base.Pos, t.NumElem()))
+ 		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, ir.NewInt(base.Pos, 1)))
+-		loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
++		loop := ir.NewForStmt(base.Pos, nil, cond, post, nil, false)
+ 		loop.PtrInit().Append(init)
+ 
+ 		// h = hashel(&p[i], h)
+@@ -442,7 +442,7 @@ func eqFunc(t *types.Type) *ir.Func {
+ 				i := typecheck.Temp(types.Types[types.TINT])
+ 				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+ 				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, iterateTo))
+-				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil)
++				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil, false)
+ 				loop.PtrInit().Append(init)
+ 
+ 				// if eq(p[i+0], q[i+0]) && eq(p[i+1], q[i+1]) && ... && eq(p[i+unroll-1], q[i+unroll-1]) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6831da6908..48d5e34f46 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1796,6 +1796,7 @@ func (s *state) stmt(n ir.Node) {
+ 		// OFOR: for Ninit; Left; Right { Nbody }
+ 		// cond (Left); body (Nbody); incr (Right)
+ 		n := n.(*ir.ForStmt)
++		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
+ 		bCond := s.f.NewBlock(ssa.BlockPlain)
+ 		bBody := s.f.NewBlock(ssa.BlockPlain)
+ 		bIncr := s.f.NewBlock(ssa.BlockPlain)
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 0a8ce65a16..6330530aa4 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -484,7 +484,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 		body = typecheck.Stmt(body)
+ 		body = orderStmtInPlace(body, map[string][]*ir.Name{})
+ 
+-		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
++		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
+ 		loop.Body = []ir.Node{body}
+ 		loop.SetInit([]ir.Node{zero})
+ 
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index ae2d9c250b..e20ffc2a61 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -38,11 +38,12 @@ func cheapComputableIndex(width int64) bool {
+ // Node n may also be modified in place, and may also be
+ // the returned node.
+ func walkRange(nrange *ir.RangeStmt) ir.Node {
++	base.Assert(!nrange.DistinctVars) // Should all be rewritten before escape analysis
+ 	if isMapClear(nrange) {
+ 		return mapRangeClear(nrange)
+ 	}
+ 
+-	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil)
++	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil, nrange.DistinctVars)
+ 	nfor.SetInit(nrange.Init())
+ 	nfor.Label = nrange.Label
+ 

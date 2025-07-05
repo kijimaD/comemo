@@ -11,6 +11,69 @@ Date:   Tue Dec 21 14:44:27 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/373915
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go1.18.html | 37 +++++++++++++++++++++++++++++++++++++
  1 file changed, 37 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 90bc0aa132..cea45542db 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -678,6 +678,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl>
+ 
++<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
++  <dd>
++    <p><!-- CL 321491 -->
++      Within a <code>range</code> pipeline the new
++      <code>{{break}}</code> command will end the loop early and the
++      new <code>{{continue}}</code> command will immediately start the
++      next loop iteration.
++    </p>
++  </dd>
++</dl><!-- html/template -->
++
+ <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+   <dd>
+     <p><!-- CL 340049 -->
+@@ -907,6 +918,13 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+   <dd>
++    <p><!-- CL 321491 -->
++      Within a <code>range</code> pipeline the new
++      <code>{{break}}</code> command will end the loop early and the
++      new <code>{{continue}}</code> command will immediately start the
++      next loop iteration.
++    </p>
++
+     <p><!-- CL 321490 -->
+       The <code>and</code> function no longer always evaluates all arguments; it
+       stops evaluating arguments after the first argument that evaluates to
+@@ -917,6 +935,25 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- text/template -->
+ 
++<dl id="text/template/parse"><dt><a href="/pkg/text/template/parse/">text/template/parse</a></dt>
++  <dd>
++    <p><!-- CL 321491 -->
++      The package supports the new
++      <a href="/pkg/text/template/">text/template</a> and
++      <a href="/pkg/html/template/">html/template</a>
++      <code>{{break}}</code> command via the new constant
++      <a href="/pkg/text/template/parse#NodeBreak"><code>NodeBreak</code></a>
++      and the new type
++      <a href="/pkg/text/template/parse#BreakNode"><code>BreakNode</code></a>,
++      and similarly supports the new <code>{{continue}}</code> command
++      via the new constant
++      <a href="/pkg/text/template/parse#NodeContinue"><code>NodeContinue</code></a>
++      and the new type
++      <a href="/pkg/text/template/parse#ContinueNode"><code>ContinueNode</code></a>.
++    </p>
++  </dd>
++</dl><!-- text/template -->
++
+ <dl id="unicode/utf8"><dt><a href="/pkg/unicode/utf8/">unicode/utf8</a></dt>
+   <dd>
+     <p><!-- CL 345571 -->

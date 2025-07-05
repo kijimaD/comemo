@@ -16,7 +16,7 @@ Date:   Thu Feb 13 16:20:30 2020 -0500
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex_test.go            |  2 +-
  .../compile/internal/gc/testdata/dupLoad_test.go   | 20 ++++++++-----
  src/crypto/tls/handshake_client_test.go            |  2 +-
@@ -32,3 +32,525 @@ Date:   Thu Feb 13 16:20:30 2020 -0500
  src/os/os_test.go                                  | 17 +++++++++--
  src/sync/atomic/value_test.go                      |  8 +++--
  14 files changed, 116 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex_test.go b/src/cmd/compile/internal/gc/lex_test.go
+index e05726c9f3..b2081a1732 100644
+--- a/src/cmd/compile/internal/gc/lex_test.go
++++ b/src/cmd/compile/internal/gc/lex_test.go
+@@ -93,7 +93,7 @@ func TestPragcgo(t *testing.T) {
+ 	for _, tt := range tests {
+ 
+ 		p.err = make(chan syntax.Error)
+-		gotch := make(chan [][]string)
++		gotch := make(chan [][]string, 1)
+ 		go func() {
+ 			p.pragcgobuf = nil
+ 			p.pragcgo(nopos, tt.in)
+diff --git a/src/cmd/compile/internal/gc/testdata/dupLoad_test.go b/src/cmd/compile/internal/gc/testdata/dupLoad_test.go
+index 9d65f54946..d85912309d 100644
+--- a/src/cmd/compile/internal/gc/testdata/dupLoad_test.go
++++ b/src/cmd/compile/internal/gc/testdata/dupLoad_test.go
+@@ -19,23 +19,25 @@ func read1(b []byte) (uint16, uint16) {
+ 
+ func main1(t *testing.T) {
+ 	const N = 100000
+-	done := make(chan struct{})
++	done := make(chan bool, 2)
+ 	b := make([]byte, 2)
+ 	go func() {
+ 		for i := 0; i < N; i++ {
+ 			b[0] = byte(i)
+ 			b[1] = byte(i)
+ 		}
+-		done <- struct{}{}
++		done <- true
+ 	}()
+ 	go func() {
+ 		for i := 0; i < N; i++ {
+ 			x, y := read1(b)
+ 			if byte(x) != byte(y) {
+-				t.Fatalf("x=%x y=%x\n", x, y)
++				t.Errorf("x=%x y=%x\n", x, y)
++				done <- false
++				return
+ 			}
+ 		}
+-		done <- struct{}{}
++		done <- true
+ 	}()
+ 	<-done
+ 	<-done
+@@ -51,23 +53,25 @@ func read2(b []byte) (uint16, uint16) {
+ 
+ func main2(t *testing.T) {
+ 	const N = 100000
+-	done := make(chan struct{})
++	done := make(chan bool, 2)
+ 	b := make([]byte, 2)
+ 	go func() {
+ 		for i := 0; i < N; i++ {
+ 			b[0] = byte(i)
+ 			b[1] = byte(i)
+ 		}
+-		done <- struct{}{}
++		done <- true
+ 	}()
+ 	go func() {
+ 		for i := 0; i < N; i++ {
+ 			x, y := read2(b)
+ 			if x&0xff00 != y&0xff00 {
+-				t.Fatalf("x=%x y=%x\n", x, y)
++				t.Errorf("x=%x y=%x\n", x, y)
++				done <- false
++				return
+ 			}
+ 		}
+-		done <- struct{}{}
++		done <- true
+ 	}()
+ 	<-done
+ 	<-done
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 6bd3c374ce..8632d98697 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -1748,7 +1748,7 @@ func TestHandshakeRace(t *testing.T) {
+ 
+ 		startWrite := make(chan struct{})
+ 		startRead := make(chan struct{})
+-		readDone := make(chan struct{})
++		readDone := make(chan struct{}, 1)
+ 
+ 		client := Client(c, testConfig)
+ 		go func() {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 1e5da1e12e..953ca0026e 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -182,7 +182,7 @@ func TestRenegotiationExtension(t *testing.T) {
+ 		cipherSuites:                 []uint16{TLS_RSA_WITH_RC4_128_SHA},
+ 	}
+ 
+-	bufChan := make(chan []byte)
++	bufChan := make(chan []byte, 1)
+ 	c, s := localPipe(t)
+ 
+ 	go func() {
+@@ -575,11 +575,12 @@ func (test *serverTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
+ 		return nil, nil, err
+ 	}
+ 
+-	connChan := make(chan interface{})
++	connChan := make(chan interface{}, 1)
+ 	go func() {
+ 		tcpConn, err := l.Accept()
+ 		if err != nil {
+ 			connChan <- err
++			return
+ 		}
+ 		connChan <- tcpConn
+ 	}()
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 178b519f1c..89fac607e1 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -294,7 +294,11 @@ func TestTLSUniqueMatches(t *testing.T) {
+ 	defer ln.Close()
+ 
+ 	serverTLSUniques := make(chan []byte)
++	parentDone := make(chan struct{})
++	childDone := make(chan struct{})
++	defer close(parentDone)
+ 	go func() {
++		defer close(childDone)
+ 		for i := 0; i < 2; i++ {
+ 			sconn, err := ln.Accept()
+ 			if err != nil {
+@@ -308,7 +312,11 @@ func TestTLSUniqueMatches(t *testing.T) {
+ 				t.Error(err)
+ 				return
+ 			}
+-			serverTLSUniques <- srv.ConnectionState().TLSUnique
++			select {
++			case <-parentDone:
++				return
++			case serverTLSUniques <- srv.ConnectionState().TLSUnique:
++			}
+ 		}
+ 	}()
+ 
+@@ -318,7 +326,15 @@ func TestTLSUniqueMatches(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
++
++	var serverTLSUniquesValue []byte
++	select {
++	case <-childDone:
++		return
++	case serverTLSUniquesValue = <-serverTLSUniques:
++	}
++
++	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
+ 		t.Error("client and server channel bindings differ")
+ 	}
+ 	conn.Close()
+@@ -331,7 +347,14 @@ func TestTLSUniqueMatches(t *testing.T) {
+ 	if !conn.ConnectionState().DidResume {
+ 		t.Error("second session did not use resumption")
+ 	}
+-	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
++
++	select {
++	case <-childDone:
++		return
++	case serverTLSUniquesValue = <-serverTLSUniques:
++	}
++
++	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
+ 		t.Error("client and server channel bindings differ when session resumption is used")
+ 	}
+ }
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index bc67036f5b..c2c9478a43 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -401,7 +401,7 @@ func TestDecoderIssue3577(t *testing.T) {
+ 		source: "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==", // twas brillig...
+ 		nextc:  next,
+ 	})
+-	errc := make(chan error)
++	errc := make(chan error, 1)
+ 	go func() {
+ 		_, err := ioutil.ReadAll(d)
+ 		errc <- err
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 7b1f83a7d7..69b0a76058 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -489,12 +489,13 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
+ 		b.Fatalf("Listen failed: %v", err)
+ 	}
+ 	defer ln.Close()
+-	done := make(chan bool)
++	done := make(chan bool, 1)
+ 	go func() {
+ 		for p := 0; p < P; p++ {
+ 			s, err := ln.Accept()
+ 			if err != nil {
+ 				b.Errorf("Accept failed: %v", err)
++				done <- false
+ 				return
+ 			}
+ 			servers[p] = s
+@@ -504,11 +505,14 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
+ 	for p := 0; p < P; p++ {
+ 		c, err := net.Dial("tcp", ln.Addr().String())
+ 		if err != nil {
++			<-done
+ 			b.Fatalf("Dial failed: %v", err)
+ 		}
+ 		clients[p] = c
+ 	}
+-	<-done
++	if !<-done {
++		b.FailNow()
++	}
+ 
+ 	b.StartTimer()
+ 
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 8f9cd534b4..d2650399da 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -165,7 +165,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 
+ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// run the test
+-	cc := make(chan int)
++	cc := make(chan int, 1)
+ 	go func() {
+ 		runcheck(t, source, golden, mode)
+ 		cc <- 0
+diff --git a/src/internal/poll/fd_mutex_test.go b/src/internal/poll/fd_mutex_test.go
+index 2c53c4561f..3029b9a681 100644
+--- a/src/internal/poll/fd_mutex_test.go
++++ b/src/internal/poll/fd_mutex_test.go
+@@ -59,7 +59,7 @@ func TestMutexClose(t *testing.T) {
+ }
+ 
+ func TestMutexCloseUnblock(t *testing.T) {
+-	c := make(chan bool)
++	c := make(chan bool, 4)
+ 	var mu FDMutex
+ 	mu.RWLock(true)
+ 	for i := 0; i < 4; i++ {
+@@ -151,12 +151,15 @@ func TestMutexStress(t *testing.T) {
+ 		N = 1e4
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
+-	done := make(chan bool)
++	done := make(chan bool, P)
+ 	var mu FDMutex
+ 	var readState [2]uint64
+ 	var writeState [2]uint64
+ 	for p := 0; p < P; p++ {
+ 		go func() {
++			defer func() {
++				done <- !t.Failed()
++			}()
+ 			r := rand.New(rand.NewSource(rand.Int63()))
+ 			for i := 0; i < N; i++ {
+ 				switch r.Intn(3) {
+@@ -203,11 +206,12 @@ func TestMutexStress(t *testing.T) {
+ 					}
+ 				}
+ 			}
+-			done <- true
+ 		}()
+ 	}
+ 	for p := 0; p < P; p++ {
+-		<-done
++		if !<-done {
++			t.FailNow()
++		}
+ 	}
+ 	if !mu.IncrefAndClose() {
+ 		t.Fatal("broken")
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index 8df8ebbf58..b2cf8df4b9 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -356,7 +356,7 @@ func TestConcurrentReconnect(t *testing.T) {
+ 	}
+ 
+ 	// count all the messages arriving
+-	count := make(chan int)
++	count := make(chan int, 1)
+ 	go func() {
+ 		ct := 0
+ 		for range done {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 29b937993e..aa6d87251d 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -947,7 +947,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
+ 
+ 	c := ts.Client()
+ 
+-	errc := make(chan error)
++	errc := make(chan error, 1)
+ 	go func() {
+ 		res, err := c.Get(ts.URL)
+ 		if err != nil {
+@@ -5167,8 +5167,14 @@ func BenchmarkClient(b *testing.B) {
+ 	}
+ 
+ 	done := make(chan error)
++	stop := make(chan struct{})
++	defer close(stop)
+ 	go func() {
+-		done <- cmd.Wait()
++		select {
++		case <-stop:
++			return
++		case done <- cmd.Wait():
++		}
+ 	}()
+ 
+ 	// Do b.N requests to the server.
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3ca7ce93b2..f4014d95bb 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -451,14 +451,23 @@ func TestTransportReadToEndReusesConn(t *testing.T) {
+ 
+ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 	defer afterTest(t)
++	stop := make(chan struct{}) // stop marks the exit of main Test goroutine
++	defer close(stop)
++
+ 	resch := make(chan string)
+ 	gotReq := make(chan bool)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		gotReq <- true
+-		msg := <-resch
++		var msg string
++		select {
++		case <-stop:
++			return
++		case msg = <-resch:
++		}
+ 		_, err := w.Write([]byte(msg))
+ 		if err != nil {
+-			t.Fatalf("Write: %v", err)
++			t.Errorf("Write: %v", err)
++			return
+ 		}
+ 	}))
+ 	defer ts.Close()
+@@ -472,6 +481,13 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 	// Their responses will hang until we write to resch, though.
+ 	donech := make(chan bool)
+ 	doReq := func() {
++		defer func() {
++			select {
++			case <-stop:
++				return
++			case donech <- t.Failed():
++			}
++		}()
+ 		resp, err := c.Get(ts.URL)
+ 		if err != nil {
+ 			t.Error(err)
+@@ -481,7 +497,6 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 			t.Errorf("ReadAll: %v", err)
+ 			return
+ 		}
+-		donech <- true
+ 	}
+ 	go doReq()
+ 	<-gotReq
+@@ -842,7 +857,9 @@ func TestStressSurpriseServerCloses(t *testing.T) {
+ 					// where we won the race.
+ 					res.Body.Close()
+ 				}
+-				activityc <- true
++				if !<-activityc { // Receives false when close(activityc) is executed
++					return
++				}
+ 			}
+ 		}()
+ 	}
+@@ -850,8 +867,9 @@ func TestStressSurpriseServerCloses(t *testing.T) {
+ 	// Make sure all the request come back, one way or another.
+ 	for i := 0; i < numClients*reqsPerClient; i++ {
+ 		select {
+-		case <-activityc:
++		case activityc <- true:
+ 		case <-time.After(5 * time.Second):
++			close(activityc)
+ 			t.Fatalf("presumed deadlock; no HTTP client activity seen in awhile")
+ 		}
+ 	}
+@@ -2361,7 +2379,9 @@ func TestTransportCancelRequestInDial(t *testing.T) {
+ 	tr := &Transport{
+ 		Dial: func(network, addr string) (net.Conn, error) {
+ 			eventLog.Println("dial: blocking")
+-			inDial <- true
++			if !<-inDial {
++				return nil, errors.New("main Test goroutine exited")
++			}
+ 			<-unblockDial
+ 			return nil, errors.New("nope")
+ 		},
+@@ -2376,8 +2396,9 @@ func TestTransportCancelRequestInDial(t *testing.T) {
+ 	}()
+ 
+ 	select {
+-	case <-inDial:
++	case inDial <- true:
+ 	case <-time.After(5 * time.Second):
++		close(inDial)
+ 		t.Fatal("timeout; never saw blocking dial")
+ 	}
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 802ecc4e49..1d8442d808 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1325,8 +1325,9 @@ func TestChdirAndGetwd(t *testing.T) {
+ // Test that Chdir+Getwd is program-wide.
+ func TestProgWideChdir(t *testing.T) {
+ 	const N = 10
++	const ErrPwd = "Error!"
+ 	c := make(chan bool)
+-	cpwd := make(chan string)
++	cpwd := make(chan string, N)
+ 	for i := 0; i < N; i++ {
+ 		go func(i int) {
+ 			// Lock half the goroutines in their own operating system
+@@ -1339,10 +1340,15 @@ func TestProgWideChdir(t *testing.T) {
+ 				// See issue 9428.
+ 				runtime.LockOSThread()
+ 			}
+-			<-c
++			hasErr, closed := <-c
++			if !closed && hasErr {
++				cpwd <- ErrPwd
++				return
++			}
+ 			pwd, err := Getwd()
+ 			if err != nil {
+ 				t.Errorf("Getwd on goroutine %d: %v", i, err)
++				cpwd <- ErrPwd
+ 				return
+ 			}
+ 			cpwd <- pwd
+@@ -1350,10 +1356,12 @@ func TestProgWideChdir(t *testing.T) {
+ 	}
+ 	oldwd, err := Getwd()
+ 	if err != nil {
++		c <- true
+ 		t.Fatalf("Getwd: %v", err)
+ 	}
+ 	d, err := ioutil.TempDir("", "test")
+ 	if err != nil {
++		c <- true
+ 		t.Fatalf("TempDir: %v", err)
+ 	}
+ 	defer func() {
+@@ -1363,17 +1371,22 @@ func TestProgWideChdir(t *testing.T) {
+ 		RemoveAll(d)
+ 	}()
+ 	if err := Chdir(d); err != nil {
++		c <- true
+ 		t.Fatalf("Chdir: %v", err)
+ 	}
+ 	// OS X sets TMPDIR to a symbolic link.
+ 	// So we resolve our working directory again before the test.
+ 	d, err = Getwd()
+ 	if err != nil {
++		c <- true
+ 		t.Fatalf("Getwd: %v", err)
+ 	}
+ 	close(c)
+ 	for i := 0; i < N; i++ {
+ 		pwd := <-cpwd
++		if pwd == ErrPwd {
++			t.FailNow()
++		}
+ 		if pwd != d {
+ 			t.Errorf("Getwd returned %q; want %q", pwd, d)
+ 		}
+diff --git a/src/sync/atomic/value_test.go b/src/sync/atomic/value_test.go
+index fd69ba30dc..f289766340 100644
+--- a/src/sync/atomic/value_test.go
++++ b/src/sync/atomic/value_test.go
+@@ -91,10 +91,11 @@ func TestValueConcurrent(t *testing.T) {
+ 	}
+ 	for _, test := range tests {
+ 		var v Value
+-		done := make(chan bool)
++		done := make(chan bool, p)
+ 		for i := 0; i < p; i++ {
+ 			go func() {
+ 				r := rand.New(rand.NewSource(rand.Int63()))
++				expected := true
+ 			loop:
+ 				for j := 0; j < N; j++ {
+ 					x := test[r.Intn(len(test))]
+@@ -106,9 +107,10 @@ func TestValueConcurrent(t *testing.T) {
+ 						}
+ 					}
+ 					t.Logf("loaded unexpected value %+v, want %+v", x, test)
+-					done <- false
++					expected = false
++					break
+ 				}
+-				done <- true
++				done <- expected
+ 			}()
+ 		}
+ 		for i := 0; i < p; i++ {

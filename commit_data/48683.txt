@@ -12,6 +12,24 @@ Date:   Thu Jun 3 14:15:12 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/dist/test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index bc49c6d804..1ed2c0f631 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -737,9 +737,9 @@ func (t *tester) registerTests() {
+ 						fn: func(dt *distTest) error {
+ 							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
+ 							cmd.Env = append(os.Environ(),
+-								"CGO_CFLAGS=-flto",
+-								"CGO_CXXFLAGS=-flto",
+-								"CGO_LDFLAGS=-flto",
++								"CGO_CFLAGS=-flto -Wno-lto-type-mismatch",
++								"CGO_CXXFLAGS=-flto -Wno-lto-type-mismatch",
++								"CGO_LDFLAGS=-flto -Wno-lto-type-mismatch",
+ 							)
+ 							return nil
+ 						},

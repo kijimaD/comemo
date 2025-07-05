@@ -9,6 +9,20 @@ Date:   Thu Dec 20 11:16:23 2018 -0700
     Change-Id: Ic1633e9c367fc3d5a80bc503008f035db4e78945
     Reviewed-on: https://go-review.googlesource.com/c/155379
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 356f678cbd..7f5847c58b 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -547,7 +547,7 @@ for {
+ <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+   <dd>
+     <p><!-- CL 123157 -->
+-    New extended precision operations <a href="/pkg/math/bits/#Add"><code>Add</code></a>, <a href="/pkg/math/bits/#Sub"><code>Sub</code></a>, <a href="/pkg/math/bits/#Mul"><code>Mul</code></a>, and <a href="/pkg/math/bits/#Div"><code>Div</code></a> are available in <code>int</code>, <code>int32</code>, and <code>int64</code> versions.
++    New extended precision operations <a href="/pkg/math/bits/#Add"><code>Add</code></a>, <a href="/pkg/math/bits/#Sub"><code>Sub</code></a>, <a href="/pkg/math/bits/#Mul"><code>Mul</code></a>, and <a href="/pkg/math/bits/#Div"><code>Div</code></a> are available in <code>uint</code>, <code>uint32</code>, and <code>uint64</code> versions.
+     </p>
+ 
+ </dl><!-- math/bits -->

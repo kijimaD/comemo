@@ -25,8 +25,105 @@ Date:   Thu Nov 23 18:43:12 2023 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  .github/ISSUE_TEMPLATE/00-bug.yml       | 15 +++++----------
  .github/ISSUE_TEMPLATE/04-vuln.yml      | 16 ++++++++++------
  .github/ISSUE_TEMPLATE/12-telemetry.yml |  2 +-
  3 files changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/00-bug.yml b/.github/ISSUE_TEMPLATE/00-bug.yml
+index 3e64b83655..f3997ec3c1 100644
+--- a/.github/ISSUE_TEMPLATE/00-bug.yml
++++ b/.github/ISSUE_TEMPLATE/00-bug.yml
+@@ -2,7 +2,6 @@
+ # https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+ name: Bugs
+ description: The go command, standard library, or anything else
+-labels: [ 'kind/bug', 'bug' ]
+ title: "import/path: issue title"
+ 
+ body:
+@@ -15,18 +14,14 @@ body:
+     id: go-version
+     attributes:
+       label: Go version
+-      description: What version of Go are you using (`go version`)?
++      description: |
++        What version of Go are you using (`go version`)?
++
++        Note: we only [support](https://go.dev/doc/devel/release#policy) the two most recent major releases.
+       placeholder: ex. go version go1.20.7 darwin/arm64
+     validations:
+       required: true
+ 
+-  - type: checkboxes
+-    id: reproduce-latest-release
+-    attributes:
+-      label: Reproducibility
+-      options:
+-        - label: Does this issue reproduce with the latest release?
+-
+   - type: textarea
+     id: os-and-processor
+     attributes:
+@@ -78,7 +73,7 @@ body:
+     id: what-did-you-do
+     attributes:
+       label: "What did you do?"
+-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is best."
++      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best."
+     validations:
+       required: true
+ 
+diff --git a/.github/ISSUE_TEMPLATE/04-vuln.yml b/.github/ISSUE_TEMPLATE/04-vuln.yml
+index 1759697307..ae1356886c 100644
+--- a/.github/ISSUE_TEMPLATE/04-vuln.yml
++++ b/.github/ISSUE_TEMPLATE/04-vuln.yml
+@@ -1,17 +1,21 @@
+ name: Go vulnerability management - bugs and feature requests
+ description: Issues or feature requests about Go vulnerability management
+ title: "x/vuln: issue title"
+-labels: ["vulncheck", "vulndb"]
++labels: ["vulncheck or vulndb"]
+ body:
+   - type: markdown
+     attributes:
+       value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
+   - type: input
+-    id: go-version
++    id: govulncheck-version
+     attributes:
+-      label: go version
+-      description: What version of Go are you using (`go version`)?
+-      placeholder: ex. go version go1.20.7 darwin/arm64
++      label: govulncheck version
++      description: What version of govulncheck are you using (`govulncheck -version`)?
++      placeholder: |
++        Go: devel go1.22-0262ea1ff9 Thu Oct 26 18:46:50 2023 +0000
++        Scanner: govulncheck@v1.0.2-0.20231108200754-fcf7dff7b242
++        DB: https://vuln.go.dev
++        DB updated: 2023-11-21 15:39:17 +0000 UTC
+     validations:
+       required: true
+   - type: textarea
+@@ -31,7 +35,7 @@ body:
+     id: what-did-you-do
+     attributes:
+       label: "What did you do?"
+-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is best."
++      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best."
+     validations:
+       required: true
+   - type: textarea
+diff --git a/.github/ISSUE_TEMPLATE/12-telemetry.yml b/.github/ISSUE_TEMPLATE/12-telemetry.yml
+index 787a664165..4215abfa99 100644
+--- a/.github/ISSUE_TEMPLATE/12-telemetry.yml
++++ b/.github/ISSUE_TEMPLATE/12-telemetry.yml
+@@ -1,6 +1,6 @@
+ name: Go Telemetry Proposals
+ description: New telemetry counter or update on an existing one
+-title: "x/telemetry/config: issue title"
++title: "x/telemetry/config: proposal title"
+ labels: ["Telemetry-Proposal"]
+ projects: ["golang/29"]
+ body:

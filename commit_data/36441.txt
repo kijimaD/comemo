@@ -13,10 +13,80 @@ Date:   Thu Apr 26 16:30:30 2018 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 1 +
  src/cmd/internal/obj/s390x/a.out.go       | 1 +
  src/cmd/internal/obj/s390x/anames.go      | 1 +
  src/cmd/internal/obj/s390x/asmz.go        | 2 ++
  src/cmd/internal/obj/s390x/vector.go      | 2 ++
  5 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 68bc29ea10..fce855ee30 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -367,6 +367,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	VSTEF	$3, V2, (R9)            // e7209000300b
+ 	VSTEH	$7, V31, (R2)           // e7f020007809
+ 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
++	VMSLG	V21, V22, V23, V24      // e78563007fb8
+ 
+ 	RET
+ 	RET	foo(SB)
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index d9f50a4f66..ec959c4090 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -941,6 +941,7 @@ const (
+ 	AVUPLB
+ 	AVUPLHW
+ 	AVUPLF
++	AVMSLG
+ 
+ 	// binary
+ 	ABYTE
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index c4731f77b3..2c621a5cbe 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -677,6 +677,7 @@ var Anames = []string{
+ 	"VUPLB",
+ 	"VUPLHW",
+ 	"VUPLF",
++	"VMSLG",
+ 	"BYTE",
+ 	"WORD",
+ 	"DWORD",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 3062c9af79..761cdc5637 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -1376,6 +1376,7 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVSTRCZFS, r)
+ 			opset(AVSBCBIQ, r)
+ 			opset(AVSBIQ, r)
++			opset(AVMSLG, r)
+ 		case AVSEL:
+ 			opset(AVFMADB, r)
+ 			opset(AWFMADB, r)
+@@ -2529,6 +2530,7 @@ const (
+ 	op_VUPLH  uint32 = 0xE7D5 // 	VRR-a	VECTOR UNPACK LOGICAL HIGH
+ 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
+ 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
++	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
+ )
+ 
+ func oclass(a *obj.Addr) int {
+diff --git a/src/cmd/internal/obj/s390x/vector.go b/src/cmd/internal/obj/s390x/vector.go
+index d36dfb17cd..3f1d900367 100644
+--- a/src/cmd/internal/obj/s390x/vector.go
++++ b/src/cmd/internal/obj/s390x/vector.go
+@@ -45,6 +45,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
+ 		return op_VAC, 0, 0
+ 	case AVACQ:
+ 		return op_VAC, 4, 0
++	case AVMSLG:
++		return op_VMSL, 3, 0
+ 	case AVACCC:
+ 		return op_VACCC, 0, 0
+ 	case AVACCCQ:

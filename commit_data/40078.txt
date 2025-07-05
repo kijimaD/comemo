@@ -89,7 +89,94 @@ Date:   Sun Apr 14 17:09:40 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/expvar/expvar.go      | 10 ++++++++--
  src/expvar/expvar_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+), 2 deletions(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 976b300d63..c0dc0532b1 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -141,8 +141,14 @@ func (v *Map) Init() *Map {
+ func (v *Map) addKey(key string) {
+ 	v.keysMu.Lock()
+ 	defer v.keysMu.Unlock()
+-	v.keys = append(v.keys, key)
+-	sort.Strings(v.keys)
++	// Using insertion sort to place key into the already-sorted v.keys.
++	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
++		v.keys = append(v.keys, key)
++	} else if v.keys[i] != key {
++		v.keys = append(v.keys, "")
++		copy(v.keys[i+1:], v.keys[i:])
++		v.keys[i] = key
++	}
+ }
+ 
+ func (v *Map) Get(key string) Var {
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 804b56c1aa..7b1f83a7d7 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -6,6 +6,7 @@ package expvar
+ 
+ import (
+ 	"bytes"
++	"crypto/sha1"
+ 	"encoding/json"
+ 	"fmt"
+ 	"net"
+@@ -299,6 +300,26 @@ func BenchmarkMapSetDifferent(b *testing.B) {
+ 	})
+ }
+ 
++// BenchmarkMapSetDifferentRandom simulates such a case where the concerned
++// keys of Map.Set are generated dynamically and as a result insertion is
++// out of order and the number of the keys may be large.
++func BenchmarkMapSetDifferentRandom(b *testing.B) {
++	keys := make([]string, 100)
++	for i := range keys {
++		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
++	}
++
++	v := new(Int)
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		m := new(Map).Init()
++		for _, k := range keys {
++			m.Set(k, v)
++		}
++	}
++}
++
+ func BenchmarkMapSetString(b *testing.B) {
+ 	m := new(Map).Init()
+ 
+@@ -350,6 +371,25 @@ func BenchmarkMapAddDifferent(b *testing.B) {
+ 	})
+ }
+ 
++// BenchmarkMapAddDifferentRandom simulates such a case where that the concerned
++// keys of Map.Add are generated dynamically and as a result insertion is out of
++// order and the number of the keys may be large.
++func BenchmarkMapAddDifferentRandom(b *testing.B) {
++	keys := make([]string, 100)
++	for i := range keys {
++		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
++	}
++
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		m := new(Map).Init()
++		for _, k := range keys {
++			m.Add(k, 1)
++		}
++	}
++}
++
+ func BenchmarkMapAddSameSteadyState(b *testing.B) {
+ 	m := new(Map).Init()
+ 	b.RunParallel(func(pb *testing.PB) {

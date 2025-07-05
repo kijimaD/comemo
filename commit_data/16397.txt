@@ -9,9 +9,161 @@ Date:   Thu May 23 22:51:07 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/9643044
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue5548.go  | 26 ++++++++++++++++++++++++++
  misc/cgo/test/issue5548_c.c | 24 ++++++++++++++++++++++++
  src/cmd/cgo/out.go          | 31 ++++++++++++++++++++-----------
  4 files changed, 71 insertions(+), 11 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 14e1224e9a..66c454f8e3 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -40,5 +40,6 @@ func TestCallbackCallers(t *testing.T)     { testCallbackCallers(t) }
+ func Test5227(t *testing.T)                { test5227(t) }
+ func TestCflags(t *testing.T)              { testCflags(t) }
+ func Test5337(t *testing.T)                { test5337(t) }
++func Test5548(t *testing.T)                { test5548(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue5548.go b/misc/cgo/test/issue5548.go
+new file mode 100644
+index 0000000000..b41f465623
+--- /dev/null
++++ b/misc/cgo/test/issue5548.go
+@@ -0,0 +1,26 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++/*
++extern int issue5548_in_c(void);
++*/
++import "C"
++
++//export issue5548FromC
++func issue5548FromC(s string, i int) int {
++	if len(s) == 4 && s == "test" && i == 42 {
++		return 1
++	}
++	return 0
++}
++
++func test5548(t *testing.T) {
++	if C.issue5548_in_c() == 0 {
++		t.Fail()
++	}
++}
+diff --git a/misc/cgo/test/issue5548_c.c b/misc/cgo/test/issue5548_c.c
+new file mode 100644
+index 0000000000..ee9c45934d
+--- /dev/null
++++ b/misc/cgo/test/issue5548_c.c
+@@ -0,0 +1,24 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++static void clobber_stack() {
++	volatile char a[1024];
++	int i;
++	for(i = 0; i < sizeof a; i++)
++		a[i] = 0xff;
++}
++
++static int call_go() {
++	GoString s;
++	s.p = "test";
++	s.n = 4;
++	return issue5548FromC(s, 42);
++}
++
++int issue5548_in_c() {
++	clobber_stack();
++	return call_go();
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index ee1d89142e..810b57d692 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -937,7 +937,8 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("%s*", x.C)}
+ 	case *ast.ArrayType:
+ 		if t.Len == nil {
+-			return &Type{Size: p.PtrSize + 8, Align: p.PtrSize, C: c("GoSlice")}
++			// Slice: pointer, len, cap.
++			return &Type{Size: p.PtrSize * 3, Align: p.PtrSize, C: c("GoSlice")}
+ 		}
+ 	case *ast.StructType:
+ 		// TODO
+@@ -974,8 +975,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoUintptr")}
+ 		}
+ 		if t.Name == "string" {
+-			// The string data is 1 pointer + 1 int, but this always
+-			// rounds to 2 pointers due to alignment.
++			// The string data is 1 pointer + 1 (pointer-sized) int.
+ 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoString")}
+ 		}
+ 		if t.Name == "error" {
+@@ -1028,11 +1028,20 @@ __cgo_size_assert(double, 8)
+ `
+ 
+ const builtinProlog = `
+-typedef struct { char *p; int n; } _GoString_;
+-typedef struct { char *p; int n; int c; } _GoBytes_;
++/* Define intgo when compiling with GCC.  */
++#ifdef __PTRDIFF_TYPE__
++typedef __PTRDIFF_TYPE__ intgo;
++#elif defined(_LP64)
++typedef long long intgo;
++#else
++typedef int intgo;
++#endif
++
++typedef struct { char *p; intgo n; } _GoString_;
++typedef struct { char *p; intgo n; intgo c; } _GoBytes_;
+ _GoString_ GoString(char *p);
+-_GoString_ GoStringN(char *p, int l);
+-_GoBytes_ GoBytes(void *p, int n);
++_GoString_ GoStringN(char *p, intgo l);
++_GoBytes_ GoBytes(void *p, intgo n);
+ char *CString(_GoString_);
+ `
+ 
+@@ -1050,14 +1059,14 @@ void
+ }
+ 
+ void
+-·_Cfunc_GoStringN(int8 *p, int32 l, String s)
++·_Cfunc_GoStringN(int8 *p, intgo l, String s)
+ {
+ 	s = runtime·gostringn((byte*)p, l);
+ 	FLUSH(&s);
+ }
+ 
+ void
+-·_Cfunc_GoBytes(int8 *p, int32 l, Slice s)
++·_Cfunc_GoBytes(int8 *p, intgo l, Slice s)
+ {
+ 	s = runtime·gobytes((byte*)p, l);
+ 	FLUSH(&s);
+@@ -1134,9 +1143,9 @@ typedef double GoFloat64;
+ typedef __complex float GoComplex64;
+ typedef __complex double GoComplex128;
+ 
+-typedef struct { char *p; int n; } GoString;
++typedef struct { char *p; GoInt n; } GoString;
+ typedef void *GoMap;
+ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;
+-typedef struct { void *data; int len; int cap; } GoSlice;
++typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+ `

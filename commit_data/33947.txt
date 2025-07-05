@@ -39,8 +39,139 @@ Date:   Tue Sep 19 13:53:20 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/internal/work/build.go    | 71 ------------------------------------
  src/cmd/internal/goobj/goobj_test.go |  3 ++
  src/cmd/link/internal/ld/ldmacho.go  |  9 ++++-
  3 files changed, 11 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ab4992f077..62ae7ef2bf 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -3460,12 +3460,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		}
+ 		outGo = append(outGo, importGo)
+ 
+-		ofile := objdir + "_all.o"
+-		if err := b.collect(p, objdir, ofile, cgoLDFLAGS, outObj); err != nil {
+-			return nil, nil, err
+-		}
+-		outObj = []string{ofile}
+-
+ 	case "gccgo":
+ 		defunC := objdir + "_cgo_defun.c"
+ 		defunObj := objdir + "_cgo_defun.o"
+@@ -3511,71 +3505,6 @@ func (b *Builder) dynimport(p *load.Package, objdir, importGo, cgoExe string, cf
+ 	return b.run(p.Dir, p.ImportPath, nil, cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+ }
+ 
+-// collect partially links the object files outObj into a single
+-// relocatable object file named ofile.
+-func (b *Builder) collect(p *load.Package, objdir, ofile string, cgoLDFLAGS, outObj []string) error {
+-	// When linking relocatable objects, various flags need to be
+-	// filtered out as they are inapplicable and can cause some linkers
+-	// to fail.
+-	var ldflags []string
+-	for i := 0; i < len(cgoLDFLAGS); i++ {
+-		f := cgoLDFLAGS[i]
+-		switch {
+-		// skip "-lc" or "-l somelib"
+-		case strings.HasPrefix(f, "-l"):
+-			if f == "-l" {
+-				i++
+-			}
+-		// skip "-framework X" on Darwin
+-		case cfg.Goos == "darwin" && f == "-framework":
+-			i++
+-		// skip "*.{dylib,so,dll,o,a}"
+-		case strings.HasSuffix(f, ".dylib"),
+-			strings.HasSuffix(f, ".so"),
+-			strings.HasSuffix(f, ".dll"),
+-			strings.HasSuffix(f, ".o"),
+-			strings.HasSuffix(f, ".a"):
+-		// Remove any -fsanitize=foo flags.
+-		// Otherwise the compiler driver thinks that we are doing final link
+-		// and links sanitizer runtime into the object file. But we are not doing
+-		// the final link, we will link the resulting object file again. And
+-		// so the program ends up with two copies of sanitizer runtime.
+-		// See issue 8788 for details.
+-		case strings.HasPrefix(f, "-fsanitize="):
+-			continue
+-		// runpath flags not applicable unless building a shared
+-		// object or executable; see issue 12115 for details. This
+-		// is necessary as Go currently does not offer a way to
+-		// specify the set of LDFLAGS that only apply to shared
+-		// objects.
+-		case strings.HasPrefix(f, "-Wl,-rpath"):
+-			if f == "-Wl,-rpath" || f == "-Wl,-rpath-link" {
+-				// Skip following argument to -rpath* too.
+-				i++
+-			}
+-		default:
+-			ldflags = append(ldflags, f)
+-		}
+-	}
+-
+-	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
+-
+-	var linker []string
+-	if len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0 {
+-		linker = envList("CXX", cfg.DefaultCXX)
+-	} else {
+-		linker = envList("CC", cfg.DefaultCC)
+-	}
+-	if flag := b.gccNoPie(linker); flag != "" {
+-		ldflags = append(ldflags, flag)
+-	}
+-
+-	// We are creating an object file, so we don't want a build ID.
+-	ldflags = b.disableBuildID(ldflags)
+-
+-	return b.gccld(p, ofile, ldflags, outObj)
+-}
+-
+ // Run SWIG on all SWIG input files.
+ // TODO: Don't build a shared library, once SWIG emits the necessary
+ // pragmas for external linking.
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index 30d79f2215..e5f4dd9385 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -265,6 +265,9 @@ func TestParseCGOArchive(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
++			if mf.Symtab == nil {
++				continue
++			}
+ 			for _, s := range mf.Symtab.Syms {
+ 				switch s.Name {
+ 				case c1:
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 7bfa67d3cc..7fc452dffe 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -832,7 +832,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			rp.Off = int32(rel.addr)
+ 
+ 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+-			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == 1 {
++			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
+ 				// Calculate the addend as the offset into the section.
+ 				//
+ 				// The rip-relative offset stored in the object file is encoded
+@@ -855,6 +855,13 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 				rp.Add = int64(int32(e.Uint32(s.P[rp.Off:])))
+ 			}
+ 
++			// An unsigned internal relocation has a value offset
++			// by the section address.
++			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
++				secaddr = c.seg.sect[rel.symnum-1].addr
++				rp.Add -= int64(secaddr)
++			}
++
+ 			// For i386 Mach-O PC-relative, the addend is written such that
+ 			// it *is* the PC being subtracted. Use that to make
+ 			// it match our version of PC-relative.

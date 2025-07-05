@@ -8,6 +8,19 @@ Date:   Fri Mar 28 13:27:14 2014 +0900
     R=iant, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/80700044
-
+---
  src/pkg/syscall/mkerrors.sh | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 2d33f24194..7ddd478455 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -269,6 +269,7 @@ ccflags="$@"
+ 		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|IFAN|RT|RTCF|RTN|RTPROT|RTNH|ARPHRD|ETH_P)_/ ||
+ 		$2 ~ /^SIOC/ ||
+ 		$2 ~ /^TIOC/ ||
++		$2 !~ "RTF_BITS" &&
+ 		$2 ~ /^(IFF|IFT|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
+ 		$2 ~ /^BIOC/ ||
+ 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||

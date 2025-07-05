@@ -9,6 +9,23 @@ Date:   Fri May 11 20:51:39 2018 +0530
     Change-Id: I101641be99a820722edb7272918e04e8d2e1646c
     Reviewed-on: https://go-review.googlesource.com/112775
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/rand/example_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/rand/example_test.go b/src/math/rand/example_test.go
+index aa1f2bcc73..adeeaa0b46 100644
+--- a/src/math/rand/example_test.go
++++ b/src/math/rand/example_test.go
+@@ -16,7 +16,10 @@ import (
+ // the output of the random number generator when given a fixed seed.
+ 
+ func Example() {
+-	rand.Seed(42) // Try changing this number!
++	// Seeding with the same value results in the same random sequence each run.
++	// For different numbers, seed with a different value, such as
++	// time.Now().UnixNano(), which yields a constantly-changing number.
++	rand.Seed(42)
+ 	answers := []string{
+ 		"It is certain",
+ 		"It is decidedly so",

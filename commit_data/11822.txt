@@ -9,6 +9,37 @@ Date:   Mon Feb 13 12:45:59 2012 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5651083
-
+---
  src/pkg/net/sockopt_bsd.go | 12 ++++--------
  1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index 519d2fb05a..79e0e57e21 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -34,14 +34,6 @@ func setDefaultListenerSockopts(s int) error {
+ 	if err != nil {
+ 		return os.NewSyscallError("setsockopt", err)
+ 	}
+-	// Allow reuse of recently-used ports.
+-	// This option is supported only in descendants of 4.4BSD,
+-	// to make an effective multicast application and an application
+-	// that requires quick draw possible.
+-	err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+ 	return nil
+ }
+ 
+@@ -52,6 +44,10 @@ func setDefaultMulticastSockopts(s int) error {
+ 	if err != nil {
+ 		return os.NewSyscallError("setsockopt", err)
+ 	}
++	// Allow reuse of recently-used ports.
++	// This option is supported only in descendants of 4.4BSD,
++	// to make an effective multicast application that requires
++	// quick draw possible.
+ 	err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+ 	if err != nil {
+ 		return os.NewSyscallError("setsockopt", err)

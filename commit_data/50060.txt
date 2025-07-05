@@ -11,7 +11,7 @@ Date:   Wed Sep 29 13:05:37 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go | 2 +-
  src/cmd/compile/internal/noder/import.go     | 4 ++--
  src/cmd/compile/internal/noder/irgen.go      | 6 +++---
@@ -19,3 +19,128 @@ Date:   Wed Sep 29 13:05:37 2021 -0400
  src/cmd/compile/internal/noder/unified.go    | 4 ++--
  src/go/internal/gcimporter/iimport.go        | 2 +-
  6 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index b99956de26..b9d2ecbdb5 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -660,7 +660,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		baseType := r.typ()
+ 		// The imported instantiated type doesn't include any methods, so
+ 		// we must always use the methods of the base (orig) type.
+-		// TODO provide a non-nil *Environment
++		// TODO provide a non-nil *Context
+ 		t, _ := types2.Instantiate(nil, baseType, targs, false)
+ 		return t
+ 
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index f065c97763..0aaf894641 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -48,7 +48,7 @@ var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context,
+ }
+ 
+ type gcimports struct {
+-	env      *types2.Context
++	ctxt     *types2.Context
+ 	packages map[string]*types2.Package
+ }
+ 
+@@ -61,7 +61,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
+ 		panic("mode must be 0")
+ 	}
+ 
+-	_, pkg, err := readImportFile(path, typecheck.Target, m.env, m.packages)
++	_, pkg, err := readImportFile(path, typecheck.Target, m.ctxt, m.packages)
+ 	return pkg, err
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 6a09c2ee0c..b0a4da3536 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -34,13 +34,13 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 	}
+ 
+ 	// typechecking
+-	env := types2.NewContext()
++	ctxt := types2.NewContext()
+ 	importer := gcimports{
+-		env:      env,
++		ctxt:     ctxt,
+ 		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
+ 	}
+ 	conf := types2.Config{
+-		Context:               env,
++		Context:               ctxt,
+ 		GoVersion:             base.Flag.Lang,
+ 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index de7211305b..d474db2427 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -16,7 +16,7 @@ import (
+ type pkgReader2 struct {
+ 	pkgDecoder
+ 
+-	env     *types2.Context
++	ctxt    *types2.Context
+ 	imports map[string]*types2.Package
+ 
+ 	posBases []*syntax.PosBase
+@@ -24,11 +24,11 @@ type pkgReader2 struct {
+ 	typs     []types2.Type
+ }
+ 
+-func readPackage2(env *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
++func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+ 	pr := pkgReader2{
+ 		pkgDecoder: input,
+ 
+-		env:     env,
++		ctxt:    ctxt,
+ 		imports: imports,
+ 
+ 		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
+@@ -231,7 +231,7 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		obj, targs := r.obj()
+ 		name := obj.(*types2.TypeName)
+ 		if len(targs) != 0 {
+-			t, _ := types2.Instantiate(r.p.env, name.Type(), targs, false)
++			t, _ := types2.Instantiate(r.p.ctxt, name.Type(), targs, false)
+ 			return t
+ 		}
+ 		return name.Type()
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index ee76ff34af..ec0012db4c 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -78,12 +78,12 @@ func unified(noders []*noder) {
+ 		base.Errorf("cannot use -G and -d=quirksmode together")
+ 	}
+ 
+-	newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
++	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+ 		pr := newPkgDecoder(pkg1.Path, data)
+ 
+ 		// Read package descriptors for both types2 and compiler backend.
+ 		readPackage(newPkgReader(pr), pkg1)
+-		pkg2 = readPackage2(env, packages, pr)
++		pkg2 = readPackage2(ctxt, packages, pr)
+ 		return
+ 	}
+ 
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 2a02c04ef3..e61a3a51a1 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -652,7 +652,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 		baseType := r.typ()
+ 		// The imported instantiated type doesn't include any methods, so
+ 		// we must always use the methods of the base (orig) type.
+-		// TODO provide a non-nil *Environment
++		// TODO provide a non-nil *Context
+ 		t, _ := types.Instantiate(nil, baseType, targs, false)
+ 		return t
+ 

@@ -12,7 +12,7 @@ Date:   Wed Sep 7 14:45:27 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/goobj/read.go         | 72 +++++++++++++++++-----------------
  src/cmd/internal/obj/link.go           | 48 +++++++++++++++++++----
  src/cmd/internal/obj/symkind_string.go | 16 ++++++++
@@ -22,3 +22,382 @@ Date:   Wed Sep 7 14:45:27 2016 -0400
  src/cmd/link/internal/ld/objfile.go    |  6 +--
  src/cmd/link/internal/ld/symtab.go     |  2 +-
  8 files changed, 114 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 81f1726860..ff4aa59a79 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -29,50 +29,48 @@ type SymKind int
+ // TODO(rsc): Give idiomatic Go names.
+ // TODO(rsc): Reduce the number of symbol types in the object files.
+ const (
+-	_ SymKind = iota
+-
+ 	// readonly, executable
+-	STEXT      SymKind = obj.STEXT
+-	SELFRXSECT SymKind = obj.SELFRXSECT
++	STEXT      = SymKind(obj.STEXT)
++	SELFRXSECT = SymKind(obj.SELFRXSECT)
+ 
+ 	// readonly, non-executable
+-	STYPE      SymKind = obj.STYPE
+-	SSTRING    SymKind = obj.SSTRING
+-	SGOSTRING  SymKind = obj.SGOSTRING
+-	SGOFUNC    SymKind = obj.SGOFUNC
+-	SRODATA    SymKind = obj.SRODATA
+-	SFUNCTAB   SymKind = obj.SFUNCTAB
+-	STYPELINK  SymKind = obj.STYPELINK
+-	SITABLINK  SymKind = obj.SITABLINK
+-	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
+-	SPCLNTAB   SymKind = obj.SPCLNTAB
+-	SELFROSECT SymKind = obj.SELFROSECT
++	STYPE      = SymKind(obj.STYPE)
++	SSTRING    = SymKind(obj.SSTRING)
++	SGOSTRING  = SymKind(obj.SGOSTRING)
++	SGOFUNC    = SymKind(obj.SGOFUNC)
++	SRODATA    = SymKind(obj.SRODATA)
++	SFUNCTAB   = SymKind(obj.SFUNCTAB)
++	STYPELINK  = SymKind(obj.STYPELINK)
++	SITABLINK  = SymKind(obj.SITABLINK)
++	SSYMTAB    = SymKind(obj.SSYMTAB) // TODO: move to unmapped section
++	SPCLNTAB   = SymKind(obj.SPCLNTAB)
++	SELFROSECT = SymKind(obj.SELFROSECT)
+ 
+ 	// writable, non-executable
+-	SMACHOPLT  SymKind = obj.SMACHOPLT
+-	SELFSECT   SymKind = obj.SELFSECT
+-	SMACHO     SymKind = obj.SMACHO // Mach-O __nl_symbol_ptr
+-	SMACHOGOT  SymKind = obj.SMACHOGOT
+-	SWINDOWS   SymKind = obj.SWINDOWS
+-	SELFGOT    SymKind = obj.SELFGOT
+-	SNOPTRDATA SymKind = obj.SNOPTRDATA
+-	SINITARR   SymKind = obj.SINITARR
+-	SDATA      SymKind = obj.SDATA
+-	SBSS       SymKind = obj.SBSS
+-	SNOPTRBSS  SymKind = obj.SNOPTRBSS
+-	STLSBSS    SymKind = obj.STLSBSS
++	SMACHOPLT  = SymKind(obj.SMACHOPLT)
++	SELFSECT   = SymKind(obj.SELFSECT)
++	SMACHO     = SymKind(obj.SMACHO) // Mach-O __nl_symbol_ptr
++	SMACHOGOT  = SymKind(obj.SMACHOGOT)
++	SWINDOWS   = SymKind(obj.SWINDOWS)
++	SELFGOT    = SymKind(obj.SELFGOT)
++	SNOPTRDATA = SymKind(obj.SNOPTRDATA)
++	SINITARR   = SymKind(obj.SINITARR)
++	SDATA      = SymKind(obj.SDATA)
++	SBSS       = SymKind(obj.SBSS)
++	SNOPTRBSS  = SymKind(obj.SNOPTRBSS)
++	STLSBSS    = SymKind(obj.STLSBSS)
+ 
+ 	// not mapped
+-	SXREF             SymKind = obj.SXREF
+-	SMACHOSYMSTR      SymKind = obj.SMACHOSYMSTR
+-	SMACHOSYMTAB      SymKind = obj.SMACHOSYMTAB
+-	SMACHOINDIRECTPLT SymKind = obj.SMACHOINDIRECTPLT
+-	SMACHOINDIRECTGOT SymKind = obj.SMACHOINDIRECTGOT
+-	SFILE             SymKind = obj.SFILE
+-	SFILEPATH         SymKind = obj.SFILEPATH
+-	SCONST            SymKind = obj.SCONST
+-	SDYNIMPORT        SymKind = obj.SDYNIMPORT
+-	SHOSTOBJ          SymKind = obj.SHOSTOBJ
++	SXREF             = SymKind(obj.SXREF)
++	SMACHOSYMSTR      = SymKind(obj.SMACHOSYMSTR)
++	SMACHOSYMTAB      = SymKind(obj.SMACHOSYMTAB)
++	SMACHOINDIRECTPLT = SymKind(obj.SMACHOINDIRECTPLT)
++	SMACHOINDIRECTGOT = SymKind(obj.SMACHOINDIRECTGOT)
++	SFILE             = SymKind(obj.SFILE)
++	SFILEPATH         = SymKind(obj.SFILEPATH)
++	SCONST            = SymKind(obj.SCONST)
++	SDYNIMPORT        = SymKind(obj.SDYNIMPORT)
++	SHOSTOBJ          = SymKind(obj.SHOSTOBJ)
+ )
+ 
+ var symKindStrings = []string{
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ef1165d10b..513e00b825 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -316,7 +316,7 @@ const (
+ // An LSym is the sort of symbol that is written to an object file.
+ type LSym struct {
+ 	Name      string
+-	Type      int16
++	Type      SymKind
+ 	Version   int16
+ 	Dupok     bool
+ 	Cfunc     bool
+@@ -371,9 +371,16 @@ type Pcln struct {
+ 	Lastindex   int
+ }
+ 
+-// LSym.type
++// A SymKind describes the kind of memory represented by a symbol.
++type SymKind int16
++
++// Defined SymKind values.
++//
++// TODO(rsc): Give idiomatic Go names.
++// TODO(rsc): Reduce the number of symbol types in the object files.
++//go:generate stringer -type=SymKind
+ const (
+-	Sxxx = iota
++	Sxxx SymKind = iota
+ 	STEXT
+ 	SELFRXSECT
+ 
+@@ -434,12 +441,39 @@ const (
+ 	SHOSTOBJ
+ 	SDWARFSECT
+ 	SDWARFINFO
+-	SSUB       = 1 << 8
+-	SMASK      = SSUB - 1
+-	SHIDDEN    = 1 << 9
+-	SCONTAINER = 1 << 10 // has a sub-symbol
++	SSUB       = SymKind(1 << 8)
++	SMASK      = SymKind(SSUB - 1)
++	SHIDDEN    = SymKind(1 << 9)
++	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
+ )
+ 
++// ReadOnly are the symbol kinds that form read-only sections. In some
++// cases, if they will require relocations, they are transformed into
++// rel-ro sections using RelROMap.
++var ReadOnly = []SymKind{
++	STYPE,
++	SSTRING,
++	SGOSTRING,
++	SGOSTRINGHDR,
++	SGOFUNC,
++	SGCBITS,
++	SRODATA,
++	SFUNCTAB,
++}
++
++// RelROMap describes the transformation of read-only symbols to rel-ro
++// symbols.
++var RelROMap = map[SymKind]SymKind{
++	STYPE:        STYPERELRO,
++	SSTRING:      SSTRINGRELRO,
++	SGOSTRING:    SGOSTRINGRELRO,
++	SGOSTRINGHDR: SGOSTRINGHDRRELRO,
++	SGOFUNC:      SGOFUNCRELRO,
++	SGCBITS:      SGCBITSRELRO,
++	SRODATA:      SRODATARELRO,
++	SFUNCTAB:     SFUNCTABRELRO,
++}
++
+ type Reloc struct {
+ 	Off  int32
+ 	Siz  uint8
+diff --git a/src/cmd/internal/obj/symkind_string.go b/src/cmd/internal/obj/symkind_string.go
+new file mode 100644
+index 0000000000..31631e6836
+--- /dev/null
++++ b/src/cmd/internal/obj/symkind_string.go
+@@ -0,0 +1,16 @@
++// Code generated by "stringer -type=SymKind"; DO NOT EDIT
++
++package obj
++
++import "fmt"
++
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOSTRINGHDRSGOFUNCSGCBITSSRODATASFUNCTABSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOSTRINGHDRRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFROSECTSMACHOPLTSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILESFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFO"
++
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 52, 59, 66, 73, 81, 91, 103, 117, 134, 146, 158, 170, 183, 192, 201, 208, 216, 226, 235, 243, 249, 258, 266, 273, 283, 291, 296, 300, 309, 316, 321, 333, 345, 362, 379, 384, 393, 399, 409, 417, 427, 437}
++
++func (i SymKind) String() string {
++	if i < 0 || i >= SymKind(len(_SymKind_index)-1) {
++		return fmt.Sprintf("SymKind(%d)", i)
++	}
++	return _SymKind_name[_SymKind_index[i]:_SymKind_index[i+1]]
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4c40b66d33..9d49ed61fb 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1168,7 +1168,7 @@ func (d bySizeAndName) Less(i, j int) bool {
+ 
+ const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+ 
+-func checkdatsize(ctxt *Link, datsize int64, symn int) {
++func checkdatsize(ctxt *Link, datsize int64, symn obj.SymKind) {
+ 	if datsize > cutoff {
+ 		ctxt.Diag("too much data in section %v (over %d bytes)", symn, cutoff)
+ 	}
+@@ -1210,8 +1210,8 @@ func (ctxt *Link) dodata() {
+ 		// "read only" data with relocations needs to go in its own section
+ 		// when building a shared library. We do this by boosting objects of
+ 		// type SXXX with relocations to type SXXXRELRO.
+-		for symnro := int16(obj.STYPE); symnro < obj.STYPERELRO; symnro++ {
+-			symnrelro := symnro + obj.STYPERELRO - obj.STYPE
++		for _, symnro := range obj.ReadOnly {
++			symnrelro := obj.RelROMap[symnro]
+ 
+ 			ro := []*Symbol{}
+ 			relro := data[symnrelro]
+@@ -1256,7 +1256,7 @@ func (ctxt *Link) dodata() {
+ 	var dataMaxAlign [obj.SXREF]int32
+ 	var wg sync.WaitGroup
+ 	for symn := range data {
+-		symn := symn
++		symn := obj.SymKind(symn)
+ 		wg.Add(1)
+ 		go func() {
+ 			data[symn], dataMaxAlign[symn] = dodataSect(ctxt, symn, data[symn])
+@@ -1271,14 +1271,14 @@ func (ctxt *Link) dodata() {
+ 	// to generate garbage collection information.
+ 	datsize := int64(0)
+ 
+-	// Writable sections.
+-	writableSects := []int{
++	// Writable data sections that do not need any specialized handling.
++	writable := []obj.SymKind{
+ 		obj.SELFSECT,
+ 		obj.SMACHO,
+ 		obj.SMACHOGOT,
+ 		obj.SWINDOWS,
+ 	}
+-	for _, symn := range writableSects {
++	for _, symn := range writable {
+ 		for _, s := range data[symn] {
+ 			sect := addsection(&Segdata, s.Name, 06)
+ 			sect.Align = symalign(s)
+@@ -1489,24 +1489,14 @@ func (ctxt *Link) dodata() {
+ 		Linklookup(ctxt, "runtime.types", 0).Sect = sect
+ 		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
+ 	}
+-	roSects := []int{
+-		obj.STYPE,
+-		obj.SSTRING,
+-		obj.SGOSTRING,
+-		obj.SGOSTRINGHDR,
+-		obj.SGOFUNC,
+-		obj.SGCBITS,
+-		obj.SRODATA,
+-		obj.SFUNCTAB,
+-	}
+-	for _, symn := range roSects {
++	for _, symn := range obj.ReadOnly {
+ 		align := dataMaxAlign[symn]
+ 		if sect.Align < align {
+ 			sect.Align = align
+ 		}
+ 	}
+ 	datsize = Rnd(datsize, int64(sect.Align))
+-	for _, symn := range roSects {
++	for _, symn := range obj.ReadOnly {
+ 		for _, s := range data[symn] {
+ 			datsize = aligndatsize(datsize, s)
+ 			s.Sect = sect
+@@ -1540,24 +1530,16 @@ func (ctxt *Link) dodata() {
+ 		sect.Vaddr = 0
+ 		Linklookup(ctxt, "runtime.types", 0).Sect = sect
+ 		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
+-		relroSects := []int{
+-			obj.STYPERELRO,
+-			obj.SSTRINGRELRO,
+-			obj.SGOSTRINGRELRO,
+-			obj.SGOSTRINGHDRRELRO,
+-			obj.SGOFUNCRELRO,
+-			obj.SGCBITSRELRO,
+-			obj.SRODATARELRO,
+-			obj.SFUNCTABRELRO,
+-		}
+-		for _, symn := range relroSects {
++		for _, symnro := range obj.ReadOnly {
++			symn := obj.RelROMap[symnro]
+ 			align := dataMaxAlign[symn]
+ 			if sect.Align < align {
+ 				sect.Align = align
+ 			}
+ 		}
+ 		datsize = Rnd(datsize, int64(sect.Align))
+-		for _, symn := range relroSects {
++		for _, symnro := range obj.ReadOnly {
++			symn := obj.RelROMap[symnro]
+ 			for _, s := range data[symn] {
+ 				datsize = aligndatsize(datsize, s)
+ 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+@@ -1739,13 +1721,13 @@ func (ctxt *Link) dodata() {
+ 	}
+ }
+ 
+-func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlign int32) {
++func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol, maxAlign int32) {
+ 	if Headtype == obj.Hdarwin {
+ 		// Some symbols may no longer belong in syms
+ 		// due to movement in machosymorder.
+ 		newSyms := make([]*Symbol, 0, len(syms))
+ 		for _, s := range syms {
+-			if int(s.Type) == symn {
++			if s.Type == symn {
+ 				newSyms = append(newSyms, s)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8e2a3e08fd..4f4473cc12 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1949,9 +1949,9 @@ func Symaddr(ctxt *Link, s *Symbol) int64 {
+ 	return s.Value
+ }
+ 
+-func (ctxt *Link) xdefine(p string, t int, v int64) {
++func (ctxt *Link) xdefine(p string, t obj.SymKind, v int64) {
+ 	s := Linklookup(ctxt, p, 0)
+-	s.Type = int16(t)
++	s.Type = t
+ 	s.Value = v
+ 	s.Attr |= AttrReachable
+ 	s.Attr |= AttrSpecial
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 3ea990ae00..e8a98889f4 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -42,7 +42,7 @@ import (
+ type Symbol struct {
+ 	Name        string
+ 	Extname     string
+-	Type        int16
++	Type        obj.SymKind
+ 	Version     int16
+ 	Attr        Attribute
+ 	Localentry  uint8
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 5bb6e1e8af..4b5ae5dee9 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -254,7 +254,7 @@ func (r *objReader) readSym() {
+ 	if c, err := r.rd.ReadByte(); c != symPrefix || err != nil {
+ 		log.Fatalln("readSym out of sync")
+ 	}
+-	t := r.readInt()
++	t := obj.SymKind(r.readInt())
+ 	s := r.readSymIndex()
+ 	flags := r.readInt()
+ 	dupok := flags&1 != 0
+@@ -302,9 +302,9 @@ overwrite:
+ 		log.Fatalf("missing type for %s in %s", s.Name, r.pn)
+ 	}
+ 	if t == obj.SBSS && (s.Type == obj.SRODATA || s.Type == obj.SNOPTRBSS) {
+-		t = int(s.Type)
++		t = s.Type
+ 	}
+-	s.Type = int16(t)
++	s.Type = t
+ 	if s.Size < int64(size) {
+ 		s.Size = int64(size)
+ 	}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 484f98a3f8..7d9e25f8ff 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -386,7 +386,7 @@ func (ctxt *Link) symtab() {
+ 		symtyperel = s
+ 	}
+ 
+-	groupSym := func(name string, t int16) *Symbol {
++	groupSym := func(name string, t obj.SymKind) *Symbol {
+ 		s := Linklookup(ctxt, name, 0)
+ 		s.Type = t
+ 		s.Size = 0

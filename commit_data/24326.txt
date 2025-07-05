@@ -14,6 +14,36 @@ Date:   Thu Jul 23 02:23:14 2015 -0400
     Change-Id: I7d57f813ae5a2409d1520fcc909af3eeef2da131
     Reviewed-on: https://go-review.googlesource.com/12550
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/symtab.go | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 82e6f9ffed..400ab6df63 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -134,11 +134,20 @@ func moduledataverify1(datap *moduledata) {
+ 			// The very end might be just padding that is not covered by the tables.
+ 			// No architecture rounds function entries to more than 16 bytes,
+ 			// but if one came along we'd need to subtract more here.
+-			end := datap.ftab[i+1].entry - 16
+-			if end < datap.ftab[i].entry {
+-				end = datap.ftab[i].entry
+-			}
++			// But don't use the next PC if it corresponds to a foreign object chunk
++			// (no pcln table, f2.pcln == 0). That chunk might have an alignment
++			// more than 16 bytes.
+ 			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
++			end := f.entry
++			if i+1 < nftab {
++				f2 := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff]))
++				if f2.pcln != 0 {
++					end = f2.entry - 16
++					if end < f.entry {
++						end = f.entry
++					}
++				}
++			}
+ 			pcvalue(f, f.pcfile, end, true)
+ 			pcvalue(f, f.pcln, end, true)
+ 			pcvalue(f, f.pcsp, end, true)

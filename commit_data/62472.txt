@@ -19,9 +19,162 @@ Date:   Fri Dec 13 18:00:09 2024 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Junyang Shao <shaojunyang@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 18 ++++++++++
  src/cmd/internal/obj/loong64/a.out.go           | 18 ++++++++++
  src/cmd/internal/obj/loong64/anames.go          | 16 +++++++++
  src/cmd/internal/obj/loong64/asm.go             | 48 +++++++++++++++++++++++++
  4 files changed, 100 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index c3d1908e75..bb16f874f6 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -719,3 +719,21 @@ lable2:
+ 	XVSUBHU		$14, X1, X2	// 22b88c76
+ 	XVSUBWU		$15, X1, X2	// 223c8d76
+ 	XVSUBVU		$16, X1, X2	// 22c08d76
++
++	// [X]VILV{L/H}{B,H,W,V} instructions
++	VILVLB		V1, V2, V3	// 43041a71
++	VILVLH		V1, V2, V3	// 43841a71
++	VILVLW		V1, V2, V3	// 43041b71
++	VILVLV		V1, V2, V3	// 43841b71
++	VILVHB		V1, V2, V3	// 43041c71
++	VILVHH		V1, V2, V3	// 43841c71
++	VILVHW		V1, V2, V3	// 43041d71
++	VILVHV		V1, V2, V3	// 43841d71
++	XVILVLB		X3, X2, X1	// 410c1a75
++	XVILVLH		X3, X2, X1	// 418c1a75
++	XVILVLW		X3, X2, X1	// 410c1b75
++	XVILVLV		X3, X2, X1	// 418c1b75
++	XVILVHB		X3, X2, X1	// 410c1c75
++	XVILVHH		X3, X2, X1	// 418c1c75
++	XVILVHW		X3, X2, X1	// 410c1d75
++	XVILVHV		X3, X2, X1	// 418c1d75
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 2bc895b880..155d0f0c02 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -837,6 +837,24 @@ const (
+ 	AXVROTRW
+ 	AXVROTRV
+ 
++	// LSX and LASX move and shuffle instructions
++	AVILVLB
++	AVILVLH
++	AVILVLW
++	AVILVLV
++	AVILVHB
++	AVILVHH
++	AVILVHW
++	AVILVHV
++	AXVILVLB
++	AXVILVLH
++	AXVILVLW
++	AXVILVLV
++	AXVILVHB
++	AXVILVHH
++	AXVILVHW
++	AXVILVHV
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 7201f7d961..de4a158d09 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -345,5 +345,21 @@ var Anames = []string{
+ 	"XVROTRH",
+ 	"XVROTRW",
+ 	"XVROTRV",
++	"VILVLB",
++	"VILVLH",
++	"VILVLW",
++	"VILVLV",
++	"VILVHB",
++	"VILVHH",
++	"VILVHW",
++	"VILVHV",
++	"XVILVLB",
++	"XVILVLH",
++	"XVILVLW",
++	"XVILVLV",
++	"XVILVHB",
++	"XVILVHH",
++	"XVILVHW",
++	"XVILVHV",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 3ede022104..e5ffa51ae1 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1539,11 +1539,27 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVSEQH, r0)
+ 			opset(AVSEQW, r0)
+ 			opset(AVSEQV, r0)
++			opset(AVILVLB, r0)
++			opset(AVILVLH, r0)
++			opset(AVILVLW, r0)
++			opset(AVILVLV, r0)
++			opset(AVILVHB, r0)
++			opset(AVILVHH, r0)
++			opset(AVILVHW, r0)
++			opset(AVILVHV, r0)
+ 
+ 		case AXVSEQB:
+ 			opset(AXVSEQH, r0)
+ 			opset(AXVSEQW, r0)
+ 			opset(AXVSEQV, r0)
++			opset(AXVILVLB, r0)
++			opset(AXVILVLH, r0)
++			opset(AXVILVLW, r0)
++			opset(AXVILVLV, r0)
++			opset(AXVILVHB, r0)
++			opset(AXVILVHH, r0)
++			opset(AXVILVHW, r0)
++			opset(AXVILVHV, r0)
+ 
+ 		case AVPCNTB:
+ 			opset(AVPCNTH, r0)
+@@ -2862,6 +2878,38 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0xe81b << 15 // xvsub.d
+ 	case AXVSUBQ:
+ 		return 0xea5b << 15 // xvsub.q
++	case AVILVLB:
++		return 0xe234 << 15 // vilvl.b
++	case AVILVLH:
++		return 0xe235 << 15 // vilvl.h
++	case AVILVLW:
++		return 0xe236 << 15 // vilvl.w
++	case AVILVLV:
++		return 0xe237 << 15 // vilvl.d
++	case AVILVHB:
++		return 0xe238 << 15 // vilvh.b
++	case AVILVHH:
++		return 0xe239 << 15 // vilvh.h
++	case AVILVHW:
++		return 0xe23a << 15 // vilvh.w
++	case AVILVHV:
++		return 0xe23b << 15 // vilvh.d
++	case AXVILVLB:
++		return 0xea34 << 15 // xvilvl.b
++	case AXVILVLH:
++		return 0xea35 << 15 // xvilvl.h
++	case AXVILVLW:
++		return 0xea36 << 15 // xvilvl.w
++	case AXVILVLV:
++		return 0xea37 << 15 // xvilvl.d
++	case AXVILVHB:
++		return 0xea38 << 15 // xvilvh.b
++	case AXVILVHH:
++		return 0xea39 << 15 // xvilvh.h
++	case AXVILVHW:
++		return 0xea3a << 15 // xvilvh.w
++	case AXVILVHV:
++		return 0xea3b << 15 // xvilvh.d
+ 	}
+ 
+ 	if a < 0 {

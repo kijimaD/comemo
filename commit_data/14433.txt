@@ -13,6 +13,20 @@ Date:   Sun Nov 18 08:58:54 2012 +1100
     R=minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/6852055
-
+---
  src/pkg/runtime/cgo/cgo.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/cgo/cgo.go b/src/pkg/runtime/cgo/cgo.go
+index 414f3da360..e0d5386683 100644
+--- a/src/pkg/runtime/cgo/cgo.go
++++ b/src/pkg/runtime/cgo/cgo.go
+@@ -18,6 +18,8 @@ package cgo
+ #cgo openbsd LDFLAGS: -lpthread
+ #cgo windows LDFLAGS: -lm -mthreads
+ 
++#cgo CFLAGS: -Wall -Werror
++
+ */
+ import "C"
+ 

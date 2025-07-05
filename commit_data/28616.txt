@@ -9,6 +9,30 @@ Date:   Tue Jun 14 10:14:28 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/wait_wait6.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 279c6f2804..2f27feda8d 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -18,14 +18,13 @@ const _P_PID = 0
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	var errno syscall.Errno
+-	switch runtime.GOARCH {
+-	case "386", "arm":
+-		// The arguments on 32-bit FreeBSD look like the
+-		// following:
++	if runtime.GOARCH == "386" {
++		// The arguments on 32-bit FreeBSD except ARM look
++		// like the following:
+ 		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
+ 		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on MIPS or PowerPC
+ 		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+-	default:
++	} else {
+ 		_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+ 	}
+ 	if errno != 0 {

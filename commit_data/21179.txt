@@ -217,3 +217,119 @@ Date:   Mon Nov 24 12:07:11 2014 -0500
  src/syscall/exec_linux.go                        |   36 +-
  test/fixedbugs/issue9110.go                      |   90 ++
  207 files changed, 4734 insertions(+), 11182 deletions(-)
+
+diff --cc src/run.bash
+index 54b209591a,6b9ecc33c2..b8ce417a0a
+--- a/src/run.bash
++++ b/src/run.bash
+@@@ -165,6 -159,23 +159,24 @@@ android-arm | dragonfly-386 | dragonfly
+  esac
+  ) || exit $?
+  
++ # Race detector only supported on Linux, FreeBSD and OS X,
++ # and only on amd64, and only when cgo is enabled.
++ # Delayed until here so we know whether to try external linking.
+ -case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+++# DISABLED until we get garbage collection working.
+++case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-XXX-DISABLED" in
++ linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
++ 	echo
++ 	echo '# Testing race detector.'
++ 	go test -race -i runtime/race flag os/exec
++ 	go test -race -run=Output runtime/race
++ 	go test -race -short flag os/exec
++ 	
++ 	# Test with external linking; see issue 9133.
++ 	if [ "$extlink" = 1 ]; then
++ 		go test -race -short -ldflags=-linkmode=external flag os/exec
++ 	fi
++ esac
++ 
+  # This tests cgo -cdefs. That mode is not supported,
+  # so it's okay if it doesn't work on some systems.
+  # In particular, it works badly with clang on OS X.
+diff --cc src/runtime/asm_power64x.s
+index 6169202ea6,3f2ab6d0e6..548c88e47d
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_power64x.s
+@@@ -987,14 -974,6 +974,18 @@@ TEXT runtime·goexit(SB),NOSPLIT,$-8-
+  	MOVD	R0, R0	// NOP
+  	BL	runtime·goexit1(SB)	// does not return
+  
++ TEXT runtime·getg(SB),NOSPLIT,$-8-8
++ 	MOVD	g, ret+0(FP)
++ 	RETURN
+++
+ +TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+ +	RETURN
+ +
+ +TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+ +	RETURN
+ +
+ +TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ +	RETURN
+ +
+ +TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ +	RETURN
+diff --cc src/runtime/lfstack.go
+index a4ad8a10c6,8a36a67b35..fd3325972a
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@@ -12,9 -12,13 +12,13 @@@ import "unsafe
+  func lfstackpush(head *uint64, node *lfnode) {
+  	node.pushcnt++
+  	new := lfstackPack(node, node.pushcnt)
++ 	if node1, _ := lfstackUnpack(new); node1 != node {
++ 		println("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
++ 		gothrow("lfstackpush")
++ 	}
+  	for {
+  		old := atomicload64(head)
+ -		node.next, _ = lfstackUnpack(old)
+ +		node.next = old
+  		if cas64(head, old, new) {
+  			break
+  		}
+diff --cc src/runtime/runtime2.go
+index 7625a2dd81,7987a73730..d18178d093
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@@ -397,18 -401,9 +403,10 @@@ type itab struct 
+  	fun    [0]uintptr
+  }
+  
+- const (
+- 	// TODO: Generate in cmd/dist.
+- 	_NaCl    = 0
+- 	_Windows = 0
+- 	_Solaris = 0
+- 	_Plan9   = 0
+- )
+- 
+  // Lock-free stack node.
+ +// // Also known to export_test.go.
+  type lfnode struct {
+ -	next    *lfnode
+ +	next    uint64
+  	pushcnt uintptr
+  }
+  
+diff --cc src/runtime/stack1.go
+index 57d0f8c65e,ad83e58951..c14347dbdf
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@@ -781,9 -773,12 +781,9 @@@ func shrinkstack(gp *g) 
+  	if gp.syscallsp != 0 {
+  		return
+  	}
+- 	if _Windows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
+ -
+ -	/* TODO
+ -	if goos_windows && gp.m != nil && gp.m.libcallsp != 0 {
+++	if goos_windows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
+  		return
+  	}
+ -	*/
+  
+  	if stackDebug > 0 {
+  		print("shrinking stack ", oldsize, "->", newsize, "\n")

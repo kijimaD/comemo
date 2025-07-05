@@ -7,6 +7,32 @@ Date:   Tue Jun 24 15:47:22 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/110150044
-
+---
  src/race.bash | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/race.bash b/src/race.bash
+index 1680c09e49..6225840168 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -9,7 +9,7 @@
+ set -e
+ 
+ function usage {
+-	echo 'race detector is only supported on linux/amd64 and darwin/amd64' 1>&2
++	echo 'race detector is only supported on linux/amd64, freebsd/amd64 and darwin/amd64' 1>&2
+ 	exit 1
+ }
+ 
+@@ -25,6 +25,11 @@ case $(uname) in
+ 		usage
+ 	fi
+ 	;;
++"FreeBSD")
++	if [ $(uname -m) != "amd64" ]; then
++		usage
++	fi
++	;;
+ *)
+ 	usage
+ 	;;

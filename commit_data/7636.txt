@@ -7,9 +7,160 @@ Date:   Fri Mar 4 19:57:39 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4259051
-
+---
  src/pkg/time/Makefile |  1 +
  src/pkg/time/sleep.go | 25 ------------------------
  src/pkg/time/sys.go   | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/time/time.go  | 24 -----------------------
  4 files changed, 55 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 5213e44572..3fa96065e0 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -8,6 +8,7 @@ TARG=time
+ GOFILES=\
+ 	format.go\
+ 	sleep.go\
++	sys.go\
+ 	tick.go\
+ 	time.go\
+ 
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 833552d684..7b3f01f01e 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -5,7 +5,6 @@
+ package time
+ 
+ import (
+-	"os"
+ 	"syscall"
+ 	"sync"
+ 	"container/heap"
+@@ -47,30 +46,6 @@ func init() {
+ 	timers.Push(&Timer{t: forever}) // sentinel
+ }
+ 
+-// Sleep pauses the current goroutine for at least ns nanoseconds.
+-// Higher resolution sleeping may be provided by syscall.Nanosleep 
+-// on some operating systems.
+-func Sleep(ns int64) os.Error {
+-	_, err := sleep(Nanoseconds(), ns)
+-	return err
+-}
+-
+-// sleep takes the current time and a duration,
+-// pauses for at least ns nanoseconds, and
+-// returns the current time and an error.
+-func sleep(t, ns int64) (int64, os.Error) {
+-	// TODO(cw): use monotonic-time once it's available
+-	end := t + ns
+-	for t < end {
+-		errno := syscall.Sleep(end - t)
+-		if errno != 0 && errno != syscall.EINTR {
+-			return 0, os.NewSyscallError("sleep", errno)
+-		}
+-		t = Nanoseconds()
+-	}
+-	return t, nil
+-}
+-
+ // NewTimer creates a new Timer that will send
+ // the current time on its channel after at least ns nanoseconds.
+ func NewTimer(ns int64) *Timer {
+diff --git a/src/pkg/time/sys.go b/src/pkg/time/sys.go
+new file mode 100644
+index 0000000000..8a2e6fadc2
+--- /dev/null
++++ b/src/pkg/time/sys.go
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import (
++	"os"
++	"syscall"
++)
++
++// Seconds reports the number of seconds since the Unix epoch,
++// January 1, 1970 00:00:00 UTC.
++func Seconds() int64 {
++	sec, _, err := os.Time()
++	if err != nil {
++		panic(err)
++	}
++	return sec
++}
++
++// Nanoseconds reports the number of nanoseconds since the Unix epoch,
++// January 1, 1970 00:00:00 UTC.
++func Nanoseconds() int64 {
++	sec, nsec, err := os.Time()
++	if err != nil {
++		panic(err)
++	}
++	return sec*1e9 + nsec
++}
++
++// Sleep pauses the current goroutine for at least ns nanoseconds.
++// Higher resolution sleeping may be provided by syscall.Nanosleep 
++// on some operating systems.
++func Sleep(ns int64) os.Error {
++	_, err := sleep(Nanoseconds(), ns)
++	return err
++}
++
++// sleep takes the current time and a duration,
++// pauses for at least ns nanoseconds, and
++// returns the current time and an error.
++func sleep(t, ns int64) (int64, os.Error) {
++	// TODO(cw): use monotonic-time once it's available
++	end := t + ns
++	for t < end {
++		errno := syscall.Sleep(end - t)
++		if errno != 0 && errno != syscall.EINTR {
++			return 0, os.NewSyscallError("sleep", errno)
++		}
++		t = Nanoseconds()
++	}
++	return t, nil
++}
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 4abd112308..432b3523a8 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -6,30 +6,6 @@
+ // displaying time.
+ package time
+ 
+-import (
+-	"os"
+-)
+-
+-// Seconds reports the number of seconds since the Unix epoch,
+-// January 1, 1970 00:00:00 UTC.
+-func Seconds() int64 {
+-	sec, _, err := os.Time()
+-	if err != nil {
+-		panic(err)
+-	}
+-	return sec
+-}
+-
+-// Nanoseconds reports the number of nanoseconds since the Unix epoch,
+-// January 1, 1970 00:00:00 UTC.
+-func Nanoseconds() int64 {
+-	sec, nsec, err := os.Time()
+-	if err != nil {
+-		panic(err)
+-	}
+-	return sec*1e9 + nsec
+-}
+-
+ // Days of the week.
+ const (
+ 	Sunday = iota

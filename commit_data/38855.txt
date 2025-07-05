@@ -13,6 +13,37 @@ Date:   Mon Dec 3 17:01:18 2018 +0000
     Change-Id: Ibd277893a168368c593147a2677ad6130870cb88
     Reviewed-on: https://go-review.googlesource.com/c/152157
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/header.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 6cf13e5c44..b699e7ef8f 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -15,12 +15,15 @@ import (
+ )
+ 
+ // A Header represents the key-value pairs in an HTTP header.
++//
++// The keys should be in canonical form, as returned by
++// CanonicalHeaderKey.
+ type Header map[string][]string
+ 
+ // Add adds the key, value pair to the header.
+ // It appends to any existing values associated with key.
+ // The key is case insensitive; it is canonicalized by
+-// textproto.CanonicalMIMEHeaderKey.
++// CanonicalHeaderKey.
+ func (h Header) Add(key, value string) {
+ 	textproto.MIMEHeader(h).Add(key, value)
+ }
+@@ -61,7 +64,7 @@ func (h Header) has(key string) bool {
+ 
+ // Del deletes the values associated with key.
+ // The key is case insensitive; it is canonicalized by
+-// textproto.CanonicalMIMEHeaderKey.
++// CanonicalHeaderKey.
+ func (h Header) Del(key string) {
+ 	textproto.MIMEHeader(h).Del(key)
+ }

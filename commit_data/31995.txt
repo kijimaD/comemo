@@ -36,8 +36,212 @@ Date:   Mon Mar 6 14:48:36 2017 -0500
     Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm.s        | 21 ++++++++++++++
  src/runtime/traceback.go | 68 +++++++++++++++++++++++++++++++++++++++------
  test/inline_callers.go   | 72 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 153 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 3ddea7c055..2646172441 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -14,3 +14,24 @@ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+ 
+ GLOBL runtime·mheap_(SB), NOPTR, $0
+ GLOBL runtime·memstats(SB), NOPTR, $0
++
++// NaCl requires that these skips be verifiable machine code.
++#ifdef GOARCH_amd64
++#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
++#endif
++#ifdef GOARCH_386
++#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
++#endif
++#ifdef GOARCH_amd64p32
++#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
++#endif
++#ifndef SKIP4
++#define SKIP4 WORD $0
++#endif
++
++#define SKIP16 SKIP4; SKIP4; SKIP4; SKIP4
++#define SKIP64 SKIP16; SKIP16; SKIP16; SKIP16
++
++// This function must be sizeofSkipFunction bytes.
++TEXT runtime·skipPleaseUseCallersFrames(SB),NOSPLIT,$0-0
++	SKIP64; SKIP64; SKIP64; SKIP64
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index f72b068516..35a14f7b53 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -114,11 +114,25 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ 	}
+ }
+ 
++const sizeofSkipFunction = 256
++
++// This function is defined in asm.s to be sizeofSkipFunction bytes long.
++func skipPleaseUseCallersFrames()
++
+ // Generic traceback. Handles runtime stack prints (pcbuf == nil),
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+ // collector (callback != nil).  A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
++//
++// The skip argument is only valid with pcbuf != nil and counts the number
++// of logical frames to skip rather than physical frames (with inlining, a
++// PC in pcbuf can represent multiple calls). If a PC is partially skipped
++// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
++// N indicates the number of logical frames to skip in pcbuf[0].
+ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
++	if skip > 0 && callback != nil {
++		throw("gentraceback callback cannot be used with non-zero skip")
++	}
+ 	if goexitPC == 0 {
+ 		throw("gentraceback before goexitPC initialization")
+ 	}
+@@ -318,19 +332,57 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			_defer = _defer.link
+ 		}
+ 
+-		if skip > 0 {
+-			skip--
+-			goto skipped
+-		}
+-
+-		if pcbuf != nil {
+-			(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
+-		}
+ 		if callback != nil {
+ 			if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
+ 				return n
+ 			}
+ 		}
++
++		if pcbuf != nil {
++			if skip == 0 {
++				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
++			} else {
++				// backup to CALL instruction to read inlining info (same logic as below)
++				tracepc := frame.pc
++				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
++					tracepc--
++				}
++				inldata := funcdata(f, _FUNCDATA_InlTree)
++
++				// no inlining info, skip the physical frame
++				if inldata == nil {
++					skip--
++					goto skipped
++				}
++
++				ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
++				inltree := (*[1 << 20]inlinedCall)(inldata)
++				// skip the logical (inlined) frames
++				logicalSkipped := 0
++				for ix >= 0 && skip > 0 {
++					skip--
++					logicalSkipped++
++					ix = inltree[ix].parent
++				}
++
++				// skip the physical frame if there's more to skip
++				if skip > 0 {
++					skip--
++					goto skipped
++				}
++
++				// now we have a partially skipped frame
++				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
++
++				// if there's room, pcbuf[1] is a skip PC that encodes the number of skipped frames in pcbuf[0]
++				if n+1 < max {
++					n++
++					skipPC := funcPC(skipPleaseUseCallersFrames) + uintptr(logicalSkipped)
++					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = skipPC
++				}
++			}
++		}
++
+ 		if printing {
+ 			// assume skip=0 for printing
+ 			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0) {
+diff --git a/test/inline_callers.go b/test/inline_callers.go
+new file mode 100644
+index 0000000000..c387362fa8
+--- /dev/null
++++ b/test/inline_callers.go
+@@ -0,0 +1,72 @@
++// run -gcflags -l=4
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"log"
++	"runtime"
++)
++
++var skip int
++var npcs int
++var pcs = make([]uintptr, 32)
++
++func f() {
++	g()
++}
++
++func g() {
++	h()
++}
++
++func h() {
++	npcs = runtime.Callers(skip, pcs)
++}
++
++func testCallers(skp int) (frames []string) {
++	skip = skp
++	f()
++	for i := 0; i < npcs; i++ {
++		fn := runtime.FuncForPC(pcs[i])
++		frames = append(frames, fn.Name())
++		if fn.Name() == "main.main" {
++			break
++		}
++	}
++	return
++}
++
++var expectedFrames [][]string = [][]string{
++	0: {"runtime.Callers", "main.testCallers", "main.main"},
++	1: {"main.testCallers", "main.main"},
++	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
++	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
++	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
++	5: {"main.main"},
++}
++
++func same(xs, ys []string) bool {
++	if len(xs) != len(ys) {
++		return false
++	}
++	for i := range xs {
++		if xs[i] != ys[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func main() {
++	for i := 0; i <= 5; i++ {
++		frames := testCallers(i)
++		expected := expectedFrames[i]
++		if !same(frames, expected) {
++			log.Fatalf("testCallers(%d):\n got %v\n want %v", i, frames, expected)
++		}
++	}
++}

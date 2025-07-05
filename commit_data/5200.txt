@@ -7,6 +7,19 @@ Date:   Wed Mar 31 16:04:03 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/870041
-
+---
  src/cmd/gc/align.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 6d9083bc32..c4facf1be0 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -618,6 +618,6 @@ argsize(Type *t)
+ 		fp = funcnext(&save);
+ 	}
+ 
+-	w = (w+7) & ~7;
++	w = (w+widthptr-1) & ~(widthptr-1);
+ 	return w;
+ }

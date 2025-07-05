@@ -10,6 +10,19 @@ Date:   Mon Feb 10 21:47:52 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/61410044
-
+---
  src/pkg/runtime/signals_plan9.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/signals_plan9.h b/src/pkg/runtime/signals_plan9.h
+index f9bec65fcb..b16ecafd10 100644
+--- a/src/pkg/runtime/signals_plan9.h
++++ b/src/pkg/runtime/signals_plan9.h
+@@ -18,6 +18,7 @@ SigTab runtime·sigtab[] = {
+ 	// exception.
+ 	P, "sys: trap: fault read addr",
+ 	P, "sys: trap: fault write addr",
++	P, "sys: trap: divide error",
+ 	T, "sys: trap:",
+ 
+ 	N, "sys: bad sys call",

@@ -32,7 +32,7 @@ Date:   Thu Apr 6 09:54:14 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go           |  8 ++++----
  src/cmd/compile/internal/gc/obj.go          |  4 ++--
  src/cmd/compile/internal/gc/pgen.go         |  4 ++--
@@ -52,3 +52,678 @@ Date:   Thu Apr 6 09:54:14 2017 -0700
  src/cmd/internal/obj/x86/asm6.go            |  8 ++++----
  src/cmd/internal/obj/x86/obj6.go            | 16 ++++++++--------
  18 files changed, 75 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 09acb2d296..07f023c3d8 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -541,7 +541,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 	switch tok.ScanToken {
+ 	case scanner.Ident:
+ 		if p.arch.Family == sys.ARM64 {
+-				p.errorf("rhs of shift must be integer: %s", str)
++			p.errorf("rhs of shift must be integer: %s", str)
+ 		} else {
+ 			r2, ok := p.registerReference(str)
+ 			if !ok {
+@@ -567,7 +567,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 		p.errorf("unexpected %s in register shift", tok.String())
+ 	}
+ 	if p.arch.Family == sys.ARM64 {
+-		return int64(int64(r1 & 31)<<16 | int64(op)<<22 | int64(uint16(count)))
++		return int64(int64(r1&31)<<16 | int64(op)<<22 | int64(uint16(count)))
+ 	} else {
+ 		return int64((r1 & 15) | op<<5 | count)
+ 	}
+@@ -585,7 +585,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 		a.Type = obj.TYPE_INDIR
+ 	}
+ 	// Weirdness with statics: Might now have "<>".
+-	isStatic := 0 // TODO: Really a boolean, but Linklookup wants a "version" integer.
++	isStatic := 0 // TODO: Really a boolean, but ctxt.Lookup wants a "version" integer.
+ 	if p.peek() == '<' {
+ 		isStatic = 1
+ 		p.next()
+@@ -594,7 +594,7 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	if p.peek() == '+' || p.peek() == '-' {
+ 		a.Offset = int64(p.expr())
+ 	}
+-	a.Sym = obj.Linklookup(p.ctxt, name, isStatic)
++	a.Sym = p.ctxt.Lookup(name, isStatic)
+ 	if p.peek() == scanner.EOF {
+ 		if prefix == 0 && p.isJump {
+ 			// Symbols without prefix or suffix are jump labels.
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index c17f578898..1971fb7d16 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -242,7 +242,7 @@ func Linksym(s *Sym) *obj.LSym {
+ 		name = s.Pkg.Prefix + "." + s.Name
+ 	}
+ 
+-	ls := obj.Linklookup(Ctxt, name, 0)
++	ls := Ctxt.Lookup(name, 0)
+ 	s.Lsym = ls
+ 	return ls
+ }
+@@ -302,7 +302,7 @@ func stringsym(s string) (data *obj.LSym) {
+ 	const prefix = "go.string."
+ 	symdataname := prefix + symname
+ 
+-	symdata := obj.Linklookup(Ctxt, symdataname, 0)
++	symdata := Ctxt.Lookup(symdataname, 0)
+ 
+ 	if !symdata.SeenGlobl() {
+ 		// string data
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 12bb7bc66b..2f62528766 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -352,7 +352,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+ 
+ 		gotype := Linksym(ngotype(n))
+ 		fnsym.Autom = append(fnsym.Autom, &obj.Auto{
+-			Asym:    obj.Linklookup(Ctxt, n.Sym.Name, 0),
++			Asym:    Ctxt.Lookup(n.Sym.Name, 0),
+ 			Aoffset: int32(n.Xoffset),
+ 			Name:    name,
+ 			Gotype:  gotype,
+@@ -367,7 +367,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+ 			Name:   n.Sym.Name,
+ 			Abbrev: abbrev,
+ 			Offset: int32(offs),
+-			Type:   obj.Linklookup(Ctxt, typename, 0),
++			Type:   Ctxt.Lookup(typename, 0),
+ 		})
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 1ad70fcd46..b11ca7082a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -454,7 +454,7 @@ func dimportpath(p *Pkg) {
+ 		str = p.Path
+ 	}
+ 
+-	s := obj.Linklookup(Ctxt, "type..importpath."+p.Prefix+".", 0)
++	s := Ctxt.Lookup("type..importpath."+p.Prefix+".", 0)
+ 	ot := dnameData(s, 0, str, "", nil, false)
+ 	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
+ 	p.Pathsym = s
+@@ -475,7 +475,7 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+ 		// type..importpath.""., which the linker will rewrite using the correct import path.
+ 		// Every package that imports this one directly defines the symbol.
+ 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := obj.Linklookup(Ctxt, `type..importpath."".`, 0)
++		ns := Ctxt.Lookup(`type..importpath."".`, 0)
+ 		return dsymptrLSym(s, ot, ns, 0)
+ 	}
+ 
+@@ -494,7 +494,7 @@ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+ 		// type..importpath.""., which the linker will rewrite using the correct import path.
+ 		// Every package that imports this one directly defines the symbol.
+ 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := obj.Linklookup(Ctxt, `type..importpath."".`, 0)
++		ns := Ctxt.Lookup(`type..importpath."".`, 0)
+ 		return dsymptrOffLSym(s, ot, ns, 0)
+ 	}
+ 
+@@ -598,7 +598,7 @@ func dname(name, tag string, pkg *Pkg, exported bool) *obj.LSym {
+ 		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
+ 		dnameCount++
+ 	}
+-	s := obj.Linklookup(Ctxt, sname, 0)
++	s := Ctxt.Lookup(sname, 0)
+ 	if len(s.P) > 0 {
+ 		return s
+ 	}
+@@ -1466,7 +1466,7 @@ func dumptypestructs() {
+ 	// process ptabs
+ 	if localpkg.Name == "main" && len(ptabs) > 0 {
+ 		ot := 0
+-		s := obj.Linklookup(Ctxt, "go.plugin.tabs", 0)
++		s := Ctxt.Lookup("go.plugin.tabs", 0)
+ 		for _, p := range ptabs {
+ 			// Dump ptab symbol into go.pluginsym package.
+ 			//
+@@ -1481,7 +1481,7 @@ func dumptypestructs() {
+ 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+ 
+ 		ot = 0
+-		s = obj.Linklookup(Ctxt, "go.plugin.exports", 0)
++		s = Ctxt.Lookup("go.plugin.exports", 0)
+ 		for _, p := range ptabs {
+ 			ot = dsymptrLSym(s, ot, Linksym(p.s), 0)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index f7a80a8c00..1b18d74575 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -114,7 +114,7 @@ func (DummyFrontend) Line(_ src.XPos) string {
+ func (DummyFrontend) AllocFrame(f *Func) {
+ }
+ func (d DummyFrontend) Syslook(s string) *obj.LSym {
+-	return obj.Linklookup(d.ctxt, s, 0)
++	return d.ctxt.Lookup(s, 0)
+ }
+ func (DummyFrontend) UseWriteBarrier() bool {
+ 	return true // only writebarrier_test cares
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index d11cf5cad7..144cfaee2d 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -452,7 +452,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(x86.ALEAL)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Name = obj.NAME_EXTERN
+-		p.From.Sym = obj.Linklookup(gc.Ctxt, literal, 0)
++		p.From.Sym = gc.Ctxt.Lookup(literal, 0)
+ 		p.From.Sym.Set(obj.AttrLocal, true)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 952dbeff02..c755e90b23 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -337,7 +337,7 @@ func asmoutnacl(ctxt *obj.Link, newprog obj.ProgAlloc, origPC int32, p *obj.Prog
+ 		// align the last instruction (the actual BL) to the last instruction in a bundle
+ 		if p.As == ABL {
+ 			if deferreturn == nil {
+-				deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
++				deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
+ 			}
+ 			if p.To.Sym == deferreturn {
+ 				p.Pc = ((int64(origPC) + 15) &^ 15) + 16 - int64(size)
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 283d3160d2..0949088a97 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -68,7 +68,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			if obj.GOARM < 7 {
+ 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
+ 				if progedit_tlsfallback == nil {
+-					progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
++					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback", 0)
+ 				}
+ 
+ 				// MOVW	LR, R11
+@@ -110,7 +110,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+ 			p.From.Name = obj.NAME_EXTERN
+@@ -121,7 +121,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+ 			p.From.Name = obj.NAME_EXTERN
+@@ -144,9 +144,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		//     CALL (R9)
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
++			sym = ctxt.Lookup("runtime.duffzero", 0)
+ 		} else {
+-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
++			sym = ctxt.Lookup("runtime.duffcopy", 0)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = AMOVW
+@@ -650,7 +650,7 @@ func softfloat(ctxt *obj.Link, newprog obj.ProgAlloc, cursym *obj.LSym) {
+ 		return
+ 	}
+ 
+-	symsfloat := obj.Linklookup(ctxt, "_sfloat", 0)
++	symsfloat := ctxt.Lookup("_sfloat", 0)
+ 
+ 	wasfloat := 0
+ 	for p := cursym.Text; p != nil; p = p.Link {
+@@ -859,7 +859,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
+ 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+-	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
++	call.To.Sym = ctxt.Lookup(morestack, 0)
+ 
+ 	// B start
+ 	b := obj.Appendp(call, newprog)
+@@ -875,10 +875,10 @@ func initdiv(ctxt *obj.Link) {
+ 	if ctxt.Sym_div != nil {
+ 		return
+ 	}
+-	ctxt.Sym_div = obj.Linklookup(ctxt, "_div", 0)
+-	ctxt.Sym_divu = obj.Linklookup(ctxt, "_divu", 0)
+-	ctxt.Sym_mod = obj.Linklookup(ctxt, "_mod", 0)
+-	ctxt.Sym_modu = obj.Linklookup(ctxt, "_modu", 0)
++	ctxt.Sym_div = ctxt.Lookup("_div", 0)
++	ctxt.Sym_divu = ctxt.Lookup("_divu", 0)
++	ctxt.Sym_mod = ctxt.Lookup("_mod", 0)
++	ctxt.Sym_modu = ctxt.Lookup("_modu", 0)
+ }
+ 
+ var unaryDst = map[obj.As]bool{
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 70cf880680..f1fdef236b 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -208,7 +208,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
+ 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+-	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
++	call.To.Sym = ctxt.Lookup(morestack, 0)
+ 
+ 	// B	start
+ 	jmp := obj.Appendp(call, newprog)
+@@ -266,7 +266,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -284,7 +284,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -340,9 +340,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		//     CALL REGTMP
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
++			sym = ctxt.Lookup("runtime.duffzero", 0)
+ 		} else {
+-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
++			sym = ctxt.Lookup("runtime.duffcopy", 0)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = AMOVD
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 96fdec3d0b..86e3b920d5 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -84,7 +84,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -96,7 +96,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AMOVV:
+ 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+ 			literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -769,11 +769,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
+ 	p.As = AJAL
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.CFunc() {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++		p.To.Sym = ctxt.Lookup("runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
++		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt", 0)
+ 	} else {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
++		p.To.Sym = ctxt.Lookup("runtime.morestack", 0)
+ 	}
+ 	p.Mark |= BRANCH
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index ccc71efd6c..6858143674 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -299,13 +299,13 @@ func (w *objWriter) writeRefs(s *LSym) {
+ 			w.writeRef(d, false)
+ 		}
+ 		for _, f := range pc.File {
+-			fsym := Linklookup(w.ctxt, f, 0)
++			fsym := w.ctxt.Lookup(f, 0)
+ 			w.writeRef(fsym, true)
+ 		}
+ 		for _, call := range pc.InlTree.nodes {
+ 			w.writeRef(call.Func, false)
+ 			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
+-			fsym := Linklookup(w.ctxt, f, 0)
++			fsym := w.ctxt.Lookup(f, 0)
+ 			w.writeRef(fsym, true)
+ 		}
+ 	}
+@@ -469,14 +469,14 @@ func (w *objWriter) writeSym(s *LSym) {
+ 	}
+ 	w.writeInt(int64(len(pc.File)))
+ 	for _, f := range pc.File {
+-		fsym := Linklookup(ctxt, f, 0)
++		fsym := ctxt.Lookup(f, 0)
+ 		w.writeRefIndex(fsym)
+ 	}
+ 	w.writeInt(int64(len(pc.InlTree.nodes)))
+ 	for _, call := range pc.InlTree.nodes {
+ 		w.writeInt(int64(call.Parent))
+ 		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
+-		fsym := Linklookup(ctxt, f, 0)
++		fsym := ctxt.Lookup(f, 0)
+ 		w.writeRefIndex(fsym)
+ 		w.writeInt(int64(l))
+ 		w.writeRefIndex(call.Func)
+@@ -558,7 +558,7 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ // makeFuncDebugEntry makes a DWARF Debugging Information Entry
+ // for TEXT symbol s.
+ func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
+-	dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
++	dsym := ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+ 	if dsym.Size != 0 {
+ 		return
+ 	}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 7f355b135a..b79b39de8d 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -82,7 +82,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 				if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
+ 					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+ 				}
+-				p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
++				p.To.Sym = ctxt.Lookup(fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
+ 			}
+ 
+ 		}
+@@ -119,7 +119,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 			p.From.Offset = FUNCDATA_ArgsPointerMaps
+ 			p.To.Type = TYPE_MEM
+ 			p.To.Name = NAME_EXTERN
+-			p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
++			p.To.Sym = ctxt.Lookup(fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 31ce242483..a6a359da23 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2244,7 +2244,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 				// that knows the name of the tls variable. Possibly
+ 				// we could add some assembly syntax so that the name
+ 				// of the variable does not have to be assumed.
+-				rel.Sym = obj.Linklookup(ctxt, "runtime.tls_g", 0)
++				rel.Sym = ctxt.Lookup("runtime.tls_g", 0)
+ 				rel.Type = obj.R_POWER_TLS
+ 			}
+ 			o1 = AOP_RRR(opstorex(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
+@@ -2270,7 +2270,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 				rel := obj.Addrel(ctxt.Cursym)
+ 				rel.Off = int32(ctxt.Pc)
+ 				rel.Siz = 4
+-				rel.Sym = obj.Linklookup(ctxt, "runtime.tls_g", 0)
++				rel.Sym = ctxt.Lookup("runtime.tls_g", 0)
+ 				rel.Type = obj.R_POWER_TLS
+ 			}
+ 			o1 = AOP_RRR(oploadx(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 60c84d7511..96d10caeb2 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -59,7 +59,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -72,7 +72,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -85,7 +85,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AMOVD:
+ 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+ 			literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -131,9 +131,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		//     BL (CTR)
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
++			sym = ctxt.Lookup("runtime.duffzero", 0)
+ 		} else {
+-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
++			sym = ctxt.Lookup("runtime.duffcopy", 0)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = AMOVD
+@@ -504,7 +504,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				rel := obj.Addrel(ctxt.Cursym)
+ 				rel.Off = 0
+ 				rel.Siz = 8
+-				rel.Sym = obj.Linklookup(ctxt, ".TOC.", 0)
++				rel.Sym = ctxt.Lookup(".TOC.", 0)
+ 				rel.Type = obj.R_ADDRPOWER_PCREL
+ 			}
+ 
+@@ -965,11 +965,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, framesize in
+ 
+ 	var morestacksym *obj.LSym
+ 	if ctxt.Cursym.CFunc() {
+-		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++		morestacksym = ctxt.Lookup("runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+-		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
++		morestacksym = ctxt.Lookup("runtime.morestack_noctxt", 0)
+ 	} else {
+-		morestacksym = obj.Linklookup(ctxt, "runtime.morestack", 0)
++		morestacksym = ctxt.Lookup("runtime.morestack", 0)
+ 	}
+ 
+ 	if ctxt.Flag_shared {
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 831abe542f..7b82ae4350 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -62,7 +62,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -78,7 +78,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+@@ -95,7 +95,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				int64(uint32(val)) != val &&
+ 				int64(uint64(val)&(0xffffffff<<32)) != val {
+ 				literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+-				s := obj.Linklookup(ctxt, literal, 0)
++				s := ctxt.Lookup(literal, 0)
+ 				s.Size = 8
+ 				p.From.Type = obj.TYPE_MEM
+ 				p.From.Sym = s
+@@ -700,11 +700,11 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
+ 	p.As = ABL
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.CFunc() {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
++		p.To.Sym = ctxt.Lookup("runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
++		p.To.Sym = ctxt.Lookup("runtime.morestack_noctxt", 0)
+ 	} else {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
++		p.To.Sym = ctxt.Lookup("runtime.morestack", 0)
+ 	}
+ 
+ 	// BR	start
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 8f6edb9af5..f5c1c8005a 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -82,10 +82,6 @@ func (ctxt *Link) Lookup(name string, v int) *LSym {
+ 	return s
+ }
+ 
+-func Linklookup(ctxt *Link, name string, v int) *LSym {
+-	return ctxt.Lookup(name, v)
+-}
+-
+ func Linksymfmt(s *LSym) string {
+ 	if s == nil {
+ 		return "<nil>"
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c25829533c..8e372709d3 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1832,7 +1832,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	errors := ctxt.Errors
+ 	var deferreturn *obj.LSym
+ 	if ctxt.Headtype == obj.Hnacl {
+-		deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
++		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
+ 	}
+ 	for {
+ 		loop := int32(0)
+@@ -4084,7 +4084,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
+ 								r.Type = obj.R_CALL
+ 								r.Siz = 4
+-								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
++								r.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+ 								asmbuf.PutInt32(0)
+ 
+ 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
+@@ -4109,7 +4109,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 							}
+ 						case obj.Hplan9:
+ 							if ctxt.Plan9privates == nil {
+-								ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
++								ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
+ 							}
+ 							pp.From = obj.Addr{}
+ 							pp.From.Type = obj.TYPE_MEM
+@@ -4165,7 +4165,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 
+ 					case obj.Hplan9:
+ 						if ctxt.Plan9privates == nil {
+-							ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
++							ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
+ 						}
+ 						pp.From = obj.Addr{}
+ 						pp.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7d3b5753a6..fb3756ad31 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -243,7 +243,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
+@@ -283,7 +283,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := obj.Linklookup(ctxt, literal, 0)
++			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
+@@ -332,9 +332,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		//     CALL $reg
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
++			sym = ctxt.Lookup("runtime.duffzero", 0)
+ 		} else {
+-			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
++			sym = ctxt.Lookup("runtime.duffcopy", 0)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = mov
+@@ -435,7 +435,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		p1.As = ALEAL
+ 		p1.From.Type = obj.TYPE_MEM
+ 		p1.From.Name = obj.NAME_STATIC
+-		p1.From.Sym = obj.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
++		p1.From.Sym = ctxt.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 		p1.To.Type = obj.TYPE_REG
+ 		p1.To.Reg = REG_BX
+ 
+@@ -542,7 +542,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	r := obj.Appendp(q, newprog)
+ 	r.RegTo2 = 1
+ 	q.As = obj.ACALL
+-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
++	q.To.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+ 	q.To.Type = obj.TYPE_MEM
+ 	q.To.Name = obj.NAME_EXTERN
+ 	q.To.Sym.Set(obj.AttrLocal, true)
+@@ -598,7 +598,7 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
+-		ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
++		ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
+ 	}
+ 
+ 	if cursym.Text == nil || cursym.Text.Link == nil {
+@@ -1165,7 +1165,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	case cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+-	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
++	call.To.Sym = ctxt.Lookup(morestack, 0)
+ 	// When compiling 386 code for dynamic linking, the call needs to be adjusted
+ 	// to follow PIC rules. This in turn can insert more instructions, so we need
+ 	// to keep track of the start of the call (where the jump will be to) and the

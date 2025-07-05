@@ -9,7 +9,40 @@ Date:   Thu Jan 7 23:20:00 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/183156
-
+---
  src/cmd/gc/typecheck.c   |  4 +++-
  test/fixedbugs/bug241.go | 11 +++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 08c47d07f8..c63480faa2 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -446,7 +446,9 @@ reswitch:
+ 		n->op = ODOT;
+ 		// fall through
+ 	case ODOT:
+-		l = typecheck(&n->left, Erv|Etype);
++		typecheck(&n->left, Erv|Etype);
++		defaultlit(&n->left, T);
++		l = n->left;
+ 		if((t = l->type) == T)
+ 			goto error;
+ 		if(n->right->op != ONAME) {
+diff --git a/test/fixedbugs/bug241.go b/test/fixedbugs/bug241.go
+new file mode 100644
+index 0000000000..172b3742e5
+--- /dev/null
++++ b/test/fixedbugs/bug241.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const c = 3
++var x = c.String()	// ERROR "String"
++

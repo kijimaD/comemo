@@ -25,10 +25,175 @@ Date:   Tue Apr 21 18:50:49 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229306
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go       | 10 +++++-----
  src/cmd/link/internal/ld/dwarf2.go     |  2 +-
  src/cmd/link/internal/ld/lib.go        |  4 ++--
  src/cmd/link/internal/loader/loader.go | 34 ++++++++++++++++++++++++++++++----
  src/cmd/link/internal/sym/segment.go   |  1 +
  5 files changed, 39 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 18cc54c2cc..6569c155c6 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1518,7 +1518,7 @@ func (ctxt *Link) dodata() {
+ // the section will go, "s" is the symbol to be placed into the new
+ // section, and "rwx" contains permissions for the section.
+ func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Symbol, rwx int) *sym.Section {
+-	sect := addsection(state.ctxt.Arch, seg, s.Name, rwx)
++	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, s.Name, rwx)
+ 	sect.Align = symalign(s)
+ 	state.datsize = Rnd(state.datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(state.datsize)
+@@ -1531,7 +1531,7 @@ func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Sym
+ // range of symbol types to be put into the section, and "rwx"
+ // contains permissions for the section.
+ func (state *dodataState) allocateNamedDataSection(seg *sym.Segment, sName string, types []sym.SymKind, rwx int) *sym.Section {
+-	sect := addsection(state.ctxt.Arch, seg, sName, rwx)
++	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, sName, rwx)
+ 	if len(types) == 0 {
+ 		sect.Align = 1
+ 	} else if len(types) == 1 {
+@@ -1718,7 +1718,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		var sect *sym.Section
+ 		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.
+ 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
+-			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
++			sect = addsection(ctxt.loader, ctxt.Arch, &Segdata, ".tbss", 06)
+ 			sect.Align = int32(ctxt.Arch.PtrSize)
+ 			// FIXME: why does this need to be set to zero?
+ 			sect.Vaddr = 0
+@@ -2119,7 +2119,7 @@ func (ctxt *Link) buildinfo() {
+ 
+ // assign addresses to text
+ func (ctxt *Link) textaddress() {
+-	addsection(ctxt.Arch, &Segtext, ".text", 05)
++	addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
+ 
+ 	// Assign PCs in text segment.
+ 	// Could parallelize, by assigning to text
+@@ -2231,7 +2231,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
+ 		sect.Length = va - sect.Vaddr
+ 
+ 		// Create new section, set the starting Vaddr
+-		sect = addsection(ctxt.Arch, &Segtext, ".text", 05)
++		sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
+ 		sect.Vaddr = va
+ 		ldr.SetSymSect(s, sect)
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf2.go b/src/cmd/link/internal/ld/dwarf2.go
+index 0f0eb0b756..4bd52f5105 100644
+--- a/src/cmd/link/internal/ld/dwarf2.go
++++ b/src/cmd/link/internal/ld/dwarf2.go
+@@ -134,7 +134,7 @@ func dwarfcompress(ctxt *Link) {
+ 			Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
+ 		} else {
+ 			compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
+-			sect := addsection(ctxt.Arch, &Segdwarf, compressedSegName, 04)
++			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
+ 			sect.Length = uint64(len(z.compressed))
+ 			newSym := ctxt.Syms.Lookup(compressedSegName, 0)
+ 			newSym.P = z.compressed
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9c87ab15a1..76f8e36556 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2218,8 +2218,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
+ }
+ 
+-func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
+-	sect := new(sym.Section)
++func addsection(ldr *loader.Loader, arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
++	sect := ldr.NewSection()
+ 	sect.Rwx = uint8(rwx)
+ 	sect.Name = name
+ 	sect.Seg = seg
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 75477fd819..9fd2bb28b6 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -198,7 +198,9 @@ type Loader struct {
+ 	payloadBatch []extSymPayload
+ 	payloads     []*extSymPayload // contents of linker-materialized external syms
+ 	values       []int64          // symbol values, indexed by global sym index
+-	sects        []*sym.Section   // symbol's section, indexed by global index
++
++	sects    []*sym.Section // sections
++	symSects []uint16       // symbol's section, index to sects array
+ 
+ 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+ 
+@@ -326,6 +328,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
+ 		builtinSyms:          make([]Sym, nbuiltin),
+ 		flags:                flags,
+ 		elfsetstring:         elfsetstring,
++		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
+ 	}
+ }
+ 
+@@ -990,7 +993,6 @@ func (l *Loader) growValues(reqLen int) {
+ 	curLen := len(l.values)
+ 	if reqLen > curLen {
+ 		l.values = append(l.values, make([]int64, reqLen+1-curLen)...)
+-		l.sects = append(l.sects, make([]*sym.Section, reqLen+1-curLen)...)
+ 	}
+ }
+ 
+@@ -1053,12 +1055,35 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
+ 
+ // SymValue returns the section of the i-th symbol. i is global index.
+ func (l *Loader) SymSect(i Sym) *sym.Section {
+-	return l.sects[i]
++	return l.sects[l.symSects[i]]
+ }
+ 
+ // SetSymValue sets the section of the i-th symbol. i is global index.
+ func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
+-	l.sects[i] = sect
++	if int(i) >= len(l.symSects) {
++		l.symSects = append(l.symSects, make([]uint16, l.NSym()-len(l.symSects))...)
++	}
++	l.symSects[i] = sect.Index
++}
++
++// growSects grows the slice used to store symbol sections.
++func (l *Loader) growSects(reqLen int) {
++	curLen := len(l.symSects)
++	if reqLen > curLen {
++		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
++	}
++}
++
++// NewSection creates a new (output) section.
++func (l *Loader) NewSection() *sym.Section {
++	sect := new(sym.Section)
++	idx := len(l.sects)
++	if idx != int(uint16(idx)) {
++		panic("too many sections created")
++	}
++	sect.Index = uint16(idx)
++	l.sects = append(l.sects, sect)
++	return sect
+ }
+ 
+ // SymDynImplib returns the "dynimplib" attribute for the specified
+@@ -1842,6 +1867,7 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
+ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 	// create all Symbols first.
+ 	l.growSyms(l.NSym())
++	l.growSects(l.NSym())
+ 
+ 	nr := 0 // total number of sym.Reloc's we'll need
+ 	for _, o := range l.objs[1:] {
+diff --git a/src/cmd/link/internal/sym/segment.go b/src/cmd/link/internal/sym/segment.go
+index 979241be61..5ca0228163 100644
+--- a/src/cmd/link/internal/sym/segment.go
++++ b/src/cmd/link/internal/sym/segment.go
+@@ -56,4 +56,5 @@ type Section struct {
+ 	Reloff  uint64
+ 	Rellen  uint64
+ 	Sym     *Symbol // symbol for the section, if any
++	Index   uint16  // each section has a unique index, used internally
+ }

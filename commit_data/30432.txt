@@ -7,6 +7,20 @@ Date:   Fri Nov 4 03:33:44 2016 +0000
     Change-Id: Ia03f993287d2929f35b4c92d00fe25c7243bd8b3
     Reviewed-on: https://go-review.googlesource.com/32685
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c527ea8eef..0959ac6f85 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -262,7 +262,7 @@ type conn struct {
+ 
+ 	curReq atomic.Value // of *response (which has a Request in it)
+ 
+-	curState atomic.Value // of ConnectionState
++	curState atomic.Value // of ConnState
+ 
+ 	// mu guards hijackedv
+ 	mu sync.Mutex

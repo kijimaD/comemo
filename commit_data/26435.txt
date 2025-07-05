@@ -11,6 +11,41 @@ Date:   Fri Jan 22 15:50:01 2016 -0500
     Change-Id: I6955315996a34d7fb79369b9d9a0119d11745e85
     Reviewed-on: https://go-review.googlesource.com/18849
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 12 ++++--------
  1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 41386ef6e0..f67dfa9449 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3189,12 +3189,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-			case Pq3: /* 16 bit escape, Rex.w, and opcode escape */
++			case Pq3: /* 16 bit escape and opcode escape + REX.W */
++				ctxt.Rexflag |= Pw
+ 				ctxt.Andptr[0] = Pe
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+-
+-				ctxt.Andptr[0] = Pw
+-				ctxt.Andptr = ctxt.Andptr[1:]
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+@@ -3206,12 +3204,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-			case Pfw: /* first escape, Rex.w, and second escape */
++			case Pfw: /* xmm opcode escape + REX.W */
++				ctxt.Rexflag |= Pw
+ 				ctxt.Andptr[0] = Pf3
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+-
+-				ctxt.Andptr[0] = Pw
+-				ctxt.Andptr = ctxt.Andptr[1:]
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 

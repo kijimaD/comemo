@@ -16,10 +16,243 @@ Date:   Wed Jun 26 17:09:14 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Greg Thelen <gthelen@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal_cgo_test.go | 11 -----------
  src/syscall/exec_bsd.go          | 32 +++++++++++++++---------------
  src/syscall/exec_darwin.go       | 32 +++++++++++++++---------------
  src/syscall/exec_libc.go         | 42 ++++++++++++++++++++--------------------
  src/syscall/exec_linux.go        | 32 +++++++++++++++---------------
  5 files changed, 69 insertions(+), 80 deletions(-)
+
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 075e8c11cb..3c23090489 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -101,17 +101,6 @@ func TestTerminalSignal(t *testing.T) {
+ 		Ctty:    int(slave.Fd()),
+ 	}
+ 
+-	// Test ctty management by sending enough child fd to overlap the
+-	// parent's fd intended for child's ctty.
+-	for 2+len(cmd.ExtraFiles) < cmd.SysProcAttr.Ctty {
+-		dummy, err := os.Open(os.DevNull)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer dummy.Close()
+-		cmd.ExtraFiles = append(cmd.ExtraFiles, dummy)
+-	}
+-
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 632b711ce8..30b88eba7a 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -162,22 +162,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 	}
+ 
+-	// Detach fd 0 from tty
+-	if sys.Noctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Set the controlling TTY to Ctty
+-	if sys.Setctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+@@ -235,6 +219,22 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+ 	}
+ 
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set the controlling TTY to Ctty
++	if sys.Setctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Time to exec.
+ 	_, _, err1 = RawSyscall(SYS_EXECVE,
+ 		uintptr(unsafe.Pointer(argv0)),
+diff --git a/src/syscall/exec_darwin.go b/src/syscall/exec_darwin.go
+index 9f7bf67d2c..ac1ead3a2b 100644
+--- a/src/syscall/exec_darwin.go
++++ b/src/syscall/exec_darwin.go
+@@ -160,22 +160,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 	}
+ 
+-	// Detach fd 0 from tty
+-	if sys.Noctty {
+-		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), 0, uintptr(TIOCNOTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Set the controlling TTY to Ctty
+-	if sys.Setctty {
+-		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+@@ -233,6 +217,22 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		rawSyscall(funcPC(libc_close_trampoline), uintptr(i), 0, 0)
+ 	}
+ 
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), 0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set the controlling TTY to Ctty
++	if sys.Setctty {
++		_, _, err1 = rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Time to exec.
+ 	_, _, err1 = rawSyscall(funcPC(libc_execve_trampoline),
+ 		uintptr(unsafe.Pointer(argv0)),
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index 11cd2bb9f3..0133139000 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -180,27 +180,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 	}
+ 
+-	// Detach fd 0 from tty
+-	if sys.Noctty {
+-		err1 = ioctl(0, uintptr(TIOCNOTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Set the controlling TTY to Ctty
+-	if sys.Setctty {
+-		// On AIX, TIOCSCTTY is undefined
+-		if TIOCSCTTY == 0 {
+-			err1 = ENOSYS
+-			goto childerror
+-		}
+-		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+@@ -261,6 +240,27 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		close(uintptr(i))
+ 	}
+ 
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		err1 = ioctl(0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set the controlling TTY to Ctty
++	if sys.Setctty {
++		// On AIX, TIOCSCTTY is undefined
++		if TIOCSCTTY == 0 {
++			err1 = ENOSYS
++			goto childerror
++		}
++		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Time to exec.
+ 	err1 = execve(
+ 		uintptr(unsafe.Pointer(argv0)),
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index f62f2c633e..a2242b2057 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -431,22 +431,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 	}
+ 
+-	// Detach fd 0 from tty
+-	if sys.Noctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Set the controlling TTY to Ctty
+-	if sys.Setctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 1)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+@@ -504,6 +488,22 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+ 	}
+ 
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set the controlling TTY to Ctty
++	if sys.Setctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(sys.Ctty), uintptr(TIOCSCTTY), 1)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Enable tracing if requested.
+ 	// Do this right before exec so that we don't unnecessarily trace the runtime
+ 	// setting up after the fork. See issue #21428.

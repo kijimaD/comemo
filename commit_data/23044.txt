@@ -11,7 +11,36 @@ Date:   Mon Apr 13 17:06:22 2015 -0400
     Change-Id: I6a50a956ddc6077eeaf92011c51743cb69540a3c
     Reviewed-on: https://go-review.googlesource.com/8899
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go | 2 +-
  src/runtime/mcache.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 84a2ad71a4..4a2d3e3cac 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -623,7 +623,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 				}
+ 			}
+ 		}
+-		c.local_cachealloc += intptr(size)
++		c.local_cachealloc += size
+ 	} else {
+ 		var s *mspan
+ 		shouldhelpgc = true
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 14748a43f1..f01215379a 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -11,8 +11,8 @@ import "unsafe"
+ type mcache struct {
+ 	// The following members are accessed on every malloc,
+ 	// so they are grouped here for better caching.
+-	next_sample      int32  // trigger heap sample after allocating this many bytes
+-	local_cachealloc intptr // bytes allocated from cache since last lock of heap
++	next_sample      int32   // trigger heap sample after allocating this many bytes
++	local_cachealloc uintptr // bytes allocated from cache since last lock of heap
+ 	// Allocator cache for tiny objects w/o pointers.
+ 	// See "Tiny allocator" comment in malloc.go.
+ 	tiny             unsafe.Pointer

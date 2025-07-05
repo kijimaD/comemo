@@ -8,6 +8,29 @@ Date:   Tue Jul 7 10:30:31 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=31270
     CL=31272
-
+---
  test/hilbert.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/hilbert.go b/test/hilbert.go
+index 163313e852..9438045c86 100644
+--- a/test/hilbert.go
++++ b/test/hilbert.go
+@@ -74,7 +74,7 @@ func NewHilbert(n int) *Matrix {
+ 	a := NewMatrix(n, n);
+ 	for i := 0; i < n; i++ {
+ 		for j := 0; j < n; j++ {
+-			x := Big.Rat(1, i + j + 1);
++			x := Big.Rat(1, int64(i + j + 1));
+ 			a.set(i, j, x);
+ 		}
+ 	}
+@@ -95,7 +95,7 @@ func NewInverseHilbert(n int) *Matrix {
+ 			if (i+j)&1 != 0 {
+ 				x0 = x0.Neg();
+ 			}
+-			x1 := Big.Rat(i + j + 1, 1);
++			x1 := Big.Rat(int64(i + j + 1), 1);
+ 			x2 := MakeRat(Big.Binomial(uint(n+i), uint(n-j-1)));
+ 			x3 := MakeRat(Big.Binomial(uint(n+j), uint(n-i-1)));
+ 			x4 := MakeRat(Big.Binomial(uint(i+j), uint(i)));

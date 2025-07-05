@@ -10,7 +10,7 @@ Date:   Sun Sep 20 19:08:03 2009 -0700
     DELTA=1176  (1175 added, 1 deleted, 0 changed)
     OCL=34727
     CL=34838
-
+---
  src/pkg/Makefile                                   |   1 -
  src/pkg/image/image.go                             |   4 +
  src/pkg/image/png/reader_test.go                   | 156 +++++++++++
@@ -47,3 +47,1355 @@ Date:   Sun Sep 20 19:08:03 2009 -0700
  src/pkg/image/png/testdata/pngsuite/basn6a16.png   | Bin 0 -> 3435 bytes
  src/pkg/image/png/testdata/pngsuite/basn6a16.sng   |  41 +++
  35 files changed, 1160 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index eefd6ffac0..c368709df9 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -89,7 +89,6 @@ NOTEST=\
+ 	go/token\
+ 	hash\
+ 	image\
+-	image/png\
+ 	malloc\
+ 	rand\
+ 	runtime\
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index ce9eb023bd..10f959da8d 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -233,6 +233,10 @@ func (p *Paletted) At(x, y int) Color {
+ 	return p.Palette[p.Pixel[y][x]];
+ }
+ 
++func (p *Paletted) ColorIndexAt(x, y int) uint8 {
++	return p.Pixel[y][x];
++}
++
+ func (p *Paletted) SetColorIndex(x, y int, index uint8) {
+ 	p.Pixel[y][x] = index;
+ }
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+new file mode 100644
+index 0000000000..4aa3c0a2a8
+--- /dev/null
++++ b/src/pkg/image/png/reader_test.go
+@@ -0,0 +1,156 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package png
++
++import (
++	"bufio";
++	"fmt";
++	"image";
++	"io";
++	"os";
++	"testing";
++)
++
++// The go PNG library currently supports only a subset of the full PNG specification.
++// In particular, bit depths other than 8 are not supported, and neither are grayscale images.
++var filenames = []string {
++	//"basn0g01",	// bit depth is not 8
++	//"basn0g02",	// bit depth is not 8
++	//"basn0g04",	// bit depth is not 8
++	//"basn0g08",	// grayscale color model
++	//"basn0g16",	// bit depth is not 8
++	"basn2c08",
++	//"basn2c16",	// bit depth is not 8
++	//"basn3p01",	// bit depth is not 8
++	//"basn3p02",	// bit depth is not 8
++	//"basn3p04",	// bit depth is not 8
++	"basn3p08",
++	//"basn4a08",	// grayscale color model
++	//"basn4a16",	// bit depth is not 8
++	"basn6a08",
++	//"basn6a16",	// bit depth is not 8
++}
++
++
++// An approximation of the sng command-line tool.
++func sng(w io.WriteCloser, filename string, png image.Image) {
++	defer w.Close();
++	// For now, the go PNG parser only reads bitdepths of 8.
++	bitdepth := 8;
++
++	// Write the filename and IHDR.
++	io.WriteString(w, "#SNG: from " + filename + ".png\nIHDR {\n");
++	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", png.Width(), png.Height(), bitdepth);
++	cm := png.ColorModel();
++	var paletted *image.Paletted;
++	cpm, _ := cm.(image.PalettedColorModel);
++	switch {
++	case cm == image.RGBAColorModel:
++		io.WriteString(w, "    using color;\n");
++	case cm == image.NRGBAColorModel:
++		io.WriteString(w, "    using color alpha;\n");
++	case cpm != nil:
++		io.WriteString(w, "    using color palette;\n");
++		paletted = png.(*image.Paletted);
++	default:
++		io.WriteString(w, "unknown PNG decoder color model\n");
++	}
++	io.WriteString(w, "}\n");
++
++	// We fake a gAMA output. The test files have a gAMA chunk but the go PNG parser ignores it
++	// (the PNG spec section 11.3 says "Ancillary chunks may be ignored by a decoder").
++	io.WriteString(w, "gAMA {1.0000}\n");
++
++	// Write the PLTE (if applicable).
++	if cpm != nil {
++		io.WriteString(w, "PLTE {\n");
++		for i := 0; i < len(cpm); i++ {
++			r, g, b, _ := cpm[i].RGBA();
++			r >>= 24;
++			g >>= 24;
++			b >>= 24;
++			fmt.Fprintf(w, "    (%3d,%3d,%3d)     # rgb = (0x%02x,0x%02x,0x%02x)\n", r, g, b, r, g, b);
++		}
++		io.WriteString(w, "}\n");
++	}
++
++	// Write the IMAGE.
++	io.WriteString(w, "IMAGE {\n    pixels hex\n");
++	for y := 0; y < png.Height(); y++ {
++		switch {
++		case cm == image.RGBAColorModel:
++			for x := 0; x < png.Width(); x++ {
++				rgba := png.At(x, y).(image.RGBAColor);
++				fmt.Fprintf(w, "%02x%02x%02x ", rgba.R, rgba.G, rgba.B);
++			}
++		case cm == image.NRGBAColorModel:
++			for x := 0; x < png.Width(); x++ {
++				nrgba := png.At(x, y).(image.NRGBAColor);
++				fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A);
++			}
++		case cpm != nil:
++			for x := 0; x < png.Width(); x++ {
++				fmt.Fprintf(w, "%02x", paletted.ColorIndexAt(x, y));
++			}
++		}
++		io.WriteString(w, "\n");
++	}
++	io.WriteString(w, "}\n");
++}
++
++func TestReader(t *testing.T) {
++	for _, fn := range filenames {
++		// Read the .png file.
++		pf, err := os.Open("testdata/pngsuite/" + fn + ".png", os.O_RDONLY, 0444);
++		if err != nil {
++			t.Error(fn, err);
++			continue
++		}
++		defer pf.Close();
++		image, err := Decode(pf);
++		if err != nil {
++			t.Error(fn, err);
++			continue
++		}
++		piper, pipew := io.Pipe();
++		pb := bufio.NewReader(piper);
++		go sng(pipew, fn, image);
++		defer piper.Close();
++
++		// Read the .sng file.
++		sf, err := os.Open("testdata/pngsuite/" + fn + ".sng", os.O_RDONLY, 0444);
++		if err != nil {
++			t.Error(fn, err);
++			continue
++		}
++		defer sf.Close();
++		sb := bufio.NewReader(sf);
++		if err != nil {
++			t.Error(fn, err);
++			continue
++		}
++
++		// Compare the two, in SNG format, line by line.
++		for {
++			ps, perr := pb.ReadString('\n');
++			ss, serr := sb.ReadString('\n');
++			if perr == os.EOF && serr == os.EOF {
++				break;
++			}
++			if perr != nil {
++				t.Error(fn, perr);
++				break;
++			}
++			if serr != nil {
++				t.Error(fn, serr);
++				break;
++			}
++			if ps != ss {
++				t.Errorf("%s: Mismatch\n%sversus\n%s\n", fn, ps, ss);
++				break;
++			}
++		}
++	}
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/README b/src/pkg/image/png/testdata/pngsuite/README
+new file mode 100644
+index 0000000000..27e7c65586
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/README
+@@ -0,0 +1,9 @@
++The *.png and README.original files in this directory are copied from
++libpng.org, specifically contrib/pngsuite/* in libpng-1.2.40.tar.gz.
++README.original gives the following license for those files:
++
++	Permission to use, copy, and distribute these images for any purpose
++	and without fee is hereby granted.
++
++The *.sng files in this directory were generated from the *.png files
++by the sng command-line tool.
+diff --git a/src/pkg/image/png/testdata/pngsuite/README.original b/src/pkg/image/png/testdata/pngsuite/README.original
+new file mode 100644
+index 0000000000..714d12c644
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/README.original
+@@ -0,0 +1,85 @@
++
++pngsuite
++--------
++(c) Willem van Schaik, 1999
++
++Permission to use, copy, and distribute these images for any purpose and
++without fee is hereby granted.
++
++These 15 images are part of the much larger PngSuite test-set of 
++images, available for developers of PNG supporting software. The 
++complete set, available at http:/www.schaik.com/pngsuite/, contains 
++a variety of images to test interlacing, gamma settings, ancillary
++chunks, etc.
++
++The images in this directory represent the basic PNG color-types:
++grayscale (1-16 bit deep), full color (8 or 16 bit), paletted
++(1-8 bit) and grayscale or color images with alpha channel. You
++can use them to test the proper functioning of PNG software.
++
++    filename      depth type
++    ------------ ------ --------------
++    basn0g01.png  1-bit grayscale
++    basn0g02.png  2-bit grayscale
++    basn0g04.png  4-bit grayscale
++    basn0g08.png  8-bit grayscale
++    basn0g16.png 16-bit grayscale
++    basn2c08.png  8-bit truecolor
++    basn2c16.png 16-bit truecolor
++    basn3p01.png  1-bit paletted
++    basn3p02.png  2-bit paletted
++    basn3p04.png  4-bit paletted
++    basn3p08.png  8-bit paletted
++    basn4a08.png  8-bit gray with alpha
++    basn4a16.png 16-bit gray with alpha
++    basn6a08.png  8-bit RGBA
++    basn6a16.png 16-bit RGBA
++
++Here is the correct result of typing "pngtest -m *.png" in
++this directory:
++
++Testing basn0g01.png: PASS (524 zero samples)
++ Filter 0 was used 32 times
++Testing basn0g02.png: PASS (448 zero samples)
++ Filter 0 was used 32 times
++Testing basn0g04.png: PASS (520 zero samples)
++ Filter 0 was used 32 times
++Testing basn0g08.png: PASS (3 zero samples)
++ Filter 1 was used 9 times
++ Filter 4 was used 23 times
++Testing basn0g16.png: PASS (1 zero samples)
++ Filter 1 was used 1 times
++ Filter 2 was used 31 times
++Testing basn2c08.png: PASS (6 zero samples)
++ Filter 1 was used 5 times
++ Filter 4 was used 27 times
++Testing basn2c16.png: PASS (592 zero samples)
++ Filter 1 was used 1 times
++ Filter 4 was used 31 times
++Testing basn3p01.png: PASS (512 zero samples)
++ Filter 0 was used 32 times
++Testing basn3p02.png: PASS (448 zero samples)
++ Filter 0 was used 32 times
++Testing basn3p04.png: PASS (544 zero samples)
++ Filter 0 was used 32 times
++Testing basn3p08.png: PASS (4 zero samples)
++ Filter 0 was used 32 times
++Testing basn4a08.png: PASS (32 zero samples)
++ Filter 1 was used 1 times
++ Filter 4 was used 31 times
++Testing basn4a16.png: PASS (64 zero samples)
++ Filter 0 was used 1 times
++ Filter 1 was used 2 times
++ Filter 2 was used 1 times
++ Filter 4 was used 28 times
++Testing basn6a08.png: PASS (160 zero samples)
++ Filter 1 was used 1 times
++ Filter 4 was used 31 times
++Testing basn6a16.png: PASS (1072 zero samples)
++ Filter 1 was used 4 times
++ Filter 4 was used 28 times
++libpng passes test
++
++Willem van Schaik
++<willem@schaik.com>
++October 1999
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g01.png b/src/pkg/image/png/testdata/pngsuite/basn0g01.png
+new file mode 100644
+index 0000000000..e31e1c7a63
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn0g01.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g01.sng b/src/pkg/image/png/testdata/pngsuite/basn0g01.sng
+new file mode 100644
+index 0000000000..e712d8ec67
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn0g01.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn0g01.png
++IHDR {
++    width: 32; height: 32; bitdepth: 1;
++    using grayscale;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++fffffffe
++fffffffc
++fffffff8
++fffffff0
++f3f3ffe0
++f3f3ffc0
++f3f3ff80
++f333ff00
++f333fe00
++f333fc00
++f807f800
++f807f000
++fccfe000
++fccfc000
++ffff8000
++ffff0000
++fffe0000
++fffc0000
++fff80fe0
++fff00fe0
++ffe00c30
++ffc00c30
++ff800fe0
++ff000fe0
++fe000c30
++fc000c30
++f8000fe0
++f0000fe0
++e0000000
++c0000000
++80000000
++00000000
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g02.png b/src/pkg/image/png/testdata/pngsuite/basn0g02.png
+new file mode 100644
+index 0000000000..68809dd8fc
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn0g02.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g02.sng b/src/pkg/image/png/testdata/pngsuite/basn0g02.sng
+new file mode 100644
+index 0000000000..e7f2d7ea91
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn0g02.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn0g02.png
++IHDR {
++    width: 32; height: 32; bitdepth: 2;
++    using grayscale;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++0055aaff0055aaff
++0055aaff0055aaff
++0055aaff0055aaff
++0055aaff0055aaff
++55aaff0055aaff00
++55aaff0055aaff00
++55aaff0055aaff00
++55aaff0055aaff00
++aaff0055aaff0055
++aaff0055aaff0055
++aaff0055aaff0055
++aaff0055aaff0055
++ff0055aaff0055aa
++ff0055aaff0055aa
++ff0055aaff0055aa
++ff0055aaff0055aa
++0055aaff0055aaff
++0055aaff0055aaff
++0055aaff0055aaff
++0055aaff0055aaff
++55aaff0055aaff00
++55aaff0055aaff00
++55aaff0055aaff00
++55aaff0055aaff00
++aaff0055aaff0055
++aaff0055aaff0055
++aaff0055aaff0055
++aaff0055aaff0055
++ff0055aaff0055aa
++ff0055aaff0055aa
++ff0055aaff0055aa
++ff0055aaff0055aa
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g04.png b/src/pkg/image/png/testdata/pngsuite/basn0g04.png
+new file mode 100644
+index 0000000000..6fa089cb8a
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn0g04.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g04.sng b/src/pkg/image/png/testdata/pngsuite/basn0g04.sng
+new file mode 100644
+index 0000000000..396c508b20
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn0g04.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn0g04.png
++IHDR {
++    width: 32; height: 32; bitdepth: 4;
++    using grayscale;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++00001111222233334444555566667777
++00001111222233334444555566667777
++00001111222233334444555566667777
++00001111222233334444555566667777
++11112222333344445555666677778888
++11112222333344445555666677778888
++11112222333344445555666677778888
++11112222333344445555666677778888
++22223333444455556666777788889999
++22223333444455556666777788889999
++22223333444455556666777788889999
++22223333444455556666777788889999
++3333444455556666777788889999aaaa
++3333444455556666777788889999aaaa
++3333444455556666777788889999aaaa
++3333444455556666777788889999aaaa
++444455556666777788889999aaaabbbb
++444455556666777788889999aaaabbbb
++444455556666777788889999aaaabbbb
++444455556666777788889999aaaabbbb
++55556666777788889999aaaabbbbcccc
++55556666777788889999aaaabbbbcccc
++55556666777788889999aaaabbbbcccc
++55556666777788889999aaaabbbbcccc
++6666777788889999aaaabbbbccccdddd
++6666777788889999aaaabbbbccccdddd
++6666777788889999aaaabbbbccccdddd
++6666777788889999aaaabbbbccccdddd
++777788889999aaaabbbbccccddddeeee
++777788889999aaaabbbbccccddddeeee
++777788889999aaaabbbbccccddddeeee
++777788889999aaaabbbbccccddddeeee
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g08.png b/src/pkg/image/png/testdata/pngsuite/basn0g08.png
+new file mode 100644
+index 0000000000..bf522eef00
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn0g08.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g08.sng b/src/pkg/image/png/testdata/pngsuite/basn0g08.sng
+new file mode 100644
+index 0000000000..7389eb7749
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn0g08.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn0g08.png
++IHDR {
++    width: 32; height: 32; bitdepth: 8;
++    using grayscale;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
++202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
++404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f
++606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f
++808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f
++a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf
++c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf
++e0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
++fefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0df
++dedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bf
++bebdbcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f
++9e9d9c9b9a999897969594939291908f8e8d8c8b8a898887868584838281807f
++7e7d7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f
++5e5d5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f
++3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f
++1e1d1c1b1a191817161514131211100f0e0d0c0b0a0908070605040302010001
++02030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021
++22232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f4041
++42434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f6061
++62636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f8081
++82838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1
++a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1
++c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1
++e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfefffefd
++fcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0dfdedd
++dcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebd
++bcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d
++9c9b9a999897969594939291908f8e8d8c8b8a898887868584838281807f7e7d
++7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f5e5d
++5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f3e3d
++3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d
++1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100010203
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g16.png b/src/pkg/image/png/testdata/pngsuite/basn0g16.png
+new file mode 100644
+index 0000000000..318ebcadf4
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn0g16.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn0g16.sng b/src/pkg/image/png/testdata/pngsuite/basn0g16.sng
+new file mode 100644
+index 0000000000..922391a9ea
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn0g16.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn0g16.png
++IHDR {
++    width: 32; height: 32; bitdepth: 16;
++    using grayscale;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++0000 0900 1200 1b00 2400 2d00 3600 3f00 4800 5100 5a00 6300 6c00 7500 7e00 8700 9000 9900 a200 ab00 b400 bd00 c600 cf00 d800 e100 ea00 f300 fc00 f0ff d5ff baff 
++0200 0b00 1400 1d00 2600 2f00 3800 4100 4a00 5300 5c00 6500 6e00 7700 8000 8900 9200 9b00 a400 ad00 b600 bf00 c800 d100 da00 e300 ec00 f500 fe00 eaff cfff b4ff 
++0400 0d00 1600 1f00 2800 3100 3a00 4300 4c00 5500 5e00 6700 7000 7900 8200 8b00 9400 9d00 a600 af00 b800 c100 ca00 d300 dc00 e500 ee00 f700 ffff e4ff c9ff aeff 
++0600 0f00 1800 2100 2a00 3300 3c00 4500 4e00 5700 6000 6900 7200 7b00 8400 8d00 9600 9f00 a800 b100 ba00 c300 cc00 d500 de00 e700 f000 f900 f9ff deff c3ff a8ff 
++0800 1100 1a00 2300 2c00 3500 3e00 4700 5000 5900 6200 6b00 7400 7d00 8600 8f00 9800 a100 aa00 b300 bc00 c500 ce00 d700 e000 e900 f200 fb00 f3ff d8ff bdff a2ff 
++0a00 1300 1c00 2500 2e00 3700 4000 4900 5200 5b00 6400 6d00 7600 7f00 8800 9100 9a00 a300 ac00 b500 be00 c700 d000 d900 e200 eb00 f400 fd00 edff d2ff b7ff 9cff 
++0c00 1500 1e00 2700 3000 3900 4200 4b00 5400 5d00 6600 6f00 7800 8100 8a00 9300 9c00 a500 ae00 b700 c000 c900 d200 db00 e400 ed00 f600 ff00 e7ff ccff b1ff 96ff 
++0e00 1700 2000 2900 3200 3b00 4400 4d00 5600 5f00 6800 7100 7a00 8300 8c00 9500 9e00 a700 b000 b900 c200 cb00 d400 dd00 e600 ef00 f800 fcff e1ff c6ff abff 90ff 
++1000 1900 2200 2b00 3400 3d00 4600 4f00 5800 6100 6a00 7300 7c00 8500 8e00 9700 a000 a900 b200 bb00 c400 cd00 d600 df00 e800 f100 fa00 f6ff dbff c0ff a5ff 8aff 
++1200 1b00 2400 2d00 3600 3f00 4800 5100 5a00 6300 6c00 7500 7e00 8700 9000 9900 a200 ab00 b400 bd00 c600 cf00 d800 e100 ea00 f300 fc00 f0ff d5ff baff 9fff 84ff 
++1400 1d00 2600 2f00 3800 4100 4a00 5300 5c00 6500 6e00 7700 8000 8900 9200 9b00 a400 ad00 b600 bf00 c800 d100 da00 e300 ec00 f500 fe00 eaff cfff b4ff 99ff 7eff 
++1600 1f00 2800 3100 3a00 4300 4c00 5500 5e00 6700 7000 7900 8200 8b00 9400 9d00 a600 af00 b800 c100 ca00 d300 dc00 e500 ee00 f700 ffff e4ff c9ff aeff 93ff 78ff 
++1800 2100 2a00 3300 3c00 4500 4e00 5700 6000 6900 7200 7b00 8400 8d00 9600 9f00 a800 b100 ba00 c300 cc00 d500 de00 e700 f000 f900 f9ff deff c3ff a8ff 8dff 72ff 
++1a00 2300 2c00 3500 3e00 4700 5000 5900 6200 6b00 7400 7d00 8600 8f00 9800 a100 aa00 b300 bc00 c500 ce00 d700 e000 e900 f200 fb00 f3ff d8ff bdff a2ff 87ff 6cff 
++1c00 2500 2e00 3700 4000 4900 5200 5b00 6400 6d00 7600 7f00 8800 9100 9a00 a300 ac00 b500 be00 c700 d000 d900 e200 eb00 f400 fd00 edff d2ff b7ff 9cff 81ff 66ff 
++1e00 2700 3000 3900 4200 4b00 5400 5d00 6600 6f00 7800 8100 8a00 9300 9c00 a500 ae00 b700 c000 c900 d200 db00 e400 ed00 f600 ff00 e7ff ccff b1ff 96ff 7bff 60ff 
++2000 2900 3200 3b00 4400 4d00 5600 5f00 6800 7100 7a00 8300 8c00 9500 9e00 a700 b000 b900 c200 cb00 d400 dd00 e600 ef00 f800 fcff e1ff c6ff abff 90ff 75ff 5aff 
++2200 2b00 3400 3d00 4600 4f00 5800 6100 6a00 7300 7c00 8500 8e00 9700 a000 a900 b200 bb00 c400 cd00 d600 df00 e800 f100 fa00 f6ff dbff c0ff a5ff 8aff 6fff 54ff 
++2400 2d00 3600 3f00 4800 5100 5a00 6300 6c00 7500 7e00 8700 9000 9900 a200 ab00 b400 bd00 c600 cf00 d800 e100 ea00 f300 fc00 f0ff d5ff baff 9fff 84ff 69ff 4eff 
++2600 2f00 3800 4100 4a00 5300 5c00 6500 6e00 7700 8000 8900 9200 9b00 a400 ad00 b600 bf00 c800 d100 da00 e300 ec00 f500 fe00 eaff cfff b4ff 99ff 7eff 63ff 48ff 
++2800 3100 3a00 4300 4c00 5500 5e00 6700 7000 7900 8200 8b00 9400 9d00 a600 af00 b800 c100 ca00 d300 dc00 e500 ee00 f700 ffff e4ff c9ff aeff 93ff 78ff 5dff 42ff 
++2a00 3300 3c00 4500 4e00 5700 6000 6900 7200 7b00 8400 8d00 9600 9f00 a800 b100 ba00 c300 cc00 d500 de00 e700 f000 f900 f9ff deff c3ff a8ff 8dff 72ff 57ff 3cff 
++2c00 3500 3e00 4700 5000 5900 6200 6b00 7400 7d00 8600 8f00 9800 a100 aa00 b300 bc00 c500 ce00 d700 e000 e900 f200 fb00 f3ff d8ff bdff a2ff 87ff 6cff 51ff 36ff 
++2e00 3700 4000 4900 5200 5b00 6400 6d00 7600 7f00 8800 9100 9a00 a300 ac00 b500 be00 c700 d000 d900 e200 eb00 f400 fd00 edff d2ff b7ff 9cff 81ff 66ff 4bff 30ff 
++3000 3900 4200 4b00 5400 5d00 6600 6f00 7800 8100 8a00 9300 9c00 a500 ae00 b700 c000 c900 d200 db00 e400 ed00 f600 ff00 e7ff ccff b1ff 96ff 7bff 60ff 45ff 2aff 
++3200 3b00 4400 4d00 5600 5f00 6800 7100 7a00 8300 8c00 9500 9e00 a700 b000 b900 c200 cb00 d400 dd00 e600 ef00 f800 fcff e1ff c6ff abff 90ff 75ff 5aff 3fff 24ff 
++3400 3d00 4600 4f00 5800 6100 6a00 7300 7c00 8500 8e00 9700 a000 a900 b200 bb00 c400 cd00 d600 df00 e800 f100 fa00 f6ff dbff c0ff a5ff 8aff 6fff 54ff 39ff 1eff 
++3600 3f00 4800 5100 5a00 6300 6c00 7500 7e00 8700 9000 9900 a200 ab00 b400 bd00 c600 cf00 d800 e100 ea00 f300 fc00 f0ff d5ff baff 9fff 84ff 69ff 4eff 33ff 18ff 
++3800 4100 4a00 5300 5c00 6500 6e00 7700 8000 8900 9200 9b00 a400 ad00 b600 bf00 c800 d100 da00 e300 ec00 f500 fe00 eaff cfff b4ff 99ff 7eff 63ff 48ff 2dff 12ff 
++3a00 4300 4c00 5500 5e00 6700 7000 7900 8200 8b00 9400 9d00 a600 af00 b800 c100 ca00 d300 dc00 e500 ee00 f700 ffff e4ff c9ff aeff 93ff 78ff 5dff 42ff 27ff 0cff 
++3c00 4500 4e00 5700 6000 6900 7200 7b00 8400 8d00 9600 9f00 a800 b100 ba00 c300 cc00 d500 de00 e700 f000 f900 f9ff deff c3ff a8ff 8dff 72ff 57ff 3cff 21ff 06ff 
++3e00 4700 5000 5900 6200 6b00 7400 7d00 8600 8f00 9800 a100 aa00 b300 bc00 c500 ce00 d700 e000 e900 f200 fb00 f3ff d8ff bdff a2ff 87ff 6cff 51ff 36ff 1bff 00ff 
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn2c08.png b/src/pkg/image/png/testdata/pngsuite/basn2c08.png
+new file mode 100644
+index 0000000000..21d2f91a86
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn2c08.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn2c08.sng b/src/pkg/image/png/testdata/pngsuite/basn2c08.sng
+new file mode 100644
+index 0000000000..09a61317b6
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn2c08.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn2c08.png
++IHDR {
++    width: 32; height: 32; bitdepth: 8;
++    using color;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++ffffff fffffe fffffd fffffc fffffb fffffa fffff9 fffff8 fffff7 fffff6 fffff5 fffff4 fffff3 fffff2 fffff1 fffff0 ffffef ffffee ffffed ffffec ffffeb ffffea ffffe9 ffffe8 ffffe7 ffffe6 ffffe5 ffffe4 ffffe3 ffffe2 ffffe1 ffffe0 
++ffffdf ffffde ffffdd ffffdc ffffdb ffffda ffffd9 ffffd8 ffffd7 ffffd6 ffffd5 ffffd4 ffffd3 ffffd2 ffffd1 ffffd0 ffffcf ffffce ffffcd ffffcc ffffcb ffffca ffffc9 ffffc8 ffffc7 ffffc6 ffffc5 ffffc4 ffffc3 ffffc2 ffffc1 ffffc0 
++ffffbf ffffbe ffffbd ffffbc ffffbb ffffba ffffb9 ffffb8 ffffb7 ffffb6 ffffb5 ffffb4 ffffb3 ffffb2 ffffb1 ffffb0 ffffaf ffffae ffffad ffffac ffffab ffffaa ffffa9 ffffa8 ffffa7 ffffa6 ffffa5 ffffa4 ffffa3 ffffa2 ffffa1 ffffa0 
++ffff9f ffff9e ffff9d ffff9c ffff9b ffff9a ffff99 ffff98 ffff97 ffff96 ffff95 ffff94 ffff93 ffff92 ffff91 ffff90 ffff8f ffff8e ffff8d ffff8c ffff8b ffff8a ffff89 ffff88 ffff87 ffff86 ffff85 ffff84 ffff83 ffff82 ffff81 ffff80 
++ffff7f ffff7e ffff7d ffff7c ffff7b ffff7a ffff79 ffff78 ffff77 ffff76 ffff75 ffff74 ffff73 ffff72 ffff71 ffff70 ffff6f ffff6e ffff6d ffff6c ffff6b ffff6a ffff69 ffff68 ffff67 ffff66 ffff65 ffff64 ffff63 ffff62 ffff61 ffff60 
++ffff5f ffff5e ffff5d ffff5c ffff5b ffff5a ffff59 ffff58 ffff57 ffff56 ffff55 ffff54 ffff53 ffff52 ffff51 ffff50 ffff4f ffff4e ffff4d ffff4c ffff4b ffff4a ffff49 ffff48 ffff47 ffff46 ffff45 ffff44 ffff43 ffff42 ffff41 ffff40 
++ffff3f ffff3e ffff3d ffff3c ffff3b ffff3a ffff39 ffff38 ffff37 ffff36 ffff35 ffff34 ffff33 ffff32 ffff31 ffff30 ffff2f ffff2e ffff2d ffff2c ffff2b ffff2a ffff29 ffff28 ffff27 ffff26 ffff25 ffff24 ffff23 ffff22 ffff21 ffff20 
++ffff1f ffff1e ffff1d ffff1c ffff1b ffff1a ffff19 ffff18 ffff17 ffff16 ffff15 ffff14 ffff13 ffff12 ffff11 ffff10 ffff0f ffff0e ffff0d ffff0c ffff0b ffff0a ffff09 ffff08 ffff07 ffff06 ffff05 ffff04 ffff03 ffff02 ffff01 ffff00 
++ffffff fffeff fffdff fffcff fffbff fffaff fff9ff fff8ff fff7ff fff6ff fff5ff fff4ff fff3ff fff2ff fff1ff fff0ff ffefff ffeeff ffedff ffecff ffebff ffeaff ffe9ff ffe8ff ffe7ff ffe6ff ffe5ff ffe4ff ffe3ff ffe2ff ffe1ff ffe0ff 
++ffdfff ffdeff ffddff ffdcff ffdbff ffdaff ffd9ff ffd8ff ffd7ff ffd6ff ffd5ff ffd4ff ffd3ff ffd2ff ffd1ff ffd0ff ffcfff ffceff ffcdff ffccff ffcbff ffcaff ffc9ff ffc8ff ffc7ff ffc6ff ffc5ff ffc4ff ffc3ff ffc2ff ffc1ff ffc0ff 
++ffbfff ffbeff ffbdff ffbcff ffbbff ffbaff ffb9ff ffb8ff ffb7ff ffb6ff ffb5ff ffb4ff ffb3ff ffb2ff ffb1ff ffb0ff ffafff ffaeff ffadff ffacff ffabff ffaaff ffa9ff ffa8ff ffa7ff ffa6ff ffa5ff ffa4ff ffa3ff ffa2ff ffa1ff ffa0ff 
++ff9fff ff9eff ff9dff ff9cff ff9bff ff9aff ff99ff ff98ff ff97ff ff96ff ff95ff ff94ff ff93ff ff92ff ff91ff ff90ff ff8fff ff8eff ff8dff ff8cff ff8bff ff8aff ff89ff ff88ff ff87ff ff86ff ff85ff ff84ff ff83ff ff82ff ff81ff ff80ff 
++ff7fff ff7eff ff7dff ff7cff ff7bff ff7aff ff79ff ff78ff ff77ff ff76ff ff75ff ff74ff ff73ff ff72ff ff71ff ff70ff ff6fff ff6eff ff6dff ff6cff ff6bff ff6aff ff69ff ff68ff ff67ff ff66ff ff65ff ff64ff ff63ff ff62ff ff61ff ff60ff 
++ff5fff ff5eff ff5dff ff5cff ff5bff ff5aff ff59ff ff58ff ff57ff ff56ff ff55ff ff54ff ff53ff ff52ff ff51ff ff50ff ff4fff ff4eff ff4dff ff4cff ff4bff ff4aff ff49ff ff48ff ff47ff ff46ff ff45ff ff44ff ff43ff ff42ff ff41ff ff40ff 
++ff3fff ff3eff ff3dff ff3cff ff3bff ff3aff ff39ff ff38ff ff37ff ff36ff ff35ff ff34ff ff33ff ff32ff ff31ff ff30ff ff2fff ff2eff ff2dff ff2cff ff2bff ff2aff ff29ff ff28ff ff27ff ff26ff ff25ff ff24ff ff23ff ff22ff ff21ff ff20ff 
++ff1fff ff1eff ff1dff ff1cff ff1bff ff1aff ff19ff ff18ff ff17ff ff16ff ff15ff ff14ff ff13ff ff12ff ff11ff ff10ff ff0fff ff0eff ff0dff ff0cff ff0bff ff0aff ff09ff ff08ff ff07ff ff06ff ff05ff ff04ff ff03ff ff02ff ff01ff ff00ff 
++ffffff feffff fdffff fcffff fbffff faffff f9ffff f8ffff f7ffff f6ffff f5ffff f4ffff f3ffff f2ffff f1ffff f0ffff efffff eeffff edffff ecffff ebffff eaffff e9ffff e8ffff e7ffff e6ffff e5ffff e4ffff e3ffff e2ffff e1ffff e0ffff 
++dfffff deffff ddffff dcffff dbffff daffff d9ffff d8ffff d7ffff d6ffff d5ffff d4ffff d3ffff d2ffff d1ffff d0ffff cfffff ceffff cdffff ccffff cbffff caffff c9ffff c8ffff c7ffff c6ffff c5ffff c4ffff c3ffff c2ffff c1ffff c0ffff 
++bfffff beffff bdffff bcffff bbffff baffff b9ffff b8ffff b7ffff b6ffff b5ffff b4ffff b3ffff b2ffff b1ffff b0ffff afffff aeffff adffff acffff abffff aaffff a9ffff a8ffff a7ffff a6ffff a5ffff a4ffff a3ffff a2ffff a1ffff a0ffff 
++9fffff 9effff 9dffff 9cffff 9bffff 9affff 99ffff 98ffff 97ffff 96ffff 95ffff 94ffff 93ffff 92ffff 91ffff 90ffff 8fffff 8effff 8dffff 8cffff 8bffff 8affff 89ffff 88ffff 87ffff 86ffff 85ffff 84ffff 83ffff 82ffff 81ffff 80ffff 
++7fffff 7effff 7dffff 7cffff 7bffff 7affff 79ffff 78ffff 77ffff 76ffff 75ffff 74ffff 73ffff 72ffff 71ffff 70ffff 6fffff 6effff 6dffff 6cffff 6bffff 6affff 69ffff 68ffff 67ffff 66ffff 65ffff 64ffff 63ffff 62ffff 61ffff 60ffff 
++5fffff 5effff 5dffff 5cffff 5bffff 5affff 59ffff 58ffff 57ffff 56ffff 55ffff 54ffff 53ffff 52ffff 51ffff 50ffff 4fffff 4effff 4dffff 4cffff 4bffff 4affff 49ffff 48ffff 47ffff 46ffff 45ffff 44ffff 43ffff 42ffff 41ffff 40ffff 
++3fffff 3effff 3dffff 3cffff 3bffff 3affff 39ffff 38ffff 37ffff 36ffff 35ffff 34ffff 33ffff 32ffff 31ffff 30ffff 2fffff 2effff 2dffff 2cffff 2bffff 2affff 29ffff 28ffff 27ffff 26ffff 25ffff 24ffff 23ffff 22ffff 21ffff 20ffff 
++1fffff 1effff 1dffff 1cffff 1bffff 1affff 19ffff 18ffff 17ffff 16ffff 15ffff 14ffff 13ffff 12ffff 11ffff 10ffff 0fffff 0effff 0dffff 0cffff 0bffff 0affff 09ffff 08ffff 07ffff 06ffff 05ffff 04ffff 03ffff 02ffff 01ffff 00ffff 
++ffffff fefefe fdfdfd fcfcfc fbfbfb fafafa f9f9f9 f8f8f8 f7f7f7 f6f6f6 f5f5f5 f4f4f4 f3f3f3 f2f2f2 f1f1f1 f0f0f0 efefef eeeeee ededed ececec ebebeb eaeaea e9e9e9 e8e8e8 e7e7e7 e6e6e6 e5e5e5 e4e4e4 e3e3e3 e2e2e2 e1e1e1 e0e0e0 
++dfdfdf dedede dddddd dcdcdc dbdbdb dadada d9d9d9 d8d8d8 d7d7d7 d6d6d6 d5d5d5 d4d4d4 d3d3d3 d2d2d2 d1d1d1 d0d0d0 cfcfcf cecece cdcdcd cccccc cbcbcb cacaca c9c9c9 c8c8c8 c7c7c7 c6c6c6 c5c5c5 c4c4c4 c3c3c3 c2c2c2 c1c1c1 c0c0c0 
++bfbfbf bebebe bdbdbd bcbcbc bbbbbb bababa b9b9b9 b8b8b8 b7b7b7 b6b6b6 b5b5b5 b4b4b4 b3b3b3 b2b2b2 b1b1b1 b0b0b0 afafaf aeaeae adadad acacac ababab aaaaaa a9a9a9 a8a8a8 a7a7a7 a6a6a6 a5a5a5 a4a4a4 a3a3a3 a2a2a2 a1a1a1 a0a0a0 
++9f9f9f 9e9e9e 9d9d9d 9c9c9c 9b9b9b 9a9a9a 999999 989898 979797 969696 959595 949494 939393 929292 919191 909090 8f8f8f 8e8e8e 8d8d8d 8c8c8c 8b8b8b 8a8a8a 898989 888888 878787 868686 858585 848484 838383 828282 818181 808080 
++7f7f7f 7e7e7e 7d7d7d 7c7c7c 7b7b7b 7a7a7a 797979 787878 777777 767676 757575 747474 737373 727272 717171 707070 6f6f6f 6e6e6e 6d6d6d 6c6c6c 6b6b6b 6a6a6a 696969 686868 676767 666666 656565 646464 636363 626262 616161 606060 
++5f5f5f 5e5e5e 5d5d5d 5c5c5c 5b5b5b 5a5a5a 595959 585858 575757 565656 555555 545454 535353 525252 515151 505050 4f4f4f 4e4e4e 4d4d4d 4c4c4c 4b4b4b 4a4a4a 494949 484848 474747 464646 454545 444444 434343 424242 414141 404040 
++3f3f3f 3e3e3e 3d3d3d 3c3c3c 3b3b3b 3a3a3a 393939 383838 373737 363636 353535 343434 333333 323232 313131 303030 2f2f2f 2e2e2e 2d2d2d 2c2c2c 2b2b2b 2a2a2a 292929 282828 272727 262626 252525 242424 232323 222222 212121 202020 
++1f1f1f 1e1e1e 1d1d1d 1c1c1c 1b1b1b 1a1a1a 191919 181818 171717 161616 151515 141414 131313 121212 111111 101010 0f0f0f 0e0e0e 0d0d0d 0c0c0c 0b0b0b 0a0a0a 090909 080808 070707 060606 050505 040404 030303 020202 010101 000000 
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn2c16.png b/src/pkg/image/png/testdata/pngsuite/basn2c16.png
+new file mode 100644
+index 0000000000..1bd4a4d0e2
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn2c16.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn2c16.sng b/src/pkg/image/png/testdata/pngsuite/basn2c16.sng
+new file mode 100644
+index 0000000000..bac7c9d911
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn2c16.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn2c16.png
++IHDR {
++    width: 32; height: 32; bitdepth: 16;
++    using color;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++ffffffff0000 f7bdffff0000 ef7bffff0000 e739ffff0000 def7ffff0000 d6b5ffff0000 ce73ffff0000 c631ffff0000 bdefffff0000 b5adffff0000 ad6bffff0000 a529ffff0000 9ce7ffff0000 94a5ffff0000 8c63ffff0000 8421ffff0000 7bdeffff0000 739cffff0000 6b5affff0000 6318ffff0000 5ad6ffff0000 5294ffff0000 4a52ffff0000 4210ffff0000 39ceffff0000 318cffff0000 294affff0000 2108ffff0000 18c6ffff0000 1084ffff0000 0842ffff0000 0000ffff0000 
++fffff7bd0000 f7bdf7bd0000 ef7bf7bd0000 e739f7bd0000 def7f7bd0000 d6b5f7bd0000 ce73f7bd0000 c631f7bd0000 bdeff7bd0000 b5adf7bd0000 ad6bf7bd0000 a529f7bd0000 9ce7f7bd0000 94a5f7bd0000 8c63f7bd0000 8421f7bd0000 7bdef7bd0000 739cf7bd0000 6b5af7bd0000 6318f7bd0000 5ad6f7bd0000 5294f7bd0000 4a52f7bd0000 4210f7bd0000 39cef7bd0000 318cf7bd0000 294af7bd0000 2108f7bd0000 18c6f7bd0000 1084f7bd0000 0842f7bd0000 0000f7bd0842 
++ffffef7b0000 f7bdef7b0000 ef7bef7b0000 e739ef7b0000 def7ef7b0000 d6b5ef7b0000 ce73ef7b0000 c631ef7b0000 bdefef7b0000 b5adef7b0000 ad6bef7b0000 a529ef7b0000 9ce7ef7b0000 94a5ef7b0000 8c63ef7b0000 8421ef7b0000 7bdeef7b0000 739cef7b0000 6b5aef7b0000 6318ef7b0000 5ad6ef7b0000 5294ef7b0000 4a52ef7b0000 4210ef7b0000 39ceef7b0000 318cef7b0000 294aef7b0000 2108ef7b0000 18c6ef7b0000 1084ef7b0000 0842ef7b0842 0000ef7b1084 
++ffffe7390000 f7bde7390000 ef7be7390000 e739e7390000 def7e7390000 d6b5e7390000 ce73e7390000 c631e7390000 bdefe7390000 b5ade7390000 ad6be7390000 a529e7390000 9ce7e7390000 94a5e7390000 8c63e7390000 8421e7390000 7bdee7390000 739ce7390000 6b5ae7390000 6318e7390000 5ad6e7390000 5294e7390000 4a52e7390000 4210e7390000 39cee7390000 318ce7390000 294ae7390000 2108e7390000 18c6e7390000 1084e7390842 0842e7391084 0000e73918c6 
++ffffdef70000 f7bddef70000 ef7bdef70000 e739def70000 def7def70000 d6b5def70000 ce73def70000 c631def70000 bdefdef70000 b5addef70000 ad6bdef70000 a529def70000 9ce7def70000 94a5def70000 8c63def70000 8421def70000 7bdedef70000 739cdef70000 6b5adef70000 6318def70000 5ad6def70000 5294def70000 4a52def70000 4210def70000 39cedef70000 318cdef70000 294adef70000 2108def70000 18c6def70842 1084def71084 0842def718c6 0000def72108 
++ffffd6b50000 f7bdd6b50000 ef7bd6b50000 e739d6b50000 def7d6b50000 d6b5d6b50000 ce73d6b50000 c631d6b50000 bdefd6b50000 b5add6b50000 ad6bd6b50000 a529d6b50000 9ce7d6b50000 94a5d6b50000 8c63d6b50000 8421d6b50000 7bded6b50000 739cd6b50000 6b5ad6b50000 6318d6b50000 5ad6d6b50000 5294d6b50000 4a52d6b50000 4210d6b50000 39ced6b50000 318cd6b50000 294ad6b50000 2108d6b50842 18c6d6b51084 1084d6b518c6 0842d6b52108 0000d6b5294a 
++ffffce730000 f7bdce730000 ef7bce730000 e739ce730000 def7ce730000 d6b5ce730000 ce73ce730000 c631ce730000 bdefce730000 b5adce730000 ad6bce730000 a529ce730000 9ce7ce730000 94a5ce730000 8c63ce730000 8421ce730000 7bdece730000 739cce730000 6b5ace730000 6318ce730000 5ad6ce730000 5294ce730000 4a52ce730000 4210ce730000 39cece730000 318cce730000 294ace730842 2108ce731084 18c6ce7318c6 1084ce732108 0842ce73294a 0000ce73318c 
++ffffc6310000 f7bdc6310000 ef7bc6310000 e739c6310000 def7c6310000 d6b5c6310000 ce73c6310000 c631c6310000 bdefc6310000 b5adc6310000 ad6bc6310000 a529c6310000 9ce7c6310000 94a5c6310000 8c63c6310000 8421c6310000 7bdec6310000 739cc6310000 6b5ac6310000 6318c6310000 5ad6c6310000 5294c6310000 4a52c6310000 4210c6310000 39cec6310000 318cc6310842 294ac6311084 2108c63118c6 18c6c6312108 1084c631294a 0842c631318c 0000c63139ce 
++ffffbdef0000 f7bdbdef0000 ef7bbdef0000 e739bdef0000 def7bdef0000 d6b5bdef0000 ce73bdef0000 c631bdef0000 bdefbdef0000 b5adbdef0000 ad6bbdef0000 a529bdef0000 9ce7bdef0000 94a5bdef0000 8c63bdef0000 8421bdef0000 7bdebdef0000 739cbdef0000 6b5abdef0000 6318bdef0000 5ad6bdef0000 5294bdef0000 4a52bdef0000 4210bdef0000 39cebdef0842 318cbdef1084 294abdef18c6 2108bdef2108 18c6bdef294a 1084bdef318c 0842bdef39ce 0000bdef4210 
++ffffb5ad0000 f7bdb5ad0000 ef7bb5ad0000 e739b5ad0000 def7b5ad0000 d6b5b5ad0000 ce73b5ad0000 c631b5ad0000 bdefb5ad0000 b5adb5ad0000 ad6bb5ad0000 a529b5ad0000 9ce7b5ad0000 94a5b5ad0000 8c63b5ad0000 8421b5ad0000 7bdeb5ad0000 739cb5ad0000 6b5ab5ad0000 6318b5ad0000 5ad6b5ad0000 5294b5ad0000 4a52b5ad0000 4210b5ad0842 39ceb5ad1084 318cb5ad18c6 294ab5ad2108 2108b5ad294a 18c6b5ad318c 1084b5ad39ce 0842b5ad4210 0000b5ad4a52 
++ffffad6b0000 f7bdad6b0000 ef7bad6b0000 e739ad6b0000 def7ad6b0000 d6b5ad6b0000 ce73ad6b0000 c631ad6b0000 bdefad6b0000 b5adad6b0000 ad6bad6b0000 a529ad6b0000 9ce7ad6b0000 94a5ad6b0000 8c63ad6b0000 8421ad6b0000 7bdead6b0000 739cad6b0000 6b5aad6b0000 6318ad6b0000 5ad6ad6b0000 5294ad6b0000 4a52ad6b0842 4210ad6b1084 39cead6b18c6 318cad6b2108 294aad6b294a 2108ad6b318c 18c6ad6b39ce 1084ad6b4210 0842ad6b4a52 0000ad6b5294 
++ffffa5290000 f7bda5290000 ef7ba5290000 e739a5290000 def7a5290000 d6b5a5290000 ce73a5290000 c631a5290000 bdefa5290000 b5ada5290000 ad6ba5290000 a529a5290000 9ce7a5290000 94a5a5290000 8c63a5290000 8421a5290000 7bdea5290000 739ca5290000 6b5aa5290000 6318a5290000 5ad6a5290000 5294a5290842 4a52a5291084 4210a52918c6 39cea5292108 318ca529294a 294aa529318c 2108a52939ce 18c6a5294210 1084a5294a52 0842a5295294 0000a5295ad6 
++ffff9ce70000 f7bd9ce70000 ef7b9ce70000 e7399ce70000 def79ce70000 d6b59ce70000 ce739ce70000 c6319ce70000 bdef9ce70000 b5ad9ce70000 ad6b9ce70000 a5299ce70000 9ce79ce70000 94a59ce70000 8c639ce70000 84219ce70000 7bde9ce70000 739c9ce70000 6b5a9ce70000 63189ce70000 5ad69ce70842 52949ce71084 4a529ce718c6 42109ce72108 39ce9ce7294a 318c9ce7318c 294a9ce739ce 21089ce74210 18c69ce74a52 10849ce75294 08429ce75ad6 00009ce76318 
++ffff94a50000 f7bd94a50000 ef7b94a50000 e73994a50000 def794a50000 d6b594a50000 ce7394a50000 c63194a50000 bdef94a50000 b5ad94a50000 ad6b94a50000 a52994a50000 9ce794a50000 94a594a50000 8c6394a50000 842194a50000 7bde94a50000 739c94a50000 6b5a94a50000 631894a50842 5ad694a51084 529494a518c6 4a5294a52108 421094a5294a 39ce94a5318c 318c94a539ce 294a94a54210 210894a54a52 18c694a55294 108494a55ad6 084294a56318 000094a56b5a 
++ffff8c630000 f7bd8c630000 ef7b8c630000 e7398c630000 def78c630000 d6b58c630000 ce738c630000 c6318c630000 bdef8c630000 b5ad8c630000 ad6b8c630000 a5298c630000 9ce78c630000 94a58c630000 8c638c630000 84218c630000 7bde8c630000 739c8c630000 6b5a8c630842 63188c631084 5ad68c6318c6 52948c632108 4a528c63294a 42108c63318c 39ce8c6339ce 318c8c634210 294a8c634a52 21088c635294 18c68c635ad6 10848c636318 08428c636b5a 00008c63739c 
++ffff84210000 f7bd84210000 ef7b84210000 e73984210000 def784210000 d6b584210000 ce7384210000 c63184210000 bdef84210000 b5ad84210000 ad6b84210000 a52984210000 9ce784210000 94a584210000 8c6384210000 842184210000 7bde84210000 739c84210842 6b5a84211084 6318842118c6 5ad684212108 52948421294a 4a528421318c 4210842139ce 39ce84214210 318c84214a52 294a84215294 210884215ad6 18c684216318 108484216b5a 08428421739c 000084217bde 
++ffff7bde0000 f7bd7bde0000 ef7b7bde0000 e7397bde0000 def77bde0000 d6b57bde0000 ce737bde0000 c6317bde0000 bdef7bde0000 b5ad7bde0000 ad6b7bde0000 a5297bde0000 9ce77bde0000 94a57bde0000 8c637bde0000 84217bde0000 7bde7bde0842 739c7bde1084 6b5a7bde18c6 63187bde2108 5ad67bde294a 52947bde318c 4a527bde39ce 42107bde4210 39ce7bde4a52 318c7bde5294 294a7bde5ad6 21087bde6318 18c67bde6b5a 10847bde739c 08427bde7bde 00007bde8421 
++ffff739c0000 f7bd739c0000 ef7b739c0000 e739739c0000 def7739c0000 d6b5739c0000 ce73739c0000 c631739c0000 bdef739c0000 b5ad739c0000 ad6b739c0000 a529739c0000 9ce7739c0000 94a5739c0000 8c63739c0000 8421739c0842 7bde739c1084 739c739c18c6 6b5a739c2108 6318739c294a 5ad6739c318c 5294739c39ce 4a52739c4210 4210739c4a52 39ce739c5294 318c739c5ad6 294a739c6318 2108739c6b5a 18c6739c739c 1084739c7bde 0842739c8421 0000739c8c63 
++ffff6b5a0000 f7bd6b5a0000 ef7b6b5a0000 e7396b5a0000 def76b5a0000 d6b56b5a0000 ce736b5a0000 c6316b5a0000 bdef6b5a0000 b5ad6b5a0000 ad6b6b5a0000 a5296b5a0000 9ce76b5a0000 94a56b5a0000 8c636b5a0842 84216b5a1084 7bde6b5a18c6 739c6b5a2108 6b5a6b5a294a 63186b5a318c 5ad66b5a39ce 52946b5a4210 4a526b5a4a52 42106b5a5294 39ce6b5a5ad6 318c6b5a6318 294a6b5a6b5a 21086b5a739c 18c66b5a7bde 10846b5a8421 08426b5a8c63 00006b5a94a5 
++ffff63180000 f7bd63180000 ef7b63180000 e73963180000 def763180000 d6b563180000 ce7363180000 c63163180000 bdef63180000 b5ad63180000 ad6b63180000 a52963180000 9ce763180000 94a563180842 8c6363181084 8421631818c6 7bde63182108 739c6318294a 6b5a6318318c 6318631839ce 5ad663184210 529463184a52 4a5263185294 421063185ad6 39ce63186318 318c63186b5a 294a6318739c 210863187bde 18c663188421 108463188c63 0842631894a5 000063189ce7 
++ffff5ad60000 f7bd5ad60000 ef7b5ad60000 e7395ad60000 def75ad60000 d6b55ad60000 ce735ad60000 c6315ad60000 bdef5ad60000 b5ad5ad60000 ad6b5ad60000 a5295ad60000 9ce75ad60842 94a55ad61084 8c635ad618c6 84215ad62108 7bde5ad6294a 739c5ad6318c 6b5a5ad639ce 63185ad64210 5ad65ad64a52 52945ad65294 4a525ad65ad6 42105ad66318 39ce5ad66b5a 318c5ad6739c 294a5ad67bde 21085ad68421 18c65ad68c63 10845ad694a5 08425ad69ce7 00005ad6a529 
++ffff52940000 f7bd52940000 ef7b52940000 e73952940000 def752940000 d6b552940000 ce7352940000 c63152940000 bdef52940000 b5ad52940000 ad6b52940000 a52952940842 9ce752941084 94a5529418c6 8c6352942108 84215294294a 7bde5294318c 739c529439ce 6b5a52944210 631852944a52 5ad652945294 529452945ad6 4a5252946318 421052946b5a 39ce5294739c 318c52947bde 294a52948421 210852948c63 18c6529494a5 108452949ce7 08425294a529 00005294ad6b 
++ffff4a520000 f7bd4a520000 ef7b4a520000 e7394a520000 def74a520000 d6b54a520000 ce734a520000 c6314a520000 bdef4a520000 b5ad4a520000 ad6b4a520842 a5294a521084 9ce74a5218c6 94a54a522108 8c634a52294a 84214a52318c 7bde4a5239ce 739c4a524210 6b5a4a524a52 63184a525294 5ad64a525ad6 52944a526318 4a524a526b5a 42104a52739c 39ce4a527bde 318c4a528421 294a4a528c63 21084a5294a5 18c64a529ce7 10844a52a529 08424a52ad6b 00004a52b5ad 
++ffff42100000 f7bd42100000 ef7b42100000 e73942100000 def742100000 d6b542100000 ce7342100000 c63142100000 bdef42100000 b5ad42100842 ad6b42101084 a529421018c6 9ce742102108 94a54210294a 8c634210318c 8421421039ce 7bde42104210 739c42104a52 6b5a42105294 631842105ad6 5ad642106318 529442106b5a 4a524210739c 421042107bde 39ce42108421 318c42108c63 294a421094a5 210842109ce7 18c64210a529 10844210ad6b 08424210b5ad 00004210bdef 
++ffff39ce0000 f7bd39ce0000 ef7b39ce0000 e73939ce0000 def739ce0000 d6b539ce0000 ce7339ce0000 c63139ce0000 bdef39ce0842 b5ad39ce1084 ad6b39ce18c6 a52939ce2108 9ce739ce294a 94a539ce318c 8c6339ce39ce 842139ce4210 7bde39ce4a52 739c39ce5294 6b5a39ce5ad6 631839ce6318 5ad639ce6b5a 529439ce739c 4a5239ce7bde 421039ce8421 39ce39ce8c63 318c39ce94a5 294a39ce9ce7 210839cea529 18c639cead6b 108439ceb5ad 084239cebdef 000039cec631 
++ffff318c0000 f7bd318c0000 ef7b318c0000 e739318c0000 def7318c0000 d6b5318c0000 ce73318c0000 c631318c0842 bdef318c1084 b5ad318c18c6 ad6b318c2108 a529318c294a 9ce7318c318c 94a5318c39ce 8c63318c4210 8421318c4a52 7bde318c5294 739c318c5ad6 6b5a318c6318 6318318c6b5a 5ad6318c739c 5294318c7bde 4a52318c8421 4210318c8c63 39ce318c94a5 318c318c9ce7 294a318ca529 2108318cad6b 18c6318cb5ad 1084318cbdef 0842318cc631 0000318cce73 
++ffff294a0000 f7bd294a0000 ef7b294a0000 e739294a0000 def7294a0000 d6b5294a0000 ce73294a0842 c631294a1084 bdef294a18c6 b5ad294a2108 ad6b294a294a a529294a318c 9ce7294a39ce 94a5294a4210 8c63294a4a52 8421294a5294 7bde294a5ad6 739c294a6318 6b5a294a6b5a 6318294a739c 5ad6294a7bde 5294294a8421 4a52294a8c63 4210294a94a5 39ce294a9ce7 318c294aa529 294a294aad6b 2108294ab5ad 18c6294abdef 1084294ac631 0842294ace73 0000294ad6b5 
++ffff21080000 f7bd21080000 ef7b21080000 e73921080000 def721080000 d6b521080842 ce7321081084 c631210818c6 bdef21082108 b5ad2108294a ad6b2108318c a529210839ce 9ce721084210 94a521084a52 8c6321085294 842121085ad6 7bde21086318 739c21086b5a 6b5a2108739c 631821087bde 5ad621088421 529421088c63 4a52210894a5 421021089ce7 39ce2108a529 318c2108ad6b 294a2108b5ad 21082108bdef 18c62108c631 10842108ce73 08422108d6b5 00002108def7 
++ffff18c60000 f7bd18c60000 ef7b18c60000 e73918c60000 def718c60842 d6b518c61084 ce7318c618c6 c63118c62108 bdef18c6294a b5ad18c6318c ad6b18c639ce a52918c64210 9ce718c64a52 94a518c65294 8c6318c65ad6 842118c66318 7bde18c66b5a 739c18c6739c 6b5a18c67bde 631818c68421 5ad618c68c63 529418c694a5 4a5218c69ce7 421018c6a529 39ce18c6ad6b 318c18c6b5ad 294a18c6bdef 210818c6c631 18c618c6ce73 108418c6d6b5 084218c6def7 000018c6e739 
++ffff10840000 f7bd10840000 ef7b10840000 e73910840842 def710841084 d6b5108418c6 ce7310842108 c6311084294a bdef1084318c b5ad108439ce ad6b10844210 a52910844a52 9ce710845294 94a510845ad6 8c6310846318 842110846b5a 7bde1084739c 739c10847bde 6b5a10848421 631810848c63 5ad6108494a5 529410849ce7 4a521084a529 42101084ad6b 39ce1084b5ad 318c1084bdef 294a1084c631 21081084ce73 18c61084d6b5 10841084def7 08421084e739 00001084ef7b 
++ffff08420000 f7bd08420000 ef7b08420842 e73908421084 def7084218c6 d6b508422108 ce730842294a c6310842318c bdef084239ce b5ad08424210 ad6b08424a52 a52908425294 9ce708425ad6 94a508426318 8c6308426b5a 84210842739c 7bde08427bde 739c08428421 6b5a08428c63 6318084294a5 5ad608429ce7 52940842a529 4a520842ad6b 42100842b5ad 39ce0842bdef 318c0842c631 294a0842ce73 21080842d6b5 18c60842def7 10840842e739 08420842ef7b 00000842f7bd 
++ffff00000000 f7bd00000842 ef7b00001084 e739000018c6 def700002108 d6b50000294a ce730000318c c631000039ce bdef00004210 b5ad00004a52 ad6b00005294 a52900005ad6 9ce700006318 94a500006b5a 8c630000739c 842100007bde 7bde00008421 739c00008c63 6b5a000094a5 631800009ce7 5ad60000a529 52940000ad6b 4a520000b5ad 42100000bdef 39ce0000c631 318c0000ce73 294a0000d6b5 21080000def7 18c60000e739 10840000ef7b 08420000f7bd 00000000ffff 
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p01.png b/src/pkg/image/png/testdata/pngsuite/basn3p01.png
+new file mode 100644
+index 0000000000..a21db59774
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn3p01.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p01.sng b/src/pkg/image/png/testdata/pngsuite/basn3p01.sng
+new file mode 100644
+index 0000000000..a8b3ce8780
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn3p01.sng
+@@ -0,0 +1,45 @@
++#SNG: from basn3p01.png
++IHDR {
++    width: 32; height: 32; bitdepth: 1;
++    using color palette;
++}
++gAMA {1.0000}
++PLTE {
++    (238,255, 34)     # rgb = (0xee,0xff,0x22)
++    ( 34,102,255)     # rgb = (0x22,0x66,0xff)
++}
++IMAGE {
++    pixels hex
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++0f0f0f0f
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++f0f0f0f0
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p02.png b/src/pkg/image/png/testdata/pngsuite/basn3p02.png
+new file mode 100644
+index 0000000000..1d0ab6197c
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn3p02.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p02.sng b/src/pkg/image/png/testdata/pngsuite/basn3p02.sng
+new file mode 100644
+index 0000000000..f2321aa3d0
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn3p02.sng
+@@ -0,0 +1,50 @@
++#SNG: from basn3p02.png
++IHDR {
++    width: 32; height: 32; bitdepth: 2;
++    using color palette;
++}
++gAMA {1.0000}
++sBIT {
++    red: 1; green: 1; blue: 1;
++}
++PLTE {
++    (  0,255,  0)     # rgb = (0x00,0xff,0x00) green1
++    (255,  0,  0)     # rgb = (0xff,0x00,0x00) red1
++    (255,255,  0)     # rgb = (0xff,0xff,0x00) yellow1
++    (  0,  0,255)     # rgb = (0x00,0x00,0xff) blue1
++}
++IMAGE {
++    pixels hex
++ff55aa00ff55aa00
++ff55aa00ff55aa00
++ff55aa00ff55aa00
++ff55aa00ff55aa00
++00ff55aa00ff55aa
++00ff55aa00ff55aa
++00ff55aa00ff55aa
++00ff55aa00ff55aa
++aa00ff55aa00ff55
++aa00ff55aa00ff55
++aa00ff55aa00ff55
++aa00ff55aa00ff55
++55aa00ff55aa00ff
++55aa00ff55aa00ff
++55aa00ff55aa00ff
++55aa00ff55aa00ff
++ff55aa00ff55aa00
++ff55aa00ff55aa00
++ff55aa00ff55aa00
++ff55aa00ff55aa00
++00ff55aa00ff55aa
++00ff55aa00ff55aa
++00ff55aa00ff55aa
++00ff55aa00ff55aa
++aa00ff55aa00ff55
++aa00ff55aa00ff55
++aa00ff55aa00ff55
++aa00ff55aa00ff55
++55aa00ff55aa00ff
++55aa00ff55aa00ff
++55aa00ff55aa00ff
++55aa00ff55aa00ff
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p04.png b/src/pkg/image/png/testdata/pngsuite/basn3p04.png
+new file mode 100644
+index 0000000000..6dc6eac83f
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn3p04.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p04.sng b/src/pkg/image/png/testdata/pngsuite/basn3p04.sng
+new file mode 100644
+index 0000000000..e52885dba0
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn3p04.sng
+@@ -0,0 +1,61 @@
++#SNG: from basn3p04.png
++IHDR {
++    width: 32; height: 32; bitdepth: 4;
++    using color palette;
++}
++gAMA {1.0000}
++sBIT {
++    red: 4; green: 4; blue: 4;
++}
++PLTE {
++    ( 34,  0,255)     # rgb = (0x22,0x00,0xff)
++    (  0,255,255)     # rgb = (0x00,0xff,0xff) cyan1
++    (136,  0,255)     # rgb = (0x88,0x00,0xff)
++    ( 34,255,  0)     # rgb = (0x22,0xff,0x00)
++    (  0,153,255)     # rgb = (0x00,0x99,0xff)
++    (255,102,  0)     # rgb = (0xff,0x66,0x00)
++    (221,  0,255)     # rgb = (0xdd,0x00,0xff)
++    (119,255,  0)     # rgb = (0x77,0xff,0x00)
++    (255,  0,  0)     # rgb = (0xff,0x00,0x00) red1
++    (  0,255,153)     # rgb = (0x00,0xff,0x99)
++    (221,255,  0)     # rgb = (0xdd,0xff,0x00)
++    (255,  0,187)     # rgb = (0xff,0x00,0xbb)
++    (255,187,  0)     # rgb = (0xff,0xbb,0x00)
++    (  0, 68,255)     # rgb = (0x00,0x44,0xff)
++    (  0,255, 68)     # rgb = (0x00,0xff,0x44)
++}
++IMAGE {
++    pixels hex
++88885555ccccaaaa77773333eeee9999
++88885555ccccaaaa77773333eeee9999
++88885555ccccaaaa77773333eeee9999
++88885555ccccaaaa77773333eeee9999
++5555ccccaaaa77773333eeee99991111
++5555ccccaaaa77773333eeee99991111
++5555ccccaaaa77773333eeee99991111
++5555ccccaaaa77773333eeee99991111
++ccccaaaa77773333eeee999911114444
++ccccaaaa77773333eeee999911114444
++ccccaaaa77773333eeee999911114444
++ccccaaaa77773333eeee999911114444
++aaaa77773333eeee999911114444dddd
++aaaa77773333eeee999911114444dddd
++aaaa77773333eeee999911114444dddd
++aaaa77773333eeee999911114444dddd
++77773333eeee999911114444dddd0000
++77773333eeee999911114444dddd0000
++77773333eeee999911114444dddd0000
++77773333eeee999911114444dddd0000
++3333eeee999911114444dddd00002222
++3333eeee999911114444dddd00002222
++3333eeee999911114444dddd00002222
++3333eeee999911114444dddd00002222
++eeee999911114444dddd000022226666
++eeee999911114444dddd000022226666
++eeee999911114444dddd000022226666
++eeee999911114444dddd000022226666
++999911114444dddd000022226666bbbb
++999911114444dddd000022226666bbbb
++999911114444dddd000022226666bbbb
++999911114444dddd000022226666bbbb
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p08.png b/src/pkg/image/png/testdata/pngsuite/basn3p08.png
+new file mode 100644
+index 0000000000..0e07f483c0
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn3p08.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn3p08.sng b/src/pkg/image/png/testdata/pngsuite/basn3p08.sng
+new file mode 100644
+index 0000000000..0423bb21e8
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn3p08.sng
+@@ -0,0 +1,299 @@
++#SNG: from basn3p08.png
++IHDR {
++    width: 32; height: 32; bitdepth: 8;
++    using color palette;
++}
++gAMA {1.0000}
++PLTE {
++    ( 34, 68,  0)     # rgb = (0x22,0x44,0x00)
++    (245,255,237)     # rgb = (0xf5,0xff,0xed)
++    (119,255,119)     # rgb = (0x77,0xff,0x77)
++    (203,255,255)     # rgb = (0xcb,0xff,0xff)
++    ( 17, 10,  0)     # rgb = (0x11,0x0a,0x00)
++    ( 58,119,  0)     # rgb = (0x3a,0x77,0x00)
++    ( 34, 34,255)     # rgb = (0x22,0x22,0xff)
++    (255, 17,255)     # rgb = (0xff,0x11,0xff)
++    ( 17,  0,  0)     # rgb = (0x11,0x00,0x00)
++    ( 34, 34,  0)     # rgb = (0x22,0x22,0x00)
++    (255,172, 85)     # rgb = (0xff,0xac,0x55)
++    (102,255,102)     # rgb = (0x66,0xff,0x66)
++    (255,102,102)     # rgb = (0xff,0x66,0x66)
++    (255,  1,255)     # rgb = (0xff,0x01,0xff)
++    ( 34, 18,  0)     # rgb = (0x22,0x12,0x00)
++    (220,255,255)     # rgb = (0xdc,0xff,0xff)
++    (204,255,153)     # rgb = (0xcc,0xff,0x99)
++    ( 68, 68,255)     # rgb = (0x44,0x44,0xff)
++    (  0, 85, 85)     # rgb = (0x00,0x55,0x55)
++    ( 34,  0,  0)     # rgb = (0x22,0x00,0x00)
++    (203,203,255)     # rgb = (0xcb,0xcb,0xff)
++    ( 68, 68,  0)     # rgb = (0x44,0x44,0x00)
++    ( 85,255, 85)     # rgb = (0x55,0xff,0x55)
++    (203,203,  0)     # rgb = (0xcb,0xcb,0x00)
++    ( 51, 26,  0)     # rgb = (0x33,0x1a,0x00)
++    (255,236,220)     # rgb = (0xff,0xec,0xdc)
++    (237,255,255)     # rgb = (0xed,0xff,0xff)
++    (228,255,203)     # rgb = (0xe4,0xff,0xcb)
++    (255,220,220)     # rgb = (0xff,0xdc,0xdc)
++    ( 68,255, 68)     # rgb = (0x44,0xff,0x44)
++    (102,102,255)     # rgb = (0x66,0x66,0xff)
++    ( 51,  0,  0)     # rgb = (0x33,0x00,0x00)
++    ( 68, 34,  0)     # rgb = (0x44,0x22,0x00)
++    (237,237,255)     # rgb = (0xed,0xed,0xff)
++    (102,102,  0)     # rgb = (0x66,0x66,0x00)
++    (255,164, 68)     # rgb = (0xff,0xa4,0x44)
++    (255,255,170)     # rgb = (0xff,0xff,0xaa)
++    (237,237,  0)     # rgb = (0xed,0xed,0x00)
++    (  0,203,203)     # rgb = (0x00,0xcb,0xcb)
++    (254,255,255)     # rgb = (0xfe,0xff,0xff)
++    (253,255,254)     # rgb = (0xfd,0xff,0xfe)
++    (255,255,  1)     # rgb = (0xff,0xff,0x01)
++    ( 51,255, 51)     # rgb = (0x33,0xff,0x33)
++    ( 85, 42,  0)     # rgb = (0x55,0x2a,0x00)
++    (  1,  1,255)     # rgb = (0x01,0x01,0xff)
++    (136,136,255)     # rgb = (0x88,0x88,0xff)
++    (  0,170,170)     # rgb = (0x00,0xaa,0xaa)
++    (  1,  1,  0)     # rgb = (0x01,0x01,0x00)
++    ( 68,  0,  0)     # rgb = (0x44,0x00,0x00)
++    (136,136,  0)     # rgb = (0x88,0x88,0x00)
++    (255,228,203)     # rgb = (0xff,0xe4,0xcb)
++    (186, 91,  0)     # rgb = (0xba,0x5b,0x00)
++    ( 34,255, 34)     # rgb = (0x22,0xff,0x22)
++    (102, 50,  0)     # rgb = (0x66,0x32,0x00)
++    (255,255,153)     # rgb = (0xff,0xff,0x99)
++    (170,170,255)     # rgb = (0xaa,0xaa,0xff)
++    ( 85,  0,  0)     # rgb = (0x55,0x00,0x00)
++    (170,170,  0)     # rgb = (0xaa,0xaa,0x00)
++    (203, 99,  0)     # rgb = (0xcb,0x63,0x00)
++    ( 17,255, 17)     # rgb = (0x11,0xff,0x11)
++    (212,255,170)     # rgb = (0xd4,0xff,0xaa)
++    (119, 58,  0)     # rgb = (0x77,0x3a,0x00)
++    (255, 68, 68)     # rgb = (0xff,0x44,0x44)
++    (220,107,  0)     # rgb = (0xdc,0x6b,0x00)
++    (102,  0,  0)     # rgb = (0x66,0x00,0x00)
++    (  1,255,  1)     # rgb = (0x01,0xff,0x01)
++    (136, 66,  0)     # rgb = (0x88,0x42,0x00)
++    (236,255,220)     # rgb = (0xec,0xff,0xdc)
++    (107,220,  0)     # rgb = (0x6b,0xdc,0x00)
++    (255,220,186)     # rgb = (0xff,0xdc,0xba)
++    (  0, 51, 51)     # rgb = (0x00,0x33,0x33)
++    (  0,237,  0)     # rgb = (0x00,0xed,0x00)
++    (237,115,  0)     # rgb = (0xed,0x73,0x00)
++    (255,255,136)     # rgb = (0xff,0xff,0x88)
++    (153, 74,  0)     # rgb = (0x99,0x4a,0x00)
++    ( 17,255,255)     # rgb = (0x11,0xff,0xff)
++    (119,  0,  0)     # rgb = (0x77,0x00,0x00)
++    (255,131,  1)     # rgb = (0xff,0x83,0x01)
++    (255,186,186)     # rgb = (0xff,0xba,0xba)
++    (254,123,  0)     # rgb = (0xfe,0x7b,0x00)
++    (255,254,255)     # rgb = (0xff,0xfe,0xff)
++    (  0,203,  0)     # rgb = (0x00,0xcb,0x00)
++    (255,153,153)     # rgb = (0xff,0x99,0x99)
++    ( 34,255,255)     # rgb = (0x22,0xff,0xff)
++    (136,  0,  0)     # rgb = (0x88,0x00,0x00)
++    (255,255,119)     # rgb = (0xff,0xff,0x77)
++    (  0,136,136)     # rgb = (0x00,0x88,0x88)
++    (255,220,255)     # rgb = (0xff,0xdc,0xff)
++    ( 26, 51,  0)     # rgb = (0x1a,0x33,0x00)
++    (  0,  0,170)     # rgb = (0x00,0x00,0xaa)
++    ( 51,255,255)     # rgb = (0x33,0xff,0xff)
++    (  0,153,  0)     # rgb = (0x00,0x99,0x00)
++    (153,  0,  0)     # rgb = (0x99,0x00,0x00)
++    (  0,  0,  1)     # rgb = (0x00,0x00,0x01)
++    ( 50,102,  0)     # rgb = (0x32,0x66,0x00)
++    (255,186,255)     # rgb = (0xff,0xba,0xff)
++    ( 68,255,255)     # rgb = (0x44,0xff,0xff)
++    (255,170,255)     # rgb = (0xff,0xaa,0xff)
++    (  0,119,  0)     # rgb = (0x00,0x77,0x00)
++    (  0,254,254)     # rgb = (0x00,0xfe,0xfe)
++    (170,  0,  0)     # rgb = (0xaa,0x00,0x00)
++    ( 74,153,  0)     # rgb = (0x4a,0x99,0x00)
++    (255,255,102)     # rgb = (0xff,0xff,0x66)
++    (255, 34, 34)     # rgb = (0xff,0x22,0x22)
++    (  0,  0,153)     # rgb = (0x00,0x00,0x99)
++    (139,255, 17)     # rgb = (0x8b,0xff,0x11)
++    ( 85,255,255)     # rgb = (0x55,0xff,0xff)
++    (255,  1,  1)     # rgb = (0xff,0x01,0x01)
++    (255,136,255)     # rgb = (0xff,0x88,0xff)
++    (  0, 85,  0)     # rgb = (0x00,0x55,0x00)
++    (  0, 17, 17)     # rgb = (0x00,0x11,0x11)
++    (255,255,254)     # rgb = (0xff,0xff,0xfe)
++    (255,253,254)     # rgb = (0xff,0xfd,0xfe)
++    (164,255, 68)     # rgb = (0xa4,0xff,0x44)
++    (102,255,255)     # rgb = (0x66,0xff,0xff)
++    (255,102,255)     # rgb = (0xff,0x66,0xff)
++    (  0, 51,  0)     # rgb = (0x00,0x33,0x00)
++    (255,255, 85)     # rgb = (0xff,0xff,0x55)
++    (255,119,119)     # rgb = (0xff,0x77,0x77)
++    (  0,  0,136)     # rgb = (0x00,0x00,0x88)
++    (255, 68,255)     # rgb = (0xff,0x44,0xff)
++    (  0, 17,  0)     # rgb = (0x00,0x11,0x00)
++    (119,255,255)     # rgb = (0x77,0xff,0xff)
++    (  0,102,102)     # rgb = (0x00,0x66,0x66)
++    (255,255,237)     # rgb = (0xff,0xff,0xed)
++    (  0,  1,  0)     # rgb = (0x00,0x01,0x00)
++    (255,245,237)     # rgb = (0xff,0xf5,0xed)
++    ( 17, 17,255)     # rgb = (0x11,0x11,0xff)
++    (255,255, 68)     # rgb = (0xff,0xff,0x44)
++    (255, 34,255)     # rgb = (0xff,0x22,0xff)
++    (255,237,237)     # rgb = (0xff,0xed,0xed)
++    ( 17, 17,  0)     # rgb = (0x11,0x11,0x00)
++    (136,255,255)     # rgb = (0x88,0xff,0xff)
++    (  0,  0,119)     # rgb = (0x00,0x00,0x77)
++    (147,255, 34)     # rgb = (0x93,0xff,0x22)
++    (  0,220,220)     # rgb = (0x00,0xdc,0xdc)
++    ( 51, 51,255)     # rgb = (0x33,0x33,0xff)
++    (254,  0,254)     # rgb = (0xfe,0x00,0xfe)
++    (186,186,255)     # rgb = (0xba,0xba,0xff)
++    (153,255,255)     # rgb = (0x99,0xff,0xff)
++    ( 51, 51,  0)     # rgb = (0x33,0x33,0x00)
++    ( 99,203,  0)     # rgb = (0x63,0xcb,0x00)
++    (186,186,  0)     # rgb = (0xba,0xba,0x00)
++    (172,255, 85)     # rgb = (0xac,0xff,0x55)
++    (255,255,220)     # rgb = (0xff,0xff,0xdc)
++    (255,255, 51)     # rgb = (0xff,0xff,0x33)
++    (123,254,  0)     # rgb = (0x7b,0xfe,0x00)
++    (237,  0,237)     # rgb = (0xed,0x00,0xed)
++    ( 85, 85,255)     # rgb = (0x55,0x55,0xff)
++    (170,255,255)     # rgb = (0xaa,0xff,0xff)
++    (220,220,255)     # rgb = (0xdc,0xdc,0xff)
++    ( 85, 85,  0)     # rgb = (0x55,0x55,0x00)
++    (  0,  0,102)     # rgb = (0x00,0x00,0x66)
++    (220,220,  0)     # rgb = (0xdc,0xdc,0x00)
++    (220,  0,220)     # rgb = (0xdc,0x00,0xdc)
++    (131,255,  1)     # rgb = (0x83,0xff,0x01)
++    (119,119,255)     # rgb = (0x77,0x77,0xff)
++    (254,254,255)     # rgb = (0xfe,0xfe,0xff)
++    (255,255,203)     # rgb = (0xff,0xff,0xcb)
++    (255, 85, 85)     # rgb = (0xff,0x55,0x55)
++    (119,119,  0)     # rgb = (0x77,0x77,0x00)
++    (254,254,  0)     # rgb = (0xfe,0xfe,0x00)
++    (203,  0,203)     # rgb = (0xcb,0x00,0xcb)
++    (  0,  0,254)     # rgb = (0x00,0x00,0xfe)
++    (  1,  2,  0)     # rgb = (0x01,0x02,0x00)
++    (  1,  0,  0)     # rgb = (0x01,0x00,0x00)
++    ( 18, 34,  0)     # rgb = (0x12,0x22,0x00)
++    (255,255, 34)     # rgb = (0xff,0xff,0x22)
++    (  0, 68, 68)     # rgb = (0x00,0x44,0x44)
++    (155,255, 51)     # rgb = (0x9b,0xff,0x33)
++    (255,212,170)     # rgb = (0xff,0xd4,0xaa)
++    (  0,  0, 85)     # rgb = (0x00,0x00,0x55)
++    (153,153,255)     # rgb = (0x99,0x99,0xff)
++    (153,153,  0)     # rgb = (0x99,0x99,0x00)
++    (186,  0,186)     # rgb = (0xba,0x00,0xba)
++    ( 42, 85,  0)     # rgb = (0x2a,0x55,0x00)
++    (255,203,203)     # rgb = (0xff,0xcb,0xcb)
++    (180,255,102)     # rgb = (0xb4,0xff,0x66)
++    (255,155, 51)     # rgb = (0xff,0x9b,0x33)
++    (255,255,186)     # rgb = (0xff,0xff,0xba)
++    (170,  0,170)     # rgb = (0xaa,0x00,0xaa)
++    ( 66,136,  0)     # rgb = (0x42,0x88,0x00)
++    ( 83,170,  0)     # rgb = (0x53,0xaa,0x00)
++    (255,170,170)     # rgb = (0xff,0xaa,0xaa)
++    (  0,  0,237)     # rgb = (0x00,0x00,0xed)
++    (  0,186,186)     # rgb = (0x00,0xba,0xba)
++    (255,255, 17)     # rgb = (0xff,0xff,0x11)
++    (  0,254,  0)     # rgb = (0x00,0xfe,0x00)
++    (  0,  0, 68)     # rgb = (0x00,0x00,0x44)
++    (  0,153,153)     # rgb = (0x00,0x99,0x99)
++    (153,  0,153)     # rgb = (0x99,0x00,0x99)
++    (255,204,153)     # rgb = (0xff,0xcc,0x99)
++    (186,  0,  0)     # rgb = (0xba,0x00,0x00)
++    (136,  0,136)     # rgb = (0x88,0x00,0x88)
++    (  0,220,  0)     # rgb = (0x00,0xdc,0x00)
++    (255,147, 34)     # rgb = (0xff,0x93,0x22)
++    (  0,  0,220)     # rgb = (0x00,0x00,0xdc)
++    (254,255,254)     # rgb = (0xfe,0xff,0xfe)
++    (170, 83,  0)     # rgb = (0xaa,0x53,0x00)
++    (119,  0,119)     # rgb = (0x77,0x00,0x77)
++    (  2,  1,  0)     # rgb = (0x02,0x01,0x00)
++    (203,  0,  0)     # rgb = (0xcb,0x00,0x00)
++    (  0,  0, 51)     # rgb = (0x00,0x00,0x33)
++    (255,237,255)     # rgb = (0xff,0xed,0xff)
++    (  0,186,  0)     # rgb = (0x00,0xba,0x00)
++    (255, 51, 51)     # rgb = (0xff,0x33,0x33)
++    (237,255,237)     # rgb = (0xed,0xff,0xed)
++    (255,196,136)     # rgb = (0xff,0xc4,0x88)
++    (188,255,119)     # rgb = (0xbc,0xff,0x77)
++    (  0,170,  0)     # rgb = (0x00,0xaa,0x00)
++    (102,  0,102)     # rgb = (0x66,0x00,0x66)
++    (  0, 34, 34)     # rgb = (0x00,0x22,0x22)
++    (220,  0,  0)     # rgb = (0xdc,0x00,0x00)
++    (255,203,255)     # rgb = (0xff,0xcb,0xff)
++    (220,255,220)     # rgb = (0xdc,0xff,0xdc)
++    (255,139, 17)     # rgb = (0xff,0x8b,0x11)
++    (  0,  0,203)     # rgb = (0x00,0x00,0xcb)
++    (  0,  1,  1)     # rgb = (0x00,0x01,0x01)
++    ( 85,  0, 85)     # rgb = (0x55,0x00,0x55)
++    (  0,136,  0)     # rgb = (0x00,0x88,0x00)
++    (  0,  0, 34)     # rgb = (0x00,0x00,0x22)
++    (  1,255,255)     # rgb = (0x01,0xff,0xff)
++    (203,255,203)     # rgb = (0xcb,0xff,0xcb)
++    (237,  0,  0)     # rgb = (0xed,0x00,0x00)
++    (255,136,136)     # rgb = (0xff,0x88,0x88)
++    ( 68,  0, 68)     # rgb = (0x44,0x00,0x44)
++    ( 91,186,  0)     # rgb = (0x5b,0xba,0x00)
++    (255,188,119)     # rgb = (0xff,0xbc,0x77)
++    (255,153,255)     # rgb = (0xff,0x99,0xff)
++    (  0,102,  0)     # rgb = (0x00,0x66,0x00)
++    (186,255,186)     # rgb = (0xba,0xff,0xba)
++    (  0,119,119)     # rgb = (0x00,0x77,0x77)
++    (115,237,  0)     # rgb = (0x73,0xed,0x00)
++    (254,  0,  0)     # rgb = (0xfe,0x00,0x00)
++    ( 51,  0, 51)     # rgb = (0x33,0x00,0x33)
++    (  0,  0,186)     # rgb = (0x00,0x00,0xba)
++    (255,119,255)     # rgb = (0xff,0x77,0xff)
++    (  0, 68,  0)     # rgb = (0x00,0x44,0x00)
++    (170,255,170)     # rgb = (0xaa,0xff,0xaa)
++    (255,254,254)     # rgb = (0xff,0xfe,0xfe)
++    (  0,  0, 17)     # rgb = (0x00,0x00,0x11)
++    ( 34,  0, 34)     # rgb = (0x22,0x00,0x22)
++    (196,255,136)     # rgb = (0xc4,0xff,0x88)
++    (  0,237,237)     # rgb = (0x00,0xed,0xed)
++    (153,255,153)     # rgb = (0x99,0xff,0x99)
++    (255, 85,255)     # rgb = (0xff,0x55,0xff)
++    (  0, 34,  0)     # rgb = (0x00,0x22,0x00)
++    (255,180,102)     # rgb = (0xff,0xb4,0x66)
++    ( 17,  0, 17)     # rgb = (0x11,0x00,0x11)
++    ( 10, 17,  0)     # rgb = (0x0a,0x11,0x00)
++    (255, 17, 17)     # rgb = (0xff,0x11,0x11)
++    (220,255,186)     # rgb = (0xdc,0xff,0xba)
++    (186,255,255)     # rgb = (0xba,0xff,0xff)
++    (136,255,136)     # rgb = (0x88,0xff,0x88)
++    (  1,  0,  1)     # rgb = (0x01,0x00,0x01)
++    (255, 51,255)     # rgb = (0xff,0x33,0xff)
++}
++IMAGE {
++    pixels hex
++a5a5a5a5a4a4a4a42f2f2f2fc8c8c8c87d7d7d7dd9d9d9d95d5d5d5dfefefefe
++080808080404040483838383f9f9f9f9797979796e6e6e6ef0f0f0f0f8f8f8f8
++131313130e0e0e0e09090909a6a6a6a6f6f6f6f6d3d3d3d3dcdcdcdcf1f1f1f1
++1f1f1f1f181818188c8c8c8c585858587474747446464646cacacacaeaeaeaea
++30303030202020201515151500000000ededededa8a8a8a8bcbcbcbce1e1e1e1
++383838382b2b2b2b97979797afafafaf6d6d6d6d12121212ababababdadadada
++4040404035353535222222225e5e5e5ee5e5e5e57b7b7b7b98989898d2d2d2d2
++4c4c4c4c3d3d3d3da0a0a0a00505050562626262e7e7e7e785858585c7c7c7c7
++545454544242424231313131b5b5b5b5dbdbdbdb5656565677777777c1c1c1c1
++5c5c5c5c4a4a4a4aadadadad656565655b5b5b5bbdbdbdbd68686868bebebebe
++64646464c6c6c6c639393939b6b6b6b6d1d1d1d12e2e2e2e59595959b4b4b4b4
++c0c0c0c0333333338e8e8e8ee2e2e2e2ccccccccb9b9b9b9ebebebebaeaeaeae
++c9c9c9c93a3a3a3a171717178d8d8d8d5151515126262626d8d8d8d8a2a2a2a2
++d4d4d4d43f3f3f3f9999999944444444c2c2c2c287878787c4c4c4c49a9a9a9a
++dfdfdfdf4848484825252525e8e8e8e847474747f3f3f3f3b8b8b8b893939393
++e9e9e9e94f4f4f4fa1a1a1a192929292bbbbbbbb63636363a3a3a3a389898989
++6b6b6b6b4d4d4d4d292929299b9b9b9b41414141dddddddd2c2c2c2c0d0d0d0d
++fafafafad7d7d7d7babababa696969693b3b3b3b4b4b4b4b7f7f7f7f07070707
++67676767c3c3c3c3a7a7a7a78686868634343434535353530606060681818181
++cdcdcdcdb2b2b2b291919191a9a9a9a92a2a2a2a5a5a5a5a88888888ffffffff
++3e3e3e3e2323232380808080717171711d1d1d1d606060601111111178787878
++9f9f9f9f0a0a0a0a757575758f8f8f8f161616166a6a6a6a94949494f5f5f5f5
++0c0c0c0cf7f7f7f766666666b1b1b1b10b0b0b0b727272721e1e1e1e73737373
++76767676e3e3e3e355555555d0d0d0d0020202027a7a7a7a9c9c9c9cecececec
++e0e0e0e0cfcfcfcf49494949f2f2f2f2fdfdfdfd848484842d2d2d2d6c6c6c6c
++52525252bfbfbfbf3636363610101010f4f4f4f48b8b8b8bacacacace4e4e4e4
++b7b7b7b7aaaaaaaa242424243c3c3c3ceeeeeeee959595953737373761616161
++4e4e4e4e45454545b3b3b3b3fbfbfbfbe6e6e6e6fcfcfcfc8a8a8a8a5f5f5f5f
++b0b0b0b0323232329e9e9e9e1b1b1b1bdededede0303030314141414d5d5d5d5
++1c1c1c1c191919199090909043434343d6d6d6d60f0f0f0f9696969657575757
++828282827e7e7e7e7c7c7c7c01010101cececece1a1a1a1a21212121cbcbcbcb
++efefefef707070706f6f6f6f28282828c5c5c5c5272727279d9d9d9d50505050
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn4a08.png b/src/pkg/image/png/testdata/pngsuite/basn4a08.png
+new file mode 100644
+index 0000000000..3bb0dd06b5
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn4a08.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn4a08.sng b/src/pkg/image/png/testdata/pngsuite/basn4a08.sng
+new file mode 100644
+index 0000000000..b760382a02
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn4a08.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn4a08.png
++IHDR {
++    width: 32; height: 32; bitdepth: 8;
++    using grayscale alpha;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++ff00 ff08 ff10 ff18 ff20 ff29 ff31 ff39 ff41 ff4a ff52 ff5a ff62 ff6a ff73 ff7b ff83 ff8b ff94 ff9c ffa4 ffac ffb4 ffbd ffc5 ffcd ffd5 ffde ffe6 ffee fff6 ffff 
++f600 f608 f610 f618 f620 f629 f631 f639 f641 f64a f652 f65a f662 f66a f673 f67b f683 f68b f694 f69c f6a4 f6ac f6b4 f6bd f6c5 f6cd f6d5 f6de f6e6 f6ee f6f6 f6ff 
++ee00 ee08 ee10 ee18 ee20 ee29 ee31 ee39 ee41 ee4a ee52 ee5a ee62 ee6a ee73 ee7b ee83 ee8b ee94 ee9c eea4 eeac eeb4 eebd eec5 eecd eed5 eede eee6 eeee eef6 eeff 
++e600 e608 e610 e618 e620 e629 e631 e639 e641 e64a e652 e65a e662 e66a e673 e67b e683 e68b e694 e69c e6a4 e6ac e6b4 e6bd e6c5 e6cd e6d5 e6de e6e6 e6ee e6f6 e6ff 
++de00 de08 de10 de18 de20 de29 de31 de39 de41 de4a de52 de5a de62 de6a de73 de7b de83 de8b de94 de9c dea4 deac deb4 debd dec5 decd ded5 dede dee6 deee def6 deff 
++d500 d508 d510 d518 d520 d529 d531 d539 d541 d54a d552 d55a d562 d56a d573 d57b d583 d58b d594 d59c d5a4 d5ac d5b4 d5bd d5c5 d5cd d5d5 d5de d5e6 d5ee d5f6 d5ff 
++cd00 cd08 cd10 cd18 cd20 cd29 cd31 cd39 cd41 cd4a cd52 cd5a cd62 cd6a cd73 cd7b cd83 cd8b cd94 cd9c cda4 cdac cdb4 cdbd cdc5 cdcd cdd5 cdde cde6 cdee cdf6 cdff 
++c500 c508 c510 c518 c520 c529 c531 c539 c541 c54a c552 c55a c562 c56a c573 c57b c583 c58b c594 c59c c5a4 c5ac c5b4 c5bd c5c5 c5cd c5d5 c5de c5e6 c5ee c5f6 c5ff 
++bd00 bd08 bd10 bd18 bd20 bd29 bd31 bd39 bd41 bd4a bd52 bd5a bd62 bd6a bd73 bd7b bd83 bd8b bd94 bd9c bda4 bdac bdb4 bdbd bdc5 bdcd bdd5 bdde bde6 bdee bdf6 bdff 
++b400 b408 b410 b418 b420 b429 b431 b439 b441 b44a b452 b45a b462 b46a b473 b47b b483 b48b b494 b49c b4a4 b4ac b4b4 b4bd b4c5 b4cd b4d5 b4de b4e6 b4ee b4f6 b4ff 
++ac00 ac08 ac10 ac18 ac20 ac29 ac31 ac39 ac41 ac4a ac52 ac5a ac62 ac6a ac73 ac7b ac83 ac8b ac94 ac9c aca4 acac acb4 acbd acc5 accd acd5 acde ace6 acee acf6 acff 
++a400 a408 a410 a418 a420 a429 a431 a439 a441 a44a a452 a45a a462 a46a a473 a47b a483 a48b a494 a49c a4a4 a4ac a4b4 a4bd a4c5 a4cd a4d5 a4de a4e6 a4ee a4f6 a4ff 
++9c00 9c08 9c10 9c18 9c20 9c29 9c31 9c39 9c41 9c4a 9c52 9c5a 9c62 9c6a 9c73 9c7b 9c83 9c8b 9c94 9c9c 9ca4 9cac 9cb4 9cbd 9cc5 9ccd 9cd5 9cde 9ce6 9cee 9cf6 9cff 
++9400 9408 9410 9418 9420 9429 9431 9439 9441 944a 9452 945a 9462 946a 9473 947b 9483 948b 9494 949c 94a4 94ac 94b4 94bd 94c5 94cd 94d5 94de 94e6 94ee 94f6 94ff 
++8b00 8b08 8b10 8b18 8b20 8b29 8b31 8b39 8b41 8b4a 8b52 8b5a 8b62 8b6a 8b73 8b7b 8b83 8b8b 8b94 8b9c 8ba4 8bac 8bb4 8bbd 8bc5 8bcd 8bd5 8bde 8be6 8bee 8bf6 8bff 
++8300 8308 8310 8318 8320 8329 8331 8339 8341 834a 8352 835a 8362 836a 8373 837b 8383 838b 8394 839c 83a4 83ac 83b4 83bd 83c5 83cd 83d5 83de 83e6 83ee 83f6 83ff 
++7b00 7b08 7b10 7b18 7b20 7b29 7b31 7b39 7b41 7b4a 7b52 7b5a 7b62 7b6a 7b73 7b7b 7b83 7b8b 7b94 7b9c 7ba4 7bac 7bb4 7bbd 7bc5 7bcd 7bd5 7bde 7be6 7bee 7bf6 7bff 
++7300 7308 7310 7318 7320 7329 7331 7339 7341 734a 7352 735a 7362 736a 7373 737b 7383 738b 7394 739c 73a4 73ac 73b4 73bd 73c5 73cd 73d5 73de 73e6 73ee 73f6 73ff 
++6a00 6a08 6a10 6a18 6a20 6a29 6a31 6a39 6a41 6a4a 6a52 6a5a 6a62 6a6a 6a73 6a7b 6a83 6a8b 6a94 6a9c 6aa4 6aac 6ab4 6abd 6ac5 6acd 6ad5 6ade 6ae6 6aee 6af6 6aff 
++6200 6208 6210 6218 6220 6229 6231 6239 6241 624a 6252 625a 6262 626a 6273 627b 6283 628b 6294 629c 62a4 62ac 62b4 62bd 62c5 62cd 62d5 62de 62e6 62ee 62f6 62ff 
++5a00 5a08 5a10 5a18 5a20 5a29 5a31 5a39 5a41 5a4a 5a52 5a5a 5a62 5a6a 5a73 5a7b 5a83 5a8b 5a94 5a9c 5aa4 5aac 5ab4 5abd 5ac5 5acd 5ad5 5ade 5ae6 5aee 5af6 5aff 
++5200 5208 5210 5218 5220 5229 5231 5239 5241 524a 5252 525a 5262 526a 5273 527b 5283 528b 5294 529c 52a4 52ac 52b4 52bd 52c5 52cd 52d5 52de 52e6 52ee 52f6 52ff 
++4a00 4a08 4a10 4a18 4a20 4a29 4a31 4a39 4a41 4a4a 4a52 4a5a 4a62 4a6a 4a73 4a7b 4a83 4a8b 4a94 4a9c 4aa4 4aac 4ab4 4abd 4ac5 4acd 4ad5 4ade 4ae6 4aee 4af6 4aff 
++4100 4108 4110 4118 4120 4129 4131 4139 4141 414a 4152 415a 4162 416a 4173 417b 4183 418b 4194 419c 41a4 41ac 41b4 41bd 41c5 41cd 41d5 41de 41e6 41ee 41f6 41ff 
++3900 3908 3910 3918 3920 3929 3931 3939 3941 394a 3952 395a 3962 396a 3973 397b 3983 398b 3994 399c 39a4 39ac 39b4 39bd 39c5 39cd 39d5 39de 39e6 39ee 39f6 39ff 
++3100 3108 3110 3118 3120 3129 3131 3139 3141 314a 3152 315a 3162 316a 3173 317b 3183 318b 3194 319c 31a4 31ac 31b4 31bd 31c5 31cd 31d5 31de 31e6 31ee 31f6 31ff 
++2900 2908 2910 2918 2920 2929 2931 2939 2941 294a 2952 295a 2962 296a 2973 297b 2983 298b 2994 299c 29a4 29ac 29b4 29bd 29c5 29cd 29d5 29de 29e6 29ee 29f6 29ff 
++2000 2008 2010 2018 2020 2029 2031 2039 2041 204a 2052 205a 2062 206a 2073 207b 2083 208b 2094 209c 20a4 20ac 20b4 20bd 20c5 20cd 20d5 20de 20e6 20ee 20f6 20ff 
++1800 1808 1810 1818 1820 1829 1831 1839 1841 184a 1852 185a 1862 186a 1873 187b 1883 188b 1894 189c 18a4 18ac 18b4 18bd 18c5 18cd 18d5 18de 18e6 18ee 18f6 18ff 
++1000 1008 1010 1018 1020 1029 1031 1039 1041 104a 1052 105a 1062 106a 1073 107b 1083 108b 1094 109c 10a4 10ac 10b4 10bd 10c5 10cd 10d5 10de 10e6 10ee 10f6 10ff 
++0800 0808 0810 0818 0820 0829 0831 0839 0841 084a 0852 085a 0862 086a 0873 087b 0883 088b 0894 089c 08a4 08ac 08b4 08bd 08c5 08cd 08d5 08de 08e6 08ee 08f6 08ff 
++0000 0008 0010 0018 0020 0029 0031 0039 0041 004a 0052 005a 0062 006a 0073 007b 0083 008b 0094 009c 00a4 00ac 00b4 00bd 00c5 00cd 00d5 00de 00e6 00ee 00f6 00ff 
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn4a16.png b/src/pkg/image/png/testdata/pngsuite/basn4a16.png
+new file mode 100644
+index 0000000000..6dbee9fbdb
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn4a16.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn4a16.sng b/src/pkg/image/png/testdata/pngsuite/basn4a16.sng
+new file mode 100644
+index 0000000000..d3b9b4722d
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn4a16.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn4a16.png
++IHDR {
++    width: 32; height: 32; bitdepth: 16;
++    using grayscale alpha;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++00000000 10840000 21080000 318c0000 42100000 52940000 63180000 739c0000 84200000 94a40000 a5280000 b5ac0000 c6300000 d6b40000 e7380000 f7bc0000 f7bc0000 e7380000 d6b40000 c6300000 b5ac0000 a5280000 94a40000 84200000 739c0000 63180000 52940000 42100000 318c0000 21080000 10840000 00000000 
++10840000 00001085 11a71085 234f1085 34f61085 469e1085 58461085 69ed1085 7b951085 8d3d1085 9ee41085 b08c1085 c2341085 d3db1085 e5831085 f72b1085 f72b1085 e5831085 d3db1085 c2341085 b08c1085 9ee41085 8d3d1085 7b951085 69ed1085 58461085 469e1085 34f61085 234f1085 11a71085 00001085 10840000 
++21080000 11a71085 00002109 12f62109 25ec2109 38e32109 4bd92109 5ed02109 71c62109 84bd2109 97b32109 aaa92109 bda02109 d0962109 e38d2109 f6832109 f6832109 e38d2109 d0962109 bda02109 aaa92109 97b32109 84bd2109 71c62109 5ed02109 4bd92109 38e32109 25ec2109 12f62109 00002109 11a71085 21080000 
++318c0000 234f1085 12f62109 0000318d 147a318d 28f5318d 3d70318d 51eb318d 6665318d 7ae0318d 8f5b318d a3d6318d b851318d cccb318d e146318d f5c1318d f5c1318d e146318d cccb318d b851318d a3d6318d 8f5b318d 7ae0318d 6665318d 51eb318d 3d70318d 28f5318d 147a318d 0000318d 12f62109 234f1085 318c0000 
++42100000 34f61085 25ec2109 147a318d 00004211 16424211 2c854211 42c84211 590a4211 6f4d4211 85904211 9bd24211 b2154211 c8584211 de9a4211 f4dd4211 f4dd4211 de9a4211 c8584211 b2154211 9bd24211 85904211 6f4d4211 590a4211 42c84211 2c854211 16424211 00004211 147a318d 25ec2109 34f61085 42100000 
++52940000 469e1085 38e32109 28f5318d 16424211 00005295 18615295 30c25295 49245295 61855295 79e75295 92485295 aaa95295 c30b5295 db6c5295 f3ce5295 f3ce5295 db6c5295 c30b5295 aaa95295 92485295 79e75295 61855295 49245295 30c25295 18615295 00005295 16424211 28f5318d 38e32109 469e1085 52940000 
++63180000 58461085 4bd92109 3d70318d 2c854211 18615295 00006319 1af26319 35e46319 50d76319 6bc96319 86bc6319 a1ae6319 bca06319 d7936319 f2856319 f2856319 d7936319 bca06319 a1ae6319 86bc6319 6bc96319 50d76319 35e46319 1af26319 00006319 18615295 2c854211 3d70318d 4bd92109 58461085 63180000 
++739c0000 69ed1085 5ed02109 51eb318d 42c84211 30c25295 1af26319 0000739d 1e1d739d 3c3b739d 5a59739d 7877739d 9695739d b4b3739d d2d1739d f0ef739d f0ef739d d2d1739d b4b3739d 9695739d 7877739d 5a59739d 3c3b739d 1e1d739d 0000739d 1af26319 30c25295 42c84211 51eb318d 5ed02109 69ed1085 739c0000 
++84200000 7b951085 71c62109 6665318d 590a4211 49245295 35e46319 1e1d739d 00008421 22218421 44438421 66658421 88878421 aaa98421 cccb8421 eeed8421 eeed8421 cccb8421 aaa98421 88878421 66658421 44438421 22218421 00008421 1e1d739d 35e46319 49245295 590a4211 6665318d 71c62109 7b951085 84200000 
++94a40000 8d3d1085 84bd2109 7ae0318d 6f4d4211 61855295 50d76319 3c3b739d 22218421 000094a5 276294a5 4ec494a5 762694a5 9d8994a5 c4eb94a5 ec4d94a5 ec4d94a5 c4eb94a5 9d8994a5 762694a5 4ec494a5 276294a5 000094a5 22218421 3c3b739d 50d76319 61855295 6f4d4211 7ae0318d 84bd2109 8d3d1085 94a40000 
++a5280000 9ee41085 97b32109 8f5b318d 85904211 79e75295 6bc96319 5a59739d 44438421 276294a5 0000a529 2e8ba529 5d16a529 8ba2a529 ba2da529 e8b9a529 e8b9a529 ba2da529 8ba2a529 5d16a529 2e8ba529 0000a529 276294a5 44438421 5a59739d 6bc96319 79e75295 85904211 8f5b318d 97b32109 9ee41085 a5280000 
++b5ac0000 b08c1085 aaa92109 a3d6318d 9bd24211 92485295 86bc6319 7877739d 66658421 4ec494a5 2e8ba529 0000b5ad 38e3b5ad 71c6b5ad aaa9b5ad e38db5ad e38db5ad aaa9b5ad 71c6b5ad 38e3b5ad 0000b5ad 2e8ba529 4ec494a5 66658421 7877739d 86bc6319 92485295 9bd24211 a3d6318d aaa92109 b08c1085 b5ac0000 
++c6300000 c2341085 bda02109 b851318d b2154211 aaa95295 a1ae6319 9695739d 88878421 762694a5 5d16a529 38e3b5ad 0000c631 4924c631 9248c631 db6cc631 db6cc631 9248c631 4924c631 0000c631 38e3b5ad 5d16a529 762694a5 88878421 9695739d a1ae6319 aaa95295 b2154211 b851318d bda02109 c2341085 c6300000 
++d6b40000 d3db1085 d0962109 cccb318d c8584211 c30b5295 bca06319 b4b3739d aaa98421 9d8994a5 8ba2a529 71c6b5ad 4924c631 0000d6b5 6665d6b5 cccbd6b5 cccbd6b5 6665d6b5 0000d6b5 4924c631 71c6b5ad 8ba2a529 9d8994a5 aaa98421 b4b3739d bca06319 c30b5295 c8584211 cccb318d d0962109 d3db1085 d6b40000 
++e7380000 e5831085 e38d2109 e146318d de9a4211 db6c5295 d7936319 d2d1739d cccb8421 c4eb94a5 ba2da529 aaa9b5ad 9248c631 6665d6b5 0000e739 aaa9e739 aaa9e739 0000e739 6665d6b5 9248c631 aaa9b5ad ba2da529 c4eb94a5 cccb8421 d2d1739d d7936319 db6c5295 de9a4211 e146318d e38d2109 e5831085 e7380000 
++f7bc0000 f72b1085 f6832109 f5c1318d f4dd4211 f3ce5295 f2856319 f0ef739d eeed8421 ec4d94a5 e8b9a529 e38db5ad db6cc631 cccbd6b5 aaa9e739 0000f7bd 0000f7bd aaa9e739 cccbd6b5 db6cc631 e38db5ad e8b9a529 ec4d94a5 eeed8421 f0ef739d f2856319 f3ce5295 f4dd4211 f5c1318d f6832109 f72b1085 f7bc0000 
++f7bc0000 f72b1085 f6832109 f5c1318d f4dd4211 f3ce5295 f2856319 f0ef739d eeed8421 ec4d94a5 e8b9a529 e38db5ad db6cc631 cccbd6b5 aaa9e739 0000f7bd 0000f7bd aaa9e739 cccbd6b5 db6cc631 e38db5ad e8b9a529 ec4d94a5 eeed8421 f0ef739d f2856319 f3ce5295 f4dd4211 f5c1318d f6832109 f72b1085 f7bc0000 
++e7380000 e5831085 e38d2109 e146318d de9a4211 db6c5295 d7936319 d2d1739d cccb8421 c4eb94a5 ba2da529 aaa9b5ad 9248c631 6665d6b5 0000e739 aaa9e739 aaa9e739 0000e739 6665d6b5 9248c631 aaa9b5ad ba2da529 c4eb94a5 cccb8421 d2d1739d d7936319 db6c5295 de9a4211 e146318d e38d2109 e5831085 e7380000 
++d6b40000 d3db1085 d0962109 cccb318d c8584211 c30b5295 bca06319 b4b3739d aaa98421 9d8994a5 8ba2a529 71c6b5ad 4924c631 0000d6b5 6665d6b5 cccbd6b5 cccbd6b5 6665d6b5 0000d6b5 4924c631 71c6b5ad 8ba2a529 9d8994a5 aaa98421 b4b3739d bca06319 c30b5295 c8584211 cccb318d d0962109 d3db1085 d6b40000 
++c6300000 c2341085 bda02109 b851318d b2154211 aaa95295 a1ae6319 9695739d 88878421 762694a5 5d16a529 38e3b5ad 0000c631 4924c631 9248c631 db6cc631 db6cc631 9248c631 4924c631 0000c631 38e3b5ad 5d16a529 762694a5 88878421 9695739d a1ae6319 aaa95295 b2154211 b851318d bda02109 c2341085 c6300000 
++b5ac0000 b08c1085 aaa92109 a3d6318d 9bd24211 92485295 86bc6319 7877739d 66658421 4ec494a5 2e8ba529 0000b5ad 38e3b5ad 71c6b5ad aaa9b5ad e38db5ad e38db5ad aaa9b5ad 71c6b5ad 38e3b5ad 0000b5ad 2e8ba529 4ec494a5 66658421 7877739d 86bc6319 92485295 9bd24211 a3d6318d aaa92109 b08c1085 b5ac0000 
++a5280000 9ee41085 97b32109 8f5b318d 85904211 79e75295 6bc96319 5a59739d 44438421 276294a5 0000a529 2e8ba529 5d16a529 8ba2a529 ba2da529 e8b9a529 e8b9a529 ba2da529 8ba2a529 5d16a529 2e8ba529 0000a529 276294a5 44438421 5a59739d 6bc96319 79e75295 85904211 8f5b318d 97b32109 9ee41085 a5280000 
++94a40000 8d3d1085 84bd2109 7ae0318d 6f4d4211 61855295 50d76319 3c3b739d 22218421 000094a5 276294a5 4ec494a5 762694a5 9d8994a5 c4eb94a5 ec4d94a5 ec4d94a5 c4eb94a5 9d8994a5 762694a5 4ec494a5 276294a5 000094a5 22218421 3c3b739d 50d76319 61855295 6f4d4211 7ae0318d 84bd2109 8d3d1085 94a40000 
++84200000 7b951085 71c62109 6665318d 590a4211 49245295 35e46319 1e1d739d 00008421 22218421 44438421 66658421 88878421 aaa98421 cccb8421 eeed8421 eeed8421 cccb8421 aaa98421 88878421 66658421 44438421 22218421 00008421 1e1d739d 35e46319 49245295 590a4211 6665318d 71c62109 7b951085 84200000 
++739c0000 69ed1085 5ed02109 51eb318d 42c84211 30c25295 1af26319 0000739d 1e1d739d 3c3b739d 5a59739d 7877739d 9695739d b4b3739d d2d1739d f0ef739d f0ef739d d2d1739d b4b3739d 9695739d 7877739d 5a59739d 3c3b739d 1e1d739d 0000739d 1af26319 30c25295 42c84211 51eb318d 5ed02109 69ed1085 739c0000 
++63180000 58461085 4bd92109 3d70318d 2c854211 18615295 00006319 1af26319 35e46319 50d76319 6bc96319 86bc6319 a1ae6319 bca06319 d7936319 f2856319 f2856319 d7936319 bca06319 a1ae6319 86bc6319 6bc96319 50d76319 35e46319 1af26319 00006319 18615295 2c854211 3d70318d 4bd92109 58461085 63180000 
++52940000 469e1085 38e32109 28f5318d 16424211 00005295 18615295 30c25295 49245295 61855295 79e75295 92485295 aaa95295 c30b5295 db6c5295 f3ce5295 f3ce5295 db6c5295 c30b5295 aaa95295 92485295 79e75295 61855295 49245295 30c25295 18615295 00005295 16424211 28f5318d 38e32109 469e1085 52940000 
++42100000 34f61085 25ec2109 147a318d 00004211 16424211 2c854211 42c84211 590a4211 6f4d4211 85904211 9bd24211 b2154211 c8584211 de9a4211 f4dd4211 f4dd4211 de9a4211 c8584211 b2154211 9bd24211 85904211 6f4d4211 590a4211 42c84211 2c854211 16424211 00004211 147a318d 25ec2109 34f61085 42100000 
++318c0000 234f1085 12f62109 0000318d 147a318d 28f5318d 3d70318d 51eb318d 6665318d 7ae0318d 8f5b318d a3d6318d b851318d cccb318d e146318d f5c1318d f5c1318d e146318d cccb318d b851318d a3d6318d 8f5b318d 7ae0318d 6665318d 51eb318d 3d70318d 28f5318d 147a318d 0000318d 12f62109 234f1085 318c0000 
++21080000 11a71085 00002109 12f62109 25ec2109 38e32109 4bd92109 5ed02109 71c62109 84bd2109 97b32109 aaa92109 bda02109 d0962109 e38d2109 f6832109 f6832109 e38d2109 d0962109 bda02109 aaa92109 97b32109 84bd2109 71c62109 5ed02109 4bd92109 38e32109 25ec2109 12f62109 00002109 11a71085 21080000 
++10840000 00001085 11a71085 234f1085 34f61085 469e1085 58461085 69ed1085 7b951085 8d3d1085 9ee41085 b08c1085 c2341085 d3db1085 e5831085 f72b1085 f72b1085 e5831085 d3db1085 c2341085 b08c1085 9ee41085 8d3d1085 7b951085 69ed1085 58461085 469e1085 34f61085 234f1085 11a71085 00001085 10840000 
++00000000 10840000 21080000 318c0000 42100000 52940000 63180000 739c0000 84200000 94a40000 a5280000 b5ac0000 c6300000 d6b40000 e7380000 f7bc0000 f7bc0000 e7380000 d6b40000 c6300000 b5ac0000 a5280000 94a40000 84200000 739c0000 63180000 52940000 42100000 318c0000 21080000 10840000 00000000 
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn6a08.png b/src/pkg/image/png/testdata/pngsuite/basn6a08.png
+new file mode 100644
+index 0000000000..6106230854
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn6a08.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn6a08.sng b/src/pkg/image/png/testdata/pngsuite/basn6a08.sng
+new file mode 100644
+index 0000000000..c1e0bf475c
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn6a08.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn6a08.png
++IHDR {
++    width: 32; height: 32; bitdepth: 8;
++    using color alpha;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++ff000800 ff000808 ff000810 ff000818 ff000820 ff000829 ff000831 ff000839 ff000841 ff00084a ff000852 ff00085a ff000862 ff00086a ff000873 ff00087b ff000883 ff00088b ff000894 ff00089c ff0008a4 ff0008ac ff0008b4 ff0008bd ff0008c5 ff0008cd ff0008d5 ff0008de ff0008e6 ff0008ee ff0008f6 ff0008ff 
++ff1f0800 ff1f0808 ff1f0810 ff1f0818 ff1f0820 ff1f0829 ff1f0831 ff1f0839 ff1f0841 ff1f084a ff1f0852 ff1f085a ff1f0862 ff1f086a ff1f0873 ff1f087b ff1f0883 ff1f088b ff1f0894 ff1f089c ff1f08a4 ff1f08ac ff1f08b4 ff1f08bd ff1f08c5 ff1f08cd ff1f08d5 ff1f08de ff1f08e6 ff1f08ee ff1f08f6 ff1f08ff 
++ff3f0800 ff3f0808 ff3f0810 ff3f0818 ff3f0820 ff3f0829 ff3f0831 ff3f0839 ff3f0841 ff3f084a ff3f0852 ff3f085a ff3f0862 ff3f086a ff3f0873 ff3f087b ff3f0883 ff3f088b ff3f0894 ff3f089c ff3f08a4 ff3f08ac ff3f08b4 ff3f08bd ff3f08c5 ff3f08cd ff3f08d5 ff3f08de ff3f08e6 ff3f08ee ff3f08f6 ff3f08ff 
++ff5f0800 ff5f0808 ff5f0810 ff5f0818 ff5f0820 ff5f0829 ff5f0831 ff5f0839 ff5f0841 ff5f084a ff5f0852 ff5f085a ff5f0862 ff5f086a ff5f0873 ff5f087b ff5f0883 ff5f088b ff5f0894 ff5f089c ff5f08a4 ff5f08ac ff5f08b4 ff5f08bd ff5f08c5 ff5f08cd ff5f08d5 ff5f08de ff5f08e6 ff5f08ee ff5f08f6 ff5f08ff 
++ff7f0700 ff7f0708 ff7f0710 ff7f0718 ff7f0720 ff7f0729 ff7f0731 ff7f0739 ff7f0741 ff7f074a ff7f0752 ff7f075a ff7f0762 ff7f076a ff7f0773 ff7f077b ff7f0783 ff7f078b ff7f0794 ff7f079c ff7f07a4 ff7f07ac ff7f07b4 ff7f07bd ff7f07c5 ff7f07cd ff7f07d5 ff7f07de ff7f07e6 ff7f07ee ff7f07f6 ff7f07ff 
++ff9f0700 ff9f0708 ff9f0710 ff9f0718 ff9f0720 ff9f0729 ff9f0731 ff9f0739 ff9f0741 ff9f074a ff9f0752 ff9f075a ff9f0762 ff9f076a ff9f0773 ff9f077b ff9f0783 ff9f078b ff9f0794 ff9f079c ff9f07a4 ff9f07ac ff9f07b4 ff9f07bd ff9f07c5 ff9f07cd ff9f07d5 ff9f07de ff9f07e6 ff9f07ee ff9f07f6 ff9f07ff 
++ffbf0700 ffbf0708 ffbf0710 ffbf0718 ffbf0720 ffbf0729 ffbf0731 ffbf0739 ffbf0741 ffbf074a ffbf0752 ffbf075a ffbf0762 ffbf076a ffbf0773 ffbf077b ffbf0783 ffbf078b ffbf0794 ffbf079c ffbf07a4 ffbf07ac ffbf07b4 ffbf07bd ffbf07c5 ffbf07cd ffbf07d5 ffbf07de ffbf07e6 ffbf07ee ffbf07f6 ffbf07ff 
++ffdf0700 ffdf0708 ffdf0710 ffdf0718 ffdf0720 ffdf0729 ffdf0731 ffdf0739 ffdf0741 ffdf074a ffdf0752 ffdf075a ffdf0762 ffdf076a ffdf0773 ffdf077b ffdf0783 ffdf078b ffdf0794 ffdf079c ffdf07a4 ffdf07ac ffdf07b4 ffdf07bd ffdf07c5 ffdf07cd ffdf07d5 ffdf07de ffdf07e6 ffdf07ee ffdf07f6 ffdf07ff 
++ffff0600 ffff0608 ffff0610 ffff0618 ffff0620 ffff0629 ffff0631 ffff0639 ffff0641 ffff064a ffff0652 ffff065a ffff0662 ffff066a ffff0673 ffff067b ffff0683 ffff068b ffff0694 ffff069c ffff06a4 ffff06ac ffff06b4 ffff06bd ffff06c5 ffff06cd ffff06d5 ffff06de ffff06e6 ffff06ee ffff06f6 ffff06ff 
++e0ff0600 e0ff0608 e0ff0610 e0ff0618 e0ff0620 e0ff0629 e0ff0631 e0ff0639 e0ff0641 e0ff064a e0ff0652 e0ff065a e0ff0662 e0ff066a e0ff0673 e0ff067b e0ff0683 e0ff068b e0ff0694 e0ff069c e0ff06a4 e0ff06ac e0ff06b4 e0ff06bd e0ff06c5 e0ff06cd e0ff06d5 e0ff06de e0ff06e6 e0ff06ee e0ff06f6 e0ff06ff 
++c0ff0600 c0ff0608 c0ff0610 c0ff0618 c0ff0620 c0ff0629 c0ff0631 c0ff0639 c0ff0641 c0ff064a c0ff0652 c0ff065a c0ff0662 c0ff066a c0ff0673 c0ff067b c0ff0683 c0ff068b c0ff0694 c0ff069c c0ff06a4 c0ff06ac c0ff06b4 c0ff06bd c0ff06c5 c0ff06cd c0ff06d5 c0ff06de c0ff06e6 c0ff06ee c0ff06f6 c0ff06ff 
++a0ff0500 a0ff0508 a0ff0510 a0ff0518 a0ff0520 a0ff0529 a0ff0531 a0ff0539 a0ff0541 a0ff054a a0ff0552 a0ff055a a0ff0562 a0ff056a a0ff0573 a0ff057b a0ff0583 a0ff058b a0ff0594 a0ff059c a0ff05a4 a0ff05ac a0ff05b4 a0ff05bd a0ff05c5 a0ff05cd a0ff05d5 a0ff05de a0ff05e6 a0ff05ee a0ff05f6 a0ff05ff 
++80ff0500 80ff0508 80ff0510 80ff0518 80ff0520 80ff0529 80ff0531 80ff0539 80ff0541 80ff054a 80ff0552 80ff055a 80ff0562 80ff056a 80ff0573 80ff057b 80ff0583 80ff058b 80ff0594 80ff059c 80ff05a4 80ff05ac 80ff05b4 80ff05bd 80ff05c5 80ff05cd 80ff05d5 80ff05de 80ff05e6 80ff05ee 80ff05f6 80ff05ff 
++60ff0500 60ff0508 60ff0510 60ff0518 60ff0520 60ff0529 60ff0531 60ff0539 60ff0541 60ff054a 60ff0552 60ff055a 60ff0562 60ff056a 60ff0573 60ff057b 60ff0583 60ff058b 60ff0594 60ff059c 60ff05a4 60ff05ac 60ff05b4 60ff05bd 60ff05c5 60ff05cd 60ff05d5 60ff05de 60ff05e6 60ff05ee 60ff05f6 60ff05ff 
++40ff0500 40ff0508 40ff0510 40ff0518 40ff0520 40ff0529 40ff0531 40ff0539 40ff0541 40ff054a 40ff0552 40ff055a 40ff0562 40ff056a 40ff0573 40ff057b 40ff0583 40ff058b 40ff0594 40ff059c 40ff05a4 40ff05ac 40ff05b4 40ff05bd 40ff05c5 40ff05cd 40ff05d5 40ff05de 40ff05e6 40ff05ee 40ff05f6 40ff05ff 
++20ff0400 20ff0408 20ff0410 20ff0418 20ff0420 20ff0429 20ff0431 20ff0439 20ff0441 20ff044a 20ff0452 20ff045a 20ff0462 20ff046a 20ff0473 20ff047b 20ff0483 20ff048b 20ff0494 20ff049c 20ff04a4 20ff04ac 20ff04b4 20ff04bd 20ff04c5 20ff04cd 20ff04d5 20ff04de 20ff04e6 20ff04ee 20ff04f6 20ff04ff 
++04ff0000 04ff0008 04ff0010 04ff0018 04ff0020 04ff0029 04ff0031 04ff0039 04ff0041 04ff004a 04ff0052 04ff005a 04ff0062 04ff006a 04ff0073 04ff007b 04ff0083 04ff008b 04ff0094 04ff009c 04ff00a4 04ff00ac 04ff00b4 04ff00bd 04ff00c5 04ff00cd 04ff00d5 04ff00de 04ff00e6 04ff00ee 04ff00f6 04ff00ff 
++04ff1f00 04ff1f08 04ff1f10 04ff1f18 04ff1f20 04ff1f29 04ff1f31 04ff1f39 04ff1f41 04ff1f4a 04ff1f52 04ff1f5a 04ff1f62 04ff1f6a 04ff1f73 04ff1f7b 04ff1f83 04ff1f8b 04ff1f94 04ff1f9c 04ff1fa4 04ff1fac 04ff1fb4 04ff1fbd 04ff1fc5 04ff1fcd 04ff1fd5 04ff1fde 04ff1fe6 04ff1fee 04ff1ff6 04ff1fff 
++03ff3f00 03ff3f08 03ff3f10 03ff3f18 03ff3f20 03ff3f29 03ff3f31 03ff3f39 03ff3f41 03ff3f4a 03ff3f52 03ff3f5a 03ff3f62 03ff3f6a 03ff3f73 03ff3f7b 03ff3f83 03ff3f8b 03ff3f94 03ff3f9c 03ff3fa4 03ff3fac 03ff3fb4 03ff3fbd 03ff3fc5 03ff3fcd 03ff3fd5 03ff3fde 03ff3fe6 03ff3fee 03ff3ff6 03ff3fff 
++03ff5f00 03ff5f08 03ff5f10 03ff5f18 03ff5f20 03ff5f29 03ff5f31 03ff5f39 03ff5f41 03ff5f4a 03ff5f52 03ff5f5a 03ff5f62 03ff5f6a 03ff5f73 03ff5f7b 03ff5f83 03ff5f8b 03ff5f94 03ff5f9c 03ff5fa4 03ff5fac 03ff5fb4 03ff5fbd 03ff5fc5 03ff5fcd 03ff5fd5 03ff5fde 03ff5fe6 03ff5fee 03ff5ff6 03ff5fff 
++03ff7f00 03ff7f08 03ff7f10 03ff7f18 03ff7f20 03ff7f29 03ff7f31 03ff7f39 03ff7f41 03ff7f4a 03ff7f52 03ff7f5a 03ff7f62 03ff7f6a 03ff7f73 03ff7f7b 03ff7f83 03ff7f8b 03ff7f94 03ff7f9c 03ff7fa4 03ff7fac 03ff7fb4 03ff7fbd 03ff7fc5 03ff7fcd 03ff7fd5 03ff7fde 03ff7fe6 03ff7fee 03ff7ff6 03ff7fff 
++03ff9f00 03ff9f08 03ff9f10 03ff9f18 03ff9f20 03ff9f29 03ff9f31 03ff9f39 03ff9f41 03ff9f4a 03ff9f52 03ff9f5a 03ff9f62 03ff9f6a 03ff9f73 03ff9f7b 03ff9f83 03ff9f8b 03ff9f94 03ff9f9c 03ff9fa4 03ff9fac 03ff9fb4 03ff9fbd 03ff9fc5 03ff9fcd 03ff9fd5 03ff9fde 03ff9fe6 03ff9fee 03ff9ff6 03ff9fff 
++02ffbf00 02ffbf08 02ffbf10 02ffbf18 02ffbf20 02ffbf29 02ffbf31 02ffbf39 02ffbf41 02ffbf4a 02ffbf52 02ffbf5a 02ffbf62 02ffbf6a 02ffbf73 02ffbf7b 02ffbf83 02ffbf8b 02ffbf94 02ffbf9c 02ffbfa4 02ffbfac 02ffbfb4 02ffbfbd 02ffbfc5 02ffbfcd 02ffbfd5 02ffbfde 02ffbfe6 02ffbfee 02ffbff6 02ffbfff 
++02ffdf00 02ffdf08 02ffdf10 02ffdf18 02ffdf20 02ffdf29 02ffdf31 02ffdf39 02ffdf41 02ffdf4a 02ffdf52 02ffdf5a 02ffdf62 02ffdf6a 02ffdf73 02ffdf7b 02ffdf83 02ffdf8b 02ffdf94 02ffdf9c 02ffdfa4 02ffdfac 02ffdfb4 02ffdfbd 02ffdfc5 02ffdfcd 02ffdfd5 02ffdfde 02ffdfe6 02ffdfee 02ffdff6 02ffdfff 
++02ffff00 02ffff08 02ffff10 02ffff18 02ffff20 02ffff29 02ffff31 02ffff39 02ffff41 02ffff4a 02ffff52 02ffff5a 02ffff62 02ffff6a 02ffff73 02ffff7b 02ffff83 02ffff8b 02ffff94 02ffff9c 02ffffa4 02ffffac 02ffffb4 02ffffbd 02ffffc5 02ffffcd 02ffffd5 02ffffde 02ffffe6 02ffffee 02fffff6 02ffffff 
++01e0ff00 01e0ff08 01e0ff10 01e0ff18 01e0ff20 01e0ff29 01e0ff31 01e0ff39 01e0ff41 01e0ff4a 01e0ff52 01e0ff5a 01e0ff62 01e0ff6a 01e0ff73 01e0ff7b 01e0ff83 01e0ff8b 01e0ff94 01e0ff9c 01e0ffa4 01e0ffac 01e0ffb4 01e0ffbd 01e0ffc5 01e0ffcd 01e0ffd5 01e0ffde 01e0ffe6 01e0ffee 01e0fff6 01e0ffff 
++01c0ff00 01c0ff08 01c0ff10 01c0ff18 01c0ff20 01c0ff29 01c0ff31 01c0ff39 01c0ff41 01c0ff4a 01c0ff52 01c0ff5a 01c0ff62 01c0ff6a 01c0ff73 01c0ff7b 01c0ff83 01c0ff8b 01c0ff94 01c0ff9c 01c0ffa4 01c0ffac 01c0ffb4 01c0ffbd 01c0ffc5 01c0ffcd 01c0ffd5 01c0ffde 01c0ffe6 01c0ffee 01c0fff6 01c0ffff 
++01a0ff00 01a0ff08 01a0ff10 01a0ff18 01a0ff20 01a0ff29 01a0ff31 01a0ff39 01a0ff41 01a0ff4a 01a0ff52 01a0ff5a 01a0ff62 01a0ff6a 01a0ff73 01a0ff7b 01a0ff83 01a0ff8b 01a0ff94 01a0ff9c 01a0ffa4 01a0ffac 01a0ffb4 01a0ffbd 01a0ffc5 01a0ffcd 01a0ffd5 01a0ffde 01a0ffe6 01a0ffee 01a0fff6 01a0ffff 
++0180ff00 0180ff08 0180ff10 0180ff18 0180ff20 0180ff29 0180ff31 0180ff39 0180ff41 0180ff4a 0180ff52 0180ff5a 0180ff62 0180ff6a 0180ff73 0180ff7b 0180ff83 0180ff8b 0180ff94 0180ff9c 0180ffa4 0180ffac 0180ffb4 0180ffbd 0180ffc5 0180ffcd 0180ffd5 0180ffde 0180ffe6 0180ffee 0180fff6 0180ffff 
++0060ff00 0060ff08 0060ff10 0060ff18 0060ff20 0060ff29 0060ff31 0060ff39 0060ff41 0060ff4a 0060ff52 0060ff5a 0060ff62 0060ff6a 0060ff73 0060ff7b 0060ff83 0060ff8b 0060ff94 0060ff9c 0060ffa4 0060ffac 0060ffb4 0060ffbd 0060ffc5 0060ffcd 0060ffd5 0060ffde 0060ffe6 0060ffee 0060fff6 0060ffff 
++0040ff00 0040ff08 0040ff10 0040ff18 0040ff20 0040ff29 0040ff31 0040ff39 0040ff41 0040ff4a 0040ff52 0040ff5a 0040ff62 0040ff6a 0040ff73 0040ff7b 0040ff83 0040ff8b 0040ff94 0040ff9c 0040ffa4 0040ffac 0040ffb4 0040ffbd 0040ffc5 0040ffcd 0040ffd5 0040ffde 0040ffe6 0040ffee 0040fff6 0040ffff 
++0020ff00 0020ff08 0020ff10 0020ff18 0020ff20 0020ff29 0020ff31 0020ff39 0020ff41 0020ff4a 0020ff52 0020ff5a 0020ff62 0020ff6a 0020ff73 0020ff7b 0020ff83 0020ff8b 0020ff94 0020ff9c 0020ffa4 0020ffac 0020ffb4 0020ffbd 0020ffc5 0020ffcd 0020ffd5 0020ffde 0020ffe6 0020ffee 0020fff6 0020ffff 
++}
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn6a16.png b/src/pkg/image/png/testdata/pngsuite/basn6a16.png
+new file mode 100644
+index 0000000000..a9bf3cb461
+Binary files /dev/null and b/src/pkg/image/png/testdata/pngsuite/basn6a16.png differ
+diff --git a/src/pkg/image/png/testdata/pngsuite/basn6a16.sng b/src/pkg/image/png/testdata/pngsuite/basn6a16.sng
+new file mode 100644
+index 0000000000..13c70a4d57
+--- /dev/null
++++ b/src/pkg/image/png/testdata/pngsuite/basn6a16.sng
+@@ -0,0 +1,41 @@
++#SNG: from basn6a16.png
++IHDR {
++    width: 32; height: 32; bitdepth: 16;
++    using color alpha;
++}
++gAMA {1.0000}
++IMAGE {
++    pixels hex
++ffffffff00000000 f7bcffff00000000 ef7affff00000000 e738ffff00000000 def6ffff00000000 d6b4ffff00000000 ce72ffff00000000 c630ffff00000000 bdeeffff00000000 b5acffff00000000 ad6affff00000000 a528ffff00000000 9ce6ffff00000000 94a4ffff00000000 8c62ffff00000000 8420ffff00000000 7bdeffff00000000 739cffff00000000 6b5affff00000000 6318ffff00000000 5ad6ffff00000000 5294ffff00000000 4a52ffff00000000 4210ffff00000000 39ceffff00000000 318cffff00000000 294affff00000000 2108ffff00000000 18c6ffff00000000 1084ffff00000000 0842ffff00000000 0000ffff00000000 
++fffff7bc00000000 ffffffff00001085 f72bffff00001085 ee57ffff00001085 e583ffff00001085 dcafffff00001085 d3dbffff00001085 cb08ffff00001085 c234ffff00001085 b960ffff00001085 b08cffff00001085 a7b8ffff00001085 9ee4ffff00001085 9611ffff00001085 8d3dffff00001085 8469ffff00001085 7b95ffff00001085 72c1ffff00001085 69edffff00001085 611affff00001085 5846ffff00001085 4f72ffff00001085 469effff00001085 3dcaffff00001085 34f6ffff00001085 2c23ffff00001085 234fffff00001085 1a7bffff00001085 11a7ffff00001085 08d3ffff00001085 0000ffff00001085 0000f7bc08420000 
++ffffef7a00000000 fffff72b00001085 ffffffff00002109 f683ffff00002109 ed08ffff00002109 e38dffff00002109 da12ffff00002109 d096ffff00002109 c71bffff00002109 bda0ffff00002109 b425ffff00002109 aaa9ffff00002109 a12effff00002109 97b3ffff00002109 8e38ffff00002109 84bdffff00002109 7b41ffff00002109 71c6ffff00002109 684bffff00002109 5ed0ffff00002109 5554ffff00002109 4bd9ffff00002109 425effff00002109 38e3ffff00002109 2f68ffff00002109 25ecffff00002109 1c71ffff00002109 12f6ffff00002109 097bffff00002109 0000ffff00002109 0000f72b08d31085 0000ef7a10840000 
++ffffe73800000000 ffffee5700001085 fffff68300002109 ffffffff0000318d f5c1ffff0000318d eb84ffff0000318d e146ffff0000318d d709ffff0000318d ccccffff0000318d c28effff0000318d b851ffff0000318d ae13ffff0000318d a3d6ffff0000318d 9998ffff0000318d 8f5bffff0000318d 851effff0000318d 7ae0ffff0000318d 70a3ffff0000318d 6665ffff0000318d 5c28ffff0000318d 51ebffff0000318d 47adffff0000318d 3d70ffff0000318d 3332ffff0000318d 28f5ffff0000318d 1eb8ffff0000318d 147affff0000318d 0a3dffff0000318d 0000ffff0000318d 0000f683097b2109 0000ee5711a71085 0000e73818c60000 
++ffffdef600000000 ffffe58300001085 ffffed0800002109 fffff5c10000318d ffffffff00004211 f4ddffff00004211 e9bcffff00004211 de9affff00004211 d379ffff00004211 c858ffff00004211 bd36ffff00004211 b215ffff00004211 a6f4ffff00004211 9bd2ffff00004211 90b1ffff00004211 8590ffff00004211 7a6effff00004211 6f4dffff00004211 642cffff00004211 590affff00004211 4de9ffff00004211 42c8ffff00004211 37a6ffff00004211 2c85ffff00004211 2164ffff00004211 1642ffff00004211 0b21ffff00004211 0000ffff00004211 0000f5c10a3d318d 0000ed0812f62109 0000e5831a7b1085 0000def621080000 
++ffffd6b400000000 ffffdcaf00001085 ffffe38d00002109 ffffeb840000318d fffff4dd00004211 ffffffff00005295 f3ceffff00005295 e79dffff00005295 db6cffff00005295 cf3cffff00005295 c30bffff00005295 b6daffff00005295 aaa9ffff00005295 9e79ffff00005295 9248ffff00005295 8617ffff00005295 79e7ffff00005295 6db6ffff00005295 6185ffff00005295 5554ffff00005295 4924ffff00005295 3cf3ffff00005295 30c2ffff00005295 2492ffff00005295 1861ffff00005295 0c30ffff00005295 0000ffff00005295 0000f4dd0b214211 0000eb84147a318d 0000e38d1c712109 0000dcaf234f1085 0000d6b4294a0000 
++ffffce7200000000 ffffd3db00001085 ffffda1200002109 ffffe1460000318d ffffe9bc00004211 fffff3ce00005295 ffffffff00006319 f285ffff00006319 e50cffff00006319 d793ffff00006319 ca1affff00006319 bca0ffff00006319 af27ffff00006319 a1aeffff00006319 9435ffff00006319 86bcffff00006319 7942ffff00006319 6bc9ffff00006319 5e50ffff00006319 50d7ffff00006319 435effff00006319 35e4ffff00006319 286bffff00006319 1af2ffff00006319 0d79ffff00006319 0000ffff00006319 0000f3ce0c305295 0000e9bc16424211 0000e1461eb8318d 0000da1225ec2109 0000d3db2c231085 0000ce72318c0000 
++ffffc63000000000 ffffcb0800001085 ffffd09600002109 ffffd7090000318d ffffde9a00004211 ffffe79d00005295 fffff28500006319 ffffffff0000739d f0f0ffff0000739d e1e1ffff0000739d d2d2ffff0000739d c3c3ffff0000739d b4b3ffff0000739d a5a4ffff0000739d 9695ffff0000739d 8786ffff0000739d 7877ffff0000739d 6968ffff0000739d 5a59ffff0000739d 4b4affff0000739d 3c3bffff0000739d 2d2cffff0000739d 1e1dffff0000739d 0f0effff0000739d 0000ffff0000739d 0000f2850d796319 0000e79d18615295 0000de9a21644211 0000d70928f5318d 0000d0962f682109 0000cb0834f61085 0000c63039ce0000 
++ffffbdee00000000 ffffc23400001085 ffffc71b00002109 ffffcccc0000318d ffffd37900004211 ffffdb6c00005295 ffffe50c00006319 fffff0f00000739d ffffffff00008421 eeeeffff00008421 ddddffff00008421 ccccffff00008421 bbbaffff00008421 aaa9ffff00008421 9998ffff00008421 8887ffff00008421 7776ffff00008421 6665ffff00008421 5554ffff00008421 4443ffff00008421 3332ffff00008421 2221ffff00008421 1110ffff00008421 0000ffff00008421 0000f0f00f0e739d 0000e50c1af26319 0000db6c24925295 0000d3792c854211 0000cccc3332318d 0000c71b38e32109 0000c2343dca1085 0000bdee42100000 
++ffffb5ac00000000 ffffb96000001085 ffffbda000002109 ffffc28e0000318d ffffc85800004211 ffffcf3c00005295 ffffd79300006319 ffffe1e10000739d ffffeeee00008421 ffffffff000094a5 ec4dffff000094a5 d89cffff000094a5 c4ebffff000094a5 b13affff000094a5 9d89ffff000094a5 89d8ffff000094a5 7626ffff000094a5 6275ffff000094a5 4ec4ffff000094a5 3b13ffff000094a5 2762ffff000094a5 13b1ffff000094a5 0000ffff000094a5 0000eeee11108421 0000e1e11e1d739d 0000d793286b6319 0000cf3c30c25295 0000c85837a64211 0000c28e3d70318d 0000bda0425e2109 0000b960469e1085 0000b5ac4a520000 
++ffffad6a00000000 ffffb08c00001085 ffffb42500002109 ffffb8510000318d ffffbd3600004211 ffffc30b00005295 ffffca1a00006319 ffffd2d20000739d ffffdddd00008421 ffffec4d000094a5 ffffffff0000a529 e8b9ffff0000a529 d173ffff0000a529 ba2dffff0000a529 a2e8ffff0000a529 8ba2ffff0000a529 745cffff0000a529 5d16ffff0000a529 45d1ffff0000a529 2e8bffff0000a529 1745ffff0000a529 0000ffff0000a529 0000ec4d13b194a5 0000dddd22218421 0000d2d22d2c739d 0000ca1a35e46319 0000c30b3cf35295 0000bd3642c84211 0000b85147ad318d 0000b4254bd92109 0000b08c4f721085 0000ad6a52940000 
++ffffa52800000000 ffffa7b800001085 ffffaaa900002109 ffffae130000318d ffffb21500004211 ffffb6da00005295 ffffbca000006319 ffffc3c30000739d ffffcccc00008421 ffffd89c000094a5 ffffe8b90000a529 ffffffff0000b5ad e38dffff0000b5ad c71bffff0000b5ad aaa9ffff0000b5ad 8e38ffff0000b5ad 71c6ffff0000b5ad 5554ffff0000b5ad 38e3ffff0000b5ad 1c71ffff0000b5ad 0000ffff0000b5ad 0000e8b91745a529 0000d89c276294a5 0000cccc33328421 0000c3c33c3b739d 0000bca0435e6319 0000b6da49245295 0000b2154de94211 0000ae1351eb318d 0000aaa955542109 0000a7b858461085 0000a5285ad60000 
++ffff9ce600000000 ffff9ee400001085 ffffa12e00002109 ffffa3d60000318d ffffa6f400004211 ffffaaa900005295 ffffaf2700006319 ffffb4b30000739d ffffbbba00008421 ffffc4eb000094a5 ffffd1730000a529 ffffe38d0000b5ad ffffffff0000c631 db6cffff0000c631 b6daffff0000c631 9248ffff0000c631 6db6ffff0000c631 4924ffff0000c631 2492ffff0000c631 0000ffff0000c631 0000e38d1c71b5ad 0000d1732e8ba529 0000c4eb3b1394a5 0000bbba44438421 0000b4b34b4a739d 0000af2750d76319 0000aaa955545295 0000a6f4590a4211 0000a3d65c28318d 0000a12e5ed02109 00009ee4611a1085 00009ce663180000 
++ffff94a400000000 ffff961100001085 ffff97b300002109 ffff99980000318d ffff9bd200004211 ffff9e7900005295 ffffa1ae00006319 ffffa5a40000739d ffffaaa900008421 ffffb13a000094a5 ffffba2d0000a529 ffffc71b0000b5ad ffffdb6c0000c631 ffffffff0000d6b5 ccccffff0000d6b5 9998ffff0000d6b5 6665ffff0000d6b5 3332ffff0000d6b5 0000ffff0000d6b5 0000db6c2492c631 0000c71b38e3b5ad 0000ba2d45d1a529 0000b13a4ec494a5 0000aaa955548421 0000a5a45a59739d 0000a1ae5e506319 00009e7961855295 00009bd2642c4211 000099986665318d 000097b3684b2109 0000961169ed1085 000094a46b5a0000 
++ffff8c6200000000 ffff8d3d00001085 ffff8e3800002109 ffff8f5b0000318d ffff90b100004211 ffff924800005295 ffff943500006319 ffff96950000739d ffff999800008421 ffff9d89000094a5 ffffa2e80000a529 ffffaaa90000b5ad ffffb6da0000c631 ffffcccc0000d6b5 ffffffff0000e739 aaa9ffff0000e739 5554ffff0000e739 0000ffff0000e739 0000cccc3332d6b5 0000b6da4924c631 0000aaa95554b5ad 0000a2e85d16a529 00009d89627594a5 0000999866658421 000096956968739d 000094356bc96319 000092486db65295 000090b16f4d4211 00008f5b70a3318d 00008e3871c62109 00008d3d72c11085 00008c62739c0000 
++ffff842000000000 ffff846900001085 ffff84bd00002109 ffff851e0000318d ffff859000004211 ffff861700005295 ffff86bc00006319 ffff87860000739d ffff888700008421 ffff89d8000094a5 ffff8ba20000a529 ffff8e380000b5ad ffff92480000c631 ffff99980000d6b5 ffffaaa90000e739 ffffffff0000f7bd 0000ffff0000f7bd 0000aaa95554e739 000099986665d6b5 000092486db6c631 00008e3871c6b5ad 00008ba2745ca529 000089d8762694a5 0000888777768421 000087867877739d 000086bc79426319 0000861779e75295 000085907a6e4211 0000851e7ae0318d 000084bd7b412109 000084697b951085 000084207bde0000 
++ffff7bde00000000 ffff7b9500001085 ffff7b4100002109 ffff7ae00000318d ffff7a6e00004211 ffff79e700005295 ffff794200006319 ffff78770000739d ffff777600008421 ffff7626000094a5 ffff745c0000a529 ffff71c60000b5ad ffff6db60000c631 ffff66650000d6b5 ffff55540000e739 ffff00000000f7bd 00000000fffff7bd 00005554aaa9e739 000066659998d6b5 00006db69248c631 000071c68e38b5ad 0000745c8ba2a529 0000762689d894a5 0000777688878421 000078778786739d 0000794286bc6319 000079e786175295 00007a6e85904211 00007ae0851e318d 00007b4184bd2109 00007b9584691085 00007bde84200000 
++ffff739c00000000 ffff72c100001085 ffff71c600002109 ffff70a30000318d ffff6f4d00004211 ffff6db600005295 ffff6bc900006319 ffff69680000739d ffff666500008421 ffff6275000094a5 ffff5d160000a529 ffff55540000b5ad ffff49240000c631 ffff33320000d6b5 ffff00000000e739 aaa900005554e739 55540000aaa9e739 00000000ffffe739 00003332ccccd6b5 00004924b6dac631 00005554aaa9b5ad 00005d16a2e8a529 000062759d8994a5 0000666599988421 000069689695739d 00006bc994356319 00006db692485295 00006f4d90b14211 000070a38f5b318d 000071c68e382109 000072c18d3d1085 0000739c8c620000 
++ffff6b5a00000000 ffff69ed00001085 ffff684b00002109 ffff66650000318d ffff642c00004211 ffff618500005295 ffff5e5000006319 ffff5a590000739d ffff555400008421 ffff4ec4000094a5 ffff45d10000a529 ffff38e30000b5ad ffff24920000c631 ffff00000000d6b5 cccc00003332d6b5 999800006665d6b5 666500009998d6b5 33320000ccccd6b5 00000000ffffd6b5 00002492db6cc631 000038e3c71bb5ad 000045d1ba2da529 00004ec4b13a94a5 00005554aaa98421 00005a59a5a4739d 00005e50a1ae6319 000061859e795295 0000642c9bd24211 000066659998318d 0000684b97b32109 000069ed96111085 00006b5a94a40000 
++ffff631800000000 ffff611a00001085 ffff5ed000002109 ffff5c280000318d ffff590a00004211 ffff555400005295 ffff50d700006319 ffff4b4a0000739d ffff444300008421 ffff3b13000094a5 ffff2e8b0000a529 ffff1c710000b5ad ffff00000000c631 db6c00002492c631 b6da00004924c631 924800006db6c631 6db600009248c631 49240000b6dac631 24920000db6cc631 00000000ffffc631 00001c71e38db5ad 00002e8bd173a529 00003b13c4eb94a5 00004443bbba8421 00004b4ab4b3739d 000050d7af276319 00005554aaa95295 0000590aa6f44211 00005c28a3d6318d 00005ed0a12e2109 0000611a9ee41085 000063189ce60000 
++ffff5ad600000000 ffff584600001085 ffff555400002109 ffff51eb0000318d ffff4de900004211 ffff492400005295 ffff435e00006319 ffff3c3b0000739d ffff333200008421 ffff2762000094a5 ffff17450000a529 ffff00000000b5ad e38d00001c71b5ad c71b000038e3b5ad aaa900005554b5ad 8e38000071c6b5ad 71c600008e38b5ad 55540000aaa9b5ad 38e30000c71bb5ad 1c710000e38db5ad 00000000ffffb5ad 00001745e8b9a529 00002762d89c94a5 00003332cccc8421 00003c3bc3c3739d 0000435ebca06319 00004924b6da5295 00004de9b2154211 000051ebae13318d 00005554aaa92109 00005846a7b81085 00005ad6a5280000 
++ffff529400000000 ffff4f7200001085 ffff4bd900002109 ffff47ad0000318d ffff42c800004211 ffff3cf300005295 ffff35e400006319 ffff2d2c0000739d ffff222100008421 ffff13b1000094a5 ffff00000000a529 e8b900001745a529 d17300002e8ba529 ba2d000045d1a529 a2e800005d16a529 8ba20000745ca529 745c00008ba2a529 5d160000a2e8a529 45d10000ba2da529 2e8b0000d173a529 17450000e8b9a529 00000000ffffa529 000013b1ec4d94a5 00002221dddd8421 00002d2cd2d2739d 000035e4ca1a6319 00003cf3c30b5295 000042c8bd364211 000047adb851318d 00004bd9b4252109 00004f72b08c1085 00005294ad6a0000 
++ffff4a5200000000 ffff469e00001085 ffff425e00002109 ffff3d700000318d ffff37a600004211 ffff30c200005295 ffff286b00006319 ffff1e1d0000739d ffff111000008421 ffff0000000094a5 ec4d000013b194a5 d89c0000276294a5 c4eb00003b1394a5 b13a00004ec494a5 9d890000627594a5 89d80000762694a5 7626000089d894a5 627500009d8994a5 4ec40000b13a94a5 3b130000c4eb94a5 27620000d89c94a5 13b10000ec4d94a5 00000000ffff94a5 00001110eeee8421 00001e1de1e1739d 0000286bd7936319 000030c2cf3c5295 000037a6c8584211 00003d70c28e318d 0000425ebda02109 0000469eb9601085 00004a52b5ac0000 
++ffff421000000000 ffff3dca00001085 ffff38e300002109 ffff33320000318d ffff2c8500004211 ffff249200005295 ffff1af200006319 ffff0f0e0000739d ffff000000008421 eeee000011108421 dddd000022218421 cccc000033328421 bbba000044438421 aaa9000055548421 9998000066658421 8887000077768421 7776000088878421 6665000099988421 55540000aaa98421 44430000bbba8421 33320000cccc8421 22210000dddd8421 11100000eeee8421 00000000ffff8421 00000f0ef0f0739d 00001af2e50c6319 00002492db6c5295 00002c85d3794211 00003332cccc318d 000038e3c71b2109 00003dcac2341085 00004210bdee0000 
++ffff39ce00000000 ffff34f600001085 ffff2f6800002109 ffff28f50000318d ffff216400004211 ffff186100005295 ffff0d7900006319 ffff00000000739d f0f000000f0e739d e1e100001e1d739d d2d200002d2c739d c3c300003c3b739d b4b300004b4a739d a5a400005a59739d 969500006968739d 878600007877739d 787700008786739d 696800009695739d 5a590000a5a4739d 4b4a0000b4b3739d 3c3b0000c3c3739d 2d2c0000d2d2739d 1e1d0000e1e1739d 0f0e0000f0f0739d 00000000ffff739d 00000d79f2856319 00001861e79d5295 00002164de9a4211 000028f5d709318d 00002f68d0962109 000034f6cb081085 000039cec6300000 
++ffff318c00000000 ffff2c2300001085 ffff25ec00002109 ffff1eb80000318d ffff164200004211 ffff0c3000005295 ffff000000006319 f28500000d796319 e50c00001af26319 d7930000286b6319 ca1a000035e46319 bca00000435e6319 af27000050d76319 a1ae00005e506319 943500006bc96319 86bc000079426319 7942000086bc6319 6bc9000094356319 5e500000a1ae6319 50d70000af276319 435e0000bca06319 35e40000ca1a6319 286b0000d7936319 1af20000e50c6319 0d790000f2856319 00000000ffff6319 00000c30f3ce5295 00001642e9bc4211 00001eb8e146318d 000025ecda122109 00002c23d3db1085 0000318cce720000 
++ffff294a00000000 ffff234f00001085 ffff1c7100002109 ffff147a0000318d ffff0b2100004211 ffff000000005295 f3ce00000c305295 e79d000018615295 db6c000024925295 cf3c000030c25295 c30b00003cf35295 b6da000049245295 aaa9000055545295 9e79000061855295 924800006db65295 8617000079e75295 79e7000086175295 6db6000092485295 618500009e795295 55540000aaa95295 49240000b6da5295 3cf30000c30b5295 30c20000cf3c5295 24920000db6c5295 18610000e79d5295 0c300000f3ce5295 00000000ffff5295 00000b21f4dd4211 0000147aeb84318d 00001c71e38d2109 0000234fdcaf1085 0000294ad6b40000 
++ffff210800000000 ffff1a7b00001085 ffff12f600002109 ffff0a3d0000318d ffff000000004211 f4dd00000b214211 e9bc000016424211 de9a000021644211 d37900002c854211 c858000037a64211 bd36000042c84211 b21500004de94211 a6f40000590a4211 9bd20000642c4211 90b100006f4d4211 859000007a6e4211 7a6e000085904211 6f4d000090b14211 642c00009bd24211 590a0000a6f44211 4de90000b2154211 42c80000bd364211 37a60000c8584211 2c850000d3794211 21640000de9a4211 16420000e9bc4211 0b210000f4dd4211 00000000ffff4211 00000a3df5c1318d 000012f6ed082109 00001a7be5831085 00002108def60000 
++ffff18c600000000 ffff11a700001085 ffff097b00002109 ffff00000000318d f5c100000a3d318d eb840000147a318d e14600001eb8318d d709000028f5318d cccc00003332318d c28e00003d70318d b851000047ad318d ae13000051eb318d a3d600005c28318d 999800006665318d 8f5b000070a3318d 851e00007ae0318d 7ae00000851e318d 70a300008f5b318d 666500009998318d 5c280000a3d6318d 51eb0000ae13318d 47ad0000b851318d 3d700000c28e318d 33320000cccc318d 28f50000d709318d 1eb80000e146318d 147a0000eb84318d 0a3d0000f5c1318d 00000000ffff318d 0000097bf6832109 000011a7ee571085 000018c6e7380000 
++ffff108400000000 ffff08d300001085 ffff000000002109 f6830000097b2109 ed08000012f62109 e38d00001c712109 da12000025ec2109 d09600002f682109 c71b000038e32109 bda00000425e2109 b42500004bd92109 aaa9000055542109 a12e00005ed02109 97b30000684b2109 8e38000071c62109 84bd00007b412109 7b41000084bd2109 71c600008e382109 684b000097b32109 5ed00000a12e2109 55540000aaa92109 4bd90000b4252109 425e0000bda02109 38e30000c71b2109 2f680000d0962109 25ec0000da122109 1c710000e38d2109 12f60000ed082109 097b0000f6832109 00000000ffff2109 000008d3f72b1085 00001084ef7a0000 
++ffff084200000000 ffff000000001085 f72b000008d31085 ee57000011a71085 e58300001a7b1085 dcaf0000234f1085 d3db00002c231085 cb08000034f61085 c23400003dca1085 b9600000469e1085 b08c00004f721085 a7b8000058461085 9ee40000611a1085 9611000069ed1085 8d3d000072c11085 846900007b951085 7b95000084691085 72c100008d3d1085 69ed000096111085 611a00009ee41085 58460000a7b81085 4f720000b08c1085 469e0000b9601085 3dca0000c2341085 34f60000cb081085 2c230000d3db1085 234f0000dcaf1085 1a7b0000e5831085 11a70000ee571085 08d30000f72b1085 00000000ffff1085 00000842f7bc0000 
++ffff000000000000 f7bc000008420000 ef7a000010840000 e738000018c60000 def6000021080000 d6b40000294a0000 ce720000318c0000 c630000039ce0000 bdee000042100000 b5ac00004a520000 ad6a000052940000 a52800005ad60000 9ce6000063180000 94a400006b5a0000 8c620000739c0000 842000007bde0000 7bde000084200000 739c00008c620000 6b5a000094a40000 631800009ce60000 5ad60000a5280000 52940000ad6a0000 4a520000b5ac0000 42100000bdee0000 39ce0000c6300000 318c0000ce720000 294a0000d6b40000 21080000def60000 18c60000e7380000 10840000ef7a0000 08420000f7bc0000 00000000ffff0000 
++}

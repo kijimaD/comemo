@@ -11,6 +11,20 @@ Date:   Mon Jul 17 10:39:00 2023 -0400
     Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Bypass: Austin Clements <austin@google.com>
-
+---
  doc/go1.21.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 6c58cb0590..e4145467a6 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -328,7 +328,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <h2 id="linker">Linker</h2>
+ 
+ <p><!-- https://go.dev/issue/57302, CL 461749, CL 457455 -->
+-  On Windows AMD64, the linker (with help from the compiler) now emits
++  On windows/amd64, the linker (with help from the compiler) now emits
+   SEH unwinding data by default, which improves the integration
+   of Go applications with Windows debuggers and other tools.
+ </p>

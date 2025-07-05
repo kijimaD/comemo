@@ -18,9 +18,221 @@ Date:   Wed Apr 27 16:58:50 2016 -0700
     Change-Id: I680f906f70f2ee1a8615cb1046bc510c77d59284
     Reviewed-on: https://go-review.googlesource.com/22535
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-
+---
  src/cmd/compile/internal/ssa/copyelim.go      | 91 ++++++++++++++++-----------
  src/cmd/compile/internal/ssa/copyelim_test.go | 41 ++++++++++++
  src/cmd/compile/internal/ssa/export_test.go   |  3 +-
  src/cmd/compile/internal/ssa/rewrite.go       | 18 +-----
  4 files changed, 99 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 70db03c688..5cbb4486b2 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -4,18 +4,21 @@
+ 
+ package ssa
+ 
+-// copyelim removes all copies from f.
++// copyelim removes all uses of OpCopy values from f.
++// A subsequent deadcode pass is needed to actually remove the copies.
+ func copyelim(f *Func) {
++	// Modify all values so no arg (including args
++	// of OpCopy) is a copy.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			copyelimValue(v)
+ 		}
+-		v := b.Control
+-		if v != nil && v.Op == OpCopy {
+-			for v.Op == OpCopy {
+-				v = v.Args[0]
+-			}
+-			b.SetControl(v)
++	}
++
++	// Update block control values.
++	for _, b := range f.Blocks {
++		if v := b.Control; v != nil && v.Op == OpCopy {
++			b.SetControl(v.Args[0])
+ 		}
+ 	}
+ 
+@@ -23,41 +26,57 @@ func copyelim(f *Func) {
+ 	for _, name := range f.Names {
+ 		values := f.NamedValues[name]
+ 		for i, v := range values {
+-			x := v
+-			for x.Op == OpCopy {
+-				x = x.Args[0]
+-			}
+-			if x != v {
+-				values[i] = x
++			if v.Op == OpCopy {
++				values[i] = v.Args[0]
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func copyelimValue(v *Value) bool {
+-	// elide any copies generated during rewriting
+-	changed := false
+-	for i, a := range v.Args {
+-		if a.Op != OpCopy {
+-			continue
++// copySource returns the (non-copy) op which is the
++// ultimate source of v.  v must be a copy op.
++func copySource(v *Value) *Value {
++	w := v.Args[0]
++
++	// This loop is just:
++	// for w.Op == OpCopy {
++	//     w = w.Args[0]
++	// }
++	// but we take some extra care to make sure we
++	// don't get stuck in an infinite loop.
++	// Infinite copy loops may happen in unreachable code.
++	// (TODO: or can they?  Needs a test.)
++	slow := w
++	var advance bool
++	for w.Op == OpCopy {
++		w = w.Args[0]
++		if w == slow {
++			w.reset(OpUnknown)
++			break
+ 		}
+-		// Rewriting can generate OpCopy loops.
+-		// They are harmless (see removePredecessor),
+-		// but take care to stop if we find a cycle.
+-		slow := a // advances every other iteration
+-		var advance bool
+-		for a.Op == OpCopy {
+-			a = a.Args[0]
+-			if slow == a {
+-				break
+-			}
+-			if advance {
+-				slow = slow.Args[0]
+-			}
+-			advance = !advance
++		if advance {
++			slow = slow.Args[0]
++		}
++		advance = !advance
++	}
++
++	// The answer is w.  Update all the copies we saw
++	// to point directly to w.  Doing this update makes
++	// sure that we don't end up doing O(n^2) work
++	// for a chain of n copies.
++	for v != w {
++		x := v.Args[0]
++		v.SetArg(0, w)
++		v = x
++	}
++	return w
++}
++
++// copyelimValue ensures that no args of v are copies.
++func copyelimValue(v *Value) {
++	for i, a := range v.Args {
++		if a.Op == OpCopy {
++			v.SetArg(i, copySource(a))
+ 		}
+-		v.SetArg(i, a)
+-		changed = true
+ 	}
+-	return changed
+ }
+diff --git a/src/cmd/compile/internal/ssa/copyelim_test.go b/src/cmd/compile/internal/ssa/copyelim_test.go
+new file mode 100644
+index 0000000000..96f5846850
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/copyelim_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"fmt"
++	"testing"
++)
++
++func BenchmarkCopyElim1(b *testing.B)      { benchmarkCopyElim(b, 1) }
++func BenchmarkCopyElim10(b *testing.B)     { benchmarkCopyElim(b, 10) }
++func BenchmarkCopyElim100(b *testing.B)    { benchmarkCopyElim(b, 100) }
++func BenchmarkCopyElim1000(b *testing.B)   { benchmarkCopyElim(b, 1000) }
++func BenchmarkCopyElim10000(b *testing.B)  { benchmarkCopyElim(b, 10000) }
++func BenchmarkCopyElim100000(b *testing.B) { benchmarkCopyElim(b, 100000) }
++
++func benchmarkCopyElim(b *testing.B, n int) {
++	c := testConfig(b)
++
++	values := make([]interface{}, 0, n+2)
++	values = append(values, Valu("mem", OpInitMem, TypeMem, 0, nil))
++	last := "mem"
++	for i := 0; i < n; i++ {
++		name := fmt.Sprintf("copy%d", i)
++		values = append(values, Valu(name, OpCopy, TypeMem, 0, nil, last))
++		last = name
++	}
++	values = append(values, Exit(last))
++	// Reverse values array to make it hard
++	for i := 0; i < len(values)/2; i++ {
++		values[i], values[len(values)-1-i] = values[len(values)-1-i], values[i]
++	}
++
++	for i := 0; i < b.N; i++ {
++		fun := Fun(c, "entry", Bloc("entry", values...))
++		Copyelim(fun.f)
++		fun.f.Free()
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 0a67de9f05..27892a8dc1 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -13,8 +13,9 @@ var CheckFunc = checkFunc
+ var PrintFunc = printFunc
+ var Opt = opt
+ var Deadcode = deadcode
++var Copyelim = copyelim
+ 
+-func testConfig(t *testing.T) *Config {
++func testConfig(t testing.TB) *Config {
+ 	testCtxt := &obj.Link{}
+ 	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index e9b408a86c..f8a6d27d39 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -53,23 +53,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 					if a.Op != OpCopy {
+ 						continue
+ 					}
+-					x := a.Args[0]
+-					// Rewriting can generate OpCopy loops.
+-					// They are harmless (see removePredecessor),
+-					// but take care to stop if we find a cycle.
+-					slow := x // advances every other iteration
+-					var advance bool
+-					for x.Op == OpCopy {
+-						x = x.Args[0]
+-						if slow == x {
+-							break
+-						}
+-						if advance {
+-							slow = slow.Args[0]
+-						}
+-						advance = !advance
+-					}
+-					v.SetArg(i, x)
++					v.SetArg(i, copySource(a))
+ 					change = true
+ 					for a.Uses == 0 {
+ 						b := a.Args[0]

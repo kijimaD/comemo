@@ -10,6 +10,27 @@ Date:   Wed Feb 27 10:44:50 2013 -0800
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/7368054
-
+---
  src/pkg/sort/example_keys_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/sort/example_keys_test.go b/src/pkg/sort/example_keys_test.go
+index 268e4daaf8..a8e47e4926 100644
+--- a/src/pkg/sort/example_keys_test.go
++++ b/src/pkg/sort/example_keys_test.go
+@@ -10,13 +10,13 @@ import (
+ )
+ 
+ // A couple of type definitions to make the units clear.
+-type solarMass float64
++type earthMass float64
+ type au float64
+ 
+ // A Planet defines the properties of a solar system object.
+ type Planet struct {
+ 	name     string
+-	mass     solarMass
++	mass     earthMass
+ 	distance au
+ }
+ 

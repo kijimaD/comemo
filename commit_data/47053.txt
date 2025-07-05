@@ -19,10 +19,196 @@ Date:   Wed Feb 17 15:14:21 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go             | 23 +++++++++++-------
  src/cmd/compile/internal/typecheck/builtin.go      | 10 ++++----
  .../compile/internal/typecheck/builtin/runtime.go  |  8 +++----
  src/runtime/iface.go                               | 28 +++++++---------------
  src/runtime/mfinal.go                              |  4 ++--
  5 files changed, 34 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6b1ddebd32..e13ca90d33 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6075,18 +6075,23 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 		if base.Debug.TypeAssert > 0 {
+ 			base.WarnfAt(n.Pos(), "type assertion not inlined")
+ 		}
+-		if n.X.Type().IsEmptyInterface() {
+-			if commaok {
+-				call := s.rtcall(ir.Syms.AssertE2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
+-				return call[0], call[1]
++		if !commaok {
++			fn := ir.Syms.AssertI2I
++			if n.X.Type().IsEmptyInterface() {
++				fn = ir.Syms.AssertE2I
+ 			}
+-			return s.rtcall(ir.Syms.AssertE2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
++			data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
++			tab := s.newValue1(ssa.OpITab, byteptr, iface)
++			tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
++			return s.newValue2(ssa.OpIMake, n.Type(), tab, data), nil
+ 		}
+-		if commaok {
+-			call := s.rtcall(ir.Syms.AssertI2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
+-			return call[0], call[1]
++		fn := ir.Syms.AssertI2I2
++		if n.X.Type().IsEmptyInterface() {
++			fn = ir.Syms.AssertE2I2
+ 		}
+-		return s.rtcall(ir.Syms.AssertI2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
++		res = s.rtcall(fn, true, []*types.Type{n.Type()}, target, iface)[0]
++		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(n.Type()))
++		return
+ 	}
+ 
+ 	if base.Debug.TypeAssert > 0 {
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index b095a014f0..3c7776d9ae 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -80,10 +80,10 @@ var runtimeDecls = [...]struct {
+ 	{"convT2Enoptr", funcTag, 59},
+ 	{"convT2I", funcTag, 59},
+ 	{"convT2Inoptr", funcTag, 59},
+-	{"assertE2I", funcTag, 57},
+-	{"assertE2I2", funcTag, 60},
+-	{"assertI2I", funcTag, 57},
+-	{"assertI2I2", funcTag, 60},
++	{"assertE2I", funcTag, 60},
++	{"assertE2I2", funcTag, 57},
++	{"assertI2I", funcTag, 60},
++	{"assertI2I2", funcTag, 57},
+ 	{"panicdottypeE", funcTag, 61},
+ 	{"panicdottypeI", funcTag, 61},
+ 	{"panicnildottype", funcTag, 62},
+@@ -280,7 +280,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[57] = newSig(params(typs[1], typs[2]), params(typs[2]))
+ 	typs[58] = newSig(params(typs[2]), params(typs[7]))
+ 	typs[59] = newSig(params(typs[1], typs[3]), params(typs[2]))
+-	typs[60] = newSig(params(typs[1], typs[2]), params(typs[2], typs[6]))
++	typs[60] = newSig(params(typs[1], typs[1]), params(typs[1]))
+ 	typs[61] = newSig(params(typs[1], typs[1], typs[1]), nil)
+ 	typs[62] = newSig(params(typs[1]), nil)
+ 	typs[63] = types.NewPtr(typs[5])
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index ad82a9b349..d5e00afcf8 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -101,10 +101,10 @@ func convT2I(tab *byte, elem *any) (ret any)
+ func convT2Inoptr(tab *byte, elem *any) (ret any)
+ 
+ // interface type assertions x.(T)
+-func assertE2I(typ *byte, iface any) (ret any)
+-func assertE2I2(typ *byte, iface any) (ret any, b bool)
+-func assertI2I(typ *byte, iface any) (ret any)
+-func assertI2I2(typ *byte, iface any) (ret any, b bool)
++func assertE2I(inter *byte, typ *byte) *byte
++func assertE2I2(inter *byte, eface any) (ret any)
++func assertI2I(inter *byte, tab *byte) *byte
++func assertI2I2(inter *byte, iface any) (ret any)
+ func panicdottypeE(have, want, iface *byte)
+ func panicdottypeI(have, want, iface *byte)
+ func panicnildottype(want *byte)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 0504b89363..02b18dabff 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -447,23 +447,18 @@ func convI2I(inter *interfacetype, i iface) (r iface) {
+ 	return
+ }
+ 
+-func assertI2I(inter *interfacetype, i iface) (r iface) {
+-	tab := i.tab
++func assertI2I(inter *interfacetype, tab *itab) *itab {
+ 	if tab == nil {
+ 		// explicit conversions require non-nil interface value.
+ 		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
+ 	}
+ 	if tab.inter == inter {
+-		r.tab = tab
+-		r.data = i.data
+-		return
++		return tab
+ 	}
+-	r.tab = getitab(inter, tab._type, false)
+-	r.data = i.data
+-	return
++	return getitab(inter, tab._type, false)
+ }
+ 
+-func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
++func assertI2I2(inter *interfacetype, i iface) (r iface) {
+ 	tab := i.tab
+ 	if tab == nil {
+ 		return
+@@ -476,22 +471,18 @@ func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
+ 	}
+ 	r.tab = tab
+ 	r.data = i.data
+-	b = true
+ 	return
+ }
+ 
+-func assertE2I(inter *interfacetype, e eface) (r iface) {
+-	t := e._type
++func assertE2I(inter *interfacetype, t *_type) *itab {
+ 	if t == nil {
+ 		// explicit conversions require non-nil interface value.
+ 		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
+ 	}
+-	r.tab = getitab(inter, t, false)
+-	r.data = e.data
+-	return
++	return getitab(inter, t, false)
+ }
+ 
+-func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
++func assertE2I2(inter *interfacetype, e eface) (r iface) {
+ 	t := e._type
+ 	if t == nil {
+ 		return
+@@ -502,18 +493,17 @@ func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
+ 	}
+ 	r.tab = tab
+ 	r.data = e.data
+-	b = true
+ 	return
+ }
+ 
+ //go:linkname reflect_ifaceE2I reflect.ifaceE2I
+ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+-	*dst = assertE2I(inter, e)
++	*dst = iface{assertE2I(inter, e._type), e.data}
+ }
+ 
+ //go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
+ func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+-	*dst = assertE2I(inter, e)
++	*dst = iface{assertE2I(inter, e._type), e.data}
+ }
+ 
+ func iterate_itabs(fn func(*itab)) {
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 7d0313be12..e92ec80e3c 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -214,7 +214,7 @@ func runfinq() {
+ 					if len(ityp.mhdr) != 0 {
+ 						// convert to interface with methods
+ 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
+-						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
++						(*iface)(frame).tab = assertE2I(ityp, (*eface)(frame)._type)
+ 					}
+ 				default:
+ 					throw("bad kind in runfinq")
+@@ -403,7 +403,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 			// ok - satisfies empty interface
+ 			goto okarg
+ 		}
+-		if _, ok := assertE2I2(ityp, *efaceOf(&obj)); ok {
++		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
+ 			goto okarg
+ 		}
+ 	}

@@ -14,6 +14,27 @@ Date:   Fri Jun 16 15:45:13 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/testdir/testdir_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 7ab1143584..bd7785900c 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -117,6 +117,15 @@ func Test(t *testing.T) {
+ 		runoutputGate: make(chan bool, *runoutputLimit),
+ 	}
+ 
++	// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
++	// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
++	// suppress false-positive skips.
++	if _, err := os.Stat(common.gorootTestDir); os.IsNotExist(err) {
++		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
++			t.Skipf("skipping: GOROOT/test not present")
++		}
++	}
++
+ 	for _, dir := range dirs {
+ 		for _, goFile := range goFiles(t, dir) {
+ 			test := test{testCommon: common, dir: dir, goFile: goFile}

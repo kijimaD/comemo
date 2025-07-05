@@ -7,6 +7,20 @@ Date:   Tue Feb 9 13:20:22 2010 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/206044
-
+---
  src/cmd/goyacc/units.y | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goyacc/units.y b/src/cmd/goyacc/units.y
+index 29446d15b7..9be7fa4ae5 100644
+--- a/src/cmd/goyacc/units.y
++++ b/src/cmd/goyacc/units.y
+@@ -389,7 +389,7 @@ rdigit(c int) bool {
+ }
+ 
+ func
+-Error(s string, v ...) {
++Error(s string, v ...interface{}) {
+ 
+ 	/*
+ 	 * hack to intercept message from yaccpar

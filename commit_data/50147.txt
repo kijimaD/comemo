@@ -35,7 +35,7 @@ Date:   Mon Oct 4 04:16:50 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        |  7 ++++++
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  4 ++++
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  5 +++++
@@ -43,3 +43,154 @@ Date:   Mon Oct 4 04:16:50 2021 -0500
  src/cmd/compile/internal/ssa/rewritePPC64.go | 32 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go       |  4 ++--
  6 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c0f58e60b2..98316c16fa 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -901,6 +901,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.OpPPC64DCBT:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_CONST
++		p.To.Offset = v.AuxInt
++
+ 	case ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 0393feb125..4c766df4b3 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1470,3 +1470,7 @@
+         && clobber(call)
+         => (Move [sz] dst src mem)
+ 
++// Prefetch instructions (aux is option: 0 - DCBT ; 8 - DCBT stream)
++(PrefetchCache ptr mem)          => (DCBT ptr mem [0])
++(PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [8])
++
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 5f84290002..ff9ce64e18 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -149,6 +149,7 @@ func init() {
+ 		crgp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+ 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
++		prefreg     = regInfo{inputs: []regMask{gp | sp | sb}}
+ 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+ 		gpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}}
+ 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
+@@ -336,6 +337,10 @@ func init() {
+ 		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", typ: "Float64"},
+ 		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", typ: "Float32"},
+ 
++		// Prefetch instruction
++		// Do prefetch of address generated with arg0 and arg1 with option aux. arg0=addr,arg1=memory, aux=option.
++		{name: "DCBT", argLength: 2, aux: "Int64", reg: prefreg, asm: "DCBT", hasSideEffects: true},
++
+ 		// Store bytes in the reverse endian order of the arch into arg0.
+ 		// These are indexed stores with no offset field in the instruction so the auxint fields are not used.
+ 		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6266092f6f..09006c8c85 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1994,6 +1994,7 @@ const (
+ 	OpPPC64MOVDBRloadidx
+ 	OpPPC64FMOVDloadidx
+ 	OpPPC64FMOVSloadidx
++	OpPPC64DCBT
+ 	OpPPC64MOVDBRstore
+ 	OpPPC64MOVWBRstore
+ 	OpPPC64MOVHBRstore
+@@ -26715,6 +26716,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "DCBT",
++		auxType:        auxInt64,
++		argLen:         2,
++		hasSideEffects: true,
++		asm:            ppc64.ADCBT,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:           "MOVDBRstore",
+ 		auxType:        auxSym,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 450ea861f3..b278a4cb44 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -639,6 +639,10 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return true
+ 	case OpPopCount8:
+ 		return rewriteValuePPC64_OpPopCount8(v)
++	case OpPrefetchCache:
++		return rewriteValuePPC64_OpPrefetchCache(v)
++	case OpPrefetchCacheStreamed:
++		return rewriteValuePPC64_OpPrefetchCacheStreamed(v)
+ 	case OpRotateLeft16:
+ 		return rewriteValuePPC64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+@@ -14005,6 +14009,34 @@ func rewriteValuePPC64_OpPopCount8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpPrefetchCache(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (PrefetchCache ptr mem)
++	// result: (DCBT ptr mem [0])
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpPPC64DCBT)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpPrefetchCacheStreamed(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (PrefetchCacheStreamed ptr mem)
++	// result: (DCBT ptr mem [8])
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpPPC64DCBT)
++		v.AuxInt = int64ToAuxInt(8)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 2d8e21ee05..08114b7828 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3897,9 +3897,9 @@ func InitTables() {
+ 	// Make Prefetch intrinsics for supported platforms
+ 	// On the unsupported platforms stub function will be eliminated
+ 	addF("runtime/internal/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
+-		sys.AMD64, sys.ARM64)
++		sys.AMD64, sys.ARM64, sys.PPC64)
+ 	addF("runtime/internal/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
+-		sys.AMD64, sys.ARM64)
++		sys.AMD64, sys.ARM64, sys.PPC64)
+ 
+ 	/******** runtime/internal/atomic ********/
+ 	addF("runtime/internal/atomic", "Load",

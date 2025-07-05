@@ -26,7 +26,7 @@ Date:   Mon Aug 28 14:57:29 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/419435
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/asm.s          |  8 +++++++
  src/runtime/asm_amd64.s    | 55 ++++++++++++++++++++++++++++++-------------
  src/runtime/asm_arm64.s    | 43 +++++++++++++++++++++++++++-------
@@ -34,3 +34,282 @@ Date:   Mon Aug 28 14:57:29 2023 -0400
  src/runtime/export_test.go |  2 +-
  src/runtime/proc.go        | 58 +++++++++++++++++++++++++++++++++++++++++++++-
  6 files changed, 147 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index f7bc5d432e..84e561fb43 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -12,3 +12,11 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+ // See map.go comment on the need for this routine.
+ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ 	RET
++
++#ifndef GOARCH_amd64
++#ifndef GOARCH_arm64
++// stub to appease shared build mode.
++TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
++	UNDEF
++#endif
++#endif
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ccc2bd21fe..ab845fbd8a 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -537,6 +537,30 @@ bad:
+ 	CALL	AX
+ 	INT	$3
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
++	MOVQ	g_m(R14), BX // curm
++
++	// set g to gcrash
++	LEAQ	runtime·gcrash(SB), R14 // g = &gcrash
++	MOVQ	BX, g_m(R14)            // g.m = curm
++	MOVQ	R14, m_g0(BX)           // curm.g0 = g
++	get_tls(CX)
++	MOVQ	R14, g(CX)
++
++	// switch to crashstack
++	MOVQ	(g_stack+stack_hi)(R14), BX
++	SUBQ	$(4*8), BX
++	MOVQ	BX, SP
++
++	// call target function
++	MOVQ	AX, DX
++	MOVQ	0(AX), AX
++	CALL	AX
++
++	// should never return
++	CALL	runtime·abort(SB)
++	UNDEF
+ 
+ /*
+  * support for morestack
+@@ -551,17 +575,26 @@ bad:
+ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	get_tls(CX)
+-	MOVQ	g(CX), BX
+-	MOVQ	g_m(BX), BX
+-	MOVQ	m_g0(BX), SI
+-	CMPQ	g(CX), SI
++	MOVQ	g(CX), DI     // DI = g
++	MOVQ	g_m(DI), BX   // BX = m
++
++	// Set g->sched to context in f.
++	MOVQ	0(SP), AX // f's PC
++	MOVQ	AX, (g_sched+gobuf_pc)(DI)
++	LEAQ	8(SP), AX // f's SP
++	MOVQ	AX, (g_sched+gobuf_sp)(DI)
++	MOVQ	BP, (g_sched+gobuf_bp)(DI)
++	MOVQ	DX, (g_sched+gobuf_ctxt)(DI)
++
++	MOVQ	m_g0(BX), SI  // SI = m.g0
++	CMPQ	DI, SI
+ 	JNE	3(PC)
+ 	CALL	runtime·badmorestackg0(SB)
+ 	CALL	runtime·abort(SB)
+ 
+ 	// Cannot grow signal stack (m->gsignal).
+ 	MOVQ	m_gsignal(BX), SI
+-	CMPQ	g(CX), SI
++	CMPQ	DI, SI
+ 	JNE	3(PC)
+ 	CALL	runtime·badmorestackgsignal(SB)
+ 	CALL	runtime·abort(SB)
+@@ -573,17 +606,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+ 	LEAQ	16(SP), AX	// f's caller's SP
+ 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
+-	get_tls(CX)
+-	MOVQ	g(CX), SI
+-	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
+-
+-	// Set g->sched to context in f.
+-	MOVQ	0(SP), AX // f's PC
+-	MOVQ	AX, (g_sched+gobuf_pc)(SI)
+-	LEAQ	8(SP), AX // f's SP
+-	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+-	MOVQ	BP, (g_sched+gobuf_bp)(SI)
+-	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
++	MOVQ	DI, (m_morebuf+gobuf_g)(BX)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BX
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 7866e35e4f..6d77b08a1b 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -262,6 +262,30 @@ noswitch:
+ 	SUB	$8, RSP, R29	// restore FP
+ 	B	(R3)
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
++	MOVD	R0, R26    // context register
++	MOVD	g_m(g), R1 // curm
++
++	// set g to gcrash
++	MOVD	$runtime·gcrash(SB), g // g = &gcrash
++	BL	runtime·save_g(SB)         // clobbers R0
++	MOVD	R1, g_m(g)             // g.m = curm
++	MOVD	g, m_g0(R1)            // curm.g0 = g
++
++	// switch to crashstack
++	MOVD	(g_stack+stack_hi)(g), R1
++	SUB	$(4*8), R1
++	MOVD	R1, RSP
++
++	// call target function
++	MOVD	0(R26), R0
++	CALL	(R0)
++
++	// should never return
++	CALL	runtime·abort(SB)
++	UNDEF
++
+ /*
+  * support for morestack
+  */
+@@ -278,6 +302,16 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVD	g_m(g), R8
+ 	MOVD	m_g0(R8), R4
++
++	// Called from f.
++	// Set g->sched to context in f
++	MOVD	RSP, R0
++	MOVD	R0, (g_sched+gobuf_sp)(g)
++	MOVD	R29, (g_sched+gobuf_bp)(g)
++	MOVD	LR, (g_sched+gobuf_pc)(g)
++	MOVD	R3, (g_sched+gobuf_lr)(g)
++	MOVD	R26, (g_sched+gobuf_ctxt)(g)
++
+ 	CMP	g, R4
+ 	BNE	3(PC)
+ 	BL	runtime·badmorestackg0(SB)
+@@ -290,15 +324,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	BL	runtime·badmorestackgsignal(SB)
+ 	B	runtime·abort(SB)
+ 
+-	// Called from f.
+-	// Set g->sched to context in f
+-	MOVD	RSP, R0
+-	MOVD	R0, (g_sched+gobuf_sp)(g)
+-	MOVD	R29, (g_sched+gobuf_bp)(g)
+-	MOVD	LR, (g_sched+gobuf_pc)(g)
+-	MOVD	R3, (g_sched+gobuf_lr)(g)
+-	MOVD	R26, (g_sched+gobuf_ctxt)(g)
+-
+ 	// Called from f.
+ 	// Set m->morebuf to f's callers.
+ 	MOVD	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 8dd95a44af..7a3b0388d7 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -804,6 +804,14 @@ func TestG0StackOverflow(t *testing.T) {
+ 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
+ 			t.Fatalf("%s\n(exit status %v)", out, err)
+ 		}
++		if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
++			// check for a stack trace
++			want := "runtime.stackOverflow"
++			if n := strings.Count(string(out), want); n < 5 {
++				t.Errorf("output does not contain %q at least 5 times:\n%s", want, out)
++			}
++			return // it's not a signal-style traceback
++		}
+ 		// Check that it's a signal-style traceback.
+ 		if runtime.GOOS != "windows" {
+ 			if want := "PC="; !strings.Contains(string(out), want) {
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 6d1d3c4537..922794edd6 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -694,7 +694,7 @@ func G0StackOverflow() {
+ 		// The stack bounds for g0 stack is not always precise.
+ 		// Use an artificially small stack, to trigger a stack overflow
+ 		// without actually run out of the system stack (which may seg fault).
+-		g0.stack.lo = sp - 4096
++		g0.stack.lo = sp - 4096 - stackSystem
+ 		g0.stackguard0 = g0.stack.lo + stackGuard
+ 		g0.stackguard1 = g0.stackguard0
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d560d3970e..408f26cf7a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -516,7 +516,20 @@ func badreflectcall() {
+ //go:nosplit
+ //go:nowritebarrierrec
+ func badmorestackg0() {
+-	writeErrStr("fatal: morestack on g0\n")
++	if !crashStackImplemented {
++		writeErrStr("fatal: morestack on g0\n")
++		return
++	}
++
++	g := getg()
++	switchToCrashStack(func() {
++		print("runtime: morestack on g0, stack [", hex(g.stack.lo), " ", hex(g.stack.hi), "], sp=", hex(g.sched.sp), ", called from\n")
++		g.m.traceback = 2 // include pc and sp in stack trace
++		traceback1(g.sched.pc, g.sched.sp, g.sched.lr, g, 0)
++		print("\n")
++
++		throw("morestack on g0")
++	})
+ }
+ 
+ //go:nosplit
+@@ -530,6 +543,49 @@ func badctxt() {
+ 	throw("ctxt != 0")
+ }
+ 
++// crashstack is a space that can be used as the stack when it is
++// crashing on bad stack conditions, e.g. morestack on g0.
++// gcrash is the corresponding (fake) g.
++var crashstack [16384]byte
++
++var gcrash = g{
++	stack:       stack{uintptr(unsafe.Pointer(&crashstack)), uintptr(unsafe.Pointer(&crashstack)) + unsafe.Sizeof(crashstack)},
++	stackguard0: uintptr(unsafe.Pointer(&crashstack)) + 1000,
++	stackguard1: uintptr(unsafe.Pointer(&crashstack)) + 1000,
++}
++
++var crashingG atomic.Pointer[g]
++
++// Switch to crashstack and call fn, with special handling of
++// concurrent and recursive cases.
++//
++// Nosplit as it is called in a bad stack condition (we know
++// morestack would fail).
++//
++//go:nosplit
++//go:nowritebarrierrec
++func switchToCrashStack(fn func()) {
++	me := getg()
++	if crashingG.CompareAndSwapNoWB(nil, me) {
++		switchToCrashStack0(fn) // should never return
++		abort()
++	}
++	if crashingG.Load() == me {
++		// recursive crashing. too bad.
++		writeErrStr("fatal: recursive switchToCrashStack\n")
++		abort()
++	}
++	// Another g is crashing. Give it some time, hopefully it will finish traceback.
++	usleep_no_g(100)
++	writeErrStr("fatal: concurrent switchToCrashStack\n")
++	abort()
++}
++
++const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64"
++
++//go:noescape
++func switchToCrashStack0(func()) // in assembly
++
+ func lockedOSThread() bool {
+ 	gp := getg()
+ 	return gp.lockedm != 0 && gp.m.lockedg != 0

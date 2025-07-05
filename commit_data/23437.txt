@@ -9,7 +9,74 @@ Date:   Thu May 14 11:20:08 2015 -0700
     Change-Id: Ia587dd51eea702058da926717ad305792c9fc42b
     Reviewed-on: https://go-review.googlesource.com/10081
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/scanner/scanner.go      |  3 ++-
  src/go/scanner/scanner_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index cec82ea10e..e9476c4dee 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -706,13 +706,14 @@ scanAgain:
+ 					s.insertSemi = false // newline consumed
+ 					return pos, token.SEMICOLON, "\n"
+ 				}
+-				lit = s.scanComment()
++				comment := s.scanComment()
+ 				if s.mode&ScanComments == 0 {
+ 					// skip comment
+ 					s.insertSemi = false // newline consumed
+ 					goto scanAgain
+ 				}
+ 				tok = token.COMMENT
++				lit = comment
+ 			} else {
+ 				tok = s.switch2(token.QUO, token.QUO_ASSIGN)
+ 			}
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index fc450d8a6e..0d21905166 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -734,6 +734,41 @@ func TestScanErrors(t *testing.T) {
+ 	}
+ }
+ 
++// Verify that no comments show up as literal values when skipping comments.
++func TestIssue10213(t *testing.T) {
++	var src = `
++		var (
++			A = 1 // foo
++		)
++
++		var (
++			B = 2
++			// foo
++		)
++
++		var C = 3 // foo
++
++		var D = 4
++		// foo
++
++		func anycode() {
++		// foo
++		}
++	`
++	var s Scanner
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
++	for {
++		pos, tok, lit := s.Scan()
++		class := tokenclass(tok)
++		if lit != "" && class != keyword && class != literal && tok != token.SEMICOLON {
++			t.Errorf("%s: tok = %s, lit = %q", fset.Position(pos), tok, lit)
++		}
++		if tok <= token.EOF {
++			break
++		}
++	}
++}
++
+ func BenchmarkScan(b *testing.B) {
+ 	b.StopTimer()
+ 	fset := token.NewFileSet()

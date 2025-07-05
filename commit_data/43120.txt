@@ -9,6 +9,20 @@ Date:   Wed Feb 5 10:32:44 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue15992.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue15992.go b/test/fixedbugs/issue15992.go
+index 957bb89fac..cda5527c67 100644
+--- a/test/fixedbugs/issue15992.go
++++ b/test/fixedbugs/issue15992.go
+@@ -28,7 +28,7 @@ func main() {
+ 	fmt.Println(n, a)
+ 
+ 	b := []byte{1, 2, 3}
+-	n = copy(f(b))
++	n = copy(g(b))
+ 	fmt.Println(n, b)
+ 
+ 	m := map[int]int{0: 0}

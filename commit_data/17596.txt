@@ -15,7 +15,7 @@ Date:   Fri Sep 13 14:19:23 2013 -0400
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/13421048
-
+---
  src/pkg/runtime/arch_386.h          |   1 +
  src/pkg/runtime/arch_amd64.h        |   1 +
  src/pkg/runtime/arch_arm.h          |   1 +
@@ -25,3 +25,375 @@ Date:   Fri Sep 13 14:19:23 2013 -0400
  src/pkg/runtime/proc.c              |  77 +++++++++++++++++++++++-
  src/pkg/runtime/runtime_test.go     |  43 +++++++++++++
  8 files changed, 225 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index 6c8550d61d..fb31f00a93 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -7,5 +7,6 @@ enum {
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+ 	appendCrossover = 0,
++	RuntimeGogoBytes = 64,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index 761183a9d3..cd43dbadde 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -7,5 +7,6 @@ enum {
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+ 	appendCrossover = 0,
++	RuntimeGogoBytes = 64,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index cab79890a0..8c299dd006 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -7,5 +7,6 @@ enum {
+ 	BigEndian = 0,
+ 	CacheLineSize = 32,
+ 	appendCrossover = 8,
++	RuntimeGogoBytes = 80,
+ 	PCQuantum = 4
+ };
+diff --git a/src/pkg/runtime/export_test.c b/src/pkg/runtime/export_test.c
+new file mode 100644
+index 0000000000..5ad1a70075
+--- /dev/null
++++ b/src/pkg/runtime/export_test.c
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "arch_GOARCH.h"
++
++void
++·GogoBytes(int32 x)
++{
++	x = RuntimeGogoBytes;
++	FLUSH(&x);
++}
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index bc66fcc3cd..01d0ed667f 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -79,3 +79,5 @@ var StringHash = stringHash
+ var BytesHash = bytesHash
+ var Int32Hash = int32Hash
+ var Int64Hash = int64Hash
++
++func GogoBytes() int32
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index c25331d8b3..419178415a 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -6,6 +6,7 @@ package pprof_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"hash/crc32"
+ 	"os/exec"
+ 	"regexp"
+@@ -51,29 +52,8 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 	})
+ }
+ 
+-func testCPUProfile(t *testing.T, need []string, f func()) {
+-	switch runtime.GOOS {
+-	case "darwin":
+-		out, err := exec.Command("uname", "-a").CombinedOutput()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		vers := string(out)
+-		t.Logf("uname -a: %v", vers)
+-	case "plan9":
+-		// unimplemented
+-		return
+-	}
+-
+-	var prof bytes.Buffer
+-	if err := StartCPUProfile(&prof); err != nil {
+-		t.Fatal(err)
+-	}
+-	f()
+-	StopCPUProfile()
+-
++func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
+ 	// Convert []byte to []uintptr.
+-	bytes := prof.Bytes()
+ 	l := len(bytes) / int(unsafe.Sizeof(uintptr(0)))
+ 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
+ 	val = val[:l]
+@@ -96,25 +76,51 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
+ 		t.Fatalf("malformed end-of-data marker %#x", tl)
+ 	}
+ 
+-	// Check that profile is well formed and contains ChecksumIEEE.
+-	have := make([]uintptr, len(need))
+ 	for len(val) > 0 {
+ 		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
+ 			t.Fatalf("malformed profile.  leftover: %#x", val)
+ 		}
+-		for _, pc := range val[2 : 2+val[1]] {
++		f(val[0], val[2:2+val[1]])
++		val = val[2+val[1]:]
++	}
++}
++
++func testCPUProfile(t *testing.T, need []string, f func()) {
++	switch runtime.GOOS {
++	case "darwin":
++		out, err := exec.Command("uname", "-a").CombinedOutput()
++		if err != nil {
++			t.Fatal(err)
++		}
++		vers := string(out)
++		t.Logf("uname -a: %v", vers)
++	case "plan9":
++		// unimplemented
++		return
++	}
++
++	var prof bytes.Buffer
++	if err := StartCPUProfile(&prof); err != nil {
++		t.Fatal(err)
++	}
++	f()
++	StopCPUProfile()
++
++	// Check that profile is well formed and contains ChecksumIEEE.
++	have := make([]uintptr, len(need))
++	parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
++		for _, pc := range stk {
+ 			f := runtime.FuncForPC(pc)
+ 			if f == nil {
+ 				continue
+ 			}
+ 			for i, name := range need {
+ 				if strings.Contains(f.Name(), name) {
+-					have[i] += val[0]
++					have[i] += count
+ 				}
+ 			}
+ 		}
+-		val = val[2+val[1]:]
+-	}
++	})
+ 
+ 	var total uintptr
+ 	for i, name := range need {
+@@ -173,6 +179,60 @@ func TestCPUProfileWithFork(t *testing.T) {
+ 	}
+ }
+ 
++// Test that profiler does not observe runtime.gogo as "user" goroutine execution.
++// If it did, it would see inconsistent state and would either record an incorrect stack
++// or crash because the stack was malformed.
++func TestGoroutineSwitch(t *testing.T) {
++	// How much to try. These defaults take about 1 seconds
++	// on a 2012 MacBook Pro. The ones in short mode take
++	// about 0.1 seconds.
++	tries := 10
++	count := 1000000
++	if testing.Short() {
++		tries = 1
++	}
++	for try := 0; try < tries; try++ {
++		var prof bytes.Buffer
++		if err := StartCPUProfile(&prof); err != nil {
++			t.Fatal(err)
++		}
++		for i := 0; i < count; i++ {
++			runtime.Gosched()
++		}
++		StopCPUProfile()
++
++		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
++		// The special entry
++		parseProfile(t, prof.Bytes(), func(count uintptr, stk []uintptr) {
++			// An entry with two frames with 'System' in its top frame
++			// exists to record a PC without a traceback. Those are okay.
++			if len(stk) == 2 {
++				f := runtime.FuncForPC(stk[1])
++				if f != nil && f.Name() == "System" {
++					return
++				}
++			}
++
++			// Otherwise, should not see runtime.gogo.
++			// The place we'd see it would be the inner most frame.
++			f := runtime.FuncForPC(stk[0])
++			if f != nil && f.Name() == "runtime.gogo" {
++				var buf bytes.Buffer
++				for _, pc := range stk {
++					f := runtime.FuncForPC(pc)
++					if f == nil {
++						fmt.Fprintf(&buf, "%#x ?:0\n", pc)
++					} else {
++						file, line := f.FileLine(pc)
++						fmt.Fprintf(&buf, "%#x %s:%d\n", pc, file, line)
++					}
++				}
++				t.Fatalf("found profile entry for runtime.gogo:\n%s", buf.String())
++			}
++		})
++	}
++}
++
+ // Operating systems that are expected to fail the tests. See issue 6047.
+ var badOS = map[string]bool{
+ 	"darwin":  true,
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 0edd7e0ac9..215bcd8cd9 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2042,8 +2042,83 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+ 	// Windows does profiling in a dedicated thread w/o m.
+ 	if(!Windows && (m == nil || m->mcache == nil))
+ 		traceback = false;
+-	if(gp == m->g0 || gp == m->gsignal)
++	
++	// Define that a "user g" is a user-created goroutine, and a "system g"
++	// is one that is m->g0 or m->gsignal. We've only made sure that we
++	// can unwind user g's, so exclude the system g's.
++	//
++	// It is not quite as easy as testing gp == m->curg (the current user g)
++	// because we might be interrupted for profiling halfway through a
++	// goroutine switch. The switch involves updating three (or four) values:
++	// g, PC, SP, and (on arm) LR. The PC must be the last to be updated,
++	// because once it gets updated the new g is running.
++	//
++	// When switching from a user g to a system g, LR is not considered live,
++	// so the update only affects g, SP, and PC. Since PC must be last, there
++	// the possible partial transitions in ordinary execution are (1) g alone is updated,
++	// (2) both g and SP are updated, and (3) SP alone is updated.
++	// If g is updated, we'll see a system g and not look closer.
++	// If SP alone is updated, we can detect the partial transition by checking
++	// whether the SP is within g's stack bounds. (We could also require that SP
++	// be changed only after g, but the stack bounds check is needed by other
++	// cases, so there is no need to impose an additional requirement.)
++	//
++	// There is one exceptional transition to a system g, not in ordinary execution.
++	// When a signal arrives, the operating system starts the signal handler running
++	// with an updated PC and SP. The g is updated last, at the beginning of the
++	// handler. There are two reasons this is okay. First, until g is updated the
++	// g and SP do not match, so the stack bounds check detects the partial transition.
++	// Second, signal handlers currently run with signals disabled, so a profiling
++	// signal cannot arrive during the handler.
++	//
++	// When switching from a system g to a user g, there are three possibilities.
++	//
++	// First, it may be that the g switch has no PC update, because the SP
++	// either corresponds to a user g throughout (as in runtime.asmcgocall)
++	// or because it has been arranged to look like a user g frame
++	// (as in runtime.cgocallback_gofunc). In this case, since the entire
++	// transition is a g+SP update, a partial transition updating just one of 
++	// those will be detected by the stack bounds check.
++	//
++	// Second, when returning from a signal handler, the PC and SP updates
++	// are performed by the operating system in an atomic update, so the g
++	// update must be done before them. The stack bounds check detects
++	// the partial transition here, and (again) signal handlers run with signals
++	// disabled, so a profiling signal cannot arrive then anyway.
++	//
++	// Third, the common case: it may be that the switch updates g, SP, and PC
++	// separately, as in runtime.gogo.
++	//
++	// Because runtime.gogo is the only instance, we check whether the PC lies
++	// within that function, and if so, not ask for a traceback. This approach
++	// requires knowing the size of the runtime.gogo function, which we
++	// record in arch_*.h and check in runtime_test.go.
++	//
++	// There is another apparently viable approach, recorded here in case
++	// the "PC within runtime.gogo" check turns out not to be usable.
++	// It would be possible to delay the update of either g or SP until immediately
++	// before the PC update instruction. Then, because of the stack bounds check,
++	// the only problematic interrupt point is just before that PC update instruction,
++	// and the sigprof handler can detect that instruction and simulate stepping past
++	// it in order to reach a consistent state. On ARM, the update of g must be made
++	// in two places (in R10 and also in a TLS slot), so the delayed update would
++	// need to be the SP update. The sigprof handler must read the instruction at
++	// the current PC and if it was the known instruction (for example, JMP BX or 
++	// MOV R2, PC), use that other register in place of the PC value.
++	// The biggest drawback to this solution is that it requires that we can tell
++	// whether it's safe to read from the memory pointed at by PC.
++	// In a correct program, we can test PC == nil and otherwise read,
++	// but if a profiling signal happens at the instant that a program executes
++	// a bad jump (before the program manages to handle the resulting fault)
++	// the profiling handler could fault trying to read nonexistent memory.
++	//
++	// To recap, there are no constraints on the assembly being used for the
++	// transition. We simply require that g and SP match and that the PC is not
++	// in runtime.gogo.
++	if(gp == nil || gp != m->curg || (uintptr)sp < gp->stackguard - StackGuard || gp->stackbase < (uintptr)sp ||
++	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
+ 		traceback = false;
++
+ 	// Race detector calls asmcgocall w/o entersyscall/exitsyscall,
+ 	// we can not currently unwind through asmcgocall.
+ 	if(m != nil && m->racecall)
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index e458793491..de6e5498e5 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -6,6 +6,12 @@ package runtime_test
+ 
+ import (
+ 	"io"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	. "runtime"
++	"strconv"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -79,3 +85,40 @@ func BenchmarkDeferMany(b *testing.B) {
+ 		}(1, 2, 3)
+ 	}
+ }
++
++// The profiling signal handler needs to know whether it is executing runtime.gogo.
++// The constant RuntimeGogoBytes in arch_*.h gives the size of the function;
++// we don't have a way to obtain it from the linker (perhaps someday).
++// Test that the constant matches the size determined by 'go tool nm -S'.
++// The value reported will include the padding between runtime.gogo and the
++// next function in memory. That's fine.
++func TestRuntimeGogoBytes(t *testing.T) {
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../../test/helloworld.go").CombinedOutput()
++	if err != nil {
++		t.Fatalf("building hello world: %v\n%s", err, out)
++	}
++
++	out, err = exec.Command("go", "tool", "nm", "-S", dir+"/hello").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go tool nm: %v\n%s", err, out)
++	}
++
++	for _, line := range strings.Split(string(out), "\n") {
++		f := strings.Fields(line)
++		if len(f) == 4 && f[3] == "runtime.gogo" {
++			size, _ := strconv.Atoi(f[1])
++			if GogoBytes() != int32(size) {
++				t.Fatalf("RuntimeGogoBytes = %d, should be %d", GogoBytes(), size)
++			}
++			return
++		}
++	}
++
++	t.Fatalf("go tool nm did not report size for runtime.gogo")
++}

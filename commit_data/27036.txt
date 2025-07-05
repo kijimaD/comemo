@@ -16,7 +16,76 @@ Date:   Mon Mar 7 19:29:15 2016 +0100
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  4 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 35 ++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 994e880bc6..57ab70339a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -19,6 +19,10 @@
+ // succ* fields must be variables
+ // For now, the generated successors must be a permutation of the matched successors.
+ 
++// Simplify nil checks.
++// These are inserted by for _, e := range a {}
++(NilCheck (Phi x (Add64 (Const64 [c]) y)) mem) && c > 0 && v.Args[0] == y -> (NilCheck x mem)
++
+ // constant folding
+ (Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
+ (Trunc32to8 (Const32 [c])) -> (Const8 [int64(int8(c))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 79dcf9a716..cde60c1bcd 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -206,6 +206,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpNeqPtr(v, config)
+ 	case OpNeqSlice:
+ 		return rewriteValuegeneric_OpNeqSlice(v, config)
++	case OpNilCheck:
++		return rewriteValuegeneric_OpNilCheck(v, config)
+ 	case OpOffPtr:
+ 		return rewriteValuegeneric_OpOffPtr(v, config)
+ 	case OpOr16:
+@@ -4823,6 +4825,39 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NilCheck (Phi x (Add64 (Const64 [c]) y)) mem)
++	// cond: c > 0 && v.Args[0] == y
++	// result: (NilCheck x mem)
++	for {
++		if v.Args[0].Op != OpPhi {
++			break
++		}
++		x := v.Args[0].Args[0]
++		if v.Args[0].Args[1].Op != OpAdd64 {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].Args[1].Args[0].AuxInt
++		y := v.Args[0].Args[1].Args[1]
++		if len(v.Args[0].Args) != 2 {
++			break
++		}
++		mem := v.Args[1]
++		if !(c > 0 && v.Args[0] == y) {
++			break
++		}
++		v.reset(OpNilCheck)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

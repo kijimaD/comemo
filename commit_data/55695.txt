@@ -26,7 +26,7 @@ Date:   Thu Jan 12 20:25:39 2023 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/pkginit/init.go |  18 ++--
  src/cmd/internal/objabi/reloctype.go     |   6 ++
  src/cmd/link/internal/ld/deadcode.go     |   8 ++
@@ -42,3 +42,626 @@ Date:   Thu Jan 12 20:25:39 2023 -0800
  test/fixedbugs/issue31636.out            |   4 +-
  test/noinit.go                           |   5 +-
  14 files changed, 324 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 84f4c2cfe3..f8d5ee08a5 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"os"
+@@ -201,15 +202,20 @@ func Task() *ir.Name {
+ 	sym.Def = task
+ 	lsym := task.Linksym()
+ 	ot := 0
+-	ot = objw.Uintptr(lsym, ot, 0) // state: not initialized yet
+-	ot = objw.Uintptr(lsym, ot, uint64(len(deps)))
+-	ot = objw.Uintptr(lsym, ot, uint64(len(fns)))
+-	for _, d := range deps {
+-		ot = objw.SymPtr(lsym, ot, d, 0)
+-	}
++	ot = objw.Uint32(lsym, ot, 0) // state: not initialized yet
++	ot = objw.Uint32(lsym, ot, uint32(len(fns)))
+ 	for _, f := range fns {
+ 		ot = objw.SymPtr(lsym, ot, f, 0)
+ 	}
++
++	// Add relocations which tell the linker all of the packages
++	// that this package depends on (and thus, all of the packages
++	// that need to be initialized before this one).
++	for _, d := range deps {
++		r := obj.Addrel(lsym)
++		r.Type = objabi.R_INITORDER
++		r.Sym = d
++	}
+ 	// An initTask has pointers, but none into the Go heap.
+ 	// It's not quite read only, the state field must be modifiable.
+ 	objw.Global(lsym, int32(ot), obj.NOPTR)
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 2bc7b2dd7a..c258587ed9 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -333,6 +333,12 @@ const (
+ 	// in a symbol and target any symbols.
+ 	R_XCOFFREF
+ 
++	// R_INITORDER specifies an ordering edge between two inittask records.
++	// (From one p..inittask record to another one.)
++	// This relocation does not apply any changes to the actual data, it is
++	// just used in the linker to order the inittask records appropriately.
++	R_INITORDER
++
+ 	// R_WEAK marks the relocation as a weak reference.
+ 	// A weak relocation does not make the symbol it refers to reachable,
+ 	// and is only honored by the linker if the symbol is in some other way
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 307a6dd42f..c80bacd92c 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -113,6 +113,9 @@ func (d *deadcodePass) init() {
+ 	if d.mapinitnoop == 0 {
+ 		panic("could not look up runtime.mapinitnoop")
+ 	}
++	if d.ctxt.mainInittasks != 0 {
++		d.mark(d.ctxt.mainInittasks, 0)
++	}
+ }
+ 
+ func (d *deadcodePass) flood() {
+@@ -208,6 +211,11 @@ func (d *deadcodePass) flood() {
+ 				}
+ 				d.genericIfaceMethod[name] = true
+ 				continue // don't mark referenced symbol - it is not needed in the final binary.
++			case objabi.R_INITORDER:
++				// inittasks has already run, so any R_INITORDER links are now
++				// superfluous - the only live inittask records are those which are
++				// in a scheduled list somewhere (e.g. runtime.moduledata.inittasks).
++				continue
+ 			}
+ 			rs := r.Sym()
+ 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
+diff --git a/src/cmd/link/internal/ld/heap.go b/src/cmd/link/internal/ld/heap.go
+index ea2d772bee..286a61b78f 100644
+--- a/src/cmd/link/internal/ld/heap.go
++++ b/src/cmd/link/internal/ld/heap.go
+@@ -52,3 +52,50 @@ func (h *heap) pop() loader.Sym {
+ }
+ 
+ func (h *heap) empty() bool { return len(*h) == 0 }
++
++// Same as heap, but sorts alphabetically instead of by index.
++// (Note that performance is not so critical here, as it is
++// in the case above. Some simplification might be in order.)
++type lexHeap []loader.Sym
++
++func (h *lexHeap) push(ldr *loader.Loader, s loader.Sym) {
++	*h = append(*h, s)
++	// sift up
++	n := len(*h) - 1
++	for n > 0 {
++		p := (n - 1) / 2 // parent
++		if ldr.SymName((*h)[p]) <= ldr.SymName((*h)[n]) {
++			break
++		}
++		(*h)[n], (*h)[p] = (*h)[p], (*h)[n]
++		n = p
++	}
++}
++
++func (h *lexHeap) pop(ldr *loader.Loader) loader.Sym {
++	r := (*h)[0]
++	n := len(*h) - 1
++	(*h)[0] = (*h)[n]
++	*h = (*h)[:n]
++
++	// sift down
++	i := 0
++	for {
++		c := 2*i + 1 // left child
++		if c >= n {
++			break
++		}
++		if c1 := c + 1; c1 < n && ldr.SymName((*h)[c1]) < ldr.SymName((*h)[c]) {
++			c = c1 // right child
++		}
++		if ldr.SymName((*h)[i]) <= ldr.SymName((*h)[c]) {
++			break
++		}
++		(*h)[i], (*h)[c] = (*h)[c], (*h)[i]
++		i = c
++	}
++
++	return r
++}
++
++func (h *lexHeap) empty() bool { return len(*h) == 0 }
+diff --git a/src/cmd/link/internal/ld/inittask.go b/src/cmd/link/internal/ld/inittask.go
+new file mode 100644
+index 0000000000..1683523641
+--- /dev/null
++++ b/src/cmd/link/internal/ld/inittask.go
+@@ -0,0 +1,175 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"fmt"
++	"sort"
++)
++
++// Inittasks finds inittask records, figures out a good
++// order to execute them in, and emits that order for the
++// runtime to use.
++//
++// An inittask represents the initialization code that needs
++// to be run for a package. For package p, the p..inittask
++// symbol contains a list of init functions to run, both
++// explicit user init functions and implicit compiler-generated
++// init functions for initializing global variables like maps.
++//
++// In addition, inittask records have dependencies between each
++// other, mirroring the import dependencies. So if package p
++// imports package q, then there will be a dependency p -> q.
++// We can't initialize package p until after package q has
++// already been initialized.
++//
++// Package dependencies are encoded with relocations. If package
++// p imports package q, then package p's inittask record will
++// have a R_INITORDER relocation pointing to package q's inittask
++// record. See cmd/compile/internal/pkginit/init.go.
++//
++// This function computes an ordering of all of the inittask
++// records so that the order respects all the dependencies,
++// and given that restriction, orders the inittasks in
++// lexicographic order.
++func (ctxt *Link) inittasks() {
++	switch ctxt.BuildMode {
++	case BuildModeExe, BuildModePIE, BuildModeCArchive, BuildModeCShared:
++		// Normally the inittask list will be run on program startup.
++		ctxt.mainInittasks = ctxt.inittaskSym("main..inittask", "go:main.inittasks")
++	case BuildModePlugin:
++		// For plugins, the list will be run on plugin load.
++		ctxt.mainInittasks = ctxt.inittaskSym(fmt.Sprintf("%s..inittask", objabi.PathToPrefix(*flagPluginPath)), "go:plugin.inittasks")
++		// Make symbol local so multiple plugins don't clobber each other's inittask list.
++		ctxt.loader.SetAttrLocal(ctxt.mainInittasks, true)
++	case BuildModeShared:
++		// Nothing to do. The inittask list will be built by
++		// the final build (with the -linkshared option).
++	default:
++		Exitf("unhandled build mode %d", ctxt.BuildMode)
++	}
++
++	// If the runtime is one of the packages we are building,
++	// initialize the runtime_inittasks variable.
++	ldr := ctxt.loader
++	if ldr.Lookup("runtime.runtime_inittasks", 0) != 0 {
++		t := ctxt.inittaskSym("runtime..inittask", "go:runtime.inittasks")
++
++		// This slice header is already defined in runtime/proc.go, so we update it here with new contents.
++		sh := ldr.Lookup("runtime.runtime_inittasks", 0)
++		sb := ldr.MakeSymbolUpdater(sh)
++		sb.SetSize(0)
++		sb.SetType(sym.SRODATA)
++		sb.AddAddr(ctxt.Arch, t)
++		sb.AddUint(ctxt.Arch, uint64(ldr.SymSize(t)/int64(ctxt.Arch.PtrSize)))
++		sb.AddUint(ctxt.Arch, uint64(ldr.SymSize(t)/int64(ctxt.Arch.PtrSize)))
++	}
++}
++
++// inittaskSym builds a symbol containing pointers to all the inittasks
++// that need to be run, given the root inittask symbol.
++func (ctxt *Link) inittaskSym(rootName, symName string) loader.Sym {
++	ldr := ctxt.loader
++	root := ldr.Lookup(rootName, 0)
++	if root == 0 {
++		// Nothing to do
++		return 0
++	}
++
++	// Edges record dependencies between packages.
++	// {from,to} is in edges if from's package imports to's package.
++	// This list is used to implement reverse edge lookups.
++	type edge struct {
++		from, to loader.Sym
++	}
++	var edges []edge
++
++	// List of packages that are ready to schedule. We use a lexicographic
++	// ordered heap to pick the lexically earliest uninitialized but
++	// inititalizeable package at each step.
++	var h lexHeap
++
++	// m maps from an inittask symbol for package p to the number of
++	// p's direct imports that have not yet been scheduled.
++	m := map[loader.Sym]int{}
++
++	// Find all reachable inittask records from the root.
++	// Keep track of the dependency edges between them in edges.
++	// Keep track of how many imports each package has in m.
++	// q is the list of found but not yet explored packages.
++	var q []loader.Sym
++	m[root] = 0
++	q = append(q, root)
++	for len(q) > 0 {
++		x := q[len(q)-1]
++		q = q[:len(q)-1]
++		relocs := ldr.Relocs(x)
++		n := relocs.Count()
++		ndeps := 0
++		for i := 0; i < n; i++ {
++			r := relocs.At(i)
++			if r.Type() != objabi.R_INITORDER {
++				continue
++			}
++			ndeps++
++			s := r.Sym()
++			edges = append(edges, edge{from: x, to: s})
++			if _, ok := m[s]; ok {
++				continue // already found
++			}
++			q = append(q, s)
++			m[s] = 0 // mark as found
++		}
++		m[x] = ndeps
++		if ndeps == 0 {
++			h.push(ldr, x)
++		}
++	}
++
++	// Sort edges so we can look them up by edge destination.
++	sort.Slice(edges, func(i, j int) bool {
++		return edges[i].to < edges[j].to
++	})
++
++	// Figure out the schedule.
++	sched := ldr.MakeSymbolBuilder(symName)
++	sched.SetType(sym.SRODATA)
++	for !h.empty() {
++		// Pick the lexicographically first initializable package.
++		s := h.pop(ldr)
++
++		// Add s to the schedule.
++		if ldr.SymSize(s) > 8 {
++			// Note: don't add s if it has no functions to run. We need
++			// s during linking to compute an ordering, but the runtime
++			// doesn't need to know about it. About 1/2 of stdlib packages
++			// fit in this bucket.
++			sched.AddAddr(ctxt.Arch, s)
++		}
++
++		// Find all incoming edges into s.
++		a := sort.Search(len(edges), func(i int) bool { return edges[i].to >= s })
++		b := sort.Search(len(edges), func(i int) bool { return edges[i].to > s })
++
++		// Decrement the import count for all packages that import s.
++		// If the count reaches 0, that package is now ready to schedule.
++		for _, e := range edges[a:b] {
++			m[e.from]--
++			if m[e.from] == 0 {
++				h.push(ldr, e.from)
++			}
++		}
++	}
++
++	for s, n := range m {
++		if n != 0 {
++			Exitf("inittask for %s is not schedulable %d", ldr.SymName(s), n)
++		}
++	}
++	return sched.Sym()
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b64176e35d..eb512b663e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -119,6 +119,10 @@ type ArchSyms struct {
+ 	DynStr  loader.Sym
+ 
+ 	unreachableMethod loader.Sym
++
++	// Symbol containing a list of all the inittasks that need
++	// to be run at startup.
++	mainInittasks loader.Sym
+ }
+ 
+ // mkArchSym is a helper for setArchSyms, to set up a special symbol.
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8511e5de63..b5f67d13ce 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -268,6 +268,9 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("loadlib")
+ 	ctxt.loadlib()
+ 
++	bench.Start("inittasks")
++	ctxt.inittasks()
++
+ 	bench.Start("deadcode")
+ 	deadcode(ctxt)
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 21a1466c49..5f5f2e1d0b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -765,6 +765,22 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		moduledata.AddUint(ctxt.Arch, 0)
+ 		moduledata.AddUint(ctxt.Arch, 0)
+ 	}
++	// Add inittasks slice
++	t := ctxt.mainInittasks
++	if t != 0 {
++		moduledata.AddAddr(ctxt.Arch, t)
++		moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(t)/int64(ctxt.Arch.PtrSize)))
++		moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(t)/int64(ctxt.Arch.PtrSize)))
++	} else {
++		// Some build modes have no inittasks, like a shared library.
++		// Its inittask list will be constructed by a higher-level
++		// linking step.
++		// This branch can also happen if there are no init tasks at all.
++		moduledata.AddUint(ctxt.Arch, 0)
++		moduledata.AddUint(ctxt.Arch, 0)
++		moduledata.AddUint(ctxt.Arch, 0)
++	}
++
+ 	if len(ctxt.Shlibs) > 0 {
+ 		thismodulename := filepath.Base(*flagOutfile)
+ 		switch ctxt.BuildMode {
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index b4c4e4061c..f6ae219d95 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -74,7 +74,7 @@ func open(name string) (*Plugin, error) {
+ 	if plugins == nil {
+ 		plugins = make(map[string]*Plugin)
+ 	}
+-	pluginpath, syms, errstr := lastmoduleinit()
++	pluginpath, syms, initTasks, errstr := lastmoduleinit()
+ 	if errstr != "" {
+ 		plugins[filepath] = &Plugin{
+ 			pluginpath: pluginpath,
+@@ -92,14 +92,7 @@ func open(name string) (*Plugin, error) {
+ 	plugins[filepath] = p
+ 	pluginsMu.Unlock()
+ 
+-	initStr := make([]byte, len(pluginpath)+len("..inittask")+1) // +1 for terminating NUL
+-	copy(initStr, pluginpath)
+-	copy(initStr[len(pluginpath):], "..inittask")
+-
+-	initTask := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&initStr[0])), &cErr)
+-	if initTask != nil {
+-		doInit(initTask)
+-	}
++	doInit(initTasks)
+ 
+ 	// Fill out the value of each plugin symbol.
+ 	updatedSyms := map[string]any{}
+@@ -147,9 +140,14 @@ var (
+ )
+ 
+ // lastmoduleinit is defined in package runtime.
+-func lastmoduleinit() (pluginpath string, syms map[string]any, errstr string)
++func lastmoduleinit() (pluginpath string, syms map[string]any, inittasks []*initTask, errstr string)
+ 
+ // doInit is defined in package runtime.
+ //
+ //go:linkname doInit runtime.doInit
+-func doInit(t unsafe.Pointer) // t should be a *runtime.initTask
++func doInit(t []*initTask)
++
++type initTask struct {
++	// fields defined in runtime.initTask. We only handle pointers to an initTask
++	// in this package, so the contents are irrelevant.
++}
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index a61dcc3b5d..312802de00 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -7,7 +7,7 @@ package runtime
+ import "unsafe"
+ 
+ //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
+-func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
++func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*initTask, errstr string) {
+ 	var md *moduledata
+ 	for pmd := firstmoduledata.next; pmd != nil; pmd = pmd.next {
+ 		if pmd.bad {
+@@ -23,13 +23,13 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
+ 		throw("runtime: plugin has empty pluginpath")
+ 	}
+ 	if md.typemap != nil {
+-		return "", nil, "plugin already loaded"
++		return "", nil, nil, "plugin already loaded"
+ 	}
+ 
+ 	for _, pmd := range activeModules() {
+ 		if pmd.pluginpath == md.pluginpath {
+ 			md.bad = true
+-			return "", nil, "plugin already loaded"
++			return "", nil, nil, "plugin already loaded"
+ 		}
+ 
+ 		if inRange(pmd.text, pmd.etext, md.text, md.etext) ||
+@@ -51,7 +51,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
+ 	for _, pkghash := range md.pkghashes {
+ 		if pkghash.linktimehash != *pkghash.runtimehash {
+ 			md.bad = true
+-			return "", nil, "plugin was built with a different version of package " + pkghash.modulename
++			return "", nil, nil, "plugin was built with a different version of package " + pkghash.modulename
+ 		}
+ 	}
+ 
+@@ -90,7 +90,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
+ 		}
+ 		syms[name] = val
+ 	}
+-	return md.pluginpath, syms, ""
++	return md.pluginpath, syms, md.inittasks, ""
+ }
+ 
+ func pluginftabverify(md *moduledata) {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ee13debf54..ae429fb1f3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -117,11 +117,9 @@ var (
+ 	raceprocctx0 uintptr
+ )
+ 
+-//go:linkname runtime_inittask runtime..inittask
+-var runtime_inittask initTask
+-
+-//go:linkname main_inittask main..inittask
+-var main_inittask initTask
++// This slice records the initializing tasks that need to be
++// done to start up the runtime. It is built by the linker.
++var runtime_inittasks []*initTask
+ 
+ // main_init_done is a signal used by cgocallbackg that initialization
+ // has been completed. It is made before _cgo_notify_runtime_init_done,
+@@ -196,7 +194,7 @@ func main() {
+ 		inittrace.active = true
+ 	}
+ 
+-	doInit(&runtime_inittask) // Must be before defer.
++	doInit(runtime_inittasks) // Must be before defer.
+ 
+ 	// Defer unlock so that runtime.Goexit during init does the unlock too.
+ 	needUnlock := true
+@@ -230,7 +228,14 @@ func main() {
+ 		cgocall(_cgo_notify_runtime_init_done, nil)
+ 	}
+ 
+-	doInit(&main_inittask)
++	// Run the initializing tasks. Depending on build mode this
++	// list can arrive a few different ways, but it will always
++	// contain the init tasks computed by the linker for all the
++	// packages in the program (excluding those added at runtime
++	// by package plugin).
++	for _, m := range activeModules() {
++		doInit(m.inittasks)
++	}
+ 
+ 	// Disable init tracing after main init done to avoid overhead
+ 	// of collecting statistics in malloc and newproc
+@@ -6437,14 +6442,11 @@ func gcd(a, b uint32) uint32 {
+ }
+ 
+ // An initTask represents the set of initializations that need to be done for a package.
+-// Keep in sync with ../../test/initempty.go:initTask
++// Keep in sync with ../../test/noinit.go:initTask
+ type initTask struct {
+-	// TODO: pack the first 3 fields more tightly?
+-	state uintptr // 0 = uninitialized, 1 = in progress, 2 = done
+-	ndeps uintptr
+-	nfns  uintptr
+-	// followed by ndeps instances of an *initTask, one per package depended on
+-	// followed by nfns pcs, one per init function to run
++	state uint32 // 0 = uninitialized, 1 = in progress, 2 = done
++	nfns  uint32
++	// followed by nfns pcs, uintptr sized, one per init function to run
+ }
+ 
+ // inittrace stores statistics for init functions which are
+@@ -6458,7 +6460,13 @@ type tracestat struct {
+ 	bytes  uint64 // heap allocated bytes
+ }
+ 
+-func doInit(t *initTask) {
++func doInit(ts []*initTask) {
++	for _, t := range ts {
++		doInit1(t)
++	}
++}
++
++func doInit1(t *initTask) {
+ 	switch t.state {
+ 	case 2: // fully initialized
+ 		return
+@@ -6467,17 +6475,6 @@ func doInit(t *initTask) {
+ 	default: // not initialized yet
+ 		t.state = 1 // initialization in progress
+ 
+-		for i := uintptr(0); i < t.ndeps; i++ {
+-			p := add(unsafe.Pointer(t), (3+i)*goarch.PtrSize)
+-			t2 := *(**initTask)(p)
+-			doInit(t2)
+-		}
+-
+-		if t.nfns == 0 {
+-			t.state = 2 // initialization done
+-			return
+-		}
+-
+ 		var (
+ 			start  int64
+ 			before tracestat
+@@ -6489,9 +6486,14 @@ func doInit(t *initTask) {
+ 			before = inittrace
+ 		}
+ 
+-		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*goarch.PtrSize)
+-		for i := uintptr(0); i < t.nfns; i++ {
+-			p := add(firstFunc, i*goarch.PtrSize)
++		if t.nfns == 0 {
++			// We should have pruned all of these in the linker.
++			throw("inittask with no functions")
++		}
++
++		firstFunc := add(unsafe.Pointer(t), 8)
++		for i := uint32(0); i < t.nfns; i++ {
++			p := add(firstFunc, uintptr(i)*goarch.PtrSize)
+ 			f := *(*func())(unsafe.Pointer(&p))
+ 			f()
+ 		}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index da83fd93ea..94bf51d2f9 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -466,6 +466,10 @@ type moduledata struct {
+ 	pluginpath string
+ 	pkghashes  []modulehash
+ 
++	// This slice records the initializing tasks that need to be
++	// done to start up the program. It is built by the linker.
++	inittasks []*initTask
++
+ 	modulename   string
+ 	modulehashes []modulehash
+ 
+diff --git a/test/fixedbugs/issue31636.out b/test/fixedbugs/issue31636.out
+index e274b2bb10..de980441c3 100644
+--- a/test/fixedbugs/issue31636.out
++++ b/test/fixedbugs/issue31636.out
+@@ -1,3 +1,3 @@
+-c
+-b
+ a
++b
++c
+diff --git a/test/noinit.go b/test/noinit.go
+index 505467cf8f..1496b27248 100644
+--- a/test/noinit.go
++++ b/test/noinit.go
+@@ -328,9 +328,8 @@ func init() {
+ // Actual test: check for init funcs in runtime data structures.
+ 
+ type initTask struct {
+-	state uintptr
+-	ndeps uintptr
+-	nfns  uintptr
++	state uint32
++	nfns  uint32
+ }
+ 
+ //go:linkname main_inittask main..inittask

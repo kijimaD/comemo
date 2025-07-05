@@ -12,6 +12,26 @@ Date:   Sat Nov 27 23:02:16 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/testing/fuzz.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 24a0080730..19ff39947b 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -423,12 +423,10 @@ type fuzzResult struct {
+ }
+ 
+ func (r fuzzResult) String() string {
+-	s := ""
+ 	if r.Error == nil {
+-		return s
++		return ""
+ 	}
+-	s = fmt.Sprintf("%s", r.Error.Error())
+-	return s
++	return r.Error.Error()
+ }
+ 
+ // fuzzCrashError is satisfied by a failing input detected while fuzzing.

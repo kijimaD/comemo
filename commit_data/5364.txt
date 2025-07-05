@@ -9,8 +9,148 @@ Date:   Tue Apr 27 10:59:33 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/946043
-
+---
  src/pkg/go/printer/nodes.go                   | 17 ++++++++----
  src/pkg/go/printer/testdata/statements.golden | 40 ++++++++++++++++++++++++++-
  src/pkg/go/printer/testdata/statements.input  | 23 +++++++++++++++
  3 files changed, 73 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index b020060d79..dbbcf4e83f 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -953,9 +953,14 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
+ // TODO(gri): Decide if this should be used more broadly. The printing code
+ //            knows when to insert parentheses for precedence reasons, but
+ //            need to be careful to keep them around type expressions.
+-func stripParens(x ast.Expr) ast.Expr {
+-	if px, hasParens := x.(*ast.ParenExpr); hasParens {
+-		return stripParens(px.X)
++func stripParens(x ast.Expr, inControlClause bool) ast.Expr {
++	for px, hasParens := x.(*ast.ParenExpr); hasParens; px, hasParens = x.(*ast.ParenExpr) {
++		x = px.X
++		if _, isCompositeLit := x.(*ast.CompositeLit); isCompositeLit && inControlClause {
++			// composite literals inside control clauses need parens;
++			// don't strip innermost layer
++			return px
++		}
+ 	}
+ 	return x
+ }
+@@ -967,7 +972,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
+ 	if init == nil && post == nil {
+ 		// no semicolons required
+ 		if expr != nil {
+-			p.expr(stripParens(expr), ignoreMultiLine)
++			p.expr(stripParens(expr, true), ignoreMultiLine)
+ 			needsBlank = true
+ 		}
+ 	} else {
+@@ -978,7 +983,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
+ 		}
+ 		p.print(token.SEMICOLON, blank)
+ 		if expr != nil {
+-			p.expr(stripParens(expr), ignoreMultiLine)
++			p.expr(stripParens(expr, true), ignoreMultiLine)
+ 			needsBlank = true
+ 		}
+ 		if isForStmt {
+@@ -1152,7 +1157,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) {
+ 			p.expr(s.Value, multiLine)
+ 		}
+ 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
+-		p.expr(stripParens(s.X), multiLine)
++		p.expr(stripParens(s.X, true), multiLine)
+ 		p.print(blank)
+ 		p.block(s.Body, 1)
+ 		*multiLine = true
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 86d8282cd7..455a4d632c 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -144,12 +144,50 @@ func _() {
+ 	for x := range []int{} {
+ 		use(x)
+ 	}
+-	for x := range []int{} {
++	for x := range ([]int{}) {
+ 		use(x)
+ 	}	// no parens printed
+ }
+ 
+ 
++// Don't remove mandatory parentheses around composite literals in control clauses.
++func _() {
++	if x {
++	}	// no ()'s
++	if x {
++	}	// no ()'s
++	if ([]T{}) {
++	}	// ()
++	if ([]T{}) {
++	}	// ()
++	if ([]T{}) {
++	}	// ()
++
++	for x {
++	}	// no ()'s
++	for x {
++	}	// no ()'s
++	for ([]T{}) {
++	}	// ()
++	for ([]T{}) {
++	}	// ()
++	for ([]T{}) {
++	}	// ()
++
++	switch x {
++	}	// no ()'s
++	switch x {
++	}	// no ()'s
++	switch ([]T{}) {
++	}	// ()
++	switch ([]T{}) {
++	}	// ()
++
++	for _ = range ([]T{T{42}}) {
++	}	// ()
++}
++
++
+ // Extra empty lines inside functions. Do respect source code line
+ // breaks between statement boundaries but print at most one empty
+ // line at a time.
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index 061f7f3205..60133ea485 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -111,6 +111,29 @@ func _() {
+ }
+ 
+ 
++// Don't remove mandatory parentheses around composite literals in control clauses.
++func _() {
++	if (x) {}                // no ()'s
++	if (((x))) {}            // no ()'s
++	if ([]T{}) {}            // ()
++	if (([]T{})) {}          // ()
++	if ; (((([]T{})))) {}    // ()
++
++	for (x) {}                // no ()'s
++	for (((x))) {}            // no ()'s
++	for ([]T{}) {}            // ()
++	for (([]T{})) {}          // ()
++	for ; (((([]T{})))) ; {}  // ()
++
++	switch (x) {}                // no ()'s
++	switch (((x))) {}            // no ()'s
++	switch ([]T{}) {}            // ()
++	switch (([]T{})) {}          // ()
++
++	for _ = range ((([]T{T{42}}))) {}  // ()
++}
++
++
+ // Extra empty lines inside functions. Do respect source code line
+ // breaks between statement boundaries but print at most one empty
+ // line at a time.

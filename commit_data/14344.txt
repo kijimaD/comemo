@@ -10,7 +10,7 @@ Date:   Wed Nov 7 12:33:54 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6832043
-
+---
  test/index.go  | 27 ++++++++-------------------
  test/index0.go | 12 ++++++++++++
  test/index1.go | 12 ++++++++++++
@@ -18,3 +18,238 @@ Date:   Wed Nov 7 12:33:54 2012 -0800
  test/run.go    | 38 ++++++++++++++++++++++++++++++++++----
  test/testlib   | 12 +++++++++++-
  6 files changed, 89 insertions(+), 24 deletions(-)
+
+diff --git a/test/index.go b/test/index.go
+index 461c2ee418..528d7add47 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -1,24 +1,16 @@
+-// $G $D/$F.go && $L $F.$A &&
+-// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1 &&
+-// ./$A.out -pass 1 >tmp.go && errchk $G -e tmp.go &&
+-// ./$A.out -pass 2 >tmp.go && errchk $G -e tmp.go
+-// rm -f tmp.go $A.out1
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// skip
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Generate test of index and slice bounds checks.
+-// The output is compiled and run.
++// The actual tests are index0.go, index1.go, index2.go.
+ 
+ package main
+ 
+ import (
+ 	"bufio"
+-	"flag"
+ 	"fmt"
+ 	"os"
+ 	"runtime"
+@@ -155,14 +147,13 @@ func bug() {
+ func main() {
+ `
+ 
+-// Passes:
++// pass variable set in index[012].go
+ //	0 - dynamic checks
+ //	1 - static checks of invalid constants (cannot assign to types)
+ //	2 - static checks of array bounds
+-var pass = flag.Int("pass", 0, "which test (0,1,2)")
+ 
+ func testExpr(b *bufio.Writer, expr string) {
+-	if *pass == 0 {
++	if pass == 0 {
+ 		fmt.Fprintf(b, "\ttest(func(){use(%s)}, %q)\n", expr, expr)
+ 	} else {
+ 		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow\"\n", expr)
+@@ -172,12 +163,10 @@ func testExpr(b *bufio.Writer, expr string) {
+ func main() {
+ 	b := bufio.NewWriter(os.Stdout)
+ 
+-	flag.Parse()
+-	
+-	if *pass == 0 {
+-		fmt.Fprint(b, "// $G $D/$F.go && $L $F.$A && ./$A.out\n\n")
++	if pass == 0 {
++		fmt.Fprint(b, "// run\n\n")
+ 	} else {
+-		fmt.Fprint(b, "// errchk $G -e $D/$F.go\n\n")
++		fmt.Fprint(b, "// errorcheck\n\n")
+ 	}
+ 	fmt.Fprint(b, prolog)
+ 	
+@@ -240,7 +229,7 @@ func main() {
+ 		}
+ 
+ 		// Only print the test case if it is appropriate for this pass.
+-		if thisPass == *pass {
++		if thisPass == pass {
+ 			pae := p+a+e+big
+ 			cni := c+n+i
+ 			
+diff --git a/test/index0.go b/test/index0.go
+new file mode 100644
+index 0000000000..04a16198d2
+--- /dev/null
++++ b/test/index0.go
+@@ -0,0 +1,12 @@
++// runoutput ./index.go
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate test of index and slice bounds checks.
++// The output is compiled and run.
++
++package main
++
++const pass = 0
+diff --git a/test/index1.go b/test/index1.go
+new file mode 100644
+index 0000000000..e28efa35f1
+--- /dev/null
++++ b/test/index1.go
+@@ -0,0 +1,12 @@
++// errorcheckoutput ./index.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate test of index and slice bounds checks.
++// The output is error checked.
++
++package main
++
++const pass = 1
+diff --git a/test/index2.go b/test/index2.go
+new file mode 100644
+index 0000000000..a7107cc051
+--- /dev/null
++++ b/test/index2.go
+@@ -0,0 +1,12 @@
++// errorcheckoutput ./index.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate test of index and slice bounds checks.
++// The output is error checked.
++
++package main
++
++const pass = 2
+diff --git a/test/run.go b/test/run.go
+index 6b881eb1f0..2b874d7dfc 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -128,7 +128,7 @@ func main() {
+ 		if !*verbose && test.err == nil {
+ 			continue
+ 		}
+-		fmt.Printf("%-10s %-20s: %s\n", test.action, test.goFileName(), errStr)
++		fmt.Printf("%-20s %-20s: %s\n", test.action, test.goFileName(), errStr)
+ 	}
+ 
+ 	if *summary {
+@@ -198,7 +198,7 @@ type test struct {
+ 	donec       chan bool // closed when done
+ 
+ 	src    string
+-	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput", "compiledir"
++	action string // "compile", "build", etc.
+ 
+ 	tempDir string
+ 	err     error
+@@ -300,7 +300,7 @@ func (t *test) run() {
+ 		fallthrough
+ 	case "compile", "compiledir", "build", "run", "runoutput", "rundir":
+ 		t.action = action
+-	case "errorcheck", "errorcheckdir":
++	case "errorcheck", "errorcheckdir", "errorcheckoutput":
+ 		t.action = action
+ 		wantError = true
+ 		for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+@@ -467,7 +467,7 @@ func (t *test) run() {
+ 
+ 	case "runoutput":
+ 		useTmp = false
+-		out, err := runcmd("go", "run", t.goFileName())
++		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+ 		if err != nil {
+ 			t.err = err
+ 		}
+@@ -484,6 +484,36 @@ func (t *test) run() {
+ 		if string(out) != t.expectedOutput() {
+ 			t.err = fmt.Errorf("incorrect output\n%s", out)
+ 		}
++
++	case "errorcheckoutput":
++		useTmp = false
++		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
++		if err != nil {
++			t.err = err
++		}
++		tfile := filepath.Join(t.tempDir, "tmp__.go")
++		err = ioutil.WriteFile(tfile, out, 0666)
++		if err != nil {
++			t.err = fmt.Errorf("write tempfile:%s", err)
++			return
++		}
++		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
++		cmdline = append(cmdline, flags...)
++		cmdline = append(cmdline, tfile)
++		out, err = runcmd(cmdline...)
++		if wantError {
++			if err == nil {
++				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
++				return
++			}
++		} else {
++			if err != nil {
++				t.err = err
++				return
++			}
++		}
++		t.err = t.errorCheck(string(out), tfile, "tmp__.go")
++		return
+ 	}
+ }
+ 
+diff --git a/test/testlib b/test/testlib
+index ceab8794b2..5bb5669b78 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -61,7 +61,7 @@ build() {
+ }
+ 
+ runoutput() {
+-	go run "$D/$F.go" > tmp.go
++	go run "$D/$F.go" "$@" > tmp.go
+ 	go run tmp.go
+ }
+ 
+@@ -96,6 +96,16 @@ errorcheck() {
+ 	errchk $zero $G -e $* $D/$F.go
+ }
+ 
++errorcheckoutput() {
++	zero=""
++	if [ "$1" = "-0" ]; then
++		zero="-0"
++		shift
++	fi
++	go run "$D/$F.go" "$@" > tmp.go
++	errchk $zero $G -e tmp.go
++}
++
+ skip() {
+ 	true
+ }

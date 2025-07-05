@@ -12,9 +12,363 @@ Date:   Wed Dec 7 14:52:17 2011 -0500
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/5437137
-
+---
  src/pkg/math/all_test.go |  84 +++++++++++++++++++++++++++++++
  src/pkg/math/dim.go      |  49 ++++++++++++++++--
  src/pkg/math/dim_amd64.s | 126 +++++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/math/sin.go      |   2 +-
  4 files changed, 251 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 7e63023a1c..7256ca42d3 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -958,6 +958,75 @@ var fabsSC = []float64{
+ 	NaN(),
+ }
+ 
++var vffdimSC = [][2]float64{
++	{Inf(-1), Inf(-1)},
++	{Inf(-1), Inf(1)},
++	{Inf(-1), NaN()},
++	{Copysign(0, -1), Copysign(0, -1)},
++	{Copysign(0, -1), 0},
++	{0, Copysign(0, -1)},
++	{0, 0},
++	{Inf(1), Inf(-1)},
++	{Inf(1), Inf(1)},
++	{Inf(1), NaN()},
++	{NaN(), Inf(-1)},
++	{NaN(), Copysign(0, -1)},
++	{NaN(), 0},
++	{NaN(), Inf(1)},
++	{NaN(), NaN()},
++}
++var fdimSC = []float64{
++	NaN(),
++	0,
++	NaN(),
++	0,
++	0,
++	0,
++	0,
++	Inf(1),
++	NaN(),
++	NaN(),
++	NaN(),
++	NaN(),
++	NaN(),
++	NaN(),
++	NaN(),
++}
++var fmaxSC = []float64{
++	Inf(-1),
++	Inf(1),
++	NaN(),
++	Copysign(0, -1),
++	0,
++	0,
++	0,
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	NaN(),
++	NaN(),
++	NaN(),
++	Inf(1),
++	NaN(),
++}
++var fminSC = []float64{
++	Inf(-1),
++	Inf(-1),
++	Inf(-1),
++	Copysign(0, -1),
++	Copysign(0, -1),
++	Copysign(0, -1),
++	0,
++	Inf(-1),
++	Inf(1),
++	NaN(),
++	Inf(-1),
++	NaN(),
++	NaN(),
++	NaN(),
++	NaN(),
++}
++
+ var vffmodSC = [][2]float64{
+ 	{Inf(-1), Inf(-1)},
+ 	{Inf(-1), -Pi},
+@@ -1875,6 +1944,11 @@ func TestDim(t *testing.T) {
+ 			t.Errorf("Dim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
+ 		}
+ 	}
++	for i := 0; i < len(vffdimSC); i++ {
++		if f := Dim(vffdimSC[i][0], vffdimSC[i][1]); !alike(fdimSC[i], f) {
++			t.Errorf("Dim(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fdimSC[i])
++		}
++	}
+ }
+ 
+ func TestFloor(t *testing.T) {
+@@ -1896,6 +1970,11 @@ func TestMax(t *testing.T) {
+ 			t.Errorf("Max(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
+ 		}
+ 	}
++	for i := 0; i < len(vffdimSC); i++ {
++		if f := Max(vffdimSC[i][0], vffdimSC[i][1]); !alike(fmaxSC[i], f) {
++			t.Errorf("Max(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fmaxSC[i])
++		}
++	}
+ }
+ 
+ func TestMin(t *testing.T) {
+@@ -1904,6 +1983,11 @@ func TestMin(t *testing.T) {
+ 			t.Errorf("Min(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
+ 		}
+ 	}
++	for i := 0; i < len(vffdimSC); i++ {
++		if f := Min(vffdimSC[i][0], vffdimSC[i][1]); !alike(fminSC[i], f) {
++			t.Errorf("Min(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fminSC[i])
++		}
++	}
+ }
+ 
+ func TestMod(t *testing.T) {
+diff --git a/src/pkg/math/dim.go b/src/pkg/math/dim.go
+index d2eb52f3bf..5701b14173 100644
+--- a/src/pkg/math/dim.go
++++ b/src/pkg/math/dim.go
+@@ -5,15 +5,37 @@
+ package math
+ 
+ // Dim returns the maximum of x-y or 0.
++//
++// Special cases are:
++//	Dim(+Inf, +Inf) = NaN
++//	Dim(-Inf, -Inf) = NaN
++//	Dim(x, NaN) = Dim(NaN, x) = NaN
+ func Dim(x, y float64) float64 {
+-	if x > y {
+-		return x - y
+-	}
+-	return 0
++	return Max(x-y, 0)
+ }
+ 
+ // Max returns the larger of x or y.
++//
++// Special cases are:
++//	Max(x, +Inf) = Max(+Inf, x) = +Inf
++//	Max(x, NaN) = Max(NaN, x) = NaN
++//	Max(+0, ±0) = Max(±0, +0) = +0
++//	Max(-0, -0) = -0
+ func Max(x, y float64) float64 {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x > MaxFloat64 || y > MaxFloat64: // IsInf(x, 1) || IsInf(y, 1):
++		return Inf(1)
++	case x != x || y != y: // IsNaN(x) || IsNaN(y):
++		return NaN()
++	case x == 0 && x == y:
++		if Signbit(x) {
++			return y
++		}
++		return x
++	}
+ 	if x > y {
+ 		return x
+ 	}
+@@ -21,7 +43,26 @@ func Max(x, y float64) float64 {
+ }
+ 
+ // Min returns the smaller of x or y.
++//
++// Special cases are:
++//	Min(x, -Inf) = Min(-Inf, x) = -Inf
++//	Min(x, NaN) = Min(NaN, x) = NaN
++//	Min(-0, ±0) = Min(±0, -0) = -0
+ func Min(x, y float64) float64 {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x < -MaxFloat64 || y < -MaxFloat64: // IsInf(x, -1) || IsInf(y, -1):
++		return Inf(-1)
++	case x != x || y != y: // IsNaN(x) || IsNaN(y):
++		return NaN()
++	case x == 0 && x == y:
++		if Signbit(x) {
++			return x
++		}
++		return y
++	}
+ 	if x < y {
+ 		return x
+ 	}
+diff --git a/src/pkg/math/dim_amd64.s b/src/pkg/math/dim_amd64.s
+index cfc8e05497..c867db5537 100644
+--- a/src/pkg/math/dim_amd64.s
++++ b/src/pkg/math/dim_amd64.s
+@@ -2,25 +2,141 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#define PosInf 0x7FF0000000000000
++#define NaN    0x7FF0000000000001
++#define NegInf 0xFFF0000000000000
++
+ // func Dim(x, y float64) float64
+ TEXT ·Dim(SB),7,$0
++	// (+Inf, +Inf) special case
++	MOVQ    x+0(FP), BX
++	MOVQ    y+8(FP), CX
++	MOVQ    $PosInf, AX
++	CMPQ    AX, BX
++	JNE     dim2
++	CMPQ    AX, CX
++	JEQ     bothInf
++dim2:	// (-Inf, -Inf) special case
++	MOVQ    $NegInf, AX
++	CMPQ    AX, BX
++	JNE     dim3
++	CMPQ    AX, CX
++	JEQ     bothInf
++dim3:	// (NaN, x) or (x, NaN)
++	MOVQ    $~(1<<63), DX
++	MOVQ    $NaN, AX
++	ANDQ    DX, BX // x = |x|
++	CMPQ    AX, BX
++	JLE     isDimNaN
++	ANDQ    DX, CX // y = |y|
++	CMPQ    AX, CX
++	JLE     isDimNaN
++
+ 	MOVSD x+0(FP), X0
+ 	SUBSD y+8(FP), X0
+ 	MOVSD $(0.0), X1
+ 	MAXSD X1, X0
+ 	MOVSD X0, r+16(FP)
+ 	RET
++bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
++	MOVQ    $NaN, AX
++isDimNaN:
++	MOVQ    AX, r+16(FP)
++	RET
+ 
+ // func ·Max(x, y float64) float64
+ TEXT ·Max(SB),7,$0
+-	MOVSD x+0(FP), X0
+-	MAXSD y+8(FP), X0
+-	MOVSD X0, r+16(FP)
++	// +Inf special cases
++	MOVQ    $PosInf, AX
++	MOVQ    x+0(FP), R8
++	CMPQ    AX, R8
++	JEQ     isPosInf
++	MOVQ    y+8(FP), R9
++	CMPQ    AX, R9
++	JEQ     isPosInf
++	// NaN special cases
++	MOVQ    $~(1<<63), DX // bit mask
++	MOVQ    $NaN, AX
++	MOVQ    R8, BX
++	ANDQ    DX, BX // x = |x|
++	CMPQ    AX, BX
++	JLE     isMaxNaN
++	MOVQ    R9, CX
++	ANDQ    DX, CX // y = |y|
++	CMPQ    AX, CX
++	JLE     isMaxNaN
++	// ±0 special cases
++	ORQ     CX, BX
++	JEQ     isMaxZero
++
++	MOVQ    R8, X0
++	MOVQ    R9, X1
++	MAXSD   X1, X0
++	MOVSD   X0, r+16(FP)
++	RET
++isMaxNaN: // return NaN
++isPosInf: // return +Inf
++	MOVQ    AX, r+16(FP)
++	RET
++isMaxZero:
++	MOVQ    $(1<<63), AX // -0.0
++	CMPQ    AX, R8
++	JEQ     +3(PC)
++	MOVQ    R8, r+16(FP) // return 0
++	RET
++	MOVQ    R9, r+16(FP) // return other 0
+ 	RET
+ 
++/*
++	MOVQ    $0, AX
++	CMPQ    AX, R8
++	JNE     +3(PC)
++	MOVQ    R8, r+16(FP) // return 0
++	RET
++	MOVQ    R9, r+16(FP) // return other 0
++	RET
++*/
++
+ // func Min(x, y float64) float64
+ TEXT ·Min(SB),7,$0
+-	MOVSD x+0(FP), X0
+-	MINSD y+8(FP), X0
++	// -Inf special cases
++	MOVQ    $NegInf, AX
++	MOVQ    x+0(FP), R8
++	CMPQ    AX, R8
++	JEQ     isNegInf
++	MOVQ    y+8(FP), R9
++	CMPQ    AX, R9
++	JEQ     isNegInf
++	// NaN special cases
++	MOVQ    $~(1<<63), DX
++	MOVQ    $NaN, AX
++	MOVQ    R8, BX
++	ANDQ    DX, BX // x = |x|
++	CMPQ    AX, BX
++	JLE     isMinNaN
++	MOVQ    R9, CX
++	ANDQ    DX, CX // y = |y|
++	CMPQ    AX, CX
++	JLE     isMinNaN
++	// ±0 special cases
++	ORQ     CX, BX
++	JEQ     isMinZero
++
++	MOVQ    R8, X0
++	MOVQ    R9, X1
++	MINSD   X1, X0
+ 	MOVSD X0, r+16(FP)
+ 	RET
++isMinNaN: // return NaN
++isNegInf: // return -Inf
++	MOVQ    AX, r+16(FP)
++	RET
++isMinZero:
++	MOVQ    $(1<<63), AX // -0.0
++	CMPQ    AX, R8
++	JEQ     +3(PC)
++	MOVQ    R9, r+16(FP) // return other 0
++	RET
++	MOVQ    R8, r+16(FP) // return -0
++	RET
++
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index b2a3f8a4e0..18509d95cf 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -166,7 +166,7 @@ func Cos(x float64) float64 {
+ 
+ // Sin returns the sine of x.
+ //
+-// Special conditions are:
++// Special cases are:
+ //	Sin(±0) = ±0
+ //	Sin(±Inf) = NaN
+ //	Sin(NaN) = NaN

@@ -16,7 +16,7 @@ Date:   Mon Nov 23 00:15:40 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go    |  7 ++----
  src/cmd/compile/internal/gc/closure.go  |  5 ++---
  src/cmd/compile/internal/gc/dcl.go      | 39 +++++----------------------------
@@ -25,3 +25,289 @@ Date:   Mon Nov 23 00:15:40 2020 -0800
  src/cmd/compile/internal/gc/universe.go | 17 +++++++-------
  src/cmd/compile/internal/types/type.go  | 11 ++++++++--
  7 files changed, 37 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index a3a0c8fce8..1f7631d199 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -74,11 +74,8 @@ func expandiface(t *types.Type) {
+ 		// (including broken ones, if any) and add to t's
+ 		// method set.
+ 		for _, t1 := range m.Type.Fields().Slice() {
+-			f := types.NewField()
+-			f.Pos = m.Pos // preserve embedding position
+-			f.Sym = t1.Sym
+-			f.Type = t1.Type
+-			f.SetBroke(t1.Broke())
++			// Use m.Pos rather than t1.Pos to preserve embedding position.
++			f := types.NewField(m.Pos, t1.Sym, t1.Type)
+ 			addMethod(f, false)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index bd350f696e..42a9b4f3e8 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"fmt"
+ )
+ 
+@@ -266,10 +267,8 @@ func transformclosure(xfunc *Node) {
+ 			v.SetClass(PPARAM)
+ 			decls = append(decls, v)
+ 
+-			fld := types.NewField()
++			fld := types.NewField(src.NoXPos, v.Sym, v.Type)
+ 			fld.Nname = asTypesNode(v)
+-			fld.Type = v.Type
+-			fld.Sym = v.Sym
+ 			params = append(params, fld)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6e90eb4d65..96c3a6faba 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -543,35 +543,19 @@ func structfield(n *Node) *types.Field {
+ 		Fatalf("structfield: oops %v\n", n)
+ 	}
+ 
+-	f := types.NewField()
+-	f.Pos = n.Pos
+-	f.Sym = n.Sym
+-
+ 	if n.Left != nil {
+ 		n.Left = typecheck(n.Left, ctxType)
+ 		n.Type = n.Left.Type
+ 		n.Left = nil
+ 	}
+ 
+-	f.Type = n.Type
+-	if f.Type == nil {
+-		f.SetBroke(true)
+-	}
+-
++	f := types.NewField(n.Pos, n.Sym, n.Type)
+ 	if n.Embedded() {
+ 		checkembeddedtype(n.Type)
+ 		f.Embedded = 1
+-	} else {
+-		f.Embedded = 0
+ 	}
+-
+-	switch u := n.Val().U.(type) {
+-	case string:
+-		f.Note = u
+-	default:
+-		yyerror("field tag must be a string")
+-	case nil:
+-		// no-op
++	if n.HasVal() {
++		f.Note = n.Val().U.(string)
+ 	}
+ 
+ 	lineno = lno
+@@ -671,13 +655,7 @@ func interfacefield(n *Node) *types.Field {
+ 		n.Left = nil
+ 	}
+ 
+-	f := types.NewField()
+-	f.Pos = n.Pos
+-	f.Sym = n.Sym
+-	f.Type = n.Type
+-	if f.Type == nil {
+-		f.SetBroke(true)
+-	}
++	f := types.NewField(n.Pos, n.Sym, n.Type)
+ 
+ 	lineno = lno
+ 	return f
+@@ -705,9 +683,7 @@ func fakeRecv() *Node {
+ }
+ 
+ func fakeRecvField() *types.Field {
+-	f := types.NewField()
+-	f.Type = types.FakeRecvType()
+-	return f
++	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+ }
+ 
+ // isifacemethod reports whether (field) m is
+@@ -920,10 +896,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
+ 		return f
+ 	}
+ 
+-	f := types.NewField()
+-	f.Pos = lineno
+-	f.Sym = msym
+-	f.Type = t
++	f := types.NewField(lineno, msym, t)
+ 	f.SetNointerface(nointerface)
+ 
+ 	mt.Methods().Append(f)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index c0114d0e53..376a167e16 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -327,11 +327,7 @@ func (r *importReader) doDecl(n *Node) {
+ 			recv := r.param()
+ 			mtyp := r.signature(recv)
+ 
+-			f := types.NewField()
+-			f.Pos = mpos
+-			f.Sym = msym
+-			f.Type = mtyp
+-			ms[i] = f
++			ms[i] = types.NewField(mpos, msym, mtyp)
+ 
+ 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
+ 			m.Type = mtyp
+@@ -547,10 +543,7 @@ func (r *importReader) typ1() *types.Type {
+ 			emb := r.bool()
+ 			note := r.string()
+ 
+-			f := types.NewField()
+-			f.Pos = pos
+-			f.Sym = sym
+-			f.Type = typ
++			f := types.NewField(pos, sym, typ)
+ 			if emb {
+ 				f.Embedded = 1
+ 			}
+@@ -571,10 +564,7 @@ func (r *importReader) typ1() *types.Type {
+ 			pos := r.pos()
+ 			typ := r.typ()
+ 
+-			f := types.NewField()
+-			f.Pos = pos
+-			f.Type = typ
+-			embeddeds[i] = f
++			embeddeds[i] = types.NewField(pos, nil, typ)
+ 		}
+ 
+ 		methods := make([]*types.Field, r.uint64())
+@@ -583,11 +573,7 @@ func (r *importReader) typ1() *types.Type {
+ 			sym := r.ident()
+ 			typ := r.signature(fakeRecvField())
+ 
+-			f := types.NewField()
+-			f.Pos = pos
+-			f.Sym = sym
+-			f.Type = typ
+-			methods[i] = f
++			methods[i] = types.NewField(pos, sym, typ)
+ 		}
+ 
+ 		t := types.New(TINTER)
+@@ -624,11 +610,7 @@ func (r *importReader) paramList() []*types.Field {
+ }
+ 
+ func (r *importReader) param() *types.Field {
+-	f := types.NewField()
+-	f.Pos = r.pos()
+-	f.Sym = r.ident()
+-	f.Type = r.typ()
+-	return f
++	return types.NewField(r.pos(), r.ident(), r.typ())
+ }
+ 
+ func (r *importReader) bool() bool {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 9401eba7a5..05e476b76b 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -73,10 +73,8 @@ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
+ }
+ 
+ func makefield(name string, t *types.Type) *types.Field {
+-	f := types.NewField()
+-	f.Type = t
+-	f.Sym = (*types.Pkg)(nil).Lookup(name)
+-	return f
++	sym := (*types.Pkg)(nil).Lookup(name)
++	return types.NewField(src.NoXPos, sym, t)
+ }
+ 
+ // bmap makes the map bucket type given the type of the map.
+@@ -301,13 +299,11 @@ func hiter(t *types.Type) *types.Type {
+ // stksize bytes of args.
+ func deferstruct(stksize int64) *types.Type {
+ 	makefield := func(name string, typ *types.Type) *types.Field {
+-		f := types.NewField()
+-		f.Type = typ
+ 		// Unlike the global makefield function, this one needs to set Pkg
+ 		// because these types might be compared (in SSA CSE sorting).
+ 		// TODO: unify this makefield and the global one above.
+-		f.Sym = &types.Sym{Name: name, Pkg: localpkg}
+-		return f
++		sym := &types.Sym{Name: name, Pkg: localpkg}
++		return types.NewField(src.NoXPos, sym, typ)
+ 	}
+ 	argtype := types.NewArray(types.Types[TUINT8], stksize)
+ 	argtype.Width = stksize
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index ff8cabd8e3..559d47da1a 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -6,7 +6,10 @@
+ 
+ package gc
+ 
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/src"
++)
+ 
+ // builtinpkg is a fake package that declares the universe block.
+ var builtinpkg *types.Pkg
+@@ -355,16 +358,14 @@ func typeinit() {
+ }
+ 
+ func makeErrorInterface() *types.Type {
+-	field := types.NewField()
+-	field.Type = types.Types[TSTRING]
+-	f := functypefield(fakeRecvField(), nil, []*types.Field{field})
++	sig := functypefield(fakeRecvField(), nil, []*types.Field{
++		types.NewField(src.NoXPos, nil, types.Types[TSTRING]),
++	})
+ 
+-	field = types.NewField()
+-	field.Sym = lookup("Error")
+-	field.Type = f
++	method := types.NewField(src.NoXPos, lookup("Error"), sig)
+ 
+ 	t := types.New(TINTER)
+-	t.SetInterface([]*types.Field{field})
++	t.SetInterface([]*types.Field{method})
+ 	return t
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 023ab9af88..c6d14e9e09 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -583,10 +583,17 @@ func NewFuncArgs(f *Type) *Type {
+ 	return t
+ }
+ 
+-func NewField() *Field {
+-	return &Field{
++func NewField(pos src.XPos, sym *Sym, typ *Type) *Field {
++	f := &Field{
++		Pos:    pos,
++		Sym:    sym,
++		Type:   typ,
+ 		Offset: BADWIDTH,
+ 	}
++	if typ == nil {
++		f.SetBroke(true)
++	}
++	return f
+ }
+ 
+ // SubstAny walks t, replacing instances of "any" with successive

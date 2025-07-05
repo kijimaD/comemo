@@ -13,6 +13,21 @@ Date:   Wed Mar 17 16:49:02 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/api_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 0226a857bd..427aa04e47 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -341,6 +341,9 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// instantiated types must be sanitized
+ 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
++
++		// issue 45096
++		{genericPkg + `issue45096; func _[T interface{ type int8, int16, int32  }](x T) { _ = x < 0 }`, `0`, `T₁`},
+ 	}
+ 
+ 	for _, test := range tests {

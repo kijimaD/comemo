@@ -9,7 +9,33 @@ Date:   Sat Sep 11 15:47:56 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2169043
-
+---
  src/cmd/gc/walk.c | 4 ++++
  test/const1.go    | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e51b750b6c..fc8f19ec13 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -261,6 +261,10 @@ walkdef(Node *n)
+ 			yyerror("const initializer must be constant");
+ 			goto ret;
+ 		}
++		if(isconst(e, CTNIL)) {
++			yyerror("const initializer cannot be nil");
++			goto ret;
++		}
+ 		t = n->type;
+ 		if(t != T) {
+ 			convlit(&e, t);
+diff --git a/test/const1.go b/test/const1.go
+index 427d61e59c..cf07055cfa 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -77,3 +77,5 @@ func main() {
+ 	f(String)	// ERROR "convert|wrong type|cannot|incompatible"
+ 	f(Bool)	// ERROR "convert|wrong type|cannot|incompatible"
+ }
++
++const ptr = nil  // ERROR "const.*nil"

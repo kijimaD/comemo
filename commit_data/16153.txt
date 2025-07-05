@@ -13,8 +13,78 @@ Date:   Wed Apr 10 07:15:49 2013 +0200
     R=golang-dev, iant, ajstarks, dave, r
     CC=golang-dev
     https://golang.org/cl/8602044
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue5227.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/cmd/ld/lib.c           |  3 +++
  3 files changed, 42 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 1901d5d086..f985996da5 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -37,5 +37,6 @@ func Test3729(t *testing.T)                { test3729(t) }
+ func Test3775(t *testing.T)                { test3775(t) }
+ func TestCthread(t *testing.T)             { testCthread(t) }
+ func TestCallbackCallers(t *testing.T)     { testCallbackCallers(t) }
++func Test5227(t *testing.T)                { test5227(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue5227.go b/misc/cgo/test/issue5227.go
+new file mode 100644
+index 0000000000..d89a1cabf2
+--- /dev/null
++++ b/misc/cgo/test/issue5227.go
+@@ -0,0 +1,38 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5227: linker incorrectly treats common symbols and
++// leaves them undefined.
++
++package cgotest
++
++/*
++typedef struct {
++        int Count;
++} Fontinfo;
++
++Fontinfo SansTypeface;
++
++extern void init();
++
++Fontinfo loadfont() {
++        Fontinfo f;
++        return f;
++}
++
++void init() {
++        SansTypeface = loadfont();
++}
++*/
++import "C"
++
++import "testing"
++
++func test5227(t *testing.T) {
++	C.init()
++}
++
++func selectfont() C.Fontinfo {
++	return C.SansTypeface
++}
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 84777b1a92..d22c0870f6 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -311,6 +311,9 @@ loadlib(void)
+ 	// Switch to internal.
+ 	if(linkmode == LinkAuto) {
+ 		linkmode = LinkInternal;
++	}
++
++	if(linkmode == LinkInternal) {
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+ 		for(s = allsym; s != S; s = s->allsym)

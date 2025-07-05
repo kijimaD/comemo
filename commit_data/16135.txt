@@ -9,7 +9,32 @@ Date:   Mon Apr 8 16:03:19 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8507043
-
+---
  src/cmd/go/doc.go  | 1 +
  src/cmd/go/test.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 664d51f257..2867e5f3f9 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -410,6 +410,7 @@ non-test installation.
+ In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+ 	-c  Compile the test binary to pkg.test but do not run it.
++	    (Where pkg is the last element of the package's import path.)
+ 
+ 	-i
+ 	    Install packages that are dependencies of the test.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index babdb18503..83178d5dae 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -62,6 +62,7 @@ non-test installation.
+ In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+ 	-c  Compile the test binary to pkg.test but do not run it.
++	    (Where pkg is the last element of the package's import path.)
+ 
+ 	-i
+ 	    Install packages that are dependencies of the test.

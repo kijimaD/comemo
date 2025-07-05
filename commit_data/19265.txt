@@ -14,6 +14,20 @@ Date:   Thu May 1 12:13:32 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/90190044
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 4ffc78dbc5..5d90628829 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -444,7 +444,7 @@ setup(void)
+ 	}
+ 
+ 	// For release, make sure excluded things are excluded.
+-	if(hasprefix(goversion, "release.") || hasprefix(goversion, "go")) {
++	if(hasprefix(goversion, "release.") || (hasprefix(goversion, "go") && !contains(goversion, "beta"))) {
+ 		for(i=0; i<nelem(unreleased); i++)
+ 			if(isdir(bpathf(&b, "%s/%s", goroot, unreleased[i])))
+ 				fatal("%s should not exist in release build", bstr(&b));

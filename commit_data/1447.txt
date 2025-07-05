@@ -7,7 +7,7 @@ Date:   Thu Jan 8 18:06:06 2009 -0800
     R=ken
     OCL=22370
     CL=22372
-
+---
  src/cmd/gc/dcl.c    |  18 ++---
  src/cmd/gc/go.h     |   9 ++-
  src/cmd/gc/go.y     |   6 +-
@@ -20,3 +20,775 @@ Date:   Thu Jan 8 18:06:06 2009 -0800
  test/interface5.go  |  21 +++++
  test/method3.go     |  25 ++++++
  11 files changed, 359 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a5bebed7bc..38174b8282 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -257,7 +257,7 @@ void
+ addmethod(Node *n, Type *t, int local)
+ {
+ 	Type *f, *d, *pa;
+-	Sym *st, *sf;
++	Sym *sf;
+ 
+ 	pa = nil;
+ 	sf = nil;
+@@ -282,19 +282,17 @@ addmethod(Node *n, Type *t, int local)
+ 	if(pa == T)
+ 		goto bad;
+ 
+-	// and finally the receiver sym
+-	f = ismethod(pa);
++	f = dclmethod(pa);
+ 	if(f == T)
+ 		goto bad;
+-	pa = f;
+-	st = pa->sym;
+-	if(st == S)
+-		goto bad;
++
+ 	if(local && !f->local) {
+-		yyerror("method receiver type must be locally defined: %T", f);
++		yyerror("cannot define methods on non-local type %T", t);
+ 		return;
+ 	}
+ 
++	pa = f;
++
+ 	n = nod(ODCLFIELD, newname(sf), N);
+ 	n->type = t;
+ 
+@@ -308,7 +306,7 @@ addmethod(Node *n, Type *t, int local)
+ 			continue;
+ 		}
+ 		if(!eqtype(t, f->type, 0)) {
+-			yyerror("method redeclared: %S of type %S", sf, st);
++			yyerror("method redeclared: %T.%S", pa, sf);
+ 			print("\t%T\n\t%T\n", f->type, t);
+ 		}
+ 		return;
+@@ -324,7 +322,7 @@ addmethod(Node *n, Type *t, int local)
+ 	return;
+ 
+ bad:
+-	yyerror("unknown method pointer: %T %S", pa, sf);
++	yyerror("invalid receiver type %T", pa);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 85bc749a8c..da4f871893 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -633,9 +633,9 @@ int	isdarray(Type*);
+ int	isinter(Type*);
+ int	isnilinter(Type*);
+ int	isddd(Type*);
+-Type*	ismethod(Type*);
++Type*	dclmethod(Type*);
+ Type*	methtype(Type*);
+-int	needaddr(Type*);
++int	methconv(Type*);
+ Sym*	signame(Type*);
+ int	bytearraysz(Type*);
+ int	eqtype(Type*, Type*, int);
+@@ -682,6 +682,7 @@ int	Wconv(Fmt*);
+ int	Zconv(Fmt*);
+ 
+ int	lookdot0(Sym*, Type*, Type**);
++Type*	lookdot1(Sym*, Type*, Type*);
+ int	adddot1(Sym*, Type*, int, Type**);
+ Node*	adddot(Node*);
+ void	expand0(Type*);
+@@ -798,7 +799,9 @@ Type*	fixchan(Type*);
+ Node*	chanop(Node*, int);
+ Node*	arrayop(Node*, int);
+ Node*	ifaceop(Type*, Node*, int);
+-int	isandss(Type*, Node*);
++int	ifaceas(Type*, Type*);
++void	ifacecheck(Type*, Type*, int);
++void	runifacechecks(void);
+ Node*	convas(Node*);
+ void	arrayconv(Type*, Node*);
+ Node*	colas(Node*, Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 5d13a7b10b..313d480025 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1252,15 +1252,11 @@ fndcl:
+ 	}
+ |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
+ 	{
+-		Type *t;
+-
+ 		b0stack = dclstack;	// mark base for fn literals
+ 		$$ = nod(ODCLFUNC, N, N);
+ 		if(listcount($2) == 1) {
+-			t = ismethod($2->type);
+ 			$$->nname = $4;
+-			if(t != T)
+-				$$->nname = methodname($4, $2->type);
++			$$->nname = methodname($4, $2->type);
+ 			$$->type = functype($2, $6, $8);
+ 			funchdr($$);
+ 			addmethod($4, $$->type, 1);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 642824a774..a98164e28b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -90,6 +90,7 @@ mainlex(int argc, char *argv[])
+ 
+ 	nerrors = 0;
+ 	yyparse();
++	runifacechecks();
+ 
+ 	linehist(nil, 0);
+ 	if(curio.bin != nil)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3c369b05a8..ac79087799 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1525,60 +1525,50 @@ isddd(Type *t)
+ 	return 0;
+ }
+ 
++/*
++ * given receiver of type t (t == r or t == *r)
++ * return type to hang methods off (r).
++ */
+ Type*
+-ismethod(Type *t)
++dclmethod(Type *t)
+ {
+-	int a;
+-	Sym *s;
++	int ptr;
+ 
+ 	if(t == T)
+ 		return T;
+ 
+-	// no interfaces
+-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+-		return T;
+-
+-	a = algtype(t);
+-
+-	// direct receiver
+-	s = t->sym;
+-	if(s != S) {
+-		if(t->methptr == 2)
+-			goto both;
+-		t->methptr |= 1;
+-		goto out;
++	// strip away pointer if it's there
++	ptr = 0;
++	if(isptr[t->etype]) {
++		if(t->sym != S)
++			return T;
++		ptr = 1;
++		t = t->type;
++		if(t == T)
++			return T;
+ 	}
+ 
+-	// pointer receiver
+-	if(!isptr[t->etype])
+-		return T;
+-
+-	t = t->type;
+-	if(t == T)
++	// need a type name
++	if(t->sym == S)
+ 		return T;
+ 
+-	s = t->sym;
+-	if(s != S) {
+-		if(t->methptr == 1)
+-			goto both;
+-		t->methptr |= 2;
+-		goto out;
++	// check that all method receivers are consistent
++	if(t->methptr != 0 && t->methptr != (1<<ptr)) {
++		if(t->methptr != 3) {
++			t->methptr = 3;
++			yyerror("methods on both %T and *%T", t, t);
++		}
+ 	}
++	t->methptr |= 1<<ptr;
+ 
+-	return T;
+-
+-both:
+-	yyerror("type %T used as both direct and indirect method", t);
+-	t->methptr = 3;
+-
+-out:
+-	switch(a) {
++	// check types
++	// TODO(rsc): map, chan etc are not quite right
++	if(!issimple[t->etype])
++	switch(t->etype) {
+ 	default:
+-		yyerror("type %T cannot be used as a method", t);
+-	case ASIMP:
+-	case APTR:
+-	case ASTRING:
+-	case ASLICE:
++		return T;
++	case TSTRUCT:
++	case TARRAY:
+ 		break;
+ 	}
+ 
+@@ -1586,47 +1576,46 @@ out:
+ }
+ 
+ /*
+- * this is ismethod() without side effects
++ * this is dclmethod() without side effects.
+  */
+ Type*
+ methtype(Type *t)
+ {
+-	Sym *s;
+-
+ 	if(t == T)
+ 		return T;
+-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
+-		return T;
+-	s = t->sym;
+-	if(s != S)
+-		return t;
+-	if(!isptr[t->etype])
+-		return T;
+-	t = t->type;
+-	if(t == T)
++	if(isptr[t->etype]) {
++		if(t->sym != S)
++			return T;
++		t = t->type;
++	}
++	if(t == T || t->etype == TINTER || t->sym == S)
+ 		return T;
+-	s = t->sym;
+-	if(s != S)
+-		return t;
+-	return T;
++	return t;
+ }
+ 
+ /*
+- * this is another ismethod()
+- * returns 1 if t=T and method wants *T
++ * given type t in a method call, returns op
++ * to convert t into appropriate receiver.
++ * returns OADDR if t==x and method takes *x
++ * returns OIND if t==*x and method takes x
+  */
+ int
+-needaddr(Type *t)
++methconv(Type *t)
+ {
+-	Sym *s;
++	Type *m;
+ 
+-	if(t == T)
++	m = methtype(t);
++	if(m == T)
+ 		return 0;
+-	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
++	if(m->methptr&2) {
++		// want pointer
++		if(t == m)
++			return OADDR;
+ 		return 0;
+-	s = t->sym;
+-	if(s != S && t->methptr == 2)
+-		return 1;
++	}
++	// want non-pointer
++	if(t != m)
++		return OIND;
+ 	return 0;
+ }
+ 
+@@ -2735,3 +2724,111 @@ genptrtramp(Sym *method, Sym *oldname, Type *oldthis, Type *oldtype, Sym *newnam
+ 	funcbody(fn);
+ }
+ 
++/*
++ * delayed interface type check.
++ * remember that there is an interface conversion
++ * on the given line.  once the file is completely read
++ * and all methods are known, we can check that
++ * the conversions are valid.
++ */
++
++typedef struct Icheck Icheck;
++struct Icheck
++{
++	Icheck *next;
++	Type *dst;
++	Type *src;
++	int lineno;
++};
++Icheck *icheck;
++Icheck *ichecktail;
++
++void
++ifacecheck(Type *dst, Type *src, int lineno)
++{
++	Icheck *p;
++
++	p = mal(sizeof *p);
++	if(ichecktail)
++		ichecktail->next = p;
++	else
++		icheck = p;
++	p->dst = dst;
++	p->src = src;
++	p->lineno = lineno;
++	ichecktail = p;
++}
++
++Type*
++ifacelookdot(Sym *s, Type *t)
++{
++	int c, d;
++	Type *m;
++
++	for(d=0; d<nelem(dotlist); d++) {
++		c = adddot1(s, t, d, &m);
++		if(c > 1) {
++			yyerror("%T.%S is ambiguous", t, s);
++			return T;
++		}
++		if(c == 1)
++			return m;
++	}
++	return T;
++}
++
++int
++hasiface(Type *t, Type *iface, Type **m)
++{
++	Type *im, *tm;
++	int imhash;
++
++	t = methtype(t);
++	if(t == T)
++		return 0;
++
++	// if this is too slow,
++	// could sort these first
++	// and then do one loop.
++
++	// could also do full type compare
++	// instead of using hash, but have to
++	// avoid checking receivers, and
++	// typehash already does that for us.
++	// also, it's what the runtime will do,
++	// so we can both be wrong together.
++
++	for(im=iface->type; im; im=im->down) {
++		imhash = typehash(im, 0);
++		tm = ifacelookdot(im->sym, t);
++		if(tm == T || typehash(tm, 0) != imhash) {
++			*m = im;
++			return 0;
++		}
++	}
++	return 1;
++}
++
++void
++runifacechecks(void)
++{
++	Icheck *p;
++	int lno;
++	Type *m, *l, *r;
++
++	lno = lineno;
++	for(p=icheck; p; p=p->next) {
++		lineno = p->lineno;
++		if(isinter(p->dst)) {
++			l = p->src;
++			r = p->dst;
++		} else {
++			l = p->dst;
++			r = p->src;
++		}
++		if(!hasiface(l, r, &m))
++			yyerror("%T is not %T - missing %S%hT",
++				l, r, m->sym, m->type);
++	}
++	lineno = lno;
++}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index cfc3154fdf..36398781d9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -471,7 +471,7 @@ loop:
+ 				walktype(r->left, Erv);
+ 				if(r->left == N)
+ 					break;
+-				et = isandss(r->type, r->left);
++				et = ifaceas(r->type, r->left->type);
+ 				switch(et) {
+ 				case I2T:
+ 					et = I2T2;
+@@ -604,8 +604,8 @@ loop:
+ 			}
+ 		}
+ 
+-		// interface and structure
+-		et = isandss(n->type, l);
++		// interface assignment
++		et = ifaceas(n->type, l->type);
+ 		if(et != Inone) {
+ 			indir(n, ifaceop(n->type, l, et));
+ 			goto ret;
+@@ -1542,14 +1542,11 @@ walkselect(Node *sel)
+ }
+ 
+ Type*
+-lookdot1(Node *n, Type *t, Type *f)
++lookdot1(Sym *s, Type *t, Type *f)
+ {
+ 	Type *r;
+-	Sym *s;
+ 
+ 	r = T;
+-	s = n->sym;
+-
+ 	for(; f!=T; f=f->down) {
+ 		if(f->sym == S)
+ 			continue;
+@@ -1567,15 +1564,19 @@ lookdot1(Node *n, Type *t, Type *f)
+ int
+ lookdot(Node *n, Type *t)
+ {
+-	Type *f1, *f2;
++	Type *f1, *f2, *tt;
++	int op;
++	Sym *s;
++
++	s = n->right->sym;
+ 
+ 	f1 = T;
+ 	if(t->etype == TSTRUCT || t->etype == TINTER)
+-		f1 = lookdot1(n->right, t, t->type);
++		f1 = lookdot1(s, t, t->type);
+ 
+ 	f2 = methtype(n->left->type);
+ 	if(f2 != T)
+-		f2 = lookdot1(n->right, f2, f2->method);
++		f2 = lookdot1(s, f2, f2->method);
+ 
+ 	if(f1 != T) {
+ 		if(f2 != T)
+@@ -1590,12 +1591,20 @@ lookdot(Node *n, Type *t)
+ 	}
+ 
+ 	if(f2 != T) {
+-		if(needaddr(n->left->type)) {
+-			walktype(n->left, Elv);
+-			n->left = nod(OADDR, n->left, N);
+-			n->left->type = ptrto(n->left->left->type);
++		tt = n->left->type;
++		if((op = methconv(tt)) != 0) {
++			switch(op) {
++			case OADDR:
++				walktype(n->left, Elv);
++				n->left = nod(OADDR, n->left, N);
++				n->left->type = ptrto(tt);
++				break;
++			case OIND:
++				n->left = nod(OIND, n->left, N);
++				n->left->type = tt->type;
++				break;
++			}
+ 		}
+-		ismethod(n->left->type);
+ 		n->right = methodname(n->right, n->left->type);
+ 		n->xoffset = f2->width;
+ 		n->type = f2->type;
+@@ -1903,37 +1912,28 @@ loop:
+ }
+ 
+ /*
+- * can we assign var of type t2 to var of type t1
++ * can we assign var of type src to var of type dst
+  */
+ int
+-ascompat(Type *t1, Type *t2)
++ascompat(Type *dst, Type *src)
+ {
+-	if(eqtype(t1, t2, 0))
++	if(eqtype(dst, src, 0))
+ 		return 1;
+ 
+-//	if(eqtype(t1, nilptr, 0))
+-//		return 1;
+-//	if(eqtype(t2, nilptr, 0))
+-//		return 1;
++	if(isdarray(dst) && issarray(src))
++		return 1;
+ 
+-	if(isnilinter(t1))
++	if(isnilinter(dst) || isnilinter(src))
+ 		return 1;
+-	if(isinter(t1)) {
+-		if(isinter(t2))
+-			return 1;
+-		if(ismethod(t2))
+-			return 1;
+-	}
+ 
+-	if(isnilinter(t2))
++	if(isinter(dst) && isinter(src))
+ 		return 1;
+-	if(isinter(t2))
+-		if(ismethod(t1))
+-			return 1;
+ 
+-	if(isdarray(t1))
+-		if(issarray(t2))
+-			return 1;
++	if(isinter(dst) && methtype(src))
++		return 1;
++
++	if(isinter(src) && methtype(dst))
++		return 1;
+ 
+ 	return 0;
+ }
+@@ -2817,33 +2817,33 @@ arrayop(Node *n, int top)
+ 	return r;
+ }
+ 
++/*
++ * assigning src to dst involving interfaces?
++ * return op to use.
++ */
+ int
+-isandss(Type *lt, Node *r)
++ifaceas(Type *dst, Type *src)
+ {
+-	Type *rt;
++	if(src == T || dst == T)
++		return Inone;
+ 
+-	rt = r->type;
+-	if(isinter(lt)) {
+-		if(isinter(rt)) {
+-			if(isnilinter(lt) && isnilinter(rt))
++	if(isinter(dst)) {
++		if(isinter(src)) {
++			if(eqtype(dst, src, 0))
+ 				return Inone;
+-			if(!eqtype(rt, lt, 0))
+-				return I2I;
+-			return Inone;
++			return I2I;
+ 		}
+-		if(isnilinter(lt))
+-			return T2I;
+-		if(ismethod(rt) != T)
++		if(isnilinter(dst))
+ 			return T2I;
+-		return Inone;
++		ifacecheck(dst, src, lineno);
++		return T2I;
+ 	}
+-
+-	if(isinter(rt)) {
+-		if(isnilinter(rt) || ismethod(lt) != T)
++	if(isinter(src)) {
++		if(isnilinter(src))
+ 			return I2T;
+-		return Inone;
++		ifacecheck(dst, src, lineno);
++		return I2T;
+ 	}
+-
+ 	return Inone;
+ }
+ 
+@@ -2988,7 +2988,7 @@ convas(Node *n)
+ 	if(eqtype(lt, rt, 0))
+ 		goto out;
+ 
+-	et = isandss(lt, r);
++	et = ifaceas(lt, rt);
+ 	if(et != Inone) {
+ 		n->right = ifaceop(lt, r, et);
+ 		goto out;
+diff --git a/test/bugs/bug046.go b/test/bugs/bug046.go
+index ba08f790e2..8a9b797074 100644
+--- a/test/bugs/bug046.go
++++ b/test/bugs/bug046.go
+@@ -8,7 +8,7 @@ package main
+ 
+ type T *struct {}
+ 
+-func (x T) M () {}  // ERROR "pointer"
++func (x T) M () {}  // ERROR "pointer|receiver"
+ 
+ /*
+ bug046.go:7: illegal <this> pointer
+diff --git a/test/interface2.go b/test/interface2.go
+index 8dfc9d8ff5..1db033887f 100644
+--- a/test/interface2.go
++++ b/test/interface2.go
+@@ -15,7 +15,9 @@ type I interface {
+ func main() {
+ 	var s *S;
+ 	var i I;
+-	i = s;
++	var e interface {};
++	e = s;
++	i = e;
+ }
+ 
+ // hide S down here to avoid static warning
+diff --git a/test/interface4.go b/test/interface4.go
+new file mode 100644
+index 0000000000..0d7223500b
+--- /dev/null
++++ b/test/interface4.go
+@@ -0,0 +1,75 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// check that big vs small, pointer vs not
++// interface methods work.
++
++package main
++
++type I interface { M() int64 }
++
++type BigPtr struct { a, b, c, d int64 }
++func (z *BigPtr) M() int64 { return z.a+z.b+z.c+z.d }
++
++type SmallPtr struct { a int32 }
++func (z *SmallPtr) M() int64 { return int64(z.a) }
++
++type IntPtr int32
++func (z *IntPtr) M() int64 { return int64(*z) }
++
++var bad bool
++
++func test(name string, i I) {
++	m := i.M();
++	if m != 12345 {
++		println(name, m);
++		bad = true;
++	}
++}
++
++func ptrs() {
++	var bigptr BigPtr = BigPtr{ 10000, 2000, 300, 45 };
++	var smallptr SmallPtr = SmallPtr{ 12345 };
++	var intptr IntPtr = 12345;
++
++	test("bigptr", bigptr);
++	test("&bigptr", &bigptr);
++	test("smallptr", smallptr);
++	test("&smallptr", &smallptr);
++	test("intptr", intptr);
++	test("&intptr", &intptr);
++}
++
++type Big struct { a, b, c, d int64 }
++func (z Big) M() int64 { return z.a+z.b+z.c+z.d }
++
++type Small struct { a int32 }
++func (z Small) M() int64 { return int64(z.a) }
++
++type Int int32
++func (z Int) M() int64 { return int64(z) }
++
++func nonptrs() {
++	var big Big = Big{ 10000, 2000, 300, 45 };
++	var small Small = Small{ 12345 };
++	var int Int = 12345;
++
++	test("big", big);
++	test("&big", &big);
++	test("small", small);
++	test("&small", &small);
++	test("int", int);
++	test("&int", &int);
++}
++
++func main() {
++	ptrs();
++	nonptrs();
++
++	if bad {
++		sys.exit(1)
++	}
++}
+diff --git a/test/interface5.go b/test/interface5.go
+new file mode 100644
+index 0000000000..a7d79a17bc
+--- /dev/null
++++ b/test/interface5.go
+@@ -0,0 +1,21 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct { a int }
++var t *T
++
++type I interface { M() }
++var i I
++
++func main() {
++	// neither of these can work,
++	// because i has an extra method
++	// that t does not, so i cannot contain a t.
++	i = t;	// ERROR "missing"
++	t = i;	// ERROR "missing"
++}
+diff --git a/test/method3.go b/test/method3.go
+new file mode 100644
+index 0000000000..491bcdad33
+--- /dev/null
++++ b/test/method3.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG method3
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// test that methods on slices work
++
++package main
++
++type T [] int
++func (t T) Len() int { return len(t) }
++
++type I interface {
++	Len() int
++}
++
++func main() {
++	var t T = T{0,1,2,3,4};
++	var i I;
++	i = t;
++	if i.Len() != 5 {
++		panicln("length", i.Len());
++	}
++}

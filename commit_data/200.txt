@@ -6,7 +6,7 @@ Date:   Wed Jun 18 17:51:56 2008 -0700
     tacked above each TEXT entry
     
     SVN=123496
-
+---
  src/cmd/6l/6.out.h |  1 +
  src/cmd/6l/asm.c   |  3 ++-
  src/cmd/6l/l.h     |  1 +
@@ -14,3 +14,121 @@ Date:   Wed Jun 18 17:51:56 2008 -0700
  src/cmd/6l/optab.c |  2 +-
  src/cmd/6l/span.c  | 19 ++++++++++++++++++-
  6 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 8006826405..6473bc0bb2 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -32,6 +32,7 @@
+ #define	NSNAME	8
+ #define NOPROF	(1<<0)
+ #define DUPOK	(1<<1)
++#define SOFmark	(11)
+ 
+ /*
+  *	amd64
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 3ae914afe4..fca576fa6e 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -138,7 +138,8 @@ asmb(void)
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(p->as == ATEXT)
+ 			curtext = p;
+-		if(p->pc != pc) {
++		if(p->pc != pc)
++		if(p->as != ATEXT || p->pc != pc+SOFmark) {
+ 			if(!debug['a'])
+ 				print("%P\n", curp);
+ 			diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index bb5c0a850d..5e437cd380 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -217,6 +217,7 @@ enum
+ 	Zaut_r,
+ 	Zo_m,
+ 	Zo_m64,
++	Ztext,
+ 	Zpseudo,
+ 	Zr_m,
+ 	Zr_m_xm,
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index fb84209504..47339fe7e0 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -925,7 +925,9 @@ loop:
+ 			sig = 1729;
+ 		if(sig != 0){
+ 			if(s->sig != 0 && s->sig != sig)
+-				diag("incompatible type signatures %lux(%s) and %lux(%s) for %s", s->sig, filen[s->file], sig, pn, s->name);
++				diag("incompatible type signatures %lux(%s)"
++					"and %lux(%s) for %s", s->sig,
++					filen[s->file], sig, pn, s->name);
+ 			s->sig = sig;
+ 			s->file = files-1;
+ 		}
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index d997971662..f07eb18df2 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -37,7 +37,7 @@ uchar	ynone[] =
+ };
+ uchar	ytext[] =
+ {
+-	Ymb,	Yi32,	Zpseudo,1,
++	Ymb,	Yi32,	Ztext,	1,
+ 	0
+ };
+ uchar	ynop[] =
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 4b225da8ca..4ade9e3d1f 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -83,6 +83,8 @@ start:
+ 				p->pc = c;
+ 		asmins(p);
+ 		p->pc = c;
++		if(p->as == ATEXT)
++			p->pc += SOFmark;	// skip the stack marker
+ 		m = andptr-and;
+ 		p->mark = m;
+ 		c += m;
+@@ -113,6 +115,8 @@ loop:
+ 			}
+ 		}
+ 		p->pc = c;
++		if(p->as == ATEXT)
++			p->pc += SOFmark;	// skip the stack marker
+ 		c += p->mark;
+ 	}
+ 	if(again) {
+@@ -269,7 +273,7 @@ asmlc(void)
+ 	Prog *p;
+ 	long oldlc, v, s;
+ 
+-	oldpc = INITTEXT;
++	oldpc = INITTEXT+SOFmark;
+ 	oldlc = 0;
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+@@ -1120,6 +1124,19 @@ found:
+ 		diag("asmins: unknown z %d %P", t[2], p);
+ 		return;
+ 
++	case Ztext:
++		v = p->to.offset;
++		if(v < 0)
++			v = 0;
++
++		// eleven bytes of buried stack offset
++		*andptr++ = v>>3;
++		*andptr++ = v>>11;
++		*andptr++ = v>>19;
++		for(v=0; v<SOFmark-3; v++)
++			*andptr++ = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe"[v];
++		break;
++
+ 	case Zpseudo:
+ 		break;
+ 

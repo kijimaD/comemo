@@ -12,6 +12,34 @@ Date:   Wed Apr 1 12:17:04 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226803
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode2.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 59f207b278..3342efe39f 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -6,7 +6,6 @@ package ld
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/dwarf"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -101,14 +100,6 @@ func (d *deadcodePass2) init() {
+ 		names = append(names, exp)
+ 	}
+ 
+-	// DWARF constant DIE symbols are not referenced, but needed by
+-	// the dwarf pass.
+-	if !*FlagW {
+-		for _, lib := range d.ctxt.Library {
+-			names = append(names, dwarf.ConstInfoPrefix+lib.Pkg)
+-		}
+-	}
+-
+ 	for _, name := range names {
+ 		// Mark symbol as a data/ABI0 symbol.
+ 		d.mark(d.ldr.Lookup(name, 0), 0)

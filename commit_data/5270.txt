@@ -7,7 +7,58 @@ Date:   Sun Apr 11 10:29:07 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/903044
-
+---
  src/pkg/archive/tar/reader.go |  6 +++---
  src/pkg/archive/tar/writer.go | 10 +++++-----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 9d598361a4..7de559d337 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -24,9 +24,9 @@ var (
+ // and then it can be treated as an io.Reader to access the file's data.
+ //
+ // Example:
+-//	tr := tar.NewReader(r);
++//	tr := tar.NewReader(r)
+ //	for {
+-//		hdr, err := tr.Next();
++//		hdr, err := tr.Next()
+ //		if err != nil {
+ //			// handle error
+ //		}
+@@ -34,7 +34,7 @@ var (
+ //			// end of tar archive
+ //			break
+ //		}
+-//		io.Copy(data, tr);
++//		io.Copy(data, tr)
+ //	}
+ type Reader struct {
+ 	r   io.Reader
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index e02695256e..7f200c440b 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -25,15 +25,15 @@ var (
+ // writing at most hdr.Size bytes in total.
+ //
+ // Example:
+-//	tw := tar.NewWriter(w);
+-//	hdr := new(Header);
+-//	hdr.Size = length of data in bytes;
++//	tw := tar.NewWriter(w)
++//	hdr := new(Header)
++//	hdr.Size = length of data in bytes
+ //	// populate other hdr fields as desired
+ //	if err := tw.WriteHeader(hdr); err != nil {
+ //		// handle error
+ //	}
+-//	io.Copy(tw, data);
+-//	tw.Close();
++//	io.Copy(tw, data)
++//	tw.Close()
+ type Writer struct {
+ 	w          io.Writer
+ 	err        os.Error

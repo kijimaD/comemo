@@ -18,8 +18,110 @@ Date:   Mon May 8 23:31:00 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go            |  9 --------
  src/cmd/compile/internal/base/hashdebug.go       |  8 -------
  src/cmd/compile/internal/loopvar/loopvar_test.go | 29 ++++++++++++++++--------
  3 files changed, 20 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 5b3ff8b7ee..9305aaa88a 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -213,15 +213,7 @@ func ParseFlags() {
+ 
+ 	if Debug.LoopVarHash != "" {
+ 		// This first little bit controls the inputs for debug-hash-matching.
+-		basenameOnly := false
+ 		mostInlineOnly := true
+-		if strings.HasPrefix(Debug.LoopVarHash, "FS") {
+-			// Magic handshake for testing, use file suffixes only when hashing on a position.
+-			// i.e., rather than /tmp/asdfasdfasdf/go-test-whatever/foo_test.go,
+-			// hash only on "foo_test.go", so that it will be the same hash across all runs.
+-			Debug.LoopVarHash = Debug.LoopVarHash[2:]
+-			basenameOnly = true
+-		}
+ 		if strings.HasPrefix(Debug.LoopVarHash, "IL") {
+ 			// When hash-searching on a position that is an inline site, default is to use the
+ 			// most-inlined position only.  This makes the hash faster, plus there's no point
+@@ -237,7 +229,6 @@ func ParseFlags() {
+ 			Debug.LoopVar = 1 // 1 means those loops that syntactically escape their dcl vars are eligible.
+ 		}
+ 		LoopVarHash.SetInlineSuffixOnly(mostInlineOnly)
+-		LoopVarHash.SetFileSuffixOnly(basenameOnly)
+ 	} else if buildcfg.Experiment.LoopVar && Debug.LoopVar == 0 {
+ 		Debug.LoopVar = 1
+ 	}
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 46adaaacd7..c99695642c 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -40,14 +40,6 @@ type HashDebug struct {
+ 	inlineSuffixOnly bool // for Pos hashes, remove all but the most inline position.
+ }
+ 
+-// SetFileSuffixOnly controls whether hashing and reporting use the entire
+-// file path name, just the basename.  This makes hashing more consistent,
+-// at the expense of being able to certainly locate the file.
+-func (d *HashDebug) SetFileSuffixOnly(b bool) *HashDebug {
+-	d.fileSuffixOnly = b
+-	return d
+-}
+-
+ // SetInlineSuffixOnly controls whether hashing and reporting use the entire
+ // inline position, or just the most-inline suffix.  Compiler debugging tends
+ // to want the whole inlining, debugging user problems (loopvarhash, e.g.)
+diff --git a/src/cmd/compile/internal/loopvar/loopvar_test.go b/src/cmd/compile/internal/loopvar/loopvar_test.go
+index 5c7e11ac69..b94f69709d 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar_test.go
++++ b/src/cmd/compile/internal/loopvar/loopvar_test.go
+@@ -178,11 +178,12 @@ func TestLoopVarHashes(t *testing.T) {
+ 	root := "cmd/compile/internal/loopvar/testdata/inlines"
+ 
+ 	f := func(hash string) string {
+-		// This disables the loopvar change, except for the specified package.
+-		// The effect should follow the package, even though everything (except "c")
+-		// is inlined.
+-		cmd := testenv.Command(t, gocmd, "run", root)
+-		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash=FS"+hash, "HOME="+tmpdir)
++		// This disables the loopvar change, except for the specified hash pattern.
++		// -trimpath is necessary so we get the same answer no matter where the
++		// Go repository is checked out. This is not normally a concern since people
++		// do not rely on the meaning of specific hashes.
++		cmd := testenv.Command(t, gocmd, "run", "-trimpath", root)
++		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash="+hash, "HOME="+tmpdir)
+ 		cmd.Dir = filepath.Join("testdata", "inlines")
+ 
+ 		b, _ := cmd.CombinedOutput()
+@@ -190,17 +191,27 @@ func TestLoopVarHashes(t *testing.T) {
+ 		return string(b)
+ 	}
+ 
+-	m := f("011011011110011110111101")
++	m := f("001100110110110010100100")
+ 	t.Logf(m)
+ 
+-	mCount := strings.Count(m, "loopvarhash triggered main.go:27:6")
++	mCount := strings.Count(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 001100110110110010100100")
+ 	otherCount := strings.Count(m, "loopvarhash")
+ 	if mCount < 1 {
+-		t.Errorf("Did not see expected value of m compile")
++		t.Errorf("did not see triggered main.go:27:6")
+ 	}
+ 	if mCount != otherCount {
+-		t.Errorf("Saw extraneous hash matches")
++		t.Errorf("too many matches")
+ 	}
++
++	mCount = strings.Count(m, "cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 [bisect-match 0x7802e115b9336ca4]")
++	otherCount = strings.Count(m, "[bisect-match ")
++	if mCount < 1 {
++		t.Errorf("did not see bisect-match for main.go:27:6")
++	}
++	if mCount != otherCount {
++		t.Errorf("too many matches")
++	}
++
+ 	// This next test carefully dodges a bug-to-be-fixed with inlined locations for ir.Names.
+ 	if !strings.Contains(m, ", 100, 100, 100, 100") {
+ 		t.Errorf("Did not see expected value of m run")

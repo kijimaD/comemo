@@ -15,7 +15,50 @@ Date:   Wed Jun 16 22:07:16 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/reflectlite/swapper.go | 3 ++-
  src/internal/reflectlite/value.go   | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/reflectlite/swapper.go b/src/internal/reflectlite/swapper.go
+index 6330ab2d34..ac081d49bb 100644
+--- a/src/internal/reflectlite/swapper.go
++++ b/src/internal/reflectlite/swapper.go
+@@ -5,6 +5,7 @@
+ package reflectlite
+ 
+ import (
++	"internal/goarch"
+ 	"internal/unsafeheader"
+ 	"unsafe"
+ )
+@@ -36,7 +37,7 @@ func Swapper(slice interface{}) func(i, j int) {
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+-		if size == ptrSize {
++		if size == goarch.PtrSize {
+ 			ps := *(*[]unsafe.Pointer)(v.ptr)
+ 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
+ 		}
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 0365eeeabf..86dfcb5c36 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -5,6 +5,7 @@
+ package reflectlite
+ 
+ import (
++	"internal/goarch"
+ 	"internal/unsafeheader"
+ 	"runtime"
+ 	"unsafe"
+@@ -90,7 +91,7 @@ func (f flag) ro() flag {
+ // pointer returns the underlying pointer represented by v.
+ // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+ func (v Value) pointer() unsafe.Pointer {
+-	if v.typ.size != ptrSize || !v.typ.pointers() {
++	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+ 	}
+ 	if v.flag&flagIndir != 0 {

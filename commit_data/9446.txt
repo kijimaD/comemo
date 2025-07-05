@@ -9,6 +9,19 @@ Date:   Mon Aug 22 14:06:07 2011 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4941044
-
+---
  doc/play/playground.js | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/play/playground.js b/doc/play/playground.js
+new file mode 100644
+index 0000000000..ce9aa27b49
+--- /dev/null
++++ b/doc/play/playground.js
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A dummy playground.js file to silence godoc errors
++// when accessing doc/root.html.

@@ -13,8 +13,136 @@ Date:   Thu Oct 8 12:39:56 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/15610
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 15 ++++++++++++++-
  src/cmd/compile/internal/gc/ssa.go   | 15 +++++++++++++--
  src/cmd/compile/internal/gc/walk.go  |  2 +-
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 7e085d94b2..ecb2303196 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -507,6 +507,16 @@ func newplist() *obj.Plist {
+ 	return pl
+ }
+ 
++// nodarg does something that depends on the value of
++// fp (this was previously completely undocumented).
++//
++// fp=1 corresponds to input args
++// fp=0 corresponds to output args
++// fp=-1 is a special case of output args for a
++// specific call from walk that previously (and
++// incorrectly) passed a 1; the behavior is exactly
++// the same as it is for 1, except that PARAMOUT is
++// generated instead of PARAM.
+ func nodarg(t *Type, fp int) *Node {
+ 	var n *Node
+ 
+@@ -532,7 +542,7 @@ func nodarg(t *Type, fp int) *Node {
+ 		Fatalf("nodarg: not field %v", t)
+ 	}
+ 
+-	if fp == 1 {
++	if fp == 1 || fp == -1 {
+ 		var n *Node
+ 		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
+ 			n = l.N
+@@ -573,6 +583,9 @@ fp:
+ 	case 1: // input arg
+ 		n.Class = PPARAM
+ 
++	case -1: // output arg from paramstoheap
++		n.Class = PPARAMOUT
++
+ 	case 2: // offset output arg
+ 		Fatalf("shouldn't be used")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 69a9b8639b..629774c2bc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -30,6 +30,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 		fmt.Println("generating SSA for", name)
+ 		dumplist("buildssa-enter", fn.Func.Enter)
+ 		dumplist("buildssa-body", fn.Nbody)
++		dumplist("buildssa-exit", fn.Func.Exit)
+ 	}
+ 
+ 	var s state
+@@ -43,6 +44,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.config = ssa.NewConfig(Thearch.Thestring, &e)
+ 	s.f = s.config.NewFunc()
+ 	s.f.Name = name
++	s.exitCode = fn.Func.Exit
+ 
+ 	if name == os.Getenv("GOSSAFUNC") {
+ 		// TODO: tempfile? it is handy to have the location
+@@ -97,8 +99,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
+ 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+ 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+-		case PPARAM | PHEAP: // PPARAMOUT | PHEAP seems to not occur
+-			// This ends up wrong, have to do it at the PARAM node instead.
++		case PPARAM | PHEAP, PPARAMOUT | PHEAP:
++		// This ends up wrong, have to do it at the PARAM node instead.
+ 		case PAUTO, PPARAMOUT:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
+@@ -122,6 +124,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 
+ 	// fallthrough to exit
+ 	if s.curBlock != nil {
++		s.stmtList(s.exitCode)
+ 		m := s.mem()
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRet
+@@ -156,6 +159,9 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	// Link up variable uses to variable definitions
+ 	s.linkForwardReferences()
+ 
++	// Don't carry reference this around longer than necessary
++	s.exitCode = nil
++
+ 	// Main call to ssa package to compile function
+ 	ssa.Compile(s.f)
+ 
+@@ -207,6 +213,9 @@ type state struct {
+ 
+ 	// gotos that jump forward; required for deferred checkgoto calls
+ 	fwdGotos []*Node
++	// Code that must precede any return
++	// (e.g., copying value of heap-escaped paramout back to true paramout)
++	exitCode *NodeList
+ 
+ 	// unlabeled break and continue statement tracking
+ 	breakTo    *ssa.Block // current target for plain break statement
+@@ -641,12 +650,14 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case ORETURN:
+ 		s.stmtList(n.List)
++		s.stmtList(s.exitCode)
+ 		m := s.mem()
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRet
+ 		b.Control = m
+ 	case ORETJMP:
+ 		s.stmtList(n.List)
++		s.stmtList(s.exitCode)
+ 		m := s.mem()
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRetJmp
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ae19e6fda5..27890f2d9b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2674,7 +2674,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ 			// Defer might stop a panic and show the
+ 			// return values as they exist at the time of panic.
+ 			// Make sure to zero them on entry to the function.
+-			nn = list(nn, Nod(OAS, nodarg(t, 1), nil))
++			nn = list(nn, Nod(OAS, nodarg(t, -1), nil))
+ 		}
+ 
+ 		if v == nil || v.Class&PHEAP == 0 {

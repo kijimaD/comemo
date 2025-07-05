@@ -13,7 +13,46 @@ Date:   Tue May 5 00:11:00 2020 -0400
     Change-Id: Idd3bc6adc22e08a30b3dabb146ce78d4105684cd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232277
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go | 2 +-
  src/net/http/cgi/host.go  | 7 ++++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ee1252fda2..d980781416 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -448,7 +448,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// HTTP-using packages.
+ 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},
+-	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
++	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp", "golang.org/x/net/http/httpguts"},
+ 	"net/http/cookiejar": {"L4", "NET", "net/http"},
+ 	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
+ 	"net/http/httptest": {
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index a038575480..863f40638a 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -29,6 +29,8 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++
++	"golang.org/x/net/http/httpguts"
+ )
+ 
+ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+@@ -277,7 +279,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			continue
+ 		}
+ 		header, val := parts[0], parts[1]
+-		header = textproto.TrimString(header)
++		if !httpguts.ValidHeaderFieldName(header) {
++			h.printf("cgi: invalid header name: %q", header)
++			continue
++		}
+ 		val = textproto.TrimString(val)
+ 		switch {
+ 		case header == "Status":

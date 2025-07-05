@@ -12,8 +12,58 @@ Date:   Mon Jun 29 11:56:28 2015 -0700
     Change-Id: I34de3bed223f450aaa97c1cadaba2e4e5850050b
     Reviewed-on: https://go-review.googlesource.com/11681
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go    | 6 +++++-
  src/cmd/compile/internal/ssa/check.go | 6 ++++++
  src/cmd/compile/internal/ssa/print.go | 4 +++-
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d31d895f43..389d2868e8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -599,7 +599,11 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
+ 		case PPARAM, PPARAMOUT, PAUTO:
+ 			// parameter/result slot or local variable
+-			return s.decladdrs[n]
++			v := s.decladdrs[n]
++			if v == nil {
++				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
++			}
++			return v
+ 		case PAUTO | PHEAP:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index e889177841..a27e1bc653 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -92,6 +92,12 @@ func checkFunc(f *Func) {
+ 		}
+ 
+ 		for _, v := range b.Values {
++			for _, arg := range v.Args {
++				if arg == nil {
++					f.Fatalf("value %v has nil arg", v.LongString())
++				}
++			}
++
+ 			if valueMark[v.ID] {
+ 				f.Fatalf("value %s appears twice!", v.LongString())
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 23fdbca7c4..286152a001 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -49,7 +49,9 @@ func fprintFunc(w io.Writer, f *Func) {
+ 					continue
+ 				}
+ 				for _, w := range v.Args {
+-					if w.Block == b && !printed[w.ID] {
++					// w == nil shouldn't happen, but if it does,
++					// don't panic; we'll get a better diagnosis later.
++					if w != nil && w.Block == b && !printed[w.ID] {
+ 						continue outer
+ 					}
+ 				}

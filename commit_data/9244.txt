@@ -9,7 +9,64 @@ Date:   Thu Jul 28 16:28:23 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4802063
-
+---
  src/cmd/5g/reg.c         |  8 +++++++-
  test/fixedbugs/bug364.go | 25 +++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 77d0a87eb5..7bb33b7c25 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -728,13 +728,19 @@ addsplits(void)
+ void
+ addmove(Reg *r, int bn, int rn, int f)
+ {
+-	Prog *p, *p1;
++	Prog *p, *p1, *p2;
+ 	Adr *a;
+ 	Var *v;
+ 
+ 	p1 = mal(sizeof(*p1));
+ 	*p1 = zprog;
+ 	p = r->prog;
++	
++	// If there's a stack fixup coming (after BL newproc or BL deferproc),
++	// delay the load until after the fixup.
++	p2 = p->link;
++	if(p2 && p2->as == AMOVW && p2->from.type == D_CONST && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == D_REG)
++		p = p2;
+ 
+ 	p1->link = p->link;
+ 	p->link = p1;
+diff --git a/test/fixedbugs/bug364.go b/test/fixedbugs/bug364.go
+new file mode 100644
+index 0000000000..a174534194
+--- /dev/null
++++ b/test/fixedbugs/bug364.go
+@@ -0,0 +1,25 @@
++package main
++
++import "fmt"
++
++var s string
++
++func accum(args ...interface{}) {
++	s += fmt.Sprintln(args...)
++}
++
++func f(){
++	v := 0.0
++	for i := 0; i < 3; i++ {
++		v += 0.1
++		defer accum(v)
++	}
++}
++
++func main() {
++	f()
++	if s != "0.30000000000000004\n0.2\n0.1\n" {
++		println("BUG: defer")
++		print(s)
++	}
++}

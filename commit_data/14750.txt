@@ -13,6 +13,21 @@ Date:   Thu Dec 27 11:45:03 2012 +1100
     R=golang-dev, rsc, alex.brainman
     CC=golang-dev
     https://golang.org/cl/7000062
-
+---
  src/pkg/log/syslog/syslog_plan9.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/log/syslog/syslog_plan9.go b/src/pkg/log/syslog/syslog_plan9.go
+new file mode 100644
+index 0000000000..0c05f6f83c
+--- /dev/null
++++ b/src/pkg/log/syslog/syslog_plan9.go
+@@ -0,0 +1,8 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package syslog provides a simple interface to the system log service.
++package syslog
++
++// BUG(akumar): This package is not implemented on Plan 9 yet.

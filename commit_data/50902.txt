@@ -12,7 +12,76 @@ Date:   Mon Nov 15 10:14:04 2021 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/363895
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/debug/macho/file.go | 14 +++++++++++---
  src/debug/pe/file.go    | 14 +++++++++++---
  2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 73cfce3c76..cdc500e476 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -650,10 +650,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Look for DWARF4 .debug_types sections.
++	// Look for DWARF4 .debug_types sections and DWARF5 sections.
+ 	for i, s := range f.Sections {
+ 		suffix := dwarfSuffix(s)
+-		if suffix != "types" {
++		if suffix == "" {
++			continue
++		}
++		if _, ok := dat[suffix]; ok {
++			// Already handled.
+ 			continue
+ 		}
+ 
+@@ -662,7 +666,11 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 			return nil, err
+ 		}
+ 
+-		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		if suffix == "types" {
++			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		} else {
++			err = d.AddSection(".debug_"+suffix, b)
++		}
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index e50229e5a3..ab00a48f5c 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -272,10 +272,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Look for DWARF4 .debug_types sections.
++	// Look for DWARF4 .debug_types sections and DWARF5 sections.
+ 	for i, s := range f.Sections {
+ 		suffix := dwarfSuffix(s)
+-		if suffix != "types" {
++		if suffix == "" {
++			continue
++		}
++		if _, ok := dat[suffix]; ok {
++			// Already handled.
+ 			continue
+ 		}
+ 
+@@ -284,7 +288,11 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 			return nil, err
+ 		}
+ 
+-		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		if suffix == "types" {
++			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++		} else {
++			err = d.AddSection(".debug_"+suffix, b)
++		}
+ 		if err != nil {
+ 			return nil, err
+ 		}

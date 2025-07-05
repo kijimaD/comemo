@@ -7,7 +7,39 @@ Date:   Mon Feb 18 19:03:10 2013 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/7358044
-
+---
  src/pkg/go/types/expr.go            |  2 +-
  src/pkg/go/types/testdata/expr0.src | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 696a0cae68..0caa90a1d3 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -1193,7 +1193,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		case typexpr:
+ 			x.typ = &Pointer{Base: x.typ}
+ 		default:
+-			if typ, ok := x.typ.(*Pointer); ok {
++			if typ, ok := underlying(x.typ).(*Pointer); ok {
+ 				x.mode = variable
+ 				x.typ = typ.Base
+ 			} else {
+diff --git a/src/pkg/go/types/testdata/expr0.src b/src/pkg/go/types/testdata/expr0.src
+index c3233d36fe..8d057f63c1 100644
+--- a/src/pkg/go/types/testdata/expr0.src
++++ b/src/pkg/go/types/testdata/expr0.src
+@@ -149,3 +149,13 @@ var (
+ 	_ = &((((T{1, 2}))))
+ 	_ = &f /* ERROR "cannot take address" */ ()
+ )
++
++// recursive pointer types
++type P *P
++
++var (
++	p1 P = new(P)
++	p2 P = *p1
++	p3 P = &p2
++)
++

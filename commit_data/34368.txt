@@ -14,6 +14,20 @@ Date:   Fri Oct 20 20:46:04 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index dbc28b19aa..eed7fc451b 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -23,7 +23,7 @@ trap cleanup EXIT
+ rm -rf pkg sub
+ mkdir sub
+ 
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin1
++GOPATH=$(pwd) go build -i -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin1
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin2
+ cp plugin2.so plugin2-dup.so
+ GOPATH=$(pwd)/altpath go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin-mismatch

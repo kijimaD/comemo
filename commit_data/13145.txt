@@ -9,6 +9,29 @@ Date:   Wed May 23 17:18:05 2012 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6238046
-
+---
  src/pkg/encoding/json/encode.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 842672c397..b6e1cb16e5 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -96,7 +96,7 @@ import (
+ //
+ // Channel, complex, and function values cannot be encoded in JSON.
+ // Attempting to encode such a value causes Marshal to return
+-// an InvalidTypeError.
++// an UnsupportedTypeError.
+ //
+ // JSON cannot represent cyclic data structures and Marshal does not
+ // handle them.  Passing cyclic structures to Marshal will result in
+@@ -157,6 +157,8 @@ type Marshaler interface {
+ 	MarshalJSON() ([]byte, error)
+ }
+ 
++// An UnsupportedTypeError is returned by Marshal when attempting
++// to encode an unsupported value type.
+ type UnsupportedTypeError struct {
+ 	Type reflect.Type
+ }

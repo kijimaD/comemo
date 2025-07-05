@@ -9,8 +9,412 @@ Date:   Wed Mar 11 12:48:45 2009 -0700
     DELTA=110  (21 added, 17 deleted, 72 changed)
     OCL=26123
     CL=26127
-
+---
  src/lib/go/scanner.go          | 120 +++++++++++++++++++++--------------------
  src/lib/go/scanner_test.go     |  18 ++++---
  src/lib/tabwriter/tabwriter.go |   4 +-
  3 files changed, 73 insertions(+), 69 deletions(-)
+
+diff --git a/src/lib/go/scanner.go b/src/lib/go/scanner.go
+index 90078e0dd9..ccac8e1112 100644
+--- a/src/lib/go/scanner.go
++++ b/src/lib/go/scanner.go
+@@ -32,13 +32,21 @@ import (
+ )
+ 
+ 
++// Source locations are represented by a Location value.
++type Location struct {
++	Pos int;  // byte position in source
++	Line int;  // line count, starting at 1
++	Col int;  // column, starting at 1 (character count)
++}
++
++
+ // An implementation of an ErrorHandler must be provided to the Scanner.
+-// If a syntax error is encountered, Error is called with the exact
+-// token position (the byte position of the token in the source) and the
+-// error message.
++// If a syntax error is encountered, Error is called with a location and
++// an error message. The location points at the beginning of the offending
++// token.
+ //
+ type ErrorHandler interface {
+-	Error(pos int, msg string);
++	Error(loc Location, msg string);
+ }
+ 
+ 
+@@ -54,9 +62,9 @@ type Scanner struct {
+ 	scan_comments bool;  // if set, comments are reported as tokens
+ 
+ 	// scanning state
+-	pos int;  // current reading position
++	loc Location;  // location of ch
++	pos int;  // current reading position (position after ch)
+ 	ch int;  // one char look-ahead
+-	chpos int;  // position of ch
+ }
+ 
+ 
+@@ -64,18 +72,22 @@ type Scanner struct {
+ // S.ch < 0 means end-of-file.
+ func (S *Scanner) next() {
+ 	if S.pos < len(S.src) {
+-		// assume ASCII
++		S.loc.Pos = S.pos;
++		S.loc.Col++;
+ 		r, w := int(S.src[S.pos]), 1;
+-		if r >= 0x80 {
++		switch {
++		case r == '\n':
++			S.loc.Line++;
++			S.loc.Col = 1;
++		case r >= 0x80:
+ 			// not ASCII
+ 			r, w = utf8.DecodeRune(S.src[S.pos : len(S.src)]);
+ 		}
+-		S.ch = r;
+-		S.chpos = S.pos;
+ 		S.pos += w;
++		S.ch = r;
+ 	} else {
++		S.loc.Pos = len(S.src);
+ 		S.ch = -1;  // eof
+-		S.chpos = len(S.src);
+ 	}
+ }
+ 
+@@ -90,6 +102,7 @@ func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
+ 	S.src = src;
+ 	S.err = err;
+ 	S.scan_comments = scan_comments;
++	S.loc.Line = 1;
+ 	S.next();
+ }
+ 
+@@ -111,14 +124,14 @@ func charString(ch int) string {
+ }
+ 
+ 
+-func (S *Scanner) error(pos int, msg string) {
+-	S.err.Error(pos, msg);
++func (S *Scanner) error(loc Location, msg string) {
++	S.err.Error(loc, msg);
+ }
+ 
+ 
+ func (S *Scanner) expect(ch int) {
+ 	if S.ch != ch {
+-		S.error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
++		S.error(S.loc, "expected " + charString(ch) + ", found " + charString(S.ch));
+ 	}
+ 	S.next();  // always make progress
+ }
+@@ -142,9 +155,8 @@ func (S *Scanner) skipWhitespace() {
+ }
+ 
+ 
+-func (S *Scanner) scanComment() []byte {
++func (S *Scanner) scanComment(loc Location) {
+ 	// first '/' already consumed
+-	pos := S.chpos - 1;
+ 
+ 	if S.ch == '/' {
+ 		//-style comment
+@@ -154,7 +166,7 @@ func (S *Scanner) scanComment() []byte {
+ 				// '\n' terminates comment but we do not include
+ 				// it in the comment (otherwise we don't see the
+ 				// start of a newline in skipWhitespace()).
+-				return S.src[pos : S.chpos];
++				return;
+ 			}
+ 		}
+ 
+@@ -166,13 +178,12 @@ func (S *Scanner) scanComment() []byte {
+ 			S.next();
+ 			if ch == '*' && S.ch == '/' {
+ 				S.next();
+-				return S.src[pos : S.chpos];
++				return;
+ 			}
+ 		}
+ 	}
+ 
+-	S.error(pos, "comment not terminated");
+-	return S.src[pos : S.chpos];
++	S.error(loc, "comment not terminated");
+ }
+ 
+ 
+@@ -192,13 +203,12 @@ func isDigit(ch int) bool {
+ }
+ 
+ 
+-func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
+-	pos := S.chpos;
++func (S *Scanner) scanIdentifier() int {
++	pos := S.loc.Pos;
+ 	for isLetter(S.ch) || isDigit(S.ch) {
+ 		S.next();
+ 	}
+-	lit = S.src[pos : S.chpos];
+-	return token.Lookup(lit), lit;
++	return token.Lookup(S.src[pos : S.loc.Pos]);
+ }
+ 
+ 
+@@ -219,13 +229,11 @@ func (S *Scanner) scanMantissa(base int) {
+ }
+ 
+ 
+-func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, lit []byte) {
+-	pos := S.chpos;
+-	tok = token.INT;
++func (S *Scanner) scanNumber(seen_decimal_point bool) int {
++	tok := token.INT;
+ 
+ 	if seen_decimal_point {
+ 		tok = token.FLOAT;
+-		pos--;  // '.' is one byte
+ 		S.scanMantissa(10);
+ 		goto exponent;
+ 	}
+@@ -273,7 +281,7 @@ exponent:
+ 	}
+ 
+ exit:
+-	return tok, S.src[pos : S.chpos];
++	return tok;
+ }
+ 
+ 
+@@ -283,14 +291,14 @@ func (S *Scanner) scanDigits(base, length int) {
+ 		length--;
+ 	}
+ 	if length > 0 {
+-		S.error(S.chpos, "illegal char escape");
++		S.error(S.loc, "illegal char escape");
+ 	}
+ }
+ 
+ 
+ func (S *Scanner) scanEscape(quote int) {
++	loc := S.loc;
+ 	ch := S.ch;
+-	pos := S.chpos;
+ 	S.next();
+ 	switch ch {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+@@ -304,15 +312,14 @@ func (S *Scanner) scanEscape(quote int) {
+ 	case 'U':
+ 		S.scanDigits(16, 8);
+ 	default:
+-		S.error(pos, "illegal char escape");
++		S.error(loc, "illegal char escape");
+ 	}
+ }
+ 
+ 
+-func (S *Scanner) scanChar() []byte {
++func (S *Scanner) scanChar() {
+ 	// '\'' already consumed
+ 
+-	pos := S.chpos - 1;
+ 	ch := S.ch;
+ 	S.next();
+ 	if ch == '\\' {
+@@ -320,19 +327,17 @@ func (S *Scanner) scanChar() []byte {
+ 	}
+ 
+ 	S.expect('\'');
+-	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) scanString() []byte {
++func (S *Scanner) scanString(loc Location) {
+ 	// '"' already consumed
+ 
+-	pos := S.chpos - 1;
+ 	for S.ch != '"' {
+ 		ch := S.ch;
+ 		S.next();
+ 		if ch == '\n' || ch < 0 {
+-			S.error(pos, "string not terminated");
++			S.error(loc, "string not terminated");
+ 			break;
+ 		}
+ 		if ch == '\\' {
+@@ -341,25 +346,22 @@ func (S *Scanner) scanString() []byte {
+ 	}
+ 
+ 	S.next();
+-	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) scanRawString() []byte {
++func (S *Scanner) scanRawString(loc Location) {
+ 	// '`' already consumed
+ 
+-	pos := S.chpos - 1;
+ 	for S.ch != '`' {
+ 		ch := S.ch;
+ 		S.next();
+ 		if ch == '\n' || ch < 0 {
+-			S.error(pos, "string not terminated");
++			S.error(loc, "string not terminated");
+ 			break;
+ 		}
+ 	}
+ 
+ 	S.next();
+-	return S.src[pos : S.chpos];
+ }
+ 
+ 
+@@ -408,34 +410,33 @@ func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
+ }
+ 
+ 
+-// Scan scans the next token and returns the token byte position in the
+-// source, its token value, and the corresponding literal text if the token
+-// is an identifier, basic type literal (token.IsLiteral(tok) == true), or
+-// comment.
++// Scan scans the next token and returns the token location loc,
++// the token tok, and the literal text lit corresponding to the
++// token.
+ //
+-func (S *Scanner) Scan() (pos, tok int, lit []byte) {
++func (S *Scanner) Scan() (loc Location, tok int, lit []byte) {
+ scan_again:
+ 	S.skipWhitespace();
+ 
+-	pos, tok = S.chpos, token.ILLEGAL;
++	loc, tok = S.loc, token.ILLEGAL;
+ 
+ 	switch ch := S.ch; {
+ 	case isLetter(ch):
+-		tok, lit = S.scanIdentifier();
++		tok = S.scanIdentifier();
+ 	case digitVal(ch) < 10:
+-		tok, lit = S.scanNumber(false);
++		tok = S.scanNumber(false);
+ 	default:
+ 		S.next();  // always make progress
+ 		switch ch {
+ 		case -1  : tok = token.EOF;
+-		case '\n': tok, lit = token.COMMENT, []byte{'\n'};
+-		case '"' : tok, lit = token.STRING, S.scanString();
+-		case '\'': tok, lit = token.CHAR, S.scanChar();
+-		case '`' : tok, lit = token.STRING, S.scanRawString();
++		case '\n': tok = token.COMMENT;
++		case '"' : tok = token.STRING; S.scanString(loc);
++		case '\'': tok = token.CHAR; S.scanChar();
++		case '`' : tok = token.STRING; S.scanRawString(loc);
+ 		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
+ 		case '.' :
+ 			if digitVal(S.ch) < 10 {
+-				tok, lit = S.scanNumber(true);
++				tok = S.scanNumber(true);
+ 			} else if S.ch == '.' {
+ 				S.next();
+ 				if S.ch == '.' {
+@@ -458,7 +459,8 @@ scan_again:
+ 		case '*': tok = S.switch2(token.MUL, token.MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+-				tok, lit = token.COMMENT, S.scanComment();
++				S.scanComment(loc);
++				tok = token.COMMENT;
+ 				if !S.scan_comments {
+ 					goto scan_again;
+ 				}
+@@ -479,9 +481,9 @@ scan_again:
+ 		case '!': tok = S.switch2(token.NOT, token.NEQ);
+ 		case '&': tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+ 		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+-		default: S.error(pos, "illegal character " + charString(ch));
++		default: S.error(loc, "illegal character " + charString(ch));
+ 		}
+ 	}
+ 
+-	return pos, tok, lit;
++	return loc, tok, S.src[loc.Pos : S.loc.Pos];
+ }
+diff --git a/src/lib/go/scanner_test.go b/src/lib/go/scanner_test.go
+index 9cad23914f..94c2e51d53 100644
+--- a/src/lib/go/scanner_test.go
++++ b/src/lib/go/scanner_test.go
+@@ -153,12 +153,14 @@ var tokens = [...]elt{
+ }
+ 
+ 
++const whitespace = "  \t  ";  // to separate tokens
++
+ func init() {
+ 	// set pos fields
+ 	pos := 0;
+ 	for i := 0; i < len(tokens); i++ {
+ 		tokens[i].pos = pos;
+-		pos += len(tokens[i].lit) + 1;  // + 1 for space in between
++		pos += len(tokens[i].lit) + len(whitespace);
+ 	}
+ }
+ 
+@@ -167,8 +169,8 @@ type TestErrorHandler struct {
+ 	t *testing.T
+ }
+ 
+-func (h *TestErrorHandler) Error(pos int, msg string) {
+-	h.t.Errorf("Error() called (pos = %d, msg = %s)", pos, msg);
++func (h *TestErrorHandler) Error(loc scanner.Location, msg string) {
++	h.t.Errorf("Error() called (msg = %s)", msg);
+ }
+ 
+ 
+@@ -176,7 +178,7 @@ func Test(t *testing.T) {
+ 	// make source
+ 	var src string;
+ 	for i, e := range tokens {
+-		src += e.lit + " ";
++		src += e.lit + whitespace;
+ 	}
+ 
+ 	// set up scanner
+@@ -185,9 +187,9 @@ func Test(t *testing.T) {
+ 
+ 	// verify scan
+ 	for i, e := range tokens {
+-		pos, tok, lit := s.Scan();
+-		if pos != e.pos {
+-			t.Errorf("bad position for %s: got %d, expected %d", e.lit, pos, e.pos);
++		loc, tok, lit := s.Scan();
++		if loc.Pos != e.pos {
++			t.Errorf("bad position for %s: got %d, expected %d", e.lit, loc.Pos, e.pos);
+ 		}
+ 		if tok != e.tok {
+ 			t.Errorf("bad token for %s: got %s, expected %s", e.lit, token.TokenString(tok), token.TokenString(e.tok));
+@@ -199,7 +201,7 @@ func Test(t *testing.T) {
+ 			t.Errorf("bad class for %s: got %d, expected %d", e.lit, tokenclass(tok), e.class);
+ 		}
+ 	}
+-	pos, tok, lit := s.Scan();
++	loc, tok, lit := s.Scan();
+ 	if tok != token.EOF {
+ 		t.Errorf("bad token at eof: got %s, expected EOF", token.TokenString(tok));
+ 	}
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/lib/tabwriter/tabwriter.go
+index 9be65da1e5..26679740bb 100644
+--- a/src/lib/tabwriter/tabwriter.go
++++ b/src/lib/tabwriter/tabwriter.go
+@@ -485,6 +485,6 @@ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
+ // NewWriter allocates and initializes a new tabwriter.Writer.
+ // The parameters are the same as for the the Init function.
+ //
+-func NewWriter(writer io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
+-	return new(Writer).Init(writer, cellwidth, padding, padchar, flags)
++func NewWriter(output io.Write, cellwidth, padding int, padchar byte, flags uint) *Writer {
++	return new(Writer).Init(output, cellwidth, padding, padchar, flags)
+ }

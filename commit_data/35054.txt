@@ -16,7 +16,55 @@ Date:   Thu Dec 7 13:38:16 2017 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/sync/mutex.go      | 6 +++---
  src/sync/mutex_test.go | 5 ++++-
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 1232c629b1..4c5582c809 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -118,7 +118,7 @@ func (m *Mutex) Lock() {
+ 			// The goroutine has been woken from sleep,
+ 			// so we need to reset the flag in either case.
+ 			if new&mutexWoken == 0 {
+-				panic("sync: inconsistent mutex state")
++				throw("sync: inconsistent mutex state")
+ 			}
+ 			new &^= mutexWoken
+ 		}
+@@ -140,7 +140,7 @@ func (m *Mutex) Lock() {
+ 				// inconsistent state: mutexLocked is not set and we are still
+ 				// accounted as waiter. Fix that.
+ 				if old&(mutexLocked|mutexWoken) != 0 || old>>mutexWaiterShift == 0 {
+-					panic("sync: inconsistent mutex state")
++					throw("sync: inconsistent mutex state")
+ 				}
+ 				delta := int32(mutexLocked - 1<<mutexWaiterShift)
+ 				if !starving || old>>mutexWaiterShift == 1 {
+@@ -181,7 +181,7 @@ func (m *Mutex) Unlock() {
+ 	// Fast path: drop lock bit.
+ 	new := atomic.AddInt32(&m.state, -mutexLocked)
+ 	if (new+mutexLocked)&mutexLocked == 0 {
+-		panic("sync: unlock of unlocked mutex")
++		throw("sync: unlock of unlocked mutex")
+ 	}
+ 	if new&mutexStarving == 0 {
+ 		old := new
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index 784471df12..521468439a 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -155,7 +155,10 @@ func init() {
+ 	if len(os.Args) == 3 && os.Args[1] == "TESTMISUSE" {
+ 		for _, test := range misuseTests {
+ 			if test.name == os.Args[2] {
+-				test.f()
++				func() {
++					defer func() { recover() }()
++					test.f()
++				}()
+ 				fmt.Printf("test completed\n")
+ 				os.Exit(0)
+ 			}

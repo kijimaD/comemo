@@ -7,6 +7,20 @@ Date:   Tue May 21 21:18:23 2019 +0700
     Change-Id: Ie299a5eca6f6a7c5a37c00ff0de7ce322450375b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/178123
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index cafff01ddc..f9ccf84f72 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5123,7 +5123,7 @@ func (s *SSAGenState) Br(op obj.As, target *ssa.Block) *obj.Prog {
+ 	return p
+ }
+ 
+-// DebugFriendlySetPos adjusts Pos.IsStmt subject to heuristics
++// DebugFriendlySetPosFrom adjusts Pos.IsStmt subject to heuristics
+ // that reduce "jumpy" line number churn when debugging.
+ // Spill/fill/copy instructions from the register allocator,
+ // phi functions, and instructions with a no-pos position

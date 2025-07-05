@@ -7,6 +7,19 @@ Date:   Fri Jan 17 09:06:28 2014 -0800
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/53190046
-
+---
  src/pkg/regexp/regexp.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 0046026eae..6ce5902a5a 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -70,7 +70,6 @@ import (
+ var debug = false
+ 
+ // Regexp is the representation of a compiled regular expression.
+-// The public interface is entirely through methods.
+ // A Regexp is safe for concurrent use by multiple goroutines.
+ type Regexp struct {
+ 	// read-only after Compile

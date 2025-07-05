@@ -8,7 +8,72 @@ Date:   Tue Jul 7 14:50:39 2009 -0700
     DELTA=35  (0 added, 34 deleted, 1 changed)
     OCL=31301
     CL=31303
-
+---
  src/pkg/reflect/Makefile     |  3 +--
  src/pkg/reflect/typestring.c | 37 -------------------------------------
  2 files changed, 1 insertion(+), 39 deletions(-)
+
+diff --git a/src/pkg/reflect/Makefile b/src/pkg/reflect/Makefile
+index d622ffd51e..deaa49e2a0 100644
+--- a/src/pkg/reflect/Makefile
++++ b/src/pkg/reflect/Makefile
+@@ -33,7 +33,6 @@ coverage: packages
+ 
+ O1=\
+ 	type.$O\
+-	typestring.$O\
+ 
+ O2=\
+ 	value.$O\
+@@ -47,7 +46,7 @@ phases: a1 a2 a3
+ _obj$D/reflect.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/reflect.a type.$O typestring.$O
++	$(AR) grc _obj$D/reflect.a type.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+diff --git a/src/pkg/reflect/typestring.c b/src/pkg/reflect/typestring.c
+deleted file mode 100644
+index 667037bb14..0000000000
+--- a/src/pkg/reflect/typestring.c
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-
+-extern	char	gotypestrings[];	// 4-byte count followed by byte[count]
+-
+-void FLUSH(void*);
+-
+-typedef	struct	String	String;
+-struct	String
+-{
+-	char*	str;
+-	char	len[4];
+-	char	cap[4];
+-};
+-
+-void
+-reflect·typestrings(String str)
+-{
+-	char *s;
+-	int i;
+-
+-	s = gotypestrings;
+-
+-	// repeat the count twice
+-	// once for len, once for cap
+-	for(i=0; i<4; i++) {
+-		str.len[i] = s[i];
+-		str.cap[i] = s[i];
+-	}
+-
+-	// and the pointer
+-	str.str = s+4;
+-
+-	FLUSH(&str);
+-}

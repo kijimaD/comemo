@@ -9,7 +9,85 @@ Date:   Thu Mar 1 15:57:54 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5716046
-
+---
  src/pkg/encoding/gob/codec_test.go |  5 ++++-
  src/pkg/encoding/gob/decode.go     | 23 +++++++++++++++++------
  2 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/codec_test.go b/src/pkg/encoding/gob/codec_test.go
+index d365f82634..ebcbb78ebe 100644
+--- a/src/pkg/encoding/gob/codec_test.go
++++ b/src/pkg/encoding/gob/codec_test.go
+@@ -1455,11 +1455,14 @@ func TestFuzz(t *testing.T) {
+ func TestFuzzRegressions(t *testing.T) {
+ 	// An instance triggering a type name of length ~102 GB.
+ 	testFuzz(t, 1328492090837718000, 100, new(float32))
++	// An instance triggering a type name of 1.6 GB.
++	// Commented out because it takes 5m to run.
++	//testFuzz(t, 1330522872628565000, 100, new(int))
+ }
+ 
+ func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
+-	t.Logf("seed=%d n=%d\n", seed, n)
+ 	for _, e := range input {
++		t.Logf("seed=%d n=%d e=%T", seed, n, e)
+ 		rng := rand.New(rand.NewSource(seed))
+ 		for i := 0; i < n; i++ {
+ 			encFuzzDec(rng, e)
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index a0bb985300..0708a83c99 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -392,12 +392,12 @@ func decUint8Slice(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 		}
+ 		p = *(*unsafe.Pointer)(p)
+ 	}
+-	n := int(state.decodeUint())
+-	if n < 0 {
+-		errorf("negative length decoding []byte")
++	n := state.decodeUint()
++	if n > uint64(state.b.Len()) {
++		errorf("length of []byte exceeds input size (%d bytes)", n)
+ 	}
+ 	slice := (*[]uint8)(p)
+-	if cap(*slice) < n {
++	if uint64(cap(*slice)) < n {
+ 		*slice = make([]uint8, n)
+ 	} else {
+ 		*slice = (*slice)[0:n]
+@@ -417,7 +417,11 @@ func decString(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 		}
+ 		p = *(*unsafe.Pointer)(p)
+ 	}
+-	b := make([]byte, state.decodeUint())
++	n := state.decodeUint()
++	if n > uint64(state.b.Len()) {
++		errorf("string length exceeds input size (%d bytes)", n)
++	}
++	b := make([]byte, n)
+ 	state.b.Read(b)
+ 	// It would be a shame to do the obvious thing here,
+ 	//	*(*string)(p) = string(b)
+@@ -647,7 +651,11 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
+ // decodeSlice decodes a slice and stores the slice header through p.
+ // Slices are encoded as an unsigned length followed by the elements.
+ func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl error) {
+-	n := int(uintptr(state.decodeUint()))
++	nr := state.decodeUint()
++	if nr > uint64(state.b.Len()) {
++		errorf("length of slice exceeds input size (%d elements)", nr)
++	}
++	n := int(nr)
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p)
+ 		if *(*unsafe.Pointer)(up) == nil {
+@@ -702,6 +710,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
+ 		*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.InterfaceData()
+ 		return
+ 	}
++	if len(name) > 1024 {
++		errorf("name too long (%d bytes): %.20q...", len(name), name)
++	}
+ 	// The concrete type must be registered.
+ 	typ, ok := nameToConcreteType[name]
+ 	if !ok {

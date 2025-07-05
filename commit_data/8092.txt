@@ -7,8 +7,143 @@ Date:   Thu Apr 14 10:41:55 2011 -0400
     R=bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4397043
-
+---
  src/pkg/compress/flate/deflate.go      | 27 ++++++++++++++++++++
  src/pkg/compress/flate/deflate_test.go | 46 ++++++++++++++++++++++++++++++++++
  src/pkg/compress/flate/inflate.go      | 27 ++++++++++++++++++++
  3 files changed, 100 insertions(+)
+
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index 591b35c446..e5b2beaefc 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -477,6 +477,33 @@ func NewWriter(w io.Writer, level int) *Writer {
+ 	return &Writer{pw, &d}
+ }
+ 
++// NewWriterDict is like NewWriter but initializes the new
++// Writer with a preset dictionary.  The returned Writer behaves
++// as if the dictionary had been written to it without producing
++// any compressed output.  The compressed data written to w
++// can only be decompressed by a Reader initialized with the
++// same dictionary.
++func NewWriterDict(w io.Writer, level int, dict []byte) *Writer {
++	dw := &dictWriter{w, false}
++	zw := NewWriter(dw, level)
++	zw.Write(dict)
++	zw.Flush()
++	dw.enabled = true
++	return zw
++}
++
++type dictWriter struct {
++	w       io.Writer
++	enabled bool
++}
++
++func (w *dictWriter) Write(b []byte) (n int, err os.Error) {
++	if w.enabled {
++		return w.w.Write(b)
++	}
++	return len(b), nil
++}
++
+ // A Writer takes data written to it and writes the compressed
+ // form of that data to an underlying writer (see NewWriter).
+ type Writer struct {
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index ed5884a4b7..650a8059ac 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -275,3 +275,49 @@ func TestDeflateInflateString(t *testing.T) {
+ 	}
+ 	testToFromWithLevel(t, 1, gold, "2.718281828...")
+ }
++
++func TestReaderDict(t *testing.T) {
++	const (
++		dict = "hello world"
++		text = "hello again world"
++	)
++	var b bytes.Buffer
++	w := NewWriter(&b, 5)
++	w.Write([]byte(dict))
++	w.Flush()
++	b.Reset()
++	w.Write([]byte(text))
++	w.Close()
++
++	r := NewReaderDict(&b, []byte(dict))
++	data, err := ioutil.ReadAll(r)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(data) != "hello again world" {
++		t.Fatalf("read returned %q want %q", string(data), text)
++	}
++}
++
++func TestWriterDict(t *testing.T) {
++	const (
++		dict = "hello world"
++		text = "hello again world"
++	)
++	var b bytes.Buffer
++	w := NewWriter(&b, 5)
++	w.Write([]byte(dict))
++	w.Flush()
++	b.Reset()
++	w.Write([]byte(text))
++	w.Close()
++
++	var b1 bytes.Buffer
++	w = NewWriterDict(&b1, 5, []byte(dict))
++	w.Write([]byte(text))
++	w.Close()
++
++	if !bytes.Equal(b1.Bytes(), b.Bytes()) {
++		t.Fatalf("writer wrote %q want %q", b1.Bytes(), b.Bytes())
++	}
++}
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 7dc8cf93bd..787ea2533c 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -526,6 +526,20 @@ func (f *decompressor) dataBlock() os.Error {
+ 	return nil
+ }
+ 
++func (f *decompressor) setDict(dict []byte) {
++	if len(dict) > len(f.hist) {
++		// Will only remember the tail.
++		dict = dict[len(dict)-len(f.hist):]
++	}
++
++	f.hp = copy(f.hist[:], dict)
++	if f.hp == len(f.hist) {
++		f.hp = 0
++		f.hfull = true
++	}
++	f.hw = f.hp
++}
++
+ func (f *decompressor) moreBits() os.Error {
+ 	c, err := f.r.ReadByte()
+ 	if err != nil {
+@@ -618,3 +632,16 @@ func NewReader(r io.Reader) io.ReadCloser {
+ 	go func() { pw.CloseWithError(f.decompress(r, pw)) }()
+ 	return pr
+ }
++
++// NewReaderDict is like NewReader but initializes the reader
++// with a preset dictionary.  The returned Reader behaves as if
++// the uncompressed data stream started with the given dictionary,
++// which has already been read.  NewReaderDict is typically used
++// to read data compressed by NewWriterDict.
++func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
++	var f decompressor
++	f.setDict(dict)
++	pr, pw := io.Pipe()
++	go func() { pw.CloseWithError(f.decompress(r, pw)) }()
++	return pr
++}

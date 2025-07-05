@@ -12,8 +12,79 @@ Date:   Mon Apr 16 17:41:24 2018 +0000
     Change-Id: I57ad06eb54e04b8c99b5d2e7f24c77ad865224e8
     Reviewed-on: https://go-review.googlesource.com/107300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go        | 12 ++++++++++++
  src/os/user/lookup_stubs.go |  2 +-
  src/os/user/user_test.go    | 16 ++++++++++++++++
  3 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1c1d8b6ffb..948c6f890f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -407,6 +407,18 @@ func (t *tester) registerTests() {
+ 		}
+ 	}
+ 
++	// Test the os/user package in the pure-Go mode too.
++	if !t.compileOnly {
++		t.tests = append(t.tests, distTest{
++			name:    "osusergo",
++			heading: "os/user with tag osusergo",
++			fn: func(dt *distTest) error {
++				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=osusergo", "os/user")
++				return nil
++			},
++		})
++	}
++
+ 	if t.race {
+ 		return
+ 	}
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index dc5ab40055..f7d138ff46 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo,!windows,!plan9 android osusergo
++// +build !cgo,!windows,!plan9 android osusergo,!windows,!plan9
+ 
+ package user
+ 
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 02cd595349..8fd760e649 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -5,6 +5,8 @@
+ package user
+ 
+ import (
++	"internal/testenv"
++	"os"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -16,6 +18,20 @@ func checkUser(t *testing.T) {
+ }
+ 
+ func TestCurrent(t *testing.T) {
++	// The Go builders (in particular the ones using containers)
++	// often have minimal environments without $HOME or $USER set,
++	// which breaks Current which relies on those working as a
++	// fallback.
++	// TODO: we should fix that (Issue 24884) and remove these
++	// workarounds.
++	if testenv.Builder() != "" && runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
++		if os.Getenv("HOME") == "" {
++			os.Setenv("HOME", "/tmp")
++		}
++		if os.Getenv("USER") == "" {
++			os.Setenv("USER", "gobuilder")
++		}
++	}
+ 	u, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v (got %#v)", err, u)

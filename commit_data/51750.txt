@@ -17,7 +17,7 @@ Date:   Wed Mar 9 11:35:10 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api.go         |  6 +++---
  src/cmd/compile/internal/types2/instantiate.go |  8 ++++----
  src/cmd/compile/internal/types2/named.go       | 12 ++++++++----
@@ -28,3 +28,231 @@ Date:   Wed Mar 9 11:35:10 2022 -0500
  src/go/types/named.go                          | 12 ++++++++----
  src/go/types/typeparam.go                      |  9 ++++++---
  9 files changed, 44 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 584f613a64..d864c96fb6 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -204,12 +204,12 @@ type Info struct {
+ 	// qualified identifiers are collected in the Uses map.
+ 	Types map[syntax.Expr]TypeAndValue
+ 
+-	// Instances maps identifiers denoting parameterized types or functions to
+-	// their type arguments and instantiated type.
++	// Instances maps identifiers denoting generic types or functions to their
++	// type arguments and instantiated type.
+ 	//
+ 	// For example, Instances will map the identifier for 'T' in the type
+ 	// instantiation T[int, string] to the type arguments [int, string] and
+-	// resulting instantiated *Named type. Given a parameterized function
++	// resulting instantiated *Named type. Given a generic function
+ 	// func F[A any](A), Instances will map the identifier for 'F' in the call
+ 	// expression F(int(1)) to the inferred type arguments [int], and resulting
+ 	// instantiated *Signature.
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index c2653a3834..9eced489dc 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -15,10 +15,10 @@ import (
+ 
+ // Instantiate instantiates the type orig with the given type arguments targs.
+ // orig must be a *Named or a *Signature type. If there is no error, the
+-// resulting Type is a new, instantiated (not parameterized) type of the same
+-// kind (either a *Named or a *Signature). Methods attached to a *Named type
+-// are also instantiated, and associated with a new *Func that has the same
+-// position as the original method, but nil function scope.
++// resulting Type is an instantiated type of the same kind (either a *Named or
++// a *Signature). Methods attached to a *Named type are also instantiated, and
++// associated with a new *Func that has the same position as the original
++// method, but nil function scope.
+ //
+ // If ctxt is non-nil, it may be used to de-duplicate the instance against
+ // previous instances with the same identity. As a special case, generic
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 5c6a1cf5d8..daf8fdc986 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -98,10 +98,10 @@ func (t *Named) cleanup() {
+ }
+ 
+ // Obj returns the type name for the declaration defining the named type t. For
+-// instantiated types, this is the type name of the base type.
++// instantiated types, this is same as the type name of the origin type.
+ func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this is the same as t.obj
+ 
+-// Origin returns the parameterized type from which the named type t is
++// Origin returns the generic type from which the named type t is
+ // instantiated. If t is not an instantiated type, the result is t.
+ func (t *Named) Origin() *Named { return t.orig }
+ 
+@@ -109,7 +109,7 @@ func (t *Named) Origin() *Named { return t.orig }
+ //           between parameterized instantiated and non-instantiated types.
+ 
+ // TypeParams returns the type parameters of the named type t, or nil.
+-// The result is non-nil for an (originally) parameterized type even if it is instantiated.
++// The result is non-nil for an (originally) generic type even if it is instantiated.
+ func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
+ 
+ // SetTypeParams sets the type parameters of the named type t.
+@@ -122,7 +122,11 @@ func (t *Named) SetTypeParams(tparams []*TypeParam) {
+ // TypeArgs returns the type arguments used to instantiate the named type t.
+ func (t *Named) TypeArgs() *TypeList { return t.targs }
+ 
+-// NumMethods returns the number of explicit methods whose receiver is named type t.
++// NumMethods returns the number of explicit methods defined for t.
++//
++// For an ordinary or instantiated type t, the receiver base type of these
++// methods will be the named type t. For an uninstantiated generic type t, each
++// method receiver will be instantiated with its receiver type parameters.
+ func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
+ 
+ // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 9ed3369ff4..2e9a2adae6 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -31,7 +31,8 @@ func (t *TypeParam) Obj() *TypeName { return t.obj }
+ // or Signature type by calling SetTypeParams. Setting a type parameter on more
+ // than one type will result in a panic.
+ //
+-// The constraint argument can be nil, and set later via SetConstraint.
++// The constraint argument can be nil, and set later via SetConstraint. If the
++// constraint is non-nil, it must be fully defined.
+ func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return (*Checker)(nil).newTypeParam(obj, constraint)
+ }
+@@ -71,8 +72,10 @@ func (t *TypeParam) Constraint() Type {
+ 
+ // SetConstraint sets the type constraint for t.
+ //
+-// SetConstraint should not be called concurrently, but once SetConstraint
+-// returns the receiver t is safe for concurrent use.
++// It must be called by users of NewTypeParam after the bound's underlying is
++// fully defined, and before using the type parameter in any way other than to
++// form other types. Once SetConstraint returns the receiver, t is safe for
++// concurrent use.
+ func (t *TypeParam) SetConstraint(bound Type) {
+ 	if bound == nil {
+ 		panic("nil constraint")
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 86a03eba31..f2dcd104d8 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -199,12 +199,12 @@ type Info struct {
+ 	// qualified identifiers are collected in the Uses map.
+ 	Types map[ast.Expr]TypeAndValue
+ 
+-	// Instances maps identifiers denoting parameterized types or functions to
+-	// their type arguments and instantiated type.
++	// Instances maps identifiers denoting generic types or functions to their
++	// type arguments and instantiated type.
+ 	//
+ 	// For example, Instances will map the identifier for 'T' in the type
+ 	// instantiation T[int, string] to the type arguments [int, string] and
+-	// resulting instantiated *Named type. Given a parameterized function
++	// resulting instantiated *Named type. Given a generic function
+ 	// func F[A any](A), Instances will map the identifier for 'F' in the call
+ 	// expression F(int(1)) to the inferred type arguments [int], and resulting
+ 	// instantiated *Signature.
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index c8bb005eb6..5700cbf79c 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -37,8 +37,8 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
+ 
+ // CheckExpr type checks the expression expr as if it had appeared at position
+ // pos of package pkg. Type information about the expression is recorded in
+-// info. The expression may be an uninstantiated parameterized function or
+-// type.
++// info. The expression may be an identifier denoting an uninstantiated generic
++// function or type.
+ //
+ // If pkg == nil, the Universe scope is used and the provided
+ // position pos is ignored. If pkg != nil, and pos is invalid,
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 4b8e3d4661..a481746657 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -15,10 +15,10 @@ import (
+ 
+ // Instantiate instantiates the type orig with the given type arguments targs.
+ // orig must be a *Named or a *Signature type. If there is no error, the
+-// resulting Type is a new, instantiated (not parameterized) type of the same
+-// kind (either a *Named or a *Signature). Methods attached to a *Named type
+-// are also instantiated, and associated with a new *Func that has the same
+-// position as the original method, but nil function scope.
++// resulting Type is an instantiated type of the same kind (either a *Named or
++// a *Signature). Methods attached to a *Named type are also instantiated, and
++// associated with a new *Func that has the same position as the original
++// method, but nil function scope.
+ //
+ // If ctxt is non-nil, it may be used to de-duplicate the instance against
+ // previous instances with the same identity. As a special case, generic
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 5b84e0653b..876f7e8551 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -98,12 +98,12 @@ func (t *Named) cleanup() {
+ }
+ 
+ // Obj returns the type name for the declaration defining the named type t. For
+-// instantiated types, this is the type name of the base type.
++// instantiated types, this is same as the type name of the origin type.
+ func (t *Named) Obj() *TypeName {
+ 	return t.orig.obj // for non-instances this is the same as t.obj
+ }
+ 
+-// Origin returns the parameterized type from which the named type t is
++// Origin returns the generic type from which the named type t is
+ // instantiated. If t is not an instantiated type, the result is t.
+ func (t *Named) Origin() *Named { return t.orig }
+ 
+@@ -111,7 +111,7 @@ func (t *Named) Origin() *Named { return t.orig }
+ //           between parameterized instantiated and non-instantiated types.
+ 
+ // TypeParams returns the type parameters of the named type t, or nil.
+-// The result is non-nil for an (originally) parameterized type even if it is instantiated.
++// The result is non-nil for an (originally) generic type even if it is instantiated.
+ func (t *Named) TypeParams() *TypeParamList { return t.resolve(nil).tparams }
+ 
+ // SetTypeParams sets the type parameters of the named type t.
+@@ -124,7 +124,11 @@ func (t *Named) SetTypeParams(tparams []*TypeParam) {
+ // TypeArgs returns the type arguments used to instantiate the named type t.
+ func (t *Named) TypeArgs() *TypeList { return t.targs }
+ 
+-// NumMethods returns the number of explicit methods whose receiver is named type t.
++// NumMethods returns the number of explicit methods defined for t.
++//
++// For an ordinary or instantiated type t, the receiver base type of these
++// methods will be the named type t. For an uninstantiated generic type t, each
++// method receiver will be instantiated with its receiver type parameters.
+ func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
+ 
+ // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 778c687d43..40d96ac947 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -30,7 +30,8 @@ type TypeParam struct {
+ // or Signature type by calling SetTypeParams. Setting a type parameter on more
+ // than one type will result in a panic.
+ //
+-// The constraint argument can be nil, and set later via SetConstraint.
++// The constraint argument can be nil, and set later via SetConstraint. If the
++// constraint is non-nil, it must be fully defined.
+ func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return (*Checker)(nil).newTypeParam(obj, constraint)
+ }
+@@ -73,8 +74,10 @@ func (t *TypeParam) Constraint() Type {
+ 
+ // SetConstraint sets the type constraint for t.
+ //
+-// SetConstraint should not be called concurrently, but once SetConstraint
+-// returns the receiver t is safe for concurrent use.
++// It must be called by users of NewTypeParam after the bound's underlying is
++// fully defined, and before using the type parameter in any way other than to
++// form other types. Once SetConstraint returns the receiver, t is safe for
++// concurrent use.
+ func (t *TypeParam) SetConstraint(bound Type) {
+ 	if bound == nil {
+ 		panic("nil constraint")

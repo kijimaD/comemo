@@ -12,7 +12,68 @@ Date:   Wed Mar 24 21:59:21 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/705043
-
+---
  src/pkg/syscall/zsyscall_darwin_386.go   | 12 ++++++------
  src/pkg/syscall/zsyscall_darwin_amd64.go | 12 ++++++------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 92525e3a80..6ce783cb12 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -121,6 +121,12 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	return
+ }
+ 
++func kill(pid int, signum int, posix int) (errno int) {
++	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
++	errno = int(e1)
++	return
++}
++
+ func fcntl(fd int, cmd int, arg int) (val int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg))
+ 	val = int(r0)
+@@ -370,12 +376,6 @@ func Issetugid() (tainted bool) {
+ 	return
+ }
+ 
+-func kill(pid int, signum int, posix int) (errno int) {
+-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+-	errno = int(e1)
+-	return
+-}
+-
+ func Kqueue() (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_KQUEUE, 0, 0, 0)
+ 	fd = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index a0fc52c85e..62985637c1 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -121,6 +121,12 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	return
+ }
+ 
++func kill(pid int, signum int, posix int) (errno int) {
++	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
++	errno = int(e1)
++	return
++}
++
+ func fcntl(fd int, cmd int, arg int) (val int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg))
+ 	val = int(r0)
+@@ -370,12 +376,6 @@ func Issetugid() (tainted bool) {
+ 	return
+ }
+ 
+-func kill(pid int, signum int, posix int) (errno int) {
+-	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+-	errno = int(e1)
+-	return
+-}
+-
+ func Kqueue() (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_KQUEUE, 0, 0, 0)
+ 	fd = int(r0)

@@ -14,6 +14,28 @@ Date:   Sat Sep 24 13:13:14 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/request.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 924ca1b390..88d3d75af5 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1030,6 +1030,8 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
+ 
+ func readRequest(b *bufio.Reader) (req *Request, err error) {
+ 	tp := newTextprotoReader(b)
++	defer putTextprotoReader(tp)
++
+ 	req = new(Request)
+ 
+ 	// First line: GET /index.html HTTP/1.0
+@@ -1038,7 +1040,6 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
+ 		return nil, err
+ 	}
+ 	defer func() {
+-		putTextprotoReader(tp)
+ 		if err == io.EOF {
+ 			err = io.ErrUnexpectedEOF
+ 		}

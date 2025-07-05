@@ -7,6 +7,32 @@ Date:   Sat Mar 20 22:37:23 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/604043
-
+---
  src/libmach/darwin.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/libmach/darwin.c b/src/libmach/darwin.c
+index 87fe423def..feb49c059b 100644
+--- a/src/libmach/darwin.c
++++ b/src/libmach/darwin.c
+@@ -156,7 +156,7 @@ me(kern_return_t r)
+ 
+ 	for(i=0; i<nelem(macherr); i++){
+ 		if(r == macherr[i].code){
+-			werrstr("%s", macherr[i].name);
++			werrstr("mach: %s", macherr[i].name);
+ 			return -1;
+ 		}
+ 	}
+@@ -408,8 +408,10 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 	if(isr){
+ 		vm_size_t nn;
+ 		nn = n;
+-		if(me(vm_read_overwrite(task, addr, n, (uintptr)v, &nn)) < 0)
++		if(me(vm_read_overwrite(task, addr, n, (uintptr)v, &nn)) < 0) {
++			fprint(2, "vm_read_overwrite %#llux %d to %p: %r\n", addr, n, v);
+ 			return -1;
++		}
+ 		return nn;
+ 	}else{
+ 		r = vm_write(task, addr, (uintptr)v, n);

@@ -12,6 +12,21 @@ Date:   Sun Nov 22 21:14:52 2015 -0500
     Change-Id: I462880bed8ff565a9950e7e185de97d43999c5e2
     Reviewed-on: https://go-review.googlesource.com/17143
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/note_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index bfaa75f6c3..0d43b9ec93 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -28,6 +28,9 @@ func TestNoteReading2K(t *testing.T) {
+ }
+ 
+ func testNoteReading(t *testing.T) {
++	if runtime.GOOS == "dragonfly" {
++		t.Skipf("TestNoteReading is broken on dragonfly - golang.org/issue/13364", runtime.GOOS)
++	}
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.tempFile("hello.go", `package main; func main() { print("hello, world\n") }`)

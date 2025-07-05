@@ -58,7 +58,59 @@ Date:   Thu Oct 23 23:44:47 2014 -0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/164760043
-
+---
  src/encoding/csv/writer.go      | 16 ++++++++++++++--
  src/encoding/csv/writer_test.go | 11 +++++++++++
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index 1faecb6648..17e7bb7f5c 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -115,10 +115,22 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
+ }
+ 
+ // fieldNeedsQuotes returns true if our field must be enclosed in quotes.
+-// Empty fields, files with a Comma, fields with a quote or newline, and
++// Fields with a Comma, fields with a quote or newline, and
+ // fields which start with a space must be enclosed in quotes.
++// We used to quote empty strings, but we do not anymore (as of Go 1.4).
++// The two representations should be equivalent, but Postgres distinguishes
++// quoted vs non-quoted empty string during database imports, and it has
++// an option to force the quoted behavior for non-quoted CSV but it has
++// no option to force the non-quoted behavior for quoted CSV, making
++// CSV with quoted empty strings strictly less useful.
++// Not quoting the empty string also makes this package match the behavior
++// of Microsoft Excel and Google Drive.
++// For Postgres, quote the data termating string `\.`.
+ func (w *Writer) fieldNeedsQuotes(field string) bool {
+-	if len(field) == 0 || strings.IndexRune(field, w.Comma) >= 0 || strings.IndexAny(field, "\"\r\n") >= 0 {
++	if field == "" {
++		return false
++	}
++	if field == `\.` || strings.IndexRune(field, w.Comma) >= 0 || strings.IndexAny(field, "\"\r\n") >= 0 {
+ 		return true
+ 	}
+ 
+diff --git a/src/encoding/csv/writer_test.go b/src/encoding/csv/writer_test.go
+index 22b740c074..8ddca0abe0 100644
+--- a/src/encoding/csv/writer_test.go
++++ b/src/encoding/csv/writer_test.go
+@@ -28,6 +28,17 @@ var writeTests = []struct {
+ 	{Input: [][]string{{"abc\ndef"}}, Output: "\"abc\r\ndef\"\r\n", UseCRLF: true},
+ 	{Input: [][]string{{"abc\rdef"}}, Output: "\"abcdef\"\r\n", UseCRLF: true},
+ 	{Input: [][]string{{"abc\rdef"}}, Output: "\"abc\rdef\"\n", UseCRLF: false},
++	{Input: [][]string{{""}}, Output: "\n"},
++	{Input: [][]string{{"", ""}}, Output: ",\n"},
++	{Input: [][]string{{"", "", ""}}, Output: ",,\n"},
++	{Input: [][]string{{"", "", "a"}}, Output: ",,a\n"},
++	{Input: [][]string{{"", "a", ""}}, Output: ",a,\n"},
++	{Input: [][]string{{"", "a", "a"}}, Output: ",a,a\n"},
++	{Input: [][]string{{"a", "", ""}}, Output: "a,,\n"},
++	{Input: [][]string{{"a", "", "a"}}, Output: "a,,a\n"},
++	{Input: [][]string{{"a", "a", ""}}, Output: "a,a,\n"},
++	{Input: [][]string{{"a", "a", "a"}}, Output: "a,a,a\n"},
++	{Input: [][]string{{`\.`}}, Output: "\"\\.\"\n"},
+ }
+ 
+ func TestWrite(t *testing.T) {

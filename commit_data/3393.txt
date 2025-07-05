@@ -11,10 +11,198 @@ Date:   Tue Sep 29 12:15:24 2009 -0700
     DELTA=139  (138 added, 0 deleted, 1 changed)
     OCL=35056
     CL=35092
-
+---
  src/pkg/Make.deps              |  3 +-
  src/pkg/Makefile               |  1 +
  src/pkg/crypto/rc4/Makefile    | 11 +++++++
  src/pkg/crypto/rc4/rc4.go      | 66 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/crypto/rc4/rc4_test.go | 59 +++++++++++++++++++++++++++++++++++++
  5 files changed, 139 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 70992cc7f2..7ced9fa2d9 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -15,6 +15,7 @@ crypto/aes.install: os.install strconv.install
+ crypto/block.install: fmt.install io.install os.install strconv.install
+ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
+ crypto/md5.install: hash.install os.install
++crypto/rc4.install: os.install strconv.install
+ crypto/sha1.install: hash.install os.install
+ datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ debug/binary.install: io.install math.install os.install reflect.install
+@@ -31,7 +32,7 @@ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+-go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
++go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
+ go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
+ go/token.install: fmt.install strconv.install
+ gob.install: bytes.install fmt.install io.install math.install os.install reflect.install sync.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index c368709df9..ad2b7828d2 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -29,6 +29,7 @@ DIRS=\
+ 	crypto/block\
+ 	crypto/hmac\
+ 	crypto/md5\
++	crypto/rc4\
+ 	crypto/sha1\
+ 	datafmt\
+ 	debug/binary\
+diff --git a/src/pkg/crypto/rc4/Makefile b/src/pkg/crypto/rc4/Makefile
+new file mode 100644
+index 0000000000..5c7e67fa0c
+--- /dev/null
++++ b/src/pkg/crypto/rc4/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=crypto/rc4
++GOFILES=\
++	rc4.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/crypto/rc4/rc4.go b/src/pkg/crypto/rc4/rc4.go
+new file mode 100644
+index 0000000000..a93784e622
+--- /dev/null
++++ b/src/pkg/crypto/rc4/rc4.go
+@@ -0,0 +1,66 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements RC4 encryption, as defined in Bruce Schneier's
++// Applied Cryptography.
++package rc4
++
++// BUG(agl): RC4 is in common use but has design weaknesses that make
++// it a poor choice for new protocols.
++
++import (
++	"os";
++	"strconv";
++)
++
++// A Cipher is an instance of RC4 using a particular key.
++type Cipher struct {
++	s	[256]byte;
++	i, j	uint8;
++}
++
++type KeySizeError int
++
++func (k KeySizeError) String() string {
++	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k));
++}
++
++// NewCipher creates and returns a new Cipher.  The key argument should be the
++// RC4 key, at least 1 byte and at most 256 bytes.
++func NewCipher(key []byte) (*Cipher, os.Error) {
++	k := len(key);
++	if k < 1 || k > 256 {
++		return nil, KeySizeError(k);
++	}
++	var c Cipher;
++	for i := 0; i < 256; i++ {
++		c.s[i] = uint8(i);
++	}
++	var j uint8 = 0;
++	for i := 0; i < 256; i++ {
++		j += c.s[i] + key[i%k];
++		c.s[i], c.s[j] = c.s[j], c.s[i];
++	}
++	return &c, nil;
++}
++
++// XORKeyStream will XOR each byte of the given buffer with a byte of the
++// generated keystream.
++func (c *Cipher) XORKeyStream(buf []byte) {
++	for i := range buf {
++		c.i += 1;
++		c.j += c.s[c.i];
++		c.s[c.i], c.s[c.j] = c.s[c.j], c.s[c.i];
++		buf[i] ^= c.s[c.s[c.i] + c.s[c.j]];
++	}
++}
++
++// Reset zeros the key data so that it will no longer appear in the
++// process's memory.
++func (c *Cipher) Reset() {
++	for i := range c.s {
++		c.s[i] = 0;
++	}
++	c.i, c.j = 0, 0;
++}
+diff --git a/src/pkg/crypto/rc4/rc4_test.go b/src/pkg/crypto/rc4/rc4_test.go
+new file mode 100644
+index 0000000000..e0ca4a4ae6
+--- /dev/null
++++ b/src/pkg/crypto/rc4/rc4_test.go
+@@ -0,0 +1,59 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rc4
++
++import (
++	"testing";
++)
++
++type rc4Test struct {
++	key, keystream []byte;
++}
++
++var golden = []rc4Test{
++	// Test vectors from the original cypherpunk posting of ARC4:
++	//   http://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0?pli=1
++	rc4Test{
++		[]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
++		[]byte{0x74, 0x94, 0xc2, 0xe7, 0x10, 0x4b, 0x08, 0x79},
++	},
++	rc4Test{
++		[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
++		[]byte{0xde, 0x18, 0x89, 0x41, 0xa3, 0x37, 0x5d, 0x3a},
++	},
++	rc4Test{
++		[]byte{0xef, 0x01, 0x23, 0x45},
++		[]byte{0xd6, 0xa1, 0x41, 0xa7, 0xec, 0x3c, 0x38, 0xdf, 0xbd, 0x61},
++	},
++
++	// Test vectors from the Wikipedia page: http://en.wikipedia.org/wiki/RC4
++	rc4Test{
++		[]byte{0x4b, 0x65, 0x79},
++		[]byte{0xeb, 0x9f, 0x77, 0x81, 0xb7, 0x34, 0xca, 0x72, 0xa7, 0x19},
++	},
++	rc4Test{
++		[]byte{0x57, 0x69, 0x6b, 0x69},
++		[]byte{0x60, 0x44, 0xdb, 0x6d, 0x41, 0xb7},
++	},
++}
++
++func TestGolden(t *testing.T) {
++	for i := 0; i < len(golden); i++ {
++		g := golden[i];
++		c, err := NewCipher(g.key);
++		if err != nil {
++			t.Errorf("Failed to create cipher at golden index %d", i);
++			return;
++		}
++		keystream := make([]byte, len(g.keystream));
++		c.XORKeyStream(keystream);
++		for j, v := range keystream {
++			if g.keystream[j] != v {
++				t.Errorf("Failed at golden index %d", i);
++				break;
++			}
++		}
++	}
++}

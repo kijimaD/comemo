@@ -8,6 +8,20 @@ Date:   Tue Aug 12 21:38:50 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/128110044
-
+---
  src/pkg/hash/crc32/crc32_generic.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/hash/crc32/crc32_generic.go b/src/pkg/hash/crc32/crc32_generic.go
+index c3fdcd685c..1c7f806c60 100644
+--- a/src/pkg/hash/crc32/crc32_generic.go
++++ b/src/pkg/hash/crc32/crc32_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 arm
++// +build 386 arm power64 power64le
+ 
+ package crc32
+ 

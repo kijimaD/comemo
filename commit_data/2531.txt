@@ -8,7 +8,7 @@ Date:   Thu Jun 25 20:13:56 2009 -0700
     DELTA=51  (4 added, 4 deleted, 43 changed)
     OCL=30759
     CL=30778
-
+---
  doc/progs/cat.go                  | 2 +-
  doc/progs/cat_rot13.go            | 2 +-
  doc/progs/helloworld3.go          | 2 +-
@@ -22,3 +22,173 @@ Date:   Thu Jun 25 20:13:56 2009 -0700
  test/fixedbugs/bug133.dir/bug2.go | 4 ++--
  test/fixedbugs/bug160.dir/y.go    | 2 +-
  12 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index f0f534926e..f9f00b6e32 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"file";
++	"./file";
+ 	"flag";
+ 	"fmt";
+ 	"os";
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 931fdf03c3..ea608b83d7 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"file";
++	"./file";
+ 	"flag";
+ 	"fmt";
+ 	"os";
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 01fc3e30a1..ea567fe1bd 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"file";
++	"./file";
+ 	"fmt";
+ 	"os";
+ )
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index 3cca7b4854..a6497425cc 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -7,7 +7,6 @@ package gobuild
+ import (
+ 	"flag";
+ 	"fmt";
+-	"gobuild";
+ 	"io";
+ 	"os";
+ 	"path";
+@@ -16,6 +15,8 @@ import (
+ 	"template";
+ 	"unicode";
+ 	"utf8";
++
++	"./gobuild";
+ )
+ 
+ type Pkg struct
+diff --git a/src/cmd/gobuild/main.go b/src/cmd/gobuild/main.go
+index da781f9886..b5bef4d333 100644
+--- a/src/cmd/gobuild/main.go
++++ b/src/cmd/gobuild/main.go
+@@ -4,9 +4,7 @@
+ 
+ package main
+ 
+-import (
+-	"gobuild";
+-)
++import "./gobuild";
+ 
+ func main() {
+ 	gobuild.Main();
+diff --git a/src/cmd/gobuild/makefile.go b/src/cmd/gobuild/makefile.go
+index 5db633c17c..36a9ee034c 100644
+--- a/src/cmd/gobuild/makefile.go
++++ b/src/cmd/gobuild/makefile.go
+@@ -6,10 +6,11 @@ package gobuild
+ 
+ import (
+ 	"fmt";
+-	"gobuild";
+ 	"io";
+ 	"path";
+ 	"template";
++
++	"./gobuild";
+ )
+ 
+ var makefileTemplate = `
+diff --git a/test/fixedbugs/bug083.dir/bug1.go b/test/fixedbugs/bug083.dir/bug1.go
+index ac6a73844d..a48edbe330 100644
+--- a/test/fixedbugs/bug083.dir/bug1.go
++++ b/test/fixedbugs/bug083.dir/bug1.go
+@@ -4,7 +4,7 @@
+ 
+ package bug1
+ 
+-import "bug0"
++import "./bug0"
+ 
+ // This is expected to fail--t0 is in package bug0 and should not be
+ // visible here in package bug1.  The test for failure is in
+diff --git a/test/fixedbugs/bug088.dir/bug1.go b/test/fixedbugs/bug088.dir/bug1.go
+index 7c21c25dea..9cb60324d0 100644
+--- a/test/fixedbugs/bug088.dir/bug1.go
++++ b/test/fixedbugs/bug088.dir/bug1.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import P "bug0"
++import P "./bug0"
+ 
+ func main() {
+ 	a0 := P.V0();  // works
+diff --git a/test/fixedbugs/bug106.dir/bug1.go b/test/fixedbugs/bug106.dir/bug1.go
+index 663a26dd25..6ef40e94a2 100644
+--- a/test/fixedbugs/bug106.dir/bug1.go
++++ b/test/fixedbugs/bug106.dir/bug1.go
+@@ -3,5 +3,5 @@
+ // license that can be found in the LICENSE file.
+ 
+ package bug1
+-import "bug0"
++import "./bug0"
+ 
+diff --git a/test/fixedbugs/bug133.dir/bug1.go b/test/fixedbugs/bug133.dir/bug1.go
+index 2ab5447e3c..7562147885 100644
+--- a/test/fixedbugs/bug133.dir/bug1.go
++++ b/test/fixedbugs/bug133.dir/bug1.go
+@@ -4,6 +4,6 @@
+ 
+ package bug1
+ 
+-import "bug0"
++import "./bug0"
+ 
+ type T struct { t bug0.T }
+diff --git a/test/fixedbugs/bug133.dir/bug2.go b/test/fixedbugs/bug133.dir/bug2.go
+index bf39f2f6f8..2b2b50b7f3 100644
+--- a/test/fixedbugs/bug133.dir/bug2.go
++++ b/test/fixedbugs/bug133.dir/bug2.go
+@@ -4,8 +4,8 @@
+ 
+ package bug1
+ 
+-import "bug1"
+-import "bug0"
++import "./bug1"
++import "./bug0"
+ 
+ type T2 struct { t bug0.T }
+ 
+diff --git a/test/fixedbugs/bug160.dir/y.go b/test/fixedbugs/bug160.dir/y.go
+index 1c8d353d7e..27e2f352a4 100644
+--- a/test/fixedbugs/bug160.dir/y.go
++++ b/test/fixedbugs/bug160.dir/y.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import "os"
+-import "x"
++import "./x"
+ 
+ func main() {
+ 	if x.Zero != 0 {

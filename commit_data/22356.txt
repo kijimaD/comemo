@@ -12,6 +12,19 @@ Date:   Sat Mar 7 01:44:24 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/7074
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 57a201bd9a..2e47d9ad2c 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -191,6 +191,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++		nacladdr(ctxt, p, &p.From3)
+ 		nacladdr(ctxt, p, &p.From)
+ 		nacladdr(ctxt, p, &p.To)
+ 	}

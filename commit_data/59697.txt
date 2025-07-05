@@ -18,6 +18,20 @@ Date:   Thu Apr 11 21:27:08 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/v2/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/v2/pprof.go b/src/cmd/trace/v2/pprof.go
+index 05895eda3d..43b0257fc0 100644
+--- a/src/cmd/trace/v2/pprof.go
++++ b/src/cmd/trace/v2/pprof.go
+@@ -48,7 +48,7 @@ func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.Profile
+ func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
+ 	res := make(map[tracev2.GoID][]interval)
+ 	for _, g := range t.summary.Goroutines {
+-		if g.Name != name {
++		if name != "" && g.Name != name {
+ 			continue
+ 		}
+ 		endTime := g.EndTime

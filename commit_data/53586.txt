@@ -25,8 +25,59 @@ Date:   Thu Apr 21 14:17:40 2022 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/ast.go                         | 4 ++--
  src/cmd/go/internal/load/test.go           | 2 +-
  src/go/internal/srcimporter/srcimporter.go | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 28879e349c..c419699cb1 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -52,8 +52,8 @@ func (f *File) ParseGo(abspath string, src []byte) {
+ 	// and reprinting.
+ 	// In cgo mode, we ignore ast2 and just apply edits directly
+ 	// the text behind ast1. In godefs mode we modify and print ast2.
+-	ast1 := parse(abspath, src, parser.ParseComments)
+-	ast2 := parse(abspath, src, 0)
++	ast1 := parse(abspath, src, parser.SkipObjectResolution|parser.ParseComments)
++	ast2 := parse(abspath, src, parser.SkipObjectResolution)
+ 
+ 	f.Package = ast1.Name.Name
+ 	f.Name = make(map[string]*Name)
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 3780f358f4..1abefd8ad1 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -611,7 +611,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 		return err
+ 	}
+ 	defer src.Close()
+-	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments)
++	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments|parser.SkipObjectResolution)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index caf76a24de..c96427486e 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -182,7 +182,7 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
+ 				errors[i] = err // open provides operation and filename in error
+ 				return
+ 			}
+-			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
++			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, parser.SkipObjectResolution)
+ 			src.Close() // ignore Close error - parsing may have succeeded which is all we need
+ 		}(i, p.joinPath(dir, filename))
+ 	}
+@@ -240,7 +240,7 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
+ 		return nil, fmt.Errorf("go tool cgo: %w", err)
+ 	}
+ 
+-	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, 0)
++	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, parser.SkipObjectResolution)
+ }
+ 
+ // context-controlled file system operations

@@ -14,6 +14,38 @@ Date:   Sun Jan 21 13:02:27 2018 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 519fad4b7e..f33689298f 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1253,9 +1253,10 @@ func okas(ok, val *Node) *Node {
+ func (o *Order) as2(n *Node) {
+ 	tmplist := []*Node{}
+ 	left := []*Node{}
+-	for _, l := range n.List.Slice() {
++	for ni, l := range n.List.Slice() {
+ 		if !l.isBlank() {
+ 			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
++			n.List.SetIndex(ni, tmp)
+ 			tmplist = append(tmplist, tmp)
+ 			left = append(left, l)
+ 		}
+@@ -1268,14 +1269,6 @@ func (o *Order) as2(n *Node) {
+ 	as.Rlist.Set(tmplist)
+ 	as = typecheck(as, Etop)
+ 	o.stmt(as)
+-
+-	ti := 0
+-	for ni, l := range n.List.Slice() {
+-		if !l.isBlank() {
+-			n.List.SetIndex(ni, tmplist[ti])
+-			ti++
+-		}
+-	}
+ }
+ 
+ // okAs2 orders OAS2 with ok.

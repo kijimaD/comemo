@@ -11,6 +11,20 @@ Date:   Fri Mar 25 11:32:32 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4273114
-
+---
  test/fixedbugs/bug274.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug274.go b/test/fixedbugs/bug274.go
+index 621f31eed3..348aed429e 100644
+--- a/test/fixedbugs/bug274.go
++++ b/test/fixedbugs/bug274.go
+@@ -24,6 +24,7 @@ func main() {
+ 	case 1:
+ 		L1:  // ERROR "statement"
+ 	default:
+-		L2:  // correct since no semicolon is required before a '}'
++		     // correct since no semicolon is required before a '}'
++		L2:  // GCCGO_ERROR "not used"
+ 	}
+ }

@@ -11,6 +11,22 @@ Date:   Mon Jul 20 20:30:41 2015 -0400
     Change-Id: I0164231ada294788d7eec251a2fc33e02a26c13b
     Reviewed-on: https://go-review.googlesource.com/12522
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/proc_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 4471ee5afb..2be103e3a6 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -96,6 +96,10 @@ func TestYieldLocked(t *testing.T) {
+ }
+ 
+ func TestGoroutineParallelism(t *testing.T) {
++	if runtime.NumCPU() == 1 {
++		// Takes too long, too easy to deadlock, etc.
++		t.Skip("skipping on uniprocessor")
++	}
+ 	P := 4
+ 	N := 10
+ 	if testing.Short() {

@@ -10,6 +10,20 @@ Date:   Mon Dec 23 20:42:42 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/638377
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/weak/pointer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/weak/pointer.go b/src/weak/pointer.go
+index d8be409349..50af0c2fdc 100644
+--- a/src/weak/pointer.go
++++ b/src/weak/pointer.go
+@@ -52,7 +52,7 @@ import (
+ // nil, even after an object is no longer referenced, the runtime is allowed to
+ // perform a space-saving optimization that batches objects together in a single
+ // allocation slot. The weak pointer for an unreferenced object in such an
+-// allocation may never be called if it always exists in the same batch as a
++// allocation may never become nil if it always exists in the same batch as a
+ // referenced object. Typically, this batching only happens for tiny
+ // (on the order of 16 bytes or less) and pointer-free objects.
+ type Pointer[T any] struct {

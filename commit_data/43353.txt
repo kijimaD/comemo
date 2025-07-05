@@ -18,6 +18,60 @@ Date:   Sat Mar 28 08:00:17 2020 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/time.go | 29 ++---------------------------
  1 file changed, 2 insertions(+), 27 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 3f632dbc3e..3d242f2541 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -287,25 +287,10 @@ const (
+ 	December
+ )
+ 
+-var months = [...]string{
+-	"January",
+-	"February",
+-	"March",
+-	"April",
+-	"May",
+-	"June",
+-	"July",
+-	"August",
+-	"September",
+-	"October",
+-	"November",
+-	"December",
+-}
+-
+ // String returns the English name of the month ("January", "February", ...).
+ func (m Month) String() string {
+ 	if January <= m && m <= December {
+-		return months[m-1]
++		return longMonthNames[m-1]
+ 	}
+ 	buf := make([]byte, 20)
+ 	n := fmtInt(buf, uint64(m))
+@@ -325,20 +310,10 @@ const (
+ 	Saturday
+ )
+ 
+-var days = [...]string{
+-	"Sunday",
+-	"Monday",
+-	"Tuesday",
+-	"Wednesday",
+-	"Thursday",
+-	"Friday",
+-	"Saturday",
+-}
+-
+ // String returns the English name of the day ("Sunday", "Monday", ...).
+ func (d Weekday) String() string {
+ 	if Sunday <= d && d <= Saturday {
+-		return days[d]
++		return longDayNames[d]
+ 	}
+ 	buf := make([]byte, 20)
+ 	n := fmtInt(buf, uint64(d))

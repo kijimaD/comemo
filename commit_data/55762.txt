@@ -24,7 +24,7 @@ Date:   Wed Mar 1 13:45:18 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/elf_test.go               |  5 ++++-
  src/cmd/link/internal/ld/dwarf_test.go | 18 +++++++++++++-----
  src/cmd/link/internal/ld/ld_test.go    |  3 +++
@@ -34,3 +34,243 @@ Date:   Wed Mar 1 13:45:18 2023 +0000
  src/cmd/pprof/pprof_test.go            |  6 +++++-
  src/runtime/crash_cgo_test.go          |  3 +++
  8 files changed, 59 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 27285ff566..d662145847 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -340,7 +340,7 @@ func TestPIESize(t *testing.T) {
+ 					t.Logf("%s", out)
+ 				}
+ 				if err != nil {
+-					t.Error(err)
++					t.Log(err)
+ 				}
+ 				return err
+ 			}
+@@ -358,6 +358,9 @@ func TestPIESize(t *testing.T) {
+ 			}()
+ 			wg.Wait()
+ 			if errexe != nil || errpie != nil {
++				if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
++					testenv.SkipFlaky(t, 58806)
++				}
+ 				t.Fatal("link failed")
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index ee3ea9d175..abbfec0c41 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -227,7 +227,10 @@ func main() {
+ 		}
+ 		switch entry.Tag {
+ 		case dwarf.TagStructType:
+-			name := entry.Val(dwarf.AttrName).(string)
++			name, ok := entry.Val(dwarf.AttrName).(string)
++			if !ok {
++				continue
++			}
+ 			wantMembers := want[name]
+ 			if wantMembers == nil {
+ 				continue
+@@ -888,8 +891,10 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
++	// TODO(#58807): factor this condition out into a function in
++	// internal/platform so that it won't get out of sync with cmd/link.
++	if runtime.GOOS == "android" || runtime.GOOS == "windows" {
++		t.Skipf("skipping on %s; test is incompatible with relocatable binaries", runtime.GOOS)
+ 	}
+ 
+ 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+@@ -980,8 +985,10 @@ func main() {
+ 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
+ 	}
+ 
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+-		return // everything is PIE on ARM64, addresses are relocated
++	// TODO(#58807): factor this condition out into a function in
++	// internal/platform so that it won't get out of sync with cmd/link.
++	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || runtime.GOOS == "android" {
++		return // everything is PIE, addresses are relocated
+ 	}
+ 	if rtAttr.(uint64)+types.Addr != addr {
+ 		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+@@ -1548,6 +1555,7 @@ func TestIssue39757(t *testing.T) {
+ 
+ func TestIssue42484(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustInternalLink(t, false) // Avoid spurious failures from external linkers.
+ 
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 22bc11eff3..aef880d534 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -65,6 +65,9 @@ func TestUndefinedRelocErrors(t *testing.T) {
+ 		case n > 0:
+ 			t.Errorf("unmatched error: %s (x%d)", want, n)
+ 		case n < 0:
++			if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
++				testenv.SkipFlaky(t, 58807)
++			}
+ 			t.Errorf("extra errors: %s (x%d)", want, -n)
+ 		}
+ 	}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 121ef95853..72dbca5c63 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -41,6 +41,7 @@ func TestIssue21703(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	const source = `
+ package main
+@@ -70,6 +71,9 @@ func main() {}
+ 	cmd.Dir = tmpdir
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
++		if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
++			testenv.SkipFlaky(t, 58806)
++		}
+ 		t.Fatalf("failed to link main.o: %v, output: %s\n", err, out)
+ 	}
+ }
+@@ -82,6 +86,7 @@ func TestIssue28429(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	tmpdir := t.TempDir()
+ 
+@@ -97,6 +102,9 @@ func TestIssue28429(t *testing.T) {
+ 		cmd.Dir = tmpdir
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
++			if len(args) >= 2 && args[1] == "link" && runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
++				testenv.SkipFlaky(t, 58806)
++			}
+ 			t.Fatalf("'go %s' failed: %v, output: %s",
+ 				strings.Join(args, " "), err, out)
+ 		}
+@@ -763,6 +771,7 @@ func TestIndexMismatch(t *testing.T) {
+ 	// This shouldn't happen with "go build". We invoke the compiler and the linker
+ 	// manually, and try to "trick" the linker with an inconsistent object file.
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	t.Parallel()
+ 
+@@ -797,6 +806,9 @@ func TestIndexMismatch(t *testing.T) {
+ 	t.Log(cmd)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
++		if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
++			testenv.SkipFlaky(t, 58806)
++		}
+ 		t.Errorf("linking failed: %v\n%s", err, out)
+ 	}
+ 
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 7d8358e294..014a5d2bd7 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -165,6 +165,14 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 				return true
+ 			}
+ 		}
++		// Code is always relocated if the default buildmode is PIE.
++		//
++		// TODO(#58807): factor this condition out into a function in
++		// internal/platform so that it won't get out of sync with cmd/go and
++		// cmd/link.
++		if runtime.GOOS == "android" {
++			return true
++		}
+ 		if runtime.GOOS == "windows" {
+ 			return true
+ 		}
+@@ -198,7 +206,12 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 				stype = "D"
+ 			}
+ 			if want, have := stype, strings.ToUpper(f[1]); have != want {
+-				t.Errorf("want %s type for %s symbol, but have %s", want, name, have)
++				if runtime.GOOS == "android" && name == "runtime.epclntab" && have == "D" {
++					// TODO(#58807): Figure out why this fails and fix up the test.
++					t.Logf("(ignoring on %s) want %s type for %s symbol, but have %s", runtime.GOOS, want, name, have)
++				} else {
++					t.Errorf("want %s type for %s symbol, but have %s", want, name, have)
++				}
+ 			}
+ 			delete(runtimeSyms, name)
+ 		}
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 5534a10b37..309139aa4d 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -191,6 +192,7 @@ func TestExtract(t *testing.T) {
+ // Test that pack-created archives can be understood by the tools.
+ func TestHello(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	dir := t.TempDir()
+ 	hello := filepath.Join(dir, "hello.go")
+@@ -413,6 +415,9 @@ func doRun(t *testing.T, dir string, args ...string) string {
+ 	cmd.Dir = dir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
++		if t.Name() == "TestHello" && runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
++			testenv.SkipFlaky(t, 58806)
++		}
+ 		t.Fatalf("%v: %v\n%s", args, err, string(out))
+ 	}
+ 	return string(out)
+diff --git a/src/cmd/pprof/pprof_test.go b/src/cmd/pprof/pprof_test.go
+index 353781ac04..d6ca0e28da 100644
+--- a/src/cmd/pprof/pprof_test.go
++++ b/src/cmd/pprof/pprof_test.go
+@@ -75,7 +75,11 @@ func mustHaveDisasm(t *testing.T) {
+ 	}
+ 
+ 	// Skip PIE platforms, pprof can't disassemble PIE.
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	//
++	// TODO(#58807): factor this condition out into a function in
++	// internal/platform so that it won't get out of sync with cmd/go and
++	// cmd/link.
++	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || runtime.GOOS == "android" {
+ 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
+ 	}
+ }
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 51d7bb5091..65556edd2a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -520,6 +520,9 @@ func TestCgoTracebackSigpanic(t *testing.T) {
+ 	t.Log(got)
+ 	want := "runtime.sigpanic"
+ 	if !strings.Contains(got, want) {
++		if runtime.GOOS == "android" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++			testenv.SkipFlaky(t, 58794)
++		}
+ 		t.Errorf("did not see %q in output", want)
+ 	}
+ 	// No runtime errors like "runtime: unexpected return pc".

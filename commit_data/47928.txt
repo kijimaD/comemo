@@ -16,8 +16,400 @@ Date:   Fri Mar 26 16:12:45 2021 -0400
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator.txt | 121 +++++++++++++++++++-
  src/internal/fuzz/fuzz.go                        |   5 +
  src/internal/fuzz/worker.go                      | 137 ++++++++++++++++++++---
  3 files changed, 241 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index aa2b8ff83f..c29912b65a 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -20,15 +20,40 @@ stdout FAIL
+ stdout 'mutator found enough unique mutations'
+ 
+ # Test that minimization is working for recoverable errors.
+-! go test -v -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -parallel=1 -fuzztime=10s minimizer_test.go
++! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10s minimizer_test.go
+ ! stdout '^ok'
+ stdout 'got the minimum size!'
+ stdout 'contains a letter'
+ stdout FAIL
+ 
++# Check that the bytes written to testdata are of length 100 (the minimum size)
++go run check_testdata.go FuzzMinimizerRecoverable 100
++
+ # Test that re-running the minimized value causes a crash.
+ ! go test -run=FuzzMinimizerRecoverable minimizer_test.go
+ 
++# Test that minimization is working for non-recoverable errors.
++! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10s minimizer_test.go
++! stdout '^ok'
++stdout 'got the minimum size!'
++stdout 'contains a letter'
++stdout FAIL
++
++# Check that the bytes written to testdata are of length 100 (the minimum size)
++go run check_testdata.go FuzzMinimizerNonrecoverable 100
++
++# Test that minimization can be cancelled by fuzztime and the latest crash will
++# still be logged and written to testdata.
++! go test -fuzz=FuzzNonMinimizable -run=FuzzNonMinimizable -parallel=1 -fuzztime=5s minimizer_test.go
++! stdout '^ok'
++stdout 'testdata[/\\]corpus[/\\]FuzzNonMinimizable[/\\]'
++! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
++stdout 'at least 100 bytes'
++stdout FAIL
++
++# TODO(jayconrod,katiehockman): add a test which verifies that the right bytes
++# are written to testdata in the case of an interrupt during minimization.
++
+ -- go.mod --
+ module m
+ 
+@@ -83,6 +108,7 @@ package fuzz_test
+ import (
+ 	"bytes"
+ 	"testing"
++	"time"
+ )
+ 
+ func FuzzMinimizerRecoverable(f *testing.F) {
+@@ -91,17 +117,48 @@ func FuzzMinimizerRecoverable(f *testing.F) {
+ 			// Make sure that b is large enough that it can be minimized
+ 			return
+ 		}
+-		if len(b) == 100 {
+-			t.Logf("got the minimum size!")
+-		}
++		// Given the randomness of the mutations, this should allow the
++		// minimizer to trim down the value a bit.
+ 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+-			// Given the randomness of the mutations, this should allow the
+-			// minimizer to trim down the value quite a bit.
++			if len(b) == 100 {
++				t.Logf("got the minimum size!")
++			}
+ 			t.Errorf("contains a letter")
+ 		}
+ 	})
+ }
+ 
++func FuzzMinimizerNonrecoverable(f *testing.F) {
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if len(b) < 100 {
++			// Make sure that b is large enough that it can be minimized
++			return
++		}
++		// Given the randomness of the mutations, this should allow the
++		// minimizer to trim down the value quite a bit.
++		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
++			if len(b) == 100 {
++				t.Logf("got the minimum size!")
++			}
++			panic("contains a letter")
++		}
++	})
++}
++
++func FuzzNonMinimizable(f *testing.F) {
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if len(b) < 10 {
++			// Make sure that b is large enough that minimization will try to run.
++			return
++		}
++		time.Sleep(3 * time.Second)
++		if len(b) == 10 {
++			t.Logf("got the minimum size!")
++		}
++		panic("at least 100 bytes")
++	})
++}
++
+ -- check_logs.go --
+ // +build ignore
+ 
+@@ -195,7 +252,59 @@ func checkWorkerLog(r io.Reader) error {
+ 	}
+ 	return nil
+ }
++-- check_testdata.go --
++// +build ignore
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strconv"
++)
+ 
++func main() {
++	target := os.Args[1]
++	numBytes, err := strconv.Atoi(os.Args[2])
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++
++	// Open the file in testdata (there should only be one)
++	dir := fmt.Sprintf("testdata/corpus/%s", target)
++	files, err := ioutil.ReadDir(dir)
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	if len(files) != 1 {
++		fmt.Fprintf(os.Stderr, "expected one file, got %d", len(files))
++		os.Exit(1)
++	}
++	got, err := ioutil.ReadFile(filepath.Join(dir, files[0].Name()))
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++
++	// Make sure that there were exactly 100 bytes written to the corpus entry
++	prefix := []byte("[]byte(")
++	i := bytes.Index(got, prefix)
++	gotBytes := got[i+len(prefix) : len(got)-1]
++	s, err := strconv.Unquote(string(gotBytes))
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	if want, got := numBytes, len(s); want != got {
++		fmt.Fprintf(os.Stderr, "want %d bytes, got %d", want, got)
++		os.Exit(1)
++	}
++}
+ -- mutator_test.go --
+ package fuzz_test
+ 
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index f8c72dbff1..586b51188c 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -178,6 +178,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 	statTicker := time.NewTicker(3 * time.Second)
+ 	defer statTicker.Stop()
+ 	defer c.logStats()
++	crashWritten := false
+ 
+ 	for {
+ 		select {
+@@ -195,8 +196,12 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 
+ 			if result.crasherMsg != "" {
+ 				// Found a crasher. Write it to testdata and return it.
++				if crashWritten {
++					break
++				}
+ 				fileName, err := writeToCorpus(result.entry.Data, opts.CorpusDir)
+ 				if err == nil {
++					crashWritten = true
+ 					err = &crashError{
+ 						name: filepath.Base(fileName),
+ 						err:  errors.New(result.crasherMsg),
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index c130f691f4..ca2808639a 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -163,19 +163,29 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 					return nil
+ 				}
+ 
+-				// Unexpected termination. Inform the coordinator about the crash.
++				// Unexpected termination. Attempt to minimize, then inform the
++				// coordinator about the crash.
+ 				// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+-				mem := <-w.memMu
+-				value := mem.valueCopy()
+-				w.memMu <- mem
++				// TODO(jayconrod,katiehockman): consider informing the
++				// coordinator that this worker is minimizing, in order to block
++				// the other workers from receiving more inputs.
+ 				message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+-				w.coordinator.resultC <- fuzzResult{
+-					entry:      CorpusEntry{Data: value},
+-					crasherMsg: message,
++				err = w.waitErr
++				res, minimized, minErr := w.minimize(ctx)
++				if !minimized {
++					// Minimization did not find a smaller crashing value, so
++					// return the one we already found.
++					res = fuzzResult{
++						entry:      CorpusEntry{Data: value},
++						crasherMsg: message,
++					}
++				}
++				if minErr != nil {
++					err = minErr
+ 				}
+-				return w.waitErr
++				w.coordinator.resultC <- res
++				return err
+ 			}
+-
+ 			result := fuzzResult{
+ 				countRequested: input.countRequested,
+ 				count:          resp.Count,
+@@ -193,6 +203,56 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 	}
+ }
+ 
++// minimize asks a workerServer to attempt to minimize what is currently in
++// shared memory. It runs for a maxium of 1 minute. The worker must be stopped
++// when minimize is called.
++func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, retErr error) {
++	fmt.Fprint(w.coordinator.opts.Log, "found a crash, currently minimizing for up to 1 minute\n")
++	defer func() {
++		w.stop()
++		if retErr == nil {
++			retErr = w.waitErr
++		}
++	}()
++	// In case we can't minimize it at all, save the last crash value that we
++	// found to send to the coordinator once the time is up.
++	minimizeDeadline := time.Now().Add(time.Minute)
++	for rem := time.Until(minimizeDeadline); rem > 0; {
++		// Restart the worker.
++		if err := w.start(); err != nil {
++			return res, minimized, err
++		}
++		args := minimizeArgs{Duration: rem}
++		value, err := w.client.minimize(ctx, args)
++		if err == nil {
++			// Minimization finished successfully, meaning that it
++			// couldn't find any smaller inputs that caused a crash,
++			// so stop trying.
++			return res, minimized, nil
++		}
++		// Minimization will return an error for a non-recoverable problem, so
++		// a non-nil error is expected. However, make sure it didn't fail for
++		// some other reason which should cause us to stop minimizing.
++		if ctx.Err() != nil || w.interrupted || isInterruptError(w.waitErr) {
++			return res, minimized, nil
++		}
++
++		// The bytes in memory caused a legitimate crash, so stop the worker and
++		// save this value and error message.
++		w.stop()
++		message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
++		res = fuzzResult{
++			entry:      CorpusEntry{Data: value},
++			crasherMsg: message,
++		}
++		minimized = true
++	}
++	return res, minimized, nil
++	// TODO(jayconrod,katiehockman): while minimizing, every panic message is
++	// logged to STDOUT. We should probably suppress all but the last one to
++	// lower the noise.
++}
++
+ // start runs a new worker process.
+ //
+ // If the process couldn't be started, start returns an error. Start won't
+@@ -370,10 +430,20 @@ func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
+ // a minimalist RPC mechanism. Exactly one of its fields must be set to indicate
+ // which method to call.
+ type call struct {
+-	Ping *pingArgs
+-	Fuzz *fuzzArgs
++	Ping     *pingArgs
++	Fuzz     *fuzzArgs
++	Minimize *minimizeArgs
+ }
+ 
++// minimizeArgs contains arguments to workerServer.minimize. The value to
++// minimize is already in shared memory.
++type minimizeArgs struct {
++	Duration time.Duration
++}
++
++// minimizeResponse contains results from workerServer.minimize.
++type minimizeResponse struct{}
++
+ // fuzzArgs contains arguments to workerServer.fuzz. The value to fuzz is
+ // passed in shared memory.
+ type fuzzArgs struct {
+@@ -479,6 +549,8 @@ func (ws *workerServer) serve(ctx context.Context) error {
+ 			switch {
+ 			case c.Fuzz != nil:
+ 				resp = ws.fuzz(ctx, *c.Fuzz)
++			case c.Minimize != nil:
++				resp = ws.minimize(ctx, *c.Minimize)
+ 			case c.Ping != nil:
+ 				resp = ws.ping(ctx, *c.Ping)
+ 			default:
+@@ -538,7 +610,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 				// time customizable with a go command flag.
+ 				minCtx, minCancel := context.WithTimeout(ctx, time.Minute)
+ 				defer minCancel()
+-				if minErr := ws.minimize(minCtx, vals, mem); minErr != nil {
++				if minErr := ws.minimizeInput(minCtx, vals, mem); minErr != nil {
+ 					// Minimization found a different error, so use that one.
+ 					err = minErr
+ 				}
+@@ -561,12 +633,26 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 	}
+ }
+ 
+-// minimize applies a series of minimizing transformations on the provided
++func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) minimizeResponse {
++	mem := <-ws.memMu
++	defer func() { ws.memMu <- mem }()
++	vals, err := unmarshalCorpusFile(mem.valueCopy())
++	if err != nil {
++		panic(err)
++	}
++	ctx, cancel := context.WithTimeout(ctx, args.Duration)
++	defer cancel()
++	ws.minimizeInput(ctx, vals, mem)
++	return minimizeResponse{}
++}
++
++// minimizeInput applies a series of minimizing transformations on the provided
+ // vals, ensuring that each minimization still causes an error in fuzzFn. Before
+ // every call to fuzzFn, it marshals the new vals and writes it to the provided
+-// mem just in case an unrecoverable error occurs. It runs for a maximum of one
+-// minute, and returns the last error it found.
+-func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *sharedMem) (retErr error) {
++// mem just in case an unrecoverable error occurs. It uses the context to
++// determine how long to run, stopping once closed. It returns the last error it
++// found.
++func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem) (retErr error) {
+ 	// Make sure the last crashing value is written to mem.
+ 	defer writeToMem(vals, mem)
+ 
+@@ -720,6 +806,25 @@ func (wc *workerClient) Close() error {
+ // interrupted.
+ var errSharedMemClosed = errors.New("internal error: shared memory was closed and unmapped")
+ 
++// minimize tells the worker to call the minimize method. See
++// workerServer.minimize.
++func (wc *workerClient) minimize(ctx context.Context, args minimizeArgs) (valueOut []byte, err error) {
++	wc.mu.Lock()
++	defer wc.mu.Unlock()
++
++	var resp minimizeResponse
++	c := call{Minimize: &args}
++	err = wc.call(ctx, c, &resp)
++	mem, ok := <-wc.memMu
++	if !ok {
++		return nil, errSharedMemClosed
++	}
++	valueOut = mem.valueCopy()
++	wc.memMu <- mem
++
++	return valueOut, err
++}
++
+ // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
+ func (wc *workerClient) fuzz(ctx context.Context, valueIn []byte, args fuzzArgs) (valueOut []byte, resp fuzzResponse, err error) {
+ 	wc.mu.Lock()

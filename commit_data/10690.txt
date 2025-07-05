@@ -8,6 +8,22 @@ Date:   Fri Dec 9 10:47:36 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5475054
-
+---
  src/pkg/html/template/template.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 02e33e125a..4657f6ec52 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -183,7 +183,9 @@ func (t *Template) Lookup(name string) *Template {
+ 
+ // Must panics if err is non-nil in the same way as template.Must.
+ func Must(t *Template, err error) *Template {
+-	t.text = template.Must(t.text, err)
++	if err != nil {
++		panic(err)
++	}
+ 	return t
+ }
+ 

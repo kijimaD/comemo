@@ -20,9 +20,97 @@ Date:   Wed Apr 6 14:12:48 2016 -0700
     Change-Id: I6d60d74a4866995a231dfed3dd5792d75d904292
     Reviewed-on: https://go-review.googlesource.com/21622
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/subr.go        |  4 ++--
  src/cmd/compile/internal/gc/type.go        |  2 --
  src/cmd/compile/internal/gc/typecheck.go   | 14 +++++++++-----
  4 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 8b0dfe538e..f2b1461bc8 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+-		{Type{}, 56, 88},
++		{Type{}, 52, 80},
+ 		{MapType{}, 20, 40},
+ 		{ForwardType{}, 16, 32},
+ 		{FuncType{}, 28, 48},
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a61b8bcd27..035bd815c2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -390,8 +390,8 @@ func checkMapKeyType(key *Type) {
+ 		// before key is fully defined, the error
+ 		// will only be printed for the first one.
+ 		// good enough.
+-		if key.Maplineno == 0 {
+-			key.Maplineno = lineno
++		if maplineno[key] == 0 {
++			maplineno[key] = lineno
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 3d2f01ef7d..eee8e0384a 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -153,8 +153,6 @@ type Type struct {
+ 	Vargen int32 // unique name for OTYPE/ONAME
+ 	Lineno int32 // line at which this type was declared, implicitly or explicitly
+ 
+-	Maplineno int32 // first use of this type as a map key
+-
+ 	Etype      EType // kind of type
+ 	Noalg      bool  // suppress hash and eq algorithm generation
+ 	Trecur     uint8 // to detect loops
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ab7d257aac..a20f87d940 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3513,7 +3513,11 @@ func domethod(n *Node) {
+ 	checkwidth(n.Type)
+ }
+ 
+-var mapqueue []*Node
++var (
++	mapqueue []*Node
++	// maplineno tracks the line numbers at which types are first used as map keys
++	maplineno = map[*Type]int32{}
++)
+ 
+ func copytype(n *Node, t *Type) {
+ 	if t.Etype == TFORW {
+@@ -3522,7 +3526,7 @@ func copytype(n *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	maplineno := n.Type.Maplineno
++	mapline := maplineno[n.Type]
+ 	embedlineno := n.Type.ForwardType().Embedlineno
+ 	l := n.Type.ForwardType().Copyto
+ 
+@@ -3559,8 +3563,8 @@ func copytype(n *Node, t *Type) {
+ 	lineno = lno
+ 
+ 	// Queue check for map until all the types are done settling.
+-	if maplineno != 0 {
+-		t.Maplineno = maplineno
++	if mapline != 0 {
++		maplineno[t] = mapline
+ 		mapqueue = append(mapqueue, n)
+ 	}
+ }
+@@ -3609,7 +3613,7 @@ ret:
+ 		}
+ 
+ 		for _, n := range mapqueue {
+-			lineno = n.Type.Maplineno
++			lineno = maplineno[n.Type]
+ 			checkMapKeyType(n.Type)
+ 		}
+ 

@@ -22,9 +22,223 @@ Date:   Wed Sep 26 21:17:11 2012 +0200
     R=rsc
     CC=golang-dev, remy
     https://golang.org/cl/6560054
-
+---
  src/cmd/6g/cgen.c | 23 ++++++++++++++++++-----
  src/cmd/6g/ggen.c | 51 ++++++++++++++++++++-------------------------------
  src/cmd/8g/cgen.c | 14 +++++++++++++-
  src/cmd/8g/ggen.c | 52 +++++++++++++++++++++-------------------------------
  4 files changed, 72 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 27ab1052c3..8d6ffb087b 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -246,10 +246,11 @@ cgen(Node *n, Node *res)
+ 	case OADD:
+ 	case OMUL:
+ 		a = optoas(n->op, nl->type);
+-		if(a != AIMULB)
+-			goto sbop;
+-		cgen_bmul(n->op, nl, nr, res);
+-		break;
++		if(a == AIMULB) {
++			cgen_bmul(n->op, nl, nr, res);
++			break;
++		}
++		goto sbop;
+ 
+ 	// asymmetric binary
+ 	case OSUB:
+@@ -840,8 +841,20 @@ igen(Node *n, Node *a, Node *res)
+ 		return;
+ 
+ 	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		switch(n->op) {
++		case OCALLFUNC:
++			cgen_call(n, 0);
++			break;
++		case OCALLMETH:
++			cgen_callmeth(n, 0);
++			break;
++		case OCALLINTER:
++			cgen_callinter(n, N, 0);
++			break;
++		}
+ 		fp = structfirst(&flist, getoutarg(n->left->type));
+-		cgen_call(n, 0);
+ 		memset(a, 0, sizeof *a);
+ 		a->op = OINDREG;
+ 		a->val.u.reg = D_SP;
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 193cb08ffb..85415b519e 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -978,48 +978,37 @@ ret:
+ /*
+  * generate byte multiply:
+  *	res = nl * nr
+- * no 2-operand byte multiply instruction so have to do
+- * 16-bit multiply and take bottom half.
++ * there is no 2-operand byte multiply instruction so
++ * we do a full-width multiplication and truncate afterwards.
+  */
+ void
+ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node n1b, n2b, n1w, n2w;
++	Node n1, n2, *tmp;
+ 	Type *t;
+ 	int a;
+ 
+-	if(nl->ullman >= nr->ullman) {
+-		regalloc(&n1b, nl->type, res);
+-		cgen(nl, &n1b);
+-		regalloc(&n2b, nr->type, N);
+-		cgen(nr, &n2b);
+-	} else {
+-		regalloc(&n2b, nr->type, N);
+-		cgen(nr, &n2b);
+-		regalloc(&n1b, nl->type, res);
+-		cgen(nl, &n1b);
+-	}
+-
+-	// copy from byte to short registers
+-	t = types[TUINT16];
++	// copy from byte to full registers
++	t = types[TUINT64];
+ 	if(issigned[nl->type->etype])
+-		t = types[TINT16];
+-
+-	regalloc(&n2w, t, &n2b);
+-	cgen(&n2b, &n2w);
++		t = types[TINT64];
+ 
+-	regalloc(&n1w, t, &n1b);
+-	cgen(&n1b, &n1w);
++	// largest ullman on left.
++	if(nl->ullman < nr->ullman) {
++		tmp = nl;
++		nl = nr;
++		nr = tmp;
++	}
+ 
++	regalloc(&n1, t, res);
++	cgen(nl, &n1);
++	regalloc(&n2, t, N);
++	cgen(nr, &n2);
+ 	a = optoas(op, t);
+-	gins(a, &n2w, &n1w);
+-	cgen(&n1w, &n1b);
+-	cgen(&n1b, res);
+-
+-	regfree(&n1w);
+-	regfree(&n2w);
+-	regfree(&n1b);
+-	regfree(&n2b);
++	gins(a, &n2, &n1);
++	regfree(&n2);
++	gmove(&n1, res);
++	regfree(&n1);
+ }
+ 
+ void
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 6684bf94d5..3fd0cd753e 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -825,8 +825,20 @@ igen(Node *n, Node *a, Node *res)
+ 		return;
+ 
+ 	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		switch(n->op) {
++		case OCALLFUNC:
++			cgen_call(n, 0);
++			break;
++		case OCALLMETH:
++			cgen_callmeth(n, 0);
++			break;
++		case OCALLINTER:
++			cgen_callinter(n, N, 0);
++			break;
++		}
+ 		fp = structfirst(&flist, getoutarg(n->left->type));
+-		cgen_call(n, 0);
+ 		memset(a, 0, sizeof *a);
+ 		a->op = OINDREG;
+ 		a->val.u.reg = D_SP;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index fde94fc156..ba09f59732 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -743,46 +743,36 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ /*
+  * generate byte multiply:
+  *	res = nl * nr
+- * no byte multiply instruction so have to do
+- * 16-bit multiply and take bottom half.
++ * there is no 2-operand byte multiply instruction so
++ * we do a full-width multiplication and truncate afterwards.
+  */
+ void
+ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node n1b, n2b, n1w, n2w;
++	Node n1, n2, *tmp;
+ 	Type *t;
+ 	int a;
+ 
+-	if(nl->ullman >= nr->ullman) {
+-		regalloc(&n1b, nl->type, res);
+-		cgen(nl, &n1b);
+-		regalloc(&n2b, nr->type, N);
+-		cgen(nr, &n2b);
+-	} else {
+-		regalloc(&n2b, nr->type, N);
+-		cgen(nr, &n2b);
+-		regalloc(&n1b, nl->type, res);
+-		cgen(nl, &n1b);
+-	}
+-
+-	// copy from byte to short registers
+-	t = types[TUINT16];
++	// copy from byte to full registers
++	t = types[TUINT32];
+ 	if(issigned[nl->type->etype])
+-		t = types[TINT16];
+-
+-	regalloc(&n2w, t, &n2b);
+-	cgen(&n2b, &n2w);
++		t = types[TINT32];
+ 
+-	regalloc(&n1w, t, &n1b);
+-	cgen(&n1b, &n1w);
++	// largest ullman on left.
++	if(nl->ullman < nr->ullman) {
++		tmp = nl;
++		nl = nr;
++		nr = tmp;
++	}
+ 
++	regalloc(&n1, t, res);
++	cgen(nl, &n1);
++	regalloc(&n2, t, N);
++	cgen(nr, &n2);
+ 	a = optoas(op, t);
+-	gins(a, &n2w, &n1w);
+-	cgen(&n1w, &n1b);
+-	cgen(&n1b, res);
+-
+-	regfree(&n1w);
+-	regfree(&n2w);
+-	regfree(&n1b);
+-	regfree(&n2b);
++	gins(a, &n2, &n1);
++	regfree(&n2);
++	gmove(&n1, res);
++	regfree(&n1);
+ }
++

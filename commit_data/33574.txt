@@ -15,9 +15,101 @@ Date:   Wed Aug 23 16:46:00 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
  src/cmd/compile/internal/ssa/gen/main.go     |  4 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 21 ++++++++++++---------
  4 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 8965d62353..25f3931c20 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -448,7 +448,7 @@ func init() {
+ 		// (particularly stack maps).  It takes a memory arg so it
+ 		// gets correctly ordered with respect to GC safepoints.
+ 		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL"},
++		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true},
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index da38eba678..89781acd85 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -538,8 +538,8 @@ func init() {
+ 		// (particularly stack maps).  It takes a memory arg so it
+ 		// gets correctly ordered with respect to GC safepoints.
+ 		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ"},
+-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL"}, // amd64p32 equivalent
++		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ", resultInArg0: true},
++		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true}, // amd64p32 equivalent
+ 
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index ea6fa87813..6562fdcf46 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -177,10 +177,10 @@ func genOp() {
+ 			if v.resultInArg0 {
+ 				fmt.Fprintln(w, "resultInArg0: true,")
+ 				if v.reg.inputs[0] != v.reg.outputs[0] {
+-					log.Fatalf("input[0] and output[0] must use the same registers for %s", v.name)
++					log.Fatalf("%s: input[0] and output[0] must use the same registers for %s", a.name, v.name)
+ 				}
+ 				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
+-					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
++					log.Fatalf("%s: input[1] and output[0] must use the same registers for %s", a.name, v.name)
+ 				}
+ 			}
+ 			if v.resultNotInArgs {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 81fbf72998..b754a6747e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4271,9 +4271,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MOVLconvert",
+-		argLen: 2,
+-		asm:    x86.AMOVL,
++		name:         "MOVLconvert",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239}, // AX CX DX BX BP SI DI
+@@ -7820,9 +7821,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MOVQconvert",
+-		argLen: 2,
+-		asm:    x86.AMOVQ,
++		name:         "MOVQconvert",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7833,9 +7835,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MOVLconvert",
+-		argLen: 2,
+-		asm:    x86.AMOVL,
++		name:         "MOVLconvert",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15

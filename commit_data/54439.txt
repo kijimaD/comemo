@@ -22,7 +22,7 @@ Date:   Mon Oct 17 15:34:50 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go            |  8 +++++---
  src/internal/godebug/export_test.go  |  7 +++++++
  src/internal/godebug/godebug.go      |  7 +++++--
@@ -34,3 +34,272 @@ Date:   Mon Oct 17 15:34:50 2022 -0400
  src/syscall/env_windows.go           |  8 +++++++-
  src/syscall/syscall.go               |  4 ++++
  10 files changed, 72 insertions(+), 28 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 2fd5a39f75..eed5c462be 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -52,9 +52,13 @@ var depsRules = `
+ 	internal/goarch, unsafe
+ 	< internal/abi;
+ 
++	unsafe
++	< internal/godebug;
++
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi, internal/cpu, internal/goarch,
+-	internal/coverage/rtcov, internal/goexperiment, internal/goos, unsafe
++	internal/coverage/rtcov, internal/goexperiment,
++	internal/goos, internal/godebug, unsafe
+ 	< internal/bytealg
+ 	< internal/itoa
+ 	< internal/unsafeheader
+@@ -154,8 +158,6 @@ var depsRules = `
+ 	< path/filepath
+ 	< io/ioutil;
+ 
+-	os < internal/godebug;
+-
+ 	path/filepath, internal/godebug < os/exec;
+ 
+ 	io/ioutil, os/exec, os/signal
+diff --git a/src/internal/godebug/export_test.go b/src/internal/godebug/export_test.go
+new file mode 100644
+index 0000000000..e84d9a9912
+--- /dev/null
++++ b/src/internal/godebug/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package godebug
++
++var Xget = get
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index ac434e5fd8..65a8c4e305 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -5,11 +5,14 @@
+ // Package godebug parses the GODEBUG environment variable.
+ package godebug
+ 
+-import "os"
++import _ "unsafe" // go:linkname
++
++//go:linkname getGODEBUG
++func getGODEBUG() string
+ 
+ // Get returns the value for the provided GODEBUG key.
+ func Get(key string) string {
+-	return get(os.Getenv("GODEBUG"), key)
++	return get(getGODEBUG(), key)
+ }
+ 
+ // get returns the value part of key=value in s (a GODEBUG value).
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index 41b9117b73..d7a2a7a8d8 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package godebug
++package godebug_test
+ 
+-import "testing"
++import (
++	. "internal/godebug"
++	"testing"
++)
+ 
+ func TestGet(t *testing.T) {
+ 	tests := []struct {
+@@ -26,7 +29,7 @@ func TestGet(t *testing.T) {
+ 		{"foo=bar,baz", "loooooooong", ""},
+ 	}
+ 	for _, tt := range tests {
+-		got := get(tt.godebug, tt.key)
++		got := Xget(tt.godebug, tt.key)
+ 		if got != tt.want {
+ 			t.Errorf("get(%q, %q) = %q; want %q", tt.godebug, tt.key, got, tt.want)
+ 		}
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 94a19d80d8..0eb4f0d7a3 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows || plan9
+-
+ package runtime
+ 
+ import "unsafe"
+@@ -48,10 +46,7 @@ var _cgo_setenv unsafe.Pointer   // pointer to C function
+ var _cgo_unsetenv unsafe.Pointer // pointer to C function
+ 
+ // Update the C environment if cgo is loaded.
+-// Called from syscall.Setenv.
+-//
+-//go:linkname syscall_setenv_c syscall.setenv_c
+-func syscall_setenv_c(k string, v string) {
++func setenv_c(k string, v string) {
+ 	if _cgo_setenv == nil {
+ 		return
+ 	}
+@@ -60,10 +55,7 @@ func syscall_setenv_c(k string, v string) {
+ }
+ 
+ // Update the C environment if cgo is loaded.
+-// Called from syscall.unsetenv.
+-//
+-//go:linkname syscall_unsetenv_c syscall.unsetenv_c
+-func syscall_unsetenv_c(k string) {
++func unsetenv_c(k string) {
+ 	if _cgo_unsetenv == nil {
+ 		return
+ 	}
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 50f68a327c..25b714de4e 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -65,3 +65,31 @@ func os_runtime_args() []string { return append([]string{}, argslice...) }
+ func syscall_Exit(code int) {
+ 	exit(int32(code))
+ }
++
++var godebugenv atomic.Pointer[string] // set by parsedebugvars
++
++//go:linkname godebug_getGODEBUG internal/godebug.getGODEBUG
++func godebug_getGODEBUG() string {
++	if p := godebugenv.Load(); p != nil {
++		return *p
++	}
++	return ""
++}
++
++//go:linkname syscall_runtimeSetenv syscall.runtimeSetenv
++func syscall_runtimeSetenv(key, value string) {
++	setenv_c(key, value)
++	if key == "GODEBUG" {
++		p := new(string)
++		*p = value
++		godebugenv.Store(p)
++	}
++}
++
++//go:linkname syscall_runtimeUnsetenv syscall.runtimeUnsetenv
++func syscall_runtimeUnsetenv(key string) {
++	unsetenv_c(key)
++	if key == "GODEBUG" {
++		godebugenv.Store(nil)
++	}
++}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index b0a458d187..a29608329c 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -355,6 +355,8 @@ var dbgvars = []dbgVar{
+ 	{"adaptivestackstart", &debug.adaptivestackstart},
+ }
+ 
++var globalGODEBUG string
++
+ func parsedebugvars() {
+ 	// defaults
+ 	debug.cgocheck = 1
+@@ -372,7 +374,9 @@ func parsedebugvars() {
+ 		debug.madvdontneed = 1
+ 	}
+ 
+-	for p := gogetenv("GODEBUG"); p != ""; {
++	globalGODEBUG = gogetenv("GODEBUG")
++	godebugenv.StoreNoWB(&globalGODEBUG)
++	for p := globalGODEBUG; p != ""; {
+ 		field := ""
+ 		i := bytealg.IndexByteString(p, ',')
+ 		if i < 0 {
+diff --git a/src/syscall/env_unix.go b/src/syscall/env_unix.go
+index 67e6c5fbe2..6d917da208 100644
+--- a/src/syscall/env_unix.go
++++ b/src/syscall/env_unix.go
+@@ -31,11 +31,6 @@ var (
+ 
+ func runtime_envs() []string // in package runtime
+ 
+-// setenv_c and unsetenv_c are provided by the runtime but are no-ops
+-// if cgo isn't loaded.
+-func setenv_c(k, v string)
+-func unsetenv_c(k string)
+-
+ func copyenv() {
+ 	env = make(map[string]int)
+ 	for i, s := range envs {
+@@ -67,7 +62,7 @@ func Unsetenv(key string) error {
+ 		envs[i] = ""
+ 		delete(env, key)
+ 	}
+-	unsetenv_c(key)
++	runtimeUnsetenv(key)
+ 	return nil
+ }
+ 
+@@ -124,7 +119,7 @@ func Setenv(key, value string) error {
+ 		envs = append(envs, kv)
+ 	}
+ 	env[key] = i
+-	setenv_c(key, value)
++	runtimeSetenv(key, value)
+ 	return nil
+ }
+ 
+@@ -135,7 +130,7 @@ func Clearenv() {
+ 	defer envLock.Unlock()
+ 
+ 	for k := range env {
+-		unsetenv_c(k)
++		runtimeUnsetenv(k)
+ 	}
+ 	env = make(map[string]int)
+ 	envs = []string{}
+diff --git a/src/syscall/env_windows.go b/src/syscall/env_windows.go
+index 74b154ec15..cd085a9e44 100644
+--- a/src/syscall/env_windows.go
++++ b/src/syscall/env_windows.go
+@@ -42,6 +42,7 @@ func Setenv(key, value string) error {
+ 	if e != nil {
+ 		return e
+ 	}
++	runtimeSetenv(key, value)
+ 	return nil
+ }
+ 
+@@ -50,7 +51,12 @@ func Unsetenv(key string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	return SetEnvironmentVariable(keyp, nil)
++	e := SetEnvironmentVariable(keyp, nil)
++	if e != nil {
++		return e
++	}
++	runtimeUnsetenv(key)
++	return nil
+ }
+ 
+ func Clearenv() {
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 62bfa449cf..446a299f57 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -100,3 +100,7 @@ func (tv *Timeval) Nano() int64 {
+ 
+ func Getpagesize() int
+ func Exit(code int)
++
++// runtimeSetenv and runtimeUnsetenv are provided by the runtime.
++func runtimeSetenv(k, v string)
++func runtimeUnsetenv(k string)

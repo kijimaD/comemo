@@ -55,3 +55,364 @@ Date:   Tue Dec 1 21:15:51 2020 -0500
  src/runtime/testdata/testprog/deadlock.go          |  13 -
  src/runtime/traceback.go                           | 173 +++--------
  44 files changed, 3000 insertions(+), 2848 deletions(-)
+
+diff --cc src/crypto/tls/common.go
+index f8bbc3004d,5b68742975..1e724fcb3c
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@@ -1466,19 -1470,7 +1479,8 @@@ var 
+  func initDefaultCipherSuites() {
+  	var topCipherSuites []uint16
+  
+- 	// Check the cpu flags for each platform that has optimized GCM implementations.
+- 	// Worst case, these variables will just all be false.
+- 	var (
+- 		hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+- 		hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+- 		// Keep in sync with crypto/aes/cipher_s390x.go.
+- 		hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+- 
+- 		hasGCMAsm = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+- 	)
+- 
+- 	if hasGCMAsm || boringEnabled {
+ -	if hasAESGCMHardwareSupport {
+++	if hasAESGCMHardwareSupport || boringEnabled {
+ +		// If BoringCrypto is enabled, always prioritize AES-GCM.
+  		// If AES-GCM hardware is provided then prioritise AES-GCM
+  		// cipher suites.
+  		topCipherSuites = []uint16{
+diff --cc src/crypto/tls/handshake_server.go
+index 8095ed1708,5a572a9db1..52bb4d6844
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@@ -306,6 -314,12 +314,13 @@@ func (hs *serverHandshakeState) pickCip
+  	} else {
+  		preferenceList = hs.clientHello.cipherSuites
+  		supportedList = c.config.cipherSuites()
++ 
++ 		// If we don't have hardware support for AES-GCM, prefer other AEAD
++ 		// ciphers even if the client prioritized AES-GCM.
+ -		if !hasAESGCMHardwareSupport {
+++		// If BoringCrypto is enabled, always prioritize AES-GCM.
+++		if !hasAESGCMHardwareSupport && !boringEnabled {
++ 			preferenceList = deprioritizeAES(preferenceList)
++ 		}
+  	}
+  
+  	hs.suite = selectCipherSuite(preferenceList, supportedList, hs.cipherSuiteOk)
+diff --cc src/crypto/tls/handshake_server_test.go
+index c4416c379a,ad851b6edf..36d48bc942
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@@ -1719,3 -1722,266 +1722,281 @@@ func TestServerHandshakeContextCancella
+  		t.Error("Server connection was not closed when the context was canceled")
+  	}
+  }
++ 
++ func TestAESCipherReordering(t *testing.T) {
++ 	currentAESSupport := hasAESGCMHardwareSupport
++ 	defer func() { hasAESGCMHardwareSupport = currentAESSupport; initDefaultCipherSuites() }()
++ 
++ 	tests := []struct {
++ 		name                     string
++ 		clientCiphers            []uint16
++ 		serverHasAESGCM          bool
++ 		preferServerCipherSuites bool
++ 		serverCiphers            []uint16
++ 		expectedCipher           uint16
+++		boringExpectedCipher     uint16 // If non-zero, used when BoringCrypto is enabled.
++ 	}{
++ 		{
++ 			name: "server has hardware AES, client doesn't (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
++ 			serverHasAESGCM:          true,
++ 			preferServerCipherSuites: true,
++ 			expectedCipher:           TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 		},
++ 		{
++ 			name: "server strongly prefers AES-GCM, client doesn't (pick AES-GCM)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
++ 			serverHasAESGCM:          true,
++ 			preferServerCipherSuites: true,
++ 			serverCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
++ 			expectedCipher: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES-GCM, server doesn't have hardware AES (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
+ -			serverHasAESGCM: false,
+ -			expectedCipher:  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+++			serverHasAESGCM:      false,
+++			expectedCipher:       TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+++			boringExpectedCipher: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, // When BoringCrypto is enabled, AES-GCM is prioritized even without server hardware.
++ 		},
++ 		{
++ 			name: "client prefers AES-GCM, server has hardware AES (pick AES-GCM)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
++ 			serverHasAESGCM: true,
++ 			expectedCipher:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES-GCM and sends GREASE, server has hardware AES (pick AES-GCM)",
++ 			clientCiphers: []uint16{
++ 				0x0A0A, // GREASE value
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
++ 			serverHasAESGCM: true,
++ 			expectedCipher:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES-GCM and doesn't support ChaCha, server doesn't have hardware AES (pick AES-GCM)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
++ 			serverHasAESGCM: false,
++ 			expectedCipher:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES-GCM and AES-CBC over ChaCha, server doesn't have hardware AES (pick AES-GCM)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 			},
++ 			serverHasAESGCM: false,
++ 			expectedCipher:  TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES-GCM over ChaCha and sends GREASE, server doesn't have hardware AES (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				0x0A0A, // GREASE value
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_RSA_WITH_AES_128_CBC_SHA,
++ 			},
+ -			serverHasAESGCM: false,
+ -			expectedCipher:  TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+++			serverHasAESGCM:      false,
+++			expectedCipher:       TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+++			boringExpectedCipher: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, // When BoringCrypto is enabled, AES-GCM is prioritized even without server hardware.
++ 		},
++ 		{
++ 			name: "client supports multiple AES-GCM, server doesn't have hardware AES and doesn't support ChaCha (pick corrent AES-GCM)",
++ 			clientCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
++ 				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 			},
++ 			serverHasAESGCM: false,
++ 			serverCiphers: []uint16{
++ 				TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
++ 				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++ 			},
++ 			expectedCipher: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
++ 		},
++ 	}
++ 
++ 	for _, tc := range tests {
++ 		t.Run(tc.name, func(t *testing.T) {
++ 			hasAESGCMHardwareSupport = tc.serverHasAESGCM
++ 			initDefaultCipherSuites()
++ 			hs := &serverHandshakeState{
++ 				c: &Conn{
++ 					config: &Config{
++ 						PreferServerCipherSuites: tc.preferServerCipherSuites,
++ 						CipherSuites:             tc.serverCiphers,
++ 					},
++ 					vers: VersionTLS12,
++ 				},
++ 				clientHello: &clientHelloMsg{
++ 					cipherSuites: tc.clientCiphers,
++ 					vers:         VersionTLS12,
++ 				},
++ 				ecdheOk:      true,
++ 				rsaSignOk:    true,
++ 				rsaDecryptOk: true,
++ 			}
++ 
++ 			err := hs.pickCipherSuite()
++ 			if err != nil {
++ 				t.Errorf("pickCipherSuite failed: %s", err)
++ 			}
++ 
+ -			if tc.expectedCipher != hs.suite.id {
+ -				t.Errorf("unexpected cipher chosen: want %d, got %d", tc.expectedCipher, hs.suite.id)
+++			want := tc.expectedCipher
+++			if boringEnabled && tc.boringExpectedCipher != 0 {
+++				want = tc.boringExpectedCipher
+++			}
+++			if want != hs.suite.id {
+++				t.Errorf("unexpected cipher chosen: want %d, got %d", want, hs.suite.id)
++ 			}
++ 		})
++ 	}
++ }
++ 
++ func TestAESCipherReordering13(t *testing.T) {
++ 	currentAESSupport := hasAESGCMHardwareSupport
++ 	defer func() { hasAESGCMHardwareSupport = currentAESSupport; initDefaultCipherSuites() }()
++ 
++ 	tests := []struct {
++ 		name                     string
++ 		clientCiphers            []uint16
++ 		serverHasAESGCM          bool
++ 		preferServerCipherSuites bool
++ 		expectedCipher           uint16
+++		boringExpectedCipher     uint16 // If non-zero, used when BoringCrypto is enabled.
++ 	}{
++ 		{
++ 			name: "server has hardware AES, client doesn't (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 				TLS_AES_128_GCM_SHA256,
++ 			},
++ 			serverHasAESGCM:          true,
++ 			preferServerCipherSuites: true,
++ 			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
++ 		},
++ 		{
++ 			name: "neither server nor client have hardware AES (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 				TLS_AES_128_GCM_SHA256,
++ 			},
++ 			serverHasAESGCM:          false,
++ 			preferServerCipherSuites: true,
++ 			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES, server doesn't have hardware, prefer server ciphers (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				TLS_AES_128_GCM_SHA256,
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 			},
++ 			serverHasAESGCM:          false,
++ 			preferServerCipherSuites: true,
++ 			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
+++			boringExpectedCipher:     TLS_AES_128_GCM_SHA256, // When BoringCrypto is enabled, AES-GCM is prioritized even without server hardware.
++ 		},
++ 		{
++ 			name: "client prefers AES and sends GREASE, server doesn't have hardware, prefer server ciphers (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				0x0A0A, // GREASE value
++ 				TLS_AES_128_GCM_SHA256,
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 			},
++ 			serverHasAESGCM:          false,
++ 			preferServerCipherSuites: true,
++ 			expectedCipher:           TLS_CHACHA20_POLY1305_SHA256,
+++			boringExpectedCipher:     TLS_AES_128_GCM_SHA256, // When BoringCrypto is enabled, AES-GCM is prioritized even without server hardware.
++ 		},
++ 		{
++ 			name: "client prefers AES, server doesn't (pick ChaCha)",
++ 			clientCiphers: []uint16{
++ 				TLS_AES_128_GCM_SHA256,
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 			},
+ -			serverHasAESGCM: false,
+ -			expectedCipher:  TLS_CHACHA20_POLY1305_SHA256,
+++			serverHasAESGCM:      false,
+++			expectedCipher:       TLS_CHACHA20_POLY1305_SHA256,
+++			boringExpectedCipher: TLS_AES_128_GCM_SHA256, // When BoringCrypto is enabled, AES-GCM is prioritized even without server hardware.
++ 		},
++ 		{
++ 			name: "client prefers AES, server has hardware AES (pick AES)",
++ 			clientCiphers: []uint16{
++ 				TLS_AES_128_GCM_SHA256,
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 			},
++ 			serverHasAESGCM: true,
++ 			expectedCipher:  TLS_AES_128_GCM_SHA256,
++ 		},
++ 		{
++ 			name: "client prefers AES and sends GREASE, server has hardware AES (pick AES)",
++ 			clientCiphers: []uint16{
++ 				0x0A0A, // GREASE value
++ 				TLS_AES_128_GCM_SHA256,
++ 				TLS_CHACHA20_POLY1305_SHA256,
++ 			},
++ 			serverHasAESGCM: true,
++ 			expectedCipher:  TLS_AES_128_GCM_SHA256,
++ 		},
++ 	}
++ 
++ 	for _, tc := range tests {
++ 		t.Run(tc.name, func(t *testing.T) {
++ 			hasAESGCMHardwareSupport = tc.serverHasAESGCM
++ 			initDefaultCipherSuites()
++ 			hs := &serverHandshakeStateTLS13{
++ 				c: &Conn{
++ 					config: &Config{
++ 						PreferServerCipherSuites: tc.preferServerCipherSuites,
++ 					},
++ 					vers: VersionTLS13,
++ 				},
++ 				clientHello: &clientHelloMsg{
++ 					cipherSuites:       tc.clientCiphers,
++ 					supportedVersions:  []uint16{VersionTLS13},
++ 					compressionMethods: []uint8{compressionNone},
++ 					keyShares:          []keyShare{{group: X25519, data: curve25519.Basepoint}},
++ 				},
++ 			}
++ 
++ 			err := hs.processClientHello()
++ 			if err != nil {
++ 				t.Errorf("pickCipherSuite failed: %s", err)
++ 			}
++ 
+ -			if tc.expectedCipher != hs.suite.id {
+ -				t.Errorf("unexpected cipher chosen: want %d, got %d", tc.expectedCipher, hs.suite.id)
+++			want := tc.expectedCipher
+++			if boringEnabled && tc.boringExpectedCipher != 0 {
+++				want = tc.boringExpectedCipher
+++			}
+++			if want != hs.suite.id {
+++				t.Errorf("unexpected cipher chosen: want %d, got %d", want, hs.suite.id)
++ 			}
++ 		})
++ 	}
++ }
+diff --cc src/crypto/tls/handshake_server_tls13.go
+index b4ad5e1897,c7837d2955..c3e3efbd11
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@@ -160,6 -163,12 +167,13 @@@ func (hs *serverHandshakeStateTLS13) pr
+  	} else {
+  		preferenceList = hs.clientHello.cipherSuites
+  		supportedList = defaultCipherSuitesTLS13()
++ 
++ 		// If we don't have hardware support for AES-GCM, prefer other AEAD
++ 		// ciphers even if the client prioritized AES-GCM.
+ -		if !hasAESGCMHardwareSupport {
+++		// If BoringCrypto is enabled, always prioritize AES-GCM.
+++		if !hasAESGCMHardwareSupport && !boringEnabled {
++ 			preferenceList = deprioritizeAES(preferenceList)
++ 		}
+  	}
+  	for _, suiteID := range preferenceList {
+  		hs.suite = mutualCipherSuiteTLS13(supportedList, suiteID)

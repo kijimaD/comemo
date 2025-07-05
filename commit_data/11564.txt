@@ -9,6 +9,42 @@ Date:   Thu Feb 2 11:49:28 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5617045
-
+---
  test/map.go | 25 ++++++++++++++++++++-----
  1 file changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/test/map.go b/test/map.go
+index a92586ff4a..215e56c7f6 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -667,10 +667,25 @@ func testnan() {
+ 		return time.Since(t0)
+ 	}
+ 
+-	n := 60000 // 0.04 seconds on a MacBook Air
+-	t1 := t(n)
+-	t2 := t(2 * n)
+-	if t2 > 3*t1 { // should be 2x (linear); allow up to 3x
+-		fmt.Printf("too slow: %d inserts: %v; %d inserts: %v\n", n, t1, 2*n, t2)
++	// Depending on the machine and OS, this test might be too fast
++	// to measure with accurate enough granularity. On failure,
++	// make it run longer, hoping that the timing granularity
++	// is eventually sufficient.
++
++	n := 30000 // 0.02 seconds on a MacBook Air
++	fails := 0
++	for {
++		t1 := t(n)
++		t2 := t(2 * n)
++		// should be 2x (linear); allow up to 3x
++		if t2 < 3*t1 {
++			return
++		}
++		fails++
++		if fails == 4 {
++			fmt.Printf("too slow: %d inserts: %v; %d inserts: %v\n", n, t1, 2*n, t2)
++			return
++		}
++		n *= 2
+ 	}
+ }

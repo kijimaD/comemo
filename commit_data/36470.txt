@@ -18,7 +18,7 @@ Date:   Sun Mar 4 12:15:37 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/zip_test.go                        |   4 +
  src/cmd/go/go_test.go                              |   2 +-
  src/cmd/go/internal/base/signal_unix.go            |   2 +-
@@ -69,3 +69,1039 @@ Date:   Sun Mar 4 12:15:37 2018 +0100
  test/peano.go                                      |   8 +-
  test/sinit_run.go                                  |   2 +-
  49 files changed, 399 insertions(+), 41 deletions(-)
+
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 5adb87d5e3..50218a2bbd 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -461,6 +462,9 @@ func suffixIsZip64(t *testing.T, zip sizedReaderAt) bool {
+ 
+ // Zip64 is required if the total size of the records is uint32max.
+ func TestZip64LargeDirectory(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("too slow on wasm")
++	}
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f534657055..19e4116eb3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -48,7 +48,7 @@ func tooSlow(t *testing.T) {
+ 
+ func init() {
+ 	switch runtime.GOOS {
+-	case "android", "nacl":
++	case "android", "js", "nacl":
+ 		canRun = false
+ 	case "darwin":
+ 		switch runtime.GOARCH {
+diff --git a/src/cmd/go/internal/base/signal_unix.go b/src/cmd/go/internal/base/signal_unix.go
+index 4ca3da9922..38490b571b 100644
+--- a/src/cmd/go/internal/base/signal_unix.go
++++ b/src/cmd/go/internal/base/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js linux nacl netbsd openbsd solaris
+ 
+ package base
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index f15328bfae..afb135b7cd 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -361,7 +361,7 @@ func closedError() string {
+ }
+ 
+ func TestHttpsInsecure(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+ 		t.Skip("test assumes tcp available")
+ 	}
+ 	saveHome := os.Getenv(homeEnv())
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
+index 7e061699ce..328f1596d9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui_test.go
+@@ -237,7 +237,7 @@ func makeFakeProfile() *profile.Profile {
+ }
+ 
+ func TestGetHostAndPort(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+ 		t.Skip("test assumes tcp available")
+ 	}
+ 
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 880b66e797..11d8992b71 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -784,7 +784,7 @@ func TestCompressedSection(t *testing.T) {
+ func TestNoSectionOverlaps(t *testing.T) {
+ 	// Ensure cmd/link outputs sections without overlaps.
+ 	switch runtime.GOOS {
+-	case "android", "darwin", "nacl", "plan9", "windows":
++	case "android", "darwin", "js", "nacl", "plan9", "windows":
+ 		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
+ 	}
+ 	_ = net.ResolveIPAddr // force dynamic linkage
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index a1ca252ccd..a41fc9e889 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -1130,6 +1131,9 @@ func TestBadData(t *testing.T) {
+ 
+ // TestHugeWriteFails tests that enormous messages trigger an error.
+ func TestHugeWriteFails(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("out of memory on wasm")
++	}
+ 	if testing.Short() {
+ 		// Requires allocating a monster, so don't do this from all.bash.
+ 		t.Skip("skipping huge allocation in short mode")
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index b3c16a8e87..8f69fe0da5 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -41,7 +41,7 @@ func HasGoBuild() bool {
+ 		return false
+ 	}
+ 	switch runtime.GOOS {
+-	case "android", "nacl":
++	case "android", "nacl", "js":
+ 		return false
+ 	case "darwin":
+ 		if strings.HasPrefix(runtime.GOARCH, "arm") {
+@@ -114,7 +114,7 @@ func GoTool() (string, error) {
+ // using os.StartProcess or (more commonly) exec.Command.
+ func HasExec() bool {
+ 	switch runtime.GOOS {
+-	case "nacl":
++	case "nacl", "js":
+ 		return false
+ 	case "darwin":
+ 		if strings.HasPrefix(runtime.GOARCH, "arm") {
+@@ -149,13 +149,16 @@ func MustHaveExec(t testing.TB) {
+ // HasExternalNetwork reports whether the current system can use
+ // external (non-localhost) networks.
+ func HasExternalNetwork() bool {
+-	return !testing.Short()
++	return !testing.Short() && runtime.GOOS != "nacl" && runtime.GOOS != "js"
+ }
+ 
+ // MustHaveExternalNetwork checks that the current system can use
+ // external (non-localhost) networks.
+ // If not, MustHaveExternalNetwork calls t.Skip with an explanation.
+ func MustHaveExternalNetwork(t testing.TB) {
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++		t.Skipf("skipping test: no external network on %s", runtime.GOOS)
++	}
+ 	if testing.Short() {
+ 		t.Skipf("skipping test: no external network in -short mode")
+ 	}
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index 1263be6d78..6da3edd555 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows,!nacl,!plan9
++// +build !windows,!nacl,!plan9,!js
+ 
+ package syslog
+ 
+diff --git a/src/runtime/chanbarrier_test.go b/src/runtime/chanbarrier_test.go
+index b6029fb044..d4795748bf 100644
+--- a/src/runtime/chanbarrier_test.go
++++ b/src/runtime/chanbarrier_test.go
+@@ -57,7 +57,7 @@ func testChanSendBarrier(useSelect bool) {
+ 	var globalMu sync.Mutex
+ 	outer := 100
+ 	inner := 100000
+-	if testing.Short() {
++	if testing.Short() || runtime.GOARCH == "wasm" {
+ 		outer = 10
+ 		inner = 1000
+ 	}
+diff --git a/src/runtime/crash_nonunix_test.go b/src/runtime/crash_nonunix_test.go
+index 2ce995c069..bf349a5d89 100644
+--- a/src/runtime/crash_nonunix_test.go
++++ b/src/runtime/crash_nonunix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build windows plan9 nacl
++// +build windows plan9 nacl js,wasm
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 561061e3d8..d683d89fe4 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -155,6 +155,10 @@ func TestHugeGCInfo(t *testing.T) {
+ }
+ 
+ func TestPeriodicGC(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no sysmon on wasm yet")
++	}
++
+ 	// Make sure we're not in the middle of a GC.
+ 	runtime.GC()
+ 
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 1400579cda..7b8ebc4f3c 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -161,6 +161,9 @@ func TestSmhasherZeros(t *testing.T) {
+ 
+ // Strings with up to two nonzero bytes all have distinct hashes.
+ func TestSmhasherTwoNonzero(t *testing.T) {
++	if GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+@@ -229,6 +232,9 @@ func TestSmhasherCyclic(t *testing.T) {
+ 
+ // Test strings with only a few bits set
+ func TestSmhasherSparse(t *testing.T) {
++	if GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+@@ -264,6 +270,9 @@ func setbits(h *HashSet, b []byte, i int, k int) {
+ // Test all possible combinations of n blocks from the set s.
+ // "permutation" is a bad name here, but it is what Smhasher uses.
+ func TestSmhasherPermutation(t *testing.T) {
++	if GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+@@ -433,6 +442,9 @@ func (k *IfaceKey) name() string {
+ 
+ // Flipping a single bit of a key should flip each output bit with 50% probability.
+ func TestSmhasherAvalanche(t *testing.T) {
++	if GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+@@ -508,6 +520,9 @@ func TestSmhasherWindowed(t *testing.T) {
+ 	windowed(t, &BytesKey{make([]byte, 128)})
+ }
+ func windowed(t *testing.T, k Key) {
++	if GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 96fcfc9703..e8567f4952 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !nacl
++// +build !nacl,!js
+ 
+ package pprof
+ 
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 2ece829071..ad325987ac 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -28,6 +28,9 @@ func perpetuumMobile() {
+ }
+ 
+ func TestStopTheWorldDeadlock(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
+ 	if testing.Short() {
+ 		t.Skip("skipping during short test")
+ 	}
+@@ -230,6 +233,10 @@ func TestBlockLocked(t *testing.T) {
+ }
+ 
+ func TestTimerFairness(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
++
+ 	done := make(chan bool)
+ 	c := make(chan bool)
+ 	for i := 0; i < 2; i++ {
+@@ -256,6 +263,10 @@ func TestTimerFairness(t *testing.T) {
+ }
+ 
+ func TestTimerFairness2(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
++
+ 	done := make(chan bool)
+ 	c := make(chan bool)
+ 	for i := 0; i < 2; i++ {
+@@ -290,6 +301,10 @@ var preempt = func() int {
+ }
+ 
+ func TestPreemption(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
++
+ 	// Test that goroutines are preempted at function calls.
+ 	N := 5
+ 	if testing.Short() {
+@@ -313,6 +328,10 @@ func TestPreemption(t *testing.T) {
+ }
+ 
+ func TestPreemptionGC(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
++
+ 	// Test that pending GC preempts running goroutines.
+ 	P := 5
+ 	N := 10
+@@ -385,6 +404,9 @@ func TestNumGoroutine(t *testing.T) {
+ }
+ 
+ func TestPingPongHog(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no preemption on wasm yet")
++	}
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+ 	}
+@@ -834,6 +856,10 @@ func TestStealOrder(t *testing.T) {
+ }
+ 
+ func TestLockOSThreadNesting(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("no threads on wasm yet")
++	}
++
+ 	go func() {
+ 		e, i := runtime.LockOSCounts()
+ 		if e != 0 || i != 0 {
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index d5b6b3ac3c..8263d4059a 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -169,6 +169,9 @@ func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
+ 	if GOOS == "nacl" {
+ 		t.Skip("nacl doesn't seem to fault on high addresses")
+ 	}
++	if GOOS == "js" {
++		t.Skip("js does not support catching faults")
++	}
+ 
+ 	defer func() {
+ 		if err := recover(); err != nil {
+@@ -264,7 +267,7 @@ func TestTrailingZero(t *testing.T) {
+ }
+ 
+ func TestBadOpen(t *testing.T) {
+-	if GOOS == "windows" || GOOS == "nacl" {
++	if GOOS == "windows" || GOOS == "nacl" || GOOS == "js" {
+ 		t.Skip("skipping OS that doesn't have open/read/write/close")
+ 	}
+ 	// make sure we get the correct error code if open fails. Same for
+diff --git a/src/runtime/rwmutex_test.go b/src/runtime/rwmutex_test.go
+index 872b3b098e..291a32ea5e 100644
+--- a/src/runtime/rwmutex_test.go
++++ b/src/runtime/rwmutex_test.go
+@@ -47,6 +47,9 @@ func doTestParallelReaders(numReaders int) {
+ }
+ 
+ func TestParallelRWMutexReaders(t *testing.T) {
++	if GOARCH == "wasm" {
++		t.Skip("wasm has no threads yet")
++	}
+ 	defer GOMAXPROCS(GOMAXPROCS(-1))
+ 	// If runtime triggers a forced GC during this test then it will deadlock,
+ 	// since the goroutines can't be stopped/preempted.
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 91d10bad5c..81a637ccb3 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -76,6 +76,10 @@ func TestStackMem(t *testing.T) {
+ 
+ // Test stack growing in different contexts.
+ func TestStackGrowth(t *testing.T) {
++	if GOARCH == "wasm" {
++		t.Skip("fails on wasm (too slow?)")
++	}
++
+ 	// Don't make this test parallel as this makes the 20 second
+ 	// timeout unreliable on slow builders. (See issue #19381.)
+ 
+diff --git a/src/syscall/syscall_test.go b/src/syscall/syscall_test.go
+index c3fffda2df..2a9d90e64c 100644
+--- a/src/syscall/syscall_test.go
++++ b/src/syscall/syscall_test.go
+@@ -62,8 +62,8 @@ func TestExecErrPermutedFds(t *testing.T) {
+ }
+ 
+ func TestGettimeofday(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("not implemented on nacl")
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++		t.Skip("not implemented on " + runtime.GOOS)
+ 	}
+ 	tv := &syscall.Timeval{}
+ 	if err := syscall.Gettimeofday(tv); err != nil {
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 916be46b86..8f8b5fe218 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -19,7 +19,14 @@ import (
+ // templates. This limit is only practically reached by accidentally
+ // recursive template invocations. This limit allows us to return
+ // an error instead of triggering a stack overflow.
+-const maxExecDepth = 100000
++var maxExecDepth = initMaxExecDepth()
++
++func initMaxExecDepth() int {
++	if runtime.GOARCH == "wasm" {
++		return 1000
++	}
++	return 100000
++}
+ 
+ // state represents the state of an execution. It's not part of the
+ // template so that multiple executions of the same template
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 30f2ce48f1..a61620f23f 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!plan9,!windows
++// +build !nacl,!js,!plan9,!windows
+ // run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index e4de25d5d0..c763b87786 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index 59e99c7d2a..af505c8a3b 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!plan9,!windows
++// +build !nacl,!js,!plan9,!windows
+ // run
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 60162ab1cb..e2a1147735 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!windows
++// +build !nacl,!js,!windows
+ // run
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/bug429_run.go b/test/fixedbugs/bug429_run.go
+index 284033d1f7..c6a02aae5e 100644
+--- a/test/fixedbugs/bug429_run.go
++++ b/test/fixedbugs/bug429_run.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/issue10958.go b/test/fixedbugs/issue10958.go
+index 2b76694138..52487fb9bd 100644
+--- a/test/fixedbugs/issue10958.go
++++ b/test/fixedbugs/issue10958.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,disabled_see_issue_18589
++// +build !nacl,!js,disabled_see_issue_18589
+ // buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index c04a66202b..451ae6348f 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -9,6 +9,9 @@
+ // doesn't go into the Go runtime.
+ // +build !windows
+ 
++// wasm does not work, because the linear memory is not executable.
++// +build !wasm
++
+ package main
+ 
+ import (
+diff --git a/test/fixedbugs/issue11771.go b/test/fixedbugs/issue11771.go
+index d91fc5d966..99d7060d44 100644
+--- a/test/fixedbugs/issue11771.go
++++ b/test/fixedbugs/issue11771.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/issue14636.go b/test/fixedbugs/issue14636.go
+index 7d1b606241..6b342e4029 100644
+--- a/test/fixedbugs/issue14636.go
++++ b/test/fixedbugs/issue14636.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!android,!darwin darwin,!arm
++// +build !nacl,!js,!android,!darwin darwin,!arm
+ // run
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/issue16037_run.go b/test/fixedbugs/issue16037_run.go
+index 23fff5925b..d05e3f7f31 100644
+--- a/test/fixedbugs/issue16037_run.go
++++ b/test/fixedbugs/issue16037_run.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!android
++// +build !nacl,!js,!android
+ // run
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/issue18902.go b/test/fixedbugs/issue18902.go
+index 78c92187ee..9261ce7073 100644
+--- a/test/fixedbugs/issue18902.go
++++ b/test/fixedbugs/issue18902.go
+@@ -1,5 +1,5 @@
+ // run
+-// +build !nacl
++// +build !nacl,!js
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue19182.go b/test/fixedbugs/issue19182.go
+index 3a90ff4b26..e1f3ffb474 100644
+--- a/test/fixedbugs/issue19182.go
++++ b/test/fixedbugs/issue19182.go
+@@ -1,4 +1,5 @@
+ // run
++// +build !js
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue19658.go b/test/fixedbugs/issue19658.go
+index 91cb88658e..b2539629df 100644
+--- a/test/fixedbugs/issue19658.go
++++ b/test/fixedbugs/issue19658.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index ae0e0b55f9..530694af12 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
++	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue22660.go b/test/fixedbugs/issue22660.go
+index 48686fefee..b2282ea665 100644
+--- a/test/fixedbugs/issue22660.go
++++ b/test/fixedbugs/issue22660.go
+@@ -19,7 +19,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.GOOS == "nacl" {
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+ 		return // no file system available on builders
+ 	}
+ 
+diff --git a/test/fixedbugs/issue22662b.go b/test/fixedbugs/issue22662b.go
+index 42c2a806d7..3594c0f4ef 100644
+--- a/test/fixedbugs/issue22662b.go
++++ b/test/fixedbugs/issue22662b.go
+@@ -36,8 +36,8 @@ var tests = []struct {
+ }
+ 
+ func main() {
+-	if runtime.GOOS == "nacl" {
+-		return // no file system available on builders
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++		return // can not exec go tool
+ 	}
+ 
+ 	f, err := ioutil.TempFile("", "issue22662b.go")
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 10f8c73069..9657e64491 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
++	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue9604b.go b/test/fixedbugs/issue9604b.go
+index ebbd205baf..d32116b857 100644
+--- a/test/fixedbugs/issue9604b.go
++++ b/test/fixedbugs/issue9604b.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// terribly slow on wasm
++// +build !wasm
++
+ package main
+ 
+ import (
+diff --git a/test/fixedbugs/issue9862_run.go b/test/fixedbugs/issue9862_run.go
+index be22f40580..299e809545 100644
+--- a/test/fixedbugs/issue9862_run.go
++++ b/test/fixedbugs/issue9862_run.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+diff --git a/test/gc2.go b/test/gc2.go
+index 31b36d8a08..2f8eb9b70e 100644
+--- a/test/gc2.go
++++ b/test/gc2.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+diff --git a/test/linkmain_run.go b/test/linkmain_run.go
+index 55de481a81..68d53e8cad 100644
+--- a/test/linkmain_run.go
++++ b/test/linkmain_run.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/linkobj.go b/test/linkobj.go
+index 8a86aa872f..2902d23f4b 100644
+--- a/test/linkobj.go
++++ b/test/linkobj.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index cc249c9cfc..ca9d31612a 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/live_syscall.go b/test/live_syscall.go
+index 6d954653cc..65a161c028 100644
+--- a/test/live_syscall.go
++++ b/test/live_syscall.go
+@@ -1,6 +1,6 @@
+ // errorcheck -0 -m -live
+ 
+-// +build !windows
++// +build !windows,!js
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 9a96bb5386..a22e60ef11 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -1,5 +1,7 @@
+ // errorcheck -0 -d=nil
+ 
++// +build !wasm
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/nilptr3_wasm.go b/test/nilptr3_wasm.go
+new file mode 100644
+index 0000000000..9376d42097
+--- /dev/null
++++ b/test/nilptr3_wasm.go
+@@ -0,0 +1,270 @@
++// errorcheck -0 -d=nil
++
++// +build wasm
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that nil checks are removed.
++// Optimization is enabled.
++
++package p
++
++type Struct struct {
++	X int
++	Y float64
++}
++
++type BigStruct struct {
++	X int
++	Y float64
++	A [1 << 20]int
++	Z string
++}
++
++type Empty struct {
++}
++
++type Empty1 struct {
++	Empty
++}
++
++var (
++	intp       *int
++	arrayp     *[10]int
++	array0p    *[0]int
++	bigarrayp  *[1 << 26]int
++	structp    *Struct
++	bigstructp *BigStruct
++	emptyp     *Empty
++	empty1p    *Empty1
++)
++
++func f1() {
++	_ = *intp // ERROR "generated nil check"
++
++	// This one should be removed but the block copy needs
++	// to be turned into its own pseudo-op in order to see
++	// the indirect.
++	_ = *arrayp // ERROR "generated nil check"
++
++	// 0-byte indirect doesn't suffice.
++	// we don't registerize globals, so there are no removed.* nil checks.
++	_ = *array0p // ERROR "generated nil check"
++	_ = *array0p // ERROR "removed nil check"
++
++	_ = *intp    // ERROR "removed nil check"
++	_ = *arrayp  // ERROR "removed nil check"
++	_ = *structp // ERROR "generated nil check"
++	_ = *emptyp  // ERROR "generated nil check"
++	_ = *arrayp  // ERROR "removed nil check"
++}
++
++func f2() {
++	var (
++		intp       *int
++		arrayp     *[10]int
++		array0p    *[0]int
++		bigarrayp  *[1 << 20]int
++		structp    *Struct
++		bigstructp *BigStruct
++		emptyp     *Empty
++		empty1p    *Empty1
++	)
++
++	_ = *intp       // ERROR "generated nil check"
++	_ = *arrayp     // ERROR "generated nil check"
++	_ = *array0p    // ERROR "generated nil check"
++	_ = *array0p    // ERROR "removed.* nil check"
++	_ = *intp       // ERROR "removed.* nil check"
++	_ = *arrayp     // ERROR "removed.* nil check"
++	_ = *structp    // ERROR "generated nil check"
++	_ = *emptyp     // ERROR "generated nil check"
++	_ = *arrayp     // ERROR "removed.* nil check"
++	_ = *bigarrayp  // ERROR "generated nil check" ARM removed nil check before indirect!!
++	_ = *bigstructp // ERROR "generated nil check"
++	_ = *empty1p    // ERROR "generated nil check"
++}
++
++func fx10k() *[10000]int
++
++var b bool
++
++func f3(x *[10000]int) {
++	// Using a huge type and huge offsets so the compiler
++	// does not expect the memory hardware to fault.
++	_ = x[9999] // ERROR "generated nil check"
++
++	for {
++		if x[9999] != 0 { // ERROR "removed nil check"
++			break
++		}
++	}
++
++	x = fx10k()
++	_ = x[9999] // ERROR "generated nil check"
++	if b {
++		_ = x[9999] // ERROR "removed.* nil check"
++	} else {
++		_ = x[9999] // ERROR "removed.* nil check"
++	}
++	_ = x[9999] // ERROR "removed nil check"
++
++	x = fx10k()
++	if b {
++		_ = x[9999] // ERROR "generated nil check"
++	} else {
++		_ = x[9999] // ERROR "generated nil check"
++	}
++	_ = x[9999] // ERROR "generated nil check"
++
++	fx10k()
++	// This one is a bit redundant, if we figured out that
++	// x wasn't going to change across the function call.
++	// But it's a little complex to do and in practice doesn't
++	// matter enough.
++	_ = x[9999] // ERROR "removed nil check"
++}
++
++func f3a() {
++	x := fx10k()
++	y := fx10k()
++	z := fx10k()
++	_ = &x[9] // ERROR "generated nil check"
++	y = z
++	_ = &x[9] // ERROR "removed.* nil check"
++	x = y
++	_ = &x[9] // ERROR "generated nil check"
++}
++
++func f3b() {
++	x := fx10k()
++	y := fx10k()
++	_ = &x[9] // ERROR "generated nil check"
++	y = x
++	_ = &x[9] // ERROR "removed.* nil check"
++	x = y
++	_ = &x[9] // ERROR "removed.* nil check"
++}
++
++func fx10() *[10]int
++
++func f4(x *[10]int) {
++	// Most of these have no checks because a real memory reference follows,
++	// and the offset is small enough that if x is nil, the address will still be
++	// in the first unmapped page of memory.
++
++	_ = x[9] // ERROR "generated nil check" // bug: would like to remove this check (but nilcheck and load are in different blocks)
++
++	for {
++		if x[9] != 0 { // ERROR "removed nil check"
++			break
++		}
++	}
++
++	x = fx10()
++	_ = x[9] // ERROR "generated nil check" // bug would like to remove before indirect
++	if b {
++		_ = x[9] // ERROR "removed nil check"
++	} else {
++		_ = x[9] // ERROR "removed nil check"
++	}
++	_ = x[9] // ERROR "removed nil check"
++
++	x = fx10()
++	if b {
++		_ = x[9] // ERROR "generated nil check"  // bug would like to remove before indirect
++	} else {
++		_ = &x[9] // ERROR "generated nil check"
++	}
++	_ = x[9] // ERROR "generated nil check"  // bug would like to remove before indirect
++
++	fx10()
++	_ = x[9] // ERROR "removed nil check"
++
++	x = fx10()
++	y := fx10()
++	_ = &x[9] // ERROR "generated nil check"
++	y = x
++	_ = &x[9] // ERROR "removed[a-z ]* nil check"
++	x = y
++	_ = &x[9] // ERROR "removed[a-z ]* nil check"
++}
++
++func f5(p *float32, q *float64, r *float32, s *float64) float64 {
++	x := float64(*p) // ERROR "generated nil check"
++	y := *q          // ERROR "generated nil check"
++	*r = 7           // ERROR "generated nil check"
++	*s = 9           // ERROR "generated nil check"
++	return x + y
++}
++
++type T [29]byte
++
++func f6(p, q *T) {
++	x := *p // ERROR "generated nil check"
++	*q = x  // ERROR "generated nil check"
++}
++
++func m1(m map[int][80]byte) byte {
++	v := m[3] // ERROR "removed nil check"
++	return v[5]
++}
++func m2(m map[int][800]byte) byte {
++	v := m[3] // ERROR "removed nil check"
++	return v[5]
++}
++func m3(m map[int][80]byte) (byte, bool) {
++	v, ok := m[3] // ERROR "removed nil check"
++	return v[5], ok
++}
++func m4(m map[int][800]byte) (byte, bool) {
++	v, ok := m[3] // ERROR "removed nil check"
++	return v[5], ok
++}
++func p1() byte {
++	p := new([100]byte)
++	return p[5] // ERROR "removed nil check"
++}
++
++// make sure not to do nil check for access of PAUTOHEAP
++//go:noinline
++func (p *Struct) m() {}
++func c1() {
++	var x Struct
++	func() { x.m() }() // ERROR "removed nil check"
++}
++
++type SS struct {
++	x byte
++}
++
++type TT struct {
++	SS
++}
++
++func f(t *TT) *byte {
++	// See issue 17242.
++	s := &t.SS  // ERROR "removed nil check"
++	return &s.x // ERROR "generated nil check"
++}
++
++// make sure not to do nil check for newobject
++func f7() (*Struct, float64) {
++	t := new(Struct)
++	p := &t.Y    // ERROR "removed nil check"
++	return t, *p // ERROR "removed nil check"
++}
++
++// make sure to remove nil check for memory move (issue #18003)
++func f8(t *[8]int) [8]int {
++	return *t // ERROR "generated nil check"
++}
++
++func f9() []int {
++	x := new([1]int)
++	x[0] = 1  // ERROR "removed nil check"
++	y := x[:] // ERROR "removed nil check"
++	return y
++}
+diff --git a/test/nosplit.go b/test/nosplit.go
+index e6cecebde3..e6cd04e563 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/peano.go b/test/peano.go
+index 745f5153f6..1102a97244 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -9,6 +9,8 @@
+ 
+ package main
+ 
++import "runtime"
++
+ type Number *Number
+ 
+ // -------------------------------------
+@@ -116,7 +118,11 @@ var results = [...]int{
+ }
+ 
+ func main() {
+-	for i := 0; i <= 9; i++ {
++	max := 9
++	if runtime.GOARCH == "wasm" {
++		max = 7 // stack size is limited
++	}
++	for i := 0; i <= max; i++ {
+ 		if f := count(fact(gen(i))); f != results[i] {
+ 			println("FAIL:", i, "!:", f, "!=", results[i])
+ 			panic(0)
+diff --git a/test/sinit_run.go b/test/sinit_run.go
+index c9afd3b777..fdd19c492f 100644
+--- a/test/sinit_run.go
++++ b/test/sinit_run.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!js
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.

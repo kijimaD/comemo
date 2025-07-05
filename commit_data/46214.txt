@@ -13,9 +13,115 @@ Date:   Mon Dec 14 16:58:46 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/278132
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../internal/types2/fixedbugs/issue43110.src       | 43 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/stmt.go            |  4 ++
  test/run.go                                        |  1 -
  test/switch3.go                                    |  6 +--
  4 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue43110.src b/src/cmd/compile/internal/types2/fixedbugs/issue43110.src
+new file mode 100644
+index 0000000000..4a46945239
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue43110.src
+@@ -0,0 +1,43 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type P *struct{}
++
++func _() {
++	// want an error even if the switch is empty
++	var a struct{ _ func() }
++	switch a /* ERROR cannot switch on a */ {
++	}
++
++	switch a /* ERROR cannot switch on a */ {
++	case a: // no follow-on error here
++	}
++
++	// this is ok because f can be compared to nil
++	var f func()
++	switch f {
++	}
++
++	switch f {
++	case nil:
++	}
++
++	switch (func())(nil) {
++	case nil:
++	}
++
++	switch (func())(nil) {
++	case f /* ERROR cannot compare */ :
++	}
++
++	switch nil /* ERROR use of untyped nil in switch expression */ {
++	}
++
++	// this is ok
++	switch P(nil) {
++	case P(nil):
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 477bc58bd0..3463cfdf57 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -605,6 +605,10 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
+ 		// By checking assignment of x to an invisible temporary
+ 		// (as a compiler would), we get all the relevant checks.
+ 		check.assignment(&x, nil, "switch expression")
++		if x.mode != invalid && !Comparable(x.typ) && !hasNil(x.typ) {
++			check.errorf(&x, "cannot switch on %s (%s is not comparable)", &x, x.typ)
++			x.mode = invalid
++		}
+ 	} else {
+ 		// spec: "A missing switch expression is
+ 		// equivalent to the boolean value true."
+diff --git a/test/run.go b/test/run.go
+index 9cfd13ae48..01e67e8db8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1937,7 +1937,6 @@ var excluded = map[string]bool{
+ 	"initializerr.go": true, // types2 reports extra errors
+ 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+ 	"shift1.go":       true, // issue #42989
+-	"switch3.go":      true, // issue #43110
+ 	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
+ 	"typecheck.go":    true, // invalid function is not causing errors when called
+ 
+diff --git a/test/switch3.go b/test/switch3.go
+index 28705e464e..403563223c 100644
+--- a/test/switch3.go
++++ b/test/switch3.go
+@@ -28,21 +28,21 @@ func bad() {
+ 	var m, m1 map[int]int
+ 	switch m {
+ 	case nil:
+-	case m1: // ERROR "can only compare map m to nil|map can only be compared to nil"
++	case m1: // ERROR "can only compare map m to nil|map can only be compared to nil|cannot compare"
+ 	default:
+ 	}
+ 
+ 	var a, a1 []int
+ 	switch a {
+ 	case nil:
+-	case a1: // ERROR "can only compare slice a to nil|slice can only be compared to nil"
++	case a1: // ERROR "can only compare slice a to nil|slice can only be compared to nil|cannot compare"
+ 	default:
+ 	}
+ 
+ 	var f, f1 func()
+ 	switch f {
+ 	case nil:
+-	case f1: // ERROR "can only compare func f to nil|func can only be compared to nil"
++	case f1: // ERROR "can only compare func f to nil|func can only be compared to nil|cannot compare"
+ 	default:
+ 	}
+ 

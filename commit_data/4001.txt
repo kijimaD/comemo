@@ -6,10 +6,76 @@ Date:   Wed Nov 11 16:33:23 2009 -0800
     
     R=r
     https://golang.org/cl/152085
-
+---
  src/cmd/5a/a.h  | 2 +-
  src/cmd/6a/a.h  | 2 +-
  src/cmd/8a/a.h  | 2 +-
  src/cmd/cc/cc.h | 2 +-
  src/cmd/gc/go.h | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 37791f8505..86dbac26b6 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -39,7 +39,7 @@
+ 
+ #define	getc	aagetc
+ #define	ungetc	aaungetc
+-#define	BUFSIZ	AABUFSIZ
++#undef	BUFSIZ
+ 
+ typedef	struct	Sym	Sym;
+ typedef	struct	Gen	Gen;
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index 98dcc17d13..ce2ab29227 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -40,7 +40,7 @@
+ 
+ #define	getc	aagetc
+ #define	ungetc	aaungetc
+-#define	BUFSIZ	AABUFSIZ
++#undef	BUFSIZ
+ 
+ typedef	struct	Sym	Sym;
+ typedef	struct	Ref	Ref;
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index 70682e6b56..37b175c189 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -40,7 +40,7 @@
+ 
+ #define	getc	aagetc
+ #define	ungetc	aaungetc
+-#define	BUFSIZ	AABUFSIZ
++#undef	BUFSIZ
+ 
+ typedef	struct	Sym	Sym;
+ typedef	struct	Ref	Ref;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 51944d92a3..696cdab567 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -41,7 +41,7 @@
+ 
+ #define	getc	ccgetc
+ #define	ungetc	ccungetc
+-#define	BUFSIZ	GCBUFSIZ
++#undef	BUFSIZ
+ 
+ typedef	struct	Node	Node;
+ typedef	struct	Sym	Sym;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d92075df6d..33f93b7d77 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -17,7 +17,7 @@
+ 
+ #define	getc	gcgetc
+ #define	ungetc	gcungetc
+-#define	BUFSIZ	GCBUFSIZ
++#undef	BUFSIZ
+ 
+ enum
+ {

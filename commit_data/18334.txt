@@ -14,7 +14,7 @@ Date:   Wed Jan 22 22:21:53 2014 +0100
     R=golang-codereviews, 0intro
     CC=golang-codereviews, rsc
     https://golang.org/cl/49920048
-
+---
  src/pkg/net/fd_plan9.go         | 111 ++++++++++++++++++++++++++++++++++++++--
  src/pkg/net/file_plan9.go       |  10 ++--
  src/pkg/net/ipsock_plan9.go     |  62 ++++++++++++++++------
@@ -24,3 +24,452 @@ Date:   Wed Jan 22 22:21:53 2014 +0100
  src/pkg/net/tcpsockopt_plan9.go |  18 +++++++
  src/pkg/net/udpsock_plan9.go    |   3 +-
  8 files changed, 202 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/net/fd_plan9.go b/src/pkg/net/fd_plan9.go
+index acc8294021..4309a87c3a 100644
+--- a/src/pkg/net/fd_plan9.go
++++ b/src/pkg/net/fd_plan9.go
+@@ -13,12 +13,23 @@ import (
+ 
+ // Network file descritor.
+ type netFD struct {
+-	proto, name, dir string
+-	ctl, data        *os.File
+-	laddr, raddr     Addr
++	// locking/lifetime of sysfd + serialize access to Read and Write methods
++	fdmu fdMutex
++
++	// immutable until Close
++	proto        string
++	n            string
++	dir          string
++	ctl, data    *os.File
++	laddr, raddr Addr
+ }
+ 
++var (
++	netdir string // default network
++)
++
+ func sysInit() {
++	netdir = "/net"
+ }
+ 
+ func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
+@@ -27,16 +38,99 @@ func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline ti
+ 	return dialChannel(net, ra, dialer, deadline)
+ }
+ 
+-func newFD(proto, name string, ctl, data *os.File, laddr, raddr Addr) *netFD {
+-	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, data, laddr, raddr}
++func newFD(proto, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
++	return &netFD{proto: proto, n: name, dir: netdir + "/" + proto + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
++}
++
++func (fd *netFD) init() error {
++	// stub for future fd.pd.Init(fd)
++	return nil
++}
++
++func (fd *netFD) name() string {
++	var ls, rs string
++	if fd.laddr != nil {
++		ls = fd.laddr.String()
++	}
++	if fd.raddr != nil {
++		rs = fd.raddr.String()
++	}
++	return fd.proto + ":" + ls + "->" + rs
+ }
+ 
+ func (fd *netFD) ok() bool { return fd != nil && fd.ctl != nil }
+ 
++func (fd *netFD) destroy() {
++	if !fd.ok() {
++		return
++	}
++	err := fd.ctl.Close()
++	if fd.data != nil {
++		if err1 := fd.data.Close(); err1 != nil && err == nil {
++			err = err1
++		}
++	}
++	fd.ctl = nil
++	fd.data = nil
++}
++
++// Add a reference to this fd.
++// Returns an error if the fd cannot be used.
++func (fd *netFD) incref() error {
++	if !fd.fdmu.Incref() {
++		return errClosing
++	}
++	return nil
++}
++
++// Remove a reference to this FD and close if we've been asked to do so
++// (and there are no references left).
++func (fd *netFD) decref() {
++	if fd.fdmu.Decref() {
++		fd.destroy()
++	}
++}
++
++// Add a reference to this fd and lock for reading.
++// Returns an error if the fd cannot be used.
++func (fd *netFD) readLock() error {
++	if !fd.fdmu.RWLock(true) {
++		return errClosing
++	}
++	return nil
++}
++
++// Unlock for reading and remove a reference to this FD.
++func (fd *netFD) readUnlock() {
++	if fd.fdmu.RWUnlock(true) {
++		fd.destroy()
++	}
++}
++
++// Add a reference to this fd and lock for writing.
++// Returns an error if the fd cannot be used.
++func (fd *netFD) writeLock() error {
++	if !fd.fdmu.RWLock(false) {
++		return errClosing
++	}
++	return nil
++}
++
++// Unlock for writing and remove a reference to this FD.
++func (fd *netFD) writeUnlock() {
++	if fd.fdmu.RWUnlock(false) {
++		fd.destroy()
++	}
++}
++
+ func (fd *netFD) Read(b []byte) (n int, err error) {
+ 	if !fd.ok() || fd.data == nil {
+ 		return 0, syscall.EINVAL
+ 	}
++	if err := fd.readLock(); err != nil {
++		return 0, err
++	}
++	defer fd.readUnlock()
+ 	n, err = fd.data.Read(b)
+ 	if fd.proto == "udp" && err == io.EOF {
+ 		n = 0
+@@ -49,6 +143,10 @@ func (fd *netFD) Write(b []byte) (n int, err error) {
+ 	if !fd.ok() || fd.data == nil {
+ 		return 0, syscall.EINVAL
+ 	}
++	if err := fd.writeLock(); err != nil {
++		return 0, err
++	}
++	defer fd.writeUnlock()
+ 	return fd.data.Write(b)
+ }
+ 
+@@ -67,6 +165,9 @@ func (fd *netFD) CloseWrite() error {
+ }
+ 
+ func (fd *netFD) Close() error {
++	if !fd.fdmu.IncrefAndClose() {
++		return errClosing
++	}
+ 	if !fd.ok() {
+ 		return syscall.EINVAL
+ 	}
+diff --git a/src/pkg/net/file_plan9.go b/src/pkg/net/file_plan9.go
+index f6ee1c29e0..068f0881dd 100644
+--- a/src/pkg/net/file_plan9.go
++++ b/src/pkg/net/file_plan9.go
+@@ -43,7 +43,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 	}
+ 	comp := splitAtBytes(path, "/")
+ 	n := len(comp)
+-	if n < 3 || comp[0] != "net" {
++	if n < 3 || comp[0][0:3] != "net" {
+ 		return nil, syscall.EPLAN9
+ 	}
+ 
+@@ -58,7 +58,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 		}
+ 		defer close(fd)
+ 
+-		dir := "/net/" + comp[n-2]
++		dir := netdir + "/" + comp[n-2]
+ 		ctl = os.NewFile(uintptr(fd), dir+"/"+file)
+ 		ctl.Seek(0, 0)
+ 		var buf [16]byte
+@@ -71,19 +71,19 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 		if len(comp) < 4 {
+ 			return nil, errors.New("could not find control file for connection")
+ 		}
+-		dir := "/net/" + comp[1] + "/" + name
++		dir := netdir + "/" + comp[1] + "/" + name
+ 		ctl, err = os.OpenFile(dir+"/ctl", os.O_RDWR, 0)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		defer close(int(ctl.Fd()))
+ 	}
+-	dir := "/net/" + comp[1] + "/" + name
++	dir := netdir + "/" + comp[1] + "/" + name
+ 	laddr, err := readPlan9Addr(comp[1], dir+"/local")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newFD(comp[1], name, ctl, nil, laddr, nil), nil
++	return newFD(comp[1], name, ctl, nil, laddr, nil)
+ }
+ 
+ func newFileConn(f *os.File) (c Conn, err error) {
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index fcec4164f4..c2225002ee 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -12,19 +12,45 @@ import (
+ 	"syscall"
+ )
+ 
++func probe(filename, query string, bufSize int) bool {
++	var file *file
++	var err error
++	if file, err = open(filename); err != nil {
++		return false
++	}
++
++	r := false
++	for line, ok := file.readLine(); ok && !r; line, ok = file.readLine() {
++		f := getFields(line)
++		if len(f) < 3 {
++			continue
++		}
++		for i := 0; i < len(f); i++ {
++			if query == f[i] {
++				r = true
++				break
++			}
++		}
++	}
++	file.close()
++	return r
++}
++
+ func probeIPv4Stack() bool {
+-	// TODO(mikio): implement this when Plan 9 supports IPv6-only
+-	// kernel.
+-	return true
++	return probe(netdir+"/ipselftab", "127.0.0.1", 128)
+ }
+ 
+ // probeIPv6Stack returns two boolean values.  If the first boolean
+ // value is true, kernel supports basic IPv6 functionality.  If the
+ // second boolean value is true, kernel supports IPv6 IPv4-mapping.
+ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+-	// TODO(mikio): implement this once Plan 9 gets an IPv6
+-	// protocol stack implementation.
+-	return false, false
++	// Plan 9 uses IPv6 natively, see ip(3).
++	r := probe(netdir+"/iproute", "6i", 128)
++	v := false
++	if r {
++		v = probe(netdir+"/iproute", "4b", 128)
++	}
++	return r, v
+ }
+ 
+ // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
+@@ -133,18 +159,18 @@ func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
+ 		f.Close()
+ 		return nil, &OpError{"dial", f.Name(), raddr, err}
+ 	}
+-	data, err := os.OpenFile("/net/"+proto+"/"+name+"/data", os.O_RDWR, 0)
++	data, err := os.OpenFile(netdir+"/"+proto+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+ 		f.Close()
+ 		return nil, &OpError{"dial", net, raddr, err}
+ 	}
+-	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
++	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		data.Close()
+ 		f.Close()
+ 		return nil, &OpError{"dial", proto, raddr, err}
+ 	}
+-	return newFD(proto, name, f, data, laddr, raddr), nil
++	return newFD(proto, name, f, data, laddr, raddr)
+ }
+ 
+ func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
+@@ -158,20 +184,24 @@ func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
+ 		f.Close()
+ 		return nil, &OpError{"announce", proto, laddr, err}
+ 	}
+-	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
++	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		f.Close()
+ 		return nil, &OpError{Op: "listen", Net: net, Err: err}
+ 	}
+-	return newFD(proto, name, f, nil, laddr, nil), nil
++	return newFD(proto, name, f, nil, laddr, nil)
+ }
+ 
+-func (l *netFD) netFD() *netFD {
+-	return newFD(l.proto, l.name, l.ctl, l.data, l.laddr, l.raddr)
++func (l *netFD) netFD() (*netFD, error) {
++	return newFD(l.proto, l.n, l.ctl, l.data, l.laddr, l.raddr)
+ }
+ 
+ func (l *netFD) acceptPlan9() (fd *netFD, err error) {
+ 	defer func() { netErr(err) }()
++	if err := l.readLock(); err != nil {
++		return nil, err
++	}
++	defer l.readUnlock()
+ 	f, err := os.Open(l.dir + "/listen")
+ 	if err != nil {
+ 		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
+@@ -183,16 +213,16 @@ func (l *netFD) acceptPlan9() (fd *netFD, err error) {
+ 		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
+ 	}
+ 	name := string(buf[:n])
+-	data, err := os.OpenFile("/net/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
++	data, err := os.OpenFile(netdir+"/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+ 		f.Close()
+ 		return nil, &OpError{"accept", l.proto, l.laddr, err}
+ 	}
+-	raddr, err := readPlan9Addr(l.proto, "/net/"+l.proto+"/"+name+"/remote")
++	raddr, err := readPlan9Addr(l.proto, netdir+"/"+l.proto+"/"+name+"/remote")
+ 	if err != nil {
+ 		data.Close()
+ 		f.Close()
+ 		return nil, &OpError{"accept", l.proto, l.laddr, err}
+ 	}
+-	return newFD(l.proto, name, f, data, l.laddr, raddr), nil
++	return newFD(l.proto, name, f, data, l.laddr, raddr)
+ }
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index 95c0f0b068..723f29ffce 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -49,7 +49,7 @@ func queryCS(net, host, service string) (res []string, err error) {
+ 	if host == "" {
+ 		host = "*"
+ 	}
+-	return query("/net/cs", net+"!"+host+"!"+service, 128)
++	return query(netdir+"/cs", net+"!"+host+"!"+service, 128)
+ }
+ 
+ func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
+@@ -70,7 +70,7 @@ func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
+ }
+ 
+ func queryDNS(addr string, typ string) (res []string, err error) {
+-	return query("/net/dns", addr+" "+typ, 1024)
++	return query(netdir+"/dns", addr+" "+typ, 1024)
+ }
+ 
+ // toLower returns a lower-case version of in. Restricting us to
+@@ -97,7 +97,7 @@ func toLower(in string) string {
+ // lookupProtocol looks up IP protocol name and returns
+ // the corresponding protocol number.
+ func lookupProtocol(name string) (proto int, err error) {
+-	lines, err := query("/net/cs", "!protocol="+toLower(name), 128)
++	lines, err := query(netdir+"/cs", "!protocol="+toLower(name), 128)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -117,7 +117,7 @@ func lookupProtocol(name string) (proto int, err error) {
+ }
+ 
+ func lookupHost(host string) (addrs []string, err error) {
+-	// Use /net/cs instead of /net/dns because cs knows about
++	// Use netdir/cs instead of netdir/dns because cs knows about
+ 	// host names in local network (e.g. from /lib/ndb/local)
+ 	lines, err := queryCS("net", host, "1")
+ 	if err != nil {
+diff --git a/src/pkg/net/sockopt_plan9.go b/src/pkg/net/sockopt_plan9.go
+new file mode 100644
+index 0000000000..8bc689b6c2
+--- /dev/null
++++ b/src/pkg/net/sockopt_plan9.go
+@@ -0,0 +1,13 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func setKeepAlive(fd *netFD, keepalive bool) error {
++	if keepalive {
++		_, e := fd.ctl.WriteAt([]byte("keepalive"), 0)
++		return e
++	}
++	return nil
++}
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index cf9c0f8904..6e1a8b9a19 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -62,12 +62,18 @@ func (c *TCPConn) SetLinger(sec int) error {
+ // SetKeepAlive sets whether the operating system should send
+ // keepalive messages on the connection.
+ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+-	return syscall.EPLAN9
++	if !c.ok() {
++		return syscall.EPLAN9
++	}
++	return setKeepAlive(c.fd, keepalive)
+ }
+ 
+ // SetKeepAlivePeriod sets period between keep alives.
+ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+-	return syscall.EPLAN9
++	if !c.ok() {
++		return syscall.EPLAN9
++	}
++	return setKeepAlivePeriod(c.fd, d)
+ }
+ 
+ // SetNoDelay controls whether the operating system should delay
+diff --git a/src/pkg/net/tcpsockopt_plan9.go b/src/pkg/net/tcpsockopt_plan9.go
+new file mode 100644
+index 0000000000..0e7a6647ca
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_plan9.go
+@@ -0,0 +1,18 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP socket options for plan9
++
++package net
++
++import (
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	cmd := "keepalive " + string(int64(d/time.Millisecond))
++	_, e := fd.ctl.WriteAt([]byte(cmd), 0)
++	return e
++}
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 73621706d5..510ac5e4aa 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -190,7 +190,8 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newUDPConn(l.netFD()), nil
++	fd, err := l.netFD()
++	return newUDPConn(fd), err
+ }
+ 
+ // ListenMulticastUDP listens for incoming multicast UDP packets

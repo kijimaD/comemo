@@ -7,6 +7,37 @@ Date:   Sun May 22 18:46:48 2011 -0700
     R=golang-dev, adg, r
     CC=golang-dev
     https://golang.org/cl/4536075
-
+---
  src/pkg/http/chunked.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/chunked.go b/src/pkg/http/chunked.go
+index bfd68a4408..59121c5a23 100644
+--- a/src/pkg/http/chunked.go
++++ b/src/pkg/http/chunked.go
+@@ -6,14 +6,24 @@ package http
+ 
+ import (
+ 	"io"
++	"log"
+ 	"os"
+ 	"strconv"
+ )
+ 
+ // NewChunkedWriter returns a new writer that translates writes into HTTP
+-// "chunked" format before writing them to w.  Closing the returned writer
++// "chunked" format before writing them to w. Closing the returned writer
+ // sends the final 0-length chunk that marks the end of the stream.
++//
++// NewChunkedWriter is not needed by normal applications. The http
++// package adds chunking automatically if handlers don't set a
++// Content-Length header. Using NewChunkedWriter inside a handler
++// would result in double chunking or chunking with a Content-Length
++// length, both of which are wrong.
+ func NewChunkedWriter(w io.Writer) io.WriteCloser {
++	if _, bad := w.(*response); bad {
++		log.Printf("warning: using NewChunkedWriter in an http.Handler; expect corrupt output")
++	}
+ 	return &chunkedWriter{w}
+ }
+ 

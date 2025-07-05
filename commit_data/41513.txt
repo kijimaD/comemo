@@ -21,7 +21,43 @@ Date:   Tue Oct 8 14:23:43 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/query.go         | 8 ++++----
  src/cmd/go/testdata/script/mod_get_major.txt | 5 +++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 0359470d95..75c18f25cc 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -472,10 +472,10 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
+ 					notExistErr = rErr
+ 				}
+ 			} else if err == nil {
+-				if len(found) > 0 {
+-					// golang.org/issue/34094: If we have already found a module
+-					// containing the target package, ignore errors for modules with
+-					// shorter paths.
++				if len(found) > 0 || noPackage != nil {
++					// golang.org/issue/34094: If we have already found a module that
++					// could potentially contain the target package, ignore unclassified
++					// errors for modules with shorter paths.
+ 
+ 					// golang.org/issue/34383 is a special case of this: if we have
+ 					// already found example.com/foo/v2@v2.0.0 with a matching go.mod
+diff --git a/src/cmd/go/testdata/script/mod_get_major.txt b/src/cmd/go/testdata/script/mod_get_major.txt
+index dd1cbe01a3..367ede9ded 100644
+--- a/src/cmd/go/testdata/script/mod_get_major.txt
++++ b/src/cmd/go/testdata/script/mod_get_major.txt
+@@ -13,6 +13,11 @@ go get -d vcs-test.golang.org/git/v3pkg.git/v3@v3.0.0
+ go list -m vcs-test.golang.org/git/v3pkg.git/v3
+ stdout '^vcs-test.golang.org/git/v3pkg.git/v3 v3.0.0$'
+ 
++go get -d vcs-test.golang.org/git/empty-v2-without-v1.git/v2@v2.0.0
++
++go list -m vcs-test.golang.org/git/empty-v2-without-v1.git/v2
++stdout '^vcs-test.golang.org/git/empty-v2-without-v1.git/v2 v2.0.0$'
++
+ -- go.mod --
+ module example.com
+ go 1.13

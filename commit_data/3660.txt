@@ -12,8 +12,100 @@ Date:   Mon Oct 26 22:49:08 2009 -0700
     
     R=rsc
     http://go/go-review/1013015
-
+---
  src/pkg/runtime/linux/386/defs.h   |  9 ++++-----
  src/pkg/runtime/linux/386/signal.c |  4 ++--
  src/pkg/runtime/linux/defs2.c      | 16 ++++++++++++++--
  3 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+index 112fc7b094..94bc2b5b6f 100755
+--- a/src/pkg/runtime/linux/386/defs.h
++++ b/src/pkg/runtime/linux/386/defs.h
+@@ -1,4 +1,4 @@
+-// godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c
++// godefs -f -m32 -f -D_LOOSE_KERNEL_NAMES -f -D__ARCH_SI_UID_T=__kernel_uid32_t defs2.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -54,8 +54,7 @@ struct Fpstate {
+ 	uint32 reserved;
+ 	Fpxreg _fxsr_st[8];
+ 	Xmmreg _xmm[8];
+-	uint32 padding1[44];
+-	byte _anon_[48];
++	uint32 padding[56];
+ };
+ 
+ typedef struct Timespec Timespec;
+@@ -72,10 +71,10 @@ struct Timeval {
+ 
+ typedef struct Sigaction Sigaction;
+ struct Sigaction {
+-	byte _u[4];
+-	uint32 sa_mask;
++	void *k_sa_handler;
+ 	uint32 sa_flags;
+ 	void *sa_restorer;
++	uint32 sa_mask;
+ };
+ 
+ typedef struct Siginfo Siginfo;
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 5deb0f9855..54e109f588 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -88,9 +88,9 @@ initsig(void)
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
+ 			if(sigtab[i].flags & SigCatch)
+-				*(void**)sa._u = (void*)sigtramp;	// handler
++				sa.k_sa_handler = (void*)sigtramp;
+ 			else
+-				*(void**)sa._u = (void*)sigignore;	// handler
++				sa.k_sa_handler = (void*)sigignore;
+ 			if(sigtab[i].flags & SigRestart)
+ 				sa.sa_flags |= SA_RESTART;
+ 			else
+diff --git a/src/pkg/runtime/linux/defs2.c b/src/pkg/runtime/linux/defs2.c
+index aa0331a375..a91086aa50 100644
+--- a/src/pkg/runtime/linux/defs2.c
++++ b/src/pkg/runtime/linux/defs2.c
+@@ -13,8 +13,9 @@
+ 
+ #include <asm/signal.h>
+ #include <asm/mman.h>
+-#include <asm/sigframe.h>
++#include <asm/sigcontext.h>
+ #include <asm/ucontext.h>
++#include <asm/siginfo.h>
+ 
+ /*
+ #include <sys/signal.h>
+@@ -22,6 +23,17 @@
+ #include <ucontext.h>
+ */
+ 
++/* This is the sigaction structure from the Linux 2.1.68 kernel which
++   is used with the rt_sigaction system call.  For 386 this is not
++   defined in any public header file.  */
++
++struct kernel_sigaction {
++	__sighandler_t k_sa_handler;
++	unsigned long sa_flags;
++	void (*sa_restorer) (void);
++	sigset_t sa_mask;
++};
++
+ enum {
+ 	$PROT_NONE = PROT_NONE,
+ 	$PROT_READ = PROT_READ,
+@@ -43,7 +55,7 @@ typedef struct _xmmreg $Xmmreg;
+ typedef struct _fpstate $Fpstate;
+ typedef struct timespec $Timespec;
+ typedef struct timeval $Timeval;
+-typedef struct sigaction $Sigaction;
++typedef struct kernel_sigaction $Sigaction;
+ typedef siginfo_t $Siginfo;
+ typedef struct sigaltstack $Sigaltstack;
+ typedef struct sigcontext $Sigcontext;

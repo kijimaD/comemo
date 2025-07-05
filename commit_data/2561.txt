@@ -8,7 +8,7 @@ Date:   Wed Jul 1 07:32:04 2009 -0700
     DELTA=23  (1 added, 12 deleted, 10 changed)
     OCL=30957
     CL=30980
-
+---
  src/pkg/bufio/bufio.go   |  5 +----
  src/pkg/flag/flag.go     |  2 +-
  src/pkg/io/io.go         |  4 +---
@@ -18,3 +18,132 @@ Date:   Wed Jul 1 07:32:04 2009 -0700
  src/pkg/net/net.go       | 11 ++++++-----
  src/pkg/os/path_test.go  |  4 +---
  8 files changed, 11 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 4cbebddb54..7e4df4ef5c 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -270,9 +270,7 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ 			return nil, ErrBufferFull
+ 		}
+ 	}
+-
+-	// BUG 6g bug100
+-	return nil, nil
++	panic("not reached");
+ }
+ 
+ // ReadLineBytes reads until the first occurrence of delim in the input,
+@@ -323,7 +321,6 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 			full = make([][]byte, 16);
+ 		} else if nfull >= len(full) {
+ 			newfull := make([][]byte, len(full)*2);
+-			// BUG slice assignment
+ 			for i := 0; i < len(full); i++ {
+ 				newfull[i] = full[i];
+ 			}
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 392f089cd6..437aaf230a 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -48,7 +48,7 @@ import (
+ 	"strconv"
+ )
+ 
+-// BUG: atob belongs elsewhere
++// TODO(r): BUG: atob belongs elsewhere
+ func atob(str string) (value bool, ok bool) {
+ 	switch str {
+ 		case "1", "t", "T", "true", "TRUE", "True":
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 12b98921f7..e7f28a4ec5 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -117,9 +117,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ // If an EOF happens after reading some but not all the bytes,
+ // ReadFull returns ErrUnexpectedEOF.
+ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+-	// TODO(rsc): 6g bug keeps us from writing the obvious 1-liner
+-	n, err = ReadAtLeast(r, buf, len(buf));
+-	return;
++	return ReadAtLeast(r, buf, len(buf));
+ }
+ 
+ // Copyn copies n bytes (or until an error) from src to dst.
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 72af10f543..57cf15c921 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -88,7 +88,6 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 
+ // Find answer for name in dns message.
+ // On return, if err == nil, addrs != nil.
+-// TODO(rsc): Maybe return []IP instead?
+ func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) {
+ 	addrs = make([]string, 0, len(dns.answer));
+ 
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index e56d964f2d..7e455d5f8b 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -29,10 +29,7 @@ var _DNS_configError os.Error;
+ // of the host name to get the default search domain.
+ // We assume it's in resolv.conf anyway.
+ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+-	// TODO(rsc): 6g won't let me say file, err :=
+-	var file *file;
+-	var err os.Error;
+-	file, err = open("/etc/resolv.conf");
++	file, err := open("/etc/resolv.conf");
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 774f048ca8..8c52ede1e3 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -346,7 +346,6 @@ L:	for j < IPv6len {
+ 			if p4 == nil {
+ 				return nil
+ 			}
+-			// BUG: p[j:j+4] = p4
+ 			p[j] = p4[12];
+ 			p[j+1] = p4[13];
+ 			p[j+2] = p4[14];
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index bbd89ca845..46efa6e58e 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -777,11 +777,12 @@ func (l *ListenerUnix) AcceptUnix() (c *ConnUnix, raddr string, err os.Error) {
+ // Accept implements the Accept method in the Listener interface;
+ // it waits for the next call and returns a generic Conn.
+ func (l *ListenerUnix) Accept() (c Conn, raddr string, err os.Error) {
+-	// TODO(rsc): 6g bug prevents saying
+-	//	c, raddr, err = l.AcceptUnix();
+-	//	return;
+-	c1, r1, e1 := l.AcceptUnix();
+-	return c1, r1, e1;
++	// TODO(rsc): Should return l.AcceptUnix() be okay here?
++	// There is a type conversion -- the first return arg of
++	// l.AcceptUnix() is *ConnUnix and it gets converted to Conn
++	// in the explicit assignment.
++	c, raddr, err = l.AcceptUnix();
++	return;
+ }
+ 
+ 
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index bb6148920e..ddb523b406 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -109,9 +109,7 @@ func TestRemoveAll(t *testing.T) {
+ 		t.Fatalf("MkdirAll %q: %s", dpath, err);
+ 	}
+ 
+-	// TODO(rsc): toss tmp once bug152 is fixed
+-	tmp := []string{fpath, dpath+"/file1", path+"/zzz"};
+-	for i, s := range tmp {
++	for i, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
+ 		fd, err = os.Open(s, os.O_WRONLY | os.O_CREAT, 0666);
+ 		if err != nil {
+ 			t.Fatalf("create %q: %s", s, err);

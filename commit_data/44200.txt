@@ -7,7 +7,7 @@ Date:   Thu May 21 17:07:25 2020 -0400
     Change-Id: Ic3e90793f0ce49909c4f76df1272b25a1d61ebdf
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234887
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 57 ++++--------------------------------
  src/cmd/link/internal/arm/asm.go     | 45 ++++------------------------
  src/cmd/link/internal/arm64/asm.go   | 56 -----------------------------------
@@ -24,3 +24,687 @@ Date:   Thu May 21 17:07:25 2020 -0400
  src/cmd/link/internal/s390x/obj.go   |  1 -
  src/cmd/link/internal/x86/asm.go     | 45 ++++------------------------
  15 files changed, 42 insertions(+), 400 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index dba91976a1..514edad55c 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -683,6 +683,9 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsDarwin() {
+ 		panic("darwin should be generic")
+ 	}
++	if ctxt.IsElf() {
++		panic("elf should be generic")
++	}
+ 
+ 	switch ctxt.HeadType {
+ 	default:
+@@ -690,12 +693,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		fallthrough
+ 
+ 	case objabi.Hplan9:
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd,
+-		objabi.Hdragonfly,
+-		objabi.Hsolaris:
+ 	case objabi.Hwindows:
+ 		break
+ 	}
+@@ -703,46 +700,12 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	ld.Symsize = 0
+ 	ld.Spsize = 0
+ 	ld.Lcsize = 0
+-	symo := int64(0)
+ 	if !*ld.FlagS {
+-		switch ctxt.HeadType {
+-		default:
+-		case objabi.Hplan9:
++		if ctxt.HeadType == objabi.Hplan9 {
+ 			*ld.FlagS = true
+-			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-
+-		case objabi.Hlinux,
+-			objabi.Hfreebsd,
+-			objabi.Hnetbsd,
+-			objabi.Hopenbsd,
+-			objabi.Hdragonfly,
+-			objabi.Hsolaris:
+-			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-			symo = ld.Rnd(symo, int64(*ld.FlagRound))
+-
+-		case objabi.Hwindows:
+-			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-			symo = ld.Rnd(symo, ld.PEFILEALIGN)
+-		}
+-
+-		ctxt.Out.SeekSet(symo)
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				ctxt.Out.SeekSet(symo)
+-				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Write(ld.Elfstrdat)
+-
+-				if ctxt.LinkMode == ld.LinkExternal {
+-					ld.Elfemitreloc(ctxt)
+-				}
+-			}
+-
+-		case objabi.Hplan9:
++			symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++			ctxt.Out.SeekSet(symo)
+ 			ld.Asmplan9sym(ctxt)
+-
+-		case objabi.Hwindows:
+-			// Do nothing
+ 		}
+ 	}
+ 
+@@ -753,14 +716,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		magic := uint32(4*26*26 + 7)
+ 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
+ 
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd,
+-		objabi.Hdragonfly,
+-		objabi.Hsolaris:
+-		ld.Asmbelf(ctxt, symo)
+-
+ 	case objabi.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index d9e0df5192..8197fb9918 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -672,45 +672,18 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ }
+ 
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
++	if ctxt.IsElf() {
++		panic("elf should be generic")
++	}
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+ 	ld.Lcsize = 0
+-	symo := uint32(0)
+ 	if !*ld.FlagS {
+-		// TODO: rationalize
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-			}
+-
+-		case objabi.Hplan9:
+-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-
+-		case objabi.Hwindows:
+-			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
+-		}
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Write(ld.Elfstrdat)
+-
+-				if ctxt.LinkMode == ld.LinkExternal {
+-					ld.Elfemitreloc(ctxt)
+-				}
+-			}
+-
+-		case objabi.Hplan9:
++		if ctxt.IsPlan9() {
++			symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++			ctxt.Out.SeekSet(int64(symo))
+ 			ld.Asmplan9sym(ctxt)
+-
+-		case objabi.Hwindows:
+-			// Do nothing
+ 		}
+ 	}
+ 
+@@ -720,12 +693,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
+ 
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd:
+-		ld.Asmbelf(ctxt, int64(symo))
+-
+ 	case objabi.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index b919e5e88e..9482a0a193 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -37,7 +37,6 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+-	"fmt"
+ 	"log"
+ )
+ 
+@@ -795,58 +794,3 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsDarwin() {
+-		panic("darwin should be generic")
+-	}
+-
+-	/* output symbol table */
+-	ld.Symsize = 0
+-
+-	ld.Lcsize = 0
+-	symo := uint32(0)
+-	if !*ld.FlagS {
+-		// TODO: rationalize
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-			}
+-
+-		}
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Write(ld.Elfstrdat)
+-
+-				if ctxt.LinkMode == ld.LinkExternal {
+-					ld.Elfemitreloc(ctxt)
+-				}
+-			}
+-		}
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd:
+-		ld.Asmbelf(ctxt, int64(symo))
+-	}
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index de6ab58329..c092cf4826 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -50,7 +50,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index 888d453d7b..eccd3e56fb 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -74,6 +74,7 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
+ //  - writing out the architecture specific pieces.
+ // This function handles the second part.
+ func asmb2(ctxt *Link) bool {
++	// TODO: Spsize is only used for plan9
+ 	if ctxt.IsDarwin() {
+ 		machlink := Domacholink(ctxt)
+ 		Symsize = 0
+@@ -88,6 +89,25 @@ func asmb2(ctxt *Link) bool {
+ 		Asmbmacho(ctxt)
+ 		return true
+ 	}
++	if ctxt.IsElf() {
++		Symsize = 0
++		Spsize = 0
++		Lcsize = 0
++		var symo int64
++		if !*FlagS {
++			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
++			symo = Rnd(symo, int64(*FlagRound))
++			ctxt.Out.SeekSet(symo)
++			Asmelfsym(ctxt)
++			ctxt.Out.Write(Elfstrdat)
++			if ctxt.IsExternal() {
++				Elfemitreloc(ctxt)
++			}
++		}
++		ctxt.Out.SeekSet(0)
++		Asmbelf(ctxt, symo)
++		return true
++	}
+ 	return false
+ }
+ 
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index c43b1e61ef..6f8d64df6d 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -37,7 +37,6 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+-	"fmt"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -151,43 +150,3 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+ 	return -1
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	/* output symbol table */
+-	ld.Symsize = 0
+-
+-	ld.Lcsize = 0
+-	symo := uint32(0)
+-	if !*ld.FlagS {
+-		if !ctxt.IsELF {
+-			ld.Errorf(nil, "unsupported executable format")
+-		}
+-		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		ld.Asmelfsym(ctxt)
+-		ctxt.Out.Write(ld.Elfstrdat)
+-
+-		if ctxt.LinkMode == ld.LinkExternal {
+-			ld.Elfemitreloc(ctxt)
+-		}
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-		ld.Errorf(nil, "unsupported operating system")
+-	case objabi.Hlinux:
+-		ld.Asmbelf(ctxt, int64(symo))
+-	}
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index eb0dbe62be..a80d4ed37b 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -52,7 +52,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 7719377e2f..b9d7c277f7 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -37,7 +37,6 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+-	"fmt"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+@@ -157,53 +156,3 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+ 	return -1
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	/* output symbol table */
+-	ld.Symsize = 0
+-
+-	ld.Lcsize = 0
+-	symo := uint32(0)
+-	if !*ld.FlagS {
+-		// TODO: rationalize
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-			}
+-		}
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Write(ld.Elfstrdat)
+-
+-				if ctxt.LinkMode == ld.LinkExternal {
+-					ld.Elfemitreloc(ctxt)
+-				}
+-			}
+-		}
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd:
+-		ld.Asmbelf(ctxt, int64(symo))
+-	}
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 90919ee737..bbc1e84b5f 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -51,7 +51,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index dd1b2b463c..317c3dd0fe 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1081,49 +1081,16 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
+ }
+ 
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
++	if ctxt.IsElf() {
++		panic("elf should be generic")
++	}
++
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+-
+ 	ld.Lcsize = 0
+-	symo := uint32(0)
+-	if !*ld.FlagS {
+-		// TODO: rationalize
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-			}
+-
+-		case objabi.Haix:
+-			// Nothing to do
+-		}
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Write(ld.Elfstrdat)
+-
+-				if ctxt.LinkMode == ld.LinkExternal {
+-					ld.Elfemitreloc(ctxt)
+-				}
+-			}
+-
+-		case objabi.Haix:
+-			// symtab must be added once sections have been created in ld.Asmbxcoff
+-		}
+-	}
+-
+ 	ctxt.Out.SeekSet(0)
+ 	switch ctxt.HeadType {
+ 	default:
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd:
+-		ld.Asmbelf(ctxt, int64(symo))
+ 
+ 	case objabi.Haix:
+ 		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index bc39c06309..7bc511c374 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -89,43 +89,3 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ 	log.Fatalf("archrelocvariant")
+ 	return -1
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	ld.Symsize = 0
+-	ld.Lcsize = 0
+-	symo := uint32(0)
+-
+-	if !*ld.FlagS {
+-		if !ctxt.IsELF {
+-			ld.Errorf(nil, "unsupported executable format")
+-		}
+-
+-		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-		ctxt.Out.SeekSet(int64(symo))
+-
+-		ld.Asmelfsym(ctxt)
+-		ctxt.Out.Write(ld.Elfstrdat)
+-
+-		if ctxt.LinkMode == ld.LinkExternal {
+-			ld.Elfemitreloc(ctxt)
+-		}
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	case objabi.Hlinux:
+-		ld.Asmbelf(ctxt, int64(symo))
+-	default:
+-		ld.Errorf(nil, "unsupported operating system")
+-	}
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index a0ff179d83..e66d3cd856 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -23,7 +23,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 7465212b9d..2185197460 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -37,7 +37,6 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+-	"fmt"
+ )
+ 
+ // gentext generates assembly to append the local moduledata to the global
+@@ -475,43 +474,3 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	/* output symbol table */
+-	ld.Symsize = 0
+-
+-	ld.Lcsize = 0
+-	symo := uint32(0)
+-	if !*ld.FlagS {
+-		if !ctxt.IsELF {
+-			ld.Errorf(nil, "unsupported executable format")
+-		}
+-		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		ld.Asmelfsym(ctxt)
+-		ctxt.Out.Write(ld.Elfstrdat)
+-
+-		if ctxt.LinkMode == ld.LinkExternal {
+-			ld.Elfemitreloc(ctxt)
+-		}
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-		ld.Errorf(nil, "unsupported operating system")
+-	case objabi.Hlinux:
+-		ld.Asmbelf(ctxt, int64(symo))
+-	}
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 28886804b7..5e4c86371d 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -50,7 +50,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index a3b40f5a06..dc5b56a2b9 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -514,45 +514,18 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsDarwin() {
+ 		panic("darwin should be generic")
+ 	}
++	if ctxt.IsElf() {
++		panic("elf should be generic")
++	}
+ 
+ 	ld.Symsize = 0
+ 	ld.Spsize = 0
+ 	ld.Lcsize = 0
+-	symo := uint32(0)
+ 	if !*ld.FlagS {
+-		// TODO: rationalize
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+-			}
+-
+-		case objabi.Hplan9:
+-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-
+-		case objabi.Hwindows:
+-			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+-			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
+-		}
+-
+-		ctxt.Out.SeekSet(int64(symo))
+-		switch ctxt.HeadType {
+-		default:
+-			if ctxt.IsELF {
+-				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Write(ld.Elfstrdat)
+-
+-				if ctxt.LinkMode == ld.LinkExternal {
+-					ld.Elfemitreloc(ctxt)
+-				}
+-			}
+-
+-		case objabi.Hplan9:
++		if ctxt.HeadType == objabi.Hplan9 {
++			symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++			ctxt.Out.SeekSet(int64(symo))
+ 			ld.Asmplan9sym(ctxt)
+-
+-		case objabi.Hwindows:
+-			// Do nothing
+ 		}
+ 	}
+ 
+@@ -563,12 +536,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		magic := uint32(4*11*11 + 7)
+ 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
+ 
+-	case objabi.Hlinux,
+-		objabi.Hfreebsd,
+-		objabi.Hnetbsd,
+-		objabi.Hopenbsd:
+-		ld.Asmbelf(ctxt, int64(symo))
+-
+ 	case objabi.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}

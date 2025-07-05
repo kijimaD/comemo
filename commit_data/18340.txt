@@ -42,10 +42,174 @@ Date:   Thu Jan 23 18:59:43 2014 +0400
     R=golang-codereviews, dave, khr, rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/45770044
-
+---
  src/pkg/runtime/malloc.goc  |  6 +++++-
  src/pkg/runtime/malloc.h    |  6 +++---
  src/pkg/runtime/mem.go      |  3 +--
  src/pkg/runtime/mgc0.c      | 19 +++++++++++++------
  src/pkg/runtime/netpoll.goc |  7 ++++++-
  5 files changed, 28 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 739c61e4f4..9e4acc206e 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -19,6 +19,7 @@ package runtime
+ // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
+ #pragma dataflag NOPTR
+ MHeap runtime·mheap;
++MStats mstats;
+ 
+ int32	runtime·checking;
+ 
+@@ -320,7 +321,10 @@ runtime·purgecachedstats(MCache *c)
+ 	}
+ }
+ 
+-uintptr runtime·sizeof_C_MStats = sizeof(MStats);
++// Size of the trailing by_size array differs between Go and C,
++// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
++// sizeof_C_MStats is what C thinks about size of Go struct.
++uintptr runtime·sizeof_C_MStats = sizeof(MStats) - (NumSizeClasses - 61) * sizeof(mstats.by_size[0]);
+ 
+ #define MaxArena32 (2U<<30)
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 9f34b55461..e07cebc0a0 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -90,7 +90,7 @@ typedef struct GCStats	GCStats;
+ 
+ enum
+ {
+-	PageShift	= 12,
++	PageShift	= 13,
+ 	PageSize	= 1<<PageShift,
+ 	PageMask	= PageSize - 1,
+ };
+@@ -103,7 +103,7 @@ enum
+ 	// size classes.  NumSizeClasses is that number.  It's needed here
+ 	// because there are static arrays of this length; when msize runs its
+ 	// size choosing algorithm it double-checks that NumSizeClasses agrees.
+-	NumSizeClasses = 61,
++	NumSizeClasses = 67,
+ 
+ 	// Tunable constants.
+ 	MaxSmallSize = 32<<10,
+@@ -255,7 +255,7 @@ struct MStats
+ 	} by_size[NumSizeClasses];
+ };
+ 
+-#define mstats runtime·memStats	/* name shared with Go */
++#define mstats runtime·memStats
+ extern MStats mstats;
+ 
+ // Size classes.  Computed and initialized by InitSizes.
+diff --git a/src/pkg/runtime/mem.go b/src/pkg/runtime/mem.go
+index dc735e4a62..fa308b5d96 100644
+--- a/src/pkg/runtime/mem.go
++++ b/src/pkg/runtime/mem.go
+@@ -60,9 +60,8 @@ type MemStats struct {
+ 
+ var sizeof_C_MStats uintptr // filled in by malloc.goc
+ 
+-var memStats MemStats
+-
+ func init() {
++	var memStats MemStats
+ 	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
+ 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
+ 		panic("MStats vs MemStatsType size mismatch")
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2c82fb3ac4..caab7b9ee6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -25,6 +25,10 @@ enum {
+ 	wordsPerBitmapWord = sizeof(void*)*8/4,
+ 	bitShift = sizeof(void*)*8/4,
+ 
++	WorkbufSize	= 16*1024,
++	RootBlockSize	= 4*1024,
++	FinBlockSize	= 4*1024,
++
+ 	handoffThreshold = 4,
+ 	IntermediateBufferCapacity = 64,
+ 
+@@ -143,11 +147,10 @@ struct Obj
+ 	uintptr	ti;	// type info
+ };
+ 
+-// The size of Workbuf is N*PageSize.
+ typedef struct Workbuf Workbuf;
+ struct Workbuf
+ {
+-#define SIZE (2*PageSize-sizeof(LFNode)-sizeof(uintptr))
++#define SIZE (WorkbufSize-sizeof(LFNode)-sizeof(uintptr))
+ 	LFNode  node; // must be first
+ 	uintptr nobj;
+ 	Obj     obj[SIZE/sizeof(Obj) - 1];
+@@ -726,7 +729,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 	ChanType *chantype;
+ 	Obj *wp;
+ 
+-	if(sizeof(Workbuf) % PageSize != 0)
++	if(sizeof(Workbuf) % WorkbufSize != 0)
+ 		runtime·throw("scanblock: size of Workbuf is suboptimal");
+ 
+ 	// Memory arena parameters.
+@@ -1587,8 +1590,8 @@ runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType
+ 	runtime·lock(&finlock);
+ 	if(finq == nil || finq->cnt == finq->cap) {
+ 		if(finc == nil) {
+-			finc = runtime·persistentalloc(PageSize, 0, &mstats.gc_sys);
+-			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
++			finc = runtime·persistentalloc(FinBlockSize, 0, &mstats.gc_sys);
++			finc->cap = (FinBlockSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+ 			finc->alllink = allfin;
+ 			allfin = finc;
+ 		}
+@@ -2215,6 +2218,8 @@ gc(struct gc_args *args)
+ 	runtime·MProf_GC();
+ }
+ 
++extern uintptr runtime·sizeof_C_MStats;
++
+ void
+ runtime·ReadMemStats(MStats *stats)
+ {
+@@ -2226,7 +2231,9 @@ runtime·ReadMemStats(MStats *stats)
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+ 	updatememstats(nil);
+-	*stats = mstats;
++	// Size of the trailing by_size array differs between Go and C,
++	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
++	runtime·memcopy(runtime·sizeof_C_MStats, stats, &mstats);
+ 	m->gcing = 0;
+ 	m->locks++;
+ 	runtime·semrelease(&runtime·worldsema);
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 2830f882d8..81471dca5b 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -34,6 +34,11 @@ package net
+ #define READY ((G*)1)
+ #define WAIT  ((G*)2)
+ 
++enum
++{
++	PollBlockSize	= 4*1024,
++};
++
+ struct PollDesc
+ {
+ 	PollDesc* link;	// in pollcache, protected by pollcache.Lock
+@@ -422,7 +427,7 @@ allocPollDesc(void)
+ 
+ 	runtime·lock(&pollcache);
+ 	if(pollcache.first == nil) {
+-		n = PageSize/sizeof(*pd);
++		n = PollBlockSize/sizeof(*pd);
+ 		if(n == 0)
+ 			n = 1;
+ 		// Must be in non-GC memory because can be referenced

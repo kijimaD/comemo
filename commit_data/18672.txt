@@ -28,7 +28,7 @@ Date:   Wed Feb 26 23:28:44 2014 -0800
     R=dvyukov, rsc
     CC=golang-codereviews
     https://golang.org/cl/54650044
-
+---
  src/pkg/runtime/malloc.h        |  29 +++
  src/pkg/runtime/mem_darwin.c    |   6 +
  src/pkg/runtime/mem_dragonfly.c |   6 +
@@ -47,3 +47,1037 @@ Date:   Wed Feb 26 23:28:44 2014 -0800
  src/pkg/runtime/traceback_arm.c |   8 +-
  src/pkg/runtime/traceback_x86.c |   8 +-
  17 files changed, 586 insertions(+), 67 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index c1e7d30e76..84e438d455 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -175,6 +175,9 @@ struct MLink
+ // location if that one is unavailable.
+ //
+ // SysMap maps previously reserved address space for use.
++//
++// SysFault marks a (already SysAlloc'd) region to fault
++// if accessed.  Used only for debugging the runtime.
+ 
+ void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
+ void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
+@@ -182,6 +185,7 @@ void	runtime·SysUnused(void *v, uintptr nbytes);
+ void	runtime·SysUsed(void *v, uintptr nbytes);
+ void	runtime·SysMap(void *v, uintptr nbytes, uint64 *stat);
+ void*	runtime·SysReserve(void *v, uintptr nbytes);
++void	runtime·SysFault(void *v, uintptr nbytes);
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+ // Malloc uses a FixAlloc wrapped around SysAlloc to manages its
+@@ -572,6 +576,31 @@ enum
+ 	DebugTypeAtBlockEnd = 0,
+ };
+ 
++// Information from the compiler about the layout of stack frames.
++typedef struct BitVector BitVector;
++struct BitVector
++{
++	int32 n; // # of bits
++	uint32 data[];
++};
++typedef struct StackMap StackMap;
++struct StackMap
++{
++	int32 n;
++	uint32 data[];
++};
++enum {
++	// Pointer map
++	BitsPerPointer = 2,
++	BitsNoPointer = 0,
++	BitsPointer = 1,
++	BitsIface = 2,
++	BitsEface = 3,
++};
++// Returns pointer map data for the given stackmap index
++// (the index is encoded in PCDATA_StackMapIndex).
++BitVector*	runtime·stackmapdata(StackMap *stackmap, int32 n);
++
+ // defined in mgc0.go
+ void	runtime·gc_m_ptr(Eface*);
+ void	runtime·gc_itab_ptr(Eface*);
+diff --git a/src/pkg/runtime/mem_darwin.c b/src/pkg/runtime/mem_darwin.c
+index a75c46d9d4..fe99c1aff1 100644
+--- a/src/pkg/runtime/mem_darwin.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -41,6 +41,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_dragonfly.c b/src/pkg/runtime/mem_dragonfly.c
+index 025b62ea67..f19a39950b 100644
+--- a/src/pkg/runtime/mem_dragonfly.c
++++ b/src/pkg/runtime/mem_dragonfly.c
+@@ -45,6 +45,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_freebsd.c b/src/pkg/runtime/mem_freebsd.c
+index 1ee2a555e5..b8895567d2 100644
+--- a/src/pkg/runtime/mem_freebsd.c
++++ b/src/pkg/runtime/mem_freebsd.c
+@@ -45,6 +45,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index 2786ad70f6..bab05011ff 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -92,6 +92,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index 91e36eb608..5ad7937d0f 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -45,6 +45,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index 91e36eb608..5ad7937d0f 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -45,6 +45,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index edf970b2fb..ac4819e28f 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -67,6 +67,12 @@ runtime·SysMap(void *v, uintptr nbytes, uint64 *stat)
+ 	USED(v, nbytes, stat);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	USED(v, nbytes);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr nbytes)
+ {
+diff --git a/src/pkg/runtime/mem_solaris.c b/src/pkg/runtime/mem_solaris.c
+index 459fffad7f..2379cdff9f 100644
+--- a/src/pkg/runtime/mem_solaris.c
++++ b/src/pkg/runtime/mem_solaris.c
+@@ -46,6 +46,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index abdc72ad8e..3c6fef60cf 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -15,12 +15,15 @@ enum {
+ 	MEM_RELEASE = 0x8000,
+ 	
+ 	PAGE_READWRITE = 0x0004,
++	PAGE_NOACCESS = 0x0001,
+ };
+ 
+ #pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
+ #pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
++#pragma dynimport runtime·VirtualProtect VirtualProtect "kernel32.dll"
+ extern void *runtime·VirtualAlloc;
+ extern void *runtime·VirtualFree;
++extern void *runtime·VirtualProtect;
+ 
+ void*
+ runtime·SysAlloc(uintptr n, uint64 *stat)
+@@ -60,6 +63,16 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 		runtime·throw("runtime: failed to release pages");
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	uintptr r, old;
++
++	r = (uintptr)runtime·stdcall(runtime·VirtualProtect, 4, v, n, (uintptr)PAGE_NOACCESS, &old);
++	if(r == 0)
++		runtime·throw("runtime: failed to protect pages");
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 5849e57474..68c4e95466 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -84,13 +84,6 @@ enum {
+ 	LOOP = 2,
+ 	PC_BITS = PRECISE | LOOP,
+ 
+-	// Pointer map
+-	BitsPerPointer = 2,
+-	BitsNoPointer = 0,
+-	BitsPointer = 1,
+-	BitsIface = 2,
+-	BitsEface = 3,
+-
+ 	RootData	= 0,
+ 	RootBss		= 1,
+ 	RootFinalizers	= 2,
+@@ -265,7 +258,7 @@ static Workbuf* handoff(Workbuf*);
+ static void	gchelperstart(void);
+ static void	addfinroots(void *wbufp, void *v);
+ static void	flushallmcaches(void);
+-static void	scanframe(Stkframe *frame, void *wbufp);
++static bool	scanframe(Stkframe *frame, void *wbufp);
+ static void	addstackroots(G *gp, Workbuf **wbufp);
+ 
+ static FuncVal runfinqv = {runfinq};
+@@ -1445,22 +1438,8 @@ handoff(Workbuf *b)
+ 
+ extern byte pclntab[]; // base for f->ptrsoff
+ 
+-typedef struct BitVector BitVector;
+-struct BitVector
+-{
+-	int32 n;
+-	uint32 data[];
+-};
+-
+-typedef struct StackMap StackMap;
+-struct StackMap
+-{
+-	int32 n;
+-	uint32 data[];
+-};
+-
+-static BitVector*
+-stackmapdata(StackMap *stackmap, int32 n)
++BitVector*
++runtime·stackmapdata(StackMap *stackmap, int32 n)
+ {
+ 	BitVector *bv;
+ 	uint32 *ptr;
+@@ -1531,7 +1510,7 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+ }
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+-static void
++static bool
+ scanframe(Stkframe *frame, void *wbufp)
+ {
+ 	Func *f;
+@@ -1576,7 +1555,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ 					pcdata, stackmap->n, runtime·funcname(f), targetpc);
+ 				runtime·throw("scanframe: bad symbol table");
+ 			}
+-			bv = stackmapdata(stackmap, pcdata);
++			bv = runtime·stackmapdata(stackmap, pcdata);
+ 			size = (bv->n * PtrSize) / BitsPerPointer;
+ 			scanbitvector(frame->varp - size, bv, afterprologue, wbufp);
+ 		}
+@@ -1586,10 +1565,11 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	// Use pointer information if known.
+ 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 	if(stackmap != nil) {
+-		bv = stackmapdata(stackmap, pcdata);
++		bv = runtime·stackmapdata(stackmap, pcdata);
+ 		scanbitvector(frame->argp, bv, true, wbufp);
+ 	} else
+ 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
++	return true;
+ }
+ 
+ static void
+@@ -1620,6 +1600,10 @@ addstackroots(G *gp, Workbuf **wbufp)
+ 		runtime·throw("can't scan our own stack");
+ 	if((mp = gp->m) != nil && mp->helpgc)
+ 		runtime·throw("can't scan gchelper stack");
++
++	// Shrink stack if not much of it is being used.
++	runtime·shrinkstack(gp);
++
+ 	if(gp->syscallstack != (uintptr)nil) {
+ 		// Scanning another goroutine that is about to enter or might
+ 		// have just exited a system call. It may be executing code such
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 986136d7e6..94d08bb55c 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -173,6 +173,11 @@ runtime·schedinit(void)
+ 	runtime·allp = runtime·malloc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]));
+ 	procresize(procs);
+ 
++	runtime·copystack = runtime·precisestack;
++	p = runtime·getenv("GOCOPYSTACK");
++	if(p != nil && !runtime·strcmp(p, (byte*)"0"))
++		runtime·copystack = false;
++
+ 	mstats.enablegc = 1;
+ 
+ 	if(raceenabled)
+@@ -187,6 +192,15 @@ static FuncVal scavenger = {runtime·MHeap_Scavenger};
+ static FuncVal initDone = { runtime·unlockOSThread };
+ 
+ // The main goroutine.
++// Note: C frames in general are not copyable during stack growth, for two reasons:
++//   1) We don't know where in a frame to find pointers to other stack locations.
++//   2) There's no guarantee that globals or heap values do not point into the frame.
++//
++// The C frame for runtime.main is copyable, because:
++//   1) There are no pointers to other stack locations in the frame
++//      (d.fn points at a global, d.link is nil, d.argp is -1).
++//   2) The only pointer into this frame is from the defer chain,
++//      which is explicitly handled during stack copying.
+ void
+ runtime·main(void)
+ {
+@@ -1870,8 +1884,20 @@ allgadd(G *gp)
+ static void
+ gfput(P *p, G *gp)
+ {
++	uintptr stksize;
++
+ 	if(gp->stackguard - StackGuard != gp->stack0)
+ 		runtime·throw("invalid stack in gfput");
++	stksize = gp->stackbase + sizeof(Stktop) - gp->stack0;
++	if(stksize != FixedStack) {
++		// non-standard stack size - free it.
++		runtime·stackfree((void*)gp->stack0, stksize);
++		gp->stacksize = 0;
++		gp->stack0 = 0;
++		gp->stackguard = 0;
++		gp->stackguard0 = 0;
++		gp->stackbase = 0;
++	}
+ 	gp->schedlink = p->gfree;
+ 	p->gfree = gp;
+ 	p->gfreecnt++;
+@@ -1894,6 +1920,7 @@ static G*
+ gfget(P *p)
+ {
+ 	G *gp;
++	byte *stk;
+ 
+ retry:
+ 	gp = p->gfree;
+@@ -1912,6 +1939,24 @@ retry:
+ 	if(gp) {
+ 		p->gfree = gp->schedlink;
+ 		p->gfreecnt--;
++
++		if(gp->stack0 == 0) {
++			// Stack was deallocated in gfput.  Allocate a new one.
++			if(g == m->g0) {
++				stk = runtime·stackalloc(FixedStack);
++			} else {
++				g->param = (void*)FixedStack;
++				runtime·mcall(mstackalloc);
++				stk = g->param;
++				g->param = nil;
++			}
++			gp->stacksize = FixedStack;
++			gp->stack0 = (uintptr)stk;
++			gp->stackbase = (uintptr)stk + FixedStack - sizeof(Stktop);
++			gp->stackguard = (uintptr)stk + StackGuard;
++			gp->stackguard0 = gp->stackguard;
++			runtime·memclr((byte*)gp->stackbase, sizeof(Stktop));
++		}
+ 	}
+ 	return gp;
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f833642707..5ecb7827a9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -589,6 +589,7 @@ struct DebugVars
+ };
+ 
+ extern bool runtime·precisestack;
++extern bool runtime·copystack;
+ 
+ /*
+  * defined macros
+@@ -732,7 +733,7 @@ struct Stkframe
+ 	uintptr	arglen;	// number of bytes at argp
+ };
+ 
+-int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*, bool);
++int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, bool(*)(Stkframe*, void*), void*, bool);
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
+@@ -860,6 +861,7 @@ int8*	runtime·funcname(Func*);
+ int32	runtime·pcdatavalue(Func*, int32, uintptr);
+ void*	runtime·stackalloc(uint32);
+ void	runtime·stackfree(void*, uintptr);
++void	runtime·shrinkstack(G*);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 59441db4c1..85885e80f9 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -6,10 +6,20 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "stack.h"
++#include "funcdata.h"
++#include "typekind.h"
++#include "type.h"
+ 
+ enum
+ {
++	// StackDebug == 0: no logging
++	//            == 1: logging of per-stack operations
++	//            == 2: logging of per-frame operations
++	//            == 3: logging of per-word updates
++	//            == 4: logging of per-word reads
+ 	StackDebug = 0,
++	StackFromSystem = 0,	// allocate stacks from system memory instead of the heap
++	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
+ };
+ 
+ typedef struct StackCacheNode StackCacheNode;
+@@ -84,12 +94,17 @@ runtime·stackalloc(uint32 n)
+ 	// Doing so would cause a deadlock (issue 1547).
+ 	if(g != m->g0)
+ 		runtime·throw("stackalloc not on scheduler stack");
++	if(StackDebug >= 1)
++		runtime·printf("stackalloc %d\n", n);
+ 
+-	// Stacks are usually allocated with a fixed-size free-list allocator,
+-	// but if we need a stack of non-standard size, we fall back on malloc
+-	// (assuming that inside malloc and GC all the stack frames are small,
++	if(StackFromSystem)
++		return runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
++
++	// Minimum-sized stacks are allocated with a fixed-size free-list allocator,
++	// but if we need a stack of a bigger size, we fall back on malloc
++	// (assuming that inside malloc all the stack frames are small,
+ 	// so that we do not deadlock).
+-	if(n == FixedStack || m->mallocing || m->gcing) {
++	if(n == FixedStack || m->mallocing) {
+ 		if(n != FixedStack) {
+ 			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
+ 			runtime·throw("stackalloc");
+@@ -112,6 +127,16 @@ runtime·stackfree(void *v, uintptr n)
+ {
+ 	uint32 pos;
+ 
++	if(StackDebug >= 1)
++		runtime·printf("stackfree %p %d\n", v, (int32)n);
++	if(StackFromSystem) {
++		if(StackFaultOnFree)
++			runtime·SysFault(v, n);
++		else
++			runtime·SysFree(v, n, &mstats.stacks_sys);
++		return;
++	}
++
+ 	if(n == FixedStack || m->mallocing || m->gcing) {
+ 		if(m->stackcachecnt == StackCacheSize)
+ 			stackcacherelease();
+@@ -145,7 +170,7 @@ runtime·oldstack(void)
+ 	sp = (byte*)top;
+ 	argsize = top->argsize;
+ 
+-	if(StackDebug) {
++	if(StackDebug >= 1) {
+ 		runtime·printf("runtime: oldstack gobuf={pc:%p sp:%p lr:%p} cret=%p argsize=%p\n",
+ 			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, m->cret, (uintptr)argsize);
+ 	}
+@@ -187,6 +212,330 @@ runtime·oldstack(void)
+ 
+ uintptr runtime·maxstacksize = 1<<20; // enough until runtime.main sets it for real
+ 
++static uint8*
++mapnames[] = {
++	(uint8*)"---",
++	(uint8*)"ptr",
++	(uint8*)"iface",
++	(uint8*)"eface",
++};
++
++// Stack frame layout
++//
++// (x86)
++// +------------------+
++// | args from caller |
++// +------------------+ <- frame->argp
++// |  return address  |
++// +------------------+ <- frame->varp
++// |     locals       |
++// +------------------+
++// |  args to callee  |
++// +------------------+ <- frame->sp
++//
++// (arm: TODO)
++
++typedef struct CopyableInfo CopyableInfo;
++struct CopyableInfo {
++	byte *stk;	// bottom address of segment
++	byte *base;	// top address of segment (including Stktop)
++	int32 frames;	// count of copyable frames (-1 = not copyable)
++};
++
++void runtime·main(void);
++
++static bool
++checkframecopy(Stkframe *frame, void *arg)
++{
++	CopyableInfo *cinfo;
++	Func *f;
++	StackMap *stackmap;
++
++	cinfo = arg;
++	f = frame->fn;
++	if(StackDebug >= 2)
++		runtime·printf("    checking %s frame=[%p,%p] stk=[%p,%p]\n", runtime·funcname(f), frame->sp, frame->fp, cinfo->stk, cinfo->base);
++	// if we're not in the segment any more, return immediately.
++	if(frame->varp < cinfo->stk || frame->varp >= cinfo->base) {
++		if(StackDebug >= 2)
++			runtime·printf("    <next segment>\n");
++		return false; // stop traceback
++	}
++	if(f->entry == (uintptr)runtime·main) {
++		// A special routine at the TOS of the main routine.
++		// We will allow it to be copied even though we don't
++		// have full GC info for it (because it is written in C).
++		cinfo->frames++;
++		return false; // stop traceback
++	}
++	if(frame->varp != (byte*)frame->sp) { // not in prologue (and has at least one local or outarg)
++		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
++		if(stackmap == nil) {
++			cinfo->frames = -1;
++			if(StackDebug >= 1)
++				runtime·printf("copystack: no locals info for %s\n", runtime·funcname(f));
++			return false;
++		}
++		if(stackmap->n <= 0) {
++			cinfo->frames = -1;
++			if(StackDebug >= 1)
++				runtime·printf("copystack: locals size info only for %s\n", runtime·funcname(f));
++			return false;
++		}
++	}
++	if(frame->arglen != 0) {
++		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
++		if(stackmap == nil) {
++			cinfo->frames = -1;
++			if(StackDebug >= 1)
++				runtime·printf("copystack: no arg info for %s\n", runtime·funcname(f));
++			return false;
++		}
++	}
++	cinfo->frames++;
++	return true; // this frame is ok; keep going
++}
++
++// If the top segment of the stack contains an uncopyable
++// frame, return -1.  Otherwise return the number of frames
++// in the top segment, all of which are copyable.
++static int32
++copyabletopsegment(G *gp)
++{
++	CopyableInfo cinfo;
++
++	cinfo.stk = (byte*)gp->stackguard - StackGuard;
++	cinfo.base = (byte*)gp->stackbase + sizeof(Stktop);
++	cinfo.frames = 0;
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, checkframecopy, &cinfo, false);
++	if(StackDebug >= 1 && cinfo.frames != -1)
++		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
++	return cinfo.frames;
++}
++
++typedef struct AdjustInfo AdjustInfo;
++struct AdjustInfo {
++	byte *oldstk;	// bottom address of segment
++	byte *oldbase;	// top address of segment (after Stktop)
++	uintptr delta;  // ptr distance from old to new stack (newbase - oldbase)
++};
++
++// bv describes the memory starting at address scanp.
++// Adjust any pointers contained therein.
++static void
++adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
++{
++	uintptr delta;
++	int32 num, i;
++	byte *p, *minp, *maxp;
++	Type *t;
++	Itab *tab;
++	
++	minp = adjinfo->oldstk;
++	maxp = adjinfo->oldbase;
++	delta = adjinfo->delta;
++	num = bv->n / BitsPerPointer;
++	for(i = 0; i < num; i++) {
++		if(StackDebug >= 4)
++			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3], scanp[i]);
++		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
++		case BitsNoPointer:
++			break;
++		case BitsPointer:
++			p = scanp[i];
++			if(f != nil && (byte*)0 < p && p < (byte*)PageSize) {
++				// Looks like a junk value in a pointer slot.
++				// Live analysis wrong?
++				runtime·printf("%p: %p %s\n", &scanp[i], p, runtime·funcname(f));
++				runtime·throw("bad pointer!");
++			}
++			if(minp <= p && p < maxp) {
++				if(StackDebug >= 3)
++					runtime·printf("adjust ptr %p\n", p);
++				scanp[i] = p + delta;
++			}
++			break;
++		case BitsEface:
++			t = (Type*)scanp[i];
++			if(t != nil && (t->size > PtrSize || (t->kind & KindNoPointers) == 0)) {
++				p = scanp[i+1];
++				if(minp <= p && p < maxp) {
++					if(StackDebug >= 3)
++						runtime·printf("adjust eface %p\n", p);
++					if(t->size > PtrSize) // currently we always allocate such objects on the heap
++						runtime·throw("large interface value found on stack");
++					scanp[i+1] = p + delta;
++				}
++			}
++			break;
++		case BitsIface:
++			tab = (Itab*)scanp[i];
++			if(tab != nil) {
++				t = tab->type;
++				if(t->size > PtrSize || (t->kind & KindNoPointers) == 0) {
++					p = scanp[i+1];
++					if(minp <= p && p < maxp) {
++						if(StackDebug >= 3)
++							runtime·printf("adjust iface %p\n", p);
++						if(t->size > PtrSize) // currently we always allocate such objects on the heap
++							runtime·throw("large interface value found on stack");
++						scanp[i+1] = p + delta;
++					}
++				}
++			}
++			break;
++		}
++	}
++}
++
++// Note: the argument/return area is adjusted by the callee.
++static bool
++adjustframe(Stkframe *frame, void *arg)
++{
++	AdjustInfo *adjinfo;
++	Func *f;
++	StackMap *stackmap;
++	int32 pcdata;
++	BitVector *bv;
++
++	adjinfo = arg;
++	f = frame->fn;
++	if(StackDebug >= 2)
++		runtime·printf("    adjusting %s frame=[%p,%p]\n", runtime·funcname(f), frame->sp, frame->fp);
++	if(f->entry == (uintptr)runtime·main)
++		return true;
++	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, frame->pc);
++	if(pcdata == -1)
++		pcdata = 0; // in prologue
++
++	// adjust local pointers
++	if(frame->varp != (byte*)frame->sp) {
++		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
++		if(stackmap == nil)
++			runtime·throw("no locals info");
++		if(stackmap->n <= 0)
++			runtime·throw("locals size info only");
++		bv = runtime·stackmapdata(stackmap, pcdata);
++		if(StackDebug >= 3)
++			runtime·printf("      locals\n");
++		adjustpointers((byte**)frame->varp - bv->n / BitsPerPointer, bv, adjinfo, f);
++	}
++	// adjust inargs and outargs
++	if(frame->arglen != 0) {
++		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
++		if(stackmap == nil)
++			runtime·throw("no arg info");
++		bv = runtime·stackmapdata(stackmap, pcdata);
++		if(StackDebug >= 3)
++			runtime·printf("      args\n");
++		adjustpointers((byte**)frame->argp, bv, adjinfo, nil);
++	}
++	return true;
++}
++
++static void
++adjustctxt(G *gp, AdjustInfo *adjinfo)
++{
++	if(adjinfo->oldstk <= (byte*)gp->sched.ctxt && (byte*)gp->sched.ctxt < adjinfo->oldbase)
++		gp->sched.ctxt = (byte*)gp->sched.ctxt + adjinfo->delta;
++}
++
++static void
++adjustdefers(G *gp, AdjustInfo *adjinfo)
++{
++	Defer *d, **dp;
++	Func *f;
++	FuncVal *fn;
++	StackMap *stackmap;
++	BitVector *bv;
++
++	for(dp = &gp->defer, d = *dp; d != nil; dp = &d->link, d = *dp) {
++		if(adjinfo->oldstk <= (byte*)d && (byte*)d < adjinfo->oldbase) {
++			// The Defer record is on the stack.  Its fields will
++			// get adjusted appropriately.
++			// This only happens for runtime.main now, but a compiler
++			// optimization could do more of this.
++			*dp = (Defer*)((byte*)d + adjinfo->delta);
++			continue;
++		}
++		if(d->argp < adjinfo->oldstk || adjinfo->oldbase <= d->argp)
++			break; // a defer for the next segment
++		f = runtime·findfunc((uintptr)d->fn->fn);
++		if(f == nil) {
++			runtime·printf("runtime: bad defer %p %d %d %p %p\n", d->fn->fn, d->siz, d->special, d->argp, d->pc);
++			runtime·printf("caller %s\n", runtime·funcname(runtime·findfunc((uintptr)d->pc)));
++			runtime·throw("can't adjust unknown defer");
++		}
++		if(StackDebug >= 4)
++			runtime·printf("  checking defer %s\n", runtime·funcname(f));
++		// Defer's FuncVal might be on the stack
++		fn = d->fn;
++		if(adjinfo->oldstk <= (byte*)fn && (byte*)fn < adjinfo->oldbase) {
++			if(StackDebug >= 3)
++				runtime·printf("    adjust defer fn %s\n", runtime·funcname(f));
++			d->fn = (FuncVal*)((byte*)fn + adjinfo->delta);
++		} else {
++			// deferred function's closure args might point into the stack.
++			if(StackDebug >= 3)
++				runtime·printf("    adjust deferred args for %s\n", runtime·funcname(f));
++			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
++			if(stackmap == nil)
++				runtime·throw("runtime: deferred function has no arg ptr map");
++			bv = runtime·stackmapdata(stackmap, 0);
++			adjustpointers(d->args, bv, adjinfo, f);
++		}
++		d->argp += adjinfo->delta;
++	}
++}
++
++// Copies the top stack segment of gp to a new stack segment of a
++// different size.  The top segment must contain nframes frames.
++static void
++copystack(G *gp, uintptr nframes, uintptr newsize)
++{
++	byte *oldstk, *oldbase, *newstk, *newbase;
++	uintptr oldsize, used;
++	AdjustInfo adjinfo;
++
++	if(gp->syscallstack != 0)
++		runtime·throw("can't handle stack copy in syscall yet");
++	oldstk = (byte*)gp->stackguard - StackGuard;
++	oldbase = (byte*)gp->stackbase + sizeof(Stktop);
++	oldsize = oldbase - oldstk;
++	used = oldbase - (byte*)gp->sched.sp;
++
++	// allocate new stack
++	newstk = runtime·stackalloc(newsize);
++	newbase = newstk + newsize;
++
++	if(StackDebug >= 1)
++		runtime·printf("copystack [%p %p]/%d -> [%p %p]/%d\n", oldstk, oldbase, (int32)oldsize, newstk, newbase, (int32)newsize);
++	
++	// adjust pointers in the to-be-copied frames
++	adjinfo.oldstk = oldstk;
++	adjinfo.oldbase = oldbase;
++	adjinfo.delta = newbase - oldbase;
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, adjustframe, &adjinfo, false);
++	
++	// adjust other miscellaneous things that have pointers into stacks.
++	adjustctxt(gp, &adjinfo);
++	adjustdefers(gp, &adjinfo);
++	
++	// copy the stack to the new location
++	runtime·memmove(newbase - used, oldbase - used, used);
++	
++	// Swap out old stack for new one
++	gp->stackbase = (uintptr)newbase - sizeof(Stktop);
++	gp->stackguard = (uintptr)newstk + StackGuard;
++	gp->stackguard0 = (uintptr)newstk + StackGuard; // NOTE: might clobber a preempt request
++	if(gp->stack0 == (uintptr)oldstk)
++		gp->stack0 = (uintptr)newstk;
++	gp->sched.sp = (uintptr)(newbase - used);
++
++	// free old stack
++	runtime·stackfree(oldstk, oldsize);
++}
++
+ // Called from runtime·newstackcall or from runtime·morestack when a new
+ // stack segment is needed.  Allocate a new stack big enough for
+ // m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
+@@ -195,9 +544,9 @@ uintptr runtime·maxstacksize = 1<<20; // enough until runtime.main sets it for
+ void
+ runtime·newstack(void)
+ {
+-	int32 framesize, argsize, oldstatus;
++	int32 framesize, argsize, oldstatus, oldsize, newsize, nframes;
+ 	Stktop *top, *oldtop;
+-	byte *stk;
++	byte *stk, *oldstk, *oldbase;
+ 	uintptr sp;
+ 	uintptr *src, *dst, *dstend;
+ 	G *gp;
+@@ -234,7 +583,7 @@ runtime·newstack(void)
+ 		// The call to morestack cost a word.
+ 		sp -= sizeof(uintptr);
+ 	}
+-	if(StackDebug || sp < gp->stackguard - StackGuard) {
++	if(StackDebug >= 1 || sp < gp->stackguard - StackGuard) {
+ 		runtime·printf("runtime: newstack framesize=%p argsize=%p sp=%p stack=[%p, %p]\n"
+ 			"\tmorebuf={pc:%p sp:%p lr:%p}\n"
+ 			"\tsched={pc:%p sp:%p lr:%p ctxt:%p}\n",
+@@ -273,33 +622,47 @@ runtime·newstack(void)
+ 		runtime·gosched0(gp);	// never return
+ 	}
+ 
+-	if(newstackcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
+-		// special case: called from runtime.newstackcall (framesize==1)
+-		// to call code with an arbitrary argument size,
+-		// and we have enough space on the current stack.
+-		// the new Stktop* is necessary to unwind, but
+-		// we don't need to create a new segment.
+-		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
+-		stk = (byte*)gp->stackguard - StackGuard;
+-		free = 0;
+-	} else {
+-		// allocate new segment.
+-		framesize += argsize;
+-		framesize += StackExtra;	// room for more functions, Stktop.
+-		if(framesize < StackMin)
+-			framesize = StackMin;
+-		framesize += StackSystem;
+-		gp->stacksize += framesize;
+-		if(gp->stacksize > runtime·maxstacksize) {
+-			runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+-			runtime·throw("stack overflow");
++	// If every frame on the top segment is copyable, allocate a bigger segment
++	// and move the segment instead of allocating a new segment.
++	if(runtime·copystack) {
++		if(!runtime·precisestack)
++			runtime·throw("can't copy stacks without precise stacks");
++		nframes = copyabletopsegment(gp);
++		if(nframes != -1) {
++			oldstk = (byte*)gp->stackguard - StackGuard;
++			oldbase = (byte*)gp->stackbase + sizeof(Stktop);
++			oldsize = oldbase - oldstk;
++			newsize = oldsize * 2;
++			if(newsize > runtime·maxstacksize) {
++				runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
++				runtime·throw("stack overflow");
++			}
++			copystack(gp, nframes, newsize);
++			if(StackDebug >= 1)
++				runtime·printf("stack grow done\n");
++			runtime·gogo(&gp->sched);
+ 		}
+-		stk = runtime·stackalloc(framesize);
+-		top = (Stktop*)(stk+framesize-sizeof(*top));
+-		free = framesize;
++		// TODO: if stack is uncopyable because we're in C code, patch return value at
++		// end of C code to trigger a copy as soon as C code exits.  That way, we'll
++		// have stack available if we get this deep again.
+ 	}
+ 
+-	if(StackDebug) {
++	// allocate new segment.
++	framesize += argsize;
++	framesize += StackExtra;	// room for more functions, Stktop.
++	if(framesize < StackMin)
++		framesize = StackMin;
++	framesize += StackSystem;
++	gp->stacksize += framesize;
++	if(gp->stacksize > runtime·maxstacksize) {
++		runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
++		runtime·throw("stack overflow");
++	}
++	stk = runtime·stackalloc(framesize);
++	top = (Stktop*)(stk+framesize-sizeof(*top));
++	free = framesize;
++
++	if(StackDebug >= 1) {
+ 		runtime·printf("\t-> new stack [%p, %p]\n", stk, top);
+ 	}
+ 
+@@ -372,3 +735,34 @@ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
+ {
+ 	runtime·gostartcall(gobuf, fv->fn, fv);
+ }
++
++// Maybe shrink the stack being used by gp.
++// Called at garbage collection time.
++void
++runtime·shrinkstack(G *gp)
++{
++	int32 nframes;
++	byte *oldstk, *oldbase;
++	uintptr used, oldsize;
++
++	if(gp->syscallstack != (uintptr)nil) // TODO: handle this case?
++		return;
++
++	oldstk = (byte*)gp->stackguard - StackGuard;
++	oldbase = (byte*)gp->stackbase + sizeof(Stktop);
++	oldsize = oldbase - oldstk;
++	if(oldsize / 2 < FixedStack)
++		return; // don't shrink below the minimum-sized stack
++	used = oldbase - (byte*)gp->sched.sp;
++	if(used >= oldsize / 4)
++		return; // still using at least 1/4 of the segment.
++
++	nframes = copyabletopsegment(gp);
++	if(nframes == -1)
++		return; // TODO: handle this case.  Shrink in place?
++
++	copystack(gp, nframes, oldsize / 2);
++
++	if(StackDebug >= 1)
++		runtime·printf("stack shrink done\n");
++}
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 296eb688de..5175b98080 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -76,7 +76,7 @@ enum {
+ 	// The minimum stack segment size to allocate.
+ 	// If the amount needed for the splitting frame + StackExtra
+ 	// is less than this number, the stack will have this size instead.
+-	StackMin = 8192,
++	StackMin = 4096,
+ 	FixedStack = StackMin + StackSystem,
+ 
+ 	// Functions that need frames bigger than this use an extra
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 3c23cd9fcd..171672a89d 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -10,7 +10,7 @@
+ void runtime·sigpanic(void);
+ 
+ int32
+-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
++runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+ 	int32 i, n, nprint, line;
+ 	uintptr x, tracepc;
+@@ -140,8 +140,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 
+ 		if(pcbuf != nil)
+ 			pcbuf[n] = frame.pc;
+-		if(callback != nil)
+-			callback(&frame, v);
++		if(callback != nil) {
++			if(!callback(&frame, v))
++				return n;
++		}
+ 		if(printing) {
+ 			if(printall || runtime·showframe(f, gp)) {
+ 				// Print during crash.
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index bd431be224..47a4b60a7a 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -19,7 +19,7 @@ void runtime·sigpanic(void);
+ // collector (callback != nil).  A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
+ int32
+-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
++runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+ 	int32 i, n, nprint, line;
+ 	uintptr tracepc;
+@@ -151,8 +151,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 
+ 		if(pcbuf != nil)
+ 			pcbuf[n] = frame.pc;
+-		if(callback != nil)
+-			callback(&frame, v);
++		if(callback != nil) {
++			if(!callback(&frame, v))
++				return n;
++		}
+ 		if(printing) {
+ 			if(printall || runtime·showframe(f, gp)) {
+ 				// Print during crash.

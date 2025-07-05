@@ -25,7 +25,7 @@ Date:   Thu Jul 28 12:22:49 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 44 +++++++++++++++++++++--
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 +--
@@ -33,3 +33,246 @@ Date:   Thu Jul 28 12:22:49 2016 -0400
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 13 +++----
  test/fixedbugs/issue16515.go                 | 53 ++++++++++++++++++++++++++++
  6 files changed, 103 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 756bcec75c..0350c295ec 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -156,6 +156,36 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
+ 	return p
+ }
+ 
++// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
++// See runtime/mkduff.go.
++func duffStart(size int64) int64 {
++	x, _ := duff(size)
++	return x
++}
++func duffAdj(size int64) int64 {
++	_, x := duff(size)
++	return x
++}
++
++// duff returns the offset (from duffzero, in bytes) and pointer adjust (in bytes)
++// required to use the duffzero mechanism for a block of the given size.
++func duff(size int64) (int64, int64) {
++	if size < 32 || size > 1024 || size%dzClearStep != 0 {
++		panic("bad duffzero size")
++	}
++	steps := size / dzClearStep
++	blocks := steps / dzBlockLen
++	steps %= dzBlockLen
++	off := dzBlockSize * (dzBlocks - blocks)
++	var adj int64
++	if steps != 0 {
++		off -= dzAddSize
++		off -= dzMovSize * steps
++		adj -= dzClearStep * (dzBlockLen - steps)
++	}
++	return off, adj
++}
++
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	s.SetLineno(v.Line)
+ 	switch v.Op {
+@@ -649,10 +679,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
+ 		opregreg(v.Op.Asm(), gc.SSARegNum(v), gc.SSARegNum(v.Args[0]))
+ 	case ssa.OpAMD64DUFFZERO:
+-		p := gc.Prog(obj.ADUFFZERO)
++		off := duffStart(v.AuxInt)
++		adj := duffAdj(v.AuxInt)
++		var p *obj.Prog
++		if adj != 0 {
++			p = gc.Prog(x86.AADDQ)
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = adj
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = x86.REG_DI
++		}
++		p = gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_ADDR
+ 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+-		p.To.Offset = v.AuxInt
++		p.To.Offset = off
+ 	case ssa.OpAMD64MOVOconst:
+ 		if v.AuxInt != 0 {
+ 			v.Unimplementedf("MOVOconst can only do constant=0")
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index db274d7eb9..d27eff0f6a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -389,7 +389,7 @@
+ (Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
+ 	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+ (Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
+-	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
++	(DUFFZERO [size] destptr (MOVOconst [0]) mem)
+ 
+ // Large zeroing uses REP STOSQ.
+ (Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index b684b9ccdf..43cc0eb5b3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -425,10 +425,10 @@ func init() {
+ 		{name: "MOVQstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ... arg1 ...
+ 		{name: "MOVQstoreconstidx8", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ... 8*arg1 ...
+ 
+-		// arg0 = (duff-adjusted) pointer to start of memory to zero
++		// arg0 = pointer to start of memory to zero
+ 		// arg1 = value to store (will always be zero)
+ 		// arg2 = mem
+-		// auxint = offset into duffzero code to start executing
++		// auxint = # of bytes to zero
+ 		// returns mem
+ 		{
+ 			name:      "DUFFZERO",
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 03c38827cc..61d4234c65 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -254,52 +254,6 @@ func isSamePtr(p1, p2 *Value) bool {
+ 	return false
+ }
+ 
+-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+-// See runtime/mkduff.go.
+-const (
+-	dzBlocks    = 16 // number of MOV/ADD blocks
+-	dzBlockLen  = 4  // number of clears per block
+-	dzBlockSize = 19 // size of instructions in a single block
+-	dzMovSize   = 4  // size of single MOV instruction w/ offset
+-	dzAddSize   = 4  // size of single ADD instruction
+-	dzClearStep = 16 // number of bytes cleared by each MOV instruction
+-
+-	dzTailLen  = 4 // number of final STOSQ instructions
+-	dzTailSize = 2 // size of single STOSQ instruction
+-
+-	dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
+-	dzSize     = dzBlocks * dzBlockSize
+-)
+-
+-func duffStart(size int64) int64 {
+-	x, _ := duff(size)
+-	return x
+-}
+-func duffAdj(size int64) int64 {
+-	_, x := duff(size)
+-	return x
+-}
+-
+-// duff returns the offset (from duffzero, in bytes) and pointer adjust (in bytes)
+-// required to use the duffzero mechanism for a block of the given size.
+-func duff(size int64) (int64, int64) {
+-	if size < 32 || size > 1024 || size%dzClearStep != 0 {
+-		panic("bad duffzero size")
+-	}
+-	// TODO: arch-dependent
+-	steps := size / dzClearStep
+-	blocks := steps / dzBlockLen
+-	steps %= dzBlockLen
+-	off := dzBlockSize * (dzBlocks - blocks)
+-	var adj int64
+-	if steps != 0 {
+-		off -= dzAddSize
+-		off -= dzMovSize * steps
+-		adj -= dzClearStep * (dzBlockLen - steps)
+-	}
+-	return off, adj
+-}
+-
+ // mergePoint finds a block among a's blocks which dominates b and is itself
+ // dominated by all of a's blocks. Returns nil if it can't find one.
+ // Might return nil even if one does exist.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index cefd50ca56..a2b9e15a4f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -17175,7 +17175,7 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Zero [size] destptr mem)
+ 	// cond: size <= 1024 && size%16 == 0 && !config.noDuffDevice
+-	// result: (DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
++	// result: (DUFFZERO [size] destptr (MOVOconst [0]) mem)
+ 	for {
+ 		size := v.AuxInt
+ 		destptr := v.Args[0]
+@@ -17184,14 +17184,11 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFZERO)
+-		v.AuxInt = duffStart(size)
+-		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, config.fe.TypeUInt64())
+-		v0.AuxInt = duffAdj(size)
+-		v0.AddArg(destptr)
++		v.AuxInt = size
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInt128)
++		v0.AuxInt = 0
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInt128)
+-		v1.AuxInt = 0
+-		v.AddArg(v1)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue16515.go b/test/fixedbugs/issue16515.go
+new file mode 100644
+index 0000000000..6b67436383
+--- /dev/null
++++ b/test/fixedbugs/issue16515.go
+@@ -0,0 +1,53 @@
++// run
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 16515: spilled Duff-adjusted address may be invalid
++
++package main
++
++import "runtime"
++
++type T [62]int // DUFFZERO with non-zero adjustment on AMD64
++
++var sink interface{}
++
++//go:noinline
++func zero(x *T) {
++	// Two DUFFZEROs on the same address with a function call in between.
++	// Duff-adjusted address will be spilled and loaded
++
++	*x = T{} // DUFFZERO
++	runtime.GC()
++	(*x)[0] = 1
++	g()      // call a function with large frame, trigger a stack move
++	*x = T{} // DUFFZERO again
++}
++
++//go:noinline
++// a function with large frame
++func g() {
++	var x [1000]int
++	_ = x
++}
++
++func main() {
++	var s struct { a T; b [8192-62]int } // allocate 64K, hopefully it's in a new span and a few bytes before it is garbage
++	sink = &s // force heap allocation
++	s.a[0] = 2
++	zero(&s.a)
++	if s.a[0] != 0 {
++		println("s.a[0] =", s.a[0])
++		panic("zeroing failed")
++	}
++
++	var a T // on stack
++	a[0] = 2
++	zero(&a)
++	if a[0] != 0 {
++		println("a[0] =", a[0])
++		panic("zeroing failed")
++	}
++}

@@ -7,6 +7,19 @@ Date:   Fri Jan 22 07:12:54 2010 -0800
     TBR=frm.adiputra
     CC=golang-dev
     https://golang.org/cl/193055
-
+---
  src/pkg/xgb/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/xgb/Makefile b/src/pkg/xgb/Makefile
+index a2b23a6ab0..cd83c5e707 100644
+--- a/src/pkg/xgb/Makefile
++++ b/src/pkg/xgb/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=xgb
+ GOFILES=\
++	auth.go\
+ 	xgb.go\
+ 	xproto.go\
+ 

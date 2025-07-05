@@ -5,6 +5,36 @@ Date:   Sat Jul 12 13:56:33 2008 -0700
     fix a couple of minor errors
     
     SVN=126938
-
+---
  test/sieve.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/sieve.go b/test/sieve.go
+index dd23903e16..365252260c 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package Main
++package main
+ 
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch *chan> int) {
+@@ -30,13 +30,13 @@ func Sieve() {
+   go Generate(ch);  // Start Generate() as a subprocess.
+   for {
+     prime := <ch;
+-    print "%d\n",  prime;
++    print prime, "\n";
+     ch1 := new(chan int);
+     go Filter(ch, ch1, prime);
+     ch = ch1
+   }
+ }
+ 
+-func Main() {
++func main() {
+   Sieve()
+ }

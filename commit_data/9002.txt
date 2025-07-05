@@ -10,6 +10,30 @@ Date:   Mon Jul 11 12:36:10 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4657090
-
+---
  src/pkg/exp/template/parse.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 77d554d3b5..38a415dbd5 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -293,15 +293,12 @@ func newNumber(text string, typ itemType) (*numberNode, os.Error) {
+ 	n := &numberNode{nodeType: nodeNumber, text: text}
+ 	switch typ {
+ 	case itemChar:
+-		if len(text) < 3 {
+-			return nil, fmt.Errorf("illegal character constant: %s", text)
+-		}
+-		rune, _, tail, err := strconv.UnquoteChar(text[1:len(text)-1], text[0])
++		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if len(tail) > 0 {
+-			return nil, fmt.Errorf("extra bytes in character constant: %s", text)
++		if tail != "'" {
++			return nil, fmt.Errorf("malformed character constant: %s", text)
+ 		}
+ 		n.int64 = int64(rune)
+ 		n.isInt = true

@@ -13,7 +13,7 @@ Date:   Fri Dec 9 12:34:01 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go      | 11 ++++++-----
  src/cmd/compile/internal/gc/gsubr.go |  2 +-
  src/cmd/compile/internal/gc/plive.go |  5 ++---
@@ -21,3 +21,155 @@ Date:   Fri Dec 9 12:34:01 2016 -0500
  src/cmd/internal/obj/pcln.go         |  4 ++--
  src/cmd/internal/obj/util.go         |  2 +-
  6 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index d7c5687d3c..c2a8784a27 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -163,7 +164,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.ctxt,
+ 		As:     obj.ATEXT,
+-		Lineno: p.histLineNum,
++		Lineno: src.MakePos(p.histLineNum),
+ 		From:   nameAddr,
+ 		From3: &obj.Addr{
+ 			Type:   obj.TYPE_CONST,
+@@ -296,7 +297,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.ctxt,
+ 		As:     obj.APCDATA,
+-		Lineno: p.histLineNum,
++		Lineno: src.MakePos(p.histLineNum),
+ 		From:   key,
+ 		To:     value,
+ 	}
+@@ -326,7 +327,7 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.ctxt,
+ 		As:     obj.AFUNCDATA,
+-		Lineno: p.histLineNum,
++		Lineno: src.MakePos(p.histLineNum),
+ 		From:   valueAddr,
+ 		To:     nameAddr,
+ 	}
+@@ -341,7 +342,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 	var target *obj.Addr
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.ctxt,
+-		Lineno: p.histLineNum,
++		Lineno: src.MakePos(p.histLineNum),
+ 		As:     op,
+ 	}
+ 	switch len(a) {
+@@ -469,7 +470,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 	// fmt.Printf("%s %+v\n", op, a)
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.ctxt,
+-		Lineno: p.histLineNum,
++		Lineno: src.MakePos(p.histLineNum),
+ 		As:     op,
+ 	}
+ 	switch len(a) {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 3a3effec2f..0b3d217948 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -45,7 +45,7 @@ func Prog(as obj.As) *obj.Prog {
+ 	}
+ 
+ 	p.As = as
+-	p.Lineno = int32(lineno.Line()) // TODO(gri) fix this
++	p.Lineno = lineno
+ 	return p
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 4cb829cc73..5fa864568f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -17,7 +17,6 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"crypto/md5"
+ 	"fmt"
+@@ -1254,7 +1253,7 @@ func livenessepilogue(lv *Liveness) {
+ 						if !n.Name.Needzero {
+ 							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+-								Warnl(src.MakePos(p.Lineno), "%v: %L is ambiguously live", Curfn.Func.Nname, n)
++								Warnl(p.Lineno, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
+ 							}
+ 						}
+ 					}
+@@ -1345,7 +1344,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n := lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(src.MakePos(p.Lineno), "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
++							yyerrorl(p.Lineno, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2ab2aec926..e428d1747d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -32,6 +32,7 @@ package obj
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
+ )
+@@ -238,7 +239,7 @@ type Prog struct {
+ 	Forwd  *Prog       // for x86 back end
+ 	Rel    *Prog       // for x86, arm back ends
+ 	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
+-	Lineno int32       // line number of this instruction
++	Lineno src.Pos     // line number of this instruction
+ 	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
+ 	As     As          // assembler opcode
+ 	Reg    int16       // 2nd source operand
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index d9893e42cd..408bb2bfe7 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -138,10 +138,10 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ // Because p->lineno applies to p, phase == 0 (before p)
+ // takes care of the update.
+ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+-	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
++	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno.Line() == 0 || phase == 1 {
+ 		return oldval
+ 	}
+-	f, l := linkgetline(ctxt, p.Lineno)
++	f, l := linkgetline(ctxt, p.Lineno.Line())
+ 	if f == nil {
+ 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
+ 		return oldval
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index bc5d1c5d5a..472e13bc44 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return p.Ctxt.LineHist.LineString(int(p.Lineno))
++	return p.Ctxt.LineHist.LineString(int(p.Lineno.Line()))
+ }
+ 
+ var armCondCode = []string{

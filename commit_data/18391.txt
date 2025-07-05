@@ -11,6 +11,20 @@ Date:   Fri Jan 31 15:10:18 2014 -0800
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/59210044
-
+---
  src/pkg/unicode/letter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index fadaa57d8b..3b389e93f1 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -74,7 +74,7 @@ const (
+ 
+ type d [MaxCase]rune // to make the CaseRanges text shorter
+ 
+-// If the Delta field of a CaseRange is UpperLower or LowerUpper, it means
++// If the Delta field of a CaseRange is UpperLower, it means
+ // this CaseRange represents a sequence of the form (say)
+ // Upper Lower Upper Lower.
+ const (

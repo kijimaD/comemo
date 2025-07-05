@@ -11,6 +11,24 @@ Date:   Mon Jun 15 12:49:45 2015 -0700
     Change-Id: I9a57cdb7ad4051df278d1fbed90c736df50f426f
     Reviewed-on: https://go-review.googlesource.com/11125
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/eval.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index c09f2a3ba4..7b42ff1a9d 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -65,11 +65,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv Typ
+ 	}
+ 
+ 	// parse expressions
+-	// BUG(gri) In case of type-checking errors below, the type checker
+-	//          doesn't have the correct file set for expr. The correct
+-	//          solution requires a ParseExpr that uses the incoming
+-	//          file set fset.
+-	node, err := parser.ParseExpr(expr)
++	node, err := parser.ParseExprFrom(fset, "eval", expr, 0)
+ 	if err != nil {
+ 		return TypeAndValue{}, err
+ 	}

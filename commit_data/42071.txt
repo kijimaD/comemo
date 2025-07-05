@@ -10,6 +10,26 @@ Date:   Mon Oct 21 15:03:48 2019 -0700
     Change-Id: I98e1db4670634c6e792d26201ce0cd329a6928b6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202579
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 61edeea83c..ed4e3e2ef9 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -225,12 +225,11 @@ TODO
+ <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+   <dd>
+     <p><!-- CL 127458 -->
+-      The new <a href="/pkg/math/#Fma"><code>Fma</code></a> function
++      The new <a href="/pkg/math/#FMA"><code>FMA</code></a> function
+       computes <code>x*y+z</code> in floating point with no
+       intermediate rounding of the <code>x*y</code>
+       computation. Several architectures implement this computation
+-      using dedicated hardware instructions for additional
+-      performance.
++      using dedicated hardware instructions for additional performance.
+     </p>
+ 
+ </dl><!-- math -->

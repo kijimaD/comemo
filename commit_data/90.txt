@@ -5,8 +5,266 @@ Date:   Thu Jun 5 16:56:23 2008 -0700
     goos goarch
     
     SVN=121348
-
+---
  src/cmd/6l/asm.c | 65 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/6l/l.h   |  3 ++-
  src/cmd/6l/obj.c | 67 ++++++++++++++++++++++++++++++++++++--------------------
  3 files changed, 109 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 4d1e9d9a34..724ec5a3a1 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -97,6 +97,13 @@ lputl(long l)
+ 	cput(l>>24);
+ }
+ 
++void
++llputl(vlong v)
++{
++	lputl(v);
++	lputl(v>>32);
++}
++
+ void
+ strnput(char *s, int n)
+ {
+@@ -166,6 +173,10 @@ asmb(void)
+ 	case 5:
+ 		seek(cout, HEADR+textsize, 0);
+ 		break;
++	case 7:
++		v = rnd(HEADR+textsize, INITRND);
++		seek(cout, v, 0);
++		break;
+ 	case 6:
+ 		v = HEADR+textsize;
+ 		myseek(cout, v);
+@@ -207,6 +218,8 @@ asmb(void)
+ 		default:
+ 		case 2:
+ 		case 5:
++		case 7:
++debug['s'] = 1;
+ 			seek(cout, HEADR+textsize+datsize, 0);
+ 			break;
+ 		case 6:
+@@ -283,7 +296,7 @@ asmb(void)
+ 		wputl(52);			/* Ehdr size */
+ 		wputl(32);			/* Phdr size */
+ 		wputl(3);			/* # of Phdrs */
+-		wputl(0);			/* Shdr size */
++		wputl(40);			/* Shdr size */
+ 		wputl(0);			/* # of Shdrs */
+ 		wputl(0);			/* Shdr string size */
+ 
+@@ -362,6 +375,56 @@ asmb(void)
+ 			1);			/* flag - zero fill */
+ 		machstack(va+HEADR);
+ 		break;
++	case 7:
++		/* elf amd-64 */
++		strnput("\177ELF", 4);		/* e_ident */
++		cput(2);			/* class = 64 bit */
++		cput(1);			/* data = LSB */
++		cput(1);			/* version = CURRENT */
++		strnput("", 9);
++
++/*10*/		wputl(2);			/* type = EXEC */
++		wputl(62);			/* machine = AMD64 */
++		lputl(1L);			/* version = CURRENT */
++/*18*/		llputl(entryvalue());		/* entry vaddr */
++		llputl(64L);			/* offset to first phdr */
++		llputl(0L);			/* offset to first shdr */
++/*30*/		lputl(0L);			/* processor specific flags */
++		wputl(64);			/* Ehdr size */
++		wputl(56);			/* Phdr size */
++		wputl(2);			/* # of Phdrs */
++		wputl(64);			/* Shdr size */
++		wputl(0);			/* # of Shdrs */
++		wputl(0);			/* Shdr string size */
++
++		lputl(1L);			/* text - type = PT_LOAD */
++		lputl(1L+4L);			/* text - flags = PF_X+PF_R */
++		llputl(HEADR);			/* file offset */
++		llputl(INITTEXT);		/* vaddr */
++		llputl(INITTEXT);		/* paddr */
++		llputl(textsize);		/* file size */
++		llputl(textsize);		/* memory size */
++		llputl(INITRND);		/* alignment */
++
++		lputl(1L);			/* data - type = PT_LOAD */
++		lputl(1L+2L+4L);		/* text - flags = PF_X+PF_W+PF_R */
++		v = rnd(HEADR+textsize, INITRND);
++		llputl(v);			/* file offset */
++		llputl(INITDAT);		/* vaddr */
++		llputl(INITDAT);		/* paddr */
++		llputl(datsize);		/* file size */
++		llputl(datsize+bsssize);	/* memory size */
++		llputl(INITRND);		/* alignment */
++
++//		lputl(0L);			/* data - type = PT_NULL */
++//		lputl(4L);			/* ro - flags = PF_R */
++//		llputl(HEADR+textsize+datsize);	/* file offset */
++//		llputl(0L);
++//		llputl(0L);
++//		llputl(symsize);		/* symbol table size */
++//		llputl(lcsize);			/* line number size */
++//		llputl(0x04L);			/* alignment */
++		break;
+ 	}
+ 	cflush();
+ }
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 137474b928..3a49deadae 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -338,7 +338,8 @@ EXTERN	int	dtype;
+ EXTERN	char*	paramspace;
+ 
+ EXTERN	Adr*	reloca;
+-EXTERN	int	doexp, dlm;
++EXTERN	int	doexp;		// export table
++EXTERN	int	dlm;		// dynamically loadable module
+ EXTERN	int	imports, nimports;
+ EXTERN	int	exports, nexports;
+ EXTERN	char*	EXPTAB;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 55dcaacc5e..0e5dafe9a2 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -32,15 +32,11 @@
+ #include	"l.h"
+ #include	<ar.h>
+ 
+-#ifndef	DEFAULT
+-#define	DEFAULT	'9'
+-#endif
+-
+ char	*noname		= "<none>";
+ char	symname[]	= SYMDEF;
+ char	thechar		= '6';
+-char	*thestring 	= "amd64";
+-char	*paramspace	= "FP";
++char*	thestring 	= "amd64";
++char*	paramspace	= "FP";
+ 
+ /*
+  *	-H2 -T4136 -R4096		is plan9 64-bit format
+@@ -90,7 +86,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+-HEADTYPE = 6;	// botch
++
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -142,14 +138,22 @@ HEADTYPE = 6;	// botch
+ 		diag("usage: 6l [-options] objects");
+ 		errorexit();
+ 	}
+-	if(!debug['9'] && !debug['U'] && !debug['B'])
+-		debug[DEFAULT] = 1;
++
++	mywhatsys();	// get goroot, goarch, goos
++	if(strcmp(goarch, thestring) != 0)
++		print("goarch is not known: %s\n", goarch);
++
+ 	if(HEADTYPE == -1) {
+-		if(debug['B'])
+-			HEADTYPE = 2;
+-		if(debug['9'])
+-			HEADTYPE = 2;
++		HEADTYPE = 2;
++		if(strcmp(goos, "linux") == 0)
++			HEADTYPE = 7;
++		else
++		if(strcmp(goos, "darwin") == 0)
++			HEADTYPE = 6;
++		else
++			print("goos is not known: %s\n", goos);
+ 	}
++
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown -H option");
+@@ -190,6 +194,15 @@ HEADTYPE = 6;	// botch
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
++	case 7:	/* elf64 executable */
++		HEADR = rnd(64L+2*56L, 16);
++		if(INITTEXT == -1)
++			INITTEXT = 0x400000L+HEADR;
++		if(INITDAT == -1)
++			INITDAT = 0;
++		if(INITRND == -1)
++			INITRND = 4096;
++		break;
+ 	}
+ 	if(INITDAT != 0 && INITRND != 0)
+ 		print("warning: -D0x%llux is ignored because of -R0x%lux\n",
+@@ -300,7 +313,7 @@ HEADTYPE = 6;	// botch
+ 			if(i >= D_X0+8)
+ 				regrex[i] = Rxr | Rxx | Rxb;
+ 		}
+-		if(i >= D_CR+8 && i <= D_CR+15) 
++		if(i >= D_CR+8 && i <= D_CR+15)
+ 			regrex[i] = Rxr;
+ 	}
+ 
+@@ -333,14 +346,18 @@ HEADTYPE = 6;	// botch
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	if(INITENTRY == 0) {
+-		INITENTRY = "_main";
+-		if(debug['p'])
+-			INITENTRY = "_mainp";
+-		if(!debug['l'])
+-			lookup(INITENTRY, 0)->type = SXREF;
+-	} else if(!(*INITENTRY >= '0' && *INITENTRY <= '9'))
+-		lookup(INITENTRY, 0)->type = SXREF;
++	if(INITENTRY == nil) {
++		INITENTRY = "_rt0";
++		a = mal(strlen(INITENTRY)+strlen(goarch)+strlen(goos)+10);
++		strcpy(a, INITENTRY);
++		strcat(a, "_");
++		strcat(a, goarch);
++		strcat(a, "_");
++		strcat(a, goos);
++		INITENTRY = a;
++	}
++
++	lookup(INITENTRY, 0)->type = SXREF;
+ 
+ 	while(*argv)
+ 		objfile(*argv++);
+@@ -349,6 +366,7 @@ HEADTYPE = 6;	// botch
+ 	firstp = firstp->link;
+ 	if(firstp == P)
+ 		errorexit();
++
+ 	if(doexp || dlm){
+ 		EXPTAB = "_exporttab";
+ 		zerosig(EXPTAB);
+@@ -365,6 +383,7 @@ HEADTYPE = 6;	// botch
+ 		}
+ 		export();
+ 	}
++
+ 	patch();
+ 	follow();
+ 	dodata();
+@@ -812,8 +831,8 @@ ldobj(int f, long c, char *pn)
+ 	r = bsize - bloc;
+ 	if(r < 7)
+ 		goto eof;
+-	if(memcmp(bloc, "x86-64\n", 7) != 0) {
+-		diag("file not x86-64: %s\n", pn);
++	if(memcmp(bloc, thestring, strlen(thestring)) != 0) {
++		diag("file not %s\n", thestring);
+ 		return;
+ 	}
+ 

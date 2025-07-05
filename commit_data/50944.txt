@@ -12,7 +12,43 @@ Date:   Wed Nov 17 20:04:14 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instantiate.go | 6 ------
  src/go/types/lookup.go      | 6 +-----
  2 files changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 737340d086..63b4a1ea4a 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -205,12 +205,6 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	// V must implement T (methods)
+ 	// - check only if we have methods
+ 	if Ti.NumMethods() > 0 {
+-		// If the type argument is a pointer to a type parameter, the type argument's
+-		// method set is empty.
+-		// TODO(gri) is this what we want? (spec question)
+-		if base, isPtr := deref(V); isPtr && isTypeParam(base) {
+-			return errorf("%s has no methods", V)
+-		}
+ 		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
+ 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+ 			//           (print warning for now)
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index e3c43a94f7..c787601a06 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -80,12 +80,8 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 
+ 	typ, isPtr := deref(T)
+ 
+-	// *typ where typ is an interface or type parameter has no methods.
++	// *typ where typ is an interface has no methods.
+ 	if isPtr {
+-		// don't look at under(typ) here - was bug (issue #47747)
+-		if _, ok := typ.(*TypeParam); ok {
+-			return
+-		}
+ 		if _, ok := under(typ).(*Interface); ok {
+ 			return
+ 		}

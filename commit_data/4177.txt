@@ -8,6 +8,20 @@ Date:   Fri Nov 20 11:19:16 2009 -0800
     
     R=r
     https://golang.org/cl/156116
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 3a53491320..d24d34cfda 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1310,7 +1310,7 @@ class FormParser(HTMLParser):
+ 			self.handle_data("&" + name + ";")
+ 	def handle_data(self, data):
+ 		if self.curdata is not None:
+-			self.curdata += data
++			self.curdata += data.decode("utf-8").encode("utf-8")
+ 
+ # XML parser
+ def XMLGet(ui, path):

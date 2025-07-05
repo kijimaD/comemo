@@ -10,6 +10,20 @@ Date:   Tue Nov 1 18:13:54 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/32484
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/strings/strings_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 68b5943c59..43979491c1 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -294,7 +294,7 @@ func TestIndexRune(t *testing.T) {
+ 			t.Fatalf("'世' at %d; want 4", i)
+ 		}
+ 	})
+-	if allocs != 0 {
++	if allocs != 0 && testing.CoverMode() == "" {
+ 		t.Errorf("expected no allocations, got %f", allocs)
+ 	}
+ }

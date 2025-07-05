@@ -27,9 +27,135 @@ Date:   Wed Oct 28 11:44:26 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/executable_dragonfly.go | 12 ++++++++++++
  src/os/executable_freebsd.go   | 33 ++++++---------------------------
  src/os/executable_procfs.go    |  4 +---
  src/os/executable_sysctl.go    | 35 +++++++++++++++++++++++++++++++++++
  4 files changed, 54 insertions(+), 30 deletions(-)
+
+diff --git a/src/os/executable_dragonfly.go b/src/os/executable_dragonfly.go
+new file mode 100644
+index 0000000000..b0deb7bbe5
+--- /dev/null
++++ b/src/os/executable_dragonfly.go
+@@ -0,0 +1,12 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++// From DragonFly's <sys/sysctl.h>
++const (
++        _CTL_KERN           = 1
++        _KERN_PROC          = 14
++        _KERN_PROC_PATHNAME = 9
++)
+diff --git a/src/os/executable_freebsd.go b/src/os/executable_freebsd.go
+index ccaf8e6dd4..57930b1b16 100644
+--- a/src/os/executable_freebsd.go
++++ b/src/os/executable_freebsd.go
+@@ -1,33 +1,12 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package os
+ 
+-import (
+-	"syscall"
+-	"unsafe"
++// From FreeBSD's <sys/sysctl.h>
++const (
++        _CTL_KERN           = 1
++        _KERN_PROC          = 14
++        _KERN_PROC_PATHNAME = 12
+ )
+-
+-func executable() (string, error) {
+-	mib := [4]int32{1 /* CTL_KERN */, 14 /* KERN_PROC */, 12 /* KERN_PROC_PATHNAME */, -1}
+-
+-	n := uintptr(0)
+-	// get length
+-	_, _, err := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, 0, uintptr(unsafe.Pointer(&n)), 0, 0)
+-	if err != 0 {
+-		return "", err
+-	}
+-	if n == 0 { // shouldn't happen
+-		return "", nil
+-	}
+-	buf := make([]byte, n)
+-	_, _, err = syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n)), 0, 0)
+-	if err != 0 {
+-		return "", err
+-	}
+-	if n == 0 { // shouldn't happen
+-		return "", nil
+-	}
+-	return string(buf[:n-1]), nil
+-}
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 2628223b8d..5ee41a4b2e 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux netbsd dragonfly js,wasm
++// +build linux netbsd js,wasm
+ 
+ package os
+ 
+@@ -23,8 +23,6 @@ var executablePath, executablePathErr = func() (string, error) {
+ 		procfn = "/proc/self/exe"
+ 	case "netbsd":
+ 		procfn = "/proc/curproc/exe"
+-	case "dragonfly":
+-		procfn = "/proc/curproc/file"
+ 	}
+ 	return Readlink(procfn)
+ }()
+diff --git a/src/os/executable_sysctl.go b/src/os/executable_sysctl.go
+new file mode 100644
+index 0000000000..f9a4b18f60
+--- /dev/null
++++ b/src/os/executable_sysctl.go
+@@ -0,0 +1,35 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd dragonfly
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func executable() (string, error) {
++	mib := [4]int32{_CTL_KERN, _KERN_PROC, _KERN_PROC_PATHNAME, -1}
++
++	n := uintptr(0)
++	// get length
++	_, _, err := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, 0, uintptr(unsafe.Pointer(&n)), 0, 0)
++	if err != 0 {
++		return "", err
++	}
++	if n == 0 { // shouldn't happen
++		return "", nil
++	}
++	buf := make([]byte, n)
++	_, _, err = syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n)), 0, 0)
++	if err != 0 {
++		return "", err
++	}
++	if n == 0 { // shouldn't happen
++		return "", nil
++	}
++	return string(buf[:n-1]), nil
++}

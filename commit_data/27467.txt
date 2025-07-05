@@ -8,6 +8,20 @@ Date:   Tue Mar 29 01:10:15 2016 +0300
     Reviewed-on: https://go-review.googlesource.com/21223
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/link/internal/ld/link.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 16605352ec..f1df056adf 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -240,8 +240,6 @@ type Pcln struct {
+ 	Funcdata    []*LSym
+ 	Funcdataoff []int64
+ 	File        []*LSym
+-	Lastfile    *LSym
+-	Lastindex   int
+ }
+ 
+ type Pcdata struct {

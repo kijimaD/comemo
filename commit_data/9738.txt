@@ -12,6 +12,20 @@ Date:   Mon Sep 19 11:50:45 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5049042
-
+---
  src/cmd/8l/asm.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 518951fdee..6c7f964837 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -417,7 +417,7 @@ adddynsym(Sym *s)
+ 		return;
+ 	
+ 	if(s->dynimpname == nil)
+-		diag("adddynsym: no dynamic name for %s", s->name, *(int32*)0);
++		diag("adddynsym: no dynamic name for %s", s->name);
+ 
+ 	if(iself) {
+ 		s->dynid = nelfsym++;

@@ -8,7 +8,7 @@ Date:   Fri Oct 17 11:48:51 2008 -0700
     DELTA=328  (158 added, 170 deleted, 0 changed)
     OCL=17353
     CL=17359
-
+---
  test/bugs/bug079.go                         | 12 --------
  test/{bugs => fixedbugs}/bug074.go          |  0
  test/{bugs => fixedbugs}/bug090.go          |  0
@@ -19,3 +19,132 @@ Date:   Fri Oct 17 11:48:51 2008 -0700
  test/{bugs => fixedbugs}/bug106.go          |  0
  test/golden.out                             | 44 +++++++++++++----------------
  9 files changed, 20 insertions(+), 36 deletions(-)
+
+diff --git a/test/bugs/bug079.go b/test/bugs/bug079.go
+deleted file mode 100644
+index d26b07114b..0000000000
+--- a/test/bugs/bug079.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go && echo BUG: succeeds incorrectly
+-
+-package main
+-
+-func f(int);  // parameter must be named
+-func g(int, int);  // parameter must be named
+-
+-/* We had this discussion before and agreed that all parameters must be named. */
+diff --git a/test/bugs/bug074.go b/test/fixedbugs/bug074.go
+similarity index 100%
+rename from test/bugs/bug074.go
+rename to test/fixedbugs/bug074.go
+diff --git a/test/bugs/bug090.go b/test/fixedbugs/bug090.go
+similarity index 100%
+rename from test/bugs/bug090.go
+rename to test/fixedbugs/bug090.go
+diff --git a/test/bugs/bug093.go b/test/fixedbugs/bug093.go
+similarity index 100%
+rename from test/bugs/bug093.go
+rename to test/fixedbugs/bug093.go
+diff --git a/test/bugs/bug096.go b/test/fixedbugs/bug096.go
+similarity index 100%
+rename from test/bugs/bug096.go
+rename to test/fixedbugs/bug096.go
+diff --git a/test/bugs/bug106.dir/bug0.go b/test/fixedbugs/bug106.dir/bug0.go
+similarity index 100%
+rename from test/bugs/bug106.dir/bug0.go
+rename to test/fixedbugs/bug106.dir/bug0.go
+diff --git a/test/bugs/bug106.dir/bug1.go b/test/fixedbugs/bug106.dir/bug1.go
+similarity index 100%
+rename from test/bugs/bug106.dir/bug1.go
+rename to test/fixedbugs/bug106.dir/bug1.go
+diff --git a/test/bugs/bug106.go b/test/fixedbugs/bug106.go
+similarity index 100%
+rename from test/bugs/bug106.go
+rename to test/fixedbugs/bug106.go
+diff --git a/test/golden.out b/test/golden.out
+index c96ae5bffe..19988f2aa4 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -94,18 +94,9 @@ bugs/bug064.go:15: illegal types for operand: CALL
+ 	struct { u int32; v int32 }
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug074.go
+-bugs/bug074.go:6: syntax error near string
+-bugs/bug074.go:6: syntax error near string
+-bugs/bug074.go:7: x: undefined
+-BUG: compiler crashes - Bus error
+-
+ =========== bugs/bug077.go
+ BUG: known to succeed incorrectly
+ 
+-=========== bugs/bug079.go
+-BUG: succeeds incorrectly
+-
+ =========== bugs/bug080.go
+ bugs/bug080.go:12: illegal types for operand: CALL
+ 	int32
+@@ -124,21 +115,6 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+ BUG: fails incorrectly
+ 
+-=========== bugs/bug090.go
+-bugs/bug090.go:32: cannot convert non-integer constant to int32
+-bugs/bug090.go:32: illegal types for operand: AS
+-	int32
+-bugs/bug090.go:34: cannot convert non-integer constant to int32
+-bugs/bug090.go:34: illegal types for operand: CALL
+-	bool
+-bugs/bug090.go:40: cannot convert non-integer constant to int32
+-bugs/bug090.go:40: illegal types for operand: AS
+-	int32
+-	float64
+-
+-=========== bugs/bug093.go
+-M
+-
+ =========== bugs/bug095.go
+ found 2, expected 1
+ 
+@@ -254,16 +230,36 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ 	int32
+ 	int32
+ 
++=========== fixedbugs/bug074.go
++fixedbugs/bug074.go:6: syntax error near string
++fixedbugs/bug074.go:6: syntax error near string
++fixedbugs/bug074.go:7: x: undefined
++
+ =========== fixedbugs/bug081.go
+ fixedbugs/bug081.go:5: syntax error near x
+ 
+ =========== fixedbugs/bug086.go
+ fixedbugs/bug086.go:5: function ends without a return statement
+ 
++=========== fixedbugs/bug090.go
++fixedbugs/bug090.go:32: cannot convert non-integer constant to int32
++fixedbugs/bug090.go:32: illegal types for operand: AS
++	int32
++fixedbugs/bug090.go:34: cannot convert non-integer constant to int32
++fixedbugs/bug090.go:34: illegal types for operand: CALL
++	bool
++fixedbugs/bug090.go:40: cannot convert non-integer constant to int32
++fixedbugs/bug090.go:40: illegal types for operand: AS
++	int32
++	float64
++
+ =========== fixedbugs/bug091.go
+ fixedbugs/bug091.go:15: c: undefined
+ fixedbugs/bug091.go:15: illegal types for operand: AS
+ 	undefined
+ 
++=========== fixedbugs/bug093.go
++M
++
+ =========== fixedbugs/bug103.go
+ fixedbugs/bug103.go:8: function requires a return type

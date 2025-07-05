@@ -10,7 +10,7 @@ Date:   Wed Aug 24 19:07:08 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4634073
-
+---
  src/cmd/gc/Makefile    |   1 +
  src/cmd/gc/dcl.c       |   4 +
  src/cmd/gc/esc.c       | 762 +++++++++++++++++++++++++++++++++++++++++++++++++
@@ -24,3 +24,2035 @@ Date:   Wed Aug 24 19:07:08 2011 +0200
  src/cmd/gc/typecheck.c |  92 +-----
  test/escape2.go        | 615 +++++++++++++++++++++++++++++++++++++++
  12 files changed, 1560 insertions(+), 107 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 0af7659e4d..f7e3051783 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -22,6 +22,7 @@ OFILES=\
+ 	closure.$O\
+ 	const.$O\
+ 	dcl.$O\
++	esc.$O\
+ 	export.$O\
+ 	gen.$O\
+ 	init.$O\
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 5bfeeb97aa..5f1ff63cfe 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -820,6 +820,10 @@ stotype(NodeList *l, int et, Type **t, int funarg)
+ 		f->width = BADWIDTH;
+ 		f->isddd = n->isddd;
+ 
++		// esc.c needs to find f given a PPARAM to add the tag.
++		if(funarg && n->left && n->left->class == PPARAM)
++			n->left->paramfld = f;
++
+ 		if(left != N && left->op == ONAME) {
+ 			f->nname = left;
+ 			f->embedded = n->embedded;
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+new file mode 100644
+index 0000000000..ddc121e389
+--- /dev/null
++++ b/src/cmd/gc/esc.c
+@@ -0,0 +1,762 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// The base version before this file existed, active with debug['s']
++// == 0, assumes any node that has a reference to it created at some
++// point, may flow to the global scope except
++//   - if its address is dereferenced immediately with only CONVNOPs in
++//     between the * and the &
++//   - if it is for a closure variable and the closure executed at the
++//     place it's defined
++//
++// Flag -s disables the old codepaths and switches on the code here:
++//
++// First escfunc, escstmt and escexpr recurse over the ast of each
++// function to dig out flow(dst,src) edges between any
++// pointer-containing nodes and store them in dst->escflowsrc.  For
++// variables assigned to a variable in an outer scope or used as a
++// return value, they store a flow(theSink, src) edge to a fake node
++// 'the Sink'.	For variables referenced in closures, an edge
++// flow(closure, &var) is recorded and the flow of a closure itself to
++// an outer scope is tracked the same way as other variables.
++//
++// Then escflood walks the graph starting at theSink and tags all
++// variables of it can reach an & node as escaping and all function
++// parameters it can reach as leaking.
++//
++// Watch the variables moved to the heap and parameters tagged as
++// unsafe with -m, more detailed analysis output with -mm
++//
++
++#include "go.h"
++
++static void escfunc(Node *func);
++static void escstmtlist(NodeList *stmts);
++static void escstmt(Node *stmt);
++static void escexpr(Node *dst, Node *expr);
++static void escexprcall(Node *dst, Node *callexpr);
++static void escflows(Node* dst, Node* src);
++static void escflood(Node *dst);
++static void escwalk(int level, Node *dst, Node *src);
++static void esctag(Node *func);
++
++// Fake node that all
++//   - return values and output variables
++//   - parameters on imported functions not marked 'safe'
++//   - assignments to global variables
++// flow to.
++static Node	theSink;
++
++static NodeList* dsts;		// all dst nodes
++static int	loopdepth;	// for detecting nested loop scopes
++static int	pdepth;		// for debug printing in recursions.
++static int	floodgen;	// loop prevention in flood/walk
++static Strlit*	safetag;	// gets slapped on safe parameters' field types for export
++static int	dstcount, edgecount;	// diagnostic
++
++void
++escapes(void)
++{
++	NodeList *l;
++
++	theSink.op = ONAME;
++	theSink.class = PEXTERN;
++	theSink.sym = lookup(".sink");
++	theSink.escloopdepth = -1;
++
++	safetag = strlit("noescape");
++
++	// flow-analyze top level functions
++	for(l=xtop; l; l=l->next)
++		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE)
++			escfunc(l->n);
++
++	// print("escapes: %d dsts, %d edges\n", dstcount, edgecount);
++
++	// visit the updstream of each dst, mark address nodes with
++	// addrescapes, mark parameters unsafe
++	for (l = dsts; l; l=l->next)
++		escflood(l->n);
++
++	// for all top level functions, tag the typenodes corresponding to the param nodes
++	for(l=xtop; l; l=l->next)
++		if(l->n->op == ODCLFUNC)
++			esctag(l->n);
++}
++
++static void
++escfunc(Node *func)
++{
++	Node *savefn, *n;
++	NodeList *ll;
++	int saveld;
++
++	saveld = loopdepth;
++	loopdepth = 1;
++	savefn = curfn;
++	curfn = func;
++
++	for(ll=curfn->dcl; ll; ll=ll->next) {
++		if(ll->n->op != ONAME)
++			continue;
++		switch (ll->n->class) {
++		case PPARAMOUT:
++			// output parameters flow to the sink
++			escflows(&theSink, ll->n);
++			ll->n->escloopdepth = loopdepth;
++			break;
++		case PPARAM:
++			ll->n->esc = EscNone;	// prime for escflood later
++			ll->n->escloopdepth = loopdepth;
++			break;
++		}
++	}
++
++	// walk will take the address of cvar->closure later and assign it to cvar.
++	// handle that here by linking a fake oaddr node directly to the closure.
++	for (ll=curfn->cvars; ll; ll=ll->next) {
++		if(ll->n->op == OXXX)  // see dcl.c:398
++			continue;
++
++		n = nod(OADDR, ll->n->closure, N);
++		n->lineno = ll->n->lineno;
++		typecheck(&n, Erv);
++		escexpr(curfn, n);
++	}
++
++	escstmtlist(curfn->nbody);
++	curfn = savefn;
++	loopdepth = saveld;
++}
++
++static void
++escstmtlist(NodeList* stmts)
++{
++	for(; stmts; stmts=stmts->next)
++		escstmt(stmts->n);
++}
++
++static void
++escstmt(Node *stmt)
++{
++	int cl, cr, lno;
++	NodeList *ll, *lr;
++	Node *dst;
++
++	if(stmt == N)
++		return;
++
++	lno = setlineno(stmt);
++
++	if(stmt->typecheck == 0 && stmt->op != ODCL) {	 // TODO something with OAS2
++		dump("escstmt missing typecheck", stmt);
++		fatal("missing typecheck.");
++	}
++
++	// Common to almost all statements, and nil if n/a.
++	escstmtlist(stmt->ninit);
++
++	if(debug['m'] > 1)
++		print("%L:[%d] %#S statement: %#N\n", lineno, loopdepth,
++		      (curfn && curfn->nname) ? curfn->nname->sym : S, stmt);
++
++	switch(stmt->op) {
++	case ODCL:
++	case ODCLFIELD:
++		// a declaration ties the node to the current
++		// function, but we already have that edge in
++		// curfn->dcl and will follow it explicitly in
++		// escflood to avoid storing redundant information
++		// What does have to happen here is note if the name
++		// is declared inside a looping scope.
++		stmt->left->escloopdepth = loopdepth;
++		break;
++
++	case OLABEL:  // TODO: new loop/scope only if there are backjumps to it.
++		loopdepth++;
++		break;
++
++	case OBLOCK:
++		escstmtlist(stmt->list);
++		break;
++
++	case OFOR:
++		if(stmt->ntest != N) {
++			escstmtlist(stmt->ntest->ninit);
++			escexpr(N, stmt->ntest);
++		}
++		escstmt(stmt->nincr);
++		loopdepth++;
++		escstmtlist(stmt->nbody);
++		loopdepth--;
++		break;
++
++	case ORANGE:		//  for	 <list> = range <right> { <nbody> }
++		switch(stmt->type->etype) {
++		case TSTRING:	// never flows
++			escexpr(stmt->list->n, N);
++			if(stmt->list->next)
++				escexpr(stmt->list->next->n, N);
++			escexpr(N, stmt->right);
++			break;
++		case TARRAY:	// i, v = range sliceorarray
++			escexpr(stmt->list->n, N);
++			if(stmt->list->next)
++				escexpr(stmt->list->next->n, stmt->right);
++			break;
++		case TMAP:	// k [, v] = range map
++			escexpr(stmt->list->n, stmt->right);
++			if(stmt->list->next)
++				escexpr(stmt->list->next->n, stmt->right);
++			break;
++		case TCHAN:	// v = range chan
++			escexpr(stmt->list->n, stmt->right);
++			break;
++		}
++		loopdepth++;
++		escstmtlist(stmt->nbody);
++		loopdepth--;
++		break;
++
++	case OIF:
++		escexpr(N, stmt->ntest);
++		escstmtlist(stmt->nbody);
++		escstmtlist(stmt->nelse);
++		break;
++
++	case OSELECT:
++		for(ll=stmt->list; ll; ll=ll->next) {  // cases
++			escstmt(ll->n->left);
++			escstmtlist(ll->n->nbody);
++		}
++		break;
++
++	case OSELRECV2:	  // v, ok := <-ch  ntest:ok
++		escexpr(N, stmt->ntest);
++		// fallthrough
++	case OSELRECV:	  // v := <-ch	 left: v  right->op = ORECV
++		escexpr(N, stmt->left);
++		escexpr(stmt->left, stmt->right);
++		break;
++
++	case OSWITCH:
++		if(stmt->ntest && stmt->ntest->op == OTYPESW) {
++			for(ll=stmt->list; ll; ll=ll->next) {  // cases
++				// ntest->right is the argument of the .(type),
++				// ll->n->nname is the variable per case
++				escexpr(ll->n->nname, stmt->ntest->right);
++				escstmtlist(ll->n->nbody);
++			}
++		} else {
++			escexpr(N, stmt->ntest);
++			for(ll=stmt->list; ll; ll=ll->next) {  // cases
++				for(lr=ll->n->list; lr; lr=lr->next)
++					escexpr(N, lr->n);
++				escstmtlist(ll->n->nbody);
++			}
++		}
++		break;
++
++	case OAS:
++	case OASOP:
++		escexpr(stmt->left, stmt->right);
++		break;
++
++		// escape analysis happens after typecheck, so the
++		// OAS2xxx have already been substituted.
++	case OAS2:	// x,y = a,b
++		cl = count(stmt->list);
++		cr = count(stmt->rlist);
++		if(cl > 1 && cr == 1) {
++			for(ll=stmt->list; ll; ll=ll->next)
++				escexpr(ll->n, stmt->rlist->n);
++		} else {
++			if(cl != cr)
++				fatal("escstmt: bad OAS2: %N", stmt);
++			for(ll=stmt->list, lr=stmt->rlist; ll; ll=ll->next, lr=lr->next)
++				escexpr(ll->n, lr->n);
++		}
++		break;
++
++	case OAS2RECV:		// v, ok = <-ch
++	case OAS2MAPR:		// v, ok = m[k]
++	case OAS2DOTTYPE:	// v, ok = x.(type)
++		escexpr(stmt->list->n, stmt->rlist->n);
++		escexpr(stmt->list->next->n, N);
++		break;
++
++	case OAS2MAPW:		// m[k] = x, ok.. stmt->list->n is the INDEXMAP, k is handled in escexpr(dst...)
++		escexpr(stmt->list->n, stmt->rlist->n);
++		escexpr(N, stmt->rlist->next->n);
++		break;
++
++	case ORECV:		// unary <-ch as statement
++		escexpr(N, stmt->left);
++		break;
++
++	case OSEND:		// ch <- x
++		escexpr(&theSink, stmt->right);	 // for now. TODO escexpr(stmt->left, stmt->right);
++		break;
++
++	case OCOPY:	// todo: treat as *dst=*src instead of as dst=src
++		escexpr(stmt->left, stmt->right);
++		break;
++
++	case OAS2FUNC:	// x,y,z = f()
++		for(ll = stmt->list; ll; ll=ll->next)
++			escexpr(ll->n, N);
++		escexpr(N, stmt->rlist->n);
++		break;
++
++	case OCALLINTER:
++	case OCALLFUNC:
++	case OCALLMETH:
++		escexpr(N, stmt);
++		break;
++
++	case OPROC:
++	case ODEFER:
++		// stmt->left is a (pseud)ocall, stmt->left->left is
++		// the function being called.  if this defer is at
++		// loopdepth >1, everything leaks.  TODO this is
++		// overly conservative, it's enough if it leaks to a
++		// fake node at the function's top level
++		dst = &theSink;
++		if (stmt->op == ODEFER && loopdepth <= 1)
++			dst = nil;
++		escexpr(dst, stmt->left->left);
++		for(ll=stmt->left->list; ll; ll=ll->next)
++			escexpr(dst, ll->n);
++		break;
++
++	case ORETURN:
++		for(ll=stmt->list; ll; ll=ll->next)
++			escexpr(&theSink, ll->n);
++		break;
++
++	case OCLOSE:
++	case OPRINT:
++	case OPRINTN:
++		escexpr(N, stmt->left);
++		for(ll=stmt->list; ll; ll=ll->next)
++			escexpr(N, ll->n);
++		break;
++
++	case OPANIC:
++		// Argument could leak through recover.
++		escexpr(&theSink, stmt->left);
++		break;
++	}
++
++	lineno = lno;
++}
++
++// Assert that expr somehow gets assigned to dst, if non nil.  for
++// dst==nil, any name node expr still must be marked as being
++// evaluated in curfn.	For expr==nil, dst must still be examined for
++// evaluations inside it (e.g *f(x) = y)
++static void
++escexpr(Node *dst, Node *expr)
++{
++	int lno;
++	NodeList *ll;
++
++	if(isblank(dst)) dst = N;
++
++	// the lhs of an assignment needs recursive analysis too
++	// these are the only interesting cases
++	// todo:check channel case
++	if(dst) {
++		setlineno(dst);
++
++		switch(dst->op) {
++		case OINDEX:
++		case OSLICE:
++			escexpr(N, dst->right);
++
++			// slice:  "dst[x] = src"  is like *(underlying array)[x] = src
++			// TODO maybe this never occurs b/c of OSLICEARR and it's inserted OADDR
++			if(!isfixedarray(dst->left->type))
++				goto doref;
++
++			// fallthrough;	 treat "dst[x] = src" as "dst = src"
++		case ODOT:	      // treat "dst.x  = src" as "dst = src"
++			escexpr(dst->left, expr);
++			return;
++
++		case OINDEXMAP:
++			escexpr(&theSink, dst->right);	// map key is put in map
++			// fallthrough
++		case OIND:
++		case ODOTPTR:
++		case OSLICEARR:	 // ->left  is the OADDR of the array
++		doref:
++			escexpr(N, dst->left);
++			// assignment to dereferences: for now we lose track
++			escexpr(&theSink, expr);
++			return;
++		}
++
++	}
++
++	if(expr == N || expr->op == ONONAME || expr->op == OXXX)
++		return;
++
++	if(expr->typecheck == 0 && expr->op != OKEY) {
++		dump("escexpr missing typecheck", expr);
++		fatal("Missing typecheck.");
++	}
++
++	lno = setlineno(expr);
++	pdepth++;
++
++	if(debug['m'] > 1)
++		print("%L:[%d] %#S \t%hN %.*s<= %hN\n", lineno, loopdepth,
++		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst,
++		      2*pdepth, ".\t.\t.\t.\t.\t", expr);
++
++
++	switch(expr->op) {
++	case OADDR:	// dst = &x
++	case OIND:	// dst = *x
++	case ODOTPTR:	// dst = (*x).f
++		// restart the recursion at x to figure out where it came from
++		escexpr(expr->left, expr->left);
++		// fallthrough
++	case ONAME:
++	case OPARAM:
++		// loopdepth was set in the defining statement or function header
++		escflows(dst, expr);
++		break;
++
++	case OARRAYLIT:
++	case OSTRUCTLIT:
++	case OMAPLIT:
++		expr->escloopdepth = loopdepth;
++		escflows(dst, expr);
++		for(ll=expr->list; ll; ll=ll->next) {
++			escexpr(expr, ll->n->left);
++			escexpr(expr, ll->n->right);
++		}
++		break;
++
++	case OMAKECHAN:
++	case OMAKEMAP:
++	case OMAKESLICE:
++	case ONEW:
++		expr->curfn = curfn;  // should have been done in parse, but patch it up here.
++		expr->escloopdepth = loopdepth;
++		escflows(dst, expr);
++		// first arg is type, all others need checking
++		for(ll=expr->list->next; ll; ll=ll->next)
++			escexpr(N, ll->n);
++		break;
++
++	case OCLOSURE:
++		expr->curfn = curfn;  // should have been done in parse, but patch it up here.
++		expr->escloopdepth = loopdepth;
++		escflows(dst, expr);
++		escfunc(expr);
++		break;
++
++	// end of the leaf cases. no calls to escflows() in the cases below.
++
++
++	case OCONV:	// unaries that pass the value through
++	case OCONVIFACE:
++	case OCONVNOP:
++	case ODOTTYPE:
++	case ODOTTYPE2:
++	case ORECV:	// leaks the whole channel
++	case ODOTMETH:	// expr->right is just the field or method name
++	case ODOTINTER:
++	case ODOT:
++		escexpr(dst, expr->left);
++		break;
++
++	case OCOPY:
++		// left leaks to right, but the return value is harmless
++		// TODO: treat as *dst = *src, rather than as dst = src
++		escexpr(expr->left, expr->right);
++		break;
++
++	case OAPPEND:
++		// See TODO for OCOPY
++		escexpr(dst, expr->list->n);
++		for(ll=expr->list->next; ll; ll=ll->next)
++			escexpr(expr->list->n, ll->n);
++		break;
++
++	case OCALLMETH:
++	case OCALLFUNC:
++	case OCALLINTER:
++		// Moved to separate function to isolate the hair.
++		escexprcall(dst, expr);
++		break;
++
++	case OSLICEARR:	 // like an implicit OIND to the underlying buffer, but typecheck has inserted an OADDR
++	case OSLICESTR:
++	case OSLICE:
++	case OINDEX:
++	case OINDEXMAP:
++		// the big thing flows, the keys just need checking
++		escexpr(dst, expr->left);
++		escexpr(N, expr->right);  // expr->right is the OKEY
++		break;
++
++	default: // all other harmless leaf, unary or binary cases end up here
++		escexpr(N, expr->left);
++		escexpr(N, expr->right);
++		break;
++	}
++
++	pdepth--;
++	lineno = lno;
++}
++
++
++// This is a bit messier than fortunate, pulled out of escexpr's big
++// switch for clarity.	We either have the paramnodes, which may be
++// connected to other things throug flows or we have the parameter type
++// nodes, which may be marked 'n(ofloworescape)'. Navigating the ast is slightly
++// different for methods vs plain functions and for imported vs
++// this-package
++static void
++escexprcall(Node *dst, Node *expr)
++{
++	NodeList *ll, *lr;
++	Node *fn;
++	Type *t, *fntype, *thisarg, *inargs;
++
++	fn = nil;
++	fntype = nil;
++
++	switch(expr->op) {
++	case OCALLFUNC:
++		fn = expr->left;
++		escexpr(N, fn);
++		fntype = fn->type;
++		break;
++
++	case OCALLMETH:
++		fn = expr->left->right;	 // ODOTxx name
++		fn = fn->sym->def;	 // resolve to definition if we have it
++		if(fn)
++			fntype = fn->type;
++		else
++			fntype = expr->left->type;
++		break;
++
++	case OCALLINTER:
++		break;
++
++	default:
++		fatal("escexprcall called with non-call expression");
++	}
++
++	if(fn && fn->ntype) {
++		if(debug['m'] > 2)
++			print("escexprcall: have param nodes: %N\n", fn->ntype);
++
++		if(expr->op == OCALLMETH) {
++			if(debug['m'] > 2)
++				print("escexprcall: this: %N\n",fn->ntype->left->left);
++			escexpr(fn->ntype->left->left, expr->left->left);
++		}
++
++		// lr->n is the dclfield, ->left is the ONAME param node
++		for(ll=expr->list, lr=fn->ntype->list; ll && lr; ll=ll->next) {
++			if(debug['m'] > 2)
++				print("escexprcall: field param: %N\n", lr->n->left);
++			if (lr->n->left)
++				escexpr(lr->n->left, ll->n);
++			else
++				escexpr(&theSink, ll->n);
++			if(lr->n->left && !lr->n->left->isddd)
++				lr=lr->next;
++		}
++		return;
++	}
++
++	if(fntype) {
++		if(debug['m'] > 2)
++			print("escexprcall: have param types: %T\n", fntype);
++
++		if(expr->op == OCALLMETH) {
++			thisarg = getthisx(fntype);
++			t = thisarg->type;
++			if(debug['m'] > 2)
++				print("escexprcall: this: %T\n", t);
++			if(!t->note || strcmp(t->note->s, safetag->s) != 0)
++				escexpr(&theSink, expr->left->left);
++			else
++				escexpr(N, expr->left->left);
++		}
++
++		inargs = getinargx(fntype);
++		for(ll=expr->list, t=inargs->type; ll; ll=ll->next) {
++			if(debug['m'] > 2)
++				print("escexprcall: field type: %T\n", t);
++			if(!t->note || strcmp(t->note->s, safetag->s))
++				escexpr(&theSink, ll->n);
++			else
++				escexpr(N, ll->n);
++			if(t->down)
++				t=t->down;
++		}
++
++		return;
++	}
++
++	// fallthrough if we don't have enough information:
++	// can only assume all parameters are unsafe
++	// OCALLINTER always ends up here
++
++	if(debug['m']>1 && expr->op != OCALLINTER) {
++		// dump("escexprcall", expr);
++		print("escexprcall: %O, no nodes, no types: %N\n", expr->op, fn);
++	}
++
++	escexpr(&theSink,  expr->left->left);  // the this argument
++	for(ll=expr->list; ll; ll=ll->next)
++		escexpr(&theSink, ll->n);
++}
++
++// Store the link src->dst in dst, throwing out some quick wins.
++static void
++escflows(Node* dst, Node* src)
++{
++	if(dst == nil || src == nil || dst == src)
++		return;
++
++	// Don't bother building a graph for scalars.
++	if (src->type && !haspointers(src->type))
++		return;
++
++	if(debug['m']>2)
++		print("%L::flows:: %hN <- %hN\n", lineno, dst, src);
++
++	// Assignments to global variables get lumped into theSink.
++	if (dst->op == ONAME && dst->class == PEXTERN)
++		dst = &theSink;
++
++	if (dst->escflowsrc == nil) {
++		dsts = list(dsts, dst);
++		dstcount++;
++	}
++	edgecount++;
++
++	dst->escflowsrc = list(dst->escflowsrc, src);
++}
++
++// Whenever we hit a reference node, the level goes up by one, and whenever
++// we hit an OADDR, the level goes down by one. as long as we're on a level > 0
++// finding an OADDR just means we're following the upstream of a dereference,
++// so this address doesn't leak (yet).
++// If level == 0, it means the /value/ of this node can reach the root of this flood.
++// so if this node is an OADDR, it's argument should be marked as escaping iff
++// it's currfn/loopdepth are different from the flood's root.
++// Once an object has been moved to the heap, all of it's upstream should be considered
++// escaping to the global scope.
++static void
++escflood(Node *dst)
++{
++	NodeList *l;
++
++	switch(dst->op) {
++	case ONAME:
++	case OCLOSURE:
++		break;
++	default:
++		return;
++	}
++
++	if(debug['m']>1)
++		print("\nescflood:%d: dst %hN scope:%#S[%d]\n", floodgen, dst,
++		      (dst->curfn && dst->curfn->nname) ? dst->curfn->nname->sym : S,
++		      dst->escloopdepth);
++
++	for (l = dst->escflowsrc; l; l=l->next) {
++		floodgen++;
++		escwalk(0, dst, l->n);
++	}
++}
++
++static void
++escwalk(int level, Node *dst, Node *src)
++{
++	NodeList* ll;
++	int leaks;
++
++	if (src->escfloodgen == floodgen)
++		return;
++	src->escfloodgen = floodgen;
++
++	if(debug['m']>1)
++		print("escwalk: level:%d depth:%d %.*s %hN scope:%#S[%d]\n",
++		      level, pdepth, pdepth, "\t\t\t\t\t\t\t\t\t\t", src,
++		      (src->curfn && src->curfn->nname) ? src->curfn->nname->sym : S, src->escloopdepth);
++
++	pdepth++;
++
++	leaks = (level <= 0) && (dst->escloopdepth < src->escloopdepth);
++
++	switch(src->op) {
++	case ONAME:
++		if (src->class == PPARAM && leaks && src->esc == EscNone) {
++			src->esc = EscScope;
++			if(debug['m'])
++				print("%L:leaking param: %hN\n", src->lineno, src);
++		}
++		break;
++
++	case OADDR:
++		if (leaks)
++			addrescapes(src->left);
++		escwalk(level-1, dst, src->left);
++		break;
++
++	case OINDEX:
++		if(isfixedarray(src->type))
++			break;
++	case OSLICE:
++	case ODOTPTR:
++	case OINDEXMAP:
++	case OIND:
++		escwalk(level+1, dst, src->left);
++	}
++
++	for (ll=src->escflowsrc; ll; ll=ll->next)
++		escwalk(level, dst, ll->n);
++
++	pdepth--;
++}
++
++static void
++esctag(Node *func)
++{
++	Node *savefn;
++	NodeList *ll;
++
++	savefn = curfn;
++	curfn = func;
++
++	for(ll=curfn->dcl; ll; ll=ll->next) {
++		if(ll->n->op != ONAME || ll->n->class != PPARAM)
++			continue;
++
++		switch (ll->n->esc) {
++		case EscNone:	// not touched by escflood
++			if (haspointers(ll->n->type)) // don't bother tagging for scalars
++				ll->n->paramfld->note = safetag;
++		case EscHeap:	// touched by escflood, moved to heap
++		case EscScope:	// touched by escflood, value leaves scope
++			break;
++		default:
++			fatal("messed up escape tagging: %N::%N", curfn, ll->n);
++		}
++	}
++
++	curfn = savefn;
++}
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index cb66921bae..9c1a2a9b12 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -11,7 +11,7 @@
+ 
+ static void	cgen_dcl(Node *n);
+ static void	cgen_proc(Node *n, int proc);
+-static void checkgoto(Node*, Node*);
++static void	checkgoto(Node*, Node*);
+ 
+ static Label *labellist;
+ static Label *lastlabel;
+@@ -55,7 +55,7 @@ allocparams(void)
+ 		}
+ 		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
+-		if (n->xoffset != BADWIDTH)
++		if(n->xoffset != BADWIDTH)
+ 			continue;
+ 		if(n->type == T)
+ 			continue;
+@@ -72,6 +72,96 @@ allocparams(void)
+ 	lineno = lno;
+ }
+ 
++/*
++ * the address of n has been taken and might be used after
++ * the current function returns.  mark any local vars
++ * as needing to move to the heap.
++ */
++void
++addrescapes(Node *n)
++{
++	char buf[100];
++	switch(n->op) {
++	default:
++		// probably a type error already.
++		// dump("addrescapes", n);
++		break;
++
++	case ONAME:
++		if(n == nodfp)
++			break;
++
++		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
++		// on PPARAM it means something different.
++		if(n->class == PAUTO && n->esc == EscNever)
++			break;
++
++		if(!debug['s'] && n->esc != EscUnknown)
++			fatal("without escape analysis, only PAUTO's should have esc: %N", n);
++
++		switch(n->class) {
++		case PPARAMREF:
++			addrescapes(n->defn);
++			break;
++		case PPARAM:
++		case PPARAMOUT:
++			// if func param, need separate temporary
++			// to hold heap pointer.
++			// the function type has already been checked
++			// (we're in the function body)
++			// so the param already has a valid xoffset.
++
++			// expression to refer to stack copy
++			n->stackparam = nod(OPARAM, n, N);
++			n->stackparam->type = n->type;
++			n->stackparam->addable = 1;
++			if(n->xoffset == BADWIDTH)
++				fatal("addrescapes before param assignment");
++			n->stackparam->xoffset = n->xoffset;
++			// fallthrough
++		case PAUTO:
++
++			n->class |= PHEAP;
++			n->addable = 0;
++			n->ullman = 2;
++			n->xoffset = 0;
++
++			// create stack variable to hold pointer to heap
++			n->heapaddr = nod(ONAME, N, N);
++			n->heapaddr->type = ptrto(n->type);
++			snprint(buf, sizeof buf, "&%S", n->sym);
++			n->heapaddr->sym = lookup(buf);
++			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
++			n->heapaddr->ullman = 1;
++			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
++
++			if(debug['s'])
++				n->esc = EscHeap;
++
++			if(debug['m'])
++				print("%L: moved to heap: %hN\n", n->lineno, n);
++
++			break;
++		}
++		break;
++
++	case OIND:
++	case ODOTPTR:
++		break;
++
++	case ODOT:
++	case OINDEX:
++		// ODOTPTR has already been introduced,
++		// so these are the non-pointer ODOT and OINDEX.
++		// In &x[0], if x is a slice, then x does not
++		// escape--the pointer inside x does, but that
++		// is always a heap pointer anyway.
++		if(!isslice(n->left->type))
++			addrescapes(n->left);
++		break;
++	}
++}
++
+ void
+ clearlabels(void)
+ {
+@@ -753,7 +843,7 @@ tempname(Node *nn, Type *t)
+ 	if(stksize < 0)
+ 		fatal("tempname not during code generation");
+ 
+-	if (curfn == N)
++	if(curfn == N)
+ 		fatal("no curfn for tempname");
+ 
+ 	if(t == T) {
+@@ -772,7 +862,7 @@ tempname(Node *nn, Type *t)
+ 	n->class = PAUTO;
+ 	n->addable = 1;
+ 	n->ullman = 1;
+-	n->noescape = 1;
++	n->esc = EscNever;
+ 	n->curfn = curfn;
+ 	curfn->dcl = list(curfn->dcl, n);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index da0fb5146e..6252864ed8 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -155,7 +155,6 @@ struct	Type
+ {
+ 	uchar	etype;
+ 	uchar	chan;
+-	uchar	recur;		// to detect loops
+ 	uchar	trecur;		// to detect loops
+ 	uchar	printed;
+ 	uchar	embedded;	// TFIELD embedded type
+@@ -203,6 +202,15 @@ struct	Type
+ };
+ #define	T	((Type*)0)
+ 
++enum
++{
++	EscUnknown,
++	EscHeap,
++	EscScope,
++	EscNone,
++	EscNever,
++};
++
+ struct	Node
+ {
+ 	uchar	op;
+@@ -215,7 +223,7 @@ struct	Node
+ 	uchar	embedded;	// ODCLFIELD embedded type
+ 	uchar	colas;		// OAS resulting from :=
+ 	uchar	diag;		// already printed error about this
+-	uchar	noescape;	// ONAME never move to heap
++	uchar	esc;		// EscXXX
+ 	uchar	funcdepth;
+ 	uchar	builtin;	// built-in name, like len or close
+ 	uchar	walkdef;
+@@ -266,6 +274,7 @@ struct	Node
+ 	Node*	defn;
+ 	Node*	pack;	// real package for import . names
+ 	Node*	curfn;	// function for local variables
++	Type*	paramfld; // TFIELD for this PPARAM
+ 
+ 	// ONAME func param with PHEAP
+ 	Node*	heapaddr;	// temp holding heap address of param
+@@ -279,6 +288,11 @@ struct	Node
+ 	// OPACK
+ 	Pkg*	pkg;
+ 
++	// Escape analysis.
++	NodeList* escflowsrc;	// flow(this, src)
++	int	escloopdepth;	// -1: global, 0: not set, function top level:1, increased inside function for every loop or label to mark scopes
++	int	escfloodgen;	// increased for every flood to detect loops
++
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+@@ -374,7 +388,6 @@ enum
+ 	OADDR,
+ 	OANDAND,
+ 	OAPPEND,
+-	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+ 	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
+@@ -444,6 +457,7 @@ enum
+ 
+ 	// misc
+ 	ODDD,
++	ODDDARG,
+ 
+ 	// for back ends
+ 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
+@@ -910,6 +924,11 @@ void	typedcl2(Type *pt, Type *t);
+ Node*	typenod(Type *t);
+ NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
+ 
++/*
++ *	esc.c
++ */
++void	escapes(void);
++
+ /*
+  *	export.c
+  */
+@@ -927,6 +946,7 @@ Type*	pkgtype(Sym *s);
+ /*
+  *	gen.c
+  */
++void	addrescapes(Node *n);
+ void	allocparams(void);
+ void	cgen_as(Node *nl, Node *nr);
+ void	cgen_callmeth(Node *n, int proc);
+@@ -1050,6 +1070,7 @@ void	dumptypestructs(void);
+ Type*	methodfunc(Type *f, Type*);
+ Node*	typename(Type *t);
+ Sym*	typesym(Type *t);
++int	haspointers(Type *t);
+ 
+ /*
+  *	select.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index fcca219933..18ca55d82e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -235,24 +235,24 @@ main(int argc, char *argv[])
+ 	if(debug['f'])
+ 		frame(1);
+ 
+-	// Process top-level declarations in four phases.
++	// Process top-level declarations in phases.
+ 	// Phase 1: const, type, and names and types of funcs.
+ 	//   This will gather all the information about types
+ 	//   and methods but doesn't depend on any of it.
+-	// Phase 2: Variable assignments.
+-	//   To check interface assignments, depends on phase 1.
+-	// Phase 3: Type check function bodies.
+-	// Phase 4: Compile function bodies.
+ 	defercheckwidth();
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op != ODCL && l->n->op != OAS)
+ 			typecheck(&l->n, Etop);
++
++	// Phase 2: Variable assignments.
++	//   To check interface assignments, depends on phase 1.
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCL || l->n->op == OAS)
+ 			typecheck(&l->n, Etop);
+ 	resumetypecopy();
+ 	resumecheckwidth();
+ 
++	// Phase 3: Type check function bodies.
+ 	for(l=xtop; l; l=l->next) {
+ 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
+ 			curfn = l->n;
+@@ -268,6 +268,11 @@ main(int argc, char *argv[])
+ 	if(nsavederrors+nerrors)
+ 		errorexit();
+ 
++	// Phase 3b: escape analysis.
++	if(debug['s'])
++		escapes();
++
++	// Phase 4: Compile function bodies.
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			funccompile(l->n, 0);
+@@ -275,6 +280,7 @@ main(int argc, char *argv[])
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
++	// Phase 4b: Compile all closures.
+ 	while(closures) {
+ 		l = closures;
+ 		closures = nil;
+@@ -283,6 +289,7 @@ main(int argc, char *argv[])
+ 		}
+ 	}
+ 
++	// Phase 5: check external declarations.
+ 	for(l=externdcl; l; l=l->next)
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);
+@@ -1739,7 +1746,6 @@ lexfini(void)
+ 	}
+ 	
+ 	nodfp = nod(ONAME, N, N);
+-	nodfp->noescape = 1;
+ 	nodfp->type = types[TINT32];
+ 	nodfp->xoffset = 0;
+ 	nodfp->class = PPARAM;
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 5913e848a2..18b8e12980 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -139,6 +139,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "(%#N)", n->left);
+ 		break;
+ 
++	case ODDDARG:
++		fmtprint(f, "... argument");
++		break;
++
+ 	case OREGISTER:
+ 		fmtprint(f, "%R", n->val.u.reg);
+ 		break;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 810787d308..016722b7a1 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -528,7 +528,7 @@ typestruct(Type *t)
+ 	return pkglookup(name, typepkg);
+ }
+ 
+-static int
++int
+ haspointers(Type *t)
+ {
+ 	Type *t1;
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 909ad3aa4b..973e9fe07c 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -59,7 +59,7 @@ typecheckselect(Node *sel)
+ 				break;
+ 
+ 			case OAS2RECV:
+-				// convert x, ok = <-c into OSELRECV(x, <-c) with ntest=ok
++				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
+ 				if(n->right->op != ORECV) {
+ 					yyerror("select assignment must have receive on right hand side");
+ 					break;
+@@ -73,6 +73,7 @@ typecheckselect(Node *sel)
+ 			case ORECV:
+ 				// convert <-c into OSELRECV(N, <-c)
+ 				n = nod(OSELRECV, N, n);
++				n->typecheck = 1;
+ 				ncase->left = n;
+ 				break;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1a05d43d0e..c5d0ad8a73 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1094,8 +1094,8 @@ Jconv(Fmt *fp)
+ 
+ 	if(n->class != 0) {
+ 		s = "";
+-		if (n->class & PHEAP) s = ",heap";
+-		if ((n->class & ~PHEAP) < nelem(classnames))
++		if(n->class & PHEAP) s = ",heap";
++		if((n->class & ~PHEAP) < nelem(classnames))
+ 			fmtprint(fp, " class(%s%s)", classnames[n->class&~PHEAP], s);
+ 		else
+ 			fmtprint(fp, " class(%d?%s)", n->class&~PHEAP, s);
+@@ -1107,8 +1107,29 @@ Jconv(Fmt *fp)
+ 	if(n->funcdepth != 0)
+ 		fmtprint(fp, " f(%d)", n->funcdepth);
+ 
+-	if(n->noescape != 0)
+-		fmtprint(fp, " ne(%d)", n->noescape);
++	switch(n->esc) {
++	case EscUnknown:
++		break;
++	case EscHeap:
++		fmtprint(fp, " esc(h)");
++		break;
++	case EscScope:
++		fmtprint(fp, " esc(s)");
++		break;
++	case EscNone:
++		fmtprint(fp, " esc(no)");
++		break;
++	case EscNever:
++		if(!c)
++			fmtprint(fp, " esc(N)");
++		break;
++	default:
++		fmtprint(fp, " esc(%d)", n->esc);
++		break;
++	}
++
++	if(n->escloopdepth)
++		fmtprint(fp, " ld(%d)", n->escloopdepth);
+ 
+ 	if(!c && n->typecheck != 0)
+ 		fmtprint(fp, " tc(%d)", n->typecheck);
+@@ -1523,7 +1544,7 @@ Nconv(Fmt *fp)
+ 
+ 	switch(n->op) {
+ 	default:
+-		if (fp->flags & FmtShort)
++		if(fp->flags & FmtShort)
+ 			fmtprint(fp, "%O%hJ", n->op, n);
+ 		else
+ 			fmtprint(fp, "%O%J", n->op, n);
+@@ -1532,13 +1553,13 @@ Nconv(Fmt *fp)
+ 	case ONAME:
+ 	case ONONAME:
+ 		if(n->sym == S) {
+-			if (fp->flags & FmtShort)
++			if(fp->flags & FmtShort)
+ 				fmtprint(fp, "%O%hJ", n->op, n);
+ 			else
+ 				fmtprint(fp, "%O%J", n->op, n);
+ 			break;
+ 		}
+-		if (fp->flags & FmtShort)
++		if(fp->flags & FmtShort)
+ 			fmtprint(fp, "%O-%S%hJ", n->op, n->sym, n);
+ 		else
+ 			fmtprint(fp, "%O-%S%J", n->op, n->sym, n);
+@@ -3176,7 +3197,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	int isddd;
+ 	Val v;
+ 
+-	if(debug['r'])
++	if(0 && debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+ 			rcvr, method, newnam);
+ 
+@@ -3453,7 +3474,7 @@ listsort(NodeList** l, int(*f)(Node*, Node*))
+ 	listsort(&l1, f);
+ 	listsort(&l2, f);
+ 
+-	if ((*f)(l1->n, l2->n) < 0) {
++	if((*f)(l1->n, l2->n) < 0) {
+ 		*l = l1;
+ 	} else {
+ 		*l = l2;
+@@ -3469,7 +3490,7 @@ listsort(NodeList** l, int(*f)(Node*, Node*))
+ 		
+ 		// l1 is last one from l1 that is < l2
+ 		le = l1->next;		// le is the rest of l1, first one that is >= l2
+-		if (le != nil)
++		if(le != nil)
+ 			le->end = (*l)->end;
+ 
+ 		(*l)->end = l1;		// cut *l at l1
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 78cdb5bf23..ef900d0d41 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -21,7 +21,6 @@ static void	typecheckaste(int, Node*, int, Type*, NodeList*, char*);
+ static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+-static void	addrescapes(Node*);
+ static void	typecheckas2(Node*);
+ static void	typecheckas(Node*);
+ static void	typecheckfunc(Node*);
+@@ -337,7 +336,7 @@ reswitch:
+ 	 */
+ 	case OIND:
+ 		ntop = Erv | Etype;
+-		if(!(top & Eaddr))
++		if(!(top & Eaddr))  		// The *x in &*x is not an indirect.
+ 			ntop |= Eindir;
+ 		l = typecheck(&n->left, ntop);
+ 		if((t = l->type) == T)
+@@ -535,7 +534,9 @@ reswitch:
+ 		l = n->left;
+ 		if((t = l->type) == T)
+ 			goto error;
+-		if(!(top & Eindir) && !n->etype)
++		// top&Eindir means this is &x in *&x.  (or the arg to built-in print)
++		// n->etype means code generator flagged it as non-escaping.
++		if(!(top & Eindir) && !n->etype && !debug['s'])
+ 			addrescapes(n->left);
+ 		n->type = ptrto(t);
+ 		goto ret;
+@@ -1028,6 +1029,8 @@ reswitch:
+ 		}
+ 		n->left = args->n;
+ 		n->right = args->next->n;
++		args = nil;
++		n->list = nil;
+ 		n->type = types[TINT];
+ 		typecheck(&n->left, Erv);
+ 		typecheck(&n->right, Erv);
+@@ -1038,7 +1041,7 @@ reswitch:
+ 		
+ 		// copy([]byte, string)
+ 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
+-			if (n->left->type->type == types[TUINT8])
++			if(n->left->type->type == types[TUINT8])
+ 				goto ret;
+ 			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
+ 			goto error;
+@@ -1602,7 +1605,8 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 		if(!eqtype(rcvr, tt)) {
+ 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
+ 				checklvalue(n->left, "call pointer method on");
+-				addrescapes(n->left);
++				if(!debug['s'])
++					addrescapes(n->left);
+ 				n->left = nod(OADDR, n->left, N);
+ 				n->left->implicit = 1;
+ 				typecheck(&n->left, Etype|Erv);
+@@ -2156,82 +2160,6 @@ error:
+ 	lineno = lno;
+ }
+ 
+-/*
+- * the address of n has been taken and might be used after
+- * the current function returns.  mark any local vars
+- * as needing to move to the heap.
+- */
+-static void
+-addrescapes(Node *n)
+-{
+-	char buf[100];
+-	switch(n->op) {
+-	default:
+-		// probably a type error already.
+-		// dump("addrescapes", n);
+-		break;
+-
+-	case ONAME:
+-		if(n->noescape)
+-			break;
+-		switch(n->class) {
+-		case PPARAMREF:
+-			addrescapes(n->defn);
+-			break;
+-		case PPARAM:
+-		case PPARAMOUT:
+-			// if func param, need separate temporary
+-			// to hold heap pointer.
+-			// the function type has already been checked
+-			// (we're in the function body)
+-			// so the param already has a valid xoffset.
+-
+-			// expression to refer to stack copy
+-			n->stackparam = nod(OPARAM, n, N);
+-			n->stackparam->type = n->type;
+-			n->stackparam->addable = 1;
+-			if(n->xoffset == BADWIDTH)
+-				fatal("addrescapes before param assignment");
+-			n->stackparam->xoffset = n->xoffset;
+-			n->xoffset = 0;
+-			// fallthrough
+-		case PAUTO:
+-
+-			n->class |= PHEAP;
+-			n->addable = 0;
+-			n->ullman = 2;
+-			n->xoffset = 0;
+-
+-			// create stack variable to hold pointer to heap
+-			n->heapaddr = nod(ONAME, N, N);
+-			n->heapaddr->type = ptrto(n->type);
+-			snprint(buf, sizeof buf, "&%S", n->sym);
+-			n->heapaddr->sym = lookup(buf);
+-			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
+-			n->heapaddr->ullman = 1;
+-			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
+-
+-			break;
+-		}
+-		break;
+-
+-	case OIND:
+-	case ODOTPTR:
+-		break;
+-
+-	case ODOT:
+-	case OINDEX:
+-		// ODOTPTR has already been introduced,
+-		// so these are the non-pointer ODOT and OINDEX.
+-		// In &x[0], if x is a slice, then x does not
+-		// escape--the pointer inside x does, but that
+-		// is always a heap pointer anyway.
+-		if(!isslice(n->left->type))
+-			addrescapes(n->left);
+-		break;
+-	}
+-}
+-
+ /*
+  * lvalue etc
+  */
+@@ -2462,7 +2390,6 @@ typecheckfunc(Node *n)
+ {
+ 	Type *t, *rcvr;
+ 
+-//dump("nname", n->nname);
+ 	typecheck(&n->nname, Erv | Easgn);
+ 	if((t = n->nname->type) == T)
+ 		return;
+@@ -2772,6 +2699,7 @@ typecheckdef(Node *n)
+ 		if(n->ntype != N) {
+ 			typecheck(&n->ntype, Etype);
+ 			n->type = n->ntype->type;
++
+ 			if(n->type == T) {
+ 				n->diag = 1;
+ 				goto ret;
+diff --git a/test/escape2.go b/test/escape2.go
+new file mode 100644
+index 0000000000..abbb574940
+--- /dev/null
++++ b/test/escape2.go
+@@ -0,0 +1,615 @@
++// errchk -0 $G -sm $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++import "unsafe"
++
++var gxx *int
++
++func foo1(x int) {  // ERROR "moved to heap: NAME-x"
++	gxx = &x
++}
++
++func foo2(yy *int) {  // ERROR "leaking param: NAME-yy"
++	gxx = yy
++}
++
++func foo3(x int) *int {  // ERROR "moved to heap: NAME-x"
++	return &x
++}
++
++type T *T
++func foo3b(t T) {  // ERROR "leaking param: NAME-t"
++	*t = t
++}
++
++// xx isn't going anywhere, so use of yy is ok
++func foo4(xx, yy *int) {
++	xx = yy
++}
++
++// xx isn't going anywhere, so taking address of yy is ok
++func foo5(xx **int, yy *int) {
++	xx = &yy
++}
++
++func foo6(xx **int, yy *int) {  // ERROR "leaking param: NAME-yy"
++	*xx = yy
++}
++
++func foo7(xx **int, yy *int) {
++	**xx = *yy
++}
++
++func foo8(xx, yy *int) int {
++	xx = yy
++	return *xx
++}
++
++func foo9(xx, yy *int) *int {  // ERROR "leaking param: NAME-xx" "leaking param: NAME-yy"
++	xx = yy
++	return xx
++}
++
++func foo10(xx, yy *int) {
++	*xx = *yy
++}
++
++func foo11() int {
++	x, y := 0, 42
++	xx := &x
++	yy := &y
++	*xx = *yy
++	return x
++}
++
++
++var xxx **int
++
++func foo12(yyy **int) {   // ERROR "leaking param: NAME-yyy"
++	xxx = yyy
++}
++
++func foo13(yyy **int) {
++	*xxx = *yyy
++}
++
++func foo14(yyy **int) {
++	**xxx = **yyy
++}
++
++func foo15(yy *int) {  // ERROR "moved to heap: NAME-yy"
++	xxx = &yy
++}
++
++func foo16(yy *int) {  // ERROR "leaking param: NAME-yy"
++	*xxx = yy
++}
++
++func foo17(yy *int) {
++	**xxx = *yy
++}
++
++func foo18(y int) {  // ERROR "moved to heap: "NAME-y"
++	*xxx = &y
++}
++
++func foo19(y int) {
++	**xxx = y
++}
++
++type Bar struct {
++	i int
++	ii *int
++}
++
++func NewBar() *Bar {
++	return &Bar{ 42, nil }
++}
++
++func NewBarp(x *int) *Bar {  // ERROR "leaking param: NAME-x"
++	return &Bar{ 42, x }
++}
++
++func NewBarp2(x *int) *Bar {
++	return &Bar{ *x, nil }
++}
++
++func (b *Bar) NoLeak() int {
++	return *(b.ii)
++}
++
++func (b *Bar) AlsoNoLeak() *int {
++	return b.ii
++}
++
++type Bar2 struct {
++	i [12]int
++	ii []int
++}
++
++func NewBar2() *Bar2 {
++	return &Bar2{ [12]int{ 42 },  nil }
++}
++
++func (b *Bar2) NoLeak() int {
++	return b.i[0]
++}
++
++func (b *Bar2) Leak() []int {  // ERROR "leaking param: NAME-b"
++	return b.i[:]
++}
++
++func (b *Bar2) AlsoNoLeak() []int {
++	return b.ii[0:1]
++}
++
++func (b *Bar2) LeakSelf() {  // ERROR "leaking param: NAME-b"
++	b.ii = b.i[0:4]
++}
++
++func (b *Bar2) LeakSelf2() {  // ERROR "leaking param: NAME-b"
++	var buf []int
++	buf = b.i[0:]
++	b.ii = buf
++}
++
++func foo21() func() int {
++	x := 42  // ERROR "moved to heap: NAME-x"
++	return func() int {
++		return x
++	}
++}
++
++func foo22() int {
++	x := 42
++	return func() int {
++		return x
++	}()
++}
++
++func foo23(x int) func() int {  // ERROR "moved to heap: NAME-x"
++	return func() int {
++		return x
++	}
++}
++
++func foo23a(x int) (func() int) {  // ERROR "moved to heap: NAME-x"
++	f := func() int {
++		return x
++	}
++	return f
++}
++
++func foo23b(x int) *(func() int) {  // ERROR "moved to heap: NAME-x"
++	f := func() int { return x } // ERROR "moved to heap: NAME-f"
++	return &f
++}
++
++func foo24(x int) int {
++	return func() int {
++		return x
++	}()
++}
++
++
++var x *int
++
++func fooleak(xx *int) int {    // ERROR "leaking param: NAME-xx"
++	x = xx
++	return *x
++}
++
++func foonoleak(xx *int) int {
++	return *x + *xx
++}
++
++func foo31(x int) int {  // ERROR "moved to heap: NAME-x"
++	return fooleak(&x)
++}
++
++func foo32(x int) int {
++	return foonoleak(&x)
++}
++
++type Foo struct {
++	xx *int
++	x int
++}
++
++var F Foo
++var pf *Foo
++
++func (f *Foo) fooleak() {  // ERROR "leaking param: NAME-f"
++	pf = f
++}
++
++func (f *Foo) foonoleak() {
++	F.x = f.x
++}
++
++func (f *Foo) Leak() {  // ERROR "leaking param: NAME-f"
++	f.fooleak()
++}
++
++func (f *Foo) NoLeak() {
++	f.foonoleak()
++}
++
++
++func foo41(x int) {  // ERROR "moved to heap: NAME-x"
++	F.xx = &x
++}
++
++func (f *Foo) foo42(x int) {   // ERROR "moved to heap: NAME-x"
++	f.xx = &x
++}
++
++func foo43(f *Foo, x int) {   // ERROR "moved to heap: NAME-x"
++	f.xx = &x
++}
++
++func foo44(yy *int) {  // ERROR "leaking param: NAME-yy"
++	F.xx = yy
++}
++
++func (f *Foo) foo45() {
++	F.x = f.x 
++}
++
++func (f *Foo) foo46() {
++	F.xx = f.xx 
++}
++
++func (f *Foo) foo47() {  // ERROR "leaking param: NAME-f"
++	f.xx = &f.x
++}
++
++
++var ptrSlice []*int
++
++func foo50(i *int) {  // ERROR "leaking param: NAME-i"
++	ptrSlice[0] = i
++}
++
++
++var ptrMap map[*int]*int
++
++func foo51(i *int) {   // ERROR "leaking param: NAME-i"
++	ptrMap[i] = i
++}
++
++
++func indaddr1(x int) *int { // ERROR "moved to heap: NAME-x"
++	return &x
++}
++
++func indaddr2(x *int) *int {   // ERROR "leaking param: NAME-x"
++	return *&x
++}
++
++func indaddr3(x *int32) *int {    // ERROR "leaking param: NAME-x"
++	return *(**int)(unsafe.Pointer(&x))
++}
++
++// From package math:
++
++func Float32bits(f float32) uint32 {
++	return *(*uint32)(unsafe.Pointer(&f))
++}
++
++func Float32frombits(b uint32) float32 {
++	return *(*float32)(unsafe.Pointer(&b))
++}
++
++func Float64bits(f float64) uint64 {
++	return *(*uint64)(unsafe.Pointer(&f))
++}
++
++func Float64frombits(b uint64) float64 {
++	return *(*float64)(unsafe.Pointer(&b))
++}
++
++// contrast with
++func float64bitsptr(f float64) *uint64 {  // ERROR "moved to heap: NAME-f"
++	return (*uint64)(unsafe.Pointer(&f))
++}
++
++func float64ptrbitsptr(f *float64) *uint64 {  // ERROR "leaking param: NAME-f"
++	return (*uint64)(unsafe.Pointer(f))
++}
++
++func typesw(i interface{}) *int {  // ERROR "leaking param: NAME-i"
++	switch val := i.(type) {
++	case *int:
++		return val
++	case *int8:
++		v := int(*val)  // ERROR "moved to heap: NAME-v"
++		return &v
++	}
++	return nil
++}
++
++func exprsw(i *int) *int {	// ERROR "leaking param: NAME-i"
++	switch j := i; *j + 110 {
++	case 12:
++		return j
++	case 42:
++		return nil
++	}
++	return nil
++
++}
++
++// assigning to an array element is like assigning to the array
++func foo60(i *int) *int {  // ERROR "leaking param: NAME-i"
++	var a [12]*int
++	a[0] = i
++	return a[1]
++}
++
++func foo60a(i *int) *int {
++	var a [12]*int
++	a[0] = i
++	return nil
++}
++
++// assigning to a struct field  is like assigning to the struct
++func foo61(i *int) *int {   // ERROR "leaking param: NAME-i"
++	type S struct {
++		a,b *int
++	}
++	var s S
++	s.a = i
++	return s.b
++}
++
++func foo61a(i *int) *int {
++	type S struct {
++		a,b *int
++	}
++	var s S
++	s.a = i
++	return nil
++}
++
++// assigning to a struct field is like assigning to the struct but
++// here this subtlety is lost, since s.a counts as an assignment to a
++// track-losing dereference.
++func foo62(i *int) *int {   // ERROR "leaking param: NAME-i"
++	type S struct {
++		a,b *int
++	}
++	s := new(S)
++	s.a = i
++	return nil  // s.b
++}
++
++
++type M interface { M() }
++
++func foo63(m M) {
++}
++
++func foo64(m M) {  // ERROR "leaking param: NAME-m"
++	m.M()
++}
++
++type MV int
++func (MV) M() {}
++
++func foo65() {
++	var mv MV
++	foo63(&mv)
++}
++
++func foo66() {
++	var mv MV  // ERROR "moved to heap: NAME-mv"
++	foo64(&mv)
++}
++
++func foo67() {
++	var mv MV
++	foo63(mv)
++}
++
++func foo68() {
++	var mv MV
++	foo64(mv)  // escapes but it's an int so irrelevant
++}
++
++func foo69(m M) {  // ERROR "leaking param: NAME-m"
++	foo64(m)
++}
++
++func foo70(mv1 *MV, m M) {  // ERROR "leaking param: NAME-mv1" "leaking param: NAME-m"
++	m = mv1
++	foo64(m)
++}
++
++func foo71(x *int) []*int {  // ERROR "leaking param: NAME-x"
++	var y []*int
++	y = append(y, x)
++	return y
++}
++
++func foo71a(x int) []*int {  // ERROR "moved to heap: NAME-x"
++	var y []*int
++	y = append(y, &x)
++	return y
++}
++
++func foo72() {
++	var x int
++	var y [1]*int
++	y[0] = &x
++}
++
++func foo72aa() [10]*int {
++	var x int  // ERROR "moved to heap: NAME-x"
++	var y [10]*int
++	y[0] = &x
++	return y
++}
++
++func foo72a() {
++	var y [10]*int
++	for i := 0; i < 10; i++ {
++		x := i  // not moved to heap b/c y goes nowhere
++		y[i] = &x
++	}
++	return
++}
++
++func foo72b() [10]*int {
++	var y [10]*int
++	for i := 0; i < 10; i++ {
++		x := i  // ERROR "moved to heap: NAME-x"
++		y[i] = &x
++	}
++	return y
++}
++
++
++// issue 2145
++func foo73() {
++	s := []int{3,2,1}
++	for _, v := range s {
++		vv := v  // ERROR "moved to heap: NAME-vv"
++		defer func() {  //  "func literal escapes its scope" "&vv escapes its scope"
++			println(vv)
++		}()
++	}
++}
++
++func foo74() {
++	s := []int{3,2,1}
++	for _, v := range s {
++		vv := v  // ERROR "moved to heap: NAME-vv"
++		fn := func() {  //  "func literal escapes its scope" "&vv escapes its scope"
++			println(vv)
++		}
++		defer fn()
++	}
++}
++
++func myprint(y *int, x ...interface{}) *int {  // ERROR "leaking param: NAME-y"
++	return y
++}
++
++func myprint1(y *int, x ...interface{}) *interface{} {  // ERROR "leaking param: NAME-x"
++	return &x[0]
++}
++
++func foo75(z *int) { // ERROR "leaking param: NAME-z"
++	myprint(z, 1, 2, 3)
++}
++
++func foo75a(z *int) {
++	myprint1(z, 1, 2, 3)  // "[.][.][.] argument escapes to heap"
++}
++
++func foo76(z *int) {
++	myprint(nil, z)
++}
++
++func foo76a(z *int) {  // ERROR "leaking param: NAME-z"
++	myprint1(nil, z)  // "[.][.][.] argument escapes to heap"
++}
++
++func foo76b() {
++	myprint(nil, 1, 2, 3)
++}
++
++func foo76c() {
++	myprint1(nil, 1, 2, 3) // "[.][.][.] argument escapes to heap"
++}
++
++func foo76d() {
++	defer myprint(nil, 1, 2, 3)
++}
++
++func foo76e() {
++	defer myprint1(nil, 1, 2, 3) // "[.][.][.] argument escapes to heap"
++}
++
++func foo76f() {
++	for {
++		defer myprint(nil, 1, 2, 3) // "[.][.][.] argument escapes its scope"
++	}
++}
++
++func foo76g() {
++	for {
++		defer myprint1(nil, 1, 2, 3) // "[.][.][.] argument escapes to heap"
++	}
++}
++
++func foo77(z []interface{}) {
++	myprint(nil, z...)  // z does not escape
++}
++
++func foo77a(z []interface{}) {  // ERROR "leaking param: NAME-z"
++	myprint1(nil, z...)
++}
++
++func foo78(z int) *int {  // ERROR "moved to heap: NAME-z"
++	return &z  //  "&z escapes"
++}
++
++func foo78a(z int) *int {  // ERROR "moved to heap: NAME-z"
++	y := &z
++	x := &y
++	return *x  // really return y
++}
++
++func foo79() *int {
++	return new(int)  //  "moved to heap: new[(]int[)]"
++}
++
++func foo80() *int {
++	var z *int
++	for {
++		z = new(int) //  "new[(]int[)] escapes its scope"
++	}
++	_ = z
++	return nil
++}
++
++func foo81() *int {
++	for {
++		z := new(int)
++		_ = z
++	}
++	return nil
++}
++
++type Fooer interface {
++	Foo()
++}
++
++type LimitedFooer struct {
++        Fooer
++        N int64
++}
++
++func LimitFooer(r Fooer, n int64) Fooer {  // ERROR "leaking param: NAME-r"
++	return &LimitedFooer{r, n}
++}
++
++func foo90(x *int) map[*int]*int {  // ERROR "leaking param: NAME-x"
++	return map[*int]*int{ nil: x }
++}
++
++func foo91(x *int) map[*int]*int {  // ERROR "leaking param: NAME-x"
++	return map[*int]*int{ x:nil }
++}
++
++func foo92(x *int) [2]*int {  // ERROR "leaking param: NAME-x"
++	return [2]*int{ x, nil }
++}
++

@@ -10,8 +10,71 @@ Date:   Mon Aug 11 22:10:17 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/125120043
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue5242.go | 31 +++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         |  3 +++
  3 files changed, 35 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index eb237725a4..3c6d5cb59e 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -53,5 +53,6 @@ func Test5986(t *testing.T)                { test5986(t) }
+ func Test7665(t *testing.T)                { test7665(t) }
+ func TestNaming(t *testing.T)              { testNaming(t) }
+ func Test7560(t *testing.T)                { test7560(t) }
++func Test5242(t *testing.T)                { test5242(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue5242.go b/misc/cgo/test/issue5242.go
+new file mode 100644
+index 0000000000..fe0a6321c1
+--- /dev/null
++++ b/misc/cgo/test/issue5242.go
+@@ -0,0 +1,31 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5242.  Cgo incorrectly computed the alignment of structs
++// with no Go accessible fields as 0, and then panicked on
++// modulo-by-zero computations.
++
++package cgotest
++
++/*
++typedef struct {
++} foo;
++
++typedef struct {
++	int x : 1;
++} bar;
++
++int issue5242(foo f, bar b) {
++	return 5242;
++}
++*/
++import "C"
++
++import "testing"
++
++func test5242(t *testing.T) {
++	if got := C.issue5242(C.foo{}, C.bar{}); got != 5242 {
++		t.Errorf("got %v", got)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index aa28060ea7..b79725ab01 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1534,6 +1534,9 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
+ 
+ // Struct conversion: return Go and (6g) C syntax for type.
+ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.StructType, csyntax string, align int64) {
++	// Minimum alignment for a struct is 1 byte.
++	align = 1
++
+ 	var buf bytes.Buffer
+ 	buf.WriteString("struct {")
+ 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field

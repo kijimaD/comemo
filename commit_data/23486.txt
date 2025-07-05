@@ -23,7 +23,59 @@ Date:   Fri May 15 16:13:14 2015 -0400
     Change-Id: I085d627b70cca9ebe9af28fe73b9872f1bb224ff
     Reviewed-on: https://go-review.googlesource.com/10156
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go   | 3 +--
  src/runtime/proc1.go | 9 ++++++---
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 68636740a6..a16d7603a6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -952,13 +952,12 @@ func gc(mode int) {
+ 	// all done
+ 	mp.preemptoff = ""
+ 
+-	semrelease(&worldsema)
+-
+ 	if gcphase != _GCoff {
+ 		throw("gc done but gcphase != _GCoff")
+ 	}
+ 
+ 	systemstack(startTheWorldWithSema)
++	semrelease(&worldsema)
+ 
+ 	releasem(mp)
+ 	mp = nil
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index ab0566b470..31247db02a 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -550,12 +550,15 @@ func stopTheWorld(reason string) {
+ 
+ // startTheWorld undoes the effects of stopTheWorld.
+ func startTheWorld() {
+-	semrelease(&worldsema)
+ 	systemstack(startTheWorldWithSema)
++	// worldsema must be held over startTheWorldWithSema to ensure
++	// gomaxprocs cannot change while worldsema is held.
++	semrelease(&worldsema)
+ 	getg().m.preemptoff = ""
+ }
+ 
+-// Holding worldsema grants an M the right to try to stop the world.
++// Holding worldsema grants an M the right to try to stop the world
++// and prevents gomaxprocs from changing concurrently.
+ var worldsema uint32 = 1
+ 
+ // stopTheWorldWithSema is the core implementation of stopTheWorld.
+@@ -571,8 +574,8 @@ var worldsema uint32 = 1
+ // these three operations separately:
+ //
+ //	m.preemptoff = ""
+-//	semrelease(&worldsema)
+ //	systemstack(startTheWorldWithSema)
++//	semrelease(&worldsema)
+ //
+ // It is allowed to acquire worldsema once and then execute multiple
+ // startTheWorldWithSema/stopTheWorldWithSema pairs.

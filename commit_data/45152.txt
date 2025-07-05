@@ -12,8 +12,39 @@ Date:   Tue Oct 6 20:36:52 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/{zoneinfo_darwin_arm64.go => zoneinfo_ios.go} | 0
  src/time/zoneinfo_unix.go                              | 2 +-
  src/time/zoneinfo_unix_test.go                         | 2 +-
  3 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/zoneinfo_darwin_arm64.go b/src/time/zoneinfo_ios.go
+similarity index 100%
+rename from src/time/zoneinfo_darwin_arm64.go
+rename to src/time/zoneinfo_ios.go
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index 80724eb30a..d2465eef65 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin,amd64 dragonfly freebsd linux,!android netbsd openbsd solaris
++// +build aix darwin,!ios dragonfly freebsd linux,!android netbsd openbsd solaris
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
+diff --git a/src/time/zoneinfo_unix_test.go b/src/time/zoneinfo_unix_test.go
+index 2d45b83d52..f290ae754f 100644
+--- a/src/time/zoneinfo_unix_test.go
++++ b/src/time/zoneinfo_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin,amd64 dragonfly freebsd linux,!android netbsd openbsd solaris
++// +build aix darwin,!ios dragonfly freebsd linux,!android netbsd openbsd solaris
+ 
+ package time_test
+ 

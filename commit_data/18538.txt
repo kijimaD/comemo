@@ -40,7 +40,7 @@ Date:   Sat Feb 15 10:58:55 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/64170043
-
+---
  include/link.h     |  2 +-
  src/cmd/5g/cgen.c  | 15 +++++++---
  src/cmd/5g/ggen.c  | 18 +++++++----
@@ -62,3 +62,925 @@ Date:   Sat Feb 15 10:58:55 2014 -0500
  test/live.go       | 12 ++++++++
  test/live1.go      | 28 ++++++++++++++----
  20 files changed, 272 insertions(+), 120 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 3ddda7ae12..0d50777f4c 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -110,7 +110,7 @@ struct	Prog
+ 	uchar	optab;	// 5l
+ 
+ 	char	width;	/* fake for DATA */
+-	char	mode;	/* 16, 32, or 64 */
++	char	mode;	/* 16, 32, or 64 in 8l, 8l; internal use in 5g, 6g, 8g */
+ };
+ 
+ // prevent incompatible type signatures between liblink and 8l on Plan 9
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index a5ac6c15bd..aeee2f4d60 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -604,6 +604,7 @@ agen(Node *n, Node *res)
+ 		// The generated code is just going to panic, so it need not
+ 		// be terribly efficient. See issue 3670.
+ 		tempname(&n1, n->type);
++		gvardef(&n1);
+ 		clearfat(&n1);
+ 		regalloc(&n2, types[tptr], res);
+ 		gins(AMOVW, &n1, &n2);
+@@ -1440,10 +1441,6 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
+-	// Record site of definition of ns for liveness analysis.
+-	if(res->op == ONAME && res->class != PEXTERN)
+-		gvardef(res);
+-	
+ 	// If copying .args, that's all the results, so record definition sites
+ 	// for them for the liveness analysis.
+ 	if(res->op == ONAME && strcmp(res->sym->name, ".args") == 0)
+@@ -1502,8 +1499,12 @@ sgen(Node *n, Node *res, int64 w)
+ 		agenr(n, &dst, res);	// temporarily use dst
+ 		regalloc(&src, types[tptr], N);
+ 		gins(AMOVW, &dst, &src);
++		if(res->op == ONAME)
++			gvardef(res);
+ 		agen(res, &dst);
+ 	} else {
++		if(res->op == ONAME)
++			gvardef(res);
+ 		agenr(res, &dst, res);
+ 		agenr(n, &src, N);
+ 	}
+@@ -1638,6 +1639,8 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
++		if(nl->op == ONAME)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(nl->type->type);
+ 
+@@ -1668,6 +1671,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TSTRING:
++		if(nl->op == ONAME)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(types[TUINT8]);
+ 
+@@ -1689,6 +1694,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TINTER:
++		if(nl->op == ONAME)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(types[TUINT8]);
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index ebf2391f5a..18431c2bf9 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -31,13 +31,13 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+-		if (p->as == ATYPE)
++		if (p->as == ATYPE || p->as == AVARDEF)
+ 			continue;
+ 
+-		if (p->from.name == D_AUTO && p->from.node)
++		if (p->from.node)
+ 			p->from.node->used = 1;
+ 
+-		if (p->to.name == D_AUTO && p->to.node)
++		if (p->to.node)
+ 			p->to.node->used = 1;
+ 	}
+ }
+@@ -53,6 +53,16 @@ fixautoused(Prog* p)
+ 			*lp = p->link;
+ 			continue;
+ 		}
++		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
++			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
++			// VARDEFs are interspersed with other code, and a jump might be using the
++			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
++			// the no-ops.
++			p->to.type = D_NONE;
++			p->to.node = N;
++			p->as = ANOP;
++			continue;
++		}
+ 
+ 		if (p->from.name == D_AUTO && p->from.node)
+ 			p->from.offset += p->from.node->stkdelta;
+@@ -766,8 +776,6 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
+-	gvardef(nl);
+-
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(N, nl))
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 8bf97c963c..0fd7da7994 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -287,6 +287,8 @@ subprop(Flow *r0)
+ 		if(uniqs(r) == nil)
+ 			break;
+ 		p = r->prog;
++		if(p->as == AVARDEF)
++			continue;
+ 		proginfo(&info, p);
+ 		if(info.flags & Call)
+ 			return 0;
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 0f5edb9efa..3949478422 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -209,6 +209,8 @@ regopt(Prog *firstp)
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
++		if(p->as == AVARDEF)
++			continue;
+ 		proginfo(&info, p);
+ 
+ 		// Avoid making variables for direct-called functions.
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 05cdf54afe..5afa25e403 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -813,6 +813,7 @@ agen(Node *n, Node *res)
+ 		// The generated code is just going to panic, so it need not
+ 		// be terribly efficient. See issue 3670.
+ 		tempname(&n1, n->type);
++		gvardef(&n1);
+ 		clearfat(&n1);
+ 		regalloc(&n2, types[tptr], res);
+ 		gins(ALEAQ, &n1, &n2);
+@@ -1351,10 +1352,6 @@ sgen(Node *n, Node *ns, int64 w)
+ 	if(w < 0)
+ 		fatal("sgen copy %lld", w);
+ 	
+-	// Record site of definition of ns for liveness analysis.
+-	if(ns->op == ONAME && ns->class != PEXTERN)
+-		gvardef(ns);
+-	
+ 	// If copying .args, that's all the results, so record definition sites
+ 	// for them for the liveness analysis.
+ 	if(ns->op == ONAME && strcmp(ns->sym->name, ".args") == 0)
+@@ -1392,11 +1389,16 @@ sgen(Node *n, Node *ns, int64 w)
+ 
+ 	if(n->ullman >= ns->ullman) {
+ 		agenr(n, &nodr, N);
++		if(ns->op == ONAME && ns->class != PEXTERN)
++			gvardef(ns);
+ 		agenr(ns, &nodl, N);
+ 	} else {
++		if(ns->op == ONAME && ns->class != PEXTERN)
++			gvardef(ns);
+ 		agenr(ns, &nodl, N);
+ 		agenr(n, &nodr, N);
+ 	}
++	
+ 	nodreg(&noddi, types[tptr], D_DI);
+ 	nodreg(&nodsi, types[tptr], D_SI);
+ 	gmove(&nodl, &noddi);
+@@ -1573,6 +1575,8 @@ componentgen(Node *nr, Node *nl)
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
+ 		// componentgen for arrays.
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		t = nl->type;
+ 		if(!isslice(t)) {
+ 			nodl.type = t->type;
+@@ -1622,6 +1626,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TSTRING:
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(types[TUINT8]);
+ 
+@@ -1645,6 +1651,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TINTER:
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(types[TUINT8]);
+ 
+@@ -1668,6 +1676,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TSTRUCT:
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		loffset = nodl.xoffset;
+ 		roffset = nodr.xoffset;
+ 		// funarg structs may not begin at offset zero.
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 7d01900225..b5c28bb089 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -60,13 +60,13 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+-		if (p->as == ATYPE)
++		if (p->as == ATYPE || p->as == AVARDEF)
+ 			continue;
+ 
+-		if (p->from.type == D_AUTO && p->from.node)
++		if (p->from.node)
+ 			p->from.node->used = 1;
+ 
+-		if (p->to.type == D_AUTO && p->to.node)
++		if (p->to.node)
+ 			p->to.node->used = 1;
+ 	}
+ }
+@@ -82,6 +82,16 @@ fixautoused(Prog *p)
+ 			*lp = p->link;
+ 			continue;
+ 		}
++		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
++			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
++			// VARDEFs are interspersed with other code, and a jump might be using the
++			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
++			// the no-ops.
++			p->to.type = D_NONE;
++			p->to.node = N;
++			p->as = ANOP;
++			continue;
++		}
+ 		if (p->from.type == D_AUTO && p->from.node)
+ 			p->from.offset += p->from.node->stkdelta;
+ 
+@@ -1023,8 +1033,6 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
+-	gvardef(nl);
+-
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(N, nl))
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index dd3bc0590d..99ce3a7049 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -573,6 +573,8 @@ subprop(Flow *r0)
+ 			break;
+ 		}
+ 		p = r->prog;
++		if(p->as == AVARDEF)
++			continue;
+ 		proginfo(&info, p);
+ 		if(info.flags & Call) {
+ 			if(debug['P'] && debug['v'])
+@@ -788,6 +790,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 	}
+ 
++	if(p->as == AVARDEF)
++		return 0;
+ 	proginfo(&info, p);
+ 
+ 	if((info.reguse|info.regset) & RtoB(v->type))
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 2d8fe81b8c..45bc4a2670 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -195,6 +195,8 @@ regopt(Prog *firstp)
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
++		if(p->as == AVARDEF)
++			continue;
+ 		proginfo(&info, p);
+ 
+ 		// Avoid making variables for direct-called functions.
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index f0630ae4fa..dc2350f491 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -522,6 +522,7 @@ agen(Node *n, Node *res)
+ 		// The generated code is just going to panic, so it need not
+ 		// be terribly efficient. See issue 3670.
+ 		tempname(&n1, n->type);
++		gvardef(&n1);
+ 		clearfat(&n1);
+ 		regalloc(&n2, types[tptr], res);
+ 		gins(ALEAL, &n1, &n2);
+@@ -1224,10 +1225,6 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
+-	// Record site of definition of ns for liveness analysis.
+-	if(res->op == ONAME && res->class != PEXTERN)
+-		gvardef(res);
+-	
+ 	// If copying .args, that's all the results, so record definition sites
+ 	// for them for the liveness analysis.
+ 	if(res->op == ONAME && strcmp(res->sym->name, ".args") == 0)
+@@ -1267,6 +1264,10 @@ sgen(Node *n, Node *res, int64 w)
+ 		agen(n, &src);
+ 	else
+ 		gmove(&tsrc, &src);
++
++	if(res->op == ONAME)
++		gvardef(res);
++
+ 	if(res->addable)
+ 		agen(res, &dst);
+ 	else
+@@ -1383,6 +1384,8 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(nl->type->type);
+ 
+@@ -1416,6 +1419,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TSTRING:
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(types[TUINT8]);
+ 
+@@ -1439,6 +1444,8 @@ componentgen(Node *nr, Node *nl)
+ 		goto yes;
+ 
+ 	case TINTER:
++		if(nl->op == ONAME && nl->class != PEXTERN)
++			gvardef(nl);
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(types[TUINT8]);
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 2ea92980c1..fe1b63de12 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -30,13 +30,13 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+-		if (p->as == ATYPE)
++		if (p->as == ATYPE || p->as == AVARDEF)
+ 			continue;
+ 
+-		if (p->from.type == D_AUTO && p->from.node)
++		if (p->from.node)
+ 			p->from.node->used = 1;
+ 
+-		if (p->to.type == D_AUTO && p->to.node)
++		if (p->to.node)
+ 			p->to.node->used = 1;
+ 	}
+ }
+@@ -52,6 +52,16 @@ fixautoused(Prog* p)
+ 			*lp = p->link;
+ 			continue;
+ 		}
++		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
++			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
++			// VARDEFs are interspersed with other code, and a jump might be using the
++			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
++			// the no-ops.
++			p->to.type = D_NONE;
++			p->to.node = N;
++			p->as = ANOP;
++			continue;
++		}
+ 
+ 		if (p->from.type == D_AUTO && p->from.node)
+ 			p->from.offset += p->from.node->stkdelta;
+@@ -73,8 +83,6 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
+-	gvardef(nl);
+-
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(N, nl))
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index a85402e38d..32a3278b4d 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -387,6 +387,8 @@ subprop(Flow *r0)
+ 		if(uniqs(r) == nil)
+ 			break;
+ 		p = r->prog;
++		if(p->as == AVARDEF)
++			continue;
+ 		proginfo(&info, p);
+ 		if(info.flags & Call)
+ 			return 0;
+@@ -584,6 +586,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 	}
+ 
++	if(p->as == AVARDEF)
++		return 0;
+ 	proginfo(&info, p);
+ 
+ 	if((info.reguse|info.regset) & RtoB(v->type))
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index c4ecb70edf..98edfd9a98 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -165,6 +165,8 @@ regopt(Prog *firstp)
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
++		if(p->as == AVARDEF)
++			continue;
+ 		proginfo(&info, p);
+ 
+ 		// Avoid making variables for direct-called functions.
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d105c74f69..dcdaabec09 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1215,7 +1215,7 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 	t->outnamed = 0;
+ 	if(t->outtuple > 0 && out->n->left != N && out->n->left->orig != N) {
+ 		s = out->n->left->orig->sym;
+-		if(s != S && s->name[0] != '~' || s->name[1] != 'r') // ~r%d is the name invented for an unnamed result
++		if(s != S && (s->name[0] != '~' || s->name[1] != 'r')) // ~r%d is the name invented for an unnamed result
+ 			t->outnamed = 1;
+ 	}
+ 
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index e6b22a3c5e..74d65fde18 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -465,6 +465,8 @@ gen(Node *n)
+ 	case OAS:
+ 		if(gen_as_init(n))
+ 			break;
++		if(n->colas && isfat(n->left->type) && n->left->op == ONAME)
++			gvardef(n->left);
+ 		cgen_as(n->left, n->right);
+ 		break;
+ 
+@@ -562,9 +564,9 @@ cgen_proc(Node *n, int proc)
+ 
+ /*
+  * generate declaration.
+- * nothing to do for on-stack automatics,
+- * but might have to allocate heap copy
++ * have to allocate heap copy
+  * for escaped variables.
++ * also leave VARDEF annotations for liveness analysis.
+  */
+ static void
+ cgen_dcl(Node *n)
+@@ -575,6 +577,8 @@ cgen_dcl(Node *n)
+ 		dump("cgen_dcl", n);
+ 		fatal("cgen_dcl");
+ 	}
++	if(isfat(n->type))
++		gvardef(n);
+ 	if(!(n->class & PHEAP))
+ 		return;
+ 	if(n->alloc == nil)
+@@ -637,6 +641,7 @@ cgen_discard(Node *nr)
+ 	// special enough to just evaluate
+ 	default:
+ 		tempname(&tmp, nr->type);
++		gvardef(&tmp);
+ 		cgen_as(&tmp, nr);
+ 		gused(&tmp);
+ 	}
+@@ -739,6 +744,8 @@ cgen_as(Node *nl, Node *nr)
+ 		if(tl == T)
+ 			return;
+ 		if(isfat(tl)) {
++			if(nl->op == ONAME)
++				gvardef(nl);
+ 			clearfat(nl);
+ 			return;
+ 		}
+@@ -767,12 +774,18 @@ cgen_eface(Node *n, Node *res)
+ 	 * so it's important that it is done first
+ 	 */
+ 	Node dst;
++	Node *tmp;
++
++	tmp = temp(types[tptr]);
++	cgen(n->right, tmp);
+ 
+ 	gvardef(res);
++
+ 	dst = *res;
+ 	dst.type = types[tptr];
+ 	dst.xoffset += widthptr;
+-	cgen(n->right, &dst);
++	cgen(tmp, &dst);
++
+ 	dst.xoffset -= widthptr;
+ 	cgen(n->left, &dst);
+ }
+@@ -789,7 +802,7 @@ cgen_eface(Node *n, Node *res)
+ void
+ cgen_slice(Node *n, Node *res)
+ {
+-	Node src, dst, *cap, *len, *offs, *add;
++	Node src, dst, *cap, *len, *offs, *add, *base;
+ 
+ 	cap = n->list->n;
+ 	len = n->list->next->n;
+@@ -797,26 +810,15 @@ cgen_slice(Node *n, Node *res)
+ 	if(n->list->next->next)
+ 		offs = n->list->next->next->n;
+ 
+-	gvardef(res);
+-
+-	// dst.len = hi [ - lo ]
+-	dst = *res;
+-	dst.xoffset += Array_nel;
+-	dst.type = types[simtype[TUINT]];
+-	cgen(len, &dst);
+-
+-	if(n->op != OSLICESTR) {
+-		// dst.cap = cap [ - lo ]
+-		dst = *res;
+-		dst.xoffset += Array_cap;
+-		dst.type = types[simtype[TUINT]];
+-		cgen(cap, &dst);
+-	}
+-
+-	// dst.array = src.array  [ + lo *width ]
+-	dst = *res;
+-	dst.xoffset += Array_array;
+-	dst.type = types[TUINTPTR];
++	// evaluate base pointer first, because it is the only
++	// possibly complex expression. once that is evaluated
++	// and stored, updating the len and cap can be done
++	// without making any calls, so without doing anything that
++	// might cause preemption or garbage collection.
++	// this makes the whole slice update atomic as far as the
++	// garbage collector can see.
++	
++	base = temp(types[TUINTPTR]);
+ 
+ 	if(isnil(n->left)) {
+ 		tempname(&src, n->left->type);
+@@ -830,19 +832,43 @@ cgen_slice(Node *n, Node *res)
+ 	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
+ 		if(!isptr[n->left->type->etype])
+ 			fatal("slicearr is supposed to work on pointer: %+N\n", n);
+-		cgen(&src, &dst);
+-		cgen_checknil(&dst);
++		cgen(&src, base);
++		cgen_checknil(base);
+ 		if(offs != N) {
+-			add = nod(OADD, &dst, offs);
++			add = nod(OADD, base, offs);
+ 			typecheck(&add, Erv);
+-			cgen(add, &dst);
++			cgen(add, base);
+ 		}
+ 	} else if(offs == N) {
+-		cgen(&src, &dst);
++		cgen(&src, base);
+ 	} else {
+ 		add = nod(OADD, &src, offs);
+ 		typecheck(&add, Erv);
+-		cgen(add, &dst);
++		cgen(add, base);
++	}
++	
++	// committed to the update
++	gvardef(res);
++
++	// dst.array = src.array  [ + lo *width ]
++	dst = *res;
++	dst.xoffset += Array_array;
++	dst.type = types[TUINTPTR];
++	
++	cgen(base, &dst);
++
++	// dst.len = hi [ - lo ]
++	dst = *res;
++	dst.xoffset += Array_nel;
++	dst.type = types[simtype[TUINT]];
++	cgen(len, &dst);
++
++	if(n->op != OSLICESTR) {
++		// dst.cap = cap [ - lo ]
++		dst = *res;
++		dst.xoffset += Array_cap;
++		dst.type = types[simtype[TUINT]];
++		cgen(cap, &dst);
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 571334e6b7..62153cb524 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -31,11 +31,65 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ 	return sym;
+ }
+ 
++// gvardef inserts a VARDEF for n into the instruction stream.
++// VARDEF is an annotation for the liveness analysis, marking a place
++// where a complete initialization (definition) of a variable begins.
++// Since the liveness analysis can see initialization of single-word
++// variables quite easy, gvardef is usually only called for multi-word
++// or 'fat' variables, those satisfying isfat(n->type).
++// However, gvardef is also called when a non-fat variable is initialized
++// via a block move; the only time this happens is when you have
++//	return f()
++// for a function with multiple return values exactly matching the return
++// types of the current function.
++//
++// A 'VARDEF x' annotation in the instruction stream tells the liveness
++// analysis to behave as though the variable x is being initialized at that
++// point in the instruction stream. The VARDEF must appear before the
++// actual (multi-instruction) initialization, and it must also appear after
++// any uses of the previous value, if any. For example, if compiling:
++//
++//	x = x[1:]
++//
++// it is important to generate code like:
++//
++//	base, len, cap = pieces of x[1:]
++//	VARDEF x
++//	x = {base, len, cap}
++//
++// If instead the generated code looked like:
++//
++//	VARDEF x
++//	base, len, cap = pieces of x[1:]
++//	x = {base, len, cap}
++//
++// then the liveness analysis would decide the previous value of x was
++// unnecessary even though it is about to be used by the x[1:] computation.
++// Similarly, if the generated code looked like:
++//
++//	base, len, cap = pieces of x[1:]
++//	x = {base, len, cap}
++//	VARDEF x
++//
++// then the liveness analysis will not preserve the new value of x, because
++// the VARDEF appears to have "overwritten" it.
++//
++// VARDEF is a bit of a kludge to work around the fact that the instruction
++// stream is working on single-word values but the liveness analysis
++// wants to work on individual variables, which might be multi-word
++// aggregates. It might make sense at some point to look into letting
++// the liveness analysis work on single-word values as well, although
++// there are complications around interface values, which cannot be
++// treated as individual words.
+ void
+ gvardef(Node *n)
+ {
+ 	if(n == N)
+ 		fatal("gvardef nil");
++	if(n->op != ONAME) {
++		yyerror("gvardef %#O; %N", n->op, n);
++		return;
++	}
+ 	switch(n->class) {
+ 	case PAUTO:
+ 	case PPARAM:
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 250d9236b3..1502d3d1ac 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -583,8 +583,11 @@ newcfg(Prog *firstp)
+ 	// Unreachable control flow nodes are indicated by a -1 in the rpo
+ 	// field.  If we see these nodes something must have gone wrong in an
+ 	// upstream compilation phase.
+-	if(bb->rpo == -1)
+-		fatal("newcfg: unreferenced basic blocks");
++	if(bb->rpo == -1) {
++		print("newcfg: unreachable basic block for %P\n", bb->last);
++		printcfg(cfg);
++		fatal("newcfg: invalid control flow graph");
++	}
+ 
+ 	return cfg;
+ }
+@@ -956,63 +959,39 @@ livenessprintcfg(Liveness *lv)
+ }
+ 
+ static void
+-checkauto(Node *fn, Prog *p, Node *n, char *where)
++checkauto(Node *fn, Prog *p, Node *n)
+ {
+-	NodeList *ll;
+-	int found;
+-	char *fnname;
+-	char *nname;
++	NodeList *l;
+ 
+-	found = 0;
+-	for(ll = fn->dcl; ll != nil; ll = ll->next) {
+-		if(ll->n->op == ONAME && ll->n->class == PAUTO) {
+-			if(n == ll->n) {
+-				found = 1;
+-				break;
+-			}
+-		}
+-	}
+-	if(found)
+-		return;
+-	fnname = fn->nname->sym->name ? fn->nname->sym->name : "<unknown>";
+-	nname = n->sym->name ? n->sym->name : "<unknown>";
+-	print("D_AUTO '%s' not found: name is '%s' function is '%s' class is %d\n", where, nname, fnname, n->class);
+-	print("Here '%P'\nlooking for node %p\n", p, n);
+-	for(ll = fn->dcl; ll != nil; ll = ll->next)
+-		print("node=%p, node->class=%d\n", (uintptr)ll->n, ll->n->class);
++	for(l = fn->dcl; l != nil; l = l->next)
++		if(l->n->op == ONAME && l->n->class == PAUTO && l->n == n)
++			return;
++
++	print("checkauto %N: %N (%p; class=%d) not found in %P\n", curfn, n, n, n->class, p);
++	for(l = fn->dcl; l != nil; l = l->next)
++		print("\t%N (%p; class=%d)\n", l->n, l->n, l->n->class);
+ 	yyerror("checkauto: invariant lost");
+ }
+ 
+ static void
+-checkparam(Node *fn, Prog *p, Node *n, char *where)
++checkparam(Node *fn, Prog *p, Node *n)
+ {
+-	NodeList *ll;
+-	int found;
+-	char *fnname;
+-	char *nname;
++	NodeList *l;
++	Node *a;
++	int class;
+ 
+ 	if(isfunny(n))
+ 		return;
+-	found = 0;
+-	for(ll = fn->dcl; ll != nil; ll = ll->next) {
+-		if(ll->n->op == ONAME && ((ll->n->class & ~PHEAP) == PPARAM ||
+-					  (ll->n->class & ~PHEAP) == PPARAMOUT)) {
+-			if(n == ll->n) {
+-				found = 1;
+-				break;
+-			}
+-		}
+-	}
+-	if(found)
+-		return;
+-	if(n->sym) {
+-		fnname = fn->nname->sym->name ? fn->nname->sym->name : "<unknown>";
+-		nname = n->sym->name ? n->sym->name : "<unknown>";
+-		print("D_PARAM '%s' not found: name='%s' function='%s' class is %d\n", where, nname, fnname, n->class);
+-		print("Here '%P'\nlooking for node %p\n", p, n);
+-		for(ll = fn->dcl; ll != nil; ll = ll->next)
+-			print("node=%p, node->class=%d\n", ll->n, ll->n->class);
++	for(l = fn->dcl; l != nil; l = l->next) {
++		a = l->n;
++		class = l->n->class & ~PHEAP;
++		if(a->op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n)
++			return;
+ 	}
++
++	print("checkparam %N: %N (%p; class=%d) not found in %P\n", curfn, n, n, n->class, p);
++	for(l = fn->dcl; l != nil; l = l->next)
++		print("\t%N (%p; class=%d)\n", l->n, l->n, l->n->class);
+ 	yyerror("checkparam: invariant lost");
+ }
+ 
+@@ -1020,13 +999,13 @@ static void
+ checkprog(Node *fn, Prog *p)
+ {
+ 	if(p->from.type == D_AUTO)
+-		checkauto(fn, p, p->from.node, "from");
++		checkauto(fn, p, p->from.node);
+ 	if(p->from.type == D_PARAM)
+-		checkparam(fn, p, p->from.node, "from");
++		checkparam(fn, p, p->from.node);
+ 	if(p->to.type == D_AUTO)
+-		checkauto(fn, p, p->to.node, "to");
++		checkauto(fn, p, p->to.node);
+ 	if(p->to.type == D_PARAM)
+-		checkparam(fn, p, p->to.node, "to");
++		checkparam(fn, p, p->to.node);
+ }
+ 
+ // Check instruction invariants.  We assume that the nodes corresponding to the
+@@ -1609,13 +1588,13 @@ livenessepilogue(Liveness *lv)
+ 				// Useful sanity check: on entry to the function,
+ 				// the only things that can possibly be live are the
+ 				// input parameters.
+-				if(0 && p->as == ATEXT) {
++				if(p->as == ATEXT) {
+ 					for(j = 0; j < liveout->n; j++) {
+ 						if(!bvget(liveout, j))
+ 							continue;
+ 						n = *(Node**)arrayget(lv->vars, j);
+ 						if(n->class != PPARAM)
+-							yyerrorl(p->lineno, "internal error: %N %N recorded as live on entry", curfn->nname, n);
++							yyerrorl(p->lineno, "internal error: %N %lN recorded as live on entry", curfn->nname, n);
+ 					}
+ 				}
+ 
+diff --git a/src/run.bash b/src/run.bash
+index 6adb7f63de..c67c764ec1 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -57,8 +57,9 @@ go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
+ 
+ # Race detector only supported on Linux and OS X,
+ # and only on amd64, and only when cgo is enabled.
++# Disabled due to golang.org/issue/7334; remove XXX below to reenable.
+ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+-linux-linux-amd64-1 | darwin-darwin-amd64-1)
++XXXlinux-linux-amd64-1 | XXXdarwin-darwin-amd64-1)
+ 	echo
+ 	echo '# Testing race detector.'
+ 	go test -race -i runtime/race flag
+diff --git a/test/live.go b/test/live.go
+index 9c4e754c17..077a9b676a 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -182,3 +182,15 @@ func f12() *int {
+ 		return nil
+ 	}
+ }
++
++// incorrectly placed VARDEF annotations can cause missing liveness annotations.
++// this used to be missing the fact that s is live during the call to g13 (because it is
++// needed for the call to h13).
++
++func f13() {
++	s := "hello"
++	s = h13(s, g13(s)) // ERROR "live at call to g13: s"
++}
++
++func g13(string) string
++func h13(string, string) string
+diff --git a/test/live1.go b/test/live1.go
+index d0a2d0ecf5..b05ec1f59f 100644
+--- a/test/live1.go
++++ b/test/live1.go
+@@ -7,18 +7,22 @@
+ // Test that code compiles without
+ // "internal error: ... recorded as live on entry" errors
+ // from the liveness code.
++//
++// This code contains methods or other construct that
++// trigger the generation of wrapper functions with no
++// clear line number (they end up using line 1), and those
++// would have annotations printed if we used -live=1,
++// like the live.go test does.
++// Instead, this test relies on the fact that the liveness
++// analysis turns any non-live parameter on entry into
++// a compile error. Compiling successfully means that bug
++// has been avoided.
+ 
+ package main
+ 
+ // The liveness analysis used to get confused by the tail return
+ // instruction in the wrapper methods generated for T1.M and (*T1).M,
+ // causing a spurious "live at entry: ~r1" for the return result.
+-// This test is checking that there is no such message.
+-// We cannot use live.go because it runs with -live on, which will
+-// generate (correct) messages about the wrapper's receivers
+-// being live on entry, but those messages correspond to no
+-// source line in the file, so they are given at line 1, which we
+-// cannot annotate. Not using -live here avoids that problem.
+ 
+ type T struct {
+ }
+@@ -28,3 +32,15 @@ func (t *T) M() *int
+ type T1 struct {
+ 	*T
+ }
++
++// Liveness analysis used to have the VARDEFs in the wrong place,
++// causing a temporary to appear live on entry.
++
++func f1(pkg, typ, meth string) {
++	panic("value method " + pkg + "." + typ + "." + meth + " called using nil *" + typ + " pointer")
++}
++
++func f2() interface{} {
++	return new(int)
++}
++

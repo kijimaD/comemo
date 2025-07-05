@@ -7,6 +7,49 @@ Date:   Fri Jan 16 15:28:33 2009 -0800
     TBR=r
     OCL=22997
     CL=22997
-
+---
  src/lib/testing.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 6199aa6ee4..01924ef44a 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -70,12 +70,12 @@ func (t *T) Fatalf(format string, args ...) {
+ }
+ 
+ export type Test struct {
+-	name string;
+-	f *(*T);
++	Name string;
++	F *(*T);
+ }
+ 
+ func tRunner(t *T, test *Test) {
+-	test.f(t);
++	test.F(t);
+ 	t.ch <- t;
+ }
+ 
+@@ -87,18 +87,18 @@ export func Main(tests []Test) {
+ 	}
+ 	for i := 0; i < len(tests); i++ {
+ 		if *chatty {
+-			println("=== RUN ", tests[i].name);
++			println("=== RUN ", tests[i].Name);
+ 		}
+ 		t := new(T);
+ 		t.ch = make(chan *T);
+ 		go tRunner(t, &tests[i]);
+ 		<-t.ch;
+ 		if t.failed {
+-			println("--- FAIL:", tests[i].name);
++			println("--- FAIL:", tests[i].Name);
+ 			print(t.errors);
+ 			ok = false;
+ 		} else if *chatty {
+-			println("--- PASS:", tests[i].name);
++			println("--- PASS:", tests[i].Name);
+ 			print(t.errors);
+ 		}
+ 	}

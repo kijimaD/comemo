@@ -8,6 +8,16 @@ Date:   Tue Feb 18 11:50:38 2014 -0800
     R=mpvl
     CC=golang-codereviews
     https://golang.org/cl/65550044
-
+---
  doc/go1.3.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index cdf241ae5a..31dfd38a10 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -7,3 +7,4 @@ testing: diagnose buggy tests that panic(nil) (CL 55780043)
+ testing: add b.RunParallel function (CL 57270043)
+ misc/benchcmp has been replaced by go tool benchcmp (CL 47980043)
+ cmd/go, go/build: support .m files (CL 60590044)
++unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)

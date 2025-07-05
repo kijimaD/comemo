@@ -13,7 +13,7 @@ Date:   Wed Nov 9 10:58:53 2011 +0100
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/5339045
-
+---
  src/cmd/gc/swt.c         | 24 +++++++++++++++++++-----
  test/fixedbugs/bug270.go | 21 ---------------------
  test/fixedbugs/bug340.go |  4 ++--
@@ -21,3 +21,195 @@ Date:   Wed Nov 9 10:58:53 2011 +0100
  test/switch3.go          | 38 ++++++++++++++++++++++++++++++++++++++
  test/typeswitch3.go      | 20 ++++++++++++++++++++
  6 files changed, 98 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 97874e264a..4d07970c71 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -810,8 +810,8 @@ walkswitch(Node *sw)
+ void
+ typecheckswitch(Node *n)
+ {
+-	int top, lno;
+-	Type *t;
++	int top, lno, ptr;
++	Type *t, *missing, *have;
+ 	NodeList *l, *ll;
+ 	Node *ncase, *nvar;
+ 	Node *def;
+@@ -854,21 +854,35 @@ typecheckswitch(Node *n)
+ 				typecheck(&ll->n, Erv | Etype);
+ 				if(ll->n->type == T || t == T)
+ 					continue;
++				setlineno(ncase);
+ 				switch(top) {
+ 				case Erv:	// expression switch
+ 					defaultlit(&ll->n, t);
+ 					if(ll->n->op == OTYPE)
+ 						yyerror("type %T is not an expression", ll->n->type);
+-					else if(ll->n->type != T && !eqtype(ll->n->type, t))
+-						yyerror("case %lN in %T switch", ll->n, t);
++					else if(ll->n->type != T && !assignop(ll->n->type, t, nil) && !assignop(t, ll->n->type, nil)) {
++						if(n->ntest)
++							yyerror("invalid case %N in switch on %N (mismatched types %T and %T)", ll->n, n->ntest, ll->n->type, t);
++						else
++							yyerror("invalid case %N in switch (mismatched types %T and bool)", ll->n, n->ntest, ll->n->type, t);
++					}
+ 					break;
+ 				case Etype:	// type switch
+ 					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL)) {
+ 						;
+-					} else if(ll->n->op != OTYPE && ll->n->type != T) {
++					} else if(ll->n->op != OTYPE && ll->n->type != T) {  // should this be ||?
+ 						yyerror("%lN is not a type", ll->n);
+ 						// reset to original type
+ 						ll->n = n->ntest->right;
++					} else if(!implements(ll->n->type, t, &missing, &have, &ptr)) {
++						if(have && !missing->broke && !have->broke)
++							yyerror("impossible type switch case: %lN cannot have dynamic type %T"
++								" (wrong type for %S method)\n\thave %S%hT\n\twant %S%hT",
++								n->ntest->right, ll->n->type, missing->sym, have->sym, have->type,
++								missing->sym, missing->type);
++						else if(!missing->broke)
++							yyerror("impossible type switch case: %lN cannot have dynamic type %T"
++								" (missing %S method)", n->ntest->right, ll->n->type, missing->sym);
+ 					}
+ 					break;
+ 				}
+diff --git a/test/fixedbugs/bug270.go b/test/fixedbugs/bug270.go
+deleted file mode 100644
+index a9cda7bd7c..0000000000
+--- a/test/fixedbugs/bug270.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// $G $D/$F.go
+-
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// http://code.google.com/p/go/issues/detail?id=746
+-
+-package main
+-
+-type I interface { F() }
+-
+-type T struct{}
+-
+-func (T) F() {}
+-
+-func main() {
+-	switch I(T{}).(type) {
+-	case interface{}:
+-	}
+-}
+diff --git a/test/fixedbugs/bug340.go b/test/fixedbugs/bug340.go
+index 37731aad67..34cc013151 100644
+--- a/test/fixedbugs/bug340.go
++++ b/test/fixedbugs/bug340.go
+@@ -10,8 +10,8 @@ package main
+ 
+ func main() {
+ 	var x interface{}
+-	switch t := x.(type) { // GC_ERROR "is not a type"
+-	case 0:		// GCCGO_ERROR "expected type"
++	switch t := x.(type) {
++	case 0:		// ERROR "type"
+ 		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
+ 	}
+ }
+diff --git a/test/fixedbugs/bug375.go b/test/fixedbugs/bug375.go
+new file mode 100644
+index 0000000000..5273585263
+--- /dev/null
++++ b/test/fixedbugs/bug375.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug375
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2423
++
++package main
++
++func main() {
++	var x interface{} = "hello"
++
++	switch x {
++	case "hello":
++	default:
++		println("FAIL")
++	}
++}
+diff --git a/test/switch3.go b/test/switch3.go
+new file mode 100644
+index 0000000000..95ff6ec3c2
+--- /dev/null
++++ b/test/switch3.go
+@@ -0,0 +1,38 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++type I interface {
++       M()
++}
++
++func bad() {
++	var i I
++	var s string
++
++	switch i {
++	case s:  // ERROR "mismatched types string and I"
++	}
++
++	switch s {
++	case i:  // ERROR "mismatched types I and string"
++	}
++}
++
++func good() {
++	var i interface{}
++	var s string
++
++	switch i {
++	case s:
++	}
++
++	switch s {
++	case i:
++	}
++}
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+new file mode 100644
+index 0000000000..99d08a20f7
+--- /dev/null
++++ b/test/typeswitch3.go
+@@ -0,0 +1,20 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++type I interface {
++       M()
++}
++
++func main(){
++       var x I
++       switch x.(type) {
++       case string:	// ERROR "impossible"
++               println("FAIL")
++       }
++}

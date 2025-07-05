@@ -9,7 +9,46 @@ Date:   Mon Jan 18 15:40:47 2016 -0800
     Change-Id: I1f73dfccb466d8fd00efbd8c92a31ac538bf5988
     Reviewed-on: https://go-review.googlesource.com/18731
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 8 ++++++++
  src/cmd/go/list.go    | 8 ++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ea2eb77470..5db4bc6bec 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -603,6 +603,14 @@ syntax of package template.  The default output is equivalent to -f
+         XTestImports []string // imports from XTestGoFiles
+     }
+ 
++The error information, if any, is
++
++    type PackageError struct {
++        ImportStack   []string // shortest path from package named on command line to this one
++        Pos           string   // position of error (if present, file:line:col)
++        Err           string   // the error itself
++    }
++
+ The template function "join" calls strings.Join.
+ 
+ The template function "context" returns the build context, defined as:
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 35c7cc4f2a..8f741a636b 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -78,6 +78,14 @@ syntax of package template.  The default output is equivalent to -f
+         XTestImports []string // imports from XTestGoFiles
+     }
+ 
++The error information, if any, is
++
++    type PackageError struct {
++        ImportStack   []string // shortest path from package named on command line to this one
++        Pos           string   // position of error (if present, file:line:col)
++        Err           string   // the error itself
++    }
++
+ The template function "join" calls strings.Join.
+ 
+ The template function "context" returns the build context, defined as:

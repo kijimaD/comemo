@@ -11,7 +11,83 @@ Date:   Fri Nov 2 07:34:52 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go            | 30 ++++++++++++++++++++++++++++++
  src/cmd/go/internal/test/test.go | 20 ++++++++++++--------
  2 files changed, 42 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index aa6ce27ffc..f956ecb916 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1462,8 +1462,38 @@ func TestInstallIntoGOPATH(t *testing.T) {
+ func TestBuildOutputToDevNull(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
++	fi1, err1 := os.Lstat(os.DevNull)
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.run("build", "-o", os.DevNull, "go-cmd-test")
++	fi2, err2 := os.Lstat(os.DevNull)
++	if err1 == nil {
++		if err2 != nil {
++			t.Errorf("second stat of /dev/null failed: %v", err2)
++		} else if !os.SameFile(fi1, fi2) {
++			t.Errorf("/dev/null changed: now %v was %v", fi1, fi2)
++		}
++	}
++}
++
++// Issue 28549.
++func TestTestOutputToDevNull(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	fi1, err1 := os.Lstat(os.DevNull)
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.tempFile("src/p/p.go", "package p\n")
++	tg.tempFile("src/p/p_test.go", "package p\nimport \"testing\"\nfunc TestX(t *testing.T) {}\n")
++	tg.run("test", "-o", os.DevNull, "-c", "p")
++	tg.mustNotExist("p.test")
++	fi2, err2 := os.Lstat(os.DevNull)
++	if err1 == nil {
++		if err2 != nil {
++			t.Errorf("second stat of /dev/null failed: %v", err2)
++		} else if !os.SameFile(fi1, fi2) {
++			t.Errorf("/dev/null changed: now %v was %v", fi1, fi2)
++		}
++	}
+ }
+ 
+ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 70deea3643..750b515e41 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -887,15 +887,19 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 				target = filepath.Join(base.Cwd, target)
+ 			}
+ 		}
+-		pmain.Target = target
+-		installAction = &work.Action{
+-			Mode:    "test build",
+-			Func:    work.BuildInstallFunc,
+-			Deps:    []*work.Action{buildAction},
+-			Package: pmain,
+-			Target:  target,
++		if target == os.DevNull {
++			runAction = buildAction
++		} else {
++			pmain.Target = target
++			installAction = &work.Action{
++				Mode:    "test build",
++				Func:    work.BuildInstallFunc,
++				Deps:    []*work.Action{buildAction},
++				Package: pmain,
++				Target:  target,
++			}
++			runAction = installAction // make sure runAction != nil even if not running test
+ 		}
+-		runAction = installAction // make sure runAction != nil even if not running test
+ 	}
+ 	var vetRunAction *work.Action
+ 	if testC {

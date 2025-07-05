@@ -12,9 +12,149 @@ Date:   Tue Nov 2 14:12:05 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go     | 52 ++++++++++++++++++++++++++++++
  misc/cgo/testcarchive/testdata/libgo8/a.go | 36 +++++++++++++++++++++
  misc/cgo/testcarchive/testdata/main8.c     | 16 +++++++++
  src/runtime/signal_unix.go                 |  4 +--
  4 files changed, 106 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 55be3c5f70..a2b43bb72d 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -931,3 +931,55 @@ func TestManyCalls(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++// Issue 49288.
++func TestPreemption(t *testing.T) {
++	if runtime.Compiler == "gccgo" {
++		t.Skip("skipping asynchronous preemption test with gccgo")
++	}
++
++	t.Parallel()
++
++	if !testWork {
++		defer func() {
++			os.Remove("testp8" + exeSuffix)
++			os.Remove("libgo8.a")
++			os.Remove("libgo8.h")
++		}()
++	}
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo8.a", "./libgo8")
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++	checkLineComments(t, "libgo8.h")
++
++	ccArgs := append(cc, "-o", "testp8"+exeSuffix, "main8.c", "libgo8.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	argv := cmdToRun("./testp8")
++	cmd = exec.Command(argv[0], argv[1:]...)
++	var sb strings.Builder
++	cmd.Stdout = &sb
++	cmd.Stderr = &sb
++	if err := cmd.Start(); err != nil {
++		t.Fatal(err)
++	}
++
++	timer := time.AfterFunc(time.Minute,
++		func() {
++			t.Error("test program timed out")
++			cmd.Process.Kill()
++		},
++	)
++	defer timer.Stop()
++
++	if err := cmd.Wait(); err != nil {
++		t.Log(sb.String())
++		t.Error(err)
++	}
++}
+diff --git a/misc/cgo/testcarchive/testdata/libgo8/a.go b/misc/cgo/testcarchive/testdata/libgo8/a.go
+new file mode 100644
+index 0000000000..718418ecb8
+--- /dev/null
++++ b/misc/cgo/testcarchive/testdata/libgo8/a.go
+@@ -0,0 +1,36 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++import (
++	"os"
++	"runtime"
++	"sync/atomic"
++)
++
++var started int32
++
++// Start a goroutine that loops forever.
++func init() {
++	runtime.GOMAXPROCS(1)
++	go func() {
++		for {
++			atomic.StoreInt32(&started, 1)
++		}
++	}()
++}
++
++//export GoFunction8
++func GoFunction8() {
++	for atomic.LoadInt32(&started) == 0 {
++		runtime.Gosched()
++	}
++	os.Exit(0)
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcarchive/testdata/main8.c b/misc/cgo/testcarchive/testdata/main8.c
+new file mode 100644
+index 0000000000..95fb7a349e
+--- /dev/null
++++ b/misc/cgo/testcarchive/testdata/main8.c
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test preemption.
++
++#include <stdlib.h>
++
++#include "libgo8.h"
++
++int main() {
++	GoFunction8();
++
++	// That should have exited the program.
++	abort();
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 7c454437e4..dbcbfc67bc 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -167,8 +167,8 @@ func sigInstallGoHandler(sig uint32) bool {
+ 	}
+ 
+ 	// When built using c-archive or c-shared, only install signal
+-	// handlers for synchronous signals and SIGPIPE.
+-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
++	// handlers for synchronous signals and SIGPIPE and sigPreempt.
++	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE && sig != sigPreempt {
+ 		return false
+ 	}
+ 

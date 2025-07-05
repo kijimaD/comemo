@@ -11,7 +11,36 @@ Date:   Wed Mar 21 00:47:27 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5852043
-
+---
  src/run.bash | 2 ++
  src/run.bat  | 4 ++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 748f6e93f5..41ab37e3c2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -8,6 +8,8 @@ set -e
+ eval $(go env)
+ 
+ unset CDPATH	# in case user has it set
++unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
++                # to be under $GOPATH, then some tests below will fail
+ 
+ # no core files, please
+ ulimit -c 0
+diff --git a/src/run.bat b/src/run.bat
+index 1d5bf60f25..c7a1579728 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -12,6 +12,10 @@ setlocal
+ 
+ set GOBUILDFAIL=0
+ 
++:: we disallow local import for non-local packages, if %GOROOT% happens
++:: to be under %GOPATH%, then some tests below will fail
++set GOPATH=
++
+ rem TODO avoid rebuild if possible
+ 
+ if x%1==x--no-rebuild goto norebuild

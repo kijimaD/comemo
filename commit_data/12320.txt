@@ -7,7 +7,62 @@ Date:   Thu Mar 1 18:17:28 2012 -0500
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/5711059
-
+---
  doc/go1.html | 16 ++++++++++++++++
  doc/go1.tmpl | 16 ++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 5837104893..0ec097499a 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1283,6 +1283,22 @@ with the iterator <a href="/pkg/go/token/#FileSet.Iterate"><code>Iterate</code><
+ accepts a function argument instead.
+ </p>
+ 
++<p>
++In package <a href="/pkg/go/build/"><code>go/build</code></a>, the API
++has been nearly completely replaced.
++The package still computes Go package information
++but it does not run the build: the <code>Cmd</code> and <code>Script</code>
++types are gone.
++(To build code, use the new
++<a href="/cmd/go/"><code>go</code></a> command instead.)
++The <code>DirInfo</code> type is now named
++<a href="/pkg/go/build/#Package"><code>Package</code></a>.
++<code>FindTree</code> and <code>ScanDir</code> are replaced by
++<a href="/pkg/go/build/#Import"><code>Import</code></a>
++and
++<a href="/pkg/go/build/#ImportDir"><code>ImportDir</code></a>.
++</p>
++
+ <p>
+ <em>Updating</em>:
+ Code that uses packages in <code>go</code> will have to be updated by hand; the
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index ccbda8d157..c1dd9a8f06 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1186,6 +1186,22 @@ with the iterator <a href="/pkg/go/token/#FileSet.Iterate"><code>Iterate</code><
+ accepts a function argument instead.
+ </p>
+ 
++<p>
++In package <a href="/pkg/go/build/"><code>go/build</code></a>, the API
++has been nearly completely replaced.
++The package still computes Go package information
++but it does not run the build: the <code>Cmd</code> and <code>Script</code>
++types are gone.
++(To build code, use the new
++<a href="/cmd/go/"><code>go</code></a> command instead.)
++The <code>DirInfo</code> type is now named
++<a href="/pkg/go/build/#Package"><code>Package</code></a>.
++<code>FindTree</code> and <code>ScanDir</code> are replaced by
++<a href="/pkg/go/build/#Import"><code>Import</code></a>
++and
++<a href="/pkg/go/build/#ImportDir"><code>ImportDir</code></a>.
++</p>
++
+ <p>
+ <em>Updating</em>:
+ Code that uses packages in <code>go</code> will have to be updated by hand; the

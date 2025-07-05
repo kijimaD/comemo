@@ -8,6 +8,35 @@ Date:   Thu Feb 27 19:11:03 2014 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/69100045
-
+---
  src/pkg/debug/macho/macho.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/macho/macho.go b/src/pkg/debug/macho/macho.go
+index 09f4d0ec91..d9678c8eda 100644
+--- a/src/pkg/debug/macho/macho.go
++++ b/src/pkg/debug/macho/macho.go
+@@ -44,14 +44,22 @@ const (
+ // A Cpu is a Mach-O cpu type.
+ type Cpu uint32
+ 
++const cpuArch64 = 0x01000000
++
+ const (
+ 	Cpu386   Cpu = 7
+-	CpuAmd64 Cpu = Cpu386 + 1<<24
++	CpuAmd64 Cpu = Cpu386 | cpuArch64
++	CpuArm   Cpu = 12
++	CpuPpc   Cpu = 18
++	CpuPpc64 Cpu = CpuPpc | cpuArch64
+ )
+ 
+ var cpuStrings = []intName{
+ 	{uint32(Cpu386), "Cpu386"},
+ 	{uint32(CpuAmd64), "CpuAmd64"},
++	{uint32(CpuArm), "CpuArm"},
++	{uint32(CpuPpc), "CpuPpc"},
++	{uint32(CpuPpc64), "CpuPpc64"},
+ }
+ 
+ func (i Cpu) String() string   { return stringName(uint32(i), cpuStrings, false) }

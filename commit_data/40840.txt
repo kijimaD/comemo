@@ -7,7 +7,84 @@ Date:   Thu Jun 13 18:50:47 2019 -0400
     Change-Id: Id62b84b110af78e4ec8c34a8b71244027931b4f7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/182340
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/boring/merge.sh   | 32 ++++++++++++++++++++++++++++++++
  misc/boring/release.sh | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 64 insertions(+)
+
+diff --git a/misc/boring/merge.sh b/misc/boring/merge.sh
+new file mode 100755
+index 0000000000..6d13ade23c
+--- /dev/null
++++ b/misc/boring/merge.sh
+@@ -0,0 +1,32 @@
++#! /bin/bash
++set -euo pipefail
++
++if [ "$#" -ne 2 ]; then
++    echo "usage: merge.sh <target branch> <source revision>"
++    echo ""
++    echo "example: merge.sh dev.boringcrypto master"
++    echo "         merge.sh dev.boringcrypto.go1.10 go1.10.7"
++    exit 1
++fi
++
++set -x
++TARGET="$1"
++SOURCE="$2"
++WORKTREE="$(mktemp -d)"
++BRANCH="boring/merge-$TARGET-$(date +%Y%m%d%H%M%S)"
++
++git fetch
++git worktree add --track -b "$BRANCH" "$WORKTREE" "origin/$TARGET"
++
++cd "$WORKTREE"
++export GIT_GOFMT_HOOK=off
++git merge -m "all: merge $SOURCE into $TARGET" "$SOURCE" || \
++    (git rm VERSION && git commit -m "all: merge $SOURCE into $TARGET")
++
++if ! git log --format=%B -n 1 | grep "\[dev.boringcrypto"; then
++    echo "The commit does not seem to be targeting a BoringCrypto branch."
++    exit 1
++fi
++
++git codereview mail -r dmitshur@golang.org,filippo@golang.org -trybot HEAD
++cd - && git worktree remove "$WORKTREE"
+diff --git a/misc/boring/release.sh b/misc/boring/release.sh
+new file mode 100755
+index 0000000000..f3b8876821
+--- /dev/null
++++ b/misc/boring/release.sh
+@@ -0,0 +1,32 @@
++#! /bin/bash
++set -euo pipefail
++
++if [ "$#" -eq 0 ]; then
++    echo "usage: <target branch> [<target branch> ...]"
++    echo ""
++    echo "example: release.sh dev.boringcrypto.go1.11 dev.boringcrypto.go1.12"
++    exit 1
++fi
++
++set -x
++WORKTREE="$(mktemp -d)"
++BRANCH="boring/release-$(date +%Y%m%d%H%M%S)"
++
++git fetch
++git worktree add --track -b "$BRANCH" "$WORKTREE" origin/dev.boringcrypto
++
++cd "$WORKTREE/src"
++./make.bash
++
++cd ../misc/boring
++for branch in "$@"; do
++    ./build.release "origin/$branch"
++done
++./build.docker
++
++git add RELEASES
++git commit -m "misc/boring: add new releases to RELEASES file"
++git codereview mail -r dmitshur@golang.org,filippo@golang.org
++
++rm *.tar.gz
++cd - && git worktree remove "$WORKTREE"

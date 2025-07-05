@@ -12,6 +12,19 @@ Date:   Wed Aug 2 02:55:17 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/database/sql/driver/types_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/database/sql/driver/types_test.go b/src/database/sql/driver/types_test.go
+index 80e5e05469..3d0cb23bc8 100644
+--- a/src/database/sql/driver/types_test.go
++++ b/src/database/sql/driver/types_test.go
+@@ -56,6 +56,7 @@ var valueConverterTests = []valueConverterTest{
+ 	{DefaultParameterConverter, b(true), true, ""},
+ 	{DefaultParameterConverter, bs{1}, []byte{1}, ""},
+ 	{DefaultParameterConverter, s("a"), "a", ""},
++	{DefaultParameterConverter, t(now), nil, "unsupported type driver.t, a struct"},
+ 	{DefaultParameterConverter, is{1}, nil, "unsupported type driver.is, a slice of int"},
+ 	{DefaultParameterConverter, dec{exponent: -6}, dec{exponent: -6}, ""},
+ }

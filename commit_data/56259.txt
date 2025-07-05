@@ -30,7 +30,7 @@ Date:   Mon Apr 17 10:02:48 2023 -0500
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go     | 43 ++++++++--------------------------
  src/cmd/internal/obj/ppc64/asm_test.go |  2 +-
  src/cmd/internal/obj/ppc64/doc.go      | 11 +++++++--
@@ -42,3 +42,266 @@ Date:   Mon Apr 17 10:02:48 2023 -0500
  src/runtime/memclr_ppc64x.s            |  2 +-
  src/runtime/memmove_ppc64x.s           |  4 ++--
  10 files changed, 36 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 1575bb66d0..c993600a73 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -585,40 +585,17 @@ var buildOpCfg = ""    // Save the os/cpu/arch tuple used to configure the assem
+ 
+ // padding bytes to add to align code as requested.
+ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+-	// For 16 and 32 byte alignment, there is a tradeoff
+-	// between aligning the code and adding too many NOPs.
+ 	switch a {
+-	case 8:
+-		if pc&7 != 0 {
+-			return 4
+-		}
+-	case 16:
+-		// Align to 16 bytes if possible but add at
+-		// most 2 NOPs.
+-		switch pc & 15 {
+-		case 4, 12:
+-			return 4
+-		case 8:
+-			return 8
+-		}
+-	case 32:
+-		// Align to 32 bytes if possible but add at
+-		// most 3 NOPs.
+-		switch pc & 31 {
+-		case 4, 20:
+-			return 12
+-		case 8, 24:
+-			return 8
+-		case 12, 28:
+-			return 4
+-		}
+-		// When 32 byte alignment is requested on Linux,
+-		// promote the function's alignment to 32. On AIX
+-		// the function alignment is not changed which might
+-		// result in 16 byte alignment but that is still fine.
+-		// TODO: alignment on AIX
+-		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
+-			cursym.Func().Align = 32
++	case 8, 16, 32, 64:
++		// By default function alignment is 16. If an alignment > 16 is
++		// requested then the function alignment must also be promoted.
++		// The function alignment is not promoted on AIX at this time.
++		// TODO: Investigate AIX function alignment.
++		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
++			cursym.Func().Align = int32(a)
++		}
++		if pc&(a-1) != 0 {
++			return int(a - (pc & (a - 1)))
+ 		}
+ 	default:
+ 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 89fc9ba0ef..b8995dc7e1 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -28,7 +28,7 @@ var platformEnvs = [][]string{
+ const invalidPCAlignSrc = `
+ TEXT test(SB),0,$0-0
+ ADD $2, R3
+-PCALIGN $64
++PCALIGN $128
+ RET
+ `
+ 
+diff --git a/src/cmd/internal/obj/ppc64/doc.go b/src/cmd/internal/obj/ppc64/doc.go
+index 835182bcc6..da10ea379d 100644
+--- a/src/cmd/internal/obj/ppc64/doc.go
++++ b/src/cmd/internal/obj/ppc64/doc.go
+@@ -187,8 +187,15 @@ exists in PPC64 assembler and is frequently used by PPC64 assembler writers.
+ PCALIGN $16
+ PCALIGN $8
+ 
+-Functions in Go are aligned to 16 bytes, as is the case in all other compilers
+-for PPC64.
++By default, functions in Go are aligned to 16 bytes, as is the case in all
++other compilers for PPC64. If there is a PCALIGN directive requesting alignment
++greater than 16, then the alignment of the containing function must be
++promoted to that same alignment or greater.
++
++The behavior of PCALIGN is changed in Go 1.21 to be more straightforward to
++ensure the alignment required for some instructions in power10. The acceptable
++values are 8, 16, 32 and 64, and the use of those values will always provide the
++specified alignment.
+ 
+ 6. Shift instructions
+ 
+diff --git a/src/crypto/aes/asm_ppc64x.s b/src/crypto/aes/asm_ppc64x.s
+index 8ac97ec281..288f7256c7 100644
+--- a/src/crypto/aes/asm_ppc64x.s
++++ b/src/crypto/aes/asm_ppc64x.s
+@@ -644,7 +644,7 @@ TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
+ 
+ 	BEQ	Lcbc_dec
+ 
+-	PCALIGN $32
++	PCALIGN $16
+ Lcbc_enc:
+ 	P8_LXVB16X(INP, R0, INOUT)
+ 	ADD	$16, INP
+@@ -659,7 +659,7 @@ Lcbc_enc:
+ 	CLEAR_KEYS()
+ 	RET
+ 
+-	PCALIGN $32
++	PCALIGN $16
+ Lcbc_dec:
+ 	P8_LXVB16X(INP, R0, TMP)
+ 	ADD	$16, INP
+diff --git a/src/internal/bytealg/compare_ppc64x.s b/src/internal/bytealg/compare_ppc64x.s
+index f3f8b4abd1..63c33ee635 100644
+--- a/src/internal/bytealg/compare_ppc64x.s
++++ b/src/internal/bytealg/compare_ppc64x.s
+@@ -118,7 +118,7 @@ cmp64:	// >= 64B
+ 	MOVD	$32,R11		// set offsets to load into vector
+ 	MOVD	$48,R12		// set offsets to load into vector
+ 
+-	PCALIGN	$32
++	PCALIGN	$16
+ cmp64_loop:
+ 	LXVD2X	(R5)(R0),V3	// load bytes of A at offset 0 into vector
+ 	LXVD2X	(R6)(R0),V4	// load bytes of B at offset 0 into vector
+diff --git a/src/internal/bytealg/equal_ppc64x.s b/src/internal/bytealg/equal_ppc64x.s
+index 649bd96be4..07dce80d3e 100644
+--- a/src/internal/bytealg/equal_ppc64x.s
++++ b/src/internal/bytealg/equal_ppc64x.s
+@@ -61,7 +61,7 @@ setup64:
+ 	MOVD	$48, R16
+ 	ANDCC	$0x3F, R5, R5	// len%64==0?
+ 
+-	PCALIGN $32
++	PCALIGN $16
+ loop64:
+ 	LXVD2X	(R8+R0), V0
+ 	LXVD2X	(R4+R0), V1
+diff --git a/src/internal/bytealg/index_ppc64x.s b/src/internal/bytealg/index_ppc64x.s
+index e98f96b715..80a1f853d3 100644
+--- a/src/internal/bytealg/index_ppc64x.s
++++ b/src/internal/bytealg/index_ppc64x.s
+@@ -674,7 +674,7 @@ index2to16:
+ #else
+ 	MOVD	$3, R17             // Number of bytes beyond 16
+ #endif
+-	PCALIGN  $32
++	PCALIGN  $16
+ 
+ index2to16loop:
+ 
+@@ -776,7 +776,7 @@ short:
+ 	MTVSRD   R10, V8           // Set up shift
+ 	VSLDOI   $8, V8, V8, V8
+ 	VSLO     V1, V8, V1        // Shift by start byte
+-	PCALIGN  $32
++	PCALIGN  $16
+ index2to16next:
+ 	VAND       V1, SEPMASK, V2 // Just compare size of sep
+ 	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 5fdbf40a24..0613f5c3ad 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -45,7 +45,7 @@ TEXT ·addVV(SB), NOSPLIT, $0
+ 	// gain significant performance as z_len increases (up to
+ 	// 1.45x).
+ 
+-	PCALIGN $32
++	PCALIGN $16
+ loop:
+ 	MOVD  8(R8), R11      // R11 = x[i]
+ 	MOVD  16(R8), R12     // R12 = x[i+1]
+@@ -134,7 +134,7 @@ TEXT ·subVV(SB), NOSPLIT, $0
+ 	// gain significant performance as z_len increases (up to
+ 	// 1.45x).
+ 
+-	PCALIGN $32
++	PCALIGN $16
+ loop:
+ 	MOVD  8(R8), R11      // R11 = x[i]
+ 	MOVD  16(R8), R12     // R12 = x[i+1]
+@@ -216,7 +216,7 @@ TEXT ·addVW(SB), NOSPLIT, $0
+ 	CMP   R0, R9
+ 	MOVD  R9, CTR		// Set up the loop counter
+ 	BEQ   tail		// If R9 = 0, we can't use the loop
+-	PCALIGN $32
++	PCALIGN $16
+ 
+ loop:
+ 	MOVD  8(R8), R20	// R20 = x[i]
+@@ -294,7 +294,7 @@ TEXT ·subVW(SB), NOSPLIT, $0
+ 	// we don't need to capture CA every iteration because we've already
+ 	// done that above.
+ 
+-	PCALIGN $32
++	PCALIGN $16
+ loop:
+ 	MOVD  8(R8), R20
+ 	MOVD  16(R8), R21
+@@ -365,7 +365,7 @@ TEXT ·shlVU(SB), NOSPLIT, $0
+ 	CMP     R5, R0          // iterate from i=len(z)-1 to 0
+ 	BEQ     loopexit        // Already at end?
+ 	MOVD	0(R15),R10	// x[i]
+-	PCALIGN $32
++	PCALIGN $16
+ shloop:
+ 	SLD     R9, R10, R10    // x[i]<<s
+ 	MOVDU   -8(R15), R14
+@@ -528,7 +528,7 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	CMP     R0, R14
+ 	MOVD    R14, CTR          // Set up the loop counter
+ 	BEQ     tail              // If R9 = 0, we can't use the loop
+-	PCALIGN $32
++	PCALIGN $16
+ 
+ loop:
+ 	MOVD    8(R8), R20        // R20 = x[i]
+@@ -611,7 +611,7 @@ TEXT ·addMulVVW(SB), NOSPLIT, $0
+ 	MOVD R0, R4		// R4 = c = 0
+ 	MOVD R22, CTR		// Initialize loop counter
+ 	BEQ  done
+-	PCALIGN $32
++	PCALIGN $16
+ 
+ loop:
+ 	MOVD  (R8)(R3), R20	// Load x[i]
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index 3e569282d0..f0b13b40ae 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -149,7 +149,7 @@ zero512setup:  // setup for dcbz loop
+ 	MOVD $128, R9   // index regs for 128 bytes
+ 	MOVD $256, R10
+ 	MOVD $384, R11
+-	PCALIGN $32
++	PCALIGN $16
+ zero512:
+ 	DCBZ (R3+R0)        // clear first chunk
+ 	DCBZ (R3+R9)        // clear second chunk
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index 1b3fe69ef8..18b9c850f2 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -77,7 +77,7 @@ forward64setup:
+ 	MOVD	OCTWORDS, CTR		// Number of 64 byte chunks
+ 	MOVD	$32, IDX32
+ 	MOVD	$48, IDX48
+-	PCALIGN	$32
++	PCALIGN	$16
+ 
+ forward64:
+ 	LXVD2X	(R0)(SRC), VS32		// load 64 bytes
+@@ -206,7 +206,7 @@ backward32setup:
+ 	ANDCC   $3,DWORDS		// Compute remaining DWORDS and compare to 0
+ 	MOVD	QWORDS, CTR		// set up loop ctr
+ 	MOVD	$16, IDX16		// 32 bytes at a time
+-	PCALIGN	$32
++	PCALIGN	$16
+ 
+ backward32loop:
+ 	SUB	$32, TGT

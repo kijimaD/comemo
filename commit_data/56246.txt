@@ -19,6 +19,33 @@ Date:   Tue Apr 18 22:13:27 2023 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/io/io.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 630ab73b56..7b8ee10a56 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -694,10 +694,6 @@ func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
+ func ReadAll(r Reader) ([]byte, error) {
+ 	b := make([]byte, 0, 512)
+ 	for {
+-		if len(b) == cap(b) {
+-			// Add more capacity (let append pick how much).
+-			b = append(b, 0)[:len(b)]
+-		}
+ 		n, err := r.Read(b[len(b):cap(b)])
+ 		b = b[:len(b)+n]
+ 		if err != nil {
+@@ -706,5 +702,10 @@ func ReadAll(r Reader) ([]byte, error) {
+ 			}
+ 			return b, err
+ 		}
++
++		if len(b) == cap(b) {
++			// Add more capacity (let append pick how much).
++			b = append(b, 0)[:len(b)]
++		}
+ 	}
+ }

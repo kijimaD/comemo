@@ -13,6 +13,28 @@ Date:   Tue Sep 22 18:02:52 2020 +0000
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 09717dac85..3164acbb6d 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -85,6 +85,16 @@ Do not send CLs removing the interior tags from such phrases.
+   that is still considered to be a passing test.
+ </p>
+ 
++<p><!-- golang.org/issue/37519 -->
++  The <code>go</code> <code>get</code> <code>-insecure</code> flag is
++  deprecated and will be removed in a future version. The <code>GOINSECURE</code>
++  environment variable should be used instead, since it provides control
++  over which modules may be retrieved using an insecure scheme. Unlike the
++  <code>-insecure</code> flag, <code>GOINSECURE</code> does not disable module
++  sum validation using the checksum database. The <code>GOPRIVATE</code> or
++  <code>GONOSUMDB</code> environment variables may be used instead.
++</p>
++
+ <h4 id="all-pattern">The <code>all</code> pattern</h4>
+ 
+ <p><!-- golang.org/cl/240623 -->

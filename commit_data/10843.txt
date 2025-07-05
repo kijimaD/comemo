@@ -10,8 +10,105 @@ Date:   Fri Dec 16 10:48:41 2011 -0500
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5399043
-
+---
  src/pkg/net/http/Makefile  |  1 +
  src/pkg/net/http/client.go | 17 +++++++++++++++++
  src/pkg/net/http/jar.go    | 30 ++++++++++++++++++++++++++++++
  3 files changed, 48 insertions(+)
+
+diff --git a/src/pkg/net/http/Makefile b/src/pkg/net/http/Makefile
+index 807bc32447..5c351b0c40 100644
+--- a/src/pkg/net/http/Makefile
++++ b/src/pkg/net/http/Makefile
+@@ -12,6 +12,7 @@ GOFILES=\
+ 	filetransport.go\
+ 	fs.go\
+ 	header.go\
++	jar.go\
+ 	lex.go\
+ 	request.go\
+ 	response.go\
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 211ac44c58..a4f8f19aac 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -38,6 +38,11 @@ type Client struct {
+ 	// If CheckRedirect is nil, the Client uses its default policy,
+ 	// which is to stop after 10 consecutive requests.
+ 	CheckRedirect func(req *Request, via []*Request) error
++
++	// Jar specifies the cookie jar. 
++	// If Jar is nil, cookies are not sent in requests and ignored 
++	// in responses.
++	Jar CookieJar
+ }
+ 
+ // DefaultClient is the default Client and is used by Get, Head, and Post.
+@@ -180,6 +185,11 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
+ 		return nil, errors.New("http: nil Request.URL")
+ 	}
+ 
++	jar := c.Jar
++	if jar == nil {
++		jar = blackHoleJar{}
++	}
++
+ 	req := ireq
+ 	urlStr := "" // next relative or absolute URL to fetch (after first request)
+ 	for redirect := 0; ; redirect++ {
+@@ -203,12 +213,19 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
+ 					break
+ 				}
+ 			}
++			for _, cookie := range jar.Cookies(req.URL) {
++				req.AddCookie(cookie)
++			}
+ 		}
+ 
+ 		urlStr = req.URL.String()
+ 		if r, err = send(req, c.Transport); err != nil {
+ 			break
+ 		}
++		if c := r.Cookies(); len(c) > 0 {
++			jar.SetCookies(req.URL, c)
++		}
++
+ 		if shouldRedirect(r.StatusCode) {
+ 			r.Body.Close()
+ 			if urlStr = r.Header.Get("Location"); urlStr == "" {
+diff --git a/src/pkg/net/http/jar.go b/src/pkg/net/http/jar.go
+new file mode 100644
+index 0000000000..2c2caa251f
+--- /dev/null
++++ b/src/pkg/net/http/jar.go
+@@ -0,0 +1,30 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"net/url"
++)
++
++// A CookieJar manages storage and use of cookies in HTTP requests. 
++//
++// Implementations of CookieJar must be safe for concurrent use by multiple
++// goroutines.
++type CookieJar interface {
++	// SetCookies handles the receipt of the cookies in a reply for the 
++	// given URL.  It may or may not choose to save the cookies, depending 
++	// on the jar's policy and implementation. 
++	SetCookies(u *url.URL, cookies []*Cookie)
++
++	// Cookies returns the cookies to send in a request for the given URL.
++	// It is up to the implementation to honor the standard cookie use 
++	// restrictions such as in RFC 6265. 
++	Cookies(u *url.URL) []*Cookie
++}
++
++type blackHoleJar struct{}
++
++func (blackHoleJar) SetCookies(u *url.URL, cookies []*Cookie) {}
++func (blackHoleJar) Cookies(u *url.URL) []*Cookie             { return nil }

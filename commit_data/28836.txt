@@ -32,6 +32,27 @@ Date:   Mon Aug 8 17:14:01 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 009f3c5b6a..3046de5a8e 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -398,6 +398,15 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ // HTTP request on a new connection. The non-nil input error is the
+ // error from roundTrip.
+ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
++	if err == http2ErrNoCachedConn {
++		// Issue 16582: if the user started a bunch of
++		// requests at once, they can all pick the same conn
++		// and violate the server's max concurrent streams.
++		// Instead, match the HTTP/1 behavior for now and dial
++		// again to get a new TCP connection, rather than failing
++		// this request.
++		return true
++	}
+ 	if err == errMissingHost {
+ 		// User error.
+ 		return false

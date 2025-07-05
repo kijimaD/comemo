@@ -17,10 +17,135 @@ Date:   Thu Aug 9 16:36:48 2018 -0400
     Change-Id: Ie40ca1bc9e27955441f1cdb7abd3a1f69034c9f5
     Reviewed-on: https://go-review.googlesource.com/128900
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 31 ++++++++++++++++++++++
  src/cmd/go/testdata/mod/rsc.io_fortune_v1.0.0.txt  | 15 +++++++++++
  .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   | 15 +++++++++++
  src/cmd/go/testdata/script/mod_install.txt         | 16 -----------
  .../go/testdata/script/mod_install_versioned.txt   | 12 +++++++++
  5 files changed, 73 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3ee63665ae..a9327dc6cb 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1241,6 +1241,37 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 			return
+ 		}
+ 		_, elem := filepath.Split(p.Dir)
++		if cfg.ModulesEnabled {
++			// NOTE(rsc): Using p.ImportPath instead of p.Dir
++			// makes sure we install a package in the root of a
++			// cached module directory as that package name
++			// not name@v1.2.3.
++			// Using p.ImportPath instead of p.Dir
++			// is probably correct all the time,
++			// even for non-module-enabled code,
++			// but I'm not brave enough to change the
++			// non-module behavior this late in the
++			// release cycle. Maybe for Go 1.12.
++			// See golang.org/issue/26869.
++			_, elem = pathpkg.Split(p.ImportPath)
++
++			// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
++			// See golang.org/issue/24667.
++			isVersion := func(v string) bool {
++				if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
++					return false
++				}
++				for i := 2; i < len(v); i++ {
++					if c := v[i]; c < '0' || '9' < c {
++						return false
++					}
++				}
++				return true
++			}
++			if isVersion(elem) {
++				_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
++			}
++		}
+ 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
+ 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
+ 			// Install cross-compiled binaries to subdirectories of bin.
+diff --git a/src/cmd/go/testdata/mod/rsc.io_fortune_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_fortune_v1.0.0.txt
+new file mode 100644
+index 0000000000..d8a71f3cd9
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_fortune_v1.0.0.txt
+@@ -0,0 +1,15 @@
++rsc.io/fortune v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/fortune
++-- .info --
++{"Version":"v1.0.0"}
++-- fortune.go --
++package main
++
++import "rsc.io/quote"
++
++func main() {
++	println(quote.Hello())
++}
+diff --git a/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt
+new file mode 100644
+index 0000000000..cfa91f08a5
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt
+@@ -0,0 +1,15 @@
++rsc.io/fortune v2.0.0
++written by hand
++
++-- .mod --
++module rsc.io/fortune/v2
++-- .info --
++{"Version":"v2.0.0"}
++-- fortune.go --
++package main
++
++import "rsc.io/quote"
++
++func main() {
++	println(quote.Hello())
++}
+diff --git a/src/cmd/go/testdata/script/mod_install.txt b/src/cmd/go/testdata/script/mod_install.txt
+deleted file mode 100644
+index 9559c4669c..0000000000
+--- a/src/cmd/go/testdata/script/mod_install.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-env GO111MODULE=on
+-
+-go mod init example.com/m
+-
+-# get of a binary should install it to $GOPATH/bin
+-# BUG: vgo-tour should be installed as vgo-tour, not vgo-tour@v1.0.0.
+-go get research.swtch.com/vgo-tour
+-exec $GOPATH/bin/vgo-tour@v1.0.0
+-stdout 'Hello, world.'
+-rm $GOPATH/bin/vgo-tour@v1.0.0
+-
+-# install of a binary should install it to $GOPATH/bin
+-# BUG: vgo-tour should be installed as vgo-tour, not vgo-tour@v1.0.0.
+-go install research.swtch.com/vgo-tour
+-exec $GOPATH/bin/vgo-tour@v1.0.0
+-stdout 'Hello, world.'
+diff --git a/src/cmd/go/testdata/script/mod_install_versioned.txt b/src/cmd/go/testdata/script/mod_install_versioned.txt
+new file mode 100644
+index 0000000000..03986d06a0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_install_versioned.txt
+@@ -0,0 +1,12 @@
++env GO111MODULE=on
++
++go list -f '{{.Target}}' rsc.io/fortune
++! stdout fortune@v1
++stdout 'fortune(\.exe)?$'
++
++go list -f '{{.Target}}' rsc.io/fortune/v2
++! stdout v2
++stdout 'fortune(\.exe)?$'
++
++-- go.mod --
++module m

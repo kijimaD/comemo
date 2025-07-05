@@ -11,7 +11,45 @@ Date:   Wed Nov 22 01:10:59 2017 +0000
     Change-Id: Ief261324c86bc77a03071629f496f4d4d9df1b44
     Reviewed-on: https://go-review.googlesource.com/79255
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/editors.html                        |   8 ++++----
  doc/editors/{gogland.png => goland.png} | Bin
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 264f5af920..84fb068918 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -22,8 +22,8 @@ editing, navigation, testing, and debugging experience.
+ <li><a href="https://github.com/fatih/vim-go">vim</a>: vim-go plugin provides Go programming language support</li>
+ <li><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Visual Studio Code</a>:
+ Go extension provides support for the Go programming language</li>
+-<li><a href="https://www.jetbrains.com/go">Gogland</a>: Gogland is distributed either as a standalone IDE
+-or as a plugin for the commercial IntelliJ Platform IDEs</li>
++<li><a href="https://www.jetbrains.com/go">GoLand</a>: GoLand is distributed either as a standalone IDE
++or as a plugin for IntelliJ IDEA Ultimate</li>
+ <li><a href="https://atom.io/packages/go-plus">Atom</a>: Go-Plus is an Atom package that provides enhanced Go support</li>
+ </ul>
+ 
+@@ -44,7 +44,7 @@ The following feature matrix lists and compares the most significant features.
+     <th></th>
+     <th><img title="Vim Go" src="/doc/editors/vimgo.png"><br>vim</th>
+     <th><img title="Visual Studio Code" src="/doc/editors/vscodego.png"><br>Visual Studio Code</th>
+-    <th><img title="Gogland" src="/doc/editors/gogland.png"><br>Gogland</th>
++    <th><img title="GoLand" src="/doc/editors/goland.png"><br>GoLand</th>
+     <th><img title="Go-Plus" src="/doc/editors/go-plus.png"><br>Atom</th>
+   </tr>
+   <tr>
+@@ -159,7 +159,7 @@ The following feature matrix lists and compares the most significant features.
+     <td>Auto generate tests for packages, files and identifiers</td>
+     <td class="no">No</td>
+     <td class="yes">Yes</td>
+-    <td class="no">No</td>
++    <td class="yes">Yes</td>
+     <td class="no">No</td>
+   </tr>
+   <tr>
+diff --git a/doc/editors/gogland.png b/doc/editors/goland.png
+similarity index 100%
+rename from doc/editors/gogland.png
+rename to doc/editors/goland.png

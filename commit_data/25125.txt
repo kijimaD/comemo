@@ -7,7 +7,34 @@ Date:   Tue Sep 29 10:16:09 2015 +1000
     Change-Id: I004a43842430201296363a9745480bee94920041
     Reviewed-on: https://go-review.googlesource.com/15084
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/example_test.go | 2 +-
  src/text/template/example_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/html/template/example_test.go b/src/html/template/example_test.go
+index a7c2905098..40fc3ba47b 100644
+--- a/src/html/template/example_test.go
++++ b/src/html/template/example_test.go
+@@ -124,7 +124,7 @@ func Example_escape() {
+ 
+ // The following example is duplicated in text/template; keep them in sync.
+ 
+-func ExampleBlock() {
++func ExampleTemplate_block() {
+ 	const (
+ 		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
+ 		overlay = `{{define "list"}} {{join . ", "}}{{end}} `
+diff --git a/src/text/template/example_test.go b/src/text/template/example_test.go
+index 58341c1092..9cab2e8328 100644
+--- a/src/text/template/example_test.go
++++ b/src/text/template/example_test.go
+@@ -76,7 +76,7 @@ Josie
+ 
+ // The following example is duplicated in html/template; keep them in sync.
+ 
+-func ExampleBlock() {
++func ExampleTemplate_block() {
+ 	const (
+ 		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
+ 		overlay = `{{define "list"}} {{join . ", "}}{{end}} `

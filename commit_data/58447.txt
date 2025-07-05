@@ -30,7 +30,7 @@ Date:   Thu Oct 12 09:25:30 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64.s | 19 ++++++---
  src/cmd/internal/obj/ppc64/a.out.go       |  8 +---
  src/cmd/internal/obj/ppc64/anames9.go     |  1 -
@@ -39,3 +39,411 @@ Date:   Thu Oct 12 09:25:30 2023 -0500
  src/cmd/internal/obj/ppc64/obj9.go        | 62 +++++++++++++++++++++++++--
  test/codegen/mathbits.go                  |  4 +-
  7 files changed, 84 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 983a368a99..01052b49e7 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -17,14 +17,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVD $1, R3                     // 38600001
+ 	MOVD $-1, R4                    // 3880ffff
+ 	MOVD $65535, R5                 // 6005ffff
+-	MOVD $65536, R6                 // 64060001
++	MOVD $65536, R6                 // 3cc00001
+ 	MOVD $-32767, R5                // 38a08001
+ 	MOVD $-32768, R6                // 38c08000
+ 	MOVD $1234567, R5               // 6405001260a5d687 or 0600001238a0d687
+ 	MOVW $1, R3                     // 38600001
+ 	MOVW $-1, R4                    // 3880ffff
+ 	MOVW $65535, R5                 // 6005ffff
+-	MOVW $65536, R6                 // 64060001
++	MOVW $65536, R6                 // 3cc00001
+ 	MOVW $-32767, R5                // 38a08001
+ 	MOVW $-32768, R6                // 38c08000
+ 	MOVW $1234567, R5               // 6405001260a5d687 or 0600001238a0d687
+@@ -36,6 +36,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	// Hex constant 0xFFFFFFFE00000002 (load of constant on < power10, pli on >= power10
+ 	MOVD $-8589934590, R5           // 3ca00000e8a50000 or 0602000038a00002
+ 
++	// For backwards compatibility, MOVW $const,Rx and MOVWZ $const,Rx assemble identically
++	// and accept the same constants.
++	MOVW $2147483648, R5            // 64058000
++	MOVWZ $-2147483648, R5          // 3ca08000
++
+ 	// TODO: These are preprocessed by the assembler into MOVD $const>>shift, R5; SLD $shift, R5.
+ 	//       This only captures the MOVD. Should the SLD be appended to the encoding by the test?
+ 	// Hex constant 0x20004000000
+@@ -192,6 +197,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ADDEX R3, R5, $3, R6            // 7cc32f54
+ 	ADDEX R3, $3, R5, R6            // 7cc32f54
+ 	ADDIS $8, R3                    // 3c630008
++	ADD   $524288, R3               // 3c630008
+ 	ADDIS $1000, R3, R4             // 3c8303e8
+ 
+ 	ANDCC $1, R3                    // 70630001
+@@ -210,6 +216,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ANDCC $1234567, R5, R6          // 641f001263ffd6877fe62839
+ 	ANDISCC $1, R3                  // 74630001
+ 	ANDISCC $1000, R3, R4           // 746403e8
++	ANDCC $65536000, R3, R4         // 746403e8
+ 
+ 	OR $1, R3                       // 60630001
+ 	OR $1, R3, R4                   // 60640001
+@@ -225,9 +232,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	OR $-32768, R6, R7              // 3be080007fe73378
+ 	OR $1234567, R5                 // 641f001263ffd6877fe52b78
+ 	OR $1234567, R5, R3             // 641f001263ffd6877fe32b78
+-	OR $2147483648, R5, R3          // 641f8000600000007fe32b78
++	OR $2147483648, R5, R3          // 64a38000
+ 	OR $2147483649, R5, R3          // 641f800063ff00017fe32b78
+-	ORIS $255, R3, R4
++	ORIS $255, R3, R4               // 646400ff
++	OR $16711680, R3, R4            // 646400ff
+ 
+ 	XOR $1, R3                      // 68630001
+ 	XOR $1, R3, R4                  // 68640001
+@@ -243,7 +251,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	XOR $-32768, R6, R7             // 3be080007fe73278
+ 	XOR $1234567, R5                // 641f001263ffd6877fe52a78
+ 	XOR $1234567, R5, R3            // 641f001263ffd6877fe32a78
+-	XORIS $15, R3, R4
++	XORIS $15, R3, R4               // 6c64000f
++	XOR   $983040, R3, R4           // 6c64000f
+ 
+ 	// TODO: the order of CR operands don't match
+ 	CMP R3, R4                      // 7c232000
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index efc10ea0f2..83ec76e0f1 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -422,7 +422,6 @@ const (
+ 	C_U15CON   /* 15 bit unsigned constant */
+ 	C_S16CON   /* 16 bit signed constant */
+ 	C_U16CON   /* 16 bit unsigned constant */
+-	C_32S16CON /* Any 32 bit constant of the form 0x....0000, signed or unsigned */
+ 	C_32CON    /* Any constant which fits into 32 bits. Can be signed or unsigned */
+ 	C_S34CON   /* 34 bit signed constant */
+ 	C_64CON    /* Any constant which fits into 64 bits. Can be signed or unsigned */
+@@ -451,16 +450,13 @@ const (
+ 
+ 	/* Aliased names which should be cleaned up, or integrated. */
+ 	C_SCON   = C_U15CON
+-	C_UCON   = C_32S16CON
+ 	C_ADDCON = C_S16CON
+ 	C_ANDCON = C_U16CON
+ 	C_LCON   = C_32CON
+ 
+ 	/* Aliased names which may be generated by ppc64map for the optab. */
+-	C_S3216CON = C_32S16CON // TODO: these should be treated differently (e.g xoris vs addis)
+-	C_U3216CON = C_32S16CON
+-	C_S32CON   = C_32CON
+-	C_U32CON   = C_32CON
++	C_S32CON = C_32CON
++	C_U32CON = C_32CON
+ )
+ 
+ const (
+diff --git a/src/cmd/internal/obj/ppc64/anames9.go b/src/cmd/internal/obj/ppc64/anames9.go
+index ad6776aa89..0180358388 100644
+--- a/src/cmd/internal/obj/ppc64/anames9.go
++++ b/src/cmd/internal/obj/ppc64/anames9.go
+@@ -27,7 +27,6 @@ var cnames9 = []string{
+ 	"U15CON",
+ 	"S16CON",
+ 	"U16CON",
+-	"32S16CON",
+ 	"32CON",
+ 	"S34CON",
+ 	"64CON",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index dcecb26d00..9524f66ca4 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -120,8 +120,6 @@ var optabBase = []Optab{
+ 	{as: AADD, a1: C_SCON, a6: C_REG, type_: 4, size: 4},
+ 	{as: AADD, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
+ 	{as: AADD, a1: C_ADDCON, a6: C_REG, type_: 4, size: 4},
+-	{as: AADD, a1: C_UCON, a2: C_REG, a6: C_REG, type_: 20, size: 4},
+-	{as: AADD, a1: C_UCON, a6: C_REG, type_: 20, size: 4},
+ 	{as: AADD, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 22, size: 8},
+ 	{as: AADD, a1: C_ANDCON, a6: C_REG, type_: 22, size: 8},
+ 	{as: AADDIS, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 20, size: 4},
+@@ -138,14 +136,12 @@ var optabBase = []Optab{
+ 	{as: AANDCC, a1: C_REG, a6: C_REG, type_: 6, size: 4},
+ 	{as: AANDCC, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
+ 	{as: AANDCC, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
+-	{as: AANDCC, a1: C_UCON, a6: C_REG, type_: 59, size: 4},
+-	{as: AANDCC, a1: C_UCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
+ 	{as: AANDCC, a1: C_ADDCON, a6: C_REG, type_: 23, size: 8},
+ 	{as: AANDCC, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 23, size: 8},
+ 	{as: AANDCC, a1: C_LCON, a6: C_REG, type_: 23, size: 12},
+ 	{as: AANDCC, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 23, size: 12},
+-	{as: AANDISCC, a1: C_ANDCON, a6: C_REG, type_: 59, size: 4},
+-	{as: AANDISCC, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
++	{as: AANDISCC, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
++	{as: AANDISCC, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
+ 	{as: AMULLW, a1: C_REG, a2: C_REG, a6: C_REG, type_: 2, size: 4},
+ 	{as: AMULLW, a1: C_REG, a6: C_REG, type_: 2, size: 4},
+ 	{as: AMULLW, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 4, size: 4},
+@@ -162,14 +158,12 @@ var optabBase = []Optab{
+ 	{as: AOR, a1: C_REG, a6: C_REG, type_: 6, size: 4},
+ 	{as: AOR, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
+ 	{as: AOR, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
+-	{as: AOR, a1: C_UCON, a6: C_REG, type_: 59, size: 4},
+-	{as: AOR, a1: C_UCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
+ 	{as: AOR, a1: C_ADDCON, a6: C_REG, type_: 23, size: 8},
+ 	{as: AOR, a1: C_ADDCON, a2: C_REG, a6: C_REG, type_: 23, size: 8},
+ 	{as: AOR, a1: C_LCON, a6: C_REG, type_: 23, size: 12},
+ 	{as: AOR, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 23, size: 12},
+-	{as: AORIS, a1: C_ANDCON, a6: C_REG, type_: 59, size: 4},
+-	{as: AORIS, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 59, size: 4},
++	{as: AORIS, a1: C_ANDCON, a6: C_REG, type_: 58, size: 4},
++	{as: AORIS, a1: C_ANDCON, a2: C_REG, a6: C_REG, type_: 58, size: 4},
+ 	{as: ADIVW, a1: C_REG, a2: C_REG, a6: C_REG, type_: 2, size: 4}, /* op r1[,r2],r3 */
+ 	{as: ADIVW, a1: C_REG, a6: C_REG, type_: 2, size: 4},
+ 	{as: ASUB, a1: C_REG, a2: C_REG, a6: C_REG, type_: 10, size: 4}, /* op r2[,r1],r3 */
+@@ -240,7 +234,6 @@ var optabBase = []Optab{
+ 
+ 	{as: AMOVD, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
+ 	{as: AMOVD, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
+-	{as: AMOVD, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
+ 	{as: AMOVD, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
+ 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
+ 	{as: AMOVD, a1: C_XOREG, a6: C_REG, type_: 109, size: 4},
+@@ -254,7 +247,6 @@ var optabBase = []Optab{
+ 
+ 	{as: AMOVW, a1: C_ADDCON, a6: C_REG, type_: 3, size: 4},
+ 	{as: AMOVW, a1: C_ANDCON, a6: C_REG, type_: 3, size: 4},
+-	{as: AMOVW, a1: C_UCON, a6: C_REG, type_: 3, size: 4},
+ 	{as: AMOVW, a1: C_SACON, a6: C_REG, type_: 3, size: 4},
+ 	{as: AMOVW, a1: C_CREG, a6: C_REG, type_: 68, size: 4},
+ 	{as: AMOVW, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
+@@ -1051,10 +1043,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			case sbits <= 16:
+ 				return C_U16CON
+ 			case sbits <= 31:
+-				// Special case, a positive int32 value which is a multiple of 2^16
+-				if c.instoffset&0xFFFF == 0 {
+-					return C_U3216CON
+-				}
+ 				return C_U32CON
+ 			case sbits <= 32:
+ 				return C_U32CON
+@@ -1069,10 +1057,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 			case sbits <= 15:
+ 				return C_S16CON
+ 			case sbits <= 31:
+-				// Special case, a negative int32 value which is a multiple of 2^16
+-				if c.instoffset&0xFFFF == 0 {
+-					return C_S3216CON
+-				}
+ 				return C_S32CON
+ 			case sbits <= 33:
+ 				return C_S34CON
+@@ -1193,15 +1177,12 @@ func cmp(a int, b int) bool {
+ 	case C_S16CON:
+ 		return cmp(C_U15CON, b)
+ 	case C_32CON:
+-		return cmp(C_S16CON, b) || cmp(C_U16CON, b) || cmp(C_32S16CON, b)
++		return cmp(C_S16CON, b) || cmp(C_U16CON, b)
+ 	case C_S34CON:
+ 		return cmp(C_32CON, b)
+ 	case C_64CON:
+ 		return cmp(C_S34CON, b)
+ 
+-	case C_32S16CON:
+-		return cmp(C_ZCON, b)
+-
+ 	case C_LACON:
+ 		return cmp(C_SACON, b)
+ 
+@@ -2598,20 +2579,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 			c.ctxt.Diag("literal operation on R0\n%v", p)
+ 		}
+ 		a := OP_ADDI
+-		if o.a1 == C_UCON {
+-			if d&0xffff != 0 {
+-				log.Fatalf("invalid handling of %v", p)
+-			}
+-			// For UCON operands the value is right shifted 16, using ADDIS if the
+-			// value should be signed, ORIS if unsigned.
+-			v >>= 16
+-			if r == REGZERO && isuint32(uint64(d)) {
+-				o1 = LOP_IRR(OP_ORIS, uint32(p.To.Reg), REGZERO, uint32(v))
+-				break
+-			}
+-
+-			a = OP_ADDIS
+-		} else if int64(int16(d)) != d {
++		if int64(int16(d)) != d {
+ 			// Operand is 16 bit value with sign bit set
+ 			if o.a1 == C_ANDCON {
+ 				// Needs unsigned 16 bit so use ORI
+@@ -2944,14 +2912,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		if r == 0 {
+ 			r = int(p.To.Reg)
+ 		}
+-		if p.As == AADD && (r0iszero == 0 /*TypeKind(100016)*/ && p.Reg == 0 || r0iszero != 0 /*TypeKind(100016)*/ && p.To.Reg == 0) {
+-			c.ctxt.Diag("literal operation on R0\n%v", p)
+-		}
+-		if p.As == AADDIS {
+-			o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+-		} else {
+-			o1 = AOP_IRR(c.opirr(AADDIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+-		}
++		o1 = AOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+ 
+ 	case 22: /* add $lcon/$andcon,r1,r2 ==> oris+ori+add/ori+add, add $s34con,r1 ==> addis+ori+slw+ori+add */
+ 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
+@@ -3425,24 +3386,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		}
+ 		o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+ 
+-	case 59: /* or/xor/and $ucon,,r | oris/xoris/andis $addcon,r,r */
+-		v := c.regoff(&p.From)
+-
+-		r := int(p.Reg)
+-		if r == 0 {
+-			r = int(p.To.Reg)
+-		}
+-		switch p.As {
+-		case AOR:
+-			o1 = LOP_IRR(c.opirr(AORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16) /* oris, xoris, andis. */
+-		case AXOR:
+-			o1 = LOP_IRR(c.opirr(AXORIS), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+-		case AANDCC:
+-			o1 = LOP_IRR(c.opirr(AANDISCC), uint32(p.To.Reg), uint32(r), uint32(v)>>16)
+-		default:
+-			o1 = LOP_IRR(c.opirr(p.As), uint32(p.To.Reg), uint32(r), uint32(v))
+-		}
+-
+ 	case 60: /* tw to,a,b */
+ 		r := int(c.regoff(&p.From) & 31)
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 87d4156ef9..ed430edd91 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -517,12 +517,10 @@ func TestAddrClassifier(t *testing.T) {
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 32}, C_U8CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 14}, C_U15CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 15}, C_U16CON},
+-		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 16}, C_U3216CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 + 1<<16}, C_U32CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 32}, C_S34CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 33}, C_64CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -1}, C_S16CON},
+-		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -0x10000}, C_S3216CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -0x10001}, C_S32CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 33)}, C_S34CON},
+ 		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 34)}, C_64CON},
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index ab397892c2..a3d392d62c 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -113,15 +113,48 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			}
+ 		}
+ 
++	case AMOVW, AMOVWZ:
++		// Note, for backwards compatibility, MOVW $const, Rx and MOVWZ $const, Rx are identical.
++		if p.From.Type == obj.TYPE_CONST && p.From.Offset != 0 && p.From.Offset&0xFFFF == 0 {
++			// This is a constant shifted 16 bits to the left, convert it to ADDIS/ORIS $const,...
++			p.As = AADDIS
++			// Use ORIS for large constants which should not be sign extended.
++			if p.From.Offset >= 0x80000000 {
++				p.As = AORIS
++			}
++			p.Reg = REG_R0
++			p.From.Offset >>= 16
++		}
++
+ 	case AMOVD:
++		// Skip this opcode if it is not a constant load.
++		if p.From.Type != obj.TYPE_CONST || p.From.Name != obj.NAME_NONE || p.From.Reg != 0 {
++			break
++		}
++
+ 		// 32b constants (signed and unsigned) can be generated via 1 or 2 instructions. They can be assembled directly.
+ 		isS32 := int64(int32(p.From.Offset)) == p.From.Offset
+ 		isU32 := uint64(uint32(p.From.Offset)) == uint64(p.From.Offset)
+-
+ 		// If prefixed instructions are supported, a 34b signed constant can be generated by one pli instruction.
+ 		isS34 := pfxEnabled && (p.From.Offset<<30)>>30 == p.From.Offset
+-		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && !isS32 && !isU32 && !isS34 {
+ 
++		// Try converting MOVD $const,Rx into ADDIS/ORIS $s32>>16,R0,Rx
++		switch {
++		case isS32 && p.From.Offset&0xFFFF == 0 && p.From.Offset != 0:
++			p.As = AADDIS
++			p.From.Offset >>= 16
++			p.Reg = REG_R0
++
++		case isU32 && p.From.Offset&0xFFFF == 0 && p.From.Offset != 0:
++			p.As = AORIS
++			p.From.Offset >>= 16
++			p.Reg = REG_R0
++
++		case isS32 || isU32 || isS34:
++			// The assembler can generate this opcode in 1 (on Power10) or 2 opcodes.
++
++		// Otherwise, see if the large constant can be generated with 2 instructions. If not, load it from memory.
++		default:
+ 			// Is this a shifted 16b constant? If so, rewrite it to avoid a creating and loading a constant.
+ 			val := p.From.Offset
+ 			shift := bits.TrailingZeros64(uint64(val))
+@@ -134,8 +167,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				q.To = p.To
+ 				p.From.Offset >>= shift
+ 				p = q
+-				// Is this constant a mask value? If so, generate MOVD $-1, Rto; RLDIC Rto, ^me, mb, Rto
+ 			} else if isPPC64DoublewordRotateMask(val) {
++				// This constant is a mask value, generate MOVD $-1, Rto; RLDIC Rto, ^me, mb, Rto
+ 				mb, me := encodePPC64RLDCMask(val)
+ 				q := obj.Appendp(p, c.newprog)
+ 				q.As = ARLDC
+@@ -175,6 +208,29 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.As = AADD
+ 		}
+ 
++	// Rewrite ADD/OR/XOR/ANDCC $const,... forms into ADDIS/ORIS/XORIS/ANDISCC
++	case AADD:
++		// AADD can encode signed 34b values, ensure it is a valid signed 32b integer too.
++		if p.From.Type == obj.TYPE_CONST && p.From.Offset&0xFFFF == 0 && int64(int32(p.From.Offset)) == p.From.Offset && p.From.Offset != 0 {
++			p.As = AADDIS
++			p.From.Offset >>= 16
++		}
++	case AOR:
++		if p.From.Type == obj.TYPE_CONST && uint64(p.From.Offset)&0xFFFFFFFF0000FFFF == 0 && p.From.Offset != 0 {
++			p.As = AORIS
++			p.From.Offset >>= 16
++		}
++	case AXOR:
++		if p.From.Type == obj.TYPE_CONST && uint64(p.From.Offset)&0xFFFFFFFF0000FFFF == 0 && p.From.Offset != 0 {
++			p.As = AXORIS
++			p.From.Offset >>= 16
++		}
++	case AANDCC:
++		if p.From.Type == obj.TYPE_CONST && uint64(p.From.Offset)&0xFFFFFFFF0000FFFF == 0 && p.From.Offset != 0 {
++			p.As = AANDISCC
++			p.From.Offset >>= 16
++		}
++
+ 	// To maintain backwards compatibility, we accept some 4 argument usage of
+ 	// several opcodes which was likely not intended, but did work. These are not
+ 	// added to optab to avoid the chance this behavior might be used with newer
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index d80bfaeec0..184d608424 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -340,8 +340,8 @@ func TrailingZeros16(n uint16) int {
+ 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
+ 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+-	// ppc64x/power8:"POPCNTD","OR\\t\\$65536"
+-	// ppc64x/power9:"CNTTZD","OR\\t\\$65536"
++	// ppc64x/power8:"POPCNTD","ORIS\\t\\$1"
++	// ppc64x/power9:"CNTTZD","ORIS\\t\\$1"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros16(n)
+ }

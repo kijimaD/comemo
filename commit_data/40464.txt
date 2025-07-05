@@ -15,9 +15,228 @@ Date:   Mon May 13 16:46:31 2019 -0700
     Change-Id: I534e20d3b163ab22c2b137b1c9095906dc243221
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176998
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/fmt/errors.go                   | 43 ++++++++++++++++++++++
  src/fmt/errors_test.go              | 73 +++++++++++++++++++++++++++++++++++++
  src/fmt/print.go                    | 27 ++++++++++----
  src/internal/oserror/errors_test.go |  6 +--
  4 files changed, 138 insertions(+), 11 deletions(-)
+
+diff --git a/src/fmt/errors.go b/src/fmt/errors.go
+new file mode 100644
+index 0000000000..6ae6c47fd9
+--- /dev/null
++++ b/src/fmt/errors.go
+@@ -0,0 +1,43 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fmt
++
++import "errors"
++
++// Errorf formats according to a format specifier and returns the string as a
++// value that satisfies error.
++//
++// If the format specifier includes a %w verb with an error operand,
++// the returned error will implement an Unwrap method returning the operand. It is
++// invalid to include more than one %w verb or to supply it with an operand
++// that does not implement the error innterface. The %w verb is otherwise
++// a synonym for %v.
++func Errorf(format string, a ...interface{}) error {
++	p := newPrinter()
++	p.wrapErrs = true
++	p.doPrintf(format, a)
++	s := string(p.buf)
++	var err error
++	if p.wrappedErr == nil {
++		err = errors.New(s)
++	} else {
++		err = &wrapError{s, p.wrappedErr}
++	}
++	p.free()
++	return err
++}
++
++type wrapError struct {
++	msg string
++	err error
++}
++
++func (e *wrapError) Error() string {
++	return e.msg
++}
++
++func (e *wrapError) Unwrap() error {
++	return e.err
++}
+diff --git a/src/fmt/errors_test.go b/src/fmt/errors_test.go
+new file mode 100644
+index 0000000000..0c774bc28b
+--- /dev/null
++++ b/src/fmt/errors_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fmt_test
++
++import (
++	"errors"
++	"fmt"
++	"testing"
++)
++
++func TestErrorf(t *testing.T) {
++	wrapped := errors.New("inner error")
++	for _, test := range []struct {
++		err        error
++		wantText   string
++		wantUnwrap error
++	}{{
++		err:        fmt.Errorf("%w", wrapped),
++		wantText:   "inner error",
++		wantUnwrap: wrapped,
++	}, {
++		err:        fmt.Errorf("added context: %w", wrapped),
++		wantText:   "added context: inner error",
++		wantUnwrap: wrapped,
++	}, {
++		err:        fmt.Errorf("%w with added context", wrapped),
++		wantText:   "inner error with added context",
++		wantUnwrap: wrapped,
++	}, {
++		err:        fmt.Errorf("%s %w %v", "prefix", wrapped, "suffix"),
++		wantText:   "prefix inner error suffix",
++		wantUnwrap: wrapped,
++	}, {
++		err:        fmt.Errorf("%[2]s: %[1]w", wrapped, "positional verb"),
++		wantText:   "positional verb: inner error",
++		wantUnwrap: wrapped,
++	}, {
++		err:      fmt.Errorf("%v", wrapped),
++		wantText: "inner error",
++	}, {
++		err:      fmt.Errorf("added context: %v", wrapped),
++		wantText: "added context: inner error",
++	}, {
++		err:      fmt.Errorf("%v with added context", wrapped),
++		wantText: "inner error with added context",
++	}, {
++		err:      fmt.Errorf("%w is not an error", "not-an-error"),
++		wantText: "%!w(string=not-an-error) is not an error",
++	}, {
++		err:      fmt.Errorf("wrapped two errors: %w %w", errString("1"), errString("2")),
++		wantText: "wrapped two errors: 1 %!w(fmt_test.errString=2)",
++	}, {
++		err:      fmt.Errorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
++		wantText: "wrapped three errors: 1 %!w(fmt_test.errString=2) %!w(fmt_test.errString=3)",
++	}, {
++		err:        fmt.Errorf("%w", nil),
++		wantText:   "%!w(<nil>)",
++		wantUnwrap: nil, // still nil
++	}} {
++		if got, want := errors.Unwrap(test.err), test.wantUnwrap; got != want {
++			t.Errorf("Formatted error: %v\nerrors.Unwrap() = %v, want %v", test.err, got, want)
++		}
++		if got, want := test.err.Error(), test.wantText; got != want {
++			t.Errorf("err.Error() = %q, want %q", got, want)
++		}
++	}
++}
++
++type errString string
++
++func (e errString) Error() string { return string(e) }
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index e597639429..3253e8042e 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -5,7 +5,6 @@
+ package fmt
+ 
+ import (
+-	"errors"
+ 	"internal/fmtsort"
+ 	"io"
+ 	"os"
+@@ -123,6 +122,10 @@ type pp struct {
+ 	panicking bool
+ 	// erroring is set when printing an error string to guard against calling handleMethods.
+ 	erroring bool
++	// wrapErrors is set when the format string may contain a %w verb.
++	wrapErrs bool
++	// wrappedErr records the target of the %w verb.
++	wrappedErr error
+ }
+ 
+ var ppFree = sync.Pool{
+@@ -153,6 +156,7 @@ func (p *pp) free() {
+ 	p.buf = p.buf[:0]
+ 	p.arg = nil
+ 	p.value = reflect.Value{}
++	p.wrappedErr = nil
+ 	ppFree.Put(p)
+ }
+ 
+@@ -217,12 +221,6 @@ func Sprintf(format string, a ...interface{}) string {
+ 	return s
+ }
+ 
+-// Errorf formats according to a format specifier and returns the string
+-// as a value that satisfies error.
+-func Errorf(format string, a ...interface{}) error {
+-	return errors.New(Sprintf(format, a...))
+-}
+-
+ // These routines do not take a format string
+ 
+ // Fprint formats using the default formats for its operands and writes to w.
+@@ -576,6 +574,21 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 	if p.erroring {
+ 		return
+ 	}
++	if verb == 'w' {
++		// It is invalid to use %w other than with Errorf, more than once,
++		// or with a non-error arg.
++		err, ok := p.arg.(error)
++		if !ok || !p.wrapErrs || p.wrappedErr != nil {
++			p.wrappedErr = nil
++			p.wrapErrs = false
++			p.badVerb(verb)
++			return true
++		}
++		p.wrappedErr = err
++		// If the arg is a Formatter, pass 'v' as the verb to it.
++		verb = 'v'
++	}
++
+ 	// Is it a Formatter?
+ 	if formatter, ok := p.arg.(Formatter); ok {
+ 		handled = true
+diff --git a/src/internal/oserror/errors_test.go b/src/internal/oserror/errors_test.go
+index 50dd4678d4..6d6a56a0c7 100644
+--- a/src/internal/oserror/errors_test.go
++++ b/src/internal/oserror/errors_test.go
+@@ -34,8 +34,7 @@ func TestIsTimeout(t *testing.T) {
+ 		{true, ttError{timeout: true}},
+ 		{true, isError{os.ErrTimeout}},
+ 		{true, os.ErrTimeout},
+-		// TODO: restore when %w is reimplemented
+-		//{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
++		{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
+ 		{false, ttError{timeout: false}},
+ 		{false, errors.New("error")},
+ 	} {
+@@ -53,8 +52,7 @@ func TestIsTemporary(t *testing.T) {
+ 		{true, ttError{temporary: true}},
+ 		{true, isError{os.ErrTemporary}},
+ 		{true, os.ErrTemporary},
+-		// TODO: restore when %w is reimplemented
+-		//{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
++		{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
+ 		{false, ttError{temporary: false}},
+ 		{false, errors.New("error")},
+ 	} {

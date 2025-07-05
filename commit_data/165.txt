@@ -5,7 +5,7 @@ Date:   Thu Jun 12 14:52:41 2008 -0700
     fix name of mach_amd64 library source dir
     
     SVN=122506
-
+---
  src/{libmachamd64 => libmach_amd64}/6.c          | 0
  src/{libmachamd64 => libmach_amd64}/6obj.c       | 0
  src/{libmachamd64 => libmach_amd64}/8.c          | 0
@@ -22,3 +22,64 @@ Date:   Thu Jun 12 14:52:41 2008 -0700
  src/{libmachamd64 => libmach_amd64}/swap.c       | 0
  src/{libmachamd64 => libmach_amd64}/sym.c        | 0
  15 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/libmachamd64/6.c b/src/libmach_amd64/6.c
+similarity index 100%
+rename from src/libmachamd64/6.c
+rename to src/libmach_amd64/6.c
+diff --git a/src/libmachamd64/6obj.c b/src/libmach_amd64/6obj.c
+similarity index 100%
+rename from src/libmachamd64/6obj.c
+rename to src/libmach_amd64/6obj.c
+diff --git a/src/libmachamd64/8.c b/src/libmach_amd64/8.c
+similarity index 100%
+rename from src/libmachamd64/8.c
+rename to src/libmach_amd64/8.c
+diff --git a/src/libmachamd64/8db.c b/src/libmach_amd64/8db.c
+similarity index 100%
+rename from src/libmachamd64/8db.c
+rename to src/libmach_amd64/8db.c
+diff --git a/src/libmachamd64/Makefile b/src/libmach_amd64/Makefile
+similarity index 100%
+rename from src/libmachamd64/Makefile
+rename to src/libmach_amd64/Makefile
+diff --git a/src/libmachamd64/access.c b/src/libmach_amd64/access.c
+similarity index 100%
+rename from src/libmachamd64/access.c
+rename to src/libmach_amd64/access.c
+diff --git a/src/libmachamd64/elf.h b/src/libmach_amd64/elf.h
+similarity index 100%
+rename from src/libmachamd64/elf.h
+rename to src/libmach_amd64/elf.h
+diff --git a/src/libmachamd64/executable.c b/src/libmach_amd64/executable.c
+similarity index 100%
+rename from src/libmachamd64/executable.c
+rename to src/libmach_amd64/executable.c
+diff --git a/src/libmachamd64/machdata.c b/src/libmach_amd64/machdata.c
+similarity index 100%
+rename from src/libmachamd64/machdata.c
+rename to src/libmach_amd64/machdata.c
+diff --git a/src/libmachamd64/map.c b/src/libmach_amd64/map.c
+similarity index 100%
+rename from src/libmachamd64/map.c
+rename to src/libmach_amd64/map.c
+diff --git a/src/libmachamd64/obj.c b/src/libmach_amd64/obj.c
+similarity index 100%
+rename from src/libmachamd64/obj.c
+rename to src/libmach_amd64/obj.c
+diff --git a/src/libmachamd64/obj.h b/src/libmach_amd64/obj.h
+similarity index 100%
+rename from src/libmachamd64/obj.h
+rename to src/libmach_amd64/obj.h
+diff --git a/src/libmachamd64/setmach.c b/src/libmach_amd64/setmach.c
+similarity index 100%
+rename from src/libmachamd64/setmach.c
+rename to src/libmach_amd64/setmach.c
+diff --git a/src/libmachamd64/swap.c b/src/libmach_amd64/swap.c
+similarity index 100%
+rename from src/libmachamd64/swap.c
+rename to src/libmach_amd64/swap.c
+diff --git a/src/libmachamd64/sym.c b/src/libmach_amd64/sym.c
+similarity index 100%
+rename from src/libmachamd64/sym.c
+rename to src/libmach_amd64/sym.c

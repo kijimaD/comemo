@@ -14,6 +14,30 @@ Date:   Mon Feb 17 11:45:51 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/root_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 3591214ffd..a7ea0025ec 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -928,12 +928,16 @@ func TestRootConsistencyChmod(t *testing.T) {
+ 			}
+ 
+ 			var m1, m2 os.FileMode
+-			err := chmod(path, 0o555)
++			if err := chmod(path, 0o555); err != nil {
++				return "chmod 0o555", err
++			}
+ 			fi, err := lstat(path)
+ 			if err == nil {
+ 				m1 = fi.Mode()
+ 			}
+-			err = chmod(path, 0o777)
++			if err = chmod(path, 0o777); err != nil {
++				return "chmod 0o777", err
++			}
+ 			fi, err = lstat(path)
+ 			if err == nil {
+ 				m2 = fi.Mode()

@@ -10,6 +10,29 @@ Date:   Mon Nov 24 14:51:01 2008 -0800
     DELTA=3  (1 added, 0 deleted, 2 changed)
     OCL=19931
     CL=19933
-
+---
  src/lib/Makefile | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 6ba45e0185..1fea380681 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -54,7 +54,7 @@ test.files: $(addsuffix .test, $(TEST))
+ 	rm -f $*.6
+ 
+ %.install: %.6
+-	cp $*.6 $(GOROOT)/pkg/$*.6
++	mv $*.6 $(GOROOT)/pkg/$*.6
+ 
+ %.dirclean:
+ 	+cd $* && make clean
+@@ -91,6 +91,7 @@ net.dirinstall: once.install os.dirinstall strconv.dirinstall
+ os.dirinstall: syscall.dirinstall
+ regexp.dirinstall: os.dirinstall
+ reflect.dirinstall: strconv.dirinstall
+-strconv.dirinstall: os.dirinstall
++strconv.dirinstall: os.dirinstall utf8.install
+ tabwriter.dirinstall: os.dirinstall io.install container/array.dirinstall
+ time.dirinstall: once.install os.dirinstall
++

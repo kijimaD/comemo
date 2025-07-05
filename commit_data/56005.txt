@@ -18,7 +18,198 @@ Date:   Thu Mar 30 10:08:15 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  .../compile/internal/importer/gcimporter_test.go   | 36 ----------------
  src/go/internal/gcimporter/gcimporter_test.go      | 48 ----------------------
  2 files changed, 84 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 26e43e6ba4..96c5f69e64 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -426,12 +426,6 @@ func TestIssue13566(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	tmpdir := mktmpdir(t)
+ 	testoutdir := filepath.Join(tmpdir, "testdata")
+ 
+@@ -516,12 +510,6 @@ func TestIssue15517(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	tmpdir := mktmpdir(t)
+ 
+ 	compile(t, "testdata", "p.go", filepath.Join(tmpdir, "testdata"), nil)
+@@ -554,12 +542,6 @@ func TestIssue15920(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue15920")
+ }
+ 
+@@ -571,12 +553,6 @@ func TestIssue20046(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	// "./issue20046".V.M must exist
+ 	pkg := compileAndImportPkg(t, "issue20046")
+ 	obj := lookupObj(t, pkg.Scope(), "V")
+@@ -592,12 +568,6 @@ func TestIssue25301(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue25301")
+ }
+ 
+@@ -609,12 +579,6 @@ func TestIssue25596(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue25596")
+ }
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 800c372971..9ab29f3b1c 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -530,12 +530,6 @@ func TestIssue13566(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	tmpdir := mktmpdir(t)
+ 	defer os.RemoveAll(tmpdir)
+ 	testoutdir := filepath.Join(tmpdir, "testdata")
+@@ -570,12 +564,6 @@ func TestTypeNamingOrder(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	tmpdir := mktmpdir(t)
+ 	defer os.RemoveAll(tmpdir)
+ 	testoutdir := filepath.Join(tmpdir, "testdata")
+@@ -641,12 +629,6 @@ func TestIssue15517(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	tmpdir := mktmpdir(t)
+ 	defer os.RemoveAll(tmpdir)
+ 
+@@ -681,12 +663,6 @@ func TestIssue15920(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue15920")
+ }
+ 
+@@ -698,12 +674,6 @@ func TestIssue20046(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	// "./issue20046".V.M must exist
+ 	pkg := compileAndImportPkg(t, "issue20046")
+ 	obj := lookupObj(t, pkg.Scope(), "V")
+@@ -719,12 +689,6 @@ func TestIssue25301(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue25301")
+ }
+ 
+@@ -736,12 +700,6 @@ func TestIssue25596(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue25596")
+ }
+ 
+@@ -753,12 +711,6 @@ func TestIssue57015(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+-	// On windows, we have to set the -D option for the compiler to avoid having a drive
+-	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+-	if runtime.GOOS == "windows" {
+-		t.Skip("avoid dealing with relative paths/drive letters on windows")
+-	}
+-
+ 	compileAndImportPkg(t, "issue57015")
+ }
+ 

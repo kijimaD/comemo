@@ -7,7 +7,34 @@ Date:   Fri Feb 14 00:43:43 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/63680045
-
+---
  src/cmd/gc/plive.c | 2 +-
  src/cmd/gc/popt.c  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index d353672985..250d9236b3 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -521,7 +521,7 @@ newcfg(Prog *firstp)
+ 
+ 			// Stop before an unreachable RET, to avoid creating
+ 			// unreachable control flow nodes.
+-			if(p->link != nil && p->link->as == ARET && p->link->mode == -1)
++			if(p->link != nil && p->link->as == ARET && p->link->mode == 1)
+ 				break;
+ 
+ 			// Collect basic blocks with selectgo calls.
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 1f0bdb496a..f5067bd0e1 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -155,7 +155,7 @@ fixjmp(Prog *firstp)
+ 				// this assumption will not hold in the case of an infinite loop
+ 				// at the end of a function.
+ 				// Keep the RET but mark it dead for the liveness analysis.
+-				p->mode = -1;
++				p->mode = 1;
+ 			} else {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);

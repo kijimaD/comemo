@@ -14,6 +14,22 @@ Date:   Sun Nov 10 14:14:47 2019 +0530
     Change-Id: Ie7719cb8c7180bc6345b436f9b3e950ee349d6e4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206123
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/time/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 2f890db2f4..5a037daeaf 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -167,8 +167,8 @@ func statusUpdate() string { return "" }
+ 
+ func ExampleTick() {
+ 	c := time.Tick(5 * time.Second)
+-	for now := range c {
+-		fmt.Printf("%v %s\n", now, statusUpdate())
++	for next := range c {
++		fmt.Printf("%v %s\n", next, statusUpdate())
+ 	}
+ }
+ 

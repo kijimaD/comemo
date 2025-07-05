@@ -9,6 +9,27 @@ Date:   Sat Jul 17 16:52:53 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1664053
-
+---
  src/pkg/utf16/utf16_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/utf16/utf16_test.go b/src/pkg/utf16/utf16_test.go
+index c0848aa387..87e38126e9 100644
+--- a/src/pkg/utf16/utf16_test.go
++++ b/src/pkg/utf16/utf16_test.go
+@@ -2,13 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package utf16
++package utf16_test
+ 
+ import (
+ 	"fmt"
+ 	"reflect"
+ 	"testing"
+ 	"unicode"
++	. "utf16"
+ )
+ 
+ type encodeTest struct {

@@ -9,6 +9,20 @@ Date:   Thu May 12 11:21:10 2011 -0400
     R=golang-dev, rsc
     CC=adg, golang-dev
     https://golang.org/cl/4519053
-
+---
  doc/codelab/wiki/wiki.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index 3628eeb564..4db880b9df 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -428,7 +428,7 @@ This will prevent user data from corrupting the form HTML.
+ </p>
+ 
+ <p>
+-Now that we've removed the <code>fmt.Sprintf</code> statement, we can remove
++Now that we've removed the <code>fmt.Fprintf</code> statement, we can remove
+ <code>"fmt"</code> from the <code>import</code> list.
+ </p>
+ 

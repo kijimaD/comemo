@@ -10,6 +10,23 @@ Date:   Sun Mar 1 21:35:56 2020 +0900
     Change-Id: I20dd4c4b4f605395d427a125ba4fd14580e5d766
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221678
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index abf20b6240..eb88c1faa8 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -9,9 +9,9 @@
+ 
+ 	Define flags using flag.String(), Bool(), Int(), etc.
+ 
+-	This declares an integer flag, -flagname, stored in the pointer ip, with type *int.
++	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
+ 		import "flag"
+-		var ip = flag.Int("flagname", 1234, "help message for flagname")
++		var nFlag = flag.Int("n", 1234, "help message for flag n")
+ 	If you like, you can bind the flag to a variable using the Var() functions.
+ 		var flagvar int
+ 		func init() {

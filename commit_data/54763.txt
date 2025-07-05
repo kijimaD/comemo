@@ -21,7 +21,7 @@ Date:   Tue May 10 09:52:20 2022 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/poll/fd_windows.go     | 16 +------
  src/os/dir_windows.go               | 17 +++++--
  src/os/file.go                      |  4 --
@@ -32,3 +32,383 @@ Date:   Tue May 10 09:52:20 2022 +0200
  src/syscall/syscall_windows.go      |  7 ++-
  src/syscall/syscall_windows_test.go | 22 +++++++++
  9 files changed, 115 insertions(+), 74 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 1af2011f94..3a4a74f2ae 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -268,7 +268,6 @@ const (
+ 	kindNet fileKind = iota
+ 	kindFile
+ 	kindConsole
+-	kindDir
+ 	kindPipe
+ )
+ 
+@@ -286,12 +285,10 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 	}
+ 
+ 	switch net {
+-	case "file":
++	case "file", "dir":
+ 		fd.kind = kindFile
+ 	case "console":
+ 		fd.kind = kindConsole
+-	case "dir":
+-		fd.kind = kindDir
+ 	case "pipe":
+ 		fd.kind = kindPipe
+ 	case "tcp", "tcp4", "tcp6",
+@@ -371,8 +368,6 @@ func (fd *FD) destroy() error {
+ 	case kindNet:
+ 		// The net package uses the CloseFunc variable for testing.
+ 		err = CloseFunc(fd.Sysfd)
+-	case kindDir:
+-		err = syscall.FindClose(fd.Sysfd)
+ 	default:
+ 		err = syscall.CloseHandle(fd.Sysfd)
+ 	}
+@@ -1008,15 +1003,6 @@ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
+ 	return syscall.Seek(fd.Sysfd, offset, whence)
+ }
+ 
+-// FindNextFile wraps syscall.FindNextFile.
+-func (fd *FD) FindNextFile(data *syscall.Win32finddata) error {
+-	if err := fd.incref(); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return syscall.FindNextFile(fd.Sysfd, data)
+-}
+-
+ // Fchmod updates syscall.ByHandleFileInformation.Fileattributes when needed.
+ func (fd *FD) Fchmod(mode uint32) error {
+ 	if err := fd.incref(); err != nil {
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 253adad0b9..445e4f7c4f 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -11,8 +11,15 @@ import (
+ )
+ 
+ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+-	if !file.isdir() {
+-		return nil, nil, nil, &PathError{Op: "readdir", Path: file.name, Err: syscall.ENOTDIR}
++	// If this file has no dirinfo, create one.
++	needdata := true
++	if file.dirinfo == nil {
++		needdata = false
++		file.dirinfo, err = openDir(file.name)
++		if err != nil {
++			err = &PathError{Op: "readdir", Path: file.name, Err: err}
++			return
++		}
+ 	}
+ 	wantAll := n <= 0
+ 	if wantAll {
+@@ -20,8 +27,8 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
+ 	}
+ 	d := &file.dirinfo.data
+ 	for n != 0 && !file.dirinfo.isempty {
+-		if file.dirinfo.needdata {
+-			e := file.pfd.FindNextFile(d)
++		if needdata {
++			e := syscall.FindNextFile(file.dirinfo.h, d)
+ 			runtime.KeepAlive(file)
+ 			if e != nil {
+ 				if e == syscall.ERROR_NO_MORE_FILES {
+@@ -32,7 +39,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
+ 				}
+ 			}
+ 		}
+-		file.dirinfo.needdata = true
++		needdata = true
+ 		name := syscall.UTF16ToString(d.FileName[0:])
+ 		if name == "." || name == ".." { // Useless names
+ 			continue
+diff --git a/src/os/file.go b/src/os/file.go
+index 070ccd0264..753aeb662a 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -225,10 +225,6 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ // The behavior of Seek on a file opened with O_APPEND is not specified.
+-//
+-// If f is a directory, the behavior of Seek varies by operating
+-// system; you can seek to the beginning of the directory on Unix-like
+-// operating systems, but not on Windows.
+ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ 	if err := f.checkValid("seek"); err != nil {
+ 		return 0, err
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index db5c27dd30..d94b78f524 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -86,10 +86,14 @@ func NewFile(fd uintptr, name string) *File {
+ 
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
+-	data     syscall.Win32finddata
+-	needdata bool
+-	path     string
+-	isempty  bool // set if FindFirstFile returns ERROR_FILE_NOT_FOUND
++	h       syscall.Handle // search handle created with FindFirstFile
++	data    syscall.Win32finddata
++	path    string
++	isempty bool // set if FindFirstFile returns ERROR_FILE_NOT_FOUND
++}
++
++func (d *dirInfo) close() error {
++	return syscall.FindClose(d.h)
+ }
+ 
+ func epipecheck(file *File, e error) {
+@@ -99,17 +103,7 @@ func epipecheck(file *File, e error) {
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "NUL"
+ 
+-func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
+-
+-func openFile(name string, flag int, perm FileMode) (file *File, err error) {
+-	r, e := syscall.Open(fixLongPath(name), flag|syscall.O_CLOEXEC, syscallMode(perm))
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newFile(r, name, "file"), nil
+-}
+-
+-func openDir(name string) (file *File, err error) {
++func openDir(name string) (d *dirInfo, e error) {
+ 	var mask string
+ 
+ 	path := fixLongPath(name)
+@@ -130,25 +124,27 @@ func openDir(name string) (file *File, err error) {
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	d := new(dirInfo)
+-	r, e := syscall.FindFirstFile(maskp, &d.data)
++	d = new(dirInfo)
++	d.h, e = syscall.FindFirstFile(maskp, &d.data)
+ 	if e != nil {
+ 		// FindFirstFile returns ERROR_FILE_NOT_FOUND when
+ 		// no matching files can be found. Then, if directory
+ 		// exists, we should proceed.
+-		if e != syscall.ERROR_FILE_NOT_FOUND {
+-			return nil, e
+-		}
++		// If FindFirstFile failed because name does not point
++		// to a directory, we should return ENOTDIR.
+ 		var fa syscall.Win32FileAttributeData
+-		pathp, e := syscall.UTF16PtrFromString(path)
+-		if e != nil {
++		pathp, e1 := syscall.UTF16PtrFromString(path)
++		if e1 != nil {
+ 			return nil, e
+ 		}
+-		e = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+-		if e != nil {
++		e1 = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
++		if e1 != nil {
+ 			return nil, e
+ 		}
+ 		if fa.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY == 0 {
++			return nil, syscall.ENOTDIR
++		}
++		if e != syscall.ERROR_FILE_NOT_FOUND {
+ 			return nil, e
+ 		}
+ 		d.isempty = true
+@@ -157,12 +153,11 @@ func openDir(name string) (file *File, err error) {
+ 	if !isAbs(d.path) {
+ 		d.path, e = syscall.FullPath(d.path)
+ 		if e != nil {
++			d.close()
+ 			return nil, e
+ 		}
+ 	}
+-	f := newFile(r, name, "dir")
+-	f.dirinfo = d
+-	return f, nil
++	return d, nil
+ }
+ 
+ // openFileNolog is the Windows implementation of OpenFile.
+@@ -170,28 +165,36 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	if name == "" {
+ 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
+ 	}
+-	r, errf := openFile(name, flag, perm)
+-	if errf == nil {
+-		return r, nil
+-	}
+-	r, errd := openDir(name)
+-	if errd == nil {
+-		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
+-			r.Close()
+-			return nil, &PathError{Op: "open", Path: name, Err: syscall.EISDIR}
++	path := fixLongPath(name)
++	r, e := syscall.Open(path, flag|syscall.O_CLOEXEC, syscallMode(perm))
++	if e != nil {
++		// We should return EISDIR when we are trying to open a directory with write access.
++		if e == syscall.ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
++			pathp, e1 := syscall.UTF16PtrFromString(path)
++			if e1 == nil {
++				var fa syscall.Win32FileAttributeData
++				e1 = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
++				if e1 == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
++					e = syscall.EISDIR
++				}
++			}
+ 		}
+-		return r, nil
++		return nil, &PathError{Op: "open", Path: name, Err: e}
++	}
++	f, e := newFile(r, name, "file"), nil
++	if e != nil {
++		return nil, &PathError{Op: "open", Path: name, Err: e}
+ 	}
+-	return nil, &PathError{Op: "open", Path: name, Err: errf}
++	return f, nil
+ }
+ 
+ func (file *file) close() error {
+ 	if file == nil {
+ 		return syscall.EINVAL
+ 	}
+-	if file.isdir() && file.dirinfo.isempty {
+-		// "special" empty directories
+-		return nil
++	if file.dirinfo != nil {
++		file.dirinfo.close()
++		file.dirinfo = nil
+ 	}
+ 	var err error
+ 	if e := file.pfd.Close(); e != nil {
+@@ -211,6 +214,12 @@ func (file *file) close() error {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
++	if f.dirinfo != nil {
++		// Free cached dirinfo, so we allocate a new one if we
++		// access this file as a directory again. See #35767 and #37161.
++		f.dirinfo.close()
++		f.dirinfo = nil
++	}
+ 	ret, err = f.pfd.Seek(offset, whence)
+ 	runtime.KeepAlive(f)
+ 	return ret, err
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index ee030a80a7..e548777bfc 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2564,9 +2564,6 @@ func TestUserHomeDir(t *testing.T) {
+ }
+ 
+ func TestDirSeek(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		testenv.SkipFlaky(t, 36019)
+-	}
+ 	wd, err := Getwd()
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 55253cdf79..b9fad71bfd 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1252,3 +1252,28 @@ func TestWindowsReadlink(t *testing.T) {
+ 	mklink(t, "relfilelink", "file")
+ 	testReadlink(t, "relfilelink", "file")
+ }
++
++func TestOpenDirTOCTOU(t *testing.T) {
++	// Check opened directories can't be renamed until the handle is closed.
++	// See issue 52747.
++	tmpdir := t.TempDir()
++	dir := filepath.Join(tmpdir, "dir")
++	if err := os.Mkdir(dir, 0777); err != nil {
++		t.Fatal(err)
++	}
++	f, err := os.Open(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	newpath := filepath.Join(tmpdir, "dir1")
++	err = os.Rename(dir, newpath)
++	if err == nil || !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
++		f.Close()
++		t.Fatalf("Rename(%q, %q) = %v; want windows.ERROR_SHARING_VIOLATION", dir, newpath, err)
++	}
++	f.Close()
++	err = os.Rename(dir, newpath)
++	if err != nil {
++		t.Error(err)
++	}
++}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index f8f229c709..8747c19888 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -16,10 +16,6 @@ func (file *File) Stat() (FileInfo, error) {
+ 	if file == nil {
+ 		return nil, ErrInvalid
+ 	}
+-	if file.isdir() {
+-		// I don't know any better way to do that for directory
+-		return Stat(file.dirinfo.path)
+-	}
+ 	return statHandle(file.name, file.pfd.Sysfd)
+ }
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 9547ae0720..4fbcdcd3ff 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -371,8 +371,11 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 			}
+ 		}
+ 	}
+-	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+-	return h, e
++	if createmode == OPEN_EXISTING && access == GENERIC_READ {
++		// Necessary for opening directory handles.
++		attrs |= FILE_FLAG_BACKUP_SEMANTICS
++	}
++	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+ }
+ 
+ func Read(fd Handle, p []byte) (n int, err error) {
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 87f6580bdc..3b567218e2 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -15,6 +15,28 @@ import (
+ 	"testing"
+ )
+ 
++func TestOpen_Dir(t *testing.T) {
++	dir := t.TempDir()
++
++	h, err := syscall.Open(dir, syscall.O_RDONLY, 0)
++	if err != nil {
++		t.Fatalf("Open failed: %v", err)
++	}
++	syscall.CloseHandle(h)
++	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_TRUNC, 0)
++	if err == nil {
++		t.Error("Open should have failed")
++	} else {
++		syscall.CloseHandle(h)
++	}
++	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_CREAT, 0)
++	if err == nil {
++		t.Error("Open should have failed")
++	} else {
++		syscall.CloseHandle(h)
++	}
++}
++
+ func TestWin32finddata(t *testing.T) {
+ 	dir := t.TempDir()
+ 

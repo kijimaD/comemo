@@ -8,6 +8,19 @@ Date:   Fri Dec 19 09:03:44 2008 -0800
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=21577
     CL=21603
-
+---
  src/cmd/gc/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 10afbc5d97..6c8834d2f2 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -46,6 +46,7 @@ y.tab.c: y.tab.h
+ # than sys.go (or unsafe.go or mksys.c).
+ sysimport.c:	sys.go unsafe.go mksys.c
+ 	if test -x $(BIN)/6g; then \
++		p4 open sysimport.c; \
+ 		gcc -o mksys mksys.c; \
+ 		6g sys.go; \
+ 		6g unsafe.go; \

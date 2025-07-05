@@ -7,6 +7,20 @@ Date:   Mon Nov 2 10:50:18 2009 -0800
     R=ken@golang.org
     CC=r
     http://go/go-review/1018019
-
+---
  src/cmd/gc/gen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index bb1b19bfc9..475058fa28 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -427,7 +427,7 @@ cgen_discard(Node *nr)
+ 
+ 	switch(nr->op) {
+ 	case ONAME:
+-		if(!(nr->class & PHEAP))
++		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC)
+ 			gused(nr);
+ 		break;
+ 

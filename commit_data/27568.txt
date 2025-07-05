@@ -13,7 +13,7 @@ Date:   Fri Mar 18 16:57:54 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/arch.go   |   9 +++
  src/cmd/link/internal/ld/data.go   |  16 ++++-
  src/cmd/link/internal/ld/dwarf.go  |   4 +-
@@ -23,3 +23,465 @@ Date:   Fri Mar 18 16:57:54 2016 -0400
  src/cmd/link/internal/ld/link.go   |   6 ++
  src/cmd/link/internal/ld/symtab.go |   3 +-
  8 files changed, 170 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/arch.go b/src/cmd/link/internal/ld/arch.go
+index 306e2df34f..d28f37fa02 100644
+--- a/src/cmd/link/internal/ld/arch.go
++++ b/src/cmd/link/internal/ld/arch.go
+@@ -86,3 +86,12 @@ var Linkmips64le = LinkArch{
+ 	Ptrsize:   8,
+ 	Regsize:   8,
+ }
++
++var Links390x = LinkArch{
++	ByteOrder: binary.BigEndian,
++	Name:      "s390x",
++	Thechar:   'z',
++	Minlc:     2,
++	Ptrsize:   8,
++	Regsize:   8,
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cacec8f8fe..91f0107626 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -149,6 +149,9 @@ func Addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	r.Add = add
+ 	r.Type = obj.R_PCREL
+ 	r.Siz = 4
++	if Thearch.Thechar == 'z' {
++		r.Variant = RV_390_DBL
++	}
+ 	return i + int64(r.Siz)
+ }
+ 
+@@ -347,6 +350,17 @@ func relocsym(s *LSym) {
+ 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
+ 		}
+ 
++		// TODO(mundaym): remove this special case - see issue 14218.
++		if Thearch.Thechar == 'z' {
++			switch r.Type {
++			case obj.R_PCRELDBL:
++				r.Type = obj.R_PCREL
++				r.Variant = RV_390_DBL
++			case obj.R_CALL:
++				r.Variant = RV_390_DBL
++			}
++		}
++
+ 		switch r.Type {
+ 		default:
+ 			switch siz {
+@@ -1020,7 +1034,7 @@ func symalign(s *LSym) int32 {
+ 	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
+ 		// String data is just bytes.
+ 		// If we align it, we waste a lot of space to padding.
+-		return 1
++		return min
+ 	}
+ 	align := int32(Thearch.Maxalign)
+ 	for int64(align) > s.Size && align > min {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 8e0394bdbe..fd177cfef0 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2170,7 +2170,7 @@ func dwarfaddshstrings(shstrtab *LSym) {
+ 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
+ 	if Linkmode == LinkExternal {
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
+ 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
+ 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
+@@ -2223,7 +2223,7 @@ func dwarfaddelfsectionsyms() {
+ func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
+ 	sh := newElfShdr(elfstrdbg[elfstr])
+ 	switch Thearch.Thechar {
+-	case '0', '6', '7', '9':
++	case '0', '6', '7', '9', 'z':
+ 		sh.type_ = SHT_RELA
+ 	default:
+ 		sh.type_ = SHT_REL
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 6db7898624..cf518a799e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -647,6 +647,68 @@ const (
+ 	R_SPARC_UA64     = 54
+ 	R_SPARC_UA16     = 55
+ 
++	R_390_NONE        = 0
++	R_390_8           = 1
++	R_390_12          = 2
++	R_390_16          = 3
++	R_390_32          = 4
++	R_390_PC32        = 5
++	R_390_GOT12       = 6
++	R_390_GOT32       = 7
++	R_390_PLT32       = 8
++	R_390_COPY        = 9
++	R_390_GLOB_DAT    = 10
++	R_390_JMP_SLOT    = 11
++	R_390_RELATIVE    = 12
++	R_390_GOTOFF      = 13
++	R_390_GOTPC       = 14
++	R_390_GOT16       = 15
++	R_390_PC16        = 16
++	R_390_PC16DBL     = 17
++	R_390_PLT16DBL    = 18
++	R_390_PC32DBL     = 19
++	R_390_PLT32DBL    = 20
++	R_390_GOTPCDBL    = 21
++	R_390_64          = 22
++	R_390_PC64        = 23
++	R_390_GOT64       = 24
++	R_390_PLT64       = 25
++	R_390_GOTENT      = 26
++	R_390_GOTOFF16    = 27
++	R_390_GOTOFF64    = 28
++	R_390_GOTPLT12    = 29
++	R_390_GOTPLT16    = 30
++	R_390_GOTPLT32    = 31
++	R_390_GOTPLT64    = 32
++	R_390_GOTPLTENT   = 33
++	R_390_GOTPLTOFF16 = 34
++	R_390_GOTPLTOFF32 = 35
++	R_390_GOTPLTOFF64 = 36
++	R_390_TLS_LOAD    = 37
++	R_390_TLS_GDCALL  = 38
++	R_390_TLS_LDCALL  = 39
++	R_390_TLS_GD32    = 40
++	R_390_TLS_GD64    = 41
++	R_390_TLS_GOTIE12 = 42
++	R_390_TLS_GOTIE32 = 43
++	R_390_TLS_GOTIE64 = 44
++	R_390_TLS_LDM32   = 45
++	R_390_TLS_LDM64   = 46
++	R_390_TLS_IE32    = 47
++	R_390_TLS_IE64    = 48
++	R_390_TLS_IEENT   = 49
++	R_390_TLS_LE32    = 50
++	R_390_TLS_LE64    = 51
++	R_390_TLS_LDO32   = 52
++	R_390_TLS_LDO64   = 53
++	R_390_TLS_DTPMOD  = 54
++	R_390_TLS_DTPOFF  = 55
++	R_390_TLS_TPOFF   = 56
++	R_390_20          = 57
++	R_390_GOT20       = 58
++	R_390_GOTPLT20    = 59
++	R_390_TLS_GOTIE20 = 60
++
+ 	ARM_MAGIC_TRAMP_NUMBER = 0x5c000003
+ )
+ 
+@@ -804,7 +866,7 @@ func Elfinit() {
+ 
+ 	switch Thearch.Thechar {
+ 	// 64-bit architectures
+-	case '9':
++	case '9', 'z':
+ 		if Ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			ehdr.flags = 1 /* Version 1 ABI */
+ 		} else {
+@@ -1360,13 +1422,25 @@ func elfdynhash() {
+ 		buckets[b] = uint32(sy.Dynid)
+ 	}
+ 
+-	Adduint32(Ctxt, s, uint32(nbucket))
+-	Adduint32(Ctxt, s, uint32(nsym))
+-	for i := 0; i < nbucket; i++ {
+-		Adduint32(Ctxt, s, buckets[i])
+-	}
+-	for i := 0; i < nsym; i++ {
+-		Adduint32(Ctxt, s, chain[i])
++	// s390x (ELF64) hash table entries are 8 bytes
++	if Thearch.Thechar == 'z' {
++		Adduint64(Ctxt, s, uint64(nbucket))
++		Adduint64(Ctxt, s, uint64(nsym))
++		for i := 0; i < nbucket; i++ {
++			Adduint64(Ctxt, s, uint64(buckets[i]))
++		}
++		for i := 0; i < nsym; i++ {
++			Adduint64(Ctxt, s, uint64(chain[i]))
++		}
++	} else {
++		Adduint32(Ctxt, s, uint32(nbucket))
++		Adduint32(Ctxt, s, uint32(nsym))
++		for i := 0; i < nbucket; i++ {
++			Adduint32(Ctxt, s, buckets[i])
++		}
++		for i := 0; i < nsym; i++ {
++			Adduint32(Ctxt, s, chain[i])
++		}
+ 	}
+ 
+ 	// version symbols
+@@ -1434,7 +1508,7 @@ func elfdynhash() {
+ 	}
+ 
+ 	switch Thearch.Thechar {
+-	case '0', '6', '7', '9':
++	case '0', '6', '7', '9', 'z':
+ 		sy := Linklookup(Ctxt, ".rela.plt", 0)
+ 		if sy.Size > 0 {
+ 			Elfwritedynent(s, DT_PLTREL, DT_RELA)
+@@ -1574,7 +1648,7 @@ func elfshreloc(sect *Section) *ElfShdr {
+ 	var prefix string
+ 	var typ int
+ 	switch Thearch.Thechar {
+-	case '0', '6', '7', '9':
++	case '0', '6', '7', '9', 'z':
+ 		prefix = ".rela"
+ 		typ = SHT_RELA
+ 	default:
+@@ -1748,7 +1822,7 @@ func doelf() {
+ 		Debug['d'] = 1
+ 
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			Addstring(shstrtab, ".rela.text")
+ 			Addstring(shstrtab, ".rela.rodata")
+ 			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
+@@ -1796,7 +1870,7 @@ func doelf() {
+ 	if hasinitarr {
+ 		Addstring(shstrtab, ".init_array")
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			Addstring(shstrtab, ".rela.init_array")
+ 		default:
+ 			Addstring(shstrtab, ".rel.init_array")
+@@ -1823,7 +1897,7 @@ func doelf() {
+ 		Addstring(shstrtab, ".dynsym")
+ 		Addstring(shstrtab, ".dynstr")
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			Addstring(shstrtab, ".rela")
+ 			Addstring(shstrtab, ".rela.plt")
+ 		default:
+@@ -1841,7 +1915,7 @@ func doelf() {
+ 		s.Type = obj.SELFROSECT
+ 		s.Attr |= AttrReachable
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			s.Size += ELF64SYMSIZE
+ 		default:
+ 			s.Size += ELF32SYMSIZE
+@@ -1859,7 +1933,7 @@ func doelf() {
+ 
+ 		/* relocation table */
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			s = Linklookup(Ctxt, ".rela", 0)
+ 		default:
+ 			s = Linklookup(Ctxt, ".rel", 0)
+@@ -1904,7 +1978,7 @@ func doelf() {
+ 		Thearch.Elfsetupplt()
+ 
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			s = Linklookup(Ctxt, ".rela.plt", 0)
+ 		default:
+ 			s = Linklookup(Ctxt, ".rel.plt", 0)
+@@ -1933,7 +2007,7 @@ func doelf() {
+ 
+ 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
+ 		default:
+ 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
+@@ -1941,7 +2015,7 @@ func doelf() {
+ 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))
+ 		elfwritedynentsymsize(s, DT_STRSZ, Linklookup(Ctxt, ".dynstr", 0))
+ 		switch Thearch.Thechar {
+-		case '0', '6', '7', '9':
++		case '0', '6', '7', '9', 'z':
+ 			elfwritedynentsym(s, DT_RELA, Linklookup(Ctxt, ".rela", 0))
+ 			elfwritedynentsymsize(s, DT_RELASZ, Linklookup(Ctxt, ".rela", 0))
+ 			Elfwritedynent(s, DT_RELAENT, ELF64RELASIZE)
+@@ -1957,6 +2031,8 @@ func doelf() {
+ 
+ 		if Thearch.Thechar == '9' {
+ 			elfwritedynentsym(s, DT_PLTGOT, Linklookup(Ctxt, ".plt", 0))
++		} else if Thearch.Thechar == 'z' {
++			elfwritedynentsym(s, DT_PLTGOT, Linklookup(Ctxt, ".got", 0))
+ 		} else {
+ 			elfwritedynentsym(s, DT_PLTGOT, Linklookup(Ctxt, ".got.plt", 0))
+ 		}
+@@ -2052,6 +2128,8 @@ func Asmbelf(symo int64) {
+ 		eh.machine = EM_386
+ 	case '9':
+ 		eh.machine = EM_PPC64
++	case 'z':
++		eh.machine = EM_S390
+ 	}
+ 
+ 	elfreserve := int64(ELFRESERVE)
+@@ -2237,7 +2315,7 @@ func Asmbelf(symo int64) {
+ 		}
+ 
+ 		switch eh.machine {
+-		case EM_X86_64, EM_PPC64, EM_AARCH64:
++		case EM_X86_64, EM_PPC64, EM_AARCH64, EM_S390:
+ 			sh := elfshname(".rela.plt")
+ 			sh.type_ = SHT_RELA
+ 			sh.flags = SHF_ALLOC
+@@ -2286,6 +2364,8 @@ func Asmbelf(symo int64) {
+ 		sh.flags = SHF_ALLOC + SHF_EXECINSTR
+ 		if eh.machine == EM_X86_64 {
+ 			sh.entsize = 16
++		} else if eh.machine == EM_S390 {
++			sh.entsize = 32
+ 		} else if eh.machine == EM_PPC64 {
+ 			// On ppc64, this is just a table of addresses
+ 			// filled by the dynamic linker
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index a68c473a38..0255331ac6 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -586,6 +586,11 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			Diag("%s: elf object but not ppc64", pn)
+ 			return
+ 		}
++	case 'z':
++		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
++			Diag("%s: elf object but not s390x", pn)
++			return
++		}
+ 	}
+ 
+ 	// load section list into memory.
+@@ -778,6 +783,9 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 				continue
+ 			}
+ 
++			if strings.HasPrefix(sym.name, ".LASF") { // gcc on s390x does this
++				continue
++			}
+ 			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
+ 			continue
+ 		}
+@@ -1124,6 +1132,9 @@ func reltype(pn string, elftype int, siz *uint8) int {
+ 		Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
+ 		fallthrough
+ 
++	case 'z' | R_390_8:
++		*siz = 1
++
+ 	case '9' | R_PPC64_TOC16<<24,
+ 		'9' | R_PPC64_TOC16_LO<<24,
+ 		'9' | R_PPC64_TOC16_HI<<24,
+@@ -1132,7 +1143,12 @@ func reltype(pn string, elftype int, siz *uint8) int {
+ 		'9' | R_PPC64_TOC16_LO_DS<<24,
+ 		'9' | R_PPC64_REL16_LO<<24,
+ 		'9' | R_PPC64_REL16_HI<<24,
+-		'9' | R_PPC64_REL16_HA<<24:
++		'9' | R_PPC64_REL16_HA<<24,
++		'z' | R_390_16<<24,
++		'z' | R_390_GOT16<<24,
++		'z' | R_390_PC16<<24,
++		'z' | R_390_PC16DBL<<24,
++		'z' | R_390_PLT16DBL<<24:
+ 		*siz = 2
+ 
+ 	case '5' | R_ARM_ABS32<<24,
+@@ -1160,11 +1176,27 @@ func reltype(pn string, elftype int, siz *uint8) int {
+ 		'8' | R_386_GOTPC<<24,
+ 		'8' | R_386_GOT32X<<24,
+ 		'9' | R_PPC64_REL24<<24,
+-		'9' | R_PPC_REL32<<24:
++		'9' | R_PPC_REL32<<24,
++		'z' | R_390_32<<24,
++		'z' | R_390_PC32<<24,
++		'z' | R_390_GOT32<<24,
++		'z' | R_390_PLT32<<24,
++		'z' | R_390_PC32DBL<<24,
++		'z' | R_390_PLT32DBL<<24,
++		'z' | R_390_GOTPCDBL<<24,
++		'z' | R_390_GOTENT<<24:
+ 		*siz = 4
+ 
+ 	case '6' | R_X86_64_64<<24,
+-		'9' | R_PPC64_ADDR64<<24:
++		'9' | R_PPC64_ADDR64<<24,
++		'z' | R_390_GLOB_DAT<<24,
++		'z' | R_390_RELATIVE<<24,
++		'z' | R_390_GOTOFF<<24,
++		'z' | R_390_GOTPC<<24,
++		'z' | R_390_64<<24,
++		'z' | R_390_PC64<<24,
++		'z' | R_390_GOT64<<24,
++		'z' | R_390_PLT64<<24:
+ 		*siz = 8
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fcaa8a026a..2f5d155f18 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -339,7 +339,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		switch goos {
+ 		case "linux":
+ 			switch goarch {
+-			case "386", "amd64", "arm", "arm64", "ppc64le":
++			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+ 			default:
+ 				return badmode()
+ 			}
+@@ -1242,7 +1242,7 @@ func hostlinkArchArgs() []string {
+ 	switch Thearch.Thechar {
+ 	case '8':
+ 		return []string{"-m32"}
+-	case '6', '9':
++	case '6', '9', 'z':
+ 		return []string{"-m64"}
+ 	case '5':
+ 		return []string{"-marm"}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index b00f80abbd..e11b5dc900 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -264,6 +264,12 @@ const (
+ 	RV_POWER_HI
+ 	RV_POWER_HA
+ 	RV_POWER_DS
++
++	// RV_390_DBL is a s390x-specific relocation variant that indicates that
++	// the value to be placed into the relocatable field should first be
++	// divided by 2.
++	RV_390_DBL
++
+ 	RV_CHECK_OVERFLOW = 1 << 8
+ 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
+ )
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c44b67d50d..3f8784f996 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -67,7 +67,7 @@ func putelfstr(s string) int {
+ 
+ func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
+ 	switch Thearch.Thechar {
+-	case '0', '6', '7', '9':
++	case '0', '6', '7', '9', 'z':
+ 		Thearch.Lput(uint32(off))
+ 		Cput(uint8(info))
+ 		Cput(uint8(other))
+@@ -593,6 +593,7 @@ func symtab() {
+ 		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
+ 		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
+ 	}
++
+ 	// The rest of moduledata is zero initialized.
+ 	// When linking an object that does not contain the runtime we are
+ 	// creating the moduledata from scratch and it does not have a

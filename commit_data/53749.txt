@@ -27,7 +27,7 @@ Date:   Wed Jul 13 20:22:53 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go             | 114 ++++++++--------
  src/cmd/compile/internal/typecheck/builtin.go      |   2 +-
  .../compile/internal/typecheck/builtin/runtime.go  |   2 +-
@@ -35,3 +35,769 @@ Date:   Wed Jul 13 20:22:53 2022 -0700
  src/cmd/compile/internal/walk/builtin.go           |  73 ++++++----
  src/runtime/slice.go                               |  92 ++++++++-----
  6 files changed, 247 insertions(+), 185 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b72f795b4b..16388b5fd5 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -951,7 +951,6 @@ var (
+ 	// marker nodes for temporary variables
+ 	ptrVar       = ssaMarker("ptr")
+ 	lenVar       = ssaMarker("len")
+-	newlenVar    = ssaMarker("newlen")
+ 	capVar       = ssaMarker("cap")
+ 	typVar       = ssaMarker("typ")
+ 	okVar        = ssaMarker("ok")
+@@ -3385,46 +3384,46 @@ func (s *state) resultAddrOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.
+ // If inplace is true, it writes the result of the OAPPEND expression n
+ // back to the slice being appended to, and returns nil.
+ // inplace MUST be set to false if the slice can be SSA'd.
++// Note: this code only handles fixed-count appends. Dotdotdot appends
++// have already been rewritten at this point (by walk).
+ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	// If inplace is false, process as expression "append(s, e1, e2, e3)":
+ 	//
+ 	// ptr, len, cap := s
+-	// newlen := len + 3
+-	// if newlen > cap {
+-	//     ptr, len, cap = growslice(s, newlen)
+-	//     newlen = len + 3 // recalculate to avoid a spill
++	// len += 3
++	// if uint(len) > uint(cap) {
++	//     ptr, len, cap = growslice(ptr, len, cap, 3, typ)
++	//     Note that len is unmodified by growslice.
+ 	// }
+ 	// // with write barriers, if needed:
+-	// *(ptr+len) = e1
+-	// *(ptr+len+1) = e2
+-	// *(ptr+len+2) = e3
+-	// return makeslice(ptr, newlen, cap)
++	// *(ptr+(len-3)) = e1
++	// *(ptr+(len-2)) = e2
++	// *(ptr+(len-1)) = e3
++	// return makeslice(ptr, len, cap)
+ 	//
+ 	//
+ 	// If inplace is true, process as statement "s = append(s, e1, e2, e3)":
+ 	//
+ 	// a := &s
+ 	// ptr, len, cap := s
+-	// newlen := len + 3
+-	// if uint(newlen) > uint(cap) {
+-	//    newptr, len, newcap = growslice(ptr, len, cap, newlen)
+-	//    vardef(a)       // if necessary, advise liveness we are writing a new a
+-	//    *a.cap = newcap // write before ptr to avoid a spill
+-	//    *a.ptr = newptr // with write barrier
++	// len += 3
++	// if uint(len) > uint(cap) {
++	//    ptr, len, cap = growslice(ptr, len, cap, 3, typ)
++	//    vardef(a)    // if necessary, advise liveness we are writing a new a
++	//    *a.cap = cap // write before ptr to avoid a spill
++	//    *a.ptr = ptr // with write barrier
+ 	// }
+-	// newlen = len + 3 // recalculate to avoid a spill
+-	// *a.len = newlen
++	// *a.len = len
+ 	// // with write barriers, if needed:
+-	// *(ptr+len) = e1
+-	// *(ptr+len+1) = e2
+-	// *(ptr+len+2) = e3
++	// *(ptr+(len-3)) = e1
++	// *(ptr+(len-2)) = e2
++	// *(ptr+(len-1)) = e3
+ 
+ 	et := n.Type().Elem()
+ 	pt := types.NewPtr(et)
+ 
+ 	// Evaluate slice
+ 	sn := n.Args[0] // the slice node is the first in the list
+-
+ 	var slice, addr *ssa.Value
+ 	if inplace {
+ 		addr = s.addr(sn)
+@@ -3437,21 +3436,23 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	grow := s.f.NewBlock(ssa.BlockPlain)
+ 	assign := s.f.NewBlock(ssa.BlockPlain)
+ 
+-	// Decide if we need to grow
+-	nargs := int64(len(n.Args) - 1)
++	// Decomposse input slice.
+ 	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
+ 	l := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], slice)
+ 	c := s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], slice)
+-	nl := s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
+ 
+-	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, nl)
+-	s.vars[ptrVar] = p
++	// Add number of new elements to length.
++	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))
++	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
++
++	// Decide if we need to grow
++	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, l)
+ 
++	// Record values of ptr/len/cap before branch.
++	s.vars[ptrVar] = p
++	s.vars[lenVar] = l
+ 	if !inplace {
+-		s.vars[newlenVar] = nl
+ 		s.vars[capVar] = c
+-	} else {
+-		s.vars[lenVar] = l
+ 	}
+ 
+ 	b := s.endBlock()
+@@ -3464,8 +3465,16 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	// Call growslice
+ 	s.startBlock(grow)
+ 	taddr := s.expr(n.X)
+-	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
++	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
++
++	// Decompose output slice
++	p = s.newValue1(ssa.OpSlicePtr, pt, r[0])
++	l = s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], r[0])
++	c = s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], r[0])
+ 
++	s.vars[ptrVar] = p
++	s.vars[lenVar] = l
++	s.vars[capVar] = c
+ 	if inplace {
+ 		if sn.Op() == ir.ONAME {
+ 			sn := sn.(*ir.Name)
+@@ -3475,15 +3484,8 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 			}
+ 		}
+ 		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceCapOffset, addr)
+-		s.store(types.Types[types.TINT], capaddr, r[2])
+-		s.store(pt, addr, r[0])
+-		// load the value we just stored to avoid having to spill it
+-		s.vars[ptrVar] = s.load(pt, addr)
+-		s.vars[lenVar] = r[1] // avoid a spill in the fast path
+-	} else {
+-		s.vars[ptrVar] = r[0]
+-		s.vars[newlenVar] = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], r[1], s.constInt(types.Types[types.TINT], nargs))
+-		s.vars[capVar] = r[2]
++		s.store(types.Types[types.TINT], capaddr, c)
++		s.store(pt, addr, p)
+ 	}
+ 
+ 	b = s.endBlock()
+@@ -3491,12 +3493,17 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 
+ 	// assign new elements to slots
+ 	s.startBlock(assign)
++	p = s.variable(ptrVar, pt)                      // generates phi for ptr
++	l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
++	if !inplace {
++		c = s.variable(capVar, types.Types[types.TINT]) // generates phi for cap
++	}
+ 
+ 	if inplace {
+-		l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
+-		nl = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
++		// Update length in place.
++		// We have to wait until here to make sure growslice succeeded.
+ 		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceLenOffset, addr)
+-		s.store(types.Types[types.TINT], lenaddr, nl)
++		s.store(types.Types[types.TINT], lenaddr, l)
+ 	}
+ 
+ 	// Evaluate args
+@@ -3506,7 +3513,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 		v     *ssa.Value
+ 		store bool
+ 	}
+-	args := make([]argRec, 0, nargs)
++	args := make([]argRec, 0, len(n.Args[1:]))
+ 	for _, n := range n.Args[1:] {
+ 		if TypeOK(n.Type()) {
+ 			args = append(args, argRec{v: s.expr(n), store: true})
+@@ -3516,12 +3523,9 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 		}
+ 	}
+ 
+-	p = s.variable(ptrVar, pt) // generates phi for ptr
+-	if !inplace {
+-		nl = s.variable(newlenVar, types.Types[types.TINT]) // generates phi for nl
+-		c = s.variable(capVar, types.Types[types.TINT])     // generates phi for cap
+-	}
+-	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
++	// Write args into slice.
++	oldLen := s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
++	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, oldLen)
+ 	for i, arg := range args {
+ 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(types.Types[types.TINT], int64(i)))
+ 		if arg.store {
+@@ -3532,14 +3536,16 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	}
+ 
+ 	delete(s.vars, ptrVar)
++	delete(s.vars, lenVar)
++	if !inplace {
++		delete(s.vars, capVar)
++	}
++
++	// make result
+ 	if inplace {
+-		delete(s.vars, lenVar)
+ 		return nil
+ 	}
+-	delete(s.vars, newlenVar)
+-	delete(s.vars, capVar)
+-	// make result
+-	return s.newValue3(ssa.OpSliceMake, n.Type(), p, nl, c)
++	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+ }
+ 
+ // condBranch evaluates the boolean expression cond and branches to yes
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 926234b40b..7718985aae 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -351,7 +351,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[114] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
+ 	typs[115] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
+ 	typs[116] = types.NewSlice(typs[2])
+-	typs[117] = newSig(params(typs[1], typs[116], typs[15]), params(typs[116]))
++	typs[117] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[116]))
+ 	typs[118] = newSig(params(typs[1], typs[7], typs[22]), nil)
+ 	typs[119] = newSig(params(typs[7], typs[22]), nil)
+ 	typs[120] = newSig(params(typs[5], typs[5]), params(typs[5], typs[6]))
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index ebe346c68b..b862594c92 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -179,7 +179,7 @@ func block()
+ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
+ func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
+ func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
+-func growslice(typ *byte, old []any, cap int) (ary []any)
++func growslice(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
+ func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
+ func panicunsafeslicelen()
+ func panicunsafeslicenilptr()
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 1d922d983e..1450ec6ba2 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -461,13 +461,14 @@ func readsMemory(n ir.Node) bool {
+ //
+ //	init {
+ //	  s := l1
+-//	  n := len(s) + len(l2)
++//	  newLen := s.len + l2.len
+ //	  // Compare as uint so growslice can panic on overflow.
+-//	  if uint(n) > uint(cap(s)) {
+-//	    s = growslice(s, n)
++//	  if uint(newLen) <= uint(s.cap) {
++//	    s = s[:newLen]
++//	  } else {
++//	    s = growslice(s.ptr, s.len, s.cap, l2.len, T)
+ //	  }
+-//	  s = s[:n]
+-//	  memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
++//	  memmove(&s[s.len-l2.len], &l2[0], l2.len*sizeof(T))
+ //	}
+ //	s
+ //
+@@ -488,34 +489,54 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 
+ 	elemtype := s.Type().Elem()
+ 
+-	// n := len(s) + len(l2)
+-	nn := typecheck.Temp(types.Types[types.TINT])
+-	nodes.Append(ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), ir.NewUnaryExpr(base.Pos, ir.OLEN, l2))))
++	// Decompose slice.
++	oldPtr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
++	oldLen := ir.NewUnaryExpr(base.Pos, ir.OLEN, s)
++	oldCap := ir.NewUnaryExpr(base.Pos, ir.OCAP, s)
++
++	// Number of elements we are adding
++	num := ir.NewUnaryExpr(base.Pos, ir.OLEN, l2)
+ 
+-	// if uint(n) > uint(cap(s))
++	// newLen := oldLen + num
++	newLen := typecheck.Temp(types.Types[types.TINT])
++	nodes.Append(ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, oldLen, num)))
++
++	// if uint(newLen) <= uint(oldCap)
+ 	nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-	nuint := typecheck.Conv(nn, types.Types[types.TUINT])
+-	scapuint := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OCAP, s), types.Types[types.TUINT])
+-	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OGT, nuint, scapuint)
++	nuint := typecheck.Conv(newLen, types.Types[types.TUINT])
++	scapuint := typecheck.Conv(oldCap, types.Types[types.TUINT])
++	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, nuint, scapuint)
++	nif.Likely = true
++
++	// then { s = s[:newLen] }
++	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, newLen, nil)
++	slice.SetBounded(true)
++	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, slice)}
+ 
+-	// instantiate growslice(typ *type, []any, int) []any
++	// func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) []T
+ 	fn := typecheck.LookupRuntime("growslice")
+ 	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
+ 
+-	// s = growslice(T, s, n)
+-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), s, nn))}
++	// else { s = growslice(oldPtr, newLen, oldCap, num, T) }
++	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtr(elemtype))
++	nif.Else = []ir.Node{ir.NewAssignStmt(base.Pos, s, call)}
++
+ 	nodes.Append(nif)
+ 
+-	// s = s[:n]
+-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
+-	nt.SetBounded(true)
+-	nodes.Append(ir.NewAssignStmt(base.Pos, s, nt))
++	// Index to start copying into s.
++	//   idx = newLen - len(l2)
++	// We use this expression instead of oldLen because it avoids
++	// a spill/restore of oldLen.
++	// Note: this doesn't work optimally currently because
++	// the compiler optimizer undoes this arithmetic.
++	idx := ir.NewBinaryExpr(base.Pos, ir.OSUB, newLen, ir.NewUnaryExpr(base.Pos, ir.OLEN, l2))
+ 
+ 	var ncopy ir.Node
+ 	if elemtype.HasPointers() {
+-		// copy(s[len(l1):], l2)
+-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
++		// copy(s[idx:], l2)
++		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, idx, nil, nil)
+ 		slice.SetType(s.Type())
++		slice.SetBounded(true)
+ 
+ 		ir.CurFunc.SetWBPos(n.Pos())
+ 
+@@ -527,10 +548,11 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, reflectdata.AppendElemRType(base.Pos, n), ptr1, len1, ptr2, len2)
+ 	} else if base.Flag.Cfg.Instrumenting && !base.Flag.CompilingRuntime {
+ 		// rely on runtime to instrument:
+-		//  copy(s[len(l1):], l2)
++		//  copy(s[idx:], l2)
+ 		// l2 can be a slice or string.
+-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
++		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, idx, nil, nil)
+ 		slice.SetType(s.Type())
++		slice.SetBounded(true)
+ 
+ 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
+ 		ptr2, len2 := backingArrayPtrLen(l2)
+@@ -539,8 +561,8 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		fn = typecheck.SubstArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
+ 		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(elemtype.Size()))
+ 	} else {
+-		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+-		ix := ir.NewIndexExpr(base.Pos, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1))
++		// memmove(&s[idx], &l2[0], len(l2)*sizeof(T))
++		ix := ir.NewIndexExpr(base.Pos, s, idx)
+ 		ix.SetBounded(true)
+ 		addr := typecheck.NodAddr(ix)
+ 
+@@ -614,20 +636,21 @@ func isAppendOfMake(n ir.Node) bool {
+ //	  // overflows int. Interpreting n when negative as uint makes it larger
+ //	  // than cap(s). growslice will check the int n arg and panic if n is
+ //	  // negative. This prevents the overflow from being undetected.
+-//	  if uint(n) > uint(cap(s)) {
+-//	    s = growslice(T, s, n)
+-//	  }
+-//	  s = s[:n]
+-//	  lptr := &l1[0]
+-//	  sptr := &s[0]
+-//	  if lptr == sptr || !T.HasPointers() {
+-//	    // growslice did not clear the whole underlying array (or did not get called)
+-//	    hp := &s[len(l1)]
+-//	    hn := l2 * sizeof(T)
+-//	    memclr(hp, hn)
++//	  if uint(n) <= uint(cap(s)) {
++//	    s = s[:n]
++//	  } else {
++//	    s = growslice(T, s.ptr, n, s.cap, l2, T)
+ //	  }
++//	  // clear the new portion of the underlying array.
++//	  hp := &s[len(s)-l2]
++//	  hn := l2 * sizeof(T)
++//	  memclr(hp, hn)
+ //	}
+ //	s
++//
++//	if T has pointers, the final memclr can go inside the "then" branch, as
++//	growslice will have done the clearing for us.
++
+ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
+ 	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
+@@ -657,40 +680,40 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 
+ 	elemtype := s.Type().Elem()
+ 
+-	// n := len(s) + l2
++	// n := s.len + l2
+ 	nn := typecheck.Temp(types.Types[types.TINT])
+ 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
+ 
+-	// if uint(n) > uint(cap(s))
++	// if uint(n) <= uint(s.cap)
+ 	nuint := typecheck.Conv(nn, types.Types[types.TUINT])
+ 	capuint := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OCAP, s), types.Types[types.TUINT])
+-	nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, nuint, capuint), nil, nil)
+-
+-	// instantiate growslice(typ *type, old []any, newcap int) []any
+-	fn := typecheck.LookupRuntime("growslice")
+-	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
+-
+-	// s = growslice(T, s, n)
+-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), s, nn))}
+-	nodes = append(nodes, nif)
++	nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, nuint, capuint), nil, nil)
++	nif.Likely = true
+ 
+-	// s = s[:n]
++	// then { s = s[:n] }
+ 	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
+ 	nt.SetBounded(true)
+-	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, nt))
++	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, s, nt)}
+ 
+-	// lptr := &l1[0]
+-	l1ptr := typecheck.Temp(l1.Type().Elem().PtrTo())
+-	tmp := ir.NewUnaryExpr(base.Pos, ir.OSPTR, l1)
+-	nodes = append(nodes, ir.NewAssignStmt(base.Pos, l1ptr, tmp))
++	// instantiate growslice(oldPtr *any, newLen, oldCap, num int, typ *type) []any
++	fn := typecheck.LookupRuntime("growslice")
++	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
++
++	// else { s = growslice(s.ptr, n, s.cap, l2, T) }
++	nif.Else = []ir.Node{
++		ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(),
++			ir.NewUnaryExpr(base.Pos, ir.OSPTR, s),
++			nn,
++			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
++			l2,
++			reflectdata.TypePtr(elemtype))),
++	}
+ 
+-	// sptr := &s[0]
+-	sptr := typecheck.Temp(elemtype.PtrTo())
+-	tmp = ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
+-	nodes = append(nodes, ir.NewAssignStmt(base.Pos, sptr, tmp))
++	nodes = append(nodes, nif)
+ 
+-	// hp := &s[len(l1)]
+-	ix := ir.NewIndexExpr(base.Pos, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1))
++	// hp := &s[s.len - l2]
++	// TODO: &s[s.len] - hn?
++	ix := ir.NewIndexExpr(base.Pos, s, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2))
+ 	ix.SetBounded(true)
+ 	hp := typecheck.ConvNop(typecheck.NodAddr(ix), types.Types[types.TUNSAFEPTR])
+ 
+@@ -707,12 +730,10 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	var clr ir.Nodes
+ 	clrfn := mkcall(clrname, nil, &clr, hp, hn)
+ 	clr.Append(clrfn)
+-
+ 	if hasPointers {
+-		// if l1ptr == sptr
+-		nifclr := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OEQ, l1ptr, sptr), nil, nil)
+-		nifclr.Body = clr
+-		nodes = append(nodes, nifclr)
++		// growslice will have cleared the new entries, so only
++		// if growslice isn't called do we need to do the zeroing ourselves.
++		nif.Body = append(nif.Body, clr...)
+ 	} else {
+ 		nodes = append(nodes, clr...)
+ 	}
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index f96ee22f59..0acac9631b 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -22,20 +22,21 @@ import (
+ // x, y, z (including runtime panics) are evaluated in
+ // initialization statements before the append.
+ // For normal code generation, stop there and leave the
+-// rest to cgen_append.
++// rest to ssagen.
+ //
+ // For race detector, expand append(src, a [, b]* ) to
+ //
+ //	  init {
+ //	    s := src
+ //	    const argc = len(args) - 1
+-//	    if cap(s) - len(s) < argc {
+-//		    s = growslice(s, len(s)+argc)
++//	    newLen := s.len + argc
++//	    if uint(newLen) <= uint(s.cap) {
++//	      s = s[:newLen]
++//	    } else {
++//	      s = growslice(s.ptr, newLen, s.cap, argc, elemType)
+ //	    }
+-//	    n := len(s)
+-//	    s = s[:n+argc]
+-//	    s[n] = a
+-//	    s[n+1] = b
++//	    s[s.len - argc] = a
++//	    s[s.len - argc + 1] = b
+ //	    ...
+ //	  }
+ //	  s
+@@ -70,49 +71,63 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
+ 	}
+ 
+ 	// General case, with no function calls left as arguments.
+-	// Leave for gen, except that instrumentation requires old form.
++	// Leave for ssagen, except that instrumentation requires the old form.
+ 	if !base.Flag.Cfg.Instrumenting || base.Flag.CompilingRuntime {
+ 		return n
+ 	}
+ 
+ 	var l []ir.Node
+ 
+-	ns := typecheck.Temp(nsrc.Type())
+-	l = append(l, ir.NewAssignStmt(base.Pos, ns, nsrc)) // s = src
++	// s = slice to append to
++	s := typecheck.Temp(nsrc.Type())
++	l = append(l, ir.NewAssignStmt(base.Pos, s, nsrc))
+ 
+-	na := ir.NewInt(int64(argc))                 // const argc
+-	nif := ir.NewIfStmt(base.Pos, nil, nil, nil) // if cap(s) - len(s) < argc
+-	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OCAP, ns), ir.NewUnaryExpr(base.Pos, ir.OLEN, ns)), na)
++	// num = number of things to append
++	num := ir.NewInt(int64(argc))
+ 
+-	fn := typecheck.LookupRuntime("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
+-	fn = typecheck.SubstArgTypes(fn, ns.Type().Elem(), ns.Type().Elem())
++	// newLen := s.len + num
++	newLen := typecheck.Temp(types.Types[types.TINT])
++	l = append(l, ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), num)))
+ 
+-	nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, ns, mkcall1(fn, ns.Type(), nif.PtrInit(), reflectdata.AppendElemRType(base.Pos, n), ns,
+-		ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns), na)))}
++	// if uint(newLen) <= uint(s.cap)
++	nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
++	nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(newLen, types.Types[types.TUINT]), typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OCAP, s), types.Types[types.TUINT]))
++	nif.Likely = true
+ 
+-	l = append(l, nif)
++	// then { s = s[:n] }
++	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, newLen, nil)
++	slice.SetBounded(true)
++	nif.Body = []ir.Node{
++		ir.NewAssignStmt(base.Pos, s, slice),
++	}
+ 
+-	nn := typecheck.Temp(types.Types[types.TINT])
+-	l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns))) // n = len(s)
++	fn := typecheck.LookupRuntime("growslice") //   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
++	fn = typecheck.SubstArgTypes(fn, s.Type().Elem(), s.Type().Elem())
+ 
+-	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns, nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil) // ...s[:n+argc]
+-	slice.SetBounded(true)
+-	l = append(l, ir.NewAssignStmt(base.Pos, ns, slice)) // s = s[:n+argc]
++	// else { s = growslice(s.ptr, n, s.cap, a, T) }
++	nif.Else = []ir.Node{
++		ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(),
++			ir.NewUnaryExpr(base.Pos, ir.OSPTR, s),
++			newLen,
++			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
++			num,
++			reflectdata.TypePtr(s.Type().Elem()))),
++	}
++
++	l = append(l, nif)
+ 
+ 	ls = n.Args[1:]
+ 	for i, n := range ls {
+-		ix := ir.NewIndexExpr(base.Pos, ns, nn) // s[n] ...
++		// s[s.len-argc+i] = arg
++		ix := ir.NewIndexExpr(base.Pos, s, ir.NewBinaryExpr(base.Pos, ir.OSUB, newLen, ir.NewInt(int64(argc-i))))
+ 		ix.SetBounded(true)
+-		l = append(l, ir.NewAssignStmt(base.Pos, ix, n)) // s[n] = arg
+-		if i+1 < len(ls) {
+-			l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, ir.NewInt(1)))) // n = n + 1
+-		}
++		l = append(l, ir.NewAssignStmt(base.Pos, ix, n))
+ 	}
+ 
+ 	typecheck.Stmts(l)
+ 	walkStmtList(l)
+ 	init.Append(l...)
+-	return ns
++	return s
+ }
+ 
+ // walkClose walks an OCLOSE node.
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 0a203e4101..284ee1f484 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -123,50 +123,70 @@ func mulUintptr(a, b uintptr) (uintptr, bool) {
+ 	return math.MulUintptr(a, b)
+ }
+ 
+-// growslice handles slice growth during append.
+-// It is passed the slice element type, the old slice, and the desired new minimum capacity,
+-// and it returns a new slice with at least that capacity, with the old data
+-// copied into it.
+-// The new slice's length is set to the old slice's length,
+-// NOT to the new requested capacity.
+-// This is for codegen convenience. The old slice's length is used immediately
+-// to calculate where to write new values during an append.
+-// TODO: When the old backend is gone, reconsider this decision.
+-// The SSA backend might prefer the new length or to return only ptr/cap and save stack space.
+-func growslice(et *_type, old slice, cap int) slice {
++// growslice allocates new backing store for a slice.
++//
++// arguments:
++//   oldPtr = pointer to the slice's backing array
++//   newLen = new length (= oldLen + num)
++//   oldCap = original slice's capacity.
++//      num = number of elements being added
++//       et = element type
++//
++// return values:
++//   newPtr = pointer to the new backing store
++//   newLen = same value as the argument
++//   newCap = capacity of the new backing store
++//
++// Requires that uint(newLen) > uint(oldCap).
++// Assumes the original slice length is newLen - num
++//
++// A new backing store is allocated with space for at least newLen elements.
++// Existing entries [0, oldLen) are copied over to the new backing store.
++// Added entries [oldLen, newLen) are not initialized by growslice
++// (although for pointer-containing element types, they are zeroed). They
++// must be initialized by the caller.
++// Trailing entries [newLen, newCap) are zeroed.
++//
++// growslice's odd calling convention makes the generated code that calls
++// this function simpler. In particular, it accepts and returns the
++// new length so that the old length is not live (does not need to be
++// spilled/restored) and the new length is returned (also does not need
++// to be spilled/restored).
++func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice {
++	oldLen := newLen - num
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, abi.FuncPCABIInternal(growslice))
++		racereadrangepc(oldPtr, uintptr(oldLen*int(et.size)), callerpc, abi.FuncPCABIInternal(growslice))
+ 	}
+ 	if msanenabled {
+-		msanread(old.array, uintptr(old.len*int(et.size)))
++		msanread(oldPtr, uintptr(oldLen*int(et.size)))
+ 	}
+ 	if asanenabled {
+-		asanread(old.array, uintptr(old.len*int(et.size)))
++		asanread(oldPtr, uintptr(oldLen*int(et.size)))
+ 	}
+ 
+-	if cap < old.cap {
++	if newLen < 0 {
+ 		panic(errorString("growslice: len out of range"))
+ 	}
+ 
+ 	if et.size == 0 {
+ 		// append should not create a slice with nil pointer but non-zero len.
+-		// We assume that append doesn't need to preserve old.array in this case.
+-		return slice{unsafe.Pointer(&zerobase), old.len, cap}
++		// We assume that append doesn't need to preserve oldPtr in this case.
++		return slice{unsafe.Pointer(&zerobase), newLen, newLen}
+ 	}
+ 
+-	newcap := old.cap
++	newcap := oldCap
+ 	doublecap := newcap + newcap
+-	if cap > doublecap {
+-		newcap = cap
++	if newLen > doublecap {
++		newcap = newLen
+ 	} else {
+ 		const threshold = 256
+-		if old.cap < threshold {
++		if oldCap < threshold {
+ 			newcap = doublecap
+ 		} else {
+ 			// Check 0 < newcap to detect overflow
+ 			// and prevent an infinite loop.
+-			for 0 < newcap && newcap < cap {
++			for 0 < newcap && newcap < newLen {
+ 				// Transition from growing 2x for small slices
+ 				// to growing 1.25x for large slices. This formula
+ 				// gives a smooth-ish transition between the two.
+@@ -175,7 +195,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 			// Set newcap to the requested cap when
+ 			// the newcap calculation overflowed.
+ 			if newcap <= 0 {
+-				newcap = cap
++				newcap = newLen
+ 			}
+ 		}
+ 	}
+@@ -188,14 +208,14 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	// For powers of 2, use a variable shift.
+ 	switch {
+ 	case et.size == 1:
+-		lenmem = uintptr(old.len)
+-		newlenmem = uintptr(cap)
++		lenmem = uintptr(oldLen)
++		newlenmem = uintptr(newLen)
+ 		capmem = roundupsize(uintptr(newcap))
+ 		overflow = uintptr(newcap) > maxAlloc
+ 		newcap = int(capmem)
+ 	case et.size == goarch.PtrSize:
+-		lenmem = uintptr(old.len) * goarch.PtrSize
+-		newlenmem = uintptr(cap) * goarch.PtrSize
++		lenmem = uintptr(oldLen) * goarch.PtrSize
++		newlenmem = uintptr(newLen) * goarch.PtrSize
+ 		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
+ 		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
+ 		newcap = int(capmem / goarch.PtrSize)
+@@ -207,15 +227,15 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		} else {
+ 			shift = uintptr(sys.Ctz32(uint32(et.size))) & 31
+ 		}
+-		lenmem = uintptr(old.len) << shift
+-		newlenmem = uintptr(cap) << shift
++		lenmem = uintptr(oldLen) << shift
++		newlenmem = uintptr(newLen) << shift
+ 		capmem = roundupsize(uintptr(newcap) << shift)
+ 		overflow = uintptr(newcap) > (maxAlloc >> shift)
+ 		newcap = int(capmem >> shift)
+ 		capmem = uintptr(newcap) << shift
+ 	default:
+-		lenmem = uintptr(old.len) * et.size
+-		newlenmem = uintptr(cap) * et.size
++		lenmem = uintptr(oldLen) * et.size
++		newlenmem = uintptr(newLen) * et.size
+ 		capmem, overflow = math.MulUintptr(et.size, uintptr(newcap))
+ 		capmem = roundupsize(capmem)
+ 		newcap = int(capmem / et.size)
+@@ -242,21 +262,21 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	var p unsafe.Pointer
+ 	if et.ptrdata == 0 {
+ 		p = mallocgc(capmem, nil, false)
+-		// The append() that calls growslice is going to overwrite from old.len to cap (which will be the new length).
++		// The append() that calls growslice is going to overwrite from oldLen to newLen.
+ 		// Only clear the part that will not be overwritten.
+ 		memclrNoHeapPointers(add(p, newlenmem), capmem-newlenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+ 		p = mallocgc(capmem, et, true)
+ 		if lenmem > 0 && writeBarrier.enabled {
+-			// Only shade the pointers in old.array since we know the destination slice p
++			// Only shade the pointers in oldPtr since we know the destination slice p
+ 			// only contains nil pointers because it has been cleared during alloc.
+-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem-et.size+et.ptrdata)
++			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldPtr), lenmem-et.size+et.ptrdata)
+ 		}
+ 	}
+-	memmove(p, old.array, lenmem)
++	memmove(p, oldPtr, lenmem)
+ 
+-	return slice{p, old.len, newcap}
++	return slice{p, newLen, newcap}
+ }
+ 
+ func isPowerOfTwo(x uintptr) bool {

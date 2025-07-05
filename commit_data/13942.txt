@@ -7,7 +7,7 @@ Date:   Mon Sep 24 23:44:00 2012 +0200
     R=golang-dev, rsc, dave
     CC=golang-dev
     https://golang.org/cl/6569044
-
+---
  src/cmd/5g/opt.h | 2 --
  src/cmd/5g/reg.c | 2 +-
  src/cmd/6c/gc.h  | 2 --
@@ -15,3 +15,91 @@ Date:   Mon Sep 24 23:44:00 2012 +0200
  src/cmd/6g/reg.c | 4 ++--
  src/cmd/8g/reg.c | 2 +-
  6 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index 0f738188dd..af7d654dee 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -34,8 +34,6 @@
+ #define	D_HI	D_NONE
+ #define	D_LO	D_NONE
+ 
+-#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
+-
+ #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
+ #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
+ #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index c7fb2e02dd..c53c6da76a 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1011,7 +1011,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->node = node;
+ 	
+ 	if(debug['R'])
+-		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 
+ 	bit = blsh(i);
+ 	if(n == D_EXTERN || n == D_STATIC)
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index 1d006e9246..d1133ee214 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -367,8 +367,6 @@ int	BtoF(int32);
+ #define	D_HI	D_NONE
+ #define	D_LO	D_NONE
+ 
+-#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
+-
+ /*
+  * bound
+  */
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index 5fb24737e8..9b0ea1b5ac 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -34,8 +34,6 @@
+ #define	D_HI	D_NONE
+ #define	D_LO	D_NONE
+ 
+-#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
+-
+ #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
+ #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
+ #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 3352895e75..d45c024e7d 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -860,7 +860,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	p1->as = AMOVL;
+ 	switch(v->etype) {
+ 	default:
+-		fatal("unknown type\n");
++		fatal("unknown type %E", v->etype);
+ 	case TINT8:
+ 	case TUINT8:
+ 	case TBOOL:
+@@ -1042,7 +1042,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->node = node;
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 
+ 	ostats.nvar++;
+ 
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index bc80537cc3..e32fba6516 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -911,7 +911,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->node = node;
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 	ostats.nvar++;
+ 
+ 	bit = blsh(i);

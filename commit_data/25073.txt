@@ -14,7 +14,71 @@ Date:   Mon Sep 21 14:18:13 2015 -0700
     Change-Id: I0a7bb0f0eabb260c986bf7a2288860c78d8db1af
     Reviewed-on: https://go-review.googlesource.com/14777
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/asm/internal/lex/lex_test.go | 29 +++++++++++++++++++++++++++++
  src/cmd/asm/internal/lex/slice.go    | 12 ++++++++++--
  2 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index 14ffffecc8..f606ffe07b 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -226,6 +226,35 @@ var lexTests = []lexTest{
+ 		),
+ 		"C.\n",
+ 	},
++	{
++		"nested #define",
++		lines(
++			"#define A #define B THIS",
++			"A",
++			"B",
++		),
++		"THIS.\n",
++	},
++	{
++		"nested #define with args",
++		lines(
++			"#define A #define B(x) x",
++			"A",
++			"B(THIS)",
++		),
++		"THIS.\n",
++	},
++	/* This one fails. See comment in Slice.Col.
++	{
++		"nested #define with args",
++		lines(
++			"#define A #define B (x) x",
++			"A",
++			"B(THIS)",
++		),
++		"x.\n",
++	},
++	*/
+ }
+ 
+ func TestLex(t *testing.T) {
+diff --git a/src/cmd/asm/internal/lex/slice.go b/src/cmd/asm/internal/lex/slice.go
+index e94106b0af..b0d5429e04 100644
+--- a/src/cmd/asm/internal/lex/slice.go
++++ b/src/cmd/asm/internal/lex/slice.go
+@@ -44,8 +44,16 @@ func (s *Slice) Line() int {
+ }
+ 
+ func (s *Slice) Col() int {
+-	// Col is only called when defining a macro, which can't reach here.
+-	panic("cannot happen: slice col")
++	// TODO: Col is only called when defining a macro and all it cares about is increasing
++	// position to discover whether there is a blank before the parenthesis.
++	// We only get here if defining a macro inside a macro.
++	// This imperfect implementation means we cannot tell the difference between
++	//	#define A #define B(x) x
++	// and
++	//	#define A #define B (x) x
++	// The first has definition of B has an argument, the second doesn't. Because we let
++	// text/scanner strip the blanks for us, this is extremely rare, hard to fix, and not worth it.
++	return s.pos
+ }
+ 
+ func (s *Slice) SetPos(line int, file string) {

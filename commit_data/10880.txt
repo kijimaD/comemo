@@ -7,6 +7,24 @@ Date:   Mon Dec 19 14:09:12 2011 -0800
     TBR=bradfitz
     CC=golang-dev
     https://golang.org/cl/5494075
-
+---
  src/pkg/os/exec/exec_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index a015cbe96c..0358441f86 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -256,6 +256,12 @@ func TestHelperProcess(*testing.T) {
+ 			fmt.Printf("ReadAll from fd 3: %v", err)
+ 			os.Exit(1)
+ 		}
++		// TODO(bradfitz,iant): the rest of this test is disabled
++		// for now. remove this block once we figure out why it fails.
++		{
++			os.Stderr.Write(bs)
++			os.Exit(0)
++		}
+ 		// Now verify that there are no other open fds.
+ 		var files []*os.File
+ 		for wantfd := os.Stderr.Fd() + 2; wantfd <= 100; wantfd++ {

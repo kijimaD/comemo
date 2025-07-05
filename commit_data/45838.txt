@@ -17,7 +17,54 @@ Date:   Tue Nov 24 00:58:00 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  3 +++
  test/fixedbugs/issue42784.go                 | 26 ++++++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 180afab33b..f266e49327 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -250,6 +250,9 @@ func expandCalls(f *Func) {
+ 			if leafType != selector.Type && !selector.Type.IsEmptyInterface() { // empty interface for #42727
+ 				f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
+ 			}
++			if selector.Type.IsEmptyInterface() {
++				selector.Type = typ.BytePtr
++			}
+ 			leaf.copyOf(selector)
+ 			for _, s := range namedSelects[selector] {
+ 				locs = append(locs, f.Names[s.locIndex])
+diff --git a/test/fixedbugs/issue42784.go b/test/fixedbugs/issue42784.go
+new file mode 100644
+index 0000000000..e2b06e9307
+--- /dev/null
++++ b/test/fixedbugs/issue42784.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure that late expansion correctly set OpLoad argument type interface{}
++
++package p
++
++type iface interface {
++	m()
++}
++
++type it interface{}
++
++type makeIface func() iface
++
++func f() {
++	var im makeIface
++	e := im().(it)
++	g(e)
++}
++
++//go:noinline
++func g(i it) {}

@@ -15,6 +15,25 @@ Date:   Thu Sep 19 12:49:05 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/testdata/script/{mod_m.txt => gccgo_m.txt} | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_m.txt b/src/cmd/go/testdata/script/gccgo_m.txt
+similarity index 88%
+rename from src/cmd/go/testdata/script/mod_m.txt
+rename to src/cmd/go/testdata/script/gccgo_m.txt
+index a6edeac7bb..b63ba46ced 100644
+--- a/src/cmd/go/testdata/script/mod_m.txt
++++ b/src/cmd/go/testdata/script/gccgo_m.txt
+@@ -1,6 +1,10 @@
+ # It's absurd, but builds with -compiler=gccgo used to fail to build module m.
+ # golang.org/issue/34358
+ 
++env GO111MODULE=off
++
++[short] skip
++
+ cd m
+ go build
+ exists m$GOEXE

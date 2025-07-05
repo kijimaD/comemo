@@ -99,7 +99,7 @@ Date:   Fri Mar 17 03:31:09 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go |  2 +-
  src/hash/crc32/crc32_arm64.go      | 51 ++++++++++++++++++++
  src/hash/crc32/crc32_arm64.s       | 97 ++++++++++++++++++++++++++++++++++++++
@@ -107,3 +107,229 @@ Date:   Fri Mar 17 03:31:09 2017 +0000
  src/runtime/os_darwin_arm64.go     |  2 +
  src/runtime/os_linux_arm64.go      |  7 +++
  6 files changed, 159 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b9529dd163..6950b0181e 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2564,7 +2564,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 |= ((uint32(v) & 0x20) << (31 - 5)) | ((uint32(v) & 0x1F) << 19)
+ 		o1 |= uint32(c.brdist(p, 0, 14, 2) << 5)
+-		o1 |= uint32(p.Reg)
++		o1 |= uint32(p.Reg & 31)
+ 
+ 	case 41: /* eret, nop, others with no operands */
+ 		o1 = c.op0(p, p.As)
+diff --git a/src/hash/crc32/crc32_arm64.go b/src/hash/crc32/crc32_arm64.go
+new file mode 100644
+index 0000000000..2df3702650
+--- /dev/null
++++ b/src/hash/crc32/crc32_arm64.go
+@@ -0,0 +1,51 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// ARM64-specific hardware-assisted CRC32 algorithms. See crc32.go for a
++// description of the interface that each architecture-specific file
++// implements.
++
++package crc32
++
++func supportsCRC32() bool
++func castagnoliUpdate(crc uint32, p []byte) uint32
++func ieeeUpdate(crc uint32, p []byte) uint32
++
++var hasCRC32 = supportsCRC32()
++
++func archAvailableCastagnoli() bool {
++    return hasCRC32
++}
++
++func archInitCastagnoli() {
++    if !hasCRC32 {
++        panic("arch-specific crc32 instruction for Catagnoli not available")
++    }
++}
++
++func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
++    if !hasCRC32 {
++        panic("arch-specific crc32 instruction for Castagnoli not available")
++    }
++
++    return ^castagnoliUpdate(^crc, p)
++}
++
++func archAvailableIEEE() bool {
++    return hasCRC32
++}
++
++func archInitIEEE() {
++    if !hasCRC32 {
++        panic("arch-specific crc32 instruction for IEEE not available")
++    }
++}
++
++func archUpdateIEEE(crc uint32, p []byte) uint32 {
++    if !hasCRC32 {
++        panic("arch-specific crc32 instruction for IEEE not available")
++    }
++
++    return ^ieeeUpdate(^crc, p)
++}
+diff --git a/src/hash/crc32/crc32_arm64.s b/src/hash/crc32/crc32_arm64.s
+new file mode 100644
+index 0000000000..26a86e4efa
+--- /dev/null
++++ b/src/hash/crc32/crc32_arm64.s
+@@ -0,0 +1,97 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// castagnoliUpdate updates the non-inverted crc with the given data.
++
++// func castagnoliUpdate(crc uint32, p []byte) uint32
++TEXT ·castagnoliUpdate(SB),NOSPLIT,$0-36
++	MOVWU	crc+0(FP), R9  // CRC value
++	MOVD	p+8(FP), R13  // data pointer
++	MOVD	p_len+16(FP), R11  // len(p)
++
++	CMP	$8, R11
++	BLT	less_than_8
++
++update:
++	MOVD.P	8(R13), R10
++	CRC32CX	R10, R9
++	SUB	$8, R11
++
++	CMP	$8, R11
++	BLT	less_than_8
++
++	JMP	update
++
++less_than_8:
++	TBZ	$2, R11, less_than_4
++
++	MOVWU.P	4(R13), R10
++	CRC32CW	R10, R9
++
++less_than_4:
++	TBZ	$1, R11, less_than_2
++
++	MOVHU.P	2(R13), R10
++	CRC32CH	R10, R9
++
++less_than_2:
++	TBZ	$0, R11, done
++
++	MOVBU	(R13), R10
++	CRC32CB	R10, R9
++
++done:
++	MOVWU	R9, ret+32(FP)
++	RET
++
++// ieeeUpdate updates the non-inverted crc with the given data.
++
++// func ieeeUpdate(crc uint32, p []byte) uint32
++TEXT ·ieeeUpdate(SB),NOSPLIT,$0-36
++	MOVWU	crc+0(FP), R9  // CRC value
++	MOVD	p+8(FP), R13  // data pointer
++	MOVD	p_len+16(FP), R11  // len(p)
++
++	CMP	$8, R11
++	BLT	less_than_8
++
++update:
++	MOVD.P	8(R13), R10
++	CRC32X	R10, R9
++	SUB	$8, R11
++
++	CMP	$8, R11
++	BLT	less_than_8
++
++	JMP	update
++
++less_than_8:
++	TBZ	$2, R11, less_than_4
++
++	MOVWU.P	4(R13), R10
++	CRC32W	R10, R9
++
++less_than_4:
++	TBZ	$1, R11, less_than_2
++
++	MOVHU.P	2(R13), R10
++	CRC32H	R10, R9
++
++less_than_2:
++	TBZ	$0, R11, done
++
++	MOVBU	(R13), R10
++	CRC32B	R10, R9
++
++done:
++	MOVWU	R9, ret+32(FP)
++	RET
++
++// func supportsCRC32() bool
++TEXT ·supportsCRC32(SB),NOSPLIT,$0-1
++	MOVB	runtime·supportCRC32(SB), R0
++	MOVB	R0, ret+0(FP)
++	RET
+diff --git a/src/hash/crc32/crc32_otherarch.go b/src/hash/crc32/crc32_otherarch.go
+index 3565046c79..6f3510a279 100644
+--- a/src/hash/crc32/crc32_otherarch.go
++++ b/src/hash/crc32/crc32_otherarch.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!amd64p32,!s390x,!ppc64le
++// +build !amd64,!amd64p32,!s390x,!ppc64le,!arm64
+ 
+ package crc32
+ 
+diff --git a/src/runtime/os_darwin_arm64.go b/src/runtime/os_darwin_arm64.go
+index 8de132d8e2..01285afa19 100644
+--- a/src/runtime/os_darwin_arm64.go
++++ b/src/runtime/os_darwin_arm64.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++var supportCRC32 = false
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index bdc341d962..f2a2916c37 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -4,7 +4,12 @@
+ 
+ package runtime
+ 
++const (
++        _ARM64_FEATURE_HAS_CRC32 = 0x80
++)
++
+ var randomNumber uint32
++var supportCRC32 bool
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+@@ -14,6 +19,8 @@ func archauxv(tag, val uintptr) {
+ 		// it as a byte array.
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
++        case _AT_HWCAP:
++                supportCRC32 = val & _ARM64_FEATURE_HAS_CRC32 != 0
+ 	}
+ }
+ 

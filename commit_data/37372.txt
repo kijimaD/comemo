@@ -46,7 +46,7 @@ Date:   Sat Apr 14 04:01:02 2018 +0000
     Run-TryBot: Vlad Krasnov <vlad@cloudflare.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go                         |   11 +-
  src/crypto/aes/asm_arm64.s                        |  176 +++-
  src/crypto/aes/cipher_arm64.go                    |   80 --
@@ -56,3 +56,1515 @@ Date:   Sat Apr 14 04:01:02 2018 +0000
  src/crypto/cipher/gcm_test.go                     |    2 +-
  src/crypto/tls/common.go                          |    7 +-
  8 files changed, 1217 insertions(+), 151 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index 13ae2fcb82..49b78c3a8b 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64
++// +build amd64 arm64
+ 
+ package aes
+ 
+@@ -13,10 +13,7 @@ import (
+ 	"errors"
+ )
+ 
+-// The following functions are defined in gcm_amd64.s.
+-
+-//go:noescape
+-func aesEncBlock(dst, src *[16]byte, ks []uint32)
++// The following functions are defined in gcm_*.s.
+ 
+ //go:noescape
+ func gcmAesInit(productTable *[256]byte, ks []uint32)
+@@ -118,7 +115,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+ 	}
+ 
+-	aesEncBlock(&tagMask, &counter, g.ks)
++	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
+ 
+ 	var tagOut [gcmTagSize]byte
+ 	gcmAesData(&g.productTable, data, &tagOut)
+@@ -171,7 +168,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+ 	}
+ 
+-	aesEncBlock(&tagMask, &counter, g.ks)
++	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
+ 
+ 	var expectedTag [gcmTagSize]byte
+ 	gcmAesData(&g.productTable, data, &expectedTag)
+diff --git a/src/crypto/aes/asm_arm64.s b/src/crypto/aes/asm_arm64.s
+index d2e8c8597f..13aee5ca29 100644
+--- a/src/crypto/aes/asm_arm64.s
++++ b/src/crypto/aes/asm_arm64.s
+@@ -3,7 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
+-
++DATA rotInvSRows<>+0x00(SB)/8, $0x080f0205040b0e01
++DATA rotInvSRows<>+0x08(SB)/8, $0x00070a0d0c030609
++GLOBL rotInvSRows<>(SB), (NOPTR+RODATA), $16
++DATA invSRows<>+0x00(SB)/8, $0x0b0e0104070a0d00
++DATA invSRows<>+0x08(SB)/8, $0x0306090c0f020508
++GLOBL invSRows<>(SB), (NOPTR+RODATA), $16
+ // func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+ TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
+ 	MOVD	nr+0(FP), R9
+@@ -105,3 +110,172 @@ dec128:
+ 	VEOR    V0.B16, V15.B16, V0.B16
+ 	VST1	[V0.B16], (R11)
+ 	RET
++
++// func expandKeyAsm(nr int, key *byte, enc, dec *uint32) {
++// Note that round keys are stored in uint128 format, not uint32
++TEXT ·expandKeyAsm(SB),NOSPLIT,$0
++	MOVD	nr+0(FP), R8
++	MOVD	key+8(FP), R9
++	MOVD	enc+16(FP), R10
++	MOVD	dec+24(FP), R11
++	LDP	rotInvSRows<>(SB), (R0, R1)
++	VMOV	R0, V3.D[0]
++	VMOV	R1, V3.D[1]
++	VEOR	V0.B16, V0.B16, V0.B16 // All zeroes
++	MOVW	$1, R13
++	TBZ	$1, R8, ks192
++	TBNZ	$2, R8, ks256
++	LDPW	(R9), (R4, R5)
++	LDPW	8(R9), (R6, R7)
++	STPW.P	(R4, R5), 8(R10)
++	STPW.P	(R6, R7), 8(R10)
++	MOVW	$0x1b, R14
++ks128Loop:
++		VMOV	R7, V2.S[0]
++		WORD	$0x4E030042       // TBL V3.B16, [V2.B16], V2.B16
++		AESE	V0.B16, V2.B16    // Use AES to compute the SBOX
++		EORW	R13, R4
++		LSLW	$1, R13           // Compute next Rcon
++		ANDSW	$0x100, R13, ZR
++		CSELW	NE, R14, R13, R13 // Fake modulo
++		SUBS	$1, R8
++		VMOV	V2.S[0], R0
++		EORW	R0, R4
++		EORW	R4, R5
++		EORW	R5, R6
++		EORW	R6, R7
++		STPW.P	(R4, R5), 8(R10)
++		STPW.P	(R6, R7), 8(R10)
++	BNE	ks128Loop
++	CBZ	R11, ksDone       // If dec is nil we are done
++	SUB	$176, R10
++        // Decryption keys are encryption keys with InverseMixColumns applied
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	VMOV	V0.B16, V7.B16
++	AESIMC	V1.B16, V6.B16
++	AESIMC	V2.B16, V5.B16
++	AESIMC	V3.B16, V4.B16
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	AESIMC	V0.B16, V11.B16
++	AESIMC	V1.B16, V10.B16
++	AESIMC	V2.B16, V9.B16
++	AESIMC	V3.B16, V8.B16
++	VLD1	(R10), [V0.B16, V1.B16, V2.B16]
++	AESIMC	V0.B16, V14.B16
++	AESIMC	V1.B16, V13.B16
++	VMOV	V2.B16, V12.B16
++	VST1.P	[V12.B16, V13.B16, V14.B16], 48(R11)
++	VST1.P	[V8.B16, V9.B16, V10.B16, V11.B16], 64(R11)
++	VST1	[V4.B16, V5.B16, V6.B16, V7.B16], (R11)
++	B	ksDone
++ks192:
++	LDPW	(R9), (R2, R3)
++	LDPW	8(R9), (R4, R5)
++	LDPW	16(R9), (R6, R7)
++	STPW.P	(R2, R3), 8(R10)
++	STPW.P	(R4, R5), 8(R10)
++	SUB	$4, R8
++ks192Loop:
++		STPW.P	(R6, R7), 8(R10)
++		VMOV	R7, V2.S[0]
++		WORD	$0x4E030042 //TBL	V3.B16, [V2.B16], V2.B16
++		AESE	V0.B16, V2.B16
++		EORW	R13, R2
++		LSLW	$1, R13
++		SUBS	$1, R8
++		VMOV	V2.S[0], R0
++		EORW	R0, R2
++		EORW	R2, R3
++		EORW	R3, R4
++		EORW	R4, R5
++		EORW	R5, R6
++		EORW	R6, R7
++		STPW.P	(R2, R3), 8(R10)
++		STPW.P	(R4, R5), 8(R10)
++	BNE	ks192Loop
++	CBZ	R11, ksDone
++	SUB	$208, R10
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	VMOV	V0.B16, V7.B16
++	AESIMC	V1.B16, V6.B16
++	AESIMC	V2.B16, V5.B16
++	AESIMC	V3.B16, V4.B16
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	AESIMC	V0.B16, V11.B16
++	AESIMC	V1.B16, V10.B16
++	AESIMC	V2.B16, V9.B16
++	AESIMC	V3.B16, V8.B16
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	AESIMC	V0.B16, V15.B16
++	AESIMC	V1.B16, V14.B16
++	AESIMC	V2.B16, V13.B16
++	AESIMC	V3.B16, V12.B16
++	VLD1	(R10), [V0.B16]
++	VST1.P	[V0.B16], 16(R11)
++	VST1.P	[V12.B16, V13.B16, V14.B16, V15.B16], 64(R11)
++	VST1.P	[V8.B16, V9.B16, V10.B16, V11.B16], 64(R11)
++	VST1	[V4.B16, V5.B16, V6.B16, V7.B16], (R11)
++	B	ksDone
++ks256:
++	LDP	invSRows<>(SB), (R0, R1)
++	VMOV	R0, V4.D[0]
++	VMOV	R1, V4.D[1]
++	LDPW	(R9), (R0, R1)
++	LDPW	8(R9), (R2, R3)
++	LDPW	16(R9), (R4, R5)
++	LDPW	24(R9), (R6, R7)
++	STPW.P	(R0, R1), 8(R10)
++	STPW.P	(R2, R3), 8(R10)
++	SUB	$7, R8
++ks256Loop:
++		STPW.P	(R4, R5), 8(R10)
++		STPW.P	(R6, R7), 8(R10)
++		VMOV	R7, V2.S[0]
++		WORD	$0x4E030042 //TBL	V3.B16, [V2.B16], V2.B16
++		AESE	V0.B16, V2.B16
++		EORW	R13, R0
++		LSLW	$1, R13
++		SUBS	$1, R8
++		VMOV	V2.S[0], R9
++		EORW	R9, R0
++		EORW	R0, R1
++		EORW	R1, R2
++		EORW	R2, R3
++		VMOV	R3, V2.S[0]
++		WORD	$0x4E040042 //TBL	V3.B16, [V2.B16], V2.B16
++		AESE	V0.B16, V2.B16
++		VMOV	V2.S[0], R9
++		EORW	R9, R4
++		EORW	R4, R5
++		EORW	R5, R6
++		EORW	R6, R7
++		STPW.P	(R0, R1), 8(R10)
++		STPW.P	(R2, R3), 8(R10)
++	BNE	ks256Loop
++	CBZ	R11, ksDone
++	SUB	$240, R10
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	VMOV	V0.B16, V7.B16
++	AESIMC	V1.B16, V6.B16
++	AESIMC	V2.B16, V5.B16
++	AESIMC	V3.B16, V4.B16
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	AESIMC	V0.B16, V11.B16
++	AESIMC	V1.B16, V10.B16
++	AESIMC	V2.B16, V9.B16
++	AESIMC	V3.B16, V8.B16
++	VLD1.P	64(R10), [V0.B16, V1.B16, V2.B16, V3.B16]
++	AESIMC	V0.B16, V15.B16
++	AESIMC	V1.B16, V14.B16
++	AESIMC	V2.B16, V13.B16
++	AESIMC	V3.B16, V12.B16
++	VLD1	(R10), [V0.B16, V1.B16, V2.B16]
++	AESIMC	V0.B16, V18.B16
++	AESIMC	V1.B16, V17.B16
++	VMOV	V2.B16, V16.B16
++	VST1.P	[V16.B16, V17.B16, V18.B16], 48(R11)
++	VST1.P	[V12.B16, V13.B16, V14.B16, V15.B16], 64(R11)
++	VST1.P	[V8.B16, V9.B16, V10.B16, V11.B16], 64(R11)
++	VST1	[V4.B16, V5.B16, V6.B16, V7.B16], (R11)
++ksDone:
++	RET
+diff --git a/src/crypto/aes/cipher_arm64.go b/src/crypto/aes/cipher_arm64.go
+deleted file mode 100644
+index a03547841f..0000000000
+--- a/src/crypto/aes/cipher_arm64.go
++++ /dev/null
+@@ -1,80 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/subtle"
+-	"internal/cpu"
+-	"math/bits"
+-)
+-
+-// defined in asm_arm64.s
+-//go:noescape
+-func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+-
+-//go:noescape
+-func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+-
+-type aesCipherAsm struct {
+-	aesCipher
+-}
+-
+-func newCipher(key []byte) (cipher.Block, error) {
+-	if !cpu.ARM64.HasAES {
+-		return newCipherGeneric(key)
+-	}
+-	n := len(key) + 28
+-	c := aesCipherAsm{aesCipher{make([]uint32, n), make([]uint32, n)}}
+-	arm64ExpandKey(key, c.enc, c.dec)
+-	return &c, nil
+-}
+-
+-func (c *aesCipherAsm) BlockSize() int { return BlockSize }
+-
+-func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
+-}
+-
+-func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])
+-}
+-
+-func arm64ExpandKey(key []byte, enc, dec []uint32) {
+-	expandKeyGo(key, enc, dec)
+-	nk := len(enc)
+-	for i := 0; i < nk; i++ {
+-		enc[i] = bits.ReverseBytes32(enc[i])
+-		dec[i] = bits.ReverseBytes32(dec[i])
+-	}
+-}
+-
+-// expandKey is used by BenchmarkExpand to ensure that the asm implementation
+-// of key expansion is used for the benchmark when it is available.
+-func expandKey(key []byte, enc, dec []uint32) {
+-	if cpu.ARM64.HasAES {
+-		arm64ExpandKey(key, enc, dec)
+-	} else {
+-		expandKeyGo(key, enc, dec)
+-	}
+-}
+diff --git a/src/crypto/aes/cipher_amd64.go b/src/crypto/aes/cipher_asm.go
+similarity index 87%
+rename from src/crypto/aes/cipher_amd64.go
+rename to src/crypto/aes/cipher_asm.go
+index b12d9b46a2..646bdfa5c0 100644
+--- a/src/crypto/aes/cipher_amd64.go
++++ b/src/crypto/aes/cipher_asm.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build amd64 arm64
++
+ package aes
+ 
+ import (
+@@ -10,23 +12,31 @@ import (
+ 	"internal/cpu"
+ )
+ 
+-// defined in asm_amd64.s
++// defined in asm_*.s
+ 
++//go:noescape
+ func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++
++//go:noescape
+ func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++
++//go:noescape
+ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+ 
+ type aesCipherAsm struct {
+ 	aesCipher
+ }
+ 
++var supportsAES = cpu.X86.HasAES || cpu.ARM64.HasAES
++var supportsGFMUL = cpu.X86.HasPCLMULQDQ || cpu.ARM64.HasPMULL
++
+ func newCipher(key []byte) (cipher.Block, error) {
+-	if !cpu.X86.HasAES {
++	if !supportsAES {
+ 		return newCipherGeneric(key)
+ 	}
+ 	n := len(key) + 28
+ 	c := aesCipherAsm{aesCipher{make([]uint32, n), make([]uint32, n)}}
+-	rounds := 10
++	var rounds int
+ 	switch len(key) {
+ 	case 128 / 8:
+ 		rounds = 10
+@@ -37,10 +47,9 @@ func newCipher(key []byte) (cipher.Block, error) {
+ 	}
+ 
+ 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
+-	if cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ {
++	if supportsAES && supportsGFMUL {
+ 		return &aesCipherGCM{c}, nil
+ 	}
+-
+ 	return &c, nil
+ }
+ 
+@@ -75,7 +84,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+ // expandKey is used by BenchmarkExpand to ensure that the asm implementation
+ // of key expansion is used for the benchmark when it is available.
+ func expandKey(key []byte, enc, dec []uint32) {
+-	if cpu.X86.HasAES {
++	if supportsAES {
+ 		rounds := 10 // rounds needed for AES128
+ 		switch len(key) {
+ 		case 192 / 8:
+diff --git a/src/crypto/aes/gcm_amd64.s b/src/crypto/aes/gcm_amd64.s
+index b651cc4925..e6eedf3264 100644
+--- a/src/crypto/aes/gcm_amd64.s
++++ b/src/crypto/aes/gcm_amd64.s
+@@ -71,56 +71,6 @@ GLOBL bswapMask<>(SB), (NOPTR+RODATA), $16
+ GLOBL gcmPoly<>(SB), (NOPTR+RODATA), $16
+ GLOBL andMask<>(SB), (NOPTR+RODATA), $240
+ 
+-// func aesEncBlock(dst, src *[16]byte, ks []uint32)
+-TEXT ·aesEncBlock(SB),NOSPLIT,$0
+-	MOVQ dst+0(FP), DI
+-	MOVQ src+8(FP), SI
+-	MOVQ ks_base+16(FP), DX
+-	MOVQ ks_len+24(FP), CX
+-
+-	SHRQ $2, CX
+-	DECQ CX
+-
+-	MOVOU (SI), X0
+-	MOVOU (16*0)(DX), X1
+-	PXOR X1, X0
+-	MOVOU (16*1)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*2)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*3)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*4)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*5)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*6)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*7)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*8)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*9)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*10)(DX), X1
+-	CMPQ CX, $12
+-	JB encLast
+-	AESENC X1, X0
+-	MOVOU (16*11)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*12)(DX), X1
+-	JE encLast
+-	AESENC X1, X0
+-	MOVOU (16*13)(DX), X1
+-	AESENC X1, X0
+-	MOVOU (16*14)(DX), X1
+-
+-encLast:
+-	AESENCLAST X1, X0
+-	MOVOU X0, (DI)
+-
+-	RET
+-
+ // func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
+ TEXT ·gcmAesFinish(SB),NOSPLIT,$0
+ #define pTbl DI
+diff --git a/src/crypto/aes/gcm_arm64.s b/src/crypto/aes/gcm_arm64.s
+new file mode 100644
+index 0000000000..98e9f5bbe5
+--- /dev/null
++++ b/src/crypto/aes/gcm_arm64.s
+@@ -0,0 +1,1021 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#define B0 V0
++#define B1 V1
++#define B2 V2
++#define B3 V3
++#define B4 V4
++#define B5 V5
++#define B6 V6
++#define B7 V7
++
++#define ACC0 V8
++#define ACC1 V9
++#define ACCM V10
++
++#define T0 V11
++#define T1 V12
++#define T2 V13
++#define T3 V14
++
++#define POLY V15
++#define ZERO V16
++#define INC V17
++#define CTR V18
++
++#define K0 V19
++#define K1 V20
++#define K2 V21
++#define K3 V22
++#define K4 V23
++#define K5 V24
++#define K6 V25
++#define K7 V26
++#define K8 V27
++#define K9 V28
++#define K10 V29
++#define K11 V30
++#define KLAST V31
++
++#define reduce() \
++	VEOR	ACC0.B16, ACCM.B16, ACCM.B16     \
++	VEOR	ACC1.B16, ACCM.B16, ACCM.B16     \
++	VEXT	$8, ZERO.B16, ACCM.B16, T0.B16   \
++	VEXT	$8, ACCM.B16, ZERO.B16, ACCM.B16 \
++	VEOR	ACCM.B16, ACC0.B16, ACC0.B16     \
++	VEOR	T0.B16, ACC1.B16, ACC1.B16       \
++	VPMULL	POLY.D1, ACC0.D1, T0.Q1          \
++	VEXT	$8, ACC0.B16, ACC0.B16, ACC0.B16 \
++	VEOR	T0.B16, ACC0.B16, ACC0.B16       \
++	VPMULL	POLY.D1, ACC0.D1, T0.Q1          \
++	VEOR	T0.B16, ACC1.B16, ACC1.B16       \
++	VEXT	$8, ACC1.B16, ACC1.B16, ACC1.B16 \
++	VEOR	ACC1.B16, ACC0.B16, ACC0.B16     \
++
++// func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
++TEXT ·gcmAesFinish(SB),NOSPLIT,$0
++#define pTbl R0
++#define tMsk R1
++#define tPtr R2
++#define plen R3
++#define dlen R4
++
++	MOVD	$0xC2, R1
++	LSL	$56, R1
++	MOVD	$1, R0
++	VMOV	R1, POLY.D[0]
++	VMOV	R0, POLY.D[1]
++	VEOR	ZERO.B16, ZERO.B16, ZERO.B16
++
++	MOVD	productTable+0(FP), pTbl
++	MOVD	tagMask+8(FP), tMsk
++	MOVD	T+16(FP), tPtr
++	MOVD	pLen+24(FP), plen
++	MOVD	dLen+32(FP), dlen
++
++	VLD1	(tPtr), [ACC0.B16]
++	VLD1	(tMsk), [B1.B16]
++
++	LSL	$3, plen
++	LSL	$3, dlen
++
++	VMOV	dlen, B0.D[0]
++	VMOV	plen, B0.D[1]
++
++	ADD	$14*16, pTbl
++	VLD1.P	(pTbl), [T1.B16, T2.B16]
++
++	VEOR	ACC0.B16, B0.B16, B0.B16
++
++	VEXT	$8, B0.B16, B0.B16, T0.B16
++	VEOR	B0.B16, T0.B16, T0.B16
++	VPMULL	B0.D1, T1.D1, ACC1.Q1
++	VPMULL2	B0.D2, T1.D2, ACC0.Q1
++	VPMULL	T0.D1, T2.D1, ACCM.Q1
++
++	reduce()
++
++	VREV64	ACC0.B16, ACC0.B16
++	VEOR	B1.B16, ACC0.B16, ACC0.B16
++
++	VST1	[ACC0.B16], (tPtr)
++	RET
++#undef pTbl
++#undef tMsk
++#undef tPtr
++#undef plen
++#undef dlen
++
++// func gcmAesInit(productTable *[256]byte, ks []uint32)
++TEXT ·gcmAesInit(SB),NOSPLIT,$0
++#define pTbl R0
++#define KS R1
++#define NR R2
++#define I R3
++	MOVD	productTable+0(FP), pTbl
++	MOVD	ks_base+8(FP), KS
++	MOVD	ks_len+16(FP), NR
++
++	MOVD	$0xC2, I
++	LSL	$56, I
++	VMOV	I, POLY.D[0]
++	MOVD	$1, I
++	VMOV	I, POLY.D[1]
++	VEOR	ZERO.B16, ZERO.B16, ZERO.B16
++
++	// Encrypt block 0 with the AES key to generate the hash key H
++	VLD1.P	64(KS), [T0.B16, T1.B16, T2.B16, T3.B16]
++	VEOR	B0.B16, B0.B16, B0.B16
++	AESE	T0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T1.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T2.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T3.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	VLD1.P	64(KS), [T0.B16, T1.B16, T2.B16, T3.B16]
++	AESE	T0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T1.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T2.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T3.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	TBZ	$4, NR, initEncFinish
++	VLD1.P	32(KS), [T0.B16, T1.B16]
++	AESE	T0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T1.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	TBZ	$3, NR, initEncFinish
++	VLD1.P	32(KS), [T0.B16, T1.B16]
++	AESE	T0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T1.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++initEncFinish:
++	VLD1	(KS), [T0.B16, T1.B16, T2.B16]
++	AESE	T0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	T1.B16, B0.B16
++ 	VEOR	T2.B16, B0.B16, B0.B16
++
++	VREV64	B0.B16, B0.B16
++
++	// Multiply by 2 modulo P
++	VMOV	B0.D[0], I
++	ASR	$63, I
++	VMOV	I, T1.D[0]
++	VMOV	I, T1.D[1]
++	VAND	POLY.B16, T1.B16, T1.B16
++	VUSHR	$63, B0.D2, T2.D2
++	VEXT	$8, ZERO.B16, T2.B16, T2.B16
++	VSHL	$1, B0.D2, B0.D2
++	VEOR	T1.B16, B0.B16, B0.B16
++	VEOR	T2.B16, B0.B16, B0.B16 // Can avoid this when VSLI is available
++
++	// Karatsuba pre-computation
++	VEXT	$8, B0.B16, B0.B16, B1.B16
++	VEOR	B0.B16, B1.B16, B1.B16
++
++	ADD	$14*16, pTbl
++	VST1	[B0.B16, B1.B16], (pTbl)
++	SUB	$2*16, pTbl
++
++	VMOV	B0.B16, B2.B16
++	VMOV	B1.B16, B3.B16
++
++	MOVD	$7, I
++
++initLoop:
++	// Compute powers of H
++	SUBS	$1, I
++
++	VPMULL	B0.D1, B2.D1, T1.Q1
++	VPMULL2	B0.D2, B2.D2, T0.Q1
++	VPMULL	B1.D1, B3.D1, T2.Q1
++	VEOR	T0.B16, T2.B16, T2.B16
++	VEOR	T1.B16, T2.B16, T2.B16
++	VEXT	$8, ZERO.B16, T2.B16, T3.B16
++	VEXT	$8, T2.B16, ZERO.B16, T2.B16
++	VEOR	T2.B16, T0.B16, T0.B16
++	VEOR	T3.B16, T1.B16, T1.B16
++	VPMULL	POLY.D1, T0.D1, T2.Q1
++	VEXT	$8, T0.B16, T0.B16, T0.B16
++	VEOR	T2.B16, T0.B16, T0.B16
++	VPMULL	POLY.D1, T0.D1, T2.Q1
++	VEXT	$8, T0.B16, T0.B16, T0.B16
++	VEOR	T2.B16, T0.B16, T0.B16
++	VEOR	T1.B16, T0.B16, B2.B16
++	VMOV	B2.B16, B3.B16
++	VEXT	$8, B2.B16, B2.B16, B2.B16
++	VEOR	B2.B16, B3.B16, B3.B16
++
++	VST1	[B2.B16, B3.B16], (pTbl)
++	SUB	$2*16, pTbl
++
++	BNE	initLoop
++	RET
++#undef I
++#undef NR
++#undef KS
++#undef pTbl
++
++// func gcmAesData(productTable *[256]byte, data []byte, T *[16]byte)
++TEXT ·gcmAesData(SB),NOSPLIT,$0
++#define pTbl R0
++#define aut R1
++#define tPtr R2
++#define autLen R3
++#define H0 R4
++#define pTblSave R5
++
++#define mulRound(X) \
++	VLD1.P	32(pTbl), [T1.B16, T2.B16] \
++	VREV64	X.B16, X.B16               \
++	VEXT	$8, X.B16, X.B16, T0.B16   \
++	VEOR	X.B16, T0.B16, T0.B16      \
++	VPMULL	X.D1, T1.D1, T3.Q1         \
++	VEOR	T3.B16, ACC1.B16, ACC1.B16 \
++	VPMULL2	X.D2, T1.D2, T3.Q1         \
++	VEOR	T3.B16, ACC0.B16, ACC0.B16 \
++	VPMULL	T0.D1, T2.D1, T3.Q1        \
++	VEOR	T3.B16, ACCM.B16, ACCM.B16
++
++	MOVD	productTable+0(FP), pTbl
++	MOVD	data_base+8(FP), aut
++	MOVD	data_len+16(FP), autLen
++	MOVD	T+32(FP), tPtr
++
++	VEOR	ACC0.B16, ACC0.B16, ACC0.B16
++	CBZ	autLen, dataBail
++
++	MOVD	$0xC2, H0
++	LSL	$56, H0
++	VMOV	H0, POLY.D[0]
++	MOVD	$1, H0
++	VMOV	H0, POLY.D[1]
++	VEOR	ZERO.B16, ZERO.B16, ZERO.B16
++	MOVD	pTbl, pTblSave
++
++	CMP	$13, autLen
++	BEQ	dataTLS
++	CMP	$128, autLen
++	BLT	startSinglesLoop
++	B	octetsLoop
++
++dataTLS:
++	ADD	$14*16, pTbl
++	VLD1.P	(pTbl), [T1.B16, T2.B16]
++	VEOR	B0.B16, B0.B16, B0.B16
++
++	MOVD	(aut), H0
++	VMOV	H0, B0.D[0]
++	MOVW	8(aut), H0
++	VMOV	H0, B0.S[2]
++	MOVB	12(aut), H0
++	VMOV	H0, B0.B[12]
++
++	MOVD	$0, autLen
++	B	dataMul
++
++octetsLoop:
++		CMP	$128, autLen
++		BLT	startSinglesLoop
++		SUB	$128, autLen
++
++		VLD1.P	32(aut), [B0.B16, B1.B16]
++
++		VLD1.P	32(pTbl), [T1.B16, T2.B16]
++		VREV64	B0.B16, B0.B16
++		VEOR	ACC0.B16, B0.B16, B0.B16
++		VEXT	$8, B0.B16, B0.B16, T0.B16
++		VEOR	B0.B16, T0.B16, T0.B16
++		VPMULL	B0.D1, T1.D1, ACC1.Q1
++		VPMULL2	B0.D2, T1.D2, ACC0.Q1
++		VPMULL	T0.D1, T2.D1, ACCM.Q1
++
++		mulRound(B1)
++		VLD1.P  32(aut), [B2.B16, B3.B16]
++		mulRound(B2)
++		mulRound(B3)
++		VLD1.P  32(aut), [B4.B16, B5.B16]
++		mulRound(B4)
++		mulRound(B5)
++		VLD1.P  32(aut), [B6.B16, B7.B16]
++		mulRound(B6)
++		mulRound(B7)
++
++		MOVD	pTblSave, pTbl
++		reduce()
++	B	octetsLoop
++
++startSinglesLoop:
++
++	ADD	$14*16, pTbl
++	VLD1.P	(pTbl), [T1.B16, T2.B16]
++
++singlesLoop:
++
++		CMP	$16, autLen
++		BLT	dataEnd
++		SUB	$16, autLen
++
++		VLD1.P	16(aut), [B0.B16]
++dataMul:
++		VREV64	B0.B16, B0.B16
++		VEOR	ACC0.B16, B0.B16, B0.B16
++
++		VEXT	$8, B0.B16, B0.B16, T0.B16
++		VEOR	B0.B16, T0.B16, T0.B16
++		VPMULL	B0.D1, T1.D1, ACC1.Q1
++		VPMULL2	B0.D2, T1.D2, ACC0.Q1
++		VPMULL	T0.D1, T2.D1, ACCM.Q1
++
++		reduce()
++
++	B	singlesLoop
++
++dataEnd:
++
++	CBZ	autLen, dataBail
++	VEOR	B0.B16, B0.B16, B0.B16
++	ADD	autLen, aut
++
++dataLoadLoop:
++		MOVB.W	-1(aut), H0
++		VEXT	$15, B0.B16, ZERO.B16, B0.B16
++		VMOV	H0, B0.B[0]
++		SUBS	$1, autLen
++		BNE	dataLoadLoop
++	B	dataMul
++
++dataBail:
++	VST1	[ACC0.B16], (tPtr)
++	RET
++
++#undef pTbl
++#undef aut
++#undef tPtr
++#undef autLen
++#undef H0
++#undef pTblSave
++
++// func gcmAesEnc(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++TEXT ·gcmAesEnc(SB),NOSPLIT,$0
++#define pTbl R0
++#define dstPtr R1
++#define ctrPtr R2
++#define srcPtr R3
++#define ks R4
++#define tPtr R5
++#define srcPtrLen R6
++#define aluCTR R7
++#define aluTMP R8
++#define aluK R9
++#define NR R10
++#define H0 R11
++#define H1 R12
++#define curK R13
++#define pTblSave R14
++
++#define aesrndx8(K) \
++	AESE	K.B16, B0.B16    \
++	AESMC	B0.B16, B0.B16   \
++	AESE	K.B16, B1.B16    \
++	AESMC	B1.B16, B1.B16   \
++	AESE	K.B16, B2.B16    \
++	AESMC	B2.B16, B2.B16   \
++	AESE	K.B16, B3.B16    \
++	AESMC	B3.B16, B3.B16   \
++	AESE	K.B16, B4.B16    \
++	AESMC	B4.B16, B4.B16   \
++	AESE	K.B16, B5.B16    \
++	AESMC	B5.B16, B5.B16   \
++	AESE	K.B16, B6.B16    \
++	AESMC	B6.B16, B6.B16   \
++	AESE	K.B16, B7.B16    \
++	AESMC	B7.B16, B7.B16
++
++#define aesrndlastx8(K) \
++	AESE	K.B16, B0.B16    \
++	AESE	K.B16, B1.B16    \
++	AESE	K.B16, B2.B16    \
++	AESE	K.B16, B3.B16    \
++	AESE	K.B16, B4.B16    \
++	AESE	K.B16, B5.B16    \
++	AESE	K.B16, B6.B16    \
++	AESE	K.B16, B7.B16
++
++	MOVD	productTable+0(FP), pTbl
++	MOVD	dst+8(FP), dstPtr
++	MOVD	src_base+32(FP), srcPtr
++	MOVD	src_len+40(FP), srcPtrLen
++	MOVD	ctr+56(FP), ctrPtr
++	MOVD	T+64(FP), tPtr
++	MOVD	ks_base+72(FP), ks
++	MOVD	ks_len+80(FP), NR
++
++	MOVD	$0xC2, H1
++	LSL	$56, H1
++	MOVD	$1, H0
++	VMOV	H1, POLY.D[0]
++	VMOV	H0, POLY.D[1]
++	VEOR	ZERO.B16, ZERO.B16, ZERO.B16
++	// Compute NR from len(ks)
++	MOVD	pTbl, pTblSave
++	// Current tag, after AAD
++	VLD1	(tPtr), [ACC0.B16]
++	VEOR	ACC1.B16, ACC1.B16, ACC1.B16
++	VEOR	ACCM.B16, ACCM.B16, ACCM.B16
++	// Prepare intial counter, and the increment vector
++	VLD1	(ctrPtr), [CTR.B16]
++	VEOR	INC.B16, INC.B16, INC.B16
++	MOVD	$1, H0
++	VMOV	H0, INC.S[3]
++	VREV32	CTR.B16, CTR.B16
++	VADD	CTR.S4, INC.S4, CTR.S4
++	// Skip to <8 blocks loop
++	CMP	$128, srcPtrLen
++
++	MOVD	ks, H0
++	// For AES-128 round keys are stored in: K0 .. K10, KLAST
++	VLD1.P	64(H0), [K0.B16, K1.B16, K2.B16, K3.B16]
++	VLD1.P	64(H0), [K4.B16, K5.B16, K6.B16, K7.B16]
++	VLD1.P	48(H0), [K8.B16, K9.B16, K10.B16]
++	VMOV	K10.B16, KLAST.B16
++
++	BLT	startSingles
++	// There are at least 8 blocks to encrypt
++	TBZ	$4, NR, octetsLoop
++
++	// For AES-192 round keys occupy: K0 .. K7, K10, K11, K8, K9, KLAST
++	VMOV	K8.B16, K10.B16
++	VMOV	K9.B16, K11.B16
++	VMOV	KLAST.B16, K8.B16
++	VLD1.P	16(H0), [K9.B16]
++	VLD1.P  16(H0), [KLAST.B16]
++	TBZ	$3, NR, octetsLoop
++	// For AES-256 round keys occupy: K0 .. K7, K10, K11, mem, mem, K8, K9, KLAST
++	VMOV	KLAST.B16, K8.B16
++	VLD1.P	16(H0), [K9.B16]
++	VLD1.P  16(H0), [KLAST.B16]
++	ADD	$10*16, ks, H0
++	MOVD	H0, curK
++
++octetsLoop:
++		SUB	$128, srcPtrLen
++
++		VMOV	CTR.B16, B0.B16
++		VADD	B0.S4, INC.S4, B1.S4
++		VREV32	B0.B16, B0.B16
++		VADD	B1.S4, INC.S4, B2.S4
++		VREV32	B1.B16, B1.B16
++		VADD	B2.S4, INC.S4, B3.S4
++		VREV32	B2.B16, B2.B16
++		VADD	B3.S4, INC.S4, B4.S4
++		VREV32	B3.B16, B3.B16
++		VADD	B4.S4, INC.S4, B5.S4
++		VREV32	B4.B16, B4.B16
++		VADD	B5.S4, INC.S4, B6.S4
++		VREV32	B5.B16, B5.B16
++		VADD	B6.S4, INC.S4, B7.S4
++		VREV32	B6.B16, B6.B16
++		VADD	B7.S4, INC.S4, CTR.S4
++		VREV32	B7.B16, B7.B16
++
++		aesrndx8(K0)
++		aesrndx8(K1)
++		aesrndx8(K2)
++		aesrndx8(K3)
++		aesrndx8(K4)
++		aesrndx8(K5)
++		aesrndx8(K6)
++		aesrndx8(K7)
++		TBZ	$4, NR, octetsFinish
++		aesrndx8(K10)
++		aesrndx8(K11)
++		TBZ	$3, NR, octetsFinish
++		VLD1.P	32(curK), [T1.B16, T2.B16]
++		aesrndx8(T1)
++		aesrndx8(T2)
++		MOVD	H0, curK
++octetsFinish:
++		aesrndx8(K8)
++		aesrndlastx8(K9)
++
++		VEOR	KLAST.B16, B0.B16, B0.B16
++		VEOR	KLAST.B16, B1.B16, B1.B16
++		VEOR	KLAST.B16, B2.B16, B2.B16
++		VEOR	KLAST.B16, B3.B16, B3.B16
++		VEOR	KLAST.B16, B4.B16, B4.B16
++		VEOR	KLAST.B16, B5.B16, B5.B16
++		VEOR	KLAST.B16, B6.B16, B6.B16
++		VEOR	KLAST.B16, B7.B16, B7.B16
++
++		VLD1.P	32(srcPtr), [T1.B16, T2.B16]
++		VEOR	B0.B16, T1.B16, B0.B16
++		VEOR	B1.B16, T2.B16, B1.B16
++		VST1.P  [B0.B16, B1.B16], 32(dstPtr)
++		VLD1.P	32(srcPtr), [T1.B16, T2.B16]
++		VEOR	B2.B16, T1.B16, B2.B16
++		VEOR	B3.B16, T2.B16, B3.B16
++		VST1.P  [B2.B16, B3.B16], 32(dstPtr)
++		VLD1.P	32(srcPtr), [T1.B16, T2.B16]
++		VEOR	B4.B16, T1.B16, B4.B16
++		VEOR	B5.B16, T2.B16, B5.B16
++		VST1.P  [B4.B16, B5.B16], 32(dstPtr)
++		VLD1.P	32(srcPtr), [T1.B16, T2.B16]
++		VEOR	B6.B16, T1.B16, B6.B16
++		VEOR	B7.B16, T2.B16, B7.B16
++		VST1.P  [B6.B16, B7.B16], 32(dstPtr)
++
++		VLD1.P	32(pTbl), [T1.B16, T2.B16]
++		VREV64	B0.B16, B0.B16
++		VEOR	ACC0.B16, B0.B16, B0.B16
++		VEXT	$8, B0.B16, B0.B16, T0.B16
++		VEOR	B0.B16, T0.B16, T0.B16
++		VPMULL	B0.D1, T1.D1, ACC1.Q1
++		VPMULL2	B0.D2, T1.D2, ACC0.Q1
++		VPMULL	T0.D1, T2.D1, ACCM.Q1
++
++		mulRound(B1)
++		mulRound(B2)
++		mulRound(B3)
++		mulRound(B4)
++		mulRound(B5)
++		mulRound(B6)
++		mulRound(B7)
++		MOVD	pTblSave, pTbl
++		reduce()
++
++		CMP	$128, srcPtrLen
++		BGE	octetsLoop
++
++startSingles:
++	CBZ	srcPtrLen, done
++	ADD	$14*16, pTbl
++	// Preload H and its Karatsuba precomp
++	VLD1.P	(pTbl), [T1.B16, T2.B16]
++	// Preload AES round keys
++	ADD	$128, ks
++	VLD1.P	48(ks), [K8.B16, K9.B16, K10.B16]
++	VMOV	K10.B16, KLAST.B16
++	TBZ	$4, NR, singlesLoop
++	VLD1.P	32(ks), [B1.B16, B2.B16]
++	VMOV	B2.B16, KLAST.B16
++	TBZ	$3, NR, singlesLoop
++	VLD1.P	32(ks), [B3.B16, B4.B16]
++	VMOV	B4.B16, KLAST.B16
++
++singlesLoop:
++		CMP	$16, srcPtrLen
++		BLT	tail
++		SUB	$16, srcPtrLen
++
++		VLD1.P	16(srcPtr), [T0.B16]
++		VEOR	KLAST.B16, T0.B16, T0.B16
++
++		VREV32	CTR.B16, B0.B16
++		VADD	CTR.S4, INC.S4, CTR.S4
++
++		AESE	K0.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K1.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K2.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K3.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K4.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K5.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K6.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K7.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K8.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K9.B16, B0.B16
++		TBZ	$4, NR, singlesLast
++		AESMC	B0.B16, B0.B16
++		AESE	K10.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	B1.B16, B0.B16
++		TBZ	$3, NR, singlesLast
++		AESMC	B0.B16, B0.B16
++		AESE	B2.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	B3.B16, B0.B16
++singlesLast:
++		VEOR	T0.B16, B0.B16, B0.B16
++encReduce:
++		VST1.P	[B0.B16], 16(dstPtr)
++
++		VREV64	B0.B16, B0.B16
++		VEOR	ACC0.B16, B0.B16, B0.B16
++
++		VEXT	$8, B0.B16, B0.B16, T0.B16
++		VEOR	B0.B16, T0.B16, T0.B16
++		VPMULL	B0.D1, T1.D1, ACC1.Q1
++		VPMULL2	B0.D2, T1.D2, ACC0.Q1
++		VPMULL	T0.D1, T2.D1, ACCM.Q1
++
++		reduce()
++
++	B	singlesLoop
++tail:
++	CBZ	srcPtrLen, done
++
++	VEOR	T0.B16, T0.B16, T0.B16
++	VEOR	T3.B16, T3.B16, T3.B16
++	MOVD	$0, H1
++	SUB	$1, H1
++	ADD	srcPtrLen, srcPtr
++
++	TBZ	$3, srcPtrLen, ld4
++	MOVD.W	-8(srcPtr), H0
++	VMOV	H0, T0.D[0]
++	VMOV	H1, T3.D[0]
++ld4:
++	TBZ	$2, srcPtrLen, ld2
++	MOVW.W	-4(srcPtr), H0
++	VEXT	$12, T0.B16, ZERO.B16, T0.B16
++	VEXT	$12, T3.B16, ZERO.B16, T3.B16
++	VMOV	H0, T0.S[0]
++	VMOV	H1, T3.S[0]
++ld2:
++	TBZ	$1, srcPtrLen, ld1
++	MOVH.W	-2(srcPtr), H0
++	VEXT	$14, T0.B16, ZERO.B16, T0.B16
++	VEXT	$14, T3.B16, ZERO.B16, T3.B16
++	VMOV	H0, T0.H[0]
++	VMOV	H1, T3.H[0]
++ld1:
++	TBZ	$0, srcPtrLen, ld0
++	MOVB.W	-1(srcPtr), H0
++	VEXT	$15, T0.B16, ZERO.B16, T0.B16
++	VEXT	$15, T3.B16, ZERO.B16, T3.B16
++	VMOV	H0, T0.B[0]
++	VMOV	H1, T3.B[0]
++ld0:
++
++	MOVD	ZR, srcPtrLen
++	VEOR	KLAST.B16, T0.B16, T0.B16
++	VREV32	CTR.B16, B0.B16
++
++	AESE	K0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K1.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K2.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K3.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K4.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K5.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K6.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K7.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K8.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K9.B16, B0.B16
++	TBZ	$4, NR, tailLast
++	AESMC	B0.B16, B0.B16
++	AESE	K10.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	B1.B16, B0.B16
++	TBZ	$3, NR, tailLast
++	AESMC	B0.B16, B0.B16
++	AESE	B2.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	B3.B16, B0.B16
++
++tailLast:
++	VEOR	T0.B16, B0.B16, B0.B16
++	VAND	T3.B16, B0.B16, B0.B16
++	B	encReduce
++
++done:
++	VST1	[ACC0.B16], (tPtr)
++	RET
++
++// func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++TEXT ·gcmAesDec(SB),NOSPLIT,$0
++	MOVD	productTable+0(FP), pTbl
++	MOVD	dst+8(FP), dstPtr
++	MOVD	src_base+32(FP), srcPtr
++	MOVD	src_len+40(FP), srcPtrLen
++	MOVD	ctr+56(FP), ctrPtr
++	MOVD	T+64(FP), tPtr
++	MOVD	ks_base+72(FP), ks
++	MOVD	ks_len+80(FP), NR
++
++	MOVD	$0xC2, H1
++	LSL	$56, H1
++	MOVD	$1, H0
++	VMOV	H1, POLY.D[0]
++	VMOV	H0, POLY.D[1]
++	VEOR	ZERO.B16, ZERO.B16, ZERO.B16
++	// Compute NR from len(ks)
++	MOVD	pTbl, pTblSave
++	// Current tag, after AAD
++	VLD1	(tPtr), [ACC0.B16]
++	VEOR	ACC1.B16, ACC1.B16, ACC1.B16
++	VEOR	ACCM.B16, ACCM.B16, ACCM.B16
++	// Prepare intial counter, and the increment vector
++	VLD1	(ctrPtr), [CTR.B16]
++	VEOR	INC.B16, INC.B16, INC.B16
++	MOVD	$1, H0
++	VMOV	H0, INC.S[3]
++	VREV32	CTR.B16, CTR.B16
++	VADD	CTR.S4, INC.S4, CTR.S4
++
++	MOVD	ks, H0
++	// For AES-128 round keys are stored in: K0 .. K10, KLAST
++	VLD1.P	64(H0), [K0.B16, K1.B16, K2.B16, K3.B16]
++	VLD1.P	64(H0), [K4.B16, K5.B16, K6.B16, K7.B16]
++	VLD1.P	48(H0), [K8.B16, K9.B16, K10.B16]
++	VMOV	K10.B16, KLAST.B16
++
++	// Skip to <8 blocks loop
++	CMP	$128, srcPtrLen
++	BLT	startSingles
++	// There are at least 8 blocks to encrypt
++	TBZ	$4, NR, octetsLoop
++
++	// For AES-192 round keys occupy: K0 .. K7, K10, K11, K8, K9, KLAST
++	VMOV	K8.B16, K10.B16
++	VMOV	K9.B16, K11.B16
++	VMOV	KLAST.B16, K8.B16
++	VLD1.P	16(H0), [K9.B16]
++	VLD1.P  16(H0), [KLAST.B16]
++	TBZ	$3, NR, octetsLoop
++	// For AES-256 round keys occupy: K0 .. K7, K10, K11, mem, mem, K8, K9, KLAST
++	VMOV	KLAST.B16, K8.B16
++	VLD1.P	16(H0), [K9.B16]
++	VLD1.P  16(H0), [KLAST.B16]
++	ADD	$10*16, ks, H0
++	MOVD	H0, curK
++
++octetsLoop:
++		SUB	$128, srcPtrLen
++
++		VMOV	CTR.B16, B0.B16
++		VADD	B0.S4, INC.S4, B1.S4
++		VREV32	B0.B16, B0.B16
++		VADD	B1.S4, INC.S4, B2.S4
++		VREV32	B1.B16, B1.B16
++		VADD	B2.S4, INC.S4, B3.S4
++		VREV32	B2.B16, B2.B16
++		VADD	B3.S4, INC.S4, B4.S4
++		VREV32	B3.B16, B3.B16
++		VADD	B4.S4, INC.S4, B5.S4
++		VREV32	B4.B16, B4.B16
++		VADD	B5.S4, INC.S4, B6.S4
++		VREV32	B5.B16, B5.B16
++		VADD	B6.S4, INC.S4, B7.S4
++		VREV32	B6.B16, B6.B16
++		VADD	B7.S4, INC.S4, CTR.S4
++		VREV32	B7.B16, B7.B16
++
++		aesrndx8(K0)
++		aesrndx8(K1)
++		aesrndx8(K2)
++		aesrndx8(K3)
++		aesrndx8(K4)
++		aesrndx8(K5)
++		aesrndx8(K6)
++		aesrndx8(K7)
++		TBZ	$4, NR, octetsFinish
++		aesrndx8(K10)
++		aesrndx8(K11)
++		TBZ	$3, NR, octetsFinish
++		VLD1.P	32(curK), [T1.B16, T2.B16]
++		aesrndx8(T1)
++		aesrndx8(T2)
++		MOVD	H0, curK
++octetsFinish:
++		aesrndx8(K8)
++		aesrndlastx8(K9)
++
++		VEOR	KLAST.B16, B0.B16, T1.B16
++		VEOR	KLAST.B16, B1.B16, T2.B16
++		VEOR	KLAST.B16, B2.B16, B2.B16
++		VEOR	KLAST.B16, B3.B16, B3.B16
++		VEOR	KLAST.B16, B4.B16, B4.B16
++		VEOR	KLAST.B16, B5.B16, B5.B16
++		VEOR	KLAST.B16, B6.B16, B6.B16
++		VEOR	KLAST.B16, B7.B16, B7.B16
++
++		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
++		VEOR	B0.B16, T1.B16, T1.B16
++		VEOR	B1.B16, T2.B16, T2.B16
++		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
++
++		VLD1.P	32(pTbl), [T1.B16, T2.B16]
++		VREV64	B0.B16, B0.B16
++		VEOR	ACC0.B16, B0.B16, B0.B16
++		VEXT	$8, B0.B16, B0.B16, T0.B16
++		VEOR	B0.B16, T0.B16, T0.B16
++		VPMULL	B0.D1, T1.D1, ACC1.Q1
++		VPMULL2	B0.D2, T1.D2, ACC0.Q1
++		VPMULL	T0.D1, T2.D1, ACCM.Q1
++		mulRound(B1)
++
++		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
++		VEOR	B2.B16, B0.B16, T1.B16
++		VEOR	B3.B16, B1.B16, T2.B16
++		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
++		mulRound(B0)
++		mulRound(B1)
++
++		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
++		VEOR	B4.B16, B0.B16, T1.B16
++		VEOR	B5.B16, B1.B16, T2.B16
++		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
++		mulRound(B0)
++		mulRound(B1)
++
++		VLD1.P	32(srcPtr), [B0.B16, B1.B16]
++		VEOR	B6.B16, B0.B16, T1.B16
++		VEOR	B7.B16, B1.B16, T2.B16
++		VST1.P  [T1.B16, T2.B16], 32(dstPtr)
++		mulRound(B0)
++		mulRound(B1)
++
++		MOVD	pTblSave, pTbl
++		reduce()
++
++		CMP	$128, srcPtrLen
++		BGE	octetsLoop
++
++startSingles:
++	CBZ	srcPtrLen, done
++	ADD	$14*16, pTbl
++	// Preload H and its Karatsuba precomp
++	VLD1.P	(pTbl), [T1.B16, T2.B16]
++	// Preload AES round keys
++	ADD	$128, ks
++	VLD1.P	48(ks), [K8.B16, K9.B16, K10.B16]
++	VMOV	K10.B16, KLAST.B16
++	TBZ	$4, NR, singlesLoop
++	VLD1.P	32(ks), [B1.B16, B2.B16]
++	VMOV	B2.B16, KLAST.B16
++	TBZ	$3, NR, singlesLoop
++	VLD1.P	32(ks), [B3.B16, B4.B16]
++	VMOV	B4.B16, KLAST.B16
++
++singlesLoop:
++		CMP	$16, srcPtrLen
++		BLT	tail
++		SUB	$16, srcPtrLen
++
++		VLD1.P	16(srcPtr), [T0.B16]
++		VREV64	T0.B16, B5.B16
++		VEOR	KLAST.B16, T0.B16, T0.B16
++
++		VREV32	CTR.B16, B0.B16
++		VADD	CTR.S4, INC.S4, CTR.S4
++
++		AESE	K0.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K1.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K2.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K3.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K4.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K5.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K6.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K7.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K8.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	K9.B16, B0.B16
++		TBZ	$4, NR, singlesLast
++		AESMC	B0.B16, B0.B16
++		AESE	K10.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	B1.B16, B0.B16
++		TBZ	$3, NR, singlesLast
++		AESMC	B0.B16, B0.B16
++		AESE	B2.B16, B0.B16
++		AESMC	B0.B16, B0.B16
++		AESE	B3.B16, B0.B16
++singlesLast:
++		VEOR	T0.B16, B0.B16, B0.B16
++
++		VST1.P	[B0.B16], 16(dstPtr)
++
++		VEOR	ACC0.B16, B5.B16, B5.B16
++		VEXT	$8, B5.B16, B5.B16, T0.B16
++		VEOR	B5.B16, T0.B16, T0.B16
++		VPMULL	B5.D1, T1.D1, ACC1.Q1
++		VPMULL2	B5.D2, T1.D2, ACC0.Q1
++		VPMULL	T0.D1, T2.D1, ACCM.Q1
++		reduce()
++
++	B	singlesLoop
++tail:
++	CBZ	srcPtrLen, done
++
++	VREV32	CTR.B16, B0.B16
++	VADD	CTR.S4, INC.S4, CTR.S4
++
++	AESE	K0.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K1.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K2.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K3.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K4.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K5.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K6.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K7.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K8.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	K9.B16, B0.B16
++	TBZ	$4, NR, tailLast
++	AESMC	B0.B16, B0.B16
++	AESE	K10.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	B1.B16, B0.B16
++	TBZ	$3, NR, tailLast
++	AESMC	B0.B16, B0.B16
++	AESE	B2.B16, B0.B16
++	AESMC	B0.B16, B0.B16
++	AESE	B3.B16, B0.B16
++tailLast:
++	VEOR	KLAST.B16, B0.B16, B0.B16
++
++	// Assuming it is safe to load past dstPtr due to the presense of the tag
++	VLD1	(srcPtr), [B5.B16]
++
++	VEOR	B5.B16, B0.B16, B0.B16
++
++	VEOR	T3.B16, T3.B16, T3.B16
++	MOVD	$0, H1
++	SUB	$1, H1
++
++	TBZ	$3, srcPtrLen, ld4
++	VMOV	B0.D[0], H0
++	MOVD.P	H0, 8(dstPtr)
++	VMOV	H1, T3.D[0]
++	VEXT	$8, ZERO.B16, B0.B16, B0.B16
++ld4:
++	TBZ	$2, srcPtrLen, ld2
++	VMOV	B0.S[0], H0
++	MOVW.P	H0, 4(dstPtr)
++	VEXT	$12, T3.B16, ZERO.B16, T3.B16
++	VMOV	H1, T3.S[0]
++	VEXT	$4, ZERO.B16, B0.B16, B0.B16
++ld2:
++	TBZ	$1, srcPtrLen, ld1
++	VMOV	B0.H[0], H0
++	MOVH.P	H0, 2(dstPtr)
++	VEXT	$14, T3.B16, ZERO.B16, T3.B16
++	VMOV	H1, T3.H[0]
++	VEXT	$2, ZERO.B16, B0.B16, B0.B16
++ld1:
++	TBZ	$0, srcPtrLen, ld0
++	VMOV	B0.B[0], H0
++	MOVB.P	H0, 1(dstPtr)
++	VEXT	$15, T3.B16, ZERO.B16, T3.B16
++	VMOV	H1, T3.B[0]
++ld0:
++
++	VAND	T3.B16, B5.B16, B5.B16
++	VREV64	B5.B16, B5.B16
++
++	VEOR	ACC0.B16, B5.B16, B5.B16
++	VEXT	$8, B5.B16, B5.B16, T0.B16
++	VEOR	B5.B16, T0.B16, T0.B16
++	VPMULL	B5.D1, T1.D1, ACC1.Q1
++	VPMULL2	B5.D2, T1.D2, ACC0.Q1
++	VPMULL	T0.D1, T2.D1, ACCM.Q1
++	reduce()
++done:
++	VST1	[ACC0.B16], (tPtr)
++
++	RET
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index c48001db28..64d5cc0db4 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -424,7 +424,7 @@ func TestGCMAsm(t *testing.T) {
+ 
+ 	// generate permutations
+ 	type pair struct{ align, length int }
+-	lengths := []int{0, 8192, 8193, 8208}
++	lengths := []int{0, 156, 8192, 8193, 8208}
+ 	keySizes := []int{16, 24, 32}
+ 	alignments := []int{0, 1, 2, 3}
+ 	if testing.Short() {
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 7c8f0de6e8..729bce6d50 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -925,12 +925,7 @@ func initDefaultCipherSuites() {
+ 	// Worst case, these variables will just all be false
+ 	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+ 
+-	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
+-	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
+-	// This is explicitly set to false for now to prevent misprioritization
+-	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
+-	hasGCMAsmARM64 := false
+-	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
++	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+ 
+ 	// Keep in sync with crypto/aes/cipher_s390x.go.
+ 	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)

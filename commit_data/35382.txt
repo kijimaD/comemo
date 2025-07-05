@@ -27,7 +27,7 @@ Date:   Mon Jan 1 16:16:43 2018 -0800
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/common.go                   |   7 +++++--
  src/archive/tar/reader.go                   |   8 ++++++--
  src/archive/tar/reader_test.go              |  11 ++++++-----
@@ -37,3 +37,155 @@ Date:   Mon Jan 1 16:16:43 2018 -0800
  src/archive/tar/writer.go                   |  10 ++++++++++
  src/archive/tar/writer_test.go              |  13 +++++++++++--
  8 files changed, 39 insertions(+), 11 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 4a2c173bf3..89d1f38732 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -56,7 +56,7 @@ func (he headerError) Error() string {
+ const (
+ 	// Type '0' indicates a regular file.
+ 	TypeReg  = '0'
+-	TypeRegA = '\x00' // For legacy support; use TypeReg instead
++	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+ 
+ 	// Type '1' to '6' are header-only flags and may not have a data body.
+ 	TypeLink    = '1' // Hard link
+@@ -138,7 +138,10 @@ var basicKeys = map[string]bool{
+ // should do so by creating a new Header and copying the fields
+ // that they are interested in preserving.
+ type Header struct {
+-	Typeflag byte // Type of header entry (should be TypeReg for most files)
++	// Typeflag is the type of header entry.
++	// The zero value is automatically promoted to either TypeReg or TypeDir
++	// depending on the presence of a trailing slash in Name.
++	Typeflag byte
+ 
+ 	Name     string // Name of file entry
+ 	Linkname string // Target name of link (valid for TypeLink or TypeSymlink)
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index f4eeb557be..6025e82b1b 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -131,8 +131,12 @@ loop:
+ 			if gnuLongLink != "" {
+ 				hdr.Linkname = gnuLongLink
+ 			}
+-			if hdr.Typeflag == TypeRegA && strings.HasSuffix(hdr.Name, "/") {
+-				hdr.Typeflag = TypeDir // Legacy archives use trailing slash for directories
++			if hdr.Typeflag == TypeRegA {
++				if strings.HasSuffix(hdr.Name, "/") {
++					hdr.Typeflag = TypeDir // Legacy archives use trailing slash for directories
++				} else {
++					hdr.Typeflag = TypeReg
++				}
+ 			}
+ 
+ 			// The extended headers may have updated the size.
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index a6832d33b1..0fc29eaab6 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -189,7 +189,7 @@ func TestReader(t *testing.T) {
+ 			Gid:      5000,
+ 			Size:     5,
+ 			ModTime:  time.Unix(1244593104, 0),
+-			Typeflag: '\x00',
++			Typeflag: '0',
+ 		}, {
+ 			Name:     "small2.txt",
+ 			Mode:     0444,
+@@ -197,7 +197,7 @@ func TestReader(t *testing.T) {
+ 			Gid:      5000,
+ 			Size:     11,
+ 			ModTime:  time.Unix(1244593104, 0),
+-			Typeflag: '\x00',
++			Typeflag: '0',
+ 		}},
+ 	}, {
+ 		file: "testdata/pax.tar",
+@@ -534,9 +534,10 @@ func TestReader(t *testing.T) {
+ 		// a buggy pre-Go1.8 tar.Writer.
+ 		file: "testdata/invalid-go17.tar",
+ 		headers: []*Header{{
+-			Name:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/foo",
+-			Uid:     010000000,
+-			ModTime: time.Unix(0, 0),
++			Name:     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/foo",
++			Uid:      010000000,
++			ModTime:  time.Unix(0, 0),
++			Typeflag: '0',
+ 		}},
+ 	}, {
+ 		// USTAR archive with a regular entry with non-zero device numbers.
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index af80d6e0c1..2676853122 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -306,6 +306,7 @@ func TestRoundTrip(t *testing.T) {
+ 		ModTime:    time.Now().Round(time.Second),
+ 		PAXRecords: map[string]string{"uid": "2097152"},
+ 		Format:     FormatPAX,
++		Typeflag:   TypeReg,
+ 	}
+ 	if err := tw.WriteHeader(hdr); err != nil {
+ 		t.Fatalf("tw.WriteHeader: %v", err)
+diff --git a/src/archive/tar/testdata/file-and-dir.tar b/src/archive/tar/testdata/file-and-dir.tar
+new file mode 100644
+index 0000000000..c18d4283e3
+Binary files /dev/null and b/src/archive/tar/testdata/file-and-dir.tar differ
+diff --git a/src/archive/tar/testdata/trailing-slash.tar b/src/archive/tar/testdata/trailing-slash.tar
+index bf1b2ec426..93718b3034 100644
+Binary files a/src/archive/tar/testdata/trailing-slash.tar and b/src/archive/tar/testdata/trailing-slash.tar differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 97d23f8038..d6f69314e0 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -71,6 +71,16 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 	}
+ 	tw.hdr = *hdr // Shallow copy of Header
+ 
++	// Avoid usage of the legacy TypeRegA flag, and automatically promote
++	// it to use TypeReg or TypeDir.
++	if tw.hdr.Typeflag == TypeRegA {
++		if strings.HasSuffix(tw.hdr.Name, "/") {
++			tw.hdr.Typeflag = TypeDir
++		} else {
++			tw.hdr.Typeflag = TypeReg
++		}
++	}
++
+ 	// Round ModTime and ignore AccessTime and ChangeTime unless
+ 	// the format is explicitly chosen.
+ 	// This ensures nominal usage of WriteHeader (without specifying the format)
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 24e8da271c..30556d27d0 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -461,6 +461,15 @@ func TestWriter(t *testing.T) {
+ 			testHeader{Header{Name: strings.Repeat("123456789/", 30)}, nil},
+ 			testClose{nil},
+ 		},
++	}, {
++		// Automatically promote zero value of Typeflag depending on the name.
++		file: "testdata/file-and-dir.tar",
++		tests: []testFnc{
++			testHeader{Header{Name: "small.txt", Size: 5}, nil},
++			testWrite{"Kilts", 5, nil},
++			testHeader{Header{Name: "dir/"}, nil},
++			testClose{nil},
++		},
+ 	}}
+ 
+ 	equalError := func(x, y error) bool {
+@@ -809,8 +818,8 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Failed to read header: %s", err)
+ 		}
+-		if header.Typeflag != 0 {
+-			t.Fatalf("Typeflag should've been 0, found %d", header.Typeflag)
++		if header.Typeflag != TypeReg {
++			t.Fatalf("Typeflag should've been %d, found %d", TypeReg, header.Typeflag)
+ 		}
+ 	}
+ }

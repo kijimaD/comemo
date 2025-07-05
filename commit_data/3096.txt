@@ -9,7 +9,406 @@ Date:   Wed Aug 26 18:30:13 2009 -0700
     DELTA=194  (97 added, 32 deleted, 65 changed)
     OCL=33861
     CL=33933
-
+---
  src/pkg/template/template.go      |  83 +++++++++++++++++++++-------
  src/pkg/template/template_test.go | 112 +++++++++++++++++++++++---------------
  2 files changed, 130 insertions(+), 65 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index a752655354..5667aba2d6 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -696,6 +696,25 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
+ 	}
+ }
+ 
++// Return the result of calling the Iter method on v, or nil.
++func iter(v reflect.Value) *reflect.ChanValue {
++	for j := 0; j < v.Type().NumMethod(); j++ {
++		mth := v.Type().Method(j);
++		fv := v.Method(j);
++		ft := fv.Type().(*reflect.FuncType);
++		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
++		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
++			continue
++		}
++		ct, ok := ft.Out(0).(*reflect.ChanType);
++		if !ok || ct.Dir() & reflect.RecvDir == 0 {
++			continue
++		}
++		return fv.Call(nil)[0].(*reflect.ChanValue)
++	}
++	return nil
++}
++
+ // Execute a .repeated section
+ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 	// Find driver data for this section.  It must be in the current struct.
+@@ -703,25 +722,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 	if field == nil {
+ 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, reflect.Indirect(st.data).Type());
+ 	}
+-	field = reflect.Indirect(field);
+ 
+-	// Must be an array/slice
+-	array, ok := field.(reflect.ArrayOrSliceValue);
+-	if !ok {
+-		t.execError(st, r.linenum, ".repeated: %s has bad type %s", r.field, field.Type());
+-	}
+-	if empty(field) {
+-		// Execute the .or block, once.  If it's missing, do nothing.
+-		start, end := r.or, r.end;
+-		if start >= 0 {
+-			newst := st.clone(field);
+-			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
+-			}
+-		}
+-		return
+-	}
+-	// Execute the normal block.
+ 	start, end := r.start, r.or;
+ 	if end < 0 {
+ 		end = r.end
+@@ -729,19 +730,59 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 	if r.altstart >= 0 {
+ 		end = r.altstart
+ 	}
+-	if field != nil {
++	first := true;
++
++	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
+ 		for j := 0; j < array.Len(); j++ {
+ 			newst := st.clone(array.Elem(j));
++
++			// .alternates between elements
++			if !first && r.altstart >= 0 {
++				for i := r.altstart; i < r.altend; i++ {
++					i = t.executeElement(i, newst)
++				}
++			}
++			first = false;
++
+ 			for i := start; i < end; {
+ 				i = t.executeElement(i, newst)
+ 			}
+-			// If appropriate, do .alternates between elements
+-			if j < array.Len() - 1 && r.altstart >= 0 {
++		}
++	} else if ch := iter(field); ch != nil {
++		for {
++			e := ch.Recv();
++			if ch.Closed() {
++				break
++			}
++			newst := st.clone(e);
++
++			// .alternates between elements
++			if !first && r.altstart >= 0 {
+ 				for i := r.altstart; i < r.altend; i++ {
+ 					i = t.executeElement(i, newst)
+ 				}
+ 			}
++			first = false;
++
++			for i := start; i < end; {
++				i = t.executeElement(i, newst)
++			}
+ 		}
++	} else {
++		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
++			    r.field, field.Type());
++	}
++
++	if first {
++		// Empty. Execute the .or block, once.  If it's missing, do nothing.
++		start, end := r.or, r.end;
++		if start >= 0 {
++			newst := st.clone(field);
++			for i := start; i < end; {
++				i = t.executeElement(i, newst)
++			}
++		}
++		return
+ 	}
+ }
+ 
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index f31f43d1eb..74db28a268 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -6,6 +6,7 @@ package template
+ 
+ import (
+ 	"bytes";
++	"container/vector";
+ 	"fmt";
+ 	"io";
+ 	"os";
+@@ -14,7 +15,7 @@ import (
+ )
+ 
+ type Test struct {
+-	in, out string
++	in, out, err string
+ }
+ 
+ type T struct {
+@@ -33,6 +34,7 @@ type S struct {
+ 	empty []*T;
+ 	emptystring string;
+ 	null []*T;
++	vec *vector.Vector;
+ }
+ 
+ var t1 = T{ "ItemNumber1", "ValueNumber1" }
+@@ -70,100 +72,100 @@ var formatters = FormatterMap {
+ 
+ var tests = []*Test {
+ 	// Simple
+-	&Test{ "", "" },
+-	&Test{ "abc\ndef\n", "abc\ndef\n" },
+-	&Test{ " {.meta-left}   \n", "{" },
+-	&Test{ " {.meta-right}   \n", "}" },
+-	&Test{ " {.space}   \n", " " },
+-	&Test{ " {.tab}   \n", "\t" },
+-	&Test{ "     {#comment}   \n", "" },
++	&Test{ "", "", "" },
++	&Test{ "abc\ndef\n", "abc\ndef\n", "" },
++	&Test{ " {.meta-left}   \n", "{", "" },
++	&Test{ " {.meta-right}   \n", "}", "" },
++	&Test{ " {.space}   \n", " ", "" },
++	&Test{ " {.tab}   \n", "\t", "" },
++	&Test{ "     {#comment}   \n", "", "" },
+ 
+ 	// Variables at top level
+ 	&Test{
+-		"{header}={integer}\n",
++		in: "{header}={integer}\n",
+ 
+-		"Header=77\n"
++		out: "Header=77\n"
+ 	},
+ 
+ 	// Section
+ 	&Test{
+-		"{.section data }\n"
++		in: "{.section data }\n"
+ 		"some text for the section\n"
+ 		"{.end}\n",
+ 
+-		"some text for the section\n"
++		out: "some text for the section\n"
+ 	},
+ 	&Test{
+-		"{.section data }\n"
++		in: "{.section data }\n"
+ 		"{header}={integer}\n"
+ 		"{.end}\n",
+ 
+-		"Header=77\n"
++		out: "Header=77\n"
+ 	},
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"{header}={integer}\n"
+ 		"{.end}\n",
+ 
+-		"Header=77\n"
++		out: "Header=77\n"
+ 	},
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"data present\n"
+ 		"{.or}\n"
+ 		"data not present\n"
+ 		"{.end}\n",
+ 
+-		"data present\n"
++		out: "data present\n"
+ 	},
+ 	&Test{
+-		"{.section empty }\n"
++		in: "{.section empty }\n"
+ 		"data present\n"
+ 		"{.or}\n"
+ 		"data not present\n"
+ 		"{.end}\n",
+ 
+-		"data not present\n"
++		out: "data not present\n"
+ 	},
+ 	&Test{
+-		"{.section null }\n"
++		in: "{.section null }\n"
+ 		"data present\n"
+ 		"{.or}\n"
+ 		"data not present\n"
+ 		"{.end}\n",
+ 
+-		"data not present\n"
++		out: "data not present\n"
+ 	},
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"{header}={integer}\n"
+ 		"{.section @ }\n"
+ 		"{header}={integer}\n"
+ 		"{.end}\n"
+ 		"{.end}\n",
+ 
+-		"Header=77\n"
++		out: "Header=77\n"
+ 		"Header=77\n"
+ 	},
+ 	&Test{
+-		"{.section data}{.end} {header}\n",
++		in: "{.section data}{.end} {header}\n",
+ 
+-		" Header\n"
++		out: " Header\n"
+ 	},
+ 
+ 	// Repeated
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"{.repeated section @ }\n"
+ 		"{item}={value}\n"
+ 		"{.end}\n"
+ 		"{.end}\n",
+ 
+-		"ItemNumber1=ValueNumber1\n"
++		out: "ItemNumber1=ValueNumber1\n"
+ 		"ItemNumber2=ValueNumber2\n"
+ 	},
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"{.repeated section @ }\n"
+ 		"{item}={value}\n"
+ 		"{.or}\n"
+@@ -171,11 +173,11 @@ var tests = []*Test {
+ 		"{.end}\n"
+ 		"{.end}\n",
+ 
+-		"ItemNumber1=ValueNumber1\n"
++		out: "ItemNumber1=ValueNumber1\n"
+ 		"ItemNumber2=ValueNumber2\n"
+ 	},
+ 	&Test{
+-		"{.section @ }\n"
++		in: "{.section @ }\n"
+ 		"{.repeated section empty }\n"
+ 		"{item}={value}\n"
+ 		"{.or}\n"
+@@ -183,10 +185,10 @@ var tests = []*Test {
+ 		"{.end}\n"
+ 		"{.end}\n",
+ 
+-		"this should appear: empty field\n"
++		out: "this should appear: empty field\n"
+ 	},
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"{.repeated section @ }\n"
+ 		"{item}={value}\n"
+ 		"{.alternates with}DIVIDER\n"
+@@ -195,44 +197,57 @@ var tests = []*Test {
+ 		"{.end}\n"
+ 		"{.end}\n",
+ 
+-		"ItemNumber1=ValueNumber1\n"
++		out: "ItemNumber1=ValueNumber1\n"
+ 		"DIVIDER\n"
+ 		"ItemNumber2=ValueNumber2\n"
+ 	},
++	&Test{
++		in: "{.repeated section vec }\n"
++		"{@}\n"
++		"{.end}\n",
++
++		out: "elt1\n"
++		"elt2\n"
++	},
++	&Test{
++		in: "{.repeated section integer}{.end}",
++
++		err: "line 0: .repeated: cannot repeat integer (type int)",
++	},
+ 
+ 	// Nested names
+ 	&Test{
+-		"{.section @ }\n"
++		in: "{.section @ }\n"
+ 		"{innerT.item}={innerT.value}\n"
+ 		"{.end}",
+ 
+-		"ItemNumber1=ValueNumber1\n"
++		out: "ItemNumber1=ValueNumber1\n"
+ 	},
+ 
+ 	// Formatters
+ 	&Test{
+-		"{.section pdata }\n"
++		in: "{.section pdata }\n"
+ 		"{header|uppercase}={integer|+1}\n"
+ 		"{header|html}={integer|str}\n"
+ 		"{.end}\n",
+ 
+-		"HEADER=78\n"
++		out: "HEADER=78\n"
+ 		"Header=77\n"
+ 	},
+ 
+ 	&Test{
+-		"{raw}\n"
++		in: "{raw}\n"
+ 		"{raw|html}\n",
+ 
+-		"&<>!@ #$%^\n"
++		out: "&<>!@ #$%^\n"
+ 		"&amp;&lt;&gt;!@ #$%^\n"
+ 	},
+ 
+ 	&Test{
+-		"{.section emptystring}emptystring{.end}\n"
++		in: "{.section emptystring}emptystring{.end}\n"
+ 		"{.section header}header{.end}\n",
+ 
+-		"\nheader\n"
++		out: "\nheader\n"
+ 	},
+ }
+ 
+@@ -247,6 +262,9 @@ func TestAll(t *testing.T) {
+ 	s.pdata = []*T{ &t1, &t2 };
+ 	s.empty = []*T{ };
+ 	s.null = nil;
++	s.vec = vector.New(0);
++	s.vec.Push("elt1");
++	s.vec.Push("elt2");
+ 
+ 	var buf bytes.Buffer;
+ 	for i, test := range tests {
+@@ -257,8 +275,14 @@ func TestAll(t *testing.T) {
+ 			continue;
+ 		}
+ 		err = tmpl.Execute(s, &buf);
+-		if err != nil {
+-			t.Error("unexpected execute error:", err)
++		if test.err == "" {
++			if err != nil {
++				t.Error("unexpected execute error:", err);
++			}
++		} else {
++			if err == nil || err.String() != test.err {
++				t.Errorf("expected execute error %q, got %q", test.err, err.String());
++			}
+ 		}
+ 		if string(buf.Data()) != test.out {
+ 			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Data()));

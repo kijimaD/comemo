@@ -5,6 +5,19 @@ Date:   Tue Jun 17 17:59:06 2008 -0700
     yata
     
     SVN=123246
-
+---
  src/cmd/gc/go.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c4153ee424..0946b680b1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -297,6 +297,7 @@ enum
+ 	Wlitint,
+ 	Wlitbool,
+ 	Wlitstr,
++	Wlitnil,
+ 
+ 	Wtunkn,
+ };

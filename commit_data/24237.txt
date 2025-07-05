@@ -9,7 +9,53 @@ Date:   Thu Jul 16 14:20:40 2015 -0700
     Change-Id: I2eb7e113d5003b2c77fbd3abc3defc4d98976a5e
     Reviewed-on: https://go-review.googlesource.com/12323
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 47e1fb9c6a..3e25929af5 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -112,7 +112,7 @@
+ // strength reduction
+ // TODO: do this a lot more generically
+ (MULQconst [8] x) -> (SHLQconst [3] x)
+-(MULQconst [64] x) -> (SHLQconst [5] x)
++(MULQconst [64] x) -> (SHLQconst [6] x)
+ 
+ // fold add/shift into leaq
+ (ADDQ x (SHLQconst [3] y)) -> (LEAQ8 x y)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 7e892c3844..3e24f9f618 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1225,22 +1225,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 		// match: (MULQconst [64] x)
+ 		// cond:
+-		// result: (SHLQconst [5] x)
++		// result: (SHLQconst [6] x)
+ 		{
+ 			if v.AuxInt != 64 {
+-				goto end75c0c250c703f89e6c43d718dd5ea3c0
++				goto end3e36a587d1e7c193048d489a0429692c
+ 			}
+ 			x := v.Args[0]
+ 			v.Op = OpAMD64SHLQconst
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = 5
++			v.AuxInt = 6
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end75c0c250c703f89e6c43d718dd5ea3c0
+-	end75c0c250c703f89e6c43d718dd5ea3c0:
++		goto end3e36a587d1e7c193048d489a0429692c
++	end3e36a587d1e7c193048d489a0429692c:
+ 		;
+ 	case OpMove:
+ 		// match: (Move [size] dst src mem)

@@ -17,7 +17,7 @@ Date:   Wed May 25 10:29:50 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/23431
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/arm/gsubr.go   | 11 +----------
  src/cmd/compile/internal/gc/cgen.go     | 35 +++++++++------------------------
  src/cmd/compile/internal/gc/closure.go  |  2 +-
@@ -35,3 +35,357 @@ Date:   Wed May 25 10:29:50 2016 -0400
  src/cmd/compile/internal/gc/walk.go     |  6 ++----
  src/cmd/compile/internal/x86/gsubr.go   | 11 +----------
  16 files changed, 39 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index 9ac999167e..b5d7bc05c4 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -86,17 +86,8 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 
+ 			n = &n1
+ 
+-		case gc.ONAME:
+-			if n.Class == gc.PPARAMREF {
+-				var n1 gc.Node
+-				gc.Cgen(n.Name.Heapaddr, &n1)
+-				sclean[nsclean-1] = n1
+-				n = &n1
+-			}
+-
++		case gc.ONAME, gc.OINDREG:
+ 			// nothing
+-		case gc.OINDREG:
+-			break
+ 		}
+ 
+ 		*lo = *n
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index c01a8fbda7..dbefcc7a0b 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -518,8 +518,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	case ODOT,
+ 		ODOTPTR,
+ 		OINDEX,
+-		OIND,
+-		ONAME: // PPARAMREF var
++		OIND:
+ 		var n1 Node
+ 		Igen(n, &n1, res)
+ 
+@@ -1545,6 +1544,7 @@ func Agen(n *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	default:
++		Dump("bad agen", n)
+ 		Fatalf("agen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+ 
+ 	case OCALLMETH:
+@@ -1571,24 +1571,6 @@ func Agen(n *Node, res *Node) {
+ 		Thearch.Gmove(&n1, res)
+ 		Regfree(&n1)
+ 
+-	case ONAME:
+-		// should only get here with names in this func.
+-		if n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
+-			Dump("bad agen", n)
+-			Fatalf("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
+-		}
+-
+-		// should only get here for heap vars or paramref
+-		if n.Class != PPARAMREF {
+-			Dump("bad agen", n)
+-			Fatalf("agen: bad ONAME class %#x", n.Class)
+-		}
+-
+-		Cgen(n.Name.Heapaddr, res)
+-		if n.Xoffset != 0 {
+-			addOffset(res, n.Xoffset)
+-		}
+-
+ 	case OIND:
+ 		Cgen(nl, res)
+ 		if !nl.NonNil {
+@@ -1646,8 +1628,9 @@ func Igen(n *Node, a *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	case ONAME:
+-		if n.Class == PPARAMREF {
+-			break
++		if n.Class == PAUTOHEAP {
++			Dump("igen", n)
++			Fatalf("bad name")
+ 		}
+ 		*a = *n
+ 		return
+@@ -1702,11 +1685,11 @@ func Igen(n *Node, a *Node, res *Node) {
+ 		a.Type = n.Type
+ 		return
+ 
+-		// Index of fixed-size array by constant can
+-	// put the offset in the addressing.
+-	// Could do the same for slice except that we need
+-	// to use the real index for the bounds checking.
+ 	case OINDEX:
++		// Index of fixed-size array by constant can
++		// put the offset in the addressing.
++		// Could do the same for slice except that we need
++		// to use the real index for the bounds checking.
+ 		if n.Left.Type.IsArray() || (n.Left.Type.IsPtr() && n.Left.Left.Type.IsArray()) {
+ 			if Isconst(n.Right, CTINT) {
+ 				// Compute &a.
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 04fa250985..238280f68a 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -313,7 +313,7 @@ func transformclosure(xfunc *Node) {
+ 			} else {
+ 				// If v of type T is captured by reference,
+ 				// we introduce function param &v *T
+-				// and v remains PPARAMREF with &v heapaddr
++				// and v remains PAUTOHEAP with &v heapaddr
+ 				// (accesses will implicitly deref &v).
+ 				addr := newname(Lookupf("&%s", v.Sym.Name))
+ 				addr.Type = Ptrto(v.Type)
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index a5c04b2be5..96a1dfb3c2 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -405,7 +405,6 @@ func Complexgen(n *Node, res *Node) {
+ 		ODOTPTR,
+ 		OINDEX,
+ 		OIND,
+-		ONAME, // PPARAMREF var
+ 		OCALLFUNC,
+ 		OCALLMETH,
+ 		OCALLINTER:
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ba5b6b689c..3b1822ffd9 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -396,7 +396,8 @@ func oldname(s *Sym) *Node {
+ 			c := Nod(ONAME, nil, nil)
+ 
+ 			c.Sym = s
+-			c.Class = PPARAMREF
++			c.Class = PAUTOHEAP
++			c.setIsClosureParam(true)
+ 			c.Isddd = n.Isddd
+ 			c.Name.Defn = n
+ 			c.Addable = false
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 2991f6d225..538c4842d9 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1817,9 +1817,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 			}
+ 		}
+ 
+-		// Treat a PPARAMREF closure variable as equivalent to the
++		// Treat a captured closure variable as equivalent to the
+ 		// original variable.
+-		if src.Class == PPARAMREF {
++		if src.isClosureParam() {
+ 			if leaks && Debug['m'] != 0 {
+ 				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, FmtShort))
+ 				step.describe(src)
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 3c4053e51f..02d93e2e47 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -221,7 +221,6 @@ var classnames = []string{
+ 	"PAUTOHEAP",
+ 	"PPARAM",
+ 	"PPARAMOUT",
+-	"PPARAMREF",
+ 	"PFUNC",
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 2db253184c..ec4a3c8142 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -43,9 +43,8 @@ func addrescapes(n *Node) {
+ 			break
+ 		}
+ 
+-		// A PPARAMREF is a closure reference.
+-		// Mark the thing it refers to as escaping.
+-		if n.Class == PPARAMREF {
++		// If a closure reference escapes, mark the outer variable as escaping.
++		if n.isClosureParam() {
+ 			addrescapes(n.Name.Defn)
+ 			break
+ 		}
+@@ -347,7 +346,7 @@ func cgen_discard(nr *Node) {
+ 
+ 	switch nr.Op {
+ 	case ONAME:
+-		if nr.Class != PAUTOHEAP && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
++		if nr.Class != PAUTOHEAP && nr.Class != PEXTERN && nr.Class != PFUNC {
+ 			gused(nr)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 600b00dae2..fedc785aee 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -94,7 +94,6 @@ const (
+ 	PAUTOHEAP       // local variable or parameter moved to heap
+ 	PPARAM          // input arguments
+ 	PPARAMOUT       // output results
+-	PPARAMREF       // closure variable reference
+ 	PFUNC           // global function
+ 
+ 	PDISCARD // discard during parse of duplicate import
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 3b705c3f0c..4a658b1976 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -495,7 +495,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 	// e.g. if we've got a local variable/method receiver
+ 	// that has got a pointer inside. Whether it points to
+ 	// the heap or not is impossible to know at compile time
+-	if class == PAUTOHEAP || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
++	if class == PAUTOHEAP || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
+ 		hascalls := 0
+ 		foreach(n, hascallspred, &hascalls)
+ 		if hascalls != 0 {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5d741a55db..4469d71f1c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -516,7 +516,7 @@ func isliteral(n *Node) bool {
+ }
+ 
+ func (n *Node) isSimpleName() bool {
+-	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP && n.Class != PPARAMREF
++	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP
+ }
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8d06f1e3ed..a107f91ef3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2723,8 +2723,6 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			// that cse works on their addresses
+ 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+ 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+-		case PPARAMREF:
+-			return s.expr(n.Name.Heapaddr)
+ 		default:
+ 			s.Unimplementedf("variable address class %v not implemented", classnames[n.Class])
+ 			return nil
+@@ -2803,8 +2801,7 @@ func (s *state) canSSA(n *Node) bool {
+ 		Fatalf("canSSA of PAUTOHEAP %v", n)
+ 	}
+ 	switch n.Class {
+-	case PEXTERN, PPARAMREF:
+-		// TODO: maybe treat PPARAMREF with an Arg-like op to read from closure?
++	case PEXTERN:
+ 		return false
+ 	case PPARAMOUT:
+ 		if hasdefer {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c78575a8c2..c2abff7b63 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1231,7 +1231,7 @@ func ullmancalc(n *Node) {
+ 	switch n.Op {
+ 	case OREGISTER, OLITERAL, ONAME:
+ 		ul = 1
+-		if n.Class == PPARAMREF || n.Class == PAUTOHEAP {
++		if n.Class == PAUTOHEAP {
+ 			ul++
+ 		}
+ 		goto out
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index c5c7b17f57..89c96cb2d8 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -78,6 +78,7 @@ type Node struct {
+ const (
+ 	hasBreak = 1 << iota
+ 	notLiveAtEnd
++	isClosureParam
+ )
+ 
+ func (n *Node) HasBreak() bool {
+@@ -100,6 +101,16 @@ func (n *Node) SetNotLiveAtEnd(b bool) {
+ 		n.flags &^= notLiveAtEnd
+ 	}
+ }
++func (n *Node) isClosureParam() bool {
++	return n.flags&isClosureParam != 0
++}
++func (n *Node) setIsClosureParam(b bool) {
++	if b {
++		n.flags |= isClosureParam
++	} else {
++		n.flags &^= isClosureParam
++	}
++}
+ 
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {
+@@ -174,9 +185,9 @@ type Param struct {
+ 	// ONAME PPARAM
+ 	Field *Field // TFIELD in arg struct
+ 
+-	// ONAME closure param with PPARAMREF
+-	Outer   *Node // outer PPARAMREF in nested closure
+-	Closure *Node // ONAME/PAUTOHEAP <-> ONAME/PPARAMREF
++	// ONAME closure linkage
++	Outer   *Node
++	Closure *Node
+ }
+ 
+ // Func holds Node fields used only with function-like nodes.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 566decee45..30fb170e50 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -647,9 +647,7 @@ opswitch:
+ 		n.Addable = true
+ 
+ 	case ONAME:
+-		if n.Class != PPARAMREF {
+-			n.Addable = true
+-		}
++		n.Addable = true
+ 
+ 	case OCALLINTER:
+ 		usemethod(n)
+@@ -2536,7 +2534,7 @@ func vmatch1(l *Node, r *Node) bool {
+ 	switch l.Op {
+ 	case ONAME:
+ 		switch l.Class {
+-		case PPARAM, PPARAMREF, PAUTO:
++		case PPARAM, PAUTO:
+ 			break
+ 
+ 			// assignment to non-stack variable
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index d91bafc4ea..6406326b60 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -724,17 +724,8 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 
+ 			n = &n1
+ 
+-		case gc.ONAME:
+-			if n.Class == gc.PPARAMREF {
+-				var n1 gc.Node
+-				gc.Cgen(n.Name.Heapaddr, &n1)
+-				sclean[nsclean-1] = n1
+-				n = &n1
+-			}
+-
++		case gc.ONAME, gc.OINDREG:
+ 			// nothing
+-		case gc.OINDREG:
+-			break
+ 		}
+ 
+ 		*lo = *n

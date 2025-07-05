@@ -17,7 +17,56 @@ Date:   Mon Aug 10 13:21:28 2015 +1000
     Change-Id: Iad1ce8e7db8ec26615c5271310f4b0228cca7d78
     Reviewed-on: https://go-review.googlesource.com/13461
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/fmt/scan.go      |  1 -
  src/fmt/scan_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 21ed091d80..5b9b516353 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -888,7 +888,6 @@ func hexDigit(d rune) (int, bool) {
+ func (s *ss) hexByte() (b byte, ok bool) {
+ 	rune1 := s.getRune()
+ 	if rune1 == eof {
+-		s.UnreadRune()
+ 		return
+ 	}
+ 	value1, ok := hexDigit(rune1)
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index 694f93e1ae..a3784364e6 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -1128,3 +1128,31 @@ func TestScanfNewlineMatchFormat(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test for issue 12090: Was unreading at EOF, double-scanning a byte.
++
++type hexBytes [2]byte
++
++func (h *hexBytes) Scan(ss ScanState, verb rune) error {
++	var b []byte
++	_, err := Fscanf(ss, "%4x", &b)
++	if err != nil {
++		panic(err) // Really shouldn't happen.
++	}
++	copy((*h)[:], b)
++	return err
++}
++
++func TestHexByte(t *testing.T) {
++	var h hexBytes
++	n, err := Sscanln("0123\n", &h)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n != 1 {
++		t.Fatalf("expected 1 item; scanned %d", n)
++	}
++	if h[0] != 0x01 || h[1] != 0x23 {
++		t.Fatalf("expected 0123 got %x", h)
++	}
++}

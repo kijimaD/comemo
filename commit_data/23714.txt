@@ -8,8 +8,52 @@ Date:   Thu Jun 4 16:09:15 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10731
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/pkg.go  | 2 +-
  src/cmd/go/tool.go | 4 ----
  src/cmd/go/vet.go  | 2 +-
  3 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index bc099a8d31..539ef5bfc6 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -411,9 +411,9 @@ var goTools = map[string]targetDir{
+ 	"cmd/pack":                             toTool,
+ 	"cmd/pprof":                            toTool,
+ 	"cmd/trace":                            toTool,
++	"cmd/vet":                              toTool,
+ 	"cmd/yacc":                             toTool,
+ 	"golang.org/x/tools/cmd/godoc":         toBin,
+-	"golang.org/x/tools/cmd/vet":           toTool,
+ 	"code.google.com/p/go.tools/cmd/cover": stalePath,
+ 	"code.google.com/p/go.tools/cmd/godoc": stalePath,
+ 	"code.google.com/p/go.tools/cmd/vet":   stalePath,
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index bf8ff03bc3..937ca1f306 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -67,10 +67,6 @@ func tool(toolName string) string {
+ }
+ 
+ func isInGoToolsRepo(toolName string) bool {
+-	switch toolName {
+-	case "vet":
+-		return true
+-	}
+ 	return false
+ }
+ 
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 902edbbe73..81b978e8da 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -17,7 +17,7 @@ var cmdVet = &Command{
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about vet, see 'godoc golang.org/x/tools/cmd/vet'.
++For more about vet, see 'go doc cmd/vet'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.

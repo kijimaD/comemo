@@ -33,8 +33,135 @@ Date:   Wed Apr 11 19:43:39 2018 +1000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  api/except.txt                  | 12 ++++++++++++
  src/crypto/x509/root_windows.go |  2 +-
  src/syscall/types_windows.go    | 32 ++++++++++++++++++++++++++------
  3 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index e5cb7b8edb..997df042b6 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -371,3 +371,15 @@ pkg text/template/parse, type VariableNode struct
+ pkg text/template/parse, type VariableNode struct, Ident []string
+ pkg text/template/parse, type VariableNode struct, embedded NodeType
+ pkg text/template/parse, type VariableNode struct, embedded Pos
++pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
++pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
++pkg syscall (windows-386), type CertContext struct, CertInfo uintptr
++pkg syscall (windows-386), type CertRevocationInfo struct, CrlInfo uintptr
++pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintptr
++pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
++pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
++pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
++pkg syscall (windows-amd64), type CertContext struct, CertInfo uintptr
++pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo uintptr
++pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uintptr
++pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index 92cc71692d..74d395df70 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -109,7 +109,7 @@ func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContex
+ 	sslPara.Size = uint32(unsafe.Sizeof(*sslPara))
+ 
+ 	para := &syscall.CertChainPolicyPara{
+-		ExtraPolicyPara: uintptr(unsafe.Pointer(sslPara)),
++		ExtraPolicyPara: (syscall.Pointer)(unsafe.Pointer(sslPara)),
+ 	}
+ 	para.Size = uint32(unsafe.Sizeof(*para))
+ 
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index bc9bd4dbd8..1e580abcfc 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -296,6 +296,14 @@ var (
+ 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
+ )
+ 
++// Pointer represents a pointer to an arbitrary Windows type.
++//
++// Pointer-typed fields may point to one of many different types. It's
++// up to the caller to provide a pointer to the appropriate type, cast
++// to Pointer. The caller must obey the unsafe.Pointer rules while
++// doing so.
++type Pointer *struct{}
++
+ // Invented values to support what package os expects.
+ type Timeval struct {
+ 	Sec  int32
+@@ -845,11 +853,15 @@ type MibIfRow struct {
+ 	Descr           [MAXLEN_IFDESCR]byte
+ }
+ 
++type CertInfo struct {
++	// Not implemented
++}
++
+ type CertContext struct {
+ 	EncodingType uint32
+ 	EncodedCert  *byte
+ 	Length       uint32
+-	CertInfo     uintptr
++	CertInfo     *CertInfo
+ 	Store        Handle
+ }
+ 
+@@ -864,12 +876,16 @@ type CertChainContext struct {
+ 	RevocationFreshnessTime    uint32
+ }
+ 
++type CertTrustListInfo struct {
++	// Not implemented
++}
++
+ type CertSimpleChain struct {
+ 	Size                       uint32
+ 	TrustStatus                CertTrustStatus
+ 	NumElements                uint32
+ 	Elements                   **CertChainElement
+-	TrustListInfo              uintptr
++	TrustListInfo              *CertTrustListInfo
+ 	HasRevocationFreshnessTime uint32
+ 	RevocationFreshnessTime    uint32
+ }
+@@ -884,14 +900,18 @@ type CertChainElement struct {
+ 	ExtendedErrorInfo *uint16
+ }
+ 
++type CertRevocationCrlInfo struct {
++	// Not implemented
++}
++
+ type CertRevocationInfo struct {
+ 	Size             uint32
+ 	RevocationResult uint32
+ 	RevocationOid    *byte
+-	OidSpecificInfo  uintptr
++	OidSpecificInfo  Pointer
+ 	HasFreshnessTime uint32
+ 	FreshnessTime    uint32
+-	CrlInfo          uintptr // *CertRevocationCrlInfo
++	CrlInfo          *CertRevocationCrlInfo
+ }
+ 
+ type CertTrustStatus struct {
+@@ -922,7 +942,7 @@ type CertChainPara struct {
+ type CertChainPolicyPara struct {
+ 	Size            uint32
+ 	Flags           uint32
+-	ExtraPolicyPara uintptr
++	ExtraPolicyPara Pointer
+ }
+ 
+ type SSLExtraCertChainPolicyPara struct {
+@@ -937,7 +957,7 @@ type CertChainPolicyStatus struct {
+ 	Error             uint32
+ 	ChainIndex        uint32
+ 	ElementIndex      uint32
+-	ExtraPolicyStatus uintptr
++	ExtraPolicyStatus Pointer
+ }
+ 
+ const (

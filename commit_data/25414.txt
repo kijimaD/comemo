@@ -25,6 +25,46 @@ Date:   Wed Oct 28 06:44:26 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/16307
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index b86d41faac..23c15da413 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -826,6 +826,13 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ // distributed random number and applying the cumulative distribution
+ // function for an exponential.
+ func nextSample() int32 {
++	if GOOS == "plan9" {
++		// Plan 9 doesn't support floating point in note handler.
++		if g := getg(); g == g.m.gsignal {
++			return nextSampleNoFP()
++		}
++	}
++
+ 	period := MemProfileRate
+ 
+ 	// make nextSample not overflow. Maximum possible step is
+@@ -855,6 +862,20 @@ func nextSample() int32 {
+ 	return int32(qlog*(minusLog2*float64(period))) + 1
+ }
+ 
++// nextSampleNoFP is similar to nextSample, but uses older,
++// simpler code to avoid floating point.
++func nextSampleNoFP() int32 {
++	// Set first allocation sample size.
++	rate := MemProfileRate
++	if rate > 0x3fffffff { // make 2*rate not overflow
++		rate = 0x3fffffff
++	}
++	if rate != 0 {
++		return int32(int(fastrand1()) % (2 * rate))
++	}
++	return 0
++}
++
+ type persistentAlloc struct {
+ 	base unsafe.Pointer
+ 	off  uintptr

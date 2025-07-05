@@ -12,7 +12,41 @@ Date:   Mon Dec 4 15:12:25 2023 -0500
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/metrics/description.go |  2 +-
  src/runtime/metrics/doc.go         | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index abe7440f10..19a7dbf07a 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -441,7 +441,7 @@ var allDesc = []Description{
+ 	},
+ 	{
+ 		Name:        "/sync/mutex/wait/total:seconds",
+-		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex or sync.RWMutex. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
++		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
+ 		Kind:        KindFloat64,
+ 		Cumulative:  true,
+ 	},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 8df475666e..ba153174a6 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -447,10 +447,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		monotonically.
+ 
+ 	/sync/mutex/wait/total:seconds
+-		Approximate cumulative time goroutines have spent blocked
+-		on a sync.Mutex or sync.RWMutex. This metric is useful for
+-		identifying global changes in lock contention. Collect a mutex
+-		or block profile using the runtime/pprof package for more
+-		detailed contention data.
++		Approximate cumulative time goroutines have spent blocked on a
++		sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric
++		is useful for identifying global changes in lock contention.
++		Collect a mutex or block profile using the runtime/pprof package
++		for more detailed contention data.
+ */
+ package metrics

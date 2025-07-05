@@ -5,6 +5,20 @@ Date:   Thu Jun 12 13:38:54 2008 -0700
     remove reference to 9ar
     
     SVN=122487
-
+---
  src/cmd/gc/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index a67ab17b03..25794c3f23 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -29,7 +29,7 @@ OFILES=\
+ 	sysimport.$O\
+ 
+ $(LIB): $(OFILES)
+-	9ar rsc $(LIB) $(OFILES)
++	ar rsc $(LIB) $(OFILES)
+ 
+ $(OFILES): $(HFILES)
+ 

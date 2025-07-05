@@ -649,3 +649,22 @@ Date:   Tue Nov 3 12:31:40 2020 -0500
  test/fixedbugs/issue42284.go                       |     7 +
  test/inline.go                                     |    17 +
  641 files changed, 42647 insertions(+), 21764 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/noder.go
+index 9685794ec4,67d24ef0bc..14bacc14a8
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@@ -12,12 -11,11 +12,13 @@@ import 
+  	"runtime"
+  	"strconv"
+  	"strings"
++ 	"unicode"
+  	"unicode/utf8"
+  
+ +	"cmd/compile/internal/importer"
+  	"cmd/compile/internal/syntax"
+  	"cmd/compile/internal/types"
+ +	"cmd/compile/internal/types2"
+  	"cmd/internal/obj"
+  	"cmd/internal/objabi"
+  	"cmd/internal/src"

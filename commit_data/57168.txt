@@ -19,6 +19,31 @@ Date:   Mon Jul 3 05:05:55 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/cgo_stub.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index a8514c19f8..b26b11af8b 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -3,13 +3,13 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file holds stub versions of the cgo functions called on Unix systems.
+-// We build this file if using the netgo build tag, or if cgo is not
+-// enabled and we are using a Unix system other than Darwin, or if it's
+-// wasip1 where cgo is never available.
+-// Darwin is exempted because it always provides the cgo routines,
+-// in cgo_unix_syscall.go.
++// We build this file:
++// - if using the netgo build tag on a Unix system
++// - on a Unix system without the cgo resolver functions
++//   (Darwin always provides the cgo functions, in cgo_unix_syscall.go)
++// - on wasip1, where cgo is never available
+ 
+-//go:build netgo || (!cgo && unix && !darwin) || wasip1
++//go:build (netgo && unix) || (unix && !cgo && !darwin) || wasip1
+ 
+ package net
+ 

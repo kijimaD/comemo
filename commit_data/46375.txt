@@ -12,6 +12,21 @@ Date:   Wed Dec 23 17:12:44 2020 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 5a24cdac88..52267e6fb0 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -101,8 +101,7 @@ func gcMarkRootPrepare() {
+ 	// Gs may be created after this point, but it's okay that we
+ 	// ignore them because they begin life without any roots, so
+ 	// there's nothing to scan, and any roots they create during
+-	// the concurrent phase will be scanned during mark
+-	// termination.
++	// the concurrent phase will be caught by the write barrier.
+ 	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+ 
+ 	work.markrootNext = 0

@@ -12,7 +12,7 @@ Date:   Tue Sep 18 23:47:15 2012 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6488075
-
+---
  src/cmd/go/build.go       | 29 ++++++++++++++++++++++++++++-
  src/cmd/go/pkg.go         |  5 +++++
  src/cmd/go/run.go         |  1 +
@@ -20,3 +20,183 @@ Date:   Tue Sep 18 23:47:15 2012 +0400
  src/cmd/go/testflag.go    |  3 ++-
  src/pkg/go/build/build.go |  7 ++++++-
  6 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index fd11a4dcba..889ed08b3b 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"container/heap"
+ 	"errors"
++	"flag"
+ 	"fmt"
+ 	"go/build"
+ 	"io"
+@@ -59,6 +60,9 @@ The build flags are shared by the build, install, run, and test commands:
+ 		do not delete it when exiting.
+ 	-x
+ 		print the commands.
++	-race
++		enable data race detection.
++		Currently supported only on linux/amd64 and darwin/amd64.
+ 
+ 	-ccflags 'arg list'
+ 		arguments to pass on each 5c, 6c, or 8c compiler invocation
+@@ -104,6 +108,7 @@ var buildGcflags []string    // -gcflags flag
+ var buildCcflags []string    // -ccflags flag
+ var buildLdflags []string    // -ldflags flag
+ var buildGccgoflags []string // -gccgoflags flag
++var buildRace bool           // -race flag
+ 
+ var buildContext = build.Default
+ var buildToolchain toolchain = noToolchain{}
+@@ -154,6 +159,7 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
+ 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
+ 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
++	cmd.Flag.BoolVar(&buildRace, "race", false, "")
+ }
+ 
+ func addBuildFlagsNX(cmd *Command) {
+@@ -173,6 +179,7 @@ func (v *stringsFlag) String() string {
+ }
+ 
+ func runBuild(cmd *Command, args []string) {
++	raceInit()
+ 	var b builder
+ 	b.init()
+ 
+@@ -217,6 +224,7 @@ See also: go build, go get, go clean.
+ }
+ 
+ func runInstall(cmd *Command, args []string) {
++	raceInit()
+ 	pkgs := packagesForBuild(args)
+ 
+ 	for _, p := range pkgs {
+@@ -441,7 +449,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 	// using cgo, to make sure we do not overwrite the binary while
+ 	// a package is using it.  If this is a cross-build, then the cgo we
+ 	// are writing is not the cgo we need to use.
+-	if goos == runtime.GOOS && goarch == runtime.GOARCH {
++	if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
+ 		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
+ 			var stk importStack
+ 			p1 := loadPackage("cmd/cgo", &stk)
+@@ -1547,6 +1555,10 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
+ 	}
++	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/cgo") {
++		cgoflags = append(cgoflags, "-import_syscall=false")
++	}
++
+ 	if _, ok := buildToolchain.(gccgcToolchain); ok {
+ 		cgoflags = append(cgoflags, "-gccgo")
+ 		if prefix := gccgoPrefix(p); prefix != "" {
+@@ -1778,3 +1790,18 @@ func (q *actionQueue) push(a *action) {
+ func (q *actionQueue) pop() *action {
+ 	return heap.Pop(q).(*action)
+ }
++
++func raceInit() {
++	if !buildRace {
++		return
++	}
++	if goarch != "amd64" || goos != "linux" && goos != "darwin" {
++		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64 and darwin/amd64\n", flag.Args()[0])
++		os.Exit(2)
++	}
++	buildGcflags = append(buildGcflags, "-b")
++	buildLdflags = append(buildLdflags, "-b")
++	buildCcflags = append(buildCcflags, "-DRACE")
++	buildContext.InstallTag = "race"
++	buildContext.BuildTags = append(buildContext.BuildTags, "race")
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 602f00cba9..94f01aab05 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -342,6 +342,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	// Everything depends on runtime, except runtime and unsafe.
+ 	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
+ 		importPaths = append(importPaths, "runtime")
++		// When race detection enabled everything depends on runtime/race.
++		// Exclude runtime/cgo and cmd/cgo to avoid circular dependencies.
++		if buildRace && (!p.Standard || (p.ImportPath != "runtime/race" && p.ImportPath != "runtime/cgo" && p.ImportPath != "cmd/cgo")) {
++			importPaths = append(importPaths, "runtime/race")
++		}
+ 	}
+ 
+ 	// Build list of full paths to all Go files in the package,
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 6043b7e202..0f41fa61be 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -34,6 +34,7 @@ func printStderr(args ...interface{}) (int, error) {
+ }
+ 
+ func runRun(cmd *Command, args []string) {
++	raceInit()
+ 	var b builder
+ 	b.init()
+ 	b.print = printStderr
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index cd9b411e9d..eab3213d29 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -207,6 +207,7 @@ func runTest(cmd *Command, args []string) {
+ 	var pkgArgs []string
+ 	pkgArgs, testArgs = testFlags(args)
+ 
++	raceInit()
+ 	pkgs := packagesForBuild(pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		fatalf("no packages to test")
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index ecf5bf4562..1dd27a2e4a 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -71,6 +71,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "gccgoflags"},
+ 	{name: "tags"},
+ 	{name: "compiler"},
++	{name: "race", boolVar: &buildRace},
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+ 	{name: "bench", passToTest: true},
+@@ -129,7 +130,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		}
+ 		switch f.name {
+ 		// bool flags.
+-		case "a", "c", "i", "n", "x", "v", "work":
++		case "a", "c", "i", "n", "x", "v", "work", "race":
+ 			setBoolFlag(f.boolVar, value)
+ 		case "p":
+ 			setIntFlag(&buildP, value)
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 43ad4531ed..b8b1c13b5b 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -33,6 +33,7 @@ type Context struct {
+ 	GOPATH      string   // Go path
+ 	CgoEnabled  bool     // whether cgo can be used
+ 	BuildTags   []string // additional tags to recognize in +build lines
++	InstallTag  string   // package install directory suffix
+ 	UseAllFiles bool     // use files regardless of +build lines, file names
+ 	Compiler    string   // compiler to assume when computing target paths
+ 
+@@ -362,7 +363,11 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		dir, elem := pathpkg.Split(p.ImportPath)
+ 		pkga = "pkg/gccgo/" + dir + "lib" + elem + ".a"
+ 	case "gc":
+-		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + "/" + p.ImportPath + ".a"
++		tag := ""
++		if ctxt.InstallTag != "" {
++			tag = "_" + ctxt.InstallTag
++		}
++		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + tag + "/" + p.ImportPath + ".a"
+ 	default:
+ 		// Save error for end of function.
+ 		pkgerr = fmt.Errorf("import %q: unknown compiler %q", path, ctxt.Compiler)

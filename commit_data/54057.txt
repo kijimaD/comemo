@@ -13,7 +13,95 @@ Date:   Sun Sep 4 05:23:07 2022 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 5c3c862571..8f29871218 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -788,6 +788,11 @@
+ (ORI [-1] x) => (MOVDconst [-1])
+ (ORI [x] (MOVDconst [y])) => (MOVDconst [x | y])
+ 
++// Combine operations with immediate.
++(ADDI [x] (ADDI [y] z)) && is32Bit(x + y) => (ADDI [x + y] z)
++(ANDI [x] (ANDI [y] z)) => (ANDI [x & y] z)
++(ORI  [x] (ORI  [y] z)) => (ORI  [x | y] z)
++
+ // Negation of a constant.
+ (NEG  (MOVDconst [x])) => (MOVDconst [-x])
+ (NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 05c646e4a6..9ec5169433 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -3174,6 +3174,24 @@ func rewriteValueRISCV64_OpRISCV64ADDI(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(x + y)
+ 		return true
+ 	}
++	// match: (ADDI [x] (ADDI [y] z))
++	// cond: is32Bit(x + y)
++	// result: (ADDI [x + y] z)
++	for {
++		x := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpRISCV64ADDI {
++			break
++		}
++		y := auxIntToInt64(v_0.AuxInt)
++		z := v_0.Args[0]
++		if !(is32Bit(x + y)) {
++			break
++		}
++		v.reset(OpRISCV64ADDI)
++		v.AuxInt = int64ToAuxInt(x + y)
++		v.AddArg(z)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64AND(v *Value) bool {
+@@ -3235,6 +3253,20 @@ func rewriteValueRISCV64_OpRISCV64ANDI(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(x & y)
+ 		return true
+ 	}
++	// match: (ANDI [x] (ANDI [y] z))
++	// result: (ANDI [x & y] z)
++	for {
++		x := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpRISCV64ANDI {
++			break
++		}
++		y := auxIntToInt64(v_0.AuxInt)
++		z := v_0.Args[0]
++		v.reset(OpRISCV64ANDI)
++		v.AuxInt = int64ToAuxInt(x & y)
++		v.AddArg(z)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64FMADDD(v *Value) bool {
+@@ -5439,6 +5471,20 @@ func rewriteValueRISCV64_OpRISCV64ORI(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(x | y)
+ 		return true
+ 	}
++	// match: (ORI [x] (ORI [y] z))
++	// result: (ORI [x | y] z)
++	for {
++		x := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpRISCV64ORI {
++			break
++		}
++		y := auxIntToInt64(v_0.AuxInt)
++		z := v_0.Args[0]
++		v.reset(OpRISCV64ORI)
++		v.AuxInt = int64ToAuxInt(x | y)
++		v.AddArg(z)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64SEQZ(v *Value) bool {

@@ -6,7 +6,7 @@ Date:   Tue Nov 24 00:21:50 2009 -0800
     
     R=rsc, r, r1
     https://golang.org/cl/160046
-
+---
  src/pkg/fmt/fmt_test.go          | 18 +++++++++++++++
  src/pkg/hash/crc32/crc32_test.go | 14 +++++++++++
  src/pkg/sort/sort_test.go        | 40 ++++++++++++++++++++++++++++++++
@@ -15,3 +15,281 @@ Date:   Tue Nov 24 00:21:50 2009 -0800
  src/pkg/sync/mutex_test.go       | 50 +++++++++++++++++++++++++++++++++++-----
  src/pkg/time/time_test.go        | 12 ++++++++++
  7 files changed, 176 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index e2e59576f1..0556c5d609 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -250,6 +250,24 @@ func TestSprintf(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkSprintfEmpty(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Sprintf("")
++	}
++}
++
++func BenchmarkSprintfString(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Sprintf("%s", "hello")
++	}
++}
++
++func BenchmarkSprintfInt(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Sprintf("%d", 5)
++	}
++}
++
+ type flagPrinter struct{}
+ 
+ func (*flagPrinter) Format(f State, c int) {
+diff --git a/src/pkg/hash/crc32/crc32_test.go b/src/pkg/hash/crc32/crc32_test.go
+index f42530e7bd..f9e6053ed9 100644
+--- a/src/pkg/hash/crc32/crc32_test.go
++++ b/src/pkg/hash/crc32/crc32_test.go
+@@ -60,3 +60,17 @@ func TestGolden(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkCrc32KB(b *testing.B) {
++	b.StopTimer();
++	data := make([]uint8, 1024);
++	for i := 0; i < 1024; i++ {
++		data[i] = uint8(i)
++	}
++	c := NewIEEE();
++	b.StartTimer();
++
++	for i := 0; i < b.N; i++ {
++		c.Write(data)
++	}
++}
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index ae10099b3e..8d1807b6d2 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -7,6 +7,7 @@ package sort
+ import (
+ 	"fmt";
+ 	"rand";
++	"strconv";
+ 	"testing";
+ )
+ 
+@@ -86,6 +87,45 @@ func TestSortLarge_Random(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkSortString1K(b *testing.B) {
++	b.StopTimer();
++	for i := 0; i < b.N; i++ {
++		data := make([]string, 1<<10);
++		for i := 0; i < len(data); i++ {
++			data[i] = strconv.Itoa(i ^ 0x2cc)
++		}
++		b.StartTimer();
++		SortStrings(data);
++		b.StopTimer();
++	}
++}
++
++func BenchmarkSortInt1K(b *testing.B) {
++	b.StopTimer();
++	for i := 0; i < b.N; i++ {
++		data := make([]int, 1<<10);
++		for i := 0; i < len(data); i++ {
++			data[i] = i ^ 0x2cc
++		}
++		b.StartTimer();
++		SortInts(data);
++		b.StopTimer();
++	}
++}
++
++func BenchmarkSortInt64K(b *testing.B) {
++	b.StopTimer();
++	for i := 0; i < b.N; i++ {
++		data := make([]int, 1<<16);
++		for i := 0; i < len(data); i++ {
++			data[i] = i ^ 0xcccc
++		}
++		b.StartTimer();
++		SortInts(data);
++		b.StopTimer();
++	}
++}
++
+ const (
+ 	_Sawtooth	= iota;
+ 	_Rand;
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index c9b374d352..a10381d077 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -138,3 +138,27 @@ func testAtof(t *testing.T, opt bool) {
+ func TestAtof(t *testing.T)	{ testAtof(t, true) }
+ 
+ func TestAtofSlow(t *testing.T)	{ testAtof(t, false) }
++
++func BenchmarkAtofDecimal(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atof("33909")
++	}
++}
++
++func BenchmarkAtofFloat(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atof("339.7784")
++	}
++}
++
++func BenchmarkAtofFloatExp(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atof("-5.09e75")
++	}
++}
++
++func BenchmarkAtofBig(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atof("123456789123456789123456789")
++	}
++}
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index 37027aa6fd..7420cdcae7 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -277,3 +277,27 @@ func TestAtoi(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkAtoi(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atoi("12345678")
++	}
++}
++
++func BenchmarkAtoiNeg(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atoi("-12345678")
++	}
++}
++
++func BenchmarkAtoi64(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atoi64("12345678901234")
++	}
++}
++
++func BenchmarkAtoi64Neg(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Atoi64("-12345678901234")
++	}
++}
+diff --git a/src/pkg/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+index 72c9c4342a..05fef786af 100644
+--- a/src/pkg/sync/mutex_test.go
++++ b/src/pkg/sync/mutex_test.go
+@@ -12,8 +12,8 @@ import (
+ 	"testing";
+ )
+ 
+-func HammerSemaphore(s *uint32, cdone chan bool) {
+-	for i := 0; i < 1000; i++ {
++func HammerSemaphore(s *uint32, loops int, cdone chan bool) {
++	for i := 0; i < loops; i++ {
+ 		runtime.Semacquire(s);
+ 		runtime.Semrelease(s);
+ 	}
+@@ -25,16 +25,36 @@ func TestSemaphore(t *testing.T) {
+ 	*s = 1;
+ 	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {
+-		go HammerSemaphore(s, c)
++		go HammerSemaphore(s, 1000, c)
+ 	}
+ 	for i := 0; i < 10; i++ {
+ 		<-c
+ 	}
+ }
+ 
++func BenchmarkUncontendedSemaphore(b *testing.B) {
++	s := new(uint32);
++	*s = 1;
++	HammerSemaphore(s, b.N, make(chan bool, 2));
++}
++
++func BenchmarkContendedSemaphore(b *testing.B) {
++	b.StopTimer();
++	s := new(uint32);
++	*s = 1;
++	c := make(chan bool);
++	runtime.GOMAXPROCS(2);
++	b.StartTimer();
++
++	go HammerSemaphore(s, b.N/2, c);
++	go HammerSemaphore(s, b.N/2, c);
++	<-c;
++	<-c;
++}
+ 
+-func HammerMutex(m *Mutex, cdone chan bool) {
+-	for i := 0; i < 1000; i++ {
++
++func HammerMutex(m *Mutex, loops int, cdone chan bool) {
++	for i := 0; i < loops; i++ {
+ 		m.Lock();
+ 		m.Unlock();
+ 	}
+@@ -45,9 +65,27 @@ func TestMutex(t *testing.T) {
+ 	m := new(Mutex);
+ 	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {
+-		go HammerMutex(m, c)
++		go HammerMutex(m, 1000, c)
+ 	}
+ 	for i := 0; i < 10; i++ {
+ 		<-c
+ 	}
+ }
++
++func BenchmarkUncontendedMutex(b *testing.B) {
++	m := new(Mutex);
++	HammerMutex(m, b.N, make(chan bool, 2));
++}
++
++func BenchmarkContendedMutex(b *testing.B) {
++	b.StopTimer();
++	m := new(Mutex);
++	c := make(chan bool);
++	runtime.GOMAXPROCS(2);
++	b.StartTimer();
++
++	go HammerMutex(m, b.N/2, c);
++	go HammerMutex(m, b.N/2, c);
++	<-c;
++	<-c;
++}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 61ca979625..8133018f19 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -82,3 +82,15 @@ func TestSecondsToLocalTime(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkSeconds(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Seconds()
++	}
++}
++
++func BenchmarkNanoseconds(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Nanoseconds()
++	}
++}

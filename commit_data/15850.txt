@@ -13,6 +13,53 @@ Date:   Wed Mar 20 09:06:33 2013 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7735046
-
+---
  src/pkg/net/http/fcgi/child.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/fcgi/child.go b/src/pkg/net/http/fcgi/child.go
+index e647f9391e..f36abbcca3 100644
+--- a/src/pkg/net/http/fcgi/child.go
++++ b/src/pkg/net/http/fcgi/child.go
+@@ -10,10 +10,12 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"net"
+ 	"net/http"
+ 	"net/http/cgi"
+ 	"os"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -152,6 +154,8 @@ func (c *child) serve() {
+ 
+ var errCloseConn = errors.New("fcgi: connection should be closed")
+ 
++var emptyBody = ioutil.NopCloser(strings.NewReader(""))
++
+ func (c *child) handleRecord(rec *record) error {
+ 	req, ok := c.requests[rec.h.Id]
+ 	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
+@@ -191,6 +195,8 @@ func (c *child) handleRecord(rec *record) error {
+ 				// body could be an io.LimitReader, but it shouldn't matter
+ 				// as long as both sides are behaving.
+ 				body, req.pw = io.Pipe()
++			} else {
++				body = emptyBody
+ 			}
+ 			go c.serveRequest(req, body)
+ 		}
+@@ -232,9 +238,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ 		httpReq.Body = body
+ 		c.handler.ServeHTTP(r, httpReq)
+ 	}
+-	if body != nil {
+-		body.Close()
+-	}
++	body.Close()
+ 	r.Close()
+ 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
+ 	if !req.keepConn {

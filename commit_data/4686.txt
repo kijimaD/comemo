@@ -8,8 +8,48 @@ Date:   Tue Jan 26 11:49:49 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/195044
-
+---
  src/cmd/gofmt/test.sh            | 2 +-
  src/pkg/go/parser/parser.go      | 2 +-
  src/pkg/go/parser/parser_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 59d5117b24..f0b99c8add 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -41,7 +41,7 @@ apply1() {
+ 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
+ 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
+ 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
+-	bug226.go | bug228.go ) ;;
++	bug226.go | bug228.go | bug248.go ) ;;
+ 	* ) "$1" "$2"; count "$F";;
+ 	esac
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 45713327df..99c2370749 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -677,7 +677,7 @@ func (p *parser) parseResult(scope *ast.Scope) []*ast.Field {
+ 	var results []*ast.Field
+ 	if p.tok == token.LPAREN {
+ 		results = p.parseParameters(scope, false)
+-	} else if p.tok != token.FUNC {
++	} else {
+ 		typ := p.tryType()
+ 		if typ != nil {
+ 			results = make([]*ast.Field, 1)
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index c177b2eb81..39e13c5a5d 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -34,7 +34,7 @@ var validPrograms = []interface{}{
+ 	`package main; func main() { if f(T{}) {} }` + "\n",
+ 	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
+ 	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
+-	`package main; func f(func() (func() int))` + "\n",
++	`package main; func f(func() func() func())` + "\n",
+ }
+ 
+ 

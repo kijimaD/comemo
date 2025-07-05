@@ -12,6 +12,19 @@ Date:   Fri Mar 8 02:25:30 2024 +0000
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/response_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index f3425c3c20..a63aac95ac 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -826,6 +826,7 @@ func TestResponseContentLengthShortBody(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer res.Body.Close()
+ 	if res.ContentLength != 123 {
+ 		t.Fatalf("Content-Length = %d; want 123", res.ContentLength)
+ 	}

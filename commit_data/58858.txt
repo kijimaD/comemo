@@ -16,10 +16,187 @@ Date:   Fri Dec 29 19:09:16 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  .github/ISSUE_TEMPLATE/00-bug.yml             | 15 ++++++++-------
  .github/ISSUE_TEMPLATE/01-pkgsite.yml         |  8 ++++----
  .github/ISSUE_TEMPLATE/02-pkgsite-removal.yml | 19 ++++++++++++++++---
  .github/ISSUE_TEMPLATE/03-gopls.yml           | 10 +++++-----
  .github/ISSUE_TEMPLATE/04-vuln.yml            | 14 +++++++-------
  5 files changed, 40 insertions(+), 26 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/00-bug.yml b/.github/ISSUE_TEMPLATE/00-bug.yml
+index f3997ec3c1..5b0fda4950 100644
+--- a/.github/ISSUE_TEMPLATE/00-bug.yml
++++ b/.github/ISSUE_TEMPLATE/00-bug.yml
+@@ -23,9 +23,9 @@ body:
+       required: true
+ 
+   - type: textarea
+-    id: os-and-processor
++    id: go-env
+     attributes:
+-      label: "What operating system and processor architecture are you using (`go env`)?"
++      label: "Output of `go env` in your module/workspace:"
+       placeholder: |
+         GO111MODULE=""
+         GOARCH="arm64"
+@@ -78,16 +78,17 @@ body:
+       required: true
+ 
+   - type: textarea
+-    id: expected-behavior
++    id: actual-behavior
+     attributes:
+-      label: "What did you expect to see?"
++      label: "What did you see happen?"
++      description: Command invocations and their associated output, functions with their arguments and return results, full stacktraces for panics (upload a file if it is very long), etc. Prefer copying text output over using screenshots.
+     validations:
+       required: true
+ 
+   - type: textarea
+-    id: actual-behavior
++    id: expected-behavior
+     attributes:
+-      label: "What did you see instead?"
++      label: "What did you expect to see?"
++      description: Why is the current output incorrect, and any additional context we may need to understand the issue.
+     validations:
+       required: true
+-
+diff --git a/.github/ISSUE_TEMPLATE/01-pkgsite.yml b/.github/ISSUE_TEMPLATE/01-pkgsite.yml
+index fb695857c7..aaf39b2928 100644
+--- a/.github/ISSUE_TEMPLATE/01-pkgsite.yml
++++ b/.github/ISSUE_TEMPLATE/01-pkgsite.yml
+@@ -34,14 +34,14 @@ body:
+     validations:
+       required: true
+   - type: textarea
+-    id: expected-behavior
++    id: actual-behavior
+     attributes:
+-      label: "What did you expect to see?"
++      label: "What did you see happen?"
+     validations:
+       required: true
+   - type: textarea
+-    id: actual-behavior
++    id: expected-behavior
+     attributes:
+-      label: "What did you see instead?"
++      label: "What did you expect to see?"
+     validations:
+       required: true
+diff --git a/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml b/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml
+index 71d0a19d71..693f4999dc 100644
+--- a/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml
++++ b/.github/ISSUE_TEMPLATE/02-pkgsite-removal.yml
+@@ -10,20 +10,33 @@ body:
+     id: package-path
+     attributes:
+       label: "What is the path of the package that you would like to have removed?"
+-      description: "We can remove packages with a shared path prefix. For example, a request for 'github.com/author' would remove all pkg.go.dev pages with that package path prefix."
++      description: |
++        We can remove packages with a shared path prefix.
++        For example, a request for 'github.com/author' would remove all pkg.go.dev pages with that package path prefix.
+     validations:
+       required: true
+   - type: textarea
+     id: package-owner
+     attributes:
+       label: "Are you the owner of this package?"
+-      description: "Only the package owners can request to have their packages removed from pkg.go.dev."
++      description: |
++        Only the package owners can request to have their packages removed from pkg.go.dev.
++        If the package path doesn't include your github username, please provide some other form of proof of ownership.
+     validations:
+       required: true
+   - type: textarea
+     id: retraction-reason
+     attributes:
+       label: "What is the reason that you could not retract this package instead?"
+-      description: "If you would like to have your module removed from pkg.go.dev, we recommend that you retract them, so that they can be removed from the go command and proxy.golang.org as well. Retracting a module version involves adding a retract directive to your go.mod file and publishing a new version. For example: https://github.com/jba/retract-demo/blob/main/go.mod#L5-L8. See https://pkg.go.dev/about#removing-a-package for additional tips on retractions."
++      description: |
++        Requesting we remove a module here only hides the generated documentation on pkg.go.dev.
++        It does not affect the behaviour of proxy.golang.org or the go command.
++        Instead we recommend using the retract directive which will be processed by all 3 of the above.
++
++        If you have deleted your repo, please recreate it and publish a retraction.
++
++        Retracting a module version involves adding a retract directive to your go.mod file and publishing a new version.
++        For example: https://github.com/jba/retract-demo/blob/main/go.mod#L5-L8.
++        See https://pkg.go.dev/about#removing-a-package for additional tips on retractions.
+     validations:
+       required: true
+diff --git a/.github/ISSUE_TEMPLATE/03-gopls.yml b/.github/ISSUE_TEMPLATE/03-gopls.yml
+index 83759d65d8..5db1315f27 100644
+--- a/.github/ISSUE_TEMPLATE/03-gopls.yml
++++ b/.github/ISSUE_TEMPLATE/03-gopls.yml
+@@ -25,19 +25,19 @@ body:
+     id: what-did-you-do
+     attributes:
+       label: "What did you do?"
+-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on go.dev/play is better. A failing unit test is the best."
++      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is better. A failing unit test is the best."
+     validations:
+       required: true
+   - type: textarea
+-    id: expected-behavior
++    id: actual-behavior
+     attributes:
+-      label: "What did you expect to see?"
++      label: "What did you see happen?"
+     validations:
+       required: true
+   - type: textarea
+-    id: actual-behavior
++    id: expected-behavior
+     attributes:
+-      label: "What did you see instead?"
++      label: "What did you expect to see?"
+     validations:
+       required: true
+   - type: textarea
+diff --git a/.github/ISSUE_TEMPLATE/04-vuln.yml b/.github/ISSUE_TEMPLATE/04-vuln.yml
+index ae1356886c..dd40af99c6 100644
+--- a/.github/ISSUE_TEMPLATE/04-vuln.yml
++++ b/.github/ISSUE_TEMPLATE/04-vuln.yml
+@@ -6,7 +6,7 @@ body:
+   - type: markdown
+     attributes:
+       value: "Please answer these questions before submitting your issue. Thanks! To add a new vulnerability to the Go vulnerability database (https://vuln.go.dev), see https://go.dev/s/vulndb-report-new. To report an issue about a report, see https://go.dev/s/vulndb-report-feedback."
+-  - type: input
++  - type: textarea
+     id: govulncheck-version
+     attributes:
+       label: govulncheck version
+@@ -25,9 +25,9 @@ body:
+     validations:
+       required: true
+   - type: textarea
+-    id: os-and-processor
++    id: go-env
+     attributes:
+-      label: "What operating system and processor architecture are you using (`go env`)?"
++      label: "Output of `go env` in your module/workspace:"
+       render: shell
+     validations:
+       required: true
+@@ -39,14 +39,14 @@ body:
+     validations:
+       required: true
+   - type: textarea
+-    id: expected-behavior
++    id: actual-behavior
+     attributes:
+-      label: "What did you expect to see?"
++      label: "What did you see happen?"
+     validations:
+       required: true
+   - type: textarea
+-    id: actual-behavior
++    id: expected-behavior
+     attributes:
+-      label: "What did you see instead?"
++      label: "What did you expect to see?"
+     validations:
+       required: true

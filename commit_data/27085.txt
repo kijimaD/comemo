@@ -11,7 +11,7 @@ Date:   Thu Mar 10 10:13:42 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  4 ++--
  src/cmd/compile/internal/gc/bimport.go   |  2 +-
  src/cmd/compile/internal/gc/closure.go   |  8 ++++----
@@ -28,3 +28,523 @@ Date:   Thu Mar 10 10:13:42 2016 -0800
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  src/cmd/compile/internal/gc/walk.go      | 16 ++++++++++------
  15 files changed, 63 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 7c9d6ca65e..f61d029946 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -206,7 +206,7 @@ func genhash(sym *Sym, t *Type) {
+ 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
+ 		ni := newname(Lookup("i"))
+ 		ni.Type = Types[TINT]
+-		n.List.Set([]*Node{ni})
++		n.List.Set1(ni)
+ 		n.Colas = true
+ 		colasdefn(n.List, n)
+ 		ni = n.List.First()
+@@ -382,7 +382,7 @@ func geneq(sym *Sym, t *Type) {
+ 
+ 		ni := newname(Lookup("i"))
+ 		ni.Type = Types[TINT]
+-		nrange.List.Set([]*Node{ni})
++		nrange.List.Set1(ni)
+ 		nrange.Colas = true
+ 		colasdefn(nrange.List, nrange)
+ 		ni = nrange.List.First()
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 58827c7805..e6f76e7251 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -636,7 +636,7 @@ func (p *importer) node() *Node {
+ 		// }
+ 		x := Nod(OCALL, p.typ().Nod, nil)
+ 		if p.bool() {
+-			x.List.Set([]*Node{p.node()})
++			x.List.Set1(p.node())
+ 		} else {
+ 			x.List.Set(p.nodeList())
+ 		}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index aae41d4673..5c4361332f 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -425,7 +425,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 
+ 	typ := Nod(OTSTRUCT, nil, nil)
+ 
+-	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR]))})
++	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
+ 	var typ1 *Node
+ 	for _, v := range func_.Func.Cvars.Slice() {
+ 		if v.Op == OXXX {
+@@ -606,7 +606,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	} else {
+ 		n := Nod(OAS2, nil, nil)
+ 		n.List.Set(retargs)
+-		n.Rlist.Set([]*Node{call})
++		n.Rlist.Set1(call)
+ 		body = append(body, n)
+ 		n = Nod(ORETURN, nil, nil)
+ 		body = append(body, n)
+@@ -639,13 +639,13 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	typ := Nod(OTSTRUCT, nil, nil)
+-	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR]))})
++	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR])))
+ 	typ.List.Append(Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
+ 
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = n.Esc
+ 	clos.Right.Implicit = true
+-	clos.List.Set([]*Node{Nod(OCFUNC, n.Func.Nname, nil)})
++	clos.List.Set1(Nod(OCFUNC, n.Func.Nname, nil))
+ 	clos.List.Append(n.Left)
+ 
+ 	// Force type conversion from *struct to the func type.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 179b7fbead..4b6333a38b 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -228,7 +228,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 		e := el[0]
+ 		as2 := Nod(OAS2, nil, nil)
+ 		as2.List.Set(vl)
+-		as2.Rlist.Set([]*Node{e})
++		as2.Rlist.Set1(e)
+ 		for _, v := range vl {
+ 			v.Op = ONAME
+ 			declare(v, dclcontext)
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 32eda0fc6d..0424e4727a 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -122,7 +122,7 @@ func fninit(n []*Node) {
+ 	a.Likely = 1
+ 	r = append(r, a)
+ 	// (3a)
+-	a.Nbody.Set([]*Node{Nod(ORETURN, nil, nil)})
++	a.Nbody.Set1(Nod(ORETURN, nil, nil))
+ 
+ 	// (4)
+ 	b := Nod(OIF, nil, nil)
+@@ -132,7 +132,7 @@ func fninit(n []*Node) {
+ 	b.Likely = 1
+ 	r = append(r, b)
+ 	// (4a)
+-	b.Nbody.Set([]*Node{Nod(OCALL, syslook("throwinit"), nil)})
++	b.Nbody.Set1(Nod(OCALL, syslook("throwinit"), nil))
+ 
+ 	// (6)
+ 	a = Nod(OAS, gatevar, Nodintconst(1))
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 3d7dcb3b09..1e46e442ff 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -346,7 +346,7 @@ func copyret(n *Node, order *Order) []*Node {
+ 
+ 	as := Nod(OAS2, nil, nil)
+ 	as.List.Set(l1)
+-	as.Rlist.Set([]*Node{n})
++	as.Rlist.Set1(n)
+ 	typecheck(&as, Etop)
+ 	orderstmt(as, order)
+ 
+@@ -883,7 +883,7 @@ func orderstmt(n *Node, order *Order) {
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+-						r.List.Set([]*Node{ordertemp(tmp1.Type, order, false)})
++						r.List.Set1(ordertemp(tmp1.Type, order, false))
+ 						tmp2 = Nod(OAS, tmp1, r.List.First())
+ 						typecheck(&tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 183b7433a0..fc97b9aea4 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -726,7 +726,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 					// type switch - declare variable
+ 					nn := newname(n.Sym)
+ 					declare(nn, dclcontext)
+-					stmt.Rlist.Set([]*Node{nn})
++					stmt.Rlist.Set1(nn)
+ 
+ 					// keep track of the instances for reporting unused
+ 					nn.Name.Defn = tswitch
+@@ -752,9 +752,9 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			} else {
+ 				n = Nod(OAS2, nil, nil)
+ 				n.List.Set(cases)
+-				n.Rlist.Set([]*Node{rhs})
++				n.Rlist.Set1(rhs)
+ 			}
+-			stmt.List.Set([]*Node{n})
++			stmt.List.Set1(n)
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+@@ -770,7 +770,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			// done in casebody()
+ 			markdcl() // matching popdcl in caseblock
+ 			stmt := Nod(OXCASE, nil, nil)
+-			stmt.List.Set([]*Node{colas(cases, []*Node{rhs}, lno)})
++			stmt.List.Set1(colas(cases, []*Node{rhs}, lno))
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+@@ -794,7 +794,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 				// type switch - declare variable
+ 				nn := newname(n.Sym)
+ 				declare(nn, dclcontext)
+-				stmt.Rlist.Set([]*Node{nn})
++				stmt.Rlist.Set1(nn)
+ 
+ 				// keep track of the instances for reporting unused
+ 				nn.Name.Defn = tswitch
+@@ -918,7 +918,7 @@ func (p *parser) for_header() *Node {
+ 		}
+ 		h := Nod(OFOR, nil, nil)
+ 		if init != nil {
+-			h.Ninit.Set([]*Node{init})
++			h.Ninit.Set1(init)
+ 		}
+ 		h.Left = cond
+ 		h.Right = post
+@@ -1022,7 +1022,7 @@ func (p *parser) if_header() *Node {
+ 	init, cond, _ := p.header(false)
+ 	h := Nod(OIF, nil, nil)
+ 	if init != nil {
+-		h.Ninit.Set([]*Node{init})
++		h.Ninit.Set1(init)
+ 	}
+ 	h.Left = cond
+ 	return h
+@@ -1047,13 +1047,13 @@ func (p *parser) if_stmt() *Node {
+ 
+ 	if p.got(LELSE) {
+ 		if p.tok == LIF {
+-			stmt.Rlist.Set([]*Node{p.if_stmt()})
++			stmt.Rlist.Set1(p.if_stmt())
+ 		} else {
+ 			cs := p.compound_stmt(true)
+ 			if cs.Op == OBLOCK && cs.Ninit.Len() == 0 {
+ 				stmt.Rlist.Set(cs.List.Slice())
+ 			} else {
+-				stmt.Rlist.Set([]*Node{cs})
++				stmt.Rlist.Set1(cs)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 8264d2a18c..d4df16b52b 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -95,7 +95,7 @@ func typecheckrange(n *Node) {
+ 	// present."
+ 	if isblank(v2) {
+ 		if v1 != nil {
+-			n.List.Set([]*Node{v1})
++			n.List.Set1(v1)
+ 		}
+ 		v2 = nil
+ 	}
+@@ -216,7 +216,7 @@ func walkrange(n *Node) {
+ 			tmp.Right.Typecheck = 1
+ 			a = Nod(OAS, hp, tmp)
+ 			typecheck(&a, Etop)
+-			n.Right.Ninit.Set([]*Node{a})
++			n.Right.Ninit.Set1(a)
+ 		}
+ 
+ 		// orderstmt allocated the iterator for us.
+@@ -273,8 +273,8 @@ func walkrange(n *Node) {
+ 		a := Nod(OAS2RECV, nil, nil)
+ 		a.Typecheck = 1
+ 		a.List.Set([]*Node{hv1, hb})
+-		a.Rlist.Set([]*Node{Nod(ORECV, ha, nil)})
+-		n.Left.Ninit.Set([]*Node{a})
++		a.Rlist.Set1(Nod(ORECV, ha, nil))
++		n.Left.Ninit.Set1(a)
+ 		if v1 == nil {
+ 			body = nil
+ 		} else {
+@@ -299,7 +299,7 @@ func walkrange(n *Node) {
+ 			a = Nod(OAS2, nil, nil)
+ 			a.List.Set([]*Node{hv1, hv2})
+ 			fn := syslook("stringiter2")
+-			a.Rlist.Set([]*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
++			a.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
+ 		}
+ 
+ 		n.Left = Nod(ONE, hv1, Nodintconst(0))
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 76ca399a9a..4f637883be 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -63,7 +63,7 @@ func typecheckselect(sel *Node) {
+ 
+ 				n.Op = OSELRECV2
+ 				n.Left = n.List.First()
+-				n.List.Set([]*Node{n.List.Second()})
++				n.List.Set1(n.List.Second())
+ 				n.Right = n.Rlist.First()
+ 				n.Rlist.Set(nil)
+ 
+@@ -101,7 +101,7 @@ func walkselect(sel *Node) {
+ 	var var_ *Node
+ 	var selv *Node
+ 	if i == 0 {
+-		sel.Nbody.Set([]*Node{mkcall("block", nil, nil)})
++		sel.Nbody.Set1(mkcall("block", nil, nil))
+ 		goto out
+ 	}
+ 
+@@ -143,7 +143,7 @@ func walkselect(sel *Node) {
+ 
+ 				n.Op = OAS2
+ 				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
+-				n.Rlist.Set([]*Node{n.Right})
++				n.Rlist.Set1(n.Right)
+ 				n.Right = nil
+ 				n.Left = nil
+ 				n.Typecheck = 0
+@@ -156,7 +156,7 @@ func walkselect(sel *Node) {
+ 			a.Left = Nod(OEQ, ch, nodnil())
+ 			var ln Nodes
+ 			ln.Set(l)
+-			a.Nbody.Set([]*Node{mkcall("block", nil, &ln)})
++			a.Nbody.Set1(mkcall("block", nil, &ln))
+ 			l = ln.Slice()
+ 			typecheck(&a, Etop)
+ 			l = append(l, a)
+@@ -245,7 +245,7 @@ func walkselect(sel *Node) {
+ 		typecheck(&r.Left, Erv)
+ 		r.Nbody.Set(cas.Nbody.Slice())
+ 		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
+-		sel.Nbody.Set([]*Node{r})
++		sel.Nbody.Set1(r)
+ 		goto out
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index aa809ecf2a..6edfe53dae 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -778,7 +778,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a = Nod(OADDR, a, nil)
+ 	} else {
+ 		a = Nod(ONEW, nil, nil)
+-		a.List.Set([]*Node{typenod(t)})
++		a.List.Set1(typenod(t))
+ 	}
+ 
+ 	a = Nod(OAS, vauto, a)
+@@ -850,7 +850,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	nerr := nerrors
+ 
+ 	a := Nod(OMAKE, nil, nil)
+-	a.List.Set([]*Node{typenod(n.Type)})
++	a.List.Set1(typenod(n.Type))
+ 	litas(var_, a, init)
+ 
+ 	// count the initializers
+@@ -952,9 +952,9 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		r = Nod(OAS, r, a)
+ 
+ 		a = Nod(OFOR, nil, nil)
+-		a.Nbody.Set([]*Node{r})
++		a.Nbody.Set1(r)
+ 
+-		a.Ninit.Set([]*Node{Nod(OAS, index, Nodintconst(0))})
++		a.Ninit.Set1(Nod(OAS, index, Nodintconst(0)))
+ 		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
+ 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index bf4c172c01..84836d34ec 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2002,7 +2002,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		l = append(l, nodlit(v)) // method name
+ 		call := Nod(OCALL, syslook("panicwrap"), nil)
+ 		call.List.Set(l)
+-		n.Nbody.Set([]*Node{call})
++		n.Nbody.Set1(call)
+ 		fn.Nbody.Append(n)
+ 	}
+ 
+@@ -2029,7 +2029,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		call.Isddd = isddd
+ 		if method.Type.Outtuple > 0 {
+ 			n := Nod(ORETURN, nil, nil)
+-			n.List.Set([]*Node{call})
++			n.List.Set1(call)
+ 			call = n
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 054fee32b0..267ec9a3d6 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -305,7 +305,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 				a.Left = Nod(ONOT, n.Left, nil) // if !val
+ 				typecheck(&a.Left, Erv)
+ 			}
+-			a.Nbody.Set([]*Node{n.Right}) // goto l
++			a.Nbody.Set1(n.Right) // goto l
+ 
+ 			cas = append(cas, a)
+ 			lineno = lno
+@@ -327,8 +327,8 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 		a.Left = le
+ 	}
+ 	typecheck(&a.Left, Erv)
+-	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
+-	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
++	a.Nbody.Set1(s.walkCases(cc[:half]))
++	a.Rlist.Set1(s.walkCases(cc[half:]))
+ 	return a
+ }
+ 
+@@ -581,11 +581,11 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	i.Left = Nod(OEQ, typ, nodnil())
+ 	if typenil != nil {
+ 		// Do explicit nil case right here.
+-		i.Nbody.Set([]*Node{typenil})
++		i.Nbody.Set1(typenil)
+ 	} else {
+ 		// Jump to default case.
+ 		lbl := newCaseLabel()
+-		i.Nbody.Set([]*Node{Nod(OGOTO, lbl, nil)})
++		i.Nbody.Set1(Nod(OGOTO, lbl, nil))
+ 		// Wrap default case with label.
+ 		blk := Nod(OBLOCK, nil, nil)
+ 		blk.List.Set([]*Node{Nod(OLABEL, lbl, nil), def})
+@@ -694,13 +694,13 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	a.List.Set([]*Node{name, s.okname}) // name, ok =
+ 	b := Nod(ODOTTYPE, s.facename, nil)
+ 	b.Type = t.Left.Type // interface.(type)
+-	a.Rlist.Set([]*Node{b})
++	a.Rlist.Set1(b)
+ 	typecheck(&a, Etop)
+ 	init = append(init, a)
+ 
+ 	c := Nod(OIF, nil, nil)
+ 	c.Left = s.okname
+-	c.Nbody.Set([]*Node{t.Right}) // if ok { goto l }
++	c.Nbody.Set1(t.Right) // if ok { goto l }
+ 
+ 	return liststmt(append(init, c))
+ }
+@@ -717,7 +717,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 			a := Nod(OIF, nil, nil)
+ 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
+ 			typecheck(&a.Left, Erv)
+-			a.Nbody.Set([]*Node{n.Right})
++			a.Nbody.Set1(n.Right)
+ 			cas = append(cas, a)
+ 		}
+ 		return liststmt(cas)
+@@ -728,8 +728,8 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 	a := Nod(OIF, nil, nil)
+ 	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
+ 	typecheck(&a.Left, Erv)
+-	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
+-	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
++	a.Nbody.Set1(s.walkCases(cc[:half]))
++	a.Rlist.Set1(s.walkCases(cc[half:]))
+ 	return a
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 1c38c43ff7..6bc795beba 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -411,6 +411,11 @@ func (n *Nodes) Set(s []*Node) {
+ 	}
+ }
+ 
++// Set1 sets n to a slice containing a single node.
++func (n *Nodes) Set1(node *Node) {
++	n.slice = &[]*Node{node}
++}
++
+ // MoveNodes sets n to the contents of n2, then clears n2.
+ func (n *Nodes) MoveNodes(n2 *Nodes) {
+ 	n.slice = n2.slice
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6d52ece21a..45bb1607a1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -706,7 +706,7 @@ OpSwitch:
+ 				if l.Op == OADDSTR {
+ 					n.List.Set(l.List.Slice())
+ 				} else {
+-					n.List.Set([]*Node{l})
++					n.List.Set1(l)
+ 				}
+ 				if r.Op == OADDSTR {
+ 					n.List.AppendNodes(&r.List)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 89722a912e..0825442a34 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -878,7 +878,7 @@ opswitch:
+ 		if !isblank(n.List.Second()) {
+ 			r.Type.Type.Down.Type = n.List.Second().Type
+ 		}
+-		n.Rlist.Set([]*Node{r})
++		n.Rlist.Set1(r)
+ 		n.Op = OAS2FUNC
+ 
+ 		// don't generate a = *var if a is _
+@@ -1048,7 +1048,7 @@ opswitch:
+ 
+ 				n2 := Nod(OIF, nil, nil)
+ 				n2.Left = Nod(OEQ, l, nodnil())
+-				n2.Nbody.Set([]*Node{Nod(OAS, l, n1)})
++				n2.Nbody.Set1(Nod(OAS, l, n1))
+ 				n2.Likely = -1
+ 				typecheck(&n2, Etop)
+ 				init.Append(n2)
+@@ -2808,7 +2808,9 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	nif := Nod(OIF, nil, nil)
+ 
+ 	// n := len(s) + len(l2) - cap(s)
+-	nif.Ninit.Set([]*Node{Nod(OAS, nt, Nod(OSUB, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)), Nod(OCAP, s, nil)))})
++	nif.Ninit.Set1(Nod(OAS, nt, Nod(OSUB,
++		Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)),
++		Nod(OCAP, s, nil))))
+ 
+ 	nif.Left = Nod(OGT, nt, Nodintconst(0))
+ 
+@@ -2817,7 +2819,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	substArgTypes(&fn, s.Type.Type, s.Type.Type)
+ 
+ 	// s = growslice_n(T, s, n)
+-	nif.Nbody.Set([]*Node{Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt))})
++	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
+ 
+ 	l = append(l, nif)
+ 
+@@ -2953,7 +2955,9 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
+ 	substArgTypes(&fn, ns.Type.Type, ns.Type.Type)
+ 
+-	nx.Nbody.Set([]*Node{Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, Nod(OADD, Nod(OLEN, ns, nil), na)))})
++	nx.Nbody.Set1(Nod(OAS, ns,
++		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns,
++			Nod(OADD, Nod(OLEN, ns, nil), na))))
+ 
+ 	l = append(l, nx)
+ 
+@@ -3960,7 +3964,7 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 	typecheck(&a, Etop)
+ 	walkstmt(&a)
+ 
+-	fn.Nbody.Set([]*Node{a})
++	fn.Nbody.Set1(a)
+ 
+ 	funcbody(fn)
+ 

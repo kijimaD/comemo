@@ -26,9 +26,88 @@ Date:   Fri Oct 30 12:58:28 2020 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go             | 2 +-
  src/cmd/compile/internal/logopt/logopt_test.go | 8 ++++----
  test/fixedbugs/issue42284.dir/a.go             | 9 ++++++++-
  test/fixedbugs/issue42284.dir/b.go             | 5 ++++-
  4 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 8a5c6d8666..253036fea6 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1054,7 +1054,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 	var retvars []*Node
+ 	for i, t := range fn.Type.Results().Fields().Slice() {
+ 		var m *Node
+-		if n := asNode(t.Nname); n != nil && !n.isBlank() {
++		if n := asNode(t.Nname); n != nil && !n.isBlank() && !strings.HasPrefix(n.Sym.Name, "~r") {
+ 			m = inlvar(n)
+ 			m = typecheck(m, ctxExpr)
+ 			inlvars[n] = m
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index fca85c10fb..51bab49518 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -213,15 +213,15 @@ func s15a8(x *[15]int64) [15]int64 {
+ 			`"relatedInformation":[`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r1 = y:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~R0 = y:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r1 = \u003cN\u003e (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~r1:"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~r1) (return)"}]}`)
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u003cN\u003e (assign-pair)"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~R0:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
+ 	})
+ }
+ 
+diff --git a/test/fixedbugs/issue42284.dir/a.go b/test/fixedbugs/issue42284.dir/a.go
+index e1271af32d..ffe9310be3 100644
+--- a/test/fixedbugs/issue42284.dir/a.go
++++ b/test/fixedbugs/issue42284.dir/a.go
+@@ -9,12 +9,19 @@ type T int
+ 
+ func (T) M() {} // ERROR "can inline T.M"
+ 
++func E() I { // ERROR "can inline E"
++	return T(0) // ERROR "T\(0\) escapes to heap"
++}
++
+ func F(i I) I { // ERROR "can inline F" "leaking param: i to result ~r1 level=0"
+ 	i = nil
+ 	return i
+ }
+ 
+-func g() { // ERROR "can inline g"
++func g() {
++	h := E() // ERROR "inlining call to E" "T\(0\) does not escape"
++	h.M()    // ERROR "devirtualizing h.M to T"
++
+ 	// BAD: T(0) could be stack allocated.
+ 	i := F(T(0)) // ERROR "inlining call to F" "T\(0\) escapes to heap"
+ 
+diff --git a/test/fixedbugs/issue42284.dir/b.go b/test/fixedbugs/issue42284.dir/b.go
+index 3305166db0..652aa32122 100644
+--- a/test/fixedbugs/issue42284.dir/b.go
++++ b/test/fixedbugs/issue42284.dir/b.go
+@@ -6,7 +6,10 @@ package b
+ 
+ import "./a"
+ 
+-func g() { // ERROR "can inline g"
++func g() {
++	h := a.E() // ERROR "inlining call to a.E" "a.I\(a.T\(0\)\) does not escape"
++	h.M()      // ERROR "devirtualizing h.M to a.T"
++
+ 	// BAD: T(0) could be stack allocated.
+ 	i := a.F(a.T(0)) // ERROR "inlining call to a.F" "a.T\(0\) escapes to heap"
+ 

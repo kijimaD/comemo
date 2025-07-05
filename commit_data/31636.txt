@@ -11,6 +11,36 @@ Date:   Sun Mar 5 13:56:30 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/xml/read.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 5a89d5f504..b90271fed3 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -211,7 +211,7 @@ func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error
+ // unmarshalTextInterface unmarshals a single XML element into val.
+ // The chardata contained in the element (but not its children)
+ // is passed to the text unmarshaler.
+-func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler, start *StartElement) error {
++func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
+ 	var buf []byte
+ 	depth := 1
+ 	for depth > 0 {
+@@ -341,13 +341,13 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 	}
+ 
+ 	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
+-		return p.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler), start)
++		return p.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler))
+ 	}
+ 
+ 	if val.CanAddr() {
+ 		pv := val.Addr()
+ 		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
+-			return p.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler), start)
++			return p.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler))
+ 		}
+ 	}
+ 

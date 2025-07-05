@@ -15,7 +15,34 @@ Date:   Mon Jan 5 11:27:40 2015 +0000
     Change-Id: I8a72d7593d5ca6714abe9abd6a37437c3b69ab0f
     Reviewed-on: https://go-review.googlesource.com/2259
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 2 +-
  src/crypto/x509/x509.go      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 8768b78590..0589264b54 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -160,7 +160,7 @@ func (certList *CertificateList) HasExpired(now time.Time) bool {
+ // 5280, section 5.1.
+ type TBSCertificateList struct {
+ 	Raw                 asn1.RawContent
+-	Version             int `asn1:"optional,default:2"`
++	Version             int `asn1:"optional,default:1"`
+ 	Signature           AlgorithmIdentifier
+ 	Issuer              RDNSequence
+ 	ThisUpdate          time.Time
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index c267a29740..3fa5b3d757 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1575,7 +1575,7 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv interface{}, revokedCerts [
+ 		return nil, errors.New("x509: non-RSA private keys not supported")
+ 	}
+ 	tbsCertList := pkix.TBSCertificateList{
+-		Version: 2,
++		Version: 1,
+ 		Signature: pkix.AlgorithmIdentifier{
+ 			Algorithm: oidSignatureSHA1WithRSA,
+ 		},

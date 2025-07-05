@@ -10,7 +10,42 @@ Date:   Thu Mar 16 15:26:13 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/38292
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/MIPS.rules | 2 +-
  src/cmd/compile/internal/ssa/rewriteMIPS.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index a312aa5ab9..93428d5b75 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -311,7 +311,7 @@
+ 
+ // large or unaligned zeroing uses a loop
+ (Zero [s] {t} ptr mem)
+-	&& (s > 16  || s%4 != 0) ->
++	&& (s > 16  || t.(Type).Alignment()%4 != 0) ->
+ 	(LoweredZero [t.(Type).Alignment()]
+ 		ptr
+ 		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)])
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 5ffbee6d97..1816282a9d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -8926,14 +8926,14 @@ func rewriteValueMIPS_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+-	// cond: (s > 16  || s%4 != 0)
++	// cond: (s > 16  || t.(Type).Alignment()%4 != 0)
+ 	// result: (LoweredZero [t.(Type).Alignment()] 		ptr 		(ADDconst <ptr.Type> ptr [s-moveSize(t.(Type).Alignment(), config)]) 		mem)
+ 	for {
+ 		s := v.AuxInt
+ 		t := v.Aux
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(s > 16 || s%4 != 0) {
++		if !(s > 16 || t.(Type).Alignment()%4 != 0) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSLoweredZero)

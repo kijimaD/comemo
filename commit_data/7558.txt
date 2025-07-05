@@ -9,7 +9,7 @@ Date:   Thu Feb 24 16:10:30 2011 +1100
     R=rsc, mattn
     CC=golang-dev
     https://golang.org/cl/4214041
-
+---
  src/cmd/6l/obj.c            |  1 +
  src/cmd/8l/obj.c            |  1 +
  src/cmd/ld/lib.c            |  4 +++-
@@ -18,3 +18,147 @@ Date:   Thu Feb 24 16:10:30 2011 +1100
  src/cmd/ld/pe.h             |  3 +++
  src/pkg/exp/wingui/Makefile |  2 ++
  7 files changed, 38 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 6ade3800a2..8d602b649f 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -51,6 +51,7 @@ Header headers[] = {
+    "linux", Hlinux,
+    "freebsd", Hfreebsd,
+    "windows", Hwindows,
++   "windowsgui", Hwindows,
+    0, 0
+ };
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 6ea9108f4d..791ba1e525 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -57,6 +57,7 @@ Header headers[] = {
+    "nacl", Hnacl,
+    "freebsd", Hfreebsd,
+    "windows", Hwindows,
++   "windowsgui", Hwindows,
+    "tiny", Htiny,
+    0, 0
+ };
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 998e28cf16..39593085d4 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1271,8 +1271,10 @@ headtype(char *name)
+ 	int i;
+ 
+ 	for(i=0; headers[i].name; i++)
+-		if(strcmp(name, headers[i].name) == 0)
++		if(strcmp(name, headers[i].name) == 0) {
++			headstring = headers[i].name;
+ 			return headers[i].val;
++		}
+ 	fprint(2, "unknown header type -H %s\n", name);
+ 	errorexit();
+ 	return -1;  // not reached
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 234ea3198f..7df348353c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -211,31 +211,33 @@ enum {
+ 
+ /* executable header types */
+ enum {
+-   Hgarbunix = 0,	// garbage unix
+-   Hnoheader,		// no header
+-   Hunixcoff,		// unix coff
+-   Hrisc,		// aif for risc os
+-   Hplan9x32,		// plan 9 32-bit format
+-   Hplan9x64,		// plan 9 64-bit format
+-   Hmsdoscom,		// MS-DOS .COM
+-   Hnetbsd,		// NetBSD
+-   Hmsdosexe,		// fake MS-DOS .EXE
+-   Hixp1200,		// IXP1200 (raw)
+-   Helf,		// ELF32
+-   Hipaq,		// ipaq
+-   Hdarwin,		// Apple Mach-O
+-   Hlinux,		// Linux ELF
+-   Hnacl,		// Google Native Client
+-   Hfreebsd,		// FreeBSD ELF
+-   Hwindows,		// MS Windows PE
+-   Htiny		// tiny (os image)
++	Hgarbunix = 0,	// garbage unix
++	Hnoheader,	// no header
++	Hunixcoff,	// unix coff
++	Hrisc,		// aif for risc os
++	Hplan9x32,	// plan 9 32-bit format
++	Hplan9x64,	// plan 9 64-bit format
++	Hmsdoscom,	// MS-DOS .COM
++	Hnetbsd,	// NetBSD
++	Hmsdosexe,	// fake MS-DOS .EXE
++	Hixp1200,	// IXP1200 (raw)
++	Helf,		// ELF32
++	Hipaq,		// ipaq
++	Hdarwin,	// Apple Mach-O
++	Hlinux,		// Linux ELF
++	Hnacl,		// Google Native Client
++	Hfreebsd,	// FreeBSD ELF
++	Hwindows,	// MS Windows PE
++	Htiny		// tiny (os image)
+ };
+ 
+ typedef struct Header Header;
+ struct Header {
+-   char *name;
+-   int val;
++	char *name;
++	int val;
+ };
+ 
+-extern Header headers[];
+-int headtype(char*);
++EXTERN	char*	headstring;
++extern	Header	headers[];
++
++int	headtype(char*);
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 425fd9e091..e72b0b2a0d 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -526,7 +526,10 @@ asmbpe(void)
+ 	set(MinorSubsystemVersion, 0);
+ 	set(SizeOfImage, nextsectoff);
+ 	set(SizeOfHeaders, PEFILEHEADR);
+-	set(Subsystem, 3);	// WINDOWS_CUI
++	if(strcmp(headstring, "windowsgui") == 0)
++		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI);
++	else
++		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_CUI);
+ 	set(SizeOfStackReserve, 0x0040000);
+ 	set(SizeOfStackCommit, 0x00001000);
+ 	set(SizeOfHeapReserve, 0x00100000);
+diff --git a/src/cmd/ld/pe.h b/src/cmd/ld/pe.h
+index 6dbf6a5be6..2180fb88cb 100644
+--- a/src/cmd/ld/pe.h
++++ b/src/cmd/ld/pe.h
+@@ -131,6 +131,9 @@ enum {
+ 	IMAGE_DIRECTORY_ENTRY_IAT = 12,
+ 	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13,
+ 	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14,
++
++	IMAGE_SUBSYSTEM_WINDOWS_GUI = 2,
++	IMAGE_SUBSYSTEM_WINDOWS_CUI = 3,
+ };
+ 
+ void peinit(void);
+diff --git a/src/pkg/exp/wingui/Makefile b/src/pkg/exp/wingui/Makefile
+index e9d44d2bcf..983a8270be 100644
+--- a/src/pkg/exp/wingui/Makefile
++++ b/src/pkg/exp/wingui/Makefile
+@@ -6,6 +6,8 @@ GOOS=windows
+ 
+ include ../../../Make.inc
+ 
++LD:=$(LD) -Hwindowsgui
++
+ TARG=wingui
+ 
+ GOFILES=\

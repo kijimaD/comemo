@@ -14,7 +14,43 @@ Date:   Thu Oct 14 10:48:08 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 4 ++--
  test/codegen/mathbits.go               | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 08114b7828..5a958a569d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4421,7 +4421,7 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64)
++		sys.AMD64, sys.ARM64, sys.PPC64)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -4430,7 +4430,7 @@ func InitTables() {
+ 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[types.TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], x)
+ 		},
+-		sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.ARM, sys.S390X, sys.MIPS, sys.Wasm)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 2d8790c1de..859490c363 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -93,6 +93,8 @@ func Len32(n uint32) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64: "CNTLZW"
++	// ppc64le: "CNTLZW"
+ 	return bits.Len32(n)
+ }
+ 

@@ -7,6 +7,20 @@ Date:   Fri Feb 5 05:39:49 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/201047
-
+---
  src/pkg/crypto/tls/ca_set.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/ca_set.go b/src/pkg/crypto/tls/ca_set.go
+index 00f6a87306..c11539c8b1 100644
+--- a/src/pkg/crypto/tls/ca_set.go
++++ b/src/pkg/crypto/tls/ca_set.go
+@@ -23,7 +23,7 @@ func NewCASet() *CASet {
+ }
+ 
+ func nameToKey(name *x509.Name) string {
+-	return name.Country + "/" + name.OrganizationalUnit + "/" + name.OrganizationalUnit + "/" + name.CommonName
++	return name.Country + "/" + name.Organization + "/" + name.OrganizationalUnit + "/" + name.CommonName
+ }
+ 
+ // FindParent attempts to find the certificate in s which signs the given

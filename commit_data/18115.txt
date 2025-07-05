@@ -22,7 +22,64 @@ Date:   Thu Dec 26 11:52:14 2013 -0800
     R=bradfitz, dave, chris.cahoon
     CC=golang-codereviews
     https://golang.org/cl/39440044
-
+---
  src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
  src/pkg/net/http/server.go     |  9 ++++++++-
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index af33b5e10b..90e878e2b6 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1934,6 +1934,31 @@ func TestWriteAfterHijack(t *testing.T) {
+ 	}
+ }
+ 
++func TestDoubleHijack(t *testing.T) {
++	req := reqBytes("GET / HTTP/1.1\nHost: golang.org")
++	var buf bytes.Buffer
++	conn := &rwTestConn{
++		Reader: bytes.NewReader(req),
++		Writer: &buf,
++		closec: make(chan bool, 1),
++	}
++	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
++		conn, _, err := rw.(Hijacker).Hijack()
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		_, _, err = rw.(Hijacker).Hijack()
++		if err == nil {
++			t.Errorf("got err = nil;  want err != nil")
++		}
++		conn.Close()
++	})
++	ln := &oneConnListener{conn: conn}
++	go Serve(ln, handler)
++	<-conn.closec
++}
++
+ // http://code.google.com/p/go/issues/detail?id=5955
+ // Note that this does not test the "request too large"
+ // exit path from the http server. This is intentional;
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 3b80d45fdd..7ebd8575f3 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1198,7 +1198,14 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+ 	if w.wroteHeader {
+ 		w.cw.flush()
+ 	}
+-	return w.conn.hijack()
++	// Release the bufioWriter that writes to the chunk writer, it is not
++	// used after a connection has been hijacked.
++	rwc, buf, err = w.conn.hijack()
++	if err == nil {
++		putBufioWriter(w.w)
++		w.w = nil
++	}
++	return rwc, buf, err
+ }
+ 
+ func (w *response) CloseNotify() <-chan bool {

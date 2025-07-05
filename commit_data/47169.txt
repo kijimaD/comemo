@@ -20,7 +20,43 @@ Date:   Mon Mar 1 19:55:22 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_poll_runtime.go | 4 ----
  src/runtime/netpoll.go               | 9 ++++++---
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index beb0f7d6a6..b072af00ea 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -39,10 +39,6 @@ func (pd *pollDesc) init(fd *FD) error {
+ 	serverInit.Do(runtime_pollServerInit)
+ 	ctx, errno := runtime_pollOpen(uintptr(fd.Sysfd))
+ 	if errno != 0 {
+-		if ctx != 0 {
+-			runtime_pollUnblock(ctx)
+-			runtime_pollClose(ctx)
+-		}
+ 		return errnoErr(syscall.Errno(errno))
+ 	}
+ 	pd.runtimeCtx = ctx
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index afb208a455..202aef593f 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -162,9 +162,12 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+ 	pd.self = pd
+ 	unlock(&pd.lock)
+ 
+-	var errno int32
+-	errno = netpollopen(fd, pd)
+-	return pd, int(errno)
++	errno := netpollopen(fd, pd)
++	if errno != 0 {
++		pollcache.free(pd)
++		return nil, int(errno)
++	}
++	return pd, 0
+ }
+ 
+ //go:linkname poll_runtime_pollClose internal/poll.runtime_pollClose

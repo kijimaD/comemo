@@ -8,6 +8,22 @@ Date:   Sun Feb 23 21:18:41 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/66990045
-
+---
  src/pkg/net/http/transport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 2c312a77a0..5655d704f7 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -615,8 +615,8 @@ func useProxy(addr string) bool {
+ //
+ // Cache key form                Description
+ // -----------------             -------------------------
+-// ||http|foo.com                http directly to server, no proxy
+-// ||https|foo.com               https directly to server, no proxy
++// |http|foo.com                 http directly to server, no proxy
++// |https|foo.com                https directly to server, no proxy
+ // http://proxy.com|https|foo.com  http to proxy, then CONNECT to foo.com
+ // http://proxy.com|http           http to proxy, http to anywhere after that
+ //

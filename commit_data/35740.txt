@@ -21,7 +21,174 @@ Date:   Mon Mar 5 16:21:44 2018 +1100
     Change-Id: Ic2a92eaa3a6328f728635657f9de72ac3ee82afb
     Reviewed-on: https://go-review.googlesource.com/98396
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/doc/main.go     | 44 +++++++++++++++++++++++++++-----
  2 files changed, 105 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 07e59a2d3e..12ed52bace 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -7,6 +7,9 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
++	"go/build"
++	"os"
++	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -22,6 +25,39 @@ func maybeSkip(t *testing.T) {
+ 	}
+ }
+ 
++type isDotSlashTest struct {
++	str    string
++	result bool
++}
++
++var isDotSlashTests = []isDotSlashTest{
++	{``, false},
++	{`x`, false},
++	{`...`, false},
++	{`.../`, false},
++	{`...\`, false},
++
++	{`.`, true},
++	{`./`, true},
++	{`.\`, true},
++	{`./x`, true},
++	{`.\x`, true},
++
++	{`..`, true},
++	{`../`, true},
++	{`..\`, true},
++	{`../x`, true},
++	{`..\x`, true},
++}
++
++func TestIsDotSlashPath(t *testing.T) {
++	for _, test := range isDotSlashTests {
++		if result := isDotSlash(test.str); result != test.result {
++			t.Errorf("isDotSlash(%q) = %t; expected %t", test.str, result, test.result)
++		}
++	}
++}
++
+ type test struct {
+ 	name string
+ 	args []string // Arguments to "[go] doc".
+@@ -603,6 +639,37 @@ func TestTwoArgLookup(t *testing.T) {
+ 	}
+ }
+ 
++// Test the code to look up packages when the first argument starts with "./".
++// Our test case is in effect "cd src/text; doc ./template". This should get
++// text/template but before Issue 23383 was fixed would give html/template.
++func TestDotSlashLookup(t *testing.T) {
++	if testing.Short() {
++		t.Skip("scanning file system takes too long")
++	}
++	maybeSkip(t)
++	where := pwd()
++	defer func() {
++		if err := os.Chdir(where); err != nil {
++			t.Fatal(err)
++		}
++	}()
++	if err := os.Chdir(filepath.Join(build.Default.GOROOT, "src", "text")); err != nil {
++		t.Fatal(err)
++	}
++	var b bytes.Buffer
++	var flagSet flag.FlagSet
++	err := do(&b, &flagSet, []string{"./template"})
++	if err != nil {
++		t.Errorf("unexpected error %q from ./template", err)
++	}
++	// The output should contain information about the text/template package.
++	const want = `package template // import "text/template"`
++	output := b.String()
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("wrong package: %.*q...", len(want), output)
++	}
++}
++
+ type trimTest struct {
+ 	path   string
+ 	prefix string
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 809a719a58..a91c3b79cd 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -170,24 +170,31 @@ func failMessage(paths []string, symbol, method string) error {
+ // is rand.Float64, we must scan both crypto/rand and math/rand
+ // to find the symbol, and the first call will return crypto/rand, true.
+ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more bool) {
++	if len(args) == 0 {
++		// Easy: current directory.
++		return importDir(pwd()), "", "", false
++	}
++	arg := args[0]
++	// We have an argument. If it is a directory name beginning with . or ..,
++	// use the absolute path name. This discriminates "./errors" from "errors"
++	// if the current directory contains a non-standard errors package.
++	if isDotSlash(arg) {
++		arg = filepath.Join(pwd(), arg)
++	}
+ 	switch len(args) {
+ 	default:
+ 		usage()
+-	case 0:
+-		// Easy: current directory.
+-		return importDir(pwd()), "", "", false
+ 	case 1:
+ 		// Done below.
+ 	case 2:
+ 		// Package must be findable and importable.
+-		packagePath, ok := findPackage(args[0])
++		packagePath, ok := findPackage(arg)
+ 		if !ok {
+ 			return nil, args[0], args[1], false
+ 		}
+-		return importDir(packagePath), args[0], args[1], true
++		return importDir(packagePath), arg, args[1], true
+ 	}
+ 	// Usual case: one argument.
+-	arg := args[0]
+ 	// If it contains slashes, it begins with a package path.
+ 	// First, is it a complete package path as it is? If so, we are done.
+ 	// This avoids confusion over package paths that have other
+@@ -247,6 +254,31 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	return importDir(pwd()), "", arg, false
+ }
+ 
++// dotPaths lists all the dotted paths legal on Unix-like and
++// Windows-like file systems. We check them all, as the chance
++// of error is minute and even on Windows people will use ./
++// sometimes.
++var dotPaths = []string{
++	`./`,
++	`../`,
++	`.\`,
++	`..\`,
++}
++
++// isDotSlash reports whether the path begins with a reference
++// to the local . or .. directory.
++func isDotSlash(arg string) bool {
++	if arg == "." || arg == ".." {
++		return true
++	}
++	for _, dotPath := range dotPaths {
++		if strings.HasPrefix(arg, dotPath) {
++			return true
++		}
++	}
++	return false
++}
++
+ // importDir is just an error-catching wrapper for build.ImportDir.
+ func importDir(dir string) *build.Package {
+ 	pkg, err := build.ImportDir(dir, build.ImportComment)

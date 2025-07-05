@@ -7,6 +7,24 @@ Date:   Tue Apr 13 13:05:29 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/882047
-
+---
  doc/effective_go.html | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index ce5fcb99d5..415ae09626 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1070,10 +1070,8 @@ func Append(slice, data[]byte) []byte {
+     if l + len(data) &gt; cap(slice) {  // reallocate
+         // Allocate double what's needed, for future growth.
+         newSlice := make([]byte, (l+len(data))*2)
+-        // Copy data (could use bytes.Copy()).
+-        for i, c := range slice {
+-            newSlice[i] = c
+-        }
++        // The copy function is predeclared and works for any slice type.
++        copy(newSlice, slice)
+         slice = newSlice
+     }
+     slice = slice[0:l+len(data)]

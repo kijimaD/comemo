@@ -9,7 +9,42 @@ Date:   Thu Nov 1 11:12:15 2012 -0700
     R=golang-dev, dsymonds, iant, rsc
     CC=golang-dev
     https://golang.org/cl/6823055
-
+---
  src/pkg/go/build/build.go | 4 +++-
  src/pkg/go/build/doc.go   | 1 +
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index b8b1c13b5b..d32afc31db 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -897,6 +897,8 @@ func splitQuoted(s string) (r []string, err error) {
+ //	$GOARCH
+ //	cgo (if cgo is enabled)
+ //	!cgo (if cgo is disabled)
++//	ctxt.Compiler
++//	!ctxt.Compiler
+ //	tag (if tag is listed in ctxt.BuildTags)
+ //	!tag (if tag is not listed in ctxt.BuildTags)
+ //	a comma-separated list of any of these
+@@ -928,7 +930,7 @@ func (ctxt *Context) match(name string) bool {
+ 	if ctxt.CgoEnabled && name == "cgo" {
+ 		return true
+ 	}
+-	if name == ctxt.GOOS || name == ctxt.GOARCH {
++	if name == ctxt.GOOS || name == ctxt.GOARCH || name == ctxt.Compiler {
+ 		return true
+ 	}
+ 
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index 3aaa6ac657..36dd308934 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -88,6 +88,7 @@
+ //
+ //	- the target operating system, as spelled by runtime.GOOS
+ //	- the target architecture, as spelled by runtime.GOARCH
++//	- the compiler being used, currently either "gc" or "gccgo"
+ //	- "cgo", if ctxt.CgoEnabled is true
+ //	- any additional words listed in ctxt.BuildTags
+ //

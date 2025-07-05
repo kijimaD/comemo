@@ -20,7 +20,63 @@ Date:   Fri Jan 15 11:08:02 2021 -0500
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/go/parser/parser.go               |  7 +++++++
  src/go/parser/testdata/typeparams.src | 17 +++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 24e84d5103..ccbcef8f26 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1494,6 +1494,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 	var args []ast.Expr
+ 	var index [N]ast.Expr
+ 	var colons [N - 1]token.Pos
++	var firstComma token.Pos
+ 	if p.tok != token.COLON {
+ 		// We can't know if we have an index expression or a type instantiation;
+ 		// so even if we see a (named) type we are not going to be in type context.
+@@ -1512,6 +1513,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 			}
+ 		}
+ 	case token.COMMA:
++		firstComma = p.pos
+ 		// instance expression
+ 		args = append(args, index[0])
+ 		for p.tok == token.COMMA {
+@@ -1549,6 +1551,11 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 		return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: index[0], Rbrack: rbrack}
+ 	}
+ 
++	if p.mode&ParseTypeParams == 0 {
++		p.error(firstComma, "expected ']' or ':', found ','")
++		return &ast.BadExpr{From: args[0].Pos(), To: args[len(args)-1].End()}
++	}
++
+ 	// instance expression
+ 	return &ast.CallExpr{Fun: x, Lparen: lbrack, Args: args, Rparen: rbrack, Brackets: true}
+ }
+diff --git a/src/go/parser/testdata/typeparams.src b/src/go/parser/testdata/typeparams.src
+new file mode 100644
+index 0000000000..1fea23f51a
+--- /dev/null
++++ b/src/go/parser/testdata/typeparams.src
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test cases for error messages produced while parsing code that uses type
++// parameters, without ParseTypeParams being enabled.
++
++package p
++
++type List[E any /* ERROR "expected ']', found any" */ ] []E
++
++type Pair[L, /* ERROR "expected ']', found ','" */ R any] struct {
++	Left L
++	Right R
++}
++
++var _ = Pair[int, /* ERROR "expected ']' or ':', found ','" */ string]{}

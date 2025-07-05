@@ -16,6 +16,28 @@ Date:   Sat Dec 28 09:37:54 2013 -0800
     R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/46160043
-
+---
  src/pkg/net/fd_unix.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 9ed4f75364..ef44d44a99 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -80,6 +80,16 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr) error {
+ 		if err == nil || err == syscall.EISCONN {
+ 			break
+ 		}
++
++		// On Solaris we can see EINVAL if the socket has
++		// already been accepted and closed by the server.
++		// Treat this as a successful connection--writes to
++		// the socket will see EOF.  For details and a test
++		// case in C see http://golang.org/issue/6828.
++		if runtime.GOOS == "solaris" && err == syscall.EINVAL {
++			break
++		}
++
+ 		if err != syscall.EINPROGRESS && err != syscall.EALREADY && err != syscall.EINTR {
+ 			return err
+ 		}

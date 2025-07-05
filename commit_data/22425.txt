@@ -7,6 +7,20 @@ Date:   Fri Mar 13 18:16:21 2015 -0700
     Change-Id: Ieb13359c5bbe26bbf7baaaa8eb63d5e90bdefdd8
     Reviewed-on: https://go-review.googlesource.com/7591
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/debug/gosym/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index ee18499d11..46f0783344 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -30,7 +30,7 @@ type Sym struct {
+ 	Type   byte
+ 	Name   string
+ 	GoType uint64
+-	// If this symbol if a function symbol, the corresponding Func
++	// If this symbol is a function symbol, the corresponding Func
+ 	Func *Func
+ }
+ 

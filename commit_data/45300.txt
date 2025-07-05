@@ -13,6 +13,20 @@ Date:   Mon Oct 19 18:16:31 2020 +0000
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/link/internal/ld/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 245a320493..dd82963a41 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -518,7 +518,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	nsym := loader.Sym(ldr.NSym())
+ 	symGroupType := make([]sym.SymKind, nsym)
+ 	for s := loader.Sym(1); s < nsym; s++ {
+-		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) && !ldr.IsExternal(s) {
++		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) {
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 		}
+ 		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || (ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC) {

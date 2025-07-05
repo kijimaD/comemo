@@ -7,7 +7,7 @@ Date:   Wed Sep 9 00:18:16 2009 -0700
     R=ken
     OCL=34471
     CL=34471
-
+---
  doc/go_spec.html           |  1 -
  src/cmd/gc/go.h            |  5 +--
  src/cmd/gc/go.y            | 63 ++++++++++++++--------------------
@@ -17,3 +17,500 @@ Date:   Wed Sep 9 00:18:16 2009 -0700
  src/pkg/json/struct.go     |  8 ++---
  test/typeswitch1.go        | 84 ++++++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 178 insertions(+), 66 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6ad96493bb..910f8651fa 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4367,7 +4367,6 @@ The following minimal alignment properties are guaranteed:
+ <h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
+ <ul>
+ 	<li><font color=red>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</font></li>
+-	<li><font color=red>A type switch must have an assignment in the guard expression and does not support multiple types per case.</font></li>
+ </ul>
+ 
+ </div>
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ea348c0dc4..c933357c46 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -375,7 +375,7 @@ enum
+ 	OSELECT,
+ 	OSWITCH,
+ 	OTYPECASE,
+-	OTYPESW,
++	OTYPESW,	// l = r.(type)
+ 
+ 	// types
+ 	OTCHAN,
+@@ -676,7 +676,8 @@ EXTERN	Node*	curfn;
+ EXTERN	int	maxround;
+ EXTERN	int	widthptr;
+ 
+-EXTERN	Node*	typeswvar;
++EXTERN	Node*	typesw;
++EXTERN	Node*	nblank;
+ 
+ EXTERN	char*	structpkg;
+ extern	int	thechar;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 920799ec13..bb8a5882d5 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -191,7 +191,7 @@ import_stmt:
+ 		my->lastlineno = $1;
+ 		import->block = 1;	// at top level
+ 	}
+-	
++
+ 
+ import_stmt_list:
+ 	import_stmt
+@@ -230,10 +230,10 @@ import_package:
+ 		pkgimportname = $2;
+ 		if(strcmp($2->name, "main") == 0)
+ 			yyerror("cannot import package main");
+-			
++
+ 		// TODO(rsc): This is not quite precise enough a check
+ 		// (it excludes google/util/hash from importing hash)
+-		// but it is enough to reduce confusion during the 
++		// but it is enough to reduce confusion during the
+ 		// 2009/09/01 release when all the "import myself"
+ 		// statements have to go away in programs building
+ 		// against the release.  Once the programs have converted
+@@ -424,7 +424,7 @@ simple_stmt:
+ 				yyerror("expr.(type) must be alone in list");
+ 			else if($1->next != nil)
+ 				yyerror("argument count mismatch: %d = %d", count($1), 1);
+-			$$ = nod(OTYPESW, $1->n, $3->n->left);
++			$$ = nod(OTYPESW, $1->n, $3->n->right);
+ 			break;
+ 		}
+ 		$$ = colas($1, $3);
+@@ -443,30 +443,19 @@ simple_stmt:
+ case:
+ 	LCASE expr_or_type_list ':'
+ 	{
+-		Node *n, *ntype;
++		Node *n;
+ 
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+-		if(typeswvar != N && typeswvar->right != N) {
+-			// type switch
+-			ntype = $2->n;
+-			if($2->next != nil)
+-				yyerror("type switch case cannot be list");
+-			if(ntype->op == OLITERAL && ntype->val.ctype == CTNIL) {
+-				// case nil
+-				$$->list = list1(nod(OTYPECASE, N, N));
+-				break;
+-			}
+-			n = newname(typeswvar->right->sym);
++		$$->list = $2;
++		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
++			// type switch - declare variable
++			n = newname(n->sym);
+ 			declare(n, dclcontext);
+-			n->ntype = ntype;
+-			$$->list = list1(nod(OTYPECASE, n, N));
+-		} else {
+-			// expr switch
+-			$$->list = $2;
++			$$->nname = n;
+ 		}
+ 		break;
+ 	}
+@@ -490,8 +479,16 @@ case:
+ 	}
+ |	LDEFAULT ':'
+ 	{
++		Node *n;
++
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
++		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
++			// type switch - declare variable
++			n = newname(n->sym);
++			declare(n, dclcontext);
++			$$->nname = n;
++		}
+ 	}
+ 
+ compound_stmt:
+@@ -637,18 +634,16 @@ switch_stmt:
+ 	{
+ 		Node *n;
+ 		n = $3->ntest;
+-		if(n != N && n->op == OTYPESW)
+-			n = n->left;
+-		else
++		if(n != N && n->op != OTYPESW)
+ 			n = N;
+-		typeswvar = nod(OXXX, typeswvar, n);
++		typesw = nod(OXXX, typesw, n);
+ 	}
+ 	switch_body
+ 	{
+ 		$$ = $3;
+ 		$$->op = OSWITCH;
+ 		$$->list = $5;
+-		typeswvar = typeswvar->left;
++		typesw = typesw->left;
+ 		popdcl();
+ 	}
+ 
+@@ -823,7 +818,7 @@ pexpr:
+ 	}
+ |	pexpr '.' '(' LTYPE ')'
+ 	{
+-		$$ = nod(OTYPESW, $1, N);
++		$$ = nod(OTYPESW, N, $1);
+ 	}
+ |	pexpr '[' expr ']'
+ 	{
+@@ -1289,20 +1284,14 @@ arg_type:
+ 	name_or_type
+ |	sym name_or_type
+ 	{
+-		$$ = $1->def;
+-		if($$ == N) {
+-			$$ = nod(ONONAME, N, N);
+-			$$->sym = $1;
+-		}
++		$$ = nod(ONONAME, N, N);
++		$$->sym = $1;
+ 		$$ = nod(OKEY, $$, $2);
+ 	}
+ |	sym dotdotdot
+ 	{
+-		$$ = $1->def;
+-		if($$ == N) {
+-			$$ = nod(ONONAME, N, N);
+-			$$->sym = $1;
+-		}
++		$$ = nod(ONONAME, N, N);
++		$$->sym = $1;
+ 		$$ = nod(OKEY, $$, $2);
+ 	}
+ |	dotdotdot
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 73223c8fb4..42bbe04d79 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1359,6 +1359,7 @@ lexinit(void)
+ 	s->def->sym = s;
+ 	types[TBLANK] = typ(TBLANK);
+ 	s->def->type = types[TBLANK];
++	nblank = s->def;
+ }
+ 
+ struct
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 002bd4ed5d..60696e6f6b 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -249,13 +249,13 @@ newlabel(void)
+  * deal with fallthrough, break, unreachable statements
+  */
+ void
+-casebody(Node *sw)
++casebody(Node *sw, Node *typeswvar)
+ {
+ 	Node *os, *oc, *n, *c, *last;
+ 	Node *def;
+ 	NodeList *cas, *stat, *l, *lc;
+ 	Node *go, *br;
+-	int32 lno;
++	int32 lno, needvar;
+ 
+ 	lno = setlineno(sw);
+ 	if(sw->list == nil)
+@@ -274,6 +274,7 @@ casebody(Node *sw)
+ 		if(n->op != OXCASE)
+ 			fatal("casebody %O", n->op);
+ 		n->op = OCASE;
++		needvar = count(n->list) != 1 || n->list->n->op == OLITERAL;
+ 
+ 		go = nod(OGOTO, newlabel(), N);
+ 		if(n->list == nil) {
+@@ -300,6 +301,14 @@ casebody(Node *sw)
+ 		}
+ 
+ 		stat = list(stat, nod(OLABEL, go->left, N));
++		if(typeswvar && needvar && n->nname != N) {
++			NodeList *l;
++
++			l = list1(nod(ODCL, n->nname, N));
++			l = list(l, nod(OAS, n->nname, typeswvar));
++			typechecklist(l, Etop);
++			stat = concat(stat, l);
++		}
+ 		stat = concat(stat, n->nbody);
+ 
+ 		// botch - shouldnt fall thru declaration
+@@ -348,16 +357,16 @@ mkcaselist(Node *sw, int arg)
+ 		switch(arg) {
+ 		case Stype:
+ 			c->hash = 0;
+-			if(n->left->left == N) {
++			if(n->left->op == OLITERAL) {
+ 				c->type = Ttypenil;
+ 				continue;
+ 			}
+-			if(istype(n->left->left->type, TINTER)) {
++			if(istype(n->left->type, TINTER)) {
+ 				c->type = Ttypevar;
+ 				continue;
+ 			}
+ 
+-			c->hash = typehash(n->left->left->type);
++			c->hash = typehash(n->left->type);
+ 			c->type = Ttypeconst;
+ 			continue;
+ 
+@@ -483,6 +492,7 @@ exprswitch(Node *sw)
+ 	Type *t;
+ 	int arg, ncase;
+ 
++	casebody(sw, N);
+ 
+ 	arg = Snorm;
+ 	if(isconst(sw->ntest, CTBOOL)) {
+@@ -564,13 +574,18 @@ typeone(Node *t)
+ 	NodeList *init;
+ 	Node *a, *b, *var;
+ 
+-	var = t->left->left;
+-	init = list1(nod(ODCL, var, N));
++	var = t->nname;
++	init = nil;
++	if(var == N) {
++		typecheck(&nblank, Erv | Easgn);
++		var = nblank;
++	} else
++		init = list1(nod(ODCL, var, N));
+ 
+ 	a = nod(OAS2, N, N);
+ 	a->list = list(list1(var), boolname);	// var,bool =
+ 	b = nod(ODOTTYPE, facename, N);
+-	b->type = t->left->left->type;		// interface.(type)
++	b->type = t->left->type;		// interface.(type)
+ 	a->rlist = list1(b);
+ 	typecheck(&a, Etop);
+ 	init = list(init, a);
+@@ -678,6 +693,8 @@ typeswitch(Node *sw)
+ 	typecheck(&a, Etop);
+ 	cas = list(cas, a);
+ 
++	casebody(sw, facename);
++
+ 	boolname = nod(OXXX, N, N);
+ 	tempname(boolname, types[TBOOL]);
+ 	typecheck(&boolname, Erv);
+@@ -758,10 +775,10 @@ walkswitch(Node *sw)
+ 		sw->ntest = nodbool(1);
+ 		typecheck(&sw->ntest, Erv);
+ 	}
+-	casebody(sw);
+-
++	
+ 	if(sw->ntest->op == OTYPESW) {
+ 		typeswitch(sw);
++//dump("sw", sw);
+ 		return;
+ 	}
+ 	exprswitch(sw);
+@@ -776,7 +793,7 @@ typecheckswitch(Node *n)
+ 	int top, lno;
+ 	Type *t;
+ 	NodeList *l, *ll;
+-	Node *ncase;
++	Node *ncase, *nvar;
+ 	Node *def;
+ 
+ 	lno = lineno;
+@@ -784,11 +801,11 @@ typecheckswitch(Node *n)
+ 
+ 	if(n->ntest != N && n->ntest->op == OTYPESW) {
+ 		// type switch
+-		typecheck(&n->ntest, Etop);
+ 		top = Etype;
+-		t = n->ntest->type;
++		typecheck(&n->ntest->right, Erv);
++		t = n->ntest->right->type;
+ 		if(t != T && t->etype != TINTER)
+-			yyerror("cannot type switch on non-interface value %+N", n->ntest);
++			yyerror("cannot type switch on non-interface value %+N", n->ntest->right);
+ 	} else {
+ 		// value switch
+ 		top = Erv;
+@@ -814,12 +831,37 @@ typecheckswitch(Node *n)
+ 		} else {
+ 			for(ll=ncase->list; ll; ll=ll->next) {
+ 				setlineno(ll->n);
+-				typecheck(&ll->n, Erv);	// TODO(rsc): top
+-				if(ll->n->type == T || t == T || top != Erv)
++				typecheck(&ll->n, Erv | Etype);
++				if(ll->n->type == T || t == T)
+ 					continue;
+-				defaultlit(&ll->n, t);
+-				if(ll->n->type != T && !eqtype(ll->n->type, t))
+-					yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
++				switch(top) {
++				case Erv:	// expression switch
++					defaultlit(&ll->n, t);
++					if(ll->n->op == OTYPE)
++						yyerror("type %T is not an expression", ll->n->type);
++					else if(ll->n->type != T && !eqtype(ll->n->type, t))
++						yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
++					break;
++				case Etype:	// type switch
++					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
++						;
++					else if(ll->n->op != OTYPE && ll->n->type != T)
++						yyerror("%#N is not a type", ll->n);
++					break;
++				}
++			}
++		}
++		if(top == Etype && n->type != T) {
++			ll = ncase->list;
++			nvar = ncase->nname;
++			if(nvar != N) {
++				if(ll && ll->next == nil && ll->n->type != T && !istype(ll->n->type, TNIL)) {
++					// single entry type switch
++					nvar->ntype = typenod(ll->n->type);
++				} else {
++					// multiple entry type switch or default
++					nvar->ntype = typenod(n->type);
++				}
+ 			}
+ 		}
+ 		typechecklist(ncase->nbody, Etop);
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 3a0fa08586..d878a1bf77 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -415,7 +415,7 @@ func (s *State) error(msg string) {
+ //
+ 
+ func typename(typ reflect.Type) string {
+-	switch t := typ.(type) {
++	switch typ.(type) {
+ 	case *reflect.ArrayType:
+ 		return "array";
+ 	case *reflect.SliceType:
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 49766bebe4..e5b2188f54 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -19,12 +19,8 @@ type _StructBuilder struct {
+ var nobuilder *_StructBuilder
+ 
+ func isfloat(v reflect.Value) bool {
+-	switch v := v.(type) {
+-	case *reflect.FloatValue:
+-		return true;
+-	case *reflect.Float32Value:
+-		return true;
+-	case *reflect.Float64Value:
++	switch v.(type) {
++	case *reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value:
+ 		return true;
+ 	}
+ 	return false;
+diff --git a/test/typeswitch1.go b/test/typeswitch1.go
+new file mode 100644
+index 0000000000..879cfb9830
+--- /dev/null
++++ b/test/typeswitch1.go
+@@ -0,0 +1,84 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++const (
++	a = iota;
++	b;
++	c;
++	d;
++	e;
++)
++
++var x = []int{1,2,3}
++
++func f(x int, len *byte) {
++	*len = byte(x);
++}
++
++func whatis(x interface{}) string {
++	switch xx := x.(type) {
++	default:
++		return fmt.Sprint("default ", xx);
++	case int, int8, int16, int32:
++		return fmt.Sprint("signed ", xx);
++	case int64:
++		return fmt.Sprint("signed64 ", int64(xx));
++	case uint, uint8, uint16, uint32:
++		return fmt.Sprint("unsigned ", xx);
++	case uint64:
++		return fmt.Sprint("unsigned64 ", uint64(xx));
++	case nil:
++		return fmt.Sprint("nil ", xx);
++	}
++	panic("not reached");
++}
++
++func whatis1(x interface{}) string {
++	xx := x;
++	switch xx.(type) {
++	default:
++		return fmt.Sprint("default ", xx);
++	case int, int8, int16, int32:
++		return fmt.Sprint("signed ", xx);
++	case int64:
++		return fmt.Sprint("signed64 ", xx.(int64));
++	case uint, uint8, uint16, uint32:
++		return fmt.Sprint("unsigned ", xx);
++	case uint64:
++		return fmt.Sprint("unsigned64 ", xx.(uint64));
++	case nil:
++		return fmt.Sprint("nil ", xx);
++	}
++	panic("not reached");
++}
++
++func check(x interface{}, s string) {
++	w := whatis(x);
++	if w != s {
++		fmt.Println("whatis", x, "=>", w, "!=", s);
++		panic();
++	}
++
++	w = whatis1(x);
++	if w != s {
++		fmt.Println("whatis1", x, "=>", w, "!=", s);
++		panic();
++	}
++}
++
++func main() {
++	check(1, "signed 1");
++	check(uint(1), "unsigned 1");
++	check(int64(1), "signed64 1");
++	check(uint64(1), "unsigned64 1");
++	check(1.5, "default 1.5");
++	check(nil, "nil <nil>");
++}
++

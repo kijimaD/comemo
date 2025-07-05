@@ -11,7 +11,108 @@ Date:   Sat Aug 30 10:34:51 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/126560043
-
+---
  src/pkg/net/url/url.go      | 11 +++++----
  src/pkg/net/url/url_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 62 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 75f650a275..0b32cd7c8a 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -64,7 +64,6 @@ func (e EscapeError) Error() string {
+ 
+ // Return true if the specified character should be escaped when
+ // appearing in a URL string, according to RFC 3986.
+-// When 'all' is true the full range of reserved characters are matched.
+ func shouldEscape(c byte, mode encoding) bool {
+ 	// §2.3 Unreserved characters (alphanum)
+ 	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+@@ -86,10 +85,12 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// last two as well. That leaves only ? to escape.
+ 			return c == '?'
+ 
+-		case encodeUserPassword: // §3.2.2
+-			// The RFC allows ; : & = + $ , in userinfo, so we must escape only @ and /.
+-			// The parsing of userinfo treats : as special so we must escape that too.
+-			return c == '@' || c == '/' || c == ':'
++		case encodeUserPassword: // §3.2.1
++			// The RFC allows ';', ':', '&', '=', '+', '$', and ',' in
++			// userinfo, so we must escape only '@', '/', and '?'.
++			// The parsing of userinfo treats ':' as special so we must escape
++			// that too.
++			return c == '@' || c == '/' || c == '?' || c == ':'
+ 
+ 		case encodeQueryComponent: // §3.4
+ 			// The RFC reserves (so we must escape) everything.
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index cad758f238..d8b19d805d 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -279,6 +279,16 @@ var urltests = []URLTest{
+ 		},
+ 		"a/b/c",
+ 	},
++	// escaped '?' in username and password
++	{
++		"http://%3Fam:pa%3Fsword@google.com",
++		&URL{
++			Scheme: "http",
++			User:   UserPassword("?am", "pa?sword"),
++			Host:   "google.com",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -903,3 +913,49 @@ func TestParseFailure(t *testing.T) {
+ 		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
+ 	}
+ }
++
++type shouldEscapeTest struct {
++	in     byte
++	mode   encoding
++	escape bool
++}
++
++var shouldEscapeTests = []shouldEscapeTest{
++	// Unreserved characters (§2.3)
++	{'a', encodePath, false},
++	{'a', encodeUserPassword, false},
++	{'a', encodeQueryComponent, false},
++	{'a', encodeFragment, false},
++	{'z', encodePath, false},
++	{'A', encodePath, false},
++	{'Z', encodePath, false},
++	{'0', encodePath, false},
++	{'9', encodePath, false},
++	{'-', encodePath, false},
++	{'-', encodeUserPassword, false},
++	{'-', encodeQueryComponent, false},
++	{'-', encodeFragment, false},
++	{'.', encodePath, false},
++	{'_', encodePath, false},
++	{'~', encodePath, false},
++
++	// User information (§3.2.1)
++	{':', encodeUserPassword, true},
++	{'/', encodeUserPassword, true},
++	{'?', encodeUserPassword, true},
++	{'@', encodeUserPassword, true},
++	{'$', encodeUserPassword, false},
++	{'&', encodeUserPassword, false},
++	{'+', encodeUserPassword, false},
++	{',', encodeUserPassword, false},
++	{';', encodeUserPassword, false},
++	{'=', encodeUserPassword, false},
++}
++
++func TestShouldEscape(t *testing.T) {
++	for _, tt := range shouldEscapeTests {
++		if shouldEscape(tt.in, tt.mode) != tt.escape {
++			t.Errorf("shouldEscape(%q, %v) returned %v; expected %v", tt.in, tt.mode, !tt.escape, tt.escape)
++		}
++	}
++}

@@ -33,7 +33,7 @@ Date:   Tue Apr 2 16:26:15 2013 -0700
     R=bradfitz, r, khr, dave, remyoudompheng, fullung, minux.ma, ality
     CC=golang-dev
     https://golang.org/cl/8056043
-
+---
  src/pkg/bytes/asm_386.s          |  16 ------
  src/pkg/bytes/asm_amd64.s        |  17 ------
  src/pkg/bytes/bytes_decl.go      |   2 +-
@@ -49,3 +49,663 @@ Date:   Tue Apr 2 16:26:15 2013 -0700
  src/pkg/runtime/string.goc       |  10 +---
  src/pkg/runtime/string_test.go   |  28 ++++++++++
  14 files changed, 416 insertions(+), 62 deletions(-)
+
+diff --git a/src/pkg/bytes/asm_386.s b/src/pkg/bytes/asm_386.s
+index 997738fe29..27cd4e787f 100644
+--- a/src/pkg/bytes/asm_386.s
++++ b/src/pkg/bytes/asm_386.s
+@@ -15,19 +15,3 @@ TEXT ·IndexByte(SB),7,$0
+ 	SUBL	$1, DI
+ 	MOVL	DI, ret+16(FP)
+ 	RET
+-
+-TEXT ·Equal(SB),7,$0
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	MOVL	$0, AX
+-	CMPL	BX, CX
+-	JNE	eqret
+-	MOVL	a+0(FP), SI
+-	MOVL	b+12(FP), DI
+-	CLD
+-	REP; CMPSB
+-	JNE eqret
+-	MOVL	$1, AX
+-eqret:
+-	MOVB	AX, ret+24(FP)
+-	RET
+diff --git a/src/pkg/bytes/asm_amd64.s b/src/pkg/bytes/asm_amd64.s
+index b8f9f1b818..b84957b6d2 100644
+--- a/src/pkg/bytes/asm_amd64.s
++++ b/src/pkg/bytes/asm_amd64.s
+@@ -89,20 +89,3 @@ success:
+ 	SUBL $1, DI
+ 	MOVQ DI, ret+32(FP)
+ 	RET
+-
+-TEXT ·Equal(SB),7,$0
+-	MOVQ	a_len+8(FP), BX
+-	MOVQ	b_len+32(FP), CX
+-	MOVL	$0, AX
+-	CMPQ	BX, CX
+-	JNE	eqret
+-	MOVQ	a+0(FP), SI
+-	MOVQ	b+24(FP), DI
+-	CLD
+-	REP; CMPSB
+-	MOVL	$1, DX
+-	CMOVLEQ	DX, AX
+-eqret:
+-	MOVB	AX, ret+48(FP)
+-	RET
+-
+diff --git a/src/pkg/bytes/bytes_decl.go b/src/pkg/bytes/bytes_decl.go
+index ce78be416a..fbf9282752 100644
+--- a/src/pkg/bytes/bytes_decl.go
++++ b/src/pkg/bytes/bytes_decl.go
+@@ -13,4 +13,4 @@ func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
+ 
+ // Equal returns a boolean reporting whether a == b.
+ // A nil argument is equivalent to an empty slice.
+-func Equal(a, b []byte) bool // asm_$GOARCH.s
++func Equal(a, b []byte) bool // asm_arm.s or ../runtime/asm_{386,amd64}.s
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 1d6274c33d..d296224ac4 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -61,6 +61,10 @@ var compareTests = []struct {
+ 	{[]byte("ab"), []byte("x"), -1},
+ 	{[]byte("x"), []byte("a"), 1},
+ 	{[]byte("b"), []byte("x"), -1},
++	// test runtime·memeq's chunked implementation
++	{[]byte("abcdefgh"), []byte("abcdefgh"), 0},
++	{[]byte("abcdefghi"), []byte("abcdefghi"), 0},
++	{[]byte("abcdefghi"), []byte("abcdefghj"), -1},
+ 	// nil tests
+ 	{nil, nil, 0},
+ 	{[]byte(""), nil, 0},
+@@ -86,6 +90,58 @@ func TestCompare(t *testing.T) {
+ 	}
+ }
+ 
++func TestEqual(t *testing.T) {
++	var size = 128
++	if testing.Short() {
++		size = 32
++	}
++	a := make([]byte, size)
++	b := make([]byte, size)
++	b_init := make([]byte, size)
++	// randomish but deterministic data
++	for i := 0; i < size; i++ {
++		a[i] = byte(17 * i)
++		b_init[i] = byte(23*i + 100)
++	}
++
++	for len := 0; len <= size; len++ {
++		for x := 0; x <= size-len; x++ {
++			for y := 0; y <= size-len; y++ {
++				copy(b, b_init)
++				copy(b[y:y+len], a[x:x+len])
++				if !Equal(a[x:x+len], b[y:y+len]) || !Equal(b[y:y+len], a[x:x+len]) {
++					t.Errorf("Equal(%d, %d, %d) = false", len, x, y)
++				}
++			}
++		}
++	}
++}
++
++// make sure Equal returns false for minimally different strings.  The data
++// is all zeros except for a single one in one location.
++func TestNotEqual(t *testing.T) {
++	var size = 128
++	if testing.Short() {
++		size = 32
++	}
++	a := make([]byte, size)
++	b := make([]byte, size)
++
++	for len := 0; len <= size; len++ {
++		for x := 0; x <= size-len; x++ {
++			for y := 0; y <= size-len; y++ {
++				for diffpos := x; diffpos < x+len; diffpos++ {
++					a[diffpos] = 1
++					if Equal(a[x:x+len], b[y:y+len]) || Equal(b[y:y+len], a[x:x+len]) {
++						t.Errorf("NotEqual(%d, %d, %d, %d) = true", len, x, y, diffpos)
++					}
++					a[diffpos] = 0
++				}
++			}
++		}
++	}
++}
++
+ var indexTests = []BinOpTest{
+ 	{"", "", 0},
+ 	{"", "a", -1},
+@@ -303,10 +359,30 @@ func bmIndexByte(b *testing.B, index func([]byte, byte) int, n int) {
+ 	buf[n-1] = '\x00'
+ }
+ 
++func BenchmarkEqual0(b *testing.B) {
++	var buf [4]byte
++	buf1 := buf[0:0]
++	buf2 := buf[1:1]
++	for i := 0; i < b.N; i++ {
++		eq := Equal(buf1, buf2)
++		if !eq {
++			b.Fatal("bad equal")
++		}
++	}
++}
++
++func BenchmarkEqual1(b *testing.B)           { bmEqual(b, Equal, 1) }
++func BenchmarkEqual6(b *testing.B)           { bmEqual(b, Equal, 6) }
++func BenchmarkEqual9(b *testing.B)           { bmEqual(b, Equal, 9) }
++func BenchmarkEqual15(b *testing.B)          { bmEqual(b, Equal, 15) }
++func BenchmarkEqual16(b *testing.B)          { bmEqual(b, Equal, 16) }
++func BenchmarkEqual20(b *testing.B)          { bmEqual(b, Equal, 20) }
+ func BenchmarkEqual32(b *testing.B)          { bmEqual(b, Equal, 32) }
+ func BenchmarkEqual4K(b *testing.B)          { bmEqual(b, Equal, 4<<10) }
+ func BenchmarkEqual4M(b *testing.B)          { bmEqual(b, Equal, 4<<20) }
+ func BenchmarkEqual64M(b *testing.B)         { bmEqual(b, Equal, 64<<20) }
++func BenchmarkEqualPort1(b *testing.B)       { bmEqual(b, EqualPortable, 1) }
++func BenchmarkEqualPort6(b *testing.B)       { bmEqual(b, EqualPortable, 6) }
+ func BenchmarkEqualPort32(b *testing.B)      { bmEqual(b, EqualPortable, 32) }
+ func BenchmarkEqualPort4K(b *testing.B)      { bmEqual(b, EqualPortable, 4<<10) }
+ func BenchmarkEqualPortable4M(b *testing.B)  { bmEqual(b, EqualPortable, 4<<20) }
+diff --git a/src/pkg/bytes/equal_test.go b/src/pkg/bytes/equal_test.go
+new file mode 100644
+index 0000000000..a393d5e7de
+--- /dev/null
++++ b/src/pkg/bytes/equal_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build linux
++
++package bytes_test
++
++import (
++	. "bytes"
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++// This file tests the situation where memeq is checking
++// data very near to a page boundary.  We want to make sure
++// equal does not read across the boundary and cause a page
++// fault where it shouldn't.
++
++// This test runs only on linux.  The code being tested is
++// not OS-specific, so it does not need to be tested on all
++// operating systems.
++
++func TestEqualNearPageBoundary(t *testing.T) {
++	pagesize := syscall.Getpagesize()
++	b := make([]byte, 4*pagesize)
++	i := pagesize
++	for ; uintptr(unsafe.Pointer(&b[i]))%uintptr(pagesize) != 0; i++ {
++	}
++	syscall.Mprotect(b[i-pagesize:i], 0)
++	syscall.Mprotect(b[i+pagesize:i+2*pagesize], 0)
++
++	// both of these should fault
++	//pagesize += int(b[i-1])
++	//pagesize += int(b[i+pagesize])
++
++	for j := 0; j < pagesize; j++ {
++		b[i+j] = 'A'
++	}
++	for j := 0; j <= pagesize; j++ {
++		Equal(b[i:i+j], b[i+pagesize-j:i+pagesize])
++		Equal(b[i+pagesize-j:i+pagesize], b[i:i+j])
++	}
++}
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index 2dc8212566..a78d9780c7 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -37,25 +37,11 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
+ void
+ runtime·memequal(bool *eq, uintptr s, void *a, void *b)
+ {
+-	byte *ba, *bb, *aend;
+-
+ 	if(a == b) {
+ 		*eq = 1;
+ 		return;
+ 	}
+-	ba = a;
+-	bb = b;
+-	aend = ba+s;
+-	while(ba != aend) {
+-		if(*ba != *bb) {
+-			*eq = 0;
+-			return;
+-		}
+-		ba++;
+-		bb++;
+-	}
+-	*eq = 1;
+-	return;
++	*eq = runtime·memeq(a, b, s);
+ }
+ 
+ void
+@@ -323,6 +309,7 @@ void
+ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
+ {
+ 	intgo alen;
++	byte *s1, *s2;
+ 
+ 	USED(s);
+ 	alen = ((String*)a)->len;
+@@ -330,11 +317,13 @@ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
+ 		*eq = false;
+ 		return;
+ 	}
+-	if(((String*)a)->str == ((String*)b)->str) {
++	s1 = ((String*)a)->str;
++	s2 = ((String*)b)->str;
++	if(s1 == s2) {
+ 		*eq = true;
+ 		return;
+ 	}
+-	runtime·memequal(eq, alen, ((String*)a)->str, ((String*)b)->str);
++	*eq = runtime·memeq(s1, s2, alen);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 57de87b8d4..531057ff8a 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -986,3 +986,118 @@ TEXT shifts(SB),7,$0
+ 	LONG $0x0c0b0a09
+ 	LONG $0xff0f0e0d
+ 
++TEXT runtime·memeq(SB),7,$0
++	MOVL	a+0(FP), SI
++	MOVL	b+4(FP), DI
++	MOVL	count+8(FP), BX
++	JMP	runtime·memeqbody(SB)
++
++
++TEXT bytes·Equal(SB),7,$0
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
++	XORL	AX, AX
++	CMPL	BX, CX
++	JNE	eqret
++	MOVL	a+0(FP), SI
++	MOVL	b+12(FP), DI
++	CALL	runtime·memeqbody(SB)
++eqret:
++	MOVB	AX, ret+24(FP)
++	RET
++
++// a in SI
++// b in DI
++// count in BX
++TEXT runtime·memeqbody(SB),7,$0
++	XORL	AX, AX
++
++	CMPL	BX, $4
++	JB	small
++
++	// 64 bytes at a time using xmm registers
++hugeloop:
++	CMPL	BX, $64
++	JB	bigloop
++	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
++	JE	bigloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	MOVOU	16(SI), X2
++	MOVOU	16(DI), X3
++	MOVOU	32(SI), X4
++	MOVOU	32(DI), X5
++	MOVOU	48(SI), X6
++	MOVOU	48(DI), X7
++	PCMPEQB	X1, X0
++	PCMPEQB	X3, X2
++	PCMPEQB	X5, X4
++	PCMPEQB	X7, X6
++	PAND	X2, X0
++	PAND	X6, X4
++	PAND	X4, X0
++	PMOVMSKB X0, DX
++	ADDL	$64, SI
++	ADDL	$64, DI
++	SUBL	$64, BX
++	CMPL	DX, $0xffff
++	JEQ	hugeloop
++	RET
++
++	// 4 bytes at a time using 32-bit register
++bigloop:
++	CMPL	BX, $4
++	JBE	leftover
++	MOVL	(SI), CX
++	MOVL	(DI), DX
++	ADDL	$4, SI
++	ADDL	$4, DI
++	SUBL	$4, BX
++	CMPL	CX, DX
++	JEQ	bigloop
++	RET
++
++	// remaining 0-4 bytes
++leftover:
++	MOVL	-4(SI)(BX*1), CX
++	MOVL	-4(DI)(BX*1), DX
++	CMPL	CX, DX
++	SETEQ	AX
++	RET
++
++small:
++	CMPL	BX, $0
++	JEQ	equal
++
++	LEAL	0(BX*8), CX
++	NEGL	CX
++
++	MOVL	SI, DX
++	CMPB	DX, $0xfc
++	JA	si_high
++
++	// load at SI won't cross a page boundary.
++	MOVL	(SI), SI
++	JMP	si_finish
++si_high:
++	// address ends in 111111xx.  Load up to bytes we want, move to correct position.
++	MOVL	-4(SI)(BX*1), SI
++	SHRL	CX, SI
++si_finish:
++
++	// same for DI.
++	MOVL	DI, DX
++	CMPB	DX, $0xfc
++	JA	di_high
++	MOVL	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVL	-4(DI)(BX*1), DI
++	SHRL	CX, DI
++di_finish:
++
++	SUBL	SI, DI
++	SHLL	CX, DI
++equal:
++	SETEQ	AX
++	RET
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index af2064ff3a..0dee1556da 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -907,3 +907,115 @@ TEXT shifts(SB),7,$0
+ 	QUAD $0xffff0f0e0d0c0b0a
+ 	QUAD $0x0807060504030201
+ 	QUAD $0xff0f0e0d0c0b0a09
++
++TEXT runtime·memeq(SB),7,$0
++	MOVQ	a+0(FP), SI
++	MOVQ	b+8(FP), DI
++	MOVQ	count+16(FP), BX
++	JMP	runtime·memeqbody(SB)
++
++
++TEXT bytes·Equal(SB),7,$0
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_len+32(FP), CX
++	XORQ	AX, AX
++	CMPQ	BX, CX
++	JNE	eqret
++	MOVQ	a+0(FP), SI
++	MOVQ	b+24(FP), DI
++	CALL	runtime·memeqbody(SB)
++eqret:
++	MOVB	AX, ret+48(FP)
++	RET
++
++// a in SI
++// b in DI
++// count in BX
++TEXT runtime·memeqbody(SB),7,$0
++	XORQ	AX, AX
++
++	CMPQ	BX, $8
++	JB	small
++	
++	// 64 bytes at a time using xmm registers
++hugeloop:
++	CMPQ	BX, $64
++	JB	bigloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	MOVOU	16(SI), X2
++	MOVOU	16(DI), X3
++	MOVOU	32(SI), X4
++	MOVOU	32(DI), X5
++	MOVOU	48(SI), X6
++	MOVOU	48(DI), X7
++	PCMPEQB	X1, X0
++	PCMPEQB	X3, X2
++	PCMPEQB	X5, X4
++	PCMPEQB	X7, X6
++	PAND	X2, X0
++	PAND	X6, X4
++	PAND	X4, X0
++	PMOVMSKB X0, DX
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, BX
++	CMPL	DX, $0xffff
++	JEQ	hugeloop
++	RET
++
++	// 8 bytes at a time using 64-bit register
++bigloop:
++	CMPQ	BX, $8
++	JBE	leftover
++	MOVQ	(SI), CX
++	MOVQ	(DI), DX
++	ADDQ	$8, SI
++	ADDQ	$8, DI
++	SUBQ	$8, BX
++	CMPQ	CX, DX
++	JEQ	bigloop
++	RET
++
++	// remaining 0-8 bytes
++leftover:
++	MOVQ	-8(SI)(BX*1), CX
++	MOVQ	-8(DI)(BX*1), DX
++	CMPQ	CX, DX
++	SETEQ	AX
++	RET
++
++small:
++	CMPQ	BX, $0
++	JEQ	equal
++
++	LEAQ	0(BX*8), CX
++	NEGQ	CX
++
++	CMPB	SI, $0xf8
++	JA	si_high
++
++	// load at SI won't cross a page boundary.
++	MOVQ	(SI), SI
++	JMP	si_finish
++si_high:
++	// address ends in 11111xxx.  Load up to bytes we want, move to correct position.
++	MOVQ	-8(SI)(BX*1), SI
++	SHRQ	CX, SI
++si_finish:
++
++	// same for DI.
++	CMPB	DI, $0xf8
++	JA	di_high
++	MOVQ	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVQ	-8(DI)(BX*1), DI
++	SHRQ	CX, DI
++di_finish:
++
++	SUBQ	SI, DI
++	SHLQ	CX, DI
++equal:
++	SETEQ	AX
++	RET
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index e544933326..ee9acb749c 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -487,7 +487,7 @@ TEXT runtime·stackguard(SB),7,$0
+ 	MOVW	R2, limit+4(FP)
+ 	RET
+ 
+-// not implemented for ARM
++// AES hashing not implemented for ARM
+ TEXT runtime·aeshash(SB),7,$-4
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+@@ -500,3 +500,20 @@ TEXT runtime·aeshash64(SB),7,$-4
+ TEXT runtime·aeshashstr(SB),7,$-4
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
++
++TEXT runtime·memeq(SB),7,$-4
++	MOVW	a+0(FP), R1
++	MOVW	b+4(FP), R2
++	MOVW	n+8(FP), R3
++	ADD	R1, R3, R6
++	MOVW	$1, R0
++_next:
++	CMP	R1, R6
++	RET.EQ
++	MOVBU.P	1(R1), R4
++	MOVBU.P	1(R2), R5
++	CMP	R4, R5
++	BEQ	_next
++
++	MOVW	$0, R0
++	RET
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 3f26a157bd..d639be3c3d 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -562,7 +562,7 @@ static uint8 empty_value[MAXVALUESIZE];
+ #define HASH_LOOKUP2 runtime·mapaccess2_faststr
+ #define KEYTYPE String
+ #define HASHFUNC runtime·algarray[ASTRING].hash
+-#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·mcmp((x).str, (y).str, (x).len) == 0))
++#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·memeq((x).str, (y).str, (x).len)))
+ #define QUICKEQ(x) ((x).len < 32)
+ #include "hashmap_fast.c"
+ 
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index 4d77347b24..73be434535 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -118,6 +118,17 @@ func BenchmarkMegOneMap(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMegEqMap(b *testing.B) {
++	m := make(map[string]bool)
++	key1 := strings.Repeat("X", 1<<20)
++	key2 := strings.Repeat("X", 1<<20) // equal but different instance
++	m[key1] = true
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[key2]
++	}
++}
++
+ func BenchmarkMegEmptyMap(b *testing.B) {
+ 	m := make(map[string]bool)
+ 	key := strings.Repeat("X", 1<<20)
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 11e713a2bc..864b2aa5f7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -593,6 +593,8 @@ void	runtime·strequal(bool*, uintptr, void*, void*);
+ void	runtime·interequal(bool*, uintptr, void*, void*);
+ void	runtime·nilinterequal(bool*, uintptr, void*, void*);
+ 
++bool	runtime·memeq(void*, void*, uintptr);
++
+ void	runtime·memprint(uintptr, void*);
+ void	runtime·strprint(uintptr, void*);
+ void	runtime·interprint(uintptr, void*);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index c0d3f2bde9..49bf1148b8 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -206,8 +206,6 @@ func cmpstring(s1 String, s2 String) (v int) {
+ }
+ 
+ func eqstring(s1 String, s2 String) (v bool) {
+-	uintgo i, l;
+-
+ 	if(s1.len != s2.len) {
+ 		v = false;
+ 		return;
+@@ -216,13 +214,7 @@ func eqstring(s1 String, s2 String) (v bool) {
+ 		v = true;
+ 		return;
+ 	}
+-	l = s1.len;
+-	for(i=0; i<l; i++)
+-		if(s1.str[i] != s2.str[i]) {
+-			v = false;
+-			return;
+-		}
+-	v = true;
++	v = runtime·memeq(s1.str, s2.str, s1.len);
+ }
+ 
+ int32
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index 6ba3c1d292..df3ff06a7d 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -47,3 +47,31 @@ func BenchmarkCompareStringDifferentLength(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkCompareStringBigUnaligned(b *testing.B) {
++	bytes := make([]byte, 0, 1<<20)
++	for len(bytes) < 1<<20 {
++		bytes = append(bytes, "Hello Gophers!"...)
++	}
++	s1, s2 := string(bytes), "hello"+string(bytes)
++	for i := 0; i < b.N; i++ {
++		if s1 != s2[len("hello"):] {
++			b.Fatal("s1 != s2")
++		}
++	}
++	b.SetBytes(int64(len(s1)))
++}
++
++func BenchmarkCompareStringBig(b *testing.B) {
++	bytes := make([]byte, 0, 1<<20)
++	for len(bytes) < 1<<20 {
++		bytes = append(bytes, "Hello Gophers!"...)
++	}
++	s1, s2 := string(bytes), string(bytes)
++	for i := 0; i < b.N; i++ {
++		if s1 != s2 {
++			b.Fatal("s1 != s2")
++		}
++	}
++	b.SetBytes(int64(len(s1)))
++}

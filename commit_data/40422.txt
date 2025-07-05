@@ -8,6 +8,20 @@ Date:   Mon May 13 12:02:43 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176626
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 0863c70af4..f835537d51 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -492,7 +492,7 @@ func UserHomeDir() (string, error) {
+ //
+ // On Windows, only the 0200 bit (owner writable) of mode is used; it
+ // controls whether the file's read-only attribute is set or cleared.
+-// The other bits are currently unused. For compatibilty with Go 1.12
++// The other bits are currently unused. For compatibility with Go 1.12
+ // and earlier, use a non-zero mode. Use mode 0400 for a read-only
+ // file and 0600 for a readable+writable file.
+ //

@@ -34,7 +34,51 @@ Date:   Tue Sep 7 09:44:29 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <martin@golang.org>
-
+---
  src/reflect/value.go | 5 +++--
  src/runtime/slice.go | 8 ++++++--
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 33b81d7209..786c494166 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2487,11 +2487,12 @@ func grow(s Value, extra int) (Value, int, int) {
+ 	if m == 0 {
+ 		m = extra
+ 	} else {
++		const threshold = 256
+ 		for m < i1 {
+-			if i0 < 1024 {
++			if i0 < threshold {
+ 				m += m
+ 			} else {
+-				m += m / 4
++				m += (m + 3*threshold) / 4
+ 			}
+ 		}
+ 	}
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index e8267be885..cfa862e047 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -185,13 +185,17 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	if cap > doublecap {
+ 		newcap = cap
+ 	} else {
+-		if old.cap < 1024 {
++		const threshold = 256
++		if old.cap < threshold {
+ 			newcap = doublecap
+ 		} else {
+ 			// Check 0 < newcap to detect overflow
+ 			// and prevent an infinite loop.
+ 			for 0 < newcap && newcap < cap {
+-				newcap += newcap / 4
++				// Transition from growing 2x for small slices
++				// to growing 1.25x for large slices. This formula
++				// gives a smooth-ish transition between the two.
++				newcap += (newcap + 3*threshold) / 4
+ 			}
+ 			// Set newcap to the requested cap when
+ 			// the newcap calculation overflowed.

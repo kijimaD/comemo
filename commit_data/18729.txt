@@ -10,7 +10,41 @@ Date:   Tue Mar 4 08:18:17 2014 +0100
     R=rsc, iant, khr
     CC=golang-codereviews
     https://golang.org/cl/69050044
-
+---
  src/cmd/gc/pgen.c           |  2 +-
  test/fixedbugs/issue7346.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index d05471ee30..f819f923cb 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -476,7 +476,7 @@ cgen_checknil(Node *n)
+ 		dump("checknil", n);
+ 		fatal("bad checknil");
+ 	}
+-	if((thechar == '5' && n->op != OREGISTER) || !n->addable) {
++	if((thechar == '5' && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
+ 		regalloc(&reg, types[tptr], n);
+ 		cgen(n, &reg);
+ 		gins(ACHECKNIL, &reg, N);
+diff --git a/test/fixedbugs/issue7346.go b/test/fixedbugs/issue7346.go
+new file mode 100644
+index 0000000000..dd5ea222f1
+--- /dev/null
++++ b/test/fixedbugs/issue7346.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 7346 : internal error "doasm" error due to checknil
++// of a nil literal.
++
++package main
++
++func main() {
++	_ = *(*int)(nil)
++}

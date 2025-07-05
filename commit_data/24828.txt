@@ -16,7 +16,7 @@ Date:   Tue Aug 11 12:29:00 2015 +1200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/data.go     |  3 +++
  src/cmd/internal/obj/objfile.go  |  2 ++
  src/cmd/internal/obj/textflag.go |  4 ++++
@@ -24,3 +24,170 @@ Date:   Tue Aug 11 12:29:00 2015 +1200
  src/cmd/link/internal/ld/elf.go  | 34 +++++++++++++++++-----------------
  src/runtime/textflag.h           |  3 +++
  6 files changed, 45 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 6e01e6e370..6645b6969d 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -63,6 +63,9 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
+ 	if ctxt.Enforce_data_order != 0 && off < int32(len(s.P)) {
+ 		ctxt.Diag("data out of order (already have %d)\n%v", len(s.P), p)
+ 	}
++	if s.Type == SBSS || s.Type == STLSBSS {
++		ctxt.Diag("cannot supply data for BSS var")
++	}
+ 	Symgrow(ctxt, s, int64(off+siz))
+ 
+ 	switch int(p.To.Type) {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c5f4820362..76054e2709 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -194,6 +194,8 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
+ 					s.Type = SRODATA
+ 				} else if flag&NOPTR != 0 {
+ 					s.Type = SNOPTRBSS
++				} else if flag&TLSBSS != 0 {
++					s.Type = STLSBSS
+ 				}
+ 				edata = s
+ 				continue
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index dbd1bc8a7b..77766c9b3f 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -35,4 +35,8 @@ const (
+ 
+ 	// When passed to ggloblsym, causes Local to be set to true on the LSym it creates.
+ 	LOCAL = 128
++
++	// Allocate a word of thread local storage and store the offset from the
++	// thread local base to the thread local storage in this variable.
++	TLSBSS = 256
+ )
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 91a5edd376..f1561d3c82 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1401,26 +1401,25 @@ func dodata() {
+ 		Diag("data or bss segment too large")
+ 	}
+ 
+-	if Iself && Linkmode == LinkExternal && s != nil && s.Type == obj.STLSBSS && HEADTYPE != obj.Hopenbsd {
+-		sect := addsection(&Segdata, ".tbss", 06)
+-		sect.Align = int32(Thearch.Ptrsize)
+-		sect.Vaddr = 0
++	if s != nil && s.Type == obj.STLSBSS {
++		if Iself && (Linkmode == LinkExternal || Debug['d'] == 0) && HEADTYPE != obj.Hopenbsd {
++			sect = addsection(&Segdata, ".tbss", 06)
++			sect.Align = int32(Thearch.Ptrsize)
++			sect.Vaddr = 0
++		} else {
++			sect = nil
++		}
+ 		datsize = 0
++
+ 		for ; s != nil && s.Type == obj.STLSBSS; s = s.Next {
+ 			datsize = aligndatsize(datsize, s)
+ 			s.Sect = sect
+-			s.Value = int64(uint64(datsize) - sect.Vaddr)
++			s.Value = datsize
+ 			growdatsize(&datsize, s)
+ 		}
+ 
+-		sect.Length = uint64(datsize)
+-	} else {
+-		// Might be internal linking but still using cgo.
+-		// In that case, the only possible STLSBSS symbol is runtime.tlsg.
+-		// Give it offset 0, because it's the only thing here.
+-		if s != nil && s.Type == obj.STLSBSS && s.Name == "runtime.tlsg" {
+-			s.Value = 0
+-			s = s.Next
++		if sect != nil {
++			sect.Length = uint64(datsize)
+ 		}
+ 	}
+ 
+@@ -1690,8 +1689,11 @@ func address() {
+ 	var noptrbss *Section
+ 	var vlen int64
+ 	for s := Segdata.Sect; s != nil; s = s.Next {
++		if Iself && s.Name == ".tbss" {
++			continue
++		}
+ 		vlen = int64(s.Length)
+-		if s.Next != nil {
++		if s.Next != nil && !(Iself && s.Next.Name == ".tbss") {
+ 			vlen = int64(s.Next.Vaddr - s.Vaddr)
+ 		}
+ 		s.Vaddr = va
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 508f0554c7..187643e41b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1508,7 +1508,9 @@ func elfshbits(sect *Section) *ElfShdr {
+ 	}
+ 	sh.addralign = uint64(sect.Align)
+ 	sh.size = sect.Length
+-	sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
++	if sect.Name != ".tbss" || goos == "android" {
++		sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
++	}
+ 
+ 	return sh
+ }
+@@ -2287,12 +2289,20 @@ func Asmbelf(symo int64) {
+ 		// Do not emit PT_TLS for OpenBSD since ld.so(1) does
+ 		// not currently support it. This is handled
+ 		// appropriately in runtime/cgo.
+-		if Ctxt.Tlsoffset != 0 && HEADTYPE != obj.Hopenbsd {
+-			ph := newElfPhdr()
+-			ph.type_ = PT_TLS
+-			ph.flags = PF_R
+-			ph.memsz = uint64(-Ctxt.Tlsoffset)
+-			ph.align = uint64(Thearch.Regsize)
++		if HEADTYPE != obj.Hopenbsd {
++			tlssize := uint64(0)
++			for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++				if sect.Name == ".tbss" {
++					tlssize = sect.Length
++				}
++			}
++			if tlssize != 0 {
++				ph := newElfPhdr()
++				ph.type_ = PT_TLS
++				ph.flags = PF_R
++				ph.memsz = tlssize
++				ph.align = uint64(Thearch.Regsize)
++			}
+ 		}
+ 	}
+ 
+@@ -2350,16 +2360,6 @@ elfobj:
+ 		sh.flags = 0
+ 	}
+ 
+-	// generate .tbss section for dynamic internal linking (except for OpenBSD)
+-	// external linking generates .tbss in data.c
+-	if Linkmode == LinkInternal && Debug['d'] == 0 && HEADTYPE != obj.Hopenbsd {
+-		sh := elfshname(".tbss")
+-		sh.type_ = SHT_NOBITS
+-		sh.addralign = uint64(Thearch.Regsize)
+-		sh.size = uint64(-Ctxt.Tlsoffset)
+-		sh.flags = SHF_ALLOC | SHF_TLS | SHF_WRITE
+-	}
+-
+ 	if Debug['s'] == 0 {
+ 		sh := elfshname(".symtab")
+ 		sh.type_ = SHT_SYMTAB
+diff --git a/src/runtime/textflag.h b/src/runtime/textflag.h
+index 2a76e76c29..f2690c938e 100644
+--- a/src/runtime/textflag.h
++++ b/src/runtime/textflag.h
+@@ -21,3 +21,6 @@
+ #define WRAPPER 32
+ // This function uses its incoming context register.
+ #define NEEDCTXT 64
++// Allocate a word of thread local storage and store the offset from the
++// thread local base to the thread local storage in this variable.
++#define TLSBSS	256

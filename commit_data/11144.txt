@@ -9,9 +9,95 @@ Date:   Thu Jan 12 15:28:52 2012 -0800
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5528089
-
+---
  src/cmd/go/build.go | 28 ++++++++++++++++++----------
  src/cmd/go/fix.go   |  2 +-
  src/cmd/go/fmt.go   |  2 +-
  src/cmd/go/vet.go   |  2 +-
  4 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 71b606d76e..4a046391db 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -794,8 +794,13 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
+ // showOutput also replaces references to the work directory with $WORK.
+ //
+ func (b *builder) showOutput(dir, desc, out string) {
+-	prefix := "# " + desc + "\n"
+-	suffix := relPaths(dir, out)
++	prefix := "# " + desc
++	suffix := "\n" + out
++	pwd, _ := os.Getwd()
++	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
++		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
++		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
++	}
+ 	suffix = strings.Replace(suffix, " "+b.work, " $WORK", -1)
+ 
+ 	b.output.Lock()
+@@ -803,16 +808,19 @@ func (b *builder) showOutput(dir, desc, out string) {
+ 	fmt.Print(prefix, suffix)
+ }
+ 
+-// relPaths returns a copy of out with references to dir
+-// made relative to the current directory if that would be shorter.
+-func relPaths(dir, out string) string {
+-	x := "\n" + out
++// relPaths returns a copy of paths with absolute paths
++// made relative to the current directory if they would be shorter.
++func relPaths(paths []string) []string {
++	var out []string
+ 	pwd, _ := os.Getwd()
+-	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
+-		x = strings.Replace(x, " "+dir, " "+reldir, -1)
+-		x = strings.Replace(x, "\n"+dir, "\n"+reldir, -1)
++	for _, p := range paths {
++		rel, err := filepath.Rel(pwd, p)
++		if err == nil && len(rel) < len(p) {
++			p = rel
++		}
++		out = append(out, p)
+ 	}
+-	return x[1:]
++	return out
+ }
+ 
+ // errPrintedOutput is a special error indicating that a command failed
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index fdefe8db6e..bae9f5c982 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -25,6 +25,6 @@ func runFix(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList("gofix", pkg.gofiles))
++		run(stringList("gofix", relPaths(pkg.gofiles)))
+ 	}
+ }
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index fb0b091192..4a47e2ea2f 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -26,7 +26,7 @@ func runFmt(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList("gofmt", "-I", "w", pkg.gofiles))
++		run(stringList("gofmt", "-l", "-w", relPaths(pkg.gofiles)))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index c1e17dfd0c..52c3200325 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -25,6 +25,6 @@ func runVet(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run("govet", pkg.gofiles)
++		run("govet", relPaths(pkg.gofiles))
+ 	}
+ }

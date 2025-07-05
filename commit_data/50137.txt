@@ -26,6 +26,19 @@ Date:   Mon Oct 4 15:51:22 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index e358155a34..56580d11b5 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1417,6 +1417,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
+ 	// Populate the stack object data.
+ 	// Format must match runtime/stack.go:stackObjectRecord.
+ 	x := base.Ctxt.Lookup(lv.fn.LSym.Name + ".stkobj")
++	x.Set(obj.AttrContentAddressable, true)
+ 	lv.fn.LSym.Func().StackObjects = x
+ 	off := 0
+ 	off = objw.Uintptr(x, off, uint64(len(vars)))

@@ -7,6 +7,20 @@ Date:   Thu Dec 12 18:54:48 2013 -0800
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/36840045
-
+---
  src/pkg/reflect/makefunc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/makefunc.go b/src/pkg/reflect/makefunc.go
+index e1608ea6c4..9b1b7d5721 100644
+--- a/src/pkg/reflect/makefunc.go
++++ b/src/pkg/reflect/makefunc.go
+@@ -81,7 +81,7 @@ type methodValue struct {
+ // by code like Convert and Interface and Assign.
+ func makeMethodValue(op string, v Value) Value {
+ 	if v.flag&flagMethod == 0 {
+-		panic("reflect: internal error: invalid use of makePartialFunc")
++		panic("reflect: internal error: invalid use of makeMethodValue")
+ 	}
+ 
+ 	// Ignoring the flagMethod bit, v describes the receiver, not the method type.

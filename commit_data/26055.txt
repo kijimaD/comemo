@@ -15,6 +15,31 @@ Date:   Mon Dec 14 15:07:40 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9f8c505c6b..878734b377 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1245,6 +1245,10 @@ func gcMarkTermination() {
+ 
+ 	memstats.numgc++
+ 
++	// Reset sweep state.
++	sweep.nbgsweep = 0
++	sweep.npausesweep = 0
++
+ 	systemstack(startTheWorldWithSema)
+ 
+ 	// Free stack spans. This must be done between GC cycles.
+@@ -1301,8 +1305,6 @@ func gcMarkTermination() {
+ 		print("\n")
+ 		printunlock()
+ 	}
+-	sweep.nbgsweep = 0
+-	sweep.npausesweep = 0
+ 
+ 	// now that gc is done, kick off finalizer thread if needed
+ 	if !concurrentSweep {

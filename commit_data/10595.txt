@@ -7,8 +7,128 @@ Date:   Fri Dec 2 12:30:56 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5440083
-
+---
  src/cmd/gc/typecheck.c   |  9 ++++++--
  test/complit1.go         | 24 ++++++++++++++++++++++
  test/fixedbugs/bug268.go | 53 ------------------------------------------------
  3 files changed, 31 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d9501358d9..25072a7fa2 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -541,7 +541,8 @@ reswitch:
+ 		case OMAPLIT:
+ 		case OSTRUCTLIT:
+ 		case OARRAYLIT:
+-			break;
++			if(!n->implicit)
++				break;
+ 		default:
+ 			checklvalue(n->left, "take the address of");
+ 		}
+@@ -757,9 +758,13 @@ reswitch:
+ 		defaultlit(&n->right->left, T);
+ 		defaultlit(&n->right->right, T);
+ 		if(isfixedarray(n->left->type)) {
++			if(!islvalue(n->left)) {
++				yyerror("invalid operation %N (slice of unaddressable value)", n);
++				goto error;
++			}
+ 			n->left = nod(OADDR, n->left, N);
+ 			n->left->implicit = 1;
+-			typecheck(&n->left, top);
++			typecheck(&n->left, Erv);
+ 		}
+ 		if(n->right->left != N) {
+ 			if((t = n->right->left->type) == T)
+diff --git a/test/complit1.go b/test/complit1.go
+new file mode 100644
+index 0000000000..23b3bbd192
+--- /dev/null
++++ b/test/complit1.go
+@@ -0,0 +1,24 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var m map[int][3]int
++func f() [3]int
++
++func fp() *[3]int
++var mp map[int]*[3]int
++
++var (
++	_ = [3]int{1,2,3}[:]  // ERROR "slice of unaddressable value"
++	_ = m[0][:]  // ERROR "slice of unaddressable value"
++	_ = f()[:]  // ERROR "slice of unaddressable value"
++	
++	// these are okay because they are slicing a pointer to an array
++	_ = (&[3]int{1,2,3})[:]
++	_ = mp[0][:]
++	_ = fp()[:]
++)
+\ No newline at end of file
+diff --git a/test/fixedbugs/bug268.go b/test/fixedbugs/bug268.go
+deleted file mode 100644
+index a38d0545b1..0000000000
+--- a/test/fixedbugs/bug268.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// http://code.google.com/p/go/issues/detail?id=745
+-
+-package main
+-
+-type T1 struct {
+-	T2 *T2
+-}
+-
+-type T2 struct {
+-	T3 *T3
+-}
+-
+-type T3 struct {
+-	T4 []*T4
+-}
+-
+-type T4 struct {
+-	X int
+-}
+-
+-func f() *T1 {
+-	x := &T1{
+-		&T2{
+-			&T3{
+-				[1]*T4{
+-					&T4{5},
+-				}[0:],
+-			},
+-		},
+-	}
+-	return x
+-}
+-
+-func g(x int) {
+-	if x == 0 {
+-		return
+-	}
+-	g(x-1)
+-}
+-
+-func main() {
+-	x := f()
+-	g(100) // smash temporaries left over on stack
+-	if x.T2.T3.T4[0].X != 5 {
+-		println("BUG", x.T2.T3.T4[0].X)
+-	}
+-}

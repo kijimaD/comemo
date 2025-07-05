@@ -14,10 +14,111 @@ Date:   Sun Sep 8 21:33:55 2024 +0700
     Reviewed-by: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/staticinit/sched.go    |  3 ---
  src/cmd/compile/internal/typecheck/const.go     | 22 ++--------------------
  src/cmd/compile/internal/typecheck/typecheck.go |  3 ---
  src/cmd/compile/internal/walk/builtin.go        |  3 ---
  src/cmd/compile/internal/walk/complit.go        |  6 ------
  5 files changed, 2 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 66ef167d35..4f01abc45e 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -487,9 +487,6 @@ func (s *Schedule) initplan(n ir.Node) {
+ 			if a.Op() == ir.OKEY {
+ 				kv := a.(*ir.KeyExpr)
+ 				k = typecheck.IndexConst(kv.Key)
+-				if k < 0 {
+-					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
+-				}
+ 				a = kv.Value
+ 			}
+ 			s.addvalue(p, k*n.Type().Elem().Size(), a)
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index e7f9ec5cd8..fc6e799e74 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -425,27 +425,9 @@ func defaultType(t *types.Type) *types.Type {
+ 	return nil
+ }
+ 
+-// IndexConst checks if Node n contains a constant expression
+-// representable as a non-negative int and returns its value.
+-// If n is not a constant expression, not representable as an
+-// integer, or negative, it returns -1. If n is too large, it
+-// returns -2.
++// IndexConst returns the index value of constant Node n.
+ func IndexConst(n ir.Node) int64 {
+-	if n.Op() != ir.OLITERAL {
+-		return -1
+-	}
+-	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
+-		return -1
+-	}
+-
+-	v := toint(n.Val())
+-	if v.Kind() != constant.Int || constant.Sign(v) < 0 {
+-		return -1
+-	}
+-	if ir.ConstOverflow(v, types.Types[types.TINT]) {
+-		return -2
+-	}
+-	return ir.IntVal(types.Types[types.TINT], v)
++	return ir.IntVal(types.Types[types.TINT], toint(n.Val()))
+ }
+ 
+ // callOrChan reports whether n is a call or channel operation.
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index ec849e3154..5d041b1939 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1116,9 +1116,6 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
+ 			elt := elt.(*ir.KeyExpr)
+ 			elt.Key = Expr(elt.Key)
+ 			key = IndexConst(elt.Key)
+-			if key < 0 {
+-				base.Fatalf("invalid index: %v", elt.Key)
+-			}
+ 			kv = elt
+ 			r = elt.Value
+ 		}
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index c4147b2e2e..19ec8d30fa 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -527,9 +527,6 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		// var arr [r]T
+ 		// n = arr[:l]
+ 		i := typecheck.IndexConst(r)
+-		if i < 0 {
+-			base.Fatalf("walkExpr: invalid index %v", r)
+-		}
+ 
+ 		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
+ 		// we're in 32-bit or 64-bit systems. So it's safe to do:
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index adc44ca49d..cfdc8becfe 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -199,9 +199,6 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node,
+ 			if r.Op() == ir.OKEY {
+ 				kv := r.(*ir.KeyExpr)
+ 				k = typecheck.IndexConst(kv.Key)
+-				if k < 0 {
+-					base.Fatalf("fixedlit: invalid index %v", kv.Key)
+-				}
+ 				r = kv.Value
+ 			}
+ 			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
+@@ -372,9 +369,6 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 		if value.Op() == ir.OKEY {
+ 			kv := value.(*ir.KeyExpr)
+ 			index = typecheck.IndexConst(kv.Key)
+-			if index < 0 {
+-				base.Fatalf("slicelit: invalid index %v", kv.Key)
+-			}
+ 			value = kv.Value
+ 		}
+ 		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))

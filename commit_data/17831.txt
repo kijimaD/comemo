@@ -8,7 +8,39 @@ Date:   Tue Oct 22 18:33:05 2013 -0400
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/15080043
-
+---
  src/pkg/time/format.go    | 4 ++--
  src/pkg/time/time_test.go | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 0595640219..6f92c12626 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -1204,11 +1204,11 @@ func ParseDuration(s string) (Duration, error) {
+ 			if err != nil {
+ 				return 0, errors.New("time: invalid duration " + orig)
+ 			}
+-			scale := 1
++			scale := 1.0
+ 			for n := pl - len(s); n > 0; n-- {
+ 				scale *= 10
+ 			}
+-			g += float64(x) / float64(scale)
++			g += float64(x) / scale
+ 			post = pl != len(s)
+ 		}
+ 		if !pre && !post {
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 0619f88f09..22b751c525 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -1318,6 +1318,8 @@ var parseDurationTests = []struct {
+ 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
+ 	// large value
+ 	{"52763797000ns", true, 52763797000 * Nanosecond},
++	// more than 9 digits after decimal point, see http://golang.org/issue/6617
++	{"0.3333333333333333333h", true, 20 * Minute},
+ 
+ 	// errors
+ 	{"", false, 0},

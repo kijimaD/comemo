@@ -19,6 +19,34 @@ Date:   Mon Feb 1 13:32:18 2021 +1030
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue11656.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index acd3f4f3e5..85fe720b30 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -59,10 +59,10 @@ func f(n int) {
+ 	ill := make([]byte, 64)
+ 	switch runtime.GOARCH {
+ 	case "386", "amd64":
+-		ill = append(ill, 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00) // MOVL AX, 0
++		ill = append(ill[:0], 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00) // MOVL AX, 0
+ 	case "arm":
+-		binary.LittleEndian.PutUint32(ill, 0xe3a00000) // MOVW $0, R0
+-		binary.LittleEndian.PutUint32(ill, 0xe5800000) // MOVW R0, (R0)
++		binary.LittleEndian.PutUint32(ill[0:4], 0xe3a00000) // MOVW $0, R0
++		binary.LittleEndian.PutUint32(ill[4:8], 0xe5800000) // MOVW R0, (R0)
+ 	case "arm64":
+ 		binary.LittleEndian.PutUint32(ill, 0xf90003ff) // MOVD ZR, (ZR)
+ 	case "ppc64":
+@@ -74,7 +74,7 @@ func f(n int) {
+ 	case "mipsle", "mips64le":
+ 		binary.LittleEndian.PutUint32(ill, 0xfc000000) // MOVV R0, (R0)
+ 	case "s390x":
+-		ill = append(ill, 0xa7, 0x09, 0x00, 0x00)             // MOVD $0, R0
++		ill = append(ill[:0], 0xa7, 0x09, 0x00, 0x00)         // MOVD $0, R0
+ 		ill = append(ill, 0xe3, 0x00, 0x00, 0x00, 0x00, 0x24) // MOVD R0, (R0)
+ 	case "riscv64":
+ 		binary.LittleEndian.PutUint32(ill, 0x00003023) // MOV X0, (X0)

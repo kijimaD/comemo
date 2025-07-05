@@ -13,7 +13,39 @@ Date:   Sun Jul 30 09:46:55 2023 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  .github/ISSUE_TEMPLATE/03-gopls.md           | 4 +++-
  .github/ISSUE_TEMPLATE/11-language-change.md | 5 ++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/03-gopls.md b/.github/ISSUE_TEMPLATE/03-gopls.md
+index c4934c3898..a6b9d913c1 100644
+--- a/.github/ISSUE_TEMPLATE/03-gopls.md
++++ b/.github/ISSUE_TEMPLATE/03-gopls.md
+@@ -2,7 +2,9 @@
+ name: Gopls bugs or feature requests
+ about: Issues or feature requests for the Go language server (gopls)
+ title: "x/tools/gopls: "
+-labels: gopls Tools
++labels:
++  - gopls
++  - Tools
+ ---
+ 
+ <!--
+diff --git a/.github/ISSUE_TEMPLATE/11-language-change.md b/.github/ISSUE_TEMPLATE/11-language-change.md
+index 2032301327..cc9b82b3b7 100644
+--- a/.github/ISSUE_TEMPLATE/11-language-change.md
++++ b/.github/ISSUE_TEMPLATE/11-language-change.md
+@@ -2,7 +2,10 @@
+ name: Language Change Proposals
+ about: Changes to the language
+ title: "proposal: Go 2: "
+-labels: Proposal Go2 LanguageChange
++labels:
++  - Proposal
++  - v2
++  - LanguageChange
+ ---
+ 
+ <!--

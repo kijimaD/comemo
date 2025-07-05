@@ -16,6 +16,31 @@ Date:   Mon Feb 24 13:58:29 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index b9ef6dad8e..c7f15b8e89 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -105,6 +105,8 @@ func testMain(m *testing.M) (int, error) {
+ 		fmt.Printf("+ cd %s\n", modRoot)
+ 	}
+ 	os.Setenv("GOPATH", gopath)
++	// Explicitly override GOBIN as well, in case it was set through a GOENV file.
++	os.Setenv("GOBIN", filepath.Join(gopath, "bin"))
+ 	os.Chdir(modRoot)
+ 	os.Setenv("PWD", modRoot)
+ 
+@@ -153,10 +155,6 @@ func TestMain(m *testing.M) {
+ 	log.SetFlags(log.Lshortfile)
+ 	flag.Parse()
+ 
+-	// Some of the tests install binaries into a custom GOPATH.
+-	// That won't work if GOBIN is set.
+-	os.Unsetenv("GOBIN")
+-
+ 	exitCode, err := testMain(m)
+ 	if err != nil {
+ 		log.Fatal(err)

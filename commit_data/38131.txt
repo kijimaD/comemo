@@ -17,6 +17,42 @@ Date:   Wed Oct 3 18:41:18 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/root_darwin.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index 9d7b3a6ffb..ae69a2fadd 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -16,7 +16,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+-	"os/user"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+@@ -67,17 +66,17 @@ func execSecurityRoots() (*CertPool, error) {
+ 		"/Library/Keychains/System.keychain",
+ 	}
+ 
+-	u, err := user.Current()
+-	if err != nil {
++	home := os.UserHomeDir()
++	if home == "" {
+ 		if debugExecDarwinRoots {
+-			println(fmt.Sprintf("crypto/x509: get current user: %v", err))
++			println("crypto/x509: can't get user home directory")
+ 		}
+ 	} else {
+ 		args = append(args,
+-			filepath.Join(u.HomeDir, "/Library/Keychains/login.keychain"),
++			filepath.Join(home, "/Library/Keychains/login.keychain"),
+ 
+ 			// Fresh installs of Sierra use a slightly different path for the login keychain
+-			filepath.Join(u.HomeDir, "/Library/Keychains/login.keychain-db"),
++			filepath.Join(home, "/Library/Keychains/login.keychain-db"),
+ 		)
+ 	}
+ 

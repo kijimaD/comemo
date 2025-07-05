@@ -17,7 +17,7 @@ Date:   Wed Jan 28 15:22:16 2009 -0800
     DELTA=70  (28 added, 25 deleted, 17 changed)
     OCL=23704
     CL=23710
-
+---
  src/runtime/Makefile    |  2 +-
  src/runtime/malloc.c    |  2 +-
  src/runtime/malloc.h    | 14 +++++++++++---
@@ -26,3 +26,259 @@ Date:   Wed Jan 28 15:22:16 2009 -0800
  src/runtime/mheap.c     | 24 +++++++++++++++++-------
  src/runtime/proc.c      |  8 ++++----
  7 files changed, 43 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index e9c895ab60..468a5eb325 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -43,7 +43,7 @@ LIBOFILES=\
+ 
+ OFILES=$(RT0OFILES) $(LIBOFILES)
+ OS_H=$(GOARCH)_$(GOOS).h
+-HFILES=runtime.h hashmap.h $(OS_H_)
++HFILES=runtime.h hashmap.h malloc.h $(OS_H_)
+ 
+ install: rt0 $(LIB) runtime.acid
+ 	cp $(RT0OFILES) $(GOROOT)/lib
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index e518b5667a..74354357c5 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -272,7 +272,7 @@ stackalloc(uint32 n)
+ 	if(m->mallocing) {
+ 		lock(&stacks);
+ 		if(stacks.size == 0)
+-			FixAlloc_Init(&stacks, n, SysAlloc);
++			FixAlloc_Init(&stacks, n, SysAlloc, nil, nil);
+ 		if(stacks.size != n) {
+ 			printf("stackalloc: in malloc, size=%D want %d", stacks.size, n);
+ 			throw("stackalloc");
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index 1da9f980de..d1d9e95e98 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -131,16 +131,20 @@ void	SysUnused(void *v, uintptr nbytes);
+ //
+ // Memory returned by FixAlloc_Alloc is not zeroed.
+ // The caller is responsible for locking around FixAlloc calls.
++// Callers can keep state in the object but the first word is
++// smashed by freeing and reallocating.
+ struct FixAlloc
+ {
+ 	uintptr size;
+ 	void *(*alloc)(uintptr);
++	void (*first)(void *arg, byte *p);	// called first time p is returned
++	void *arg;
+ 	MLink *list;
+ 	byte *chunk;
+ 	uint32 nchunk;
+ };
+ 
+-void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr));
++void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg);
+ void*	FixAlloc_Alloc(FixAlloc *f);
+ void	FixAlloc_Free(FixAlloc *f, void *p);
+ 
+@@ -203,18 +207,21 @@ void	MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
+ enum
+ {
+ 	MSpanInUse = 0,
+-	MSpanFree
++	MSpanFree,
++	MSpanListHead,
++	MSpanDead,
+ };
+ struct MSpan
+ {
+ 	MSpan	*next;		// in a span linked list
+ 	MSpan	*prev;		// in a span linked list
++	MSpan	*allnext;		// in the list of all spans
+ 	PageID	start;		// starting page number
+ 	uintptr	npages;		// number of pages in span
+ 	MLink	*freelist;	// list of free objects
+ 	uint32	ref;		// number of allocated objects in this span
+ 	uint32	sizeclass;	// size class
+-	uint32	state;		// MSpanInUse or MSpanFree
++	uint32	state;		// MSpanInUse etc
+ 	union {
+ 		uint32	*gcref;	// sizeclass > 0
+ 		uint32	gcref0;	// sizeclass == 0
+@@ -349,6 +356,7 @@ struct MHeap
+ 	Lock;
+ 	MSpan free[MaxMHeapList];	// free lists of given length
+ 	MSpan large;			// free lists length >= MaxMHeapList
++	MSpan *allspans;
+ 
+ 	// span lookup
+ 	MHeapMap map;
+diff --git a/src/runtime/mfixalloc.c b/src/runtime/mfixalloc.c
+index 904ca7e2af..dd4f3f2518 100644
+--- a/src/runtime/mfixalloc.c
++++ b/src/runtime/mfixalloc.c
+@@ -12,10 +12,12 @@
+ // Initialize f to allocate objects of the given size,
+ // using the allocator to obtain chunks of memory.
+ void
+-FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr))
++FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg)
+ {
+ 	f->size = size;
+ 	f->alloc = alloc;
++	f->first = first;
++	f->arg = arg;
+ 	f->list = nil;
+ 	f->chunk = nil;
+ 	f->nchunk = 0;
+@@ -38,6 +40,8 @@ FixAlloc_Alloc(FixAlloc *f)
+ 		f->nchunk = FixAllocChunk;
+ 	}
+ 	v = f->chunk;
++	if(f->first)
++		f->first(f->arg, v);
+ 	f->chunk += f->size;
+ 	f->nchunk -= f->size;
+ 	return v;
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 3584bf75ca..ecb55b57a8 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -109,7 +109,7 @@ sweepspan(MSpan *s)
+ 
+ 	if(s->state != MSpanInUse)
+ 		return;
+-
++	
+ 	p = (byte*)(s->start << PageShift);
+ 	if(s->sizeclass == 0) {
+ 		// Large block.
+@@ -157,33 +157,14 @@ sweepspan(MSpan *s)
+ 	}
+ }
+ 
+-static void
+-sweepspanlist(MSpan *list)
+-{
+-	MSpan *s, *next;
+-
+-	for(s=list->next; s != list; s=next) {
+-		next = s->next;	// in case s gets moved
+-		sweepspan(s);
+-	}
+-}
+-
+ static void
+ sweep(void)
+ {
+-	int32 i;
++	MSpan *s;
+ 
+ 	// Sweep all the spans.
+-
+-	for(i=0; i<nelem(mheap.central); i++) {
+-		// Sweep nonempty (has some free blocks available)
+-		// before sweeping empty (is completely allocated),
+-		// because finding something to free in a span from empty
+-		// will move it into nonempty, and we must not sweep
+-		// the same span twice.
+-		sweepspanlist(&mheap.central[i].nonempty);
+-		sweepspanlist(&mheap.central[i].empty);
+-	}
++	for(s = mheap.allspans; s != nil; s = s->allnext)
++		sweepspan(s);
+ }
+ 
+ // Semaphore, not Lock, so that the goroutine
+diff --git a/src/runtime/mheap.c b/src/runtime/mheap.c
+index d1b504ed21..64af8e741a 100644
+--- a/src/runtime/mheap.c
++++ b/src/runtime/mheap.c
+@@ -21,14 +21,26 @@ static void MHeap_FreeLocked(MHeap*, MSpan*);
+ static MSpan *MHeap_AllocLarge(MHeap*, uintptr);
+ static MSpan *BestFit(MSpan*, uintptr, MSpan*);
+ 
++static void
++RecordSpan(void *vh, byte *p)
++{
++	MHeap *h;
++	MSpan *s;
++
++	h = vh;
++	s = (MSpan*)p;
++	s->allnext = h->allspans;
++	h->allspans = s;
++}
++
+ // Initialize the heap; fetch memory using alloc.
+ void
+ MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
+ {
+ 	uint32 i;
+ 
+-	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc);
+-	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc);
++	FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc, RecordSpan, h);
++	FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc, nil, nil);
+ 	MHeapMap_Init(&h->map, alloc);
+ 	// h->mapcache needs no init
+ 	for(i=0; i<nelem(h->free); i++)
+@@ -110,11 +122,6 @@ HaveSpan:
+ 		for(n=0; n<npage; n++)
+ 			if(MHeapMapCache_GET(&h->mapcache, s->start+n, tmp) != 0)
+ 				MHeapMapCache_SET(&h->mapcache, s->start+n, 0);
+-
+-		// Need a list of large allocated spans.
+-		// They have sizeclass == 0, so use heap.central[0].empty,
+-		// since central[0] is otherwise unused.
+-		MSpanList_Insert(&h->central[0].empty, s);
+ 	} else {
+ 		// Save cache entries for this span.
+ 		// If there's a size class, there aren't that many pages.
+@@ -252,12 +259,14 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 		s->npages += t->npages;
+ 		MHeapMap_Set(&h->map, s->start, s);
+ 		MSpanList_Remove(t);
++		t->state = MSpanDead;
+ 		FixAlloc_Free(&h->spanalloc, t);
+ 	}
+ 	if((t = MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
+ 		s->npages += t->npages;
+ 		MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
+ 		MSpanList_Remove(t);
++		t->state = MSpanDead;
+ 		FixAlloc_Free(&h->spanalloc, t);
+ 	}
+ 
+@@ -395,6 +404,7 @@ MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ void
+ MSpanList_Init(MSpan *list)
+ {
++	list->state = MSpanListHead;
+ 	list->next = list;
+ 	list->prev = list;
+ }
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 349074bfde..fc011cfa41 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -548,7 +548,8 @@ scheduler(void)
+ 	gp->status = Grunning;
+ 	if(debug > 1) {
+ 		lock(&debuglock);
+-		printf("m%d run g%d\n", m->id, gp->goid);
++		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.PC);
++		traceback(gp->sched.PC, gp->sched.SP+8, gp);
+ 		unlock(&debuglock);
+ 	}
+ 	m->curg = gp;
+@@ -598,9 +599,8 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ 		notewakeup(&sched.stopped);
+ 	}
+ 	unlock(&sched);
+-	// leave SP around for gc; poison PC to make sure it's not used
+-	g->sched.SP = (byte*)&callerpc;
+-	g->sched.PC = (byte*)0xdeadbeef;
++	// leave SP around for gc and traceback
++	gosave(&g->sched);
+ }
+ 
+ // The goroutine g exited its system call.

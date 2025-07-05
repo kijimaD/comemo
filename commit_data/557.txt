@@ -8,8 +8,94 @@ Date:   Tue Sep 2 13:08:40 2008 -0700
     R=gri
     OCL=14713
     CL=14713
-
+---
  test/{bugs => fixedbugs}/bug070.go |  0
  test/{bugs => fixedbugs}/bug091.go |  0
  test/golden.out                    | 32 ++++++++++----------------------
  3 files changed, 10 insertions(+), 22 deletions(-)
+
+diff --git a/test/bugs/bug070.go b/test/fixedbugs/bug070.go
+similarity index 100%
+rename from test/bugs/bug070.go
+rename to test/fixedbugs/bug070.go
+diff --git a/test/bugs/bug091.go b/test/fixedbugs/bug091.go
+similarity index 100%
+rename from test/bugs/bug091.go
+rename to test/fixedbugs/bug091.go
+diff --git a/test/golden.out b/test/golden.out
+index af39350c1a..ed4b9c4a1e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -48,7 +48,6 @@ PASS
+ 
+ =========== bugs/bug020.go
+ bugs/bug020.go:7: type of a structure field cannot be an open array
+-bugs/bug020.go:7: fatal error: width of a dynamic array
+ BUG should compile
+ 
+ =========== bugs/bug026.go
+@@ -109,19 +108,6 @@ BUG: compilation should succeed
+ bugs/bug068.go:6: unknown escape sequence: '
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug070.go
+-outer loop top k 0
+-inner loop top i 0
+-do break
+-outer loop top k 1
+-k not zero
+-panic on line 342 PC=0x1362
+-0x1362?zi
+-	main·main(1, 0, 1606416392, ...)
+-	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+-BUG: crashes
+-Trace/BPT trap          ./$A.out
+-
+ =========== bugs/bug072.go
+ bugs/bug072.go:6: bug: undefined
+ BUG: compiler crashes after error message - Bus error
+@@ -136,10 +122,6 @@ bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
+ 
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug076.go
+-bugs/bug076.go:11: label redeclared: exit
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug077.go
+ BUG: known to succeed incorrectly
+ 
+@@ -185,12 +167,9 @@ BUG: fails incorrectly
+ =========== bugs/bug090.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug091.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== bugs/bug092.go
+ BUG should not crash
+-/tmp/gorun-gri: line 1: 18181 Illegal instruction     ./$A.out
++/tmp/gorun-r: line 1: 83206 Illegal instruction     ./$A.out
+ 
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+@@ -225,6 +204,12 @@ fixedbugs/bug051.go:10: expression must be a constant
+ =========== fixedbugs/bug067.go
+ ok
+ 
++=========== fixedbugs/bug070.go
++outer loop top k 0
++inner loop top i 0
++do break
++broke
++
+ =========== fixedbugs/bug073.go
+ fixedbugs/bug073.go:8: illegal types for operand: LSH
+ 	(<int32>INT32)
+@@ -232,3 +217,6 @@ fixedbugs/bug073.go:8: illegal types for operand: LSH
+ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ 	(<int32>INT32)
+ 	(<int32>INT32)
++
++=========== fixedbugs/bug091.go
++fixedbugs/bug091.go:14: label exit not defined

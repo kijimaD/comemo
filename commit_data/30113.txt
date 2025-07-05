@@ -13,7 +13,48 @@ Date:   Tue Oct 25 12:59:36 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/errors/malloc.go | 13 ++++++++++++-
  misc/cgo/errors/test.bash |  2 +-
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/errors/malloc.go b/misc/cgo/errors/malloc.go
+index 7a69736222..65da0208b9 100644
+--- a/misc/cgo/errors/malloc.go
++++ b/misc/cgo/errors/malloc.go
+@@ -11,10 +11,21 @@ import "C"
+ 
+ import (
+ 	"fmt"
++	"runtime"
+ )
+ 
+ func main() {
+-	p := C.malloc(C.size_t(^uintptr(0)))
++	var size C.size_t
++	size--
++
++	// The Dragonfly libc succeeds when asked to allocate
++	// 0xffffffffffffffff bytes, so pass a different value that
++	// causes it to fail.
++	if runtime.GOOS == "dragonfly" {
++		size = C.size_t(0x7fffffff << (32 * (^uintptr(0) >> 63)))
++	}
++
++	p := C.malloc(size)
+ 	if p == nil {
+ 		fmt.Println("malloc: C.malloc returned nil")
+ 		// Just exit normally--the test script expects this
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 8b892938fc..05261e9d76 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -62,7 +62,7 @@ fi
+ # The malloc.go test should crash.
+ rm -f malloc.out
+ if go run malloc.go >malloc.out 2>&1; then
+-	echo "`go run malloc.go` succeeded unexpectedly"
++	echo '`go run malloc.go` succeeded unexpectedly'
+ 	cat malloc.out
+ 	rm -f malloc.out
+ 	exit 1

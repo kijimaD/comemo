@@ -20,7 +20,7 @@ Date:   Tue Oct 31 13:21:41 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/539318
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |  46 +++----
  src/cmd/compile/internal/inline/inlheur/analyze.go | 132 +++++++++++++++------
  .../internal/inline/inlheur/analyze_func_params.go |  15 +--
@@ -32,3 +32,659 @@ Date:   Tue Oct 31 13:21:41 2023 -0400
  .../inline/inlheur/testdata/props/returns.go       |   7 +-
  test/newinline.go                                  |   4 +-
  10 files changed, 160 insertions(+), 111 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index e031b87dfa..2677ae3086 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -29,7 +29,6 @@ package inline
+ import (
+ 	"fmt"
+ 	"go/constant"
+-	"internal/goexperiment"
+ 	"strconv"
+ 
+ 	"cmd/compile/internal/base"
+@@ -151,10 +150,11 @@ func InlinePackage(p *pgo.Profile) {
+ 	garbageCollectUnreferencedHiddenClosures()
+ 
+ 	if base.Debug.DumpInlFuncProps != "" {
+-		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil, inlineMaxBudget)
++		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
+ 	}
+-	if useNewInliner() {
++	if inlheur.Enabled() {
+ 		postProcessCallSites(p)
++		inlheur.TearDown()
+ 	}
+ }
+ 
+@@ -175,6 +175,9 @@ func InlineDecls(p *pgo.Profile, funcs []*ir.Func, doInline bool) {
+ 				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+ 			}
+ 		}
++		if inlheur.Enabled() {
++			analyzeFuncProps(n, p)
++		}
+ 	}
+ 
+ 	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
+@@ -283,16 +286,6 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 		base.Fatalf("CanInline no nname %+v", fn)
+ 	}
+ 
+-	var funcProps *inlheur.FuncProps
+-	if useNewInliner() {
+-		callCanInline := func(fn *ir.Func) { CanInline(fn, profile) }
+-		funcProps = inlheur.AnalyzeFunc(fn, callCanInline, inlineMaxBudget)
+-		budgetForFunc := func(fn *ir.Func) int32 {
+-			return inlineBudget(fn, profile, true, false)
+-		}
+-		defer func() { inlheur.RevisitInlinability(fn, budgetForFunc) }()
+-	}
+-
+ 	var reason string // reason, if any, that the function was not inlined
+ 	if base.Flag.LowerM > 1 || logopt.Enabled() {
+ 		defer func() {
+@@ -327,7 +320,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 	}
+ 
+ 	// Used a "relaxed" inline budget if the new inliner is enabled.
+-	relaxed := useNewInliner()
++	relaxed := inlheur.Enabled()
+ 
+ 	// Compute the inline budget for this func.
+ 	budget := inlineBudget(fn, profile, relaxed, base.Debug.PGODebug > 0)
+@@ -361,9 +354,6 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 
+ 		CanDelayResults: canDelayResults(fn),
+ 	}
+-	if useNewInliner() {
+-		n.Func.Inl.Properties = funcProps.SerializeToString()
+-	}
+ 
+ 	if base.Flag.LowerM > 1 {
+ 		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, budget-visitor.budget, fn.Type(), ir.Nodes(fn.Body))
+@@ -802,13 +792,12 @@ func isBigFunc(fn *ir.Func) bool {
+ // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
+-	if useNewInliner() && !fn.Wrapper() {
++	if inlheur.Enabled() && !fn.Wrapper() {
+ 		inlheur.ScoreCalls(fn)
+ 		defer inlheur.ScoreCallsCleanup()
+ 	}
+ 	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
+-		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
+-			func(fn *ir.Func) { CanInline(fn, profile) }, inlineMaxBudget)
++		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
+ 	}
+ 	savefn := ir.CurFunc
+ 	ir.CurFunc = fn
+@@ -983,7 +972,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 	}
+ 
+ 	metric := callee.Inl.Cost
+-	if useNewInliner() {
++	if inlheur.Enabled() {
+ 		score, ok := inlheur.GetCallSiteScore(caller, n)
+ 		if ok {
+ 			metric = int32(score)
+@@ -1196,7 +1185,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, i
+ 		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(res), res)
+ 	}
+ 
+-	if useNewInliner() {
++	if inlheur.Enabled() {
+ 		inlheur.UpdateCallsiteTable(callerfn, n, res)
+ 	}
+ 
+@@ -1305,11 +1294,6 @@ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
+ 	return v
+ }
+ 
+-func useNewInliner() bool {
+-	return goexperiment.NewInliner ||
+-		inlheur.UnitTesting()
+-}
+-
+ func postProcessCallSites(profile *pgo.Profile) {
+ 	if base.Debug.DumpInlCallSiteScores != 0 {
+ 		budgetCallback := func(fn *ir.Func, prof *pgo.Profile) (int32, bool) {
+@@ -1319,3 +1303,11 @@ func postProcessCallSites(profile *pgo.Profile) {
+ 		inlheur.DumpInlCallSiteScores(profile, budgetCallback)
+ 	}
+ }
++
++func analyzeFuncProps(fn *ir.Func, p *pgo.Profile) {
++	canInline := func(fn *ir.Func) { CanInline(fn, p) }
++	budgetForFunc := func(fn *ir.Func) int32 {
++		return inlineBudget(fn, p, true, false)
++	}
++	inlheur.AnalyzeFunc(fn, canInline, budgetForFunc, inlineMaxBudget)
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 727851b6a4..45782e64ed 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"encoding/json"
+ 	"fmt"
++	"internal/goexperiment"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -50,29 +51,89 @@ type propAnalyzer interface {
+ // parsing a dump. This is the reason why we have file/fname/line
+ // fields below instead of just an *ir.Func field.
+ type fnInlHeur struct {
+-	fname           string
+-	file            string
+-	line            uint
+-	inlineMaxBudget int32
+-	props           *FuncProps
+-	cstab           CallSiteTab
++	props *FuncProps
++	cstab CallSiteTab
++	fname string
++	file  string
++	line  uint
+ }
+ 
+ var fpmap = map[*ir.Func]fnInlHeur{}
+ 
+-func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *FuncProps {
++// AnalyzeFunc computes function properties for fn and its contained
++// closures, updating the global 'fpmap' table. It is assumed that
++// "CanInline" has been run on fn and on the closures that feed
++// directly into calls; other closures not directly called will also
++// be checked inlinability for inlinability here in case they are
++// returned as a result.
++func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), budgetForFunc func(*ir.Func) int32, inlineMaxBudget int) {
++	if fpmap == nil {
++		// If fpmap is nil this indicates that the main inliner pass is
++		// complete and we're doing inlining of wrappers (no heuristics
++		// used here).
++		return
++	}
++	if fn.OClosure != nil {
++		// closures will be processed along with their outer enclosing func.
++		return
++	}
++	enableDebugTraceIfEnv()
++	if debugTrace&debugTraceFuncs != 0 {
++		fmt.Fprintf(os.Stderr, "=-= AnalyzeFunc(%v)\n", fn)
++	}
++	// Build up a list containing 'fn' and any closures it contains. Along
++	// the way, test to see whether each closure is inlinable in case
++	// we might be returning it.
++	funcs := []*ir.Func{fn}
++	ir.VisitFuncAndClosures(fn, func(n ir.Node) {
++		if clo, ok := n.(*ir.ClosureExpr); ok {
++			funcs = append(funcs, clo.Func)
++		}
++	})
++
++	// Analyze the list of functions. We want to visit a given func
++	// only after the closures it contains have been processed, so
++	// iterate through the list in reverse order. Once a function has
++	// been analyzed, revisit the question of whether it should be
++	// inlinable; if it is over the default hairyness limit and it
++	// doesn't have any interesting properties, then we don't want
++	// the overhead of writing out its inline body.
++	for i := len(funcs) - 1; i >= 0; i-- {
++		f := funcs[i]
++		if f.OClosure != nil && !f.InlinabilityChecked() {
++			canInline(f)
++		}
++		funcProps := analyzeFunc(f, inlineMaxBudget)
++		revisitInlinability(f, funcProps, budgetForFunc)
++		if f.Inl != nil {
++			f.Inl.Properties = funcProps.SerializeToString()
++		}
++	}
++	disableDebugTrace()
++}
++
++// TearDown is invoked at the end of the main inlining pass; doing
++// function analysis and call site scoring is unlikely to help a lot
++// after this point, so nil out fpmap and other globals to reclaim
++// storage.
++func TearDown() {
++	fpmap = nil
++	scoreCallsCache.tab = nil
++	scoreCallsCache.csl = nil
++}
++
++func analyzeFunc(fn *ir.Func, inlineMaxBudget int) *FuncProps {
+ 	if funcInlHeur, ok := fpmap[fn]; ok {
+ 		return funcInlHeur.props
+ 	}
+-	funcProps, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
++	funcProps, fcstab := computeFuncProps(fn, inlineMaxBudget)
+ 	file, line := fnFileLine(fn)
+ 	entry := fnInlHeur{
+-		fname:           fn.Sym().Name,
+-		file:            file,
+-		line:            line,
+-		inlineMaxBudget: inlineMaxBudget,
+-		props:           funcProps,
+-		cstab:           fcstab,
++		fname: fn.Sym().Name,
++		file:  file,
++		line:  line,
++		props: funcProps,
++		cstab: fcstab,
+ 	}
+ 	fn.SetNeverReturns(entry.props.Flags&FuncPropNeverReturns != 0)
+ 	fpmap[fn] = entry
+@@ -82,24 +143,19 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *
+ 	return funcProps
+ }
+ 
+-// RevisitInlinability revisits the question of whether to continue to
++// revisitInlinability revisits the question of whether to continue to
+ // treat function 'fn' as an inline candidate based on the set of
+ // properties we've computed for it. If (for example) it has an
+ // initial size score of 150 and no interesting properties to speak
+ // of, then there isn't really any point to moving ahead with it as an
+ // inline candidate.
+-func RevisitInlinability(fn *ir.Func, budgetForFunc func(*ir.Func) int32) {
++func revisitInlinability(fn *ir.Func, funcProps *FuncProps, budgetForFunc func(*ir.Func) int32) {
+ 	if fn.Inl == nil {
+ 		return
+ 	}
+-	entry, ok := fpmap[fn]
+-	if !ok {
+-		//FIXME: issue error?
+-		return
+-	}
+-	mxAdjust := int32(largestScoreAdjustment(fn, entry.props))
++	maxAdj := int32(largestScoreAdjustment(fn, funcProps))
+ 	budget := budgetForFunc(fn)
+-	if fn.Inl.Cost+mxAdjust > budget {
++	if fn.Inl.Cost+maxAdj > budget {
+ 		fn.Inl = nil
+ 	}
+ }
+@@ -107,8 +163,7 @@ func RevisitInlinability(fn *ir.Func, budgetForFunc func(*ir.Func) int32) {
+ // computeFuncProps examines the Go function 'fn' and computes for it
+ // a function "properties" object, to be used to drive inlining
+ // heuristics. See comments on the FuncProps type for more info.
+-func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) (*FuncProps, CallSiteTab) {
+-	enableDebugTraceIfEnv()
++func computeFuncProps(fn *ir.Func, inlineMaxBudget int) (*FuncProps, CallSiteTab) {
+ 	if debugTrace&debugTraceFuncs != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
+ 			fn, fn)
+@@ -116,15 +171,13 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int
+ 	funcProps := new(FuncProps)
+ 	ffa := makeFuncFlagsAnalyzer(fn)
+ 	analyzers := []propAnalyzer{ffa}
+-	analyzers = addResultsAnalyzer(fn, canInline, inlineMaxBudget, analyzers, funcProps)
++	analyzers = addResultsAnalyzer(fn, analyzers, funcProps, inlineMaxBudget)
+ 	analyzers = addParamsAnalyzer(fn, analyzers, funcProps)
+ 	runAnalyzersOnFunction(fn, analyzers)
+ 	for _, a := range analyzers {
+ 		a.setResults(funcProps)
+ 	}
+-	// Now build up a partial table of callsites for this func.
+ 	cstab := computeCallSiteTable(fn, fn.Body, nil, ffa.panicPathTable(), 0)
+-	disableDebugTrace()
+ 	return funcProps, cstab
+ }
+ 
+@@ -159,6 +212,10 @@ func fnFileLine(fn *ir.Func) (string, uint) {
+ 	return filepath.Base(p.Filename()), p.Line()
+ }
+ 
++func Enabled() bool {
++	return goexperiment.NewInliner || UnitTesting()
++}
++
+ func UnitTesting() bool {
+ 	return base.Debug.DumpInlFuncProps != "" ||
+ 		base.Debug.DumpInlCallSiteScores != 0
+@@ -169,11 +226,18 @@ func UnitTesting() bool {
+ // properties to the file given in 'dumpfile'. Used for the
+ // "-d=dumpinlfuncprops=..." command line flag, intended for use
+ // primarily in unit testing.
+-func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func), inlineMaxBudget int32) {
++func DumpFuncProps(fn *ir.Func, dumpfile string) {
+ 	if fn != nil {
+-		enableDebugTraceIfEnv()
+-		captureFuncDumpEntry(fn, canInline, inlineMaxBudget)
+-		disableDebugTrace()
++		if fn.OClosure != nil {
++			// closures will be processed along with their outer enclosing func.
++			return
++		}
++		captureFuncDumpEntry(fn)
++		ir.VisitFuncAndClosures(fn, func(n ir.Node) {
++			if clo, ok := n.(*ir.ClosureExpr); ok {
++				captureFuncDumpEntry(clo.Func)
++			}
++		})
+ 	} else {
+ 		emitDumpToFile(dumpfile)
+ 	}
+@@ -229,7 +293,7 @@ func emitDumpToFile(dumpfile string) {
+ // and enqueues it for later dumping. Used for the
+ // "-d=dumpinlfuncprops=..." command line flag, intended for use
+ // primarily in unit testing.
+-func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) {
++func captureFuncDumpEntry(fn *ir.Func) {
+ 	// avoid capturing compiler-generated equality funcs.
+ 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
+ 		return
+@@ -245,8 +309,6 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
+ 		dumpBuffer = make(map[*ir.Func]fnInlHeur)
+ 	}
+ 	if _, ok := dumpBuffer[fn]; ok {
+-		// we can wind up seeing closures multiple times here,
+-		// so don't add them more than once.
+ 		return
+ 	}
+ 	if debugTrace&debugTraceFuncs != 0 {
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index 0faa798eeb..0ce0af43a2 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -54,6 +54,9 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
+ 		return nil, nil
+ 	}
+ 	vals := make([]ParamPropBits, len(params))
++	if fn.Inl == nil {
++		return nil, vals
++	}
+ 	top := make([]bool, len(params))
+ 	interestingToAnalyze := false
+ 	for i, pn := range params {
+@@ -73,6 +76,9 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
+ 		top[i] = true
+ 		interestingToAnalyze = true
+ 	}
++	if !interestingToAnalyze {
++		return nil, vals
++	}
+ 
+ 	if debugTrace&debugTraceParams != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= param analysis of func %v:\n",
+@@ -82,15 +88,10 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
+ 			if params[i] != nil {
+ 				n = params[i].Sym().String()
+ 			}
+-			fmt.Fprintf(os.Stderr, "=-=  %d: %q %s\n",
+-				i, n, vals[i].String())
++			fmt.Fprintf(os.Stderr, "=-=  %d: %q %s top=%v\n",
++				i, n, vals[i].String(), top[i])
+ 		}
+ 	}
+-
+-	if !interestingToAnalyze {
+-		return nil, vals
+-	}
+-
+ 	pa := &paramsAnalyzer{
+ 		fname:            fn.Sym().Name,
+ 		values:           vals,
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+index 5eac02a37e..58b0f54697 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -19,8 +19,7 @@ type resultsAnalyzer struct {
+ 	fname           string
+ 	props           []ResultPropBits
+ 	values          []resultVal
+-	canInline       func(*ir.Func)
+-	inlineMaxBudget int32
++	inlineMaxBudget int
+ }
+ 
+ // resultVal captures information about a specific result returned from
+@@ -41,8 +40,8 @@ type resultVal struct {
+ // new list. If the function in question doesn't have any returns (or
+ // any interesting returns) then the analyzer list is left as is, and
+ // the result flags in "fp" are updated accordingly.
+-func addResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32, analyzers []propAnalyzer, fp *FuncProps) []propAnalyzer {
+-	ra, props := makeResultsAnalyzer(fn, canInline, inlineMaxBudget)
++func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, inlineMaxBudget int) []propAnalyzer {
++	ra, props := makeResultsAnalyzer(fn, inlineMaxBudget)
+ 	if ra != nil {
+ 		analyzers = append(analyzers, ra)
+ 	} else {
+@@ -55,12 +54,15 @@ func addResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget i
+ // in function fn. If the function doesn't have any interesting
+ // results, a nil helper is returned along with a set of default
+ // result flags for the func.
+-func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) (*resultsAnalyzer, []ResultPropBits) {
++func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int) (*resultsAnalyzer, []ResultPropBits) {
+ 	results := fn.Type().Results()
+ 	if len(results) == 0 {
+ 		return nil, nil
+ 	}
+ 	props := make([]ResultPropBits, len(results))
++	if fn.Inl == nil {
++		return nil, props
++	}
+ 	vals := make([]resultVal, len(results))
+ 	interestingToAnalyze := false
+ 	for i := range results {
+@@ -78,11 +80,9 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
+ 	if !interestingToAnalyze {
+ 		return nil, props
+ 	}
+-
+ 	ra := &resultsAnalyzer{
+ 		props:           props,
+ 		values:          vals,
+-		canInline:       canInline,
+ 		inlineMaxBudget: inlineMaxBudget,
+ 	}
+ 	return ra, nil
+@@ -95,15 +95,6 @@ func (ra *resultsAnalyzer) setResults(funcProps *FuncProps) {
+ 	for i := range ra.values {
+ 		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
+ 			f := ra.values[i].fn.Func
+-			// If the function being returned is a closure that hasn't
+-			// yet been checked by CanInline, invoke it now. NB: this
+-			// is hacky, it would be better if things were structured
+-			// so that all closures were visited ahead of time.
+-			if ra.values[i].fnClo {
+-				if f != nil && !f.InlinabilityChecked() {
+-					ra.canInline(f)
+-				}
+-			}
+ 			// HACK: in order to allow for call site score
+ 			// adjustments, we used a relaxed inline budget in
+ 			// determining inlinability. For the check below, however,
+@@ -111,7 +102,7 @@ func (ra *resultsAnalyzer) setResults(funcProps *FuncProps) {
+ 			// likely to be inlined, as opposed to whether it might
+ 			// possibly be inlined if all the right score adjustments
+ 			// happened, so do a simple check based on the cost.
+-			if f.Inl != nil && f.Inl.Cost <= ra.inlineMaxBudget {
++			if f.Inl != nil && f.Inl.Cost <= int32(ra.inlineMaxBudget) {
+ 				ra.props[i] = ResultAlwaysSameInlinableFunc
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 66f75e9125..c04e604882 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -346,6 +346,9 @@ func gatherPropsDumpForFile(t *testing.T, testcase string, td string) (string, e
+ 	run := []string{testenv.GoToolPath(t), "build",
+ 		"-gcflags=-d=dumpinlfuncprops=" + dumpfile, "-o", outpath, gopath}
+ 	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
++	if err != nil {
++		t.Logf("compile command: %+v", run)
++	}
+ 	if strings.TrimSpace(string(out)) != "" {
+ 		t.Logf("%s", out)
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 8c1cfb8cf8..2b210fce8e 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -215,6 +215,7 @@ func (cs *CallSite) computeCallSiteScore(calleeProps *FuncProps) {
+ 		score, tmask = adjustScore(inLoopAdj, score, tmask)
+ 	}
+ 
++	// Stop here if no callee props.
+ 	if calleeProps == nil {
+ 		cs.Score, cs.ScoreMask = score, tmask
+ 		return
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+index 9cd4abfaea..a8166fddb6 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+@@ -84,63 +84,61 @@ func T_feeds_conditional_if_via_call(x int) {
+ 	feedsifconditional(x)
+ }
+ 
+-// acrosscall.go T_multifeeds 98 0 1
++// acrosscall.go T_multifeeds1 97 0 1
+ // ParamFlags
+ //   0 ParamFeedsIndirectCall|ParamMayFeedIndirectCall
+-//   1 ParamFeedsIndirectCall
++//   1 ParamNoInfo
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":[24,8],"ResultFlags":null}
+-// callsite: acrosscall.go:100:23|1 flagstr "" flagval 0 score 64 mask 0 maskstr ""
+-// callsite: acrosscall.go:101:12|2 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+-// callsite: acrosscall.go:99:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
++// {"Flags":0,"ParamFlags":[24,0],"ResultFlags":null}
++// callsite: acrosscall.go:98:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
++// callsite: acrosscall.go:99:23|1 flagstr "" flagval 0 score 64 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+-func T_multifeeds(f1, f2 func(int)) {
++func T_multifeeds1(f1, f2 func(int)) {
+ 	callsparam(f1)
+ 	callsparamconditional(f1)
+-	callsparam(f2)
+ }
+ 
+-// acrosscall.go T_acrosscall_returnsconstant 112 0 1
++// acrosscall.go T_acrosscall_returnsconstant 110 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":null,"ResultFlags":[8]}
+-// callsite: acrosscall.go:113:24|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: acrosscall.go:111:24|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnsconstant() int {
+ 	return returnsconstant()
+ }
+ 
+-// acrosscall.go T_acrosscall_returnsmem 124 0 1
++// acrosscall.go T_acrosscall_returnsmem 122 0 1
+ // ResultFlags
+ //   0 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":null,"ResultFlags":[2]}
+-// callsite: acrosscall.go:125:19|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: acrosscall.go:123:19|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnsmem() *int {
+ 	return returnsmem()
+ }
+ 
+-// acrosscall.go T_acrosscall_returnscci 136 0 1
++// acrosscall.go T_acrosscall_returnscci 134 0 1
+ // ResultFlags
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":null,"ResultFlags":[4]}
+-// callsite: acrosscall.go:137:19|0 flagstr "" flagval 0 score 7 mask 0 maskstr ""
++// callsite: acrosscall.go:135:19|0 flagstr "" flagval 0 score 7 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnscci() I {
+ 	return returnscci()
+ }
+ 
+-// acrosscall.go T_acrosscall_multiret 146 0 1
++// acrosscall.go T_acrosscall_multiret 144 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: acrosscall.go:148:25|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: acrosscall.go:146:25|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_multiret(q int) int {
+@@ -150,11 +148,11 @@ func T_acrosscall_multiret(q int) int {
+ 	return 0
+ }
+ 
+-// acrosscall.go T_acrosscall_multiret2 160 0 1
++// acrosscall.go T_acrosscall_multiret2 158 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: acrosscall.go:162:25|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+-// callsite: acrosscall.go:164:25|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: acrosscall.go:160:25|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: acrosscall.go:162:25|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_multiret2(q int) int {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+index c87e290947..5cc217b4ba 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -183,7 +183,7 @@ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
+ // callsite: calls.go:209:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+ // callsite: calls.go:210:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+-// callsite: calls.go:212:19|2 flagstr "" flagval 0 score 36 mask 128 maskstr "passFuncToIndCallAdj"
++// callsite: calls.go:212:19|2 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+ // callsite: calls.go:212:19|calls.go:232:10|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+index 9c68e78cb5..51f2bc7cb2 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+@@ -318,19 +318,20 @@ func T_return_different_closures() func(int) int {
+ 	}
+ }
+ 
+-// returns.go T_return_noninlinable 338 0 1
++// returns.go T_return_noninlinable 339 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameFunc
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[16]}
+ // <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_noninlinable.func1 339 0 1
++// returns.go T_return_noninlinable.func1 340 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: returns.go:343:4|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_noninlinable.func1.1 340 0 1
++// returns.go T_return_noninlinable.func1.1 341 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":null,"ResultFlags":null}
+ // <endcallsites>
+diff --git a/test/newinline.go b/test/newinline.go
+index 272eb82f3d..69f1310ab2 100644
+--- a/test/newinline.go
++++ b/test/newinline.go
+@@ -326,9 +326,9 @@ func ii() { // ERROR "can inline ii"
+ // Issue #42194 - make sure that functions evaluated in
+ // go and defer statements can be inlined.
+ func gd1(int) {
+-	defer gd1(gd2()) // ERROR "inlining call to gd2"
++	defer gd1(gd2()) // ERROR "inlining call to gd2" "can inline gd1.deferwrap1"
+ 	defer gd3()()    // ERROR "inlining call to gd3"
+-	go gd1(gd2())    // ERROR "inlining call to gd2"
++	go gd1(gd2())    // ERROR "inlining call to gd2" "can inline gd1.gowrap2"
+ 	go gd3()()       // ERROR "inlining call to gd3"
+ }
+ 

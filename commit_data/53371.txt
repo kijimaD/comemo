@@ -11,8 +11,56 @@ Date:   Tue Jul 19 13:34:29 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/align_runtime_test.go | 1 -
  src/runtime/proc.go               | 4 ++--
  src/runtime/runtime2.go           | 2 +-
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index de5a5c639c..18a3908fda 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -17,7 +17,6 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(p{}.timer0When),
+ 	unsafe.Offsetof(p{}.timerModifiedEarliest),
+ 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
+-	unsafe.Offsetof(schedt{}.goidgen),
+ 	unsafe.Offsetof(schedt{}.lastpoll),
+ 	unsafe.Offsetof(schedt{}.pollUntil),
+ 	unsafe.Offsetof(schedt{}.timeToRun),
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 33d7d6f552..d9df526f7e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1919,7 +1919,7 @@ func oneNewExtraM() {
+ 	mp.lockedInt++
+ 	mp.lockedg.set(gp)
+ 	gp.lockedm.set(mp)
+-	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
++	gp.goid = int64(sched.goidgen.Add(1))
+ 	if raceenabled {
+ 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
+ 	}
+@@ -4168,7 +4168,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 		// Sched.goidgen is the last allocated id,
+ 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
+ 		// At startup sched.goidgen=0, so main goroutine receives goid=1.
+-		pp.goidcache = atomic.Xadd64(&sched.goidgen, _GoidCacheBatch)
++		pp.goidcache = sched.goidgen.Add(_GoidCacheBatch)
+ 		pp.goidcache -= _GoidCacheBatch - 1
+ 		pp.goidcacheend = pp.goidcache + _GoidCacheBatch
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e1788223e7..a9098b8100 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -759,7 +759,7 @@ type p struct {
+ 
+ type schedt struct {
+ 	// accessed atomically. keep at top to ensure alignment on 32-bit systems.
+-	goidgen   uint64
++	goidgen   atomic.Uint64
+ 	lastpoll  uint64 // time of last network poll, 0 if currently polling
+ 	pollUntil uint64 // time to which current poll is sleeping
+ 

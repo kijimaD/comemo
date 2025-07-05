@@ -17,7 +17,7 @@ Date:   Wed Oct 19 11:47:52 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 15 ++++--
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
  src/cmd/compile/internal/ssa/prove.go          | 55 ++++++++++++++++----
@@ -25,3 +25,335 @@ Date:   Wed Oct 19 11:47:52 2016 -0400
  test/prove.go                                  |  2 +-
  test/sliceopt.go                               | 70 ++++++++++++++++++++++++++
  6 files changed, 167 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fd7f0571d4..196bd9c038 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -670,9 +670,18 @@ func (s *state) stmt(n *Node) {
+ 				// If the slice can be SSA'd, it'll be on the stack,
+ 				// so there will be no write barriers,
+ 				// so there's no need to attempt to prevent them.
+-				if samesafeexpr(n.Left, rhs.List.First()) && !s.canSSA(n.Left) {
+-					s.append(rhs, true)
+-					return
++				if samesafeexpr(n.Left, rhs.List.First()) {
++					if !s.canSSA(n.Left) {
++						if Debug_append > 0 {
++							Warnl(n.Lineno, "append: len-only update")
++						}
++						s.append(rhs, true)
++						return
++					} else {
++						if Debug_append > 0 { // replicating old diagnostic message
++							Warnl(n.Lineno, "append: len-only update (in local slice)")
++						}
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index c0492b5531..6713744f68 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -749,6 +749,8 @@
+ // a more comprehensive set.
+ (SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+ (SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
++(SliceLen (SliceMake _ (Const32 <t> [c]) _)) -> (Const32 <t> [c])
++(SliceCap (SliceMake _ _ (Const32 <t> [c]))) -> (Const32 <t> [c])
+ (SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
+ (SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
+ (SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 2b6244c209..357c3b3676 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "math"
++import (
++	"fmt"
++	"math"
++)
+ 
+ type branch int
+ 
+@@ -74,6 +77,10 @@ type limit struct {
+ 	umin, umax uint64 // umin <= value <= umax, unsigned
+ }
+ 
++func (l limit) String() string {
++	return fmt.Sprintf("sm,SM,um,UM=%d,%d,%d,%d", l.min, l.max, l.umin, l.umax)
++}
++
+ var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
+ 
+ // a limitFact is a limit known for a particular value.
+@@ -191,7 +198,7 @@ func (ft *factsTable) get(v, w *Value, d domain) relation {
+ 
+ // update updates the set of relations between v and w in domain d
+ // restricting it to r.
+-func (ft *factsTable) update(v, w *Value, d domain, r relation) {
++func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 	if lessByID(w, v) {
+ 		v, w = w, v
+ 		r = reverseBits[r]
+@@ -293,6 +300,9 @@ func (ft *factsTable) update(v, w *Value, d domain, r relation) {
+ 		}
+ 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
+ 		ft.limits[v.ID] = lim
++		if v.Block.Func.pass.debug > 2 {
++			v.Block.Func.Config.Warnl(parent.Line, "parent=%s, new limits %s %s %s", parent, v, w, lim.String())
++		}
+ 	}
+ }
+ 
+@@ -478,11 +488,11 @@ func prove(f *Func) {
+ 			if branch != unknown {
+ 				ft.checkpoint()
+ 				c := parent.Control
+-				updateRestrictions(ft, boolean, nil, c, lt|gt, branch)
++				updateRestrictions(parent, ft, boolean, nil, c, lt|gt, branch)
+ 				if tr, has := domainRelationTable[parent.Control.Op]; has {
+ 					// When we branched from parent we learned a new set of
+ 					// restrictions. Update the factsTable accordingly.
+-					updateRestrictions(ft, tr.d, c.Args[0], c.Args[1], tr.r, branch)
++					updateRestrictions(parent, ft, tr.d, c.Args[0], c.Args[1], tr.r, branch)
+ 				}
+ 			}
+ 
+@@ -538,7 +548,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
+ 
+ // updateRestrictions updates restrictions from the immediate
+ // dominating block (p) using r. r is adjusted according to the branch taken.
+-func updateRestrictions(ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
++func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
+ 	if t == 0 || branch == unknown {
+ 		// Trivial case: nothing to do, or branch unknown.
+ 		// Shoult not happen, but just in case.
+@@ -550,7 +560,7 @@ func updateRestrictions(ft *factsTable, t domain, v, w *Value, r relation, branc
+ 	}
+ 	for i := domain(1); i <= t; i <<= 1 {
+ 		if t&i != 0 {
+-			ft.update(v, w, i, r)
++			ft.update(parent, v, w, i, r)
+ 		}
+ 	}
+ }
+@@ -566,13 +576,21 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
+ 	m := ft.get(nil, b.Control, boolean)
+ 	if m == lt|gt {
+ 		if b.Func.pass.debug > 0 {
+-			b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
++			if b.Func.pass.debug > 1 {
++				b.Func.Config.Warnl(b.Line, "Proved boolean %s (%s)", b.Control.Op, b.Control)
++			} else {
++				b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
++			}
+ 		}
+ 		return positive
+ 	}
+ 	if m == eq {
+ 		if b.Func.pass.debug > 0 {
+-			b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
++			if b.Func.pass.debug > 1 {
++				b.Func.Config.Warnl(b.Line, "Disproved boolean %s (%s)", b.Control.Op, b.Control)
++			} else {
++				b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
++			}
+ 		}
+ 		return negative
+ 	}
+@@ -599,13 +617,21 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
+ 		m := ft.get(a0, a1, d)
+ 		if m != 0 && tr.r&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
++				if b.Func.pass.debug > 1 {
++					b.Func.Config.Warnl(b.Line, "Proved %s (%s)", c.Op, c)
++				} else {
++					b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
++				}
+ 			}
+ 			return positive
+ 		}
+ 		if m != 0 && ((lt|eq|gt)^tr.r)&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
++				if b.Func.pass.debug > 1 {
++					b.Func.Config.Warnl(b.Line, "Disproved %s (%s)", c.Op, c)
++				} else {
++					b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
++				}
+ 			}
+ 			return negative
+ 		}
+@@ -620,7 +646,11 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
+ 		m := ft.get(a0, a1, signed)
+ 		if m != 0 && tr.r&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
++				if b.Func.pass.debug > 1 {
++					b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s (%s)", c.Op, c)
++				} else {
++					b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
++				}
+ 			}
+ 			return positive
+ 		}
+@@ -635,6 +665,9 @@ func isNonNegative(v *Value) bool {
+ 	case OpConst64:
+ 		return v.AuxInt >= 0
+ 
++	case OpConst32:
++		return int32(v.AuxInt) >= 0
++
+ 	case OpStringLen, OpSliceLen, OpSliceCap,
+ 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7dff179a2c..f6e2ed34f6 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -9656,6 +9656,25 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (SliceCap (SliceMake _ _ (Const32 <t> [c])))
++	// cond:
++	// result: (Const32 <t> [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSliceMake {
++			break
++		}
++		v_0_2 := v_0.Args[2]
++		if v_0_2.Op != OpConst32 {
++			break
++		}
++		t := v_0_2.Type
++		c := v_0_2.AuxInt
++		v.reset(OpConst32)
++		v.Type = t
++		v.AuxInt = c
++		return true
++	}
+ 	// match: (SliceCap (SliceMake _ _ (SliceCap x)))
+ 	// cond:
+ 	// result: (SliceCap x)
+@@ -9714,6 +9733,25 @@ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (SliceLen (SliceMake _ (Const32 <t> [c]) _))
++	// cond:
++	// result: (Const32 <t> [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSliceMake {
++			break
++		}
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst32 {
++			break
++		}
++		t := v_0_1.Type
++		c := v_0_1.AuxInt
++		v.reset(OpConst32)
++		v.Type = t
++		v.AuxInt = c
++		return true
++	}
+ 	// match: (SliceLen (SliceMake _ (SliceLen x) _))
+ 	// cond:
+ 	// result: (SliceLen x)
+diff --git a/test/prove.go b/test/prove.go
+index 65eed745cb..9ced6166e0 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1,5 +1,5 @@
+ // +build amd64
+-// errorcheck -0 -d=ssa/prove/debug=3
++// errorcheck -0 -d=ssa/prove/debug=1
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/sliceopt.go b/test/sliceopt.go
+new file mode 100644
+index 0000000000..17959e9326
+--- /dev/null
++++ b/test/sliceopt.go
+@@ -0,0 +1,70 @@
++// errorcheck -0 -d=append,slice,ssa/prove/debug=1
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check optimization results for append and slicing.
++
++package main
++
++func a1(x []int, y int) []int {
++	x = append(x, y) // ERROR "append: len-only update \(in local slice\)$"
++	return x
++}
++
++func a2(x []int, y int) []int {
++	return append(x, y)
++}
++
++func a3(x *[]int, y int) {
++	*x = append(*x, y) // ERROR "append: len-only update$"
++}
++
++// s1_if_false_then_anything
++func s1_if_false_then_anything(x **[]int, xs **string, i, j int) {
++	z := (**x)[0:i]
++	z = z[i : i+1]
++	println(z) // if we get here, then we have proven that i==i+1 (this cannot happen, but the program is still being analyzed...)
++
++	zs := (**xs)[0:i] // since i=i+1 is proven, i+1 is "in bounds", ha-ha
++	zs = zs[i : i+1]  // ERROR "Proved boolean IsSliceInBounds$"
++	println(zs)
++}
++
++func s1(x **[]int, xs **string, i, j int) {
++	var z []int
++	z = (**x)[2:]
++	z = (**x)[2:len(**x)] // ERROR "Proved boolean IsSliceInBounds$"
++	z = (**x)[2:cap(**x)] // ERROR "Proved IsSliceInBounds$"
++	z = (**x)[i:i]        // -ERROR "Proved IsSliceInBounds"
++	z = (**x)[1:i:i]      // ERROR "Proved boolean IsSliceInBounds$"
++	z = (**x)[i:j:0]
++	z = (**x)[i:0:j] // ERROR "Disproved IsSliceInBounds$"
++	z = (**x)[0:i:j] // ERROR "Proved boolean IsSliceInBounds$"
++	z = (**x)[0:]    // ERROR "slice: omit slice operation$"
++	z = (**x)[2:8]   // ERROR "Disproved Eq(32|64)$"
++	z = (**x)[2:2]   // ERROR "Disproved Eq(32|64)$" "Proved boolean IsSliceInBounds$"
++	z = (**x)[0:i]   // ERROR "Proved boolean IsSliceInBounds$"
++	z = (**x)[2:i:8] // ERROR "Disproved IsSliceInBounds$" "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
++	z = (**x)[i:2:i] // ERROR "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
++
++	z = z[0:i] // ERROR "Proved boolean IsSliceInBounds"
++	z = z[0:i : i+1]
++	z = z[i : i+1] // ERROR "Proved boolean IsSliceInBounds$"
++
++	println(z)
++
++	var zs string
++	zs = (**xs)[2:]
++	zs = (**xs)[2:len(**xs)] // ERROR "Proved IsSliceInBounds$" "Proved boolean IsSliceInBounds$"
++	zs = (**xs)[i:i]         // -ERROR "Proved boolean IsSliceInBounds"
++	zs = (**xs)[0:]          // ERROR "slice: omit slice operation$"
++	zs = (**xs)[2:8]
++	zs = (**xs)[2:2] // ERROR "Proved boolean IsSliceInBounds$"
++	zs = (**xs)[0:i] // ERROR "Proved boolean IsSliceInBounds$"
++
++	zs = zs[0:i]     // See s1_if_false_then_anything above to explain the counterfactual bounds check result below
++	zs = zs[i : i+1] // ERROR "Proved boolean IsSliceInBounds$"
++	println(zs)
++}

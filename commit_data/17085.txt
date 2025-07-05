@@ -8,6 +8,20 @@ Date:   Thu Aug 8 12:41:19 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12643043
-
+---
  src/pkg/container/list/list.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 53e839ed65..34e6b9a50d 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -127,7 +127,7 @@ func (l *List) Remove(e *Element) interface{} {
+ 	return e.Value
+ }
+ 
+-// Pushfront inserts a new element e with value v at the front of list l and returns e.
++// PushFront inserts a new element e with value v at the front of list l and returns e.
+ func (l *List) PushFront(v interface{}) *Element {
+ 	l.lazyInit()
+ 	return l.insertValue(v, &l.root)

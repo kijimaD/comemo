@@ -7,7 +7,34 @@ Date:   Tue May 26 17:13:39 2009 -0700
     R=ken
     OCL=29412
     CL=29412
-
+---
  src/runtime/386/asm.s | 2 +-
  src/runtime/proc.c    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/386/asm.s b/src/runtime/386/asm.s
+index 9dd9c11a98..b7138105f7 100644
+--- a/src/runtime/386/asm.s
++++ b/src/runtime/386/asm.s
+@@ -135,7 +135,7 @@ TEXT setspgoto(SB), 7, $0
+ 	MOVL	AX, SP
+ 	PUSHL	CX
+ 	JMP	BX
+-	POPL	AX
++	POPL	AX	// not reached
+ 	RET
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index d52adf94c0..d51a6c013e 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -705,7 +705,7 @@ newstack(void)
+ 
+ #pragma textflag 7
+ void
+-sys·morestack(uint64 u)
++sys·morestack(uintptr u)
+ {
+ 	while(g == m->g0) {
+ 		// very bad news

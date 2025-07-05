@@ -14,10 +14,120 @@ Date:   Fri May 27 10:05:52 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgo/gcc_traceback.c                    |  2 ++
  src/runtime/testdata/testprogcgo/pprof.go          |  1 +
  src/runtime/testdata/testprogcgo/traceback.go      |  1 +
  src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  1 +
  src/runtime/traceback.go                           | 22 ++++++++++++++++------
  5 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_traceback.c b/src/runtime/cgo/gcc_traceback.c
+index 01f9bb128b..667ea4c0cf 100644
+--- a/src/runtime/cgo/gcc_traceback.c
++++ b/src/runtime/cgo/gcc_traceback.c
+@@ -9,6 +9,7 @@
+ 
+ struct cgoTracebackArg {
+ 	uintptr_t  Context;
++	uintptr_t  SigContext;
+ 	uintptr_t* Buf;
+ 	uintptr_t  Max;
+ };
+@@ -22,6 +23,7 @@ x_cgo_callers(uintptr_t sig, void *info, void *context, void (*cgoTraceback)(str
+ 	struct cgoTracebackArg arg;
+ 
+ 	arg.Context = 0;
++	arg.SigContext = (uintptr_t)(context);
+ 	arg.Buf = cgoCallers;
+ 	arg.Max = 32; // must match len(runtime.cgoCallers)
+ 	(*cgoTraceback)(&arg);
+diff --git a/src/runtime/testdata/testprogcgo/pprof.go b/src/runtime/testdata/testprogcgo/pprof.go
+index 04ac4fe92e..cb30ec5b25 100644
+--- a/src/runtime/testdata/testprogcgo/pprof.go
++++ b/src/runtime/testdata/testprogcgo/pprof.go
+@@ -30,6 +30,7 @@ static int cpuHogCount;
+ 
+ struct cgoTracebackArg {
+ 	uintptr_t  context;
++	uintptr_t  sigContext;
+ 	uintptr_t* buf;
+ 	uintptr_t  max;
+ };
+diff --git a/src/runtime/testdata/testprogcgo/traceback.go b/src/runtime/testdata/testprogcgo/traceback.go
+index 38cdef537a..e8b0a04556 100644
+--- a/src/runtime/testdata/testprogcgo/traceback.go
++++ b/src/runtime/testdata/testprogcgo/traceback.go
+@@ -30,6 +30,7 @@ static int f1() {
+ 
+ struct cgoTracebackArg {
+ 	uintptr_t  context;
++	uintptr_t  sigContext;
+ 	uintptr_t* buf;
+ 	uintptr_t  max;
+ };
+diff --git a/src/runtime/testdata/testprogcgo/tracebackctxt_c.c b/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
+index bbac39658e..900cada0d3 100644
+--- a/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
++++ b/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
+@@ -26,6 +26,7 @@ struct cgoContextArg {
+ 
+ struct cgoTracebackArg {
+ 	uintptr_t  context;
++	uintptr_t  sigContext;
+ 	uintptr_t* buf;
+ 	uintptr_t  max;
+ };
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 279fb52fc0..f9d9f21eea 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -858,15 +858,17 @@ func isSystemGoroutine(gp *g) bool {
+ // pointer to a struct:
+ //
+ //	struct {
+-//		Context uintptr
+-//		Buf     *uintptr
+-//		Max     uintptr
++//		Context    uintptr
++//		SigContext uintptr
++//		Buf        *uintptr
++//		Max        uintptr
+ //	}
+ //
+ // In C syntax, this struct will be
+ //
+ //	struct {
+ //		uintptr_t  Context;
++//		uintptr_t  SigContext;
+ //		uintptr_t* Buf;
+ //		uintptr_t  Max;
+ //	};
+@@ -887,6 +889,13 @@ func isSystemGoroutine(gp *g) bool {
+ // result, if possible, the first time this is called for a specific
+ // context value.
+ //
++// If the traceback function is called from a signal handler on a Unix
++// system, SigContext will be the signal context argument passed to
++// the signal handler (a C ucontext_t* cast to uintptr_t). This may be
++// used to start tracing at the point where the signal occurred. If
++// the traceback function is not called from a signal handler,
++// SigContext will be zero.
++//
+ // Buf is where the traceback information should be stored. It should
+ // be PC values, such that Buf[0] is the PC of the caller, Buf[1] is
+ // the PC of that function's caller, and so on.  Max is the maximum
+@@ -973,9 +982,10 @@ var cgoSymbolizer unsafe.Pointer
+ 
+ // cgoTracebackArg is the type passed to cgoTraceback.
+ type cgoTracebackArg struct {
+-	context uintptr
+-	buf     *uintptr
+-	max     uintptr
++	context    uintptr
++	sigContext uintptr
++	buf        *uintptr
++	max        uintptr
+ }
+ 
+ // cgoContextArg is the type passed to the context function.

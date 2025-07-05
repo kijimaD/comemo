@@ -15,6 +15,108 @@ Date:   Tue Jun 21 15:33:04 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24313
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/run.go | 35 ++++++++++++++++++++++-------------
  1 file changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 209ac9e603..a1ab9d5bec 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -306,7 +306,9 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
+ 
+ var packageRE = regexp.MustCompile(`(?m)^package (\w+)`)
+ 
+-func goDirPackages(longdir string) ([][]string, error) {
++// If singlefilepkgs is set, each file is considered a separate package
++// even if the package names are the same.
++func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
+ 	files, err := goDirFiles(longdir)
+ 	if err != nil {
+ 		return nil, err
+@@ -324,7 +326,7 @@ func goDirPackages(longdir string) ([][]string, error) {
+ 			return nil, fmt.Errorf("cannot find package name in %s", name)
+ 		}
+ 		i, ok := m[pkgname[1]]
+-		if !ok {
++		if singlefilepkgs || !ok {
+ 			i = len(pkgs)
+ 			pkgs = append(pkgs, nil)
+ 			m[pkgname[1]] = i
+@@ -464,12 +466,14 @@ func (t *test) run() {
+ 
+ 	var args, flags []string
+ 	wantError := false
++	singlefilepkgs := false
+ 	f := strings.Fields(action)
+ 	if len(f) > 0 {
+ 		action = f[0]
+ 		args = f[1:]
+ 	}
+ 
++	// TODO: Clean up/simplify this switch statement.
+ 	switch action {
+ 	case "rundircmpout":
+ 		action = "rundir"
+@@ -485,14 +489,6 @@ func (t *test) run() {
+ 	case "errorcheck", "errorcheckdir", "errorcheckoutput":
+ 		t.action = action
+ 		wantError = true
+-		for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+-			if args[0] == "-0" {
+-				wantError = false
+-			} else {
+-				flags = append(flags, args[0])
+-			}
+-			args = args[1:]
+-		}
+ 	case "skip":
+ 		if *runSkips {
+ 			break
+@@ -505,6 +501,19 @@ func (t *test) run() {
+ 		return
+ 	}
+ 
++	// collect flags
++	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
++		switch args[0] {
++		case "-0":
++			wantError = false
++		case "-s":
++			singlefilepkgs = true
++		default:
++			flags = append(flags, args[0])
++		}
++		args = args[1:]
++	}
++
+ 	t.makeTempDir()
+ 	if !*keep {
+ 		defer os.RemoveAll(t.tempDir)
+@@ -578,7 +587,7 @@ func (t *test) run() {
+ 	case "compiledir":
+ 		// Compile all files in the directory in lexicographic order.
+ 		longdir := filepath.Join(cwd, t.goDirName())
+-		pkgs, err := goDirPackages(longdir)
++		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+ 		if err != nil {
+ 			t.err = err
+ 			return
+@@ -594,7 +603,7 @@ func (t *test) run() {
+ 		// errorcheck all files in lexicographic order
+ 		// useful for finding importing errors
+ 		longdir := filepath.Join(cwd, t.goDirName())
+-		pkgs, err := goDirPackages(longdir)
++		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+ 		if err != nil {
+ 			t.err = err
+ 			return
+@@ -631,7 +640,7 @@ func (t *test) run() {
+ 		// Compile all files in the directory in lexicographic order.
+ 		// then link as if the last file is the main package and run it
+ 		longdir := filepath.Join(cwd, t.goDirName())
+-		pkgs, err := goDirPackages(longdir)
++		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+ 		if err != nil {
+ 			t.err = err
+ 			return

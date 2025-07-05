@@ -9,6 +9,31 @@ Date:   Mon Jul 9 17:56:56 2018 +0000
     Change-Id: Ib970c4eeaa90489d014482276a7e5afa94a50741
     Reviewed-on: https://go-review.googlesource.com/122675
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/server.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9b1095c703..85aa4935a9 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -709,8 +709,17 @@ func (cr *connReader) setReadLimit(remain int64) { cr.remain = remain }
+ func (cr *connReader) setInfiniteReadLimit()     { cr.remain = maxInt64 }
+ func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
+ 
+-// may be called from multiple goroutines.
+-func (cr *connReader) handleReadError(err error) {
++// handleReadError is called whenever a Read from the client returns a
++// non-nil error.
++//
++// The provided non-nil err is almost always io.EOF or a "use of
++// closed network connection". In any case, the error is not
++// particularly interesting, except perhaps for debugging during
++// development. Any error means the connection is dead and we should
++// down its context.
++//
++// It may be called from multiple goroutines.
++func (cr *connReader) handleReadError(_ error) {
+ 	cr.conn.cancelCtx()
+ 	cr.closeNotify()
+ }

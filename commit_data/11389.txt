@@ -10,7 +10,7 @@ Date:   Wed Jan 25 15:41:49 2012 -0500
     TBR=bradfitz
     CC=golang-dev
     https://golang.org/cl/5574066
-
+---
  src/pkg/net/dict/Makefile   |   7 -
  src/pkg/net/dict/dict.go    | 210 ------------------------
  src/pkg/patch/Makefile      |  14 --
@@ -20,3 +20,1348 @@ Date:   Wed Jan 25 15:41:49 2012 -0500
  src/pkg/patch/patch_test.go | 390 --------------------------------------------
  src/pkg/patch/textdiff.go   | 179 --------------------
  8 files changed, 1296 deletions(-)
+
+diff --git a/src/pkg/net/dict/Makefile b/src/pkg/net/dict/Makefile
+deleted file mode 100644
+index eaa9e65313..0000000000
+--- a/src/pkg/net/dict/Makefile
++++ /dev/null
+@@ -1,7 +0,0 @@
+-include ../../../Make.inc
+-
+-TARG=net/dict
+-GOFILES=\
+-	dict.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/dict/dict.go b/src/pkg/net/dict/dict.go
+deleted file mode 100644
+index e7f5290f55..0000000000
+--- a/src/pkg/net/dict/dict.go
++++ /dev/null
+@@ -1,210 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package dict implements the Dictionary Server Protocol
+-// as defined in RFC 2229.
+-package dict
+-
+-import (
+-	"net/textproto"
+-	"strconv"
+-	"strings"
+-)
+-
+-// A Client represents a client connection to a dictionary server.
+-type Client struct {
+-	text *textproto.Conn
+-}
+-
+-// Dial returns a new client connected to a dictionary server at
+-// addr on the given network.
+-func Dial(network, addr string) (*Client, error) {
+-	text, err := textproto.Dial(network, addr)
+-	if err != nil {
+-		return nil, err
+-	}
+-	_, _, err = text.ReadCodeLine(220)
+-	if err != nil {
+-		text.Close()
+-		return nil, err
+-	}
+-	return &Client{text: text}, nil
+-}
+-
+-// Close closes the connection to the dictionary server.
+-func (c *Client) Close() error {
+-	return c.text.Close()
+-}
+-
+-// A Dict represents a dictionary available on the server.
+-type Dict struct {
+-	Name string // short name of dictionary
+-	Desc string // long description
+-}
+-
+-// Dicts returns a list of the dictionaries available on the server.
+-func (c *Client) Dicts() ([]Dict, error) {
+-	id, err := c.text.Cmd("SHOW DB")
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	c.text.StartResponse(id)
+-	defer c.text.EndResponse(id)
+-
+-	_, _, err = c.text.ReadCodeLine(110)
+-	if err != nil {
+-		return nil, err
+-	}
+-	lines, err := c.text.ReadDotLines()
+-	if err != nil {
+-		return nil, err
+-	}
+-	_, _, err = c.text.ReadCodeLine(250)
+-
+-	dicts := make([]Dict, len(lines))
+-	for i := range dicts {
+-		d := &dicts[i]
+-		a, _ := fields(lines[i])
+-		if len(a) < 2 {
+-			return nil, textproto.ProtocolError("invalid dictionary: " + lines[i])
+-		}
+-		d.Name = a[0]
+-		d.Desc = a[1]
+-	}
+-	return dicts, err
+-}
+-
+-// A Defn represents a definition.
+-type Defn struct {
+-	Dict Dict   // Dict where definition was found
+-	Word string // Word being defined
+-	Text []byte // Definition text, typically multiple lines
+-}
+-
+-// Define requests the definition of the given word.
+-// The argument dict names the dictionary to use,
+-// the Name field of a Dict returned by Dicts.
+-//
+-// The special dictionary name "*" means to look in all the
+-// server's dictionaries.
+-// The special dictionary name "!" means to look in all the
+-// server's dictionaries in turn, stopping after finding the word
+-// in one of them.
+-func (c *Client) Define(dict, word string) ([]*Defn, error) {
+-	id, err := c.text.Cmd("DEFINE %s %q", dict, word)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	c.text.StartResponse(id)
+-	defer c.text.EndResponse(id)
+-
+-	_, line, err := c.text.ReadCodeLine(150)
+-	if err != nil {
+-		return nil, err
+-	}
+-	a, _ := fields(line)
+-	if len(a) < 1 {
+-		return nil, textproto.ProtocolError("malformed response: " + line)
+-	}
+-	n, err := strconv.Atoi(a[0])
+-	if err != nil {
+-		return nil, textproto.ProtocolError("invalid definition count: " + a[0])
+-	}
+-	def := make([]*Defn, n)
+-	for i := 0; i < n; i++ {
+-		_, line, err = c.text.ReadCodeLine(151)
+-		if err != nil {
+-			return nil, err
+-		}
+-		a, _ := fields(line)
+-		if len(a) < 3 {
+-			// skip it, to keep protocol in sync
+-			i--
+-			n--
+-			def = def[0:n]
+-			continue
+-		}
+-		d := &Defn{Word: a[0], Dict: Dict{a[1], a[2]}}
+-		d.Text, err = c.text.ReadDotBytes()
+-		if err != nil {
+-			return nil, err
+-		}
+-		def[i] = d
+-	}
+-	_, _, err = c.text.ReadCodeLine(250)
+-	return def, err
+-}
+-
+-// Fields returns the fields in s.
+-// Fields are space separated unquoted words
+-// or quoted with single or double quote.
+-func fields(s string) ([]string, error) {
+-	var v []string
+-	i := 0
+-	for {
+-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+-			i++
+-		}
+-		if i >= len(s) {
+-			break
+-		}
+-		if s[i] == '"' || s[i] == '\'' {
+-			q := s[i]
+-			// quoted string
+-			var j int
+-			for j = i + 1; ; j++ {
+-				if j >= len(s) {
+-					return nil, textproto.ProtocolError("malformed quoted string")
+-				}
+-				if s[j] == '\\' {
+-					j++
+-					continue
+-				}
+-				if s[j] == q {
+-					j++
+-					break
+-				}
+-			}
+-			v = append(v, unquote(s[i+1:j-1]))
+-			i = j
+-		} else {
+-			// atom
+-			var j int
+-			for j = i; j < len(s); j++ {
+-				if s[j] == ' ' || s[j] == '\t' || s[j] == '\\' || s[j] == '"' || s[j] == '\'' {
+-					break
+-				}
+-			}
+-			v = append(v, s[i:j])
+-			i = j
+-		}
+-		if i < len(s) {
+-			c := s[i]
+-			if c != ' ' && c != '\t' {
+-				return nil, textproto.ProtocolError("quotes not on word boundaries")
+-			}
+-		}
+-	}
+-	return v, nil
+-}
+-
+-func unquote(s string) string {
+-	if strings.Index(s, "\\") < 0 {
+-		return s
+-	}
+-	b := []byte(s)
+-	w := 0
+-	for r := 0; r < len(b); r++ {
+-		c := b[r]
+-		if c == '\\' {
+-			r++
+-			c = b[r]
+-		}
+-		b[w] = c
+-		w++
+-	}
+-	return string(b[0:w])
+-}
+diff --git a/src/pkg/patch/Makefile b/src/pkg/patch/Makefile
+deleted file mode 100644
+index 32db7bdc80..0000000000
+--- a/src/pkg/patch/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=patch
+-GOFILES=\
+-	apply.go\
+-	git.go\
+-	patch.go\
+-	textdiff.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/patch/apply.go b/src/pkg/patch/apply.go
+deleted file mode 100644
+index 7c4f4ada41..0000000000
+--- a/src/pkg/patch/apply.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package patch
+-
+-import "os"
+-
+-// An Op is a single operation to execute to apply a patch.
+-type Op struct {
+-	Verb Verb   // action
+-	Src  string // source file
+-	Dst  string // destination file
+-	Mode int    // mode for destination (if non-zero)
+-	Data []byte // data for destination (if non-nil)
+-}
+-
+-// Apply applies the patch set to the files named in the patch set,
+-// constructing an in-memory copy of the new file state.
+-// It is the client's job to write the changes to the file system
+-// if desired.
+-//
+-// The function readFile should return the contents of the named file.
+-// Typically this function will be io.ReadFile.
+-//
+-func (set *Set) Apply(readFile func(string) ([]byte, error)) ([]Op, error) {
+-	op := make([]Op, len(set.File))
+-
+-	for i, f := range set.File {
+-		o := &op[i]
+-		o.Verb = f.Verb
+-		o.Src = f.Src
+-		o.Dst = f.Dst
+-		o.Mode = f.NewMode
+-		if f.Diff != NoDiff || o.Verb != Edit {
+-			// Clients assume o.Data == nil means no data diff.
+-			// Start with a non-nil data.
+-			var old []byte = make([]byte, 0) // not nil
+-			var err error
+-			if f.Src != "" {
+-				old, err = readFile(f.Src)
+-				if err != nil {
+-					return nil, &os.PathError{string(f.Verb), f.Src, err}
+-				}
+-			}
+-			o.Data, err = f.Diff.Apply(old)
+-			if err != nil {
+-				return nil, &os.PathError{string(f.Verb), f.Src, err}
+-			}
+-		}
+-	}
+-
+-	return op, nil
+-}
+diff --git a/src/pkg/patch/git.go b/src/pkg/patch/git.go
+deleted file mode 100644
+index 5c233fbaeb..0000000000
+--- a/src/pkg/patch/git.go
++++ /dev/null
+@@ -1,121 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package patch
+-
+-import (
+-	"bytes"
+-	"compress/zlib"
+-	"crypto/sha1"
+-	"encoding/git85"
+-	"errors"
+-	"fmt"
+-	"io"
+-)
+-
+-func gitSHA1(data []byte) []byte {
+-	if len(data) == 0 {
+-		// special case: 0 length is all zeros sum
+-		return make([]byte, 20)
+-	}
+-	h := sha1.New()
+-	fmt.Fprintf(h, "blob %d\x00", len(data))
+-	h.Write(data)
+-	return h.Sum(nil)
+-}
+-
+-// BUG(rsc): The Git binary delta format is not implemented, only Git binary literals.
+-
+-// GitBinaryLiteral represents a Git binary literal diff.
+-type GitBinaryLiteral struct {
+-	OldSHA1 []byte // if non-empty, the SHA1 hash of the original
+-	New     []byte // the new contents
+-}
+-
+-// Apply implements the Diff interface's Apply method.
+-func (d *GitBinaryLiteral) Apply(old []byte) ([]byte, error) {
+-	if sum := gitSHA1(old); !bytes.HasPrefix(sum, d.OldSHA1) {
+-		return nil, ErrPatchFailure
+-	}
+-	return d.New, nil
+-}
+-
+-func unhex(c byte) uint8 {
+-	switch {
+-	case '0' <= c && c <= '9':
+-		return c - '0'
+-	case 'a' <= c && c <= 'f':
+-		return c - 'a' + 10
+-	case 'A' <= c && c <= 'F':
+-		return c - 'A' + 10
+-	}
+-	return 255
+-}
+-
+-func getHex(s []byte) (data []byte, rest []byte) {
+-	n := 0
+-	for n < len(s) && unhex(s[n]) != 255 {
+-		n++
+-	}
+-	n &^= 1 // Only take an even number of hex digits.
+-	data = make([]byte, n/2)
+-	for i := range data {
+-		data[i] = unhex(s[2*i])<<4 | unhex(s[2*i+1])
+-	}
+-	rest = s[n:]
+-	return
+-}
+-
+-// ParseGitBinary parses raw as a Git binary patch.
+-func ParseGitBinary(raw []byte) (Diff, error) {
+-	var oldSHA1, newSHA1 []byte
+-	var sawBinary bool
+-
+-	for {
+-		var first []byte
+-		first, raw, _ = getLine(raw, 1)
+-		first = bytes.TrimSpace(first)
+-		if s, ok := skip(first, "index "); ok {
+-			oldSHA1, s = getHex(s)
+-			if s, ok = skip(s, ".."); !ok {
+-				continue
+-			}
+-			newSHA1, s = getHex(s)
+-			continue
+-		}
+-		if _, ok := skip(first, "GIT binary patch"); ok {
+-			sawBinary = true
+-			continue
+-		}
+-		if n, _, ok := atoi(first, "literal ", 10); ok && sawBinary {
+-			data := make([]byte, n)
+-			d := git85.NewDecoder(bytes.NewBuffer(raw))
+-			z, err := zlib.NewReader(d)
+-			if err != nil {
+-				return nil, err
+-			}
+-			defer z.Close()
+-			if _, err = io.ReadFull(z, data); err != nil {
+-				if err == io.EOF {
+-					err = io.ErrUnexpectedEOF
+-				}
+-				return nil, err
+-			}
+-			var buf [1]byte
+-			m, err := z.Read(buf[0:])
+-			if m != 0 || err != io.EOF {
+-				return nil, errors.New("Git binary literal longer than expected")
+-			}
+-
+-			if sum := gitSHA1(data); !bytes.HasPrefix(sum, newSHA1) {
+-				return nil, errors.New("Git binary literal SHA1 mismatch")
+-			}
+-			return &GitBinaryLiteral{oldSHA1, data}, nil
+-		}
+-		if !sawBinary {
+-			return nil, errors.New("unexpected Git patch header: " + string(first))
+-		}
+-	}
+-	panic("unreachable")
+-}
+diff --git a/src/pkg/patch/patch.go b/src/pkg/patch/patch.go
+deleted file mode 100644
+index 1d804f3362..0000000000
+--- a/src/pkg/patch/patch.go
++++ /dev/null
+@@ -1,321 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package patch implements parsing and execution of the textual and
+-// binary patch descriptions used by version control tools such as
+-// CVS, Git, Mercurial, and Subversion.
+-package patch
+-
+-import (
+-	"bytes"
+-	"path"
+-	"strings"
+-)
+-
+-// A Set represents a set of patches to be applied as a single atomic unit.
+-// Patch sets are often preceded by a descriptive header.
+-type Set struct {
+-	Header string // free-form text
+-	File   []*File
+-}
+-
+-// A File represents a collection of changes to be made to a single file.
+-type File struct {
+-	Verb             Verb
+-	Src              string // source for Verb == Copy, Verb == Rename
+-	Dst              string
+-	OldMode, NewMode int // 0 indicates not used
+-	Diff                 // changes to data; == NoDiff if operation does not edit file
+-}
+-
+-// A Verb is an action performed on a file.
+-type Verb string
+-
+-const (
+-	Add    Verb = "add"
+-	Copy   Verb = "copy"
+-	Delete Verb = "delete"
+-	Edit   Verb = "edit"
+-	Rename Verb = "rename"
+-)
+-
+-// A Diff is any object that describes changes to transform
+-// an old byte stream to a new one.
+-type Diff interface {
+-	// Apply applies the changes listed in the diff
+-	// to the string s, returning the new version of the string.
+-	// Note that the string s need not be a text string.
+-	Apply(old []byte) (new []byte, err error)
+-}
+-
+-// NoDiff is a no-op Diff implementation: it passes the
+-// old data through unchanged.
+-var NoDiff Diff = noDiffType(0)
+-
+-type noDiffType int
+-
+-func (noDiffType) Apply(old []byte) ([]byte, error) {
+-	return old, nil
+-}
+-
+-// A SyntaxError represents a syntax error encountered while parsing a patch.
+-type SyntaxError string
+-
+-func (e SyntaxError) Error() string { return string(e) }
+-
+-var newline = []byte{'\n'}
+-
+-// Parse patches the patch text to create a patch Set.
+-// The patch text typically comprises a textual header and a sequence
+-// of file patches, as would be generated by CVS, Subversion,
+-// Mercurial, or Git.
+-func Parse(text []byte) (*Set, error) {
+-	// Split text into files.
+-	// CVS and Subversion begin new files with
+-	//	Index: file name.
+-	//	==================
+-	//	diff -u blah blah
+-	//
+-	// Mercurial and Git use
+-	//	diff [--git] a/file/path b/file/path.
+-	//
+-	// First look for Index: lines.  If none, fall back on diff lines.
+-	text, files := sections(text, "Index: ")
+-	if len(files) == 0 {
+-		text, files = sections(text, "diff ")
+-	}
+-
+-	set := &Set{string(text), make([]*File, len(files))}
+-
+-	// Parse file header and then
+-	// parse files into patch chunks.
+-	// Each chunk begins with @@.
+-	for i, raw := range files {
+-		p := new(File)
+-		set.File[i] = p
+-
+-		// First line of hdr is the Index: that
+-		// begins the section.  After that is the file name.
+-		s, raw, _ := getLine(raw, 1)
+-		if hasPrefix(s, "Index: ") {
+-			p.Dst = string(bytes.TrimSpace(s[7:]))
+-			goto HaveName
+-		} else if hasPrefix(s, "diff ") {
+-			str := string(bytes.TrimSpace(s))
+-			i := strings.LastIndex(str, " b/")
+-			if i >= 0 {
+-				p.Dst = str[i+3:]
+-				goto HaveName
+-			}
+-		}
+-		return nil, SyntaxError("unexpected patch header line: " + string(s))
+-	HaveName:
+-		p.Dst = path.Clean(p.Dst)
+-		if strings.HasPrefix(p.Dst, "../") || strings.HasPrefix(p.Dst, "/") {
+-			return nil, SyntaxError("invalid path: " + p.Dst)
+-		}
+-
+-		// Parse header lines giving file information:
+-		//	new file mode %o	- file created
+-		//	deleted file mode %o	- file deleted
+-		//	old file mode %o	- file mode changed
+-		//	new file mode %o	- file mode changed
+-		//	rename from %s	- file renamed from other file
+-		//	rename to %s
+-		//	copy from %s		- file copied from other file
+-		//	copy to %s
+-		p.Verb = Edit
+-		for len(raw) > 0 {
+-			oldraw := raw
+-			var l []byte
+-			l, raw, _ = getLine(raw, 1)
+-			l = bytes.TrimSpace(l)
+-			if m, s, ok := atoi(l, "new file mode ", 8); ok && len(s) == 0 {
+-				p.NewMode = m
+-				p.Verb = Add
+-				continue
+-			}
+-			if m, s, ok := atoi(l, "deleted file mode ", 8); ok && len(s) == 0 {
+-				p.OldMode = m
+-				p.Verb = Delete
+-				p.Src = p.Dst
+-				p.Dst = ""
+-				continue
+-			}
+-			if m, s, ok := atoi(l, "old file mode ", 8); ok && len(s) == 0 {
+-				// usually implies p.Verb = "rename" or "copy"
+-				// but we'll get that from the rename or copy line.
+-				p.OldMode = m
+-				continue
+-			}
+-			if m, s, ok := atoi(l, "old mode ", 8); ok && len(s) == 0 {
+-				p.OldMode = m
+-				continue
+-			}
+-			if m, s, ok := atoi(l, "new mode ", 8); ok && len(s) == 0 {
+-				p.NewMode = m
+-				continue
+-			}
+-			if s, ok := skip(l, "rename from "); ok && len(s) > 0 {
+-				p.Src = string(s)
+-				p.Verb = Rename
+-				continue
+-			}
+-			if s, ok := skip(l, "rename to "); ok && len(s) > 0 {
+-				p.Verb = Rename
+-				continue
+-			}
+-			if s, ok := skip(l, "copy from "); ok && len(s) > 0 {
+-				p.Src = string(s)
+-				p.Verb = Copy
+-				continue
+-			}
+-			if s, ok := skip(l, "copy to "); ok && len(s) > 0 {
+-				p.Verb = Copy
+-				continue
+-			}
+-			if s, ok := skip(l, "Binary file "); ok && len(s) > 0 {
+-				// Hg prints
+-				//	Binary file foo has changed
+-				// when deleting a binary file.
+-				continue
+-			}
+-			if s, ok := skip(l, "RCS file: "); ok && len(s) > 0 {
+-				// CVS prints
+-				//	RCS file: /cvs/plan9/bin/yesterday,v
+-				//	retrieving revision 1.1
+-				// for each file.
+-				continue
+-			}
+-			if s, ok := skip(l, "retrieving revision "); ok && len(s) > 0 {
+-				// CVS prints
+-				//	RCS file: /cvs/plan9/bin/yesterday,v
+-				//	retrieving revision 1.1
+-				// for each file.
+-				continue
+-			}
+-			if hasPrefix(l, "===") || hasPrefix(l, "---") || hasPrefix(l, "+++") || hasPrefix(l, "diff ") {
+-				continue
+-			}
+-			if hasPrefix(l, "@@ -") {
+-				diff, err := ParseTextDiff(oldraw)
+-				if err != nil {
+-					return nil, err
+-				}
+-				p.Diff = diff
+-				break
+-			}
+-			if hasPrefix(l, "GIT binary patch") || (hasPrefix(l, "index ") && !hasPrefix(raw, "--- ")) {
+-				diff, err := ParseGitBinary(oldraw)
+-				if err != nil {
+-					return nil, err
+-				}
+-				p.Diff = diff
+-				break
+-			}
+-			if hasPrefix(l, "index ") {
+-				continue
+-			}
+-			return nil, SyntaxError("unexpected patch header line: " + string(l))
+-		}
+-		if p.Diff == nil {
+-			p.Diff = NoDiff
+-		}
+-		if p.Verb == Edit {
+-			p.Src = p.Dst
+-		}
+-	}
+-
+-	return set, nil
+-}
+-
+-// getLine returns the first n lines of data and the remainder.
+-// If data has no newline, getLine returns data, nil, false
+-func getLine(data []byte, n int) (first []byte, rest []byte, ok bool) {
+-	rest = data
+-	ok = true
+-	for ; n > 0; n-- {
+-		nl := bytes.Index(rest, newline)
+-		if nl < 0 {
+-			rest = nil
+-			ok = false
+-			break
+-		}
+-		rest = rest[nl+1:]
+-	}
+-	first = data[0 : len(data)-len(rest)]
+-	return
+-}
+-
+-// sections returns a collection of file sections,
+-// each of which begins with a line satisfying prefix.
+-// text before the first instance of such a line is
+-// returned separately.
+-func sections(text []byte, prefix string) ([]byte, [][]byte) {
+-	n := 0
+-	for b := text; ; {
+-		if hasPrefix(b, prefix) {
+-			n++
+-		}
+-		nl := bytes.Index(b, newline)
+-		if nl < 0 {
+-			break
+-		}
+-		b = b[nl+1:]
+-	}
+-
+-	sect := make([][]byte, n+1)
+-	n = 0
+-	for b := text; ; {
+-		if hasPrefix(b, prefix) {
+-			sect[n] = text[0 : len(text)-len(b)]
+-			n++
+-			text = b
+-		}
+-		nl := bytes.Index(b, newline)
+-		if nl < 0 {
+-			sect[n] = text
+-			break
+-		}
+-		b = b[nl+1:]
+-	}
+-	return sect[0], sect[1:]
+-}
+-
+-// if s begins with the prefix t, skip returns
+-// s with that prefix removed and ok == true.
+-func skip(s []byte, t string) (ss []byte, ok bool) {
+-	if len(s) < len(t) || string(s[0:len(t)]) != t {
+-		return nil, false
+-	}
+-	return s[len(t):], true
+-}
+-
+-// if s begins with the prefix t and then is a sequence
+-// of digits in the given base, atoi returns the number
+-// represented by the digits and s with the
+-// prefix and the digits removed.
+-func atoi(s []byte, t string, base int) (n int, ss []byte, ok bool) {
+-	if s, ok = skip(s, t); !ok {
+-		return
+-	}
+-	var i int
+-	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= byte('0'+base-1); i++ {
+-		n = n*base + int(s[i]-'0')
+-	}
+-	if i == 0 {
+-		return
+-	}
+-	return n, s[i:], true
+-}
+-
+-// hasPrefix returns true if s begins with t.
+-func hasPrefix(s []byte, t string) bool {
+-	_, ok := skip(s, t)
+-	return ok
+-}
+-
+-// splitLines returns the result of splitting s into lines.
+-// The \n on each line is preserved.
+-func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline) }
+diff --git a/src/pkg/patch/patch_test.go b/src/pkg/patch/patch_test.go
+deleted file mode 100644
+index 0a4aef7ea6..0000000000
+--- a/src/pkg/patch/patch_test.go
++++ /dev/null
+@@ -1,390 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package patch
+-
+-// TODO(rsc): test Apply
+-
+-import "testing"
+-
+-type Test struct {
+-	in   string
+-	out  string
+-	diff string
+-}
+-
+-func TestFileApply(t *testing.T) {
+-	for i, test := range tests {
+-		set, err := Parse([]byte(test.diff))
+-		if err != nil {
+-			t.Errorf("#%d: Parse: %s", i, err)
+-			continue
+-		}
+-		if len(set.File) != 1 {
+-			t.Errorf("#%d: Parse returned %d patches, want 1", i, len(set.File))
+-			continue
+-		}
+-		new, err := set.File[0].Apply([]byte(test.in))
+-		if err != nil {
+-			t.Errorf("#%d: Apply: %s", i, err)
+-			continue
+-		}
+-		if s := string(new); s != test.out {
+-			t.Errorf("#%d:\n--- have\n%s--- want\n%s", i, s, test.out)
+-		}
+-	}
+-}
+-
+-var tests = []Test{
+-	{
+-		"hello, world\n",
+-		"goodbye, world\n",
+-		"Index: a\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1 +1 @@\n" +
+-			"-hello, world\n" +
+-			"+goodbye, world\n",
+-	},
+-	{
+-		"hello, world\n",
+-		"goodbye, world\n",
+-		"Index: a\n" +
+-			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1 +1 @@\n" +
+-			"-hello, world\n" +
+-			"+goodbye, world\n",
+-	},
+-	{
+-		"hello, world\n",
+-		"goodbye, world\n",
+-		"diff a/a b/b\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1,1 +1,1 @@\n" +
+-			"-hello, world\n" +
+-			"+goodbye, world\n",
+-	},
+-	{
+-		"hello, world",
+-		"goodbye, world\n",
+-		"diff --git a/a b/b\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1 +1 @@\n" +
+-			"-hello, world\n" +
+-			"\\ No newline at end of file\n" +
+-			"+goodbye, world\n",
+-	},
+-	{
+-		"hello, world\n",
+-		"goodbye, world",
+-		"Index: a\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1 +1 @@\n" +
+-			"-hello, world\n" +
+-			"+goodbye, world\n" +
+-			"\\ No newline at end of file\n",
+-	},
+-	{
+-		"hello, world",
+-		"goodbye, world",
+-		"Index: a\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1 +1 @@\n" +
+-			"-hello, world\n" +
+-			"\\ No newline at end of file\n" +
+-			"+goodbye, world\n" +
+-			"\\ No newline at end of file\n",
+-	},
+-	{
+-		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\n",
+-		"a\nB\nC\nD\ne\nf\ng\nj\nk\nl\nm\nN\n",
+-		"Index: a\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1,14 +1,12 @@\n" +
+-			" a\n" +
+-			"-b\n" +
+-			"-c\n" +
+-			"-d\n" +
+-			"+B\n" +
+-			"+C\n" +
+-			"+D\n" +
+-			" e\n" +
+-			" f\n" +
+-			" g\n" +
+-			"-h\n" +
+-			"-i\n" +
+-			" j\n" +
+-			" k\n" +
+-			" l\n" +
+-			" m\n" +
+-			"-n\n" +
+-			"+N\n",
+-	},
+-	{
+-		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+-		"a\nb\nc\ng\nh\ni\nj\nk\nl\nm\nN\nO\np\nq\nr\ns\nt\nu\nv\nw\nd\ne\nf\nx\n",
+-		"Index: a\n" +
+-			"--- a/a\n" +
+-			"+++ b/b\n" +
+-			"@@ -1,9 +1,6 @@\n" +
+-			" a\n" +
+-			" b\n" +
+-			" c\n" +
+-			"-d\n" +
+-			"-e\n" +
+-			"-f\n" +
+-			" g\n" +
+-			" h\n" +
+-			" i\n" +
+-			"@@ -11,8 +8,8 @@ j\n" +
+-			" k\n" +
+-			" l\n" +
+-			" m\n" +
+-			"-n\n" +
+-			"-o\n" +
+-			"+N\n" +
+-			"+O\n" +
+-			" p\n" +
+-			" q\n" +
+-			" r\n" +
+-			"\n" +
+-			"@@ -21,6 +18,7 @@ t\n" +
+-			" u\n" +
+-			" v\n" +
+-			" w\n" +
+-			"+d\n" +
+-			"+e\n" +
+-			"+f\n" +
+-			" x\n" +
+-			"-y\n" +
+-			"-z\n",
+-	},
+-	{
+-		"a\nb\nc\ng\nh\ni\nj\nk\nl\nm\nN\nO\np\nq\nr\ns\nt\nu\nv\nw\nd\ne\nf\nx\n",
+-		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+-		"Index: a\n" +
+-			"--- a/b\n" +
+-			"+++ b/a\n" +
+-			"@@ -1,6 +1,9 @@\n" +
+-			" a\n" +
+-			" b\n" +
+-			" c\n" +
+-			"+d\n" +
+-			"+e\n" +
+-			"+f\n" +
+-			" g\n" +
+-			" h\n" +
+-			" i\n" +
+-			"@@ -8,8 +11,8 @@ j\n" +
+-			" k\n" +
+-			" l\n" +
+-			" m\n" +
+-			"-N\n" +
+-			"-O\n" +
+-			"+n\n" +
+-			"+o\n" +
+-			" p\n" +
+-			" q\n" +
+-			" r\n" +
+-			"@@ -18,7 +21,6 @@ t\n" +
+-			" u\n" +
+-			" v\n" +
+-			" w\n" +
+-			"-d\n" +
+-			"-e\n" +
+-			"-f\n" +
+-			" x\n" +
+-			"+y\n" +
+-			"+z\n",
+-	},
+-	{
+-		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+-		"",
+-		"Index: a\n" +
+-			"deleted file mode 100644\n" +
+-			"--- a/a\n" +
+-			"+++ /dev/null\n" +
+-			"@@ -1,26 +0,0 @@\n" +
+-			"-a\n" +
+-			"-b\n" +
+-			"-c\n" +
+-			"-d\n" +
+-			"-e\n" +
+-			"-f\n" +
+-			"-g\n" +
+-			"-h\n" +
+-			"-i\n" +
+-			"-j\n" +
+-			"-k\n" +
+-			"-l\n" +
+-			"-m\n" +
+-			"-n\n" +
+-			"-o\n" +
+-			"-p\n" +
+-			"-q\n" +
+-			"-r\n" +
+-			"-s\n" +
+-			"-t\n" +
+-			"-u\n" +
+-			"-v\n" +
+-			"-w\n" +
+-			"-x\n" +
+-			"-y\n" +
+-			"-z\n",
+-	},
+-	{
+-		"",
+-		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+-		"Index: a\n" +
+-			"new file mode 100644\n" +
+-			"--- /dev/null\n" +
+-			"+++ b/a\n" +
+-			"@@ -0,0 +1,26 @@\n" +
+-			"+a\n" +
+-			"+b\n" +
+-			"+c\n" +
+-			"+d\n" +
+-			"+e\n" +
+-			"+f\n" +
+-			"+g\n" +
+-			"+h\n" +
+-			"+i\n" +
+-			"+j\n" +
+-			"+k\n" +
+-			"+l\n" +
+-			"+m\n" +
+-			"+n\n" +
+-			"+o\n" +
+-			"+p\n" +
+-			"+q\n" +
+-			"+r\n" +
+-			"+s\n" +
+-			"+t\n" +
+-			"+u\n" +
+-			"+v\n" +
+-			"+w\n" +
+-			"+x\n" +
+-			"+y\n" +
+-			"+z\n",
+-	},
+-	{
+-		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f" +
+-			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda" +
+-			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07" +
+-			"\x9c\xaa\x92\x88\xd4\x30\xb9\x8b\x95\x04\x60\x71\xc7\xbb\x2d\x93" +
+-			"\x66\x73\x01\x24\xf3\x63\xbf\xe6\x1d\x38\x15\x56\x98\xc4\x1f\x85" +
+-			"\xc3\x60\x39\x3a\x0d\x57\x53\x0c\x29\x3f\xbb\x44\x7e\x56\x56\x9d" +
+-			"\x87\xcf\xf6\x88\xe8\x98\x05\x85\xf8\xfe\x44\x21\xfa\x33\xc9\xa4" +
+-			"\x22\xbe\x89\x05\x8b\x82\x76\xc9\x7c\xaf\x48\x28\xc4\x86\x15\x89" +
+-			"\xb9\x98\xfa\x41\xfc\x3d\x8d\x80\x29\x33\x17\x45\xa5\x7f\x67\x79" +
+-			"\x7f\x92\x3b\x2e\x4c\xc1\xd2\x1b\x9e\xcf\xed\x53\x56\xb2\x49\x58" +
+-			"\xd8\xe9\x9f\x98\xa3\xfe\x78\xe1\xe8\x74\x71\x04\x1a\x87\xd9\x68" +
+-			"\x18\x68\xd0\xae\x7b\xa4\x25\xe3\x06\x03\x7e\x8b\xd3\x50\x1f\xb1" +
+-			"\x67\x08\xe3\x93\xf4\x4f\xa1\xfb\x31\xcf\x99\x5a\x43\x9f\x4b\xc4" +
+-			"\xaa\x68\x1a\xf9\x8e\x97\x02\x80\x17\xf1\x25\x21\xdf\x94\xbf\x41" +
+-			"\x08\x59\x3d\xea\x36\x23\x03\xb5\x62\x4d\xb6\x8f\x9e\xdf\x1f\x03" +
+-			"\x7d\x70\xe0\x6f\x46\x08\x96\x79\x72\xb7\xae\x41\x2b\xbd\x2a\x95",
+-
+-		"\x8e\x5f\xf8\x79\x36\x8d\xbe\x68\xc4\x2c\x78\x8a\x46\x28\x40\x3e" +
+-			"\xcf\x3b\xb9\x14\xaf\xfa\x04\x9e\x4b\xa2\x52\x51\x51\xf0\xad\xd3" +
+-			"\x03\x1c\x03\x79\x5f\x53\xc7\x1a\xd5\x28\xe2\xd9\x19\x37\xa4\xfa" +
+-			"\xdd\xff\xac\xb5\xa9\x42\x4e\x17\xeb\xb4\x0d\x20\x67\x08\x43\x21" +
+-			"\x7d\x12\x27\xfa\x96\x7a\x85\xf8\x04\x5f\xf4\xfe\xda\x9f\x66\xf2" +
+-			"\xba\x04\x39\x00\xab\x3f\x23\x20\x84\x53\xb4\x88\xb6\xee\xa2\x9e" +
+-			"\xc1\xca\xd4\x09\x2a\x27\x89\x2f\xcb\xba\xa6\x41\xb6\xe9\xc5\x08" +
+-			"\xff\xf5\x95\x35\xab\xbb\x5c\x62\x96\xe7\x7c\x8f\xf2\x40\x12\xc9" +
+-			"\x2d\xfe\xff\x75\x4f\x70\x47\xc9\xcd\x15\x0a\x1c\x23\xe7\x0f\x15" +
+-			"\x95\x75\x30\x8f\x6e\x9f\x7e\xa5\x9d\xd1\x65\x1c\x4d\x4e\xf4\x32" +
+-			"\x49\x9b\xa1\x30\x44\x62\x6f\xe2\xe6\x69\x09\xf8\x7c\x7c\xbe\x07" +
+-			"\xa9\xb6\x14\x7a\x6b\x85\xe4\xbf\x48\xbe\x5b\x3b\x70\xb3\x79\x3b" +
+-			"\xc4\x35\x9d\x86\xf1\xfe\x2b\x6f\x80\x74\x50\xf3\x96\x59\x53\x1a" +
+-			"\x75\x46\x9d\x57\x72\xb3\xb1\x26\xf5\x81\xcd\x96\x08\xbc\x2b\x10" +
+-			"\xdc\x80\xbd\xd0\xdf\x03\x6d\x8d\xec\x30\x2b\x4c\xdb\x4d\x3b\xef" +
+-			"\x7d\x3a\x39\xc8\x5a\xc4\xcc\x24\x37\xde\xe2\x95\x2b\x04\x97\xb0",
+-
+-		// From git diff --binary
+-		"Index: a\n" +
+-			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f 100644\n" +
+-			"GIT binary patch\n" +
+-			"literal 256\n" +
+-			"zcmV+b0ssDvU-)@8jlO8aEO?4WC_p~XJGm6E`UIX!qEb;&@U7DW90Pe@Q^y+BDB{@}\n" +
+-			"zH>CRA|E#sCLQWU!v<)C<2ty%#5-0kWdWHA|U-bUkpJwv91UUe!KO-Q7Q?!V-?xLQ-\n" +
+-			"z%G3!eCy6i1x~4(4>BR{D^_4ZNyIf+H=X{UyKoZF<{{MAPa7W3_6$%_9=MNQ?buf=^\n" +
+-			"zpMIsC(PbP>PV_QKo1rj7VsGN+X$kmze7*;%wiJ46h2+0TzFRwRvw1tjHJyg>{wr^Q\n" +
+-			"zbWrn_SyLKyMx9r3v#}=ifz6f(yekmgfW6S)18t4$Fe^;kO*`*>IyuN%#LOf&-r|)j\n" +
+-			"G1edVN^?m&S\n" +
+-			"\n" +
+-			"literal 256\n" +
+-			"zcmV+b0ssEO*!g3O_r{yBJURLZjzW(de6Lg@hr`8ao8i5@!{FM?<CfaOue)`5WQJgh\n" +
+-			"zL!Jkms*;G*Fu9AB1YmK;yDgJua{(mtW54DdI2Bfy#2<yjU^zMsS5pirKf6SJR#u&d\n" +
+-			"z&-RGum<5IS{zM`AGs&bPzKI2kf_BM#uSh7wh82mqnEFBdJ&k}VGZ#gre`k4rk~=O;\n" +
+-			"z!O|O^&+SuIvPoFj>7SUR{&?Z&ba4b4huLTtXwa^Eq$T491AdFsP#>{p2;-CVPoeuU\n" +
+-			"z&zV|7pG(B5Xd3yBmjZwn@g*VOl)pg;Sv~4DBLlT!O}3Ao-yZ{gaNuu72$p$rx2{1e\n" +
+-			"Gy(*Pb;D3Ms\n" +
+-			"\n",
+-	},
+-	{
+-		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f" +
+-			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda" +
+-			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07" +
+-			"\x9c\xaa\x92\x88\xd4\x30\xb9\x8b\x95\x04\x60\x71\xc7\xbb\x2d\x93" +
+-			"\x66\x73\x01\x24\xf3\x63\xbf\xe6\x1d\x38\x15\x56\x98\xc4\x1f\x85" +
+-			"\xc3\x60\x39\x3a\x0d\x57\x53\x0c\x29\x3f\xbb\x44\x7e\x56\x56\x9d" +
+-			"\x87\xcf\xf6\x88\xe8\x98\x05\x85\xf8\xfe\x44\x21\xfa\x33\xc9\xa4" +
+-			"\x22\xbe\x89\x05\x8b\x82\x76\xc9\x7c\xaf\x48\x28\xc4\x86\x15\x89" +
+-			"\xb9\x98\xfa\x41\xfc\x3d\x8d\x80\x29\x33\x17\x45\xa5\x7f\x67\x79" +
+-			"\x7f\x92\x3b\x2e\x4c\xc1\xd2\x1b\x9e\xcf\xed\x53\x56\xb2\x49\x58" +
+-			"\xd8\xe9\x9f\x98\xa3\xfe\x78\xe1\xe8\x74\x71\x04\x1a\x87\xd9\x68" +
+-			"\x18\x68\xd0\xae\x7b\xa4\x25\xe3\x06\x03\x7e\x8b\xd3\x50\x1f\xb1" +
+-			"\x67\x08\xe3\x93\xf4\x4f\xa1\xfb\x31\xcf\x99\x5a\x43\x9f\x4b\xc4" +
+-			"\xaa\x68\x1a\xf9\x8e\x97\x02\x80\x17\xf1\x25\x21\xdf\x94\xbf\x41" +
+-			"\x08\x59\x3d\xea\x36\x23\x03\xb5\x62\x4d\xb6\x8f\x9e\xdf\x1f\x03" +
+-			"\x7d\x70\xe0\x6f\x46\x08\x96\x79\x72\xb7\xae\x41\x2b\xbd\x2a\x95",
+-
+-		"\x8e\x5f\xf8\x79\x36\x8d\xbe\x68\xc4\x2c\x78\x8a\x46\x28\x40\x3e" +
+-			"\xcf\x3b\xb9\x14\xaf\xfa\x04\x9e\x4b\xa2\x52\x51\x51\xf0\xad\xd3" +
+-			"\x03\x1c\x03\x79\x5f\x53\xc7\x1a\xd5\x28\xe2\xd9\x19\x37\xa4\xfa" +
+-			"\xdd\xff\xac\xb5\xa9\x42\x4e\x17\xeb\xb4\x0d\x20\x67\x08\x43\x21" +
+-			"\x7d\x12\x27\xfa\x96\x7a\x85\xf8\x04\x5f\xf4\xfe\xda\x9f\x66\xf2" +
+-			"\xba\x04\x39\x00\xab\x3f\x23\x20\x84\x53\xb4\x88\xb6\xee\xa2\x9e" +
+-			"\xc1\xca\xd4\x09\x2a\x27\x89\x2f\xcb\xba\xa6\x41\xb6\xe9\xc5\x08" +
+-			"\xff\xf5\x95\x35\xab\xbb\x5c\x62\x96\xe7\x7c\x8f\xf2\x40\x12\xc9" +
+-			"\x2d\xfe\xff\x75\x4f\x70\x47\xc9\xcd\x15\x0a\x1c\x23\xe7\x0f\x15" +
+-			"\x95\x75\x30\x8f\x6e\x9f\x7e\xa5\x9d\xd1\x65\x1c\x4d\x4e\xf4\x32" +
+-			"\x49\x9b\xa1\x30\x44\x62\x6f\xe2\xe6\x69\x09\xf8\x7c\x7c\xbe\x07" +
+-			"\xa9\xb6\x14\x7a\x6b\x85\xe4\xbf\x48\xbe\x5b\x3b\x70\xb3\x79\x3b" +
+-			"\xc4\x35\x9d\x86\xf1\xfe\x2b\x6f\x80\x74\x50\xf3\x96\x59\x53\x1a" +
+-			"\x75\x46\x9d\x57\x72\xb3\xb1\x26\xf5\x81\xcd\x96\x08\xbc\x2b\x10" +
+-			"\xdc\x80\xbd\xd0\xdf\x03\x6d\x8d\xec\x30\x2b\x4c\xdb\x4d\x3b\xef" +
+-			"\x7d\x3a\x39\xc8\x5a\xc4\xcc\x24\x37\xde\xe2\x95\x2b\x04\x97\xb0",
+-
+-		// From hg diff --git
+-		"Index: a\n" +
+-			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f\n" +
+-			"GIT binary patch\n" +
+-			"literal 256\n" +
+-			"zc$@(M0ssDvU-)@8jlO8aEO?4WC_p~XJGm6E`UIX!qEb;&@U7DW90Pe@Q^y+BDB{@}\n" +
+-			"zH>CRA|E#sCLQWU!v<)C<2ty%#5-0kWdWHA|U-bUkpJwv91UUe!KO-Q7Q?!V-?xLQ-\n" +
+-			"z%G3!eCy6i1x~4(4>BR{D^_4ZNyIf+H=X{UyKoZF<{{MAPa7W3_6$%_9=MNQ?buf=^\n" +
+-			"zpMIsC(PbP>PV_QKo1rj7VsGN+X$kmze7*;%wiJ46h2+0TzFRwRvw1tjHJyg>{wr^Q\n" +
+-			"zbWrn_SyLKyMx9r3v#}=ifz6f(yekmgfW6S)18t4$Fe^;kO*`*>IyuN%#LOf&-r|)j\n" +
+-			"G1edVN^?m&S\n" +
+-			"\n",
+-	},
+-	{
+-		"",
+-		"",
+-		"Index: hello\n" +
+-			"===================================================================\n" +
+-			"old mode 100644\n" +
+-			"new mode 100755\n",
+-	},
+-}
+diff --git a/src/pkg/patch/textdiff.go b/src/pkg/patch/textdiff.go
+deleted file mode 100644
+index c9cffee11c..0000000000
+--- a/src/pkg/patch/textdiff.go
++++ /dev/null
+@@ -1,179 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package patch
+-
+-import (
+-	"bytes"
+-	"errors"
+-)
+-
+-type TextDiff []TextChunk
+-
+-// A TextChunk specifies an edit to a section of a file:
+-// the text beginning at Line, which should be exactly Old,
+-// is to be replaced with New.
+-type TextChunk struct {
+-	Line int
+-	Old  []byte
+-	New  []byte
+-}
+-
+-func ParseTextDiff(raw []byte) (TextDiff, error) {
+-	var chunkHeader []byte
+-
+-	// Copy raw so it is safe to keep references to slices.
+-	_, chunks := sections(raw, "@@ -")
+-	delta := 0
+-	diff := make(TextDiff, len(chunks))
+-	for i, raw := range chunks {
+-		c := &diff[i]
+-
+-		// Parse start line: @@ -oldLine,oldCount +newLine,newCount @@ junk
+-		chunk := splitLines(raw)
+-		chunkHeader = chunk[0]
+-		var ok bool
+-		var oldLine, oldCount, newLine, newCount int
+-		s := chunkHeader
+-		if oldLine, s, ok = atoi(s, "@@ -", 10); !ok {
+-			goto ErrChunkHdr
+-		}
+-		if len(s) == 0 || s[0] != ',' {
+-			oldCount = 1
+-		} else if oldCount, s, ok = atoi(s, ",", 10); !ok {
+-			goto ErrChunkHdr
+-		}
+-		if newLine, s, ok = atoi(s, " +", 10); !ok {
+-			goto ErrChunkHdr
+-		}
+-		if len(s) == 0 || s[0] != ',' {
+-			newCount = 1
+-		} else if newCount, s, ok = atoi(s, ",", 10); !ok {
+-			goto ErrChunkHdr
+-		}
+-		if !hasPrefix(s, " @@") {
+-			goto ErrChunkHdr
+-		}
+-
+-		// Special case: for created or deleted files, the empty half
+-		// is given as starting at line 0.  Translate to line 1.
+-		if oldCount == 0 && oldLine == 0 {
+-			oldLine = 1
+-		}
+-		if newCount == 0 && newLine == 0 {
+-			newLine = 1
+-		}
+-
+-		// Count lines in text
+-		var dropOldNL, dropNewNL bool
+-		var nold, nnew int
+-		var lastch byte
+-		chunk = chunk[1:]
+-		for _, l := range chunk {
+-			if nold == oldCount && nnew == newCount && (len(l) == 0 || l[0] != '\\') {
+-				if len(bytes.TrimSpace(l)) != 0 {
+-					return nil, SyntaxError("too many chunk lines")
+-				}
+-				continue
+-			}
+-			if len(l) == 0 {
+-				return nil, SyntaxError("empty chunk line")
+-			}
+-			switch l[0] {
+-			case '+':
+-				nnew++
+-			case '-':
+-				nold++
+-			case ' ':
+-				nnew++
+-				nold++
+-			case '\\':
+-				if _, ok := skip(l, "\\ No newline at end of file"); ok {
+-					switch lastch {
+-					case '-':
+-						dropOldNL = true
+-					case '+':
+-						dropNewNL = true
+-					case ' ':
+-						dropOldNL = true
+-						dropNewNL = true
+-					default:
+-						return nil, SyntaxError("message `\\ No newline at end of file' out of context")
+-					}
+-					break
+-				}
+-				fallthrough
+-			default:
+-				return nil, SyntaxError("unexpected chunk line: " + string(l))
+-			}
+-			lastch = l[0]
+-		}
+-
+-		// Does it match the header?
+-		if nold != oldCount || nnew != newCount {
+-			return nil, SyntaxError("chunk header does not match line count: " + string(chunkHeader))
+-		}
+-		if oldLine+delta != newLine {
+-			return nil, SyntaxError("chunk delta is out of sync with previous chunks")
+-		}
+-		delta += nnew - nold
+-		c.Line = oldLine
+-
+-		var old, new bytes.Buffer
+-		nold = 0
+-		nnew = 0
+-		for _, l := range chunk {
+-			if nold == oldCount && nnew == newCount {
+-				break
+-			}
+-			ch, l := l[0], l[1:]
+-			if ch == '\\' {
+-				continue
+-			}
+-			if ch != '+' {
+-				old.Write(l)
+-				nold++
+-			}
+-			if ch != '-' {
+-				new.Write(l)
+-				nnew++
+-			}
+-		}
+-		c.Old = old.Bytes()
+-		c.New = new.Bytes()
+-		if dropOldNL {
+-			c.Old = c.Old[0 : len(c.Old)-1]
+-		}
+-		if dropNewNL {
+-			c.New = c.New[0 : len(c.New)-1]
+-		}
+-	}
+-	return diff, nil
+-
+-ErrChunkHdr:
+-	return nil, SyntaxError("unexpected chunk header line: " + string(chunkHeader))
+-}
+-
+-var ErrPatchFailure = errors.New("patch did not apply cleanly")
+-
+-// Apply applies the changes listed in the diff
+-// to the data, returning the new version.
+-func (d TextDiff) Apply(data []byte) ([]byte, error) {
+-	var buf bytes.Buffer
+-	line := 1
+-	for _, c := range d {
+-		var ok bool
+-		var prefix []byte
+-		prefix, data, ok = getLine(data, c.Line-line)
+-		if !ok || !bytes.HasPrefix(data, c.Old) {
+-			return nil, ErrPatchFailure
+-		}
+-		buf.Write(prefix)
+-		data = data[len(c.Old):]
+-		buf.Write(c.New)
+-		line = c.Line + bytes.Count(c.Old, newline)
+-	}
+-	buf.Write(data)
+-	return buf.Bytes(), nil
+-}

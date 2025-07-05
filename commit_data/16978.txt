@@ -14,6 +14,20 @@ Date:   Thu Aug 1 15:19:45 2013 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12246043
-
+---
  src/pkg/runtime/os_netbsd.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 9c0511d4c0..95c1070d1b 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -94,7 +94,7 @@ runtime·semasleep(int64 ns)
+ 				runtime·atomicstore(&m->waitsemalock, 0);
+ 				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
+ 			} else {
+-				ns += runtime·nanotime();
++				ns = ns + runtime·nanotime();
+ 				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+ 				ts.tv_nsec = 0;
+ 				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);

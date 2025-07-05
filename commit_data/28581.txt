@@ -11,7 +11,53 @@ Date:   Mon Jun 6 10:23:49 2016 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 20 ++++++++++++++++++++
  src/net/http/server.go     |  3 +++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 26aefec7de..8e4bbdc0c4 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1996,6 +1996,26 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
+ 	}
+ }
+ 
++// https://golang.org/issue/15948
++func TestTimeoutHandlerEmptyResponse(t *testing.T) {
++	defer afterTest(t)
++	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
++		// No response.
++	}
++	timeout := 300 * time.Millisecond
++	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
++	defer ts.Close()
++
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.StatusCode != StatusOK {
++		t.Errorf("got res.StatusCode %d, want %v", res.StatusCode, StatusOK)
++	}
++}
++
+ // Verifies we don't path.Clean() on the wrong parts in redirects.
+ func TestRedirectMunging(t *testing.T) {
+ 	req, _ := NewRequest("GET", "http://example.com/", nil)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 4286d719ec..8ecced85db 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2464,6 +2464,9 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		for k, vv := range tw.h {
+ 			dst[k] = vv
+ 		}
++		if !tw.wroteHeader {
++			tw.code = StatusOK
++		}
+ 		w.WriteHeader(tw.code)
+ 		w.Write(tw.wbuf.Bytes())
+ 		if t != nil {

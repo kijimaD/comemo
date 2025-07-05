@@ -16,6 +16,20 @@ Date:   Tue Nov 27 16:07:14 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/151300
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 458d7a4317..9b04e3ce11 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1122,7 +1122,7 @@ func (ctxt *Link) hostlink() {
+ 	switch ctxt.HeadType {
+ 	case objabi.Hdarwin:
+ 		argv = append(argv, "-Wl,-headerpad,1144")
+-		if ctxt.DynlinkingGo() {
++		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+ 			argv = append(argv, "-Wl,-flat_namespace")
+ 		}
+ 		if ctxt.BuildMode == BuildModeExe && !ctxt.Arch.InFamily(sys.ARM64) {

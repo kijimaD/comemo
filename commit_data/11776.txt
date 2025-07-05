@@ -9,6 +9,16 @@ Date:   Fri Feb 10 16:29:50 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5649051
-
+---
  src/all.bat | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/all.bat b/src/all.bat
+index 93e07b578a..feaf4e65df 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -16,3 +16,4 @@ if %GOBUILDFAIL%==1 goto end
+ ..\bin\tool\dist banner
+ 
+ :end
++exit %GOBUILDFAIL%

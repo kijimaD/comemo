@@ -17,6 +17,31 @@ Date:   Wed Sep 1 15:24:01 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux.go | 13 +------------
  1 file changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index dfce3d0a4b..a2dba54b97 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -204,18 +204,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+ 	}
+-	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+-	if err != ENOSYS {
+-		return err
+-	}
+-	// If the utimensat syscall isn't available (utimensat was added to Linux
+-	// in 2.6.22, Released, 8 July 2007) then fall back to utimes
+-	var tv [2]Timeval
+-	for i := 0; i < 2; i++ {
+-		tv[i].Sec = ts[i].Sec
+-		tv[i].Usec = ts[i].Nsec / 1000
+-	}
+-	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
++	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ }
+ 
+ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {

@@ -14,9 +14,88 @@ Date:   Wed Nov 7 21:25:42 2018 -0800
     Change-Id: I6286ab3e49f82512491afb5bcf349e89ab5645ab
     Reviewed-on: https://go-review.googlesource.com/c/149637
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang_org/x/net/route/empty.s          |  7 ++++++
  src/vendor/golang_org/x/net/route/syscall.go       |  2 +-
  .../x/net/route/syscall_go1_11_darwin.go           | 28 ++++++++++++++++++++++
  .../x/net/route/syscall_go1_12_darwin.go           | 12 ++++++++++
  4 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/vendor/golang_org/x/net/route/empty.s b/src/vendor/golang_org/x/net/route/empty.s
+new file mode 100644
+index 0000000000..bff0231c7d
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/route/empty.s
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,go1.12
++
++// This exists solely so we can linkname in symbols from syscall.
+diff --git a/src/vendor/golang_org/x/net/route/syscall.go b/src/vendor/golang_org/x/net/route/syscall.go
+index 5f69ea63d9..72431b0341 100644
+--- a/src/vendor/golang_org/x/net/route/syscall.go
++++ b/src/vendor/golang_org/x/net/route/syscall.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build dragonfly freebsd netbsd openbsd
+ 
+ package route
+ 
+diff --git a/src/vendor/golang_org/x/net/route/syscall_go1_11_darwin.go b/src/vendor/golang_org/x/net/route/syscall_go1_11_darwin.go
+new file mode 100644
+index 0000000000..7228e443cd
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/route/syscall_go1_11_darwin.go
+@@ -0,0 +1,28 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !go1.12
++
++package route
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++var zero uintptr
++
++func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
++	var p unsafe.Pointer
++	if len(mib) > 0 {
++		p = unsafe.Pointer(&mib[0])
++	} else {
++		p = unsafe.Pointer(&zero)
++	}
++	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), newlen)
++	if errno != 0 {
++		return error(errno)
++	}
++	return nil
++}
+diff --git a/src/vendor/golang_org/x/net/route/syscall_go1_12_darwin.go b/src/vendor/golang_org/x/net/route/syscall_go1_12_darwin.go
+new file mode 100644
+index 0000000000..7922a6836f
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/route/syscall_go1_12_darwin.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.12
++
++package route
++
++import _ "unsafe" // for linkname
++
++//go:linkname sysctl syscall.sysctl
++func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error

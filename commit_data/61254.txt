@@ -16,7 +16,7 @@ Date:   Mon Sep 30 17:08:12 2024 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/internal/fips/subtle/xor.go              | 21 +++++++++++++++++++++
  src/crypto/{ => internal/fips}/subtle/xor_amd64.go  |  0
  src/crypto/{ => internal/fips}/subtle/xor_amd64.s   |  0
@@ -31,3 +31,122 @@ Date:   Mon Sep 30 17:08:12 2024 +0200
  src/crypto/subtle/xor.go                            | 12 +++---------
  src/go/build/deps_test.go                           |  1 +
  13 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/internal/fips/subtle/xor.go b/src/crypto/internal/fips/subtle/xor.go
+new file mode 100644
+index 0000000000..158dbcede9
+--- /dev/null
++++ b/src/crypto/internal/fips/subtle/xor.go
+@@ -0,0 +1,21 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle
++
++// XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
++// returning n, the number of bytes written to dst.
++// If dst does not have length at least n,
++// XORBytes panics without writing anything to dst.
++func XORBytes(dst, x, y []byte) int {
++	n := min(len(x), len(y))
++	if n == 0 {
++		return 0
++	}
++	if n > len(dst) {
++		panic("subtle.XORBytes: dst too short")
++	}
++	xorBytes(&dst[0], &x[0], &y[0], n) // arch-specific
++	return n
++}
+diff --git a/src/crypto/subtle/xor_amd64.go b/src/crypto/internal/fips/subtle/xor_amd64.go
+similarity index 100%
+rename from src/crypto/subtle/xor_amd64.go
+rename to src/crypto/internal/fips/subtle/xor_amd64.go
+diff --git a/src/crypto/subtle/xor_amd64.s b/src/crypto/internal/fips/subtle/xor_amd64.s
+similarity index 100%
+rename from src/crypto/subtle/xor_amd64.s
+rename to src/crypto/internal/fips/subtle/xor_amd64.s
+diff --git a/src/crypto/subtle/xor_arm64.go b/src/crypto/internal/fips/subtle/xor_arm64.go
+similarity index 100%
+rename from src/crypto/subtle/xor_arm64.go
+rename to src/crypto/internal/fips/subtle/xor_arm64.go
+diff --git a/src/crypto/subtle/xor_arm64.s b/src/crypto/internal/fips/subtle/xor_arm64.s
+similarity index 100%
+rename from src/crypto/subtle/xor_arm64.s
+rename to src/crypto/internal/fips/subtle/xor_arm64.s
+diff --git a/src/crypto/subtle/xor_generic.go b/src/crypto/internal/fips/subtle/xor_generic.go
+similarity index 100%
+rename from src/crypto/subtle/xor_generic.go
+rename to src/crypto/internal/fips/subtle/xor_generic.go
+diff --git a/src/crypto/subtle/xor_loong64.go b/src/crypto/internal/fips/subtle/xor_loong64.go
+similarity index 100%
+rename from src/crypto/subtle/xor_loong64.go
+rename to src/crypto/internal/fips/subtle/xor_loong64.go
+diff --git a/src/crypto/subtle/xor_loong64.s b/src/crypto/internal/fips/subtle/xor_loong64.s
+similarity index 100%
+rename from src/crypto/subtle/xor_loong64.s
+rename to src/crypto/internal/fips/subtle/xor_loong64.s
+diff --git a/src/crypto/subtle/xor_ppc64x.go b/src/crypto/internal/fips/subtle/xor_ppc64x.go
+similarity index 100%
+rename from src/crypto/subtle/xor_ppc64x.go
+rename to src/crypto/internal/fips/subtle/xor_ppc64x.go
+diff --git a/src/crypto/subtle/xor_ppc64x.s b/src/crypto/internal/fips/subtle/xor_ppc64x.s
+similarity index 100%
+rename from src/crypto/subtle/xor_ppc64x.s
+rename to src/crypto/internal/fips/subtle/xor_ppc64x.s
+diff --git a/src/crypto/subtle/xor_test.go b/src/crypto/internal/fips/subtle/xor_test.go
+similarity index 98%
+rename from src/crypto/subtle/xor_test.go
+rename to src/crypto/internal/fips/subtle/xor_test.go
+index a348660c63..3f5ef980a3 100644
+--- a/src/crypto/subtle/xor_test.go
++++ b/src/crypto/internal/fips/subtle/xor_test.go
+@@ -6,8 +6,8 @@ package subtle_test
+ 
+ import (
+ 	"bytes"
++	. "crypto/internal/fips/subtle"
+ 	"crypto/rand"
+-	. "crypto/subtle"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+diff --git a/src/crypto/subtle/xor.go b/src/crypto/subtle/xor.go
+index 158dbcede9..86cbd5cb54 100644
+--- a/src/crypto/subtle/xor.go
++++ b/src/crypto/subtle/xor.go
+@@ -4,18 +4,12 @@
+ 
+ package subtle
+ 
++import "crypto/internal/fips/subtle"
++
+ // XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
+ // returning n, the number of bytes written to dst.
+ // If dst does not have length at least n,
+ // XORBytes panics without writing anything to dst.
+ func XORBytes(dst, x, y []byte) int {
+-	n := min(len(x), len(y))
+-	if n == 0 {
+-		return 0
+-	}
+-	if n > len(dst) {
+-		panic("subtle.XORBytes: dst too short")
+-	}
+-	xorBytes(&dst[0], &x[0], &y[0], n) // arch-specific
+-	return n
++	return subtle.XORBytes(dst, x, y)
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 98bcaccdc2..cc9d304bc6 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -450,6 +450,7 @@ var depsRules = `
+ 	# backwards compatibility with older versions of the module.
+ 	STR, crypto/internal/impl
+ 	< crypto/internal/fips
++	< crypto/internal/fips/subtle
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
+ 	< crypto/internal/fips/hmac

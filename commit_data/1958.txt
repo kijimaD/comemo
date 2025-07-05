@@ -8,6 +8,23 @@ Date:   Thu Apr 2 23:03:41 2009 -0700
     DELTA=4  (0 added, 3 deleted, 1 changed)
     OCL=27058
     CL=27060
-
+---
  doc/go_spec.html | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 438a764333..1eb6c7a588 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3011,10 +3011,7 @@ which may be omitted only if the previous statement:
+ <ul>
+ 	<li>ends with the closing parenthesis ")" of a list of declarations
+ 	    (§Declarations and Scope); or</li>
+-	<li>ends with the closing brace "}" of a type declaration
+-	    (§Type declarations); or </li>
+-	<li>ends with the closing brace "}" of a block
+-	    (including "switch" and "select" statements).
++	<li>ends with a closing brace "}" that is not part of an expression.
+ </ul>
+ 
+ 

@@ -17,6 +17,28 @@ Date:   Mon Jul 10 18:50:06 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index de0a54d588..c512d9a089 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1903,6 +1903,16 @@ func (ctxt *Link) hostlink() {
+ 				out = append(out[:i], out[i+len(noPieWarning):]...)
+ 			}
+ 		}
++		if ctxt.IsDarwin() {
++			const bindAtLoadWarning = "ld: warning: -bind_at_load is deprecated on macOS\n"
++			if i := bytes.Index(out, []byte(bindAtLoadWarning)); i >= 0 {
++				// -bind_at_load is deprecated with ld-prime, but needed for
++				// correctness with older versions of ld64. Swallow the warning.
++				// TODO: maybe pass -bind_at_load conditionally based on C
++				// linker version.
++				out = append(out[:i], out[i+len(bindAtLoadWarning):]...)
++			}
++		}
+ 		ctxt.Logf("%s", out)
+ 	}
+ 

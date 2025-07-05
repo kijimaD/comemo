@@ -23,9 +23,335 @@ Date:   Thu Oct 15 11:45:32 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/fsys/fsys.go             |  20 +++-
  src/cmd/go/internal/fsys/fsys_test.go        | 155 ++++++++++++++++++++++++++-
  src/cmd/go/internal/load/pkg.go              |   7 +-
  src/cmd/go/testdata/script/build_overlay.txt |  21 +++-
  4 files changed, 190 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 67359ffb6d..814e323701 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -434,29 +434,39 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
+ 
+ // lstat implements a version of os.Lstat that operates on the overlay filesystem.
+ func lstat(path string) (fs.FileInfo, error) {
++	return overlayStat(path, os.Lstat, "lstat")
++}
++
++// Stat implements a version of os.Stat that operates on the overlay filesystem.
++func Stat(path string) (fs.FileInfo, error) {
++	return overlayStat(path, os.Stat, "stat")
++}
++
++// overlayStat implements lstat or Stat (depending on whether os.Lstat or os.Stat is passed in).
++func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName string) (fs.FileInfo, error) {
+ 	cpath := canonicalize(path)
+ 
+ 	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+-		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
++		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
+ 	}
+ 
+ 	node, ok := overlay[cpath]
+ 	if !ok {
+ 		// The file or directory is not overlaid.
+-		return os.Lstat(cpath)
++		return osStat(path)
+ 	}
+ 
+ 	switch {
+ 	case node.isDeleted():
+ 		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
+ 	case node.isDir():
+-		return fakeDir(filepath.Base(cpath)), nil
++		return fakeDir(filepath.Base(path)), nil
+ 	default:
+-		fi, err := os.Lstat(node.actualFilePath)
++		fi, err := osStat(node.actualFilePath)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		return fakeFile{name: filepath.Base(cpath), real: fi}, nil
++		return fakeFile{name: filepath.Base(path), real: fi}, nil
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 28c3f08cb9..19bf282190 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -506,7 +506,7 @@ func TestWalk(t *testing.T) {
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, fs.ModeDir | 0700, true},
++				{".", ".", 0, fs.ModeDir | 0700, true},
+ 				{"file.txt", "file.txt", 0, 0600, false},
+ 			},
+ 		},
+@@ -522,7 +522,7 @@ contents of other file
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, fs.ModeDir | 0500, true},
++				{".", ".", 0, fs.ModeDir | 0500, true},
+ 				{"file.txt", "file.txt", 23, 0600, false},
+ 				{"other.txt", "other.txt", 23, 0600, false},
+ 			},
+@@ -538,7 +538,7 @@ contents of other file
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, fs.ModeDir | 0500, true},
++				{".", ".", 0, fs.ModeDir | 0500, true},
+ 				{"file.txt", "file.txt", 23, 0600, false},
+ 				{"other.txt", "other.txt", 23, 0600, false},
+ 			},
+@@ -554,7 +554,7 @@ contents of other file
+ `,
+ 			".",
+ 			[]file{
+-				{".", "root", 0, fs.ModeDir | 0500, true},
++				{".", ".", 0, fs.ModeDir | 0500, true},
+ 				{"dir", "dir", 0, fs.ModeDir | 0500, true},
+ 				{"dir" + string(filepath.Separator) + "file.txt", "file.txt", 23, 0600, false},
+ 				{"other.txt", "other.txt", 23, 0600, false},
+@@ -818,3 +818,150 @@ contents`,
+ 		})
+ 	}
+ }
++
++func TestStat(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	type file struct {
++		name  string
++		size  int64
++		mode  os.FileMode // mode & (os.ModeDir|0x700): only check 'user' permissions
++		isDir bool
++	}
++
++	testCases := []struct {
++		name    string
++		overlay string
++		path    string
++
++		want    file
++		wantErr bool
++	}{
++		{
++			"regular_file",
++			`{}
++-- file.txt --
++contents`,
++			"file.txt",
++			file{"file.txt", 9, 0600, false},
++			false,
++		},
++		{
++			"new_file_in_overlay",
++			`{"Replace": {"file.txt": "dummy.txt"}}
++-- dummy.txt --
++contents`,
++			"file.txt",
++			file{"file.txt", 9, 0600, false},
++			false,
++		},
++		{
++			"file_replaced_in_overlay",
++			`{"Replace": {"file.txt": "dummy.txt"}}
++-- file.txt --
++-- dummy.txt --
++contents`,
++			"file.txt",
++			file{"file.txt", 9, 0600, false},
++			false,
++		},
++		{
++			"file_cant_exist",
++			`{"Replace": {"deleted": "dummy.txt"}}
++-- deleted/file.txt --
++-- dummy.txt --
++`,
++			"deleted/file.txt",
++			file{},
++			true,
++		},
++		{
++			"deleted",
++			`{"Replace": {"deleted": ""}}
++-- deleted --
++`,
++			"deleted",
++			file{},
++			true,
++		},
++		{
++			"dir_on_disk",
++			`{}
++-- dir/foo.txt --
++`,
++			"dir",
++			file{"dir", 0, 0700 | os.ModeDir, true},
++			false,
++		},
++		{
++			"dir_in_overlay",
++			`{"Replace": {"dir/file.txt": "dummy.txt"}}
++-- dummy.txt --
++`,
++			"dir",
++			file{"dir", 0, 0500 | os.ModeDir, true},
++			false,
++		},
++	}
++
++	for _, tc := range testCases {
++		t.Run(tc.name, func(t *testing.T) {
++			initOverlay(t, tc.overlay)
++			got, err := Stat(tc.path)
++			if tc.wantErr {
++				if err == nil {
++					t.Errorf("Stat(%q): got no error, want error", tc.path)
++				}
++				return
++			}
++			if err != nil {
++				t.Fatalf("Stat(%q): got error %v, want no error", tc.path, err)
++			}
++			if got.Name() != tc.want.name {
++				t.Errorf("Stat(%q).Name(): got %q, want %q", tc.path, got.Name(), tc.want.name)
++			}
++			if got.Mode()&(os.ModeDir|0700) != tc.want.mode {
++				t.Errorf("Stat(%q).Mode()&(os.ModeDir|0700): got %v, want %v", tc.path, got.Mode()&(os.ModeDir|0700), tc.want.mode)
++			}
++			if got.IsDir() != tc.want.isDir {
++				t.Errorf("Stat(%q).IsDir(): got %v, want %v", tc.path, got.IsDir(), tc.want.isDir)
++			}
++			if tc.want.isDir {
++				return // don't check size for directories
++			}
++			if got.Size() != tc.want.size {
++				t.Errorf("Stat(%q).Size(): got %v, want %v", tc.path, got.Size(), tc.want.size)
++			}
++		})
++	}
++}
++
++func TestStat_Symlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	initOverlay(t, `{
++	"Replace": {"file.go": "symlink"}
++}
++-- to.go --
++0123456789
++`)
++
++	// Create symlink
++	if err := os.Symlink("to.go", "symlink"); err != nil {
++		t.Error(err)
++	}
++
++	f := "file.go"
++	fi, err := Stat(f)
++	if err != nil {
++		t.Errorf("Stat(%q): got error %q, want nil error", f, err)
++	}
++
++	if !fi.Mode().IsRegular() {
++		t.Errorf("Stat(%q).Mode(): got %v, want regular mode", f, fi.Mode())
++	}
++
++	if fi.Size() != 11 {
++		t.Errorf("Stat(%q).Size(): got %v, want 11", f, fi.Size())
++	}
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 913b3b94d7..2bdc08ba36 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -28,6 +28,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+@@ -977,7 +978,7 @@ var isDirCache par.Cache
+ 
+ func isDir(path string) bool {
+ 	return isDirCache.Do(path, func() interface{} {
+-		fi, err := os.Stat(path)
++		fi, err := fsys.Stat(path)
+ 		return err == nil && fi.IsDir()
+ 	}).(bool)
+ }
+@@ -2145,7 +2146,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+ 		if strings.HasSuffix(p, ".go") {
+ 			// We need to test whether the path is an actual Go file and not a
+ 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
+-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
++			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
+ 				return []*Package{GoFilesPackage(ctx, patterns)}
+ 			}
+ 		}
+@@ -2305,7 +2306,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+ 	var dirent []fs.FileInfo
+ 	var dir string
+ 	for _, file := range gofiles {
+-		fi, err := os.Stat(file)
++		fi, err := fsys.Stat(file)
+ 		if err != nil {
+ 			base.Fatalf("%s", err)
+ 		}
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index 3c14e0b558..0602e706e9 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -24,6 +24,11 @@ go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
+ exec ./print_trimpath$GOEXE
+ stdout ^m[/\\]printpath[/\\]main.go
+ 
++go build -overlay overlay.json -o print_trimpath_two_files$GOEXE printpath/main.go printpath/other.go
++exec ./print_trimpath_two_files$GOEXE
++stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
++stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
++
+ # Run same tests but with gccgo.
+ env GO111MODULE=off
+ [!exec:gccgo] stop
+@@ -65,7 +70,8 @@ the actual code is in the overlay
+ 		"f.go": "overlay/f.go",
+ 		"dir/g.go": "overlay/dir_g.go",
+ 		"dir2/i.go": "overlay/dir2_i.go",
+-		"printpath/main.go": "overlay/printpath.go"
++		"printpath/main.go": "overlay/printpath.go",
++		"printpath/other.go": "overlay2/printpath2.go"
+ 	}
+ }
+ -- m/overlay/f.go --
+@@ -101,6 +107,19 @@ func main() {
+ 	// paths.
+ 	fmt.Println(filepath.FromSlash(file))
+ }
++-- m/overlay2/printpath2.go --
++package main
++
++import (
++	"fmt"
++	"path/filepath"
++	"runtime"
++)
++
++func init() {
++	_, file, _, _ := runtime.Caller(0)
++	fmt.Println(filepath.FromSlash(file))
++}
+ -- m/overlay/dir2_i.go --
+ package dir2
+ 

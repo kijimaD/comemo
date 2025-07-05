@@ -11,7 +11,7 @@ Date:   Fri May 8 15:40:14 2009 -0700
     DELTA=44  (21 added, 4 deleted, 19 changed)
     OCL=28436
     CL=28577
-
+---
  src/cmd/gobuild/util.go      |  4 ++--
  src/lib/go/token/token.go    |  4 ++--
  src/lib/http/server.go       |  2 +-
@@ -24,3 +24,306 @@ Date:   Fri May 8 15:40:14 2009 -0700
  test/interface10.go          |  2 +-
  usr/gri/pretty/format.go     | 26 +++++++++++++-------------
  11 files changed, 50 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index be50ba1cab..ac0cd03c1a 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -171,12 +171,12 @@ func dollarString(s, l, r string) string {
+ // the context in which the result will be interpreted.
+ type ShellString string;
+ func (s ShellString) String() string {
+-	return dollarString(s, "{", "}");
++	return dollarString(string(s), "{", "}");
+ }
+ 
+ type MakeString string;
+ func (s MakeString) String() string {
+-	return dollarString(s, "(", ")");
++	return dollarString(string(s), "(", ")");
+ }
+ 
+ // TODO(rsc): parse.Parse should return an os.Error.
+diff --git a/src/lib/go/token/token.go b/src/lib/go/token/token.go
+index b031b7f61c..b71d0f03d3 100644
+--- a/src/lib/go/token/token.go
++++ b/src/lib/go/token/token.go
+@@ -19,7 +19,7 @@ const (
+ 	ILLEGAL Token = iota;
+ 	EOF;
+ 	COMMENT;
+-	
++
+ 	// Identifiers and basic type literals
+ 	// (these tokens stand for classes of literals)
+ 	literal_beg;
+@@ -237,7 +237,7 @@ func (tok Token) String() string {
+ 	if str, exists := tokens[tok]; exists {
+ 		return str;
+ 	}
+-	return "token(" + strconv.Itoa(tok) + ")";
++	return "token(" + strconv.Itoa(int(tok)) + ")";
+ }
+ 
+ 
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 438c0d915b..9398351fe7 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -329,7 +329,7 @@ func Redirect(c *Conn, url string) {
+ // Redirect to a fixed URL
+ type redirectHandler string
+ func (url redirectHandler) ServeHTTP(c *Conn, req *Request) {
+-	Redirect(c, url);
++	Redirect(c, string(url));
+ }
+ 
+ // RedirectHandler returns a request handler that redirects
+diff --git a/src/lib/os/error.go b/src/lib/os/error.go
+index 3861f0167e..d196abfc6e 100644
+--- a/src/lib/os/error.go
++++ b/src/lib/os/error.go
+@@ -15,7 +15,7 @@ type Error interface {
+ // Error.
+ type ErrorString string
+ func (e ErrorString) String() string {
+-	return e
++	return string(e)
+ }
+ 
+ // NewError converts s to an ErrorString, which satisfies the Error interface.
+@@ -27,7 +27,7 @@ func NewError(s string) Error {
+ // wrappers to convert the error number into an Error.
+ type Errno int64
+ func (e Errno) String() string {
+-	return syscall.Errstr(e)
++	return syscall.Errstr(int64(e))
+ }
+ 
+ // ErrnoToError converts errno to an Error (underneath, an Errno).
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 182a85b426..f266e6014d 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -181,7 +181,7 @@ func New(fmap FormatterMap) *Template {
+ 
+ // Generic error handler, called only from execError or parseError.
+ func error(errors chan os.Error, line int, err string, args ...) {
+-	errors <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
++	errors <- ParseError{os.ErrorString(fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args)))};
+ 	runtime.Goexit();
+ }
+ 
+@@ -756,7 +756,7 @@ func validDelim(d []byte) bool {
+ // the error.
+ func (t *Template) Parse(s string) os.Error {
+ 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+-		return ParseError{fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
++		return ParseError{os.ErrorString(fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim))}
+ 	}
+ 	t.buf = io.StringBytes(s);
+ 	t.p = 0;
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 2702285c01..751afc9314 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -236,7 +236,7 @@ func readinfofile(name string) ([]zonetime, os.Error) {
+ 
+ Error:
+ 	if tzerr, ok := err.(TimeZoneError); ok {
+-		tzerr.ErrorString += ": " + name
++		tzerr.ErrorString = os.ErrorString(tzerr.String() + ": " + name)
+ 	}
+ 	return nil, err
+ }
+diff --git a/test/convert.go b/test/convert.go
+index 4952e01b76..1b933f93bf 100644
+--- a/test/convert.go
++++ b/test/convert.go
+@@ -40,14 +40,11 @@ func main() {
+ 		panicln("type of f is", t, "want", want);
+ 	}
+ 
+-	want = typeof(x);
++	want = typeof(a);
+ 	if t := typeof(+a); t != want {
+ 		panicln("type of +a is", t, "want", want);
+ 	}
+ 	if t := typeof(a+0); t != want {
+ 		panicln("type of a+0 is", t, "want", want);
+ 	}
+-	if t := typeof(a+b); t != want {
+-		panicln("type of a+b is", t, "want", want);
+-	}
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 92c2f8a43c..d201fb9fbe 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -146,7 +146,6 @@ fixedbugs/bug049.go:6: illegal types for operand: EQ
+ 
+ =========== fixedbugs/bug050.go
+ fixedbugs/bug050.go:3: package statement must be first
+-sys.6:1 fixedbugs/bug050.go:3: syntax error near package
+ 
+ =========== fixedbugs/bug051.go
+ fixedbugs/bug051.go:10: expression must be a constant
+diff --git a/test/import.go b/test/import.go
+new file mode 100644
+index 0000000000..9bed8213cc
+--- /dev/null
++++ b/test/import.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// check that when import gives multiple names
++// to a type, they're still all the same type
++
++package main
++
++import _os_ "os"
++import "os"
++import . "os"
++
++func f(e os.Error)
++
++func main() {
++	var _e_ _os_.Error;
++	var dot Error;
++
++	f(_e_);
++	f(dot);
++}
++
+diff --git a/test/interface10.go b/test/interface10.go
+index f84da58ed1..c52a20fcd8 100644
+--- a/test/interface10.go
++++ b/test/interface10.go
+@@ -13,7 +13,7 @@ const Value = 1e12
+ type Inter interface { M() int64 }
+ 
+ type T int64
+-func (t T) M() int64 { return t }
++func (t T) M() int64 { return int64(t) }
+ var t = T(Value)
+ var pt = &t
+ var ti Inter = t
+diff --git a/usr/gri/pretty/format.go b/usr/gri/pretty/format.go
+index 7267341913..895cec276c 100644
+--- a/usr/gri/pretty/format.go
++++ b/usr/gri/pretty/format.go
+@@ -301,7 +301,7 @@ func (p *parser) parseValue() []byte {
+ 	if err != nil {
+ 		panic("scanner error?");
+ 	}
+-	
++
+ 	p.next();
+ 	return io.StringBytes(s);
+ }
+@@ -332,7 +332,7 @@ func (p *parser) parseField() expr {
+ 		p.next();
+ 		tname = p.parseName();
+ 	}
+-	
++
+ 	return &field{fname, tname};
+ }
+ 
+@@ -417,13 +417,13 @@ func (p *parser) parseProd() (string, expr) {
+ 	name := p.parseName();
+ 	p.expect(token.ASSIGN);
+ 	x := p.parseExpr();
+-	return name, x; 
++	return name, x;
+ }
+ 
+ 
+ func (p *parser) parseFormat() Format {
+ 	format := make(Format);
+-	
++
+ 	for p.tok != token.EOF {
+ 		pos := p.pos;
+ 		name, x := p.parseProd();
+@@ -442,7 +442,7 @@ func (p *parser) parseFormat() Format {
+ 		}
+ 	}
+ 	p.expect(token.EOF);
+-	
++
+ 	return format;
+ }
+ 
+@@ -450,7 +450,7 @@ func (p *parser) parseFormat() Format {
+ type formatError string
+ 
+ func (p formatError) String() string {
+-	return p;
++	return string(p);
+ }
+ 
+ 
+@@ -517,7 +517,7 @@ func Parse(src interface{}, fmap FormatterMap) (f Format, err os.Error) {
+ 	if p.errors.Len() > 0 {
+ 		return nil, formatError(string(p.errors.Data()));
+ 	}
+-	
++
+ 	return f, nil;
+ }
+ 
+@@ -593,7 +593,7 @@ func typename(value reflect.Value) string {
+ 	case reflect.Uint8Kind: name = "uint8";
+ 	case reflect.UintptrKind: name = "uintptr";
+ 	}
+-	
++
+ 	return name;
+ }
+ 
+@@ -616,11 +616,11 @@ func (f Format) getFormat(name string, value reflect.Value) expr {
+ 		panic();
+ 	}
+ 	*/
+-	
++
+ 	if fexpr, found := f[name]; found {
+ 		return fexpr;
+ 	}
+-	
++
+ 	if *debug {
+ 		fmt.Printf("no production for type: %s\n", name);
+ 	}
+@@ -695,7 +695,7 @@ func append(dst, src []byte) []byte {
+ 
+ type state struct {
+ 	f Format;
+-	
++
+ 	// indentation
+ 	indent_text []byte;
+ 	indent_widths []int;
+@@ -868,7 +868,7 @@ func (ps *state) print0(w io.Writer, fexpr expr, value reflect.Value, index, lev
+ 			w.Write(buf.Data());
+ 		}
+ 		return true;
+-		
++
+ 	case *option:
+ 		// print the contents of the option if it contains a non-empty field
+ 		var buf io.ByteBuffer;
+@@ -888,7 +888,7 @@ func (ps *state) print0(w io.Writer, fexpr expr, value reflect.Value, index, lev
+ 			buf.Reset();
+ 		}
+ 		return true;
+-		
++
+ 	case *custom:
+ 		var buf io.ByteBuffer;
+ 		if t.form(&buf, value.Interface(), t.name) {

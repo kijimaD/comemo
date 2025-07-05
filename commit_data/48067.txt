@@ -13,6 +13,24 @@ Date:   Wed Apr 21 10:30:25 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c293e4db19..800d6a0b63 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -399,8 +399,10 @@ func okOffset(offset int64) int64 {
+ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	name := ir.FuncName(fn)
+ 	printssa := false
+-	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", or a package.name e.g. "compress/gzip.(*Reader).Reset"
+-		printssa = name == ssaDump || base.Ctxt.Pkgpath+"."+name == ssaDump
++	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", package.name e.g. "compress/gzip.(*Reader).Reset", or subpackage name "gzip.(*Reader).Reset"
++		pkgDotName := base.Ctxt.Pkgpath+"."+name
++		printssa = name == ssaDump ||
++			strings.HasSuffix(pkgDotName, ssaDump) && (pkgDotName == ssaDump || strings.HasSuffix(pkgDotName, "/"+ssaDump))
+ 	}
+ 	var astBuf *bytes.Buffer
+ 	if printssa {

@@ -35,10 +35,337 @@ Date:   Mon Sep 4 09:55:01 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/cgocall.go                          |  70 ++++++++++++++++
  src/runtime/crash_cgo_test.go                   |  17 ++++
  src/runtime/proc.go                             |  33 ++------
  src/runtime/testdata/testprogcgo/stackswitch.c  | 104 ++++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/stackswitch.go |  43 ++++++++++
  5 files changed, 243 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 802d6f2084..debd8cf5e8 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -206,6 +206,73 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	return errno
+ }
+ 
++// Set or reset the system stack bounds for a callback on sp.
++//
++// Must be nosplit because it is called by needm prior to fully initializing
++// the M.
++//
++//go:nosplit
++func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
++	g0 := mp.g0
++	if sp > g0.stack.lo && sp <= g0.stack.hi {
++		// Stack already in bounds, nothing to do.
++		return
++	}
++
++	if mp.ncgo > 0 {
++		// ncgo > 0 indicates that this M was in Go further up the stack
++		// (it called C and is now receiving a callback). It is not
++		// safe for the C call to change the stack out from under us.
++
++		// Note that this case isn't possible for signal == true, as
++		// that is always passing a new M from needm.
++
++		// Stack is bogus, but reset the bounds anyway so we can print.
++		hi := g0.stack.hi
++		lo := g0.stack.lo
++		g0.stack.hi = sp + 1024
++		g0.stack.lo = sp - 32*1024
++		g0.stackguard0 = g0.stack.lo + stackGuard
++
++		print("M ", mp.id, " procid ", mp.procid, " runtime: cgocallback with sp=", hex(sp), " out of bounds [", hex(lo), ", ", hex(hi), "]")
++		print("\n")
++		exit(2)
++	}
++
++	// This M does not have Go further up the stack. However, it may have
++	// previously called into Go, initializing the stack bounds. Between
++	// that call returning and now the stack may have changed (perhaps the
++	// C thread is running a coroutine library). We need to update the
++	// stack bounds for this case.
++	//
++	// Set the stack bounds to match the current stack. If we don't
++	// actually know how big the stack is, like we don't know how big any
++	// scheduling stack is, but we assume there's at least 32 kB. If we
++	// can get a more accurate stack bound from pthread, use that, provided
++	// it actually contains SP..
++	g0.stack.hi = sp + 1024
++	g0.stack.lo = sp - 32*1024
++	if !signal && _cgo_getstackbound != nil {
++		// Don't adjust if called from the signal handler.
++		// We are on the signal stack, not the pthread stack.
++		// (We could get the stack bounds from sigaltstack, but
++		// we're getting out of the signal handler very soon
++		// anyway. Not worth it.)
++		var bounds [2]uintptr
++		asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
++		// getstackbound is an unsupported no-op on Windows.
++		//
++		// Don't use these bounds if they don't contain SP. Perhaps we
++		// were called by something not using the standard thread
++		// stack.
++		if bounds[0] != 0  && sp > bounds[0] && sp <= bounds[1] {
++			g0.stack.lo = bounds[0]
++			g0.stack.hi = bounds[1]
++		}
++	}
++	g0.stackguard0 = g0.stack.lo + stackGuard
++}
++
+ // Call from C back to Go. fn must point to an ABIInternal Go entry-point.
+ //
+ //go:nosplit
+@@ -216,6 +283,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 		exit(2)
+ 	}
+ 
++	sp := gp.m.g0.sched.sp // system sp saved by cgocallback.
++	callbackUpdateSystemStack(gp.m, sp, false)
++
+ 	// The call from C is on gp.m's g0 stack, so we must ensure
+ 	// that we stay on that M. We have to do this before calling
+ 	// exitsyscall, since it would otherwise be free to move us to
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 88044caacf..4a5d9c3519 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -869,3 +869,20 @@ func TestEnsureBindM(t *testing.T) {
+ 		t.Errorf("expected %q, got %v", want, got)
+ 	}
+ }
++
++func TestStackSwitchCallback(t *testing.T) {
++	t.Parallel()
++	switch runtime.GOOS {
++	case "windows", "plan9", "android", "openbsd": // no getcontext
++		t.Skipf("skipping test on %s", runtime.GOOS)
++	}
++	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")
++	skip := "SKIP\n"
++	if got == skip {
++		t.Skip("skipping on musl/bionic libc")
++	}
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q, got %v", want, got)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1ec4712a2b..263945dd6c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2036,30 +2036,10 @@ func needm(signal bool) {
+ 	osSetupTLS(mp)
+ 
+ 	// Install g (= m->g0) and set the stack bounds
+-	// to match the current stack. If we don't actually know
+-	// how big the stack is, like we don't know how big any
+-	// scheduling stack is, but we assume there's at least 32 kB.
+-	// If we can get a more accurate stack bound from pthread,
+-	// use that.
++	// to match the current stack.
+ 	setg(mp.g0)
+-	gp := getg()
+-	gp.stack.hi = getcallersp() + 1024
+-	gp.stack.lo = getcallersp() - 32*1024
+-	if !signal && _cgo_getstackbound != nil {
+-		// Don't adjust if called from the signal handler.
+-		// We are on the signal stack, not the pthread stack.
+-		// (We could get the stack bounds from sigaltstack, but
+-		// we're getting out of the signal handler very soon
+-		// anyway. Not worth it.)
+-		var bounds [2]uintptr
+-		asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
+-		// getstackbound is an unsupported no-op on Windows.
+-		if bounds[0] != 0 {
+-			gp.stack.lo = bounds[0]
+-			gp.stack.hi = bounds[1]
+-		}
+-	}
+-	gp.stackguard0 = gp.stack.lo + stackGuard
++	sp := getcallersp()
++	callbackUpdateSystemStack(mp, sp, signal)
+ 
+ 	// Should mark we are already in Go now.
+ 	// Otherwise, we may call needm again when we get a signal, before cgocallbackg1,
+@@ -2176,9 +2156,14 @@ func oneNewExtraM() {
+ // So that the destructor would invoke dropm while the non-Go thread is exiting.
+ // This is much faster since it avoids expensive signal-related syscalls.
+ //
+-// NOTE: this always runs without a P, so, nowritebarrierrec required.
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//
++// This may run with a different stack than was recorded in g0 (there is no
++// call to callbackUpdateSystemStack prior to dropm), so this must be
++// //go:nosplit to avoid the stack bounds check.
+ //
+ //go:nowritebarrierrec
++//go:nosplit
+ func dropm() {
+ 	// Clear m and g, and return m to the extra list.
+ 	// After the call to setg we can only call nosplit functions
+diff --git a/src/runtime/testdata/testprogcgo/stackswitch.c b/src/runtime/testdata/testprogcgo/stackswitch.c
+new file mode 100644
+index 0000000000..36258c1e18
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/stackswitch.c
+@@ -0,0 +1,104 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && !android && !openbsd
++
++// Required for darwin ucontext.
++#define _XOPEN_SOURCE
++#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
++
++#include <assert.h>
++#include <pthread.h>
++#include <stddef.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <ucontext.h>
++
++// musl libc does not provide getcontext, etc. Skip the test there.
++//
++// musl libc doesn't provide any direct detection mechanism. So assume any
++// non-glibc linux is using musl.
++//
++// Note that bionic does not provide getcontext either, but that is skipped via
++// the android build tag.
++#if defined(__linux__) && !defined(__GLIBC__)
++#define MUSL 1
++#endif
++#if defined(MUSL)
++void callStackSwitchCallbackFromThread(void) {
++	printf("SKIP\n");
++	exit(0);
++}
++#else
++
++// Use a stack size larger than the 32kb estimate in
++// runtime.callbackUpdateSystemStack. This ensures that a second stack
++// allocation won't accidentally count as in bounds of the first stack
++#define STACK_SIZE	(64ull << 10)
++
++static ucontext_t uctx_save, uctx_switch;
++
++extern void stackSwitchCallback(void);
++
++static void *stackSwitchThread(void *arg) {
++	// Simple test: callback works from the normal system stack.
++	stackSwitchCallback();
++
++	// Next, verify that switching stacks doesn't break callbacks.
++
++	char *stack1 = malloc(STACK_SIZE);
++	if (stack1 == NULL) {
++		perror("malloc");
++		exit(1);
++	}
++
++	// Allocate the second stack before freeing the first to ensure we don't get
++	// the same address from malloc.
++	char *stack2 = malloc(STACK_SIZE);
++	if (stack1 == NULL) {
++		perror("malloc");
++		exit(1);
++	}
++
++	if (getcontext(&uctx_switch) == -1) {
++		perror("getcontext");
++		exit(1);
++	}
++	uctx_switch.uc_stack.ss_sp = stack1;
++	uctx_switch.uc_stack.ss_size = STACK_SIZE;
++	uctx_switch.uc_link = &uctx_save;
++	makecontext(&uctx_switch, stackSwitchCallback, 0);
++
++	if (swapcontext(&uctx_save, &uctx_switch) == -1) {
++		perror("swapcontext");
++		exit(1);
++	}
++
++	if (getcontext(&uctx_switch) == -1) {
++		perror("getcontext");
++		exit(1);
++	}
++	uctx_switch.uc_stack.ss_sp = stack2;
++	uctx_switch.uc_stack.ss_size = STACK_SIZE;
++	uctx_switch.uc_link = &uctx_save;
++	makecontext(&uctx_switch, stackSwitchCallback, 0);
++
++	if (swapcontext(&uctx_save, &uctx_switch) == -1) {
++		perror("swapcontext");
++		exit(1);
++	}
++
++	free(stack1);
++	free(stack2);
++
++	return NULL;
++}
++
++void callStackSwitchCallbackFromThread(void) {
++	pthread_t thread;
++	assert(pthread_create(&thread, NULL, stackSwitchThread, NULL) == 0);
++	assert(pthread_join(thread, NULL) == 0);
++}
++
++#endif
+diff --git a/src/runtime/testdata/testprogcgo/stackswitch.go b/src/runtime/testdata/testprogcgo/stackswitch.go
+new file mode 100644
+index 0000000000..a2e422f077
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/stackswitch.go
+@@ -0,0 +1,43 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && !android && !openbsd
++
++package main
++
++/*
++void callStackSwitchCallbackFromThread(void);
++*/
++import "C"
++
++import (
++	"fmt"
++	"runtime/debug"
++)
++
++func init() {
++	register("StackSwitchCallback", StackSwitchCallback)
++}
++
++//export stackSwitchCallback
++func stackSwitchCallback() {
++	// We want to trigger a bounds check on the g0 stack. To do this, we
++	// need to call a splittable function through systemstack().
++	// SetGCPercent contains such a systemstack call.
++	gogc := debug.SetGCPercent(100)
++	debug.SetGCPercent(gogc)
++}
++
++
++// Regression test for https://go.dev/issue/62440. It should be possible for C
++// threads to call into Go from different stacks without crashing due to g0
++// stack bounds checks.
++//
++// N.B. This is only OK for threads created in C. Threads with Go frames up the
++// stack must not change the stack out from under us.
++func StackSwitchCallback() {
++	C.callStackSwitchCallbackFromThread();
++
++	fmt.Printf("OK\n")
++}

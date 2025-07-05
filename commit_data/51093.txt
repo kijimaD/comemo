@@ -10,6 +10,20 @@ Date:   Fri Dec 3 22:51:11 2021 +0330
     Reviewed-on: https://go-review.googlesource.com/c/go/+/369016
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Trust: Austin Clements <austin@google.com>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 4776936083..ea686933e0 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -230,7 +230,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="runtime">Runtime</h2>
+ 
+-<p><!-- https://github.com/golang/go/issues/44167-->
++<p><!-- https://golang.org/issue/44167 -->
+   The garbage collector now includes non-heap sources of garbage collector work
+   (e.g., stack scanning) when determining how frequently to run. As a result,
+   garbage collector overhead is more predictable when these sources are

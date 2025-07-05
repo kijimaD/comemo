@@ -11,7 +11,59 @@ Date:   Thu Apr 13 11:23:35 2017 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file_unix.go | 15 ++++++++++++---
  src/os/os_test.go   | 12 ++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 86271d53e8..f790b6e910 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -20,11 +20,20 @@ func fixLongPath(path string) string {
+ func rename(oldname, newname string) error {
+ 	fi, err := Lstat(newname)
+ 	if err == nil && fi.IsDir() {
++		// if we cannot stat oldname we should
++		// return that error in favor of EEXIST
++		fi, err = Lstat(oldname)
++		if err != nil {
++			if pErr, ok := err.(*PathError); ok {
++				err = pErr.Err
++			}
++			return &LinkError{"rename", oldname, newname, err}
++		}
+ 		return &LinkError{"rename", oldname, newname, syscall.EEXIST}
+ 	}
+-	e := syscall.Rename(oldname, newname)
+-	if e != nil {
+-		return &LinkError{"rename", oldname, newname, e}
++	err = syscall.Rename(oldname, newname)
++	if err != nil {
++		return &LinkError{"rename", oldname, newname, err}
+ 	}
+ 	return nil
+ }
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 8e2cd14ddf..22777aef9f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -886,6 +886,18 @@ func TestRenameFailed(t *testing.T) {
+ 	}
+ }
+ 
++func TestRenameNotExisting(t *testing.T) {
++	defer chtmpdir(t)()
++	from, to := "doesnt-exist", "dest"
++
++	Mkdir(to, 0777)
++	defer Remove(to)
++
++	if err := Rename(from, to); !IsNotExist(err) {
++		t.Errorf("Rename(%q, %q) = %v; want an IsNotExist error", from, to, err)
++	}
++}
++
+ func TestRenameToDirFailed(t *testing.T) {
+ 	defer chtmpdir(t)()
+ 	from, to := "renamefrom", "renameto"

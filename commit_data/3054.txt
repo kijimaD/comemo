@@ -7,8 +7,40 @@ Date:   Fri Aug 21 18:07:11 2009 -0700
     R=ken
     OCL=33700
     CL=33700
-
+---
  src/cmd/gc/dcl.c                   | 2 +-
  test/{bugs => fixedbugs}/bug195.go | 0
  test/golden.out                    | 3 ---
  3 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 684697fbb9..559cd8d0ad 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -808,7 +808,7 @@ stotype(NodeList *l, int et, Type **t)
+ 		if(et == TINTER && n->left == N) {
+ 			// embedded interface - inline the methods
+ 			if(n->type->etype != TINTER) {
+-				yyerror("interface contains embedded non-interface %T", t);
++				yyerror("interface contains embedded non-interface %T", n->type);
+ 				continue;
+ 			}
+ 			for(t1=n->type->type; t1!=T; t1=t1->down) {
+diff --git a/test/bugs/bug195.go b/test/fixedbugs/bug195.go
+similarity index 100%
+rename from test/bugs/bug195.go
+rename to test/fixedbugs/bug195.go
+diff --git a/test/golden.out b/test/golden.out
+index 2ccd4cf057..eedbcb2f11 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -178,9 +178,6 @@ errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ bugs/bug194.go:15: array index must be non-negative integer constant
+ BUG should compile and run
+ 
+-=========== bugs/bug195.go
+-bugs/bug195.go:9: BUG: errchk: compiler crashed
+-
+ =========== bugs/bug196.go
+ too many calls: 5
+ panic PC=xxx

@@ -22,8 +22,76 @@ Date:   Thu Nov 4 13:28:25 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go        |  4 ++--
  src/cmd/compile/internal/typecheck/crawler.go |  2 +-
  src/cmd/compile/internal/typecheck/iimport.go | 21 +++++++++++++++++++++
  3 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index b764aed534..47b895f7e3 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -309,7 +309,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 			break
+ 		}
+ 
+-		if fn := inlCallee(n.X); fn != nil && fn.Inl != nil {
++		if fn := inlCallee(n.X); fn != nil && typecheck.HaveInlineBody(fn) {
+ 			v.budget -= fn.Inl.Cost
+ 			break
+ 		}
+@@ -585,7 +585,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 		if ir.IsIntrinsicCall(call) {
+ 			break
+ 		}
+-		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
++		if fn := inlCallee(call.X); fn != nil && typecheck.HaveInlineBody(fn) {
+ 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index ae2b3b1df4..ae6542d071 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -207,7 +207,7 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 	if fn == nil {
+ 		base.Fatalf("markInlBody: missing Func on %v", n)
+ 	}
+-	if fn.Inl == nil {
++	if !HaveInlineBody(fn) {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 7c6c23e737..26bc838ed9 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -81,6 +81,27 @@ func ImportBody(fn *ir.Func) {
+ 	inimport = false
+ }
+ 
++// HaveInlineBody reports whether we have fn's inline body available
++// for inlining.
++func HaveInlineBody(fn *ir.Func) bool {
++	if fn.Inl == nil {
++		return false
++	}
++
++	// Unified IR is much more conservative about pruning unreachable
++	// methods (at the cost of increased build artifact size).
++	if base.Debug.Unified != 0 {
++		return true
++	}
++
++	if fn.Inl.Body != nil {
++		return true
++	}
++
++	_, ok := inlineImporter[fn.Nname.Sym()]
++	return ok
++}
++
+ func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {
+ 	x, ok := importers[sym]
+ 	if !ok {

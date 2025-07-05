@@ -13,7 +13,63 @@ Date:   Thu Feb 28 07:32:29 2013 +0100
     R=dvyukov, rsc
     CC=golang-dev
     https://golang.org/cl/7381053
-
+---
  src/pkg/runtime/race.c       | 11 +++--------
  src/pkg/runtime/race_amd64.s |  9 ++++++---
  2 files changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 17573a6978..cfd97041a8 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -94,10 +94,7 @@ runtime·racefuncenter1(uintptr pc)
+ {
+ 	// If the caller PC is lessstack, use slower runtime·callers
+ 	// to walk across the stack split to find the real caller.
+-	// Same thing if the PC is on the heap, which should be a
+-	// closure trampoline.
+-	if(pc == (uintptr)runtime·lessstack ||
+-		(pc >= (uintptr)runtime·mheap->arena_start && pc < (uintptr)runtime·mheap->arena_used))
++	if(pc == (uintptr)runtime·lessstack)
+ 		runtime·callers(2, &pc, 1);
+ 
+ 	m->racecall = true;
+@@ -162,8 +159,7 @@ memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
+ 		m->racecall = true;
+ 		racectx = g->racectx;
+ 		if(callpc) {
+-			if(callpc == (uintptr)runtime·lessstack ||
+-				(callpc >= (uintptr)runtime·mheap->arena_start && callpc < (uintptr)runtime·mheap->arena_used))
++			if(callpc == (uintptr)runtime·lessstack)
+ 				runtime·callers(3, &callpc, 1);
+ 			runtime∕race·FuncEnter(racectx, (void*)callpc);
+ 		}
+@@ -198,8 +194,7 @@ rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc,
+ 		m->racecall = true;
+ 		racectx = g->racectx;
+ 		if(callpc) {
+-			if(callpc == (uintptr)runtime·lessstack ||
+-				(callpc >= (uintptr)runtime·mheap->arena_start && callpc < (uintptr)runtime·mheap->arena_used))
++			if(callpc == (uintptr)runtime·lessstack)
+ 				runtime·callers(3, &callpc, 1);
+ 			runtime∕race·FuncEnter(racectx, (void*)callpc);
+ 		}
+diff --git a/src/pkg/runtime/race_amd64.s b/src/pkg/runtime/race_amd64.s
+index 0c6aaaa611..83e300905e 100644
+--- a/src/pkg/runtime/race_amd64.s
++++ b/src/pkg/runtime/race_amd64.s
+@@ -4,8 +4,11 @@
+ 
+ // +build race
+ 
+-TEXT	runtime·racefuncenter(SB),7,$0
+-	PUSHQ	DX // save function entry context (for closures)
++// func runtime·racefuncenter(pc uintptr)
++TEXT	runtime·racefuncenter(SB), 7, $16
++	MOVQ	DX, saved-8(SP) // save function entry context (for closures)
++	MOVQ	pc+0(FP), DX
++	MOVQ	DX, arg-16(SP)
+ 	CALL	runtime·racefuncenter1(SB)
+-	POPQ	DX
++	MOVQ	saved-8(SP), DX
+ 	RET

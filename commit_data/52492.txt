@@ -16,7 +16,7 @@ Date:   Thu Apr 7 15:15:31 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/ed25519/ed25519.go                                      | 2 +-
  src/crypto/{ed25519 => }/internal/edwards25519/doc.go              | 0
  src/crypto/{ed25519 => }/internal/edwards25519/edwards25519.go     | 7 +++----
@@ -44,3 +44,176 @@ Date:   Thu Apr 7 15:15:31 2022 -0400
  src/crypto/{ed25519 => }/internal/edwards25519/tables_test.go      | 0
  src/go/build/deps_test.go                                          | 4 ++--
  26 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index 4669e02db2..d43dd12d08 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -15,7 +15,7 @@ package ed25519
+ import (
+ 	"bytes"
+ 	"crypto"
+-	"crypto/ed25519/internal/edwards25519"
++	"crypto/internal/edwards25519"
+ 	cryptorand "crypto/rand"
+ 	"crypto/sha512"
+ 	"errors"
+diff --git a/src/crypto/ed25519/internal/edwards25519/doc.go b/src/crypto/internal/edwards25519/doc.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/doc.go
+rename to src/crypto/internal/edwards25519/doc.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/edwards25519.go b/src/crypto/internal/edwards25519/edwards25519.go
+similarity index 97%
+rename from src/crypto/ed25519/internal/edwards25519/edwards25519.go
+rename to src/crypto/internal/edwards25519/edwards25519.go
+index 4e0ad7a357..71e9c097a9 100644
+--- a/src/crypto/ed25519/internal/edwards25519/edwards25519.go
++++ b/src/crypto/internal/edwards25519/edwards25519.go
+@@ -5,7 +5,7 @@
+ package edwards25519
+ 
+ import (
+-	"crypto/ed25519/internal/edwards25519/field"
++	"crypto/internal/edwards25519/field"
+ 	"errors"
+ )
+ 
+@@ -147,9 +147,8 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
+ 	//      (*field.Element).SetBytes docs) and
+ 	//   2) the ones where the x-coordinate is zero and the sign bit is set.
+ 	//
+-	// This is consistent with crypto/ed25519/internal/edwards25519. Read more
+-	// at https://hdevalence.ca/blog/2020-10-04-its-25519am, specifically the
+-	// "Canonical A, R" section.
++	// Read more at https://hdevalence.ca/blog/2020-10-04-its-25519am,
++	// specifically the "Canonical A, R" section.
+ 
+ 	y, err := new(field.Element).SetBytes(x)
+ 	if err != nil {
+diff --git a/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go b/src/crypto/internal/edwards25519/edwards25519_test.go
+similarity index 99%
+rename from src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
+rename to src/crypto/internal/edwards25519/edwards25519_test.go
+index 8031256525..9bc33f9017 100644
+--- a/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
++++ b/src/crypto/internal/edwards25519/edwards25519_test.go
+@@ -5,7 +5,7 @@
+ package edwards25519
+ 
+ import (
+-	"crypto/ed25519/internal/edwards25519/field"
++	"crypto/internal/edwards25519/field"
+ 	"encoding/hex"
+ 	"os"
+ 	"reflect"
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/_asm/fe_amd64_asm.go b/src/crypto/internal/edwards25519/field/_asm/fe_amd64_asm.go
+similarity index 99%
+rename from src/crypto/ed25519/internal/edwards25519/field/_asm/fe_amd64_asm.go
+rename to src/crypto/internal/edwards25519/field/_asm/fe_amd64_asm.go
+index fbc0cce22c..411399cb1e 100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/_asm/fe_amd64_asm.go
++++ b/src/crypto/internal/edwards25519/field/_asm/fe_amd64_asm.go
+@@ -16,7 +16,7 @@ import (
+ //go:generate go run . -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field
+ 
+ func main() {
+-	Package("crypto/ed25519/internal/edwards25519/field")
++	Package("crypto/internal/edwards25519/field")
+ 	ConstraintExpr("amd64,gc,!purego")
+ 	feMul()
+ 	feSquare()
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/_asm/go.mod b/src/crypto/internal/edwards25519/field/_asm/go.mod
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/_asm/go.mod
+rename to src/crypto/internal/edwards25519/field/_asm/go.mod
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/_asm/go.sum b/src/crypto/internal/edwards25519/field/_asm/go.sum
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/_asm/go.sum
+rename to src/crypto/internal/edwards25519/field/_asm/go.sum
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe.go b/src/crypto/internal/edwards25519/field/fe.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe.go
+rename to src/crypto/internal/edwards25519/field/fe.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_alias_test.go b/src/crypto/internal/edwards25519/field/fe_alias_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_alias_test.go
+rename to src/crypto/internal/edwards25519/field/fe_alias_test.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go b/src/crypto/internal/edwards25519/field/fe_amd64.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
+rename to src/crypto/internal/edwards25519/field/fe_amd64.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.s b/src/crypto/internal/edwards25519/field/fe_amd64.s
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_amd64.s
+rename to src/crypto/internal/edwards25519/field/fe_amd64.s
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_amd64_noasm.go b/src/crypto/internal/edwards25519/field/fe_amd64_noasm.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_amd64_noasm.go
+rename to src/crypto/internal/edwards25519/field/fe_amd64_noasm.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_arm64.go b/src/crypto/internal/edwards25519/field/fe_arm64.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_arm64.go
+rename to src/crypto/internal/edwards25519/field/fe_arm64.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_arm64.s b/src/crypto/internal/edwards25519/field/fe_arm64.s
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_arm64.s
+rename to src/crypto/internal/edwards25519/field/fe_arm64.s
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_arm64_noasm.go b/src/crypto/internal/edwards25519/field/fe_arm64_noasm.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_arm64_noasm.go
+rename to src/crypto/internal/edwards25519/field/fe_arm64_noasm.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_bench_test.go b/src/crypto/internal/edwards25519/field/fe_bench_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_bench_test.go
+rename to src/crypto/internal/edwards25519/field/fe_bench_test.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_generic.go b/src/crypto/internal/edwards25519/field/fe_generic.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_generic.go
+rename to src/crypto/internal/edwards25519/field/fe_generic.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_test.go b/src/crypto/internal/edwards25519/field/fe_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/field/fe_test.go
+rename to src/crypto/internal/edwards25519/field/fe_test.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalar.go b/src/crypto/internal/edwards25519/scalar.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/scalar.go
+rename to src/crypto/internal/edwards25519/scalar.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalar_alias_test.go b/src/crypto/internal/edwards25519/scalar_alias_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/scalar_alias_test.go
+rename to src/crypto/internal/edwards25519/scalar_alias_test.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalar_test.go b/src/crypto/internal/edwards25519/scalar_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/scalar_test.go
+rename to src/crypto/internal/edwards25519/scalar_test.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalarmult.go b/src/crypto/internal/edwards25519/scalarmult.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/scalarmult.go
+rename to src/crypto/internal/edwards25519/scalarmult.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalarmult_test.go b/src/crypto/internal/edwards25519/scalarmult_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/scalarmult_test.go
+rename to src/crypto/internal/edwards25519/scalarmult_test.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/tables.go b/src/crypto/internal/edwards25519/tables.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/tables.go
+rename to src/crypto/internal/edwards25519/tables.go
+diff --git a/src/crypto/ed25519/internal/edwards25519/tables_test.go b/src/crypto/internal/edwards25519/tables_test.go
+similarity index 100%
+rename from src/crypto/ed25519/internal/edwards25519/tables_test.go
+rename to src/crypto/internal/edwards25519/tables_test.go
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f6d41dd28f..5b971b93e2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -408,8 +408,8 @@ var depsRules = `
+ 	< crypto/internal/subtle
+ 	< crypto/internal/nistec/fiat
+ 	< crypto/internal/nistec
+-	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+-	< crypto/ed25519/internal/edwards25519
++	< crypto/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
++	< crypto/internal/edwards25519
+ 	< crypto/cipher
+ 	< crypto/internal/boring
+ 	< crypto/boring

@@ -13,8 +13,191 @@ Date:   Tue Jan 29 10:49:16 2013 -0500
     R=iant, iant
     CC=golang-dev
     https://golang.org/cl/7231050
-
+---
  src/pkg/exp/ssa/blockopt.go |  6 +-----
  src/pkg/exp/ssa/func.go     | 50 ++++++++++++++++++++++++++++-----------------
  src/pkg/exp/ssa/ssa.go      | 30 ++++++++-------------------
  3 files changed, 41 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/blockopt.go b/src/pkg/exp/ssa/blockopt.go
+index 77a98b3e01..a81be6aefe 100644
+--- a/src/pkg/exp/ssa/blockopt.go
++++ b/src/pkg/exp/ssa/blockopt.go
+@@ -5,10 +5,6 @@ package ssa
+ // TODO(adonovan): instead of creating several "unreachable" blocks
+ // per function in the Builder, reuse a single one (e.g. at Blocks[1])
+ // to reduce garbage.
+-//
+-// TODO(adonovan): in the absence of multiway branch instructions,
+-// each BasicBlock has 0, 1, or 2 successors.  We should preallocate
+-// the backing array for the Succs slice inline in BasicBlock.
+ 
+ import (
+ 	"fmt"
+@@ -117,7 +113,7 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
+ 	}
+ 
+ 	// A inherits B's successors
+-	a.Succs = b.Succs
++	a.Succs = append(a.succs2[:0], b.Succs...)
+ 
+ 	// Fix up Preds links of all successors of B.
+ 	for _, c := range b.Succs {
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index 3751839b28..6af5e1efcd 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -151,16 +151,27 @@ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
+ func (f *Function) addParam(name string, typ types.Type) *Parameter {
+ 	v := &Parameter{
+ 		Name_: name,
+-		Type_: pointer(typ), // address of param
++		Type_: typ,
+ 	}
+ 	f.Params = append(f.Params, v)
+ 	return v
+ }
+ 
+-func (f *Function) addObjParam(obj types.Object) *Parameter {
+-	p := f.addParam(obj.GetName(), obj.GetType())
+-	f.objects[obj] = p
+-	return p
++// addSpilledParam declares a parameter that is pre-spilled to the
++// stack; the function body will load/store the spilled location.
++// Subsequent registerization will eliminate spills where possible.
++//
++func (f *Function) addSpilledParam(obj types.Object) {
++	name := obj.GetName()
++	param := f.addParam(name, obj.GetType())
++	spill := &Alloc{
++		Name_: name + "~", // "~" means "spilled"
++		Type_: pointer(obj.GetType()),
++	}
++	f.objects[obj] = spill
++	f.Locals = append(f.Locals, spill)
++	f.emit(spill)
++	f.emit(&Store{Addr: spill, Val: param})
+ }
+ 
+ // start initializes the function prior to generating SSA code for its body.
+@@ -186,7 +197,7 @@ func (f *Function) start(mode BuilderMode, idents map[*ast.Ident]types.Object) {
+ 	if f.syntax.recvField != nil {
+ 		for _, field := range f.syntax.recvField.List {
+ 			for _, n := range field.Names {
+-				f.addObjParam(idents[n])
++				f.addSpilledParam(idents[n])
+ 			}
+ 			if field.Names == nil {
+ 				f.addParam(f.Signature.Recv.Name, f.Signature.Recv.Type)
+@@ -198,7 +209,7 @@ func (f *Function) start(mode BuilderMode, idents map[*ast.Ident]types.Object) {
+ 	if f.syntax.paramFields != nil {
+ 		for _, field := range f.syntax.paramFields.List {
+ 			for _, n := range field.Names {
+-				f.addObjParam(idents[n])
++				f.addSpilledParam(idents[n])
+ 			}
+ 		}
+ 	}
+@@ -300,18 +311,18 @@ func (f *Function) addLocal(typ types.Type) *Alloc {
+ func (f *Function) lookup(obj types.Object, escaping bool) Value {
+ 	if v, ok := f.objects[obj]; ok {
+ 		if escaping {
+-			switch v := v.(type) {
+-			case *Capture:
+-				// TODO(adonovan): fix: we must support this case.
+-				// Requires copying to a 'new' Alloc.
+-				fmt.Fprintln(os.Stderr, "Error: escaping reference to Capture")
+-			case *Parameter:
+-				v.Heap = true
+-			case *Alloc:
+-				v.Heap = true
+-			default:
+-				panic(fmt.Sprintf("Unexpected Function.objects kind: %T", v))
++			// Walk up the chain of Captures.
++			x := v
++			for {
++				if c, ok := x.(*Capture); ok {
++					x = c.Outer
++				} else {
++					break
++				}
+ 			}
++			// By construction, all captures are ultimately Allocs in the
++			// naive SSA form.  Parameters are pre-spilled to the stack.
++			x.(*Alloc).Heap = true
+ 		}
+ 		return v // function-local var (address)
+ 	}
+@@ -340,7 +351,7 @@ func (f *Function) emit(instr Instruction) Value {
+ func (f *Function) DumpTo(w io.Writer) {
+ 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
+ 	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
+-	fmt.Fprintf(w, "# Type: %s\n", f.Type())
++	fmt.Fprintf(w, "# Type: %s\n", f.Signature)
+ 
+ 	if f.Enclosing != nil {
+ 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
+@@ -411,6 +422,7 @@ func (f *Function) newBasicBlock(name string) *BasicBlock {
+ 		Name: fmt.Sprintf("%d.%s", len(f.Blocks), name),
+ 		Func: f,
+ 	}
++	b.Succs = b.succs2[:0]
+ 	f.Blocks = append(f.Blocks, b)
+ 	return b
+ }
+diff --git a/src/pkg/exp/ssa/ssa.go b/src/pkg/exp/ssa/ssa.go
+index 8e503dc35b..eb0f7fc0b0 100644
+--- a/src/pkg/exp/ssa/ssa.go
++++ b/src/pkg/exp/ssa/ssa.go
+@@ -246,19 +246,20 @@ type Function struct {
+ // instructions, respectively).
+ //
+ type BasicBlock struct {
+-	Name         string        // label; no semantic significance
+-	Func         *Function     // containing function
+-	Instrs       []Instruction // instructions in order
+-	Preds, Succs []*BasicBlock // predecessors and successors
++	Name         string         // label; no semantic significance
++	Func         *Function      // containing function
++	Instrs       []Instruction  // instructions in order
++	Preds, Succs []*BasicBlock  // predecessors and successors
++	succs2       [2]*BasicBlock // initial space for Succs.
+ }
+ 
+ // Pure values ----------------------------------------
+ 
+ // A Capture is a pointer to a lexically enclosing local variable.
+ //
+-// The referent of a capture is a Parameter, Alloc or another Capture
+-// and is always considered potentially escaping, so Captures are
+-// always addresses in the heap, and have pointer types.
++// The referent of a capture is an Alloc or another Capture and is
++// always considered potentially escaping, so Captures are always
++// addresses in the heap, and have pointer types.
+ //
+ type Capture struct {
+ 	Outer Value // the Value captured from the enclosing context.
+@@ -266,22 +267,9 @@ type Capture struct {
+ 
+ // A Parameter represents an input parameter of a function.
+ //
+-// Parameters are addresses and thus have pointer types.
+-// TODO(adonovan): this will change.  We should just spill parameters
+-// to ordinary Alloc-style locals if they are ever used in an
+-// addressable context.  Then we can lose the Heap flag.
+-//
+-// In the common case where Heap=false, Parameters are pointers into
+-// the function's stack frame.  If the case where Heap=true because a
+-// parameter's address may escape from its function, Parameters are
+-// pointers into a space in the heap implicitly allocated during the
+-// function call.  (See also Alloc, which uses the Heap flag in a
+-// similar manner.)
+-//
+ type Parameter struct {
+ 	Name_ string
+-	Type_ *types.Pointer
+-	Heap  bool
++	Type_ types.Type
+ }
+ 
+ // A Literal represents a literal nil, boolean, string or numeric

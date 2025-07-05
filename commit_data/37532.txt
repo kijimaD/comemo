@@ -15,8 +15,143 @@ Date:   Thu Aug 9 23:44:43 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                   |  8 +++++-
  src/cmd/go/internal/load/pkg.go                    | 23 +++++++++++------
  .../go/testdata/script/list_compiled_imports.txt   | 29 ++++++++++++++++++++++
  3 files changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index dd9ec5a9e5..e75270fa55 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+ )
+ 
+@@ -146,7 +147,8 @@ instead of using the template format.
+ The -compiled flag causes list to set CompiledGoFiles to the Go source
+ files presented to the compiler. Typically this means that it repeats
+ the files listed in GoFiles and then also adds the Go code generated
+-by processing CgoFiles and SwigFiles.
++by processing CgoFiles and SwigFiles. The Imports list contains the
++union of all imports from both GoFiles and CompiledGoFiles.
+ 
+ The -deps flag causes list to iterate over not just the named packages
+ but also all their dependencies. It visits them in a depth-first post-order
+@@ -517,6 +519,10 @@ func runList(cmd *base.Command, args []string) {
+ 		p.TestImports = p.Resolve(p.TestImports)
+ 		p.XTestImports = p.Resolve(p.XTestImports)
+ 		p.DepOnly = !cmdline[p]
++
++		if *listCompiled {
++			p.Imports = str.StringList(p.Imports, p.Internal.CompiledImports)
++		}
+ 	}
+ 
+ 	if *listTest {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a9327dc6cb..bef27b33ad 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -157,6 +157,7 @@ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build             *build.Package
+ 	Imports           []*Package           // this package's direct imports
++	CompiledImports   []string             // additional Imports necessary when using CompiledGoFiles (all from standard library)
+ 	RawImports        []string             // this package's original imports as they appear in the text of the program
+ 	ForceLibrary      bool                 // this package is a library (even if named "main")
+ 	CmdlineFiles      bool                 // package built from files listed on command line
+@@ -1327,31 +1328,37 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	// Build augmented import list to add implicit dependencies.
+ 	// Be careful not to add imports twice, just to avoid confusion.
+ 	importPaths := p.Imports
+-	addImport := func(path string) {
++	addImport := func(path string, forCompiler bool) {
+ 		for _, p := range importPaths {
+ 			if path == p {
+ 				return
+ 			}
+ 		}
+ 		importPaths = append(importPaths, path)
++		if forCompiler {
++			p.Internal.CompiledImports = append(p.Internal.CompiledImports, path)
++		}
+ 	}
+ 
+-	// Cgo translation adds imports of "runtime/cgo" and "syscall",
++	// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
+ 	// except for certain packages, to avoid circular dependencies.
++	if p.UsesCgo() {
++		addImport("unsafe", true)
++	}
+ 	if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) && cfg.BuildContext.Compiler != "gccgo" {
+-		addImport("runtime/cgo")
++		addImport("runtime/cgo", true)
+ 	}
+ 	if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+-		addImport("syscall")
++		addImport("syscall", true)
+ 	}
+ 
+ 	// SWIG adds imports of some standard packages.
+ 	if p.UsesSwig() {
+ 		if cfg.BuildContext.Compiler != "gccgo" {
+-			addImport("runtime/cgo")
++			addImport("runtime/cgo", true)
+ 		}
+-		addImport("syscall")
+-		addImport("sync")
++		addImport("syscall", true)
++		addImport("sync", true)
+ 
+ 		// TODO: The .swig and .swigcxx files can use
+ 		// %go_import directives to import other packages.
+@@ -1360,7 +1367,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	// The linker loads implicit dependencies.
+ 	if p.Name == "main" && !p.Internal.ForceLibrary {
+ 		for _, dep := range LinkerDeps(p) {
+-			addImport(dep)
++			addImport(dep, false)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/list_compiled_imports.txt b/src/cmd/go/testdata/script/list_compiled_imports.txt
+new file mode 100644
+index 0000000000..e6f5abb6af
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_compiled_imports.txt
+@@ -0,0 +1,29 @@
++[!cgo] skip
++
++# go list should report import "C"
++cd x
++go list -f '{{.Imports}}'
++! stdout runtime/cgo
++! stdout unsafe
++! stdout syscall
++stdout C
++stdout unicode
++stdout unicode/utf16
++
++# go list -compiled should report imports in compiled files as well,
++# adding "runtime/cgo", "unsafe", and "syscall" but not dropping "C".
++go list -compiled -f '{{.Imports}}'
++stdout runtime/cgo
++stdout unsafe
++stdout syscall
++stdout C
++stdout unicode
++stdout unicode/utf16
++
++-- x/x.go --
++package x
++import "C"
++import "unicode" // does not use unsafe, syscall, runtime/cgo, unicode/utf16
++-- x/x1.go --
++package x
++import "unicode/utf16" // does not use unsafe, syscall, runtime/cgo, unicode

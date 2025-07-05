@@ -10,7 +10,51 @@ Date:   Tue May 20 11:38:34 2014 -0400
     R=golang-codereviews, crawshaw, r
     CC=golang-codereviews
     https://golang.org/cl/91590043
-
+---
  src/pkg/syscall/fd_nacl.go  |  6 ++++++
  test/fixedbugs/issue7050.go | 19 +++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/pkg/syscall/fd_nacl.go b/src/pkg/syscall/fd_nacl.go
+index 19cd98acb1..74324142a7 100644
+--- a/src/pkg/syscall/fd_nacl.go
++++ b/src/pkg/syscall/fd_nacl.go
+@@ -162,7 +162,13 @@ func Read(fd int, b []byte) (int, error) {
+ 	return f.impl.read(b)
+ }
+ 
++var zerobuf [0]byte
++
+ func Write(fd int, b []byte) (int, error) {
++	if b == nil {
++		// avoid nil in syscalls; nacl doesn't like that.
++		b = zerobuf[:]
++	}
+ 	f, err := fdToFile(fd)
+ 	if err != nil {
+ 		return 0, err
+diff --git a/test/fixedbugs/issue7050.go b/test/fixedbugs/issue7050.go
+new file mode 100644
+index 0000000000..e58b684049
+--- /dev/null
++++ b/test/fixedbugs/issue7050.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	_, err := os.Stdout.Write(nil)
++	if err != nil {
++		fmt.Printf("BUG: os.Stdout.Write(nil) = %v\n", err)
++	}
++}

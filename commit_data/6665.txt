@@ -7,6 +7,22 @@ Date:   Sat Oct 30 22:07:01 2010 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/2807041
-
+---
  misc/vim/syntax/go.vim | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/vim/syntax/go.vim b/misc/vim/syntax/go.vim
+index c7c404e40e..7adbe8e356 100644
+--- a/misc/vim/syntax/go.vim
++++ b/misc/vim/syntax/go.vim
+@@ -85,8 +85,8 @@ syn match       goType              /\<func\>/
+ syn match       goDeclaration       /^func\>/
+ 
+ " Predefined functions and values
+-syn keyword     goBuiltins          cap close closed cmplx copy imag len make
+-syn keyword     goBuiltins          new panic panicln print println real
++syn keyword     goBuiltins          append cap close closed cmplx copy imag len
++syn keyword     goBuiltins          make new panic print println real recover
+ syn keyword     goConstants         iota true false nil
+ 
+ hi def link     goBuiltins          Keyword

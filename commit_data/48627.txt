@@ -23,6 +23,21 @@ Date:   Thu Jun 3 18:00:53 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 4c7c9fc322..5fcad096c2 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -882,9 +882,6 @@ func (p *noder) typeExpr(typ syntax.Expr) ir.Ntype {
+ 	if n == nil {
+ 		return nil
+ 	}
+-	if _, ok := n.(ir.Ntype); !ok {
+-		ir.Dump("NOT NTYPE", n)
+-	}
+ 	return n.(ir.Ntype)
+ }
+ 

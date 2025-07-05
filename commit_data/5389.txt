@@ -8,6 +8,23 @@ Date:   Wed Apr 28 13:18:40 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/964045
-
+---
  doc/go_spec.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e53d3fb396..b4637e6e29 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4217,7 +4217,10 @@ ContinueStmt = "continue" [ Label ] .
+ </pre>
+ 
+ <p>
+-The optional label is analogous to that of a "break" statement.
++If there is a label, it must be that of an enclosing
++"for" statement, and that is the one whose execution
++advances
++(§<a href="#For_statements">For statements</a>).
+ </p>
+ 
+ <h3 id="Goto_statements">Goto statements</h3>

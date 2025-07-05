@@ -19,8 +19,84 @@ Date:   Mon Jun 29 12:49:25 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11693
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  8 ++++++++
  src/cmd/compile/internal/gc/walk.go  | 15 +++++++++++----
  test/sinit.go                        |  5 +++++
  3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e1a99d4ca0..0ced4ef3b0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -302,6 +302,10 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 	orig := r
+ 	r = r.Name.Defn.Right
+ 
++	for r.Op == OCONVNOP {
++		r = r.Left
++	}
++
+ 	switch r.Op {
+ 	case ONAME:
+ 		if staticcopy(l, r, out) {
+@@ -395,6 +399,10 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 	var n1 Node
+ 
++	for r.Op == OCONVNOP {
++		r = r.Left
++	}
++
+ 	switch r.Op {
+ 	//dump("not static", r);
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 626b26fec7..d89d25efdd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2194,13 +2194,20 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
+-	// No write barrier for implicit or explicit zeroing.
+-	if r == nil || iszero(r) {
++	// No write barrier for implicit zeroing.
++	if r == nil {
+ 		return false
+ 	}
+ 
+-	// No write barrier for initialization to constant.
+-	if r.Op == OLITERAL {
++	// Ignore no-op conversions when making decision.
++	// Ensures that xp = unsafe.Pointer(&x) is treated
++	// the same as xp = &x.
++	for r.Op == OCONVNOP {
++		r = r.Left
++	}
++
++	// No write barrier for zeroing or initialization to constant.
++	if iszero(r) || r.Op == OLITERAL {
+ 		return false
+ 	}
+ 
+diff --git a/test/sinit.go b/test/sinit.go
+index df1a4cc930..188a5301a2 100644
+--- a/test/sinit.go
++++ b/test/sinit.go
+@@ -10,6 +10,8 @@
+ 
+ package p
+ 
++import "unsafe"
++
+ // Should be no init func in the assembly.
+ // All these initializations should be done at link time.
+ 
+@@ -284,3 +286,6 @@ type Mer interface {
+ }
+ 
+ var _ Mer = (*T1)(nil)
++
++var Byte byte
++var PtrByte unsafe.Pointer = unsafe.Pointer(&Byte)

@@ -16,6 +16,19 @@ Date:   Wed Sep 3 14:17:04 2014 +1000
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/134360043
-
+---
  src/pkg/runtime/os_windows.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 43026d6457..172fd92285 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -570,6 +570,7 @@ runtime·resetcpuprofiler(int32 hz)
+ 		runtime·atomicstorep(&profiletimer, timer);
+ 		thread = runtime·stdcall6(runtime·CreateThread,
+ 			(uintptr)nil, (uintptr)nil, (uintptr)runtime·profileloop, (uintptr)nil, (uintptr)nil, (uintptr)nil);
++		runtime·stdcall2(runtime·SetThreadPriority, (uintptr)thread, THREAD_PRIORITY_HIGHEST);
+ 		runtime·stdcall1(runtime·CloseHandle, (uintptr)thread);
+ 	}
+ 	runtime·unlock(&lock);

@@ -9,6 +9,55 @@ Date:   Wed Mar 7 14:51:20 2012 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5756073
-
+---
  src/pkg/sync/atomic/atomic_test.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index a06c85c3a9..f60d997ce8 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -1012,6 +1012,10 @@ func TestHammerStoreLoad(t *testing.T) {
+ }
+ 
+ func TestStoreLoadSeqCst32(t *testing.T) {
++	if runtime.NumCPU() == 1 {
++		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
++		return
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int32(1e3)
+ 	if testing.Short() {
+@@ -1049,6 +1053,10 @@ func TestStoreLoadSeqCst32(t *testing.T) {
+ }
+ 
+ func TestStoreLoadSeqCst64(t *testing.T) {
++	if runtime.NumCPU() == 1 {
++		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
++		return
++	}
+ 	if test64err != nil {
+ 		t.Logf("Skipping 64-bit tests: %v", test64err)
+ 		return
+@@ -1090,6 +1098,10 @@ func TestStoreLoadSeqCst64(t *testing.T) {
+ }
+ 
+ func TestStoreLoadRelAcq32(t *testing.T) {
++	if runtime.NumCPU() == 1 {
++		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
++		return
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int32(1e3)
+ 	if testing.Short() {
+@@ -1132,6 +1144,10 @@ func TestStoreLoadRelAcq32(t *testing.T) {
+ }
+ 
+ func TestStoreLoadRelAcq64(t *testing.T) {
++	if runtime.NumCPU() == 1 {
++		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
++		return
++	}
+ 	if test64err != nil {
+ 		t.Logf("Skipping 64-bit tests: %v", test64err)
+ 		return

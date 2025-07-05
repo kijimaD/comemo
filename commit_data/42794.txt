@@ -15,10 +15,135 @@ Date:   Mon Feb 17 01:27:11 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go      |  2 +-
  src/cmd/internal/goobj2/funcinfo.go    |  7 -------
  src/cmd/internal/goobj2/objfile.go     |  4 ++--
  src/cmd/internal/obj/objfile2.go       | 13 ++++---------
  src/cmd/link/internal/loader/loader.go |  7 ++++++-
  5 files changed, 13 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 3f9d0d1db6..e09260fb18 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -149,7 +149,7 @@ func (r *objReader) readNew() {
+ 		f := &Func{
+ 			Args:     int64(info.Args),
+ 			Frame:    int64(info.Locals),
+-			NoSplit:  info.NoSplit != 0,
++			NoSplit:  osym.NoSplit(),
+ 			Leaf:     osym.Leaf(),
+ 			TopFrame: osym.TopFrame(),
+ 			PCSP:     Data{int64(pcdataBase + info.Pcsp), int64(info.Pcfile - info.Pcsp)},
+diff --git a/src/cmd/internal/goobj2/funcinfo.go b/src/cmd/internal/goobj2/funcinfo.go
+index 8620931970..d8cfd3d02d 100644
+--- a/src/cmd/internal/goobj2/funcinfo.go
++++ b/src/cmd/internal/goobj2/funcinfo.go
+@@ -14,8 +14,6 @@ import (
+ //
+ // TODO: make each pcdata a separate symbol?
+ type FuncInfo struct {
+-	NoSplit uint8
+-
+ 	Args   uint32
+ 	Locals uint32
+ 
+@@ -32,8 +30,6 @@ type FuncInfo struct {
+ }
+ 
+ func (a *FuncInfo) Write(w *bytes.Buffer) {
+-	w.WriteByte(a.NoSplit)
+-
+ 	var b [4]byte
+ 	writeUint32 := func(x uint32) {
+ 		binary.LittleEndian.PutUint32(b[:], x)
+@@ -68,9 +64,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ }
+ 
+ func (a *FuncInfo) Read(b []byte) {
+-	a.NoSplit = b[0]
+-	b = b[1:]
+-
+ 	readUint32 := func() uint32 {
+ 		x := binary.LittleEndian.Uint32(b)
+ 		b = b[4:]
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index a903a102c3..8049ca7f31 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -203,7 +203,7 @@ const (
+ 	SymFlagLocal
+ 	SymFlagTypelink
+ 	SymFlagLeaf
+-	SymFlagCFunc
++	SymFlagNoSplit
+ 	SymFlagReflectMethod
+ 	SymFlagGoType
+ 	SymFlagTopFrame
+@@ -247,7 +247,7 @@ func (s *Sym) Dupok() bool         { return s.Flag&SymFlagDupok != 0 }
+ func (s *Sym) Local() bool         { return s.Flag&SymFlagLocal != 0 }
+ func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
+ func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
+-func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
++func (s *Sym) NoSplit() bool       { return s.Flag&SymFlagNoSplit != 0 }
+ func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
+ func (s *Sym) IsGoType() bool      { return s.Flag&SymFlagGoType != 0 }
+ func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index cb7ee4b649..839167bc1a 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -229,8 +229,8 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.Leaf() {
+ 		flag |= goobj2.SymFlagLeaf
+ 	}
+-	if s.CFunc() {
+-		flag |= goobj2.SymFlagCFunc
++	if s.NoSplit() {
++		flag |= goobj2.SymFlagNoSplit
+ 	}
+ 	if s.ReflectMethod() {
+ 		flag |= goobj2.SymFlagReflectMethod
+@@ -366,14 +366,9 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		if s.Func == nil {
+ 			continue
+ 		}
+-		nosplit := uint8(0)
+-		if s.NoSplit() {
+-			nosplit = 1
+-		}
+ 		o := goobj2.FuncInfo{
+-			NoSplit: nosplit,
+-			Args:    uint32(s.Func.Args),
+-			Locals:  uint32(s.Func.Locals),
++			Args:   uint32(s.Func.Args),
++			Locals: uint32(s.Func.Locals),
+ 		}
+ 		pc := &s.Func.Pcln
+ 		o.Pcsp = pcdataoff
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 8675637af0..1ff123efbb 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -940,6 +940,11 @@ func (l *Loader) IsReflectMethod(i Sym) bool {
+ 	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
+ }
+ 
++// Returns whether the i-th symbol is nosplit.
++func (l *Loader) IsNoSplit(i Sym) bool {
++	return l.SymAttr(i)&goobj2.SymFlagNoSplit != 0
++}
++
+ // Returns whether this is a Go type symbol.
+ func (l *Loader) IsGoType(i Sym) bool {
+ 	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
+@@ -2189,7 +2194,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		info := goobj2.FuncInfo{}
+ 		info.Read(b)
+ 
+-		if info.NoSplit != 0 {
++		if osym.NoSplit() {
+ 			s.Attr |= sym.AttrNoSplit
+ 		}
+ 		if osym.ReflectMethod() {

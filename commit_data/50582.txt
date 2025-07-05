@@ -14,6 +14,53 @@ Date:   Mon Nov 1 14:07:30 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/udpsock_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 74e449c888..371d9af511 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -479,6 +479,7 @@ func BenchmarkReadWriteMsgUDPAddrPort(b *testing.B) {
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
++	defer conn.Close()
+ 	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
+ 	buf := make([]byte, 8)
+ 	b.ResetTimer()
+@@ -500,6 +501,7 @@ func BenchmarkWriteToReadFromUDP(b *testing.B) {
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
++	defer conn.Close()
+ 	addr := conn.LocalAddr()
+ 	buf := make([]byte, 8)
+ 	b.ResetTimer()
+@@ -515,3 +517,25 @@ func BenchmarkWriteToReadFromUDP(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
++	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
++	if err != nil {
++		b.Fatal(err)
++	}
++	defer conn.Close()
++	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
++	buf := make([]byte, 8)
++	b.ResetTimer()
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		_, err := conn.WriteToUDPAddrPort(buf, addr)
++		if err != nil {
++			b.Fatal(err)
++		}
++		_, _, err = conn.ReadFromUDP(buf) // TODO: create and use ReadFromUDPAddrPort
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}

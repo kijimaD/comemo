@@ -8,8 +8,150 @@ Date:   Wed Dec 31 17:31:32 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/2243
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/asm_386.s      | 22 +++-------------------
  src/runtime/asm_amd64.s    | 22 +++-------------------
  src/runtime/asm_amd64p32.s | 22 +++-------------------
  3 files changed, 9 insertions(+), 57 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 40b5c2e010..43f92b2b8b 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -439,12 +439,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-13
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 4(PC)
+-	MOVL	$0, AX
+-	MOVB	AX, ret+12(FP)
+-	RET
+-	MOVL	$1, AX
+-	MOVB	AX, ret+12(FP)
++	SETEQ	, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+@@ -475,13 +470,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-21
+ 	MOVL	new_hi+16(FP), CX
+ 	LOCK
+ 	CMPXCHG8B	0(BP)
+-	JNZ	fail
+-	MOVL	$1, AX
+-	MOVB	AX, ret+20(FP)
+-	RET
+-fail:
+-	MOVL	$0, AX
+-	MOVB	AX, ret+20(FP)
++	SETEQ	, ret+20(FP)
+ 	RET
+ 
+ // bool casp(void **p, void *old, void *new)
+@@ -497,12 +486,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-13
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 4(PC)
+-	MOVL	$0, AX
+-	MOVB	AX, ret+12(FP)
+-	RET
+-	MOVL	$1, AX
+-	MOVB	AX, ret+12(FP)
++	SETEQ	, ret+12(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 3d96d09014..4061e99c4b 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -427,12 +427,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
+ 	MOVL	new+12(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 4(PC)
+-	MOVL	$0, AX
+-	MOVB	AX, ret+16(FP)
+-	RET
+-	MOVL	$1, AX
+-	MOVB	AX, ret+16(FP)
++	SETEQ	, ret+16(FP)
+ 	RET
+ 
+ // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+@@ -449,13 +444,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	JNZ	fail
+-	MOVL	$1, AX
+-	MOVB	AX, ret+24(FP)
+-	RET
+-fail:
+-	MOVL	$0, AX
+-	MOVB	AX, ret+24(FP)
++	SETEQ	, ret+24(FP)
+ 	RET
+ 	
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
+@@ -483,12 +472,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-25
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	JZ 4(PC)
+-	MOVL	$0, AX
+-	MOVB	AX, ret+24(FP)
+-	RET
+-	MOVL	$1, AX
+-	MOVB	AX, ret+24(FP)
++	SETEQ	, ret+24(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 6a8544ed45..b919734770 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -400,12 +400,7 @@ TEXT runtime·cas(SB), NOSPLIT, $0-17
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 4(PC)
+-	MOVL	$0, AX
+-	MOVB	AX, ret+16(FP)
+-	RET
+-	MOVL	$1, AX
+-	MOVB	AX, ret+16(FP)
++	SETEQ	, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
+@@ -434,13 +429,7 @@ TEXT runtime·cas64(SB), NOSPLIT, $0-25
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	JNZ	fail
+-	MOVL	$1, AX
+-	MOVB	AX, ret+24(FP)
+-	RET
+-fail:
+-	MOVL	$0, AX
+-	MOVB	AX, ret+24(FP)
++	SETEQ	, ret+24(FP)
+ 	RET
+ 
+ // bool casp(void **val, void *old, void *new)
+@@ -456,12 +445,7 @@ TEXT runtime·casp1(SB), NOSPLIT, $0-17
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 4(PC)
+-	MOVL	$0, AX
+-	MOVB	AX, ret+16(FP)
+-	RET
+-	MOVL	$1, AX
+-	MOVB	AX, ret+16(FP)
++	SETEQ	, ret+16(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)

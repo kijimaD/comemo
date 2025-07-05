@@ -10,8 +10,63 @@ Date:   Sun Jul 24 22:03:17 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4820045
-
+---
  src/pkg/runtime/chan.c    | 2 +-
  src/pkg/runtime/hashmap.c | 4 ++--
  src/pkg/runtime/iface.c   | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index ee351a6436..b77e51b60d 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -427,7 +427,7 @@ runtime·chanrecv2(Hchan* c, ...)
+ 
+ 	o = runtime·rnd(sizeof(c), Structrnd);
+ 	ae = (byte*)&c + o;
+-	o = runtime·rnd(o+c->elemsize, 1);
++	o += c->elemsize;
+ 	ac = (byte*)&c + o;
+ 
+ 	runtime·chanrecv(c, ae, nil, ac);
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 5ba1eb20ab..179a56375b 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -753,12 +753,12 @@ runtime·makemap_c(Type *key, Type *val, int64 hint)
+ 	// func(key) (val[, pres])
+ 	h->ko1 = runtime·rnd(sizeof(h), key->align);
+ 	h->vo1 = runtime·rnd(h->ko1+keysize, Structrnd);
+-	h->po1 = runtime·rnd(h->vo1+valsize, 1);
++	h->po1 = h->vo1 + valsize;
+ 
+ 	// func(key, val[, pres])
+ 	h->ko2 = runtime·rnd(sizeof(h), key->align);
+ 	h->vo2 = runtime·rnd(h->ko2+keysize, val->align);
+-	h->po2 = runtime·rnd(h->vo2+valsize, 1);
++	h->po2 = h->vo2 + valsize;
+ 
+ 	if(debug) {
+ 		runtime·printf("makemap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 75417cc25c..000f834cf3 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -265,7 +265,7 @@ runtime·assertI2T2(Type *t, Iface i, ...)
+ 
+ 	ret = (byte*)(&i+1);
+ 	wid = t->size;
+-	ok = (bool*)(ret+runtime·rnd(wid, 1));
++	ok = (bool*)(ret + wid);
+ 
+ 	if(i.tab == nil || i.tab->type != t) {
+ 		*ok = false;
+@@ -327,7 +327,7 @@ runtime·assertE2T2(Type *t, Eface e, ...)
+ 		runtime·throw("invalid interface value");
+ 	ret = (byte*)(&e+1);
+ 	wid = t->size;
+-	ok = (bool*)(ret+runtime·rnd(wid, 1));
++	ok = (bool*)(ret + wid);
+ 
+ 	if(t != e.type) {
+ 		*ok = false;

@@ -12,8 +12,76 @@ Date:   Wed Oct 21 10:40:39 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mfinal.go          | 7 +++----
  src/runtime/syscall_windows.go | 8 ++++----
  src/runtime/type.go            | 4 ++--
  3 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 7e1773c88c..a753ceda52 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -327,11 +327,10 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		throw("runtime.SetFinalizer: second argument is " + *ftyp._string + ", not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(ftyp))
+-	ins := *(*[]*_type)(unsafe.Pointer(&ft.in))
+-	if ft.dotdotdot || len(ins) != 1 {
++	if ft.dotdotdot || len(ft.in) != 1 {
+ 		throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+ 	}
+-	fint := ins[0]
++	fint := ft.in[0]
+ 	switch {
+ 	case fint == etyp:
+ 		// ok - same type
+@@ -356,7 +355,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ okarg:
+ 	// compute size needed for return parameters
+ 	nret := uintptr(0)
+-	for _, t := range *(*[]*_type)(unsafe.Pointer(&ft.out)) {
++	for _, t := range ft.out {
+ 		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
+ 	}
+ 	nret = round(nret, ptrSize)
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 8e069cdb15..e2ff7a8a0f 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -45,16 +45,16 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 		panic("compileCallback: not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(fn._type))
+-	if ft.out.len != 1 {
++	if len(ft.out) != 1 {
+ 		panic("compileCallback: function must have one output parameter")
+ 	}
+ 	uintptrSize := unsafe.Sizeof(uintptr(0))
+-	if t := (**_type)(unsafe.Pointer(ft.out.array)); (*t).size != uintptrSize {
++	if ft.out[0].size != uintptrSize {
+ 		panic("compileCallback: output parameter size is wrong")
+ 	}
+ 	argsize := uintptr(0)
+-	for _, t := range (*[1024](*_type))(unsafe.Pointer(ft.in.array))[:ft.in.len] {
+-		if (*t).size > uintptrSize {
++	for _, t := range ft.in {
++		if t.size > uintptrSize {
+ 			panic("compileCallback: input parameter size is wrong")
+ 		}
+ 		argsize += uintptrSize
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 033f12fd42..c8d7554fca 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -84,8 +84,8 @@ type slicetype struct {
+ type functype struct {
+ 	typ       _type
+ 	dotdotdot bool
+-	in        slice
+-	out       slice
++	in        []*_type
++	out       []*_type
+ }
+ 
+ type ptrtype struct {

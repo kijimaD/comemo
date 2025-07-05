@@ -10,7 +10,29 @@ Date:   Mon Jan 27 10:21:57 2025 -0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  lib/time/update.bash  |   7 ++++++-
  lib/time/zoneinfo.zip | Bin 406409 -> 405501 bytes
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 67cb016e79..940596fb11 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -40,7 +40,12 @@ curl -sS -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.t
+ tar xzf tzcode$CODE.tar.gz
+ tar xzf tzdata$DATA.tar.gz
+ 
+-if ! make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only >make.out 2>&1; then
++# The PACKRATLIST and PACKRATDATA options are copied from Ubuntu:
++# https://git.launchpad.net/ubuntu/+source/tzdata/tree/debian/rules?h=debian/sid
++#
++# You can see the description of these make variables in the tzdata Makefile:
++# https://github.com/eggert/tz/blob/main/Makefile
++if ! make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo PACKRATDATA=backzone PACKRATLIST=zone.tab posix_only >make.out 2>&1; then
+ 	cat make.out
+ 	exit 2
+ fi
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index 6ba9ff6fd6..f8099b1b49 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

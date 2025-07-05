@@ -16,7 +16,129 @@ Date:   Fri Nov 5 10:47:56 2010 -0700
     R=rsc, r, r2
     CC=golang-dev
     https://golang.org/cl/2476041
-
+---
  src/pkg/path/match.go      | 70 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/path/match_test.go | 28 +++++++++++++++++++
  2 files changed, 98 insertions(+)
+
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index e3cf08cae2..d5cd19fd40 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -2,6 +2,7 @@ package path
+ 
+ import (
+ 	"os"
++	"sort"
+ 	"strings"
+ 	"utf8"
+ )
+@@ -202,3 +203,72 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
+ 	}
+ 	return
+ }
++
++// Glob returns the names of all files matching pattern or nil
++// if there is no matching file. The syntax of patterns is the same
++// as in Match. The pattern may describe hierarchical names such as
++// /usr/*/bin/ed.
++//
++func Glob(pattern string) (matches []string) {
++	if !hasMeta(pattern) {
++		if _, err := os.Stat(pattern); err == nil {
++			return []string{pattern}
++		}
++		return nil
++	}
++
++	dir, file := Split(pattern)
++	switch dir {
++	case "":
++		dir = "."
++	case "/":
++		// nothing
++	default:
++		dir = dir[0 : len(dir)-1] // chop off trailing '/'
++	}
++
++	if hasMeta(dir) {
++		for _, d := range Glob(dir) {
++			matches = glob(d, file, matches)
++		}
++	} else {
++		return glob(dir, file, nil)
++	}
++	return matches
++}
++
++// glob searches for files matching pattern in the directory dir
++// and appends them to matches.
++func glob(dir, pattern string, matches []string) []string {
++	if fi, err := os.Stat(dir); err != nil || !fi.IsDirectory() {
++		return nil
++	}
++	d, err := os.Open(dir, os.O_RDONLY, 0666)
++	if err != nil {
++		return nil
++	}
++	defer d.Close()
++
++	names, err := d.Readdirnames(-1)
++	if err != nil {
++		return nil
++	}
++	sort.SortStrings(names)
++
++	for _, n := range names {
++		matched, err := Match(pattern, n)
++		if err != nil {
++			return matches
++		}
++		if matched {
++			matches = append(matches, Join(dir, n))
++		}
++	}
++	return matches
++}
++
++// hasMeta returns true if path contains any of the magic characters
++// recognized by Match.
++func hasMeta(path string) bool {
++	return strings.IndexAny(path, "*?[") != -1
++}
+diff --git a/src/pkg/path/match_test.go b/src/pkg/path/match_test.go
+index f377f1083b..a1bf508e3f 100644
+--- a/src/pkg/path/match_test.go
++++ b/src/pkg/path/match_test.go
+@@ -75,3 +75,31 @@ func TestMatch(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// contains returns true if vector contains the string s.
++func contains(vector []string, s string) bool {
++	for _, elem := range vector {
++		if elem == s {
++			return true
++		}
++	}
++	return false
++}
++
++var globTests = []struct {
++	pattern, result string
++}{
++	{"match.go", "match.go"},
++	{"mat?h.go", "match.go"},
++	{"*", "match.go"},
++	{"../*/match.go", "../path/match.go"},
++}
++
++func TestGlob(t *testing.T) {
++	for _, tt := range globTests {
++		matches := Glob(tt.pattern)
++		if !contains(matches, tt.result) {
++			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
++		}
++	}
++}

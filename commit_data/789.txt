@@ -8,6 +8,42 @@ Date:   Wed Oct 1 14:16:57 2008 -0700
     R=r
     OCL=16318
     CL=16318
-
+---
  src/cmd/6g/gen.c | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 2ec661e455..1f053afc19 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -896,11 +896,15 @@ cgen_as(Node *nl, Node *nr, int op)
+ 	if(nl == N)
+ 		return;
+ 
+-	tl = nl->type;
+-	if(tl == T)
+-		return;
+-
+ 	if(nr == N || isnil(nr)) {
++		if(nl->op == OLIST) {
++			cgen_as(nl->left, nr, op);
++			cgen_as(nl->right, nr, op);
++			return;
++		}
++		tl = nl->type;
++		if(tl == T)
++			return;
+ 		if(isfat(tl)) {
+ 			/* clear a fat object */
+ 			if(debug['g'])
+@@ -978,6 +982,10 @@ cgen_as(Node *nl, Node *nr, int op)
+ 		ullmancalc(nr);
+ 	}
+ 
++	tl = nl->type;
++	if(tl == T)
++		return;
++
+ 	cgen(nr, nl);
+ 
+ ret:

@@ -14,7 +14,7 @@ Date:   Thu Aug 9 15:25:10 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 26 --------------------------
  src/runtime/mgcmark.go | 20 +++-----------------
  src/runtime/mgcwork.go |  3 ---
@@ -22,3 +22,184 @@ Date:   Thu Aug 9 15:25:10 2018 -0400
  src/runtime/mwbbuf.go  |  4 ++--
  src/runtime/stack.go   |  3 ---
  6 files changed, 5 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2fd849c196..69fd8df662 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -253,21 +253,6 @@ var writeBarrier struct {
+ // gcphase == _GCmark.
+ var gcBlackenEnabled uint32
+ 
+-// gcBlackenPromptly indicates that optimizations that may
+-// hide work from the global work queue should be disabled.
+-//
+-// If gcBlackenPromptly is true, per-P gcWork caches should
+-// be flushed immediately and new objects should be allocated black.
+-//
+-// There is a tension between allocating objects white and
+-// allocating them black. If white and the objects die before being
+-// marked they can be collected during this GC cycle. On the other
+-// hand allocating them black will reduce _GCmarktermination latency
+-// since more work is done in the mark phase. This tension is resolved
+-// by allocating white until the mark phase is approaching its end and
+-// then allocating black for the remainder of the mark phase.
+-var gcBlackenPromptly bool
+-
+ const (
+ 	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
+ 	_GCmark                   // GC marking roots and workbufs: allocate black, write barrier ENABLED
+@@ -1497,7 +1482,6 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	// World is stopped.
+ 	// Start marktermination which includes enabling the write barrier.
+ 	atomic.Store(&gcBlackenEnabled, 0)
+-	gcBlackenPromptly = false
+ 	setGCPhase(_GCmarktermination)
+ 
+ 	work.heap1 = memstats.heap_live
+@@ -1828,16 +1812,6 @@ func gcBgMarkWorker(_p_ *p) {
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+ 		})
+ 
+-		// If we are nearing the end of mark, dispose
+-		// of the cache promptly. We must do this
+-		// before signaling that we're no longer
+-		// working so that other workers can't observe
+-		// no workers and no work while we have this
+-		// cached, and before we compute done.
+-		if gcBlackenPromptly {
+-			_p_.gcw.dispose()
+-		}
+-
+ 		// Account for time.
+ 		duration := nanotime() - startTime
+ 		switch _p_.gcMarkWorkerMode {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index bf69172f6a..6c641e3fbf 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -556,11 +556,6 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	// will be more cache friendly.
+ 	gcw := &getg().m.p.ptr().gcw
+ 	workDone := gcDrainN(gcw, scanWork)
+-	// If we are near the end of the mark phase
+-	// dispose of the gcw.
+-	if gcBlackenPromptly {
+-		gcw.dispose()
+-	}
+ 
+ 	casgstatus(gp, _Gwaiting, _Grunning)
+ 
+@@ -577,8 +572,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	incnwait := atomic.Xadd(&work.nwait, +1)
+ 	if incnwait > work.nproc {
+ 		println("runtime: work.nwait=", incnwait,
+-			"work.nproc=", work.nproc,
+-			"gcBlackenPromptly=", gcBlackenPromptly)
++			"work.nproc=", work.nproc)
+ 		throw("work.nwait > work.nproc")
+ 	}
+ 
+@@ -1155,7 +1149,7 @@ func shade(b uintptr) {
+ 	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
+ 		gcw := &getg().m.p.ptr().gcw
+ 		greyobject(obj, 0, 0, span, gcw, objIndex)
+-		if gcphase == _GCmarktermination || gcBlackenPromptly {
++		if gcphase == _GCmarktermination {
+ 			// Ps aren't allowed to cache work during mark
+ 			// termination.
+ 			gcw.dispose()
+@@ -1289,18 +1283,13 @@ func gcDumpObject(label string, obj, off uintptr) {
+ //go:nowritebarrier
+ //go:nosplit
+ func gcmarknewobject(obj, size, scanSize uintptr) {
+-	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
++	if useCheckmark { // The world should be stopped so this should not happen.
+ 		throw("gcmarknewobject called while doing checkmark")
+ 	}
+ 	markBitsForAddr(obj).setMarked()
+ 	gcw := &getg().m.p.ptr().gcw
+ 	gcw.bytesMarked += uint64(size)
+ 	gcw.scanWork += int64(scanSize)
+-	if gcBlackenPromptly {
+-		// There shouldn't be anything in the work queue, but
+-		// we still need to flush stats.
+-		gcw.dispose()
+-	}
+ }
+ 
+ // gcMarkTinyAllocs greys all active tiny alloc blocks.
+@@ -1315,9 +1304,6 @@ func gcMarkTinyAllocs() {
+ 		_, span, objIndex := findObject(c.tiny, 0, 0)
+ 		gcw := &p.gcw
+ 		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
+-		if gcBlackenPromptly {
+-			gcw.dispose()
+-		}
+ 	}
+ }
+ 
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 27e73d6c4a..3a99260e53 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -47,9 +47,6 @@ func init() {
+ //     (preemption must be disabled)
+ //     gcw := &getg().m.p.ptr().gcw
+ //     .. call gcw.put() to produce and gcw.get() to consume ..
+-//     if gcBlackenPromptly {
+-//         gcw.dispose()
+-//     }
+ //
+ // It's important that any use of gcWork during the mark phase prevent
+ // the garbage collector from transitioning to mark termination since
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 65d6b0c7d4..2dd66f7c2b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1438,9 +1438,6 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 			// Mark the finalizer itself, since the
+ 			// special isn't part of the GC'd heap.
+ 			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw)
+-			if gcBlackenPromptly {
+-				gcw.dispose()
+-			}
+ 			releasem(mp)
+ 		}
+ 		return true
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 657c2fd2ba..335b10f5b7 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -79,7 +79,7 @@ const (
+ func (b *wbBuf) reset() {
+ 	start := uintptr(unsafe.Pointer(&b.buf[0]))
+ 	b.next = start
+-	if gcBlackenPromptly || writeBarrier.cgo {
++	if writeBarrier.cgo {
+ 		// Effectively disable the buffer by forcing a flush
+ 		// on every barrier.
+ 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
+@@ -275,7 +275,7 @@ func wbBufFlush1(_p_ *p) {
+ 
+ 	// Enqueue the greyed objects.
+ 	gcw.putBatch(ptrs[:pos])
+-	if gcphase == _GCmarktermination || gcBlackenPromptly {
++	if gcphase == _GCmarktermination {
+ 		// Ps aren't allowed to cache work during mark
+ 		// termination.
+ 		gcw.dispose()
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d56b864c5e..fd9aafd15b 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -981,9 +981,6 @@ func newstack() {
+ 				// system stack.
+ 				gcw := &gp.m.p.ptr().gcw
+ 				scanstack(gp, gcw)
+-				if gcBlackenPromptly {
+-					gcw.dispose()
+-				}
+ 				gp.gcscandone = true
+ 			}
+ 			gp.preemptscan = false

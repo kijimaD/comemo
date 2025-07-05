@@ -15,9 +15,78 @@ Date:   Thu Oct 22 18:06:54 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/imports/scan.go   | 3 +--
  src/cmd/go/internal/modload/load.go   | 3 ++-
  src/cmd/go/internal/modload/search.go | 2 +-
  src/cmd/go/internal/search/search.go  | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index d7e674b129..ee11a8708b 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -7,7 +7,6 @@ package imports
+ import (
+ 	"fmt"
+ 	"io/fs"
+-	"os"
+ 	"path/filepath"
+ 	"sort"
+ 	"strconv"
+@@ -28,7 +27,7 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
+ 		// If the directory entry is a symlink, stat it to obtain the info for the
+ 		// link target instead of the link itself.
+ 		if info.Mode()&fs.ModeSymlink != 0 {
+-			info, err = os.Stat(filepath.Join(dir, name))
++			info, err = fsys.Stat(filepath.Join(dir, name))
+ 			if err != nil {
+ 				continue // Ignore broken symlinks.
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 4b3ded8326..4611fc7f6e 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -112,6 +112,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/mvs"
+@@ -361,7 +362,7 @@ func resolveLocalPackage(dir string) (string, error) {
+ 		// If the named directory does not exist or contains no Go files,
+ 		// the package does not exist.
+ 		// Other errors may affect package loading, but not resolution.
+-		if _, err := os.Stat(absDir); err != nil {
++		if _, err := fsys.Stat(absDir); err != nil {
+ 			if os.IsNotExist(err) {
+ 				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
+ 				// messages will be easier for users to search for.
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 19289ceb9c..be4cb7e745 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -87,7 +87,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 
+ 			if !fi.IsDir() {
+ 				if fi.Mode()&fs.ModeSymlink != 0 && want {
+-					if target, err := os.Stat(path); err == nil && target.IsDir() {
++					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+ 				}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index e4784e9478..57cbb282a8 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -156,7 +156,7 @@ func (m *Match) MatchPackages() {
+ 
+ 			if !fi.IsDir() {
+ 				if fi.Mode()&fs.ModeSymlink != 0 && want {
+-					if target, err := os.Stat(path); err == nil && target.IsDir() {
++					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+ 				}

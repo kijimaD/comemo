@@ -13,9 +13,75 @@ Date:   Mon Sep 15 18:24:16 2014 +0200
     R=golang-codereviews, dvyukov, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/110980044
-
+---
  src/cmd/gc/reflect.c              |  2 +-
  test/fixedbugs/issue8060.dir/a.go |  7 +++++++
  test/fixedbugs/issue8060.dir/b.go | 13 +++++++++++++
  test/fixedbugs/issue8060.go       |  9 +++++++++
  4 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 31e449e760..4892ab7570 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -727,12 +727,12 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	sizeofAlg = 2*widthptr;
+ 	if(algarray == nil)
+ 		algarray = pkglookup("algarray", runtimepkg);
++	dowidth(t);
+ 	alg = algtype(t);
+ 	algsym = S;
+ 	if(alg < 0)
+ 		algsym = dalgsym(t);
+ 
+-	dowidth(t);
+ 	if(t->sym != nil && !isptr[t->etype])
+ 		sptr = dtypesym(ptrto(t));
+ 	else
+diff --git a/test/fixedbugs/issue8060.dir/a.go b/test/fixedbugs/issue8060.dir/a.go
+new file mode 100644
+index 0000000000..22ba69ee1b
+--- /dev/null
++++ b/test/fixedbugs/issue8060.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var A = []*[2][1]float64{}
+diff --git a/test/fixedbugs/issue8060.dir/b.go b/test/fixedbugs/issue8060.dir/b.go
+new file mode 100644
+index 0000000000..85fb6ec7db
+--- /dev/null
++++ b/test/fixedbugs/issue8060.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++var X = a.A
++
++func b() {
++	_ = [3][1]float64{}
++}
+diff --git a/test/fixedbugs/issue8060.go b/test/fixedbugs/issue8060.go
+new file mode 100644
+index 0000000000..ec52659e6e
+--- /dev/null
++++ b/test/fixedbugs/issue8060.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8060: internal compiler error.
++
++package ignored

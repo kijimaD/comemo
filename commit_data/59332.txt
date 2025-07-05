@@ -32,7 +32,7 @@ Date:   Wed Feb 28 16:06:04 2024 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/godebug.md                                    |  13 +++
  doc/next/6-stdlib/99-minor/os/61893.md            |   7 ++
  doc/next/6-stdlib/99-minor/path/filepath/63703.md |   5 +
@@ -43,3 +43,513 @@ Date:   Wed Feb 28 16:06:04 2024 +0100
  src/path/filepath/path_windows_test.go            | 117 +++++++++++++++++++++-
  src/runtime/metrics/doc.go                        |   4 +
  9 files changed, 253 insertions(+), 57 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 184bae4932..83b4bda89a 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -126,6 +126,19 @@ for example,
+ see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
+ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
++### Go 1.23
++
++Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
++for reparse points, which can be controlled with the `winsymlink` setting.
++As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
++set, and reparse points that are not symlinks, Unix sockets, or dedup files now
++always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set. As a result of these changes,
++[`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
++mount points, which was a source of many inconsistencies and bugs.
++At previous versions (`winsymlink=0`), mount points are treated as symlinks,
++and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
++(such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/doc/next/6-stdlib/99-minor/os/61893.md b/doc/next/6-stdlib/99-minor/os/61893.md
+new file mode 100644
+index 0000000000..b2dd537039
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/os/61893.md
+@@ -0,0 +1,7 @@
++On Windows, the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
++for reparse points changed. Mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink) set,
++and reparse points that are not symlinks, Unix sockets, or dedup files now
++always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set.
++This behavior is controlled by the `winsymlink` setting.
++For Go 1.23, it defaults to `winsymlink=1`.
++Previous versions default to `winsymlink=0`.
+diff --git a/doc/next/6-stdlib/99-minor/path/filepath/63703.md b/doc/next/6-stdlib/99-minor/path/filepath/63703.md
+new file mode 100644
+index 0000000000..f5dc76c46a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/path/filepath/63703.md
+@@ -0,0 +1,5 @@
++On Windows, [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
++mount points, which was a source of many inconsistencies and bugs.
++This behavior is controlled by the `winsymlink` setting.
++For Go 1.23, it defaults to `winsymlink=1`.
++Previous versions default to `winsymlink=0`.
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a0a0672966..a944db39aa 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -49,6 +49,7 @@ var All = []Info{
+ 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
++	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "x509usepolicies", Package: "crypto/x509"},
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 7436b9a969..09ccbaff3b 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -7,6 +7,7 @@ package os_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"internal/poll"
+ 	"internal/syscall/windows"
+ 	"internal/syscall/windows/registry"
+@@ -27,6 +28,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var winsymlink = godebug.New("winsymlink")
++
+ // For TestRawConnReadWrite.
+ type syscallDescriptor = syscall.Handle
+ 
+@@ -90,9 +93,10 @@ func TestSameWindowsFile(t *testing.T) {
+ }
+ 
+ type dirLinkTest struct {
+-	name    string
+-	mklink  func(link, target string) error
+-	issueNo int // correspondent issue number (for broken tests)
++	name         string
++	mklink       func(link, target string) error
++	issueNo      int // correspondent issue number (for broken tests)
++	isMountPoint bool
+ }
+ 
+ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+@@ -140,8 +144,8 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 			t.Errorf("failed to stat link %v: %v", link, err)
+ 			continue
+ 		}
+-		if !fi1.IsDir() {
+-			t.Errorf("%q should be a directory", link)
++		if tp := fi1.Mode().Type(); tp != fs.ModeDir {
++			t.Errorf("Stat(%q) is type %v; want %v", link, tp, fs.ModeDir)
+ 			continue
+ 		}
+ 		if fi1.Name() != filepath.Base(link) {
+@@ -158,13 +162,16 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 			t.Errorf("failed to lstat link %v: %v", link, err)
+ 			continue
+ 		}
+-		if m := fi2.Mode(); m&fs.ModeSymlink == 0 {
+-			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
+-			continue
++		var wantType fs.FileMode
++		if test.isMountPoint && winsymlink.Value() != "0" {
++			// Mount points are reparse points, and we no longer treat them as symlinks.
++			wantType = fs.ModeIrregular
++		} else {
++			// This is either a real symlink, or a mount point treated as a symlink.
++			wantType = fs.ModeSymlink
+ 		}
+-		if m := fi2.Mode(); m&fs.ModeDir != 0 {
+-			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
+-			continue
++		if tp := fi2.Mode().Type(); tp != wantType {
++			t.Errorf("Lstat(%q) is type %v; want %v", link, tp, fs.ModeDir)
+ 		}
+ 	}
+ }
+@@ -272,7 +279,8 @@ func TestDirectoryJunction(t *testing.T) {
+ 	var tests = []dirLinkTest{
+ 		{
+ 			// Create link similar to what mklink does, by inserting \??\ at the front of absolute target.
+-			name: "standard",
++			name:         "standard",
++			isMountPoint: true,
+ 			mklink: func(link, target string) error {
+ 				var t reparseData
+ 				t.addSubstituteName(`\??\` + target)
+@@ -282,7 +290,8 @@ func TestDirectoryJunction(t *testing.T) {
+ 		},
+ 		{
+ 			// Do as junction utility https://learn.microsoft.com/en-us/sysinternals/downloads/junction does - set PrintNameLength to 0.
+-			name: "have_blank_print_name",
++			name:         "have_blank_print_name",
++			isMountPoint: true,
+ 			mklink: func(link, target string) error {
+ 				var t reparseData
+ 				t.addSubstituteName(`\??\` + target)
+@@ -296,7 +305,8 @@ func TestDirectoryJunction(t *testing.T) {
+ 	if mklinkSupportsJunctionLinks {
+ 		tests = append(tests,
+ 			dirLinkTest{
+-				name: "use_mklink_cmd",
++				name:         "use_mklink_cmd",
++				isMountPoint: true,
+ 				mklink: func(link, target string) error {
+ 					output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+ 					if err != nil {
+@@ -1414,16 +1424,10 @@ func TestAppExecLinkStat(t *testing.T) {
+ 	if lfi.Name() != pythonExeName {
+ 		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, lfi.Name(), pythonExeName)
+ 	}
+-	if m := lfi.Mode(); m&fs.ModeSymlink != 0 {
+-		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+-	}
+-	if m := lfi.Mode(); m&fs.ModeDir != 0 {
+-		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+-	}
+-	if m := lfi.Mode(); m&fs.ModeIrregular == 0 {
++	if tp := lfi.Mode().Type(); tp != fs.ModeIrregular {
+ 		// A reparse point is not a regular file, but we don't have a more appropriate
+ 		// ModeType bit for it, so it should be marked as irregular.
+-		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
++		t.Errorf("%q should not be a an irregular file (mode=0x%x)", pythonPath, uint32(tp))
+ 	}
+ 
+ 	if sfi.Name() != pythonExeName {
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 5d4a669f71..c4a8721924 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/godebug"
+ 	"internal/syscall/windows"
+ 	"sync"
+ 	"syscall"
+@@ -151,37 +152,86 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+ // and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
+ func (fs *fileStat) isReparseTagNameSurrogate() bool {
+ 	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
+-	return fs.ReparseTag&0x20000000 != 0
+-}
+-
+-func (fs *fileStat) isSymlink() bool {
+-	// As of https://go.dev/cl/86556, we treat MOUNT_POINT reparse points as
+-	// symlinks because otherwise certain directory junction tests in the
+-	// path/filepath package would fail.
+-	//
+-	// However,
+-	// https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions
+-	// seems to suggest that directory junctions should be treated like hard
+-	// links, not symlinks.
+-	//
+-	// TODO(bcmills): Get more input from Microsoft on what the behavior ought to
+-	// be for MOUNT_POINT reparse points.
+-
+-	return fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
+-		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT
++	return fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && fs.ReparseTag&0x20000000 != 0
+ }
+ 
+ func (fs *fileStat) Size() int64 {
+ 	return int64(fs.FileSizeHigh)<<32 + int64(fs.FileSizeLow)
+ }
+ 
++var winsymlink = godebug.New("winsymlink")
++
+ func (fs *fileStat) Mode() (m FileMode) {
++	if winsymlink.Value() == "0" {
++		return fs.modePreGo1_23()
++	}
++	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
++		m |= 0444
++	} else {
++		m |= 0666
++	}
++
++	// Windows reports the FILE_ATTRIBUTE_DIRECTORY bit for reparse points
++	// that refer to directories, such as symlinks and mount points.
++	// However, we follow symlink POSIX semantics and do not set the mode bits.
++	// This allows users to walk directories without following links
++	// by just calling "fi, err := os.Lstat(name); err == nil && fi.IsDir()".
++	// Note that POSIX only defines the semantics for symlinks, not for
++	// mount points or other surrogate reparse points, but we treat them
++	// the same way for consistency. Also, mount points can contain infinite
++	// loops, so it is not safe to walk them without special handling.
++	if !fs.isReparseTagNameSurrogate() {
++		if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
++			m |= ModeDir | 0111
++		}
++
++		switch fs.filetype {
++		case syscall.FILE_TYPE_PIPE:
++			m |= ModeNamedPipe
++		case syscall.FILE_TYPE_CHAR:
++			m |= ModeDevice | ModeCharDevice
++		}
++	}
++
++	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
++		switch fs.ReparseTag {
++		case syscall.IO_REPARSE_TAG_SYMLINK:
++			m |= ModeSymlink
++		case windows.IO_REPARSE_TAG_AF_UNIX:
++			m |= ModeSocket
++		case windows.IO_REPARSE_TAG_DEDUP:
++			// If the Data Deduplication service is enabled on Windows Server, its
++			// Optimization job may convert regular files to IO_REPARSE_TAG_DEDUP
++			// whenever that job runs.
++			//
++			// However, DEDUP reparse points remain similar in most respects to
++			// regular files: they continue to support random-access reads and writes
++			// of persistent data, and they shouldn't add unexpected latency or
++			// unavailability in the way that a network filesystem might.
++			//
++			// Go programs may use ModeIrregular to filter out unusual files (such as
++			// raw device files on Linux, POSIX FIFO special files, and so on), so
++			// to avoid files changing unpredictably from regular to irregular we will
++			// consider DEDUP files to be close enough to regular to treat as such.
++		default:
++			m |= ModeIrregular
++		}
++	}
++	return
++}
++
++// modePreGo1_23 returns the FileMode for the fileStat, using the pre-Go 1.23
++// logic for determining the file mode.
++// The logic is subtle and not well-documented, so it is better to keep it
++// separate from the new logic.
++func (fs *fileStat) modePreGo1_23() (m FileMode) {
+ 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+ 		m |= 0444
+ 	} else {
+ 		m |= 0666
+ 	}
+-	if fs.isSymlink() {
++	if fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
++		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT {
+ 		return m | ModeSymlink
+ 	}
+ 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+@@ -199,19 +249,7 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 		}
+ 		if m&ModeType == 0 {
+ 			if fs.ReparseTag == windows.IO_REPARSE_TAG_DEDUP {
+-				// If the Data Deduplication service is enabled on Windows Server, its
+-				// Optimization job may convert regular files to IO_REPARSE_TAG_DEDUP
+-				// whenever that job runs.
+-				//
+-				// However, DEDUP reparse points remain similar in most respects to
+-				// regular files: they continue to support random-access reads and writes
+-				// of persistent data, and they shouldn't add unexpected latency or
+-				// unavailability in the way that a network filesystem might.
+-				//
+-				// Go programs may use ModeIrregular to filter out unusual files (such as
+-				// raw device files on Linux, POSIX FIFO special files, and so on), so
+-				// to avoid files changing unpredictably from regular to irregular we will
+-				// consider DEDUP files to be close enough to regular to treat as such.
++				// See comment in fs.Mode.
+ 			} else {
+ 				m |= ModeIrregular
+ 			}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 1b2a66bc6d..8a66538f6a 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1980,3 +1980,16 @@ func TestEscaping(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestEvalSymlinksTooManyLinks(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++	dir := filepath.Join(t.TempDir(), "dir")
++	err := os.Symlink(dir, dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = filepath.EvalSymlinks(dir)
++	if err == nil {
++		t.Fatal("expected error, got nil")
++	}
++}
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 42aeb4f619..524b0d0f92 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -7,6 +7,7 @@ package filepath_test
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/godebug"
+ 	"internal/testenv"
+ 	"io/fs"
+ 	"os"
+@@ -486,6 +487,109 @@ func TestWalkDirectorySymlink(t *testing.T) {
+ 	testWalkMklink(t, "D")
+ }
+ 
++func createMountPartition(t *testing.T, vhd string, args string) []byte {
++	testenv.MustHaveExecPath(t, "powershell")
++	t.Cleanup(func() {
++		cmd := testenv.Command(t, "powershell", "-Command", fmt.Sprintf("Dismount-VHD %q", vhd))
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			if t.Skipped() {
++				// Probably failed to dismount because we never mounted it in
++				// the first place. Log the error, but ignore it.
++				t.Logf("%v: %v (skipped)\n%s", cmd, err, out)
++			} else {
++				// Something went wrong, and we don't want to leave dangling VHDs.
++				// Better to fail the test than to just log the error and continue.
++				t.Errorf("%v: %v\n%s", cmd, err, out)
++			}
++		}
++	})
++
++	script := filepath.Join(t.TempDir(), "test.ps1")
++	cmd := strings.Join([]string{
++		"$ErrorActionPreference = \"Stop\"",
++		fmt.Sprintf("$vhd = New-VHD -Path %q -SizeBytes 3MB -Fixed", vhd),
++		"$vhd | Mount-VHD",
++		fmt.Sprintf("$vhd = Get-VHD %q", vhd),
++		"$vhd | Get-Disk | Initialize-Disk -PartitionStyle GPT",
++		"$part = $vhd | Get-Disk | New-Partition -UseMaximumSize -AssignDriveLetter:$false",
++		"$vol = $part | Format-Volume -FileSystem NTFS",
++		args,
++	}, "\n")
++
++	err := os.WriteFile(script, []byte(cmd), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++	output, err := testenv.Command(t, "powershell", "-File", script).CombinedOutput()
++	if err != nil {
++		// This can happen if Hyper-V is not installed or enabled.
++		t.Skip("skipping test because failed to create VHD: ", err, string(output))
++	}
++	return output
++}
++
++var winsymlink = godebug.New("winsymlink")
++
++func TestEvalSymlinksJunctionToVolumeID(t *testing.T) {
++	// Test that EvalSymlinks resolves a directory junction which
++	// is mapped to volumeID (instead of drive letter). See go.dev/issue/39786.
++	if winsymlink.Value() == "0" {
++		t.Skip("skipping test because winsymlink is not enabled")
++	}
++	t.Parallel()
++
++	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
++	if !strings.Contains(string(output), " /J ") {
++		t.Skip("skipping test because mklink command does not support junctions")
++	}
++
++	tmpdir := tempDirCanonical(t)
++	vhd := filepath.Join(tmpdir, "Test.vhdx")
++	output = createMountPartition(t, vhd, "Write-Host $vol.Path -NoNewline")
++	vol := string(output)
++
++	dirlink := filepath.Join(tmpdir, "dirlink")
++	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", dirlink, vol).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to run mklink %v %v: %v %q", dirlink, vol, err, output)
++	}
++	got, err := filepath.EvalSymlinks(dirlink)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got != dirlink {
++		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, dirlink)
++	}
++}
++
++func TestEvalSymlinksMountPointRecursion(t *testing.T) {
++	// Test that EvalSymlinks doesn't follow recursive mount points.
++	// See go.dev/issue/40176.
++	if winsymlink.Value() == "0" {
++		t.Skip("skipping test because winsymlink is not enabled")
++	}
++	t.Parallel()
++
++	tmpdir := tempDirCanonical(t)
++	dirlink := filepath.Join(tmpdir, "dirlink")
++	err := os.Mkdir(dirlink, 0755)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	vhd := filepath.Join(tmpdir, "Test.vhdx")
++	createMountPartition(t, vhd, fmt.Sprintf("$part | Add-PartitionAccessPath -AccessPath %q\n", dirlink))
++
++	got, err := filepath.EvalSymlinks(dirlink)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got != dirlink {
++		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, dirlink)
++	}
++}
++
+ func TestNTNamespaceSymlink(t *testing.T) {
+ 	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+ 	if !strings.Contains(string(output), " /J ") {
+@@ -511,7 +615,13 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if want := vol + `\`; got != want {
++	var want string
++	if winsymlink.Value() == "0" {
++		want = vol + `\`
++	} else {
++		want = dirlink
++	}
++	if got != want {
+ 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, want)
+ 	}
+ 
+@@ -524,7 +634,7 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	target += file[len(filepath.VolumeName(file)):]
++	target = filepath.Join(target, file[len(filepath.VolumeName(file)):])
+ 
+ 	filelink := filepath.Join(tmpdir, "filelink")
+ 	output, err = exec.Command("cmd", "/c", "mklink", filelink, target).CombinedOutput()
+@@ -536,7 +646,8 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if want := file; got != want {
++	want = file
++	if got != want {
+ 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
+ 	}
+ }
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index fb2f44da29..2a1a3055fa 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -319,6 +319,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/tls
+ 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+ 
++	/godebug/non-default-behavior/winsymlink:events
++		The number of non-default behaviors executed by the os package
++		due to a non-default GODEBUG=winsymlink=... setting.
++
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

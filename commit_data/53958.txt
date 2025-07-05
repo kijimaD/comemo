@@ -11,6 +11,24 @@ Date:   Wed Sep 7 13:35:24 2022 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/race/race_unix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/race_unix_test.go b/src/runtime/race/race_unix_test.go
+index 6cc0730589..3cf53b0187 100644
+--- a/src/runtime/race/race_unix_test.go
++++ b/src/runtime/race/race_unix_test.go
+@@ -19,11 +19,11 @@ func TestNonGoMemory(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to mmap memory: %v", err)
+ 	}
++	defer syscall.Munmap(data)
+ 	p := (*uint32)(unsafe.Pointer(&data[0]))
+ 	atomic.AddUint32(p, 1)
+ 	(*p)++
+ 	if *p != 2 {
+ 		t.Fatalf("data[0] = %v, expect 2", *p)
+ 	}
+-	syscall.Munmap(data)
+ }

@@ -7,6 +7,20 @@ Date:   Wed Nov 16 13:51:45 2016 +0900
     Change-Id: I897237667ffe9e9b2a5f92251a6f665d29479fd2
     Reviewed-on: https://go-review.googlesource.com/33255
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transport_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 8054e8d789..5a402657cc 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3460,7 +3460,7 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
+ 	res, err := Get("http://dummy.tld:123foo/bar")
+ 	if err == nil {
+ 		res.Body.Close()
+-		t.Fatal("unexpected sucess")
++		t.Fatal("unexpected success")
+ 	}
+ 	ue, ok := err.(*url.Error)
+ 	if !ok {

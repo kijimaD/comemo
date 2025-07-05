@@ -18,7 +18,50 @@ Date:   Mon Mar 27 22:24:28 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/syscall/unix/fallocate_freebsd_32bit.go | 20 ++++++++++++++++++++
  ...llocate_freebsd.go => fallocate_freebsd_64bit.go} |  2 ++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/internal/syscall/unix/fallocate_freebsd_32bit.go b/src/internal/syscall/unix/fallocate_freebsd_32bit.go
+new file mode 100644
+index 0000000000..d821eea81c
+--- /dev/null
++++ b/src/internal/syscall/unix/fallocate_freebsd_32bit.go
+@@ -0,0 +1,20 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build freebsd && (386 || arm)
++
++package unix
++
++import "syscall"
++
++// FreeBSD posix_fallocate system call number.
++const posixFallocateTrap uintptr = 530
++
++func PosixFallocate(fd int, off int64, size int64) error {
++	_, _, errno := syscall.Syscall6(posixFallocateTrap, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(size), uintptr(size>>32), 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/fallocate_freebsd.go b/src/internal/syscall/unix/fallocate_freebsd_64bit.go
+similarity index 90%
+rename from src/internal/syscall/unix/fallocate_freebsd.go
+rename to src/internal/syscall/unix/fallocate_freebsd_64bit.go
+index 6c3e80118b..f1ef6e347c 100644
+--- a/src/internal/syscall/unix/fallocate_freebsd.go
++++ b/src/internal/syscall/unix/fallocate_freebsd_64bit.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build freebsd && (amd64 || arm64 || riscv64)
++
+ package unix
+ 
+ import "syscall"

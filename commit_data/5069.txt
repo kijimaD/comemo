@@ -10,9 +10,209 @@ Date:   Tue Mar 16 23:12:20 2010 -0700
     R=agl1
     CC=golang-dev
     https://golang.org/cl/569044
-
+---
  src/pkg/Makefile                 |   1 +
  src/pkg/crypto/rand/Makefile     |  12 ++++
  src/pkg/crypto/rand/rand.go      | 130 +++++++++++++++++++++++++++++++++++++++
  src/pkg/crypto/rand/rand_test.go |  27 ++++++++
  4 files changed, 170 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 0807d6f937..d0267b6b1b 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -39,6 +39,7 @@ DIRS=\
+ 	crypto/hmac\
+ 	crypto/md4\
+ 	crypto/md5\
++	crypto/rand\
+ 	crypto/rc4\
+ 	crypto/ripemd160\
+ 	crypto/rsa\
+diff --git a/src/pkg/crypto/rand/Makefile b/src/pkg/crypto/rand/Makefile
+new file mode 100644
+index 0000000000..0e7a5536c3
+--- /dev/null
++++ b/src/pkg/crypto/rand/Makefile
+@@ -0,0 +1,12 @@
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.$(GOARCH)
++
++TARG=crypto/rand
++
++GOFILES=\
++	rand.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/crypto/rand/rand.go b/src/pkg/crypto/rand/rand.go
+new file mode 100644
+index 0000000000..127b1d0825
+--- /dev/null
++++ b/src/pkg/crypto/rand/rand.go
+@@ -0,0 +1,130 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package rand implements a cryptographically secure
++// pseudorandom number generator.
++package rand
++
++import (
++	"crypto/aes"
++	"io"
++	"os"
++	"sync"
++	"time"
++)
++
++// Reader is a global, shared instance of a cryptographically
++// strong pseudo-random generator.
++var Reader io.Reader
++
++// Read is a helper function that calls Reader.Read.
++func Read(b []byte) (n int, err os.Error) { return Reader.Read(b) }
++
++// Easy implementation: read from /dev/urandom.
++// This is sufficient on Linux, OS X, and FreeBSD.
++
++func init() { Reader = &devReader{name: "/dev/urandom"} }
++
++// A devReader satisfies reads by reading the file named name.
++type devReader struct {
++	name string
++	f    *os.File
++	mu   sync.Mutex
++}
++
++func (r *devReader) Read(b []byte) (n int, err os.Error) {
++	r.mu.Lock()
++	if r.f == nil {
++		f, err := os.Open(r.name, os.O_RDONLY, 0)
++		if f == nil {
++			return 0, err
++		}
++		r.f = f
++	}
++	r.mu.Unlock()
++	return r.f.Read(b)
++}
++
++// Alternate pseudo-random implementation for use on
++// systems without a reliable /dev/urandom.  So far we
++// haven't needed it.
++
++// newReader returns a new pseudorandom generator that
++// seeds itself by reading from entropy.  If entropy == nil,
++// the generator seeds itself by reading from the system's
++// random number generator, typically /dev/random.
++// The Read method on the returned reader always returns
++// the full amount asked for, or else it returns an error.
++//
++// The generator uses the X9.31 algorithm with AES-128,
++// reseeding after every 1 MB of generated data.
++func newReader(entropy io.Reader) io.Reader {
++	if entropy == nil {
++		entropy = &devReader{name: "/dev/random"}
++	}
++	return &reader{entropy: entropy}
++}
++
++type reader struct {
++	mu                   sync.Mutex
++	budget               int // number of bytes that can be generated
++	cipher               *aes.Cipher
++	entropy              io.Reader
++	time, seed, dst, key [aes.BlockSize]byte
++}
++
++func (r *reader) Read(b []byte) (n int, err os.Error) {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	n = len(b)
++
++	for len(b) > 0 {
++		if r.budget == 0 {
++			_, err := io.ReadFull(r.entropy, &r.seed)
++			if err != nil {
++				return n - len(b), err
++			}
++			_, err = io.ReadFull(r.entropy, &r.key)
++			if err != nil {
++				return n - len(b), err
++			}
++			r.cipher, err = aes.NewCipher(&r.key)
++			if err != nil {
++				return n - len(b), err
++			}
++			r.budget = 1 << 20 // reseed after generating 1MB
++		}
++		r.budget -= aes.BlockSize
++
++		// ANSI X9.31 (== X9.17) algorithm, but using AES in place of 3DES.
++		//
++		// single block:
++		// t = encrypt(time)
++		// dst = encrypt(t^seed)
++		// seed = encrypt(t^dst)
++		ns := time.Nanoseconds()
++		r.time[0] = byte(ns >> 56)
++		r.time[1] = byte(ns >> 48)
++		r.time[2] = byte(ns >> 40)
++		r.time[3] = byte(ns >> 32)
++		r.time[4] = byte(ns >> 24)
++		r.time[5] = byte(ns >> 16)
++		r.time[6] = byte(ns >> 8)
++		r.time[7] = byte(ns)
++		r.cipher.Encrypt(&r.time, &r.time)
++		for i := 0; i < aes.BlockSize; i++ {
++			r.dst[i] = r.time[i] ^ r.seed[i]
++		}
++		r.cipher.Encrypt(&r.dst, &r.dst)
++		for i := 0; i < aes.BlockSize; i++ {
++			r.seed[i] = r.time[i] ^ r.dst[i]
++		}
++		r.cipher.Encrypt(&r.seed, &r.seed)
++
++		m := copy(b, &r.dst)
++		b = b[m:]
++	}
++
++	return n, nil
++}
+diff --git a/src/pkg/crypto/rand/rand_test.go b/src/pkg/crypto/rand/rand_test.go
+new file mode 100644
+index 0000000000..dfc6cdd716
+--- /dev/null
++++ b/src/pkg/crypto/rand/rand_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++import (
++	"bytes"
++	"compress/flate"
++	"testing"
++)
++
++func TestRead(t *testing.T) {
++	b := make([]byte, 4e6)
++	n, err := Read(b)
++	if n != len(b) || err != nil {
++		t.Fatalf("Read(buf) = %d, %s", n, err)
++	}
++
++	var z bytes.Buffer
++	f := flate.NewDeflater(&z, 5)
++	f.Write(b)
++	f.Close()
++	if z.Len() < len(b)*99/100 {
++		t.Fatalf("Compressed %d -> %d", len(b), z.Len())
++	}
++}

@@ -10,7 +10,46 @@ Date:   Thu Jun 4 11:17:49 2020 -0400
     Change-Id: Id2732fcff0a0c5e4a324cd33ef995c7e528f5e1a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236562
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.15.html            |  6 +++---
  src/syscall/dll_windows.go | 10 +++++++++-
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 15f56eef9d..93804a9d27 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -629,9 +629,9 @@ TODO
+     </p>
+ 
+     <p><!-- CL 220578 -->
+-      It is now possible to call system calls that return floating
+-      point values on windows/amd64.
+-      TODO: Point to (write?) documentation on how to do this.
++      It is <a href="/pkg/syscall/#Proc.Call">now possible</a> to call
++      system calls that return floating point values
++      on <code>windows/amd64</code>.
+     </p>
+   </dd>
+ </dl>
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 819bc5eeb8..c54feec56a 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -163,7 +163,15 @@ func (p *Proc) Addr() uintptr {
+ // The returned error is always non-nil, constructed from the result of GetLastError.
+ // Callers must inspect the primary return value to decide whether an error occurred
+ // (according to the semantics of the specific function being called) before consulting
+-// the error. The error will be guaranteed to contain syscall.Errno.
++// the error. The error always has type syscall.Errno.
++//
++// On amd64, Call can pass and return floating-point values. To pass
++// an argument x with C type "float", use
++// uintptr(math.Float32bits(x)). To pass an argument with C type
++// "double", use uintptr(math.Float64bits(x)). Floating-point return
++// values are returned in r2. The return value for C type "float" is
++// math.Float32frombits(uint32(r2)). For C type "double", it is
++// math.Float64frombits(uint64(r2)).
+ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+ 	switch len(a) {
+ 	case 0:

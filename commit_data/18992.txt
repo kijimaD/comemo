@@ -11,6 +11,18 @@ Date:   Mon Mar 31 16:39:41 2014 -0400
     R=golang-codereviews, bradfitz, dave
     CC=adg, golang-codereviews, r
     https://golang.org/cl/82710043
-
+---
  misc/benchcmp | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/benchcmp b/misc/benchcmp
+new file mode 100755
+index 0000000000..28a37392d8
+--- /dev/null
++++ b/misc/benchcmp
+@@ -0,0 +1,5 @@
++#!/bin/bash
++
++echo 'misc/benchcmp has moved:' >&2
++echo '	go get -u code.google.com/p/go.tools/cmd/benchcmp' >&2
++exit 2

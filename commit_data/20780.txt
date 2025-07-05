@@ -12,9 +12,122 @@ Date:   Thu Oct 9 16:10:51 2014 +1100
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/148790043
-
+---
  misc/cgo/test/cgo_test.go          |  1 +
  misc/cgo/test/issue8517.go         | 13 +++++++++++
  misc/cgo/test/issue8517_windows.c  | 24 ++++++++++++++++++++
  misc/cgo/test/issue8517_windows.go | 45 ++++++++++++++++++++++++++++++++++++++
  4 files changed, 83 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index fcfad83049..05deb4197c 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -58,6 +58,7 @@ func Test5242(t *testing.T)                  { test5242(t) }
+ func Test8092(t *testing.T)                  { test8092(t) }
+ func Test7978(t *testing.T)                  { test7978(t) }
+ func Test8694(t *testing.T)                  { test8694(t) }
++func Test8517(t *testing.T)                  { test8517(t) }
+ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+ 
+diff --git a/misc/cgo/test/issue8517.go b/misc/cgo/test/issue8517.go
+new file mode 100644
+index 0000000000..4e431df921
+--- /dev/null
++++ b/misc/cgo/test/issue8517.go
+@@ -0,0 +1,13 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package cgotest
++
++import "testing"
++
++func test8517(t *testing.T) {
++	t.Skip("skipping windows only test")
++}
+diff --git a/misc/cgo/test/issue8517_windows.c b/misc/cgo/test/issue8517_windows.c
+new file mode 100644
+index 0000000000..a0b94c126f
+--- /dev/null
++++ b/misc/cgo/test/issue8517_windows.c
+@@ -0,0 +1,24 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "windows.h"
++
++extern void testHandleLeaksCallback();
++
++DWORD WINAPI testHandleLeaksFunc(LPVOID lpThreadParameter)
++{
++	int i;
++	for(i = 0; i < 100; i++) {
++		testHandleLeaksCallback();
++	}
++	return 0;
++}
++
++void testHandleLeaks()
++{
++	HANDLE h;
++	h = CreateThread(NULL, 0, &testHandleLeaksFunc, 0, 0, NULL);
++	WaitForSingleObject(h, INFINITE);
++	CloseHandle(h);
++}
+diff --git a/misc/cgo/test/issue8517_windows.go b/misc/cgo/test/issue8517_windows.go
+new file mode 100644
+index 0000000000..3782631e91
+--- /dev/null
++++ b/misc/cgo/test/issue8517_windows.go
+@@ -0,0 +1,45 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++//void testHandleLeaks();
++import "C"
++
++import (
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++var issue8517counter int
++
++var (
++	kernel32              = syscall.MustLoadDLL("kernel32.dll")
++	getProcessHandleCount = kernel32.MustFindProc("GetProcessHandleCount")
++)
++
++func processHandleCount(t *testing.T) int {
++	const current_process = ^uintptr(0)
++	var c uint32
++	r, _, err := getProcessHandleCount.Call(current_process, uintptr(unsafe.Pointer(&c)))
++	if r == 0 {
++		t.Fatal(err)
++	}
++	return int(c)
++}
++
++func test8517(t *testing.T) {
++	c1 := processHandleCount(t)
++	C.testHandleLeaks()
++	c2 := processHandleCount(t)
++	if c1+issue8517counter <= c2 {
++		t.Fatalf("too many handles leaked: issue8517counter=%v c1=%v c2=%v", issue8517counter, c1, c2)
++	}
++}
++
++//export testHandleLeaksCallback
++func testHandleLeaksCallback() {
++	issue8517counter++
++}

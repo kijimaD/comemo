@@ -12,6 +12,21 @@ Date:   Fri Jun 19 13:55:38 2015 -0700
     Change-Id: Ica7f10d749731704ac6a2c39c7dcba389996011e
     Reviewed-on: https://go-review.googlesource.com/11236
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/contribute.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index aee044acae..c419557208 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -386,7 +386,8 @@ Unless explicitly told otherwise, such as in the discussion leading
+ up to sending in the change list, it's better not to specify a reviewer.
+ All changes are automatically CC'ed to the
+ <a href="https://groups.google.com/group/golang-codereviews">golang-codereviews@googlegroups.com</a>
+-mailing list.
++mailing list. If this is your first ever change, there may be a moderation
++delay before it appears on the mailing list, to prevent spam.
+ </p>
+ 
+ <p>

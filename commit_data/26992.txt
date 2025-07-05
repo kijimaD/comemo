@@ -21,7 +21,90 @@ Date:   Mon Mar 7 08:35:45 2016 -0800
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/formdata_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/mime/multipart/multipart.go     | 20 +++++++++++++++++++-
  2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 6e2388bafe..1deca0b94d 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -88,3 +88,39 @@ Content-Disposition: form-data; name="textb"
+ ` + textbValue + `
+ --MyBoundary--
+ `
++
++func TestReadForm_NoReadAfterEOF(t *testing.T) {
++	maxMemory := int64(32) << 20
++	boundary := `---------------------------8d345eef0d38dc9`
++	body := `
++-----------------------------8d345eef0d38dc9
++Content-Disposition: form-data; name="version"
++
++171
++-----------------------------8d345eef0d38dc9--`
++
++	mr := NewReader(&failOnReadAfterErrorReader{t: t, r: strings.NewReader(body)}, boundary)
++
++	f, err := mr.ReadForm(maxMemory)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("Got: %#v", f)
++}
++
++// failOnReadAfterErrorReader is an io.Reader wrapping r.
++// It fails t if any Read is called after a failing Read.
++type failOnReadAfterErrorReader struct {
++	t      *testing.T
++	r      io.Reader
++	sawErr error
++}
++
++func (r *failOnReadAfterErrorReader) Read(p []byte) (n int, err error) {
++	if r.sawErr != nil {
++		r.t.Fatalf("unexpected Read on Reader after previous read saw error %v", r.sawErr)
++	}
++	n, err = r.r.Read(p)
++	r.sawErr = err
++	return
++}
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 5b5168c826..205348ca89 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -96,7 +96,7 @@ func (p *Part) parseContentDisposition() {
+ func NewReader(r io.Reader, boundary string) *Reader {
+ 	b := []byte("\r\n--" + boundary + "--")
+ 	return &Reader{
+-		bufReader:        bufio.NewReaderSize(r, peekBufferSize),
++		bufReader:        bufio.NewReaderSize(&stickyErrorReader{r: r}, peekBufferSize),
+ 		nl:               b[:2],
+ 		nlDashBoundary:   b[:len(b)-2],
+ 		dashBoundaryDash: b[2:],
+@@ -104,6 +104,24 @@ func NewReader(r io.Reader, boundary string) *Reader {
+ 	}
+ }
+ 
++// stickyErrorReader is an io.Reader which never calls Read on its
++// underlying Reader once an error has been seen. (the io.Reader
++// interface's contract promises nothing about the return values of
++// Read calls after an error, yet this package does do multiple Reads
++// after error)
++type stickyErrorReader struct {
++	r   io.Reader
++	err error
++}
++
++func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
++	if r.err != nil {
++		return 0, r.err
++	}
++	n, r.err = r.r.Read(p)
++	return n, r.err
++}
++
+ func newPart(mr *Reader) (*Part, error) {
+ 	bp := &Part{
+ 		Header: make(map[string][]string),

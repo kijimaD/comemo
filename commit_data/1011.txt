@@ -8,8 +8,76 @@ Date:   Thu Oct 30 16:33:50 2008 -0700
     DELTA=13  (5 added, 0 deleted, 8 changed)
     OCL=18190
     CL=18192
-
+---
  src/cmd/6l/go.c     | 17 +++++++++++------
  src/cmd/ar/ar.c     |  2 +-
  src/cmd/gc/export.c |  2 +-
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index 7182cf00a9..494b07bd00 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -91,14 +91,16 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 		return;
+ 	}
+ 
+-	// first $$ marks beginning of exports
+-	p0 = strstr(data, "$$");
++	// first \n$$ marks beginning of exports - skip rest of line
++	p0 = strstr(data, "\n$$");
+ 	if(p0 == nil)
+ 		return;
+-	p0 += 2;
++	p0 += 3;
+ 	while(*p0 != '\n' && *p0 != '\0')
+ 		p0++;
+-	p1 = strstr(p0, "$$");
++
++	// second marks end of exports / beginning of local data
++	p1 = strstr(p0, "\n$$");
+ 	if(p1 == nil) {
+ 		fprint(2, "6l: cannot find end of exports in %s\n", filename);
+ 		return;
+@@ -118,10 +120,13 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 	loadpkgdata(filename, p0, p1 - p0);
+ 
+ 	// local types begin where exports end.
+-	p0 = p1;
++	// skip rest of line after $$ we found above
++	p0 = p1 + 3;
+ 	while(*p0 != '\n' && *p0 != '\0')
+ 		p0++;
+-	p1 = strstr(p0, "$$");
++
++	// local types end at next \n$$.
++	p1 = strstr(p0, "\n$$");
+ 	if(p1 == nil) {
+ 		fprint(2, "6l: cannot find end of local types in %s\n", filename);
+ 		return;
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 7b1db9676d..cb6ae6d442 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -701,7 +701,7 @@ foundstart:
+ 			first = 0;
+ 			continue;
+ 		}
+-		if (strstrn(line, Blinelen(b), "$$"))
++		if(line[0] == '$' && line[1] == '$')
+ 			goto foundend;
+ 		end = Boffset(b);  // before closing $$
+ 	}
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 20fca3640b..3498aa3dfa 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -195,7 +195,7 @@ dumpexport(void)
+ 	lno = lineno;
+ 
+ 	Bprint(bout, "   import\n");
+-	Bprint(bout, "   $$  // exports\n");
++	Bprint(bout, "\n$$  // exports\n");
+ 
+ 	Bprint(bout, "    package %s\n", package);
+ 

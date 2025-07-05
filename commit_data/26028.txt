@@ -7,6 +7,19 @@ Date:   Tue Dec 8 19:29:22 2015 -0700
     Change-Id: Ic639443d4a8536dd54c5b0cf5a9b6d1474448f77
     Reviewed-on: https://go-review.googlesource.com/17593
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 77400c0402..28cc12a360 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1139,6 +1139,7 @@ var serverExpectTests = []serverExpectTest{
+ 
+ // Tests that the server responds to the "Expect" request header
+ // correctly.
++// http2 test: TestServer_Response_Automatic100Continue
+ func TestServerExpect(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

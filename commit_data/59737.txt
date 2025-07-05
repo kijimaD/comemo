@@ -19,8 +19,515 @@ Date:   Wed Apr 19 11:56:30 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/crypto/tls/bogo_config.json  | 175 +++++++++++++++++++++++++
  src/crypto/tls/bogo_shim_test.go | 277 +++++++++++++++++++++++++++++++++++++++
  src/crypto/tls/handshake_test.go |  22 +++-
  3 files changed, 471 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+new file mode 100644
+index 0000000000..d548a6138f
+--- /dev/null
++++ b/src/crypto/tls/bogo_config.json
+@@ -0,0 +1,175 @@
++{
++    "DisabledTests": {
++        "*QUIC*": "No QUIC support",
++        "Compliance-fips*": "No FIPS",
++        "*DTLS*": "No DTLS",
++        "SendEmptyRecords*": "crypto/tls doesn't implement spam protections",
++        "SendWarningAlerts*": "crypto/tls doesn't implement spam protections",
++        "TooManyKeyUpdates": "crypto/tls doesn't implement spam protections (TODO: I think?)",
++        "SkipNewSessionTicket": "TODO confusing? maybe bug",
++        "SendUserCanceledAlerts*": "TODO may be a real bug?",
++        "GREASE-Server-TLS13": "TODO ???",
++        "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
++        "SendBogusAlertType": "sending wrong alert type",
++        "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
++        "*ECH-Server*": "no ECH server support",
++        "TLS-ECH-Client-UnsolictedHRRExtension": "TODO",
++        "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
++        "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
++        "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
++        "TLS13-HRR-InvalidCompressionMethod": "TODO: first pass, this should be fixed",
++        "InvalidCompressionMethod": "TODO: first pass, this should be fixed",
++        "TLS-TLS12-RSA_WITH_AES_128_GCM_SHA256-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS1-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS11-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS12-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS12-RSA_WITH_AES_256_GCM_SHA384-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS1-RSA_WITH_AES_256_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS11-RSA_WITH_AES_256_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS12-RSA_WITH_AES_256_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
++        "TLS-TLS12-ECDHE_RSA_WITH_AES_128_CBC_SHA256-LargeRecord": "TODO: first pass, this should be fixed",
++        "RequireAnyClientCertificate-TLS1": "TODO: first pass, this should be fixed",
++        "RequireAnyClientCertificate-TLS11": "TODO: first pass, this should be fixed",
++        "RequireAnyClientCertificate-TLS12": "TODO: first pass, this should be fixed",
++        "ClientHelloVersionTooHigh": "TODO: first pass, this should be fixed",
++        "MinorVersionTolerance": "TODO: first pass, this should be fixed",
++        "IgnoreClientVersionOrder": "TODO: first pass, this should be fixed",
++        "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
++        "MajorVersionTolerance": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionClient-TLS-TLS1": "TODO: first pass, this should be fixed",
++        "UnsolicitedServerNameAck-TLS-TLS1": "TODO: first pass, this should be fixed",
++        "TicketSessionIDLength-33-TLS-TLS1": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionServer-TLS-TLS11": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionClient-TLS-TLS11": "TODO: first pass, this should be fixed",
++        "UnsolicitedServerNameAck-TLS-TLS11": "TODO: first pass, this should be fixed",
++        "TicketSessionIDLength-33-TLS-TLS11": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionServer-TLS-TLS12": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionClient-TLS-TLS12": "TODO: first pass, this should be fixed",
++        "UnsolicitedServerNameAck-TLS-TLS12": "TODO: first pass, this should be fixed",
++        "TicketSessionIDLength-33-TLS-TLS12": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionClient-TLS-TLS13": "TODO: first pass, this should be fixed",
++        "DuplicateExtensionServer-TLS-TLS13": "TODO: first pass, this should be fixed",
++        "UnsolicitedServerNameAck-TLS-TLS13": "TODO: first pass, this should be fixed",
++        "RenegotiationInfo-Forbidden-TLS13": "TODO: first pass, this should be fixed",
++        "EMS-Forbidden-TLS13": "TODO: first pass, this should be fixed",
++        "SendUnsolicitedOCSPOnCertificate-TLS13": "TODO: first pass, this should be fixed",
++        "SendUnsolicitedSCTOnCertificate-TLS13": "TODO: first pass, this should be fixed",
++        "SendUnknownExtensionOnCertificate-TLS13": "TODO: first pass, this should be fixed",
++        "Resume-Server-NoTickets-TLS1-TLS1-TLS": "TODO: first pass, this should be fixed",
++        "Resume-Server-NoTickets-TLS11-TLS11-TLS": "TODO: first pass, this should be fixed",
++        "Resume-Server-NoTickets-TLS12-TLS12-TLS": "TODO: first pass, this should be fixed",
++        "Resume-Server-NoPSKBinder": "TODO: first pass, this should be fixed",
++        "Resume-Server-PSKBinderFirstExtension": "TODO: first pass, this should be fixed",
++        "Resume-Server-PSKBinderFirstExtension-SecondBinder": "TODO: first pass, this should be fixed",
++        "Resume-Server-NoPSKBinder-SecondBinder": "TODO: first pass, this should be fixed",
++        "Resume-Server-OmitPSKsOnSecondClientHello": "TODO: first pass, this should be fixed",
++        "Renegotiate-Server-Forbidden": "TODO: first pass, this should be fixed",
++        "Renegotiate-Client-Forbidden-1": "TODO: first pass, this should be fixed",
++        "Client-Sign-RSA_PKCS1_SHA1-TLS13": "TODO: first pass, this should be fixed",
++        "Client-Sign-RSA_PKCS1_SHA256-TLS13": "TODO: first pass, this should be fixed",
++        "Client-Sign-RSA_PKCS1_SHA384-TLS13": "TODO: first pass, this should be fixed",
++        "Client-Sign-RSA_PKCS1_SHA512-TLS13": "TODO: first pass, this should be fixed",
++        "Client-Sign-ECDSA_SHA1-TLS13": "TODO: first pass, this should be fixed",
++        "Client-Sign-ECDSA_P224_SHA256-TLS13": "TODO: first pass, this should be fixed",
++        "ClientAuth-NoFallback-TLS13": "TODO: first pass, this should be fixed",
++        "ClientAuth-NoFallback-ECDSA": "TODO: first pass, this should be fixed",
++        "ClientAuth-NoFallback-RSA": "TODO: first pass, this should be fixed",
++        "ECDSACurveMismatch-Verify-TLS13": "TODO: first pass, this should be fixed",
++        "Ed25519DefaultDisable-NoAdvertise": "TODO: first pass, this should be fixed",
++        "Ed25519DefaultDisable-NoAccept": "TODO: first pass, this should be fixed",
++        "NoCommonSignatureAlgorithms-TLS12-Fallback": "TODO: first pass, this should be fixed",
++        "UnknownExtension-Client": "TODO: first pass, this should be fixed",
++        "UnknownUnencryptedExtension-Client-TLS13": "TODO: first pass, this should be fixed",
++        "UnofferedExtension-Client-TLS13": "TODO: first pass, this should be fixed",
++        "UnknownExtension-Client-TLS13": "TODO: first pass, this should be fixed",
++        "SendClientVersion-RSA": "TODO: first pass, this should be fixed",
++        "NoCommonCurves": "TODO: first pass, this should be fixed",
++        "PointFormat-EncryptedExtensions-TLS13": "TODO: first pass, this should be fixed",
++        "PointFormat-Client-MissingUncompressed": "TODO: first pass, this should be fixed",
++        "TLS13-SendNoKEMModesWithPSK-Server": "TODO: first pass, this should be fixed",
++        "TLS13-DuplicateTicketEarlyDataSupport": "TODO: first pass, this should be fixed",
++        "Basic-Client-NoTicket-TLS-Sync": "TODO: first pass, this should be fixed",
++        "Basic-Server-RSA-TLS-Sync": "TODO: first pass, this should be fixed",
++        "Basic-Client-NoTicket-TLS-Sync-SplitHandshakeRecords": "TODO: first pass, this should be fixed",
++        "Basic-Server-RSA-TLS-Sync-SplitHandshakeRecords": "TODO: first pass, this should be fixed",
++        "Basic-Client-NoTicket-TLS-Sync-PackHandshake": "TODO: first pass, this should be fixed",
++        "Basic-Server-RSA-TLS-Sync-PackHandshake": "TODO: first pass, this should be fixed",
++        "PartialSecondClientHelloAfterFirst": "TODO: first pass, this should be fixed",
++        "PartialServerHelloWithHelloRetryRequest": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Server-TLS1": "TODO: first pass, this should be fixed",
++        "PartialClientKeyExchangeWithClientHello": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Server-TLS1": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Client-TLS11": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Client-TLS1": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Client-TLS11": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Client-TLS12": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Client-TLS13": "TODO: first pass, this should be fixed",
++        "PartialNewSessionTicketWithServerHelloDone": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Server-TLS11": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Server-TLS12": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Server-TLS11": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Client-TLS12": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Server-TLS12": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Client-TLS13": "TODO: first pass, this should be fixed",
++        "TrailingDataWithFinished-Resume-Client-TLS1": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ClientHello-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ServerHello-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ServerCertificate-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ServerHelloDone-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ServerKeyExchange-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-CertificateRequest-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-CertificateVerify-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ServerFinished-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ClientKeyExchange-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-ClientHello-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ClientFinished-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-NewSessionTicket-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-ClientCertificate-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-CertificateRequest-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-ServerCertificateVerify-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-EncryptedExtensions-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-ClientCertificate-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-ClientCertificateVerify-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-ServerCertificate-TLS": "TODO: first pass, this should be fixed",
++        "ResumeTLS12SessionID-TLS13": "TODO: first pass, this should be fixed",
++        "SkipEarlyData-TLS13": "TODO: first pass, this should be fixed",
++        "DuplicateKeyShares-TLS13": "TODO: first pass, this should be fixed",
++        "Server-TooLongSessionID-TLS13": "TODO: first pass, this should be fixed",
++        "Client-TooLongSessionID": "TODO: first pass, this should be fixed",
++        "Client-ShortSessionID": "TODO: first pass, this should be fixed",
++        "TLS12NoSessionID-TLS13": "TODO: first pass, this should be fixed",
++        "Server-TooLongSessionID-TLS12": "TODO: first pass, this should be fixed",
++        "EmptyEncryptedExtensions-TLS13": "TODO: first pass, this should be fixed",
++        "SkipEarlyData-SecondClientHelloEarlyData-TLS13": "TODO: first pass, this should be fixed",
++        "EncryptedExtensionsWithKeyShare-TLS13": "TODO: first pass, this should be fixed",
++        "HelloRetryRequest-DuplicateCurve-TLS13": "TODO: first pass, this should be fixed",
++        "HelloRetryRequest-DuplicateCookie-TLS13": "TODO: first pass, this should be fixed",
++        "HelloRetryRequest-Unknown-TLS13": "TODO: first pass, this should be fixed",
++        "SendPostHandshakeChangeCipherSpec-TLS13": "TODO: first pass, this should be fixed",
++        "ECDSAKeyUsage-Server-TLS12": "TODO: first pass, this should be fixed",
++        "ECDSAKeyUsage-Server-TLS13": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS1": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS1": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS1": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS11": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS11": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS12": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS12": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS11": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS12": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS13": "TODO: first pass, this should be fixed",
++        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS13": "TODO: first pass, this should be fixed",
++        "EmptyExtensions-ClientHello-TLS1": "TODO: first pass, this should be fixed",
++        "OmitExtensions-ClientHello-TLS1": "TODO: first pass, this should be fixed",
++        "EmptyExtensions-ClientHello-TLS12": "TODO: first pass, this should be fixed",
++        "OmitExtensions-ClientHello-TLS12": "TODO: first pass, this should be fixed",
++        "EmptyExtensions-ClientHello-TLS11": "TODO: first pass, this should be fixed",
++        "OmitExtensions-ClientHello-TLS11": "TODO: first pass, this should be fixed",
++        "DuplicateCertCompressionExt-TLS12": "TODO: first pass, this should be fixed",
++        "DuplicateCertCompressionExt-TLS13": "TODO: first pass, this should be fixed",
++        "Client-RejectJDK11DowngradeRandom": "TODO: first pass, this should be fixed",
++        "CheckClientCertificateTypes": "TODO: first pass, this should be fixed",
++        "CheckECDSACurve-TLS12": "TODO: first pass, this should be fixed"
++    }
++}
+\ No newline at end of file
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+new file mode 100644
+index 0000000000..f12733a274
+--- /dev/null
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -0,0 +1,277 @@
++package tls
++
++import (
++	"crypto/x509"
++	"encoding/binary"
++	"encoding/json"
++	"encoding/pem"
++	"flag"
++	"fmt"
++	"internal/testenv"
++	"io"
++	"log"
++	"net"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++var (
++	port   = flag.String("port", "", "")
++	server = flag.Bool("server", false, "")
++
++	isHandshakerSupported = flag.Bool("is-handshaker-supported", false, "")
++
++	keyfile  = flag.String("key-file", "", "")
++	certfile = flag.String("cert-file", "", "")
++
++	trustCert = flag.String("trust-cert", "", "")
++
++	minVersion = flag.Int("min-version", VersionSSL30, "")
++	maxVersion = flag.Int("max-version", VersionTLS13, "")
++
++	noTLS13 = flag.Bool("no-tls13", false, "")
++
++	requireAnyClientCertificate = flag.Bool("require-any-client-certificate", false, "")
++
++	shimWritesFirst = flag.Bool("shim-writes-first", false, "")
++
++	resumeCount = flag.Int("resume-count", 0, "")
++
++	shimID = flag.Uint64("shim-id", 0, "")
++	_      = flag.Bool("ipv6", false, "")
++
++	// Unimplemented flags
++	// -advertise-alpn
++	// -advertise-npn
++	// -allow-hint-mismatch
++	// -async
++	// -check-close-notify
++	// -cipher
++	// -curves
++	// -delegated-credential
++	// -dtls
++	// -ech-config-list
++	// -ech-server-config
++	// -enable-channel-id
++	// -enable-early-data
++	// -enable-ech-grease
++	// -enable-grease
++	// -enable-ocsp-stapling
++	// -enable-signed-cert-timestamps
++	// -expect-advertised-alpn
++	// -expect-certificate-types
++	// -expect-channel-id
++	// -expect-cipher-aes
++	// -expect-client-ca-list
++	// -expect-curve-id
++	// -expect-early-data-reason
++	// -expect-extended-master-secret
++	// -expect-hrr
++	// -expect-key-usage-invalid
++	// -expect-msg-callback
++	// -expect-no-session
++	// -expect-peer-cert-file
++	// -expect-peer-signature-algorithm
++	// -expect-peer-verify-pref
++	// -expect-secure-renegotiation
++	// -expect-server-name
++	// -expect-ticket-supports-early-data
++	// -export-keying-material
++	// -export-traffic-secrets
++	// -fail-cert-callback
++	// -fail-early-callback
++	// -fallback-scsv
++	// -false-start
++	// -forbid-renegotiation-after-handshake
++	// -handshake-twice
++	// -host-name
++	// -ignore-rsa-key-usage
++	// -implicit-handshake
++	// -install-cert-compression-algs
++	// -install-ddos-callback
++	// -install-one-cert-compression-alg
++	// -jdk11-workaround
++	// -key-update
++	// -max-cert-list
++	// -max-send-fragment
++	// -no-ticket
++	// -no-tls1
++	// -no-tls11
++	// -no-tls12
++	// -ocsp-response
++	// -on-resume-expect-accept-early-data
++	// -on-resume-expect-reject-early-data
++	// -on-shim-cipher
++	// -on-shim-curves
++	// -peek-then-read
++	// -psk
++	// -read-with-unfinished-write
++	// -reject-alpn
++	// -renegotiate-explicit
++	// -renegotiate-freely
++	// -renegotiate-ignore
++	// -renegotiate-once
++	// -select-alpn
++	// -select-next-proto
++	// -send-alert
++	// -send-channel-id
++	// -server-preference
++	// -shim-shuts-down
++	// -signed-cert-timestamps
++	// -signing-prefs
++	// -srtp-profiles
++	// -tls-unique
++	// -use-client-ca-list
++	// -use-ocsp-callback
++	// -use-old-client-cert-callback
++	// -verify-fail
++	// -verify-peer
++	// -verify-prefs
++)
++
++func bogoShim() {
++	if *isHandshakerSupported {
++		fmt.Println("No")
++		return
++	}
++
++	cfg := &Config{
++		ServerName: "test",
++
++		MinVersion: uint16(*minVersion),
++		MaxVersion: uint16(*maxVersion),
++
++		ClientSessionCache: NewLRUClientSessionCache(0),
++	}
++
++	if *noTLS13 && cfg.MaxVersion == VersionTLS13 {
++		cfg.MaxVersion = VersionTLS12
++	}
++
++	if *keyfile != "" || *certfile != "" {
++		pair, err := LoadX509KeyPair(*certfile, *keyfile)
++		if err != nil {
++			log.Fatalf("load key-file err: %s", err)
++		}
++		cfg.Certificates = []Certificate{pair}
++	}
++	if *trustCert != "" {
++		pool := x509.NewCertPool()
++		certFile, err := os.ReadFile(*trustCert)
++		if err != nil {
++			log.Fatalf("load trust-cert err: %s", err)
++		}
++		block, _ := pem.Decode(certFile)
++		cert, err := x509.ParseCertificate(block.Bytes)
++		if err != nil {
++			log.Fatalf("parse trust-cert err: %s", err)
++		}
++		pool.AddCert(cert)
++		cfg.RootCAs = pool
++	}
++
++	if *requireAnyClientCertificate {
++		cfg.ClientAuth = RequireAnyClientCert
++	}
++
++	for i := 0; i < *resumeCount+1; i++ {
++		conn, err := net.Dial("tcp", net.JoinHostPort("localhost", *port))
++		if err != nil {
++			log.Fatalf("dial err: %s", err)
++		}
++		defer conn.Close()
++
++		// Write the shim ID we were passed as a little endian uint64
++		shimIDBytes := make([]byte, 8)
++		binary.LittleEndian.PutUint64(shimIDBytes, *shimID)
++		if _, err := conn.Write(shimIDBytes); err != nil {
++			log.Fatalf("failed to write shim id: %s", err)
++		}
++
++		var tlsConn *Conn
++		if *server {
++			tlsConn = Server(conn, cfg)
++		} else {
++			tlsConn = Client(conn, cfg)
++		}
++
++		if *shimWritesFirst {
++			if _, err := tlsConn.Write([]byte("hello")); err != nil {
++				log.Fatalf("write err: %s", err)
++			}
++		}
++
++		for {
++			buf := make([]byte, 500)
++			n, err := tlsConn.Read(buf)
++			if err == io.EOF {
++				break
++			}
++			if err != nil {
++				log.Fatalf("read err: %s", err)
++			}
++			buf = buf[:n]
++			for i := range buf {
++				buf[i] ^= 0xff
++			}
++			if _, err := tlsConn.Write(buf); err != nil {
++				log.Fatalf("write err: %s", err)
++			}
++		}
++	}
++}
++
++func TestBogoSuite(t *testing.T) {
++	testenv.SkipIfShortAndSlow(t)
++	testenv.MustHaveExternalNetwork(t)
++	testenv.MustHaveGoRun(t)
++	testenv.MustHaveExec(t)
++
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++
++	const boringsslModVer = "v0.0.0-20240412155355-1c6e10495e4f"
++	output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to download boringssl: %s", err)
++	}
++	var j struct {
++		Dir string
++	}
++	if err := json.Unmarshal(output, &j); err != nil {
++		t.Fatalf("failed to parse 'go mod download' output: %s", err)
++	}
++
++	cwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	args := []string{
++		"test",
++		".",
++		fmt.Sprintf("-shim-config=%s", filepath.Join(cwd, "bogo_config.json")),
++		fmt.Sprintf("-shim-path=%s", os.Args[0]),
++		"-shim-extra-flags=-bogo-mode",
++		"-allow-unimplemented",
++		"-loose-errors", // TODO(roland): this should be removed eventually
++	}
++	if *bogoFilter != "" {
++		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
++	}
++
++	goCmd, err := testenv.GoTool()
++	if err != nil {
++		t.Fatal(err)
++	}
++	cmd := exec.Command(goCmd, args...)
++	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
++	cmd.Dir = filepath.Join(j.Dir, "ssl/test/runner")
++	err = cmd.Run()
++	if err != nil {
++		t.Fatalf("bogo failed: %s", err)
++	}
++}
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index ddcf9779fd..e365a79cf7 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -41,9 +41,11 @@ import (
+ // reference connection will always change.
+ 
+ var (
+-	update  = flag.Bool("update", false, "update golden files on failure")
+-	fast    = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
+-	keyFile = flag.String("keylog", "", "destination file for KeyLogWriter")
++	update     = flag.Bool("update", false, "update golden files on failure")
++	fast       = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
++	keyFile    = flag.String("keylog", "", "destination file for KeyLogWriter")
++	bogoMode   = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
++	bogoFilter = flag.String("bogo-filter", "", "BoGo test filter")
+ )
+ 
+ func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
+@@ -326,7 +328,21 @@ func allCipherSuites() []uint16 {
+ var testConfig *Config
+ 
+ func TestMain(m *testing.M) {
++	flag.Usage = func() {
++		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args)
++		flag.PrintDefaults()
++		if *bogoMode {
++			os.Exit(89)
++		}
++	}
++
+ 	flag.Parse()
++
++	if *bogoMode {
++		bogoShim()
++		os.Exit(0)
++	}
++
+ 	os.Exit(runMain(m))
+ }
+ 

@@ -16,7 +16,47 @@ Date:   Fri Apr 21 07:58:03 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 3 ++-
  src/cmd/compile/internal/types/sym.go  | 8 ++++----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a80048cd8e..546cdc69c8 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1338,7 +1338,8 @@ ok:
+ 			keep = true
+ 		}
+ 	}
+-	s.Lsym.Set(obj.AttrMakeTypelink, keep)
++	// TODO(josharian): add lsym local variable above, use here instead of calling Linksym()
++	s.Linksym().Set(obj.AttrMakeTypelink, keep)
+ 
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 92be6ca1a6..c969f96b47 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -31,7 +31,7 @@ type Sym struct {
+ 	flags   bitset8
+ 	Label   *Node // corresponding label (ephemeral)
+ 	Origpkg *Pkg  // original package for . import
+-	Lsym    *obj.LSym
++	lsym    *obj.LSym
+ }
+ 
+ const (
+@@ -78,8 +78,8 @@ func (sym *Sym) Linksym() *obj.LSym {
+ 	if sym == nil {
+ 		return nil
+ 	}
+-	if sym.Lsym == nil {
+-		sym.Lsym = Ctxt.Lookup(sym.LinksymName())
++	if sym.lsym == nil {
++		sym.lsym = Ctxt.Lookup(sym.LinksymName())
+ 	}
+-	return sym.Lsym
++	return sym.lsym
+ }

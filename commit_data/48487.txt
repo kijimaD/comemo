@@ -16,6 +16,35 @@ Date:   Sun May 23 23:06:43 2021 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/wasm/wasm_exec.js | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 3e41e628ef..231185a123 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -401,6 +401,7 @@
+ 							storeValue(sp + 56, result);
+ 							this.mem.setUint8(sp + 64, 1);
+ 						} catch (err) {
++							sp = this._inst.exports.getsp() >>> 0; // see comment above
+ 							storeValue(sp + 56, err);
+ 							this.mem.setUint8(sp + 64, 0);
+ 						}
+@@ -417,6 +418,7 @@
+ 							storeValue(sp + 40, result);
+ 							this.mem.setUint8(sp + 48, 1);
+ 						} catch (err) {
++							sp = this._inst.exports.getsp() >>> 0; // see comment above
+ 							storeValue(sp + 40, err);
+ 							this.mem.setUint8(sp + 48, 0);
+ 						}
+@@ -433,6 +435,7 @@
+ 							storeValue(sp + 40, result);
+ 							this.mem.setUint8(sp + 48, 1);
+ 						} catch (err) {
++							sp = this._inst.exports.getsp() >>> 0; // see comment above
+ 							storeValue(sp + 40, err);
+ 							this.mem.setUint8(sp + 48, 0);
+ 						}

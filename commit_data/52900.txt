@@ -11,6 +11,29 @@ Date:   Fri Jun 10 23:13:41 2022 +0200
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go_mem.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 59f9ab880d..661e1e781c 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -85,7 +85,7 @@ the approach presented by Hans-J. Boehm and Sarita V. Adve in
+ “<a href="https://www.hpl.hp.com/techreports/2008/HPL-2008-56.pdf">Foundations of the C++ Concurrency Memory Model</a>”,
+ published in PLDI 2008.
+ The definition of data-race-free programs and the guarantee of sequential consistency
+-for race-free progams are equivalent to the ones in that work.
++for race-free programs are equivalent to the ones in that work.
+ </p>
+ 
+ <p>
+@@ -205,7 +205,7 @@ by other languages, including C, C++, Java, JavaScript, Rust, and Swift.
+ 
+ <p>
+ Certain Go language operations such as goroutine creation and memory allocation
+-act as synchronization opeartions.
++act as synchronization operations.
+ The effect of these operations on the synchronized-before partial order
+ is documented in the “Synchronization” section below.
+ Individual packages are responsible for providing similar documentation

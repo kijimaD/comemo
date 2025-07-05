@@ -16,7 +16,51 @@ Date:   Thu Jan 12 19:37:18 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
  src/cmd/internal/obj/riscv/obj.go                | 10 ++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index d3e43e721d..cdb8a028bd 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -26,5 +26,17 @@ TEXT errors(SB),$0
+ 	MOVD	F0, F1, F2			// ERROR "illegal MOV instruction"
+ 	MOV	X10, X11, X12			// ERROR "illegal MOV instruction"
+ 	MOVW	X10, X11, X12			// ERROR "illegal MOV instruction"
++	SLLI	$64, X5, X6			// ERROR "shift amount out of range 0 to 63"
++	SRLI	$64, X5, X6			// ERROR "shift amount out of range 0 to 63"
++	SRAI	$64, X5, X6			// ERROR "shift amount out of range 0 to 63"
++	SLLI	$-1, X5, X6			// ERROR "shift amount out of range 0 to 63"
++	SRLI	$-1, X5, X6			// ERROR "shift amount out of range 0 to 63"
++	SRAI	$-1, X5, X6			// ERROR "shift amount out of range 0 to 63"
++	SLLIW	$32, X5, X6			// ERROR "shift amount out of range 0 to 31"
++	SRLIW	$32, X5, X6			// ERROR "shift amount out of range 0 to 31"
++	SRAIW	$32, X5, X6			// ERROR "shift amount out of range 0 to 31"
++	SLLIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
++	SRLIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
++	SRAIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 95cd3659e8..cbf894817d 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2146,6 +2146,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		// FNEGD rs, rd -> FSGNJND rs, rs, rd
+ 		ins.as = AFSGNJND
+ 		ins.rs1 = uint32(p.From.Reg)
++
++	case ASLLI, ASRLI, ASRAI:
++		if ins.imm < 0 || ins.imm > 63 {
++			p.Ctxt.Diag("%v: shift amount out of range 0 to 63", p)
++		}
++
++	case ASLLIW, ASRLIW, ASRAIW:
++		if ins.imm < 0 || ins.imm > 31 {
++			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
++		}
+ 	}
+ 	return inss
+ }

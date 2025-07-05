@@ -12,8 +12,95 @@ Date:   Tue Feb 26 10:36:13 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7385051
-
+---
  src/cmd/vet/print.go               | 17 +++++++++++------
  src/cmd/vet/test_print.go          |  4 ++--
  src/pkg/sync/atomic/atomic_test.go |  4 ++--
  3 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index ad3d39c8fc..5b01202710 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -276,6 +276,9 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
+ 					return
+ 				}
+ 			}
++			if f.pkg == nil { // Nothing more to do.
++				return
++			}
+ 			// Verb is good. If nargs>1, we have something like %.*s and all but the final
+ 			// arg must be integer.
+ 			for i := 0; i < nargs-1; i++ {
+@@ -285,8 +288,13 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
+ 			}
+ 			for _, v := range printVerbs {
+ 				if v.verb == verb {
+-					if !f.matchArgType(v.typ, call.Args[argNum+nargs-1]) {
+-						f.Badf(call.Pos(), "arg for printf verb %%%c of wrong type", verb)
++					arg := call.Args[argNum+nargs-1]
++					if !f.matchArgType(v.typ, arg) {
++						typeString := ""
++						if typ := f.pkg.types[arg]; typ != nil {
++							typeString = typ.String()
++						}
++						f.Badf(call.Pos(), "arg for printf verb %%%c of wrong type: %s", verb, typeString)
+ 					}
+ 					break
+ 				}
+@@ -298,9 +306,6 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
+ }
+ 
+ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
+-	if f.pkg == nil {
+-		return true // Don't know; assume OK.
+-	}
+ 	// TODO: for now, we can only test builtin types and untyped constants.
+ 	typ := f.pkg.types[arg]
+ 	if typ == nil {
+@@ -322,7 +327,7 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
+ 	case types.String:
+ 		return t&argString != 0
+ 	case types.UnsafePointer:
+-		return t&argPointer != 0
++		return t&(argPointer|argInt) != 0
+ 	case types.UntypedBool:
+ 		return t&argBool != 0
+ 	case types.UntypedComplex:
+diff --git a/src/cmd/vet/test_print.go b/src/cmd/vet/test_print.go
+index 5a19e07a55..bd06f25963 100644
+--- a/src/cmd/vet/test_print.go
++++ b/src/cmd/vet/test_print.go
+@@ -14,8 +14,8 @@ import (
+ )
+ 
+ func UnsafePointerPrintfTest() {
+-	var up *unsafe.Pointer
+-	fmt.Printf("%p", up)
++	var up unsafe.Pointer
++	fmt.Printf("%p, %x %X", up, up, up)
+ }
+ 
+ // Error methods that do not satisfy the Error interface and should be checked.
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 25be63b5a3..3e105561c4 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -1119,7 +1119,7 @@ func TestStoreLoadRelAcq32(t *testing.T) {
+ 					d1 := X.data1
+ 					d2 := X.data2
+ 					if d1 != i || d2 != float32(i) {
+-						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
++						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+ 					}
+ 				}
+ 			}
+@@ -1167,7 +1167,7 @@ func TestStoreLoadRelAcq64(t *testing.T) {
+ 					d1 := X.data1
+ 					d2 := X.data2
+ 					if d1 != i || d2 != float64(i) {
+-						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
++						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
+ 					}
+ 				}
+ 			}

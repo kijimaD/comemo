@@ -14,7 +14,92 @@ Date:   Tue Mar 2 23:39:12 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go | 21 ++++++++++++++++++++-
  src/cmd/compile/internal/ssagen/ssa.go   | 12 ++++++------
  2 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 903cc5205d..3eab4b8d8b 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -315,12 +315,31 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+ 	return result
+ }
+ 
++// parameterUpdateMu protects the Offset field of function/method parameters (a subset of structure Fields)
++var parameterUpdateMu sync.Mutex
++
++// FieldOffsetOf returns a concurency-safe version of f.Offset
++func FieldOffsetOf(f *types.Field) int64 {
++	parameterUpdateMu.Lock()
++	defer parameterUpdateMu.Unlock()
++	return f.Offset
++}
++
+ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
+ 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
+ 	if !isReturn || len(a.Registers) == 0 {
+ 		// The type frame offset DOES NOT show effects of minimum frame size.
+ 		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
+-		f.Offset = a.FrameOffset(result)-config.LocalsOffset()
++		parameterUpdateMu.Lock()
++		defer parameterUpdateMu.Unlock()
++		off := a.FrameOffset(result) - config.LocalsOffset()
++		fOffset := f.Offset
++		if fOffset == types.BOGUS_FUNARG_OFFSET {
++			// Set the Offset the first time. After that, we may recompute it, but it should never change.
++			f.Offset = off
++		} else if fOffset != off {
++			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f4da71fef4..05dd0c62a9 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1240,7 +1240,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
+ 		if f.Sym.IsBlank() {
+ 			continue
+ 		}
+-		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), f.Offset, addr)
++		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), abi.FieldOffsetOf(f), addr)
+ 		s.instrumentFields(f.Type, offptr, kind)
+ 	}
+ }
+@@ -4759,7 +4759,7 @@ func (s *state) openDeferExit() {
+ 		}
+ 		for j, argAddrVal := range r.argVals {
+ 			f := getParam(r.n, j)
+-			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + f.Offset)})
++			ACArgs = append(ACArgs, ssa.Param{Type: f.Type, Offset: int32(argStart + abi.FieldOffsetOf(f))})
+ 			var a *ssa.Value
+ 			if !TypeOK(f.Type) {
+ 				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
+@@ -4867,12 +4867,12 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	types.CalcSize(fn.Type())
+ 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
+ 
+-	abi := s.f.ABI1
++	callABI := s.f.ABI1
+ 	if !inRegisters {
+-		abi = s.f.ABI0
++		callABI = s.f.ABI0
+ 	}
+ 
+-	params := abi.ABIAnalyze(n.X.Type())
++	params := callABI.ABIAnalyze(n.X.Type())
+ 
+ 	res := n.X.Type().Results()
+ 	if k == callNormal {
+@@ -4933,7 +4933,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 		// Set other args.
+ 		for _, f := range ft.Params().Fields().Slice() {
+-			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
++			s.storeArgWithBase(args[0], f.Type, addr, off+abi.FieldOffsetOf(f))
+ 			args = args[1:]
+ 		}
+ 

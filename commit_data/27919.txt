@@ -14,7 +14,7 @@ Date:   Tue Apr 19 19:35:10 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan.go      |  2 +-
  src/runtime/malloc.go    | 48 +++++++++++-------------------------------------
  src/runtime/mfinal.go    |  2 +-
@@ -24,3 +24,290 @@ Date:   Tue Apr 19 19:35:10 2016 -0700
  src/runtime/slice.go     | 11 +++--------
  src/runtime/string.go    |  6 +++---
  8 files changed, 23 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 8543cb4c9c..3fb0236785 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -74,7 +74,7 @@ func makechan(t *chantype, size int64) *hchan {
+ 		// buf points into the same allocation, elemtype is persistent.
+ 		// SudoG's are referenced from their owning thread so they can't be collected.
+ 		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
+-		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*elem.size, nil, flagNoScan))
++		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*elem.size, nil, true))
+ 		if size > 0 && elem.size != 0 {
+ 			c.buf = add(unsafe.Pointer(c), hchanSize)
+ 		} else {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a3e55ec2fb..95d24a467a 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -87,9 +87,6 @@ import (
+ const (
+ 	debugMalloc = false
+ 
+-	flagNoScan = _FlagNoScan
+-	flagNoZero = _FlagNoZero
+-
+ 	maxTinySize   = _TinySize
+ 	tinySizeClass = _TinySizeClass
+ 	maxSmallSize  = _MaxSmallSize
+@@ -487,16 +484,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ // base address for all 0-byte allocations
+ var zerobase uintptr
+ 
+-const (
+-	// flags to malloc
+-	_FlagNoScan = 1 << 0 // GC doesn't have to scan object
+-	_FlagNoZero = 1 << 1 // don't zero memory
+-)
+-
+ // Allocate an object of size bytes.
+ // Small objects are allocated from the per-P cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+-func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
++func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	if gcphase == _GCmarktermination {
+ 		throw("mallocgc called with gcphase == _GCmarktermination")
+ 	}
+@@ -505,10 +496,6 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		return unsafe.Pointer(&zerobase)
+ 	}
+ 
+-	if flags&flagNoScan == 0 && typ == nil {
+-		throw("malloc missing type")
+-	}
+-
+ 	if debug.sbrk != 0 {
+ 		align := uintptr(16)
+ 		if typ != nil {
+@@ -553,14 +540,15 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	c := gomcache()
+ 	var s *mspan
+ 	var x unsafe.Pointer
++	noscan := typ == nil || typ.kind&kindNoPointers != 0
+ 	if size <= maxSmallSize {
+-		if flags&flagNoScan != 0 && size < maxTinySize {
++		if noscan && size < maxTinySize {
+ 			// Tiny allocator.
+ 			//
+ 			// Tiny allocator combines several tiny allocation requests
+ 			// into a single memory block. The resulting memory block
+ 			// is freed when all subobjects are unreachable. The subobjects
+-			// must be FlagNoScan (don't have pointers), this ensures that
++			// must be noscan (don't have pointers), this ensures that
+ 			// the amount of potentially wasted memory is bounded.
+ 			//
+ 			// Size of the memory block used for combining (maxTinySize) is tunable.
+@@ -650,7 +638,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			// prefetchnta offers best performance, see change list message.
+ 			prefetchnta(uintptr(v.ptr().next))
+ 			x = unsafe.Pointer(v)
+-			if flags&flagNoZero == 0 {
++			if needzero {
+ 				v.ptr().next = 0
+ 				if size > 2*sys.PtrSize && ((*[2]uintptr)(x))[1] != 0 {
+ 					memclr(unsafe.Pointer(v), size)
+@@ -661,13 +649,13 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		var s *mspan
+ 		shouldhelpgc = true
+ 		systemstack(func() {
+-			s = largeAlloc(size, flags)
++			s = largeAlloc(size, needzero)
+ 		})
+ 		x = unsafe.Pointer(uintptr(s.start << pageShift))
+ 		size = s.elemsize
+ 	}
+ 
+-	if flags&flagNoScan != 0 {
++	if noscan {
+ 		// All objects are pre-marked as noscan. Nothing to do.
+ 	} else {
+ 		// If allocating a defer+arg block, now that we've picked a malloc size
+@@ -747,7 +735,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	return x
+ }
+ 
+-func largeAlloc(size uintptr, flag uint32) *mspan {
++func largeAlloc(size uintptr, needzero bool) *mspan {
+ 	// print("largeAlloc size=", size, "\n")
+ 
+ 	if size+_PageSize < size {
+@@ -763,7 +751,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
+ 	// pays the debt down to npage pages.
+ 	deductSweepCredit(npages*_PageSize, npages)
+ 
+-	s := mheap_.alloc(npages, 0, true, flag&_FlagNoZero == 0)
++	s := mheap_.alloc(npages, 0, true, needzero)
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+@@ -774,11 +762,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
+ 
+ // implementation of new builtin
+ func newobject(typ *_type) unsafe.Pointer {
+-	flags := uint32(0)
+-	if typ.kind&kindNoPointers != 0 {
+-		flags |= flagNoScan
+-	}
+-	return mallocgc(typ.size, typ, flags)
++	return mallocgc(typ.size, typ, true)
+ }
+ 
+ //go:linkname reflect_unsafe_New reflect.unsafe_New
+@@ -788,14 +772,10 @@ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
+ 
+ // implementation of make builtin for slices
+ func newarray(typ *_type, n uintptr) unsafe.Pointer {
+-	flags := uint32(0)
+-	if typ.kind&kindNoPointers != 0 {
+-		flags |= flagNoScan
+-	}
+ 	if int(n) < 0 || n > maxSliceCap(typ.size) {
+ 		panic(plainError("runtime: allocation size out of range"))
+ 	}
+-	return mallocgc(typ.size*n, typ, flags)
++	return mallocgc(typ.size*n, typ, true)
+ }
+ 
+ //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
+@@ -803,12 +783,6 @@ func reflect_unsafe_NewArray(typ *_type, n uintptr) unsafe.Pointer {
+ 	return newarray(typ, n)
+ }
+ 
+-// rawmem returns a chunk of pointerless memory. It is
+-// not zeroed.
+-func rawmem(size uintptr) unsafe.Pointer {
+-	return mallocgc(size, nil, flagNoScan|flagNoZero)
+-}
+-
+ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ 	mp.mcache.next_sample = nextSample()
+ 	mProf_Malloc(x, size)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index b862f019b6..f698e72709 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -172,7 +172,7 @@ func runfinq() {
+ 					// all not yet finalized objects are stored in finq.
+ 					// If we do not mark it as FlagNoScan,
+ 					// the last finalized object is not collected.
+-					frame = mallocgc(framesz, nil, flagNoScan)
++					frame = mallocgc(framesz, nil, true)
+ 					framecap = framesz
+ 				}
+ 
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 2c257442ba..eb7a0c6481 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -17,10 +17,10 @@ func mpreinit(mp *m) {
+ 	// Initialize stack and goroutine for note handling.
+ 	mp.gsignal = malg(32 * 1024)
+ 	mp.gsignal.m = mp
+-	mp.notesig = (*int8)(mallocgc(_ERRMAX, nil, _FlagNoScan))
++	mp.notesig = (*int8)(mallocgc(_ERRMAX, nil, true))
+ 	// Initialize stack for handling strings from the
+ 	// errstr system call, as used in package syscall.
+-	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, _FlagNoScan))
++	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
+ }
+ 
+ func msigsave(mp *m) {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 59fbc83369..382a20e4e7 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -205,7 +205,7 @@ func newdefer(siz int32) *_defer {
+ 	if d == nil {
+ 		// Allocate new defer+args.
+ 		total := roundupsize(totaldefersize(uintptr(siz)))
+-		d = (*_defer)(mallocgc(total, deferType, 0))
++		d = (*_defer)(mallocgc(total, deferType, true))
+ 	}
+ 	d.siz = siz
+ 	gp := mp.curg
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 9810db5453..433048fb79 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -626,7 +626,7 @@ const (
+ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 	// flagNoScan is safe here, because all objects are also referenced from cases.
+ 	size := selectsize(uintptr(len(cases)))
+-	sel := (*hselect)(mallocgc(size, nil, flagNoScan))
++	sel := (*hselect)(mallocgc(size, nil, true))
+ 	newselect(sel, int64(size), int32(len(cases)))
+ 	r := new(bool)
+ 	for i := range cases {
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index e86c1ce2c8..e15e6c4dc6 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -43,7 +43,6 @@ func makeslice(et *_type, len64, cap64 int64) slice {
+ 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
+ 	// but since the cap is only being supplied implicitly, saying len is clearer.
+ 	// See issue 4085.
+-
+ 	maxElements := maxSliceCap(et.size)
+ 	len := int(len64)
+ 	if len64 < 0 || int64(len) != len64 || uintptr(len) > maxElements {
+@@ -55,11 +54,7 @@ func makeslice(et *_type, len64, cap64 int64) slice {
+ 		panic(errorString("makeslice: cap out of range"))
+ 	}
+ 
+-	var flags uint32
+-	if et.kind&kindNoPointers != 0 {
+-		flags = flagNoScan
+-	}
+-	p := mallocgc(et.size*uintptr(cap), et, flags)
++	p := mallocgc(et.size*uintptr(cap), et, true)
+ 	return slice{p, len, cap}
+ }
+ 
+@@ -128,12 +123,12 @@ func growslice(et *_type, old slice, cap int) slice {
+ 
+ 	var p unsafe.Pointer
+ 	if et.kind&kindNoPointers != 0 {
+-		p = rawmem(capmem)
++		p = mallocgc(capmem, nil, false)
+ 		memmove(p, old.array, lenmem)
+ 		memclr(add(p, lenmem), capmem-lenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+-		p = mallocgc(capmem, et, 0)
++		p = mallocgc(capmem, et, true)
+ 		if !writeBarrier.enabled {
+ 			memmove(p, old.array, lenmem)
+ 		} else {
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 2d20e0a9c3..112ce5d588 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -284,7 +284,7 @@ func stringiter2(s string, k int) (int, rune) {
+ // The storage is not zeroed. Callers should use
+ // b to set the string contents and then drop b.
+ func rawstring(size int) (s string, b []byte) {
+-	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
++	p := mallocgc(uintptr(size), nil, false)
+ 
+ 	stringStructOf(&s).str = p
+ 	stringStructOf(&s).len = size
+@@ -302,7 +302,7 @@ func rawstring(size int) (s string, b []byte) {
+ // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
+ func rawbyteslice(size int) (b []byte) {
+ 	cap := roundupsize(uintptr(size))
+-	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
++	p := mallocgc(cap, nil, false)
+ 	if cap != uintptr(size) {
+ 		memclr(add(p, uintptr(size)), cap-uintptr(size))
+ 	}
+@@ -317,7 +317,7 @@ func rawruneslice(size int) (b []rune) {
+ 		throw("out of memory")
+ 	}
+ 	mem := roundupsize(uintptr(size) * 4)
+-	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
++	p := mallocgc(mem, nil, false)
+ 	if mem != uintptr(size)*4 {
+ 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
+ 	}

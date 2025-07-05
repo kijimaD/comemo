@@ -13,6 +13,24 @@ Date:   Sat Apr 26 22:31:32 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/93870044
-
+---
  misc/cgo/test/backdoor/backdoor_gccgo.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/misc/cgo/test/backdoor/backdoor_gccgo.go b/misc/cgo/test/backdoor/backdoor_gccgo.go
+new file mode 100644
+index 0000000000..514f76ec5e
+--- /dev/null
++++ b/misc/cgo/test/backdoor/backdoor_gccgo.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is the gccgo version of the stub in runtime.c.
++
++// +build gccgo
++
++package backdoor
++
++func Issue7695(x1, x2, x3, x4, x5, x6, x7, x8 uintptr) {}

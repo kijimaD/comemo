@@ -18,7 +18,7 @@ Date:   Fri Jan 13 14:41:42 2017 -0500
     Change-Id: I7c5dde6e7fe4f390e6607303b4d42535c674eac3
     Reviewed-on: https://go-review.googlesource.com/36193
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/bug.go                                |   5 +-
  src/cmd/go/build.go                              | 143 +++++++++--------------
  src/cmd/go/clean.go                              |  15 +--
@@ -47,3 +47,2275 @@ Date:   Fri Jan 13 14:41:42 2017 -0500
  src/cmd/go/version.go                            |   5 +-
  src/cmd/go/vet.go                                |   7 +-
  27 files changed, 464 insertions(+), 387 deletions(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 8d55a09a2e..60279c6060 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -18,7 +19,7 @@ import (
+ 	"strings"
+ )
+ 
+-var cmdBug = &Command{
++var cmdBug = &base.Command{
+ 	Run:       runBug,
+ 	UsageLine: "bug",
+ 	Short:     "start a bug report",
+@@ -32,7 +33,7 @@ func init() {
+ 	cmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ }
+ 
+-func runBug(cmd *Command, args []string) {
++func runBug(cmd *base.Command, args []string) {
+ 	var buf bytes.Buffer
+ 	buf.WriteString(bugHeader)
+ 	inspectGoVersion(&buf)
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 329e846518..caa876c4ae 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -28,10 +28,11 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ )
+ 
+-var cmdBuild = &Command{
++var cmdBuild = &base.Command{
+ 	UsageLine: "build [-o output] [-i] [build flags] [packages]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+@@ -196,7 +197,7 @@ func init() {
+ 
+ // addBuildFlags adds the flags common to the build, clean, get,
+ // install, list, run, and test commands.
+-func addBuildFlags(cmd *Command) {
++func addBuildFlags(cmd *base.Command) {
+ 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
+ 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
+@@ -219,11 +220,6 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+ }
+ 
+-func addBuildFlagsNX(cmd *Command) {
+-	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
+-	cmd.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+-}
+-
+ func isSpaceByte(c byte) bool {
+ 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+ }
+@@ -321,7 +317,7 @@ func buildModeInit() {
+ 	case "c-archive":
+ 		pkgsFilter = func(p []*Package) []*Package {
+ 			if len(p) != 1 || p[0].Name != "main" {
+-				fatalf("-buildmode=c-archive requires exactly one main package")
++				base.Fatalf("-buildmode=c-archive requires exactly one main package")
+ 			}
+ 			return p
+ 		}
+@@ -350,7 +346,7 @@ func buildModeInit() {
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64", "darwin/386":
+ 			default:
+-				fatalf("-buildmode=c-shared not supported on %s\n", platform)
++				base.Fatalf("-buildmode=c-shared not supported on %s\n", platform)
+ 			}
+ 		}
+ 		ldBuildmode = "c-shared"
+@@ -370,14 +366,14 @@ func buildModeInit() {
+ 		ldBuildmode = "exe"
+ 	case "pie":
+ 		if gccgo {
+-			fatalf("-buildmode=pie not supported by gccgo")
++			base.Fatalf("-buildmode=pie not supported by gccgo")
+ 		} else {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
+ 			default:
+-				fatalf("-buildmode=pie not supported on %s\n", platform)
++				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
+ 			}
+ 		}
+ 		ldBuildmode = "pie"
+@@ -389,12 +385,12 @@ func buildModeInit() {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+ 			default:
+-				fatalf("-buildmode=shared not supported on %s\n", platform)
++				base.Fatalf("-buildmode=shared not supported on %s\n", platform)
+ 			}
+ 			codegenArg = "-dynlink"
+ 		}
+ 		if cfg.BuildO != "" {
+-			fatalf("-buildmode=shared and -o not supported together")
++			base.Fatalf("-buildmode=shared and -o not supported together")
+ 		}
+ 		ldBuildmode = "shared"
+ 	case "plugin":
+@@ -406,14 +402,14 @@ func buildModeInit() {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 			default:
+-				fatalf("-buildmode=plugin not supported on %s\n", platform)
++				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
+ 			}
+ 			codegenArg = "-dynlink"
+ 		}
+ 		cfg.ExeSuffix = ".so"
+ 		ldBuildmode = "plugin"
+ 	default:
+-		fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
++		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
+ 	}
+ 	if cfg.BuildLinkshared {
+ 		if gccgo {
+@@ -423,7 +419,7 @@ func buildModeInit() {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+ 				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+-				fatalf("-linkshared not supported on %s\n", platform)
++				base.Fatalf("-linkshared not supported on %s\n", platform)
+ 			}
+ 			codegenArg = "-dynlink"
+ 			// TODO(mwhudson): remove -w when that gets fixed in linker.
+@@ -447,7 +443,7 @@ func buildModeInit() {
+ 	}
+ }
+ 
+-func runBuild(cmd *Command, args []string) {
++func runBuild(cmd *base.Command, args []string) {
+ 	instrumentInit()
+ 	buildModeInit()
+ 	var b builder
+@@ -487,9 +483,9 @@ func runBuild(cmd *Command, args []string) {
+ 
+ 	if cfg.BuildO != "" {
+ 		if len(pkgs) > 1 {
+-			fatalf("go build: cannot use -o with multiple packages")
++			base.Fatalf("go build: cannot use -o with multiple packages")
+ 		} else if len(pkgs) == 0 {
+-			fatalf("no packages to build")
++			base.Fatalf("no packages to build")
+ 		}
+ 		p := pkgs[0]
+ 		p.target = cfg.BuildO
+@@ -504,7 +500,7 @@ func runBuild(cmd *Command, args []string) {
+ 	if cfg.BuildBuildmode == "shared" {
+ 		pkgs := pkgsFilter(packages(args))
+ 		if libName, err := libname(args, pkgs); err != nil {
+-			fatalf("%s", err.Error())
++			base.Fatalf("%s", err.Error())
+ 		} else {
+ 			a = b.libaction(libName, pkgs, modeBuild, depMode)
+ 		}
+@@ -517,7 +513,7 @@ func runBuild(cmd *Command, args []string) {
+ 	b.do(a)
+ }
+ 
+-var cmdInstall = &Command{
++var cmdInstall = &base.Command{
+ 	UsageLine: "install [build flags] [packages]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+@@ -592,13 +588,13 @@ func libname(args []string, pkgs []*Package) (string, error) {
+ 	return "lib" + libname + ".so", nil
+ }
+ 
+-func runInstall(cmd *Command, args []string) {
++func runInstall(cmd *base.Command, args []string) {
+ 	installPackages(args, false)
+ }
+ 
+ func installPackages(args []string, forGet bool) {
+ 	if gobin != "" && !filepath.IsAbs(gobin) {
+-		fatalf("cannot install, GOBIN must be an absolute path")
++		base.Fatalf("cannot install, GOBIN must be an absolute path")
+ 	}
+ 
+ 	instrumentInit()
+@@ -609,18 +605,18 @@ func installPackages(args []string, forGet bool) {
+ 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
+ 			switch {
+ 			case p.gobinSubdir:
+-				errorf("go install: cannot install cross-compiled binaries when GOBIN is set")
++				base.Errorf("go install: cannot install cross-compiled binaries when GOBIN is set")
+ 			case p.cmdline:
+-				errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
++				base.Errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
+ 			case p.ConflictDir != "":
+-				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
++				base.Errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+ 			default:
+-				errorf("go install: no install location for directory %s outside GOPATH\n"+
++				base.Errorf("go install: no install location for directory %s outside GOPATH\n"+
+ 					"\tFor more details see: 'go help gopath'", p.Dir)
+ 			}
+ 		}
+ 	}
+-	exitIfErrors()
++	base.ExitIfErrors()
+ 
+ 	var b builder
+ 	b.init()
+@@ -629,7 +625,7 @@ func installPackages(args []string, forGet bool) {
+ 	var a *action
+ 	if cfg.BuildBuildmode == "shared" {
+ 		if libName, err := libname(args, pkgs); err != nil {
+-			fatalf("%s", err.Error())
++			base.Fatalf("%s", err.Error())
+ 		} else {
+ 			a = b.libaction(libName, pkgs, modeInstall, modeInstall)
+ 		}
+@@ -658,7 +654,7 @@ func installPackages(args []string, forGet bool) {
+ 		}
+ 	}
+ 	b.do(a)
+-	exitIfErrors()
++	base.ExitIfErrors()
+ 
+ 	// Success. If this command is 'go install' with no arguments
+ 	// and the current directory (the implicit argument) is a command,
+@@ -780,14 +776,14 @@ func (b *builder) init() {
+ 	} else {
+ 		b.work, err = ioutil.TempDir("", "go-build")
+ 		if err != nil {
+-			fatalf("%s", err)
++			base.Fatalf("%s", err)
+ 		}
+ 		if cfg.BuildX || cfg.BuildWork {
+ 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.work)
+ 		}
+ 		if !cfg.BuildWork {
+ 			workdir := b.work
+-			atexit(func() { os.RemoveAll(workdir) })
++			base.AtExit(func() { os.RemoveAll(workdir) })
+ 		}
+ 	}
+ }
+@@ -799,7 +795,7 @@ func goFilesPackage(gofiles []string) *Package {
+ 	// TODO: Remove this restriction.
+ 	for _, f := range gofiles {
+ 		if !strings.HasSuffix(f, ".go") {
+-			fatalf("named files must be .go files")
++			base.Fatalf("named files must be .go files")
+ 		}
+ 	}
+ 
+@@ -816,10 +812,10 @@ func goFilesPackage(gofiles []string) *Package {
+ 	for _, file := range gofiles {
+ 		fi, err := os.Stat(file)
+ 		if err != nil {
+-			fatalf("%s", err)
++			base.Fatalf("%s", err)
+ 		}
+ 		if fi.IsDir() {
+-			fatalf("%s is a directory, should be a Go file", file)
++			base.Fatalf("%s is a directory, should be a Go file", file)
+ 		}
+ 		dir1, _ := filepath.Split(file)
+ 		if dir1 == "" {
+@@ -828,7 +824,7 @@ func goFilesPackage(gofiles []string) *Package {
+ 		if dir == "" {
+ 			dir = dir1
+ 		} else if dir != dir1 {
+-			fatalf("named files must all be in one directory; have %s and %s", dir, dir1)
++			base.Fatalf("named files must all be in one directory; have %s and %s", dir, dir1)
+ 		}
+ 		dirent = append(dirent, fi)
+ 	}
+@@ -836,11 +832,11 @@ func goFilesPackage(gofiles []string) *Package {
+ 
+ 	var err error
+ 	if dir == "" {
+-		dir = cwd
++		dir = base.Cwd
+ 	}
+ 	dir, err = filepath.Abs(dir)
+ 	if err != nil {
+-		fatalf("%s", err)
++		base.Fatalf("%s", err)
+ 	}
+ 
+ 	bp, err := ctxt.ImportDir(dir, 0)
+@@ -895,7 +891,7 @@ func readpkglist(shlibpath string) (pkgs []*Package) {
+ 	} else {
+ 		pkglistbytes, err := readELFNote(shlibpath, "Go\x00\x00", 1)
+ 		if err != nil {
+-			fatalf("readELFNote failed: %v", err)
++			base.Fatalf("readELFNote failed: %v", err)
+ 		}
+ 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
+ 		for scanner.Scan() {
+@@ -979,7 +975,7 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
+ 			var stk importStack
+ 			p1 := loadPackage("cmd/cgo", &stk)
+ 			if p1.Error != nil {
+-				fatalf("load cmd/cgo: %v", p1.Error)
++				base.Fatalf("load cmd/cgo: %v", p1.Error)
+ 			}
+ 			a.cgo = b.action(depMode, depMode, p1)
+ 			a.deps = append(a.deps, a.cgo)
+@@ -1080,7 +1076,7 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 	a := &action{}
+ 	switch mode {
+ 	default:
+-		fatalf("unrecognized mode %v", mode)
++		base.Fatalf("unrecognized mode %v", mode)
+ 
+ 	case modeBuild:
+ 		a.f = (*builder).linkShared
+@@ -1107,7 +1103,7 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 				var stk importStack
+ 				p := loadPackage("runtime/cgo", &stk)
+ 				if p.Error != nil {
+-					fatalf("load runtime/cgo: %v", p.Error)
++					base.Fatalf("load runtime/cgo: %v", p.Error)
+ 				}
+ 				computeStale(p)
+ 				// If runtime/cgo is in another shared library, then that's
+@@ -1128,7 +1124,7 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 					var stk importStack
+ 					p := loadPackage("math", &stk)
+ 					if p.Error != nil {
+-						fatalf("load math: %v", p.Error)
++						base.Fatalf("load math: %v", p.Error)
+ 					}
+ 					computeStale(p)
+ 					// If math is in another shared library, then that's
+@@ -1153,7 +1149,7 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 			if libdir == "" {
+ 				libdir = plibdir
+ 			} else if libdir != plibdir {
+-				fatalf("multiple roots %s & %s", libdir, plibdir)
++				base.Fatalf("multiple roots %s & %s", libdir, plibdir)
+ 			}
+ 		}
+ 		a.target = filepath.Join(libdir, libname)
+@@ -1292,11 +1288,11 @@ func (b *builder) do(root *action) {
+ 
+ 		if err != nil {
+ 			if err == errPrintedOutput {
+-				setExitStatus(2)
++				base.SetExitStatus(2)
+ 			} else if _, ok := err.(*build.NoGoError); ok && len(a.p.TestGoFiles) > 0 && b.testFilesOnlyOK {
+ 				// Ignore the "no buildable Go source files" error for a package with only test files.
+ 			} else {
+-				errorf("%s", err)
++				base.Errorf("%s", err)
+ 			}
+ 			a.failed = true
+ 		}
+@@ -1342,8 +1338,8 @@ func (b *builder) do(root *action) {
+ 					a := b.ready.pop()
+ 					b.exec.Unlock()
+ 					handle(a)
+-				case <-interrupted:
+-					setExitStatus(1)
++				case <-base.Interrupted:
++					base.SetExitStatus(1)
+ 					return
+ 				}
+ 			}
+@@ -1465,7 +1461,7 @@ func (b *builder) build(a *action) (err error) {
+ 			sfiles = nil
+ 		}
+ 
+-		cgoExe := tool("cgo")
++		cgoExe := base.Tool("cgo")
+ 		if a.cgo != nil && a.cgo.target != "" {
+ 			cgoExe = a.cgo.target
+ 		}
+@@ -1857,7 +1853,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode, force b
+ 	}
+ 
+ 	// On Windows, remove lingering ~ file from last attempt.
+-	if toolIsWindows {
++	if base.ToolIsWindows {
+ 		if _, err := os.Stat(dst + "~"); err == nil {
+ 			os.Remove(dst + "~")
+ 		}
+@@ -1865,7 +1861,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode, force b
+ 
+ 	mayberemovefile(dst)
+ 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+-	if err != nil && toolIsWindows {
++	if err != nil && base.ToolIsWindows {
+ 		// Windows does not allow deletion of a binary file
+ 		// while it is executing. Try to move it out of the way.
+ 		// If the move fails, which is likely, we'll try again the
+@@ -1912,7 +1908,7 @@ func (b *builder) installHeader(a *action) error {
+ func (b *builder) cover(a *action, dst, src string, perm os.FileMode, varName string) error {
+ 	return b.run(a.objdir, "cover "+a.p.ImportPath, nil,
+ 		cfg.BuildToolexec,
+-		tool("cover"),
++		base.Tool("cover"),
+ 		"-mode", a.p.coverMode,
+ 		"-var", varName,
+ 		"-o", dst,
+@@ -2018,7 +2014,7 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
+ func (b *builder) showOutput(dir, desc, out string) {
+ 	prefix := "# " + desc
+ 	suffix := "\n" + out
+-	if reldir := shortPath(dir); reldir != dir {
++	if reldir := base.ShortPath(dir); reldir != dir {
+ 		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
+ 		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
+ 	}
+@@ -2029,29 +2025,6 @@ func (b *builder) showOutput(dir, desc, out string) {
+ 	b.print(prefix, suffix)
+ }
+ 
+-// shortPath returns an absolute or relative name for path, whatever is shorter.
+-func shortPath(path string) string {
+-	if rel, err := filepath.Rel(cwd, path); err == nil && len(rel) < len(path) {
+-		return rel
+-	}
+-	return path
+-}
+-
+-// relPaths returns a copy of paths with absolute paths
+-// made relative to the current directory if they would be shorter.
+-func relPaths(paths []string) []string {
+-	var out []string
+-	pwd, _ := os.Getwd()
+-	for _, p := range paths {
+-		rel, err := filepath.Rel(pwd, p)
+-		if err == nil && len(rel) < len(p) {
+-			p = rel
+-		}
+-		out = append(out, p)
+-	}
+-	return out
+-}
+-
+ // errPrintedOutput is a special error indicating that a command failed
+ // but that it generated output as well, and that output has already
+ // been printed, so there's no point showing 'exit status 1' or whatever
+@@ -2316,11 +2289,11 @@ func (noToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
+ type gcToolchain struct{}
+ 
+ func (gcToolchain) compiler() string {
+-	return tool("compile")
++	return base.Tool("compile")
+ }
+ 
+ func (gcToolchain) linker() string {
+-	return tool("link")
++	return base.Tool("link")
+ }
+ 
+ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
+@@ -2370,7 +2343,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 		}
+ 	}
+ 
+-	args := []interface{}{cfg.BuildToolexec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
++	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+ 	}
+@@ -2388,7 +2361,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]string, error) {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(goroot, "pkg", "include")
+-	args := []interface{}{cfg.BuildToolexec, tool("asm"), "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, buildAsmflags}
++	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, buildAsmflags}
+ 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
+ 		for _, arg := range buildAsmflags {
+ 			if arg == "-dynlink" {
+@@ -2414,7 +2387,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]s
+ func toolVerify(b *builder, p *Package, newTool string, ofile string, args []interface{}) error {
+ 	newArgs := make([]interface{}, len(args))
+ 	copy(newArgs, args)
+-	newArgs[1] = tool(newTool)
++	newArgs[1] = base.Tool(newTool)
+ 	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
+ 	if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
+ 		return err
+@@ -2450,7 +2423,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	// Since it used to not work that way, verify.
+ 	if !cfg.BuildN {
+ 		if _, err := os.Stat(absAfile); err != nil {
+-			fatalf("os.Stat of archive file failed: %v", err)
++			base.Fatalf("os.Stat of archive file failed: %v", err)
+ 		}
+ 	}
+ 
+@@ -2600,7 +2573,7 @@ func (gcToolchain) ld(b *builder, root *action, out string, allactions []*action
+ 		dir, out = filepath.Split(out)
+ 	}
+ 
+-	return b.run(dir, root.p.ImportPath, nil, cfg.BuildToolexec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
++	return b.run(dir, root.p.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, importArgs, ldflags, mainpkg)
+ }
+ 
+ func (gcToolchain) ldShared(b *builder, toplevelactions []*action, out string, allactions []*action) error {
+@@ -2631,7 +2604,7 @@ func (gcToolchain) ldShared(b *builder, toplevelactions []*action, out string, a
+ 		}
+ 		ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
+ 	}
+-	return b.run(".", out, nil, cfg.BuildToolexec, tool("link"), "-o", out, importArgs, ldflags)
++	return b.run(".", out, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, importArgs, ldflags)
+ }
+ 
+ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+@@ -2943,7 +2916,7 @@ func (tools gccgoToolchain) link(b *builder, root *action, out string, allaction
+ 		ldflags = append(ldflags, "-zdefs", "-shared", "-nostdlib", "-lgo", "-lgcc_s", "-lgcc", "-lc")
+ 
+ 	default:
+-		fatalf("-buildmode=%s not supported for gccgo", buildmode)
++		base.Fatalf("-buildmode=%s not supported for gccgo", buildmode)
+ 	}
+ 
+ 	switch buildmode {
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index f9f452d65d..4895eda4e3 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -13,7 +14,7 @@ import (
+ 	"strings"
+ )
+ 
+-var cmdClean = &Command{
++var cmdClean = &base.Command{
+ 	UsageLine: "clean [-i] [-r] [-n] [-x] [build flags] [packages]",
+ 	Short:     "remove object files",
+ 	Long: `
+@@ -75,7 +76,7 @@ func init() {
+ 	addBuildFlags(cmdClean)
+ }
+ 
+-func runClean(cmd *Command, args []string) {
++func runClean(cmd *base.Command, args []string) {
+ 	for _, pkg := range packagesAndErrors(args) {
+ 		clean(pkg)
+ 	}
+@@ -113,12 +114,12 @@ func clean(p *Package) {
+ 	cleaned[p] = true
+ 
+ 	if p.Dir == "" {
+-		errorf("can't load package: %v", p.Error)
++		base.Errorf("can't load package: %v", p.Error)
+ 		return
+ 	}
+ 	dirs, err := ioutil.ReadDir(p.Dir)
+ 	if err != nil {
+-		errorf("go clean %s: %v", p.Dir, err)
++		base.Errorf("go clean %s: %v", p.Dir, err)
+ 		return
+ 	}
+ 
+@@ -193,7 +194,7 @@ func clean(p *Package) {
+ 					}
+ 				}
+ 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+-					errorf("go clean: %v", err)
++					base.Errorf("go clean: %v", err)
+ 				}
+ 			}
+ 			continue
+@@ -232,7 +233,7 @@ func removeFile(f string) {
+ 		return
+ 	}
+ 	// Windows does not allow deletion of a binary file while it is executing.
+-	if toolIsWindows {
++	if base.ToolIsWindows {
+ 		// Remove lingering ~ file from last attempt.
+ 		if _, err2 := os.Stat(f + "~"); err2 == nil {
+ 			os.Remove(f + "~")
+@@ -245,5 +246,5 @@ func removeFile(f string) {
+ 			return
+ 		}
+ 	}
+-	errorf("go clean: %v", err)
++	base.Errorf("go clean: %v", err)
+ }
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index b9ecfc48bb..338fec14d3 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -6,9 +6,12 @@
+ 
+ package main
+ 
+-import "cmd/go/internal/cfg"
++import (
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
++)
+ 
+-var cmdDoc = &Command{
++var cmdDoc = &base.Command{
+ 	Run:         runDoc,
+ 	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.method]]",
+ 	CustomFlags: true,
+@@ -115,6 +118,6 @@ Flags:
+ `,
+ }
+ 
+-func runDoc(cmd *Command, args []string) {
+-	run(cfg.BuildToolexec, tool("doc"), args)
++func runDoc(cmd *base.Command, args []string) {
++	base.Run(cfg.BuildToolexec, base.Tool("doc"), args)
+ }
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 6db88f51ca..e143ddb357 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -6,13 +6,14 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"fmt"
+ 	"os"
+ 	"runtime"
+ 	"strings"
+ )
+ 
+-var cmdEnv = &Command{
++var cmdEnv = &base.Command{
+ 	Run:       runEnv,
+ 	UsageLine: "env [var ...]",
+ 	Short:     "print Go environment information",
+@@ -40,7 +41,7 @@ func mkEnv() []cfg.EnvVar {
+ 		{"GOPATH", cfg.BuildContext.GOPATH},
+ 		{"GORACE", os.Getenv("GORACE")},
+ 		{"GOROOT", goroot},
+-		{"GOTOOLDIR", toolDir},
++		{"GOTOOLDIR", base.ToolDir},
+ 
+ 		// disable escape codes in clang errors
+ 		{"TERM", "dumb"},
+@@ -98,7 +99,7 @@ func extraEnvVars() []cfg.EnvVar {
+ 	}
+ }
+ 
+-func runEnv(cmd *Command, args []string) {
++func runEnv(cmd *base.Command, args []string) {
+ 	env := cfg.NewEnv
+ 	env = append(env, extraEnvVars()...)
+ 	if len(args) > 0 {
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index 9783226e36..bb8c34e14a 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -6,10 +6,11 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ )
+ 
+-var cmdFix = &Command{
++var cmdFix = &base.Command{
+ 	Run:       runFix,
+ 	UsageLine: "fix [packages]",
+ 	Short:     "run go tool fix on packages",
+@@ -25,11 +26,11 @@ See also: go fmt, go vet.
+ 	`,
+ }
+ 
+-func runFix(cmd *Command, args []string) {
++func runFix(cmd *base.Command, args []string) {
+ 	for _, pkg := range packages(args) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(str.StringList(cfg.BuildToolexec, tool("fix"), relPaths(pkg.allgofiles)))
++		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), base.RelPaths(pkg.allgofiles)))
+ 	}
+ }
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 4c40f9ab0b..e59f5cb919 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -5,16 +5,18 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"os"
+ 	"path/filepath"
+ )
+ 
+ func init() {
+-	addBuildFlagsNX(cmdFmt)
++	cfg.AddBuildFlagsNX(&cmdFmt.Flag)
+ }
+ 
+-var cmdFmt = &Command{
++var cmdFmt = &base.Command{
+ 	Run:       runFmt,
+ 	UsageLine: "fmt [-n] [-x] [packages]",
+ 	Short:     "run gofmt on package sources",
+@@ -34,20 +36,20 @@ See also: go fix, go vet.
+ 	`,
+ }
+ 
+-func runFmt(cmd *Command, args []string) {
++func runFmt(cmd *base.Command, args []string) {
+ 	gofmt := gofmtPath()
+ 	for _, pkg := range packages(args) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(str.StringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
++		base.Run(str.StringList(gofmt, "-l", "-w", base.RelPaths(pkg.allgofiles)))
+ 	}
+ }
+ 
+ func gofmtPath() string {
+ 	gofmt := "gofmt"
+-	if toolIsWindows {
+-		gofmt += toolWindowsExtension
++	if base.ToolIsWindows {
++		gofmt += base.ToolWindowsExtension
+ 	}
+ 
+ 	gofmtPath := filepath.Join(gobin, gofmt)
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index b4fd5a350b..b89fc95342 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -19,7 +20,7 @@ import (
+ 	"strings"
+ )
+ 
+-var cmdGenerate = &Command{
++var cmdGenerate = &base.Command{
+ 	Run:       runGenerate,
+ 	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
+ 	Short:     "generate Go files by processing source",
+@@ -136,7 +137,7 @@ func init() {
+ 	cmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
+ }
+ 
+-func runGenerate(cmd *Command, args []string) {
++func runGenerate(cmd *base.Command, args []string) {
+ 	ignoreImports = true
+ 
+ 	if generateRunFlag != "" {
+@@ -196,13 +197,13 @@ func (g *Generator) run() (ok bool) {
+ 			if e != stop {
+ 				panic(e)
+ 			}
+-			setExitStatus(1)
++			base.SetExitStatus(1)
+ 		}
+ 	}()
+ 	g.dir, g.file = filepath.Split(g.path)
+ 	g.dir = filepath.Clean(g.dir) // No final separator please.
+ 	if cfg.BuildV {
+-		fmt.Fprintf(os.Stderr, "%s\n", shortPath(g.path))
++		fmt.Fprintf(os.Stderr, "%s\n", base.ShortPath(g.path))
+ 	}
+ 
+ 	// Scan for lines that start "//go:generate".
+@@ -265,7 +266,7 @@ func (g *Generator) run() (ok bool) {
+ 		g.exec(words)
+ 	}
+ 	if err != nil && err != io.EOF {
+-		g.errorf("error reading %s: %s", shortPath(g.path), err)
++		g.errorf("error reading %s: %s", base.ShortPath(g.path), err)
+ 	}
+ 	return true
+ }
+@@ -355,7 +356,7 @@ var stop = fmt.Errorf("error in generation")
+ // It then exits the program (with exit status 1) because generation stops
+ // at the first error.
+ func (g *Generator) errorf(format string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", shortPath(g.path), g.lineNum,
++	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", base.ShortPath(g.path), g.lineNum,
+ 		fmt.Sprintf(format, args...))
+ 	panic(stop)
+ }
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index cf8cc0817e..45c538d302 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"fmt"
+ 	"go/build"
+@@ -17,7 +18,7 @@ import (
+ 	"strings"
+ )
+ 
+-var cmdGet = &Command{
++var cmdGet = &base.Command{
+ 	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+@@ -85,9 +86,9 @@ func init() {
+ 	cmdGet.Run = runGet // break init loop
+ }
+ 
+-func runGet(cmd *Command, args []string) {
++func runGet(cmd *base.Command, args []string) {
+ 	if *getF && !*getU {
+-		fatalf("go get: cannot use -f flag without -u")
++		base.Fatalf("go get: cannot use -f flag without -u")
+ 	}
+ 
+ 	// Disable any prompting for passwords by Git.
+@@ -127,7 +128,7 @@ func runGet(cmd *Command, args []string) {
+ 	for _, arg := range args {
+ 		download(arg, nil, &stk, mode)
+ 	}
+-	exitIfErrors()
++	base.ExitIfErrors()
+ 
+ 	// Phase 2. Rescan packages and re-evaluate args list.
+ 
+@@ -220,7 +221,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 
+ 	p := load(arg, mode)
+ 	if p.Error != nil && p.Error.hard {
+-		errorf("%s", p.Error)
++		base.Errorf("%s", p.Error)
+ 		return
+ 	}
+ 
+@@ -257,7 +258,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 		stk.push(arg)
+ 		err := downloadPackage(p)
+ 		if err != nil {
+-			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
++			base.Errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
+ 			stk.pop()
+ 			return
+ 		}
+@@ -293,7 +294,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 			// Do not push here too, or else stk will say arg imports arg.
+ 			p := load(arg, mode)
+ 			if p.Error != nil {
+-				errorf("%s", p.Error)
++				base.Errorf("%s", p.Error)
+ 				continue
+ 			}
+ 			pkgs = append(pkgs, p)
+@@ -304,12 +305,12 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 	// due to wildcard expansion.
+ 	for _, p := range pkgs {
+ 		if *getFix {
+-			run(cfg.BuildToolexec, str.StringList(tool("fix"), relPaths(p.allgofiles)))
++			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), base.RelPaths(p.allgofiles)))
+ 
+ 			// The imports might have changed, so reload again.
+ 			p = reloadPackage(arg, stk)
+ 			if p.Error != nil {
+-				errorf("%s", p.Error)
++				base.Errorf("%s", p.Error)
+ 				return
+ 			}
+ 		}
+@@ -346,7 +347,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 					Err:         "must be imported as " + path[j+len("vendor/"):],
+ 				}
+ 				stk.pop()
+-				errorf("%s", err)
++				base.Errorf("%s", err)
+ 				continue
+ 			}
+ 			// If this is a test import, apply vendor lookup now.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 0c663ad463..734916c453 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -4,7 +4,9 @@
+ 
+ package main
+ 
+-var helpC = &Command{
++import "cmd/go/internal/base"
++
++var helpC = &base.Command{
+ 	UsageLine: "c",
+ 	Short:     "calling between Go and C",
+ 	Long: `
+@@ -26,7 +28,7 @@ the C or C++ compiler, respectively, to use.
+ 	`,
+ }
+ 
+-var helpPackages = &Command{
++var helpPackages = &base.Command{
+ 	UsageLine: "packages",
+ 	Short:     "description of package lists",
+ 	Long: `
+@@ -100,7 +102,7 @@ by the go tool, as are directories named "testdata".
+ 	`,
+ }
+ 
+-var helpImportPath = &Command{
++var helpImportPath = &base.Command{
+ 	UsageLine: "importpath",
+ 	Short:     "import path syntax",
+ 	Long: `
+@@ -277,7 +279,7 @@ See https://golang.org/s/go14customimport for details.
+ 	`,
+ }
+ 
+-var helpGopath = &Command{
++var helpGopath = &base.Command{
+ 	UsageLine: "gopath",
+ 	Short:     "GOPATH environment variable",
+ 	Long: `
+@@ -429,7 +431,7 @@ See https://golang.org/s/go15vendor for details.
+ 	`,
+ }
+ 
+-var helpEnvironment = &Command{
++var helpEnvironment = &base.Command{
+ 	UsageLine: "environment",
+ 	Short:     "environment variables",
+ 	Long: `
+@@ -511,7 +513,7 @@ Special-purpose environment variables:
+ 	`,
+ }
+ 
+-var helpFileType = &Command{
++var helpFileType = &base.Command{
+ 	UsageLine: "filetype",
+ 	Short:     "file types",
+ 	Long: `
+@@ -557,7 +559,7 @@ for more details.
+ 	`,
+ }
+ 
+-var helpBuildmode = &Command{
++var helpBuildmode = &base.Command{
+ 	UsageLine: "buildmode",
+ 	Short:     "description of build modes",
+ 	Long: `
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+new file mode 100644
+index 0000000000..081c78b51e
+--- /dev/null
++++ b/src/cmd/go/internal/base/base.go
+@@ -0,0 +1,143 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package base defines shared basic pieces of the go command,
++// in particular logging and the Command structure.
++package base
++
++import (
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/str"
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"os/exec"
++	"strings"
++	"sync"
++)
++
++// A Command is an implementation of a go command
++// like go build or go fix.
++type Command struct {
++	// Run runs the command.
++	// The args are the arguments after the command name.
++	Run func(cmd *Command, args []string)
++
++	// UsageLine is the one-line usage message.
++	// The first word in the line is taken to be the command name.
++	UsageLine string
++
++	// Short is the short description shown in the 'go help' output.
++	Short string
++
++	// Long is the long message shown in the 'go help <this-command>' output.
++	Long string
++
++	// Flag is a set of flags specific to this command.
++	Flag flag.FlagSet
++
++	// CustomFlags indicates that the command will do its own
++	// flag parsing.
++	CustomFlags bool
++}
++
++// Name returns the command's name: the first word in the usage line.
++func (c *Command) Name() string {
++	name := c.UsageLine
++	i := strings.Index(name, " ")
++	if i >= 0 {
++		name = name[:i]
++	}
++	return name
++}
++
++func (c *Command) Usage() {
++	fmt.Fprintf(os.Stderr, "usage: %s\n\n", c.UsageLine)
++	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(c.Long))
++	os.Exit(2)
++}
++
++// Runnable reports whether the command can be run; otherwise
++// it is a documentation pseudo-command such as importpath.
++func (c *Command) Runnable() bool {
++	return c.Run != nil
++}
++
++var atExitFuncs []func()
++
++func AtExit(f func()) {
++	atExitFuncs = append(atExitFuncs, f)
++}
++
++func Exit() {
++	for _, f := range atExitFuncs {
++		f()
++	}
++	os.Exit(exitStatus)
++}
++
++func Fatalf(format string, args ...interface{}) {
++	Errorf(format, args...)
++	Exit()
++}
++
++func Errorf(format string, args ...interface{}) {
++	log.Printf(format, args...)
++	SetExitStatus(1)
++}
++
++func ExitIfErrors() {
++	if exitStatus != 0 {
++		Exit()
++	}
++}
++
++var exitStatus = 0
++var exitMu sync.Mutex
++
++func SetExitStatus(n int) {
++	exitMu.Lock()
++	if exitStatus < n {
++		exitStatus = n
++	}
++	exitMu.Unlock()
++}
++
++// Run runs the command, with stdout and stderr
++// connected to the go command's own stdout and stderr.
++// If the command fails, Run reports the error using Errorf.
++func Run(cmdargs ...interface{}) {
++	cmdline := str.StringList(cmdargs...)
++	if cfg.BuildN || cfg.BuildX {
++		fmt.Printf("%s\n", strings.Join(cmdline, " "))
++		if cfg.BuildN {
++			return
++		}
++	}
++
++	cmd := exec.Command(cmdline[0], cmdline[1:]...)
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		Errorf("%v", err)
++	}
++}
++
++// RunStdin is like run but connects Stdin.
++func RunStdin(cmdline []string) {
++	cmd := exec.Command(cmdline[0], cmdline[1:]...)
++	cmd.Stdin = os.Stdin
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	cmd.Env = cfg.OrigEnv
++	StartSigHandlers()
++	if err := cmd.Run(); err != nil {
++		Errorf("%v", err)
++	}
++}
++
++// Usage is the usage-reporting function, filled in by package main
++// but here for reference by other packages.
++var Usage func()
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+new file mode 100644
+index 0000000000..1e7f6222a5
+--- /dev/null
++++ b/src/cmd/go/internal/base/path.go
+@@ -0,0 +1,36 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base
++
++import (
++	"os"
++	"path/filepath"
++)
++
++var Cwd, _ = os.Getwd()
++
++// ShortPath returns an absolute or relative name for path, whatever is shorter.
++func ShortPath(path string) string {
++	if rel, err := filepath.Rel(Cwd, path); err == nil && len(rel) < len(path) {
++		return rel
++	}
++	return path
++}
++
++// RelPaths returns a copy of paths with absolute paths
++// made relative to the current directory if they would be shorter.
++func RelPaths(paths []string) []string {
++	var out []string
++	// TODO(rsc): Can this use Cwd from above?
++	pwd, _ := os.Getwd()
++	for _, p := range paths {
++		rel, err := filepath.Rel(pwd, p)
++		if err == nil && len(rel) < len(p) {
++			p = rel
++		}
++		out = append(out, p)
++	}
++	return out
++}
+diff --git a/src/cmd/go/signal.go b/src/cmd/go/internal/base/signal.go
+similarity index 66%
+rename from src/cmd/go/signal.go
+rename to src/cmd/go/internal/base/signal.go
+index e8ba0d3655..54d11876d0 100644
+--- a/src/cmd/go/signal.go
++++ b/src/cmd/go/internal/base/signal.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package base
+ 
+ import (
+ 	"os"
+@@ -10,8 +10,8 @@ import (
+ 	"sync"
+ )
+ 
+-// interrupted is closed, if go process is interrupted.
+-var interrupted = make(chan struct{})
++// Interrupted is closed when the go command receives an interrupt signal.
++var Interrupted = make(chan struct{})
+ 
+ // processSignals setups signal handler.
+ func processSignals() {
+@@ -19,13 +19,13 @@ func processSignals() {
+ 	signal.Notify(sig, signalsToIgnore...)
+ 	go func() {
+ 		<-sig
+-		close(interrupted)
++		close(Interrupted)
+ 	}()
+ }
+ 
+ var onceProcessSignals sync.Once
+ 
+-// startSigHandlers start signal handlers.
+-func startSigHandlers() {
++// StartSigHandlers starts the signal handlers.
++func StartSigHandlers() {
+ 	onceProcessSignals.Do(processSignals)
+ }
+diff --git a/src/cmd/go/signal_notunix.go b/src/cmd/go/internal/base/signal_notunix.go
+similarity index 60%
+rename from src/cmd/go/signal_notunix.go
+rename to src/cmd/go/internal/base/signal_notunix.go
+index 29aa9d8c20..9e869b03ea 100644
+--- a/src/cmd/go/signal_notunix.go
++++ b/src/cmd/go/internal/base/signal_notunix.go
+@@ -4,7 +4,7 @@
+ 
+ // +build plan9 windows
+ 
+-package main
++package base
+ 
+ import (
+ 	"os"
+@@ -12,6 +12,6 @@ import (
+ 
+ var signalsToIgnore = []os.Signal{os.Interrupt}
+ 
+-// signalTrace is the signal to send to make a Go program
+-// crash with a stack trace.
+-var signalTrace os.Signal = nil
++// SignalTrace is the signal to send to make a Go program
++// crash with a stack trace (no such signal in this case).
++var SignalTrace os.Signal = nil
+diff --git a/src/cmd/go/signal_unix.go b/src/cmd/go/internal/base/signal_unix.go
+similarity index 75%
+rename from src/cmd/go/signal_unix.go
+rename to src/cmd/go/internal/base/signal_unix.go
+index e86cd46523..4ca3da9922 100644
+--- a/src/cmd/go/signal_unix.go
++++ b/src/cmd/go/internal/base/signal_unix.go
+@@ -4,7 +4,7 @@
+ 
+ // +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+-package main
++package base
+ 
+ import (
+ 	"os"
+@@ -13,6 +13,6 @@ import (
+ 
+ var signalsToIgnore = []os.Signal{os.Interrupt, syscall.SIGQUIT}
+ 
+-// signalTrace is the signal to send to make a Go program
++// SignalTrace is the signal to send to make a Go program
+ // crash with a stack trace.
+-var signalTrace os.Signal = syscall.SIGQUIT
++var SignalTrace os.Signal = syscall.SIGQUIT
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+new file mode 100644
+index 0000000000..c907772c00
+--- /dev/null
++++ b/src/cmd/go/internal/base/tool.go
+@@ -0,0 +1,53 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base
++
++import (
++	"fmt"
++	"go/build"
++	"os"
++	"path/filepath"
++	"runtime"
++
++	"cmd/go/internal/cfg"
++)
++
++// Configuration for finding tool binaries.
++var (
++	ToolGOOS      = runtime.GOOS
++	ToolGOARCH    = runtime.GOARCH
++	ToolIsWindows = ToolGOOS == "windows"
++	ToolDir       = build.ToolDir
++)
++
++const ToolWindowsExtension = ".exe"
++
++// Tool returns the path to the named tool (for example, "vet").
++// If the tool cannot be found, Tool exits the process.
++func Tool(toolName string) string {
++	toolPath := filepath.Join(ToolDir, toolName)
++	if ToolIsWindows {
++		toolPath += ToolWindowsExtension
++	}
++	if len(cfg.BuildToolexec) > 0 {
++		return toolPath
++	}
++	// Give a nice message if there is no tool with that name.
++	if _, err := os.Stat(toolPath); err != nil {
++		if isInGoToolsRepo(toolName) {
++			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get golang.org/x/tools/cmd/%s\n", toolName, toolName)
++		} else {
++			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
++		}
++		SetExitStatus(2)
++		Exit()
++	}
++	return toolPath
++}
++
++// TODO: Delete.
++func isInGoToolsRepo(toolName string) bool {
++	return false
++}
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 8a7942b877..c6cb2ce3db 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -7,6 +7,7 @@
+ package cfg
+ 
+ import (
++	"flag"
+ 	"go/build"
+ 	"runtime"
+ )
+@@ -57,3 +58,9 @@ var (
+ 	ExeSuffix string
+ 	Gopath    []string
+ )
++
++// AddBuildFlagsNX adds the -n and -x build flags to the flag set.
++func AddBuildFlagsNX(flags *flag.FlagSet) {
++	flags.BoolVar(&BuildN, "n", false, "")
++	flags.BoolVar(&BuildX, "x", false, "")
++}
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 1408502089..cb29ca75bb 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bufio"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"encoding/json"
+ 	"io"
+ 	"os"
+@@ -14,7 +15,7 @@ import (
+ 	"text/template"
+ )
+ 
+-var cmdList = &Command{
++var cmdList = &base.Command{
+ 	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+@@ -146,7 +147,7 @@ var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
+ var listJson = cmdList.Flag.Bool("json", false, "")
+ var nl = []byte{'\n'}
+ 
+-func runList(cmd *Command, args []string) {
++func runList(cmd *base.Command, args []string) {
+ 	buildModeInit()
+ 	out := newTrackingWriter(os.Stdout)
+ 	defer out.w.Flush()
+@@ -157,7 +158,7 @@ func runList(cmd *Command, args []string) {
+ 			b, err := json.MarshalIndent(p, "", "\t")
+ 			if err != nil {
+ 				out.Flush()
+-				fatalf("%s", err)
++				base.Fatalf("%s", err)
+ 			}
+ 			out.Write(b)
+ 			out.Write(nl)
+@@ -176,12 +177,12 @@ func runList(cmd *Command, args []string) {
+ 		}
+ 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
+ 		if err != nil {
+-			fatalf("%s", err)
++			base.Fatalf("%s", err)
+ 		}
+ 		do = func(p *Package) {
+ 			if err := tmpl.Execute(out, p); err != nil {
+ 				out.Flush()
+-				fatalf("%s", err)
++				base.Fatalf("%s", err)
+ 			}
+ 			if out.NeedNL() {
+ 				out.Write(nl)
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 2925d1b359..aa019f2cea 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -8,78 +8,29 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/str"
++	"cmd/go/internal/base"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+ 	"io"
+ 	"log"
+ 	"os"
+-	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+-	"sync"
+ 	"text/template"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+-// A Command is an implementation of a go command
+-// like go build or go fix.
+-type Command struct {
+-	// Run runs the command.
+-	// The args are the arguments after the command name.
+-	Run func(cmd *Command, args []string)
+-
+-	// UsageLine is the one-line usage message.
+-	// The first word in the line is taken to be the command name.
+-	UsageLine string
+-
+-	// Short is the short description shown in the 'go help' output.
+-	Short string
+-
+-	// Long is the long message shown in the 'go help <this-command>' output.
+-	Long string
+-
+-	// Flag is a set of flags specific to this command.
+-	Flag flag.FlagSet
+-
+-	// CustomFlags indicates that the command will do its own
+-	// flag parsing.
+-	CustomFlags bool
+-}
+-
+-// Name returns the command's name: the first word in the usage line.
+-func (c *Command) Name() string {
+-	name := c.UsageLine
+-	i := strings.Index(name, " ")
+-	if i >= 0 {
+-		name = name[:i]
+-	}
+-	return name
+-}
+-
+-func (c *Command) Usage() {
+-	fmt.Fprintf(os.Stderr, "usage: %s\n\n", c.UsageLine)
+-	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(c.Long))
+-	os.Exit(2)
+-}
+-
+-// Runnable reports whether the command can be run; otherwise
+-// it is a documentation pseudo-command such as importpath.
+-func (c *Command) Runnable() bool {
+-	return c.Run != nil
+-}
+-
+ // Commands lists the available commands and help topics.
+ // The order here is the order in which they are printed by 'go help'.
+-var commands []*Command
++var commands []*base.Command
+ 
+ func init() {
+-	commands = []*Command{
++	commands = []*base.Command{
+ 		cmdBuild,
+ 		cmdClean,
+ 		cmdDoc,
+@@ -109,26 +60,15 @@ func init() {
+ 	}
+ }
+ 
+-var exitStatus = 0
+-var exitMu sync.Mutex
+-
+-func setExitStatus(n int) {
+-	exitMu.Lock()
+-	if exitStatus < n {
+-		exitStatus = n
+-	}
+-	exitMu.Unlock()
+-}
+-
+ func main() {
+ 	_ = go11tag
+-	flag.Usage = usage
++	flag.Usage = base.Usage
+ 	flag.Parse()
+ 	log.SetFlags(0)
+ 
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+-		usage()
++		base.Usage()
+ 	}
+ 
+ 	if args[0] == "help" {
+@@ -185,14 +125,14 @@ func main() {
+ 				args = cmd.Flag.Args()
+ 			}
+ 			cmd.Run(cmd, args)
+-			exit()
++			base.Exit()
+ 			return
+ 		}
+ 	}
+ 
+ 	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
+-	setExitStatus(2)
+-	exit()
++	base.SetExitStatus(2)
++	base.Exit()
+ }
+ 
+ var usageTemplate = `Go is a tool for managing Go source code.
+@@ -289,7 +229,7 @@ func tmpl(w io.Writer, text string, data interface{}) {
+ 		if strings.Contains(ew.err.Error(), "pipe") {
+ 			os.Exit(1)
+ 		}
+-		fatalf("writing output: %v", ew.err)
++		base.Fatalf("writing output: %v", ew.err)
+ 	}
+ 	if err != nil {
+ 		panic(err)
+@@ -313,7 +253,7 @@ func printUsage(w io.Writer) {
+ var usage func()
+ 
+ func init() {
+-	usage = mainUsage
++	base.Usage = mainUsage
+ }
+ 
+ func mainUsage() {
+@@ -353,8 +293,8 @@ func help(args []string) {
+ 		fmt.Println()
+ 		buf := new(bytes.Buffer)
+ 		printUsage(buf)
+-		usage := &Command{Long: buf.String()}
+-		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, append([]*Command{usage}, commands...))
++		usage := &base.Command{Long: buf.String()}
++		tmpl(&commentWriter{W: os.Stdout}, documentationTemplate, append([]*base.Command{usage}, commands...))
+ 		fmt.Println("package main")
+ 		return
+ 	}
+@@ -422,52 +362,6 @@ func importPaths(args []string) []string {
+ 	return out
+ }
+ 
+-var atexitFuncs []func()
+-
+-func atexit(f func()) {
+-	atexitFuncs = append(atexitFuncs, f)
+-}
+-
+-func exit() {
+-	for _, f := range atexitFuncs {
+-		f()
+-	}
+-	os.Exit(exitStatus)
+-}
+-
+-func fatalf(format string, args ...interface{}) {
+-	errorf(format, args...)
+-	exit()
+-}
+-
+-func errorf(format string, args ...interface{}) {
+-	log.Printf(format, args...)
+-	setExitStatus(1)
+-}
+-
+-func exitIfErrors() {
+-	if exitStatus != 0 {
+-		exit()
+-	}
+-}
+-
+-func run(cmdargs ...interface{}) {
+-	cmdline := str.StringList(cmdargs...)
+-	if cfg.BuildN || cfg.BuildX {
+-		fmt.Printf("%s\n", strings.Join(cmdline, " "))
+-		if cfg.BuildN {
+-			return
+-		}
+-	}
+-
+-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
+-	if err := cmd.Run(); err != nil {
+-		errorf("%v", err)
+-	}
+-}
+-
+ // envForDir returns a copy of the environment
+ // suitable for running in the given directory.
+ // The environment is the current process's environment
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index ada30c8cec..69acbd3230 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"crypto/sha1"
+ 	"errors"
+@@ -422,7 +423,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ func setErrorPos(p *Package, importPos []token.Position) *Package {
+ 	if len(importPos) > 0 {
+ 		pos := importPos[0]
+-		pos.Filename = shortPath(pos.Filename)
++		pos.Filename = base.ShortPath(pos.Filename)
+ 		p.Error.Pos = pos.String()
+ 	}
+ 	return p
+@@ -469,7 +470,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 	}
+ 
+ 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.local && filepath.Join(root, parent.ImportPath) != dir {
+-		fatalf("unexpected directory layout:\n"+
++		base.Fatalf("unexpected directory layout:\n"+
+ 			"	import path: %s\n"+
+ 			"	root: %s\n"+
+ 			"	dir: %s\n"+
+@@ -798,7 +799,7 @@ func expandScanner(err error) error {
+ 		// instead of just the first, as err.Error does.
+ 		var buf bytes.Buffer
+ 		for _, e := range err {
+-			e.Pos.Filename = shortPath(e.Pos.Filename)
++			e.Pos.Filename = base.ShortPath(e.Pos.Filename)
+ 			buf.WriteString("\n")
+ 			buf.WriteString(e.Error())
+ 		}
+@@ -863,7 +864,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		}
+ 		_, elem := filepath.Split(p.Dir)
+ 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
+-		if cfg.BuildContext.GOOS != toolGOOS || cfg.BuildContext.GOARCH != toolGOARCH {
++		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
+ 			// Install cross-compiled binaries to subdirectories of bin.
+ 			elem = full
+ 		}
+@@ -902,7 +903,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 
+ 				}
+ 			} else if !os.IsNotExist(err) {
+-				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
++				base.Fatalf("unexpected error reading %s: %v", shlibnamefile, err)
+ 			}
+ 		}
+ 	}
+@@ -1647,7 +1648,7 @@ func computeBuildID(p *Package) {
+ 	if p.Standard && p.ImportPath == "runtime/internal/sys" && cfg.BuildContext.Compiler != "gccgo" {
+ 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+ 		if err != nil {
+-			fatalf("go: %s", err)
++			base.Fatalf("go: %s", err)
+ 		}
+ 		fmt.Fprintf(h, "zversion %q\n", string(data))
+ 	}
+@@ -1667,8 +1668,6 @@ func computeBuildID(p *Package) {
+ 	p.buildID = fmt.Sprintf("%x", h.Sum(nil))
+ }
+ 
+-var cwd, _ = os.Getwd()
+-
+ var cmdCache = map[string]*Package{}
+ 
+ // loadPackage is like loadImport but is used for command-line arguments,
+@@ -1723,13 +1722,13 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 	// referring to io/ioutil rather than a hypothetical import of
+ 	// "./ioutil".
+ 	if build.IsLocalImport(arg) {
+-		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
++		bp, _ := cfg.BuildContext.ImportDir(filepath.Join(base.Cwd, arg), build.FindOnly)
+ 		if bp.ImportPath != "" && bp.ImportPath != "." {
+ 			arg = bp.ImportPath
+ 		}
+ 	}
+ 
+-	return loadImport(arg, cwd, nil, stk, nil, 0)
++	return loadImport(arg, base.Cwd, nil, stk, nil, 0)
+ }
+ 
+ // packages returns the packages named by the
+@@ -1744,7 +1743,7 @@ func packages(args []string) []*Package {
+ 	var pkgs []*Package
+ 	for _, pkg := range packagesAndErrors(args) {
+ 		if pkg.Error != nil {
+-			errorf("can't load package: %s", pkg.Error)
++			base.Errorf("can't load package: %s", pkg.Error)
+ 			continue
+ 		}
+ 		pkgs = append(pkgs, pkg)
+@@ -1794,7 +1793,7 @@ func packagesForBuild(args []string) []*Package {
+ 	printed := map[*PackageError]bool{}
+ 	for _, pkg := range pkgs {
+ 		if pkg.Error != nil {
+-			errorf("can't load package: %s", pkg.Error)
++			base.Errorf("can't load package: %s", pkg.Error)
+ 		}
+ 		for _, err := range pkg.DepsErrors {
+ 			// Since these are errors in dependencies,
+@@ -1803,11 +1802,11 @@ func packagesForBuild(args []string) []*Package {
+ 			// Only print each once.
+ 			if !printed[err] {
+ 				printed[err] = true
+-				errorf("%s", err)
++				base.Errorf("%s", err)
+ 			}
+ 		}
+ 	}
+-	exitIfErrors()
++	base.ExitIfErrors()
+ 
+ 	// Check for duplicate loads of the same package.
+ 	// That should be impossible, but if it does happen then
+@@ -1819,11 +1818,11 @@ func packagesForBuild(args []string) []*Package {
+ 	for _, pkg := range packageList(pkgs) {
+ 		if seen[pkg.ImportPath] && !reported[pkg.ImportPath] {
+ 			reported[pkg.ImportPath] = true
+-			errorf("internal error: duplicate loads of %s", pkg.ImportPath)
++			base.Errorf("internal error: duplicate loads of %s", pkg.ImportPath)
+ 		}
+ 		seen[pkg.ImportPath] = true
+ 	}
+-	exitIfErrors()
++	base.ExitIfErrors()
+ 
+ 	return pkgs
+ }
+diff --git a/src/cmd/go/pkg_test.go b/src/cmd/go/pkg_test.go
+index 3988df8ce7..52d29ac9e8 100644
+--- a/src/cmd/go/pkg_test.go
++++ b/src/cmd/go/pkg_test.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"io/ioutil"
+ 	"os"
+@@ -164,7 +165,7 @@ func TestSharedLibName(t *testing.T) {
+ 				oldGopath := cfg.BuildContext.GOPATH
+ 				defer func() {
+ 					cfg.BuildContext.GOPATH = oldGopath
+-					os.Chdir(cwd)
++					os.Chdir(base.Cwd)
+ 					err := os.RemoveAll(tmpGopath)
+ 					if err != nil {
+ 						t.Error(err)
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 80d9919a5b..77a00541c1 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"fmt"
+ 	"os"
+@@ -31,7 +32,7 @@ func findExecCmd() []string {
+ 	return execCmd
+ }
+ 
+-var cmdRun = &Command{
++var cmdRun = &base.Command{
+ 	UsageLine: "run [build flags] [-exec xprog] gofiles... [arguments...]",
+ 	Short:     "compile and run Go program",
+ 	Long: `
+@@ -65,7 +66,7 @@ func printStderr(args ...interface{}) (int, error) {
+ 	return fmt.Fprint(os.Stderr, args...)
+ }
+ 
+-func runRun(cmd *Command, args []string) {
++func runRun(cmd *base.Command, args []string) {
+ 	instrumentInit()
+ 	buildModeInit()
+ 	var b builder
+@@ -77,18 +78,18 @@ func runRun(cmd *Command, args []string) {
+ 	}
+ 	files, cmdArgs := args[:i], args[i:]
+ 	if len(files) == 0 {
+-		fatalf("go run: no go files listed")
++		base.Fatalf("go run: no go files listed")
+ 	}
+ 	for _, file := range files {
+ 		if strings.HasSuffix(file, "_test.go") {
+ 			// goFilesPackage is going to assign this to TestGoFiles.
+ 			// Reject since it won't be part of the build.
+-			fatalf("go run: cannot run *_test.go files (%s)", file)
++			base.Fatalf("go run: cannot run *_test.go files (%s)", file)
+ 		}
+ 	}
+ 	p := goFilesPackage(files)
+ 	if p.Error != nil {
+-		fatalf("%s", p.Error)
++		base.Fatalf("%s", p.Error)
+ 	}
+ 	p.omitDWARF = true
+ 	if len(p.DepsErrors) > 0 {
+@@ -100,13 +101,13 @@ func runRun(cmd *Command, args []string) {
+ 		for _, err := range p.DepsErrors {
+ 			if !printed[err] {
+ 				printed[err] = true
+-				errorf("%s", err)
++				base.Errorf("%s", err)
+ 			}
+ 		}
+ 	}
+-	exitIfErrors()
++	base.ExitIfErrors()
+ 	if p.Name != "main" {
+-		fatalf("go run: cannot run non-main package")
++		base.Fatalf("go run: cannot run non-main package")
+ 	}
+ 	p.target = "" // must build - not up to date
+ 	var src string
+@@ -121,7 +122,7 @@ func runRun(cmd *Command, args []string) {
+ 		if !cfg.BuildContext.CgoEnabled {
+ 			hint = " (cgo is disabled)"
+ 		}
+-		fatalf("go run: no suitable source files%s", hint)
++		base.Fatalf("go run: no suitable source files%s", hint)
+ 	}
+ 	p.exeName = src[:len(src)-len(".go")] // name temporary executable for first go file
+ 	a1 := b.action(modeBuild, modeBuild, p)
+@@ -140,19 +141,6 @@ func (b *builder) runProgram(a *action) error {
+ 		}
+ 	}
+ 
+-	runStdin(cmdline)
++	base.RunStdin(cmdline)
+ 	return nil
+ }
+-
+-// runStdin is like run, but connects Stdin.
+-func runStdin(cmdline []string) {
+-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Stdin = os.Stdin
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
+-	cmd.Env = cfg.OrigEnv
+-	startSigHandlers()
+-	if err := cmd.Run(); err != nil {
+-		errorf("%v", err)
+-	}
+-}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ac79d96dbc..04a2080fc4 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ 	"errors"
+ 	"fmt"
+@@ -36,7 +37,7 @@ func init() {
+ 
+ const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
+ 
+-var cmdTest = &Command{
++var cmdTest = &base.Command{
+ 	CustomFlags: true,
+ 	UsageLine:   testUsage,
+ 	Short:       "test packages",
+@@ -109,7 +110,7 @@ The test binary also accepts flags that control execution of the test; these
+ flags are also accessible by 'go test'.
+ `
+ 
+-var helpTestflag = &Command{
++var helpTestflag = &base.Command{
+ 	UsageLine: "testflag",
+ 	Short:     "description of testing flags",
+ 	Long: `
+@@ -314,7 +315,7 @@ In the second example, the argument math is passed through to the test
+ binary, instead of being interpreted as the package list.
+ `
+ 
+-var helpTestfunc = &Command{
++var helpTestfunc = &base.Command{
+ 	UsageLine: "testfunc",
+ 	Short:     "description of testing functions",
+ 	Long: `
+@@ -401,7 +402,7 @@ var testMainDeps = map[string]bool{
+ 	"os": true,
+ }
+ 
+-func runTest(cmd *Command, args []string) {
++func runTest(cmd *base.Command, args []string) {
+ 	var pkgArgs []string
+ 	pkgArgs, testArgs = testFlags(args)
+ 
+@@ -411,17 +412,17 @@ func runTest(cmd *Command, args []string) {
+ 	buildModeInit()
+ 	pkgs := packagesForBuild(pkgArgs)
+ 	if len(pkgs) == 0 {
+-		fatalf("no packages to test")
++		base.Fatalf("no packages to test")
+ 	}
+ 
+ 	if testC && len(pkgs) != 1 {
+-		fatalf("cannot use -c flag with multiple packages")
++		base.Fatalf("cannot use -c flag with multiple packages")
+ 	}
+ 	if testO != "" && len(pkgs) != 1 {
+-		fatalf("cannot use -o flag with multiple packages")
++		base.Fatalf("cannot use -o flag with multiple packages")
+ 	}
+ 	if testProfile && len(pkgs) != 1 {
+-		fatalf("cannot use test profile flag with multiple packages")
++		base.Fatalf("cannot use test profile flag with multiple packages")
+ 	}
+ 
+ 	// If a test timeout was given and is parseable, set our kill timeout
+@@ -556,9 +557,9 @@ func runTest(cmd *Command, args []string) {
+ 			failed := fmt.Sprintf("FAIL\t%s [setup failed]\n", p.ImportPath)
+ 
+ 			if p.ImportPath != "" {
+-				errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
++				base.Errorf("# %s\n%s\n%s", p.ImportPath, str, failed)
+ 			} else {
+-				errorf("%s\n%s", str, failed)
++				base.Errorf("%s\n%s", str, failed)
+ 			}
+ 			continue
+ 		}
+@@ -964,11 +965,11 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
+ 
+ 	if testC || testNeedBinary {
+ 		// -c or profiling flag: create action to copy binary to ./test.out.
+-		target := filepath.Join(cwd, testBinary+cfg.ExeSuffix)
++		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
+ 		if testO != "" {
+ 			target = testO
+ 			if !filepath.IsAbs(target) {
+-				target = filepath.Join(cwd, target)
++				target = filepath.Join(base.Cwd, target)
+ 			}
+ 		}
+ 		buildAction = &action{
+@@ -1110,7 +1111,7 @@ func builderRunTest(b *builder, a *action) error {
+ 		// We were unable to build the binary.
+ 		a.failed = false
+ 		fmt.Fprintf(a.testOutput, "FAIL\t%s [build failed]\n", a.p.ImportPath)
+-		setExitStatus(1)
++		base.SetExitStatus(1)
+ 		return nil
+ 	}
+ 
+@@ -1153,7 +1154,7 @@ func builderRunTest(b *builder, a *action) error {
+ 	// running.
+ 	if err == nil {
+ 		tick := time.NewTimer(testKillTimeout)
+-		startSigHandlers()
++		base.StartSigHandlers()
+ 		done := make(chan error)
+ 		go func() {
+ 			done <- cmd.Wait()
+@@ -1163,14 +1164,14 @@ func builderRunTest(b *builder, a *action) error {
+ 		case err = <-done:
+ 			// ok
+ 		case <-tick.C:
+-			if signalTrace != nil {
++			if base.SignalTrace != nil {
+ 				// Send a quit signal in the hope that the program will print
+ 				// a stack trace and exit. Give it five seconds before resorting
+ 				// to Kill.
+-				cmd.Process.Signal(signalTrace)
++				cmd.Process.Signal(base.SignalTrace)
+ 				select {
+ 				case err = <-done:
+-					fmt.Fprintf(&buf, "*** Test killed with %v: ran too long (%v).\n", signalTrace, testKillTimeout)
++					fmt.Fprintf(&buf, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
+ 					break Outer
+ 				case <-time.After(5 * time.Second):
+ 				}
+@@ -1195,7 +1196,7 @@ func builderRunTest(b *builder, a *action) error {
+ 		return nil
+ 	}
+ 
+-	setExitStatus(1)
++	base.SetExitStatus(1)
+ 	if len(out) > 0 {
+ 		a.testOutput.Write(out)
+ 		// assume printing the test binary's exit status is superfluous
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 749f1724c5..b2f63279d5 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"flag"
+ 	"fmt"
+ 	"os"
+@@ -64,7 +65,7 @@ var testFlagDefn = []*testFlagSpec{
+ 
+ // add build flags to testFlagDefn
+ func init() {
+-	var cmd Command
++	var cmd base.Command
+ 	addBuildFlags(&cmd)
+ 	cmd.Flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Name == "v" {
+@@ -129,7 +130,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		}
+ 		if f.flagValue != nil {
+ 			if err := f.flagValue.Set(value); err != nil {
+-				fatalf("invalid flag argument for -%s: %v", f.name, err)
++				base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
+ 			}
+ 		} else {
+ 			// Test-only flags.
+@@ -145,7 +146,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			case "exec":
+ 				execCmd, err = splitQuotedFields(value)
+ 				if err != nil {
+-					fatalf("invalid flag argument for -%s: %v", f.name, err)
++					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
+ 				}
+ 			case "bench":
+ 				// record that we saw the flag; don't care about the value
+@@ -172,7 +173,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				case "set", "count", "atomic":
+ 					cfg.TestCoverMode = value
+ 				default:
+-					fatalf("invalid flag argument for -covermode: %q", value)
++					base.Fatalf("invalid flag argument for -covermode: %q", value)
+ 				}
+ 				testCover = true
+ 			case "outputdir":
+@@ -199,7 +200,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	if testProfile && outputDir == "" {
+ 		dir, err := os.Getwd()
+ 		if err != nil {
+-			fatalf("error from os.Getwd: %s", err)
++			base.Fatalf("error from os.Getwd: %s", err)
+ 		}
+ 		passToTest = append(passToTest, "-test.outputdir", dir)
+ 	}
+@@ -216,7 +217,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool)
+ 	}
+ 	switch arg {
+ 	case "-?", "-h", "-help":
+-		usage()
++		base.Usage()
+ 	}
+ 	if arg == "" || arg[0] != '-' {
+ 		return
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 5f7b5a07e4..5f07e18c87 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -5,18 +5,17 @@
+ package main
+ 
+ import (
+-	"cmd/go/internal/cfg"
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"os/exec"
+-	"path/filepath"
+-	"runtime"
+ 	"sort"
+ 	"strings"
++
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ )
+ 
+-var cmdTool = &Command{
++var cmdTool = &base.Command{
+ 	Run:       runTool,
+ 	UsageLine: "tool [-n] command [args...]",
+ 	Short:     "run specified go tool",
+@@ -31,47 +30,13 @@ For more about each tool command, see 'go tool command -h'.
+ `,
+ }
+ 
+-var (
+-	toolGOOS      = runtime.GOOS
+-	toolGOARCH    = runtime.GOARCH
+-	toolIsWindows = toolGOOS == "windows"
+-	toolDir       = build.ToolDir
+-
+-	toolN bool
+-)
++var toolN bool
+ 
+ func init() {
+ 	cmdTool.Flag.BoolVar(&toolN, "n", false, "")
+ }
+ 
+-const toolWindowsExtension = ".exe"
+-
+-func tool(toolName string) string {
+-	toolPath := filepath.Join(toolDir, toolName)
+-	if toolIsWindows {
+-		toolPath += toolWindowsExtension
+-	}
+-	if len(cfg.BuildToolexec) > 0 {
+-		return toolPath
+-	}
+-	// Give a nice message if there is no tool with that name.
+-	if _, err := os.Stat(toolPath); err != nil {
+-		if isInGoToolsRepo(toolName) {
+-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q; to install:\n\tgo get golang.org/x/tools/cmd/%s\n", toolName, toolName)
+-		} else {
+-			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+-		}
+-		setExitStatus(2)
+-		exit()
+-	}
+-	return toolPath
+-}
+-
+-func isInGoToolsRepo(toolName string) bool {
+-	return false
+-}
+-
+-func runTool(cmd *Command, args []string) {
++func runTool(cmd *base.Command, args []string) {
+ 	if len(args) == 0 {
+ 		listTools()
+ 		return
+@@ -83,11 +48,11 @@ func runTool(cmd *Command, args []string) {
+ 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
+ 		default:
+ 			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
+-			setExitStatus(2)
++			base.SetExitStatus(2)
+ 			return
+ 		}
+ 	}
+-	toolPath := tool(toolName)
++	toolPath := base.Tool(toolName)
+ 	if toolPath == "" {
+ 		return
+ 	}
+@@ -119,24 +84,24 @@ func runTool(cmd *Command, args []string) {
+ 		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || cfg.BuildX {
+ 			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+ 		}
+-		setExitStatus(1)
++		base.SetExitStatus(1)
+ 		return
+ 	}
+ }
+ 
+ // listTools prints a list of the available tools in the tools directory.
+ func listTools() {
+-	f, err := os.Open(toolDir)
++	f, err := os.Open(base.ToolDir)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
+-		setExitStatus(2)
++		base.SetExitStatus(2)
+ 		return
+ 	}
+ 	defer f.Close()
+ 	names, err := f.Readdirnames(-1)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
+-		setExitStatus(2)
++		base.SetExitStatus(2)
+ 		return
+ 	}
+ 
+@@ -145,8 +110,8 @@ func listTools() {
+ 		// Unify presentation by going to lower case.
+ 		name = strings.ToLower(name)
+ 		// If it's windows, don't show the .exe suffix.
+-		if toolIsWindows && strings.HasSuffix(name, toolWindowsExtension) {
+-			name = name[:len(name)-len(toolWindowsExtension)]
++		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
++			name = name[:len(name)-len(base.ToolWindowsExtension)]
+ 		}
+ 		fmt.Println(name)
+ 	}
+diff --git a/src/cmd/go/version.go b/src/cmd/go/version.go
+index 3045f350d7..7cc949569a 100644
+--- a/src/cmd/go/version.go
++++ b/src/cmd/go/version.go
+@@ -5,18 +5,19 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/base"
+ 	"fmt"
+ 	"runtime"
+ )
+ 
+-var cmdVersion = &Command{
++var cmdVersion = &base.Command{
+ 	Run:       runVersion,
+ 	UsageLine: "version",
+ 	Short:     "print Go version",
+ 	Long:      `Version prints the Go version, as reported by runtime.Version.`,
+ }
+ 
+-func runVersion(cmd *Command, args []string) {
++func runVersion(cmd *base.Command, args []string) {
+ 	if len(args) != 0 {
+ 		cmd.Usage()
+ 	}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 8d6f26444e..98034ee585 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -8,6 +8,7 @@ import (
+ 	"path/filepath"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/str"
+ )
+ 
+@@ -15,7 +16,7 @@ func init() {
+ 	addBuildFlags(cmdVet)
+ }
+ 
+-var cmdVet = &Command{
++var cmdVet = &base.Command{
+ 	Run:       runVet,
+ 	UsageLine: "vet [-n] [-x] [build flags] [packages]",
+ 	Short:     "run go tool vet on packages",
+@@ -36,7 +37,7 @@ See also: go fmt, go fix.
+ 	`,
+ }
+ 
+-func runVet(cmd *Command, args []string) {
++func runVet(cmd *base.Command, args []string) {
+ 	for _, p := range packages(args) {
+ 		// Vet expects to be given a set of files all from the same package.
+ 		// Run once for package p and once for package p_test.
+@@ -53,5 +54,5 @@ func runVetFiles(p *Package, files []string) {
+ 	for i := range files {
+ 		files[i] = filepath.Join(p.Dir, files[i])
+ 	}
+-	run(cfg.BuildToolexec, tool("vet"), relPaths(files))
++	base.Run(cfg.BuildToolexec, base.Tool("vet"), base.RelPaths(files))
+ }

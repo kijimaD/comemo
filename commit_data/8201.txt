@@ -12,6 +12,22 @@ Date:   Fri Apr 22 16:59:21 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4440062
-
+---
  src/pkg/fmt/scan_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index b8b3ac9754..acc7cc521b 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -810,7 +810,9 @@ func TestScanInts(t *testing.T) {
+ 	})
+ }
+ 
+-const intCount = 1000
++// 800 is small enough to not overflow the stack when using gccgo on a
++// platform that does not support split stack.
++const intCount = 800
+ 
+ func testScanInts(t *testing.T, scan func(*RecursiveInt, *bytes.Buffer) os.Error) {
+ 	r := new(RecursiveInt)

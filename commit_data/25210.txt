@@ -17,6 +17,27 @@ Date:   Thu Oct 8 10:22:50 2015 -0700
     Change-Id: Id4b6e90a1b54e2e6fc8355b5fb22c5978fc762b4
     Reviewed-on: https://go-review.googlesource.com/15605
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 23fd44b6a8..3ce22017cf 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -982,11 +982,14 @@ func hostlink() {
+ 		if HEADTYPE == obj.Hdarwin {
+ 			argv = append(argv, "-dynamiclib")
+ 		} else {
++			// ELF.
+ 			argv = append(argv, "-Wl,-Bsymbolic")
+ 			if UseRelro() {
+ 				argv = append(argv, "-Wl,-z,relro")
+ 			}
+-			argv = append(argv, "-shared")
++			// Pass -z nodelete to mark the shared library as
++			// non-closeable: a dlclose will do nothing.
++			argv = append(argv, "-shared", "-Wl,-z,nodelete")
+ 		}
+ 	case BuildmodeShared:
+ 		// TODO(mwhudson): unless you do this, dynamic relocations fill

@@ -12,6 +12,31 @@ Date:   Tue Nov 10 10:39:38 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  misc/cgo/test/issue10303.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/misc/cgo/test/issue10303.go b/misc/cgo/test/issue10303.go
+index ea623d7379..dd19dfbb01 100644
+--- a/misc/cgo/test/issue10303.go
++++ b/misc/cgo/test/issue10303.go
+@@ -6,6 +6,8 @@
+ 
+ package cgotest
+ 
++import "runtime"
++
+ /*
+ typedef int *intptr;
+ 
+@@ -39,6 +41,10 @@ import (
+ )
+ 
+ func test10303(t *testing.T, n int) {
++	if runtime.Compiler == "gccgo" {
++		t.Skip("gccgo permits C pointers on the stack")
++	}
++
+ 	// Run at a few different stack depths just to avoid an unlucky pass
+ 	// due to variables ending up on different pages.
+ 	if n > 0 {

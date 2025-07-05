@@ -6,7 +6,26 @@ Date:   Tue Nov 10 18:44:20 2009 -0800
     
     R=rsc
     https://golang.org/cl/153055
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3071dd196f..52d9bd1f4a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -7,3 +7,4 @@
+ # The email address is not required for organizations.
+ 
+ Google Inc.
++Kevin Ballard <kevin@sb.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 850b0128ac..4b6f5f0504 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -48,3 +48,4 @@ Scott Schwartz <scotts@golang.org>
+ Stephen Ma <stephenm@golang.org>
+ Tom Szymanski <tgs@google.com>
+ Vish Subramanian <vish@google.com>
++Kevin Ballard <kevin@sb.org>

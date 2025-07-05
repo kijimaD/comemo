@@ -11,7 +11,58 @@ Date:   Wed May 8 18:57:00 2019 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                    |  6 ++++++
  src/cmd/go/testdata/script/build_cache_trimpath.txt | 20 ++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 35e70ddb1e..6f2d319bc2 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -211,6 +211,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+ 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
++	if cfg.BuildTrimpath {
++		fmt.Fprintln(h, "trimpath")
++	}
+ 	if p.Internal.ForceLibrary {
+ 		fmt.Fprintf(h, "forcelibrary\n")
+ 	}
+@@ -1116,6 +1119,9 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+ 	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+ 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
++	if cfg.BuildTrimpath {
++		fmt.Fprintln(h, "trimpath")
++	}
+ 
+ 	// Toolchain-dependent configuration, shared with b.linkSharedActionID.
+ 	b.printLinkerConfig(h, p)
+diff --git a/src/cmd/go/testdata/script/build_cache_trimpath.txt b/src/cmd/go/testdata/script/build_cache_trimpath.txt
+new file mode 100644
+index 0000000000..39367ae380
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cache_trimpath.txt
+@@ -0,0 +1,20 @@
++env GO111MODULE=on
++
++# Set up fresh GOCACHE.
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
++cd $WORK
++go build -o a.out
++
++# Varying -trimpath should cause a rebuild.
++go build -x -o a.out -trimpath
++stderr '(compile|gccgo)( |\.exe)'
++stderr 'link( |\.exe)'
++
++-- $WORK/hello.go --
++package main
++func main() { println("hello") }
++
++-- $WORK/go.mod --
++module m

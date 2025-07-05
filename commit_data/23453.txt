@@ -41,6 +41,26 @@ Date:   Wed May 13 14:44:48 2015 -0400
     Change-Id: I580e03ed01b0629cb5eae4c4637618f20127f924
     Reviewed-on: https://go-review.googlesource.com/9994
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 2d2abca643..fcfcc7261c 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -365,11 +365,13 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 		return
+ 	}
+ 
++	h := heapBitsForAddr(p)
+ 	for i := uintptr(0); i < size; i += ptrSize {
+-		if heapBitsForAddr(p + i).isPointer() {
++		if h.isPointer() {
+ 			x := (*uintptr)(unsafe.Pointer(p + i))
+ 			writebarrierptr_nostore(x, *x)
+ 		}
++		h = h.next()
+ 	}
+ }
+ 

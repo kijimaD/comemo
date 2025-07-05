@@ -19,7 +19,7 @@ Date:   Fri Oct 28 15:15:25 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/dwarf.go     |  4 ++--
  src/cmd/internal/obj/line.go      | 17 +++++++++++------
  src/cmd/internal/obj/line_test.go |  6 +++---
@@ -28,3 +28,140 @@ Date:   Fri Oct 28 15:15:25 2022 -0400
  src/cmd/internal/obj/plist.go     |  5 ++++-
  src/cmd/internal/obj/sym.go       |  2 +-
  7 files changed, 23 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 3229382353..a9c13fdc8c 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -58,7 +58,7 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 			continue
+ 		}
+ 		newStmt := p.Pos.IsStmt() != src.PosNotStmt
+-		newName, newLine := linkgetlineFromPos(ctxt, p.Pos)
++		newName, newLine := ctxt.getFileSymbolAndLine(p.Pos)
+ 
+ 		// Output debug info.
+ 		wrote := false
+@@ -335,7 +335,7 @@ func (s *LSym) Length(dwarfContext interface{}) int64 {
+ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+ 	p := fn.Func().Text
+ 	if p != nil {
+-		f, _ := linkgetlineFromPos(ctxt, p.Pos)
++		f, _ := ctxt.getFileSymbolAndLine(p.Pos)
+ 		fsym := ctxt.Lookup(f)
+ 		return fsym
+ 	}
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index 87cd32ba7e..20f03d9853 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -14,17 +14,22 @@ func (ctxt *Link) AddImport(pkg string, fingerprint goobj.FingerprintType) {
+ 	ctxt.Imports = append(ctxt.Imports, goobj.ImportedPkg{Pkg: pkg, Fingerprint: fingerprint})
+ }
+ 
+-func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f string, l int32) {
+-	pos := ctxt.PosTable.Pos(xpos)
++// getFileSymbolAndLine returns the relative file symbol and relative line
++// number for a position (i.e., as adjusted by a //line directive). This is the
++// file/line visible in the final binary (pcfile, pcln, etc).
++func (ctxt *Link) getFileSymbolAndLine(xpos src.XPos) (f string, l int32) {
++	pos := ctxt.InnermostPos(xpos)
+ 	if !pos.IsKnown() {
+ 		pos = src.Pos{}
+ 	}
+-	// TODO(gri) Should this use relative or absolute line number?
+ 	return pos.SymFilename(), int32(pos.RelLine())
+ }
+ 
+-// getFileIndexAndLine returns the file index (local to the CU), and the line number for a position.
+-func getFileIndexAndLine(ctxt *Link, xpos src.XPos) (int, int32) {
+-	f, l := linkgetlineFromPos(ctxt, xpos)
++// getFileIndexAndLine returns the relative file index (local to the CU), and
++// the relative line number for a position (i.e., as adjusted by a //line
++// directive). This is the file/line visible in the final binary (pcfile, pcln,
++// etc).
++func (ctxt *Link) getFileIndexAndLine(xpos src.XPos) (int, int32) {
++	f, l := ctxt.getFileSymbolAndLine(xpos)
+ 	return ctxt.PosTable.FileIndex(f), l
+ }
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index e0db7f3420..d3bb4e2639 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-func TestLinkgetlineFromPos(t *testing.T) {
++func TestGetFileSymbolAndLine(t *testing.T) {
+ 	ctxt := new(Link)
+ 	ctxt.hash = make(map[string]*LSym)
+ 	ctxt.statichash = make(map[string]*LSym)
+@@ -31,10 +31,10 @@ func TestLinkgetlineFromPos(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		f, l := linkgetlineFromPos(ctxt, ctxt.PosTable.XPos(test.pos))
++		f, l := ctxt.getFileSymbolAndLine(ctxt.PosTable.XPos(test.pos))
+ 		got := fmt.Sprintf("%s:%d", f, l)
+ 		if got != src.FileSymPrefix+test.want {
+-			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)
++			t.Errorf("ctxt.getFileSymbolAndLine(%v) = %q, want %q", test.pos, got, test.want)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 4c7a0c0379..d75708a390 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -721,7 +721,7 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		sort.Slice(o.File, func(i, j int) bool { return o.File[i] < o.File[j] })
+ 		o.InlTree = make([]goobj.InlTreeNode, len(pc.InlTree.nodes))
+ 		for i, inl := range pc.InlTree.nodes {
+-			f, l := getFileIndexAndLine(ctxt, inl.Pos)
++			f, l := ctxt.getFileIndexAndLine(inl.Pos)
+ 			o.InlTree[i] = goobj.InlTreeNode{
+ 				Parent:   int32(inl.Parent),
+ 				File:     goobj.CUFileIndex(f),
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 30cf43f172..67a078091c 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -142,7 +142,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
+ 		return oldval
+ 	}
+-	f, l := getFileIndexAndLine(ctxt, p.Pos)
++	f, l := ctxt.getFileIndexAndLine(p.Pos)
+ 	if arg == nil {
+ 		return l
+ 	}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 30a6d929d5..751d231100 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -173,7 +173,10 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}
+ 
+-	_, startLine := linkgetlineFromPos(ctxt, start)
++	// startLine should be the same line number that would be displayed via
++	// pcln, etc for the declaration (i.e., relative line number, as
++	// adjusted by //line).
++	_, startLine := ctxt.getFileSymbolAndLine(start)
+ 
+ 	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index b3eeedb59d..e5b052c537 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -410,7 +410,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 		if call.Func != nil {
+ 			fn(fsym, call.Func)
+ 		}
+-		f, _ := linkgetlineFromPos(ctxt, call.Pos)
++		f, _ := ctxt.getFileSymbolAndLine(call.Pos)
+ 		if filesym := ctxt.Lookup(f); filesym != nil {
+ 			fn(fsym, filesym)
+ 		}

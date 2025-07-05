@@ -7,6 +7,23 @@ Date:   Tue Apr 12 11:48:05 2011 -0300
     R=golang-dev, agl1, jnml
     CC=golang-dev
     https://golang.org/cl/4381058
-
+---
  src/pkg/crypto/openpgp/armor/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/armor/encode.go b/src/pkg/crypto/openpgp/armor/encode.go
+index 0f7de02412..99dee375ef 100644
+--- a/src/pkg/crypto/openpgp/armor/encode.go
++++ b/src/pkg/crypto/openpgp/armor/encode.go
+@@ -18,9 +18,9 @@ var armorEndOfLineOut = []byte("-----\n")
+ // writeSlices writes its arguments to the given Writer.
+ func writeSlices(out io.Writer, slices ...[]byte) (err os.Error) {
+ 	for _, s := range slices {
+-		_, err := out.Write(s)
++		_, err = out.Write(s)
+ 		if err != nil {
+-			return
++			return err
+ 		}
+ 	}
+ 	return

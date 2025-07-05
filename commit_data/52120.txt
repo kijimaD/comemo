@@ -16,7 +16,71 @@ Date:   Tue Apr 5 15:06:33 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/parse/lex.go      | 24 ++++++++++++++++++------
  src/text/template/parse/lex_test.go | 16 ++++++++++++++++
  2 files changed, 34 insertions(+), 6 deletions(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 40d0411121..078f714ccf 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -541,13 +541,25 @@ func (l *lexer) atTerminator() bool {
+ 	case eof, '.', ',', '|', ':', ')', '(':
+ 		return true
+ 	}
+-	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
+-	// succeed but should fail) but only in extremely rare cases caused by willfully
+-	// bad choice of delimiter.
+-	if rd, _ := utf8.DecodeRuneInString(l.rightDelim); rd == r {
+-		return true
++	// Are we at a right delimiter? TODO: This is harder than it should be
++	// because lookahead is only one rune.
++	rightDelim := l.rightDelim
++	defer func(pos Pos, line int) {
++		l.pos = pos
++		l.line = line
++	}(l.pos, l.line)
++	for len(rightDelim) > 0 {
++		rNext := l.next()
++		if rNext == eof {
++			return false
++		}
++		rDelim, size := utf8.DecodeRuneInString(rightDelim)
++		if rNext != rDelim {
++			return false
++		}
++		rightDelim = rightDelim[size:]
+ 	}
+-	return false
++	return true
+ }
+ 
+ // lexChar scans a character constant. The initial quote is already
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index df6aabffb2..fcb7e8eacd 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -469,6 +469,22 @@ func TestDelims(t *testing.T) {
+ 	}
+ }
+ 
++func TestDelimsAlphaNumeric(t *testing.T) {
++	test := lexTest{"right delimiter with alphanumeric start", "{{hub .host hub}}", []item{
++		mkItem(itemLeftDelim, "{{hub"),
++		mkItem(itemSpace, " "),
++		mkItem(itemField, ".host"),
++		mkItem(itemSpace, " "),
++		mkItem(itemRightDelim, "hub}}"),
++		tEOF,
++	}}
++	items := collect(&test, "{{hub", "hub}}")
++
++	if !equal(items, test.items, false) {
++		t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
++	}
++}
++
+ var lexPosTests = []lexTest{
+ 	{"empty", "", []item{{itemEOF, 0, "", 1}}},
+ 	{"punctuation", "{{,@%#}}", []item{

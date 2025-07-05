@@ -85,8 +85,93 @@ Date:   Tue Nov 15 22:30:45 2022 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go                     |  6 ++++--
  src/cmd/go/internal/cfg/cfg.go         | 17 ++++++++++++++++-
  src/cmd/go/testdata/script/autocgo.txt | 26 ++++++++++++++++++++++++++
  3 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 1c24b76407..70685c7410 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -119,8 +119,10 @@ specified by a -I flag), then "#include <foo/bar.h>" will always find the
+ local version in preference to any other version.
+ 
+ The cgo tool is enabled by default for native builds on systems where
+-it is expected to work. It is disabled by default when
+-cross-compiling. You can control this by setting the CGO_ENABLED
++it is expected to work. It is disabled by default when cross-compiling
++as well as when the CC environment variable is unset and the default
++C compiler (typically gcc or clang) cannot be found on the system PATH.
++You can override the default by setting the CGO_ENABLED
+ environment variable when running the go tool: set it to 1 to enable
+ the use of cgo, and to 0 to disable it. The go tool will set the
+ build constraint "cgo" if cgo is enabled. The special import "C"
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 30acde0a5a..3257140515 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -14,6 +14,7 @@ import (
+ 	"internal/cfg"
+ 	"io"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -148,7 +149,21 @@ func defaultContext() build.Context {
+ 		// go/build.Default.GOOS/GOARCH == runtime.GOOS/GOARCH.
+ 		// So ctxt.CgoEnabled (== go/build.Default.CgoEnabled) is correct
+ 		// as is and can be left unmodified.
+-		// Nothing to do here.
++		//
++		// All that said, starting in Go 1.20 we layer one more rule
++		// on top of the go/build decision: if CC is unset and
++		// the default C compiler we'd look for is not in the PATH,
++		// we automatically default cgo to off.
++		// This makes go builds work automatically on systems
++		// without a C compiler installed.
++		if ctxt.CgoEnabled {
++			if os.Getenv("CC") == "" {
++				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
++				if _, err := exec.LookPath(cc); err != nil {
++					ctxt.CgoEnabled = false
++				}
++			}
++		}
+ 	}
+ 
+ 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+diff --git a/src/cmd/go/testdata/script/autocgo.txt b/src/cmd/go/testdata/script/autocgo.txt
+new file mode 100644
+index 0000000000..522eaf46e7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/autocgo.txt
+@@ -0,0 +1,26 @@
++# Test automatic setting of CGO_ENABLED based on $CC and what's in $PATH.
++
++[!cgo] skip
++[cross] skip
++
++# Assume we're on a system that can enable cgo normally.
++env CGO_ENABLED=
++go env CGO_ENABLED
++stdout 1
++
++# Clearing CC and removing everything but Go from the PATH should disable cgo: no C compiler anymore.
++env CC=
++env PATH=$GOROOT/bin
++go env CGO_ENABLED
++stdout 0
++
++# Setting CC should re-enable cgo.
++env CC=cc
++go env CGO_ENABLED
++stdout 1
++
++# So should setting CGO_ENABLED.
++env CC=
++env CGO_ENABLED=1
++go env CGO_ENABLED
++stdout 1

@@ -9,9 +9,104 @@ Date:   Mon Mar 16 16:31:13 2015 -0700
     Change-Id: If161af3655770487f3ba34535d3fb55dbfde7917
     Reviewed-on: https://go-review.googlesource.com/7644
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/ssa/deadcode.go | 13 ++++++++-----
  src/cmd/internal/ssa/op.go       |  2 +-
  src/cmd/internal/ssa/type.go     |  2 +-
  src/cmd/internal/ssa/value.go    |  9 ++++++++-
  4 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/ssa/deadcode.go b/src/cmd/internal/ssa/deadcode.go
+index 1647ea955d..e8c8bfcc03 100644
+--- a/src/cmd/internal/ssa/deadcode.go
++++ b/src/cmd/internal/ssa/deadcode.go
+@@ -86,8 +86,10 @@ func deadcode(f *Func) {
+ 				f.vid.put(v.ID)
+ 			}
+ 		}
+-		for j := i; j < len(b.Values); j++ {
+-			b.Values[j] = nil // aid GC
++		// aid GC
++		tail := b.Values[i:]
++		for j := range tail {
++			tail[j] = nil
+ 		}
+ 		b.Values = b.Values[:i]
+ 	}
+@@ -105,9 +107,10 @@ func deadcode(f *Func) {
+ 			f.bid.put(b.ID)
+ 		}
+ 	}
+-	// zero remainder to help gc
+-	for j := i; j < len(f.Blocks); j++ {
+-		f.Blocks[j] = nil
++	// zero remainder to help GC
++	tail := f.Blocks[i:]
++	for j := range tail {
++		tail[j] = nil
+ 	}
+ 	f.Blocks = f.Blocks[:i]
+ 
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index a4364b1c5c..905d62b69c 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -82,7 +82,7 @@ const (
+ 	OpStoreFP
+ 	OpStoreSP
+ 
+-	// spill&restore ops for the register allocator.  These are
++	// spill and restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy - they do not take/return
+ 	// stores like regular memory ops do.  We can get away with that because
+ 	// we know there is no aliasing to spill slots on the stack.
+diff --git a/src/cmd/internal/ssa/type.go b/src/cmd/internal/ssa/type.go
+index 3389622c74..e9c017d38a 100644
+--- a/src/cmd/internal/ssa/type.go
++++ b/src/cmd/internal/ssa/type.go
+@@ -34,7 +34,7 @@ var (
+ 	TypeFlags = &Flags{}
+ )
+ 
+-// typeIdentical returns whether it two arguments are the same type.
++// typeIdentical reports whether its two arguments are the same type.
+ func typeIdentical(t, u Type) bool {
+ 	if t == TypeMem {
+ 		return u == TypeMem
+diff --git a/src/cmd/internal/ssa/value.go b/src/cmd/internal/ssa/value.go
+index 740525a5f5..f6f099cd32 100644
+--- a/src/cmd/internal/ssa/value.go
++++ b/src/cmd/internal/ssa/value.go
+@@ -24,7 +24,7 @@ type Value struct {
+ 	// are a few other pseudo-types, see type.go.
+ 	Type Type
+ 
+-	// Auxiliary info for this value.  The type of this information depends on the opcode (& type).
++	// Auxiliary info for this value.  The type of this information depends on the opcode and type.
+ 	Aux interface{}
+ 
+ 	// Arguments of this value
+@@ -67,9 +67,15 @@ func (v *Value) LongString() string {
+ }
+ 
+ func (v *Value) AddArg(w *Value) {
++	if v.Args == nil {
++		v.resetArgs() // use argstorage
++	}
+ 	v.Args = append(v.Args, w)
+ }
+ func (v *Value) AddArgs(a ...*Value) {
++	if v.Args == nil {
++		v.resetArgs() // use argstorage
++	}
+ 	v.Args = append(v.Args, a...)
+ }
+ func (v *Value) SetArg(i int, w *Value) {
+@@ -77,6 +83,7 @@ func (v *Value) SetArg(i int, w *Value) {
+ }
+ func (v *Value) RemoveArg(i int) {
+ 	copy(v.Args[i:], v.Args[i+1:])
++	v.Args[len(v.Args)-1] = nil // aid GC
+ 	v.Args = v.Args[:len(v.Args)-1]
+ }
+ func (v *Value) SetArgs1(a *Value) {

@@ -20,6 +20,44 @@ Date:   Tue Dec 16 17:47:55 2014 +1100
     Change-Id: I9fad190be8032e55872e6947802055a6d65244df
     Reviewed-on: https://go-review.googlesource.com/1632
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/httputil/dump.go | 17 +++++++++--------
  1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index ac8f103f9b..ca2d1cde92 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -98,6 +98,14 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	defer pr.Close()
+ 	defer pw.Close()
+ 	dr := &delegateReader{c: make(chan io.Reader)}
++
++	t := &http.Transport{
++		Dial: func(net, addr string) (net.Conn, error) {
++			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
++		},
++	}
++	defer t.CloseIdleConnections()
++
+ 	// Wait for the request before replying with a dummy response:
+ 	go func() {
+ 		req, err := http.ReadRequest(bufio.NewReader(pr))
+@@ -107,16 +115,9 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 			io.Copy(ioutil.Discard, req.Body)
+ 			req.Body.Close()
+ 		}
+-		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\n\r\n")
++		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+ 	}()
+ 
+-	t := &http.Transport{
+-		DisableKeepAlives: true,
+-		Dial: func(net, addr string) (net.Conn, error) {
+-			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
+-		},
+-	}
+-
+ 	_, err := t.RoundTrip(reqSend)
+ 
+ 	req.Body = save

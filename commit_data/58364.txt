@@ -10,10 +10,128 @@ Date:   Wed Nov 1 01:34:33 2023 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/asm.s          |  2 ++
  src/runtime/asm_riscv64.s  | 38 +++++++++++++++++++++++++++++++-------
  src/runtime/crash_test.go  |  2 +-
  src/runtime/export_test.go |  2 ++
  src/runtime/proc.go        |  2 +-
  5 files changed, 37 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 84e561fb43..81d3bfbb8a 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -15,8 +15,10 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ 
+ #ifndef GOARCH_amd64
+ #ifndef GOARCH_arm64
++#ifndef GOARCH_riscv64
+ // stub to appease shared build mode.
+ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+ 	UNDEF
+ #endif
+ #endif
++#endif
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index c2142f1dbb..8ded78437b 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -153,6 +153,30 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOV	T0, ret+0(FP)
+ 	RET
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
++	MOV	X10, CTXT			// context register
++	MOV	g_m(g), X11			// curm
++
++	// set g to gcrash
++	MOV	$runtime·gcrash(SB), g	// g = &gcrash
++	CALL	runtime·save_g(SB)	// clobbers X31
++	MOV	X11, g_m(g)			// g.m = curm
++	MOV	g, m_g0(X11)			// curm.g0 = g
++
++	// switch to crashstack
++	MOV	(g_stack+stack_hi)(g), X11
++	ADD	$(-4*8), X11
++	MOV	X11, X2
++
++	// call target function
++	MOV	0(CTXT), X10
++	JALR	X1, X10
++
++	// should never return
++	CALL	runtime·abort(SB)
++	UNDEF
++
+ /*
+  * support for morestack
+  */
+@@ -168,6 +192,13 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+ 
+ // func morestack()
+ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
++	// Called from f.
++	// Set g->sched to context in f.
++	MOV	X2, (g_sched+gobuf_sp)(g)
++	MOV	T0, (g_sched+gobuf_pc)(g)
++	MOV	RA, (g_sched+gobuf_lr)(g)
++	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
++
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOV	g_m(g), A0
+ 	MOV	m_g0(A0), A1
+@@ -181,13 +212,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	CALL	runtime·badmorestackgsignal(SB)
+ 	CALL	runtime·abort(SB)
+ 
+-	// Called from f.
+-	// Set g->sched to context in f.
+-	MOV	X2, (g_sched+gobuf_sp)(g)
+-	MOV	T0, (g_sched+gobuf_pc)(g)
+-	MOV	RA, (g_sched+gobuf_lr)(g)
+-	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
+-
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOV	RA, (m_morebuf+gobuf_pc)(A0)	// f's caller's PC
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 8aa01f724d..892a56355a 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -804,7 +804,7 @@ func TestG0StackOverflow(t *testing.T) {
+ 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
+ 			t.Fatalf("%s\n(exit status %v)", out, err)
+ 		}
+-		if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
++		if runtime.CrashStackImplemented {
+ 			// check for a stack trace
+ 			want := "runtime.stackOverflow"
+ 			if n := strings.Count(string(out), want); n < 5 {
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 922794edd6..1d4a974871 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -50,6 +50,8 @@ var MemclrNoHeapPointers = memclrNoHeapPointers
+ 
+ var CgoCheckPointer = cgoCheckPointer
+ 
++const CrashStackImplemented = crashStackImplemented
++
+ const TracebackInnerFrames = tracebackInnerFrames
+ const TracebackOuterFrames = tracebackOuterFrames
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7189a0650a..9b5f2e9a6d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -574,7 +574,7 @@ func switchToCrashStack(fn func()) {
+ 	abort()
+ }
+ 
+-const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64"
++const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "riscv64"
+ 
+ //go:noescape
+ func switchToCrashStack0(func()) // in assembly

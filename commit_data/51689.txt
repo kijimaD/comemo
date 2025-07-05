@@ -19,7 +19,7 @@ Date:   Wed Jan 5 08:55:55 2022 -0500
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/ed25519/ed25519.go                      | 25 +++++++++++---
  .../ed25519/internal/edwards25519/edwards25519.go  |  6 ++--
  .../ed25519/internal/edwards25519/field/fe.go      | 40 ++++++++++++----------
@@ -29,3 +29,388 @@ Date:   Wed Jan 5 08:55:55 2022 -0500
  src/crypto/ed25519/internal/edwards25519/scalar.go | 25 ++++++++------
  .../ed25519/internal/edwards25519/scalar_test.go   |  6 ++--
  8 files changed, 90 insertions(+), 48 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index 09c5269d0c..4669e02db2 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -126,7 +126,10 @@ func newKeyFromSeed(privateKey, seed []byte) {
+ 	}
+ 
+ 	h := sha512.Sum512(seed)
+-	s := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
++	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
+ 	A := (&edwards25519.Point{}).ScalarBaseMult(s)
+ 
+ 	publicKey := A.Bytes()
+@@ -152,7 +155,10 @@ func sign(signature, privateKey, message []byte) {
+ 	seed, publicKey := privateKey[:SeedSize], privateKey[SeedSize:]
+ 
+ 	h := sha512.Sum512(seed)
+-	s := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
++	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
+ 	prefix := h[32:]
+ 
+ 	mh := sha512.New()
+@@ -160,7 +166,10 @@ func sign(signature, privateKey, message []byte) {
+ 	mh.Write(message)
+ 	messageDigest := make([]byte, 0, sha512.Size)
+ 	messageDigest = mh.Sum(messageDigest)
+-	r := edwards25519.NewScalar().SetUniformBytes(messageDigest)
++	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
+ 
+ 	R := (&edwards25519.Point{}).ScalarBaseMult(r)
+ 
+@@ -170,7 +179,10 @@ func sign(signature, privateKey, message []byte) {
+ 	kh.Write(message)
+ 	hramDigest := make([]byte, 0, sha512.Size)
+ 	hramDigest = kh.Sum(hramDigest)
+-	k := edwards25519.NewScalar().SetUniformBytes(hramDigest)
++	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
+ 
+ 	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
+ 
+@@ -200,7 +212,10 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
+ 	kh.Write(message)
+ 	hramDigest := make([]byte, 0, sha512.Size)
+ 	hramDigest = kh.Sum(hramDigest)
+-	k := edwards25519.NewScalar().SetUniformBytes(hramDigest)
++	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
+ 
+ 	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[32:])
+ 	if err != nil {
+diff --git a/src/crypto/ed25519/internal/edwards25519/edwards25519.go b/src/crypto/ed25519/internal/edwards25519/edwards25519.go
+index 313e6c281c..4e0ad7a357 100644
+--- a/src/crypto/ed25519/internal/edwards25519/edwards25519.go
++++ b/src/crypto/ed25519/internal/edwards25519/edwards25519.go
+@@ -151,10 +151,10 @@ func (v *Point) SetBytes(x []byte) (*Point, error) {
+ 	// at https://hdevalence.ca/blog/2020-10-04-its-25519am, specifically the
+ 	// "Canonical A, R" section.
+ 
+-	if len(x) != 32 {
++	y, err := new(field.Element).SetBytes(x)
++	if err != nil {
+ 		return nil, errors.New("edwards25519: invalid point encoding length")
+ 	}
+-	y := new(field.Element).SetBytes(x)
+ 
+ 	// -x² + y² = 1 + dx²y²
+ 	// x² + dx²y² = x²(dy² + 1) = y² - 1
+@@ -224,7 +224,7 @@ func (v *Point) fromP2(p *projP2) *Point {
+ }
+ 
+ // d is a constant in the curve equation.
+-var d = new(field.Element).SetBytes([]byte{
++var d, _ = new(field.Element).SetBytes([]byte{
+ 	0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75,
+ 	0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00,
+ 	0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c,
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe.go b/src/crypto/ed25519/internal/edwards25519/field/fe.go
+index dbe86599b3..5518ef2b90 100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/fe.go
++++ b/src/crypto/ed25519/internal/edwards25519/field/fe.go
+@@ -8,6 +8,7 @@ package field
+ import (
+ 	"crypto/subtle"
+ 	"encoding/binary"
++	"errors"
+ 	"math/bits"
+ )
+ 
+@@ -186,14 +187,17 @@ func (v *Element) Set(a *Element) *Element {
+ 	return v
+ }
+ 
+-// SetBytes sets v to x, which must be a 32-byte little-endian encoding.
++// SetBytes sets v to x, where x is a 32-byte little-endian encoding. If x is
++// not of the right length, SetBytes returns nil and an error, and the
++// receiver is unchanged.
+ //
+ // Consistent with RFC 7748, the most significant bit (the high bit of the
+ // last byte) is ignored, and non-canonical values (2^255-19 through 2^255-1)
+-// are accepted. Note that this is laxer than specified by RFC 8032.
+-func (v *Element) SetBytes(x []byte) *Element {
++// are accepted. Note that this is laxer than specified by RFC 8032, but
++// consistent with most Ed25519 implementations.
++func (v *Element) SetBytes(x []byte) (*Element, error) {
+ 	if len(x) != 32 {
+-		panic("edwards25519: invalid field element input size")
++		return nil, errors.New("edwards25519: invalid field element input size")
+ 	}
+ 
+ 	// Bits 0:51 (bytes 0:8, bits 0:64, shift 0, mask 51).
+@@ -208,12 +212,12 @@ func (v *Element) SetBytes(x []byte) *Element {
+ 	// Bits 153:204 (bytes 19:27, bits 152:216, shift 1, mask 51).
+ 	v.l3 = binary.LittleEndian.Uint64(x[19:27]) >> 1
+ 	v.l3 &= maskLow51Bits
+-	// Bits 204:251 (bytes 24:32, bits 192:256, shift 12, mask 51).
++	// Bits 204:255 (bytes 24:32, bits 192:256, shift 12, mask 51).
+ 	// Note: not bytes 25:33, shift 4, to avoid overread.
+ 	v.l4 = binary.LittleEndian.Uint64(x[24:32]) >> 12
+ 	v.l4 &= maskLow51Bits
+ 
+-	return v
++	return v, nil
+ }
+ 
+ // Bytes returns the canonical 32-byte little-endian encoding of v.
+@@ -391,26 +395,26 @@ var sqrtM1 = &Element{1718705420411056, 234908883556509,
+ // If u/v is square, SqrtRatio returns r and 1. If u/v is not square, SqrtRatio
+ // sets r according to Section 4.3 of draft-irtf-cfrg-ristretto255-decaf448-00,
+ // and returns r and 0.
+-func (r *Element) SqrtRatio(u, v *Element) (rr *Element, wasSquare int) {
+-	var a, b Element
++func (r *Element) SqrtRatio(u, v *Element) (R *Element, wasSquare int) {
++	t0 := new(Element)
+ 
+ 	// r = (u * v3) * (u * v7)^((p-5)/8)
+-	v2 := a.Square(v)
+-	uv3 := b.Multiply(u, b.Multiply(v2, v))
+-	uv7 := a.Multiply(uv3, a.Square(v2))
+-	r.Multiply(uv3, r.Pow22523(uv7))
++	v2 := new(Element).Square(v)
++	uv3 := new(Element).Multiply(u, t0.Multiply(v2, v))
++	uv7 := new(Element).Multiply(uv3, t0.Square(v2))
++	rr := new(Element).Multiply(uv3, t0.Pow22523(uv7))
+ 
+-	check := a.Multiply(v, a.Square(r)) // check = v * r^2
++	check := new(Element).Multiply(v, t0.Square(rr)) // check = v * r^2
+ 
+-	uNeg := b.Negate(u)
++	uNeg := new(Element).Negate(u)
+ 	correctSignSqrt := check.Equal(u)
+ 	flippedSignSqrt := check.Equal(uNeg)
+-	flippedSignSqrtI := check.Equal(uNeg.Multiply(uNeg, sqrtM1))
++	flippedSignSqrtI := check.Equal(t0.Multiply(uNeg, sqrtM1))
+ 
+-	rPrime := b.Multiply(r, sqrtM1) // r_prime = SQRT_M1 * r
++	rPrime := new(Element).Multiply(rr, sqrtM1) // r_prime = SQRT_M1 * r
+ 	// r = CT_SELECT(r_prime IF flipped_sign_sqrt | flipped_sign_sqrt_i ELSE r)
+-	r.Select(rPrime, r, flippedSignSqrt|flippedSignSqrtI)
++	rr.Select(rPrime, rr, flippedSignSqrt|flippedSignSqrtI)
+ 
+-	r.Absolute(r) // Choose the nonnegative square root.
++	r.Absolute(rr) // Choose the nonnegative square root.
+ 	return r, correctSignSqrt | flippedSignSqrt
+ }
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_alias_test.go b/src/crypto/ed25519/internal/edwards25519/field/fe_alias_test.go
+index 5ad81df013..abe9986b88 100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/fe_alias_test.go
++++ b/src/crypto/ed25519/internal/edwards25519/field/fe_alias_test.go
+@@ -96,19 +96,33 @@ func TestAliasing(t *testing.T) {
+ 		{name: "Negate", oneArgF: (*Element).Negate},
+ 		{name: "Set", oneArgF: (*Element).Set},
+ 		{name: "Square", oneArgF: (*Element).Square},
++		{name: "Pow22523", oneArgF: (*Element).Pow22523},
++		{
++			name: "Mult32",
++			oneArgF: func(v, x *Element) *Element {
++				return v.Mult32(x, 0xffffffff)
++			},
++		},
+ 		{name: "Multiply", twoArgsF: (*Element).Multiply},
+ 		{name: "Add", twoArgsF: (*Element).Add},
+ 		{name: "Subtract", twoArgsF: (*Element).Subtract},
++		{
++			name: "SqrtRatio",
++			twoArgsF: func(v, x, y *Element) *Element {
++				r, _ := v.SqrtRatio(x, y)
++				return r
++			},
++		},
+ 		{
+ 			name: "Select0",
+ 			twoArgsF: func(v, x, y *Element) *Element {
+-				return (*Element).Select(v, x, y, 0)
++				return v.Select(x, y, 0)
+ 			},
+ 		},
+ 		{
+ 			name: "Select1",
+ 			twoArgsF: func(v, x, y *Element) *Element {
+-				return (*Element).Select(v, x, y, 1)
++				return v.Select(x, y, 1)
+ 			},
+ 		},
+ 	} {
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_generic.go b/src/crypto/ed25519/internal/edwards25519/field/fe_generic.go
+index bccf8511ac..d6667b27be 100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/fe_generic.go
++++ b/src/crypto/ed25519/internal/edwards25519/field/fe_generic.go
+@@ -254,6 +254,8 @@ func (v *Element) carryPropagateGeneric() *Element {
+ 	c3 := v.l3 >> 51
+ 	c4 := v.l4 >> 51
+ 
++	// c4 is at most 64 - 51 = 13 bits, so c4*19 is at most 18 bits, and
++	// the final l0 will be at most 52 bits. Similarly for the rest.
+ 	v.l0 = v.l0&maskLow51Bits + c4*19
+ 	v.l1 = v.l1&maskLow51Bits + c0
+ 	v.l2 = v.l2&maskLow51Bits + c1
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_test.go b/src/crypto/ed25519/internal/edwards25519/field/fe_test.go
+index b484459ff2..945a024a41 100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/fe_test.go
++++ b/src/crypto/ed25519/internal/edwards25519/field/fe_test.go
+@@ -192,7 +192,8 @@ func TestSetBytesRoundTrip(t *testing.T) {
+ 
+ 	for _, tt := range tests {
+ 		b := tt.fe.Bytes()
+-		if !bytes.Equal(b, tt.b) || new(Element).SetBytes(tt.b).Equal(&tt.fe) != 1 {
++		fe, _ := new(Element).SetBytes(tt.b)
++		if !bytes.Equal(b, tt.b) || fe.Equal(&tt.fe) != 1 {
+ 			t.Errorf("Failed fixed roundtrip: %v", tt)
+ 		}
+ 	}
+@@ -217,8 +218,8 @@ func TestBytesBigEquivalence(t *testing.T) {
+ 			return false
+ 		}
+ 
+-		buf := make([]byte, 32) // pad with zeroes
+-		copy(buf, swapEndianness(fe1.toBig().Bytes()))
++		buf := make([]byte, 32)
++		buf = swapEndianness(fe1.toBig().FillBytes(buf))
+ 
+ 		return bytes.Equal(fe.Bytes(), buf) && isInBounds(&fe) && isInBounds(&fe1)
+ 	}
+@@ -244,7 +245,8 @@ func (v *Element) fromBig(n *big.Int) *Element {
+ 		}
+ 	}
+ 
+-	return v.SetBytes(buf[:32])
++	v.SetBytes(buf[:32])
++	return v
+ }
+ 
+ func (v *Element) fromDecimal(s string) *Element {
+@@ -471,9 +473,9 @@ func TestSqrtRatio(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range tests {
+-		u := new(Element).SetBytes(decodeHex(tt.u))
+-		v := new(Element).SetBytes(decodeHex(tt.v))
+-		want := new(Element).SetBytes(decodeHex(tt.r))
++		u, _ := new(Element).SetBytes(decodeHex(tt.u))
++		v, _ := new(Element).SetBytes(decodeHex(tt.v))
++		want, _ := new(Element).SetBytes(decodeHex(tt.r))
+ 		got, wasSquare := new(Element).SqrtRatio(u, v)
+ 		if got.Equal(want) == 0 || wasSquare != tt.wasSquare {
+ 			t.Errorf("%d: got (%v, %v), want (%v, %v)", i, got, wasSquare, want, tt.wasSquare)
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalar.go b/src/crypto/ed25519/internal/edwards25519/scalar.go
+index 889acaa0f1..3df2fb936f 100644
+--- a/src/crypto/ed25519/internal/edwards25519/scalar.go
++++ b/src/crypto/ed25519/internal/edwards25519/scalar.go
+@@ -22,7 +22,7 @@ import (
+ // The zero value is a valid zero element.
+ type Scalar struct {
+ 	// s is the Scalar value in little-endian. The value is always reduced
+-	// between operations.
++	// modulo l between operations.
+ 	s [32]byte
+ }
+ 
+@@ -79,16 +79,20 @@ func (s *Scalar) Set(x *Scalar) *Scalar {
+ 	return s
+ }
+ 
+-// SetUniformBytes sets s to an uniformly distributed value given 64 uniformly
+-// distributed random bytes.
+-func (s *Scalar) SetUniformBytes(x []byte) *Scalar {
++// SetUniformBytes sets s = x mod l, where x is a 64-byte little-endian integer.
++// If x is not of the right length, SetUniformBytes returns nil and an error,
++// and the receiver is unchanged.
++//
++// SetUniformBytes can be used to set s to an uniformly distributed value given
++// 64 uniformly distributed random bytes.
++func (s *Scalar) SetUniformBytes(x []byte) (*Scalar, error) {
+ 	if len(x) != 64 {
+-		panic("edwards25519: invalid SetUniformBytes input length")
++		return nil, errors.New("edwards25519: invalid SetUniformBytes input length")
+ 	}
+ 	var wideBytes [64]byte
+ 	copy(wideBytes[:], x[:])
+ 	scReduce(&s.s, &wideBytes)
+-	return s
++	return s, nil
+ }
+ 
+ // SetCanonicalBytes sets s = x, where x is a 32-byte little-endian encoding of
+@@ -122,7 +126,8 @@ func isReduced(s *Scalar) bool {
+ 
+ // SetBytesWithClamping applies the buffer pruning described in RFC 8032,
+ // Section 5.1.5 (also known as clamping) and sets s to the result. The input
+-// must be 32 bytes, and it is not modified.
++// must be 32 bytes, and it is not modified. If x is not of the right length,
++// SetBytesWithClamping returns nil and an error, and the receiver is unchanged.
+ //
+ // Note that since Scalar values are always reduced modulo the prime order of
+ // the curve, the resulting value will not preserve any of the cofactor-clearing
+@@ -130,13 +135,13 @@ func isReduced(s *Scalar) bool {
+ // expected as long as it is applied to points on the prime order subgroup, like
+ // in Ed25519. In fact, it is lost to history why RFC 8032 adopted the
+ // irrelevant RFC 7748 clamping, but it is now required for compatibility.
+-func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
++func (s *Scalar) SetBytesWithClamping(x []byte) (*Scalar, error) {
+ 	// The description above omits the purpose of the high bits of the clamping
+ 	// for brevity, but those are also lost to reductions, and are also
+ 	// irrelevant to edwards25519 as they protect against a specific
+ 	// implementation bug that was once observed in a generic Montgomery ladder.
+ 	if len(x) != 32 {
+-		panic("edwards25519: invalid SetBytesWithClamping input length")
++		return nil, errors.New("edwards25519: invalid SetBytesWithClamping input length")
+ 	}
+ 	var wideBytes [64]byte
+ 	copy(wideBytes[:], x[:])
+@@ -144,7 +149,7 @@ func (s *Scalar) SetBytesWithClamping(x []byte) *Scalar {
+ 	wideBytes[31] &= 63
+ 	wideBytes[31] |= 64
+ 	scReduce(&s.s, &wideBytes)
+-	return s
++	return s, nil
+ }
+ 
+ // Bytes returns the canonical 32-byte little-endian encoding of s.
+diff --git a/src/crypto/ed25519/internal/edwards25519/scalar_test.go b/src/crypto/ed25519/internal/edwards25519/scalar_test.go
+index 704caffc5c..9d51b34b25 100644
+--- a/src/crypto/ed25519/internal/edwards25519/scalar_test.go
++++ b/src/crypto/ed25519/internal/edwards25519/scalar_test.go
+@@ -113,7 +113,7 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
+ 	// Generated with libsodium.js 1.0.18 crypto_scalarmult_ed25519_base.
+ 
+ 	random := "633d368491364dc9cd4c1bf891b1d59460face1644813240a313e61f2c88216e"
+-	s := new(Scalar).SetBytesWithClamping(decodeHex(random))
++	s, _ := new(Scalar).SetBytesWithClamping(decodeHex(random))
+ 	p := new(Point).ScalarBaseMult(s)
+ 	want := "1d87a9026fd0126a5736fe1628c95dd419172b5b618457e041c9c861b2494a94"
+ 	if got := hex.EncodeToString(p.Bytes()); got != want {
+@@ -121,7 +121,7 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
+ 	}
+ 
+ 	zero := "0000000000000000000000000000000000000000000000000000000000000000"
+-	s = new(Scalar).SetBytesWithClamping(decodeHex(zero))
++	s, _ = new(Scalar).SetBytesWithClamping(decodeHex(zero))
+ 	p = new(Point).ScalarBaseMult(s)
+ 	want = "693e47972caf527c7883ad1b39822f026f47db2ab0e1919955b8993aa04411d1"
+ 	if got := hex.EncodeToString(p.Bytes()); got != want {
+@@ -129,7 +129,7 @@ func TestScalarSetBytesWithClamping(t *testing.T) {
+ 	}
+ 
+ 	one := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+-	s = new(Scalar).SetBytesWithClamping(decodeHex(one))
++	s, _ = new(Scalar).SetBytesWithClamping(decodeHex(one))
+ 	p = new(Point).ScalarBaseMult(s)
+ 	want = "12e9a68b73fd5aacdbcaf3e88c46fea6ebedb1aa84eed1842f07f8edab65e3a7"
+ 	if got := hex.EncodeToString(p.Bytes()); got != want {

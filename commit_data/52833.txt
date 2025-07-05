@@ -14,10 +14,267 @@ Date:   Fri Jun 3 13:21:09 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/codes.go   | 12 +++++-
  src/cmd/compile/internal/noder/reader.go  | 47 +++++++++++++++---------
  src/cmd/compile/internal/noder/writer.go  | 47 ++++++++++++++----------
  src/internal/pkgbits/sync.go              |  1 +
  src/internal/pkgbits/syncmarker_string.go | 61 ++++++++++++++++---------------
  5 files changed, 99 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 7fe6e39c15..581eb8344f 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -42,7 +42,6 @@ const (
+ 	exprType            // type expression
+ 	exprLocal           // local variable
+ 	exprGlobal          // global variable or function
+-	exprBlank
+ 	exprCompLit
+ 	exprFuncLit
+ 	exprSelector
+@@ -55,6 +54,17 @@ const (
+ 	exprConvert
+ )
+ 
++type codeAssign int
++
++func (c codeAssign) Marker() pkgbits.SyncMarker { return pkgbits.SyncAssign }
++func (c codeAssign) Value() int                 { return int(c) }
++
++const (
++	assignBlank codeAssign = iota
++	assignDef
++	assignExpr
++)
++
+ type codeDecl int
+ 
+ func (c codeDecl) Marker() pkgbits.SyncMarker { return pkgbits.SyncDecl }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index d4ab6a975f..6614d1693f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1323,25 +1323,41 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
+ 	var names []*ir.Name
+ 
+ 	for i := range lhs {
+-		if r.Bool() {
+-			pos := r.pos()
+-			_, sym := r.localIdent()
+-			typ := r.typ()
+-
+-			name := ir.NewNameAt(pos, sym)
+-			lhs[i] = name
+-			names = append(names, name)
+-			setType(name, typ)
+-			r.addLocal(name, ir.PAUTO)
+-			continue
++		expr, def := r.assign()
++		lhs[i] = expr
++		if def {
++			names = append(names, expr.(*ir.Name))
+ 		}
+-
+-		lhs[i] = r.expr()
+ 	}
+ 
+ 	return names, lhs
+ }
+ 
++// assign returns an assignee expression. It also reports whether the
++// returned expression is a newly declared variable.
++func (r *reader) assign() (ir.Node, bool) {
++	switch tag := codeAssign(r.Code(pkgbits.SyncAssign)); tag {
++	default:
++		panic("unhandled assignee expression")
++
++	case assignBlank:
++		return typecheck.AssignExpr(ir.BlankNode), false
++
++	case assignDef:
++		pos := r.pos()
++		_, sym := r.localIdent()
++		typ := r.typ()
++
++		name := ir.NewNameAt(pos, sym)
++		setType(name, typ)
++		r.addLocal(name, ir.PAUTO)
++		return name, true
++
++	case assignExpr:
++		return r.expr(), false
++	}
++}
++
+ func (r *reader) blockStmt() []ir.Node {
+ 	r.Sync(pkgbits.SyncBlockStmt)
+ 	r.openScope()
+@@ -1551,11 +1567,6 @@ func (r *reader) expr() (res ir.Node) {
+ 	default:
+ 		panic("unhandled expression")
+ 
+-	case exprBlank:
+-		// blank only allowed in LHS of assignments
+-		// TODO(mdempsky): Handle directly in assignList instead?
+-		return typecheck.AssignExpr(ir.BlankNode)
+-
+ 	case exprLocal:
+ 		return typecheck.Expr(r.useLocal())
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ac1ec97285..2d1a7ee457 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1023,25 +1023,36 @@ func (w *writer) assignList(expr syntax.Expr) {
+ 	w.Len(len(exprs))
+ 
+ 	for _, expr := range exprs {
+-		if name, ok := expr.(*syntax.Name); ok && name.Value != "_" {
+-			if obj, ok := w.p.info.Defs[name]; ok {
+-				obj := obj.(*types2.Var)
+-
+-				w.Bool(true)
+-				w.pos(obj)
+-				w.localIdent(obj)
+-				w.typ(obj.Type())
+-
+-				// TODO(mdempsky): Minimize locals index size by deferring
+-				// this until the variables actually come into scope.
+-				w.addLocal(obj)
+-				continue
+-			}
++		w.assign(expr)
++	}
++}
++
++func (w *writer) assign(expr syntax.Expr) {
++	expr = unparen(expr)
++
++	if name, ok := expr.(*syntax.Name); ok {
++		if name.Value == "_" {
++			w.Code(assignBlank)
++			return
+ 		}
+ 
+-		w.Bool(false)
+-		w.expr(expr)
++		if obj, ok := w.p.info.Defs[name]; ok {
++			obj := obj.(*types2.Var)
++
++			w.Code(assignDef)
++			w.pos(obj)
++			w.localIdent(obj)
++			w.typ(obj.Type())
++
++			// TODO(mdempsky): Minimize locals index size by deferring
++			// this until the variables actually come into scope.
++			w.addLocal(obj)
++			return
++		}
+ 	}
++
++	w.Code(assignExpr)
++	w.expr(expr)
+ }
+ 
+ func (w *writer) declStmt(decl syntax.Decl) {
+@@ -1256,10 +1267,6 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	default:
+ 		w.p.unexpected("expression", expr)
+ 
+-	case *syntax.Name:
+-		assert(expr.Value == "_")
+-		w.Code(exprBlank)
+-
+ 	case *syntax.CompositeLit:
+ 		w.Code(exprCompLit)
+ 		w.compLit(expr)
+diff --git a/src/internal/pkgbits/sync.go b/src/internal/pkgbits/sync.go
+index 4b9ea4863f..77178af6ce 100644
+--- a/src/internal/pkgbits/sync.go
++++ b/src/internal/pkgbits/sync.go
+@@ -90,6 +90,7 @@ const (
+ 	SyncExprs
+ 	SyncExpr
+ 	SyncExprType
++	SyncAssign
+ 	SyncOp
+ 	SyncFuncLit
+ 	SyncCompLit
+diff --git a/src/internal/pkgbits/syncmarker_string.go b/src/internal/pkgbits/syncmarker_string.go
+index 39db9eddad..4a5b0ca5f2 100644
+--- a/src/internal/pkgbits/syncmarker_string.go
++++ b/src/internal/pkgbits/syncmarker_string.go
+@@ -45,39 +45,40 @@ func _() {
+ 	_ = x[SyncExprs-35]
+ 	_ = x[SyncExpr-36]
+ 	_ = x[SyncExprType-37]
+-	_ = x[SyncOp-38]
+-	_ = x[SyncFuncLit-39]
+-	_ = x[SyncCompLit-40]
+-	_ = x[SyncDecl-41]
+-	_ = x[SyncFuncBody-42]
+-	_ = x[SyncOpenScope-43]
+-	_ = x[SyncCloseScope-44]
+-	_ = x[SyncCloseAnotherScope-45]
+-	_ = x[SyncDeclNames-46]
+-	_ = x[SyncDeclName-47]
+-	_ = x[SyncStmts-48]
+-	_ = x[SyncBlockStmt-49]
+-	_ = x[SyncIfStmt-50]
+-	_ = x[SyncForStmt-51]
+-	_ = x[SyncSwitchStmt-52]
+-	_ = x[SyncRangeStmt-53]
+-	_ = x[SyncCaseClause-54]
+-	_ = x[SyncCommClause-55]
+-	_ = x[SyncSelectStmt-56]
+-	_ = x[SyncDecls-57]
+-	_ = x[SyncLabeledStmt-58]
+-	_ = x[SyncUseObjLocal-59]
+-	_ = x[SyncAddLocal-60]
+-	_ = x[SyncLinkname-61]
+-	_ = x[SyncStmt1-62]
+-	_ = x[SyncStmtsEnd-63]
+-	_ = x[SyncLabel-64]
+-	_ = x[SyncOptLabel-65]
++	_ = x[SyncAssign-38]
++	_ = x[SyncOp-39]
++	_ = x[SyncFuncLit-40]
++	_ = x[SyncCompLit-41]
++	_ = x[SyncDecl-42]
++	_ = x[SyncFuncBody-43]
++	_ = x[SyncOpenScope-44]
++	_ = x[SyncCloseScope-45]
++	_ = x[SyncCloseAnotherScope-46]
++	_ = x[SyncDeclNames-47]
++	_ = x[SyncDeclName-48]
++	_ = x[SyncStmts-49]
++	_ = x[SyncBlockStmt-50]
++	_ = x[SyncIfStmt-51]
++	_ = x[SyncForStmt-52]
++	_ = x[SyncSwitchStmt-53]
++	_ = x[SyncRangeStmt-54]
++	_ = x[SyncCaseClause-55]
++	_ = x[SyncCommClause-56]
++	_ = x[SyncSelectStmt-57]
++	_ = x[SyncDecls-58]
++	_ = x[SyncLabeledStmt-59]
++	_ = x[SyncUseObjLocal-60]
++	_ = x[SyncAddLocal-61]
++	_ = x[SyncLinkname-62]
++	_ = x[SyncStmt1-63]
++	_ = x[SyncStmtsEnd-64]
++	_ = x[SyncLabel-65]
++	_ = x[SyncOptLabel-66]
+ }
+ 
+-const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprAssertTypeOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
++const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprExprTypeAssignOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
+ 
+-var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 228, 230, 237, 244, 248, 256, 265, 275, 292, 301, 309, 314, 323, 329, 336, 346, 355, 365, 375, 385, 390, 401, 412, 420, 428, 433, 441, 446, 454}
++var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 226, 232, 234, 241, 248, 252, 260, 269, 279, 296, 305, 313, 318, 327, 333, 340, 350, 359, 369, 379, 389, 394, 405, 416, 424, 432, 437, 445, 450, 458}
+ 
+ func (i SyncMarker) String() string {
+ 	i -= 1

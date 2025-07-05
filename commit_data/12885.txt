@@ -10,9 +10,277 @@ Date:   Thu Apr 12 11:49:25 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5993043
-
+---
  src/pkg/runtime/export_test.go  |  11 ++++
  src/pkg/runtime/lfstack.c       |  64 ++++++++++++++++++++
  src/pkg/runtime/lfstack_test.go | 130 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/runtime.h       |  17 ++++++
  4 files changed, 222 insertions(+)
+
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 51921135be..d50040adcf 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -25,3 +25,14 @@ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
+ var LockedOSThread = golockedOSThread
+ var Stackguard = stackguard
++
++type LFNode struct {
++	Next    *LFNode
++	Pushcnt uintptr
++}
++
++func lfstackpush(head *uint64, node *LFNode)
++func lfstackpop2(head *uint64) *LFNode
++
++var LFStackPush = lfstackpush
++var LFStackPop = lfstackpop2
+diff --git a/src/pkg/runtime/lfstack.c b/src/pkg/runtime/lfstack.c
+new file mode 100644
+index 0000000000..e4ea6e83da
+--- /dev/null
++++ b/src/pkg/runtime/lfstack.c
+@@ -0,0 +1,64 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Lock-free stack.
++
++#include "runtime.h"
++#include "arch_GOARCH.h"
++
++#ifdef _64BIT
++// Amd64 uses 48-bit virtual addresses, 47-th bit is used as kernel/user flag.
++// So we use 17msb of pointers as ABA counter.
++# define PTR_BITS 47
++#else
++# define PTR_BITS 32
++#endif
++#define PTR_MASK ((1ull<<PTR_BITS)-1)
++
++void
++runtime·lfstackpush(uint64 *head, LFNode *node)
++{
++	uint64 old, new;
++
++	if((uint64)node != ((uint64)node&PTR_MASK)) {
++		runtime·printf("p=%p\n", node);
++		runtime·throw("runtime·lfstackpush: invalid pointer");
++	}
++
++	node->pushcnt++;
++	new = (uint64)node|(((uint64)node->pushcnt)<<PTR_BITS);
++	old = runtime·atomicload64(head);
++	for(;;) {
++		node->next = (LFNode*)(old&PTR_MASK);
++		if(runtime·cas64(head, &old, new))
++			break;
++	}
++}
++
++LFNode*
++runtime·lfstackpop(uint64 *head)
++{
++	LFNode *node, *node2;
++	uint64 old, new;
++
++	old = runtime·atomicload64(head);
++	for(;;) {
++		if(old == 0)
++			return nil;
++		node = (LFNode*)(old&PTR_MASK);
++		node2 = runtime·atomicloadp(&node->next);
++		new = 0;
++		if(node2 != nil)
++			new = (uint64)node2|(((uint64)node2->pushcnt)<<PTR_BITS);
++		if(runtime·cas64(head, &old, new))
++			return node;
++	}
++}
++
++void
++runtime·lfstackpop2(uint64 *head, LFNode *node)
++{
++	node = runtime·lfstackpop(head);
++	FLUSH(&node);
++}
+diff --git a/src/pkg/runtime/lfstack_test.go b/src/pkg/runtime/lfstack_test.go
+new file mode 100644
+index 0000000000..505aae6055
+--- /dev/null
++++ b/src/pkg/runtime/lfstack_test.go
+@@ -0,0 +1,130 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"math/rand"
++	. "runtime"
++	"testing"
++	"unsafe"
++)
++
++type MyNode struct {
++	LFNode
++	data int
++}
++
++func fromMyNode(node *MyNode) *LFNode {
++	return (*LFNode)(unsafe.Pointer(node))
++}
++
++func toMyNode(node *LFNode) *MyNode {
++	return (*MyNode)(unsafe.Pointer(node))
++}
++
++func TestLFStack(t *testing.T) {
++	stack := new(uint64)
++	// Need to keep additional referenfces to nodes, the stack is not all that type-safe.
++	var nodes []*MyNode
++
++	// Check the stack is initially empty.
++	if LFStackPop(stack) != nil {
++		t.Fatalf("stack is not empty")
++	}
++
++	// Push one element.
++	node := &MyNode{data: 42}
++	nodes = append(nodes, node)
++	LFStackPush(stack, fromMyNode(node))
++
++	// Push another.
++	node = &MyNode{data: 43}
++	nodes = append(nodes, node)
++	LFStackPush(stack, fromMyNode(node))
++
++	// Pop one element.
++	node = toMyNode(LFStackPop(stack))
++	if node == nil {
++		t.Fatalf("stack is empty")
++	}
++	if node.data != 43 {
++		t.Fatalf("no lifo")
++	}
++
++	// Pop another.
++	node = toMyNode(LFStackPop(stack))
++	if node == nil {
++		t.Fatalf("stack is empty")
++	}
++	if node.data != 42 {
++		t.Fatalf("no lifo")
++	}
++
++	// Check the stack is empty again.
++	if LFStackPop(stack) != nil {
++		t.Fatalf("stack is not empty")
++	}
++	if *stack != 0 {
++		t.Fatalf("stack is not empty")
++	}
++}
++
++func TestLFStackStress(t *testing.T) {
++	const K = 100
++	P := 4 * GOMAXPROCS(-1)
++	N := 100000
++	if testing.Short() {
++		N /= 10
++	}
++	// Create 2 stacks.
++	stacks := [2]*uint64{new(uint64), new(uint64)}
++	// Need to keep additional referenfces to nodes, the stack is not all that type-safe.
++	var nodes []*MyNode
++	// Push K elements randomly onto the stacks.
++	sum := 0
++	for i := 0; i < K; i++ {
++		sum += i
++		node := &MyNode{data: i}
++		nodes = append(nodes, node)
++		LFStackPush(stacks[i%2], fromMyNode(node))
++	}
++	c := make(chan bool, P)
++	for p := 0; p < P; p++ {
++		go func() {
++			r := rand.New(rand.NewSource(rand.Int63()))
++			// Pop a node from a random stack, then push it onto a random stack.
++			for i := 0; i < N; i++ {
++				node := toMyNode(LFStackPop(stacks[r.Intn(2)]))
++				if node != nil {
++					LFStackPush(stacks[r.Intn(2)], fromMyNode(node))
++				}
++			}
++			c <- true
++		}()
++	}
++	for i := 0; i < P; i++ {
++		<-c
++	}
++	// Pop all elements from both stacks, and verify that nothing lost.
++	sum2 := 0
++	cnt := 0
++	for i := 0; i < 2; i++ {
++		for {
++			node := toMyNode(LFStackPop(stacks[i]))
++			if node == nil {
++				break
++			}
++			cnt++
++			sum2 += node.data
++			node.Next = nil
++		}
++	}
++	if cnt != K {
++		t.Fatalf("Wrong number of nodes %d/%d", cnt, K)
++	}
++	if sum2 != sum {
++		t.Fatalf("Wrong sum %d/%d", sum2, sum)
++	}
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 20355e0c7b..672e05bfc9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -72,6 +72,7 @@ typedef	struct	WinCall		WinCall;
+ typedef	struct	Timers		Timers;
+ typedef	struct	Timer		Timer;
+ typedef struct	GCStats		GCStats;
++typedef struct	LFNode		LFNode;
+ 
+ /*
+  * per-cpu declaration.
+@@ -351,6 +352,13 @@ struct	Timer
+ 	Eface	arg;
+ };
+ 
++// Lock-free stack node.
++struct LFNode
++{
++	LFNode	*next;
++	uintptr	pushcnt;
++};
++
+ /*
+  * defined macros
+  *    you need super-gopher-guru privilege
+@@ -651,6 +659,15 @@ void	runtime·semawakeup(M*);
+ void	runtime·futexsleep(uint32*, uint32, int64);
+ void	runtime·futexwakeup(uint32*, uint32);
+ 
++/*
++ * Lock-free stack.
++ * Initialize uint64 head to 0, compare with 0 to test for emptiness.
++ * The stack does not keep pointers to nodes,
++ * so they can be garbage collected if there are no other pointers to nodes.
++ */
++void	runtime·lfstackpush(uint64 *head, LFNode *node);
++LFNode*	runtime·lfstackpop(uint64 *head);
++
+ /*
+  * This is consistent across Linux and BSD.
+  * If a new OS is added that is different, move this to

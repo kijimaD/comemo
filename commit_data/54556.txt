@@ -21,8 +21,91 @@ Date:   Fri Oct 28 14:14:24 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  3 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 32 +++++++++++++++++++++++++
  test/codegen/issue56440.go                      | 16 +++++++++++++
  3 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 0fc0f54433..d5f9e5be63 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2544,7 +2544,10 @@
+ // The exception here is that if the new length is a constant, avoiding spilling it
+ // is pointless and its constantness is sometimes useful for subsequent optimizations.
+ // See issue 56440.
++// Note there are 2 rules here, one for the pre-decomposed []T result and one for
++// the post-decomposed (*T,int,int) result. (The latter is generated after call expansion.)
+ (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const(64|32)) _ _ _ _))) && isSameCall(sym, "runtime.growslice") => newLen
++(SelectN [1] (StaticCall {sym} _ newLen:(Const(64|32)) _ _ _ _)) && v.Type.IsInteger() && isSameCall(sym, "runtime.growslice") => newLen
+ 
+ // Collapse moving A -> B -> C into just A -> C.
+ // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 6598c0e483..a76f55813f 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -26621,6 +26621,38 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (SelectN [1] (StaticCall {sym} _ newLen:(Const64) _ _ _ _))
++	// cond: v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")
++	// result: newLen
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStaticCall || len(v_0.Args) != 6 {
++			break
++		}
++		sym := auxToCall(v_0.Aux)
++		_ = v_0.Args[1]
++		newLen := v_0.Args[1]
++		if newLen.Op != OpConst64 || !(v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")) {
++			break
++		}
++		v.copyOf(newLen)
++		return true
++	}
++	// match: (SelectN [1] (StaticCall {sym} _ newLen:(Const32) _ _ _ _))
++	// cond: v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")
++	// result: newLen
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStaticCall || len(v_0.Args) != 6 {
++			break
++		}
++		sym := auxToCall(v_0.Aux)
++		_ = v_0.Args[1]
++		newLen := v_0.Args[1]
++		if newLen.Op != OpConst32 || !(v.Type.IsInteger() && isSameCall(sym, "runtime.growslice")) {
++			break
++		}
++		v.copyOf(newLen)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSignExt16to32(v *Value) bool {
+diff --git a/test/codegen/issue56440.go b/test/codegen/issue56440.go
+index 36b52ace03..c6c1e66789 100644
+--- a/test/codegen/issue56440.go
++++ b/test/codegen/issue56440.go
+@@ -16,3 +16,19 @@ func f(x []int) int {
+ 	// amd64:`MOVQ\t40\(.*\),`
+ 	return x[len(s)]
+ }
++
++func g(x []int, p *bool) int {
++	s := make([]int, 3)
++	for {
++		s = s[:3]
++		if cap(s) < 5 {
++			s = make([]int, 3, 5)
++		}
++		s = append(s, 4, 5)
++		if *p {
++			// amd64:`MOVQ\t40\(.*\),`
++			return x[len(s)]
++		}
++	}
++	return 0
++}

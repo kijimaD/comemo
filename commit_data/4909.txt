@@ -7,6 +7,23 @@ Date:   Fri Feb 19 18:40:09 2010 -0800
     R=ukai, rsc
     CC=golang-dev
     https://golang.org/cl/166074
-
+---
  src/pkg/websocket/websocket.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index 80ca49b947..bcb42f508a 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -64,9 +64,8 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 				if err != nil {
+ 					return n, err
+ 				}
+-				if (c & 0x80) == 0x80 {
+-					length = length*128 + int(c&0x7f)
+-				} else {
++				length = length*128 + int(c&0x7f)
++				if (c & 0x80) == 0 {
+ 					break
+ 				}
+ 			}

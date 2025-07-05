@@ -8,10 +8,131 @@ Date:   Thu Mar 8 06:23:56 2012 +0800
     R=rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5759064
-
+---
  .hgignore                   |  4 ++--
  src/run.bash                | 29 +++++++++--------------------
  test/bench/go1/Makefile     |  5 -----
  test/bench/go1/dummy.go     |  3 ---
  test/bench/go1/gzip_test.go | 10 ++--------
  5 files changed, 13 insertions(+), 38 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 626e084686..2a84753035 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -24,10 +24,10 @@ _testmain.go
+ build.out
+ test.out
+ doc/tmpltohtml
+-doc/codelab/wiki/*.bin
++doc/articles/wiki/*.bin
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+-misc/dashboard/builder/gobuilder
++misc/dashboard/builder/builder
+ misc/goplay/goplay
+ misc/osx/*.pkg
+ misc/osx/*.dmg
+diff --git a/src/run.bash b/src/run.bash
+index b5ffaa9974..1c73e131d3 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -39,8 +39,6 @@ xcd() {
+ 	builtin cd "$GOROOT"/src/$1
+ }
+ 
+-BROKEN=true
+-
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio
+@@ -70,33 +68,24 @@ $BROKEN ||
+ time ./run
+ ) || exit $?
+ 
+-$BROKEN ||
+ [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
+-(xcd ../doc/codelab/wiki
+-"$GOMAKE" clean
+-"$GOMAKE"
+-"$GOMAKE" test
++(xcd ../doc/articles/wiki
++make clean
++./test.sh
+ ) || exit $?
+ 
+-$BROKEN ||
+-for i in ../misc/dashboard/builder ../misc/goplay
+-do
+-	(xcd $i
+-	"$GOMAKE" clean
+-	"$GOMAKE"
+-	) || exit $?
+-done
++echo
++echo '#' ../misc/dashboard/builder ../misc/goplay
++go build ../misc/dashboard/builder ../misc/goplay || exit $?
+ 
+-$BROKEN ||
+ [ "$GOARCH" == arm ] ||
+ (xcd ../test/bench/shootout
+ ./timing.sh -test
+ ) || exit $?
+ 
+-$BROKEN ||
+-(xcd ../test/bench/go1
+-"$GOMAKE" test
+-) || exit $?
++echo
++echo '#' ../test/bench/go1
++go test ../test/bench/go1 || exit $?
+ 
+ (xcd ../test
+ time go run run.go
+diff --git a/test/bench/go1/Makefile b/test/bench/go1/Makefile
+deleted file mode 100644
+index 48e01279d4..0000000000
+--- a/test/bench/go1/Makefile
++++ /dev/null
+@@ -1,5 +0,0 @@
+-
+-TARG=go1
+-
+-test:
+-	echo go1: tests disabled for now TODO
+diff --git a/test/bench/go1/dummy.go b/test/bench/go1/dummy.go
+deleted file mode 100644
+index 4956bc7b79..0000000000
+--- a/test/bench/go1/dummy.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package go1
+-
+-// Nothing to see here: everything is in the _test files.
+diff --git a/test/bench/go1/gzip_test.go b/test/bench/go1/gzip_test.go
+index c9eeb175f5..fe4c480eb8 100644
+--- a/test/bench/go1/gzip_test.go
++++ b/test/bench/go1/gzip_test.go
+@@ -21,20 +21,14 @@ var (
+ 
+ func init() {
+ 	var buf bytes.Buffer
+-	c, err := gz.NewWriter(&buf)
+-	if err != nil {
+-		panic(err)
+-	}
++	c := gz.NewWriter(&buf)
+ 	c.Write(jsongunz)
+ 	c.Close()
+ 	jsongz = buf.Bytes()
+ }
+ 
+ func gzip() {
+-	c, err := gz.NewWriter(ioutil.Discard)
+-	if err != nil {
+-		panic(err)
+-	}
++	c := gz.NewWriter(ioutil.Discard)
+ 	if _, err := c.Write(jsongunz); err != nil {
+ 		panic(err)
+ 	}

@@ -19,6 +19,20 @@ Date:   Wed Jan 6 14:02:50 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fd8e161c17..c6f55fa035 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3024,7 +3024,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		}
+ 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
+ 	}
+-	if !traceback || n <= 0 {
++	if n <= 0 {
+ 		// Normal traceback is impossible or has failed.
+ 		// See if it falls into several common cases.
+ 		n = 0

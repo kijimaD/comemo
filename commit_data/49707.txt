@@ -30,7 +30,7 @@ Date:   Mon Sep 6 16:25:43 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go        |  1 -
  src/cmd/compile/internal/noder/irgen.go       |  3 --
  src/cmd/compile/internal/noder/stencil.go     | 68 +++++++++++++--------------
@@ -41,3 +41,297 @@ Date:   Mon Sep 6 16:25:43 2021 -0700
  test/typeparam/issue48185b.dir/main.go        | 18 +++++++
  test/typeparam/issue48185b.go                 |  7 +++
  9 files changed, 118 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 863acf587d..7dbbc88f8f 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -237,7 +237,6 @@ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node)
+ 		Targs:   targs1,
+ 	}
+ 	newt := ts.Typ(typ)
+-	g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
+ 	return newt
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index fd29c51c8a..a67b3994da 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -152,9 +152,6 @@ type irgen struct {
+ 	// types which we need to finish, by doing g.fillinMethods.
+ 	typesToFinalize []*typeDelayInfo
+ 
+-	// Fully-instantiated generic types whose methods should be instantiated
+-	instTypeList []*types.Type
+-
+ 	dnum int // for generating unique dictionary variables
+ 
+ 	// Map from generic function to information about its type params, derived
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 3b15ac2c97..1c22fc2ac0 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -481,39 +481,43 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ }
+ 
+ // instantiateMethods instantiates all the methods (and associated dictionaries) of
+-// all fully-instantiated generic types that have been added to g.instTypeList.
++// all fully-instantiated generic types that have been added to typecheck.instTypeList.
++// It continues until no more types are added to typecheck.instTypeList.
+ func (g *irgen) instantiateMethods() {
+-	for i := 0; i < len(g.instTypeList); i++ {
+-		typ := g.instTypeList[i]
+-		assert(!typ.HasShape())
+-		// Mark runtime type as needed, since this ensures that the
+-		// compiler puts out the needed DWARF symbols, when this
+-		// instantiated type has a different package from the local
+-		// package.
+-		typecheck.NeedRuntimeType(typ)
+-		// Lookup the method on the base generic type, since methods may
+-		// not be set on imported instantiated types.
+-		baseSym := typ.OrigSym()
+-		baseType := baseSym.Def.(*ir.Name).Type()
+-		for j, _ := range typ.Methods().Slice() {
+-			if baseType.Methods().Slice()[j].Nointerface() {
+-				typ.Methods().Slice()[j].SetNointerface(true)
++	for {
++		instTypeList := typecheck.GetInstTypeList()
++		if len(instTypeList) == 0 {
++			break
++		}
++		for _, typ := range instTypeList {
++			assert(!typ.HasShape())
++			// Mark runtime type as needed, since this ensures that the
++			// compiler puts out the needed DWARF symbols, when this
++			// instantiated type has a different package from the local
++			// package.
++			typecheck.NeedRuntimeType(typ)
++			// Lookup the method on the base generic type, since methods may
++			// not be set on imported instantiated types.
++			baseSym := typ.OrigSym()
++			baseType := baseSym.Def.(*ir.Name).Type()
++			for j, _ := range typ.Methods().Slice() {
++				if baseType.Methods().Slice()[j].Nointerface() {
++					typ.Methods().Slice()[j].SetNointerface(true)
++				}
++				baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
++				// Eagerly generate the instantiations and dictionaries that implement these methods.
++				// We don't use the instantiations here, just generate them (and any
++				// further instantiations those generate, etc.).
++				// Note that we don't set the Func for any methods on instantiated
++				// types. Their signatures don't match so that would be confusing.
++				// Direct method calls go directly to the instantiations, implemented above.
++				// Indirect method calls use wrappers generated in reflectcall. Those wrappers
++				// will use these instantiations if they are needed (for interface tables or reflection).
++				_ = g.getInstantiation(baseNname, typ.RParams(), true)
++				_ = g.getDictionarySym(baseNname, typ.RParams(), true)
+ 			}
+-			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+-			// Eagerly generate the instantiations and dictionaries that implement these methods.
+-			// We don't use the instantiations here, just generate them (and any
+-			// further instantiations those generate, etc.).
+-			// Note that we don't set the Func for any methods on instantiated
+-			// types. Their signatures don't match so that would be confusing.
+-			// Direct method calls go directly to the instantiations, implemented above.
+-			// Indirect method calls use wrappers generated in reflectcall. Those wrappers
+-			// will use these instantiations if they are needed (for interface tables or reflection).
+-			_ = g.getInstantiation(baseNname, typ.RParams(), true)
+-			_ = g.getDictionarySym(baseNname, typ.RParams(), true)
+ 		}
+ 	}
+-	g.instTypeList = nil
+-
+ }
+ 
+ // getInstNameNode returns the name node for the method or function being instantiated, and a bool which is true if a method is being instantiated.
+@@ -735,9 +739,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
+ 	}
+ 
+ 	ir.CurFunc = savef
+-	// Add any new, fully instantiated types seen during the substitution to
+-	// g.instTypeList.
+-	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
+ 
+ 	if doubleCheck {
+ 		ir.Visit(newf, func(n ir.Node) {
+@@ -1573,7 +1574,6 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 		off:   off,
+ 	}
+ 	g.dictSymsToFinalize = append(g.dictSymsToFinalize, delay)
+-	g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
+ 	return sym
+ }
+ 
+@@ -1640,8 +1640,6 @@ func (g *irgen) finalizeSyms() {
+ 
+ 		objw.Global(lsym, int32(d.off), obj.DUPOK|obj.RODATA)
+ 		infoPrint("=== Finalized dictionary %s\n", d.sym.Name)
+-
+-		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
+ 	}
+ 	g.dictSymsToFinalize = nil
+ }
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index b70d8d198e..5c9aafe490 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -321,10 +321,6 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 				}
+ 				// Do the substitution of the type
+ 				meth2.SetType(ts.Typ(meth.Type()))
+-				// Add any new fully instantiated types
+-				// seen during the substitution to
+-				// g.instTypeList.
+-				g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
+ 				newsym.Def = meth2
+ 			}
+ 			meth = meth2
+@@ -335,7 +331,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 	ntyp.Methods().Set(methods)
+ 	if !ntyp.HasTParam() && !ntyp.HasShape() {
+ 		// Generate all the methods for a new fully-instantiated type.
+-		g.instTypeList = append(g.instTypeList, ntyp)
++		typecheck.NeedInstType(ntyp)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 7855702b02..fd208bff9a 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1871,4 +1871,8 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+ 		newfields[i].Nname = nname
+ 	}
+ 	t.Methods().Set(newfields)
++	if !t.HasTParam() && t.Kind() != types.TINTER && t.Methods().Len() > 0 {
++		// Generate all the methods for a new fully-instantiated type.
++		NeedInstType(t)
++	}
+ }
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index d0ae529596..34f20879f1 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -992,6 +992,22 @@ func assert(p bool) {
+ 	base.Assert(p)
+ }
+ 
++// List of newly fully-instantiated types who should have their methods generated.
++var instTypeList []*types.Type
++
++// NeedInstType adds a new fully-instantied type to instTypeList.
++func NeedInstType(t *types.Type) {
++	instTypeList = append(instTypeList, t)
++}
++
++// GetInstTypeList returns the current contents of instTypeList, and sets
++// instTypeList to nil.
++func GetInstTypeList() []*types.Type {
++	r := instTypeList
++	instTypeList = nil
++	return r
++}
++
+ // General type substituter, for replacing typeparams with type args.
+ type Tsubster struct {
+ 	Tparams []*types.Type
+@@ -999,8 +1015,6 @@ type Tsubster struct {
+ 	// If non-nil, the substitution map from name nodes in the generic function to the
+ 	// name nodes in the new stenciled function.
+ 	Vars map[*ir.Name]*ir.Name
+-	// New fully-instantiated generic types whose methods should be instantiated.
+-	InstTypeList []*types.Type
+ 	// If non-nil, function to substitute an incomplete (TFORW) type.
+ 	SubstForwFunc func(*types.Type) *types.Type
+ }
+@@ -1258,7 +1272,8 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 		newt.Methods().Set(newfields)
+ 		if !newt.HasTParam() && !newt.HasShape() {
+ 			// Generate all the methods for a new fully-instantiated type.
+-			ts.InstTypeList = append(ts.InstTypeList, newt)
++
++			NeedInstType(newt)
+ 		}
+ 	}
+ 	return newt
+diff --git a/test/typeparam/issue48185b.dir/a.go b/test/typeparam/issue48185b.dir/a.go
+new file mode 100644
+index 0000000000..9aed60cfae
+--- /dev/null
++++ b/test/typeparam/issue48185b.dir/a.go
+@@ -0,0 +1,37 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import (
++	"reflect"
++	"sync"
++)
++
++type addressableValue struct{ reflect.Value }
++
++type arshalers[Options, Coder any] struct {
++	fncVals  []typedArshaler[Options, Coder]
++	fncCache sync.Map // map[reflect.Type]unmarshaler
++}
++type typedArshaler[Options, Coder any] struct {
++	typ reflect.Type
++	fnc func(Options, *Coder, addressableValue) error
++}
++
++type UnmarshalOptions1 struct {
++	// Unmarshalers is a list of type-specific unmarshalers to use.
++	Unmarshalers *arshalers[UnmarshalOptions1, Decoder1]
++}
++
++type Decoder1 struct {
++}
++
++func (a *arshalers[Options, Coder]) lookup(fnc func(Options, *Coder, addressableValue) error, t reflect.Type) func(Options, *Coder, addressableValue) error {
++	return fnc
++}
++
++func UnmarshalFuncV2[T any](fn func(UnmarshalOptions1, *Decoder1, T) error) *arshalers[UnmarshalOptions1, Decoder1] {
++	return &arshalers[UnmarshalOptions1, Decoder1]{}
++}
+diff --git a/test/typeparam/issue48185b.dir/main.go b/test/typeparam/issue48185b.dir/main.go
+new file mode 100644
+index 0000000000..978e6ae585
+--- /dev/null
++++ b/test/typeparam/issue48185b.dir/main.go
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func main() {
++	_ = a.UnmarshalOptions1{
++		Unmarshalers: a.UnmarshalFuncV2(func(opts a.UnmarshalOptions1, dec *a.Decoder1, val *interface{}) (err error) {
++			return fmt.Errorf("error")
++		}),
++	}
++}
+diff --git a/test/typeparam/issue48185b.go b/test/typeparam/issue48185b.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue48185b.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

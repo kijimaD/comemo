@@ -16,6 +16,27 @@ Date:   Wed Oct 18 17:30:31 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/debug/elf/file.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index e748716cb7..fcbe76b195 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1607,6 +1607,15 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	dynSize := 8
++	if f.Class == ELFCLASS64 {
++		dynSize = 16
++	}
++	if len(d)%dynSize != 0 {
++		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
++	}
++
+ 	str, err := f.stringTable(ds.Link)
+ 	if err != nil {
+ 		return nil, err

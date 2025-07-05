@@ -15,6 +15,22 @@ Date:   Mon Apr 20 10:55:02 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 758c90931f..9079ce2afc 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -47,10 +47,6 @@ func isRuntimePkg(p *types.Pkg) bool {
+ 
+ // isReflectPkg reports whether p is package reflect.
+ func isReflectPkg(p *types.Pkg) bool {
+-	// TODO(cuonglm): how to get rid this check.
+-	if p == nil {
+-		return false
+-	}
+ 	if p == localpkg {
+ 		return myimportpath == "reflect"
+ 	}

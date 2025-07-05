@@ -8,6 +8,20 @@ Date:   Wed Jul 15 21:28:08 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31708
     CL=31713
-
+---
  src/pkg/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 8b50cb5085..a10a6af72e 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -466,7 +466,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	}
+ 	// These are chosen carefully not to be symlinks on a Mac
+ 	// (unlike, say, /var, /etc, and /tmp).
+-	dirs := []string{ "/bin", "/", "/usr/local/bin" };
++	dirs := []string{ "/bin", "/", "/usr/bin" };
+ 	for mode := 0; mode < 2; mode++ {
+ 		for i, d := range dirs {
+ 			if mode == 0 {

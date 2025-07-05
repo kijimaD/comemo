@@ -7,6 +7,58 @@ Date:   Tue Jan 13 16:43:34 2015 +1100
     Change-Id: I4f84a89553f77382a8064f49db0f5eb575b64313
     Reviewed-on: https://go-review.googlesource.com/2714
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os1_windows.go | 34 ++++++++++++++++++++++------------
  1 file changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 7ac1cfe5b1..653a7b34c7 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -182,24 +182,34 @@ func getRandomData(r []byte) {
+ }
+ 
+ func goenvs() {
+-	var p *uint16
+-
+-	env := (*uint16)(unsafe.Pointer(stdcall0(_GetEnvironmentStringsW)))
++	// strings is a pointer to environment variable pairs in the form:
++	//     "envA=valA\x00envB=valB\x00\x00" (in UTF-16)
++	// Two consecutive zero bytes end the list.
++	strings := unsafe.Pointer(stdcall0(_GetEnvironmentStringsW))
++	p := (*[1 << 24]uint16)(strings)[:]
+ 
+ 	n := 0
+-	for p = env; *p != 0; n++ {
+-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
++	for from, i := 0, 0; true; i++ {
++		if p[i] == 0 {
++			// empty string marks the end
++			if i == from {
++				break
++			}
++			from = i + 1
++			n++
++		}
+ 	}
++	envs = makeStringSlice(n)
+ 
+-	envs = makeStringSlice(int(n))
+-
+-	p = env
+-	for i := 0; i < n; i++ {
+-		envs[i] = gostringw(p)
+-		p = (*uint16)(add(unsafe.Pointer(p), uintptr(findnullw(p)+1)*unsafe.Sizeof(*p)))
++	for i := range envs {
++		envs[i] = gostringw(&p[0])
++		for p[0] != 0 {
++			p = p[1:]
++		}
++		p = p[1:] // skip nil byte
+ 	}
+ 
+-	stdcall1(_FreeEnvironmentStringsW, uintptr(unsafe.Pointer(env)))
++	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+ }
+ 
+ //go:nosplit

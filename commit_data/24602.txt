@@ -9,7 +9,47 @@ Date:   Tue Aug 11 15:05:12 2015 +1000
     Change-Id: I190586484cd34856dccfafaba60eff0197c7dc20
     Reviewed-on: https://go-review.googlesource.com/13500
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/net/mail/message.go      | 9 ++++++++-
  src/net/mail/message_test.go | 8 ++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 8ddb313b47..8a89f9b0c0 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -171,7 +171,14 @@ func (a *Address) String() string {
+ 
+ 	// Format address local@domain
+ 	at := strings.LastIndex(a.Address, "@")
+-	local, domain := a.Address[:at], a.Address[at+1:]
++	var local, domain string
++	if at < 0 {
++		// This is a malformed address ("@" is required in addr-spec);
++		// treat the whole address as local-part.
++		local = a.Address
++	} else {
++		local, domain := a.Address[:at], a.Address[at+1:]
++	}
+ 
+ 	// Add quotes if needed
+ 	// TODO: rendering quoted local part and rendering printable name
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index ffe9af9bf6..c6b412c181 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -483,6 +483,14 @@ func TestAddressFormatting(t *testing.T) {
+ 			&Address{Name: "Böb Jacöb", Address: "bob@example.com"},
+ 			`=?utf-8?q?B=C3=B6b_Jac=C3=B6b?= <bob@example.com>`,
+ 		},
++		{ // https://golang.org/issue/12098
++			&Address{Name: "Rob", Address: ""},
++			`"Rob" <>`,
++		},
++		{ // https://golang.org/issue/12098
++			&Address{Name: "Rob", Address: "@"},
++			`"Rob" <@>`,
++		},
+ 	}
+ 	for _, test := range tests {
+ 		s := test.addr.String()

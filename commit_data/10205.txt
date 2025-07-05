@@ -7,6 +7,20 @@ Date:   Wed Nov 2 18:03:45 2011 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/5303092
-
+---
  src/pkg/json/scanner_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 0b86cb537d..429ac366d3 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -147,7 +147,7 @@ var indentErrorTests = []indentErrorTest{
+ 	{`{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
+ }
+ 
+-func TestIdentErrors(t *testing.T) {
++func TestIndentErrors(t *testing.T) {
+ 	for i, tt := range indentErrorTests {
+ 		slice := make([]uint8, 0)
+ 		buf := bytes.NewBuffer(slice)

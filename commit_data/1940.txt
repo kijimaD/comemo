@@ -9,8 +9,210 @@ Date:   Wed Apr 1 22:20:18 2009 -0700
     DELTA=167  (166 added, 0 deleted, 1 changed)
     OCL=26982
     CL=27017
-
+---
  src/lib/reflect/Makefile     |  3 +-
  src/lib/reflect/all_test.go  | 88 ++++++++++++++++++++++++++++++++++++++++++++
  src/lib/reflect/deepequal.go | 78 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 168 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/reflect/Makefile b/src/lib/reflect/Makefile
+index b354320b91..1f6d72327a 100644
+--- a/src/lib/reflect/Makefile
++++ b/src/lib/reflect/Makefile
+@@ -40,6 +40,7 @@ O2=\
+ 
+ O3=\
+ 	tostring.$O\
++	deepequal.$O\
+ 
+ reflect.a: a1 a2 a3
+ 
+@@ -52,7 +53,7 @@ a2:	$(O2)
+ 	rm -f $(O2)
+ 
+ a3:	$(O3)
+-	$(AR) grc reflect.a tostring.$O
++	$(AR) grc reflect.a tostring.$O deepequal.$O
+ 	rm -f $(O3)
+ 
+ newpkg: clean
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 590ce8d9fd..166b20702f 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -356,3 +356,91 @@ func TestBigStruct(t *testing.T) {
+ 		t.Errorf("NewValue(%v).Interface().(big) = %v", b, b1);
+ 	}
+ }
++
++type Basic struct {
++	x int;
++	y float32
++}
++
++type Recursive struct {
++	x int;
++	r *Recursive
++}
++
++type Complex struct {
++	a int;
++	b [3]*Complex;
++	c *string;
++	d map[float]float
++}
++
++type DeepEqualTest struct {
++	a, b interface{};
++	eq bool;
++}
++
++var deepEqualTests = []DeepEqualTest {
++	// Equalities
++	DeepEqualTest{ 1, 1, true },
++	DeepEqualTest{ int32(1), int32(1), true },
++	DeepEqualTest{ 0.5, 0.5, true },
++	DeepEqualTest{ float32(0.5), float32(0.5), true },
++	DeepEqualTest{ "hello", "hello", true },
++	DeepEqualTest{ make([]int, 10), make([]int, 10), true },
++	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
++	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
++	// Inequalities
++	DeepEqualTest{ 1, 2, false },
++	DeepEqualTest{ int32(1), int32(2), false },
++	DeepEqualTest{ 0.5, 0.6, false },
++	DeepEqualTest{ float32(0.5), float32(0.6), false },
++	DeepEqualTest{ "hello", "hey", false },
++	DeepEqualTest{ make([]int, 10), make([]int, 11), false },
++	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 4 }, false },
++	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.6 }, false },
++	// Mismatched types
++	DeepEqualTest{ 1, 1.0, false },
++	DeepEqualTest{ int32(1), int64(1), false },
++	DeepEqualTest{ 0.5, "hello", false },
++	DeepEqualTest{ []int{ 1, 2, 3 }, [3]int{ 1, 2, 3 }, false },
++	DeepEqualTest{ &[3]interface{} { 1, 2, 4 }, &[3]interface{} { 1, 2, "s" }, false },
++}
++
++func TestDeepEqual(t *testing.T) {
++	for i, test := range deepEqualTests {
++		if r := DeepEqual(test.a, test.b); r != test.eq {
++			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq);
++		}
++	}
++}
++
++func TestDeepEqualRecursiveStruct(t *testing.T) {
++	a, b := new(Recursive), new(Recursive);
++	*a = Recursive{ 12, a };
++	*b = Recursive{ 12, b };
++	if !DeepEqual(a, b) {
++		t.Error("DeepEqual(recursive same) = false, want true");
++	}
++}
++
++func TestDeepEqualComplexStruct(t *testing.T) {
++	m := make(map[float]float);
++	stra, strb := "hello", "hello";
++	a, b := new(Complex), new(Complex);
++	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
++	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
++	if !DeepEqual(a, b) {
++		t.Error("DeepEqual(complex same) = false, want true");
++	}
++}
++
++func TestDeepEqualComplexStructInequality(t *testing.T) {
++	m := make(map[float]float);
++	stra, strb := "hello", "helloo";  // Difference is here
++	a, b := new(Complex), new(Complex);
++	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
++	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
++	if DeepEqual(a, b) {
++		t.Error("DeepEqual(complex different) = true, want false");
++	}
++}
+diff --git a/src/lib/reflect/deepequal.go b/src/lib/reflect/deepequal.go
+new file mode 100644
+index 0000000000..a9acf737ac
+--- /dev/null
++++ b/src/lib/reflect/deepequal.go
+@@ -0,0 +1,78 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Deep equality test via reflection
++
++package reflect
++
++import "reflect"
++
++// Tests for deep equality using reflected types. The map argument tracks
++// comparisons that have already been seen, which allows short circuiting on
++// recursive types.
++func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
++	if v1.Kind() != v2.Kind() {
++		return false;
++	}
++
++	// Short circuit if references are identical or already seen
++	addr1 := v1.Addr();
++	addr2 := v2.Addr();
++
++	if addr1 == addr2 {
++		return true;
++	}
++	if vaddr, ok := visited[addr1]; ok && vaddr == addr2 {
++		return true;
++	}
++	visited[addr1] = addr2;
++
++	switch v1.Kind() {
++	case ArrayKind:
++		arr1 := v1.(ArrayValue);
++		arr2 := v2.(ArrayValue);
++		if arr1.IsSlice() != arr2.IsSlice() || arr1.Len() != arr2.Len() {
++			return false;
++		}
++		for i := 0; i < arr1.Len(); i++ {
++			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited) {
++				return false;
++			}
++		}
++		return true;
++	case InterfaceKind:
++		return deepValueEqual(NewValue(v1.(InterfaceValue).Get()),
++				NewValue(v2.(InterfaceValue).Get()), visited);
++	case MapKind:
++		// TODO(dnadasi): Implement this fully once MapValue is implemented
++		return v1.Interface() == v2.Interface();
++	case PtrKind:
++		return deepValueEqual(v1.(PtrValue).Sub(), v2.(PtrValue).Sub(), visited);
++	case StructKind:
++		struct1 := v1.(StructValue);
++		struct2 := v2.(StructValue);
++		if struct1.Len() != struct2.Len() {
++			return false;
++		}
++		for i := 0; i < struct1.Len(); i++ {
++			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited) {
++				return false;
++			}
++		}
++		return true;
++	default:
++		// Normal equality suffices
++		return v1.Interface() == v2.Interface();
++	}
++
++	panic("Not reached");
++}
++
++// DeepEqual tests for deep equality. It uses normal == equality where possible
++// but will scan members of arrays, slices, and fields of structs. It correctly
++// handles recursive types. Until reflection supports maps, maps are equal iff
++// they are identical.
++func DeepEqual(a1, a2 interface{}) bool {
++	return deepValueEqual(NewValue(a1), NewValue(a2), make(map[Addr]Addr));
++}

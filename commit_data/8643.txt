@@ -7,6 +7,20 @@ Date:   Tue Jun 7 09:57:26 2011 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4564048
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 0c36e53a35..88acb60af1 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -5,7 +5,7 @@
+ #define		EXTERN
+ #include	"go.h"
+ #include	"y.tab.h"
+-#include <ar.h>
++#include	<ar.h>
+ 
+ #undef	getc
+ #undef	ungetc

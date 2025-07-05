@@ -18,7 +18,7 @@ Date:   Mon Jun 7 10:29:44 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go                          |  62 +++++++++++++----
  src/go/ast/ast_notypeparams.go             |  28 --------
  src/go/ast/ast_typeparams.go               |  51 --------------
@@ -31,3 +31,522 @@ Date:   Mon Jun 7 10:29:44 2021 -0400
  src/go/types/api_typeparams.go             |   3 -
  src/go/types/api_typeparams_test.go        |   3 -
  11 files changed, 64 insertions(+), 300 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 337c87fd79..a34cafcb4e 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -374,6 +374,13 @@ type (
+ 		Rparen   token.Pos // position of ")"
+ 	}
+ 
++	// A ListExpr node represents a list of expressions separated by commas.
++	// ListExpr nodes are used as index in IndexExpr nodes representing type
++	// or function instantiations with more than one type argument.
++	ListExpr struct {
++		ElemList []Expr
++	}
++
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+ 	// Semantically it could be a unary "*" expression, or a pointer type.
+ 	//
+@@ -440,6 +447,14 @@ type (
+ 
+ 	// Pointer types are represented via StarExpr nodes.
+ 
++	// A FuncType node represents a function type.
++	FuncType struct {
++		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
++		TParams *FieldList // type parameters; or nil
++		Params  *FieldList // (incoming) parameters; non-nil
++		Results *FieldList // (outgoing) results; or nil
++	}
++
+ 	// An InterfaceType node represents an interface type.
+ 	InterfaceType struct {
+ 		Interface  token.Pos  // position of "interface" keyword
+@@ -482,12 +497,18 @@ func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+ func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
+ func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
+ func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
+-func (x *StarExpr) Pos() token.Pos       { return x.Star }
+-func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
+-func (x *BinaryExpr) Pos() token.Pos     { return x.X.Pos() }
+-func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
+-func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
+-func (x *StructType) Pos() token.Pos     { return x.Struct }
++func (x *ListExpr) Pos() token.Pos {
++	if len(x.ElemList) > 0 {
++		return x.ElemList[0].Pos()
++	}
++	return token.NoPos
++}
++func (x *StarExpr) Pos() token.Pos     { return x.Star }
++func (x *UnaryExpr) Pos() token.Pos    { return x.OpPos }
++func (x *BinaryExpr) Pos() token.Pos   { return x.X.Pos() }
++func (x *KeyValueExpr) Pos() token.Pos { return x.Key.Pos() }
++func (x *ArrayType) Pos() token.Pos    { return x.Lbrack }
++func (x *StructType) Pos() token.Pos   { return x.Struct }
+ func (x *FuncType) Pos() token.Pos {
+ 	if x.Func.IsValid() || x.Params == nil { // see issue 3870
+ 		return x.Func
+@@ -515,12 +536,18 @@ func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+ func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
+ func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
+ func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+-func (x *StarExpr) End() token.Pos       { return x.X.End() }
+-func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
+-func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
+-func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
+-func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
+-func (x *StructType) End() token.Pos     { return x.Fields.End() }
++func (x *ListExpr) End() token.Pos {
++	if len(x.ElemList) > 0 {
++		return x.ElemList[len(x.ElemList)-1].End()
++	}
++	return token.NoPos
++}
++func (x *StarExpr) End() token.Pos     { return x.X.End() }
++func (x *UnaryExpr) End() token.Pos    { return x.X.End() }
++func (x *BinaryExpr) End() token.Pos   { return x.Y.End() }
++func (x *KeyValueExpr) End() token.Pos { return x.Value.End() }
++func (x *ArrayType) End() token.Pos    { return x.Elt.End() }
++func (x *StructType) End() token.Pos   { return x.Fields.End() }
+ func (x *FuncType) End() token.Pos {
+ 	if x.Results != nil {
+ 		return x.Results.End()
+@@ -546,6 +573,7 @@ func (*IndexExpr) exprNode()      {}
+ func (*SliceExpr) exprNode()      {}
+ func (*TypeAssertExpr) exprNode() {}
+ func (*CallExpr) exprNode()       {}
++func (*ListExpr) exprNode()       {}
+ func (*StarExpr) exprNode()       {}
+ func (*UnaryExpr) exprNode()      {}
+ func (*BinaryExpr) exprNode()     {}
+@@ -892,6 +920,16 @@ type (
+ 		Values  []Expr        // initial values; or nil
+ 		Comment *CommentGroup // line comments; or nil
+ 	}
++
++	// A TypeSpec node represents a type declaration (TypeSpec production).
++	TypeSpec struct {
++		Doc     *CommentGroup // associated documentation; or nil
++		Name    *Ident        // type name
++		TParams *FieldList    // type parameters; or nil
++		Assign  token.Pos     // position of '=', if any
++		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
++		Comment *CommentGroup // line comments; or nil
++	}
+ )
+ 
+ // Pos and End implementations for spec nodes.
+diff --git a/src/go/ast/ast_notypeparams.go b/src/go/ast/ast_notypeparams.go
+deleted file mode 100644
+index fa132fba85..0000000000
+--- a/src/go/ast/ast_notypeparams.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !typeparams
+-// +build !typeparams
+-
+-package ast
+-
+-import "go/token"
+-
+-type (
+-	// A FuncType node represents a function type.
+-	FuncType struct {
+-		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+-		Params  *FieldList // (incoming) parameters; non-nil
+-		Results *FieldList // (outgoing) results; or nil
+-	}
+-
+-	// A TypeSpec node represents a type declaration (TypeSpec production).
+-	TypeSpec struct {
+-		Doc     *CommentGroup // associated documentation; or nil
+-		Name    *Ident        // type name
+-		Assign  token.Pos     // position of '=', if any
+-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+-		Comment *CommentGroup // line comments; or nil
+-	}
+-)
+diff --git a/src/go/ast/ast_typeparams.go b/src/go/ast/ast_typeparams.go
+deleted file mode 100644
+index 24fdc5f131..0000000000
+--- a/src/go/ast/ast_typeparams.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build typeparams
+-// +build typeparams
+-
+-package ast
+-
+-import "go/token"
+-
+-type (
+-	// A FuncType node represents a function type.
+-	FuncType struct {
+-		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+-		TParams *FieldList // type parameters; or nil
+-		Params  *FieldList // (incoming) parameters; non-nil
+-		Results *FieldList // (outgoing) results; or nil
+-	}
+-
+-	// A TypeSpec node represents a type declaration (TypeSpec production).
+-	TypeSpec struct {
+-		Doc     *CommentGroup // associated documentation; or nil
+-		Name    *Ident        // type name
+-		TParams *FieldList    // type parameters; or nil
+-		Assign  token.Pos     // position of '=', if any
+-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+-		Comment *CommentGroup // line comments; or nil
+-	}
+-
+-	// A ListExpr node represents a list of expressions separated by commas.
+-	// ListExpr nodes are used as index in IndexExpr nodes representing type
+-	// or function instantiations with more than one type argument.
+-	ListExpr struct {
+-		ElemList []Expr
+-	}
+-)
+-
+-func (*ListExpr) exprNode() {}
+-func (x *ListExpr) Pos() token.Pos {
+-	if len(x.ElemList) > 0 {
+-		return x.ElemList[0].Pos()
+-	}
+-	return token.NoPos
+-}
+-func (x *ListExpr) End() token.Pos {
+-	if len(x.ElemList) > 0 {
+-		return x.ElemList[len(x.ElemList)-1].End()
+-	}
+-	return token.NoPos
+-}
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 9224264e29..02fef5901d 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -4,6 +4,8 @@
+ 
+ package ast
+ 
++import "fmt"
++
+ // A Visitor's Visit method is invoked for each node encountered by Walk.
+ // If the result visitor w is not nil, Walk visits each of the children
+ // of node with the visitor w, followed by a call of w.Visit(nil).
+@@ -136,6 +138,11 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.Fun)
+ 		walkExprList(v, n.Args)
+ 
++	case *ListExpr:
++		for _, elem := range n.ElemList {
++			Walk(v, elem)
++		}
++
+ 	case *StarExpr:
+ 		Walk(v, n.X)
+ 
+@@ -161,7 +168,9 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.Fields)
+ 
+ 	case *FuncType:
+-		walkFuncTypeParams(v, n)
++		if n.TParams != nil {
++			Walk(v, n.TParams)
++		}
+ 		if n.Params != nil {
+ 			Walk(v, n.Params)
+ 		}
+@@ -316,7 +325,9 @@ func Walk(v Visitor, node Node) {
+ 			Walk(v, n.Doc)
+ 		}
+ 		Walk(v, n.Name)
+-		walkTypeSpecParams(v, n)
++		if n.TParams != nil {
++			Walk(v, n.TParams)
++		}
+ 		Walk(v, n.Type)
+ 		if n.Comment != nil {
+ 			Walk(v, n.Comment)
+@@ -363,7 +374,7 @@ func Walk(v Visitor, node Node) {
+ 		}
+ 
+ 	default:
+-		walkOtherNodes(v, n)
++		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
+ 	}
+ 
+ 	v.Visit(nil)
+diff --git a/src/go/ast/walk_notypeparams.go b/src/go/ast/walk_notypeparams.go
+deleted file mode 100644
+index d43e13dd11..0000000000
+--- a/src/go/ast/walk_notypeparams.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !typeparams
+-// +build !typeparams
+-
+-package ast
+-
+-import "fmt"
+-
+-func walkFuncTypeParams(v Visitor, n *FuncType) {}
+-func walkTypeSpecParams(v Visitor, n *TypeSpec) {}
+-
+-func walkOtherNodes(v Visitor, n Node) {
+-	panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
+-}
+diff --git a/src/go/ast/walk_typeparams.go b/src/go/ast/walk_typeparams.go
+deleted file mode 100644
+index b6621335b8..0000000000
+--- a/src/go/ast/walk_typeparams.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build typeparams
+-// +build typeparams
+-
+-package ast
+-
+-import (
+-	"fmt"
+-)
+-
+-func walkFuncTypeParams(v Visitor, n *FuncType) {
+-	if n.TParams != nil {
+-		Walk(v, n.TParams)
+-	}
+-}
+-
+-func walkTypeSpecParams(v Visitor, n *TypeSpec) {
+-	if n.TParams != nil {
+-		Walk(v, n.TParams)
+-	}
+-}
+-
+-func walkOtherNodes(v Visitor, n Node) {
+-	if e, ok := n.(*ListExpr); ok {
+-		if e != nil {
+-			for _, elem := range e.ElemList {
+-				Walk(v, elem)
+-			}
+-		}
+-	} else {
+-		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
+-	}
+-}
+diff --git a/src/go/internal/typeparams/notypeparams.go b/src/go/internal/typeparams/notypeparams.go
+deleted file mode 100644
+index 2ceafaac1c..0000000000
+--- a/src/go/internal/typeparams/notypeparams.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !typeparams
+-// +build !typeparams
+-
+-package typeparams
+-
+-import (
+-	"go/ast"
+-)
+-
+-const Enabled = false
+-
+-func PackExpr(list []ast.Expr) ast.Expr {
+-	switch len(list) {
+-	case 1:
+-		return list[0]
+-	default:
+-		// The parser should not attempt to pack multiple expressions into an
+-		// IndexExpr if type params are disabled.
+-		panic("multiple index expressions are unsupported without type params")
+-	}
+-}
+-
+-func UnpackExpr(expr ast.Expr) []ast.Expr {
+-	return []ast.Expr{expr}
+-}
+-
+-func IsListExpr(n ast.Node) bool {
+-	return false
+-}
+-
+-func Get(ast.Node) *ast.FieldList {
+-	return nil
+-}
+-
+-func Set(node ast.Node, params *ast.FieldList) {
+-}
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+index 871e95d998..b4251bda7e 100644
+--- a/src/go/internal/typeparams/typeparams.go
++++ b/src/go/internal/typeparams/typeparams.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build typeparams
+-// +build typeparams
+-
+ package typeparams
+ 
+ import (
+diff --git a/src/go/types/api_notypeparams.go b/src/go/types/api_notypeparams.go
+deleted file mode 100644
+index 9f7cb7eccf..0000000000
+--- a/src/go/types/api_notypeparams.go
++++ /dev/null
+@@ -1,104 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !typeparams
+-// +build !typeparams
+-
+-package types
+-
+-import "go/ast"
+-
+-// Info holds result type information for a type-checked package.
+-// Only the information for which a map is provided is collected.
+-// If the package has type errors, the collected information may
+-// be incomplete.
+-type Info struct {
+-	// Types maps expressions to their types, and for constant
+-	// expressions, also their values. Invalid expressions are
+-	// omitted.
+-	//
+-	// For (possibly parenthesized) identifiers denoting built-in
+-	// functions, the recorded signatures are call-site specific:
+-	// if the call result is not a constant, the recorded type is
+-	// an argument-specific signature. Otherwise, the recorded type
+-	// is invalid.
+-	//
+-	// The Types map does not record the type of every identifier,
+-	// only those that appear where an arbitrary expression is
+-	// permitted. For instance, the identifier f in a selector
+-	// expression x.f is found only in the Selections map, the
+-	// identifier z in a variable declaration 'var z int' is found
+-	// only in the Defs map, and identifiers denoting packages in
+-	// qualified identifiers are collected in the Uses map.
+-	Types map[ast.Expr]TypeAndValue
+-
+-	// Defs maps identifiers to the objects they define (including
+-	// package names, dots "." of dot-imports, and blank "_" identifiers).
+-	// For identifiers that do not denote objects (e.g., the package name
+-	// in package clauses, or symbolic variables t in t := x.(type) of
+-	// type switch headers), the corresponding objects are nil.
+-	//
+-	// For an embedded field, Defs returns the field *Var it defines.
+-	//
+-	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
+-	Defs map[*ast.Ident]Object
+-
+-	// Uses maps identifiers to the objects they denote.
+-	//
+-	// For an embedded field, Uses returns the *TypeName it denotes.
+-	//
+-	// Invariant: Uses[id].Pos() != id.Pos()
+-	Uses map[*ast.Ident]Object
+-
+-	// Implicits maps nodes to their implicitly declared objects, if any.
+-	// The following node and object types may appear:
+-	//
+-	//     node               declared object
+-	//
+-	//     *ast.ImportSpec    *PkgName for imports without renames
+-	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+-	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
+-	//
+-	Implicits map[ast.Node]Object
+-
+-	// Selections maps selector expressions (excluding qualified identifiers)
+-	// to their corresponding selections.
+-	Selections map[*ast.SelectorExpr]*Selection
+-
+-	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
+-	// associated with a specific node but with all files belonging to a package.
+-	// Thus, the package scope can be found in the type-checked Package object.
+-	// Scopes nest, with the Universe scope being the outermost scope, enclosing
+-	// the package scope, which contains (one or more) files scopes, which enclose
+-	// function scopes which in turn enclose statement and function literal scopes.
+-	// Note that even though package-level functions are declared in the package
+-	// scope, the function scopes are embedded in the file scope of the file
+-	// containing the function declaration.
+-	//
+-	// The following node types may appear in Scopes:
+-	//
+-	//     *ast.File
+-	//     *ast.FuncType
+-	//     *ast.BlockStmt
+-	//     *ast.IfStmt
+-	//     *ast.SwitchStmt
+-	//     *ast.TypeSwitchStmt
+-	//     *ast.CaseClause
+-	//     *ast.CommClause
+-	//     *ast.ForStmt
+-	//     *ast.RangeStmt
+-	//
+-	Scopes map[ast.Node]*Scope
+-
+-	// InitOrder is the list of package-level initializers in the order in which
+-	// they must be executed. Initializers referring to variables related by an
+-	// initialization dependency appear in topological order, the others appear
+-	// in source order. Variables without an initialization expression do not
+-	// appear in this list.
+-	InitOrder []*Initializer
+-}
+-
+-func getInferred(info *Info) map[ast.Expr]_Inferred {
+-	return nil
+-}
+diff --git a/src/go/types/api_typeparams.go b/src/go/types/api_typeparams.go
+index ae2c5a7fd0..25fb3fa781 100644
+--- a/src/go/types/api_typeparams.go
++++ b/src/go/types/api_typeparams.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build typeparams
+-// +build typeparams
+-
+ package types
+ 
+ import (
+diff --git a/src/go/types/api_typeparams_test.go b/src/go/types/api_typeparams_test.go
+index 517c58505b..4a2adce9a2 100644
+--- a/src/go/types/api_typeparams_test.go
++++ b/src/go/types/api_typeparams_test.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build typeparams
+-// +build typeparams
+-
+ package types_test
+ 
+ import (

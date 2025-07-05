@@ -7,6 +7,26 @@ Date:   Fri Dec 23 16:04:01 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5504082
-
+---
  misc/dashboard/app/build/handler.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index b44e800453..b3e62ad467 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -152,11 +152,10 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
+ 	c := appengine.NewContext(r)
+ 	now := cache.Now(c)
+ 	key := "build-todo-" + r.Form.Encode()
+-	cachedTodo := new(Todo)
+-	if cache.Get(r, now, key, cachedTodo) {
+-		return cachedTodo, nil
+-	}
+ 	var todo *Todo
++	if cache.Get(r, now, key, &todo) {
++		return todo, nil
++	}
+ 	var err os.Error
+ 	builder := r.FormValue("builder")
+ 	for _, kind := range r.Form["kind"] {

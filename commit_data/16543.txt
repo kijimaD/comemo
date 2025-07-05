@@ -13,7 +13,7 @@ Date:   Tue Jun 11 16:49:24 2013 -0400
     R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
     https://golang.org/cl/10196043
-
+---
  src/pkg/runtime/asm_386.s           | 2 +-
  src/pkg/runtime/asm_amd64.s         | 2 +-
  src/pkg/runtime/asm_arm.s           | 2 +-
@@ -35,3 +35,236 @@ Date:   Tue Jun 11 16:49:24 2013 -0400
  src/pkg/runtime/rt0_windows_386.s   | 2 +-
  src/pkg/runtime/rt0_windows_amd64.s | 2 +-
  20 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index eb75de17a4..8c771c3947 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-TEXT _rt0_386(SB),7,$0
++TEXT _rt0_go(SB),7,$0
+ 	// copy arguments forward on an even stack
+ 	MOVL	argc+0(FP), AX
+ 	MOVL	argv+4(FP), BX
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 6408da42e9..7b7c1b55d0 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-TEXT _rt0_amd64(SB),7,$-8
++TEXT _rt0_go(SB),7,$-8
+ 	// copy arguments forward on an even stack
+ 	MOVQ	DI, AX		// argc
+ 	MOVQ	SI, BX		// argv
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 8c7011e1f0..892a742cbf 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -5,7 +5,7 @@
+ #include "zasm_GOOS_GOARCH.h"
+ 
+ // using frame size $-4 means do not save LR on stack.
+-TEXT _rt0_arm(SB),7,$-4
++TEXT _rt0_go(SB),7,$-4
+ 	MOVW	$0xcafebabe, R12
+ 
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/rt0_darwin_386.s b/src/pkg/runtime/rt0_darwin_386.s
+index 4b4c1f2942..01e33e62bd 100644
+--- a/src/pkg/runtime/rt0_darwin_386.s
++++ b/src/pkg/runtime/rt0_darwin_386.s
+@@ -11,4 +11,4 @@ TEXT _rt0_386_darwin(SB),7,$8
+ 	INT	$3
+ 
+ TEXT main(SB),7,$0
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_darwin_amd64.s b/src/pkg/runtime/rt0_darwin_amd64.s
+index 45e69a0159..d7aac300f6 100644
+--- a/src/pkg/runtime/rt0_darwin_amd64.s
++++ b/src/pkg/runtime/rt0_darwin_amd64.s
+@@ -9,5 +9,5 @@ TEXT _rt0_amd64_darwin(SB),7,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_386.s b/src/pkg/runtime/rt0_freebsd_386.s
+index c84482cdbf..a608593965 100644
+--- a/src/pkg/runtime/rt0_freebsd_386.s
++++ b/src/pkg/runtime/rt0_freebsd_386.s
+@@ -11,4 +11,4 @@ TEXT _rt0_386_freebsd(SB),7,$8
+ 	INT	$3
+ 
+ TEXT main(SB),7,$0
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_freebsd_amd64.s b/src/pkg/runtime/rt0_freebsd_amd64.s
+index e6c6fb9cac..0656e9f862 100644
+--- a/src/pkg/runtime/rt0_freebsd_amd64.s
++++ b/src/pkg/runtime/rt0_freebsd_amd64.s
+@@ -9,5 +9,5 @@ TEXT _rt0_amd64_freebsd(SB),7,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_arm.s b/src/pkg/runtime/rt0_freebsd_arm.s
+index 085fccf9d9..340b72cae0 100644
+--- a/src/pkg/runtime/rt0_freebsd_arm.s
++++ b/src/pkg/runtime/rt0_freebsd_arm.s
+@@ -5,4 +5,4 @@
+ // FreeBSD and Linux use the same linkage to main
+ 
+ TEXT _rt0_arm_freebsd(SB),7,$-4
+-	B	_rt0_arm(SB)
++	B	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_linux_386.s b/src/pkg/runtime/rt0_linux_386.s
+index 73cca5d980..632d0a8fdf 100644
+--- a/src/pkg/runtime/rt0_linux_386.s
++++ b/src/pkg/runtime/rt0_linux_386.s
+@@ -12,7 +12,7 @@ TEXT _rt0_386_linux(SB),7,$8
+ 	INT	$3
+ 
+ TEXT main(SB),7,$0
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+ 
+ TEXT _fallback_vdso(SB),7,$0
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/rt0_linux_amd64.s b/src/pkg/runtime/rt0_linux_amd64.s
+index dfc9c0421b..4c1897adcd 100644
+--- a/src/pkg/runtime/rt0_linux_amd64.s
++++ b/src/pkg/runtime/rt0_linux_amd64.s
+@@ -9,5 +9,5 @@ TEXT _rt0_amd64_linux(SB),7,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_linux_arm.s b/src/pkg/runtime/rt0_linux_arm.s
+index a648160cf7..884851cb2d 100644
+--- a/src/pkg/runtime/rt0_linux_arm.s
++++ b/src/pkg/runtime/rt0_linux_arm.s
+@@ -41,7 +41,7 @@ TEXT _rt0_arm_linux(SB),7,$-4
+ 	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
+ 	BL	runtime·setup_auxv(SB)
+ 	ADD	$4, R13
+-	B	_rt0_arm(SB)
++	B	_rt0_go(SB)
+ 
+ TEXT bad_abi<>(SB),7,$-4
+ 	// give diagnosis and exit
+diff --git a/src/pkg/runtime/rt0_netbsd_386.s b/src/pkg/runtime/rt0_netbsd_386.s
+index b4c029c538..59e915b6b2 100644
+--- a/src/pkg/runtime/rt0_netbsd_386.s
++++ b/src/pkg/runtime/rt0_netbsd_386.s
+@@ -11,4 +11,4 @@ TEXT _rt0_386_netbsd(SB),7,$8
+ 	INT	$3
+ 
+ TEXT main(SB),7,$0
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_netbsd_amd64.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+index 9e7b78edc6..94cc05b50e 100644
+--- a/src/pkg/runtime/rt0_netbsd_amd64.s
++++ b/src/pkg/runtime/rt0_netbsd_amd64.s
+@@ -9,5 +9,5 @@ TEXT _rt0_amd64_netbsd(SB),7,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_netbsd_arm.s b/src/pkg/runtime/rt0_netbsd_arm.s
+index 8c1588f2e3..19f40b80dc 100644
+--- a/src/pkg/runtime/rt0_netbsd_arm.s
++++ b/src/pkg/runtime/rt0_netbsd_arm.s
+@@ -5,4 +5,4 @@
+ // FreeBSD/NetBSD and Linux use the same linkage to main
+ 
+ TEXT _rt0_arm_netbsd(SB),7,$-4
+-	B _rt0_arm(SB)
++	B _rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_386.s b/src/pkg/runtime/rt0_openbsd_386.s
+index 9c00a73340..60f559206a 100644
+--- a/src/pkg/runtime/rt0_openbsd_386.s
++++ b/src/pkg/runtime/rt0_openbsd_386.s
+@@ -11,4 +11,4 @@ TEXT _rt0_386_openbsd(SB),7,$8
+ 	INT	$3
+ 
+ TEXT main(SB),7,$0
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_amd64.s b/src/pkg/runtime/rt0_openbsd_amd64.s
+index 245a4c0f9b..2bf6d38222 100644
+--- a/src/pkg/runtime/rt0_openbsd_amd64.s
++++ b/src/pkg/runtime/rt0_openbsd_amd64.s
+@@ -9,5 +9,5 @@ TEXT _rt0_amd64_openbsd(SB),7,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index 7af1eae7cb..2745d5d742 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -33,7 +33,7 @@ argv_fix:
+ 	PUSHL	AX
+ 	PUSHL	$-1
+ 
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+ 
+ DATA  runtime·isplan9(SB)/4, $1
+ GLOBL runtime·isplan9(SB), $4
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 16e5e82b75..6a0ab7de5e 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -5,7 +5,7 @@
+ TEXT _rt0_amd64_plan9(SB),7,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+ 
+ DATA runtime·isplan9(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_windows_386.s b/src/pkg/runtime/rt0_windows_386.s
+index 6e34c6c172..06bd18f69f 100644
+--- a/src/pkg/runtime/rt0_windows_386.s
++++ b/src/pkg/runtime/rt0_windows_386.s
+@@ -11,7 +11,7 @@ TEXT _rt0_386_windows(SB),7,$12
+ 	JMP	main(SB)
+ 
+ TEXT main(SB),7,$0
+-	JMP	_rt0_386(SB)
++	JMP	_rt0_go(SB)
+ 
+ 
+ DATA  runtime·iswindows(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index b48c055705..25b576ee49 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -11,7 +11,7 @@ TEXT _rt0_amd64_windows(SB),7,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),7,$-8
+-	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+ 
+ DATA  runtime·iswindows(SB)/4, $1

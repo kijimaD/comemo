@@ -12,7 +12,51 @@ Date:   Tue Apr 6 04:56:32 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/embed/embed.go          | 6 +++---
  src/testing/fstest/mapfs.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index 7f2719d2a7..851cc216fc 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -386,15 +386,15 @@ func (d *openDir) Read([]byte) (int, error) {
+ 
+ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
+ 	n := len(d.files) - d.offset
+-	if count > 0 && n > count {
+-		n = count
+-	}
+ 	if n == 0 {
+ 		if count <= 0 {
+ 			return nil, nil
+ 		}
+ 		return nil, io.EOF
+ 	}
++	if count > 0 && n > count {
++		n = count
++	}
+ 	list := make([]fs.DirEntry, n)
+ 	for i := range list {
+ 		list[i] = &d.files[d.offset+i]
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index a5d4a23fac..9fef2f4696 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -223,12 +223,12 @@ func (d *mapDir) Read(b []byte) (int, error) {
+ 
+ func (d *mapDir) ReadDir(count int) ([]fs.DirEntry, error) {
+ 	n := len(d.entry) - d.offset
+-	if count > 0 && n > count {
+-		n = count
+-	}
+ 	if n == 0 && count > 0 {
+ 		return nil, io.EOF
+ 	}
++	if count > 0 && n > count {
++		n = count
++	}
+ 	list := make([]fs.DirEntry, n)
+ 	for i := range list {
+ 		list[i] = &d.entry[d.offset+i]

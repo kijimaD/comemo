@@ -8,6 +8,23 @@ Date:   Tue Jul 8 13:45:31 2014 -0400
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/104600043
-
+---
  src/cmd/addr2line/addr2line_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index b278d08ce2..10d1dc9225 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -92,8 +92,9 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ 
+ // This is line 93. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping on nacl")
++	switch runtime.GOOS {
++	case "nacl", "android":
++		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 
+ 	syms := loadSyms(t)

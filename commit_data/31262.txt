@@ -16,7 +16,48 @@ Date:   Tue Feb 7 10:57:33 2017 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 10 ++++++++++
  src/net/http/server.go     |  8 ++++++--
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 1358ce8c4a..d74b1b120f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2433,6 +2433,16 @@ func TestStripPrefix(t *testing.T) {
+ 	res.Body.Close()
+ }
+ 
++// https://golang.org/issue/18952.
++func TestStripPrefix_notModifyRequest(t *testing.T) {
++	h := StripPrefix("/foo", NotFoundHandler())
++	req := httptest.NewRequest("GET", "/foo/bar", nil)
++	h.ServeHTTP(httptest.NewRecorder(), req)
++	if req.URL.Path != "/foo/bar" {
++		t.Errorf("StripPrefix should not modify the provided Request, but it did")
++	}
++}
++
+ func TestRequestLimit_h1(t *testing.T) { testRequestLimit(t, h1Mode) }
+ func TestRequestLimit_h2(t *testing.T) { testRequestLimit(t, h2Mode) }
+ func testRequestLimit(t *testing.T, h2 bool) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index df70a15193..25573d9594 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1973,8 +1973,12 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 	}
+ 	return HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if p := strings.TrimPrefix(r.URL.Path, prefix); len(p) < len(r.URL.Path) {
+-			r.URL.Path = p
+-			h.ServeHTTP(w, r)
++			r2 := new(Request)
++			*r2 = *r
++			r2.URL = new(url.URL)
++			*r2.URL = *r.URL
++			r2.URL.Path = p
++			h.ServeHTTP(w, r2)
+ 		} else {
+ 			NotFound(w, r)
+ 		}

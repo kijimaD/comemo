@@ -27,9 +27,160 @@ Date:   Fri Dec 8 11:26:30 2023 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go          | 12 ++++++-
  src/cmd/go/internal/modload/query.go              | 17 +++++++---
  src/cmd/go/testdata/script/mod_get_issue47650.txt | 29 ++++++++++++++++
  src/cmd/go/testdata/vcstest/git/issue47650.txt    | 41 +++++++++++++++++++++++
  4 files changed, 93 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 7d83ac6971..75c34e9fcb 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -514,10 +514,20 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
+ 	// Determine version.
+ 
+ 	if module.IsPseudoVersion(statVers) {
++		// Validate the go.mod location and major version before
++		// we check for an ancestor tagged with the pseude-version base.
++		//
++		// We can rule out an invalid subdirectory or major version with only
++		// shallow commit information, but checking the pseudo-version base may
++		// require downloading a (potentially more expensive) full history.
++		revInfo, err = checkCanonical(statVers)
++		if err != nil {
++			return revInfo, err
++		}
+ 		if err := r.validatePseudoVersion(ctx, info, statVers); err != nil {
+ 			return nil, err
+ 		}
+-		return checkCanonical(statVers)
++		return revInfo, nil
+ 	}
+ 
+ 	// statVers is not a pseudo-version, so we need to either resolve it to a
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 895c6c0032..c4cf55442b 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -891,11 +891,12 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 	// is most likely to find helpful: the most useful class of error at the
+ 	// longest matching path.
+ 	var (
+-		noPackage   *PackageNotInModuleError
+-		noVersion   *NoMatchingVersionError
+-		noPatchBase *NoPatchBaseError
+-		invalidPath *module.InvalidPathError // see comment in case below
+-		notExistErr error
++		noPackage      *PackageNotInModuleError
++		noVersion      *NoMatchingVersionError
++		noPatchBase    *NoPatchBaseError
++		invalidPath    *module.InvalidPathError // see comment in case below
++		invalidVersion error
++		notExistErr    error
+ 	)
+ 	for _, r := range results {
+ 		switch rErr := r.err.(type) {
+@@ -931,6 +932,10 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 				if notExistErr == nil {
+ 					notExistErr = rErr
+ 				}
++			} else if iv := (*module.InvalidVersionError)(nil); errors.As(rErr, &iv) {
++				if invalidVersion == nil {
++					invalidVersion = rErr
++				}
+ 			} else if err == nil {
+ 				if len(found) > 0 || noPackage != nil {
+ 					// golang.org/issue/34094: If we have already found a module that
+@@ -961,6 +966,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 			err = noPatchBase
+ 		case invalidPath != nil:
+ 			err = invalidPath
++		case invalidVersion != nil:
++			err = invalidVersion
+ 		case notExistErr != nil:
+ 			err = notExistErr
+ 		default:
+diff --git a/src/cmd/go/testdata/script/mod_get_issue47650.txt b/src/cmd/go/testdata/script/mod_get_issue47650.txt
+new file mode 100644
+index 0000000000..8561b21df0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_issue47650.txt
+@@ -0,0 +1,29 @@
++# Regression test for https://go.dev/issue/47650:
++# 'go get' with a pseudo-version of a non-root package within a module
++# erroneously rejected the pseudo-version as invalid, because it did not fetch
++# enough commit history to validate the pseudo-version base.
++
++[short] skip 'creates and uses a git repository'
++[!git] skip
++
++env GOPRIVATE=vcs-test.golang.org
++
++# If we request a package in a subdirectory of a module by commit hash, we
++# successfully resolve it to a pseudo-version derived from a tag on the parent
++# commit.
++cp go.mod go.mod.orig
++go get -x vcs-test.golang.org/git/issue47650.git/cmd/issue47650@21535ef346c3
++stderr '^go: added vcs-test.golang.org/git/issue47650.git v0.1.1-0.20210811175200-21535ef346c3$'
++
++# Explicitly requesting that same version should succeed, fetching additional
++# history for the requested commit as needed in order to validate the
++# pseudo-version base.
++go clean -modcache
++cp go.mod.orig go.mod
++go get -x vcs-test.golang.org/git/issue47650.git/cmd/issue47650@v0.1.1-0.20210811175200-21535ef346c3
++stderr '^go: added vcs-test.golang.org/git/issue47650.git v0.1.1-0.20210811175200-21535ef346c3$'
++
++-- go.mod --
++module example
++
++go 1.20
+diff --git a/src/cmd/go/testdata/vcstest/git/issue47650.txt b/src/cmd/go/testdata/vcstest/git/issue47650.txt
+new file mode 100644
+index 0000000000..fe037cea64
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/git/issue47650.txt
+@@ -0,0 +1,41 @@
++handle git
++
++env GIT_AUTHOR_NAME='Bryan C. Mills'
++env GIT_AUTHOR_EMAIL='bcmills@google.com'
++env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
++env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
++
++git init
++
++at 2021-08-11T13:52:00-04:00
++git add cmd
++git commit -m 'add cmd/issue47650'
++git tag v0.1.0
++
++git add go.mod
++git commit -m 'add go.mod'
++
++git show-ref --tags --heads
++cmp stdout .git-refs
++
++git log --oneline --decorate=short
++cmp stdout .git-log
++
++-- .git-refs --
++21535ef346c3e79fd09edd75bd4725f06c828e43 refs/heads/main
++4d237df2dbfc8a443af2f5e84be774f08a2aed0c refs/tags/v0.1.0
++-- .git-log --
++21535ef (HEAD -> main) add go.mod
++4d237df (tag: v0.1.0) add cmd/issue47650
++-- go.mod --
++module vcs-test.golang.org/git/issue47650.git
++
++go 1.17
++-- cmd/issue47650/main.go --
++package main
++
++import "os"
++
++func main() {
++	os.Stdout.WriteString("Hello, world!")
++}

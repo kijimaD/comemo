@@ -78,7 +78,67 @@ Date:   Wed May 24 13:20:11 2023 +0200
     Reviewed-by: M Zhuo <mzh@golangcn.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: M Zhuo <mzh@golangcn.org>
-
+---
  src/bytes/compare_test.go              | 26 ++++++++++++++++++++++++++
  src/internal/bytealg/compare_riscv64.s |  4 +++-
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/bytes/compare_test.go b/src/bytes/compare_test.go
+index a0150abd99..ac39f880f4 100644
+--- a/src/bytes/compare_test.go
++++ b/src/bytes/compare_test.go
+@@ -238,6 +238,32 @@ func BenchmarkCompareBytesBigUnaligned(b *testing.B) {
+ 	}
+ }
+ 
++func benchmarkCompareBytesBigBothUnaligned(b *testing.B, offset int) {
++	b.StopTimer()
++	pattern := []byte("Hello Gophers!")
++	b1 := make([]byte, 0, 1<<20+len(pattern))
++	for len(b1) < 1<<20 {
++		b1 = append(b1, pattern...)
++	}
++	b2 := make([]byte, len(b1))
++	copy(b2, b1)
++	b.StartTimer()
++	for j := 0; j < b.N; j++ {
++		if Compare(b1[offset:], b2[offset:]) != 0 {
++			b.Fatal("b1 != b2")
++		}
++	}
++	b.SetBytes(int64(len(b1[offset:])))
++}
++
++func BenchmarkCompareBytesBigBothUnaligned(b *testing.B) {
++	for i := 0; i < 8; i++ {
++		b.Run(fmt.Sprintf("offset=%d", i), func(b *testing.B) {
++			benchmarkCompareBytesBigBothUnaligned(b, i)
++		})
++	}
++}
++
+ func BenchmarkCompareBytesBig(b *testing.B) {
+ 	b.StopTimer()
+ 	b1 := make([]byte, 0, 1<<20)
+diff --git a/src/internal/bytealg/compare_riscv64.s b/src/internal/bytealg/compare_riscv64.s
+index 68cba2a37f..a4164a2b81 100644
+--- a/src/internal/bytealg/compare_riscv64.s
++++ b/src/internal/bytealg/compare_riscv64.s
+@@ -49,6 +49,8 @@ use_a_len:
+ 	BEQZ	X7, compare32
+ 
+ 	// Check one byte at a time until we reach 8 byte alignment.
++	SUB	X7, X0, X7
++	ADD	$8, X7, X7
+ 	SUB	X7, X5, X5
+ align:
+ 	ADD	$-1, X7
+@@ -60,7 +62,7 @@ align:
+ 	BNEZ	X7, align
+ 
+ check32:
+-	MOV	$32, X6
++	// X6 contains $32
+ 	BLT	X5, X6, compare16
+ compare32:
+ 	MOV	0(X10), X15

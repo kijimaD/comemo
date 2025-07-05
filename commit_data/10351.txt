@@ -7,7 +7,7 @@ Date:   Fri Nov 11 16:48:25 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5376076
-
+---
  src/cmd/gc/esc.c          |  1 -
  src/cmd/gc/fmt.c          |  2 --
  src/cmd/gc/go.h           |  2 +-
@@ -18,3 +18,195 @@ Date:   Fri Nov 11 16:48:25 2011 -0500
  test/fixedbugs/bug242.go  |  3 ++-
  test/named1.go            |  1 -
  9 files changed, 5 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 4382ed6f01..0213f0e4b4 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -222,7 +222,6 @@ esc(Node *n)
+ 	case OAS2RECV:		// v, ok = <-ch
+ 	case OAS2MAPR:		// v, ok = m[k]
+ 	case OAS2DOTTYPE:	// v, ok = x.(type)
+-	case OAS2MAPW:		// m[k] = x, ok
+ 		escassign(n->list->n, n->rlist->n);
+ 		break;
+ 
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index f64a2314be..01a8c0ec1a 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -802,7 +802,6 @@ stmtfmt(Fmt *f, Node *n)
+ 	case OAS2DOTTYPE:
+ 	case OAS2FUNC:
+ 	case OAS2MAPR:
+-	case OAS2MAPW:
+ 	case OAS2RECV:
+ 		fmtprint(f, "%,H = %,H", n->list, n->rlist);
+ 		break;
+@@ -981,7 +980,6 @@ static int opprec[] = {
+ 	[OAS2DOTTYPE] = -1,
+ 	[OAS2FUNC] = -1,
+ 	[OAS2MAPR] = -1,
+-	[OAS2MAPW] = -1,
+ 	[OAS2RECV] = -1,
+ 	[OASOP] = -1,
+ 	[OBREAK] = -1,
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index faae7bd9ea..e21620f455 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -425,7 +425,7 @@ enum
+ 	OAPPEND,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+-	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE,
++	OAS, OAS2, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE,
+ 	OASOP,
+ 	OBAD,
+ 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ed5c35ae01..34c241b06b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2334,7 +2334,7 @@ typecheckas2(Node *n)
+ {
+ 	int cl, cr;
+ 	NodeList *ll, *lr;
+-	Node *l, *r, *rr;
++	Node *l, *r;
+ 	Iter s;
+ 	Type *t;
+ 
+@@ -2373,16 +2373,7 @@ typecheckas2(Node *n)
+ 	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
+ 		if(l->type == T)
+ 			goto out;
+-		n->op = OAS2MAPW;
+-		n->rlist->n = assignconv(r, l->type, "assignment");
+-		rr = n->rlist->next->n;
+-		n->rlist->next->n = assignconv(rr, types[TBOOL], "assignment");
+-		if(isconst(rr, CTBOOL) && !rr->val.u.bval) {
+-			n->op = ODELETE;
+-			n->list = list(list1(l->left), l->right);
+-			n->right = n->rlist->n;
+-			n->rlist = nil;
+-		}
++		yyerror("assignment count mismatch: %d = %d (use delete)", cl, cr);
+ 		goto out;
+ 	}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 373c1eef22..e1ea935828 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -183,7 +183,6 @@ walkstmt(Node **np)
+ 	case OAS2DOTTYPE:
+ 	case OAS2RECV:
+ 	case OAS2FUNC:
+-	case OAS2MAPW:
+ 	case OAS2MAPR:
+ 	case OCLOSE:
+ 	case OCOPY:
+@@ -644,17 +643,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
+ 		goto ret;
+ 
+-	case OAS2MAPW:
+-		// map[] = a,b - mapassign2
+-		// a,b = m[i];
+-		*init = concat(*init, n->ninit);
+-		n->ninit = nil;
+-		walkexprlistsafe(n->list, init);
+-		l = n->list->n;
+-		t = l->left->type;
+-		n = mkcall1(mapfn("mapassign2", t), T, init, typename(t), l->left, l->right, n->rlist->n, n->rlist->next->n);
+-		goto ret;
+-
+ 	case OAS2DOTTYPE:
+ 		// a,b = i.(T)
+ 		*init = concat(*init, n->ninit);
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index b88cc35641..2ecd3d0fe7 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -1000,34 +1000,6 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
+ 	runtime·mapassign(t, h, ak, av);
+ }
+ 
+-// mapassign2(mapType *type, hmap *map[any]any, key any, val any, pres bool);
+-#pragma textflag 7
+-void
+-runtime·mapassign2(MapType *t, Hmap *h, ...)
+-{
+-	byte *ak, *av, *ap;
+-
+-	if(h == nil)
+-		runtime·panicstring("assignment to entry in nil map");
+-
+-	ak = (byte*)&h + h->ko2;
+-	av = (byte*)&h + h->vo2;
+-	ap = (byte*)&h + h->po2;
+-
+-	if(*ap == false)
+-		av = nil;	// delete
+-
+-	runtime·mapassign(t, h, ak, av);
+-
+-	if(debug) {
+-		runtime·prints("mapassign2: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		h->keyalg->print(h->keysize, ak);
+-		runtime·prints("\n");
+-	}
+-}
+-
+ // mapdelete(mapType *type, hmap *map[any]any, key any)
+ #pragma textflag 7
+ void
+diff --git a/test/fixedbugs/bug220.go b/test/fixedbugs/bug220.go
+deleted file mode 100644
+index ff027ddc22..0000000000
+--- a/test/fixedbugs/bug220.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// $G $D/$F.go || echo BUG: bug220
+-
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	m := make(map[int]map[uint]float64)
+-
+-	m[0] = make(map[uint]float64), false // 6g used to reject this
+-	m[1] = nil
+-}
+diff --git a/test/fixedbugs/bug242.go b/test/fixedbugs/bug242.go
+index 839dccd374..d80ae76a21 100644
+--- a/test/fixedbugs/bug242.go
++++ b/test/fixedbugs/bug242.go
+@@ -93,7 +93,8 @@ func main() {
+ 
+ 	m[13] = 'B'
+ 	//  13        14
+-	m[gint()] = gbyte(), false
++	delete(m, gint())
++	gbyte()
+ 	if _, present := m[13]; present {
+ 		println("bad map removal")
+ 		panic("fail")
+diff --git a/test/named1.go b/test/named1.go
+index 33d07a71c2..fe71df844f 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -41,7 +41,6 @@ func main() {
+ 	asBool(i < j)  // ERROR "cannot use.*type bool.*as type Bool"
+ 
+ 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
+-	m[2] = 1, b // ERROR "cannot use.*type Bool.*as type bool"
+ 
+ 	var inter interface{}
+ 	_, b = inter.(Map) // ERROR "cannot .* bool.*type Bool"

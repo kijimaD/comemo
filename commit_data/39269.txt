@@ -11,6 +11,21 @@ Date:   Tue Feb 12 10:20:28 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/removeall_at.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 7f2d5922ae..0b7d5efb7a 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -71,6 +71,9 @@ func removeAllFrom(parent *File, path string) error {
+ 	var statInfo syscall.Stat_t
+ 	statErr := unix.Fstatat(parentFd, path, &statInfo, unix.AT_SYMLINK_NOFOLLOW)
+ 	if statErr != nil {
++		if IsNotExist(statErr) {
++			return nil
++		}
+ 		return statErr
+ 	}
+ 	if statInfo.Mode&syscall.S_IFMT != syscall.S_IFDIR {

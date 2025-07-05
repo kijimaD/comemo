@@ -13,6 +13,34 @@ Date:   Sun Apr 10 21:57:39 2022 +0800
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/extern.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index f1f6ea5123..39bdd09849 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -64,13 +64,15 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	Currently, it is:
+ 		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
+ 	where the fields are as follows:
+-		gc #        the GC number, incremented at each GC
+-		@#s         time in seconds since program start
+-		#%          percentage of time spent in GC since program start
+-		#+...+#     wall-clock/CPU times for the phases of the GC
+-		#->#-># MB  heap size at GC start, at GC end, and live heap
+-		# MB goal   goal heap size
+-		# P         number of processors used
++		gc #         the GC number, incremented at each GC
++		@#s          time in seconds since program start
++		#%           percentage of time spent in GC since program start
++		#+...+#      wall-clock/CPU times for the phases of the GC
++		#->#-># MB   heap size at GC start, at GC end, and live heap
++		# MB goal    goal heap size
++		# MB stacks  estimated scannable stack size
++		# MB globals scannable global size
++		# P          number of processors used
+ 	The phases are stop-the-world (STW) sweep termination, concurrent
+ 	mark and scan, and STW mark termination. The CPU times
+ 	for mark/scan are broken down in to assist time (GC performed in

@@ -23,9 +23,99 @@ Date:   Thu Jun 2 11:07:55 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/src/depBase/dep.go |  1 +
  src/cmd/go/build.go                    | 10 +++++++++-
  src/cmd/internal/obj/x86/obj6.go       | 12 +++++++++++-
  src/runtime/asm_386.s                  |  9 ++++++++-
  4 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/depBase/dep.go b/misc/cgo/testshared/src/depBase/dep.go
+index 3ceba34a2b..c3ae96fe98 100644
+--- a/misc/cgo/testshared/src/depBase/dep.go
++++ b/misc/cgo/testshared/src/depBase/dep.go
+@@ -17,5 +17,6 @@ func (d *Dep) Method() int {
+ }
+ 
+ func F() int {
++	defer func() {}()
+ 	return V
+ }
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5327fb9e4a..a6cd6e4f49 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2328,7 +2328,15 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(goroot, "pkg", "include")
+ 	sfile = mkAbs(p.Dir, sfile)
+-	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags, sfile}
++	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
++	if p.ImportPath == "runtime" && goarch == "386" {
++		for _, arg := range buildAsmflags {
++			if arg == "-dynlink" {
++				args = append(args, "-D=GOBUILDMODE_shared=1")
++			}
++		}
++	}
++	args = append(args, sfile)
+ 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 5dad0bbb98..75638a0183 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1092,6 +1092,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	call.Mode = ctxt.Cursym.Text.Mode
+ 	call.As = obj.ACALL
+ 	call.To.Type = obj.TYPE_BRANCH
++	call.To.Name = obj.NAME_EXTERN
+ 	morestack := "runtime.morestack"
+ 	switch {
+ 	case ctxt.Cursym.Cfunc:
+@@ -1100,8 +1101,17 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		morestack = "runtime.morestack_noctxt"
+ 	}
+ 	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
++	// When compiling 386 code for dynamic linking, the call needs to be adjusted
++	// to follow PIC rules. This in turn can insert more instructions, so we need
++	// to keep track of the start of the call (where the jump will be to) and the
++	// end (which following instructions are appended to).
++	callend := call
++	progedit(ctxt, callend)
++	for ; callend.Link != nil; callend = callend.Link {
++		progedit(ctxt, callend.Link)
++	}
+ 
+-	jmp := obj.Appendp(ctxt, call)
++	jmp := obj.Appendp(ctxt, callend)
+ 	jmp.As = obj.AJMP
+ 	jmp.To.Type = obj.TYPE_BRANCH
+ 	jmp.Pcond = ctxt.Cursym.Text.Link
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 530fbb0e27..c18e588345 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -539,13 +539,20 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+-// 2. sub 5 bytes from the callers return
++// 2. sub 5 bytes (the length of CALL & a 32 bit displacement) from the callers
++//    return (when building for shared libraries, subtract 16 bytes -- 5 bytes
++//    for CALL & displacement to call __x86.get_pc_thunk.cx, 6 bytes for the
++//    LEAL to load the offset into BX, and finally 5 for the call & displacement)
+ // 3. jmp to the argument
+ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+ 	MOVL	fv+0(FP), DX	// fn
+ 	MOVL	argp+4(FP), BX	// caller sp
+ 	LEAL	-4(BX), SP	// caller sp after CALL
++#ifdef GOBUILDMODE_shared
++	SUBL	$16, (SP)	// return to CALL again
++#else
+ 	SUBL	$5, (SP)	// return to CALL again
++#endif
+ 	MOVL	0(DX), BX
+ 	JMP	BX	// but first run the deferred function
+ 

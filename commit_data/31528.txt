@@ -7,6 +7,53 @@ Date:   Tue Feb 28 10:08:10 2017 -0800
     Change-Id: I68e60b155c583fa47aa5ca13d591851009a4e571
     Reviewed-on: https://go-review.googlesource.com/37571
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index b955d8e890..460a7083b1 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -24,6 +24,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ )
+ 
+ var (
+@@ -33,6 +34,7 @@ var (
+ )
+ 
+ var cmdGoPath string
++var failed uint32 // updated atomically
+ 
+ func main() {
+ 	log.SetPrefix("vet/all: ")
+@@ -61,6 +63,9 @@ func main() {
+ 	default:
+ 		hostPlatform.vet(runtime.GOMAXPROCS(-1))
+ 	}
++	if atomic.LoadUint32(&failed) != 0 {
++		os.Exit(1)
++	}
+ }
+ 
+ var hostPlatform = platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
+@@ -297,6 +302,7 @@ NextLine:
+ 			} else {
+ 				fmt.Fprintf(&buf, "%s:%s: %s\n", file, lineno, msg)
+ 			}
++			atomic.StoreUint32(&failed, 1)
+ 			continue
+ 		}
+ 		w[key]--
+@@ -321,6 +327,7 @@ NextLine:
+ 				for i := 0; i < v; i++ {
+ 					fmt.Fprintln(&buf, k)
+ 				}
++				atomic.StoreUint32(&failed, 1)
+ 			}
+ 		}
+ 	}

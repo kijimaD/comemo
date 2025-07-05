@@ -10,6 +10,23 @@ Date:   Wed Jan 18 16:53:35 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/48811
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/conn.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index e6d85aa263..9f32d4b7d7 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -686,6 +686,11 @@ Again:
+ 			c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+ 			break
+ 		}
++		// Handshake messages are not allowed to fragment across the CCS
++		if c.hand.Len() > 0 {
++			c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
++			break
++		}
+ 		err := c.in.changeCipherSpec()
+ 		if err != nil {
+ 			c.in.setErrorLocked(c.sendAlert(err.(alert)))

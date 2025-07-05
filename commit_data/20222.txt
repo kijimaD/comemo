@@ -10,7 +10,36 @@ Date:   Mon Aug 25 14:42:27 2014 -0700
     R=rsc, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/135760043
-
+---
  src/pkg/bytes/bytes.go     | 3 +++
  src/pkg/strings/strings.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index d8b6f998b3..34c22bbfb1 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -605,6 +605,9 @@ func Runes(s []byte) []rune {
+ 
+ // Replace returns a copy of the slice s with the first n
+ // non-overlapping instances of old replaced by new.
++// If old is empty, it matches at the beginning of the slice
++// and after each UTF-8 sequence, yielding up to k+1 replacements
++// for a k-rune slice.
+ // If n < 0, there is no limit on the number of replacements.
+ func Replace(s, old, new []byte, n int) []byte {
+ 	m := 0
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 53bcd6b98a..5f19695d3f 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -635,6 +635,9 @@ func TrimSuffix(s, suffix string) string {
+ 
+ // Replace returns a copy of the string s with the first n
+ // non-overlapping instances of old replaced by new.
++// If old is empty, it matches at the beginning of the string
++// and after each UTF-8 sequence, yielding up to k+1 replacements
++// for a k-rune string.
+ // If n < 0, there is no limit on the number of replacements.
+ func Replace(s, old, new string, n int) string {
+ 	if old == new || n == 0 {

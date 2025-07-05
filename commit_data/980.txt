@@ -7,6 +7,19 @@ Date:   Wed Oct 29 13:17:04 2008 -0700
     R=r
     OCL=18026
     CL=18026
-
+---
  src/lib/strings.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index 42e05b6ca4..5f27d42acd 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -9,7 +9,6 @@ package strings
+ export func utflen(s string) int {
+ 	n := 0;
+ 	for i := 0; i < len(s); i++ {
+-		return int(s[i]);
+ 		if s[i]&0xC0 != 0x80 {
+ 			n++
+ 		}

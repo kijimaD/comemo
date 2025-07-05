@@ -25,7 +25,7 @@ Date:   Thu Dec 10 18:47:09 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/iexport.go   |   6 +-
  src/cmd/compile/internal/gc/initorder.go |   2 +-
  src/cmd/compile/internal/gc/inl.go       |   3 +-
@@ -38,3 +38,943 @@ Date:   Thu Dec 10 18:47:09 2020 -0500
  src/cmd/compile/internal/ir/node.go      |   2 -
  src/cmd/compile/internal/ir/node_gen.go  |   8 +-
  11 files changed, 194 insertions(+), 137 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index eac9f29e65..b54eeca7cb 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1266,10 +1266,12 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+ 		// but for export, this should be rendered as (*pkg.T).meth.
+ 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
++		n := n.(*ir.MethodExpr)
+ 		w.op(ir.OXDOT)
+ 		w.pos(n.Pos())
+-		w.expr(n.Left()) // n.Left.Op == OTYPE
+-		w.selector(n.Right().Sym())
++		w.op(ir.OTYPE)
++		w.typ(n.T) // n.Left.Op == OTYPE
++		w.selector(n.Method.Sym)
+ 
+ 	case ir.ONAME:
+ 		// Package scope name.
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index 9a07ca71bd..1b21d92f4b 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -79,7 +79,7 @@ type InitOrder struct {
+ func initOrder(l []ir.Node) []ir.Node {
+ 	s := InitSchedule{
+ 		initplans: make(map[ir.Node]*InitPlan),
+-		inittemps: make(map[ir.Node]ir.Node),
++		inittemps: make(map[ir.Node]*ir.Name),
+ 	}
+ 	o := InitOrder{
+ 		blocking: make(map[ir.Node][]ir.Node),
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 8467c20833..e1308718aa 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -640,11 +640,12 @@ func inlCallee(fn ir.Node) *ir.Func {
+ 	fn = staticValue(fn)
+ 	switch fn.Op() {
+ 	case ir.OMETHEXPR:
++		fn := fn.(*ir.MethodExpr)
+ 		n := methodExprName(fn)
+ 		// Check that receiver type matches fn.Left.
+ 		// TODO(mdempsky): Handle implicit dereference
+ 		// of pointer receiver argument?
+-		if n == nil || !types.Identical(n.Type().Recv().Type, fn.Left().Type()) {
++		if n == nil || !types.Identical(n.Type().Recv().Type, fn.T) {
+ 			return nil
+ 		}
+ 		return n.Func()
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index c34a86d4eb..042b625fc9 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -205,13 +205,14 @@ func addptabs() {
+ 	}
+ 	for _, exportn := range exportlist {
+ 		s := exportn.Sym()
+-		n := ir.AsNode(s.Def)
+-		if n == nil {
++		nn := ir.AsNode(s.Def)
++		if nn == nil {
+ 			continue
+ 		}
+-		if n.Op() != ir.ONAME {
++		if nn.Op() != ir.ONAME {
+ 			continue
+ 		}
++		n := nn.(*ir.Name)
+ 		if !types.IsExported(s.Name) {
+ 			continue
+ 		}
+@@ -228,7 +229,7 @@ func addptabs() {
+ 	}
+ }
+ 
+-func dumpGlobal(n ir.Node) {
++func dumpGlobal(n *ir.Name) {
+ 	if n.Type() == nil {
+ 		base.Fatalf("external %v nil type\n", n)
+ 	}
+@@ -271,7 +272,7 @@ func dumpglobls() {
+ 	for _, n := range externdcl {
+ 		switch n.Op() {
+ 		case ir.ONAME:
+-			dumpGlobal(n)
++			dumpGlobal(n.(*ir.Name))
+ 		case ir.OLITERAL:
+ 			dumpGlobalConst(n)
+ 		}
+@@ -475,7 +476,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 
+ var slicedataGen int
+ 
+-func slicedata(pos src.XPos, s string) ir.Node {
++func slicedata(pos src.XPos, s string) *ir.Name {
+ 	slicedataGen++
+ 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
+ 	sym := types.LocalPkg.Lookup(symname)
+@@ -489,7 +490,7 @@ func slicedata(pos src.XPos, s string) ir.Node {
+ 	return symnode
+ }
+ 
+-func slicebytes(nam ir.Node, s string) {
++func slicebytes(nam *ir.Name, s string) {
+ 	if nam.Op() != ir.ONAME {
+ 		base.Fatalf("slicebytes %v", nam)
+ 	}
+@@ -529,8 +530,8 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
+ }
+ 
+ // slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
+-// arr must be an ONAME. slicesym does not modify n.
+-func slicesym(n, arr ir.Node, lencap int64) {
++// slicesym does not modify n.
++func slicesym(n, arr *ir.Name, lencap int64) {
+ 	s := n.Sym().Linksym()
+ 	off := n.Offset()
+ 	if arr.Op() != ir.ONAME {
+@@ -543,7 +544,7 @@ func slicesym(n, arr ir.Node, lencap int64) {
+ 
+ // addrsym writes the static address of a to n. a must be an ONAME.
+ // Neither n nor a is modified.
+-func addrsym(n, a ir.Node) {
++func addrsym(n, a *ir.Name) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("addrsym n op %v", n.Op())
+ 	}
+@@ -559,7 +560,7 @@ func addrsym(n, a ir.Node) {
+ 
+ // pfuncsym writes the static address of f to n. f must be a global function.
+ // Neither n nor f is modified.
+-func pfuncsym(n, f ir.Node) {
++func pfuncsym(n, f *ir.Name) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("pfuncsym n op %v", n.Op())
+ 	}
+@@ -575,7 +576,7 @@ func pfuncsym(n, f ir.Node) {
+ 
+ // litsym writes the static literal c to n.
+ // Neither n nor c is modified.
+-func litsym(n, c ir.Node, wid int) {
++func litsym(n *ir.Name, c ir.Node, wid int) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("litsym n op %v", n.Op())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index b3f211ff75..cfda4afcd8 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -32,7 +32,7 @@ type InitSchedule struct {
+ 	out []ir.Node
+ 
+ 	initplans map[ir.Node]*InitPlan
+-	inittemps map[ir.Node]ir.Node
++	inittemps map[ir.Node]*ir.Name
+ }
+ 
+ func (s *InitSchedule) append(n ir.Node) {
+@@ -51,55 +51,57 @@ func (s *InitSchedule) staticInit(n ir.Node) {
+ 
+ // tryStaticInit attempts to statically execute an initialization
+ // statement and reports whether it succeeded.
+-func (s *InitSchedule) tryStaticInit(n ir.Node) bool {
++func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
+ 	// Only worry about simple "l = r" assignments. Multiple
+ 	// variable/expression OAS2 assignments have already been
+ 	// replaced by multiple simple OAS assignments, and the other
+ 	// OAS2* assignments mostly necessitate dynamic execution
+ 	// anyway.
+-	if n.Op() != ir.OAS {
++	if nn.Op() != ir.OAS {
+ 		return false
+ 	}
++	n := nn.(*ir.AssignStmt)
+ 	if ir.IsBlank(n.Left()) && !anySideEffects(n.Right()) {
+ 		// Discard.
+ 		return true
+ 	}
+ 	lno := setlineno(n)
+ 	defer func() { base.Pos = lno }()
+-	return s.staticassign(n.Left(), n.Right())
++	return s.staticassign(n.Left().(*ir.Name), n.Right())
+ }
+ 
+ // like staticassign but we are copying an already
+ // initialized value r.
+-func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
+-	if r.Op() != ir.ONAME && r.Op() != ir.OMETHEXPR {
+-		return false
+-	}
+-	if r.Class() == ir.PFUNC {
+-		pfuncsym(l, r)
++func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
++	if rn.Class() == ir.PFUNC {
++		pfuncsym(l, rn)
+ 		return true
+ 	}
+-	if r.Class() != ir.PEXTERN || r.Sym().Pkg != types.LocalPkg {
++	if rn.Class() != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+ 		return false
+ 	}
+-	if r.Name().Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
++	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+ 		return false
+ 	}
+-	if r.Name().Defn.Op() != ir.OAS {
++	if rn.Defn.Op() != ir.OAS {
+ 		return false
+ 	}
+-	if r.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
++	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
+ 		return false
+ 	}
+-	orig := r
+-	r = r.Name().Defn.Right()
++	orig := rn
++	r := rn.Defn.(*ir.AssignStmt).Right()
+ 
+ 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), l.Type()) {
+-		r = r.Left()
++		r = r.(*ir.ConvExpr).Left()
+ 	}
+ 
+ 	switch r.Op() {
+-	case ir.ONAME, ir.OMETHEXPR:
++	case ir.OMETHEXPR:
++		r = r.(*ir.MethodExpr).FuncName()
++		fallthrough
++	case ir.ONAME:
++		r := r.(*ir.Name)
+ 		if s.staticcopy(l, r) {
+ 			return true
+ 		}
+@@ -120,6 +122,7 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
+ 
+ 	case ir.OADDR:
+ 		if a := r.Left(); a.Op() == ir.ONAME {
++			a := a.(*ir.Name)
+ 			addrsym(l, a)
+ 			return true
+ 		}
+@@ -141,7 +144,7 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
+ 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+ 		p := s.initplans[r]
+ 
+-		n := ir.Copy(l)
++		n := ir.Copy(l).(*ir.Name)
+ 		for i := range p.E {
+ 			e := &p.E[i]
+ 			n.SetOffset(l.Offset() + e.Xoffset)
+@@ -150,13 +153,17 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
+ 				litsym(n, e.Expr, int(n.Type().Width))
+ 				continue
+ 			}
+-			ll := ir.SepCopy(n)
+-			if s.staticcopy(ll, e.Expr) {
++			ll := ir.SepCopy(n).(*ir.Name)
++			x := e.Expr
++			if x.Op() == ir.OMETHEXPR {
++				x = x.(*ir.MethodExpr).FuncName()
++			}
++			if x.Op() == ir.ONAME && s.staticcopy(ll, x.(*ir.Name)) {
+ 				continue
+ 			}
+ 			// Requires computation, but we're
+ 			// copying someone else's computation.
+-			rr := ir.SepCopy(orig)
++			rr := ir.SepCopy(orig).(*ir.Name)
+ 			rr.SetType(ll.Type())
+ 			rr.SetOffset(rr.Offset() + e.Xoffset)
+ 			setlineno(rr)
+@@ -169,15 +176,20 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
+ 	return false
+ }
+ 
+-func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
++func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 	for r.Op() == ir.OCONVNOP {
+-		r = r.Left()
++		r = r.(*ir.ConvExpr).Left()
+ 	}
+ 
+ 	switch r.Op() {
+-	case ir.ONAME, ir.OMETHEXPR:
++	case ir.ONAME:
++		r := r.(*ir.Name)
+ 		return s.staticcopy(l, r)
+ 
++	case ir.OMETHEXPR:
++		r := r.(*ir.MethodExpr)
++		return s.staticcopy(l, r.FuncName())
++
+ 	case ir.ONIL:
+ 		return true
+ 
+@@ -236,7 +248,7 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
+ 		s.initplan(r)
+ 
+ 		p := s.initplans[r]
+-		n := ir.Copy(l)
++		n := ir.Copy(l).(*ir.Name)
+ 		for i := range p.E {
+ 			e := &p.E[i]
+ 			n.SetOffset(l.Offset() + e.Xoffset)
+@@ -246,7 +258,7 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
+ 				continue
+ 			}
+ 			setlineno(e.Expr)
+-			a := ir.SepCopy(n)
++			a := ir.SepCopy(n).(*ir.Name)
+ 			if !s.staticassign(a, e.Expr) {
+ 				s.append(ir.Nod(ir.OAS, a, e.Expr))
+ 			}
+@@ -274,9 +286,9 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
+ 		// If you change something here, change it there, and vice versa.
+ 
+ 		// Determine the underlying concrete type and value we are converting from.
+-		val := r
++		val := ir.Node(r)
+ 		for val.Op() == ir.OCONVIFACE {
+-			val = val.Left()
++			val = val.(*ir.ConvExpr).Left()
+ 		}
+ 
+ 		if val.Type().IsInterface() {
+@@ -290,7 +302,7 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
+ 
+ 		markTypeUsedInInterface(val.Type(), l.Sym().Linksym())
+ 
+-		var itab ir.Node
++		var itab *ir.AddrExpr
+ 		if l.Type().IsEmptyInterface() {
+ 			itab = typename(val.Type())
+ 		} else {
+@@ -298,10 +310,10 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
+ 		}
+ 
+ 		// Create a copy of l to modify while we emit data.
+-		n := ir.Copy(l)
++		n := ir.Copy(l).(*ir.Name)
+ 
+ 		// Emit itab, advance offset.
+-		addrsym(n, itab.Left()) // itab is an OADDR node
++		addrsym(n, itab.Left().(*ir.Name))
+ 		n.SetOffset(n.Offset() + int64(Widthptr))
+ 
+ 		// Emit data.
+@@ -313,7 +325,7 @@ func (s *InitSchedule) staticassign(l ir.Node, r ir.Node) bool {
+ 			// Copy val directly into n.
+ 			n.SetType(val.Type())
+ 			setlineno(val)
+-			a := ir.SepCopy(n)
++			a := ir.SepCopy(n).(*ir.Name)
+ 			if !s.staticassign(a, val) {
+ 				s.append(ir.Nod(ir.OAS, a, val))
+ 			}
+@@ -368,7 +380,7 @@ var statuniqgen int // name generator for static temps
+ 
+ // staticname returns a name backed by a (writable) static data symbol.
+ // Use readonlystaticname for read-only node.
+-func staticname(t *types.Type) ir.Node {
++func staticname(t *types.Type) *ir.Name {
+ 	// Don't use lookupN; it interns the resulting string, but these are all unique.
+ 	n := NewName(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+ 	statuniqgen++
+@@ -379,15 +391,19 @@ func staticname(t *types.Type) ir.Node {
+ }
+ 
+ // readonlystaticname returns a name backed by a (writable) static data symbol.
+-func readonlystaticname(t *types.Type) ir.Node {
++func readonlystaticname(t *types.Type) *ir.Name {
+ 	n := staticname(t)
+ 	n.MarkReadonly()
+ 	n.Sym().Linksym().Set(obj.AttrContentAddressable, true)
+ 	return n
+ }
+ 
+-func isSimpleName(n ir.Node) bool {
+-	return (n.Op() == ir.ONAME || n.Op() == ir.OMETHEXPR) && n.Class() != ir.PAUTOHEAP && n.Class() != ir.PEXTERN
++func isSimpleName(nn ir.Node) bool {
++	if nn.Op() != ir.ONAME {
++		return false
++	}
++	n := nn.(*ir.Name)
++	return n.Class() != ir.PAUTOHEAP && n.Class() != ir.PEXTERN
+ }
+ 
+ func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
+@@ -428,14 +444,15 @@ func getdyn(n ir.Node, top bool) initGenType {
+ 
+ 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+ 	}
++	lit := n.(*ir.CompLitExpr)
+ 
+ 	var mode initGenType
+-	for _, n1 := range n.List().Slice() {
++	for _, n1 := range lit.List().Slice() {
+ 		switch n1.Op() {
+ 		case ir.OKEY:
+-			n1 = n1.Right()
++			n1 = n1.(*ir.KeyExpr).Right()
+ 		case ir.OSTRUCTKEY:
+-			n1 = n1.Left()
++			n1 = n1.(*ir.StructKeyExpr).Left()
+ 		}
+ 		mode |= getdyn(n1, false)
+ 		if mode == initDynamic|initConst {
+@@ -453,7 +470,7 @@ func isStaticCompositeLiteral(n ir.Node) bool {
+ 	case ir.OARRAYLIT:
+ 		for _, r := range n.List().Slice() {
+ 			if r.Op() == ir.OKEY {
+-				r = r.Right()
++				r = r.(*ir.KeyExpr).Right()
+ 			}
+ 			if !isStaticCompositeLiteral(r) {
+ 				return false
+@@ -462,9 +479,7 @@ func isStaticCompositeLiteral(n ir.Node) bool {
+ 		return true
+ 	case ir.OSTRUCTLIT:
+ 		for _, r := range n.List().Slice() {
+-			if r.Op() != ir.OSTRUCTKEY {
+-				base.Fatalf("isStaticCompositeLiteral: rhs not OSTRUCTKEY: %v", r)
+-			}
++			r := r.(*ir.StructKeyExpr)
+ 			if !isStaticCompositeLiteral(r.Left()) {
+ 				return false
+ 			}
+@@ -474,9 +489,9 @@ func isStaticCompositeLiteral(n ir.Node) bool {
+ 		return true
+ 	case ir.OCONVIFACE:
+ 		// See staticassign's OCONVIFACE case for comments.
+-		val := n
++		val := ir.Node(n)
+ 		for val.Op() == ir.OCONVIFACE {
+-			val = val.Left()
++			val = val.(*ir.ConvExpr).Left()
+ 		}
+ 		if val.Type().IsInterface() {
+ 			return val.Op() == ir.ONIL
+@@ -508,7 +523,7 @@ const (
+ 
+ // fixedlit handles struct, array, and slice literals.
+ // TODO: expand documentation.
+-func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir.Nodes) {
++func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+ 	isBlank := var_ == ir.BlankNode
+ 	var splitnode func(ir.Node) (a ir.Node, value ir.Node)
+ 	switch n.Op() {
+@@ -516,11 +531,12 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
+ 		var k int64
+ 		splitnode = func(r ir.Node) (ir.Node, ir.Node) {
+ 			if r.Op() == ir.OKEY {
+-				k = indexconst(r.Left())
++				kv := r.(*ir.KeyExpr)
++				k = indexconst(kv.Left())
+ 				if k < 0 {
+-					base.Fatalf("fixedlit: invalid index %v", r.Left())
++					base.Fatalf("fixedlit: invalid index %v", kv.Left())
+ 				}
+-				r = r.Right()
++				r = kv.Right()
+ 			}
+ 			a := ir.Nod(ir.OINDEX, var_, nodintconst(k))
+ 			k++
+@@ -530,10 +546,8 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
+ 			return a, r
+ 		}
+ 	case ir.OSTRUCTLIT:
+-		splitnode = func(r ir.Node) (ir.Node, ir.Node) {
+-			if r.Op() != ir.OSTRUCTKEY {
+-				base.Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
+-			}
++		splitnode = func(rn ir.Node) (ir.Node, ir.Node) {
++			r := rn.(*ir.StructKeyExpr)
+ 			if r.Sym().IsBlank() || isBlank {
+ 				return ir.BlankNode, r.Left()
+ 			}
+@@ -553,12 +567,14 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
+ 
+ 		switch value.Op() {
+ 		case ir.OSLICELIT:
++			value := value.(*ir.CompLitExpr)
+ 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
+ 				slicelit(ctxt, value, a, init)
+ 				continue
+ 			}
+ 
+ 		case ir.OARRAYLIT, ir.OSTRUCTLIT:
++			value := value.(*ir.CompLitExpr)
+ 			fixedlit(ctxt, kind, value, a, init)
+ 			continue
+ 		}
+@@ -570,13 +586,13 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
+ 
+ 		// build list of assignments: var[index] = expr
+ 		setlineno(a)
+-		a = ir.Nod(ir.OAS, a, value)
+-		a = typecheck(a, ctxStmt)
++		as := ir.NewAssignStmt(base.Pos, a, value)
++		as = typecheck(as, ctxStmt).(*ir.AssignStmt)
+ 		switch kind {
+ 		case initKindStatic:
+-			genAsStatic(a)
++			genAsStatic(as)
+ 		case initKindDynamic, initKindLocalCode:
+-			a = orderStmtInPlace(a, map[string][]*ir.Name{})
++			a = orderStmtInPlace(as, map[string][]*ir.Name{})
+ 			a = walkstmt(a)
+ 			init.Append(a)
+ 		default:
+@@ -586,7 +602,7 @@ func fixedlit(ctxt initContext, kind initKind, n ir.Node, var_ ir.Node, init *ir
+ 	}
+ }
+ 
+-func isSmallSliceLit(n ir.Node) bool {
++func isSmallSliceLit(n *ir.CompLitExpr) bool {
+ 	if n.Op() != ir.OSLICELIT {
+ 		return false
+ 	}
+@@ -596,7 +612,7 @@ func isSmallSliceLit(n ir.Node) bool {
+ 	return smallintconst(r) && (n.Type().Elem().Width == 0 || ir.Int64Val(r) <= smallArrayBytes/n.Type().Elem().Width)
+ }
+ 
+-func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
++func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+ 	// make an array type corresponding the number of elements we have
+ 	t := types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
+ 	dowidth(t)
+@@ -679,7 +695,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 			a = ir.Nod(ir.OAS, temp(t), nil)
+ 			a = typecheck(a, ctxStmt)
+ 			init.Append(a) // zero new temp
+-			a = a.Left()
++			a = a.(*ir.AssignStmt).Left()
+ 		} else {
+ 			init.Append(ir.Nod(ir.OVARDEF, a, nil))
+ 		}
+@@ -700,11 +716,12 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 	var index int64
+ 	for _, value := range n.List().Slice() {
+ 		if value.Op() == ir.OKEY {
+-			index = indexconst(value.Left())
++			kv := value.(*ir.KeyExpr)
++			index = indexconst(kv.Left())
+ 			if index < 0 {
+-				base.Fatalf("slicelit: invalid index %v", value.Left())
++				base.Fatalf("slicelit: invalid index %v", kv.Left())
+ 			}
+-			value = value.Right()
++			value = kv.Right()
+ 		}
+ 		a := ir.Nod(ir.OINDEX, vauto, nodintconst(index))
+ 		a.SetBounded(true)
+@@ -717,6 +734,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 			break
+ 
+ 		case ir.OARRAYLIT, ir.OSTRUCTLIT:
++			value := value.(*ir.CompLitExpr)
+ 			k := initKindDynamic
+ 			if vstat == nil {
+ 				// Generate both static and dynamic initializations.
+@@ -748,7 +766,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 	init.Append(a)
+ }
+ 
+-func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
++func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+ 	a := ir.Nod(ir.OMAKE, nil, nil)
+ 	a.SetEsc(n.Esc())
+@@ -760,6 +778,7 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
+ 	// The order pass already removed any dynamic (runtime-computed) entries.
+ 	// All remaining entries are static. Double-check that.
+ 	for _, r := range entries {
++		r := r.(*ir.KeyExpr)
+ 		if !isStaticCompositeLiteral(r.Left()) || !isStaticCompositeLiteral(r.Right()) {
+ 			base.Fatalf("maplit: entry is not a literal: %v", r)
+ 		}
+@@ -782,9 +801,10 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
+ 		vstatk := readonlystaticname(tk)
+ 		vstate := readonlystaticname(te)
+ 
+-		datak := ir.Nod(ir.OARRAYLIT, nil, nil)
+-		datae := ir.Nod(ir.OARRAYLIT, nil, nil)
++		datak := ir.NewCompLitExpr(base.Pos, ir.OARRAYLIT, nil, nil)
++		datae := ir.NewCompLitExpr(base.Pos, ir.OARRAYLIT, nil, nil)
+ 		for _, r := range entries {
++			r := r.(*ir.KeyExpr)
+ 			datak.PtrList().Append(r.Left())
+ 			datae.PtrList().Append(r.Right())
+ 		}
+@@ -824,6 +844,7 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
+ 	tmpelem := temp(m.Type().Elem())
+ 
+ 	for _, r := range entries {
++		r := r.(*ir.KeyExpr)
+ 		index, elem := r.Left(), r.Right()
+ 
+ 		setlineno(index)
+@@ -846,8 +867,12 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 	default:
+ 		base.Fatalf("anylit: not lit, op=%v node=%v", n.Op(), n)
+ 
+-	case ir.ONAME, ir.OMETHEXPR:
+-		appendWalkStmt(init, ir.Nod(ir.OAS, var_, n))
++	case ir.ONAME:
++		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, n))
++
++	case ir.OMETHEXPR:
++		n := n.(*ir.MethodExpr)
++		anylit(n.FuncName(), var_, init)
+ 
+ 	case ir.OPTRLIT:
+ 		if !t.IsPtr() {
+@@ -870,6 +895,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 		anylit(n.Left(), var_, init)
+ 
+ 	case ir.OSTRUCTLIT, ir.OARRAYLIT:
++		n := n.(*ir.CompLitExpr)
+ 		if !t.IsStruct() && !t.IsArray() {
+ 			base.Fatalf("anylit: not struct/array")
+ 		}
+@@ -906,9 +932,11 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 		fixedlit(inInitFunction, initKindLocalCode, n, var_, init)
+ 
+ 	case ir.OSLICELIT:
++		n := n.(*ir.CompLitExpr)
+ 		slicelit(inInitFunction, n, var_, init)
+ 
+ 	case ir.OMAPLIT:
++		n := n.(*ir.CompLitExpr)
+ 		if !t.IsMap() {
+ 			base.Fatalf("anylit: not map")
+ 		}
+@@ -919,7 +947,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ // oaslit handles special composite literal assignments.
+ // It returns true if n's effects have been added to init,
+ // in which case n should be dropped from the program by the caller.
+-func oaslit(n ir.Node, init *ir.Nodes) bool {
++func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+ 	if n.Left() == nil || n.Right() == nil {
+ 		// not a special composite literal assignment
+ 		return false
+@@ -961,14 +989,18 @@ func getlit(lit ir.Node) int {
+ }
+ 
+ // stataddr returns the static address of n, if n has one, or else nil.
+-func stataddr(n ir.Node) ir.Node {
++func stataddr(n ir.Node) *ir.Name {
+ 	if n == nil {
+ 		return nil
+ 	}
+ 
+ 	switch n.Op() {
+-	case ir.ONAME, ir.OMETHEXPR:
+-		return ir.SepCopy(n)
++	case ir.ONAME:
++		return ir.SepCopy(n).(*ir.Name)
++
++	case ir.OMETHEXPR:
++		n := n.(*ir.MethodExpr)
++		return stataddr(n.FuncName())
+ 
+ 	case ir.ODOT:
+ 		nam := stataddr(n.Left())
+@@ -1018,11 +1050,12 @@ func (s *InitSchedule) initplan(n ir.Node) {
+ 		var k int64
+ 		for _, a := range n.List().Slice() {
+ 			if a.Op() == ir.OKEY {
+-				k = indexconst(a.Left())
++				kv := a.(*ir.KeyExpr)
++				k = indexconst(kv.Left())
+ 				if k < 0 {
+-					base.Fatalf("initplan arraylit: invalid index %v", a.Left())
++					base.Fatalf("initplan arraylit: invalid index %v", kv.Left())
+ 				}
+-				a = a.Right()
++				a = kv.Right()
+ 			}
+ 			s.addvalue(p, k*n.Type().Elem().Width, a)
+ 			k++
+@@ -1033,6 +1066,7 @@ func (s *InitSchedule) initplan(n ir.Node) {
+ 			if a.Op() != ir.OSTRUCTKEY {
+ 				base.Fatalf("initplan structlit")
+ 			}
++			a := a.(*ir.StructKeyExpr)
+ 			if a.Sym().IsBlank() {
+ 				continue
+ 			}
+@@ -1044,6 +1078,7 @@ func (s *InitSchedule) initplan(n ir.Node) {
+ 			if a.Op() != ir.OKEY {
+ 				base.Fatalf("initplan maplit")
+ 			}
++			a := a.(*ir.KeyExpr)
+ 			s.addvalue(p, -1, a.Right())
+ 		}
+ 	}
+@@ -1089,7 +1124,7 @@ func isZero(n ir.Node) bool {
+ 	case ir.OARRAYLIT:
+ 		for _, n1 := range n.List().Slice() {
+ 			if n1.Op() == ir.OKEY {
+-				n1 = n1.Right()
++				n1 = n1.(*ir.KeyExpr).Right()
+ 			}
+ 			if !isZero(n1) {
+ 				return false
+@@ -1099,6 +1134,7 @@ func isZero(n ir.Node) bool {
+ 
+ 	case ir.OSTRUCTLIT:
+ 		for _, n1 := range n.List().Slice() {
++			n1 := n1.(*ir.StructKeyExpr)
+ 			if !isZero(n1.Left()) {
+ 				return false
+ 			}
+@@ -1113,7 +1149,7 @@ func isvaluelit(n ir.Node) bool {
+ 	return n.Op() == ir.OARRAYLIT || n.Op() == ir.OSTRUCTLIT
+ }
+ 
+-func genAsStatic(as ir.Node) {
++func genAsStatic(as *ir.AssignStmt) {
+ 	if as.Left().Type() == nil {
+ 		base.Fatalf("genAsStatic as.Left not typechecked")
+ 	}
+@@ -1123,12 +1159,20 @@ func genAsStatic(as ir.Node) {
+ 		base.Fatalf("genAsStatic: lhs %v", as.Left())
+ 	}
+ 
+-	switch {
+-	case as.Right().Op() == ir.OLITERAL:
+-		litsym(nam, as.Right(), int(as.Right().Type().Width))
+-	case (as.Right().Op() == ir.ONAME || as.Right().Op() == ir.OMETHEXPR) && as.Right().Class() == ir.PFUNC:
+-		pfuncsym(nam, as.Right())
+-	default:
+-		base.Fatalf("genAsStatic: rhs %v", as.Right())
++	switch r := as.Right(); r.Op() {
++	case ir.OLITERAL:
++		litsym(nam, r, int(r.Type().Width))
++		return
++	case ir.OMETHEXPR:
++		r := r.(*ir.MethodExpr)
++		pfuncsym(nam, r.FuncName())
++		return
++	case ir.ONAME:
++		r := r.(*ir.Name)
++		if r.Class() == ir.PFUNC {
++			pfuncsym(nam, r)
++			return
++		}
+ 	}
++	base.Fatalf("genAsStatic: rhs %v", as.Right())
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4d9073a4b6..2a0134703c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2087,7 +2087,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		aux := n.Left().Sym().Linksym()
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type(), aux, s.sb)
+ 	case ir.OMETHEXPR:
+-		sym := funcsym(n.Sym()).Linksym()
++		n := n.(*ir.MethodExpr)
++		sym := funcsym(n.FuncName().Sym()).Linksym()
+ 		return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type()), sym, s.sb)
+ 	case ir.ONAME:
+ 		if n.Class() == ir.PFUNC {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2f3c876c77..5e56ace7c7 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2415,16 +2415,16 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 		return n
+ 	}
+ 
+-	me := ir.NodAt(n.Pos(), ir.OMETHEXPR, n.Left(), NewName(n.Sym()))
+-	me.SetSym(methodSym(t, n.Sym()))
++	me := ir.NewMethodExpr(n.Pos(), n.Left().Type(), m)
+ 	me.SetType(methodfunc(m.Type, n.Left().Type()))
+-	me.SetOffset(0)
+-	me.SetClass(ir.PFUNC)
+-	ir.Node(me).(*ir.MethodExpr).Method = m
++	f := NewName(methodSym(t, m.Sym))
++	f.SetClass(ir.PFUNC)
++	f.SetType(me.Type())
++	me.FuncName_ = f
+ 
+ 	// Issue 25065. Make sure that we emit the symbol for a local method.
+ 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
+-		makefuncsym(me.Sym())
++		makefuncsym(me.FuncName_.Sym())
+ 	}
+ 
+ 	return me
+@@ -4023,7 +4023,7 @@ func deadcodeexpr(n ir.Node) ir.Node {
+ func getIotaValue() int64 {
+ 	if i := len(typecheckdefstack); i > 0 {
+ 		if x := typecheckdefstack[i-1]; x.Op() == ir.OLITERAL {
+-			return x.Iota()
++			return x.(*ir.Name).Iota()
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 36a11dad9a..51262d1e07 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -526,35 +526,35 @@ func (n *MakeExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A MethodExpr is a method value X.M (where X is an expression, not a type).
++// A MethodExpr is a method expression T.M (where T is a type).
+ type MethodExpr struct {
+ 	miniExpr
+-	X       Node
+-	M       Node
+-	Sym_    *types.Sym
+-	Offset_ int64
+-	Class_  Class
+-	Method  *types.Field
++	T         *types.Type
++	X_Delete  Node
++	M_Delete  Node // TODO(rsc): Delete (breaks toolstash b/c inlining costs go down)
++	Method    *types.Field
++	FuncName_ *Name
+ }
+ 
+-func NewMethodExpr(pos src.XPos, x, m Node) *MethodExpr {
+-	n := &MethodExpr{X: x, M: m}
++func NewMethodExpr(pos src.XPos, t *types.Type, method *types.Field) *MethodExpr {
++	n := &MethodExpr{T: t, Method: method}
+ 	n.pos = pos
+ 	n.op = OMETHEXPR
+-	n.Offset_ = types.BADWIDTH
++	n.X_Delete = TypeNode(t)                // TODO(rsc): Delete.
++	n.M_Delete = NewNameAt(pos, method.Sym) // TODO(rsc): Delete.
+ 	return n
+ }
+ 
+-func (n *MethodExpr) Left() Node          { return n.X }
+-func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
+-func (n *MethodExpr) Right() Node         { return n.M }
+-func (n *MethodExpr) SetRight(y Node)     { n.M = y }
+-func (n *MethodExpr) Sym() *types.Sym     { return n.Sym_ }
+-func (n *MethodExpr) SetSym(x *types.Sym) { n.Sym_ = x }
+-func (n *MethodExpr) Offset() int64       { return n.Offset_ }
+-func (n *MethodExpr) SetOffset(x int64)   { n.Offset_ = x }
+-func (n *MethodExpr) Class() Class        { return n.Class_ }
+-func (n *MethodExpr) SetClass(x Class)    { n.Class_ = x }
++func (n *MethodExpr) FuncName() *Name   { return n.FuncName_ }
++func (n *MethodExpr) Left() Node        { panic("MethodExpr.Left") }
++func (n *MethodExpr) SetLeft(x Node)    { panic("MethodExpr.SetLeft") }
++func (n *MethodExpr) Right() Node       { panic("MethodExpr.Right") }
++func (n *MethodExpr) SetRight(x Node)   { panic("MethodExpr.SetRight") }
++func (n *MethodExpr) Sym() *types.Sym   { panic("MethodExpr.Sym") }
++func (n *MethodExpr) Offset() int64     { panic("MethodExpr.Offset") }
++func (n *MethodExpr) SetOffset(x int64) { panic("MethodExpr.SetOffset") }
++func (n *MethodExpr) Class() Class      { panic("MethodExpr.Class") }
++func (n *MethodExpr) SetClass(x Class)  { panic("MethodExpr.SetClass") }
+ 
+ // A NilExpr represents the predefined untyped constant nil.
+ // (It may be copied and assigned a type, though.)
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 3cda9c8c38..a6e90a899e 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -624,9 +624,13 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 			return
+ 		}
+ 		fallthrough
+-	case OPACK, ONONAME, OMETHEXPR:
++	case OPACK, ONONAME:
+ 		fmt.Fprint(s, n.Sym())
+ 
++	case OMETHEXPR:
++		n := n.(*MethodExpr)
++		fmt.Fprint(s, n.FuncName().Sym())
++
+ 	case OTYPE:
+ 		if n.Type() == nil && n.Sym() != nil {
+ 			fmt.Fprint(s, n.Sym())
+@@ -1139,7 +1143,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 		dumpNodeHeader(w, n)
+ 		return
+ 
+-	case ONAME, ONONAME, OMETHEXPR:
++	case ONAME, ONONAME:
+ 		if n.Sym() != nil {
+ 			fmt.Fprintf(w, "%+v-%+v", n.Op(), n.Sym())
+ 		} else {
+@@ -1153,6 +1157,12 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 		}
+ 		return
+ 
++	case OMETHEXPR:
++		n := n.(*MethodExpr)
++		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.FuncName().Sym())
++		dumpNodeHeader(w, n)
++		return
++
+ 	case OASOP:
+ 		n := n.(*AssignOpStmt)
+ 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.SubOp())
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index fe6dafe859..bbe53d821e 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -733,8 +733,6 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return newNameAt(pos, op, nil)
+ 	case OMAKECHAN, OMAKEMAP, OMAKESLICE, OMAKESLICECOPY:
+ 		return NewMakeExpr(pos, op, nleft, nright)
+-	case OMETHEXPR:
+-		return NewMethodExpr(pos, nleft, nright)
+ 	case ONIL:
+ 		return NewNilExpr(pos)
+ 	case OPACK:
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 39d8f03ddc..80cc755d1a 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -632,14 +632,14 @@ func (n *MethodExpr) copy() Node {
+ func (n *MethodExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDo(n.X, err, do)
+-	err = maybeDo(n.M, err, do)
++	err = maybeDo(n.X_Delete, err, do)
++	err = maybeDo(n.M_Delete, err, do)
+ 	return err
+ }
+ func (n *MethodExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	n.X = maybeEdit(n.X, edit)
+-	n.M = maybeEdit(n.M, edit)
++	n.X_Delete = maybeEdit(n.X_Delete, edit)
++	n.M_Delete = maybeEdit(n.M_Delete, edit)
+ }
+ 
+ func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

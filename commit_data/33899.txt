@@ -10,6 +10,32 @@ Date:   Wed Sep 13 23:06:54 2017 -0400
     Change-Id: Ic4cac8722fd93ae316169f87b321f68e0b71f0c3
     Reviewed-on: https://go-review.googlesource.com/63913
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/boring/boring.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 97659e4ff7..1dd49fecfb 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -30,12 +30,17 @@ func Unreachable() {
+ // provided by runtime to avoid os import
+ func runtime_arg0() string
+ 
++func hasSuffix(s, t string) bool {
++	return len(s) > len(t) && s[len(s)-len(t):] == t
++}
++
+ // UnreachableExceptTests marks code that should be unreachable
+ // when BoringCrypto is in use. It panics.
+ func UnreachableExceptTests() {
+-	arg0 := runtime_arg0()
+-	if len(arg0) < 5 || arg0[len(arg0)-5:] != ".test" {
+-		println("ARG0", arg0)
++	name := runtime_arg0()
++	// If BoringCrypto ran on Windows we'd need to allow _test.exe and .test.exe as well.
++	if !hasSuffix(name, "_test") && !hasSuffix(name, ".test") {
++		println("boringcrypto: unexpected code execution in", name)
+ 		panic("boringcrypto: invalid code execution")
+ 	}
+ }

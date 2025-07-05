@@ -14,7 +14,7 @@ Date:   Thu Jun 4 13:07:22 2015 -0700
     Change-Id: I43488ff44c329cd869c92dcc31193fb31bebfd29
     Reviewed-on: https://go-review.googlesource.com/10695
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/composite.go           |  3 +--
  src/cmd/vet/copylock.go            |  3 +--
  src/cmd/vet/main.go                |  4 +---
@@ -28,3 +28,245 @@ Date:   Thu Jun 4 13:07:22 2015 -0700
  src/cmd/vet/vet_test.go            |  2 +-
  src/cmd/vet/whitelist/whitelist.go |  2 +-
  12 files changed, 26 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/vet/composite.go b/src/cmd/vet/composite.go
+index 0c3f916558..80b45e2064 100644
+--- a/src/cmd/vet/composite.go
++++ b/src/cmd/vet/composite.go
+@@ -7,11 +7,10 @@
+ package main
+ 
+ import (
++	"cmd/vet/whitelist"
+ 	"flag"
+ 	"go/ast"
+ 	"strings"
+-
+-	"golang.org/x/tools/cmd/vet/whitelist"
+ )
+ 
+ var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index e8a6820fce..95cecc799c 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -11,8 +11,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+-
+-	"golang.org/x/tools/go/types"
++	"go/types"
+ )
+ 
+ func init() {
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index e4b68770b0..453cfe0ce0 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -15,14 +15,12 @@ import (
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
++	"go/types"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
+-
+-	_ "golang.org/x/tools/go/gcimporter"
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ var (
+diff --git a/src/cmd/vet/nilfunc.go b/src/cmd/vet/nilfunc.go
+index fa1bac7e64..bfe05e3353 100644
+--- a/src/cmd/vet/nilfunc.go
++++ b/src/cmd/vet/nilfunc.go
+@@ -12,8 +12,7 @@ package main
+ import (
+ 	"go/ast"
+ 	"go/token"
+-
+-	"golang.org/x/tools/go/types"
++	"go/types"
+ )
+ 
+ func init() {
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index b20d935ef4..d79b0967ab 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -10,13 +10,12 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"go/ast"
++	"go/constant"
+ 	"go/token"
++	"go/types"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+-
+-	"golang.org/x/tools/go/exact"
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")
+@@ -160,11 +159,11 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
+ 		}
+ 		return
+ 	}
+-	if lit.Kind() != exact.String {
++	if lit.Kind() != constant.String {
+ 		f.Badf(call.Pos(), "constant %v not a string in call to %s", lit, name)
+ 		return
+ 	}
+-	format := exact.StringVal(lit)
++	format := constant.StringVal(lit)
+ 	firstArg := formatIndex + 1 // Arguments are immediately after format string.
+ 	if !strings.Contains(format, "%") {
+ 		if len(call.Args) > firstArg {
+diff --git a/src/cmd/vet/shadow.go b/src/cmd/vet/shadow.go
+index 34e5db9091..b3f362a080 100644
+--- a/src/cmd/vet/shadow.go
++++ b/src/cmd/vet/shadow.go
+@@ -34,8 +34,7 @@ import (
+ 	"flag"
+ 	"go/ast"
+ 	"go/token"
+-
+-	"golang.org/x/tools/go/types"
++	"go/types"
+ )
+ 
+ var strictShadowing = flag.Bool("shadowstrict", false, "whether to be strict about shadowing; can be noisy")
+diff --git a/src/cmd/vet/shift.go b/src/cmd/vet/shift.go
+index 2385c23fdb..8c038b4bdd 100644
+--- a/src/cmd/vet/shift.go
++++ b/src/cmd/vet/shift.go
+@@ -10,10 +10,9 @@ package main
+ 
+ import (
+ 	"go/ast"
++	"go/constant"
+ 	"go/token"
+-
+-	"golang.org/x/tools/go/exact"
+-	"golang.org/x/tools/go/types"
++	"go/types"
+ )
+ 
+ func init() {
+@@ -46,7 +45,7 @@ func checkLongShift(f *File, node ast.Node, x, y ast.Expr) {
+ 	if v == nil {
+ 		return
+ 	}
+-	amt, ok := exact.Int64Val(v)
++	amt, ok := constant.Int64Val(v)
+ 	if !ok {
+ 		return
+ 	}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 89e9989d9a..112b26a53f 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -8,14 +8,15 @@ package main
+ 
+ import (
+ 	"go/ast"
++	"go/importer"
+ 	"go/token"
+-
+-	"golang.org/x/tools/go/types"
++	"go/types"
+ )
+ 
+-// imports is the canonical map of imported packages we need for typechecking.
+-// It is created during initialization.
+-var imports = make(map[string]*types.Package)
++// stdImporter is the importer we use to import packages.
++// It is created during initialization so that all packages
++// are imported by the same importer.
++var stdImporter = importer.Default()
+ 
+ var (
+ 	stringerMethodType = types.New("func() string")
+@@ -35,7 +36,7 @@ func init() {
+ // path.name, and adds the respective package to the imports map
+ // as a side effect.
+ func importType(path, name string) types.Type {
+-	pkg, err := types.DefaultImport(imports, path)
++	pkg, err := stdImporter.Import(path)
+ 	if err != nil {
+ 		// This can happen if fmt hasn't been compiled yet.
+ 		// Since nothing uses formatterType anyway, don't complain.
+@@ -56,9 +57,9 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+ 	pkg.spans = make(map[types.Object]Span)
+ 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
+ 	config := types.Config{
+-		// We provide the same packages map for all imports to ensure
+-		// that everybody sees identical packages for the given paths.
+-		Packages: imports,
++		// We use the same importer for all imports to ensure that
++		// everybody sees identical packages for the given paths.
++		Importer: stdImporter,
+ 		// By providing a Config with our own error function, it will continue
+ 		// past the first error. There is no need for that function to do anything.
+ 		Error: func(error) {},
+diff --git a/src/cmd/vet/unsafeptr.go b/src/cmd/vet/unsafeptr.go
+index ca15f72578..9ca27dce0e 100644
+--- a/src/cmd/vet/unsafeptr.go
++++ b/src/cmd/vet/unsafeptr.go
+@@ -9,8 +9,7 @@ package main
+ import (
+ 	"go/ast"
+ 	"go/token"
+-
+-	"golang.org/x/tools/go/types"
++	"go/types"
+ )
+ 
+ func init() {
+diff --git a/src/cmd/vet/unused.go b/src/cmd/vet/unused.go
+index db988fe1de..4287638586 100644
+--- a/src/cmd/vet/unused.go
++++ b/src/cmd/vet/unused.go
+@@ -11,9 +11,8 @@ import (
+ 	"flag"
+ 	"go/ast"
+ 	"go/token"
++	"go/types"
+ 	"strings"
+-
+-	"golang.org/x/tools/go/types"
+ )
+ 
+ var unusedFuncsFlag = flag.String("unusedfuncs",
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 33e54ae900..0027a1f329 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -87,7 +87,7 @@ func TestTags(t *testing.T) {
+ 		"-v", // We're going to look at the files it examines.
+ 		"testdata/tagtest",
+ 	}
+-	cmd = exec.Command(filepath.Join(".", binary), args...)
++	cmd = exec.Command("./"+binary, args...)
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/vet/whitelist/whitelist.go b/src/cmd/vet/whitelist/whitelist.go
+index d6f0dce821..bf4b4bf48a 100644
+--- a/src/cmd/vet/whitelist/whitelist.go
++++ b/src/cmd/vet/whitelist/whitelist.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package whitelist defines exceptions for the vet tool.
+-package whitelist // import "golang.org/x/tools/cmd/vet/whitelist"
++package whitelist // import "cmd/vet/whitelist"
+ 
+ // UnkeyedLiteral are types that are actually slices, but
+ // syntactically, we cannot tell whether the Typ in pkg.Typ{1, 2, 3}

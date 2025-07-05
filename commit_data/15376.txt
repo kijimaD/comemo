@@ -7,7 +7,42 @@ Date:   Fri Feb 22 13:06:43 2013 -0500
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/7382049
-
+---
  src/pkg/runtime/race.c       |  4 ++--
  src/pkg/runtime/race_amd64.s | 11 +++++++++++
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 8f611cb2d8..17573a6978 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -87,10 +87,10 @@ runtime·raceread(uintptr addr)
+ 	}
+ }
+ 
+-// Called from instrumented code.
++// Called from runtime·racefuncenter (assembly).
+ #pragma textflag 7
+ void
+-runtime·racefuncenter(uintptr pc)
++runtime·racefuncenter1(uintptr pc)
+ {
+ 	// If the caller PC is lessstack, use slower runtime·callers
+ 	// to walk across the stack split to find the real caller.
+diff --git a/src/pkg/runtime/race_amd64.s b/src/pkg/runtime/race_amd64.s
+new file mode 100644
+index 0000000000..0c6aaaa611
+--- /dev/null
++++ b/src/pkg/runtime/race_amd64.s
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++TEXT	runtime·racefuncenter(SB),7,$0
++	PUSHQ	DX // save function entry context (for closures)
++	CALL	runtime·racefuncenter1(SB)
++	POPQ	DX
++	RET

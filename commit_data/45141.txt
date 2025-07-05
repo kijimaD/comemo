@@ -14,10 +14,43 @@ Date:   Sat Oct 3 16:18:43 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/259440
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/{gcc_signal2_darwin_arm64.c => gcc_signal2_ios_arm64.c} | 0
  .../cgo/{gcc_signal_darwin_lldb.c => gcc_signal_darwin_nolldb.c}        | 2 +-
  src/runtime/cgo/{gcc_signal_darwin_arm64.c => gcc_signal_ios_arm64.c}   | 0
  src/runtime/cgo/{signal_darwin_arm64.go => signal_ios_arm64.go}         | 0
  src/runtime/cgo/{signal_darwin_arm64.s => signal_ios_arm64.s}           | 0
  5 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_signal2_darwin_arm64.c b/src/runtime/cgo/gcc_signal2_ios_arm64.c
+similarity index 100%
+rename from src/runtime/cgo/gcc_signal2_darwin_arm64.c
+rename to src/runtime/cgo/gcc_signal2_ios_arm64.c
+diff --git a/src/runtime/cgo/gcc_signal_darwin_lldb.c b/src/runtime/cgo/gcc_signal_darwin_nolldb.c
+similarity index 93%
+rename from src/runtime/cgo/gcc_signal_darwin_lldb.c
+rename to src/runtime/cgo/gcc_signal_darwin_nolldb.c
+index 0ccdae324e..26be71bd1d 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_lldb.c
++++ b/src/runtime/cgo/gcc_signal_darwin_nolldb.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !lldb
++// +build !lldb !ios
+ // +build darwin
+ // +build arm64
+ 
+diff --git a/src/runtime/cgo/gcc_signal_darwin_arm64.c b/src/runtime/cgo/gcc_signal_ios_arm64.c
+similarity index 100%
+rename from src/runtime/cgo/gcc_signal_darwin_arm64.c
+rename to src/runtime/cgo/gcc_signal_ios_arm64.c
+diff --git a/src/runtime/cgo/signal_darwin_arm64.go b/src/runtime/cgo/signal_ios_arm64.go
+similarity index 100%
+rename from src/runtime/cgo/signal_darwin_arm64.go
+rename to src/runtime/cgo/signal_ios_arm64.go
+diff --git a/src/runtime/cgo/signal_darwin_arm64.s b/src/runtime/cgo/signal_ios_arm64.s
+similarity index 100%
+rename from src/runtime/cgo/signal_darwin_arm64.s
+rename to src/runtime/cgo/signal_ios_arm64.s

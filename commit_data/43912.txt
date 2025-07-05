@@ -17,10 +17,93 @@ Date:   Tue Apr 28 15:25:54 2020 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go          | 2 +-
  src/cmd/link/internal/ld/lib.go          | 9 ++++++++-
  src/cmd/link/internal/loader/loader.go   | 5 +----
  src/cmd/link/internal/sym/sizeof_test.go | 2 +-
  src/cmd/link/internal/sym/symbol.go      | 1 -
  5 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3be3f99171..83f100c12b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2026,7 +2026,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		// sh.info is the index of first non-local symbol (number of local symbols)
+ 		s := ctxt.Syms.Lookup(".dynsym", 0)
+ 		i := uint32(0)
+-		for sub := s; sub != nil; sub = sub.Sub {
++		for sub := s; sub != nil; sub = symSub(ctxt, sub) {
+ 			i++
+ 			if !sub.Attr.Local() {
+ 				break
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 51d81eb28d..baccb8baae 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2929,12 +2929,19 @@ func ElfSymForReloc(ctxt *Link, s *sym.Symbol) int32 {
+ 	}
+ }
+ 
++func symSub(ctxt *Link, s *sym.Symbol) *sym.Symbol {
++	if lsub := ctxt.loader.SubSym(loader.Sym(s.SymIdx)); lsub != 0 {
++		return ctxt.loader.Syms[lsub]
++	}
++	return nil
++}
++
+ func (ctxt *Link) dumpsyms() {
+ 	for _, s := range ctxt.loader.Syms {
+ 		if s == nil {
+ 			continue
+ 		}
+-		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, s.Sub)
++		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, symSub(ctxt, s))
+ 		for i := range s.R {
+ 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
+ 		}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 2abd0e60e1..4fcdc1a661 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2544,13 +2544,10 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
+ 	dst.Attr.Set(sym.AttrCgoExportStatic, l.AttrCgoExportStatic(src))
+ 	dst.Attr.Set(sym.AttrReadOnly, l.AttrReadOnly(src))
+ 
+-	// Convert outer/sub relationships
++	// Convert outer relationship
+ 	if outer, ok := l.outer[src]; ok {
+ 		dst.Outer = l.Syms[outer]
+ 	}
+-	if sub, ok := l.sub[src]; ok {
+-		dst.Sub = l.Syms[sub]
+-	}
+ 
+ 	// Set sub-symbol attribute. See the comment on the AttrSubSymbol
+ 	// method for more on this, there is some tricky stuff here.
+diff --git a/src/cmd/link/internal/sym/sizeof_test.go b/src/cmd/link/internal/sym/sizeof_test.go
+index 4cfca3b5a3..f358ccee66 100644
+--- a/src/cmd/link/internal/sym/sizeof_test.go
++++ b/src/cmd/link/internal/sym/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Symbol{}, 84, 136},
++		{Symbol{}, 80, 128},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 546798fdf4..3c3717ff31 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -23,7 +23,6 @@ type Symbol struct {
+ 	Align   int32
+ 	Value   int64
+ 	Size    int64
+-	Sub     *Symbol
+ 	Outer   *Symbol
+ 	SymIdx  LoaderSym
+ 	auxinfo *AuxSymbol

@@ -12,7 +12,7 @@ Date:   Tue Jun 25 10:44:25 2013 -0700
     R=golang-dev, dave, rsc, r
     CC=golang-dev
     https://golang.org/cl/10195044
-
+---
  src/lib9/_p9dir.c         | 12 +++----
  src/lib9/atoi.c           |  2 +-
  src/lib9/await.c          |  4 +--
@@ -47,3 +47,1378 @@ Date:   Tue Jun 25 10:44:25 2013 -0700
  src/lib9/utf/utfrune.c    |  2 +-
  src/lib9/utf/utfutf.c     |  5 +--
  33 files changed, 165 insertions(+), 161 deletions(-)
+
+diff --git a/src/lib9/_p9dir.c b/src/lib9/_p9dir.c
+index 58c0822a4d..a226556f5b 100644
+--- a/src/lib9/_p9dir.c
++++ b/src/lib9/_p9dir.c
+@@ -68,12 +68,12 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 			*str += strlen(*str)+1;
+ 		}
+ 	}
+-	sz += strlen(s)+1;
++	sz += (int)strlen(s)+1;
+ 
+ 	/* user */
+ 	snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
+ 	s = tmp;
+-	sz += strlen(s)+1;
++	sz += (int)strlen(s)+1;
+ 	if(d){
+ 		if(*str+strlen(s)+1 > estr)
+ 			d->uid = "oops";
+@@ -87,7 +87,7 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 	/* group */
+ 	snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
+ 	s = tmp;
+-	sz += strlen(s)+1;
++	sz += (int)strlen(s)+1;
+ 	if(d){
+ 		if(*str + strlen(s)+1 > estr)
+ 			d->gid = "oops";
+@@ -107,10 +107,10 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 		d->qid.vers = st->st_gen;
+ #endif
+ 		if(d->qid.vers == 0)
+-			d->qid.vers = st->st_mtime + st->st_ctime;
++			d->qid.vers = (ulong)(st->st_mtime + st->st_ctime);
+ 		d->mode = st->st_mode&0777;
+-		d->atime = st->st_atime;
+-		d->mtime = st->st_mtime;
++		d->atime = (ulong)st->st_atime;
++		d->mtime = (ulong)st->st_mtime;
+ 		d->length = st->st_size;
+ 
+ 		if(S_ISDIR(st->st_mode)){
+diff --git a/src/lib9/atoi.c b/src/lib9/atoi.c
+index 37a178280e..3162b01177 100644
+--- a/src/lib9/atoi.c
++++ b/src/lib9/atoi.c
+@@ -29,7 +29,7 @@ THE SOFTWARE.
+ int
+ atoi(char *s)
+ {
+-	return strtol(s, 0, 0);
++	return (int)strtol(s, 0, 0);
+ }
+ 
+ long
+diff --git a/src/lib9/await.c b/src/lib9/await.c
+index 0f00a94bd1..690a61e5c6 100644
+--- a/src/lib9/await.c
++++ b/src/lib9/await.c
+@@ -134,8 +134,8 @@ _wait(int pid4, int opt)
+ 			free(w);
+ 			return nil;
+ 		}
+-		u = ru.ru_utime.tv_sec*1000+((ru.ru_utime.tv_usec+500)/1000);
+-		s = ru.ru_stime.tv_sec*1000+((ru.ru_stime.tv_usec+500)/1000);
++		u = (ulong)(ru.ru_utime.tv_sec*1000+((ru.ru_utime.tv_usec+500)/1000));
++		s = (ulong)(ru.ru_stime.tv_sec*1000+((ru.ru_stime.tv_usec+500)/1000));
+ 		w->pid = pid;
+ 		w->time[0] = u;
+ 		w->time[1] = s;
+diff --git a/src/lib9/dirfstat.c b/src/lib9/dirfstat.c
+index 17fe10aee2..8cc3384093 100644
+--- a/src/lib9/dirfstat.c
++++ b/src/lib9/dirfstat.c
+@@ -43,10 +43,10 @@ dirfstat(int fd)
+ 
+ 	snprint(tmp, sizeof tmp, "/dev/fd/%d", fd);
+ 	nstr = _p9dir(&st, &st, tmp, nil, nil, nil);
+-	d = malloc(sizeof(Dir)+nstr);
++	d = malloc(sizeof(Dir)+(size_t)nstr);
+ 	if(d == nil)
+ 		return nil;
+-	memset(d, 0, sizeof(Dir)+nstr);
++	memset(d, 0, sizeof(Dir)+(size_t)nstr);
+ 	str = (char*)&d[1];
+ 	_p9dir(&st, &st, tmp, d, &str, str+nstr);
+ 	return d;
+diff --git a/src/lib9/dirfwstat.c b/src/lib9/dirfwstat.c
+index fe9153b9b7..d0afe7d710 100644
+--- a/src/lib9/dirfwstat.c
++++ b/src/lib9/dirfwstat.c
+@@ -63,14 +63,14 @@ dirfwstat(int fd, Dir *dir)
+ 	ret = 0;
+ #ifndef _WIN32
+ 	if(~dir->mode != 0){
+-		if(fchmod(fd, dir->mode) < 0)
++		if(fchmod(fd, (mode_t)dir->mode) < 0)
+ 			ret = -1;
+ 	}
+ #endif
+ 	if(~dir->mtime != 0){
+-		tv[0].tv_sec = dir->mtime;
++		tv[0].tv_sec = (time_t)dir->mtime;
+ 		tv[0].tv_usec = 0;
+-		tv[1].tv_sec = dir->mtime;
++		tv[1].tv_sec = (time_t)dir->mtime;
+ 		tv[1].tv_usec = 0;
+ 		if(futimes(fd, tv) < 0)
+ 			ret = -1;
+diff --git a/src/lib9/dirstat.c b/src/lib9/dirstat.c
+index 6d804ca7c7..df2f85bd0c 100644
+--- a/src/lib9/dirstat.c
++++ b/src/lib9/dirstat.c
+@@ -52,10 +52,10 @@ dirstat(char *file)
+ #endif
+ 
+ 	nstr = _p9dir(&lst, &st, file, nil, nil, nil);
+-	d = malloc(sizeof(Dir)+nstr);
++	d = malloc(sizeof(Dir)+(size_t)nstr);
+ 	if(d == nil)
+ 		return nil;
+-	memset(d, 0, sizeof(Dir)+nstr);
++	memset(d, 0, sizeof(Dir)+(size_t)nstr);
+ 	str = (char*)&d[1];
+ 	_p9dir(&lst, &st, file, d, &str, str+nstr);
+ 	return d;
+diff --git a/src/lib9/dirwstat.c b/src/lib9/dirwstat.c
+index 2646cba40e..9bf348af60 100644
+--- a/src/lib9/dirwstat.c
++++ b/src/lib9/dirwstat.c
+@@ -37,7 +37,7 @@ dirwstat(char *file, Dir *dir)
+ 	if(~dir->mtime == 0)
+ 		return 0;
+ 
+-	ub.actime = dir->mtime;
+-	ub.modtime = dir->mtime;
++	ub.actime = (time_t)dir->mtime;
++	ub.modtime = (time_t)dir->mtime;
+ 	return utime(file, &ub);
+ }
+diff --git a/src/lib9/execl.c b/src/lib9/execl.c
+index 9e42ad34b6..81d3158836 100644
+--- a/src/lib9/execl.c
++++ b/src/lib9/execl.c
+@@ -37,7 +37,7 @@ execl(char *prog, ...)
+ 		;
+ 	va_end(arg);
+ 
+-	argv = malloc((i+1)*sizeof(char*));
++	argv = malloc((size_t)(i+1)*sizeof(char*));
+ 	if(argv == nil)
+ 		return -1;
+ 
+diff --git a/src/lib9/flag.c b/src/lib9/flag.c
+index 7c79c1a6df..db46b98095 100644
+--- a/src/lib9/flag.c
++++ b/src/lib9/flag.c
+@@ -54,7 +54,7 @@ lookflag(char *name, int namelen, int creat)
+ 
+ 	h = fnv(name, namelen) & (nelem(fhash)-1);
+ 	for(f=fhash[h]; f; f=f->next) {
+-		if(f->namelen == namelen && memcmp(f->name, name, namelen) == 0) {
++		if(f->namelen == namelen && memcmp(f->name, name, (size_t)namelen) == 0) {
+ 			if(creat)
+ 				sysfatal("multiple definitions of flag -%s", name);
+ 			return f;
+@@ -97,7 +97,7 @@ flagcount(char *name, char *desc, int *p)
+ {
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->iscount = 1;
+ 	f->set = count;
+@@ -119,7 +119,7 @@ flagint64(char *name, char *desc, int64 *p)
+ {
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->set = atollwhex;
+ 	f->arg = p;
+@@ -130,7 +130,7 @@ atolwhex(char *s, void *p)
+ {
+ 	char *t;
+ 
+-	*(int32*)p = strtol(s, &t, 0);
++	*(int32*)p = (int32)strtol(s, &t, 0);
+ 	if(*s == '\0' || *t != '\0')
+ 		sysfatal("invalid numeric argument -%s=%s", curflag->name, s);
+ }
+@@ -140,7 +140,7 @@ flagint32(char *name, char *desc, int32 *p)
+ {
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->set = atolwhex;
+ 	f->arg = p;
+@@ -158,7 +158,7 @@ flagstr(char *name, char *desc, char **p)
+ 
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->set = string;
+ 	f->arg = p;
+@@ -176,7 +176,7 @@ flagfn0(char *name, char *desc, void (*fn)(void))
+ {
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->set = fn0;
+ 	f->arg = fn;
+@@ -194,7 +194,7 @@ flagfn1(char *name, char *desc, void (*fn)(char*))
+ {
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->set = fn1;
+ 	f->arg = fn;
+@@ -211,7 +211,7 @@ flagfn2(char *name, char *desc, void (*fn)(char*, char*))
+ {
+ 	Flag *f;
+ 	
+-	f = lookflag(name, strlen(name), 1);
++	f = lookflag(name, (int)strlen(name), 1);
+ 	f->desc = desc;
+ 	f->set2 = fn2;
+ 	f->arg = fn;
+@@ -253,9 +253,9 @@ flagparse(int *argcp, char ***argvp, void (*usage)(void))
+ 		name = p+1;
+ 		q = strchr(name, '=');
+ 		if(q != nil)
+-			namelen = q++ - name;
++			namelen = (int)(q++ - name);
+ 		else
+-			namelen = strlen(name);
++			namelen = (int)strlen(name);
+ 		f = lookflag(name, namelen, 0);
+ 		if(f == nil) {
+ 			if(strcmp(p, "-h") == 0 || strcmp(p, "-help") == 0 || strcmp(p, "-?") == 0)
+diff --git a/src/lib9/fmt/dofmt.c b/src/lib9/fmt/dofmt.c
+index cc6ab92254..95f378704a 100644
+--- a/src/lib9/fmt/dofmt.c
++++ b/src/lib9/fmt/dofmt.c
+@@ -25,7 +25,7 @@ int
+ dofmt(Fmt *f, char *fmt)
+ {
+ 	Rune rune, *rt, *rs;
+-	int r;
++	Rune r;
+ 	char *t, *s;
+ 	int n, nfmt;
+ 
+@@ -34,7 +34,7 @@ dofmt(Fmt *f, char *fmt)
+ 		if(f->runes){
+ 			rt = (Rune*)f->to;
+ 			rs = (Rune*)f->stop;
+-			while((r = *(uchar*)fmt) && r != '%'){
++			while((r = (Rune)*(uchar*)fmt) && r != '%'){
+ 				if(r < Runeself)
+ 					fmt++;
+ 				else{
+@@ -44,7 +44,7 @@ dofmt(Fmt *f, char *fmt)
+ 				FMTRCHAR(f, rt, rs, r);
+ 			}
+ 			fmt++;
+-			f->nfmt += rt - (Rune *)f->to;
++			f->nfmt += (int)(rt - (Rune *)f->to);
+ 			f->to = rt;
+ 			if(!r)
+ 				return f->nfmt - nfmt;
+@@ -52,7 +52,7 @@ dofmt(Fmt *f, char *fmt)
+ 		}else{
+ 			t = (char*)f->to;
+ 			s = (char*)f->stop;
+-			while((r = *(uchar*)fmt) && r != '%'){
++			while((r = (Rune)*(uchar*)fmt) && r != '%'){
+ 				if(r < Runeself){
+ 					FMTCHAR(f, t, s, r);
+ 					fmt++;
+@@ -70,7 +70,7 @@ dofmt(Fmt *f, char *fmt)
+ 				}
+ 			}
+ 			fmt++;
+-			f->nfmt += t - (char *)f->to;
++			f->nfmt += (int)(t - (char *)f->to);
+ 			f->to = t;
+ 			if(!r)
+ 				return f->nfmt - nfmt;
+@@ -87,9 +87,9 @@ void *
+ __fmtflush(Fmt *f, void *t, int len)
+ {
+ 	if(f->runes)
+-		f->nfmt += (Rune*)t - (Rune*)f->to;
++		f->nfmt += (int)((Rune*)t - (Rune*)f->to);
+ 	else
+-		f->nfmt += (char*)t - (char *)f->to;
++		f->nfmt += (int)((char*)t - (char *)f->to);
+ 	f->to = t;
+ 	if(f->flush == 0 || (*f->flush)(f) == 0 || (char*)f->to + len > (char*)f->stop){
+ 		f->stop = f->to;
+@@ -112,7 +112,7 @@ __fmtpad(Fmt *f, int n)
+ 	s = (char*)f->stop;
+ 	for(i = 0; i < n; i++)
+ 		FMTCHAR(f, t, s, ' ');
+-	f->nfmt += t - (char *)f->to;
++	f->nfmt += (int)(t - (char *)f->to);
+ 	f->to = t;
+ 	return 0;
+ }
+@@ -127,7 +127,7 @@ __rfmtpad(Fmt *f, int n)
+ 	s = (Rune*)f->stop;
+ 	for(i = 0; i < n; i++)
+ 		FMTRCHAR(f, t, s, ' ');
+-	f->nfmt += t - (Rune *)f->to;
++	f->nfmt += (int)(t - (Rune *)f->to);
+ 	f->to = t;
+ 	return 0;
+ }
+@@ -157,13 +157,13 @@ __fmtcpy(Fmt *f, const void *vm, int n, int sz)
+ 			r = *(uchar*)m;
+ 			if(r < Runeself)
+ 				m++;
+-			else if((me - m) >= UTFmax || fullrune(m, me-m))
++			else if((me - m) >= UTFmax || fullrune(m, (int)(me-m)))
+ 				m += chartorune(&r, m);
+ 			else
+ 				break;
+ 			FMTRCHAR(f, rt, rs, r);
+ 		}
+-		f->nfmt += rt - (Rune *)f->to;
++		f->nfmt += (int)(rt - (Rune *)f->to);
+ 		f->to = rt;
+ 		if(fl & FmtLeft && __rfmtpad(f, w - n) < 0)
+ 			return -1;
+@@ -176,13 +176,13 @@ __fmtcpy(Fmt *f, const void *vm, int n, int sz)
+ 			r = *(uchar*)m;
+ 			if(r < Runeself)
+ 				m++;
+-			else if((me - m) >= UTFmax || fullrune(m, me-m))
++			else if((me - m) >= UTFmax || fullrune(m, (int)(me-m)))
+ 				m += chartorune(&r, m);
+ 			else
+ 				break;
+ 			FMTRUNE(f, t, s, r);
+ 		}
+-		f->nfmt += t - (char *)f->to;
++		f->nfmt += (int)(t - (char *)f->to);
+ 		f->to = t;
+ 		if(fl & FmtLeft && __fmtpad(f, w - n) < 0)
+ 			return -1;
+@@ -212,7 +212,7 @@ __fmtrcpy(Fmt *f, const void *vm, int n)
+ 		rs = (Rune*)f->stop;
+ 		for(me = m + n; m < me; m++)
+ 			FMTRCHAR(f, rt, rs, *m);
+-		f->nfmt += rt - (Rune *)f->to;
++		f->nfmt += (int)(rt - (Rune *)f->to);
+ 		f->to = rt;
+ 		if(fl & FmtLeft && __rfmtpad(f, w - n) < 0)
+ 			return -1;
+@@ -225,7 +225,7 @@ __fmtrcpy(Fmt *f, const void *vm, int n)
+ 			r = *m;
+ 			FMTRUNE(f, t, s, r);
+ 		}
+-		f->nfmt += t - (char *)f->to;
++		f->nfmt += (int)(t - (char *)f->to);
+ 		f->to = t;
+ 		if(fl & FmtLeft && __fmtpad(f, w - n) < 0)
+ 			return -1;
+@@ -239,7 +239,7 @@ __charfmt(Fmt *f)
+ {
+ 	char x[1];
+ 
+-	x[0] = va_arg(f->args, int);
++	x[0] = (char)va_arg(f->args, int);
+ 	f->prec = 1;
+ 	return __fmtcpy(f, (const char*)x, 1, 1);
+ }
+@@ -250,7 +250,7 @@ __runefmt(Fmt *f)
+ {
+ 	Rune x[1];
+ 
+-	x[0] = va_arg(f->args, int);
++	x[0] = (Rune)va_arg(f->args, int);
+ 	return __fmtrcpy(f, (const void*)x, 1);
+ }
+ 
+@@ -278,7 +278,7 @@ fmtstrcpy(Fmt *f, char *s)
+ #endif
+ 		return __fmtcpy(f, s, j, i);
+ 	}
+-	return __fmtcpy(f, s, utflen(s), strlen(s));
++	return __fmtcpy(f, s, utflen(s), (int)strlen(s));
+ }
+ 
+ /* fmt out a null terminated utf string */
+@@ -309,7 +309,7 @@ fmtrunestrcpy(Fmt *f, Rune *s)
+ 	}else{
+ 		for(e = s; *e; e++)
+ 			;
+-		n = e - s;
++		n = (int)(e - s);
+ 	}
+ 	return __fmtrcpy(f, s, n);
+ }
+@@ -342,8 +342,8 @@ __ifmt(Fmt *f)
+ 	char buf[140], *p, *conv;
+ 	/* 140: for 64 bits of binary + 3-byte sep every 4 digits */
+ 	uvlong vu;
+-	ulong u;
+-	int neg, base, i, n, fl, w, isv;
++	ulong fl, u;
++	int neg, base, i, n, w, isv;
+ 	int ndig, len, excess, bytelen;
+ 	char *grouping;
+ 	char *thousands;
+@@ -377,27 +377,27 @@ __ifmt(Fmt *f)
+ 		if(fl & FmtUnsigned)
+ 			vu = va_arg(f->args, uvlong);
+ 		else
+-			vu = va_arg(f->args, vlong);
++			vu = (uvlong)va_arg(f->args, vlong);
+ 	}else if(fl & FmtLong){
+ 		if(fl & FmtUnsigned)
+ 			u = va_arg(f->args, ulong);
+ 		else
+-			u = va_arg(f->args, long);
++			u = (ulong)va_arg(f->args, long);
+ 	}else if(fl & FmtByte){
+ 		if(fl & FmtUnsigned)
+ 			u = (uchar)va_arg(f->args, int);
+ 		else
+-			u = (char)va_arg(f->args, int);
++			u = (uchar)(char)va_arg(f->args, int);
+ 	}else if(fl & FmtShort){
+ 		if(fl & FmtUnsigned)
+ 			u = (ushort)va_arg(f->args, int);
+ 		else
+-			u = (short)va_arg(f->args, int);
++			u = (ushort)(short)va_arg(f->args, int);
+ 	}else{
+ 		if(fl & FmtUnsigned)
+ 			u = va_arg(f->args, uint);
+ 		else
+-			u = va_arg(f->args, int);
++			u = (uint)va_arg(f->args, int);
+ 	}
+ 	conv = "0123456789abcdef";
+ 	grouping = "\4";	/* for hex, octal etc. (undefined by spec but nice) */
+@@ -428,10 +428,10 @@ __ifmt(Fmt *f)
+ 	}
+ 	if(!(fl & FmtUnsigned)){
+ 		if(isv && (vlong)vu < 0){
+-			vu = -(vlong)vu;
++			vu = (uvlong)-(vlong)vu;
+ 			neg = 1;
+ 		}else if(!isv && (long)u < 0){
+-			u = -(long)u;
++			u = (ulong)-(long)u;
+ 			neg = 1;
+ 		}
+ 	}
+@@ -440,11 +440,11 @@ __ifmt(Fmt *f)
+ 	excess = 0;	/* number of bytes > number runes */
+ 	ndig = 0;
+ 	len = utflen(thousands);
+-	bytelen = strlen(thousands);
++	bytelen = (int)strlen(thousands);
+ 	if(isv){
+ 		while(vu){
+-			i = vu % base;
+-			vu /= base;
++			i = (int)(vu % (uvlong)base);
++			vu /= (uvlong)base;
+ 			if((fl & FmtComma) && n % 4 == 3){
+ 				*p-- = ',';
+ 				n++;
+@@ -453,15 +453,15 @@ __ifmt(Fmt *f)
+ 				n += len;
+ 				excess += bytelen - len;
+ 				p -= bytelen;
+-				memmove(p+1, thousands, bytelen);
++				memmove(p+1, thousands, (size_t)bytelen);
+ 			}
+ 			*p-- = conv[i];
+ 			n++;
+ 		}
+ 	}else{
+ 		while(u){
+-			i = u % base;
+-			u /= base;
++			i = (int)(u % (ulong)base);
++			u /= (ulong)base;
+ 			if((fl & FmtComma) && n % 4 == 3){
+ 				*p-- = ',';
+ 				n++;
+@@ -470,7 +470,7 @@ __ifmt(Fmt *f)
+ 				n += len;
+ 				excess += bytelen - len;
+ 				p -= bytelen;
+-				memmove(p+1, thousands, bytelen);
++				memmove(p+1, thousands, (size_t)bytelen);
+ 			}
+ 			*p-- = conv[i];
+ 			n++;
+@@ -496,14 +496,14 @@ __ifmt(Fmt *f)
+ 		 * Zero values don't get 0x.
+ 		 */
+ 		if(f->r == 'x' || f->r == 'X')
+-			fl &= ~FmtSharp;
++			fl &= ~(ulong)FmtSharp;
+ 	}
+ 	for(w = f->prec; n < w && p > buf+3; n++){
+ 		if((fl & FmtApost) && __needsep(&ndig, &grouping)){
+ 			n += len;
+ 			excess += bytelen - len;
+ 			p -= bytelen;
+-			memmove(p+1, thousands, bytelen);
++			memmove(p+1, thousands, (size_t)bytelen);
+ 		}
+ 		*p-- = '0';
+ 	}
+@@ -514,7 +514,7 @@ __ifmt(Fmt *f)
+ 			n += 2;
+ 		else if(base == 8){
+ 			if(p[1] == '0')
+-				fl &= ~FmtSharp;
++				fl &= ~(ulong)FmtSharp;
+ 			else
+ 				n++;
+ 		}
+@@ -528,15 +528,15 @@ __ifmt(Fmt *f)
+ 				n += len;
+ 				excess += bytelen - len;
+ 				p -= bytelen;
+-				memmove(p+1, thousands, bytelen);
++				memmove(p+1, thousands, (size_t)bytelen);
+ 			}
+ 			*p-- = '0';
+ 		}
+-		f->flags &= ~FmtWidth;
++		f->flags &= ~(ulong)FmtWidth;
+ 	}
+ 	if(fl & FmtSharp){
+ 		if(base == 16)
+-			*p-- = f->r;
++			*p-- = (char)f->r;
+ 		if(base == 16 || base == 8)
+ 			*p-- = '0';
+ 	}
+@@ -546,7 +546,7 @@ __ifmt(Fmt *f)
+ 		*p-- = '+';
+ 	else if(fl & FmtSpace)
+ 		*p-- = ' ';
+-	f->flags &= ~FmtPrec;
++	f->flags &= ~(ulong)FmtPrec;
+ 	return __fmtcpy(f, p + 1, n, n + excess);
+ }
+ 
+@@ -563,9 +563,9 @@ __countfmt(Fmt *f)
+ 	}else if(fl & FmtLong){
+ 		*(long*)p = f->nfmt;
+ 	}else if(fl & FmtByte){
+-		*(char*)p = f->nfmt;
++		*(char*)p = (char)f->nfmt;
+ 	}else if(fl & FmtShort){
+-		*(short*)p = f->nfmt;
++		*(short*)p = (short)f->nfmt;
+ 	}else{
+ 		*(int*)p = f->nfmt;
+ 	}
+diff --git a/src/lib9/fmt/dorfmt.c b/src/lib9/fmt/dorfmt.c
+index 672742f020..c18d9ee5db 100644
+--- a/src/lib9/fmt/dorfmt.c
++++ b/src/lib9/fmt/dorfmt.c
+@@ -27,7 +27,7 @@ int
+ dorfmt(Fmt *f, const Rune *fmt)
+ {
+ 	Rune *rt, *rs;
+-	int r;
++	Rune r;
+ 	char *t, *s;
+ 	int nfmt;
+ 
+@@ -39,7 +39,7 @@ dorfmt(Fmt *f, const Rune *fmt)
+ 			while((r = *fmt++) && r != '%'){
+ 				FMTRCHAR(f, rt, rs, r);
+ 			}
+-			f->nfmt += rt - (Rune *)f->to;
++			f->nfmt += (int)(rt - (Rune *)f->to);
+ 			f->to = rt;
+ 			if(!r)
+ 				return f->nfmt - nfmt;
+@@ -50,7 +50,7 @@ dorfmt(Fmt *f, const Rune *fmt)
+ 			while((r = *fmt++) && r != '%'){
+ 				FMTRUNE(f, t, f->stop, r);
+ 			}
+-			f->nfmt += t - (char *)f->to;
++			f->nfmt += (int)(t - (char *)f->to);
+ 			f->to = t;
+ 			if(!r)
+ 				return f->nfmt - nfmt;
+diff --git a/src/lib9/fmt/fltfmt.c b/src/lib9/fmt/fltfmt.c
+index 9f3f3edab4..dec6f8480c 100644
+--- a/src/lib9/fmt/fltfmt.c
++++ b/src/lib9/fmt/fltfmt.c
+@@ -103,7 +103,7 @@ xadd1(char *a, int n)
+ 	for(b = a+n-1; b >= a; b--) {
+ 		c = *b + 1;
+ 		if(c <= '9') {
+-			*b = c;
++			*b = (char)c;
+ 			return 0;
+ 		}
+ 		*b = '0';
+@@ -144,7 +144,7 @@ xsub1(char *a, int n)
+ 				*b = '9';
+ 				return 1;
+ 			}
+-			*b = c;
++			*b = (char)c;
+ 			return 0;
+ 		}
+ 		*b = '9';
+@@ -173,7 +173,7 @@ xfmtexp(char *p, int e, int ucase)
+ 		*p++ = '+';
+ 	i = 0;
+ 	while(e) {
+-		se[i++] = e % 10 + '0';
++		se[i++] = (char)(e % 10 + '0');
+ 		e /= 10;
+ 	}
+ 	while(i < 2)
+@@ -192,7 +192,8 @@ xfmtexp(char *p, int e, int ucase)
+ static void
+ xdtoa(double f, char *s, int *exp, int *neg, int *ns)
+ {
+-	int c, d, e2, e, ee, i, ndigit, oerrno;
++	int d, e2, e, ee, i, ndigit, oerrno;
++	char c;
+ 	char tmp[NSIGNIF+10];
+ 	double g;
+ 
+@@ -239,7 +240,7 @@ xdtoa(double f, char *s, int *exp, int *neg, int *ns)
+ 	 */
+ 	for(i=0; i<NSIGNIF; i++) {
+ 		d = (int)g;
+-		s[i] = d+'0';
++		s[i] = (char)(d+'0');
+ 		g = (g-d) * 10;
+ 	}
+ 	s[i] = 0;
+@@ -350,12 +351,13 @@ __efgfmt(Fmt *fmt)
+ {
+ 	char buf[NSIGNIF+10], *dot, *digits, *p, *s, suf[10], *t;
+ 	double f;
+-	int c, chr, dotwid, e, exp, fl, ndigits, neg, newndigits;
++	int c, chr, dotwid, e, exp, ndigits, neg, newndigits;
+ 	int pad, point, prec, realchr, sign, sufwid, ucase, wid, z1, z2;
++	ulong fl;
+ 	Rune r, *rs, *rt;
+ 
+ 	if(fmt->flags&FmtLong)
+-		f = va_arg(fmt->args, long double);
++		f = (double)va_arg(fmt->args, long double);
+ 	else
+ 		f = va_arg(fmt->args, double);
+ 
+@@ -367,7 +369,7 @@ __efgfmt(Fmt *fmt)
+ 	prec = FDEFLT;
+ 	if(fl & FmtPrec)
+ 		prec = fmt->prec;
+-	chr = fmt->r;
++	chr = (int)fmt->r;
+ 	ucase = 0;
+ 	switch(chr) {
+ 	case 'A':
+@@ -386,7 +388,7 @@ __efgfmt(Fmt *fmt)
+ 		s = special[0+ucase];
+ 	special:
+ 		fmt->flags = fl & (FmtWidth|FmtLeft);
+-		return __fmtcpy(fmt, s, strlen(s), strlen(s));
++		return __fmtcpy(fmt, s, (int)strlen(s), (int)strlen(s));
+ 	}
+ 	if(__isInf(f, 1)) {
+ 		s = special[2+ucase];
+@@ -488,7 +490,7 @@ __efgfmt(Fmt *fmt)
+ 			z2 = 0;
+ 		}
+ 		xfmtexp(suf, e, ucase);
+-		sufwid = strlen(suf);
++		sufwid = (int)strlen(suf);
+ 		break;
+ 
+ 	casef:
+@@ -638,7 +640,7 @@ __efgfmt(Fmt *fmt)
+ 				}
+ 			}
+ 		}
+-		fmt->nfmt += rt - (Rune*)fmt->to;
++		fmt->nfmt += (int)(rt - (Rune*)fmt->to);
+ 		fmt->to = rt;
+ 		if(sufwid && __fmtcpy(fmt, suf, sufwid, sufwid) < 0)
+ 			return -1;
+@@ -667,7 +669,7 @@ __efgfmt(Fmt *fmt)
+ 				for(p=dot; *p; p++)
+ 					FMTCHAR(fmt, t, s, *p);
+ 		}
+-		fmt->nfmt += t - (char*)fmt->to;
++		fmt->nfmt += (int)(t - (char*)fmt->to);
+ 		fmt->to = t;
+ 		if(sufwid && __fmtcpy(fmt, suf, sufwid, sufwid) < 0)
+ 			return -1;
+diff --git a/src/lib9/fmt/fmt.c b/src/lib9/fmt/fmt.c
+index 7a747b1b1c..7e576773b0 100644
+--- a/src/lib9/fmt/fmt.c
++++ b/src/lib9/fmt/fmt.c
+@@ -187,12 +187,12 @@ __fmtdispatch(Fmt *f, void *fmt, int isrunes)
+ 		case '5': case '6': case '7': case '8': case '9':
+ 			i = 0;
+ 			while(r >= '0' && r <= '9'){
+-				i = i * 10 + r - '0';
++				i = i * 10 + (int)r - '0';
+ 				if(isrunes){
+ 					r = *(Rune*)fmt;
+ 					fmt = (Rune*)fmt + 1;
+ 				}else{
+-					r = *(char*)fmt;
++					r = (Rune)*(char*)fmt;
+ 					fmt = (char*)fmt + 1;
+ 				}
+ 			}
+@@ -217,7 +217,7 @@ __fmtdispatch(Fmt *f, void *fmt, int isrunes)
+ 				 * ignore the precision.
+ 				 */
+ 				if(f->flags & FmtPrec){
+-					f->flags &= ~FmtPrec;
++					f->flags &= ~(ulong)FmtPrec;
+ 					f->prec = 0;
+ 					continue;
+ 				}
+@@ -226,7 +226,7 @@ __fmtdispatch(Fmt *f, void *fmt, int isrunes)
+ 			}
+ 			goto numflag;
+ 		}
+-		n = (*fmtfmt(r))(f);
++		n = (*fmtfmt((int)r))(f);
+ 		if(n < 0)
+ 			return nil;
+ 		if(n == 0)
+diff --git a/src/lib9/fmt/fmtdef.h b/src/lib9/fmt/fmtdef.h
+index 74cb8a8d2c..4bbd9f5781 100644
+--- a/src/lib9/fmt/fmtdef.h
++++ b/src/lib9/fmt/fmtdef.h
+@@ -75,7 +75,7 @@ int          __strfmt(Fmt *f);
+ 		else\
+ 			return -1;\
+ 	}\
+-	*t++ = c;\
++	*t++ = (char)c;\
+ 	}while(0)
+ 
+ #define FMTRCHAR(f, t, s, c)\
+@@ -87,7 +87,7 @@ int          __strfmt(Fmt *f);
+ 		else\
+ 			return -1;\
+ 	}\
+-	*t++ = c;\
++	*t++ = (Rune)c;\
+ 	}while(0)
+ 
+ #define FMTRUNE(f, t, s, r)\
+@@ -102,7 +102,7 @@ int          __strfmt(Fmt *f);
+ 			return -1;\
+ 	}\
+ 	if(r < Runeself)\
+-		*t++ = r;\
++		*t++ = (char)r;\
+ 	else{\
+ 		_rune = r;\
+ 		t += runetochar(t, &_rune);\
+diff --git a/src/lib9/fmt/fmtfdflush.c b/src/lib9/fmt/fmtfdflush.c
+index c9854cee58..401acbea73 100644
+--- a/src/lib9/fmt/fmtfdflush.c
++++ b/src/lib9/fmt/fmtfdflush.c
+@@ -29,8 +29,8 @@ __fmtFdFlush(Fmt *f)
+ {
+ 	int n;
+ 
+-	n = (char*)f->to - (char*)f->start;
+-	if(n && write((uintptr)f->farg, f->start, n) != n)
++	n = (int)((char*)f->to - (char*)f->start);
++	if(n && (int)write((int)(uintptr)f->farg, f->start, (size_t)n) != n)
+ 		return 0;
+ 	f->to = f->start;
+ 	return 1;
+diff --git a/src/lib9/fmt/fmtquote.c b/src/lib9/fmt/fmtquote.c
+index b9ac772ed2..93b2abbe79 100644
+--- a/src/lib9/fmt/fmtquote.c
++++ b/src/lib9/fmt/fmtquote.c
+@@ -69,7 +69,7 @@ __quotesetup(char *s, Rune *r, int nin, int nout, Quoteinfo *q, int sharp, int r
+ 				break;
+ 		}
+ 
+-		if((c <= L' ') || (c == L'\'') || (fmtdoquote!=nil && fmtdoquote(c))){
++		if((c <= L' ') || (c == L'\'') || (fmtdoquote!=nil && fmtdoquote((int)c))){
+ 			if(!q->quoted){
+ 				if(runesout){
+ 					if(1+q->nrunesout+1+1 > nout)	/* no room for quotes */
+@@ -152,7 +152,7 @@ qstrfmt(char *sin, Rune *rin, Quoteinfo *q, Fmt *f)
+ 			r = *(uchar*)m;
+ 			if(r < Runeself)
+ 				m++;
+-			else if((me - m) >= UTFmax || fullrune(m, me-m))
++			else if((me - m) >= UTFmax || fullrune(m, (int)(me-m)))
+ 				m += chartorune(&r, m);
+ 			else
+ 				break;
+@@ -175,14 +175,14 @@ qstrfmt(char *sin, Rune *rin, Quoteinfo *q, Fmt *f)
+ 	if(f->runes){
+ 		FMTRCHAR(f, rt, rs, '\'');
+ 		USED(rs);
+-		f->nfmt += rt - (Rune *)f->to;
++		f->nfmt += (int)(rt - (Rune *)f->to);
+ 		f->to = rt;
+ 		if(fl & FmtLeft && __rfmtpad(f, w - q->nrunesout) < 0)
+ 			return -1;
+ 	}else{
+ 		FMTRUNE(f, t, s, '\'');
+ 		USED(s);
+-		f->nfmt += t - (char *)f->to;
++		f->nfmt += (int)(t - (char *)f->to);
+ 		f->to = t;
+ 		if(fl & FmtLeft && __fmtpad(f, w - q->nbytesout) < 0)
+ 			return -1;
+@@ -214,9 +214,9 @@ __quotestrfmt(int runesin, Fmt *f)
+ 	if(f->flush)
+ 		outlen = 0x7FFFFFFF;	/* if we can flush, no output limit */
+ 	else if(f->runes)
+-		outlen = (Rune*)f->stop - (Rune*)f->to;
++		outlen = (int)((Rune*)f->stop - (Rune*)f->to);
+ 	else
+-		outlen = (char*)f->stop - (char*)f->to;
++		outlen = (int)((char*)f->stop - (char*)f->to);
+ 
+ 	__quotesetup(s, r, nin, outlen, &q, f->flags&FmtSharp, f->runes);
+ /*print("bytes in %d bytes out %d runes in %d runesout %d\n", q.nbytesin, q.nbytesout, q.nrunesin, q.nrunesout); */
+diff --git a/src/lib9/fmt/fmtrune.c b/src/lib9/fmt/fmtrune.c
+index da8c5d7464..2bc8d28e6f 100644
+--- a/src/lib9/fmt/fmtrune.c
++++ b/src/lib9/fmt/fmtrune.c
+@@ -34,8 +34,8 @@ fmtrune(Fmt *f, int r)
+ 		n = 1;
+ 	}else{
+ 		t = (char*)f->to;
+-		FMTRUNE(f, t, f->stop, r);
+-		n = t - (char*)f->to;
++		FMTRUNE(f, t, f->stop, (Rune)r);
++		n = (int)(t - (char*)f->to);
+ 		f->to = t;
+ 	}
+ 	f->nfmt += n;
+diff --git a/src/lib9/fmt/sprint.c b/src/lib9/fmt/sprint.c
+index 38d4307445..02655ad123 100644
+--- a/src/lib9/fmt/sprint.c
++++ b/src/lib9/fmt/sprint.c
+@@ -36,10 +36,10 @@ sprint(char *buf, char *fmt, ...)
+ 	 * optimizes the test away.  casting to uintptr works around this bug.
+ 	 */
+ 	if((uintptr)buf+len < (uintptr)buf)
+-		len = -(uintptr)buf-1;
++		len = (uint)-(uintptr)buf-1;
+ 
+ 	va_start(args, fmt);
+-	n = vsnprint(buf, len, fmt, args);
++	n = (int)vsnprint(buf, (int)len, fmt, args);
+ 	va_end(args);
+ 	return n;
+ }
+diff --git a/src/lib9/fmt/strtod.c b/src/lib9/fmt/strtod.c
+index 6bb56c112f..ec185d2d5f 100644
+--- a/src/lib9/fmt/strtod.c
++++ b/src/lib9/fmt/strtod.c
+@@ -124,7 +124,7 @@ fmtstrtod(const char *as, char **aas)
+ 				continue;
+ 			}
+ 			if(na < Ndig-50)
+-				a[na++] = c;
++				a[na++] = (char)c;
+ 			continue;
+ 		}
+ 		switch(c) {
+@@ -240,7 +240,7 @@ fmtstrtod(const char *as, char **aas)
+ 	mid[0] = 0;
+ 	mid[1] = 1;
+ 	for(i=0; (c=a[i]) != '\0'; i++) {
+-		mid[0] = mid[0]*10 + (c-'0');
++		mid[0] = mid[0]*10 + (ulong)(c-'0');
+ 		mid[1] = mid[1]*10;
+ 		if(i >= 8)
+ 			break;
+@@ -287,13 +287,13 @@ fmtstrtod(const char *as, char **aas)
+ 		/* only hard part is if even/odd roundings wants to go up */
+ 		c = mid[Prec-1] & (Sigbit-1);
+ 		if(c == Sigbit/2 && (mid[Prec-1]&Sigbit) == 0)
+-			mid[Prec-1] -= c;
++			mid[Prec-1] -= (ulong)c;
+ 		break;	/* exactly mid */
+ 	}
+ 
+ 	/* normal rounding applies */
+ 	c = mid[Prec-1] & (Sigbit-1);
+-	mid[Prec-1] -= c;
++	mid[Prec-1] -= (ulong)c;
+ 	if(c >= Sigbit/2) {
+ 		mid[Prec-1] += Sigbit;
+ 		frnorm(mid);
+@@ -317,7 +317,7 @@ retinf:
+ out:
+ 	d = 0;
+ 	for(i=0; i<Prec; i++)
+-		d = d*One + mid[i];
++		d = d*One + (double)mid[i];
+ 	if(flag & Fsign)
+ 		d = -d;
+ 	d = ldexp(d, bp - Prec*Nbits);
+@@ -330,7 +330,8 @@ out:
+ static void
+ frnorm(ulong *f)
+ {
+-	int i, c;
++	int i;
++	ulong c;
+ 
+ 	c = 0;
+ 	for(i=Prec-1; i>0; i--) {
+@@ -355,7 +356,7 @@ fpcmp(char *a, ulong* f)
+ 		for(i=0; i<Prec; i++)
+ 			tf[i] = tf[i]*10;
+ 		frnorm(tf);
+-		d = (tf[0] >> Nbits) + '0';
++		d = (int)(tf[0] >> Nbits) + '0';
+ 		tf[0] &= One-1;
+ 
+ 		/* compare next digit */
+@@ -404,7 +405,7 @@ divby(char *a, int *na, int b)
+ 	for(;;) {
+ 		c = n>>b;
+ 		n -= c<<b;
+-		*p++ = c + '0';
++		*p++ = (char)(c + '0');
+ 		c = *a++;
+ 		if(c == 0)
+ 			break;
+@@ -416,7 +417,7 @@ xx:
+ 		n = n*10;
+ 		c = n>>b;
+ 		n -= c<<b;
+-		*p++ = c + '0';
++		*p++ = (char)(c + '0');
+ 		(*na)++;
+ 	}
+ 	*p = 0;
+@@ -447,7 +448,7 @@ divascii(char *a, int *na, int *dp, int *bp)
+ 		d = (int)(nelem(tab1))-1;
+ 	t = tab1 + d;
+ 	b = t->bp;
+-	if(memcmp(a, t->cmp, t->siz) > 0)
++	if(memcmp(a, t->cmp, (size_t)t->siz) > 0)
+ 		d--;
+ 	*dp -= d;
+ 	*bp += b;
+@@ -470,14 +471,14 @@ mulby(char *a, char *p, char *q, int b)
+ 		n = c/10;
+ 		c -= n*10;
+ 		p--;
+-		*p = c + '0';
++		*p = (char)(c + '0');
+ 	}
+ 	while(n) {
+ 		c = n;
+ 		n = c/10;
+ 		c -= n*10;
+ 		p--;
+-		*p = c + '0';
++		*p = (char)(c + '0');
+ 	}
+ }
+ 
+@@ -507,7 +508,7 @@ mulascii(char *a, int *na, int *dp, int *bp)
+ 		d = (int)(nelem(tab2))-1;
+ 	t = tab2 + d;
+ 	b = t->bp;
+-	if(memcmp(a, t->cmp, t->siz) < 0)
++	if(memcmp(a, t->cmp, (size_t)t->siz) < 0)
+ 		d--;
+ 	p = a + *na;
+ 	*bp -= b;
+diff --git a/src/lib9/fmt/vsmprint.c b/src/lib9/fmt/vsmprint.c
+index 4bd0bc4b73..46086f9e28 100644
+--- a/src/lib9/fmt/vsmprint.c
++++ b/src/lib9/fmt/vsmprint.c
+@@ -28,10 +28,10 @@ fmtStrFlush(Fmt *f)
+ 
+ 	if(f->start == nil)
+ 		return 0;
+-	n = (uintptr)f->farg;
++	n = (int)(uintptr)f->farg;
+ 	n *= 2;
+ 	s = (char*)f->start;
+-	f->start = realloc(s, n);
++	f->start = realloc(s, (size_t)n);
+ 	if(f->start == nil){
+ 		f->farg = nil;
+ 		f->to = nil;
+@@ -53,7 +53,7 @@ fmtstrinit(Fmt *f)
+ 	memset(f, 0, sizeof *f);
+ 	f->runes = 0;
+ 	n = 32;
+-	f->start = malloc(n);
++	f->start = malloc((size_t)n);
+ 	if(f->start == nil)
+ 		return -1;
+ 	f->to = f->start;
+diff --git a/src/lib9/fmt/vsnprint.c b/src/lib9/fmt/vsnprint.c
+index 33d6bba4dd..6b3877205e 100644
+--- a/src/lib9/fmt/vsnprint.c
++++ b/src/lib9/fmt/vsnprint.c
+@@ -39,5 +39,5 @@ vsnprint(char *buf, int len, char *fmt, va_list args)
+ 	dofmt(&f, fmt);
+ 	VA_END(f.args);
+ 	*(char*)f.to = '\0';
+-	return (char*)f.to - buf;
++	return (int)((char*)f.to - buf);
+ }
+diff --git a/src/lib9/getwd.c b/src/lib9/getwd.c
+index 566d3f647a..cbfd9d643b 100644
+--- a/src/lib9/getwd.c
++++ b/src/lib9/getwd.c
+@@ -50,5 +50,5 @@ p9getwd(char *s, int ns)
+ 		return s;
+ 	}
+ 
+-	return getcwd(s, ns);
++	return getcwd(s, (size_t)ns);
+ }
+diff --git a/src/lib9/readn.c b/src/lib9/readn.c
+index f39b4a4c22..3c80a4fc04 100644
+--- a/src/lib9/readn.c
++++ b/src/lib9/readn.c
+@@ -36,7 +36,7 @@ readn(int f, void *av, long n)
+ 	a = av;
+ 	t = 0;
+ 	while(t < n){
+-		m = read(f, a+t, n-t);
++		m = read(f, a+t, (size_t)(n-t));
+ 		if(m <= 0){
+ 			if(t == 0)
+ 				return m;
+diff --git a/src/lib9/rfork.c b/src/lib9/rfork.c
+index 5a6eaeb94c..c4ae90f97d 100644
+--- a/src/lib9/rfork.c
++++ b/src/lib9/rfork.c
+@@ -82,7 +82,7 @@ p9rfork(int flags)
+ 					close(p[0]);
+ 					return -1;
+ 				}
+-				n = readn(p[0], buf, sizeof buf-1);
++				n = (int)readn(p[0], buf, sizeof buf-1);
+ 				close(p[0]);
+ 				if(!WIFEXITED(status) || WEXITSTATUS(status)!=0 || n <= 0){
+ 					if(!WIFEXITED(status))
+@@ -102,7 +102,7 @@ p9rfork(int flags)
+ 					werrstr("%s", buf+2);
+ 					return -1;
+ 				}
+-				pid = strtol(buf, &q, 0);
++				pid = (int)strtol(buf, &q, 0);
+ 			}else{
+ 				/*
+ 				 * Child - fork a new child whose wait message can't
+diff --git a/src/lib9/strecpy.c b/src/lib9/strecpy.c
+index 389fdc8a02..03dc6ea502 100644
+--- a/src/lib9/strecpy.c
++++ b/src/lib9/strecpy.c
+@@ -32,7 +32,7 @@ strecpy(char *to, char *e, char *from)
+ {
+ 	if(to >= e)
+ 		return to;
+-	to = memccpy(to, from, '\0', e - to);
++	to = memccpy(to, from, '\0', (size_t)(e - to));
+ 	if(to == nil){
+ 		to = e - 1;
+ 		*to = '\0';
+diff --git a/src/lib9/tokenize.c b/src/lib9/tokenize.c
+index 52167ff2fd..a9b5935670 100644
+--- a/src/lib9/tokenize.c
++++ b/src/lib9/tokenize.c
+@@ -37,7 +37,7 @@ qtoken(char *s, char *sep)
+ 
+ 	quoting = 0;
+ 	t = s;	/* s is output string, t is input string */
+-	while(*t!='\0' && (quoting || utfrune(sep, *t)==nil)){
++	while(*t!='\0' && (quoting || utfrune(sep, (Rune)*t)==nil)){
+ 		if(*t != '\''){
+ 			*s++ = *t++;
+ 			continue;
+@@ -74,7 +74,7 @@ etoken(char *t, char *sep)
+ 
+ 	/* move to end of next token */
+ 	quoting = 0;
+-	while(*t!='\0' && (quoting || utfrune(sep, *t)==nil)){
++	while(*t!='\0' && (quoting || utfrune(sep, (Rune)*t)==nil)){
+ 		if(*t != '\''){
+ 			t++;
+ 			continue;
+@@ -104,7 +104,7 @@ gettokens(char *s, char **args, int maxargs, char *sep)
+ 	int nargs;
+ 
+ 	for(nargs=0; nargs<maxargs; nargs++){
+-		while(*s!='\0' && utfrune(sep, *s)!=nil)
++		while(*s!='\0' && utfrune(sep, (Rune)*s)!=nil)
+ 			*s++ = '\0';
+ 		if(*s == '\0')
+ 			break;
+@@ -121,7 +121,7 @@ tokenize(char *s, char **args, int maxargs)
+ 	int nargs;
+ 
+ 	for(nargs=0; nargs<maxargs; nargs++){
+-		while(*s!='\0' && utfrune(qsep, *s)!=nil)
++		while(*s!='\0' && utfrune(qsep, (Rune)*s)!=nil)
+ 			s++;
+ 		if(*s == '\0')
+ 			break;
+diff --git a/src/lib9/utf/rune.c b/src/lib9/utf/rune.c
+index 913b786daa..99f03eaa3f 100644
+--- a/src/lib9/utf/rune.c
++++ b/src/lib9/utf/rune.c
+@@ -80,7 +80,7 @@ charntorune(Rune *rune, const char *str, int length)
+ 	 */
+ 	c = *(uchar*)str;
+ 	if(c < Tx) {
+-		*rune = c;
++		*rune = (Rune)c;
+ 		return 1;
+ 	}
+ 
+@@ -102,7 +102,7 @@ charntorune(Rune *rune, const char *str, int length)
+ 		l = ((c << Bitx) | c1) & Rune2;
+ 		if(l <= Rune1)
+ 			goto bad;
+-		*rune = l;
++		*rune = (Rune)l;
+ 		return 2;
+ 	}
+ 
+@@ -124,7 +124,7 @@ charntorune(Rune *rune, const char *str, int length)
+ 			goto bad;
+ 		if (SurrogateMin <= l && l <= SurrogateMax)
+ 			goto bad;
+-		*rune = l;
++		*rune = (Rune)l;
+ 		return 3;
+ 	}
+ 
+@@ -142,7 +142,7 @@ charntorune(Rune *rune, const char *str, int length)
+ 		l = ((((((c << Bitx) | c1) << Bitx) | c2) << Bitx) | c3) & Rune4;
+ 		if (l <= Rune3 || l > Runemax)
+ 			goto bad;
+-		*rune = l;
++		*rune = (Rune)l;
+ 		return 4;
+ 	}
+ 
+@@ -178,7 +178,7 @@ chartorune(Rune *rune, const char *str)
+ 	 */
+ 	c = *(uchar*)str;
+ 	if(c < Tx) {
+-		*rune = c;
++		*rune = (Rune)c;
+ 		return 1;
+ 	}
+ 
+@@ -195,7 +195,7 @@ chartorune(Rune *rune, const char *str)
+ 		l = ((c << Bitx) | c1) & Rune2;
+ 		if(l <= Rune1)
+ 			goto bad;
+-		*rune = l;
++		*rune = (Rune)l;
+ 		return 2;
+ 	}
+ 
+@@ -212,7 +212,7 @@ chartorune(Rune *rune, const char *str)
+ 			goto bad;
+ 		if (SurrogateMin <= l && l <= SurrogateMax)
+ 			goto bad;
+-		*rune = l;
++		*rune = (Rune)l;
+ 		return 3;
+ 	}
+ 
+@@ -227,7 +227,7 @@ chartorune(Rune *rune, const char *str)
+ 		l = ((((((c << Bitx) | c1) << Bitx) | c2) << Bitx) | c3) & Rune4;
+ 		if (l <= Rune3 || l > Runemax)
+ 			goto bad;
+-		*rune = l;
++		*rune = (Rune)l;
+ 		return 4;
+ 	}
+ 
+@@ -263,7 +263,7 @@ runetochar(char *str, const Rune *rune)
+ 	 */
+ 	c = *rune;
+ 	if(c <= Rune1) {
+-		str[0] = c;
++		str[0] = (char)c;
+ 		return 1;
+ 	}
+ 
+@@ -272,8 +272,8 @@ runetochar(char *str, const Rune *rune)
+ 	 *	0080-07FF => T2 Tx
+ 	 */
+ 	if(c <= Rune2) {
+-		str[0] = T2 | (c >> 1*Bitx);
+-		str[1] = Tx | (c & Maskx);
++		str[0] = (char)(T2 | (c >> 1*Bitx));
++		str[1] = (char)(Tx | (c & Maskx));
+ 		return 2;
+ 	}
+ 
+@@ -293,9 +293,9 @@ runetochar(char *str, const Rune *rune)
+ 	 *	0800-FFFF => T3 Tx Tx
+ 	 */
+ 	if (c <= Rune3) {
+-		str[0] = T3 |  (c >> 2*Bitx);
+-		str[1] = Tx | ((c >> 1*Bitx) & Maskx);
+-		str[2] = Tx |  (c & Maskx);
++		str[0] = (char)(T3 |  (c >> 2*Bitx));
++		str[1] = (char)(Tx | ((c >> 1*Bitx) & Maskx));
++		str[2] = (char)(Tx |  (c & Maskx));
+ 		return 3;
+ 	}
+ 
+@@ -303,10 +303,10 @@ runetochar(char *str, const Rune *rune)
+ 	 * four character sequence (21-bit value)
+ 	 *     10000-1FFFFF => T4 Tx Tx Tx
+ 	 */
+-	str[0] = T4 | (c >> 3*Bitx);
+-	str[1] = Tx | ((c >> 2*Bitx) & Maskx);
+-	str[2] = Tx | ((c >> 1*Bitx) & Maskx);
+-	str[3] = Tx | (c & Maskx);
++	str[0] = (char)(T4 | (c >> 3*Bitx));
++	str[1] = (char)(Tx | ((c >> 2*Bitx) & Maskx));
++	str[2] = (char)(Tx | ((c >> 1*Bitx) & Maskx));
++	str[3] = (char)(Tx | (c & Maskx));
+ 	return 4;
+ }
+ 
+@@ -325,7 +325,7 @@ runenlen(const Rune *r, int nrune)
+ 
+ 	nb = 0;
+ 	while(nrune--) {
+-		c = *r++;
++		c = (int)*r++;
+ 		if (c <= Rune1)
+ 			nb++;
+ 		else if (c <= Rune2)
+diff --git a/src/lib9/utf/utfecpy.c b/src/lib9/utf/utfecpy.c
+index 76fb571d32..2eca85ef66 100644
+--- a/src/lib9/utf/utfecpy.c
++++ b/src/lib9/utf/utfecpy.c
+@@ -23,7 +23,7 @@ utfecpy(char *to, char *e, const char *from)
+ 
+ 	if(to >= e)
+ 		return to;
+-	end = memccpy(to, from, '\0', e - to);
++	end = memccpy(to, from, '\0', (size_t)(e - to));
+ 	if(end == nil){
+ 		end = e-1;
+ 		while(end>to && (*--end&0xC0)==0x80)
+diff --git a/src/lib9/utf/utflen.c b/src/lib9/utf/utflen.c
+index 843e6773fc..42fcb33abf 100644
+--- a/src/lib9/utf/utflen.c
++++ b/src/lib9/utf/utflen.c
+@@ -18,7 +18,7 @@ int
+ utflen(const char *s)
+ {
+ 	int c;
+-	long n;
++	int n;
+ 	Rune rune;
+ 
+ 	n = 0;
+diff --git a/src/lib9/utf/utfnlen.c b/src/lib9/utf/utfnlen.c
+index 4b02e6a333..d6ef5fa06f 100644
+--- a/src/lib9/utf/utfnlen.c
++++ b/src/lib9/utf/utfnlen.c
+@@ -18,7 +18,7 @@ int
+ utfnlen(const char *s, long m)
+ {
+ 	int c;
+-	long n;
++	int n;
+ 	Rune rune;
+ 	const char *es;
+ 
+@@ -31,7 +31,7 @@ utfnlen(const char *s, long m)
+ 			s++;
+ 			continue;
+ 		}
+-		if(!fullrune(s, es-s))
++		if(!fullrune(s, (int)(es-s)))
+ 			break;
+ 		s += chartorune(&rune, s);
+ 	}
+diff --git a/src/lib9/utf/utfrrune.c b/src/lib9/utf/utfrrune.c
+index 2273ec5517..9e28af82a5 100644
+--- a/src/lib9/utf/utfrrune.c
++++ b/src/lib9/utf/utfrrune.c
+@@ -24,7 +24,7 @@ utfrrune(const char *s, Rune c)
+ 	const char *s1;
+ 
+ 	if(c < Runesync)		/* not part of utf sequence */
+-		return strrchr(s, c);
++		return strrchr(s, (char)c);
+ 
+ 	s1 = 0;
+ 	for(;;) {
+diff --git a/src/lib9/utf/utfrune.c b/src/lib9/utf/utfrune.c
+index 863a1846f3..0136b28213 100644
+--- a/src/lib9/utf/utfrune.c
++++ b/src/lib9/utf/utfrune.c
+@@ -24,7 +24,7 @@ utfrune(const char *s, Rune c)
+ 	int n;
+ 
+ 	if(c < Runesync)		/* not part of utf sequence */
+-		return strchr(s, c);
++		return strchr(s, (char)c);
+ 
+ 	for(;;) {
+ 		c1 = *(uchar*)s;
+diff --git a/src/lib9/utf/utfutf.c b/src/lib9/utf/utfutf.c
+index 79098535ba..e46ddd9233 100644
+--- a/src/lib9/utf/utfutf.c
++++ b/src/lib9/utf/utfutf.c
+@@ -25,7 +25,8 @@ char*
+ utfutf(const char *s1, const char *s2)
+ {
+ 	const char *p;
+-	long f, n1, n2;
++	long f, n1;
++	size_t n2;
+ 	Rune r;
+ 
+ 	n1 = chartorune(&r, s2);
+@@ -34,7 +35,7 @@ utfutf(const char *s1, const char *s2)
+ 		return strstr(s1, s2);
+ 
+ 	n2 = strlen(s2);
+-	for(p=s1; (p=utfrune(p, f)) != 0; p+=n1)
++	for(p=s1; (p=utfrune(p, r)) != 0; p+=n1)
+ 		if(strncmp(p, s2, n2) == 0)
+ 			return p;
+ 	return 0;

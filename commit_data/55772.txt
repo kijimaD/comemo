@@ -11,8 +11,48 @@ Date:   Sat Mar 11 10:33:57 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/hmac/hmac.go  | 2 +-
  src/runtime/mfixalloc.go | 2 +-
  src/runtime/mspanset.go  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index ed3ebc0602..35b9d5a17a 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -35,7 +35,7 @@ import (
+ // opad = 0x5c byte repeated for key length
+ // hmac = H([key ^ opad] H([key ^ ipad] text))
+ 
+-// Marshalable is the combination of encoding.BinaryMarshaler and
++// marshalable is the combination of encoding.BinaryMarshaler and
+ // encoding.BinaryUnmarshaler. Their method definitions are repeated here to
+ // avoid a dependency on the encoding package.
+ type marshalable interface {
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 8788d95c00..1a249e5981 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -13,7 +13,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// FixAlloc is a simple free-list allocator for fixed size objects.
++// fixalloc is a simple free-list allocator for fixed size objects.
+ // Malloc uses a FixAlloc wrapped around sysAlloc to manage its
+ // mcache and mspan objects.
+ //
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index abbd4501b1..5520d6ce75 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -322,7 +322,7 @@ func (p *spanSetBlockAlloc) free(block *spanSetBlock) {
+ 	p.stack.push(&block.lfnode)
+ }
+ 
+-// haidTailIndex represents a combined 32-bit head and 32-bit tail
++// headTailIndex represents a combined 32-bit head and 32-bit tail
+ // of a queue into a single 64-bit value.
+ type headTailIndex uint64
+ 

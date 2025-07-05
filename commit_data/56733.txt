@@ -26,10 +26,179 @@ Date:   Tue May 23 12:37:01 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  go.env                                     |  4 ++++
  src/cmd/go/gotoolchain.go                  | 11 ++++++++++-
  src/cmd/go/internal/cfg/cfg.go             |  5 +++++
  src/cmd/go/internal/envcmd/env.go          | 14 +++++++++-----
  src/cmd/go/testdata/script/gotoolchain.txt | 26 +++++++++++++++++---------
  5 files changed, 45 insertions(+), 15 deletions(-)
+
+diff --git a/go.env b/go.env
+index 826192283f..9bab8ffd73 100644
+--- a/go.env
++++ b/go.env
+@@ -6,3 +6,7 @@
+ # See https://proxy.golang.org for details.
+ GOPROXY=https://proxy.golang.org,direct
+ GOSUMDB=sum.golang.org
++
++# Automatically download newer toolchains as directed by go.mod files.
++# See https://go.dev/s/gotoolchain for details.
++GOTOOLCHAIN=auto
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index 088f9a8040..528209b5fe 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -70,7 +70,13 @@ func switchGoToolchain() {
+ 
+ 	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
+ 	if gotoolchain == "" {
+-		gotoolchain = "auto"
++		// cfg.Getenv should fall back to $GOROOT/go.env,
++		// so this should not happen, unless a packager
++		// has deleted the GOTOOLCHAIN line from go.env.
++		// It can also happen if GOROOT is missing or broken,
++		// in which case best to let the go command keep running
++		// and diagnose the problem.
++		return
+ 	}
+ 
+ 	gotoolchain, min, haveMin := strings.Cut(gotoolchain, "+")
+@@ -306,6 +312,9 @@ func goInstallVersion() (m module.Version, goVers string, ok bool) {
+ 				break
+ 			}
+ 			if a == "-" {
++				break
++			}
++			if a == "--" {
+ 				if i+1 < len(args) {
+ 					arg = args[i+1]
+ 				}
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index c3c46f0e1d..8a82e5562b 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -387,6 +387,11 @@ func Getenv(key string) string {
+ 
+ // CanGetenv reports whether key is a valid go/env configuration key.
+ func CanGetenv(key string) bool {
++	envCache.once.Do(initEnvCache)
++	if _, ok := envCache.m[key]; ok {
++		// Assume anything in the user file or go.env file is valid.
++		return true
++	}
+ 	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
+ }
+ 
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 99dea69a74..5241c4ac6b 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -100,6 +100,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
+ 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
+ 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
++		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
+ 		{Name: "GOTOOLDIR", Value: build.ToolDir},
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
+ 		{Name: "GOVERSION", Value: runtime.Version()},
+@@ -145,13 +146,16 @@ func envOr(name, def string) string {
+ 	return def
+ }
+ 
+-func findEnv(env []cfg.EnvVar, envFile map[string]string, name string) string {
++func findEnv(env []cfg.EnvVar, name string) string {
+ 	for _, e := range env {
+ 		if e.Name == name {
+ 			return e.Value
+ 		}
+ 	}
+-	return envFile[name]
++	if cfg.CanGetenv(name) {
++		return cfg.Getenv(name)
++	}
++	return ""
+ }
+ 
+ // ExtraEnvVars returns environment variables that should not leak into child processes.
+@@ -252,7 +256,6 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	env := cfg.CmdEnv
+ 	env = append(env, ExtraEnvVars()...)
+-	envFile := readEnvFile()
+ 
+ 	if err := fsys.Init(base.Cwd()); err != nil {
+ 		base.Fatalf("go: %v", err)
+@@ -290,13 +293,13 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 		if *envJson {
+ 			var es []cfg.EnvVar
+ 			for _, name := range args {
+-				e := cfg.EnvVar{Name: name, Value: findEnv(env, envFile, name)}
++				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
+ 				es = append(es, e)
+ 			}
+ 			printEnvAsJSON(es)
+ 		} else {
+ 			for _, name := range args {
+-				fmt.Printf("%s\n", findEnv(env, envFile, name))
++				fmt.Printf("%s\n", findEnv(env, name))
+ 			}
+ 		}
+ 		return
+@@ -596,6 +599,7 @@ func readEnvFile() map[string]string {
+ 	lines := readEnvFileLines(false)
+ 	m := make(map[string]string)
+ 	for _, line := range lines {
++		line = strings.TrimRight(line, "\r\n")
+ 		key := lineToKey(line)
+ 		if key == "" {
+ 			continue
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+index 0309db3c51..fdd17b584e 100644
+--- a/src/cmd/go/testdata/script/gotoolchain.txt
++++ b/src/cmd/go/testdata/script/gotoolchain.txt
+@@ -1,14 +1,27 @@
++# Plain go version
++go version
++! stdout go1\.999
++
++# Default should be auto
++env GOTOOLCHAIN=
++go env GOTOOLCHAIN
++stdout auto
++go env
++stdout GOTOOLCHAIN=.?auto.?
++
++# GOTOOLCHAIN from network, does not exist
++env GOTOOLCHAIN=go1.9999x
++! go version
++stderr 'go: download go1.9999x for .*: toolchain not available'
++
+ [short] skip
+ 
++env GOTOOLCHAIN=
+ mkdir $WORK/bin
+ [!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
+ [GOOS:plan9] env path=$WORK/bin${:}$path
+ go build -o $WORK/bin/ ./go1.999testpath.go  # adds .exe extension implicitly on Windows
+ 
+-# Plain go version
+-go version
+-! stdout go1\.999
+-
+ # GOTOOLCHAIN from PATH
+ env GOTOOLCHAIN=go1.999testpath
+ go version
+@@ -21,11 +34,6 @@ go version
+ stdout 'go1.999testpath here!'
+ env GODEBUG=
+ 
+-# GOTOOLCHAIN from network, does not exist
+-env GOTOOLCHAIN=go1.9999x
+-! go version
+-stderr 'go: download go1.9999x for .*: toolchain not available'
+-
+ # GOTOOLCHAIN from network
+ [!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'
+ env GOTOOLCHAIN=go1.999testmod

@@ -13,6 +13,21 @@ Date:   Fri Apr 6 14:05:01 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/rpc/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/rpc/client.go b/src/net/rpc/client.go
+index fce6a4866c..f3da3ae3ee 100644
+--- a/src/net/rpc/client.go
++++ b/src/net/rpc/client.go
+@@ -75,8 +75,8 @@ func (client *Client) send(call *Call) {
+ 	// Register this call.
+ 	client.mutex.Lock()
+ 	if client.shutdown || client.closing {
+-		call.Error = ErrShutdown
+ 		client.mutex.Unlock()
++		call.Error = ErrShutdown
+ 		call.done()
+ 		return
+ 	}

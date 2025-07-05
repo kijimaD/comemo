@@ -13,7 +13,45 @@ Date:   Fri Feb 19 04:29:13 2016 +0530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport.go      | 10 +++++++---
  src/net/http/transport_test.go |  5 +++++
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index baf71d5e85..1e3ea11d9c 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -176,9 +176,13 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 		// Issue 14275.
+ 		return
+ 	}
+-	if t.ExpectContinueTimeout != 0 {
+-		// Unsupported in http2, so disable http2 for now.
+-		// Issue 13851.
++	if t.ExpectContinueTimeout != 0 && t != DefaultTransport {
++		// ExpectContinueTimeout is unsupported in http2, so
++		// if they explicitly asked for it (as opposed to just
++		// using the DefaultTransport, which sets it), then
++		// disable http2 for now.
++		//
++		// Issue 13851. (and changed in Issue 14391)
+ 		return
+ 	}
+ 	t2, err := http2configureTransport(t)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 0c901b30a4..d9da078fa0 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2888,6 +2888,11 @@ func TestTransportAutomaticHTTP2(t *testing.T) {
+ 	testTransportAutoHTTP(t, &Transport{}, true)
+ }
+ 
++// golang.org/issue/14391: also check DefaultTransport
++func TestTransportAutomaticHTTP2_DefaultTransport(t *testing.T) {
++	testTransportAutoHTTP(t, DefaultTransport.(*Transport), true)
++}
++
+ func TestTransportAutomaticHTTP2_TLSNextProto(t *testing.T) {
+ 	testTransportAutoHTTP(t, &Transport{
+ 		TLSNextProto: make(map[string]func(string, *tls.Conn) RoundTripper),

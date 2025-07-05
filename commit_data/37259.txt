@@ -11,7 +11,47 @@ Date:   Tue Jul 10 21:07:55 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/debug_test.go        | 4 ++--
  src/runtime/export_debug_test.go | 6 ++++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index 4181d59c1f..a34f4c77f7 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -69,8 +69,8 @@ func debugCallWorker2(stop *uint32, x *int) {
+ 	*x = 1
+ }
+ 
+-func debugCallTKill(tid int) {
+-	syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
++func debugCallTKill(tid int) error {
++	return syscall.Tgkill(syscall.Getpid(), tid, syscall.SIGTRAP)
+ }
+ 
+ func TestDebugCall(t *testing.T) {
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 78436f36cf..d34c1fd7dc 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -20,7 +20,7 @@ import (
+ //
+ // On success, InjectDebugCall returns the panic value of fn or nil.
+ // If fn did not panic, its results will be available in args.
+-func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int)) (interface{}, error) {
++func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (interface{}, error) {
+ 	if gp.lockedm == 0 {
+ 		return nil, plainError("goroutine not locked to thread")
+ 	}
+@@ -54,7 +54,9 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int)) (interfac
+ 
+ 	defer func() { testSigtrap = nil }()
+ 	testSigtrap = h.inject
+-	tkill(tid)
++	if err := tkill(tid); err != nil {
++		return nil, err
++	}
+ 	// Wait for completion.
+ 	notetsleepg(&h.done, -1)
+ 	if len(h.err) != 0 {

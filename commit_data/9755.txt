@@ -9,6 +9,19 @@ Date:   Tue Sep 20 09:31:07 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5094042
-
+---
  test/fixedbugs/bug337.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug337.go b/test/fixedbugs/bug337.go
+index 62e310e725..ca9b4b4536 100644
+--- a/test/fixedbugs/bug337.go
++++ b/test/fixedbugs/bug337.go
+@@ -14,6 +14,6 @@
+ package main
+ 
+ func main() {
+-	len("foo")	// ERROR "len"
++	len("foo")	// ERROR "len|value computed is not used"
+ }
+ 

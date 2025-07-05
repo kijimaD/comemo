@@ -12,7 +12,62 @@ Date:   Tue Jan 2 22:28:49 2024 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/rangefunc/rewrite.go |  2 +-
  test/range4.go                                | 25 +++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index 7475c570aa..d439412ea8 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -934,7 +934,7 @@ func (r *rewriter) endLoop(loop *forLoop) {
+ 	if rfunc.Params().Len() != 1 {
+ 		base.Fatalf("invalid typecheck of range func")
+ 	}
+-	ftyp := rfunc.Params().At(0).Type().(*types2.Signature) // func(...) bool
++	ftyp := types2.CoreType(rfunc.Params().At(0).Type()).(*types2.Signature) // func(...) bool
+ 	if ftyp.Results().Len() != 1 {
+ 		base.Fatalf("invalid typecheck of range func")
+ 	}
+diff --git a/test/range4.go b/test/range4.go
+index 696b205ab7..0b051f6d3c 100644
+--- a/test/range4.go
++++ b/test/range4.go
+@@ -311,6 +311,30 @@ func testcalls() {
+ 	}
+ }
+ 
++type iter3YieldFunc func(int, int) bool
++
++func iter3(list ...int) func(iter3YieldFunc) {
++	return func(yield iter3YieldFunc) {
++		for k, v := range list {
++			if !yield(k, v) {
++				return
++			}
++		}
++	}
++}
++
++func testcalls1() {
++	ncalls := 0
++	for k, v := range iter3(1, 2, 3) {
++		_, _ = k, v
++		ncalls++
++	}
++	if ncalls != 3 {
++		println("wrong number of calls:", ncalls, "!= 3")
++		panic("fail")
++	}
++}
++
+ func main() {
+ 	testfunc0()
+ 	testfunc1()
+@@ -323,4 +347,5 @@ func main() {
+ 	testfunc8()
+ 	testfunc9()
+ 	testcalls()
++	testcalls1()
+ }

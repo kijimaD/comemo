@@ -7,6 +7,20 @@ Date:   Thu Aug 20 11:46:05 2015 +1000
     Change-Id: I5310cef72e714b22bcf2ae9e6fd85dbb7e8a15a2
     Reviewed-on: https://go-review.googlesource.com/13787
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 4e5832db3a..ecbd4c549e 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -540,7 +540,7 @@ This acts as a custom replacement for <code>go tool</code>.
+ The <code>test</code> subcommand now has a <code>-count</code>
+ flag to specify how many times to run each test and benchmark.
+ The <a href="/pkg/testing/"><code>testing</code></a> package
+-does the work here, through by the <code>-test.count</code> flag.
++does the work here, through the <code>-test.count</code> flag.
+ </li>
+ 
+ <li>

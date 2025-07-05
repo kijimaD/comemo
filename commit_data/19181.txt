@@ -8,7 +8,7 @@ Date:   Wed Apr 16 16:57:25 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/88670043
-
+---
  src/pkg/archive/tar/reader.go                  | 2 +-
  src/pkg/container/list/example_test.go         | 2 +-
  src/pkg/crypto/cipher/benchmark_test.go        | 2 +-
@@ -18,3 +18,108 @@ Date:   Wed Apr 16 16:57:25 2014 -0700
  src/pkg/net/http/client_test.go                | 2 +-
  src/pkg/time/format.go                         | 2 +-
  8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 61d410a9af..d15e120792 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -334,7 +334,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 			return nil, ErrHeader
+ 		}
+ 		// Extract everything between the decimal and the n -1 on the
+-		// beginning to to eat the ' ', -1 on the end to skip the newline.
++		// beginning to eat the ' ', -1 on the end to skip the newline.
+ 		var record []byte
+ 		record, buf = buf[sp+1:n-1], buf[n:]
+ 		// The first equals is guaranteed to mark the end of the key.
+diff --git a/src/pkg/container/list/example_test.go b/src/pkg/container/list/example_test.go
+index 7361212d73..3621784017 100644
+--- a/src/pkg/container/list/example_test.go
++++ b/src/pkg/container/list/example_test.go
+@@ -17,7 +17,7 @@ func Example() {
+ 	l.InsertBefore(3, e4)
+ 	l.InsertAfter(2, e1)
+ 
+-	// Iterate through list and and print its contents.
++	// Iterate through list and print its contents.
+ 	for e := l.Front(); e != nil; e = e.Next() {
+ 		fmt.Println(e.Value)
+ 	}
+diff --git a/src/pkg/crypto/cipher/benchmark_test.go b/src/pkg/crypto/cipher/benchmark_test.go
+index 0b173a4f3f..027b248510 100644
+--- a/src/pkg/crypto/cipher/benchmark_test.go
++++ b/src/pkg/crypto/cipher/benchmark_test.go
+@@ -47,7 +47,7 @@ func BenchmarkAESGCMOpen1K(b *testing.B) {
+ }
+ 
+ // If we test exactly 1K blocks, we would generate exact multiples of
+-// the cipher's block size, and and the cipher stream fragments would
++// the cipher's block size, and the cipher stream fragments would
+ // always be wordsize aligned, whereas non-aligned is a more typical
+ // use-case.
+ const almost1K = 1024 - 5
+diff --git a/src/pkg/debug/goobj/read.go b/src/pkg/debug/goobj/read.go
+index c2e6fa0927..c2d606841a 100644
+--- a/src/pkg/debug/goobj/read.go
++++ b/src/pkg/debug/goobj/read.go
+@@ -188,7 +188,7 @@ type Var struct {
+ 
+ // Func contains additional per-symbol information specific to functions.
+ type Func struct {
+-	Args     int        // size in bytes of of argument frame: inputs and outputs
++	Args     int        // size in bytes of argument frame: inputs and outputs
+ 	Frame    int        // size in bytes of local variable frame
+ 	Leaf     bool       // function omits save of link register (ARM)
+ 	Var      []Var      // detail about local variables
+diff --git a/src/pkg/encoding/base32/base32.go b/src/pkg/encoding/base32/base32.go
+index be3a6e602b..d770de3915 100644
+--- a/src/pkg/encoding/base32/base32.go
++++ b/src/pkg/encoding/base32/base32.go
+@@ -266,7 +266,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 				// 7, 5 and 2 are not valid padding lengths, and so 1, 3 and 6 are not
+ 				// valid dlen values. See RFC 4648 Section 6 "Base 32 Encoding" listing
+ 				// the five valid padding lengths, and Section 9 "Illustrations and
+-				// Examples" for an illustration for how the the 1st, 3rd and 6th base32
++				// Examples" for an illustration for how the 1st, 3rd and 6th base32
+ 				// src bytes do not yield enough information to decode a dst byte.
+ 				if dlen == 1 || dlen == 3 || dlen == 6 {
+ 					return n, false, CorruptInputError(olen - len(src) - 1)
+diff --git a/src/pkg/mime/multipart/quotedprintable_test.go b/src/pkg/mime/multipart/quotedprintable_test.go
+index 8a95f7f037..c4de3eb756 100644
+--- a/src/pkg/mime/multipart/quotedprintable_test.go
++++ b/src/pkg/mime/multipart/quotedprintable_test.go
+@@ -131,7 +131,7 @@ func TestQPExhaustive(t *testing.T) {
+ 					return
+ 				}
+ 				if strings.HasSuffix(errStr, "0x0a") || strings.HasSuffix(errStr, "0x0d") {
+-					// bunch of cases; since whitespace at the end of of a line before \n is removed.
++					// bunch of cases; since whitespace at the end of a line before \n is removed.
+ 					return
+ 				}
+ 			}
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 7548eef65f..6392c1baf3 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -987,7 +987,7 @@ func TestClientTrailers(t *testing.T) {
+ 		// TODO: golang.org/issue/7759: there's no way yet for
+ 		// the server to set trailers without hijacking, so do
+ 		// that for now, just to test the client.  Later, in
+-		// Go 1.4, it should be be implicit that any mutations
++		// Go 1.4, it should be implicit that any mutations
+ 		// to w.Header() after the initial write are the
+ 		// trailers to be sent, if and only if they were
+ 		// previously declared with w.Header().Set("Trailer",
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index b9da7ba42a..555edd5cef 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -102,7 +102,7 @@ const (
+ // std0x records the std values for "01", "02", ..., "06".
+ var std0x = [...]int{stdZeroMonth, stdZeroDay, stdZeroHour12, stdZeroMinute, stdZeroSecond, stdYear}
+ 
+-// startsWithLowerCase reports whether the the string has a lower-case letter at the beginning.
++// startsWithLowerCase reports whether the string has a lower-case letter at the beginning.
+ // Its purpose is to prevent matching strings like "Month" when looking for "Mon".
+ func startsWithLowerCase(str string) bool {
+ 	if len(str) == 0 {

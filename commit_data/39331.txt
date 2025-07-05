@@ -22,7 +22,7 @@ Date:   Tue Jan 29 23:21:29 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/160248
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/html/template/template_test.go    |  6 ++++++
  src/text/template/exec.go             |  6 +++---
  src/text/template/exec_test.go        | 21 +++++++++++++++++++++
@@ -31,3 +31,200 @@ Date:   Tue Jan 29 23:21:29 2019 -0500
  src/text/template/parse/node.go       |  2 +-
  src/text/template/parse/parse_test.go | 12 ++++++++++++
  7 files changed, 70 insertions(+), 10 deletions(-)
+
+diff --git a/src/html/template/template_test.go b/src/html/template/template_test.go
+index 90c5a73ba7..13e6ba406e 100644
+--- a/src/html/template/template_test.go
++++ b/src/html/template/template_test.go
+@@ -115,6 +115,12 @@ func TestRedefineOtherParsers(t *testing.T) {
+ 	}
+ }
+ 
++func TestNumbers(t *testing.T) {
++	c := newTestCase(t)
++	c.mustParse(c.root, `{{print 1_2.3_4}} {{print 0x0_1.e_0p+02}}`)
++	c.mustExecute(c.root, nil, "12.34 7.5")
++}
++
+ type testCase struct {
+ 	t    *testing.T
+ 	root *Template
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index c6ce657cf6..d34d248441 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -495,7 +495,7 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
+ 	switch {
+ 	case constant.IsComplex:
+ 		return reflect.ValueOf(constant.Complex128) // incontrovertible.
+-	case constant.IsFloat && !isHexConstant(constant.Text) && strings.ContainsAny(constant.Text, ".eE"):
++	case constant.IsFloat && !isHexInt(constant.Text) && strings.ContainsAny(constant.Text, ".eEpP"):
+ 		return reflect.ValueOf(constant.Float64)
+ 	case constant.IsInt:
+ 		n := int(constant.Int64)
+@@ -509,8 +509,8 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
+ 	return zero
+ }
+ 
+-func isHexConstant(s string) bool {
+-	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')
++func isHexInt(s string) bool {
++	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') && !strings.ContainsAny(s, "pP")
+ }
+ 
+ func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []parse.Node, final reflect.Value) reflect.Value {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index bfd6d38bf4..6cdb285bd8 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -542,6 +542,27 @@ var execTests = []execTest{
+ 	{"error method, error", "{{.MyError true}}", "", tVal, false},
+ 	{"error method, no error", "{{.MyError false}}", "false", tVal, true},
+ 
++	// Numbers
++	{"decimal", "{{print 1234}}", "1234", tVal, true},
++	{"decimal _", "{{print 12_34}}", "1234", tVal, true},
++	{"binary", "{{print 0b101}}", "5", tVal, true},
++	{"binary _", "{{print 0b_1_0_1}}", "5", tVal, true},
++	{"BINARY", "{{print 0B101}}", "5", tVal, true},
++	{"octal0", "{{print 0377}}", "255", tVal, true},
++	{"octal", "{{print 0o377}}", "255", tVal, true},
++	{"octal _", "{{print 0o_3_7_7}}", "255", tVal, true},
++	{"OCTAL", "{{print 0O377}}", "255", tVal, true},
++	{"hex", "{{print 0x123}}", "291", tVal, true},
++	{"hex _", "{{print 0x1_23}}", "291", tVal, true},
++	{"HEX", "{{print 0X123ABC}}", "1194684", tVal, true},
++	{"float", "{{print 123.4}}", "123.4", tVal, true},
++	{"float _", "{{print 0_0_1_2_3.4}}", "123.4", tVal, true},
++	{"hex float", "{{print +0x1.ep+2}}", "7.5", tVal, true},
++	{"hex float _", "{{print +0x_1.e_0p+0_2}}", "7.5", tVal, true},
++	{"HEX float", "{{print +0X1.EP+2}}", "7.5", tVal, true},
++	{"print multi", "{{print 1_2_3_4 7.5_00_00_00}}", "1234 7.5", tVal, true},
++	{"print multi2", "{{print 1234 0x0_1.e_0p+02}}", "1234 7.5", tVal, true},
++
+ 	// Fixed bugs.
+ 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
+ 	{"bug0", "{{range .MSIone}}{{if $.Method1 .}}X{{end}}{{end}}", "X", tVal, true},
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 94a676c579..92b97f423f 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -565,17 +565,28 @@ func (l *lexer) scanNumber() bool {
+ 	// Optional leading sign.
+ 	l.accept("+-")
+ 	// Is it hex?
+-	digits := "0123456789"
+-	if l.accept("0") && l.accept("xX") {
+-		digits = "0123456789abcdefABCDEF"
++	digits := "0123456789_"
++	if l.accept("0") {
++		// Note: Leading 0 does not mean octal in floats.
++		if l.accept("xX") {
++			digits = "0123456789abcdefABCDEF_"
++		} else if l.accept("oO") {
++			digits = "01234567_"
++		} else if l.accept("bB") {
++			digits = "01_"
++		}
+ 	}
+ 	l.acceptRun(digits)
+ 	if l.accept(".") {
+ 		l.acceptRun(digits)
+ 	}
+-	if l.accept("eE") {
++	if len(digits) == 10+1 && l.accept("eE") {
++		l.accept("+-")
++		l.acceptRun("0123456789_")
++	}
++	if len(digits) == 16+6+1 && l.accept("pP") {
+ 		l.accept("+-")
+-		l.acceptRun("0123456789")
++		l.acceptRun("0123456789_")
+ 	}
+ 	// Is it imaginary?
+ 	l.accept("i")
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index 6e7ece9db3..563c4fc1cb 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -120,7 +120,7 @@ var lexTests = []lexTest{
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+ 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
+ 	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
+-	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
++	{"numbers", "{{1 02 0x14 0X14 -7.2i 1e3 1E3 +1.2e-4 4.2i 1+2i 1_2 0x1.e_fp4 0X1.E_FP4}}", []item{
+ 		tLeft,
+ 		mkItem(itemNumber, "1"),
+ 		tSpace,
+@@ -128,15 +128,25 @@ var lexTests = []lexTest{
+ 		tSpace,
+ 		mkItem(itemNumber, "0x14"),
+ 		tSpace,
++		mkItem(itemNumber, "0X14"),
++		tSpace,
+ 		mkItem(itemNumber, "-7.2i"),
+ 		tSpace,
+ 		mkItem(itemNumber, "1e3"),
+ 		tSpace,
++		mkItem(itemNumber, "1E3"),
++		tSpace,
+ 		mkItem(itemNumber, "+1.2e-4"),
+ 		tSpace,
+ 		mkItem(itemNumber, "4.2i"),
+ 		tSpace,
+ 		mkItem(itemComplex, "1+2i"),
++		tSpace,
++		mkItem(itemNumber, "1_2"),
++		tSpace,
++		mkItem(itemNumber, "0x1.e_fp4"),
++		tSpace,
++		mkItem(itemNumber, "0X1.E_FP4"),
+ 		tRight,
+ 		tEOF,
+ 	}},
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index dca83dacce..1174a4b970 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -596,7 +596,7 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
+ 		if err == nil {
+ 			// If we parsed it as a float but it looks like an integer,
+ 			// it's a huge number too large to fit in an int. Reject it.
+-			if !strings.ContainsAny(text, ".eE") {
++			if !strings.ContainsAny(text, ".eEpP") {
+ 				return nil, fmt.Errorf("integer overflow: %q", text)
+ 			}
+ 			n.IsFloat = true
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 15cc65670a..5cb41d0bf5 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -30,8 +30,15 @@ var numberTests = []numberTest{
+ 	{"0", true, true, true, false, 0, 0, 0, 0},
+ 	{"-0", true, true, true, false, 0, 0, 0, 0}, // check that -0 is a uint.
+ 	{"73", true, true, true, false, 73, 73, 73, 0},
++	{"7_3", true, true, true, false, 73, 73, 73, 0},
++	{"0b10_010_01", true, true, true, false, 73, 73, 73, 0},
++	{"0B10_010_01", true, true, true, false, 73, 73, 73, 0},
+ 	{"073", true, true, true, false, 073, 073, 073, 0},
++	{"0o73", true, true, true, false, 073, 073, 073, 0},
++	{"0O73", true, true, true, false, 073, 073, 073, 0},
+ 	{"0x73", true, true, true, false, 0x73, 0x73, 0x73, 0},
++	{"0X73", true, true, true, false, 0x73, 0x73, 0x73, 0},
++	{"0x7_3", true, true, true, false, 0x73, 0x73, 0x73, 0},
+ 	{"-73", true, false, true, false, -73, 0, -73, 0},
+ 	{"+73", true, false, true, false, 73, 0, 73, 0},
+ 	{"100", true, true, true, false, 100, 100, 100, 0},
+@@ -39,7 +46,12 @@ var numberTests = []numberTest{
+ 	{"-1e9", true, false, true, false, -1e9, 0, -1e9, 0},
+ 	{"-1.2", false, false, true, false, 0, 0, -1.2, 0},
+ 	{"1e19", false, true, true, false, 0, 1e19, 1e19, 0},
++	{"1e1_9", false, true, true, false, 0, 1e19, 1e19, 0},
++	{"1E19", false, true, true, false, 0, 1e19, 1e19, 0},
+ 	{"-1e19", false, false, true, false, 0, 0, -1e19, 0},
++	{"0x_1p4", true, true, true, false, 16, 16, 16, 0},
++	{"0X_1P4", true, true, true, false, 16, 16, 16, 0},
++	{"0x_1p-4", false, false, true, false, 0, 0, 1 / 16., 0},
+ 	{"4i", false, false, false, true, 0, 0, 0, 4i},
+ 	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, -1.2 + 4.2i},
+ 	{"073i", false, false, false, true, 0, 0, 0, 73i}, // not octal!

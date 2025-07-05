@@ -11,10 +11,118 @@ Date:   Wed Jul 10 09:12:24 2019 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue33013.dir/a.go |  9 +++++++++
  test/fixedbugs/issue33013.dir/b.go | 24 ++++++++++++++++++++++++
  test/fixedbugs/issue33013.dir/c.go | 19 +++++++++++++++++++
  test/fixedbugs/issue33013.dir/d.go | 16 ++++++++++++++++
  test/fixedbugs/issue33013.go       |  9 +++++++++
  5 files changed, 77 insertions(+)
+
+diff --git a/test/fixedbugs/issue33013.dir/a.go b/test/fixedbugs/issue33013.dir/a.go
+new file mode 100644
+index 0000000000..056be88aea
+--- /dev/null
++++ b/test/fixedbugs/issue33013.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type G interface {
++	UsesEmpty(p interface{}) int
++}
+diff --git a/test/fixedbugs/issue33013.dir/b.go b/test/fixedbugs/issue33013.dir/b.go
+new file mode 100644
+index 0000000000..5694b58282
+--- /dev/null
++++ b/test/fixedbugs/issue33013.dir/b.go
+@@ -0,0 +1,24 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++type Service uint64
++type ServiceDesc struct {
++	X int
++	uc
++}
++
++type uc interface {
++	f() a.G
++}
++
++var q int
++
++func RS(svcd *ServiceDesc, server interface{}, qq uint8) *Service {
++	defer func() { q += int(qq) }()
++	return nil
++}
+diff --git a/test/fixedbugs/issue33013.dir/c.go b/test/fixedbugs/issue33013.dir/c.go
+new file mode 100644
+index 0000000000..bfdc0b535f
+--- /dev/null
++++ b/test/fixedbugs/issue33013.dir/c.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import (
++	"a"
++	"b"
++)
++
++type BI interface {
++	Something(s int64) int64
++	Another(pxp a.G) int32
++}
++
++func BRS(sd *b.ServiceDesc, server BI, xyz int) *b.Service {
++	return b.RS(sd, server, 7)
++}
+diff --git a/test/fixedbugs/issue33013.dir/d.go b/test/fixedbugs/issue33013.dir/d.go
+new file mode 100644
+index 0000000000..f4fff4ac62
+--- /dev/null
++++ b/test/fixedbugs/issue33013.dir/d.go
+@@ -0,0 +1,16 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package d
++
++import (
++	"b"
++	"c"
++)
++
++var GA b.Service
++
++func C() {
++	c.BRS(nil, nil, 22)
++}
+diff --git a/test/fixedbugs/issue33013.go b/test/fixedbugs/issue33013.go
+new file mode 100644
+index 0000000000..e363cf500f
+--- /dev/null
++++ b/test/fixedbugs/issue33013.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33013: gccgo compiler error with inlinable function
++
++package ignored

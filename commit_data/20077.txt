@@ -8,6 +8,20 @@ Date:   Thu Aug 14 11:59:52 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/124350043
-
+---
  src/pkg/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 576cbc3984..50f5315961 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-const bigEndian = false // can be smarter if we find a big-endian machine
++const bigEndian = runtime.GOARCH == "power64" // can be smarter if we find more big-endian machines
+ const ptrSize = unsafe.Sizeof((*byte)(nil))
+ const cannotSet = "cannot set value obtained from unexported struct field"
+ 

@@ -16,6 +16,19 @@ Date:   Wed Mar 8 16:31:02 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8d1ae97b86..6c442b4095 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4738,6 +4738,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	a.Type = obj.TYPE_MEM
+ 	a.Node = n
+ 	a.Sym = Linksym(n.Sym)
++	a.Reg = int16(Thearch.REGSP)
+ 	a.Offset = n.Xoffset + off
+ 	if n.Class == PPARAM || n.Class == PPARAMOUT {
+ 		a.Name = obj.NAME_PARAM

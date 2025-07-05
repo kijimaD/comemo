@@ -16,9 +16,257 @@ Date:   Wed Nov 2 09:47:43 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 15 ++++------
  src/cmd/compile/internal/gc/bimport.go | 33 ++++++++++------------
  src/cmd/compile/internal/gc/export.go  |  7 ++++-
  src/go/internal/gcimporter/bimport.go  | 51 +++++++++++++---------------------
  4 files changed, 47 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 933fd72fa0..ec3e4db761 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -458,21 +458,18 @@ func (p *exporter) obj(sym *Sym) {
+ 			Fatalf("exporter: export of non-local alias: %v", sym)
+ 		}
+ 		p.string(sym.Name)
+-		sym = sym.Def.Sym // original object
+-		// fall through to export original
+-		// Multiple aliases to the same original will cause that
+-		// original to be exported multiple times (issue #17636).
+-		// TODO(gri) fix this
++		orig := sym.Def.Sym
++		if orig.Flags&SymAlias != 0 {
++			Fatalf("exporter: original object %v marked as alias", sym)
++		}
++		p.qualifiedName(orig)
++		return
+ 	}
+ 
+ 	if sym != sym.Def.Sym {
+ 		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
+ 	}
+ 
+-	if sym.Flags&SymAlias != 0 {
+-		Fatalf("exporter: original object %v marked as alias", sym)
+-	}
+-
+ 	// Exported objects may be from different packages because they
+ 	// may be re-exported via an exported alias or as dependencies in
+ 	// exported inlined function bodies. Thus, exported object names
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 11154ef7ba..61ef348e23 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -307,35 +307,26 @@ func idealType(typ *Type) *Type {
+ }
+ 
+ func (p *importer) obj(tag int) {
+-	var alias *Sym
+-	if tag == aliasTag {
+-		p.pos()
+-		alias = importpkg.Lookup(p.string())
+-		alias.Flags |= SymAlias
+-		tag = p.tagOrIndex()
+-	}
+-
+-	var sym *Sym
+ 	switch tag {
+ 	case constTag:
+ 		p.pos()
+-		sym = p.qualifiedName()
++		sym := p.qualifiedName()
+ 		typ := p.typ()
+ 		val := p.value(typ)
+ 		importconst(sym, idealType(typ), nodlit(val))
+ 
+ 	case typeTag:
+-		sym = p.typ().Sym
++		p.typ()
+ 
+ 	case varTag:
+ 		p.pos()
+-		sym = p.qualifiedName()
++		sym := p.qualifiedName()
+ 		typ := p.typ()
+ 		importvar(sym, typ)
+ 
+ 	case funcTag:
+ 		p.pos()
+-		sym = p.qualifiedName()
++		sym := p.qualifiedName()
+ 		params := p.paramList()
+ 		result := p.paramList()
+ 
+@@ -363,14 +354,20 @@ func (p *importer) obj(tag int) {
+ 			}
+ 		}
+ 
++	case aliasTag:
++		p.pos()
++		alias := importpkg.Lookup(p.string())
++		orig := p.qualifiedName()
++
++		// Although the protocol allows the alias to precede the original,
++		// this never happens in files produced by gc.
++		alias.Flags |= SymAlias
++		alias.Def = orig.Def
++		importsym(alias, orig.Def.Op)
++
+ 	default:
+ 		formatErrorf("unexpected object (tag = %d)", tag)
+ 	}
+-
+-	if alias != nil {
+-		alias.Def = sym.Def
+-		importsym(alias, sym.Def.Op)
+-	}
+ }
+ 
+ func (p *importer) pos() {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 8df871d08e..b4c15e40b1 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -41,10 +41,15 @@ func exportsym(n *Node) {
+ 	}
+ 
+ 	n.Sym.Flags |= SymExport
+-
+ 	if Debug['E'] != 0 {
+ 		fmt.Printf("export symbol %v\n", n.Sym)
+ 	}
++
++	// Ensure original object is on exportlist before aliases.
++	if n.Sym.Flags&SymAlias != 0 {
++		exportlist = append(exportlist, n.Sym.Def)
++	}
++
+ 	exportlist = append(exportlist, n)
+ }
+ 
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 9e2fbd3c68..a8e4a7e718 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -221,10 +221,11 @@ func objTag(obj types.Object) int {
+ 		return funcTag
+ 	// Aliases are not exported multiple times, thus we should not see them here.
+ 	default:
+-		errorf("unexpected object: %v (%T)", obj, obj)
++		errorf("unexpected object: %v (%T)", obj, obj) // panics
+ 		panic("unreachable")
+ 	}
+ }
++
+ func sameObj(a, b types.Object) bool {
+ 	// Because unnamed types are not canonicalized, we cannot simply compare types for
+ 	// (pointer) identity.
+@@ -232,7 +233,7 @@ func sameObj(a, b types.Object) bool {
+ 	return objTag(a) == objTag(b) && types.Identical(a.Type(), b.Type())
+ }
+ 
+-func (p *importer) declare(obj types.Object) types.Object {
++func (p *importer) declare(obj types.Object) {
+ 	pkg := obj.Pkg()
+ 	if alt := pkg.Scope().Insert(obj); alt != nil {
+ 		// This can only trigger if we import a (non-type) object a second time.
+@@ -240,48 +241,33 @@ func (p *importer) declare(obj types.Object) types.Object {
+ 		// once; and b) we ignore compiler-specific export data which may contain
+ 		// functions whose inlined function bodies refer to other functions that
+ 		// were already imported.
+-		// However, if a package exports multiple aliases referring to the same
+-		// original object, that object is currently exported multiple times.
+-		// Check for that specific case and accept it if the aliases correspond
+-		// (see also the comment in cmd/compile/internal/gc/bimport.go, method
+-		// importer.obj, switch case importing functions).
++		// However, aliases require reexporting the original object, so we need
++		// to allow it (see also the comment in cmd/compile/internal/gc/bimport.go,
++		// method importer.obj, switch case importing functions).
+ 		// Note that the original itself cannot be an alias.
+-		// TODO(gri) We can avoid doing this once objects are exported only once
+-		// per package again (issue #17636).
+ 		if !sameObj(obj, alt) {
+-			errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj)
++			errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", obj, alt)
+ 		}
+-		obj = alt // use object that was imported first
+ 	}
+-	return obj
+ }
+ 
+ func (p *importer) obj(tag int) {
+-	var aliasPos token.Pos
+-	var aliasName string
+-	if tag == aliasTag {
+-		aliasPos = p.pos()
+-		aliasName = p.string()
+-		tag = p.tagOrIndex()
+-	}
+-
+-	var obj types.Object
+ 	switch tag {
+ 	case constTag:
+ 		pos := p.pos()
+ 		pkg, name := p.qualifiedName()
+ 		typ := p.typ(nil)
+ 		val := p.value()
+-		obj = p.declare(types.NewConst(pos, pkg, name, typ, val))
++		p.declare(types.NewConst(pos, pkg, name, typ, val))
+ 
+ 	case typeTag:
+-		obj = p.typ(nil).(*types.Named).Obj()
++		p.typ(nil)
+ 
+ 	case varTag:
+ 		pos := p.pos()
+ 		pkg, name := p.qualifiedName()
+ 		typ := p.typ(nil)
+-		obj = p.declare(types.NewVar(pos, pkg, name, typ))
++		p.declare(types.NewVar(pos, pkg, name, typ))
+ 
+ 	case funcTag:
+ 		pos := p.pos()
+@@ -289,15 +275,18 @@ func (p *importer) obj(tag int) {
+ 		params, isddd := p.paramList()
+ 		result, _ := p.paramList()
+ 		sig := types.NewSignature(nil, params, result, isddd)
+-		obj = p.declare(types.NewFunc(pos, pkg, name, sig))
++		p.declare(types.NewFunc(pos, pkg, name, sig))
++
++	case aliasTag:
++		aliasPos := p.pos()
++		aliasName := p.string()
++		pkg, name := p.qualifiedName()
++		obj := pkg.Scope().Lookup(name)
++		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
+ 
+ 	default:
+ 		errorf("unexpected object tag %d", tag)
+ 	}
+-
+-	if aliasName != "" {
+-		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, obj))
+-	}
+ }
+ 
+ func (p *importer) pos() token.Pos {
+@@ -549,7 +538,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
+ 		return t
+ 
+ 	default:
+-		errorf("unexpected type tag %d", i)
++		errorf("unexpected type tag %d", i) // panics
+ 		panic("unreachable")
+ 	}
+ }
+@@ -700,7 +689,7 @@ func (p *importer) value() constant.Value {
+ 	case unknownTag:
+ 		return constant.MakeUnknown()
+ 	default:
+-		errorf("unexpected value tag %d", tag)
++		errorf("unexpected value tag %d", tag) // panics
+ 		panic("unreachable")
+ 	}
+ }

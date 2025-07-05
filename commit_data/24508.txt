@@ -9,6 +9,29 @@ Date:   Sun Aug 2 17:59:31 2015 +0200
     Change-Id: I5ee930314a43356f5be31d758d90d7ddcafc7b37
     Reviewed-on: https://go-review.googlesource.com/12908
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/install-source.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index d0e4d1a1f7..cf89dc877d 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -167,7 +167,7 @@ Then clone the repository and check out the latest release tag:</p>
+ <pre>
+ $ git clone https://go.googlesource.com/go
+ $ cd go
+-$ git checkout go1.4
++$ git checkout go1.5
+ </pre>
+ 
+ <h2 id="head">(Optional) Switch to the master branch</h2>
+@@ -346,7 +346,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code>go1.4</code>.
++<code>go1.5</code>.
+ </p>
+ 
+ <p>

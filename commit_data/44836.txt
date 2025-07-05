@@ -19,8 +19,166 @@ Date:   Sat Jun 27 13:31:34 2020 -0600
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/export_test.go | 11 +++++++++++
  src/net/http/serve_test.go  | 18 ++++++++++++++++--
  src/net/http/server.go      | 24 ++++++++++++++++++------
  3 files changed, 45 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 657ff9dba4..67a74ae19f 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -274,6 +274,17 @@ func (s *Server) ExportAllConnsIdle() bool {
+ 	return true
+ }
+ 
++func (s *Server) ExportAllConnsByState() map[ConnState]int {
++	states := map[ConnState]int{}
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	for c := range s.activeConn {
++		st, _ := c.getState()
++		states[st] += 1
++	}
++	return states
++}
++
+ func (r *Request) WithT(t *testing.T) *Request {
+ 	return r.WithContext(context.WithValue(r.Context(), tLogKey{}, t.Logf))
+ }
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 635bf5dfc9..6d3317fb0c 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5537,16 +5537,23 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
+ 	}
+ }
+ 
+-func TestServerShutdown_h1(t *testing.T) { testServerShutdown(t, h1Mode) }
+-func TestServerShutdown_h2(t *testing.T) { testServerShutdown(t, h2Mode) }
++func TestServerShutdown_h1(t *testing.T) {
++	testServerShutdown(t, h1Mode)
++}
++func TestServerShutdown_h2(t *testing.T) {
++	testServerShutdown(t, h2Mode)
++}
+ 
+ func testServerShutdown(t *testing.T, h2 bool) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	var doShutdown func() // set later
++	var doStateCount func()
+ 	var shutdownRes = make(chan error, 1)
++	var statesRes = make(chan map[ConnState]int, 1)
+ 	var gotOnShutdown = make(chan struct{}, 1)
+ 	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
++		doStateCount()
+ 		go doShutdown()
+ 		// Shutdown is graceful, so it should not interrupt
+ 		// this in-flight response. Add a tiny sleep here to
+@@ -5563,6 +5570,9 @@ func testServerShutdown(t *testing.T, h2 bool) {
+ 	doShutdown = func() {
+ 		shutdownRes <- cst.ts.Config.Shutdown(context.Background())
+ 	}
++	doStateCount = func() {
++		statesRes <- cst.ts.Config.ExportAllConnsByState()
++	}
+ 	get(t, cst.c, cst.ts.URL) // calls t.Fail on failure
+ 
+ 	if err := <-shutdownRes; err != nil {
+@@ -5574,6 +5584,10 @@ func testServerShutdown(t *testing.T, h2 bool) {
+ 		t.Errorf("onShutdown callback not called, RegisterOnShutdown broken?")
+ 	}
+ 
++	if states := <-statesRes; states[StateActive] != 1 {
++		t.Errorf("connection in wrong state, %v", states)
++	}
++
+ 	res, err := cst.c.Get(cst.ts.URL)
+ 	if err == nil {
+ 		res.Body.Close()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9124903b89..25fab288f2 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -324,7 +324,7 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+ 			return nil, nil, fmt.Errorf("unexpected Peek failure reading buffered byte: %v", err)
+ 		}
+ 	}
+-	c.setState(rwc, StateHijacked)
++	c.setState(rwc, StateHijacked, runHooks)
+ 	return
+ }
+ 
+@@ -1739,7 +1739,12 @@ func validNextProto(proto string) bool {
+ 	return true
+ }
+ 
+-func (c *conn) setState(nc net.Conn, state ConnState) {
++const (
++	runHooks  = true
++	skipHooks = false
++)
++
++func (c *conn) setState(nc net.Conn, state ConnState, runHook bool) {
+ 	srv := c.server
+ 	switch state {
+ 	case StateNew:
+@@ -1752,6 +1757,9 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
+ 	}
+ 	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
+ 	atomic.StoreUint64(&c.curState.atomic, packedState)
++	if !runHook {
++		return
++	}
+ 	if hook := srv.ConnState; hook != nil {
+ 		hook(nc, state)
+ 	}
+@@ -1805,7 +1813,7 @@ func (c *conn) serve(ctx context.Context) {
+ 		}
+ 		if !c.hijacked() {
+ 			c.close()
+-			c.setState(c.rwc, StateClosed)
++			c.setState(c.rwc, StateClosed, runHooks)
+ 		}
+ 	}()
+ 
+@@ -1833,6 +1841,10 @@ func (c *conn) serve(ctx context.Context) {
+ 		if proto := c.tlsState.NegotiatedProtocol; validNextProto(proto) {
+ 			if fn := c.server.TLSNextProto[proto]; fn != nil {
+ 				h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
++				// Mark freshly created HTTP/2 as active and prevent any server state hooks
++				// from being run on these connections. This prevents closeIdleConns from
++				// closing such connections. See issue https://golang.org/issue/39776.
++				c.setState(c.rwc, StateActive, skipHooks)
+ 				fn(c.server, tlsConn, h)
+ 			}
+ 			return
+@@ -1853,7 +1865,7 @@ func (c *conn) serve(ctx context.Context) {
+ 		w, err := c.readRequest(ctx)
+ 		if c.r.remain != c.server.initialReadLimitSize() {
+ 			// If we read any bytes off the wire, we're active.
+-			c.setState(c.rwc, StateActive)
++			c.setState(c.rwc, StateActive, runHooks)
+ 		}
+ 		if err != nil {
+ 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
+@@ -1936,7 +1948,7 @@ func (c *conn) serve(ctx context.Context) {
+ 			}
+ 			return
+ 		}
+-		c.setState(c.rwc, StateIdle)
++		c.setState(c.rwc, StateIdle, runHooks)
+ 		c.curReq.Store((*response)(nil))
+ 
+ 		if !w.conn.server.doKeepAlives() {
+@@ -2971,7 +2983,7 @@ func (srv *Server) Serve(l net.Listener) error {
+ 		}
+ 		tempDelay = 0
+ 		c := srv.newConn(rw)
+-		c.setState(c.rwc, StateNew) // before Serve can return
++		c.setState(c.rwc, StateNew, runHooks) // before Serve can return
+ 		go c.serve(connCtx)
+ 	}
+ }

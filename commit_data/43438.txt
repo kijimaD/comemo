@@ -11,6 +11,20 @@ Date:   Fri Apr 3 20:01:25 2020 +0300
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/run.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index 46858f8fa0..896c4ac3ec 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -4,7 +4,7 @@
+ 
+ @echo off
+ 
+-if exist ..\bin\go goto ok
++if exist ..\bin\go.exe goto ok
+ echo Must run run.bat from Go src directory after installing cmd/go.
+ goto fail
+ :ok

@@ -21,9 +21,110 @@ Date:   Tue Dec 1 12:18:20 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go    |  3 ++-
  src/cmd/compile/internal/types2/api.go  |  5 +++++
  src/cmd/compile/internal/types2/stmt.go | 10 +++++++++-
  test/run.go                             |  4 +---
  4 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 1cdb6bc08c..5115932b1e 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -84,7 +84,8 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
+ 
+ 		conf := types2.Config{
+ 			InferFromConstraints:  true,
+-			CompilerErrorMessages: true,
++			IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
++			CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ 			Error: func(err error) {
+ 				terr := err.(types2.Error)
+ 				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index a40665ee17..c5c30babff 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -119,6 +119,11 @@ type Config struct {
+ 	//          Do not use casually!
+ 	FakeImportC bool
+ 
++	// If IgnoreBranches is set, errors related to incorrectly placed
++	// labels, gotos, break, continue, and fallthrough statements are
++	// ignored.
++	IgnoreBranches bool
++
+ 	// If CompilerErrorMessages is set, errors are reported using
+ 	// cmd/compile error strings to match $GOROOT/test errors.
+ 	// TODO(gri) Consolidate error messages and remove this flag.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 37aa3c7308..11a9b8313f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -42,6 +42,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 	check.stmtList(0, body.List)
+ 
+ 	if check.hasLabel {
++		assert(!check.conf.IgnoreBranches)
+ 		check.labels(body)
+ 	}
+ 
+@@ -316,7 +317,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.declStmt(s.DeclList)
+ 
+ 	case *syntax.LabeledStmt:
+-		check.hasLabel = true
++		check.hasLabel = !check.conf.IgnoreBranches
+ 		check.stmt(ctxt, s.Stmt)
+ 
+ 	case *syntax.ExprStmt:
+@@ -443,6 +444,10 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		}
+ 
+ 	case *syntax.BranchStmt:
++		if check.conf.IgnoreBranches {
++			break
++		}
++
+ 		if s.Label != nil {
+ 			check.hasLabel = true
+ 			return // checked in 2nd pass (check.labels)
+@@ -464,6 +469,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 				}
+ 				check.error(s, msg)
+ 			}
++		case syntax.Goto:
++			// goto's must have labels, should have been caught above
++			fallthrough
+ 		default:
+ 			check.invalidASTf(s, "branch statement: %s", s.Tok)
+ 		}
+diff --git a/test/run.go b/test/run.go
+index 319aed5ac1..1eef6f1f35 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -771,15 +771,12 @@ func (t *test) run() {
+ 			"func1.go",
+ 			"funcdup.go",
+ 			"funcdup2.go",
+-			"goto.go",
+ 			"import1.go",
+ 			"import5.go",
+ 			"import6.go",
+ 			"init.go",
+ 			"initializerr.go",
+ 			"initloop.go",
+-			"label.go",
+-			"label1.go",
+ 			"makechan.go",
+ 			"makemap.go",
+ 			"makenew.go",
+@@ -792,6 +789,7 @@ func (t *test) run() {
+ 			"shift1.go",
+ 			"slice3err.go",
+ 			"switch3.go",
++			"switch4.go",
+ 			"switch5.go",
+ 			"switch6.go",
+ 			"switch7.go",

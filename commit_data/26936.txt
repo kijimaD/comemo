@@ -13,7 +13,253 @@ Date:   Thu Mar 3 16:27:05 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go    |  46 +++++++-------
  src/cmd/compile/internal/gc/syntax.go | 109 +++++++++++++++++++++++++++++++++-
  2 files changed, 128 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 11ce49f369..5cb5e8b77b 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -227,8 +227,8 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 	if count(el) == 1 && count(vl) > 1 {
+ 		e := el.N
+ 		as2 := Nod(OAS2, nil, nil)
+-		as2.List = vl
+-		as2.Rlist = list1(e)
++		setNodeSeq(&as2.List, vl)
++		setNodeSeqNode(&as2.Rlist, e)
+ 		var v *Node
+ 		for ; vl != nil; vl = vl.Next {
+ 			v = vl.N
+@@ -474,7 +474,7 @@ func colasdefn(left *NodeList, defn *Node) {
+ 		n = newname(n.Sym)
+ 		declare(n, dclcontext)
+ 		n.Name.Defn = defn
+-		defn.Ninit = list(defn.Ninit, Nod(ODCL, n, nil))
++		appendNodeSeqNode(&defn.Ninit, Nod(ODCL, n, nil))
+ 		l.N = n
+ 	}
+ 
+@@ -485,18 +485,18 @@ func colasdefn(left *NodeList, defn *Node) {
+ 
+ func colas(left *NodeList, right *NodeList, lno int32) *Node {
+ 	as := Nod(OAS2, nil, nil)
+-	as.List = left
+-	as.Rlist = right
++	setNodeSeq(&as.List, left)
++	setNodeSeq(&as.Rlist, right)
+ 	as.Colas = true
+ 	as.Lineno = lno
+ 	colasdefn(left, as)
+ 
+ 	// make the tree prettier; not necessary
+ 	if count(left) == 1 && count(right) == 1 {
+-		as.Left = as.List.N
+-		as.Right = as.Rlist.N
+-		as.List = nil
+-		as.Rlist = nil
++		as.Left = nodeSeqFirst(as.List)
++		as.Right = nodeSeqFirst(as.Rlist)
++		setNodeSeq(&as.List, nil)
++		setNodeSeq(&as.Rlist, nil)
+ 		as.Op = OAS
+ 	}
+ 
+@@ -570,7 +570,7 @@ func funcargs(nt *Node) {
+ 	// re-start the variable generation number
+ 	// we want to use small numbers for the return variables,
+ 	// so let them have the chunk starting at 1.
+-	vargen = count(nt.Rlist)
++	vargen = nodeSeqLen(nt.Rlist)
+ 
+ 	// declare the receiver and in arguments.
+ 	// no n->defn because type checking of func header
+@@ -592,8 +592,8 @@ func funcargs(nt *Node) {
+ 	}
+ 
+ 	var n *Node
+-	for l := nt.List; l != nil; l = l.Next {
+-		n = l.N
++	for it := nodeSeqIterate(nt.List); !it.Done(); it.Next() {
++		n = it.N()
+ 		if n.Op != ODCLFIELD {
+ 			Fatalf("funcargs in %v", Oconv(int(n.Op), 0))
+ 		}
+@@ -609,11 +609,11 @@ func funcargs(nt *Node) {
+ 	}
+ 
+ 	// declare the out arguments.
+-	gen := count(nt.List)
++	gen := nodeSeqLen(nt.List)
+ 	var i int = 0
+ 	var nn *Node
+-	for l := nt.Rlist; l != nil; l = l.Next {
+-		n = l.N
++	for it := nodeSeqIterate(nt.Rlist); !it.Done(); it.Next() {
++		n = it.N()
+ 
+ 		if n.Op != ODCLFIELD {
+ 			Fatalf("funcargs out %v", Oconv(int(n.Op), 0))
+@@ -1507,7 +1507,7 @@ func checknowritebarrierrec() {
+ 			for _, n := range list {
+ 				if n.Func.WBLineno == 0 {
+ 					c.curfn = n
+-					c.visitcodeslice(n.Nbody.Slice())
++					c.visitcodelist(n.Nbody)
+ 				}
+ 			}
+ 			if c.stable {
+@@ -1538,15 +1538,9 @@ func checknowritebarrierrec() {
+ 	})
+ }
+ 
+-func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
+-	for ; l != nil; l = l.Next {
+-		c.visitcode(l.N)
+-	}
+-}
+-
+-func (c *nowritebarrierrecChecker) visitcodeslice(l []*Node) {
+-	for _, n := range l {
+-		c.visitcode(n)
++func (c *nowritebarrierrecChecker) visitcodelist(l nodesOrNodeList) {
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++		c.visitcode(it.N())
+ 	}
+ }
+ 
+@@ -1563,7 +1557,7 @@ func (c *nowritebarrierrecChecker) visitcode(n *Node) {
+ 	c.visitcode(n.Left)
+ 	c.visitcode(n.Right)
+ 	c.visitcodelist(n.List)
+-	c.visitcodeslice(n.Nbody.Slice())
++	c.visitcodelist(n.Nbody)
+ 	c.visitcodelist(n.Rlist)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 30e69994ad..e6b747392b 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -657,7 +657,7 @@ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+ 		return
+ 	}
+ 
+-	// Simplify b to either *Nodelist or []*Node.
++	// Simplify b to either *NodeList or []*Node.
+ 	if n, ok := b.(Nodes); ok {
+ 		b = n.Slice()
+ 	}
+@@ -698,3 +698,110 @@ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+ 		}
+ 	}
+ }
++
++// setNodeSeqNode sets the node sequence a to the node n.
++// a must have type **NodeList, *Nodes, or *[]*Node.
++// This is an interim function during the transition from NodeList to Nodes.
++// TODO(iant): Remove when transition is complete.
++func setNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
++	// This is what the old list1 function did;
++	// the rest of the compiler has come to expect it.
++	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
++		l := n.List
++		setNodeSeq(&n.List, nil)
++		setNodeSeq(a, l)
++		return
++	}
++
++	switch a := a.(type) {
++	case **NodeList:
++		*a = list1(n)
++	case *Nodes:
++		a.Set([]*Node{n})
++	case *[]*Node:
++		*a = []*Node{n}
++	default:
++		panic("can't happen")
++	}
++}
++
++// appendNodeSeq appends the node sequence b to the node sequence a.
++// a must have type **NodeList, *Nodes, or *[]*Node.
++// b must have type *NodeList, Nodes, or []*Node.
++// This is an interim function during the transition from NodeList to Nodes.
++// TODO(iant): Remove when transition is complete.
++func appendNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
++	// Simplify b to either *NodeList or []*Node.
++	if n, ok := b.(Nodes); ok {
++		b = n.Slice()
++	}
++
++	if l, ok := a.(**NodeList); ok {
++		switch b := b.(type) {
++		case *NodeList:
++			*l = concat(*l, b)
++		case []*Node:
++			for _, n := range b {
++				*l = list(*l, n)
++			}
++		default:
++			panic("can't happen")
++		}
++	} else {
++		var s []*Node
++		switch a := a.(type) {
++		case *Nodes:
++			s = a.Slice()
++		case *[]*Node:
++			s = *a
++		default:
++			panic("can't happen")
++		}
++
++		switch b := b.(type) {
++		case *NodeList:
++			for l := b; l != nil; l = l.Next {
++				s = append(s, l.N)
++			}
++		case []*Node:
++			s = append(s, b...)
++		default:
++			panic("can't happen")
++		}
++
++		switch a := a.(type) {
++		case *Nodes:
++			a.Set(s)
++		case *[]*Node:
++			*a = s
++		default:
++			panic("can't happen")
++		}
++	}
++}
++
++// appendNodeSeqNode appends n to the node sequence a.
++// a must have type **NodeList, *Nodes, or *[]*Node.
++// This is an interim function during the transition from NodeList to Nodes.
++// TODO(iant): Remove when transition is complete.
++func appendNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
++	// This is what the old list1 function did;
++	// the rest of the compiler has come to expect it.
++	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
++		l := n.List
++		setNodeSeq(&n.List, nil)
++		appendNodeSeq(a, l)
++		return
++	}
++
++	switch a := a.(type) {
++	case **NodeList:
++		*a = list(*a, n)
++	case *Nodes:
++		a.Append(n)
++	case *[]*Node:
++		*a = append(*a, n)
++	default:
++		panic("can't happen")
++	}
++}

@@ -11,6 +11,22 @@ Date:   Mon Feb 3 10:47:41 2020 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/time.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 5fa09687e9..3f632dbc3e 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -252,7 +252,9 @@ func (t Time) Before(u Time) bool {
+ 	if t.wall&u.wall&hasMonotonic != 0 {
+ 		return t.ext < u.ext
+ 	}
+-	return t.sec() < u.sec() || t.sec() == u.sec() && t.nsec() < u.nsec()
++	ts := t.sec()
++	us := u.sec()
++	return ts < us || ts == us && t.nsec() < u.nsec()
+ }
+ 
+ // Equal reports whether t and u represent the same time instant.

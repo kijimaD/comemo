@@ -14,6 +14,20 @@ Date:   Thu Feb 28 08:40:55 2019 +0100
     Change-Id: If8104f9d15838c1be3623adcf831a7188303c376
     Reviewed-on: https://go-review.googlesource.com/c/164338
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/android/go_android_exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 845ed6e99c..55461df31a 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -104,7 +104,7 @@ func main() {
+ 	run("push", os.Args[1], deviceBin)
+ 
+ 	if _, err := os.Stat("testdata"); err == nil {
+-		run("push", "testdata", deviceCwd)
++		run("push", "--sync", "testdata", deviceCwd)
+ 	}
+ 
+ 	// Forward SIGQUIT from the go command to show backtraces from

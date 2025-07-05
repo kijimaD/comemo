@@ -9,9 +9,74 @@ Date:   Mon Feb 20 22:54:39 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin_arm.s  | 4 ++--
  src/runtime/sys_linux_386.s   | 4 ++--
  src/runtime/sys_netbsd_386.s  | 4 ++--
  src/runtime/sys_windows_386.s | 6 +++---
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 490a410fa4..ea559b5f3e 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -171,9 +171,9 @@ TEXT runtime·walltime(SB), 7, $32
+ 	MOVW	12(R13), R1
+ inreg:
+ 	MOVW    R1, R2  // usec
+-	MOVW	R0, sec+0(FP)
++	MOVW	R0, sec_lo+0(FP)
+ 	MOVW	$0, R1
+-	MOVW	R1, loc+4(FP)
++	MOVW	R1, sec_hi+4(FP)
+ 	MOVW	$1000, R3
+ 	MUL	R3, R2
+ 	MOVW	R2, nsec+8(FP)
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 5c5afac990..a369792d78 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -162,8 +162,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	12(SP), BX	// nsec
+ 
+ 	// sec is in AX, nsec in BX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	$0, sec+4(FP)
++	MOVL	AX, sec_lo+0(FP)
++	MOVL	$0, sec_hi+4(FP)
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 5c15794d5f..742193cf28 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -143,9 +143,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	INT	$0x80
+ 
+ 	MOVL	12(SP), AX		// sec - l32
+-	MOVL	AX, sec+0(FP)
++	MOVL	AX, sec_lo+0(FP)
+ 	MOVL	16(SP), AX		// sec - h32
+-	MOVL	AX, sec+4(FP)
++	MOVL	AX, sec_hi+4(FP)
+ 
+ 	MOVL	20(SP), BX		// nsec
+ 	MOVL	BX, nsec+8(FP)
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 9d53fbf319..35bc7a9aaa 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -455,9 +455,9 @@ loop:
+ 	ADDL	DI, DX
+ 	// wintime*100 = DX:AX, subtract startNano and return
+ 	SUBL	runtime·startNano+0(SB), AX
+-	SBBL runtime·startNano+4(SB), DX
+-	MOVL	AX, ret+0(FP)
+-	MOVL	DX, ret+4(FP)
++	SBBL	runtime·startNano+4(SB), DX
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$0-20

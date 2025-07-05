@@ -15,8 +15,474 @@ Date:   Tue Mar 22 18:17:43 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 334 +++++++++++++++++++++++++++++++++
  misc/cgo/testcarchive/test.bash        | 106 -----------
  src/cmd/dist/test.go                   |   2 +-
  3 files changed, 335 insertions(+), 107 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+new file mode 100644
+index 0000000000..d5cd433913
+--- /dev/null
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -0,0 +1,334 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package carchive_test
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++	"unicode"
++)
++
++// Program to run.
++var bin []string
++
++// C compiler wiht args (from $(go env CC) $(go env GOGCCFLAGS)).
++var cc []string
++
++// An environment with GOPATH=$(pwd).
++var gopathEnv []string
++
++// ".exe" on Windows.
++var exeSuffix string
++
++func init() {
++	bin = []string{"./testp"}
++	execScript := "go_" + runtime.GOOS + "_" + runtime.GOARCH + "_exec"
++	if executor, err := exec.LookPath(execScript); err == nil {
++		bin = []string{executor, "./testp"}
++	}
++
++	out, err := exec.Command("go", "env", "CC").Output()
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go env CC failed:\n%s", err)
++		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
++		os.Exit(2)
++	}
++	cc = []string{strings.TrimSpace(string(out))}
++
++	out, err = exec.Command("go", "env", "GOGCCFLAGS").Output()
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go env GOGCCFLAGS failed:\n%s", err)
++		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
++		os.Exit(2)
++	}
++	quote := '\000'
++	start := 0
++	lastSpace := true
++	backslash := false
++	s := string(out)
++	for i, c := range s {
++		if quote == '\000' && unicode.IsSpace(c) {
++			if !lastSpace {
++				cc = append(cc, s[start:i])
++				lastSpace = true
++			}
++		} else {
++			if lastSpace {
++				start = i
++				lastSpace = false
++			}
++			if quote == '\000' && !backslash && (c == '"' || c == '\'') {
++				quote = c
++				backslash = false
++			} else if !backslash && quote == c {
++				quote = '\000'
++			} else if (quote == '\000' || quote == '"') && !backslash && c == '\\' {
++				backslash = true
++			} else {
++				backslash = false
++			}
++		}
++	}
++	if !lastSpace {
++		cc = append(cc, s[start:])
++	}
++
++	if runtime.GOOS == "darwin" {
++		cc = append(cc, "-Wl,-no_pie")
++
++		// For Darwin/ARM.
++		// TODO(crawshaw): can we do better?
++		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
++	}
++	cc = append(cc, "-I", filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH))
++
++	// Build an environment with GOPATH=$(pwd)
++	env := os.Environ()
++	var n []string
++	for _, e := range env {
++		if !strings.HasPrefix(e, "GOPATH=") {
++			n = append(n, e)
++		}
++	}
++	dir, err := os.Getwd()
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++	n = append(n, "GOPATH="+dir)
++	gopathEnv = n
++
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++}
++
++func TestInstall(t *testing.T) {
++	defer func() {
++		os.Remove("libgo.a")
++		os.Remove("libgo.h")
++		os.Remove("testp")
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "install", "-buildmode=c-archive", "libgo")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c", filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH, "libgo.a"))
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	binArgs := append(bin, "arg1", "arg2")
++	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	os.Remove("libgo.a")
++	os.Remove("libgo.h")
++	os.Remove("testp")
++
++	// Test building libgo other than installing it.
++	// Header files are now present.
++	cmd = exec.Command("go", "build", "-buildmode=c-archive", filepath.Join("src", "libgo", "libgo.go"))
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs = append(cc, "-o", "testp"+exeSuffix, "main.c", "libgo.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	os.Remove("libgo.a")
++	os.Remove("libgo.h")
++	os.Remove("testp")
++
++	cmd = exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo.a", "libgo")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++}
++
++func TestEarlySignalHandler(t *testing.T) {
++	switch runtime.GOOS {
++	case "darwin":
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
++		}
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++
++	defer func() {
++		os.Remove("libgo2.a")
++		os.Remove("libgo2.h")
++		os.Remove("testp")
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "libgo2")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main2.c", "libgo2.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if out, err := exec.Command(bin[0], bin[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++}
++
++func TestOsSignal(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++
++	defer func() {
++		os.Remove("libgo3.a")
++		os.Remove("libgo3.h")
++		os.Remove("testp")
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo3.a", "libgo3")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main3.c", "libgo3.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if out, err := exec.Command(bin[0], bin[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++}
++
++func TestSigaltstack(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++
++	defer func() {
++		os.Remove("libgo4.a")
++		os.Remove("libgo4.h")
++		os.Remove("testp")
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo4.a", "libgo4")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main4.c", "libgo4.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if out, err := exec.Command(bin[0], bin[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++}
++
++const testar = `#!/usr/bin/env bash
++while expr $1 : '[-]' >/dev/null; do
++  shift
++done
++echo "testar" > $1
++echo "testar" > PWD/testar.ran
++`
++
++func TestExtar(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++
++	defer func() {
++		os.Remove("libgo4.a")
++		os.Remove("libgo4.h")
++		os.Remove("testar")
++		os.Remove("testar.ran")
++		os.RemoveAll("pkg")
++	}()
++
++	os.Remove("testar")
++	dir, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	s := strings.Replace(testar, "PWD", dir, 1)
++	if err := ioutil.WriteFile("testar", []byte(s), 0777); err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-ldflags=-extar="+filepath.Join(dir, "testar"), "-o", "libgo4.a", "libgo4")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	if _, err := os.Stat("testar.ran"); err != nil {
++		if os.IsNotExist(err) {
++			t.Error("testar does not exist after go build")
++		} else {
++			t.Errorf("error checking testar: %v", err)
++		}
++	}
++}
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+deleted file mode 100755
+index f4e7c458ec..0000000000
+--- a/misc/cgo/testcarchive/test.bash
++++ /dev/null
+@@ -1,106 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2015 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-ccargs=
+-if [ "$(go env GOOS)" == "darwin" ]; then
+-	ccargs="-Wl,-no_pie"
+-	# For darwin/arm.
+-	# TODO(crawshaw): Can we do better?
+-	ccargs="$ccargs -framework CoreFoundation -framework Foundation"
+-fi
+-ccargs="$ccargs -I pkg/$(go env GOOS)_$(go env GOARCH)"
+-
+-# TODO(crawshaw): Consider a go env for exec script name.
+-bin=./testp
+-exec_script=go_$(go env GOOS)_$(go env GOARCH)_exec
+-if [ "$(which $exec_script)" != "" ]; then
+-	bin="$exec_script ./testp"
+-fi
+-
+-rm -rf libgo.a libgo.h testp pkg
+-
+-status=0
+-
+-# Installing first will create the header files we want.
+-
+-GOPATH=$(pwd) go install -buildmode=c-archive libgo
+-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c pkg/$(go env GOOS)_$(go env GOARCH)/libgo.a
+-if ! $bin arg1 arg2; then
+-    echo "FAIL test1a"
+-    status=1
+-fi
+-rm -f libgo.a libgo.h testp
+-
+-# Test building libgo other than installing it.
+-# Header files are now present.
+-
+-GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
+-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+-if ! $bin arg1 arg2; then
+-    echo "FAIL test1b"
+-    status=1
+-fi
+-rm -f libgo.a libgo.h testp
+-
+-GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
+-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+-if ! $bin arg1 arg2; then
+-    echo "FAIL test1c"
+-    status=1
+-fi
+-rm -rf libgo.a libgo.h testp pkg
+-
+-case "$(go env GOOS)/$(go env GOARCH)" in
+-"darwin/arm" | "darwin/arm64")
+-    echo "Skipping test2; see https://golang.org/issue/13701"
+-    ;;
+-*)
+-    GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
+-    $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
+-    if ! $bin; then
+-        echo "FAIL test2"
+-        status=1
+-    fi
+-    rm -rf libgo2.a libgo2.h testp pkg
+-    ;;
+-esac
+-
+-GOPATH=$(pwd) go build -buildmode=c-archive -o libgo3.a libgo3
+-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main3.c libgo3.a
+-if ! $bin; then
+-    echo "FAIL test3"
+-    status=1
+-fi
+-rm -rf libgo3.a libgo3.h testp pkg
+-
+-GOPATH=$(pwd) go build -buildmode=c-archive -o libgo4.a libgo4
+-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main4.c libgo4.a
+-if ! $bin; then
+-    echo "FAIL test4"
+-    status=1
+-fi
+-rm -rf libgo4.a libgo4.h testp pkg
+-
+-rm -f testar
+-cat >testar <<EOF
+-#!/usr/bin/env bash
+-while expr \$1 : '[-]' >/dev/null; do
+-  shift
+-done
+-echo "testar" > \$1
+-echo "testar" > $(pwd)/testar.ran
+-EOF
+-chmod +x testar
+-rm -f testar.ran
+-GOPATH=$(pwd) go build -buildmode=c-archive -ldflags=-extar=$(pwd)/testar -o libgo4.a libgo4
+-if ! test -f testar.ran; then
+-    echo "FAIL test5"
+-    status=1
+-fi
+-rm -rf libgo4.a libgo4.h testar testar.ran pkg
+-
+-exit $status
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 121a615993..0f28a71fc9 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -497,7 +497,7 @@ func (t *tester) registerTests() {
+ 			})
+ 		}
+ 		if t.supportedBuildmode("c-archive") {
+-			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
++			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "go", "test", "carchive_test.go")
+ 		}
+ 		if t.supportedBuildmode("c-shared") {
+ 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")

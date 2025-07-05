@@ -9,6 +9,38 @@ Date:   Mon May 11 11:18:57 2020 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go | 17 +++++++++++------
  1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9a358cd529..5e38b3194c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2575,15 +2575,20 @@ func injectglist(glist *gList) {
+ 		return
+ 	}
+ 
+-	lock(&sched.lock)
+-	npidle := int(sched.npidle)
++	npidle := int(atomic.Load(&sched.npidle))
++	var globq gQueue
+ 	var n int
+ 	for n = 0; n < npidle && !q.empty(); n++ {
+-		globrunqput(q.pop())
++		g := q.pop()
++		globq.pushBack(g)
++	}
++	if n > 0 {
++		lock(&sched.lock)
++		globrunqputbatch(&globq, int32(n))
++		unlock(&sched.lock)
++		startIdle(n)
++		qsize -= n
+ 	}
+-	unlock(&sched.lock)
+-	startIdle(n)
+-	qsize -= n
+ 
+ 	if !q.empty() {
+ 		runqputbatch(pp, &q, qsize)

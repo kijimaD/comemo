@@ -10,6 +10,20 @@ Date:   Tue Mar 26 11:24:40 2019 +0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169357
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/proc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/proc.go b/src/os/proc.go
+index 804128a1da..7364d631f2 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -56,6 +56,8 @@ func Getgroups() ([]int, error) {
+ // Exit causes the current program to exit with the given status code.
+ // Conventionally, code zero indicates success, non-zero an error.
+ // The program terminates immediately; deferred functions are not run.
++//
++// For portability, the status code should be in the range [0, 125].
+ func Exit(code int) {
+ 	if code == 0 {
+ 		// Give race detector a chance to fail the program.

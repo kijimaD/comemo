@@ -28,7 +28,7 @@ Date:   Fri Oct 14 12:04:52 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go          |   1 +
  src/cmd/compile/internal/base/flag.go           |  10 ++
  src/cmd/compile/internal/base/hashdebug.go      | 201 ++++++++++++++++++------
@@ -36,3 +36,544 @@ Date:   Fri Oct 14 12:04:52 2022 -0400
  src/cmd/compile/internal/ssa/func.go            |   4 +-
  src/cmd/go/internal/work/exec.go                |  19 +--
  6 files changed, 326 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 9bd6dce403..682c0dd518 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -26,6 +26,7 @@ type DebugFlags struct {
+ 	DwarfInl                   int    `help:"print information about DWARF inlined function creation"`
+ 	Export                     int    `help:"print export data"`
+ 	GCProg                     int    `help:"print dump of GC programs"`
++	Gossahash                  string `help:"hash value for use in debugging the compiler"`
+ 	InlFuncsWithClosures       int    `help:"allow functions with closures to be inlined"`
+ 	Libfuzzer                  int    `help:"enable coverage instrumentation for libfuzzer"`
+ 	LocationLists              int    `help:"print information about DWARF location list creation"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 020514556c..98cfc189ae 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -180,6 +180,16 @@ func ParseFlags() {
+ 	registerFlags()
+ 	objabi.Flagparse(usage)
+ 
++	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
++		// This will only override the flags set in gcd;
++		// any others set on the command line remain set.
++		Flag.LowerD.Set(gcd)
++	}
++
++	if Debug.Gossahash != "" {
++		hashDebug = NewHashDebug("gosshash", Debug.Gossahash, nil)
++	}
++
+ 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 0a8e88f26c..08c4fbcc00 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -9,51 +9,64 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ )
+ 
+-const GOSSAHASH = "GOSSAHASH"
+-
+ type writeSyncer interface {
+ 	io.Writer
+ 	Sync() error
+ }
+ 
++type hashAndMask struct {
++	// a hash h matches if (h^hash)&mask == 0
++	hash uint64
++	mask uint64
++	name string // base name, or base name + "0", "1", etc.
++}
++
+ type HashDebug struct {
+-	mu sync.Mutex
++	mu   sync.Mutex
++	name string // base name of the flag/variable.
+ 	// what file (if any) receives the yes/no logging?
+ 	// default is os.Stdout
+ 	logfile writeSyncer
++	matches []hashAndMask // A hash matches if one of these matches.
++	yes, no bool
+ }
+ 
+-var hd HashDebug
++// The default compiler-debugging HashDebug, for "-d=gossahash=..."
++var hashDebug *HashDebug
+ 
+-// DebugHashMatch reports whether environment variable GOSSAHASH
++// DebugHashMatch reports whether debug variable Gossahash
+ //
+-//  1. is empty (this is a special more-quickly implemented case of 3)
++//  1. is empty (returns true; this is a special more-quickly implemented case of 4 below)
+ //
+-//  2. is "y" or "Y"
++//  2. is "y" or "Y" (returns true)
+ //
+-//  3. is a suffix of the sha1 hash of name
++//  3. is "n" or "N" (returns false)
+ //
+-//  4. OR
+-//     if evname(i) is a suffix of the sha1 hash of name
+-//     where evname(i)=fmt.Sprintf("GOSSAHASH%d", i),
+-//     for 0<=i<n such that for all i evname(i) != "" and evname(n) == ""
++//  4. is a suffix of the sha1 hash of pkgAndName (returns true)
+ //
+-//     That is, as long as they're not empty, try GOSSAHASH, GOSSAHASH0, GOSSAHASH1, etc,
+-//     but quit trying at the first empty environment variable substitution.
++//  5. OR
++//     if the value is in the regular language "[01]+(;[01]+)+"
++//     test the [01]+ substrings after in order returning true
++//     for the first one that suffix-matches. The substrings AFTER
++//     the first semicolon are numbered 0,1, etc and are named
++//     fmt.Sprintf("%s%d", varname, number)
++//     Clause 5 is not really intended for human use and only
++//     matters for failures that require multiple triggers.
+ //
+ // Otherwise it returns false.
+-// Clause 4 is not really intended for human use.
+ //
+-// Unless GOSSAHASH is empty, when DebugHashMatch returns true the message
++// Unless Flags.Gossahash is empty, when DebugHashMatch returns true the message
+ //
+-//	"%s triggered %s\n", evname, name
++//	"%s triggered %s\n", varname, pkgAndName
+ //
+ // is printed on the file named in environment variable GSHS_LOGFILE,
+-// or standard out if that is empty.
++// or standard out if that is empty.  "Varname" is either the name of
++// the variable or the name of the substring, depending on which matched.
+ //
+ // Typical use:
+ //
+@@ -62,15 +75,16 @@ var hd HashDebug
+ //  2. it is broken in some mystifying way, for example, make.bash builds a broken
+ //     compiler that almost works, but crashes compiling a test in run.bash.
+ //
+-//  3. add this guard to the code, which by default leaves it broken, but
+-//     does not run the broken new code if GOSSAHASH is non-empty and non-matching:
++//  3. add this guard to the code, which by default leaves it broken, but does not
++//     run the broken new code if Flags.Gossahash is non-empty and non-matching:
+ //
+ //     if !base.DebugHashMatch(ir.PkgFuncName(fn)) {
+ //     return nil // early exit, do nothing
+ //     }
+ //
+-//  4. rebuild w/o the bad code, GOSSAHASH=n ./all.bash to verify that you
+-//     put theguard in the right place with the right sense of the test.
++//  4. rebuild w/o the bad code,
++//     GOCOMPILEDEBUG=gossahash=n ./all.bash
++//     to verify that you put the guard in the right place with the right sense of the test.
+ //
+ //  5. use github.com/dr2chase/gossahash to search for the error:
+ //
+@@ -83,50 +97,129 @@ var hd HashDebug
+ //  6. gossahash should return a single function whose miscompilation
+ //     causes the problem, and you can focus on that.
+ func DebugHashMatch(pkgAndName string) bool {
+-	return hd.DebugHashMatch(pkgAndName)
++	return hashDebug.DebugHashMatch(pkgAndName)
+ }
+ 
+-func (d *HashDebug) DebugHashMatch(pkgAndName string) bool {
+-	evname := GOSSAHASH
+-	evhash := os.Getenv(evname)
+-	hstr := ""
+-
+-	switch evhash {
+-	case "":
+-		return true // default behavior with no EV is "on"
+-	case "n", "N":
+-		return false
++// HasDebugHash returns true if Flags.Gossahash is non-empty, which
++// results in hashDebug being not-nil.  I.e., if !HasDebugHash(),
++// there is no need to create the string for hashing and testing.
++func HasDebugHash() bool {
++	return hashDebug != nil
++}
++
++func toHashAndMask(s, varname string) hashAndMask {
++	l := len(s)
++	if l > 64 {
++		s = s[l-64:]
++		l = 64
++	}
++	m := ^(^uint64(0) << l)
++	h, err := strconv.ParseUint(s, 2, 64)
++	if err != nil {
++		Fatalf("Could not parse %s (=%s) as a binary number", varname, s)
+ 	}
+ 
+-	// Check the hash of the name against a partial input hash.
+-	// We use this feature to do a binary search to
+-	// find a function that is incorrectly compiled.
+-	for _, b := range notsha256.Sum256([]byte(pkgAndName)) {
+-		hstr += fmt.Sprintf("%08b", b)
++	return hashAndMask{name: varname, hash: h, mask: m}
++}
++
++// NewHashDebug returns a new hash-debug tester for the
++// environment variable ev.  If ev is not set, it returns
++// nil, allowing a lightweight check for normal-case behavior.
++func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
++	if s == "" {
++		return nil
++	}
++
++	hd := &HashDebug{name: ev, logfile: file}
++	switch s[0] {
++	case 'y', 'Y':
++		hd.yes = true
++		return hd
++	case 'n', 'N':
++		hd.no = true
++		return hd
++	}
++	ss := strings.Split(s, ";")
++	hd.matches = append(hd.matches, toHashAndMask(ss[0], ev))
++	// hash searches may use additional EVs with 0, 1, 2, ... suffixes.
++	for i := 1; i < len(ss); i++ {
++		evi := fmt.Sprintf("%s%d", ev, i-1) // convention is extras begin indexing at zero
++		hd.matches = append(hd.matches, toHashAndMask(ss[i], evi))
+ 	}
++	return hd
++
++}
++
++func hashOf(pkgAndName string, param uint64) uint64 {
++	hbytes := notsha256.Sum256([]byte(pkgAndName))
++	hash := uint64(hbytes[7])<<56 + uint64(hbytes[6])<<48 +
++		uint64(hbytes[5])<<40 + uint64(hbytes[4])<<32 +
++		uint64(hbytes[3])<<24 + uint64(hbytes[2])<<16 +
++		uint64(hbytes[1])<<8 + uint64(hbytes[0])
++
++	if param != 0 {
++		// Because param is probably a line number, probably near zero,
++		// hash it up a little bit, but even so only the lower-order bits
++		// likely matter because search focuses on those.
++		p0 := param + uint64(hbytes[9]) + uint64(hbytes[10])<<8 +
++			uint64(hbytes[11])<<16 + uint64(hbytes[12])<<24
+ 
+-	if evhash == "y" || evhash == "Y" || strings.HasSuffix(hstr, evhash) {
+-		d.logDebugHashMatch(evname, pkgAndName, hstr)
++		p1 := param + uint64(hbytes[13]) + uint64(hbytes[14])<<8 +
++			uint64(hbytes[15])<<16 + uint64(hbytes[16])<<24
++
++		param += p0 * p1
++		param ^= param>>17 ^ param<<47
++	}
++
++	return hash ^ param
++}
++
++// DebugHashMatch returns true if either the variable used to create d is
++// unset, or if its value is y, or if it is a suffix of the base-two
++// representation of the hash of pkgAndName.  If the variable is not nil,
++// then a true result is accompanied by stylized output to d.logfile, which
++// is used for automated bug search.
++func (d *HashDebug) DebugHashMatch(pkgAndName string) bool {
++	return d.DebugHashMatchParam(pkgAndName, 0)
++}
++
++// DebugHashMatchParam returns true if either the variable used to create d is
++// unset, or if its value is y, or if it is a suffix of the base-two
++// representation of the hash of pkgAndName and param. If the variable is not
++// nil, then a true result is accompanied by stylized output to d.logfile,
++// which is used for automated bug search.
++func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
++	if d == nil {
++		return true
++	}
++	if d.no {
++		return false
++	}
++	if d.yes {
++		d.logDebugHashMatch(d.name, pkgAndName, "y", param)
+ 		return true
+ 	}
+ 
+-	// Iteratively try additional hashes to allow tests for multi-point
+-	// failure.
+-	for i := 0; true; i++ {
+-		ev := fmt.Sprintf("%s%d", evname, i)
+-		evv := os.Getenv(ev)
+-		if evv == "" {
+-			break
+-		}
+-		if strings.HasSuffix(hstr, evv) {
+-			d.logDebugHashMatch(ev, pkgAndName, hstr)
++	hash := hashOf(pkgAndName, param)
++
++	for _, m := range d.matches {
++		if (m.hash^hash)&m.mask == 0 {
++			hstr := ""
++			if hash == 0 {
++				hstr = "0"
++			} else {
++				for ; hash != 0; hash = hash >> 1 {
++					hstr = string('0'+byte(hash&1)) + hstr
++				}
++			}
++			d.logDebugHashMatch(m.name, pkgAndName, hstr, param)
+ 			return true
+ 		}
+ 	}
+ 	return false
+ }
+ 
+-func (d *HashDebug) logDebugHashMatch(evname, name, hstr string) {
++func (d *HashDebug) logDebugHashMatch(varname, name, hstr string, param uint64) {
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 	file := d.logfile
+@@ -148,6 +241,10 @@ func (d *HashDebug) logDebugHashMatch(evname, name, hstr string) {
+ 		hstr = hstr[len(hstr)-24:]
+ 	}
+ 	// External tools depend on this string
+-	fmt.Fprintf(file, "%s triggered %s %s\n", evname, name, hstr)
++	if param == 0 {
++		fmt.Fprintf(file, "%s triggered %s %s\n", varname, name, hstr)
++	} else {
++		fmt.Fprintf(file, "%s triggered %s:%d %s\n", varname, name, param, hstr)
++	}
+ 	file.Sync()
+ }
+diff --git a/src/cmd/compile/internal/base/hashdebug_test.go b/src/cmd/compile/internal/base/hashdebug_test.go
+new file mode 100644
+index 0000000000..decdf5ce0f
+--- /dev/null
++++ b/src/cmd/compile/internal/base/hashdebug_test.go
+@@ -0,0 +1,164 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base
++
++import (
++	"bytes"
++	"strings"
++	"testing"
++)
++
++func TestHashDebugGossahashY(t *testing.T) {
++	hd := NewHashDebug("GOSSAHASH", "y", nil)
++	if hd == nil {
++		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=y")
++	}
++	if !hd.yes {
++		t.Errorf("NewHashDebug should return hd.yes==true for GOSSASHASH=y")
++	}
++	if hd.no {
++		t.Errorf("NewHashDebug should not return hd.no==true for GOSSASHASH=y")
++	}
++}
++
++func TestHashDebugGossahashN(t *testing.T) {
++	hd := NewHashDebug("GOSSAHASH", "n", nil)
++	if hd == nil {
++		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=n")
++	}
++	if !hd.no {
++		t.Errorf("NewHashDebug should return hd.no==true GOSSASHASH=n")
++	}
++	if hd.yes {
++		t.Errorf("NewHashDebug should not return hd.yes==true for GOSSASHASH=n")
++	}
++}
++
++func TestHashDebugGossahashEmpty(t *testing.T) {
++	hd := NewHashDebug("GOSSAHASH", "", nil)
++	if hd != nil {
++		t.Errorf("NewHashDebug should return nil for GOSSASHASH=\"\"")
++	}
++}
++
++func TestHashDebugMagic(t *testing.T) {
++	hd := NewHashDebug("FOOXYZZY", "y", nil)
++	hd0 := NewHashDebug("FOOXYZZY0", "n", nil)
++	if hd == nil {
++		t.Errorf("NewHashDebug should have succeeded for FOOXYZZY")
++	}
++	if hd0 == nil {
++		t.Errorf("NewHashDebug should have succeeded for FOOXYZZY0")
++	}
++}
++
++func TestHash(t *testing.T) {
++	h0 := hashOf("bar", 0)
++	h1 := hashOf("bar", 1)
++	t.Logf(`These values are used in other tests: hashOf("bar,0)"=0x%x, hashOf("bar,1)"=0x%x`, h0, h1)
++	if h0 == h1 {
++		t.Errorf("Hashes 0x%x and 0x%x should differ", h0, h1)
++	}
++}
++
++func TestHashMatch(t *testing.T) {
++	ws := new(bufferWithSync)
++	hd := NewHashDebug("GOSSAHASH", "0011", ws)
++	check := hd.DebugHashMatch("bar")
++	msg := ws.String()
++	t.Logf("message was '%s'", msg)
++	if !check {
++		t.Errorf("GOSSAHASH=0011 should have matched for 'bar'")
++	}
++	wantPrefix(t, msg, "GOSSAHASH triggered bar ")
++}
++
++func TestHashMatchParam(t *testing.T) {
++	ws := new(bufferWithSync)
++	hd := NewHashDebug("GOSSAHASH", "1010", ws)
++	check := hd.DebugHashMatchParam("bar", 1)
++	msg := ws.String()
++	t.Logf("message was '%s'", msg)
++	if !check {
++		t.Errorf("GOSSAHASH=1010 should have matched for 'bar', 1")
++	}
++	wantPrefix(t, msg, "GOSSAHASH triggered bar:1 ")
++}
++
++func TestYMatch(t *testing.T) {
++	ws := new(bufferWithSync)
++	hd := NewHashDebug("GOSSAHASH", "y", ws)
++	check := hd.DebugHashMatch("bar")
++	msg := ws.String()
++	t.Logf("message was '%s'", msg)
++	if !check {
++		t.Errorf("GOSSAHASH=y should have matched for 'bar'")
++	}
++	wantPrefix(t, msg, "GOSSAHASH triggered bar y")
++}
++
++func TestNMatch(t *testing.T) {
++	ws := new(bufferWithSync)
++	hd := NewHashDebug("GOSSAHASH", "n", ws)
++	check := hd.DebugHashMatch("bar")
++	msg := ws.String()
++	t.Logf("message was '%s'", msg)
++	if check {
++		t.Errorf("GOSSAHASH=n should NOT have matched for 'bar'")
++	}
++	if msg != "" {
++		t.Errorf("Message should have been empty, instead %s", msg)
++	}
++}
++
++func TestHashNoMatch(t *testing.T) {
++	ws := new(bufferWithSync)
++	hd := NewHashDebug("GOSSAHASH", "001100", ws)
++	check := hd.DebugHashMatch("bar")
++	msg := ws.String()
++	t.Logf("message was '%s'", msg)
++	if check {
++		t.Errorf("GOSSAHASH=001100 should NOT have matched for 'bar'")
++	}
++	if msg != "" {
++		t.Errorf("Message should have been empty, instead %s", msg)
++	}
++
++}
++
++func TestHashSecondMatch(t *testing.T) {
++	ws := new(bufferWithSync)
++	hd := NewHashDebug("GOSSAHASH", "001100;0011", ws)
++
++	check := hd.DebugHashMatch("bar")
++	msg := ws.String()
++	t.Logf("message was '%s'", msg)
++	if !check {
++		t.Errorf("GOSSAHASH=001100, GOSSAHASH0=0011 should have matched for 'bar'")
++	}
++	wantPrefix(t, msg, "GOSSAHASH0 triggered bar")
++}
++
++type bufferWithSync struct {
++	b bytes.Buffer
++}
++
++func (ws *bufferWithSync) Sync() error {
++	return nil
++}
++
++func (ws *bufferWithSync) Write(p []byte) (n int, err error) {
++	return (&ws.b).Write(p)
++}
++
++func (ws *bufferWithSync) String() string {
++	return strings.TrimSpace((&ws.b).String())
++}
++
++func wantPrefix(t *testing.T, got, want string) {
++	if !strings.HasPrefix(got, want) {
++		t.Errorf("Want %s, got %s", want, got)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ec811af7c9..d9a51ac424 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -11,7 +11,6 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+-	"os"
+ 	"strings"
+ )
+ 
+@@ -774,8 +773,7 @@ func (f *Func) invalidateCFG() {
+ // environment variable GOSSAHASH is set, in which case "it depends".
+ // See [base.DebugHashMatch] for more information.
+ func (f *Func) DebugHashMatch() bool {
+-	evhash := os.Getenv(base.GOSSAHASH)
+-	if evhash == "" {
++	if !base.HasDebugHash() {
+ 		return true
+ 	}
+ 	name := f.fe.MyImportPath() + "." + f.Name
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 59eb373eae..30f8f9540b 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -341,30 +341,13 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 			"GOCLOBBERDEADHASH",
+ 			"GOSSAFUNC",
+ 			"GOSSADIR",
+-			"GOSSAHASH",
++			"GOCOMPILEDEBUG",
+ 		}
+ 		for _, env := range magic {
+ 			if x := os.Getenv(env); x != "" {
+ 				fmt.Fprintf(h, "magic %s=%s\n", env, x)
+ 			}
+ 		}
+-		if os.Getenv("GOSSAHASH") != "" {
+-			for i := 0; ; i++ {
+-				env := fmt.Sprintf("GOSSAHASH%d", i)
+-				x := os.Getenv(env)
+-				if x == "" {
+-					break
+-				}
+-				fmt.Fprintf(h, "magic %s=%s\n", env, x)
+-			}
+-		}
+-		if os.Getenv("GSHS_LOGFILE") != "" {
+-			// Clumsy hack. Compiler writes to this log file,
+-			// so do not allow use of cache at all.
+-			// We will still write to the cache but it will be
+-			// essentially unfindable.
+-			fmt.Fprintf(h, "nocache %d\n", time.Now().UnixNano())
+-		}
+ 
+ 	case "gccgo":
+ 		id, err := b.gccToolID(BuildToolchain.compiler(), "go")

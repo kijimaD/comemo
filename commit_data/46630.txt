@@ -18,7 +18,57 @@ Date:   Sun Jan 17 00:17:59 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 9 ++-------
  src/cmd/compile/internal/ir/expr.go       | 4 ++--
  2 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 96c2e02146..356fbc75f8 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -585,7 +585,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 	default:
+ 		base.Fatalf("unexpected expr: %v", n)
+ 
+-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR:
++	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR, ir.ONAMEOFFSET:
+ 		// nop
+ 
+ 	case ir.ONAME:
+@@ -598,10 +598,6 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		}
+ 		e.flow(k, e.oldLoc(n))
+ 
+-	case ir.ONAMEOFFSET:
+-		n := n.(*ir.NameOffsetExpr)
+-		e.expr(k, n.Name_)
+-
+ 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
+ 		n := n.(*ir.UnaryExpr)
+ 		e.discard(n.X)
+@@ -876,8 +872,7 @@ func (e *escape) addr(n ir.Node) hole {
+ 		}
+ 		k = e.oldLoc(n).asHole()
+ 	case ir.ONAMEOFFSET:
+-		n := n.(*ir.NameOffsetExpr)
+-		k = e.addr(n.Name_)
++		break
+ 	case ir.ODOT:
+ 		n := n.(*ir.SelectorExpr)
+ 		k = e.addr(n.X)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 4631476973..e24b2d5b2c 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -470,8 +470,8 @@ type NameOffsetExpr struct {
+ }
+ 
+ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
+-	if name == nil || IsBlank(name) {
+-		base.FatalfAt(pos, "cannot take offset of nil or blank name: %v", name)
++	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
++		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
+ 	}
+ 	n := &NameOffsetExpr{Name_: name, Offset_: offset}
+ 	n.typ = typ

@@ -15,7 +15,83 @@ Date:   Wed Jul 6 17:11:29 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/filepath/path.go      |  9 +++++++--
  src/path/filepath/path_test.go | 21 ++++++++++++++++++---
  2 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 0dc559cdd6..3c70cd8be6 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -393,9 +393,14 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+ func Walk(root string, walkFn WalkFunc) error {
+ 	info, err := os.Lstat(root)
+ 	if err != nil {
+-		return walkFn(root, nil, err)
++		err = walkFn(root, nil, err)
++	} else {
++		err = walk(root, info, walkFn)
+ 	}
+-	return walk(root, info, walkFn)
++	if err == SkipDir {
++		return nil
++	}
++	return err
+ }
+ 
+ // readDirNames reads the directory named by dirname and returns
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 1be5b469f2..0c495a5f1c 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -528,7 +528,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
+ 	touch(t, filepath.Join(td, "dir/foo2"))
+ 
+ 	sawFoo2 := false
+-	filepath.Walk(td, func(path string, info os.FileInfo, err error) error {
++	walker := func(path string, info os.FileInfo, err error) error {
+ 		if strings.HasSuffix(path, "foo2") {
+ 			sawFoo2 = true
+ 		}
+@@ -536,8 +536,20 @@ func TestWalkSkipDirOnFile(t *testing.T) {
+ 			return filepath.SkipDir
+ 		}
+ 		return nil
+-	})
++	}
+ 
++	err = filepath.Walk(td, walker)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if sawFoo2 {
++		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
++	}
++
++	err = filepath.Walk(filepath.Join(td, "dir"), walker)
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	if sawFoo2 {
+ 		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+ 	}
+@@ -1203,7 +1215,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 	ken := filepath.Join(root, "ken")
+ 	seenBugs := false
+ 	seenKen := false
+-	filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
++	err = filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -1220,6 +1232,9 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 		}
+ 		return nil
+ 	})
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	if !seenKen {
+ 		t.Fatalf("%q not seen", ken)
+ 	}

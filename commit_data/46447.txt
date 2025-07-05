@@ -12,6 +12,20 @@ Date:   Wed Dec 30 15:49:06 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/pkg_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/pkg_test.go b/misc/cgo/test/pkg_test.go
+index a28ad4ea74..94abaa03e8 100644
+--- a/misc/cgo/test/pkg_test.go
++++ b/misc/cgo/test/pkg_test.go
+@@ -30,7 +30,7 @@ func TestCrossPackageTests(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android":
+ 		t.Skip("Can't exec cmd/go subprocess on Android.")
+-	case "darwin", "ios":
++	case "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			t.Skip("Can't exec cmd/go subprocess on iOS.")

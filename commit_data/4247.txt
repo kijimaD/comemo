@@ -10,7 +10,7 @@ Date:   Mon Nov 30 13:55:09 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/161060
-
+---
  src/pkg/expvar/expvar_test.go |  18 ++-
  src/pkg/json/Makefile         |   3 +-
  src/pkg/json/decode.go        | 107 +++++++++++++
@@ -19,3 +19,758 @@ Date:   Mon Nov 30 13:55:09 2009 -0800
  src/pkg/json/generic.go       | 338 ------------------------------------------
  src/pkg/json/generic_test.go  |  80 ----------
  7 files changed, 271 insertions(+), 427 deletions(-)
+
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index cbbb2cbefe..e64bdc2cc4 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -61,18 +61,20 @@ func TestMapCounter(t *testing.T) {
+ 	// colours.String() should be '{"red":3, "blue":4}',
+ 	// though the order of red and blue could vary.
+ 	s := colours.String();
+-	j, ok, errtok := json.StringToJson(s);
+-	if !ok {
+-		t.Errorf("colours.String() isn't valid JSON: %v", errtok)
++	j, err := json.Decode(s);
++	if err != nil {
++		t.Errorf("colours.String() isn't valid JSON: %v", err)
+ 	}
+-	if j.Kind() != json.MapKind {
++	m, ok := j.(map[string]interface{});
++	if !ok {
+ 		t.Error("colours.String() didn't produce a map.")
+ 	}
+-	red := j.Get("red");
+-	if red.Kind() != json.NumberKind {
+-		t.Error("red.Kind() is not a NumberKind.")
++	red := m["red"];
++	x, ok := red.(float64);
++	if !ok {
++		t.Error("red.Kind() is not a number.")
+ 	}
+-	if x := red.Number(); x != 3 {
++	if x != 3 {
+ 		t.Error("red = %v, want 3", x)
+ 	}
+ }
+diff --git a/src/pkg/json/Makefile b/src/pkg/json/Makefile
+index 1adeff721a..1f7f9b4e90 100644
+--- a/src/pkg/json/Makefile
++++ b/src/pkg/json/Makefile
+@@ -6,7 +6,8 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=json
+ GOFILES=\
+-	generic.go\
++	decode.go\
++	error.go\
+ 	parse.go\
+ 	struct.go\
+ 
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+new file mode 100644
+index 0000000000..55659a82e0
+--- /dev/null
++++ b/src/pkg/json/decode.go
+@@ -0,0 +1,107 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Represents JSON data structure using native Go types: booleans, floats,
++// strings, arrays, and maps.
++
++package json
++
++import (
++	"container/vector";
++	"os";
++)
++
++// Decode a JSON string
++
++// Decode parses the string s as a JSON-syntax string and returns the
++// generic JSON object representation.  The object representation is a tree
++// of Go data types.  The data return value may be one of float64, string,
++// bool, nil, []interface{} or map[string]interface{}.  The array and map
++// elements may in turn contain any of the types listed above and so on.
++
++// If Decode encounters a syntax error, it returns with err set to an
++// instance of ParseError.  See ParseError documentation for details.
++func Decode(s string) (data interface{}, err os.Error) {
++	jb := newDecoder(nil, nil);
++	ok, errPos, errTok := Parse(s, jb);
++	if ok {
++		data = jb.Data()
++	} else {
++		err = &ParseError{Index: errPos, Token: errTok}
++	}
++	return;
++}
++
++type decoder struct {
++	// A value being constructed.
++	value	interface{};
++	// Container entity to flush into.  Can be either vector.Vector or
++	// map[string]interface{}.
++	container	interface{};
++	// The index into the container interface.  Either int or string.
++	index	interface{};
++}
++
++func newDecoder(container interface{}, key interface{}) *decoder {
++	return &decoder{container: container, index: key}
++}
++
++func (j *decoder) Int64(i int64)	{ j.value = float64(i) }
++
++func (j *decoder) Uint64(i uint64)	{ j.value = float64(i) }
++
++func (j *decoder) Float64(f float64) {
++	j.value = float64(f)
++}
++
++func (j *decoder) String(s string)	{ j.value = s }
++
++func (j *decoder) Bool(b bool)	{ j.value = b }
++
++func (j *decoder) Null()	{ j.value = nil }
++
++func (j *decoder) Array()	{ j.value = new(vector.Vector) }
++
++func (j *decoder) Map()	{ j.value = make(map[string]interface{}) }
++
++func (j *decoder) Elem(i int) Builder {
++	v, ok := j.value.(*vector.Vector);
++	if !ok {
++		v = new(vector.Vector);
++		j.value = v;
++	}
++	if v.Len() <= i {
++		v.Resize(i+1, (i+1)*2)
++	}
++	return newDecoder(v, i);
++}
++
++func (j *decoder) Key(s string) Builder {
++	m, ok := j.value.(map[string]interface{});
++	if !ok {
++		m = make(map[string]interface{});
++		j.value = m;
++	}
++	return newDecoder(m, s);
++}
++
++func (j *decoder) Flush() {
++	switch c := j.container.(type) {
++	case *vector.Vector:
++		index := j.index.(int);
++		c.Set(index, j.Data());
++	case map[string]interface{}:
++		index := j.index.(string);
++		c[index] = j.Data();
++	}
++}
++
++// Get the value built by this builder.
++func (j *decoder) Data() interface{} {
++	switch v := j.value.(type) {
++	case *vector.Vector:
++		return v.Data()
++	}
++	return j.value;
++}
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+new file mode 100644
+index 0000000000..bab95b65aa
+--- /dev/null
++++ b/src/pkg/json/decode_test.go
+@@ -0,0 +1,133 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package json
++
++import (
++	"container/vector";
++	"reflect";
++	"testing";
++)
++
++func TestDecodeInt64(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Int64(-15);
++	assertResult(t, nb.Data(), float64(-15));
++}
++
++func TestDecodeUint64(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Uint64(15);
++	assertResult(t, nb.Data(), float64(15));
++}
++
++func TestDecodeFloat64(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Float64(3.14159);
++	assertResult(t, nb.Data(), float64(3.14159));
++}
++
++func TestDecodeString(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.String("Some string");
++	assertResult(t, nb.Data(), "Some string");
++}
++
++func TestDecodeBool(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Bool(true);
++	assertResult(t, nb.Data(), true);
++}
++
++func TestDecodeNull(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Null();
++	assertResult(t, nb.Data(), nil);
++}
++
++func TestDecodeEmptyArray(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Array();
++	assertResult(t, nb.Data(), []interface{}{});
++}
++
++func TestDecodeEmptyMap(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Map();
++	assertResult(t, nb.Data(), map[string]interface{}{});
++}
++
++func TestDecodeFlushElem(t *testing.T) {
++	testVec := new(vector.Vector).Resize(2, 2);
++	nb := newDecoder(testVec, 1);
++	nb.Float64(3.14159);
++	nb.Flush();
++	assertResult(t, testVec.Data(), []interface{}{nil, float64(3.14159)});
++}
++
++func TestDecodeFlushKey(t *testing.T) {
++	testMap := make(map[string]interface{});
++	nb := newDecoder(testMap, "key");
++	nb.Float64(3.14159);
++	nb.Flush();
++	assertResult(t, testMap, map[string]interface{}{"key": float64(3.14159)});
++}
++
++// Elem() and Key() are hard to test in isolation because all they do
++// is create a new, properly initialized, decoder, and modify state of
++// the underlying decoder.  I'm testing them through already tested
++// Array(), String(), and Flush().
++
++func TestDecodeElem(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Array();
++	var b Builder = nb.Elem(0);
++	b.String("0");
++	b.Flush();
++	assertResult(t, nb.Data(), []interface{}{"0"});
++}
++
++func TestDecodeKey(t *testing.T) {
++	nb := newDecoder(nil, nil);
++	nb.Map();
++	var b Builder = nb.Key("a");
++	b.String("0");
++	b.Flush();
++	assertResult(t, nb.Data(), map[string]interface{}{"a": "0"});
++}
++
++func assertResult(t *testing.T, results, expected interface{}) {
++	if !reflect.DeepEqual(results, expected) {
++		t.Fatalf("have %T(%#v) want %T(%#v)", results, results, expected, expected)
++	}
++}
++
++type decodeTest struct {
++	s string;
++	r interface{};
++}
++
++var tests = []decodeTest{
++	decodeTest{`null`, nil},
++	decodeTest{`true`, true},
++	decodeTest{`false`, false},
++	decodeTest{`"abc"`, "abc"},
++	decodeTest{`123`, float64(123)},
++	decodeTest{`0.1`, float64(0.1)},
++	decodeTest{`1e-10`, float64(1e-10)},
++	decodeTest{`[]`, []interface{}{}},
++	decodeTest{`[1,2,3,4]`, []interface{}{float64(1), float64(2), float64(3), float64(4)}},
++	decodeTest{`[1,2,"abc",null,true,false]`, []interface{}{float64(1), float64(2), "abc", nil, true, false}},
++	decodeTest{`{}`, map[string]interface{}{}},
++	decodeTest{`{"a":1}`, map[string]interface{}{"a": float64(1)}},
++	decodeTest{`"q\u0302"`, "q\u0302"},
++}
++
++func TestDecode(t *testing.T) {
++	for _, test := range tests {
++		if val, err := Decode(test.s); err != nil || !reflect.DeepEqual(val, test.r) {
++			t.Errorf("Decode(%#q) = %v, %v want %v, nil", test.s, val, err, test.r)
++		}
++	}
++}
+diff --git a/src/pkg/json/error.go b/src/pkg/json/error.go
+new file mode 100644
+index 0000000000..aa5b962aea
+--- /dev/null
++++ b/src/pkg/json/error.go
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package json
++
++import "fmt"
++
++// ParseError aggregates information about a JSON parse error.  It is
++// compatible with the os.Error interface.
++type ParseError struct {
++	Index	int;	// A byte index in JSON string where the error occurred
++	Token	string;	// An offending token
++}
++
++// Produce a string representation of this ParseError.
++func (pe *ParseError) String() string {
++	return fmt.Sprintf("Unexpected JSON token at position %d: %q.", pe.Index, pe.Token)
++}
+diff --git a/src/pkg/json/generic.go b/src/pkg/json/generic.go
+deleted file mode 100644
+index 860d9995f6..0000000000
+--- a/src/pkg/json/generic.go
++++ /dev/null
+@@ -1,338 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Generic representation of JSON objects.
+-
+-package json
+-
+-import (
+-	"container/vector";
+-	"fmt";
+-	"math";
+-	"strconv";
+-	"strings";
+-)
+-
+-// Integers identifying the data type in the Json interface.
+-const (
+-	StringKind	= iota;
+-	NumberKind;
+-	MapKind;	// JSON term is "Object", but in Go, it's a map
+-	ArrayKind;
+-	BoolKind;
+-	NullKind;
+-)
+-
+-// The Json interface is implemented by all JSON objects.
+-type Json interface {
+-	Kind() int;		// StringKind, NumberKind, etc.
+-	String() string;	// a string form (any kind)
+-	Number() float64;	// numeric form (NumberKind)
+-	Bool() bool;		// boolean (BoolKind)
+-	Get(s string) Json;	// field lookup (MapKind)
+-	Elem(i int) Json;	// element lookup (ArrayKind)
+-	Len() int;		// length (ArrayKind, MapKind)
+-	Map() map[string]Json;	// map form (MapKind)
+-}
+-
+-// JsonToString returns the textual JSON syntax representation
+-// for the JSON object j.
+-//
+-// JsonToString differs from j.String() in the handling
+-// of string objects.  If j represents the string abc,
+-// j.String() == `abc`, but JsonToString(j) == `"abc"`.
+-func JsonToString(j Json) string {
+-	if j == nil {
+-		return "null"
+-	}
+-	if j.Kind() == StringKind {
+-		return Quote(j.String())
+-	}
+-	return j.String();
+-}
+-
+-type _Null struct{}
+-
+-// Null is the JSON object representing the null data object.
+-var Null Json = &_Null{}
+-
+-func (*_Null) Kind() int		{ return NullKind }
+-func (*_Null) String() string		{ return "null" }
+-func (*_Null) Number() float64		{ return 0 }
+-func (*_Null) Bool() bool		{ return false }
+-func (*_Null) Get(s string) Json	{ return Null }
+-func (*_Null) Elem(int) Json		{ return Null }
+-func (*_Null) Len() int			{ return 0 }
+-func (*_Null) Map() map[string]Json	{ return nil }
+-
+-type _String struct {
+-	s	string;
+-	_Null;
+-}
+-
+-func (j *_String) Kind() int		{ return StringKind }
+-func (j *_String) String() string	{ return j.s }
+-
+-type _Number struct {
+-	f	float64;
+-	_Null;
+-}
+-
+-func (j *_Number) Kind() int		{ return NumberKind }
+-func (j *_Number) Number() float64	{ return j.f }
+-func (j *_Number) String() string {
+-	if math.Floor(j.f) == j.f {
+-		return fmt.Sprintf("%.0f", j.f)
+-	}
+-	return fmt.Sprintf("%g", j.f);
+-}
+-
+-type _Array struct {
+-	a	*vector.Vector;
+-	_Null;
+-}
+-
+-func (j *_Array) Kind() int	{ return ArrayKind }
+-func (j *_Array) Len() int	{ return j.a.Len() }
+-func (j *_Array) Elem(i int) Json {
+-	if i < 0 || i >= j.a.Len() {
+-		return Null
+-	}
+-	return j.a.At(i).(Json);
+-}
+-func (j *_Array) String() string {
+-	s := "[";
+-	for i := 0; i < j.a.Len(); i++ {
+-		if i > 0 {
+-			s += ","
+-		}
+-		s += JsonToString(j.a.At(i).(Json));
+-	}
+-	s += "]";
+-	return s;
+-}
+-
+-type _Bool struct {
+-	b	bool;
+-	_Null;
+-}
+-
+-func (j *_Bool) Kind() int	{ return BoolKind }
+-func (j *_Bool) Bool() bool	{ return j.b }
+-func (j *_Bool) String() string {
+-	if j.b {
+-		return "true"
+-	}
+-	return "false";
+-}
+-
+-type _Map struct {
+-	m	map[string]Json;
+-	_Null;
+-}
+-
+-func (j *_Map) Kind() int	{ return MapKind }
+-func (j *_Map) Len() int	{ return len(j.m) }
+-func (j *_Map) Get(s string) Json {
+-	if j.m == nil {
+-		return Null
+-	}
+-	v, ok := j.m[s];
+-	if !ok {
+-		return Null
+-	}
+-	return v;
+-}
+-func (j *_Map) String() string {
+-	s := "{";
+-	first := true;
+-	for k, v := range j.m {
+-		if first {
+-			first = false
+-		} else {
+-			s += ","
+-		}
+-		s += Quote(k);
+-		s += ":";
+-		s += JsonToString(v);
+-	}
+-	s += "}";
+-	return s;
+-}
+-func (j *_Map) Map() map[string]Json	{ return j.m }
+-
+-// Walk evaluates path relative to the JSON object j.
+-// Path is taken as a sequence of slash-separated field names
+-// or numbers that can be used to index into JSON map and
+-// array objects.
+-//
+-// For example, if j is the JSON object for
+-// {"abc": [true, false]}, then Walk(j, "abc/1") returns the
+-// JSON object for true.
+-func Walk(j Json, path string) Json {
+-	for len(path) > 0 {
+-		var elem string;
+-		if i := strings.Index(path, "/"); i >= 0 {
+-			elem = path[0:i];
+-			path = path[i+1:];
+-		} else {
+-			elem = path;
+-			path = "";
+-		}
+-		switch j.Kind() {
+-		case ArrayKind:
+-			indx, err := strconv.Atoi(elem);
+-			if err != nil {
+-				return Null
+-			}
+-			j = j.Elem(indx);
+-		case MapKind:
+-			j = j.Get(elem)
+-		default:
+-			return Null
+-		}
+-	}
+-	return j;
+-}
+-
+-// Equal returns whether a and b are indistinguishable JSON objects.
+-func Equal(a, b Json) bool {
+-	switch {
+-	case a == nil && b == nil:
+-		return true
+-	case a == nil || b == nil:
+-		return false
+-	case a.Kind() != b.Kind():
+-		return false
+-	}
+-
+-	switch a.Kind() {
+-	case NullKind:
+-		return true
+-	case StringKind:
+-		return a.String() == b.String()
+-	case NumberKind:
+-		return a.Number() == b.Number()
+-	case BoolKind:
+-		return a.Bool() == b.Bool()
+-	case ArrayKind:
+-		if a.Len() != b.Len() {
+-			return false
+-		}
+-		for i := 0; i < a.Len(); i++ {
+-			if !Equal(a.Elem(i), b.Elem(i)) {
+-				return false
+-			}
+-		}
+-		return true;
+-	case MapKind:
+-		m := a.(*_Map).m;
+-		if len(m) != len(b.(*_Map).m) {
+-			return false
+-		}
+-		for k, v := range m {
+-			if !Equal(v, b.Get(k)) {
+-				return false
+-			}
+-		}
+-		return true;
+-	}
+-
+-	// invalid kind
+-	return false;
+-}
+-
+-
+-// Parse builder for JSON objects.
+-
+-type _JsonBuilder struct {
+-	// either writing to *ptr
+-	ptr	*Json;
+-
+-	// or to a[i] (can't set ptr = &a[i])
+-	a	*vector.Vector;
+-	i	int;
+-
+-	// or to m[k] (can't set ptr = &m[k])
+-	m	map[string]Json;
+-	k	string;
+-}
+-
+-func (b *_JsonBuilder) Put(j Json) {
+-	switch {
+-	case b.ptr != nil:
+-		*b.ptr = j
+-	case b.a != nil:
+-		b.a.Set(b.i, j)
+-	case b.m != nil:
+-		b.m[b.k] = j
+-	}
+-}
+-
+-func (b *_JsonBuilder) Get() Json {
+-	switch {
+-	case b.ptr != nil:
+-		return *b.ptr
+-	case b.a != nil:
+-		return b.a.At(b.i).(Json)
+-	case b.m != nil:
+-		return b.m[b.k]
+-	}
+-	return nil;
+-}
+-
+-func (b *_JsonBuilder) Float64(f float64)	{ b.Put(&_Number{f, _Null{}}) }
+-
+-func (b *_JsonBuilder) Int64(i int64)	{ b.Float64(float64(i)) }
+-
+-func (b *_JsonBuilder) Uint64(i uint64)	{ b.Float64(float64(i)) }
+-
+-func (b *_JsonBuilder) Bool(tf bool)	{ b.Put(&_Bool{tf, _Null{}}) }
+-
+-func (b *_JsonBuilder) Null()	{ b.Put(Null) }
+-
+-func (b *_JsonBuilder) String(s string)	{ b.Put(&_String{s, _Null{}}) }
+-
+-
+-func (b *_JsonBuilder) Array()	{ b.Put(&_Array{new(vector.Vector), _Null{}}) }
+-
+-func (b *_JsonBuilder) Map()	{ b.Put(&_Map{make(map[string]Json), _Null{}}) }
+-
+-func (b *_JsonBuilder) Elem(i int) Builder {
+-	bb := new(_JsonBuilder);
+-	bb.a = b.Get().(*_Array).a;
+-	bb.i = i;
+-	for i >= bb.a.Len() {
+-		bb.a.Push(Null)
+-	}
+-	return bb;
+-}
+-
+-func (b *_JsonBuilder) Key(k string) Builder {
+-	bb := new(_JsonBuilder);
+-	bb.m = b.Get().(*_Map).m;
+-	bb.k = k;
+-	bb.m[k] = Null;
+-	return bb;
+-}
+-
+-func (b *_JsonBuilder) Flush()	{}
+-
+-// StringToJson parses the string s as a JSON-syntax string
+-// and returns the generic JSON object representation.
+-// On success, StringToJson returns with ok set to true and errtok empty.
+-// If StringToJson encounters a syntax error, it returns with
+-// ok set to false and errtok set to a fragment of the offending syntax.
+-func StringToJson(s string) (json Json, ok bool, errtok string) {
+-	var j Json;
+-	b := new(_JsonBuilder);
+-	b.ptr = &j;
+-	ok, _, errtok = Parse(s, b);
+-	if !ok {
+-		return nil, false, errtok
+-	}
+-	return j, true, "";
+-}
+-
+-// BUG(rsc): StringToJson should return an os.Error instead of a bool.
+diff --git a/src/pkg/json/generic_test.go b/src/pkg/json/generic_test.go
+deleted file mode 100644
+index 5b660f268f..0000000000
+--- a/src/pkg/json/generic_test.go
++++ /dev/null
+@@ -1,80 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package json
+-
+-import (
+-	"reflect";
+-	"testing";
+-)
+-
+-var jsontests = []string{
+-	`null`,
+-	`true`,
+-	`false`,
+-	`"abc"`,
+-	`123`,
+-	`0.1`,
+-	`1e-10`,
+-	`[]`,
+-	`[1,2,3,4]`,
+-	`[1,2,"abc",null,true,false]`,
+-	`{}`,
+-	`{"a":1}`,
+-	`"q\u0302"`,
+-}
+-
+-func TestJson(t *testing.T) {
+-	for i := 0; i < len(jsontests); i++ {
+-		val, ok, errtok := StringToJson(jsontests[i]);
+-		if !ok {
+-			t.Errorf("StringToJson(%#q) => error near %v", jsontests[i], errtok);
+-			continue;
+-		}
+-		str := JsonToString(val);
+-		if str != jsontests[i] {
+-			t.Errorf("JsonToString(StringToJson(%#q)) = %#q", jsontests[i], str);
+-			continue;
+-		}
+-	}
+-}
+-
+-func TestJsonMap(t *testing.T) {
+-	values := make(map[string]Json);
+-	mapstr := "{";
+-	for i := 0; i < len(jsontests); i++ {
+-		val, ok, errtok := StringToJson(jsontests[i]);
+-		if !ok {
+-			t.Errorf("StringToJson(%#q) => error near %v", jsontests[i], errtok)
+-		}
+-		if i > 0 {
+-			mapstr += ","
+-		}
+-		values[jsontests[i]] = val;
+-		mapstr += Quote(jsontests[i]);
+-		mapstr += ":";
+-		mapstr += JsonToString(val);
+-	}
+-	mapstr += "}";
+-
+-	mapv, ok, errtok := StringToJson(mapstr);
+-	if !ok {
+-		t.Fatalf("StringToJson(%#q) => error near %v", mapstr, errtok)
+-	}
+-	if mapv == nil {
+-		t.Fatalf("StringToJson(%#q) => nil, %v, %v", mapstr, ok, errtok)
+-	}
+-	if cnt := mapv.Len(); cnt != len(jsontests) {
+-		t.Errorf("StringToJson(%#q).Len() => %v, want %v", mapstr, cnt,
+-			len(jsontests))
+-	}
+-	for k, v := range values {
+-		if v1 := mapv.Get(k); !Equal(v1, v) {
+-			t.Errorf("MapTest: Walk(%#q) => %v, want %v", k, v1, v)
+-		}
+-	}
+-	if !reflect.DeepEqual(values, mapv.Map()) {
+-		t.Errorf("DeepEqual(values, mapv.Map()) failed")
+-	}
+-}

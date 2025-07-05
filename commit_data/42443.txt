@@ -15,7 +15,7 @@ Date:   Fri Dec 20 13:05:24 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/syscall/unix/fcntl_linux_32bit.go | 16 ++++++++++++++++
  src/internal/syscall/unix/nonblocking.go       |  6 +++++-
  src/runtime/export_darwin_test.go              | 13 +++++++++++++
@@ -23,3 +23,119 @@ Date:   Fri Dec 20 13:05:24 2019 -0800
  src/runtime/nbpipe_fcntl_unix_test.go          |  9 ++++++---
  src/syscall/flock_linux_32bit.go               |  7 +++++--
  6 files changed, 46 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/syscall/unix/fcntl_linux_32bit.go b/src/internal/syscall/unix/fcntl_linux_32bit.go
+new file mode 100644
+index 0000000000..6c75afc2ab
+--- /dev/null
++++ b/src/internal/syscall/unix/fcntl_linux_32bit.go
+@@ -0,0 +1,16 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// On 32-bit Linux systems, use SYS_FCNTL64.
++// If you change the build tags here, see syscall/flock_linux_32bit.go.
++
++// +build linux,386 linux,arm linux,mips linux,mipsle
++
++package unix
++
++import "syscall"
++
++func init() {
++	FcntlSyscall = syscall.SYS_FCNTL64
++}
+diff --git a/src/internal/syscall/unix/nonblocking.go b/src/internal/syscall/unix/nonblocking.go
+index bcc350b56e..545445204f 100644
+--- a/src/internal/syscall/unix/nonblocking.go
++++ b/src/internal/syscall/unix/nonblocking.go
+@@ -8,8 +8,12 @@ package unix
+ 
+ import "syscall"
+ 
++// FcntlSyscall is the number for the fcntl system call. This is
++// usually SYS_FCNTL, but can be overridden to SYS_FCNTL64.
++var FcntlSyscall uintptr = syscall.SYS_FCNTL
++
+ func IsNonblock(fd int) (nonblocking bool, err error) {
+-	flag, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(syscall.F_GETFL), 0)
++	flag, _, e1 := syscall.Syscall(FcntlSyscall, uintptr(fd), uintptr(syscall.F_GETFL), 0)
+ 	if e1 != 0 {
+ 		return false, e1
+ 	}
+diff --git a/src/runtime/export_darwin_test.go b/src/runtime/export_darwin_test.go
+new file mode 100644
+index 0000000000..e9b6eb36da
+--- /dev/null
++++ b/src/runtime/export_darwin_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
++	r := fcntl(int32(fd), int32(cmd), int32(arg))
++	if r < 0 {
++		return ^uintptr(0), uintptr(-r)
++	}
++	return uintptr(r), 0
++}
+diff --git a/src/runtime/nbpipe_fcntl_libc_test.go b/src/runtime/nbpipe_fcntl_libc_test.go
+index 70f4b8348b..b38c58399b 100644
+--- a/src/runtime/nbpipe_fcntl_libc_test.go
++++ b/src/runtime/nbpipe_fcntl_libc_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix solaris
++// +build aix darwin solaris
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/nbpipe_fcntl_unix_test.go b/src/runtime/nbpipe_fcntl_unix_test.go
+index 06b3275f06..75acdb62dd 100644
+--- a/src/runtime/nbpipe_fcntl_unix_test.go
++++ b/src/runtime/nbpipe_fcntl_unix_test.go
+@@ -2,13 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package runtime_test
+ 
+-import "syscall"
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
+ 
+ func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
+-	res, _, err := syscall.Syscall(syscall.SYS_FCNTL, fd, uintptr(cmd), arg)
++	res, _, err := syscall.Syscall(unix.FcntlSyscall, fd, uintptr(cmd), arg)
+ 	return res, err
+ }
+diff --git a/src/syscall/flock_linux_32bit.go b/src/syscall/flock_linux_32bit.go
+index e1548995b2..e11aed6ed1 100644
+--- a/src/syscall/flock_linux_32bit.go
++++ b/src/syscall/flock_linux_32bit.go
+@@ -1,9 +1,12 @@
+-// +build linux,386 linux,arm linux,mips linux,mipsle
+-
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// If you change the build tags here, see
++// internal/syscall/unix/fcntl_linux_32bit.go.
++
++// +build linux,386 linux,arm linux,mips linux,mipsle
++
+ package syscall
+ 
+ func init() {

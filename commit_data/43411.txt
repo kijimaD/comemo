@@ -11,7 +11,7 @@ Date:   Wed Apr 1 11:09:49 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226801
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/oldlink/dwarf_test.go                    |  201 ----
  src/cmd/oldlink/elf_test.go                      |  416 -------
  src/cmd/oldlink/internal/ld/dwarf_test.go        | 1365 ----------------------
@@ -24,3 +24,2932 @@ Date:   Wed Apr 1 11:09:49 2020 -0400
  src/cmd/oldlink/testdata/lib.go                  |    8 -
  src/cmd/oldlink/testdata/main.m                  |    5 -
  11 files changed, 2862 deletions(-)
+
+diff --git a/src/cmd/oldlink/dwarf_test.go b/src/cmd/oldlink/dwarf_test.go
+deleted file mode 100644
+index d4bb30399d..0000000000
+--- a/src/cmd/oldlink/dwarf_test.go
++++ /dev/null
+@@ -1,201 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	cmddwarf "cmd/internal/dwarf"
+-	"cmd/internal/objfile"
+-	"debug/dwarf"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path"
+-	"path/filepath"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) {
+-	testenv.MustHaveCGO(t)
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("go list: %v\n%s", err, out)
+-	}
+-	if string(out) != "false\n" {
+-		if os.Getenv("GOROOT_FINAL_OLD") != "" {
+-			t.Skip("cmd/link is stale, but $GOROOT_FINAL_OLD is set")
+-		}
+-		t.Fatalf("cmd/link is stale - run go install cmd/link")
+-	}
+-
+-	for _, prog := range []string{"testprog", "testprogcgo"} {
+-		prog := prog
+-		expectDWARF := expectDWARF
+-		if runtime.GOOS == "aix" && prog == "testprogcgo" {
+-			extld := os.Getenv("CC")
+-			if extld == "" {
+-				extld = "gcc"
+-			}
+-			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-
+-		}
+-
+-		t.Run(prog, func(t *testing.T) {
+-			t.Parallel()
+-
+-			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer os.RemoveAll(tmpDir)
+-
+-			exe := filepath.Join(tmpDir, prog+".exe")
+-			dir := "../../runtime/testdata/" + prog
+-			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+-			if buildmode != "" {
+-				cmd.Args = append(cmd.Args, "-buildmode", buildmode)
+-			}
+-			cmd.Args = append(cmd.Args, dir)
+-			if env != nil {
+-				env = append(env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+-				cmd.Env = append(os.Environ(), env...)
+-			}
+-			out, err := cmd.CombinedOutput()
+-			if err != nil {
+-				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
+-			}
+-
+-			if buildmode == "c-archive" {
+-				// Extract the archive and use the go.o object within.
+-				cmd := exec.Command("ar", "-x", exe)
+-				cmd.Dir = tmpDir
+-				if out, err := cmd.CombinedOutput(); err != nil {
+-					t.Fatalf("ar -x %s: %v\n%s", exe, err, out)
+-				}
+-				exe = filepath.Join(tmpDir, "go.o")
+-			}
+-
+-			if runtime.GOOS == "darwin" {
+-				if _, err = exec.LookPath("symbols"); err == nil {
+-					// Ensure Apple's tooling can parse our object for symbols.
+-					out, err = exec.Command("symbols", exe).CombinedOutput()
+-					if err != nil {
+-						t.Fatalf("symbols %v: %v: %s", filepath.Base(exe), err, out)
+-					} else {
+-						if bytes.HasPrefix(out, []byte("Unable to find file")) {
+-							// This failure will cause the App Store to reject our binaries.
+-							t.Fatalf("symbols %v: failed to parse file", filepath.Base(exe))
+-						} else if bytes.Contains(out, []byte(", Empty]")) {
+-							t.Fatalf("symbols %v: parsed as empty", filepath.Base(exe))
+-						}
+-					}
+-				}
+-			}
+-
+-			f, err := objfile.Open(exe)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer f.Close()
+-
+-			syms, err := f.Symbols()
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-
+-			var addr uint64
+-			for _, sym := range syms {
+-				if sym.Name == "main.main" {
+-					addr = sym.Addr
+-					break
+-				}
+-			}
+-			if addr == 0 {
+-				t.Fatal("cannot find main.main in symbols")
+-			}
+-
+-			d, err := f.DWARF()
+-			if err != nil {
+-				if expectDWARF {
+-					t.Fatal(err)
+-				}
+-				return
+-			} else {
+-				if !expectDWARF {
+-					t.Fatal("unexpected DWARF section")
+-				}
+-			}
+-
+-			// TODO: We'd like to use filepath.Join here.
+-			// Also related: golang.org/issue/19784.
+-			wantFile := path.Join(prog, "main.go")
+-			wantLine := 24
+-			r := d.Reader()
+-			entry, err := r.SeekPC(addr)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			lr, err := d.LineReader(entry)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			var line dwarf.LineEntry
+-			if err := lr.SeekPC(addr, &line); err == dwarf.ErrUnknownPC {
+-				t.Fatalf("did not find file:line for %#x (main.main)", addr)
+-			} else if err != nil {
+-				t.Fatal(err)
+-			}
+-			if !strings.HasSuffix(line.File.Name, wantFile) || line.Line != wantLine {
+-				t.Errorf("%#x is %s:%d, want %s:%d", addr, line.File.Name, line.Line, filepath.Join("...", wantFile), wantLine)
+-			}
+-		})
+-	}
+-}
+-
+-func TestDWARF(t *testing.T) {
+-	testDWARF(t, "", true)
+-	if !testing.Short() {
+-		if runtime.GOOS == "windows" {
+-			t.Skip("skipping Windows/c-archive; see Issue 35512 for more.")
+-		}
+-		t.Run("c-archive", func(t *testing.T) {
+-			testDWARF(t, "c-archive", true)
+-		})
+-	}
+-}
+-
+-func TestDWARFiOS(t *testing.T) {
+-	// Normally we run TestDWARF on native platform. But on iOS we don't have
+-	// go build, so we do this test with a cross build.
+-	// Only run this on darwin/amd64, where we can cross build for iOS.
+-	if testing.Short() {
+-		t.Skip("skipping in short mode")
+-	}
+-	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
+-		t.Skip("skipping on non-darwin/amd64 platform")
+-	}
+-	if err := exec.Command("xcrun", "--help").Run(); err != nil {
+-		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+-	}
+-	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
+-	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
+-	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+-	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+-	// However, c-archive iOS objects have embedded DWARF.
+-	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+-	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+-}
+diff --git a/src/cmd/oldlink/elf_test.go b/src/cmd/oldlink/elf_test.go
+deleted file mode 100644
+index 2fb4dd8aaf..0000000000
+--- a/src/cmd/oldlink/elf_test.go
++++ /dev/null
+@@ -1,416 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build dragonfly freebsd linux netbsd openbsd
+-
+-package main
+-
+-import (
+-	"cmd/internal/sys"
+-	"debug/elf"
+-	"fmt"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"strings"
+-	"sync"
+-	"testing"
+-	"text/template"
+-)
+-
+-func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
+-	goTool := testenv.GoToolPath(t)
+-	cmd := exec.Command(goTool, "env", "CC")
+-	cmd.Env = env
+-	ccb, err := cmd.Output()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	cc := strings.TrimSpace(string(ccb))
+-
+-	cmd = exec.Command(goTool, "env", "GOGCCFLAGS")
+-	cmd.Env = env
+-	cflagsb, err := cmd.Output()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	cflags := strings.Fields(string(cflagsb))
+-
+-	return cc, cflags
+-}
+-
+-var asmSource = `
+-	.section .text1,"ax"
+-s1:
+-	.byte 0
+-	.section .text2,"ax"
+-s2:
+-	.byte 0
+-`
+-
+-var goSource = `
+-package main
+-func main() {}
+-`
+-
+-// The linker used to crash if an ELF input file had multiple text sections
+-// with the same name.
+-func TestSectionsWithSameName(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-	t.Parallel()
+-
+-	objcopy, err := exec.LookPath("objcopy")
+-	if err != nil {
+-		t.Skipf("can't find objcopy: %v", err)
+-	}
+-
+-	dir, err := ioutil.TempDir("", "go-link-TestSectionsWithSameName")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	gopath := filepath.Join(dir, "GOPATH")
+-	env := append(os.Environ(), "GOPATH="+gopath)
+-
+-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	asmFile := filepath.Join(dir, "x.s")
+-	if err := ioutil.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	goTool := testenv.GoToolPath(t)
+-	cc, cflags := getCCAndCCFLAGS(t, env)
+-
+-	asmObj := filepath.Join(dir, "x.o")
+-	t.Logf("%s %v -c -o %s %s", cc, cflags, asmObj, asmFile)
+-	if out, err := exec.Command(cc, append(cflags, "-c", "-o", asmObj, asmFile)...).CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-
+-	asm2Obj := filepath.Join(dir, "x2.syso")
+-	t.Logf("%s --rename-section .text2=.text1 %s %s", objcopy, asmObj, asm2Obj)
+-	if out, err := exec.Command(objcopy, "--rename-section", ".text2=.text1", asmObj, asm2Obj).CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-
+-	for _, s := range []string{asmFile, asmObj} {
+-		if err := os.Remove(s); err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-
+-	goFile := filepath.Join(dir, "main.go")
+-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	cmd := exec.Command(goTool, "build")
+-	cmd.Dir = dir
+-	cmd.Env = env
+-	t.Logf("%s build", goTool)
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-}
+-
+-var cSources35779 = []string{`
+-static int blah() { return 42; }
+-int Cfunc1() { return blah(); }
+-`, `
+-static int blah() { return 42; }
+-int Cfunc2() { return blah(); }
+-`,
+-}
+-
+-// TestMinusRSymsWithSameName tests a corner case in the new
+-// loader. Prior to the fix this failed with the error 'loadelf:
+-// $WORK/b001/_pkg_.a(ldr.syso): duplicate symbol reference: blah in
+-// both main(.text) and main(.text)'. See issue #35779.
+-func TestMinusRSymsWithSameName(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-	t.Parallel()
+-
+-	dir, err := ioutil.TempDir("", "go-link-TestMinusRSymsWithSameName")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	gopath := filepath.Join(dir, "GOPATH")
+-	env := append(os.Environ(), "GOPATH="+gopath)
+-
+-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	goTool := testenv.GoToolPath(t)
+-	cc, cflags := getCCAndCCFLAGS(t, env)
+-
+-	objs := []string{}
+-	csrcs := []string{}
+-	for i, content := range cSources35779 {
+-		csrcFile := filepath.Join(dir, fmt.Sprintf("x%d.c", i))
+-		csrcs = append(csrcs, csrcFile)
+-		if err := ioutil.WriteFile(csrcFile, []byte(content), 0444); err != nil {
+-			t.Fatal(err)
+-		}
+-
+-		obj := filepath.Join(dir, fmt.Sprintf("x%d.o", i))
+-		objs = append(objs, obj)
+-		t.Logf("%s %v -c -o %s %s", cc, cflags, obj, csrcFile)
+-		if out, err := exec.Command(cc, append(cflags, "-c", "-o", obj, csrcFile)...).CombinedOutput(); err != nil {
+-			t.Logf("%s", out)
+-			t.Fatal(err)
+-		}
+-	}
+-
+-	sysoObj := filepath.Join(dir, "ldr.syso")
+-	t.Logf("%s %v -nostdlib -r -o %s %v", cc, cflags, sysoObj, objs)
+-	if out, err := exec.Command(cc, append(cflags, "-nostdlib", "-r", "-o", sysoObj, objs[0], objs[1])...).CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-
+-	cruft := [][]string{objs, csrcs}
+-	for _, sl := range cruft {
+-		for _, s := range sl {
+-			if err := os.Remove(s); err != nil {
+-				t.Fatal(err)
+-			}
+-		}
+-	}
+-
+-	goFile := filepath.Join(dir, "main.go")
+-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	t.Logf("%s build", goTool)
+-	cmd := exec.Command(goTool, "build")
+-	cmd.Dir = dir
+-	cmd.Env = env
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-}
+-
+-const pieSourceTemplate = `
+-package main
+-
+-import "fmt"
+-
+-// Force the creation of a lot of type descriptors that will go into
+-// the .data.rel.ro section.
+-{{range $index, $element := .}}var V{{$index}} interface{} = [{{$index}}]int{}
+-{{end}}
+-
+-func main() {
+-{{range $index, $element := .}}	fmt.Println(V{{$index}})
+-{{end}}
+-}
+-`
+-
+-func TestPIESize(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
+-		t.Skip("-buildmode=pie not supported")
+-	}
+-
+-	tmpl := template.Must(template.New("pie").Parse(pieSourceTemplate))
+-
+-	writeGo := func(t *testing.T, dir string) {
+-		f, err := os.Create(filepath.Join(dir, "pie.go"))
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-
+-		// Passing a 100-element slice here will cause
+-		// pieSourceTemplate to create 100 variables with
+-		// different types.
+-		if err := tmpl.Execute(f, make([]byte, 100)); err != nil {
+-			t.Fatal(err)
+-		}
+-
+-		if err := f.Close(); err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-
+-	for _, external := range []bool{false, true} {
+-		external := external
+-
+-		name := "TestPieSize-"
+-		if external {
+-			name += "external"
+-		} else {
+-			name += "internal"
+-		}
+-		t.Run(name, func(t *testing.T) {
+-			t.Parallel()
+-
+-			dir, err := ioutil.TempDir("", "go-link-"+name)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer os.RemoveAll(dir)
+-
+-			writeGo(t, dir)
+-
+-			binexe := filepath.Join(dir, "exe")
+-			binpie := filepath.Join(dir, "pie")
+-			if external {
+-				binexe += "external"
+-				binpie += "external"
+-			}
+-
+-			build := func(bin, mode string) error {
+-				cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
+-				if external {
+-					cmd.Args = append(cmd.Args, "-ldflags=-linkmode=external")
+-				}
+-				cmd.Args = append(cmd.Args, "pie.go")
+-				cmd.Dir = dir
+-				t.Logf("%v", cmd.Args)
+-				out, err := cmd.CombinedOutput()
+-				if len(out) > 0 {
+-					t.Logf("%s", out)
+-				}
+-				if err != nil {
+-					t.Error(err)
+-				}
+-				return err
+-			}
+-
+-			var errexe, errpie error
+-			var wg sync.WaitGroup
+-			wg.Add(2)
+-			go func() {
+-				defer wg.Done()
+-				errexe = build(binexe, "exe")
+-			}()
+-			go func() {
+-				defer wg.Done()
+-				errpie = build(binpie, "pie")
+-			}()
+-			wg.Wait()
+-			if errexe != nil || errpie != nil {
+-				t.Fatal("link failed")
+-			}
+-
+-			var sizeexe, sizepie uint64
+-			if fi, err := os.Stat(binexe); err != nil {
+-				t.Fatal(err)
+-			} else {
+-				sizeexe = uint64(fi.Size())
+-			}
+-			if fi, err := os.Stat(binpie); err != nil {
+-				t.Fatal(err)
+-			} else {
+-				sizepie = uint64(fi.Size())
+-			}
+-
+-			elfexe, err := elf.Open(binexe)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer elfexe.Close()
+-
+-			elfpie, err := elf.Open(binpie)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer elfpie.Close()
+-
+-			// The difference in size between exe and PIE
+-			// should be approximately the difference in
+-			// size of the .text section plus the size of
+-			// the PIE dynamic data sections plus the
+-			// difference in size of the .got and .plt
+-			// sections if they exist.
+-			// We ignore unallocated sections.
+-			// There may be gaps between non-writeable and
+-			// writable PT_LOAD segments. We also skip those
+-			// gaps (see issue #36023).
+-
+-			textsize := func(ef *elf.File, name string) uint64 {
+-				for _, s := range ef.Sections {
+-					if s.Name == ".text" {
+-						return s.Size
+-					}
+-				}
+-				t.Fatalf("%s: no .text section", name)
+-				return 0
+-			}
+-			textexe := textsize(elfexe, binexe)
+-			textpie := textsize(elfpie, binpie)
+-
+-			dynsize := func(ef *elf.File) uint64 {
+-				var ret uint64
+-				for _, s := range ef.Sections {
+-					if s.Flags&elf.SHF_ALLOC == 0 {
+-						continue
+-					}
+-					switch s.Type {
+-					case elf.SHT_DYNSYM, elf.SHT_STRTAB, elf.SHT_REL, elf.SHT_RELA, elf.SHT_HASH, elf.SHT_GNU_HASH, elf.SHT_GNU_VERDEF, elf.SHT_GNU_VERNEED, elf.SHT_GNU_VERSYM:
+-						ret += s.Size
+-					}
+-					if s.Flags&elf.SHF_WRITE != 0 && (strings.Contains(s.Name, ".got") || strings.Contains(s.Name, ".plt")) {
+-						ret += s.Size
+-					}
+-				}
+-				return ret
+-			}
+-
+-			dynexe := dynsize(elfexe)
+-			dynpie := dynsize(elfpie)
+-
+-			extrasize := func(ef *elf.File) uint64 {
+-				var ret uint64
+-				// skip unallocated sections
+-				for _, s := range ef.Sections {
+-					if s.Flags&elf.SHF_ALLOC == 0 {
+-						ret += s.Size
+-					}
+-				}
+-				// also skip gaps between PT_LOAD segments
+-				var prev *elf.Prog
+-				for _, seg := range ef.Progs {
+-					if seg.Type != elf.PT_LOAD {
+-						continue
+-					}
+-					if prev != nil {
+-						ret += seg.Off - prev.Off - prev.Filesz
+-					}
+-					prev = seg
+-				}
+-				return ret
+-			}
+-
+-			extraexe := extrasize(elfexe)
+-			extrapie := extrasize(elfpie)
+-
+-			diffReal := (sizepie - extrapie) - (sizeexe - extraexe)
+-			diffExpected := (textpie + dynpie) - (textexe + dynexe)
+-
+-			t.Logf("real size difference %#x, expected %#x", diffReal, diffExpected)
+-
+-			if diffReal > (diffExpected + diffExpected/10) {
+-				t.Errorf("PIE unexpectedly large: got difference of %d (%d - %d), expected difference %d", diffReal, sizepie, sizeexe, diffExpected)
+-			}
+-		})
+-	}
+-}
+diff --git a/src/cmd/oldlink/internal/ld/dwarf_test.go b/src/cmd/oldlink/internal/ld/dwarf_test.go
+deleted file mode 100644
+index cf6bec8053..0000000000
+--- a/src/cmd/oldlink/internal/ld/dwarf_test.go
++++ /dev/null
+@@ -1,1365 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	intdwarf "cmd/internal/dwarf"
+-	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+-	"debug/dwarf"
+-	"debug/pe"
+-	"errors"
+-	"fmt"
+-	"internal/testenv"
+-	"io"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"reflect"
+-	"runtime"
+-	"strconv"
+-	"strings"
+-	"testing"
+-)
+-
+-const (
+-	DefaultOpt = "-gcflags="
+-	NoOpt      = "-gcflags=-l -N"
+-	OptInl4    = "-gcflags=-l=4"
+-	OptAllInl4 = "-gcflags=all=-l=4"
+-)
+-
+-func TestRuntimeTypesPresent(t *testing.T) {
+-	t.Parallel()
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	dir, err := ioutil.TempDir("", "TestRuntimeTypesPresent")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	f := gobuild(t, dir, `package main; func main() { }`, NoOpt)
+-	defer f.Close()
+-
+-	dwarf, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	want := map[string]bool{
+-		"runtime._type":         true,
+-		"runtime.arraytype":     true,
+-		"runtime.chantype":      true,
+-		"runtime.functype":      true,
+-		"runtime.maptype":       true,
+-		"runtime.ptrtype":       true,
+-		"runtime.slicetype":     true,
+-		"runtime.structtype":    true,
+-		"runtime.interfacetype": true,
+-		"runtime.itab":          true,
+-		"runtime.imethod":       true,
+-	}
+-
+-	found := findTypes(t, dwarf, want)
+-	if len(found) != len(want) {
+-		t.Errorf("found %v, want %v", found, want)
+-	}
+-}
+-
+-func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[string]bool) {
+-	found = make(map[string]bool)
+-	rdr := dw.Reader()
+-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+-		if err != nil {
+-			t.Fatalf("error reading DWARF: %v", err)
+-		}
+-		switch entry.Tag {
+-		case dwarf.TagTypedef:
+-			if name, ok := entry.Val(dwarf.AttrName).(string); ok && want[name] {
+-				found[name] = true
+-			}
+-		}
+-	}
+-	return
+-}
+-
+-type builtFile struct {
+-	*objfilepkg.File
+-	path string
+-}
+-
+-func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFile {
+-	src := filepath.Join(dir, "test.go")
+-	dst := filepath.Join(dir, "out.exe")
+-
+-	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+-	if b, err := cmd.CombinedOutput(); err != nil {
+-		t.Logf("build: %s\n", b)
+-		t.Fatalf("build error: %v", err)
+-	}
+-
+-	f, err := objfilepkg.Open(dst)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return &builtFile{f, dst}
+-}
+-
+-// Similar to gobuild() above, but uses a main package instead of a test.go file.
+-
+-func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *builtFile {
+-	dst := filepath.Join(tdir, "out.exe")
+-
+-	// Run a build with an updated GOPATH
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst)
+-	cmd.Dir = pkgDir
+-	if b, err := cmd.CombinedOutput(); err != nil {
+-		t.Logf("build: %s\n", b)
+-		t.Fatalf("build error: %v", err)
+-	}
+-
+-	f, err := objfilepkg.Open(dst)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return &builtFile{f, dst}
+-}
+-
+-func TestEmbeddedStructMarker(t *testing.T) {
+-	t.Parallel()
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	const prog = `
+-package main
+-
+-import "fmt"
+-
+-type Foo struct { v int }
+-type Bar struct {
+-	Foo
+-	name string
+-}
+-type Baz struct {
+-	*Foo
+-	name string
+-}
+-
+-func main() {
+-	bar := Bar{ Foo: Foo{v: 123}, name: "onetwothree"}
+-	baz := Baz{ Foo: &bar.Foo, name: "123" }
+-	fmt.Println(bar, baz)
+-}`
+-
+-	want := map[string]map[string]bool{
+-		"main.Foo": {"v": false},
+-		"main.Bar": {"Foo": true, "name": false},
+-		"main.Baz": {"Foo": true, "name": false},
+-	}
+-
+-	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	f := gobuild(t, dir, prog, NoOpt)
+-
+-	defer f.Close()
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	rdr := d.Reader()
+-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+-		if err != nil {
+-			t.Fatalf("error reading DWARF: %v", err)
+-		}
+-		switch entry.Tag {
+-		case dwarf.TagStructType:
+-			name := entry.Val(dwarf.AttrName).(string)
+-			wantMembers := want[name]
+-			if wantMembers == nil {
+-				continue
+-			}
+-			gotMembers, err := findMembers(rdr)
+-			if err != nil {
+-				t.Fatalf("error reading DWARF: %v", err)
+-			}
+-
+-			if !reflect.DeepEqual(gotMembers, wantMembers) {
+-				t.Errorf("type %v: got map[member]embedded = %+v, want %+v", name, wantMembers, gotMembers)
+-			}
+-			delete(want, name)
+-		}
+-	}
+-	if len(want) != 0 {
+-		t.Errorf("failed to check all expected types: missing types = %+v", want)
+-	}
+-}
+-
+-func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
+-	memberEmbedded := map[string]bool{}
+-	// TODO(hyangah): define in debug/dwarf package
+-	const goEmbeddedStruct = dwarf.Attr(intdwarf.DW_AT_go_embedded_field)
+-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+-		if err != nil {
+-			return nil, err
+-		}
+-		switch entry.Tag {
+-		case dwarf.TagMember:
+-			name := entry.Val(dwarf.AttrName).(string)
+-			embedded := entry.Val(goEmbeddedStruct).(bool)
+-			memberEmbedded[name] = embedded
+-		case 0:
+-			return memberEmbedded, nil
+-		}
+-	}
+-	return memberEmbedded, nil
+-}
+-
+-func TestSizes(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-	t.Parallel()
+-
+-	// DWARF sizes should never be -1.
+-	// See issue #21097
+-	const prog = `
+-package main
+-var x func()
+-var y [4]func()
+-func main() {
+-	x = nil
+-	y[0] = nil
+-}
+-`
+-	dir, err := ioutil.TempDir("", "TestSizes")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-	f := gobuild(t, dir, prog, NoOpt)
+-	defer f.Close()
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-	rdr := d.Reader()
+-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+-		if err != nil {
+-			t.Fatalf("error reading DWARF: %v", err)
+-		}
+-		switch entry.Tag {
+-		case dwarf.TagArrayType, dwarf.TagPointerType, dwarf.TagStructType, dwarf.TagBaseType, dwarf.TagSubroutineType, dwarf.TagTypedef:
+-		default:
+-			continue
+-		}
+-		typ, err := d.Type(entry.Offset)
+-		if err != nil {
+-			t.Fatalf("can't read type: %v", err)
+-		}
+-		if typ.Size() < 0 {
+-			t.Errorf("subzero size %s %s %T", typ, entry.Tag, typ)
+-		}
+-	}
+-}
+-
+-func TestFieldOverlap(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-	t.Parallel()
+-
+-	// This test grew out of issue 21094, where specific sudog<T> DWARF types
+-	// had elem fields set to values instead of pointers.
+-	const prog = `
+-package main
+-
+-var c chan string
+-
+-func main() {
+-	c <- "foo"
+-}
+-`
+-	dir, err := ioutil.TempDir("", "TestFieldOverlap")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	f := gobuild(t, dir, prog, NoOpt)
+-	defer f.Close()
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	rdr := d.Reader()
+-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+-		if err != nil {
+-			t.Fatalf("error reading DWARF: %v", err)
+-		}
+-		if entry.Tag != dwarf.TagStructType {
+-			continue
+-		}
+-		typ, err := d.Type(entry.Offset)
+-		if err != nil {
+-			t.Fatalf("can't read type: %v", err)
+-		}
+-		s := typ.(*dwarf.StructType)
+-		for i := 0; i < len(s.Field); i++ {
+-			end := s.Field[i].ByteOffset + s.Field[i].Type.Size()
+-			var limit int64
+-			if i == len(s.Field)-1 {
+-				limit = s.Size()
+-			} else {
+-				limit = s.Field[i+1].ByteOffset
+-			}
+-			if end > limit {
+-				name := entry.Val(dwarf.AttrName).(string)
+-				t.Fatalf("field %s.%s overlaps next field", name, s.Field[i].Name)
+-			}
+-		}
+-	}
+-}
+-
+-func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
+-	t.Parallel()
+-
+-	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
+-
+-	dir, err := ioutil.TempDir("", testpoint)
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	f := gobuild(t, dir, prog, NoOpt)
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	rdr := d.Reader()
+-	ex := examiner{}
+-	if err := ex.populate(rdr); err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	// Locate the main.main DIE
+-	mains := ex.Named("main.main")
+-	if len(mains) == 0 {
+-		t.Fatalf("unable to locate DIE for main.main")
+-	}
+-	if len(mains) != 1 {
+-		t.Fatalf("more than one main.main DIE")
+-	}
+-	maindie := mains[0]
+-
+-	// Vet the main.main DIE
+-	if maindie.Tag != dwarf.TagSubprogram {
+-		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
+-	}
+-
+-	// Walk main's children and select variable "i".
+-	mainIdx := ex.idxFromOffset(maindie.Offset)
+-	childDies := ex.Children(mainIdx)
+-	var iEntry *dwarf.Entry
+-	for _, child := range childDies {
+-		if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
+-			iEntry = child
+-			break
+-		}
+-	}
+-	if iEntry == nil {
+-		t.Fatalf("didn't find DW_TAG_variable for i in main.main")
+-	}
+-
+-	// Verify line/file attributes.
+-	line := iEntry.Val(dwarf.AttrDeclLine)
+-	if line == nil || line.(int64) != int64(expectLine) {
+-		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine)
+-	}
+-
+-	fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
+-	if !fileIdxOK {
+-		t.Errorf("missing or invalid DW_AT_decl_file for main")
+-	}
+-	file := ex.FileRef(t, d, mainIdx, fileIdx)
+-	base := filepath.Base(file)
+-	if base != expectFile {
+-		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
+-	}
+-}
+-
+-func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", "test.go", 5, "")
+-}
+-
+-func TestVarDeclCoordsWithLineDirective(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
+-		"foobar.go", 202, "//line /foobar.go:200")
+-}
+-
+-// Helper class for supporting queries on DIEs within a DWARF .debug_info
+-// section. Invoke the populate() method below passing in a dwarf.Reader,
+-// which will read in all DIEs and keep track of parent/child
+-// relationships. Queries can then be made to ask for DIEs by name or
+-// by offset. This will hopefully reduce boilerplate for future test
+-// writing.
+-
+-type examiner struct {
+-	dies        []*dwarf.Entry
+-	idxByOffset map[dwarf.Offset]int
+-	kids        map[int][]int
+-	parent      map[int]int
+-	byname      map[string][]int
+-}
+-
+-// Populate the examiner using the DIEs read from rdr.
+-func (ex *examiner) populate(rdr *dwarf.Reader) error {
+-	ex.idxByOffset = make(map[dwarf.Offset]int)
+-	ex.kids = make(map[int][]int)
+-	ex.parent = make(map[int]int)
+-	ex.byname = make(map[string][]int)
+-	var nesting []int
+-	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+-		if err != nil {
+-			return err
+-		}
+-		if entry.Tag == 0 {
+-			// terminator
+-			if len(nesting) == 0 {
+-				return errors.New("nesting stack underflow")
+-			}
+-			nesting = nesting[:len(nesting)-1]
+-			continue
+-		}
+-		idx := len(ex.dies)
+-		ex.dies = append(ex.dies, entry)
+-		if _, found := ex.idxByOffset[entry.Offset]; found {
+-			return errors.New("DIE clash on offset")
+-		}
+-		ex.idxByOffset[entry.Offset] = idx
+-		if name, ok := entry.Val(dwarf.AttrName).(string); ok {
+-			ex.byname[name] = append(ex.byname[name], idx)
+-		}
+-		if len(nesting) > 0 {
+-			parent := nesting[len(nesting)-1]
+-			ex.kids[parent] = append(ex.kids[parent], idx)
+-			ex.parent[idx] = parent
+-		}
+-		if entry.Children {
+-			nesting = append(nesting, idx)
+-		}
+-	}
+-	if len(nesting) > 0 {
+-		return errors.New("unterminated child sequence")
+-	}
+-	return nil
+-}
+-
+-func indent(ilevel int) {
+-	for i := 0; i < ilevel; i++ {
+-		fmt.Printf("  ")
+-	}
+-}
+-
+-// For debugging new tests
+-func (ex *examiner) dumpEntry(idx int, dumpKids bool, ilevel int) error {
+-	if idx >= len(ex.dies) {
+-		msg := fmt.Sprintf("bad DIE %d: index out of range\n", idx)
+-		return errors.New(msg)
+-	}
+-	entry := ex.dies[idx]
+-	indent(ilevel)
+-	fmt.Printf("0x%x: %v\n", idx, entry.Tag)
+-	for _, f := range entry.Field {
+-		indent(ilevel)
+-		fmt.Printf("at=%v val=0x%x\n", f.Attr, f.Val)
+-	}
+-	if dumpKids {
+-		ksl := ex.kids[idx]
+-		for _, k := range ksl {
+-			ex.dumpEntry(k, true, ilevel+2)
+-		}
+-	}
+-	return nil
+-}
+-
+-// Given a DIE offset, return the previously read dwarf.Entry, or nil
+-func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
+-	if idx, found := ex.idxByOffset[off]; found && idx != -1 {
+-		return ex.entryFromIdx(idx)
+-	}
+-	return nil
+-}
+-
+-// Return the ID that examiner uses to refer to the DIE at offset off
+-func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
+-	if idx, found := ex.idxByOffset[off]; found {
+-		return idx
+-	}
+-	return -1
+-}
+-
+-// Return the dwarf.Entry pointer for the DIE with id 'idx'
+-func (ex *examiner) entryFromIdx(idx int) *dwarf.Entry {
+-	if idx >= len(ex.dies) || idx < 0 {
+-		return nil
+-	}
+-	return ex.dies[idx]
+-}
+-
+-// Returns a list of child entries for a die with ID 'idx'
+-func (ex *examiner) Children(idx int) []*dwarf.Entry {
+-	sl := ex.kids[idx]
+-	ret := make([]*dwarf.Entry, len(sl))
+-	for i, k := range sl {
+-		ret[i] = ex.entryFromIdx(k)
+-	}
+-	return ret
+-}
+-
+-// Returns parent DIE for DIE 'idx', or nil if the DIE is top level
+-func (ex *examiner) Parent(idx int) *dwarf.Entry {
+-	p, found := ex.parent[idx]
+-	if !found {
+-		return nil
+-	}
+-	return ex.entryFromIdx(p)
+-}
+-
+-// ParentCU returns the enclosing compilation unit DIE for the DIE
+-// with a given index, or nil if for some reason we can't establish a
+-// parent.
+-func (ex *examiner) ParentCU(idx int) *dwarf.Entry {
+-	for {
+-		parentDie := ex.Parent(idx)
+-		if parentDie == nil {
+-			return nil
+-		}
+-		if parentDie.Tag == dwarf.TagCompileUnit {
+-			return parentDie
+-		}
+-		idx = ex.idxFromOffset(parentDie.Offset)
+-	}
+-}
+-
+-// FileRef takes a given DIE by index and a numeric file reference
+-// (presumably from a decl_file or call_file attribute), looks up the
+-// reference in the .debug_line file table, and returns the proper
+-// string for it. We need to know which DIE is making the reference
+-// so as find the right compilation unit.
+-func (ex *examiner) FileRef(t *testing.T, dw *dwarf.Data, dieIdx int, fileRef int64) string {
+-
+-	// Find the parent compilation unit DIE for the specified DIE.
+-	cuDie := ex.ParentCU(dieIdx)
+-	if cuDie == nil {
+-		t.Fatalf("no parent CU DIE for DIE with idx %d?", dieIdx)
+-		return ""
+-	}
+-	// Construct a line reader and then use it to get the file string.
+-	lr, lrerr := dw.LineReader(cuDie)
+-	if lrerr != nil {
+-		t.Fatal("d.LineReader: ", lrerr)
+-		return ""
+-	}
+-	files := lr.Files()
+-	if fileRef < 0 || int(fileRef) > len(files)-1 {
+-		t.Fatalf("examiner.FileRef: malformed file reference %d", fileRef)
+-		return ""
+-	}
+-	return files[fileRef].Name
+-}
+-
+-// Return a list of all DIEs with name 'name'. When searching for DIEs
+-// by name, keep in mind that the returned results will include child
+-// DIEs such as params/variables. For example, asking for all DIEs named
+-// "p" for even a small program will give you 400-500 entries.
+-func (ex *examiner) Named(name string) []*dwarf.Entry {
+-	sl := ex.byname[name]
+-	ret := make([]*dwarf.Entry, len(sl))
+-	for i, k := range sl {
+-		ret[i] = ex.entryFromIdx(k)
+-	}
+-	return ret
+-}
+-
+-func TestInlinedRoutineRecords(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+-	}
+-
+-	t.Parallel()
+-
+-	const prog = `
+-package main
+-
+-var G int
+-
+-func noinline(x int) int {
+-	defer func() { G += x }()
+-	return x
+-}
+-
+-func cand(x, y int) int {
+-	return noinline(x+y) ^ (y - x)
+-}
+-
+-func main() {
+-    x := cand(G*G,G|7%G)
+-    G = x
+-}
+-`
+-	dir, err := ioutil.TempDir("", "TestInlinedRoutineRecords")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	// Note: this is a build with "-l=4", as opposed to "-l -N". The
+-	// test is intended to verify DWARF that is only generated when
+-	// the inliner is active. We're only going to look at the DWARF for
+-	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+-	// to "-gcflags=all=-l=4".
+-	f := gobuild(t, dir, prog, OptInl4)
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	// The inlined subroutines we expect to visit
+-	expectedInl := []string{"main.cand"}
+-
+-	rdr := d.Reader()
+-	ex := examiner{}
+-	if err := ex.populate(rdr); err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	// Locate the main.main DIE
+-	mains := ex.Named("main.main")
+-	if len(mains) == 0 {
+-		t.Fatalf("unable to locate DIE for main.main")
+-	}
+-	if len(mains) != 1 {
+-		t.Fatalf("more than one main.main DIE")
+-	}
+-	maindie := mains[0]
+-
+-	// Vet the main.main DIE
+-	if maindie.Tag != dwarf.TagSubprogram {
+-		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
+-	}
+-
+-	// Walk main's children and pick out the inlined subroutines
+-	mainIdx := ex.idxFromOffset(maindie.Offset)
+-	childDies := ex.Children(mainIdx)
+-	exCount := 0
+-	for _, child := range childDies {
+-		if child.Tag == dwarf.TagInlinedSubroutine {
+-			// Found an inlined subroutine, locate abstract origin.
+-			ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+-			if !originOK {
+-				t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+-			}
+-			originDIE := ex.entryFromOffset(ooff)
+-			if originDIE == nil {
+-				t.Fatalf("can't locate origin DIE at off %v", ooff)
+-			}
+-
+-			// Walk the children of the abstract subroutine. We expect
+-			// to see child variables there, even if (perhaps due to
+-			// optimization) there are no references to them from the
+-			// inlined subroutine DIE.
+-			absFcnIdx := ex.idxFromOffset(ooff)
+-			absFcnChildDies := ex.Children(absFcnIdx)
+-			if len(absFcnChildDies) != 2 {
+-				t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
+-			}
+-			formalCount := 0
+-			for _, absChild := range absFcnChildDies {
+-				if absChild.Tag == dwarf.TagFormalParameter {
+-					formalCount += 1
+-					continue
+-				}
+-				t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
+-			}
+-			if formalCount != 2 {
+-				t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
+-			}
+-
+-			if exCount >= len(expectedInl) {
+-				t.Fatalf("too many inlined subroutines found in main.main")
+-			}
+-
+-			// Name should check out.
+-			expected := expectedInl[exCount]
+-			if name, ok := originDIE.Val(dwarf.AttrName).(string); ok {
+-				if name != expected {
+-					t.Fatalf("expected inlined routine %s got %s", name, expected)
+-				}
+-			}
+-			exCount++
+-
+-			// Verify that the call_file attribute for the inlined
+-			// instance is ok. In this case it should match the file
+-			// for the main routine. To do this we need to locate the
+-			// compilation unit DIE that encloses what we're looking
+-			// at; this can be done with the examiner.
+-			cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
+-			if !cfOK {
+-				t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
+-			}
+-			file := ex.FileRef(t, d, mainIdx, cf)
+-			base := filepath.Base(file)
+-			if base != "test.go" {
+-				t.Errorf("bad call_file attribute, found '%s', want '%s'",
+-					file, "test.go")
+-			}
+-
+-			omap := make(map[dwarf.Offset]bool)
+-
+-			// Walk the child variables of the inlined routine. Each
+-			// of them should have a distinct abstract origin-- if two
+-			// vars point to the same origin things are definitely broken.
+-			inlIdx := ex.idxFromOffset(child.Offset)
+-			inlChildDies := ex.Children(inlIdx)
+-			for _, k := range inlChildDies {
+-				ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+-				if !originOK {
+-					t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
+-				}
+-				if _, found := omap[ooff]; found {
+-					t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
+-				}
+-				omap[ooff] = true
+-			}
+-		}
+-	}
+-	if exCount != len(expectedInl) {
+-		t.Fatalf("not enough inlined subroutines found in main.main")
+-	}
+-}
+-
+-func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
+-	t.Parallel()
+-
+-	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	// Build with inlining, to exercise DWARF inlining support.
+-	f := gobuildTestdata(t, dir, filepath.Join(pkgDir, "main"), flags)
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-	rdr := d.Reader()
+-	ex := examiner{}
+-	if err := ex.populate(rdr); err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	// Make a pass through all DIEs looking for abstract origin
+-	// references.
+-	abscount := 0
+-	for i, die := range ex.dies {
+-		// Does it have an abstract origin?
+-		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+-		if !originOK {
+-			continue
+-		}
+-
+-		// All abstract origin references should be resolvable.
+-		abscount += 1
+-		originDIE := ex.entryFromOffset(ooff)
+-		if originDIE == nil {
+-			ex.dumpEntry(i, false, 0)
+-			t.Fatalf("unresolved abstract origin ref in DIE at offset 0x%x\n", die.Offset)
+-		}
+-
+-		// Suppose that DIE X has parameter/variable children {K1,
+-		// K2, ... KN}. If X has an abstract origin of A, then for
+-		// each KJ, the abstract origin of KJ should be a child of A.
+-		// Note that this same rule doesn't hold for non-variable DIEs.
+-		pidx := ex.idxFromOffset(die.Offset)
+-		if pidx < 0 {
+-			t.Fatalf("can't locate DIE id")
+-		}
+-		kids := ex.Children(pidx)
+-		for _, kid := range kids {
+-			if kid.Tag != dwarf.TagVariable &&
+-				kid.Tag != dwarf.TagFormalParameter {
+-				continue
+-			}
+-			kooff, originOK := kid.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+-			if !originOK {
+-				continue
+-			}
+-			childOriginDIE := ex.entryFromOffset(kooff)
+-			if childOriginDIE == nil {
+-				ex.dumpEntry(i, false, 0)
+-				t.Fatalf("unresolved abstract origin ref in DIE at offset %x", kid.Offset)
+-			}
+-			coidx := ex.idxFromOffset(childOriginDIE.Offset)
+-			childOriginParent := ex.Parent(coidx)
+-			if childOriginParent != originDIE {
+-				ex.dumpEntry(i, false, 0)
+-				t.Fatalf("unexpected parent of abstract origin DIE at offset %v", childOriginDIE.Offset)
+-			}
+-		}
+-	}
+-	if abscount == 0 {
+-		t.Fatalf("no abstract origin refs found, something is wrong")
+-	}
+-}
+-
+-func TestAbstractOriginSanity(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if testing.Short() {
+-		t.Skip("skipping test in short mode.")
+-	}
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+-	}
+-
+-	if wd, err := os.Getwd(); err == nil {
+-		gopathdir := filepath.Join(wd, "testdata", "httptest")
+-		abstractOriginSanity(t, gopathdir, OptAllInl4)
+-	} else {
+-		t.Fatalf("os.Getwd() failed %v", err)
+-	}
+-}
+-
+-func TestAbstractOriginSanityIssue25459(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+-	}
+-	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
+-		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
+-	}
+-
+-	if wd, err := os.Getwd(); err == nil {
+-		gopathdir := filepath.Join(wd, "testdata", "issue25459")
+-		abstractOriginSanity(t, gopathdir, DefaultOpt)
+-	} else {
+-		t.Fatalf("os.Getwd() failed %v", err)
+-	}
+-}
+-
+-func TestAbstractOriginSanityIssue26237(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "darwin" {
+-		t.Skip("skipping on solaris, illumos, and darwin, pending resolution of issue #23168")
+-	}
+-	if wd, err := os.Getwd(); err == nil {
+-		gopathdir := filepath.Join(wd, "testdata", "issue26237")
+-		abstractOriginSanity(t, gopathdir, DefaultOpt)
+-	} else {
+-		t.Fatalf("os.Getwd() failed %v", err)
+-	}
+-}
+-
+-func TestRuntimeTypeAttrInternal(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
+-		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
+-	}
+-
+-	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+-}
+-
+-// External linking requires a host linker (https://golang.org/src/cmd/cgo/doc.go l.732)
+-func TestRuntimeTypeAttrExternal(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	// Explicitly test external linking, for dsymutil compatibility on Darwin.
+-	if runtime.GOARCH == "ppc64" {
+-		t.Skip("-linkmode=external not supported on ppc64")
+-	}
+-	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
+-}
+-
+-func testRuntimeTypeAttr(t *testing.T, flags string) {
+-	t.Parallel()
+-
+-	const prog = `
+-package main
+-
+-import "unsafe"
+-
+-type X struct{ _ int }
+-
+-func main() {
+-	var x interface{} = &X{}
+-	p := *(*uintptr)(unsafe.Pointer(&x))
+-	print(p)
+-}
+-`
+-	dir, err := ioutil.TempDir("", "TestRuntimeType")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	f := gobuild(t, dir, prog, flags)
+-	out, err := exec.Command(f.path).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("could not run test program: %v", err)
+-	}
+-	addr, err := strconv.ParseUint(string(out), 10, 64)
+-	if err != nil {
+-		t.Fatalf("could not parse type address from program output %q: %v", out, err)
+-	}
+-
+-	symbols, err := f.Symbols()
+-	if err != nil {
+-		t.Fatalf("error reading symbols: %v", err)
+-	}
+-	var types *objfilepkg.Sym
+-	for _, sym := range symbols {
+-		if sym.Name == "runtime.types" {
+-			types = &sym
+-			break
+-		}
+-	}
+-	if types == nil {
+-		t.Fatal("couldn't find runtime.types in symbols")
+-	}
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	rdr := d.Reader()
+-	ex := examiner{}
+-	if err := ex.populate(rdr); err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-	dies := ex.Named("*main.X")
+-	if len(dies) != 1 {
+-		t.Fatalf("wanted 1 DIE named *main.X, found %v", len(dies))
+-	}
+-	rtAttr := dies[0].Val(intdwarf.DW_AT_go_runtime_type)
+-	if rtAttr == nil {
+-		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
+-	}
+-
+-	if rtAttr.(uint64)+types.Addr != addr {
+-		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+-	}
+-}
+-
+-func TestIssue27614(t *testing.T) {
+-	// Type references in debug_info should always use the DW_TAG_typedef_type
+-	// for the type, when that's generated.
+-
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	t.Parallel()
+-
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	const prog = `package main
+-
+-import "fmt"
+-
+-type astruct struct {
+-	X int
+-}
+-
+-type bstruct struct {
+-	X float32
+-}
+-
+-var globalptr *astruct
+-var globalvar astruct
+-var bvar0, bvar1, bvar2 bstruct
+-
+-func main() {
+-	fmt.Println(globalptr, globalvar, bvar0, bvar1, bvar2)
+-}
+-`
+-
+-	f := gobuild(t, dir, prog, NoOpt)
+-
+-	defer f.Close()
+-
+-	data, err := f.DWARF()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	rdr := data.Reader()
+-
+-	var astructTypeDIE, bstructTypeDIE, ptrastructTypeDIE *dwarf.Entry
+-	var globalptrDIE, globalvarDIE *dwarf.Entry
+-	var bvarDIE [3]*dwarf.Entry
+-
+-	for {
+-		e, err := rdr.Next()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		if e == nil {
+-			break
+-		}
+-
+-		name, _ := e.Val(dwarf.AttrName).(string)
+-
+-		switch e.Tag {
+-		case dwarf.TagTypedef:
+-			switch name {
+-			case "main.astruct":
+-				astructTypeDIE = e
+-			case "main.bstruct":
+-				bstructTypeDIE = e
+-			}
+-		case dwarf.TagPointerType:
+-			if name == "*main.astruct" {
+-				ptrastructTypeDIE = e
+-			}
+-		case dwarf.TagVariable:
+-			switch name {
+-			case "main.globalptr":
+-				globalptrDIE = e
+-			case "main.globalvar":
+-				globalvarDIE = e
+-			default:
+-				const bvarprefix = "main.bvar"
+-				if strings.HasPrefix(name, bvarprefix) {
+-					i, _ := strconv.Atoi(name[len(bvarprefix):])
+-					bvarDIE[i] = e
+-				}
+-			}
+-		}
+-	}
+-
+-	typedieof := func(e *dwarf.Entry) dwarf.Offset {
+-		return e.Val(dwarf.AttrType).(dwarf.Offset)
+-	}
+-
+-	if off := typedieof(ptrastructTypeDIE); off != astructTypeDIE.Offset {
+-		t.Errorf("type attribute of *main.astruct references %#x, not main.astruct DIE at %#x\n", off, astructTypeDIE.Offset)
+-	}
+-
+-	if off := typedieof(globalptrDIE); off != ptrastructTypeDIE.Offset {
+-		t.Errorf("type attribute of main.globalptr references %#x, not *main.astruct DIE at %#x\n", off, ptrastructTypeDIE.Offset)
+-	}
+-
+-	if off := typedieof(globalvarDIE); off != astructTypeDIE.Offset {
+-		t.Errorf("type attribute of main.globalvar1 references %#x, not main.astruct DIE at %#x\n", off, astructTypeDIE.Offset)
+-	}
+-
+-	for i := range bvarDIE {
+-		if off := typedieof(bvarDIE[i]); off != bstructTypeDIE.Offset {
+-			t.Errorf("type attribute of main.bvar%d references %#x, not main.bstruct DIE at %#x\n", i, off, bstructTypeDIE.Offset)
+-		}
+-	}
+-}
+-
+-func TestStaticTmp(t *testing.T) {
+-	// Checks that statictmp variables do not appear in debug_info or the
+-	// symbol table.
+-	// Also checks that statictmp variables do not collide with user defined
+-	// variables (issue #25113)
+-
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	t.Parallel()
+-
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	const prog = `package main
+-
+-var stmp_0 string
+-var a []int
+-
+-func init() {
+-	a = []int{ 7 }
+-}
+-
+-func main() {
+-	println(a[0])
+-}
+-`
+-
+-	f := gobuild(t, dir, prog, NoOpt)
+-
+-	defer f.Close()
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	rdr := d.Reader()
+-	for {
+-		e, err := rdr.Next()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		if e == nil {
+-			break
+-		}
+-		if e.Tag != dwarf.TagVariable {
+-			continue
+-		}
+-		name, ok := e.Val(dwarf.AttrName).(string)
+-		if !ok {
+-			continue
+-		}
+-		if strings.Contains(name, "stmp") {
+-			t.Errorf("statictmp variable found in debug_info: %s at %x", name, e.Offset)
+-		}
+-	}
+-
+-	syms, err := f.Symbols()
+-	if err != nil {
+-		t.Fatalf("error reading symbols: %v", err)
+-	}
+-	for _, sym := range syms {
+-		if strings.Contains(sym.Name, "stmp") {
+-			t.Errorf("statictmp variable found in symbol table: %s", sym.Name)
+-		}
+-	}
+-}
+-
+-func TestPackageNameAttr(t *testing.T) {
+-	const dwarfAttrGoPackageName = dwarf.Attr(0x2905)
+-	const dwarfGoLanguage = 22
+-
+-	testenv.MustHaveGoBuild(t)
+-
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	t.Parallel()
+-
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
+-
+-	f := gobuild(t, dir, prog, NoOpt)
+-
+-	defer f.Close()
+-
+-	d, err := f.DWARF()
+-	if err != nil {
+-		t.Fatalf("error reading DWARF: %v", err)
+-	}
+-
+-	rdr := d.Reader()
+-	runtimeUnitSeen := false
+-	for {
+-		e, err := rdr.Next()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		if e == nil {
+-			break
+-		}
+-		if e.Tag != dwarf.TagCompileUnit {
+-			continue
+-		}
+-		if lang, _ := e.Val(dwarf.AttrLanguage).(int64); lang != dwarfGoLanguage {
+-			continue
+-		}
+-
+-		pn, ok := e.Val(dwarfAttrGoPackageName).(string)
+-		if !ok {
+-			name, _ := e.Val(dwarf.AttrName).(string)
+-			t.Errorf("found compile unit without package name: %s", name)
+-
+-		}
+-		if pn == "" {
+-			name, _ := e.Val(dwarf.AttrName).(string)
+-			t.Errorf("found compile unit with empty package name: %s", name)
+-		} else {
+-			if pn == "runtime" {
+-				runtimeUnitSeen = true
+-			}
+-		}
+-	}
+-
+-	// Something is wrong if there's no runtime compilation unit.
+-	if !runtimeUnitSeen {
+-		t.Errorf("no package name for runtime unit")
+-	}
+-}
+-
+-func TestMachoIssue32233(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-
+-	if runtime.GOOS != "darwin" {
+-		t.Skip("skipping; test only interesting on darwin")
+-	}
+-
+-	tmpdir, err := ioutil.TempDir("", "TestMachoIssue32233")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	wd, err2 := os.Getwd()
+-	if err2 != nil {
+-		t.Fatalf("where am I? %v", err)
+-	}
+-	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
+-	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+-	f.Close()
+-}
+-
+-func TestWindowsIssue36495(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	if runtime.GOOS != "windows" {
+-		t.Skip("skipping: test only on windows")
+-	}
+-
+-	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	prog := `
+-package main
+-
+-import "fmt"
+-
+-func main() {
+-  fmt.Println("Hello World")
+-}`
+-	f := gobuild(t, dir, prog, NoOpt)
+-	exe, err := pe.Open(f.path)
+-	if err != nil {
+-		t.Fatalf("error opening pe file: %v", err)
+-	}
+-	dw, err := exe.DWARF()
+-	if err != nil {
+-		t.Fatalf("error parsing DWARF: %v", err)
+-	}
+-	rdr := dw.Reader()
+-	for {
+-		e, err := rdr.Next()
+-		if err != nil {
+-			t.Fatalf("error reading DWARF: %v", err)
+-		}
+-		if e == nil {
+-			break
+-		}
+-		if e.Tag != dwarf.TagCompileUnit {
+-			continue
+-		}
+-		lnrdr, err := dw.LineReader(e)
+-		if err != nil {
+-			t.Fatalf("error creating DWARF line reader: %v", err)
+-		}
+-		if lnrdr != nil {
+-			var lne dwarf.LineEntry
+-			for {
+-				err := lnrdr.Next(&lne)
+-				if err == io.EOF {
+-					break
+-				}
+-				if err != nil {
+-					t.Fatalf("error reading next DWARF line: %v", err)
+-				}
+-				if strings.Contains(lne.File.Name, `\`) {
+-					t.Errorf("filename should not contain backslash: %v", lne.File.Name)
+-				}
+-			}
+-		}
+-		rdr.SkipChildren()
+-	}
+-}
+diff --git a/src/cmd/oldlink/internal/ld/elf_test.go b/src/cmd/oldlink/internal/ld/elf_test.go
+deleted file mode 100644
+index 8e86beb1ec..0000000000
+--- a/src/cmd/oldlink/internal/ld/elf_test.go
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// +build cgo
+-
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	"debug/elf"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"testing"
+-)
+-
+-func TestDynSymShInfo(t *testing.T) {
+-	t.Parallel()
+-	testenv.MustHaveGoBuild(t)
+-	dir, err := ioutil.TempDir("", "go-build-issue33358")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	const prog = `
+-package main
+-
+-import "net"
+-
+-func main() {
+-	net.Dial("", "")
+-}
+-`
+-	src := filepath.Join(dir, "issue33358.go")
+-	if err := ioutil.WriteFile(src, []byte(prog), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	binFile := filepath.Join(dir, "issue33358")
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", binFile, src)
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+-	}
+-
+-	fi, err := os.Open(binFile)
+-	if err != nil {
+-		t.Fatalf("failed to open built file: %v", err)
+-	}
+-
+-	elfFile, err := elf.NewFile(fi)
+-	if err != nil {
+-		t.Skip("The system may not support ELF, skipped.")
+-	}
+-
+-	section := elfFile.Section(".dynsym")
+-	if section == nil {
+-		t.Fatal("no dynsym")
+-	}
+-
+-	symbols, err := elfFile.DynamicSymbols()
+-	if err != nil {
+-		t.Fatalf("failed to get dynamic symbols: %v", err)
+-	}
+-
+-	var numLocalSymbols uint32
+-	for i, s := range symbols {
+-		if elf.ST_BIND(s.Info) != elf.STB_LOCAL {
+-			numLocalSymbols = uint32(i + 1)
+-			break
+-		}
+-	}
+-
+-	if section.Info != numLocalSymbols {
+-		t.Fatalf("Unexpected sh info, want greater than 0, got: %d", section.Info)
+-	}
+-}
+diff --git a/src/cmd/oldlink/internal/ld/issue33808_test.go b/src/cmd/oldlink/internal/ld/issue33808_test.go
+deleted file mode 100644
+index 77eaeb4b31..0000000000
+--- a/src/cmd/oldlink/internal/ld/issue33808_test.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-const prog = `
+-package main
+-
+-import "log"
+-
+-func main() {
+-	log.Fatalf("HERE")
+-}
+-`
+-
+-func TestIssue33808(t *testing.T) {
+-	if runtime.GOOS != "darwin" {
+-		return
+-	}
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-
+-	dir, err := ioutil.TempDir("", "TestIssue33808")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	f := gobuild(t, dir, prog, "-ldflags=-linkmode=external")
+-	f.Close()
+-
+-	syms, err := f.Symbols()
+-	if err != nil {
+-		t.Fatalf("Error reading symbols: %v", err)
+-	}
+-
+-	name := "log.Fatalf"
+-	for _, sym := range syms {
+-		if strings.Contains(sym.Name, name) {
+-			return
+-		}
+-	}
+-	t.Fatalf("Didn't find %v", name)
+-}
+diff --git a/src/cmd/oldlink/internal/ld/ld_test.go b/src/cmd/oldlink/internal/ld/ld_test.go
+deleted file mode 100644
+index 4dbe09d586..0000000000
+--- a/src/cmd/oldlink/internal/ld/ld_test.go
++++ /dev/null
+@@ -1,136 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	"fmt"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestUndefinedRelocErrors(t *testing.T) {
+-	t.Parallel()
+-	testenv.MustHaveGoBuild(t)
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	out, err := exec.Command(testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
+-	if err == nil {
+-		t.Fatal("expected build to fail")
+-	}
+-
+-	wantErrors := map[string]int{
+-		// Main function has dedicated error message.
+-		"function main is undeclared in the main package": 1,
+-
+-		// Single error reporting per each symbol.
+-		// This way, duplicated messages are not reported for
+-		// multiple relocations with a same name.
+-		"main.defined1: relocation target main.undefined not defined": 1,
+-		"main.defined2: relocation target main.undefined not defined": 1,
+-	}
+-	unexpectedErrors := map[string]int{}
+-
+-	for _, l := range strings.Split(string(out), "\n") {
+-		if strings.HasPrefix(l, "#") || l == "" {
+-			continue
+-		}
+-		matched := ""
+-		for want := range wantErrors {
+-			if strings.Contains(l, want) {
+-				matched = want
+-				break
+-			}
+-		}
+-		if matched != "" {
+-			wantErrors[matched]--
+-		} else {
+-			unexpectedErrors[l]++
+-		}
+-	}
+-
+-	for want, n := range wantErrors {
+-		switch {
+-		case n > 0:
+-			t.Errorf("unmatched error: %s (x%d)", want, n)
+-		case n < 0:
+-			t.Errorf("extra errors: %s (x%d)", want, -n)
+-		}
+-	}
+-	for unexpected, n := range unexpectedErrors {
+-		t.Errorf("unexpected error: %s (x%d)", unexpected, n)
+-	}
+-}
+-
+-const carchiveSrcText = `
+-package main
+-
+-//export GoFunc
+-func GoFunc() {
+-	println(42)
+-}
+-
+-func main() {
+-}
+-`
+-
+-func TestArchiveBuildInvokeWithExec(t *testing.T) {
+-	t.Parallel()
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-
+-	// run this test on just a small set of platforms (no need to test it
+-	// across the board given the nature of the test).
+-	pair := runtime.GOOS + "-" + runtime.GOARCH
+-	switch pair {
+-	case "darwin-amd64", "darwin-arm64", "linux-amd64", "freebsd-amd64":
+-	default:
+-		t.Skip("no need for test on " + pair)
+-	}
+-	switch runtime.GOOS {
+-	case "openbsd", "windows":
+-		t.Skip("c-archive unsupported")
+-	}
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	srcfile := filepath.Join(dir, "test.go")
+-	arfile := filepath.Join(dir, "test.a")
+-	if err := ioutil.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	ldf := fmt.Sprintf("-ldflags=-v -tmpdir=%s", dir)
+-	argv := []string{"build", "-buildmode=c-archive", "-o", arfile, ldf, srcfile}
+-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("build failure: %s\n%s\n", err, string(out))
+-	}
+-
+-	found := false
+-	const want = "invoking archiver with syscall.Exec"
+-	for _, l := range strings.Split(string(out), "\n") {
+-		if strings.HasPrefix(l, want) {
+-			found = true
+-			break
+-		}
+-	}
+-
+-	if !found {
+-		t.Errorf("expected '%s' in -v output, got:\n%s\n", want, string(out))
+-	}
+-}
+diff --git a/src/cmd/oldlink/internal/ld/nooptcgolink_test.go b/src/cmd/oldlink/internal/ld/nooptcgolink_test.go
+deleted file mode 100644
+index 4d2ff1acf2..0000000000
+--- a/src/cmd/oldlink/internal/ld/nooptcgolink_test.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"testing"
+-)
+-
+-func TestNooptCgoBuild(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping test in short mode.")
+-	}
+-	t.Parallel()
+-
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
+-	cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "runtime", "testdata", "testprogcgo")
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Logf("go build output: %s", out)
+-		t.Fatal(err)
+-	}
+-}
+diff --git a/src/cmd/oldlink/link_test.go b/src/cmd/oldlink/link_test.go
+deleted file mode 100644
+index 4f792bd1f1..0000000000
+--- a/src/cmd/oldlink/link_test.go
++++ /dev/null
+@@ -1,449 +0,0 @@
+-package main
+-
+-import (
+-	"bufio"
+-	"bytes"
+-	"debug/macho"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"regexp"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-var AuthorPaidByTheColumnInch struct {
+-	fog int `text:"London. Michaelmas term lately over, and the Lord Chancellor sitting in Lincoln’s Inn Hall. Implacable November weather. As much mud in the streets as if the waters had but newly retired from the face of the earth, and it would not be wonderful to meet a Megalosaurus, forty feet long or so, waddling like an elephantine lizard up Holborn Hill. Smoke lowering down from chimney-pots, making a soft black drizzle, with flakes of soot in it as big as full-grown snowflakes—gone into mourning, one might imagine, for the death of the sun. Dogs, undistinguishable in mire. Horses, scarcely better; splashed to their very blinkers. Foot passengers, jostling one another’s umbrellas in a general infection of ill temper, and losing their foot-hold at street-corners, where tens of thousands of other foot passengers have been slipping and sliding since the day broke (if this day ever broke), adding new deposits to the crust upon crust of mud, sticking at those points tenaciously to the pavement, and accumulating at compound interest.  	Fog everywhere. Fog up the river, where it flows among green aits and meadows; fog down the river, where it rolls defiled among the tiers of shipping and the waterside pollutions of a great (and dirty) city. Fog on the Essex marshes, fog on the Kentish heights. Fog creeping into the cabooses of collier-brigs; fog lying out on the yards and hovering in the rigging of great ships; fog drooping on the gunwales of barges and small boats. Fog in the eyes and throats of ancient Greenwich pensioners, wheezing by the firesides of their wards; fog in the stem and bowl of the afternoon pipe of the wrathful skipper, down in his close cabin; fog cruelly pinching the toes and fingers of his shivering little ‘prentice boy on deck. Chance people on the bridges peeping over the parapets into a nether sky of fog, with fog all round them, as if they were up in a balloon and hanging in the misty clouds.  	Gas looming through the fog in divers places in the streets, much as the sun may, from the spongey fields, be seen to loom by husbandman and ploughboy. Most of the shops lighted two hours before their time—as the gas seems to know, for it has a haggard and unwilling look.  	The raw afternoon is rawest, and the dense fog is densest, and the muddy streets are muddiest near that leaden-headed old obstruction, appropriate ornament for the threshold of a leaden-headed old corporation, Temple Bar. And hard by Temple Bar, in Lincoln’s Inn Hall, at the very heart of the fog, sits the Lord High Chancellor in his High Court of Chancery."`
+-
+-	wind int `text:"It was grand to see how the wind awoke, and bent the trees, and drove the rain before it like a cloud of smoke; and to hear the solemn thunder, and to see the lightning; and while thinking with awe of the tremendous powers by which our little lives are encompassed, to consider how beneficent they are, and how upon the smallest flower and leaf there was already a freshness poured from all this seeming rage, which seemed to make creation new again."`
+-
+-	jarndyce int `text:"Jarndyce and Jarndyce drones on. This scarecrow of a suit has, over the course of time, become so complicated, that no man alive knows what it means. The parties to it understand it least; but it has been observed that no two Chancery lawyers can talk about it for five minutes, without coming to a total disagreement as to all the premises. Innumerable children have been born into the cause; innumerable young people have married into it; innumerable old people have died out of it. Scores of persons have deliriously found themselves made parties in Jarndyce and Jarndyce, without knowing how or why; whole families have inherited legendary hatreds with the suit. The little plaintiff or defendant, who was promised a new rocking-horse when Jarndyce and Jarndyce should be settled, has grown up, possessed himself of a real horse, and trotted away into the other world. Fair wards of court have faded into mothers and grandmothers; a long procession of Chancellors has come in and gone out; the legion of bills in the suit have been transformed into mere bills of mortality; there are not three Jarndyces left upon the earth perhaps, since old Tom Jarndyce in despair blew his brains out at a coffee-house in Chancery Lane; but Jarndyce and Jarndyce still drags its dreary length before the Court, perennially hopeless."`
+-
+-	principle int `text:"The one great principle of the English law is, to make business for itself. There is no other principle distinctly, certainly, and consistently maintained through all its narrow turnings. Viewed by this light it becomes a coherent scheme, and not the monstrous maze the laity are apt to think it. Let them but once clearly perceive that its grand principle is to make business for itself at their expense, and surely they will cease to grumble."`
+-}
+-
+-func TestLargeSymName(t *testing.T) {
+-	// The compiler generates a symbol name using the string form of the
+-	// type. This tests that the linker can read symbol names larger than
+-	// the bufio buffer. Issue #15104.
+-	_ = AuthorPaidByTheColumnInch
+-}
+-
+-func TestIssue21703(t *testing.T) {
+-	t.Parallel()
+-
+-	testenv.MustHaveGoBuild(t)
+-
+-	const source = `
+-package main
+-const X = "\n!\n"
+-func main() {}
+-`
+-
+-	tmpdir, err := ioutil.TempDir("", "issue21703")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v\n", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	err = ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+-	if err != nil {
+-		t.Fatalf("failed to write main.go: %v\n", err)
+-	}
+-
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
+-	cmd.Dir = tmpdir
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to compile main.go: %v, output: %s\n", err, out)
+-	}
+-
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "main.o")
+-	cmd.Dir = tmpdir
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to link main.o: %v, output: %s\n", err, out)
+-	}
+-}
+-
+-// TestIssue28429 ensures that the linker does not attempt to link
+-// sections not named *.o. Such sections may be used by a build system
+-// to, for example, save facts produced by a modular static analysis
+-// such as golang.org/x/tools/go/analysis.
+-func TestIssue28429(t *testing.T) {
+-	t.Parallel()
+-
+-	testenv.MustHaveGoBuild(t)
+-
+-	tmpdir, err := ioutil.TempDir("", "issue28429-")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	write := func(name, content string) {
+-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-
+-	runGo := func(args ...string) {
+-		cmd := exec.Command(testenv.GoToolPath(t), args...)
+-		cmd.Dir = tmpdir
+-		out, err := cmd.CombinedOutput()
+-		if err != nil {
+-			t.Fatalf("'go %s' failed: %v, output: %s",
+-				strings.Join(args, " "), err, out)
+-		}
+-	}
+-
+-	// Compile a main package.
+-	write("main.go", "package main; func main() {}")
+-	runGo("tool", "compile", "-p", "main", "main.go")
+-	runGo("tool", "pack", "c", "main.a", "main.o")
+-
+-	// Add an extra section with a short, non-.o name.
+-	// This simulates an alternative build system.
+-	write(".facts", "this is not an object file")
+-	runGo("tool", "pack", "r", "main.a", ".facts")
+-
+-	// Verify that the linker does not attempt
+-	// to compile the extra section.
+-	runGo("tool", "link", "main.a")
+-}
+-
+-func TestUnresolved(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	tmpdir, err := ioutil.TempDir("", "unresolved-")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	write := func(name, content string) {
+-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-
+-	// Test various undefined references. Because of issue #29852,
+-	// this used to give confusing error messages because the
+-	// linker would find an undefined reference to "zero" created
+-	// by the runtime package.
+-
+-	write("go.mod", "module testunresolved\n")
+-	write("main.go", `package main
+-
+-func main() {
+-        x()
+-}
+-
+-func x()
+-`)
+-	write("main.s", `
+-TEXT ·x(SB),0,$0
+-        MOVD zero<>(SB), AX
+-        MOVD zero(SB), AX
+-        MOVD ·zero(SB), AX
+-        RET
+-`)
+-	cmd := exec.Command(testenv.GoToolPath(t), "build")
+-	cmd.Dir = tmpdir
+-	cmd.Env = append(os.Environ(),
+-		"GOARCH=amd64", "GOOS=linux", "GOPATH="+filepath.Join(tmpdir, "_gopath"))
+-	out, err := cmd.CombinedOutput()
+-	if err == nil {
+-		t.Fatalf("expected build to fail, but it succeeded")
+-	}
+-	out = regexp.MustCompile("(?m)^#.*\n").ReplaceAll(out, nil)
+-	got := string(out)
+-	want := `main.x: relocation target zero not defined
+-main.x: relocation target zero not defined
+-main.x: relocation target main.zero not defined
+-`
+-	if want != got {
+-		t.Fatalf("want:\n%sgot:\n%s", want, got)
+-	}
+-}
+-
+-func TestBuildForTvOS(t *testing.T) {
+-	testenv.MustHaveCGO(t)
+-	testenv.MustHaveGoBuild(t)
+-
+-	// Only run this on darwin/amd64, where we can cross build for tvOS.
+-	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
+-		t.Skip("skipping on non-darwin/amd64 platform")
+-	}
+-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+-		t.Skip("skipping in -short mode with $GO_BUILDER_NAME empty")
+-	}
+-	if err := exec.Command("xcrun", "--help").Run(); err != nil {
+-		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+-	}
+-
+-	sdkPath, err := exec.Command("xcrun", "--sdk", "appletvos", "--show-sdk-path").Output()
+-	if err != nil {
+-		t.Skip("failed to locate appletvos SDK, skipping")
+-	}
+-	CC := []string{
+-		"clang",
+-		"-arch",
+-		"arm64",
+-		"-isysroot", strings.TrimSpace(string(sdkPath)),
+-		"-mtvos-version-min=12.0",
+-		"-fembed-bitcode",
+-		"-framework", "CoreFoundation",
+-	}
+-	lib := filepath.Join("testdata", "lib.go")
+-	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpDir)
+-
+-	ar := filepath.Join(tmpDir, "lib.a")
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
+-	cmd.Env = append(os.Environ(),
+-		"CGO_ENABLED=1",
+-		"GOOS=darwin",
+-		"GOARCH=arm64",
+-		"CC="+strings.Join(CC, " "),
+-		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+-	)
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+-	}
+-
+-	link := exec.Command(CC[0], CC[1:]...)
+-	link.Args = append(link.Args, ar, filepath.Join("testdata", "main.m"))
+-	if out, err := link.CombinedOutput(); err != nil {
+-		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
+-	}
+-}
+-
+-var testXFlagSrc = `
+-package main
+-var X = "hello"
+-var Z = [99999]int{99998:12345} // make it large enough to be mmaped
+-func main() { println(X) }
+-`
+-
+-func TestXFlag(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	tmpdir, err := ioutil.TempDir("", "TestXFlag")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-X=main.X=meow", "-o", filepath.Join(tmpdir, "main"), src)
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
+-	}
+-}
+-
+-var testMacOSVersionSrc = `
+-package main
+-func main() { }
+-`
+-
+-func TestMacOSVersion(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	exe := filepath.Join(tmpdir, "main")
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal", "-o", exe, src)
+-	cmd.Env = append(os.Environ(),
+-		"CGO_ENABLED=0",
+-		"GOOS=darwin",
+-		"GOARCH=amd64",
+-	)
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+-	}
+-	exef, err := os.Open(exe)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	exem, err := macho.NewFile(exef)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	found := false
+-	const LC_VERSION_MIN_MACOSX = 0x24
+-	checkMin := func(ver uint32) {
+-		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
+-		if major != 10 || minor < 9 {
+-			t.Errorf("LC_VERSION_MIN_MACOSX version %d.%d < 10.9", major, minor)
+-		}
+-	}
+-	for _, cmd := range exem.Loads {
+-		raw := cmd.Raw()
+-		type_ := exem.ByteOrder.Uint32(raw)
+-		if type_ != LC_VERSION_MIN_MACOSX {
+-			continue
+-		}
+-		osVer := exem.ByteOrder.Uint32(raw[8:])
+-		checkMin(osVer)
+-		sdkVer := exem.ByteOrder.Uint32(raw[12:])
+-		checkMin(sdkVer)
+-		found = true
+-		break
+-	}
+-	if !found {
+-		t.Errorf("no LC_VERSION_MIN_MACOSX load command found")
+-	}
+-}
+-
+-const Issue34788src = `
+-
+-package blah
+-
+-func Blah(i int) int {
+-	a := [...]int{1, 2, 3, 4, 5, 6, 7, 8}
+-	return a[i&7]
+-}
+-`
+-
+-func TestIssue34788Android386TLSSequence(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	// This is a cross-compilation test, so it doesn't make
+-	// sense to run it on every GOOS/GOARCH combination. Limit
+-	// the test to amd64 + darwin/linux.
+-	if runtime.GOARCH != "amd64" ||
+-		(runtime.GOOS != "darwin" && runtime.GOOS != "linux") {
+-		t.Skip("skipping on non-{linux,darwin}/amd64 platform")
+-	}
+-
+-	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	src := filepath.Join(tmpdir, "blah.go")
+-	err = ioutil.WriteFile(src, []byte(Issue34788src), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	obj := filepath.Join(tmpdir, "blah.o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+-	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		if err != nil {
+-			t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
+-		}
+-	}
+-
+-	// Run objdump on the resulting object.
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "objdump", obj)
+-	out, oerr := cmd.CombinedOutput()
+-	if oerr != nil {
+-		t.Fatalf("failed to objdump blah.o: %v, output: %s\n", oerr, out)
+-	}
+-
+-	// Sift through the output; we should not be seeing any R_TLS_LE relocs.
+-	scanner := bufio.NewScanner(bytes.NewReader(out))
+-	for scanner.Scan() {
+-		line := scanner.Text()
+-		if strings.Contains(line, "R_TLS_LE") {
+-			t.Errorf("objdump output contains unexpected R_TLS_LE reloc: %s", line)
+-		}
+-	}
+-}
+-
+-const testStrictDupGoSrc = `
+-package main
+-func f()
+-func main() { f() }
+-`
+-
+-const testStrictDupAsmSrc1 = `
+-#include "textflag.h"
+-TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
+-	RET
+-`
+-
+-const testStrictDupAsmSrc2 = `
+-#include "textflag.h"
+-TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
+-	JMP	0(PC)
+-`
+-
+-func TestStrictDup(t *testing.T) {
+-	// Check that -strictdups flag works.
+-	testenv.MustHaveGoBuild(t)
+-
+-	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	src := filepath.Join(tmpdir, "x.go")
+-	err = ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	src = filepath.Join(tmpdir, "a.s")
+-	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc1), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	src = filepath.Join(tmpdir, "b.s")
+-	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc2), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	src = filepath.Join(tmpdir, "go.mod")
+-	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-strictdups=1")
+-	cmd.Dir = tmpdir
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Errorf("linking with -strictdups=1 failed: %v", err)
+-	}
+-	if !bytes.Contains(out, []byte("mismatched payload")) {
+-		t.Errorf("unexpected output:\n%s", out)
+-	}
+-
+-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-strictdups=2")
+-	cmd.Dir = tmpdir
+-	out, err = cmd.CombinedOutput()
+-	if err == nil {
+-		t.Errorf("linking with -strictdups=2 did not fail")
+-	}
+-	if !bytes.Contains(out, []byte("mismatched payload")) {
+-		t.Errorf("unexpected output:\n%s", out)
+-	}
+-}
+diff --git a/src/cmd/oldlink/linkbig_test.go b/src/cmd/oldlink/linkbig_test.go
+deleted file mode 100644
+index 78d2bc1afe..0000000000
+--- a/src/cmd/oldlink/linkbig_test.go
++++ /dev/null
+@@ -1,112 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This program generates a test to verify that a program can be
+-// successfully linked even when there are very large text
+-// sections present.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"cmd/internal/objabi"
+-	"fmt"
+-	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"testing"
+-)
+-
+-func TestLargeText(t *testing.T) {
+-	if testing.Short() || (objabi.GOARCH != "ppc64le" && objabi.GOARCH != "ppc64" && objabi.GOARCH != "arm") {
+-		t.Skipf("Skipping large text section test in short mode or on %s", objabi.GOARCH)
+-	}
+-	testenv.MustHaveGoBuild(t)
+-
+-	var w bytes.Buffer
+-	const FN = 4
+-	tmpdir, err := ioutil.TempDir("", "bigtext")
+-	if err != nil {
+-		t.Fatalf("can't create temp directory: %v\n", err)
+-	}
+-
+-	defer os.RemoveAll(tmpdir)
+-
+-	// Generate the scenario where the total amount of text exceeds the
+-	// limit for the jmp/call instruction, on RISC architectures like ppc64le,
+-	// which is 2^26.  When that happens the call requires special trampolines or
+-	// long branches inserted by the linker where supported.
+-	// Multiple .s files are generated instead of one.
+-	instOnArch := map[string]string{
+-		"ppc64":   "\tMOVD\tR0,R3\n",
+-		"ppc64le": "\tMOVD\tR0,R3\n",
+-		"arm":     "\tMOVW\tR0,R1\n",
+-	}
+-	inst := instOnArch[objabi.GOARCH]
+-	for j := 0; j < FN; j++ {
+-		testname := fmt.Sprintf("bigfn%d", j)
+-		fmt.Fprintf(&w, "TEXT ·%s(SB),$0\n", testname)
+-		for i := 0; i < 2200000; i++ {
+-			fmt.Fprintf(&w, inst)
+-		}
+-		fmt.Fprintf(&w, "\tRET\n")
+-		err := ioutil.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
+-		if err != nil {
+-			t.Fatalf("can't write output: %v\n", err)
+-		}
+-		w.Reset()
+-	}
+-	fmt.Fprintf(&w, "package main\n")
+-	fmt.Fprintf(&w, "\nimport (\n")
+-	fmt.Fprintf(&w, "\t\"os\"\n")
+-	fmt.Fprintf(&w, "\t\"fmt\"\n")
+-	fmt.Fprintf(&w, ")\n\n")
+-
+-	for i := 0; i < FN; i++ {
+-		fmt.Fprintf(&w, "func bigfn%d()\n", i)
+-	}
+-	fmt.Fprintf(&w, "\nfunc main() {\n")
+-
+-	// There are lots of dummy code generated in the .s files just to generate a lot
+-	// of text. Link them in but guard their call so their code is not executed but
+-	// the main part of the program can be run.
+-	fmt.Fprintf(&w, "\tif os.Getenv(\"LINKTESTARG\") != \"\" {\n")
+-	for i := 0; i < FN; i++ {
+-		fmt.Fprintf(&w, "\t\tbigfn%d()\n", i)
+-	}
+-	fmt.Fprintf(&w, "\t}\n")
+-	fmt.Fprintf(&w, "\tfmt.Printf(\"PASS\\n\")\n")
+-	fmt.Fprintf(&w, "}")
+-	err = ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
+-	if err != nil {
+-		t.Fatalf("can't write output: %v\n", err)
+-	}
+-
+-	// Build and run with internal linking.
+-	os.Chdir(tmpdir)
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext")
+-	out, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("Build failed for big text program with internal linking: %v, output: %s", err, out)
+-	}
+-	cmd = exec.Command(tmpdir + "/bigtext")
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("Program built with internal linking failed to run with err %v, output: %s", err, out)
+-	}
+-
+-	// Build and run with external linking
+-	os.Chdir(tmpdir)
+-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "'-linkmode=external'")
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("Build failed for big text program with external linking: %v, output: %s", err, out)
+-	}
+-	cmd = exec.Command(tmpdir + "/bigtext")
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("Program built with external linking failed to run with err %v, output: %s", err, out)
+-	}
+-}
+diff --git a/src/cmd/oldlink/testdata/lib.go b/src/cmd/oldlink/testdata/lib.go
+deleted file mode 100644
+index bc6c699440..0000000000
+--- a/src/cmd/oldlink/testdata/lib.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-package main
+-
+-import "C"
+-
+-//export GoFunc
+-func GoFunc() {}
+-
+-func main() {}
+diff --git a/src/cmd/oldlink/testdata/main.m b/src/cmd/oldlink/testdata/main.m
+deleted file mode 100644
+index 1c8175f6cc..0000000000
+--- a/src/cmd/oldlink/testdata/main.m
++++ /dev/null
+@@ -1,5 +0,0 @@
+-extern void GoFunc();
+-
+-int main(int argc, char **argv) {
+-	GoFunc();
+-}

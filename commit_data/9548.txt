@@ -11,6 +11,35 @@ Date:   Mon Aug 29 16:49:31 2011 -0700
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4982041
-
+---
  src/cmd/godoc/zip.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index 27dc142f54..46d7112e51 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -183,9 +183,10 @@ func (z zipList) lookup(name string) (index int, exact bool) {
+ 	i := sort.Search(len(z), func(i int) bool {
+ 		return name <= z[i].Name
+ 	})
+-	if i < 0 {
++	if i >= len(z) {
+ 		return -1, false
+ 	}
++	// 0 <= i < len(z)
+ 	if z[i].Name == name {
+ 		return i, true
+ 	}
+@@ -196,9 +197,10 @@ func (z zipList) lookup(name string) (index int, exact bool) {
+ 	j := sort.Search(len(z), func(i int) bool {
+ 		return name <= z[i].Name
+ 	})
+-	if j < 0 {
++	if j >= len(z) {
+ 		return -1, false
+ 	}
++	// 0 <= j < len(z)
+ 	if strings.HasPrefix(z[j].Name, name) {
+ 		return i + j, false
+ 	}

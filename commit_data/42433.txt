@@ -11,7 +11,65 @@ Date:   Fri Dec 20 09:34:30 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/load.go               | 15 +++++++++++++++
  src/cmd/go/testdata/script/mod_replace_import.txt |  9 +++++++--
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 2df7bd04b7..58e2141f65 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1320,6 +1320,21 @@ func fetch(mod module.Version) (dir string, isLocal bool, err error) {
+ 			if !filepath.IsAbs(dir) {
+ 				dir = filepath.Join(ModRoot(), dir)
+ 			}
++			// Ensure that the replacement directory actually exists:
++			// dirInModule does not report errors for missing modules,
++			// so if we don't report the error now, later failures will be
++			// very mysterious.
++			if _, err := os.Stat(dir); err != nil {
++				if os.IsNotExist(err) {
++					// Semantically the module version itself “exists” — we just don't
++					// have its source code. Remove the equivalence to os.ErrNotExist,
++					// and make the message more concise while we're at it.
++					err = fmt.Errorf("replacement directory %s does not exist", r.Path)
++				} else {
++					err = fmt.Errorf("replacement directory %s: %w", r.Path, err)
++				}
++				return dir, true, module.VersionError(mod, err)
++			}
+ 			return dir, true, nil
+ 		}
+ 		mod = r
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index 646b3b081d..fd5b04a498 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -28,7 +28,8 @@ stdout 'example.com/v v1.12.0 => ./v12'
+ cd fail
+ ! go list all
+ stdout 'localhost.fail'
+-stderr '^can.t load package: m.go:3:8: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
++stderr '^can''t load package: m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
++stderr '^can''t load package: m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
+ 
+ -- go.mod --
+ module example.com/m
+@@ -128,7 +129,10 @@ package i
+ -- fail/m.go --
+ package main
+ 
+-import _ "w"
++import (
++	_ "w"
++	_ "nonexist"
++)
+ 
+ func main() {}
+ 
+@@ -137,3 +141,4 @@ module localhost.fail
+ 
+ replace w => ../w
+ 
++replace nonexist v0.1.0 => ../nonexist

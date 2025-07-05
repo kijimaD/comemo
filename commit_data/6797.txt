@@ -9,6 +9,20 @@ Date:   Mon Nov 29 14:31:24 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/3287042
-
+---
  src/cmd/godoc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index d0a4d73994..53f05ceb47 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -24,7 +24,7 @@ godoc first tries localhost:6060 and then http://golang.org.
+ 
+ 	godoc -q Reader Writer
+ 	godoc -q math.Sin
+-	godoc -server=:6666 -q sin
++	godoc -server=:6060 -q sin
+ 
+ With the -http flag, it runs as a web server and presents the documentation as a
+ web page.

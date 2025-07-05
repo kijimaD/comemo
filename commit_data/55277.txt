@@ -20,6 +20,29 @@ Date:   Wed Jan 25 12:48:54 2023 -0500
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/testpty/pty_cgo.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/testpty/pty_cgo.go b/src/internal/testpty/pty_cgo.go
+index 1db6a925af..442fbcf618 100644
+--- a/src/internal/testpty/pty_cgo.go
++++ b/src/internal/testpty/pty_cgo.go
+@@ -18,14 +18,14 @@ import "os"
+ 
+ func open() (pty *os.File, processTTY string, err error) {
+ 	m, err := C.posix_openpt(C.O_RDWR)
+-	if err != nil {
++	if m < 0 {
+ 		return nil, "", ptyError("posix_openpt", err)
+ 	}
+-	if _, err := C.grantpt(m); err != nil {
++	if res, err := C.grantpt(m); res < 0 {
+ 		C.close(m)
+ 		return nil, "", ptyError("grantpt", err)
+ 	}
+-	if _, err := C.unlockpt(m); err != nil {
++	if res, err := C.unlockpt(m); res < 0 {
+ 		C.close(m)
+ 		return nil, "", ptyError("unlockpt", err)
+ 	}

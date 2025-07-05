@@ -15,7 +15,7 @@ Date:   Tue Mar 14 09:46:45 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38153
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go      |  2 +-
  src/cmd/compile/internal/gc/export.go   |  4 ++--
  src/cmd/compile/internal/gc/fmt.go      |  2 +-
@@ -29,3 +29,375 @@ Date:   Tue Mar 14 09:46:45 2017 -0700
  src/cmd/compile/internal/gc/reflect.go  |  4 ++--
  src/cmd/compile/internal/gc/walk.go     | 12 ++++++------
  12 files changed, 36 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6dee1a5ffe..d994914843 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -106,7 +106,7 @@ func testdclstack() {
+ 			if nerrors != 0 {
+ 				errorexit()
+ 			}
+-			yyerror("mark left on the stack")
++			Fatalf("mark left on the stack")
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b42c1aa601..dc05873ad6 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -33,7 +33,7 @@ func exportsym(n *Node) {
+ 	}
+ 	if n.Sym.Export() || n.Sym.Package() {
+ 		if n.Sym.Package() {
+-			yyerror("export/package mismatch: %v", n.Sym)
++			Fatalf("export/package mismatch: %v", n.Sym)
+ 		}
+ 		return
+ 	}
+@@ -220,7 +220,7 @@ func pkgtype(s *Sym) *Type {
+ 	}
+ 
+ 	if s.Def.Type == nil {
+-		yyerror("pkgtype %v", s)
++		Fatalf("pkgtype %v", s)
+ 	}
+ 	return s.Def.Type
+ }
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index bddaeed3ac..68fa217ef9 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -725,7 +725,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
+ 				return "map.iter[" + m.Key().String() + "]" + m.Val().String()
+ 			}
+ 
+-			yyerror("unknown internal map type")
++			Fatalf("unknown internal map type")
+ 		}
+ 
+ 		buf := make([]byte, 0, 64)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 30b11ad10d..e557e53b73 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -192,8 +192,7 @@ func tempname(nn *Node, t *Type) {
+ 	}
+ 
+ 	if t == nil {
+-		yyerror("tempname called with nil type")
+-		t = Types[TINT32]
++		Fatalf("tempname called with nil type")
+ 	}
+ 
+ 	// give each tmp a different name so that there
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index c851022bc5..4ff7558357 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -128,7 +128,7 @@ func (a *Mpflt) Float64() float64 {
+ 
+ 	// check for overflow
+ 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+-		yyerror("ovf in Mpflt Float64")
++		Fatalf("ovf in Mpflt Float64")
+ 	}
+ 
+ 	return x + 0 // avoid -0 (should not be needed, but be conservative)
+@@ -140,7 +140,7 @@ func (a *Mpflt) Float32() float64 {
+ 
+ 	// check for overflow
+ 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+-		yyerror("ovf in Mpflt Float32")
++		Fatalf("ovf in Mpflt Float32")
+ 	}
+ 
+ 	return x + 0 // avoid -0 (should not be needed, but be conservative)
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index f4efde3751..e9471b2a21 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -73,7 +73,7 @@ func (a *Mpint) SetFloat(b *Mpflt) bool {
+ func (a *Mpint) Add(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Add")
++			Fatalf("ovf in Mpint Add")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -89,7 +89,7 @@ func (a *Mpint) Add(b *Mpint) {
+ func (a *Mpint) Sub(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Sub")
++			Fatalf("ovf in Mpint Sub")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -105,7 +105,7 @@ func (a *Mpint) Sub(b *Mpint) {
+ func (a *Mpint) Mul(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Mul")
++			Fatalf("ovf in Mpint Mul")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -121,7 +121,7 @@ func (a *Mpint) Mul(b *Mpint) {
+ func (a *Mpint) Quo(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Quo")
++			Fatalf("ovf in Mpint Quo")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -138,7 +138,7 @@ func (a *Mpint) Quo(b *Mpint) {
+ func (a *Mpint) Rem(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Rem")
++			Fatalf("ovf in Mpint Rem")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -155,7 +155,7 @@ func (a *Mpint) Rem(b *Mpint) {
+ func (a *Mpint) Or(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Or")
++			Fatalf("ovf in Mpint Or")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -167,7 +167,7 @@ func (a *Mpint) Or(b *Mpint) {
+ func (a *Mpint) And(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint And")
++			Fatalf("ovf in Mpint And")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -179,7 +179,7 @@ func (a *Mpint) And(b *Mpint) {
+ func (a *Mpint) AndNot(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint AndNot")
++			Fatalf("ovf in Mpint AndNot")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -191,7 +191,7 @@ func (a *Mpint) AndNot(b *Mpint) {
+ func (a *Mpint) Xor(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Xor")
++			Fatalf("ovf in Mpint Xor")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -203,7 +203,7 @@ func (a *Mpint) Xor(b *Mpint) {
+ func (a *Mpint) Lsh(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Lsh")
++			Fatalf("ovf in Mpint Lsh")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -230,7 +230,7 @@ func (a *Mpint) Lsh(b *Mpint) {
+ func (a *Mpint) Rsh(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in Mpint Rsh")
++			Fatalf("ovf in Mpint Rsh")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -268,7 +268,7 @@ func (a *Mpint) Neg() {
+ func (a *Mpint) Int64() int64 {
+ 	if a.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("constant overflow")
++			Fatalf("constant overflow")
+ 		}
+ 		return 0
+ 	}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index fa9aeb7591..c15e9084e3 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -799,8 +799,8 @@ func orderstmt(n *Node, order *Order) {
+ 			if r != nil {
+ 				switch r.Op {
+ 				default:
+-					yyerror("unknown op in select %v", r.Op)
+ 					Dump("select case", r)
++					Fatalf("unknown op in select %v", r.Op)
+ 
+ 				// If this is case x := <-ch or case x, y := <-ch, the case has
+ 				// the ODCL nodes to declare x and y. We want to delay that
+@@ -821,8 +821,8 @@ func orderstmt(n *Node, order *Order) {
+ 					}
+ 
+ 					if r.Ninit.Len() != 0 {
+-						yyerror("ninit on select recv")
+ 						dumplist("ninit", r.Ninit)
++						Fatalf("ninit on select recv")
+ 					}
+ 
+ 					// case x = <-c
+@@ -883,8 +883,8 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 				case OSEND:
+ 					if r.Ninit.Len() != 0 {
+-						yyerror("ninit on select send")
+ 						dumplist("ninit", r.Ninit)
++						Fatalf("ninit on select send")
+ 					}
+ 
+ 					// case c <- x
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d67184749f..4596086c7f 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -90,7 +90,7 @@ func gvardefx(n *Node, as obj.As) {
+ 		Fatalf("gvardef nil")
+ 	}
+ 	if n.Op != ONAME {
+-		yyerror("gvardef %#v; %v", n.Op, n)
++		Fatalf("gvardef %#v; %v", n.Op, n)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 3b8ee373ac..d575076c7f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -751,7 +751,7 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
+ 	for _, ln := range fn.Func.Dcl {
+ 		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
+ 	}
+-	yyerror("checkauto: invariant lost")
++	Fatalf("checkauto: invariant lost")
+ }
+ 
+ func checkparam(fn *Node, p *obj.Prog, n *Node) {
+@@ -768,7 +768,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
+ 	for _, ln := range fn.Func.Dcl {
+ 		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
+ 	}
+-	yyerror("checkparam: invariant lost")
++	Fatalf("checkparam: invariant lost")
+ }
+ 
+ func checkprog(fn *Node, p *obj.Prog) {
+@@ -1258,7 +1258,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n := lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(p.Pos, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
++							Fatalf("internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index dbf4e20236..7704ea096f 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -364,13 +364,10 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OAS2RECV,
+ 		OAS2MAPR,
+ 		OASOP:
+-		yyerror("instrument: %v must be lowered by now", n.Op)
+-
+-		goto ret
++		Fatalf("instrument: %v must be lowered by now", n.Op)
+ 
+ 	case OGETG:
+-		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
+-		goto ret
++		Fatalf("instrument: OGETG can happen only in runtime which we don't instrument")
+ 
+ 	case OFOR, OFORUNTIL:
+ 		if n.Left != nil {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a09a075b4c..57302b50af 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -165,7 +165,7 @@ func mapbucket(t *Type) *Type {
+ 	// Double-check that overflow field is final memory in struct,
+ 	// with no padding at end. See comment above.
+ 	if ovf.Offset != bucket.Width-int64(Widthptr) {
+-		yyerror("bad math in mapbucket for %v", t)
++		Fatalf("bad math in mapbucket for %v", t)
+ 	}
+ 
+ 	t.MapType().Bucket = bucket
+@@ -245,7 +245,7 @@ func hiter(t *Type) *Type {
+ 	i.SetFields(field[:])
+ 	dowidth(i)
+ 	if i.Width != int64(12*Widthptr) {
+-		yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
++		Fatalf("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+ 	}
+ 	t.MapType().Hiter = i
+ 	i.StructType().Map = t
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 71d83c342c..0c233c24c6 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -120,7 +120,7 @@ func adjustargs(n *Node, adjust int) {
+ 	callfunc := n.Left
+ 	for _, arg = range callfunc.List.Slice() {
+ 		if arg.Op != OAS {
+-			yyerror("call arg not assignment")
++			Fatalf("call arg not assignment")
+ 		}
+ 		lhs = arg.Left
+ 		if lhs.Op == ONAME {
+@@ -130,12 +130,12 @@ func adjustargs(n *Node, adjust int) {
+ 		}
+ 
+ 		if lhs.Op != OINDREGSP {
+-			yyerror("call argument store does not use OINDREGSP")
++			Fatalf("call argument store does not use OINDREGSP")
+ 		}
+ 
+ 		// can't really check this in machine-indep code.
+ 		//if(lhs->val.u.reg != D_SP)
+-		//      yyerror("call arg assign not indreg(SP)");
++		//      Fatalf("call arg assign not indreg(SP)")
+ 		lhs.Xoffset += int64(adjust)
+ 	}
+ }
+@@ -1694,7 +1694,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 		var nln, nrn Nodes
+ 		nln.Set(nl)
+ 		nrn.Set(nr)
+-		yyerror("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
++		Fatalf("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+ 	}
+ 	return nn
+ }
+@@ -1760,7 +1760,7 @@ func ascompatet(op Op, nl Nodes, nr *Type) []*Node {
+ 	}
+ 
+ 	if i < nl.Len() || r != nil {
+-		yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
++		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
+ 	}
+ 
+ 	if ullmanOverflow {
+@@ -2678,7 +2678,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ 	c := n.List.Len()
+ 
+ 	if c < 2 {
+-		yyerror("addstr count %d too small", c)
++		Fatalf("addstr count %d too small", c)
+ 	}
+ 
+ 	buf := nodnil()

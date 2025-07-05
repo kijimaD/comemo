@@ -11,7 +11,39 @@ Date:   Tue Mar 26 14:55:48 2019 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/all/main.go                 | 6 ------
  src/cmd/vet/all/whitelist/aix_ppc64.txt | 8 ++++++++
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index e4f8eccd8c..0c699751ec 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -209,12 +209,6 @@ func (p platform) vet() {
+ 		return
+ 	}
+ 
+-	if p.os == "aix" && p.arch == "ppc64" {
+-		// TODO(aix): enable as soon as the aix/ppc64 port has fully landed
+-		fmt.Println("skipping aix/ppc64")
+-		return
+-	}
+-
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
+ 
+diff --git a/src/cmd/vet/all/whitelist/aix_ppc64.txt b/src/cmd/vet/all/whitelist/aix_ppc64.txt
+new file mode 100644
+index 0000000000..49ff6df2ea
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/aix_ppc64.txt
+@@ -0,0 +1,8 @@
++// aix/ppc64-specific vet whitelist. See readme.txt for details.
++
++runtime/asm_ppc64x.s: [ppc64] sigreturn: function sigreturn missing Go declaration
++runtime/sys_aix_ppc64.s: [ppc64] callCfunction: function callCfunction missing Go declaration
++runtime/sys_aix_ppc64.s: [ppc64] _asmsyscall6: function _asmsyscall6 missing Go declaration
++runtime/sys_aix_ppc64.s: [ppc64] _sigtramp: function _sigtramp missing Go declaration
++runtime/sys_aix_ppc64.s: [ppc64] _sigtramp: use of 16(R1) points beyond argument frame
++runtime/sys_aix_ppc64.s: [ppc64] _tstart: function _tstart missing Go declaration

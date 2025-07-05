@@ -7,6 +7,27 @@ Date:   Fri Dec 21 16:57:42 2018 -0500
     Change-Id: I9350e5a72e3c375f6b76897708f09f1f50c7be14
     Reviewed-on: https://go-review.googlesource.com/c/155482
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 975550fea4..01bc6f50e3 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -442,9 +442,14 @@ for {
+ 
+ <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+   <dd>
++    <p><!-- CL 146258 -->
++      TLS 1.2 clients and servers will now advertise and accept RSA-PSS
++      signature algorithms for use with regular RSA public keys.
++    </p>
++
+     <p><!-- CL 143177 -->
+       If a client sends an initial message that does not look like TLS, the server
+-      will now not reply with an alert, and it will expose the underlying
++      will no longer reply with an alert, and it will expose the underlying
+       <code>net.Conn</code> in the new field <code>Conn</code> of
+       <a href="/pkg/crypto/tls/#RecordHeaderError"><code>RecordHeaderError</code></a>.
+     </p>

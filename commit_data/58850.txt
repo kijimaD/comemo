@@ -11,7 +11,34 @@ Date:   Thu Dec 14 16:40:35 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/debug/elf/elf.go       | 2 +-
  src/runtime/pprof/pprof.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 534cfa9127..e78367750f 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -13,7 +13,7 @@
+  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
+  * "System V ABI" (http://www.sco.com/developers/gabi/latest/ch4.eheader.html)
+  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
+- * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
++ * "RISC-V ELF psABI specification" (https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
+  * llvm/BinaryFormat/ELF.h - ELF constants and structures
+  *
+  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 1e698425d7..a4dcf33508 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -69,7 +69,7 @@
+ // all pprof commands.
+ //
+ // For more information about pprof, see
+-// https://github.com/google/pprof/blob/master/doc/README.md.
++// https://github.com/google/pprof/blob/main/doc/README.md.
+ package pprof
+ 
+ import (

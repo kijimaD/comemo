@@ -9,6 +9,20 @@ Date:   Thu Sep 10 14:10:23 2015 -0700
     Change-Id: I66dc7ac1b71b8f72b4a8f3ec18befa2607ef358b
     Reviewed-on: https://go-review.googlesource.com/14494
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/strconv/itoa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index e6f6303356..f50d877940 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -20,7 +20,7 @@ func FormatInt(i int64, base int) string {
+ 	return s
+ }
+ 
+-// Itoa is shorthand for FormatInt(i, 10).
++// Itoa is shorthand for FormatInt(int64(i), 10).
+ func Itoa(i int) string {
+ 	return FormatInt(int64(i), 10)
+ }

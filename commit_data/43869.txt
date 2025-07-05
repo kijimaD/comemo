@@ -9,7 +9,7 @@ Date:   Mon Apr 27 16:46:23 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm2.go   | 402 ---------------
  src/cmd/link/internal/amd64/obj.go    |   1 -
  src/cmd/link/internal/arm/asm2.go     | 246 ----------
@@ -29,3 +29,3244 @@ Date:   Mon Apr 27 16:46:23 2020 -0400
  src/cmd/link/internal/x86/asm2.go     | 283 -----------
  src/cmd/link/internal/x86/obj.go      |   1 -
  18 files changed, 2 insertions(+), 3009 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm2.go b/src/cmd/link/internal/amd64/asm2.go
+deleted file mode 100644
+index ae12784105..0000000000
+--- a/src/cmd/link/internal/amd64/asm2.go
++++ /dev/null
+@@ -1,402 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package amd64
+-
+-import (
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/ld"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"debug/elf"
+-)
+-
+-// Temporary dumping around for sym.Symbol version of helper
+-// functions in asm.go, still being used for some oses.
+-// FIXME: get rid of this file when dodata() is completely
+-// converted.
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
+-
+-	switch r.Type {
+-	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+-			return false
+-		}
+-
+-		// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC32):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-		// sense and should be removed when someone has thought about it properly.
+-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+-		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+-		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 8
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32):
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add += int64(targ.Plt())
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCREL),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCRELX),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_REX_GOTPCRELX):
+-		if targ.Type != sym.SDYNIMPORT {
+-			// have symbol
+-			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
+-				makeWritable(s)
+-				// turn MOVQ of GOT entry into LEAQ of symbol itself
+-				s.P[r.Off-2] = 0x8d
+-
+-				r.Type = objabi.R_PCREL
+-				r.Add += 4
+-				return true
+-			}
+-		}
+-
+-		// fall back to using GOT and hope for the best (CMOV*)
+-		// TODO: just needs relocation, no need to put in .dynsym
+-		addgotsym(target, syms, targ)
+-
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += 4
+-		r.Add += int64(targ.Got())
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ADDR
+-		if target.IsPIE() && target.IsInternal() {
+-			// For internal linking PIE, this R_ADDR relocation cannot
+-			// be resolved statically. We need to generate a dynamic
+-			// relocation. Let the code below handle it.
+-			break
+-		}
+-		return true
+-
+-	// Handle relocations found in Mach-O object files.
+-	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
+-		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
+-		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
+-		// TODO: What is the difference between all these?
+-		r.Type = objabi.R_ADDR
+-
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
+-		}
+-		return true
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add = int64(targ.Plt())
+-			r.Type = objabi.R_PCREL
+-			return true
+-		}
+-		fallthrough
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 1,
+-		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 1,
+-		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
+-		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_2*2 + 1,
+-		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
+-		r.Type = objabi.R_PCREL
+-
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected pc-relative reloc for dynamic symbol %s", targ.Name)
+-		}
+-		return true
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
+-		if targ.Type != sym.SDYNIMPORT {
+-			// have symbol
+-			// turn MOVQ of GOT entry into LEAQ of symbol itself
+-			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
+-				ld.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ.Name)
+-				return false
+-			}
+-
+-			makeWritable(s)
+-			s.P[r.Off-2] = 0x8d
+-			r.Type = objabi.R_PCREL
+-			return true
+-		}
+-		fallthrough
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
+-		if targ.Type != sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+-		}
+-		addgotsym(target, syms, targ)
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += int64(targ.Got())
+-		return true
+-	}
+-
+-	switch r.Type {
+-	case objabi.R_CALL,
+-		objabi.R_PCREL:
+-		if targ.Type != sym.SDYNIMPORT {
+-			// nothing to do, the relocation will be laid out in reloc
+-			return true
+-		}
+-		if target.IsExternal() {
+-			// External linker will do this relocation.
+-			return true
+-		}
+-		// Internal linking, for both ELF and Mach-O.
+-		// Build a PLT entry and change the relocation target to that entry.
+-		addpltsym(target, syms, targ)
+-		r.Sym = syms.PLT
+-		r.Add = int64(targ.Plt())
+-		return true
+-
+-	case objabi.R_ADDR:
+-		if s.Type == sym.STEXT && target.IsElf() {
+-			if target.IsSolaris() {
+-				addpltsym(target, syms, targ)
+-				r.Sym = syms.PLT
+-				r.Add += int64(targ.Plt())
+-				return true
+-			}
+-			// The code is asking for the address of an external
+-			// function. We provide it with the address of the
+-			// correspondent GOT symbol.
+-			addgotsym(target, syms, targ)
+-
+-			r.Sym = syms.GOT
+-			r.Add += int64(targ.Got())
+-			return true
+-		}
+-
+-		// Process dynamic relocations for the data sections.
+-		if target.IsPIE() && target.IsInternal() {
+-			// When internally linking, generate dynamic relocations
+-			// for all typical R_ADDR relocations. The exception
+-			// are those R_ADDR that are created as part of generating
+-			// the dynamic relocations and must be resolved statically.
+-			//
+-			// There are three phases relevant to understanding this:
+-			//
+-			//	dodata()  // we are here
+-			//	address() // symbol address assignment
+-			//	reloc()   // resolution of static R_ADDR relocs
+-			//
+-			// At this point symbol addresses have not been
+-			// assigned yet (as the final size of the .rela section
+-			// will affect the addresses), and so we cannot write
+-			// the Elf64_Rela.r_offset now. Instead we delay it
+-			// until after the 'address' phase of the linker is
+-			// complete. We do this via Addaddrplus, which creates
+-			// a new R_ADDR relocation which will be resolved in
+-			// the 'reloc' phase.
+-			//
+-			// These synthetic static R_ADDR relocs must be skipped
+-			// now, or else we will be caught in an infinite loop
+-			// of generating synthetic relocs for our synthetic
+-			// relocs.
+-			//
+-			// Furthermore, the rela sections contain dynamic
+-			// relocations with R_ADDR relocations on
+-			// Elf64_Rela.r_offset. This field should contain the
+-			// symbol offset as determined by reloc(), not the
+-			// final dynamically linked address as a dynamic
+-			// relocation would provide.
+-			switch s.Name {
+-			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+-				return false
+-			}
+-		} else {
+-			// Either internally linking a static executable,
+-			// in which case we can resolve these relocations
+-			// statically in the 'reloc' phase, or externally
+-			// linking, in which case the relocation will be
+-			// prepared in the 'reloc' phase and passed to the
+-			// external linker in the 'asmb' phase.
+-			if s.Type != sym.SDATA && s.Type != sym.SRODATA {
+-				break
+-			}
+-		}
+-
+-		if target.IsElf() {
+-			// Generate R_X86_64_RELATIVE relocations for best
+-			// efficiency in the dynamic linker.
+-			//
+-			// As noted above, symbol addresses have not been
+-			// assigned yet, so we can't generate the final reloc
+-			// entry yet. We ultimately want:
+-			//
+-			// r_offset = s + r.Off
+-			// r_info = R_X86_64_RELATIVE
+-			// r_addend = targ + r.Add
+-			//
+-			// The dynamic linker will set *offset = base address +
+-			// addend.
+-			//
+-			// AddAddrPlus is used for r_offset and r_addend to
+-			// generate new R_ADDR relocations that will update
+-			// these fields in the 'reloc' phase.
+-			rela := syms.Rela
+-			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
+-			if r.Siz == 8 {
+-				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
+-			} else {
+-				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-			}
+-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
+-			// Not mark r done here. So we still apply it statically,
+-			// so in the file content we'll also have the right offset
+-			// to the relocation target. So it can be examined statically
+-			// (e.g. go version).
+-			return true
+-		}
+-
+-		if target.IsDarwin() && s.Size == int64(target.Arch.PtrSize) && r.Off == 0 {
+-			// Mach-O relocations are a royal pain to lay out.
+-			// They use a compact stateful bytecode representation
+-			// that is too much bother to deal with.
+-			// Instead, interpret the C declaration
+-			//	void *_Cvar_stderr = &stderr;
+-			// as making _Cvar_stderr the name of a GOT entry
+-			// for stderr. This is separate from the usual GOT entry,
+-			// just in case the C code assigns to the variable,
+-			// and of course it only works for single pointers,
+-			// but we only need to support cgo and that's all it needs.
+-			ld.Adddynsym(target, syms, targ)
+-
+-			got := syms.GOT
+-			s.Type = got.Type
+-			s.Attr |= sym.AttrSubSymbol
+-			s.Outer = got
+-			s.Sub = got.Sub
+-			got.Sub = s
+-			s.Value = got.Size
+-			got.AddUint64(target.Arch, 0)
+-			syms.LinkEditGOT.AddUint32(target.Arch, uint32(targ.Dynid))
+-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Plt() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-
+-	if target.IsElf() {
+-		plt := syms.PLT
+-		got := syms.GOTPLT
+-		rela := syms.RelaPLT
+-		if plt.Size == 0 {
+-			panic("plt is not set up")
+-		}
+-
+-		// jmpq *got+size(IP)
+-		plt.AddUint8(0xff)
+-
+-		plt.AddUint8(0x25)
+-		plt.AddPCRelPlus(target.Arch, got, got.Size)
+-
+-		// add to got: pointer to current pos in plt
+-		got.AddAddrPlus(target.Arch, plt, plt.Size)
+-
+-		// pushq $x
+-		plt.AddUint8(0x68)
+-
+-		plt.AddUint32(target.Arch, uint32((got.Size-24-8)/8))
+-
+-		// jmpq .plt
+-		plt.AddUint8(0xe9)
+-
+-		plt.AddUint32(target.Arch, uint32(-(plt.Size + 4)))
+-
+-		// rela
+-		rela.AddAddrPlus(target.Arch, got, got.Size-8)
+-
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
+-		rela.AddUint64(target.Arch, 0)
+-
+-		s.SetPlt(int32(plt.Size - 16))
+-	} else if target.IsDarwin() {
+-		// To do lazy symbol lookup right, we're supposed
+-		// to tell the dynamic loader which library each
+-		// symbol comes from and format the link info
+-		// section just so. I'm too lazy (ha!) to do that
+-		// so for now we'll just use non-lazy pointers,
+-		// which don't need to be told which library to use.
+-		//
+-		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
+-		// has details about what we're avoiding.
+-
+-		addgotsym(target, syms, s)
+-		plt := syms.PLT
+-
+-		syms.LinkEditPLT.AddUint32(target.Arch, uint32(s.Dynid))
+-
+-		// jmpq *got+size(IP)
+-		s.SetPlt(int32(plt.Size))
+-
+-		plt.AddUint8(0xff)
+-		plt.AddUint8(0x25)
+-		plt.AddPCRelPlus(target.Arch, syms.GOT, int64(s.Got()))
+-	} else {
+-		ld.Errorf(s, "addpltsym: unsupported binary format")
+-	}
+-}
+-
+-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rela := syms.Rela
+-		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
+-		rela.AddUint64(target.Arch, 0)
+-	} else if target.IsDarwin() {
+-		syms.LinkEditGOT.AddUint32(target.Arch, uint32(s.Dynid))
+-	} else {
+-		ld.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index b9d0bf4b83..1fbbf60366 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -46,7 +46,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+diff --git a/src/cmd/link/internal/arm/asm2.go b/src/cmd/link/internal/arm/asm2.go
+deleted file mode 100644
+index a8c26c67b4..0000000000
+--- a/src/cmd/link/internal/arm/asm2.go
++++ /dev/null
+@@ -1,246 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package arm
+-
+-import (
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/ld"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"debug/elf"
+-)
+-
+-// Temporary dumping ground for sym.Symbol version of helper
+-// functions in asm.go, still being used for some oses.
+-// FIXME: get rid of this file when dodata() is completely
+-// converted.
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
+-
+-	switch r.Type {
+-	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+-			return false
+-		}
+-
+-		// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PLT32):
+-		r.Type = objabi.R_CALLARM
+-
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_THM_PC22): // R_ARM_THM_CALL
+-		ld.Exitf("R_ARM_THM_CALL, are you using -marm?")
+-		return false
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT32): // R_ARM_GOT_BREL
+-		if targ.Type != sym.SDYNIMPORT {
+-			addgotsyminternal(target, syms, targ)
+-		} else {
+-			addgotsym(target, syms, targ)
+-		}
+-
+-		r.Type = objabi.R_CONST // write r->add during relocsym
+-		r.Sym = nil
+-		r.Add += int64(targ.Got())
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
+-		if targ.Type != sym.SDYNIMPORT {
+-			addgotsyminternal(target, syms, targ)
+-		} else {
+-			addgotsym(target, syms, targ)
+-		}
+-
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += int64(targ.Got()) + 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
+-		r.Type = objabi.R_GOTOFF
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTPC): // R_ARM_BASE_PREL
+-		r.Type = objabi.R_PCREL
+-
+-		r.Sym = syms.GOT
+-		r.Add += 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL):
+-		r.Type = objabi.R_CALLARM
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_REL32): // R_ARM_REL32
+-		r.Type = objabi.R_PCREL
+-
+-		r.Add += 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_ABS32):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ADDR
+-		return true
+-
+-		// we can just ignore this, because we are targeting ARM V5+ anyway
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_V4BX):
+-		if r.Sym != nil {
+-			// R_ARM_V4BX is ABS relocation, so this symbol is a dummy symbol, ignore it
+-			r.Sym.Type = 0
+-		}
+-
+-		r.Sym = nil
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
+-		r.Type = objabi.R_CALLARM
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
+-		}
+-
+-		return true
+-	}
+-
+-	// Handle references to ELF symbols from our own object files.
+-	if targ.Type != sym.SDYNIMPORT {
+-		return true
+-	}
+-
+-	switch r.Type {
+-	case objabi.R_CALLARM:
+-		if target.IsExternal() {
+-			// External linker will do this relocation.
+-			return true
+-		}
+-		addpltsym(target, syms, targ)
+-		r.Sym = syms.PLT
+-		r.Add = int64(targ.Plt())
+-		return true
+-
+-	case objabi.R_ADDR:
+-		if s.Type != sym.SDATA {
+-			break
+-		}
+-		if target.IsElf() {
+-			ld.Adddynsym(target, syms, targ)
+-			rel := syms.Rel
+-			rel.AddAddrPlus(target.Arch, s, int64(r.Off))
+-			rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), uint32(elf.R_ARM_GLOB_DAT))) // we need a nil + A dynamic reloc
+-			r.Type = objabi.R_CONST                                                                     // write r->add during relocsym
+-			r.Sym = nil
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Plt() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-
+-	if target.IsElf() {
+-		plt := syms.PLT
+-		got := syms.GOTPLT
+-		rel := syms.RelPLT
+-		if plt.Size == 0 {
+-			panic("plt is not set up")
+-		}
+-
+-		// .got entry
+-		s.SetGot(int32(got.Size))
+-
+-		// In theory, all GOT should point to the first PLT entry,
+-		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
+-		// dynamic linker won't, so we'd better do it ourselves.
+-		got.AddAddrPlus(target.Arch, plt, 0)
+-
+-		// .plt entry, this depends on the .got entry
+-		s.SetPlt(int32(plt.Size))
+-
+-		addpltreloc(plt, got, s, objabi.R_PLT0) // add lr, pc, #0xXX00000
+-		addpltreloc(plt, got, s, objabi.R_PLT1) // add lr, lr, #0xYY000
+-		addpltreloc(plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
+-
+-		// rel
+-		rel.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-
+-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_JUMP_SLOT)))
+-	} else {
+-		ld.Errorf(s, "addpltsym: unsupported binary format")
+-	}
+-}
+-
+-func addpltreloc(plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) {
+-	r := plt.AddRel()
+-	r.Sym = got
+-	r.Off = int32(plt.Size)
+-	r.Siz = 4
+-	r.Type = typ
+-	r.Add = int64(s.Got()) - 8
+-
+-	plt.Attr |= sym.AttrReachable
+-	plt.Size += 4
+-	plt.Grow(plt.Size)
+-}
+-
+-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
+-	got.AddUint32(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rel := syms.Rel
+-		rel.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_GLOB_DAT)))
+-	} else {
+-		ld.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+-
+-func addgotsyminternal(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
+-		return
+-	}
+-
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
+-
+-	got.AddAddrPlus(target.Arch, s, 0)
+-
+-	if target.IsElf() {
+-	} else {
+-		ld.Errorf(s, "addgotsyminternal: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index d6fa64de66..653f16dba1 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -46,7 +46,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+diff --git a/src/cmd/link/internal/arm64/asm2.go b/src/cmd/link/internal/arm64/asm2.go
+deleted file mode 100644
+index b093958cb8..0000000000
+--- a/src/cmd/link/internal/arm64/asm2.go
++++ /dev/null
+@@ -1,312 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package arm64
+-
+-import (
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/ld"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"debug/elf"
+-)
+-
+-// Temporary dumping ground for sym.Symbol version of helper
+-// functions in asm.go, still being used for some oses.
+-// FIXME: get rid of this file when dodata() is completely
+-// converted.
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
+-
+-	switch r.Type {
+-	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+-			return false
+-		}
+-
+-	// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_PREL32):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_AARCH64_PREL32 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-		// sense and should be removed when someone has thought about it properly.
+-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+-		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_PREL64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_AARCH64_PREL64 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+-		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 8
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26):
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add += int64(targ.Plt())
+-		}
+-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+-			ld.Errorf(s, "unknown symbol %s in callarm64", targ.Name)
+-		}
+-		r.Type = objabi.R_CALLARM64
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ADR_GOT_PAGE),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LD64_GOT_LO12_NC):
+-		if targ.Type != sym.SDYNIMPORT {
+-			// have symbol
+-			// TODO: turn LDR of GOT entry into ADR of symbol itself
+-		}
+-
+-		// fall back to using GOT
+-		// TODO: just needs relocation, no need to put in .dynsym
+-		addgotsym(target, syms, targ)
+-
+-		r.Type = objabi.R_ARM64_GOT
+-		r.Sym = syms.GOT
+-		r.Add += int64(targ.Got())
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ADR_PREL_PG_HI21),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ADD_ABS_LO12_NC):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
+-			ld.Errorf(s, "unknown symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ARM64_PCREL
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ABS64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_AARCH64_ABS64 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ADDR
+-		if target.IsPIE() && target.IsInternal() {
+-			// For internal linking PIE, this R_ADDR relocation cannot
+-			// be resolved statically. We need to generate a dynamic
+-			// relocation. Let the code below handle it.
+-			break
+-		}
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST8_ABS_LO12_NC):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ARM64_LDST8
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST32_ABS_LO12_NC):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ARM64_LDST32
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST64_ABS_LO12_NC):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ARM64_LDST64
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST128_ABS_LO12_NC):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ARM64_LDST128
+-		return true
+-	}
+-
+-	switch r.Type {
+-	case objabi.R_CALL,
+-		objabi.R_PCREL,
+-		objabi.R_CALLARM64:
+-		if targ.Type != sym.SDYNIMPORT {
+-			// nothing to do, the relocation will be laid out in reloc
+-			return true
+-		}
+-		if target.IsExternal() {
+-			// External linker will do this relocation.
+-			return true
+-		}
+-
+-	case objabi.R_ADDR:
+-		if s.Type == sym.STEXT && target.IsElf() {
+-			// The code is asking for the address of an external
+-			// function. We provide it with the address of the
+-			// correspondent GOT symbol.
+-			addgotsym(target, syms, targ)
+-
+-			r.Sym = syms.GOT
+-			r.Add += int64(targ.Got())
+-			return true
+-		}
+-
+-		// Process dynamic relocations for the data sections.
+-		if target.IsPIE() && target.IsInternal() {
+-			// When internally linking, generate dynamic relocations
+-			// for all typical R_ADDR relocations. The exception
+-			// are those R_ADDR that are created as part of generating
+-			// the dynamic relocations and must be resolved statically.
+-			//
+-			// There are three phases relevant to understanding this:
+-			//
+-			//	dodata()  // we are here
+-			//	address() // symbol address assignment
+-			//	reloc()   // resolution of static R_ADDR relocs
+-			//
+-			// At this point symbol addresses have not been
+-			// assigned yet (as the final size of the .rela section
+-			// will affect the addresses), and so we cannot write
+-			// the Elf64_Rela.r_offset now. Instead we delay it
+-			// until after the 'address' phase of the linker is
+-			// complete. We do this via Addaddrplus, which creates
+-			// a new R_ADDR relocation which will be resolved in
+-			// the 'reloc' phase.
+-			//
+-			// These synthetic static R_ADDR relocs must be skipped
+-			// now, or else we will be caught in an infinite loop
+-			// of generating synthetic relocs for our synthetic
+-			// relocs.
+-			//
+-			// Furthermore, the rela sections contain dynamic
+-			// relocations with R_ADDR relocations on
+-			// Elf64_Rela.r_offset. This field should contain the
+-			// symbol offset as determined by reloc(), not the
+-			// final dynamically linked address as a dynamic
+-			// relocation would provide.
+-			switch s.Name {
+-			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+-				return false
+-			}
+-		} else {
+-			// Either internally linking a static executable,
+-			// in which case we can resolve these relocations
+-			// statically in the 'reloc' phase, or externally
+-			// linking, in which case the relocation will be
+-			// prepared in the 'reloc' phase and passed to the
+-			// external linker in the 'asmb' phase.
+-			if s.Type != sym.SDATA && s.Type != sym.SRODATA {
+-				break
+-			}
+-		}
+-
+-		if target.IsElf() {
+-			// Generate R_AARCH64_RELATIVE relocations for best
+-			// efficiency in the dynamic linker.
+-			//
+-			// As noted above, symbol addresses have not been
+-			// assigned yet, so we can't generate the final reloc
+-			// entry yet. We ultimately want:
+-			//
+-			// r_offset = s + r.Off
+-			// r_info = R_AARCH64_RELATIVE
+-			// r_addend = targ + r.Add
+-			//
+-			// The dynamic linker will set *offset = base address +
+-			// addend.
+-			//
+-			// AddAddrPlus is used for r_offset and r_addend to
+-			// generate new R_ADDR relocations that will update
+-			// these fields in the 'reloc' phase.
+-			rela := syms.Rela
+-			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
+-			if r.Siz == 8 {
+-				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
+-			} else {
+-				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+-			}
+-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
+-			// Not mark r done here. So we still apply it statically,
+-			// so in the file content we'll also have the right offset
+-			// to the relocation target. So it can be examined statically
+-			// (e.g. go version).
+-			return true
+-		}
+-	}
+-	return false
+-}
+-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Plt() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-
+-	if target.IsElf() {
+-		plt := syms.PLT
+-		gotplt := syms.GOTPLT
+-		rela := syms.RelaPLT
+-		if plt.Size == 0 {
+-			panic("plt is not set up")
+-		}
+-
+-		// adrp    x16, &got.plt[0]
+-		plt.AddAddrPlus4(gotplt, gotplt.Size)
+-		plt.SetUint32(target.Arch, plt.Size-4, 0x90000010)
+-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+-
+-		// <offset> is the offset value of &got.plt[n] to &got.plt[0]
+-		// ldr     x17, [x16, <offset>]
+-		plt.AddAddrPlus4(gotplt, gotplt.Size)
+-		plt.SetUint32(target.Arch, plt.Size-4, 0xf9400211)
+-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+-
+-		// add     x16, x16, <offset>
+-		plt.AddAddrPlus4(gotplt, gotplt.Size)
+-		plt.SetUint32(target.Arch, plt.Size-4, 0x91000210)
+-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_PCREL
+-
+-		// br      x17
+-		plt.AddUint32(target.Arch, 0xd61f0220)
+-
+-		// add to got.plt: pointer to plt[0]
+-		gotplt.AddAddrPlus(target.Arch, plt, 0)
+-
+-		// rela
+-		rela.AddAddrPlus(target.Arch, gotplt, gotplt.Size-8)
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
+-		rela.AddUint64(target.Arch, 0)
+-
+-		s.SetPlt(int32(plt.Size - 16))
+-	} else {
+-		ld.Errorf(s, "addpltsym: unsupported binary format")
+-	}
+-}
+-
+-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rela := syms.Rela
+-		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_GLOB_DAT)))
+-		rela.AddUint64(target.Arch, 0)
+-	} else {
+-		ld.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 1895fbe0c2..ffce0cb17d 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -46,7 +46,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+diff --git a/src/cmd/link/internal/ld/data2.go b/src/cmd/link/internal/ld/data2.go
+index e11988fbbd..033fe75068 100644
+--- a/src/cmd/link/internal/ld/data2.go
++++ b/src/cmd/link/internal/ld/data2.go
+@@ -5,16 +5,8 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/gcprog"
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+-	"fmt"
+-	"log"
+-	"os"
+-	"sort"
+ 	"strings"
+-	"sync"
+ )
+ 
+ // Temporary dumping around for sym.Symbol version of helper
+@@ -22,206 +14,6 @@ import (
+ // FIXME: get rid of this file when dodata() is completely
+ // converted.
+ 
+-func (ctxt *Link) dodata() {
+-	// Give zeros sized symbols space if necessary.
+-	fixZeroSizedSymbols(ctxt)
+-
+-	// Collect data symbols by type into data.
+-	state := dodataState{ctxt: ctxt}
+-	for _, s := range ctxt.loader.Syms {
+-		if s == nil {
+-			continue
+-		}
+-		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
+-			continue
+-		}
+-		if s.Type <= sym.STEXT || s.Type >= sym.SXREF {
+-			continue
+-		}
+-		state.data[s.Type] = append(state.data[s.Type], s)
+-	}
+-
+-	// Now that we have the data symbols, but before we start
+-	// to assign addresses, record all the necessary
+-	// dynamic relocations. These will grow the relocation
+-	// symbol, which is itself data.
+-	//
+-	// On darwin, we need the symbol table numbers for dynreloc.
+-	if ctxt.HeadType == objabi.Hdarwin {
+-		panic("not supported")
+-		//machosymorder(ctxt)
+-	}
+-	state.dynreloc(ctxt)
+-
+-	// Move any RO data with relocations to a separate section.
+-	state.makeRelroForSharedLib(ctxt)
+-
+-	// Temporary for debugging.
+-	symToIdx := make(map[*sym.Symbol]loader.Sym)
+-	for s := loader.Sym(1); s < loader.Sym(ctxt.loader.NSym()); s++ {
+-		sp := ctxt.loader.Syms[s]
+-		if sp != nil {
+-			symToIdx[sp] = s
+-		}
+-	}
+-
+-	// Sort symbols.
+-	var wg sync.WaitGroup
+-	for symn := range state.data {
+-		symn := sym.SymKind(symn)
+-		wg.Add(1)
+-		go func() {
+-			state.data[symn], state.dataMaxAlign[symn] = dodataSect(ctxt, symn, state.data[symn], symToIdx)
+-			wg.Done()
+-		}()
+-	}
+-	wg.Wait()
+-
+-	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+-		// These symbols must have the same alignment as their section.
+-		// Otherwize, ld might change the layout of Go sections.
+-		ctxt.Syms.ROLookup("runtime.data", 0).Align = state.dataMaxAlign[sym.SDATA]
+-		ctxt.Syms.ROLookup("runtime.bss", 0).Align = state.dataMaxAlign[sym.SBSS]
+-	}
+-
+-	// Create *sym.Section objects and assign symbols to sections for
+-	// data/rodata (and related) symbols.
+-	state.allocateDataSections(ctxt)
+-
+-	// Create *sym.Section objects and assign symbols to sections for
+-	// DWARF symbols.
+-	state.allocateDwarfSections(ctxt)
+-
+-	/* number the sections */
+-	n := int16(1)
+-
+-	for _, sect := range Segtext.Sections {
+-		sect.Extnum = n
+-		n++
+-	}
+-	for _, sect := range Segrodata.Sections {
+-		sect.Extnum = n
+-		n++
+-	}
+-	for _, sect := range Segrelrodata.Sections {
+-		sect.Extnum = n
+-		n++
+-	}
+-	for _, sect := range Segdata.Sections {
+-		sect.Extnum = n
+-		n++
+-	}
+-	for _, sect := range Segdwarf.Sections {
+-		sect.Extnum = n
+-		n++
+-	}
+-}
+-
+-// makeRelroForSharedLib creates a section of readonly data if necessary.
+-func (state *dodataState) makeRelroForSharedLib(target *Link) {
+-	if !target.UseRelro() {
+-		return
+-	}
+-
+-	// "read only" data with relocations needs to go in its own section
+-	// when building a shared library. We do this by boosting objects of
+-	// type SXXX with relocations to type SXXXRELRO.
+-	for _, symnro := range sym.ReadOnly {
+-		symnrelro := sym.RelROMap[symnro]
+-
+-		ro := []*sym.Symbol{}
+-		relro := state.data[symnrelro]
+-
+-		for _, s := range state.data[symnro] {
+-			isRelro := len(s.R) > 0
+-			switch s.Type {
+-			case sym.STYPE, sym.STYPERELRO, sym.SGOFUNCRELRO:
+-				// Symbols are not sorted yet, so it is possible
+-				// that an Outer symbol has been changed to a
+-				// relro Type before it reaches here.
+-				isRelro = true
+-			case sym.SFUNCTAB:
+-				if target.IsAIX() && s.Name == "runtime.etypes" {
+-					// runtime.etypes must be at the end of
+-					// the relro datas.
+-					isRelro = true
+-				}
+-			}
+-			if isRelro {
+-				s.Type = symnrelro
+-				if s.Outer != nil {
+-					s.Outer.Type = s.Type
+-				}
+-				relro = append(relro, s)
+-			} else {
+-				ro = append(ro, s)
+-			}
+-		}
+-
+-		// Check that we haven't made two symbols with the same .Outer into
+-		// different types (because references two symbols with non-nil Outer
+-		// become references to the outer symbol + offset it's vital that the
+-		// symbol and the outer end up in the same section).
+-		for _, s := range relro {
+-			if s.Outer != nil && s.Outer.Type != s.Type {
+-				Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
+-					s.Outer.Name, s.Type, s.Outer.Type)
+-			}
+-		}
+-
+-		state.data[symnro] = ro
+-		state.data[symnrelro] = relro
+-	}
+-}
+-
+-func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+-	target := &ctxt.Target
+-	ldr := ctxt.loader
+-	syms := &ctxt.ArchSyms
+-	for ri := range s.R {
+-		r := &s.R[ri]
+-		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
+-			// It's expected that some relocations will be done
+-			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+-			// don't worry if Adddynrel returns false.
+-			thearch.Adddynrel(target, ldr, syms, s, r)
+-			continue
+-		}
+-
+-		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= objabi.ElfRelocOffset {
+-			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+-				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+-			}
+-			if !thearch.Adddynrel(target, ldr, syms, s, r) {
+-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
+-			}
+-		}
+-	}
+-}
+-
+-func (state *dodataState) dynreloc(ctxt *Link) {
+-	if ctxt.HeadType == objabi.Hwindows {
+-		return
+-	}
+-	// -d suppresses dynamic loader format, so we may as well not
+-	// compute these sections or mark their symbols as reachable.
+-	if *FlagD {
+-		return
+-	}
+-
+-	for _, s := range ctxt.Textp {
+-		dynrelocsym(ctxt, s)
+-	}
+-	for _, syms := range state.data {
+-		for _, s := range syms {
+-			dynrelocsym(ctxt, s)
+-		}
+-	}
+-	if ctxt.IsELF {
+-		elfdynhash(ctxt)
+-	}
+-}
+-
+ func Addstring(s *sym.Symbol, str string) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = sym.SNOPTRDATA
+@@ -257,686 +49,3 @@ func symalign(s *sym.Symbol) int32 {
+ 	s.Align = align
+ 	return align
+ }
+-
+-func aligndatsize(datsize int64, s *sym.Symbol) int64 {
+-	return Rnd(datsize, int64(symalign(s)))
+-}
+-
+-type GCProg struct {
+-	ctxt *Link
+-	sym  *sym.Symbol
+-	w    gcprog.Writer
+-}
+-
+-func (p *GCProg) Init(ctxt *Link, name string) {
+-	p.ctxt = ctxt
+-	p.sym = ctxt.Syms.Lookup(name, 0)
+-	p.w.Init(p.writeByte(ctxt))
+-	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
+-		p.w.Debug(os.Stderr)
+-	}
+-}
+-
+-func (p *GCProg) writeByte(ctxt *Link) func(x byte) {
+-	return func(x byte) {
+-		p.sym.AddUint8(x)
+-	}
+-}
+-
+-func (p *GCProg) End(size int64) {
+-	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
+-	p.w.End()
+-	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
+-	}
+-}
+-
+-func (p *GCProg) AddSym(s *sym.Symbol) {
+-	typ := s.Gotype
+-	// Things without pointers should be in sym.SNOPTRDATA or sym.SNOPTRBSS;
+-	// everything we see should have pointers and should therefore have a type.
+-	if typ == nil {
+-		switch s.Name {
+-		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
+-			// Ignore special symbols that are sometimes laid out
+-			// as real symbols. See comment about dyld on darwin in
+-			// the address function.
+-			return
+-		}
+-		Errorf(s, "missing Go type information for global symbol: size %d", s.Size)
+-		return
+-	}
+-
+-	ptrsize := int64(p.ctxt.Arch.PtrSize)
+-	nptr := decodetypePtrdata(p.ctxt.Arch, typ.P) / ptrsize
+-
+-	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
+-	}
+-
+-	if decodetypeUsegcprog(p.ctxt.Arch, typ.P) == 0 {
+-		// Copy pointers from mask into program.
+-		mask := decodetypeGcmask(p.ctxt, typ)
+-		for i := int64(0); i < nptr; i++ {
+-			if (mask[i/8]>>uint(i%8))&1 != 0 {
+-				p.w.Ptr(s.Value/ptrsize + i)
+-			}
+-		}
+-		return
+-	}
+-
+-	// Copy program.
+-	prog := decodetypeGcprog(p.ctxt, typ)
+-	p.w.ZeroUntil(s.Value / ptrsize)
+-	p.w.Append(prog[4:], nptr)
+-}
+-
+-// dataSortKey is used to sort a slice of data symbol *sym.Symbol pointers.
+-// The sort keys are kept inline to improve cache behavior while sorting.
+-type dataSortKey struct {
+-	size   int64
+-	name   string
+-	sym    *sym.Symbol
+-	symIdx loader.Sym
+-}
+-
+-type bySizeAndName []dataSortKey
+-
+-func (d bySizeAndName) Len() int      { return len(d) }
+-func (d bySizeAndName) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+-func (d bySizeAndName) Less(i, j int) bool {
+-	s1, s2 := d[i], d[j]
+-	if s1.size != s2.size {
+-		return s1.size < s2.size
+-	}
+-	if s1.name != s2.name {
+-		return s1.name < s2.name
+-	}
+-	return s1.symIdx < s2.symIdx
+-}
+-
+-// fixZeroSizedSymbols gives a few special symbols with zero size some space.
+-func fixZeroSizedSymbols(ctxt *Link) {
+-	// The values in moduledata are filled out by relocations
+-	// pointing to the addresses of these special symbols.
+-	// Typically these symbols have no size and are not laid
+-	// out with their matching section.
+-	//
+-	// However on darwin, dyld will find the special symbol
+-	// in the first loaded module, even though it is local.
+-	//
+-	// (An hypothesis, formed without looking in the dyld sources:
+-	// these special symbols have no size, so their address
+-	// matches a real symbol. The dynamic linker assumes we
+-	// want the normal symbol with the same address and finds
+-	// it in the other module.)
+-	//
+-	// To work around this we lay out the symbls whose
+-	// addresses are vital for multi-module programs to work
+-	// as normal symbols, and give them a little size.
+-	//
+-	// On AIX, as all DATA sections are merged together, ld might not put
+-	// these symbols at the beginning of their respective section if there
+-	// aren't real symbols, their alignment might not match the
+-	// first symbol alignment. Therefore, there are explicitly put at the
+-	// beginning of their section with the same alignment.
+-	if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+-		return
+-	}
+-
+-	bss := ctxt.Syms.Lookup("runtime.bss", 0)
+-	bss.Size = 8
+-	bss.Attr.Set(sym.AttrSpecial, false)
+-
+-	ctxt.Syms.Lookup("runtime.ebss", 0).Attr.Set(sym.AttrSpecial, false)
+-
+-	data := ctxt.Syms.Lookup("runtime.data", 0)
+-	data.Size = 8
+-	data.Attr.Set(sym.AttrSpecial, false)
+-
+-	edata := ctxt.Syms.Lookup("runtime.edata", 0)
+-	edata.Attr.Set(sym.AttrSpecial, false)
+-	if ctxt.HeadType == objabi.Haix {
+-		// XCOFFTOC symbols are part of .data section.
+-		edata.Type = sym.SXCOFFTOC
+-	}
+-
+-	types := ctxt.Syms.Lookup("runtime.types", 0)
+-	types.Type = sym.STYPE
+-	types.Size = 8
+-	types.Attr.Set(sym.AttrSpecial, false)
+-
+-	etypes := ctxt.Syms.Lookup("runtime.etypes", 0)
+-	etypes.Type = sym.SFUNCTAB
+-	etypes.Attr.Set(sym.AttrSpecial, false)
+-
+-	if ctxt.HeadType == objabi.Haix {
+-		rodata := ctxt.Syms.Lookup("runtime.rodata", 0)
+-		rodata.Type = sym.SSTRING
+-		rodata.Size = 8
+-		rodata.Attr.Set(sym.AttrSpecial, false)
+-
+-		ctxt.Syms.Lookup("runtime.erodata", 0).Attr.Set(sym.AttrSpecial, false)
+-	}
+-}
+-
+-// allocateDataSectionForSym creates a new sym.Section into which a a
+-// single symbol will be placed. Here "seg" is the segment into which
+-// the section will go, "s" is the symbol to be placed into the new
+-// section, and "rwx" contains permissions for the section.
+-func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Symbol, rwx int) *sym.Section {
+-	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, s.Name, rwx)
+-	sect.Align = symalign(s)
+-	state.datsize = Rnd(state.datsize, int64(sect.Align))
+-	sect.Vaddr = uint64(state.datsize)
+-	return sect
+-}
+-
+-// assignDsymsToSection assigns a collection of data symbols to a
+-// newly created section. "sect" is the section into which to place
+-// the symbols, "syms" holds the list of symbols to assign,
+-// "forceType" (if non-zero) contains a new sym type to apply to each
+-// sym during the assignment, and "aligner" is a hook to call to
+-// handle alignment during the assignment process.
+-func (state *dodataState) assignDsymsToSection(sect *sym.Section, syms []*sym.Symbol, forceType sym.SymKind, aligner func(datsize int64, s *sym.Symbol) int64) {
+-	for _, s := range syms {
+-		state.datsize = aligner(state.datsize, s)
+-		s.Sect = sect
+-		if forceType != sym.Sxxx {
+-			s.Type = forceType
+-		}
+-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-		state.datsize += s.Size
+-	}
+-	sect.Length = uint64(state.datsize) - sect.Vaddr
+-}
+-
+-func (state *dodataState) assignToSection(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
+-	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
+-	state.checkdatsize(symn)
+-}
+-
+-// allocateSingleSymSections walks through the bucketed data symbols
+-// with type 'symn', creates a new section for each sym, and assigns
+-// the sym to a newly created section. Section name is set from the
+-// symbol name. "Seg" is the segment into which to place the new
+-// section, "forceType" is the new sym.SymKind to assign to the symbol
+-// within the section, and "rwx" holds section permissions.
+-func (state *dodataState) allocateSingleSymSections(seg *sym.Segment, symn sym.SymKind, forceType sym.SymKind, rwx int) {
+-	for _, s := range state.data[symn] {
+-		sect := state.allocateDataSectionForSym(seg, s, rwx)
+-		s.Sect = sect
+-		s.Type = forceType
+-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-		state.datsize += s.Size
+-		sect.Length = uint64(state.datsize) - sect.Vaddr
+-	}
+-	state.checkdatsize(symn)
+-}
+-
+-// allocateNamedSectionAndAssignSyms creates a new section with the
+-// specified name, then walks through the bucketed data symbols with
+-// type 'symn' and assigns each of them to this new section. "Seg" is
+-// the segment into which to place the new section, "secName" is the
+-// name to give to the new section, "forceType" (if non-zero) contains
+-// a new sym type to apply to each sym during the assignment, and
+-// "rwx" holds section permissions.
+-func (state *dodataState) allocateNamedSectionAndAssignSyms(seg *sym.Segment, secName string, symn sym.SymKind, forceType sym.SymKind, rwx int) *sym.Section {
+-
+-	sect := state.allocateNamedDataSection(seg, secName, []sym.SymKind{symn}, rwx)
+-	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
+-	return sect
+-}
+-
+-// allocateDataSections allocates sym.Section objects for data/rodata
+-// (and related) symbols, and then assigns symbols to those sections.
+-func (state *dodataState) allocateDataSections(ctxt *Link) {
+-	// Allocate sections.
+-	// Data is processed before segtext, because we need
+-	// to see all symbols in the .data and .bss sections in order
+-	// to generate garbage collection information.
+-
+-	// Writable data sections that do not need any specialized handling.
+-	writable := []sym.SymKind{
+-		sym.SBUILDINFO,
+-		sym.SELFSECT,
+-		sym.SMACHO,
+-		sym.SMACHOGOT,
+-		sym.SWINDOWS,
+-	}
+-	for _, symn := range writable {
+-		state.allocateSingleSymSections(&Segdata, symn, sym.SDATA, 06)
+-	}
+-
+-	// .got (and .toc on ppc64)
+-	if len(state.data[sym.SELFGOT]) > 0 {
+-		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
+-		if ctxt.IsPPC64() {
+-			for _, s := range state.data[sym.SELFGOT] {
+-				// Resolve .TOC. symbol for this object file (ppc64)
+-				toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+-				if toc != nil {
+-					toc.Sect = sect
+-					toc.Outer = s
+-					toc.Sub = s.Sub
+-					s.Sub = toc
+-
+-					toc.Value = 0x8000
+-				}
+-			}
+-		}
+-	}
+-
+-	/* pointer-free data */
+-	sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
+-	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
+-
+-	hasinitarr := ctxt.linkShared
+-
+-	/* shared library initializer */
+-	switch ctxt.BuildMode {
+-	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePlugin:
+-		hasinitarr = true
+-	}
+-
+-	if ctxt.HeadType == objabi.Haix {
+-		if len(state.data[sym.SINITARR]) > 0 {
+-			Errorf(nil, "XCOFF format doesn't allow .init_array section")
+-		}
+-	}
+-
+-	if hasinitarr && len(state.data[sym.SINITARR]) > 0 {
+-		state.allocateNamedSectionAndAssignSyms(&Segdata, ".init_array", sym.SINITARR, sym.Sxxx, 06)
+-	}
+-
+-	/* data */
+-	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
+-	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
+-	dataGcEnd := state.datsize - int64(sect.Vaddr)
+-
+-	// On AIX, TOC entries must be the last of .data
+-	// These aren't part of gc as they won't change during the runtime.
+-	state.assignToSection(sect, sym.SXCOFFTOC, sym.SDATA)
+-	state.checkdatsize(sym.SDATA)
+-	sect.Length = uint64(state.datsize) - sect.Vaddr
+-
+-	/* bss */
+-	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".bss", sym.SBSS, sym.Sxxx, 06)
+-	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
+-	bssGcEnd := state.datsize - int64(sect.Vaddr)
+-
+-	// Emit gcdata for bcc symbols now that symbol values have been assigned.
+-	gcsToEmit := []struct {
+-		symName string
+-		symKind sym.SymKind
+-		gcEnd   int64
+-	}{
+-		{"runtime.gcdata", sym.SDATA, dataGcEnd},
+-		{"runtime.gcbss", sym.SBSS, bssGcEnd},
+-	}
+-	for _, g := range gcsToEmit {
+-		var gc GCProg
+-		gc.Init(ctxt, g.symName)
+-		for _, s := range state.data[g.symKind] {
+-			gc.AddSym(s)
+-		}
+-		gc.End(g.gcEnd)
+-	}
+-
+-	/* pointer-free bss */
+-	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
+-	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
+-
+-	// Coverage instrumentation counters for libfuzzer.
+-	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+-		state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+-	}
+-
+-	if len(state.data[sym.STLSBSS]) > 0 {
+-		var sect *sym.Section
+-		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.
+-		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
+-			sect = addsection(ctxt.loader, ctxt.Arch, &Segdata, ".tbss", 06)
+-			sect.Align = int32(ctxt.Arch.PtrSize)
+-			// FIXME: why does this need to be set to zero?
+-			sect.Vaddr = 0
+-		}
+-		state.datsize = 0
+-
+-		for _, s := range state.data[sym.STLSBSS] {
+-			state.datsize = aligndatsize(state.datsize, s)
+-			s.Sect = sect
+-			s.Value = state.datsize
+-			state.datsize += s.Size
+-		}
+-		state.checkdatsize(sym.STLSBSS)
+-
+-		if sect != nil {
+-			sect.Length = uint64(state.datsize)
+-		}
+-	}
+-
+-	/*
+-	 * We finished data, begin read-only data.
+-	 * Not all systems support a separate read-only non-executable data section.
+-	 * ELF and Windows PE systems do.
+-	 * OS X and Plan 9 do not.
+-	 * And if we're using external linking mode, the point is moot,
+-	 * since it's not our decision; that code expects the sections in
+-	 * segtext.
+-	 */
+-	var segro *sym.Segment
+-	if ctxt.IsELF && ctxt.LinkMode == LinkInternal {
+-		segro = &Segrodata
+-	} else if ctxt.HeadType == objabi.Hwindows {
+-		segro = &Segrodata
+-	} else {
+-		segro = &Segtext
+-	}
+-
+-	state.datsize = 0
+-
+-	/* read-only executable ELF, Mach-O sections */
+-	if len(state.data[sym.STEXT]) != 0 {
+-		Errorf(nil, "dodata found an sym.STEXT symbol: %s", state.data[sym.STEXT][0].Name)
+-	}
+-	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
+-
+-	/* read-only data */
+-	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
+-	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.erodata", 0).Sect = sect
+-	if !ctxt.UseRelro() {
+-		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+-		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+-	}
+-	for _, symn := range sym.ReadOnly {
+-		symnStartValue := state.datsize
+-		state.assignToSection(sect, symn, sym.SRODATA)
+-		if ctxt.HeadType == objabi.Haix {
+-			// Read-only symbols might be wrapped inside their outer
+-			// symbol.
+-			// XCOFF symbol table needs to know the size of
+-			// these outer symbols.
+-			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
+-		}
+-	}
+-
+-	/* read-only ELF, Mach-O sections */
+-	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
+-	state.allocateSingleSymSections(segro, sym.SMACHOPLT, sym.SRODATA, 04)
+-
+-	// There is some data that are conceptually read-only but are written to by
+-	// relocations. On GNU systems, we can arrange for the dynamic linker to
+-	// mprotect sections after relocations are applied by giving them write
+-	// permissions in the object file and calling them ".data.rel.ro.FOO". We
+-	// divide the .rodata section between actual .rodata and .data.rel.ro.rodata,
+-	// but for the other sections that this applies to, we just write a read-only
+-	// .FOO section or a read-write .data.rel.ro.FOO section depending on the
+-	// situation.
+-	// TODO(mwhudson): It would make sense to do this more widely, but it makes
+-	// the system linker segfault on darwin.
+-	const relroPerm = 06
+-	const fallbackPerm = 04
+-	relroSecPerm := fallbackPerm
+-	genrelrosecname := func(suffix string) string {
+-		return suffix
+-	}
+-	seg := segro
+-
+-	if ctxt.UseRelro() {
+-		segrelro := &Segrelrodata
+-		if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
+-			// Using a separate segment with an external
+-			// linker results in some programs moving
+-			// their data sections unexpectedly, which
+-			// corrupts the moduledata. So we use the
+-			// rodata segment and let the external linker
+-			// sort out a rel.ro segment.
+-			segrelro = segro
+-		} else {
+-			// Reset datsize for new segment.
+-			state.datsize = 0
+-		}
+-
+-		genrelrosecname = func(suffix string) string {
+-			return ".data.rel.ro" + suffix
+-		}
+-		relroReadOnly := []sym.SymKind{}
+-		for _, symnro := range sym.ReadOnly {
+-			symn := sym.RelROMap[symnro]
+-			relroReadOnly = append(relroReadOnly, symn)
+-		}
+-		seg = segrelro
+-		relroSecPerm = relroPerm
+-
+-		/* data only written by relocations */
+-		sect = state.allocateNamedDataSection(segrelro, genrelrosecname(""), relroReadOnly, relroSecPerm)
+-
+-		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+-		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
+-
+-		for i, symnro := range sym.ReadOnly {
+-			if i == 0 && symnro == sym.STYPE && ctxt.HeadType != objabi.Haix {
+-				// Skip forward so that no type
+-				// reference uses a zero offset.
+-				// This is unlikely but possible in small
+-				// programs with no other read-only data.
+-				state.datsize++
+-			}
+-
+-			symn := sym.RelROMap[symnro]
+-			symnStartValue := state.datsize
+-
+-			for _, s := range state.data[symn] {
+-				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+-					Errorf(s, "s.Outer (%s) in different section from s, %s != %s", s.Outer.Name, s.Outer.Sect.Name, sect.Name)
+-				}
+-			}
+-			state.assignToSection(sect, symn, sym.SRODATA)
+-			if ctxt.HeadType == objabi.Haix {
+-				// Read-only symbols might be wrapped inside their outer
+-				// symbol.
+-				// XCOFF symbol table needs to know the size of
+-				// these outer symbols.
+-				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
+-			}
+-		}
+-
+-		sect.Length = uint64(state.datsize) - sect.Vaddr
+-	}
+-
+-	/* typelink */
+-	sect = state.allocateNamedDataSection(seg, genrelrosecname(".typelink"), []sym.SymKind{sym.STYPELINK}, relroSecPerm)
+-	typelink := ctxt.Syms.Lookup("runtime.typelink", 0)
+-	typelink.Sect = sect
+-	typelink.Type = sym.SRODATA
+-	state.datsize += typelink.Size
+-	state.checkdatsize(sym.STYPELINK)
+-	sect.Length = uint64(state.datsize) - sect.Vaddr
+-
+-	/* itablink */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
+-	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
+-	if ctxt.HeadType == objabi.Haix {
+-		// Store .itablink size because its symbols are wrapped
+-		// under an outer symbol: runtime.itablink.
+-		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
+-	}
+-
+-	/* gosymtab */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
+-	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
+-
+-	/* gopclntab */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
+-	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
+-
+-	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+-	if state.datsize != int64(uint32(state.datsize)) {
+-		Errorf(nil, "read-only data segment too large: %d", state.datsize)
+-	}
+-
+-	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
+-		ctxt.datap = append(ctxt.datap, state.data[symn]...)
+-	}
+-}
+-
+-// allocateDwarfSections allocates sym.Section objects for DWARF
+-// symbols, and assigns symbols to sections.
+-func (state *dodataState) allocateDwarfSections(ctxt *Link) {
+-
+-	alignOne := func(datsize int64, s *sym.Symbol) int64 { return datsize }
+-
+-	for i := 0; i < len(dwarfp); i++ {
+-		// First the section symbol.
+-		s := dwarfp[i].secSym()
+-		sect := state.allocateNamedDataSection(&Segdwarf, s.Name, []sym.SymKind{}, 04)
+-		sect.Sym = s
+-		s.Sect = sect
+-		curType := s.Type
+-		s.Type = sym.SRODATA
+-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-		state.datsize += s.Size
+-
+-		// Then any sub-symbols for the section symbol.
+-		subSyms := dwarfp[i].subSyms()
+-		state.assignDsymsToSection(sect, subSyms, sym.SRODATA, alignOne)
+-
+-		for j := 0; j < len(subSyms); j++ {
+-			s := subSyms[j]
+-			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
+-				// Update the size of .debug_loc for this symbol's
+-				// package.
+-				addDwsectCUSize(".debug_loc", s.File, uint64(s.Size))
+-			}
+-		}
+-		sect.Length = uint64(state.datsize) - sect.Vaddr
+-		state.checkdatsize(curType)
+-	}
+-}
+-
+-func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol, symToIdx map[*sym.Symbol]loader.Sym) (result []*sym.Symbol, maxAlign int32) {
+-	if ctxt.HeadType == objabi.Hdarwin {
+-		// Some symbols may no longer belong in syms
+-		// due to movement in machosymorder.
+-		newSyms := make([]*sym.Symbol, 0, len(syms))
+-		for _, s := range syms {
+-			if s.Type == symn {
+-				newSyms = append(newSyms, s)
+-			}
+-		}
+-		syms = newSyms
+-	}
+-
+-	var head, tail *sym.Symbol
+-	symsSort := make([]dataSortKey, 0, len(syms))
+-	for _, s := range syms {
+-		if s.Attr.OnList() {
+-			log.Fatalf("symbol %s listed multiple times", s.Name)
+-		}
+-		s.Attr |= sym.AttrOnList
+-		switch {
+-		case s.Size < int64(len(s.P)):
+-			Errorf(s, "initialize bounds (%d < %d)", s.Size, len(s.P))
+-		case s.Size < 0:
+-			Errorf(s, "negative size (%d bytes)", s.Size)
+-		case s.Size > cutoff:
+-			Errorf(s, "symbol too large (%d bytes)", s.Size)
+-		}
+-
+-		// If the usually-special section-marker symbols are being laid
+-		// out as regular symbols, put them either at the beginning or
+-		// end of their section.
+-		if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+-			switch s.Name {
+-			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types", "runtime.rodata":
+-				head = s
+-				continue
+-			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes", "runtime.erodata":
+-				tail = s
+-				continue
+-			}
+-		}
+-
+-		key := dataSortKey{
+-			size:   s.Size,
+-			name:   s.Name,
+-			sym:    s,
+-			symIdx: symToIdx[s],
+-		}
+-
+-		switch s.Type {
+-		case sym.SELFGOT:
+-			// For ppc64, we want to interleave the .got and .toc sections
+-			// from input files. Both are type sym.SELFGOT, so in that case
+-			// we skip size comparison and fall through to the name
+-			// comparison (conveniently, .got sorts before .toc).
+-			key.size = 0
+-		}
+-
+-		symsSort = append(symsSort, key)
+-	}
+-
+-	sort.Sort(bySizeAndName(symsSort))
+-
+-	off := 0
+-	if head != nil {
+-		syms[0] = head
+-		off++
+-	}
+-	for i, symSort := range symsSort {
+-		syms[i+off] = symSort.sym
+-		align := symalign(symSort.sym)
+-		if maxAlign < align {
+-			maxAlign = align
+-		}
+-	}
+-	if tail != nil {
+-		syms[len(syms)-1] = tail
+-	}
+-
+-	if ctxt.IsELF && symn == sym.SELFROSECT {
+-		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
+-		// and Solaris actually cares.
+-		reli, plti := -1, -1
+-		for i, s := range syms {
+-			switch s.Name {
+-			case ".rel.plt", ".rela.plt":
+-				plti = i
+-			case ".rel", ".rela":
+-				reli = i
+-			}
+-		}
+-		if reli >= 0 && plti >= 0 && plti != reli+1 {
+-			var first, second int
+-			if plti > reli {
+-				first, second = reli, plti
+-			} else {
+-				first, second = plti, reli
+-			}
+-			rel, plt := syms[reli], syms[plti]
+-			copy(syms[first+2:], syms[first+1:second])
+-			syms[first+0] = rel
+-			syms[first+1] = plt
+-
+-			// Make sure alignment doesn't introduce a gap.
+-			// Setting the alignment explicitly prevents
+-			// symalign from basing it on the size and
+-			// getting it wrong.
+-			rel.Align = int32(ctxt.Arch.RegSize)
+-			plt.Align = int32(ctxt.Arch.RegSize)
+-		}
+-	}
+-
+-	return syms, maxAlign
+-}
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 8e248fc982..9534464916 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -5,12 +5,9 @@
+ package ld
+ 
+ import (
+-	"bytes"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+-	"cmd/link/internal/sym"
+ 	"debug/elf"
+-	"fmt"
+ )
+ 
+ // Decoding the type.* symbols.	 This has to be in sync with
+@@ -29,23 +26,6 @@ const (
+ 	tflagExtraStar = 1 << 1
+ )
+ 
+-func decodeReloc(s *sym.Symbol, off int32) *sym.Reloc {
+-	for i := range s.R {
+-		if s.R[i].Off == off {
+-			return &s.R[i]
+-		}
+-	}
+-	return nil
+-}
+-
+-func decodeRelocSym(s *sym.Symbol, off int32) *sym.Symbol {
+-	r := decodeReloc(s, off)
+-	if r == nil {
+-		return nil
+-	}
+-	return r.Sym
+-}
+-
+ func decodeInuxi(arch *sys.Arch, p []byte, sz int) uint64 {
+ 	switch sz {
+ 	case 2:
+@@ -103,26 +83,6 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
+ 	return nil
+ }
+ 
+-// Type.commonType.gc
+-func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
+-	if s.Type == sym.SDYNIMPORT {
+-		addr := decodetypeGcprogShlib(ctxt, s.P)
+-		sect := findShlibSection(ctxt, s.File, addr)
+-		if sect != nil {
+-			// A gcprog is a 4-byte uint32 indicating length, followed by
+-			// the actual program.
+-			progsize := make([]byte, 4)
+-			sect.ReadAt(progsize, int64(addr-sect.Addr))
+-			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
+-			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
+-			return append(progsize, progbytes...)
+-		}
+-		Exitf("cannot find gcprog for %s", s.Name)
+-		return nil
+-	}
+-	return decodeRelocSym(s, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize)).P
+-}
+-
+ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+ 	if ctxt.Arch.Family == sys.ARM64 {
+ 		return 0
+@@ -130,51 +90,6 @@ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+ 	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+ }
+ 
+-func decodetypeGcmask(ctxt *Link, s *sym.Symbol) []byte {
+-	if s.Type == sym.SDYNIMPORT {
+-		addr := decodetypeGcprogShlib(ctxt, s.P)
+-		ptrdata := decodetypePtrdata(ctxt.Arch, s.P)
+-		sect := findShlibSection(ctxt, s.File, addr)
+-		if sect != nil {
+-			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
+-			sect.ReadAt(r, int64(addr-sect.Addr))
+-			return r
+-		}
+-		Exitf("cannot find gcmask for %s", s.Name)
+-		return nil
+-	}
+-	mask := decodeRelocSym(s, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
+-	return mask.P
+-}
+-
+-// Type.ArrayType.elem and Type.SliceType.Elem
+-func decodetypeArrayElem(arch *sys.Arch, s *sym.Symbol) *sym.Symbol {
+-	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+-}
+-
+-func decodetypeArrayLen(arch *sys.Arch, s *sym.Symbol) int64 {
+-	return int64(decodeInuxi(arch, s.P[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+-}
+-
+-// Type.PtrType.elem
+-func decodetypePtrElem(arch *sys.Arch, s *sym.Symbol) *sym.Symbol {
+-	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+-}
+-
+-// Type.MapType.key, elem
+-func decodetypeMapKey(arch *sys.Arch, s *sym.Symbol) *sym.Symbol {
+-	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+-}
+-
+-func decodetypeMapValue(arch *sys.Arch, s *sym.Symbol) *sym.Symbol {
+-	return decodeRelocSym(s, int32(commonsize(arch))+int32(arch.PtrSize)) // 0x20 / 0x38
+-}
+-
+-// Type.ChanType.elem
+-func decodetypeChanElem(arch *sys.Arch, s *sym.Symbol) *sym.Symbol {
+-	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+-}
+-
+ // Type.FuncType.dotdotdot
+ func decodetypeFuncDotdotdot(arch *sys.Arch, p []byte) bool {
+ 	return uint16(decodeInuxi(arch, p[commonsize(arch)+2:], 2))&(1<<15) != 0
+@@ -189,75 +104,6 @@ func decodetypeFuncOutCount(arch *sys.Arch, p []byte) int {
+ 	return int(uint16(decodeInuxi(arch, p[commonsize(arch)+2:], 2)) & (1<<15 - 1))
+ }
+ 
+-func decodetypeFuncInType(arch *sys.Arch, s *sym.Symbol, i int) *sym.Symbol {
+-	uadd := commonsize(arch) + 4
+-	if arch.PtrSize == 8 {
+-		uadd += 4
+-	}
+-	if decodetypeHasUncommon(arch, s.P) {
+-		uadd += uncommonSize()
+-	}
+-	return decodeRelocSym(s, int32(uadd+i*arch.PtrSize))
+-}
+-
+-func decodetypeFuncOutType(arch *sys.Arch, s *sym.Symbol, i int) *sym.Symbol {
+-	return decodetypeFuncInType(arch, s, i+decodetypeFuncInCount(arch, s.P))
+-}
+-
+-// Type.StructType.fields.Slice::length
+-func decodetypeStructFieldCount(arch *sys.Arch, s *sym.Symbol) int {
+-	return int(decodeInuxi(arch, s.P[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+-}
+-
+-func decodetypeStructFieldArrayOff(arch *sys.Arch, s *sym.Symbol, i int) int {
+-	off := commonsize(arch) + 4*arch.PtrSize
+-	if decodetypeHasUncommon(arch, s.P) {
+-		off += uncommonSize()
+-	}
+-	off += i * structfieldSize(arch)
+-	return off
+-}
+-
+-// decodetypeStr returns the contents of an rtype's str field (a nameOff).
+-func decodetypeStr(arch *sys.Arch, s *sym.Symbol) string {
+-	str := decodetypeName(s, 4*arch.PtrSize+8)
+-	if s.P[2*arch.PtrSize+4]&tflagExtraStar != 0 {
+-		return str[1:]
+-	}
+-	return str
+-}
+-
+-// decodetypeName decodes the name from a reflect.name.
+-func decodetypeName(s *sym.Symbol, off int) string {
+-	r := decodeReloc(s, int32(off))
+-	if r == nil {
+-		return ""
+-	}
+-
+-	data := r.Sym.P
+-	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
+-	return string(data[3 : 3+namelen])
+-}
+-
+-func decodetypeStructFieldName(arch *sys.Arch, s *sym.Symbol, i int) string {
+-	off := decodetypeStructFieldArrayOff(arch, s, i)
+-	return decodetypeName(s, off)
+-}
+-
+-func decodetypeStructFieldType(arch *sys.Arch, s *sym.Symbol, i int) *sym.Symbol {
+-	off := decodetypeStructFieldArrayOff(arch, s, i)
+-	return decodeRelocSym(s, int32(off+arch.PtrSize))
+-}
+-
+-func decodetypeStructFieldOffs(arch *sys.Arch, s *sym.Symbol, i int) int64 {
+-	return decodetypeStructFieldOffsAnon(arch, s, i) >> 1
+-}
+-
+-func decodetypeStructFieldOffsAnon(arch *sys.Arch, s *sym.Symbol, i int) int64 {
+-	off := decodetypeStructFieldArrayOff(arch, s, i)
+-	return int64(decodeInuxi(arch, s.P[off+2*arch.PtrSize:], arch.PtrSize))
+-}
+-
+ // InterfaceType.methods.length
+ func decodetypeIfaceMethodCount(arch *sys.Arch, p []byte) int64 {
+ 	return int64(decodeInuxi(arch, p[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+@@ -279,91 +125,3 @@ const (
+ 	kindStruct    = 25
+ 	kindMask      = (1 << 5) - 1
+ )
+-
+-// decodeMethodSig decodes an array of method signature information.
+-// Each element of the array is size bytes. The first 4 bytes is a
+-// nameOff for the method name, and the next 4 bytes is a typeOff for
+-// the function type.
+-//
+-// Conveniently this is the layout of both runtime.method and runtime.imethod.
+-func decodeMethodSig(arch *sys.Arch, s *sym.Symbol, off, size, count int) []methodsig {
+-	var buf bytes.Buffer
+-	var methods []methodsig
+-	for i := 0; i < count; i++ {
+-		buf.WriteString(decodetypeName(s, off))
+-		mtypSym := decodeRelocSym(s, int32(off+4))
+-
+-		buf.WriteRune('(')
+-		inCount := decodetypeFuncInCount(arch, mtypSym.P)
+-		for i := 0; i < inCount; i++ {
+-			if i > 0 {
+-				buf.WriteString(", ")
+-			}
+-			buf.WriteString(decodetypeFuncInType(arch, mtypSym, i).Name)
+-		}
+-		buf.WriteString(") (")
+-		outCount := decodetypeFuncOutCount(arch, mtypSym.P)
+-		for i := 0; i < outCount; i++ {
+-			if i > 0 {
+-				buf.WriteString(", ")
+-			}
+-			buf.WriteString(decodetypeFuncOutType(arch, mtypSym, i).Name)
+-		}
+-		buf.WriteRune(')')
+-
+-		off += size
+-		methods = append(methods, methodsig(buf.String()))
+-		buf.Reset()
+-	}
+-	return methods
+-}
+-
+-func decodeIfaceMethods(arch *sys.Arch, s *sym.Symbol) []methodsig {
+-	if decodetypeKind(arch, s.P)&kindMask != kindInterface {
+-		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
+-	}
+-	r := decodeReloc(s, int32(commonsize(arch)+arch.PtrSize))
+-	if r == nil {
+-		return nil
+-	}
+-	if r.Sym != s {
+-		panic(fmt.Sprintf("imethod slice pointer in %q leads to a different symbol", s.Name))
+-	}
+-	off := int(r.Add) // array of reflect.imethod values
+-	numMethods := int(decodetypeIfaceMethodCount(arch, s.P))
+-	sizeofIMethod := 4 + 4
+-	return decodeMethodSig(arch, s, off, sizeofIMethod, numMethods)
+-}
+-
+-func decodetypeMethods(arch *sys.Arch, s *sym.Symbol) []methodsig {
+-	if !decodetypeHasUncommon(arch, s.P) {
+-		panic(fmt.Sprintf("no methods on %q", s.Name))
+-	}
+-	off := commonsize(arch) // reflect.rtype
+-	switch decodetypeKind(arch, s.P) & kindMask {
+-	case kindStruct: // reflect.structType
+-		off += 4 * arch.PtrSize
+-	case kindPtr: // reflect.ptrType
+-		off += arch.PtrSize
+-	case kindFunc: // reflect.funcType
+-		off += arch.PtrSize // 4 bytes, pointer aligned
+-	case kindSlice: // reflect.sliceType
+-		off += arch.PtrSize
+-	case kindArray: // reflect.arrayType
+-		off += 3 * arch.PtrSize
+-	case kindChan: // reflect.chanType
+-		off += 2 * arch.PtrSize
+-	case kindMap: // reflect.mapType
+-		off += 4*arch.PtrSize + 8
+-	case kindInterface: // reflect.interfaceType
+-		off += 3 * arch.PtrSize
+-	default:
+-		// just Sizeof(rtype)
+-	}
+-
+-	mcount := int(decodeInuxi(arch, s.P[off+4:], 2))
+-	moff := int(decodeInuxi(arch, s.P[off+4+2+2:], 4))
+-	off += moff                // offset to array of reflect.method values
+-	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
+-	return decodeMethodSig(arch, s, off, sizeofMethod, mcount)
+-}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index d3270720f1..3a0a305db9 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2343,93 +2343,6 @@ elfobj:
+ 	}
+ }
+ 
+-func elfadddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
+-	if elf64 {
+-		s.Dynid = int32(Nelfsym)
+-		Nelfsym++
+-
+-		d := syms.DynSym
+-
+-		name := s.Extname()
+-		d.AddUint32(target.Arch, uint32(Addstring(syms.DynStr, name)))
+-
+-		/* type */
+-		t := STB_GLOBAL << 4
+-
+-		if s.Attr.CgoExport() && s.Type == sym.STEXT {
+-			t |= STT_FUNC
+-		} else {
+-			t |= STT_OBJECT
+-		}
+-		d.AddUint8(uint8(t))
+-
+-		/* reserved */
+-		d.AddUint8(0)
+-
+-		/* section where symbol is defined */
+-		if s.Type == sym.SDYNIMPORT {
+-			d.AddUint16(target.Arch, SHN_UNDEF)
+-		} else {
+-			d.AddUint16(target.Arch, 1)
+-		}
+-
+-		/* value */
+-		if s.Type == sym.SDYNIMPORT {
+-			d.AddUint64(target.Arch, 0)
+-		} else {
+-			d.AddAddr(target.Arch, s)
+-		}
+-
+-		/* size of object */
+-		d.AddUint64(target.Arch, uint64(s.Size))
+-
+-		if target.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
+-			elfWriteDynEnt(target.Arch, syms.Dynamic, DT_NEEDED, uint64(Addstring(syms.DynStr, s.Dynimplib())))
+-		}
+-	} else {
+-		s.Dynid = int32(Nelfsym)
+-		Nelfsym++
+-
+-		d := syms.DynSym
+-
+-		/* name */
+-		name := s.Extname()
+-
+-		d.AddUint32(target.Arch, uint32(Addstring(syms.DynStr, name)))
+-
+-		/* value */
+-		if s.Type == sym.SDYNIMPORT {
+-			d.AddUint32(target.Arch, 0)
+-		} else {
+-			d.AddAddr(target.Arch, s)
+-		}
+-
+-		/* size of object */
+-		d.AddUint32(target.Arch, uint32(s.Size))
+-
+-		/* type */
+-		t := STB_GLOBAL << 4
+-
+-		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
+-		if target.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type == sym.STEXT {
+-			t |= STT_FUNC
+-		} else if target.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type == sym.STEXT {
+-			t |= STT_FUNC
+-		} else {
+-			t |= STT_OBJECT
+-		}
+-		d.AddUint8(uint8(t))
+-		d.AddUint8(0)
+-
+-		/* shndx */
+-		if s.Type == sym.SDYNIMPORT {
+-			d.AddUint16(target.Arch, SHN_UNDEF)
+-		} else {
+-			d.AddUint16(target.Arch, 1)
+-		}
+-	}
+-}
+-
+ func elfadddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
+ 	ldr.SetSymDynid(s, int32(Nelfsym))
+ 	Nelfsym++
+diff --git a/src/cmd/link/internal/ld/elf2.go b/src/cmd/link/internal/ld/elf2.go
+index c6e11d87bf..3f7d72b310 100644
+--- a/src/cmd/link/internal/ld/elf2.go
++++ b/src/cmd/link/internal/ld/elf2.go
+@@ -5,7 +5,6 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+ )
+ 
+@@ -24,146 +23,3 @@ func elfsetstring(s *sym.Symbol, str string, off int) {
+ 	elfstr[nelfstr].off = off
+ 	nelfstr++
+ }
+-
+-func elfWriteDynEntSym(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
+-	Elfwritedynentsymplus(arch, s, tag, t, 0)
+-}
+-
+-func elfdynhash(ctxt *Link) {
+-	if !ctxt.IsELF {
+-		return
+-	}
+-
+-	nsym := Nelfsym
+-	s := ctxt.Syms.Lookup(".hash", 0)
+-	s.Type = sym.SELFROSECT
+-	s.Attr |= sym.AttrReachable
+-
+-	i := nsym
+-	nbucket := 1
+-	for i > 0 {
+-		nbucket++
+-		i >>= 1
+-	}
+-
+-	var needlib *Elflib
+-	need := make([]*Elfaux, nsym)
+-	chain := make([]uint32, nsym)
+-	buckets := make([]uint32, nbucket)
+-
+-	for _, sy := range ctxt.loader.Syms {
+-		if sy == nil {
+-			continue
+-		}
+-		if sy.Dynid <= 0 {
+-			continue
+-		}
+-
+-		if sy.Dynimpvers() != "" {
+-			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
+-		}
+-
+-		name := sy.Extname()
+-		hc := elfhash(name)
+-
+-		b := hc % uint32(nbucket)
+-		chain[sy.Dynid] = buckets[b]
+-		buckets[b] = uint32(sy.Dynid)
+-	}
+-
+-	// s390x (ELF64) hash table entries are 8 bytes
+-	if ctxt.Arch.Family == sys.S390X {
+-		s.AddUint64(ctxt.Arch, uint64(nbucket))
+-		s.AddUint64(ctxt.Arch, uint64(nsym))
+-		for i := 0; i < nbucket; i++ {
+-			s.AddUint64(ctxt.Arch, uint64(buckets[i]))
+-		}
+-		for i := 0; i < nsym; i++ {
+-			s.AddUint64(ctxt.Arch, uint64(chain[i]))
+-		}
+-	} else {
+-		s.AddUint32(ctxt.Arch, uint32(nbucket))
+-		s.AddUint32(ctxt.Arch, uint32(nsym))
+-		for i := 0; i < nbucket; i++ {
+-			s.AddUint32(ctxt.Arch, buckets[i])
+-		}
+-		for i := 0; i < nsym; i++ {
+-			s.AddUint32(ctxt.Arch, chain[i])
+-		}
+-	}
+-
+-	// version symbols
+-	dynstr := ctxt.Syms.Lookup(".dynstr", 0)
+-
+-	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
+-	i = 2
+-	nfile := 0
+-	for l := needlib; l != nil; l = l.next {
+-		nfile++
+-
+-		// header
+-		s.AddUint16(ctxt.Arch, 1) // table version
+-		j := 0
+-		for x := l.aux; x != nil; x = x.next {
+-			j++
+-		}
+-		s.AddUint16(ctxt.Arch, uint16(j))                         // aux count
+-		s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, l.file))) // file string offset
+-		s.AddUint32(ctxt.Arch, 16)                                // offset from header to first aux
+-		if l.next != nil {
+-			s.AddUint32(ctxt.Arch, 16+uint32(j)*16) // offset from this header to next
+-		} else {
+-			s.AddUint32(ctxt.Arch, 0)
+-		}
+-
+-		for x := l.aux; x != nil; x = x.next {
+-			x.num = i
+-			i++
+-
+-			// aux struct
+-			s.AddUint32(ctxt.Arch, elfhash(x.vers))                   // hash
+-			s.AddUint16(ctxt.Arch, 0)                                 // flags
+-			s.AddUint16(ctxt.Arch, uint16(x.num))                     // other - index we refer to this by
+-			s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, x.vers))) // version string offset
+-			if x.next != nil {
+-				s.AddUint32(ctxt.Arch, 16) // offset from this aux to next
+-			} else {
+-				s.AddUint32(ctxt.Arch, 0)
+-			}
+-		}
+-	}
+-
+-	// version references
+-	s = ctxt.Syms.Lookup(".gnu.version", 0)
+-
+-	for i := 0; i < nsym; i++ {
+-		if i == 0 {
+-			s.AddUint16(ctxt.Arch, 0) // first entry - no symbol
+-		} else if need[i] == nil {
+-			s.AddUint16(ctxt.Arch, 1) // global
+-		} else {
+-			s.AddUint16(ctxt.Arch, uint16(need[i].num))
+-		}
+-	}
+-
+-	s = ctxt.Syms.Lookup(".dynamic", 0)
+-	elfverneed = nfile
+-	if elfverneed != 0 {
+-		elfWriteDynEntSym(ctxt.Arch, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
+-		elfWriteDynEnt(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
+-		elfWriteDynEntSym(ctxt.Arch, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
+-	}
+-
+-	sy := ctxt.Syms.Lookup(elfRelType+".plt", 0)
+-	if sy.Size > 0 {
+-		if elfRelType == ".rela" {
+-			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_RELA)
+-		} else {
+-			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_REL)
+-		}
+-		elfWriteDynEntSymSize(ctxt.Arch, s, DT_PLTRELSZ, sy)
+-		elfWriteDynEntSym(ctxt.Arch, s, DT_JMPREL, sy)
+-	}
+-
+-	elfWriteDynEnt(ctxt.Arch, s, DT_NULL, 0)
+-}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 3bcd56ef6d..9a63a3a0bb 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -347,22 +347,6 @@ func Adddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym
+ 	}
+ }
+ 
+-func Adddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
+-	if s.Dynid >= 0 || target.LinkMode == LinkExternal {
+-		return
+-	}
+-
+-	if target.IsELF {
+-		elfadddynsym(target, syms, s)
+-	} else if target.HeadType == objabi.Hdarwin {
+-		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname())
+-	} else if target.HeadType == objabi.Hwindows {
+-		// already taken care of
+-	} else {
+-		Errorf(s, "adddynsym: unsupported binary format")
+-	}
+-}
+-
+ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ 	var buf bytes.Buffer
+ 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index b97ccf0ec9..bbd6f1c663 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -96,7 +96,6 @@ var (
+ 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+-	flagnewDoData  = flag.Bool("newdodata", true, "New style dodata")
+ 
+ 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
+@@ -299,16 +298,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	dwarfGenerateDebugSyms(ctxt)
+ 	bench.Start("symtab")
+ 	symGroupType := ctxt.symtab()
+-	if *flagnewDoData {
+-		bench.Start("dodata")
+-		ctxt.dodata2(symGroupType)
+-	}
++	bench.Start("dodata")
++	ctxt.dodata2(symGroupType)
+ 	bench.Start("loadlibfull")
+ 	ctxt.loadlibfull(symGroupType) // XXX do it here for now
+-	if !*flagnewDoData {
+-		bench.Start("dodata")
+-		ctxt.dodata()
+-	}
+ 	bench.Start("address")
+ 	order := ctxt.address()
+ 	bench.Start("dwarfcompress")
+diff --git a/src/cmd/link/internal/ppc64/asm2.go b/src/cmd/link/internal/ppc64/asm2.go
+deleted file mode 100644
+index 0940df92f5..0000000000
+--- a/src/cmd/link/internal/ppc64/asm2.go
++++ /dev/null
+@@ -1,140 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ppc64
+-
+-import (
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/ld"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"debug/elf"
+-)
+-
+-// Temporary dumping ground for sym.Symbol version of helper
+-// functions in asm.go, still being used for some oses.
+-// FIXME: get rid of this file when dodata() is completely
+-// converted.
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	if target.IsElf() {
+-		return addelfdynrel(target, syms, s, r)
+-	} else if target.IsAIX() {
+-		return ld.Xcoffadddynrel(target, ldr, s, r)
+-	}
+-	return false
+-}
+-
+-func addelfdynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
+-	r.InitExt()
+-
+-	switch r.Type {
+-	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+-			return false
+-		}
+-
+-		// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
+-		r.Type = objabi.R_CALLPOWER
+-
+-		// This is a local call, so the caller isn't setting
+-		// up r12 and r2 is the same for the caller and
+-		// callee. Hence, we need to go to the local entry
+-		// point.  (If we don't do this, the callee will try
+-		// to use r12 to compute r2.)
+-		r.Add += int64(r.Sym.Localentry()) * 4
+-
+-		if targ.Type == sym.SDYNIMPORT {
+-			// Should have been handled in elfsetupplt
+-			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC_REL32):
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_ADDR64):
+-		r.Type = objabi.R_ADDR
+-		if targ.Type == sym.SDYNIMPORT {
+-			// These happen in .toc sections
+-			ld.Adddynsym(target, syms, targ)
+-
+-			rela := syms.Rela
+-			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
+-			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
+-			rela.AddUint64(target.Arch, uint64(r.Add))
+-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16):
+-		r.Type = objabi.R_POWER_TOC
+-		r.Variant = sym.RV_POWER_LO | sym.RV_CHECK_OVERFLOW
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO):
+-		r.Type = objabi.R_POWER_TOC
+-		r.Variant = sym.RV_POWER_LO
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HA):
+-		r.Type = objabi.R_POWER_TOC
+-		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HI):
+-		r.Type = objabi.R_POWER_TOC
+-		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_DS):
+-		r.Type = objabi.R_POWER_TOC
+-		r.Variant = sym.RV_POWER_DS | sym.RV_CHECK_OVERFLOW
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
+-		r.Type = objabi.R_POWER_TOC
+-		r.Variant = sym.RV_POWER_DS
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_LO):
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_POWER_LO
+-		r.Add += 2 // Compensate for relocation size of 2
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HI):
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
+-		r.Add += 2
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HA):
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
+-		r.Add += 2
+-		return true
+-	}
+-
+-	// Handle references to ELF symbols from our own object files.
+-	if targ.Type != sym.SDYNIMPORT {
+-		return true
+-	}
+-
+-	// TODO(austin): Translate our relocations to ELF
+-
+-	return false
+-}
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 51620b87a0..67002bc719 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -49,7 +49,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+diff --git a/src/cmd/link/internal/s390x/asm2.go b/src/cmd/link/internal/s390x/asm2.go
+deleted file mode 100644
+index 1487f11db7..0000000000
+--- a/src/cmd/link/internal/s390x/asm2.go
++++ /dev/null
+@@ -1,231 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package s390x
+-
+-import (
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/ld"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"debug/elf"
+-)
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
+-	r.InitExt()
+-
+-	switch r.Type {
+-	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+-			return false
+-		}
+-
+-		// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_12),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT12):
+-		ld.Errorf(s, "s390x 12-bit relocations have not been implemented (relocation type %d)", r.Type-objabi.ElfRelocOffset)
+-		return false
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_8),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_16),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_32),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_390_nn relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ADDR
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC16),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC32),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_390_PCnn relocation for dynamic symbol %s", targ.Name)
+-		}
+-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-		// sense and should be removed when someone has thought about it properly.
+-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+-		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += int64(r.Siz)
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT16),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT32),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOT64):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT16DBL),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT32DBL):
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_390_DBL
+-		r.Add += int64(r.Siz)
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add += int64(targ.Plt())
+-		}
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT32),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PLT64):
+-		r.Type = objabi.R_PCREL
+-		r.Add += int64(r.Siz)
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add += int64(targ.Plt())
+-		}
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_COPY):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+-		return false
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GLOB_DAT):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+-		return false
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_JMP_SLOT):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+-		return false
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_RELATIVE):
+-		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-objabi.ElfRelocOffset)
+-		return false
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTOFF):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_390_GOTOFF relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_GOTOFF
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPC):
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += int64(r.Siz)
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC16DBL),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_PC32DBL):
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_390_DBL
+-		r.Add += int64(r.Siz)
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_390_PCnnDBL relocation for dynamic symbol %s", targ.Name)
+-		}
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPCDBL):
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_390_DBL
+-		r.Sym = syms.GOT
+-		r.Add += int64(r.Siz)
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
+-		addgotsym(target, syms, targ)
+-
+-		r.Type = objabi.R_PCREL
+-		r.Variant = sym.RV_390_DBL
+-		r.Sym = syms.GOT
+-		r.Add += int64(targ.Got())
+-		r.Add += int64(r.Siz)
+-		return true
+-	}
+-	// Handle references to ELF symbols from our own object files.
+-	if targ.Type != sym.SDYNIMPORT {
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Plt() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-
+-	if target.IsElf() {
+-		plt := syms.PLT
+-		got := syms.GOT
+-		rela := syms.RelaPLT
+-		if plt.Size == 0 {
+-			panic("plt is not set up")
+-		}
+-		// larl    %r1,_GLOBAL_OFFSET_TABLE_+index
+-
+-		plt.AddUint8(0xc0)
+-		plt.AddUint8(0x10)
+-		plt.AddPCRelPlus(target.Arch, got, got.Size+6) // need variant?
+-
+-		// add to got: pointer to current pos in plt
+-		got.AddAddrPlus(target.Arch, plt, plt.Size+8) // weird but correct
+-		// lg      %r1,0(%r1)
+-		plt.AddUint8(0xe3)
+-		plt.AddUint8(0x10)
+-		plt.AddUint8(0x10)
+-		plt.AddUint8(0x00)
+-		plt.AddUint8(0x00)
+-		plt.AddUint8(0x04)
+-		// br      %r1
+-		plt.AddUint8(0x07)
+-		plt.AddUint8(0xf1)
+-		// basr    %r1,%r0
+-		plt.AddUint8(0x0d)
+-		plt.AddUint8(0x10)
+-		// lgf     %r1,12(%r1)
+-		plt.AddUint8(0xe3)
+-		plt.AddUint8(0x10)
+-		plt.AddUint8(0x10)
+-		plt.AddUint8(0x0c)
+-		plt.AddUint8(0x00)
+-		plt.AddUint8(0x14)
+-		// jg .plt
+-		plt.AddUint8(0xc0)
+-		plt.AddUint8(0xf4)
+-
+-		plt.AddUint32(target.Arch, uint32(-((plt.Size - 2) >> 1))) // roll-your-own relocation
+-		//.plt index
+-		plt.AddUint32(target.Arch, uint32(rela.Size)) // rela size before current entry
+-
+-		// rela
+-		rela.AddAddrPlus(target.Arch, got, got.Size-8)
+-
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_JMP_SLOT)))
+-		rela.AddUint64(target.Arch, 0)
+-
+-		s.SetPlt(int32(plt.Size - 32))
+-
+-	} else {
+-		ld.Errorf(s, "addpltsym: unsupported binary format")
+-	}
+-}
+-
+-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
+-	got.AddUint64(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rela := syms.Rela
+-		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_GLOB_DAT)))
+-		rela.AddUint64(target.Arch, 0)
+-	} else {
+-		ld.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index f675be8a54..129c6a7ee4 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -46,7 +46,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+diff --git a/src/cmd/link/internal/x86/asm2.go b/src/cmd/link/internal/x86/asm2.go
+deleted file mode 100644
+index 16f1682dc1..0000000000
+--- a/src/cmd/link/internal/x86/asm2.go
++++ /dev/null
+@@ -1,283 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package x86
+-
+-import (
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/ld"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"debug/elf"
+-)
+-
+-// Temporary dumping around for sym.Symbol version of helper
+-// functions in asm.go, still being used for some oses.
+-// FIXME: get rid of this file when dodata() is completely
+-// converted.
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
+-
+-	switch r.Type {
+-	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+-			return false
+-		}
+-
+-		// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_PC32):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+-		// sense and should be removed when someone has thought about it properly.
+-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+-		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_PLT32):
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add += int64(targ.Plt())
+-		}
+-
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOT32),
+-		objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOT32X):
+-		if targ.Type != sym.SDYNIMPORT {
+-			// have symbol
+-			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
+-				// turn MOVL of GOT entry into LEAL of symbol address, relative to GOT.
+-				s.P[r.Off-2] = 0x8d
+-
+-				r.Type = objabi.R_GOTOFF
+-				return true
+-			}
+-
+-			if r.Off >= 2 && s.P[r.Off-2] == 0xff && s.P[r.Off-1] == 0xb3 {
+-				// turn PUSHL of GOT entry into PUSHL of symbol itself.
+-				// use unnecessary SS prefix to keep instruction same length.
+-				s.P[r.Off-2] = 0x36
+-
+-				s.P[r.Off-1] = 0x68
+-				r.Type = objabi.R_ADDR
+-				return true
+-			}
+-
+-			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+-			return false
+-		}
+-
+-		addgotsym(target, syms, targ)
+-		r.Type = objabi.R_CONST // write r->add during relocsym
+-		r.Sym = nil
+-		r.Add += int64(targ.Got())
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOTOFF):
+-		r.Type = objabi.R_GOTOFF
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_GOTPC):
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += 4
+-		return true
+-
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_386_32):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
+-		}
+-		r.Type = objabi.R_ADDR
+-		return true
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
+-		r.Type = objabi.R_ADDR
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
+-		}
+-		return true
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add = int64(targ.Plt())
+-			r.Type = objabi.R_PCREL
+-			return true
+-		}
+-
+-		r.Type = objabi.R_PCREL
+-		return true
+-
+-	case objabi.MachoRelocOffset + ld.MACHO_FAKE_GOTPCREL:
+-		if targ.Type != sym.SDYNIMPORT {
+-			// have symbol
+-			// turn MOVL of GOT entry into LEAL of symbol itself
+-			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
+-				ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+-				return false
+-			}
+-
+-			s.P[r.Off-2] = 0x8d
+-			r.Type = objabi.R_PCREL
+-			return true
+-		}
+-
+-		addgotsym(target, syms, targ)
+-		r.Sym = syms.GOT
+-		r.Add += int64(targ.Got())
+-		r.Type = objabi.R_PCREL
+-		return true
+-	}
+-
+-	// Handle references to ELF symbols from our own object files.
+-	if targ.Type != sym.SDYNIMPORT {
+-		return true
+-	}
+-	switch r.Type {
+-	case objabi.R_CALL,
+-		objabi.R_PCREL:
+-		if target.IsExternal() {
+-			// External linker will do this relocation.
+-			return true
+-		}
+-		addpltsym(target, syms, targ)
+-		r.Sym = syms.PLT
+-		r.Add = int64(targ.Plt())
+-		return true
+-
+-	case objabi.R_ADDR:
+-		if s.Type != sym.SDATA {
+-			break
+-		}
+-		if target.IsElf() {
+-			ld.Adddynsym(target, syms, targ)
+-			rel := syms.Rel
+-			rel.AddAddrPlus(target.Arch, s, int64(r.Off))
+-			rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), uint32(elf.R_386_32)))
+-			r.Type = objabi.R_CONST // write r->add during relocsym
+-			r.Sym = nil
+-			return true
+-		}
+-
+-		if target.IsDarwin() && s.Size == int64(target.Arch.PtrSize) && r.Off == 0 {
+-			// Mach-O relocations are a royal pain to lay out.
+-			// They use a compact stateful bytecode representation
+-			// that is too much bother to deal with.
+-			// Instead, interpret the C declaration
+-			//	void *_Cvar_stderr = &stderr;
+-			// as making _Cvar_stderr the name of a GOT entry
+-			// for stderr. This is separate from the usual GOT entry,
+-			// just in case the C code assigns to the variable,
+-			// and of course it only works for single pointers,
+-			// but we only need to support cgo and that's all it needs.
+-			ld.Adddynsym(target, syms, targ)
+-
+-			got := syms.GOT
+-			s.Type = got.Type
+-			s.Attr |= sym.AttrSubSymbol
+-			s.Outer = got
+-			s.Sub = got.Sub
+-			got.Sub = s
+-			s.Value = got.Size
+-			got.AddUint32(target.Arch, 0)
+-			syms.LinkEditGOT.AddUint32(target.Arch, uint32(targ.Dynid))
+-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Plt() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-
+-	if target.IsElf() {
+-		plt := syms.PLT
+-		got := syms.GOTPLT
+-		rel := syms.RelPLT
+-		if plt.Size == 0 {
+-			panic("plt is not set up")
+-		}
+-
+-		// jmpq *got+size
+-		plt.AddUint8(0xff)
+-
+-		plt.AddUint8(0x25)
+-		plt.AddAddrPlus(target.Arch, got, got.Size)
+-
+-		// add to got: pointer to current pos in plt
+-		got.AddAddrPlus(target.Arch, plt, plt.Size)
+-
+-		// pushl $x
+-		plt.AddUint8(0x68)
+-
+-		plt.AddUint32(target.Arch, uint32(rel.Size))
+-
+-		// jmp .plt
+-		plt.AddUint8(0xe9)
+-
+-		plt.AddUint32(target.Arch, uint32(-(plt.Size + 4)))
+-
+-		// rel
+-		rel.AddAddrPlus(target.Arch, got, got.Size-4)
+-
+-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_JMP_SLOT)))
+-
+-		s.SetPlt(int32(plt.Size - 16))
+-	} else if target.IsDarwin() {
+-		// Same laziness as in 6l.
+-
+-		plt := syms.PLT
+-
+-		addgotsym(target, syms, s)
+-
+-		syms.LinkEditPLT.AddUint32(target.Arch, uint32(s.Dynid))
+-
+-		// jmpq *got+size(IP)
+-		s.SetPlt(int32(plt.Size))
+-
+-		plt.AddUint8(0xff)
+-		plt.AddUint8(0x25)
+-		plt.AddAddrPlus(target.Arch, syms.GOT, int64(s.Got()))
+-	} else {
+-		ld.Errorf(s, "addpltsym: unsupported binary format")
+-	}
+-}
+-
+-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
+-		return
+-	}
+-
+-	ld.Adddynsym(target, syms, s)
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
+-	got.AddUint32(target.Arch, 0)
+-
+-	if target.IsElf() {
+-		rel := syms.Rel
+-		rel.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_GLOB_DAT)))
+-	} else if target.IsDarwin() {
+-		syms.LinkEditGOT.AddUint32(target.Arch, uint32(s.Dynid))
+-	} else {
+-		ld.Errorf(s, "addgotsym: unsupported binary format")
+-	}
+-}
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 34babe9a72..61e3077b5b 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -46,7 +46,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,

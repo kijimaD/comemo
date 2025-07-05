@@ -7,7 +7,43 @@ Date:   Mon Jul 19 11:08:04 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1830041
-
+---
  src/pkg/time/format.go    |  2 +-
  src/pkg/time/time_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index c043251266..4ea09a1101 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -522,7 +522,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 			}
+ 			var hr, min int
+ 			hr, err = strconv.Atoi(hh)
+-			if err != nil {
++			if err == nil {
+ 				min, err = strconv.Atoi(mm)
+ 			}
+ 			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 32bf9652ee..79933080e0 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -303,6 +303,17 @@ func TestMissingZone(t *testing.T) {
+ 	}
+ }
+ 
++func TestMinutesInTimeZone(t *testing.T) {
++	time, err := Parse(RubyDate, "Mon Jan 02 15:04:05 +0123 2006")
++	if err != nil {
++		t.Fatal("error parsing date:", err)
++	}
++	expected := (1*60 + 23) * 60
++	if time.ZoneOffset != expected {
++		t.Errorf("ZoneOffset incorrect, expected %d got %d", expected, time.ZoneOffset)
++	}
++}
++
+ func BenchmarkSeconds(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Seconds()

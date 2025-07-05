@@ -11,7 +11,7 @@ Date:   Thu Sep 7 17:21:16 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/doc_test.go                |  16 +---
  src/cmd/go/go_test.go                  |   5 +-
  src/cmd/go/internal/fsys/fsys_test.go  |  13 +---
@@ -32,3 +32,1013 @@ Date:   Thu Sep 7 17:21:16 2023 -0700
  src/syscall/syscall_linux_test.go      |  26 +------
  src/syscall/syscall_windows_test.go    |   7 +-
  19 files changed, 70 insertions(+), 364 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 354adc87af..3b383bdd78 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -1038,21 +1038,11 @@ func TestDotSlashLookup(t *testing.T) {
+ 		t.Skip("scanning file system takes too long")
+ 	}
+ 	maybeSkip(t)
+-	where, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer func() {
+-		if err := os.Chdir(where); err != nil {
+-			t.Fatal(err)
+-		}
+-	}()
+-	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
+-		t.Fatal(err)
+-	}
++	t.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text"))
++
+ 	var b strings.Builder
+ 	var flagSet flag.FlagSet
+-	err = do(&b, &flagSet, []string{"./template"})
++	err := do(&b, &flagSet, []string{"./template"})
+ 	if err != nil {
+ 		t.Errorf("unexpected error %q from ./template", err)
+ 	}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f3922f823e..3370331b85 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2790,11 +2790,8 @@ func TestExecInDeletedDir(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 
+-	wd, err := os.Getwd()
+-	tg.check(err)
+ 	tg.makeTempdir()
+-	tg.check(os.Chdir(tg.tempdir))
+-	defer func() { tg.check(os.Chdir(wd)) }()
++	t.Chdir(tg.tempdir)
+ 
+ 	tg.check(os.Remove(tg.tempdir))
+ 
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 612c5213c1..f79e03bc85 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -25,22 +25,11 @@ func initOverlay(t *testing.T, config string) {
+ 	t.Helper()
+ 
+ 	// Create a temporary directory and chdir to it.
+-	prevwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+ 	cwd = filepath.Join(t.TempDir(), "root")
+ 	if err := os.Mkdir(cwd, 0777); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if err := os.Chdir(cwd); err != nil {
+-		t.Fatal(err)
+-	}
+-	t.Cleanup(func() {
+-		if err := os.Chdir(prevwd); err != nil {
+-			t.Fatal(err)
+-		}
+-	})
++	t.Chdir(cwd)
+ 
+ 	a := txtar.Parse([]byte(config))
+ 	for _, f := range a.Files {
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 083c12d9ef..268231e23a 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -144,20 +144,7 @@ func TestExtract(t *testing.T) {
+ 	ar.addFile(goodbyeFile.Reset())
+ 	ar.a.File().Close()
+ 	// Now extract one file. We chdir to the directory of the archive for simplicity.
+-	pwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal("os.Getwd: ", err)
+-	}
+-	err = os.Chdir(dir)
+-	if err != nil {
+-		t.Fatal("os.Chdir: ", err)
+-	}
+-	defer func() {
+-		err := os.Chdir(pwd)
+-		if err != nil {
+-			t.Fatal("os.Chdir: ", err)
+-		}
+-	}()
++	t.Chdir(dir)
+ 	ar = openArchive(name, os.O_RDONLY, []string{goodbyeFile.name})
+ 	ar.scan(ar.extractContents)
+ 	ar.a.File().Close()
+diff --git a/src/io/fs/walk_test.go b/src/io/fs/walk_test.go
+index 4934df164b..a5fc715e15 100644
+--- a/src/io/fs/walk_test.go
++++ b/src/io/fs/walk_test.go
+@@ -86,16 +86,7 @@ func mark(entry DirEntry, err error, errors *[]error, clear bool) error {
+ }
+ 
+ func TestWalkDir(t *testing.T) {
+-	tmpDir := t.TempDir()
+-
+-	origDir, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal("finding working dir:", err)
+-	}
+-	if err = os.Chdir(tmpDir); err != nil {
+-		t.Fatal("entering temp dir:", err)
+-	}
+-	defer os.Chdir(origDir)
++	t.Chdir(t.TempDir())
+ 
+ 	fsys := makeTree()
+ 	errors := make([]error, 0, 10)
+@@ -104,7 +95,7 @@ func TestWalkDir(t *testing.T) {
+ 		return mark(entry, err, &errors, clear)
+ 	}
+ 	// Expect no errors.
+-	err = WalkDir(fsys, ".", markFn)
++	err := WalkDir(fsys, ".", markFn)
+ 	if err != nil {
+ 		t.Fatalf("no error expected, found: %s", err)
+ 	}
+diff --git a/src/os/exec/dot_test.go b/src/os/exec/dot_test.go
+index ed4bad23b1..1bf0d9c760 100644
+--- a/src/os/exec/dot_test.go
++++ b/src/os/exec/dot_test.go
+@@ -38,8 +38,7 @@ func TestLookPath(t *testing.T) {
+ 	if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0777); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	chdir(t, tmpDir)
+-	t.Setenv("PWD", tmpDir)
++	t.Chdir(tmpDir)
+ 	t.Logf(". is %#q", tmpDir)
+ 
+ 	origPath := os.Getenv(pathVar)
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index fd185cadcf..8c62387193 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -169,28 +169,6 @@ func helperCommandContext(t *testing.T, ctx context.Context, name string, args .
+ 	return cmd
+ }
+ 
+-func chdir(t *testing.T, dir string) {
+-	t.Helper()
+-
+-	prev, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := os.Chdir(dir); err != nil {
+-		t.Fatal(err)
+-	}
+-	t.Logf("Chdir(%#q)", dir)
+-
+-	t.Cleanup(func() {
+-		if err := os.Chdir(prev); err != nil {
+-			// Couldn't chdir back to the original working directory.
+-			// panic instead of t.Fatal so that we don't run other tests
+-			// in an unexpected location.
+-			panic("couldn't restore working directory: " + err.Error())
+-		}
+-	})
+-}
+-
+ var helperCommandUsed sync.Map
+ 
+ var helperCommands = map[string]func(...string){
+diff --git a/src/os/exec/lp_unix_test.go b/src/os/exec/lp_unix_test.go
+index 1503ddae93..ea7ec11cc7 100644
+--- a/src/os/exec/lp_unix_test.go
++++ b/src/os/exec/lp_unix_test.go
+@@ -16,7 +16,7 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
+ 	// Not parallel: uses Chdir and Setenv.
+ 
+ 	tmp := t.TempDir()
+-	chdir(t, tmp)
++	t.Chdir(tmp)
+ 
+ 	f, err := os.OpenFile("exec_me", os.O_CREATE|os.O_EXCL, 0700)
+ 	if err != nil {
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 15b2a0032f..01eda04c75 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -314,7 +314,7 @@ func TestLookPathWindows(t *testing.T) {
+ 			t.Setenv("PATH", pathVar)
+ 			t.Logf("set PATH=%s", pathVar)
+ 
+-			chdir(t, root)
++			t.Chdir(root)
+ 
+ 			if !testing.Short() && !(tt.skipCmdExeCheck || errors.Is(tt.wantErr, exec.ErrDot)) {
+ 				// Check that cmd.exe, which is our source of ground truth,
+@@ -549,7 +549,7 @@ func TestCommand(t *testing.T) {
+ 			t.Setenv("PATH", pathVar)
+ 			t.Logf("set PATH=%s", pathVar)
+ 
+-			chdir(t, root)
++			t.Chdir(root)
+ 
+ 			cmd := exec.Command(tt.arg0, "printpath")
+ 			cmd.Dir = filepath.Join(root, tt.dir)
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 4e89f9ac0e..e2ceaa9dff 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -195,7 +195,7 @@ func TestStat(t *testing.T) {
+ }
+ 
+ func TestStatError(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 
+ 	path := "no-such-file"
+ 
+@@ -232,8 +232,7 @@ func TestStatError(t *testing.T) {
+ 
+ func TestStatSymlinkLoop(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 
+ 	err := Symlink("x", "y")
+ 	if err != nil {
+@@ -851,8 +850,8 @@ func TestReaddirOfFile(t *testing.T) {
+ 
+ func TestHardLink(t *testing.T) {
+ 	testenv.MustHaveLink(t)
++	t.Chdir(t.TempDir())
+ 
+-	defer chtmpdir(t)()
+ 	from, to := "hardlinktestfrom", "hardlinktestto"
+ 	file, err := Create(to)
+ 	if err != nil {
+@@ -907,32 +906,10 @@ func TestHardLink(t *testing.T) {
+ 	}
+ }
+ 
+-// chtmpdir changes the working directory to a new temporary directory and
+-// provides a cleanup function.
+-func chtmpdir(t *testing.T) func() {
+-	oldwd, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	d, err := MkdirTemp("", "test")
+-	if err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	if err := Chdir(d); err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	return func() {
+-		if err := Chdir(oldwd); err != nil {
+-			t.Fatalf("chtmpdir: %v", err)
+-		}
+-		RemoveAll(d)
+-	}
+-}
+-
+ func TestSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
++	t.Chdir(t.TempDir())
+ 
+-	defer chtmpdir(t)()
+ 	from, to := "symlinktestfrom", "symlinktestto"
+ 	file, err := Create(to)
+ 	if err != nil {
+@@ -992,8 +969,8 @@ func TestSymlink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
++	t.Chdir(t.TempDir())
+ 
+-	defer chtmpdir(t)()
+ 	s := "0123456789abcdef"
+ 	// Long, but not too long: a common limit is 255.
+ 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
+@@ -1012,7 +989,7 @@ func TestLongSymlink(t *testing.T) {
+ }
+ 
+ func TestRename(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	from, to := "renamefrom", "renameto"
+ 
+ 	file, err := Create(from)
+@@ -1033,7 +1010,7 @@ func TestRename(t *testing.T) {
+ }
+ 
+ func TestRenameOverwriteDest(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	from, to := "renamefrom", "renameto"
+ 
+ 	toData := []byte("to")
+@@ -1070,7 +1047,7 @@ func TestRenameOverwriteDest(t *testing.T) {
+ }
+ 
+ func TestRenameFailed(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	from, to := "renamefrom", "renameto"
+ 
+ 	err := Rename(from, to)
+@@ -1093,7 +1070,7 @@ func TestRenameFailed(t *testing.T) {
+ }
+ 
+ func TestRenameNotExisting(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	from, to := "doesnt-exist", "dest"
+ 
+ 	Mkdir(to, 0777)
+@@ -1104,7 +1081,7 @@ func TestRenameNotExisting(t *testing.T) {
+ }
+ 
+ func TestRenameToDirFailed(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	from, to := "renamefrom", "renameto"
+ 
+ 	Mkdir(from, 0777)
+@@ -1149,7 +1126,7 @@ func TestRenameCaseDifference(pt *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		pt.Run(test.name, func(t *testing.T) {
+-			defer chtmpdir(t)()
++			t.Chdir(t.TempDir())
+ 
+ 			if err := test.create(); err != nil {
+ 				t.Fatalf("failed to create test file: %s", err)
+@@ -1571,7 +1548,7 @@ func TestFileChdir(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Getwd: %s", err)
+ 	}
+-	defer Chdir(wd)
++	t.Chdir(".") // Ensure wd is restored after the test.
+ 
+ 	fd, err := Open(".")
+ 	if err != nil {
+@@ -1606,10 +1583,8 @@ func TestFileChdir(t *testing.T) {
+ }
+ 
+ func TestChdirAndGetwd(t *testing.T) {
+-	fd, err := Open(".")
+-	if err != nil {
+-		t.Fatalf("Open .: %s", err)
+-	}
++	t.Chdir(t.TempDir()) // Ensure wd is restored after the test.
++
+ 	// These are chosen carefully not to be symlinks on a Mac
+ 	// (unlike, say, /var, /etc), except /tmp, which we handle below.
+ 	dirs := []string{"/", "/usr/bin", "/tmp"}
+@@ -1623,16 +1598,16 @@ func TestChdirAndGetwd(t *testing.T) {
+ 		dirs = nil
+ 		for _, dir := range []string{t.TempDir(), t.TempDir()} {
+ 			// Expand symlinks so path equality tests work.
+-			dir, err = filepath.EvalSymlinks(dir)
++			dir, err := filepath.EvalSymlinks(dir)
+ 			if err != nil {
+ 				t.Fatalf("EvalSymlinks: %v", err)
+ 			}
+ 			dirs = append(dirs, dir)
+ 		}
+ 	}
+-	oldwd := Getenv("PWD")
+ 	for mode := 0; mode < 2; mode++ {
+ 		for _, d := range dirs {
++			var err error
+ 			if mode == 0 {
+ 				err = Chdir(d)
+ 			} else {
+@@ -1648,30 +1623,17 @@ func TestChdirAndGetwd(t *testing.T) {
+ 				Setenv("PWD", "/tmp")
+ 			}
+ 			pwd, err1 := Getwd()
+-			Setenv("PWD", oldwd)
+-			err2 := fd.Chdir()
+-			if err2 != nil {
+-				// We changed the current directory and cannot go back.
+-				// Don't let the tests continue; they'll scribble
+-				// all over some other directory.
+-				fmt.Fprintf(Stderr, "fchdir back to dot failed: %s\n", err2)
+-				Exit(1)
+-			}
+ 			if err != nil {
+-				fd.Close()
+ 				t.Fatalf("Chdir %s: %s", d, err)
+ 			}
+ 			if err1 != nil {
+-				fd.Close()
+ 				t.Fatalf("Getwd in %s: %s", d, err1)
+ 			}
+ 			if !equal(pwd, d) {
+-				fd.Close()
+ 				t.Fatalf("Getwd returned %q want %q", pwd, d)
+ 			}
+ 		}
+ 	}
+-	fd.Close()
+ }
+ 
+ // Test that Chdir+Getwd is program-wide.
+@@ -1682,17 +1644,7 @@ func TestProgWideChdir(t *testing.T) {
+ 	done := make(chan struct{})
+ 
+ 	d := t.TempDir()
+-	oldwd, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("Getwd: %v", err)
+-	}
+-	defer func() {
+-		if err := Chdir(oldwd); err != nil {
+-			// It's not safe to continue with tests if we can't get back to
+-			// the original working directory.
+-			panic(err)
+-		}
+-	}()
++	t.Chdir(d)
+ 
+ 	// Note the deferred Wait must be called after the deferred close(done),
+ 	// to ensure the N goroutines have been released even if the main goroutine
+@@ -1747,6 +1699,7 @@ func TestProgWideChdir(t *testing.T) {
+ 			}
+ 		}(i)
+ 	}
++	var err error
+ 	if err = Chdir(d); err != nil {
+ 		t.Fatalf("Chdir: %v", err)
+ 	}
+@@ -2103,7 +2056,7 @@ func TestWriteAtNegativeOffset(t *testing.T) {
+ 
+ // Verify that WriteAt doesn't work in append mode.
+ func TestWriteAtInAppendMode(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	f, err := OpenFile("write_at_in_append_mode.txt", O_APPEND|O_CREATE, 0666)
+ 	if err != nil {
+ 		t.Fatalf("OpenFile: %v", err)
+@@ -2134,7 +2087,7 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
+ }
+ 
+ func TestAppend(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	const f = "append.txt"
+ 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+ 	if s != "new" {
+@@ -2193,7 +2146,7 @@ func TestNilProcessStateString(t *testing.T) {
+ }
+ 
+ func TestSameFile(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	fa, err := Create("a")
+ 	if err != nil {
+ 		t.Fatalf("Create(a): %v", err)
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index fcc75e5ee6..c62d7174f7 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -372,7 +372,7 @@ func TestSplitPath(t *testing.T) {
+ //
+ // Regression test for go.dev/issue/60181
+ func TestIssue60181(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 
+ 	want := "hello gopher"
+ 
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index dd247cf885..c8a133da81 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -32,28 +32,8 @@ var winreadlinkvolume = godebug.New("winreadlinkvolume")
+ // For TestRawConnReadWrite.
+ type syscallDescriptor = syscall.Handle
+ 
+-// chdir changes the current working directory to the named directory,
+-// and then restore the original working directory at the end of the test.
+-func chdir(t *testing.T, dir string) {
+-	olddir, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("chdir: %v", err)
+-	}
+-	if err := os.Chdir(dir); err != nil {
+-		t.Fatalf("chdir %s: %v", dir, err)
+-	}
+-
+-	t.Cleanup(func() {
+-		if err := os.Chdir(olddir); err != nil {
+-			t.Errorf("chdir to original working directory %s: %v", olddir, err)
+-			os.Exit(1)
+-		}
+-	})
+-}
+-
+ func TestSameWindowsFile(t *testing.T) {
+-	temp := t.TempDir()
+-	chdir(t, temp)
++	t.Chdir(t.TempDir())
+ 
+ 	f, err := os.Create("a")
+ 	if err != nil {
+@@ -99,7 +79,7 @@ type dirLinkTest struct {
+ 
+ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 	tmpdir := t.TempDir()
+-	chdir(t, tmpdir)
++	t.Chdir(tmpdir)
+ 
+ 	dir := filepath.Join(tmpdir, "dir")
+ 	err := os.Mkdir(dir, 0777)
+@@ -458,7 +438,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
+ 	const _NERR_ServerNotStarted = syscall.Errno(2114)
+ 
+ 	dir := t.TempDir()
+-	chdir(t, dir)
++	t.Chdir(dir)
+ 
+ 	pid := os.Getpid()
+ 	shareName := fmt.Sprintf("GoSymbolicLinkTestShare%d", pid)
+@@ -561,8 +541,7 @@ func TestStatLxSymLink(t *testing.T) {
+ 		t.Skip("skipping: WSL not detected")
+ 	}
+ 
+-	temp := t.TempDir()
+-	chdir(t, temp)
++	t.Chdir(t.TempDir())
+ 
+ 	const target = "target"
+ 	const link = "link"
+@@ -629,7 +608,7 @@ func TestBadNetPathError(t *testing.T) {
+ }
+ 
+ func TestStatDir(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 
+ 	f, err := os.Open(".")
+ 	if err != nil {
+@@ -659,7 +638,7 @@ func TestStatDir(t *testing.T) {
+ 
+ func TestOpenVolumeName(t *testing.T) {
+ 	tmpdir := t.TempDir()
+-	chdir(t, tmpdir)
++	t.Chdir(tmpdir)
+ 
+ 	want := []string{"file1", "file2", "file3", "gopher.txt"}
+ 	slices.Sort(want)
+@@ -1129,14 +1108,7 @@ func TestWorkingDirectoryRelativeSymlink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer func() {
+-		if err := os.Chdir(oldwd); err != nil {
+-			t.Fatal(err)
+-		}
+-	}()
+-	if err := os.Chdir(temp); err != nil {
+-		t.Fatal(err)
+-	}
++	t.Chdir(temp)
+ 	t.Logf("Chdir(%#q)", temp)
+ 
+ 	wdRelDir := filepath.VolumeName(temp) + `dir\sub` // no backslash after volume.
+@@ -1324,7 +1296,7 @@ func TestReadlink(t *testing.T) {
+ 				} else {
+ 					want = relTarget
+ 				}
+-				chdir(t, tmpdir)
++				t.Chdir(tmpdir)
+ 				link = filepath.Base(link)
+ 				target = relTarget
+ 			} else {
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index 0b5d7099f6..3fa02e2a65 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -224,7 +224,7 @@ func TestRemoveAllLongPathRelative(t *testing.T) {
+ 	// Test that RemoveAll doesn't hang with long relative paths.
+ 	// See go.dev/issue/36375.
+ 	tmp := t.TempDir()
+-	chdir(t, tmp)
++	t.Chdir(tmp)
+ 	dir := filepath.Join(tmp, "foo", "bar", strings.Repeat("a", 150), strings.Repeat("b", 150))
+ 	err := os.MkdirAll(dir, 0755)
+ 	if err != nil {
+@@ -265,7 +265,7 @@ func TestLongPathAbs(t *testing.T) {
+ }
+ 
+ func TestLongPathRel(t *testing.T) {
+-	chdir(t, t.TempDir())
++	t.Chdir(t.TempDir())
+ 
+ 	target := strings.Repeat("b\\", 300)
+ 	testLongPathAbs(t, target)
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 3cee92f8ae..f415b04088 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -326,20 +326,7 @@ func TestWindowsGlob(t *testing.T) {
+ 	}
+ 
+ 	// test relative paths
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	err = os.Chdir(tmpDir)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer func() {
+-		err := os.Chdir(wd)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-	}()
++	t.Chdir(tmpDir)
+ 	for _, test := range tests {
+ 		err := test.globRel("")
+ 		if err != nil {
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 5d3cbc991f..e9cd82d6c5 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -597,45 +597,6 @@ func mark(d fs.DirEntry, err error, errors *[]error, clear bool) error {
+ 	return nil
+ }
+ 
+-// chdir changes the current working directory to the named directory,
+-// and then restore the original working directory at the end of the test.
+-func chdir(t *testing.T, dir string) {
+-	olddir, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("getwd %s: %v", dir, err)
+-	}
+-	if err := os.Chdir(dir); err != nil {
+-		t.Fatalf("chdir %s: %v", dir, err)
+-	}
+-
+-	t.Cleanup(func() {
+-		if err := os.Chdir(olddir); err != nil {
+-			t.Errorf("restore original working directory %s: %v", olddir, err)
+-			os.Exit(1)
+-		}
+-	})
+-}
+-
+-func chtmpdir(t *testing.T) (restore func()) {
+-	oldwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	d, err := os.MkdirTemp("", "test")
+-	if err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	if err := os.Chdir(d); err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	return func() {
+-		if err := os.Chdir(oldwd); err != nil {
+-			t.Fatalf("chtmpdir: %v", err)
+-		}
+-		os.RemoveAll(d)
+-	}
+-}
+-
+ // tempDirCanonical returns a temporary directory for the test to use, ensuring
+ // that the returned path does not contain symlinks.
+ func tempDirCanonical(t *testing.T) string {
+@@ -663,21 +624,7 @@ func TestWalkDir(t *testing.T) {
+ }
+ 
+ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit int) {
+-	if runtime.GOOS == "ios" {
+-		restore := chtmpdir(t)
+-		defer restore()
+-	}
+-
+-	tmpDir := t.TempDir()
+-
+-	origDir, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal("finding working dir:", err)
+-	}
+-	if err = os.Chdir(tmpDir); err != nil {
+-		t.Fatal("entering temp dir:", err)
+-	}
+-	defer os.Chdir(origDir)
++	t.Chdir(t.TempDir())
+ 
+ 	makeTree(t)
+ 	errors := make([]error, 0, 10)
+@@ -686,7 +633,7 @@ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit in
+ 		return mark(d, err, &errors, clear)
+ 	}
+ 	// Expect no errors.
+-	err = walk(tree.name, markFn)
++	err := walk(tree.name, markFn)
+ 	if err != nil {
+ 		t.Fatalf("no error expected, found: %s", err)
+ 	}
+@@ -1225,22 +1172,7 @@ func testEvalSymlinks(t *testing.T, path, want string) {
+ }
+ 
+ func testEvalSymlinksAfterChdir(t *testing.T, wd, path, want string) {
+-	cwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer func() {
+-		err := os.Chdir(cwd)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-	}()
+-
+-	err = os.Chdir(wd)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
++	t.Chdir(wd)
+ 	have, err := filepath.EvalSymlinks(path)
+ 	if err != nil {
+ 		t.Errorf("EvalSymlinks(%q) in %q directory error: %v", path, wd, err)
+@@ -1314,8 +1246,7 @@ func TestEvalSymlinks(t *testing.T) {
+ 
+ func TestEvalSymlinksIsNotExist(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 
+ 	_, err := filepath.EvalSymlinks("notexist")
+ 	if !os.IsNotExist(err) {
+@@ -1396,10 +1327,10 @@ func TestIssue13582(t *testing.T) {
+ // Issue 57905.
+ func TestRelativeSymlinkToAbsolute(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-	// Not parallel: uses os.Chdir.
++	// Not parallel: uses t.Chdir.
+ 
+ 	tmpDir := t.TempDir()
+-	chdir(t, tmpDir)
++	t.Chdir(tmpDir)
+ 
+ 	// Create "link" in the current working directory as a symlink to an arbitrary
+ 	// absolute path. On macOS, this path is likely to begin with a symlink
+@@ -1452,18 +1383,10 @@ var absTests = []string{
+ 
+ func TestAbs(t *testing.T) {
+ 	root := t.TempDir()
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal("getwd failed: ", err)
+-	}
+-	err = os.Chdir(root)
+-	if err != nil {
+-		t.Fatal("chdir failed: ", err)
+-	}
+-	defer os.Chdir(wd)
++	t.Chdir(root)
+ 
+ 	for _, dir := range absTestDirs {
+-		err = os.Mkdir(dir, 0777)
++		err := os.Mkdir(dir, 0777)
+ 		if err != nil {
+ 			t.Fatal("Mkdir failed: ", err)
+ 		}
+@@ -1485,7 +1408,7 @@ func TestAbs(t *testing.T) {
+ 		tests = append(slices.Clip(tests), extra...)
+ 	}
+ 
+-	err = os.Chdir(absTestDirs[0])
++	err := os.Chdir(absTestDirs[0])
+ 	if err != nil {
+ 		t.Fatal("chdir failed: ", err)
+ 	}
+@@ -1521,16 +1444,7 @@ func TestAbs(t *testing.T) {
+ // a valid path, so it can't be used with os.Stat.
+ func TestAbsEmptyString(t *testing.T) {
+ 	root := t.TempDir()
+-
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal("getwd failed: ", err)
+-	}
+-	err = os.Chdir(root)
+-	if err != nil {
+-		t.Fatal("chdir failed: ", err)
+-	}
+-	defer os.Chdir(wd)
++	t.Chdir(root)
+ 
+ 	info, err := os.Stat(root)
+ 	if err != nil {
+@@ -1757,19 +1671,9 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 
+ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
+ 	tmpdir := t.TempDir()
++	t.Chdir(tmpdir)
+ 
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.Chdir(wd)
+-
+-	err = os.Chdir(tmpdir)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	err = mklink(tmpdir, "link")
++	err := mklink(tmpdir, "link")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1882,13 +1786,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
+ // Issue 30520 part 2.
+ func TestEvalSymlinksAboveRootChdir(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+-
+-	tmpDir, err := os.MkdirTemp("", "TestEvalSymlinksAboveRootChdir")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpDir)
+-	chdir(t, tmpDir)
++	t.Chdir(t.TempDir())
+ 
+ 	subdir := filepath.Join("a", "b")
+ 	if err := os.MkdirAll(subdir, 0777); err != nil {
+@@ -1956,12 +1854,11 @@ func TestIssue51617(t *testing.T) {
+ }
+ 
+ func TestEscaping(t *testing.T) {
+-	dir1 := t.TempDir()
+-	dir2 := t.TempDir()
+-	chdir(t, dir1)
++	dir := t.TempDir()
++	t.Chdir(t.TempDir())
+ 
+ 	for _, p := range []string{
+-		filepath.Join(dir2, "x"),
++		filepath.Join(dir, "x"),
+ 	} {
+ 		if !filepath.IsLocal(p) {
+ 			continue
+@@ -1970,7 +1867,7 @@ func TestEscaping(t *testing.T) {
+ 		if err != nil {
+ 			f.Close()
+ 		}
+-		ents, err := os.ReadDir(dir2)
++		ents, err := os.ReadDir(dir)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 603b179405..d60903f62e 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -408,12 +408,7 @@ func TestToNorm(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer func() {
+-		err := os.Chdir(cwd)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-	}()
++	t.Chdir(".") // Ensure cwd is restored after the test.
+ 
+ 	tmpVol := filepath.VolumeName(ctmp)
+ 	if len(tmpVol) != 2 {
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 6a056c8d2b..9ee06a7712 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1111,12 +1111,6 @@ func TestDLLPreloadMitigation(t *testing.T) {
+ 
+ 	tmpdir := t.TempDir()
+ 
+-	dir0, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.Chdir(dir0)
+-
+ 	const src = `
+ #include <stdint.h>
+ #include <windows.h>
+@@ -1127,7 +1121,7 @@ uintptr_t cfunc(void) {
+ }
+ `
+ 	srcname := "nojack.c"
+-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
++	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1148,7 +1142,7 @@ uintptr_t cfunc(void) {
+ 	// ("nojack.dll") Think of this as the user double-clicking an
+ 	// installer from their Downloads directory where a browser
+ 	// silently downloaded some malicious DLLs.
+-	os.Chdir(tmpdir)
++	t.Chdir(tmpdir)
+ 
+ 	// First before we can load a DLL from the current directory,
+ 	// loading it only as "nojack.dll", without an absolute path.
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index a150ab15be..f5d6bb8a12 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -23,28 +23,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// chtmpdir changes the working directory to a new temporary directory and
+-// provides a cleanup function. Used when PWD is read-only.
+-func chtmpdir(t *testing.T) func() {
+-	oldwd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	d, err := os.MkdirTemp("", "test")
+-	if err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	if err := os.Chdir(d); err != nil {
+-		t.Fatalf("chtmpdir: %v", err)
+-	}
+-	return func() {
+-		if err := os.Chdir(oldwd); err != nil {
+-			t.Fatalf("chtmpdir: %v", err)
+-		}
+-		os.RemoveAll(d)
+-	}
+-}
+-
+ func touch(t *testing.T, name string) {
+ 	f, err := os.Create(name)
+ 	if err != nil {
+@@ -64,7 +42,7 @@ const (
+ )
+ 
+ func TestFaccessat(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 	touch(t, "file1")
+ 
+ 	err := syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, 0)
+@@ -116,7 +94,7 @@ func TestFaccessat(t *testing.T) {
+ }
+ 
+ func TestFchmodat(t *testing.T) {
+-	defer chtmpdir(t)()
++	t.Chdir(t.TempDir())
+ 
+ 	touch(t, "file1")
+ 	os.Symlink("file1", "symlink1")
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index f67e899159..c26c8eac10 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -182,12 +182,14 @@ int main(int argc, char *argv[])
+ 
+ func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
+ 	// Regression test for https://github.com/golang/go/issues/60051.
++	tmp := t.TempDir()
++	t.Chdir(tmp)
+ 
+ 	// The length of a filename is also limited, so we can't reproduce the
+ 	// crash by creating a single directory with a very long name; we need two
+ 	// layers.
+ 	a200 := strings.Repeat("a", 200)
+-	dirname := filepath.Join(t.TempDir(), a200, a200)
++	dirname := filepath.Join(tmp, a200, a200)
+ 
+ 	err := os.MkdirAll(dirname, 0o700)
+ 	if err != nil {
+@@ -197,9 +199,6 @@ func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
+ 	if err != nil {
+ 		t.Skipf("Chdir failed: %v", err)
+ 	}
+-	// Change out of the temporary directory so that we don't inhibit its
+-	// removal during test cleanup.
+-	defer os.Chdir(`\`)
+ 
+ 	syscall.Getwd()
+ }

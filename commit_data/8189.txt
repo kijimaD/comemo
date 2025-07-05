@@ -11,7 +11,50 @@ Date:   Fri Apr 22 15:31:25 2011 +1000
     R=golang-dev, rsc1, peterGo
     CC=golang-dev, hector
     https://golang.org/cl/4436051
-
+---
  src/pkg/os/os_test.go              | 12 ++++++++++++
  src/pkg/syscall/syscall_windows.go |  7 +++++--
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 551b865085..4c9feab1ce 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -886,6 +886,18 @@ func TestAppend(t *testing.T) {
+ 	if s != "new|append" {
+ 		t.Fatalf("writeFile: have %q want %q", s, "new|append")
+ 	}
++	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "|append")
++	if s != "new|append|append" {
++		t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
++	}
++	err := Remove(f)
++	if err != nil {
++		t.Fatalf("Remove: %v", err)
++	}
++	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
++	if s != "new&append" {
++		t.Fatalf("writeFile: have %q want %q", s, "new&append")
++	}
+ }
+ 
+ func TestStatDirWithTrailingSlash(t *testing.T) {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 4ac2154c85..e01310deff 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -220,9 +220,12 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	var createmode uint32
+ 	switch {
+ 	case mode&O_CREAT != 0:
+-		if mode&O_EXCL != 0 {
++		switch {
++		case mode&O_EXCL != 0:
+ 			createmode = CREATE_NEW
+-		} else {
++		case mode&O_APPEND != 0:
++			createmode = OPEN_ALWAYS
++		default:
+ 			createmode = CREATE_ALWAYS
+ 		}
+ 	case mode&O_TRUNC != 0:

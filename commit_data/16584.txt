@@ -7,6 +7,24 @@ Date:   Mon Jun 17 07:32:28 2013 -0700
     R=golang-dev, r, kr
     CC=golang-dev
     https://golang.org/cl/10263043
-
+---
  src/pkg/testing/testing.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 7f7ae20070..7ef47b6875 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -23,10 +23,10 @@
+ // Functions of the form
+ //     func BenchmarkXxx(*testing.B)
+ // are considered benchmarks, and are executed by the "go test" command when
+-// the -test.bench flag is provided. Benchmarks are run sequentially.
++// its -bench flag is provided. Benchmarks are run sequentially.
+ //
+ // For a description of the testing flags, see
+-// http://golang.org/cmd/go/#Description_of_testing_flags.
++// http://golang.org/cmd/go/#hdr-Description_of_testing_flags.
+ //
+ // A sample benchmark function looks like this:
+ //     func BenchmarkHello(b *testing.B) {

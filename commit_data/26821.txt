@@ -13,7 +13,135 @@ Date:   Fri Feb 19 16:25:52 2016 +0900
     Change-Id: I09ab8d2a9153d9a92147e57ca141f2e97ddcef6e
     Reviewed-on: https://go-review.googlesource.com/19704
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/handshake_client.go      | 30 +++++++++++++++------
  src/crypto/tls/handshake_client_test.go | 47 +++++++++++++++++++++++++++------
  2 files changed, 61 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 3c996acf87..b129922926 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -16,6 +16,7 @@ import (
+ 	"io"
+ 	"net"
+ 	"strconv"
++	"strings"
+ )
+ 
+ type clientHandshakeState struct {
+@@ -49,20 +50,13 @@ func (c *Conn) clientHandshake() error {
+ 		return errors.New("tls: NextProtos values too large")
+ 	}
+ 
+-	sni := c.config.ServerName
+-	// IP address literals are not permitted as SNI values. See
+-	// https://tools.ietf.org/html/rfc6066#section-3.
+-	if net.ParseIP(sni) != nil {
+-		sni = ""
+-	}
+-
+ 	hello := &clientHelloMsg{
+ 		vers:                c.config.maxVersion(),
+ 		compressionMethods:  []uint8{compressionNone},
+ 		random:              make([]byte, 32),
+ 		ocspStapling:        true,
+ 		scts:                true,
+-		serverName:          sni,
++		serverName:          hostnameInSNI(c.config.ServerName),
+ 		supportedCurves:     c.config.curvePreferences(),
+ 		supportedPoints:     []uint8{pointFormatUncompressed},
+ 		nextProtoNeg:        len(c.config.NextProtos) > 0,
+@@ -665,3 +659,23 @@ func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
+ 
+ 	return protos[0], true
+ }
++
++// hostnameInSNI converts name into an approriate hostname for SNI.
++// Literal IP addresses and absolute FQDNs are not permitted as SNI values.
++// See https://tools.ietf.org/html/rfc6066#section-3.
++func hostnameInSNI(name string) string {
++	host := name
++	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
++		host = host[1 : len(host)-1]
++	}
++	if i := strings.LastIndex(host, "%"); i > 0 {
++		host = host[:i]
++	}
++	if net.ParseIP(host) != nil {
++		return ""
++	}
++	if len(name) > 0 && name[len(name)-1] == '.' {
++		name = name[:len(name)-1]
++	}
++	return name
++}
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 9598d2feae..9b6c4328a5 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -618,14 +618,35 @@ func TestHandshakClientSCTs(t *testing.T) {
+ 	runClientTestTLS12(t, test)
+ }
+ 
+-func TestNoIPAddressesInSNI(t *testing.T) {
+-	for _, ipLiteral := range []string{"1.2.3.4", "::1"} {
++var hostnameInSNITests = []struct {
++	in, out string
++}{
++	// Opaque string
++	{"", ""},
++	{"localhost", "localhost"},
++	{"foo, bar, baz and qux", "foo, bar, baz and qux"},
++
++	// DNS hostname
++	{"golang.org", "golang.org"},
++	{"golang.org.", "golang.org"},
++
++	// Literal IPv4 address
++	{"1.2.3.4", ""},
++
++	// Literal IPv6 address
++	{"::1", ""},
++	{"::1%lo0", ""}, // with zone identifier
++	{"[::1]", ""},   // as per RFC 5952 we allow the [] style as IPv6 literal
++	{"[::1%lo0]", ""},
++}
++
++func TestHostnameInSNI(t *testing.T) {
++	for _, tt := range hostnameInSNITests {
+ 		c, s := net.Pipe()
+ 
+-		go func() {
+-			client := Client(c, &Config{ServerName: ipLiteral})
+-			client.Handshake()
+-		}()
++		go func(host string) {
++			Client(c, &Config{ServerName: host, InsecureSkipVerify: true}).Handshake()
++		}(tt.in)
+ 
+ 		var header [5]byte
+ 		if _, err := io.ReadFull(s, header[:]); err != nil {
+@@ -637,10 +658,20 @@ func TestNoIPAddressesInSNI(t *testing.T) {
+ 		if _, err := io.ReadFull(s, record[:]); err != nil {
+ 			t.Fatal(err)
+ 		}
++
++		c.Close()
+ 		s.Close()
+ 
+-		if bytes.Index(record, []byte(ipLiteral)) != -1 {
+-			t.Errorf("IP literal %q found in ClientHello: %x", ipLiteral, record)
++		var m clientHelloMsg
++		if !m.unmarshal(record) {
++			t.Errorf("unmarshaling ClientHello for %q failed", tt.in)
++			continue
++		}
++		if tt.in != tt.out && m.serverName == tt.in {
++			t.Errorf("prohibited %q found in ClientHello: %x", tt.in, record)
++		}
++		if m.serverName != tt.out {
++			t.Errorf("expected %q not found in ClientHello: %x", tt.out, record)
+ 		}
+ 	}
+ }

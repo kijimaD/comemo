@@ -13,8 +13,104 @@ Date:   Sun Apr 24 14:37:14 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  8 ++++++--
  src/cmd/compile/internal/s390x/gsubr.go   |  7 +------
  src/cmd/internal/obj/s390x/asmz.go        | 21 ++++++++++-----------
  3 files changed, 17 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index f1dc9aff2d..7729384554 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -59,8 +59,12 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	SUBC	R2, R3, R4            // b9eb2043
+ 	MULLW	R6, R7                // b91c0076
+ 	MULLW	R6, R7, R8            // b9040087b91c0086
+-	MULLW	$8192, R6             // c26000002000
+-	MULLW	$8192, R6, R7         // b9040076c27000002000
++	MULLW	$8192, R6             // a76d2000
++	MULLW	$8192, R6, R7         // b9040076a77d2000
++	MULLW	$-65537, R8           // c280fffeffff
++	MULLW   $-65537, R8, R9       // b9040098c290fffeffff
++	MULLD	$-2147483648, R1      // c21080000000
++	MULLD   $-2147483648, R1, R2  // b9040021c22080000000
+ 	MULHD	R9, R8                // b90400b8b98600a9ebb9003f000ab98000b8b90900abebb8003f000ab98000b9b9e9b08a
+ 	MULHD	R7, R2, R1            // b90400b2b98600a7ebb7003f000ab98000b2b90900abebb2003f000ab98000b7b9e9b01a
+ 	MULHDU	R3, R4                // b90400b4b98600a3b904004a
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index 3e8782f5e6..7760812206 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -54,7 +54,7 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
+ 
+ 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+ 
+-	if as != s390x.AMOVD && (c < -s390x.BIG || c > s390x.BIG) || n2.Op != gc.OREGISTER || as == s390x.AMULLD {
++	if as != s390x.AMOVD && (c < -s390x.BIG || c > s390x.BIG) || n2.Op != gc.OREGISTER {
+ 		// cannot have more than 16-bit of immediate in ADD, etc.
+ 		// instead, MOV into register first.
+ 		var ntmp gc.Node
+@@ -562,11 +562,6 @@ func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	switch as {
+ 	// Bad things the front end has done to us. Crash to find call stack.
+-	case s390x.AMULLD:
+-		if p.From.Type == obj.TYPE_CONST {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+ 	case s390x.ACMP, s390x.ACMPU:
+ 		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+ 			gc.Debug['h'] = 1
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 9b26580d11..7077b5c594 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -142,14 +142,6 @@ var optab = []Optab{
+ 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+ 	Optab{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+ 	Optab{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+-	Optab{AADDC, C_REG, C_REG, C_NONE, C_REG, 2, 0},
+-	Optab{AADDC, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+-	Optab{AADDC, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+-	Optab{AADDC, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+-	Optab{AMULLW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
+-	Optab{AMULLW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+-	Optab{AMULLW, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
+-	Optab{AMULLW, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+ 	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
+ 	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
+ 	Optab{ASUBC, C_REG, C_REG, C_NONE, C_REG, 10, 0},
+@@ -792,9 +784,12 @@ func buildop(ctxt *obj.Link) {
+ 		// opset() aliases optab ranges for similar instructions, to reduce the number of optabs in the array.
+ 		// oprange[] is used by oplook() to find the Optab entry that applies to a given Prog.
+ 		switch r {
++		case AADD:
++			opset(AADDC, r)
++			opset(AMULLD, r)
++			opset(AMULLW, r)
+ 		case ADIVW:
+ 			opset(AADDE, r)
+-			opset(AMULLD, r)
+ 			opset(ADIVD, r)
+ 			opset(ADIVDU, r)
+ 			opset(ADIVWU, r)
+@@ -2935,11 +2930,15 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+ 			}
+ 			zRIL(_a, op_ALGFI, uint32(p.To.Reg), uint32(v), asm)
+-		case AMULLW:
++		case AMULLW, AMULLD:
+ 			if r != p.To.Reg {
+ 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
+ 			}
+-			zRIL(_a, op_MSGFI, uint32(p.To.Reg), uint32(v), asm)
++			if int64(int16(v)) == v {
++				zRI(op_MGHI, uint32(p.To.Reg), uint32(v), asm)
++			} else {
++				zRIL(_a, op_MSGFI, uint32(p.To.Reg), uint32(v), asm)
++			}
+ 		}
+ 
+ 	case 23: // logical op $constant [reg] reg

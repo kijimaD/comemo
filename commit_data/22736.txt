@@ -10,6 +10,35 @@ Date:   Sat Apr 4 20:51:00 2015 +1300
     Change-Id: I23d890db2f3648ed1003ed3d13e7247435b913e5
     Reviewed-on: https://go-review.googlesource.com/8480
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/symtab.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index d667d1ccc4..c6b39333e8 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -118,12 +118,12 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 			Diag("missing section in putelfsym")
+ 			return
+ 		}
+-		if (xo.Sect.(*Section)).Elfsect == nil {
++		if xo.Sect.(*Section).Elfsect == nil {
+ 			Ctxt.Cursym = x
+ 			Diag("missing ELF section in putelfsym")
+ 			return
+ 		}
+-		elfshnum = ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum
++		elfshnum = xo.Sect.(*Section).Elfsect.(*ElfShdr).shnum
+ 	}
+ 
+ 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
+@@ -148,7 +148,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 
+ 	off := putelfstr(s)
+ 	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
+-		addr -= int64((xo.Sect.(*Section)).Vaddr)
++		addr -= int64(xo.Sect.(*Section).Vaddr)
+ 	}
+ 	other := STV_DEFAULT
+ 	if x.Type&SHIDDEN != 0 {

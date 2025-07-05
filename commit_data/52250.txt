@@ -14,7 +14,35 @@ Date:   Wed Apr 20 12:05:30 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go              | 2 +-
  src/cmd/compile/internal/syntax/testdata/issue48382.go | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 9de6d4f45e..fe1c76e81b 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -991,7 +991,7 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 	case _Func:
+ 		pos := p.pos()
+ 		p.next()
+-		_, ftyp := p.funcType("function literal")
++		_, ftyp := p.funcType("function type")
+ 		if p.tok == _Lbrace {
+ 			p.xnest++
+ 
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue48382.go b/src/cmd/compile/internal/syntax/testdata/issue48382.go
+index c00fee6f82..7c024a051f 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue48382.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue48382.go
+@@ -8,7 +8,8 @@ type _ func /* ERROR function type must have no type parameters */ [ /* ERROR em
+ type _ func /* ERROR function type must have no type parameters */ [ x /* ERROR missing type constraint */ ]()
+ type _ func /* ERROR function type must have no type parameters */ [P any]()
+ 
+-var _ = func /* ERROR function literal must have no type parameters */ [P any]() {}
++var _ = (func /* ERROR function type must have no type parameters */ [P any]())(nil)
++var _ = func /* ERROR function type must have no type parameters */ [P any]() {}
+ 
+ type _ interface{
+         m /* ERROR interface method must have no type parameters */ [P any]()

@@ -19,7 +19,7 @@ Date:   Tue Jun 12 17:32:50 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go              |  27 +++++++++++----------
  src/go/internal/gcimporter/gcimporter.go           |  21 ++++++++++++----
  src/go/internal/gcimporter/gcimporter_test.go      |  12 +++++++++
@@ -30,3 +30,216 @@ Date:   Tue Jun 12 17:32:50 2018 -0700
  .../testdata/versions/test_go1.11_999b.a           | Bin 0 -> 2600 bytes
  .../testdata/versions/test_go1.11_999i.a           | Bin 0 -> 2420 bytes
  9 files changed, 62 insertions(+), 22 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 73ce465eab..503845e31c 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -50,24 +50,24 @@ type importer struct {
+ // compromised, an error is returned.
+ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
+ 	// catch panics and return them as errors
++	const currentVersion = 6
++	version := -1 // unknown version
+ 	defer func() {
+ 		if e := recover(); e != nil {
+-			// The package (filename) causing the problem is added to this
+-			// error by a wrapper in the caller (Import in gcimporter.go).
+ 			// Return a (possibly nil or incomplete) package unchanged (see #16088).
+-			err = fmt.Errorf("cannot import, possibly version skew (%v) - reinstall package", e)
++			if version > currentVersion {
++				err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
++			} else {
++				err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
++			}
+ 		}
+ 	}()
+ 
+-	if len(data) > 0 && data[0] == 'i' {
+-		return iImportData(fset, imports, data[1:], path)
+-	}
+-
+ 	p := importer{
+ 		imports:    imports,
+ 		data:       data,
+ 		importpath: path,
+-		version:    -1,           // unknown version
++		version:    version,
+ 		strList:    []string{""}, // empty string is mapped to 0
+ 		pathList:   []string{""}, // empty string is mapped to 0
+ 		fake: fakeFileSet{
+@@ -92,7 +92,7 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 		p.posInfoFormat = p.int() != 0
+ 		versionstr = p.string()
+ 		if versionstr == "v1" {
+-			p.version = 0
++			version = 0
+ 		}
+ 	} else {
+ 		// Go1.8 extensible encoding
+@@ -100,24 +100,25 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 		versionstr = p.rawStringln(b)
+ 		if s := strings.SplitN(versionstr, " ", 3); len(s) >= 2 && s[0] == "version" {
+ 			if v, err := strconv.Atoi(s[1]); err == nil && v > 0 {
+-				p.version = v
++				version = v
+ 			}
+ 		}
+ 	}
++	p.version = version
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 7:
++	// case currentVersion:
+ 	// 	...
+ 	//	fallthrough
+-	case 6, 5, 4, 3, 2, 1:
++	case currentVersion, 5, 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.int() != 0
+ 		p.posInfoFormat = p.int() != 0
+ 	case 0:
+ 		// Go1.7 encoding format - nothing to do here
+ 	default:
+-		errorf("unknown export format version %d (%q)", p.version, versionstr)
++		errorf("unknown bexport format version %d (%q)", p.version, versionstr)
+ 	}
+ 
+ 	// --- generic export data ---
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index cf89fcd1b4..d117f6fe4d 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -144,16 +144,27 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
+ 	switch hdr {
+ 	case "$$\n":
+ 		err = fmt.Errorf("import %q: old export format no longer supported (recompile library)", path)
++
+ 	case "$$B\n":
+ 		var data []byte
+ 		data, err = ioutil.ReadAll(buf)
+-		if err == nil {
+-			// TODO(gri): allow clients of go/importer to provide a FileSet.
+-			// Or, define a new standard go/types/gcexportdata package.
+-			fset := token.NewFileSet()
++		if err != nil {
++			break
++		}
++
++		// TODO(gri): allow clients of go/importer to provide a FileSet.
++		// Or, define a new standard go/types/gcexportdata package.
++		fset := token.NewFileSet()
++
++		// The indexed export format starts with an 'i'; the older
++		// binary export format starts with a 'c', 'd', or 'v'
++		// (from "version"). Select appropriate importer.
++		if len(data) > 0 && data[0] == 'i' {
++			_, pkg, err = iImportData(fset, packages, data[1:], id)
++		} else {
+ 			_, pkg, err = BImportData(fset, packages, data, id)
+-			return
+ 		}
++
+ 	default:
+ 		err = fmt.Errorf("unknown export data header: %q", hdr)
+ 	}
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 308f93e8bd..d496f2e57d 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -141,9 +141,21 @@ func TestVersionHandling(t *testing.T) {
+ 		}
+ 		pkgpath := "./" + name[:len(name)-2]
+ 
++		if testing.Verbose() {
++			t.Logf("importing %s", name)
++		}
++
+ 		// test that export data can be imported
+ 		_, err := Import(make(map[string]*types.Package), pkgpath, dir, nil)
+ 		if err != nil {
++			// ok to fail if it fails with a newer version error for select files
++			if strings.Contains(err.Error(), "newer version") {
++				switch name {
++				case "test_go1.11_999b.a", "test_go1.11_999i.a":
++					continue
++				}
++				// fall through
++			}
+ 			t.Errorf("import %q failed: %v", pkgpath, err)
+ 			continue
+ 		}
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 1d13449ef6..a333f98f3a 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -10,6 +10,7 @@ package gcimporter
+ import (
+ 	"bytes"
+ 	"encoding/binary"
++	"fmt"
+ 	"go/constant"
+ 	"go/token"
+ 	"go/types"
+@@ -60,13 +61,25 @@ const (
+ // If the export data version is not recognized or the format is otherwise
+ // compromised, an error is returned.
+ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
++	const currentVersion = 0
++	version := -1
++	defer func() {
++		if e := recover(); e != nil {
++			if version > currentVersion {
++				err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
++			} else {
++				err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
++			}
++		}
++	}()
++
+ 	r := &intReader{bytes.NewReader(data), path}
+ 
+-	version := r.uint64()
++	version = int(r.uint64())
+ 	switch version {
+-	case 0:
++	case currentVersion:
+ 	default:
+-		errorf("cannot import %q: unknown iexport format version %d", path, version)
++		errorf("unknown iexport format version %d", version)
+ 	}
+ 
+ 	sLen := int64(r.uint64())
+diff --git a/src/go/internal/gcimporter/testdata/versions/test.go b/src/go/internal/gcimporter/testdata/versions/test.go
+index ac9c968c2d..227fc09251 100644
+--- a/src/go/internal/gcimporter/testdata/versions/test.go
++++ b/src/go/internal/gcimporter/testdata/versions/test.go
+@@ -11,7 +11,10 @@
+ //
+ // go build -o test_go1.$X_$Y.a test.go
+ //
+-// with $X = Go version and $Y = export format version.
++// with $X = Go version and $Y = export format version
++// (add 'b' or 'i' to distinguish between binary and
++// indexed format starting with 1.11 as long as both
++// formats are supported).
+ //
+ // Make sure this source is extended such that it exercises
+ // whatever export format change has taken place.
+diff --git a/src/go/internal/gcimporter/testdata/versions/test_go1.11_0i.a b/src/go/internal/gcimporter/testdata/versions/test_go1.11_0i.a
+new file mode 100644
+index 0000000000..b00fefed04
+Binary files /dev/null and b/src/go/internal/gcimporter/testdata/versions/test_go1.11_0i.a differ
+diff --git a/src/go/internal/gcimporter/testdata/versions/test_go1.11_6b.a b/src/go/internal/gcimporter/testdata/versions/test_go1.11_6b.a
+new file mode 100644
+index 0000000000..c0a211e917
+Binary files /dev/null and b/src/go/internal/gcimporter/testdata/versions/test_go1.11_6b.a differ
+diff --git a/src/go/internal/gcimporter/testdata/versions/test_go1.11_999b.a b/src/go/internal/gcimporter/testdata/versions/test_go1.11_999b.a
+new file mode 100644
+index 0000000000..c35d22dce6
+Binary files /dev/null and b/src/go/internal/gcimporter/testdata/versions/test_go1.11_999b.a differ
+diff --git a/src/go/internal/gcimporter/testdata/versions/test_go1.11_999i.a b/src/go/internal/gcimporter/testdata/versions/test_go1.11_999i.a
+new file mode 100644
+index 0000000000..99401d7c37
+Binary files /dev/null and b/src/go/internal/gcimporter/testdata/versions/test_go1.11_999i.a differ

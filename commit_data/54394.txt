@@ -13,6 +13,27 @@ Date:   Thu Oct 13 11:11:22 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/gob/doc.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 04cb0ac471..15473f18b2 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -279,10 +279,11 @@ https://blog.golang.org/gobs-of-data
+ 
+ # Security
+ 
+-This package is not designed to be hardened against adversarial inputs. In
+-particular, the Decoder does only basic sanity checking on decoded input sizes,
+-and its limits are not configurable. Care should be taken when decoding gob data
+-from untrusted sources, which may consume significant resources.
++This package is not designed to be hardened against adversarial inputs, and is
++outside the scope of https://go.dev/security/policy. In particular, the Decoder
++does only basic sanity checking on decoded input sizes, and its limits are not
++configurable. Care should be taken when decoding gob data from untrusted
++sources, which may consume significant resources.
+ */
+ package gob
+ 

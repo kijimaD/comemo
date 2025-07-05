@@ -24,7 +24,36 @@ Date:   Mon May 24 04:41:58 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go  | 1 +
  src/cmd/compile/internal/ssagen/pgen.go | 5 ++++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 00f8447f05..042e3f2332 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1029,6 +1029,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
+ 	n.SetType(var_.Type())
+ 	n.Class = ir.PAUTO
+ 	n.SetUsed(true)
++	n.SetAutoTemp(var_.AutoTemp())
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+ 	n.SetAddrtaken(var_.Addrtaken())
+ 
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 62567535d7..93157bfa11 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -114,7 +114,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 	}
+ 
+-	sort.Sort(byStackVar(fn.Dcl))
++	// Use sort.Stable instead of sort.Sort so stack layout (and thus
++	// compiler output) is less sensitive to frontend changes that
++	// introduce or remove unused variables.
++	sort.Stable(byStackVar(fn.Dcl))
+ 
+ 	// Reassign stack offsets of the locals that are used.
+ 	lastHasPtr := false

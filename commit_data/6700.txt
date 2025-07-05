@@ -15,7 +15,7 @@ Date:   Wed Nov 3 10:43:43 2010 -0400
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/2751042
-
+---
  src/pkg/crypto/aes/aes_test.go           | 8 ++++----
  src/pkg/crypto/aes/block.go              | 4 ++--
  src/pkg/crypto/aes/cipher.go             | 4 ++--
@@ -31,3 +31,331 @@ Date:   Wed Nov 3 10:43:43 2010 -0400
  src/pkg/crypto/xtea/cipher.go            | 4 ++--
  src/pkg/crypto/xtea/xtea_test.go         | 8 ++++----
  14 files changed, 34 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/crypto/aes/aes_test.go b/src/pkg/crypto/aes/aes_test.go
+index f8cec0366a..2136d447d0 100644
+--- a/src/pkg/crypto/aes/aes_test.go
++++ b/src/pkg/crypto/aes/aes_test.go
+@@ -283,7 +283,7 @@ func TestEncryptBlock(t *testing.T) {
+ 		dec := make([]uint32, n)
+ 		expandKey(tt.key, enc, dec)
+ 		out := make([]byte, len(tt.in))
+-		encryptBlock(enc, tt.in, out)
++		encryptBlock(enc, out, tt.in)
+ 		for j, v := range out {
+ 			if v != tt.out[j] {
+ 				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+@@ -301,7 +301,7 @@ func TestDecryptBlock(t *testing.T) {
+ 		dec := make([]uint32, n)
+ 		expandKey(tt.key, enc, dec)
+ 		plain := make([]byte, len(tt.in))
+-		decryptBlock(dec, tt.out, plain)
++		decryptBlock(dec, plain, tt.out)
+ 		for j, v := range plain {
+ 			if v != tt.in[j] {
+ 				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+@@ -320,7 +320,7 @@ func TestCipherEncrypt(t *testing.T) {
+ 			continue
+ 		}
+ 		out := make([]byte, len(tt.in))
+-		c.Encrypt(tt.in, out)
++		c.Encrypt(out, tt.in)
+ 		for j, v := range out {
+ 			if v != tt.out[j] {
+ 				t.Errorf("Cipher.Encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+@@ -339,7 +339,7 @@ func TestCipherDecrypt(t *testing.T) {
+ 			continue
+ 		}
+ 		plain := make([]byte, len(tt.in))
+-		c.Decrypt(tt.out, plain)
++		c.Decrypt(plain, tt.out)
+ 		for j, v := range plain {
+ 			if v != tt.in[j] {
+ 				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+diff --git a/src/pkg/crypto/aes/block.go b/src/pkg/crypto/aes/block.go
+index a502554bd5..130cd011c9 100644
+--- a/src/pkg/crypto/aes/block.go
++++ b/src/pkg/crypto/aes/block.go
+@@ -37,7 +37,7 @@
+ package aes
+ 
+ // Encrypt one block from src into dst, using the expanded key xk.
+-func encryptBlock(xk []uint32, src, dst []byte) {
++func encryptBlock(xk []uint32, dst, src []byte) {
+ 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32
+ 
+ 	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+@@ -82,7 +82,7 @@ func encryptBlock(xk []uint32, src, dst []byte) {
+ }
+ 
+ // Decrypt one block from src into dst, using the expanded key xk.
+-func decryptBlock(xk []uint32, src, dst []byte) {
++func decryptBlock(xk []uint32, dst, src []byte) {
+ 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32
+ 
+ 	s0 = uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+diff --git a/src/pkg/crypto/aes/cipher.go b/src/pkg/crypto/aes/cipher.go
+index 44e905e013..3a9d023184 100644
+--- a/src/pkg/crypto/aes/cipher.go
++++ b/src/pkg/crypto/aes/cipher.go
+@@ -53,11 +53,11 @@ func (c *Cipher) BlockSize() int { return BlockSize }
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+ // instead, use an encryption mode like CBC (see crypto/block/cbc.go).
+-func (c *Cipher) Encrypt(src, dst []byte) { encryptBlock(c.enc, src, dst) }
++func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c.enc, dst, src) }
+ 
+ // Decrypt decrypts the 16-byte buffer src using the key k
+ // and stores the result in dst.
+-func (c *Cipher) Decrypt(src, dst []byte) { decryptBlock(c.dec, src, dst) }
++func (c *Cipher) Decrypt(dst, src []byte) { decryptBlock(c.dec, dst, src) }
+ 
+ // Reset zeros the key data, so that it will no longer
+ // appear in the process's memory.
+diff --git a/src/pkg/crypto/block/cbc.go b/src/pkg/crypto/block/cbc.go
+index b0b8bf638e..23229c09f7 100644
+--- a/src/pkg/crypto/block/cbc.go
++++ b/src/pkg/crypto/block/cbc.go
+@@ -34,7 +34,7 @@ func newCBC(c Cipher, iv []byte) *cbcCipher {
+ 
+ func (x *cbcCipher) BlockSize() int { return x.blockSize }
+ 
+-func (x *cbcCipher) Encrypt(src, dst []byte) {
++func (x *cbcCipher) Encrypt(dst, src []byte) {
+ 	for i := 0; i < x.blockSize; i++ {
+ 		x.iv[i] ^= src[i]
+ 	}
+@@ -44,8 +44,8 @@ func (x *cbcCipher) Encrypt(src, dst []byte) {
+ 	}
+ }
+ 
+-func (x *cbcCipher) Decrypt(src, dst []byte) {
+-	x.c.Decrypt(src, x.tmp)
++func (x *cbcCipher) Decrypt(dst, src []byte) {
++	x.c.Decrypt(x.tmp, src)
+ 	for i := 0; i < x.blockSize; i++ {
+ 		x.tmp[i] ^= x.iv[i]
+ 		x.iv[i] = src[i]
+diff --git a/src/pkg/crypto/block/cfb.go b/src/pkg/crypto/block/cfb.go
+index 2c84b32c5f..f20c0a04f6 100644
+--- a/src/pkg/crypto/block/cfb.go
++++ b/src/pkg/crypto/block/cfb.go
+@@ -40,9 +40,9 @@ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
+ 
+ func (x *cfbCipher) BlockSize() int { return x.blockSize }
+ 
+-func (x *cfbCipher) Encrypt(src, dst []byte) {
++func (x *cfbCipher) Encrypt(dst, src []byte) {
+ 	// Encrypt old IV and xor prefix with src to make dst.
+-	x.c.Encrypt(x.iv, x.tmp)
++	x.c.Encrypt(x.tmp, x.iv)
+ 	for i := 0; i < x.blockSize; i++ {
+ 		dst[i] = src[i] ^ x.tmp[i]
+ 	}
+@@ -57,9 +57,9 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
+ 	}
+ }
+ 
+-func (x *cfbCipher) Decrypt(src, dst []byte) {
++func (x *cfbCipher) Decrypt(dst, src []byte) {
+ 	// Encrypt [sic] old IV and xor prefix with src to make dst.
+-	x.c.Encrypt(x.iv, x.tmp)
++	x.c.Encrypt(x.tmp, x.iv)
+ 	for i := 0; i < x.blockSize; i++ {
+ 		dst[i] = src[i] ^ x.tmp[i]
+ 	}
+diff --git a/src/pkg/crypto/block/cipher.go b/src/pkg/crypto/block/cipher.go
+index f95c7a76e3..a50d05c294 100644
+--- a/src/pkg/crypto/block/cipher.go
++++ b/src/pkg/crypto/block/cipher.go
+@@ -18,16 +18,16 @@ type Cipher interface {
+ 
+ 	// Encrypt encrypts the first block in src into dst.
+ 	// Src and dst may point at the same memory.
+-	Encrypt(src, dst []byte)
++	Encrypt(dst, src []byte)
+ 
+ 	// Decrypt decrypts the first block in src into dst.
+ 	// Src and dst may point at the same memory.
+-	Decrypt(src, dst []byte)
++	Decrypt(dst, src []byte)
+ }
+ 
+ // Utility routines
+ 
+-func shift1(src, dst []byte) byte {
++func shift1(dst, src []byte) byte {
+ 	var b byte
+ 	for i := len(src) - 1; i >= 0; i-- {
+ 		bb := src[i] >> 7
+diff --git a/src/pkg/crypto/block/cmac.go b/src/pkg/crypto/block/cmac.go
+index 6082299ab5..b85cde72e1 100644
+--- a/src/pkg/crypto/block/cmac.go
++++ b/src/pkg/crypto/block/cmac.go
+@@ -52,7 +52,7 @@ func NewCMAC(c Cipher) hash.Hash {
+ 	if shift1(d.k1, d.k1) != 0 {
+ 		d.k1[n-1] ^= r
+ 	}
+-	if shift1(d.k1, d.k2) != 0 {
++	if shift1(d.k2, d.k1) != 0 {
+ 		d.k2[n-1] ^= r
+ 	}
+ 
+diff --git a/src/pkg/crypto/block/ctr.go b/src/pkg/crypto/block/ctr.go
+index bb9aaaaa0a..5d65c0c9a9 100644
+--- a/src/pkg/crypto/block/ctr.go
++++ b/src/pkg/crypto/block/ctr.go
+@@ -32,7 +32,7 @@ func newCTRStream(c Cipher, ctr []byte) *ctrStream {
+ 
+ func (x *ctrStream) Next() []byte {
+ 	// Next block is encryption of counter.
+-	x.c.Encrypt(x.ctr, x.out)
++	x.c.Encrypt(x.out, x.ctr)
+ 
+ 	// Increment counter
+ 	for i := len(x.ctr) - 1; i >= 0; i-- {
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index 1e991e1dde..6f79d929a6 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -22,7 +22,7 @@ type IncCipher struct {
+ 
+ func (c *IncCipher) BlockSize() int { return c.blockSize }
+ 
+-func (c *IncCipher) Encrypt(src, dst []byte) {
++func (c *IncCipher) Encrypt(dst, src []byte) {
+ 	if !c.encrypting {
+ 		panic("encrypt: not encrypting")
+ 	}
+@@ -35,7 +35,7 @@ func (c *IncCipher) Encrypt(src, dst []byte) {
+ 	}
+ }
+ 
+-func (c *IncCipher) Decrypt(src, dst []byte) {
++func (c *IncCipher) Decrypt(dst, src []byte) {
+ 	if c.encrypting {
+ 		panic("decrypt: not decrypting")
+ 	}
+diff --git a/src/pkg/crypto/blowfish/blowfish_test.go b/src/pkg/crypto/blowfish/blowfish_test.go
+index 7f510f7fdb..3a7ab6c2a8 100644
+--- a/src/pkg/crypto/blowfish/blowfish_test.go
++++ b/src/pkg/crypto/blowfish/blowfish_test.go
+@@ -163,7 +163,7 @@ func TestCipherEncrypt(t *testing.T) {
+ 			continue
+ 		}
+ 		ct := make([]byte, len(tt.out))
+-		c.Encrypt(tt.in, ct)
++		c.Encrypt(ct, tt.in)
+ 		for j, v := range ct {
+ 			if v != tt.out[j] {
+ 				t.Errorf("Cipher.Encrypt, test vector #%d: cipher-text[%d] = %#x, expected %#x", i, j, v, tt.out[j])
+@@ -181,7 +181,7 @@ func TestCipherDecrypt(t *testing.T) {
+ 			continue
+ 		}
+ 		pt := make([]byte, len(tt.in))
+-		c.Decrypt(tt.out, pt)
++		c.Decrypt(pt, tt.out)
+ 		for j, v := range pt {
+ 			if v != tt.in[j] {
+ 				t.Errorf("Cipher.Decrypt, test vector #%d: plain-text[%d] = %#x, expected %#x", i, j, v, tt.in[j])
+diff --git a/src/pkg/crypto/blowfish/cipher.go b/src/pkg/crypto/blowfish/cipher.go
+index ee0def85e5..947f762d8b 100644
+--- a/src/pkg/crypto/blowfish/cipher.go
++++ b/src/pkg/crypto/blowfish/cipher.go
+@@ -50,7 +50,7 @@ func (c *Cipher) BlockSize() int { return BlockSize }
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+ // instead, use an encryption mode like CBC (see crypto/block/cbc.go).
+-func (c *Cipher) Encrypt(src, dst []byte) {
++func (c *Cipher) Encrypt(dst, src []byte) {
+ 	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+ 	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
+ 	l, r = encryptBlock(l, r, c)
+@@ -60,7 +60,7 @@ func (c *Cipher) Encrypt(src, dst []byte) {
+ 
+ // Decrypt decrypts the 8-byte buffer src using the key k
+ // and stores the result in dst.
+-func (c *Cipher) Decrypt(src, dst []byte) {
++func (c *Cipher) Decrypt(dst, src []byte) {
+ 	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+ 	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
+ 	l, r = decryptBlock(l, r, c)
+diff --git a/src/pkg/crypto/xtea/block.go b/src/pkg/crypto/xtea/block.go
+index dfb82e1e2f..3ac36d038f 100644
+--- a/src/pkg/crypto/xtea/block.go
++++ b/src/pkg/crypto/xtea/block.go
+@@ -36,7 +36,7 @@ func uint32ToBlock(v0, v1 uint32, dst []byte) {
+ }
+ 
+ // encryptBlock encrypts a single 8 byte block using XTEA.
+-func encryptBlock(c *Cipher, src, dst []byte) {
++func encryptBlock(c *Cipher, dst, src []byte) {
+ 	v0, v1 := blockToUint32(src)
+ 
+ 	// Two rounds of XTEA applied per loop
+@@ -51,7 +51,7 @@ func encryptBlock(c *Cipher, src, dst []byte) {
+ }
+ 
+ // decryptBlock decrypt a single 8 byte block using XTEA.
+-func decryptBlock(c *Cipher, src, dst []byte) {
++func decryptBlock(c *Cipher, dst, src []byte) {
+ 	v0, v1 := blockToUint32(src)
+ 
+ 	// Two rounds of XTEA applied per loop
+diff --git a/src/pkg/crypto/xtea/cipher.go b/src/pkg/crypto/xtea/cipher.go
+index 144fe9434b..b0fa2a1844 100644
+--- a/src/pkg/crypto/xtea/cipher.go
++++ b/src/pkg/crypto/xtea/cipher.go
+@@ -55,10 +55,10 @@ func (c *Cipher) BlockSize() int { return BlockSize }
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+ // instead, use an encryption mode like CBC (see crypto/block/cbc.go).
+-func (c *Cipher) Encrypt(src, dst []byte) { encryptBlock(c, src, dst) }
++func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c, dst, src) }
+ 
+ // Decrypt decrypts the 8 byte buffer src using the key k and stores the result in dst.
+-func (c *Cipher) Decrypt(src, dst []byte) { decryptBlock(c, src, dst) }
++func (c *Cipher) Decrypt(dst, src []byte) { decryptBlock(c, dst, src) }
+ 
+ // Reset zeros the table, so that it will no longer appear in the process's memory.
+ func (c *Cipher) Reset() {
+diff --git a/src/pkg/crypto/xtea/xtea_test.go b/src/pkg/crypto/xtea/xtea_test.go
+index 7fe3468f15..03934f1695 100644
+--- a/src/pkg/crypto/xtea/xtea_test.go
++++ b/src/pkg/crypto/xtea/xtea_test.go
+@@ -94,7 +94,7 @@ func TestEncodeDecode(t *testing.T) {
+ 	}
+ 
+ 	// Encrypt the input block
+-	c.Encrypt(input, output)
++	c.Encrypt(output, input)
+ 
+ 	// Check that the output does not match the input
+ 	differs := false
+@@ -112,7 +112,7 @@ func TestEncodeDecode(t *testing.T) {
+ 	// Decrypt the block we just encrypted
+ 	input = output
+ 	output = make([]byte, BlockSize)
+-	c.Decrypt(input, output)
++	c.Decrypt(output, input)
+ 
+ 	// Check that the output from decrypt matches our initial input
+ 	for i := 0; i < len(input); i++ {
+@@ -196,7 +196,7 @@ func TestCipherEncrypt(t *testing.T) {
+ 		}
+ 
+ 		out := make([]byte, len(tt.plainText))
+-		c.Encrypt(tt.plainText, out)
++		c.Encrypt(out, tt.plainText)
+ 
+ 		for j := 0; j < len(out); j++ {
+ 			if out[j] != tt.cipherText[j] {
+@@ -217,7 +217,7 @@ func TestCipherDecrypt(t *testing.T) {
+ 		}
+ 
+ 		out := make([]byte, len(tt.cipherText))
+-		c.Decrypt(tt.cipherText, out)
++		c.Decrypt(out, tt.cipherText)
+ 
+ 		for j := 0; j < len(out); j++ {
+ 			if out[j] != tt.plainText[j] {

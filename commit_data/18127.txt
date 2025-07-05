@@ -13,6 +13,20 @@ Date:   Sun Dec 29 15:25:34 2013 +1100
     R=iant, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/46240043
-
+---
  src/pkg/runtime/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index a9ccfbe508..fa5540bdf0 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -91,7 +91,7 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 
+ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
+-	MOVW	runtime·goarm(SB), R11
++	MOVB	runtime·goarm(SB), R11
+ 	CMP	$5, R11
+ 	BLE	4(PC)
+ 	WORD	$0xeef1ba10	// vmrs r11, fpscr

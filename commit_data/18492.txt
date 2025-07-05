@@ -10,6 +10,32 @@ Date:   Thu Feb 13 10:26:16 2014 -0500
     R=jas, 0intro, aram
     CC=golang-codereviews
     https://golang.org/cl/58120045
-
+---
  src/pkg/net/lookup_plan9.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index 723f29ffce..2ccd997c2c 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -123,6 +123,7 @@ func lookupHost(host string) (addrs []string, err error) {
+ 	if err != nil {
+ 		return
+ 	}
++loop:
+ 	for _, line := range lines {
+ 		f := getFields(line)
+ 		if len(f) < 2 {
+@@ -135,6 +136,12 @@ func lookupHost(host string) (addrs []string, err error) {
+ 		if ParseIP(addr) == nil {
+ 			continue
+ 		}
++		// only return unique addresses
++		for _, a := range addrs {
++			if a == addr {
++				continue loop
++			}
++		}
+ 		addrs = append(addrs, addr)
+ 	}
+ 	return

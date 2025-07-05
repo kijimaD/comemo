@@ -12,6 +12,20 @@ Date:   Thu May 7 16:00:36 2015 +1000
     Change-Id: Id37380f72a951c9ad7cf96c0db153c05167e62ed
     Reviewed-on: https://go-review.googlesource.com/9778
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/net_windows_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 80723da4d3..21b47964a4 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -16,8 +16,6 @@ import (
+ )
+ 
+ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+-	t.Skip("skipping temporarily, see issue 8662")
+-
+ 	recv := func(ln Listener) (string, error) {
+ 		c, err := ln.Accept()
+ 		if err != nil {

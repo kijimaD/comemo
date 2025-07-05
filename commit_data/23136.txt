@@ -13,6 +13,35 @@ Date:   Mon Apr 27 16:08:11 2015 -0400
     Change-Id: I2504270a0de30544736f6c32161337a25b505c3e
     Reviewed-on: https://go-review.googlesource.com/9368
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index fccf397062..4c5712d32f 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -366,18 +366,22 @@ func BenchmarkPingPongHog(b *testing.B) {
+ 			pong <- <-ping
+ 		}
+ 		close(stop)
++		done <- true
+ 	}()
+ 	go func() {
+ 		for i := 0; i < b.N; i++ {
+ 			ping <- <-pong
+ 		}
++		done <- true
+ 	}()
+ 	b.ResetTimer()
+ 	ping <- true // Start ping-pong
+ 	<-stop
+ 	b.StopTimer()
+ 	<-ping // Let last ponger exit
+-	<-done // Make sure hog exits
++	<-done // Make sure goroutines exit
++	<-done
++	<-done
+ }
+ 
+ func stackGrowthRecursive(i int) {

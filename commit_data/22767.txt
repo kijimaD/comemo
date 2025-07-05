@@ -11,7 +11,7 @@ Date:   Fri Apr 3 04:37:11 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8437
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/7l/asm.go             | 45 ++++++++++++++++++++++++++++++++++++++-----
  src/cmd/7l/obj.go             |  2 ++
  src/cmd/internal/ld/dwarf.go  | 10 ++++++----
@@ -19,3 +19,223 @@ Date:   Fri Apr 3 04:37:11 2015 -0400
  src/cmd/internal/ld/lib.go    |  3 +++
  src/cmd/internal/ld/symtab.go |  6 ++----
  6 files changed, 68 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/7l/asm.go b/src/cmd/7l/asm.go
+index d597acecbe..379e9837b6 100644
+--- a/src/cmd/7l/asm.go
++++ b/src/cmd/7l/asm.go
+@@ -66,8 +66,33 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ }
+ 
+ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+-	// TODO(minux)
+-	return -1
++	ld.Thearch.Vput(uint64(sectoff))
++
++	elfsym := r.Xsym.Elfsym
++	switch r.Type {
++	default:
++		return -1
++
++	case ld.R_ADDR:
++		switch r.Siz {
++		case 4:
++			ld.Thearch.Vput(ld.R_AARCH64_ABS32 | uint64(elfsym)<<32)
++		case 8:
++			ld.Thearch.Vput(ld.R_AARCH64_ABS64 | uint64(elfsym)<<32)
++		default:
++			return -1
++		}
++
++	case ld.R_CALLARM64:
++		if r.Siz != 4 {
++			return -1
++		}
++		ld.Thearch.Vput(ld.R_AARCH64_CALL26 | uint64(elfsym)<<32)
++
++	}
++	ld.Thearch.Vput(uint64(r.Xadd))
++
++	return 0
+ }
+ 
+ func elfsetupplt() {
+@@ -81,8 +106,18 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 
+ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 	if ld.Linkmode == ld.LinkExternal {
+-		// TODO(minux): translate R_CALLARM64 into standard ELF relocation.
+-		return -1
++		switch r.Type {
++		default:
++			return -1
++
++		case ld.R_CALLARM64:
++			r.Done = 0
++			r.Xsym = r.Sym
++			*val = int64(0xfc000000 & uint32(r.Add))
++			r.Xadd = int64((uint32(r.Add) &^ 0xfc000000) * 4)
++			r.Add = 0
++			return 0
++		}
+ 	}
+ 
+ 	switch r.Type {
+@@ -108,7 +143,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+ }
+ 
+ func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+-	log.Fatalf("adddynsym not implemented")
++	// TODO(minux): implement when needed.
+ }
+ 
+ func adddynlib(lib string) {
+diff --git a/src/cmd/7l/obj.go b/src/cmd/7l/obj.go
+index 3fa70f2019..35a0fa8f1c 100644
+--- a/src/cmd/7l/obj.go
++++ b/src/cmd/7l/obj.go
+@@ -96,6 +96,8 @@ func archinit() {
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+ 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+ 		}
++	case ld.Hlinux:
++		break
+ 	}
+ 
+ 	switch ld.HEADTYPE {
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index 37625f1912..c9f13cf29d 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -2367,12 +2367,13 @@ func dwarfaddshstrings(shstrtab *LSym) {
+ 	elfstrdbg[ElfStrDebugStr] = Addstring(shstrtab, ".debug_str")
+ 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
+ 	if Linkmode == LinkExternal {
+-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++		switch Thearch.Thechar {
++		case '6', '7', '9':
+ 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
+ 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
+ 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
+ 			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rela.debug_frame")
+-		} else {
++		default:
+ 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rel.debug_info")
+ 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rel.debug_aranges")
+ 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
+@@ -2419,9 +2420,10 @@ func dwarfaddelfsectionsyms() {
+ 
+ func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
+ 	sh := newElfShdr(elfstrdbg[elfstr])
+-	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++	switch Thearch.Thechar {
++	case '6', '7', '9':
+ 		sh.type_ = SHT_RELA
+-	} else {
++	default:
+ 		sh.type_ = SHT_REL
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index f2d819de8c..86a2aa501e 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1489,10 +1489,11 @@ func elfshreloc(sect *Section) *ElfShdr {
+ 
+ 	var prefix string
+ 	var typ int
+-	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++	switch Thearch.Thechar {
++	case '6', '7', '9':
+ 		prefix = ".rela"
+ 		typ = SHT_RELA
+-	} else {
++	default:
+ 		prefix = ".rel"
+ 		typ = SHT_REL
+ 	}
+@@ -1657,9 +1658,10 @@ func doelf() {
+ 
+ 	if Flag_shared != 0 {
+ 		Addstring(shstrtab, ".init_array")
+-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++		switch Thearch.Thechar {
++		case '6', '7', '9':
+ 			Addstring(shstrtab, ".rela.init_array")
+-		} else {
++		default:
+ 			Addstring(shstrtab, ".rel.init_array")
+ 		}
+ 	}
+@@ -1683,10 +1685,11 @@ func doelf() {
+ 		Addstring(shstrtab, ".dynamic")
+ 		Addstring(shstrtab, ".dynsym")
+ 		Addstring(shstrtab, ".dynstr")
+-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++		switch Thearch.Thechar {
++		case '6', '7', '9':
+ 			Addstring(shstrtab, ".rela")
+ 			Addstring(shstrtab, ".rela.plt")
+-		} else {
++		default:
+ 			Addstring(shstrtab, ".rel")
+ 			Addstring(shstrtab, ".rel.plt")
+ 		}
+@@ -1700,9 +1703,10 @@ func doelf() {
+ 
+ 		s.Type = SELFROSECT
+ 		s.Reachable = true
+-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++		switch Thearch.Thechar {
++		case '6', '7', '9':
+ 			s.Size += ELF64SYMSIZE
+-		} else {
++		default:
+ 			s.Size += ELF32SYMSIZE
+ 		}
+ 
+@@ -1791,9 +1795,10 @@ func doelf() {
+ 		elfwritedynentsym(s, DT_HASH, Linklookup(Ctxt, ".hash", 0))
+ 
+ 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
+-		if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
++		switch Thearch.Thechar {
++		case '6', '7', '9':
+ 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
+-		} else {
++		default:
+ 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
+ 		}
+ 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index e4b1820ea9..1b4d651068 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -711,6 +711,9 @@ func hostlink() {
+ 
+ 	case '5':
+ 		argv = append(argv, "-marm")
++
++	case '7':
++		// nothing needed
+ 	}
+ 
+ 	if Debug['s'] == 0 && debug_s == 0 {
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index c6b39333e8..c5b32fd21f 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -167,11 +167,9 @@ func putelfsectionsym(s *LSym, shndx int) {
+ 
+ func putelfsymshndx(sympos int64, shndx int) {
+ 	here := Cpos()
+-	switch Thearch.Thechar {
+-	case '6':
++	if elf64 != 0 {
+ 		Cseek(sympos + 6)
+-
+-	default:
++	} else {
+ 		Cseek(sympos + 14)
+ 	}
+ 

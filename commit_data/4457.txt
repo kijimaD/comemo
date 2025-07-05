@@ -7,7 +7,44 @@ Date:   Thu Dec 17 15:08:55 2009 -0800
     R=ken2
     CC=dho
     https://golang.org/cl/179097
-
+---
  src/cmd/gc/walk.c        |  2 ++
  test/fixedbugs/bug235.go | 17 +++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1d52d05cc4..80b0944d8b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -231,6 +231,8 @@ walkdef(Node *n)
+ 		t->printed = 0;
+ 		t->method = nil;
+ 		t->nod = N;
++		t->printed = 0;
++		t->deferwidth = 0;
+ 
+ 		// double-check use of type as map key
+ 		// TODO(rsc): also use of type as receiver?
+diff --git a/test/fixedbugs/bug235.go b/test/fixedbugs/bug235.go
+new file mode 100644
+index 0000000000..8cecd9d047
+--- /dev/null
++++ b/test/fixedbugs/bug235.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// used to crash the compiler
++
++package main
++
++type T struct {
++	x [4]byte
++}
++
++var p *T
++var v = *p
++

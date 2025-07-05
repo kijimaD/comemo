@@ -11,7 +11,7 @@ Date:   Fri Feb 27 12:36:15 2015 -0800
     Change-Id: I55822c0322c29d3e01a1f2776b3b210ebf9ded21
     Reviewed-on: https://go-review.googlesource.com/6290
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/9a/a.y                              |  2 +-
  src/cmd/9a/lex.go                           | 16 ++++++++--------
  src/cmd/9a/y.go                             |  2 +-
@@ -23,3 +23,229 @@ Date:   Fri Feb 27 12:36:15 2015 -0800
  src/cmd/internal/obj/ppc64/asm9.go          |  8 ++++----
  src/cmd/internal/obj/ppc64/list9.go         |  4 ++--
  10 files changed, 36 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/9a/a.y b/src/cmd/9a/a.y
+index 2ca6e9063b..a6785df300 100644
+--- a/src/cmd/9a/a.y
++++ b/src/cmd/9a/a.y
+@@ -806,7 +806,7 @@ creg:
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_REG;
+-		$$.Reg = int16(REG_C0 + $3);
++		$$.Reg = int16(REG_CR0 + $3);
+ 	}
+ 
+ 
+diff --git a/src/cmd/9a/lex.go b/src/cmd/9a/lex.go
+index d480e4540e..ac16647853 100644
+--- a/src/cmd/9a/lex.go
++++ b/src/cmd/9a/lex.go
+@@ -101,14 +101,14 @@ var lexinit = []asm.Lextab{
+ 	{"SPR", LSPR, ppc64.REG_SPR0},
+ 	{"DCR", LSPR, ppc64.REG_DCR0},
+ 	{"CR", LCR, ppc64.REG_CR},
+-	{"CR0", LCREG, ppc64.REG_C0},
+-	{"CR1", LCREG, ppc64.REG_C1},
+-	{"CR2", LCREG, ppc64.REG_C2},
+-	{"CR3", LCREG, ppc64.REG_C3},
+-	{"CR4", LCREG, ppc64.REG_C4},
+-	{"CR5", LCREG, ppc64.REG_C5},
+-	{"CR6", LCREG, ppc64.REG_C6},
+-	{"CR7", LCREG, ppc64.REG_C7},
++	{"CR0", LCREG, ppc64.REG_CR0},
++	{"CR1", LCREG, ppc64.REG_CR1},
++	{"CR2", LCREG, ppc64.REG_CR2},
++	{"CR3", LCREG, ppc64.REG_CR3},
++	{"CR4", LCREG, ppc64.REG_CR4},
++	{"CR5", LCREG, ppc64.REG_CR5},
++	{"CR6", LCREG, ppc64.REG_CR6},
++	{"CR7", LCREG, ppc64.REG_CR7},
+ 	{"R", LR, 0},
+ 	{"R0", LREG, ppc64.REG_R0},
+ 	{"R1", LREG, ppc64.REG_R1},
+diff --git a/src/cmd/9a/y.go b/src/cmd/9a/y.go
+index 3e62619cb2..ecc9b9c7ac 100644
+--- a/src/cmd/9a/y.go
++++ b/src/cmd/9a/y.go
+@@ -1651,7 +1651,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+-			yyVAL.addr.Reg = int16(REG_C0 + yyDollar[3].lval)
++			yyVAL.addr.Reg = int16(REG_CR0 + yyDollar[3].lval)
+ 		}
+ 	case 142:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 0e31f34afc..987f5a5ca6 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -372,9 +372,8 @@ func archPPC64() *Arch {
+ 	for i := ppc64.REG_F0; i <= ppc64.REG_F31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
+-	for i := ppc64.REG_C0; i <= ppc64.REG_C7; i++ {
+-		// TODO: Rconv prints these as C7 but the input syntax requires CR7.
+-		register[fmt.Sprintf("CR%d", i-ppc64.REG_C0)] = int16(i)
++	for i := ppc64.REG_CR0; i <= ppc64.REG_CR7; i++ {
++		register[obj.Rconv(i)] = int16(i)
+ 	}
+ 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index 74368b4eb3..db2adffab5 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -68,7 +68,7 @@ func ppc64RegisterNumber(name string, n int16) (int16, bool) {
+ 	switch name {
+ 	case "CR":
+ 		if 0 <= n && n <= 7 {
+-			return ppc64.REG_C0 + n, true
++			return ppc64.REG_CR0 + n, true
+ 		}
+ 	case "F":
+ 		if 0 <= n && n <= 31 {
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 62b2280fc3..e8d3cda489 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -359,7 +359,7 @@ var ppc64OperandTests = []operandTest{
+ 	{"-1(R4)", "-1(R4)"},
+ 	{"-1(R5)", "-1(R5)"},
+ 	{"6(PC)", "6(PC)"},
+-	{"CR7", "C7"}, // TODO: Should print CR7.
++	{"CR7", "CR7"},
+ 	{"CTR", "CTR"},
+ 	{"F14", "F14"},
+ 	{"F15", "F15"},
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.out b/src/cmd/asm/internal/asm/testdata/ppc64.out
+index 863dfbfa4d..da9c1b487d 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.out
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.out
+@@ -31,8 +31,8 @@
+ 145 00031 (testdata/ppc64.s:145)	MOVFL	FPSCR,F1
+ 151 00032 (testdata/ppc64.s:151)	MOVFL	F1,FPSCR
+ 157 00033 (testdata/ppc64.s:157)	MOVFL	F1,$4,FPSCR
+-163 00034 (testdata/ppc64.s:163)	MOVFL	FPSCR,C0
+-184 00035 (testdata/ppc64.s:184)	MOVW	R1,C1
++163 00034 (testdata/ppc64.s:163)	MOVFL	FPSCR,CR0
++184 00035 (testdata/ppc64.s:184)	MOVW	R1,CR1
+ 190 00036 (testdata/ppc64.s:190)	MOVW	R1,CR
+ 202 00037 (testdata/ppc64.s:202)	ADD	R1,R2,R3
+ 208 00038 (testdata/ppc64.s:208)	ADD	$1,R2,R3
+@@ -49,7 +49,7 @@
+ 292 00049 (testdata/ppc64.s:292)	MOVW	$1,R1
+ 298 00050 (testdata/ppc64.s:298)	MOVW	$1,R1
+ 299 00051 (testdata/ppc64.s:299)	MOVW	$foo(SB),R1
+-323 00052 (testdata/ppc64.s:323)	MOVFL	C0,C1
++323 00052 (testdata/ppc64.s:323)	MOVFL	CR0,CR1
+ 335 00053 (testdata/ppc64.s:335)	MOVW	CR,R1
+ 341 00054 (testdata/ppc64.s:341)	MOVW	SPR(0),R1
+ 342 00055 (testdata/ppc64.s:342)	MOVW	SPR(7),R1
+@@ -63,8 +63,8 @@
+ 387 00063 (testdata/ppc64.s:387)	JMP	,4(R1)
+ 388 00064 (testdata/ppc64.s:388)	JMP	,foo(SB)
+ 394 00065 (testdata/ppc64.s:394)	JMP	,CTR
+-413 00066 (testdata/ppc64.s:413)	BEQ	C1,67(PC)
+-414 00067 (testdata/ppc64.s:414)	BEQ	C1,66
++413 00066 (testdata/ppc64.s:413)	BEQ	CR1,67(PC)
++414 00067 (testdata/ppc64.s:414)	BEQ	CR1,66
+ 440 00068 (testdata/ppc64.s:440)	BC	4,CTR
+ 450 00069 (testdata/ppc64.s:450)	BC	$3,R4,66
+ 470 00070 (testdata/ppc64.s:470)	BC	$3,R3,LR
+@@ -73,11 +73,11 @@
+ 512 00073 (testdata/ppc64.s:512)	FADD	F1,F2,F3
+ 518 00074 (testdata/ppc64.s:518)	FMADD	F1,F2,F3,F4
+ 524 00075 (testdata/ppc64.s:524)	FCMPU	F1,F2
+-530 00076 (testdata/ppc64.s:530)	FCMPU	F1,F2,C0
++530 00076 (testdata/ppc64.s:530)	FCMPU	F1,F2,CR0
+ 539 00077 (testdata/ppc64.s:539)	CMP	R1,R2
+ 545 00078 (testdata/ppc64.s:545)	CMP	R1,$4
+-551 00079 (testdata/ppc64.s:551)	CMP	R1,C0,R2
+-557 00080 (testdata/ppc64.s:557)	CMP	R1,C0,$4
++551 00079 (testdata/ppc64.s:551)	CMP	R1,CR0,R2
++557 00080 (testdata/ppc64.s:557)	CMP	R1,CR0,$4
+ 566 00081 (testdata/ppc64.s:566)	RLDC	$4,R1,$5,R2
+ 572 00082 (testdata/ppc64.s:572)	RLDC	$26,R1,$201326592,R2
+ 578 00083 (testdata/ppc64.s:578)	RLDC	R1,R2,$4,R3
+diff --git a/src/cmd/internal/obj/ppc64/9.out.go b/src/cmd/internal/obj/ppc64/9.out.go
+index 8858a9fe6e..3030455bbd 100644
+--- a/src/cmd/internal/obj/ppc64/9.out.go
++++ b/src/cmd/internal/obj/ppc64/9.out.go
+@@ -110,14 +110,14 @@ const (
+ 	REG_F30
+ 	REG_F31
+ 	REG_SPECIAL = obj.RBasePPC64 + 64
+-	REG_C0      = obj.RBasePPC64 + 64 + iota - 65
+-	REG_C1
+-	REG_C2
+-	REG_C3
+-	REG_C4
+-	REG_C5
+-	REG_C6
+-	REG_C7
++	REG_CR0     = obj.RBasePPC64 + 64 + iota - 65
++	REG_CR1
++	REG_CR2
++	REG_CR3
++	REG_CR4
++	REG_CR5
++	REG_CR6
++	REG_CR7
+ 	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
+ 	REG_FPSCR
+ 	REG_CR
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index e5b43968fc..42969d0481 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -554,7 +554,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 		if REG_F0 <= a.Reg && a.Reg <= REG_F31 {
+ 			return C_FREG
+ 		}
+-		if REG_C0 <= a.Reg && a.Reg <= REG_C7 || a.Reg == REG_CR {
++		if REG_CR0 <= a.Reg && a.Reg <= REG_CR7 || a.Reg == REG_CR {
+ 			return C_CREG
+ 		}
+ 		if REG_SPR0 <= a.Reg && a.Reg <= REG_SPR0+1023 {
+@@ -2343,13 +2343,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = AOP_RRR(o1, uint32(r), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
+ 
+ 	case 67: /* mcrf crfD,crfS */
+-		if p.From.Type != obj.TYPE_REG || p.From.Reg < REG_C0 || REG_C7 < p.From.Reg || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_C0 || REG_C7 < p.To.Reg {
++		if p.From.Type != obj.TYPE_REG || p.From.Reg < REG_CR0 || REG_CR7 < p.From.Reg || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_CR0 || REG_CR7 < p.To.Reg {
+ 			ctxt.Diag("illegal CR field number\n%v", p)
+ 		}
+ 		o1 = AOP_RRR(OP_MCRF, ((uint32(p.To.Reg) & 7) << 2), ((uint32(p.From.Reg) & 7) << 2), 0)
+ 
+ 	case 68: /* mfcr rD; mfocrf CRM,rD */
+-		if p.From.Type == obj.TYPE_REG && REG_C0 <= p.From.Reg && p.From.Reg <= REG_C7 {
++		if p.From.Type == obj.TYPE_REG && REG_CR0 <= p.From.Reg && p.From.Reg <= REG_CR7 {
+ 			v = 1 << uint(7-(p.To.Reg&7))                                         /* CR(n) */
+ 			o1 = AOP_RRR(OP_MFCR, uint32(p.To.Reg), 0, 0) | 1<<20 | uint32(v)<<12 /* new form, mfocrf */
+ 		} else {
+@@ -2392,7 +2392,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), uint32(p.From.Reg), 0, uint32(p.To.Reg))
+ 
+ 	case 73: /* mcrfs crfD,crfS */
+-		if p.From.Type != obj.TYPE_REG || p.From.Reg != REG_FPSCR || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_C0 || REG_C7 < p.To.Reg {
++		if p.From.Type != obj.TYPE_REG || p.From.Reg != REG_FPSCR || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_CR0 || REG_CR7 < p.To.Reg {
+ 			ctxt.Diag("illegal FPSCR/CR field number\n%v", p)
+ 		}
+ 		o1 = AOP_RRR(OP_MCRFS, ((uint32(p.To.Reg) & 7) << 2), ((0 & 7) << 2), 0)
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index ad0326bdd0..21a864255b 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -142,8 +142,8 @@ func Rconv(r int) string {
+ 	if REG_F0 <= r && r <= REG_F31 {
+ 		return fmt.Sprintf("F%d", r-REG_F0)
+ 	}
+-	if REG_C0 <= r && r <= REG_C7 {
+-		return fmt.Sprintf("C%d", r-REG_C0)
++	if REG_CR0 <= r && r <= REG_CR7 {
++		return fmt.Sprintf("CR%d", r-REG_CR0)
+ 	}
+ 	if r == REG_CR {
+ 		return "CR"

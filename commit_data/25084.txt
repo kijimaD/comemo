@@ -7,6 +7,23 @@ Date:   Tue Sep 22 20:45:16 2015 -0700
     Change-Id: Ib1bfe4038e2b125a31acd9ff7772e462b0a6358f
     Reviewed-on: https://go-review.googlesource.com/14852
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/devel/release.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 43ead08845..7cc406ab5d 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -48,6 +48,11 @@ go1.4.2 (released 2015/02/17) includes bug fixes to the <code>go</code> command,
+ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.4.2">Go 1.4.2 milestone on our issue tracker</a> for details.
+ </p>
+ 
++<p>
++go1.4.3 (released 2015/09/22) includes security fixes to the <code>net/http</code> package and bug fixes to the <code>runtime</code> package.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.4.3">Go 1.4.3 milestone on our issue tracker</a> for details.
++</p>
++
+ <h2 id="go1.3">go1.3 (released 2014/06/18)</h2>
+ 
+ <p>

@@ -24,9 +24,600 @@ Date:   Mon Jan 9 21:06:31 2012 -0800
     R=golang-dev, adg, r
     CC=golang-dev
     https://golang.org/cl/5531057
-
+---
  src/cmd/go/build.go    | 109 ++++++++++++++++++++++++++++---------------------
  src/cmd/go/run.go      |  17 ++++----
  src/cmd/go/test.go     | 106 +++++++++++++++++++++++++++++++++--------------
  src/cmd/go/testflag.go |  17 ++++++++
  4 files changed, 163 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1fc4a4273a..2abc944ef8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -21,14 +21,8 @@ import (
+ 	"sync"
+ )
+ 
+-// Break init cycles
+-func init() {
+-	cmdBuild.Run = runBuild
+-	cmdInstall.Run = runInstall
+-}
+-
+ var cmdBuild = &Command{
+-	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [importpath... | gofiles...]",
++	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [-p n] [importpath... | gofiles...]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -46,24 +40,49 @@ The -a flag forces rebuilding of packages that are already up-to-date.
+ The -n flag prints the commands but does not run them.
+ The -v flag prints the names of packages as they are compiled.
+ The -x flag prints the commands.
++
+ The -o flag specifies the output file name.
+ It is an error to use -o when the command line specifies multiple packages.
+ 
++The -p flag specifies the number of builds that can be run in parallel.
++The default is the number of CPUs available.
++
+ For more about import paths, see 'go help importpath'.
+ 
+ See also: go install, go get, go clean.
+ 	`,
+ }
+ 
+-var buildA = cmdBuild.Flag.Bool("a", false, "")
+-var buildN = cmdBuild.Flag.Bool("n", false, "")
+-var buildV = cmdBuild.Flag.Bool("v", false, "")
+-var buildX = cmdBuild.Flag.Bool("x", false, "")
++func init() {
++	// break init cycle
++	cmdBuild.Run = runBuild
++	cmdInstall.Run = runInstall
++
++	addBuildFlags(cmdBuild)
++	addBuildFlags(cmdInstall)
++}
++
++// Flags set by multiple commands.
++var buildA bool               // -a flag
++var buildN bool               // -n flag
++var buildP = runtime.NumCPU() // -p flag
++var buildV bool               // -v flag
++var buildX bool               // -x flag
++
+ var buildO = cmdBuild.Flag.String("o", "", "output file")
+ 
++// addBuildFlags adds the flags common to the build and install commands.
++func addBuildFlags(cmd *Command) {
++	cmd.Flag.BoolVar(&buildA, "a", false, "")
++	cmd.Flag.BoolVar(&buildN, "n", false, "")
++	cmd.Flag.IntVar(&buildP, "p", buildP, "")
++	cmd.Flag.BoolVar(&buildV, "v", false, "")
++	cmd.Flag.BoolVar(&buildX, "x", false, "")
++}
++
+ func runBuild(cmd *Command, args []string) {
+ 	var b builder
+-	b.init(*buildA, *buildN, *buildV, *buildX)
++	b.init()
+ 
+ 	var pkgs []*Package
+ 	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
+@@ -97,7 +116,7 @@ func runBuild(cmd *Command, args []string) {
+ }
+ 
+ var cmdInstall = &Command{
+-	UsageLine: "install [-a] [-n] [-v] [-x] [importpath...]",
++	UsageLine: "install [-a] [-n] [-v] [-x] [-p n] [importpath...]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+ Install compiles and installs the packages named by the import paths,
+@@ -108,20 +127,18 @@ The -n flag prints the commands but does not run them.
+ The -v flag prints the names of packages as they are compiled.
+ The -x flag prints the commands.
+ 
++The -p flag specifies the number of builds that can be run in parallel.
++The default is the number of CPUs available.
++
+ For more about import paths, see 'go help importpath'.
+ 
+ See also: go build, go get, go clean.
+ 	`,
+ }
+ 
+-var installA = cmdInstall.Flag.Bool("a", false, "")
+-var installN = cmdInstall.Flag.Bool("n", false, "")
+-var installV = cmdInstall.Flag.Bool("v", false, "")
+-var installX = cmdInstall.Flag.Bool("x", false, "")
+-
+ func runInstall(cmd *Command, args []string) {
+ 	var b builder
+-	b.init(*installA, *installN, *installV, *installX)
++	b.init()
+ 	a := &action{}
+ 	for _, p := range packages(args) {
+ 		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+@@ -134,10 +151,6 @@ func runInstall(cmd *Command, args []string) {
+ // build packages in parallel, and the builder will be shared.
+ type builder struct {
+ 	work        string               // the temporary work directory (ends in filepath.Separator)
+-	aflag       bool                 // the -a flag
+-	nflag       bool                 // the -n flag
+-	vflag       bool                 // the -v flag
+-	xflag       bool                 // the -x flag
+ 	arch        string               // e.g., "6"
+ 	goroot      string               // the $GOROOT
+ 	goarch      string               // the $GOARCH
+@@ -158,11 +171,12 @@ type builder struct {
+ 
+ // An action represents a single action in the action graph.
+ type action struct {
+-	p        *Package  // the package this action works on
+-	deps     []*action // actions that must happen before this one
+-	triggers []*action // inverse of deps
+-	cgo      *action   // action for cgo binary if needed
+-	args     []string  // additional args for runProgram
++	p          *Package      // the package this action works on
++	deps       []*action     // actions that must happen before this one
++	triggers   []*action     // inverse of deps
++	cgo        *action       // action for cgo binary if needed
++	args       []string      // additional args for runProgram
++	testOutput *bytes.Buffer // test output buffer
+ 
+ 	f          func(*builder, *action) error // the action itself (nil = no-op)
+ 	ignoreFail bool                          // whether to run f even if dependencies fail
+@@ -195,12 +209,8 @@ const (
+ 	modeInstall
+ )
+ 
+-func (b *builder) init(aflag, nflag, vflag, xflag bool) {
++func (b *builder) init() {
+ 	var err error
+-	b.aflag = aflag
+-	b.nflag = nflag
+-	b.vflag = vflag
+-	b.xflag = xflag
+ 	b.actionCache = make(map[cacheKey]*action)
+ 	b.mkdirCache = make(map[string]bool)
+ 	b.goarch = build.DefaultContext.GOARCH
+@@ -217,14 +227,14 @@ func (b *builder) init(aflag, nflag, vflag, xflag bool) {
+ 		fatalf("%s", err)
+ 	}
+ 
+-	if nflag {
++	if buildN {
+ 		b.work = "$WORK"
+ 	} else {
+ 		b.work, err = ioutil.TempDir("", "go-build")
+ 		if err != nil {
+ 			fatalf("%s", err)
+ 		}
+-		if b.xflag {
++		if buildX {
+ 			fmt.Printf("WORK=%s\n", b.work)
+ 		}
+ 		atexit(func() { os.RemoveAll(b.work) })
+@@ -312,7 +322,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		}
+ 	}
+ 
+-	if !p.Stale && !b.aflag && p.target != "" {
++	if !p.Stale && !buildA && p.target != "" {
+ 		// p.Stale==false implies that p.target is up-to-date.
+ 		// Record target name for use by actions depending on this one.
+ 		a.target = p.target
+@@ -434,8 +444,15 @@ func (b *builder) do(root *action) {
+ 		}
+ 	}
+ 
+-	// TODO: Turn this knob for parallelism.
+-	for i := 0; i < 1; i++ {
++	// Kick off goroutines according to parallelism.
++	// If we are using the -n flag (just printing commands)
++	// drop the parallelism to 1, both to make the output
++	// deterministic and because there is no real work anyway.
++	par := buildP
++	if buildN {
++		par = 1
++	}
++	for i := 0; i < par; i++ {
+ 		go func() {
+ 			for _ = range b.readySema {
+ 				// Receiving a value from b.sema entitles
+@@ -453,7 +470,7 @@ func (b *builder) do(root *action) {
+ 
+ // build is the action for building a single package or command.
+ func (b *builder) build(a *action) error {
+-	if b.nflag {
++	if buildN {
+ 		// In -n mode, print a banner between packages.
+ 		// The banner is five lines so that when changes to
+ 		// different sections of the bootstrap script have to
+@@ -462,7 +479,7 @@ func (b *builder) build(a *action) error {
+ 		fmt.Printf("\n#\n# %s\n#\n\n", a.p.ImportPath)
+ 	}
+ 
+-	if b.vflag {
++	if buildV {
+ 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
+ 	}
+ 
+@@ -671,9 +688,9 @@ func removeByRenaming(name string) error {
+ 
+ // copyFile is like 'cp src dst'.
+ func (b *builder) copyFile(dst, src string, perm uint32) error {
+-	if b.nflag || b.xflag {
++	if buildN || buildX {
+ 		b.showcmd("", "cp %s %s", src, dst)
+-		if b.nflag {
++		if buildN {
+ 			return nil
+ 		}
+ 	}
+@@ -792,9 +809,9 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
+ // If the commnd fails, run prints information about the failure
+ // and returns a non-nil error.
+ func (b *builder) run(dir string, desc string, cmdline ...string) error {
+-	if b.nflag || b.xflag {
++	if buildN || buildX {
+ 		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
+-		if b.nflag {
++		if buildN {
+ 			return nil
+ 		}
+ 	}
+@@ -831,9 +848,9 @@ func (b *builder) mkdir(dir string) error {
+ 	}
+ 	b.mkdirCache[dir] = true
+ 
+-	if b.nflag || b.xflag {
++	if buildN || buildX {
+ 		b.showcmd("", "mkdir -p %s", dir)
+-		if b.nflag {
++		if buildN {
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 371ba16543..1582531fae 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -6,11 +6,6 @@ package main
+ 
+ import ()
+ 
+-// Break init loop.
+-func init() {
+-	cmdRun.Run = runRun
+-}
+-
+ var cmdRun = &Command{
+ 	UsageLine: "run [-a] [-n] [-x] gofiles... [-- arguments...]",
+ 	Short:     "compile and run Go program",
+@@ -25,13 +20,17 @@ See also: go build.
+ 	`,
+ }
+ 
+-var runA = cmdRun.Flag.Bool("a", false, "")
+-var runN = cmdRun.Flag.Bool("n", false, "")
+-var runX = cmdRun.Flag.Bool("x", false, "")
++func init() {
++	cmdRun.Run = runRun // break init loop
++
++	cmdRun.Flag.BoolVar(&buildA, "a", false, "")
++	cmdRun.Flag.BoolVar(&buildN, "n", false, "")
++	cmdRun.Flag.BoolVar(&buildX, "x", false, "")
++}
+ 
+ func runRun(cmd *Command, args []string) {
+ 	var b builder
+-	b.init(*runA, *runN, false, *runX)
++	b.init()
+ 	files, args := splitArgs(args)
+ 	p := goFilesPackage(files, "")
+ 	p.target = "" // must build - not up to date
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e6b70dda4f..dd7ce46fa1 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -17,6 +17,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 	"text/template"
++	"time"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -28,7 +29,7 @@ func init() {
+ 
+ var cmdTest = &Command{
+ 	CustomFlags: true,
+-	UsageLine:   "test [importpath...] [-file a.go -file b.go ...] [-c] [-x] [flags for test binary]",
++	UsageLine:   "test [-c] [-x] [-file a.go -file b.go ...] [-p n] [importpath...] [flags for test binary]",
+ 	Short:       "test packages",
+ 	Long: `
+ 'Go test' automates testing the packages named by the import paths.
+@@ -54,8 +55,8 @@ compiled.)
+ The package is built in a temporary directory so it does not interfere with the
+ non-test installation.
+ 
+-See 'go help testflag' for details about flags
+-handled by 'go test' and the test binary.
++See 'go help testflag' for details about flags handled by 'go test'
++and the test binary.
+ 
+ See 'go help importpath' for more about import paths.
+ 
+@@ -78,6 +79,10 @@ The flags handled by 'go test' are:
+ 	    Use only the tests in the source file a.go.
+ 	    Multiple -file flags may be provided.
+ 
++	-p n
++	    Compile and test up to n packages in parallel.
++	    The default value is the number of CPUs available.
++
+ 	-x  Print each subcommand gotest executes.
+ 
+ The resulting test binary, called test.out, has its own flags:
+@@ -194,11 +199,13 @@ See the documentation of the testing package for more information.
+ 
+ var (
+ 	testC        bool     // -c flag
++	testP        int      // -p flag
+ 	testX        bool     // -x flag
+ 	testV        bool     // -v flag
+ 	testFiles    []string // -file flag(s)  TODO: not respected
+ 	testArgs     []string
+ 	testShowPass bool // whether to display passing output
++	testBench    bool
+ )
+ 
+ func runTest(cmd *Command, args []string) {
+@@ -219,34 +226,52 @@ func runTest(cmd *Command, args []string) {
+ 		fatalf("cannot use -c flag with multiple packages")
+ 	}
+ 
++	buildX = testX
++	if testP > 0 {
++		buildP = testP
++	}
++
+ 	var b builder
+-	b.init(false, false, false, testX)
++	b.init()
+ 
+-	var builds, runs []*action
++	var builds, runs, prints []*action
+ 
+-	// Prepare build + run actions for all packages being tested.
++	// Prepare build + run + print actions for all packages being tested.
+ 	for _, p := range pkgs {
+-		buildTest, runTest, err := b.test(p)
++		buildTest, runTest, printTest, err := b.test(p)
+ 		if err != nil {
+ 			errorf("%s", err)
+ 			continue
+ 		}
+ 		builds = append(builds, buildTest)
+ 		runs = append(runs, runTest)
++		prints = append(prints, printTest)
+ 	}
+ 
+-	// Build+run the tests one at a time in the order
+-	// specified on the command line.
+-	// May want to revisit when we parallelize things,
+-	// although probably not for benchmark runs.
+-	for i, a := range builds {
++	// Ultimately the goal is to print the output.
++	root := &action{deps: prints}
++
++	// Force the printing of results to happen in order,
++	// one at a time.
++	for i, a := range prints {
+ 		if i > 0 {
+-			// Make build of test i depend on
+-			// completing the run of test i-1.
+-			a.deps = append(a.deps, runs[i-1])
++			a.deps = append(a.deps, prints[i-1])
++		}
++	}
++
++	// If we are benchmarking, force everything to
++	// happen in serial.  Could instead allow all the
++	// builds to run before any benchmarks start,
++	// but try this for now.
++	if testBench {
++		for i, a := range builds {
++			if i > 0 {
++				// Make build of test i depend on
++				// completing the run of test i-1.
++				a.deps = append(a.deps, runs[i-1])
++			}
+ 		}
+ 	}
+-	root := &action{deps: runs}
+ 
+ 	// If we are building any out-of-date packages other
+ 	// than those under test, warn.
+@@ -273,11 +298,12 @@ func runTest(cmd *Command, args []string) {
+ 	b.do(root)
+ }
+ 
+-func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
++func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
+ 	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
+ 		build := &action{p: p}
+-		run := &action{f: (*builder).notest, p: p, deps: []*action{build}}
+-		return build, run, nil
++		run := &action{p: p}
++		print := &action{f: (*builder).notest, p: p, deps: []*action{build}}
++		return build, run, print, nil
+ 	}
+ 
+ 	// Build Package structs describing:
+@@ -294,7 +320,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 	for _, path := range p.info.TestImports {
+ 		p1, err := loadPackage(path)
+ 		if err != nil {
+-			return nil, nil, err
++			return nil, nil, nil, err
+ 		}
+ 		imports = append(imports, p1)
+ 	}
+@@ -320,10 +346,10 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 	// Create the directory for the .a files.
+ 	ptestDir, _ := filepath.Split(ptestObj)
+ 	if err := b.mkdir(ptestDir); err != nil {
+-		return nil, nil, err
++		return nil, nil, nil, err
+ 	}
+ 	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p); err != nil {
+-		return nil, nil, err
++		return nil, nil, nil, err
+ 	}
+ 
+ 	// Test package.
+@@ -395,6 +421,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 			p:      pmain,
+ 			target: "test.out" + b.exe,
+ 		}
++		printAction = &action{p: p, deps: []*action{runAction}} // nop
+ 	} else {
+ 		// run test
+ 		runAction = &action{
+@@ -403,9 +430,14 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+ 			p:          p,
+ 			ignoreFail: true,
+ 		}
++		printAction = &action{
++			f:    (*builder).printTest,
++			deps: []*action{runAction},
++			p:    p,
++		}
+ 	}
+ 
+-	return pmainAction, runAction, nil
++	return pmainAction, runAction, printAction, nil
+ }
+ 
+ var pass = []byte("\nPASS\n")
+@@ -414,10 +446,11 @@ var pass = []byte("\nPASS\n")
+ func (b *builder) runTest(a *action) error {
+ 	args := []string{a.deps[0].target}
+ 	args = append(args, testArgs...)
++	a.testOutput = new(bytes.Buffer)
+ 
+-	if b.nflag || b.xflag {
++	if buildN || buildX {
+ 		b.showcmd("", "%s", strings.Join(args, " "))
+-		if b.nflag {
++		if buildN {
+ 			return nil
+ 		}
+ 	}
+@@ -425,33 +458,44 @@ func (b *builder) runTest(a *action) error {
+ 	if a.failed {
+ 		// We were unable to build the binary.
+ 		a.failed = false
+-		fmt.Printf("FAIL\t%s [build failed]\n", a.p.ImportPath)
++		fmt.Fprintf(a.testOutput, "FAIL\t%s [build failed]\n", a.p.ImportPath)
+ 		exitStatus = 1
+ 		return nil
+ 	}
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.p.Dir
++	t0 := time.Now()
+ 	out, err := cmd.CombinedOutput()
++	t1 := time.Now()
++	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
+ 	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
+-		fmt.Printf("ok  \t%s\n", a.p.ImportPath)
++		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s\n", a.p.ImportPath, t)
+ 		if testShowPass {
+-			os.Stdout.Write(out)
++			a.testOutput.Write(out)
+ 		}
+ 		return nil
+ 	}
+ 
+-	fmt.Printf("FAIL\t%s\n", a.p.ImportPath)
++	fmt.Fprintf(a.testOutput, "FAIL\t%s\t%s\n", a.p.ImportPath, t)
+ 	exitStatus = 1
+ 	if len(out) > 0 {
+-		os.Stdout.Write(out)
++		a.testOutput.Write(out)
+ 		// assume printing the test binary's exit status is superfluous
+ 	} else {
+-		fmt.Printf("%s\n", err)
++		fmt.Fprintf(a.testOutput, "%s\n", err)
+ 	}
+ 	return nil
+ }
+ 
++// printTest is the action for printing a test result.
++func (b *builder) printTest(a *action) error {
++	run := a.deps[0]
++	os.Stdout.Write(run.testOutput.Bytes())
++	run.testOutput = nil
++	return nil
++}
++
+ // notest is the action for testing a package with no test files.
+ func (b *builder) notest(a *action) error {
+ 	fmt.Printf("?   \t%s [no test files]\n", a.p.ImportPath)
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 07133035e9..a3cacd6574 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -20,6 +20,7 @@ var usageMessage = `Usage of go test:
+   -c=false: compile but do not run the test binary
+   -file=file_test.go: specify file to use for tests;
+       use multiple times for multiple files
++  -p=n: build and test up to n packages in parallel
+   -x=false: print command lines as they are executed
+ 
+   // These flags can be passed with or without a "test." prefix: -v or -test.v.
+@@ -57,6 +58,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	// local.
+ 	{name: "c", isBool: true},
+ 	{name: "file", multiOK: true},
++	{name: "p"},
+ 	{name: "x", isBool: true},
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+@@ -117,12 +119,17 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		switch f.name {
+ 		case "c":
+ 			setBoolFlag(&testC, value)
++		case "p":
++			setIntFlag(&testP, value)
+ 		case "x":
+ 			setBoolFlag(&testX, value)
+ 		case "v":
+ 			setBoolFlag(&testV, value)
+ 		case "file":
+ 			testFiles = append(testFiles, value)
++		case "bench":
++			// record that we saw the flag; don't care about the value
++			testBench = true
+ 		}
+ 		if extraWord {
+ 			i++
+@@ -196,3 +203,13 @@ func setBoolFlag(flag *bool, value string) {
+ 	}
+ 	*flag = x
+ }
++
++// setIntFlag sets the addressed integer to the value.
++func setIntFlag(flag *int, value string) {
++	x, err := strconv.Atoi(value)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go test: illegal int flag value %s\n", value)
++		usage()
++	}
++	*flag = x
++}

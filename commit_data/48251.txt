@@ -15,9 +15,352 @@ Date:   Wed Apr 28 17:39:46 2021 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/strconv/bytealg.go           |   6 +-
  src/strconv/bytealg_bootstrap.go |   8 +-
  src/strconv/quote.go             | 161 ++++++++++++++++++++++++++-------------
  src/strconv/quote_test.go        |  63 ++++++++-------
  4 files changed, 153 insertions(+), 85 deletions(-)
+
+diff --git a/src/strconv/bytealg.go b/src/strconv/bytealg.go
+index 9780c28ef3..a2bb12c5f2 100644
+--- a/src/strconv/bytealg.go
++++ b/src/strconv/bytealg.go
+@@ -9,7 +9,7 @@ package strconv
+ 
+ import "internal/bytealg"
+ 
+-// contains reports whether the string contains the byte c.
+-func contains(s string, c byte) bool {
+-	return bytealg.IndexByteString(s, c) != -1
++// index returns the index of the first instance of c in s, or -1 if missing.
++func index(s string, c byte) int {
++	return bytealg.IndexByteString(s, c)
+ }
+diff --git a/src/strconv/bytealg_bootstrap.go b/src/strconv/bytealg_bootstrap.go
+index 875a0eb147..0ed79f4de7 100644
+--- a/src/strconv/bytealg_bootstrap.go
++++ b/src/strconv/bytealg_bootstrap.go
+@@ -7,12 +7,12 @@
+ 
+ package strconv
+ 
+-// contains reports whether the string contains the byte c.
+-func contains(s string, c byte) bool {
++// index returns the index of the first instance of c in s, or -1 if missing.
++func index(s string, c byte) int {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == c {
+-			return true
++			return i
+ 		}
+ 	}
+-	return false
++	return -1
+ }
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index db0dbb288b..b3bbb1612b 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -15,6 +15,11 @@ const (
+ 	upperhex = "0123456789ABCDEF"
+ )
+ 
++// contains reports whether the string contains the byte c.
++func contains(s string, c byte) bool {
++	return index(s, c) != -1
++}
++
+ func quoteWith(s string, quote byte, ASCIIonly, graphicOnly bool) string {
+ 	return string(appendQuotedWith(make([]byte, 0, 3*len(s)/2), s, quote, ASCIIonly, graphicOnly))
+ }
+@@ -359,80 +364,132 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 	return
+ }
+ 
++// QuotedPrefix returns the quoted string (as understood by Unquote) at the prefix of s.
++// If s does not start with a valid quoted string, QuotedPrefix returns an error.
++func QuotedPrefix(s string) (string, error) {
++	out, _, err := unquote(s, false)
++	return out, err
++}
++
+ // Unquote interprets s as a single-quoted, double-quoted,
+ // or backquoted Go string literal, returning the string value
+ // that s quotes.  (If s is single-quoted, it would be a Go
+ // character literal; Unquote returns the corresponding
+ // one-character string.)
+ func Unquote(s string) (string, error) {
+-	n := len(s)
+-	if n < 2 {
++	out, rem, err := unquote(s, true)
++	if len(rem) > 0 {
+ 		return "", ErrSyntax
+ 	}
+-	quote := s[0]
+-	if quote != s[n-1] {
+-		return "", ErrSyntax
++	return out, err
++}
++
++// unquote parses a quoted string at the start of the input,
++// returning the parsed prefix, the remaining suffix, and any parse errors.
++// If unescape is true, the parsed prefix is unescaped,
++// otherwise the input prefix is provided verbatim.
++func unquote(in string, unescape bool) (out, rem string, err error) {
++	// Determine the quote form and optimistically find the terminating quote.
++	if len(in) < 2 {
++		return "", in, ErrSyntax
++	}
++	quote := in[0]
++	end := index(in[1:], quote)
++	if end < 0 {
++		return "", in, ErrSyntax
+ 	}
+-	s = s[1 : n-1]
++	end += 2 // position after terminating quote; may be wrong if escape sequences are present
+ 
+-	if quote == '`' {
+-		if contains(s, '`') {
+-			return "", ErrSyntax
++	switch quote {
++	case '`':
++		switch {
++		case !unescape:
++			out = in[:end] // include quotes
++		case !contains(in[:end], '\r'):
++			out = in[len("`") : end-len("`")] // exclude quotes
++		default:
++			// Carriage return characters ('\r') inside raw string literals
++			// are discarded from the raw string value.
++			buf := make([]byte, 0, end-len("`")-len("\r")-len("`"))
++			for i := len("`"); i < end-len("`"); i++ {
++				if in[i] != '\r' {
++					buf = append(buf, in[i])
++				}
++			}
++			out = string(buf)
+ 		}
+-		if contains(s, '\r') {
+-			// -1 because we know there is at least one \r to remove.
+-			buf := make([]byte, 0, len(s)-1)
+-			for i := 0; i < len(s); i++ {
+-				if s[i] != '\r' {
+-					buf = append(buf, s[i])
++		// NOTE: Prior implementations did not verify that raw strings consist
++		// of valid UTF-8 characters and we continue to not verify it as such.
++		// The Go specification does not explicitly require valid UTF-8,
++		// but only mention that it is implicitly valid for Go source code
++		// (which must be valid UTF-8).
++		return out, in[end:], nil
++	case '"', '\'':
++		// Handle quoted strings without any escape sequences.
++		if !contains(in[:end], '\\') && !contains(in[:end], '\n') {
++			var valid bool
++			switch quote {
++			case '"':
++				valid = utf8.ValidString(in[len(`"`) : end-len(`"`)])
++			case '\'':
++				r, n := utf8.DecodeRuneInString(in[len("'") : end-len("'")])
++				valid = len("'")+n+len("'") == end && (r != utf8.RuneError || n != 1)
++			}
++			if valid {
++				out = in[:end]
++				if unescape {
++					out = out[1 : end-1] // exclude quotes
+ 				}
++				return out, in[end:], nil
+ 			}
+-			return string(buf), nil
+ 		}
+-		return s, nil
+-	}
+-	if quote != '"' && quote != '\'' {
+-		return "", ErrSyntax
+-	}
+-	if contains(s, '\n') {
+-		return "", ErrSyntax
+-	}
+ 
+-	// Is it trivial? Avoid allocation.
+-	if !contains(s, '\\') && !contains(s, quote) {
+-		switch quote {
+-		case '"':
+-			if utf8.ValidString(s) {
+-				return s, nil
++		// Handle quoted strings with escape sequences.
++		var buf []byte
++		in0 := in
++		in = in[1:] // skip starting quote
++		if unescape {
++			buf = make([]byte, 0, 3*end/2) // try to avoid more allocations
++		}
++		for len(in) > 0 && in[0] != quote {
++			// Process the next character,
++			// rejecting any unescaped newline characters which are invalid.
++			r, multibyte, rem, err := UnquoteChar(in, quote)
++			if in[0] == '\n' || err != nil {
++				return "", in0, ErrSyntax
+ 			}
+-		case '\'':
+-			r, size := utf8.DecodeRuneInString(s)
+-			if size == len(s) && (r != utf8.RuneError || size != 1) {
+-				return s, nil
++			in = rem
++
++			// Append the character if unescaping the input.
++			if unescape {
++				if r < utf8.RuneSelf || !multibyte {
++					buf = append(buf, byte(r))
++				} else {
++					var arr [utf8.UTFMax]byte
++					n := utf8.EncodeRune(arr[:], r)
++					buf = append(buf, arr[:n]...)
++				}
+ 			}
+-		}
+-	}
+ 
+-	var runeTmp [utf8.UTFMax]byte
+-	buf := make([]byte, 0, 3*len(s)/2) // Try to avoid more allocations.
+-	for len(s) > 0 {
+-		c, multibyte, ss, err := UnquoteChar(s, quote)
+-		if err != nil {
+-			return "", err
++			// Single quoted strings must be a single character.
++			if quote == '\'' {
++				break
++			}
+ 		}
+-		s = ss
+-		if c < utf8.RuneSelf || !multibyte {
+-			buf = append(buf, byte(c))
+-		} else {
+-			n := utf8.EncodeRune(runeTmp[:], c)
+-			buf = append(buf, runeTmp[:n]...)
++
++		// Verify that the string ends with a terminating quote.
++		if !(len(in) > 0 && in[0] == quote) {
++			return "", in0, ErrSyntax
+ 		}
+-		if quote == '\'' && len(s) != 0 {
+-			// single-quoted must be single character
+-			return "", ErrSyntax
++		in = in[1:] // skip terminating quote
++
++		if unescape {
++			return string(buf), in, nil
+ 		}
++		return in0[:len(in0)-len(in)], in, nil
++	default:
++		return "", in, ErrSyntax
+ 	}
+-	return string(buf), nil
+ }
+ 
+ // bsearch16 returns the smallest i such that a[i] >= x.
+diff --git a/src/strconv/quote_test.go b/src/strconv/quote_test.go
+index f1faf137bd..4750be2740 100644
+--- a/src/strconv/quote_test.go
++++ b/src/strconv/quote_test.go
+@@ -6,6 +6,7 @@ package strconv_test
+ 
+ import (
+ 	. "strconv"
++	"strings"
+ 	"testing"
+ 	"unicode"
+ )
+@@ -297,6 +298,7 @@ var misquoted = []string{
+ 	`"\z"`,
+ 	"`",
+ 	"`xxx",
++	"``x\r",
+ 	"`\"",
+ 	`"\'"`,
+ 	`'\"'`,
+@@ -307,22 +309,13 @@ var misquoted = []string{
+ 
+ func TestUnquote(t *testing.T) {
+ 	for _, tt := range unquotetests {
+-		if out, err := Unquote(tt.in); err != nil || out != tt.out {
+-			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
+-		}
++		testUnquote(t, tt.in, tt.out, nil)
+ 	}
+-
+-	// run the quote tests too, backward
+ 	for _, tt := range quotetests {
+-		if in, err := Unquote(tt.out); in != tt.in {
+-			t.Errorf("Unquote(%#q) = %q, %v, want %q, nil", tt.out, in, err, tt.in)
+-		}
++		testUnquote(t, tt.out, tt.in, nil)
+ 	}
+-
+ 	for _, s := range misquoted {
+-		if out, err := Unquote(s); out != "" || err != ErrSyntax {
+-			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", ErrSyntax)
+-		}
++		testUnquote(t, s, "", ErrSyntax)
+ 	}
+ }
+ 
+@@ -333,26 +326,44 @@ func TestUnquoteInvalidUTF8(t *testing.T) {
+ 
+ 		// one of:
+ 		want    string
+-		wantErr string
++		wantErr error
+ 	}{
+ 		{in: `"foo"`, want: "foo"},
+-		{in: `"foo`, wantErr: "invalid syntax"},
++		{in: `"foo`, wantErr: ErrSyntax},
+ 		{in: `"` + "\xc0" + `"`, want: "\xef\xbf\xbd"},
+ 		{in: `"a` + "\xc0" + `"`, want: "a\xef\xbf\xbd"},
+ 		{in: `"\t` + "\xc0" + `"`, want: "\t\xef\xbf\xbd"},
+ 	}
+-	for i, tt := range tests {
+-		got, err := Unquote(tt.in)
+-		var gotErr string
+-		if err != nil {
+-			gotErr = err.Error()
+-		}
+-		if gotErr != tt.wantErr {
+-			t.Errorf("%d. Unquote(%q) = err %v; want %q", i, tt.in, err, tt.wantErr)
+-		}
+-		if tt.wantErr == "" && err == nil && got != tt.want {
+-			t.Errorf("%d. Unquote(%q) = %02x; want %02x", i, tt.in, []byte(got), []byte(tt.want))
+-		}
++	for _, tt := range tests {
++		testUnquote(t, tt.in, tt.want, tt.wantErr)
++	}
++}
++
++func testUnquote(t *testing.T, in, want string, wantErr error) {
++	// Test Unquote.
++	got, gotErr := Unquote(in)
++	if got != want || gotErr != wantErr {
++		t.Errorf("Unquote(%q) = (%q, %v), want (%q, %v)", in, got, gotErr, want, wantErr)
++	}
++
++	// Test QuotedPrefix.
++	// Adding an arbitrary suffix should not change the result of QuotedPrefix
++	// assume that the suffix doesn't accidentally terminate a truncated input.
++	if gotErr == nil {
++		want = in
++	}
++	suffix := "\n\r\\\"`'" // special characters for quoted strings
++	if len(in) > 0 {
++		suffix = strings.ReplaceAll(suffix, in[:1], "")
++	}
++	in += suffix
++	got, gotErr = QuotedPrefix(in)
++	if gotErr == nil && wantErr != nil {
++		_, wantErr = Unquote(got) // original input had trailing junk, reparse with only valid prefix
++		want = got
++	}
++	if got != want || gotErr != wantErr {
++		t.Errorf("QuotedPrefix(%q) = (%q, %v), want (%q, %v)", in, got, gotErr, want, wantErr)
+ 	}
+ }
+ 

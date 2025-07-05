@@ -20,6 +20,56 @@ Date:   Fri Dec 9 13:05:34 2022 +0100
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/string_test.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 1ea7f5e481..cfc0ad7cde 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -223,6 +223,19 @@ func TestLargeStringConcat(t *testing.T) {
+ 	}
+ }
+ 
++func TestConcatTempString(t *testing.T) {
++	s := "bytes"
++	b := []byte(s)
++	n := testing.AllocsPerRun(1000, func() {
++		if "prefix "+string(b)+" suffix" != "prefix bytes suffix" {
++			t.Fatalf("strings are not equal: '%v' and '%v'", "prefix "+string(b)+" suffix", "prefix bytes suffix")
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}
++
+ func TestCompareTempString(t *testing.T) {
+ 	s := strings.Repeat("x", sizeNoStack)
+ 	b := []byte(s)
+@@ -230,10 +243,24 @@ func TestCompareTempString(t *testing.T) {
+ 		if string(b) != s {
+ 			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+ 		}
++		if string(b) < s {
++			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
++		}
++		if string(b) > s {
++			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
++		}
+ 		if string(b) == s {
+ 		} else {
+ 			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
+ 		}
++		if string(b) <= s {
++		} else {
++			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
++		}
++		if string(b) >= s {
++		} else {
++			t.Fatalf("strings are not equal: '%v' and '%v'", string(b), s)
++		}
+ 	})
+ 	if n != 0 {
+ 		t.Fatalf("want 0 allocs, got %v", n)

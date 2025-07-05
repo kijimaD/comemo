@@ -12,7 +12,7 @@ Date:   Wed Mar 15 22:55:21 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38231
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go     | 2 --
  src/cmd/compile/internal/gc/pgen.go   | 1 -
  src/cmd/compile/internal/gc/plive.go  | 2 +-
@@ -20,3 +20,121 @@ Date:   Wed Mar 15 22:55:21 2017 -0700
  src/cmd/compile/internal/gc/syntax.go | 3 +++
  src/cmd/compile/internal/gc/walk.go   | 2 +-
  6 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 95c7dabc45..ecdbd1d9a1 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -251,8 +251,6 @@ var Stksize int64 // stack size for current frame
+ 
+ var stkptrsize int64 // prefix of stack containing pointers
+ 
+-var hasdefer bool // flag that curfn has defer statement
+-
+ var Curfn *Node
+ 
+ var Widthptr int
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 3fefe67fdf..d5978bb239 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -340,7 +340,6 @@ func compile(fn *Node) {
+ 		return
+ 	}
+ 
+-	hasdefer = false
+ 	walk(fn)
+ 	if nerrors != 0 {
+ 		return
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index ec8de83c51..e8447e4e68 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1092,7 +1092,7 @@ func livenessepilogue(lv *Liveness) {
+ 	// pointers to copy values back to the stack).
+ 	// TODO: if the output parameter is heap-allocated, then we
+ 	// don't need to keep the stack copy live?
+-	if hasdefer {
++	if lv.fn.Func.HasDefer() {
+ 		for i, n := range lv.vars {
+ 			if n.Class == PPARAMOUT {
+ 				if n.IsOutputParamHeapAddr() {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 418056a81c..8f61590864 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -47,6 +47,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 	s.pushLine(fn.Pos)
+ 	defer s.popLine()
+ 
++	s.hasdefer = fn.Func.HasDefer()
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+ 		s.cgoUnsafeArgs = true
+ 	}
+@@ -218,6 +219,7 @@ type state struct {
+ 	placeholder *ssa.Value
+ 
+ 	cgoUnsafeArgs bool
++	hasdefer      bool // whether the function contains a defer statement
+ }
+ 
+ type funcLine struct {
+@@ -877,7 +879,7 @@ func (s *state) stmt(n *Node) {
+ // It returns a BlockRet block that ends the control flow. Its control value
+ // will be set to the final memory state.
+ func (s *state) exit() *ssa.Block {
+-	if hasdefer {
++	if s.hasdefer {
+ 		s.rtcall(Deferreturn, true, nil)
+ 	}
+ 
+@@ -3189,7 +3191,7 @@ func (s *state) canSSA(n *Node) bool {
+ 	case PEXTERN:
+ 		return false
+ 	case PPARAMOUT:
+-		if hasdefer {
++		if s.hasdefer {
+ 			// TODO: handle this case?  Named return values must be
+ 			// in memory so that the deferred function can see them.
+ 			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5399a03dab..eb610119ae 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -342,6 +342,7 @@ const (
+ 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
+ 	funcIsHiddenClosure
+ 	funcNoFramePointer // Must not use a frame pointer for this function
++	funcHasDefer       // contains a defer statement
+ )
+ 
+ func (f *Func) Dupok() bool           { return f.flags&funcDupok != 0 }
+@@ -350,6 +351,7 @@ func (f *Func) Needctxt() bool        { return f.flags&funcNeedctxt != 0 }
+ func (f *Func) ReflectMethod() bool   { return f.flags&funcReflectMethod != 0 }
+ func (f *Func) IsHiddenClosure() bool { return f.flags&funcIsHiddenClosure != 0 }
+ func (f *Func) NoFramePointer() bool  { return f.flags&funcNoFramePointer != 0 }
++func (f *Func) HasDefer() bool        { return f.flags&funcHasDefer != 0 }
+ 
+ func (f *Func) SetDupok(b bool)           { f.flags.set(funcDupok, b) }
+ func (f *Func) SetWrapper(b bool)         { f.flags.set(funcWrapper, b) }
+@@ -357,6 +359,7 @@ func (f *Func) SetNeedctxt(b bool)        { f.flags.set(funcNeedctxt, b) }
+ func (f *Func) SetReflectMethod(b bool)   { f.flags.set(funcReflectMethod, b) }
+ func (f *Func) SetIsHiddenClosure(b bool) { f.flags.set(funcIsHiddenClosure, b) }
+ func (f *Func) SetNoFramePointer(b bool)  { f.flags.set(funcNoFramePointer, b) }
++func (f *Func) SetHasDefer(b bool)        { f.flags.set(funcHasDefer, b) }
+ 
+ type Op uint8
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0c233c24c6..5db29bdca9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -247,7 +247,7 @@ func walkstmt(n *Node) *Node {
+ 		n.Right = walkstmt(n.Right)
+ 
+ 	case ODEFER:
+-		hasdefer = true
++		Curfn.Func.SetHasDefer(true)
+ 		switch n.Left.Op {
+ 		case OPRINT, OPRINTN:
+ 			n.Left = walkprintfunc(n.Left, &n.Ninit)

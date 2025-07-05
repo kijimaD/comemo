@@ -11,6 +11,32 @@ Date:   Thu Oct 18 12:37:25 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/pkg.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 4b2479e75c..7c4e00767d 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -207,17 +207,15 @@ func (pkg *Package) newlines(n int) {
+ // clears the stuff we don't want to print anyway. It's a bit of a magic trick.
+ func (pkg *Package) emit(comment string, node ast.Node) {
+ 	if node != nil {
+-		var err error
++		var arg interface{} = node
+ 		if showSrc {
+ 			// Need an extra little dance to get internal comments to appear.
+-			commentedNode := &printer.CommentedNode{
++			arg = &printer.CommentedNode{
+ 				Node:     node,
+ 				Comments: pkg.file.Comments,
+ 			}
+-			err = format.Node(&pkg.buf, pkg.fs, commentedNode)
+-		} else {
+-			err = format.Node(&pkg.buf, pkg.fs, node)
+ 		}
++		err := format.Node(&pkg.buf, pkg.fs, arg)
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}

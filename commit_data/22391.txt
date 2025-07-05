@@ -20,6 +20,60 @@ Date:   Thu Mar 5 17:00:18 2015 -0800
     Change-Id: I49017e16ba33a627f773532b418cbf85a84f2b4b
     Reviewed-on: https://go-review.googlesource.com/7000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/go.go | 20 ++++++++------------
  1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index dd2ba9ff6f..7385ce034f 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -112,7 +112,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
+ 	}
+ 
+ 	p0 += 3
+-	for p0 < len(data) && data[0] != '\n' {
++	for p0 < len(data) && data[p0] != '\n' {
+ 		p0++
+ 	}
+ 
+@@ -127,7 +127,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
+ 	}
+ 	p1 += p0
+ 
+-	for p0 < p1 && (data[p0] == ' ' || data[0] == '\t' || data[0] == '\n') {
++	for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
+ 		p0++
+ 	}
+ 	if p0 < p1 {
+@@ -143,7 +143,7 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
+ 		for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
+ 			p0++
+ 		}
+-		name := data[p0:]
++		pname := p0
+ 		for p0 < p1 && data[p0] != ' ' && data[p0] != '\t' && data[p0] != '\n' {
+ 			p0++
+ 		}
+@@ -153,16 +153,12 @@ func ldpkg(f *Biobuf, pkg string, length int64, filename string, whence int) {
+ 			Errorexit()
+ 		}
+ 
+-		name = name[:p1-p0]
++		name := data[pname:p0]
++		for p0 < p1 && data[p0] != '\n' {
++			p0++
++		}
+ 		if p0 < p1 {
+-			if data[p0] == '\n' {
+-				p0++
+-			} else {
+-				p0++
+-				for p0 < p1 && data[p0] != '\n' {
+-					p0++
+-				}
+-			}
++			p0++
+ 		}
+ 
+ 		if pkg == "main" && name != "main" {

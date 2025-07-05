@@ -21,6 +21,28 @@ Date:   Wed Apr 4 12:12:10 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7d93074614..435660950f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -454,14 +454,14 @@ func (ctxt *Link) loadlib() {
+ 		// recording the value of GOARM.
+ 		if ctxt.Arch.Family == sys.ARM {
+ 			s := ctxt.Syms.Lookup("runtime.goarm", 0)
+-			s.Type = sym.SRODATA
++			s.Type = sym.SDATA
+ 			s.Size = 0
+ 			s.AddUint8(uint8(objabi.GOARM))
+ 		}
+ 
+ 		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+ 			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
+-			s.Type = sym.SRODATA
++			s.Type = sym.SDATA
+ 			s.Size = 0
+ 			s.AddUint8(1)
+ 		}

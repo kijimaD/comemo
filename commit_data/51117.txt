@@ -24,8 +24,71 @@ Date:   Mon Dec 6 17:35:58 2021 -0500
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc_test.go                      | 9 +++++++++
  src/runtime/testdata/testprog/badtraceback.go | 3 +++
  src/runtime/testdata/testprog/preempt.go      | 3 +++
  3 files changed, 15 insertions(+)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 53cafe8907..9198022ace 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -119,6 +119,9 @@ func TestGoroutineParallelism(t *testing.T) {
+ 	// since the goroutines can't be stopped/preempted.
+ 	// Disable GC for this test (see issue #10958).
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	// Now that GCs are disabled, block until any outstanding GCs
++	// are also done.
++	runtime.GC()
+ 	for try := 0; try < N; try++ {
+ 		done := make(chan bool)
+ 		x := uint32(0)
+@@ -163,6 +166,9 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
+ 	// since the goroutines can't be stopped/preempted.
+ 	// Disable GC for this test (see issue #10958).
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	// Now that GCs are disabled, block until any outstanding GCs
++	// are also done.
++	runtime.GC()
+ 	for try := 0; try < N; try++ {
+ 		if load {
+ 			// Create P goroutines and wait until they all run.
+@@ -623,6 +629,9 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
+ 	// If runtime triggers a forced GC during this test then it will deadlock,
+ 	// since the goroutines can't be stopped/preempted during spin wait.
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	// Now that GCs are disabled, block until any outstanding GCs
++	// are also done.
++	runtime.GC()
+ 
+ 	iters := int(1e5)
+ 	if testing.Short() {
+diff --git a/src/runtime/testdata/testprog/badtraceback.go b/src/runtime/testdata/testprog/badtraceback.go
+index d558adceec..09aa2b877e 100644
+--- a/src/runtime/testdata/testprog/badtraceback.go
++++ b/src/runtime/testdata/testprog/badtraceback.go
+@@ -17,6 +17,9 @@ func init() {
+ func BadTraceback() {
+ 	// Disable GC to prevent traceback at unexpected time.
+ 	debug.SetGCPercent(-1)
++	// Out of an abundance of caution, also make sure that there are
++	// no GCs actively in progress.
++	runtime.GC()
+ 
+ 	// Run badLR1 on its own stack to minimize the stack size and
+ 	// exercise the stack bounds logic in the hex dump.
+diff --git a/src/runtime/testdata/testprog/preempt.go b/src/runtime/testdata/testprog/preempt.go
+index 1c74d0e435..eb9f59053c 100644
+--- a/src/runtime/testdata/testprog/preempt.go
++++ b/src/runtime/testdata/testprog/preempt.go
+@@ -20,6 +20,9 @@ func AsyncPreempt() {
+ 	runtime.GOMAXPROCS(1)
+ 	// Disable GC so we have complete control of what we're testing.
+ 	debug.SetGCPercent(-1)
++	// Out of an abundance of caution, also make sure that there are
++	// no GCs actively in progress.
++	runtime.GC()
+ 
+ 	// Start a goroutine with no sync safe-points.
+ 	var ready, ready2 uint32

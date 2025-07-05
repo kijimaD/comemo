@@ -28,6 +28,25 @@ Date:   Thu May 23 13:32:50 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/rlimit.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index 9547ce8f6d..f94b894b90 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -50,11 +50,10 @@ func init() {
+ }
+ 
+ func Setrlimit(resource int, rlim *Rlimit) error {
+-	err := setrlimit(resource, rlim)
+-	if err == nil && resource == RLIMIT_NOFILE {
++	if resource == RLIMIT_NOFILE {
+ 		// Store nil in origRlimitNofile to tell StartProcess
+ 		// to not adjust the rlimit in the child process.
+ 		origRlimitNofile.Store(nil)
+ 	}
+-	return err
++	return setrlimit(resource, rlim)
+ }

@@ -14,6 +14,19 @@ Date:   Mon Sep 5 20:16:16 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/io/multi.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/io/multi.go b/src/io/multi.go
+index 3a9d03652b..46e45a60e8 100644
+--- a/src/io/multi.go
++++ b/src/io/multi.go
+@@ -19,6 +19,7 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
+ 		}
+ 		n, err = mr.readers[0].Read(p)
+ 		if err == EOF {
++			mr.readers[0] = nil // permit earlier GC
+ 			mr.readers = mr.readers[1:]
+ 		}
+ 		if n > 0 || err != EOF {

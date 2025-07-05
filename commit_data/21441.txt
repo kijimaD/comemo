@@ -18,7 +18,7 @@ Date:   Mon Dec 29 16:15:05 2014 -0500
     Change-Id: Icbc8aabfd8a9b1f00be2e421af0e3b29fa54d01e
     Reviewed-on: https://go-review.googlesource.com/2279
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/builtin.c  |  26 +++---
  src/cmd/gc/order.c    |  28 ++++++-
  src/cmd/gc/runtime.go |  26 +++---
@@ -26,3 +26,660 @@ Date:   Mon Dec 29 16:15:05 2014 -0500
  src/runtime/iface.go  | 219 ++++++++++++++++++++++----------------------------
  src/runtime/malloc.go |   4 +-
  6 files changed, 197 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 34328441f5..07b0a5be36 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -48,20 +48,18 @@ char *runtimeimport =
+ 	"func @\"\".convI2I (@\"\".typ·2 *byte, @\"\".elem·3 any) (@\"\".ret·1 any)\n"
+ 	"func @\"\".convT2E (@\"\".typ·2 *byte, @\"\".elem·3 *any) (@\"\".ret·1 any)\n"
+ 	"func @\"\".convT2I (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte, @\"\".elem·5 *any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertE2E (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertE2E2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+-	"func @\"\".assertE2I (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertE2I2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+-	"func @\"\".assertE2T (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertE2T2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+-	"func @\"\".assertI2E (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertI2E2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+-	"func @\"\".assertI2I (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertI2I2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+-	"func @\"\".assertI2T (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".assertI2T2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+-	"func @\"\".assertI2TOK (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ok·1 bool)\n"
+-	"func @\"\".assertE2TOK (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ok·1 bool)\n"
++	"func @\"\".assertE2E (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n"
++	"func @\"\".assertE2E2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n"
++	"func @\"\".assertE2I (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n"
++	"func @\"\".assertE2I2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n"
++	"func @\"\".assertE2T (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n"
++	"func @\"\".assertE2T2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n"
++	"func @\"\".assertI2E (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n"
++	"func @\"\".assertI2E2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n"
++	"func @\"\".assertI2I (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n"
++	"func @\"\".assertI2I2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n"
++	"func @\"\".assertI2T (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n"
++	"func @\"\".assertI2T2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n"
+ 	"func @\"\".ifaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n"
+ 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n"
+ 	"func @\"\".ifacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n"
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 76820fde7f..a1aa1bd300 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -497,7 +497,7 @@ orderstmt(Node *n, Order *order)
+ 	int lno;
+ 	NodeList *l, *t, *t1;
+ 	Node *r, *tmp1, *tmp2, **np;
+-	Type *ch;
++	Type *ch, *typ;
+ 
+ 	if(n == N)
+ 		return;
+@@ -516,7 +516,6 @@ orderstmt(Node *n, Order *order)
+ 
+ 	case OAS:
+ 	case OAS2:
+-	case OAS2DOTTYPE:
+ 	case OCLOSE:
+ 	case OCOPY:
+ 	case OPRINT:
+@@ -588,9 +587,29 @@ orderstmt(Node *n, Order *order)
+ 		cleantemp(t, order);
+ 		break;
+ 
++	case OAS2DOTTYPE:
++		// Special: use temporary variables to hold result,
++		// so that assertI2Tetc can take address of temporary.
++		// No temporary for blank assignment.
++		t = marktemp(order);
++		orderexprlist(n->list, order);
++		orderexpr(&n->rlist->n->left, order);  // i in i.(T)
++		if(isblank(n->list->n))
++			order->out = list(order->out, n);
++		else {
++			typ = n->rlist->n->type;
++			tmp1 = ordertemp(typ, order, haspointers(typ));
++			order->out = list(order->out, n);
++			r = nod(OAS, n->list->n, tmp1);
++			typecheck(&r, Etop);
++			ordermapassign(r, order);
++			n->list = list(list1(tmp1), n->list->next->n);
++		}
++		cleantemp(t, order);
++		break;
++
+ 	case OAS2RECV:
+-		// Special: avoid copy of receive.
+-		// Use temporary variables to hold result,
++		// Special: use temporary variables to hold result,
+ 		// so that chanrecv can take address of temporary.
+ 		t = marktemp(order);
+ 		orderexprlist(n->list, order);
+@@ -1077,6 +1096,7 @@ orderexpr(Node **np, Order *order)
+ 		break;
+ 
+ 	case ORECV:
++	case ODOTTYPE:
+ 		orderexpr(&n->left, order);
+ 		n = ordercopyexpr(n, n->type, order, 1);
+ 		break;
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index c805731430..f0a1ff46c7 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -66,20 +66,18 @@ func convT2E(typ *byte, elem *any) (ret any)
+ func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
+ 
+ // interface type assertions  x.(T)
+-func assertE2E(typ *byte, iface any) (ret any)
+-func assertE2E2(typ *byte, iface any) (ret any, ok bool)
+-func assertE2I(typ *byte, iface any) (ret any)
+-func assertE2I2(typ *byte, iface any) (ret any, ok bool)
+-func assertE2T(typ *byte, iface any) (ret any)
+-func assertE2T2(typ *byte, iface any) (ret any, ok bool)
+-func assertI2E(typ *byte, iface any) (ret any)
+-func assertI2E2(typ *byte, iface any) (ret any, ok bool)
+-func assertI2I(typ *byte, iface any) (ret any)
+-func assertI2I2(typ *byte, iface any) (ret any, ok bool)
+-func assertI2T(typ *byte, iface any) (ret any)
+-func assertI2T2(typ *byte, iface any) (ret any, ok bool)
+-func assertI2TOK(typ *byte, iface any) (ok bool)
+-func assertE2TOK(typ *byte, iface any) (ok bool)
++func assertE2E(typ *byte, iface any, ret *any)
++func assertE2E2(typ *byte, iface any, ret *any) bool
++func assertE2I(typ *byte, iface any, ret *any)
++func assertE2I2(typ *byte, iface any, ret *any) bool
++func assertE2T(typ *byte, iface any, ret *any)
++func assertE2T2(typ *byte, iface any, ret *any) bool
++func assertI2E(typ *byte, iface any, ret *any)
++func assertI2E2(typ *byte, iface any, ret *any) bool
++func assertI2I(typ *byte, iface any, ret *any)
++func assertI2I2(typ *byte, iface any, ret *any) bool
++func assertI2T(typ *byte, iface any, ret *any)
++func assertI2T2(typ *byte, iface any, ret *any) bool
+ 
+ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 99611efce8..956b57d28b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -408,7 +408,7 @@ walkexprlistcheap(NodeList *l, NodeList **init)
+ void
+ walkexpr(Node **np, NodeList **init)
+ {
+-	Node *r, *l, *var, *a;
++	Node *r, *l, *var, *a, *ok;
+ 	Node *map, *key;
+ 	NodeList *ll, *lr;
+ 	Type *t;
+@@ -665,6 +665,29 @@ walkexpr(Node **np, NodeList **init)
+ 			walkexpr(&n->right, init);
+ 			break;
+ 		
++		case ODOTTYPE:
++			// x = i.(T); n->left is x, n->right->left is i.
++			// orderstmt made sure x is addressable.
++			walkexpr(&n->right->left, init);
++			n1 = nod(OADDR, n->left, N);
++			r = n->right; // i.(T)
++
++			strcpy(buf, "assertI2T");
++			if(isnilinter(r->left->type))
++				buf[6] = 'E';
++			if(isnilinter(r->type))
++				buf[8] = 'E';
++			else if(isinter(r->type))
++				buf[8] = 'I';
++			
++			fn = syslook(buf, 1);
++			argtype(fn, r->left->type);
++			argtype(fn, r->type);
++		
++			n = mkcall1(fn, T, init, typename(r->type), r->left, n1);
++			walkexpr(&n, init);
++			goto ret;
++
+ 		case ORECV:
+ 			// x = <-c; n->left is x, n->right->left is c.
+ 			// orderstmt made sure x is addressable.
+@@ -810,77 +833,42 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OAS2DOTTYPE:
+ 		// a,b = i.(T)
++		// orderstmt made sure a is addressable.
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+-		if(isblank(n->list->n) && !isinter(r->type)) {
+-			strcpy(buf, "assert");
+-			p = buf+strlen(buf);
+-			if(isnilinter(r->left->type))
+-				*p++ = 'E';
+-			else
+-				*p++ = 'I';
+-			*p++ = '2';
+-			*p++ = 'T';
+-			*p++ = 'O';
+-			*p++ = 'K';
+-			*p = '\0';
+-			
+-			fn = syslook(buf, 1);
+-
+-			// runtime.assert(E|I)2TOK returns a typed bool, but due
+-			// to spec changes, the boolean result of i.(T) is now untyped
+-			// so we make it the same type as the variable on the lhs.
+-			if(!isblank(n->list->next->n))
+-				fn->type->type->down->type->type = n->list->next->n->type;
+-			ll = list1(typename(r->type));
+-			ll = list(ll, r->left);
+-			argtype(fn, r->left->type);
+-			n1 = nod(OCALL, fn, N);
+-			n1->list = ll;
+-			n = nod(OAS, n->list->next->n, n1);
+-			typecheck(&n, Etop);
+-			walkexpr(&n, init);
+-			goto ret;
+-		}
++		walkexpr(&r->left, init);
++		if(isblank(n->list->n))
++			n1 = nodnil();
++		else
++			n1 = nod(OADDR, n->list->n, N);
++		n1->etype = 1; // addr does not escape
+ 
+-		r->op = ODOTTYPE2;
+-		walkexpr(&r, init);
+-		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+-		n = liststmt(concat(list1(r), ll));
++		strcpy(buf, "assertI2T2");
++		if(isnilinter(r->left->type))
++			buf[6] = 'E';
++		if(isnilinter(r->type))
++			buf[8] = 'E';
++		else if(isinter(r->type))
++			buf[8] = 'I';
++		
++		fn = syslook(buf, 1);
++		argtype(fn, r->left->type);
++		argtype(fn, r->type);
++		
++		t = types[TBOOL];
++		ok = n->list->next->n;
++		if(!isblank(ok))
++			t = ok->type;
++		r = mkcall1(fn, t, init, typename(r->type), r->left, n1);
++		n = nod(OAS, ok, r);
++		typecheck(&n, Etop);
+ 		goto ret;
+ 
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
+-		// Build name of function: assertI2E2 etc.
+-		strcpy(buf, "assert");
+-		p = buf+strlen(buf);
+-		if(isnilinter(n->left->type))
+-			*p++ = 'E';
+-		else
+-			*p++ = 'I';
+-		*p++ = '2';
+-		if(isnilinter(n->type))
+-			*p++ = 'E';
+-		else if(isinter(n->type))
+-			*p++ = 'I';
+-		else
+-			*p++ = 'T';
+-		if(n->op == ODOTTYPE2)
+-			*p++ = '2';
+-		*p = '\0';
+-
+-		fn = syslook(buf, 1);
+-		ll = list1(typename(n->type));
+-		ll = list(ll, n->left);
+-		argtype(fn, n->left->type);
+-		argtype(fn, n->type);
+-		n = nod(OCALL, fn, N);
+-		n->list = ll;
+-		typecheck(&n, Erv | Efnstruct);
+-		walkexpr(&n, init);
+-		goto ret;
++		fatal("walkexpr ODOTTYPE"); // should see inside OAS or OAS2 only
+ 
+ 	case OCONVIFACE:
+ 		walkexpr(&n->left, init);
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index db3dbdbef8..b453bbfaf7 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -166,10 +166,7 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer)
+ 	return
+ }
+ 
+-// TODO: give these routines a pointer to the result area instead of writing
+-// extra data in the outargs section.  Then we can get rid of go:nosplit.
+-//go:nosplit
+-func assertI2T(t *_type, i fInterface) (r struct{}) {
++func assertI2T(t *_type, i fInterface, r unsafe.Pointer) {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+ 	if tab == nil {
+@@ -178,51 +175,35 @@ func assertI2T(t *_type, i fInterface) (r struct{}) {
+ 	if tab._type != t {
+ 		panic(&TypeAssertionError{*tab.inter.typ._string, *tab._type._string, *t._string, ""})
+ 	}
+-	// NOTE(rsc): If this changes to take a pointer argument
+-	// instead of using &r, these calls need to change to be
+-	// typedmemmove (the first can be just writebarrierptr).
+-	// Until then, it is very important that no blocking operation
+-	// happens between the memmove and the return.
+-	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), uintptr(t.size))
+-	} else {
+-		memmove(unsafe.Pointer(&r), ip.data, uintptr(t.size))
++	if r != nil {
++		if isDirectIface(t) {
++			writebarrierptr((*uintptr)(r), uintptr(ip.data))
++		} else {
++			typedmemmove(t, r, ip.data)
++		}
+ 	}
+-	return
+ }
+ 
+-//go:nosplit
+-func assertI2T2(t *_type, i fInterface) (r byte) {
++func assertI2T2(t *_type, i fInterface, r unsafe.Pointer) bool {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+-	ok := (*bool)(add(unsafe.Pointer(&r), uintptr(t.size)))
+ 	tab := ip.tab
+ 	if tab == nil || tab._type != t {
+-		*ok = false
+-		memclr(unsafe.Pointer(&r), uintptr(t.size))
+-		return
++		if r != nil {
++			memclr(r, uintptr(t.size))
++		}
++		return false
+ 	}
+-	*ok = true
+-	// NOTE(rsc): If this changes to take a pointer argument
+-	// instead of using &r, these calls need to change to be
+-	// typedmemmove (the first can be just writebarrierptr).
+-	// Until then, it is very important that no blocking operation
+-	// happens between the memmove and the return.
+-	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ip.data), uintptr(t.size))
+-	} else {
+-		memmove(unsafe.Pointer(&r), ip.data, uintptr(t.size))
++	if r != nil {
++		if isDirectIface(t) {
++			writebarrierptr((*uintptr)(r), uintptr(ip.data))
++		} else {
++			typedmemmove(t, r, ip.data)
++		}
+ 	}
+-	return
+-}
+-
+-func assertI2TOK(t *_type, i fInterface) bool {
+-	ip := (*iface)(unsafe.Pointer(&i))
+-	tab := ip.tab
+-	return tab != nil && tab._type == t
++	return true
+ }
+ 
+-//go:nosplit
+-func assertE2T(t *_type, e interface{}) (r struct{}) {
++func assertE2T(t *_type, e interface{}, r unsafe.Pointer) {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if ep._type == nil {
+ 		panic(&TypeAssertionError{"", "", *t._string, ""})
+@@ -230,46 +211,31 @@ func assertE2T(t *_type, e interface{}) (r struct{}) {
+ 	if ep._type != t {
+ 		panic(&TypeAssertionError{"", *ep._type._string, *t._string, ""})
+ 	}
+-	// NOTE(rsc): If this changes to take a pointer argument
+-	// instead of using &r, these calls need to change to be
+-	// typedmemmove (the first can be just writebarrierptr).
+-	// Until then, it is very important that no blocking operation
+-	// happens between the memmove and the return.
+-	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), uintptr(t.size))
+-	} else {
+-		memmove(unsafe.Pointer(&r), ep.data, uintptr(t.size))
++	if r != nil {
++		if isDirectIface(t) {
++			writebarrierptr((*uintptr)(r), uintptr(ep.data))
++		} else {
++			typedmemmove(t, r, ep.data)
++		}
+ 	}
+-	return
+ }
+ 
+-//go:nosplit
+-func assertE2T2(t *_type, e interface{}) (r byte) {
++func assertE2T2(t *_type, e interface{}, r unsafe.Pointer) bool {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+-	size := uintptr(t.size)
+-	ok := (*bool)(add(unsafe.Pointer(&r), size))
+ 	if ep._type != t {
+-		*ok = false
+-		memclr(unsafe.Pointer(&r), size)
+-		return
++		if r != nil {
++			memclr(r, uintptr(t.size))
++		}
++		return false
+ 	}
+-	*ok = true
+-	// NOTE(rsc): If this changes to take a pointer argument
+-	// instead of using &r, these calls need to change to be
+-	// typedmemmove (the first can be just writebarrierptr).
+-	// Until then, it is very important that no blocking operation
+-	// happens between the memmove and the return.
+-	if isDirectIface(t) {
+-		memmove(unsafe.Pointer(&r), unsafe.Pointer(&ep.data), size)
+-	} else {
+-		memmove(unsafe.Pointer(&r), ep.data, size)
++	if r != nil {
++		if isDirectIface(t) {
++			writebarrierptr((*uintptr)(r), uintptr(ep.data))
++		} else {
++			typedmemmove(t, r, ep.data)
++		}
+ 	}
+-	return
+-}
+-
+-func assertE2TOK(t *_type, e interface{}) bool {
+-	ep := (*eface)(unsafe.Pointer(&e))
+-	return t == ep._type
++	return true
+ }
+ 
+ func convI2E(i fInterface) (r interface{}) {
+@@ -284,30 +250,31 @@ func convI2E(i fInterface) (r interface{}) {
+ 	return
+ }
+ 
+-func assertI2E(inter *interfacetype, i fInterface) (r interface{}) {
++func assertI2E(inter *interfacetype, i fInterface, r *interface{}) {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+ 	if tab == nil {
+ 		// explicit conversions require non-nil interface value.
+ 		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+ 	}
+-	rp := (*eface)(unsafe.Pointer(&r))
++	rp := (*eface)(unsafe.Pointer(r))
+ 	rp._type = tab._type
+ 	rp.data = ip.data
+ 	return
+ }
+ 
+-func assertI2E2(inter *interfacetype, i fInterface) (r interface{}, ok bool) {
++func assertI2E2(inter *interfacetype, i fInterface, r *interface{}) bool {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+ 	if tab == nil {
+-		return
++		return false
+ 	}
+-	rp := (*eface)(unsafe.Pointer(&r))
+-	rp._type = tab._type
+-	rp.data = ip.data
+-	ok = true
+-	return
++	if r != nil {
++		rp := (*eface)(unsafe.Pointer(r))
++		rp._type = tab._type
++		rp.data = ip.data
++	}
++	return true
+ }
+ 
+ func convI2I(inter *interfacetype, i fInterface) (r fInterface) {
+@@ -327,14 +294,14 @@ func convI2I(inter *interfacetype, i fInterface) (r fInterface) {
+ 	return
+ }
+ 
+-func assertI2I(inter *interfacetype, i fInterface) (r fInterface) {
++func assertI2I(inter *interfacetype, i fInterface, r *fInterface) {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+ 	if tab == nil {
+ 		// explicit conversions require non-nil interface value.
+ 		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+ 	}
+-	rp := (*iface)(unsafe.Pointer(&r))
++	rp := (*iface)(unsafe.Pointer(r))
+ 	if tab.inter == inter {
+ 		rp.tab = tab
+ 		rp.data = ip.data
+@@ -342,85 +309,96 @@ func assertI2I(inter *interfacetype, i fInterface) (r fInterface) {
+ 	}
+ 	rp.tab = getitab(inter, tab._type, false)
+ 	rp.data = ip.data
+-	return
+ }
+ 
+-func assertI2I2(inter *interfacetype, i fInterface) (r fInterface, ok bool) {
++func assertI2I2(inter *interfacetype, i fInterface, r *fInterface) bool {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+ 	if tab == nil {
+-		return
++		if r != nil {
++			*r = nil
++		}
++		return false
+ 	}
+-	rp := (*iface)(unsafe.Pointer(&r))
+-	if tab.inter == inter {
++	if tab.inter != inter {
++		tab = getitab(inter, tab._type, true)
++		if tab == nil {
++			if r != nil {
++				*r = nil
++			}
++			return false
++		}
++	}
++	if r != nil {
++		rp := (*iface)(unsafe.Pointer(r))
+ 		rp.tab = tab
+ 		rp.data = ip.data
+-		ok = true
+-		return
+-	}
+-	tab = getitab(inter, tab._type, true)
+-	if tab == nil {
+-		rp.data = nil
+-		rp.tab = nil
+-		ok = false
+-		return
+ 	}
+-	rp.tab = tab
+-	rp.data = ip.data
+-	ok = true
+-	return
++	return true
+ }
+ 
+-func assertE2I(inter *interfacetype, e interface{}) (r fInterface) {
++func assertE2I(inter *interfacetype, e interface{}, r *fInterface) {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	t := ep._type
+ 	if t == nil {
+ 		// explicit conversions require non-nil interface value.
+ 		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+ 	}
+-	rp := (*iface)(unsafe.Pointer(&r))
++	rp := (*iface)(unsafe.Pointer(r))
+ 	rp.tab = getitab(inter, t, false)
+ 	rp.data = ep.data
+-	return
+ }
+ 
+-func assertE2I2(inter *interfacetype, e interface{}) (r fInterface, ok bool) {
++func assertE2I2(inter *interfacetype, e interface{}, r *fInterface) bool {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	t := ep._type
+ 	if t == nil {
+-		return
++		if r != nil {
++			*r = nil
++		}
++		return false
+ 	}
+ 	tab := getitab(inter, t, true)
+ 	if tab == nil {
+-		return
++		if r != nil {
++			*r = nil
++		}
++		return false
+ 	}
+-	rp := (*iface)(unsafe.Pointer(&r))
+-	rp.tab = tab
+-	rp.data = ep.data
+-	ok = true
+-	return
++	if r != nil {
++		rp := (*iface)(unsafe.Pointer(r))
++		rp.tab = tab
++		rp.data = ep.data
++	}
++	return true
+ }
+ 
+ //go:linkname reflect_ifaceE2I reflect.ifaceE2I
+ func reflect_ifaceE2I(inter *interfacetype, e interface{}, dst *fInterface) {
+-	*dst = assertE2I(inter, e)
++	assertE2I(inter, e, dst)
+ }
+ 
+-func assertE2E(inter *interfacetype, e interface{}) interface{} {
++func assertE2E(inter *interfacetype, e interface{}, r *interface{}) {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if ep._type == nil {
+ 		// explicit conversions require non-nil interface value.
+ 		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+ 	}
+-	return e
++	*r = e
+ }
+ 
+-func assertE2E2(inter *interfacetype, e interface{}) (interface{}, bool) {
++func assertE2E2(inter *interfacetype, e interface{}, r *interface{}) bool {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if ep._type == nil {
+-		return nil, false
++		if r != nil {
++			*r = nil
++		}
++		return false
+ 	}
+-	return e, true
++	if r != nil {
++		*r = e
++	}
++	return true
+ }
+ 
+ func ifacethash(i fInterface) uint32 {
+@@ -448,8 +426,3 @@ func iterate_itabs(fn func(*itab)) {
+ 		}
+ 	}
+ }
+-
+-func ifaceE2I2(inter *interfacetype, e interface{}, r *fInterface) (ok bool) {
+-	*r, ok = assertE2I2(inter, e)
+-	return
+-}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 35660f4f44..58e770249f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -807,7 +807,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 			// ok - satisfies empty interface
+ 			goto okarg
+ 		}
+-		if _, ok := assertE2I2(ityp, obj); ok {
++		if assertE2I2(ityp, obj, nil) {
+ 			goto okarg
+ 		}
+ 	}
+@@ -937,7 +937,7 @@ func runfinq() {
+ 					if len(ityp.mhdr) != 0 {
+ 						// convert to interface with methods
+ 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
+-						*(*fInterface)(frame) = assertE2I(ityp, *(*interface{})(frame))
++						assertE2I(ityp, *(*interface{})(frame), (*fInterface)(frame))
+ 					}
+ 				default:
+ 					throw("bad kind in runfinq")

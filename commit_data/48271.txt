@@ -27,6 +27,33 @@ Date:   Tue May 4 13:24:11 2021 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 39d0b61c2e..2852753bee 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1714,6 +1714,21 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 	} else {
+ 		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
+ 	}
++	// If we are creating an OpArgIntReg/OpArgFloatReg that
++	// corresponds to an in-param that fits entirely in a register,
++	// then enter it into the name/value table. The LocalSlot
++	// is somewhat fictitious, since there is no incoming live
++	// memory version of the parameter, but we need an entry in
++	// NamedValues in order for ssa debug tracking to include
++	// the value in the tracking analysis.
++	if len(pa.Registers) == 1 {
++		loc := LocalSlot{N: aux.Name, Type: t, Off: 0}
++		values, ok := x.f.NamedValues[loc]
++		if !ok {
++			x.f.Names = append(x.f.Names, loc)
++		}
++		x.f.NamedValues[loc] = append(values, w)
++	}
+ 	x.commonArgs[key] = w
+ 	if toReplace != nil {
+ 		toReplace.copyOf(w)

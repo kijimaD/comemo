@@ -10,8 +10,133 @@ Date:   Sun Mar 31 16:47:54 2013 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8148043
-
+---
  src/pkg/net/udpsock.go       |  2 --
  src/pkg/net/udpsock_plan9.go | 10 +++-------
  src/pkg/net/udpsock_posix.go | 32 ++++++++++++++++----------------
  3 files changed, 19 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 277050606d..5ce7d6bea0 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// UDP sockets
+-
+ package net
+ 
+ import "errors"
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 4cf0ca37aa..12a3483990 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// UDP sockets for Plan 9
+-
+ package net
+ 
+ import (
+@@ -13,15 +11,13 @@ import (
+ 	"time"
+ )
+ 
+-// UDPConn is the implementation of the Conn and PacketConn
+-// interfaces for UDP network connections.
++// UDPConn is the implementation of the Conn and PacketConn interfaces
++// for UDP network connections.
+ type UDPConn struct {
+ 	conn
+ }
+ 
+-func newUDPConn(fd *netFD) *UDPConn {
+-	return &UDPConn{conn{fd}}
+-}
++func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
+ 
+ // ReadFromUDP reads a UDP packet from c, copying the payload into b.
+ // It returns the number of bytes copied into b and the return address
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 39abea210f..b90cb030d8 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin freebsd linux netbsd openbsd windows
+ 
+-// UDP sockets for POSIX
+-
+ package net
+ 
+ import (
+@@ -51,8 +49,8 @@ func (a *UDPAddr) toAddr() sockaddr {
+ 	return a
+ }
+ 
+-// UDPConn is the implementation of the Conn and PacketConn
+-// interfaces for UDP network connections.
++// UDPConn is the implementation of the Conn and PacketConn interfaces
++// for UDP network connections.
+ type UDPConn struct {
+ 	conn
+ }
+@@ -63,8 +61,9 @@ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
+ // It returns the number of bytes copied into b and the return address
+ // that was on the packet.
+ //
+-// ReadFromUDP can be made to time out and return an error with Timeout() == true
+-// after a fixed time limit; see SetDeadline and SetReadDeadline.
++// ReadFromUDP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetReadDeadline.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+@@ -108,12 +107,13 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr,
+ 	return
+ }
+ 
+-// WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
++// WriteToUDP writes a UDP packet to addr via c, copying the payload
++// from b.
+ //
+-// WriteToUDP can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetDeadline and SetWriteDeadline.
+-// On packet-oriented connections, write timeouts are rare.
++// WriteToUDP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetWriteDeadline.  On packet-oriented connections, write timeouts
++// are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -158,8 +158,8 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ }
+ 
+ // DialUDP connects to the remote address raddr on the network net,
+-// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
+-// as the local address for the connection.
++// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
++// used as the local address for the connection.
+ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	return dialUDP(net, laddr, raddr, noDeadline)
+ }
+@@ -204,9 +204,9 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ }
+ 
+ // ListenMulticastUDP listens for incoming multicast UDP packets
+-// addressed to the group address gaddr on ifi, which specifies
+-// the interface to join.  ListenMulticastUDP uses default
+-// multicast interface if ifi is nil.
++// addressed to the group address gaddr on ifi, which specifies the
++// interface to join.  ListenMulticastUDP uses default multicast
++// interface if ifi is nil.
+ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":

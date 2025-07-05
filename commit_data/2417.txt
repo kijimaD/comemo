@@ -9,9 +9,326 @@ Date:   Sat Jun 6 19:28:16 2009 -0700
     R=ken
     OCL=29974
     CL=30000
-
+---
  src/cmd/8g/cgen.c   | 35 ++++++++++++++++++-------------
  src/cmd/8g/cgen64.c |  2 +-
  src/cmd/8g/ggen.c   | 37 ++++++++++++++++++++++++++++++++-
  src/cmd/8g/gsubr.c  | 60 ++++++++++++++++++++---------------------------------
  4 files changed, 81 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 71a471b6da..14797922f5 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -120,10 +120,10 @@ cgen(Node *n, Node *res)
+ 	if(nl != N && nl->ullman >= UINF)
+ 	if(nr != N && nr->ullman >= UINF) {
+ 		// both are hard
+-		tempalloc(&n1, nr->type);
+-		cgen(nr, &n1);
++		tempalloc(&n1, nl->type);
++		cgen(nl, &n1);
+ 		n2 = *n;
+-		n2.right = &n1;
++		n2.left = &n1;
+ 		cgen(&n2, res);
+ 		tempfree(&n1);
+ 		return;
+@@ -193,7 +193,10 @@ cgen(Node *n, Node *res)
+ 	case OADD:
+ 	case OMUL:
+ 		a = optoas(n->op, nl->type);
+-		// TODO: cgen_bmul ?
++		if(a == AIMULB) {
++			cgen_bmul(n->op, nl, nr, res);
++			break;
++		}
+ 		goto sbop;
+ 
+ 	// asymmetric binary
+@@ -402,6 +405,8 @@ agen(Node *n, Node *res)
+ 
+ 	// addressable var is easy
+ 	if(n->addable) {
++		if(n->op == OREGISTER)
++			fatal("agen OREGISTER");
+ 		regalloc(&n1, types[tptr], res);
+ 		gins(ALEAL, n, &n1);
+ 		gmove(&n1, res);
+@@ -439,33 +444,34 @@ agen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OINDEX:
++		// TODO(rsc): uint64 indices
+ 		w = n->type->width;
+ 		if(nr->addable) {
+ 			agenr(nl, &n3, res);
+ 			if(!isconst(nr, CTINT)) {
+-				tempalloc(&tmp, nr->type);
++				tempalloc(&tmp, types[TINT32]);
+ 				cgen(nr, &tmp);
+-				regalloc(&n1, nr->type, N);
++				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 				tempfree(&tmp);
+ 			}
+ 		} else if(nl->addable) {
+ 			if(!isconst(nr, CTINT)) {
+-				tempalloc(&tmp, nr->type);
++				tempalloc(&tmp, types[TINT32]);
+ 				cgen(nr, &tmp);
+-				regalloc(&n1, nr->type, N);
++				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 				tempfree(&tmp);
+ 			}
+ 			regalloc(&n3, types[tptr], res);
+ 			agen(nl, &n3);
+ 		} else {
+-			tempalloc(&tmp, nr->type);
++			tempalloc(&tmp, types[TINT32]);
+ 			cgen(nr, &tmp);
+ 			nr = &tmp;
+ 			agenr(nl, &n3, res);
+-			regalloc(&n1, nr->type, N);
+-			gins(optoas(OAS, nr->type), &tmp, &n1);
++			regalloc(&n1, tmp.type, N);
++			gins(optoas(OAS, tmp.type), &tmp, &n1);
+ 			tempfree(&tmp);
+ 		}
+ 
+@@ -621,8 +627,6 @@ agen(Node *n, Node *res)
+ void
+ igen(Node *n, Node *a, Node *res)
+ {
+-	Node n1;
+-
+ 	regalloc(a, types[tptr], res);
+ 	agen(n, a);
+ 	a->op = OINDREG;
+@@ -686,6 +690,7 @@ bgen(Node *n, int true, Prog *to)
+ 
+ 	switch(n->op) {
+ 	default:
++	def:
+ 		regalloc(&n1, n->type, N);
+ 		cgen(n, &n1);
+ 		nodconst(&n2, n->type, 0);
+@@ -698,12 +703,14 @@ bgen(Node *n, int true, Prog *to)
+ 		return;
+ 
+ 	case OLITERAL:
+-// need to ask if it is bool?
++		// need to ask if it is bool?
+ 		if(!true == !n->val.u.bval)
+ 			patch(gbranch(AJMP, T), to);
+ 		return;
+ 
+ 	case ONAME:
++		if(!n->addable)
++			goto def;
+ 		nodconst(&n1, n->type, 0);
+ 		gins(optoas(OCMP, n->type), n, &n1);
+ 		a = AJNE;
+diff --git a/src/cmd/8g/cgen64.c b/src/cmd/8g/cgen64.c
+index e723410a3c..f89cbab7dc 100644
+--- a/src/cmd/8g/cgen64.c
++++ b/src/cmd/8g/cgen64.c
+@@ -13,7 +13,7 @@ void
+ cgen64(Node *n, Node *res)
+ {
+ 	Node t1, t2, ax, dx, cx, ex, fx, *l, *r;
+-	Node lo1, lo2, lo3, hi1, hi2, hi3;
++	Node lo1, lo2, hi1, hi2;
+ 	Prog *p1, *p2;
+ 	uint64 v;
+ 	uint32 lv, hv;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 5ac810b2bf..a4bd4ca702 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -648,7 +648,42 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ void
+ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ {
+-	fatal("cgen_bmul");
++	Node n1b, n2b, n1w, n2w;
++	Type *t;
++	int a;
++
++	if(nl->ullman >= nr->ullman) {
++		regalloc(&n1b, nl->type, res);
++		cgen(nl, &n1b);
++		regalloc(&n2b, nr->type, N);
++		cgen(nr, &n2b);
++	} else {
++		regalloc(&n2b, nr->type, N);
++		cgen(nr, &n2b);
++		regalloc(&n1b, nl->type, res);
++		cgen(nl, &n1b);
++	}
++
++	// copy from byte to short registers
++	t = types[TUINT16];
++	if(issigned[nl->type->etype])
++		t = types[TINT16];
++
++	regalloc(&n2w, t, &n2b);
++	cgen(&n2b, &n2w);
++
++	regalloc(&n1w, t, &n1b);
++	cgen(&n1b, &n1w);
++
++	a = optoas(op, t);
++	gins(a, &n2w, &n1w);
++	cgen(&n1w, &n1b);
++	cgen(&n1b, res);
++
++	regfree(&n1w);
++	regfree(&n2w);
++	regfree(&n1b);
++	regfree(&n2b);
+ }
+ 
+ int
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 314c8aba27..f5fbc17feb 100755
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -692,10 +692,6 @@ ginit(void)
+ 	for(i=D_AL; i<=D_DI; i++)
+ 		reg[i] = 0;
+ 
+-	// TODO: Use MMX ?
+-	for(i=D_F0; i<=D_F7; i++)
+-		reg[i] = 0;
+-
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]++;
+ }
+@@ -713,9 +709,6 @@ gclean(void)
+ 	for(i=D_AL; i<=D_DI; i++)
+ 		if(reg[i])
+ 			yyerror("reg %R left allocated at %lux", i, regpc[i]);
+-	for(i=D_F0; i<=D_F7; i++)
+-		if(reg[i])
+-			yyerror("reg %R left allocated", i);
+ }
+ 
+ /*
+@@ -726,7 +719,7 @@ gclean(void)
+ void
+ regalloc(Node *n, Type *t, Node *o)
+ {
+-	int i, et, min, max;
++	int i, et;
+ 
+ 	if(t == T)
+ 		fatal("regalloc: t nil");
+@@ -735,13 +728,6 @@ regalloc(Node *n, Type *t, Node *o)
+ 	switch(et) {
+ 	case TINT8:
+ 	case TUINT8:
+-		// This is going to come back to bite us;
+-		// we're not tracking tiny registers vs big ones.
+-		// The hope is that because we use temporaries
+-		// everywhere instead of registers, this will be okay.
+-		min = D_AL;
+-		max = D_BH;
+-		goto try;
+ 	case TINT16:
+ 	case TUINT16:
+ 	case TINT32:
+@@ -751,36 +737,25 @@ regalloc(Node *n, Type *t, Node *o)
+ 	case TPTR32:
+ 	case TPTR64:
+ 	case TBOOL:
+-		min = D_AX;
+-		max = D_DI;
+-	try:
+ 		if(o != N && o->op == OREGISTER) {
+ 			i = o->val.u.reg;
+-			if(i >= min && i <= max)
++			if(i >= D_AX && i <= D_DI)
+ 				goto out;
+ 		}
+-		for(i=min; i<=max; i++)
++		for(i=D_AX; i<=D_DI; i++)
+ 			if(reg[i] == 0)
+ 				goto out;
+ 
+ 		fprint(2, "registers allocated at\n");
+-		for(i=min; i<=max; i++)
++		for(i=D_AX; i<=D_DI; i++)
+ 			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
+ 		yyerror("out of fixed registers");
+ 		goto err;
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-		if(o != N && o->op == OREGISTER) {
+-			i = o->val.u.reg;
+-			if(i >= D_F0 && i <= D_F7)
+-				goto out;
+-		}
+-		for(i=D_F0; i<=D_F7; i++)
+-			if(reg[i] == 0)
+-				goto out;
+-		yyerror("out of floating registers");
+-		goto err;
++		i = D_F0;
++		goto out;
+ 	}
+ 	yyerror("regalloc: unknown type %T", t);
+ 	i = 0;
+@@ -1396,10 +1371,7 @@ gmove(Node *f, Node *t)
+ 		nodreg(&f1, types[ft], D_F0 + 1);
+ 		nodreg(&ax, types[TUINT16], D_AX);
+ 
+-		if(ft == TFLOAT32)
+-			gins(AFMOVF, f, &f0);
+-		else
+-			gins(AFMOVD, f, &f0);
++		gmove(f, &f0);
+ 
+ 		// if 0 > v { answer = 0 }
+ 		gmove(&zerof, &f0);
+@@ -1563,6 +1535,8 @@ gmove(Node *f, Node *t)
+ 		if(ft == TFLOAT64)
+ 			a = AFMOVD;
+ 		if(ismem(t)) {
++			if(f->op != OREGISTER || f->val.u.reg != D_F0)
++				fatal("gmove %N", f);
+ 			a = AFMOVFP;
+ 			if(ft == TFLOAT64)
+ 				a = AFMOVDP;
+@@ -1570,15 +1544,27 @@ gmove(Node *f, Node *t)
+ 		break;
+ 
+ 	case CASE(TFLOAT32, TFLOAT64):
++		if(f->op == OREGISTER && t->op == OREGISTER) {
++			if(f->val.u.reg != D_F0 || t->val.u.reg != D_F0)
++				goto fatal;
++			return;
++		}
+ 		if(f->op == OREGISTER)
+-			gins(AFMOVD, f, t);
++			gins(AFMOVDP, f, t);
+ 		else
+ 			gins(AFMOVF, f, t);
+ 		return;
+ 
+ 	case CASE(TFLOAT64, TFLOAT32):
++		if(f->op == OREGISTER && t->op == OREGISTER) {
++			tempalloc(&r1, types[TFLOAT32]);
++			gins(AFMOVFP, f, &r1);
++			gins(AFMOVF, &r1, t);
++			tempfree(&r1);
++			return;
++		}
+ 		if(f->op == OREGISTER)
+-			gins(AFMOVF, f, t);
++			gins(AFMOVFP, f, t);
+ 		else
+ 			gins(AFMOVD, f, t);
+ 		return;

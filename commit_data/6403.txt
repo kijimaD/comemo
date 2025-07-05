@@ -7,6 +7,27 @@ Date:   Mon Sep 27 18:59:11 2010 -0700
     R=rsc, r, iant
     CC=golang-dev
     https://golang.org/cl/2266043
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 5c25835d86..8735d4e8d3 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of Sep 24, 2010 -->
++<!-- subtitle Version of Sep 27, 2010 -->
+ 
+ <!--
+ TODO
+@@ -163,7 +163,7 @@ and delimiters</i>, and <i>literals</i>.  <i>White space</i>, formed from
+ spaces (U+0020), horizontal tabs (U+0009),
+ carriage returns (U+000D), and newlines (U+000A),
+ is ignored except as it separates tokens
+-that would otherwise combine into a single token. Also, a newline
++that would otherwise combine into a single token. Also, a newline or end of file
+ may trigger the insertion of a <a href="#Semicolons">semicolon</a>.
+ While breaking the input into tokens,
+ the next token is the longest sequence of characters that form a

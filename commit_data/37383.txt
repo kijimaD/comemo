@@ -22,8 +22,63 @@ Date:   Fri Jul 20 15:51:40 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/issue21897.go             | 11 ++++++++++-
  misc/cgo/test/issue21897b.go            |  2 +-
  misc/cgo/test/issue24161_darwin_test.go |  8 ++++++++
  3 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue21897.go b/misc/cgo/test/issue21897.go
+index d13246bd84..454a141827 100644
+--- a/misc/cgo/test/issue21897.go
++++ b/misc/cgo/test/issue21897.go
+@@ -2,7 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin,cgo,!internal
++// We skip this test in race mode because, for unknown reasons,
++// linking against CoreFoundation on macOS 10.10 causes mmap to ignore
++// the hint address, which makes the Go allocator incompatible with
++// TSAN. See golang.org/issue/26475.
++//
++// TODO(austin): Once support for macOS 10.10 is dropped, remove the
++// race constraint (and the one in issue21897b.go). See
++// golang.org/issue/26513.
++
++// +build darwin,cgo,!internal,!race
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue21897b.go b/misc/cgo/test/issue21897b.go
+index 08b5f4d808..e143bad086 100644
+--- a/misc/cgo/test/issue21897b.go
++++ b/misc/cgo/test/issue21897b.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !darwin !cgo internal
++// +build !darwin !cgo internal race
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue24161_darwin_test.go b/misc/cgo/test/issue24161_darwin_test.go
+index 10fdfbd1bc..48072ff121 100644
+--- a/misc/cgo/test/issue24161_darwin_test.go
++++ b/misc/cgo/test/issue24161_darwin_test.go
+@@ -2,6 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// See issue21897.go and golang.org/issue/26475 for why this is
++// skipped in race mode.
++//
++// TODO(austin): Once support for macOS 10.10 is dropped, remove the
++// race constraint. See golang.org/issue/26513.
++
++// +build !race
++
+ package cgotest
+ 
+ import (

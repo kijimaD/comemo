@@ -17,6 +17,22 @@ Date:   Thu May 18 21:46:55 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/cgo/internal/testcarchive/carchive_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index a367bca2f1..cdb90fd130 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -1292,6 +1292,10 @@ func TestPreemption(t *testing.T) {
+ // Issue 59294. Test calling Go function from C after using some
+ // stack space.
+ func TestDeepStack(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
++
+ 	t.Parallel()
+ 
+ 	if !testWork {

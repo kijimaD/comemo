@@ -7,6 +7,46 @@ Date:   Mon Jun 15 14:25:13 2015 -0400
     Change-Id: I0fcc35f43bc6059e6203af6134319cfc060c4b9a
     Reviewed-on: https://go-review.googlesource.com/11085
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/addr2line/addr2line_test.go | 18 ++++++------------
  1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index e8234e2da2..620b416c2c 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -52,15 +52,9 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
+ 	funcname = f[0]
+ 	pathAndLineNo := f[1]
+ 	f = strings.Split(pathAndLineNo, ":")
+-	if runtime.GOOS == "windows" {
+-		switch len(f) {
+-		case 2:
+-			return funcname, f[0], f[1]
+-		case 3:
+-			return funcname, f[0] + ":" + f[1], f[2]
+-		default:
+-			t.Fatalf("no line number found in %q", pathAndLineNo)
+-		}
++	if runtime.GOOS == "windows" && len(f) == 3 {
++		// Reattach drive letter.
++		f = []string{f[0] + ":" + f[1], f[2]}
+ 	}
+ 	if len(f) != 2 {
+ 		t.Fatalf("no line number found in %q", pathAndLineNo)
+@@ -86,12 +80,12 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ 	if !os.SameFile(fi1, fi2) {
+ 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
+ 	}
+-	if srcLineNo != "95" {
+-		t.Fatalf("line number = %v; want 95", srcLineNo)
++	if srcLineNo != "89" {
++		t.Fatalf("line number = %v; want 89", srcLineNo)
+ 	}
+ }
+ 
+-// This is line 94. The test depends on that.
++// This is line 88. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 

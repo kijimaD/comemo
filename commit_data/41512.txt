@@ -12,7 +12,35 @@ Date:   Wed Oct 9 11:13:42 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/build.go      | 3 ++-
  src/go/build/build_test.go | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 722fead20e..097ad3c2ec 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1552,7 +1552,8 @@ func (ctxt *Context) makePathsAbsolute(args []string, srcDir string) {
+ // The @ is for OS X. See golang.org/issue/13720.
+ // The % is for Jenkins. See golang.org/issue/16959.
+ // The ! is because module paths may use them. See golang.org/issue/26716.
+-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%! "
++// The ~ and ^ are for sr.ht. See golang.org/issue/32260.
++const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@%! ~^"
+ 
+ func safeCgoName(s string) bool {
+ 	if s == "" {
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index cfcb8167a1..cff091f894 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -295,7 +295,7 @@ func TestShellSafety(t *testing.T) {
+ 		result                  bool
+ 	}{
+ 		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
+-		{"-I${SRCDIR}", "wtf$@%", "-Iwtf$@%", true},
++		{"-I${SRCDIR}", "~wtf$@%^", "-I~wtf$@%^", true},
+ 		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
+ 		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", true},
+ 		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},

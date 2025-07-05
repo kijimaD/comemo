@@ -6,6 +6,20 @@ Date:   Wed Jan 6 16:35:28 2010 -0800
     
     TBR=r
     https://golang.org/cl/183133
-
+---
  src/pkg/time/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index f73fc8878c..1dbdb22d53 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -6,7 +6,7 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=time
+ GOFILES=\
+-	format.go \
++	format.go\
+ 	sleep.go\
+ 	tick.go\
+ 	time.go\

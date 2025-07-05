@@ -13,6 +13,23 @@ Date:   Wed Oct 22 14:02:04 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/158350043
-
+---
  src/runtime/{noasm_arm.go => noasm.go} | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/noasm_arm.go b/src/runtime/noasm.go
+similarity index 96%
+rename from src/runtime/noasm_arm.go
+rename to src/runtime/noasm.go
+index dd3ef82676..43c16860b2 100644
+--- a/src/runtime/noasm_arm.go
++++ b/src/runtime/noasm.go
+@@ -5,6 +5,8 @@
+ // Routines that are implemented in assembly in asm_{amd64,386}.s
+ // but are implemented in Go for arm.
+ 
++// +build arm power64 power64le
++
+ package runtime
+ 
+ func cmpstring(s1, s2 string) int {

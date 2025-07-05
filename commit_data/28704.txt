@@ -7,6 +7,27 @@ Date:   Wed Jun 29 11:18:01 2016 -0700
     Change-Id: I2b7a81cb809d109f10d5f0db957c614f466d6bfd
     Reviewed-on: https://go-review.googlesource.com/24582
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 288e366a88..72fb49934f 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -143,10 +143,11 @@ func fermatInverse(k, N *big.Int) *big.Int {
+ 
+ var errZeroParam = errors.New("zero parameter")
+ 
+-// Sign signs an arbitrary length hash (which should be the result of hashing a
+-// larger message) using the private key, priv. It returns the signature as a
+-// pair of integers. The security of the private key depends on the entropy of
+-// rand.
++// Sign signs a hash (which should be the result of hashing a larger message)
++// using the private key, priv. If the hash is longer than the bit-length of the
++// private key's curve order, the hash will be truncated to that length.  It
++// returns the signature as a pair of integers. The security of the private key
++// depends on the entropy of rand.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+ 	// Get max(log2(q) / 2, 256) bits of entropy from rand.
+ 	entropylen := (priv.Curve.Params().BitSize + 7) / 16

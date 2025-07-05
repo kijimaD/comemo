@@ -16,9 +16,392 @@ Date:   Fri Oct 21 13:26:00 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5312044
-
+---
  src/pkg/big/int.go      | 29 +++++++++--------
  src/pkg/big/int_test.go | 11 ++++++-
  src/pkg/big/rat.go      | 76 ++++++++++++++++++++++++++-------------------
  src/pkg/big/rat_test.go | 82 +++++++++++++++++++++++++++++++++++++------------
  4 files changed, 134 insertions(+), 64 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 9e1d1ae131..153849307a 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -58,22 +58,24 @@ func NewInt(x int64) *Int {
+ 
+ // Set sets z to x and returns z.
+ func (z *Int) Set(x *Int) *Int {
+-	z.abs = z.abs.set(x.abs)
+-	z.neg = x.neg
++	if z != x {
++		z.abs = z.abs.set(x.abs)
++		z.neg = x.neg
++	}
+ 	return z
+ }
+ 
+ // Abs sets z to |x| (the absolute value of x) and returns z.
+ func (z *Int) Abs(x *Int) *Int {
+-	z.abs = z.abs.set(x.abs)
++	z.Set(x)
+ 	z.neg = false
+ 	return z
+ }
+ 
+ // Neg sets z to -x and returns z.
+ func (z *Int) Neg(x *Int) *Int {
+-	z.abs = z.abs.set(x.abs)
+-	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
++	z.Set(x)
++	z.neg = len(z.abs) > 0 && !z.neg // 0 has no sign
+ 	return z
+ }
+ 
+@@ -422,8 +424,8 @@ func (x *Int) Format(s fmt.State, ch int) {
+ // scan sets z to the integer value corresponding to the longest possible prefix
+ // read from r representing a signed integer number in a given conversion base.
+ // It returns z, the actual conversion base used, and an error, if any. In the
+-// error case, the value of z is undefined. The syntax follows the syntax of
+-// integer literals in Go.
++// error case, the value of z is undefined but the returned value is nil. The
++// syntax follows the syntax of integer literals in Go.
+ //
+ // The base argument must be 0 or a value from 2 through MaxBase. If the base
+ // is 0, the string prefix determines the actual conversion base. A prefix of
+@@ -434,7 +436,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
+ 	// determine sign
+ 	ch, _, err := r.ReadRune()
+ 	if err != nil {
+-		return z, 0, err
++		return nil, 0, err
+ 	}
+ 	neg := false
+ 	switch ch {
+@@ -448,7 +450,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
+ 	// determine mantissa
+ 	z.abs, base, err = z.abs.scan(r, base)
+ 	if err != nil {
+-		return z, base, err
++		return nil, base, err
+ 	}
+ 	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+ 
+@@ -497,7 +499,7 @@ func (x *Int) Int64() int64 {
+ 
+ // SetString sets z to the value of s, interpreted in the given base,
+ // and returns z and a boolean indicating success. If SetString fails,
+-// the value of z is undefined.
++// the value of z is undefined but the returned value is nil.
+ //
+ // The base argument must be 0 or a value from 2 through MaxBase. If the base
+ // is 0, the string prefix determines the actual conversion base. A prefix of
+@@ -508,10 +510,13 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
+ 	r := strings.NewReader(s)
+ 	_, _, err := z.scan(r, base)
+ 	if err != nil {
+-		return z, false
++		return nil, false
+ 	}
+ 	_, _, err = r.ReadRune()
+-	return z, err == os.EOF // err == os.EOF => scan consumed all of s
++	if err != os.EOF {
++		return nil, false
++	}
++	return z, true // err == os.EOF => scan consumed all of s
+ }
+ 
+ // SetBytes interprets buf as the bytes of a big-endian unsigned
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index b2e1692179..fde19c23b7 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -311,7 +311,16 @@ func TestSetString(t *testing.T) {
+ 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
+ 			continue
+ 		}
+-		if !ok1 || !ok2 {
++		if !ok1 {
++			if n1 != nil {
++				t.Errorf("#%d (input '%s') n1 != nil", i, test.in)
++			}
++			continue
++		}
++		if !ok2 {
++			if n2 != nil {
++				t.Errorf("#%d (input '%s') n2 != nil", i, test.in)
++			}
+ 			continue
+ 		}
+ 
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index f435e637f1..cec2bb8641 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -13,8 +13,8 @@ import (
+ 	"strings"
+ )
+ 
+-// A Rat represents a quotient a/b of arbitrary precision. The zero value for
+-// a Rat, 0/0, is not a legal Rat.
++// A Rat represents a quotient a/b of arbitrary precision.
++// The zero value for a Rat, 0/0, is not a legal Rat.
+ type Rat struct {
+ 	a Int
+ 	b nat
+@@ -62,6 +62,39 @@ func (z *Rat) SetInt64(x int64) *Rat {
+ 	return z
+ }
+ 
++// Set sets z to x (by making a copy of x) and returns z.
++func (z *Rat) Set(x *Rat) *Rat {
++	if z != x {
++		z.a.Set(&x.a)
++		z.b = z.b.set(x.b)
++	}
++	return z
++}
++
++// Abs sets z to |x| (the absolute value of x) and returns z.
++func (z *Rat) Abs(x *Rat) *Rat {
++	z.Set(x)
++	z.a.neg = false
++	return z
++}
++
++// Neg sets z to -x and returns z.
++func (z *Rat) Neg(x *Rat) *Rat {
++	z.Set(x)
++	z.a.neg = len(z.a.abs) > 0 && !z.a.neg // 0 has no sign
++	return z
++}
++
++// Inv sets z to 1/x and returns z.
++func (z *Rat) Inv(x *Rat) *Rat {
++	if len(x.a.abs) == 0 {
++		panic("division by zero")
++	}
++	z.Set(x)
++	z.a.abs, z.b = z.b, z.a.abs // sign doesn't change
++	return z
++}
++
+ // Sign returns:
+ //
+ //	-1 if x <  0
+@@ -133,17 +166,10 @@ func mulNat(x *Int, y nat) *Int {
+ //    0 if x == y
+ //   +1 if x >  y
+ //
+-func (x *Rat) Cmp(y *Rat) (r int) {
++func (x *Rat) Cmp(y *Rat) int {
+ 	return mulNat(&x.a, y.b).Cmp(mulNat(&y.a, x.b))
+ }
+ 
+-// Abs sets z to |x| (the absolute value of x) and returns z.
+-func (z *Rat) Abs(x *Rat) *Rat {
+-	z.a.Abs(&x.a)
+-	z.b = z.b.set(x.b)
+-	return z
+-}
+-
+ // Add sets z to the sum x+y and returns z.
+ func (z *Rat) Add(x, y *Rat) *Rat {
+ 	a1 := mulNat(&x.a, y.b)
+@@ -183,20 +209,6 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
+ 	return z.norm()
+ }
+ 
+-// Neg sets z to -x (by making a copy of x if necessary) and returns z.
+-func (z *Rat) Neg(x *Rat) *Rat {
+-	z.a.Neg(&x.a)
+-	z.b = z.b.set(x.b)
+-	return z
+-}
+-
+-// Set sets z to x (by making a copy of x if necessary) and returns z.
+-func (z *Rat) Set(x *Rat) *Rat {
+-	z.a.Set(&x.a)
+-	z.b = z.b.set(x.b)
+-	return z
+-}
+-
+ func ratTok(ch int) bool {
+ 	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
+ }
+@@ -219,23 +231,23 @@ func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+ // success. s can be given as a fraction "a/b" or as a floating-point number
+-// optionally followed by an exponent. If the operation failed, the value of z
+-// is undefined.
++// optionally followed by an exponent. If the operation failed, the value of
++// z is undefined but the returned value is nil.
+ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	if len(s) == 0 {
+-		return z, false
++		return nil, false
+ 	}
+ 
+ 	// check for a quotient
+ 	sep := strings.Index(s, "/")
+ 	if sep >= 0 {
+ 		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
+-			return z, false
++			return nil, false
+ 		}
+ 		s = s[sep+1:]
+ 		var err os.Error
+ 		if z.b, _, err = z.b.scan(strings.NewReader(s), 10); err != nil {
+-			return z, false
++			return nil, false
+ 		}
+ 		return z.norm(), true
+ 	}
+@@ -248,10 +260,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	if e >= 0 {
+ 		if e < sep {
+ 			// The E must come after the decimal point.
+-			return z, false
++			return nil, false
+ 		}
+ 		if _, ok := exp.SetString(s[e+1:], 10); !ok {
+-			return z, false
++			return nil, false
+ 		}
+ 		s = s[0:e]
+ 	}
+@@ -261,7 +273,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	}
+ 
+ 	if _, ok := z.a.SetString(s, 10); !ok {
+-		return z, false
++		return nil, false
+ 	}
+ 	powTen := nat{}.expNN(natTen, exp.abs, nil)
+ 	if exp.neg {
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index a2b905525e..ed78e70fd6 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -50,8 +50,14 @@ func TestRatSetString(t *testing.T) {
+ 	for i, test := range setStringTests {
+ 		x, ok := new(Rat).SetString(test.in)
+ 
+-		if ok != test.ok || ok && x.RatString() != test.out {
+-			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
++		if ok {
++			if !test.ok {
++				t.Errorf("#%d SetString(%q) expected failure", i, test.in)
++			} else if x.RatString() != test.out {
++				t.Errorf("#%d SetString(%q) got %s want %s", i, test.in, x.RatString(), test.out)
++			}
++		} else if x != nil {
++			t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+ 		}
+ 	}
+ }
+@@ -113,8 +119,10 @@ func TestFloatString(t *testing.T) {
+ func TestRatSign(t *testing.T) {
+ 	zero := NewRat(0, 1)
+ 	for _, a := range setStringTests {
+-		var x Rat
+-		x.SetString(a.in)
++		x, ok := new(Rat).SetString(a.in)
++		if !ok {
++			continue
++		}
+ 		s := x.Sign()
+ 		e := x.Cmp(zero)
+ 		if s != e {
+@@ -153,12 +161,14 @@ func TestRatCmp(t *testing.T) {
+ func TestIsInt(t *testing.T) {
+ 	one := NewInt(1)
+ 	for _, a := range setStringTests {
+-		var x Rat
+-		x.SetString(a.in)
++		x, ok := new(Rat).SetString(a.in)
++		if !ok {
++			continue
++		}
+ 		i := x.IsInt()
+ 		e := x.Denom().Cmp(one) == 0
+ 		if i != e {
+-			t.Errorf("got %v; want %v for z = %v", i, e, &x)
++			t.Errorf("got IsInt(%v) == %v; want %v", x, i, e)
+ 		}
+ 	}
+ }
+@@ -166,16 +176,50 @@ func TestIsInt(t *testing.T) {
+ func TestRatAbs(t *testing.T) {
+ 	zero := NewRat(0, 1)
+ 	for _, a := range setStringTests {
+-		var z Rat
+-		z.SetString(a.in)
+-		var e Rat
+-		e.Set(&z)
++		x, ok := new(Rat).SetString(a.in)
++		if !ok {
++			continue
++		}
++		e := new(Rat).Set(x)
+ 		if e.Cmp(zero) < 0 {
+-			e.Sub(zero, &e)
++			e.Sub(zero, e)
++		}
++		z := new(Rat).Abs(x)
++		if z.Cmp(e) != 0 {
++			t.Errorf("got Abs(%v) = %v; want %v", x, z, e)
++		}
++	}
++}
++
++func TestRatNeg(t *testing.T) {
++	zero := NewRat(0, 1)
++	for _, a := range setStringTests {
++		x, ok := new(Rat).SetString(a.in)
++		if !ok {
++			continue
++		}
++		e := new(Rat).Sub(zero, x)
++		z := new(Rat).Neg(x)
++		if z.Cmp(e) != 0 {
++			t.Errorf("got Neg(%v) = %v; want %v", x, z, e)
++		}
++	}
++}
++
++func TestRatInv(t *testing.T) {
++	zero := NewRat(0, 1)
++	for _, a := range setStringTests {
++		x, ok := new(Rat).SetString(a.in)
++		if !ok {
++			continue
++		}
++		if x.Cmp(zero) == 0 {
++			continue // avoid division by zero
+ 		}
+-		z.Abs(&z)
+-		if z.Cmp(&e) != 0 {
+-			t.Errorf("got z = %v; want %v", &z, &e)
++		e := new(Rat).SetFrac(x.Denom(), x.Num())
++		z := new(Rat).Inv(x)
++		if z.Cmp(e) != 0 {
++			t.Errorf("got Inv(%v) = %v; want %v", x, z, e)
+ 		}
+ 	}
+ }
+@@ -186,10 +230,10 @@ type ratBinArg struct {
+ }
+ 
+ func testRatBin(t *testing.T, i int, name string, f ratBinFun, a ratBinArg) {
+-	x, _ := NewRat(0, 1).SetString(a.x)
+-	y, _ := NewRat(0, 1).SetString(a.y)
+-	z, _ := NewRat(0, 1).SetString(a.z)
+-	out := f(NewRat(0, 1), x, y)
++	x, _ := new(Rat).SetString(a.x)
++	y, _ := new(Rat).SetString(a.y)
++	z, _ := new(Rat).SetString(a.z)
++	out := f(new(Rat), x, y)
+ 
+ 	if out.Cmp(z) != 0 {
+ 		t.Errorf("%s #%d got %s want %s", name, i, out, z)

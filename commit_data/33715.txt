@@ -9,8 +9,80 @@ Date:   Sat Aug 26 02:12:56 2017 -0700
     Change-Id: Ia81c9665d0d956adb78f7fa49de40cdb87fba000
     Reviewed-on: https://go-review.googlesource.com/60150
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go | 9 ++++-----
  src/archive/tar/reader.go | 8 ++++----
  src/archive/tar/writer.go | 2 +-
  3 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 21cfa7993b..c67115e49d 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -56,7 +56,7 @@ func (he headerError) Error() string {
+ const (
+ 	// Type '0' indicates a regular file.
+ 	TypeReg  = '0'
+-	TypeRegA = '\x00' // For legacy support (use TypeReg instead)
++	TypeRegA = '\x00' // For legacy support; use TypeReg instead
+ 
+ 	// Type '1' to '6' are header-only flags and may not have a data body.
+ 	TypeLink    = '1' // Hard link
+@@ -85,7 +85,7 @@ const (
+ 	TypeGNUSparse = 'S'
+ 
+ 	// Types 'L' and 'K' are used by the GNU format for a meta file
+-	// used to store the path or link name for the next entry.
++	// used to store the path or link name for the next file.
+ 	// This package transparently handles these types.
+ 	TypeGNULongName = 'L'
+ 	TypeGNULongLink = 'K'
+@@ -166,13 +166,12 @@ type Header struct {
+ 	//
+ 	// A file is sparse if len(SparseHoles) > 0 or Typeflag is TypeGNUSparse.
+ 	// If TypeGNUSparse is set, then the format is GNU, otherwise
+-	// the PAX format with GNU-specific record is used.
++	// the format is PAX (by using GNU-specific PAX records).
+ 	//
+ 	// A sparse file consists of fragments of data, intermixed with holes
+ 	// (described by this field). A hole is semantically a block of NUL-bytes,
+ 	// but does not actually exist within the tar file.
+-	// The logical size of the file stored in the Size field, while
+-	// the holes must be sorted in ascending order,
++	// The holes must be sorted in ascending order,
+ 	// not overlap with each other, and not extend past the specified Size.
+ 	SparseHoles []SparseEntry
+ 
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 0cf2a221e9..dc0c95a00a 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -604,11 +604,11 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
+ 	return spd, nil
+ }
+ 
+-// Read reads from the current entry in the tar archive.
+-// It returns (0, io.EOF) when it reaches the end of that entry,
+-// until Next is called to advance to the next entry.
++// Read reads from the current file in the tar archive.
++// It returns (0, io.EOF) when it reaches the end of that file,
++// until Next is called to advance to the next file.
+ //
+-// If the current file is sparse, then the regions marked as a sparse hole
++// If the current file is sparse, then the regions marked as a hole
+ // are read back as NUL-bytes.
+ //
+ // Calling Read on special types like TypeLink, TypeSymLink, TypeChar,
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 426c61f342..26491ddc07 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -389,7 +389,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ // Write returns the error ErrWriteTooLong if more than
+ // Header.Size bytes are written after WriteHeader.
+ //
+-// If the current file is sparse, then the regions marked as a sparse hole
++// If the current file is sparse, then the regions marked as a hole
+ // must be written as NUL-bytes.
+ //
+ // Calling Write on special types like TypeLink, TypeSymLink, TypeChar,

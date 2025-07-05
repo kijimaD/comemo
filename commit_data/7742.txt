@@ -7,7 +7,7 @@ Date:   Fri Mar 11 14:47:26 2011 -0500
     R=ken2, ken3
     CC=golang-dev
     https://golang.org/cl/4259064
-
+---
  src/cmd/gc/builtin.c.boot   |   4 +-
  src/cmd/gc/go.h             |   4 +-
  src/cmd/gc/go.y             |  17 ++-
@@ -24,3 +24,997 @@ Date:   Fri Mar 11 14:47:26 2011 -0500
  src/pkg/runtime/reflect.goc |  12 +--
  src/pkg/runtime/runtime.h   |   1 -
  15 files changed, 260 insertions(+), 149 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 6fe2c8b69b..bdbca7f78e 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -66,15 +66,17 @@ char *runtimeimport =
+ 	"func \"\".mapiter2 (hiter *any) (key any, val any)\n"
+ 	"func \"\".makechan (elem *uint8, hint int64) chan any\n"
+ 	"func \"\".chanrecv1 (hchan <-chan any) any\n"
+-	"func \"\".chanrecv3 (hchan <-chan any) (elem any, closed bool)\n"
++	"func \"\".chanrecv2 (hchan <-chan any) (elem any, received bool)\n"
+ 	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
+ 	"func \"\".closechan (hchan any)\n"
+ 	"func \"\".closedchan (hchan any) bool\n"
+ 	"func \"\".selectnbsend (hchan chan<- any, elem any) bool\n"
+ 	"func \"\".selectnbrecv (elem *any, hchan <-chan any) bool\n"
++	"func \"\".selectnbrecv2 (elem *any, received *bool, hchan <-chan any) bool\n"
+ 	"func \"\".newselect (size int) *uint8\n"
+ 	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem any) bool\n"
+ 	"func \"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) bool\n"
++	"func \"\".selectrecv2 (sel *uint8, hchan <-chan any, elem *any, received *bool) bool\n"
+ 	"func \"\".selectdefault (sel *uint8) bool\n"
+ 	"func \"\".selectgo (sel *uint8)\n"
+ 	"func \"\".block ()\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0df6558731..b071eb2273 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -356,12 +356,11 @@ enum
+ 	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+-	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECVCLOSED, OAS2MAPR, OAS2DOTTYPE, OASOP,
++	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
+ 	OBAD,
+ 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+ 	OCAP,
+ 	OCLOSE,
+-	OCLOSED,
+ 	OCLOSURE,
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+@@ -389,6 +388,7 @@ enum
+ 	ORECV,
+ 	ORUNESTR,
+ 	OSELRECV,
++	OSELRECV2,
+ 	OIOTA,
+ 	OREAL, OIMAG, OCOMPLEX,
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 4b838a4911..ba2b2a6343 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -461,23 +461,32 @@ case:
+ 		}
+ 		break;
+ 	}
+-|	LCASE expr '=' expr ':'
++|	LCASE expr_or_type_list '=' expr ':'
+ 	{
++		Node *n;
++
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+-		$$->list = list1(nod(OAS, $2, $4));
++		if($2->next == nil)
++			n = nod(OAS, $2->n, $4);
++		else {
++			n = nod(OAS2, N, N);
++			n->list = $2;
++			n->rlist = list1($4);
++		}
++		$$->list = list1(n);
+ 	}
+-|	LCASE name LCOLAS expr ':'
++|	LCASE expr_or_type_list LCOLAS expr ':'
+ 	{
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+-		$$->list = list1(colas(list1($2), list1($4)));
++		$$->list = list1(colas($2, list1($4)));
+ 	}
+ |	LDEFAULT ':'
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e79d3b0f8f..b1e778d843 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1555,7 +1555,6 @@ static	struct
+ 	"append",		LNAME,		Txxx,		OAPPEND,
+ 	"cap",		LNAME,		Txxx,		OCAP,
+ 	"close",	LNAME,		Txxx,		OCLOSE,
+-	"closed",	LNAME,		Txxx,		OCLOSED,
+ 	"complex",	LNAME,		Txxx,		OCOMPLEX,
+ 	"copy",		LNAME,		Txxx,		OCOPY,
+ 	"imag",		LNAME,		Txxx,		OIMAG,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 695a5a3979..fee37f6d01 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -52,7 +52,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OARRAYBYTESTR:
+ 	case OCAP:
+ 	case OCLOSE:
+-	case OCLOSED:
+ 	case OCOPY:
+ 	case OLEN:
+ 	case OMAKE:
+@@ -405,7 +404,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OAPPEND:
+ 	case OCAP:
+ 	case OCLOSE:
+-	case OCLOSED:
+ 	case OLEN:
+ 	case OCOPY:
+ 	case OMAKE:
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 4ee8f39a77..e1093a91cb 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -203,8 +203,8 @@ walkrange(Node *n)
+ 		hb = nod(OXXX, N, N);
+ 		tempname(hb, types[TBOOL]);
+ 
+-		n->ntest = nod(ONOT, hb, N);
+-		a = nod(OAS2RECVCLOSED, N, N);
++		n->ntest = hb;
++		a = nod(OAS2RECV, N, N);
+ 		a->typecheck = 1;
+ 		a->list = list(list1(hv1), hb);
+ 		a->rlist = list1(nod(ORECV, ha, N));
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index bf7d045c04..35d11eca95 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -92,17 +92,19 @@ func mapiter2(hiter *any) (key any, val any)
+ // *byte is really *runtime.Type
+ func makechan(elem *byte, hint int64) (hchan chan any)
+ func chanrecv1(hchan <-chan any) (elem any)
+-func chanrecv3(hchan <-chan any) (elem any, closed bool)
++func chanrecv2(hchan <-chan any) (elem any, received bool)
+ func chansend1(hchan chan<- any, elem any)
+ func closechan(hchan any)
+ func closedchan(hchan any) bool
+ 
+ func selectnbsend(hchan chan<- any, elem any) bool
+ func selectnbrecv(elem *any, hchan <-chan any) bool
++func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+ 
+ func newselect(size int) (sel *byte)
+ func selectsend(sel *byte, hchan chan<- any, elem any) (selected bool)
+ func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
++func selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) (selected bool)
+ func selectdefault(sel *byte) (selected bool)
+ func selectgo(sel *byte)
+ func block()
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 58a147745d..91d4ebfd50 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -58,6 +58,18 @@ typecheckselect(Node *sel)
+ 				n->op = OSELRECV;
+ 				break;
+ 
++			case OAS2RECV:
++				// convert x, ok = <-c into OSELRECV(x, <-c) with ntest=ok
++				if(n->right->op != ORECV) {
++					yyerror("select assignment must have receive on right hand side");
++					break;
++				}
++				n->op = OSELRECV2;
++				n->left = n->list->n;
++				n->ntest = n->list->next->n;
++				n->right = n->rlist->n;
++				break;
++
+ 			case ORECV:
+ 				// convert <-c into OSELRECV(N, <-c)
+ 				n = nod(OSELRECV, N, n);
+@@ -122,6 +134,18 @@ walkselect(Node *sel)
+ 					typecheck(&n, Etop);
+ 				}
+ 				break;
++			
++			case OSELRECV2:
++				r = n->right;
++				ch = cheapexpr(r->left, &l);
++				r->left = ch;
++				
++				a = nod(OAS2, N, N);
++				a->list = n->list;
++				a->rlist = n->rlist;
++				n = a;
++				typecheck(&n, Etop);
++				break;
+ 			}
+ 
+ 			// if ch == nil { block() }; n;
+@@ -146,6 +170,7 @@ walkselect(Node *sel)
+ 			continue;
+ 		switch(n->op) {
+ 		case OSELRECV:
++		case OSELRECV2:
+ 			ch = n->right->left;
+ 
+ 			// If we can use the address of the target without
+@@ -154,6 +179,28 @@ walkselect(Node *sel)
+ 			// Also introduce a temporary for := variables that escape,
+ 			// so that we can delay the heap allocation until the case
+ 			// is selected.
++			if(n->op == OSELRECV2) {
++				if(n->ntest == N || isblank(n->ntest))
++					n->ntest = nodnil();
++				else if(n->ntest->op == ONAME &&
++						(!n->colas || (n->ntest->class&PHEAP) == 0) &&
++						convertop(types[TBOOL], n->ntest->type, nil) == OCONVNOP) {
++					n->ntest = nod(OADDR, n->ntest, N);
++					n->ntest->etype = 1;  // pointer does not escape
++					typecheck(&n->ntest, Erv);
++				} else {
++					tmp = nod(OXXX, N, N);
++					tempname(tmp, types[TBOOL]);
++					a = nod(OADDR, tmp, N);
++					a->etype = 1;  // pointer does not escape
++					typecheck(&a, Erv);
++					r = nod(OAS, n->ntest, tmp);
++					typecheck(&r, Etop);
++					cas->nbody = concat(list1(r), cas->nbody);
++					n->ntest = a;
++				}
++			}
++
+ 			if(n->left == N || isblank(n->left))
+ 				n->left = nodnil();
+ 			else if(n->left->op == ONAME &&
+@@ -171,10 +218,12 @@ walkselect(Node *sel)
+ 				r = nod(OAS, n->left, tmp);
+ 				typecheck(&r, Etop);
+ 				cas->nbody = concat(list1(r), cas->nbody);
+-				cas->nbody = concat(n->ninit, cas->nbody);
+-				n->ninit = nil;
+ 				n->left = a;
+ 			}
++			
++			cas->nbody = concat(n->ninit, cas->nbody);
++			n->ninit = nil;
++			break;
+ 		}
+ 	}
+ 
+@@ -212,6 +261,16 @@ walkselect(Node *sel)
+ 				mkcall1(chanfn("selectnbrecv", 2, ch->type),
+ 					types[TBOOL], &r->ninit, n->left, ch));
+ 			break;
++
++		case OSELRECV2:
++			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
++			r = nod(OIF, N, N);
++			r->ninit = cas->ninit;
++			ch = cheapexpr(n->right->left, &r->ninit);
++			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
++				mkcall1(chanfn("selectnbrecv2", 2, ch->type),
++					types[TBOOL], &r->ninit, n->left, n->ntest, ch));
++			break;
+ 		}
+ 		typecheck(&r->ntest, Erv);
+ 		r->nbody = cas->nbody;
+@@ -254,11 +313,18 @@ walkselect(Node *sel)
+ 				r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL],
+ 					&init, var, n->left, n->right);
+ 				break;
++
+ 			case OSELRECV:
+ 				// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 				r->ntest = mkcall1(chanfn("selectrecv", 2, n->right->left->type), types[TBOOL],
+ 					&init, var, n->right->left, n->left);
+ 				break;
++
++			case OSELRECV2:
++				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
++				r->ntest = mkcall1(chanfn("selectrecv2", 2, n->right->left->type), types[TBOOL],
++					&init, var, n->right->left, n->left, n->ntest);
++				break;
+ 			}
+ 		}
+ 		r->nbody = concat(r->nbody, cas->nbody);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 31781646d1..be96a1477a 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -94,7 +94,7 @@ init1(Node *n, NodeList **out)
+ 		case OAS2FUNC:
+ 		case OAS2MAPR:
+ 		case OAS2DOTTYPE:
+-		case OAS2RECVCLOSED:
++		case OAS2RECV:
+ 			if(n->defn->initorder)
+ 				break;
+ 			n->defn->initorder = 1;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 54051598d7..26b9a40a29 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -834,7 +834,6 @@ goopnames[] =
+ 	[OCALL]	= "function call",
+ 	[OCAP]		= "cap",
+ 	[OCASE]		= "case",
+-	[OCLOSED]	= "closed",
+ 	[OCLOSE]	= "close",
+ 	[OCOMPLEX]	= "complex",
+ 	[OCOM]		= "^",
+@@ -1669,6 +1668,9 @@ isselect(Node *n)
+ 	if(s == n->sym)
+ 		return 1;
+ 	s = pkglookup("selectrecv", runtimepkg);
++	if(s == n->sym)
++		return 1;
++	s = pkglookup("selectrecv2", runtimepkg);
+ 	if(s == n->sym)
+ 		return 1;
+ 	s = pkglookup("selectdefault", runtimepkg);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2c4f4dbbff..a9389bb962 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -921,7 +921,6 @@ reswitch:
+ 		n->type = t;
+ 		goto ret;
+ 
+-	case OCLOSED:
+ 	case OCLOSE:
+ 		if(onearg(n, "%#O", n->op) < 0)
+ 			goto error;
+@@ -934,11 +933,7 @@ reswitch:
+ 			yyerror("invalid operation: %#N (non-chan type %T)", n, t);
+ 			goto error;
+ 		}
+-		if(n->op == OCLOSED) {
+-			n->type = types[TBOOL];
+-			ok |= Erv;
+-		} else
+-			ok |= Etop;
++		ok |= Etop;
+ 		goto ret;
+ 
+ 	case OAPPEND:
+@@ -2377,8 +2372,9 @@ typecheckas2(Node *n)
+ 			n->op = OAS2MAPR;
+ 			goto common;
+ 		case ORECV:
+-			yyerror("cannot use multiple-value assignment for non-blocking receive; use select");
+-			goto out;
++			n->op = OAS2RECV;
++			n->right = n->rlist->n;
++			goto common;
+ 		case ODOTTYPE:
+ 			n->op = OAS2DOTTYPE;
+ 			r->op = ODOTTYPE2;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b32b6fff5c..b8c6842e0c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -403,12 +403,11 @@ walkstmt(Node **np)
+ 	case OAS:
+ 	case OAS2:
+ 	case OAS2DOTTYPE:
+-	case OAS2RECVCLOSED:
++	case OAS2RECV:
+ 	case OAS2FUNC:
+ 	case OAS2MAPW:
+ 	case OAS2MAPR:
+ 	case OCLOSE:
+-	case OCLOSED:
+ 	case OCOPY:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+@@ -822,14 +821,13 @@ walkexpr(Node **np, NodeList **init)
+ 		n = liststmt(concat(concat(list1(r), ll), lpost));
+ 		goto ret;
+ 
+-	case OAS2RECVCLOSED:
+-		// a = <-c; b = closed(c) but atomic
++	case OAS2RECV:
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+-		fn = chanfn("chanrecv3", 2, r->left->type);
++		fn = chanfn("chanrecv2", 2, r->left->type);
+ 		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
+ 		n->rlist->n = r;
+ 		n->op = OAS2FUNC;
+@@ -1309,13 +1307,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n = mkcall1(fn, T, init, n->left);
+ 		goto ret;
+ 
+-	case OCLOSED:
+-		// cannot use chanfn - closechan takes any, not chan any
+-		fn = syslook("closedchan", 1);
+-		argtype(fn, n->left->type);
+-		n = mkcall1(fn, n->type, init, n->left);
+-		goto ret;
+-
+ 	case OMAKECHAN:
+ 		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
+ 			typename(n->type->type),
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 3177c2295b..2dee38b470 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -7,12 +7,6 @@
+ 
+ static	int32	debug	= 0;
+ 
+-enum
+-{
+-	Wclosed		= 0x0001,	// writer has closed
+-	Rclosed		= 0x0002,	// reader has seen close
+-};
+-
+ typedef	struct	Link	Link;
+ typedef	struct	WaitQ	WaitQ;
+ typedef	struct	SudoG	SudoG;
+@@ -40,7 +34,7 @@ struct	Hchan
+ 	uint32	qcount;			// total data in the q
+ 	uint32	dataqsiz;		// size of the circular q
+ 	uint16	elemsize;
+-	uint16	closed;			// Wclosed Rclosed errorcount
++	bool	closed;
+ 	uint8	elemalign;
+ 	Alg*	elemalg;		// interface for element type
+ 	Link*	senddataq;		// pointer for sender
+@@ -57,15 +51,26 @@ struct	Link
+ 	byte	elem[8];		// asynch queue data element (+ more)
+ };
+ 
++enum
++{
++	// Scase.kind
++	CaseRecv,
++	CaseSend,
++	CaseDefault,
++};
++
+ struct	Scase
+ {
+ 	Hchan*	chan;			// chan
+ 	byte*	pc;			// return pc
+-	uint16	send;			// 0-recv 1-send 2-default
++	uint16	kind;
+ 	uint16	so;			// vararg of selected bool
+ 	union {
+-		byte	elem[8];	// element (send)
+-		byte*	elemp;		// pointer to element (recv)
++		byte	elem[2*sizeof(void*)];	// element (send)
++		struct {
++			byte*	elemp;		// pointer to element (recv)
++			bool*	receivedp;	// pointer to received bool (recv2)
++		} recv;
+ 	} u;
+ };
+ 
+@@ -183,7 +188,7 @@ runtime·chansend(Hchan *c, byte *ep, bool *pres)
+ 
+ 	runtime·lock(c);
+ loop:
+-	if(c->closed & Wclosed)
++	if(c->closed)
+ 		goto closed;
+ 
+ 	if(c->dataqsiz > 0)
+@@ -228,7 +233,7 @@ loop:
+ 	return;
+ 
+ asynch:
+-	if(c->closed & Wclosed)
++	if(c->closed)
+ 		goto closed;
+ 
+ 	if(c->qcount >= c->dataqsiz) {
+@@ -269,7 +274,7 @@ closed:
+ }
+ 
+ void
+-runtime·chanrecv(Hchan* c, byte *ep, bool *pres, bool *closed)
++runtime·chanrecv(Hchan* c, byte *ep, bool *selected, bool *received)
+ {
+ 	SudoG *sg;
+ 	G *gp;
+@@ -284,14 +289,12 @@ runtime·chanrecv(Hchan* c, byte *ep, bool *pres, bool *closed)
+ 		runtime·printf("chanrecv: chan=%p\n", c);
+ 
+ 	runtime·lock(c);
+-	if(closed != nil)
+-		*closed = false;
+ 
+ loop:
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+ 
+-	if(c->closed & Wclosed)
++	if(c->closed)
+ 		goto closed;
+ 
+ 	sg = dequeue(&c->sendq, c);
+@@ -305,14 +308,16 @@ loop:
+ 		runtime·unlock(c);
+ 		runtime·ready(gp);
+ 
+-		if(pres != nil)
+-			*pres = true;
++		if(selected != nil)
++			*selected = true;
++		if(received != nil)
++			*received = true;
+ 		return;
+ 	}
+ 
+-	if(pres != nil) {
++	if(selected != nil) {
+ 		runtime·unlock(c);
+-		*pres = false;
++		*selected = false;
+ 		return;
+ 	}
+ 
+@@ -331,18 +336,20 @@ loop:
+ 	if(ep != nil)
+ 		c->elemalg->copy(c->elemsize, ep, sg->elem);
+ 	c->elemalg->copy(c->elemsize, sg->elem, nil);
++	if(received != nil)
++		*received = true;
+ 	freesg(c, sg);
+ 	runtime·unlock(c);
+ 	return;
+ 
+ asynch:
+ 	if(c->qcount <= 0) {
+-		if(c->closed & Wclosed)
++		if(c->closed)
+ 			goto closed;
+ 
+-		if(pres != nil) {
++		if(selected != nil) {
+ 			runtime·unlock(c);
+-			*pres = false;
++			*selected = false;
+ 			return;
+ 		}
+ 		sg = allocsg(c);
+@@ -365,24 +372,22 @@ asynch:
+ 		freesg(c, sg);
+ 		runtime·unlock(c);
+ 		runtime·ready(gp);
+-		if(pres != nil)
+-			*pres = true;
+-		return;
+-	}
++	} else
++		runtime·unlock(c);
+ 
+-	runtime·unlock(c);
+-	if(pres != nil)
+-		*pres = true;
++	if(selected != nil)
++		*selected = true;
++	if(received != nil)
++		*received = true;
+ 	return;
+ 
+ closed:
+-	if(closed != nil)
+-		*closed = true;
+ 	if(ep != nil)
+ 		c->elemalg->copy(c->elemsize, ep, nil);
+-	c->closed |= Rclosed;
+-	if(pres != nil)
+-		*pres = true;
++	if(selected != nil)
++		*selected = true;
++	if(received != nil)
++		*received = false;
+ 	runtime·unlock(c);
+ }
+ 
+@@ -416,16 +421,16 @@ runtime·chanrecv1(Hchan* c, ...)
+ 	runtime·chanrecv(c, ae, nil, nil);
+ }
+ 
+-// chanrecv3(hchan *chan any) (elem any, closed bool);
++// chanrecv2(hchan *chan any) (elem any, received bool);
+ #pragma textflag 7
+ void
+-runtime·chanrecv3(Hchan* c, ...)
++runtime·chanrecv2(Hchan* c, ...)
+ {
+ 	int32 o;
+ 	byte *ae, *ac;
+ 	
+ 	if(c == nil)
+-		runtime·panicstring("range over nil channel");
++		runtime·panicstring("receive from nil channel");
+ 
+ 	o = runtime·rnd(sizeof(c), Structrnd);
+ 	ae = (byte*)&c + o;
+@@ -490,9 +495,35 @@ runtime·selectnbsend(Hchan *c, ...)
+ //
+ #pragma textflag 7
+ void
+-runtime·selectnbrecv(byte *v, Hchan *c, bool ok)
++runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
+ {
+-	runtime·chanrecv(c, v, &ok, nil);
++	runtime·chanrecv(c, v, &selected, nil);
++}	
++
++// func selectnbrecv2(elem *any, ok *bool, c chan any) bool
++//
++// compiler implements
++//
++//	select {
++//	case v = <-c:
++//		... foo
++//	default:
++//		... bar
++//	}
++//
++// as
++//
++//	if c != nil && selectnbrecv(&v, c) {
++//		... foo
++//	} else {
++//		... bar
++//	}
++//
++#pragma textflag 7
++void
++runtime·selectnbrecv2(byte *v, bool *received, Hchan *c, bool selected)
++{
++	runtime·chanrecv(c, v, &selected, received);
+ }	
+ 
+ static void newselect(int32, Select**);
+@@ -556,22 +587,22 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
+ 	eo = runtime·rnd(sizeof(sel), sizeof(c));
+ 	eo = runtime·rnd(eo+sizeof(c), c->elemsize);
+ 	cas->so = runtime·rnd(eo+c->elemsize, Structrnd);
+-	cas->send = 1;
++	cas->kind = CaseSend;
+ 
+ 	ae = (byte*)&sel + eo;
+ 	c->elemalg->copy(c->elemsize, cas->u.elem, ae);
+ 
+ 	if(debug)
+-		runtime·printf("selectsend s=%p pc=%p chan=%p so=%d send=%d\n",
+-			sel, cas->pc, cas->chan, cas->so, cas->send);
++		runtime·printf("selectsend s=%p pc=%p chan=%p so=%d\n",
++			sel, cas->pc, cas->chan, cas->so);
+ }
+ 
+ // selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ #pragma textflag 7
+ void
+-runtime·selectrecv(Select *sel, Hchan *c, ...)
++runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
+ {
+-	int32 i, eo;
++	int32 i;
+ 	Scase *cas;
+ 
+ 	// nil cases do not compete
+@@ -587,30 +618,60 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
+ 	cas->pc = runtime·getcallerpc(&sel);
+ 	cas->chan = c;
+ 
+-	eo = runtime·rnd(sizeof(sel), sizeof(c));
+-	eo = runtime·rnd(eo+sizeof(c), sizeof(byte*));
+-	cas->so = runtime·rnd(eo+sizeof(byte*), Structrnd);
+-	cas->send = 0;
+-	cas->u.elemp = *(byte**)((byte*)&sel + eo);
++	cas->so = (byte*)&selected - (byte*)&sel;
++	cas->kind = CaseRecv;
++	cas->u.recv.elemp = elem;
++	cas->u.recv.receivedp = nil;
++
++	if(debug)
++		runtime·printf("selectrecv s=%p pc=%p chan=%p so=%d\n",
++			sel, cas->pc, cas->chan, cas->so);
++}
++
++// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
++#pragma textflag 7
++void
++runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
++{
++	int32 i;
++	Scase *cas;
++
++	// nil cases do not compete
++	if(c == nil)
++		return;
++
++	i = sel->ncase;
++	if(i >= sel->tcase)
++		runtime·throw("selectrecv: too many cases");
++	sel->ncase = i+1;
++	cas = runtime·mal(sizeof *cas);
++	sel->scase[i] = cas;
++	cas->pc = runtime·getcallerpc(&sel);
++	cas->chan = c;
++
++	cas->so = (byte*)&selected - (byte*)&sel;
++	cas->kind = CaseRecv;
++	cas->u.recv.elemp = elem;
++	cas->u.recv.receivedp = received;
+ 
+ 	if(debug)
+-		runtime·printf("selectrecv s=%p pc=%p chan=%p so=%d send=%d\n",
+-			sel, cas->pc, cas->chan, cas->so, cas->send);
++		runtime·printf("selectrecv2 s=%p pc=%p chan=%p so=%d elem=%p recv=%p\n",
++			sel, cas->pc, cas->chan, cas->so, cas->u.recv.elemp, cas->u.recv.receivedp);
+ }
+ 
+ 
+-static void selectdefault(Select*, void*);
++static void selectdefault(Select*, void*, int32);
+ 
+ // selectdefault(sel *byte) (selected bool);
+ #pragma textflag 7
+ void
+-runtime·selectdefault(Select *sel, ...)
++runtime·selectdefault(Select *sel, bool selected)
+ {
+-	selectdefault(sel, runtime·getcallerpc(&sel));
++	selectdefault(sel, runtime·getcallerpc(&sel), (byte*)&selected - (byte*)&sel);
+ }
+ 
+ static void
+-selectdefault(Select *sel, void *callerpc)
++selectdefault(Select *sel, void *callerpc, int32 so)
+ {
+ 	int32 i;
+ 	Scase *cas;
+@@ -624,13 +685,12 @@ selectdefault(Select *sel, void *callerpc)
+ 	cas->pc = callerpc;
+ 	cas->chan = nil;
+ 
+-	cas->so = runtime·rnd(sizeof(sel), Structrnd);
+-	cas->send = 2;
+-	cas->u.elemp = nil;
++	cas->so = so;
++	cas->kind = CaseDefault;
+ 
+ 	if(debug)
+-		runtime·printf("selectdefault s=%p pc=%p so=%d send=%d\n",
+-			sel, cas->pc, cas->so, cas->send);
++		runtime·printf("selectdefault s=%p pc=%p so=%d\n",
++			sel, cas->pc, cas->so);
+ }
+ 
+ static void
+@@ -747,8 +807,8 @@ loop:
+ 		cas = sel->scase[o];
+ 		c = cas->chan;
+ 
+-		switch(cas->send) {
+-		case 0:	// recv
++		switch(cas->kind) {
++		case CaseRecv:
+ 			if(c->dataqsiz > 0) {
+ 				if(c->qcount > 0)
+ 					goto asyncrecv;
+@@ -757,12 +817,12 @@ loop:
+ 				if(sg != nil)
+ 					goto syncrecv;
+ 			}
+-			if(c->closed & Wclosed)
++			if(c->closed)
+ 				goto rclose;
+ 			break;
+ 
+-		case 1:	// send
+-			if(c->closed & Wclosed)
++		case CaseSend:
++			if(c->closed)
+ 				goto sclose;
+ 			if(c->dataqsiz > 0) {
+ 				if(c->qcount < c->dataqsiz)
+@@ -774,7 +834,7 @@ loop:
+ 			}
+ 			break;
+ 
+-		case 2:	// default
++		case CaseDefault:
+ 			dfl = cas;
+ 			break;
+ 		}
+@@ -794,12 +854,12 @@ loop:
+ 		sg = allocsg(c);
+ 		sg->offset = o;
+ 
+-		switch(cas->send) {
+-		case 0:	// recv
++		switch(cas->kind) {
++		case CaseRecv:
+ 			enqueue(&c->recvq, sg);
+ 			break;
+ 		
+-		case 1:	// send
++		case CaseSend:
+ 			if(c->dataqsiz == 0)
+ 				c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+ 			enqueue(&c->sendq, sg);
+@@ -821,7 +881,7 @@ loop:
+ 		if(sg == nil || i != sg->offset) {
+ 			cas = sel->scase[i];
+ 			c = cas->chan;
+-			if(cas->send)
++			if(cas->kind == CaseSend)
+ 				dequeueg(&c->sendq, c);
+ 			else
+ 				dequeueg(&c->recvq, c);
+@@ -841,12 +901,14 @@ loop:
+ 	}
+ 
+ 	if(debug)
+-		runtime·printf("wait-return: sel=%p c=%p cas=%p send=%d o=%d\n",
+-			sel, c, cas, cas->send, o);
+-
+-	if(!cas->send) {
+-		if(cas->u.elemp != nil)
+-			c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
++		runtime·printf("wait-return: sel=%p c=%p cas=%p kind=%d o=%d\n",
++			sel, c, cas, cas->kind, o);
++
++	if(cas->kind == CaseRecv) {
++		if(cas->u.recv.receivedp != nil)
++			*cas->u.recv.receivedp = true;
++		if(cas->u.recv.elemp != nil)
++			c->elemalg->copy(c->elemsize, cas->u.recv.elemp, sg->elem);
+ 		c->elemalg->copy(c->elemsize, sg->elem, nil);
+ 	}
+ 
+@@ -855,8 +917,10 @@ loop:
+ 
+ asyncrecv:
+ 	// can receive from buffer
+-	if(cas->u.elemp != nil)
+-		c->elemalg->copy(c->elemsize, cas->u.elemp, c->recvdataq->elem);
++	if(cas->u.recv.receivedp != nil)
++		*cas->u.recv.receivedp = true;
++	if(cas->u.recv.elemp != nil)
++		c->elemalg->copy(c->elemsize, cas->u.recv.elemp, c->recvdataq->elem);
+ 	c->elemalg->copy(c->elemsize, c->recvdataq->elem, nil);
+ 	c->recvdataq = c->recvdataq->link;
+ 	c->qcount--;
+@@ -886,8 +950,10 @@ syncrecv:
+ 	// can receive from sleeping sender (sg)
+ 	if(debug)
+ 		runtime·printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
+-	if(cas->u.elemp != nil)
+-		c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
++	if(cas->u.recv.receivedp != nil)
++		*cas->u.recv.receivedp = true;
++	if(cas->u.recv.elemp != nil)
++		c->elemalg->copy(c->elemsize, cas->u.recv.elemp, sg->elem);
+ 	c->elemalg->copy(c->elemsize, sg->elem, nil);
+ 	gp = sg->g;
+ 	gp->param = sg;
+@@ -896,16 +962,17 @@ syncrecv:
+ 
+ rclose:
+ 	// read at end of closed channel
+-	if(cas->u.elemp != nil)
+-		c->elemalg->copy(c->elemsize, cas->u.elemp, nil);
+-	c->closed |= Rclosed;
++	if(cas->u.recv.receivedp != nil)
++		*cas->u.recv.receivedp = false;
++	if(cas->u.recv.elemp != nil)
++		c->elemalg->copy(c->elemsize, cas->u.recv.elemp, nil);
+ 	goto retc;
+ 
+ syncsend:
+ 	// can send to sleeping receiver (sg)
+ 	if(debug)
+ 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
+-	if(c->closed & Wclosed)
++	if(c->closed)
+ 		goto sclose;
+ 	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+ 	gp = sg->g;
+@@ -916,7 +983,6 @@ retc:
+ 	selunlock(sel);
+ 
+ 	// return to pc corresponding to chosen case
+-	
+ 	pc = cas->pc;
+ 	as = (byte*)selp + cas->so;
+ 	freesel(sel);
+@@ -941,12 +1007,12 @@ runtime·closechan(Hchan *c)
+ 		runtime·gosched();
+ 
+ 	runtime·lock(c);
+-	if(c->closed & Wclosed) {
++	if(c->closed) {
+ 		runtime·unlock(c);
+ 		runtime·panicstring("close of closed channel");
+ 	}
+ 
+-	c->closed |= Wclosed;
++	c->closed = true;
+ 
+ 	// release all readers
+ 	for(;;) {
+@@ -979,12 +1045,6 @@ runtime·chanclose(Hchan *c)
+ 	runtime·closechan(c);
+ }
+ 
+-bool
+-runtime·chanclosed(Hchan *c)
+-{
+-	return (c->closed & Rclosed) != 0;
+-}
+-
+ int32
+ runtime·chanlen(Hchan *c)
+ {
+@@ -997,15 +1057,6 @@ runtime·chancap(Hchan *c)
+ 	return c->dataqsiz;
+ }
+ 
+-
+-// closedchan(sel *byte) bool;
+-void
+-runtime·closedchan(Hchan *c, bool closed)
+-{
+-	closed = runtime·chanclosed(c);
+-	FLUSH(&closed);
+-}
+-
+ static SudoG*
+ dequeue(WaitQ *q, Hchan *c)
+ {
+diff --git a/src/pkg/runtime/reflect.goc b/src/pkg/runtime/reflect.goc
+index 71d648266e..9bdc48afbc 100644
+--- a/src/pkg/runtime/reflect.goc
++++ b/src/pkg/runtime/reflect.goc
+@@ -70,22 +70,18 @@ func makechan(typ *byte, size uint32) (ch *byte) {
+ 	ch = (byte*)runtime·makechan_c(t->elem, size);
+ }
+ 
+-func chansend(ch *byte, val *byte, pres *bool) {
+-	runtime·chansend((Hchan*)ch, val, pres);
++func chansend(ch *byte, val *byte, selected *bool) {
++	runtime·chansend((Hchan*)ch, val, selected);
+ }
+ 
+-func chanrecv(ch *byte, val *byte, pres *bool) {
+-	runtime·chanrecv((Hchan*)ch, val, pres, nil);
++func chanrecv(ch *byte, val *byte, selected *bool, received *bool) {
++	runtime·chanrecv((Hchan*)ch, val, selected, received);
+ }
+ 
+ func chanclose(ch *byte) {
+ 	runtime·chanclose((Hchan*)ch);
+ }
+ 
+-func chanclosed(ch *byte) (r bool) {
+-	r = runtime·chanclosed((Hchan*)ch);
+-}
+-
+ func chanlen(ch *byte) (r int32) {
+ 	r = runtime·chanlen((Hchan*)ch);
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index fe78dac826..8eddda6a5c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -585,7 +585,6 @@ Hchan*	runtime·makechan_c(Type*, int64);
+ void	runtime·chansend(Hchan*, void*, bool*);
+ void	runtime·chanrecv(Hchan*, void*, bool*, bool*);
+ void	runtime·chanclose(Hchan*);
+-bool	runtime·chanclosed(Hchan*);
+ int32	runtime·chanlen(Hchan*);
+ int32	runtime·chancap(Hchan*);
+ 

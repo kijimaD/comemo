@@ -7,6 +7,23 @@ Date:   Thu Oct 10 16:49:19 2013 -0400
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/14548049
-
+---
  misc/emacs/go-mode.el | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 1f35f7c0b4..f5d504d377 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -774,7 +774,10 @@ link in the kill ring."
+   (let* ((url-request-method "POST")
+          (url-request-extra-headers
+           '(("Content-Type" . "application/x-www-form-urlencoded")))
+-         (url-request-data (buffer-substring-no-properties start end))
++         (url-request-data
++          (encode-coding-string
++           (buffer-substring-no-properties start end)
++           'utf-8))
+          (content-buf (url-retrieve
+                        "http://play.golang.org/share"
+                        (lambda (arg)

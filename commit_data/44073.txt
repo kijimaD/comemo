@@ -9,6 +9,20 @@ Date:   Thu May 7 04:52:41 2020 +0000
     GitHub-Pull-Request: golang/go#38913
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232717
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ed9784ca11..07bdb4cb60 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -958,7 +958,7 @@ Irfan Sharif <irfanmahmoudsharif@gmail.com>
+ Irieda Noboru <irieda@gmail.com>
+ Isaac Ardis <isaac.ardis@gmail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+-Isfan Azhabil <isfan.azhabil@tokopedia.com>
++Isfan Azhabil <isfanazhabil@gmail.com>
+ Iskander Sharipov <iskander.sharipov@intel.com> <quasilyte@gmail.com>
+ Issac Trotts <issactrotts@google.com>
+ Ivan Babrou <ivan@cloudflare.com>

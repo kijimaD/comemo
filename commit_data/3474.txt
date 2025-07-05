@@ -8,6 +8,22 @@ Date:   Wed Oct 7 14:52:44 2009 -0700
     DELTA=3  (2 added, 0 deleted, 1 changed)
     OCL=35443
     CL=35445
-
+---
  src/cmd/gotest/gotest | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index c4c8e1a9e0..212abbf755 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -107,7 +107,9 @@ importpath=$(make -s importpath)
+ 	echo
+ 	# imports
+ 	if echo "$tests" | egrep -v '_test\.' >/dev/null; then
+-		echo 'import "'$importpath'"'
++		if [ "$importpath" != "testing" ]; then
++			echo 'import "'$importpath'"'
++		fi
+ 	fi
+ 	if $havex; then
+ 		echo 'import "./_xtest_"'

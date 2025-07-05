@@ -8,6 +8,18 @@ Date:   Thu Oct 15 23:08:46 2009 -0700
     DELTA=4  (2 added, 0 deleted, 2 changed)
     OCL=35809
     CL=35822
-
+---
  pkg/~place-holder~ | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/pkg/~place-holder~ b/pkg/~place-holder~
+index aa084c8aa8..0ea2de6eac 100644
+--- a/pkg/~place-holder~
++++ b/pkg/~place-holder~
+@@ -1,2 +1,4 @@
+-perforce does not maintain empty directories.
+-this file helps.
++Package binaries are installed in this directory tree.
++
++Mercurial does not maintain empty directories.
++This file helps.

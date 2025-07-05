@@ -32,6 +32,22 @@ Date:   Fri Oct 2 09:51:12 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgcwork.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 41edb48954..b05b06a1de 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -7,8 +7,8 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_Debugwbufs  = false   // if true check wbufs consistency
+-	_WorkbufSize = 1 * 256 // in bytes - if small wbufs are passed to GC in a timely fashion.
++	_Debugwbufs  = false // if true check wbufs consistency
++	_WorkbufSize = 4096  // in bytes; larger values result in less contention
+ )
+ 
+ // Garbage collector work pool abstraction.

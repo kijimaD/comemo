@@ -14,6 +14,34 @@ Date:   Wed Jun 17 09:31:08 2015 -0500
     Change-Id: Ibdbc4d3d0aba0162452f6dec5928355a37dda70a
     Reviewed-on: https://go-review.googlesource.com/11170
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/transport_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index c2e7552b17..f8bb6c10d1 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -599,11 +599,22 @@ func TestTransportHeadChunkedResponse(t *testing.T) {
+ 	tr := &Transport{DisableKeepAlives: false}
+ 	c := &Client{Transport: tr}
+ 
++	// Ensure that we wait for the readLoop to complete before
++	// calling Head again
++	didRead := make(chan bool)
++	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
++	defer SetReadLoopBeforeNextReadHook(nil)
++
+ 	res1, err := c.Head(ts.URL)
++	<-didRead
++
+ 	if err != nil {
+ 		t.Fatalf("request 1 error: %v", err)
+ 	}
++
+ 	res2, err := c.Head(ts.URL)
++	<-didRead
++
+ 	if err != nil {
+ 		t.Fatalf("request 2 error: %v", err)
+ 	}

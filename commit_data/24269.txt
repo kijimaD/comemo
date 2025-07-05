@@ -10,6 +10,22 @@ Date:   Mon Jul 20 17:04:18 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12443
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gccgoimporter/parser.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index e985de5a67..c06cce435b 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -658,8 +658,8 @@ func lookupBuiltinType(typ int) types.Type {
+ 		gccgoBuiltinCOMPLEX64:  types.Typ[types.Complex64],
+ 		gccgoBuiltinCOMPLEX128: types.Typ[types.Complex128],
+ 		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
+-		gccgoBuiltinBYTE:       types.Typ[types.Byte],
+-		gccgoBuiltinRUNE:       types.Typ[types.Rune],
++		gccgoBuiltinBYTE:       types.Universe.Lookup("byte").Type(),
++		gccgoBuiltinRUNE:       types.Universe.Lookup("rune").Type(),
+ 	}[typ]
+ }
+ 

@@ -20,6 +20,29 @@ Date:   Wed Sep 16 16:20:31 2015 +1200
     Change-Id: I490b895b606897e4f7f25b1b51f5d485a366fffb
     Reviewed-on: https://go-review.googlesource.com/14632
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  test/recover4.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/recover4.go b/test/recover4.go
+index cda08138f9..4c50260686 100644
+--- a/test/recover4.go
++++ b/test/recover4.go
+@@ -52,6 +52,8 @@ func main() {
+ 		log.Fatalf("mmap: %v", err)
+ 	}
+ 
++	other := make([]byte, 16*size)
++
+ 	// Note: Cannot call syscall.Munmap, because Munmap checks
+ 	// that you are unmapping a whole region returned by Mmap.
+ 	// We are trying to unmap just a hole in the middle.
+@@ -59,8 +61,6 @@ func main() {
+ 		log.Fatalf("munmap: %v", err)
+ 	}
+ 
+-	other := make([]byte, 16*size)
+-
+ 	// Check that memcopy returns the actual amount copied
+ 	// before the fault (8*size - 5, the offset we skip in the argument).
+ 	n, err := memcopy(data[5:], other)

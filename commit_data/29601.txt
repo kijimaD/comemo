@@ -15,6 +15,24 @@ Date:   Tue Sep 27 15:24:00 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/image/png/writer.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index df23270ee9..dd87d81629 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -420,8 +420,11 @@ func writeImage(w io.Writer, m image.Image, cb int, level int) error {
+ 		}
+ 
+ 		// Apply the filter.
++		// Skip filter for NoCompression and paletted images (cbP8) as
++		// "filters are rarely useful on palette images" and will result
++		// in larger files (see http://www.libpng.org/pub/png/book/chapter09.html).
+ 		f := ftNone
+-		if level != zlib.NoCompression {
++		if level != zlib.NoCompression && cb != cbP8 {
+ 			f = filter(&cr, pr, bpp)
+ 		}
+ 

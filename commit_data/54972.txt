@@ -15,6 +15,20 @@ Date:   Wed Nov 23 06:47:14 2022 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/syscall_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index f38316a809..abc28387e6 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1215,7 +1215,7 @@ func TestBigStackCallbackSyscall(t *testing.T) {
+ 
+ // wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
+ func wantLoadLibraryEx() bool {
+-	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
++	return testenv.Builder() != "" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "386")
+ }
+ 
+ func TestLoadLibraryEx(t *testing.T) {

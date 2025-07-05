@@ -7,7 +7,7 @@ Date:   Tue Jan 12 07:38:31 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186042
-
+---
  src/pkg/math/asin.go      | 14 +++++++-------
  src/pkg/math/atan.go      | 33 ++++++++++++---------------------
  src/pkg/math/fmod.go      |  4 ++--
@@ -20,3 +20,271 @@ Date:   Tue Jan 12 07:38:31 2010 +1100
  src/pkg/math/tan.go       |  4 ++--
  src/pkg/math/tanh.go      | 11 +++++------
  11 files changed, 60 insertions(+), 64 deletions(-)
+
+diff --git a/src/pkg/math/asin.go b/src/pkg/math/asin.go
+index 439673a3a7..a9df663113 100644
+--- a/src/pkg/math/asin.go
++++ b/src/pkg/math/asin.go
+@@ -6,13 +6,13 @@ package math
+ 
+ 
+ /*
+- * asin(arg) and acos(arg) return the arcsin, arccos,
+- * respectively of their arguments.
+- *
+- * Arctan is called after appropriate range reduction.
+- */
++	Floating-point sine and cosine.
+ 
+-// Asin returns the arc sine of x.
++	They are implemented by computing the arctangent
++	after appropriate range reduction.
++*/
++
++// Asin returns the arcsine of x.
+ func Asin(x float64) float64 {
+ 	sign := false
+ 	if x < 0 {
+@@ -36,5 +36,5 @@ func Asin(x float64) float64 {
+ 	return temp
+ }
+ 
+-// Acos returns the arc cosine of x.
++// Acos returns the arccosine of x.
+ func Acos(x float64) float64 { return Pi/2 - Asin(x) }
+diff --git a/src/pkg/math/atan.go b/src/pkg/math/atan.go
+index 99a986ac77..654fd4bdc9 100644
+--- a/src/pkg/math/atan.go
++++ b/src/pkg/math/atan.go
+@@ -5,18 +5,16 @@
+ package math
+ 
+ /*
+- *	floating-point arctangent
+- *
+- *	atan returns the value of the arctangent of its
+- *	argument in the range [-pi/2,pi/2].
+- *	there are no error returns.
+- *	coefficients are #5077 from Hart & Cheney. (19.56D)
+- */
++	Floating-point arctangent.
+ 
+-/*
+- *	xatan evaluates a series valid in the
+- *	range [-0.414...,+0.414...]. (tan(pi/8))
+- */
++	Atan returns the value of the arctangent of its
++	argument in the range [-pi/2,pi/2].
++	There are no error returns.
++	Coefficients are #5077 from Hart & Cheney. (19.56D)
++*/
++
++// xatan evaluates a series valid in the
++// range [-0.414...,+0.414...]. (tan(pi/8))
+ func xatan(arg float64) float64 {
+ 	const (
+ 		P4 = .161536412982230228262e2
+@@ -36,10 +34,8 @@ func xatan(arg float64) float64 {
+ 	return value * arg
+ }
+ 
+-/*
+- *	satan reduces its argument (known to be positive)
+- *	to the range [0,0.414...] and calls xatan.
+- */
++// satan reduces its argument (known to be positive)
++// to the range [0,0.414...] and calls xatan.
+ func satan(arg float64) float64 {
+ 	if arg < Sqrt2-1 {
+ 		return xatan(arg)
+@@ -50,12 +46,7 @@ func satan(arg float64) float64 {
+ 	return Pi/4 + xatan((arg-1)/(arg+1))
+ }
+ 
+-/*
+- *	Atan makes its argument positive and
+- *	calls the inner routine satan.
+- */
+-
+-// Atan returns the arc tangent of x.
++// Atan returns the arctangent of x.
+ func Atan(x float64) float64 {
+ 	if x > 0 {
+ 		return satan(x)
+diff --git a/src/pkg/math/fmod.go b/src/pkg/math/fmod.go
+index d88ad53592..cff9ae497b 100644
+--- a/src/pkg/math/fmod.go
++++ b/src/pkg/math/fmod.go
+@@ -6,8 +6,8 @@ package math
+ 
+ 
+ /*
+- *	floating-point mod func without infinity or NaN checking
+- */
++	Floating-point mod func without infinity or NaN checking
++*/
+ 
+ // Fmod returns the floating-point remainder of x/y.
+ func Fmod(x, y float64) float64 {
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index 4370c22954..760fc9da4d 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -5,12 +5,13 @@
+ package math
+ 
+ /*
+- *	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+- *	See Cleve Moler and Donald Morrison,
+- *	Replacing Square Roots by Pythagorean Sums
+- *	IBM Journal of Research and Development,
+- *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
+- */
++	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
++	See:
++		Cleve Moler and Donald Morrison,
++		Replacing Square Roots by Pythagorean Sums
++		IBM Journal of Research and Development,
++		Vol. 27, Number 6, pp. 577-581, Nov. 1983
++*/
+ 
+ // Hypot computes Sqrt(p*p + q*q), taking care to avoid
+ // unnecessary overflow and underflow.
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index 0564689f48..12b3f64989 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -4,6 +4,9 @@
+ 
+ package math
+ 
++/*
++	Floating-point logarithm.
++*/
+ 
+ // The original C code, the long comment, and the constants
+ // below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
+diff --git a/src/pkg/math/pow10.go b/src/pkg/math/pow10.go
+index 4835f6dcef..bda2e824ef 100644
+--- a/src/pkg/math/pow10.go
++++ b/src/pkg/math/pow10.go
+@@ -4,15 +4,8 @@
+ 
+ package math
+ 
+-/*
+- * this table might overflow 127-bit exponent representations.
+- * in that case, truncate it after 1.0e38.
+- * it is important to get all one can from this
+- * routine since it is used in atof to scale numbers.
+- * the presumption is that GO converts fp numbers better
+- * than multipication of lower powers of 10.
+- */
+-
++// This table might overflow 127-bit exponent representations.
++// In that case, truncate it after 1.0e38.
+ var pow10tab [70]float64
+ 
+ // Pow10 returns 10**e, the base-10 exponential of e.
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index e17daf688c..35220cb3e5 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -5,8 +5,13 @@
+ package math
+ 
+ 
++/*
++	Floating-point sine and cosine.
++
++	Coefficients are #5077 from Hart & Cheney. (18.80D)
++*/
++
+ func sinus(x float64, quad int) float64 {
+-	// Coefficients are #3370 from Hart & Cheney (18.80D).
+ 	const (
+ 		P0 = .1357884097877375669092680e8
+ 		P1 = -.4942908100902844161158627e7
+diff --git a/src/pkg/math/sinh.go b/src/pkg/math/sinh.go
+index 8d70cd3ddb..23a8719f2c 100644
+--- a/src/pkg/math/sinh.go
++++ b/src/pkg/math/sinh.go
+@@ -6,16 +6,16 @@ package math
+ 
+ 
+ /*
+- *	Sinh(x) returns the hyperbolic sine of x
+- *
+- *	The exponential func is called for arguments
+- *	greater in magnitude than 0.5.
+- *
+- *	A series is used for arguments smaller in magnitude than 0.5.
+- *
+- *	Cosh(x) is computed from the exponential func for
+- *	all arguments.
+- */
++	Floating-point hyperbolic sine and cosine.
++
++	The exponential func is called for arguments
++	greater in magnitude than 0.5.
++
++	A series is used for arguments smaller in magnitude than 0.5.
++
++	Cosh(x) is computed from the exponential func for
++	all arguments.
++*/
+ 
+ // Sinh returns the hyperbolic sine of x.
+ func Sinh(x float64) float64 {
+diff --git a/src/pkg/math/sqrt_port.go b/src/pkg/math/sqrt_port.go
+index feccbc6199..125afcd985 100644
+--- a/src/pkg/math/sqrt_port.go
++++ b/src/pkg/math/sqrt_port.go
+@@ -4,6 +4,10 @@
+ 
+ package math
+ 
++/*
++	Floating-point square root.
++*/
++
+ // The original C code and the long comment below are
+ // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
+ // came with this notice.  The go code is a simplified
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index 05ba232a7b..842ac64386 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -6,8 +6,8 @@ package math
+ 
+ 
+ /*
+- *	floating point tangent
+- */
++	Floating point tangent.
++*/
+ 
+ // Tan returns the tangent of x.
+ func Tan(x float64) float64 {
+diff --git a/src/pkg/math/tanh.go b/src/pkg/math/tanh.go
+index 144c08530d..8bcf2ddac2 100644
+--- a/src/pkg/math/tanh.go
++++ b/src/pkg/math/tanh.go
+@@ -6,12 +6,11 @@ package math
+ 
+ 
+ /*
+- *	tanh(x) computes the hyperbolic tangent of its floating
+- *	point argument.
+- *
+- *	sinh and cosh are called except for large arguments, which
+- *	would cause overflow improperly.
+- */
++	Floating-point hyperbolic tangent.
++
++	Sinh and Cosh are called except for large arguments, which
++	would cause overflow improperly.
++*/
+ 
+ // Tanh computes the hyperbolic tangent of x.
+ func Tanh(x float64) float64 {

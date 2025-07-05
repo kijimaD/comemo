@@ -13,9 +13,69 @@ Date:   Sun Aug 5 22:32:35 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6448111
-
+---
  src/pkg/exp/html/parse.go                  | 5 +++++
  src/pkg/exp/html/render.go                 | 2 +-
  src/pkg/exp/html/testlogs/tests10.dat.log  | 2 +-
  src/pkg/exp/html/testlogs/webkit01.dat.log | 6 +++---
  4 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 38e61677e3..afdfc9989c 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -1902,6 +1902,11 @@ func parseForeignContent(p *parser) bool {
+ 		namespace := p.top().Namespace
+ 		p.addElement()
+ 		p.top().Namespace = namespace
++		if namespace != "" {
++			// Don't let the tokenizer go into raw text mode in foreign content
++			// (e.g. in an SVG <title> tag).
++			p.tokenizer.rawTag = ""
++		}
+ 		if p.hasSelfClosingToken {
+ 			p.oe.pop()
+ 			p.acknowledgeSelfClosingTag()
+diff --git a/src/pkg/exp/html/render.go b/src/pkg/exp/html/render.go
+index 07859faa7d..de9706528f 100644
+--- a/src/pkg/exp/html/render.go
++++ b/src/pkg/exp/html/render.go
+@@ -209,7 +209,7 @@ func render1(w writer, n *Node) error {
+ 		}
+ 	case "textarea", "title":
+ 		for _, c := range n.Child {
+-			if c.Type != TextNode {
++			if c.Type != TextNode && n.Namespace == "" {
+ 				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
+ 			}
+ 			if err := render1(w, c); err != nil {
+diff --git a/src/pkg/exp/html/testlogs/tests10.dat.log b/src/pkg/exp/html/testlogs/tests10.dat.log
+index edf75d689a..bf9434b257 100644
+--- a/src/pkg/exp/html/testlogs/tests10.dat.log
++++ b/src/pkg/exp/html/testlogs/tests10.dat.log
+@@ -33,7 +33,7 @@ PASS "<div><svg><path><foreignObject><p></div>a"
+ PASS "<!DOCTYPE html><svg><desc><div><svg><ul>a"
+ PASS "<!DOCTYPE html><svg><desc><svg><ul>a"
+ PASS "<!DOCTYPE html><p><svg><desc><p>"
+-FAIL "<!DOCTYPE html><p><svg><title><p>"
++PASS "<!DOCTYPE html><p><svg><title><p>"
+ PASS "<div><svg><path><foreignObject><p></foreignObject><p>"
+ PASS "<math><mi><div><object><div><span></span></div></object></div></mi><mi>"
+ PASS "<math><mi><svg><foreignObject><div><div></div></div></foreignObject></svg></mi><mi>"
+diff --git a/src/pkg/exp/html/testlogs/webkit01.dat.log b/src/pkg/exp/html/testlogs/webkit01.dat.log
+index 08ee7c2763..635cc8e180 100644
+--- a/src/pkg/exp/html/testlogs/webkit01.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit01.dat.log
+@@ -36,9 +36,9 @@ PASS "<kbd><table></kbd><col><select><tr></table><div>"
+ PASS "<a><li><style></style><title></title></a>"
+ PASS "<font></p><p><meta><title></title></font>"
+ PASS "<a><center><title></title><a>"
+-FAIL "<svg><title><div>"
+-FAIL "<svg><title><rect><div>"
+-FAIL "<svg><title><svg><div>"
++PASS "<svg><title><div>"
++PASS "<svg><title><rect><div>"
++PASS "<svg><title><svg><div>"
+ PASS "<img <=\"\" FAIL>"
+ FAIL "<ul><li><div id='foo'/>A</li><li>B<div>C</div></li></ul>"
+ PASS "<svg><em><desc></em>"

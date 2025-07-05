@@ -9,7 +9,7 @@ Date:   Thu Oct 6 15:43:47 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          | 14 ++++++
  src/cmd/compile/internal/gc/ssa.go             | 47 ++++++++++++++------
  src/cmd/compile/internal/gc/walk.go            |  7 ++-
@@ -19,3 +19,400 @@ Date:   Thu Oct 6 15:43:47 2016 -0400
  src/cmd/compile/internal/ssa/opGen.go          | 59 +++++++++++++++++++++++---
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 36 ++++++++++++++++
  8 files changed, 152 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index ebeff445d6..54c0c0fb5a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -303,6 +303,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			m.To.Reg = x86.REG_DX
+ 		}
+ 
++	case ssa.OpAMD64MULQU2:
++		// Arg[0] is already in AX as it's the only register we allow
++		// results hi in DX, lo in AX
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++
++	case ssa.OpAMD64DIVQU2:
++		// Arg[0], Arg[1] are already in Dx, AX, as they're the only registers we allow
++		// results q in AX, r in DX
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[2].Reg()
++
+ 	case ssa.OpAMD64AVGQU:
+ 		// compute (x+y)/2 unsigned.
+ 		// Do a 64-bit add, the overflow goes into the carry.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8e9e915fd4..1e653fe619 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -545,6 +545,22 @@ func (s *state) stmt(n *Node) {
+ 		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0, false)
+ 		return
+ 
++	case OAS2FUNC:
++		// We come here only when it is an intrinsic call returning two values.
++		if !isIntrinsicCall(n.Rlist.First()) {
++			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", n.Rlist.First())
++		}
++		v := s.intrinsicCall(n.Rlist.First())
++		v1 := s.newValue1(ssa.OpSelect0, n.List.First().Type, v)
++		v2 := s.newValue1(ssa.OpSelect1, n.List.Second().Type, v)
++		// Make a fake node to mimic loading return value, ONLY for write barrier test.
++		// This is future-proofing against non-scalar 2-result intrinsics.
++		// Currently we only have scalar ones, which result in no write barrier.
++		fakeret := &Node{Op: OINDREG, Reg: int16(Thearch.REGSP)}
++		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Lineno, 0, false)
++		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Lineno, 0, false)
++		return
++
+ 	case ODCL:
+ 		if n.Left.Class == PAUTOHEAP {
+ 			Fatalf("DCL %v", n)
+@@ -2483,23 +2499,15 @@ type sizedIntrinsicKey struct {
+ }
+ 
+ // disableForInstrumenting returns nil when instrumenting, fn otherwise
+-func disableForInstrumenting(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
++func disableForInstrumenting(fn intrinsicBuilder) intrinsicBuilder {
+ 	if instrumenting {
+ 		return nil
+ 	}
+ 	return fn
+ }
+ 
+-// enableForRuntime returns fn when compiling runtime, nil otherwise
+-func enableForRuntime(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
+-	if compiling_runtime {
+-		return fn
+-	}
+-	return nil
+-}
+-
+ // enableOnArch returns fn on given archs, nil otherwise
+-func enableOnArch(fn func(*state, *Node) *ssa.Value, archs ...sys.ArchFamily) func(*state, *Node) *ssa.Value {
++func enableOnArch(fn intrinsicBuilder, archs ...sys.ArchFamily) intrinsicBuilder {
+ 	if Thearch.LinkArch.InFamily(archs...) {
+ 		return fn
+ 	}
+@@ -2513,9 +2521,7 @@ func intrinsicInit() {
+ 	// initial set of intrinsics.
+ 	i.std = map[intrinsicKey]intrinsicBuilder{
+ 		/******** runtime ********/
+-		intrinsicKey{"", "slicebytetostringtmp"}: enableForRuntime(disableForInstrumenting(func(s *state, n *Node) *ssa.Value {
+-			// pkg name left empty because intrinsification only should apply
+-			// inside the runtime package when non instrumented.
++		intrinsicKey{"runtime", "slicebytetostringtmp"}: disableForInstrumenting(func(s *state, n *Node) *ssa.Value {
+ 			// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
+ 			// for the backend instead of slicebytetostringtmp calls
+ 			// when not instrumenting.
+@@ -2523,7 +2529,7 @@ func intrinsicInit() {
+ 			ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
+ 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+ 			return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+-		})),
++		}),
+ 		intrinsicKey{"runtime", "KeepAlive"}: func(s *state, n *Node) *ssa.Value {
+ 			data := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), s.intrinsicFirstArg(n))
+ 			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, data, s.mem())
+@@ -2717,6 +2723,16 @@ func intrinsicInit() {
+ 		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd"}]
+ 	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "AddUintptr", 8}] =
+ 		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
++
++	/******** math/big ********/
++	i.intSized[sizedIntrinsicKey{"math/big", "mulWW", 8}] =
++		enableOnArch(func(s *state, n *Node) *ssa.Value {
++			return s.newValue2(ssa.OpMul64uhilo, ssa.MakeTuple(Types[TUINT64], Types[TUINT64]), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1))
++		}, sys.AMD64)
++	i.intSized[sizedIntrinsicKey{"math/big", "divWW", 8}] =
++		enableOnArch(func(s *state, n *Node) *ssa.Value {
++			return s.newValue3(ssa.OpDiv128u, ssa.MakeTuple(Types[TUINT64], Types[TUINT64]), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2))
++		}, sys.AMD64)
+ }
+ 
+ // findIntrinsic returns a function which builds the SSA equivalent of the
+@@ -2732,6 +2748,9 @@ func findIntrinsic(sym *Sym) intrinsicBuilder {
+ 		intrinsicInit()
+ 	}
+ 	pkg := sym.Pkg.Path
++	if sym.Pkg == localpkg {
++		pkg = myimportpath
++	}
+ 	fn := sym.Name
+ 	f := intrinsics.std[intrinsicKey{pkg, fn}]
+ 	if f != nil {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3d4a49bebe..ddd36e7b18 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -813,7 +813,7 @@ opswitch:
+ 		}
+ 		n = liststmt(ll)
+ 
+-		// a,b,... = fn()
++	// a,b,... = fn()
+ 	case OAS2FUNC:
+ 		init.AppendNodes(&n.Ninit)
+ 
+@@ -821,6 +821,11 @@ opswitch:
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		r = walkexpr(r, init)
+ 
++		if isIntrinsicCall(r) {
++			n.Rlist.Set1(r)
++			break
++		}
++
+ 		ll := ascompatet(n.Op, n.List, r.Type, 0, init)
+ 		for i, n := range ll {
+ 			ll[i] = applywritebarrier(n)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 175c899ff6..65d85c4231 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -49,6 +49,9 @@
+ (Hmul8   x y) -> (HMULB  x y)
+ (Hmul8u  x y) -> (HMULBU x y)
+ 
++(Mul64uhilo x y) -> (MULQU2 x y)
++(Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
++
+ (Avg64u x y) -> (AVGQU x y)
+ 
+ (Mod64  x y) -> (Select1 (DIVQ  x y))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index f9739e90fc..7dacfe3cf2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -211,6 +211,9 @@ func init() {
+ 		{name: "DIVLU", argLength: 2, reg: gp11div, typ: "(UInt32,UInt32)", asm: "DIVL", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
+ 		{name: "DIVWU", argLength: 2, reg: gp11div, typ: "(UInt16,UInt16)", asm: "DIVW", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
+ 
++		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, asm: "MULQ", clobberFlags: true},     // arg0 * arg1, returns (hi, lo)
++		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
++
+ 		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 & arg1
+ 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 & arg1
+ 		{name: "ANDQconst", argLength: 1, reg: gp11, asm: "ANDQ", aux: "Int64", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index c1bc38c13f..22ddc8fb82 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -58,6 +58,9 @@ var genericOps = []opData{
+ 	{name: "Hmul64", argLength: 2},
+ 	{name: "Hmul64u", argLength: 2},
+ 
++	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
++	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)"}, // arg0 * arg1, returns (hi, lo)
++
+ 	// Weird special instruction for strength reduction of divides.
+ 	{name: "Avg64u", argLength: 2}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
+ 
+@@ -69,6 +72,7 @@ var genericOps = []opData{
+ 	{name: "Div32u", argLength: 2},
+ 	{name: "Div64", argLength: 2},
+ 	{name: "Div64u", argLength: 2},
++	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
+ 
+ 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
+ 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
+@@ -424,8 +428,6 @@ var genericOps = []opData{
+ 	{name: "Sub32carry", argLength: 2, typ: "(UInt32,Flags)"}, // arg0 - arg1, returns (value, carry)
+ 	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
+ 
+-	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
+-
+ 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
+ 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index cd897198d4..1a0e989c3d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -442,6 +442,8 @@ const (
+ 	OpAMD64DIVQU
+ 	OpAMD64DIVLU
+ 	OpAMD64DIVWU
++	OpAMD64MULQU2
++	OpAMD64DIVQU2
+ 	OpAMD64ANDQ
+ 	OpAMD64ANDL
+ 	OpAMD64ANDQconst
+@@ -1443,6 +1445,8 @@ const (
+ 	OpHmul32u
+ 	OpHmul64
+ 	OpHmul64u
++	OpMul32uhilo
++	OpMul64uhilo
+ 	OpAvg64u
+ 	OpDiv8
+ 	OpDiv8u
+@@ -1452,6 +1456,7 @@ const (
+ 	OpDiv32u
+ 	OpDiv64
+ 	OpDiv64u
++	OpDiv128u
+ 	OpMod8
+ 	OpMod8u
+ 	OpMod16
+@@ -1702,7 +1707,6 @@ const (
+ 	OpAdd32withcarry
+ 	OpSub32carry
+ 	OpSub32withcarry
+-	OpMul32uhilo
+ 	OpSignmask
+ 	OpZeromask
+ 	OpCvt32Uto32F
+@@ -4904,6 +4908,39 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "MULQU2",
++		argLen:       2,
++		clobberFlags: true,
++		asm:          x86.AMULQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},     // AX
++				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 4}, // DX
++				{1, 1}, // AX
++			},
++		},
++	},
++	{
++		name:         "DIVQU2",
++		argLen:       3,
++		clobberFlags: true,
++		asm:          x86.ADIVQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4},     // DX
++				{1, 1},     // AX
++				{2, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 1}, // AX
++				{1, 4}, // DX
++			},
++		},
++	},
+ 	{
+ 		name:         "ANDQ",
+ 		argLen:       2,
+@@ -17959,6 +17996,16 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "Mul32uhilo",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Mul64uhilo",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "Avg64u",
+ 		argLen:  2,
+@@ -18004,6 +18051,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "Div128u",
++		argLen:  3,
++		generic: true,
++	},
+ 	{
+ 		name:    "Mod8",
+ 		argLen:  2,
+@@ -19313,11 +19365,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  3,
+ 		generic: true,
+ 	},
+-	{
+-		name:    "Mul32uhilo",
+-		argLen:  2,
+-		generic: true,
+-	},
+ 	{
+ 		name:    "Signmask",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index a55b7ff6fb..f36a5aa439 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -394,6 +394,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpCvt64to64F(v, config)
+ 	case OpDeferCall:
+ 		return rewriteValueAMD64_OpDeferCall(v, config)
++	case OpDiv128u:
++		return rewriteValueAMD64_OpDiv128u(v, config)
+ 	case OpDiv16:
+ 		return rewriteValueAMD64_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -612,6 +614,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpMul64(v, config)
+ 	case OpMul64F:
+ 		return rewriteValueAMD64_OpMul64F(v, config)
++	case OpMul64uhilo:
++		return rewriteValueAMD64_OpMul64uhilo(v, config)
+ 	case OpMul8:
+ 		return rewriteValueAMD64_OpMul8(v, config)
+ 	case OpNeg16:
+@@ -14268,6 +14272,23 @@ func rewriteValueAMD64_OpDeferCall(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpDiv128u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div128u xhi xlo y)
++	// cond:
++	// result: (DIVQU2 xhi xlo y)
++	for {
++		xhi := v.Args[0]
++		xlo := v.Args[1]
++		y := v.Args[2]
++		v.reset(OpAMD64DIVQU2)
++		v.AddArg(xhi)
++		v.AddArg(xlo)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -16667,6 +16688,21 @@ func rewriteValueAMD64_OpMul64F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpMul64uhilo(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul64uhilo x y)
++	// cond:
++	// result: (MULQU2 x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64MULQU2)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpMul8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

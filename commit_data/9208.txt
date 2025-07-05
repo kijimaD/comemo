@@ -13,6 +13,20 @@ Date:   Tue Jul 26 00:30:39 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4802059
-
+---
  src/Make.pkg | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 86a2e9fd0d..fc80cf6e6c 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -59,7 +59,7 @@ coverage:
+ 	gotest
+ 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+-CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* *.cgo[12].* test.out build.out
++CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* test.out build.out
+ 
+ test:
+ 	gotest

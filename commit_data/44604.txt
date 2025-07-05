@@ -12,6 +12,20 @@ Date:   Tue May 5 03:15:58 2020 +1000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_riscv64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index d7c45a183d..8f6c8773eb 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -79,7 +79,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+-	WORD	$0xc0102573	// rdtime a0
++	RDTIME	A0
+ 	MOV	A0, ret+0(FP)
+ 	RET
+ 

@@ -5,6 +5,37 @@ Date:   Fri Jul 11 19:35:14 2008 -0700
     fix traceback to know about new segmenting
     
     SVN=126930
-
+---
  src/runtime/rt2_amd64.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index 81053b3dd3..37bb850c5f 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -8,8 +8,7 @@ extern int32	debug;
+ 
+ static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
+ 
+-extern void _morestack();
+-extern void _endmorestack();
++extern void morestack2();
+ 
+ void
+ traceback(uint8 *pc, uint8 *sp, void* r15)
+@@ -30,7 +29,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
+ 	name = "panic";
+ 	for(;;){
+ 		callpc = pc;
+-		if((uint8*)_morestack < pc && pc < (uint8*)_endmorestack) {
++		if((uint8*)morestack2 == pc) {
+ 			// call site in _morestack(); pop to earlier stack block to get true caller
+ 			stktop = (Stktop*)g.stackbase;
+ 			g.stackbase = stktop->oldbase;
+@@ -83,6 +82,5 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
+ 			sys·printpointer(((void**)sp)[i]);
+ 		}
+ 		prints(", ...)\n");
+-		/* print pc for next frame */
+ 	}
+ }

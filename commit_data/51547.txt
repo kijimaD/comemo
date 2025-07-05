@@ -8,6 +8,20 @@ Date:   Thu Feb 10 20:44:03 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/385054
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Kevin Burke <kevin@burke.dev>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3405b7d887..49533b067d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1365,7 +1365,7 @@ type ReadCloser interface {
+ }
+ </pre>
+ 
+-<h4 id="Generenal_interfaces">General interfaces</h4>
++<h4 id="General_interfaces">General interfaces</h4>
+ 
+ <p>
+ In their most general form, an interface element may also be an arbitrary type term

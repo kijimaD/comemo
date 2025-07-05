@@ -12,7 +12,7 @@ Date:   Wed Sep 1 12:07:08 2021 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/go.mod                                       |   2 +-
  src/go.sum                                       |   4 +-
  src/net/http/h2_bundle.go                        | 183 ++++++++++++-----------
@@ -21,3 +21,378 @@ Date:   Wed Sep 1 12:07:08 2021 -0700
  src/vendor/golang.org/x/net/route/sys_freebsd.go |   3 -
  src/vendor/modules.txt                           |   2 +-
  7 files changed, 102 insertions(+), 98 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 1fb8cbfcbe..726d490668 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.18
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
+-	golang.org/x/net v0.0.0-20210510120150-4163338589ed
++	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
+ 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+ 	golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index b3de6c526c..6e14cbcd7e 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+-golang.org/x/net v0.0.0-20210510120150-4163338589ed h1:p9UgmWI9wKpfYmgaV/IZKGdXc5qEK45tDwwwDyjS26I=
+-golang.org/x/net v0.0.0-20210510120150-4163338589ed/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
++golang.org/x/net v0.0.0-20210825183410-e898025ed96a h1:bRuuGXV8wwSdGTB+CtJf+FjgO1APK1CoO39T4BN/XBw=
++golang.org/x/net v0.0.0-20210825183410-e898025ed96a/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mUOKexJBNsLf4Z+6En1Q=
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f h1:yQJrRE0hDxDFmZLlRaw+3vusO4fwNHgHIjUOMO7bHYI=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index a948ff3eed..14f4d0e5fc 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -53,6 +53,10 @@ import (
+ 	"golang.org/x/net/idna"
+ )
+ 
++// The HTTP protocols are defined in terms of ASCII, not Unicode. This file
++// contains helper functions which may use Unicode-aware functions which would
++// otherwise be unsafe and could introduce vulnerabilities if used improperly.
++
+ // asciiEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
+ // are equal, ASCII-case-insensitively.
+ func http2asciiEqualFold(s, t string) bool {
+@@ -3915,16 +3919,12 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
+ 
+ 	s.TLSConfig.PreferServerCipherSuites = true
+ 
+-	haveNPN := false
+-	for _, p := range s.TLSConfig.NextProtos {
+-		if p == http2NextProtoTLS {
+-			haveNPN = true
+-			break
+-		}
+-	}
+-	if !haveNPN {
++	if !http2strSliceContains(s.TLSConfig.NextProtos, http2NextProtoTLS) {
+ 		s.TLSConfig.NextProtos = append(s.TLSConfig.NextProtos, http2NextProtoTLS)
+ 	}
++	if !http2strSliceContains(s.TLSConfig.NextProtos, "http/1.1") {
++		s.TLSConfig.NextProtos = append(s.TLSConfig.NextProtos, "http/1.1")
++	}
+ 
+ 	if s.TLSNextProto == nil {
+ 		s.TLSNextProto = map[string]func(*Server, *tls.Conn, Handler){}
+@@ -4479,7 +4479,7 @@ func (sc *http2serverConn) serve() {
+ 	})
+ 	sc.unackedSettings++
+ 
+-	// Each connection starts with intialWindowSize inflow tokens.
++	// Each connection starts with initialWindowSize inflow tokens.
+ 	// If a higher value is configured, we add more tokens.
+ 	if diff := sc.srv.initialConnRecvWindowSize() - http2initialWindowSize; diff > 0 {
+ 		sc.sendWindowUpdate(nil, int(diff))
+@@ -4519,6 +4519,15 @@ func (sc *http2serverConn) serve() {
+ 		case res := <-sc.wroteFrameCh:
+ 			sc.wroteFrame(res)
+ 		case res := <-sc.readFrameCh:
++			// Process any written frames before reading new frames from the client since a
++			// written frame could have triggered a new stream to be started.
++			if sc.writingFrameAsync {
++				select {
++				case wroteRes := <-sc.wroteFrameCh:
++					sc.wroteFrame(wroteRes)
++				default:
++				}
++			}
+ 			if !sc.processFrameFromReader(res) {
+ 				return
+ 			}
+@@ -6870,9 +6879,8 @@ type http2ClientConn struct {
+ 	peerMaxHeaderListSize uint64
+ 	initialWindowSize     uint32
+ 
+-	hbuf    bytes.Buffer // HPACK encoder writes into this
+-	henc    *hpack.Encoder
+-	freeBuf [][]byte
++	hbuf bytes.Buffer // HPACK encoder writes into this
++	henc *hpack.Encoder
+ 
+ 	wmu  sync.Mutex // held while writing; acquire AFTER mu if holding both
+ 	werr error      // first write error that has occurred
+@@ -6992,8 +7000,13 @@ func (cs *http2clientStream) abortRequestBodyWrite(err error) {
+ 	}
+ 	cc := cs.cc
+ 	cc.mu.Lock()
+-	cs.stopReqBody = err
+-	cc.cond.Broadcast()
++	if cs.stopReqBody == nil {
++		cs.stopReqBody = err
++		if cs.req.Body != nil {
++			cs.req.Body.Close()
++		}
++		cc.cond.Broadcast()
++	}
+ 	cc.mu.Unlock()
+ }
+ 
+@@ -7520,46 +7533,6 @@ func (cc *http2ClientConn) closeForLostPing() error {
+ 	return cc.closeForError(err)
+ }
+ 
+-const http2maxAllocFrameSize = 512 << 10
+-
+-// frameBuffer returns a scratch buffer suitable for writing DATA frames.
+-// They're capped at the min of the peer's max frame size or 512KB
+-// (kinda arbitrarily), but definitely capped so we don't allocate 4GB
+-// bufers.
+-func (cc *http2ClientConn) frameScratchBuffer() []byte {
+-	cc.mu.Lock()
+-	size := cc.maxFrameSize
+-	if size > http2maxAllocFrameSize {
+-		size = http2maxAllocFrameSize
+-	}
+-	for i, buf := range cc.freeBuf {
+-		if len(buf) >= int(size) {
+-			cc.freeBuf[i] = nil
+-			cc.mu.Unlock()
+-			return buf[:size]
+-		}
+-	}
+-	cc.mu.Unlock()
+-	return make([]byte, size)
+-}
+-
+-func (cc *http2ClientConn) putFrameScratchBuffer(buf []byte) {
+-	cc.mu.Lock()
+-	defer cc.mu.Unlock()
+-	const maxBufs = 4 // arbitrary; 4 concurrent requests per conn? investigate.
+-	if len(cc.freeBuf) < maxBufs {
+-		cc.freeBuf = append(cc.freeBuf, buf)
+-		return
+-	}
+-	for i, old := range cc.freeBuf {
+-		if old == nil {
+-			cc.freeBuf[i] = buf
+-			return
+-		}
+-	}
+-	// forget about it.
+-}
+-
+ // errRequestCanceled is a copy of net/http's errRequestCanceled because it's not
+ // exported. At least they'll be DeepEqual for h1-vs-h2 comparisons tests.
+ var http2errRequestCanceled = errors.New("net/http: request canceled")
+@@ -7758,40 +7731,28 @@ func (cc *http2ClientConn) roundTrip(req *Request) (res *Response, gotErrAfterRe
+ 		return res, false, nil
+ 	}
+ 
++	handleError := func(err error) (*Response, bool, error) {
++		if !hasBody || bodyWritten {
++			cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
++		} else {
++			bodyWriter.cancel()
++			cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
++			<-bodyWriter.resc
++		}
++		cc.forgetStreamID(cs.ID)
++		return nil, cs.getStartedWrite(), err
++	}
++
+ 	for {
+ 		select {
+ 		case re := <-readLoopResCh:
+ 			return handleReadLoopResponse(re)
+ 		case <-respHeaderTimer:
+-			if !hasBody || bodyWritten {
+-				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+-			} else {
+-				bodyWriter.cancel()
+-				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
+-				<-bodyWriter.resc
+-			}
+-			cc.forgetStreamID(cs.ID)
+-			return nil, cs.getStartedWrite(), http2errTimeout
++			return handleError(http2errTimeout)
+ 		case <-ctx.Done():
+-			if !hasBody || bodyWritten {
+-				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+-			} else {
+-				bodyWriter.cancel()
+-				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
+-				<-bodyWriter.resc
+-			}
+-			cc.forgetStreamID(cs.ID)
+-			return nil, cs.getStartedWrite(), ctx.Err()
++			return handleError(ctx.Err())
+ 		case <-req.Cancel:
+-			if !hasBody || bodyWritten {
+-				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+-			} else {
+-				bodyWriter.cancel()
+-				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
+-				<-bodyWriter.resc
+-			}
+-			cc.forgetStreamID(cs.ID)
+-			return nil, cs.getStartedWrite(), http2errRequestCanceled
++			return handleError(http2errRequestCanceled)
+ 		case <-cs.peerReset:
+ 			// processResetStream already removed the
+ 			// stream from the streams map; no need for
+@@ -7902,11 +7863,35 @@ var (
+ 	http2errReqBodyTooLong = errors.New("http2: request body larger than specified content length")
+ )
+ 
++// frameScratchBufferLen returns the length of a buffer to use for
++// outgoing request bodies to read/write to/from.
++//
++// It returns max(1, min(peer's advertised max frame size,
++// Request.ContentLength+1, 512KB)).
++func (cs *http2clientStream) frameScratchBufferLen(maxFrameSize int) int {
++	const max = 512 << 10
++	n := int64(maxFrameSize)
++	if n > max {
++		n = max
++	}
++	if cl := http2actualContentLength(cs.req); cl != -1 && cl+1 < n {
++		// Add an extra byte past the declared content-length to
++		// give the caller's Request.Body io.Reader a chance to
++		// give us more bytes than they declared, so we can catch it
++		// early.
++		n = cl + 1
++	}
++	if n < 1 {
++		return 1
++	}
++	return int(n) // doesn't truncate; max is 512K
++}
++
++var http2bufPool sync.Pool // of *[]byte
++
+ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Closer) (err error) {
+ 	cc := cs.cc
+ 	sentEnd := false // whether we sent the final DATA frame w/ END_STREAM
+-	buf := cc.frameScratchBuffer()
+-	defer cc.putFrameScratchBuffer(buf)
+ 
+ 	defer func() {
+ 		http2traceWroteRequest(cs.trace, err)
+@@ -7914,7 +7899,13 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
+ 		// Request.Body is closed by the Transport,
+ 		// and in multiple cases: server replies <=299 and >299
+ 		// while still writing request body
+-		cerr := bodyCloser.Close()
++		var cerr error
++		cc.mu.Lock()
++		if cs.stopReqBody == nil {
++			cs.stopReqBody = http2errStopReqBodyWrite
++			cerr = bodyCloser.Close()
++		}
++		cc.mu.Unlock()
+ 		if err == nil {
+ 			err = cerr
+ 		}
+@@ -7925,9 +7916,24 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
+ 	remainLen := http2actualContentLength(req)
+ 	hasContentLen := remainLen != -1
+ 
++	cc.mu.Lock()
++	maxFrameSize := int(cc.maxFrameSize)
++	cc.mu.Unlock()
++
++	// Scratch buffer for reading into & writing from.
++	scratchLen := cs.frameScratchBufferLen(maxFrameSize)
++	var buf []byte
++	if bp, ok := http2bufPool.Get().(*[]byte); ok && len(*bp) >= scratchLen {
++		defer http2bufPool.Put(bp)
++		buf = *bp
++	} else {
++		buf = make([]byte, scratchLen)
++		defer http2bufPool.Put(&buf)
++	}
++
+ 	var sawEOF bool
+ 	for !sawEOF {
+-		n, err := body.Read(buf[:len(buf)-1])
++		n, err := body.Read(buf[:len(buf)])
+ 		if hasContentLen {
+ 			remainLen -= int64(n)
+ 			if remainLen == 0 && err == nil {
+@@ -7938,8 +7944,9 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
+ 				// to send the END_STREAM bit early, double-check that we're actually
+ 				// at EOF. Subsequent reads should return (0, EOF) at this point.
+ 				// If either value is different, we return an error in one of two ways below.
++				var scratch [1]byte
+ 				var n1 int
+-				n1, err = body.Read(buf[n:])
++				n1, err = body.Read(scratch[:])
+ 				remainLen -= int64(n1)
+ 			}
+ 			if remainLen < 0 {
+@@ -8009,10 +8016,6 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
+ 		}
+ 	}
+ 
+-	cc.mu.Lock()
+-	maxFrameSize := int(cc.maxFrameSize)
+-	cc.mu.Unlock()
+-
+ 	cc.wmu.Lock()
+ 	defer cc.wmu.Unlock()
+ 
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang.org/x/net/route/address.go
+index 4f6ad968a2..1898ed0fad 100644
+--- a/src/vendor/golang.org/x/net/route/address.go
++++ b/src/vendor/golang.org/x/net/route/address.go
+@@ -422,5 +422,9 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 			b = b[l:]
+ 		}
+ 	}
++	// The only remaining bytes in b should be alignment.
++	// However, under some circumstances DragonFly BSD appears to put
++	// more addresses in the message than are indicated in the address
++	// bitmask, so don't check for this.
+ 	return as[:], nil
+ }
+diff --git a/src/vendor/golang.org/x/net/route/message.go b/src/vendor/golang.org/x/net/route/message.go
+index d53bb7f9b1..456a8363fe 100644
+--- a/src/vendor/golang.org/x/net/route/message.go
++++ b/src/vendor/golang.org/x/net/route/message.go
+@@ -53,7 +53,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+ 		if w, ok := wireFormats[int(b[3])]; !ok {
+ 			nskips++
+ 		} else {
+-			m, err := w.parse(typ, b)
++			m, err := w.parse(typ, b[:l])
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/vendor/golang.org/x/net/route/sys_freebsd.go b/src/vendor/golang.org/x/net/route/sys_freebsd.go
+index fe91be1249..3599601740 100644
+--- a/src/vendor/golang.org/x/net/route/sys_freebsd.go
++++ b/src/vendor/golang.org/x/net/route/sys_freebsd.go
+@@ -134,9 +134,6 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
+ 		}
+-		if rel >= 1102000 { // see https://github.com/freebsd/freebsd/commit/027c7f4d66ff8d8c4a46c3665a5ee7d6d8462034#diff-ad4e5b7f1449ea3fc87bc97280de145b
+-			align = wordSize
+-		}
+ 	}
+ 	rtm.parse = rtm.parseRouteMessage
+ 	ifm.parse = ifm.parseInterfaceMessage
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index ff01db5cdc..d50b8668fc 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20210510120150-4163338589ed
++# golang.org/x/net v0.0.0-20210825183410-e898025ed96a
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

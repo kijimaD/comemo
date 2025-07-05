@@ -7,8 +7,53 @@ Date:   Mon May 24 14:32:55 2010 -0400
     R=gri
     CC=golang-dev, golang-dev
     https://golang.org/cl/1244044
-
+---
  src/pkg/big/int.go      | 3 ++-
  src/pkg/big/int_test.go | 2 +-
  src/pkg/big/nat.go      | 5 +++++
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index dd91796603..a74028fd74 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -434,8 +434,9 @@ func (z *Int) BitLen() int {
+ // See Knuth, volume 2, section 4.6.3.
+ func (z *Int) Exp(x, y, m *Int) *Int {
+ 	if y.neg || len(y.abs) == 0 {
++		neg := x.neg
+ 		z.SetInt64(1)
+-		z.neg = x.neg
++		z.neg = neg
+ 		return z
+ 	}
+ 
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 064f467311..e92ebe508a 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -602,7 +602,7 @@ func TestExp(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		z := new(Int).Exp(x, y, m)
++		z := y.Exp(x, y, m)
+ 		if !isNormalized(z) {
+ 			t.Errorf("#%d: %v is not normalized", i, *z)
+ 		}
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index dc066580a1..dc2e6be288 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -920,6 +920,11 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
+ // If m != nil, expNN calculates x**y mod m. Otherwise it calculates x**y. It
+ // reuses the storage of z if possible.
+ func (z nat) expNN(x, y, m nat) nat {
++	if alias(z, x) || alias(z, y) {
++		// We cannot allow in place modification of x or y.
++		z = nil
++	}
++
+ 	if len(y) == 0 {
+ 		z = z.make(1)
+ 		z[0] = 1

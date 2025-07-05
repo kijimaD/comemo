@@ -12,8 +12,120 @@ Date:   Mon Feb 24 19:18:16 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/68400043
-
+---
  src/pkg/go/printer/nodes.go                  | 17 +++++++++++++++--
  src/pkg/go/printer/testdata/comments2.golden | 25 +++++++++++++++++++++++++
  src/pkg/go/printer/testdata/comments2.input  | 27 ++++++++++++++++++++++++++-
  3 files changed, 66 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 583c6c3709..494ce948f4 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -906,7 +906,7 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+ 	for _, s := range list {
+ 		// ignore empty statements (was issue 3466)
+ 		if _, isEmpty := s.(*ast.EmptyStmt); !isEmpty {
+-			// _indent == 0 only for lists of switch/select case clauses;
++			// nindent == 0 only for lists of switch/select case clauses;
+ 			// in those cases each clause is a new section
+ 			if len(p.output) > 0 {
+ 				// only print line break if we are not at the beginning of the output
+@@ -914,7 +914,11 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+ 				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
+ 			}
+ 			p.stmt(s, nextIsRBrace && i == len(list)-1)
+-			multiLine = p.isMultiLine(s)
++			// labeled statements put labels on a separate line, but here
++			// we only care about whether the actual statement w/o label
++			// is a multi-line statement - remove the label first
++			// (was issue 5623)
++			multiLine = p.isMultiLine(unlabeledStmt(s))
+ 			i++
+ 		}
+ 	}
+@@ -923,6 +927,15 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+ 	}
+ }
+ 
++// unlabeledStmt returns the statement of a labeled statement s;
++// otherwise it return s.
++func unlabeledStmt(s ast.Stmt) ast.Stmt {
++	if s, _ := s.(*ast.LabeledStmt); s != nil {
++		return unlabeledStmt(s.Stmt)
++	}
++	return s
++}
++
+ // block prints an *ast.BlockStmt; it always spans at least two lines.
+ func (p *printer) block(b *ast.BlockStmt, nindent int) {
+ 	p.print(b.Lbrace, token.LBRACE)
+diff --git a/src/pkg/go/printer/testdata/comments2.golden b/src/pkg/go/printer/testdata/comments2.golden
+index d3b50bf3e0..b30dd37bf7 100644
+--- a/src/pkg/go/printer/testdata/comments2.golden
++++ b/src/pkg/go/printer/testdata/comments2.golden
+@@ -77,3 +77,28 @@ func main() {
+ 		println("test")
+ 	}
+ }
++
++func issue5623() {
++L:
++	_ = yyyyyyyyyyyyyyyy			// comment - should be aligned
++	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	/* comment */
++
++	_ = yyyyyyyyyyyyyyyy			/* comment - should be aligned */
++	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
++
++LLLLLLL:
++	_ = yyyyyyyyyyyyyyyy			// comment - should be aligned
++	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
++
++LL:
++	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	/* comment */
++	_ = yyyyyyyyyyyyyyyy			/* comment - should be aligned */
++
++	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
++	_ = yyyyyyyyyyyyyyyy			// comment - should be aligned
++
++	// test case from issue
++label:
++	mask := uint64(1)<<c - 1		// Allocation mask
++	used := atomic.LoadUint64(&h.used)	// Current allocations
++}
+diff --git a/src/pkg/go/printer/testdata/comments2.input b/src/pkg/go/printer/testdata/comments2.input
+index 6f8c85c94a..8ee29b6859 100644
+--- a/src/pkg/go/printer/testdata/comments2.input
++++ b/src/pkg/go/printer/testdata/comments2.input
+@@ -76,4 +76,29 @@ prints test 5 times
+    for i := 0; i < 5; i++ {
+       println("test")
+    }
+-}
+\ No newline at end of file
++}
++
++func issue5623() {
++L:
++   _ = yyyyyyyyyyyyyyyy // comment - should be aligned
++   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx /* comment */
++
++   _ = yyyyyyyyyyyyyyyy /* comment - should be aligned */
++   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
++
++LLLLLLL:
++   _ = yyyyyyyyyyyyyyyy // comment - should be aligned
++   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
++
++LL:
++   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx /* comment */
++   _ = yyyyyyyyyyyyyyyy /* comment - should be aligned */
++
++   _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
++   _ = yyyyyyyyyyyyyyyy // comment - should be aligned
++
++// test case from issue
++label:
++   mask := uint64(1)<<c - 1 // Allocation mask
++   used := atomic.LoadUint64(&h.used) // Current allocations
++}

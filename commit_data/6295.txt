@@ -7,6 +7,42 @@ Date:   Thu Sep 16 15:37:57 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2209042
-
+---
  src/cmd/gc/lex.c | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 726cab7533..a01da962c6 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -353,8 +353,11 @@ static int
+ findpkg(Strlit *name)
+ {
+ 	Idir *p;
++	char *q;
+ 
+ 	if(islocalname(name)) {
++		if(debug['u'])
++			return 0;
+ 		// try .a before .6.  important for building libraries:
+ 		// if there is an array.6 in the array.a library,
+ 		// want to find all of array.a, not just array.6.
+@@ -367,6 +370,18 @@ findpkg(Strlit *name)
+ 		return 0;
+ 	}
+ 
++	// local imports should be canonicalized already.
++	// don't want to see "container/../container/vector"
++	// as different from "container/vector".
++	q = mal(name->len+1);
++	memmove(q, name->s, name->len);
++	q[name->len] = '\0';
++	cleanname(q);
++	if(strlen(q) != name->len || memcmp(q, name->s, name->len) != 0) {
++		yyerror("non-canonical import name %Z (%s)", name->s, q);
++		return 0;
++	}
++
+ 	for(p = idirs; p != nil; p = p->link) {
+ 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
+ 		if(access(namebuf, 0) >= 0)

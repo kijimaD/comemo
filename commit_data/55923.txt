@@ -15,6 +15,20 @@ Date:   Thu Nov 17 08:54:48 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/dnsclient_unix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 0def954f8c..6deeb39104 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -1443,7 +1443,7 @@ func TestDNSGoroutineRace(t *testing.T) {
+ func lookupWithFake(fake fakeDNSServer, name string, typ dnsmessage.Type) error {
+ 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+ 
+-	conf := resolvConf.dnsConfig.Load()
++	conf := getSystemDNSConfig()
+ 
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()

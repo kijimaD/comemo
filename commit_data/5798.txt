@@ -7,7 +7,32 @@ Date:   Tue Jul 13 12:37:47 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1812043
-
+---
  src/pkg/crypto/rand/rand_unix.go    | 1 +
  src/pkg/crypto/rand/rand_windows.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index d8db6f2a04..ff16f25547 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -32,6 +32,7 @@ func (r *devReader) Read(b []byte) (n int, err os.Error) {
+ 	if r.f == nil {
+ 		f, err := os.Open(r.name, os.O_RDONLY, 0)
+ 		if f == nil {
++			r.mu.Unlock()
+ 			return 0, err
+ 		}
+ 		r.f = f
+diff --git a/src/pkg/crypto/rand/rand_windows.go b/src/pkg/crypto/rand/rand_windows.go
+index 9bab2cba88..4b2b7a26f3 100755
+--- a/src/pkg/crypto/rand/rand_windows.go
++++ b/src/pkg/crypto/rand/rand_windows.go
+@@ -30,6 +30,7 @@ func (r *rngReader) Read(b []byte) (n int, err os.Error) {
+ 		const flags = syscall.CRYPT_VERIFYCONTEXT | syscall.CRYPT_SILENT
+ 		ok, errno := syscall.CryptAcquireContext(&r.prov, nil, nil, provType, flags)
+ 		if !ok {
++			r.mu.Unlock()
+ 			return 0, os.NewSyscallError("CryptAcquireContext", errno)
+ 		}
+ 	}

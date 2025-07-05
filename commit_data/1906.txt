@@ -8,7 +8,7 @@ Date:   Mon Mar 30 00:01:07 2009 -0700
     DELTA=1926  (1727 added, 168 deleted, 31 changed)
     OCL=26876
     CL=26878
-
+---
  src/runtime/386/asm.s                  | 215 +++++++++
  src/runtime/386/closure.c              | 101 +++++
  src/runtime/386/traceback.c            | 149 +++++++
@@ -35,3 +35,2265 @@ Date:   Mon Mar 30 00:01:07 2009 -0700
  src/runtime/runtime.h                  |  11 +-
  src/runtime/symtab.c                   |  16 +-
  25 files changed, 1720 insertions(+), 92 deletions(-)
+
+diff --git a/src/runtime/386/asm.s b/src/runtime/386/asm.s
+new file mode 100644
+index 0000000000..3ef8d8e47c
+--- /dev/null
++++ b/src/runtime/386/asm.s
+@@ -0,0 +1,215 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT _rt0_386(SB),7,$0
++	// copy arguments forward on an even stack
++	MOVL	0(SP), AX		// argc
++	LEAL	4(SP), BX		// argv
++	SUBL	$128, SP		// plenty of scratch
++	ANDL	$~7, SP
++	MOVL	AX, 120(SP)		// save argc, argv away
++	MOVL	BX, 124(SP)
++
++/*
++	// write "go386\n"
++	PUSHL	$6
++	PUSHL	$hello(SB)
++	PUSHL	$1
++	CALL	sys·write(SB)
++	POPL	AX
++	POPL	AX
++	POPL	AX
++*/
++
++	CALL	ldt0setup(SB)
++
++	// set up %fs to refer to that ldt entry
++	MOVL	$(7*8+7), AX
++	MOVW	AX, FS
++
++	// store through it, to make sure it works
++	MOVL	$0x123, 0(FS)
++	MOVL	tls0(SB), AX
++	CMPL	AX, $0x123
++	JEQ	ok
++	MOVL	AX, 0
++ok:
++
++	// set up m and g "registers"
++	// g is 0(FS), m is 4(FS)
++	LEAL	g0(SB), CX
++	MOVL	CX, 0(FS)
++	LEAL	m0(SB), AX
++	MOVL	AX, 4(FS)
++
++	// save m->g0 = g0
++	MOVL	CX, 0(AX)
++
++	// create istack out of the OS stack
++	LEAL	(-8192+104)(SP), AX	// TODO: 104?
++	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
++	MOVL	SP, 4(CX)	// 12(g) is base
++	CALL	emptyfunc(SB)	// fault if stack check is wrong
++
++	// convention is D is always cleared
++	CLD
++
++	CALL	check(SB)
++
++	// saved argc, argv
++	MOVL	120(SP), AX
++	MOVL	AX, 0(SP)
++	MOVL	124(SP), AX
++	MOVL	AX, 4(SP)
++	CALL	args(SB)
++	CALL	osinit(SB)
++	CALL	schedinit(SB)
++
++	// create a new goroutine to start program
++	PUSHL	$mainstart(SB)	// entry
++	PUSHL	$8	// arg size
++	CALL	sys·newproc(SB)
++	POPL	AX
++	POPL	AX
++
++	// start this M
++	CALL	mstart(SB)
++
++	INT $3
++	RET
++
++TEXT mainstart(SB),7,$0
++	CALL	main·init(SB)
++	CALL	initdone(SB)
++	CALL	main·main(SB)
++	PUSHL	$0
++	CALL	sys·Exit(SB)
++	POPL	AX
++	INT $3
++	RET
++
++TEXT	sys·Breakpoint(SB),7,$0
++	BYTE $0xcc
++	RET
++
++// go-routine
++TEXT	gogo(SB), 7, $0
++	MOVL	4(SP), AX	// gobuf
++	MOVL	0(AX), SP	// restore SP
++	MOVL	4(AX), AX
++	MOVL	AX, 0(SP)	// put PC on the stack
++	MOVL	$1, AX
++	RET
++
++TEXT gosave(SB), 7, $0
++	MOVL	4(SP), AX	// gobuf
++	MOVL	SP, 0(AX)	// save SP
++	MOVL	0(SP), BX
++	MOVL	BX, 4(AX)	// save PC
++	MOVL	$0, AX	// return 0
++	RET
++
++// support for morestack
++
++// return point when leaving new stack.
++// save AX, jmp to lesstack to switch back
++TEXT	retfromnewstack(SB),7,$0
++	MOVL	4(FS), BX	// m
++	MOVL	AX, 8(BX)	// save AX in m->cret
++	JMP	lessstack(SB)
++
++// gogo, returning 2nd arg instead of 1
++TEXT gogoret(SB), 7, $0
++	MOVL	8(SP), AX	// return 2nd arg
++	MOVL	4(SP), BX	// gobuf
++	MOVL	0(BX), SP	// restore SP
++	MOVL	4(BX), BX
++	MOVL	BX, 0(SP)	// put PC on the stack
++	RET
++
++TEXT setspgoto(SB), 7, $0
++	MOVL	4(SP), AX	// SP
++	MOVL	8(SP), BX	// fn to call
++	MOVL	12(SP), CX	// fn to return
++	MOVL	AX, SP
++	PUSHL	CX
++	JMP	BX
++	POPL	AX
++	RET
++
++// bool cas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	}else
++//		return 0;
++TEXT cas(SB), 7, $0
++	MOVL	4(SP), BX
++	MOVL	8(SP), AX
++	MOVL	12(SP), CX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	JZ 3(PC)
++	MOVL	$0, AX
++	RET
++	MOVL	$1, AX
++	RET
++
++// void jmpdefer(byte*);
++// 1. pop the caller
++// 2. sub 5 bytes from the callers return
++// 3. jmp to the argument
++TEXT jmpdefer(SB), 7, $0
++	MOVL	4(SP), AX	// function
++	ADDL	$(4+56), SP	// pop saved PC and callers frame
++	SUBL	$5, (SP)	// reposition his return address
++	JMP	AX		// and goto function
++
++TEXT	sys·memclr(SB),7,$0
++	MOVL	4(SP), DI		// arg 1 addr
++	MOVL	8(SP), CX		// arg 2 count
++	ADDL	$3, CX
++	SHRL	$2, CX
++	MOVL	$0, AX
++	CLD
++	REP
++	STOSL
++	RET
++
++TEXT	sys·getcallerpc+0(SB),7,$0
++	MOVL	x+0(FP),AX		// addr of first arg
++	MOVL	-4(AX),AX		// get calling pc
++	RET
++
++TEXT	sys·setcallerpc+0(SB),7,$0
++	MOVL	x+0(FP),AX		// addr of first arg
++	MOVL	x+4(FP), BX
++	MOVL	BX, -4(AX)		// set calling pc
++	RET
++
++TEXT ldt0setup(SB),7,$16
++	// set up ldt 7 to point at tls0
++	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
++	MOVL	$7, 0(SP)
++	LEAL	tls0(SB), AX
++	MOVL	AX, 4(SP)
++	MOVL	$32, 8(SP)	// sizeof(tls array)
++	CALL	setldt(SB)
++	RET
++
++GLOBL m0+0(SB), $1024
++GLOBL g0+0(SB), $1024
++
++GLOBL tls0+0(SB), $32
++
++TEXT emptyfunc(SB),0,$0
++	RET
++
++TEXT	abort(SB),7,$0
++	INT $0x3
++
++DATA hello+0(SB)/8, $"go386\n\z\z"
++GLOBL hello+0(SB), $8
++
+diff --git a/src/runtime/386/closure.c b/src/runtime/386/closure.c
+new file mode 100644
+index 0000000000..8b7f8d2911
+--- /dev/null
++++ b/src/runtime/386/closure.c
+@@ -0,0 +1,101 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++#pragma textflag 7
++// func closure(siz int32,
++//	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
++//	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
++void
++sys·closure(int32 siz, byte *fn, byte *arg0)
++{
++	byte *p, *q, **ret;
++	int32 i, n;
++	int32 pcrel;
++
++	if(siz < 0 || siz%4 != 0)
++		throw("bad closure size");
++
++	ret = (byte**)((byte*)&arg0 + siz);
++
++	if(siz > 100) {
++		// TODO(rsc): implement stack growth preamble?
++		throw("closure too big");
++	}
++
++	// compute size of new fn.
++	// must match code laid out below.
++	n = 6+5+2;	// SUBL MOVL MOVL
++	if(siz <= 4*4)
++		n += 1*siz/4;	// MOVSL MOVSL...
++	else
++		n += 6+2;	// MOVL REP MOVSL
++	n += 5;	// CALL
++	n += 6+1;	// ADDL RET
++
++	// store args aligned after code, so gc can find them.
++	n += siz;
++	if(n%4)
++		n += 4 - n%4;
++
++	p = mal(n);
++	*ret = p;
++	q = p + n - siz;
++	mcpy(q, (byte*)&arg0, siz);
++
++	// SUBL $siz, SP
++	*p++ = 0x81;
++	*p++ = 0xec;
++	*(uint32*)p = siz;
++	p += 4;
++
++	// MOVL $q, SI
++	*p++ = 0xbe;
++	*(byte**)p = q;
++	p += 4;
++
++	// MOVL SP, DI
++	*p++ = 0x89;
++	*p++ = 0xe7;
++
++	if(siz <= 4*4) {
++		for(i=0; i<siz; i+=4) {
++			// MOVSL
++			*p++ = 0xa5;
++		}
++	} else {
++		// MOVL $(siz/8), CX  [32-bit immediate siz/4]
++		*p++ = 0xc7;
++		*p++ = 0xc1;
++		*(uint32*)p = siz/4;
++		p += 4;
++
++		// REP; MOVSL
++		*p++ = 0xf3;
++		*p++ = 0xa5;
++	}
++
++	// call fn
++	pcrel = fn - (p+5);
++	// direct call with pc-relative offset
++	// CALL fn
++	*p++ = 0xe8;
++	*(int32*)p = pcrel;
++	p += 4;
++
++	// ADDL $siz, SP
++	*p++ = 0x81;
++	*p++ = 0xc4;
++	*(uint32*)p = siz;
++	p += 4;
++
++	// RET
++	*p++ = 0xc3;
++
++	if(p > q)
++		throw("bad math in sys.closure");
++}
++
++
+diff --git a/src/runtime/386/traceback.c b/src/runtime/386/traceback.c
+new file mode 100644
+index 0000000000..b60512ab19
+--- /dev/null
++++ b/src/runtime/386/traceback.c
+@@ -0,0 +1,149 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// TODO(rsc): Move this into portable code, with calls to a
++// machine-dependent isclosure() function.
++
++void
++traceback(byte *pc0, byte *sp, G *g)
++{
++	Stktop *stk;
++	uintptr pc;
++	int32 i, n;
++	Func *f;
++	byte *p;
++
++	pc = (uintptr)pc0;
++
++	// If the PC is zero, it's likely a nil function call.
++	// Start in the caller's frame.
++	if(pc == 0) {
++		pc = *(uintptr*)sp;
++		sp += sizeof(uintptr);
++	}
++
++	stk = (Stktop*)g->stackbase;
++	for(n=0; n<100; n++) {
++		while(pc == (uintptr)retfromnewstack) {
++			// pop to earlier stack block
++			sp = stk->oldsp;
++			stk = (Stktop*)stk->oldbase;
++			pc = *(uintptr*)(sp+sizeof(uintptr));
++			sp += 2*sizeof(uintptr);	// two irrelevant calls on stack: morestack plus its call
++		}
++		f = findfunc(pc);
++		if(f == nil) {
++			// dangerous, but poke around to see if it is a closure
++			p = (byte*)pc;
++			// ADDL $xxx, SP; RET
++			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++				sp += *(uint32*)(p+2) + 8;
++				pc = *(uintptr*)(sp - 8);
++				if(pc <= 0x1000)
++					return;
++				continue;
++			}
++			printf("%p unknown pc\n", pc);
++			return;
++		}
++		if(f->frame < sizeof(uintptr))	// assembly funcs say 0 but lie
++			sp += sizeof(uintptr);
++		else
++			sp += f->frame;
++
++		// print this frame
++		//	main+0xf /home/rsc/go/src/runtime/x.go:23
++		//		main(0x1, 0x2, 0x3)
++		printf("%S", f->name);
++		if(pc > f->entry)
++			printf("+%p", (uintptr)(pc - f->entry));
++		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
++		printf("\t%S(", f->name);
++		for(i = 0; i < f->args; i++) {
++			if(i != 0)
++				prints(", ");
++			sys·printhex(((uint32*)sp)[i]);
++			if(i >= 4) {
++				prints(", ...");
++				break;
++			}
++		}
++		prints(")\n");
++
++		pc = *(uintptr*)(sp-sizeof(uintptr));
++		if(pc <= 0x1000)
++			return;
++	}
++	prints("...\n");
++}
++
++// func caller(n int) (pc uint64, file string, line int, ok bool)
++void
++sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
++{
++	uint64 pc;
++	byte *sp;
++	byte *p;
++	Stktop *stk;
++	Func *f;
++
++	// our caller's pc, sp.
++	sp = (byte*)&n;
++	pc = *(uint64*)(sp-8);
++	if((f = findfunc(pc)) == nil) {
++	error:
++		retpc = 0;
++		retline = 0;
++		retfile = nil;
++		retbool = false;
++		FLUSH(&retpc);
++		FLUSH(&retfile);
++		FLUSH(&retline);
++		FLUSH(&retbool);
++		return;
++	}
++
++	// now unwind n levels
++	stk = (Stktop*)g->stackbase;
++	while(n-- > 0) {
++		while(pc == (uint64)retfromnewstack) {
++			sp = stk->oldsp;
++			stk = (Stktop*)stk->oldbase;
++			pc = *(uint64*)(sp+8);
++			sp += 16;
++		}
++
++		if(f->frame < 8)	// assembly functions lie
++			sp += 8;
++		else
++			sp += f->frame;
++
++	loop:
++		pc = *(uint64*)(sp-8);
++		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
++			// dangerous, but let's try this.
++			// see if it is a closure.
++			p = (byte*)pc;
++			// ADDL $xxx, SP; RET
++			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++				sp += *(uint32*)(p+2) + 8;
++				goto loop;
++			}
++			goto error;
++		}
++	}
++
++	retpc = pc;
++	retfile = f->src;
++	retline = funcline(f, pc-1);
++	retbool = true;
++	FLUSH(&retpc);
++	FLUSH(&retfile);
++	FLUSH(&retline);
++	FLUSH(&retbool);
++}
++
++
+diff --git a/src/runtime/386/vlop.s b/src/runtime/386/vlop.s
+new file mode 100755
+index 0000000000..803276ce2e
+--- /dev/null
++++ b/src/runtime/386/vlop.s
+@@ -0,0 +1,48 @@
++// Inferno's libkern/vlop-386.s
++// http://code.google.com/p/inferno-os/source/browse/libkern/vlop-386.s
++//
++//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
++//         Portions Copyright 2009 The Go Authors. All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++/*
++ * C runtime for 64-bit divide.
++ */
++
++TEXT	_mul64by32(SB), 7, $0
++	MOVL	r+0(FP), CX
++	MOVL	a+4(FP), AX
++	MULL	b+12(FP)
++	MOVL	AX, 0(CX)
++	MOVL	DX, BX
++	MOVL	a+8(FP), AX
++	MULL	b+12(FP)
++	ADDL	AX, BX
++	MOVL	BX, 4(CX)
++	RET
++
++TEXT	_div64by32(SB), 7, $0
++	MOVL	r+12(FP), CX
++	MOVL	a+0(FP), AX
++	MOVL	a+4(FP), DX
++	DIVL	b+8(FP)
++	MOVL	DX, 0(CX)
++	RET
+diff --git a/src/runtime/386/vlrt.c b/src/runtime/386/vlrt.c
+new file mode 100755
+index 0000000000..254eb3e717
+--- /dev/null
++++ b/src/runtime/386/vlrt.c
+@@ -0,0 +1,778 @@
++// Inferno's libkern/vlrt-386.c
++// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-386.c
++//
++//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
++//         Portions Copyright 2009 The Go Authors. All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++/*
++ * C runtime for 64-bit divide, others.
++ *
++ * TODO(rsc): The simple functions are dregs--8c knows how
++ * to generate the code directly now.  Find and remove.
++ */
++
++typedef	unsigned long	ulong;
++typedef	unsigned int	uint;
++typedef	unsigned short	ushort;
++typedef	unsigned char	uchar;
++typedef	signed char	schar;
++
++#define	SIGN(n)	(1UL<<(n-1))
++
++typedef	struct	Vlong	Vlong;
++struct	Vlong
++{
++	union
++	{
++		struct
++		{
++			ulong	lo;
++			ulong	hi;
++		};
++		struct
++		{
++			ushort	lols;
++			ushort	loms;
++			ushort	hils;
++			ushort	hims;
++		};
++	};
++};
++
++void	abort(void);
++
++void _subv(Vlong*, Vlong, Vlong);
++
++void
++_d2v(Vlong *y, double d)
++{
++	union { double d; struct Vlong; } x;
++	ulong xhi, xlo, ylo, yhi;
++	int sh;
++
++	x.d = d;
++
++	xhi = (x.hi & 0xfffff) | 0x100000;
++	xlo = x.lo;
++	sh = 1075 - ((x.hi >> 20) & 0x7ff);
++
++	ylo = 0;
++	yhi = 0;
++	if(sh >= 0) {
++		/* v = (hi||lo) >> sh */
++		if(sh < 32) {
++			if(sh == 0) {
++				ylo = xlo;
++				yhi = xhi;
++			} else {
++				ylo = (xlo >> sh) | (xhi << (32-sh));
++				yhi = xhi >> sh;
++			}
++		} else {
++			if(sh == 32) {
++				ylo = xhi;
++			} else
++			if(sh < 64) {
++				ylo = xhi >> (sh-32);
++			}
++		}
++	} else {
++		/* v = (hi||lo) << -sh */
++		sh = -sh;
++		if(sh <= 10) {
++			ylo = xlo << sh;
++			yhi = (xhi << sh) | (xlo >> (32-sh));
++		} else {
++			/* overflow */
++			yhi = d;	/* causes something awful */
++		}
++	}
++	if(x.hi & SIGN(32)) {
++		if(ylo != 0) {
++			ylo = -ylo;
++			yhi = ~yhi;
++		} else
++			yhi = -yhi;
++	}
++
++	y->hi = yhi;
++	y->lo = ylo;
++}
++
++void
++_f2v(Vlong *y, float f)
++{
++
++	_d2v(y, f);
++}
++
++double
++_v2d(Vlong x)
++{
++	if(x.hi & SIGN(32)) {
++		if(x.lo) {
++			x.lo = -x.lo;
++			x.hi = ~x.hi;
++		} else
++			x.hi = -x.hi;
++		return -((long)x.hi*4294967296. + x.lo);
++	}
++	return (long)x.hi*4294967296. + x.lo;
++}
++
++float
++_v2f(Vlong x)
++{
++	return _v2d(x);
++}
++
++ulong	_div64by32(Vlong, ulong, ulong*);
++void	_mul64by32(Vlong*, Vlong, ulong);
++
++static void
++slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
++{
++	ulong numlo, numhi, denhi, denlo, quohi, quolo, t;
++	int i;
++
++	numhi = num.hi;
++	numlo = num.lo;
++	denhi = den.hi;
++	denlo = den.lo;
++
++	/*
++	 * get a divide by zero
++	 */
++	if(denlo==0 && denhi==0) {
++		numlo = numlo / denlo;
++	}
++
++	/*
++	 * set up the divisor and find the number of iterations needed
++	 */
++	if(numhi >= SIGN(32)) {
++		quohi = SIGN(32);
++		quolo = 0;
++	} else {
++		quohi = numhi;
++		quolo = numlo;
++	}
++	i = 0;
++	while(denhi < quohi || (denhi == quohi && denlo < quolo)) {
++		denhi = (denhi<<1) | (denlo>>31);
++		denlo <<= 1;
++		i++;
++	}
++
++	quohi = 0;
++	quolo = 0;
++	for(; i >= 0; i--) {
++		quohi = (quohi<<1) | (quolo>>31);
++		quolo <<= 1;
++		if(numhi > denhi || (numhi == denhi && numlo >= denlo)) {
++			t = numlo;
++			numlo -= denlo;
++			if(numlo > t)
++				numhi--;
++			numhi -= denhi;
++			quolo |= 1;
++		}
++		denlo = (denlo>>1) | (denhi<<31);
++		denhi >>= 1;
++	}
++
++	if(q) {
++		q->lo = quolo;
++		q->hi = quohi;
++	}
++	if(r) {
++		r->lo = numlo;
++		r->hi = numhi;
++	}
++}
++
++static void
++dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
++{
++	ulong n;
++	Vlong x, q, r;
++
++	if(den.hi > num.hi || (den.hi == num.hi && den.lo > num.lo)){
++		if(qp) {
++			qp->hi = 0;
++			qp->lo = 0;
++		}
++		if(rp) {
++			rp->hi = num.hi;
++			rp->lo = num.lo;
++		}
++		return;
++	}
++
++	if(den.hi != 0){
++		q.hi = 0;
++		n = num.hi/den.hi;
++		_mul64by32(&x, den, n);
++		if(x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
++			slowdodiv(num, den, &q, &r);
++		else {
++			q.lo = n;
++			_subv(&r, num, x);
++		}
++	} else {
++		if(num.hi >= den.lo){
++			q.hi = n = num.hi/den.lo;
++			num.hi -= den.lo*n;
++		} else {
++			q.hi = 0;
++		}
++		q.lo = _div64by32(num, den.lo, &r.lo);
++		r.hi = 0;
++	}
++	if(qp) {
++		qp->lo = q.lo;
++		qp->hi = q.hi;
++	}
++	if(rp) {
++		rp->lo = r.lo;
++		rp->hi = r.hi;
++	}
++}
++
++void
++_divvu(Vlong *q, Vlong n, Vlong d)
++{
++
++	if(n.hi == 0 && d.hi == 0) {
++		q->hi = 0;
++		q->lo = n.lo / d.lo;
++		return;
++	}
++	dodiv(n, d, q, 0);
++}
++
++void
++_modvu(Vlong *r, Vlong n, Vlong d)
++{
++
++	if(n.hi == 0 && d.hi == 0) {
++		r->hi = 0;
++		r->lo = n.lo % d.lo;
++		return;
++	}
++	dodiv(n, d, 0, r);
++}
++
++static void
++vneg(Vlong *v)
++{
++
++	if(v->lo == 0) {
++		v->hi = -v->hi;
++		return;
++	}
++	v->lo = -v->lo;
++	v->hi = ~v->hi;
++}
++
++void
++_divv(Vlong *q, Vlong n, Vlong d)
++{
++	long nneg, dneg;
++
++	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
++		q->lo = (long)n.lo / (long)d.lo;
++		q->hi = ((long)q->lo) >> 31;
++		return;
++	}
++	nneg = n.hi >> 31;
++	if(nneg)
++		vneg(&n);
++	dneg = d.hi >> 31;
++	if(dneg)
++		vneg(&d);
++	dodiv(n, d, q, 0);
++	if(nneg != dneg)
++		vneg(q);
++}
++
++void
++_modv(Vlong *r, Vlong n, Vlong d)
++{
++	long nneg, dneg;
++
++	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
++		r->lo = (long)n.lo % (long)d.lo;
++		r->hi = ((long)r->lo) >> 31;
++		return;
++	}
++	nneg = n.hi >> 31;
++	if(nneg)
++		vneg(&n);
++	dneg = d.hi >> 31;
++	if(dneg)
++		vneg(&d);
++	dodiv(n, d, 0, r);
++	if(nneg)
++		vneg(r);
++}
++
++void
++_rshav(Vlong *r, Vlong a, int b)
++{
++	long t;
++
++	t = a.hi;
++	if(b >= 32) {
++		r->hi = t>>31;
++		if(b >= 64) {
++			/* this is illegal re C standard */
++			r->lo = t>>31;
++			return;
++		}
++		r->lo = t >> (b-32);
++		return;
++	}
++	if(b <= 0) {
++		r->hi = t;
++		r->lo = a.lo;
++		return;
++	}
++	r->hi = t >> b;
++	r->lo = (t << (32-b)) | (a.lo >> b);
++}
++
++void
++_rshlv(Vlong *r, Vlong a, int b)
++{
++	ulong t;
++
++	t = a.hi;
++	if(b >= 32) {
++		r->hi = 0;
++		if(b >= 64) {
++			/* this is illegal re C standard */
++			r->lo = 0;
++			return;
++		}
++		r->lo = t >> (b-32);
++		return;
++	}
++	if(b <= 0) {
++		r->hi = t;
++		r->lo = a.lo;
++		return;
++	}
++	r->hi = t >> b;
++	r->lo = (t << (32-b)) | (a.lo >> b);
++}
++
++void
++_lshv(Vlong *r, Vlong a, int b)
++{
++	ulong t;
++
++	t = a.lo;
++	if(b >= 32) {
++		r->lo = 0;
++		if(b >= 64) {
++			/* this is illegal re C standard */
++			r->hi = 0;
++			return;
++		}
++		r->hi = t << (b-32);
++		return;
++	}
++	if(b <= 0) {
++		r->lo = t;
++		r->hi = a.hi;
++		return;
++	}
++	r->lo = t << b;
++	r->hi = (t >> (32-b)) | (a.hi << b);
++}
++
++void
++_andv(Vlong *r, Vlong a, Vlong b)
++{
++	r->hi = a.hi & b.hi;
++	r->lo = a.lo & b.lo;
++}
++
++void
++_orv(Vlong *r, Vlong a, Vlong b)
++{
++	r->hi = a.hi | b.hi;
++	r->lo = a.lo | b.lo;
++}
++
++void
++_xorv(Vlong *r, Vlong a, Vlong b)
++{
++	r->hi = a.hi ^ b.hi;
++	r->lo = a.lo ^ b.lo;
++}
++
++void
++_vpp(Vlong *l, Vlong *r)
++{
++
++	l->hi = r->hi;
++	l->lo = r->lo;
++	r->lo++;
++	if(r->lo == 0)
++		r->hi++;
++}
++
++void
++_vmm(Vlong *l, Vlong *r)
++{
++
++	l->hi = r->hi;
++	l->lo = r->lo;
++	if(r->lo == 0)
++		r->hi--;
++	r->lo--;
++}
++
++void
++_ppv(Vlong *l, Vlong *r)
++{
++
++	r->lo++;
++	if(r->lo == 0)
++		r->hi++;
++	l->hi = r->hi;
++	l->lo = r->lo;
++}
++
++void
++_mmv(Vlong *l, Vlong *r)
++{
++
++	if(r->lo == 0)
++		r->hi--;
++	r->lo--;
++	l->hi = r->hi;
++	l->lo = r->lo;
++}
++
++void
++_vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
++{
++	Vlong t, u;
++
++	u.lo = 0;
++	u.hi = 0;
++	switch(type) {
++	default:
++		abort();
++		break;
++
++	case 1:	/* schar */
++		t.lo = *(schar*)lv;
++		t.hi = t.lo >> 31;
++		fn(&u, t, rv);
++		*(schar*)lv = u.lo;
++		break;
++
++	case 2:	/* uchar */
++		t.lo = *(uchar*)lv;
++		t.hi = 0;
++		fn(&u, t, rv);
++		*(uchar*)lv = u.lo;
++		break;
++
++	case 3:	/* short */
++		t.lo = *(short*)lv;
++		t.hi = t.lo >> 31;
++		fn(&u, t, rv);
++		*(short*)lv = u.lo;
++		break;
++
++	case 4:	/* ushort */
++		t.lo = *(ushort*)lv;
++		t.hi = 0;
++		fn(&u, t, rv);
++		*(ushort*)lv = u.lo;
++		break;
++
++	case 9:	/* int */
++		t.lo = *(int*)lv;
++		t.hi = t.lo >> 31;
++		fn(&u, t, rv);
++		*(int*)lv = u.lo;
++		break;
++
++	case 10:	/* uint */
++		t.lo = *(uint*)lv;
++		t.hi = 0;
++		fn(&u, t, rv);
++		*(uint*)lv = u.lo;
++		break;
++
++	case 5:	/* long */
++		t.lo = *(long*)lv;
++		t.hi = t.lo >> 31;
++		fn(&u, t, rv);
++		*(long*)lv = u.lo;
++		break;
++
++	case 6:	/* ulong */
++		t.lo = *(ulong*)lv;
++		t.hi = 0;
++		fn(&u, t, rv);
++		*(ulong*)lv = u.lo;
++		break;
++
++	case 7:	/* vlong */
++	case 8:	/* uvlong */
++		fn(&u, *(Vlong*)lv, rv);
++		*(Vlong*)lv = u;
++		break;
++	}
++	*ret = u;
++}
++
++void
++_p2v(Vlong *ret, void *p)
++{
++	long t;
++
++	t = (ulong)p;
++	ret->lo = t;
++	ret->hi = 0;
++}
++
++void
++_sl2v(Vlong *ret, long sl)
++{
++	long t;
++
++	t = sl;
++	ret->lo = t;
++	ret->hi = t >> 31;
++}
++
++void
++_ul2v(Vlong *ret, ulong ul)
++{
++	long t;
++
++	t = ul;
++	ret->lo = t;
++	ret->hi = 0;
++}
++
++void
++_si2v(Vlong *ret, int si)
++{
++	long t;
++
++	t = si;
++	ret->lo = t;
++	ret->hi = t >> 31;
++}
++
++void
++_ui2v(Vlong *ret, uint ui)
++{
++	long t;
++
++	t = ui;
++	ret->lo = t;
++	ret->hi = 0;
++}
++
++void
++_sh2v(Vlong *ret, long sh)
++{
++	long t;
++
++	t = (sh << 16) >> 16;
++	ret->lo = t;
++	ret->hi = t >> 31;
++}
++
++void
++_uh2v(Vlong *ret, ulong ul)
++{
++	long t;
++
++	t = ul & 0xffff;
++	ret->lo = t;
++	ret->hi = 0;
++}
++
++void
++_sc2v(Vlong *ret, long uc)
++{
++	long t;
++
++	t = (uc << 24) >> 24;
++	ret->lo = t;
++	ret->hi = t >> 31;
++}
++
++void
++_uc2v(Vlong *ret, ulong ul)
++{
++	long t;
++
++	t = ul & 0xff;
++	ret->lo = t;
++	ret->hi = 0;
++}
++
++long
++_v2sc(Vlong rv)
++{
++	long t;
++
++	t = rv.lo & 0xff;
++	return (t << 24) >> 24;
++}
++
++long
++_v2uc(Vlong rv)
++{
++
++	return rv.lo & 0xff;
++}
++
++long
++_v2sh(Vlong rv)
++{
++	long t;
++
++	t = rv.lo & 0xffff;
++	return (t << 16) >> 16;
++}
++
++long
++_v2uh(Vlong rv)
++{
++
++	return rv.lo & 0xffff;
++}
++
++long
++_v2sl(Vlong rv)
++{
++
++	return rv.lo;
++}
++
++long
++_v2ul(Vlong rv)
++{
++
++	return rv.lo;
++}
++
++long
++_v2si(Vlong rv)
++{
++
++	return rv.lo;
++}
++
++long
++_v2ui(Vlong rv)
++{
++
++	return rv.lo;
++}
++
++int
++_testv(Vlong rv)
++{
++	return rv.lo || rv.hi;
++}
++
++int
++_eqv(Vlong lv, Vlong rv)
++{
++	return lv.lo == rv.lo && lv.hi == rv.hi;
++}
++
++int
++_nev(Vlong lv, Vlong rv)
++{
++	return lv.lo != rv.lo || lv.hi != rv.hi;
++}
++
++int
++_ltv(Vlong lv, Vlong rv)
++{
++	return (long)lv.hi < (long)rv.hi ||
++		(lv.hi == rv.hi && lv.lo < rv.lo);
++}
++
++int
++_lev(Vlong lv, Vlong rv)
++{
++	return (long)lv.hi < (long)rv.hi ||
++		(lv.hi == rv.hi && lv.lo <= rv.lo);
++}
++
++int
++_gtv(Vlong lv, Vlong rv)
++{
++	return (long)lv.hi > (long)rv.hi ||
++		(lv.hi == rv.hi && lv.lo > rv.lo);
++}
++
++int
++_gev(Vlong lv, Vlong rv)
++{
++	return (long)lv.hi > (long)rv.hi ||
++		(lv.hi == rv.hi && lv.lo >= rv.lo);
++}
++
++int
++_lov(Vlong lv, Vlong rv)
++{
++	return lv.hi < rv.hi ||
++		(lv.hi == rv.hi && lv.lo < rv.lo);
++}
++
++int
++_lsv(Vlong lv, Vlong rv)
++{
++	return lv.hi < rv.hi ||
++		(lv.hi == rv.hi && lv.lo <= rv.lo);
++}
++
++int
++_hiv(Vlong lv, Vlong rv)
++{
++	return lv.hi > rv.hi ||
++		(lv.hi == rv.hi && lv.lo > rv.lo);
++}
++
++int
++_hsv(Vlong lv, Vlong rv)
++{
++	return lv.hi > rv.hi ||
++		(lv.hi == rv.hi && lv.lo >= rv.lo);
++}
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index 633576755b..cd3d3c3100 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -2,13 +2,32 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF
+-O=6
++# Set SIZE to 32 or 64.
++SIZE_386=32
++SIZE_amd64=64
++SIZE=$(SIZE_$(GOARCH))
++
++# Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
++CFLAGS_64=-D_64BIT
++CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE))
++
++# Set O to right letter.
++O_386=8
++O_amd64=6
++O=$(O_$(GOARCH))
++
++# Tools
+ CC=$(O)c
+ AS=$(O)a
++AR=6ar  # sic
+ 
+ LIB=lib.a
+ 
++# 386-specific object files
++OFILES_386=\
++	vlop.$O\
++	vlrt.$O\
++
+ OFILES=\
+ 	array.$O\
+ 	asm.$O\
+@@ -26,7 +45,7 @@ OFILES=\
+ 	mfixalloc.$O\
+ 	mgc0.$O\
+ 	mheap.$O\
+-	mheapmap64.$O\
++	mheapmap$(SIZE).$O\
+ 	msize.$O\
+ 	print.$O\
+ 	proc.$O\
+@@ -41,6 +60,7 @@ OFILES=\
+ 	sys.$O\
+ 	thread.$O\
+ 	traceback.$O\
++	$(OFILES_$(GOARCH))\
+ 
+ HFILES=\
+ 	runtime.h\
+@@ -54,15 +74,15 @@ install: $(LIB) runtime.acid
+ 	cp runtime.acid $(GOROOT)/acid/runtime.acid
+ 
+ $(LIB): $(OFILES)
+-	$(O)ar rc $(LIB) $(OFILES)
++	$(AR) rc $(LIB) $(OFILES)
+ 
+ $(OFILES): $(HFILES)
+ 
+ nuke:
+-	rm -f *.$(O) *.a $(GOROOT)/lib/$(LIB)
++	rm -f *.[68] *.a $(GOROOT)/lib/$(LIB)
+ 
+ clean:
+-	rm -f *.$(O) *.a runtime.acid cgo2c
++	rm -f *.[68] *.a runtime.acid cgo2c
+ 
+ %.$O:	%.c
+ 	$(CC) $(CFLAGS) $<
+diff --git a/src/runtime/amd64/asm.s b/src/runtime/amd64/asm.s
+index f8d4a381b3..4557527b9a 100644
+--- a/src/runtime/amd64/asm.s
++++ b/src/runtime/amd64/asm.s
+@@ -64,9 +64,6 @@ TEXT	sys·Breakpoint(SB),7,$0
+ 	BYTE	$0xcc
+ 	RET
+ 
+-TEXT	FLUSH(SB),7,$0
+-	RET
+-
+ /*
+  *  go-routine
+  */
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 4da62de4f6..154374b1f4 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -21,7 +21,7 @@ struct	Sigt
+ 	uint32	mhash;                  // hash of methods
+ 	uint16	width;			// width of base type in bytes
+ 	uint16	alg;			// algorithm
+-	uint32	pad;
++	// note: on amd64 there is a 32-bit pad here.
+ 	struct {
+ 		byte*	fname;
+ 		uint32	fhash;		// hash of type
+@@ -253,7 +253,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
+ 
+ 	wid = st->width;
+ 	alg = st->alg;
+-	ret = (Iface*)(elem + rnd(wid, 8));
++	ret = (Iface*)(elem + rnd(wid, sizeof(uintptr)));
+ 	ret->type = itype(si, st, 0);
+ 
+ 	if(wid <= sizeof(ret->data))
+diff --git a/src/runtime/linux/386/signal.c b/src/runtime/linux/386/signal.c
+new file mode 100644
+index 0000000000..9cbd9fa855
+--- /dev/null
++++ b/src/runtime/linux/386/signal.c
+@@ -0,0 +1,102 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs.h"
++#include "signals.h"
++#include "os.h"
++
++void
++dumpregs(Sigcontext *r)
++{
++	printf("eax     %X\n", r->eax);
++	printf("ebx     %X\n", r->ebx);
++	printf("ecx     %X\n", r->ecx);
++	printf("edx     %X\n", r->edx);
++	printf("edi     %X\n", r->edi);
++	printf("esi     %X\n", r->esi);
++	printf("ebp     %X\n", r->ebp);
++	printf("esp     %X\n", r->esp);
++	printf("eip     %X\n", r->eip);
++	printf("eflags  %X\n", r->eflags);
++	printf("cs      %X\n", r->cs);
++	printf("fs      %X\n", r->fs);
++	printf("gs      %X\n", r->gs);
++}
++
++/*
++ * This assembler routine takes the args from registers, puts them on the stack,
++ * and calls sighandler().
++ */
++extern void sigtramp(void);
++extern void sigignore(void);	// just returns
++extern void sigreturn(void);	// calls sigreturn
++
++void
++sighandler(int32 sig, Siginfo* info, void* context)
++{
++	Ucontext *uc;
++	Sigcontext *sc;
++
++	if(panicking)	// traceback already printed
++		sys_Exit(2);
++	panicking = 1;
++
++	uc = context;
++	sc = &uc->uc_mcontext;
++
++	if(sig < 0 || sig >= NSIG)
++		printf("Signal %d\n", sig);
++	else
++		printf("%s\n", sigtab[sig].name);
++
++	printf("Faulting address: %p\n", *(void**)info->_sifields);
++	printf("pc=%X\n", sc->eip);
++	printf("\n");
++
++	if(gotraceback()){
++		traceback((void*)sc->eip, (void*)sc->esp, m->curg);
++		tracebackothers(m->curg);
++		dumpregs(sc);
++	}
++
++	sys·Breakpoint();
++	sys_Exit(2);
++}
++
++void
++signalstack(byte *p, int32 n)
++{
++	Sigaltstack st;
++
++	st.ss_sp = p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	sigaltstack(&st, nil);
++}
++
++void
++initsig(void)
++{
++	static Sigaction sa;
++
++	int32 i;
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
++	sa.sa_restorer = (void*)sigreturn;
++	for(i = 0; i<NSIG; i++) {
++		if(sigtab[i].flags) {
++			if(sigtab[i].flags & SigCatch)
++				*(void**)sa._u = (void*)sigtramp;	// handler
++			else
++				*(void**)sa._u = (void*)sigignore;	// handler
++			if(sigtab[i].flags & SigRestart)
++				sa.sa_flags |= SA_RESTART;
++			else
++				sa.sa_flags &= ~SA_RESTART;
++			rt_sigaction(i, &sa, nil, 8);
++		}
++	}
++}
++
+diff --git a/src/runtime/linux/signal.c b/src/runtime/linux/amd64/signal.c
+similarity index 97%
+rename from src/runtime/linux/signal.c
+rename to src/runtime/linux/amd64/signal.c
+index 87bea263af..5f3574f8e2 100644
+--- a/src/runtime/linux/signal.c
++++ b/src/runtime/linux/amd64/signal.c
+@@ -1,4 +1,4 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -50,6 +50,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 
+ 	if(panicking)	// traceback already printed
+ 		sys_Exit(2);
++	panicking = 1;
+ 
+ 	uc = context;
+ 	mc = &uc->uc_mcontext;
+diff --git a/src/runtime/linux/amd64/sys.s b/src/runtime/linux/amd64/sys.s
+index 49349bb48b..5c4d98f973 100644
+--- a/src/runtime/linux/amd64/sys.s
++++ b/src/runtime/linux/amd64/sys.s
+@@ -97,14 +97,6 @@ TEXT	sys·mmap(SB),7,$0-32
+ 	MOVL	28(SP), R8
+ 	MOVL	32(SP), R9
+ 
+-/* flags arg for ANON is 1000 but sb 20 */
+-	MOVL	CX, AX
+-	ANDL	$~0x1000, CX
+-	ANDL	$0x1000, AX
+-	SHRL	$7, AX
+-	ORL	AX, CX
+-
+-	MOVL	CX, R10
+ 	MOVL	$9, AX			// syscall entry
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+diff --git a/src/runtime/linux/defs.c b/src/runtime/linux/defs.c
+index 9e635b429a..35fa029532 100644
+--- a/src/runtime/linux/defs.c
++++ b/src/runtime/linux/defs.c
+@@ -6,8 +6,6 @@
+  * Input to godefs
+ 	godefs -f -m64 defs.c >amd64/defs.h
+ 	godefs -f -m64 defs1.c >>amd64/defs.h
+-	godefs defs.c >386/defs.h
+-	godefs defs1.c >>386/defs.h
+  */
+ 
+ // Linux glibc and Linux kernel define different and conflicting
+diff --git a/src/runtime/linux/defs1.c b/src/runtime/linux/defs1.c
+index 72de5c1fd6..0fe3506ad6 100644
+--- a/src/runtime/linux/defs1.c
++++ b/src/runtime/linux/defs1.c
+@@ -6,8 +6,6 @@
+  * Input to godefs
+ 	godefs -f -m64 defs.c >amd64/defs.h
+ 	godefs -f -m64 defs1.c >>amd64/defs.h
+-	godefs defs.c >386/defs.h
+-	godefs defs1.c >>386/defs.h
+  */
+ 
+ #include <ucontext.h>
+@@ -16,9 +14,11 @@ typedef __sigset_t $Usigset;
+ typedef struct _libc_fpxreg $Fpxreg;
+ typedef struct _libc_xmmreg $Xmmreg;
+ typedef struct _libc_fpstate $Fpstate;
++typedef struct _libc_fpreg $Fpreg;
+ typedef struct _fpxreg $Fpxreg1;
+ typedef struct _xmmreg $Xmmreg1;
+ typedef struct _fpstate $Fpstate1;
++typedef struct _fpreg $Fpreg1;
+ typedef struct sigaltstack $Sigaltstack;
+ typedef mcontext_t $Mcontext;
+ typedef ucontext_t $Ucontext;
+diff --git a/src/runtime/linux/defs2.c b/src/runtime/linux/defs2.c
+new file mode 100644
+index 0000000000..aa0331a375
+--- /dev/null
++++ b/src/runtime/linux/defs2.c
+@@ -0,0 +1,51 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Input to godefs
++	godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c >386/defs.h
++
++ * The asm header tricks we have to use for Linux on amd64
++ * (see defs.c and defs1.c) don't work here, so this is yet another
++ * file.  Sigh.
++ */
++
++#include <asm/signal.h>
++#include <asm/mman.h>
++#include <asm/sigframe.h>
++#include <asm/ucontext.h>
++
++/*
++#include <sys/signal.h>
++#include <sys/mman.h>
++#include <ucontext.h>
++*/
++
++enum {
++	$PROT_NONE = PROT_NONE,
++	$PROT_READ = PROT_READ,
++	$PROT_WRITE = PROT_WRITE,
++	$PROT_EXEC = PROT_EXEC,
++
++	$MAP_ANON = MAP_ANONYMOUS,
++	$MAP_PRIVATE = MAP_PRIVATE,
++
++	$SA_RESTART = SA_RESTART,
++	$SA_ONSTACK = SA_ONSTACK,
++	$SA_RESTORER = SA_RESTORER,
++	$SA_SIGINFO = SA_SIGINFO,
++};
++
++typedef struct _fpreg $Fpreg;
++typedef struct _fpxreg $Fpxreg;
++typedef struct _xmmreg $Xmmreg;
++typedef struct _fpstate $Fpstate;
++typedef struct timespec $Timespec;
++typedef struct timeval $Timeval;
++typedef struct sigaction $Sigaction;
++typedef siginfo_t $Siginfo;
++typedef struct sigaltstack $Sigaltstack;
++typedef struct sigcontext $Sigcontext;
++typedef struct ucontext $Ucontext;
++
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 0a1ab28041..5f23f0f645 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -9,6 +9,7 @@
+ 
+ #include "runtime.h"
+ #include "malloc.h"
++#include "defs.h"
+ 
+ MHeap mheap;
+ MStats mstats;
+@@ -163,10 +164,10 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
+ 	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
+ 	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
+ 		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
+-			s->state, s, p, s->sizeclass, nobj, n, s->npages);
++			s->state, s, p, s->sizeclass, (uint64)nobj, (uint64)n, (uint64)s->npages);
+ 		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
+-			s->sizeclass, v, p, s->gcref, s->npages<<PageShift,
+-			nobj, n, s->gcref + nobj, p+(s->npages<<PageShift));
++			s->sizeclass, v, p, s->gcref, (uint64)s->npages<<PageShift,
++			(uint64)nobj, (uint64)n, s->gcref + nobj, p+(s->npages<<PageShift));
+ 		throw("bad gcref");
+ 	}
+ 	if(ref)
+@@ -192,28 +193,11 @@ mallocinit(void)
+ 	free(malloc(1));
+ }
+ 
+-// TODO(rsc): Move elsewhere.
+-enum
+-{
+-	NHUNK		= 20<<20,
+-
+-	PROT_NONE	= 0x00,
+-	PROT_READ	= 0x01,
+-	PROT_WRITE	= 0x02,
+-	PROT_EXEC	= 0x04,
+-
+-	MAP_FILE	= 0x0000,
+-	MAP_SHARED	= 0x0001,
+-	MAP_PRIVATE	= 0x0002,
+-	MAP_FIXED	= 0x0010,
+-	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
+-};
+-
+ void*
+ SysAlloc(uintptr n)
+ {
+ 	mstats.sys += n;
+-	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
++	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
+ void
+@@ -284,7 +268,7 @@ stackalloc(uint32 n)
+ 		if(stacks.size == 0)
+ 			FixAlloc_Init(&stacks, n, SysAlloc, nil, nil);
+ 		if(stacks.size != n) {
+-			printf("stackalloc: in malloc, size=%D want %d", stacks.size, n);
++			printf("stackalloc: in malloc, size=%D want %d", (uint64)stacks.size, n);
+ 			throw("stackalloc");
+ 		}
+ 		v = FixAlloc_Alloc(&stacks);
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index 8c48d05ef1..9b3d6b811c 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -101,6 +101,11 @@ enum
+ 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
+ };
+ 
++#ifdef _64BIT
++#include "mheapmap64.h"
++#else
++#include "mheapmap32.h"
++#endif
+ 
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+ struct MLink
+@@ -253,8 +258,6 @@ void	MCentral_Init(MCentral *c, int32 sizeclass);
+ int32	MCentral_AllocList(MCentral *c, int32 n, MLink **first);
+ void	MCentral_FreeList(MCentral *c, int32 n, MLink *first);
+ 
+-#include "mheapmap64.h"
+-
+ // Main malloc heap.
+ // The heap itself is the "free[]" and "large" arrays,
+ // but all the other global data is here too.
+diff --git a/src/runtime/mem.c b/src/runtime/mem.c
+index e2208d7bd3..7ed299eb0e 100644
+--- a/src/runtime/mem.c
++++ b/src/runtime/mem.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "defs.h"
+ 
+ // Stubs for memory management.
+ // In a separate file so they can be overridden during testing of gc.
+@@ -10,17 +11,6 @@
+ enum
+ {
+ 	NHUNK		= 20<<20,
+-
+-	PROT_NONE	= 0x00,
+-	PROT_READ	= 0x01,
+-	PROT_WRITE	= 0x02,
+-	PROT_EXEC	= 0x04,
+-
+-	MAP_FILE	= 0x0000,
+-	MAP_SHARED	= 0x0001,
+-	MAP_PRIVATE	= 0x0002,
+-	MAP_FIXED	= 0x0010,
+-	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
+ };
+ 
+ // Convenient wrapper around mmap.
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index ecb55b57a8..9c4061f6ec 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -109,7 +109,7 @@ sweepspan(MSpan *s)
+ 
+ 	if(s->state != MSpanInUse)
+ 		return;
+-	
++
+ 	p = (byte*)(s->start << PageShift);
+ 	if(s->sizeclass == 0) {
+ 		// Large block.
+@@ -122,7 +122,7 @@ sweepspan(MSpan *s)
+ 			break;
+ 		case RefNone:
+ 			if(Debug)
+-				printf("free %D at %p\n", s->npages<<PageShift, p);
++				printf("free %D at %p\n", (uint64)s->npages<<PageShift, p);
+ 			free(p);
+ 			break;
+ 		case RefSome:
+diff --git a/src/runtime/mheapmap32.c b/src/runtime/mheapmap32.c
+new file mode 100644
+index 0000000000..420ca2d833
+--- /dev/null
++++ b/src/runtime/mheapmap32.c
+@@ -0,0 +1,96 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Heap map, 32-bit version
++// See malloc.h and mheap.c for overview.
++
++#include "runtime.h"
++#include "malloc.h"
++
++// 3-level radix tree mapping page ids to Span*.
++void
++MHeapMap_Init(MHeapMap *m, void *(*allocator)(size_t))
++{
++	m->allocator = allocator;
++}
++
++MSpan*
++MHeapMap_Get(MHeapMap *m, PageID k)
++{
++	int32 i1, i2;
++
++	i2 = k & MHeapMap_Level2Mask;
++	k >>= MHeapMap_Level2Bits;
++	i1 = k & MHeapMap_Level1Mask;
++	k >>= MHeapMap_Level1Bits;
++	if(k != 0)
++		throw("MHeapMap_Get");
++
++	return m->p[i1]->s[i2];
++}
++
++MSpan*
++MHeapMap_GetMaybe(MHeapMap *m, PageID k)
++{
++	int32 i1, i2;
++	MHeapMapNode2 *p2;
++
++	i2 = k & MHeapMap_Level2Mask;
++	k >>= MHeapMap_Level2Bits;
++	i1 = k & MHeapMap_Level1Mask;
++	k >>= MHeapMap_Level1Bits;
++	if(k != 0)
++		throw("MHeapMap_Get");
++
++	p2 = m->p[i1];
++	if(p2 == nil)
++		return nil;
++	return p2->s[i2];
++}
++
++void
++MHeapMap_Set(MHeapMap *m, PageID k, MSpan *s)
++{
++	int32 i1, i2;
++
++	i2 = k & MHeapMap_Level2Mask;
++	k >>= MHeapMap_Level2Bits;
++	i1 = k & MHeapMap_Level1Mask;
++	k >>= MHeapMap_Level1Bits;
++	if(k != 0)
++		throw("MHeapMap_Set");
++
++	m->p[i1]->s[i2] = s;
++}
++
++// Allocate the storage required for entries [k, k+1, ..., k+len-1]
++// so that Get and Set calls need not check for nil pointers.
++bool
++MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
++{
++	uintptr end;
++	int32 i1;
++	MHeapMapNode2 *p2;
++
++	end = k+len;
++	while(k < end) {
++		if((k >> MHeapMap_TotalBits) != 0)
++			return false;
++		i1 = (k >> MHeapMap_Level2Bits) & MHeapMap_Level1Mask;
++
++		// first-level pointer
++		if(m->p[i1] == nil) {
++			p2 = m->allocator(sizeof *p2);
++			if(p2 == nil)
++				return false;
++			sys_memclr((byte*)p2, sizeof *p2);
++			m->p[i1] = p2;
++		}
++
++		// advance key past this leaf node
++		k = ((k >> MHeapMap_Level2Bits) + 1) << MHeapMap_Level2Bits;
++	}
++	return true;
++}
++
+diff --git a/src/runtime/mheapmap32.h b/src/runtime/mheapmap32.h
+new file mode 100644
+index 0000000000..0a16ccd100
+--- /dev/null
++++ b/src/runtime/mheapmap32.h
+@@ -0,0 +1,76 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Free(v) must be able to determine the MSpan containing v.
++// The MHeapMap is a 2-level radix tree mapping page numbers to MSpans.
++
++typedef struct MHeapMapNode2 MHeapMapNode2;
++
++enum
++{
++	// 32 bit address - 12 bit page size = 20 bits to map
++	MHeapMap_Level1Bits = 10,
++	MHeapMap_Level2Bits = 10,
++
++	MHeapMap_TotalBits =
++		MHeapMap_Level1Bits +
++		MHeapMap_Level2Bits,
++
++	MHeapMap_Level1Mask = (1<<MHeapMap_Level1Bits) - 1,
++	MHeapMap_Level2Mask = (1<<MHeapMap_Level2Bits) - 1,
++};
++
++struct MHeapMap
++{
++	void *(*allocator)(uintptr);
++	MHeapMapNode2 *p[1<<MHeapMap_Level1Bits];
++};
++
++struct MHeapMapNode2
++{
++	MSpan *s[1<<MHeapMap_Level2Bits];
++};
++
++void	MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr));
++bool	MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr npages);
++MSpan*	MHeapMap_Get(MHeapMap *m, PageID k);
++MSpan*	MHeapMap_GetMaybe(MHeapMap *m, PageID k);
++void	MHeapMap_Set(MHeapMap *m, PageID k, MSpan *v);
++
++
++// Much of the time, free(v) needs to know only the size class for v,
++// not which span it came from.  The MHeapMap finds the size class
++// by looking up the span.
++//
++// An MHeapMapCache is a simple direct-mapped cache translating
++// page numbers to size classes.  It avoids the expensive MHeapMap
++// lookup for hot pages.
++//
++// The cache entries are 32 bits, with the page number in the low part
++// and the value at the top.
++//
++// NOTE(rsc): On a machine with 32-bit addresses (= 20-bit page numbers),
++// we can use a 16-bit cache entry by not storing the redundant 12 bits
++// of the key that are used as the entry index.  For now, keep it simple.
++enum
++{
++	MHeapMapCache_HashBits = 12
++};
++
++struct MHeapMapCache
++{
++	uint32 array[1<<MHeapMapCache_HashBits];
++};
++
++// All macros for speed (sorry).
++#define HMASK	((1<<MHeapMapCache_HashBits)-1)
++#define KBITS	MHeapMap_TotalBits
++#define KMASK	((1LL<<KBITS)-1)
++
++#define MHeapMapCache_SET(cache, key, value) \
++	((cache)->array[(key) & HMASK] = (key) | ((uintptr)(value) << KBITS))
++
++#define MHeapMapCache_GET(cache, key, tmp) \
++	(tmp = (cache)->array[(key) & HMASK], \
++	 (tmp & KMASK) == (key) ? (tmp >> KBITS) : 0)
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index bdd9abc955..987f6a5a62 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -34,7 +34,7 @@ void
+ printf(int8 *s, ...)
+ {
+ 	int8 *p, *lp;
+-	byte *arg;
++	byte *arg, *narg;
+ 
+ 	lp = p = s;
+ 	arg = (byte*)(&s+1);
+@@ -44,46 +44,50 @@ printf(int8 *s, ...)
+ 		if(p > lp)
+ 			sys·write(1, lp, p-lp);
+ 		p++;
++		narg = nil;
++		switch(*p) {
++		case 'd':	// 32-bit
++		case 'x':
++			narg = arg + 4;
++			break;
++		case 'D':	// 64-bit
++		case 'X':
++			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
++				arg += 4;
++			narg = arg + 8;
++			break;
++		case 'p':	// pointer-sized
++		case 's':
++		case 'S':
++			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
++				arg += 4;
++			narg = arg + sizeof(uintptr);
++			break;
++		}
+ 		switch(*p) {
+ 		case 'd':
+ 			sys·printint(*(int32*)arg);
+-			arg += 4;
+ 			break;
+ 		case 'D':
+-			if(((uint32)(uint64)arg)&4)
+-				arg += 4;
+ 			sys·printint(*(int64*)arg);
+-			arg += 8;
+ 			break;
+ 		case 'x':
+ 			sys·printhex(*(int32*)arg);
+-			arg += 4;
+ 			break;
+ 		case 'X':
+-			if(((uint32)(uint64)arg)&4)
+-				arg += 4;
+ 			sys·printhex(*(int64*)arg);
+-			arg += 8;
+ 			break;
+ 		case 'p':
+-			if(((uint32)(uint64)arg)&4)
+-				arg += 4;
+ 			sys·printpointer(*(void**)arg);
+-			arg += 8;
+ 			break;
+ 		case 's':
+-			if(((uint32)(uint64)arg)&4)
+-				arg += 4;
+ 			prints(*(int8**)arg);
+-			arg += 8;
+ 			break;
+ 		case 'S':
+-			if(((uint32)(uint64)arg)&4)
+-				arg += 4;
+ 			sys·printstring(*(string*)arg);
+-			arg += 8;
+ 			break;
+ 		}
++		arg = narg;
+ 		lp = p+1;
+ 	}
+ 	if(p > lp)
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index fc011cfa41..d05ce4dd1e 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -188,10 +188,10 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	sp -= siz;
+ 	mcpy(sp, (byte*)&arg0, siz);
+ 
+-	sp -= 8;
++	sp -= sizeof(uintptr);
+ 	*(byte**)sp = (byte*)sys·Goexit;
+ 
+-	sp -= 8;	// retpc used by gogo
++	sp -= sizeof(uintptr);	// retpc used by gogo
+ 	newg->sched.SP = sp;
+ 	newg->sched.PC = fn;
+ 
+@@ -251,7 +251,7 @@ tracebackothers(G *me)
+ 		if(g == me || g->status == Gdead)
+ 			continue;
+ 		printf("\ngoroutine %d:\n", g->goid);
+-		traceback(g->sched.PC, g->sched.SP+8, g);  // gogo adjusts SP by 8 (not portable!)
++		traceback(g->sched.PC, g->sched.SP+sizeof(uintptr), g);  // gogo adjusts SP by one word
+ 	}
+ }
+ 
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index a972b753f4..8a740f801e 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ 
+ int32	panicking	= 0;
+-int32	maxround	= 8;
++int32	maxround	= sizeof(uintptr);
+ 
+ int32
+ gotraceback(void)
+@@ -54,6 +54,7 @@ throw(int8 *s)
+ 	prints("throw: ");
+ 	prints(s);
+ 	prints("\n");
++	sys·panicl(-1);
+ 	*(int32*)0 = 0;
+ 	sys_Exit(1);
+ }
+@@ -183,6 +184,8 @@ getenv(int8 *s)
+ 	envv = (string*)sys·Envs.array;
+ 	envc = sys·Envs.nel;
+ 	for(i=0; i<envc; i++){
++		if(envv[i]->len <= len)
++			continue;
+ 		v = envv[i]->str;
+ 		for(j=0; j<len; j++)
+ 			if(bs[j] != v[j])
+@@ -233,8 +236,8 @@ check(void)
+ 	if(sizeof(h) != 8) throw("bad h");
+ 	if(sizeof(i) != 4) throw("bad i");
+ 	if(sizeof(j) != 8) throw("bad j");
+-	if(sizeof(k) != 8) throw("bad k");
+-	if(sizeof(l) != 8) throw("bad l");
++	if(sizeof(k) != sizeof(uintptr)) throw("bad k");
++	if(sizeof(l) != sizeof(uintptr)) throw("bad l");
+ //	prints(1"check ok\n");
+ 
+ 	uint32 z;
+@@ -417,3 +420,10 @@ algarray[] =
+ [AFAKE]	{ nohash, noequal, noprint, nocopy },
+ };
+ 
++#pragma textflag 7
++void
++FLUSH(void *v)
++{
++	USED(v);
++}
++
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index c63512db6a..8d16225031 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -15,7 +15,12 @@ typedef	signed long long int	int64;
+ typedef	unsigned long long int	uint64;
+ typedef	float			float32;
+ typedef	double			float64;
++
++#ifdef _64BIT
+ typedef	uint64		uintptr;
++#else
++typedef	uint32		uintptr;
++#endif
+ 
+ /*
+  * get rid of C types
+@@ -155,7 +160,7 @@ struct	M
+ 	uint64	cret;		// return value from C - must not move
+ 	uint64	procid;		// for debuggers - must not move
+ 	G*	gsignal;	// signal-handling G - must not move
+-	G*	curg;		// current running goroutine
++	G*	curg;		// current running goroutine - must not move
+ 	G*	lastg;		// last running goroutine - to emulate fifo
+ 	Gobuf	sched;
+ 	Gobuf	morestack;
+@@ -310,7 +315,7 @@ void	sigaltstack(void*, void*);
+ void	signalstack(byte*, int32);
+ G*	malg(int32);
+ void	minit(void);
+-Func*	findfunc(uint64);
++Func*	findfunc(uintptr);
+ int32	funcline(Func*, uint64);
+ void*	stackalloc(uint32);
+ void	stackfree(void*);
+@@ -335,7 +340,7 @@ void	free(void *v);
+ #pragma	varargck	type	"X"	int64
+ #pragma	varargck	type	"X"	uint64
+ #pragma	varargck	type	"p"	void*
+-#pragma	varargck	type	"p"	uint64
++#pragma	varargck	type	"p"	uintptr
+ #pragma	varargck	type	"s"	int8*
+ #pragma	varargck	type	"s"	uint8*
+ #pragma	varargck	type	"S"	string
+diff --git a/src/runtime/symtab.c b/src/runtime/symtab.c
+index 578e16f9c4..901a2fe531 100644
+--- a/src/runtime/symtab.c
++++ b/src/runtime/symtab.c
+@@ -14,8 +14,16 @@
+ 
+ #include "runtime.h"
+ 
++// TODO(rsc): Move this *under* the text segment.
++// Then define names for these addresses instead of hard-coding magic ones.
++#ifdef _64BIT
+ #define SYMCOUNTS ((int32*)(0x99LL<<32))	// known to 6l
+ #define SYMDATA ((byte*)(0x99LL<<32) + 8)
++#else
++#define SYMCOUNTS ((int32*)(0x99LL<<24))	// known to 8l
++#define SYMDATA ((byte*)(0x99LL<<24) + 8)
++#endif
++
+ 
+ // Return a pointer to a byte array containing the symbol table segment.
+ void
+@@ -44,7 +52,7 @@ sys·symdat(Array *symtab, Array *pclntab)
+ typedef struct Sym Sym;
+ struct Sym
+ {
+-	uint64 value;
++	uintptr value;
+ 	byte symtype;
+ 	byte *name;
+ 	byte *gotype;
+@@ -229,7 +237,7 @@ static void
+ splitpcln(void)
+ {
+ 	int32 line;
+-	uint64 pc;
++	uintptr pc;
+ 	byte *p, *ep;
+ 	Func *f, *ef;
+ 	int32 *v;
+@@ -280,7 +288,7 @@ int32
+ funcline(Func *f, uint64 targetpc)
+ {
+ 	byte *p, *ep;
+-	uint64 pc;
++	uintptr pc;
+ 	int32 line;
+ 
+ 	p = f->pcln.array;
+@@ -332,7 +340,7 @@ buildfuncs(void)
+ }
+ 
+ Func*
+-findfunc(uint64 addr)
++findfunc(uintptr addr)
+ {
+ 	Func *f;
+ 	int32 nf, n;

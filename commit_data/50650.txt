@@ -22,8 +22,270 @@ Date:   Mon Oct 18 18:22:02 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mpagecache.go      | 12 +++++---
  src/runtime/mpagecache_test.go | 68 ++++++++++++++++++++++++++++--------------
  src/runtime/mpallocbits.go     | 18 +++++++++++
  3 files changed, 71 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 4b5c66d8d6..7206e2dbdb 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -123,9 +123,10 @@ func (p *pageAlloc) allocToCache() pageCache {
+ 	}
+ 	c := pageCache{}
+ 	ci := chunkIndex(p.searchAddr.addr()) // chunk index
++	var chunk *pallocData
+ 	if p.summary[len(p.summary)-1][ci] != 0 {
+ 		// Fast path: there's free pages at or near the searchAddr address.
+-		chunk := p.chunkOf(ci)
++		chunk = p.chunkOf(ci)
+ 		j, _ := chunk.find(1, chunkPageIndex(p.searchAddr.addr()))
+ 		if j == ^uint(0) {
+ 			throw("bad summary data")
+@@ -146,7 +147,7 @@ func (p *pageAlloc) allocToCache() pageCache {
+ 			return pageCache{}
+ 		}
+ 		ci := chunkIndex(addr)
+-		chunk := p.chunkOf(ci)
++		chunk = p.chunkOf(ci)
+ 		c = pageCache{
+ 			base:  alignDown(addr, 64*pageSize),
+ 			cache: ^chunk.pages64(chunkPageIndex(addr)),
+@@ -154,8 +155,11 @@ func (p *pageAlloc) allocToCache() pageCache {
+ 		}
+ 	}
+ 
+-	// Set the bits as allocated and clear the scavenged bits.
+-	p.allocRange(c.base, pageCachePages)
++	// Set the page bits as allocated and clear the scavenged bits, but
++	// be careful to only set and clear the relevant bits.
++	cpi := chunkPageIndex(c.base)
++	chunk.allocPages64(cpi, c.cache)
++	chunk.scavenged.clearBlock64(cpi, c.cache&c.scav /* free and scavenged */)
+ 
+ 	// Update as an allocation, but note that it's not contiguous.
+ 	p.update(c.base, pageCachePages, false, true)
+diff --git a/src/runtime/mpagecache_test.go b/src/runtime/mpagecache_test.go
+index 2ed0c0aa6a..69084f9a84 100644
+--- a/src/runtime/mpagecache_test.go
++++ b/src/runtime/mpagecache_test.go
+@@ -261,17 +261,18 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 		t.Skip("skipping because virtual memory is limited; see #36210")
+ 	}
+ 	type test struct {
+-		before map[ChunkIdx][]BitRange
+-		scav   map[ChunkIdx][]BitRange
+-		hits   []PageCache // expected base addresses and patterns
+-		after  map[ChunkIdx][]BitRange
++		beforeAlloc map[ChunkIdx][]BitRange
++		beforeScav  map[ChunkIdx][]BitRange
++		hits        []PageCache // expected base addresses and patterns
++		afterAlloc  map[ChunkIdx][]BitRange
++		afterScav   map[ChunkIdx][]BitRange
+ 	}
+ 	tests := map[string]test{
+ 		"AllFree": {
+-			before: map[ChunkIdx][]BitRange{
++			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {},
+ 			},
+-			scav: map[ChunkIdx][]BitRange{
++			beforeScav: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{1, 1}, {64, 64}},
+ 			},
+ 			hits: []PageCache{
+@@ -280,17 +281,17 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 				NewPageCache(PageBase(BaseChunkIdx, 128), ^uint64(0), 0),
+ 				NewPageCache(PageBase(BaseChunkIdx, 192), ^uint64(0), 0),
+ 			},
+-			after: map[ChunkIdx][]BitRange{
++			afterAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{0, 256}},
+ 			},
+ 		},
+ 		"ManyArena": {
+-			before: map[ChunkIdx][]BitRange{
++			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:     {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 2: {{0, PallocChunkPages - 64}},
+ 			},
+-			scav: map[ChunkIdx][]BitRange{
++			beforeScav: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:     {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 2: {},
+@@ -298,46 +299,50 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 			hits: []PageCache{
+ 				NewPageCache(PageBase(BaseChunkIdx+2, PallocChunkPages-64), ^uint64(0), 0),
+ 			},
+-			after: map[ChunkIdx][]BitRange{
++			afterAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:     {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 2: {{0, PallocChunkPages}},
+ 			},
+ 		},
+ 		"NotContiguous": {
+-			before: map[ChunkIdx][]BitRange{
++			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:        {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 0xff: {{0, 0}},
+ 			},
+-			scav: map[ChunkIdx][]BitRange{
++			beforeScav: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:        {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 0xff: {{31, 67}},
+ 			},
+ 			hits: []PageCache{
+ 				NewPageCache(PageBase(BaseChunkIdx+0xff, 0), ^uint64(0), ((uint64(1)<<33)-1)<<31),
+ 			},
+-			after: map[ChunkIdx][]BitRange{
++			afterAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx:        {{0, PallocChunkPages}},
+ 				BaseChunkIdx + 0xff: {{0, 64}},
+ 			},
++			afterScav: map[ChunkIdx][]BitRange{
++				BaseChunkIdx:        {{0, PallocChunkPages}},
++				BaseChunkIdx + 0xff: {{64, 34}},
++			},
+ 		},
+ 		"First": {
+-			before: map[ChunkIdx][]BitRange{
++			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{0, 32}, {33, 31}, {96, 32}},
+ 			},
+-			scav: map[ChunkIdx][]BitRange{
++			beforeScav: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{1, 4}, {31, 5}, {66, 2}},
+ 			},
+ 			hits: []PageCache{
+ 				NewPageCache(PageBase(BaseChunkIdx, 0), 1<<32, 1<<32),
+ 				NewPageCache(PageBase(BaseChunkIdx, 64), (uint64(1)<<32)-1, 0x3<<2),
+ 			},
+-			after: map[ChunkIdx][]BitRange{
++			afterAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{0, 128}},
+ 			},
+ 		},
+ 		"Fail": {
+-			before: map[ChunkIdx][]BitRange{
++			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{0, PallocChunkPages}},
+ 			},
+ 			hits: []PageCache{
+@@ -345,10 +350,27 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 				NewPageCache(0, 0, 0),
+ 				NewPageCache(0, 0, 0),
+ 			},
+-			after: map[ChunkIdx][]BitRange{
++			afterAlloc: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {{0, PallocChunkPages}},
+ 			},
+ 		},
++		"RetainScavBits": {
++			beforeAlloc: map[ChunkIdx][]BitRange{
++				BaseChunkIdx: {{0, 1}, {10, 2}},
++			},
++			beforeScav: map[ChunkIdx][]BitRange{
++				BaseChunkIdx: {{0, 4}, {11, 1}},
++			},
++			hits: []PageCache{
++				NewPageCache(PageBase(BaseChunkIdx, 0), ^uint64(0x1|(0x3<<10)), 0x7<<1),
++			},
++			afterAlloc: map[ChunkIdx][]BitRange{
++				BaseChunkIdx: {{0, 64}},
++			},
++			afterScav: map[ChunkIdx][]BitRange{
++				BaseChunkIdx: {{0, 1}, {11, 1}},
++			},
++		},
+ 	}
+ 	if PageAlloc64Bit != 0 {
+ 		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+@@ -359,11 +381,11 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 		sumsPerPhysPage := ChunkIdx(PhysPageSize / PallocSumBytes)
+ 		baseChunkIdx := BaseChunkIdx &^ (sumsPerPhysPage - 1)
+ 		tests["DiscontiguousMappedSumBoundary"] = test{
+-			before: map[ChunkIdx][]BitRange{
++			beforeAlloc: map[ChunkIdx][]BitRange{
+ 				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages - 1}},
+ 				baseChunkIdx + chunkIdxBigJump:     {{1, PallocChunkPages - 1}},
+ 			},
+-			scav: map[ChunkIdx][]BitRange{
++			beforeScav: map[ChunkIdx][]BitRange{
+ 				baseChunkIdx + sumsPerPhysPage - 1: {},
+ 				baseChunkIdx + chunkIdxBigJump:     {},
+ 			},
+@@ -372,7 +394,7 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 				NewPageCache(PageBase(baseChunkIdx+chunkIdxBigJump, 0), 1, 0),
+ 				NewPageCache(0, 0, 0),
+ 			},
+-			after: map[ChunkIdx][]BitRange{
++			afterAlloc: map[ChunkIdx][]BitRange{
+ 				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages}},
+ 				baseChunkIdx + chunkIdxBigJump:     {{0, PallocChunkPages}},
+ 			},
+@@ -381,7 +403,7 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 	for name, v := range tests {
+ 		v := v
+ 		t.Run(name, func(t *testing.T) {
+-			b := NewPageAlloc(v.before, v.scav)
++			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
+ 			defer FreePageAlloc(b)
+ 
+ 			for _, expect := range v.hits {
+@@ -390,7 +412,7 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 					return
+ 				}
+ 			}
+-			want := NewPageAlloc(v.after, v.scav)
++			want := NewPageAlloc(v.afterAlloc, v.afterScav)
+ 			defer FreePageAlloc(want)
+ 
+ 			checkPageAlloc(t, want, b)
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index ff112300c3..f63164becd 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -57,6 +57,12 @@ func (b *pageBits) setAll() {
+ 	}
+ }
+ 
++// setBlock64 sets the 64-bit aligned block of bits containing the i'th bit that
++// are set in v.
++func (b *pageBits) setBlock64(i uint, v uint64) {
++	b[i/64] |= v
++}
++
+ // clear clears bit i of pageBits.
+ func (b *pageBits) clear(i uint) {
+ 	b[i/64] &^= 1 << (i % 64)
+@@ -93,6 +99,12 @@ func (b *pageBits) clearAll() {
+ 	}
+ }
+ 
++// clearBlock64 clears the 64-bit aligned block of bits containing the i'th bit that
++// are set in v.
++func (b *pageBits) clearBlock64(i uint, v uint64) {
++	b[i/64] &^= v
++}
++
+ // popcntRange counts the number of set bits in the
+ // range [i, i+n).
+ func (b *pageBits) popcntRange(i, n uint) (s uint) {
+@@ -367,6 +379,12 @@ func (b *pallocBits) pages64(i uint) uint64 {
+ 	return (*pageBits)(b).block64(i)
+ }
+ 
++// allocPages64 allocates a 64-bit block of 64 pages aligned to 64 pages according
++// to the bits set in alloc. The block set is the one containing the i'th page.
++func (b *pallocBits) allocPages64(i uint, alloc uint64) {
++	(*pageBits)(b).setBlock64(i, alloc)
++}
++
+ // findBitRange64 returns the bit index of the first set of
+ // n consecutive 1 bits. If no consecutive set of 1 bits of
+ // size n may be found in c, then it returns an integer >= 64.

@@ -62,7 +62,151 @@ Date:   Mon Sep 10 12:13:09 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go      |  21 +++++++++-
  src/net/url/url_test.go | 103 ++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 123 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 4943ea6d67..b678b82352 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -304,7 +304,26 @@ func escape(s string, mode encoding) string {
+ 		return s
+ 	}
+ 
+-	t := make([]byte, len(s)+2*hexCount)
++	var buf [64]byte
++	var t []byte
++
++	required := len(s) + 2*hexCount
++	if required <= len(buf) {
++		t = buf[:required]
++	} else {
++		t = make([]byte, required)
++	}
++
++	if hexCount == 0 {
++		copy(t, s)
++		for i := 0; i < len(s); i++ {
++			if s[i] == ' ' {
++				t[i] = '+'
++			}
++		}
++		return string(t)
++	}
++
+ 	j := 0
+ 	for i := 0; i < len(s); i++ {
+ 		switch c := s[i]; {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 19d4d636d6..231340a9eb 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1754,3 +1754,106 @@ func TestInvalidUserPassword(t *testing.T) {
+ 		t.Errorf("error = %q; want substring %q", got, wantsub)
+ 	}
+ }
++
++var escapeBenchmarks = []struct {
++	unescaped string
++	query     string
++	path      string
++}{
++	{
++		unescaped: "one two",
++		query:     "one+two",
++		path:      "one%20two",
++	},
++	{
++		unescaped: "Фотки собак",
++		query:     "%D0%A4%D0%BE%D1%82%D0%BA%D0%B8+%D1%81%D0%BE%D0%B1%D0%B0%D0%BA",
++		path:      "%D0%A4%D0%BE%D1%82%D0%BA%D0%B8%20%D1%81%D0%BE%D0%B1%D0%B0%D0%BA",
++	},
++
++	{
++		unescaped: "shortrun(break)shortrun",
++		query:     "shortrun%28break%29shortrun",
++		path:      "shortrun%28break%29shortrun",
++	},
++
++	{
++		unescaped: "longerrunofcharacters(break)anotherlongerrunofcharacters",
++		query:     "longerrunofcharacters%28break%29anotherlongerrunofcharacters",
++		path:      "longerrunofcharacters%28break%29anotherlongerrunofcharacters",
++	},
++
++	{
++		unescaped: strings.Repeat("padded/with+various%characters?that=need$some@escaping+paddedsowebreak/256bytes", 4),
++		query:     strings.Repeat("padded%2Fwith%2Bvarious%25characters%3Fthat%3Dneed%24some%40escaping%2Bpaddedsowebreak%2F256bytes", 4),
++		path:      strings.Repeat("padded%2Fwith+various%25characters%3Fthat=need$some@escaping+paddedsowebreak%2F256bytes", 4),
++	},
++}
++
++func BenchmarkQueryEscape(b *testing.B) {
++	for _, tc := range escapeBenchmarks {
++		b.Run("", func(b *testing.B) {
++			b.ReportAllocs()
++			var g string
++			for i := 0; i < b.N; i++ {
++				g = QueryEscape(tc.unescaped)
++			}
++			b.StopTimer()
++			if g != tc.query {
++				b.Errorf("QueryEscape(%q) == %q, want %q", tc.unescaped, g, tc.query)
++			}
++
++		})
++	}
++}
++
++func BenchmarkPathEscape(b *testing.B) {
++	for _, tc := range escapeBenchmarks {
++		b.Run("", func(b *testing.B) {
++			b.ReportAllocs()
++			var g string
++			for i := 0; i < b.N; i++ {
++				g = PathEscape(tc.unescaped)
++			}
++			b.StopTimer()
++			if g != tc.path {
++				b.Errorf("PathEscape(%q) == %q, want %q", tc.unescaped, g, tc.path)
++			}
++
++		})
++	}
++}
++
++func BenchmarkQueryUnescape(b *testing.B) {
++	for _, tc := range escapeBenchmarks {
++		b.Run("", func(b *testing.B) {
++			b.ReportAllocs()
++			var g string
++			for i := 0; i < b.N; i++ {
++				g, _ = QueryUnescape(tc.query)
++			}
++			b.StopTimer()
++			if g != tc.unescaped {
++				b.Errorf("QueryUnescape(%q) == %q, want %q", tc.query, g, tc.unescaped)
++			}
++
++		})
++	}
++}
++
++func BenchmarkPathUnescape(b *testing.B) {
++	for _, tc := range escapeBenchmarks {
++		b.Run("", func(b *testing.B) {
++			b.ReportAllocs()
++			var g string
++			for i := 0; i < b.N; i++ {
++				g, _ = PathUnescape(tc.path)
++			}
++			b.StopTimer()
++			if g != tc.unescaped {
++				b.Errorf("PathUnescape(%q) == %q, want %q", tc.path, g, tc.unescaped)
++			}
++
++		})
++	}
++}

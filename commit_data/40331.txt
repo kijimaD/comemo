@@ -15,6 +15,19 @@ Date:   Fri May 3 20:46:52 2019 +0100
     Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/bug.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/bug.txt b/src/cmd/go/testdata/script/bug.txt
+index f8bc9e7c1d..b9bbaaad33 100644
+--- a/src/cmd/go/testdata/script/bug.txt
++++ b/src/cmd/go/testdata/script/bug.txt
+@@ -10,7 +10,6 @@ grep '^go version' $TMPDIR/browser
+ grep '^GOROOT/bin/go version: go version' $TMPDIR/browser
+ grep '^GOROOT/bin/go tool compile -V: compile version' $TMPDIR/browser
+ grep '^uname -sr: Linux' $TMPDIR/browser
+-grep 'GNU C Library' $TMPDIR/browser
+ 
+ -- go.mod --
+ module browser

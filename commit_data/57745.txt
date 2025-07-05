@@ -251,7 +251,73 @@ Date:   Fri Aug 25 11:02:01 2023 +0200
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  4 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go  | 32 +++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 7840600ef6..090ad90c64 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1449,6 +1449,10 @@
+ (TESTW (MOVLconst [c]) x) => (TESTWconst [int16(c)] x)
+ (TESTB (MOVLconst [c]) x) => (TESTBconst [int8(c)] x)
+ 
++// shorten bitwise AND/TESTQ if upper 32 bits are known to be zero.
++(ANDQ x y) && (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) => (ANDL x y)
++(TESTQ x y) && (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) => (TESTL x y)
++
+ // TEST %reg,%reg is shorter than CMP
+ (CMPQconst x [0]) => (TESTQ x x)
+ (CMPLconst x [0]) => (TESTL x x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5cf5425fdc..0c87a4b1b5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3094,6 +3094,22 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (ANDQ x y)
++	// cond: (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3))
++	// result: (ANDL x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) {
++				continue
++			}
++			v.reset(OpAMD64ANDL)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
+ 	// match: (ANDQ x l:(MOVQload [off] {sym} ptr mem))
+ 	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (ANDQload x [off] {sym} ptr mem)
+@@ -22702,6 +22718,22 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (TESTQ x y)
++	// cond: (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3))
++	// result: (TESTL x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) {
++				continue
++			}
++			v.reset(OpAMD64TESTL)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
+ 	// match: (TESTQ l:(MOVQload {sym} [off] ptr mem) l2)
+ 	// cond: l == l2 && l.Uses == 2 && clobber(l)
+ 	// result: @l.Block (CMPQconstload {sym} [makeValAndOff(0, off)] ptr mem)

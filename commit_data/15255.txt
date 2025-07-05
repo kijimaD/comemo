@@ -7,6 +7,19 @@ Date:   Thu Feb 14 13:35:52 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7314103
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 64ec4f2ece..c39f414808 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -113,6 +113,7 @@ Clement Skau <clementskau@gmail.com>
+ Colby Ranger <cranger@google.com>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
++Cosmos Nicolaou <cnicolaou@google.com>
+ Damian Gryski <dgryski@gmail.com>
+ Dan Callahan <dan.callahan@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>

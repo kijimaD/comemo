@@ -15,10 +15,277 @@ Date:   Thu Dec 1 09:49:58 2011 -0800
     R=jan.mercl, gri, adg, rsc, r
     CC=golang-dev
     https://golang.org/cl/5437056
-
+---
  doc/all.css                    |  3 ++
  src/pkg/go/doc/Makefile        |  6 ++++
  src/pkg/go/doc/comment.go      | 74 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/go/doc/comment_test.go | 39 ++++++++++++++++++++++
  src/pkg/go/doc/headscan.go     | 53 ++++++++++++++++++++++++++++++
  5 files changed, 175 insertions(+)
+
+diff --git a/doc/all.css b/doc/all.css
+index 94d4774dd9..23611c6db8 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -29,6 +29,9 @@ pre {
+   background: #F0F0F0;
+   padding: 0.5em 1em;
+ }
++h3 {
++  font-size: 100%;
++}
+ 
+ /* Top bar */
+ #container {
+diff --git a/src/pkg/go/doc/Makefile b/src/pkg/go/doc/Makefile
+index 04c9fe74f4..0330757661 100644
+--- a/src/pkg/go/doc/Makefile
++++ b/src/pkg/go/doc/Makefile
+@@ -11,3 +11,9 @@ GOFILES=\
+ 	example.go\
+ 
+ include ../../../Make.pkg
++
++# Script to test heading detection heuristic
++CLEANFILES+=headscan
++headscan: headscan.go
++	$(GC) headscan.go
++	$(LD) -o headscan headscan.$(O)
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 19216f85b9..44a047588d 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -7,11 +7,14 @@
+ package doc
+ 
+ import (
++	"bytes"
+ 	"go/ast"
+ 	"io"
+ 	"regexp"
+ 	"strings"
+ 	"text/template" // for HTMLEscape
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
+@@ -168,6 +171,8 @@ var (
+ 	html_endp   = []byte("</p>\n")
+ 	html_pre    = []byte("<pre>")
+ 	html_endpre = []byte("</pre>\n")
++	html_h      = []byte("<h3>")
++	html_endh   = []byte("</h3>\n")
+ )
+ 
+ // Emphasize and escape a line of text for HTML. URLs are converted into links;
+@@ -268,6 +273,52 @@ func unindent(block [][]byte) {
+ 	}
+ }
+ 
++// heading returns the (possibly trimmed) line if it passes as a valid section
++// heading; otherwise it returns nil. 
++func heading(line []byte) []byte {
++	line = bytes.TrimSpace(line)
++	if len(line) == 0 {
++		return nil
++	}
++
++	// a heading must start with an uppercase letter
++	r, _ := utf8.DecodeRune(line)
++	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
++		return nil
++	}
++
++	// it must end in a letter, digit or ':'
++	r, _ = utf8.DecodeLastRune(line)
++	if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ':' {
++		return nil
++	}
++
++	// strip trailing ':', if any
++	if r == ':' {
++		line = line[0 : len(line)-1]
++	}
++
++	// exclude lines with illegal characters
++	if bytes.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
++		return nil
++	}
++
++	// allow ' for possessive 's only
++	b := line
++	for {
++		i := bytes.IndexRune(b, '\'')
++		if i < 0 {
++			break
++		}
++		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
++			return nil // not followed by "s "
++		}
++		b = b[i+2:]
++	}
++
++	return line
++}
++
+ // Convert comment text to formatted HTML.
+ // The comment was prepared by DocReader,
+ // so it is known not to have leading, trailing blank lines
+@@ -276,6 +327,7 @@ func unindent(block [][]byte) {
+ //
+ // Turn each run of multiple \n into </p><p>.
+ // Turn each run of indented lines into a <pre> block without indent.
++// Enclose headings with header tags.
+ //
+ // URLs in the comment text are converted into links; if the URL also appears
+ // in the words map, the link is taken from the map (if the corresponding map
+@@ -286,6 +338,8 @@ func unindent(block [][]byte) {
+ // into a link.
+ func ToHTML(w io.Writer, s []byte, words map[string]string) {
+ 	inpara := false
++	lastWasBlank := false
++	lastNonblankWasHeading := false
+ 
+ 	close := func() {
+ 		if inpara {
+@@ -308,6 +362,7 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
+ 			// close paragraph
+ 			close()
+ 			i++
++			lastWasBlank = true
+ 			continue
+ 		}
+ 		if indentLen(line) > 0 {
+@@ -336,8 +391,27 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
+ 			w.Write(html_endpre)
+ 			continue
+ 		}
++
++		if lastWasBlank && !lastNonblankWasHeading && i+2 < len(lines) &&
++			isBlank(lines[i+1]) && !isBlank(lines[i+2]) && indentLen(lines[i+2]) == 0 {
++			// current line is non-blank, sourounded by blank lines
++			// and the next non-blank line is not indented: this
++			// might be a heading.
++			if head := heading(line); head != nil {
++				close()
++				w.Write(html_h)
++				template.HTMLEscape(w, head)
++				w.Write(html_endh)
++				i += 2
++				lastNonblankWasHeading = true
++				continue
++			}
++		}
++
+ 		// open paragraph
+ 		open()
++		lastWasBlank = false
++		lastNonblankWasHeading = false
+ 		emphasize(w, lines[i], words, true) // nice text formatting
+ 		i++
+ 	}
+diff --git a/src/pkg/go/doc/comment_test.go b/src/pkg/go/doc/comment_test.go
+new file mode 100644
+index 0000000000..9e77ae2cde
+--- /dev/null
++++ b/src/pkg/go/doc/comment_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package doc
++
++import (
++	"testing"
++)
++
++var headingTests = []struct {
++	line string
++	ok   bool
++}{
++	{"Section", true},
++	{"A typical usage", true},
++	{"ΔΛΞ is Greek", true},
++	{"Foo 42", true},
++	{"", false},
++	{"section", false},
++	{"A typical usage:", true},
++	{"δ is Greek", false}, // TODO: consider allowing this 
++	{"Foo §", false},
++	{"Fermat's Last Sentence", true},
++	{"Fermat's", true},
++	{"'sX", false},
++	{"Ted 'Too' Bar", false},
++	{"Use n+m", false},
++	{"Scanning:", true},
++	{"N:M", false},
++}
++
++func TestIsHeading(t *testing.T) {
++	for _, tt := range headingTests {
++		if h := heading([]byte(tt.line)); (h != nil) != tt.ok {
++			t.Errorf("isHeading(%q) = %v, want %v", tt.line, h, tt.ok)
++		}
++	}
++}
+diff --git a/src/pkg/go/doc/headscan.go b/src/pkg/go/doc/headscan.go
+new file mode 100644
+index 0000000000..95953b3bdc
+--- /dev/null
++++ b/src/pkg/go/doc/headscan.go
+@@ -0,0 +1,53 @@
++package main
++
++import (
++	"bytes"
++	"flag"
++	"go/doc"
++	"go/parser"
++	"go/token"
++	"log"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++func isGoFile(fi os.FileInfo) bool {
++	return strings.HasSuffix(fi.Name(), ".go") &&
++		!strings.HasSuffix(fi.Name(), "_test.go")
++}
++
++func main() {
++	fset := token.NewFileSet()
++	rootDir := flag.String("root", "./", "root of filesystem tree to scan")
++	flag.Parse()
++	err := filepath.Walk(*rootDir, func(path string, fi os.FileInfo, err error) error {
++		if !fi.IsDir() {
++			return nil
++		}
++		pkgs, err := parser.ParseDir(fset, path, isGoFile, parser.ParseComments)
++		if err != nil {
++			log.Println(path, err)
++			return nil
++		}
++		for _, pkg := range pkgs {
++			d := doc.NewPackageDoc(pkg, path)
++			buf := new(bytes.Buffer)
++			doc.ToHTML(buf, []byte(d.Doc), nil)
++			b := buf.Bytes()
++			for {
++				i := bytes.Index(b, []byte("<h3>"))
++				if i == -1 {
++					break
++				}
++				line := bytes.SplitN(b[i:], []byte("\n"), 2)[0]
++				log.Printf("%s: %s", path, line)
++				b = b[i+len(line):]
++			}
++		}
++		return nil
++	})
++	if err != nil {
++		log.Fatal(err)
++	}
++}

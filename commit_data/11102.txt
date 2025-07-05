@@ -7,6 +7,27 @@ Date:   Wed Jan 11 15:44:20 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5530076
-
+---
  misc/dashboard/builder/main.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index dbb3ff694b..1b00cf4737 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -33,12 +33,11 @@ const (
+ // These variables are copied from the gobuilder's environment
+ // to the envv of its subprocesses.
+ var extraEnv = []string{
+-	"GOHOSTOS",
++	"GOARM",
+ 	"GOHOSTARCH",
++	"GOHOSTOS",
+ 	"PATH",
+-	"DISABLE_NET_TESTS",
+-	"MAKEFLAGS",
+-	"GOARM",
++	"TMPDIR",
+ }
+ 
+ type Builder struct {

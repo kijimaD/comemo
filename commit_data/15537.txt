@@ -9,6 +9,19 @@ Date:   Fri Mar 1 12:13:42 2013 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7450048
-
+---
  src/run.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index a2abc6797b..a026b459ce 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -74,6 +74,7 @@ go run $GOROOT/test/run.go - .
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
++[ "$GOHOSTOS" == openbsd ] || # issue 4878
+ (xcd ../misc/cgo/test
+ go test
+ ) || exit $?

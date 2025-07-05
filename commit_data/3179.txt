@@ -8,9 +8,63 @@ Date:   Tue Sep 1 16:19:14 2009 -0700
     DELTA=17  (0 added, 16 deleted, 1 changed)
     OCL=34213
     CL=34218
-
+---
  src/pkg/debug/proc/Makefile             | 2 +-
  src/pkg/debug/proc/regs_darwin_386.go   | 5 -----
  src/pkg/debug/proc/regs_darwin_amd64.go | 6 ------
  src/pkg/debug/proc/regs_linux_386.go    | 5 -----
  4 files changed, 1 insertion(+), 17 deletions(-)
+
+diff --git a/src/pkg/debug/proc/Makefile b/src/pkg/debug/proc/Makefile
+index 988c495000..d7eb34855e 100644
+--- a/src/pkg/debug/proc/Makefile
++++ b/src/pkg/debug/proc/Makefile
+@@ -7,7 +7,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ TARG=ptrace
+ GOFILES=\
+ 	proc.go\
+-	proc_linux.go\
++	proc_$(GOOS).go\
+ 	regs_$(GOOS)_$(GOARCH).go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/debug/proc/regs_darwin_386.go b/src/pkg/debug/proc/regs_darwin_386.go
+index 47a7fa8111..e171f72a95 100644
+--- a/src/pkg/debug/proc/regs_darwin_386.go
++++ b/src/pkg/debug/proc/regs_darwin_386.go
+@@ -4,8 +4,3 @@
+ 
+ package proc
+ 
+-import "syscall"
+-
+-func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
+-	panic("newRegs unimplemented on darwin/386");
+-}
+diff --git a/src/pkg/debug/proc/regs_darwin_amd64.go b/src/pkg/debug/proc/regs_darwin_amd64.go
+index b0d5b52a3e..60c9ac719e 100644
+--- a/src/pkg/debug/proc/regs_darwin_amd64.go
++++ b/src/pkg/debug/proc/regs_darwin_amd64.go
+@@ -3,9 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ package proc
+-
+-import "syscall"
+-
+-func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
+-	panic("newRegs unimplemented on darwin/amd64");
+-}
+diff --git a/src/pkg/debug/proc/regs_linux_386.go b/src/pkg/debug/proc/regs_linux_386.go
+index 89de83d2e9..e171f72a95 100644
+--- a/src/pkg/debug/proc/regs_linux_386.go
++++ b/src/pkg/debug/proc/regs_linux_386.go
+@@ -4,8 +4,3 @@
+ 
+ package proc
+ 
+-import "syscall"
+-
+-func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
+-	panic("newRegs unimplemented on linux/386");
+-}

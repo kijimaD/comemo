@@ -12,6 +12,28 @@ Date:   Sat Feb 4 01:46:46 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5629051
-
+---
  src/cmd/dist/unix.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 2c3624ad54..348b01e08b 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -470,6 +470,7 @@ fatal(char *msg, ...)
+ {
+ 	va_list arg;
+ 	
++	fflush(stdout);
+ 	fprintf(stderr, "go tool dist: ");
+ 	va_start(arg, msg);
+ 	vfprintf(stderr, msg, arg);
+@@ -654,7 +655,7 @@ main(int argc, char **argv)
+ 	if(gohostarch == nil) {
+ 		if(uname(&u) < 0)
+ 			fatal("uname: %s", strerror(errno));
+-		if(contains(u.machine, "x86_64"))
++		if(contains(u.machine, "x86_64") || contains(u.machine, "amd64"))
+ 			gohostarch = "amd64";
+ 		else if(hassuffix(u.machine, "86"))
+ 			gohostarch = "386";

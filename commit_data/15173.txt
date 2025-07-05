@@ -7,7 +7,7 @@ Date:   Fri Feb 8 10:43:53 2013 -0500
     R=gri, iant
     CC=golang-dev
     https://golang.org/cl/7226065
-
+---
  src/pkg/exp/ssa/interp/external.go |  312 ++++++++
  src/pkg/exp/ssa/interp/interp.go   |  588 +++++++++++++++
  src/pkg/exp/ssa/interp/map.go      |  101 +++
@@ -16,3 +16,3446 @@ Date:   Fri Feb 8 10:43:53 2013 -0500
  src/pkg/exp/ssa/interp/value.go    |  492 +++++++++++++
  src/pkg/exp/ssa/ssadump.go         |  121 ++++
  7 files changed, 3400 insertions(+)
+
+diff --git a/src/pkg/exp/ssa/interp/external.go b/src/pkg/exp/ssa/interp/external.go
+new file mode 100644
+index 0000000000..e67ae5ee65
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/external.go
+@@ -0,0 +1,312 @@
++package interp
++
++// Emulated functions that we cannot interpret because they are
++// external or because they use "unsafe" or "reflect" operations.
++
++import (
++	"exp/ssa"
++	"math"
++	"os"
++	"runtime"
++	"syscall"
++	"time"
++)
++
++type externalFn func(fn *ssa.Function, args []value, slots []value) value
++
++// Key strings are from Function.FullName().
++// That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
++var externals = map[string]externalFn{
++	"(reflect.Value).CanAddr":         ext۰reflect۰Value۰CanAddr,
++	"(reflect.Value).CanInterface":    ext۰reflect۰Value۰CanInterface,
++	"(reflect.Value).Elem":            ext۰reflect۰Value۰Elem,
++	"(reflect.Value).Field":           ext۰reflect۰Value۰Field,
++	"(reflect.Value).Index":           ext۰reflect۰Value۰Index,
++	"(reflect.Value).Int":             ext۰reflect۰Value۰Int,
++	"(reflect.Value).Interface":       ext۰reflect۰Value۰Interface,
++	"(reflect.Value).IsNil":           ext۰reflect۰Value۰IsNil,
++	"(reflect.Value).IsValid":         ext۰reflect۰Value۰IsValid,
++	"(reflect.Value).Kind":            ext۰reflect۰Value۰Kind,
++	"(reflect.Value).Len":             ext۰reflect۰Value۰Len,
++	"(reflect.Value).NumField":        ext۰reflect۰Value۰NumField,
++	"(reflect.Value).Pointer":         ext۰reflect۰Value۰Pointer,
++	"(reflect.Value).Type":            ext۰reflect۰Value۰Type,
++	"(reflect.rtype).Bits":            ext۰reflect۰rtype۰Bits,
++	"(reflect.rtype).Elem":            ext۰reflect۰rtype۰Elem,
++	"(reflect.rtype).Kind":            ext۰reflect۰rtype۰Kind,
++	"(reflect.rtype).String":          ext۰reflect۰rtype۰String,
++	"math.Float32bits":                ext۰math۰Float32bits,
++	"math.Float32frombits":            ext۰math۰Float32frombits,
++	"math.Float64bits":                ext۰math۰Float64bits,
++	"math.Float64frombits":            ext۰math۰Float64frombits,
++	"reflect.TypeOf":                  ext۰reflect۰TypeOf,
++	"reflect.ValueOf":                 ext۰reflect۰ValueOf,
++	"reflect.init":                    ext۰reflect۰Init,
++	"reflect.valueInterface":          ext۰reflect۰valueInterface,
++	"runtime.Breakpoint":              ext۰runtime۰Breakpoint,
++	"runtime.GC":                      ext۰runtime۰GC,
++	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
++	"runtime.Gosched":                 ext۰runtime۰Gosched,
++	"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
++	"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
++	"runtime.getgoroot":               ext۰runtime۰getgoroot,
++	"sync/atomic.AddInt32":            ext۰atomic۰AddInt32,
++	"sync/atomic.CompareAndSwapInt32": ext۰atomic۰CompareAndSwapInt32,
++	"sync/atomic.LoadInt32":           ext۰atomic۰LoadInt32,
++	"sync/atomic.LoadUint32":          ext۰atomic۰LoadUint32,
++	"sync/atomic.StoreInt32":          ext۰atomic۰StoreInt32,
++	"sync/atomic.StoreUint32":         ext۰atomic۰StoreUint32,
++	"syscall.Exit":                    ext۰syscall۰Exit,
++	"syscall.Getpid":                  ext۰syscall۰Getpid,
++	"syscall.Kill":                    ext۰syscall۰Kill,
++	"syscall.Write":                   ext۰syscall۰Write,
++	"time.Sleep":                      ext۰time۰Sleep,
++	"time.now":                        ext۰time۰now,
++}
++
++func ext۰math۰Float64frombits(fn *ssa.Function, args []value, slots []value) value {
++	return math.Float64frombits(args[0].(uint64))
++}
++
++func ext۰math۰Float64bits(fn *ssa.Function, args []value, slots []value) value {
++	return math.Float64bits(args[0].(float64))
++}
++
++func ext۰math۰Float32frombits(fn *ssa.Function, args []value, slots []value) value {
++	return math.Float32frombits(args[0].(uint32))
++}
++
++func ext۰math۰Float32bits(fn *ssa.Function, args []value, slots []value) value {
++	return math.Float32bits(args[0].(float32))
++}
++
++func ext۰runtime۰Breakpoint(fn *ssa.Function, args []value, slots []value) value {
++	runtime.Breakpoint()
++	return nil
++}
++
++func ext۰runtime۰getgoroot(fn *ssa.Function, args []value, slots []value) value {
++	return os.Getenv("GOROOT")
++}
++
++func ext۰runtime۰GOMAXPROCS(fn *ssa.Function, args []value, slots []value) value {
++	return runtime.GOMAXPROCS(args[0].(int))
++}
++
++func ext۰runtime۰GC(fn *ssa.Function, args []value, slots []value) value {
++	runtime.GC()
++	return nil
++}
++
++func ext۰runtime۰Gosched(fn *ssa.Function, args []value, slots []value) value {
++	runtime.Gosched()
++	return nil
++}
++
++func ext۰runtime۰ReadMemStats(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): populate args[0].(Struct)
++	return nil
++}
++
++func ext۰atomic۰LoadUint32(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): fix: not atomic!
++	return (*args[0].(*value)).(uint32)
++}
++
++func ext۰atomic۰StoreUint32(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): fix: not atomic!
++	*args[0].(*value) = args[1].(uint32)
++	return nil
++}
++
++func ext۰atomic۰LoadInt32(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): fix: not atomic!
++	return (*args[0].(*value)).(int32)
++}
++
++func ext۰atomic۰StoreInt32(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): fix: not atomic!
++	*args[0].(*value) = args[1].(int32)
++	return nil
++}
++
++func ext۰atomic۰CompareAndSwapInt32(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): fix: not atomic!
++	p := args[0].(*value)
++	if (*p).(int32) == args[1].(int32) {
++		*p = args[2].(int32)
++		return true
++	}
++	return false
++}
++
++func ext۰atomic۰AddInt32(fn *ssa.Function, args []value, slots []value) value {
++	// TODO(adonovan): fix: not atomic!
++	p := args[0].(*value)
++	newv := (*p).(int32) + args[1].(int32)
++	*p = newv
++	return newv
++}
++
++func ext۰runtime۰SetFinalizer(fn *ssa.Function, args []value, slots []value) value {
++	return nil // ignore
++}
++
++func ext۰time۰now(fn *ssa.Function, args []value, slots []value) value {
++	nano := time.Now().UnixNano()
++	return tuple{int64(nano / 1e9), int32(nano % 1e9)}
++}
++
++func ext۰time۰Sleep(fn *ssa.Function, args []value, slots []value) value {
++	time.Sleep(time.Duration(args[0].(int64)))
++	return nil
++}
++
++func ext۰syscall۰Exit(fn *ssa.Function, args []value, slots []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	syscall.Exit(args[0].(int))
++	return nil
++}
++
++func ext۰syscall۰Getpid(fn *ssa.Function, args []value, slots []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	return syscall.Getpid()
++}
++
++func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
++	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
++	return iface{}
++}
++
++func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	p := args[1].([]value)
++	b := make([]byte, 0, len(p))
++	for i := range p {
++		b = append(b, p[i].(byte))
++	}
++	n, _ := syscall.Write(args[0].(int), b)
++	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
++	return tuple{n, err}
++
++}
++
++// The set of remaining native functions we need to implement (as needed):
++
++// bytes/bytes.go:42:func Equal(a, b []byte) bool
++// bytes/bytes_decl.go:8:func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
++// crypto/aes/cipher_asm.go:10:func hasAsm() bool
++// crypto/aes/cipher_asm.go:11:func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++// crypto/aes/cipher_asm.go:12:func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++// crypto/aes/cipher_asm.go:13:func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
++// hash/crc32/crc32_amd64.go:12:func haveSSE42() bool
++// hash/crc32/crc32_amd64.go:16:func castagnoliSSE42(crc uint32, p []byte) uint32
++// math/abs.go:12:func Abs(x float64) float64
++// math/asin.go:19:func Asin(x float64) float64
++// math/asin.go:51:func Acos(x float64) float64
++// math/atan.go:95:func Atan(x float64) float64
++// math/atan2.go:29:func Atan2(y, x float64) float64
++// math/big/arith_decl.go:8:func mulWW(x, y Word) (z1, z0 Word)
++// math/big/arith_decl.go:9:func divWW(x1, x0, y Word) (q, r Word)
++// math/big/arith_decl.go:10:func addVV(z, x, y []Word) (c Word)
++// math/big/arith_decl.go:11:func subVV(z, x, y []Word) (c Word)
++// math/big/arith_decl.go:12:func addVW(z, x []Word, y Word) (c Word)
++// math/big/arith_decl.go:13:func subVW(z, x []Word, y Word) (c Word)
++// math/big/arith_decl.go:14:func shlVU(z, x []Word, s uint) (c Word)
++// math/big/arith_decl.go:15:func shrVU(z, x []Word, s uint) (c Word)
++// math/big/arith_decl.go:16:func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// math/big/arith_decl.go:17:func addMulVVW(z, x []Word, y Word) (c Word)
++// math/big/arith_decl.go:18:func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
++// math/big/arith_decl.go:19:func bitLen(x Word) (n int)
++// math/dim.go:13:func Dim(x, y float64) float64
++// math/dim.go:26:func Max(x, y float64) float64
++// math/dim.go:53:func Min(x, y float64) float64
++// math/exp.go:14:func Exp(x float64) float64
++// math/exp.go:135:func Exp2(x float64) float64
++// math/expm1.go:124:func Expm1(x float64) float64
++// math/floor.go:13:func Floor(x float64) float64
++// math/floor.go:36:func Ceil(x float64) float64
++// math/floor.go:48:func Trunc(x float64) float64
++// math/frexp.go:16:func Frexp(f float64) (frac float64, exp int)
++// math/hypot.go:17:func Hypot(p, q float64) float64
++// math/ldexp.go:14:func Ldexp(frac float64, exp int) float64
++// math/log.go:80:func Log(x float64) float64
++// math/log10.go:9:func Log10(x float64) float64
++// math/log10.go:17:func Log2(x float64) float64
++// math/log1p.go:95:func Log1p(x float64) float64
++// math/mod.go:21:func Mod(x, y float64) float64
++// math/modf.go:13:func Modf(f float64) (int float64, frac float64)
++// math/remainder.go:37:func Remainder(x, y float64) float64
++// math/sin.go:117:func Cos(x float64) float64
++// math/sin.go:174:func Sin(x float64) float64
++// math/sincos.go:15:func Sincos(x float64) (sin, cos float64)
++// math/sqrt.go:14:func Sqrt(x float64) float64
++// math/tan.go:82:func Tan(x float64) float64
++// os/file_posix.go:14:func sigpipe() // implemented in package runtime
++// os/signal/signal_unix.go:15:func signal_enable(uint32)
++// os/signal/signal_unix.go:16:func signal_recv() uint32
++// runtime/debug.go:13:func LockOSThread()
++// runtime/debug.go:17:func UnlockOSThread()
++// runtime/debug.go:27:func NumCPU() int
++// runtime/debug.go:30:func NumCgoCall() int64
++// runtime/debug.go:33:func NumGoroutine() int
++// runtime/debug.go:90:func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
++// runtime/debug.go:114:func ThreadCreateProfile(p []StackRecord) (n int, ok bool)
++// runtime/debug.go:122:func GoroutineProfile(p []StackRecord) (n int, ok bool)
++// runtime/debug.go:132:func CPUProfile() []byte
++// runtime/debug.go:141:func SetCPUProfileRate(hz int)
++// runtime/debug.go:149:func SetBlockProfileRate(rate int)
++// runtime/debug.go:166:func BlockProfile(p []BlockProfileRecord) (n int, ok bool)
++// runtime/debug.go:172:func Stack(buf []byte, all bool) int
++// runtime/error.go:81:func typestring(interface{}) string
++// runtime/extern.go:19:func Goexit()
++// runtime/extern.go:27:func Caller(skip int) (pc uintptr, file string, line int, ok bool)
++// runtime/extern.go:34:func Callers(skip int, pc []uintptr) int
++// runtime/extern.go:51:func FuncForPC(pc uintptr) *Func
++// runtime/extern.go:68:func funcline_go(*Func, uintptr) (string, int)
++// runtime/extern.go:71:func mid() uint32
++// runtime/pprof/pprof.go:667:func runtime_cyclesPerSecond() int64
++// runtime/race.go:16:func RaceDisable()
++// runtime/race.go:19:func RaceEnable()
++// runtime/race.go:21:func RaceAcquire(addr unsafe.Pointer)
++// runtime/race.go:22:func RaceRelease(addr unsafe.Pointer)
++// runtime/race.go:23:func RaceReleaseMerge(addr unsafe.Pointer)
++// runtime/race.go:25:func RaceRead(addr unsafe.Pointer)
++// runtime/race.go:26:func RaceWrite(addr unsafe.Pointer)
++// runtime/race.go:28:func RaceSemacquire(s *uint32)
++// runtime/race.go:29:func RaceSemrelease(s *uint32)
++// sync/atomic/doc.go:49:func CompareAndSwapInt64(addr *int64, old, new int64) (swapped bool)
++// sync/atomic/doc.go:52:func CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
++// sync/atomic/doc.go:55:func CompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)
++// sync/atomic/doc.go:58:func CompareAndSwapUintptr(addr *uintptr, old, new uintptr) (swapped bool)
++// sync/atomic/doc.go:61:func CompareAndSwapPointer(addr *unsafe.Pointer, old, new unsafe.Pointer) (swapped bool)
++// sync/atomic/doc.go:67:func AddUint32(addr *uint32, delta uint32) (new uint32)
++// sync/atomic/doc.go:70:func AddInt64(addr *int64, delta int64) (new int64)
++// sync/atomic/doc.go:73:func AddUint64(addr *uint64, delta uint64) (new uint64)
++// sync/atomic/doc.go:76:func AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
++// sync/atomic/doc.go:82:func LoadInt64(addr *int64) (val int64)
++// sync/atomic/doc.go:88:func LoadUint64(addr *uint64) (val uint64)
++// sync/atomic/doc.go:91:func LoadUintptr(addr *uintptr) (val uintptr)
++// sync/atomic/doc.go:94:func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
++// sync/atomic/doc.go:100:func StoreInt64(addr *int64, val int64)
++// sync/atomic/doc.go:106:func StoreUint64(addr *uint64, val uint64)
++// sync/atomic/doc.go:109:func StoreUintptr(addr *uintptr, val uintptr)
++// sync/atomic/doc.go:112:func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer)
++// sync/runtime.go:12:func runtime_Semacquire(s *uint32)
++// sync/runtime.go:18:func runtime_Semrelease(s *uint32)
++// syscall/env_unix.go:30:func setenv_c(k, v string)
++// syscall/syscall_linux_amd64.go:60:func Gettimeofday(tv *Timeval) (err error)
++// syscall/syscall_linux_amd64.go:61:func Time(t *Time_t) (tt Time_t, err error)
++// syscall/syscall_linux_arm.go:28:func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
++// syscall/syscall_unix.go:23:func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++// syscall/syscall_unix.go:24:func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++// syscall/syscall_unix.go:25:func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++// syscall/syscall_unix.go:26:func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++// time/sleep.go:25:func startTimer(*runtimeTimer)
++// time/sleep.go:26:func stopTimer(*runtimeTimer) bool
++// time/time.go:758:func now() (sec int64, nsec int32)
++// unsafe/unsafe.go:27:func Sizeof(v ArbitraryType) uintptr
++// unsafe/unsafe.go:32:func Offsetof(v ArbitraryType) uintptr
++// unsafe/unsafe.go:37:func Alignof(v ArbitraryType) uintptr
+diff --git a/src/pkg/exp/ssa/interp/interp.go b/src/pkg/exp/ssa/interp/interp.go
+new file mode 100644
+index 0000000000..c4ea75c94d
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/interp.go
+@@ -0,0 +1,588 @@
++// Package exp/ssa/interp defines an interpreter for the SSA
++// representation of Go programs.
++//
++// This interpreter is provided as an adjunct for testing the SSA
++// construction algorithm.  Its purpose is to provide a minimal
++// metacircular implementation of the dynamic semantics of each SSA
++// instruction.  It is not, and will never be, a production-quality Go
++// interpreter.
++//
++// The following is a partial list of Go features that are currently
++// unsupported or incomplete in the interpreter.
++//
++// * Unsafe operations, including all uses of unsafe.Pointer, are
++// impossible to support given the "boxed" value representation we
++// have chosen.
++//
++// * The reflect package is only partially implemented.
++//
++// * "sync/atomic" operations are not currently atomic due to the
++// "boxed" value representation: it is not possible to read, modify
++// and write an interface value atomically.  As a consequence, Mutexes
++// are currently broken.  TODO(adonovan): provide a metacircular
++// implementation of Mutex avoiding the broken atomic primitives.
++//
++// * recover is only partially implemented.  Also, the interpreter
++// makes no attempt to distinguish target panics from interpreter
++// crashes.
++//
++// * map iteration is asymptotically inefficient.
++//
++// * the equivalence relation for structs doesn't skip over blank
++// fields.
++//
++// * the sizes of the int, uint and uintptr types in the target
++// program are assumed to be the same as those of the interpreter
++// itself.
++package interp
++
++import (
++	"exp/ssa"
++	"fmt"
++	"go/ast"
++	"go/token"
++	"go/types"
++	"log"
++	"os"
++	"reflect"
++	"runtime"
++)
++
++type status int
++
++const (
++	stRunning status = iota
++	stComplete
++	stPanic
++)
++
++type continuation int
++
++const (
++	kNext continuation = iota
++	kReturn
++	kJump
++)
++
++// Mode is a bitmask of options affecting the interpreter.
++type Mode uint
++
++const (
++	DisableRecover Mode = 1 << iota // Disable recover() in target programs; show interpreter crash instead.
++	EnableTracing                   // Print a trace of all instructions as they are interpreted.
++)
++
++// State shared between all interpreted goroutines.
++type interpreter struct {
++	prog           *ssa.Program         // the SSA program
++	globals        map[ssa.Value]*value // addresses of global variables (immutable)
++	mode           Mode                 // interpreter options
++	reflectPackage *ssa.Package         // the fake reflect package
++	rtypeMethods   ssa.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
++}
++
++type frame struct {
++	i                *interpreter
++	caller           *frame
++	fn               *ssa.Function
++	block, prevBlock *ssa.BasicBlock
++	env              map[ssa.Value]value // dynamic values of SSA variables
++	locals           []value
++	defers           []func()
++	result           value
++	status           status
++	panic            interface{}
++}
++
++func (fr *frame) get(key ssa.Value) value {
++	switch key := key.(type) {
++	case nil:
++		return nil
++	case *ssa.Function, *ssa.Builtin:
++		return key
++	case *ssa.Literal:
++		return literalValue(key)
++	case *ssa.Global:
++		if r, ok := fr.i.globals[key]; ok {
++			return r
++		}
++	default:
++		if r, ok := fr.env[key]; ok {
++			return r
++		}
++	}
++	panic(fmt.Sprintf("get: unexpected type %T", key))
++}
++
++// findMethodSet returns the method set for type typ, which may be one
++// of the interpreter's fake types.
++func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
++	if typ == rtypeType {
++		return i.rtypeMethods
++	}
++	return i.prog.MethodSet(typ)
++}
++
++// visitInstr interprets a single ssa.Instruction within the activation
++// record frame.  It returns a continuation value indicating where to
++// read the next instruction from.
++func visitInstr(fr *frame, instr ssa.Instruction) continuation {
++	switch instr := instr.(type) {
++	case *ssa.UnOp:
++		fr.env[instr] = unop(instr, fr.get(instr.X))
++
++	case *ssa.BinOp:
++		fr.env[instr] = binop(instr.Op, fr.get(instr.X), fr.get(instr.Y))
++
++	case *ssa.Call:
++		fn, args := prepareCall(fr, &instr.CallCommon)
++		fr.env[instr] = call(fr.i, fr, instr.Pos, fn, args)
++
++	case *ssa.Conv:
++		fr.env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
++
++	case *ssa.ChangeInterface:
++		x := fr.get(instr.X)
++		if err := checkInterface(fr.i, instr.Type(), x.(iface)); err != "" {
++			panic(err)
++		}
++		fr.env[instr] = x
++
++	case *ssa.MakeInterface:
++		fr.env[instr] = iface{t: instr.X.Type(), v: fr.get(instr.X)}
++
++	case *ssa.Extract:
++		fr.env[instr] = fr.get(instr.Tuple).(tuple)[instr.Index]
++
++	case *ssa.Slice:
++		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High))
++
++	case *ssa.Ret:
++		switch len(instr.Results) {
++		case 0:
++		case 1:
++			fr.result = fr.get(instr.Results[0])
++		default:
++			var res []value
++			for _, r := range instr.Results {
++				res = append(res, copyVal(fr.get(r)))
++			}
++			fr.result = tuple(res)
++		}
++		return kReturn
++
++	case *ssa.Send:
++		fr.get(instr.Chan).(chan value) <- copyVal(fr.get(instr.X))
++
++	case *ssa.Store:
++		*fr.get(instr.Addr).(*value) = copyVal(fr.get(instr.Val))
++
++	case *ssa.If:
++		succ := 1
++		if fr.get(instr.Cond).(bool) {
++			succ = 0
++		}
++		fr.prevBlock, fr.block = fr.block, fr.block.Succs[succ]
++		return kJump
++
++	case *ssa.Jump:
++		fr.prevBlock, fr.block = fr.block, fr.block.Succs[0]
++		return kJump
++
++	case *ssa.Defer:
++		fn, args := prepareCall(fr, &instr.CallCommon)
++		fr.defers = append(fr.defers, func() { call(fr.i, fr, instr.Pos, fn, args) })
++
++	case *ssa.Go:
++		fn, args := prepareCall(fr, &instr.CallCommon)
++		go call(fr.i, nil, instr.Pos, fn, args)
++
++	case *ssa.MakeChan:
++		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
++
++	case *ssa.Alloc:
++		var addr *value
++		if instr.Heap {
++			// new
++			addr = new(value)
++			fr.env[instr] = addr
++		} else {
++			// local
++			addr = fr.env[instr].(*value)
++		}
++		*addr = zero(indirectType(instr.Type()))
++
++	case *ssa.MakeSlice:
++		slice := make([]value, asInt(fr.get(instr.Cap)))
++		tElt := underlyingType(instr.Type()).(*types.Slice).Elt
++		for i := range slice {
++			slice[i] = zero(tElt)
++		}
++		fr.env[instr] = slice[:asInt(fr.get(instr.Len))]
++
++	case *ssa.MakeMap:
++		reserve := 0
++		if instr.Reserve != nil {
++			reserve = asInt(fr.get(instr.Reserve))
++		}
++		fr.env[instr] = makeMap(underlyingType(instr.Type()).(*types.Map).Key, reserve)
++
++	case *ssa.Range:
++		fr.env[instr] = rangeIter(fr.get(instr.X), instr.X.Type())
++
++	case *ssa.Next:
++		fr.env[instr] = fr.get(instr.Iter).(iter).next()
++
++	case *ssa.FieldAddr:
++		x := fr.get(instr.X)
++		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
++
++	case *ssa.Field:
++		fr.env[instr] = copyVal(fr.get(instr.X).(structure)[instr.Field])
++
++	case *ssa.IndexAddr:
++		x := fr.get(instr.X)
++		idx := fr.get(instr.Index)
++		switch x := x.(type) {
++		case []value:
++			fr.env[instr] = &x[asInt(idx)]
++		case *value: // *array
++			fr.env[instr] = &(*x).(array)[asInt(idx)]
++		default:
++			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
++		}
++
++	case *ssa.Index:
++		fr.env[instr] = copyVal(fr.get(instr.X).(array)[asInt(fr.get(instr.Index))])
++
++	case *ssa.Lookup:
++		fr.env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))
++
++	case *ssa.MapUpdate:
++		m := fr.get(instr.Map)
++		key := fr.get(instr.Key)
++		v := fr.get(instr.Value)
++		switch m := m.(type) {
++		case map[value]value:
++			m[key] = v
++		case *hashmap:
++			m.insert(key.(hashable), v)
++		default:
++			panic(fmt.Sprintf("illegal map type: %T", m))
++		}
++
++	case *ssa.TypeAssert:
++		fr.env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
++
++	case *ssa.MakeClosure:
++		var bindings []value
++		for _, binding := range instr.Bindings {
++			bindings = append(bindings, fr.get(binding))
++		}
++		fr.env[instr] = &closure{instr.Fn, bindings}
++
++	case *ssa.Phi:
++		for i, pred := range instr.Block_.Preds {
++			if fr.prevBlock == pred {
++				fr.env[instr] = fr.get(instr.Edges[i])
++				break
++			}
++		}
++
++	case *ssa.Select:
++		var cases []reflect.SelectCase
++		if !instr.Blocking {
++			cases = append(cases, reflect.SelectCase{
++				Dir: reflect.SelectDefault,
++			})
++		}
++		for _, state := range instr.States {
++			var dir reflect.SelectDir
++			if state.Dir == ast.RECV {
++				dir = reflect.SelectRecv
++			} else {
++				dir = reflect.SelectSend
++			}
++			var send reflect.Value
++			if state.Send != nil {
++				send = reflect.ValueOf(fr.get(state.Send))
++			}
++			cases = append(cases, reflect.SelectCase{
++				Dir:  dir,
++				Chan: reflect.ValueOf(fr.get(state.Chan)),
++				Send: send,
++			})
++		}
++		chosen, recv, recvOk := reflect.Select(cases)
++		if !instr.Blocking {
++			chosen-- // default case should have index -1.
++		}
++		var recvV value
++		if recvOk {
++			// No need to copy since send makes an unaliased copy.
++			recvV = recv.Interface().(value)
++		} else if chosen != -1 {
++			// Ensure we provide a type-appropriate zero value.
++			recvV = zero(underlyingType(instr.States[chosen].Chan.Type()).(*types.Chan).Elt)
++		}
++		fr.env[instr] = tuple{chosen, recvV, recvOk}
++
++	default:
++		panic(fmt.Sprintf("unexpected instruction: %T", instr))
++	}
++
++	// if val, ok := instr.(ssa.Value); ok {
++	// 	fmt.Println(toString(fr.env[val])) // debugging
++	// }
++
++	return kNext
++}
++
++// prepareCall determines the function value and argument values for a
++// function call in a Call, Go or Defer instruction, peforming
++// interface method lookup if needed.
++//
++func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
++	if call.Func != nil {
++		// Function call.
++		fn = fr.get(call.Func)
++	} else {
++		// Interface method invocation.
++		recv := fr.get(call.Recv).(iface)
++		if recv.t == nil {
++			panic("method invoked on nil interface")
++		}
++		meth := underlyingType(call.Recv.Type()).(*types.Interface).Methods[call.Method]
++		id := ssa.IdFromQualifiedName(meth.QualifiedName)
++		m := findMethodSet(fr.i, recv.t)[id]
++		if m == nil {
++			// Unreachable in well-typed programs.
++			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, id))
++		}
++		_, aptr := recv.v.(*value)                        // actual pointerness
++		_, fptr := m.Signature.Recv.Type.(*types.Pointer) // formal pointerness
++		switch {
++		case aptr == fptr:
++			args = append(args, copyVal(recv.v))
++		case aptr:
++			// Calling func(T) with a *T receiver: make a copy.
++			args = append(args, copyVal(*recv.v.(*value)))
++		case fptr:
++			panic("illegal call of *T method with T receiver")
++		}
++		fn = m
++	}
++	for _, arg := range call.Args {
++		args = append(args, fr.get(arg))
++	}
++	return
++}
++
++// call interprets a call to a function (function, builtin or closure)
++// fn with arguments args, returning its result.
++// callpos is the position of the callsite.
++//
++func call(i *interpreter, caller *frame, callpos token.Pos, fn value, args []value) value {
++	switch fn := fn.(type) {
++	case *ssa.Function:
++		if fn == nil {
++			panic("call of nil function") // nil of func type
++		}
++		return callSSA(i, caller, callpos, fn, args, nil)
++	case *closure:
++		return callSSA(i, caller, callpos, fn.Fn, args, fn.Env)
++	case *ssa.Builtin:
++		return callBuiltin(caller, callpos, fn, args)
++	}
++	panic(fmt.Sprintf("cannot call %T", fn))
++}
++
++func loc(fset *token.FileSet, pos token.Pos) string {
++	if pos == token.NoPos {
++		return ""
++	}
++	return " at " + fset.Position(pos).String()
++}
++
++// callSSA interprets a call to function fn with arguments args,
++// and lexical environment env, returning its result.
++// callpos is the position of the callsite.
++//
++func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function, args []value, env []value) value {
++	if i.mode&EnableTracing != 0 {
++		fset := fn.Prog.Files
++		// TODO(adonovan): fix: loc() lies for external functions.
++		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos))
++		suffix := ""
++		if caller != nil {
++			suffix = ", resuming " + caller.fn.FullName() + loc(fset, callpos)
++		}
++		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn.FullName(), suffix)
++	}
++	if fn.Enclosing == nil {
++		name := fn.FullName()
++		if ext := externals[name]; ext != nil {
++			if i.mode&EnableTracing != 0 {
++				fmt.Fprintln(os.Stderr, "\t(external)")
++			}
++			return ext(fn, args, env)
++		}
++		if fn.Blocks == nil {
++			panic("no code for function: " + name)
++		}
++	}
++	fr := &frame{
++		i:      i,
++		caller: caller, // currently unused; for unwinding.
++		fn:     fn,
++		env:    make(map[ssa.Value]value),
++		block:  fn.Blocks[0],
++		locals: make([]value, len(fn.Locals)),
++	}
++	for i, l := range fn.Locals {
++		fr.locals[i] = zero(indirectType(l.Type()))
++		fr.env[l] = &fr.locals[i]
++	}
++	for i, p := range fn.Params {
++		fr.env[p] = args[i]
++	}
++	for i, fv := range fn.FreeVars {
++		fr.env[fv] = env[i]
++	}
++	var instr ssa.Instruction
++
++	defer func() {
++		if fr.status != stComplete {
++			if fr.i.mode&DisableRecover != 0 {
++				return // let interpreter crash
++			}
++			fr.status, fr.panic = stPanic, recover()
++		}
++		for i := range fr.defers {
++			if fr.i.mode&EnableTracing != 0 {
++				fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
++			}
++			fr.defers[len(fr.defers)-1-i]()
++		}
++		// Destroy the locals to avoid accidental use after return.
++		for i := range fn.Locals {
++			fr.locals[i] = bad{}
++		}
++		if fr.status == stPanic {
++			panic(fr.panic) // panic stack is not entirely clean
++		}
++	}()
++
++	for {
++		if i.mode&EnableTracing != 0 {
++			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block.Name)
++		}
++	block:
++		for _, instr = range fr.block.Instrs {
++			if i.mode&EnableTracing != 0 {
++				if v, ok := instr.(ssa.Value); ok {
++					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
++				} else {
++					fmt.Fprintln(os.Stderr, "\t", instr)
++				}
++			}
++			switch visitInstr(fr, instr) {
++			case kReturn:
++				fr.status = stComplete
++				return fr.result
++			case kNext:
++				// no-op
++			case kJump:
++				break block
++			}
++		}
++	}
++	panic("unreachable")
++}
++
++// setGlobal sets the value of a system-initialized global variable.
++func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
++	if g, ok := i.globals[pkg.Var(name)]; ok {
++		*g = v
++		return
++	}
++	panic("no global variable: " + pkg.Name() + "." + name)
++}
++
++// Interpret interprets the Go program whose main package is mainpkg.
++// mode specifies various interpreter options.  filename and args are
++// the initial values of os.Args for the target program.
++//
++func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) {
++	i := &interpreter{
++		prog:    mainpkg.Prog,
++		globals: make(map[ssa.Value]*value),
++		mode:    mode,
++	}
++	initReflect(i)
++
++	for importPath, pkg := range i.prog.Packages {
++		// Initialize global storage.
++		for _, m := range pkg.Members {
++			switch v := m.(type) {
++			case *ssa.Global:
++				cell := zero(indirectType(v.Type()))
++				i.globals[v] = &cell
++			}
++		}
++
++		// Ad-hoc initialization for magic system variables.
++		switch importPath {
++		case "syscall":
++			var envs []value
++			for _, s := range os.Environ() {
++				envs = append(envs, s)
++			}
++			setGlobal(i, pkg, "envs", envs)
++
++		case "runtime":
++			// TODO(gri): expose go/types.sizeof so we can
++			// avoid this fragile magic number;
++			// unsafe.Sizeof(memStats) won't work since gc
++			// and go/types have different sizeof
++			// functions.
++			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3450))
++
++		case "os":
++			Args := []value{filename}
++			for _, s := range args {
++				Args = append(Args, s)
++			}
++			setGlobal(i, pkg, "Args", Args)
++		}
++	}
++
++	// Top-level error handler.
++	complete := false
++	defer func() {
++		if complete || i.mode&DisableRecover != 0 {
++			return
++		}
++		// TODO(adonovan): stop the world and dump goroutines.
++		switch p := recover().(type) {
++		case targetPanic:
++			fmt.Fprintln(os.Stderr, "panic:", toString(p.v))
++		case runtime.Error:
++			fmt.Fprintln(os.Stderr, "panic:", p.Error())
++		case string:
++			fmt.Fprintln(os.Stderr, "panic:", p)
++		default:
++			panic(fmt.Sprintf("unexpected panic type: %T", p))
++		}
++		os.Exit(1)
++	}()
++
++	// Run!
++	call(i, nil, token.NoPos, mainpkg.Init, nil)
++	if mainFn := mainpkg.Func("main"); mainFn != nil {
++		call(i, nil, token.NoPos, mainFn, nil)
++	} else {
++		log.Fatalf("no main function")
++	}
++	complete = true
++}
+diff --git a/src/pkg/exp/ssa/interp/map.go b/src/pkg/exp/ssa/interp/map.go
+new file mode 100644
+index 0000000000..2e3010b618
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/map.go
+@@ -0,0 +1,101 @@
++package interp
++
++// Custom hashtable atop map.
++// For use when the key's equivalence relation is not consistent with ==.
++
++// The Go specification doesn't address the atomicity of map operations.
++// The FAQ states that an implementation is permitted to crash on
++// concurrent map access.
++
++import (
++	"go/types"
++)
++
++type hashable interface {
++	hash() int
++	eq(x interface{}) bool
++}
++
++type entry struct {
++	key   hashable
++	value value
++	next  *entry
++}
++
++// A hashtable atop the built-in map.  Since each bucket contains
++// exactly one hash value, there's no need to perform hash-equality
++// tests when walking the linked list.  Rehashing is done by the
++// underlying map.
++type hashmap struct {
++	table  map[int]*entry
++	length int // number of entries in map
++}
++
++// makeMap returns an empty initialized map of key type kt,
++// preallocating space for reserve elements.
++func makeMap(kt types.Type, reserve int) value {
++	if usesBuiltinMap(kt) {
++		return make(map[value]value, reserve)
++	}
++	return &hashmap{table: make(map[int]*entry, reserve)}
++}
++
++// delete removes the association for key k, if any.
++func (m *hashmap) delete(k hashable) {
++	hash := k.hash()
++	head := m.table[hash]
++	if head != nil {
++		if k.eq(head.key) {
++			m.table[hash] = head.next
++			m.length--
++			return
++		}
++		prev := head
++		for e := head.next; e != nil; e = e.next {
++			if k.eq(e.key) {
++				prev.next = e.next
++				m.length--
++				return
++			}
++			prev = e
++		}
++	}
++}
++
++// lookup returns the value associated with key k, if present, or
++// value(nil) otherwise.
++func (m *hashmap) lookup(k hashable) value {
++	hash := k.hash()
++	for e := m.table[hash]; e != nil; e = e.next {
++		if k.eq(e.key) {
++			return e.value
++		}
++	}
++	return nil
++}
++
++// insert updates the map to associate key k with value v.  If there
++// was already an association for an eq() (though not necessarily ==)
++// k, the previous key remains in the map and its associated value is
++// updated.
++func (m *hashmap) insert(k hashable, v value) {
++	hash := k.hash()
++	head := m.table[hash]
++	for e := head; e != nil; e = e.next {
++		if k.eq(e.key) {
++			e.value = v
++			return
++		}
++	}
++	m.table[hash] = &entry{
++		key:   k,
++		value: v,
++		next:  head,
++	}
++	m.length++
++}
++
++// len returns the number of key/value associations in the map.
++func (m *hashmap) len() int {
++	return m.length
++}
+diff --git a/src/pkg/exp/ssa/interp/ops.go b/src/pkg/exp/ssa/interp/ops.go
+new file mode 100644
+index 0000000000..3e4819899e
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/ops.go
+@@ -0,0 +1,1373 @@
++package interp
++
++import (
++	"exp/ssa"
++	"fmt"
++	"go/token"
++	"go/types"
++	"os"
++	"runtime"
++	"strings"
++	"unsafe"
++)
++
++// If the target program panics, the interpreter panics with this type.
++type targetPanic struct {
++	v value
++}
++
++// literalValue returns the value of the literal with the
++// dynamic type tag appropriate for l.Type().
++func literalValue(l *ssa.Literal) value {
++	if l.IsNil() {
++		return zero(l.Type()) // typed nil
++	}
++
++	// By destination type:
++	switch t := underlyingType(l.Type()).(type) {
++	case *types.Basic:
++		switch t.Kind {
++		case types.Bool, types.UntypedBool:
++			return l.Value.(bool)
++		case types.Int, types.UntypedInt:
++			// Assume sizeof(int) is same on host and target.
++			return int(l.Int64())
++		case types.Int8:
++			return int8(l.Int64())
++		case types.Int16:
++			return int16(l.Int64())
++		case types.Int32, types.UntypedRune:
++			return int32(l.Int64())
++		case types.Int64:
++			return l.Int64()
++		case types.Uint:
++			// Assume sizeof(uint) is same on host and target.
++			return uint(l.Uint64())
++		case types.Uint8:
++			return uint8(l.Uint64())
++		case types.Uint16:
++			return uint16(l.Uint64())
++		case types.Uint32:
++			return uint32(l.Uint64())
++		case types.Uint64:
++			return l.Uint64()
++		case types.Uintptr:
++			// Assume sizeof(uintptr) is same on host and target.
++			return uintptr(l.Uint64())
++		case types.Float32:
++			return float32(l.Float64())
++		case types.Float64, types.UntypedFloat:
++			return l.Float64()
++		case types.Complex64:
++			return complex64(l.Complex128())
++		case types.Complex128, types.UntypedComplex:
++			return l.Complex128()
++		case types.String, types.UntypedString:
++			if v, ok := l.Value.(string); ok {
++				return v
++			}
++			return string(rune(l.Int64()))
++		case types.UnsafePointer:
++			panic("unsafe.Pointer literal") // not possible
++		case types.UntypedNil:
++			// nil was handled above.
++		}
++
++	case *types.Slice:
++		switch et := underlyingType(t.Elt).(type) {
++		case *types.Basic:
++			switch et.Kind {
++			case types.Byte: // string -> []byte
++				var v []value
++				for _, b := range []byte(l.Value.(string)) {
++					v = append(v, b)
++				}
++				return v
++			case types.Rune: // string -> []rune
++				var v []value
++				for _, r := range []rune(l.Value.(string)) {
++					v = append(v, r)
++				}
++				return v
++			}
++		}
++	}
++
++	panic(fmt.Sprintf("literalValue: Value.(type)=%T Type()=%s", l.Value, l.Type()))
++}
++
++// asInt converts x, which must be an integer, to an int suitable for
++// use as a slice or array index or operand to make().
++func asInt(x value) int {
++	switch x := x.(type) {
++	case int:
++		return x
++	case int8:
++		return int(x)
++	case int16:
++		return int(x)
++	case int32:
++		return int(x)
++	case int64:
++		return int(x)
++	case uint:
++		return int(x)
++	case uint8:
++		return int(x)
++	case uint16:
++		return int(x)
++	case uint32:
++		return int(x)
++	case uint64:
++		return int(x)
++	case uintptr:
++		return int(x)
++	}
++	panic(fmt.Sprintf("cannot convert %T to int", x))
++}
++
++// asUint64 converts x, which must be an unsigned integer, to a uint64
++// suitable for use as a bitwise shift count.
++func asUint64(x value) uint64 {
++	switch x := x.(type) {
++	case uint:
++		return uint64(x)
++	case uint8:
++		return uint64(x)
++	case uint16:
++		return uint64(x)
++	case uint32:
++		return uint64(x)
++	case uint64:
++		return x
++	case uintptr:
++		return uint64(x)
++	}
++	panic(fmt.Sprintf("cannot convert %T to uint64", x))
++}
++
++// zero returns a new "zero" value of the specified type.
++func zero(t types.Type) value {
++	switch t := t.(type) {
++	case *types.Basic:
++		if t.Kind == types.UntypedNil {
++			panic("untyped nil has no zero value")
++		}
++		if t.Info&types.IsUntyped != 0 {
++			t = ssa.DefaultType(t).(*types.Basic)
++		}
++		switch t.Kind {
++		case types.Bool:
++			return false
++		case types.Int:
++			return int(0)
++		case types.Int8:
++			return int8(0)
++		case types.Int16:
++			return int16(0)
++		case types.Int32:
++			return int32(0)
++		case types.Int64:
++			return int64(0)
++		case types.Uint:
++			return uint(0)
++		case types.Uint8:
++			return uint8(0)
++		case types.Uint16:
++			return uint16(0)
++		case types.Uint32:
++			return uint32(0)
++		case types.Uint64:
++			return uint64(0)
++		case types.Uintptr:
++			return uintptr(0)
++		case types.Float32:
++			return float32(0)
++		case types.Float64:
++			return float64(0)
++		case types.Complex64:
++			return complex64(0)
++		case types.Complex128:
++			return complex128(0)
++		case types.String:
++			return ""
++		case types.UnsafePointer:
++			return unsafe.Pointer(nil)
++		default:
++			panic(fmt.Sprint("zero for unexpected type:", t))
++		}
++	case *types.Pointer:
++		return (*value)(nil)
++	case *types.Array:
++		a := make(array, t.Len)
++		for i := range a {
++			a[i] = zero(t.Elt)
++		}
++		return a
++	case *types.NamedType:
++		return zero(t.Underlying)
++	case *types.Interface:
++		return iface{} // nil type, methodset and value
++	case *types.Slice:
++		return []value(nil)
++	case *types.Struct:
++		s := make(structure, len(t.Fields))
++		for i := range s {
++			s[i] = zero(t.Fields[i].Type)
++		}
++		return s
++	case *types.Chan:
++		return chan value(nil)
++	case *types.Map:
++		if usesBuiltinMap(t.Key) {
++			return map[value]value(nil)
++		}
++		return (*hashmap)(nil)
++
++	case *types.Signature:
++		return (*ssa.Function)(nil)
++	}
++	panic(fmt.Sprint("zero: unexpected ", t))
++}
++
++// slice returns x[lo:hi].  Either or both of lo and hi may be nil.
++func slice(x, lo, hi value) value {
++	l := 0
++	if lo != nil {
++		l = asInt(lo)
++	}
++	switch x := x.(type) {
++	case string:
++		if hi != nil {
++			return x[l:asInt(hi)]
++		}
++		return x[l:]
++	case []value:
++		if hi != nil {
++			return x[l:asInt(hi)]
++		}
++		return x[l:]
++	case *value: // *array
++		a := (*x).(array)
++		if hi != nil {
++			return []value(a)[l:asInt(hi)]
++		}
++		return []value(a)[l:]
++	}
++	panic(fmt.Sprintf("slice: unexpected X type: %T", x))
++}
++
++// lookup returns x[idx] where x is a map or string.
++func lookup(instr *ssa.Lookup, x, idx value) value {
++	switch x := x.(type) { // map or string
++	case map[value]value, *hashmap:
++		var v value
++		var ok bool
++		switch x := x.(type) {
++		case map[value]value:
++			v, ok = x[idx]
++		case *hashmap:
++			v = x.lookup(idx.(hashable))
++			ok = v != nil
++		}
++		if ok {
++			v = copyVal(v)
++		} else {
++			v = zero(underlyingType(instr.X.Type()).(*types.Map).Elt)
++		}
++		if instr.CommaOk {
++			v = tuple{v, ok}
++		}
++		return v
++	case string:
++		return x[asInt(idx)]
++	}
++	panic(fmt.Sprintf("unexpected x type in Lookup: %T", x))
++}
++
++// binop implements all arithmetic and logical binary operators for
++// numeric datatypes and strings.  Both operands must have identical
++// dynamic type.
++//
++func binop(op token.Token, x, y value) value {
++	switch op {
++	case token.ADD:
++		switch x.(type) {
++		case int:
++			return x.(int) + y.(int)
++		case int8:
++			return x.(int8) + y.(int8)
++		case int16:
++			return x.(int16) + y.(int16)
++		case int32:
++			return x.(int32) + y.(int32)
++		case int64:
++			return x.(int64) + y.(int64)
++		case uint:
++			return x.(uint) + y.(uint)
++		case uint8:
++			return x.(uint8) + y.(uint8)
++		case uint16:
++			return x.(uint16) + y.(uint16)
++		case uint32:
++			return x.(uint32) + y.(uint32)
++		case uint64:
++			return x.(uint64) + y.(uint64)
++		case uintptr:
++			return x.(uintptr) + y.(uintptr)
++		case float32:
++			return x.(float32) + y.(float32)
++		case float64:
++			return x.(float64) + y.(float64)
++		case complex64:
++			return x.(complex64) + y.(complex64)
++		case complex128:
++			return x.(complex128) + y.(complex128)
++		case string:
++			return x.(string) + y.(string)
++		}
++
++	case token.SUB:
++		switch x.(type) {
++		case int:
++			return x.(int) - y.(int)
++		case int8:
++			return x.(int8) - y.(int8)
++		case int16:
++			return x.(int16) - y.(int16)
++		case int32:
++			return x.(int32) - y.(int32)
++		case int64:
++			return x.(int64) - y.(int64)
++		case uint:
++			return x.(uint) - y.(uint)
++		case uint8:
++			return x.(uint8) - y.(uint8)
++		case uint16:
++			return x.(uint16) - y.(uint16)
++		case uint32:
++			return x.(uint32) - y.(uint32)
++		case uint64:
++			return x.(uint64) - y.(uint64)
++		case uintptr:
++			return x.(uintptr) - y.(uintptr)
++		case float32:
++			return x.(float32) - y.(float32)
++		case float64:
++			return x.(float64) - y.(float64)
++		case complex64:
++			return x.(complex64) - y.(complex64)
++		case complex128:
++			return x.(complex128) - y.(complex128)
++		}
++
++	case token.MUL:
++		switch x.(type) {
++		case int:
++			return x.(int) * y.(int)
++		case int8:
++			return x.(int8) * y.(int8)
++		case int16:
++			return x.(int16) * y.(int16)
++		case int32:
++			return x.(int32) * y.(int32)
++		case int64:
++			return x.(int64) * y.(int64)
++		case uint:
++			return x.(uint) * y.(uint)
++		case uint8:
++			return x.(uint8) * y.(uint8)
++		case uint16:
++			return x.(uint16) * y.(uint16)
++		case uint32:
++			return x.(uint32) * y.(uint32)
++		case uint64:
++			return x.(uint64) * y.(uint64)
++		case uintptr:
++			return x.(uintptr) * y.(uintptr)
++		case float32:
++			return x.(float32) * y.(float32)
++		case float64:
++			return x.(float64) * y.(float64)
++		case complex64:
++			return x.(complex64) * y.(complex64)
++		case complex128:
++			return x.(complex128) * y.(complex128)
++		}
++
++	case token.QUO:
++		switch x.(type) {
++		case int:
++			return x.(int) / y.(int)
++		case int8:
++			return x.(int8) / y.(int8)
++		case int16:
++			return x.(int16) / y.(int16)
++		case int32:
++			return x.(int32) / y.(int32)
++		case int64:
++			return x.(int64) / y.(int64)
++		case uint:
++			return x.(uint) / y.(uint)
++		case uint8:
++			return x.(uint8) / y.(uint8)
++		case uint16:
++			return x.(uint16) / y.(uint16)
++		case uint32:
++			return x.(uint32) / y.(uint32)
++		case uint64:
++			return x.(uint64) / y.(uint64)
++		case uintptr:
++			return x.(uintptr) / y.(uintptr)
++		case float32:
++			return x.(float32) / y.(float32)
++		case float64:
++			return x.(float64) / y.(float64)
++		case complex64:
++			return x.(complex64) / y.(complex64)
++		case complex128:
++			return x.(complex128) / y.(complex128)
++		}
++
++	case token.REM:
++		switch x.(type) {
++		case int:
++			return x.(int) % y.(int)
++		case int8:
++			return x.(int8) % y.(int8)
++		case int16:
++			return x.(int16) % y.(int16)
++		case int32:
++			return x.(int32) % y.(int32)
++		case int64:
++			return x.(int64) % y.(int64)
++		case uint:
++			return x.(uint) % y.(uint)
++		case uint8:
++			return x.(uint8) % y.(uint8)
++		case uint16:
++			return x.(uint16) % y.(uint16)
++		case uint32:
++			return x.(uint32) % y.(uint32)
++		case uint64:
++			return x.(uint64) % y.(uint64)
++		case uintptr:
++			return x.(uintptr) % y.(uintptr)
++		}
++
++	case token.AND:
++		switch x.(type) {
++		case int:
++			return x.(int) & y.(int)
++		case int8:
++			return x.(int8) & y.(int8)
++		case int16:
++			return x.(int16) & y.(int16)
++		case int32:
++			return x.(int32) & y.(int32)
++		case int64:
++			return x.(int64) & y.(int64)
++		case uint:
++			return x.(uint) & y.(uint)
++		case uint8:
++			return x.(uint8) & y.(uint8)
++		case uint16:
++			return x.(uint16) & y.(uint16)
++		case uint32:
++			return x.(uint32) & y.(uint32)
++		case uint64:
++			return x.(uint64) & y.(uint64)
++		case uintptr:
++			return x.(uintptr) & y.(uintptr)
++		}
++
++	case token.OR:
++		switch x.(type) {
++		case int:
++			return x.(int) | y.(int)
++		case int8:
++			return x.(int8) | y.(int8)
++		case int16:
++			return x.(int16) | y.(int16)
++		case int32:
++			return x.(int32) | y.(int32)
++		case int64:
++			return x.(int64) | y.(int64)
++		case uint:
++			return x.(uint) | y.(uint)
++		case uint8:
++			return x.(uint8) | y.(uint8)
++		case uint16:
++			return x.(uint16) | y.(uint16)
++		case uint32:
++			return x.(uint32) | y.(uint32)
++		case uint64:
++			return x.(uint64) | y.(uint64)
++		case uintptr:
++			return x.(uintptr) | y.(uintptr)
++		}
++
++	case token.XOR:
++		switch x.(type) {
++		case int:
++			return x.(int) ^ y.(int)
++		case int8:
++			return x.(int8) ^ y.(int8)
++		case int16:
++			return x.(int16) ^ y.(int16)
++		case int32:
++			return x.(int32) ^ y.(int32)
++		case int64:
++			return x.(int64) ^ y.(int64)
++		case uint:
++			return x.(uint) ^ y.(uint)
++		case uint8:
++			return x.(uint8) ^ y.(uint8)
++		case uint16:
++			return x.(uint16) ^ y.(uint16)
++		case uint32:
++			return x.(uint32) ^ y.(uint32)
++		case uint64:
++			return x.(uint64) ^ y.(uint64)
++		case uintptr:
++			return x.(uintptr) ^ y.(uintptr)
++		}
++
++	case token.AND_NOT:
++		switch x.(type) {
++		case int:
++			return x.(int) &^ y.(int)
++		case int8:
++			return x.(int8) &^ y.(int8)
++		case int16:
++			return x.(int16) &^ y.(int16)
++		case int32:
++			return x.(int32) &^ y.(int32)
++		case int64:
++			return x.(int64) &^ y.(int64)
++		case uint:
++			return x.(uint) &^ y.(uint)
++		case uint8:
++			return x.(uint8) &^ y.(uint8)
++		case uint16:
++			return x.(uint16) &^ y.(uint16)
++		case uint32:
++			return x.(uint32) &^ y.(uint32)
++		case uint64:
++			return x.(uint64) &^ y.(uint64)
++		case uintptr:
++			return x.(uintptr) &^ y.(uintptr)
++		}
++
++	case token.SHL:
++		y := asUint64(y)
++		switch x.(type) {
++		case int:
++			return x.(int) << y
++		case int8:
++			return x.(int8) << y
++		case int16:
++			return x.(int16) << y
++		case int32:
++			return x.(int32) << y
++		case int64:
++			return x.(int64) << y
++		case uint:
++			return x.(uint) << y
++		case uint8:
++			return x.(uint8) << y
++		case uint16:
++			return x.(uint16) << y
++		case uint32:
++			return x.(uint32) << y
++		case uint64:
++			return x.(uint64) << y
++		case uintptr:
++			return x.(uintptr) << y
++		}
++
++	case token.SHR:
++		y := asUint64(y)
++		switch x.(type) {
++		case int:
++			return x.(int) >> y
++		case int8:
++			return x.(int8) >> y
++		case int16:
++			return x.(int16) >> y
++		case int32:
++			return x.(int32) >> y
++		case int64:
++			return x.(int64) >> y
++		case uint:
++			return x.(uint) >> y
++		case uint8:
++			return x.(uint8) >> y
++		case uint16:
++			return x.(uint16) >> y
++		case uint32:
++			return x.(uint32) >> y
++		case uint64:
++			return x.(uint64) >> y
++		case uintptr:
++			return x.(uintptr) >> y
++		}
++
++	case token.LSS:
++		switch x.(type) {
++		case int:
++			return x.(int) < y.(int)
++		case int8:
++			return x.(int8) < y.(int8)
++		case int16:
++			return x.(int16) < y.(int16)
++		case int32:
++			return x.(int32) < y.(int32)
++		case int64:
++			return x.(int64) < y.(int64)
++		case uint:
++			return x.(uint) < y.(uint)
++		case uint8:
++			return x.(uint8) < y.(uint8)
++		case uint16:
++			return x.(uint16) < y.(uint16)
++		case uint32:
++			return x.(uint32) < y.(uint32)
++		case uint64:
++			return x.(uint64) < y.(uint64)
++		case uintptr:
++			return x.(uintptr) < y.(uintptr)
++		case float32:
++			return x.(float32) < y.(float32)
++		case float64:
++			return x.(float64) < y.(float64)
++		case string:
++			return x.(string) < y.(string)
++		}
++
++	case token.LEQ:
++		switch x.(type) {
++		case int:
++			return x.(int) <= y.(int)
++		case int8:
++			return x.(int8) <= y.(int8)
++		case int16:
++			return x.(int16) <= y.(int16)
++		case int32:
++			return x.(int32) <= y.(int32)
++		case int64:
++			return x.(int64) <= y.(int64)
++		case uint:
++			return x.(uint) <= y.(uint)
++		case uint8:
++			return x.(uint8) <= y.(uint8)
++		case uint16:
++			return x.(uint16) <= y.(uint16)
++		case uint32:
++			return x.(uint32) <= y.(uint32)
++		case uint64:
++			return x.(uint64) <= y.(uint64)
++		case uintptr:
++			return x.(uintptr) <= y.(uintptr)
++		case float32:
++			return x.(float32) <= y.(float32)
++		case float64:
++			return x.(float64) <= y.(float64)
++		case string:
++			return x.(string) <= y.(string)
++		}
++
++	case token.EQL:
++		return equals(x, y)
++
++	case token.NEQ:
++		return !equals(x, y)
++
++	case token.GTR:
++		switch x.(type) {
++		case int:
++			return x.(int) > y.(int)
++		case int8:
++			return x.(int8) > y.(int8)
++		case int16:
++			return x.(int16) > y.(int16)
++		case int32:
++			return x.(int32) > y.(int32)
++		case int64:
++			return x.(int64) > y.(int64)
++		case uint:
++			return x.(uint) > y.(uint)
++		case uint8:
++			return x.(uint8) > y.(uint8)
++		case uint16:
++			return x.(uint16) > y.(uint16)
++		case uint32:
++			return x.(uint32) > y.(uint32)
++		case uint64:
++			return x.(uint64) > y.(uint64)
++		case uintptr:
++			return x.(uintptr) > y.(uintptr)
++		case float32:
++			return x.(float32) > y.(float32)
++		case float64:
++			return x.(float64) > y.(float64)
++		case string:
++			return x.(string) > y.(string)
++		}
++
++	case token.GEQ:
++		switch x.(type) {
++		case int:
++			return x.(int) >= y.(int)
++		case int8:
++			return x.(int8) >= y.(int8)
++		case int16:
++			return x.(int16) >= y.(int16)
++		case int32:
++			return x.(int32) >= y.(int32)
++		case int64:
++			return x.(int64) >= y.(int64)
++		case uint:
++			return x.(uint) >= y.(uint)
++		case uint8:
++			return x.(uint8) >= y.(uint8)
++		case uint16:
++			return x.(uint16) >= y.(uint16)
++		case uint32:
++			return x.(uint32) >= y.(uint32)
++		case uint64:
++			return x.(uint64) >= y.(uint64)
++		case uintptr:
++			return x.(uintptr) >= y.(uintptr)
++		case float32:
++			return x.(float32) >= y.(float32)
++		case float64:
++			return x.(float64) >= y.(float64)
++		case string:
++			return x.(string) >= y.(string)
++		}
++	}
++	panic(fmt.Sprintf("invalid binary op: %T %s %T", x, op, y))
++}
++
++func unop(instr *ssa.UnOp, x value) value {
++	switch instr.Op {
++	case token.ARROW: // receive
++		v, ok := <-x.(chan value)
++		if !ok {
++			v = zero(underlyingType(instr.X.Type()).(*types.Chan).Elt)
++		}
++		if instr.CommaOk {
++			v = tuple{v, ok}
++		}
++		return v
++	case token.SUB:
++		switch x := x.(type) {
++		case int:
++			return -x
++		case int8:
++			return -x
++		case int16:
++			return -x
++		case int32:
++			return -x
++		case int64:
++			return -x
++		case uint:
++			return -x
++		case uint8:
++			return -x
++		case uint16:
++			return -x
++		case uint32:
++			return -x
++		case uint64:
++			return -x
++		case uintptr:
++			return -x
++		case float32:
++			return -x
++		case float64:
++			return -x
++		}
++	case token.MUL:
++		return copyVal(*x.(*value)) // load
++	case token.NOT:
++		return !x.(bool)
++	case token.XOR:
++		switch x := x.(type) {
++		case int:
++			return ^x
++		case int8:
++			return ^x
++		case int16:
++			return ^x
++		case int32:
++			return ^x
++		case int64:
++			return ^x
++		case uint:
++			return ^x
++		case uint8:
++			return ^x
++		case uint16:
++			return ^x
++		case uint32:
++			return ^x
++		case uint64:
++			return ^x
++		case uintptr:
++			return ^x
++		}
++	}
++	panic(fmt.Sprintf("invalid unary op %s %T", instr.Op, x))
++}
++
++// typeAssert checks whether dynamic type of itf is instr.AssertedType.
++// It returns the extracted value on success, and panics on failure,
++// unless instr.CommaOk, in which case it always returns a "value,ok" tuple.
++//
++func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
++	var v value
++	err := ""
++	if idst, ok := underlyingType(instr.AssertedType).(*types.Interface); ok {
++		v = itf
++		err = checkInterface(i, idst, itf)
++
++	} else if types.IsIdentical(itf.t, instr.AssertedType) {
++		v = copyVal(itf.v) // extract value
++
++	} else {
++		err = fmt.Sprintf("type assert failed: expected %s, got %s", instr.AssertedType, itf.t)
++	}
++
++	if err != "" {
++		if !instr.CommaOk {
++			panic(err)
++		}
++		return tuple{zero(instr.AssertedType), false}
++	}
++	if instr.CommaOk {
++		return tuple{v, true}
++	}
++	return v
++}
++
++// callBuiltin interprets a call to builtin fn with arguments args,
++// returning its result.
++func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value) value {
++	switch fn.Name() {
++	case "append":
++		if len(args) == 1 {
++			return args[0]
++		}
++		if s, ok := args[1].(string); ok {
++			// append([]byte, ...string) []byte
++			arg0 := args[0].([]value)
++			for i := 0; i < len(s); i++ {
++				arg0 = append(arg0, s[i])
++			}
++			return arg0
++		}
++		// append([]T, ...[]T) []T
++		return append(args[0].([]value), args[1].([]value)...)
++
++	case "copy": // copy([]T, []T) int
++		if _, ok := args[1].(string); ok {
++			panic("copy([]byte, string) not yet implemented")
++		}
++		return copy(args[0].([]value), args[1].([]value))
++
++	case "close": // close(chan T)
++		close(args[0].(chan value))
++		return nil
++
++	case "delete": // delete(map[K]value, K)
++		switch m := args[0].(type) {
++		case map[value]value:
++			delete(m, args[1])
++		case *hashmap:
++			m.delete(args[1].(hashable))
++		default:
++			panic(fmt.Sprintf("illegal map type: %T", m))
++		}
++		return nil
++
++	case "print", "println": // print(interface{}, ...interface{})
++		ln := fn.Name() == "println"
++		fmt.Print(toString(args[0]))
++		if len(args) == 2 {
++			for _, arg := range args[1].([]value) {
++				if ln {
++					fmt.Print(" ")
++				}
++				fmt.Print(toString(arg))
++			}
++		}
++		if ln {
++			fmt.Println()
++		}
++		return nil
++
++	case "len":
++		switch x := args[0].(type) {
++		case string:
++			return len(x)
++		case array:
++			return len(x)
++		case *value:
++			return len((*x).(array))
++		case []value:
++			return len(x)
++		case map[value]value:
++			return len(x)
++		case *hashmap:
++			return x.len()
++		case chan value:
++			return len(x)
++		default:
++			panic(fmt.Sprintf("len: illegal operand: %T", x))
++		}
++
++	case "cap":
++		switch x := args[0].(type) {
++		case array:
++			return cap(x)
++		case *value:
++			return cap((*x).(array))
++		case []value:
++			return cap(x)
++		case chan value:
++			return cap(x)
++		default:
++			panic(fmt.Sprintf("cap: illegal operand: %T", x))
++		}
++
++	case "real":
++		switch c := args[0].(type) {
++		case complex64:
++			return real(c)
++		case complex128:
++			return real(c)
++		default:
++			panic(fmt.Sprintf("real: illegal operand: %T", c))
++		}
++
++	case "imag":
++		switch c := args[0].(type) {
++		case complex64:
++			return imag(c)
++		case complex128:
++			return imag(c)
++		default:
++			panic(fmt.Sprintf("imag: illegal operand: %T", c))
++		}
++
++	case "complex":
++		switch f := args[0].(type) {
++		case float32:
++			return complex(f, args[1].(float32))
++		case float64:
++			return complex(f, args[1].(float64))
++		default:
++			panic(fmt.Sprintf("complex: illegal operand: %T", f))
++		}
++
++	case "panic":
++		panic(targetPanic{args[0]})
++
++	case "recover":
++		// recover() must be exactly one level beneath the
++		// deferred function (two levels beneath the panicking
++		// function) to have any effect.  Thus we ignore both
++		// "defer recover()" and "defer f() -> g() ->
++		// recover()".
++		if caller.i.mode&DisableRecover == 0 &&
++			caller != nil && caller.status == stRunning &&
++			caller.caller != nil && caller.caller.status == stPanic {
++			caller.caller.status = stComplete
++			p := caller.caller.panic
++			caller.caller.panic = nil
++			switch p := p.(type) {
++			case targetPanic:
++				return p.v
++			case runtime.Error:
++				// TODO(adonovan): must box this up
++				// inside instance of interface 'error'.
++				return iface{types.Typ[types.String], p.Error()}
++			case string:
++				return iface{types.Typ[types.String], p}
++			default:
++				panic(fmt.Sprintf("unexpected panic type %T in target call to recover()", p))
++			}
++		}
++		return iface{}
++	}
++
++	panic("unknown built-in: " + fn.Name())
++}
++
++func rangeIter(x value, t types.Type) iter {
++	switch x := x.(type) {
++	case nil:
++		panic("range of nil")
++	case map[value]value:
++		// TODO(adonovan): fix: leaks goroutines and channels
++		// on each incomplete map iteration.  We need to open
++		// up an iteration interface using the
++		// reflect.(Value).MapKeys machinery.
++		it := make(mapIter)
++		go func() {
++			for k, v := range x {
++				it <- [2]value{k, v}
++			}
++			close(it)
++		}()
++		return it
++	case *hashmap:
++		// TODO(adonovan): fix: leaks goroutines and channels
++		// on each incomplete map iteration.  We need to open
++		// up an iteration interface using the
++		// reflect.(Value).MapKeys machinery.
++		it := make(mapIter)
++		go func() {
++			for _, e := range x.table {
++				for e != nil {
++					it <- [2]value{e.key, e.value}
++					e = e.next
++				}
++			}
++			close(it)
++		}()
++		return it
++	case *value: // non-nil *array
++		return &arrayIter{a: (*x).(array)}
++	case array:
++		return &arrayIter{a: x}
++	case []value:
++		return &arrayIter{a: array(x)}
++	case string:
++		return &stringIter{Reader: strings.NewReader(x)}
++	case chan value:
++		return chanIter(x)
++	}
++	panic(fmt.Sprintf("cannot range over %T", x))
++}
++
++// widen widens a basic typed value x to the widest type of its
++// category, one of:
++//   bool, int64, uint64, float64, complex128, string.
++// This is inefficient but reduces the size of the cross-product of
++// cases we have to consider.
++//
++func widen(x value) value {
++	switch y := x.(type) {
++	case bool, int64, uint64, float64, complex128, string, unsafe.Pointer:
++		return x
++	case int:
++		return int64(y)
++	case int8:
++		return int64(y)
++	case int16:
++		return int64(y)
++	case int32:
++		return int64(y)
++	case uint:
++		return uint64(y)
++	case uint8:
++		return uint64(y)
++	case uint16:
++		return uint64(y)
++	case uint32:
++		return uint64(y)
++	case uintptr:
++		return uint64(y)
++	case float32:
++		return float64(y)
++	case complex64:
++		return complex128(y)
++	}
++	panic(fmt.Sprintf("cannot widen %T", x))
++}
++
++// conv converts the value x of type t_src to type t_dst and returns
++// the result.  Possible cases are described with the ssa.Conv
++// operator.  Panics if the dynamic conversion fails.
++//
++func conv(t_dst, t_src types.Type, x value) value {
++	ut_src := underlyingType(t_src)
++	ut_dst := underlyingType(t_dst)
++
++	// Same underlying types?
++	// TODO(adonovan): consider a dedicated ssa.ChangeType instruction.
++	if types.IsIdentical(ut_dst, ut_src) {
++		return x
++	}
++
++	// Destination type is not an "untyped" type.
++	if b, ok := ut_dst.(*types.Basic); ok && b.Info&types.IsUntyped != 0 {
++		panic("conversion to 'untyped' type: " + b.String())
++	}
++
++	// Nor is it an interface type.
++	if _, ok := ut_dst.(*types.Interface); ok {
++		if _, ok := ut_src.(*types.Interface); ok {
++			panic("oops: Conv should be ChangeInterface")
++		} else {
++			panic("oops: Conv should be MakeInterface")
++		}
++	}
++
++	// Remaining conversions:
++	//    + untyped string/number/bool constant to a specific
++	//      representation.
++	//    + conversions between non-complex numeric types.
++	//    + conversions between complex numeric types.
++	//    + integer/[]byte/[]rune -> string.
++	//    + string -> []byte/[]rune.
++	//
++	// All are treated the same: first we extract the value to the
++	// widest representation (bool, int64, uint64, float64,
++	// complex128, or string), then we convert it to the desired
++	// type.
++
++	switch ut_src := ut_src.(type) {
++	case *types.Signature:
++		// TODO(adonovan): fix: this is a hacky workaround for the
++		// unsound conversion of Signature types from
++		// func(T)() to func()(T), i.e. arg0 <-> receiver
++		// conversion.  Talk to gri about correct approach.
++		fmt.Fprintln(os.Stderr, "Warning: unsound Signature conversion")
++		return x
++
++	case *types.Pointer:
++		// *value to unsafe.Pointer?
++		if ut_dst, ok := ut_dst.(*types.Basic); ok {
++			if ut_dst.Kind == types.UnsafePointer {
++				return unsafe.Pointer(x.(*value))
++			}
++		}
++
++	case *types.Slice:
++		// []byte or []rune -> string
++		// TODO(adonovan): fix: type B byte; conv([]B -> string).
++		switch ut_src.Elt.(*types.Basic).Kind {
++		case types.Byte:
++			x := x.([]value)
++			b := make([]byte, 0, len(x))
++			for i := range x {
++				b = append(b, x[i].(byte))
++			}
++			return string(b)
++
++		case types.Rune:
++			x := x.([]value)
++			r := make([]rune, 0, len(x))
++			for i := range x {
++				r = append(r, x[i].(rune))
++			}
++			return string(r)
++		}
++
++	case *types.Basic:
++		x = widen(x)
++
++		// bool?
++		if _, ok := x.(bool); ok {
++			return x
++		}
++
++		// integer -> string?
++		// TODO(adonovan): fix: test integer -> named alias of string.
++		if ut_src.Info&types.IsInteger != 0 {
++			if ut_dst, ok := ut_dst.(*types.Basic); ok && ut_dst.Kind == types.String {
++				return string(asInt(x))
++			}
++		}
++
++		// string -> []rune, []byte or string?
++		if s, ok := x.(string); ok {
++			switch ut_dst := ut_dst.(type) {
++			case *types.Slice:
++				var res []value
++				// TODO(adonovan): fix: test named alias of rune, byte.
++				switch ut_dst.Elt.(*types.Basic).Kind {
++				case types.Rune:
++					for _, r := range []rune(s) {
++						res = append(res, r)
++					}
++					return res
++				case types.Byte:
++					for _, b := range []byte(s) {
++						res = append(res, b)
++					}
++					return res
++				}
++			case *types.Basic:
++				if ut_dst.Kind == types.String {
++					return x.(string)
++				}
++			}
++			break // fail: no other conversions for string
++		}
++
++		// unsafe.Pointer -> *value
++		if ut_src.Kind == types.UnsafePointer {
++			// TODO(adonovan): this is wrong and cannot
++			// really be fixed with the current design.
++			//
++			// It creates a new pointer of a different
++			// type but the underlying interface value
++			// knows its "true" type and so cannot be
++			// meaningfully used through the new pointer.
++			//
++			// To make this work, the interpreter needs to
++			// simulate the memory layout of a real
++			// compiled implementation.
++			return (*value)(x.(unsafe.Pointer))
++		}
++
++		// Conversions between complex numeric types?
++		if ut_src.Info&types.IsComplex != 0 {
++			switch ut_dst.(*types.Basic).Kind {
++			case types.Complex64:
++				return complex64(x.(complex128))
++			case types.Complex128:
++				return x.(complex128)
++			}
++			break // fail: no other conversions for complex
++		}
++
++		// Conversions between non-complex numeric types?
++		if ut_src.Info&types.IsNumeric != 0 {
++			kind := ut_dst.(*types.Basic).Kind
++			switch x := x.(type) {
++			case int64: // signed integer -> numeric?
++				switch kind {
++				case types.Int:
++					return int(x)
++				case types.Int8:
++					return int8(x)
++				case types.Int16:
++					return int16(x)
++				case types.Int32:
++					return int32(x)
++				case types.Int64:
++					return int64(x)
++				case types.Uint:
++					return uint(x)
++				case types.Uint8:
++					return uint8(x)
++				case types.Uint16:
++					return uint16(x)
++				case types.Uint32:
++					return uint32(x)
++				case types.Uint64:
++					return uint64(x)
++				case types.Uintptr:
++					return uintptr(x)
++				case types.Float32:
++					return float32(x)
++				case types.Float64:
++					return float64(x)
++				}
++
++			case uint64: // unsigned integer -> numeric?
++				switch kind {
++				case types.Int:
++					return int(x)
++				case types.Int8:
++					return int8(x)
++				case types.Int16:
++					return int16(x)
++				case types.Int32:
++					return int32(x)
++				case types.Int64:
++					return int64(x)
++				case types.Uint:
++					return uint(x)
++				case types.Uint8:
++					return uint8(x)
++				case types.Uint16:
++					return uint16(x)
++				case types.Uint32:
++					return uint32(x)
++				case types.Uint64:
++					return uint64(x)
++				case types.Uintptr:
++					return uintptr(x)
++				case types.Float32:
++					return float32(x)
++				case types.Float64:
++					return float64(x)
++				}
++
++			case float64: // floating point -> numeric?
++				switch kind {
++				case types.Int:
++					return int(x)
++				case types.Int8:
++					return int8(x)
++				case types.Int16:
++					return int16(x)
++				case types.Int32:
++					return int32(x)
++				case types.Int64:
++					return int64(x)
++				case types.Uint:
++					return uint(x)
++				case types.Uint8:
++					return uint8(x)
++				case types.Uint16:
++					return uint16(x)
++				case types.Uint32:
++					return uint32(x)
++				case types.Uint64:
++					return uint64(x)
++				case types.Uintptr:
++					return uintptr(x)
++				case types.Float32:
++					return float32(x)
++				case types.Float64:
++					return float64(x)
++				}
++			}
++		}
++	}
++
++	panic(fmt.Sprintf("unsupported conversion: %s  -> %s, dynamic type %T", t_src, t_dst, x))
++}
++
++// checkInterface checks that the method set of x implements the
++// interface itype.
++// On success it returns "", on failure, an error message.
++//
++func checkInterface(i *interpreter, itype types.Type, x iface) string {
++	mset := findMethodSet(i, x.t)
++	for _, m := range underlyingType(itype).(*types.Interface).Methods {
++		id := ssa.IdFromQualifiedName(m.QualifiedName)
++		if mset[id] == nil {
++			return fmt.Sprintf("interface conversion: %v is not %v: missing method %v", x.t, itype, id)
++		}
++	}
++	return "" // ok
++}
++
++// underlyingType returns the underlying type of typ.
++// Copied from go/types.underlying.
++//
++func underlyingType(typ types.Type) types.Type {
++	if typ, ok := typ.(*types.NamedType); ok {
++		return typ.Underlying
++	}
++	return typ
++}
++
++// indirectType(typ) assumes that typ is a pointer type,
++// or named alias thereof, and returns its base type.
++// Panic ensues if it is not a pointer.
++// Copied from exp/ssa.indirectType.
++//
++func indirectType(ptr types.Type) types.Type {
++	return underlyingType(ptr).(*types.Pointer).Base
++}
+diff --git a/src/pkg/exp/ssa/interp/reflect.go b/src/pkg/exp/ssa/interp/reflect.go
+new file mode 100644
+index 0000000000..77c80e98e0
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/reflect.go
+@@ -0,0 +1,413 @@
++package interp
++
++// Emulated "reflect" package.
++//
++// We completely replace the built-in "reflect" package.
++// The only thing clients can depend upon are that reflect.Type is an
++// interface and reflect.Value is an (opaque) struct.
++
++import (
++	"exp/ssa"
++	"fmt"
++	"go/types"
++	"reflect"
++	"unsafe"
++)
++
++// rtype is the concrete type the interpreter uses to implement the
++// reflect.Type interface.  Since its type is opaque to the target
++// language, we use a types.Basic.
++//
++// type rtype <opaque>
++var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
++
++// Value is the interpreter's version of reflect.Value.
++//
++// Since it has no public fields and we control all the functions in
++// the reflect package, it doesn't matter that it is not the same as
++// the real Value struct.
++//
++// A reflect.Value contains the same two fields as the interpreter's
++// iface struct.
++//
++// type Value struct {
++//   t    rtype
++//   v    Value
++// }
++//
++// Even though it's a struct, we use a types.Basic since no-one cares.
++var reflectValueType = makeNamedType("Value", &types.Basic{Name: "Value"})
++
++func makeNamedType(name string, underlying types.Type) *types.NamedType {
++	nt := &types.NamedType{Underlying: underlying}
++	nt.Obj = &types.TypeName{Name: name, Type: nt}
++	return nt
++}
++
++func makeReflectValue(t types.Type, v value) value {
++	return structure{rtype{t}, v}
++}
++
++// Given a reflect.Value, returns its rtype.
++func rV2T(v value) rtype {
++	return v.(structure)[0].(rtype)
++}
++
++// Given a reflect.Value, returns the underlying interpreter value.
++func rV2V(v value) value {
++	return v.(structure)[1]
++}
++
++// makeReflectType boxes up an rtype in a reflect.Type interface.
++func makeReflectType(rt rtype) value {
++	return iface{rtypeType, rt}
++}
++
++func ext۰reflect۰Init(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func()
++	return nil
++}
++
++func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (t reflect.rtype) int
++	rt := args[0].(rtype).t
++	basic, ok := underlyingType(rt).(*types.Basic)
++	if !ok {
++		panic(fmt.Sprintf("reflect.Type.Bits(%T): non-basic type", rt))
++	}
++	switch basic.Kind {
++	case types.Int8, types.Uint8:
++		return 8
++	case types.Int16, types.Uint16:
++		return 16
++	case types.Int, types.UntypedInt:
++		// Assume sizeof(int) is same on host and target; ditto uint.
++		return reflect.TypeOf(int(0)).Bits()
++	case types.Uintptr:
++		// Assume sizeof(uintptr) is same on host and target.
++		return reflect.TypeOf(uintptr(0)).Bits()
++	case types.Int32, types.Uint32:
++		return 32
++	case types.Int64, types.Uint64:
++		return 64
++	case types.Float32:
++		return 32
++	case types.Float64, types.UntypedFloat:
++		return 64
++	case types.Complex64:
++		return 64
++	case types.Complex128, types.UntypedComplex:
++		return 128
++	default:
++		panic(fmt.Sprintf("reflect.Type.Bits(%s)", basic))
++	}
++	return nil
++}
++
++func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (t reflect.rtype) reflect.Type
++	var elem types.Type
++	switch rt := underlyingType(args[0].(rtype).t).(type) {
++	case *types.Array:
++		elem = rt.Elt
++	case *types.Chan:
++		elem = rt.Elt
++	case *types.Map:
++		elem = rt.Elt
++	case *types.Pointer:
++		elem = rt.Base
++	case *types.Slice:
++		elem = rt.Elt
++	default:
++		panic(fmt.Sprintf("reflect.Type.Elem(%T)", rt))
++	}
++	return makeReflectType(rtype{elem})
++}
++
++func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (t reflect.rtype) uint
++	return uint(reflectKind(args[0].(rtype).t))
++}
++
++func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (t reflect.rtype) string
++	return args[0].(rtype).t.String()
++}
++
++func ext۰reflect۰TypeOf(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (t reflect.rtype) string
++	return makeReflectType(rtype{args[0].(iface).t})
++}
++
++func ext۰reflect۰ValueOf(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (interface{}) reflect.Value
++	itf := args[0].(iface)
++	return makeReflectValue(itf.t, itf.v)
++}
++
++func reflectKind(t types.Type) reflect.Kind {
++	switch t := t.(type) {
++	case *types.NamedType:
++		return reflectKind(t.Underlying)
++	case *types.Basic:
++		switch t.Kind {
++		case types.Bool:
++			return reflect.Bool
++		case types.Int:
++			return reflect.Int
++		case types.Int8:
++			return reflect.Int8
++		case types.Int16:
++			return reflect.Int16
++		case types.Int32:
++			return reflect.Int32
++		case types.Int64:
++			return reflect.Int64
++		case types.Uint:
++			return reflect.Uint
++		case types.Uint8:
++			return reflect.Uint8
++		case types.Uint16:
++			return reflect.Uint16
++		case types.Uint32:
++			return reflect.Uint32
++		case types.Uint64:
++			return reflect.Uint64
++		case types.Uintptr:
++			return reflect.Uintptr
++		case types.Float32:
++			return reflect.Float32
++		case types.Float64:
++			return reflect.Float64
++		case types.Complex64:
++			return reflect.Complex64
++		case types.Complex128:
++			return reflect.Complex128
++		case types.String:
++			return reflect.String
++		case types.UnsafePointer:
++			return reflect.UnsafePointer
++		}
++	case *types.Array:
++		return reflect.Array
++	case *types.Chan:
++		return reflect.Chan
++	case *types.Signature:
++		return reflect.Func
++	case *types.Interface:
++		return reflect.Interface
++	case *types.Map:
++		return reflect.Map
++	case *types.Pointer:
++		return reflect.Ptr
++	case *types.Slice:
++		return reflect.Slice
++	case *types.Struct:
++		return reflect.Struct
++	}
++	panic(fmt.Sprint("unexpected type: ", t))
++}
++
++func ext۰reflect۰Value۰Kind(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) uint
++	return uint(reflectKind(rV2T(args[0]).t))
++}
++
++func ext۰reflect۰Value۰Type(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) reflect.Type
++	return makeReflectType(rV2T(args[0]))
++}
++
++func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) int
++	switch v := rV2V(args[0]).(type) {
++	case string:
++		return len(v)
++	case array:
++		return len(v)
++	case chan value:
++		return cap(v)
++	case []value:
++		return len(v)
++	case *hashmap:
++		return v.len()
++	case map[value]value:
++		return len(v)
++	default:
++		panic(fmt.Sprintf("reflect.(Value).Len(%V)", v))
++	}
++	return nil // unreachable
++}
++
++func ext۰reflect۰Value۰NumField(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) int
++	return len(rV2V(args[0]).(structure))
++}
++
++func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value) uintptr
++	switch v := rV2V(args[0]).(type) {
++	case *value:
++		return uintptr(unsafe.Pointer(v))
++	case chan value:
++		return reflect.ValueOf(v).Pointer()
++	case []value:
++		return reflect.ValueOf(v).Pointer()
++	case *hashmap:
++		return reflect.ValueOf(v.table).Pointer()
++	case map[value]value:
++		return reflect.ValueOf(v).Pointer()
++	case *ssa.Function:
++		return uintptr(unsafe.Pointer(v))
++	default:
++		panic(fmt.Sprintf("reflect.(Value).Pointer(%T)", v))
++	}
++	return nil // unreachable
++}
++
++func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value, i int) Value
++	i := args[1].(int)
++	t := underlyingType(rV2T(args[0]).t)
++	switch v := rV2V(args[0]).(type) {
++	case array:
++		return makeReflectValue(t.(*types.Array).Elt, v[i])
++	case []value:
++		return makeReflectValue(t.(*types.Slice).Elt, v[i])
++	default:
++		panic(fmt.Sprintf("reflect.(Value).Index(%T)", v))
++	}
++	return nil // unreachable
++}
++
++func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value) bool
++	// Always false for our representation.
++	return false
++}
++
++func ext۰reflect۰Value۰CanInterface(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value) bool
++	// Always true for our representation.
++	return true
++}
++
++func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value) reflect.Value
++	switch x := rV2V(args[0]).(type) {
++	case iface:
++		return makeReflectValue(x.t, x.v)
++	case *value:
++		return makeReflectValue(underlyingType(rV2T(args[0]).t).(*types.Pointer).Base, *x)
++	default:
++		panic(fmt.Sprintf("reflect.(Value).Elem(%T)", x))
++	}
++	return nil // unreachable
++}
++
++func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value, i int) reflect.Value
++	v := args[0]
++	i := args[1].(int)
++	return makeReflectValue(underlyingType(rV2T(v).t).(*types.Struct).Fields[i].Type, rV2V(v).(structure)[i])
++}
++
++func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value) interface{}
++	return ext۰reflect۰valueInterface(fn, args, slots)
++}
++
++func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) int64
++	switch x := rV2V(args[0]).(type) {
++	case int:
++		return int64(x)
++	case int8:
++		return int64(x)
++	case int16:
++		return int64(x)
++	case int32:
++		return int64(x)
++	case int64:
++		return x
++	default:
++		panic(fmt.Sprintf("reflect.(Value).Int(%T)", x))
++	}
++	return nil // unreachable
++}
++
++func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) bool
++	switch x := rV2V(args[0]).(type) {
++	case *value:
++		return x == nil
++	case chan value:
++		return x == nil
++	case map[value]value:
++		return x == nil
++	case *hashmap:
++		return x == nil
++	case iface:
++		return x.t == nil
++	case []value:
++		return x == nil
++	case *ssa.Function:
++		return x == nil
++	case *ssa.Builtin:
++		return x == nil
++	case *closure:
++		return x == nil
++	default:
++		panic(fmt.Sprintf("reflect.(Value).IsNil(%T)", x))
++	}
++	return nil // unreachable
++}
++
++func ext۰reflect۰Value۰IsValid(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (reflect.Value) bool
++	return rV2V(args[0]) != nil
++}
++
++func ext۰reflect۰valueInterface(fn *ssa.Function, args []value, slots []value) value {
++	// Signature: func (v reflect.Value, safe bool) interface{}
++	v := args[0].(structure)
++	return iface{rV2T(v).t, rV2V(v)}
++}
++
++// newMethod creates a new method of the specified name, package and receiver type.
++func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function {
++	fn := &ssa.Function{
++		Name_: name,
++		Pkg:   pkg,
++		Prog:  pkg.Prog,
++	}
++	// TODO(adonovan): fix: hack: currently the only part of Signature
++	// that is needed is the "pointerness" of Recv.Type, and for
++	// now, we'll set it to always be false since we're only
++	// concerned with rtype.  Encapsulate this better.
++	fn.Signature = &types.Signature{Recv: &types.Var{
++		Name: "recv",
++		Type: recvType,
++	}}
++	return fn
++}
++
++func initReflect(i *interpreter) {
++	i.reflectPackage = &ssa.Package{
++		Prog: i.prog,
++		Types: &types.Package{
++			Name:     "reflect",
++			Path:     "reflect",
++			Complete: true,
++		},
++		ImportPath: "reflect",
++		Members:    make(map[string]ssa.Member),
++	}
++
++	i.rtypeMethods = ssa.MethodSet{
++		ssa.Id{nil, "Bits"}:   newMethod(i.reflectPackage, rtypeType, "Bits"),
++		ssa.Id{nil, "Elem"}:   newMethod(i.reflectPackage, rtypeType, "Elem"),
++		ssa.Id{nil, "Kind"}:   newMethod(i.reflectPackage, rtypeType, "Kind"),
++		ssa.Id{nil, "String"}: newMethod(i.reflectPackage, rtypeType, "String"),
++	}
++}
+diff --git a/src/pkg/exp/ssa/interp/value.go b/src/pkg/exp/ssa/interp/value.go
+new file mode 100644
+index 0000000000..6d96e1e276
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/value.go
+@@ -0,0 +1,492 @@
++package interp
++
++// Values
++//
++// All interpreter values are "boxed" in the empty interface, value.
++// The range of possible dynamic types within value are:
++//
++// - bool
++// - numbers (all built-in int/float/complex types are distinguished)
++// - string
++// - map[value]value --- maps for which  usesBuiltinMap(keyType)
++//   *hashmap        --- maps for which !usesBuiltinMap(keyType)
++// - chan value
++// - []value --- slices
++// - iface --- interfaces.
++// - structure --- structs.  Fields are ordered and accessed by numeric indices.
++// - array --- arrays.
++// - *value --- pointers.  Careful: *value is a distinct type from *array etc.
++// - *ssa.Function \
++//   *ssa.Builtin   } --- functions.
++//   *closure      /
++// - tuple --- as returned by Ret, Next, "value,ok" modes, etc.
++// - iter --- iterators from 'range'.
++// - bad --- a poison pill for locals that have gone out of scope.
++// - rtype -- the interpreter's concrete implementation of reflect.Type
++//
++// Note that nil is not on this list.
++//
++// Pay close attention to whether or not the dynamic type is a pointer.
++// The compiler cannot help you since value is an empty interface.
++
++import (
++	"bytes"
++	"exp/ssa"
++	"fmt"
++	"go/types"
++	"io"
++	"reflect"
++	"strings"
++	"unsafe"
++)
++
++type value interface{}
++
++type tuple []value
++
++type array []value
++
++type iface struct {
++	t types.Type // never an "untyped" type
++	v value
++}
++
++type structure []value
++
++// For map, array, *array, slice, string or channel.
++type iter interface {
++	// next returns a Tuple (key, value, ok).
++	// key and value are unaliased, e.g. copies of the sequence element.
++	next() tuple
++}
++
++type closure struct {
++	Fn  *ssa.Function
++	Env []value
++}
++
++type bad struct{}
++
++type rtype struct {
++	t types.Type
++}
++
++// Hash functions and equivalence relation:
++
++// hashString computes the FNV hash of s.
++func hashString(s string) int {
++	var h uint32
++	for i := 0; i < len(s); i++ {
++		h ^= uint32(s[i])
++		h *= 16777619
++	}
++	return int(h)
++}
++
++// hashType returns a hash for t such that
++// types.IsIdentical(x, y) => hashType(x) == hashType(y).
++func hashType(t types.Type) int {
++	return hashString(t.String()) // TODO(gri): provide a better hash
++}
++
++// usesBuiltinMap returns true if the built-in hash function and
++// equivalence relation for type t are consistent with those of the
++// interpreter's representation of type t.  Such types are: all basic
++// types (bool, numbers, string), pointers and channels.
++//
++// usesBuiltinMap returns false for types that require a custom map
++// implementation: interfaces, arrays and structs.
++//
++// Panic ensues if t is an invalid map key type: function, map or slice.
++func usesBuiltinMap(t types.Type) bool {
++	switch t := t.(type) {
++	case *types.Basic, *types.Chan, *types.Pointer:
++		return true
++	case *types.NamedType:
++		return usesBuiltinMap(t.Underlying)
++	case *types.Interface, *types.Array, *types.Struct:
++		return false
++	}
++	panic(fmt.Sprintf("invalid map key type: %T", t))
++}
++
++func (x array) eq(_y interface{}) bool {
++	y := _y.(array)
++	for i, xi := range x {
++		if !equals(xi, y[i]) {
++			return false
++		}
++	}
++	return true
++}
++
++func (x array) hash() int {
++	h := 0
++	for _, xi := range x {
++		h += hash(xi)
++	}
++	return h
++}
++
++func (x structure) eq(_y interface{}) bool {
++	y := _y.(structure)
++	// TODO(adonovan): fix: only non-blank fields should be
++	// compared.  This requires that we have type information
++	// available from the enclosing == operation or map access;
++	// the value is not sufficient.
++	for i, xi := range x {
++		if !equals(xi, y[i]) {
++			return false
++		}
++	}
++	return true
++}
++
++func (x structure) hash() int {
++	h := 0
++	for _, xi := range x {
++		h += hash(xi)
++	}
++	return h
++}
++
++func (x iface) eq(_y interface{}) bool {
++	y := _y.(iface)
++	return types.IsIdentical(x.t, y.t) && (x.t == nil || equals(x.v, y.v))
++}
++
++func (x iface) hash() int {
++	return hashType(x.t)*8581 + hash(x.v)
++}
++
++func (x rtype) hash() int {
++	return hashType(x.t)
++}
++
++func (x rtype) eq(y interface{}) bool {
++	return types.IsIdentical(x.t, y.(rtype).t)
++}
++
++// equals returns true iff x and y are equal according to Go's
++// linguistic equivalence relation.  In a well-typed program, the
++// types of x and y are guaranteed equal.
++func equals(x, y value) bool {
++	switch x := x.(type) {
++	case bool:
++		return x == y.(bool)
++	case int:
++		return x == y.(int)
++	case int8:
++		return x == y.(int8)
++	case int16:
++		return x == y.(int16)
++	case int32:
++		return x == y.(int32)
++	case int64:
++		return x == y.(int64)
++	case uint:
++		return x == y.(uint)
++	case uint8:
++		return x == y.(uint8)
++	case uint16:
++		return x == y.(uint16)
++	case uint32:
++		return x == y.(uint32)
++	case uint64:
++		return x == y.(uint64)
++	case uintptr:
++		return x == y.(uintptr)
++	case float32:
++		return x == y.(float32)
++	case float64:
++		return x == y.(float64)
++	case complex64:
++		return x == y.(complex64)
++	case complex128:
++		return x == y.(complex128)
++	case string:
++		return x == y.(string)
++	case *value:
++		return x == y.(*value)
++	case chan value:
++		return x == y.(chan value)
++	case structure:
++		return x.eq(y)
++	case array:
++		return x.eq(y)
++	case iface:
++		return x.eq(y)
++	case rtype:
++		return x.eq(y)
++
++		// Since the following types don't support comparison,
++		// these cases are only reachable if one of x or y is
++		// (literally) nil.
++	case *hashmap:
++		return x == y.(*hashmap)
++	case map[value]value:
++		return (x != nil) == (y.(map[value]value) != nil)
++	case *ssa.Function:
++		return x == y.(*ssa.Function)
++	case *closure:
++		return x == y.(*closure)
++	case []value:
++		return (x != nil) == (y.([]value) != nil)
++	}
++	panic(fmt.Sprintf("comparing incomparable type %T", x))
++}
++
++// Returns an integer hash of x such that equals(x, y) => hash(x) == hash(y).
++func hash(x value) int {
++	switch x := x.(type) {
++	case bool:
++		if x {
++			return 1
++		}
++		return 0
++	case int:
++		return x
++	case int8:
++		return int(x)
++	case int16:
++		return int(x)
++	case int32:
++		return int(x)
++	case int64:
++		return int(x)
++	case uint:
++		return int(x)
++	case uint8:
++		return int(x)
++	case uint16:
++		return int(x)
++	case uint32:
++		return int(x)
++	case uint64:
++		return int(x)
++	case uintptr:
++		return int(x)
++	case float32:
++		return int(x)
++	case float64:
++		return int(x)
++	case complex64:
++		return int(real(x))
++	case complex128:
++		return int(real(x))
++	case string:
++		return hashString(x)
++	case *value:
++		return int(uintptr(unsafe.Pointer(x)))
++	case chan value:
++		return int(uintptr(reflect.ValueOf(x).Pointer()))
++	case structure:
++		return x.hash()
++	case array:
++		return x.hash()
++	case iface:
++		return x.hash()
++	case rtype:
++		return x.hash()
++	}
++	panic(fmt.Sprintf("%T is unhashable", x))
++}
++
++// copyVal returns a copy of value v.
++// TODO(adonovan): add tests of aliasing and mutation.
++func copyVal(v value) value {
++	if v == nil {
++		panic("copyVal(nil)")
++	}
++	switch v := v.(type) {
++	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128, string, unsafe.Pointer:
++		return v
++	case map[value]value:
++		return v
++	case *hashmap:
++		return v
++	case chan value:
++		return v
++	case *value:
++		return v
++	case *ssa.Function, *ssa.Builtin, *closure:
++		return v
++	case iface:
++		return v
++	case []value:
++		return v
++	case structure:
++		a := make(structure, len(v))
++		copy(a, v)
++		return a
++	case array:
++		a := make(array, len(v))
++		copy(a, v)
++		return a
++	case tuple:
++		break
++	case rtype:
++		return v
++	}
++	panic(fmt.Sprintf("cannot copy %T", v))
++}
++
++// Prints in the style of built-in println.
++// (More or less; in gc println is actually a compiler intrinsic and
++// can distinguish println(1) from println(interface{}(1)).)
++func toWriter(w io.Writer, v value) {
++	switch v := v.(type) {
++	case nil, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128, string:
++		fmt.Fprintf(w, "%v", v)
++
++	case map[value]value:
++		io.WriteString(w, "map[")
++		sep := " "
++		for k, e := range v {
++			io.WriteString(w, sep)
++			sep = " "
++			toWriter(w, k)
++			io.WriteString(w, ":")
++			toWriter(w, e)
++		}
++		io.WriteString(w, "]")
++
++	case *hashmap:
++		io.WriteString(w, "map[")
++		sep := " "
++		for _, e := range v.table {
++			for e != nil {
++				io.WriteString(w, sep)
++				sep = " "
++				toWriter(w, e.key)
++				io.WriteString(w, ":")
++				toWriter(w, e.value)
++				e = e.next
++			}
++		}
++		io.WriteString(w, "]")
++
++	case chan value:
++		fmt.Fprintf(w, "%v", v) // (an address)
++
++	case *value:
++		if v == nil {
++			io.WriteString(w, "<nil>")
++		} else {
++			fmt.Fprintf(w, "%p", v)
++		}
++
++	case iface:
++		toWriter(w, v.v)
++
++	case structure:
++		io.WriteString(w, "{")
++		for i, e := range v {
++			if i > 0 {
++				io.WriteString(w, " ")
++			}
++			toWriter(w, e)
++		}
++		io.WriteString(w, "}")
++
++	case array:
++		io.WriteString(w, "[")
++		for i, e := range v {
++			if i > 0 {
++				io.WriteString(w, " ")
++			}
++			toWriter(w, e)
++		}
++		io.WriteString(w, "]")
++
++	case []value:
++		io.WriteString(w, "[")
++		for i, e := range v {
++			if i > 0 {
++				io.WriteString(w, " ")
++			}
++			toWriter(w, e)
++		}
++		io.WriteString(w, "]")
++
++	case *ssa.Function, *ssa.Builtin, *closure:
++		fmt.Fprintf(w, "%p", v) // (an address)
++
++	case rtype:
++		io.WriteString(w, v.t.String())
++
++	case tuple:
++		// Unreachable in well-formed Go programs
++		io.WriteString(w, "(")
++		for i, e := range v {
++			if i > 0 {
++				io.WriteString(w, ", ")
++			}
++			toWriter(w, e)
++		}
++		io.WriteString(w, ")")
++
++	default:
++		fmt.Fprintf(w, "<%T>", v)
++	}
++}
++
++// Implements printing of Go values in the style of built-in println.
++func toString(v value) string {
++	var b bytes.Buffer
++	toWriter(&b, v)
++	return b.String()
++}
++
++// ------------------------------------------------------------------------
++// Iterators
++
++type arrayIter struct {
++	a array
++	i int
++}
++
++func (it *arrayIter) next() tuple {
++	okv := make(tuple, 3)
++	ok := it.i < len(it.a)
++	okv[0] = ok
++	if ok {
++		okv[1] = it.i
++		okv[2] = copyVal(it.a[it.i])
++	}
++	it.i++
++	return okv
++}
++
++type chanIter chan value
++
++func (it chanIter) next() tuple {
++	okv := make(tuple, 3)
++	okv[1], okv[0] = <-it
++	return okv
++}
++
++type stringIter struct {
++	*strings.Reader
++	i int
++}
++
++func (it *stringIter) next() tuple {
++	okv := make(tuple, 3)
++	ch, n, err := it.ReadRune()
++	ok := err != io.EOF
++	okv[0] = ok
++	if ok {
++		okv[1] = it.i
++		okv[2] = ch
++	}
++	it.i += n
++	return okv
++}
++
++type mapIter chan [2]value
++
++func (it mapIter) next() tuple {
++	kv, ok := <-it
++	return tuple{ok, kv[0], kv[1]}
++}
+diff --git a/src/pkg/exp/ssa/ssadump.go b/src/pkg/exp/ssa/ssadump.go
+new file mode 100644
+index 0000000000..e2d075a7b9
+--- /dev/null
++++ b/src/pkg/exp/ssa/ssadump.go
+@@ -0,0 +1,121 @@
++// +build ignore
++
++package main
++
++// ssadump: a tool for displaying and interpreting the SSA form of Go programs.
++
++import (
++	"exp/ssa"
++	"exp/ssa/interp"
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"strings"
++)
++
++// TODO(adonovan): perhaps these should each be separate flags?
++var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
++The value is a sequence of zero or more of these letters:
++C	perform sanity [C]hecking of the SSA form.
++P	log [P]ackage inventory.
++F	log [F]unction SSA code.
++S	log [S]ource locations as SSA builder progresses.
++G	use binary object files from gc to provide imports (no code).
++`)
++
++var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
++
++var interpFlag = flag.String("interp", "", `Options controlling the SSA test interpreter.
++The value is a sequence of zero or more more of these letters:
++R	disable [R]ecover() from panic; show interpreter crash instead.
++T	[T]race execution of the program.  Best for single-threaded programs!
++`)
++
++const usage = `SSA builder and interpreter.
++Usage: ssadump [<flag> ...] <file.go> ...
++Use -help flag to display options.
++
++Examples:
++% ssadump -run -interp=T hello.go     # interpret a program, with tracing
++% ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
++`
++
++func main() {
++	flag.Parse()
++	args := flag.Args()
++
++	// TODO(adonovan): perhaps we need a more extensible option
++	// API than a bitset, e.g. a struct with a sane zero value?
++	var mode ssa.BuilderMode
++	for _, c := range *buildFlag {
++		switch c {
++		case 'P':
++			mode |= ssa.LogPackages
++		case 'F':
++			mode |= ssa.LogFunctions
++		case 'S':
++			mode |= ssa.LogSource
++		case 'C':
++			mode |= ssa.SanityCheckFunctions
++		case 'G':
++			mode |= ssa.UseGCImporter
++		default:
++			log.Fatalf("Unknown -build option: '%c'.", c)
++		}
++	}
++
++	var interpMode interp.Mode
++	for _, c := range *interpFlag {
++		switch c {
++		case 'T':
++			interpMode |= interp.EnableTracing
++		case 'R':
++			interpMode |= interp.DisableRecover
++		default:
++			log.Fatalf("Unknown -interp option: '%c'.", c)
++		}
++	}
++
++	if len(args) == 0 {
++		fmt.Fprint(os.Stderr, usage)
++		os.Exit(1)
++	}
++
++	// Treat all leading consecutive "*.go" arguments as a single package.
++	//
++	// TODO(gri): make it a typechecker error for there to be
++	// duplicate (e.g.) main functions in the same package.
++	var gofiles []string
++	for len(args) > 0 && strings.HasSuffix(args[0], ".go") {
++		gofiles = append(gofiles, args[0])
++		args = args[1:]
++	}
++	if gofiles == nil {
++		log.Fatal("No *.go source files specified.")
++	}
++
++	// TODO(adonovan): permit naming a package directly instead of
++	// a list of .go files.
++
++	// TODO(adonovan/gri): the cascade of errors is confusing due
++	// to reentrant control flow.  Disable for now and re-think.
++	var errh func(error)
++	// errh = func(err error) { fmt.Println(err.Error()) }
++
++	b := ssa.NewBuilder(mode, ssa.GorootLoader, errh)
++	files, err := ssa.ParseFiles(b.Prog.Files, ".", gofiles...)
++	if err != nil {
++		log.Fatalf(err.Error())
++	}
++	mainpkg, err := b.CreatePackage("main", files)
++	if err != nil {
++		log.Fatalf(err.Error())
++	}
++	b.BuildPackage(mainpkg)
++	b = nil // discard Builder
++
++	if *runFlag {
++		interp.Interpret(mainpkg, interpMode, gofiles[0], args)
++	}
++}

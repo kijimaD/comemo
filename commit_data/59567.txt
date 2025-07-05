@@ -10,6 +10,20 @@ Date:   Mon Mar 25 13:03:37 2024 -0700
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 0002da98d8..32b4130c22 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1926,7 +1926,7 @@ func (c *conn) serve(ctx context.Context) {
+ 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
+ 				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+ 				re.Conn.Close()
+-				reason = "client sent an HTTP requset to an HTTPS server"
++				reason = "client sent an HTTP request to an HTTPS server"
+ 			} else {
+ 				reason = err.Error()
+ 			}

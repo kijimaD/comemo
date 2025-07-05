@@ -7,6 +7,17 @@ Date:   Mon Aug 30 21:13:11 2010 -0400
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/2039044
-
+---
  misc/bash/go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/bash/go b/misc/bash/go
+index 711020ac91..caced154f8 100644
+--- a/misc/bash/go
++++ b/misc/bash/go
+@@ -3,4 +3,4 @@
+ complete -f -X '!*.8' 8l
+ complete -f -X '!*.6' 6l
+ complete -f -X '!*.5' 5l
+-complete -f -X '!*.go' 8g 6g 5g
++complete -f -X '!*.go' 8g 6g 5g gofmt gccgo

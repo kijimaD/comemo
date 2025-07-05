@@ -13,7 +13,40 @@ Date:   Wed Apr 19 22:00:23 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcscavenge.go | 7 +++++++
  src/runtime/mpagealloc.go  | 3 +++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 5976ab49cc..664c933733 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -1055,6 +1055,13 @@ type scavengeIndex struct {
+ 	test bool
+ }
+ 
++// init initializes the scavengeIndex.
++func (s *scavengeIndex) init() {
++	s.searchAddrBg.Clear()
++	s.searchAddrForce.Clear()
++	s.freeHWM = minOffAddr
++}
++
+ // find returns the highest chunk index that may contain pages available to scavenge.
+ // It also returns an offset to start searching in the highest chunk.
+ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index da1b14e5a4..7c4d8ba2c9 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -321,6 +321,9 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat, test bool) {
+ 	// Set the mheapLock.
+ 	p.mheapLock = mheapLock
+ 
++	// Initialize the scavenge index.
++	p.scav.index.init()
++
+ 	// Set if we're in a test.
+ 	p.test = test
+ 	p.scav.index.test = test

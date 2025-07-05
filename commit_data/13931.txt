@@ -16,8 +16,50 @@ Date:   Mon Sep 24 14:58:45 2012 -0400
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/6552064
-
+---
  misc/cgo/life/life.go      | 4 ++--
  misc/cgo/life/main.go      | 2 +-
  misc/cgo/test/issue1560.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/life/life.go b/misc/cgo/life/life.go
+index bbec4c56fa..fda5495e5f 100644
+--- a/misc/cgo/life/life.go
++++ b/misc/cgo/life/life.go
+@@ -11,8 +11,8 @@ import "C"
+ 
+ import "unsafe"
+ 
+-func Run(gen, x, y int, a []int) {
+-	n := make([]int, x*y)
++func Run(gen, x, y int, a []int32) {
++	n := make([]int32, x*y)
+ 	for i := 0; i < gen; i++ {
+ 		C.Step(C.int(x), C.int(y), (*C.int)(unsafe.Pointer(&a[0])), (*C.int)(unsafe.Pointer(&n[0])))
+ 		copy(a, n)
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index dba0965eec..725e10f76c 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -24,7 +24,7 @@ var gen = flag.Int("gen", 10, "generations")
+ func main() {
+ 	flag.Parse()
+ 
+-	var a [MAXDIM * MAXDIM]int
++	var a [MAXDIM * MAXDIM]int32
+ 	for i := 2; i < *dim; i += 8 {
+ 		for j := 2; j < *dim-3; j += 8 {
+ 			for y := 0; y < 3; y++ {
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+index 4f49399545..0f43b8bd0a 100644
+--- a/misc/cgo/test/issue1560.go
++++ b/misc/cgo/test/issue1560.go
+@@ -28,7 +28,7 @@ func parallelSleep(n int) {
+ }
+ 
+ //export BackgroundSleep
+-func BackgroundSleep(n int) {
++func BackgroundSleep(n int32) {
+ 	go func() {
+ 		C.sleep(C.uint(n))
+ 		sleepDone <- true

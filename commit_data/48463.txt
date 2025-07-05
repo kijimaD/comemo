@@ -16,6 +16,31 @@ Date:   Fri May 21 17:00:08 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/asm_arm.s | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 6d3573d68f..872e56aeb4 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -168,14 +168,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
++	SUB	$12, R13
+ 	MOVW	$runtime·mainPC(SB), R0
+-	MOVW.W	R0, -4(R13)
+-	MOVW	$8, R0
+-	MOVW.W	R0, -4(R13)
++	MOVW	R0, 8(R13)	// arg 2: fn
+ 	MOVW	$0, R0
+-	MOVW.W	R0, -4(R13)	// push $0 as guard
++	MOVW	R0, 4(R13)	// arg 1: siz
++	MOVW	R0, 0(R13)	// dummy LR
+ 	BL	runtime·newproc(SB)
+-	MOVW	$12(R13), R13	// pop args and LR
++	ADD	$12, R13	// pop args and LR
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)

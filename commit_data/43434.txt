@@ -16,6 +16,28 @@ Date:   Thu Apr 2 22:12:38 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/mips/asm0.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 5bbcb01444..13d875ed3a 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -1355,10 +1355,12 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			r = int(o.param)
+ 		}
+ 		o1 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(p.To.Reg), uint32(r))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 0
+-		rel.Type = objabi.R_CALLIND
++		if p.As == obj.ACALL {
++			rel := obj.Addrel(c.cursym)
++			rel.Off = int32(c.pc)
++			rel.Siz = 0
++			rel.Type = objabi.R_CALLIND
++		}
+ 
+ 	case 19: /* mov $lcon,r ==> lu+or */
+ 		// NOTE: this case does not use REGTMP. If it ever does,

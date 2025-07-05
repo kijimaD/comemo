@@ -24,7 +24,59 @@ Date:   Wed Mar 2 03:22:00 2016 -0800
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/compress/bzip2/bzip2.go      | 6 +++---
  src/compress/bzip2/bzip2_test.go | 9 +++++++++
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index b2063590c8..71e5372972 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -319,6 +319,9 @@ func (bz2 *reader) readBlock() (err error) {
+ 		length := br.ReadBits(5)
+ 		for j := range lengths {
+ 			for {
++				if length < 1 || length > 20 {
++					return StructuralError("Huffman length out of range")
++				}
+ 				if !br.ReadBit() {
+ 					break
+ 				}
+@@ -328,9 +331,6 @@ func (bz2 *reader) readBlock() (err error) {
+ 					length++
+ 				}
+ 			}
+-			if length < 0 || length > 20 {
+-				return StructuralError("Huffman length out of range")
+-			}
+ 			lengths[j] = uint8(length)
+ 		}
+ 		huffmanTrees[i], err = newHuffmanTree(lengths)
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index 2acf40290c..82f1a42d83 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -172,6 +172,8 @@ const rand3Hex = "1744b384d68c042371244e13500d4bfb98c6244e3d71a5b700224420b59c59
+ 
+ const badBlockSize = "425a683131415926535936dc55330063ffc0006000200020a40830008b0008b8bb9229c28481b6e2a998"
+ 
++const badHuffmanDelta = "425a6836314159265359b1f7404b000000400040002000217d184682ee48a70a12163ee80960"
++
+ const (
+ 	digits = iota
+ 	twain
+@@ -278,6 +280,13 @@ func TestBadBlockSize(t *testing.T) {
+ 	}
+ }
+ 
++func TestBadHuffmanDelta(t *testing.T) {
++	_, err := decompressHex(badHuffmanDelta)
++	if err == nil {
++		t.Errorf("unexpected success")
++	}
++}
++
+ var bufferOverrunBase64 string = `
+ QlpoNTFBWSZTWTzyiGcACMP/////////////////////////////////3/7f3///
+ ////4N/fCZODak2Xo44GIHZgkGzDRbFAuwAAKoFV7T6AO6qwA6APb6s2rOoAkAAD

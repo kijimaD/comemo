@@ -809,3 +809,21 @@ Date:   Wed Apr 20 16:56:54 2022 +0200
  test/typeparam/issue52124.go                       |    6 +
  test/typeparam/issue52228.go                       |   30 +
  801 files changed, 20788 insertions(+), 7251 deletions(-)
+
+diff --cc src/crypto/rand/rand_unix.go
+index c9eb7d992d,2dd4158888..0b137e131f
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@@ -48,8 -88,10 +94,11 @@@ func warnBlocked() 
+  }
+  
+  func (r *reader) Read(b []byte) (n int, err error) {
+ +	boring.Unreachable()
+- 	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
++ 	r.mu.Lock()
++ 	defer r.mu.Unlock()
++ 	if !r.used {
++ 		r.used = true
+  		// First use of randomness. Start timer to warn about
+  		// being blocked on entropy not being available.
+  		t := time.AfterFunc(time.Minute, warnBlocked)

@@ -6,8 +6,54 @@ Date:   Thu Nov 19 22:06:32 2009 -0800
     
     R=r
     https://golang.org/cl/156104
-
+---
  src/pkg/reflect/type.go     | 2 ++
  src/pkg/reflect/value.go    | 5 ++++-
  src/pkg/runtime/reflect.cgo | 6 ++++++
  3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index faea24340e..a6988d312c 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -569,6 +569,8 @@ func (t *StructType) NumField() int	{ return len(t.fields) }
+ // Same memory layouts, different method sets.
+ func toType(i interface{}) Type {
+ 	switch v := i.(type) {
++	case nil:
++		return nil
+ 	case *runtime.BoolType:
+ 		return (*BoolType)(unsafe.Pointer(v))
+ 	case *runtime.DotDotDotType:
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index add4c4b036..c71f4dd693 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -906,7 +906,10 @@ func setiface(typ *InterfaceType, x *interface{}, addr addr)
+ 
+ // Set assigns x to v.
+ func (v *InterfaceValue) Set(x Value) {
+-	i := x.Interface();
++	var i interface{}
++	if x != nil {
++		i = x.Interface()
++	}
+ 	if !v.canSet {
+ 		panic(cannotSet)
+ 	}
+diff --git a/src/pkg/runtime/reflect.cgo b/src/pkg/runtime/reflect.cgo
+index 8bef070c54..51222f1c42 100644
+--- a/src/pkg/runtime/reflect.cgo
++++ b/src/pkg/runtime/reflect.cgo
+@@ -108,5 +108,11 @@ func setiface(typ *byte, x *byte, ret *byte) {
+ 		*(Eface*)ret = *(Eface*)x;
+ 		return;
+ 	}
++	if(((Eface*)x)->type == nil) {
++		// can assign nil to any interface
++		((Iface*)ret)->tab = nil;
++		((Iface*)ret)->data = nil;
++		return;
++	}
+ 	ifaceE2I((InterfaceType*)gettype(typ), *(Eface*)x, (Iface*)ret);
+ }

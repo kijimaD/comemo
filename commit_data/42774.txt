@@ -13,10 +13,215 @@ Date:   Fri Jan 10 12:57:19 2020 -0500
     Change-Id: I0696fa54184514d69c0763ac772d99b12e133eb0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214288
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 82 ----------------------
  src/cmd/go/testdata/script/list_symlink.txt        | 11 +++
  .../go/testdata/script/list_symlink_internal.txt   | 26 +++++++
  .../script/list_symlink_vendor_issue14054.txt      | 27 +++++++
  .../script/list_symlink_vendor_issue15201.txt      | 20 ++++++
  5 files changed, 84 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index fed6487357..35571a7546 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1565,88 +1565,6 @@ func TestGoTestDashIDashOWritesBinary(t *testing.T) {
+ 	tg.wantExecutable(tg.path("myerrors.test"+exeSuffix), "go test -o myerrors.test did not create myerrors.test")
+ }
+ 
+-// Issue 4568.
+-func TestSymlinksList(t *testing.T) {
+-	testenv.MustHaveSymlink(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.tempDir("src")
+-	tg.must(os.Symlink(tg.path("."), tg.path("src/dir1")))
+-	tg.tempFile("src/dir1/p.go", "package p")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.cd(tg.path("src"))
+-	tg.run("list", "-f", "{{.Root}}", "dir1")
+-	if strings.TrimSpace(tg.getStdout()) != tg.path(".") {
+-		t.Error("confused by symlinks")
+-	}
+-}
+-
+-// Issue 14054.
+-func TestSymlinksVendor(t *testing.T) {
+-	testenv.MustHaveSymlink(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.tempDir("gopath/src/dir1/vendor/v")
+-	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
+-	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")
+-	tg.must(os.Symlink(tg.path("gopath/src/dir1"), tg.path("symdir1")))
+-	tg.setenv("GOPATH", tg.path("gopath"))
+-	tg.cd(tg.path("symdir1"))
+-	tg.run("list", "-f", "{{.Root}}", ".")
+-	if strings.TrimSpace(tg.getStdout()) != tg.path("gopath") {
+-		t.Error("list confused by symlinks")
+-	}
+-
+-	// All of these should succeed, not die in vendor-handling code.
+-	tg.run("run", "p.go")
+-	tg.run("build")
+-	tg.run("install")
+-}
+-
+-// Issue 15201.
+-func TestSymlinksVendor15201(t *testing.T) {
+-	testenv.MustHaveSymlink(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tg.tempDir("gopath/src/x/y/_vendor/src/x")
+-	tg.must(os.Symlink("../../..", tg.path("gopath/src/x/y/_vendor/src/x/y")))
+-	tg.tempFile("gopath/src/x/y/w/w.go", "package w\nimport \"x/y/z\"\n")
+-	tg.must(os.Symlink("../_vendor/src", tg.path("gopath/src/x/y/w/vendor")))
+-	tg.tempFile("gopath/src/x/y/z/z.go", "package z\n")
+-
+-	tg.setenv("GOPATH", tg.path("gopath/src/x/y/_vendor")+string(filepath.ListSeparator)+tg.path("gopath"))
+-	tg.cd(tg.path("gopath/src"))
+-	tg.run("list", "./...")
+-}
+-
+-func TestSymlinksInternal(t *testing.T) {
+-	testenv.MustHaveSymlink(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempDir("gopath/src/dir1/internal/v")
+-	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `dir1/internal/v`\nfunc main(){}")
+-	tg.tempFile("gopath/src/dir1/internal/v/v.go", "package v")
+-	tg.must(os.Symlink(tg.path("gopath/src/dir1"), tg.path("symdir1")))
+-	tg.setenv("GOPATH", tg.path("gopath"))
+-	tg.cd(tg.path("symdir1"))
+-	tg.run("list", "-f", "{{.Root}}", ".")
+-	if strings.TrimSpace(tg.getStdout()) != tg.path("gopath") {
+-		t.Error("list confused by symlinks")
+-	}
+-
+-	// All of these should succeed, not die in internal-handling code.
+-	tg.run("run", "p.go")
+-	tg.run("build")
+-	tg.run("install")
+-}
+-
+ // Issue 4515.
+ func TestInstallWithTags(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/list_symlink.txt b/src/cmd/go/testdata/script/list_symlink.txt
+new file mode 100644
+index 0000000000..20c85b6453
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_symlink.txt
+@@ -0,0 +1,11 @@
++[!symlink] skip
++
++mkdir $WORK/tmp/src
++symlink $WORK/tmp/src/dir1 -> $WORK/tmp
++cp p.go $WORK/tmp/src/dir1/p.go
++env GOPATH=$WORK/tmp
++go list -f '{{.Root}}' dir1
++stdout '^'$WORK/tmp'$'
++
++-- p.go --
++package p
+diff --git a/src/cmd/go/testdata/script/list_symlink_internal.txt b/src/cmd/go/testdata/script/list_symlink_internal.txt
+new file mode 100644
+index 0000000000..e538072b33
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_symlink_internal.txt
+@@ -0,0 +1,26 @@
++[!symlink] skip
++
++mkdir $WORK/tmp/gopath/src/dir1/internal/v
++cp p.go $WORK/tmp/gopath/src/dir1/p.go
++cp v.go $WORK/tmp/gopath/src/dir1/internal/v/v.go
++symlink $WORK/tmp/symdir1 -> $WORK/tmp/gopath/src/dir1
++env GOPATH=$WORK/tmp/gopath
++cd $WORK/tmp/symdir1
++go list -f '{{.Root}}' .
++stdout '^'$WORK/tmp/gopath'$'
++
++# All of these should succeed, not die in internal-handling code.
++go run p.go &
++go build &
++go install &
++
++wait
++
++-- p.go --
++package main
++
++import _ `dir1/internal/v`
++
++func main() {}
++-- v.go --
++package v
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt b/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt
+new file mode 100644
+index 0000000000..68b7fd948b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt
+@@ -0,0 +1,27 @@
++[!symlink] skip
++
++mkdir $WORK/tmp/gopath/src/dir1/vendor/v
++cp p.go $WORK/tmp/gopath/src/dir1/p.go
++cp v.go $WORK/tmp/gopath/src/dir1/vendor/v/v.go
++symlink $WORK/tmp/symdir1 -> $WORK/tmp/gopath/src/dir1
++env GOPATH=$WORK/tmp/gopath
++cd $WORK/tmp/symdir1
++
++go list -f '{{.Root}}' .
++stdout '^'$WORK/tmp/gopath'$'
++
++# All of these should succeed, not die in vendor-handling code.
++go run p.go &
++go build &
++go install &
++
++wait
++
++-- p.go --
++package main
++
++import _ `v`
++
++func main () {}
++-- v.go --
++package v
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt b/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt
+new file mode 100644
+index 0000000000..98921614a9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt
+@@ -0,0 +1,20 @@
++[!symlink] skip
++
++mkdir $WORK/tmp/gopath/src/x/y/_vendor/src/x
++symlink $WORK/tmp/gopath/src/x/y/_vendor/src/x/y -> ../../..
++mkdir $WORK/tmp/gopath/src/x/y/_vendor/src/x/y/w
++cp w.go $WORK/tmp/gopath/src/x/y/w/w.go
++symlink $WORK/tmp/gopath/src/x/y/w/vendor -> ../_vendor/src
++mkdir $WORK/tmp/gopath/src/x/y/_vendor/src/x/y/z
++cp z.go $WORK/tmp/gopath/src/x/y/z/z.go
++
++env GOPATH=$WORK/tmp/gopath/src/x/y/_vendor${:}$WORK/tmp/gopath
++cd $WORK/tmp/gopath/src
++go list ./...
++
++-- w.go --
++package w
++
++import "x/y/z"
++-- z.go --
++package z
+\ No newline at end of file

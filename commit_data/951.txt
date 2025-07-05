@@ -10,10 +10,302 @@ Date:   Fri Oct 24 14:04:54 2008 -0700
     R=r
     OCL=17811
     CL=17811
-
+---
  usr/gri/pretty/Makefile      |  4 +++-
  usr/gri/pretty/Makefile.iant | 13 ++++++++---
  usr/gri/pretty/parser.go     | 55 +++++++++++++++++++++++++++-----------------
  usr/gri/pretty/pretty.go     | 40 +++++++++++++++-----------------
  usr/gri/pretty/printer.go    |  8 ++++---
  5 files changed, 70 insertions(+), 50 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index e6153b4a43..0f66861925 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -17,7 +17,9 @@ install: pretty
+ clean:
+ 	rm -f pretty *.6  *~
+ 
+-pretty.6:	parser.6 printer.6 platform.6 scanner.6
++pretty.6:	printer.6 platform.6 compilation.6
++
++compilation.6:	scanner.6 parser.6 ast.6
+ 
+ printer.6:	ast.6 scanner.6
+ 
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index d91c47a4b8..b1b2b62a51 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -11,6 +11,7 @@ LDFLAGS = -Wl,-R,/home/iant/go/lib
+ PRETTY_OBJS = \
+ 	ast.o \
+ 	pretty.o \
++	compilation.go \
+ 	parser.o \
+ 	platform.o \
+ 	printer.o \
+@@ -31,14 +32,20 @@ install: pretty
+ clean:
+ 	rm -f pretty *.o  *~
+ 
+-pretty.o:	parser.o printer.o platform.o scanner.o flag.o
+ 
+-parser.o:	ast.o scanner.o utils.o printer.o
++pretty.o:	printer.o platform.o compilation.o
+ 
+-scanner.o:	utils.o platform.o
++compilation.o:	scanner.o parser.o ast.o
++
++printer.o:	ast.o scanner.o
++
++parser.o:	scanner.o utils.o printer.o ast.o
+ 
+ ast.o:	scanner.o
+ 
++scanner.o:	utils.o platform.o
++
++
+ flag.o:	fmt.o
+ 	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index b5648d4206..939358c522 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -309,6 +309,9 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
+ 		x := P.ParseIdent();
+ 		t = AST.NewType(x.pos, Scanner.IDENT);
+ 		t.expr = x;
++	} else if P.tok == Scanner.ELLIPSIS {
++		t = AST.NewType(P.pos, Scanner.ELLIPSIS);
++		P.Next();
+ 	} else {
+ 		t = P.ParseType();
+ 	}
+@@ -316,26 +319,32 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
+ }
+ 
+ 
+-func (P *Parser) ParseVarDeclList(list *AST.List) {
++func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+ 	P.Trace("VarDeclList");
+ 
+ 	// parse a list of types
+ 	i0 := list.len();
+-	list.Add(P.ParseVarDecl(i0 > 0));
+-	for P.tok == Scanner.COMMA {
+-		P.Next();
++	for {
+ 		list.Add(P.ParseVarDecl(i0 > 0));
++		if P.tok == Scanner.COMMA {
++			P.Next();
++		} else {
++			break;
++		}
+ 	}
+ 
+-	var typ *AST.Type;
+-	if i0 > 0 {
++	typ := P.TryType();
++	if typ == nil && P.tok == Scanner.ELLIPSIS {
++		typ = AST.NewType(P.pos, Scanner.ELLIPSIS);
++		P.Next();
++	}
++	
++	if i0 > 0 && typ == nil {
+ 		// not the first parameter section; we must have a type
+-		typ = P.ParseType();
+-	} else {
+-		// first parameter section; we may have a type
+-		typ = P.TryType();
++		P.Error(P.pos, "type expected");
++		typ = AST.BadType;
+ 	}
+-
++	
+ 	// convert the list into a list of (type) expressions
+ 	if typ != nil {
+ 		// all list entries must be identifiers
+@@ -355,7 +364,11 @@ func (P *Parser) ParseVarDeclList(list *AST.List) {
+ 	} else {
+ 		// all list entries are types
+ 		// convert all type entries into type expressions
+-		for i, n := i0, list.len(); i < n; i++ {
++		if i0 > 0 {
++			panic("internal parser error");
++		}
++		
++		for i, n := 0, list.len(); i < n; i++ {
+ 			t := list.at(i).(*AST.Type);
+ 			list.set(i, AST.NewTypeExpr(t));
+ 		}
+@@ -369,14 +382,14 @@ func (P *Parser) ParseVarDeclList(list *AST.List) {
+ }
+ 
+ 
+-func (P *Parser) ParseParameterList() *AST.List {
++func (P *Parser) ParseParameterList(ellipsis_ok bool) *AST.List {
+ 	P.Trace("ParameterList");
+ 	
+ 	list := AST.NewList();
+-	P.ParseVarDeclList(list);
++	P.ParseVarDeclList(list, ellipsis_ok);
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+-		P.ParseVarDeclList(list);
++		P.ParseVarDeclList(list, ellipsis_ok);
+ 	}
+ 	
+ 	P.Ecart();
+@@ -384,13 +397,13 @@ func (P *Parser) ParseParameterList() *AST.List {
+ }
+ 
+ 
+-func (P *Parser) ParseParameters() *AST.Type {
++func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
+ 	P.Trace("Parameters");
+ 	
+ 	t := AST.NewType(P.pos, Scanner.STRUCT);
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+-		t.list = P.ParseParameterList();
++		t.list = P.ParseParameterList(ellipsis_ok);
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+ 	
+@@ -420,7 +433,7 @@ func (P *Parser) ParseResult() *AST.Type {
+ 	
+ 	var t *AST.Type;
+ 	if P.tok == Scanner.LPAREN {
+-		t = P.ParseParameters();
++		t = P.ParseParameters(false);
+ 	} else {
+ 		typ := P.TryType();
+ 		if typ != nil {
+@@ -445,7 +458,7 @@ func (P *Parser) ParseFunctionType() *AST.Type {
+ 	P.Trace("FunctionType");
+ 	
+ 	t := AST.NewType(P.pos, Scanner.LPAREN);
+-	t.list = P.ParseParameters().list;  // TODO find better solution
++	t.list = P.ParseParameters(true).list;  // TODO find better solution
+ 	t.elt = P.ParseResult();
+ 	
+ 	P.Ecart();
+@@ -509,7 +522,7 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 		P.Next();
+ 		t.list = AST.NewList();
+ 		for P.tok == Scanner.IDENT {
+-			P.ParseVarDeclList(t.list);
++			P.ParseVarDeclList(t.list, false);
+ 			if P.tok != Scanner.RBRACE {
+ 				P.Expect(Scanner.SEMICOLON);
+ 			}
+@@ -1423,7 +1436,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 	var recv *AST.Type;
+ 	if P.tok == Scanner.LPAREN {
+ 		pos := P.pos;
+-		recv = P.ParseParameters();
++		recv = P.ParseParameters(true);
+ 		if recv.nfields() != 1 {
+ 			P.Error(pos, "must have exactly one receiver");
+ 		}
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 46fa25c1da..2f179d0c0c 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -6,18 +6,19 @@ package main
+ 
+ import Flag "flag"
+ import Platform "platform"
+-import Scanner "scanner"
+-import Parser "parser"
+ import Printer "printer"
++import Compilation "compilation"
+ 
+ 
+ var (
++	flags Compilation.Flags;
+ 	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
+-	verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
+-	sixg = Flag.Bool("6g", true, nil, "6g compatibility mode");
+-	columns = Flag.Bool("columns", Platform.USER == "gri", nil, "print column info in error messages");
+-	testmode = Flag.Bool("t", false, nil, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+-	tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
++	verbose = Flag.Bool("v", false, &flags.verbose, "verbose mode: trace parsing");
++	sixg = Flag.Bool("6g", true, &flags.sixg, "6g compatibility mode");
++	deps = Flag.Bool("d", false, &flags.deps, "print dependency information only");
++	columns = Flag.Bool("columns", Platform.USER == "gri", &flags.columns, "print column info in error messages");
++	testmode = Flag.Bool("t", false, &flags.testmode, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
++	tokenchan = Flag.Bool("token_chan", false, &flags.tokenchan, "use token channel for scanner-parser connection");
+ )
+ 
+ 
+@@ -45,26 +46,21 @@ func main() {
+ 			sys.exit(1);
+ 		}
+ 
+-		scanner := new(Scanner.Scanner);
+-		scanner.Open(src_file, src, columns.BVal(), testmode.BVal());
++		C := Compilation.Compile(src_file, src, &flags);
+ 
+-		var tstream *<-chan *Scanner.Token;
+-		if tokenchan.BVal() {
+-			tstream = scanner.TokenStream();
+-		}
+-
+-		parser := new(Parser.Parser);
+-		parser.Open(verbose.BVal(), sixg.BVal(), scanner, tstream);
+-
+-		prog := parser.ParseProgram();
+-
+-		if scanner.nerrors > 0 {
++		if C.nerrors > 0 {
+ 			sys.exit(1);
+ 		}
++		
++		if flags.deps {
++			print("deps\n");
++			panic("UNIMPLEMENTED");
++			return;
++		}
+ 
+-		if !silent.BVal() && !testmode.BVal() {
++		if !silent.BVal() && !flags.testmode {
+ 			var P Printer.Printer;
+-			(&P).Program(prog);
++			(&P).Program(C.prog);
+ 		}
+ 	}
+ }
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 0776790f3e..fb5ceded0e 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -134,14 +134,13 @@ func (P *Printer) Parameters(pos int, list *AST.List) {
+ 
+ 
+ func (P *Printer) Fields(list *AST.List) {
+-	P.OpenScope(" {");
++	P.OpenScope("{");
+ 	var prev int;
+ 	for i, n := 0, list.len(); i < n; i++ {
+ 		x := list.at(i).(*AST.Expr);
+ 		if i > 0 {
+ 			if prev == Scanner.TYPE {
+-				P.String(0, ";");
+-				P.newl = 1;
++				P.semi, P.newl = true, 1;
+ 			} else if prev == x.tok {
+ 				P.String(0, ", ");
+ 			} else {
+@@ -203,6 +202,9 @@ func (P *Printer) Type(t *AST.Type) {
+ 			P.Parameters(0, t.elt.list);
+ 		}
+ 
++	case Scanner.ELLIPSIS:
++		P.String(t.pos, "...");
++
+ 	default:
+ 		P.Error(t.pos, t.tok, "type");
+ 	}

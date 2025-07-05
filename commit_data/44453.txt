@@ -9,6 +9,30 @@ Date:   Wed Jun 24 14:31:49 2020 -0400
     Change-Id: I72ec95f4b190253bb82d52a03a769b0399170b93
     Reviewed-on: https://go-review.googlesource.com/c/go/+/239746
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/common.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index eb002ada2f..e8d009137a 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -600,12 +600,12 @@ type Config struct {
+ 	// by the policy in ClientAuth.
+ 	ClientCAs *x509.CertPool
+ 
+-	// InsecureSkipVerify controls whether a client verifies the
+-	// server's certificate chain and host name.
+-	// If InsecureSkipVerify is true, TLS accepts any certificate
+-	// presented by the server and any host name in that certificate.
+-	// In this mode, TLS is susceptible to machine-in-the-middle attacks.
+-	// This should be used only for testing.
++	// InsecureSkipVerify controls whether a client verifies the server's
++	// certificate chain and host name. If InsecureSkipVerify is true, crypto/tls
++	// accepts any certificate presented by the server and any host name in that
++	// certificate. In this mode, TLS is susceptible to machine-in-the-middle
++	// attacks unless custom verification is used. This should be used only for
++	// testing or in combination with VerifyConnection or VerifyPeerCertificate.
+ 	InsecureSkipVerify bool
+ 
+ 	// CipherSuites is a list of supported cipher suites for TLS versions up to

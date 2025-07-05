@@ -19,7 +19,54 @@ Date:   Thu Jun 22 11:10:18 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/base32/base32.go | 5 ++++-
  src/encoding/base64/base64.go | 5 ++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 41d343aaac..3dc37b0aa7 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -50,7 +50,8 @@ const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+ const encodeHex = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+ 
+ // NewEncoding returns a new Encoding defined by the given alphabet,
+-// which must be a 32-byte string.
++// which must be a 32-byte string. The alphabet is treated as sequence
++// of byte values without any special treatment for multi-byte UTF-8.
+ func NewEncoding(encoder string) *Encoding {
+ 	if len(encoder) != 32 {
+ 		panic("encoding alphabet is not 32-bytes long")
+@@ -80,6 +81,8 @@ var HexEncoding = NewEncoding(encodeHex)
+ // The padding character must not be '\r' or '\n', must not
+ // be contained in the encoding's alphabet and must be a rune equal or
+ // below '\xff'.
++// Padding characters above '\x7f' are encoded as their exact byte value
++// rather than using the UTF-8 representation of the codepoint.
+ func (enc Encoding) WithPadding(padding rune) *Encoding {
+ 	if padding == '\r' || padding == '\n' || padding > 0xff {
+ 		panic("invalid padding")
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 0e12d90d29..6aa8a15bdc 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -54,7 +54,8 @@ const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
+ 
+ // NewEncoding returns a new padded Encoding defined by the given alphabet,
+ // which must be a 64-byte string that does not contain the padding character
+-// or CR / LF ('\r', '\n').
++// or CR / LF ('\r', '\n'). The alphabet is treated as sequence of byte values
++// without any special treatment for multi-byte UTF-8.
+ // The resulting Encoding uses the default padding character ('='),
+ // which may be changed or disabled via WithPadding.
+ func NewEncoding(encoder string) *Encoding {
+@@ -83,6 +84,8 @@ func NewEncoding(encoder string) *Encoding {
+ // The padding character must not be '\r' or '\n', must not
+ // be contained in the encoding's alphabet and must be a rune equal or
+ // below '\xff'.
++// Padding characters above '\x7f' are encoded as their exact byte value
++// rather than using the UTF-8 representation of the codepoint.
+ func (enc Encoding) WithPadding(padding rune) *Encoding {
+ 	if padding == '\r' || padding == '\n' || padding > 0xff {
+ 		panic("invalid padding")

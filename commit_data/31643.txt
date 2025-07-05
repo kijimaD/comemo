@@ -16,7 +16,7 @@ Date:   Mon Mar 6 20:00:54 2017 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 12 ++++++------
  src/cmd/compile/internal/gc/closure.go |  8 ++++----
  src/cmd/compile/internal/gc/dcl.go     |  6 +++---
@@ -25,3 +25,351 @@ Date:   Mon Mar 6 20:00:54 2017 +0200
  src/cmd/compile/internal/gc/reflect.go | 24 +++++++++++------------
  src/cmd/compile/internal/gc/subr.go    | 14 +++++++-------
  7 files changed, 64 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 2c3d8f06ef..5f71ca0b71 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -257,10 +257,10 @@ func export(out *bufio.Writer, trace bool) int {
+ 	for _, n := range exportlist {
+ 		sym := n.Sym
+ 
+-		if sym.Flags&SymExported != 0 {
++		if sym.Exported() {
+ 			continue
+ 		}
+-		sym.Flags |= SymExported
++		sym.SetExported(true)
+ 
+ 		// TODO(gri) Closures have dots in their names;
+ 		// e.g., TestFloatZeroValue.func1 in math/big tests.
+@@ -269,7 +269,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 		}
+ 
+ 		// TODO(gri) Should we do this check?
+-		// if sym.Flags&SymExport == 0 {
++		// if !sym.Export() {
+ 		// 	continue
+ 		// }
+ 
+@@ -324,10 +324,10 @@ func export(out *bufio.Writer, trace bool) int {
+ 		// are different optimization opportunities, but factor
+ 		// eventually.
+ 
+-		if sym.Flags&SymExported != 0 {
++		if sym.Exported() {
+ 			continue
+ 		}
+-		sym.Flags |= SymExported
++		sym.SetExported(true)
+ 
+ 		// TODO(gri) Closures have dots in their names;
+ 		// e.g., TestFloatZeroValue.func1 in math/big tests.
+@@ -336,7 +336,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 		}
+ 
+ 		// TODO(gri) Should we do this check?
+-		// if sym.Flags&SymExport == 0 {
++		// if !sym.Export() {
+ 		// 	continue
+ 		// }
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index e724c8d73d..91e955c610 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -211,7 +211,7 @@ func makeclosure(func_ *Node) *Node {
+ 	xfunc := nod(ODCLFUNC, nil, nil)
+ 
+ 	xfunc.Func.Nname = newfuncname(closurename(func_))
+-	xfunc.Func.Nname.Sym.Flags |= SymExported // disable export
++	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+ 	xfunc.Func.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Func.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Func.Nname, PFUNC)
+@@ -564,10 +564,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 
+ 	sym := Pkglookup(p, spkg)
+ 
+-	if sym.Flags&SymUniq != 0 {
++	if sym.Uniq() {
+ 		return sym.Def
+ 	}
+-	sym.Flags |= SymUniq
++	sym.SetUniq(true)
+ 
+ 	savecurfn := Curfn
+ 	Curfn = nil
+@@ -607,7 +607,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 
+ 	xfunc.Func.SetDupok(true)
+ 	xfunc.Func.Nname = newfuncname(sym)
+-	xfunc.Func.Nname.Sym.Flags |= SymExported // disable export
++	xfunc.Func.Nname.Sym.SetExported(true) // disable export
+ 	xfunc.Func.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Func.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Func.Nname, PFUNC)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 74aea51e26..6dee1a5ffe 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -409,7 +409,7 @@ func colasname(n *Node) bool {
+ func colasdefn(left []*Node, defn *Node) {
+ 	for _, n := range left {
+ 		if n.Sym != nil {
+-			n.Sym.Flags |= SymUniq
++			n.Sym.SetUniq(true)
+ 		}
+ 	}
+ 
+@@ -424,14 +424,14 @@ func colasdefn(left []*Node, defn *Node) {
+ 			continue
+ 		}
+ 
+-		if n.Sym.Flags&SymUniq == 0 {
++		if !n.Sym.Uniq() {
+ 			yyerrorl(defn.Pos, "%v repeated on left side of :=", n.Sym)
+ 			n.SetDiag(true)
+ 			nerr++
+ 			continue
+ 		}
+ 
+-		n.Sym.Flags &^= SymUniq
++		n.Sym.SetUniq(false)
+ 		if n.Sym.Block == block {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 342d1bbda0..f39dd2bee7 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -33,14 +33,14 @@ func exportsym(n *Node) {
+ 	if n == nil || n.Sym == nil {
+ 		return
+ 	}
+-	if n.Sym.Flags&(SymExport|SymPackage) != 0 {
+-		if n.Sym.Flags&SymPackage != 0 {
++	if n.Sym.Export() || n.Sym.Package() {
++		if n.Sym.Package() {
+ 			yyerror("export/package mismatch: %v", n.Sym)
+ 		}
+ 		return
+ 	}
+ 
+-	n.Sym.Flags |= SymExport
++	n.Sym.SetExport(true)
+ 	if Debug['E'] != 0 {
+ 		fmt.Printf("export symbol %v\n", n.Sym)
+ 	}
+@@ -90,8 +90,8 @@ func autoexport(n *Node, ctxt Class) {
+ 	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
+ 		exportsym(n)
+ 	}
+-	if asmhdr != "" && n.Sym.Pkg == localpkg && n.Sym.Flags&SymAsm == 0 {
+-		n.Sym.Flags |= SymAsm
++	if asmhdr != "" && n.Sym.Pkg == localpkg && !n.Sym.Asm() {
++		n.Sym.SetAsm(true)
+ 		asmlist = append(asmlist, n)
+ 	}
+ }
+@@ -203,9 +203,9 @@ func importsym(s *Sym, op Op) {
+ 	// mark the symbol so it is not reexported
+ 	if s.Def == nil {
+ 		if exportname(s.Name) || initname(s.Name) {
+-			s.Flags |= SymExport
++			s.SetExport(true)
+ 		} else {
+-			s.Flags |= SymPackage // package scope
++			s.SetPackage(true) // package scope
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 06f511a558..8dcb9faed2 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -43,7 +43,6 @@ func (p *Pkg) isRuntime() bool {
+ // allows using Sym pointer equality to test for Go identifier uniqueness when
+ // handling selector expressions.
+ type Sym struct {
+-	Flags     SymFlags
+ 	Link      *Sym
+ 	Importdef *Pkg   // where imported definition was found
+ 	Linkname  string // link name
+@@ -59,20 +58,36 @@ type Sym struct {
+ 	Origpkg *Pkg  // original package for . import
+ 	Lsym    *obj.LSym
+ 	Fsym    *Sym // funcsym
+-}
+ 
+-type SymFlags uint8
++	flags bitset8
++}
+ 
+ const (
+-	SymExport SymFlags = 1 << iota // to be exported
+-	SymPackage
+-	SymExported // already written out by export
+-	SymUniq
+-	SymSiggen
+-	SymAsm
+-	SymAlgGen
++	symExport = 1 << iota // to be exported
++	symPackage
++	symExported // already written out by export
++	symUniq
++	symSiggen
++	symAsm
++	symAlgGen
+ )
+ 
++func (sym *Sym) Export() bool   { return sym.flags&symExport != 0 }
++func (sym *Sym) Package() bool  { return sym.flags&symPackage != 0 }
++func (sym *Sym) Exported() bool { return sym.flags&symExported != 0 }
++func (sym *Sym) Uniq() bool     { return sym.flags&symUniq != 0 }
++func (sym *Sym) Siggen() bool   { return sym.flags&symSiggen != 0 }
++func (sym *Sym) Asm() bool      { return sym.flags&symAsm != 0 }
++func (sym *Sym) AlgGen() bool   { return sym.flags&symAlgGen != 0 }
++
++func (sym *Sym) SetExport(b bool)   { sym.flags.set(symExport, b) }
++func (sym *Sym) SetPackage(b bool)  { sym.flags.set(symPackage, b) }
++func (sym *Sym) SetExported(b bool) { sym.flags.set(symExported, b) }
++func (sym *Sym) SetUniq(b bool)     { sym.flags.set(symUniq, b) }
++func (sym *Sym) SetSiggen(b bool)   { sym.flags.set(symSiggen, b) }
++func (sym *Sym) SetAsm(b bool)      { sym.flags.set(symAsm, b) }
++func (sym *Sym) SetAlgGen(b bool)   { sym.flags.set(symAlgGen, b) }
++
+ func (sym *Sym) isAlias() bool {
+ 	return sym.Def != nil && sym.Def.Sym != sym
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a19af9f4ec..5d5187b7e6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -352,8 +352,8 @@ func methods(t *Type) []*Sig {
+ 		sig.type_ = methodfunc(f.Type, t)
+ 		sig.mtype = methodfunc(f.Type, nil)
+ 
+-		if sig.isym.Flags&SymSiggen == 0 {
+-			sig.isym.Flags |= SymSiggen
++		if !sig.isym.Siggen() {
++			sig.isym.SetSiggen(true)
+ 			if !eqtype(this, it) || this.Width < Types[Tptr].Width {
+ 				compiling_wrappers = 1
+ 				genwrapper(it, f, sig.isym, 1)
+@@ -361,8 +361,8 @@ func methods(t *Type) []*Sig {
+ 			}
+ 		}
+ 
+-		if sig.tsym.Flags&SymSiggen == 0 {
+-			sig.tsym.Flags |= SymSiggen
++		if !sig.tsym.Siggen() {
++			sig.tsym.SetSiggen(true)
+ 			if !eqtype(this, t) {
+ 				compiling_wrappers = 1
+ 				genwrapper(t, f, sig.tsym, 0)
+@@ -416,8 +416,8 @@ func imethods(t *Type) []*Sig {
+ 		// code can refer to it.
+ 		isym := methodsym(method, t, 0)
+ 
+-		if isym.Flags&SymSiggen == 0 {
+-			isym.Flags |= SymSiggen
++		if !isym.Siggen() {
++			isym.SetSiggen(true)
+ 			genwrapper(t, f, isym, 0)
+ 		}
+ 	}
+@@ -1121,10 +1121,10 @@ func dtypesym(t *Type) *Sym {
+ 	}
+ 
+ 	s := typesym(t)
+-	if s.Flags&SymSiggen != 0 {
++	if s.Siggen() {
+ 		return s
+ 	}
+-	s.Flags |= SymSiggen
++	s.SetSiggen(true)
+ 
+ 	// special case (look for runtime below):
+ 	// when compiling package runtime,
+@@ -1519,10 +1519,10 @@ func dalgsym(t *Type) *Sym {
+ 
+ 		s = Pkglookup(p, typepkg)
+ 
+-		if s.Flags&SymAlgGen != 0 {
++		if s.AlgGen() {
+ 			return s
+ 		}
+-		s.Flags |= SymAlgGen
++		s.SetAlgGen(true)
+ 
+ 		// make hash closure
+ 		p = fmt.Sprintf(".hashfunc%d", t.Width)
+@@ -1628,8 +1628,8 @@ func dgcptrmask(t *Type) *Sym {
+ 	p := fmt.Sprintf("gcbits.%x", ptrmask)
+ 
+ 	sym := Pkglookup(p, Runtimepkg)
+-	if sym.Flags&SymUniq == 0 {
+-		sym.Flags |= SymUniq
++	if !sym.Uniq() {
++		sym.SetUniq(true)
+ 		for i, x := range ptrmask {
+ 			duint8(sym, i, x)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index defb980ae4..923205ca39 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1534,10 +1534,10 @@ func expand0(t *Type, followptr bool) {
+ 
+ 	if u.IsInterface() {
+ 		for _, f := range u.Fields().Slice() {
+-			if f.Sym.Flags&SymUniq != 0 {
++			if f.Sym.Uniq() {
+ 				continue
+ 			}
+-			f.Sym.Flags |= SymUniq
++			f.Sym.SetUniq(true)
+ 			slist = append(slist, Symlink{field: f, followptr: followptr})
+ 		}
+ 
+@@ -1547,10 +1547,10 @@ func expand0(t *Type, followptr bool) {
+ 	u = methtype(t)
+ 	if u != nil {
+ 		for _, f := range u.Methods().Slice() {
+-			if f.Sym.Flags&SymUniq != 0 {
++			if f.Sym.Uniq() {
+ 				continue
+ 			}
+-			f.Sym.Flags |= SymUniq
++			f.Sym.SetUniq(true)
+ 			slist = append(slist, Symlink{field: f, followptr: followptr})
+ 		}
+ 	}
+@@ -1598,7 +1598,7 @@ func expandmeth(t *Type) {
+ 	// mark top-level method symbols
+ 	// so that expand1 doesn't consider them.
+ 	for _, f := range t.Methods().Slice() {
+-		f.Sym.Flags |= SymUniq
++		f.Sym.SetUniq(true)
+ 	}
+ 
+ 	// generate all reachable methods
+@@ -1609,7 +1609,7 @@ func expandmeth(t *Type) {
+ 	var ms []*Field
+ 	for i, sl := range slist {
+ 		slist[i].field = nil
+-		sl.field.Sym.Flags &^= SymUniq
++		sl.field.Sym.SetUniq(false)
+ 
+ 		var f *Field
+ 		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
+@@ -1631,7 +1631,7 @@ func expandmeth(t *Type) {
+ 	}
+ 
+ 	for _, f := range t.Methods().Slice() {
+-		f.Sym.Flags &^= SymUniq
++		f.Sym.SetUniq(false)
+ 	}
+ 
+ 	ms = append(ms, t.Methods().Slice()...)

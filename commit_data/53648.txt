@@ -41,8 +41,172 @@ Date:   Thu Jun 9 18:20:47 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Dan Kortschak <dan@kortschak.io>
-
+---
  api/next/52376.txt      |  1 +
  src/reflect/all_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++
  src/reflect/value.go    | 58 +++++++++++++++++++++++++++++++++++++++++++++++--
  3 files changed, 108 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/52376.txt b/api/next/52376.txt
+new file mode 100644
+index 0000000000..9e6b1623ee
+--- /dev/null
++++ b/api/next/52376.txt
+@@ -0,0 +1 @@
++pkg reflect, method (Value) SetZero() #52376
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 37e01e0be4..fe62407412 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1374,6 +1374,8 @@ func TestIsZero(t *testing.T) {
+ 		{[3][]int{{1}}, false},                  // incomparable array
+ 		{[1 << 12]byte{}, true},
+ 		{[1 << 12]byte{1}, false},
++		{[3]Value{}, true},
++		{[3]Value{{}, ValueOf(0), {}}, false},
+ 		// Chan
+ 		{(chan string)(nil), true},
+ 		{make(chan string), false},
+@@ -1406,6 +1408,8 @@ func TestIsZero(t *testing.T) {
+ 		{struct{ p *int }{new(int)}, false},   // direct pointer struct
+ 		{struct{ s []int }{}, true},           // incomparable struct
+ 		{struct{ s []int }{[]int{1}}, false},  // incomparable struct
++		{struct{ Value }{}, true},
++		{struct{ Value }{ValueOf(0)}, false},
+ 		// UnsafePointer
+ 		{(unsafe.Pointer)(nil), true},
+ 		{(unsafe.Pointer)(new(int)), false},
+@@ -1425,6 +1429,13 @@ func TestIsZero(t *testing.T) {
+ 		if !Zero(TypeOf(tt.x)).IsZero() {
+ 			t.Errorf("%d: IsZero(Zero(TypeOf((%s)(%+v)))) is false", i, x.Kind(), tt.x)
+ 		}
++
++		p := New(x.Type()).Elem()
++		p.Set(x)
++		p.SetZero()
++		if !p.IsZero() {
++			t.Errorf("%d: IsZero((%s)(%+v)) is true after SetZero", i, p.Kind(), tt.x)
++		}
+ 	}
+ 
+ 	func() {
+@@ -1456,6 +1467,46 @@ func BenchmarkIsZero(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSetZero(b *testing.B) {
++	source := ValueOf(new(struct {
++		Bool      bool
++		Int       int64
++		Uint      uint64
++		Float     float64
++		Complex   complex128
++		Array     [4]Value
++		Chan      chan Value
++		Func      func() Value
++		Interface interface{ String() string }
++		Map       map[string]Value
++		Pointer   *Value
++		Slice     []Value
++		String    string
++		Struct    Value
++	})).Elem()
++
++	for i := 0; i < source.NumField(); i++ {
++		name := source.Type().Field(i).Name
++		value := source.Field(i)
++		zero := Zero(value.Type())
++		b.Run(name+"/Direct", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				value.SetZero()
++			}
++		})
++		b.Run(name+"/CachedZero", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				value.Set(zero)
++			}
++		})
++		b.Run(name+"/NewZero", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				value.Set(Zero(value.Type()))
++			}
++		})
++	}
++}
++
+ func TestInterfaceExtraction(t *testing.T) {
+ 	var s struct {
+ 		W io.Writer
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 95bf4682aa..6ab6cc8b23 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1615,12 +1615,66 @@ func (v Value) IsZero() bool {
+ 		}
+ 		return true
+ 	default:
+-		// This should never happens, but will act as a safeguard for
+-		// later, as a default value doesn't makes sense here.
++		// This should never happen, but will act as a safeguard for later,
++		// as a default value doesn't makes sense here.
+ 		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
+ 	}
+ }
+ 
++// SetZero sets v to be the zero value of v's type.
++// It panics if CanSet returns false.
++func (v Value) SetZero() {
++	v.mustBeAssignable()
++	switch v.kind() {
++	case Bool:
++		*(*bool)(v.ptr) = false
++	case Int:
++		*(*int)(v.ptr) = 0
++	case Int8:
++		*(*int8)(v.ptr) = 0
++	case Int16:
++		*(*int16)(v.ptr) = 0
++	case Int32:
++		*(*int32)(v.ptr) = 0
++	case Int64:
++		*(*int64)(v.ptr) = 0
++	case Uint:
++		*(*uint)(v.ptr) = 0
++	case Uint8:
++		*(*uint8)(v.ptr) = 0
++	case Uint16:
++		*(*uint16)(v.ptr) = 0
++	case Uint32:
++		*(*uint32)(v.ptr) = 0
++	case Uint64:
++		*(*uint64)(v.ptr) = 0
++	case Uintptr:
++		*(*uintptr)(v.ptr) = 0
++	case Float32:
++		*(*float32)(v.ptr) = 0
++	case Float64:
++		*(*float64)(v.ptr) = 0
++	case Complex64:
++		*(*complex64)(v.ptr) = 0
++	case Complex128:
++		*(*complex128)(v.ptr) = 0
++	case String:
++		*(*string)(v.ptr) = ""
++	case Slice:
++		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
++	case Interface:
++		*(*[2]unsafe.Pointer)(v.ptr) = [2]unsafe.Pointer{}
++	case Chan, Func, Map, Pointer, UnsafePointer:
++		*(*unsafe.Pointer)(v.ptr) = nil
++	case Array, Struct:
++		typedmemclr(v.typ, v.ptr)
++	default:
++		// This should never happen, but will act as a safeguard for later,
++		// as a default value doesn't makes sense here.
++		panic(&ValueError{"reflect.Value.SetZero", v.Kind()})
++	}
++}
++
+ // Kind returns v's Kind.
+ // If v is the zero Value (IsValid returns false), Kind returns Invalid.
+ func (v Value) Kind() Kind {

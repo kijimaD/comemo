@@ -18,9 +18,292 @@ Date:   Tue Dec 12 17:52:36 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 73 ++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/lookup.go      | 18 +++++--
  src/go/types/issues_test.go                    | 73 ++++++++++++++++++++++++++
  src/go/types/lookup.go                         | 18 +++++--
  4 files changed, 172 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index a8b70b8964..a8893cf6de 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -1003,3 +1003,76 @@ type S struct{ A }
+ 		t.Fatalf("got %q; want %q", got, want)
+ 	}
+ }
++
++func TestIssue59831(t *testing.T) {
++	// Package a exports a type S with an unexported method m;
++	// the tests check the error messages when m is not found.
++	const asrc = `package a; type S struct{}; func (S) m() {}`
++	apkg := mustTypecheck(asrc, nil, nil)
++
++	// Package b exports a type S with an exported method m;
++	// the tests check the error messages when M is not found.
++	const bsrc = `package b; type S struct{}; func (S) M() {}`
++	bpkg := mustTypecheck(bsrc, nil, nil)
++
++	tests := []struct {
++		imported *Package
++		src, err string
++	}{
++		// tests importing a (or nothing)
++		{apkg, `package a1; import "a"; var _ interface { M() } = a.S{}`,
++			"a.S does not implement interface{M()} (missing method M) have m() want M()"},
++
++		{apkg, `package a2; import "a"; var _ interface { m() } = a.S{}`,
++			"a.S does not implement interface{m()} (unexported method m)"}, // test for issue
++
++		{nil, `package a3; type S struct{}; func (S) m(); var _ interface { M() } = S{}`,
++			"S does not implement interface{M()} (missing method M) have m() want M()"},
++
++		{nil, `package a4; type S struct{}; func (S) m(); var _ interface { m() } = S{}`,
++			""}, // no error expected
++
++		{nil, `package a5; type S struct{}; func (S) m(); var _ interface { n() } = S{}`,
++			"S does not implement interface{n()} (missing method n)"},
++
++		// tests importing b (or nothing)
++		{bpkg, `package b1; import "b"; var _ interface { m() } = b.S{}`,
++			"b.S does not implement interface{m()} (missing method m) have M() want m()"},
++
++		{bpkg, `package b2; import "b"; var _ interface { M() } = b.S{}`,
++			""}, // no error expected
++
++		{nil, `package b3; type S struct{}; func (S) M(); var _ interface { M() } = S{}`,
++			""}, // no error expected
++
++		{nil, `package b4; type S struct{}; func (S) M(); var _ interface { m() } = S{}`,
++			"S does not implement interface{m()} (missing method m) have M() want m()"},
++
++		{nil, `package b5; type S struct{}; func (S) M(); var _ interface { n() } = S{}`,
++			"S does not implement interface{n()} (missing method n)"},
++	}
++
++	for _, test := range tests {
++		// typecheck test source
++		conf := Config{Importer: importHelper{pkg: test.imported}}
++		pkg, err := typecheck(test.src, &conf, nil)
++		if err == nil {
++			if test.err != "" {
++				t.Errorf("package %s: got no error, want %q", pkg.Name(), test.err)
++			}
++			continue
++		}
++		if test.err == "" {
++			t.Errorf("package %s: got %q, want not error", pkg.Name(), err.Error())
++		}
++
++		// flatten reported error message
++		errmsg := strings.ReplaceAll(err.Error(), "\n", " ")
++		errmsg = strings.ReplaceAll(errmsg, "\t", "")
++
++		// verify error message
++		if !strings.Contains(errmsg, test.err) {
++			t.Errorf("package %s: got %q, want %q", pkg.Name(), errmsg, test.err)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 014a5489cd..bc47c15060 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -96,7 +96,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ // and missingMethod (the latter doesn't care about struct fields).
+ //
+ // If foldCase is true, method names are considered equal if they are equal
+-// with case folding.
++// with case folding, irrespective of which package they are in.
+ //
+ // The resulting object may not be fully type-checked.
+ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+@@ -343,6 +343,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		ok = iota
+ 		notFound
+ 		wrongName
++		unexported
+ 		wrongSig
+ 		ambigSel
+ 		ptrRecv
+@@ -388,6 +389,11 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 					f, _ = obj.(*Func)
+ 					if f != nil {
+ 						state = wrongName
++						if f.name == m.name {
++							// If the names are equal, f must be unexported
++							// (otherwise the package wouldn't matter).
++							state = unexported
++						}
+ 					}
+ 				}
+ 				break
+@@ -436,8 +442,9 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 			}
+ 		case wrongName:
+ 			fs, ms := check.funcString(f, false), check.funcString(m, false)
+-			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s",
+-				m.Name(), fs, ms)
++			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
++		case unexported:
++			*cause = check.sprintf("(unexported method %s)", m.Name())
+ 		case wrongSig:
+ 			fs, ms := check.funcString(f, false), check.funcString(m, false)
+ 			if fs == ms {
+@@ -582,11 +589,12 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
+ }
+ 
+ // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
+-// If foldCase is true, method names are considered equal if they are equal with case folding.
++// If foldCase is true, method names are considered equal if they are equal with case folding
++// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
+ func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	if name != "_" {
+ 		for i, m := range methods {
+-			if (m.name == name || foldCase && strings.EqualFold(m.name, name)) && m.sameId(pkg, m.name) {
++			if m.sameId(pkg, name) || foldCase && strings.EqualFold(m.name, name) {
+ 				return i, m
+ 			}
+ 		}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 91631fe9c7..b4c8218bc4 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -1013,3 +1013,76 @@ type S struct{ A }
+ 		t.Fatalf("got %q; want %q", got, want)
+ 	}
+ }
++
++func TestIssue59831(t *testing.T) {
++	// Package a exports a type S with an unexported method m;
++	// the tests check the error messages when m is not found.
++	const asrc = `package a; type S struct{}; func (S) m() {}`
++	apkg := mustTypecheck(asrc, nil, nil)
++
++	// Package b exports a type S with an exported method m;
++	// the tests check the error messages when M is not found.
++	const bsrc = `package b; type S struct{}; func (S) M() {}`
++	bpkg := mustTypecheck(bsrc, nil, nil)
++
++	tests := []struct {
++		imported *Package
++		src, err string
++	}{
++		// tests importing a (or nothing)
++		{apkg, `package a1; import "a"; var _ interface { M() } = a.S{}`,
++			"a.S does not implement interface{M()} (missing method M) have m() want M()"},
++
++		{apkg, `package a2; import "a"; var _ interface { m() } = a.S{}`,
++			"a.S does not implement interface{m()} (unexported method m)"}, // test for issue
++
++		{nil, `package a3; type S struct{}; func (S) m(); var _ interface { M() } = S{}`,
++			"S does not implement interface{M()} (missing method M) have m() want M()"},
++
++		{nil, `package a4; type S struct{}; func (S) m(); var _ interface { m() } = S{}`,
++			""}, // no error expected
++
++		{nil, `package a5; type S struct{}; func (S) m(); var _ interface { n() } = S{}`,
++			"S does not implement interface{n()} (missing method n)"},
++
++		// tests importing b (or nothing)
++		{bpkg, `package b1; import "b"; var _ interface { m() } = b.S{}`,
++			"b.S does not implement interface{m()} (missing method m) have M() want m()"},
++
++		{bpkg, `package b2; import "b"; var _ interface { M() } = b.S{}`,
++			""}, // no error expected
++
++		{nil, `package b3; type S struct{}; func (S) M(); var _ interface { M() } = S{}`,
++			""}, // no error expected
++
++		{nil, `package b4; type S struct{}; func (S) M(); var _ interface { m() } = S{}`,
++			"S does not implement interface{m()} (missing method m) have M() want m()"},
++
++		{nil, `package b5; type S struct{}; func (S) M(); var _ interface { n() } = S{}`,
++			"S does not implement interface{n()} (missing method n)"},
++	}
++
++	for _, test := range tests {
++		// typecheck test source
++		conf := Config{Importer: importHelper{pkg: test.imported}}
++		pkg, err := typecheck(test.src, &conf, nil)
++		if err == nil {
++			if test.err != "" {
++				t.Errorf("package %s: got no error, want %q", pkg.Name(), test.err)
++			}
++			continue
++		}
++		if test.err == "" {
++			t.Errorf("package %s: got %q, want not error", pkg.Name(), err.Error())
++		}
++
++		// flatten reported error message
++		errmsg := strings.ReplaceAll(err.Error(), "\n", " ")
++		errmsg = strings.ReplaceAll(errmsg, "\t", "")
++
++		// verify error message
++		if !strings.Contains(errmsg, test.err) {
++			t.Errorf("package %s: got %q, want %q", pkg.Name(), errmsg, test.err)
++		}
++	}
++}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 05d30c178a..7723c43565 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -98,7 +98,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ // and missingMethod (the latter doesn't care about struct fields).
+ //
+ // If foldCase is true, method names are considered equal if they are equal
+-// with case folding.
++// with case folding, irrespective of which package they are in.
+ //
+ // The resulting object may not be fully type-checked.
+ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+@@ -345,6 +345,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		ok = iota
+ 		notFound
+ 		wrongName
++		unexported
+ 		wrongSig
+ 		ambigSel
+ 		ptrRecv
+@@ -390,6 +391,11 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 					f, _ = obj.(*Func)
+ 					if f != nil {
+ 						state = wrongName
++						if f.name == m.name {
++							// If the names are equal, f must be unexported
++							// (otherwise the package wouldn't matter).
++							state = unexported
++						}
+ 					}
+ 				}
+ 				break
+@@ -438,8 +444,9 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 			}
+ 		case wrongName:
+ 			fs, ms := check.funcString(f, false), check.funcString(m, false)
+-			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s",
+-				m.Name(), fs, ms)
++			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
++		case unexported:
++			*cause = check.sprintf("(unexported method %s)", m.Name())
+ 		case wrongSig:
+ 			fs, ms := check.funcString(f, false), check.funcString(m, false)
+ 			if fs == ms {
+@@ -584,11 +591,12 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
+ }
+ 
+ // lookupMethod returns the index of and method with matching package and name, or (-1, nil).
+-// If foldCase is true, method names are considered equal if they are equal with case folding.
++// If foldCase is true, method names are considered equal if they are equal with case folding
++// and their packages are ignored (e.g., pkg1.m, pkg1.M, pkg2.m, and pkg2.M are all equal).
+ func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	if name != "_" {
+ 		for i, m := range methods {
+-			if (m.name == name || foldCase && strings.EqualFold(m.name, name)) && m.sameId(pkg, m.name) {
++			if m.sameId(pkg, name) || foldCase && strings.EqualFold(m.name, name) {
+ 				return i, m
+ 			}
+ 		}

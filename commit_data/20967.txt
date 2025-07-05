@@ -8,6 +8,20 @@ Date:   Thu Oct 30 12:08:21 2014 -0400
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/162500043
-
+---
  src/runtime/panic.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/panic.c b/src/runtime/panic.c
+index 46683b2b0c..b19fdd0e18 100644
+--- a/src/runtime/panic.c
++++ b/src/runtime/panic.c
+@@ -69,7 +69,7 @@ runtime·recovery_m(G *gp)
+ 	// each call to deferproc.
+ 	// (The pc we're returning to does pop pop
+ 	// before it tests the return value.)
+-	// On the arm there are 2 saved LRs mixed in too.
++	// On the arm and power there are 2 saved LRs mixed in too.
+ 	if(thechar == '5' || thechar == '9')
+ 		gp->sched.sp = (uintptr)argp - 4*sizeof(uintptr);
+ 	else

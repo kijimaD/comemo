@@ -47,7 +47,7 @@ Date:   Wed Oct 12 15:48:18 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |  7 ++-
  src/cmd/compile/internal/gc/bimport.go   |  6 ++-
  src/cmd/compile/internal/gc/esc.go       |  8 +--
@@ -60,3 +60,481 @@ Date:   Wed Oct 12 15:48:18 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 93 +++++++++++++++-----------------
  src/cmd/compile/internal/gc/walk.go      |  8 +--
  11 files changed, 110 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 1d7db3198d..ed47854aec 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1154,8 +1154,8 @@ func (p *exporter) elemList(list Nodes) {
+ 		if p.trace {
+ 			p.tracef("\n")
+ 		}
+-		p.fieldSym(n.Left.Sym, false)
+-		p.expr(n.Right)
++		p.fieldSym(n.Sym, false)
++		p.expr(n.Left)
+ 	}
+ }
+ 
+@@ -1267,6 +1267,9 @@ func (p *exporter) expr(n *Node) {
+ 		p.op(OKEY)
+ 		p.exprsOrNil(n.Left, n.Right)
+ 
++	// case OSTRUCTKEY:
++	//	unreachable - handled in case OSTRUCTLIT by elemList
++
+ 	// case OCALLPART:
+ 	//	unimplemented - handled by default case
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index e2973f1d8f..92a116bddb 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -804,7 +804,8 @@ func (p *importer) elemList() []*Node {
+ 	c := p.int()
+ 	list := make([]*Node, c)
+ 	for i := range list {
+-		list[i] = nod(OKEY, mkname(p.fieldSym()), p.expr())
++		s := p.fieldSym()
++		list[i] = nodSym(OSTRUCTKEY, p.expr(), s)
+ 	}
+ 	return list
+ }
+@@ -897,6 +898,9 @@ func (p *importer) node() *Node {
+ 		left, right := p.exprsOrNil()
+ 		return nod(OKEY, left, right)
+ 
++	// case OSTRUCTKEY:
++	//	unreachable - handled in case OSTRUCTLIT by elemList
++
+ 	// case OCALLPART:
+ 	//	unimplemented
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 2cb4510332..6d6d18fdd2 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -633,12 +633,6 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 	if n == nil {
+ 		return
+ 	}
+-	if n.Type == structkey {
+-		// This is the left side of x:y in a struct literal.
+-		// x is syntax, not an expression.
+-		// See #14405.
+-		return
+-	}
+ 
+ 	lno := setlineno(n)
+ 
+@@ -905,7 +899,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 		// Link values to struct.
+ 	case OSTRUCTLIT:
+ 		for _, n6 := range n.List.Slice() {
+-			e.escassignNilWhy(n, n6.Right, "struct literal element")
++			e.escassignNilWhy(n, n6.Left, "struct literal element")
+ 		}
+ 
+ 	case OPTRLIT:
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index a62865d815..02882c882c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1272,6 +1272,9 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 		}
+ 		fmt.Fprint(s, ":")
+ 
++	case OSTRUCTKEY:
++		fmt.Fprintf(s, "%v:%v", n.Sym, n.Left)
++
+ 	case OCALLPART:
+ 		n.Left.exprfmt(s, nprec)
+ 		if n.Right == nil || n.Right.Sym == nil {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 9a8dede50d..20d0d6ace1 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -248,6 +248,10 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
+ 	}
+ 
+ 	(*budget)--
++	// TODO(mdempsky): Hack to appease toolstash; remove.
++	if n.Op == OSTRUCTKEY {
++		(*budget)--
++	}
+ 
+ 	return *budget < 0 || ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
+ 		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 45054aa5a3..ef54abdd66 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -77,6 +77,7 @@ var opnames = []string{
+ 	OINDEX:           "INDEX",
+ 	OINDEXMAP:        "INDEXMAP",
+ 	OKEY:             "KEY",
++	OSTRUCTKEY:       "STRUCTKEY",
+ 	OLEN:             "LEN",
+ 	OMAKE:            "MAKE",
+ 	OMAKECHAN:        "MAKECHAN",
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 74fa53da73..8f57ef33fe 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -315,11 +315,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		n.SetSliceBounds(low, high, max)
+ 		goto ret
+ 
+-	case OKEY:
+-		instrumentnode(&n.Left, init, 0, 0)
+-		instrumentnode(&n.Right, init, 0, 0)
+-		goto ret
+-
+ 	case OADDR:
+ 		instrumentnode(&n.Left, init, 0, 1)
+ 		goto ret
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5030d7b23d..b843eaa4de 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -622,6 +622,9 @@ func getdyn(n *Node, top bool) initGenType {
+ 	var mode initGenType
+ 	for _, n1 := range n.List.Slice() {
+ 		value := n1.Right
++		if n.Op == OSTRUCTLIT {
++			value = n1.Left
++		}
+ 		mode |= getdyn(value, false)
+ 		if mode == initDynamic|initConst {
+ 			break
+@@ -635,17 +638,22 @@ func isStaticCompositeLiteral(n *Node) bool {
+ 	switch n.Op {
+ 	case OSLICELIT:
+ 		return false
+-	case OARRAYLIT, OSTRUCTLIT:
++	case OARRAYLIT:
+ 		for _, r := range n.List.Slice() {
+ 			if r.Op != OKEY {
+ 				Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
+ 			}
+-			index := r.Left
+-			if n.Op == OARRAYLIT && index.Op != OLITERAL {
++			if r.Left.Op != OLITERAL || !isStaticCompositeLiteral(r.Right) {
+ 				return false
+ 			}
+-			value := r.Right
+-			if !isStaticCompositeLiteral(value) {
++		}
++		return true
++	case OSTRUCTLIT:
++		for _, r := range n.List.Slice() {
++			if r.Op != OSTRUCTKEY {
++				Fatalf("isStaticCompositeLiteral: rhs not OSTRUCTKEY: %v", r)
++			}
++			if !isStaticCompositeLiteral(r.Left) {
+ 				return false
+ 			}
+ 		}
+@@ -689,40 +697,44 @@ const (
+ // fixedlit handles struct, array, and slice literals.
+ // TODO: expand documentation.
+ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes) {
+-	var indexnode func(*Node) *Node
++	var splitnode func(*Node) (a *Node, value *Node)
+ 	switch n.Op {
+ 	case OARRAYLIT, OSLICELIT:
+-		indexnode = func(index *Node) *Node { return nod(OINDEX, var_, index) }
++		splitnode = func(r *Node) (*Node, *Node) {
++			if r.Op != OKEY {
++				Fatalf("fixedlit: rhs not OKEY: %v", r)
++			}
++			return nod(OINDEX, var_, r.Left), r.Right
++		}
+ 	case OSTRUCTLIT:
+-		indexnode = func(index *Node) *Node { return nodSym(ODOT, var_, index.Sym) }
++		splitnode = func(r *Node) (*Node, *Node) {
++			if r.Op != OSTRUCTKEY {
++				Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
++			}
++			return nodSym(ODOT, var_, r.Sym), r.Left
++		}
+ 	default:
+ 		Fatalf("fixedlit bad op: %v", n.Op)
+ 	}
+ 
+ 	for _, r := range n.List.Slice() {
+-		if r.Op != OKEY {
+-			Fatalf("fixedlit: rhs not OKEY: %v", r)
+-		}
+-		index := r.Left
+-		value := r.Right
++		a, value := splitnode(r)
+ 
+ 		switch value.Op {
+ 		case OSLICELIT:
+ 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
+-				a := indexnode(index)
+ 				slicelit(ctxt, value, a, init)
+ 				continue
+ 			}
+ 
+ 		case OARRAYLIT, OSTRUCTLIT:
+-			a := indexnode(index)
+ 			fixedlit(ctxt, kind, value, a, init)
+ 			continue
+ 		}
+ 
+ 		islit := isliteral(value)
+ 		if n.Op == OARRAYLIT {
+-			islit = islit && isliteral(index)
++			islit = islit && isliteral(r.Left)
+ 		}
+ 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
+ 			continue
+@@ -730,7 +742,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 
+ 		// build list of assignments: var[index] = expr
+ 		setlineno(value)
+-		a := nod(OAS, indexnode(index), value)
++		a = nod(OAS, a, value)
+ 		a = typecheck(a, Etop)
+ 		switch kind {
+ 		case initKindStatic:
+@@ -1235,10 +1247,10 @@ func initplan(n *Node) {
+ 
+ 	case OSTRUCTLIT:
+ 		for _, a := range n.List.Slice() {
+-			if a.Op != OKEY || a.Left.Type != structkey {
++			if a.Op != OSTRUCTKEY {
+ 				Fatalf("initplan fixedlit")
+ 			}
+-			addvalue(p, a.Left.Xoffset, a.Right)
++			addvalue(p, a.Xoffset, a.Left)
+ 		}
+ 
+ 	case OMAPLIT:
+@@ -1294,13 +1306,21 @@ func iszero(n *Node) bool {
+ 			return u.Real.CmpFloat64(0) == 0 && u.Imag.CmpFloat64(0) == 0
+ 		}
+ 
+-	case OARRAYLIT, OSTRUCTLIT:
++	case OARRAYLIT:
+ 		for _, n1 := range n.List.Slice() {
+ 			if !iszero(n1.Right) {
+ 				return false
+ 			}
+ 		}
+ 		return true
++
++	case OSTRUCTLIT:
++		for _, n1 := range n.List.Slice() {
++			if !iszero(n1.Left) {
++				return false
++			}
++		}
++		return true
+ 	}
+ 
+ 	return false
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7a33fc0708..12c15b2eed 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -33,12 +33,11 @@ type Node struct {
+ 	Sym *Sym        // various
+ 	E   interface{} // Opt or Val, see methods below
+ 
+-	// Various. Usually an offset into a struct. For example, ONAME nodes
+-	// that refer to local variables use it to identify their stack frame
+-	// position. ODOT, ODOTPTR, and OINDREG use it to indicate offset
+-	// relative to their base address. ONAME nodes on the left side of an
+-	// OKEY within an OSTRUCTLIT use it to store the named field's offset.
+-	// OXCASE and OXFALL use it to validate the use of fallthrough.
++	// Various. Usually an offset into a struct. For example:
++	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
++	// - ODOT, ODOTPTR, and OINDREG use it to indicate offset relative to their base address.
++	// - OSTRUCTKEY uses it to store the named field's offset.
++	// - OXCASE and OXFALL use it to validate the use of fallthrough.
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+@@ -484,6 +483,9 @@ const (
+ 	OGETG   // runtime.getg() (read g pointer)
+ 
+ 	OEND
++
++	// TODO(mdempsky): Hack to appease toolstash; move up next to OKEY.
++	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
+ )
+ 
+ // Nodes is a pointer to a slice of *Node.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 01ca8922d4..eaadb40c8a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2504,7 +2504,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 
+ func nokeys(l Nodes) bool {
+ 	for _, n := range l.Slice() {
+-		if n.Op == OKEY {
++		if n.Op == OKEY || n.Op == OSTRUCTKEY {
+ 			return false
+ 		}
+ 	}
+@@ -2737,11 +2737,7 @@ func (nl Nodes) retsigerr() string {
+ }
+ 
+ // type check composite
+-func fielddup(n *Node, hash map[string]bool) {
+-	if n.Op != ONAME {
+-		Fatalf("fielddup: not ONAME")
+-	}
+-	name := n.Sym.Name
++func fielddup(name string, hash map[string]bool) {
+ 	if hash[name] {
+ 		yyerror("duplicate field name in struct literal: %s", name)
+ 		return
+@@ -2839,11 +2835,6 @@ func pushtype(n *Node, t *Type) {
+ 	}
+ }
+ 
+-// Marker type so esc, fmt, and sinit can recognize the LHS of an OKEY node
+-// in a struct literal.
+-// TODO(mdempsky): Find a nicer solution.
+-var structkey = typ(Txxx)
+-
+ // The result of typecheckcomplit MUST be assigned back to n, e.g.
+ // 	n.Left = typecheckcomplit(n.Left)
+ func typecheckcomplit(n *Node) *Node {
+@@ -3029,10 +3020,8 @@ func typecheckcomplit(n *Node) *Node {
+ 				}
+ 				// No pushtype allowed here. Must name fields for that.
+ 				n1 = assignconv(n1, f.Type, "field value")
+-				n1 = nod(OKEY, newname(f.Sym), n1)
+-				n1.Left.Type = structkey
+-				n1.Left.Xoffset = f.Offset
+-				n1.Left.Typecheck = 1
++				n1 = nodSym(OSTRUCTKEY, n1, f.Sym)
++				n1.Xoffset = f.Offset
+ 				ls[i1] = n1
+ 				f = it.Next()
+ 			}
+@@ -3047,7 +3036,38 @@ func typecheckcomplit(n *Node) *Node {
+ 			ls := n.List.Slice()
+ 			for i, l := range ls {
+ 				setlineno(l)
+-				if l.Op != OKEY {
++
++				if l.Op == OKEY {
++					key := l.Left
++
++					l.Op = OSTRUCTKEY
++					l.Left = l.Right
++					l.Right = nil
++
++					// An OXDOT uses the Sym field to hold
++					// the field to the right of the dot,
++					// so s will be non-nil, but an OXDOT
++					// is never a valid struct literal key.
++					if key.Sym == nil || key.Op == OXDOT {
++						yyerror("invalid field name %v in struct initializer", key)
++						l.Left = typecheck(l.Left, Erv)
++						continue
++					}
++
++					// Sym might have resolved to name in other top-level
++					// package, because of import dot. Redirect to correct sym
++					// before we do the lookup.
++					s := key.Sym
++					if s.Pkg != localpkg && exportname(s.Name) {
++						s1 := lookup(s.Name)
++						if s1.Origpkg == s.Pkg {
++							s = s1
++						}
++					}
++					l.Sym = s
++				}
++
++				if l.Op != OSTRUCTKEY {
+ 					if bad == 0 {
+ 						yyerror("mixture of field:value and value initializers")
+ 					}
+@@ -3056,46 +3076,17 @@ func typecheckcomplit(n *Node) *Node {
+ 					continue
+ 				}
+ 
+-				s := l.Left.Sym
+-
+-				// An OXDOT uses the Sym field to hold
+-				// the field to the right of the dot,
+-				// so s will be non-nil, but an OXDOT
+-				// is never a valid struct literal key.
+-				if s == nil || l.Left.Op == OXDOT {
+-					yyerror("invalid field name %v in struct initializer", l.Left)
+-					l.Right = typecheck(l.Right, Erv)
+-					continue
+-				}
+-
+-				// Sym might have resolved to name in other top-level
+-				// package, because of import dot. Redirect to correct sym
+-				// before we do the lookup.
+-				if s.Pkg != localpkg && exportname(s.Name) {
+-					s1 := lookup(s.Name)
+-					if s1.Origpkg == s.Pkg {
+-						s = s1
+-					}
+-				}
+-
+-				f := lookdot1(nil, s, t, t.Fields(), 0)
++				f := lookdot1(nil, l.Sym, t, t.Fields(), 0)
+ 				if f == nil {
+-					yyerror("unknown %v field '%v' in struct literal", t, s)
++					yyerror("unknown %v field '%v' in struct literal", t, l.Sym)
+ 					continue
+ 				}
+-
+-				l.Left = newname(s)
+-				l.Left.Type = structkey
+-				l.Left.Xoffset = f.Offset
+-				l.Left.Typecheck = 1
+-				s = f.Sym
+-				fielddup(newname(s), hash)
+-				r = l.Right
++				fielddup(f.Sym.Name, hash)
++				l.Xoffset = f.Offset
+ 
+ 				// No pushtype allowed here. Tried and rejected.
+-				r = typecheck(r, Erv)
+-
+-				l.Right = assignconv(r, f.Type, "field value")
++				l.Left = typecheck(l.Left, Erv)
++				l.Left = assignconv(l.Left, f.Type, "field value")
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index fe2f4c3dad..25a1d72d82 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -486,13 +486,6 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 		init.AppendNodes(&n.Ninit)
+ 	}
+ 
+-	// annoying case - not typechecked
+-	if n.Op == OKEY {
+-		n.Left = walkexpr(n.Left, init)
+-		n.Right = walkexpr(n.Right, init)
+-		return n
+-	}
+-
+ 	lno := setlineno(n)
+ 
+ 	if Debug['w'] > 1 {
+@@ -4100,6 +4093,7 @@ func candiscard(n *Node) bool {
+ 		OGT,
+ 		OGE,
+ 		OKEY,
++		OSTRUCTKEY,
+ 		OLEN,
+ 		OMUL,
+ 		OLSH,

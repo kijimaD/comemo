@@ -13,6 +13,33 @@ Date:   Wed Jun 21 16:20:00 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/operand.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index b2f16b64d8..07247bd6f5 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -122,13 +122,15 @@ func operandString(x *operand, qf Qualifier) string {
+ 	case invalid, novalue, builtin, typexpr:
+ 		// no type
+ 	default:
+-		// has type
+-		if isUntyped(x.typ) {
+-			buf.WriteString(x.typ.(*Basic).name)
+-			buf.WriteByte(' ')
+-			break
++		// should have a type, but be cautious (don't crash during printing)
++		if x.typ != nil {
++			if isUntyped(x.typ) {
++				buf.WriteString(x.typ.(*Basic).name)
++				buf.WriteByte(' ')
++				break
++			}
++			hasType = true
+ 		}
+-		hasType = true
+ 	}
+ 
+ 	// <mode>

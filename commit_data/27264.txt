@@ -23,8 +23,140 @@ Date:   Thu Mar 17 14:12:12 2016 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 50 +++++++++++++++++++++++++++++----
  src/cmd/dist/build.go                   |  6 ++++
  src/make.bash                           |  3 +-
  3 files changed, 52 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 7496aebcfc..b8e2b42c3e 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"fmt"
+ 	"log"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"time"
+@@ -121,10 +122,21 @@ var checkEnabled = false
+ 
+ // PhaseOption sets the specified flag in the specified ssa phase,
+ // returning empty string if this was successful or a string explaining
+-// the error if it was not. A version of the phase name with "_"
+-// replaced by " " is also checked for a match.
+-// See gc/lex.go for dissection of the option string. Example use:
+-// GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash ...
++// the error if it was not.
++// A version of the phase name with "_" replaced by " " is also checked for a match.
++// If the phase name begins a '~' then the rest of the underscores-replaced-with-blanks
++// version is used as a regular expression to match the phase name(s).
++//
++// Special cases that have turned out to be useful:
++//  ssa/check/on enables checking after each phase
++//  ssa/all/time enables time reporting for all phases
++//
++// See gc/lex.go for dissection of the option string.
++// Example uses:
++//
++// GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
++//
++// BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
+ //
+ func PhaseOption(phase, flag string, val int) string {
+ 	if phase == "check" && flag == "on" {
+@@ -135,9 +147,32 @@ func PhaseOption(phase, flag string, val int) string {
+ 		checkEnabled = val == 0
+ 		return ""
+ 	}
++
++	alltime := false
++	if phase == "all" {
++		if flag == "time" {
++			alltime = val != 0
++		} else {
++			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
++		}
++	}
++
+ 	underphase := strings.Replace(phase, "_", " ", -1)
++	var re *regexp.Regexp
++	if phase[0] == '~' {
++		r, ok := regexp.Compile(underphase[1:])
++		if ok != nil {
++			return fmt.Sprintf("Error %s in regexp for phase %s, flag %s", ok.Error(), phase, flag)
++		}
++		re = r
++	}
++	matchedOne := false
+ 	for i, p := range passes {
+-		if p.name == phase || p.name == underphase {
++		if phase == "all" {
++			p.time = alltime
++			passes[i] = p
++			matchedOne = true
++		} else if p.name == phase || p.name == underphase || re != nil && re.MatchString(p.name) {
+ 			switch flag {
+ 			case "on":
+ 				p.disabled = val == 0
+@@ -160,9 +195,12 @@ func PhaseOption(phase, flag string, val int) string {
+ 				return fmt.Sprintf("Cannot disable required SSA phase %s using -d=ssa/%s debug option", phase, phase)
+ 			}
+ 			passes[i] = p
+-			return ""
++			matchedOne = true
+ 		}
+ 	}
++	if matchedOne {
++		return ""
++	}
+ 	return fmt.Sprintf("Did not find a phase matching %s in -d=ssa/... debug option", phase)
+ }
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e0e2ba1e3b..e35d96946e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -31,6 +31,7 @@ var (
+ 	goroot           string
+ 	goroot_final     string
+ 	goextlinkenabled string
++	gogcflags        string // For running built compiler
+ 	workdir          string
+ 	tooldir          string
+ 	oldgoos          string
+@@ -166,6 +167,8 @@ func xinit() {
+ 		goextlinkenabled = b
+ 	}
+ 
++	gogcflags = os.Getenv("GO_GCFLAGS")
++
+ 	b = os.Getenv("CC")
+ 	if b == "" {
+ 		// Use clang on OS X, because gcc is deprecated there.
+@@ -687,6 +690,9 @@ func install(dir string) {
+ 		archive = b
+ 	}
+ 	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
++	if gogcflags != "" {
++		compile = append(compile, gogcflags)
++	}
+ 	if dir == "runtime" {
+ 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+ 	}
+diff --git a/src/make.bash b/src/make.bash
+index 21cc29730d..6e9c12901b 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -151,7 +151,8 @@ if [ "$1" = "--no-clean" ]; then
+ 	buildall=""
+ 	shift
+ fi
+-./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
++
++GO_GCFLAGS="$BOOT_GO_GCFLAGS" ./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+ # Delay move of dist tool to now, because bootstrap may clear tool directory.
+ mv cmd/dist/dist "$GOTOOLDIR"/dist
+ echo

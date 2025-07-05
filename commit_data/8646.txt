@@ -9,10 +9,113 @@ Date:   Tue Jun 7 14:28:10 2011 -0400
     R=mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/4564043
-
+---
  src/cmd/godefs/a.h                     |  1 +
  src/cmd/godefs/main.c                  | 14 +++++++++++---
  src/cmd/godefs/stabs.c                 | 10 +---------
  src/pkg/syscall/ztypes_darwin_386.go   |  4 ----
  src/pkg/syscall/ztypes_darwin_amd64.go |  4 ----
  5 files changed, 13 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/godefs/a.h b/src/cmd/godefs/a.h
+index 03ab91f659..9b49574671 100644
+--- a/src/cmd/godefs/a.h
++++ b/src/cmd/godefs/a.h
+@@ -75,6 +75,7 @@ extern Const *con;
+ extern int ncon;
+ extern Type **typ;
+ extern int ntyp;
++extern int kindsize[];
+ 
+ // Language output
+ typedef struct Lang Lang;
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index d4163421d1..6a86301795 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -181,7 +181,7 @@ main(int argc, char **argv)
+ 	char **av, *q, *r, *tofree, *name;
+ 	char nambuf[100];
+ 	Biobuf *bin, *bout;
+-	Type *t;
++	Type *t, *tt;
+ 	Field *f;
+ 	int orig_output_fd;
+ 
+@@ -373,8 +373,16 @@ Continue:
+ 				prefix = prefixlen(t);
+ 			for(j=0; j<t->nf; j++) {
+ 				f = &t->f[j];
+-				if(f->type->kind == 0)
+-					continue;
++				if(f->type->kind == 0 && f->size <= 64 && (f->size&(f->size-1)) == 0) {
++					// unknown type but <= 64 bits and bit size is a power of two.
++					// could be enum - make Uint64 and then let it reduce
++					tt = emalloc(sizeof *tt);
++					*tt = *f->type;
++					f->type = tt;
++					tt->kind = Uint64;
++					while(tt->kind > Uint8 && kindsize[tt->kind] > f->size)
++						tt->kind -= 2;
++				}
+ 				// padding
+ 				if(t->kind == Struct || lang == &go) {
+ 					if(f->offset%8 != 0 || f->size%8 != 0) {
+diff --git a/src/cmd/godefs/stabs.c b/src/cmd/godefs/stabs.c
+index 30a05fc700..2c3d431b8a 100644
+--- a/src/cmd/godefs/stabs.c
++++ b/src/cmd/godefs/stabs.c
+@@ -149,7 +149,7 @@ Intrange intranges[] = {
+ 	16, 0, Void,
+ };
+ 
+-static int kindsize[] = {
++int kindsize[] = {
+ 	0,
+ 	0,
+ 	8,
+@@ -381,14 +381,6 @@ parsedef(char **pp, char *name)
+ 
+ 			while(f->type->kind == Typedef)
+ 				f->type = f->type->type;
+-			if(f->type->kind == 0 && f->size <= 64 && (f->size&(f->size-1)) == 0) {
+-				// unknown type but <= 64 bits and bit size is a power of two.
+-				// could be enum - make Uint64 and then let it reduce
+-				tt = emalloc(sizeof *tt);
+-				*tt = *f->type;
+-				f->type = tt;
+-				tt->kind = Uint64;
+-			}
+ 
+ 			// rewrite
+ 			//	uint32 x : 8;
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 2dec017873..ba6e590c4f 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -2,10 +2,6 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Manual corrections: TODO: need to fix godefs (issue 1466)
+-//	change Msghdr field to Iov *Iovec (was uint32/64)
+-//	change BpfProgram field to Insns *BpfInsn (was uint32/64)
+-
+ package syscall
+ 
+ // Constants
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 96500d7327..59c832812b 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -2,10 +2,6 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Manual corrections: TODO: need to fix godefs (issue 1466)
+-//	change Msghdr field to Iov *Iovec (was uint32/64)
+-//	change BpfProgram field to Insns *BpfInsn (was uint32/64)
+-
+ package syscall
+ 
+ // Constants

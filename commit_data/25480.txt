@@ -10,6 +10,23 @@ Date:   Tue Nov 3 09:30:17 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/16600
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2c935b7247..90abd8e05d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2026,6 +2026,11 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
+ 		// If likely==1, then we don't have enough info to decide
+ 		// the likelihood of the first branch.
+ 	}
++	if cond.Op == ONOT {
++		s.stmtList(cond.Ninit)
++		s.condBranch(cond.Left, no, yes, -likely)
++		return
++	}
+ 	c := s.expr(cond)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf

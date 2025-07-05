@@ -17,7 +17,7 @@ Date:   Thu Nov 12 14:26:19 2015 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os1_darwin.go     | 3 +--
  src/runtime/os1_dragonfly.go  | 4 +---
  src/runtime/os1_freebsd.go    | 3 +--
@@ -28,3 +28,155 @@ Date:   Thu Nov 12 14:26:19 2015 -0800
  src/runtime/sys_freebsd_386.s | 2 +-
  src/runtime/sys_linux_386.s   | 3 +--
  9 files changed, 9 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index e07022997c..be710599df 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -78,9 +78,8 @@ func goenvs() {
+ // May run with m.p==nil, so write barriers are not allowed.
+ //go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int(mp.tls[0]), " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	var oset uint32
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index f96c78ca80..a1be981f56 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -74,7 +74,7 @@ func lwp_start(uintptr)
+ //go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	var oset sigset
+@@ -88,8 +88,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		tid2:       nil,
+ 	}
+ 
+-	mp.tls[0] = uintptr(mp.id) // XXX so 386 asm can find it
+-
+ 	lwp_create(&params)
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ }
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index faf27f411c..a325620fe6 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -73,7 +73,7 @@ func thr_start()
+ //go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	// NOTE(rsc): This code is confused. stackbase is the top of the stack
+@@ -88,7 +88,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		tls_base:   unsafe.Pointer(&mp.tls[0]),
+ 		tls_size:   unsafe.Sizeof(mp.tls),
+ 	}
+-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index aa62faa0f1..8b5cdd3465 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -133,9 +133,8 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	/*
+ 	 * note: strace gets confused if we use CLONE_PTRACE here.
+ 	 */
+-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	// Disable signals during clone, so that the new thread starts
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index 6e6a77f799..b127c64ff4 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -95,11 +95,9 @@ func semawakeup(mp *m) {
+ //go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+-
+ 	var uc ucontextt
+ 	getcontext(unsafe.Pointer(&uc))
+ 
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 2eb6e8bedd..beda59789c 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -105,11 +105,9 @@ func semawakeup(mp *m) {
+ //go:nowritebarrier
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+-
+ 	param := tforkt{
+ 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
+ 		tf_tid:   (*int32)(unsafe.Pointer(&mp.procid)),
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index abc5d3297a..87a9038041 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -361,10 +361,8 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
+ //	SP = stack - C_32_STK_ALIGN
+ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
+ 	// set up ldt 7+id to point at m->tls.
+-	// m->tls is at m+40.  newosproc left
+-	// the m->id in tls[0].
+ 	LEAL	m_tls(DX), BP
+-	MOVL	0(BP), DI
++	MOVL	m_id(DX), DI
+ 	ADDL	$7, DI	// m0 is LDT#7. count up.
+ 	// setldt(tls#, &tls, sizeof tls)
+ 	PUSHAL	// save registers
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index b2dd7802df..3aaeede6be 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -25,7 +25,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 	MOVL	mm+0(FP), AX
+ 	MOVL	m_g0(AX), BX
+ 	LEAL	m_tls(AX), BP
+-	MOVL	0(BP), DI
++	MOVL	m_id(AX), DI
+ 	ADDL	$7, DI
+ 	PUSHAL
+ 	PUSHL	$32
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index ae8e3dc3b7..d26b25e987 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -334,9 +334,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	AX, m_procid(BX)	// save tid as m->procid
+ 
+ 	// set up ldt 7+id to point at m->tls.
+-	// newosproc left the id in tls[0].
+ 	LEAL	m_tls(BX), BP
+-	MOVL	0(BP), DI
++	MOVL	m_id(BX), DI
+ 	ADDL	$7, DI	// m0 is LDT#7. count up.
+ 	// setldt(tls#, &tls, sizeof tls)
+ 	PUSHAL	// save registers

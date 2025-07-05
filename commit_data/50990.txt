@@ -16,6 +16,22 @@ Date:   Tue Nov 23 10:39:07 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 9a174fa549..45ee6d6905 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -64,6 +64,10 @@ func TestCgoCallbackGC(t *testing.T) {
+ 			t.Skip("too slow for mips64x builders")
+ 		}
+ 	}
++	if testenv.Builder() == "darwin-amd64-10_14" {
++		// TODO(#23011): When the 10.14 builders are gone, remove this skip.
++		t.Skip("skipping due to platform bug on macOS 10.14; see https://golang.org/issue/43926")
++	}
+ 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
+ 	want := "OK\n"
+ 	if got != want {

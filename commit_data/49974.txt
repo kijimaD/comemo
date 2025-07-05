@@ -15,6 +15,34 @@ Date:   Thu Sep 23 23:40:58 2021 +0700
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/go/internal/work/gc.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 4e4a1d8451..fe0a45ec2a 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -156,6 +156,10 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 			}
+ 		}
+ 	}
++	// Add -c=N to use concurrent backend compilation, if possible.
++	if c := gcBackendConcurrency(gcflags); c > 1 {
++		gcflags = append(gcflags, fmt.Sprintf("-c=%d", c))
++	}
+ 
+ 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+ 	if p.Internal.LocalPrefix != "" {
+@@ -181,11 +185,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 		args = append(args, "-asmhdr", objdir+"go_asm.h")
+ 	}
+ 
+-	// Add -c=N to use concurrent backend compilation, if possible.
+-	if c := gcBackendConcurrency(gcflags); c > 1 {
+-		args = append(args, fmt.Sprintf("-c=%d", c))
+-	}
+-
+ 	for _, f := range gofiles {
+ 		f := mkAbs(p.Dir, f)
+ 

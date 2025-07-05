@@ -12,7 +12,41 @@ Date:   Fri Jun 2 08:49:47 2023 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_unix.go      |  2 +-
  src/syscall/exec_unix_test.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 4b9c04db83..14edd023d3 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -165,7 +165,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 		return 0, err
+ 	}
+ 
+-	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv[0]) > len(argv0) {
++	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv) > 0 && len(argv[0]) > len(argv0) {
+ 		argvp[0] = argv0p
+ 	}
+ 
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 2e5e3df374..9627317bb3 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -387,3 +387,15 @@ func TestRlimitRestored(t *testing.T) {
+ 		t.Errorf("exec rlimit = %d, want %d", v, orig)
+ 	}
+ }
++
++func TestForkExecNilArgv(t *testing.T) {
++	defer func() {
++		if p := recover(); p != nil {
++			t.Fatal("forkExec panicked")
++		}
++	}()
++
++	// We don't really care what the result of forkExec is, just that it doesn't
++	// panic, so we choose something we know won't actually spawn a process (probably).
++	syscall.ForkExec("/dev/null", nil, nil)
++}

@@ -9,6 +9,29 @@ Date:   Tue Nov 22 21:15:52 2016 -0500
     Change-Id: I0bf330d1a1ebb7e31e42d03287160b474522c332
     Reviewed-on: https://go-review.googlesource.com/33455
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 22176a2a92..66afc3eed6 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -95,6 +95,17 @@ and cancelation.
+   binaries on older OS X versions is untested.
+ </p>
+ 
++<p>
++  Go 1.8 will be the last release to support Linux on ARMv5E and ARMv6 processors:
++  Go 1.9 will likely require the ARMv6K (as found in the Raspberry Pi 1) or later.
++  To identify whether a Linux system is ARMv6K or later, run <code>go tool dist -check-armv6k</code>
++  (to facilitate testing, it is also possible to just copy the dist command to the
++  system without installing a full copy of Go 1.8)
++  and if the program terminates with output "ARMv6K supported." then the system
++  implements ARMv6K or later.
++  Go on non-Linux ARM systems already requires ARMv6K or later.
++</p>
++
+ 
+ <h3 id="known_issues">Known Issues</h3>
+ 

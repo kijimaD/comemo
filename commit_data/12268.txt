@@ -9,6 +9,22 @@ Date:   Wed Feb 29 13:30:08 2012 +1100
     R=golang-dev, adg, dsymonds
     CC=golang-dev
     https://golang.org/cl/5704052
-
+---
  src/pkg/io/io.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index bbfa6c2b2a..3e2321ce71 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -6,6 +6,10 @@
+ // Its primary job is to wrap existing implementations of such primitives,
+ // such as those in package os, into shared public interfaces that
+ // abstract the functionality, plus some other related primitives.
++//
++// Because these interfaces and primitives wrap lower-level operations with
++// various implementations, unless otherwise informed clients should not
++// assume they are safe for parallel execution.
+ package io
+ 
+ import (

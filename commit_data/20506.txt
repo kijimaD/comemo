@@ -10,6 +10,25 @@ Date:   Mon Sep 15 08:41:59 2014 +1000
     R=crawshaw
     CC=golang-codereviews
     https://golang.org/cl/141470043
-
+---
  src/image/jpeg/scan.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/image/jpeg/scan.go b/src/image/jpeg/scan.go
+index 8d81b08080..2bd1d9d531 100644
+--- a/src/image/jpeg/scan.go
++++ b/src/image/jpeg/scan.go
+@@ -65,7 +65,13 @@ func (d *decoder) processSOS(n int) error {
+ 		}
+ 		scan[i].compIndex = uint8(compIndex)
+ 		scan[i].td = d.tmp[2+2*i] >> 4
++		if scan[i].td > maxTh {
++			return FormatError("bad Td value")
++		}
+ 		scan[i].ta = d.tmp[2+2*i] & 0x0f
++		if scan[i].ta > maxTh {
++			return FormatError("bad Ta value")
++		}
+ 	}
+ 
+ 	// zigStart and zigEnd are the spectral selection bounds.

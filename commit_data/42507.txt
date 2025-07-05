@@ -9,6 +9,20 @@ Date:   Tue Jan 7 10:26:48 2020 +0000
     GitHub-Pull-Request: golang/go#36425
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213597
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 1eb86e9c8b..8083126bcd 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -343,7 +343,7 @@ func minit() {
+ 	minitSignals()
+ 
+ 	// Cgo-created threads and the bootstrap m are missing a
+-	// procid. We need this for asynchronous preemption and its
++	// procid. We need this for asynchronous preemption and it's
+ 	// useful in debuggers.
+ 	getg().m.procid = uint64(gettid())
+ }

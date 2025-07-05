@@ -16,6 +16,20 @@ Date:   Fri May 12 08:54:24 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/build_plugin_reproducible.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/build_plugin_reproducible.txt b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+index b19f0eaa0d..5369954859 100644
+--- a/src/cmd/go/testdata/script/build_plugin_reproducible.txt
++++ b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+@@ -3,7 +3,7 @@
+ 
+ go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
+ go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go
+-cmp a.so b.so
++cmp -q a.so b.so
+ 
+ -- main.go --
+ package main

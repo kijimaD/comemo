@@ -7,6 +7,20 @@ Date:   Tue Sep 20 13:26:57 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5091044
-
+---
  src/pkg/reflect/value.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 8e5a6282cf..1cace3fdaf 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1444,6 +1444,8 @@ func (v Value) String() string {
+ 	case String:
+ 		return *(*string)(iv.addr)
+ 	}
++	// If you call String on a reflect.Value of other type, it's better to
++	// print something than to panic. Useful in debugging.
+ 	return "<" + iv.typ.String() + " Value>"
+ }
+ 

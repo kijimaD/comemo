@@ -21,7 +21,59 @@ Date:   Wed Jan 19 11:26:46 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/transport.go               | 6 ++++++
  src/net/http/transport_internal_test.go | 9 +++++++--
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 5fe3e6ebb4..e41b20a15b 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -606,6 +606,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
+ 		} else if !pconn.shouldRetryRequest(req, err) {
+ 			// Issue 16465: return underlying net.Conn.Read error from peek,
+ 			// as we've historically done.
++			if e, ok := err.(nothingWrittenError); ok {
++				err = e.error
++			}
+ 			if e, ok := err.(transportReadFromServerError); ok {
+ 				err = e.err
+ 			}
+@@ -2032,6 +2035,9 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
+ 	}
+ 
+ 	if _, ok := err.(transportReadFromServerError); ok {
++		if pc.nwrite == startBytesWritten {
++			return nothingWrittenError{err}
++		}
+ 		// Don't decorate
+ 		return err
+ 	}
+diff --git a/src/net/http/transport_internal_test.go b/src/net/http/transport_internal_test.go
+index 1cce27235d..2ed637e9f0 100644
+--- a/src/net/http/transport_internal_test.go
++++ b/src/net/http/transport_internal_test.go
+@@ -52,8 +52,8 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
+ 	conn.Close() // simulate the server hanging up on the client
+ 
+ 	_, err = pc.roundTrip(treq)
+-	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
+-		t.Errorf("roundTrip = %#v, %v; want errServerClosedIdle or transportReadFromServerError", err, err)
++	if !isNothingWrittenError(err) && !isTransportReadFromServerError(err) && err != errServerClosedIdle {
++		t.Errorf("roundTrip = %#v, %v; want errServerClosedIdle, transportReadFromServerError, or nothingWrittenError", err, err)
+ 	}
+ 
+ 	<-pc.closech
+@@ -63,6 +63,11 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
+ 	}
+ }
+ 
++func isNothingWrittenError(err error) bool {
++	_, ok := err.(nothingWrittenError)
++	return ok
++}
++
+ func isTransportReadFromServerError(err error) bool {
+ 	_, ok := err.(transportReadFromServerError)
+ 	return ok

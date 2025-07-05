@@ -15,7 +15,80 @@ Date:   Thu Jun 3 10:57:09 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/lookup.go                         |  9 ++++++++-
  src/go/types/testdata/fixedbugs/issue46275.go2 | 27 ++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 9c7bfd4bb9..3e89b6cc2b 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -327,11 +327,15 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 				return m, f
+ 			}
+ 
++			// both methods must have the same number of type parameters
+ 			ftyp := f.typ.(*Signature)
+ 			mtyp := m.typ.(*Signature)
+ 			if len(ftyp.tparams) != len(mtyp.tparams) {
+ 				return m, f
+ 			}
++			if len(ftyp.tparams) > 0 {
++				panic("internal error: method with type parameters")
++			}
+ 
+ 			// If the methods have type parameters we don't care whether they
+ 			// are the same or not, as long as they match up. Use unification
+@@ -385,6 +389,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		if len(ftyp.tparams) != len(mtyp.tparams) {
+ 			return m, f
+ 		}
++		if len(ftyp.tparams) > 0 {
++			panic("internal error: method with type parameters")
++		}
+ 
+ 		// If V is a (instantiated) generic type, its methods are still
+ 		// parameterized using the original (declaration) receiver type
+@@ -412,7 +419,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		// TODO(gri) is this always correct? what about type bounds?
+ 		// (Alternative is to rename/subst type parameters and compare.)
+ 		u := newUnifier(check, true)
+-		u.x.init(ftyp.tparams)
++		u.x.init(ftyp.rparams)
+ 		if !u.unify(ftyp, mtyp) {
+ 			return m, f
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue46275.go2 b/src/go/types/testdata/fixedbugs/issue46275.go2
+new file mode 100644
+index 0000000000..0ebde31c8e
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue46275.go2
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue46275
++
++type N[T any] struct {
++        *N[T]
++        t T
++}
++
++func (n *N[T]) Elem() T {
++        return n.t
++}
++
++type I interface {
++        Elem() string
++}
++
++func _() {
++        var n1 *N[string]
++        var _ I = n1
++        type NS N[string]
++        var n2 *NS
++        var _ I = n2
++}
++

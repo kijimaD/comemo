@@ -7,6 +7,20 @@ Date:   Thu Sep 3 16:18:03 2009 -0700
     R=ken
     OCL=34348
     CL=34348
-
+---
  test/golden.out | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index eabaf88634..a5eb85bb3b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -134,7 +134,7 @@ panic PC=xxx
+ 
+ =========== fixedbugs/bug148.go
+ 2 3
+-interface is main.T, not main.T·bug148·1
++interface is main.T, not main.T·1
+ throw: interface conversion
+ 
+ panic PC=xxx

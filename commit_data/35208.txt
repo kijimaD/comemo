@@ -18,6 +18,36 @@ Date:   Fri Jan 5 16:52:53 2018 -0800
     Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/cgo/out.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 44a00d8154..070429f442 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -695,14 +695,18 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+ 			fmt.Fprintf(fgcc, "(void*)")
+ 		}
+ 	}
+-	fmt.Fprintf(fgcc, "%s(", n.C)
+-	for i := range n.FuncType.Params {
+-		if i > 0 {
+-			fmt.Fprintf(fgcc, ", ")
++	if n.Kind == "macro" {
++		fmt.Fprintf(fgcc, "%s;\n", n.C)
++	} else {
++		fmt.Fprintf(fgcc, "%s(", n.C)
++		for i := range n.FuncType.Params {
++			if i > 0 {
++				fmt.Fprintf(fgcc, ", ")
++			}
++			fmt.Fprintf(fgcc, "p%d", i)
+ 		}
+-		fmt.Fprintf(fgcc, "p%d", i)
++		fmt.Fprintf(fgcc, ");\n")
+ 	}
+-	fmt.Fprintf(fgcc, ");\n")
+ 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
+ 	if t := n.FuncType.Result; t != nil {
+ 		fmt.Fprintf(fgcc, "\treturn ")

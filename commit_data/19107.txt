@@ -8,6 +8,20 @@ Date:   Thu Apr 10 21:14:51 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/86600045
-
+---
  src/pkg/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 2ec5ef99aa..6f5d244f8a 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -115,7 +115,7 @@
+ 		fmt.Printf("%v\n", i)
+ 	will print 23.
+ 
+-	Except when printed using the the verbs %T and %p, special
++	Except when printed using the verbs %T and %p, special
+ 	formatting considerations apply for operands that implement
+ 	certain interfaces. In order of application:
+ 

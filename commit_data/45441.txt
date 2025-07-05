@@ -18,6 +18,26 @@ Date:   Sat Oct 24 13:05:31 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/symtab.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index dd82963a41..ca688e2011 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -580,8 +580,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			symGroupType[s] = sym.SGOFUNC
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgofunc)
+-			const align = 4
+-			ldr.SetSymAlign(s, align)
++			align := int32(4)
++			if a := ldr.SymAlign(s); a < align {
++				ldr.SetSymAlign(s, align)
++			} else {
++				align = a
++			}
+ 			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+ 		}
+ 	}

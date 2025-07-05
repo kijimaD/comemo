@@ -24,7 +24,7 @@ Date:   Thu Dec 31 23:45:36 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/main.go          | 10 +++---
  src/cmd/compile/internal/noder/noder.go      | 52 ++++++++++------------------
  src/cmd/compile/internal/pkginit/init.go     |  4 +++
@@ -32,3 +32,220 @@ Date:   Thu Dec 31 23:45:36 2020 -0800
  test/fixedbugs/issue43444.go                 | 28 +++++++++++++++
  test/fixedbugs/issue43444.out                |  1 +
  6 files changed, 70 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index df6a9d8e45..c1f51e4f1d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -208,6 +208,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	dwarfgen.RecordPackageName()
+ 	ssagen.CgoSymABIs()
+ 
++	// Build init task.
++	if initTask := pkginit.Task(); initTask != nil {
++		typecheck.Export(initTask)
++	}
++
+ 	// Compute Addrtaken for names.
+ 	// We need to wait until typechecking is done so that when we see &x[i]
+ 	// we know that x has its address taken if x is an array, but not if x is a slice.
+@@ -249,11 +254,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		typecheck.AllImportedBodies()
+ 	}
+ 
+-	// Build init task.
+-	if initTask := pkginit.Task(); initTask != nil {
+-		typecheck.Export(initTask)
+-	}
+-
+ 	// Inlining
+ 	base.Timer.Start("fe", "inlining")
+ 	if base.Flag.LowerL != 0 {
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 29bfde3ff2..cc8a1c7c89 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -474,24 +474,15 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
+ 		p.checkUnused(pragma)
+ 	}
+ 
+-	p.setlineno(decl)
+-	return DeclVars(names, typ, exprs)
+-}
+-
+-// declare variables from grammar
+-// new_name_list (type | [type] = expr_list)
+-func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
+ 	var init []ir.Node
+-	doexpr := len(el) > 0
++	p.setlineno(decl)
+ 
+-	if len(el) == 1 && len(vl) > 1 {
+-		e := el[0]
+-		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+-		as2.Rhs = []ir.Node{e}
+-		for _, v := range vl {
++	if len(names) > 1 && len(exprs) == 1 {
++		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, exprs)
++		for _, v := range names {
+ 			as2.Lhs.Append(v)
+ 			typecheck.Declare(v, typecheck.DeclContext)
+-			v.Ntype = t
++			v.Ntype = typ
+ 			v.Defn = as2
+ 			if ir.CurFunc != nil {
+ 				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+@@ -501,34 +492,29 @@ func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
+ 		return append(init, as2)
+ 	}
+ 
+-	for i, v := range vl {
++	for i, v := range names {
+ 		var e ir.Node
+-		if doexpr {
+-			if i >= len(el) {
+-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+-				break
+-			}
+-			e = el[i]
++		if i < len(exprs) {
++			e = exprs[i]
+ 		}
+ 
+ 		typecheck.Declare(v, typecheck.DeclContext)
+-		v.Ntype = t
++		v.Ntype = typ
+ 
+-		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
+-			if ir.CurFunc != nil {
+-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+-			}
+-			as := ir.NewAssignStmt(base.Pos, v, e)
+-			init = append(init, as)
+-			if e != nil {
+-				v.Defn = as
+-			}
++		if ir.CurFunc != nil {
++			init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
++		}
++		as := ir.NewAssignStmt(base.Pos, v, e)
++		init = append(init, as)
++		if e != nil || ir.CurFunc == nil {
++			v.Defn = as
+ 		}
+ 	}
+ 
+-	if len(el) > len(vl) {
+-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
++	if len(exprs) != 0 && len(names) != len(exprs) {
++		base.Errorf("assignment mismatch: %d variables but %d values", len(names), len(exprs))
+ 	}
++
+ 	return init
+ }
+ 
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index f1ffbb5933..24fe1a7628 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -6,6 +6,7 @@ package pkginit
+ 
+ import (
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/deadcode"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/typecheck"
+@@ -68,6 +69,9 @@ func Task() *ir.Name {
+ 
+ 	// Record user init functions.
+ 	for _, fn := range typecheck.Target.Inits {
++		// Must happen after initOrder; see #43444.
++		deadcode.Func(fn)
++
+ 		// Skip init functions with empty bodies.
+ 		if len(fn.Body) == 1 {
+ 			if stmt := fn.Body[0]; stmt.Op() == ir.OBLOCK && len(stmt.(*ir.BlockStmt).List) == 0 {
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 1b0af1b05d..8e4ce55954 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -86,17 +86,22 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ 	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+ 		return false
+ 	}
+-	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+-		return false
+-	}
+ 	if rn.Defn.Op() != ir.OAS {
+ 		return false
+ 	}
+ 	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
+ 		return false
+ 	}
++	if rn.Embed != nil {
++		return false
++	}
+ 	orig := rn
+ 	r := rn.Defn.(*ir.AssignStmt).Y
++	if r == nil {
++		// No explicit initialization value. Probably zeroed but perhaps
++		// supplied externally and of unknown value.
++		return false
++	}
+ 
+ 	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
+ 		r = r.(*ir.ConvExpr).X
+@@ -185,6 +190,11 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ }
+ 
+ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
++	if r == nil {
++		// No explicit initialization value. Either zero or supplied
++		// externally.
++		return true
++	}
+ 	for r.Op() == ir.OCONVNOP {
+ 		r = r.(*ir.ConvExpr).X
+ 	}
+diff --git a/test/fixedbugs/issue43444.go b/test/fixedbugs/issue43444.go
+new file mode 100644
+index 0000000000..c430e1baf7
+--- /dev/null
++++ b/test/fixedbugs/issue43444.go
+@@ -0,0 +1,28 @@
++// run
++
++package main
++
++var sp = ""
++
++func f(name string, _ ...interface{}) int {
++	print(sp, name)
++	sp = " "
++	return 0
++}
++
++var a = f("a", x)
++var b = f("b", y)
++var c = f("c", z)
++var d = func() int {
++	if false {
++		_ = z
++	}
++	return f("d")
++}()
++var e = f("e")
++
++var x int
++var y int = 42
++var z int = func() int { return 42 }()
++
++func main() { println() }
+diff --git a/test/fixedbugs/issue43444.out b/test/fixedbugs/issue43444.out
+new file mode 100644
+index 0000000000..22d6a0dc69
+--- /dev/null
++++ b/test/fixedbugs/issue43444.out
+@@ -0,0 +1 @@
++e a b c d

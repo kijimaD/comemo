@@ -12,10 +12,136 @@ Date:   Wed Jun 5 07:14:05 2013 -0400
     R=golang-dev, iant, alberto.garcia.hierro
     CC=golang-dev
     https://golang.org/cl/9965045
-
+---
  src/cmd/cgo/doc.go        | 4 ++--
  src/cmd/go/doc.go         | 4 ++--
  src/cmd/go/list.go        | 4 ++--
  src/cmd/go/pkg.go         | 8 ++++----
  src/pkg/go/build/build.go | 6 +++---
  5 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index fc952f5a47..d9b50cf5c2 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -24,7 +24,7 @@ the C parts of the package.  For example:
+ 	// #include <errno.h>
+ 	import "C"
+ 
+-CPPFLAGS, CFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo directives
++CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo directives
+ within these comments to tweak the behavior of gcc.  Values defined
+ in multiple directives are concatenated together.  Options prefixed
+ by $GOOS, $GOARCH, or $GOOS/$GOARCH are only defined in matching
+@@ -44,7 +44,7 @@ For example:
+ 	// #include <png.h>
+ 	import "C"
+ 
+-The CGO_CPPFLAGS, CGO_CFLAGS, CGO_CXXFLAGS and CGO_LDFLAGS environment variables are added
++The CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS and CGO_LDFLAGS environment variables are added
+ to the flags derived from these directives.  Package-specific flags should
+ be set using the directives, not the environment variables, so that builds
+ work in unmodified environments.
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 2fad261e17..e0d8946bb6 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -321,13 +321,13 @@ which calls strings.Join. The struct being passed to the template is:
+         CXXFiles []string       // .cc, .cxx and .cpp source files
+         HFiles   []string       // .h, .hh, .hpp and .hxx source files
+         SFiles   []string       // .s source files
+-        SysoFiles []string      // .syso object files to add to archive
+         SwigFiles []string      // .swig files
+         SwigCXXFiles []string   // .swigcxx files
++        SysoFiles []string      // .syso object files to add to archive
+ 
+         // Cgo directives
+-        CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+         CgoCFLAGS    []string // cgo: flags for C compiler
++        CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
+         CgoLDFLAGS   []string // cgo: flags for linker
+         CgoPkgConfig []string // cgo: pkg-config names
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index e3b99bd0df..6b729aaec4 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -49,13 +49,13 @@ which calls strings.Join. The struct being passed to the template is:
+         CXXFiles []string       // .cc, .cxx and .cpp source files
+         HFiles   []string       // .h, .hh, .hpp and .hxx source files
+         SFiles   []string       // .s source files
+-        SysoFiles []string      // .syso object files to add to archive
+         SwigFiles []string      // .swig files
+         SwigCXXFiles []string   // .swigcxx files
++        SysoFiles []string      // .syso object files to add to archive
+ 
+         // Cgo directives
+-        CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+         CgoCFLAGS    []string // cgo: flags for C compiler
++        CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
+         CgoLDFLAGS   []string // cgo: flags for linker
+         CgoPkgConfig []string // cgo: pkg-config names
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index b41ea4af47..32d56e96e1 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -43,13 +43,13 @@ type Package struct {
+ 	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
+ 	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
+ 	SFiles         []string `json:",omitempty"` // .s source files
+-	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
+ 	SwigFiles      []string `json:",omitempty"` // .swig files
+ 	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
++	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
+ 
+ 	// Cgo directives
+-	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
++	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
+ 	CgoCXXFLAGS  []string `json:",omitempty"` // cgo: flags for C++ compiler
+ 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
+ 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
+@@ -104,11 +104,11 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.CXXFiles = pp.CXXFiles
+ 	p.HFiles = pp.HFiles
+ 	p.SFiles = pp.SFiles
+-	p.SysoFiles = pp.SysoFiles
+ 	p.SwigFiles = pp.SwigFiles
+ 	p.SwigCXXFiles = pp.SwigCXXFiles
+-	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
++	p.SysoFiles = pp.SysoFiles
+ 	p.CgoCFLAGS = pp.CgoCFLAGS
++	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
+ 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
+ 	p.CgoLDFLAGS = pp.CgoLDFLAGS
+ 	p.CgoPkgConfig = pp.CgoPkgConfig
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 9608f2e316..38de9ba07f 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -356,13 +356,13 @@ type Package struct {
+ 	CXXFiles       []string // .cc, .cpp and .cxx source files
+ 	HFiles         []string // .h, .hh, .hpp and .hxx source files
+ 	SFiles         []string // .s source files
+-	SysoFiles      []string // .syso system object files to add to archive
+ 	SwigFiles      []string // .swig files
+ 	SwigCXXFiles   []string // .swigcxx files
++	SysoFiles      []string // .syso system object files to add to archive
+ 
+ 	// Cgo directives
+-	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
+ 	CgoCFLAGS    []string // Cgo CFLAGS directives
++	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
+ 	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
+ 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
+ 	CgoPkgConfig []string // Cgo pkg-config directives
+@@ -857,7 +857,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
+ }
+ 
+ // saveCgo saves the information from the #cgo lines in the import "C" comment.
+-// These lines set CPPCFLAGS, CFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
++// These lines set CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
+ // that affect the way cgo's C code is built.
+ //
+ // TODO(rsc): This duplicates code in cgo.

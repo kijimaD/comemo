@@ -23,10 +23,144 @@ Date:   Tue Feb 24 02:35:55 2015 -0800
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Carlos Castillo <cookieo9@gmail.com>
     Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
-
+---
  src/cmd/dist/build.go                            |  1 +
  src/go/build/deps_test.go                        |  2 +-
  src/internal/syscall/windows/syscall_windows.go  | 18 ++++++++++++---
  src/internal/syscall/windows/zsyscall_windows.go | 16 ++++++++++++++
  src/os/sys_windows.go                            | 28 +++++++++++++++++++-----
  5 files changed, 56 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c816ff751d..a9b4988a38 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1140,6 +1140,7 @@ var buildorder = []string{
+ 	"encoding/base64",
+ 	"syscall",
+ 	"time",
++	"internal/syscall/windows",
+ 	"os",
+ 	"reflect",
+ 	"fmt",
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d186a17e0e..7076f43163 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -123,7 +123,7 @@ var pkgDeps = map[string][]string{
+ 	// Operating system access.
+ 	"syscall":       {"L0", "unicode/utf16"},
+ 	"time":          {"L0", "syscall"},
+-	"os":            {"L1", "os", "syscall", "time"},
++	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
+ 	"path/filepath": {"L2", "os", "syscall"},
+ 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+ 	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 2541a83440..49bfeea1f4 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -4,9 +4,7 @@
+ 
+ package windows
+ 
+-import (
+-	"syscall"
+-)
++import "syscall"
+ 
+ //go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
+ 
+@@ -97,3 +95,17 @@ const (
+ )
+ 
+ //sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
++
++//sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
++
++const (
++	ComputerNameNetBIOS                   = 0
++	ComputerNameDnsHostname               = 1
++	ComputerNameDnsDomain                 = 2
++	ComputerNameDnsFullyQualified         = 3
++	ComputerNamePhysicalNetBIOS           = 4
++	ComputerNamePhysicalDnsHostname       = 5
++	ComputerNamePhysicalDnsDomain         = 6
++	ComputerNamePhysicalDnsFullyQualified = 7
++	ComputerNameMax                       = 8
++)
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 90e2034641..50c7c5165b 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -5,10 +5,14 @@ package windows
+ import "unsafe"
+ import "syscall"
+ 
++var _ unsafe.Pointer
++
+ var (
+ 	modiphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
++	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+ 
+ 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
++	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) {
+@@ -18,3 +22,15 @@ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapter
+ 	}
+ 	return
+ }
++
++func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetComputerNameExW.Addr(), 3, uintptr(nameformat), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)))
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/os/sys_windows.go b/src/os/sys_windows.go
+index 92617de5e7..9490ea6c59 100644
+--- a/src/os/sys_windows.go
++++ b/src/os/sys_windows.go
+@@ -4,12 +4,30 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"internal/syscall/windows"
++	"syscall"
++)
+ 
+ func hostname() (name string, err error) {
+-	s, e := syscall.ComputerName()
+-	if e != nil {
+-		return "", NewSyscallError("ComputerName", e)
++	// Use PhysicalDnsHostname to uniquely identify host in a cluster
++	const format = windows.ComputerNamePhysicalDnsHostname
++
++	n := uint32(64)
++	for {
++		b := make([]uint16, n)
++		err := windows.GetComputerNameEx(format, &b[0], &n)
++		if err == nil {
++			return syscall.UTF16ToString(b[:n]), nil
++		}
++		if err != syscall.ERROR_MORE_DATA {
++			return "", NewSyscallError("ComputerNameEx", err)
++		}
++
++		// If we received a ERROR_MORE_DATA, but n doesn't get larger,
++		// something has gone wrong and we may be in an infinite loop
++		if n <= uint32(len(b)) {
++			return "", NewSyscallError("ComputerNameEx", err)
++		}
+ 	}
+-	return s, nil
+ }

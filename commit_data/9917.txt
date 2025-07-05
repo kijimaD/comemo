@@ -11,7 +11,86 @@ Date:   Mon Oct 10 12:38:49 2011 -0700
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/5236043
-
+---
  src/pkg/gob/encode.go  |  1 +
  src/pkg/gob/encoder.go | 36 ++++++++++++++++++++++--------------
  2 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 5100eaad5d..6bb5458809 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -453,6 +453,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	// should be written to b, before the encoded value.
+ 	enc.pushWriter(b)
+ 	data := new(bytes.Buffer)
++	data.Write(spaceForLength)
+ 	enc.encode(data, iv.Elem(), ut)
+ 	if enc.err != nil {
+ 		error(enc.err)
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 96101d92ba..878d082c94 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -20,11 +20,16 @@ type Encoder struct {
+ 	sent       map[reflect.Type]typeId // which types we've already sent
+ 	countState *encoderState           // stage for writing counts
+ 	freeList   *encoderState           // list of free encoderStates; avoids reallocation
+-	buf        []byte                  // for collecting the output.
+ 	byteBuf    bytes.Buffer            // buffer for top-level encoderState
+ 	err        os.Error
+ }
+ 
++// Before we encode a message, we reserve space at the head of the
++// buffer in which to encode its length. This means we can use the
++// buffer to assemble the message without another allocation.
++const maxLength = 9 // Maximum size of an encoded length.
++var spaceForLength = make([]byte, maxLength)
++
+ // NewEncoder returns a new encoder that will transmit on the io.Writer.
+ func NewEncoder(w io.Writer) *Encoder {
+ 	enc := new(Encoder)
+@@ -61,20 +66,22 @@ func (enc *Encoder) setError(err os.Error) {
+ 
+ // writeMessage sends the data item preceded by a unsigned count of its length.
+ func (enc *Encoder) writeMessage(w io.Writer, b *bytes.Buffer) {
+-	enc.countState.encodeUint(uint64(b.Len()))
+-	// Build the buffer.
+-	countLen := enc.countState.b.Len()
+-	total := countLen + b.Len()
+-	if total > len(enc.buf) {
+-		enc.buf = make([]byte, total+1000) // extra for growth
+-	}
+-	// Place the length before the data.
+-	// TODO(r): avoid the extra copy here.
+-	enc.countState.b.Read(enc.buf[0:countLen])
+-	// Now the data.
+-	b.Read(enc.buf[countLen:total])
++	// Space has been reserved for the length at the head of the message.
++	// This is a little dirty: we grab the slice from the bytes.Buffer and massage
++	// it by hand.
++	message := b.Bytes()
++	messageLen := len(message) - maxLength
++	// Encode the length.
++	enc.countState.b.Reset()
++	enc.countState.encodeUint(uint64(messageLen))
++	// Copy the length to be a prefix of the message.
++	offset := maxLength - enc.countState.b.Len()
++	copy(message[offset:], enc.countState.b.Bytes())
+ 	// Write the data.
+-	_, err := w.Write(enc.buf[0:total])
++	_, err := w.Write(message[offset:])
++	// Drain the buffer and restore the space at the front for the count of the next message.
++	b.Reset()
++	b.Write(spaceForLength)
+ 	if err != nil {
+ 		enc.setError(err)
+ 	}
+@@ -224,6 +231,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
+ 
+ 	enc.err = nil
+ 	enc.byteBuf.Reset()
++	enc.byteBuf.Write(spaceForLength)
+ 	state := enc.newEncoderState(&enc.byteBuf)
+ 
+ 	enc.sendTypeDescriptor(enc.writer(), state, ut)

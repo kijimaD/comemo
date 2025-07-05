@@ -9,6 +9,32 @@ Date:   Wed Feb 3 19:27:43 2016 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 14cec12e92..1cf0dfd4d9 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -178,20 +178,6 @@ func cse(f *Func) {
+ 	}
+ }
+ 
+-// returns true if b dominates c.
+-// simple and iterative, has O(depth) complexity in tall trees.
+-func dom(b, c *Block, idom []*Block) bool {
+-	// Walk up from c in the dominator tree looking for b.
+-	for c != nil {
+-		if c == b {
+-			return true
+-		}
+-		c = idom[c.ID]
+-	}
+-	// Reached the entry block, never saw b.
+-	return false
+-}
+-
+ // An eqclass approximates an equivalence class.  During the
+ // algorithm it may represent the union of several of the
+ // final equivalence classes.

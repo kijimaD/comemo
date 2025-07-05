@@ -9,6 +9,20 @@ Date:   Thu Sep 27 01:50:59 2012 +0800
     R=golang-dev, minux.ma, dave, r
     CC=golang-dev
     https://golang.org/cl/6555049
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 47317ad440..62553257bb 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1772,7 +1772,7 @@ def gofmt(ui, repo, *pats, **opts):
+ 		cmd = ["gofmt", "-l"]
+ 		if not opts["list"]:
+ 			cmd += ["-w"]
+-		if os.spawnvp(os.P_WAIT, "gofmt", cmd + files) != 0:
++		if subprocess.call(cmd + files) != 0:
+ 			raise hg_util.Abort("gofmt did not exit cleanly")
+ 	except hg_error.Abort, e:
+ 		raise

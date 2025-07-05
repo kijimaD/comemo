@@ -30,9 +30,127 @@ Date:   Mon Oct 21 16:12:22 2019 +0200
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cover/cover_test.go                 |  4 ++--
  src/cmd/go/testdata/script/mod_cache_rw.txt |  9 +++++----
  src/io/ioutil/ioutil_test.go                | 31 +++++++++++++++++++++++++++++
  src/syscall/syscall_windows.go              |  6 +++++-
  4 files changed, 43 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index ea970a61da..8a56e39011 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -457,7 +457,7 @@ func TestHtmlUnformatted(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0444); err != nil {
++	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -540,7 +540,7 @@ func TestFuncWithDuplicateLines(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0444); err != nil {
++	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if err := ioutil.WriteFile(lineDupGo, []byte(lineDupContents), 0444); err != nil {
+diff --git a/src/cmd/go/testdata/script/mod_cache_rw.txt b/src/cmd/go/testdata/script/mod_cache_rw.txt
+index ef91c7e2d5..9c19494214 100644
+--- a/src/cmd/go/testdata/script/mod_cache_rw.txt
++++ b/src/cmd/go/testdata/script/mod_cache_rw.txt
+@@ -13,9 +13,7 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ 
+ # However, files within those directories should still be read-only to avoid
+ # accidental mutations.
+-# TODO: Today, this does not seem to be effective on Windows.
+-# (https://golang.org/issue/35033)
+-[!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+ 
+ # If all 'go' commands ran with the flag, the system's 'rm' binary
+ # should be able to remove the module cache if the '-rf' flags are set.
+@@ -27,8 +25,11 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ 
+ # The directories in the module cache should by default be unwritable,
+ # so that tests and tools will not accidentally add extraneous files to them.
++# Windows does not respect FILE_ATTRIBUTE_READONLY on directories, according
++# to MSDN, so there we disable testing whether the directory itself is
++# unwritable.
+ go get -d rsc.io/quote@latest
+-[!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+ [!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ ! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ 
+diff --git a/src/io/ioutil/ioutil_test.go b/src/io/ioutil/ioutil_test.go
+index c297847b4e..4945c65445 100644
+--- a/src/io/ioutil/ioutil_test.go
++++ b/src/io/ioutil/ioutil_test.go
+@@ -5,7 +5,9 @@
+ package ioutil
+ 
+ import (
++	"bytes"
+ 	"os"
++	"path/filepath"
+ 	"testing"
+ )
+ 
+@@ -63,6 +65,35 @@ func TestWriteFile(t *testing.T) {
+ 	os.Remove(filename) // ignore error
+ }
+ 
++func TestReadOnlyWriteFile(t *testing.T) {
++	if os.Getuid() == 0 {
++		t.Skipf("Root can write to read-only files anyway, so skip the read-only test.")
++	}
++
++	// We don't want to use TempFile directly, since that opens a file for us as 0600.
++	tempDir, err := TempDir("", t.Name())
++	defer os.RemoveAll(tempDir)
++	filename := filepath.Join(tempDir, "blurp.txt")
++
++	shmorp := []byte("shmorp")
++	florp := []byte("florp")
++	err = WriteFile(filename, shmorp, 0444)
++	if err != nil {
++		t.Fatalf("WriteFile %s: %v", filename, err)
++	}
++	err = WriteFile(filename, florp, 0444)
++	if err == nil {
++		t.Fatalf("Expected an error when writing to read-only file %s", filename)
++	}
++	got, err := ReadFile(filename)
++	if err != nil {
++		t.Fatalf("ReadFile %s: %v", filename, err)
++	}
++	if !bytes.Equal(got, shmorp) {
++		t.Fatalf("want %s, got %s", shmorp, got)
++	}
++}
++
+ func TestReadDir(t *testing.T) {
+ 	dirname := "rumpelstilzchen"
+ 	_, err := ReadDir(dirname)
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 0be469eef8..992f6738ce 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -312,7 +312,11 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 	default:
+ 		createmode = OPEN_EXISTING
+ 	}
+-	h, e := CreateFile(pathp, access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
++	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
++	if perm&S_IWRITE == 0 {
++		attrs = FILE_ATTRIBUTE_READONLY
++	}
++	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+ 	return h, e
+ }
+ 

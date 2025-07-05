@@ -12,7 +12,7 @@ Date:   Thu Aug 18 12:22:02 2011 -0400
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/4815074
-
+---
  src/cmd/gofix/Makefile            |   1 +
  src/cmd/gofix/netudpgroup.go      |  57 +++++++++++++++++++
  src/cmd/gofix/netudpgroup_test.go |  33 +++++++++++
@@ -20,3 +20,414 @@ Date:   Thu Aug 18 12:22:02 2011 -0400
  src/pkg/net/udpsock_plan9.go      |  11 ++--
  src/pkg/net/udpsock_posix.go      |  96 +++++++++++++++++++++++--------
  6 files changed, 238 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 22033d7f81..d1f3ac605b 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -14,6 +14,7 @@ GOFILES=\
+ 	httpserver.go\
+ 	main.go\
+ 	netdial.go\
++	netudpgroup.go\
+ 	oserrorstring.go\
+ 	osopen.go\
+ 	procattr.go\
+diff --git a/src/cmd/gofix/netudpgroup.go b/src/cmd/gofix/netudpgroup.go
+new file mode 100644
+index 0000000000..347452d43f
+--- /dev/null
++++ b/src/cmd/gofix/netudpgroup.go
+@@ -0,0 +1,57 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var netudpgroupFix = fix{
++	"netudpgroup",
++	netudpgroup,
++	`Adapt 1-argument calls of net.(*UDPConn).JoinGroup, LeaveGroup to use 2-argument form.
++
++http://codereview.appspot.com/4815074
++`,
++}
++
++func init() {
++	register(netudpgroupFix)
++}
++
++func netudpgroup(f *ast.File) bool {
++	if !imports(f, "net") {
++		return false
++	}
++
++	fixed := false
++	for _, d := range f.Decls {
++		fd, ok := d.(*ast.FuncDecl)
++		if !ok {
++			continue
++		}
++		walk(fd.Body, func(n interface{}) {
++			ce, ok := n.(*ast.CallExpr)
++			if !ok {
++				return
++			}
++			se, ok := ce.Fun.(*ast.SelectorExpr)
++			if !ok || len(ce.Args) != 1 {
++				return
++			}
++			switch se.Sel.String() {
++			case "JoinGroup", "LeaveGroup":
++				// c.JoinGroup(a) -> c.JoinGroup(nil, a)
++				// c.LeaveGroup(a) -> c.LeaveGroup(nil, a)
++				arg := ce.Args[0]
++				ce.Args = make([]ast.Expr, 2)
++				ce.Args[0] = ast.NewIdent("nil")
++				ce.Args[1] = arg
++				fixed = true
++			}
++		})
++	}
++	return fixed
++}
+diff --git a/src/cmd/gofix/netudpgroup_test.go b/src/cmd/gofix/netudpgroup_test.go
+new file mode 100644
+index 0000000000..b3b5816da9
+--- /dev/null
++++ b/src/cmd/gofix/netudpgroup_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(netudpgroupTests)
++}
++
++var netudpgroupTests = []testCase{
++	{
++		Name: "netudpgroup.0",
++		In: `package main
++
++import "net"
++
++func f() {
++	err := x.JoinGroup(gaddr)
++	err = y.LeaveGroup(gaddr)
++}
++`,
++		Out: `package main
++
++import "net"
++
++func f() {
++	err := x.JoinGroup(nil, gaddr)
++	err = y.LeaveGroup(nil, gaddr)
++}
++`,
++	},
++}
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index be6dbf2dc1..a66250c844 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -6,13 +6,33 @@ package net
+ 
+ import (
+ 	"flag"
++	"os"
+ 	"runtime"
+ 	"testing"
+ )
+ 
+ var multicast = flag.Bool("multicast", false, "enable multicast tests")
+ 
+-func TestMulticastJoinAndLeave(t *testing.T) {
++var joinAndLeaveGroupUDPTests = []struct {
++	net   string
++	laddr IP
++	gaddr IP
++	flags Flags
++	ipv6  bool
++}{
++	// cf. RFC 4727: Experimental Values in IPv4, IPv6, ICMPv4, ICMPv6, UDP, and TCP Headers
++	{"udp", IPv4zero, IPv4(224, 0, 0, 254), (FlagUp | FlagLoopback), false},
++	{"udp4", IPv4zero, IPv4(224, 0, 0, 254), (FlagUp | FlagLoopback), false},
++	{"udp", IPv6unspecified, ParseIP("ff0e::114"), (FlagUp | FlagLoopback), true},
++	{"udp6", IPv6unspecified, ParseIP("ff01::114"), (FlagUp | FlagLoopback), true},
++	{"udp6", IPv6unspecified, ParseIP("ff02::114"), (FlagUp | FlagLoopback), true},
++	{"udp6", IPv6unspecified, ParseIP("ff04::114"), (FlagUp | FlagLoopback), true},
++	{"udp6", IPv6unspecified, ParseIP("ff05::114"), (FlagUp | FlagLoopback), true},
++	{"udp6", IPv6unspecified, ParseIP("ff08::114"), (FlagUp | FlagLoopback), true},
++	{"udp6", IPv6unspecified, ParseIP("ff0e::114"), (FlagUp | FlagLoopback), true},
++}
++
++func TestJoinAndLeaveGroupUDP(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		return
+ 	}
+@@ -21,53 +41,51 @@ func TestMulticastJoinAndLeave(t *testing.T) {
+ 		return
+ 	}
+ 
+-	addr := &UDPAddr{
+-		IP:   IPv4zero,
+-		Port: 0,
+-	}
+-	// open a UDPConn
+-	conn, err := ListenUDP("udp4", addr)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer conn.Close()
+-
+-	// try to join group
+-	mcast := IPv4(224, 0, 0, 254)
+-	err = conn.JoinGroup(mcast)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	// try to leave group
+-	err = conn.LeaveGroup(mcast)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-}
+-
+-func TestJoinFailureWithIPv6Address(t *testing.T) {
+-	if !*multicast {
+-		t.Logf("test disabled; use --multicast to enable")
+-		return
+-	}
+-	addr := &UDPAddr{
+-		IP:   IPv4zero,
+-		Port: 0,
+-	}
+-
+-	// open a UDPConn
+-	conn, err := ListenUDP("udp4", addr)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer conn.Close()
+-
+-	// try to join group
+-	mcast := ParseIP("ff02::1")
+-	err = conn.JoinGroup(mcast)
+-	if err == nil {
+-		t.Fatal("JoinGroup succeeded, should fail")
++	for _, tt := range joinAndLeaveGroupUDPTests {
++		var (
++			ifi   *Interface
++			found bool
++		)
++		if tt.ipv6 && (!supportsIPv6 || os.Getuid() != 0) {
++			continue
++		}
++		ift, err := Interfaces()
++		if err != nil {
++			t.Fatalf("Interfaces() failed: %v", err)
++		}
++		for _, x := range ift {
++			if x.Flags&tt.flags == tt.flags {
++				ifi = &x
++				break
++			}
++		}
++		if ifi == nil {
++			t.Logf("an appropriate multicast interface not found")
++			return
++		}
++		c, err := ListenUDP(tt.net, &UDPAddr{IP: tt.laddr})
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer c.Close()
++		if err := c.JoinGroup(ifi, tt.gaddr); err != nil {
++			t.Fatal(err)
++		}
++		ifmat, err := ifi.MulticastAddrs()
++		if err != nil {
++			t.Fatalf("MulticastAddrs() failed: %v", err)
++		}
++		for _, ifma := range ifmat {
++			if ifma.(*IPAddr).IP.Equal(tt.gaddr) {
++				found = true
++				break
++			}
++		}
++		if !found {
++			t.Fatalf("%q not found in RIB", tt.gaddr.String())
++		}
++		if err := c.LeaveGroup(ifi, tt.gaddr); err != nil {
++			t.Fatal(err)
++		}
+ 	}
+-	t.Logf("%s", err)
+ }
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index bb7196041a..d5c6ccb904 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -169,17 +169,18 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
+ 	return &UDPConn{*l.plan9Conn()}, nil
+ }
+ 
+-// JoinGroup joins the IPv4 multicast group named by addr.
+-// The UDPConn must use the "udp4" network.
+-func (c *UDPConn) JoinGroup(addr IP) os.Error {
++// JoinGroup joins the IP multicast group named by addr on ifi,
++// which specifies the interface to join.  JoinGroup uses the
++// default multicast interface if ifi is nil.
++func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+ 	}
+ 	return os.EPLAN9
+ }
+ 
+-// LeaveGroup exits the IPv4 multicast group named by addr.
+-func (c *UDPConn) LeaveGroup(addr IP) os.Error {
++// LeaveGroup exits the IP multicast group named by addr on ifi.
++func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+ 	}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index d4ea056f3c..dfda997946 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"bytes"
+ 	"os"
+ 	"syscall"
+ )
+@@ -252,43 +253,94 @@ func (c *UDPConn) BindToDevice(device string) os.Error {
+ // Closing c does not affect f, and closing f does not affect c.
+ func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+ 
+-var errInvalidMulticast = os.NewError("invalid IPv4 multicast address")
++// JoinGroup joins the IP multicast group named by addr on ifi,
++// which specifies the interface to join.  JoinGroup uses the
++// default multicast interface if ifi is nil.
++func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	ip := addr.To4()
++	if ip != nil {
++		return joinIPv4GroupUDP(c, ifi, ip)
++	}
++	return joinIPv6GroupUDP(c, ifi, addr)
++}
+ 
+-// JoinGroup joins the IPv4 multicast group named by addr.
+-// The UDPConn must use the "udp4" network.
+-func (c *UDPConn) JoinGroup(addr IP) os.Error {
++// LeaveGroup exits the IP multicast group named by addr on ifi.
++func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+ 	}
+ 	ip := addr.To4()
+-	if ip == nil {
+-		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
++	if ip != nil {
++		return leaveIPv4GroupUDP(c, ifi, ip)
+ 	}
+-	mreq := &syscall.IPMreq{
+-		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
++	return leaveIPv6GroupUDP(c, ifi, addr)
++}
++
++func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) os.Error {
++	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
++	if err := setIPv4InterfaceToJoin(mreq, ifi); err != nil {
++		return &OpError{"joinipv4group", "udp", &IPAddr{ip}, err}
+ 	}
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
+-	if err != nil {
+-		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
++	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)); err != nil {
++		return &OpError{"joinipv4group", "udp", &IPAddr{ip}, err}
+ 	}
+ 	return nil
+ }
+ 
+-// LeaveGroup exits the IPv4 multicast group named by addr.
+-func (c *UDPConn) LeaveGroup(addr IP) os.Error {
+-	if !c.ok() {
+-		return os.EINVAL
++func leaveIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) os.Error {
++	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
++	if err := setIPv4InterfaceToJoin(mreq, ifi); err != nil {
++		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
+ 	}
+-	ip := addr.To4()
+-	if ip == nil {
+-		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
++	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq)); err != nil {
++		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
+ 	}
+-	mreq := &syscall.IPMreq{
+-		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
++	return nil
++}
++
++func setIPv4InterfaceToJoin(mreq *syscall.IPMreq, ifi *Interface) os.Error {
++	if ifi == nil {
++		return nil
+ 	}
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
++	ifat, err := ifi.Addrs()
+ 	if err != nil {
+-		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
++		return err
++	}
++	for _, ifa := range ifat {
++		if x := ifa.(*IPAddr).IP.To4(); x != nil {
++			copy(mreq.Interface[:], x)
++			break
++		}
++	}
++	if bytes.Equal(mreq.Multiaddr[:], IPv4zero) {
++		return os.EINVAL
++	}
++	return nil
++}
++
++func joinIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) os.Error {
++	mreq := &syscall.IPv6Mreq{}
++	copy(mreq.Multiaddr[:], ip)
++	if ifi != nil {
++		mreq.Interface = uint32(ifi.Index)
++	}
++	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(c.fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq)); err != nil {
++		return &OpError{"joinipv6group", "udp", &IPAddr{ip}, err}
++	}
++	return nil
++}
++
++func leaveIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) os.Error {
++	mreq := &syscall.IPv6Mreq{}
++	copy(mreq.Multiaddr[:], ip)
++	if ifi != nil {
++		mreq.Interface = uint32(ifi.Index)
++	}
++	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(c.fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_LEAVE_GROUP, mreq)); err != nil {
++		return &OpError{"leaveipv6group", "udp", &IPAddr{ip}, err}
+ 	}
+ 	return nil
+ }

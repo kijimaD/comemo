@@ -34,7 +34,7 @@ Date:   Wed Nov 15 20:56:10 2017 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go          |   1 +
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 237 +++++++++++++++++++++
  src/cmd/asm/internal/asm/testdata/amd64error.s     |  25 +++
@@ -42,3 +42,563 @@ Date:   Wed Nov 15 20:56:10 2017 +0300
  src/cmd/internal/obj/x86/anames.go                 |   8 +
  src/cmd/internal/obj/x86/asm6.go                   | 146 ++++++++++++-
  6 files changed, 423 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index e5bc34edec..092b237efb 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -391,6 +391,7 @@ func TestAMD64EndToEnd(t *testing.T) {
+ 
+ func TestAMD64Encoder(t *testing.T) {
+ 	testEndToEnd(t, "amd64", "amd64enc")
++	testEndToEnd(t, "amd64", "amd64enc_extra")
+ }
+ 
+ func TestAMD64Errors(t *testing.T) {
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+new file mode 100644
+index 0000000000..6b4d7c7356
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -0,0 +1,237 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This input extends auto-generated amd64enc.s test suite
++// with manually added tests.
++
++#include "../../../../../runtime/textflag.h"
++
++TEXT asmtest(SB),DUPOK|NOSPLIT,$0
++	// AVX2GATHER: basic combinations.
++	VPGATHERDQ Y2, (BP)(X7*2), Y1           // c4e2ed904c7d00
++	VPGATHERDQ X12, (R13)(X14*2), X11       // c40299905c7500
++	VPGATHERDQ Y12, (R13)(X14*2), Y11       // c4029d905c7500
++	VPGATHERDQ Y0, 8(X4*1), Y6              // c4e2fd90342508000000
++	VPGATHERDQ Y0, -8(X4*1), Y6             // c4e2fd903425f8ffffff
++	VPGATHERDQ Y0, 0(X4*1), Y6              // c4e2fd90342500000000
++	VPGATHERDQ Y0, 664(X4*1), Y6            // c4e2fd90342598020000
++	VPGATHERDQ Y0, 8(X4*8), Y6              // c4e2fd9034e508000000
++	VPGATHERDQ Y0, -8(X4*8), Y6             // c4e2fd9034e5f8ffffff
++	VPGATHERDQ Y0, 0(X4*8), Y6              // c4e2fd9034e500000000
++	VPGATHERDQ Y0, 664(X4*8), Y6            // c4e2fd9034e598020000
++	VPGATHERDQ Y0, 8(X14*1), Y6             // c4a2fd90343508000000
++	VPGATHERDQ Y0, -8(X14*1), Y6            // c4a2fd903435f8ffffff
++	VPGATHERDQ Y0, 0(X14*1), Y6             // c4a2fd90343500000000
++	VPGATHERDQ Y0, 664(X14*1), Y6           // c4a2fd90343598020000
++	VPGATHERDQ Y0, 8(X14*8), Y6             // c4a2fd9034f508000000
++	VPGATHERDQ Y0, -8(X14*8), Y6            // c4a2fd9034f5f8ffffff
++	VPGATHERDQ Y0, 0(X14*8), Y6             // c4a2fd9034f500000000
++	VPGATHERDQ Y0, 664(X14*8), Y6           // c4a2fd9034f598020000
++	VPGATHERDQ X2, (BP)(X7*2), X1           // c4e2e9904c7d00
++	VPGATHERDQ Y2, (BP)(X7*2), Y1           // c4e2ed904c7d00
++	VPGATHERDQ X12, (R13)(X14*2), X11       // c40299905c7500
++	VPGATHERDQ Y12, (R13)(X14*2), Y11       // c4029d905c7500
++	VPGATHERDQ Y0, 8(X4*1), Y6              // c4e2fd90342508000000
++	VPGATHERDQ Y0, -8(X4*1), Y6             // c4e2fd903425f8ffffff
++	VPGATHERDQ Y0, 0(X4*1), Y6              // c4e2fd90342500000000
++	VPGATHERDQ Y0, 664(X4*1), Y6            // c4e2fd90342598020000
++	VPGATHERDQ Y0, 8(X4*8), Y6              // c4e2fd9034e508000000
++	VPGATHERDQ Y0, -8(X4*8), Y6             // c4e2fd9034e5f8ffffff
++	VPGATHERDQ Y0, 0(X4*8), Y6              // c4e2fd9034e500000000
++	VPGATHERDQ Y0, 664(X4*8), Y6            // c4e2fd9034e598020000
++	VPGATHERDQ Y0, 8(X14*1), Y6             // c4a2fd90343508000000
++	VPGATHERDQ Y0, -8(X14*1), Y6            // c4a2fd903435f8ffffff
++	VPGATHERDQ Y0, 0(X14*1), Y6             // c4a2fd90343500000000
++	VPGATHERDQ Y0, 664(X14*1), Y6           // c4a2fd90343598020000
++	VPGATHERDQ Y0, 8(X14*8), Y6             // c4a2fd9034f508000000
++	VPGATHERDQ Y0, -8(X14*8), Y6            // c4a2fd9034f5f8ffffff
++	VPGATHERDQ Y0, 0(X14*8), Y6             // c4a2fd9034f500000000
++	VPGATHERDQ Y0, 664(X14*8), Y6           // c4a2fd9034f598020000
++	VPGATHERQQ X2, (BP)(X7*2), X1           // c4e2e9914c7d00
++	VPGATHERQQ Y2, (BP)(Y7*2), Y1           // c4e2ed914c7d00
++	VPGATHERQQ X12, (R13)(X14*2), X11       // c40299915c7500
++	VPGATHERQQ Y12, (R13)(Y14*2), Y11       // c4029d915c7500
++	VPGATHERQQ X2, (BP)(X7*2), X1           // c4e2e9914c7d00
++	VPGATHERQQ Y2, (BP)(Y7*2), Y1           // c4e2ed914c7d00
++	VPGATHERQQ X12, (R13)(X14*2), X11       // c40299915c7500
++	VPGATHERQQ Y12, (R13)(Y14*2), Y11       // c4029d915c7500
++	VGATHERDPD X2, (BP)(X7*2), X1           // c4e2e9924c7d00
++	VGATHERDPD Y2, (BP)(X7*2), Y1           // c4e2ed924c7d00
++	VGATHERDPD X12, (R13)(X14*2), X11       // c40299925c7500
++	VGATHERDPD Y12, (R13)(X14*2), Y11       // c4029d925c7500
++	VGATHERDPD Y0, 8(X4*1), Y6              // c4e2fd92342508000000
++	VGATHERDPD Y0, -8(X4*1), Y6             // c4e2fd923425f8ffffff
++	VGATHERDPD Y0, 0(X4*1), Y6              // c4e2fd92342500000000
++	VGATHERDPD Y0, 664(X4*1), Y6            // c4e2fd92342598020000
++	VGATHERDPD Y0, 8(X4*8), Y6              // c4e2fd9234e508000000
++	VGATHERDPD Y0, -8(X4*8), Y6             // c4e2fd9234e5f8ffffff
++	VGATHERDPD Y0, 0(X4*8), Y6              // c4e2fd9234e500000000
++	VGATHERDPD Y0, 664(X4*8), Y6            // c4e2fd9234e598020000
++	VGATHERDPD Y0, 8(X14*1), Y6             // c4a2fd92343508000000
++	VGATHERDPD Y0, -8(X14*1), Y6            // c4a2fd923435f8ffffff
++	VGATHERDPD Y0, 0(X14*1), Y6             // c4a2fd92343500000000
++	VGATHERDPD Y0, 664(X14*1), Y6           // c4a2fd92343598020000
++	VGATHERDPD Y0, 8(X14*8), Y6             // c4a2fd9234f508000000
++	VGATHERDPD Y0, -8(X14*8), Y6            // c4a2fd9234f5f8ffffff
++	VGATHERDPD Y0, 0(X14*8), Y6             // c4a2fd9234f500000000
++	VGATHERDPD Y0, 664(X14*8), Y6           // c4a2fd9234f598020000
++	VGATHERDPD X2, (BP)(X7*2), X1           // c4e2e9924c7d00
++	VGATHERDPD Y2, (BP)(X7*2), Y1           // c4e2ed924c7d00
++	VGATHERDPD X12, (R13)(X14*2), X11       // c40299925c7500
++	VGATHERDPD Y12, (R13)(X14*2), Y11       // c4029d925c7500
++	VGATHERDPD Y0, 8(X4*1), Y6              // c4e2fd92342508000000
++	VGATHERDPD Y0, -8(X4*1), Y6             // c4e2fd923425f8ffffff
++	VGATHERDPD Y0, 0(X4*1), Y6              // c4e2fd92342500000000
++	VGATHERDPD Y0, 664(X4*1), Y6            // c4e2fd92342598020000
++	VGATHERDPD Y0, 8(X4*8), Y6              // c4e2fd9234e508000000
++	VGATHERDPD Y0, -8(X4*8), Y6             // c4e2fd9234e5f8ffffff
++	VGATHERDPD Y0, 0(X4*8), Y6              // c4e2fd9234e500000000
++	VGATHERDPD Y0, 664(X4*8), Y6            // c4e2fd9234e598020000
++	VGATHERDPD Y0, 8(X14*1), Y6             // c4a2fd92343508000000
++	VGATHERDPD Y0, -8(X14*1), Y6            // c4a2fd923435f8ffffff
++	VGATHERDPD Y0, 0(X14*1), Y6             // c4a2fd92343500000000
++	VGATHERDPD Y0, 664(X14*1), Y6           // c4a2fd92343598020000
++	VGATHERDPD Y0, 8(X14*8), Y6             // c4a2fd9234f508000000
++	VGATHERDPD Y0, -8(X14*8), Y6            // c4a2fd9234f5f8ffffff
++	VGATHERDPD Y0, 0(X14*8), Y6             // c4a2fd9234f500000000
++	VGATHERDPD Y0, 664(X14*8), Y6           // c4a2fd9234f598020000
++	VGATHERQPD X2, (BP)(X7*2), X1           // c4e2e9934c7d00
++	VGATHERQPD Y2, (BP)(Y7*2), Y1           // c4e2ed934c7d00
++	VGATHERQPD X12, (R13)(X14*2), X11       // c40299935c7500
++	VGATHERQPD Y12, (R13)(Y14*2), Y11       // c4029d935c7500
++	VGATHERQPD X2, (BP)(X7*2), X1           // c4e2e9934c7d00
++	VGATHERQPD Y2, (BP)(Y7*2), Y1           // c4e2ed934c7d00
++	VGATHERQPD X12, (R13)(X14*2), X11       // c40299935c7500
++	VGATHERQPD Y12, (R13)(Y14*2), Y11       // c4029d935c7500
++	VGATHERDPS X2, (BP)(X7*2), X1           // c4e269924c7d00
++	VGATHERDPS Y2, (BP)(Y7*2), Y1           // c4e26d924c7d00
++	VGATHERDPS X12, (R13)(X14*2), X11       // c40219925c7500
++	VGATHERDPS Y12, (R13)(Y14*2), Y11       // c4021d925c7500
++	VGATHERDPS X3, 8(X4*1), X6              // c4e26192342508000000
++	VGATHERDPS X3, -8(X4*1), X6             // c4e261923425f8ffffff
++	VGATHERDPS X3, 0(X4*1), X6              // c4e26192342500000000
++	VGATHERDPS X3, 664(X4*1), X6            // c4e26192342598020000
++	VGATHERDPS X3, 8(X4*8), X6              // c4e2619234e508000000
++	VGATHERDPS X3, -8(X4*8), X6             // c4e2619234e5f8ffffff
++	VGATHERDPS X3, 0(X4*8), X6              // c4e2619234e500000000
++	VGATHERDPS X3, 664(X4*8), X6            // c4e2619234e598020000
++	VGATHERDPS X3, 8(X14*1), X6             // c4a26192343508000000
++	VGATHERDPS X3, -8(X14*1), X6            // c4a261923435f8ffffff
++	VGATHERDPS X3, 0(X14*1), X6             // c4a26192343500000000
++	VGATHERDPS X3, 664(X14*1), X6           // c4a26192343598020000
++	VGATHERDPS X3, 8(X14*8), X6             // c4a2619234f508000000
++	VGATHERDPS X3, -8(X14*8), X6            // c4a2619234f5f8ffffff
++	VGATHERDPS X3, 0(X14*8), X6             // c4a2619234f500000000
++	VGATHERDPS X3, 664(X14*8), X6           // c4a2619234f598020000
++	VGATHERDPS X2, (BP)(X7*2), X1           // c4e269924c7d00
++	VGATHERDPS Y2, (BP)(Y7*2), Y1           // c4e26d924c7d00
++	VGATHERDPS X12, (R13)(X14*2), X11       // c40219925c7500
++	VGATHERDPS Y12, (R13)(Y14*2), Y11       // c4021d925c7500
++	VGATHERDPS X5, 8(X4*1), X6              // c4e25192342508000000
++	VGATHERDPS X3, -8(X4*1), X6             // c4e261923425f8ffffff
++	VGATHERDPS X3, 0(X4*1), X6              // c4e26192342500000000
++	VGATHERDPS X3, 664(X4*1), X6            // c4e26192342598020000
++	VGATHERDPS X3, 8(X4*8), X6              // c4e2619234e508000000
++	VGATHERDPS X3, -8(X4*8), X6             // c4e2619234e5f8ffffff
++	VGATHERDPS X3, 0(X4*8), X6              // c4e2619234e500000000
++	VGATHERDPS X3, 664(X4*8), X6            // c4e2619234e598020000
++	VGATHERDPS X3, 8(X14*1), X6             // c4a26192343508000000
++	VGATHERDPS X3, -8(X14*1), X6            // c4a261923435f8ffffff
++	VGATHERDPS X3, 0(X14*1), X6             // c4a26192343500000000
++	VGATHERDPS X3, 664(X14*1), X6           // c4a26192343598020000
++	VGATHERDPS X3, 8(X14*8), X6             // c4a2619234f508000000
++	VGATHERDPS X3, -8(X14*8), X6            // c4a2619234f5f8ffffff
++	VGATHERDPS X3, 0(X14*8), X6             // c4a2619234f500000000
++	VGATHERDPS X3, 664(X14*8), X6           // c4a2619234f598020000
++	VGATHERQPS X2, (BP)(X7*2), X1           // c4e269934c7d00
++	VGATHERQPS X2, (BP)(Y7*2), X1           // c4e26d934c7d00
++	VGATHERQPS X12, (R13)(X14*2), X11       // c40219935c7500
++	VGATHERQPS X12, (R13)(Y14*2), X11       // c4021d935c7500
++	VGATHERQPS X2, (BP)(X7*2), X1           // c4e269934c7d00
++	VGATHERQPS X2, (BP)(Y7*2), X1           // c4e26d934c7d00
++	VGATHERQPS X12, (R13)(X14*2), X11       // c40219935c7500
++	VGATHERQPS X12, (R13)(Y14*2), X11       // c4021d935c7500
++	VPGATHERDD X2, (BP)(X7*2), X1           // c4e269904c7d00
++	VPGATHERDD Y2, (BP)(Y7*2), Y1           // c4e26d904c7d00
++	VPGATHERDD X12, (R13)(X14*2), X11       // c40219905c7500
++	VPGATHERDD Y12, (R13)(Y14*2), Y11       // c4021d905c7500
++	VPGATHERDD X3, 8(X4*1), X6              // c4e26190342508000000
++	VPGATHERDD X3, -8(X4*1), X6             // c4e261903425f8ffffff
++	VPGATHERDD X3, 0(X4*1), X6              // c4e26190342500000000
++	VPGATHERDD X3, 664(X4*1), X6            // c4e26190342598020000
++	VPGATHERDD X3, 8(X4*8), X6              // c4e2619034e508000000
++	VPGATHERDD X3, -8(X4*8), X6             // c4e2619034e5f8ffffff
++	VPGATHERDD X3, 0(X4*8), X6              // c4e2619034e500000000
++	VPGATHERDD X3, 664(X4*8), X6            // c4e2619034e598020000
++	VPGATHERDD X3, 8(X14*1), X6             // c4a26190343508000000
++	VPGATHERDD X3, -8(X14*1), X6            // c4a261903435f8ffffff
++	VPGATHERDD X3, 0(X14*1), X6             // c4a26190343500000000
++	VPGATHERDD X3, 664(X14*1), X6           // c4a26190343598020000
++	VPGATHERDD X3, 8(X14*8), X6             // c4a2619034f508000000
++	VPGATHERDD X3, -8(X14*8), X6            // c4a2619034f5f8ffffff
++	VPGATHERDD X3, 0(X14*8), X6             // c4a2619034f500000000
++	VPGATHERDD X3, 664(X14*8), X6           // c4a2619034f598020000
++	VPGATHERDD X2, (BP)(X7*2), X1           // c4e269904c7d00
++	VPGATHERDD Y2, (BP)(Y7*2), Y1           // c4e26d904c7d00
++	VPGATHERDD X12, (R13)(X14*2), X11       // c40219905c7500
++	VPGATHERDD Y12, (R13)(Y14*2), Y11       // c4021d905c7500
++	VPGATHERDD X3, 8(X4*1), X6              // c4e26190342508000000
++	VPGATHERDD X3, -8(X4*1), X6             // c4e261903425f8ffffff
++	VPGATHERDD X3, 0(X4*1), X6              // c4e26190342500000000
++	VPGATHERDD X3, 664(X4*1), X6            // c4e26190342598020000
++	VPGATHERDD X3, 8(X4*8), X6              // c4e2619034e508000000
++	VPGATHERDD X3, -8(X4*8), X6             // c4e2619034e5f8ffffff
++	VPGATHERDD X3, 0(X4*8), X6              // c4e2619034e500000000
++	VPGATHERDD X3, 664(X4*8), X6            // c4e2619034e598020000
++	VPGATHERDD X3, 8(X14*1), X6             // c4a26190343508000000
++	VPGATHERDD X3, -8(X14*1), X6            // c4a261903435f8ffffff
++	VPGATHERDD X3, 0(X14*1), X6             // c4a26190343500000000
++	VPGATHERDD X3, 664(X14*1), X6           // c4a26190343598020000
++	VPGATHERDD X3, 8(X14*8), X6             // c4a2619034f508000000
++	VPGATHERDD X3, -8(X14*8), X6            // c4a2619034f5f8ffffff
++	VPGATHERDD X3, 0(X14*8), X6             // c4a2619034f500000000
++	VPGATHERDD X3, 664(X14*8), X6           // c4a2619034f598020000
++	VPGATHERQD X2, (BP)(X7*2), X1           // c4e269914c7d00
++	VPGATHERQD X2, (BP)(Y7*2), X1           // c4e26d914c7d00
++	VPGATHERQD X12, (R13)(X14*2), X11       // c40219915c7500
++	VPGATHERQD X12, (R13)(Y14*2), X11       // c4021d915c7500
++	VPGATHERQD X2, (BP)(X7*2), X1           // c4e269914c7d00
++	VPGATHERQD X2, (BP)(Y7*2), X1           // c4e26d914c7d00
++	VPGATHERQD X12, (R13)(X14*2), X11       // c40219915c7500
++	VPGATHERQD X12, (R13)(Y14*2), X11       // c4021d915c7500
++	VPGATHERQQ X0, 0(X1*1), X2              // c4e2f991140d00000000
++	VPGATHERQQ Y0, 0(Y1*1), Y2              // c4e2fd91140d00000000
++	VPGATHERQQ X8, 0(X9*1), X10             // c422b991140d00000000
++	VPGATHERQQ Y8, 0(Y9*1), Y10             // c422bd91140d00000000
++	VPGATHERQQ X0, 0(X1*4), X2              // c4e2f991148d00000000
++	VPGATHERQQ Y0, 0(Y1*4), Y2              // c4e2fd91148d00000000
++	VPGATHERQQ X8, 0(X9*4), X10             // c422b991148d00000000
++	VPGATHERQQ Y8, 0(Y9*4), Y10             // c422bd91148d00000000
++	// AVX2GATHER: test SP/BP base with different displacements.
++	VPGATHERQQ X0, (SP)(X1*1), X2           // c4e2f991140c
++	VPGATHERQQ X0, 16(SP)(X1*1), X2         // c4e2f991540c10
++	VPGATHERQQ X0, 512(SP)(X1*1), X2        // c4e2f991940c00020000
++	VPGATHERQQ X0, (R12)(X1*1), X2          // c4c2f991140c
++	VPGATHERQQ X0, 16(R12)(X1*1), X2        // c4c2f991540c10
++	VPGATHERQQ X0, 512(R12)(X1*1), X2       // c4c2f991940c00020000
++	VPGATHERQQ X0, (BP)(X1*1), X2           // c4e2f991540d00
++	VPGATHERQQ X0, 16(BP)(X1*1), X2         // c4e2f991540d10
++	VPGATHERQQ X0, 512(BP)(X1*1), X2        // c4e2f991940d00020000
++	VPGATHERQQ X0, (R13)(X1*1), X2          // c4c2f991540d00
++	VPGATHERQQ X0, 16(R13)(X1*1), X2        // c4c2f991540d10
++	VPGATHERQQ X0, 512(R13)(X1*1), X2       // c4c2f991940d00020000
++	VPGATHERQQ Y0, (SP)(Y1*1), Y2           // c4e2fd91140c
++	VPGATHERQQ Y0, 16(SP)(Y1*1), Y2         // c4e2fd91540c10
++	VPGATHERQQ Y0, 512(SP)(Y1*1), Y2        // c4e2fd91940c00020000
++	VPGATHERQQ Y0, (R12)(Y1*1), Y2          // c4c2fd91140c
++	VPGATHERQQ Y0, 16(R12)(Y1*1), Y2        // c4c2fd91540c10
++	VPGATHERQQ Y0, 512(R12)(Y1*1), Y2       // c4c2fd91940c00020000
++	VPGATHERQQ Y0, (BP)(Y1*1), Y2           // c4e2fd91540d00
++	VPGATHERQQ Y0, 16(BP)(Y1*1), Y2         // c4e2fd91540d10
++	VPGATHERQQ Y0, 512(BP)(Y1*1), Y2        // c4e2fd91940d00020000
++	VPGATHERQQ Y0, (R13)(Y1*1), Y2          // c4c2fd91540d00
++	VPGATHERQQ Y0, 16(R13)(Y1*1), Y2        // c4c2fd91540d10
++	VPGATHERQQ Y0, 512(R13)(Y1*1), Y2       // c4c2fd91940d00020000
++	// End of tests.
++	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index 2cb082dacc..7d850f7844 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -7,4 +7,29 @@ TEXT errors(SB),$0
+ 	MOVL	(AX)(SP*1), AX		// ERROR "invalid instruction"
+ 	EXTRACTPS $4, X2, (BX)          // ERROR "invalid instruction"
+ 	EXTRACTPS $-1, X2, (BX)         // ERROR "invalid instruction"
++	// VSIB addressing does not permit non-vector (X/Y)
++	// scaled index register.
++	VPGATHERDQ X12,(R13)(AX*2), X11 // ERROR "invalid instruction"
++	VPGATHERDQ X2, 664(BX*1), X1    // ERROR "invalid instruction"
++	VPGATHERDQ Y2, (BP)(AX*2), Y1   // ERROR "invalid instruction"
++	VPGATHERDQ Y5, 664(DX*8), Y6    // ERROR "invalid instruction"
++	VPGATHERDQ Y5, (DX), Y0         // ERROR "invalid instruction"
++	// VM/X rejects Y index register.
++	VPGATHERDQ Y5, 664(Y14*8), Y6   // ERROR "invalid instruction"
++	VPGATHERQQ X2, (BP)(Y7*2), X1   // ERROR "invalid instruction"
++	// VM/Y rejects X index register.
++	VPGATHERQQ Y2, (BP)(X7*2), Y1   // ERROR "invalid instruction"
++	VPGATHERDD Y5, -8(X14*8), Y6    // ERROR "invalid instruction"
++	// No VSIB for legacy instructions.
++	MOVL (AX)(X0*1), AX             // ERROR "invalid instruction"
++	MOVL (AX)(Y0*1), AX             // ERROR "invalid instruction"
++	// AVX2GATHER mask/index/dest #UD cases.
++	VPGATHERQQ Y2, (BP)(X2*2), Y2   // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERQQ Y2, (BP)(X2*2), Y7   // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERQQ Y2, (BP)(X7*2), Y2   // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERQQ Y7, (BP)(X2*2), Y2   // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERDQ X2, 664(X2*8), X2    // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERDQ X2, 664(X2*8), X7    // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERDQ X2, 664(X7*8), X2    // ERROR "mask, index, and destination registers should be distinct"
++	VPGATHERDQ X7, 664(X2*8), X2    // ERROR "mask, index, and destination registers should be distinct"
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/aenum.go b/src/cmd/internal/obj/x86/aenum.go
+index 0b9cbefe53..013d9e0228 100644
+--- a/src/cmd/internal/obj/x86/aenum.go
++++ b/src/cmd/internal/obj/x86/aenum.go
+@@ -874,6 +874,10 @@ const (
+ 	AVFNMSUB231PS
+ 	AVFNMSUB231SD
+ 	AVFNMSUB231SS
++	AVGATHERDPD
++	AVGATHERDPS
++	AVGATHERQPD
++	AVGATHERQPS
+ 	AVHADDPD
+ 	AVHADDPS
+ 	AVHSUBPD
+@@ -978,6 +982,10 @@ const (
+ 	AVPEXTRD
+ 	AVPEXTRQ
+ 	AVPEXTRW
++	AVPGATHERDD
++	AVPGATHERDQ
++	AVPGATHERQD
++	AVPGATHERQQ
+ 	AVPHADDD
+ 	AVPHADDSW
+ 	AVPHADDW
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 5d2a920fe7..ec7bea1255 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -873,6 +873,10 @@ var Anames = []string{
+ 	"VFNMSUB231PS",
+ 	"VFNMSUB231SD",
+ 	"VFNMSUB231SS",
++	"VGATHERDPD",
++	"VGATHERDPS",
++	"VGATHERQPD",
++	"VGATHERQPS",
+ 	"VHADDPD",
+ 	"VHADDPS",
+ 	"VHSUBPD",
+@@ -977,6 +981,10 @@ var Anames = []string{
+ 	"VPEXTRD",
+ 	"VPEXTRQ",
+ 	"VPEXTRW",
++	"VPGATHERDD",
++	"VPGATHERDQ",
++	"VPGATHERQD",
++	"VPGATHERQQ",
+ 	"VPHADDD",
+ 	"VPHADDSW",
+ 	"VPHADDW",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 4e4cae6b44..6451f2cc98 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -148,8 +148,10 @@ const (
+ 	Ymm
+ 	Yxr
+ 	Yxm
++	Yxvm // VSIB vector array; vm32x/vm64x
+ 	Yyr
+ 	Yym
++	Yyvm // VSIB vector array; vm32y/vm64y
+ 	Ytls
+ 	Ytextsize
+ 	Yindir
+@@ -1034,6 +1036,21 @@ var yvex_vmovq = []ytab{
+ 	{Zvex_r_v_rm, 2, argList{Yxr, Yxm}},
+ }
+ 
++var yvpgatherdq = []ytab{
++	{Zvex_v_rm_r, 2, argList{Yxr, Yxvm, Yxr}},
++	{Zvex_v_rm_r, 2, argList{Yyr, Yxvm, Yyr}},
++}
++
++var yvpgatherqq = []ytab{
++	{Zvex_v_rm_r, 2, argList{Yxr, Yxvm, Yxr}},
++	{Zvex_v_rm_r, 2, argList{Yyr, Yyvm, Yyr}},
++}
++
++var yvgatherqps = []ytab{
++	{Zvex_v_rm_r, 2, argList{Yxr, Yxvm, Yxr}},
++	{Zvex_v_rm_r, 2, argList{Yxr, Yyvm, Yxr}},
++}
++
+ var ymmxmm0f38 = []ytab{
+ 	{Zlitm_r, 3, argList{Ymm, Ymr}},
+ 	{Zlitm_r, 5, argList{Yxm, Yxr}},
+@@ -1855,6 +1872,44 @@ var optab =
+ 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
+ 	{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},
+ 	{obj.ADUFFZERO, yduff, Px, [23]uint8{0xe8}},
++
++	// AVX2 gather instructions.
++	// Added as a part of VSIB support implementation,
++	// when x86avxgen will output these, they will be moved to
++	// vex_optabs.go where they belong.
++	{AVGATHERDPD, yvpgatherdq, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x92,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x92,
++	}},
++	{AVGATHERQPD, yvpgatherqq, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x93,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x93,
++	}},
++	{AVGATHERDPS, yvpgatherqq, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x92,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x92,
++	}},
++	{AVGATHERQPS, yvgatherqps, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x93,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x93,
++	}},
++	{AVPGATHERDD, yvpgatherqq, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x90,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x90,
++	}},
++	{AVPGATHERQD, yvgatherqps, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW0, 0x91,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW0, 0x91,
++	}},
++	{AVPGATHERDQ, yvpgatherdq, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x90,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x90,
++	}},
++	{AVPGATHERQQ, yvpgatherqq, Pvex, [23]uint8{
++		vexDDS | vex128 | vex66 | vex0F38 | vexW1, 0x91,
++		vexDDS | vex256 | vex66 | vex0F38 | vexW1, 0x91,
++	}},
++
+ 	{obj.AEND, nil, 0, [23]uint8{}},
+ 	{0, nil, 0, [23]uint8{}},
+ }
+@@ -2435,6 +2490,18 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 			// Can't use SP as the index register
+ 			return Yxxx
+ 		}
++		if a.Index >= REG_X0 && a.Index <= REG_X15 {
++			if ctxt.Arch.Family == sys.I386 && a.Index > REG_X7 {
++				return Yxxx
++			}
++			return Yxvm
++		}
++		if a.Index >= REG_Y0 && a.Index <= REG_Y15 {
++			if ctxt.Arch.Family == sys.I386 && a.Index > REG_Y7 {
++				return Yxxx
++			}
++			return Yyvm
++		}
+ 		if ctxt.Arch.Family == sys.AMD64 {
+ 			// Offset must fit in a 32-bit signed field (or fit in a 32-bit unsigned field
+ 			// where the sign extension doesn't matter).
+@@ -2847,9 +2914,11 @@ func (a *AsmBuf) Reset() { a.off = 0 }
+ // At returns the byte at offset i.
+ func (a *AsmBuf) At(i int) byte { return a.buf[i] }
+ 
++// asmidx emits SIB byte.
+ func (asmbuf *AsmBuf) asmidx(ctxt *obj.Link, scale int, index int, base int) {
+ 	var i int
+ 
++	// X/Y index register is used in VSIB.
+ 	switch index {
+ 	default:
+ 		goto bad
+@@ -2865,7 +2934,23 @@ func (asmbuf *AsmBuf) asmidx(ctxt *obj.Link, scale int, index int, base int) {
+ 		REG_R12,
+ 		REG_R13,
+ 		REG_R14,
+-		REG_R15:
++		REG_R15,
++		REG_X8,
++		REG_X9,
++		REG_X10,
++		REG_X11,
++		REG_X12,
++		REG_X13,
++		REG_X14,
++		REG_X15,
++		REG_Y8,
++		REG_Y9,
++		REG_Y10,
++		REG_Y11,
++		REG_Y12,
++		REG_Y13,
++		REG_Y14,
++		REG_Y15:
+ 		if ctxt.Arch.Family == sys.I386 {
+ 			goto bad
+ 		}
+@@ -2877,7 +2962,23 @@ func (asmbuf *AsmBuf) asmidx(ctxt *obj.Link, scale int, index int, base int) {
+ 		REG_BX,
+ 		REG_BP,
+ 		REG_SI,
+-		REG_DI:
++		REG_DI,
++		REG_X0,
++		REG_X1,
++		REG_X2,
++		REG_X3,
++		REG_X4,
++		REG_X5,
++		REG_X6,
++		REG_X7,
++		REG_Y0,
++		REG_Y1,
++		REG_Y2,
++		REG_Y3,
++		REG_Y4,
++		REG_Y5,
++		REG_Y6,
++		REG_Y7:
+ 		i = reg[index] << 3
+ 	}
+ 
+@@ -3488,6 +3589,35 @@ func (asmbuf *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uin
+ 	asmbuf.Put1(opcode)
+ }
+ 
++// regIndex returns register index that fits in 4 bits.
++//
++// Examples:
++//   REG_X15 => 15
++//   REG_R9  => 9
++//   REG_AX  => 0
++//
++func regIndex(r int16) int {
++	lower3bits := reg[r]
++	high4bit := regrex[r] & Rxr << 1
++	return lower3bits | high4bit
++}
++
++// avx2gatherValid returns true if p satisfies AVX2 gather constraints.
++// Reports errors via ctxt.
++func avx2gatherValid(ctxt *obj.Link, p *obj.Prog) bool {
++	// If any pair of the index, mask, or destination registers
++	// are the same, this instruction results a #UD fault.
++	index := regIndex(p.GetFrom3().Index)
++	mask := regIndex(p.From.Reg)
++	dest := regIndex(p.To.Reg)
++	if dest == mask || dest == index || mask == index {
++		ctxt.Diag("mask, index, and destination registers should be distinct: %v", p)
++		return false
++	}
++
++	return true
++}
++
+ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 	o := opindex[p.As&obj.AMask]
+ 
+@@ -3536,6 +3666,18 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			p.To.Offset = p.GetFrom3().Offset
+ 			p.GetFrom3().Offset = 0
+ 		}
++
++	case AVGATHERDPD,
++		AVGATHERQPD,
++		AVGATHERDPS,
++		AVGATHERQPS,
++		AVPGATHERDD,
++		AVPGATHERQD,
++		AVPGATHERDQ,
++		AVPGATHERQQ:
++		if !avx2gatherValid(ctxt, p) {
++			return
++		}
+ 	}
+ 
+ 	if p.Ft == 0 {

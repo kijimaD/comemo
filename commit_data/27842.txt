@@ -22,8 +22,342 @@ Date:   Sat Apr 2 16:47:51 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/gzip/gunzip.go      | 121 ++++++++++++++++++---------------------
  src/compress/gzip/gunzip_test.go |  47 +++++++++++++++
  src/compress/gzip/gzip.go        |  21 ++-----
  3 files changed, 107 insertions(+), 82 deletions(-)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 5d072878ee..926bae88c7 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -9,6 +9,7 @@ package gzip
+ import (
+ 	"bufio"
+ 	"compress/flate"
++	"encoding/binary"
+ 	"errors"
+ 	"hash/crc32"
+ 	"io"
+@@ -33,6 +34,16 @@ var (
+ 	ErrHeader = errors.New("gzip: invalid header")
+ )
+ 
++var le = binary.LittleEndian
++
++// noEOF converts io.EOF to io.ErrUnexpectedEOF.
++func noEOF(err error) error {
++	if err == io.EOF {
++		return io.ErrUnexpectedEOF
++	}
++	return err
++}
++
+ // The gzip file stores a header giving metadata about the compressed file.
+ // That header is exposed as the fields of the Writer and Reader structs.
+ //
+@@ -99,7 +110,8 @@ func (z *Reader) Reset(r io.Reader) error {
+ 	} else {
+ 		z.r = bufio.NewReader(r)
+ 	}
+-	return z.readHeader(true)
++	z.Header, z.err = z.readHeader()
++	return z.err
+ }
+ 
+ // Multistream controls whether the reader supports multistream files.
+@@ -122,14 +134,13 @@ func (z *Reader) Multistream(ok bool) {
+ 	z.multistream = ok
+ }
+ 
+-// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
+-func get4(p []byte) uint32 {
+-	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+-}
+-
++// readString reads a NUL-terminated string from z.r.
++// It treats the bytes read as being encoded as ISO 8859-1 (Latin-1) and
++// will output a string encoded using UTF-8.
++// This method always updates z.digest with the data read.
+ func (z *Reader) readString() (string, error) {
+ 	var err error
+-	needconv := false
++	needConv := false
+ 	for i := 0; ; i++ {
+ 		if i >= len(z.buf) {
+ 			return "", ErrHeader
+@@ -139,11 +150,14 @@ func (z *Reader) readString() (string, error) {
+ 			return "", err
+ 		}
+ 		if z.buf[i] > 0x7f {
+-			needconv = true
++			needConv = true
+ 		}
+ 		if z.buf[i] == 0 {
+-			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+-			if needconv {
++			// Digest covers the NUL terminator.
++			z.digest = crc32.Update(z.digest, crc32.IEEETable, z.buf[:i+1])
++
++			// Strings are ISO 8859-1, Latin-1 (RFC 1952, section 2.3.1).
++			if needConv {
+ 				s := make([]rune, 0, i)
+ 				for _, v := range z.buf[:i] {
+ 					s = append(s, rune(v))
+@@ -155,20 +169,10 @@ func (z *Reader) readString() (string, error) {
+ 	}
+ }
+ 
+-func (z *Reader) read2() (uint32, error) {
+-	_, err := io.ReadFull(z.r, z.buf[:2])
+-	if err != nil {
+-		if err == io.EOF {
+-			err = io.ErrUnexpectedEOF
+-		}
+-		return 0, err
+-	}
+-	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
+-}
+-
+-func (z *Reader) readHeader(save bool) error {
+-	_, err := io.ReadFull(z.r, z.buf[:10])
+-	if err != nil {
++// readHeader reads the GZIP header according to section 2.3.1.
++// This method does not set z.err.
++func (z *Reader) readHeader() (hdr Header, err error) {
++	if _, err = io.ReadFull(z.r, z.buf[:10]); err != nil {
+ 		// RFC 1952, section 2.2, says the following:
+ 		//	A gzip file consists of a series of "members" (compressed data sets).
+ 		//
+@@ -176,63 +180,52 @@ func (z *Reader) readHeader(save bool) error {
+ 		// "series" is defined as "one or more" or "zero or more". To err on the
+ 		// side of caution, Go interprets this to mean "zero or more".
+ 		// Thus, it is okay to return io.EOF here.
+-		return err
++		return hdr, err
+ 	}
+ 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
+-		return ErrHeader
++		return hdr, ErrHeader
+ 	}
+ 	flg := z.buf[3]
+-	if save {
+-		z.ModTime = time.Unix(int64(get4(z.buf[4:8])), 0)
+-		// z.buf[8] is xfl, ignored
+-		z.OS = z.buf[9]
+-	}
+-	z.digest = crc32.Update(0, crc32.IEEETable, z.buf[:10])
++	hdr.ModTime = time.Unix(int64(le.Uint32(z.buf[4:8])), 0)
++	// z.buf[8] is XFL and is currently ignored.
++	hdr.OS = z.buf[9]
++	z.digest = crc32.ChecksumIEEE(z.buf[:10])
+ 
+ 	if flg&flagExtra != 0 {
+-		n, err := z.read2()
+-		if err != nil {
+-			return err
++		if _, err = io.ReadFull(z.r, z.buf[:2]); err != nil {
++			return hdr, noEOF(err)
+ 		}
+-		data := make([]byte, n)
++		z.digest = crc32.Update(z.digest, crc32.IEEETable, z.buf[:2])
++		data := make([]byte, le.Uint16(z.buf[:2]))
+ 		if _, err = io.ReadFull(z.r, data); err != nil {
+-			if err == io.EOF {
+-				err = io.ErrUnexpectedEOF
+-			}
+-			return err
+-		}
+-		if save {
+-			z.Extra = data
++			return hdr, noEOF(err)
+ 		}
++		z.digest = crc32.Update(z.digest, crc32.IEEETable, data)
++		hdr.Extra = data
+ 	}
+ 
+ 	var s string
+ 	if flg&flagName != 0 {
+ 		if s, err = z.readString(); err != nil {
+-			return err
+-		}
+-		if save {
+-			z.Name = s
++			return hdr, err
+ 		}
++		hdr.Name = s
+ 	}
+ 
+ 	if flg&flagComment != 0 {
+ 		if s, err = z.readString(); err != nil {
+-			return err
+-		}
+-		if save {
+-			z.Comment = s
++			return hdr, err
+ 		}
++		hdr.Comment = s
+ 	}
+ 
+ 	if flg&flagHdrCrc != 0 {
+-		n, err := z.read2()
+-		if err != nil {
+-			return err
++		if _, err = io.ReadFull(z.r, z.buf[:2]); err != nil {
++			return hdr, noEOF(err)
+ 		}
+-		sum := z.digest & 0xFFFF
+-		if n != sum {
+-			return ErrHeader
++		digest := le.Uint16(z.buf[:2])
++		if digest != uint16(z.digest) {
++			return hdr, ErrHeader
+ 		}
+ 	}
+ 
+@@ -242,7 +235,7 @@ func (z *Reader) readHeader(save bool) error {
+ 	} else {
+ 		z.decompressor.(flate.Resetter).Reset(z.r, nil)
+ 	}
+-	return nil
++	return hdr, nil
+ }
+ 
+ func (z *Reader) Read(p []byte) (n int, err error) {
+@@ -260,13 +253,11 @@ func (z *Reader) Read(p []byte) (n int, err error) {
+ 
+ 	// Finished file; check checksum and size.
+ 	if _, err := io.ReadFull(z.r, z.buf[:8]); err != nil {
+-		if err == io.EOF {
+-			err = io.ErrUnexpectedEOF
+-		}
+-		z.err = err
+-		return n, err
++		z.err = noEOF(err)
++		return n, z.err
+ 	}
+-	digest, size := get4(z.buf[:4]), get4(z.buf[4:8])
++	digest := le.Uint32(z.buf[:4])
++	size := le.Uint32(z.buf[4:8])
+ 	if digest != z.digest || size != z.size {
+ 		z.err = ErrChecksum
+ 		return n, z.err
+@@ -279,7 +270,7 @@ func (z *Reader) Read(p []byte) (n int, err error) {
+ 	}
+ 	z.err = nil // Remove io.EOF
+ 
+-	if z.err = z.readHeader(false); z.err != nil {
++	if _, z.err = z.readHeader(); z.err != nil {
+ 		return n, z.err
+ 	}
+ 
+diff --git a/src/compress/gzip/gunzip_test.go b/src/compress/gzip/gunzip_test.go
+index e1f79e3db3..fdce91989a 100644
+--- a/src/compress/gzip/gunzip_test.go
++++ b/src/compress/gzip/gunzip_test.go
+@@ -292,6 +292,53 @@ var gunzipTests = []gunzipTest{
+ 		},
+ 		ErrChecksum,
+ 	},
++	{
++		"f1l3n4m3.tXt",
++		"header with all fields used",
++		"",
++		[]byte{
++			0x1f, 0x8b, 0x08, 0x1e, 0x70, 0xf0, 0xf9, 0x4a,
++			0x00, 0xaa, 0x09, 0x00, 0x7a, 0x7a, 0x05, 0x00,
++			0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x31, 0x6c,
++			0x33, 0x6e, 0x34, 0x6d, 0x33, 0x2e, 0x74, 0x58,
++			0x74, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
++			0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
++			0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
++			0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
++			0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
++			0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
++			0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
++			0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
++			0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46,
++			0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e,
++			0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56,
++			0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e,
++			0x5f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
++			0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e,
++			0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76,
++			0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e,
++			0x7f, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86,
++			0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e,
++			0x8f, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96,
++			0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e,
++			0x9f, 0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6,
++			0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae,
++			0xaf, 0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6,
++			0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe,
++			0xbf, 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6,
++			0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce,
++			0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6,
++			0xd7, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde,
++			0xdf, 0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6,
++			0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee,
++			0xef, 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6,
++			0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe,
++			0xff, 0x00, 0x92, 0xfd, 0x01, 0x00, 0x00, 0xff,
++			0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00,
++		},
++		nil,
++	},
+ }
+ 
+ func TestDecompressor(t *testing.T) {
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index 4651298585..c702c493c1 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -87,25 +87,12 @@ func (z *Writer) Reset(w io.Writer) {
+ 	z.init(w, z.level)
+ }
+ 
+-// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
+-func put2(p []byte, v uint16) {
+-	p[0] = uint8(v >> 0)
+-	p[1] = uint8(v >> 8)
+-}
+-
+-func put4(p []byte, v uint32) {
+-	p[0] = uint8(v >> 0)
+-	p[1] = uint8(v >> 8)
+-	p[2] = uint8(v >> 16)
+-	p[3] = uint8(v >> 24)
+-}
+-
+ // writeBytes writes a length-prefixed byte slice to z.w.
+ func (z *Writer) writeBytes(b []byte) error {
+ 	if len(b) > 0xffff {
+ 		return errors.New("gzip.Write: Extra data is too large")
+ 	}
+-	put2(z.buf[:2], uint16(len(b)))
++	le.PutUint16(z.buf[:2], uint16(len(b)))
+ 	_, err := z.w.Write(z.buf[:2])
+ 	if err != nil {
+ 		return err
+@@ -168,7 +155,7 @@ func (z *Writer) Write(p []byte) (int, error) {
+ 		if z.Comment != "" {
+ 			z.buf[3] |= 0x10
+ 		}
+-		put4(z.buf[4:8], uint32(z.ModTime.Unix()))
++		le.PutUint32(z.buf[4:8], uint32(z.ModTime.Unix()))
+ 		if z.level == BestCompression {
+ 			z.buf[8] = 2
+ 		} else if z.level == BestSpeed {
+@@ -254,8 +241,8 @@ func (z *Writer) Close() error {
+ 	if z.err != nil {
+ 		return z.err
+ 	}
+-	put4(z.buf[:4], z.digest)
+-	put4(z.buf[4:8], z.size)
++	le.PutUint32(z.buf[:4], z.digest)
++	le.PutUint32(z.buf[4:8], z.size)
+ 	_, z.err = z.w.Write(z.buf[:8])
+ 	return z.err
+ }

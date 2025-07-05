@@ -16,6 +16,24 @@ Date:   Wed Aug 23 13:50:47 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index ba542b4719..c066dea960 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -932,10 +932,10 @@ func (p *importer) node() *Node {
+ 			// again. Re-introduce explicit uintptr(c) conversion.
+ 			// (issue 16317).
+ 			if typ.IsUnsafePtr() {
+-				n = nod(OCONV, n, nil)
++				n = nodl(pos, OCONV, n, nil)
+ 				n.Type = types.Types[TUINTPTR]
+ 			}
+-			n = nod(OCONV, n, nil)
++			n = nodl(pos, OCONV, n, nil)
+ 			n.Type = typ
+ 		}
+ 		return n

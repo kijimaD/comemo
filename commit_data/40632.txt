@@ -18,6 +18,20 @@ Date:   Thu Jun 6 17:23:19 2019 -0400
     Change-Id: I8de8c03c23412fc217d428c0018cc56eb2f9996f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181078
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/internal/atomic/atomic_s390x.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index f6758082a9..25fd890524 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -10,8 +10,6 @@ import "unsafe"
+ //go:linkname Load
+ //go:linkname Loadp
+ //go:linkname Load64
+-//go:linkname Store
+-//go:linkname Store64
+ 
+ //go:nosplit
+ //go:noinline

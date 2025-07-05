@@ -7,7 +7,7 @@ Date:   Fri Dec 2 14:14:25 2011 -0500
     R=golang-dev, bradfitz, gri
     CC=golang-dev
     https://golang.org/cl/5451079
-
+---
  misc/dashboard/app/build/test.go       |   2 +-
  src/cmd/cgo/gcc.go                     |   2 +-
  src/cmd/cgo/out.go                     |  32 +++++-----
@@ -39,3 +39,1673 @@ Date:   Fri Dec 2 14:14:25 2011 -0500
  src/pkg/old/template/template_test.go  | 112 ++++++++++++++++-----------------
  src/pkg/path/filepath/path_test.go     |  18 +++---
  30 files changed, 326 insertions(+), 326 deletions(-)
+
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index dacfa52226..1d166bdc94 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -36,7 +36,7 @@ const testPkg = "code.google.com/p/go.more"
+ var testPackage = &Package{Name: "Test", Path: testPkg}
+ 
+ var testPackages = []*Package{
+-	&Package{Name: "Go", Path: ""},
++	{Name: "Go", Path: ""},
+ 	testPackage,
+ }
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f5a27a5ce0..20cac1944b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1304,7 +1304,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
+ 	var gr []*ast.Field
+ 	if _, ok := dtype.ReturnType.(*dwarf.VoidType); !ok && dtype.ReturnType != nil {
+ 		r = c.Type(dtype.ReturnType)
+-		gr = []*ast.Field{&ast.Field{Type: r.Go}}
++		gr = []*ast.Field{{Type: r.Go}}
+ 	}
+ 	return &FuncType{
+ 		Params: p,
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 49868aa492..e4709ae54c 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -578,22 +578,22 @@ func c(repr string, args ...interface{}) *TypeRepr {
+ 
+ // Map predeclared Go types to Type.
+ var goTypes = map[string]*Type{
+-	"int":        &Type{Size: 4, Align: 4, C: c("int")},
+-	"uint":       &Type{Size: 4, Align: 4, C: c("uint")},
+-	"int8":       &Type{Size: 1, Align: 1, C: c("schar")},
+-	"uint8":      &Type{Size: 1, Align: 1, C: c("uchar")},
+-	"int16":      &Type{Size: 2, Align: 2, C: c("short")},
+-	"uint16":     &Type{Size: 2, Align: 2, C: c("ushort")},
+-	"int32":      &Type{Size: 4, Align: 4, C: c("int")},
+-	"uint32":     &Type{Size: 4, Align: 4, C: c("uint")},
+-	"int64":      &Type{Size: 8, Align: 8, C: c("int64")},
+-	"uint64":     &Type{Size: 8, Align: 8, C: c("uint64")},
+-	"float":      &Type{Size: 4, Align: 4, C: c("float")},
+-	"float32":    &Type{Size: 4, Align: 4, C: c("float")},
+-	"float64":    &Type{Size: 8, Align: 8, C: c("double")},
+-	"complex":    &Type{Size: 8, Align: 8, C: c("__complex float")},
+-	"complex64":  &Type{Size: 8, Align: 8, C: c("__complex float")},
+-	"complex128": &Type{Size: 16, Align: 16, C: c("__complex double")},
++	"int":        {Size: 4, Align: 4, C: c("int")},
++	"uint":       {Size: 4, Align: 4, C: c("uint")},
++	"int8":       {Size: 1, Align: 1, C: c("schar")},
++	"uint8":      {Size: 1, Align: 1, C: c("uchar")},
++	"int16":      {Size: 2, Align: 2, C: c("short")},
++	"uint16":     {Size: 2, Align: 2, C: c("ushort")},
++	"int32":      {Size: 4, Align: 4, C: c("int")},
++	"uint32":     {Size: 4, Align: 4, C: c("uint")},
++	"int64":      {Size: 8, Align: 8, C: c("int64")},
++	"uint64":     {Size: 8, Align: 8, C: c("uint64")},
++	"float":      {Size: 4, Align: 4, C: c("float")},
++	"float32":    {Size: 4, Align: 4, C: c("float")},
++	"float64":    {Size: 8, Align: 8, C: c("double")},
++	"complex":    {Size: 8, Align: 8, C: c("__complex float")},
++	"complex64":  {Size: 8, Align: 8, C: c("__complex float")},
++	"complex128": {Size: 16, Align: 16, C: c("__complex double")},
+ }
+ 
+ // Map an ast type to a Type.
+diff --git a/src/cmd/gofix/error.go b/src/cmd/gofix/error.go
+index 5e20ff683b..55613210a7 100644
+--- a/src/cmd/gofix/error.go
++++ b/src/cmd/gofix/error.go
+@@ -88,7 +88,7 @@ var errType = regexp.MustCompile(`^\*?([Ee]rror|.*Error)$`)
+ // information about types, functions, and variables in external packages.
+ var errorTypeConfig = &TypeConfig{
+ 	Type: map[string]*Type{
+-		"os.Error": &Type{},
++		"os.Error": {},
+ 	},
+ 	Func: map[string]string{
+ 		"fmt.Errorf":  "os.Error",
+diff --git a/src/cmd/gofix/hashsum.go b/src/cmd/gofix/hashsum.go
+index 3e36cd65f8..0df6ad7496 100644
+--- a/src/cmd/gofix/hashsum.go
++++ b/src/cmd/gofix/hashsum.go
+@@ -66,7 +66,7 @@ var hashSumTypeConfig = &TypeConfig{
+ 	},
+ 
+ 	Type: map[string]*Type{
+-		"crypto.Hash": &Type{
++		"crypto.Hash": {
+ 			Method: map[string]string{
+ 				"New": "func() hash.Hash",
+ 			},
+diff --git a/src/cmd/gofix/httpheaders.go b/src/cmd/gofix/httpheaders.go
+index 0bce12b512..15c21ac867 100644
+--- a/src/cmd/gofix/httpheaders.go
++++ b/src/cmd/gofix/httpheaders.go
+@@ -61,7 +61,7 @@ func httpheaders(f *ast.File) bool {
+ 
+ var headerTypeConfig = &TypeConfig{
+ 	Type: map[string]*Type{
+-		"*http.Request":  &Type{},
+-		"*http.Response": &Type{},
++		"*http.Request":  {},
++		"*http.Response": {},
+ 	},
+ }
+diff --git a/src/cmd/gofix/reflect.go b/src/cmd/gofix/reflect.go
+index 6670ef2774..4665d1527c 100644
+--- a/src/cmd/gofix/reflect.go
++++ b/src/cmd/gofix/reflect.go
+@@ -617,75 +617,75 @@ func reflectFixAssert(n interface{}) bool {
+ // which implements Type.)
+ var reflectTypeConfig = &TypeConfig{
+ 	Type: map[string]*Type{
+-		"reflect.ArrayOrSliceType":  &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.ArrayOrSliceValue": &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.ArrayType":         &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.ArrayValue":        &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.BoolType":          &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.BoolValue":         &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.ChanType":          &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.ChanValue": &Type{
++		"reflect.ArrayOrSliceType":  {Embed: []string{"reflect.Type"}},
++		"reflect.ArrayOrSliceValue": {Embed: []string{"reflect.Value"}},
++		"reflect.ArrayType":         {Embed: []string{"reflect.Type"}},
++		"reflect.ArrayValue":        {Embed: []string{"reflect.Value"}},
++		"reflect.BoolType":          {Embed: []string{"reflect.Type"}},
++		"reflect.BoolValue":         {Embed: []string{"reflect.Value"}},
++		"reflect.ChanType":          {Embed: []string{"reflect.Type"}},
++		"reflect.ChanValue": {
+ 			Method: map[string]string{
+ 				"Recv":    "func() (reflect.Value, bool)",
+ 				"TryRecv": "func() (reflect.Value, bool)",
+ 			},
+ 			Embed: []string{"reflect.Value"},
+ 		},
+-		"reflect.ComplexType":  &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.ComplexValue": &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.FloatType":    &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.FloatValue":   &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.FuncType": &Type{
++		"reflect.ComplexType":  {Embed: []string{"reflect.Type"}},
++		"reflect.ComplexValue": {Embed: []string{"reflect.Value"}},
++		"reflect.FloatType":    {Embed: []string{"reflect.Type"}},
++		"reflect.FloatValue":   {Embed: []string{"reflect.Value"}},
++		"reflect.FuncType": {
+ 			Method: map[string]string{
+ 				"In":  "func(int) reflect.Type",
+ 				"Out": "func(int) reflect.Type",
+ 			},
+ 			Embed: []string{"reflect.Type"},
+ 		},
+-		"reflect.FuncValue": &Type{
++		"reflect.FuncValue": {
+ 			Method: map[string]string{
+ 				"Call": "func([]reflect.Value) []reflect.Value",
+ 			},
+ 		},
+-		"reflect.IntType":        &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.IntValue":       &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.InterfaceType":  &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.InterfaceValue": &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.MapType": &Type{
++		"reflect.IntType":        {Embed: []string{"reflect.Type"}},
++		"reflect.IntValue":       {Embed: []string{"reflect.Value"}},
++		"reflect.InterfaceType":  {Embed: []string{"reflect.Type"}},
++		"reflect.InterfaceValue": {Embed: []string{"reflect.Value"}},
++		"reflect.MapType": {
+ 			Method: map[string]string{
+ 				"Key": "func() reflect.Type",
+ 			},
+ 			Embed: []string{"reflect.Type"},
+ 		},
+-		"reflect.MapValue": &Type{
++		"reflect.MapValue": {
+ 			Method: map[string]string{
+ 				"Keys": "func() []reflect.Value",
+ 			},
+ 			Embed: []string{"reflect.Value"},
+ 		},
+-		"reflect.Method": &Type{
++		"reflect.Method": {
+ 			Field: map[string]string{
+ 				"Type": "*reflect.FuncType",
+ 				"Func": "*reflect.FuncValue",
+ 			},
+ 		},
+-		"reflect.PtrType":   &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.PtrValue":  &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.SliceType": &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.SliceValue": &Type{
++		"reflect.PtrType":   {Embed: []string{"reflect.Type"}},
++		"reflect.PtrValue":  {Embed: []string{"reflect.Value"}},
++		"reflect.SliceType": {Embed: []string{"reflect.Type"}},
++		"reflect.SliceValue": {
+ 			Method: map[string]string{
+ 				"Slice": "func(int, int) *reflect.SliceValue",
+ 			},
+ 			Embed: []string{"reflect.Value"},
+ 		},
+-		"reflect.StringType":  &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.StringValue": &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.StructField": &Type{
++		"reflect.StringType":  {Embed: []string{"reflect.Type"}},
++		"reflect.StringValue": {Embed: []string{"reflect.Value"}},
++		"reflect.StructField": {
+ 			Field: map[string]string{
+ 				"Type": "reflect.Type",
+ 			},
+ 		},
+-		"reflect.StructType": &Type{
++		"reflect.StructType": {
+ 			Method: map[string]string{
+ 				"Field":           "func() reflect.StructField",
+ 				"FieldByIndex":    "func() reflect.StructField",
+@@ -694,7 +694,7 @@ var reflectTypeConfig = &TypeConfig{
+ 			},
+ 			Embed: []string{"reflect.Type"},
+ 		},
+-		"reflect.StructValue": &Type{
++		"reflect.StructValue": {
+ 			Method: map[string]string{
+ 				"Field":           "func() reflect.Value",
+ 				"FieldByIndex":    "func() reflect.Value",
+@@ -703,17 +703,17 @@ var reflectTypeConfig = &TypeConfig{
+ 			},
+ 			Embed: []string{"reflect.Value"},
+ 		},
+-		"reflect.Type": &Type{
++		"reflect.Type": {
+ 			Method: map[string]string{
+ 				"Elem":   "func() reflect.Type",
+ 				"Method": "func() reflect.Method",
+ 			},
+ 		},
+-		"reflect.UintType":           &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.UintValue":          &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.UnsafePointerType":  &Type{Embed: []string{"reflect.Type"}},
+-		"reflect.UnsafePointerValue": &Type{Embed: []string{"reflect.Value"}},
+-		"reflect.Value": &Type{
++		"reflect.UintType":           {Embed: []string{"reflect.Type"}},
++		"reflect.UintValue":          {Embed: []string{"reflect.Value"}},
++		"reflect.UnsafePointerType":  {Embed: []string{"reflect.Type"}},
++		"reflect.UnsafePointerValue": {Embed: []string{"reflect.Value"}},
++		"reflect.Value": {
+ 			Method: map[string]string{
+ 				"Addr":     "func() *reflect.PtrValue",
+ 				"Elem":     "func() reflect.Value",
+diff --git a/src/cmd/gofix/template.go b/src/cmd/gofix/template.go
+index 89100bc142..a3dd1440bc 100644
+--- a/src/cmd/gofix/template.go
++++ b/src/cmd/gofix/template.go
+@@ -40,7 +40,7 @@ var templateSetMethods = []string{
+ 
+ var templateTypeConfig = &TypeConfig{
+ 	Type: map[string]*Type{
+-		"template.Template": &Type{
++		"template.Template": {
+ 			Method: map[string]string{
+ 				"Funcs":      "func() *template.Template",
+ 				"Delims":     "func() *template.Template",
+@@ -49,7 +49,7 @@ var templateTypeConfig = &TypeConfig{
+ 				"ParseInSet": "func() (*template.Template, error)",
+ 			},
+ 		},
+-		"template.Set": &Type{
++		"template.Set": {
+ 			Method: map[string]string{
+ 				"ParseSetFiles":      "func() (*template.Set, error)",
+ 				"ParseSetGlob":       "func() (*template.Set, error)",
+diff --git a/src/cmd/gofix/timefileinfo.go b/src/cmd/gofix/timefileinfo.go
+index cff8309cc1..b2ea23d8f9 100644
+--- a/src/cmd/gofix/timefileinfo.go
++++ b/src/cmd/gofix/timefileinfo.go
+@@ -30,13 +30,13 @@ http://codereview.appspot.com/5416060
+ 
+ var timefileinfoTypeConfig = &TypeConfig{
+ 	Type: map[string]*Type{
+-		"os.File": &Type{
++		"os.File": {
+ 			Method: map[string]string{
+ 				"Readdir": "func() []*os.FileInfo",
+ 				"Stat":    "func() (*os.FileInfo, error)",
+ 			},
+ 		},
+-		"time.Time": &Type{
++		"time.Time": {
+ 			Method: map[string]string{
+ 				"Seconds":     "time.raw",
+ 				"Nanoseconds": "time.raw",
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 13f7f2b251..7c5382a3c4 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -63,7 +63,7 @@ func (v *vcs) String() string {
+ }
+ 
+ var vcsMap = map[string]*vcs{
+-	"hg": &vcs{
++	"hg": {
+ 		name:      "Mercurial",
+ 		cmd:       "hg",
+ 		metadir:   ".hg",
+@@ -78,7 +78,7 @@ var vcsMap = map[string]*vcs{
+ 		suffix:    ".hg",
+ 	},
+ 
+-	"git": &vcs{
++	"git": {
+ 		name:      "Git",
+ 		cmd:       "git",
+ 		metadir:   ".git",
+@@ -93,7 +93,7 @@ var vcsMap = map[string]*vcs{
+ 		suffix:    ".git",
+ 	},
+ 
+-	"svn": &vcs{
++	"svn": {
+ 		name:      "Subversion",
+ 		cmd:       "svn",
+ 		metadir:   ".svn",
+@@ -105,7 +105,7 @@ var vcsMap = map[string]*vcs{
+ 		suffix:    ".svn",
+ 	},
+ 
+-	"bzr": &vcs{
++	"bzr": {
+ 		name:          "Bazaar",
+ 		cmd:           "bzr",
+ 		metadir:       ".bzr",
+diff --git a/src/cmd/gotest/flag.go b/src/cmd/gotest/flag.go
+index 0df9e24f13..0e7c619df4 100644
+--- a/src/cmd/gotest/flag.go
++++ b/src/cmd/gotest/flag.go
+@@ -53,22 +53,22 @@ type flagSpec struct {
+ // flagDefn is the set of flags we process.
+ var flagDefn = []*flagSpec{
+ 	// gotest-local.
+-	&flagSpec{name: "c", isBool: true},
+-	&flagSpec{name: "file", multiOK: true},
+-	&flagSpec{name: "x", isBool: true},
++	{name: "c", isBool: true},
++	{name: "file", multiOK: true},
++	{name: "x", isBool: true},
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+-	&flagSpec{name: "bench", passToTest: true},
+-	&flagSpec{name: "benchtime", passToTest: true},
+-	&flagSpec{name: "cpu", passToTest: true},
+-	&flagSpec{name: "cpuprofile", passToTest: true},
+-	&flagSpec{name: "memprofile", passToTest: true},
+-	&flagSpec{name: "memprofilerate", passToTest: true},
+-	&flagSpec{name: "parallel", passToTest: true},
+-	&flagSpec{name: "run", passToTest: true},
+-	&flagSpec{name: "short", isBool: true, passToTest: true},
+-	&flagSpec{name: "timeout", passToTest: true},
+-	&flagSpec{name: "v", isBool: true, passToTest: true},
++	{name: "bench", passToTest: true},
++	{name: "benchtime", passToTest: true},
++	{name: "cpu", passToTest: true},
++	{name: "cpuprofile", passToTest: true},
++	{name: "memprofile", passToTest: true},
++	{name: "memprofilerate", passToTest: true},
++	{name: "parallel", passToTest: true},
++	{name: "run", passToTest: true},
++	{name: "short", isBool: true, passToTest: true},
++	{name: "timeout", passToTest: true},
++	{name: "v", isBool: true, passToTest: true},
+ }
+ 
+ // flags processes the command line, grabbing -x and -c, rewriting known flags
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 5ca4212ae7..5829d03faa 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -24,7 +24,7 @@ type untarTest struct {
+ var gnuTarTest = &untarTest{
+ 	file: "testdata/gnu.tar",
+ 	headers: []*Header{
+-		&Header{
++		{
+ 			Name:     "small.txt",
+ 			Mode:     0640,
+ 			Uid:      73025,
+@@ -35,7 +35,7 @@ var gnuTarTest = &untarTest{
+ 			Uname:    "dsymonds",
+ 			Gname:    "eng",
+ 		},
+-		&Header{
++		{
+ 			Name:     "small2.txt",
+ 			Mode:     0640,
+ 			Uid:      73025,
+@@ -55,10 +55,10 @@ var gnuTarTest = &untarTest{
+ 
+ var untarTests = []*untarTest{
+ 	gnuTarTest,
+-	&untarTest{
++	{
+ 		file: "testdata/star.tar",
+ 		headers: []*Header{
+-			&Header{
++			{
+ 				Name:       "small.txt",
+ 				Mode:       0640,
+ 				Uid:        73025,
+@@ -71,7 +71,7 @@ var untarTests = []*untarTest{
+ 				AccessTime: time.Unix(1244592783, 0),
+ 				ChangeTime: time.Unix(1244592783, 0),
+ 			},
+-			&Header{
++			{
+ 				Name:       "small2.txt",
+ 				Mode:       0640,
+ 				Uid:        73025,
+@@ -86,10 +86,10 @@ var untarTests = []*untarTest{
+ 			},
+ 		},
+ 	},
+-	&untarTest{
++	{
+ 		file: "testdata/v7.tar",
+ 		headers: []*Header{
+-			&Header{
++			{
+ 				Name:     "small.txt",
+ 				Mode:     0444,
+ 				Uid:      73025,
+@@ -98,7 +98,7 @@ var untarTests = []*untarTest{
+ 				ModTime:  time.Unix(1244593104, 0),
+ 				Typeflag: '\x00',
+ 			},
+-			&Header{
++			{
+ 				Name:     "small2.txt",
+ 				Mode:     0444,
+ 				Uid:      73025,
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 8d7ed32d32..0b413722dd 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -29,10 +29,10 @@ var writerTests = []*writerTest{
+ 	// tar (GNU tar) 1.26
+ 	//   ln -s small.txt link.txt
+ 	//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
+-	&writerTest{
++	{
+ 		file: "testdata/writer.tar",
+ 		entries: []*writerTestEntry{
+-			&writerTestEntry{
++			{
+ 				header: &Header{
+ 					Name:     "small.txt",
+ 					Mode:     0640,
+@@ -46,7 +46,7 @@ var writerTests = []*writerTest{
+ 				},
+ 				contents: "Kilts",
+ 			},
+-			&writerTestEntry{
++			{
+ 				header: &Header{
+ 					Name:     "small2.txt",
+ 					Mode:     0640,
+@@ -60,7 +60,7 @@ var writerTests = []*writerTest{
+ 				},
+ 				contents: "Google.com\n",
+ 			},
+-			&writerTestEntry{
++			{
+ 				header: &Header{
+ 					Name:     "link.txt",
+ 					Mode:     0777,
+@@ -80,10 +80,10 @@ var writerTests = []*writerTest{
+ 	// The truncated test file was produced using these commands:
+ 	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
+ 	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
+-	&writerTest{
++	{
+ 		file: "testdata/writer-big.tar",
+ 		entries: []*writerTestEntry{
+-			&writerTestEntry{
++			{
+ 				header: &Header{
+ 					Name:     "tmp/16gig.txt",
+ 					Mode:     0640,
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index db2d71d735..b4876b0f8b 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -30,44 +30,44 @@ type reverseBitsTest struct {
+ }
+ 
+ var deflateTests = []*deflateTest{
+-	&deflateTest{[]byte{}, 0, []byte{1, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11}, -1, []byte{18, 4, 4, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11}, DefaultCompression, []byte{18, 4, 4, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11}, 4, []byte{18, 4, 4, 0, 0, 255, 255}},
+-
+-	&deflateTest{[]byte{0x11}, 0, []byte{0, 1, 0, 254, 255, 17, 1, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11, 0x12}, 0, []byte{0, 2, 0, 253, 255, 17, 18, 1, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 0,
++	{[]byte{}, 0, []byte{1, 0, 0, 255, 255}},
++	{[]byte{0x11}, -1, []byte{18, 4, 4, 0, 0, 255, 255}},
++	{[]byte{0x11}, DefaultCompression, []byte{18, 4, 4, 0, 0, 255, 255}},
++	{[]byte{0x11}, 4, []byte{18, 4, 4, 0, 0, 255, 255}},
++
++	{[]byte{0x11}, 0, []byte{0, 1, 0, 254, 255, 17, 1, 0, 0, 255, 255}},
++	{[]byte{0x11, 0x12}, 0, []byte{0, 2, 0, 253, 255, 17, 18, 1, 0, 0, 255, 255}},
++	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 0,
+ 		[]byte{0, 8, 0, 247, 255, 17, 17, 17, 17, 17, 17, 17, 17, 1, 0, 0, 255, 255},
+ 	},
+-	&deflateTest{[]byte{}, 1, []byte{1, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11}, 1, []byte{18, 4, 4, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11, 0x12}, 1, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 1, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{}, 9, []byte{1, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11}, 9, []byte{18, 4, 4, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11, 0x12}, 9, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
+-	&deflateTest{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 9, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
++	{[]byte{}, 1, []byte{1, 0, 0, 255, 255}},
++	{[]byte{0x11}, 1, []byte{18, 4, 4, 0, 0, 255, 255}},
++	{[]byte{0x11, 0x12}, 1, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
++	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 1, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
++	{[]byte{}, 9, []byte{1, 0, 0, 255, 255}},
++	{[]byte{0x11}, 9, []byte{18, 4, 4, 0, 0, 255, 255}},
++	{[]byte{0x11, 0x12}, 9, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
++	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 9, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
+ }
+ 
+ var deflateInflateTests = []*deflateInflateTest{
+-	&deflateInflateTest{[]byte{}},
+-	&deflateInflateTest{[]byte{0x11}},
+-	&deflateInflateTest{[]byte{0x11, 0x12}},
+-	&deflateInflateTest{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
+-	&deflateInflateTest{[]byte{0x11, 0x10, 0x13, 0x41, 0x21, 0x21, 0x41, 0x13, 0x87, 0x78, 0x13}},
+-	&deflateInflateTest{largeDataChunk()},
++	{[]byte{}},
++	{[]byte{0x11}},
++	{[]byte{0x11, 0x12}},
++	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
++	{[]byte{0x11, 0x10, 0x13, 0x41, 0x21, 0x21, 0x41, 0x13, 0x87, 0x78, 0x13}},
++	{largeDataChunk()},
+ }
+ 
+ var reverseBitsTests = []*reverseBitsTest{
+-	&reverseBitsTest{1, 1, 1},
+-	&reverseBitsTest{1, 2, 2},
+-	&reverseBitsTest{1, 3, 4},
+-	&reverseBitsTest{1, 4, 8},
+-	&reverseBitsTest{1, 5, 16},
+-	&reverseBitsTest{17, 5, 17},
+-	&reverseBitsTest{257, 9, 257},
+-	&reverseBitsTest{29, 5, 23},
++	{1, 1, 1},
++	{1, 2, 2},
++	{1, 3, 4},
++	{1, 4, 8},
++	{1, 5, 16},
++	{17, 5, 17},
++	{257, 9, 257},
++	{29, 5, 23},
+ }
+ 
+ func largeDataChunk() []byte {
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index bfd3b8381d..94efc90acf 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -52,7 +52,7 @@ type InitDecoderTest struct {
+ 
+ var initDecoderTests = []*InitDecoderTest{
+ 	// Example from Connell 1973,
+-	&InitDecoderTest{
++	{
+ 		[]int{3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5},
+ 		huffmanDecoder{
+ 			2, 5,
+@@ -68,7 +68,7 @@ var initDecoderTests = []*InitDecoderTest{
+ 	},
+ 
+ 	// Example from RFC 1951 section 3.2.2
+-	&InitDecoderTest{
++	{
+ 		[]int{2, 1, 3, 3},
+ 		huffmanDecoder{
+ 			1, 3,
+@@ -80,7 +80,7 @@ var initDecoderTests = []*InitDecoderTest{
+ 	},
+ 
+ 	// Second example from RFC 1951 section 3.2.2
+-	&InitDecoderTest{
++	{
+ 		[]int{3, 3, 3, 3, 3, 2, 4, 4},
+ 		huffmanDecoder{
+ 			2, 4,
+@@ -92,21 +92,21 @@ var initDecoderTests = []*InitDecoderTest{
+ 	},
+ 
+ 	// Static Huffman codes (RFC 1951 section 3.2.6)
+-	&InitDecoderTest{
++	{
+ 		fixedHuffmanBits[0:],
+ 		fixedHuffmanDecoder,
+ 		true,
+ 	},
+ 
+ 	// Illegal input.
+-	&InitDecoderTest{
++	{
+ 		[]int{},
+ 		huffmanDecoder{},
+ 		false,
+ 	},
+ 
+ 	// Illegal input.
+-	&InitDecoderTest{
++	{
+ 		[]int{0, 0, 0, 0, 0, 0, 0},
+ 		huffmanDecoder{},
+ 		false,
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index c0e8656f79..afe5129b5c 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -52,12 +52,12 @@ type cipherSuite struct {
+ }
+ 
+ var cipherSuites = []*cipherSuite{
+-	&cipherSuite{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
+-	&cipherSuite{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
+-	&cipherSuite{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1},
+-	&cipherSuite{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
+-	&cipherSuite{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
+-	&cipherSuite{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
++	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
++	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
++	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1},
++	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
++	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
++	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+ }
+ 
+ func cipherRC4(key, iv []byte, isRead bool) interface{} {
+diff --git a/src/pkg/debug/macho/file_test.go b/src/pkg/debug/macho/file_test.go
+index 56d8a20be2..640225b329 100644
+--- a/src/pkg/debug/macho/file_test.go
++++ b/src/pkg/debug/macho/file_test.go
+@@ -21,11 +21,11 @@ var fileTests = []fileTest{
+ 		"testdata/gcc-386-darwin-exec",
+ 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},
+ 		[]*SegmentHeader{
+-			&SegmentHeader{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+-			&SegmentHeader{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
+-			&SegmentHeader{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
+-			&SegmentHeader{LoadCmdSegment, 0x7c, "__IMPORT", 0x3000, 0x1000, 0x2000, 0x1000, 0x7, 0x7, 0x1, 0x0},
+-			&SegmentHeader{LoadCmdSegment, 0x38, "__LINKEDIT", 0x4000, 0x1000, 0x3000, 0x12c, 0x7, 0x1, 0x0, 0x0},
++			{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
++			{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
++			{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
++			{LoadCmdSegment, 0x7c, "__IMPORT", 0x3000, 0x1000, 0x2000, 0x1000, 0x7, 0x7, 0x1, 0x0},
++			{LoadCmdSegment, 0x38, "__LINKEDIT", 0x4000, 0x1000, 0x3000, 0x12c, 0x7, 0x1, 0x0, 0x0},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -35,21 +35,21 @@ var fileTests = []fileTest{
+ 			nil,
+ 		},
+ 		[]*SectionHeader{
+-			&SectionHeader{"__text", "__TEXT", 0x1f68, 0x88, 0xf68, 0x2, 0x0, 0x0, 0x80000400},
+-			&SectionHeader{"__cstring", "__TEXT", 0x1ff0, 0xd, 0xff0, 0x0, 0x0, 0x0, 0x2},
+-			&SectionHeader{"__data", "__DATA", 0x2000, 0x14, 0x1000, 0x2, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__dyld", "__DATA", 0x2014, 0x1c, 0x1014, 0x2, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__jump_table", "__IMPORT", 0x3000, 0xa, 0x2000, 0x6, 0x0, 0x0, 0x4000008},
++			{"__text", "__TEXT", 0x1f68, 0x88, 0xf68, 0x2, 0x0, 0x0, 0x80000400},
++			{"__cstring", "__TEXT", 0x1ff0, 0xd, 0xff0, 0x0, 0x0, 0x0, 0x2},
++			{"__data", "__DATA", 0x2000, 0x14, 0x1000, 0x2, 0x0, 0x0, 0x0},
++			{"__dyld", "__DATA", 0x2014, 0x1c, 0x1014, 0x2, 0x0, 0x0, 0x0},
++			{"__jump_table", "__IMPORT", 0x3000, 0xa, 0x2000, 0x6, 0x0, 0x0, 0x4000008},
+ 		},
+ 	},
+ 	{
+ 		"testdata/gcc-amd64-darwin-exec",
+ 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0xb, 0x568, 0x85},
+ 		[]*SegmentHeader{
+-			&SegmentHeader{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+-			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
+-			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
+-			&SegmentHeader{LoadCmdSegment64, 0x48, "__LINKEDIT", 0x100002000, 0x1000, 0x2000, 0x140, 0x7, 0x1, 0x0, 0x0},
++			{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
++			{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
++			{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
++			{LoadCmdSegment64, 0x48, "__LINKEDIT", 0x100002000, 0x1000, 0x2000, 0x140, 0x7, 0x1, 0x0, 0x0},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -59,14 +59,14 @@ var fileTests = []fileTest{
+ 			nil,
+ 		},
+ 		[]*SectionHeader{
+-			&SectionHeader{"__text", "__TEXT", 0x100000f14, 0x6d, 0xf14, 0x2, 0x0, 0x0, 0x80000400},
+-			&SectionHeader{"__symbol_stub1", "__TEXT", 0x100000f81, 0xc, 0xf81, 0x0, 0x0, 0x0, 0x80000408},
+-			&SectionHeader{"__stub_helper", "__TEXT", 0x100000f90, 0x18, 0xf90, 0x2, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__cstring", "__TEXT", 0x100000fa8, 0xd, 0xfa8, 0x0, 0x0, 0x0, 0x2},
+-			&SectionHeader{"__eh_frame", "__TEXT", 0x100000fb8, 0x48, 0xfb8, 0x3, 0x0, 0x0, 0x6000000b},
+-			&SectionHeader{"__data", "__DATA", 0x100001000, 0x1c, 0x1000, 0x3, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__dyld", "__DATA", 0x100001020, 0x38, 0x1020, 0x3, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__la_symbol_ptr", "__DATA", 0x100001058, 0x10, 0x1058, 0x2, 0x0, 0x0, 0x7},
++			{"__text", "__TEXT", 0x100000f14, 0x6d, 0xf14, 0x2, 0x0, 0x0, 0x80000400},
++			{"__symbol_stub1", "__TEXT", 0x100000f81, 0xc, 0xf81, 0x0, 0x0, 0x0, 0x80000408},
++			{"__stub_helper", "__TEXT", 0x100000f90, 0x18, 0xf90, 0x2, 0x0, 0x0, 0x0},
++			{"__cstring", "__TEXT", 0x100000fa8, 0xd, 0xfa8, 0x0, 0x0, 0x0, 0x2},
++			{"__eh_frame", "__TEXT", 0x100000fb8, 0x48, 0xfb8, 0x3, 0x0, 0x0, 0x6000000b},
++			{"__data", "__DATA", 0x100001000, 0x1c, 0x1000, 0x3, 0x0, 0x0, 0x0},
++			{"__dyld", "__DATA", 0x100001020, 0x38, 0x1020, 0x3, 0x0, 0x0, 0x0},
++			{"__la_symbol_ptr", "__DATA", 0x100001058, 0x10, 0x1058, 0x2, 0x0, 0x0, 0x7},
+ 		},
+ 	},
+ 	{
+@@ -74,26 +74,26 @@ var fileTests = []fileTest{
+ 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0xa, 0x4, 0x5a0, 0},
+ 		[]*SegmentHeader{
+ 			nil,
+-			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
+-			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
+-			&SegmentHeader{LoadCmdSegment64, 0x278, "__DWARF", 0x100002000, 0x1000, 0x1000, 0x1bc, 0x7, 0x3, 0x7, 0x0},
++			{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
++			{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
++			{LoadCmdSegment64, 0x278, "__DWARF", 0x100002000, 0x1000, 0x1000, 0x1bc, 0x7, 0x3, 0x7, 0x0},
+ 		},
+ 		[]*SectionHeader{
+-			&SectionHeader{"__text", "__TEXT", 0x100000f14, 0x0, 0x0, 0x2, 0x0, 0x0, 0x80000400},
+-			&SectionHeader{"__symbol_stub1", "__TEXT", 0x100000f81, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80000408},
+-			&SectionHeader{"__stub_helper", "__TEXT", 0x100000f90, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__cstring", "__TEXT", 0x100000fa8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2},
+-			&SectionHeader{"__eh_frame", "__TEXT", 0x100000fb8, 0x0, 0x0, 0x3, 0x0, 0x0, 0x6000000b},
+-			&SectionHeader{"__data", "__DATA", 0x100001000, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__dyld", "__DATA", 0x100001020, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__la_symbol_ptr", "__DATA", 0x100001058, 0x0, 0x0, 0x2, 0x0, 0x0, 0x7},
+-			&SectionHeader{"__debug_abbrev", "__DWARF", 0x100002000, 0x36, 0x1000, 0x0, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__debug_aranges", "__DWARF", 0x100002036, 0x30, 0x1036, 0x0, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__debug_frame", "__DWARF", 0x100002066, 0x40, 0x1066, 0x0, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__debug_info", "__DWARF", 0x1000020a6, 0x54, 0x10a6, 0x0, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__debug_line", "__DWARF", 0x1000020fa, 0x47, 0x10fa, 0x0, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__debug_pubnames", "__DWARF", 0x100002141, 0x1b, 0x1141, 0x0, 0x0, 0x0, 0x0},
+-			&SectionHeader{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
++			{"__text", "__TEXT", 0x100000f14, 0x0, 0x0, 0x2, 0x0, 0x0, 0x80000400},
++			{"__symbol_stub1", "__TEXT", 0x100000f81, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80000408},
++			{"__stub_helper", "__TEXT", 0x100000f90, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0},
++			{"__cstring", "__TEXT", 0x100000fa8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2},
++			{"__eh_frame", "__TEXT", 0x100000fb8, 0x0, 0x0, 0x3, 0x0, 0x0, 0x6000000b},
++			{"__data", "__DATA", 0x100001000, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0},
++			{"__dyld", "__DATA", 0x100001020, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0},
++			{"__la_symbol_ptr", "__DATA", 0x100001058, 0x0, 0x0, 0x2, 0x0, 0x0, 0x7},
++			{"__debug_abbrev", "__DWARF", 0x100002000, 0x36, 0x1000, 0x0, 0x0, 0x0, 0x0},
++			{"__debug_aranges", "__DWARF", 0x100002036, 0x30, 0x1036, 0x0, 0x0, 0x0, 0x0},
++			{"__debug_frame", "__DWARF", 0x100002066, 0x40, 0x1066, 0x0, 0x0, 0x0, 0x0},
++			{"__debug_info", "__DWARF", 0x1000020a6, 0x54, 0x10a6, 0x0, 0x0, 0x0, 0x0},
++			{"__debug_line", "__DWARF", 0x1000020fa, 0x47, 0x10fa, 0x0, 0x0, 0x0, 0x0},
++			{"__debug_pubnames", "__DWARF", 0x100002141, 0x1b, 0x1141, 0x0, 0x0, 0x0, 0x0},
++			{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
+ 		},
+ 	},
+ }
+diff --git a/src/pkg/debug/pe/file_test.go b/src/pkg/debug/pe/file_test.go
+index 2c5c25b8c4..2815d720bb 100644
+--- a/src/pkg/debug/pe/file_test.go
++++ b/src/pkg/debug/pe/file_test.go
+@@ -20,39 +20,39 @@ var fileTests = []fileTest{
+ 		"testdata/gcc-386-mingw-obj",
+ 		FileHeader{0x014c, 0x000c, 0x0, 0x64a, 0x1e, 0x0, 0x104},
+ 		[]*SectionHeader{
+-			&SectionHeader{".text", 0, 0, 36, 500, 1440, 0, 3, 0, 0x60300020},
+-			&SectionHeader{".data", 0, 0, 0, 0, 0, 0, 0, 0, 3224371264},
+-			&SectionHeader{".bss", 0, 0, 0, 0, 0, 0, 0, 0, 3224371328},
+-			&SectionHeader{".debug_abbrev", 0, 0, 137, 536, 0, 0, 0, 0, 0x42100000},
+-			&SectionHeader{".debug_info", 0, 0, 418, 673, 1470, 0, 7, 0, 1108344832},
+-			&SectionHeader{".debug_line", 0, 0, 128, 1091, 1540, 0, 1, 0, 1108344832},
+-			&SectionHeader{".rdata", 0, 0, 16, 1219, 0, 0, 0, 0, 1076887616},
+-			&SectionHeader{".debug_frame", 0, 0, 52, 1235, 1550, 0, 2, 0, 1110441984},
+-			&SectionHeader{".debug_loc", 0, 0, 56, 1287, 0, 0, 0, 0, 1108344832},
+-			&SectionHeader{".debug_pubnames", 0, 0, 27, 1343, 1570, 0, 1, 0, 1108344832},
+-			&SectionHeader{".debug_pubtypes", 0, 0, 38, 1370, 1580, 0, 1, 0, 1108344832},
+-			&SectionHeader{".debug_aranges", 0, 0, 32, 1408, 1590, 0, 2, 0, 1108344832},
++			{".text", 0, 0, 36, 500, 1440, 0, 3, 0, 0x60300020},
++			{".data", 0, 0, 0, 0, 0, 0, 0, 0, 3224371264},
++			{".bss", 0, 0, 0, 0, 0, 0, 0, 0, 3224371328},
++			{".debug_abbrev", 0, 0, 137, 536, 0, 0, 0, 0, 0x42100000},
++			{".debug_info", 0, 0, 418, 673, 1470, 0, 7, 0, 1108344832},
++			{".debug_line", 0, 0, 128, 1091, 1540, 0, 1, 0, 1108344832},
++			{".rdata", 0, 0, 16, 1219, 0, 0, 0, 0, 1076887616},
++			{".debug_frame", 0, 0, 52, 1235, 1550, 0, 2, 0, 1110441984},
++			{".debug_loc", 0, 0, 56, 1287, 0, 0, 0, 0, 1108344832},
++			{".debug_pubnames", 0, 0, 27, 1343, 1570, 0, 1, 0, 1108344832},
++			{".debug_pubtypes", 0, 0, 38, 1370, 1580, 0, 1, 0, 1108344832},
++			{".debug_aranges", 0, 0, 32, 1408, 1590, 0, 2, 0, 1108344832},
+ 		},
+ 	},
+ 	{
+ 		"testdata/gcc-386-mingw-exec",
+ 		FileHeader{0x014c, 0x000f, 0x4c6a1b60, 0x3c00, 0x282, 0xe0, 0x107},
+ 		[]*SectionHeader{
+-			&SectionHeader{Name: ".text", VirtualSize: 0xcd8, VirtualAddress: 0x1000, Size: 0xe00, Offset: 0x400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x60500060},
+-			&SectionHeader{Name: ".data", VirtualSize: 0x10, VirtualAddress: 0x2000, Size: 0x200, Offset: 0x1200, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
+-			&SectionHeader{Name: ".rdata", VirtualSize: 0x120, VirtualAddress: 0x3000, Size: 0x200, Offset: 0x1400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x40300040},
+-			&SectionHeader{Name: ".bss", VirtualSize: 0xdc, VirtualAddress: 0x4000, Size: 0x0, Offset: 0x0, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0400080},
+-			&SectionHeader{Name: ".idata", VirtualSize: 0x3c8, VirtualAddress: 0x5000, Size: 0x400, Offset: 0x1600, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
+-			&SectionHeader{Name: ".CRT", VirtualSize: 0x18, VirtualAddress: 0x6000, Size: 0x200, Offset: 0x1a00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
+-			&SectionHeader{Name: ".tls", VirtualSize: 0x20, VirtualAddress: 0x7000, Size: 0x200, Offset: 0x1c00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
+-			&SectionHeader{Name: ".debug_aranges", VirtualSize: 0x20, VirtualAddress: 0x8000, Size: 0x200, Offset: 0x1e00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+-			&SectionHeader{Name: ".debug_pubnames", VirtualSize: 0x51, VirtualAddress: 0x9000, Size: 0x200, Offset: 0x2000, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+-			&SectionHeader{Name: ".debug_pubtypes", VirtualSize: 0x91, VirtualAddress: 0xa000, Size: 0x200, Offset: 0x2200, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+-			&SectionHeader{Name: ".debug_info", VirtualSize: 0xe22, VirtualAddress: 0xb000, Size: 0x1000, Offset: 0x2400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+-			&SectionHeader{Name: ".debug_abbrev", VirtualSize: 0x157, VirtualAddress: 0xc000, Size: 0x200, Offset: 0x3400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+-			&SectionHeader{Name: ".debug_line", VirtualSize: 0x144, VirtualAddress: 0xd000, Size: 0x200, Offset: 0x3600, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+-			&SectionHeader{Name: ".debug_frame", VirtualSize: 0x34, VirtualAddress: 0xe000, Size: 0x200, Offset: 0x3800, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42300000},
+-			&SectionHeader{Name: ".debug_loc", VirtualSize: 0x38, VirtualAddress: 0xf000, Size: 0x200, Offset: 0x3a00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".text", VirtualSize: 0xcd8, VirtualAddress: 0x1000, Size: 0xe00, Offset: 0x400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x60500060},
++			{Name: ".data", VirtualSize: 0x10, VirtualAddress: 0x2000, Size: 0x200, Offset: 0x1200, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
++			{Name: ".rdata", VirtualSize: 0x120, VirtualAddress: 0x3000, Size: 0x200, Offset: 0x1400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x40300040},
++			{Name: ".bss", VirtualSize: 0xdc, VirtualAddress: 0x4000, Size: 0x0, Offset: 0x0, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0400080},
++			{Name: ".idata", VirtualSize: 0x3c8, VirtualAddress: 0x5000, Size: 0x400, Offset: 0x1600, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
++			{Name: ".CRT", VirtualSize: 0x18, VirtualAddress: 0x6000, Size: 0x200, Offset: 0x1a00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
++			{Name: ".tls", VirtualSize: 0x20, VirtualAddress: 0x7000, Size: 0x200, Offset: 0x1c00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0xc0300040},
++			{Name: ".debug_aranges", VirtualSize: 0x20, VirtualAddress: 0x8000, Size: 0x200, Offset: 0x1e00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".debug_pubnames", VirtualSize: 0x51, VirtualAddress: 0x9000, Size: 0x200, Offset: 0x2000, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".debug_pubtypes", VirtualSize: 0x91, VirtualAddress: 0xa000, Size: 0x200, Offset: 0x2200, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".debug_info", VirtualSize: 0xe22, VirtualAddress: 0xb000, Size: 0x1000, Offset: 0x2400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".debug_abbrev", VirtualSize: 0x157, VirtualAddress: 0xc000, Size: 0x200, Offset: 0x3400, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".debug_line", VirtualSize: 0x144, VirtualAddress: 0xd000, Size: 0x200, Offset: 0x3600, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
++			{Name: ".debug_frame", VirtualSize: 0x34, VirtualAddress: 0xe000, Size: 0x200, Offset: 0x3800, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42300000},
++			{Name: ".debug_loc", VirtualSize: 0x38, VirtualAddress: 0xf000, Size: 0x200, Offset: 0x3a00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+ 		},
+ 	},
+ }
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index bd4326a0cd..bf3953eb05 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -345,12 +345,12 @@ var allValue = All{
+ 		"18": {Tag: "tag18"},
+ 	},
+ 	MapP: map[string]*Small{
+-		"19": &Small{Tag: "tag19"},
++		"19": {Tag: "tag19"},
+ 		"20": nil,
+ 	},
+ 	EmptyMap:    map[string]Small{},
+ 	Slice:       []Small{{Tag: "tag20"}, {Tag: "tag21"}},
+-	SliceP:      []*Small{&Small{Tag: "tag22"}, nil, &Small{Tag: "tag23"}},
++	SliceP:      []*Small{{Tag: "tag22"}, nil, {Tag: "tag23"}},
+ 	EmptySlice:  []Small{},
+ 	StringSlice: []string{"str24", "str25", "str26"},
+ 	ByteSlice:   []byte{27, 28, 29},
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index a6f7d2d0c2..20bb93b381 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -160,19 +160,19 @@ var marshalTests = []struct {
+ 			Age:   1,
+ 			Drive: ImprobabilityDrive,
+ 			Passenger: []*Passenger{
+-				&Passenger{
++				{
+ 					Name:   []string{"Zaphod", "Beeblebrox"},
+ 					Weight: 7.25,
+ 				},
+-				&Passenger{
++				{
+ 					Name:   []string{"Trisha", "McMillen"},
+ 					Weight: 5.5,
+ 				},
+-				&Passenger{
++				{
+ 					Name:   []string{"Ford", "Prefect"},
+ 					Weight: 7,
+ 				},
+-				&Passenger{
++				{
+ 					Name:   []string{"Arthur", "Dent"},
+ 					Weight: 6.75,
+ 				},
+diff --git a/src/pkg/exp/ssh/cipher.go b/src/pkg/exp/ssh/cipher.go
+index de4926d7b8..d91929aa99 100644
+--- a/src/pkg/exp/ssh/cipher.go
++++ b/src/pkg/exp/ssh/cipher.go
+@@ -77,12 +77,12 @@ var DefaultCipherOrder = []string{
+ var cipherModes = map[string]*cipherMode{
+ 	// Ciphers from RFC4344, which introduced many CTR-based ciphers. Algorithms
+ 	// are defined in the order specified in the RFC.
+-	"aes128-ctr": &cipherMode{16, aes.BlockSize, 0, newAESCTR},
+-	"aes192-ctr": &cipherMode{24, aes.BlockSize, 0, newAESCTR},
+-	"aes256-ctr": &cipherMode{32, aes.BlockSize, 0, newAESCTR},
++	"aes128-ctr": {16, aes.BlockSize, 0, newAESCTR},
++	"aes192-ctr": {24, aes.BlockSize, 0, newAESCTR},
++	"aes256-ctr": {32, aes.BlockSize, 0, newAESCTR},
+ 
+ 	// Ciphers from RFC4345, which introduces security-improved arcfour ciphers.
+ 	// They are defined in the order specified in the RFC.
+-	"arcfour128": &cipherMode{16, 0, 1536, newRC4},
+-	"arcfour256": &cipherMode{32, 0, 1536, newRC4},
++	"arcfour128": {16, 0, 1536, newRC4},
++	"arcfour256": {32, 0, 1536, newRC4},
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 55b8998b7d..f0a8055f4c 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2026,7 +2026,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 	// must have exactly one receiver
+ 	if par.NumFields() != 1 {
+ 		p.errorExpected(par.Opening, "exactly one receiver")
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{par.Opening, par.Closing + 1}}}
++		par.List = []*ast.Field{{Type: &ast.BadExpr{par.Opening, par.Closing + 1}}}
+ 		return par
+ 	}
+ 
+@@ -2035,7 +2035,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 	base := deref(recv.Type)
+ 	if _, isIdent := base.(*ast.Ident); !isIdent {
+ 		p.errorExpected(base.Pos(), "(unqualified) identifier")
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
++		par.List = []*ast.Field{{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
+ 	}
+ 
+ 	return par
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 53f36092fd..b2a48c28a7 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -354,7 +354,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
+ }
+ 
+ func (p *printer) setLineComment(text string) {
+-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, text}}})
++	p.setComment(&ast.CommentGroup{[]*ast.Comment{{token.NoPos, text}}})
+ }
+ 
+ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
+diff --git a/src/pkg/go/printer/testdata/parser.go b/src/pkg/go/printer/testdata/parser.go
+index 2d27af4992..89e341c5f9 100644
+--- a/src/pkg/go/printer/testdata/parser.go
++++ b/src/pkg/go/printer/testdata/parser.go
+@@ -1999,7 +1999,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 	if par.NumFields() != 1 {
+ 		p.errorExpected(pos, "exactly one receiver")
+ 		// TODO determine a better range for BadExpr below
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{pos, pos}}}
++		par.List = []*ast.Field{{Type: &ast.BadExpr{pos, pos}}}
+ 		return par
+ 	}
+ 
+@@ -2008,7 +2008,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 	base := deref(recv.Type)
+ 	if _, isIdent := base.(*ast.Ident); !isIdent {
+ 		p.errorExpected(base.Pos(), "(unqualified) identifier")
+-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
++		par.List = []*ast.Field{{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
+ 	}
+ 
+ 	return par
+diff --git a/src/pkg/html/render_test.go b/src/pkg/html/render_test.go
+index 1b68b258f2..0584f35abd 100644
+--- a/src/pkg/html/render_test.go
++++ b/src/pkg/html/render_test.go
+@@ -14,19 +14,19 @@ func TestRenderer(t *testing.T) {
+ 		Type: ElementNode,
+ 		Data: "html",
+ 		Child: []*Node{
+-			&Node{
++			{
+ 				Type: ElementNode,
+ 				Data: "head",
+ 			},
+-			&Node{
++			{
+ 				Type: ElementNode,
+ 				Data: "body",
+ 				Child: []*Node{
+-					&Node{
++					{
+ 						Type: TextNode,
+ 						Data: "0<1",
+ 					},
+-					&Node{
++					{
+ 						Type: ElementNode,
+ 						Data: "p",
+ 						Attr: []Attribute{
+@@ -40,11 +40,11 @@ func TestRenderer(t *testing.T) {
+ 							},
+ 						},
+ 						Child: []*Node{
+-							&Node{
++							{
+ 								Type: TextNode,
+ 								Data: "2",
+ 							},
+-							&Node{
++							{
+ 								Type: ElementNode,
+ 								Data: "b",
+ 								Attr: []Attribute{
+@@ -54,13 +54,13 @@ func TestRenderer(t *testing.T) {
+ 									},
+ 								},
+ 								Child: []*Node{
+-									&Node{
++									{
+ 										Type: TextNode,
+ 										Data: "3",
+ 									},
+ 								},
+ 							},
+-							&Node{
++							{
+ 								Type: ElementNode,
+ 								Data: "i",
+ 								Attr: []Attribute{
+@@ -70,7 +70,7 @@ func TestRenderer(t *testing.T) {
+ 									},
+ 								},
+ 								Child: []*Node{
+-									&Node{
++									{
+ 										Type: TextNode,
+ 										Data: "&4",
+ 									},
+@@ -78,19 +78,19 @@ func TestRenderer(t *testing.T) {
+ 							},
+ 						},
+ 					},
+-					&Node{
++					{
+ 						Type: TextNode,
+ 						Data: "5",
+ 					},
+-					&Node{
++					{
+ 						Type: ElementNode,
+ 						Data: "blockquote",
+ 					},
+-					&Node{
++					{
+ 						Type: ElementNode,
+ 						Data: "br",
+ 					},
+-					&Node{
++					{
+ 						Type: TextNode,
+ 						Data: "6",
+ 					},
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 9f85193539..cdeed48b82 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -689,11 +689,11 @@ func TestEscapeSet(t *testing.T) {
+ 
+ 	data := dataItem{
+ 		Children: []*dataItem{
+-			&dataItem{X: "foo"},
+-			&dataItem{X: "<bar>"},
+-			&dataItem{
++			{X: "foo"},
++			{X: "<bar>"},
++			{
+ 				Children: []*dataItem{
+-					&dataItem{X: "baz"},
++					{X: "baz"},
+ 				},
+ 			},
+ 		},
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 26bff93f64..712350dfce 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -81,14 +81,14 @@ var addCookieTests = []struct {
+ 		"",
+ 	},
+ 	{
+-		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1"}},
++		[]*Cookie{{Name: "cookie-1", Value: "v$1"}},
+ 		"cookie-1=v$1",
+ 	},
+ 	{
+ 		[]*Cookie{
+-			&Cookie{Name: "cookie-1", Value: "v$1"},
+-			&Cookie{Name: "cookie-2", Value: "v$2"},
+-			&Cookie{Name: "cookie-3", Value: "v$3"},
++			{Name: "cookie-1", Value: "v$1"},
++			{Name: "cookie-2", Value: "v$2"},
++			{Name: "cookie-3", Value: "v$3"},
+ 		},
+ 		"cookie-1=v$1; cookie-2=v$2; cookie-3=v$3",
+ 	},
+@@ -113,11 +113,11 @@ var readSetCookiesTests = []struct {
+ }{
+ 	{
+ 		Header{"Set-Cookie": {"Cookie-1=v$1"}},
+-		[]*Cookie{&Cookie{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"}},
++		[]*Cookie{{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"}},
+ 	},
+ 	{
+ 		Header{"Set-Cookie": {"NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly"}},
+-		[]*Cookie{&Cookie{
++		[]*Cookie{{
+ 			Name:       "NID",
+ 			Value:      "99=YsDT5i3E-CXax-",
+ 			Path:       "/",
+@@ -159,30 +159,30 @@ var readCookiesTests = []struct {
+ 		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
+ 		"",
+ 		[]*Cookie{
+-			&Cookie{Name: "Cookie-1", Value: "v$1"},
+-			&Cookie{Name: "c2", Value: "v2"},
++			{Name: "Cookie-1", Value: "v$1"},
++			{Name: "c2", Value: "v2"},
+ 		},
+ 	},
+ 	{
+ 		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
+ 		"c2",
+ 		[]*Cookie{
+-			&Cookie{Name: "c2", Value: "v2"},
++			{Name: "c2", Value: "v2"},
+ 		},
+ 	},
+ 	{
+ 		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
+ 		"",
+ 		[]*Cookie{
+-			&Cookie{Name: "Cookie-1", Value: "v$1"},
+-			&Cookie{Name: "c2", Value: "v2"},
++			{Name: "Cookie-1", Value: "v$1"},
++			{Name: "c2", Value: "v2"},
+ 		},
+ 	},
+ 	{
+ 		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
+ 		"c2",
+ 		[]*Cookie{
+-			&Cookie{Name: "c2", Value: "v2"},
++			{Name: "c2", Value: "v2"},
+ 		},
+ 	},
+ }
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index 1f71cc480a..e6aa26b2e9 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -119,14 +119,14 @@ func TestAddressParsing(t *testing.T) {
+ 		// Bare address
+ 		{
+ 			`jdoe@machine.example`,
+-			[]*Address{&Address{
++			[]*Address{{
+ 				Address: "jdoe@machine.example",
+ 			}},
+ 		},
+ 		// RFC 5322, Appendix A.1.1
+ 		{
+ 			`John Doe <jdoe@machine.example>`,
+-			[]*Address{&Address{
++			[]*Address{{
+ 				Name:    "John Doe",
+ 				Address: "jdoe@machine.example",
+ 			}},
+@@ -134,7 +134,7 @@ func TestAddressParsing(t *testing.T) {
+ 		// RFC 5322, Appendix A.1.2
+ 		{
+ 			`"Joe Q. Public" <john.q.public@example.com>`,
+-			[]*Address{&Address{
++			[]*Address{{
+ 				Name:    "Joe Q. Public",
+ 				Address: "john.q.public@example.com",
+ 			}},
+@@ -142,14 +142,14 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`Mary Smith <mary@x.test>, jdoe@example.org, Who? <one@y.test>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Name:    "Mary Smith",
+ 					Address: "mary@x.test",
+ 				},
+-				&Address{
++				{
+ 					Address: "jdoe@example.org",
+ 				},
+-				&Address{
++				{
+ 					Name:    "Who?",
+ 					Address: "one@y.test",
+ 				},
+@@ -158,10 +158,10 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`<boss@nil.test>, "Giant; \"Big\" Box" <sysservices@example.net>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Address: "boss@nil.test",
+ 				},
+-				&Address{
++				{
+ 					Name:    `Giant; "Big" Box`,
+ 					Address: "sysservices@example.net",
+ 				},
+@@ -174,7 +174,7 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`=?iso-8859-1?q?J=F6rg_Doe?= <joerg@example.com>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Name:    `Jörg Doe`,
+ 					Address: "joerg@example.com",
+ 				},
+@@ -184,7 +184,7 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`=?utf-8?q?J=C3=B6rg_Doe?= <joerg@example.com>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Name:    `Jörg Doe`,
+ 					Address: "joerg@example.com",
+ 				},
+@@ -194,7 +194,7 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`=?ISO-8859-1?Q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Name:    `André Pirard`,
+ 					Address: "PIRARD@vm1.ulg.ac.be",
+ 				},
+@@ -204,7 +204,7 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`=?ISO-8859-1?B?SvZyZw==?= <joerg@example.com>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Name:    `Jörg`,
+ 					Address: "joerg@example.com",
+ 				},
+@@ -214,7 +214,7 @@ func TestAddressParsing(t *testing.T) {
+ 		{
+ 			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
+ 			[]*Address{
+-				&Address{
++				{
+ 					Name:    `Jörg`,
+ 					Address: "joerg@example.com",
+ 				},
+diff --git a/src/pkg/old/template/template_test.go b/src/pkg/old/template/template_test.go
+index 9462c7ee3c..a6e0c3e1b4 100644
+--- a/src/pkg/old/template/template_test.go
++++ b/src/pkg/old/template/template_test.go
+@@ -105,108 +105,108 @@ var formatters = FormatterMap{
+ 
+ var tests = []*Test{
+ 	// Simple
+-	&Test{"", "", ""},
+-	&Test{"abc", "abc", ""},
+-	&Test{"abc\ndef\n", "abc\ndef\n", ""},
+-	&Test{" {.meta-left}   \n", "{", ""},
+-	&Test{" {.meta-right}   \n", "}", ""},
+-	&Test{" {.space}   \n", " ", ""},
+-	&Test{" {.tab}   \n", "\t", ""},
+-	&Test{"     {#comment}   \n", "", ""},
+-	&Test{"\tSome Text\t\n", "\tSome Text\t\n", ""},
+-	&Test{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
++	{"", "", ""},
++	{"abc", "abc", ""},
++	{"abc\ndef\n", "abc\ndef\n", ""},
++	{" {.meta-left}   \n", "{", ""},
++	{" {.meta-right}   \n", "}", ""},
++	{" {.space}   \n", " ", ""},
++	{" {.tab}   \n", "\t", ""},
++	{"     {#comment}   \n", "", ""},
++	{"\tSome Text\t\n", "\tSome Text\t\n", ""},
++	{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
+ 
+ 	// Variables at top level
+-	&Test{
++	{
+ 		in: "{Header}={Integer}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "Pointers: {*HeaderPtr}={*IntegerPtr}\n",
+ 
+ 		out: "Pointers: Header=77\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "Stars but not pointers: {*Header}={*Integer}\n",
+ 
+ 		out: "Stars but not pointers: Header=77\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "nil pointer: {*NilPtr}={*Integer}\n",
+ 
+ 		out: "nil pointer: <nil>=77\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: `{"Strings" ":"} {""} {"|"} {"\t\u0123 \x23\\"} {"\"}{\\"}`,
+ 
+ 		out: "Strings:  | \t\u0123 \x23\\ \"}{\\",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "{`Raw strings` `:`} {``} {`|`} {`\\t\\u0123 \\x23\\`} {`}{\\`}",
+ 
+ 		out: "Raw strings:  | \\t\\u0123 \\x23\\ }{\\",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "Characters: {'a'} {'\\u0123'} {' '} {'{'} {'|'} {'}'}",
+ 
+ 		out: "Characters: 97 291 32 123 124 125",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "Integers: {1} {-2} {+42} {0777} {0x0a}",
+ 
+ 		out: "Integers: 1 -2 42 511 10",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "Floats: {.5} {-.5} {1.1} {-2.2} {+42.1} {1e10} {1.2e-3} {1.2e3} {-1.2e3}",
+ 
+ 		out: "Floats: 0.5 -0.5 1.1 -2.2 42.1 1e+10 0.0012 1200 -1200",
+ 	},
+ 
+ 	// Method at top level
+-	&Test{
++	{
+ 		in: "ptrmethod={PointerMethod}\n",
+ 
+ 		out: "ptrmethod=ptrmethod!\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "valmethod={ValueMethod}\n",
+ 
+ 		out: "valmethod=valmethod!\n",
+ 	},
+ 
+ 	// Section
+-	&Test{
++	{
+ 		in: "{.section Data }\n" +
+ 			"some text for the section\n" +
+ 			"{.end}\n",
+ 
+ 		out: "some text for the section\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Data }\n" +
+ 			"{Header}={Integer}\n" +
+ 			"{.end}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Pdata }\n" +
+ 			"{Header}={Integer}\n" +
+ 			"{.end}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Pdata }\n" +
+ 			"data present\n" +
+ 			"{.or}\n" +
+@@ -215,7 +215,7 @@ var tests = []*Test{
+ 
+ 		out: "data present\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Empty }\n" +
+ 			"data present\n" +
+ 			"{.or}\n" +
+@@ -224,7 +224,7 @@ var tests = []*Test{
+ 
+ 		out: "data not present\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Null }\n" +
+ 			"data present\n" +
+ 			"{.or}\n" +
+@@ -233,7 +233,7 @@ var tests = []*Test{
+ 
+ 		out: "data not present\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Pdata }\n" +
+ 			"{Header}={Integer}\n" +
+ 			"{.section @ }\n" +
+@@ -245,20 +245,20 @@ var tests = []*Test{
+ 			"Header=77\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "{.section Data}{.end} {Header}\n",
+ 
+ 		out: " Header\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "{.section Integer}{@}{.end}",
+ 
+ 		out: "77",
+ 	},
+ 
+ 	// Repeated
+-	&Test{
++	{
+ 		in: "{.section Pdata }\n" +
+ 			"{.repeated section @ }\n" +
+ 			"{Item}={Value}\n" +
+@@ -268,7 +268,7 @@ var tests = []*Test{
+ 		out: "ItemNumber1=ValueNumber1\n" +
+ 			"ItemNumber2=ValueNumber2\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Pdata }\n" +
+ 			"{.repeated section @ }\n" +
+ 			"{Item}={Value}\n" +
+@@ -280,7 +280,7 @@ var tests = []*Test{
+ 		out: "ItemNumber1=ValueNumber1\n" +
+ 			"ItemNumber2=ValueNumber2\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section @ }\n" +
+ 			"{.repeated section Empty }\n" +
+ 			"{Item}={Value}\n" +
+@@ -291,7 +291,7 @@ var tests = []*Test{
+ 
+ 		out: "this should appear: empty field\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Pdata }\n" +
+ 			"{Item}\n" +
+ 			"{.alternates with}\n" +
+@@ -302,7 +302,7 @@ var tests = []*Test{
+ 			"is\nover\nmultiple\nlines\n" +
+ 			"ItemNumber2\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Pdata }\n" +
+ 			"{Item}\n" +
+ 			"{.alternates with}\n" +
+@@ -313,7 +313,7 @@ var tests = []*Test{
+ 			"is\nover\nmultiple\nlines\n" +
+ 			"ItemNumber2\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Pdata }\n" +
+ 			"{.repeated section @ }\n" +
+ 			"{Item}={Value}\n" +
+@@ -327,7 +327,7 @@ var tests = []*Test{
+ 			"DIVIDER\n" +
+ 			"ItemNumber2=ValueNumber2\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Vec }\n" +
+ 			"{@}\n" +
+ 			"{.end}\n",
+@@ -336,27 +336,27 @@ var tests = []*Test{
+ 			"elt2\n",
+ 	},
+ 	// Same but with a space before {.end}: was a bug.
+-	&Test{
++	{
+ 		in: "{.repeated section Vec }\n" +
+ 			"{@} {.end}\n",
+ 
+ 		out: "elt1 elt2 \n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Integer}{.end}",
+ 
+ 		err: "line 1: .repeated: cannot repeat Integer (type int)",
+ 	},
+ 
+ 	// Nested names
+-	&Test{
++	{
+ 		in: "{.section @ }\n" +
+ 			"{InnerT.Item}={InnerT.Value}\n" +
+ 			"{.end}",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section @ }\n" +
+ 			"{InnerT.Item}={.section InnerT}{.section Value}{@}{.end}{.end}\n" +
+ 			"{.end}",
+@@ -364,14 +364,14 @@ var tests = []*Test{
+ 		out: "ItemNumber1=ValueNumber1\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "{.section Emptystring}emptystring{.end}\n" +
+ 			"{.section Header}header{.end}\n",
+ 
+ 		out: "\nheader\n",
+ 	},
+ 
+-	&Test{
++	{
+ 		in: "{.section True}1{.or}2{.end}\n" +
+ 			"{.section False}3{.or}4{.end}\n",
+ 
+@@ -380,32 +380,32 @@ var tests = []*Test{
+ 
+ 	// Maps
+ 
+-	&Test{
++	{
+ 		in: "{Mp.mapkey}\n",
+ 
+ 		out: "Ahoy!\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{Innermap.Mp.innerkey}\n",
+ 
+ 		out: "55\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Innermap}{.section Mp}{innerkey}{.end}{.end}\n",
+ 
+ 		out: "55\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section JSON}{.repeated section maps}{a}{b}{.end}{.end}\n",
+ 
+ 		out: "1234\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{Stringmap.stringkey1}\n",
+ 
+ 		out: "stringresult\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Stringmap}\n" +
+ 			"{@}\n" +
+ 			"{.end}",
+@@ -413,7 +413,7 @@ var tests = []*Test{
+ 		out: "stringresult\n" +
+ 			"stringresult\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Stringmap}\n" +
+ 			"\t{@}\n" +
+ 			"{.end}",
+@@ -421,12 +421,12 @@ var tests = []*Test{
+ 		out: "\tstringresult\n" +
+ 			"\tstringresult\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{*Ptrmap.stringkey1}\n",
+ 
+ 		out: "pointedToString\n",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Ptrmap}\n" +
+ 			"{*@}\n" +
+ 			"{.end}",
+@@ -437,22 +437,22 @@ var tests = []*Test{
+ 
+ 	// Interface values
+ 
+-	&Test{
++	{
+ 		in: "{Iface}",
+ 
+ 		out: "[1 2 3]",
+ 	},
+-	&Test{
++	{
+ 		in: "{.repeated section Iface}{@}{.alternates with} {.end}",
+ 
+ 		out: "1 2 3",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Iface}{@}{.end}",
+ 
+ 		out: "[1 2 3]",
+ 	},
+-	&Test{
++	{
+ 		in: "{.section Ifaceptr}{Item} {Value}{.end}",
+ 
+ 		out: "Item Value",
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index fab5adc102..67d8858fc3 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -260,19 +260,19 @@ type Node struct {
+ var tree = &Node{
+ 	"testdata",
+ 	[]*Node{
+-		&Node{"a", nil, 0},
+-		&Node{"b", []*Node{}, 0},
+-		&Node{"c", nil, 0},
+-		&Node{
++		{"a", nil, 0},
++		{"b", []*Node{}, 0},
++		{"c", nil, 0},
++		{
+ 			"d",
+ 			[]*Node{
+-				&Node{"x", nil, 0},
+-				&Node{"y", []*Node{}, 0},
+-				&Node{
++				{"x", nil, 0},
++				{"y", []*Node{}, 0},
++				{
+ 					"z",
+ 					[]*Node{
+-						&Node{"u", nil, 0},
+-						&Node{"v", nil, 0},
++						{"u", nil, 0},
++						{"v", nil, 0},
+ 					},
+ 					0,
+ 				},

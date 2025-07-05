@@ -16,6 +16,23 @@ Date:   Thu May 14 16:20:58 2020 +0800
     Change-Id: Icd8f96f1325b00007602d114300b92d4c57de409
     Reviewed-on: https://go-review.googlesource.com/c/go/+/233940
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/log1p.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/math/log1p.go b/src/math/log1p.go
+index c4ec61b225..e34e1ff4f2 100644
+--- a/src/math/log1p.go
++++ b/src/math/log1p.go
+@@ -122,10 +122,7 @@ func log1p(x float64) float64 {
+ 		return Inf(1)
+ 	}
+ 
+-	absx := x
+-	if absx < 0 {
+-		absx = -absx
+-	}
++	absx := Abs(x)
+ 
+ 	var f float64
+ 	var iu uint64

@@ -14,7 +14,7 @@ Date:   Thu Sep 22 12:11:49 2022 +0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go |  7 +------
  src/go/types/lookup.go                    |  7 +------
  test/fixedbugs/issue48471.go              | 20 ++++++++++----------
@@ -22,3 +22,137 @@ Date:   Thu Sep 22 12:11:49 2022 +0800
  test/interface/explicit.go                |  6 +++---
  test/switch6.go                           |  4 ++--
  6 files changed, 18 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 1deea0ba39..3a158f7333 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -371,12 +371,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ // it may have a pointer receiver, or it may have the correct name except wrong case.
+ // check may be nil.
+ func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
+-	var mname string
+-	if check != nil && check.conf.CompilerErrorMessages {
+-		mname = m.Name() + " method"
+-	} else {
+-		mname = "method " + m.Name()
+-	}
++	mname := "method " + m.Name()
+ 
+ 	if alt != nil {
+ 		if m.Name() != alt.Name() {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 935655853c..cb75c87820 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -371,12 +371,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ // it may have a pointer receiver, or it may have the correct name except wrong case.
+ // check may be nil.
+ func (check *Checker) missingMethodReason(V, T Type, m, alt *Func) string {
+-	var mname string
+-	if check != nil && compilerErrorMessages {
+-		mname = m.Name() + " method"
+-	} else {
+-		mname = "method " + m.Name()
+-	}
++	mname := "method " + m.Name()
+ 
+ 	if alt != nil {
+ 		if m.Name() != alt.Name() {
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index 1b843c8a16..8b8d64370a 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -33,22 +33,22 @@ func (T6) m(int) string { return "" }
+ func f(I)
+ 
+ func g() {
+-	f(new(T)) // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in argument to f:\n\t\*T does not implement I \(missing M method\)"
++	f(new(T)) // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in argument to f:\n\t\*T does not implement I \(missing method M\)"
+ 
+ 	var i I
+-	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in assignment:\n\t\*T does not implement I \(missing M method\)"
+-	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I:\n\t\*T does not implement I \(missing M method\)"
+-	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in assignment:\n\t\*T does not implement I \(missing method M\)"
++	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I:\n\t\*T does not implement I \(missing method M\)"
++	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+ 
+-	i = new(T3) // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	i = new(T3) // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
+ 
+-	i = T4{}   // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(M method has pointer receiver\)"
++	i = T4{}   // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(method M has pointer receiver\)"
+ 	i = new(I) // ERROR "cannot use new\(I\) \(.*type \*I\) as type I in assignment:\n\t\*I does not implement I \(type \*I is pointer to interface, not interface\)"
+ 
+-	_ = i.(*T2) // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+-	_ = i.(*T3) // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
+-	_ = i.(T5)  // ERROR ""impossible type assertion: i.\(T5\)\n\tT5 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+-	_ = i.(T6)  // ERROR "impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing M method\)\n\t\thave m\(int\) string\n\t\twant M\(int\)"
++	_ = i.(*T2) // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++	_ = i.(*T3) // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	_ = i.(T5)  // ERROR ""impossible type assertion: i.\(T5\)\n\tT5 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
++	_ = i.(T6)  // ERROR "impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing method M\)\n\t\thave m\(int\) string\n\t\twant M\(int\)"
+ 
+ 	var t *T4
+ 	t = i // ERROR "cannot use i \(variable of type I\) as type \*T4 in assignment:\n\tneed type assertion"
+diff --git a/test/fixedbugs/issue49005b.go b/test/fixedbugs/issue49005b.go
+index 9bff4e9d18..61710e01e0 100644
+--- a/test/fixedbugs/issue49005b.go
++++ b/test/fixedbugs/issue49005b.go
+@@ -10,6 +10,6 @@ type T interface{ M() }
+ 
+ func F() T
+ 
+-var _ = F().(*X) // ERROR "impossible type assertion:( F\(\).\(\*X\))?\n\t\*X does not implement T \(missing M method\)"
++var _ = F().(*X) // ERROR "impossible type assertion:( F\(\).\(\*X\))?\n\t\*X does not implement T \(missing method M\)"
+ 
+ type X struct{}
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index e18d6843ec..ccdae7873c 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -43,11 +43,11 @@ func main() {
+ 	// neither of these can work,
+ 	// because i has an extra method
+ 	// that t does not, so i cannot contain a t.
+-	i = t // ERROR "incompatible|missing M method"
++	i = t // ERROR "incompatible|missing method M"
+ 	t = i // ERROR "incompatible|assignment$"
+ 
+ 	i = i2 // ok
+-	i2 = i // ERROR "incompatible|missing N method"
++	i2 = i // ERROR "incompatible|missing method N"
+ 
+ 	i = I(i2)  // ok
+ 	i2 = I2(i) // ERROR "invalid|missing N method|cannot convert"
+@@ -81,7 +81,7 @@ var ii int
+ var jj Int
+ 
+ var m1 M = ii // ERROR "incompatible|missing"
+-var m2 M = jj // ERROR "incompatible|wrong type for M method"
++var m2 M = jj // ERROR "incompatible|wrong type for method M"
+ 
+ var m3 = M(ii) // ERROR "invalid|missing|cannot convert"
+ var m4 = M(jj) // ERROR "invalid|wrong type for M method|cannot convert"
+diff --git a/test/switch6.go b/test/switch6.go
+index b9d9800391..fd66df5a58 100644
+--- a/test/switch6.go
++++ b/test/switch6.go
+@@ -15,7 +15,7 @@ package main
+ // Verify that type switch statements with impossible cases are detected by the compiler.
+ func f0(e error) {
+ 	switch e.(type) {
+-	case int: // ERROR "impossible type switch case: (int\n\t)?e \(.*type error\) cannot have dynamic type int \(missing Error method\)"
++	case int: // ERROR "impossible type switch case: (int\n\t)?e \(.*type error\) cannot have dynamic type int \(missing method Error\)"
+ 	}
+ }
+ 
+@@ -41,6 +41,6 @@ func (*X) Foo() {}
+ func f2() {
+ 	var i I
+ 	switch i.(type) {
+-	case X: // ERROR "impossible type switch case: (X\n\t)?i \(.*type I\) cannot have dynamic type X \(Foo method has pointer receiver\)"
++	case X: // ERROR "impossible type switch case: (X\n\t)?i \(.*type I\) cannot have dynamic type X \(method Foo has pointer receiver\)"
+ 	}
+ }

@@ -9,7 +9,7 @@ Date:   Mon Aug 4 17:17:59 2008 -0700
     DELTA=192  (26 added, 65 deleted, 101 changed)
     OCL=13844
     CL=13848
-
+---
  doc/go_lang.txt                  | 43 ++++++++++++++++++++++++++++++---------
  src/lib/container/vector.go      |  6 +++---
  src/lib/flag.go                  | 22 ++++++++++----------
@@ -36,3 +36,1018 @@ Date:   Mon Aug 4 17:17:59 2008 -0700
  src/syscall/file_amd64_linux.go  | 44 ++++++++++++++--------------------------
  src/syscall/syscall.go           |  8 ++------
  25 files changed, 118 insertions(+), 157 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 8eab2713be..b67a4c0ef1 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+ ----
+-(July 22, 2008)
++(August 4, 2008)
+ 
+ This document is a semi-formal specification/proposal for a new
+ systems programming language.  The document is under active
+@@ -993,13 +993,34 @@ Literals
+ Declarations
+ ----
+ 
+-A declaration associates a name with a language entity such as a type,
+-constant, variable, or function.
++A declaration associates a name with a language entity such as a constant, type,
++variable, or function.
+ 
+-  Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
++  Declaration = [ "export" ] ( ConstDecl | TypeDecl | VarDecl | FunctionDecl ) .
++
++Global declarations optionally may be marked for export with the reserved word
++"export". Local declarations can never be exported.
++All identifiers (and only those identifiers) declared in exported declarations
++are made visible to clients of this package, that is other packages that import
++this package.
++If the declaration defines a type, the type structure is exported as well. In
++particular, if the declaration defines a new "struct" or "interface" type,
++all structure fields and all structure and interface methods are exported also.
++
++  export const pi float = 3.14159265
++  export func Parse(source string);
++
++Note that at the moment the old-style export via ExportDecl is still supported.
++
++TODO: Eventually we need to be able to restrict visibility of fields and methods.
++(gri) The default should be no struct fields and methods are automatically exported.
+ 
+ TODO: specify range of visibility, scope rules.
+ 
++[OLD
++  Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | ExportDecl .
++END]
++
+ 
+ Const declarations
+ ----
+@@ -1018,7 +1039,7 @@ A constant declaration gives a name to the value of a constant expression.
+   )
+ 
+ The constant expression may be omitted, in which case the expression is
+-the last expression used after the "const" keyword. If no such expression
++the last expression used after the reserved word "const". If no such expression
+ exists, the constant expression cannot be omitted.
+ 
+ Together with the 'iota' constant generator this permits light-weight
+@@ -1185,6 +1206,7 @@ the following holds:
+   t.next == nil
+ 
+ 
++[OLD
+ Export declarations
+ ----
+ 
+@@ -1213,6 +1235,7 @@ export directive.
+ TODO: complete this section
+ 
+ TODO: export as a mechanism for public and private struct fields?
++END]
+ 
+ 
+ Expressions
+@@ -1293,7 +1316,7 @@ to call the function.
+ 
+ Other operators behave as in C.
+ 
+-The "iota" keyword is discussed in a later section.
++The reserved word "iota" is discussed in a later section.
+   
+ Examples of primary expressions
+ 
+@@ -1322,7 +1345,7 @@ Examples of general expressions
+ The nil value
+ ----
+ 
+-The keyword
++The reserved word
+   nil
+ represents the ``zero'' value for a pointer type or interface type.
+ 
+@@ -1538,9 +1561,9 @@ elements.
+ The constant generator 'iota'
+ ----
+ 
+-Within a declaration, the keyword 'iota' represents successive
++Within a declaration, the reserved word 'iota' represents successive
+ elements of an integer sequence.
+-It is reset to zero whenever the keyword 'const'
++It is reset to zero whenever the reserved word 'const'
+ introduces a new declaration and increments as each identifier
+ is declared. For instance, 'iota' can be used to construct
+ a set of related constants:
+@@ -1854,7 +1877,7 @@ Switches provide multi-way execution.
+ 
+ There can be at most one default case in a switch statement.
+ 
+-The "fallthrough" keyword indicates that the control should flow from
++The reserved word "fallthrough" indicates that the control should flow from
+ the end of this case clause to the first statement of the next clause.
+ 
+ The expressions do not need to be constants. They will
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index d0d75bd04d..891f3538d3 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -4,7 +4,7 @@
+ 
+ package vector
+ 
+-export Vector, New;
++//export Vector, New;
+ 
+ /*
+ 	import vector "vector"
+@@ -18,7 +18,7 @@ export Vector, New;
+ type Element interface {
+ }
+ 
+-type Vector struct {
++export type Vector struct {
+ 	nalloc int;
+ 	nelem int;
+ 	elem *[]Element;
+@@ -49,7 +49,7 @@ func is_pow10(i int) bool {
+ 	return false;
+ }
+ 
+-func New() *Vector {
++export func New() *Vector {
+ 	v := new(Vector);
+ 	v.nelem = 0;
+ 	v.nalloc = 1;
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index a0a1169ca3..f473aeafdc 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -39,12 +39,12 @@ package flag
+  
+ import fmt "fmt"
+ 
+-export Bool, Int, String
+-export Arg, NArg
+-export Parse
++//export Bool, Int, String
++//export Arg, NArg
++//export Parse
+ //export Flag.BVal BUG: variable exported but not defined: Flag.BVal
+ //export Flag.SVal BUG: variable exported but not defined: Flag.SVal
+-export Flag
++//export Flag
+ 
+ // BUG: ctoi, atoi, atob belong elsewhere
+ func ctoi(c int64) int64 {
+@@ -275,7 +275,7 @@ type Value interface {
+ }
+ 
+ // -- Flag structure (internal)
+-type Flag struct {
++export type Flag struct {
+ 	name	string;
+ 	usage	string;
+ 	value	Value;
+@@ -330,7 +330,7 @@ func New() *Flags {
+ 
+ var flags *Flags = New();
+ 
+-func Arg(i int) string {
++export func Arg(i int) string {
+ 	i += flags.first_arg;
+ 	if i < 0 || i >= sys.argc() {
+ 		return "";
+@@ -338,7 +338,7 @@ func Arg(i int) string {
+ 	return sys.argv(i)
+ }
+ 
+-func NArg() int32 {
++export func NArg() int32 {
+ 	return sys.argc() - flags.first_arg
+ }
+ 
+@@ -358,15 +358,15 @@ func Add(name string, value Value, usage string) *Flag {
+ 	return f;
+ }
+ 
+-func Bool(name string, value bool, p *bool, usage string) *Flag {
++export func Bool(name string, value bool, p *bool, usage string) *Flag {
+ 	return Add(name, NewBoolValue(value, p), usage);
+ }
+ 
+-func Int(name string, value int64, p *int64, usage string) *Flag {
++export func Int(name string, value int64, p *int64, usage string) *Flag {
+ 	return Add(name, NewIntValue(value, p), usage);
+ }
+ 
+-func String(name, value string, p *string, usage string) *Flag {
++export func String(name, value string, p *string, usage string) *Flag {
+ 	return Add(name, NewStringValue(value, p), usage);
+ }
+ 
+@@ -458,7 +458,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 	return true, index + 1
+ }
+ 
+-func Parse() {
++export func Parse() {
+ 	for i := 1; i < sys.argc();  {
+ 		ok, next := flags.ParseOne(i);
+ 		if next > 0 {
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index a123931e5f..f94a027768 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -13,7 +13,7 @@ package fmt
+ 
+ // import sys "sys"
+ 
+-export Fmt, New;
++//export Fmt, New;
+ 
+ const NByte = 64;
+ const NPows10 = 160;
+@@ -31,7 +31,7 @@ func init() {
+ 	}
+ }
+ 
+-type Fmt struct {
++export type Fmt struct {
+ 	buf string;
+ 	wid int;
+ 	wid_present bool;
+@@ -53,7 +53,7 @@ func (f *Fmt) init() {
+ 	f.clearflags();
+ }
+ 
+-func New() *Fmt {
++export func New() *Fmt {
+ 	f := new(Fmt);
+ 	f.init();
+ 	return f;
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+index 45d487b2b1..a4a7e67cae 100644
+--- a/src/lib/math/asin.go
++++ b/src/lib/math/asin.go
+@@ -6,8 +6,6 @@ package math
+ 
+ import	math "math"
+ 
+-export	asin, acos
+-
+ /*
+  * asin(arg) and acos(arg) return the arcsin, arccos,
+  * respectively of their arguments.
+@@ -20,7 +18,7 @@ const
+ 	pio2 = .15707963267948966192313216e1
+ )
+ 
+-func
++export func
+ asin(arg float64)float64
+ {
+ 	var temp, x float64;
+@@ -49,7 +47,7 @@ asin(arg float64)float64
+ 	return temp;
+ }
+ 
+-func
++export func
+ acos(arg float64)float64
+ {
+ 	if(arg > 1 || arg < -1) {
+diff --git a/src/lib/math/atan.go b/src/lib/math/atan.go
+index afe87c4011..aa4c29234a 100644
+--- a/src/lib/math/atan.go
++++ b/src/lib/math/atan.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export	atan
+-
+ /*
+  *	floating-point arctangent
+  *
+@@ -70,7 +68,7 @@ satan(arg float64) float64
+  *	atan makes its argument positive and
+  *	calls the inner routine satan.
+  */
+-func
++export func
+ atan(arg float64) float64
+ {
+ 
+diff --git a/src/lib/math/atan2.go b/src/lib/math/atan2.go
+index e870847a23..64bf21a9e7 100644
+--- a/src/lib/math/atan2.go
++++ b/src/lib/math/atan2.go
+@@ -5,7 +5,6 @@
+ package math
+ 
+ import	math "math"
+-export	atan2
+ 
+ /*
+  *	atan2 discovers what quadrant the angle
+@@ -18,7 +17,7 @@ const
+ 	pi	= .3141592653589793238462643383276e1;
+ )
+ 
+-func
++export func
+ atan2(arg1, arg2 float64) float64
+ {
+ 	var x float64;
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+index 414abb4bc9..243460b2b1 100644
+--- a/src/lib/math/exp.go
++++ b/src/lib/math/exp.go
+@@ -5,7 +5,6 @@
+ package math
+ 
+ import	math "math"
+-export	exp
+ 
+ /*
+  *	exp returns the exponential func of its
+@@ -27,7 +26,7 @@ const
+ 	maxf	= 10000;
+ )
+ 
+-func
++export func
+ exp(arg float64) float64
+ {
+ 	var x, fract, temp1, temp2, xsq float64;
+diff --git a/src/lib/math/fabs.go b/src/lib/math/fabs.go
+index 23ea55b993..c0baa89569 100644
+--- a/src/lib/math/fabs.go
++++ b/src/lib/math/fabs.go
+@@ -4,9 +4,7 @@
+ 
+ package math
+ 
+-export	fabs
+-
+-func
++export func
+ fabs(arg float64) float64
+ {
+ 
+diff --git a/src/lib/math/floor.go b/src/lib/math/floor.go
+index dd7d665f29..1ca0d05ad0 100644
+--- a/src/lib/math/floor.go
++++ b/src/lib/math/floor.go
+@@ -4,14 +4,12 @@
+ 
+ package math
+ 
+-export	floor, ceil
+-
+ /*
+  * floor and ceil-- greatest integer <= arg
+  * (resp least >=)
+  */
+ 
+-func
++export func
+ floor(arg float64) float64
+ {
+ 	var fract, d float64;
+@@ -28,7 +26,7 @@ floor(arg float64) float64
+ 	return d;
+ }
+ 
+-func
++export func
+ ceil(arg float64) float64
+ {
+ 	return -floor(-arg);
+diff --git a/src/lib/math/fmod.go b/src/lib/math/fmod.go
+index b7dd90ee82..11ede447d1 100644
+--- a/src/lib/math/fmod.go
++++ b/src/lib/math/fmod.go
+@@ -4,13 +4,11 @@
+ 
+ package math
+ 
+-export	fmod
+-
+ /*
+  *	floating-point mod func without infinity or NaN checking
+  */
+ 
+-func
++export func
+ fmod(x, y float64) float64
+ {
+ 	var yexp, rexp int;
+diff --git a/src/lib/math/hypot.go b/src/lib/math/hypot.go
+index 2c7e9c5815..3b3c1e510a 100644
+--- a/src/lib/math/hypot.go
++++ b/src/lib/math/hypot.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export	hypot
+-
+ /*
+  *	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+  *	See Cleve Moler and Donald Morrison,
+@@ -14,7 +12,7 @@ export	hypot
+  *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
+  */
+ 
+-func
++export func
+ hypot(p, q float64) float64
+ {
+ 	var r, s, pfac float64;
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+index 927a7acdf0..5cd73bf89e 100644
+--- a/src/lib/math/log.go
++++ b/src/lib/math/log.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export	log, log10
+-
+ /*
+  *	log returns the natural logarithm of its floating
+  *	point argument.
+@@ -29,7 +27,7 @@ const
+ 	q2	=  -.891110902798312337e1;
+ )
+ 
+-func
++export func
+ log(arg float64) float64
+ {
+ 	var x, z, zsq, temp float64;
+@@ -58,7 +56,7 @@ log(arg float64) float64
+ 	return temp;
+ }
+ 
+-func
++export func
+ log10(arg float64) float64
+ {
+ 
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index b294dbb041..ad7de595ed 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -5,13 +5,12 @@
+ package math
+ 
+ import		math "math"
+-export		pow
+ 
+ /*
+ 	arg1 ^ arg2 (exponentiation)
+  */
+ 
+-func
++export func
+ pow(arg1,arg2 float64) float64
+ {
+ 	var temp float64;
+diff --git a/src/lib/math/pow10.go b/src/lib/math/pow10.go
+index 108b6bf00e..6c02655db8 100644
+--- a/src/lib/math/pow10.go
++++ b/src/lib/math/pow10.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export	pow10
+-
+ /*
+  * this table might overflow 127-bit exponent representations.
+  * in that case, truncate it after 1.0e38.
+@@ -18,7 +16,7 @@ export	pow10
+ const	tabsize		= 70;
+ var	tab[tabsize]	float64;
+ 
+-func
++export func
+ pow10(e int) float64 
+ {
+ 	if e < 0 {
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index e1ac553d3e..d482a25573 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export	sin, cos
+-
+ const
+ (
+ 	p0	=  .1357884097877375669092680e8;
+@@ -56,7 +54,7 @@ sinus(arg float64, quad int) float64
+ 	return temp1/temp2;
+ }
+ 
+-func
++export func
+ cos(arg float64) float64
+ {
+ 	if arg < 0 {
+@@ -65,7 +63,7 @@ cos(arg float64) float64
+ 	return sinus(arg, 1);
+ }
+ 
+-func
++export func
+ sin(arg float64) float64
+ {
+ 	return sinus(arg, 0);
+diff --git a/src/lib/math/sinh.go b/src/lib/math/sinh.go
+index 7db190b10b..a3684c46a3 100644
+--- a/src/lib/math/sinh.go
++++ b/src/lib/math/sinh.go
+@@ -5,7 +5,6 @@
+ package math
+ 
+ import	math "math"
+-export	sinh, cosh
+ 
+ /*
+  *	sinh(arg) returns the hyperbolic sine of its floating-
+@@ -32,7 +31,7 @@ const
+ 	q2	= -0.173678953558233699533450911e+3;
+ )
+ 
+-func
++export func
+ sinh(arg float64) float64
+ {
+ 	var temp, argsq float64;
+@@ -63,7 +62,7 @@ sinh(arg float64) float64
+ 	return temp;
+ }
+ 
+-func
++export func
+ cosh(arg float64) float64
+ {
+ 	if arg < 0 {
+diff --git a/src/lib/math/sqrt.go b/src/lib/math/sqrt.go
+index 6576208f68..8fe6ef2f01 100644
+--- a/src/lib/math/sqrt.go
++++ b/src/lib/math/sqrt.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export		sqrt
+-
+ /*
+  *	sqrt returns the square root of its floating
+  *	point argument. Newton's method.
+@@ -13,7 +11,7 @@ export		sqrt
+  *	calls frexp
+  */
+ 
+-func
++export func
+ sqrt(arg float64) float64
+ {
+ 	var x, temp float64;
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+index 6ee6597b6f..5d9d5685a7 100644
+--- a/src/lib/math/tan.go
++++ b/src/lib/math/tan.go
+@@ -4,8 +4,6 @@
+ 
+ package math
+ 
+-export		tan
+-
+ /*
+  *	floating point tangent
+  *	Coefficients are #4285 from Hart & Cheney. (19.74D)
+@@ -24,7 +22,7 @@ const
+         piu4	=  .1273239544735162686151070107e+1;	// 4/pi
+ )
+ 
+-func
++export func
+ tan(arg float64) float64
+ {
+ 	var temp, e, x, xsq float64;
+diff --git a/src/lib/math/tanh.go b/src/lib/math/tanh.go
+index bf5b2dae6c..dc6a0dd4a7 100644
+--- a/src/lib/math/tanh.go
++++ b/src/lib/math/tanh.go
+@@ -5,7 +5,6 @@
+ package math
+ 
+ import		math "math"
+-export		tanh
+ 
+ /*
+  *	tanh(arg) computes the hyperbolic tangent of its floating
+@@ -15,7 +14,7 @@ export		tanh
+  *	would cause overflow improperly.
+  */
+ 
+-func
++export func
+ tanh(arg float64) float64
+ {
+ 	if arg < 0 {
+diff --git a/src/lib/rand.go b/src/lib/rand.go
+index 49be32d5ae..e84470e9f2 100644
+--- a/src/lib/rand.go
++++ b/src/lib/rand.go
+@@ -9,6 +9,7 @@
+  */
+ 
+ package	rand
++/*
+ export
+ 	srand			// set rand state (int32)
+ 	vrand			// int64 63-bits
+@@ -18,6 +19,7 @@ export
+ 	lnrand			// int32 % (int32)
+ 	nrand			// int   % (int)
+ 	frand;			// float64 >=0.0 <1.0
++*/
+ 
+ const
+ (
+@@ -51,7 +53,7 @@ seedrand(x int32) int32
+ 	return x;
+ }
+ 
+-func
++export func
+ srand(seed int32)
+ {
+ 	rng_tap = 0;
+@@ -81,7 +83,7 @@ srand(seed int32)
+ 	}
+ }
+ 
+-func
++export func
+ vrand() int64
+ {
+ 	rng_tap--;
+@@ -99,21 +101,21 @@ vrand() int64
+ 	return x;
+ }
+ 
+-func
++export func
+ lrand() int32
+ {
+ 	x := vrand() & 0x7fffffff;
+ 	return int32(x);
+ }
+ 
+-func
++export func
+ rand() int
+ {
+ 	x := vrand() & 0x7fff;
+ 	return int(x);
+ }
+ 
+-func
++export func
+ vnrand(n int64) int64
+ {
+ 	var v,slop int64;
+@@ -124,21 +126,21 @@ vnrand(n int64) int64
+ 	return v % n;
+ }
+ 
+-func
++export func
+ lnrand(n int32) int32
+ {
+ 	v := vnrand(int64(n));
+ 	return int32(v);
+ }
+ 
+-func
++export func
+ nrand(n int) int
+ {
+ 	v := vnrand(int64(n));
+ 	return int(v);
+ }
+ 
+-func
++export func
+ frand() float64
+ {
+ 	var x float64;
+diff --git a/src/pkg/integer.go b/src/pkg/integer.go
+index 963e52fd18..b9c3fc7149 100755
+--- a/src/pkg/integer.go
++++ b/src/pkg/integer.go
+@@ -7,12 +7,10 @@ package Integer
+ const ValueLen = 1000;
+ type Word uint32
+ type Value *[ValueLen]Word
+-type IntegerImpl struct {
++export type IntegerImpl struct {
+   val Value
+ }
+-type Integer *IntegerImpl
+-
+-export IntegerImpl, Integer
++export type Integer *IntegerImpl
+ 
+ const N = 4;
+ const H = 1
+@@ -458,14 +456,12 @@ func tostring(x Value) string {
+ // ----------------------------------------------------------------------------
+ // Creation
+ 
+-export FromInt
+-func FromInt(v int) Integer {
++export func FromInt(v int) Integer {
+   return new(IntegerImpl).Init(make(v));
+ }
+ 
+ 
+-export FromString
+-func FromString(s string) Integer {
++export func FromString(s string) Integer {
+   return new(IntegerImpl).Init(make_from_string(s));
+ }
+ 
+@@ -613,8 +609,7 @@ func (x Integer) geq (y Integer) bool {
+ // ----------------------------------------------------------------------------
+ // Specials
+ 
+-export Fact
+-func Fact(n int) Integer {
++export func Fact(n int) Integer {
+   return new(IntegerImpl).Init(fact(n));
+ }
+ 
+diff --git a/src/syscall/file_amd64_darwin.go b/src/syscall/file_amd64_darwin.go
+index 97017e5d31..58cf6e93b1 100644
+--- a/src/syscall/file_amd64_darwin.go
++++ b/src/syscall/file_amd64_darwin.go
+@@ -8,10 +8,10 @@ package syscall
+ 
+ import syscall "syscall"
+ 
+-export Stat
+-export stat, fstat, lstat
+-export open, creat, close, read, write, pipe
+-export unlink
++//export Stat
++//export stat, fstat, lstat
++//export open, creat, close, read, write, pipe
++//export unlink
+ 
+ func	StatToInt(s *Stat) int64;
+ 
+@@ -31,7 +31,7 @@ type Timespec struct {
+ 	tv_nsec	int64;
+ }
+ 
+-type Stat struct {
++export type Stat struct {
+ 	st_dev	dev_t;     /* ID of device containing file */
+ 	st_mode	mode_t;    /* protection */
+ 	st_nlink	nlink_t;   /* number of hard links */
+@@ -65,51 +65,37 @@ const (
+ 	O_TRUNC = 0x400;
+ )
+ 
+-export (
+-	O_RDONLY,
+-	O_WRONLY,
+-	O_RDWR,
+-	O_APPEND,
+-	O_ASYNC,
+-	O_CREAT,
+-	O_NOCTTY,
+-	O_NONBLOCK,
+-	O_NDELAY,
+-	O_SYNC,
+-	O_TRUNC
+-)
+-
+-func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
++export func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
+ 	const SYSOPEN = 5;
+ 	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
+ 	return r1, err;
+ }
+ 
+-func creat(name *byte, mode int64) (ret int64, errno int64) {
++export func creat(name *byte, mode int64) (ret int64, errno int64) {
+ 	const SYSOPEN = 5;
+ 	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
+ 	return r1, err;
+ }
+ 
+-func close(fd int64) (ret int64, errno int64) {
++export func close(fd int64) (ret int64, errno int64) {
+ 	const SYSCLOSE = 6;
+ 	r1, r2, err := syscall.Syscall(SYSCLOSE, fd, 0, 0);
+ 	return r1, err;
+ }
+ 
+-func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	const SYSREAD = 3;
+ 	r1, r2, err := syscall.Syscall(SYSREAD, fd, AddrToInt(buf), nbytes);
+ 	return r1, err;
+ }
+ 
+-func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	const SYSWRITE = 4;
+ 	r1, r2, err := syscall.Syscall(SYSWRITE, fd, AddrToInt(buf), nbytes);
+ 	return r1, err;
+ }
+ 
+-func pipe(fds *[2]int64) (ret int64, errno int64) {
++export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	const SYSPIPE = 42;
+ 	r1, r2, err := syscall.Syscall(SYSPIPE, 0, 0, 0);
+ 	if r1 < 0 {
+@@ -120,25 +106,25 @@ func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	return 0, 0;
+ }
+ 
+-func stat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func stat(name *byte, buf *Stat) (ret int64, errno int64) {
+ 	const SYSSTAT = 338;
+ 	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(name), StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+-func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
+ 	const SYSLSTAT = 340;
+ 	r1, r2, err := syscall.Syscall(SYSLSTAT, AddrToInt(name), StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+-func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
++export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
+ 	const SYSFSTAT = 339;
+ 	r1, r2, err := syscall.Syscall(SYSFSTAT, fd, StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+-func unlink(name *byte) (ret int64, errno int64) {
++export func unlink(name *byte) (ret int64, errno int64) {
+ 	const SYSUNLINK = 10;
+ 	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
+ 	return r1, err;
+diff --git a/src/syscall/file_amd64_linux.go b/src/syscall/file_amd64_linux.go
+index dc600b8c3f..d00222a260 100644
+--- a/src/syscall/file_amd64_linux.go
++++ b/src/syscall/file_amd64_linux.go
+@@ -8,10 +8,10 @@ package syscall
+ 
+ import syscall "syscall"
+ 
+-export Stat
+-export stat, fstat, lstat
+-export open, creat, close, read, write, pipe
+-export unlink
++//export Stat
++//export stat, fstat, lstat
++//export open, creat, close, read, write, pipe
++//export unlink
+ 
+ func	StatToInt(s *Stat) int64;
+ func	Addr32ToInt(s *int32) int64;
+@@ -32,7 +32,7 @@ type Timespec struct {
+ 	tv_nsec	int64;
+ }
+ 
+-type Stat struct {
++export type Stat struct {
+ 	st_dev	dev_t;     /* ID of device containing file */
+ 	st_ino	ino_t;     /* inode number */
+ 	st_nlink	nlink_t;   /* number of hard links */
+@@ -66,51 +66,37 @@ const (
+ 	O_TRUNC = 0x200;
+ )
+ 
+-export (
+-	O_RDONLY,
+-	O_WRONLY,
+-	O_RDWR,
+-	O_APPEND,
+-	O_ASYNC,
+-	O_CREAT,
+-	O_NOCTTY,
+-	O_NONBLOCK,
+-	O_NDELAY,
+-	O_SYNC,
+-	O_TRUNC
+-)
+-
+-func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
++export func open(name *byte, mode int64, flags int64) (ret int64, errno int64) {
+ 	const SYSOPEN = 2;
+ 	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, flags);
+ 	return r1, err;
+ }
+ 
+-func creat(name *byte, mode int64) (ret int64, errno int64) {
++export func creat(name *byte, mode int64) (ret int64, errno int64) {
+ 	const SYSOPEN = 2;
+ 	r1, r2, err := syscall.Syscall(SYSOPEN, AddrToInt(name), mode, O_CREAT|O_WRONLY|O_TRUNC);
+ 	return r1, err;
+ }
+ 
+-func close(fd int64) (ret int64, errno int64) {
++export func close(fd int64) (ret int64, errno int64) {
+ 	const SYSCLOSE = 3;
+ 	r1, r2, err := syscall.Syscall(SYSCLOSE, fd, 0, 0);
+ 	return r1, err;
+ }
+ 
+-func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	const SYSREAD = 0;
+ 	r1, r2, err := syscall.Syscall(SYSREAD, fd, AddrToInt(buf), nbytes);
+ 	return r1, err;
+ }
+ 
+-func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
++export func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64) {
+ 	const SYSWRITE = 1;
+ 	r1, r2, err := syscall.Syscall(SYSWRITE, fd, AddrToInt(buf), nbytes);
+ 	return r1, err;
+ }
+ 
+-func pipe(fds *[2]int64) (ret int64, errno int64) {
++export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	const SYSPIPE = 22;
+ 	var t [2] int32;
+ 	r1, r2, err := syscall.Syscall(SYSPIPE, Addr32ToInt(&t[0]), 0, 0);
+@@ -122,25 +108,25 @@ func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 	return 0, 0;
+ }
+ 
+-func stat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func stat(name *byte, buf *Stat) (ret int64, errno int64) {
+ 	const SYSSTAT = 4;
+ 	r1, r2, err := syscall.Syscall(SYSSTAT, AddrToInt(name), StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+-func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
++export func lstat(name *byte, buf *Stat) (ret int64, errno int64) {
+ 	const SYSLSTAT = 6;
+ 	r1, r2, err := syscall.Syscall(SYSLSTAT, AddrToInt(name), StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+-func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
++export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
+ 	const SYSFSTAT = 5;
+ 	r1, r2, err := syscall.Syscall(SYSFSTAT, fd, StatToInt(buf), 0);
+ 	return r1, err;
+ }
+ 
+-func unlink(name *byte) (ret int64, errno int64) {
++export func unlink(name *byte) (ret int64, errno int64) {
+ 	const SYSUNLINK = 87;
+ 	r1, r2, err := syscall.Syscall(SYSUNLINK, AddrToInt(name), 0, 0);
+ 	return r1, err;
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 8475001a77..7f31c11c95 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -8,10 +8,6 @@ package syscall
+  * Foundation of system call interface.
+  */
+ 
+-func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+-func	AddrToInt(b *byte) int64;
+-
+-export Syscall
+-export AddrToInt
+-
++export func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++export func AddrToInt(b *byte) int64;
+ 

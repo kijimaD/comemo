@@ -21,7 +21,7 @@ Date:   Mon Aug 28 05:13:03 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwinl.go |  6 ++--
  src/cmd/internal/dwarf/dwarf.go            | 23 ++++++--------
  src/cmd/internal/obj/dwarf.go              | 49 +++++++++++-----------------
@@ -34,3 +34,510 @@ Date:   Mon Aug 28 05:13:03 2023 -0700
  src/cmd/internal/src/xpos_test.go          |  4 +--
  src/cmd/link/internal/ld/dwarf.go          |  4 ---
  11 files changed, 103 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwinl.go b/src/cmd/compile/internal/dwarfgen/dwinl.go
+index 08544fef6f..92f339d3c6 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwinl.go
++++ b/src/cmd/compile/internal/dwarfgen/dwinl.go
+@@ -273,13 +273,11 @@ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
+ 	// Create new entry for this inline
+ 	inlinedFn := base.Ctxt.InlTree.InlinedFunction(inlIdx)
+ 	callXPos := base.Ctxt.InlTree.CallPos(inlIdx)
+-	callPos := base.Ctxt.PosTable.Pos(callXPos)
+-	callFileSym := base.Ctxt.Lookup(callPos.Base().SymFilename())
++	callPos := base.Ctxt.InnermostPos(callXPos)
+ 	absFnSym := base.Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
+ 	ic := dwarf.InlCall{
+ 		InlIndex:  inlIdx,
+-		CallFile:  callFileSym,
+-		CallLine:  uint32(callPos.RelLine()),
++		CallPos:   callPos,
+ 		AbsFunSym: absFnSym,
+ 		Root:      parCallIdx == -1,
+ 	}
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 86bc9e6823..c48b576fa0 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -9,6 +9,7 @@ package dwarf
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/src"
+ 	"errors"
+ 	"fmt"
+ 	"internal/buildcfg"
+@@ -85,13 +86,12 @@ type Range struct {
+ type FnState struct {
+ 	Name          string
+ 	Info          Sym
+-	Filesym       Sym
+ 	Loc           Sym
+ 	Ranges        Sym
+ 	Absfn         Sym
+ 	StartPC       Sym
++	StartPos      src.Pos
+ 	Size          int64
+-	StartLine     int32
+ 	External      bool
+ 	Scopes        []Scope
+ 	InlCalls      InlCalls
+@@ -166,11 +166,8 @@ type InlCall struct {
+ 	// index into ctx.InlTree describing the call inlined here
+ 	InlIndex int
+ 
+-	// Symbol of file containing inlined call site (really *obj.LSym).
+-	CallFile Sym
+-
+-	// Line number of inlined call site.
+-	CallLine uint32
++	// Position of the inlined call site.
++	CallPos src.Pos
+ 
+ 	// Dwarf abstract subroutine symbol (really *obj.LSym).
+ 	AbsFunSym Sym
+@@ -202,7 +199,6 @@ type Context interface {
+ 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
+ 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
+ 	AddString(s Sym, v string)
+-	AddFileRef(s Sym, f interface{})
+ 	Logf(format string, args ...interface{})
+ }
+ 
+@@ -1246,7 +1242,8 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
+ 	// DW_AT_inlined value
+ 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
+ 
+-	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
++	// TODO(mdempsky): Shouldn't we write out StartPos.FileIndex() too?
++	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
+ 
+ 	var ev int64
+ 	if s.External {
+@@ -1335,9 +1332,9 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
+ 	}
+ 
+ 	// Emit call file, line attrs.
+-	ctxt.AddFileRef(s.Info, ic.CallFile)
++	putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+ic.CallPos.FileIndex()), nil) // 1-based file table
+ 	form := int(expandPseudoForm(DW_FORM_udata_pseudo))
+-	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
++	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallPos.RelLine()), nil)
+ 
+ 	// Variables associated with this inlined routine instance.
+ 	vars := ic.InlVars
+@@ -1438,8 +1435,8 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
+ 	if isWrapper {
+ 		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
+ 	} else {
+-		ctxt.AddFileRef(s.Info, s.Filesym)
+-		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
++		putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+s.StartPos.FileIndex()), nil) // 1-based file index
++		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
+ 
+ 		var ev int64
+ 		if s.External {
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 825f0133f1..f5caa08f0a 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -48,7 +48,7 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 	line := int64(1)
+ 	pc := s.Func().Text.Pc
+ 	var lastpc int64 // last PC written to line table, not last PC in func
+-	name := ""
++	fileIndex := 1
+ 	prologue, wrotePrologue := false, false
+ 	// Walk the progs, generating the DWARF table.
+ 	for p := s.Func().Text; p != nil; p = p.Link {
+@@ -58,15 +58,15 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 			continue
+ 		}
+ 		newStmt := p.Pos.IsStmt() != src.PosNotStmt
+-		newName, newLine := ctxt.getFileSymbolAndLine(p.Pos)
++		newFileIndex, newLine := ctxt.getFileIndexAndLine(p.Pos)
++		newFileIndex++ // 1 indexing for the table
+ 
+ 		// Output debug info.
+ 		wrote := false
+-		if name != newName {
+-			newFile := ctxt.PosTable.FileIndex(newName) + 1 // 1 indexing for the table.
++		if newFileIndex != fileIndex {
+ 			dctxt.AddUint8(lines, dwarf.DW_LNS_set_file)
+-			dwarf.Uleb128put(dctxt, lines, int64(newFile))
+-			name = newName
++			dwarf.Uleb128put(dctxt, lines, int64(newFileIndex))
++			fileIndex = newFileIndex
+ 			wrote = true
+ 		}
+ 		if prologue && !wrotePrologue {
+@@ -258,16 +258,6 @@ func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
+ 	r.Type = objabi.R_DWARFSECREF
+ }
+ 
+-func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
+-	ls := s.(*LSym)
+-	rsym := f.(*LSym)
+-	fidx := c.Link.PosTable.FileIndex(rsym.Name)
+-	// Note the +1 here -- the value we're writing is going to be an
+-	// index into the DWARF line table file section, whose entries
+-	// are numbered starting at 1, not 0.
+-	ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
+-}
+-
+ func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {
+ 	ls := s.(*LSym)
+ 	return ls.Size
+@@ -329,17 +319,13 @@ func (s *LSym) Length(dwarfContext interface{}) int64 {
+ 	return s.Size
+ }
+ 
+-// fileSymbol returns a symbol corresponding to the source file of the
+-// first instruction (prog) of the specified function. This will
+-// presumably be the file in which the function is defined.
+-func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+-	p := fn.Func().Text
+-	if p != nil {
+-		f, _ := ctxt.getFileSymbolAndLine(p.Pos)
+-		fsym := ctxt.Lookup(f)
+-		return fsym
++// textPos returns the source position of the first instruction (prog)
++// of the specified function.
++func textPos(fn *LSym) src.XPos {
++	if p := fn.Func().Text; p != nil {
++		return p.Pos
+ 	}
+-	return nil
++	return src.NoXPos
+ }
+ 
+ // populateDWARF fills in the DWARF Debugging Information Entries for
+@@ -362,17 +348,19 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
+ 	}
+ 	var err error
+ 	dwctxt := dwCtxt{ctxt}
+-	filesym := ctxt.fileSymbol(s)
++	startPos := ctxt.InnermostPos(textPos(s))
++	if !startPos.IsKnown() || startPos.RelLine() != uint(s.Func().StartLine) {
++		panic("bad startPos")
++	}
+ 	fnstate := &dwarf.FnState{
+ 		Name:          s.Name,
+ 		Info:          info,
+-		Filesym:       filesym,
+ 		Loc:           loc,
+ 		Ranges:        ranges,
+ 		Absfn:         absfunc,
+ 		StartPC:       s,
+ 		Size:          s.Size,
+-		StartLine:     s.Func().StartLine,
++		StartPos:      startPos,
+ 		External:      !s.Static(),
+ 		Scopes:        scopes,
+ 		InlCalls:      inlcalls,
+@@ -434,13 +422,12 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
+ 		s.NewFuncInfo()
+ 	}
+ 	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+-	_, startLine := ctxt.getFileSymbolAndLine(curfn.Pos())
+ 	dwctxt := dwCtxt{ctxt}
+ 	fnstate := dwarf.FnState{
+ 		Name:          s.Name,
+ 		Info:          absfn,
+ 		Absfn:         absfn,
+-		StartLine:     startLine,
++		StartPos:      ctxt.InnermostPos(curfn.Pos()),
+ 		External:      !s.Static(),
+ 		Scopes:        scopes,
+ 		UseBASEntries: ctxt.UseBASEntries,
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index 20f03d9853..988640f6a4 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -14,22 +14,14 @@ func (ctxt *Link) AddImport(pkg string, fingerprint goobj.FingerprintType) {
+ 	ctxt.Imports = append(ctxt.Imports, goobj.ImportedPkg{Pkg: pkg, Fingerprint: fingerprint})
+ }
+ 
+-// getFileSymbolAndLine returns the relative file symbol and relative line
+-// number for a position (i.e., as adjusted by a //line directive). This is the
+-// file/line visible in the final binary (pcfile, pcln, etc).
+-func (ctxt *Link) getFileSymbolAndLine(xpos src.XPos) (f string, l int32) {
+-	pos := ctxt.InnermostPos(xpos)
+-	if !pos.IsKnown() {
+-		pos = src.Pos{}
+-	}
+-	return pos.SymFilename(), int32(pos.RelLine())
+-}
+-
+ // getFileIndexAndLine returns the relative file index (local to the CU), and
+ // the relative line number for a position (i.e., as adjusted by a //line
+ // directive). This is the file/line visible in the final binary (pcfile, pcln,
+ // etc).
+ func (ctxt *Link) getFileIndexAndLine(xpos src.XPos) (int, int32) {
+-	f, l := ctxt.getFileSymbolAndLine(xpos)
+-	return ctxt.PosTable.FileIndex(f), l
++	pos := ctxt.InnermostPos(xpos)
++	if !pos.IsKnown() {
++		pos = src.Pos{}
++	}
++	return pos.FileIndex(), int32(pos.RelLine())
+ }
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index d3bb4e2639..de7ef1a22e 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -31,9 +31,15 @@ func TestGetFileSymbolAndLine(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		f, l := ctxt.getFileSymbolAndLine(ctxt.PosTable.XPos(test.pos))
+-		got := fmt.Sprintf("%s:%d", f, l)
+-		if got != src.FileSymPrefix+test.want {
++		fileIndex, line := ctxt.getFileIndexAndLine(ctxt.PosTable.XPos(test.pos))
++
++		file := "??"
++		if fileIndex >= 0 {
++			file = ctxt.PosTable.FileTable()[fileIndex]
++		}
++		got := fmt.Sprintf("%s:%d", file, line)
++
++		if got != test.want {
+ 			t.Errorf("ctxt.getFileSymbolAndLine(%v) = %q, want %q", test.pos, got, test.want)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index cd6e2313ad..9cf6a20bdb 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -198,7 +198,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
+ 	// startLine should be the same line number that would be displayed via
+ 	// pcln, etc for the declaration (i.e., relative line number, as
+ 	// adjusted by //line).
+-	_, startLine := ctxt.getFileSymbolAndLine(start)
++	_, startLine := ctxt.getFileIndexAndLine(start)
+ 
+ 	s.Func().FuncID = objabi.GetFuncID(s.Name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+ 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 63d7d22e33..f27d4ef4fc 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -449,10 +449,6 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 		if call.Func != nil {
+ 			fn(fsym, call.Func)
+ 		}
+-		f, _ := ctxt.getFileSymbolAndLine(call.Pos)
+-		if filesym := ctxt.Lookup(f); filesym != nil {
+-			fn(fsym, filesym)
+-		}
+ 	}
+ 
+ 	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym, fninfo.sehUnwindInfoSym}
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 6f1c7dddbc..4d71c8190a 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -116,9 +116,9 @@ func (p Pos) RelCol() uint {
+ // AbsFilename() returns the absolute filename recorded with the position's base.
+ func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
+ 
+-// SymFilename() returns the absolute filename recorded with the position's base,
+-// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
+-func (p Pos) SymFilename() string { return p.base.SymFilename() }
++// FileIndex returns the file index of the position's base's absolute
++// filename within the PosTable that it was registered.
++func (p Pos) FileIndex() int { return p.base.FileIndex() }
+ 
+ func (p Pos) String() string {
+ 	return p.Format(true, true)
+@@ -193,9 +193,9 @@ type PosBase struct {
+ 	pos         Pos    // position at which the relative position is (line, col)
+ 	filename    string // file name used to open source file, for error messages
+ 	absFilename string // absolute file name, for PC-Line tables
+-	symFilename string // cached symbol file name, to avoid repeated string concatenation
+ 	line, col   uint   // relative line, column number at pos
+ 	inl         int    // inlining index (see cmd/internal/obj/inl.go)
++	fileIndex   int    // index of absFilename within PosTable.FileTable
+ }
+ 
+ // NewFileBase returns a new *PosBase for a file with the given (relative and
+@@ -204,10 +204,10 @@ func NewFileBase(filename, absFilename string) *PosBase {
+ 	base := &PosBase{
+ 		filename:    filename,
+ 		absFilename: absFilename,
+-		symFilename: FileSymPrefix + absFilename,
+ 		line:        1,
+ 		col:         1,
+ 		inl:         -1,
++		fileIndex:   -1,
+ 	}
+ 	base.pos = MakePos(base, 1, 1)
+ 	return base
+@@ -220,24 +220,22 @@ func NewFileBase(filename, absFilename string) *PosBase {
+ //
+ // at position pos.
+ func NewLinePragmaBase(pos Pos, filename, absFilename string, line, col uint) *PosBase {
+-	return &PosBase{pos, filename, absFilename, FileSymPrefix + absFilename, line, col, -1}
++	return &PosBase{pos, filename, absFilename, line, col, -1, -1}
+ }
+ 
+-// NewInliningBase returns a copy of the old PosBase with the given inlining
+-// index. If old == nil, the resulting PosBase has no filename.
+-func NewInliningBase(old *PosBase, inlTreeIndex int) *PosBase {
+-	if old == nil {
+-		base := &PosBase{line: 1, col: 1, inl: inlTreeIndex}
+-		base.pos = MakePos(base, 1, 1)
+-		return base
++// NewInliningBase returns a copy of the orig PosBase with the given inlining
++// index. If orig == nil, NewInliningBase panics.
++func NewInliningBase(orig *PosBase, inlTreeIndex int) *PosBase {
++	if orig == nil {
++		panic("no old PosBase")
+ 	}
+-	copy := *old
+-	base := &copy
++	base := *orig
+ 	base.inl = inlTreeIndex
+-	if old == old.pos.base {
+-		base.pos.base = base
++	base.fileIndex = -1
++	if orig == orig.pos.base {
++		base.pos.base = &base
+ 	}
+-	return base
++	return &base
+ }
+ 
+ var noPos Pos
+@@ -269,16 +267,21 @@ func (b *PosBase) AbsFilename() string {
+ 	return ""
+ }
+ 
++// FileSymPrefix is the linker symbol prefix that used to be used for
++// linker pseudo-symbols representing file names.
+ const FileSymPrefix = "gofile.."
+ 
+-// SymFilename returns the absolute filename recorded with the base,
+-// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
+-// If b is nil, SymFilename returns FileSymPrefix + "??".
+-func (b *PosBase) SymFilename() string {
++// FileIndex returns the index of the base's absolute filename within
++// its PosTable's FileTable. It panics if it hasn't been registered
++// with a PosTable. If b == nil, the result is -1.
++func (b *PosBase) FileIndex() int {
+ 	if b != nil {
+-		return b.symFilename
++		if b.fileIndex < 0 {
++			panic("PosBase has no file index")
++		}
++		return b.fileIndex
+ 	}
+-	return FileSymPrefix + "??"
++	return -1
+ }
+ 
+ // Line returns the line number recorded with the base.
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index 867d0ab069..a74505997d 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -124,25 +124,40 @@ type PosTable struct {
+ // XPos returns the corresponding XPos for the given pos,
+ // adding pos to t if necessary.
+ func (t *PosTable) XPos(pos Pos) XPos {
+-	m := t.indexMap
+-	if m == nil {
+-		// Create new list and map and populate with nil
+-		// base so that NoPos always gets index 0.
++	return XPos{t.baseIndex(pos.base), pos.lico}
++}
++
++func (t *PosTable) baseIndex(base *PosBase) int32 {
++	if base == nil {
++		return 0
++	}
++
++	if i, ok := t.indexMap[base]; ok {
++		return int32(i)
++	}
++
++	if base.fileIndex >= 0 {
++		panic("PosBase already registered with a PosTable")
++	}
++
++	if t.indexMap == nil {
+ 		t.baseList = append(t.baseList, nil)
+-		m = map[*PosBase]int{nil: 0}
+-		t.indexMap = m
++		t.indexMap = make(map[*PosBase]int)
+ 		t.nameMap = make(map[string]int)
+ 	}
+-	i, ok := m[pos.base]
++
++	i := len(t.baseList)
++	t.indexMap[base] = i
++	t.baseList = append(t.baseList, base)
++
++	fileIndex, ok := t.nameMap[base.absFilename]
+ 	if !ok {
+-		i = len(t.baseList)
+-		t.baseList = append(t.baseList, pos.base)
+-		t.indexMap[pos.base] = i
+-		if _, ok := t.nameMap[pos.base.symFilename]; !ok {
+-			t.nameMap[pos.base.symFilename] = len(t.nameMap)
+-		}
++		fileIndex = len(t.nameMap)
++		t.nameMap[base.absFilename] = fileIndex
+ 	}
+-	return XPos{int32(i), pos.lico}
++	base.fileIndex = fileIndex
++
++	return int32(i)
+ }
+ 
+ // Pos returns the corresponding Pos for the given p.
+@@ -155,14 +170,6 @@ func (t *PosTable) Pos(p XPos) Pos {
+ 	return Pos{base, p.lico}
+ }
+ 
+-// FileIndex returns the index of the given filename(symbol) in the PosTable, or -1 if not found.
+-func (t *PosTable) FileIndex(filename string) int {
+-	if v, ok := t.nameMap[filename]; ok {
+-		return v
+-	}
+-	return -1
+-}
+-
+ // FileTable returns a slice of all files used to build this package.
+ func (t *PosTable) FileTable() []string {
+ 	// Create a LUT of the global package level file indices. This table is what
+diff --git a/src/cmd/internal/src/xpos_test.go b/src/cmd/internal/src/xpos_test.go
+index a17ba63d2a..f76de9dbc2 100644
+--- a/src/cmd/internal/src/xpos_test.go
++++ b/src/cmd/internal/src/xpos_test.go
+@@ -62,8 +62,8 @@ func TestConversion(t *testing.T) {
+ 		}
+ 	}
+ 
+-	if len(tab.baseList) != len(tab.indexMap) {
+-		t.Errorf("table length discrepancy: %d != %d", len(tab.baseList), len(tab.indexMap))
++	if len(tab.baseList) != 1+len(tab.indexMap) { // indexMap omits nil
++		t.Errorf("table length discrepancy: %d != 1+%d", len(tab.baseList), len(tab.indexMap))
+ 	}
+ 
+ 	const wantLen = 4
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 23285de2e1..36e11cc0d2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -154,10 +154,6 @@ func (c dwctxt) Logf(format string, args ...interface{}) {
+ 
+ // At the moment these interfaces are only used in the compiler.
+ 
+-func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
+-	panic("should be used only in the compiler")
+-}
+-
+ func (c dwctxt) CurrentOffset(s dwarf.Sym) int64 {
+ 	panic("should be used only in the compiler")
+ }

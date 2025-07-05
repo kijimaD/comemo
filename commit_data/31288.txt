@@ -15,6 +15,21 @@ Date:   Thu Feb 9 17:08:27 2017 -0500
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5ec253667b..1acbbf3b1e 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -397,6 +397,9 @@ func compile(fn *Node) {
+ 	}
+ 	if fn.Func.Pragma&Systemstack != 0 {
+ 		ptxt.From.Sym.Set(obj.AttrCFunc, true)
++		if fn.Func.Pragma&Nosplit != 0 {
++			yyerror("go:nosplit and go:systemstack cannot be combined")
++		}
+ 	}
+ 
+ 	// Clumsy but important.

@@ -10,7 +10,94 @@ Date:   Wed Feb 25 16:11:53 2015 -0500
     Change-Id: Idfa03e8543af927c17bc8ec8aadc5014ec82df28
     Reviewed-on: https://go-review.googlesource.com/6000
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/cgo/cgo.go           |  1 +
  src/runtime/cgo/gcc_darwin_arm.c | 49 ++++++++++++++++++++++++++++++++++++++--
  2 files changed, 48 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index 9a41399cd6..510a817c32 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -12,6 +12,7 @@ package cgo
+ /*
+ 
+ #cgo darwin,!arm LDFLAGS: -lpthread
++#cgo darwin,arm LDFLAGS: -framework CoreFoundation
+ #cgo dragonfly LDFLAGS: -lpthread
+ #cgo freebsd LDFLAGS: -lpthread
+ #cgo android LDFLAGS: -llog
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index d56c55777d..521964c973 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -2,10 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include <string.h> /* for strerror */
++#include <limits.h>
+ #include <pthread.h>
+ #include <signal.h>
+-#include <limits.h>
++#include <string.h> /* for strerror */
++#include <sys/param.h>
++#include <unistd.h>
++
++#include <CoreFoundation/CFBundle.h>
++#include <CoreFoundation/CFString.h>
++
+ #include "libcgo.h"
+ 
+ #define magic (0xe696c4f4U)
+@@ -82,6 +88,43 @@ threadentry(void *v)
+ 	return nil;
+ }
+ 
++// init_working_dir sets the current working directory to the app root.
++// By default darwin/arm processes start in "/".
++static void
++init_working_dir()
++{
++	CFBundleRef bundle = CFBundleGetMainBundle();
++	if (bundle == NULL) {
++		fprintf(stderr, "runtime/cgo: no main bundle\n");
++		return;
++	}
++	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
++	if (url_ref == NULL) {
++		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
++		return;
++	}
++	CFStringRef url_str_ref = CFURLGetString(url_ref);
++	char url[MAXPATHLEN];
++        if (!CFStringGetCString(url_str_ref, url, sizeof(url), kCFStringEncodingUTF8)) {
++		fprintf(stderr, "runtime/cgo: cannot get URL string\n");
++		return;
++	}
++
++	// url is of the form "file:///path/to/Info.plist".
++	// strip it down to the working directory "/path/to".
++	int url_len = strlen(url);
++	if (url_len < sizeof("file://")+sizeof("/Info.plist")) {
++		fprintf(stderr, "runtime/cgo: bad URL: %s\n", url);
++		return;
++	}
++	url[url_len-sizeof("/Info.plist")+1] = 0;
++	char *dir = &url[0] + sizeof("file://")-1;
++
++	if (chdir(dir) != 0) {
++		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
++	}
++}
++
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+@@ -96,4 +139,6 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 
+ 	// yes, tlsbase from mrc might not be correctly aligned.
+ 	inittls(tlsg, (void**)((uintptr)tlsbase & ~3));
++
++	init_working_dir();
+ }

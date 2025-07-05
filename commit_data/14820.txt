@@ -18,9 +18,65 @@ Date:   Mon Jan 7 16:16:11 2013 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7069045
-
+---
  src/pkg/image/jpeg/reader.go                         |  19 ++++++++++++++++---
  src/pkg/image/jpeg/reader_test.go                    |   1 +
  src/pkg/image/testdata/video-005.gray.q50.2x2.jpeg   | Bin 0 -> 2782 bytes
  .../testdata/video-005.gray.q50.2x2.progressive.jpeg | Bin 0 -> 2699 bytes
  4 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 24dd65defc..1ee6bbcd1a 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -147,14 +147,27 @@ func (d *decoder) processSOF(n int) error {
+ 		return UnsupportedError("SOF has wrong number of image components")
+ 	}
+ 	for i := 0; i < d.nComp; i++ {
+-		hv := d.tmp[7+3*i]
+-		d.comp[i].h = int(hv >> 4)
+-		d.comp[i].v = int(hv & 0x0f)
+ 		d.comp[i].c = d.tmp[6+3*i]
+ 		d.comp[i].tq = d.tmp[8+3*i]
+ 		if d.nComp == nGrayComponent {
++			// If a JPEG image has only one component, section A.2 says "this data
++			// is non-interleaved by definition" and section A.2.2 says "[in this
++			// case...] the order of data units within a scan shall be left-to-right
++			// and top-to-bottom... regardless of the values of H_1 and V_1". Section
++			// 4.8.2 also says "[for non-interleaved data], the MCU is defined to be
++			// one data unit". Similarly, section A.1.1 explains that it is the ratio
++			// of H_i to max_j(H_j) that matters, and similarly for V. For grayscale
++			// images, H_1 is the maximum H_j for all components j, so that ratio is
++			// always 1. The component's (h, v) is effectively always (1, 1): even if
++			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
++			// MCUs, not two 16x8 MCUs.
++			d.comp[i].h = 1
++			d.comp[i].v = 1
+ 			continue
+ 		}
++		hv := d.tmp[7+3*i]
++		d.comp[i].h = int(hv >> 4)
++		d.comp[i].v = int(hv & 0x0f)
+ 		// For color images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
+ 		// downsampling ratios. This implies that the (h, v) values for the Y
+ 		// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)
+diff --git a/src/pkg/image/jpeg/reader_test.go b/src/pkg/image/jpeg/reader_test.go
+index f7fbd9a8a5..b520a8ab18 100644
+--- a/src/pkg/image/jpeg/reader_test.go
++++ b/src/pkg/image/jpeg/reader_test.go
+@@ -24,6 +24,7 @@ func TestDecodeProgressive(t *testing.T) {
+ 		"../testdata/video-001.q50.440",
+ 		"../testdata/video-001.q50.444",
+ 		"../testdata/video-005.gray.q50",
++		"../testdata/video-005.gray.q50.2x2",
+ 	}
+ 	for _, tc := range testCases {
+ 		m0, err := decodeFile(tc + ".jpeg")
+diff --git a/src/pkg/image/testdata/video-005.gray.q50.2x2.jpeg b/src/pkg/image/testdata/video-005.gray.q50.2x2.jpeg
+new file mode 100644
+index 0000000000..630b615f73
+Binary files /dev/null and b/src/pkg/image/testdata/video-005.gray.q50.2x2.jpeg differ
+diff --git a/src/pkg/image/testdata/video-005.gray.q50.2x2.progressive.jpeg b/src/pkg/image/testdata/video-005.gray.q50.2x2.progressive.jpeg
+new file mode 100644
+index 0000000000..c6b93608cb
+Binary files /dev/null and b/src/pkg/image/testdata/video-005.gray.q50.2x2.progressive.jpeg differ

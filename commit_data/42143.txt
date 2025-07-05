@@ -15,7 +15,46 @@ Date:   Fri Nov 8 16:11:44 2019 -0500
     Change-Id: I5b662987b138b06cfc9e1f9f6d804cf682bd501a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206198
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  misc/cgo/testplugin/plugin_test.go | 7 +------
  src/cmd/go/internal/work/init.go   | 2 --
  2 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 7e2b6eb04c..bf7abcbd69 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -114,11 +113,7 @@ func run(t *testing.T, bin string, args ...string) string {
+ 
+ func TestDWARFSections(t *testing.T) {
+ 	// test that DWARF sections are emitted for plugins and programs importing "plugin"
+-	if runtime.GOOS != "darwin" {
+-		// On macOS, for some reason, the linker doesn't add debug sections to .so,
+-		// see issue #27502.
+-		goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
+-	}
++	goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
+ 	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
+ }
+ 
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index ba3168a2c8..078c24822f 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -200,8 +200,6 @@ func buildModeInit() {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 			case "darwin/amd64":
+-				// Skip DWARF generation due to #21647
+-				forcedLdflags = append(forcedLdflags, "-w")
+ 			case "freebsd/amd64":
+ 			default:
+ 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)

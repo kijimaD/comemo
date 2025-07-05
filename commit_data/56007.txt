@@ -20,7 +20,51 @@ Date:   Thu Mar 30 09:52:39 2023 -0700
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/crypto/subtle/xor_generic.go |  8 +++++++-
  test/fixedbugs/issue59334.go     | 18 ++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/subtle/xor_generic.go b/src/crypto/subtle/xor_generic.go
+index 482fcf9b4b..7dc89e315b 100644
+--- a/src/crypto/subtle/xor_generic.go
++++ b/src/crypto/subtle/xor_generic.go
+@@ -46,7 +46,13 @@ func aligned(dst, x, y *byte) bool {
+ // words returns a []uintptr pointing at the same data as x,
+ // with any trailing partial word removed.
+ func words(x []byte) []uintptr {
+-	return unsafe.Slice((*uintptr)(unsafe.Pointer(&x[0])), uintptr(len(x))/wordSize)
++	n := uintptr(len(x)) / wordSize
++	if n == 0 {
++		// Avoid creating a *uintptr that refers to data smaller than a uintptr;
++		// see issue 59334.
++		return nil
++	}
++	return unsafe.Slice((*uintptr)(unsafe.Pointer(&x[0])), n)
+ }
+ 
+ func xorLoop[T byte | uintptr](dst, x, y []T) {
+diff --git a/test/fixedbugs/issue59334.go b/test/fixedbugs/issue59334.go
+new file mode 100644
+index 0000000000..06c12cf92f
+--- /dev/null
++++ b/test/fixedbugs/issue59334.go
+@@ -0,0 +1,18 @@
++// run -tags=purego -gcflags=all=-d=checkptr
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "crypto/subtle"
++
++func main() {
++	dst := make([]byte, 5)
++	src := make([]byte, 5)
++	for _, n := range []int{1024, 2048} { // just to make the size non-constant
++		b := make([]byte, n)
++		subtle.XORBytes(dst, src, b[n-5:])
++	}
++}

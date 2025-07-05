@@ -7,7 +7,7 @@ Date:   Thu Jan 15 17:16:41 2009 -0800
     R=r
     OCL=22899
     CL=22899
-
+---
  usr/gri/pretty/ast.go         | 152 ++++++++++----------
  usr/gri/pretty/compilation.go |  34 ++---
  usr/gri/pretty/parser.go      | 326 +++++++++++++++++++++---------------------
@@ -21,3 +21,3034 @@ Date:   Thu Jan 15 17:16:41 2009 -0800
  usr/gri/pretty/typechecker.go |  26 ++--
  usr/gri/pretty/universe.go    | 144 +++++++++----------
  12 files changed, 620 insertions(+), 618 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index a890913123..29d183391e 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -54,23 +54,23 @@ export func KindStr(kind int) string {
+ 
+ 
+ export type Object struct {
+-	id int;  // unique id
++	Id int;  // unique id
+ 
+-	pos int;  // source position (< 0 if unknown position)
+-	kind int;  // object kind
+-	ident string;
+-	typ *Type;  // nil for packages
+-	pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
++	Pos int;  // source position (< 0 if unknown position)
++	Kind int;  // object kind
++	Ident string;
++	Typ *Type;  // nil for packages
++	Pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
+ 	
+ 	// attached values
+-	block *array.Array; end int;  // stats for function literals; end of block pos
++	Block *array.Array; End int;  // stats for function literals; end of block pos
+ }
+ 
+ 
+ func (obj *Object) IsExported() bool {
+-	switch obj.kind {
++	switch obj.Kind {
+ 	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
+-		ch, size := utf8.DecodeRuneInString(obj.ident,  0);
++		ch, size := utf8.DecodeRuneInString(obj.Ident,  0);
+ 		return unicode.IsUpper(ch);
+ 	}
+ 	return false;
+@@ -78,18 +78,18 @@ func (obj *Object) IsExported() bool {
+ 
+ 
+ export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+-var ObjectId int;
++var objectId int;
+ 
+ export func NewObject(pos, kind int, ident string) *Object {
+ 	obj := new(Object);
+-	obj.id = ObjectId;
+-	ObjectId++;
++	obj.Id = objectId;
++	objectId++;
+ 	
+-	obj.pos = pos;
+-	obj.kind = kind;
+-	obj.ident = ident;
+-	obj.typ = Universe_void_typ;
+-	obj.pnolev = 0;
++	obj.Pos = pos;
++	obj.Kind = kind;
++	obj.Ident = ident;
++	obj.Typ = Universe_void_typ;
++	obj.Pnolev = 0;
+ 
+ 	return obj;
+ }
+@@ -133,23 +133,23 @@ func (scope *Scope) Lookup(ident string) *Object {
+ }
+ 
+ 
+-func (scope *Scope) Add(obj* Object) {
+-	scope.entries[obj.ident] = obj;
++func (scope *Scope) add(obj* Object) {
++	scope.entries[obj.Ident] = obj;
+ }
+ 
+ 
+ func (scope *Scope) Insert(obj *Object) {
+-	if scope.LookupLocal(obj.ident) != nil {
++	if scope.LookupLocal(obj.Ident) != nil {
+ 		panic("obj already inserted");
+ 	}
+-	scope.Add(obj);
++	scope.add(obj);
+ }
+ 
+ 
+ func (scope *Scope) InsertImport(obj *Object) *Object {
+-	 p := scope.LookupLocal(obj.ident);
++	 p := scope.LookupLocal(obj.Ident);
+ 	 if p == nil {
+-		scope.Add(obj);
++		scope.add(obj);
+ 		p = obj;
+ 	 }
+ 	 return p;
+@@ -169,8 +169,8 @@ func (scope *Scope) Print() {
+ // All nodes have a source position and and token.
+ 
+ export type Node struct {
+-	pos int;  // source position (< 0 => unknown position)
+-	tok int;  // identifying token
++	Pos int;  // source position (< 0 => unknown position)
++	Tok int;  // identifying token
+ }
+ 
+ 
+@@ -179,8 +179,8 @@ export type Node struct {
+ 
+ export type Expr struct {
+ 	Node;
+-	x, y *Expr;  // binary (x, y) and unary (y) expressions
+-	obj *Object;
++	X, Y *Expr;  // binary (X, Y) and unary (Y) expressions
++	Obj *Object;
+ }
+ 
+ 
+@@ -189,7 +189,7 @@ func (x *Expr) Len() int {
+ 		return 0;
+ 	}
+ 	n := 1;
+-	for ; x.tok == Scanner.COMMA; x = x.y {
++	for ; x.Tok == Scanner.COMMA; x = x.Y {
+ 		n++;
+ 	}
+ 	return n;
+@@ -197,11 +197,11 @@ func (x *Expr) Len() int {
+ 
+ 
+ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
+-	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
++	if x != nil && x.Tok == Scanner.TYPE || y != nil && y.Tok == Scanner.TYPE {
+ 		panic("no type expression allowed");
+ 	}
+ 	e := new(Expr);
+-	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
++	e.Pos, e.Tok, e.X, e.Y = pos, tok, x, y;
+ 	return e;
+ }
+ 
+@@ -209,7 +209,7 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
+ // TODO probably don't need the tok parameter eventually
+ export func NewLit(tok int, obj *Object) *Expr {
+ 	e := new(Expr);
+-	e.pos, e.tok, e.obj = obj.pos, tok, obj;
++	e.Pos, e.Tok, e.Obj = obj.Pos, tok, obj;
+ 	return e;
+ }
+ 
+@@ -296,47 +296,47 @@ export const /* channel mode */ (
+ 
+ 
+ export type Type struct {
+-	id int;  // unique id
++	Id int;  // unique id
+ 
+-	ref int;  // for exporting only: >= 0 means already exported
+-	form int;  // type form
+-	size int;  // size in bytes
+-	obj *Object;  // primary type object or NULL
+-	scope *Scope;  // forwards, structs, interfaces, functions
++	Ref int;  // for exporting only: >= 0 means already exported
++	Form int;  // type form
++	Size int;  // size in bytes
++	Obj *Object;  // primary type object or NULL
++	Scope *Scope;  // forwards, structs, interfaces, functions
+ 
+ 	// syntactic components
+-	pos int;  // source position (< 0 if unknown position)
+-	expr *Expr;  // type name, array length
+-	mode int;  // channel mode
+-	key *Type;  // receiver type or map key
+-	elt *Type;  // array, map, channel or pointer element type, function result type
+-	list *array.Array; end int;  // struct fields, interface methods, function parameters
+-	scope *Scope;  // struct fields, methods
++	Pos int;  // source position (< 0 if unknown position)
++	Expr *Expr;  // type name, array length
++	Mode int;  // channel mode
++	Key *Type;  // receiver type or map key
++	Elt *Type;  // array, map, channel or pointer element type, function result type
++	List *array.Array; End int;  // struct fields, interface methods, function parameters
++	Scope *Scope;  // struct fields, methods
+ }
+ 
+ 
+-var TypeId int;
++var typeId int;
+ 
+ export func NewType(pos, form int) *Type {
+ 	typ := new(Type);
+-	typ.id = TypeId;
+-	TypeId++;
++	typ.Id = typeId;
++	typeId++;
+ 
+-	typ.ref = -1;  // not yet exported
+-	typ.pos = pos;
+-	typ.form = form;
++	typ.Ref = -1;  // not yet exported
++	typ.Pos = pos;
++	typ.Form = form;
+ 
+ 	return typ;
+ }
+ 
+ 
+-func (t *Type) nfields() int {
+-	if t.list == nil {
++func (t *Type) Nfields() int {
++	if t.List == nil {
+ 		return 0;
+ 	}
+ 	nx, nt := 0, 0;
+-	for i, n := 0, t.list.Len(); i < n; i++ {
+-		if t.list.At(i).(*Expr).tok == Scanner.TYPE {
++	for i, n := 0, t.List.Len(); i < n; i++ {
++		if t.List.At(i).(*Expr).Tok == Scanner.TYPE {
+ 			nt++;
+ 		} else {
+ 			nx++;
+@@ -349,10 +349,10 @@ func (t *Type) nfields() int {
+ }
+ 
+ 
+-// requires complete Type.pos access
++// requires complete Type.Pos access
+ export func NewTypeExpr(typ *Type) *Expr {
+-	obj := NewObject(typ.pos, TYPE, "");
+-	obj.typ = typ;
++	obj := NewObject(typ.Pos, TYPE, "");
++	obj.Typ = typ;
+ 	return NewLit(Scanner.TYPE, obj);
+ }
+ 
+@@ -365,16 +365,16 @@ export var BadType = NewType(0, Scanner.ILLEGAL);
+ 
+ export type Stat struct {
+ 	Node;
+-	init, post *Stat;
+-	expr *Expr;
+-	block *array.Array; end int;  // block end position
+-	decl *Decl;
++	Init, Post *Stat;
++	Expr *Expr;
++	Block *array.Array; End int;  // block end position
++	Decl *Decl;
+ }
+ 
+ 
+ export func NewStat(pos, tok int) *Stat {
+ 	s := new(Stat);
+-	s.pos, s.tok = pos, tok;
++	s.Pos, s.Tok = pos, tok;
+ 	return s;
+ }
+ 
+@@ -387,19 +387,19 @@ export var BadStat = NewStat(0, Scanner.ILLEGAL);
+ 
+ export type Decl struct {
+ 	Node;
+-	exported bool;
+-	ident *Expr;  // nil for ()-style declarations
+-	typ *Type;
+-	val *Expr;
++	Exported bool;
++	Ident *Expr;  // nil for ()-style declarations
++	Typ *Type;
++	Val *Expr;
+ 	// list of *Decl for ()-style declarations
+ 	// list of *Stat for func declarations (or nil for forward decl)
+-	list *array.Array; end int;
++	List *array.Array; End int;
+ }
+ 
+ 
+ export func NewDecl(pos, tok int, exported bool) *Decl {
+ 	d := new(Decl);
+-	d.pos, d.tok, d.exported = pos, tok, exported;
++	d.Pos, d.Tok, d.Exported = pos, tok, exported;
+ 	return d;
+ }
+ 
+@@ -411,28 +411,28 @@ export var BadDecl = NewDecl(0, Scanner.ILLEGAL, false);
+ // Program
+ 
+ export type Comment struct {
+-	pos int;
+-	text string;
++	Pos int;
++	Text string;
+ }
+ 
+ 
+ export func NewComment(pos int, text string) *Comment {
+ 	c := new(Comment);
+-	c.pos, c.text = pos, text;
++	c.Pos, c.Text = pos, text;
+ 	return c;
+ }
+ 
+ 
+ export type Program struct {
+-	pos int;  // tok is Scanner.PACKAGE
+-	ident *Expr;
+-	decls *array.Array;
+-	comments *array.Array;
++	Pos int;  // tok is Scanner.PACKAGE
++	Ident *Expr;
++	Decls *array.Array;
++	Comments *array.Array;
+ }
+ 
+ 
+ export func NewProgram(pos int) *Program {
+ 	p := new(Program);
+-	p.pos = pos;
++	p.Pos = pos;
+ 	return p;
+ }
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 7e4811f404..6e78e8f7ec 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -34,7 +34,7 @@ export type Flags struct {
+ }
+ 
+ 
+-type ErrorHandler struct {
++type errorHandler struct {
+ 	filename string;
+ 	src string;
+ 	nerrors int;
+@@ -44,7 +44,7 @@ type ErrorHandler struct {
+ }
+ 
+ 
+-func (h *ErrorHandler) Init(filename, src string, columns bool) {
++func (h *errorHandler) Init(filename, src string, columns bool) {
+ 	h.filename = filename;
+ 	h.src = src;
+ 	h.nerrors = 0;
+@@ -55,7 +55,7 @@ func (h *ErrorHandler) Init(filename, src string, columns bool) {
+ 
+ 
+ // Compute (line, column) information for a given source position.
+-func (h *ErrorHandler) LineCol(pos int) (line, col int) {
++func (h *errorHandler) LineCol(pos int) (line, col int) {
+ 	line = 1;
+ 	lpos := 0;
+ 
+@@ -75,7 +75,7 @@ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
+ }
+ 
+ 
+-func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
++func (h *errorHandler) ErrorMsg(pos int, msg string) {
+ 	print(h.filename, ":");
+ 	if pos >= 0 {
+ 		// print position
+@@ -97,7 +97,7 @@ func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
+ }
+ 
+ 
+-func (h *ErrorHandler) Error(pos int, msg string) {
++func (h *errorHandler) Error(pos int, msg string) {
+ 	// only report errors that are sufficiently far away from the previous error
+ 	// in the hope to avoid most follow-up errors
+ 	const errdist = 20;
+@@ -112,7 +112,7 @@ func (h *ErrorHandler) Error(pos int, msg string) {
+ }
+ 
+ 
+-func (h *ErrorHandler) Warning(pos int, msg string) {
++func (h *errorHandler) Warning(pos int, msg string) {
+ 	panic("UNIMPLEMENTED");
+ }
+ 
+@@ -124,7 +124,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 		return nil, 1;
+ 	}
+ 
+-	var err ErrorHandler;
++	var err errorHandler;
+ 	err.Init(src_file, src, flags.columns);
+ 
+ 	var scanner Scanner.Scanner;
+@@ -148,7 +148,7 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ }
+ 
+ 
+-func FileExists(name string) bool {
++func fileExists(name string) bool {
+ 	fd, err := OS.Open(name, OS.O_RDONLY, 0);
+ 	if err == nil {
+ 		fd.Close();
+@@ -158,7 +158,7 @@ func FileExists(name string) bool {
+ }
+ 
+ 
+-func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
++func addDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+ 	dummy, found := globalset[src_file];
+ 	if !found {
+ 		globalset[src_file] = true;
+@@ -168,27 +168,27 @@ func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
+ 			return;
+ 		}
+ 
+-		nimports := prog.decls.Len();
++		nimports := prog.Decls.Len();
+ 		if nimports > 0 {
+ 			print(src_file, ".6:\t");
+ 
+ 			localset := make(map [string] bool);
+ 			for i := 0; i < nimports; i++ {
+-				decl := prog.decls.At(i).(*AST.Decl);
+-				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
+-				src := decl.val.obj.ident;
++				decl := prog.Decls.At(i).(*AST.Decl);
++				assert(decl.Tok == Scanner.IMPORT && decl.Val.Tok == Scanner.STRING);
++				src := decl.Val.Obj.Ident;
+ 				src = src[1 : len(src) - 1];  // strip "'s
+ 
+ 				// ignore files when they are seen a 2nd time
+ 				dummy, found := localset[src];
+ 				if !found {
+ 					localset[src] = true;
+-					if FileExists(src + ".go") {
++					if fileExists(src + ".go") {
+ 						wset.Push(src);
+ 						print(" ", src, ".6");
+ 					} else if
+-						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+-						FileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
++						fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
++						fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
+ 
+ 					} else {
+ 						// TODO should collect these and print later
+@@ -207,6 +207,6 @@ export func ComputeDeps(src_file string, flags *Flags) {
+ 	wset := array.New(0);
+ 	wset.Push(src_file);
+ 	for wset.Len() > 0 {
+-		AddDeps(globalset, wset, wset.Pop().(string), flags);
++		addDeps(globalset, wset, wset.Pop().(string), flags);
+ 	}
+ }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index fe759e1c20..1f975682e0 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -91,7 +91,7 @@ func (P *Parser) Next0() {
+ 		P.pos, P.tok, P.val = P.scanner.Scan();
+ 	} else {
+ 		t := <-P.tokchan;
+-		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
++		P.tok, P.pos, P.val = t.Tok, t.Pos, t.Val;
+ 	}
+ 	P.opt_semi = false;
+ 
+@@ -168,13 +168,13 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
+ 	if P.scope_lev < 0 {
+ 		panic("cannot declare objects in other packages");
+ 	}
+-	if x.tok != Scanner.ILLEGAL {  // ignore bad exprs
+-		obj := x.obj;
+-		assert(x.tok == Scanner.IDENT && obj.kind == AST.NONE);
+-		obj.kind = kind;
+-		obj.pnolev = P.scope_lev;
+-		if scope.LookupLocal(obj.ident) != nil {
+-			P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
++	if x.Tok != Scanner.ILLEGAL {  // ignore bad exprs
++		obj := x.Obj;
++		assert(x.Tok == Scanner.IDENT && obj.Kind == AST.NONE);
++		obj.Kind = kind;
++		obj.Pnolev = P.scope_lev;
++		if scope.LookupLocal(obj.Ident) != nil {
++			P.Error(obj.Pos, `"` + obj.Ident + `" is declared already`);
+ 			return;  // don't insert it into the scope
+ 		}
+ 		scope.Insert(obj);
+@@ -184,23 +184,23 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
+ 
+ // Declare a comma-separated list of idents or a single ident.
+ func (P *Parser) Declare(p *AST.Expr, kind int) {
+-	for p.tok == Scanner.COMMA {
+-		P.DeclareInScope(P.top_scope, p.x, kind);
+-		p = p.y;
++	for p.Tok == Scanner.COMMA {
++		P.DeclareInScope(P.top_scope, p.X, kind);
++		p = p.Y;
+ 	}
+ 	P.DeclareInScope(P.top_scope, p, kind);
+ }
+ 
+ 
+ func (P *Parser) VerifyExport1(p *AST.Expr, exported bool) {
+-	obj := p.obj;
++	obj := p.Obj;
+ 	if exported {
+ 		if !obj.IsExported() {
+-			P.Error(obj.pos, `"` + obj.ident + `" should be uppercase`);
++			P.Error(obj.Pos, `"` + obj.Ident + `" should be uppercase`);
+ 		}
+ 	} else if P.scope_lev == 0 {
+ 		if obj.IsExported() {
+-			P.Error(obj.pos, `"` + obj.ident + `" should be lowercase`);
++			P.Error(obj.Pos, `"` + obj.Ident + `" should be lowercase`);
+ 		}
+ 	}
+ }
+@@ -210,9 +210,9 @@ func (P *Parser) VerifyExport(p *AST.Expr, exported bool) {
+ 	if !P.naming {
+ 		return;
+ 	}
+-	for p.tok == Scanner.COMMA {
+-		P.VerifyExport1(p.x, exported);
+-		p = p.y;
++	for p.Tok == Scanner.COMMA {
++		P.VerifyExport1(p.X, exported);
++		p = p.Y;
+ 	}
+ 	P.VerifyExport1(p, exported);
+ }
+@@ -222,27 +222,27 @@ func (P *Parser) VerifyExport(p *AST.Expr, exported bool) {
+ // ----------------------------------------------------------------------------
+ // AST support
+ 
+-func ExprType(x *AST.Expr) *AST.Type {
++func exprType(x *AST.Expr) *AST.Type {
+ 	var t *AST.Type;
+-	if x.tok == Scanner.TYPE {
+-		t = x.obj.typ;
+-	} else if x.tok == Scanner.IDENT {
++	if x.Tok == Scanner.TYPE {
++		t = x.Obj.Typ;
++	} else if x.Tok == Scanner.IDENT {
+ 		// assume a type name
+-		t = AST.NewType(x.pos, AST.TYPENAME);
+-		t.expr = x;
+-	} else if x.tok == Scanner.PERIOD && x.y != nil && ExprType(x.x) != nil {
++		t = AST.NewType(x.Pos, AST.TYPENAME);
++		t.Expr = x;
++	} else if x.Tok == Scanner.PERIOD && x.Y != nil && exprType(x.X) != nil {
+ 		// possibly a qualified (type) identifier
+-		t = AST.NewType(x.pos, AST.TYPENAME);
+-		t.expr = x;
++		t = AST.NewType(x.Pos, AST.TYPENAME);
++		t.Expr = x;
+ 	}
+ 	return t;
+ }
+ 
+ 
+ func (P *Parser) NoType(x *AST.Expr) *AST.Expr {
+-	if x != nil && x.tok == Scanner.TYPE {
+-		P.Error(x.pos, "expected expression, found type");
+-		val := AST.NewObject(x.pos, AST.NONE, "0");
++	if x != nil && x.Tok == Scanner.TYPE {
++		P.Error(x.Pos, "expected expression, found type");
++		val := AST.NewObject(x.Pos, AST.NONE, "0");
+ 		x = AST.NewLit(Scanner.INT, val);
+ 	}
+ 	return x;
+@@ -276,10 +276,10 @@ func (P *Parser) ParseIdent(scope *AST.Scope) *AST.Expr {
+ 		if obj == nil {
+ 			obj = AST.NewObject(P.pos, AST.NONE, P.val);
+ 		} else {
+-			assert(obj.kind != AST.NONE);
++			assert(obj.Kind != AST.NONE);
+ 		}
+ 		x = AST.NewLit(Scanner.IDENT, obj);
+-		x.pos = P.pos;  // override obj.pos (incorrect if object was looked up!)
++		x.Pos = P.pos;  // override obj.pos (incorrect if object was looked up!)
+ 		if P.verbose {
+ 			P.PrintIndent();
+ 			print("Ident = \"", P.val, "\"\n");
+@@ -307,8 +307,8 @@ func (P *Parser) ParseIdentList() *AST.Expr {
+ 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 			last = x;
+ 		} else {
+-			last.y = P.NewExpr(pos, Scanner.COMMA, last.y, y);
+-			last = last.y;
++			last.Y = P.NewExpr(pos, Scanner.COMMA, last.Y, y);
++			last = last.Y;
+ 		}
+ 	}
+ 
+@@ -364,7 +364,7 @@ func (P *Parser) ParseTypeName() *AST.Type {
+ 	P.Trace("TypeName");
+ 
+ 	t := AST.NewType(P.pos, AST.TYPENAME);
+-	t.expr = P.ParseQualifiedIdent();
++	t.Expr = P.ParseQualifiedIdent();
+ 
+ 	P.Ecart();
+ 	return t;
+@@ -377,13 +377,13 @@ func (P *Parser) ParseArrayType() *AST.Type {
+ 	t := AST.NewType(P.pos, AST.ARRAY);
+ 	P.Expect(Scanner.LBRACK);
+ 	if P.tok == Scanner.ELLIPSIS {
+-		t.expr = P.NewExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
++		t.Expr = P.NewExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
+ 		P.Next();
+ 	} else if P.tok != Scanner.RBRACK {
+-		t.expr = P.ParseExpression(1);
++		t.Expr = P.ParseExpression(1);
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+-	t.elt = P.ParseType();
++	t.Elt = P.ParseType();
+ 
+ 	P.Ecart();
+ 	return t;
+@@ -394,19 +394,19 @@ func (P *Parser) ParseChannelType() *AST.Type {
+ 	P.Trace("ChannelType");
+ 
+ 	t := AST.NewType(P.pos, AST.CHANNEL);
+-	t.mode = AST.FULL;
++	t.Mode = AST.FULL;
+ 	if P.tok == Scanner.CHAN {
+ 		P.Next();
+ 		if P.tok == Scanner.ARROW {
+ 			P.Next();
+-			t.mode = AST.SEND;
++			t.Mode = AST.SEND;
+ 		}
+ 	} else {
+ 		P.Expect(Scanner.ARROW);
+ 		P.Expect(Scanner.CHAN);
+-		t.mode = AST.RECV;
++		t.Mode = AST.RECV;
+ 	}
+-	t.elt = P.ParseVarType();
++	t.Elt = P.ParseVarType();
+ 
+ 	P.Ecart();
+ 	return t;
+@@ -417,8 +417,8 @@ func (P *Parser) ParseVar(expect_ident bool) *AST.Type {
+ 	t := AST.BadType;
+ 	if expect_ident {
+ 		x := P.ParseIdent(nil);
+-		t = AST.NewType(x.pos, AST.TYPENAME);
+-		t.expr = x;
++		t = AST.NewType(x.Pos, AST.TYPENAME);
++		t.Expr = x;
+ 	} else if P.tok == Scanner.ELLIPSIS {
+ 		t = AST.NewType(P.pos, AST.ELLIPSIS);
+ 		P.Next();
+@@ -463,11 +463,11 @@ func (P *Parser) ParseVarList(list *array.Array, ellipsis_ok bool) {
+ 		// convert the type entries into identifiers
+ 		for i, n := i0, list.Len(); i < n; i++ {
+ 			t := list.At(i).(*AST.Type);
+-			if t.form == AST.TYPENAME && t.expr.tok == Scanner.IDENT {
+-				list.Set(i, t.expr);
++			if t.Form == AST.TYPENAME && t.Expr.Tok == Scanner.IDENT {
++				list.Set(i, t.Expr);
+ 			} else {
+ 				list.Set(i, AST.BadExpr);
+-				P.Error(t.pos, "identifier expected");
++				P.Error(t.Pos, "identifier expected");
+ 			}
+ 		}
+ 		// add type
+@@ -507,9 +507,9 @@ func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
+ 	t := AST.NewType(P.pos, AST.STRUCT);
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+-		t.list = P.ParseParameterList(ellipsis_ok);
++		t.List = P.ParseParameterList(ellipsis_ok);
+ 	}
+-	t.end = P.pos;
++	t.End = P.pos;
+ 	P.Expect(Scanner.RPAREN);
+ 
+ 	P.Ecart();
+@@ -543,9 +543,9 @@ func (P *Parser) ParseResult() *AST.Type {
+ 		typ := P.TryType();
+ 		if typ != nil {
+ 			t = AST.NewType(P.pos, AST.STRUCT);
+-			t.list = array.New(0);
+-			t.list.Push(AST.NewTypeExpr(typ));
+-			t.end = P.pos;
++			t.List = array.New(0);
++			t.List.Push(AST.NewTypeExpr(typ));
++			t.End = P.pos;
+ 		}
+ 	}
+ 
+@@ -567,9 +567,9 @@ func (P *Parser) ParseFunctionType() *AST.Type {
+ 	P.scope_lev++;
+ 
+ 	t := AST.NewType(P.pos, AST.FUNCTION);
+-	t.list = P.ParseParameters(true).list;  // TODO find better solution
+-	t.end = P.pos;
+-	t.elt = P.ParseResult();
++	t.List = P.ParseParameters(true).List;  // TODO find better solution
++	t.End = P.pos;
++	t.Elt = P.ParseResult();
+ 
+ 	P.scope_lev--;
+ 	P.CloseScope();
+@@ -605,14 +605,14 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
+ 		P.OpenScope();
+ 		P.scope_lev++;
+ 
+-		t.list = array.New(0);
++		t.List = array.New(0);
+ 		for P.tok == Scanner.IDENT {
+-			P.ParseMethodSpec(t.list);
++			P.ParseMethodSpec(t.List);
+ 			if P.tok != Scanner.RBRACE {
+ 				P.Expect(Scanner.SEMICOLON);
+ 			}
+ 		}
+-		t.end = P.pos;
++		t.End = P.pos;
+ 
+ 		P.scope_lev--;
+ 		P.CloseScope();
+@@ -630,9 +630,9 @@ func (P *Parser) ParseMapType() *AST.Type {
+ 	t := AST.NewType(P.pos, AST.MAP);
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+-	t.key = P.ParseVarType();
++	t.Key = P.ParseVarType();
+ 	P.Expect(Scanner.RBRACK);
+-	t.elt = P.ParseVarType();
++	t.Elt = P.ParseVarType();
+ 
+ 	P.Ecart();
+ 	return t;
+@@ -651,12 +651,12 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 		P.OpenScope();
+ 		P.scope_lev++;
+ 
+-		t.list = array.New(0);
++		t.List = array.New(0);
+ 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-			P.ParseVarList(t.list, false);
++			P.ParseVarList(t.List, false);
+ 			if P.tok == Scanner.STRING {
+ 				// ParseOperand takes care of string concatenation
+-				t.list.Push(P.ParseOperand());
++				t.List.Push(P.ParseOperand());
+ 			}
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.Next();
+@@ -665,7 +665,7 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 			}
+ 		}
+ 		P.OptSemicolon();
+-		t.end = P.pos;
++		t.End = P.pos;
+ 
+ 		P.scope_lev--;
+ 		P.CloseScope();
+@@ -682,7 +682,7 @@ func (P *Parser) ParsePointerType() *AST.Type {
+ 
+ 	t := AST.NewType(P.pos, AST.POINTER);
+ 	P.Expect(Scanner.MUL);
+-	t.elt = P.ParseType();
++	t.Elt = P.ParseType();
+ 
+ 	P.Ecart();
+ 	return t;
+@@ -775,7 +775,7 @@ func (P *Parser) ParseExpressionList() *AST.Expr {
+ 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 			first = false;
+ 		} else {
+-			x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
++			x.Y = P.NewExpr(pos, Scanner.COMMA, x.Y, y);
+ 		}
+ 	}
+ 
+@@ -790,10 +790,10 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
+ 	val := AST.NewObject(P.pos, AST.NONE, "");
+ 	x := AST.NewLit(Scanner.FUNC, val);
+ 	P.Expect(Scanner.FUNC);
+-	val.typ = P.ParseFunctionType();
++	val.Typ = P.ParseFunctionType();
+ 	P.expr_lev++;
+ 	P.scope_lev++;
+-	val.block, val.end = P.ParseBlock();
++	val.Block, val.End = P.ParseBlock();
+ 	P.scope_lev--;
+ 	P.expr_lev--;
+ 
+@@ -813,7 +813,7 @@ func (P *Parser) ParseNewCall() *AST.Expr {
+ 	x.t = P.ParseType();
+ 	if P.tok == Scanner.COMMA {
+ 		P.Next();
+-		x.y = P.ParseExpressionList();
++		x.Y = P.ParseExpressionList();
+ 	}
+ 	P.expr_lev--;
+ 	P.Expect(Scanner.RPAREN);
+@@ -845,11 +845,11 @@ func (P *Parser) ParseOperand() *AST.Expr {
+ 		val := AST.NewObject(P.pos, AST.NONE, P.val);
+ 		x = AST.NewLit(P.tok, val);
+ 		P.Next();
+-		if x.tok == Scanner.STRING {
++		if x.Tok == Scanner.STRING {
+ 			// TODO should remember the list instead of
+ 			//      concatenate the strings here
+ 			for ; P.tok == Scanner.STRING; P.Next() {
+-				x.obj.ident += P.val;
++				x.Obj.Ident += P.val;
+ 			}
+ 		}
+ 
+@@ -878,11 +878,11 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
+ 	P.Expect(Scanner.PERIOD);
+ 
+ 	if P.tok == Scanner.IDENT {
+-		x.y = P.ParseIdent(nil);
++		x.Y = P.ParseIdent(nil);
+ 
+ 	} else {
+ 		P.Expect(Scanner.LPAREN);
+-		x.y = AST.NewTypeExpr(P.ParseType());
++		x.Y = AST.NewTypeExpr(P.ParseType());
+ 		P.Expect(Scanner.RPAREN);
+ 	}
+ 
+@@ -916,25 +916,25 @@ func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
+ 	if P.tok != Scanner.RPAREN {
+ 		P.expr_lev++;
+ 		var t *AST.Type;
+-		if x0.tok == Scanner.IDENT && (x0.obj.ident == "new" || x0.obj.ident == "make") {
++		if x0.Tok == Scanner.IDENT && (x0.Obj.Ident == "new" || x0.Obj.Ident == "make") {
+ 			// heuristic: assume it's a new(T) or make(T, ...) call, try to parse a type
+ 			t = P.TryType();
+ 		}
+ 		if t != nil {
+ 			// we found a type
+-			x.y = AST.NewTypeExpr(t);
++			x.Y = AST.NewTypeExpr(t);
+ 			if P.tok == Scanner.COMMA {
+ 				pos := P.pos;
+ 				P.Next();
+ 				y := P.ParseExpressionList();
+ 				// create list manually because NewExpr checks for type expressions
+ 				z := AST.NewExpr(pos, Scanner.COMMA, nil, y);
+-				z.x = x.y;
+-				x.y = z;
++				z.X = x.Y;
++				x.Y = z;
+ 			}
+ 		} else {
+ 			// normal argument list
+-			x.y = P.ParseExpressionList();
++			x.Y = P.ParseExpressionList();
+ 		}
+ 		P.expr_lev--;
+ 	}
+@@ -953,7 +953,7 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 
+ 		// first element determines mode
+ 		singles := true;
+-		if x.tok == Scanner.COLON {
++		if x.Tok == Scanner.COLON {
+ 			singles = false;
+ 		}
+ 
+@@ -962,12 +962,12 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 			y := P.ParseExpression(0);
+ 
+ 			if singles {
+-				if y.tok == Scanner.COLON {
+-					P.Error(y.x.pos, "single value expected; found pair");
++				if y.Tok == Scanner.COLON {
++					P.Error(y.X.Pos, "single value expected; found pair");
+ 				}
+ 			} else {
+-				if y.tok != Scanner.COLON {
+-					P.Error(y.pos, "key:value pair expected; found single value");
++				if y.Tok != Scanner.COLON {
++					P.Error(y.Pos, "key:value pair expected; found single value");
+ 				}
+ 			}
+ 
+@@ -975,8 +975,8 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 				x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 				last = x;
+ 			} else {
+-				last.y = P.NewExpr(pos, Scanner.COMMA, last.y, y);
+-				last = last.y;
++				last.Y = P.NewExpr(pos, Scanner.COMMA, last.Y, y);
++				last = last.Y;
+ 			}
+ 
+ 			if P.tok == Scanner.COMMA {
+@@ -996,11 +996,11 @@ func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
+ 	P.Trace("CompositeLit");
+ 
+ 	x := P.NewExpr(P.pos, Scanner.LBRACE, nil, nil);
+-	x.obj = AST.NewObject(t.pos, AST.TYPE, "");
+-	x.obj.typ = t;
++	x.Obj = AST.NewObject(t.Pos, AST.TYPE, "");
++	x.Obj.Typ = t;
+ 	P.Expect(Scanner.LBRACE);
+ 	if P.tok != Scanner.RBRACE {
+-		x.y = P.ParseCompositeElements();
++		x.Y = P.ParseCompositeElements();
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 
+@@ -1024,7 +1024,7 @@ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
+ 			// (composites inside control clauses must be parenthesized)
+ 			var t *AST.Type;
+ 			if P.expr_lev >= 0 {
+-				t = ExprType(x);
++				t = exprType(x);
+ 			}
+ 			if t != nil {
+ 				x = P.ParseCompositeLit(t);
+@@ -1050,10 +1050,10 @@ func (P *Parser) ParseUnaryExpr() *AST.Expr {
+ 		pos, tok := P.pos, P.tok;
+ 		P.Next();
+ 		y := P.ParseUnaryExpr();
+-		if tok == Scanner.MUL && y.tok == Scanner.TYPE {
++		if tok == Scanner.MUL && y.Tok == Scanner.TYPE {
+ 			// pointer type
+ 			t := AST.NewType(pos, AST.POINTER);
+-			t.elt = y.obj.typ;
++			t.Elt = y.Obj.Typ;
+ 			x = AST.NewTypeExpr(t);
+ 		} else {
+ 			x = P.NewExpr(pos, tok, nil, y);
+@@ -1129,9 +1129,9 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 	case Scanner.COLON:
+ 		// label declaration
+ 		s = AST.NewStat(P.pos, Scanner.COLON);
+-		s.expr = x;
++		s.Expr = x;
+ 		if x.Len() != 1 {
+-			P.Error(x.pos, "illegal label declaration");
++			P.Error(x.Pos, "illegal label declaration");
+ 		}
+ 		P.Next();  // consume ":"
+ 		P.opt_semi = true;
+@@ -1156,22 +1156,22 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 		} else {
+ 			y = P.ParseExpressionList();
+ 			if is_range {
+-				P.Error(y.pos, "expected 'range', found expression");
++				P.Error(y.Pos, "expected 'range', found expression");
+ 			}
+ 			if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
+-				P.Error(x.pos, "arity of lhs doesn't match rhs");
++				P.Error(x.Pos, "arity of lhs doesn't match rhs");
+ 			}
+ 		}
+-		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
+-		s.expr = AST.NewExpr(pos, tok, x, y);
++		s = AST.NewStat(x.Pos, Scanner.EXPRSTAT);
++		s.Expr = AST.NewExpr(pos, tok, x, y);
+ 
+ 	case Scanner.RANGE:
+ 		pos := P.pos;
+ 		P.Next();
+ 		y := P.ParseExpression(1);
+ 		y = P.NewExpr(pos, Scanner.RANGE, nil, y);
+-		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
+-		s.expr = AST.NewExpr(pos, Scanner.DEFINE, x, y);
++		s = AST.NewStat(x.Pos, Scanner.EXPRSTAT);
++		s.Expr = AST.NewExpr(pos, Scanner.DEFINE, x, y);
+ 
+ 	default:
+ 		var pos, tok int;
+@@ -1179,12 +1179,12 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 			pos, tok = P.pos, P.tok;
+ 			P.Next();
+ 		} else {
+-			pos, tok = x.pos, Scanner.EXPRSTAT;
++			pos, tok = x.Pos, Scanner.EXPRSTAT;
+ 		}
+ 		s = AST.NewStat(pos, tok);
+-		s.expr = x;
++		s.Expr = x;
+ 		if x.Len() != 1 {
+-			P.Error(x.pos, "only one expression allowed");
++			P.Error(x.Pos, "only one expression allowed");
+ 		}
+ 	}
+ 
+@@ -1198,7 +1198,7 @@ func (P *Parser) ParseGoStat() *AST.Stat {
+ 
+ 	s := AST.NewStat(P.pos, Scanner.GO);
+ 	P.Expect(Scanner.GO);
+-	s.expr = P.ParseExpression(1);
++	s.Expr = P.ParseExpression(1);
+ 
+ 	P.Ecart();
+ 	return s;
+@@ -1211,7 +1211,7 @@ func (P *Parser) ParseReturnStat() *AST.Stat {
+ 	s := AST.NewStat(P.pos, Scanner.RETURN);
+ 	P.Expect(Scanner.RETURN);
+ 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+-		s.expr = P.ParseExpressionList();
++		s.Expr = P.ParseExpressionList();
+ 	}
+ 
+ 	P.Ecart();
+@@ -1225,7 +1225,7 @@ func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
+ 	s := AST.NewStat(P.pos, tok);
+ 	P.Expect(tok);
+ 	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
+-		s.expr = P.ParseIdent(P.top_scope);
++		s.Expr = P.ParseIdent(P.top_scope);
+ 	}
+ 
+ 	P.Ecart();
+@@ -1242,23 +1242,23 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+ 		prev_lev := P.expr_lev;
+ 		P.expr_lev = -1;
+ 		if P.tok != Scanner.SEMICOLON {
+-			s.init = P.ParseSimpleStat(keyword == Scanner.FOR);
++			s.Init = P.ParseSimpleStat(keyword == Scanner.FOR);
+ 			// TODO check for range clause and exit if found
+ 		}
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.Next();
+ 			if P.tok != Scanner.SEMICOLON && P.tok != Scanner.LBRACE {
+-				s.expr = P.ParseExpression(1);
++				s.Expr = P.ParseExpression(1);
+ 			}
+ 			if keyword == Scanner.FOR {
+ 				P.Expect(Scanner.SEMICOLON);
+ 				if P.tok != Scanner.LBRACE {
+-					s.post = P.ParseSimpleStat(false);
++					s.Post = P.ParseSimpleStat(false);
+ 				}
+ 			}
+ 		} else {
+-			if s.init != nil {  // guard in case of errors
+-				s.expr, s.init = s.init.expr, nil;
++			if s.Init != nil {  // guard in case of errors
++				s.Expr, s.Init = s.Init.Expr, nil;
+ 			}
+ 		}
+ 		P.expr_lev = prev_lev;
+@@ -1274,7 +1274,7 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ 
+ 	P.OpenScope();
+ 	s := P.ParseControlClause(Scanner.IF);
+-	s.block, s.end = P.ParseBlock();
++	s.Block, s.End = P.ParseBlock();
+ 	if P.tok == Scanner.ELSE {
+ 		P.Next();
+ 		s1 := AST.BadStat;
+@@ -1284,20 +1284,20 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ 			s1 = P.ParseStatement();
+ 			if s1 != nil {
+ 				// not the empty statement
+-				if s1.tok != Scanner.LBRACE {
++				if s1.Tok != Scanner.LBRACE {
+ 					// wrap in a block if we don't have one
+ 					b := AST.NewStat(P.pos, Scanner.LBRACE);
+-					b.block = array.New(0);
+-					b.block.Push(s1);
++					b.Block = array.New(0);
++					b.Block.Push(s1);
+ 					s1 = b;
+ 				}
+-				s.post = s1;
++				s.Post = s1;
+ 			}
+ 		} else {
+ 			s1 = AST.NewStat(P.pos, Scanner.LBRACE);
+-			s1.block, s1.end = P.ParseBlock();
++			s1.Block, s1.End = P.ParseBlock();
+ 		}
+-		s.post = s1;
++		s.Post = s1;
+ 	}
+ 	P.CloseScope();
+ 
+@@ -1311,7 +1311,7 @@ func (P *Parser) ParseForStat() *AST.Stat {
+ 
+ 	P.OpenScope();
+ 	s := P.ParseControlClause(Scanner.FOR);
+-	s.block, s.end = P.ParseBlock();
++	s.Block, s.End = P.ParseBlock();
+ 	P.CloseScope();
+ 
+ 	P.Ecart();
+@@ -1325,7 +1325,7 @@ func (P *Parser) ParseCase() *AST.Stat {
+ 	s := AST.NewStat(P.pos, P.tok);
+ 	if P.tok == Scanner.CASE {
+ 		P.Next();
+-		s.expr = P.ParseExpressionList();
++		s.Expr = P.ParseExpressionList();
+ 	} else {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+@@ -1341,7 +1341,7 @@ func (P *Parser) ParseCaseClause() *AST.Stat {
+ 
+ 	s := P.ParseCase();
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+-		s.block = P.ParseStatementList();
++		s.Block = P.ParseStatementList();
+ 	}
+ 
+ 	P.Ecart();
+@@ -1354,12 +1354,12 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
+ 
+ 	P.OpenScope();
+ 	s := P.ParseControlClause(Scanner.SWITCH);
+-	s.block = array.New(0);
++	s.Block = array.New(0);
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		s.block.Push(P.ParseCaseClause());
++		s.Block.Push(P.ParseCaseClause());
+ 	}
+-	s.end = P.pos;
++	s.End = P.pos;
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+ 	P.CloseScope();
+@@ -1386,7 +1386,7 @@ func (P *Parser) ParseCommCase() *AST.Stat {
+ 				P.Expect(Scanner.ARROW);  // use Expect() error handling
+ 			}
+ 		}
+-		s.expr = x;
++		s.Expr = x;
+ 	} else {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+@@ -1402,7 +1402,7 @@ func (P *Parser) ParseCommClause() *AST.Stat {
+ 
+ 	s := P.ParseCommCase();
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+-		s.block = P.ParseStatementList();
++		s.Block = P.ParseStatementList();
+ 	}
+ 
+ 	P.Ecart();
+@@ -1414,11 +1414,11 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
+ 	P.Trace("SelectStat");
+ 
+ 	s := AST.NewStat(P.pos, Scanner.SELECT);
+-	s.block = array.New(0);
++	s.Block = array.New(0);
+ 	P.Expect(Scanner.SELECT);
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		s.block.Push(P.ParseCommClause());
++		s.Block.Push(P.ParseCommClause());
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+@@ -1435,8 +1435,8 @@ func (P *Parser) ParseRangeStat() *AST.Stat {
+ 	P.Expect(Scanner.RANGE);
+ 	P.ParseIdentList();
+ 	P.Expect(Scanner.DEFINE);
+-	s.expr = P.ParseExpression(1);
+-	s.block, s.end = P.ParseBlock();
++	s.Expr = P.ParseExpression(1);
++	s.Block, s.End = P.ParseBlock();
+ 
+ 	P.Ecart();
+ 	return s;
+@@ -1451,7 +1451,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+ 		s = AST.NewStat(P.pos, P.tok);
+-		s.decl = P.ParseDeclaration();
++		s.Decl = P.ParseDeclaration();
+ 	case Scanner.FUNC:
+ 		// for now we do not allow local function declarations,
+ 		// instead we assume this starts a function literal
+@@ -1470,7 +1470,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
+ 		s = P.ParseControlFlowStat(P.tok);
+ 	case Scanner.LBRACE:
+ 		s = AST.NewStat(P.pos, Scanner.LBRACE);
+-		s.block, s.end = P.ParseBlock();
++		s.Block, s.End = P.ParseBlock();
+ 	case Scanner.IF:
+ 		s = P.ParseIfStat();
+ 	case Scanner.FOR:
+@@ -1505,20 +1505,20 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 		P.Error(P.pos, `"import ." not yet handled properly`);
+ 		P.Next();
+ 	} else if P.tok == Scanner.IDENT {
+-		d.ident = P.ParseIdent(nil);
++		d.Ident = P.ParseIdent(nil);
+ 	}
+ 
+ 	if P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+ 		val := AST.NewObject(P.pos, AST.NONE, P.val);
+-		d.val = AST.NewLit(Scanner.STRING, val);
++		d.Val = AST.NewLit(Scanner.STRING, val);
+ 		P.Next();
+ 	} else {
+ 		P.Expect(Scanner.STRING);  // use Expect() error handling
+ 	}
+ 
+-	if d.ident != nil {
+-		P.Declare(d.ident, AST.PACKAGE);
++	if d.Ident != nil {
++		P.Declare(d.Ident, AST.PACKAGE);
+ 	}
+ 
+ 	P.Ecart();
+@@ -1530,15 +1530,15 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("ConstSpec");
+ 
+ 	d := AST.NewDecl(pos, Scanner.CONST, exported);
+-	d.ident = P.ParseIdentList();
+-	d.typ = P.TryType();
++	d.Ident = P.ParseIdentList();
++	d.Typ = P.TryType();
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+-		d.val = P.ParseExpressionList();
++		d.Val = P.ParseExpressionList();
+ 	}
+ 	
+-	P.Declare(d.ident, AST.CONST);
+-	P.VerifyExport(d.ident, exported);
++	P.Declare(d.Ident, AST.CONST);
++	P.VerifyExport(d.Ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1549,11 +1549,11 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("TypeSpec");
+ 
+ 	d := AST.NewDecl(pos, Scanner.TYPE, exported);
+-	d.ident = P.ParseIdent(nil);
+-	d.typ = P.ParseType();
++	d.Ident = P.ParseIdent(nil);
++	d.Typ = P.ParseType();
+ 	P.opt_semi = true;
+ 
+-	P.VerifyExport(d.ident, exported);
++	P.VerifyExport(d.Ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1564,20 +1564,20 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("VarSpec");
+ 
+ 	d := AST.NewDecl(pos, Scanner.VAR, exported);
+-	d.ident = P.ParseIdentList();
++	d.Ident = P.ParseIdentList();
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+-		d.val = P.ParseExpressionList();
++		d.Val = P.ParseExpressionList();
+ 	} else {
+-		d.typ = P.ParseVarType();
++		d.Typ = P.ParseVarType();
+ 		if P.tok == Scanner.ASSIGN {
+ 			P.Next();
+-			d.val = P.ParseExpressionList();
++			d.Val = P.ParseExpressionList();
+ 		}
+ 	}
+ 
+-	P.Declare(d.ident, AST.VAR);
+-	P.VerifyExport(d.ident, exported);
++	P.Declare(d.Ident, AST.VAR);
++	P.VerifyExport(d.Ident, exported);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1606,16 +1606,16 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+ 		d = AST.NewDecl(pos, keyword, exported);
+-		d.list = array.New(0);
++		d.List = array.New(0);
+ 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
+-			d.list.Push(P.ParseSpec(exported, pos, keyword));
++			d.List.Push(P.ParseSpec(exported, pos, keyword));
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.Next();
+ 			} else {
+ 				break;
+ 			}
+ 		}
+-		d.end = P.pos;
++		d.End = P.pos;
+ 		P.Expect(Scanner.RPAREN);
+ 		P.opt_semi = true;
+ 
+@@ -1647,23 +1647,23 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 	if P.tok == Scanner.LPAREN {
+ 		pos := P.pos;
+ 		recv = P.ParseParameters(true);
+-		if recv.nfields() != 1 {
++		if recv.Nfields() != 1 {
+ 			P.Error(pos, "must have exactly one receiver");
+ 		}
+ 	}
+ 
+-	d.ident = P.ParseIdent(nil);
+-	d.typ = P.ParseFunctionType();
+-	d.typ.key = recv;
++	d.Ident = P.ParseIdent(nil);
++	d.Typ = P.ParseFunctionType();
++	d.Typ.Key = recv;
+ 
+ 	if P.tok == Scanner.LBRACE {
+ 		P.scope_lev++;
+-		d.list, d.end = P.ParseBlock();
++		d.List, d.End = P.ParseBlock();
+ 		P.scope_lev--;
+ 	}
+ 
+ 	if recv == nil || exported {
+-		P.VerifyExport(d.ident, exported);
++		P.VerifyExport(d.Ident, exported);
+ 	}
+ 
+ 	P.Ecart();
+@@ -1675,7 +1675,7 @@ func (P *Parser) ParseExportDecl() *AST.Decl {
+ 	P.Trace("ExportDecl");
+ 
+ 	d := AST.NewDecl(P.pos, Scanner.EXPORT, false);
+-	d.ident = P.ParseIdentList();
++	d.Ident = P.ParseIdentList();
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1735,25 +1735,25 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 	P.OpenScope();
+ 	p := AST.NewProgram(P.pos);
+ 	P.Expect(Scanner.PACKAGE);
+-	p.ident = P.ParseIdent(nil);
++	p.Ident = P.ParseIdent(nil);
+ 
+ 	// package body
+ 	{	P.OpenScope();
+-		p.decls = array.New(0);
++		p.Decls = array.New(0);
+ 		for P.tok == Scanner.IMPORT {
+-			p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
++			p.Decls.Push(P.ParseDecl(false, Scanner.IMPORT));
+ 			P.OptSemicolon();
+ 		}
+ 		if !P.deps {
+ 			for P.tok != Scanner.EOF {
+-				p.decls.Push(P.ParseDeclaration());
++				p.Decls.Push(P.ParseDeclaration());
+ 				P.OptSemicolon();
+ 			}
+ 		}
+ 		P.CloseScope();
+ 	}
+ 
+-	p.comments = P.comments;
++	p.Comments = P.comments;
+ 	P.CloseScope();
+ 
+ 	P.Ecart();
+diff --git a/usr/gri/pretty/platform.go b/usr/gri/pretty/platform.go
+index 529ef13ff2..c605b07a5c 100644
+--- a/usr/gri/pretty/platform.go
++++ b/usr/gri/pretty/platform.go
+@@ -17,7 +17,7 @@ export var
+ 	USER string;
+ 
+ 
+-func GetEnv(key string) string {
++func getEnv(key string) string {
+ 	n := len(key);
+ 	for i := 0; i < sys.envc(); i++ {
+ 		v := sys.envv(i);
+@@ -30,10 +30,10 @@ func GetEnv(key string) string {
+ 
+ 
+ func init() {
+-	GOARCH = GetEnv("GOARCH");
+-	GOOS = GetEnv("GOOS");
+-	GOROOT = GetEnv("GOROOT");
+-	USER = GetEnv("USER");
++	GOARCH = getEnv("GOARCH");
++	GOOS = getEnv("GOOS");
++	GOROOT = getEnv("GOROOT");
++	USER = getEnv("USER");
+ }
+ 
+ 
+@@ -42,13 +42,13 @@ func init() {
+ 
+ export const (
+ 	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear that it cannot be a source file
+-	src_file_ext = ".go";
+-	obj_file_ext = ".7";
++	Src_file_ext = ".go";
++	Obj_file_ext = ".7";
+ )
+ 
+ 
+ export func ReadObjectFile(filename string) (data string, ok bool) {
+-	data, ok = sys.readfile(filename + obj_file_ext);
++	data, ok = sys.readfile(filename + Obj_file_ext);
+ 	magic := MAGIC_obj_file;  // TODO remove once len(constant) works
+ 	if ok && len(data) >= len(magic) && data[0 : len(magic)] == magic {
+ 		return data, ok;
+@@ -58,13 +58,13 @@ export func ReadObjectFile(filename string) (data string, ok bool) {
+ 
+ 
+ export func ReadSourceFile(name string) (data string, ok bool) {
+-	name = Utils.TrimExt(name, src_file_ext) + src_file_ext;
++	name = Utils.TrimExt(name, Src_file_ext) + Src_file_ext;
+ 	data, ok = sys.readfile(name);
+ 	return data, ok;
+ }
+ 
+ 
+ export func WriteObjectFile(name string, data string) bool {
+-	name = Utils.TrimExt(Utils.BaseName(name), src_file_ext) + obj_file_ext;
++	name = Utils.TrimExt(Utils.BaseName(name), Src_file_ext) + Obj_file_ext;
+ 	return sys.writefile(name, data);
+ }
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index b5656ce242..366b176cd5 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -29,7 +29,7 @@ func init() {
+ }
+ 
+ 
+-func Usage() {
++func usage() {
+ 	print("usage: pretty { flags } { files }\n");
+ 	Flag.PrintDefaults();
+ 	sys.exit(0);
+@@ -40,7 +40,7 @@ func main() {
+ 	Flag.Parse();
+ 	
+ 	if Flag.NFlag() == 0 && Flag.NArg() == 0 {
+-		Usage();
++		usage();
+ 	}
+ 
+ 	// process files
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index de4a601cc6..45ef1a0e74 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -54,7 +54,7 @@ const (
+ )
+ 
+ 
+-type Printer struct {
++export type Printer struct {
+ 	// output
+ 	text io.Write;
+ 	
+@@ -86,7 +86,7 @@ func (P *Printer) HasComment(pos int) bool {
+ func (P *Printer) NextComment() {
+ 	P.cindex++;
+ 	if P.comments != nil && P.cindex < P.comments.Len() {
+-		P.cpos = P.comments.At(P.cindex).(*AST.Comment).pos;
++		P.cpos = P.comments.At(P.cindex).(*AST.Comment).Pos;
+ 	} else {
+ 		P.cpos = 1<<30;  // infinite
+ 	}
+@@ -109,7 +109,7 @@ func (P *Printer) Init(text io.Write, comments *array.Array) {
+ // ----------------------------------------------------------------------------
+ // Printing support
+ 
+-func HtmlEscape(s string) string {
++func htmlEscape(s string) string {
+ 	if *html {
+ 		var esc string;
+ 		for i := 0; i < len(s); i++ {
+@@ -118,7 +118,7 @@ func HtmlEscape(s string) string {
+ 			case '&': esc = "&amp;";
+ 			default: continue;
+ 			}
+-			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
++			return s[0 : i] + esc + htmlEscape(s[i+1 : len(s)]);
+ 		}
+ 	}
+ 	return s;
+@@ -126,7 +126,7 @@ func HtmlEscape(s string) string {
+ 
+ 
+ // Reduce contiguous sequences of '\t' in a string to a single '\t'.
+-func Untabify(s string) string {
++func untabify(s string) string {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == '\t' {
+ 			j := i;
+@@ -134,7 +134,7 @@ func Untabify(s string) string {
+ 				j++;
+ 			}
+ 			if j-i > 1 {  // more then one tab
+-				return s[0 : i+1] + Untabify(s[j : len(s)]);
++				return s[0 : i+1] + untabify(s[j : len(s)]);
+ 			}
+ 		}
+ 	}
+@@ -210,7 +210,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 	for ; P.HasComment(pos); P.NextComment() {
+ 		// we have a comment/newline that comes before the string
+ 		comment := P.comments.At(P.cindex).(*AST.Comment);
+-		ctext := comment.text;
++		ctext := comment.Text;
+ 		
+ 		if ctext == "\n" {
+ 			// found a newline in src - count it
+@@ -261,9 +261,9 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 			if *debug {
+ 				P.Printf("[%d]", P.cpos);
+ 			}
+-			// calling Untabify increases the change for idempotent output
++			// calling untabify increases the change for idempotent output
+ 			// since tabs in comments are also interpreted by tabwriter
+-			P.Printf("%s", HtmlEscape(Untabify(ctext)));
++			P.Printf("%s", htmlEscape(untabify(ctext)));
+ 
+ 			if ctext[1] == '/' {
+ 				//-style comments must end in newline
+@@ -309,7 +309,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 	if *debug {
+ 		P.Printf("[%d]", pos);
+ 	}
+-	P.Printf("%s%s%s", tag, HtmlEscape(s), endtag);
++	P.Printf("%s%s%s", tag, htmlEscape(s), endtag);
+ 
+ 	// --------------------------------
+ 	// interpret state
+@@ -359,7 +359,7 @@ func (P *Printer) HtmlPrologue(title string) {
+ 			"<html>\n"
+ 			"<head>\n"
+ 			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
+-			"	<title>" + HtmlEscape(title) + "</title>\n"
++			"	<title>" + htmlEscape(title) + "</title>\n"
+ 			"	<style type=\"text/css\">\n"
+ 			"	</style>\n"
+ 			"</head>\n"
+@@ -384,23 +384,23 @@ func (P *Printer) HtmlEpilogue() {
+ 
+ 
+ func (P *Printer) HtmlIdentifier(x *AST.Expr) {
+-	if x.tok != Scanner.IDENT {
++	if x.Tok != Scanner.IDENT {
+ 		panic();
+ 	}
+-	obj := x.obj;
+-	if *html && obj.kind != AST.NONE {
++	obj := x.Obj;
++	if *html && obj.Kind != AST.NONE {
+ 		// depending on whether we have a declaration or use, generate different html
+-		// - no need to HtmlEscape ident
+-		id := Utils.IntToString(obj.id, 10);
+-		if x.pos == obj.pos {
++		// - no need to htmlEscape ident
++		id := Utils.IntToString(obj.Id, 10);
++		if x.Pos == obj.Pos {
+ 			// probably the declaration of x
+-			P.TaggedString(x.pos, `<a name="id` + id + `">`, obj.ident, `</a>`);
++			P.TaggedString(x.Pos, `<a name="id` + id + `">`, obj.Ident, `</a>`);
+ 		} else {
+ 			// probably not the declaration of x
+-			P.TaggedString(x.pos, `<a href="#id` + id + `">`, obj.ident, `</a>`);
++			P.TaggedString(x.Pos, `<a href="#id` + id + `">`, obj.Ident, `</a>`);
+ 		}
+ 	} else {
+-		P.String(x.pos, obj.ident);
++		P.String(x.Pos, obj.Ident);
+ 	}
+ }
+ 
+@@ -418,14 +418,14 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
+ 		for i, n := 0, list.Len(); i < n; i++ {
+ 			x := list.At(i).(*AST.Expr);
+ 			if i > 0 {
+-				if prev == x.tok || prev == Scanner.TYPE {
++				if prev == x.Tok || prev == Scanner.TYPE {
+ 					P.separator = comma;
+ 				} else {
+ 					P.separator = blank;
+ 				}
+ 			}
+ 			P.Expr(x);
+-			prev = x.tok;
++			prev = x.Tok;
+ 		}
+ 	}
+ 	P.String(0, ")");
+@@ -442,17 +442,17 @@ func (P *Printer) Fields(list *array.Array, end int) {
+ 		for i, n := 0, list.Len(); i < n; i++ {
+ 			x := list.At(i).(*AST.Expr);
+ 			if i > 0 {
+-				if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
++				if prev == Scanner.TYPE && x.Tok != Scanner.STRING || prev == Scanner.STRING {
+ 					P.separator = semicolon;
+ 					P.newlines = 1;
+-				} else if prev == x.tok {
++				} else if prev == x.Tok {
+ 					P.separator = comma;
+ 				} else {
+ 					P.separator = tab;
+ 				}
+ 			}
+ 			P.Expr(x);
+-			prev = x.tok;
++			prev = x.Tok;
+ 		}
+ 		P.newlines = 1;
+ 	}
+@@ -467,54 +467,54 @@ func (P *Printer) Fields(list *array.Array, end int) {
+ func (P *Printer) Type(t *AST.Type) int {
+ 	separator := semicolon;
+ 
+-	switch t.form {
++	switch t.Form {
+ 	case AST.TYPENAME:
+-		P.Expr(t.expr);
++		P.Expr(t.Expr);
+ 
+ 	case AST.ARRAY:
+-		P.String(t.pos, "[");
+-		if t.expr != nil {
+-			P.Expr(t.expr);
++		P.String(t.Pos, "[");
++		if t.Expr != nil {
++			P.Expr(t.Expr);
+ 		}
+ 		P.String(0, "]");
+-		separator = P.Type(t.elt);
++		separator = P.Type(t.Elt);
+ 
+ 	case AST.STRUCT, AST.INTERFACE:
+-		switch t.form {
+-		case AST.STRUCT: P.String(t.pos, "struct");
+-		case AST.INTERFACE: P.String(t.pos, "interface");
++		switch t.Form {
++		case AST.STRUCT: P.String(t.Pos, "struct");
++		case AST.INTERFACE: P.String(t.Pos, "interface");
+ 		}
+-		if t.list != nil {
++		if t.List != nil {
+ 			P.separator = blank;
+-			P.Fields(t.list, t.end);
++			P.Fields(t.List, t.End);
+ 		}
+ 		separator = none;
+ 
+ 	case AST.MAP:
+-		P.String(t.pos, "map [");
+-		P.Type(t.key);
++		P.String(t.Pos, "map [");
++		P.Type(t.Key);
+ 		P.String(0, "]");
+-		separator = P.Type(t.elt);
++		separator = P.Type(t.Elt);
+ 
+ 	case AST.CHANNEL:
+ 		var m string;
+-		switch t.mode {
++		switch t.Mode {
+ 		case AST.FULL: m = "chan ";
+ 		case AST.RECV: m = "<-chan ";
+ 		case AST.SEND: m = "chan <- ";
+ 		}
+-		P.String(t.pos, m);
+-		separator = P.Type(t.elt);
++		P.String(t.Pos, m);
++		separator = P.Type(t.Elt);
+ 
+ 	case AST.POINTER:
+-		P.String(t.pos, "*");
+-		separator = P.Type(t.elt);
++		P.String(t.Pos, "*");
++		separator = P.Type(t.Elt);
+ 
+ 	case AST.FUNCTION:
+-		P.Parameters(t.pos, t.list);
+-		if t.elt != nil {
++		P.Parameters(t.Pos, t.List);
++		if t.Elt != nil {
+ 			P.separator = blank;
+-			list := t.elt.list;
++			list := t.Elt.List;
+ 			if list.Len() > 1 {
+ 				P.Parameters(0, list);
+ 			} else {
+@@ -524,10 +524,10 @@ func (P *Printer) Type(t *AST.Type) int {
+ 		}
+ 
+ 	case AST.ELLIPSIS:
+-		P.String(t.pos, "...");
++		P.String(t.Pos, "...");
+ 
+ 	default:
+-		P.Error(t.pos, t.form, "type");
++		P.Error(t.Pos, t.Form, "type");
+ 	}
+ 
+ 	return separator;
+@@ -544,90 +544,90 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 		return;  // empty expression list
+ 	}
+ 
+-	switch x.tok {
++	switch x.Tok {
+ 	case Scanner.TYPE:
+ 		// type expr
+-		P.Type(x.obj.typ);
++		P.Type(x.Obj.Typ);
+ 
+ 	case Scanner.IDENT:
+ 		P.HtmlIdentifier(x);
+ 	
+ 	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+ 		// literal
+-		P.String(x.pos, x.obj.ident);
++		P.String(x.Pos, x.Obj.Ident);
+ 
+ 	case Scanner.FUNC:
+ 		// function literal
+-		P.String(x.pos, "func");
+-		P.Type(x.obj.typ);
+-		P.Block(0, x.obj.block, x.obj.end, true);
++		P.String(x.Pos, "func");
++		P.Type(x.Obj.Typ);
++		P.Block(0, x.Obj.Block, x.Obj.End, true);
+ 		P.newlines = 0;
+ 
+ 	case Scanner.COMMA:
+ 		// list
+ 		// (don't use binary expression printing because of different spacing)
+-		P.Expr(x.x);
+-		P.String(x.pos, ",");
++		P.Expr(x.X);
++		P.String(x.Pos, ",");
+ 		P.separator = blank;
+ 		P.state = inside_list;
+-		P.Expr(x.y);
++		P.Expr(x.Y);
+ 
+ 	case Scanner.PERIOD:
+ 		// selector or type guard
+-		P.Expr1(x.x, Scanner.HighestPrec);
+-		P.String(x.pos, ".");
+-		if x.y.tok == Scanner.TYPE {
++		P.Expr1(x.X, Scanner.HighestPrec);
++		P.String(x.Pos, ".");
++		if x.Y.Tok == Scanner.TYPE {
+ 			P.String(0, "(");
+-			P.Expr(x.y);
++			P.Expr(x.Y);
+ 			P.String(0, ")");
+ 		} else {
+-			P.Expr1(x.y, Scanner.HighestPrec);
++			P.Expr1(x.Y, Scanner.HighestPrec);
+ 		}
+ 		
+ 	case Scanner.LBRACK:
+ 		// index
+-		P.Expr1(x.x, Scanner.HighestPrec);
+-		P.String(x.pos, "[");
+-		P.Expr1(x.y, 0);
++		P.Expr1(x.X, Scanner.HighestPrec);
++		P.String(x.Pos, "[");
++		P.Expr1(x.Y, 0);
+ 		P.String(0, "]");
+ 
+ 	case Scanner.LPAREN:
+ 		// call
+-		P.Expr1(x.x, Scanner.HighestPrec);
+-		P.String(x.pos, "(");
+-		P.Expr(x.y);
++		P.Expr1(x.X, Scanner.HighestPrec);
++		P.String(x.Pos, "(");
++		P.Expr(x.Y);
+ 		P.String(0, ")");
+ 
+ 	case Scanner.LBRACE:
+ 		// composite literal
+-		P.Type(x.obj.typ);
+-		P.String(x.pos, "{");
+-		P.Expr(x.y);
++		P.Type(x.Obj.Typ);
++		P.String(x.Pos, "{");
++		P.Expr(x.Y);
+ 		P.String(0, "}");
+ 		
+ 	default:
+ 		// unary and binary expressions including ":" for pairs
+ 		prec := Scanner.UnaryPrec;
+-		if x.x != nil {
+-			prec = Scanner.Precedence(x.tok);
++		if x.X != nil {
++			prec = Scanner.Precedence(x.Tok);
+ 		}
+ 		if prec < prec1 {
+ 			P.String(0, "(");
+ 		}
+-		if x.x == nil {
++		if x.X == nil {
+ 			// unary expression
+-			P.Token(x.pos, x.tok);
+-			if x.tok == Scanner.RANGE {
++			P.Token(x.Pos, x.Tok);
++			if x.Tok == Scanner.RANGE {
+ 				P.separator = blank;
+ 			}
+ 		} else {
+ 			// binary expression
+-			P.Expr1(x.x, prec);
++			P.Expr1(x.X, prec);
+ 			P.separator = blank;
+-			P.Token(x.pos, x.tok);
++			P.Token(x.Pos, x.Tok);
+ 			P.separator = blank;
+ 		}
+-		P.Expr1(x.y, prec);
++		P.Expr1(x.Y, prec);
+ 		if prec < prec1 {
+ 			P.String(0, ")");
+ 		}
+@@ -676,32 +676,32 @@ func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
+ 
+ 
+ func (P *Printer) ControlClause(s *AST.Stat) {
+-	has_post := s.tok == Scanner.FOR && s.post != nil;  // post also used by "if"
++	has_post := s.Tok == Scanner.FOR && s.Post != nil;  // post also used by "if"
+ 
+ 	P.separator = blank;
+-	if s.init == nil && !has_post {
++	if s.Init == nil && !has_post {
+ 		// no semicolons required
+-		if s.expr != nil {
+-			P.Expr(s.expr);
++		if s.Expr != nil {
++			P.Expr(s.Expr);
+ 		}
+ 	} else {
+ 		// all semicolons required
+ 		// (they are not separators, print them explicitly)
+-		if s.init != nil {
+-			P.Stat(s.init);
++		if s.Init != nil {
++			P.Stat(s.Init);
+ 			P.separator = none;
+ 		}
+ 		P.String(0, ";");
+ 		P.separator = blank;
+-		if s.expr != nil {
+-			P.Expr(s.expr);
++		if s.Expr != nil {
++			P.Expr(s.Expr);
+ 			P.separator = none;
+ 		}
+-		if s.tok == Scanner.FOR {
++		if s.Tok == Scanner.FOR {
+ 			P.String(0, ";");
+ 			P.separator = blank;
+ 			if has_post {
+-				P.Stat(s.post);
++				P.Stat(s.Post);
+ 			}
+ 		}
+ 	}
+@@ -712,76 +712,76 @@ func (P *Printer) ControlClause(s *AST.Stat) {
+ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool);
+ 
+ func (P *Printer) Stat(s *AST.Stat) {
+-	switch s.tok {
++	switch s.Tok {
+ 	case Scanner.EXPRSTAT:
+ 		// expression statement
+-		P.Expr(s.expr);
++		P.Expr(s.Expr);
+ 		P.separator = semicolon;
+ 
+ 	case Scanner.COLON:
+ 		// label declaration
+ 		P.indentation--;
+-		P.Expr(s.expr);
+-		P.Token(s.pos, s.tok);
++		P.Expr(s.Expr);
++		P.Token(s.Pos, s.Tok);
+ 		P.indentation++;
+ 		P.separator = none;
+ 		
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+ 		// declaration
+-		P.Declaration(s.decl, false);
++		P.Declaration(s.Decl, false);
+ 
+ 	case Scanner.INC, Scanner.DEC:
+-		P.Expr(s.expr);
+-		P.Token(s.pos, s.tok);
++		P.Expr(s.Expr);
++		P.Token(s.Pos, s.Tok);
+ 		P.separator = semicolon;
+ 
+ 	case Scanner.LBRACE:
+ 		// block
+-		P.Block(s.pos, s.block, s.end, true);
++		P.Block(s.Pos, s.Block, s.End, true);
+ 
+ 	case Scanner.IF:
+-		P.String(s.pos, "if");
++		P.String(s.Pos, "if");
+ 		P.ControlClause(s);
+-		P.Block(0, s.block, s.end, true);
+-		if s.post != nil {
++		P.Block(0, s.Block, s.End, true);
++		if s.Post != nil {
+ 			P.separator = blank;
+ 			P.String(0, "else");
+ 			P.separator = blank;
+-			P.Stat(s.post);
++			P.Stat(s.Post);
+ 		}
+ 
+ 	case Scanner.FOR:
+-		P.String(s.pos, "for");
++		P.String(s.Pos, "for");
+ 		P.ControlClause(s);
+-		P.Block(0, s.block, s.end, true);
++		P.Block(0, s.Block, s.End, true);
+ 
+ 	case Scanner.SWITCH, Scanner.SELECT:
+-		P.Token(s.pos, s.tok);
++		P.Token(s.Pos, s.Tok);
+ 		P.ControlClause(s);
+-		P.Block(0, s.block, s.end, false);
++		P.Block(0, s.Block, s.End, false);
+ 
+ 	case Scanner.CASE, Scanner.DEFAULT:
+-		P.Token(s.pos, s.tok);
+-		if s.expr != nil {
++		P.Token(s.Pos, s.Tok);
++		if s.Expr != nil {
+ 			P.separator = blank;
+-			P.Expr(s.expr);
++			P.Expr(s.Expr);
+ 		}
+ 		P.String(0, ":");
+ 		P.indentation++;
+-		P.StatementList(s.block);
++		P.StatementList(s.Block);
+ 		P.indentation--;
+ 		P.newlines = 1;
+ 
+ 	case Scanner.GO, Scanner.RETURN, Scanner.FALLTHROUGH, Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+-		P.Token(s.pos, s.tok);
+-		if s.expr != nil {
++		P.Token(s.Pos, s.Tok);
++		if s.Expr != nil {
+ 			P.separator = blank;
+-			P.Expr(s.expr);
++			P.Expr(s.Expr);
+ 		}
+ 		P.separator = semicolon;
+ 
+ 	default:
+-		P.Error(s.pos, s.tok, "stat");
++		P.Error(s.Pos, s.Tok, "stat");
+ 	}
+ }
+ 
+@@ -791,80 +791,80 @@ func (P *Printer) Stat(s *AST.Stat) {
+ 
+ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 	if !parenthesized {
+-		if d.exported {
+-			P.String(d.pos, "export");
++		if d.Exported {
++			P.String(d.Pos, "export");
+ 			P.separator = blank;
+ 		}
+-		P.Token(d.pos, d.tok);
++		P.Token(d.Pos, d.Tok);
+ 		P.separator = blank;
+ 	}
+ 
+-	if d.tok != Scanner.FUNC && d.list != nil {
++	if d.Tok != Scanner.FUNC && d.List != nil {
+ 		// group of parenthesized declarations
+ 		P.state = opening_scope;
+ 		P.String(0, "(");
+-		if d.list.Len() > 0 {
++		if d.List.Len() > 0 {
+ 			P.newlines = 1;
+-			for i := 0; i < d.list.Len(); i++ {
+-				P.Declaration(d.list.At(i).(*AST.Decl), true);
++			for i := 0; i < d.List.Len(); i++ {
++				P.Declaration(d.List.At(i).(*AST.Decl), true);
+ 				P.separator = semicolon;
+ 				P.newlines = 1;
+ 			}
+ 		}
+ 		P.state = closing_scope;
+-		P.String(d.end, ")");
++		P.String(d.End, ")");
+ 
+ 	} else {
+ 		// single declaration
+-		switch d.tok {
++		switch d.Tok {
+ 		case Scanner.IMPORT:
+-			if d.ident != nil {
+-				P.Expr(d.ident);
++			if d.Ident != nil {
++				P.Expr(d.Ident);
+ 			} else {
+-				P.String(d.val.pos, "");  // flush pending ';' separator/newlines
++				P.String(d.Val.Pos, "");  // flush pending ';' separator/newlines
+ 			}
+ 			P.separator = tab;
+-			P.Expr(d.val);
++			P.Expr(d.Val);
+ 			P.separator = semicolon;
+ 
+ 		case Scanner.EXPORT:
+-			P.Expr(d.ident);
++			P.Expr(d.Ident);
+ 			P.separator = semicolon;
+ 
+ 		case Scanner.TYPE:
+-			P.Expr(d.ident);
++			P.Expr(d.Ident);
+ 			P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
+-			P.separator = P.Type(d.typ);
++			P.separator = P.Type(d.Typ);
+ 
+ 		case Scanner.CONST, Scanner.VAR:
+-			P.Expr(d.ident);
+-			if d.typ != nil {
++			P.Expr(d.Ident);
++			if d.Typ != nil {
+ 				P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+-				P.separator = P.Type(d.typ);
++				P.separator = P.Type(d.Typ);
+ 			}
+-			if d.val != nil {
++			if d.Val != nil {
+ 				P.separator = tab;
+ 				P.String(0, "=");
+ 				P.separator = blank;
+-				P.Expr(d.val);
++				P.Expr(d.Val);
+ 			}
+ 			P.separator = semicolon;
+ 
+ 		case Scanner.FUNC:
+-			if d.typ.key != nil {
++			if d.Typ.Key != nil {
+ 				// method: print receiver
+-				P.Parameters(0, d.typ.key.list);
++				P.Parameters(0, d.Typ.Key.List);
+ 				P.separator = blank;
+ 			}
+-			P.Expr(d.ident);
+-			P.separator = P.Type(d.typ);
+-			if d.list != nil {
++			P.Expr(d.Ident);
++			P.separator = P.Type(d.Typ);
++			if d.List != nil {
+ 				P.separator = blank;
+-				P.Block(0, d.list, d.end, true);
++				P.Block(0, d.List, d.End, true);
+ 			}
+ 
+ 		default:
+-			P.Error(d.pos, d.tok, "decl");
++			P.Error(d.Pos, d.Tok, "decl");
+ 		}
+ 	}
+ 	
+@@ -876,12 +876,12 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ // Program
+ 
+ func (P *Printer) Program(p *AST.Program) {
+-	P.String(p.pos, "package");
++	P.String(p.Pos, "package");
+ 	P.separator = blank;
+-	P.Expr(p.ident);
++	P.Expr(p.Ident);
+ 	P.newlines = 1;
+-	for i := 0; i < p.decls.Len(); i++ {
+-		P.Declaration(p.decls.At(i).(*AST.Decl), false);
++	for i := 0; i < p.Decls.Len(); i++ {
++		P.Declaration(p.Decls.At(i).(*AST.Decl), false);
+ 	}
+ 	P.newlines = 1;
+ }
+@@ -898,10 +898,10 @@ export func Print(prog *AST.Program) {
+ 		padchar = '\t';
+ 	}
+ 	text := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, *html);
+-	P.Init(text, prog.comments);
++	P.Init(text, prog.Comments);
+ 
+ 	// TODO would be better to make the name of the src file be the title
+-	P.HtmlPrologue("package " + prog.ident.obj.ident);
++	P.HtmlPrologue("package " + prog.Ident.Obj.Ident);
+ 	P.Program(prog);
+ 	P.HtmlEpilogue();
+ 	
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 681bbec459..87e13e1c74 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -4,10 +4,11 @@
+ 
+ package Scanner
+ 
+-import "utf8"
+-import "unicode"
+-import Utils "utils"
+-
++import (
++	"utf8";
++	"unicode";
++	"utils";
++)
+ 
+ export const (
+ 	ILLEGAL = iota;
+@@ -75,7 +76,7 @@ export const (
+ 	PERIOD;
+ 
+ 	// keywords
+-	KEYWORDS_BEG;
++	Keywords_beg;  // do not export eventually
+ 	BREAK;
+ 	CASE;
+ 	CHAN;
+@@ -105,7 +106,7 @@ export const (
+ 	SWITCH;
+ 	TYPE;
+ 	VAR;
+-	KEYWORDS_END;
++	Keywords_end;  // do not export eventually
+ 
+ 	// AST use only
+ 	EXPRSTAT;
+@@ -243,13 +244,13 @@ export func Precedence(tok int) int {
+ }
+ 
+ 
+-var Keywords map [string] int;
++var keywords map [string] int;
+ 
+ 
+ func init() {
+-	Keywords = make(map [string] int);
+-	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
+-		Keywords[TokenString(i)] = i;
++	keywords = make(map [string] int);
++	for i := Keywords_beg + 1; i < Keywords_end; i++ {
++		keywords[TokenString(i)] = i;
+ 	}
+ }
+ 
+@@ -301,7 +302,7 @@ export type Scanner struct {
+ 
+ // Read the next Unicode char into S.ch.
+ // S.ch < 0 means end-of-file.
+-func (S *Scanner) Next() {
++func (S *Scanner) next() {
+ 	if S.pos < len(S.src) {
+ 		// assume ascii
+ 		r, w := int(S.src[S.pos]), 1;
+@@ -333,7 +334,7 @@ func (S *Scanner) Error(pos int, msg string) {
+ }
+ 
+ 
+-func (S *Scanner) ExpectNoErrors() {
++func (S *Scanner) expectNoErrors() {
+ 	// set the next expected error position to one after eof
+ 	// (the eof position is a legal error position!)
+ 	S.testpos = len(S.src) + 1;
+@@ -349,12 +350,12 @@ func (S *Scanner) Init(err ErrorHandler, src string, scan_comments, testmode boo
+ 	S.linepos = 0;
+ 
+ 	S.testmode = testmode;
+-	S.ExpectNoErrors();  // S.src must be set
+-	S.Next();  // S.ExpectNoErrrors() must be called before
++	S.expectNoErrors();  // S.src must be set
++	S.next();  // S.expectNoErrrors() must be called before
+ }
+ 
+ 
+-func CharString(ch int) string {
++func charString(ch int) string {
+ 	s := string(ch);
+ 	switch ch {
+ 	case '\a': s = `\a`;
+@@ -371,15 +372,15 @@ func CharString(ch int) string {
+ }
+ 
+ 
+-func (S *Scanner) Expect(ch int) {
++func (S *Scanner) expect(ch int) {
+ 	if S.ch != ch {
+-		S.Error(S.chpos, "expected " + CharString(ch) + ", found " + CharString(S.ch));
++		S.Error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
+ 	}
+-	S.Next();  // make always progress
++	S.next();  // make always progress
+ }
+ 
+ 
+-func (S *Scanner) SkipWhitespace() {
++func (S *Scanner) skipWhitespace() {
+ 	for {
+ 		switch S.ch {
+ 		case '\t', '\r', ' ':
+@@ -391,37 +392,37 @@ func (S *Scanner) SkipWhitespace() {
+ 		default:
+ 			return;
+ 		}
+-		S.Next();
++		S.next();
+ 	}
+ 	panic("UNREACHABLE");
+ }
+ 
+ 
+-func (S *Scanner) ScanComment() string {
++func (S *Scanner) scanComment() string {
+ 	// first '/' already consumed
+ 	pos := S.chpos - 1;
+ 
+ 	if S.ch == '/' {
+ 		//-style comment
+-		S.Next();
++		S.next();
+ 		for S.ch >= 0 {
+-			S.Next();
++			S.next();
+ 			if S.ch == '\n' {
+ 				// '\n' terminates comment but we do not include
+ 				// it in the comment (otherwise we don't see the
+-				// start of a newline in SkipWhitespace()).
++				// start of a newline in skipWhitespace()).
+ 				goto exit;
+ 			}
+ 		}
+ 
+ 	} else {
+ 		/*-style comment */
+-		S.Expect('*');
++		S.expect('*');
+ 		for S.ch >= 0 {
+ 			ch := S.ch;
+-			S.Next();
++			S.next();
+ 			if ch == '*' && S.ch == '/' {
+-				S.Next();
++				S.next();
+ 				goto exit;
+ 			}
+ 		}
+@@ -439,12 +440,12 @@ exit:
+ 		case len(comment) >= 8 && comment[3 : 8] == "ERROR" :
+ 			// an error is expected at the next token position
+ 			oldpos = S.testpos;
+-			S.SkipWhitespace();
++			S.skipWhitespace();
+ 			S.testpos = S.chpos;
+ 		case len(comment) >= 7 && comment[3 : 7] == "SYNC" :
+ 			// scanning/parsing synchronized again - no (follow-up) errors expected
+ 			oldpos = S.testpos;
+-			S.ExpectNoErrors();
++			S.expectNoErrors();
+ 		}
+ 
+ 		if 0 <= oldpos && oldpos <= len(S.src) {
+@@ -457,15 +458,15 @@ exit:
+ }
+ 
+ 
+-func (S *Scanner) ScanIdentifier() (tok int, val string) {
++func (S *Scanner) scanIdentifier() (tok int, val string) {
+ 	pos := S.chpos;
+ 	for is_letter(S.ch) || digit_val(S.ch) < 10 {
+-		S.Next();
++		S.next();
+ 	}
+ 	val = S.src[pos : S.chpos];
+ 
+ 	var present bool;
+-	tok, present = Keywords[val];
++	tok, present = keywords[val];
+ 	if !present {
+ 		tok = IDENT;
+ 	}
+@@ -474,34 +475,34 @@ func (S *Scanner) ScanIdentifier() (tok int, val string) {
+ }
+ 
+ 
+-func (S *Scanner) ScanMantissa(base int) {
++func (S *Scanner) scanMantissa(base int) {
+ 	for digit_val(S.ch) < base {
+-		S.Next();
++		S.next();
+ 	}
+ }
+ 
+ 
+-func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
++func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, val string) {
+ 	pos := S.chpos;
+ 	tok = INT;
+ 
+ 	if seen_decimal_point {
+ 		tok = FLOAT;
+ 		pos--;  // '.' is one byte
+-		S.ScanMantissa(10);
++		S.scanMantissa(10);
+ 		goto exponent;
+ 	}
+ 
+ 	if S.ch == '0' {
+ 		// int or float
+-		S.Next();
++		S.next();
+ 		if S.ch == 'x' || S.ch == 'X' {
+ 			// hexadecimal int
+-			S.Next();
+-			S.ScanMantissa(16);
++			S.next();
++			S.scanMantissa(16);
+ 		} else {
+ 			// octal int or float
+-			S.ScanMantissa(8);
++			S.scanMantissa(8);
+ 			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+ 				// float
+ 				tok = FLOAT;
+@@ -514,24 +515,24 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
+ 
+ mantissa:
+ 	// decimal int or float
+-	S.ScanMantissa(10);
++	S.scanMantissa(10);
+ 
+ 	if S.ch == '.' {
+ 		// float
+ 		tok = FLOAT;
+-		S.Next();
+-		S.ScanMantissa(10)
++		S.next();
++		S.scanMantissa(10)
+ 	}
+ 
+ exponent:
+ 	if S.ch == 'e' || S.ch == 'E' {
+ 		// float
+ 		tok = FLOAT;
+-		S.Next();
++		S.next();
+ 		if S.ch == '-' || S.ch == '+' {
+-			S.Next();
++			S.next();
+ 		}
+-		S.ScanMantissa(10);
++		S.scanMantissa(10);
+ 	}
+ 
+ exit:
+@@ -539,9 +540,9 @@ exit:
+ }
+ 
+ 
+-func (S *Scanner) ScanDigits(n int, base int) {
++func (S *Scanner) scanDigits(n int, base int) {
+ 	for digit_val(S.ch) < base {
+-		S.Next();
++		S.next();
+ 		n--;
+ 	}
+ 	if n > 0 {
+@@ -550,30 +551,30 @@ func (S *Scanner) ScanDigits(n int, base int) {
+ }
+ 
+ 
+-func (S *Scanner) ScanEscape(quote int) string {
++func (S *Scanner) scanEscape(quote int) string {
+ 	// TODO: fix this routine
+ 
+ 	ch := S.ch;
+ 	pos := S.chpos;
+-	S.Next();
++	S.next();
+ 	switch ch {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
+ 		return string(ch);
+ 
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+-		S.ScanDigits(3 - 1, 8);  // 1 char already read
++		S.scanDigits(3 - 1, 8);  // 1 char already read
+ 		return "";  // TODO fix this
+ 
+ 	case 'x':
+-		S.ScanDigits(2, 16);
++		S.scanDigits(2, 16);
+ 		return "";  // TODO fix this
+ 
+ 	case 'u':
+-		S.ScanDigits(4, 16);
++		S.scanDigits(4, 16);
+ 		return "";  // TODO fix this
+ 
+ 	case 'U':
+-		S.ScanDigits(8, 16);
++		S.scanDigits(8, 16);
+ 		return "";  // TODO fix this
+ 
+ 	default:
+@@ -588,91 +589,91 @@ func (S *Scanner) ScanEscape(quote int) string {
+ }
+ 
+ 
+-func (S *Scanner) ScanChar() string {
++func (S *Scanner) scanChar() string {
+ 	// '\'' already consumed
+ 
+ 	pos := S.chpos - 1;
+ 	ch := S.ch;
+-	S.Next();
++	S.next();
+ 	if ch == '\\' {
+-		S.ScanEscape('\'');
++		S.scanEscape('\'');
+ 	}
+ 
+-	S.Expect('\'');
++	S.expect('\'');
+ 	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) ScanString() string {
++func (S *Scanner) scanString() string {
+ 	// '"' already consumed
+ 
+ 	pos := S.chpos - 1;
+ 	for S.ch != '"' {
+ 		ch := S.ch;
+-		S.Next();
++		S.next();
+ 		if ch == '\n' || ch < 0 {
+ 			S.Error(pos, "string not terminated");
+ 			break;
+ 		}
+ 		if ch == '\\' {
+-			S.ScanEscape('"');
++			S.scanEscape('"');
+ 		}
+ 	}
+ 
+-	S.Next();
++	S.next();
+ 	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) ScanRawString() string {
++func (S *Scanner) scanRawString() string {
+ 	// '`' already consumed
+ 
+ 	pos := S.chpos - 1;
+ 	for S.ch != '`' {
+ 		ch := S.ch;
+-		S.Next();
++		S.next();
+ 		if ch == '\n' || ch < 0 {
+ 			S.Error(pos, "string not terminated");
+ 			break;
+ 		}
+ 	}
+ 
+-	S.Next();
++	S.next();
+ 	return S.src[pos : S.chpos];
+ }
+ 
+ 
+-func (S *Scanner) Select2(tok0, tok1 int) int {
++func (S *Scanner) select2(tok0, tok1 int) int {
+ 	if S.ch == '=' {
+-		S.Next();
++		S.next();
+ 		return tok1;
+ 	}
+ 	return tok0;
+ }
+ 
+ 
+-func (S *Scanner) Select3(tok0, tok1, ch2, tok2 int) int {
++func (S *Scanner) select3(tok0, tok1, ch2, tok2 int) int {
+ 	if S.ch == '=' {
+-		S.Next();
++		S.next();
+ 		return tok1;
+ 	}
+ 	if S.ch == ch2 {
+-		S.Next();
++		S.next();
+ 		return tok2;
+ 	}
+ 	return tok0;
+ }
+ 
+ 
+-func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
++func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 	if S.ch == '=' {
+-		S.Next();
++		S.next();
+ 		return tok1;
+ 	}
+ 	if S.ch == ch2 {
+-		S.Next();
++		S.next();
+ 		if S.ch == '=' {
+-			S.Next();
++			S.next();
+ 			return tok3;
+ 		}
+ 		return tok2;
+@@ -683,29 +684,29 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 
+ func (S *Scanner) Scan() (pos, tok int, val string) {
+ loop:
+-	S.SkipWhitespace();
++	S.skipWhitespace();
+ 
+ 	pos, tok = S.chpos, ILLEGAL;
+ 
+ 	switch ch := S.ch; {
+-	case is_letter(ch): tok, val = S.ScanIdentifier();
+-	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
++	case is_letter(ch): tok, val = S.scanIdentifier();
++	case digit_val(ch) < 10: tok, val = S.scanNumber(false);
+ 	default:
+-		S.Next();  // always make progress
++		S.next();  // always make progress
+ 		switch ch {
+ 		case -1: tok = EOF;
+ 		case '\n': tok, val = COMMENT, "\n";
+-		case '"': tok, val = STRING, S.ScanString();
+-		case '\'': tok, val = INT, S.ScanChar();
+-		case '`': tok, val = STRING, S.ScanRawString();
+-		case ':': tok = S.Select2(COLON, DEFINE);
++		case '"': tok, val = STRING, S.scanString();
++		case '\'': tok, val = INT, S.scanChar();
++		case '`': tok, val = STRING, S.scanRawString();
++		case ':': tok = S.select2(COLON, DEFINE);
+ 		case '.':
+ 			if digit_val(S.ch) < 10 {
+-				tok, val = S.ScanNumber(true);
++				tok, val = S.scanNumber(true);
+ 			} else if S.ch == '.' {
+-				S.Next();
++				S.next();
+ 				if S.ch == '.' {
+-					S.Next();
++					S.next();
+ 					tok = ELLIPSIS;
+ 				}
+ 			} else {
+@@ -719,34 +720,34 @@ loop:
+ 		case ']': tok = RBRACK;
+ 		case '{': tok = LBRACE;
+ 		case '}': tok = RBRACE;
+-		case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
+-		case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
+-		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
++		case '+': tok = S.select3(ADD, ADD_ASSIGN, '+', INC);
++		case '-': tok = S.select3(SUB, SUB_ASSIGN, '-', DEC);
++		case '*': tok = S.select2(MUL, MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+-				tok, val = COMMENT, S.ScanComment();
++				tok, val = COMMENT, S.scanComment();
+ 				if !S.scan_comments {
+ 					goto loop;
+ 				}
+ 			} else {
+-				tok = S.Select2(QUO, QUO_ASSIGN);
++				tok = S.select2(QUO, QUO_ASSIGN);
+ 			}
+-		case '%': tok = S.Select2(REM, REM_ASSIGN);
+-		case '^': tok = S.Select2(XOR, XOR_ASSIGN);
++		case '%': tok = S.select2(REM, REM_ASSIGN);
++		case '^': tok = S.select2(XOR, XOR_ASSIGN);
+ 		case '<':
+ 			if S.ch == '-' {
+-				S.Next();
++				S.next();
+ 				tok = ARROW;
+ 			} else {
+-				tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
++				tok = S.select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
+ 			}
+-		case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
+-		case '=': tok = S.Select2(ASSIGN, EQL);
+-		case '!': tok = S.Select2(NOT, NEQ);
+-		case '&': tok = S.Select3(AND, AND_ASSIGN, '&', LAND);
+-		case '|': tok = S.Select3(OR, OR_ASSIGN, '|', LOR);
++		case '>': tok = S.select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
++		case '=': tok = S.select2(ASSIGN, EQL);
++		case '!': tok = S.select2(NOT, NEQ);
++		case '&': tok = S.select3(AND, AND_ASSIGN, '&', LAND);
++		case '|': tok = S.select3(OR, OR_ASSIGN, '|', LOR);
+ 		default:
+-			S.Error(pos, "illegal character " + CharString(ch));
++			S.Error(pos, "illegal character " + charString(ch));
+ 			tok = ILLEGAL;
+ 		}
+ 	}
+@@ -756,9 +757,9 @@ loop:
+ 
+ 
+ export type Token struct {
+-	pos int;
+-	tok int;
+-	val string;
++	Pos int;
++	Tok int;
++	Val string;
+ }
+ 
+ 
+@@ -767,9 +768,9 @@ func (S *Scanner) TokenStream() <-chan *Token {
+ 	go func(S *Scanner, ch chan <- *Token) {
+ 		for {
+ 			t := new(Token);
+-			t.pos, t.tok, t.val = S.Scan();
++			t.Pos, t.Tok, t.Val = S.Scan();
+ 			ch <- t;
+-			if t.tok == EOF {
++			if t.Tok == EOF {
+ 				break;
+ 			}
+ 		}
+diff --git a/usr/gri/pretty/selftest0.go b/usr/gri/pretty/selftest0.go
+index 09b1283db4..4706f8ab66 100644
+--- a/usr/gri/pretty/selftest0.go
++++ b/usr/gri/pretty/selftest0.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-type Proto struct {
++export type Proto struct {
+ 	a int "a tag";
+ 	b, c, d *Proto "bcd" "tag";
+ 	*Proto "proto tag"
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index f41fbc7439..5b9c8a7af7 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ 
+-const /* enum1 */ (
++export const /* enum1 */ (
+ 	EnumTag0 = iota;
+ 	EnumTag1;
+ 	EnumTag2;
+@@ -32,10 +32,10 @@ const /* enum2 */ (
+ )
+ 
+ 
+-type S struct {}
++export type S struct {}
+ 
+ 
+-type T struct {
++export type T struct {
+ 	x, y int;
+ 	s string;
+ 	next_t *T
+@@ -43,7 +43,7 @@ type T struct {
+ 
+ 
+ var (
+-	A = 5;
++	aa = 5;
+ 	u, v, w int = 0, 0, 0;
+ 	foo = "foo";
+ 	fixed_array0 = [10]int{};
+@@ -54,7 +54,7 @@ var (
+ 
+ var (
+ 	// Unicode identifiers
+-	ä, ö, ü, Á, Ø, Å, ƒ, ß int;
++	ä, ö, ü, ƒ, ß int;
+ )
+ 
+ 
+@@ -105,24 +105,24 @@ func f3(a *[]int, m map[string] int) {
+ 	}
+ 
+ 	println("A3");
+-	for i : x := range a {
++	for i, x := range a {
+ 		println(i, x);
+ 	}
+ 
+ 	println("M1");
+-	for i range m {
++	for i := range m {
+ 		println(i);
+ 	}
+ 
+ 	println("M2");
+-	for i, x range m {
++	for i, x := range m {
+ 		println(i, x);
+ 	}
+ 
+ 	println("M3");
+ 	var i string;
+ 	var x int;
+-	for i : x = range m {
++	for i, x = range m {
+ 		println(i, x);
+ 	}
+ }
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 44d99946d0..12a55350d3 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -10,6 +10,7 @@ TMP3=test_tmp3.go
+ COUNT=0
+ 
+ count() {
++	#echo $1
+ 	let COUNT=$COUNT+1
+ 	let M=$COUNT%10
+ 	if [ $M == 0 ]; then
+@@ -25,7 +26,7 @@ apply1() {
+ 	# files with errors (skip them)
+ 	method1.go | selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+ 	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go | bug126.go ) ;;
+-	* ) $1 $2; count ;;
++	* ) $1 $2; count $F;;
+ 	esac
+ }
+ 
+@@ -130,7 +131,7 @@ if [ $? != 0 ]; then
+ 	echo "Error (selftest1): pretty -t selftest1.go"
+ 	exit 1
+ fi
+-count
++count selftest1.go
+ 
+ 
+ # run over all .go files
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index c48588b5c2..d1eccae13e 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -11,13 +11,13 @@ import (
+ )
+ 
+ 
+-type State struct {
++type state struct {
+ 	// setup
+ 	err Scanner.ErrorHandler;
+ }
+ 
+ 
+-func (s *State) Init(err Scanner.ErrorHandler) {
++func (s *state) Init(err Scanner.ErrorHandler) {
+ 	s.err = err;
+ }
+ 
+@@ -42,27 +42,27 @@ func assert(pred bool) {
+ }
+ 
+ 
+-func (s *State) Error(pos int, msg string) {
++func (s *state) Error(pos int, msg string) {
+ 	s.err.Error(pos, msg);
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ 
+-func (s *State) CheckType() {
++func (s *state) CheckType() {
+ }
+ 
+ 
+-func (s *State) CheckDeclaration(d *AST.Decl) {
+-	if d.tok != Scanner.FUNC && d.list != nil {
++func (s *state) CheckDeclaration(d *AST.Decl) {
++	if d.Tok != Scanner.FUNC && d.List != nil {
+ 		// group of parenthesized declarations
+-		for i := 0; i < d.list.Len(); i++ {
+-			s.CheckDeclaration(d.list.At(i).(*AST.Decl))
++		for i := 0; i < d.List.Len(); i++ {
++			s.CheckDeclaration(d.List.At(i).(*AST.Decl))
+ 		}
+ 		
+ 	} else {
+ 		// single declaration
+-		switch d.tok {
++		switch d.Tok {
+ 		case Scanner.IMPORT:
+ 		case Scanner.EXPORT:
+ 		case Scanner.CONST:
+@@ -76,9 +76,9 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
+ }
+ 
+ 
+-func (s *State) CheckProgram(p *AST.Program) {
+-	for i := 0; i < p.decls.Len(); i++ {
+-		s.CheckDeclaration(p.decls.At(i).(*AST.Decl));
++func (s *state) CheckProgram(p *AST.Program) {
++	for i := 0; i < p.Decls.Len(); i++ {
++		s.CheckDeclaration(p.Decls.At(i).(*AST.Decl));
+ 	}
+ }
+ 
+@@ -86,7 +86,7 @@ func (s *State) CheckProgram(p *AST.Program) {
+ // ----------------------------------------------------------------------------
+ 
+ export func CheckProgram(err Scanner.ErrorHandler, p *AST.Program) {
+-	var s State;
++	var s state;
+ 	s.Init(err);
+ 	s.CheckProgram(p);
+ }
+diff --git a/usr/gri/pretty/universe.go b/usr/gri/pretty/universe.go
+index e5a53a9f85..be27e16daf 100755
+--- a/usr/gri/pretty/universe.go
++++ b/usr/gri/pretty/universe.go
+@@ -11,113 +11,113 @@ import (
+ 
+ 
+ export var (
+-	scope *AST.Scope;
+-	types array.Array;
++	Scope *AST.Scope;
++	Types array.Array;
+ 	
+ 	// internal types
+-	void_typ,
+-	bad_typ,
+-	nil_typ,
++	Void_typ,
++	Bad_typ,
++	Nil_typ,
+ 	
+ 	// basic types
+-	bool_typ,
+-	uint8_typ,
+-	uint16_typ,
+-	uint32_typ,
+-	uint64_typ,
+-	int8_typ,
+-	int16_typ,
+-	int32_typ,
+-	int64_typ,
+-	float32_typ,
+-	float64_typ,
+-	float80_typ,
+-	string_typ,
+-	integer_typ,
++	Bool_typ,
++	Uint8_typ,
++	Uint16_typ,
++	Uint32_typ,
++	Uint64_typ,
++	Int8_typ,
++	Int16_typ,
++	Int32_typ,
++	Int64_typ,
++	Float32_typ,
++	Float64_typ,
++	Float80_typ,
++	String_typ,
++	Integer_typ,
+ 	
+ 	// convenience types
+-	byte_typ,
+-	uint_typ,
+-	int_typ,
+-	float_typ,
+-	uintptr_typ *AST.Type;
++	Byte_typ,
++	Uint_typ,
++	Int_typ,
++	Float_typ,
++	Uintptr_typ *AST.Type;
+ 	
+-	true_obj,
+-	false_obj,
+-	iota_obj,
+-	nil_obj *AST.Object;
++	True_obj,
++	False_obj,
++	Iota_obj,
++	Nil_obj *AST.Object;
+ )
+ 
+ 
+-func DeclObj(kind int, ident string, typ *AST.Type) *AST.Object {
++func declObj(kind int, ident string, typ *AST.Type) *AST.Object {
+ 	obj := AST.NewObject(-1 /* no source pos */, kind, ident);
+-	obj.typ = typ;
+-	if kind == AST.TYPE && typ.obj == nil {
+-		typ.obj = obj;  // set primary type object
++	obj.Typ = typ;
++	if kind == AST.TYPE && typ.Obj == nil {
++		typ.Obj = obj;  // set primary type object
+ 	}
+-	scope.Insert(obj);
++	Scope.Insert(obj);
+ 	return obj
+ }
+ 
+ 
+-func DeclType(form int, ident string, size int) *AST.Type {
++func declType(form int, ident string, size int) *AST.Type {
+   typ := AST.NewType(-1 /* no source pos */, form);
+-  typ.size = size;
+-  return DeclObj(AST.TYPE, ident, typ).typ;
++  typ.Size = size;
++  return declObj(AST.TYPE, ident, typ).Typ;
+ }
+ 
+ 
+-func Register(typ *AST.Type) *AST.Type {
+-	typ.ref = types.Len();
+-	types.Push(typ);
++func register(typ *AST.Type) *AST.Type {
++	typ.Ref = Types.Len();
++	Types.Push(typ);
+ 	return typ;
+ }
+ 
+ 
+ func init() {
+-	scope = AST.NewScope(nil);  // universe has no parent
+-	types.Init(32);
++	Scope = AST.NewScope(nil);  // universe has no parent
++	Types.Init(32);
+ 	
+ 	// Interal types
+-	void_typ = AST.NewType(-1 /* no source pos */, AST.VOID);
+-	AST.Universe_void_typ = void_typ;
+-	bad_typ = AST.NewType(-1 /* no source pos */, AST.BADTYPE);
+-	nil_typ = AST.NewType(-1 /* no source pos */, AST.NIL);
++	Void_typ = AST.NewType(-1 /* no source pos */, AST.VOID);
++	AST.Universe_void_typ = Void_typ;
++	Bad_typ = AST.NewType(-1 /* no source pos */, AST.BADTYPE);
++	Nil_typ = AST.NewType(-1 /* no source pos */, AST.NIL);
+ 	
+ 	// Basic types
+-	bool_typ = Register(DeclType(AST.BOOL, "bool", 1));
+-	uint8_typ = Register(DeclType(AST.UINT, "uint8", 1));
+-	uint16_typ = Register(DeclType(AST.UINT, "uint16", 2));
+-	uint32_typ = Register(DeclType(AST.UINT, "uint32", 4));
+-	uint64_typ = Register(DeclType(AST.UINT, "uint64", 8));
+-	int8_typ = Register(DeclType(AST.INT, "int8", 1));
+-	int16_typ = Register(DeclType(AST.INT, "int16", 2));
+-	int32_typ = Register(DeclType(AST.INT, "int32", 4));
+-	int64_typ = Register(DeclType(AST.INT, "int64", 8));
+-	float32_typ = Register(DeclType(AST.FLOAT, "float32", 4));
+-	float64_typ = Register(DeclType(AST.FLOAT, "float64", 8));
+-	float80_typ = Register(DeclType(AST.FLOAT, "float80", 10));
+-	string_typ = Register(DeclType(AST.STRING, "string", 8));
+-	integer_typ = Register(DeclType(AST.INTEGER, "integer", 8));
++	Bool_typ = register(declType(AST.BOOL, "bool", 1));
++	Uint8_typ = register(declType(AST.UINT, "uint8", 1));
++	Uint16_typ = register(declType(AST.UINT, "uint16", 2));
++	Uint32_typ = register(declType(AST.UINT, "uint32", 4));
++	Uint64_typ = register(declType(AST.UINT, "uint64", 8));
++	Int8_typ = register(declType(AST.INT, "int8", 1));
++	Int16_typ = register(declType(AST.INT, "int16", 2));
++	Int32_typ = register(declType(AST.INT, "int32", 4));
++	Int64_typ = register(declType(AST.INT, "int64", 8));
++	Float32_typ = register(declType(AST.FLOAT, "float32", 4));
++	Float64_typ = register(declType(AST.FLOAT, "float64", 8));
++	Float80_typ = register(declType(AST.FLOAT, "float80", 10));
++	String_typ = register(declType(AST.STRING, "string", 8));
++	Integer_typ = register(declType(AST.INTEGER, "integer", 8));
+ 
+ 	// All but 'byte' should be platform-dependent, eventually.
+-	byte_typ = Register(DeclType(AST.UINT, "byte", 1));
+-	uint_typ = Register(DeclType(AST.UINT, "uint", 4));
+-	int_typ = Register(DeclType(AST.INT, "int", 4));
+-	float_typ = Register(DeclType(AST.FLOAT, "float", 4));
+-	uintptr_typ = Register(DeclType(AST.UINT, "uintptr", 8));
++	Byte_typ = register(declType(AST.UINT, "byte", 1));
++	Uint_typ = register(declType(AST.UINT, "uint", 4));
++	Int_typ = register(declType(AST.INT, "int", 4));
++	Float_typ = register(declType(AST.FLOAT, "float", 4));
++	Uintptr_typ = register(declType(AST.UINT, "uintptr", 8));
+ 
+ 	// Predeclared constants
+-	true_obj = DeclObj(AST.CONST, "true", bool_typ);
+-	false_obj = DeclObj(AST.CONST, "false", bool_typ);
+-	iota_obj = DeclObj(AST.CONST, "iota", int_typ);
+-	nil_obj = DeclObj(AST.CONST, "nil", nil_typ);
++	True_obj = declObj(AST.CONST, "true", Bool_typ);
++	False_obj = declObj(AST.CONST, "false", Bool_typ);
++	Iota_obj = declObj(AST.CONST, "iota", Int_typ);
++	Nil_obj = declObj(AST.CONST, "nil", Nil_typ);
+ 
+ 	// Builtin functions
+-	DeclObj(AST.BUILTIN, "len", void_typ);
+-	DeclObj(AST.BUILTIN, "new", void_typ);
+-	DeclObj(AST.BUILTIN, "panic", void_typ);
+-	DeclObj(AST.BUILTIN, "print", void_typ);
++	declObj(AST.BUILTIN, "len", Void_typ);
++	declObj(AST.BUILTIN, "new", Void_typ);
++	declObj(AST.BUILTIN, "panic", Void_typ);
++	declObj(AST.BUILTIN, "print", Void_typ);
+ 	
+ 	// scope.Print();
+ }

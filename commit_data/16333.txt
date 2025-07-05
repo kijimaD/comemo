@@ -7,7 +7,7 @@ Date:   Fri May 17 13:53:22 2013 -0700
     R=golang-dev, dsymonds, rsc, iant, dave
     CC=golang-dev
     https://golang.org/cl/9496043
-
+---
  src/cmd/vet/Makefile             |   14 -
  src/cmd/vet/asmdecl.go           |  533 ----------
  src/cmd/vet/assign.go            |   44 -
@@ -38,3 +38,5931 @@ Date:   Fri May 17 13:53:22 2013 -0700
  src/cmd/vet/types.go             |  185 ----
  src/cmd/vet/typestub.go          |   50 -
  29 files changed, 5753 deletions(-)
+
+diff --git a/src/cmd/vet/Makefile b/src/cmd/vet/Makefile
+deleted file mode 100644
+index 67c7e19974..0000000000
+--- a/src/cmd/vet/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Assumes go/types is installed
+-test testshort:
+-	go build -tags 'vet_test gotypes'
+-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' test_*.go test_*.s
+-
+-test_notypes:
+-	go build -tags 'vet_test'
+-	# Only those tests that do not depend on types.
+-	# Excluded: test_print.go
+-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' test_asm.go test_assign.go test_atomic.go test_buildtag.go test_buildtag_bad.go test_deadcode.go test_method.go test_rangeloop.go test_structtag.go test_taglit.go test_*.s
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+deleted file mode 100644
+index c23514c28f..0000000000
+--- a/src/cmd/vet/asmdecl.go
++++ /dev/null
+@@ -1,533 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Identify mismatches between assembly files and Go func declarations.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"go/ast"
+-	"go/token"
+-	"regexp"
+-	"strconv"
+-	"strings"
+-)
+-
+-// 'kind' is a kind of assembly variable.
+-// The kinds 1, 2, 4, 8 stand for values of that size.
+-type asmKind int
+-
+-// These special kinds are not valid sizes.
+-const (
+-	asmString asmKind = 100 + iota
+-	asmSlice
+-	asmInterface
+-	asmEmptyInterface
+-)
+-
+-// An asmArch describes assembly parameters for an architecture
+-type asmArch struct {
+-	name      string
+-	ptrSize   int
+-	intSize   int
+-	bigEndian bool
+-}
+-
+-// An asmFunc describes the expected variables for a function on a given architecture.
+-type asmFunc struct {
+-	arch        *asmArch
+-	size        int // size of all arguments
+-	vars        map[string]*asmVar
+-	varByOffset map[int]*asmVar
+-}
+-
+-// An asmVar describes a single assembly variable.
+-type asmVar struct {
+-	name  string
+-	kind  asmKind
+-	typ   string
+-	off   int
+-	size  int
+-	inner []*asmVar
+-}
+-
+-var (
+-	asmArch386   = asmArch{"386", 4, 4, false}
+-	asmArchArm   = asmArch{"arm", 4, 4, false}
+-	asmArchAmd64 = asmArch{"amd64", 8, 8, false}
+-
+-	arches = []*asmArch{
+-		&asmArch386,
+-		&asmArchArm,
+-		&asmArchAmd64,
+-	}
+-)
+-
+-var (
+-	re           = regexp.MustCompile
+-	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
+-	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9]+))?(?:\s*,\s*\$([0-9]+)(?:-([0-9]+))?)?`)
+-	asmDATA      = re(`\b(DATA|GLOBL)\b`)
+-	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
+-	asmUnnamedFP = re(`[^+\-0-9]](([0-9]+)\(FP\))`)
+-	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
+-)
+-
+-func asmCheck(pkg *Package) {
+-	if !vet("asmdecl") {
+-		return
+-	}
+-
+-	// No work if no assembly files.
+-	if !pkg.hasFileWithSuffix(".s") {
+-		return
+-	}
+-
+-	// Gather declarations. knownFunc[name][arch] is func description.
+-	knownFunc := make(map[string]map[string]*asmFunc)
+-
+-	for _, f := range pkg.files {
+-		if f.file != nil {
+-			for _, decl := range f.file.Decls {
+-				if decl, ok := decl.(*ast.FuncDecl); ok && decl.Body == nil {
+-					knownFunc[decl.Name.Name] = f.asmParseDecl(decl)
+-				}
+-			}
+-		}
+-	}
+-
+-	var fn *asmFunc
+-	for _, f := range pkg.files {
+-		if !strings.HasSuffix(f.name, ".s") {
+-			continue
+-		}
+-		Println("Checking file", f.name)
+-
+-		// Determine architecture from file name if possible.
+-		var arch string
+-		for _, a := range arches {
+-			if strings.HasSuffix(f.name, "_"+a.name+".s") {
+-				arch = a.name
+-				break
+-			}
+-		}
+-
+-		lines := strings.SplitAfter(string(f.content), "\n")
+-		for lineno, line := range lines {
+-			lineno++
+-
+-			warnf := func(format string, args ...interface{}) {
+-				f.Warnf(token.NoPos, "%s:%d: [%s] %s", f.name, lineno, arch, fmt.Sprintf(format, args...))
+-			}
+-
+-			if arch == "" {
+-				// Determine architecture from +build line if possible.
+-				if m := asmPlusBuild.FindStringSubmatch(line); m != nil {
+-				Fields:
+-					for _, fld := range strings.Fields(m[1]) {
+-						for _, a := range arches {
+-							if a.name == fld {
+-								arch = a.name
+-								break Fields
+-							}
+-						}
+-					}
+-				}
+-			}
+-
+-			if m := asmTEXT.FindStringSubmatch(line); m != nil {
+-				if arch == "" {
+-					f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
+-					return
+-				}
+-				fn = knownFunc[m[1]][arch]
+-				if fn != nil {
+-					size, _ := strconv.Atoi(m[4])
+-					if size != fn.size && (m[2] != "7" || size != 0) {
+-						warnf("wrong argument size %d; expected $...-%d", size, fn.size)
+-					}
+-				}
+-				continue
+-			} else if strings.Contains(line, "TEXT") && strings.Contains(line, "SB") {
+-				// function, but not visible from Go (didn't match asmTEXT), so stop checking
+-				fn = nil
+-				continue
+-			}
+-
+-			if asmDATA.FindStringSubmatch(line) != nil {
+-				fn = nil
+-			}
+-			if fn == nil {
+-				continue
+-			}
+-
+-			for _, m := range asmUnnamedFP.FindAllStringSubmatch(line, -1) {
+-				warnf("use of unnamed argument %s", m[1])
+-			}
+-
+-			for _, m := range asmNamedFP.FindAllStringSubmatch(line, -1) {
+-				name := m[1]
+-				off := 0
+-				if m[2] != "" {
+-					off, _ = strconv.Atoi(m[2])
+-				}
+-				v := fn.vars[name]
+-				if v == nil {
+-					// Allow argframe+0(FP).
+-					if name == "argframe" && off == 0 {
+-						continue
+-					}
+-					v = fn.varByOffset[off]
+-					if v != nil {
+-						warnf("unknown variable %s; offset %d is %s+%d(FP)", name, off, v.name, v.off)
+-					} else {
+-						warnf("unknown variable %s", name)
+-					}
+-					continue
+-				}
+-				asmCheckVar(warnf, fn, line, m[0], off, v)
+-			}
+-		}
+-	}
+-}
+-
+-// asmParseDecl parses a function decl for expected assembly variables.
+-func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
+-	var (
+-		arch   *asmArch
+-		fn     *asmFunc
+-		offset int
+-		failed bool
+-	)
+-
+-	addVar := func(outer string, v asmVar) {
+-		if vo := fn.vars[outer]; vo != nil {
+-			vo.inner = append(vo.inner, &v)
+-		}
+-		fn.vars[v.name] = &v
+-		for i := 0; i < v.size; i++ {
+-			fn.varByOffset[v.off+i] = &v
+-		}
+-	}
+-
+-	addParams := func(list []*ast.Field) {
+-		for i, fld := range list {
+-			// Determine alignment, size, and kind of type in declaration.
+-			var align, size int
+-			var kind asmKind
+-			names := fld.Names
+-			typ := f.gofmt(fld.Type)
+-			switch t := fld.Type.(type) {
+-			default:
+-				switch typ {
+-				default:
+-					f.Warnf(fld.Type.Pos(), "unknown assembly argument type %s", typ)
+-					failed = true
+-					return
+-				case "int8", "uint8", "byte", "bool":
+-					size = 1
+-				case "int16", "uint16":
+-					size = 2
+-				case "int32", "uint32", "float32":
+-					size = 4
+-				case "int64", "uint64", "float64":
+-					align = arch.ptrSize
+-					size = 8
+-				case "int", "uint":
+-					size = arch.intSize
+-				case "uintptr", "iword", "Word", "Errno", "unsafe.Pointer":
+-					size = arch.ptrSize
+-				case "string":
+-					size = arch.ptrSize * 2
+-					align = arch.ptrSize
+-					kind = asmString
+-				}
+-			case *ast.ChanType, *ast.FuncType, *ast.MapType, *ast.StarExpr:
+-				size = arch.ptrSize
+-			case *ast.InterfaceType:
+-				align = arch.ptrSize
+-				size = 2 * arch.ptrSize
+-				if len(t.Methods.List) > 0 {
+-					kind = asmInterface
+-				} else {
+-					kind = asmEmptyInterface
+-				}
+-			case *ast.ArrayType:
+-				if t.Len == nil {
+-					size = arch.ptrSize + 2*arch.intSize
+-					align = arch.ptrSize
+-					kind = asmSlice
+-					break
+-				}
+-				f.Warnf(fld.Type.Pos(), "unsupported assembly argument type %s", typ)
+-				failed = true
+-			case *ast.StructType:
+-				f.Warnf(fld.Type.Pos(), "unsupported assembly argument type %s", typ)
+-				failed = true
+-			}
+-			if align == 0 {
+-				align = size
+-			}
+-			if kind == 0 {
+-				kind = asmKind(size)
+-			}
+-			offset += -offset & (align - 1)
+-
+-			// Create variable for each name being declared with this type.
+-			if len(names) == 0 {
+-				name := "unnamed"
+-				if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 && &list[0] == &decl.Type.Results.List[0] && i == 0 {
+-					// Assume assembly will refer to single unnamed result as r.
+-					name = "ret"
+-				}
+-				names = []*ast.Ident{{Name: name}}
+-			}
+-			for _, id := range names {
+-				name := id.Name
+-				addVar("", asmVar{
+-					name: name,
+-					kind: kind,
+-					typ:  typ,
+-					off:  offset,
+-					size: size,
+-				})
+-				switch kind {
+-				case 8:
+-					if arch.ptrSize == 4 {
+-						w1, w2 := "lo", "hi"
+-						if arch.bigEndian {
+-							w1, w2 = w2, w1
+-						}
+-						addVar(name, asmVar{
+-							name: name + "_" + w1,
+-							kind: 4,
+-							typ:  "half " + typ,
+-							off:  offset,
+-							size: 4,
+-						})
+-						addVar(name, asmVar{
+-							name: name + "_" + w2,
+-							kind: 4,
+-							typ:  "half " + typ,
+-							off:  offset + 4,
+-							size: 4,
+-						})
+-					}
+-
+-				case asmEmptyInterface:
+-					addVar(name, asmVar{
+-						name: name + "_type",
+-						kind: asmKind(arch.ptrSize),
+-						typ:  "interface type",
+-						off:  offset,
+-						size: arch.ptrSize,
+-					})
+-					addVar(name, asmVar{
+-						name: name + "_data",
+-						kind: asmKind(arch.ptrSize),
+-						typ:  "interface data",
+-						off:  offset + arch.ptrSize,
+-						size: arch.ptrSize,
+-					})
+-
+-				case asmInterface:
+-					addVar(name, asmVar{
+-						name: name + "_itable",
+-						kind: asmKind(arch.ptrSize),
+-						typ:  "interface itable",
+-						off:  offset,
+-						size: arch.ptrSize,
+-					})
+-					addVar(name, asmVar{
+-						name: name + "_data",
+-						kind: asmKind(arch.ptrSize),
+-						typ:  "interface data",
+-						off:  offset + arch.ptrSize,
+-						size: arch.ptrSize,
+-					})
+-
+-				case asmSlice:
+-					addVar(name, asmVar{
+-						name: name + "_base",
+-						kind: asmKind(arch.ptrSize),
+-						typ:  "slice base",
+-						off:  offset,
+-						size: arch.ptrSize,
+-					})
+-					addVar(name, asmVar{
+-						name: name + "_len",
+-						kind: asmKind(arch.intSize),
+-						typ:  "slice len",
+-						off:  offset + arch.ptrSize,
+-						size: arch.intSize,
+-					})
+-					addVar(name, asmVar{
+-						name: name + "_cap",
+-						kind: asmKind(arch.intSize),
+-						typ:  "slice cap",
+-						off:  offset + arch.ptrSize + arch.intSize,
+-						size: arch.intSize,
+-					})
+-
+-				case asmString:
+-					addVar(name, asmVar{
+-						name: name + "_base",
+-						kind: asmKind(arch.ptrSize),
+-						typ:  "string base",
+-						off:  offset,
+-						size: arch.ptrSize,
+-					})
+-					addVar(name, asmVar{
+-						name: name + "_len",
+-						kind: asmKind(arch.intSize),
+-						typ:  "string len",
+-						off:  offset + arch.ptrSize,
+-						size: arch.intSize,
+-					})
+-				}
+-				offset += size
+-			}
+-		}
+-	}
+-
+-	m := make(map[string]*asmFunc)
+-	for _, arch = range arches {
+-		fn = &asmFunc{
+-			arch:        arch,
+-			vars:        make(map[string]*asmVar),
+-			varByOffset: make(map[int]*asmVar),
+-		}
+-		offset = 0
+-		addParams(decl.Type.Params.List)
+-		if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
+-			offset += -offset & (arch.ptrSize - 1)
+-			addParams(decl.Type.Results.List)
+-		}
+-		fn.size = offset
+-		m[arch.name] = fn
+-	}
+-
+-	if failed {
+-		return nil
+-	}
+-	return m
+-}
+-
+-// asmCheckVar checks a single variable reference.
+-func asmCheckVar(warnf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar) {
+-	m := asmOpcode.FindStringSubmatch(line)
+-	if m == nil {
+-		warnf("cannot find assembly opcode")
+-	}
+-
+-	// Determine operand sizes from instruction.
+-	// Typically the suffix suffices, but there are exceptions.
+-	var src, dst, kind asmKind
+-	op := m[1]
+-	switch fn.arch.name + "." + op {
+-	case "386.FMOVLP":
+-		src, dst = 8, 4
+-	case "arm.MOVD":
+-		src = 8
+-	case "arm.MOVW":
+-		src = 4
+-	case "arm.MOVH", "arm.MOVHU":
+-		src = 2
+-	case "arm.MOVB", "arm.MOVBU":
+-		src = 1
+-	default:
+-		if fn.arch.name == "386" || fn.arch.name == "amd64" {
+-			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "D") || strings.HasSuffix(op, "DP")) {
+-				// FMOVDP, FXCHD, etc
+-				src = 8
+-				break
+-			}
+-			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "F") || strings.HasSuffix(op, "FP")) {
+-				// FMOVFP, FXCHF, etc
+-				src = 4
+-				break
+-			}
+-			if strings.HasSuffix(op, "SD") {
+-				// MOVSD, SQRTSD, etc
+-				src = 8
+-				break
+-			}
+-			if strings.HasSuffix(op, "SS") {
+-				// MOVSS, SQRTSS, etc
+-				src = 4
+-				break
+-			}
+-			if strings.HasPrefix(op, "SET") {
+-				// SETEQ, etc
+-				src = 1
+-				break
+-			}
+-			switch op[len(op)-1] {
+-			case 'B':
+-				src = 1
+-			case 'W':
+-				src = 2
+-			case 'L':
+-				src = 4
+-			case 'D', 'Q':
+-				src = 8
+-			}
+-		}
+-	}
+-	if dst == 0 {
+-		dst = src
+-	}
+-
+-	// Determine whether the match we're holding
+-	// is the first or second argument.
+-	if strings.Index(line, expr) > strings.Index(line, ",") {
+-		kind = dst
+-	} else {
+-		kind = src
+-	}
+-
+-	vk := v.kind
+-	vt := v.typ
+-	switch vk {
+-	case asmInterface, asmEmptyInterface, asmString, asmSlice:
+-		// allow reference to first word (pointer)
+-		vk = v.inner[0].kind
+-		vt = v.inner[0].typ
+-	}
+-
+-	if off != v.off {
+-		var inner bytes.Buffer
+-		for i, vi := range v.inner {
+-			if len(v.inner) > 1 {
+-				fmt.Fprintf(&inner, ",")
+-			}
+-			fmt.Fprintf(&inner, " ")
+-			if i == len(v.inner)-1 {
+-				fmt.Fprintf(&inner, "or ")
+-			}
+-			fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
+-		}
+-		warnf("invalid offset %s; expected %s+%d(FP)%s", expr, v.name, v.off, inner.String())
+-		return
+-	}
+-	if kind != 0 && kind != vk {
+-		var inner bytes.Buffer
+-		if len(v.inner) > 0 {
+-			fmt.Fprintf(&inner, " containing")
+-			for i, vi := range v.inner {
+-				if i > 0 && len(v.inner) > 2 {
+-					fmt.Fprintf(&inner, ",")
+-				}
+-				fmt.Fprintf(&inner, " ")
+-				if i > 0 && i == len(v.inner)-1 {
+-					fmt.Fprintf(&inner, "and ")
+-				}
+-				fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
+-			}
+-		}
+-		warnf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vk, inner.String())
+-	}
+-}
+diff --git a/src/cmd/vet/assign.go b/src/cmd/vet/assign.go
+deleted file mode 100644
+index a11f0f875f..0000000000
+--- a/src/cmd/vet/assign.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-This file contains the code to check for useless assignments.
+-*/
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-	"reflect"
+-)
+-
+-// TODO: should also check for assignments to struct fields inside methods
+-// that are on T instead of *T.
+-
+-// checkAssignStmt checks for assignments of the form "<expr> = <expr>".
+-// These are almost always useless, and even when they aren't they are usually a mistake.
+-func (f *File) checkAssignStmt(stmt *ast.AssignStmt) {
+-	if !vet("assign") {
+-		return
+-	}
+-	if stmt.Tok != token.ASSIGN {
+-		return // ignore :=
+-	}
+-	if len(stmt.Lhs) != len(stmt.Rhs) {
+-		// If LHS and RHS have different cardinality, they can't be the same.
+-		return
+-	}
+-	for i, lhs := range stmt.Lhs {
+-		rhs := stmt.Rhs[i]
+-		if reflect.TypeOf(lhs) != reflect.TypeOf(rhs) {
+-			continue // short-circuit the heavy-weight gofmt check
+-		}
+-		le := f.gofmt(lhs)
+-		re := f.gofmt(rhs)
+-		if le == re {
+-			f.Warnf(stmt.Pos(), "self-assignment of %s to %s", re, le)
+-		}
+-	}
+-}
+diff --git a/src/cmd/vet/atomic.go b/src/cmd/vet/atomic.go
+deleted file mode 100644
+index 4ab256f649..0000000000
+--- a/src/cmd/vet/atomic.go
++++ /dev/null
+@@ -1,59 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-// checkAtomicAssignment walks the assignment statement checking for common
+-// mistaken usage of atomic package, such as: x = atomic.AddUint64(&x, 1)
+-func (f *File) checkAtomicAssignment(n *ast.AssignStmt) {
+-	if !vet("atomic") {
+-		return
+-	}
+-
+-	if len(n.Lhs) != len(n.Rhs) {
+-		return
+-	}
+-
+-	for i, right := range n.Rhs {
+-		call, ok := right.(*ast.CallExpr)
+-		if !ok {
+-			continue
+-		}
+-		sel, ok := call.Fun.(*ast.SelectorExpr)
+-		if !ok {
+-			continue
+-		}
+-		pkg, ok := sel.X.(*ast.Ident)
+-		if !ok || pkg.Name != "atomic" {
+-			continue
+-		}
+-
+-		switch sel.Sel.Name {
+-		case "AddInt32", "AddInt64", "AddUint32", "AddUint64", "AddUintptr":
+-			f.checkAtomicAddAssignment(n.Lhs[i], call)
+-		}
+-	}
+-}
+-
+-// checkAtomicAddAssignment walks the atomic.Add* method calls checking for assigning the return value
+-// to the same variable being used in the operation
+-func (f *File) checkAtomicAddAssignment(left ast.Expr, call *ast.CallExpr) {
+-	arg := call.Args[0]
+-	broken := false
+-
+-	if uarg, ok := arg.(*ast.UnaryExpr); ok && uarg.Op == token.AND {
+-		broken = f.gofmt(left) == f.gofmt(uarg.X)
+-	} else if star, ok := left.(*ast.StarExpr); ok {
+-		broken = f.gofmt(star.X) == f.gofmt(arg)
+-	}
+-
+-	if broken {
+-		f.Warn(left.Pos(), "direct assignment to atomic value")
+-	}
+-}
+diff --git a/src/cmd/vet/buildtag.go b/src/cmd/vet/buildtag.go
+deleted file mode 100644
+index 0ab13cb8a0..0000000000
+--- a/src/cmd/vet/buildtag.go
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"os"
+-	"strings"
+-	"unicode"
+-)
+-
+-var (
+-	nl         = []byte("\n")
+-	slashSlash = []byte("//")
+-	plusBuild  = []byte("+build")
+-)
+-
+-// checkBuildTag checks that build tags are in the correct location and well-formed.
+-func checkBuildTag(name string, data []byte) {
+-	if !vet("buildtags") {
+-		return
+-	}
+-	lines := bytes.SplitAfter(data, nl)
+-
+-	// Determine cutpoint where +build comments are no longer valid.
+-	// They are valid in leading // comments in the file followed by
+-	// a blank line.
+-	var cutoff int
+-	for i, line := range lines {
+-		line = bytes.TrimSpace(line)
+-		if len(line) == 0 {
+-			cutoff = i
+-			continue
+-		}
+-		if bytes.HasPrefix(line, slashSlash) {
+-			continue
+-		}
+-		break
+-	}
+-
+-	for i, line := range lines {
+-		line = bytes.TrimSpace(line)
+-		if !bytes.HasPrefix(line, slashSlash) {
+-			continue
+-		}
+-		text := bytes.TrimSpace(line[2:])
+-		if bytes.HasPrefix(text, plusBuild) {
+-			fields := bytes.Fields(text)
+-			if !bytes.Equal(fields[0], plusBuild) {
+-				// Comment is something like +buildasdf not +build.
+-				fmt.Fprintf(os.Stderr, "%s:%d: possible malformed +build comment\n", name, i+1)
+-				continue
+-			}
+-			if i >= cutoff {
+-				fmt.Fprintf(os.Stderr, "%s:%d: +build comment appears too late in file\n", name, i+1)
+-				setExit(1)
+-				continue
+-			}
+-			// Check arguments.
+-		Args:
+-			for _, arg := range fields[1:] {
+-				for _, elem := range strings.Split(string(arg), ",") {
+-					if strings.HasPrefix(elem, "!!") {
+-						fmt.Fprintf(os.Stderr, "%s:%d: invalid double negative in build constraint: %s\n", name, i+1, arg)
+-						setExit(1)
+-						break Args
+-					}
+-					if strings.HasPrefix(elem, "!") {
+-						elem = elem[1:]
+-					}
+-					for _, c := range elem {
+-						if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
+-							fmt.Fprintf(os.Stderr, "%s:%d: invalid non-alphanumeric build constraint: %s\n", name, i+1, arg)
+-							setExit(1)
+-							break Args
+-						}
+-					}
+-				}
+-			}
+-			continue
+-		}
+-		// Comment with +build but not at beginning.
+-		if bytes.Contains(line, plusBuild) && i < cutoff {
+-			fmt.Fprintf(os.Stderr, "%s:%d: possible malformed +build comment\n", name, i+1)
+-			continue
+-		}
+-	}
+-}
+diff --git a/src/cmd/vet/deadcode.go b/src/cmd/vet/deadcode.go
+deleted file mode 100644
+index f90fc14a49..0000000000
+--- a/src/cmd/vet/deadcode.go
++++ /dev/null
+@@ -1,280 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Check for syntactically unreachable code.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-type deadState struct {
+-	f           *File
+-	hasBreak    map[ast.Stmt]bool
+-	hasGoto     map[string]bool
+-	labels      map[string]ast.Stmt
+-	breakTarget ast.Stmt
+-
+-	reachable bool
+-}
+-
+-// checkUnreachable checks a function body for dead code.
+-func (f *File) checkUnreachable(body *ast.BlockStmt) {
+-	if !vet("unreachable") || body == nil {
+-		return
+-	}
+-
+-	d := &deadState{
+-		f:        f,
+-		hasBreak: make(map[ast.Stmt]bool),
+-		hasGoto:  make(map[string]bool),
+-		labels:   make(map[string]ast.Stmt),
+-	}
+-
+-	d.findLabels(body)
+-
+-	d.reachable = true
+-	d.findDead(body)
+-}
+-
+-// findLabels gathers information about the labels defined and used by stmt
+-// and about which statements break, whether a label is involved or not.
+-func (d *deadState) findLabels(stmt ast.Stmt) {
+-	switch x := stmt.(type) {
+-	default:
+-		d.f.Warnf(x.Pos(), "internal error in findLabels: unexpected statement %T", x)
+-
+-	case *ast.AssignStmt,
+-		*ast.BadStmt,
+-		*ast.DeclStmt,
+-		*ast.DeferStmt,
+-		*ast.EmptyStmt,
+-		*ast.ExprStmt,
+-		*ast.GoStmt,
+-		*ast.IncDecStmt,
+-		*ast.ReturnStmt,
+-		*ast.SendStmt:
+-		// no statements inside
+-
+-	case *ast.BlockStmt:
+-		for _, stmt := range x.List {
+-			d.findLabels(stmt)
+-		}
+-
+-	case *ast.BranchStmt:
+-		switch x.Tok {
+-		case token.GOTO:
+-			d.hasGoto[x.Label.Name] = true
+-
+-		case token.BREAK:
+-			stmt := d.breakTarget
+-			if x.Label != nil {
+-				stmt = d.labels[x.Label.Name]
+-			}
+-			if stmt != nil {
+-				d.hasBreak[stmt] = true
+-			}
+-		}
+-
+-	case *ast.IfStmt:
+-		d.findLabels(x.Body)
+-		if x.Else != nil {
+-			d.findLabels(x.Else)
+-		}
+-
+-	case *ast.LabeledStmt:
+-		d.labels[x.Label.Name] = x.Stmt
+-		d.findLabels(x.Stmt)
+-
+-	// These cases are all the same, but the x.Body only works
+-	// when the specific type of x is known, so the cases cannot
+-	// be merged.
+-	case *ast.ForStmt:
+-		outer := d.breakTarget
+-		d.breakTarget = x
+-		d.findLabels(x.Body)
+-		d.breakTarget = outer
+-
+-	case *ast.RangeStmt:
+-		outer := d.breakTarget
+-		d.breakTarget = x
+-		d.findLabels(x.Body)
+-		d.breakTarget = outer
+-
+-	case *ast.SelectStmt:
+-		outer := d.breakTarget
+-		d.breakTarget = x
+-		d.findLabels(x.Body)
+-		d.breakTarget = outer
+-
+-	case *ast.SwitchStmt:
+-		outer := d.breakTarget
+-		d.breakTarget = x
+-		d.findLabels(x.Body)
+-		d.breakTarget = outer
+-
+-	case *ast.TypeSwitchStmt:
+-		outer := d.breakTarget
+-		d.breakTarget = x
+-		d.findLabels(x.Body)
+-		d.breakTarget = outer
+-
+-	case *ast.CommClause:
+-		for _, stmt := range x.Body {
+-			d.findLabels(stmt)
+-		}
+-
+-	case *ast.CaseClause:
+-		for _, stmt := range x.Body {
+-			d.findLabels(stmt)
+-		}
+-	}
+-}
+-
+-// findDead walks the statement looking for dead code.
+-// If d.reachable is false on entry, stmt itself is dead.
+-// When findDead returns, d.reachable tells whether the
+-// statement following stmt is reachable.
+-func (d *deadState) findDead(stmt ast.Stmt) {
+-	// Is this a labeled goto target?
+-	// If so, assume it is reachable due to the goto.
+-	// This is slightly conservative, in that we don't
+-	// check that the goto is reachable, so
+-	//	L: goto L
+-	// will not provoke a warning.
+-	// But it's good enough.
+-	if x, isLabel := stmt.(*ast.LabeledStmt); isLabel && d.hasGoto[x.Label.Name] {
+-		d.reachable = true
+-	}
+-
+-	if !d.reachable {
+-		switch stmt.(type) {
+-		case *ast.EmptyStmt:
+-			// do not warn about unreachable empty statements
+-		default:
+-			d.f.Warnf(stmt.Pos(), "unreachable code")
+-			d.reachable = true // silence error about next statement
+-		}
+-	}
+-
+-	switch x := stmt.(type) {
+-	default:
+-		d.f.Warnf(x.Pos(), "internal error in findDead: unexpected statement %T", x)
+-
+-	case *ast.AssignStmt,
+-		*ast.BadStmt,
+-		*ast.DeclStmt,
+-		*ast.DeferStmt,
+-		*ast.EmptyStmt,
+-		*ast.GoStmt,
+-		*ast.IncDecStmt,
+-		*ast.SendStmt:
+-		// no control flow
+-
+-	case *ast.BlockStmt:
+-		for _, stmt := range x.List {
+-			d.findDead(stmt)
+-		}
+-
+-	case *ast.BranchStmt:
+-		switch x.Tok {
+-		case token.BREAK, token.GOTO, token.FALLTHROUGH:
+-			d.reachable = false
+-		case token.CONTINUE:
+-			// NOTE: We accept "continue" statements as terminating.
+-			// They are not necessary in the spec definition of terminating,
+-			// because a continue statement cannot be the final statement
+-			// before a return. But for the more general problem of syntactically
+-			// identifying dead code, continue redirects control flow just
+-			// like the other terminating statements.
+-			d.reachable = false
+-		}
+-
+-	case *ast.ExprStmt:
+-		// Call to panic?
+-		call, ok := x.X.(*ast.CallExpr)
+-		if ok {
+-			name, ok := call.Fun.(*ast.Ident)
+-			if ok && name.Name == "panic" && name.Obj == nil {
+-				d.reachable = false
+-			}
+-		}
+-
+-	case *ast.ForStmt:
+-		d.findDead(x.Body)
+-		d.reachable = x.Cond != nil || d.hasBreak[x]
+-
+-	case *ast.IfStmt:
+-		d.findDead(x.Body)
+-		if x.Else != nil {
+-			r := d.reachable
+-			d.reachable = true
+-			d.findDead(x.Else)
+-			d.reachable = d.reachable || r
+-		} else {
+-			// might not have executed if statement
+-			d.reachable = true
+-		}
+-
+-	case *ast.LabeledStmt:
+-		d.findDead(x.Stmt)
+-
+-	case *ast.RangeStmt:
+-		d.findDead(x.Body)
+-		d.reachable = true
+-
+-	case *ast.ReturnStmt:
+-		d.reachable = false
+-
+-	case *ast.SelectStmt:
+-		// NOTE: Unlike switch and type switch below, we don't care
+-		// whether a select has a default, because a select without a
+-		// default blocks until one of the cases can run. That's different
+-		// from a switch without a default, which behaves like it has
+-		// a default with an empty body.
+-		anyReachable := false
+-		for _, comm := range x.Body.List {
+-			d.reachable = true
+-			for _, stmt := range comm.(*ast.CommClause).Body {
+-				d.findDead(stmt)
+-			}
+-			anyReachable = anyReachable || d.reachable
+-		}
+-		d.reachable = anyReachable || d.hasBreak[x]
+-
+-	case *ast.SwitchStmt:
+-		anyReachable := false
+-		hasDefault := false
+-		for _, cas := range x.Body.List {
+-			cc := cas.(*ast.CaseClause)
+-			if cc.List == nil {
+-				hasDefault = true
+-			}
+-			d.reachable = true
+-			for _, stmt := range cc.Body {
+-				d.findDead(stmt)
+-			}
+-			anyReachable = anyReachable || d.reachable
+-		}
+-		d.reachable = anyReachable || d.hasBreak[x] || !hasDefault
+-
+-	case *ast.TypeSwitchStmt:
+-		anyReachable := false
+-		hasDefault := false
+-		for _, cas := range x.Body.List {
+-			cc := cas.(*ast.CaseClause)
+-			if cc.List == nil {
+-				hasDefault = true
+-			}
+-			d.reachable = true
+-			for _, stmt := range cc.Body {
+-				d.findDead(stmt)
+-			}
+-			anyReachable = anyReachable || d.reachable
+-		}
+-		d.reachable = anyReachable || d.hasBreak[x] || !hasDefault
+-	}
+-}
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+deleted file mode 100644
+index eb1e436f0b..0000000000
+--- a/src/cmd/vet/doc.go
++++ /dev/null
+@@ -1,76 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-
+-Vet examines Go source code and reports suspicious constructs, such as Printf
+-calls whose arguments do not align with the format string. Vet uses heuristics
+-that do not guarantee all reports are genuine problems, but it can find errors
+-not caught by the compilers.
+-
+-Its exit code is 2 for erroneous invocation of the tool, 1 if a
+-problem was reported, and 0 otherwise. Note that the tool does not
+-check every possible problem and depends on unreliable heuristics
+-so it should be used as guidance only, not as a firm indicator of
+-program correctness.
+-
+-By default all checks are performed, but if explicit flags are provided, only
+-those identified by the flags are performed.
+-
+-Available checks:
+-
+-1. Printf family, flag -printf
+-
+-Suspicious calls to functions in the Printf family, including any functions
+-with these names:
+-	Print Printf Println
+-	Fprint Fprintf Fprintln
+-	Sprint Sprintf Sprintln
+-	Error Errorf
+-	Fatal Fatalf
+-	Panic Panicf Panicln
+-If the function name ends with an 'f', the function is assumed to take
+-a format descriptor string in the manner of fmt.Printf. If not, vet
+-complains about arguments that look like format descriptor strings.
+-
+-It also checks for errors such as using a Writer as the first argument of
+-Printf.
+-
+-2. Methods, flag -methods
+-
+-Non-standard signatures for methods with familiar names, including:
+-	Format GobEncode GobDecode MarshalJSON MarshalXML
+-	Peek ReadByte ReadFrom ReadRune Scan Seek
+-	UnmarshalJSON UnreadByte UnreadRune WriteByte
+-	WriteTo
+-
+-3. Struct tags, flag -structtags
+-
+-Struct tags that do not follow the format understood by reflect.StructTag.Get.
+-
+-4. Untagged composite literals, flag -composites
+-
+-Composite struct literals that do not use the type-tagged syntax.
+-
+-
+-Usage:
+-
+-	go tool vet [flag] [file.go ...]
+-	go tool vet [flag] [directory ...] # Scan all .go files under directory, recursively
+-
+-The other flags are:
+-	-v
+-		Verbose mode
+-	-printfuncs
+-		A comma-separated list of print-like functions to supplement
+-		the standard list.  Each entry is in the form Name:N where N
+-		is the zero-based argument position of the first argument
+-		involved in the print: either the format or the first print
+-		argument for non-formatted prints.  For example,
+-		if you have Warn and Warnf functions that take an
+-		io.Writer as their first argument, like Fprintf,
+-			-printfuncs=Warn:1,Warnf:1
+-
+-*/
+-package main
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+deleted file mode 100644
+index b3d12d09f9..0000000000
+--- a/src/cmd/vet/main.go
++++ /dev/null
+@@ -1,422 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Vet is a simple checker for static errors in Go source code.
+-// See doc.go for more information.
+-package main
+-
+-import (
+-	"bytes"
+-	"flag"
+-	"fmt"
+-	"go/ast"
+-	"go/build"
+-	"go/parser"
+-	"go/printer"
+-	"go/token"
+-	"io/ioutil"
+-	"os"
+-	"path/filepath"
+-	"strconv"
+-	"strings"
+-)
+-
+-var verbose = flag.Bool("v", false, "verbose")
+-var exitCode = 0
+-
+-// Flags to control which checks to perform. "all" is set to true here, and disabled later if
+-// a flag is set explicitly.
+-var report = map[string]*bool{
+-	"all":         flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
+-	"asmdecl":     flag.Bool("asmdecl", false, "check assembly against Go declarations"),
+-	"assign":      flag.Bool("assign", false, "check for useless assignments"),
+-	"atomic":      flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
+-	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
+-	"composites":  flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
+-	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
+-	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
+-	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
+-	"structtags":  flag.Bool("structtags", false, "check that struct field tags have canonical format"),
+-	"unreachable": flag.Bool("unreachable", false, "check for unreachable code"),
+-}
+-
+-// vet tells whether to report errors for the named check, a flag name.
+-func vet(name string) bool {
+-	return *report["all"] || *report[name]
+-}
+-
+-// setExit sets the value for os.Exit when it is called, later.  It
+-// remembers the highest value.
+-func setExit(err int) {
+-	if err > exitCode {
+-		exitCode = err
+-	}
+-}
+-
+-// Usage is a replacement usage function for the flags package.
+-func Usage() {
+-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+-	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
+-	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
+-	flag.PrintDefaults()
+-	os.Exit(2)
+-}
+-
+-// File is a wrapper for the state of a file used in the parser.
+-// The parse tree walkers are all methods of this type.
+-type File struct {
+-	pkg     *Package
+-	fset    *token.FileSet
+-	name    string
+-	content []byte
+-	file    *ast.File
+-	b       bytes.Buffer // for use by methods
+-}
+-
+-func main() {
+-	flag.Usage = Usage
+-	flag.Parse()
+-
+-	// If a check is named explicitly, turn off the 'all' flag.
+-	for name, ptr := range report {
+-		if name != "all" && *ptr {
+-			*report["all"] = false
+-			break
+-		}
+-	}
+-
+-	if *printfuncs != "" {
+-		for _, name := range strings.Split(*printfuncs, ",") {
+-			if len(name) == 0 {
+-				flag.Usage()
+-			}
+-			skip := 0
+-			if colon := strings.LastIndex(name, ":"); colon > 0 {
+-				var err error
+-				skip, err = strconv.Atoi(name[colon+1:])
+-				if err != nil {
+-					errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
+-				}
+-				name = name[:colon]
+-			}
+-			name = strings.ToLower(name)
+-			if name[len(name)-1] == 'f' {
+-				printfList[name] = skip
+-			} else {
+-				printList[name] = skip
+-			}
+-		}
+-	}
+-
+-	if flag.NArg() == 0 {
+-		Usage()
+-	}
+-	dirs := false
+-	files := false
+-	for _, name := range flag.Args() {
+-		// Is it a directory?
+-		fi, err := os.Stat(name)
+-		if err != nil {
+-			warnf("error walking tree: %s", err)
+-			continue
+-		}
+-		if fi.IsDir() {
+-			dirs = true
+-		} else {
+-			files = true
+-		}
+-	}
+-	if dirs && files {
+-		Usage()
+-	}
+-	if dirs {
+-		for _, name := range flag.Args() {
+-			walkDir(name)
+-		}
+-		return
+-	}
+-	doPackage(flag.Args())
+-	os.Exit(exitCode)
+-}
+-
+-// prefixDirectory places the directory name on the beginning of each name in the list.
+-func prefixDirectory(directory string, names []string) {
+-	if directory != "." {
+-		for i, name := range names {
+-			names[i] = filepath.Join(directory, name)
+-		}
+-	}
+-}
+-
+-// doPackageDir analyzes the single package found in the directory, if there is one,
+-// plus a test package, if there is one.
+-func doPackageDir(directory string) {
+-	pkg, err := build.Default.ImportDir(directory, 0)
+-	if err != nil {
+-		// If it's just that there are no go source files, that's fine.
+-		if _, nogo := err.(*build.NoGoError); nogo {
+-			return
+-		}
+-		// Non-fatal: we are doing a recursive walk and there may be other directories.
+-		warnf("cannot process directory %s: %s", directory, err)
+-		return
+-	}
+-	var names []string
+-	names = append(names, pkg.GoFiles...)
+-	names = append(names, pkg.CgoFiles...)
+-	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
+-	names = append(names, pkg.SFiles...)
+-	prefixDirectory(directory, names)
+-	doPackage(names)
+-	// Is there also a "foo_test" package? If so, do that one as well.
+-	if len(pkg.XTestGoFiles) > 0 {
+-		names = pkg.XTestGoFiles
+-		prefixDirectory(directory, names)
+-		doPackage(names)
+-	}
+-}
+-
+-type Package struct {
+-	types  map[ast.Expr]Type
+-	values map[ast.Expr]ExactValue
+-	files  []*File
+-}
+-
+-// doPackage analyzes the single package constructed from the named files.
+-func doPackage(names []string) {
+-	var files []*File
+-	var astFiles []*ast.File
+-	fs := token.NewFileSet()
+-	for _, name := range names {
+-		f, err := os.Open(name)
+-		if err != nil {
+-			// Warn but continue to next package.
+-			warnf("%s: %s", name, err)
+-			return
+-		}
+-		defer f.Close()
+-		data, err := ioutil.ReadAll(f)
+-		if err != nil {
+-			warnf("%s: %s", name, err)
+-			return
+-		}
+-		checkBuildTag(name, data)
+-		var parsedFile *ast.File
+-		if strings.HasSuffix(name, ".go") {
+-			parsedFile, err = parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+-			if err != nil {
+-				warnf("%s: %s", name, err)
+-				return
+-			}
+-			astFiles = append(astFiles, parsedFile)
+-		}
+-		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
+-	}
+-	pkg := new(Package)
+-	pkg.files = files
+-	// Type check the package.
+-	err := pkg.check(fs, astFiles)
+-	if err != nil && *verbose {
+-		warnf("%s", err)
+-	}
+-	for _, file := range files {
+-		file.pkg = pkg
+-		if file.file != nil {
+-			file.walkFile(file.name, file.file)
+-		}
+-	}
+-	asmCheck(pkg)
+-}
+-
+-func visit(path string, f os.FileInfo, err error) error {
+-	if err != nil {
+-		warnf("walk error: %s", err)
+-		return err
+-	}
+-	// One package per directory. Ignore the files themselves.
+-	if !f.IsDir() {
+-		return nil
+-	}
+-	doPackageDir(path)
+-	return nil
+-}
+-
+-func (pkg *Package) hasFileWithSuffix(suffix string) bool {
+-	for _, f := range pkg.files {
+-		if strings.HasSuffix(f.name, suffix) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// walkDir recursively walks the tree looking for Go packages.
+-func walkDir(root string) {
+-	filepath.Walk(root, visit)
+-}
+-
+-// errorf formats the error to standard error, adding program
+-// identification and a newline, and exits.
+-func errorf(format string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, "vet: "+format+"\n", args...)
+-	os.Exit(2)
+-}
+-
+-// warnf formats the error to standard error, adding program
+-// identification and a newline, but does not exit.
+-func warnf(format string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, "vet: "+format+"\n", args...)
+-	setExit(1)
+-}
+-
+-// Println is fmt.Println guarded by -v.
+-func Println(args ...interface{}) {
+-	if !*verbose {
+-		return
+-	}
+-	fmt.Println(args...)
+-}
+-
+-// Printf is fmt.Printf guarded by -v.
+-func Printf(format string, args ...interface{}) {
+-	if !*verbose {
+-		return
+-	}
+-	fmt.Printf(format+"\n", args...)
+-}
+-
+-// Bad reports an error and sets the exit code..
+-func (f *File) Bad(pos token.Pos, args ...interface{}) {
+-	f.Warn(pos, args...)
+-	setExit(1)
+-}
+-
+-// Badf reports a formatted error and sets the exit code.
+-func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
+-	f.Warnf(pos, format, args...)
+-	setExit(1)
+-}
+-
+-func (f *File) loc(pos token.Pos) string {
+-	if pos == token.NoPos {
+-		return ""
+-	}
+-	// Do not print columns. Because the pos often points to the start of an
+-	// expression instead of the inner part with the actual error, the
+-	// precision can mislead.
+-	posn := f.fset.Position(pos)
+-	return fmt.Sprintf("%s:%d: ", posn.Filename, posn.Line)
+-}
+-
+-// Warn reports an error but does not set the exit code.
+-func (f *File) Warn(pos token.Pos, args ...interface{}) {
+-	fmt.Fprint(os.Stderr, f.loc(pos)+fmt.Sprintln(args...))
+-}
+-
+-// Warnf reports a formatted error but does not set the exit code.
+-func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, f.loc(pos)+format+"\n", args...)
+-}
+-
+-// walkFile walks the file's tree.
+-func (f *File) walkFile(name string, file *ast.File) {
+-	Println("Checking file", name)
+-	ast.Walk(f, file)
+-}
+-
+-// Visit implements the ast.Visitor interface.
+-func (f *File) Visit(node ast.Node) ast.Visitor {
+-	switch n := node.(type) {
+-	case *ast.AssignStmt:
+-		f.walkAssignStmt(n)
+-	case *ast.CallExpr:
+-		f.walkCallExpr(n)
+-	case *ast.CompositeLit:
+-		f.walkCompositeLit(n)
+-	case *ast.Field:
+-		f.walkFieldTag(n)
+-	case *ast.FuncDecl:
+-		f.walkFuncDecl(n)
+-	case *ast.FuncLit:
+-		f.walkFuncLit(n)
+-	case *ast.InterfaceType:
+-		f.walkInterfaceType(n)
+-	case *ast.RangeStmt:
+-		f.walkRangeStmt(n)
+-	}
+-	return f
+-}
+-
+-// walkAssignStmt walks an assignment statement
+-func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
+-	f.checkAssignStmt(stmt)
+-	f.checkAtomicAssignment(stmt)
+-}
+-
+-// walkCall walks a call expression.
+-func (f *File) walkCall(call *ast.CallExpr, name string) {
+-	f.checkFmtPrintfCall(call, name)
+-}
+-
+-// walkCallExpr walks a call expression.
+-func (f *File) walkCallExpr(call *ast.CallExpr) {
+-	switch x := call.Fun.(type) {
+-	case *ast.Ident:
+-		f.walkCall(call, x.Name)
+-	case *ast.SelectorExpr:
+-		f.walkCall(call, x.Sel.Name)
+-	}
+-}
+-
+-// walkCompositeLit walks a composite literal.
+-func (f *File) walkCompositeLit(c *ast.CompositeLit) {
+-	f.checkUntaggedLiteral(c)
+-}
+-
+-// walkFieldTag walks a struct field tag.
+-func (f *File) walkFieldTag(field *ast.Field) {
+-	if field.Tag == nil {
+-		return
+-	}
+-	f.checkCanonicalFieldTag(field)
+-}
+-
+-// walkMethod walks the method's signature.
+-func (f *File) walkMethod(id *ast.Ident, t *ast.FuncType) {
+-	f.checkCanonicalMethod(id, t)
+-}
+-
+-// walkFuncDecl walks a function declaration.
+-func (f *File) walkFuncDecl(d *ast.FuncDecl) {
+-	f.checkUnreachable(d.Body)
+-	if d.Recv != nil {
+-		f.walkMethod(d.Name, d.Type)
+-	}
+-}
+-
+-// walkFuncLit walks a function literal.
+-func (f *File) walkFuncLit(x *ast.FuncLit) {
+-	f.checkUnreachable(x.Body)
+-}
+-
+-// walkInterfaceType walks the method signatures of an interface.
+-func (f *File) walkInterfaceType(t *ast.InterfaceType) {
+-	for _, field := range t.Methods.List {
+-		for _, id := range field.Names {
+-			f.walkMethod(id, field.Type.(*ast.FuncType))
+-		}
+-	}
+-}
+-
+-// walkRangeStmt walks a range statement.
+-func (f *File) walkRangeStmt(n *ast.RangeStmt) {
+-	checkRangeLoop(f, n)
+-}
+-
+-// gofmt returns a string representation of the expression.
+-func (f *File) gofmt(x ast.Expr) string {
+-	f.b.Reset()
+-	printer.Fprint(&f.b, f.fset, x)
+-	return f.b.String()
+-}
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+deleted file mode 100644
+index 8064235f46..0000000000
+--- a/src/cmd/vet/method.go
++++ /dev/null
+@@ -1,162 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains the code to check canonical methods.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"go/ast"
+-	"go/printer"
+-	"strings"
+-)
+-
+-type MethodSig struct {
+-	args    []string
+-	results []string
+-}
+-
+-// canonicalMethods lists the input and output types for Go methods
+-// that are checked using dynamic interface checks.  Because the
+-// checks are dynamic, such methods would not cause a compile error
+-// if they have the wrong signature: instead the dynamic check would
+-// fail, sometimes mysteriously.  If a method is found with a name listed
+-// here but not the input/output types listed here, vet complains.
+-//
+-// A few of the canonical methods have very common names.
+-// For example, a type might implement a Scan method that
+-// has nothing to do with fmt.Scanner, but we still want to check
+-// the methods that are intended to implement fmt.Scanner.
+-// To do that, the arguments that have a = prefix are treated as
+-// signals that the canonical meaning is intended: if a Scan
+-// method doesn't have a fmt.ScanState as its first argument,
+-// we let it go.  But if it does have a fmt.ScanState, then the
+-// rest has to match.
+-var canonicalMethods = map[string]MethodSig{
+-	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
+-	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},            // fmt.Formatter
+-	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                 // gob.GobDecoder
+-	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},               // gob.GobEncoder
+-	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},               // json.Marshaler
+-	"MarshalXML":    {[]string{}, []string{"[]byte", "error"}},               // xml.Marshaler
+-	"Peek":          {[]string{"=int"}, []string{"[]byte", "error"}},         // image.reader (matching bufio.Reader)
+-	"ReadByte":      {[]string{}, []string{"byte", "error"}},                 // io.ByteReader
+-	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "error"}},    // io.ReaderFrom
+-	"ReadRune":      {[]string{}, []string{"rune", "int", "error"}},          // io.RuneReader
+-	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"error"}}, // fmt.Scanner
+-	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "error"}}, // io.Seeker
+-	"UnmarshalJSON": {[]string{"[]byte"}, []string{"error"}},                 // json.Unmarshaler
+-	"UnreadByte":    {[]string{}, []string{"error"}},
+-	"UnreadRune":    {[]string{}, []string{"error"}},
+-	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
+-	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
+-}
+-
+-func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
+-	if !vet("methods") {
+-		return
+-	}
+-	// Expected input/output.
+-	expect, ok := canonicalMethods[id.Name]
+-	if !ok {
+-		return
+-	}
+-
+-	// Actual input/output
+-	args := typeFlatten(t.Params.List)
+-	var results []ast.Expr
+-	if t.Results != nil {
+-		results = typeFlatten(t.Results.List)
+-	}
+-
+-	// Do the =s (if any) all match?
+-	if !f.matchParams(expect.args, args, "=") || !f.matchParams(expect.results, results, "=") {
+-		return
+-	}
+-
+-	// Everything must match.
+-	if !f.matchParams(expect.args, args, "") || !f.matchParams(expect.results, results, "") {
+-		expectFmt := id.Name + "(" + argjoin(expect.args) + ")"
+-		if len(expect.results) == 1 {
+-			expectFmt += " " + argjoin(expect.results)
+-		} else if len(expect.results) > 1 {
+-			expectFmt += " (" + argjoin(expect.results) + ")"
+-		}
+-
+-		f.b.Reset()
+-		if err := printer.Fprint(&f.b, f.fset, t); err != nil {
+-			fmt.Fprintf(&f.b, "<%s>", err)
+-		}
+-		actual := f.b.String()
+-		actual = strings.TrimPrefix(actual, "func")
+-		actual = id.Name + actual
+-
+-		f.Badf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+-	}
+-}
+-
+-func argjoin(x []string) string {
+-	y := make([]string, len(x))
+-	for i, s := range x {
+-		if s[0] == '=' {
+-			s = s[1:]
+-		}
+-		y[i] = s
+-	}
+-	return strings.Join(y, ", ")
+-}
+-
+-// Turn parameter list into slice of types
+-// (in the ast, types are Exprs).
+-// Have to handle f(int, bool) and f(x, y, z int)
+-// so not a simple 1-to-1 conversion.
+-func typeFlatten(l []*ast.Field) []ast.Expr {
+-	var t []ast.Expr
+-	for _, f := range l {
+-		if len(f.Names) == 0 {
+-			t = append(t, f.Type)
+-			continue
+-		}
+-		for _ = range f.Names {
+-			t = append(t, f.Type)
+-		}
+-	}
+-	return t
+-}
+-
+-// Does each type in expect with the given prefix match the corresponding type in actual?
+-func (f *File) matchParams(expect []string, actual []ast.Expr, prefix string) bool {
+-	for i, x := range expect {
+-		if !strings.HasPrefix(x, prefix) {
+-			continue
+-		}
+-		if i >= len(actual) {
+-			return false
+-		}
+-		if !f.matchParamType(x, actual[i]) {
+-			return false
+-		}
+-	}
+-	if prefix == "" && len(actual) > len(expect) {
+-		return false
+-	}
+-	return true
+-}
+-
+-// Does this one type match?
+-func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+-	if strings.HasPrefix(expect, "=") {
+-		expect = expect[1:]
+-	}
+-	// Strip package name if we're in that package.
+-	if n := len(f.file.Name.Name); len(expect) > n && expect[:n] == f.file.Name.Name && expect[n] == '.' {
+-		expect = expect[n+1:]
+-	}
+-
+-	// Overkill but easy.
+-	f.b.Reset()
+-	printer.Fprint(&f.b, f.fset, actual)
+-	return f.b.String() == expect
+-}
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+deleted file mode 100644
+index debfbf0bfb..0000000000
+--- a/src/cmd/vet/print.go
++++ /dev/null
+@@ -1,351 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains the printf-checker.
+-
+-package main
+-
+-import (
+-	"flag"
+-	"go/ast"
+-	"go/token"
+-	"strconv"
+-	"strings"
+-	"unicode/utf8"
+-)
+-
+-var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")
+-
+-// printfList records the formatted-print functions. The value is the location
+-// of the format parameter. Names are lower-cased so the lookup is
+-// case insensitive.
+-var printfList = map[string]int{
+-	"errorf":  0,
+-	"fatalf":  0,
+-	"fprintf": 1,
+-	"panicf":  0,
+-	"printf":  0,
+-	"sprintf": 0,
+-}
+-
+-// printList records the unformatted-print functions. The value is the location
+-// of the first parameter to be printed.  Names are lower-cased so the lookup is
+-// case insensitive.
+-var printList = map[string]int{
+-	"error":  0,
+-	"fatal":  0,
+-	"fprint": 1, "fprintln": 1,
+-	"panic": 0, "panicln": 0,
+-	"print": 0, "println": 0,
+-	"sprint": 0, "sprintln": 0,
+-}
+-
+-// checkCall triggers the print-specific checks if the call invokes a print function.
+-func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
+-	if !vet("printf") {
+-		return
+-	}
+-	name := strings.ToLower(Name)
+-	if skip, ok := printfList[name]; ok {
+-		f.checkPrintf(call, Name, skip)
+-		return
+-	}
+-	if skip, ok := printList[name]; ok {
+-		f.checkPrint(call, Name, skip)
+-		return
+-	}
+-}
+-
+-// literal returns the literal value represented by the expression, or nil if it is not a literal.
+-func (f *File) literal(value ast.Expr) *ast.BasicLit {
+-	switch v := value.(type) {
+-	case *ast.BasicLit:
+-		return v
+-	case *ast.ParenExpr:
+-		return f.literal(v.X)
+-	case *ast.BinaryExpr:
+-		if v.Op != token.ADD {
+-			break
+-		}
+-		litX := f.literal(v.X)
+-		litY := f.literal(v.Y)
+-		if litX != nil && litY != nil {
+-			lit := *litX
+-			x, errX := strconv.Unquote(litX.Value)
+-			y, errY := strconv.Unquote(litY.Value)
+-			if errX == nil && errY == nil {
+-				return &ast.BasicLit{
+-					ValuePos: lit.ValuePos,
+-					Kind:     lit.Kind,
+-					Value:    strconv.Quote(x + y),
+-				}
+-			}
+-		}
+-	case *ast.Ident:
+-		// See if it's a constant or initial value (we can't tell the difference).
+-		if v.Obj == nil || v.Obj.Decl == nil {
+-			return nil
+-		}
+-		valueSpec, ok := v.Obj.Decl.(*ast.ValueSpec)
+-		if ok && len(valueSpec.Names) == len(valueSpec.Values) {
+-			// Find the index in the list of names
+-			var i int
+-			for i = 0; i < len(valueSpec.Names); i++ {
+-				if valueSpec.Names[i].Name == v.Name {
+-					if lit, ok := valueSpec.Values[i].(*ast.BasicLit); ok {
+-						return lit
+-					}
+-					return nil
+-				}
+-			}
+-		}
+-	}
+-	return nil
+-}
+-
+-// checkPrintf checks a call to a formatted print routine such as Printf.
+-// call.Args[formatIndex] is (well, should be) the format argument.
+-func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
+-	if formatIndex >= len(call.Args) {
+-		return
+-	}
+-	lit := f.literal(call.Args[formatIndex])
+-	if lit == nil {
+-		if *verbose {
+-			f.Warn(call.Pos(), "can't check non-literal format in call to", name)
+-		}
+-		return
+-	}
+-	if lit.Kind != token.STRING {
+-		f.Badf(call.Pos(), "literal %v not a string in call to", lit.Value, name)
+-	}
+-	format, err := strconv.Unquote(lit.Value)
+-	if err != nil {
+-		// Shouldn't happen if parser returned no errors, but be safe.
+-		f.Badf(call.Pos(), "invalid quoted string literal")
+-	}
+-	firstArg := formatIndex + 1 // Arguments are immediately after format string.
+-	if !strings.Contains(format, "%") {
+-		if len(call.Args) > firstArg {
+-			f.Badf(call.Pos(), "no formatting directive in %s call", name)
+-		}
+-		return
+-	}
+-	// Hard part: check formats against args.
+-	argNum := firstArg
+-	for i, w := 0, 0; i < len(format); i += w {
+-		w = 1
+-		if format[i] == '%' {
+-			verb, flags, nbytes, nargs := f.parsePrintfVerb(call, format[i:])
+-			w = nbytes
+-			if verb == '%' { // "%%" does nothing interesting.
+-				continue
+-			}
+-			// If we've run out of args, print after loop will pick that up.
+-			if argNum+nargs <= len(call.Args) {
+-				f.checkPrintfArg(call, verb, flags, argNum, nargs)
+-			}
+-			argNum += nargs
+-		}
+-	}
+-	// TODO: Dotdotdot is hard.
+-	if call.Ellipsis.IsValid() && argNum != len(call.Args) {
+-		return
+-	}
+-	if argNum != len(call.Args) {
+-		expect := argNum - firstArg
+-		numArgs := len(call.Args) - firstArg
+-		f.Badf(call.Pos(), "wrong number of args for format in %s call: %d needed but %d args", name, expect, numArgs)
+-	}
+-}
+-
+-// parsePrintfVerb returns the verb that begins the format string, along with its flags,
+-// the number of bytes to advance the format to step past the verb, and number of
+-// arguments it consumes.
+-func (f *File) parsePrintfVerb(call *ast.CallExpr, format string) (verb rune, flags []byte, nbytes, nargs int) {
+-	// There's guaranteed a percent sign.
+-	flags = make([]byte, 0, 5)
+-	nbytes = 1
+-	end := len(format)
+-	// There may be flags.
+-FlagLoop:
+-	for nbytes < end {
+-		switch format[nbytes] {
+-		case '#', '0', '+', '-', ' ':
+-			flags = append(flags, format[nbytes])
+-			nbytes++
+-		default:
+-			break FlagLoop
+-		}
+-	}
+-	getNum := func() {
+-		if nbytes < end && format[nbytes] == '*' {
+-			nbytes++
+-			nargs++
+-		} else {
+-			for nbytes < end && '0' <= format[nbytes] && format[nbytes] <= '9' {
+-				nbytes++
+-			}
+-		}
+-	}
+-	// There may be a width.
+-	getNum()
+-	// If there's a period, there may be a precision.
+-	if nbytes < end && format[nbytes] == '.' {
+-		flags = append(flags, '.') // Treat precision as a flag.
+-		nbytes++
+-		getNum()
+-	}
+-	// Now a verb.
+-	c, w := utf8.DecodeRuneInString(format[nbytes:])
+-	nbytes += w
+-	verb = c
+-	if c != '%' {
+-		nargs++
+-	}
+-	return
+-}
+-
+-// printfArgType encodes the types of expressions a printf verb accepts. It is a bitmask.
+-type printfArgType int
+-
+-const (
+-	argBool printfArgType = 1 << iota
+-	argInt
+-	argRune
+-	argString
+-	argFloat
+-	argPointer
+-	anyType printfArgType = ^0
+-)
+-
+-type printVerb struct {
+-	verb  rune
+-	flags string // known flags are all ASCII
+-	typ   printfArgType
+-}
+-
+-// Common flag sets for printf verbs.
+-const (
+-	numFlag      = " -+.0"
+-	sharpNumFlag = " -+.0#"
+-	allFlags     = " -+.0#"
+-)
+-
+-// printVerbs identifies which flags are known to printf for each verb.
+-// TODO: A type that implements Formatter may do what it wants, and vet
+-// will complain incorrectly.
+-var printVerbs = []printVerb{
+-	// '-' is a width modifier, always valid.
+-	// '.' is a precision for float, max width for strings.
+-	// '+' is required sign for numbers, Go format for %v.
+-	// '#' is alternate format for several verbs.
+-	// ' ' is spacer for numbers
+-	{'b', numFlag, argInt | argFloat},
+-	{'c', "-", argRune | argInt},
+-	{'d', numFlag, argInt},
+-	{'e', numFlag, argFloat},
+-	{'E', numFlag, argFloat},
+-	{'f', numFlag, argFloat},
+-	{'F', numFlag, argFloat},
+-	{'g', numFlag, argFloat},
+-	{'G', numFlag, argFloat},
+-	{'o', sharpNumFlag, argInt},
+-	{'p', "-#", argPointer},
+-	{'q', " -+.0#", argRune | argInt | argString},
+-	{'s', " -+.0", argString},
+-	{'t', "-", argBool},
+-	{'T', "-", anyType},
+-	{'U', "-#", argRune | argInt},
+-	{'v', allFlags, anyType},
+-	{'x', sharpNumFlag, argRune | argInt | argString},
+-	{'X', sharpNumFlag, argRune | argInt | argString},
+-}
+-
+-const printfVerbs = "bcdeEfFgGopqstTvxUX"
+-
+-func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNum, nargs int) {
+-	// Linear scan is fast enough for a small list.
+-	for _, v := range printVerbs {
+-		if v.verb == verb {
+-			for _, flag := range flags {
+-				if !strings.ContainsRune(v.flags, rune(flag)) {
+-					f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", verb, flag)
+-					return
+-				}
+-			}
+-			// Verb is good. If nargs>1, we have something like %.*s and all but the final
+-			// arg must be integer.
+-			for i := 0; i < nargs-1; i++ {
+-				if !f.matchArgType(argInt, call.Args[argNum+i]) {
+-					f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(call.Args[argNum+i]))
+-				}
+-			}
+-			for _, v := range printVerbs {
+-				if v.verb == verb {
+-					arg := call.Args[argNum+nargs-1]
+-					if !f.matchArgType(v.typ, arg) {
+-						typeString := ""
+-						if typ := f.pkg.types[arg]; typ != nil {
+-							typeString = typ.String()
+-						}
+-						f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), verb, typeString)
+-					}
+-					break
+-				}
+-			}
+-			return
+-		}
+-	}
+-	f.Badf(call.Pos(), "unrecognized printf verb %q", verb)
+-}
+-
+-// checkPrint checks a call to an unformatted print routine such as Println.
+-// call.Args[firstArg] is the first argument to be printed.
+-func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
+-	isLn := strings.HasSuffix(name, "ln")
+-	isF := strings.HasPrefix(name, "F")
+-	args := call.Args
+-	// check for Println(os.Stderr, ...)
+-	if firstArg == 0 && !isF && len(args) > 0 {
+-		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+-			if x, ok := sel.X.(*ast.Ident); ok {
+-				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+-					f.Badf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
+-				}
+-			}
+-		}
+-	}
+-	if len(args) <= firstArg {
+-		// If we have a call to a method called Error that satisfies the Error interface,
+-		// then it's ok. Otherwise it's something like (*T).Error from the testing package
+-		// and we need to check it.
+-		if name == "Error" && f.isErrorMethodCall(call) {
+-			return
+-		}
+-		// If it's an Error call now, it's probably for printing errors.
+-		if !isLn {
+-			// Check the signature to be sure: there are niladic functions called "error".
+-			if firstArg != 0 || f.numArgsInSignature(call) != firstArg {
+-				f.Badf(call.Pos(), "no args in %s call", name)
+-			}
+-		}
+-		return
+-	}
+-	arg := args[firstArg]
+-	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-		if strings.Contains(lit.Value, "%") {
+-			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
+-		}
+-	}
+-	if isLn {
+-		// The last item, if a string, should not have a newline.
+-		arg = args[len(call.Args)-1]
+-		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-			if strings.HasSuffix(lit.Value, `\n"`) {
+-				f.Badf(call.Pos(), "%s call ends with newline", name)
+-			}
+-		}
+-	}
+-}
+diff --git a/src/cmd/vet/rangeloop.go b/src/cmd/vet/rangeloop.go
+deleted file mode 100644
+index ecc5954272..0000000000
+--- a/src/cmd/vet/rangeloop.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-This file contains the code to check range loop variables bound inside function
+-literals that are deferred or launched in new goroutines. We only check
+-instances where the defer or go statement is the last statement in the loop
+-body, as otherwise we would need whole program analysis.
+-
+-For example:
+-
+-	for i, v := range s {
+-		go func() {
+-			println(i, v) // not what you might expect
+-		}()
+-	}
+-
+-See: http://golang.org/doc/go_faq.html#closures_and_goroutines
+-*/
+-
+-package main
+-
+-import "go/ast"
+-
+-// checkRangeLoop walks the body of the provided range statement, checking if
+-// its index or value variables are used unsafely inside goroutines or deferred
+-// function literals.
+-func checkRangeLoop(f *File, n *ast.RangeStmt) {
+-	if !vet("rangeloops") {
+-		return
+-	}
+-	key, _ := n.Key.(*ast.Ident)
+-	val, _ := n.Value.(*ast.Ident)
+-	if key == nil && val == nil {
+-		return
+-	}
+-	sl := n.Body.List
+-	if len(sl) == 0 {
+-		return
+-	}
+-	var last *ast.CallExpr
+-	switch s := sl[len(sl)-1].(type) {
+-	case *ast.GoStmt:
+-		last = s.Call
+-	case *ast.DeferStmt:
+-		last = s.Call
+-	default:
+-		return
+-	}
+-	lit, ok := last.Fun.(*ast.FuncLit)
+-	if !ok {
+-		return
+-	}
+-	ast.Inspect(lit.Body, func(n ast.Node) bool {
+-		id, ok := n.(*ast.Ident)
+-		if !ok || id.Obj == nil {
+-			return true
+-		}
+-		if key != nil && id.Obj == key.Obj || val != nil && id.Obj == val.Obj {
+-			f.Warn(id.Pos(), "range variable", id.Name, "enclosed by function")
+-		}
+-		return true
+-	})
+-}
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+deleted file mode 100644
+index d835788368..0000000000
+--- a/src/cmd/vet/structtag.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains the test for canonical struct tags.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"reflect"
+-	"strconv"
+-)
+-
+-// checkField checks a struct field tag.
+-func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+-	if !vet("structtags") {
+-		return
+-	}
+-	if field.Tag == nil {
+-		return
+-	}
+-
+-	tag, err := strconv.Unquote(field.Tag.Value)
+-	if err != nil {
+-		f.Badf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
+-		return
+-	}
+-
+-	// Check tag for validity by appending
+-	// new key:value to end and checking that
+-	// the tag parsing code can find it.
+-	if reflect.StructTag(tag+` _gofix:"_magic"`).Get("_gofix") != "_magic" {
+-		f.Badf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
+-		return
+-	}
+-}
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+deleted file mode 100644
+index bcad2fe0a2..0000000000
+--- a/src/cmd/vet/taglit.go
++++ /dev/null
+@@ -1,164 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains the test for untagged struct literals.
+-
+-package main
+-
+-import (
+-	"flag"
+-	"go/ast"
+-	"strings"
+-)
+-
+-var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
+-
+-// checkUntaggedLiteral checks if a composite literal is a struct literal with
+-// untagged fields.
+-func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
+-	if !vet("composites") {
+-		return
+-	}
+-
+-	typ := c.Type
+-	for {
+-		if typ1, ok := c.Type.(*ast.ParenExpr); ok {
+-			typ = typ1
+-			continue
+-		}
+-		break
+-	}
+-
+-	switch typ.(type) {
+-	case *ast.ArrayType:
+-		return
+-	case *ast.MapType:
+-		return
+-	case *ast.StructType:
+-		return // a literal struct type does not need to use tags
+-	case *ast.Ident:
+-		// A simple type name like t or T does not need tags either,
+-		// since it is almost certainly declared in the current package.
+-		// (The exception is names being used via import . "pkg", but
+-		// those are already breaking the Go 1 compatibility promise,
+-		// so not reporting potential additional breakage seems okay.)
+-		return
+-	}
+-
+-	// Otherwise the type is a selector like pkg.Name.
+-	// We only care if pkg.Name is a struct, not if it's a map, array, or slice.
+-	isStruct, typeString := f.pkg.isStruct(c)
+-	if !isStruct {
+-		return
+-	}
+-
+-	if typeString == "" { // isStruct doesn't know
+-		typeString = f.gofmt(typ)
+-	}
+-
+-	// It's a struct, or we can't tell it's not a struct because we don't have types.
+-
+-	// Check if the CompositeLit contains an untagged field.
+-	allKeyValue := true
+-	for _, e := range c.Elts {
+-		if _, ok := e.(*ast.KeyValueExpr); !ok {
+-			allKeyValue = false
+-			break
+-		}
+-	}
+-	if allKeyValue {
+-		return
+-	}
+-
+-	// Check that the CompositeLit's type has the form pkg.Typ.
+-	s, ok := c.Type.(*ast.SelectorExpr)
+-	if !ok {
+-		return
+-	}
+-	pkg, ok := s.X.(*ast.Ident)
+-	if !ok {
+-		return
+-	}
+-
+-	// Convert the package name to an import path, and compare to a whitelist.
+-	path := pkgPath(f, pkg.Name)
+-	if path == "" {
+-		f.Badf(c.Pos(), "unresolvable package for %s.%s literal", pkg.Name, s.Sel.Name)
+-		return
+-	}
+-	typeName := path + "." + s.Sel.Name
+-	if *compositeWhiteList && untaggedLiteralWhitelist[typeName] {
+-		return
+-	}
+-
+-	f.Warn(c.Pos(), typeString+" composite literal uses untagged fields")
+-}
+-
+-// pkgPath returns the import path "image/png" for the package name "png".
+-//
+-// This is based purely on syntax and convention, and not on the imported
+-// package's contents. It will be incorrect if a package name differs from the
+-// leaf element of the import path, or if the package was a dot import.
+-func pkgPath(f *File, pkgName string) (path string) {
+-	for _, x := range f.file.Imports {
+-		s := strings.Trim(x.Path.Value, `"`)
+-		if x.Name != nil {
+-			// Catch `import pkgName "foo/bar"`.
+-			if x.Name.Name == pkgName {
+-				return s
+-			}
+-		} else {
+-			// Catch `import "pkgName"` or `import "foo/bar/pkgName"`.
+-			if s == pkgName || strings.HasSuffix(s, "/"+pkgName) {
+-				return s
+-			}
+-		}
+-	}
+-	return ""
+-}
+-
+-var untaggedLiteralWhitelist = map[string]bool{
+-	/*
+-		These types are actually slices. Syntactically, we cannot tell
+-		whether the Typ in pkg.Typ{1, 2, 3} is a slice or a struct, so we
+-		whitelist all the standard package library's exported slice types.
+-
+-		find $GOROOT/src/pkg -type f | grep -v _test.go | xargs grep '^type.*\[\]' | \
+-			grep -v ' map\[' | sed 's,/[^/]*go.type,,' | sed 's,.*src/pkg/,,' | \
+-			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | \
+-			sort | awk '{ print "\"" $0 "\": true," }'
+-	*/
+-	"crypto/x509/pkix.RDNSequence":                  true,
+-	"crypto/x509/pkix.RelativeDistinguishedNameSET": true,
+-	"database/sql.RawBytes":                         true,
+-	"debug/macho.LoadBytes":                         true,
+-	"encoding/asn1.ObjectIdentifier":                true,
+-	"encoding/asn1.RawContent":                      true,
+-	"encoding/json.RawMessage":                      true,
+-	"encoding/xml.CharData":                         true,
+-	"encoding/xml.Comment":                          true,
+-	"encoding/xml.Directive":                        true,
+-	"go/scanner.ErrorList":                          true,
+-	"image/color.Palette":                           true,
+-	"net.HardwareAddr":                              true,
+-	"net.IP":                                        true,
+-	"net.IPMask":                                    true,
+-	"sort.Float64Slice":                             true,
+-	"sort.IntSlice":                                 true,
+-	"sort.StringSlice":                              true,
+-	"unicode.SpecialCase":                           true,
+-
+-	// These image and image/color struct types are frozen. We will never add fields to them.
+-	"image/color.Alpha16": true,
+-	"image/color.Alpha":   true,
+-	"image/color.Gray16":  true,
+-	"image/color.Gray":    true,
+-	"image/color.NRGBA64": true,
+-	"image/color.NRGBA":   true,
+-	"image/color.RGBA64":  true,
+-	"image/color.RGBA":    true,
+-	"image/color.YCbCr":   true,
+-	"image.Point":         true,
+-	"image.Rectangle":     true,
+-}
+diff --git a/src/cmd/vet/test_asm.go b/src/cmd/vet/test_asm.go
+deleted file mode 100644
+index 098bdd15c6..0000000000
+--- a/src/cmd/vet/test_asm.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// This file contains declarations to test the assembly in test_asm.s.
+-
+-package main
+-
+-func arg1(x int8, y uint8)
+-func arg2(x int16, y uint16)
+-func arg4(x int32, y uint32)
+-func arg8(x int64, y uint64)
+-func argint(x int, y uint)
+-func argptr(x *byte, y *byte, c chan int, m map[int]int, f func())
+-func argstring(x, y string)
+-func argslice(x, y []string)
+-func argiface(x interface{}, y interface {
+-	m()
+-})
+-func returnint() int
+-func returnbyte(x int) byte
+-func returnnamed(x byte) (r1 int, r2 int16, r3 string, r4 byte)
+diff --git a/src/cmd/vet/test_asm1.s b/src/cmd/vet/test_asm1.s
+deleted file mode 100644
+index 8cd9eeab6a..0000000000
+--- a/src/cmd/vet/test_asm1.s
++++ /dev/null
+@@ -1,247 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64
+-// +build vet_test
+-
+-TEXT ·arg1(SB),0,$0-2
+-	MOVB	x+0(FP), AX
+-	MOVB	y+1(FP), BX
+-	MOVW	x+0(FP), AX // ERROR "\[amd64\] invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
+-	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int8 is 1-byte value"
+-	MOVL	y+1(FP), AX // ERROR "invalid MOVL of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int8 is 1-byte value"
+-	MOVQ	y+1(FP), AX // ERROR "invalid MOVQ of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
+-	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
+-	TESTB	x+0(FP), AX
+-	TESTB	y+1(FP), BX
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int8 is 1-byte value"
+-	TESTW	y+1(FP), AX // ERROR "invalid TESTW of y\+1\(FP\); uint8 is 1-byte value"
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int8 is 1-byte value"
+-	TESTL	y+1(FP), AX // ERROR "invalid TESTL of y\+1\(FP\); uint8 is 1-byte value"
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int8 is 1-byte value"
+-	TESTQ	y+1(FP), AX // ERROR "invalid TESTQ of y\+1\(FP\); uint8 is 1-byte value"
+-	TESTB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
+-	TESTB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
+-	RET
+-
+-TEXT ·arg2(SB),0,$0-4
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int16 is 2-byte value"
+-	MOVB	y+2(FP), AX // ERROR "invalid MOVB of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVW	y+2(FP), BX
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int16 is 2-byte value"
+-	MOVL	y+2(FP), AX // ERROR "invalid MOVL of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int16 is 2-byte value"
+-	MOVQ	y+2(FP), AX // ERROR "invalid MOVQ of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
+-	MOVW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int16 is 2-byte value"
+-	TESTB	y+2(FP), AX // ERROR "invalid TESTB of y\+2\(FP\); uint16 is 2-byte value"
+-	TESTW	x+0(FP), AX
+-	TESTW	y+2(FP), BX
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int16 is 2-byte value"
+-	TESTL	y+2(FP), AX // ERROR "invalid TESTL of y\+2\(FP\); uint16 is 2-byte value"
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int16 is 2-byte value"
+-	TESTQ	y+2(FP), AX // ERROR "invalid TESTQ of y\+2\(FP\); uint16 is 2-byte value"
+-	TESTW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
+-	TESTW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
+-	RET
+-
+-TEXT ·arg4(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int32 is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int32 is 4-byte value"
+-	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVL	y+4(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int32 is 4-byte value"
+-	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int32 is 4-byte value"
+-	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); uint32 is 4-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int32 is 4-byte value"
+-	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); uint32 is 4-byte value"
+-	TESTL	x+0(FP), AX
+-	TESTL	y+4(FP), AX
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int32 is 4-byte value"
+-	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); uint32 is 4-byte value"
+-	TESTL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	TESTL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	RET
+-
+-TEXT ·arg8(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int64 is 8-byte value"
+-	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int64 is 8-byte value"
+-	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int64 is 8-byte value"
+-	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVQ	x+0(FP), AX
+-	MOVQ	y+8(FP), AX
+-	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int64 is 8-byte value"
+-	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); uint64 is 8-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int64 is 8-byte value"
+-	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); uint64 is 8-byte value"
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int64 is 8-byte value"
+-	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); uint64 is 8-byte value"
+-	TESTQ	x+0(FP), AX
+-	TESTQ	y+8(FP), AX
+-	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	RET
+-
+-TEXT ·argint(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int is 8-byte value"
+-	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint is 8-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int is 8-byte value"
+-	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int is 8-byte value"
+-	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); uint is 8-byte value"
+-	MOVQ	x+0(FP), AX
+-	MOVQ	y+8(FP), AX
+-	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int is 8-byte value"
+-	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); uint is 8-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int is 8-byte value"
+-	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); uint is 8-byte value"
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int is 8-byte value"
+-	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); uint is 8-byte value"
+-	TESTQ	x+0(FP), AX
+-	TESTQ	y+8(FP), AX
+-	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	RET
+-
+-TEXT ·argptr(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-40"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); \*byte is 8-byte value"
+-	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); \*byte is 8-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); \*byte is 8-byte value"
+-	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); \*byte is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); \*byte is 8-byte value"
+-	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); \*byte is 8-byte value"
+-	MOVQ	x+0(FP), AX
+-	MOVQ	y+8(FP), AX
+-	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); \*byte is 8-byte value"
+-	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); \*byte is 8-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); \*byte is 8-byte value"
+-	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); \*byte is 8-byte value"
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); \*byte is 8-byte value"
+-	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); \*byte is 8-byte value"
+-	TESTQ	x+0(FP), AX
+-	TESTQ	y+8(FP), AX
+-	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	MOVL	c+16(FP), AX // ERROR "invalid MOVL of c\+16\(FP\); chan int is 8-byte value"
+-	MOVL	m+24(FP), AX // ERROR "invalid MOVL of m\+24\(FP\); map\[int\]int is 8-byte value"
+-	MOVL	f+32(FP), AX // ERROR "invalid MOVL of f\+32\(FP\); func\(\) is 8-byte value"
+-	RET
+-
+-TEXT ·argstring(SB),0,$32 // ERROR "wrong argument size 0; expected \$\.\.\.-32"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); string base is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); string base is 8-byte value"
+-	MOVQ	x+0(FP), AX
+-	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); string base is 8-byte value"
+-	MOVL	x_base+0(FP), AX // ERROR "invalid MOVL of x_base\+0\(FP\); string base is 8-byte value"
+-	MOVQ	x_base+0(FP), AX
+-	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
+-	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
+-	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
+-	MOVW	x_len+8(FP), AX // ERROR "invalid MOVW of x_len\+8\(FP\); string len is 8-byte value"
+-	MOVL	x_len+8(FP), AX // ERROR "invalid MOVL of x_len\+8\(FP\); string len is 8-byte value"
+-	MOVQ	x_len+8(FP), AX
+-	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+16\(FP\)"
+-	MOVQ	y_len+8(FP), AX // ERROR "invalid offset y_len\+8\(FP\); expected y_len\+24\(FP\)"
+-	RET
+-
+-TEXT ·argslice(SB),0,$48 // ERROR "wrong argument size 0; expected \$\.\.\.-48"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); slice base is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); slice base is 8-byte value"
+-	MOVQ	x+0(FP), AX
+-	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); slice base is 8-byte value"
+-	MOVL	x_base+0(FP), AX // ERROR "invalid MOVL of x_base\+0\(FP\); slice base is 8-byte value"
+-	MOVQ	x_base+0(FP), AX
+-	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
+-	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
+-	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
+-	MOVW	x_len+8(FP), AX // ERROR "invalid MOVW of x_len\+8\(FP\); slice len is 8-byte value"
+-	MOVL	x_len+8(FP), AX // ERROR "invalid MOVL of x_len\+8\(FP\); slice len is 8-byte value"
+-	MOVQ	x_len+8(FP), AX
+-	MOVW	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+16\(FP\)"
+-	MOVL	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+16\(FP\)"
+-	MOVQ	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+16\(FP\)"
+-	MOVW	x_cap+16(FP), AX // ERROR "invalid MOVW of x_cap\+16\(FP\); slice cap is 8-byte value"
+-	MOVL	x_cap+16(FP), AX // ERROR "invalid MOVL of x_cap\+16\(FP\); slice cap is 8-byte value"
+-	MOVQ	x_cap+16(FP), AX
+-	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+24\(FP\)"
+-	MOVQ	y_len+8(FP), AX // ERROR "invalid offset y_len\+8\(FP\); expected y_len\+32\(FP\)"
+-	MOVQ	y_cap+16(FP), AX // ERROR "invalid offset y_cap\+16\(FP\); expected y_cap\+40\(FP\)"
+-	RET
+-
+-TEXT ·argiface(SB),0,$0-32
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); interface type is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); interface type is 8-byte value"
+-	MOVQ	x+0(FP), AX
+-	MOVW	x_type+0(FP), AX // ERROR "invalid MOVW of x_type\+0\(FP\); interface type is 8-byte value"
+-	MOVL	x_type+0(FP), AX // ERROR "invalid MOVL of x_type\+0\(FP\); interface type is 8-byte value"
+-	MOVQ	x_type+0(FP), AX
+-	MOVQ	x_itable+0(FP), AX // ERROR "unknown variable x_itable; offset 0 is x_type\+0\(FP\)"
+-	MOVQ	x_itable+1(FP), AX // ERROR "unknown variable x_itable; offset 1 is x_type\+0\(FP\)"
+-	MOVW	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+8\(FP\)"
+-	MOVL	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+8\(FP\)"
+-	MOVQ	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+8\(FP\)"
+-	MOVW	x_data+8(FP), AX // ERROR "invalid MOVW of x_data\+8\(FP\); interface data is 8-byte value"
+-	MOVL	x_data+8(FP), AX // ERROR "invalid MOVL of x_data\+8\(FP\); interface data is 8-byte value"
+-	MOVQ	x_data+8(FP), AX
+-	MOVW	y+16(FP), AX // ERROR "invalid MOVW of y\+16\(FP\); interface itable is 8-byte value"
+-	MOVL	y+16(FP), AX // ERROR "invalid MOVL of y\+16\(FP\); interface itable is 8-byte value"
+-	MOVQ	y+16(FP), AX
+-	MOVW	y_itable+16(FP), AX // ERROR "invalid MOVW of y_itable\+16\(FP\); interface itable is 8-byte value"
+-	MOVL	y_itable+16(FP), AX // ERROR "invalid MOVL of y_itable\+16\(FP\); interface itable is 8-byte value"
+-	MOVQ	y_itable+16(FP), AX
+-	MOVQ	y_type+16(FP), AX // ERROR "unknown variable y_type; offset 16 is y_itable\+16\(FP\)"
+-	MOVW	y_data+16(FP), AX // ERROR "invalid offset y_data\+16\(FP\); expected y_data\+24\(FP\)"
+-	MOVL	y_data+16(FP), AX // ERROR "invalid offset y_data\+16\(FP\); expected y_data\+24\(FP\)"
+-	MOVQ	y_data+16(FP), AX // ERROR "invalid offset y_data\+16\(FP\); expected y_data\+24\(FP\)"
+-	MOVW	y_data+24(FP), AX // ERROR "invalid MOVW of y_data\+24\(FP\); interface data is 8-byte value"
+-	MOVL	y_data+24(FP), AX // ERROR "invalid MOVL of y_data\+24\(FP\); interface data is 8-byte value"
+-	MOVQ	y_data+24(FP), AX
+-	RET
+-
+-TEXT ·returnint(SB),0,$0-8
+-	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 8-byte value"
+-	MOVW	AX, ret+0(FP) // ERROR "invalid MOVW of ret\+0\(FP\); int is 8-byte value"
+-	MOVL	AX, ret+0(FP) // ERROR "invalid MOVL of ret\+0\(FP\); int is 8-byte value"
+-	MOVQ	AX, ret+0(FP)
+-	MOVQ	AX, ret+1(FP) // ERROR "invalid offset ret\+1\(FP\); expected ret\+0\(FP\)"
+-	MOVQ	AX, r+0(FP) // ERROR "unknown variable r; offset 0 is ret\+0\(FP\)"
+-	RET
+-
+-TEXT ·returnbyte(SB),0,$0-9
+-	MOVQ	x+0(FP), AX
+-	MOVB	AX, ret+8(FP)
+-	MOVW	AX, ret+8(FP) // ERROR "invalid MOVW of ret\+8\(FP\); byte is 1-byte value"
+-	MOVL	AX, ret+8(FP) // ERROR "invalid MOVL of ret\+8\(FP\); byte is 1-byte value"
+-	MOVQ	AX, ret+8(FP) // ERROR "invalid MOVQ of ret\+8\(FP\); byte is 1-byte value"
+-	MOVB	AX, ret+7(FP) // ERROR "invalid offset ret\+7\(FP\); expected ret\+8\(FP\)"
+-	RET
+-
+-TEXT ·returnnamed(SB),0,$0-41
+-	MOVB	x+0(FP), AX
+-	MOVQ	AX, r1+8(FP)
+-	MOVW	AX, r2+16(FP)
+-	MOVQ	AX, r3+24(FP)
+-	MOVQ	AX, r3_base+24(FP)
+-	MOVQ	AX, r3_len+32(FP)
+-	MOVB	AX, r4+40(FP)
+-	MOVL	AX, r1+8(FP) // ERROR "invalid MOVL of r1\+8\(FP\); int is 8-byte value"
+-	RET
+diff --git a/src/cmd/vet/test_asm2.s b/src/cmd/vet/test_asm2.s
+deleted file mode 100644
+index d8679c574e..0000000000
+--- a/src/cmd/vet/test_asm2.s
++++ /dev/null
+@@ -1,251 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build 386
+-// +build vet_test
+-
+-TEXT ·arg1(SB),0,$0-2
+-	MOVB	x+0(FP), AX
+-	MOVB	y+1(FP), BX
+-	MOVW	x+0(FP), AX // ERROR "\[386\] invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
+-	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int8 is 1-byte value"
+-	MOVL	y+1(FP), AX // ERROR "invalid MOVL of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int8 is 1-byte value"
+-	MOVQ	y+1(FP), AX // ERROR "invalid MOVQ of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
+-	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
+-	TESTB	x+0(FP), AX
+-	TESTB	y+1(FP), BX
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int8 is 1-byte value"
+-	TESTW	y+1(FP), AX // ERROR "invalid TESTW of y\+1\(FP\); uint8 is 1-byte value"
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int8 is 1-byte value"
+-	TESTL	y+1(FP), AX // ERROR "invalid TESTL of y\+1\(FP\); uint8 is 1-byte value"
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int8 is 1-byte value"
+-	TESTQ	y+1(FP), AX // ERROR "invalid TESTQ of y\+1\(FP\); uint8 is 1-byte value"
+-	TESTB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
+-	TESTB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
+-	RET
+-
+-TEXT ·arg2(SB),0,$0-4
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int16 is 2-byte value"
+-	MOVB	y+2(FP), AX // ERROR "invalid MOVB of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVW	y+2(FP), BX
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int16 is 2-byte value"
+-	MOVL	y+2(FP), AX // ERROR "invalid MOVL of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int16 is 2-byte value"
+-	MOVQ	y+2(FP), AX // ERROR "invalid MOVQ of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
+-	MOVW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int16 is 2-byte value"
+-	TESTB	y+2(FP), AX // ERROR "invalid TESTB of y\+2\(FP\); uint16 is 2-byte value"
+-	TESTW	x+0(FP), AX
+-	TESTW	y+2(FP), BX
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int16 is 2-byte value"
+-	TESTL	y+2(FP), AX // ERROR "invalid TESTL of y\+2\(FP\); uint16 is 2-byte value"
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int16 is 2-byte value"
+-	TESTQ	y+2(FP), AX // ERROR "invalid TESTQ of y\+2\(FP\); uint16 is 2-byte value"
+-	TESTW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
+-	TESTW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
+-	RET
+-
+-TEXT ·arg4(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int32 is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int32 is 4-byte value"
+-	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVL	y+4(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int32 is 4-byte value"
+-	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int32 is 4-byte value"
+-	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); uint32 is 4-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int32 is 4-byte value"
+-	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); uint32 is 4-byte value"
+-	TESTL	x+0(FP), AX
+-	TESTL	y+4(FP), AX
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int32 is 4-byte value"
+-	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); uint32 is 4-byte value"
+-	TESTL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	TESTL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	RET
+-
+-TEXT ·arg8(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int64 is 8-byte value"
+-	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int64 is 8-byte value"
+-	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)"
+-	MOVL	x_lo+0(FP), AX
+-	MOVL	x_hi+4(FP), AX
+-	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)"
+-	MOVL	y_lo+8(FP), AX
+-	MOVL	y_hi+12(FP), AX
+-	MOVQ	x+0(FP), AX
+-	MOVQ	y+8(FP), AX
+-	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int64 is 8-byte value"
+-	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); uint64 is 8-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int64 is 8-byte value"
+-	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); uint64 is 8-byte value"
+-	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)"
+-	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)"
+-	TESTQ	x+0(FP), AX
+-	TESTQ	y+8(FP), AX
+-	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	RET
+-
+-TEXT ·argint(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint is 4-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int is 4-byte value"
+-	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); uint is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVL	y+4(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int is 4-byte value"
+-	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); uint is 4-byte value"
+-	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int is 4-byte value"
+-	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); uint is 4-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int is 4-byte value"
+-	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); uint is 4-byte value"
+-	TESTL	x+0(FP), AX
+-	TESTL	y+4(FP), AX
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int is 4-byte value"
+-	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); uint is 4-byte value"
+-	TESTQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	RET
+-
+-TEXT ·argptr(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-20"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); \*byte is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); \*byte is 4-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); \*byte is 4-byte value"
+-	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); \*byte is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVL	y+4(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); \*byte is 4-byte value"
+-	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); \*byte is 4-byte value"
+-	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); \*byte is 4-byte value"
+-	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); \*byte is 4-byte value"
+-	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); \*byte is 4-byte value"
+-	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); \*byte is 4-byte value"
+-	TESTL	x+0(FP), AX
+-	TESTL	y+4(FP), AX
+-	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); \*byte is 4-byte value"
+-	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); \*byte is 4-byte value"
+-	TESTQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	MOVW	c+8(FP), AX // ERROR "invalid MOVW of c\+8\(FP\); chan int is 4-byte value"
+-	MOVW	m+12(FP), AX // ERROR "invalid MOVW of m\+12\(FP\); map\[int\]int is 4-byte value"
+-	MOVW	f+16(FP), AX // ERROR "invalid MOVW of f\+16\(FP\); func\(\) is 4-byte value"
+-	RET
+-
+-TEXT ·argstring(SB),0,$16 // ERROR "wrong argument size 0; expected \$\.\.\.-16"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); string base is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); string base is 4-byte value"
+-	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); string base is 4-byte value"
+-	MOVL	x_base+0(FP), AX
+-	MOVQ	x_base+0(FP), AX // ERROR "invalid MOVQ of x_base\+0\(FP\); string base is 4-byte value"
+-	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVW	x_len+4(FP), AX // ERROR "invalid MOVW of x_len\+4\(FP\); string len is 4-byte value"
+-	MOVL	x_len+4(FP), AX
+-	MOVQ	x_len+4(FP), AX // ERROR "invalid MOVQ of x_len\+4\(FP\); string len is 4-byte value"
+-	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+8\(FP\)"
+-	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+12\(FP\)"
+-	RET
+-
+-TEXT ·argslice(SB),0,$24 // ERROR "wrong argument size 0; expected \$\.\.\.-24"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); slice base is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); slice base is 4-byte value"
+-	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); slice base is 4-byte value"
+-	MOVL	x_base+0(FP), AX
+-	MOVQ	x_base+0(FP), AX // ERROR "invalid MOVQ of x_base\+0\(FP\); slice base is 4-byte value"
+-	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVW	x_len+4(FP), AX // ERROR "invalid MOVW of x_len\+4\(FP\); slice len is 4-byte value"
+-	MOVL	x_len+4(FP), AX
+-	MOVQ	x_len+4(FP), AX // ERROR "invalid MOVQ of x_len\+4\(FP\); slice len is 4-byte value"
+-	MOVW	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
+-	MOVL	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
+-	MOVQ	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
+-	MOVW	x_cap+8(FP), AX // ERROR "invalid MOVW of x_cap\+8\(FP\); slice cap is 4-byte value"
+-	MOVL	x_cap+8(FP), AX
+-	MOVQ	x_cap+8(FP), AX // ERROR "invalid MOVQ of x_cap\+8\(FP\); slice cap is 4-byte value"
+-	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+12\(FP\)"
+-	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+16\(FP\)"
+-	MOVQ	y_cap+8(FP), AX // ERROR "invalid offset y_cap\+8\(FP\); expected y_cap\+20\(FP\)"
+-	RET
+-
+-TEXT ·argiface(SB),0,$0-16
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); interface type is 4-byte value"
+-	MOVL	x+0(FP), AX
+-	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); interface type is 4-byte value"
+-	MOVW	x_type+0(FP), AX // ERROR "invalid MOVW of x_type\+0\(FP\); interface type is 4-byte value"
+-	MOVL	x_type+0(FP), AX
+-	MOVQ	x_type+0(FP), AX // ERROR "invalid MOVQ of x_type\+0\(FP\); interface type is 4-byte value"
+-	MOVQ	x_itable+0(FP), AX // ERROR "unknown variable x_itable; offset 0 is x_type\+0\(FP\)"
+-	MOVQ	x_itable+1(FP), AX // ERROR "unknown variable x_itable; offset 1 is x_type\+0\(FP\)"
+-	MOVW	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
+-	MOVL	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
+-	MOVQ	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
+-	MOVW	x_data+4(FP), AX // ERROR "invalid MOVW of x_data\+4\(FP\); interface data is 4-byte value"
+-	MOVL	x_data+4(FP), AX
+-	MOVQ	x_data+4(FP), AX // ERROR "invalid MOVQ of x_data\+4\(FP\); interface data is 4-byte value"
+-	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); interface itable is 4-byte value"
+-	MOVL	y+8(FP), AX
+-	MOVQ	y+8(FP), AX // ERROR "invalid MOVQ of y\+8\(FP\); interface itable is 4-byte value"
+-	MOVW	y_itable+8(FP), AX // ERROR "invalid MOVW of y_itable\+8\(FP\); interface itable is 4-byte value"
+-	MOVL	y_itable+8(FP), AX
+-	MOVQ	y_itable+8(FP), AX // ERROR "invalid MOVQ of y_itable\+8\(FP\); interface itable is 4-byte value"
+-	MOVQ	y_type+8(FP), AX // ERROR "unknown variable y_type; offset 8 is y_itable\+8\(FP\)"
+-	MOVW	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
+-	MOVL	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
+-	MOVQ	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
+-	MOVW	y_data+12(FP), AX // ERROR "invalid MOVW of y_data\+12\(FP\); interface data is 4-byte value"
+-	MOVL	y_data+12(FP), AX
+-	MOVQ	y_data+12(FP), AX // ERROR "invalid MOVQ of y_data\+12\(FP\); interface data is 4-byte value"
+-	RET
+-
+-TEXT ·returnint(SB),0,$0-4
+-	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 4-byte value"
+-	MOVW	AX, ret+0(FP) // ERROR "invalid MOVW of ret\+0\(FP\); int is 4-byte value"
+-	MOVL	AX, ret+0(FP)
+-	MOVQ	AX, ret+0(FP) // ERROR "invalid MOVQ of ret\+0\(FP\); int is 4-byte value"
+-	MOVQ	AX, ret+1(FP) // ERROR "invalid offset ret\+1\(FP\); expected ret\+0\(FP\)"
+-	MOVQ	AX, r+0(FP) // ERROR "unknown variable r; offset 0 is ret\+0\(FP\)"
+-	RET
+-
+-TEXT ·returnbyte(SB),0,$0-5
+-	MOVL	x+0(FP), AX
+-	MOVB	AX, ret+4(FP)
+-	MOVW	AX, ret+4(FP) // ERROR "invalid MOVW of ret\+4\(FP\); byte is 1-byte value"
+-	MOVL	AX, ret+4(FP) // ERROR "invalid MOVL of ret\+4\(FP\); byte is 1-byte value"
+-	MOVQ	AX, ret+4(FP) // ERROR "invalid MOVQ of ret\+4\(FP\); byte is 1-byte value"
+-	MOVB	AX, ret+3(FP) // ERROR "invalid offset ret\+3\(FP\); expected ret\+4\(FP\)"
+-	RET
+-
+-TEXT ·returnnamed(SB),0,$0-21
+-	MOVB	x+0(FP), AX
+-	MOVL	AX, r1+4(FP)
+-	MOVW	AX, r2+8(FP)
+-	MOVL	AX, r3+12(FP)
+-	MOVL	AX, r3_base+12(FP)
+-	MOVL	AX, r3_len+16(FP)
+-	MOVB	AX, r4+20(FP)
+-	MOVQ	AX, r1+4(FP) // ERROR "invalid MOVQ of r1\+4\(FP\); int is 4-byte value"
+-	RET
+diff --git a/src/cmd/vet/test_asm3.s b/src/cmd/vet/test_asm3.s
+deleted file mode 100644
+index bf98805a21..0000000000
+--- a/src/cmd/vet/test_asm3.s
++++ /dev/null
+@@ -1,166 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build arm
+-// +build vet_test
+-
+-TEXT ·arg1(SB),0,$0-2
+-	MOVB	x+0(FP), AX
+-	MOVB	y+1(FP), BX
+-	MOVH	x+0(FP), AX // ERROR "\[arm\] invalid MOVH of x\+0\(FP\); int8 is 1-byte value"
+-	MOVH	y+1(FP), AX // ERROR "invalid MOVH of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
+-	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
+-	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
+-	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
+-	RET
+-
+-TEXT ·arg2(SB),0,$0-4
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int16 is 2-byte value"
+-	MOVB	y+2(FP), AX // ERROR "invalid MOVB of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVH	x+0(FP), AX
+-	MOVH	y+2(FP), BX
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int16 is 2-byte value"
+-	MOVW	y+2(FP), AX // ERROR "invalid MOVW of y\+2\(FP\); uint16 is 2-byte value"
+-	MOVH	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
+-	MOVH	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
+-	RET
+-
+-TEXT ·arg4(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int32 is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); int32 is 4-byte value"
+-	MOVH	y+4(FP), AX // ERROR "invalid MOVH of y\+4\(FP\); uint32 is 4-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVW	y+4(FP), AX
+-	MOVW	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVW	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	RET
+-
+-TEXT ·arg8(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int64 is 8-byte value"
+-	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); int64 is 8-byte value"
+-	MOVH	y+8(FP), AX // ERROR "invalid MOVH of y\+8\(FP\); uint64 is 8-byte value"
+-	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)"
+-	MOVW	x_lo+0(FP), AX
+-	MOVW	x_hi+4(FP), AX
+-	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)"
+-	MOVW	y_lo+8(FP), AX
+-	MOVW	y_hi+12(FP), AX
+-	MOVQ	x+0(FP), AX
+-	MOVQ	y+8(FP), AX
+-	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
+-	RET
+-
+-TEXT ·argint(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint is 4-byte value"
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); int is 4-byte value"
+-	MOVH	y+4(FP), AX // ERROR "invalid MOVH of y\+4\(FP\); uint is 4-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVW	y+4(FP), AX
+-	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	RET
+-
+-TEXT ·argptr(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-20"
+-	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); \*byte is 4-byte value"
+-	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); \*byte is 4-byte value"
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); \*byte is 4-byte value"
+-	MOVH	y+4(FP), AX // ERROR "invalid MOVH of y\+4\(FP\); \*byte is 4-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVW	y+4(FP), AX
+-	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
+-	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
+-	MOVH	c+8(FP), AX // ERROR "invalid MOVH of c\+8\(FP\); chan int is 4-byte value"
+-	MOVH	m+12(FP), AX // ERROR "invalid MOVH of m\+12\(FP\); map\[int\]int is 4-byte value"
+-	MOVH	f+16(FP), AX // ERROR "invalid MOVH of f\+16\(FP\); func\(\) is 4-byte value"
+-	RET
+-
+-TEXT ·argstring(SB),0,$16 // ERROR "wrong argument size 0; expected \$\.\.\.-16"
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); string base is 4-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVH	x_base+0(FP), AX // ERROR "invalid MOVH of x_base\+0\(FP\); string base is 4-byte value"
+-	MOVW	x_base+0(FP), AX
+-	MOVH	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVH	x_len+4(FP), AX // ERROR "invalid MOVH of x_len\+4\(FP\); string len is 4-byte value"
+-	MOVW	x_len+4(FP), AX
+-	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+8\(FP\)"
+-	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+12\(FP\)"
+-	RET
+-
+-TEXT ·argslice(SB),0,$24 // ERROR "wrong argument size 0; expected \$\.\.\.-24"
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); slice base is 4-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVH	x_base+0(FP), AX // ERROR "invalid MOVH of x_base\+0\(FP\); slice base is 4-byte value"
+-	MOVW	x_base+0(FP), AX
+-	MOVH	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
+-	MOVH	x_len+4(FP), AX // ERROR "invalid MOVH of x_len\+4\(FP\); slice len is 4-byte value"
+-	MOVW	x_len+4(FP), AX
+-	MOVH	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
+-	MOVW	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
+-	MOVQ	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
+-	MOVH	x_cap+8(FP), AX // ERROR "invalid MOVH of x_cap\+8\(FP\); slice cap is 4-byte value"
+-	MOVW	x_cap+8(FP), AX
+-	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+12\(FP\)"
+-	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+16\(FP\)"
+-	MOVQ	y_cap+8(FP), AX // ERROR "invalid offset y_cap\+8\(FP\); expected y_cap\+20\(FP\)"
+-	RET
+-
+-TEXT ·argiface(SB),0,$0-16
+-	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); interface type is 4-byte value"
+-	MOVW	x+0(FP), AX
+-	MOVH	x_type+0(FP), AX // ERROR "invalid MOVH of x_type\+0\(FP\); interface type is 4-byte value"
+-	MOVW	x_type+0(FP), AX
+-	MOVQ	x_itable+0(FP), AX // ERROR "unknown variable x_itable; offset 0 is x_type\+0\(FP\)"
+-	MOVQ	x_itable+1(FP), AX // ERROR "unknown variable x_itable; offset 1 is x_type\+0\(FP\)"
+-	MOVH	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
+-	MOVW	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
+-	MOVQ	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
+-	MOVH	x_data+4(FP), AX // ERROR "invalid MOVH of x_data\+4\(FP\); interface data is 4-byte value"
+-	MOVW	x_data+4(FP), AX
+-	MOVH	y+8(FP), AX // ERROR "invalid MOVH of y\+8\(FP\); interface itable is 4-byte value"
+-	MOVW	y+8(FP), AX
+-	MOVH	y_itable+8(FP), AX // ERROR "invalid MOVH of y_itable\+8\(FP\); interface itable is 4-byte value"
+-	MOVW	y_itable+8(FP), AX
+-	MOVQ	y_type+8(FP), AX // ERROR "unknown variable y_type; offset 8 is y_itable\+8\(FP\)"
+-	MOVH	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
+-	MOVW	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
+-	MOVQ	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
+-	MOVH	y_data+12(FP), AX // ERROR "invalid MOVH of y_data\+12\(FP\); interface data is 4-byte value"
+-	MOVW	y_data+12(FP), AX
+-	RET
+-
+-TEXT ·returnint(SB),0,$0-4
+-	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 4-byte value"
+-	MOVH	AX, ret+0(FP) // ERROR "invalid MOVH of ret\+0\(FP\); int is 4-byte value"
+-	MOVW	AX, ret+0(FP)
+-	MOVQ	AX, ret+1(FP) // ERROR "invalid offset ret\+1\(FP\); expected ret\+0\(FP\)"
+-	MOVQ	AX, r+0(FP) // ERROR "unknown variable r; offset 0 is ret\+0\(FP\)"
+-	RET
+-
+-TEXT ·returnbyte(SB),0,$0-5
+-	MOVW	x+0(FP), AX
+-	MOVB	AX, ret+4(FP)
+-	MOVH	AX, ret+4(FP) // ERROR "invalid MOVH of ret\+4\(FP\); byte is 1-byte value"
+-	MOVW	AX, ret+4(FP) // ERROR "invalid MOVW of ret\+4\(FP\); byte is 1-byte value"
+-	MOVB	AX, ret+3(FP) // ERROR "invalid offset ret\+3\(FP\); expected ret\+4\(FP\)"
+-	RET
+-
+-TEXT ·returnnamed(SB),0,$0-21
+-	MOVB	x+0(FP), AX
+-	MOVW	AX, r1+4(FP)
+-	MOVH	AX, r2+8(FP)
+-	MOVW	AX, r3+12(FP)
+-	MOVW	AX, r3_base+12(FP)
+-	MOVW	AX, r3_len+16(FP)
+-	MOVB	AX, r4+20(FP)
+-	MOVB	AX, r1+4(FP) // ERROR "invalid MOVB of r1\+4\(FP\); int is 4-byte value"
+-	RET
+diff --git a/src/cmd/vet/test_assign.go b/src/cmd/vet/test_assign.go
+deleted file mode 100644
+index 8e0f45e532..0000000000
+--- a/src/cmd/vet/test_assign.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains tests for the useless-assignment checker.
+-
+-// +build vet_test
+-
+-package main
+-
+-type ST struct {
+-	x int
+-}
+-
+-func (s *ST) SetX(x int) {
+-	// Accidental self-assignment; it should be "s.x = x"
+-	x = x // ERROR "self-assignment of x to x"
+-	// Another mistake
+-	s.x = s.x // ERROR "self-assignment of s.x to s.x"
+-}
+diff --git a/src/cmd/vet/test_atomic.go b/src/cmd/vet/test_atomic.go
+deleted file mode 100644
+index 9231e9dc0d..0000000000
+--- a/src/cmd/vet/test_atomic.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build vet_test
+-
+-// This file contains tests for the atomic checker.
+-
+-package main
+-
+-import (
+-	"sync/atomic"
+-)
+-
+-type Counter uint64
+-
+-func AtomicTests() {
+-	x := uint64(1)
+-	x = atomic.AddUint64(&x, 1)        // ERROR "direct assignment to atomic value"
+-	_, x = 10, atomic.AddUint64(&x, 1) // ERROR "direct assignment to atomic value"
+-	x, _ = atomic.AddUint64(&x, 1), 10 // ERROR "direct assignment to atomic value"
+-
+-	y := &x
+-	*y = atomic.AddUint64(y, 1) // ERROR "direct assignment to atomic value"
+-
+-	var su struct{ Counter uint64 }
+-	su.Counter = atomic.AddUint64(&su.Counter, 1) // ERROR "direct assignment to atomic value"
+-	z1 := atomic.AddUint64(&su.Counter, 1)
+-	_ = z1 // Avoid err "z declared and not used"
+-
+-	var sp struct{ Counter *uint64 }
+-	*sp.Counter = atomic.AddUint64(sp.Counter, 1) // ERROR "direct assignment to atomic value"
+-	z2 := atomic.AddUint64(sp.Counter, 1)
+-	_ = z2 // Avoid err "z declared and not used"
+-
+-	au := []uint64{10, 20}
+-	au[0] = atomic.AddUint64(&au[0], 1) // ERROR "direct assignment to atomic value"
+-	au[1] = atomic.AddUint64(&au[0], 1)
+-
+-	ap := []*uint64{&au[0], &au[1]}
+-	*ap[0] = atomic.AddUint64(ap[0], 1) // ERROR "direct assignment to atomic value"
+-	*ap[1] = atomic.AddUint64(ap[0], 1)
+-}
+diff --git a/src/cmd/vet/test_buildtag.go b/src/cmd/vet/test_buildtag.go
+deleted file mode 100644
+index d7174ade21..0000000000
+--- a/src/cmd/vet/test_buildtag.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains tests for the buildtag checker.
+-
+-// +build vet_test
+-// +builder // ERROR "possible malformed \+build comment"
+-// +build !ignore
+-
+-package main
+-
+-// +build toolate // ERROR "build comment appears too late in file"
+-
+-var _ = 3
+diff --git a/src/cmd/vet/test_buildtag_bad.go b/src/cmd/vet/test_buildtag_bad.go
+deleted file mode 100644
+index 0a0a39bd1f..0000000000
+--- a/src/cmd/vet/test_buildtag_bad.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// This file contains misplaced or malformed build constraints.
+-// The Go tool will skip it, because the constraints are invalid.
+-// It serves only to test the tag checker during make test.
+-
+-// Mention +build // ERROR "possible malformed \+build comment"
+-
+-// +build !!bang // ERROR "invalid double negative in build constraint"
+-// +build @#$ // ERROR "invalid non-alphanumeric build constraint"
+-
+-// +build toolate // ERROR "build comment appears too late in file"
+-package bad
+-
+-// This is package 'bad' rather than 'main' so the erroneous build
+-// tag doesn't end up looking like a package doc for the vet command
+-// when examined by godoc.
+diff --git a/src/cmd/vet/test_deadcode.go b/src/cmd/vet/test_deadcode.go
+deleted file mode 100644
+index d08e57782f..0000000000
+--- a/src/cmd/vet/test_deadcode.go
++++ /dev/null
+@@ -1,2121 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build vet_test
+-// +build ignore
+-
+-// This file contains tests for the dead code checker.
+-
+-package main
+-
+-type T int
+-
+-var x interface{}
+-var c chan int
+-
+-func external() int // ok
+-
+-func _() int {
+-}
+-
+-func _() int {
+-	print(1)
+-}
+-
+-func _() int {
+-	print(1)
+-	return 2
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	goto L
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	panic(2)
+-	println() // ERROR "unreachable code"
+-}
+-
+-// but only builtin panic
+-func _() int {
+-	var panic = func(int) {}
+-	print(1)
+-	panic(2)
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		print(1)
+-		return 2
+-		println() // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		print(1)
+-		return 2
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-		println() // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	{
+-		panic(2)
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	{
+-		panic(2)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	{
+-		panic(2)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	return 2
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	goto L
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	panic(2)
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	{
+-		print(1)
+-		return 2
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-func _() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	{
+-		panic(2)
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-func _() int {
+-	{
+-		print(1)
+-		return 2
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	{
+-		panic(2)
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else {
+-		panic(3)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else {
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else if x == 1 {
+-		return 0
+-	} else if x != 2 {
+-		panic(3)
+-	} else {
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-// if-else chain missing final else is not okay, even if the
+-// conditions cover every possible case.
+-
+-func _() int {
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else if x != nil {
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else if x == 1 {
+-		return 0
+-	} else if x != 1 {
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	for {
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	for {
+-		for {
+-			break
+-		}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	for {
+-		for {
+-			break
+-			println() // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-func _() int {
+-	for {
+-		for {
+-			continue
+-			println() // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-func _() int {
+-	for {
+-	L:
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	for {
+-		break
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	for {
+-		for {
+-		}
+-		break // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	for {
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	for x == nil {
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	for x == nil {
+-		for {
+-			break
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	for x == nil {
+-	L:
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	for true {
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	for true {
+-		for {
+-			break
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	for true {
+-	L:
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	select {}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		for {
+-		}
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		for {
+-		}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		println() // ERROR "unreachable code"
+-	case c <- 1:
+-		print(2)
+-		goto L
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	case c <- 1:
+-		print(2)
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		println() // ERROR "unreachable code"
+-	default:
+-		select {}
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	default:
+-		select {}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		goto L // ERROR "unreachable code"
+-	case c <- 1:
+-		print(2)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	default:
+-		print(2)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	default:
+-		break
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		break // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-L:
+-	select {
+-	case <-c:
+-		print(2)
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-L:
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	case c <- 1:
+-		print(2)
+-		break L
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(1)
+-		panic("abc")
+-	default:
+-		select {}
+-		break // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	case 1:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	default:
+-		return 4
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	switch {
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-	case 2:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 2:
+-		return 4
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		fallthrough
+-	case 2:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-L:
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-		break L // ERROR "unreachable code"
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x {
+-	default:
+-		return 4
+-		break // ERROR "unreachable code"
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-L:
+-	switch x {
+-	case 1:
+-		print(2)
+-		for {
+-			break L
+-		}
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	case int:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	default:
+-		return 4
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	print(1)
+-	switch {
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-	case float64:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case float64:
+-		return 4
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	case float64:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-L:
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-		break L // ERROR "unreachable code"
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	default:
+-		return 4
+-		break // ERROR "unreachable code"
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	print(1)
+-L:
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		for {
+-			break L
+-		}
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-// again, but without the leading print(1).
+-// testing that everything works when the terminating statement is first.
+-
+-func _() int {
+-	println() // ok
+-}
+-
+-func _() int {
+-	return 2
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	goto L
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	panic(2)
+-	println() // ERROR "unreachable code"
+-}
+-
+-// but only builtin panic
+-func _() int {
+-	var panic = func(int) {}
+-	panic(2)
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		return 2
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	{
+-		return 2
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-L:
+-	{
+-		goto L
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-L:
+-	{
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	{
+-		panic(2)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-func _() int {
+-	{
+-		panic(2)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-func _() int {
+-	return 2
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	goto L
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	panic(2)
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		return 2
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	{
+-		goto L
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		panic(2)
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		return 2
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-L:
+-	{
+-		goto L
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-func _() int {
+-	{
+-		panic(2)
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-// again, with func literals
+-
+-var _ = func() int {
+-}
+-
+-var _ = func() int {
+-	print(1)
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	return 2
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	goto L
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	panic(2)
+-	println() // ERROR "unreachable code"
+-}
+-
+-// but only builtin panic
+-var _ = func() int {
+-	var panic = func(int) {}
+-	print(1)
+-	panic(2)
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		print(1)
+-		return 2
+-		println() // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		print(1)
+-		return 2
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-		println() // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	{
+-		panic(2)
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	{
+-		panic(2)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	{
+-		panic(2)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	return 2
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	goto L
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	panic(2)
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	{
+-		print(1)
+-		return 2
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	{
+-		panic(2)
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-var _ = func() int {
+-	{
+-		print(1)
+-		return 2
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		print(1)
+-		goto L
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	{
+-		panic(2)
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else {
+-		panic(3)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else {
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else if x == 1 {
+-		return 0
+-	} else if x != 2 {
+-		panic(3)
+-	} else {
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-// if-else chain missing final else is not okay, even if the
+-// conditions cover every possible case.
+-
+-var _ = func() int {
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else if x != nil {
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	if x == nil {
+-		panic(2)
+-	} else if x == 1 {
+-		return 0
+-	} else if x != 1 {
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	for {
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	for {
+-		for {
+-			break
+-		}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	for {
+-		for {
+-			break
+-			println() // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-var _ = func() int {
+-	for {
+-		for {
+-			continue
+-			println() // ERROR "unreachable code"
+-		}
+-	}
+-}
+-
+-var _ = func() int {
+-	for {
+-	L:
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	for {
+-		break
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	for {
+-		for {
+-		}
+-		break // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	for {
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	for x == nil {
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	for x == nil {
+-		for {
+-			break
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	for x == nil {
+-	L:
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	for true {
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	for true {
+-		for {
+-			break
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	for true {
+-	L:
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		for {
+-		}
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		for {
+-		}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		println() // ERROR "unreachable code"
+-	case c <- 1:
+-		print(2)
+-		goto L
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	case c <- 1:
+-		print(2)
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		println() // ERROR "unreachable code"
+-	default:
+-		select {}
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	default:
+-		select {}
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		goto L // ERROR "unreachable code"
+-	case c <- 1:
+-		print(2)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	default:
+-		print(2)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	default:
+-		break
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-		break // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-L:
+-	select {
+-	case <-c:
+-		print(2)
+-		for {
+-			break L
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-L:
+-	select {
+-	case <-c:
+-		print(2)
+-		panic("abc")
+-	case c <- 1:
+-		print(2)
+-		break L
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	select {
+-	case <-c:
+-		print(1)
+-		panic("abc")
+-	default:
+-		select {}
+-		break // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	case 1:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	default:
+-		return 4
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch {
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-	case 2:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 2:
+-		return 4
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		fallthrough
+-	case 2:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-L:
+-	switch x {
+-	case 1:
+-		print(2)
+-		panic(3)
+-		break L // ERROR "unreachable code"
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x {
+-	default:
+-		return 4
+-		break // ERROR "unreachable code"
+-	case 1:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-L:
+-	switch x {
+-	case 1:
+-		print(2)
+-		for {
+-			break L
+-		}
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	case int:
+-		print(2)
+-		panic(3)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	default:
+-		return 4
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch {
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-	case float64:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case float64:
+-		return 4
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	case float64:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-L:
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		panic(3)
+-		break L // ERROR "unreachable code"
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	default:
+-		return 4
+-		break // ERROR "unreachable code"
+-	case int:
+-		print(2)
+-		panic(3)
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	print(1)
+-L:
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		for {
+-			break L
+-		}
+-	default:
+-		return 4
+-	}
+-	println() // ok
+-}
+-
+-// again, but without the leading print(1).
+-// testing that everything works when the terminating statement is first.
+-
+-var _ = func() int {
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	return 2
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	goto L
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	panic(2)
+-	println() // ERROR "unreachable code"
+-}
+-
+-// but only builtin panic
+-var _ = func() int {
+-	var panic = func(int) {}
+-	panic(2)
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		return 2
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	{
+-		return 2
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		goto L
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		goto L
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	{
+-		panic(2)
+-		println() // ERROR "unreachable code"
+-	}
+-}
+-
+-var _ = func() int {
+-	{
+-		panic(2)
+-	}
+-	println() // ERROR "unreachable code"
+-}
+-
+-var _ = func() int {
+-	return 2
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	goto L
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	panic(2)
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		return 2
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		goto L
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		panic(2)
+-		{ // ERROR "unreachable code"
+-		}
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		return 2
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-L:
+-	{
+-		goto L
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+-
+-var _ = func() int {
+-	{
+-		panic(2)
+-	}
+-	{ // ERROR "unreachable code"
+-	}
+-	println() // ok
+-}
+diff --git a/src/cmd/vet/test_method.go b/src/cmd/vet/test_method.go
+deleted file mode 100644
+index 41de62bb1d..0000000000
+--- a/src/cmd/vet/test_method.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains tests for the canonical method checker.
+-
+-// +build vet_test
+-
+-// This file contains the code to check canonical methods.
+-
+-package main
+-
+-import (
+-	"fmt"
+-)
+-
+-type MethodTest int
+-
+-func (t *MethodTest) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
+-}
+-
+-type MethodTestInterface interface {
+-	ReadByte() byte // ERROR "should have signature ReadByte"
+-}
+diff --git a/src/cmd/vet/test_print.go b/src/cmd/vet/test_print.go
+deleted file mode 100644
+index 8b41e6c69b..0000000000
+--- a/src/cmd/vet/test_print.go
++++ /dev/null
+@@ -1,153 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build vet_test
+-
+-// This file contains tests for the printf checker.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"unsafe" // just for test case printing unsafe.Pointer
+-)
+-
+-func UnsafePointerPrintfTest() {
+-	var up unsafe.Pointer
+-	fmt.Printf("%p, %x %X", up, up, up)
+-}
+-
+-// Error methods that do not satisfy the Error interface and should be checked.
+-type errorTest1 int
+-
+-func (errorTest1) Error(...interface{}) string {
+-	return "hi"
+-}
+-
+-type errorTest2 int // Analogous to testing's *T type.
+-func (errorTest2) Error(...interface{}) {
+-}
+-
+-type errorTest3 int
+-
+-func (errorTest3) Error() { // No return value.
+-}
+-
+-type errorTest4 int
+-
+-func (errorTest4) Error() int { // Different return type.
+-	return 3
+-}
+-
+-type errorTest5 int
+-
+-func (errorTest5) error() { // niladic; don't complain if no args (was bug)
+-}
+-
+-// This function never executes, but it serves as a simple test for the program.
+-// Test with make test.
+-func PrintfTests() {
+-	var b bool
+-	var i int
+-	var r rune
+-	var s string
+-	var x float64
+-	var p *int
+-	// Some good format/argtypes
+-	fmt.Printf("")
+-	fmt.Printf("%b %b", 3, i)
+-	fmt.Printf("%c %c %c %c", 3, i, 'x', r)
+-	fmt.Printf("%d %d", 3, i)
+-	fmt.Printf("%e %e", 3e9, x)
+-	fmt.Printf("%E %E", 3e9, x)
+-	fmt.Printf("%f %f", 3e9, x)
+-	fmt.Printf("%F %F", 3e9, x)
+-	fmt.Printf("%g %g", 3e9, x)
+-	fmt.Printf("%G %G", 3e9, x)
+-	fmt.Printf("%o %o", 3, i)
+-	fmt.Printf("%p %p", p, nil)
+-	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
+-	fmt.Printf("%s %s", "hi", s)
+-	fmt.Printf("%t %t", true, b)
+-	fmt.Printf("%T %T", 3, i)
+-	fmt.Printf("%U %U", 3, i)
+-	fmt.Printf("%v %v", 3, i)
+-	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
+-	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
+-	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
+-	// Some bad format/argTypes
+-	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"
+-	fmt.Printf("%c", 2.3)                      // ERROR "arg 2.3 for printf verb %c of wrong type"
+-	fmt.Printf("%d", 2.3)                      // ERROR "arg 2.3 for printf verb %d of wrong type"
+-	fmt.Printf("%e", "hi")                     // ERROR "arg .hi. for printf verb %e of wrong type"
+-	fmt.Printf("%E", true)                     // ERROR "arg true for printf verb %E of wrong type"
+-	fmt.Printf("%f", "hi")                     // ERROR "arg .hi. for printf verb %f of wrong type"
+-	fmt.Printf("%F", 'x')                      // ERROR "arg 'x' for printf verb %F of wrong type"
+-	fmt.Printf("%g", "hi")                     // ERROR "arg .hi. for printf verb %g of wrong type"
+-	fmt.Printf("%G", i)                        // ERROR "arg i for printf verb %G of wrong type"
+-	fmt.Printf("%o", x)                        // ERROR "arg x for printf verb %o of wrong type"
+-	fmt.Printf("%p", 23)                       // ERROR "arg 23 for printf verb %p of wrong type"
+-	fmt.Printf("%q", x)                        // ERROR "arg x for printf verb %q of wrong type"
+-	fmt.Printf("%s", b)                        // ERROR "arg b for printf verb %s of wrong type"
+-	fmt.Printf("%t", 23)                       // ERROR "arg 23 for printf verb %t of wrong type"
+-	fmt.Printf("%U", x)                        // ERROR "arg x for printf verb %U of wrong type"
+-	fmt.Printf("%x", nil)                      // ERROR "arg nil for printf verb %x of wrong type"
+-	fmt.Printf("%X", 2.3)                      // ERROR "arg 2.3 for printf verb %X of wrong type"
+-	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
+-	// TODO
+-	fmt.Println()                      // not an error
+-	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
+-	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args for format in Printf call"
+-	fmt.Printf("%"+("s"), "hi", 3)     // ERROR "wrong number of args for format in Printf call"
+-	fmt.Printf("%s%%%d", "hi", 3)      // correct
+-	fmt.Printf("%08s", "woo")          // correct
+-	fmt.Printf("% 8s", "woo")          // correct
+-	fmt.Printf("%.*d", 3, 3)           // correct
+-	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args for format in Printf call"
+-	fmt.Printf("%.*d", "hi", 3)        // ERROR "arg .hi. for \* in printf format not of type int"
+-	fmt.Printf("%.*d", i, 3)           // correct
+-	fmt.Printf("%.*d", s, 3)           // ERROR "arg s for \* in printf format not of type int"
+-	fmt.Printf("%q %q", multi()...)    // ok
+-	fmt.Printf("%#q", `blah`)          // ok
+-	printf("now is the time", "buddy") // ERROR "no formatting directive"
+-	Printf("now is the time", "buddy") // ERROR "no formatting directive"
+-	Printf("hi")                       // ok
+-	const format = "%s %s\n"
+-	Printf(format, "hi", "there")
+-	Printf(format, "hi") // ERROR "wrong number of args for format in Printf call"
+-	f := new(File)
+-	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
+-	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args for format in Warnf call"
+-	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
+-	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+-	// Something that satisfies the error interface.
+-	var e error
+-	fmt.Println(e.Error()) // ok
+-	// Something that looks like an error interface but isn't, such as the (*T).Error method
+-	// in the testing package.
+-	var et1 errorTest1
+-	fmt.Println(et1.Error())        // ERROR "no args in Error call"
+-	fmt.Println(et1.Error("hi"))    // ok
+-	fmt.Println(et1.Error("%d", 3)) // ERROR "possible formatting directive in Error call"
+-	var et2 errorTest2
+-	et2.Error()        // ERROR "no args in Error call"
+-	et2.Error("hi")    // ok, not an error method.
+-	et2.Error("%d", 3) // ERROR "possible formatting directive in Error call"
+-	var et3 errorTest3
+-	et3.Error() // ok, not an error method.
+-	var et4 errorTest4
+-	et4.Error() // ok, not an error method.
+-	var et5 errorTest5
+-	et5.error() // ok, not an error method.
+-}
+-
+-// printf is used by the test.
+-func printf(format string, args ...interface{}) {
+-	panic("don't call - testing only")
+-}
+-
+-// multi is used by the test.
+-func multi() []interface{} {
+-	panic("don't call - testing only")
+-}
+diff --git a/src/cmd/vet/test_rangeloop.go b/src/cmd/vet/test_rangeloop.go
+deleted file mode 100644
+index 941fd72aaa..0000000000
+--- a/src/cmd/vet/test_rangeloop.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains tests for the rangeloop checker.
+-
+-// +build vet_test
+-
+-package main
+-
+-func RangeLoopTests() {
+-	var s []int
+-	for i, v := range s {
+-		go func() {
+-			println(i) // ERROR "range variable i enclosed by function"
+-			println(v) // ERROR "range variable v enclosed by function"
+-		}()
+-	}
+-	for i, v := range s {
+-		defer func() {
+-			println(i) // ERROR "range variable i enclosed by function"
+-			println(v) // ERROR "range variable v enclosed by function"
+-		}()
+-	}
+-	for i := range s {
+-		go func() {
+-			println(i) // ERROR "range variable i enclosed by function"
+-		}()
+-	}
+-	for _, v := range s {
+-		go func() {
+-			println(v) // ERROR "range variable v enclosed by function"
+-		}()
+-	}
+-	for i, v := range s {
+-		go func() {
+-			println(i, v)
+-		}()
+-		println("unfortunately, we don't catch the error above because of this statement")
+-	}
+-	for i, v := range s {
+-		go func(i, v int) {
+-			println(i, v)
+-		}(i, v)
+-	}
+-	for i, v := range s {
+-		i, v := i, v
+-		go func() {
+-			println(i, v)
+-		}()
+-	}
+-	// If the key of the range statement is not an identifier
+-	// the code should not panic (it used to).
+-	var x [2]int
+-	var f int
+-	for x[0], f = range s {
+-		go func() {
+-			_ = f // ERROR "range variable f enclosed by function"
+-		}()
+-	}
+-}
+diff --git a/src/cmd/vet/test_structtag.go b/src/cmd/vet/test_structtag.go
+deleted file mode 100644
+index 08cf737fd8..0000000000
+--- a/src/cmd/vet/test_structtag.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains tests for the structtag checker.
+-
+-// +build vet_test
+-
+-// This file contains the test for canonical struct tags.
+-
+-package main
+-
+-type StructTagTest struct {
+-	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
+-}
+diff --git a/src/cmd/vet/test_taglit.go b/src/cmd/vet/test_taglit.go
+deleted file mode 100644
+index f34062f18e..0000000000
+--- a/src/cmd/vet/test_taglit.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains tests for the untagged struct literal checker.
+-
+-// +build vet_test
+-
+-// This file contains the test for untagged struct literals.
+-
+-package main
+-
+-import (
+-	"flag"
+-	"go/scanner"
+-)
+-
+-var Okay1 = []string{
+-	"Name",
+-	"Usage",
+-	"DefValue",
+-}
+-
+-var Okay2 = map[string]bool{
+-	"Name":     true,
+-	"Usage":    true,
+-	"DefValue": true,
+-}
+-
+-var Okay3 = struct {
+-	X string
+-	Y string
+-	Z string
+-}{
+-	"Name",
+-	"Usage",
+-	"DefValue",
+-}
+-
+-type MyStruct struct {
+-	X string
+-	Y string
+-	Z string
+-}
+-
+-var Okay4 = MyStruct{
+-	"Name",
+-	"Usage",
+-	"DefValue",
+-}
+-
+-// Testing is awkward because we need to reference things from a separate package
+-// to trigger the warnings.
+-
+-var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
+-	"Name",
+-	"Usage",
+-	nil, // Value
+-	"DefValue",
+-}
+-
+-// Used to test the check for slices and arrays: If that test is disabled and
+-// vet is run with --compositewhitelist=false, this line triggers an error.
+-// Clumsy but sufficient.
+-var scannerErrorListTest = scanner.ErrorList{nil, nil}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+deleted file mode 100644
+index 46e4d94807..0000000000
+--- a/src/cmd/vet/types.go
++++ /dev/null
+@@ -1,185 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gotypes
+-
+-// This file contains the pieces of the tool that require the go/types package.
+-// To compile this file, you must first run
+-//  $ go get code.google.com/p/go.exp/go/types
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-
+-	"code.google.com/p/go.exp/go/exact"
+-	"code.google.com/p/go.exp/go/types"
+-)
+-
+-// Type is equivalent to types.Type. Repeating it here allows us to avoid
+-// having main depend on the go/types package.
+-type Type interface {
+-	String() string
+-}
+-
+-// ExactValue is equivalent to exact.Value. Repeating it here allows us to
+-// avoid having main depend on the go/exact package.
+-type ExactValue interface {
+-	Kind() exact.Kind
+-	String() string
+-}
+-
+-func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+-	pkg.types = make(map[ast.Expr]Type)
+-	pkg.values = make(map[ast.Expr]ExactValue)
+-	exprFn := func(x ast.Expr, typ types.Type, val exact.Value) {
+-		pkg.types[x] = typ
+-		if val != nil {
+-			pkg.values[x] = val
+-		}
+-	}
+-	// By providing the Context with our own error function, it will continue
+-	// past the first error. There is no need for that function to do anything.
+-	context := types.Context{
+-		Expr:  exprFn,
+-		Error: func(error) {},
+-	}
+-	_, err := context.Check(fs, astFiles)
+-	return err
+-}
+-
+-// isStruct reports whether the composite literal c is a struct.
+-// If it is not (probably a struct), it returns a printable form of the type.
+-func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
+-	// Check that the CompositeLit's type is a slice or array (which needs no tag), if possible.
+-	typ := pkg.types[c]
+-	// If it's a named type, pull out the underlying type.
+-	actual := typ
+-	if namedType, ok := typ.(*types.NamedType); ok {
+-		actual = namedType.Underlying
+-	}
+-	if actual == nil {
+-		// No type information available. Assume true, so we do the check.
+-		return true, ""
+-	}
+-	switch actual.(type) {
+-	case *types.Struct:
+-		return true, typ.String()
+-	default:
+-		return false, ""
+-	}
+-}
+-
+-func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
+-	// TODO: for now, we can only test builtin types and untyped constants.
+-	typ := f.pkg.types[arg]
+-	if typ == nil {
+-		return true
+-	}
+-	basic, ok := typ.(*types.Basic)
+-	if !ok {
+-		return true
+-	}
+-	switch basic.Kind {
+-	case types.Bool:
+-		return t&argBool != 0
+-	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
+-		fallthrough
+-	case types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64, types.Uintptr:
+-		return t&argInt != 0
+-	case types.Float32, types.Float64, types.Complex64, types.Complex128:
+-		return t&argFloat != 0
+-	case types.String:
+-		return t&argString != 0
+-	case types.UnsafePointer:
+-		return t&(argPointer|argInt) != 0
+-	case types.UntypedBool:
+-		return t&argBool != 0
+-	case types.UntypedComplex:
+-		return t&argFloat != 0
+-	case types.UntypedFloat:
+-		// If it's integral, we can use an int format.
+-		switch f.pkg.values[arg].Kind() {
+-		case exact.Int:
+-			return t&(argInt|argFloat) != 0
+-		}
+-		return t&argFloat != 0
+-	case types.UntypedInt:
+-		return t&argInt != 0
+-	case types.UntypedRune:
+-		return t&(argInt|argRune) != 0
+-	case types.UntypedString:
+-		return t&argString != 0
+-	case types.UntypedNil:
+-		return t&argPointer != 0 // TODO?
+-	case types.Invalid:
+-		if *verbose {
+-			f.Warnf(arg.Pos(), "printf argument %v has invalid or unknown type", arg)
+-		}
+-		return true // Probably a type check problem.
+-	}
+-	return false
+-}
+-
+-// numArgsInSignature tells how many formal arguments the function type
+-// being called has.
+-func (f *File) numArgsInSignature(call *ast.CallExpr) int {
+-	// Check the type of the function or method declaration
+-	typ := f.pkg.types[call.Fun]
+-	if typ == nil {
+-		return 0
+-	}
+-	// The type must be a signature, but be sure for safety.
+-	sig, ok := typ.(*types.Signature)
+-	if !ok {
+-		return 0
+-	}
+-	return len(sig.Params)
+-}
+-
+-// isErrorMethodCall reports whether the call is of a method with signature
+-//	func Error() string
+-// where "string" is the universe's string type. We know the method is called "Error".
+-func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
+-	// Is it a selector expression? Otherwise it's a function call, not a method call.
+-	sel, ok := call.Fun.(*ast.SelectorExpr)
+-	if !ok {
+-		return false
+-	}
+-	// The package is type-checked, so if there are no arguments, we're done.
+-	if len(call.Args) > 0 {
+-		return false
+-	}
+-	// Check the type of the method declaration
+-	typ := f.pkg.types[sel]
+-	if typ == nil {
+-		return false
+-	}
+-	// The type must be a signature, but be sure for safety.
+-	sig, ok := typ.(*types.Signature)
+-	if !ok {
+-		return false
+-	}
+-	// There must be a receiver for it to be a method call. Otherwise it is
+-	// a function, not something that satisfies the error interface.
+-	if sig.Recv == nil {
+-		return false
+-	}
+-	// There must be no arguments. Already verified by type checking, but be thorough.
+-	if len(sig.Params) > 0 {
+-		return false
+-	}
+-	// Finally the real questions.
+-	// There must be one result.
+-	if len(sig.Results) != 1 {
+-		return false
+-	}
+-	// It must have return type "string" from the universe.
+-	result := sig.Results[0].Type
+-	if types.IsIdentical(result, types.Typ[types.String]) {
+-		return true
+-	}
+-	return false
+-}
+diff --git a/src/cmd/vet/typestub.go b/src/cmd/vet/typestub.go
+deleted file mode 100644
+index 74a3b13e26..0000000000
+--- a/src/cmd/vet/typestub.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !gotypes
+-
+-// This file contains stubs for the pieces of the tool that require the go/types package,
+-// to be used if go/types is not available.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-// Type is equivalent to go/types.Type. Repeating it here allows us to avoid
+-// having main depend on the go/types package.
+-type Type interface {
+-	String() string
+-}
+-
+-// ExactValue is a stub for exact.Value. Stubbing it here allows us to
+-// avoid having main depend on the go/exact package.
+-type ExactValue interface {
+-}
+-
+-func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+-	return nil
+-}
+-
+-func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
+-	return true, "" // Assume true, so we do the check.
+-}
+-
+-func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
+-	return true // We can't tell without types.
+-}
+-
+-func (f *File) numArgsInSignature(call *ast.CallExpr) int {
+-	return 0 // We don't know.
+-}
+-
+-func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
+-	// Is it a selector expression? Otherwise it's a function call, not a method call.
+-	if _, ok := call.Fun.(*ast.SelectorExpr); !ok {
+-		return false
+-	}
+-	return true // Best guess we can make without types.
+-}

@@ -12,6 +12,20 @@ Date:   Mon Apr 4 08:10:26 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4358049
-
+---
  src/pkg/http/triv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 9bea6007b5..bff6a106d9 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -56,7 +56,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ var booleanflag = flag.Bool("boolean", true, "another flag for testing")
+ 
+ func FlagServer(w http.ResponseWriter, req *http.Request) {
+-	w.Header.Set("Content-Type", "text/plain; charset=utf-8")
++	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+ 	fmt.Fprint(w, "Flags:\n")
+ 	flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Value.String() != f.DefValue {

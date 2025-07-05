@@ -14,7 +14,7 @@ Date:   Tue Sep 26 19:42:26 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/signal_darwin_arm.go   | 2 +-
  src/runtime/signal_darwin_arm64.go | 2 +-
  src/runtime/signal_freebsd_arm.go  | 2 +-
@@ -25,3 +25,121 @@ Date:   Tue Sep 26 19:42:26 2017 -0400
  src/runtime/signal_netbsd_arm.go   | 2 +-
  src/runtime/signal_openbsd_arm.go  | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/signal_darwin_arm.go b/src/runtime/signal_darwin_arm.go
+index c88b90c5e2..9a5d3ac5bb 100644
+--- a/src/runtime/signal_darwin_arm.go
++++ b/src/runtime/signal_darwin_arm.go
+@@ -36,7 +36,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().lr }
+ func (c *sigctxt) pc() uint32 { return c.regs().pc }
+ 
+ func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
+-func (c *sigctxt) fault() uint32   { return c.info.si_addr }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.info.si_addr) }
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) trap() uint32    { return 0 }
+ func (c *sigctxt) error() uint32   { return 0 }
+diff --git a/src/runtime/signal_darwin_arm64.go b/src/runtime/signal_darwin_arm64.go
+index b14b9f1e50..41b8fcaab9 100644
+--- a/src/runtime/signal_darwin_arm64.go
++++ b/src/runtime/signal_darwin_arm64.go
+@@ -52,7 +52,7 @@ func (c *sigctxt) sp() uint64  { return c.regs().sp }
+ //go:nowritebarrierrec
+ func (c *sigctxt) pc() uint64 { return c.regs().pc }
+ 
+-func (c *sigctxt) fault() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
++func (c *sigctxt) fault() uintptr { return uintptr(unsafe.Pointer(c.info.si_addr)) }
+ 
+ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
+diff --git a/src/runtime/signal_freebsd_arm.go b/src/runtime/signal_freebsd_arm.go
+index 9601370112..2135c1e752 100644
+--- a/src/runtime/signal_freebsd_arm.go
++++ b/src/runtime/signal_freebsd_arm.go
+@@ -36,7 +36,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().__gregs[14] }
+ func (c *sigctxt) pc() uint32 { return c.regs().__gregs[15] }
+ 
+ func (c *sigctxt) cpsr() uint32    { return c.regs().__gregs[16] }
+-func (c *sigctxt) fault() uint32   { return uint32(c.info.si_addr) }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.info.si_addr) }
+ func (c *sigctxt) trap() uint32    { return 0 }
+ func (c *sigctxt) error() uint32   { return 0 }
+ func (c *sigctxt) oldmask() uint32 { return 0 }
+diff --git a/src/runtime/signal_linux_arm.go b/src/runtime/signal_linux_arm.go
+index 06a57b83b9..876b505917 100644
+--- a/src/runtime/signal_linux_arm.go
++++ b/src/runtime/signal_linux_arm.go
+@@ -39,7 +39,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().lr }
+ func (c *sigctxt) pc() uint32 { return c.regs().pc }
+ 
+ func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
+-func (c *sigctxt) fault() uint32   { return c.regs().fault_address }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.regs().fault_address) }
+ func (c *sigctxt) trap() uint32    { return c.regs().trap_no }
+ func (c *sigctxt) error() uint32   { return c.regs().error_code }
+ func (c *sigctxt) oldmask() uint32 { return c.regs().oldmask }
+diff --git a/src/runtime/signal_linux_arm64.go b/src/runtime/signal_linux_arm64.go
+index f3d4d384e5..2075f253d7 100644
+--- a/src/runtime/signal_linux_arm64.go
++++ b/src/runtime/signal_linux_arm64.go
+@@ -56,7 +56,7 @@ func (c *sigctxt) sp() uint64  { return c.regs().sp }
+ func (c *sigctxt) pc() uint64 { return c.regs().pc }
+ 
+ func (c *sigctxt) pstate() uint64 { return c.regs().pstate }
+-func (c *sigctxt) fault() uint64  { return c.regs().fault_address }
++func (c *sigctxt) fault() uintptr { return uintptr(c.regs().fault_address) }
+ 
+ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+diff --git a/src/runtime/signal_linux_ppc64x.go b/src/runtime/signal_linux_ppc64x.go
+index b6831bc22d..97cb26d587 100644
+--- a/src/runtime/signal_linux_ppc64x.go
++++ b/src/runtime/signal_linux_ppc64x.go
+@@ -67,7 +67,7 @@ func (c *sigctxt) ccr() uint64  { return c.regs().ccr }
+ 
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+-func (c *sigctxt) fault() uint64   { return c.regs().dar }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.regs().dar) }
+ 
+ func (c *sigctxt) set_r0(x uint64)   { c.regs().gpr[0] = x }
+ func (c *sigctxt) set_r12(x uint64)  { c.regs().gpr[12] = x }
+diff --git a/src/runtime/signal_nacl_arm.go b/src/runtime/signal_nacl_arm.go
+index 959dbfbab1..b8312324ac 100644
+--- a/src/runtime/signal_nacl_arm.go
++++ b/src/runtime/signal_nacl_arm.go
+@@ -36,7 +36,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().lr }
+ func (c *sigctxt) pc() uint32 { return c.regs().pc }
+ 
+ func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
+-func (c *sigctxt) fault() uint32   { return ^uint32(0) }
++func (c *sigctxt) fault() uintptr  { return ^uintptr(0) }
+ func (c *sigctxt) trap() uint32    { return ^uint32(0) }
+ func (c *sigctxt) error() uint32   { return ^uint32(0) }
+ func (c *sigctxt) oldmask() uint32 { return ^uint32(0) }
+diff --git a/src/runtime/signal_netbsd_arm.go b/src/runtime/signal_netbsd_arm.go
+index 64cfffae5a..fdb30785d9 100644
+--- a/src/runtime/signal_netbsd_arm.go
++++ b/src/runtime/signal_netbsd_arm.go
+@@ -36,7 +36,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().__gregs[_REG_R14] }
+ func (c *sigctxt) pc() uint32 { return c.regs().__gregs[_REG_R15] }
+ 
+ func (c *sigctxt) cpsr() uint32    { return c.regs().__gregs[_REG_CPSR] }
+-func (c *sigctxt) fault() uint32   { return uint32(c.info._reason) }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.info._reason) }
+ func (c *sigctxt) trap() uint32    { return 0 }
+ func (c *sigctxt) error() uint32   { return 0 }
+ func (c *sigctxt) oldmask() uint32 { return 0 }
+diff --git a/src/runtime/signal_openbsd_arm.go b/src/runtime/signal_openbsd_arm.go
+index 66aea934f1..97bb13b4f3 100644
+--- a/src/runtime/signal_openbsd_arm.go
++++ b/src/runtime/signal_openbsd_arm.go
+@@ -38,7 +38,7 @@ func (c *sigctxt) lr() uint32  { return c.regs().sc_usr_lr }
+ func (c *sigctxt) pc() uint32 { return c.regs().sc_pc }
+ 
+ func (c *sigctxt) cpsr() uint32    { return c.regs().sc_spsr }
+-func (c *sigctxt) fault() uint32   { return c.sigaddr() }
++func (c *sigctxt) fault() uintptr  { return uintptr(c.sigaddr()) }
+ func (c *sigctxt) trap() uint32    { return 0 }
+ func (c *sigctxt) error() uint32   { return 0 }
+ func (c *sigctxt) oldmask() uint32 { return 0 }

@@ -9,6 +9,63 @@ Date:   Tue Jun 25 10:52:37 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10483044
-
+---
  src/libmach/darwin.c | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/libmach/darwin.c b/src/libmach/darwin.c
+index 753d940fdc..807dfa0d81 100644
+--- a/src/libmach/darwin.c
++++ b/src/libmach/darwin.c
+@@ -391,6 +391,7 @@ detachproc(Map *m)
+ int
+ procnotes(int pid, char ***pnotes)
+ {
++	USED(pid);
+ 	*pnotes = 0;
+ 	return 0;
+ }
+@@ -400,6 +401,7 @@ procnotes(int pid, char ***pnotes)
+ char*
+ proctextfile(int pid)
+ {
++	USED(pid);
+ 	return nil;
+ }
+ 
+@@ -410,6 +412,8 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 	mach_port_t task;
+ 	int r;
+ 
++	USED(seg);
++
+ 	task = idtotask(map->pid);
+ 	if(task == -1)
+ 		return -1;
+@@ -544,6 +548,8 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 	} u;
+ 	uchar *p;
+ 
++	USED(seg);
++
+ 	if(n > 8){
+ 		werrstr("asked for %d-byte register", n);
+ 		return -1;
+@@ -711,6 +717,9 @@ catch_exception_raise(mach_port_t eport, mach_port_t thread,
+ 	Thread *t;
+ 	int i;
+ 
++	USED(eport);
++	USED(task);
++
+ 	t = nil;
+ 	for(i=0; i<nthr; i++){
+ 		if(thr[i].thread == thread){
+@@ -751,6 +760,7 @@ havet:
+ static void*
+ excthread(void *v)
+ {
++	USED(v);
+ 	extern boolean_t exc_server(mach_msg_header_t *, mach_msg_header_t *);
+ 	mach_msg_server(exc_server, 2048, excport, 0);
+ 	return 0;

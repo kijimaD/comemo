@@ -21,7 +21,7 @@ Date:   Mon Dec 4 21:29:38 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |   1 +
  misc/cgo/test/test22906.go  |  74 ++++++++++++++++++
  src/cmd/cgo/gcc.go          |  78 +++++++++++++++++--
@@ -29,3 +29,503 @@ Date:   Mon Dec 4 21:29:38 2017 -0800
  src/cmd/fix/jnitype.go      |  65 ++++++++++++++++
  src/cmd/fix/jnitype_test.go | 185 ++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 406 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 67abfff2c0..cfacb9c40d 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -86,5 +86,6 @@ func Test21809(t *testing.T)                 { test21809(t) }
+ func Test6907(t *testing.T)                  { test6907(t) }
+ func Test6907Go(t *testing.T)                { test6907Go(t) }
+ func Test21897(t *testing.T)                 { test21897(t) }
++func Test22906(t *testing.T)                 { test22906(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/test22906.go b/misc/cgo/test/test22906.go
+new file mode 100644
+index 0000000000..02bae9cfa7
+--- /dev/null
++++ b/misc/cgo/test/test22906.go
+@@ -0,0 +1,74 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package cgotest
++
++/*
++
++// It's going to be hard to include a whole real JVM to test this.
++// So we'll simulate a really easy JVM using just the parts we need.
++
++// This is the relevant part of jni.h.
++
++struct _jobject;
++
++typedef struct _jobject *jobject;
++typedef jobject jclass;
++typedef jobject jthrowable;
++typedef jobject jstring;
++typedef jobject jarray;
++typedef jarray jbooleanArray;
++typedef jarray jbyteArray;
++typedef jarray jcharArray;
++typedef jarray jshortArray;
++typedef jarray jintArray;
++typedef jarray jlongArray;
++typedef jarray jfloatArray;
++typedef jarray jdoubleArray;
++typedef jarray jobjectArray;
++
++typedef jobject jweak;
++
++// Note: jvalue is already a non-pointer type due to it being a C union.
++
++*/
++import "C"
++import (
++	"testing"
++)
++
++func test22906(t *testing.T) {
++	var x1 C.jobject = 0 // Note: 0, not nil. That makes sure we use uintptr for these types.
++	_ = x1
++	var x2 C.jclass = 0
++	_ = x2
++	var x3 C.jthrowable = 0
++	_ = x3
++	var x4 C.jstring = 0
++	_ = x4
++	var x5 C.jarray = 0
++	_ = x5
++	var x6 C.jbooleanArray = 0
++	_ = x6
++	var x7 C.jbyteArray = 0
++	_ = x7
++	var x8 C.jcharArray = 0
++	_ = x8
++	var x9 C.jshortArray = 0
++	_ = x9
++	var x10 C.jintArray = 0
++	_ = x10
++	var x11 C.jlongArray = 0
++	_ = x11
++	var x12 C.jfloatArray = 0
++	_ = x12
++	var x13 C.jdoubleArray = 0
++	_ = x13
++	var x14 C.jobjectArray = 0
++	_ = x14
++	var x15 C.jweak = 0
++	_ = x15
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5cd6ac953c..bf5e3a927b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2057,7 +2057,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		name := c.Ident("_Ctype_" + dt.Name)
+ 		goIdent[name.Name] = name
+ 		sub := c.Type(dt.Type, pos)
+-		if badPointerTypedef(dt.Name) {
++		if badPointerTypedef(dt) {
+ 			// Treat this typedef as a uintptr.
+ 			s := *sub
+ 			s.Go = c.uintptr
+@@ -2223,7 +2223,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 			}
+ 			// ...or the typedef is one in which we expect bad pointers.
+ 			// It will be a uintptr instead of *X.
+-			if badPointerTypedef(dt.Name) {
++			if badPointerTypedef(dt) {
+ 				break
+ 			}
+ 
+@@ -2571,13 +2571,23 @@ func fieldPrefix(fld []*ast.Field) string {
+ // A typedef is bad if C code sometimes stores non-pointers in this type.
+ // TODO: Currently our best solution is to find these manually and list them as
+ // they come up. A better solution is desired.
+-func badPointerTypedef(t string) bool {
+-	// The real bad types are CFNumberRef and CFTypeRef.
++func badPointerTypedef(dt *dwarf.TypedefType) bool {
++	if badCFType(dt) {
++		return true
++	}
++	if badJNI(dt) {
++		return true
++	}
++	return false
++}
++
++func badCFType(dt *dwarf.TypedefType) bool {
++	// The real bad types are CFNumberRef and CFDateRef.
+ 	// Sometimes non-pointers are stored in these types.
+ 	// CFTypeRef is a supertype of those, so it can have bad pointers in it as well.
+ 	// We return true for the other CF*Ref types just so casting between them is easier.
+ 	// See comment below for details about the bad pointers.
+-	return goos == "darwin" && strings.HasPrefix(t, "CF") && strings.HasSuffix(t, "Ref")
++	return goos == "darwin" && strings.HasPrefix(dt.Name, "CF") && strings.HasSuffix(dt.Name, "Ref")
+ }
+ 
+ // Comment from Darwin's CFInternal.h
+@@ -2614,3 +2624,61 @@ enum {
+     kCFTaggedObjectID_Undefined7 = (7 << 1) + 1,
+ };
+ */
++
++func badJNI(dt *dwarf.TypedefType) bool {
++	// In Dalvik and ART, the jobject type in the JNI interface of the JVM has the
++	// property that it is sometimes (always?) a small integer instead of a real pointer.
++	// Note: although only the android JVMs are bad in this respect, we declare the JNI types
++	// bad regardless of platform, so the same Go code compiles on both android and non-android.
++	if parent, ok := jniTypes[dt.Name]; ok {
++		// Try to make sure we're talking about a JNI type, not just some random user's
++		// type that happens to use the same name.
++		// C doesn't have the notion of a package, so it's hard to be certain.
++
++		// Walk up to jobject, checking each typedef on the way.
++		w := dt
++		for parent != "" {
++			t, ok := w.Type.(*dwarf.TypedefType)
++			if !ok || t.Name != parent {
++				return false
++			}
++			w = t
++			parent, ok = jniTypes[w.Name]
++			if !ok {
++				return false
++			}
++		}
++
++		// Check that the typedef is:
++		//     struct _jobject;
++		//     typedef struct _jobject *jobject;
++		if ptr, ok := w.Type.(*dwarf.PtrType); ok {
++			if str, ok := ptr.Type.(*dwarf.StructType); ok {
++				if str.StructName == "_jobject" && str.Kind == "struct" && len(str.Field) == 0 && str.Incomplete {
++					return true
++				}
++			}
++		}
++	}
++	return false
++}
++
++// jniTypes maps from JNI types that we want to be uintptrs, to the underlying type to which
++// they are mapped.  The base "jobject" maps to the empty string.
++var jniTypes = map[string]string{
++	"jobject":       "",
++	"jclass":        "jobject",
++	"jthrowable":    "jobject",
++	"jstring":       "jobject",
++	"jarray":        "jobject",
++	"jbooleanArray": "jarray",
++	"jbyteArray":    "jarray",
++	"jcharArray":    "jarray",
++	"jshortArray":   "jarray",
++	"jintArray":     "jarray",
++	"jlongArray":    "jarray",
++	"jfloatArray":   "jarray",
++	"jdoubleArray":  "jarray",
++	"jobjectArray":  "jarray",
++	"jweak":         "jobject",
++}
+diff --git a/src/cmd/fix/cftype.go b/src/cmd/fix/cftype.go
+index da1627fbfb..1f06cd6c33 100644
+--- a/src/cmd/fix/cftype.go
++++ b/src/cmd/fix/cftype.go
+@@ -30,6 +30,13 @@ var cftypeFix = fix{
+ // and similar for other CF*Ref types.
+ // This fix finds nils initializing these types and replaces the nils with 0s.
+ func cftypefix(f *ast.File) bool {
++	return typefix(f, func(s string) bool {
++		return strings.HasPrefix(s, "C.CF") && strings.HasSuffix(s, "Ref")
++	})
++}
++
++// typefix replaces nil with 0 for all nils whose type, when passed to badType, returns true.
++func typefix(f *ast.File, badType func(string) bool) bool {
+ 	if !imports(f, "C") {
+ 		return false
+ 	}
+@@ -39,7 +46,7 @@ func cftypefix(f *ast.File) bool {
+ 	// Compute their replacement.
+ 	badNils := map[interface{}]ast.Expr{}
+ 	walk(f, func(n interface{}) {
+-		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badPointerType(typeof[n]) {
++		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badType(typeof[n]) {
+ 			badNils[n] = &ast.BasicLit{ValuePos: i.NamePos, Kind: token.INT, Value: "0"}
+ 		}
+ 	})
+@@ -87,7 +94,3 @@ func cftypefix(f *ast.File) bool {
+ 
+ 	return true
+ }
+-
+-func badPointerType(s string) bool {
+-	return strings.HasPrefix(s, "C.CF") && strings.HasSuffix(s, "Ref")
+-}
+diff --git a/src/cmd/fix/jnitype.go b/src/cmd/fix/jnitype.go
+new file mode 100644
+index 0000000000..29abe0f007
+--- /dev/null
++++ b/src/cmd/fix/jnitype.go
+@@ -0,0 +1,65 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(jniFix)
++}
++
++var jniFix = fix{
++	name:     "jni",
++	date:     "2017-12-04",
++	f:        jnifix,
++	desc:     `Fixes initializers of JNI's jobject and subtypes`,
++	disabled: false,
++}
++
++// Old state:
++//   type jobject *_jobject
++// New state:
++//   type jobject uintptr
++// and similar for subtypes of jobject.
++// This fix finds nils initializing these types and replaces the nils with 0s.
++func jnifix(f *ast.File) bool {
++	return typefix(f, func(s string) bool {
++		switch s {
++		case "C.jobject":
++			return true
++		case "C.jclass":
++			return true
++		case "C.jthrowable":
++			return true
++		case "C.jstring":
++			return true
++		case "C.jarray":
++			return true
++		case "C.jbooleanArray":
++			return true
++		case "C.jbyteArray":
++			return true
++		case "C.jcharArray":
++			return true
++		case "C.jshortArray":
++			return true
++		case "C.jintArray":
++			return true
++		case "C.jlongArray":
++			return true
++		case "C.jfloatArray":
++			return true
++		case "C.jdoubleArray":
++			return true
++		case "C.jobjectArray":
++			return true
++		case "C.jweak":
++			return true
++		}
++		return false
++	})
++}
+diff --git a/src/cmd/fix/jnitype_test.go b/src/cmd/fix/jnitype_test.go
+new file mode 100644
+index 0000000000..a6420f7b11
+--- /dev/null
++++ b/src/cmd/fix/jnitype_test.go
+@@ -0,0 +1,185 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(jniTests, jnifix)
++}
++
++var jniTests = []testCase{
++	{
++		Name: "jni.localVariable",
++		In: `package main
++
++import "C"
++
++func f() {
++	var x C.jobject = nil
++	x = nil
++	x, x = nil, nil
++}
++`,
++		Out: `package main
++
++import "C"
++
++func f() {
++	var x C.jobject = 0
++	x = 0
++	x, x = 0, 0
++}
++`,
++	},
++	{
++		Name: "jni.globalVariable",
++		In: `package main
++
++import "C"
++
++var x C.jobject = nil
++
++func f() {
++	x = nil
++}
++`,
++		Out: `package main
++
++import "C"
++
++var x C.jobject = 0
++
++func f() {
++	x = 0
++}
++`,
++	},
++	{
++		Name: "jni.EqualArgument",
++		In: `package main
++
++import "C"
++
++var x C.jobject
++var y = x == nil
++var z = x != nil
++`,
++		Out: `package main
++
++import "C"
++
++var x C.jobject
++var y = x == 0
++var z = x != 0
++`,
++	},
++	{
++		Name: "jni.StructField",
++		In: `package main
++
++import "C"
++
++type T struct {
++	x C.jobject
++}
++
++var t = T{x: nil}
++`,
++		Out: `package main
++
++import "C"
++
++type T struct {
++	x C.jobject
++}
++
++var t = T{x: 0}
++`,
++	},
++	{
++		Name: "jni.FunctionArgument",
++		In: `package main
++
++import "C"
++
++func f(x C.jobject) {
++}
++
++func g() {
++	f(nil)
++}
++`,
++		Out: `package main
++
++import "C"
++
++func f(x C.jobject) {
++}
++
++func g() {
++	f(0)
++}
++`,
++	},
++	{
++		Name: "jni.ArrayElement",
++		In: `package main
++
++import "C"
++
++var x = [3]C.jobject{nil, nil, nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = [3]C.jobject{0, 0, 0}
++`,
++	},
++	{
++		Name: "jni.SliceElement",
++		In: `package main
++
++import "C"
++
++var x = []C.jobject{nil, nil, nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = []C.jobject{0, 0, 0}
++`,
++	},
++	{
++		Name: "jni.MapKey",
++		In: `package main
++
++import "C"
++
++var x = map[C.jobject]int{nil: 0}
++`,
++		Out: `package main
++
++import "C"
++
++var x = map[C.jobject]int{0: 0}
++`,
++	},
++	{
++		Name: "jni.MapValue",
++		In: `package main
++
++import "C"
++
++var x = map[int]C.jobject{0: nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = map[int]C.jobject{0: 0}
++`,
++	},
++}

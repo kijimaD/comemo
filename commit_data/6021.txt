@@ -21,7 +21,7 @@ Date:   Fri Aug 13 10:42:18 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1994041
-
+---
  lib/godoc/source.html              |   9 +-
  src/cmd/cgo/ast.go                 |  10 +-
  src/cmd/cgo/gcc.go                 |  12 +-
@@ -48,3 +48,1933 @@ Date:   Fri Aug 13 10:42:18 2010 -0700
  src/pkg/go/printer/printer.go      |   2 +-
  src/pkg/go/printer/printer_test.go |   2 +-
  25 files changed, 282 insertions(+), 405 deletions(-)
+
+diff --git a/lib/godoc/source.html b/lib/godoc/source.html
+index 645517012a..f005af54cd 100644
+--- a/lib/godoc/source.html
++++ b/lib/godoc/source.html
+@@ -7,11 +7,8 @@
+ <script src="http://www.google.com/jsapi"></script>
+ <script src="/doc/popups.js"></script>
+ <script>
+-var popup_data = [
+-{.repeated section Data}
+-	'{@|popupInfo}',
+-{.end}
+-]
++{# IdList is HTML-escaped by godoc}
++var popup_data = {IdList}
+ 
+ google.load("jquery", "1");
+ google.setOnLoadCallback(function() {.meta-left}
+@@ -19,5 +16,5 @@ google.setOnLoadCallback(function() {.meta-left}
+ {.meta-right});
+ </script>
+ 
+-{# Source is HTML-escaped elsewhere}
++{# Source is HTML-escaped by godoc}
+ <pre>{Source}</pre>
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 2167e9e650..827d158ab3 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ func parse(name string, flags uint) *ast.File {
+-	ast1, err := parser.ParseFile(name, nil, nil, flags)
++	ast1, err := parser.ParseFile(name, nil, flags)
+ 	if err != nil {
+ 		if list, ok := err.(scanner.ErrorList); ok {
+ 			// If err is a scanner.ErrorList, its String will print just
+@@ -49,7 +49,7 @@ func (f *File) ReadGo(name string) {
+ 	ast1 := parse(name, parser.ParseComments)
+ 	ast2 := parse(name, 0)
+ 
+-	f.Package = ast1.Name.Name()
++	f.Package = ast1.Name.Name
+ 	f.Name = make(map[string]*Name)
+ 
+ 	// In ast1, find the import "C" line and get any extra C preamble.
+@@ -135,7 +135,7 @@ func (f *File) saveRef(x interface{}, context string) {
+ 		// The parser should take care of scoping in the future,
+ 		// so that we will be able to distinguish a "top-level C"
+ 		// from a local C.
+-		if l, ok := sel.X.(*ast.Ident); ok && l.Name() == "C" {
++		if l, ok := sel.X.(*ast.Ident); ok && l.Name == "C" {
+ 			i := len(f.Ref)
+ 			if i >= cap(f.Ref) {
+ 				new := make([]*Ref, 2*i)
+@@ -147,7 +147,7 @@ func (f *File) saveRef(x interface{}, context string) {
+ 			if context == "as2" {
+ 				context = "expr"
+ 			}
+-			goname := sel.Sel.Name()
++			goname := sel.Sel.Name
+ 			name := f.Name[goname]
+ 			if name == nil {
+ 				name = &Name{
+@@ -212,7 +212,7 @@ func (f *File) saveExport2(x interface{}, context string) {
+ 	}
+ 
+ 	for _, exp := range f.ExpFunc {
+-		if exp.Func.Name.Name() == n.Name.Name() {
++		if exp.Func.Name.Name == n.Name.Name {
+ 			exp.Func = n
+ 			break
+ 		}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3f62c4d695..f76212e589 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -145,7 +145,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			if _, err := strconv.Atoi(n.Define); err == nil {
+ 				ok = true
+ 			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
+-				_, err := parser.ParseExpr("", n.Define, nil)
++				_, err := parser.ParseExpr("", n.Define)
+ 				if err == nil {
+ 					ok = true
+ 				}
+@@ -801,7 +801,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		t.Go = name // publish before recursive calls
+ 		switch dt.Kind {
+ 		case "union", "class":
+-			c.typedef[name.Name()] = c.Opaque(t.Size)
++			c.typedef[name.Name] = c.Opaque(t.Size)
+ 			if t.C == "" {
+ 				t.C = fmt.Sprintf("typeof(unsigned char[%d])", t.Size)
+ 			}
+@@ -811,7 +811,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 				t.C = csyntax
+ 			}
+ 			t.Align = align
+-			c.typedef[name.Name()] = g
++			c.typedef[name.Name] = g
+ 		}
+ 
+ 	case *dwarf.TypedefType:
+@@ -830,8 +830,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		sub := c.Type(dt.Type)
+ 		t.Size = sub.Size
+ 		t.Align = sub.Align
+-		if _, ok := c.typedef[name.Name()]; !ok {
+-			c.typedef[name.Name()] = sub.Go
++		if _, ok := c.typedef[name.Name]; !ok {
++			c.typedef[name.Name] = sub.Go
+ 		}
+ 
+ 	case *dwarf.UcharType:
+@@ -875,7 +875,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			}
+ 			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
+ 			name := c.Ident("_Ctype_" + s)
+-			c.typedef[name.Name()] = t.Go
++			c.typedef[name.Name] = t.Go
+ 			t.Go = name
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8b11492e4b..adf7abef44 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -403,9 +403,9 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
+ 		fmt.Fprintf(fgcc, "}\n")
+ 
+ 		// Build the wrapper function compiled by 6c/8c
+-		goname := exp.Func.Name.Name()
++		goname := exp.Func.Name.Name
+ 		if fn.Recv != nil {
+-			goname = "_cgoexpwrap_" + fn.Recv.List[0].Names[0].Name() + "_" + goname
++			goname = "_cgoexpwrap_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+ 		}
+ 		fmt.Fprintf(fc, "#pragma dynexport _cgoexp_%s _cgoexp_%s\n", exp.ExpName, exp.ExpName)
+ 		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
+@@ -529,23 +529,23 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 				if !ok {
+ 					continue
+ 				}
+-				if ts.Name.Name() == t.Name() {
++				if ts.Name.Name == t.Name {
+ 					return p.cgoType(ts.Type)
+ 				}
+ 			}
+ 		}
+ 		for name, def := range p.Typedef {
+-			if name == t.Name() {
++			if name == t.Name {
+ 				return p.cgoType(def)
+ 			}
+ 		}
+-		if t.Name() == "uintptr" {
++		if t.Name == "uintptr" {
+ 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: "uintptr"}
+ 		}
+-		if t.Name() == "string" {
++		if t.Name == "string" {
+ 			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: "GoString"}
+ 		}
+-		if r, ok := goTypes[t.Name()]; ok {
++		if r, ok := goTypes[t.Name]; ok {
+ 			if r.Align > p.PtrSize {
+ 				r.Align = p.PtrSize
+ 			}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 150a31dc7d..687398a90f 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -136,11 +136,11 @@ func isPkgDir(f *os.FileInfo) bool {
+ 
+ 
+ func pkgName(filename string) string {
+-	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
++	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+ 	if err != nil || file == nil {
+ 		return ""
+ 	}
+-	return file.Name.Name()
++	return file.Name.Name
+ }
+ 
+ 
+@@ -246,12 +246,12 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
+ 			nfiles++
+ 			if synopses[0] == "" {
+ 				// no "optimal" package synopsis yet; continue to collect synopses
+-				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil, nil,
++				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
+ 					parser.ParseComments|parser.PackageClauseOnly)
+ 				if err == nil && file.Doc != nil {
+ 					// prioritize documentation
+ 					i := -1
+-					switch file.Name.Name() {
++					switch file.Name.Name {
+ 					case name:
+ 						i = 0 // normal case: directory name matches package name
+ 					case fakePkgName:
+@@ -453,7 +453,7 @@ type Styler struct {
+ 	linetags  bool
+ 	highlight string
+ 	objmap    map[*ast.Object]int
+-	count     int
++	idcount   int
+ }
+ 
+ 
+@@ -462,26 +462,72 @@ func newStyler(highlight string) *Styler {
+ }
+ 
+ 
+-func (s *Styler) id(obj *ast.Object) int {
+-	n, found := s.objmap[obj]
++// identId returns a number >= 0 identifying the *ast.Object
++// denoted by name. If no object is denoted, the result is < 0.
++//
++// TODO(gri): Consider making this a mapping from popup info
++//            (for that name) to id, instead of *ast.Object
++//            to id. If a lot of the popup info is the same
++//            (e.g. type information), this will reduce the
++//            size of the html generated.
++func (s *Styler) identId(name *ast.Ident) int {
++	obj := name.Obj
++	if obj == nil || s.objmap == nil {
++		return -1
++	}
++	id, found := s.objmap[obj]
+ 	if !found {
+-		n = s.count
+-		s.objmap[obj] = n
+-		s.count++
++		// first occurence
++		id = s.idcount
++		s.objmap[obj] = id
++		s.idcount++
+ 	}
+-	return n
++	return id
+ }
+ 
+ 
+-func (s *Styler) mapping() []*ast.Object {
+-	if s.objmap == nil {
+-		return nil
++// writeObjInfo writes the popup info corresponding to obj to w.
++// The text is HTML-escaped and does not contain single quotes.
++func writeObjInfo(w io.Writer, obj *ast.Object) {
++	// for now, show object kind and name; eventually
++	// do something more interesting (show declaration,
++	// for instance)
++	if obj.Kind != ast.Bad {
++		fmt.Fprintf(w, "%s ", obj.Kind)
+ 	}
+-	m := make([]*ast.Object, s.count)
+-	for obj, i := range s.objmap {
+-		m[i] = obj
++	template.HTMLEscape(w, []byte(obj.Name))
++}
++
++
++// idList returns a Javascript array (source) with identifier popup
++// information: The i'th array entry is a single-quoted string with
++// the popup information for an identifier x with s.identId(x) == i,
++// for 0 <= i < s.idcount.
++func (s *Styler) idList() []byte {
++	var buf bytes.Buffer
++	fmt.Fprintln(&buf, "[")
++
++	if s.idcount > 0 {
++		// invert objmap: create an array [id]obj from map[obj]id
++		a := make([]*ast.Object, s.idcount)
++		for obj, id := range s.objmap {
++			a[id] = obj
++		}
++
++		// for each id, print object info as single-quoted Javascript string
++		for id, obj := range a {
++			printIndex := false // enable for debugging (but longer html)
++			if printIndex {
++				fmt.Fprintf(&buf, "/* %4d */ ", id)
++			}
++			fmt.Fprint(&buf, "'")
++			writeObjInfo(&buf, obj)
++			fmt.Fprint(&buf, "',\n")
++		}
+ 	}
+-	return m
++
++	fmt.Fprintln(&buf, "]")
++	return buf.Bytes()
+ }
+ 
+ 
+@@ -516,13 +562,13 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
+ }
+ 
+ 
+-func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+-	text = []byte(id.Name())
++func (s *Styler) Ident(name *ast.Ident) (text []byte, tag printer.HTMLTag) {
++	text = []byte(name.Name)
+ 	var str string
+-	if s.objmap != nil {
+-		str = fmt.Sprintf(` id="%d"`, s.id(id.Obj))
++	if id := s.identId(name); id >= 0 {
++		str = fmt.Sprintf(` id="%d"`, id)
+ 	}
+-	if s.highlight == id.Name() {
++	if s.highlight == name.Name {
+ 		str += ` class="highlight"`
+ 	}
+ 	if str != "" {
+@@ -819,19 +865,6 @@ func localnameFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
+-// Template formatter for "popupInfo" format.
+-func popupInfoFmt(w io.Writer, x interface{}, format string) {
+-	obj := x.(*ast.Object)
+-	// for now, show object kind and name; eventually
+-	// do something more interesting (show declaration,
+-	// for instance)
+-	if obj.Kind != ast.Err {
+-		fmt.Fprintf(w, "%s ", obj.Kind)
+-	}
+-	template.HTMLEscape(w, []byte(obj.Name))
+-}
+-
+-
+ var fmap = template.FormatterMap{
+ 	"":             textFmt,
+ 	"html":         htmlFmt,
+@@ -847,7 +880,6 @@ var fmap = template.FormatterMap{
+ 	"time":         timeFmt,
+ 	"dir/":         dirslashFmt,
+ 	"localname":    localnameFmt,
+-	"popupInfo":    popupInfoFmt,
+ }
+ 
+ 
+@@ -996,22 +1028,25 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+ 
+ 
+ func serveGoSource(c *http.Conn, r *http.Request, abspath, relpath string) {
+-	file, err := parser.ParseFile(abspath, nil, nil, parser.ParseComments)
++	file, err := parser.ParseFile(abspath, nil, parser.ParseComments)
+ 	if err != nil {
+ 		log.Stderrf("parser.ParseFile: %s", err)
+ 		serveError(c, r, relpath, err)
+ 		return
+ 	}
+ 
++	// augment AST with types; ignore errors (partial type information ok)
++	// TODO(gri): invoke typechecker
++
+ 	var buf bytes.Buffer
+ 	styler := newStyler(r.FormValue("h"))
+ 	writeNode(&buf, file, true, styler)
+ 
+ 	type SourceInfo struct {
++		IdList []byte
+ 		Source []byte
+-		Data   []*ast.Object
+ 	}
+-	info := &SourceInfo{buf.Bytes(), styler.mapping()}
++	info := &SourceInfo{styler.idList(), buf.Bytes()}
+ 
+ 	contents := applyTemplate(sourceHTML, "sourceHTML", info)
+ 	servePage(c, "Source file "+relpath, "", "", contents)
+@@ -1346,7 +1381,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
+ 	var title string
+ 	switch {
+ 	case info.PAst != nil:
+-		title = "Package " + info.PAst.Name.Name()
++		title = "Package " + info.PAst.Name.Name
+ 	case info.PDoc != nil:
+ 		switch {
+ 		case h.isPkg:
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 8745b8b0a2..d5d8e3e360 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -452,10 +452,10 @@ func (x *Indexer) visitComment(c *ast.CommentGroup) {
+ 
+ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
+ 	if id != nil {
+-		lists, found := x.words[id.Name()]
++		lists, found := x.words[id.Name]
+ 		if !found {
+ 			lists = new(IndexResult)
+-			x.words[id.Name()] = lists
++			x.words[id.Name] = lists
+ 		}
+ 
+ 		if kind == Use || x.decl == nil {
+@@ -596,13 +596,13 @@ func (x *Indexer) VisitFile(path string, f *os.FileInfo) {
+ 		return
+ 	}
+ 
+-	file, err := parser.ParseFile(path, nil, nil, parser.ParseComments)
++	file, err := parser.ParseFile(path, nil, parser.ParseComments)
+ 	if err != nil {
+ 		return // ignore files with (parse) errors
+ 	}
+ 
+ 	dir, _ := pathutil.Split(path)
+-	pak := Pak{dir, file.Name.Name()}
++	pak := Pak{dir, file.Name.Name}
+ 	x.file = &File{path, pak}
+ 	ast.Walk(x, file)
+ }
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index d8fb195338..97c62218a7 100755
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -35,7 +35,7 @@ func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
+ 
+ 
+ func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+-	text = []byte(id.Name())
++	text = []byte(id.Name)
+ 	if s.highlight == id {
+ 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
+ 	}
+@@ -114,7 +114,7 @@ func NewSnippet(decl ast.Decl, id *ast.Ident) (s *Snippet) {
+ 	if s == nil {
+ 		s = &Snippet{
+ 			id.Pos().Line,
+-			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Name()),
++			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Name),
+ 		}
+ 	}
+ 	return
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index c8c7d607b6..a0163b75fb 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -27,7 +27,6 @@ var (
+ 
+ 	// debugging support
+ 	comments = flag.Bool("comments", true, "print comments")
+-	debug    = flag.Bool("debug", false, "print debugging information")
+ 	trace    = flag.Bool("trace", false, "print parse trace")
+ 
+ 	// layout control
+@@ -92,11 +91,7 @@ func processFile(f *os.File) os.Error {
+ 		return err
+ 	}
+ 
+-	var scope *ast.Scope
+-	if *debug {
+-		scope = ast.NewScope(nil)
+-	}
+-	file, err := parser.ParseFile(f.Name(), src, scope, parserMode)
++	file, err := parser.ParseFile(f.Name(), src, parserMode)
+ 
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index a89146ca0e..3aaaebdd1a 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -37,7 +37,7 @@ func initRewrite() {
+ // but there are problems with preserving formatting and also
+ // with what a wildcard for a statement looks like.
+ func parseExpr(s string, what string) ast.Expr {
+-	x, err := parser.ParseExpr("input", s, nil)
++	x, err := parser.ParseExpr("input", s)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
+ 		os.Exit(2)
+@@ -109,7 +109,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 	// times in the pattern, it must match the same expression
+ 	// each time.
+ 	if m != nil && pattern.Type() == identType {
+-		name := pattern.Interface().(*ast.Ident).Name()
++		name := pattern.Interface().(*ast.Ident).Name
+ 		if isWildcard(name) {
+ 			if old, ok := m[name]; ok {
+ 				return match(nil, old, val)
+@@ -139,7 +139,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 		// of recursing down any further via reflection.
+ 		p := pattern.Interface().(*ast.Ident)
+ 		v := val.Interface().(*ast.Ident)
+-		return p == nil && v == nil || p != nil && v != nil && p.Name() == v.Name()
++		return p == nil && v == nil || p != nil && v != nil && p.Name == v.Name
+ 	}
+ 
+ 	p := reflect.Indirect(pattern)
+@@ -194,7 +194,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
+ 
+ 	// Wildcard gets replaced with map value.
+ 	if m != nil && pattern.Type() == identType {
+-		name := pattern.Interface().(*ast.Ident).Name()
++		name := pattern.Interface().(*ast.Ident).Name
+ 		if isWildcard(name) {
+ 			if old, ok := m[name]; ok {
+ 				return subst(nil, old, nil)
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index ae391ed9a9..b1bc55fb6d 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -41,11 +41,11 @@ func goFiles(dir string, allowMain bool) (files []string, imports map[string]str
+ 			continue
+ 		}
+ 		filename := path.Join(dir, d.Name)
+-		pf, err := parser.ParseFile(filename, nil, nil, parser.ImportsOnly)
++		pf, err := parser.ParseFile(filename, nil, parser.ImportsOnly)
+ 		if err != nil {
+ 			return nil, nil, "", err
+ 		}
+-		s := string(pf.Name.Name())
++		s := string(pf.Name.Name)
+ 		if s == "main" && !allowMain {
+ 			continue
+ 		}
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 9d4fdd84b7..07e287caad 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -585,7 +585,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		}
+ 
+ 	case *ast.Ident:
+-		return ei.compileIdent(a.block, a.constant, callCtx, x.Name())
++		return ei.compileIdent(a.block, a.constant, callCtx, x.Name)
+ 
+ 	case *ast.IndexExpr:
+ 		l, r := a.compile(x.X, false), a.compile(x.Index, false)
+@@ -621,7 +621,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		if v == nil {
+ 			return nil
+ 		}
+-		return ei.compileSelectorExpr(v, x.Sel.Name())
++		return ei.compileSelectorExpr(v, x.Sel.Name)
+ 
+ 	case *ast.StarExpr:
+ 		// We pass down our call context because this could be
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index 24e9515625..95ddbea65b 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -210,15 +210,15 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) {
+  */
+ 
+ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
+-	v, prev := a.block.DefineVar(ident.Name(), ident.Pos(), t)
++	v, prev := a.block.DefineVar(ident.Name, ident.Pos(), t)
+ 	if prev != nil {
+ 		// TODO(austin) It's silly that we have to capture
+ 		// Pos() in a variable.
+ 		pos := prev.Pos()
+ 		if pos.IsValid() {
+-			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name(), &pos)
++			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Name, &pos)
+ 		} else {
+-			a.diagAt(ident, "variable %s redeclared in this block", ident.Name())
++			a.diagAt(ident, "variable %s redeclared in this block", ident.Name)
+ 		}
+ 		return nil
+ 	}
+@@ -381,13 +381,13 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 		}
+ 		// Declare and initialize v before compiling func
+ 		// so that body can refer to itself.
+-		c, prev := a.block.DefineConst(d.Name.Name(), a.pos, decl.Type, decl.Type.Zero())
++		c, prev := a.block.DefineConst(d.Name.Name, a.pos, decl.Type, decl.Type.Zero())
+ 		if prev != nil {
+ 			pos := prev.Pos()
+ 			if pos.IsValid() {
+-				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name(), &pos)
++				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Name, &pos)
+ 			} else {
+-				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Name())
++				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Name)
+ 			}
+ 		}
+ 		fn := a.compileFunc(a.block, decl, d.Body)
+@@ -416,14 +416,14 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 
+ func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
+ 	// Define label
+-	l, ok := a.labels[s.Label.Name()]
++	l, ok := a.labels[s.Label.Name]
+ 	if ok {
+ 		if l.resolved.IsValid() {
+-			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name(), &l.resolved)
++			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Name, &l.resolved)
+ 		}
+ 	} else {
+ 		pc := badPC
+-		l = &label{name: s.Label.Name(), gotoPC: &pc}
++		l = &label{name: s.Label.Name, gotoPC: &pc}
+ 		a.labels[l.name] = l
+ 	}
+ 	l.desc = "regular label"
+@@ -562,7 +562,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
+ 			}
+ 
+ 			// Is this simply an assignment?
+-			if _, ok := a.block.defs[ident.Name()]; ok {
++			if _, ok := a.block.defs[ident.Name]; ok {
+ 				ident = nil
+ 				break
+ 			}
+@@ -861,7 +861,7 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
+ 		if name == nil && pred(l) {
+ 			return l
+ 		}
+-		if name != nil && l.name == name.Name() {
++		if name != nil && l.name == name.Name {
+ 			if !pred(l) {
+ 				a.diag("cannot %s to %s %s", errOp, l.desc, l.name)
+ 				return nil
+@@ -872,7 +872,7 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
+ 	if name == nil {
+ 		a.diag("%s outside %s", errOp, errCtx)
+ 	} else {
+-		a.diag("%s label %s not defined", errOp, name.Name())
++		a.diag("%s label %s not defined", errOp, name.Name)
+ 	}
+ 	return nil
+ }
+@@ -896,10 +896,10 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
+ 		pc = l.continuePC
+ 
+ 	case token.GOTO:
+-		l, ok := a.labels[s.Label.Name()]
++		l, ok := a.labels[s.Label.Name]
+ 		if !ok {
+ 			pc := badPC
+-			l = &label{name: s.Label.Name(), desc: "unresolved label", gotoPC: &pc, used: s.Pos()}
++			l = &label{name: s.Label.Name, desc: "unresolved label", gotoPC: &pc, used: s.Pos()}
+ 			a.labels[l.name] = l
+ 		}
+ 
+@@ -1235,14 +1235,14 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) fu
+ 	defer bodyScope.exit()
+ 	for i, t := range decl.Type.In {
+ 		if decl.InNames[i] != nil {
+-			bodyScope.DefineVar(decl.InNames[i].Name(), decl.InNames[i].Pos(), t)
++			bodyScope.DefineVar(decl.InNames[i].Name, decl.InNames[i].Pos(), t)
+ 		} else {
+ 			bodyScope.DefineTemp(t)
+ 		}
+ 	}
+ 	for i, t := range decl.Type.Out {
+ 		if decl.OutNames[i] != nil {
+-			bodyScope.DefineVar(decl.OutNames[i].Name(), decl.OutNames[i].Pos(), t)
++			bodyScope.DefineVar(decl.OutNames[i].Name, decl.OutNames[i].Pos(), t)
+ 		} else {
+ 			bodyScope.DefineTemp(t)
+ 		}
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 86924494f8..5ac1e46f9e 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -771,7 +771,7 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
+ 			s += ", "
+ 		}
+ 		if ns != nil && ns[i] != nil {
+-			s += ns[i].Name() + " "
++			s += ns[i].Name + " "
+ 		}
+ 		if t == nil {
+ 			// Some places use nil types to represent errors
+@@ -815,7 +815,7 @@ type FuncDecl struct {
+ func (t *FuncDecl) String() string {
+ 	s := "func"
+ 	if t.Name != nil {
+-		s += " " + t.Name.Name()
++		s += " " + t.Name.Name
+ 	}
+ 	s += funcTypeString(t.Type, t.InNames, t.OutNames)
+ 	return s
+diff --git a/src/pkg/exp/eval/typec.go b/src/pkg/exp/eval/typec.go
+index 80ac078a25..5c202a4812 100644
+--- a/src/pkg/exp/eval/typec.go
++++ b/src/pkg/exp/eval/typec.go
+@@ -26,17 +26,17 @@ type typeCompiler struct {
+ }
+ 
+ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+-	_, _, def := a.block.Lookup(x.Name())
++	_, _, def := a.block.Lookup(x.Name)
+ 	if def == nil {
+-		a.diagAt(x, "%s: undefined", x.Name())
++		a.diagAt(x, "%s: undefined", x.Name)
+ 		return nil
+ 	}
+ 	switch def := def.(type) {
+ 	case *Constant:
+-		a.diagAt(x, "constant %v used as type", x.Name())
++		a.diagAt(x, "constant %v used as type", x.Name)
+ 		return nil
+ 	case *Variable:
+-		a.diagAt(x, "variable %v used as type", x.Name())
++		a.diagAt(x, "variable %v used as type", x.Name)
+ 		return nil
+ 	case *NamedType:
+ 		if !allowRec && def.incomplete {
+@@ -51,7 +51,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+ 	case Type:
+ 		return def
+ 	}
+-	log.Crashf("name %s has unknown type %T", x.Name(), def)
++	log.Crashf("name %s has unknown type %T", x.Name, def)
+ 	return nil
+ }
+ 
+@@ -137,7 +137,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type
+ 		// Compute field name and check anonymous fields
+ 		var name string
+ 		if names[i] != nil {
+-			name = names[i].Name()
++			name = names[i].Name
+ 		} else {
+ 			if ts[i] == nil {
+ 				continue
+@@ -237,7 +237,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
+ 		}
+ 
+ 		if names[i] != nil {
+-			name := names[i].Name()
++			name := names[i].Name
+ 			methods[nm].Name = name
+ 			methods[nm].Type = ts[i].(*FuncType)
+ 			nm++
+@@ -370,7 +370,7 @@ func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool {
+ 	for _, spec := range decl.Specs {
+ 		spec := spec.(*ast.TypeSpec)
+ 		// Create incomplete type for this type
+-		nt := b.DefineType(spec.Name.Name(), spec.Name.Pos(), nil)
++		nt := b.DefineType(spec.Name.Name, spec.Name.Pos(), nil)
+ 		if nt != nil {
+ 			nt.(*NamedType).incomplete = true
+ 		}
+diff --git a/src/pkg/exp/eval/world.go b/src/pkg/exp/eval/world.go
+index edeb39a5f9..f55051cf1d 100644
+--- a/src/pkg/exp/eval/world.go
++++ b/src/pkg/exp/eval/world.go
+@@ -136,13 +136,13 @@ func (e *exprCode) Run() (Value, os.Error) {
+ }
+ 
+ func (w *World) Compile(text string) (Code, os.Error) {
+-	stmts, err := parser.ParseStmtList("input", text, nil)
++	stmts, err := parser.ParseStmtList("input", text)
+ 	if err == nil {
+ 		return w.CompileStmtList(stmts)
+ 	}
+ 
+ 	// Otherwise try as DeclList.
+-	decls, err1 := parser.ParseDeclList("input", text, nil)
++	decls, err1 := parser.ParseDeclList("input", text)
+ 	if err1 == nil {
+ 		return w.CompileDeclList(decls)
+ 	}
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 2fc8b215fd..93e962cefb 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -141,7 +141,8 @@ type (
+ 	// An Ident node represents an identifier.
+ 	Ident struct {
+ 		token.Position         // identifier position
+-		Obj            *Object // denoted object
++		Name           string  // identifier name
++		Obj            *Object // denoted object; or nil
+ 	}
+ 
+ 	// An Ellipsis node stands for the "..." type in a
+@@ -156,7 +157,7 @@ type (
+ 	BasicLit struct {
+ 		token.Position             // literal position
+ 		Kind           token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
+-		Value          []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
++		Value          []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
+ 	}
+ 
+ 	// A FuncLit node represents a function literal.
+@@ -166,7 +167,6 @@ type (
+ 	}
+ 
+ 	// A CompositeLit node represents a composite literal.
+-	//
+ 	CompositeLit struct {
+ 		Type   Expr           // literal type
+ 		Lbrace token.Position // position of "{"
+@@ -218,6 +218,7 @@ type (
+ 
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+ 	// Semantically it could be a unary "*" expression, or a pointer type.
++	//
+ 	StarExpr struct {
+ 		token.Position      // position of "*"
+ 		X              Expr // operand
+@@ -233,7 +234,6 @@ type (
+ 	}
+ 
+ 	// A BinaryExpr node represents a binary expression.
+-	//
+ 	BinaryExpr struct {
+ 		X     Expr           // left operand
+ 		OpPos token.Position // position of Op
+@@ -330,6 +330,7 @@ func (x *KeyValueExpr) Pos() token.Position   { return x.Key.Pos() }
+ 
+ // exprNode() ensures that only expression/type nodes can be
+ // assigned to an ExprNode.
++//
+ func (x *BadExpr) exprNode()        {}
+ func (x *Ident) exprNode()          {}
+ func (x *Ellipsis) exprNode()       {}
+@@ -360,15 +361,15 @@ func (x *ChanType) exprNode()      {}
+ 
+ var noPos token.Position
+ 
+-// NewIdent creates a new Ident without position and minimal object
+-// information. Useful for ASTs generated by code other than the Go
+-// parser.
++// NewIdent creates a new Ident without position.
++// Useful for ASTs generated by code other than the Go parser.
+ //
+-func NewIdent(name string) *Ident { return &Ident{noPos, NewObj(Err, noPos, name)} }
++func NewIdent(name string) *Ident { return &Ident{noPos, name, nil} }
+ 
+ 
+ // IsExported returns whether name is an exported Go symbol
+ // (i.e., whether it begins with an uppercase letter).
++//
+ func IsExported(name string) bool {
+ 	ch, _ := utf8.DecodeRuneInString(name)
+ 	return unicode.IsUpper(ch)
+@@ -377,16 +378,13 @@ func IsExported(name string) bool {
+ 
+ // IsExported returns whether id is an exported Go symbol
+ // (i.e., whether it begins with an uppercase letter).
+-func (id *Ident) IsExported() bool { return id.Obj.IsExported() }
+-
+-
+-// Name returns an identifier's name.
+-func (id *Ident) Name() string { return id.Obj.Name }
++//
++func (id *Ident) IsExported() bool { return IsExported(id.Name) }
+ 
+ 
+ func (id *Ident) String() string {
+-	if id != nil && id.Obj != nil {
+-		return id.Obj.Name
++	if id != nil {
++		return id.Name
+ 	}
+ 	return "<nil>"
+ }
+@@ -441,6 +439,7 @@ type (
+ 
+ 	// An AssignStmt node represents an assignment or
+ 	// a short variable declaration.
++	//
+ 	AssignStmt struct {
+ 		Lhs    []Expr
+ 		TokPos token.Position // position of Tok
+@@ -618,6 +617,7 @@ type (
+ 
+ 	// A ValueSpec node represents a constant or variable declaration
+ 	// (ConstSpec or VarSpec production).
++	//
+ 	ValueSpec struct {
+ 		Doc     *CommentGroup // associated documentation; or nil
+ 		Names   []*Ident      // value names
+@@ -630,7 +630,7 @@ type (
+ 	TypeSpec struct {
+ 		Doc     *CommentGroup // associated documentation; or nil
+ 		Name    *Ident        // type name
+-		Type    Expr          // *ArrayType, *StructType, *FuncType, *InterfaceType, *MapType, *ChanType or *Ident
++		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+ 		Comment *CommentGroup // line comments; or nil
+ 	}
+ )
+@@ -734,6 +734,6 @@ type File struct {
+ //
+ type Package struct {
+ 	Name  string           // package name
+-	Scope *Scope           // package scope
++	Scope *Scope           // package scope; or nil
+ 	Files map[string]*File // Go source files by filename
+ }
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 009ffc21d0..c46a1e0f96 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -197,7 +197,7 @@ type Filter func(string) bool
+ func filterIdentList(list []*Ident, f Filter) []*Ident {
+ 	j := 0
+ 	for _, x := range list {
+-		if f(x.Name()) {
++		if f(x.Name) {
+ 			list[j] = x
+ 			j++
+ 		}
+@@ -212,7 +212,7 @@ func filterSpec(spec Spec, f Filter) bool {
+ 		s.Names = filterIdentList(s.Names, f)
+ 		return len(s.Names) > 0
+ 	case *TypeSpec:
+-		return f(s.Name.Name())
++		return f(s.Name.Name)
+ 	}
+ 	return false
+ }
+@@ -236,7 +236,7 @@ func filterDecl(decl Decl, f Filter) bool {
+ 		d.Specs = filterSpecList(d.Specs, f)
+ 		return len(d.Specs) > 0
+ 	case *FuncDecl:
+-		return f(d.Name.Name())
++		return f(d.Name.Name)
+ 	}
+ 	return false
+ }
+@@ -397,7 +397,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 					//            entities (const, type, vars) if
+ 					//            multiple declarations are common.
+ 					if f, isFun := d.(*FuncDecl); isFun {
+-						name := f.Name.Name()
++						name := f.Name.Name
+ 						if j, exists := funcs[name]; exists {
+ 							// function declared already
+ 							if decls[j] != nil && decls[j].(*FuncDecl).Doc == nil {
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index b5a38484ef..ff1bd5f1ca 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -4,13 +4,11 @@
+ 
+ package ast
+ 
+-import "go/token"
+-
+ type ObjKind int
+ 
+ // The list of possible Object kinds.
+ const (
+-	Err ObjKind = iota // object kind unknown (forward reference or error)
++	Bad ObjKind = iota // bad object
+ 	Pkg                // package
+ 	Con                // constant
+ 	Typ                // type
+@@ -20,7 +18,7 @@ const (
+ 
+ 
+ var objKindStrings = [...]string{
+-	Err: "<unknown object kind>",
++	Bad: "bad",
+ 	Pkg: "package",
+ 	Con: "const",
+ 	Typ: "type",
+@@ -37,13 +35,13 @@ func (kind ObjKind) String() string { return objKindStrings[kind] }
+ //
+ type Object struct {
+ 	Kind ObjKind
+-	Pos  token.Position // declaration position
+-	Name string         // declared name
++	Name string      // declared name
++	Decl interface{} // corresponding Field, xxxSpec or FuncDecl
+ }
+ 
+ 
+-func NewObj(kind ObjKind, pos token.Position, name string) *Object {
+-	return &Object{kind, pos, name}
++func NewObj(kind ObjKind, name string) *Object {
++	return &Object{kind, name, nil}
+ }
+ 
+ 
+@@ -57,12 +55,43 @@ func (obj *Object) IsExported() bool { return IsExported(obj.Name) }
+ //
+ type Scope struct {
+ 	Outer   *Scope
+-	Objects map[string]*Object
++	Objects []*Object // in declaration order
++	// Implementation note: In some cases (struct fields,
++	// function parameters) we need the source order of
++	// variables. Thus for now, we store scope entries
++	// in a linear list. If scopes become very large
++	// (say, for packages), we may need to change this
++	// to avoid slow lookups.
+ }
+ 
+ 
+ // NewScope creates a new scope nested in the outer scope.
+-func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Object)} }
++func NewScope(outer *Scope) *Scope {
++	const n = 4 // initial scope capacity, must be > 0
++	return &Scope{outer, make([]*Object, 0, n)}
++}
++
++
++func (s *Scope) append(obj *Object) {
++	n := len(s.Objects)
++	if n >= cap(s.Objects) {
++		new := make([]*Object, 2*n)
++		copy(new, s.Objects)
++		s.Objects = new
++	}
++	s.Objects = s.Objects[0 : n+1]
++	s.Objects[n] = obj
++}
++
++
++func (s *Scope) lookup(name string) *Object {
++	for _, obj := range s.Objects {
++		if obj.Name == name {
++			return obj
++		}
++	}
++	return nil
++}
+ 
+ 
+ // Declare attempts to insert a named object into the scope s.
+@@ -71,12 +100,12 @@ func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Objec
+ // scope remains unchanged and Declare returns the object found
+ // in the scope instead.
+ func (s *Scope) Declare(obj *Object) *Object {
+-	decl, found := s.Objects[obj.Name]
+-	if !found {
+-		s.Objects[obj.Name] = obj
+-		decl = obj
++	alt := s.lookup(obj.Name)
++	if alt == nil {
++		s.append(obj)
++		alt = obj
+ 	}
+-	return decl
++	return alt
+ }
+ 
+ 
+@@ -85,7 +114,7 @@ func (s *Scope) Declare(obj *Object) *Object {
+ //
+ func (s *Scope) Lookup(name string) *Object {
+ 	for ; s != nil; s = s.Outer {
+-		if obj, found := s.Objects[name]; found {
++		if obj := s.lookup(name); obj != nil {
+ 			return obj
+ 		}
+ 	}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 64a1170c54..6f044ee689 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -77,7 +77,7 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
+ 
+ func (doc *docReader) addType(decl *ast.GenDecl) {
+ 	spec := decl.Specs[0].(*ast.TypeSpec)
+-	typ := doc.lookupTypeDoc(spec.Name.Name())
++	typ := doc.lookupTypeDoc(spec.Name.Name)
+ 	// typ should always be != nil since declared types
+ 	// are always named - be conservative and check
+ 	if typ != nil {
+@@ -108,7 +108,7 @@ func baseTypeName(typ ast.Expr) string {
+ 		// if the type is not exported, the effect to
+ 		// a client is as if there were no type name
+ 		if t.IsExported() {
+-			return string(t.Name())
++			return string(t.Name)
+ 		}
+ 	case *ast.StarExpr:
+ 		return baseTypeName(t.X)
+@@ -173,7 +173,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
+ // at least one f with associated documentation is stored in table, if there
+ // are multiple f's with the same name.
+ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
+-	name := f.Name.Name()
++	name := f.Name.Name
+ 	if g, exists := table[name]; exists && g.Doc != nil {
+ 		// a function with the same name has already been registered;
+ 		// since it has documentation, assume f is simply another
+@@ -188,7 +188,7 @@ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
+ 
+ 
+ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+-	name := fun.Name.Name()
++	name := fun.Name.Name
+ 
+ 	// determine if it should be associated with a type
+ 	if fun.Recv != nil {
+@@ -325,7 +325,7 @@ func (doc *docReader) addFile(src *ast.File) {
+ 
+ func NewFileDoc(file *ast.File) *PackageDoc {
+ 	var r docReader
+-	r.init(file.Name.Name())
++	r.init(file.Name.Name)
+ 	r.addFile(file)
+ 	return r.newDoc("", nil)
+ }
+@@ -370,9 +370,9 @@ func declName(d *ast.GenDecl) string {
+ 
+ 	switch v := d.Specs[0].(type) {
+ 	case *ast.ValueSpec:
+-		return v.Names[0].Name()
++		return v.Names[0].Name
+ 	case *ast.TypeSpec:
+-		return v.Name.Name()
++		return v.Name.Name
+ 	}
+ 
+ 	return ""
+@@ -434,7 +434,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
+ 		if f.Recv != nil {
+ 			doc.Recv = f.Recv.List[0].Type
+ 		}
+-		doc.Name = f.Name.Name()
++		doc.Name = f.Name.Name
+ 		doc.Decl = f
+ 		d[i] = doc
+ 		i++
+@@ -467,7 +467,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
+ 	// sort by name
+ 	// pull blocks (name = "") up to top
+ 	// in original order
+-	if ni, nj := p[i].Type.Name.Name(), p[j].Type.Name.Name(); ni != nj {
++	if ni, nj := p[i].Type.Name.Name, p[j].Type.Name.Name; ni != nj {
+ 		return ni < nj
+ 	}
+ 	return p[i].order < p[j].order
+@@ -587,12 +587,12 @@ func matchDecl(d *ast.GenDecl, f Filter) bool {
+ 		switch v := d.(type) {
+ 		case *ast.ValueSpec:
+ 			for _, name := range v.Names {
+-				if f(name.Name()) {
++				if f(name.Name) {
+ 					return true
+ 				}
+ 			}
+ 		case *ast.TypeSpec:
+-			if f(v.Name.Name()) {
++			if f(v.Name.Name) {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 6d11a26669..39476f0720 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -57,52 +57,52 @@ func (p *parser) parseEOF() os.Error {
+ 
+ 
+ // ParseExpr parses a Go expression and returns the corresponding
+-// AST node. The filename, src, and scope arguments have the same interpretation
++// AST node. The filename and src arguments have the same interpretation
+ // as for ParseFile. If there is an error, the result expression
+ // may be nil or contain a partial AST.
+ //
+-func ParseExpr(filename string, src interface{}, scope *ast.Scope) (ast.Expr, os.Error) {
++func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, scope, 0)
++	p.init(filename, data, 0)
+ 	return p.parseExpr(), p.parseEOF()
+ }
+ 
+ 
+ // ParseStmtList parses a list of Go statements and returns the list
+-// of corresponding AST nodes. The filename, src, and scope arguments have the same
++// of corresponding AST nodes. The filename and src arguments have the same
+ // interpretation as for ParseFile. If there is an error, the node
+ // list may be nil or contain partial ASTs.
+ //
+-func ParseStmtList(filename string, src interface{}, scope *ast.Scope) ([]ast.Stmt, os.Error) {
++func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, scope, 0)
++	p.init(filename, data, 0)
+ 	return p.parseStmtList(), p.parseEOF()
+ }
+ 
+ 
+ // ParseDeclList parses a list of Go declarations and returns the list
+-// of corresponding AST nodes.  The filename, src, and scope arguments have the same
++// of corresponding AST nodes.  The filename and src arguments have the same
+ // interpretation as for ParseFile. If there is an error, the node
+ // list may be nil or contain partial ASTs.
+ //
+-func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.Decl, os.Error) {
++func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, scope, 0)
++	p.init(filename, data, 0)
+ 	return p.parseDeclList(), p.parseEOF()
+ }
+ 
+@@ -116,11 +116,6 @@ func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.De
+ //
+ // If src == nil, ParseFile parses the file specified by filename.
+ //
+-// If scope != nil, it is the immediately surrounding scope for the file
+-// (the package scope) and it is used to lookup and declare identifiers.
+-// When parsing multiple files belonging to a package, the same scope should
+-// be provided to all files.
+-//
+ // The mode parameter controls the amount of source text parsed and other
+ // optional parser functionality.
+ //
+@@ -130,14 +125,14 @@ func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.De
+ // representing the fragments of erroneous source code). Multiple errors
+ // are returned via a scanner.ErrorList which is sorted by file position.
+ //
+-func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*ast.File, os.Error) {
++func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, scope, mode)
++	p.init(filename, data, mode)
+ 	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
+ }
+ 
+@@ -150,14 +145,14 @@ func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*
+ // be incomplete (missing packages and/or incomplete packages) and the first
+ // error encountered is returned.
+ //
+-func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
++func ParseFiles(filenames []string, mode uint) (pkgs map[string]*ast.Package, first os.Error) {
+ 	pkgs = make(map[string]*ast.Package)
+ 	for _, filename := range filenames {
+-		if src, err := ParseFile(filename, nil, scope, mode); err == nil {
+-			name := src.Name.Name()
++		if src, err := ParseFile(filename, nil, mode); err == nil {
++			name := src.Name.Name
+ 			pkg, found := pkgs[name]
+ 			if !found {
+-				pkg = &ast.Package{name, scope, make(map[string]*ast.File)}
++				pkg = &ast.Package{name, nil, make(map[string]*ast.File)}
+ 				pkgs[name] = pkg
+ 			}
+ 			pkg.Files[filename] = src
+@@ -201,6 +196,5 @@ func ParseDir(path string, filter func(*os.FileInfo) bool, mode uint) (map[strin
+ 	}
+ 	filenames = filenames[0:n]
+ 
+-	var scope *ast.Scope = nil // for now tracking of declarations is disabled
+-	return ParseFiles(filenames, scope, mode)
++	return ParseFiles(filenames, mode)
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 51ed2f2eb1..55e0dadf8f 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -56,12 +56,6 @@ type parser struct {
+ 
+ 	// Non-syntactic parser control
+ 	exprLev int // < 0: in control clause, >= 0: in expression
+-
+-	// Scopes
+-	checkDecl bool // if set, check declarations
+-	pkgScope  *ast.Scope
+-	fileScope *ast.Scope
+-	funcScope *ast.Scope
+ }
+ 
+ 
+@@ -75,16 +69,10 @@ func scannerMode(mode uint) uint {
+ }
+ 
+ 
+-func (p *parser) init(filename string, src []byte, scope *ast.Scope, mode uint) {
++func (p *parser) init(filename string, src []byte, mode uint) {
+ 	p.scanner.Init(filename, src, p, scannerMode(mode))
+ 	p.mode = mode
+ 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+-	if scope != nil {
+-		p.checkDecl = true
+-	} else {
+-		scope = ast.NewScope(nil) // provide a dummy scope
+-	}
+-	p.pkgScope = scope
+ 	p.next()
+ }
+ 
+@@ -276,39 +264,31 @@ func (p *parser) expectSemi() {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Scope support
+-
+-func (p *parser) openScope() *ast.Scope {
+-	p.funcScope = ast.NewScope(p.funcScope)
+-	return p.funcScope
+-}
++// Identifiers
+ 
+-
+-func (p *parser) closeScope() { p.funcScope = p.funcScope.Outer }
+-
+-
+-func (p *parser) parseIdent(kind ast.ObjKind) *ast.Ident {
+-	obj := ast.NewObj(kind, p.pos, "_")
++func (p *parser) parseIdent() *ast.Ident {
++	pos := p.pos
++	name := "_"
+ 	if p.tok == token.IDENT {
+-		obj.Name = string(p.lit)
++		name = string(p.lit)
+ 		p.next()
+ 	} else {
+ 		p.expect(token.IDENT) // use expect() error handling
+ 	}
+-	return &ast.Ident{obj.Pos, obj}
++	return &ast.Ident{pos, name, nil}
+ }
+ 
+ 
+-func (p *parser) parseIdentList(kind ast.ObjKind) []*ast.Ident {
++func (p *parser) parseIdentList() []*ast.Ident {
+ 	if p.trace {
+ 		defer un(trace(p, "IdentList"))
+ 	}
+ 
+ 	var list vector.Vector
+-	list.Push(p.parseIdent(kind))
++	list.Push(p.parseIdent())
+ 	for p.tok == token.COMMA {
+ 		p.next()
+-		list.Push(p.parseIdent(kind))
++		list.Push(p.parseIdent())
+ 	}
+ 
+ 	// convert vector
+@@ -321,82 +301,6 @@ func (p *parser) parseIdentList(kind ast.ObjKind) []*ast.Ident {
+ }
+ 
+ 
+-func (p *parser) declIdent(scope *ast.Scope, id *ast.Ident) {
+-	decl := scope.Declare(id.Obj)
+-	if p.checkDecl && decl != id.Obj {
+-		if decl.Kind == ast.Err {
+-			// declared object is a forward declaration - update it
+-			*decl = *id.Obj
+-			id.Obj = decl
+-			return
+-		}
+-		p.Error(id.Pos(), "'"+id.Name()+"' declared already at "+decl.Pos.String())
+-	}
+-}
+-
+-
+-func (p *parser) declIdentList(scope *ast.Scope, list []*ast.Ident) {
+-	for _, id := range list {
+-		p.declIdent(scope, id)
+-	}
+-}
+-
+-
+-func (p *parser) declFieldList(scope *ast.Scope, list []*ast.Field) {
+-	for _, f := range list {
+-		p.declIdentList(scope, f.Names)
+-	}
+-}
+-
+-
+-func (p *parser) findIdent() *ast.Ident {
+-	pos := p.pos
+-	name := "_"
+-	var obj *ast.Object
+-	if p.tok == token.IDENT {
+-		name = string(p.lit)
+-		obj = p.funcScope.Lookup(name)
+-		p.next()
+-	} else {
+-		p.expect(token.IDENT) // use expect() error handling
+-	}
+-	if obj == nil {
+-		// No declaration found: either we are outside any function
+-		// (p.funcScope == nil) or the identifier is not declared
+-		// in any function. Try the file and package scope.
+-		obj = p.fileScope.Lookup(name) // file scope is nested in package scope
+-		if obj == nil {
+-			// No declaration found anywhere: track as
+-			// unresolved identifier in the package scope.
+-			obj = ast.NewObj(ast.Err, pos, name)
+-			p.pkgScope.Declare(obj)
+-		}
+-	}
+-	return &ast.Ident{pos, obj}
+-}
+-
+-
+-func (p *parser) findIdentInScope(scope *ast.Scope) *ast.Ident {
+-	pos := p.pos
+-	name := "_"
+-	var obj *ast.Object
+-	if p.tok == token.IDENT {
+-		name = string(p.lit)
+-		obj = scope.Lookup(name)
+-		p.next()
+-	} else {
+-		p.expect(token.IDENT) // use expect() error handling
+-	}
+-	if obj == nil {
+-		// TODO(gri) At the moment we always arrive here because
+-		//           we don't track the lookup scope (and sometimes
+-		//           we can't). Just create a useable ident for now.
+-		obj = ast.NewObj(ast.Err, pos, name)
+-	}
+-	return &ast.Ident{pos, obj}
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+@@ -450,11 +354,11 @@ func (p *parser) parseQualifiedIdent() ast.Expr {
+ 		defer un(trace(p, "QualifiedIdent"))
+ 	}
+ 
+-	var x ast.Expr = p.findIdent()
++	var x ast.Expr = p.parseIdent()
+ 	if p.tok == token.PERIOD {
+ 		// first identifier is a package identifier
+ 		p.next()
+-		sel := p.findIdentInScope(nil)
++		sel := p.parseIdent()
+ 		x = &ast.SelectorExpr{x, sel}
+ 	}
+ 	return x
+@@ -497,7 +401,7 @@ func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
+ 		if !isIdent {
+ 			pos := x.(ast.Expr).Pos()
+ 			p.errorExpected(pos, "identifier")
+-			ident = &ast.Ident{pos, ast.NewObj(ast.Err, pos, "_")}
++			ident = &ast.Ident{pos, "_", nil}
+ 		}
+ 		idents[i] = ident
+ 	}
+@@ -565,9 +469,6 @@ func (p *parser) parseStructType() *ast.StructType {
+ 		fields[i] = x.(*ast.Field)
+ 	}
+ 
+-	// TODO(gri) The struct scope shouldn't get lost.
+-	p.declFieldList(ast.NewScope(nil), fields)
+-
+ 	return &ast.StructType{pos, &ast.FieldList{lbrace, fields, rbrace}, false}
+ }
+ 
+@@ -655,7 +556,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
+ 		}
+ 
+ 		for p.tok != token.RPAREN && p.tok != token.EOF {
+-			idents := p.parseIdentList(ast.Var)
++			idents := p.parseIdentList()
+ 			typ := p.parseVarType(ellipsisOk)
+ 			list.Push(&ast.Field{nil, idents, typ, nil, nil})
+ 			if p.tok != token.COMMA {
+@@ -682,7 +583,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
+ }
+ 
+ 
+-func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldList {
++func (p *parser) parseParameters(ellipsisOk bool) *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Parameters"))
+ 	}
+@@ -691,7 +592,6 @@ func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldLi
+ 	lparen := p.expect(token.LPAREN)
+ 	if p.tok != token.RPAREN {
+ 		params = p.parseParameterList(ellipsisOk)
+-		p.declFieldList(scope, params)
+ 	}
+ 	rparen := p.expect(token.RPAREN)
+ 
+@@ -699,13 +599,13 @@ func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldLi
+ }
+ 
+ 
+-func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
++func (p *parser) parseResult() *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Result"))
+ 	}
+ 
+ 	if p.tok == token.LPAREN {
+-		return p.parseParameters(scope, false)
++		return p.parseParameters(false)
+ 	}
+ 
+ 	typ := p.tryType()
+@@ -719,28 +619,27 @@ func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
+ }
+ 
+ 
+-func (p *parser) parseSignature(scope *ast.Scope) (params, results *ast.FieldList) {
++func (p *parser) parseSignature() (params, results *ast.FieldList) {
+ 	if p.trace {
+ 		defer un(trace(p, "Signature"))
+ 	}
+ 
+-	params = p.parseParameters(scope, true)
+-	results = p.parseResult(scope)
++	params = p.parseParameters(true)
++	results = p.parseResult()
+ 
+ 	return
+ }
+ 
+ 
+-func (p *parser) parseFuncType() (*ast.Scope, *ast.FuncType) {
++func (p *parser) parseFuncType() *ast.FuncType {
+ 	if p.trace {
+ 		defer un(trace(p, "FuncType"))
+ 	}
+ 
+ 	pos := p.expect(token.FUNC)
+-	scope := ast.NewScope(p.funcScope)
+-	params, results := p.parseSignature(scope)
++	params, results := p.parseSignature()
+ 
+-	return scope, &ast.FuncType{pos, params, results}
++	return &ast.FuncType{pos, params, results}
+ }
+ 
+ 
+@@ -756,7 +655,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 	if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
+ 		// method
+ 		idents = []*ast.Ident{ident}
+-		params, results := p.parseSignature(ast.NewScope(p.funcScope))
++		params, results := p.parseSignature()
+ 		typ = &ast.FuncType{noPos, params, results}
+ 	} else {
+ 		// embedded interface
+@@ -787,9 +686,6 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 		methods[i] = x.(*ast.Field)
+ 	}
+ 
+-	// TODO(gri) The interface scope shouldn't get lost.
+-	p.declFieldList(ast.NewScope(nil), methods)
+-
+ 	return &ast.InterfaceType{pos, &ast.FieldList{lbrace, methods, rbrace}, false}
+ }
+ 
+@@ -844,8 +740,7 @@ func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
+ 	case token.MUL:
+ 		return p.parsePointerType()
+ 	case token.FUNC:
+-		_, typ := p.parseFuncType()
+-		return typ
++		return p.parseFuncType()
+ 	case token.INTERFACE:
+ 		return p.parseInterfaceType()
+ 	case token.MAP:
+@@ -894,20 +789,15 @@ func (p *parser) parseStmtList() []ast.Stmt {
+ }
+ 
+ 
+-func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
++func (p *parser) parseBody() *ast.BlockStmt {
+ 	if p.trace {
+ 		defer un(trace(p, "Body"))
+ 	}
+ 
+-	savedScope := p.funcScope
+-	p.funcScope = scope
+-
+ 	lbrace := p.expect(token.LBRACE)
+ 	list := p.parseStmtList()
+ 	rbrace := p.expect(token.RBRACE)
+ 
+-	p.funcScope = savedScope
+-
+ 	return &ast.BlockStmt{lbrace, list, rbrace}
+ }
+ 
+@@ -917,9 +807,6 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
+ 		defer un(trace(p, "BlockStmt"))
+ 	}
+ 
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	lbrace := p.expect(token.LBRACE)
+ 	list := p.parseStmtList()
+ 	rbrace := p.expect(token.RBRACE)
+@@ -936,14 +823,14 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
+ 		defer un(trace(p, "FuncTypeOrLit"))
+ 	}
+ 
+-	scope, typ := p.parseFuncType()
++	typ := p.parseFuncType()
+ 	if p.tok != token.LBRACE {
+ 		// function type only
+ 		return typ
+ 	}
+ 
+ 	p.exprLev++
+-	body := p.parseBody(scope)
++	body := p.parseBody()
+ 	p.exprLev--
+ 
+ 	return &ast.FuncLit{typ, body}
+@@ -960,7 +847,7 @@ func (p *parser) parseOperand() ast.Expr {
+ 
+ 	switch p.tok {
+ 	case token.IDENT:
+-		return p.findIdent()
++		return p.parseIdent()
+ 
+ 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
+ 		x := &ast.BasicLit{p.pos, p.tok, p.lit}
+@@ -1000,7 +887,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ 	p.expect(token.PERIOD)
+ 	if p.tok == token.IDENT {
+ 		// selector
+-		sel := p.findIdentInScope(nil)
++		sel := p.parseIdent()
+ 		return &ast.SelectorExpr{x, sel}
+ 	}
+ 
+@@ -1445,7 +1332,7 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
+ 	s := &ast.BranchStmt{p.pos, tok, nil}
+ 	p.expect(tok)
+ 	if tok != token.FALLTHROUGH && p.tok == token.IDENT {
+-		s.Label = p.findIdentInScope(nil)
++		s.Label = p.parseIdent()
+ 	}
+ 	p.expectSemi()
+ 
+@@ -1501,10 +1388,6 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 		defer un(trace(p, "IfStmt"))
+ 	}
+ 
+-	// IfStmt block
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	pos := p.expect(token.IF)
+ 	s1, s2, _ := p.parseControlClause(false)
+ 	body := p.parseBlockStmt()
+@@ -1525,10 +1408,6 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
+ 		defer un(trace(p, "CaseClause"))
+ 	}
+ 
+-	// CaseClause block
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	// SwitchCase
+ 	pos := p.pos
+ 	var x []ast.Expr
+@@ -1567,10 +1446,6 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 		defer un(trace(p, "TypeCaseClause"))
+ 	}
+ 
+-	// TypeCaseClause block
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	// TypeSwitchCase
+ 	pos := p.pos
+ 	var types []ast.Expr
+@@ -1607,10 +1482,6 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 		defer un(trace(p, "SwitchStmt"))
+ 	}
+ 
+-	// SwitchStmt block
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	pos := p.expect(token.SWITCH)
+ 	s1, s2, _ := p.parseControlClause(false)
+ 
+@@ -1645,10 +1516,6 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 		defer un(trace(p, "CommClause"))
+ 	}
+ 
+-	// CommClause block
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	// CommCase
+ 	pos := p.pos
+ 	var tok token.Token
+@@ -1709,10 +1576,6 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		defer un(trace(p, "ForStmt"))
+ 	}
+ 
+-	// ForStmt block
+-	p.openScope()
+-	defer p.closeScope()
+-
+ 	pos := p.expect(token.FOR)
+ 	s1, s2, s3 := p.parseControlClause(true)
+ 	body := p.parseBlockStmt()
+@@ -1825,14 +1688,10 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ 
+ 	var ident *ast.Ident
+ 	if p.tok == token.PERIOD {
+-		ident = &ast.Ident{p.pos, ast.NewObj(ast.Pkg, p.pos, ".")}
++		ident = &ast.Ident{p.pos, ".", nil}
+ 		p.next()
+ 	} else if p.tok == token.IDENT {
+-		ident = p.parseIdent(ast.Pkg)
+-		// TODO(gri) Make sure the ident is not already declared in the
+-		//           package scope. Also, cannot add the same name to
+-		//           the package scope later.
+-		p.declIdent(p.fileScope, ident)
++		ident = p.parseIdent()
+ 	}
+ 
+ 	var path *ast.BasicLit
+@@ -1853,23 +1712,13 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ 		defer un(trace(p, "ConstSpec"))
+ 	}
+ 
+-	idents := p.parseIdentList(ast.Con)
+-	if p.funcScope == nil {
+-		// the scope of a constant outside any function
+-		// is the package scope
+-		p.declIdentList(p.pkgScope, idents)
+-	}
++	idents := p.parseIdentList()
+ 	typ := p.tryType()
+ 	var values []ast.Expr
+ 	if typ != nil || p.tok == token.ASSIGN {
+ 		p.expect(token.ASSIGN)
+ 		values = p.parseExprList()
+ 	}
+-	if p.funcScope != nil {
+-		// the scope of a constant inside a function
+-		// begins after the the ConstSpec
+-		p.declIdentList(p.funcScope, idents)
+-	}
+ 	p.expectSemi()
+ 
+ 	return &ast.ValueSpec{doc, idents, typ, values, p.lineComment}
+@@ -1881,15 +1730,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ 		defer un(trace(p, "TypeSpec"))
+ 	}
+ 
+-	ident := p.parseIdent(ast.Typ)
+-	// the scope of a type outside any function is
+-	// the package scope; the scope of a type inside
+-	// a function starts at the type identifier
+-	scope := p.funcScope
+-	if scope == nil {
+-		scope = p.pkgScope
+-	}
+-	p.declIdent(scope, ident)
++	ident := p.parseIdent()
+ 	typ := p.parseType()
+ 	p.expectSemi()
+ 
+@@ -1902,23 +1743,13 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ 		defer un(trace(p, "VarSpec"))
+ 	}
+ 
+-	idents := p.parseIdentList(ast.Var)
+-	if p.funcScope == nil {
+-		// the scope of a variable outside any function
+-		// is the pkgScope
+-		p.declIdentList(p.pkgScope, idents)
+-	}
++	idents := p.parseIdentList()
+ 	typ := p.tryType()
+ 	var values []ast.Expr
+ 	if typ == nil || p.tok == token.ASSIGN {
+ 		p.expect(token.ASSIGN)
+ 		values = p.parseExprList()
+ 	}
+-	if p.funcScope != nil {
+-		// the scope of a variable inside a function
+-		// begins after the the VarSpec
+-		p.declIdentList(p.funcScope, idents)
+-	}
+ 	p.expectSemi()
+ 
+ 	return &ast.ValueSpec{doc, idents, typ, values, p.lineComment}
+@@ -1956,13 +1787,13 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
+ }
+ 
+ 
+-func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
++func (p *parser) parseReceiver() *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Receiver"))
+ 	}
+ 
+ 	pos := p.pos
+-	par := p.parseParameters(scope, false)
++	par := p.parseParameters(false)
+ 
+ 	// must have exactly one receiver
+ 	if par.NumFields() != 1 {
+@@ -1990,20 +1821,18 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 
+ 	doc := p.leadComment
+ 	pos := p.expect(token.FUNC)
+-	scope := ast.NewScope(p.funcScope)
+ 
+ 	var recv *ast.FieldList
+ 	if p.tok == token.LPAREN {
+-		recv = p.parseReceiver(scope)
++		recv = p.parseReceiver()
+ 	}
+ 
+-	ident := p.parseIdent(ast.Fun)
+-	p.declIdent(p.pkgScope, ident) // there are no local function declarations
+-	params, results := p.parseSignature(scope)
++	ident := p.parseIdent()
++	params, results := p.parseSignature()
+ 
+ 	var body *ast.BlockStmt
+ 	if p.tok == token.LBRACE {
+-		body = p.parseBody(scope)
++		body = p.parseBody()
+ 	}
+ 	p.expectSemi()
+ 
+@@ -2073,10 +1902,9 @@ func (p *parser) parseFile() *ast.File {
+ 	// package clause
+ 	doc := p.leadComment
+ 	pos := p.expect(token.PACKAGE)
+-	ident := p.parseIdent(ast.Pkg) // package name is in no scope
++	ident := p.parseIdent()
+ 	p.expectSemi()
+ 
+-	p.fileScope = ast.NewScope(p.pkgScope)
+ 	var decls []ast.Decl
+ 
+ 	// Don't bother parsing the rest if we had errors already.
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index cad93e2d43..a3cc84383d 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,7 +5,6 @@
+ package parser
+ 
+ import (
+-	"go/ast"
+ 	"os"
+ 	"testing"
+ )
+@@ -21,7 +20,7 @@ var illegalInputs = []interface{}{
+ 
+ func TestParseIllegalInputs(t *testing.T) {
+ 	for _, src := range illegalInputs {
+-		_, err := ParseFile("", src, nil, 0)
++		_, err := ParseFile("", src, 0)
+ 		if err == nil {
+ 			t.Errorf("ParseFile(%v) should have failed", src)
+ 		}
+@@ -46,7 +45,7 @@ var validPrograms = []interface{}{
+ 
+ func TestParseValidPrograms(t *testing.T) {
+ 	for _, src := range validPrograms {
+-		_, err := ParseFile("", src, ast.NewScope(nil), 0)
++		_, err := ParseFile("", src, 0)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%q): %v", src, err)
+ 		}
+@@ -62,7 +61,7 @@ var validFiles = []string{
+ 
+ func TestParse3(t *testing.T) {
+ 	for _, filename := range validFiles {
+-		_, err := ParseFile(filename, nil, ast.NewScope(nil), 0)
++		_, err := ParseFile(filename, nil, 0)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%s): %v", filename, err)
+ 		}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 132c52073e..434154f699 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -335,7 +335,7 @@ func identListSize(list []*ast.Ident, maxSize int) (size int) {
+ 		if i > 0 {
+ 			size += 2 // ", "
+ 		}
+-		size += len(x.Name())
++		size += len(x.Name)
+ 		if size >= maxSize {
+ 			break
+ 		}
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 9adc540b95..c6138a11e6 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -780,7 +780,7 @@ func (p *printer) print(args ...interface{}) {
+ 			if p.Styler != nil {
+ 				data, tag = p.Styler.Ident(x)
+ 			} else {
+-				data = []byte(x.Name())
++				data = []byte(x.Name)
+ 			}
+ 			tok = token.IDENT
+ 		case *ast.BasicLit:
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index a5de3774a2..21a06ce470 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -43,7 +43,7 @@ const (
+ 
+ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// parse source
+-	prog, err := parser.ParseFile(source, nil, nil, parser.ParseComments)
++	prog, err := parser.ParseFile(source, nil, parser.ParseComments)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return

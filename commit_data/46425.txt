@@ -15,8 +15,61 @@ Date:   Tue Dec 29 00:44:28 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/const.go   | 11 +----------
  src/cmd/compile/internal/typecheck/iexport.go |  2 +-
  src/cmd/compile/internal/typecheck/iimport.go |  2 +-
  3 files changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index e22b284e82..5259218ef9 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -564,20 +564,11 @@ func EvalConst(n ir.Node) ir.Node {
+ 	return n
+ }
+ 
+-func makeInt(i *big.Int) constant.Value {
+-	if i.IsInt64() {
+-		return constant.Make(i.Int64()) // workaround #42640 (Int64Val(Make(big.NewInt(10))) returns (10, false), not (10, true))
+-	}
+-	return constant.Make(i)
+-}
+-
+ func makeFloat64(f float64) constant.Value {
+ 	if math.IsInf(f, 0) {
+ 		base.Fatalf("infinity is not a valid constant")
+ 	}
+-	v := constant.MakeFloat64(f)
+-	v = constant.ToFloat(v) // workaround #42641 (MakeFloat64(0).Kind() returns Int, not Float)
+-	return v
++	return constant.MakeFloat64(f)
+ }
+ 
+ func makeComplex(real, imag constant.Value) constant.Value {
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index e35cbcafa2..c287d76c43 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -936,7 +936,7 @@ func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
+ 	if acc != big.Exact {
+ 		base.Fatalf("mantissa scaling failed for %f (%s)", f, acc)
+ 	}
+-	w.mpint(makeInt(manti), typ)
++	w.mpint(constant.Make(manti), typ)
+ 	if manti.Sign() != 0 {
+ 		w.int64(exp)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 546ddcba79..86277e69bd 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -372,7 +372,7 @@ func (p *importReader) value(typ *types.Type) constant.Value {
+ 	case constant.Int:
+ 		var i big.Int
+ 		p.mpint(&i, typ)
+-		return makeInt(&i)
++		return constant.Make(&i)
+ 	case constant.Float:
+ 		return p.float(typ)
+ 	case constant.Complex:

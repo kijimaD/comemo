@@ -9,7 +9,109 @@ Date:   Fri Dec 21 14:19:33 2012 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7004044
-
+---
  src/pkg/net/conn_test.go       | 16 +++++++++-------
  src/pkg/net/packetconn_test.go | 21 ++++++++++++---------
  2 files changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/net/conn_test.go b/src/pkg/net/conn_test.go
+index 037ce80505..f733a81a3b 100644
+--- a/src/pkg/net/conn_test.go
++++ b/src/pkg/net/conn_test.go
+@@ -17,8 +17,8 @@ var connTests = []struct {
+ 	addr string
+ }{
+ 	{"tcp", "127.0.0.1:0"},
+-	{"unix", "/tmp/gotest.net"},
+-	{"unixpacket", "/tmp/gotest.net"},
++	{"unix", "/tmp/gotest.net1"},
++	{"unixpacket", "/tmp/gotest.net2"},
+ }
+ 
+ func TestConnAndListener(t *testing.T) {
+@@ -41,7 +41,13 @@ func TestConnAndListener(t *testing.T) {
+ 			return
+ 		}
+ 		ln.Addr()
+-		defer ln.Close()
++		defer func(ln net.Listener, net, addr string) {
++			ln.Close()
++			switch net {
++			case "unix", "unixpacket":
++				os.Remove(addr)
++			}
++		}(ln, tt.net, tt.addr)
+ 
+ 		done := make(chan int)
+ 		go transponder(t, ln, done)
+@@ -68,10 +74,6 @@ func TestConnAndListener(t *testing.T) {
+ 		}
+ 
+ 		<-done
+-		switch tt.net {
+-		case "unix", "unixpacket":
+-			os.Remove(tt.addr)
+-		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/packetconn_test.go b/src/pkg/net/packetconn_test.go
+index 5075baa609..ff29e24a9a 100644
+--- a/src/pkg/net/packetconn_test.go
++++ b/src/pkg/net/packetconn_test.go
+@@ -24,6 +24,15 @@ var packetConnTests = []struct {
+ }
+ 
+ func TestPacketConn(t *testing.T) {
++	closer := func(c net.PacketConn, net, addr1, addr2 string) {
++		c.Close()
++		switch net {
++		case "unixgram":
++			os.Remove(addr1)
++			os.Remove(addr2)
++		}
++	}
++
+ 	for _, tt := range packetConnTests {
+ 		var wb []byte
+ 		netstr := strings.Split(tt.net, ":")
+@@ -39,7 +48,7 @@ func TestPacketConn(t *testing.T) {
+ 				continue
+ 			}
+ 			id := os.Getpid() & 0xffff
+-			wb = newICMPEchoRequest(id, 1, 128, []byte("IP PACKETCONN TEST "))
++			wb = newICMPEchoRequest(id, 1, 128, []byte("IP PACKETCONN TEST"))
+ 		case "unixgram":
+ 			switch runtime.GOOS {
+ 			case "plan9", "windows":
+@@ -60,7 +69,7 @@ func TestPacketConn(t *testing.T) {
+ 		c1.SetDeadline(time.Now().Add(100 * time.Millisecond))
+ 		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+ 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+-		defer c1.Close()
++		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
+ 
+ 		c2, err := net.ListenPacket(tt.net, tt.addr2)
+ 		if err != nil {
+@@ -70,7 +79,7 @@ func TestPacketConn(t *testing.T) {
+ 		c2.SetDeadline(time.Now().Add(100 * time.Millisecond))
+ 		c2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+ 		c2.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+-		defer c2.Close()
++		defer closer(c2, netstr[0], tt.addr1, tt.addr2)
+ 
+ 		if _, err := c1.WriteTo(wb, c2.LocalAddr()); err != nil {
+ 			t.Fatalf("net.PacketConn.WriteTo failed: %v", err)
+@@ -86,12 +95,6 @@ func TestPacketConn(t *testing.T) {
+ 		if _, _, err := c1.ReadFrom(rb1); err != nil {
+ 			t.Fatalf("net.PacketConn.ReadFrom failed: %v", err)
+ 		}
+-
+-		switch netstr[0] {
+-		case "unixgram":
+-			os.Remove(tt.addr1)
+-			os.Remove(tt.addr2)
+-		}
+ 	}
+ }
+ 

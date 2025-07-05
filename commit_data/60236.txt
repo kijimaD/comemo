@@ -13,6 +13,20 @@ Date:   Thu May 30 19:37:37 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/poll/fd_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 5797ab65bb..2535a3ae4d 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -687,7 +687,7 @@ func (fd *FD) Dup() (int, string, error) {
+ 
+ // On Unix variants only, expose the IO event for the net code.
+ 
+-// WaitWrite waits until data can be read from fd.
++// WaitWrite waits until data can be written to fd.
+ func (fd *FD) WaitWrite() error {
+ 	return fd.pd.waitWrite(fd.isFile)
+ }

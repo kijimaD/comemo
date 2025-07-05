@@ -29,7 +29,7 @@ Date:   Fri Apr 27 16:03:58 2012 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/6127051
-
+---
  src/pkg/image/png/reader.go                        |  31 ++++++++++------
  src/pkg/image/png/reader_test.go                   |  39 +++++++++++++++++++++
  src/pkg/image/png/testdata/benchGray.png           | Bin 0 -> 14709 bytes
@@ -38,3 +38,145 @@ Date:   Fri Apr 27 16:03:58 2012 +1000
  src/pkg/image/png/testdata/benchPaletted.png       | Bin 0 -> 13397 bytes
  src/pkg/image/png/testdata/benchRGB.png            | Bin 0 -> 39571 bytes
  7 files changed, 59 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index fe07d60a91..c781be1837 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -301,6 +301,7 @@ func (d *decoder) decode() (image.Image, error) {
+ 	defer r.Close()
+ 	bitsPerPixel := 0
+ 	maxPalette := uint8(0)
++	pixOffset := 0
+ 	var (
+ 		gray     *image.Gray
+ 		rgba     *image.RGBA
+@@ -423,18 +424,24 @@ func (d *decoder) decode() (image.Image, error) {
+ 				}
+ 			}
+ 		case cbG8:
+-			for x := 0; x < d.width; x++ {
+-				gray.SetGray(x, y, color.Gray{cdat[x]})
+-			}
++			copy(gray.Pix[pixOffset:], cdat)
++			pixOffset += gray.Stride
+ 		case cbGA8:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := cdat[2*x+0]
+ 				nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, cdat[2*x+1]})
+ 			}
+ 		case cbTC8:
++			pix, i, j := rgba.Pix, pixOffset, 0
+ 			for x := 0; x < d.width; x++ {
+-				rgba.SetRGBA(x, y, color.RGBA{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
++				pix[i+0] = cdat[j+0]
++				pix[i+1] = cdat[j+1]
++				pix[i+2] = cdat[j+2]
++				pix[i+3] = 0xff
++				i += 4
++				j += 3
+ 			}
++			pixOffset += rgba.Stride
+ 		case cbP1:
+ 			for x := 0; x < d.width; x += 8 {
+ 				b := cdat[x/8]
+@@ -472,16 +479,18 @@ func (d *decoder) decode() (image.Image, error) {
+ 				}
+ 			}
+ 		case cbP8:
+-			for x := 0; x < d.width; x++ {
+-				if cdat[x] > maxPalette {
+-					return nil, FormatError("palette index out of range")
++			if maxPalette != 255 {
++				for x := 0; x < d.width; x++ {
++					if cdat[x] > maxPalette {
++						return nil, FormatError("palette index out of range")
++					}
+ 				}
+-				paletted.SetColorIndex(x, y, cdat[x])
+ 			}
++			copy(paletted.Pix[pixOffset:], cdat)
++			pixOffset += paletted.Stride
+ 		case cbTCA8:
+-			for x := 0; x < d.width; x++ {
+-				nrgba.SetNRGBA(x, y, color.NRGBA{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+-			}
++			copy(nrgba.Pix[pixOffset:], cdat)
++			pixOffset += nrgba.Stride
+ 		case cbG16:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 24c4ea4480..0d8c1d9cb9 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"image"
+ 	"image/color"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -267,3 +268,41 @@ func TestReaderError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
++	b.StopTimer()
++	data, err := ioutil.ReadFile(filename)
++	if err != nil {
++		b.Fatal(err)
++	}
++	s := string(data)
++	cfg, err := DecodeConfig(strings.NewReader(s))
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.SetBytes(int64(cfg.Width * cfg.Height * bytesPerPixel))
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		Decode(strings.NewReader(s))
++	}
++}
++
++func BenchmarkDecodeGray(b *testing.B) {
++	benchmarkDecode(b, "testdata/benchGray.png", 1)
++}
++
++func BenchmarkDecodeNRGBAGradient(b *testing.B) {
++	benchmarkDecode(b, "testdata/benchNRGBA-gradient.png", 4)
++}
++
++func BenchmarkDecodeNRGBAOpaque(b *testing.B) {
++	benchmarkDecode(b, "testdata/benchNRGBA-opaque.png", 4)
++}
++
++func BenchmarkDecodePaletted(b *testing.B) {
++	benchmarkDecode(b, "testdata/benchPaletted.png", 1)
++}
++
++func BenchmarkDecodeRGB(b *testing.B) {
++	benchmarkDecode(b, "testdata/benchRGB.png", 4)
++}
+diff --git a/src/pkg/image/png/testdata/benchGray.png b/src/pkg/image/png/testdata/benchGray.png
+new file mode 100644
+index 0000000000..42bc6c3a0a
+Binary files /dev/null and b/src/pkg/image/png/testdata/benchGray.png differ
+diff --git a/src/pkg/image/png/testdata/benchNRGBA-gradient.png b/src/pkg/image/png/testdata/benchNRGBA-gradient.png
+new file mode 100644
+index 0000000000..961934ccad
+Binary files /dev/null and b/src/pkg/image/png/testdata/benchNRGBA-gradient.png differ
+diff --git a/src/pkg/image/png/testdata/benchNRGBA-opaque.png b/src/pkg/image/png/testdata/benchNRGBA-opaque.png
+new file mode 100644
+index 0000000000..ca4f4a037d
+Binary files /dev/null and b/src/pkg/image/png/testdata/benchNRGBA-opaque.png differ
+diff --git a/src/pkg/image/png/testdata/benchPaletted.png b/src/pkg/image/png/testdata/benchPaletted.png
+new file mode 100644
+index 0000000000..4b4d5b9928
+Binary files /dev/null and b/src/pkg/image/png/testdata/benchPaletted.png differ
+diff --git a/src/pkg/image/png/testdata/benchRGB.png b/src/pkg/image/png/testdata/benchRGB.png
+new file mode 100644
+index 0000000000..31ac65a3f2
+Binary files /dev/null and b/src/pkg/image/png/testdata/benchRGB.png differ

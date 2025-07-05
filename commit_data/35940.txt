@@ -17,7 +17,7 @@ Date:   Wed Dec 20 19:47:49 2017 -0800
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go           |  6 ++++++
  src/crypto/tls/conn.go             |  7 +++++++
  src/crypto/tls/handshake_client.go |  1 +
@@ -25,3 +25,205 @@ Date:   Wed Dec 20 19:47:49 2017 -0800
  src/crypto/tls/prf.go              | 40 +++++++++++++++++++++++++++++++++++++
  src/crypto/tls/prf_test.go         | 41 ++++++++++++++++++++++++++++++--------
  6 files changed, 89 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index f331c11bda..d3beb619f9 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -162,6 +162,12 @@ type ConnectionState struct {
+ 	SignedCertificateTimestamps [][]byte              // SCTs from the server, if any
+ 	OCSPResponse                []byte                // stapled OCSP response from server, if any
+ 
++	// ExportKeyMaterial returns length bytes of exported key material as
++	// defined in https://tools.ietf.org/html/rfc5705. If context is nil, it is
++	// not used as part of the seed. If Config.Renegotiation was set to allow
++	// renegotiation, this function will always return nil, false.
++	ExportKeyingMaterial func(label string, context []byte, length int) ([]byte, bool)
++
+ 	// TLSUnique contains the "tls-unique" channel binding value (see RFC
+ 	// 5929, section 3). For resumed sessions this value will be nil
+ 	// because resumption does not include enough context (see
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 31c5053870..ec5c903c03 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -58,6 +58,8 @@ type Conn struct {
+ 	// renegotiation extension. (This is meaningless as a server because
+ 	// renegotiation is not supported in that case.)
+ 	secureRenegotiation bool
++	// ekm is a closure for exporting keying material.
++	ekm func(label string, context []byte, length int) ([]byte, bool)
+ 
+ 	// clientFinishedIsFirst is true if the client sent the first Finished
+ 	// message during the most recent handshake. This is recorded because
+@@ -1376,6 +1378,11 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 				state.TLSUnique = c.serverFinished[:]
+ 			}
+ 		}
++		if c.config.Renegotiation != RenegotiateNever {
++			state.ExportKeyingMaterial = noExportedKeyingMaterial
++		} else {
++			state.ExportKeyingMaterial = c.ekm
++		}
+ 	}
+ 
+ 	return state
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index e5e0df2ee3..62bb1d06c6 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -265,6 +265,7 @@ func (hs *clientHandshakeState) handshake() error {
+ 		}
+ 	}
+ 
++	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
+ 	c.didResume = isResume
+ 	c.handshakeComplete = true
+ 
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 991b4e9e62..dfb9a59a16 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -103,6 +103,8 @@ func (c *Conn) serverHandshake() error {
+ 			return err
+ 		}
+ 	}
++
++	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
+ 	c.handshakeComplete = true
+ 
+ 	return nil
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 74438f8bc8..93a638819d 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -360,3 +360,43 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, signatureAlgorithm
+ func (h *finishedHash) discardHandshakeBuffer() {
+ 	h.buffer = nil
+ }
++
++// noExportedKeyingMaterial is used as a value of
++// ConnectionState.ExportKeyingMaterial when renegotation is enabled and thus
++// we wish to fail all key-material export requests.
++func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, bool) {
++	return nil, false
++}
++
++// ekmFromMasterSecret generates exported keying material as defined in
++// https://tools.ietf.org/html/rfc5705.
++func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, bool) {
++	return func(label string, context []byte, length int) ([]byte, bool) {
++		switch label {
++		case "client finished", "server finished", "master secret", "key expansion":
++			// These values are reserved and may not be used.
++			return nil, false
++		}
++
++		seedLen := len(serverRandom) + len(clientRandom)
++		if context != nil {
++			seedLen += 2 + len(context)
++		}
++		seed := make([]byte, 0, seedLen)
++
++		seed = append(seed, clientRandom...)
++		seed = append(seed, serverRandom...)
++
++		if context != nil {
++			if len(context) >= 1<<16 {
++				return nil, false
++			}
++			seed = append(seed, byte(len(context)>>8), byte(len(context)))
++			seed = append(seed, context...)
++		}
++
++		keyMaterial := make([]byte, length)
++		prfForVersion(version, suite)(keyMaterial, masterSecret, []byte(label), seed)
++		return keyMaterial, true
++	}
++}
+diff --git a/src/crypto/tls/prf_test.go b/src/crypto/tls/prf_test.go
+index 0a1b1bcbd1..80af32c6ce 100644
+--- a/src/crypto/tls/prf_test.go
++++ b/src/crypto/tls/prf_test.go
+@@ -34,14 +34,15 @@ func TestSplitPreMasterSecret(t *testing.T) {
+ }
+ 
+ type testKeysFromTest struct {
+-	version                    uint16
+-	suite                      *cipherSuite
+-	preMasterSecret            string
+-	clientRandom, serverRandom string
+-	masterSecret               string
+-	clientMAC, serverMAC       string
+-	clientKey, serverKey       string
+-	macLen, keyLen             int
++	version                                        uint16
++	suite                                          *cipherSuite
++	preMasterSecret                                string
++	clientRandom, serverRandom                     string
++	masterSecret                                   string
++	clientMAC, serverMAC                           string
++	clientKey, serverKey                           string
++	macLen, keyLen                                 int
++	contextKeyingMaterial, noContextKeyingMaterial string
+ }
+ 
+ func TestKeysFromPreMasterSecret(t *testing.T) {
+@@ -67,6 +68,22 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 			serverKeyString != test.serverKey {
+ 			t.Errorf("#%d: got: (%s, %s, %s, %s) want: (%s, %s, %s, %s)", i, clientMACString, serverMACString, clientKeyString, serverKeyString, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
+ 		}
++
++		ekm := ekmFromMasterSecret(test.version, test.suite, masterSecret, clientRandom, serverRandom)
++		contextKeyingMaterial, ok := ekm("label", []byte("context"), 32)
++		if !ok {
++			t.Fatalf("ekmFromMasterSecret failed")
++		}
++
++		noContextKeyingMaterial, ok := ekm("label", nil, 32)
++		if !ok {
++			t.Fatalf("ekmFromMasterSecret failed")
++		}
++
++		if hex.EncodeToString(contextKeyingMaterial) != test.contextKeyingMaterial ||
++			hex.EncodeToString(noContextKeyingMaterial) != test.noContextKeyingMaterial {
++			t.Errorf("#%d: got keying material: (%s, %s) want: (%s, %s)", i, contextKeyingMaterial, noContextKeyingMaterial, test.contextKeyingMaterial, test.noContextKeyingMaterial)
++		}
+ 	}
+ }
+ 
+@@ -94,6 +111,8 @@ var testKeysFromTests = []testKeysFromTest{
+ 		"e076e33206b30507a85c32855acd0919",
+ 		20,
+ 		16,
++		"4d1bb6fc278c37d27aa6e2a13c2e079095d143272c2aa939da33d88c1c0cec22",
++		"93fba89599b6321ae538e27c6548ceb8b46821864318f5190d64a375e5d69d41",
+ 	},
+ 	{
+ 		VersionTLS10,
+@@ -108,6 +127,8 @@ var testKeysFromTests = []testKeysFromTest{
+ 		"df3f94f6e1eacc753b815fe16055cd43",
+ 		20,
+ 		16,
++		"2c9f8961a72b97cbe76553b5f954caf8294fc6360ef995ac1256fe9516d0ce7f",
++		"274f19c10291d188857ad8878e2119f5aa437d4da556601cf1337aff23154016",
+ 	},
+ 	{
+ 		VersionTLS10,
+@@ -122,6 +143,8 @@ var testKeysFromTests = []testKeysFromTest{
+ 		"ff07edde49682b45466bd2e39464b306",
+ 		20,
+ 		16,
++		"678b0d43f607de35241dc7e9d1a7388a52c35033a1a0336d4d740060a6638fe2",
++		"f3b4ac743f015ef21d79978297a53da3e579ee047133f38c234d829c0f907dab",
+ 	},
+ 	{
+ 		VersionSSL30,
+@@ -136,5 +159,7 @@ var testKeysFromTests = []testKeysFromTest{
+ 		"2b9d4b4a60cb7f396780ebff50650419",
+ 		20,
+ 		16,
++		"d230d8fc4f695be60368635e5268c414ca3ae0995dd93aba9f877272049f35bf",
++		"6b5e9646e04df8e99482a9b22dbfbe42ddd4725e4b041d02d11e4ef44ad13120",
+ 	},
+ }

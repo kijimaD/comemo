@@ -13,7 +13,48 @@ Date:   Thu Oct 12 13:49:49 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/70251
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/method2.go |  4 ++++
  test/method6.go | 22 ++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/test/method2.go b/test/method2.go
+index e55aee429b..a45a943156 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -35,3 +35,7 @@ var pv = &v
+ 
+ var _ = pv.val() // ERROR "pv.val undefined"
+ var _ = pv.val   // ERROR "pv.val undefined"
++
++func (t *T) g() int { return t.a }
++
++var _ = (T).g() // ERROR "needs pointer receiver|undefined"
+diff --git a/test/method6.go b/test/method6.go
+new file mode 100644
+index 0000000000..20eccce413
+--- /dev/null
++++ b/test/method6.go
+@@ -0,0 +1,22 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that pointer method calls are caught during typechecking.
++// Reproducer extracted and adapted from method.go
++
++package foo
++
++type A struct {
++	B
++}
++type B int
++
++func (*B) g() {}
++
++var _ = func() {
++	var a A
++	A(a).g() // ERROR "cannot call pointer method on|cannot take the address of"
++}

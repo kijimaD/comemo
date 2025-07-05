@@ -15,9 +15,155 @@ Date:   Thu Mar 5 11:29:24 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222240
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go      | 20 ++++++++++++++++++++
  src/cmd/internal/goobj2/objfile_test.go | 29 +++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go         | 11 ++++++-----
  src/cmd/link/internal/loader/loader.go  | 21 +++++++++++++++++++++
  4 files changed, 76 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 8049ca7f31..6d9b0f9e8d 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -307,6 +307,20 @@ func (r *Reloc) Size() int {
+ 	return 4 + 1 + 1 + 8 + r.Sym.Size()
+ }
+ 
++// XXX experiment with another way of accessing relocations.
++
++const RelocSize = 22 // TODO: is it possible to not hard-code this?
++
++type Reloc2 [RelocSize]byte
++
++func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
++func (r *Reloc2) Siz() uint8  { return r[4] }
++func (r *Reloc2) Type() uint8 { return r[5] }
++func (r *Reloc2) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
++func (r *Reloc2) Sym() SymRef {
++	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
++}
++
+ // Aux symbol info.
+ type Aux struct {
+ 	Type uint8
+@@ -566,6 +580,12 @@ func (r *Reader) RelocOff(i int, j int) uint32 {
+ 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(relocsiz)
+ }
+ 
++// Reloc2 returns a pointer to the j-th relocation of the i-th symbol.
++func (r *Reader) Reloc2(i int, j int) *Reloc2 {
++	off := r.RelocOff(i, j)
++	return (*Reloc2)(unsafe.Pointer(&r.b[off]))
++}
++
+ // NAux returns the number of aux symbols of the i-th symbol.
+ func (r *Reader) NAux(i int) int {
+ 	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
+diff --git a/src/cmd/internal/goobj2/objfile_test.go b/src/cmd/internal/goobj2/objfile_test.go
+new file mode 100644
+index 0000000000..eea97d4756
+--- /dev/null
++++ b/src/cmd/internal/goobj2/objfile_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package goobj2
++
++import (
++	"bufio"
++	"bytes"
++	"cmd/internal/bio"
++	"testing"
++)
++
++func dummyWriter() *Writer {
++	var buf bytes.Buffer
++	wr := &bio.Writer{Writer: bufio.NewWriter(&buf)} // hacky: no file, so cannot seek
++	return NewWriter(wr)
++}
++
++func TestSize(t *testing.T) {
++	// This test checks that hard-coded sizes match the actual sizes
++	// in the object file format.
++	w := dummyWriter()
++	(&Reloc{}).Write(w)
++	off := w.off
++	if sz := uint32(RelocSize); off != sz {
++		t.Errorf("size mismatch: %d bytes written, but size=%d", off, sz)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 6f222ce10c..d7d52a579b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2266,14 +2266,15 @@ func (sc *stkChk) check(up *chain, depth int) int {
+ 
+ 		// Process calls in this span.
+ 		for i := 0; i < relocs.Count; i++ {
+-			r := relocs.At(i)
+-			if uint32(r.Off) >= pcsp.NextPC {
++			r := relocs.At2(i)
++			if uint32(r.Off()) >= pcsp.NextPC {
+ 				break
+ 			}
++			t := r.Type()
+ 			switch {
+-			case r.Type.IsDirectCall():
++			case t.IsDirectCall():
+ 				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
+-				ch.sym = r.Sym
++				ch.sym = r.Sym()
+ 				if sc.check(&ch, depth+1) < 0 {
+ 					return -1
+ 				}
+@@ -2282,7 +2283,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
+ 			// so we have to make sure it can call morestack.
+ 			// Arrange the data structures to report both calls, so that
+ 			// if there is an error, stkprint shows all the steps involved.
+-			case r.Type == objabi.R_CALLIND:
++			case t == objabi.R_CALLIND:
+ 				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
+ 				ch.sym = 0
+ 				ch1.limit = ch.limit - callsize(ctxt) // for morestack in called prologue
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 5d29aa59a6..979d94402e 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -49,6 +49,17 @@ type Reloc struct {
+ 	Sym  Sym              // global index of symbol the reloc addresses
+ }
+ 
++// Reloc2 holds a "handle" to access a relocation record from an
++// object file.
++type Reloc2 struct {
++	*goobj2.Reloc2
++	r *oReader
++	l *Loader
++}
++
++func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) }
++func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
++
+ // oReader is a wrapper type of obj.Reader, along with some
+ // extra information.
+ // TODO: rename to objReader once the old one is gone?
+@@ -1435,6 +1446,16 @@ func (relocs *Relocs) At(j int) Reloc {
+ 	}
+ }
+ 
++func (relocs *Relocs) At2(j int) Reloc2 {
++	if relocs.l.isExtReader(relocs.r) {
++		// TODO: implement this. How? Maybe we can construct the reloc
++		// data for external symbols in the same byte form as the one
++		// in the object file?
++		panic("not implemented")
++	}
++	return Reloc2{relocs.r.Reloc2(relocs.li, j), relocs.r, relocs.l}
++}
++
+ // ReadAll method reads all relocations for a symbol into the
+ // specified slice. If the slice capacity is not large enough, a new
+ // larger slice will be allocated. Final slice is returned.

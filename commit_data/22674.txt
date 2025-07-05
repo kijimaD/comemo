@@ -7,6 +7,19 @@ Date:   Wed Apr 1 16:33:43 2015 -0700
     Change-Id: I7b0c186ea292655f7ff45c15ac29f6d1b71ef132
     Reviewed-on: https://go-review.googlesource.com/8370
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 88e6dbcc8a..2a8ad2116e 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -23,6 +23,7 @@ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream i
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+ crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
++database/sql: add Stats (https://golang.org/cl/7950)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+ flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/7330)
+ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)

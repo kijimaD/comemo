@@ -10,6 +10,23 @@ Date:   Mon Nov 13 21:21:59 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78111
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/bytes/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 9921a207b1..00e39cadcb 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -383,9 +383,9 @@ func ExampleMap() {
+ }
+ 
+ func ExampleTrimLeft() {
+-	fmt.Print(string(bytes.TrimLeft([]byte("+ 005400"), "+0 ")))
++	fmt.Print(string(bytes.TrimLeft([]byte("453gopher8257"), "0123456789")))
+ 	// Output:
+-	// 5400
++	// gopher8257
+ }
+ 
+ func ExampleTrimLeftFunc() {

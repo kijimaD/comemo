@@ -8,7 +8,57 @@ Date:   Wed Apr 15 00:26:49 2009 -0700
     DELTA=10  (10 added, 0 deleted, 0 changed)
     OCL=27479
     CL=27481
-
+---
  src/lib/template/template.go      |  2 ++
  src/lib/template/template_test.go | 12 ++++++++++--
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index fbffa9562b..f81ac0adaf 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -308,6 +308,8 @@ func empty(v reflect.Value, indirect_ok bool) bool {
+ 		return true
+ 	}
+ 	switch v.Type().Kind() {
++	case reflect.StringKind:
++		return v.(reflect.StringValue).Get() == "";
+ 	case reflect.StructKind:
+ 		return false;
+ 	case reflect.ArrayKind:
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index 2124e8d95a..aab0c9cc6e 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -29,6 +29,7 @@ type S struct {
+ 	data []T;
+ 	pdata []*T;
+ 	empty []*T;
++	emptystring string;
+ 	null []*T;
+ }
+ 
+@@ -162,14 +163,21 @@ var tests = []*Test {
+ 		"HEADER=78\n"
+ 		"Header=77\n"
+ 	},
+-	
++
+ 	&Test{
+ 		"{raw}\n"
+ 		"{raw|html}\n",
+-		
++
+ 		"&<>!@ #$%^\n"
+ 		"&amp;&lt;&gt;!@ #$%^\n"
+ 	},
++
++	&Test{
++		"{.section emptystring}emptystring{.end}\n"
++		"{.section header}header{.end}\n",
++
++		"\nheader\n"
++	},
+ }
+ 
+ func TestAll(t *testing.T) {

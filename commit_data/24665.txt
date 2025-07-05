@@ -11,7 +11,58 @@ Date:   Tue Jul 28 15:44:19 2015 -0700
     Change-Id: Ic6b09f38682500ffcc8d1f96e58f7237a7528806
     Reviewed-on: https://go-review.googlesource.com/12812
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go             | 25 ++++++++++++++++++-------
  src/go/types/testdata/issues.src |  6 ++++++
  2 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 542ce76497..dd78756845 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -681,13 +681,24 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 			// constant is what it would be if the shift expression
+ 			// were replaced by its left operand alone.".
+ 			//
+-			// Delay operand checking until we know the final type:
+-			// The lhs expression must be in the untyped map, mark
+-			// the entry as lhs shift operand.
+-			info, found := check.untyped[x.expr]
+-			assert(found)
+-			info.isLhs = true
+-			check.untyped[x.expr] = info
++			// Delay operand checking until we know the final type
++			// by marking the lhs expression as lhs shift operand.
++			//
++			// Usually (in correct programs), the lhs expression
++			// is in the untyped map. However, it is possible to
++			// create incorrect programs where the same expression
++			// is evaluated twice (via a declaration cycle) such
++			// that the lhs expression type is determined in the
++			// first round and thus deleted from the map, and then
++			// not found in the second round (double insertion of
++			// the same expr node still just leads to one entry for
++			// that node, and it can only be deleted once).
++			// Be cautious and check for presence of entry.
++			// Example: var e, f = int(1<<""[f]) // issue 11347
++			if info, found := check.untyped[x.expr]; found {
++				info.isLhs = true
++				check.untyped[x.expr] = info
++			}
+ 			// keep x's type
+ 			x.mode = value
+ 			return
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 595a6342b7..9e2c901a28 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -95,3 +95,9 @@ func issue10979() {
+ 		m()
+ 	}
+ }
++
++// issue11347
++// These should not crash.
++var a1, b1 /* ERROR cycle */ , c1 /* ERROR cycle */ b1 = 0 > 0<<""[""[c1]]>c1
++var a2, b2 /* ERROR cycle */ = 0 /* ERROR mismatch */ /* ERROR mismatch */ > 0<<""[b2]
++var a3, b3 /* ERROR cycle */ = int /* ERROR mismatch */ /* ERROR mismatch */ (1<<""[b3])

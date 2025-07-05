@@ -22,7 +22,7 @@ Date:   Thu Feb 15 23:59:52 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go.mod                                     |    2 +-
  src/cmd/go.sum                                     |   20 +-
  .../github.com/google/pprof/driver/driver.go       |    7 +-
@@ -62,3 +62,3057 @@ Date:   Thu Feb 15 23:59:52 2024 -0500
  .../google/pprof/third_party/svgpan/svgpan.js      |  261 +++++
  src/cmd/vendor/modules.txt                         |    3 +-
  38 files changed, 395 insertions(+), 2097 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 049371e59c..e00ff68f4a 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.23
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
++	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+ 	golang.org/x/arch v0.7.0
+ 	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+ 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 7342b23f19..abbeed70c5 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,9 +1,25 @@
++github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89 h1:aPflPkRFkVwbW6dmcVqfgwp1i+UWGFH6VgR1Jim5Ygc=
++github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89/go.mod h1:GKljq0VrfU4D5yc+2qA6OVr8pmO/MBbPEWqWQ/oqGEs=
++github.com/chromedp/chromedp v0.9.2 h1:dKtNz4kApb06KuSXoTQIyUC2TrA0fhGDwNZf3bcgfKw=
++github.com/chromedp/chromedp v0.9.2/go.mod h1:LkSXJKONWTCHAfQasKFUZI+mxqS4tZqhmtGzzhLsnLs=
++github.com/chromedp/sysutil v1.0.0 h1:+ZxhTpfpZlmchB58ih/LBHX52ky7w2VhQVKQMucy3Ic=
++github.com/chromedp/sysutil v1.0.0/go.mod h1:kgWmDdq8fTzXYcKIBqIYvRRTnYb9aNS9moAV0xufSww=
++github.com/gobwas/httphead v0.1.0 h1:exrUm0f4YX0L7EBwZHuCF4GDp8aJfVeBrlLQrs6NqWU=
++github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
++github.com/gobwas/pool v0.2.1 h1:xfeeEhW7pwmX8nuLVlqbzVc7udMDrwetjEv+TZIz1og=
++github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
++github.com/gobwas/ws v1.2.1 h1:F2aeBZrm2NDsc7vbovKrWSogd4wvfAxg0FQ89/iqOTk=
++github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
+ github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
+ github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+-github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17 h1:0h35ESZ02+hN/MFZb7XZOXg+Rl9+Rk8fBIf5YLws9gA=
+-github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17/go.mod h1:Jh3hGz2jkYak8qXPD19ryItVnUgpgeqzdkY/D0EaeuA=
++github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 h1:E/LAvt58di64hlYjx7AsNS6C/ysHWYo+2qPCZKTQhRo=
++github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe6ZTd9F8kXETBoijjFJ/ntaa//1wiH9BZu4zU=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
++github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8HmY=
++github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
++github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
++github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index 5a8222f70a..d5860036c3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -186,9 +186,10 @@ type ObjFile interface {
+ 
+ // A Frame describes a single line in a source file.
+ type Frame struct {
+-	Func string // name of function
+-	File string // source file name
+-	Line int    // line in file
++	Func   string // name of function
++	File   string // source file name
++	Line   int    // line in file
++	Column int    // column in file
+ }
+ 
+ // A Sym describes a single symbol in an object file.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+index 491422fcda..3049545b6b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+@@ -129,6 +129,7 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
+ 	}
+ 
+ 	linenumber := 0
++	columnnumber := 0
+ 	// The llvm-symbolizer outputs the <file_name>:<line_number>:<column_number>.
+ 	// When it cannot identify the source code location, it outputs "??:0:0".
+ 	// Older versions output just the filename and line number, so we check for
+@@ -137,22 +138,27 @@ func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
+ 		fileline = ""
+ 	} else {
+ 		switch split := strings.Split(fileline, ":"); len(split) {
+-		case 1:
+-			// filename
+-			fileline = split[0]
+-		case 2, 3:
+-			// filename:line , or
+-			// filename:line:disc , or
+-			fileline = split[0]
++		case 3:
++			// filename:line:column
++			if col, err := strconv.Atoi(split[2]); err == nil {
++				columnnumber = col
++			}
++			fallthrough
++		case 2:
++			// filename:line
+ 			if line, err := strconv.Atoi(split[1]); err == nil {
+ 				linenumber = line
+ 			}
++			fallthrough
++		case 1:
++			// filename
++			fileline = split[0]
+ 		default:
+ 			// Unrecognized, ignore
+ 		}
+ 	}
+ 
+-	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber}, false
++	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber, Column: columnnumber}, false
+ }
+ 
+ // addrInfo returns the stack frame information for a specific program
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+index c9edf10bb4..f990780d75 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+@@ -247,6 +247,8 @@ var configHelp = map[string]string{
+ 	"noinlines": helpText(
+ 		"Ignore inlines.",
+ 		"Attributes inlined functions to their first out-of-line caller."),
++	"showcolumns": helpText(
++		"Show column numbers at the source code line level."),
+ }
+ 
+ func helpText(s ...string) string {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
+index 9fcdd459b2..f7d227416e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
+@@ -51,6 +51,7 @@ type config struct {
+ 	TagShow      string  `json:"tagshow,omitempty"`
+ 	TagHide      string  `json:"taghide,omitempty"`
+ 	NoInlines    bool    `json:"noinlines,omitempty"`
++	ShowColumns  bool    `json:"showcolumns,omitempty"`
+ 
+ 	// Output granularity
+ 	Granularity string `json:"granularity,omitempty"`
+@@ -157,6 +158,7 @@ func init() {
+ 		"sort":                 "sort",
+ 		"granularity":          "g",
+ 		"noinlines":            "noinlines",
++		"showcolumns":          "showcolumns",
+ 	}
+ 
+ 	def := defaultConfig()
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 27681c540f..74ce8cb422 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -256,7 +256,7 @@ func aggregate(prof *profile.Profile, cfg config) error {
+ 	default:
+ 		return fmt.Errorf("unexpected granularity")
+ 	}
+-	return prof.Aggregate(inlines, function, filename, linenumber, address)
++	return prof.Aggregate(inlines, function, filename, linenumber, cfg.ShowColumns, address)
+ }
+ 
+ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg config) (*report.Options, error) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index 584c5d85e0..95204a394f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -492,17 +492,23 @@ mapping:
+ func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, src string, err error) {
+ 	var f io.ReadCloser
+ 
+-	if sourceURL, timeout := adjustURL(source, duration, timeout); sourceURL != "" {
+-		ui.Print("Fetching profile over HTTP from " + sourceURL)
+-		if duration > 0 {
+-			ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
++	// First determine whether the source is a file, if not, it will be treated as a URL.
++	if _, openErr := os.Stat(source); openErr == nil {
++		if isPerfFile(source) {
++			f, err = convertPerfData(source, ui)
++		} else {
++			f, err = os.Open(source)
+ 		}
+-		f, err = fetchURL(sourceURL, timeout, tr)
+-		src = sourceURL
+-	} else if isPerfFile(source) {
+-		f, err = convertPerfData(source, ui)
+ 	} else {
+-		f, err = os.Open(source)
++		sourceURL, timeout := adjustURL(source, duration, timeout)
++		if sourceURL != "" {
++			ui.Print("Fetching profile over HTTP from " + sourceURL)
++			if duration > 0 {
++				ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
++			}
++			f, err = fetchURL(sourceURL, timeout, tr)
++			src = sourceURL
++		}
+ 	}
+ 	if err == nil {
+ 		defer f.Close()
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+deleted file mode 100644
+index fbeb765dbc..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
++++ /dev/null
+@@ -1,106 +0,0 @@
+-// Copyright 2017 Google Inc. All Rights Reserved.
+-//
+-// Licensed under the Apache License, Version 2.0 (the "License");
+-// you may not use this file except in compliance with the License.
+-// You may obtain a copy of the License at
+-//
+-//     http://www.apache.org/licenses/LICENSE-2.0
+-//
+-// Unless required by applicable law or agreed to in writing, software
+-// distributed under the License is distributed on an "AS IS" BASIS,
+-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-// See the License for the specific language governing permissions and
+-// limitations under the License.
+-
+-package driver
+-
+-import (
+-	"encoding/json"
+-	"html/template"
+-	"net/http"
+-	"strings"
+-
+-	"github.com/google/pprof/internal/graph"
+-	"github.com/google/pprof/internal/measurement"
+-	"github.com/google/pprof/internal/report"
+-)
+-
+-type treeNode struct {
+-	Name      string      `json:"n"`
+-	FullName  string      `json:"f"`
+-	Cum       int64       `json:"v"`
+-	CumFormat string      `json:"l"`
+-	Percent   string      `json:"p"`
+-	Children  []*treeNode `json:"c"`
+-}
+-
+-// flamegraph generates a web page containing a flamegraph.
+-func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
+-	// Force the call tree so that the graph is a tree.
+-	// Also do not trim the tree so that the flame graph contains all functions.
+-	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
+-		cfg.CallTree = true
+-		cfg.Trim = false
+-	})
+-	if rpt == nil {
+-		return // error already reported
+-	}
+-
+-	// Generate dot graph.
+-	g, config := report.GetDOT(rpt)
+-	var nodes []*treeNode
+-	nroots := 0
+-	rootValue := int64(0)
+-	nodeArr := []string{}
+-	nodeMap := map[*graph.Node]*treeNode{}
+-	// Make all nodes and the map, collect the roots.
+-	for _, n := range g.Nodes {
+-		v := n.CumValue()
+-		fullName := n.Info.PrintableName()
+-		node := &treeNode{
+-			Name:      graph.ShortenFunctionName(fullName),
+-			FullName:  fullName,
+-			Cum:       v,
+-			CumFormat: config.FormatValue(v),
+-			Percent:   strings.TrimSpace(measurement.Percentage(v, config.Total)),
+-		}
+-		nodes = append(nodes, node)
+-		if len(n.In) == 0 {
+-			nodes[nroots], nodes[len(nodes)-1] = nodes[len(nodes)-1], nodes[nroots]
+-			nroots++
+-			rootValue += v
+-		}
+-		nodeMap[n] = node
+-		// Get all node names into an array.
+-		nodeArr = append(nodeArr, n.Info.Name)
+-	}
+-	// Populate the child links.
+-	for _, n := range g.Nodes {
+-		node := nodeMap[n]
+-		for child := range n.Out {
+-			node.Children = append(node.Children, nodeMap[child])
+-		}
+-	}
+-
+-	rootNode := &treeNode{
+-		Name:      "root",
+-		FullName:  "root",
+-		Cum:       rootValue,
+-		CumFormat: config.FormatValue(rootValue),
+-		Percent:   strings.TrimSpace(measurement.Percentage(rootValue, config.Total)),
+-		Children:  nodes[0:nroots],
+-	}
+-
+-	// JSON marshalling flame graph
+-	b, err := json.Marshal(rootNode)
+-	if err != nil {
+-		http.Error(w, "error serializing flame graph", http.StatusInternalServerError)
+-		ui.options.UI.PrintErr(err)
+-		return
+-	}
+-
+-	ui.render(w, req, "flamegraph", rpt, errList, config.Labels, webArgs{
+-		FlameGraph: template.JS(b),
+-		Nodes:      nodeArr,
+-	})
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
+index ff980f66de..4a2067eb68 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
+@@ -558,11 +558,6 @@ function viewer(baseUrl, nodes, options) {
+     return null;
+   }
+ 
+-  // convert a string to a regexp that matches that string.
+-  function quotemeta(str) {
+-    return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
+-  }
+-
+   function setSampleIndexLink(si) {
+     const elem = document.getElementById('sampletype-' + si);
+     if (elem != null) {
+@@ -595,7 +590,7 @@ function viewer(baseUrl, nodes, options) {
+       // list-based.  Construct regular expression depending on mode.
+       let re = regexpActive
+           ? search.value
+-          : Array.from(getSelection().keys()).map(key => quotemeta(nodes[key])).join('|');
++          : Array.from(getSelection().keys()).map(key => pprofQuoteMeta(nodes[key])).join('|');
+ 
+       setHrefParams(elem, function (params) {
+         if (re != '') {
+@@ -683,7 +678,7 @@ function viewer(baseUrl, nodes, options) {
+   }
+ 
+   const ids = ['topbtn', 'graphbtn',
+-               'flamegraph', 'flamegraph2', 'flamegraphold',
++               'flamegraph',
+                'peek', 'list',
+                'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
+   ids.forEach(makeSearchLinkDynamic);
+@@ -712,3 +707,8 @@ function viewer(baseUrl, nodes, options) {
+     main.focus();
+   }
+ }
++
++// convert a string to a regexp that matches exactly that string.
++function pprofQuoteMeta(str) {
++  return '^' + str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1') + '$';
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/flamegraph.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/flamegraph.html
+deleted file mode 100644
+index 9866755bcd..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/flamegraph.html
++++ /dev/null
+@@ -1,103 +0,0 @@
+-<!DOCTYPE html>
+-<html>
+-<head>
+-  <meta charset="utf-8">
+-  <title>{{.Title}}</title>
+-  {{template "css" .}}
+-  <style type="text/css">{{template "d3flamegraphcss" .}}</style>
+-  <style type="text/css">
+-    .flamegraph-content {
+-      width: 90%;
+-      min-width: 80%;
+-      margin-left: 5%;
+-    }
+-    .flamegraph-details {
+-      height: 1.2em;
+-      width: 90%;
+-      min-width: 90%;
+-      margin-left: 5%;
+-      padding: 15px 0 35px;
+-    }
+-  </style>
+-</head>
+-<body>
+-  {{template "header" .}}
+-  <div id="bodycontainer">
+-    <div id="flamegraphdetails" class="flamegraph-details"></div>
+-    <div class="flamegraph-content">
+-      <div id="chart"></div>
+-    </div>
+-  </div>
+-  {{template "script" .}}
+-  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
+-  <script>{{template "d3flamegraphscript" .}}</script>
+-  <script>
+-    {{- /* Deserialize as JSON instead of a JS object literal because the browser's
+-           JSON parser can handle larger payloads than its JS parser. */ -}}
+-    var data = JSON.parse("{{.FlameGraph}}");
+-
+-    var width = document.getElementById('chart').clientWidth;
+-
+-    var flameGraph = flamegraph()
+-      .width(width)
+-      .cellHeight(18)
+-      .minFrameSize(1)
+-      .transitionDuration(750)
+-      .inverted(true)
+-      .sort(true)
+-      .title('')
+-      .tooltip(false)
+-      .setDetailsElement(document.getElementById('flamegraphdetails'));
+-
+-    // <full name> (percentage, value)
+-    flameGraph.label((d) => d.data.f + ' (' + d.data.p + ', ' + d.data.l + ')');
+-
+-    flameGraph.setColorHue('warm');
+-
+-    select('#chart')
+-      .datum(data)
+-      .call(flameGraph);
+-
+-    function clear() {
+-      flameGraph.clear();
+-    }
+-
+-    function resetZoom() {
+-      flameGraph.resetZoom();
+-    }
+-
+-    window.addEventListener('resize', function() {
+-      var width = document.getElementById('chart').clientWidth;
+-      var graphs = document.getElementsByClassName('d3-flame-graph');
+-      if (graphs.length > 0) {
+-        graphs[0].setAttribute('width', width);
+-      }
+-      flameGraph.width(width);
+-      flameGraph.resetZoom();
+-    }, true);
+-
+-    var search = document.getElementById('search');
+-    var searchAlarm = null;
+-
+-    function selectMatching() {
+-      searchAlarm = null;
+-
+-      if (search.value != '') {
+-        flameGraph.search(search.value);
+-      } else {
+-        flameGraph.clear();
+-      }
+-    }
+-
+-    function handleSearch() {
+-      // Delay expensive processing so a flurry of key strokes is handled once.
+-      if (searchAlarm != null) {
+-        clearTimeout(searchAlarm);
+-      }
+-      searchAlarm = setTimeout(selectMatching, 300);
+-    }
+-
+-    search.addEventListener('input', handleSearch);
+-  </script>
+-</body>
+-</html>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
+index 42cb7960e6..e946e6b882 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
+@@ -12,7 +12,6 @@
+       <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
+       <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
+       <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
+-      <a title="{{.Help.flamegraphold}}" href="./flamegraphold" id="flamegraphold">Flame Graph (old)</a>
+       <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
+       <a title="{{.Help.list}}" href="./source" id="list">Source</a>
+       <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+index be78edd553..c8059fe6bf 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+@@ -75,8 +75,12 @@ function stackViewer(stacks, nodes) {
+     hiliter: (n, on) => { return hilite(n, on); },
+     current: () => {
+       let r = new Map();
+-      for (let p of pivots) {
+-        r.set(p, true);
++      if (pivots.length == 1 && pivots[0] == 0) {
++        // Not pivoting
++      } else {
++        for (let p of pivots) {
++          r.set(p, true);
++        }
+       }
+       return r;
+     }});
+@@ -145,7 +149,7 @@ function stackViewer(stacks, nodes) {
+     }
+ 
+     // Update params to include src.
+-    let v = stacks.Sources[src].RE;
++    let v = pprofQuoteMeta(stacks.Sources[src].FullName);
+     if (param != 'f' && param != 'sf') { // old f,sf values are overwritten
+       // Add new source to current parameter value.
+       const old = params.get(param);
+@@ -174,7 +178,11 @@ function stackViewer(stacks, nodes) {
+   function switchPivots(regexp) {
+     // Switch URL without hitting the server.
+     const url = new URL(document.URL);
+-    url.searchParams.set('p', regexp);
++    if (regexp === '' || regexp === '^$') {
++      url.searchParams.delete('p');  // Not pivoting
++    } else {
++      url.searchParams.set('p', regexp);
++    }
+     history.pushState('', '', url.toString()); // Makes back-button work
+     matches = new Set();
+     search.value = '';
+@@ -445,7 +453,7 @@ function stackViewer(stacks, nodes) {
+       r.appendChild(t);
+     }
+ 
+-    r.addEventListener('click', () => { switchPivots(src.RE); });
++    r.addEventListener('click', () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
+     r.addEventListener('mouseenter', () => { handleEnter(box, r); });
+     r.addEventListener('mouseleave', () => { handleLeave(box); });
+     r.addEventListener('contextmenu', (e) => { showActionMenu(e, box); });
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+index 249dfe0742..6a61613344 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+@@ -22,7 +22,7 @@ import (
+ 	"github.com/google/pprof/internal/report"
+ )
+ 
+-// stackView generates the new flamegraph view.
++// stackView generates the flamegraph view.
+ func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
+ 	// Get all data in a report.
+ 	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/svg.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/svg.go
+index 62767e726d..9cbef4d787 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/svg.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/svg.go
+@@ -65,7 +65,7 @@ func massageSVG(svg string) string {
+ 
+ 	if loc := graphID.FindStringIndex(svg); loc != nil {
+ 		svg = svg[:loc[0]] +
+-			`<script type="text/ecmascript"><![CDATA[` + string(svgpan.JSSource) + `]]></script>` +
++			`<script type="text/ecmascript"><![CDATA[` + svgpan.JSSource + `]]></script>` +
+ 			`<g id="viewport" transform="scale(0.5,0.5) translate(0,0)">` +
+ 			svg[loc[0]:]
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index 55973ffb9f..984936a9d6 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -19,8 +19,6 @@ import (
+ 	"fmt"
+ 	"html/template"
+ 	"os"
+-
+-	"github.com/google/pprof/third_party/d3flamegraph"
+ )
+ 
+ //go:embed html
+@@ -52,11 +50,7 @@ func addTemplates(templates *template.Template) {
+ 		template.Must(templates.AddParseTree(name, sub.Tree))
+ 	}
+ 
+-	// Pre-packaged third-party files.
+-	def("d3flamegraphscript", d3flamegraph.JSSource)
+-	def("d3flamegraphcss", d3flamegraph.CSSSource)
+-
+-	// Embeded files.
++	// Embedded files.
+ 	def("css", loadCSS("html/common.css"))
+ 	def("header", loadFile("html/header.html"))
+ 	def("graph", loadFile("html/graph.html"))
+@@ -64,7 +58,7 @@ func addTemplates(templates *template.Template) {
+ 	def("top", loadFile("html/top.html"))
+ 	def("sourcelisting", loadFile("html/source.html"))
+ 	def("plaintext", loadFile("html/plaintext.html"))
+-	def("flamegraph", loadFile("html/flamegraph.html"))
++	// TODO: Rename "stacks" to "flamegraph" to seal moving off d3 flamegraph.
+ 	def("stacks", loadFile("html/stacks.html"))
+ 	def("stacks_css", loadCSS("html/stacks.css"))
+ 	def("stacks_js", loadJS("html/stacks.js"))
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 41b30021f5..476e1d2cdf 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -112,7 +112,6 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 	ui.help["details"] = "Show information about the profile and this view"
+ 	ui.help["graph"] = "Display profile as a directed graph"
+ 	ui.help["flamegraph"] = "Display profile as a flame graph"
+-	ui.help["flamegraphold"] = "Display profile as a flame graph (old version; slated for removal)"
+ 	ui.help["reset"] = "Show the entire profile"
+ 	ui.help["save_config"] = "Save current settings"
+ 
+@@ -130,9 +129,9 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 			"/disasm":        http.HandlerFunc(ui.disasm),
+ 			"/source":        http.HandlerFunc(ui.source),
+ 			"/peek":          http.HandlerFunc(ui.peek),
+-			"/flamegraphold": http.HandlerFunc(ui.flamegraph),
+ 			"/flamegraph":    http.HandlerFunc(ui.stackView),
+-			"/flamegraph2":   http.HandlerFunc(ui.stackView), // Support older URL
++			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
++			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
+ 			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
+ 			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
+ 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+@@ -209,15 +208,20 @@ func defaultWebServer(args *plugin.HTTPServerArgs) error {
+ 	// https://github.com/google/pprof/pull/348
+ 	mux := http.NewServeMux()
+ 	mux.Handle("/ui/", http.StripPrefix("/ui", handler))
+-	mux.Handle("/", redirectWithQuery("/ui"))
++	mux.Handle("/", redirectWithQuery("/ui", http.StatusTemporaryRedirect))
+ 	s := &http.Server{Handler: mux}
+ 	return s.Serve(ln)
+ }
+ 
+-func redirectWithQuery(path string) http.HandlerFunc {
++// redirectWithQuery responds with a given redirect code, preserving query
++// parameters in the redirect URL. It does not convert relative paths to
++// absolute paths like http.Redirect does, so that HTTPServerArgs.Handlers can
++// generate relative redirects that work with the external prefixing.
++func redirectWithQuery(path string, code int) http.HandlerFunc {
+ 	return func(w http.ResponseWriter, r *http.Request) {
+ 		pathWithQuery := &gourl.URL{Path: path, RawQuery: r.URL.RawQuery}
+-		http.Redirect(w, r, pathWithQuery.String(), http.StatusTemporaryRedirect)
++		w.Header().Set("Location", pathWithQuery.String())
++		w.WriteHeader(code)
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index b64ef27991..5ad10a2ae0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -154,6 +154,7 @@ type NodeInfo struct {
+ 	Address           uint64
+ 	File              string
+ 	StartLine, Lineno int
++	Columnno          int
+ 	Objfile           string
+ }
+ 
+@@ -174,8 +175,12 @@ func (i *NodeInfo) NameComponents() []string {
+ 
+ 	switch {
+ 	case i.Lineno != 0:
++		s := fmt.Sprintf("%s:%d", i.File, i.Lineno)
++		if i.Columnno != 0 {
++			s += fmt.Sprintf(":%d", i.Columnno)
++		}
+ 		// User requested line numbers, provide what we have.
+-		name = append(name, fmt.Sprintf("%s:%d", i.File, i.Lineno))
++		name = append(name, s)
+ 	case i.File != "":
+ 		// User requested file name, provide it.
+ 		name = append(name, i.File)
+@@ -239,6 +244,7 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
+ 	// Find a node that represents the whole function.
+ 	info.Address = 0
+ 	info.Lineno = 0
++	info.Columnno = 0
+ 	n.Function = nm.FindOrInsertNode(info, nil)
+ 	return n
+ }
+@@ -592,9 +598,10 @@ func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options
+ 		return &NodeInfo{Address: l.Address, Objfile: objfile}
+ 	}
+ 	ni := &NodeInfo{
+-		Address: l.Address,
+-		Lineno:  int(line.Line),
+-		Name:    line.Function.Name,
++		Address:  l.Address,
++		Lineno:   int(line.Line),
++		Columnno: int(line.Column),
++		Name:     line.Function.Name,
+ 	}
+ 	if fname := line.Function.Filename; fname != "" {
+ 		ni.File = filepath.Clean(fname)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index 98eb1dd817..c934551036 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -157,11 +157,12 @@ type ObjFile interface {
+ 	Close() error
+ }
+ 
+-// A Frame describes a single line in a source file.
++// A Frame describes a location in a single line in a source file.
+ type Frame struct {
+-	Func string // name of function
+-	File string // source file name
+-	Line int    // line in file
++	Func   string // name of function
++	File   string // source file name
++	Line   int    // line in file
++	Column int    // column in line (if available)
+ }
+ 
+ // A Sym describes a single symbol in an object file.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index f73e49a176..96b80039e6 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -293,7 +293,7 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
+ 	return graph.New(rpt.prof, gopt)
+ }
+ 
+-// printProto writes the incoming proto via thw writer w.
++// printProto writes the incoming proto via the writer w.
+ // If the divide_by option has been specified, samples are scaled appropriately.
+ func printProto(w io.Writer, rpt *Report) error {
+ 	p, o := rpt.prof, rpt.options
+@@ -339,6 +339,7 @@ func printTopProto(w io.Writer, rpt *Report) error {
+ 			Line: []profile.Line{
+ 				{
+ 					Line:     int64(n.Info.Lineno),
++					Column:   int64(n.Info.Columnno),
+ 					Function: f,
+ 				},
+ 			},
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
+index 7db51bc01c..aa3bf80f2d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
+@@ -18,7 +18,6 @@ import (
+ 	"crypto/sha256"
+ 	"encoding/binary"
+ 	"fmt"
+-	"regexp"
+ 
+ 	"github.com/google/pprof/internal/measurement"
+ 	"github.com/google/pprof/profile"
+@@ -54,9 +53,6 @@ type StackSource struct {
+ 	// Guaranteed to be non-empty.
+ 	Display []string
+ 
+-	// Regular expression (anchored) that matches exactly FullName.
+-	RE string
+-
+ 	// Places holds the list of stack slots where this source occurs.
+ 	// In particular, if [a,b] is an element in Places,
+ 	// StackSet.Stacks[a].Sources[b] points to this source.
+@@ -135,7 +131,6 @@ func (s *StackSet) makeInitialStacks(rpt *Report) {
+ 			unknownIndex++
+ 		}
+ 		x.Inlined = inlined
+-		x.RE = "^" + regexp.QuoteMeta(x.UniqueName) + "$"
+ 		x.Display = shortNameList(x.FullName)
+ 		s.Sources = append(s.Sources, x)
+ 		srcs[k] = len(s.Sources) - 1
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index c3f6cc6281..5ca71ab8be 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -181,6 +181,7 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
+ 			l.Line[i] = profile.Line{
+ 				Function: f,
+ 				Line:     int64(frame.Line),
++				Column:   int64(frame.Column),
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/encode.go b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+index 182c926b90..860bb304c3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/encode.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+@@ -530,6 +530,7 @@ func (p *Line) decoder() []decoder {
+ func (p *Line) encode(b *buffer) {
+ 	encodeUint64Opt(b, 1, p.functionIDX)
+ 	encodeInt64Opt(b, 2, p.Line)
++	encodeInt64Opt(b, 3, p.Column)
+ }
+ 
+ var lineDecoder = []decoder{
+@@ -538,6 +539,8 @@ var lineDecoder = []decoder{
+ 	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Line).functionIDX) },
+ 	// optional int64 line = 2
+ 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Line) },
++	// optional int64 column = 3
++	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Column) },
+ }
+ 
+ func (p *Function) decoder() []decoder {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go b/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
+index 91f45e53c6..4580bab183 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
+@@ -56,7 +56,7 @@ func javaCPUProfile(b []byte, period int64, parse func(b []byte) (uint64, []byte
+ 	}
+ 
+ 	// Strip out addresses for better merge.
+-	if err = p.Aggregate(true, true, true, true, false); err != nil {
++	if err = p.Aggregate(true, true, true, true, false, false); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -99,7 +99,7 @@ func parseJavaProfile(b []byte) (*Profile, error) {
+ 	}
+ 
+ 	// Strip out addresses for better merge.
+-	if err = p.Aggregate(true, true, true, true, false); err != nil {
++	if err = p.Aggregate(true, true, true, true, false, false); err != nil {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/merge.go b/src/cmd/vendor/github.com/google/pprof/profile/merge.go
+index 4b66282cb8..eee0132e74 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/merge.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/merge.go
+@@ -326,12 +326,13 @@ func (l *Location) key() locationKey {
+ 		key.addr -= l.Mapping.Start
+ 		key.mappingID = l.Mapping.ID
+ 	}
+-	lines := make([]string, len(l.Line)*2)
++	lines := make([]string, len(l.Line)*3)
+ 	for i, line := range l.Line {
+ 		if line.Function != nil {
+ 			lines[i*2] = strconv.FormatUint(line.Function.ID, 16)
+ 		}
+ 		lines[i*2+1] = strconv.FormatInt(line.Line, 16)
++		lines[i*2+2] = strconv.FormatInt(line.Column, 16)
+ 	}
+ 	key.lines = strings.Join(lines, "|")
+ 	return key
+@@ -418,6 +419,7 @@ func (pm *profileMerger) mapLine(src Line) Line {
+ 	ln := Line{
+ 		Function: pm.mapFunction(src.Function),
+ 		Line:     src.Line,
++		Column:   src.Column,
+ 	}
+ 	return ln
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index 60ef7e9268..62df80a556 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -145,6 +145,7 @@ type Location struct {
+ type Line struct {
+ 	Function *Function
+ 	Line     int64
++	Column   int64
+ 
+ 	functionIDX uint64
+ }
+@@ -436,7 +437,7 @@ func (p *Profile) CheckValid() error {
+ // Aggregate merges the locations in the profile into equivalence
+ // classes preserving the request attributes. It also updates the
+ // samples to point to the merged locations.
+-func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address bool) error {
++func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, columnnumber, address bool) error {
+ 	for _, m := range p.Mapping {
+ 		m.HasInlineFrames = m.HasInlineFrames && inlineFrame
+ 		m.HasFunctions = m.HasFunctions && function
+@@ -458,7 +459,7 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
+ 	}
+ 
+ 	// Aggregate locations
+-	if !inlineFrame || !address || !linenumber {
++	if !inlineFrame || !address || !linenumber || !columnnumber {
+ 		for _, l := range p.Location {
+ 			if !inlineFrame && len(l.Line) > 1 {
+ 				l.Line = l.Line[len(l.Line)-1:]
+@@ -466,6 +467,12 @@ func (p *Profile) Aggregate(inlineFrame, function, filename, linenumber, address
+ 			if !linenumber {
+ 				for i := range l.Line {
+ 					l.Line[i].Line = 0
++					l.Line[i].Column = 0
++				}
++			}
++			if !columnnumber {
++				for i := range l.Line {
++					l.Line[i].Column = 0
+ 				}
+ 			}
+ 			if !address {
+@@ -627,10 +634,11 @@ func (l *Location) string() string {
+ 	for li := range l.Line {
+ 		lnStr := "??"
+ 		if fn := l.Line[li].Function; fn != nil {
+-			lnStr = fmt.Sprintf("%s %s:%d s=%d",
++			lnStr = fmt.Sprintf("%s %s:%d:%d s=%d",
+ 				fn.Name,
+ 				fn.Filename,
+ 				l.Line[li].Line,
++				l.Line[li].Column,
+ 				fn.StartLine)
+ 			if fn.Name != fn.SystemName {
+ 				lnStr = lnStr + "(" + fn.SystemName + ")"
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/D3_FLAME_GRAPH_LICENSE b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/D3_FLAME_GRAPH_LICENSE
+deleted file mode 100644
+index 8dada3edaf..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/D3_FLAME_GRAPH_LICENSE
++++ /dev/null
+@@ -1,201 +0,0 @@
+-                                 Apache License
+-                           Version 2.0, January 2004
+-                        http://www.apache.org/licenses/
+-
+-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+-
+-   1. Definitions.
+-
+-      "License" shall mean the terms and conditions for use, reproduction,
+-      and distribution as defined by Sections 1 through 9 of this document.
+-
+-      "Licensor" shall mean the copyright owner or entity authorized by
+-      the copyright owner that is granting the License.
+-
+-      "Legal Entity" shall mean the union of the acting entity and all
+-      other entities that control, are controlled by, or are under common
+-      control with that entity. For the purposes of this definition,
+-      "control" means (i) the power, direct or indirect, to cause the
+-      direction or management of such entity, whether by contract or
+-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+-      outstanding shares, or (iii) beneficial ownership of such entity.
+-
+-      "You" (or "Your") shall mean an individual or Legal Entity
+-      exercising permissions granted by this License.
+-
+-      "Source" form shall mean the preferred form for making modifications,
+-      including but not limited to software source code, documentation
+-      source, and configuration files.
+-
+-      "Object" form shall mean any form resulting from mechanical
+-      transformation or translation of a Source form, including but
+-      not limited to compiled object code, generated documentation,
+-      and conversions to other media types.
+-
+-      "Work" shall mean the work of authorship, whether in Source or
+-      Object form, made available under the License, as indicated by a
+-      copyright notice that is included in or attached to the work
+-      (an example is provided in the Appendix below).
+-
+-      "Derivative Works" shall mean any work, whether in Source or Object
+-      form, that is based on (or derived from) the Work and for which the
+-      editorial revisions, annotations, elaborations, or other modifications
+-      represent, as a whole, an original work of authorship. For the purposes
+-      of this License, Derivative Works shall not include works that remain
+-      separable from, or merely link (or bind by name) to the interfaces of,
+-      the Work and Derivative Works thereof.
+-
+-      "Contribution" shall mean any work of authorship, including
+-      the original version of the Work and any modifications or additions
+-      to that Work or Derivative Works thereof, that is intentionally
+-      submitted to Licensor for inclusion in the Work by the copyright owner
+-      or by an individual or Legal Entity authorized to submit on behalf of
+-      the copyright owner. For the purposes of this definition, "submitted"
+-      means any form of electronic, verbal, or written communication sent
+-      to the Licensor or its representatives, including but not limited to
+-      communication on electronic mailing lists, source code control systems,
+-      and issue tracking systems that are managed by, or on behalf of, the
+-      Licensor for the purpose of discussing and improving the Work, but
+-      excluding communication that is conspicuously marked or otherwise
+-      designated in writing by the copyright owner as "Not a Contribution."
+-
+-      "Contributor" shall mean Licensor and any individual or Legal Entity
+-      on behalf of whom a Contribution has been received by Licensor and
+-      subsequently incorporated within the Work.
+-
+-   2. Grant of Copyright License. Subject to the terms and conditions of
+-      this License, each Contributor hereby grants to You a perpetual,
+-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+-      copyright license to reproduce, prepare Derivative Works of,
+-      publicly display, publicly perform, sublicense, and distribute the
+-      Work and such Derivative Works in Source or Object form.
+-
+-   3. Grant of Patent License. Subject to the terms and conditions of
+-      this License, each Contributor hereby grants to You a perpetual,
+-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+-      (except as stated in this section) patent license to make, have made,
+-      use, offer to sell, sell, import, and otherwise transfer the Work,
+-      where such license applies only to those patent claims licensable
+-      by such Contributor that are necessarily infringed by their
+-      Contribution(s) alone or by combination of their Contribution(s)
+-      with the Work to which such Contribution(s) was submitted. If You
+-      institute patent litigation against any entity (including a
+-      cross-claim or counterclaim in a lawsuit) alleging that the Work
+-      or a Contribution incorporated within the Work constitutes direct
+-      or contributory patent infringement, then any patent licenses
+-      granted to You under this License for that Work shall terminate
+-      as of the date such litigation is filed.
+-
+-   4. Redistribution. You may reproduce and distribute copies of the
+-      Work or Derivative Works thereof in any medium, with or without
+-      modifications, and in Source or Object form, provided that You
+-      meet the following conditions:
+-
+-      (a) You must give any other recipients of the Work or
+-          Derivative Works a copy of this License; and
+-
+-      (b) You must cause any modified files to carry prominent notices
+-          stating that You changed the files; and
+-
+-      (c) You must retain, in the Source form of any Derivative Works
+-          that You distribute, all copyright, patent, trademark, and
+-          attribution notices from the Source form of the Work,
+-          excluding those notices that do not pertain to any part of
+-          the Derivative Works; and
+-
+-      (d) If the Work includes a "NOTICE" text file as part of its
+-          distribution, then any Derivative Works that You distribute must
+-          include a readable copy of the attribution notices contained
+-          within such NOTICE file, excluding those notices that do not
+-          pertain to any part of the Derivative Works, in at least one
+-          of the following places: within a NOTICE text file distributed
+-          as part of the Derivative Works; within the Source form or
+-          documentation, if provided along with the Derivative Works; or,
+-          within a display generated by the Derivative Works, if and
+-          wherever such third-party notices normally appear. The contents
+-          of the NOTICE file are for informational purposes only and
+-          do not modify the License. You may add Your own attribution
+-          notices within Derivative Works that You distribute, alongside
+-          or as an addendum to the NOTICE text from the Work, provided
+-          that such additional attribution notices cannot be construed
+-          as modifying the License.
+-
+-      You may add Your own copyright statement to Your modifications and
+-      may provide additional or different license terms and conditions
+-      for use, reproduction, or distribution of Your modifications, or
+-      for any such Derivative Works as a whole, provided Your use,
+-      reproduction, and distribution of the Work otherwise complies with
+-      the conditions stated in this License.
+-
+-   5. Submission of Contributions. Unless You explicitly state otherwise,
+-      any Contribution intentionally submitted for inclusion in the Work
+-      by You to the Licensor shall be under the terms and conditions of
+-      this License, without any additional terms or conditions.
+-      Notwithstanding the above, nothing herein shall supersede or modify
+-      the terms of any separate license agreement you may have executed
+-      with Licensor regarding such Contributions.
+-
+-   6. Trademarks. This License does not grant permission to use the trade
+-      names, trademarks, service marks, or product names of the Licensor,
+-      except as required for reasonable and customary use in describing the
+-      origin of the Work and reproducing the content of the NOTICE file.
+-
+-   7. Disclaimer of Warranty. Unless required by applicable law or
+-      agreed to in writing, Licensor provides the Work (and each
+-      Contributor provides its Contributions) on an "AS IS" BASIS,
+-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+-      implied, including, without limitation, any warranties or conditions
+-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+-      PARTICULAR PURPOSE. You are solely responsible for determining the
+-      appropriateness of using or redistributing the Work and assume any
+-      risks associated with Your exercise of permissions under this License.
+-
+-   8. Limitation of Liability. In no event and under no legal theory,
+-      whether in tort (including negligence), contract, or otherwise,
+-      unless required by applicable law (such as deliberate and grossly
+-      negligent acts) or agreed to in writing, shall any Contributor be
+-      liable to You for damages, including any direct, indirect, special,
+-      incidental, or consequential damages of any character arising as a
+-      result of this License or out of the use or inability to use the
+-      Work (including but not limited to damages for loss of goodwill,
+-      work stoppage, computer failure or malfunction, or any and all
+-      other commercial damages or losses), even if such Contributor
+-      has been advised of the possibility of such damages.
+-
+-   9. Accepting Warranty or Additional Liability. While redistributing
+-      the Work or Derivative Works thereof, You may choose to offer,
+-      and charge a fee for, acceptance of support, warranty, indemnity,
+-      or other liability obligations and/or rights consistent with this
+-      License. However, in accepting such obligations, You may act only
+-      on Your own behalf and on Your sole responsibility, not on behalf
+-      of any other Contributor, and only if You agree to indemnify,
+-      defend, and hold each Contributor harmless for any liability
+-      incurred by, or claims asserted against, such Contributor by reason
+-      of your accepting any such warranty or additional liability.
+-
+-   END OF TERMS AND CONDITIONS
+-
+-   APPENDIX: How to apply the Apache License to your work.
+-
+-      To apply the Apache License to your work, attach the following
+-      boilerplate notice, with the fields enclosed by brackets "{}"
+-      replaced with your own identifying information. (Don't include
+-      the brackets!)  The text should be enclosed in the appropriate
+-      comment syntax for the file format. We also recommend that a
+-      file or class name and description of purpose be included on the
+-      same "printed page" as the copyright notice for easier
+-      identification within third-party archives.
+-
+-   Copyright {yyyy} {name of copyright owner}
+-
+-   Licensed under the Apache License, Version 2.0 (the "License");
+-   you may not use this file except in compliance with the License.
+-   You may obtain a copy of the License at
+-
+-       http://www.apache.org/licenses/LICENSE-2.0
+-
+-   Unless required by applicable law or agreed to in writing, software
+-   distributed under the License is distributed on an "AS IS" BASIS,
+-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-   See the License for the specific language governing permissions and
+-   limitations under the License.
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/D3_LICENSE b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/D3_LICENSE
+deleted file mode 100644
+index b0145150fd..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/D3_LICENSE
++++ /dev/null
+@@ -1,13 +0,0 @@
+-Copyright 2010-2021 Mike Bostock
+-
+-Permission to use, copy, modify, and/or distribute this software for any purpose
+-with or without fee is hereby granted, provided that the above copyright notice
+-and this permission notice appear in all copies.
+-
+-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+-FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+-OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+-TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+-THIS SOFTWARE.
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/README.md b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/README.md
+deleted file mode 100644
+index eb84b68007..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/README.md
++++ /dev/null
+@@ -1,33 +0,0 @@
+-# Building a customized D3.js bundle
+-
+-The D3.js version distributed with pprof is customized to only include the
+-modules required by pprof.
+-
+-## Dependencies
+-
+-- Install [npm](https://www.npmjs.com).
+-
+-## Building
+-
+-- Run `update.sh` to:
+-  - Download npm package dependencies (declared in `package.json` and `package-lock.json`)
+-  - Create a d3.js bundle containing the JavScript of d3 and d3-flame-graph (by running `webpack`)
+-
+-This will `d3_flame_graph.go`, the minified custom D3.js bundle as Go source code.
+-
+-# References / Appendix
+-
+-## D3 Custom Bundle
+-
+-A demonstration of building a custom D3 4.0 bundle using ES2015 modules and Rollup. 
+-
+-[bl.ocks.org/mbostock/bb09af4c39c79cffcde4](https://bl.ocks.org/mbostock/bb09af4c39c79cffcde4)
+-
+-## Old version of d3-pprof
+-
+-A previous version of d3-flame-graph bundled for pprof used Rollup instead of
+-Webpack. This has now been migrated directly into this directory.
+-
+-The repository configuring Rollup was here:
+-
+-[github.com/spiermar/d3-pprof](https://github.com/spiermar/d3-pprof)
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/d3_flame_graph.go b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/d3_flame_graph.go
+deleted file mode 100644
+index 7e27941995..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/d3_flame_graph.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// D3.js is a JavaScript library for manipulating documents based on data.
+-// https://github.com/d3/d3
+-// See D3_LICENSE file for license details
+-
+-// d3-flame-graph is a D3.js plugin that produces flame graphs from hierarchical data.
+-// https://github.com/spiermar/d3-flame-graph
+-// See D3_FLAME_GRAPH_LICENSE file for license details
+-
+-package d3flamegraph
+-
+-// JSSource returns the d3 and d3-flame-graph JavaScript bundle
+-const JSSource = `
+-
+-!function(t,n){if("object"==typeof exports&&"object"==typeof module)module.exports=n();else if("function"==typeof define&&define.amd)define([],n);else{var e=n();for(var r in e)("object"==typeof exports?exports:t)[r]=e[r]}}(self,(function(){return(()=>{"use strict";var t={d:(n,e)=>{for(var r in e)t.o(e,r)&&!t.o(n,r)&&Object.defineProperty(n,r,{enumerable:!0,get:e[r]})},o:(t,n)=>Object.prototype.hasOwnProperty.call(t,n),r:t=>{"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(t,"__esModule",{value:!0})}},n={};function e(){}function r(t){return null==t?e:function(){return this.querySelector(t)}}function i(t){return null==t?[]:Array.isArray(t)?t:Array.from(t)}function o(){return[]}function u(t){return function(n){return n.matches(t)}}t.r(n),t.d(n,{flamegraph:()=>ji,select:()=>pt});var a=Array.prototype.find;function l(){return this.firstElementChild}var s=Array.prototype.filter;function c(){return Array.from(this.children)}function f(t){return new Array(t.length)}function h(t,n){this.ownerDocument=t.ownerDocument,this.namespaceURI=t.namespaceURI,this._next=null,this._parent=t,this.__data__=n}function p(t){return function(){return t}}function d(t,n,e,r,i,o){for(var u,a=0,l=n.length,s=o.length;a<s;++a)(u=n[a])?(u.__data__=o[a],r[a]=u):e[a]=new h(t,o[a]);for(;a<l;++a)(u=n[a])&&(i[a]=u)}function g(t,n,e,r,i,o,u){var a,l,s,c=new Map,f=n.length,p=o.length,d=new Array(f);for(a=0;a<f;++a)(l=n[a])&&(d[a]=s=u.call(l,l.__data__,a,n)+"",c.has(s)?i[a]=l:c.set(s,l));for(a=0;a<p;++a)s=u.call(t,o[a],a,o)+"",(l=c.get(s))?(r[a]=l,l.__data__=o[a],c.delete(s)):e[a]=new h(t,o[a]);for(a=0;a<f;++a)(l=n[a])&&c.get(d[a])===l&&(i[a]=l)}function v(t){return t.__data__}function y(t){return"object"==typeof t&&"length"in t?t:Array.from(t)}function m(t,n){return t<n?-1:t>n?1:t>=n?0:NaN}h.prototype={constructor:h,appendChild:function(t){return this._parent.insertBefore(t,this._next)},insertBefore:function(t,n){return this._parent.insertBefore(t,n)},querySelector:function(t){return this._parent.querySelector(t)},querySelectorAll:function(t){return this._parent.querySelectorAll(t)}};var _="http://www.w3.org/1999/xhtml";const w={svg:"http://www.w3.org/2000/svg",xhtml:_,xlink:"http://www.w3.org/1999/xlink",xml:"http://www.w3.org/XML/1998/namespace",xmlns:"http://www.w3.org/2000/xmlns/"};function b(t){var n=t+="",e=n.indexOf(":");return e>=0&&"xmlns"!==(n=t.slice(0,e))&&(t=t.slice(e+1)),w.hasOwnProperty(n)?{space:w[n],local:t}:t}function x(t){return function(){this.removeAttribute(t)}}function M(t){return function(){this.removeAttributeNS(t.space,t.local)}}function A(t,n){return function(){this.setAttribute(t,n)}}function N(t,n){return function(){this.setAttributeNS(t.space,t.local,n)}}function E(t,n){return function(){var e=n.apply(this,arguments);null==e?this.removeAttribute(t):this.setAttribute(t,e)}}function k(t,n){return function(){var e=n.apply(this,arguments);null==e?this.removeAttributeNS(t.space,t.local):this.setAttributeNS(t.space,t.local,e)}}function S(t){return t.ownerDocument&&t.ownerDocument.defaultView||t.document&&t||t.defaultView}function C(t){return function(){this.style.removeProperty(t)}}function P(t,n,e){return function(){this.style.setProperty(t,n,e)}}function j(t,n,e){return function(){var r=n.apply(this,arguments);null==r?this.style.removeProperty(t):this.style.setProperty(t,r,e)}}function q(t,n){return t.style.getPropertyValue(n)||S(t).getComputedStyle(t,null).getPropertyValue(n)}function O(t){return function(){delete this[t]}}function L(t,n){return function(){this[t]=n}}function T(t,n){return function(){var e=n.apply(this,arguments);null==e?delete this[t]:this[t]=e}}function B(t){return t.trim().split(/^|\s+/)}function D(t){return t.classList||new H(t)}function H(t){this._node=t,this._names=B(t.getAttribute("class")||"")}function R(t,n){for(var e=D(t),r=-1,i=n.length;++r<i;)e.add(n[r])}function V(t,n){for(var e=D(t),r=-1,i=n.length;++r<i;)e.remove(n[r])}function X(t){return function(){R(this,t)}}function z(t){return function(){V(this,t)}}function I(t,n){return function(){(n.apply(this,arguments)?R:V)(this,t)}}function $(){this.textContent=""}function U(t){return function(){this.textContent=t}}function Y(t){return function(){var n=t.apply(this,arguments);this.textContent=null==n?"":n}}function F(){this.innerHTML=""}function Z(t){return function(){this.innerHTML=t}}function G(t){return function(){var n=t.apply(this,arguments);this.innerHTML=null==n?"":n}}function J(){this.nextSibling&&this.parentNode.appendChild(this)}function K(){this.previousSibling&&this.parentNode.insertBefore(this,this.parentNode.firstChild)}function Q(t){return function(){var n=this.ownerDocument,e=this.namespaceURI;return e===_&&n.documentElement.namespaceURI===_?n.createElement(t):n.createElementNS(e,t)}}function W(t){return function(){return this.ownerDocument.createElementNS(t.space,t.local)}}function tt(t){var n=b(t);return(n.local?W:Q)(n)}function nt(){return null}function et(){var t=this.parentNode;t&&t.removeChild(this)}function rt(){var t=this.cloneNode(!1),n=this.parentNode;return n?n.insertBefore(t,this.nextSibling):t}function it(){var t=this.cloneNode(!0),n=this.parentNode;return n?n.insertBefore(t,this.nextSibling):t}function ot(t){return t.trim().split(/^|\s+/).map((function(t){var n="",e=t.indexOf(".");return e>=0&&(n=t.slice(e+1),t=t.slice(0,e)),{type:t,name:n}}))}function ut(t){return function(){var n=this.__on;if(n){for(var e,r=0,i=-1,o=n.length;r<o;++r)e=n[r],t.type&&e.type!==t.type||e.name!==t.name?n[++i]=e:this.removeEventListener(e.type,e.listener,e.options);++i?n.length=i:delete this.__on}}}function at(t,n,e){return function(){var r,i=this.__on,o=function(t){return function(n){t.call(this,n,this.__data__)}}(n);if(i)for(var u=0,a=i.length;u<a;++u)if((r=i[u]).type===t.type&&r.name===t.name)return this.removeEventListener(r.type,r.listener,r.options),this.addEventListener(r.type,r.listener=o,r.options=e),void(r.value=n);this.addEventListener(t.type,o,e),r={type:t.type,name:t.name,value:n,listener:o,options:e},i?i.push(r):this.__on=[r]}}function lt(t,n,e){var r=S(t),i=r.CustomEvent;"function"==typeof i?i=new i(n,e):(i=r.document.createEvent("Event"),e?(i.initEvent(n,e.bubbles,e.cancelable),i.detail=e.detail):i.initEvent(n,!1,!1)),t.dispatchEvent(i)}function st(t,n){return function(){return lt(this,t,n)}}function ct(t,n){return function(){return lt(this,t,n.apply(this,arguments))}}H.prototype={add:function(t){this._names.indexOf(t)<0&&(this._names.push(t),this._node.setAttribute("class",this._names.join(" ")))},remove:function(t){var n=this._names.indexOf(t);n>=0&&(this._names.splice(n,1),this._node.setAttribute("class",this._names.join(" ")))},contains:function(t){return this._names.indexOf(t)>=0}};var ft=[null];function ht(t,n){this._groups=t,this._parents=n}function pt(t){return"string"==typeof t?new ht([[document.querySelector(t)]],[document.documentElement]):new ht([[t]],ft)}function dt(){}function gt(t){return null==t?dt:function(){return this.querySelector(t)}}function vt(t){return null==t?[]:Array.isArray(t)?t:Array.from(t)}function yt(){return[]}function mt(t){return null==t?yt:function(){return this.querySelectorAll(t)}}function _t(t){return function(){return this.matches(t)}}function wt(t){return function(n){return n.matches(t)}}ht.prototype=function(){return new ht([[document.documentElement]],ft)}.prototype={constructor:ht,select:function(t){"function"!=typeof t&&(t=r(t));for(var n=this._groups,e=n.length,i=new Array(e),o=0;o<e;++o)for(var u,a,l=n[o],s=l.length,c=i[o]=new Array(s),f=0;f<s;++f)(u=l[f])&&(a=t.call(u,u.__data__,f,l))&&("__data__"in u&&(a.__data__=u.__data__),c[f]=a);return new ht(i,this._parents)},selectAll:function(t){t="function"==typeof t?function(t){return function(){return i(t.apply(this,arguments))}}(t):function(t){return null==t?o:function(){return this.querySelectorAll(t)}}(t);for(var n=this._groups,e=n.length,r=[],u=[],a=0;a<e;++a)for(var l,s=n[a],c=s.length,f=0;f<c;++f)(l=s[f])&&(r.push(t.call(l,l.__data__,f,s)),u.push(l));return new ht(r,u)},selectChild:function(t){return this.select(null==t?l:function(t){return function(){return a.call(this.children,t)}}("function"==typeof t?t:u(t)))},selectChildren:function(t){return this.selectAll(null==t?c:function(t){return function(){return s.call(this.children,t)}}("function"==typeof t?t:u(t)))},filter:function(t){"function"!=typeof t&&(t=function(t){return function(){return this.matches(t)}}(t));for(var n=this._groups,e=n.length,r=new Array(e),i=0;i<e;++i)for(var o,u=n[i],a=u.length,l=r[i]=[],s=0;s<a;++s)(o=u[s])&&t.call(o,o.__data__,s,u)&&l.push(o);return new ht(r,this._parents)},data:function(t,n){if(!arguments.length)return Array.from(this,v);var e=n?g:d,r=this._parents,i=this._groups;"function"!=typeof t&&(t=p(t));for(var o=i.length,u=new Array(o),a=new Array(o),l=new Array(o),s=0;s<o;++s){var c=r[s],f=i[s],h=f.length,m=y(t.call(c,c&&c.__data__,s,r)),_=m.length,w=a[s]=new Array(_),b=u[s]=new Array(_),x=l[s]=new Array(h);e(c,f,w,b,x,m,n);for(var M,A,N=0,E=0;N<_;++N)if(M=w[N]){for(N>=E&&(E=N+1);!(A=b[E])&&++E<_;);M._next=A||null}}return(u=new ht(u,r))._enter=a,u._exit=l,u},enter:function(){return new ht(this._enter||this._groups.map(f),this._parents)},exit:function(){return new ht(this._exit||this._groups.map(f),this._parents)},join:function(t,n,e){var r=this.enter(),i=this,o=this.exit();return"function"==typeof t?(r=t(r))&&(r=r.selection()):r=r.append(t+""),null!=n&&(i=n(i))&&(i=i.selection()),null==e?o.remove():e(o),r&&i?r.merge(i).order():i},merge:function(t){for(var n=t.selection?t.selection():t,e=this._groups,r=n._groups,i=e.length,o=r.length,u=Math.min(i,o),a=new Array(i),l=0;l<u;++l)for(var s,c=e[l],f=r[l],h=c.length,p=a[l]=new Array(h),d=0;d<h;++d)(s=c[d]||f[d])&&(p[d]=s);for(;l<i;++l)a[l]=e[l];return new ht(a,this._parents)},selection:function(){return this},order:function(){for(var t=this._groups,n=-1,e=t.length;++n<e;)for(var r,i=t[n],o=i.length-1,u=i[o];--o>=0;)(r=i[o])&&(u&&4^r.compareDocumentPosition(u)&&u.parentNode.insertBefore(r,u),u=r);return this},sort:function(t){function n(n,e){return n&&e?t(n.__data__,e.__data__):!n-!e}t||(t=m);for(var e=this._groups,r=e.length,i=new Array(r),o=0;o<r;++o){for(var u,a=e[o],l=a.length,s=i[o]=new Array(l),c=0;c<l;++c)(u=a[c])&&(s[c]=u);s.sort(n)}return new ht(i,this._parents).order()},call:function(){var t=arguments[0];return arguments[0]=this,t.apply(null,arguments),this},nodes:function(){return Array.from(this)},node:function(){for(var t=this._groups,n=0,e=t.length;n<e;++n)for(var r=t[n],i=0,o=r.length;i<o;++i){var u=r[i];if(u)return u}return null},size:function(){let t=0;for(const n of this)++t;return t},empty:function(){return!this.node()},each:function(t){for(var n=this._groups,e=0,r=n.length;e<r;++e)for(var i,o=n[e],u=0,a=o.length;u<a;++u)(i=o[u])&&t.call(i,i.__data__,u,o);return this},attr:function(t,n){var e=b(t);if(arguments.length<2){var r=this.node();return e.local?r.getAttributeNS(e.space,e.local):r.getAttribute(e)}return this.each((null==n?e.local?M:x:"function"==typeof n?e.local?k:E:e.local?N:A)(e,n))},style:function(t,n,e){return arguments.length>1?this.each((null==n?C:"function"==typeof n?j:P)(t,n,null==e?"":e)):q(this.node(),t)},property:function(t,n){return arguments.length>1?this.each((null==n?O:"function"==typeof n?T:L)(t,n)):this.node()[t]},classed:function(t,n){var e=B(t+"");if(arguments.length<2){for(var r=D(this.node()),i=-1,o=e.length;++i<o;)if(!r.contains(e[i]))return!1;return!0}return this.each(("function"==typeof n?I:n?X:z)(e,n))},text:function(t){return arguments.length?this.each(null==t?$:("function"==typeof t?Y:U)(t)):this.node().textContent},html:function(t){return arguments.length?this.each(null==t?F:("function"==typeof t?G:Z)(t)):this.node().innerHTML},raise:function(){return this.each(J)},lower:function(){return this.each(K)},append:function(t){var n="function"==typeof t?t:tt(t);return this.select((function(){return this.appendChild(n.apply(this,arguments))}))},insert:function(t,n){var e="function"==typeof t?t:tt(t),i=null==n?nt:"function"==typeof n?n:r(n);return this.select((function(){return this.insertBefore(e.apply(this,arguments),i.apply(this,arguments)||null)}))},remove:function(){return this.each(et)},clone:function(t){return this.select(t?it:rt)},datum:function(t){return arguments.length?this.property("__data__",t):this.node().__data__},on:function(t,n,e){var r,i,o=ot(t+""),u=o.length;if(!(arguments.length<2)){for(a=n?at:ut,r=0;r<u;++r)this.each(a(o[r],n,e));return this}var a=this.node().__on;if(a)for(var l,s=0,c=a.length;s<c;++s)for(r=0,l=a[s];r<u;++r)if((i=o[r]).type===l.type&&i.name===l.name)return l.value},dispatch:function(t,n){return this.each(("function"==typeof n?ct:st)(t,n))},[Symbol.iterator]:function*(){for(var t=this._groups,n=0,e=t.length;n<e;++n)for(var r,i=t[n],o=0,u=i.length;o<u;++o)(r=i[o])&&(yield r)}};var bt=Array.prototype.find;function xt(){return this.firstElementChild}var Mt=Array.prototype.filter;function At(){return Array.from(this.children)}function Nt(t){return new Array(t.length)}function Et(t,n){this.ownerDocument=t.ownerDocument,this.namespaceURI=t.namespaceURI,this._next=null,this._parent=t,this.__data__=n}function kt(t){return function(){return t}}function St(t,n,e,r,i,o){for(var u,a=0,l=n.length,s=o.length;a<s;++a)(u=n[a])?(u.__data__=o[a],r[a]=u):e[a]=new Et(t,o[a]);for(;a<l;++a)(u=n[a])&&(i[a]=u)}function Ct(t,n,e,r,i,o,u){var a,l,s,c=new Map,f=n.length,h=o.length,p=new Array(f);for(a=0;a<f;++a)(l=n[a])&&(p[a]=s=u.call(l,l.__data__,a,n)+"",c.has(s)?i[a]=l:c.set(s,l));for(a=0;a<h;++a)s=u.call(t,o[a],a,o)+"",(l=c.get(s))?(r[a]=l,l.__data__=o[a],c.delete(s)):e[a]=new Et(t,o[a]);for(a=0;a<f;++a)(l=n[a])&&c.get(p[a])===l&&(i[a]=l)}function Pt(t){return t.__data__}function jt(t){return"object"==typeof t&&"length"in t?t:Array.from(t)}function qt(t,n){return t<n?-1:t>n?1:t>=n?0:NaN}Et.prototype={constructor:Et,appendChild:function(t){return this._parent.insertBefore(t,this._next)},insertBefore:function(t,n){return this._parent.insertBefore(t,n)},querySelector:function(t){return this._parent.querySelector(t)},querySelectorAll:function(t){return this._parent.querySelectorAll(t)}};var Ot="http://www.w3.org/1999/xhtml";const Lt={svg:"http://www.w3.org/2000/svg",xhtml:Ot,xlink:"http://www.w3.org/1999/xlink",xml:"http://www.w3.org/XML/1998/namespace",xmlns:"http://www.w3.org/2000/xmlns/"};function Tt(t){var n=t+="",e=n.indexOf(":");return e>=0&&"xmlns"!==(n=t.slice(0,e))&&(t=t.slice(e+1)),Lt.hasOwnProperty(n)?{space:Lt[n],local:t}:t}function Bt(t){return function(){this.removeAttribute(t)}}function Dt(t){return function(){this.removeAttributeNS(t.space,t.local)}}function Ht(t,n){return function(){this.setAttribute(t,n)}}function Rt(t,n){return function(){this.setAttributeNS(t.space,t.local,n)}}function Vt(t,n){return function(){var e=n.apply(this,arguments);null==e?this.removeAttribute(t):this.setAttribute(t,e)}}function Xt(t,n){return function(){var e=n.apply(this,arguments);null==e?this.removeAttributeNS(t.space,t.local):this.setAttributeNS(t.space,t.local,e)}}function zt(t){return t.ownerDocument&&t.ownerDocument.defaultView||t.document&&t||t.defaultView}function It(t){return function(){this.style.removeProperty(t)}}function $t(t,n,e){return function(){this.style.setProperty(t,n,e)}}function Ut(t,n,e){return function(){var r=n.apply(this,arguments);null==r?this.style.removeProperty(t):this.style.setProperty(t,r,e)}}function Yt(t,n){return t.style.getPropertyValue(n)||zt(t).getComputedStyle(t,null).getPropertyValue(n)}function Ft(t){return function(){delete this[t]}}function Zt(t,n){return function(){this[t]=n}}function Gt(t,n){return function(){var e=n.apply(this,arguments);null==e?delete this[t]:this[t]=e}}function Jt(t){return t.trim().split(/^|\s+/)}function Kt(t){return t.classList||new Qt(t)}function Qt(t){this._node=t,this._names=Jt(t.getAttribute("class")||"")}function Wt(t,n){for(var e=Kt(t),r=-1,i=n.length;++r<i;)e.add(n[r])}function tn(t,n){for(var e=Kt(t),r=-1,i=n.length;++r<i;)e.remove(n[r])}function nn(t){return function(){Wt(this,t)}}function en(t){return function(){tn(this,t)}}function rn(t,n){return function(){(n.apply(this,arguments)?Wt:tn)(this,t)}}function on(){this.textContent=""}function un(t){return function(){this.textContent=t}}function an(t){return function(){var n=t.apply(this,arguments);this.textContent=null==n?"":n}}function ln(){this.innerHTML=""}function sn(t){return function(){this.innerHTML=t}}function cn(t){return function(){var n=t.apply(this,arguments);this.innerHTML=null==n?"":n}}function fn(){this.nextSibling&&this.parentNode.appendChild(this)}function hn(){this.previousSibling&&this.parentNode.insertBefore(this,this.parentNode.firstChild)}function pn(t){return function(){var n=this.ownerDocument,e=this.namespaceURI;return e===Ot&&n.documentElement.namespaceURI===Ot?n.createElement(t):n.createElementNS(e,t)}}function dn(t){return function(){return this.ownerDocument.createElementNS(t.space,t.local)}}function gn(t){var n=Tt(t);return(n.local?dn:pn)(n)}function vn(){return null}function yn(){var t=this.parentNode;t&&t.removeChild(this)}function mn(){var t=this.cloneNode(!1),n=this.parentNode;return n?n.insertBefore(t,this.nextSibling):t}function _n(){var t=this.cloneNode(!0),n=this.parentNode;return n?n.insertBefore(t,this.nextSibling):t}function wn(t){return t.trim().split(/^|\s+/).map((function(t){var n="",e=t.indexOf(".");return e>=0&&(n=t.slice(e+1),t=t.slice(0,e)),{type:t,name:n}}))}function bn(t){return function(){var n=this.__on;if(n){for(var e,r=0,i=-1,o=n.length;r<o;++r)e=n[r],t.type&&e.type!==t.type||e.name!==t.name?n[++i]=e:this.removeEventListener(e.type,e.listener,e.options);++i?n.length=i:delete this.__on}}}function xn(t,n,e){return function(){var r,i=this.__on,o=function(t){return function(n){t.call(this,n,this.__data__)}}(n);if(i)for(var u=0,a=i.length;u<a;++u)if((r=i[u]).type===t.type&&r.name===t.name)return this.removeEventListener(r.type,r.listener,r.options),this.addEventListener(r.type,r.listener=o,r.options=e),void(r.value=n);this.addEventListener(t.type,o,e),r={type:t.type,name:t.name,value:n,listener:o,options:e},i?i.push(r):this.__on=[r]}}function Mn(t,n,e){var r=zt(t),i=r.CustomEvent;"function"==typeof i?i=new i(n,e):(i=r.document.createEvent("Event"),e?(i.initEvent(n,e.bubbles,e.cancelable),i.detail=e.detail):i.initEvent(n,!1,!1)),t.dispatchEvent(i)}function An(t,n){return function(){return Mn(this,t,n)}}function Nn(t,n){return function(){return Mn(this,t,n.apply(this,arguments))}}Qt.prototype={add:function(t){this._names.indexOf(t)<0&&(this._names.push(t),this._node.setAttribute("class",this._names.join(" ")))},remove:function(t){var n=this._names.indexOf(t);n>=0&&(this._names.splice(n,1),this._node.setAttribute("class",this._names.join(" ")))},contains:function(t){return this._names.indexOf(t)>=0}};var En=[null];function kn(t,n){this._groups=t,this._parents=n}function Sn(){return new kn([[document.documentElement]],En)}kn.prototype=Sn.prototype={constructor:kn,select:function(t){"function"!=typeof t&&(t=gt(t));for(var n=this._groups,e=n.length,r=new Array(e),i=0;i<e;++i)for(var o,u,a=n[i],l=a.length,s=r[i]=new Array(l),c=0;c<l;++c)(o=a[c])&&(u=t.call(o,o.__data__,c,a))&&("__data__"in o&&(u.__data__=o.__data__),s[c]=u);return new kn(r,this._parents)},selectAll:function(t){t="function"==typeof t?function(t){return function(){return vt(t.apply(this,arguments))}}(t):mt(t);for(var n=this._groups,e=n.length,r=[],i=[],o=0;o<e;++o)for(var u,a=n[o],l=a.length,s=0;s<l;++s)(u=a[s])&&(r.push(t.call(u,u.__data__,s,a)),i.push(u));return new kn(r,i)},selectChild:function(t){return this.select(null==t?xt:function(t){return function(){return bt.call(this.children,t)}}("function"==typeof t?t:wt(t)))},selectChildren:function(t){return this.selectAll(null==t?At:function(t){return function(){return Mt.call(this.children,t)}}("function"==typeof t?t:wt(t)))},filter:function(t){"function"!=typeof t&&(t=_t(t));for(var n=this._groups,e=n.length,r=new Array(e),i=0;i<e;++i)for(var o,u=n[i],a=u.length,l=r[i]=[],s=0;s<a;++s)(o=u[s])&&t.call(o,o.__data__,s,u)&&l.push(o);return new kn(r,this._parents)},data:function(t,n){if(!arguments.length)return Array.from(this,Pt);var e=n?Ct:St,r=this._parents,i=this._groups;"function"!=typeof t&&(t=kt(t));for(var o=i.length,u=new Array(o),a=new Array(o),l=new Array(o),s=0;s<o;++s){var c=r[s],f=i[s],h=f.length,p=jt(t.call(c,c&&c.__data__,s,r)),d=p.length,g=a[s]=new Array(d),v=u[s]=new Array(d),y=l[s]=new Array(h);e(c,f,g,v,y,p,n);for(var m,_,w=0,b=0;w<d;++w)if(m=g[w]){for(w>=b&&(b=w+1);!(_=v[b])&&++b<d;);m._next=_||null}}return(u=new kn(u,r))._enter=a,u._exit=l,u},enter:function(){return new kn(this._enter||this._groups.map(Nt),this._parents)},exit:function(){return new kn(this._exit||this._groups.map(Nt),this._parents)},join:function(t,n,e){var r=this.enter(),i=this,o=this.exit();return"function"==typeof t?(r=t(r))&&(r=r.selection()):r=r.append(t+""),null!=n&&(i=n(i))&&(i=i.selection()),null==e?o.remove():e(o),r&&i?r.merge(i).order():i},merge:function(t){for(var n=t.selection?t.selection():t,e=this._groups,r=n._groups,i=e.length,o=r.length,u=Math.min(i,o),a=new Array(i),l=0;l<u;++l)for(var s,c=e[l],f=r[l],h=c.length,p=a[l]=new Array(h),d=0;d<h;++d)(s=c[d]||f[d])&&(p[d]=s);for(;l<i;++l)a[l]=e[l];return new kn(a,this._parents)},selection:function(){return this},order:function(){for(var t=this._groups,n=-1,e=t.length;++n<e;)for(var r,i=t[n],o=i.length-1,u=i[o];--o>=0;)(r=i[o])&&(u&&4^r.compareDocumentPosition(u)&&u.parentNode.insertBefore(r,u),u=r);return this},sort:function(t){function n(n,e){return n&&e?t(n.__data__,e.__data__):!n-!e}t||(t=qt);for(var e=this._groups,r=e.length,i=new Array(r),o=0;o<r;++o){for(var u,a=e[o],l=a.length,s=i[o]=new Array(l),c=0;c<l;++c)(u=a[c])&&(s[c]=u);s.sort(n)}return new kn(i,this._parents).order()},call:function(){var t=arguments[0];return arguments[0]=this,t.apply(null,arguments),this},nodes:function(){return Array.from(this)},node:function(){for(var t=this._groups,n=0,e=t.length;n<e;++n)for(var r=t[n],i=0,o=r.length;i<o;++i){var u=r[i];if(u)return u}return null},size:function(){let t=0;for(const n of this)++t;return t},empty:function(){return!this.node()},each:function(t){for(var n=this._groups,e=0,r=n.length;e<r;++e)for(var i,o=n[e],u=0,a=o.length;u<a;++u)(i=o[u])&&t.call(i,i.__data__,u,o);return this},attr:function(t,n){var e=Tt(t);if(arguments.length<2){var r=this.node();return e.local?r.getAttributeNS(e.space,e.local):r.getAttribute(e)}return this.each((null==n?e.local?Dt:Bt:"function"==typeof n?e.local?Xt:Vt:e.local?Rt:Ht)(e,n))},style:function(t,n,e){return arguments.length>1?this.each((null==n?It:"function"==typeof n?Ut:$t)(t,n,null==e?"":e)):Yt(this.node(),t)},property:function(t,n){return arguments.length>1?this.each((null==n?Ft:"function"==typeof n?Gt:Zt)(t,n)):this.node()[t]},classed:function(t,n){var e=Jt(t+"");if(arguments.length<2){for(var r=Kt(this.node()),i=-1,o=e.length;++i<o;)if(!r.contains(e[i]))return!1;return!0}return this.each(("function"==typeof n?rn:n?nn:en)(e,n))},text:function(t){return arguments.length?this.each(null==t?on:("function"==typeof t?an:un)(t)):this.node().textContent},html:function(t){return arguments.length?this.each(null==t?ln:("function"==typeof t?cn:sn)(t)):this.node().innerHTML},raise:function(){return this.each(fn)},lower:function(){return this.each(hn)},append:function(t){var n="function"==typeof t?t:gn(t);return this.select((function(){return this.appendChild(n.apply(this,arguments))}))},insert:function(t,n){var e="function"==typeof t?t:gn(t),r=null==n?vn:"function"==typeof n?n:gt(n);return this.select((function(){return this.insertBefore(e.apply(this,arguments),r.apply(this,arguments)||null)}))},remove:function(){return this.each(yn)},clone:function(t){return this.select(t?_n:mn)},datum:function(t){return arguments.length?this.property("__data__",t):this.node().__data__},on:function(t,n,e){var r,i,o=wn(t+""),u=o.length;if(!(arguments.length<2)){for(a=n?xn:bn,r=0;r<u;++r)this.each(a(o[r],n,e));return this}var a=this.node().__on;if(a)for(var l,s=0,c=a.length;s<c;++s)for(r=0,l=a[s];r<u;++r)if((i=o[r]).type===l.type&&i.name===l.name)return l.value},dispatch:function(t,n){return this.each(("function"==typeof n?Nn:An)(t,n))},[Symbol.iterator]:function*(){for(var t=this._groups,n=0,e=t.length;n<e;++n)for(var r,i=t[n],o=0,u=i.length;o<u;++o)(r=i[o])&&(yield r)}};const Cn=Sn;function Pn(t){return"string"==typeof t?new kn([[document.querySelector(t)]],[document.documentElement]):new kn([[t]],En)}function jn(t,n){if((e=(t=n?t.toExponential(n-1):t.toExponential()).indexOf("e"))<0)return null;var e,r=t.slice(0,e);return[r.length>1?r[0]+r.slice(2):r,+t.slice(e+1)]}function qn(t){return(t=jn(Math.abs(t)))?t[1]:NaN}var On,Ln=/^(?:(.)?([<>=^]))?([+\-( ])?([$#])?(0)?(\d+)?(,)?(\.\d+)?(~)?([a-z%])?$/i;function Tn(t){if(!(n=Ln.exec(t)))throw new Error("invalid format: "+t);var n;return new Bn({fill:n[1],align:n[2],sign:n[3],symbol:n[4],zero:n[5],width:n[6],comma:n[7],precision:n[8]&&n[8].slice(1),trim:n[9],type:n[10]})}function Bn(t){this.fill=void 0===t.fill?" ":t.fill+"",this.align=void 0===t.align?">":t.align+"",this.sign=void 0===t.sign?"-":t.sign+"",this.symbol=void 0===t.symbol?"":t.symbol+"",this.zero=!!t.zero,this.width=void 0===t.width?void 0:+t.width,this.comma=!!t.comma,this.precision=void 0===t.precision?void 0:+t.precision,this.trim=!!t.trim,this.type=void 0===t.type?"":t.type+""}function Dn(t,n){var e=jn(t,n);if(!e)return t+"";var r=e[0],i=e[1];return i<0?"0."+new Array(-i).join("0")+r:r.length>i+1?r.slice(0,i+1)+"."+r.slice(i+1):r+new Array(i-r.length+2).join("0")}Tn.prototype=Bn.prototype,Bn.prototype.toString=function(){return this.fill+this.align+this.sign+this.symbol+(this.zero?"0":"")+(void 0===this.width?"":Math.max(1,0|this.width))+(this.comma?",":"")+(void 0===this.precision?"":"."+Math.max(0,0|this.precision))+(this.trim?"~":"")+this.type};const Hn={"%":(t,n)=>(100*t).toFixed(n),b:t=>Math.round(t).toString(2),c:t=>t+"",d:function(t){return Math.abs(t=Math.round(t))>=1e21?t.toLocaleString("en").replace(/,/g,""):t.toString(10)},e:(t,n)=>t.toExponential(n),f:(t,n)=>t.toFixed(n),g:(t,n)=>t.toPrecision(n),o:t=>Math.round(t).toString(8),p:(t,n)=>Dn(100*t,n),r:Dn,s:function(t,n){var e=jn(t,n);if(!e)return t+"";var r=e[0],i=e[1],o=i-(On=3*Math.max(-8,Math.min(8,Math.floor(i/3))))+1,u=r.length;return o===u?r:o>u?r+new Array(o-u+1).join("0"):o>0?r.slice(0,o)+"."+r.slice(o):"0."+new Array(1-o).join("0")+jn(t,Math.max(0,n+o-1))[0]},X:t=>Math.round(t).toString(16).toUpperCase(),x:t=>Math.round(t).toString(16)};function Rn(t){return t}var Vn,Xn,zn,In=Array.prototype.map,$n=["y","z","a","f","p","n","µ","m","","k","M","G","T","P","E","Z","Y"];function Un(t,n){return null==t||null==n?NaN:t<n?-1:t>n?1:t>=n?0:NaN}function Yn(t){t.x0=Math.round(t.x0),t.y0=Math.round(t.y0),t.x1=Math.round(t.x1),t.y1=Math.round(t.y1)}function Fn(t){var n=0,e=t.children,r=e&&e.length;if(r)for(;--r>=0;)n+=e[r].value;else n=1;t.value=n}function Zn(t,n){t instanceof Map?(t=[void 0,t],void 0===n&&(n=Jn)):void 0===n&&(n=Gn);for(var e,r,i,o,u,a=new Wn(t),l=[a];e=l.pop();)if((i=n(e.data))&&(u=(i=Array.from(i)).length))for(e.children=i,o=u-1;o>=0;--o)l.push(r=i[o]=new Wn(i[o])),r.parent=e,r.depth=e.depth+1;return a.eachBefore(Qn)}function Gn(t){return t.children}function Jn(t){return Array.isArray(t)?t[1]:null}function Kn(t){void 0!==t.data.value&&(t.value=t.data.value),t.data=t.data.data}function Qn(t){var n=0;do{t.height=n}while((t=t.parent)&&t.height<++n)}function Wn(t){this.data=t,this.depth=this.height=0,this.parent=null}Vn=function(t){var n,e,r=void 0===t.grouping||void 0===t.thousands?Rn:(n=In.call(t.grouping,Number),e=t.thousands+"",function(t,r){for(var i=t.length,o=[],u=0,a=n[0],l=0;i>0&&a>0&&(l+a+1>r&&(a=Math.max(1,r-l)),o.push(t.substring(i-=a,i+a)),!((l+=a+1)>r));)a=n[u=(u+1)%n.length];return o.reverse().join(e)}),i=void 0===t.currency?"":t.currency[0]+"",o=void 0===t.currency?"":t.currency[1]+"",u=void 0===t.decimal?".":t.decimal+"",a=void 0===t.numerals?Rn:function(t){return function(n){return n.replace(/[0-9]/g,(function(n){return t[+n]}))}}(In.call(t.numerals,String)),l=void 0===t.percent?"%":t.percent+"",s=void 0===t.minus?"−":t.minus+"",c=void 0===t.nan?"NaN":t.nan+"";function f(t){var n=(t=Tn(t)).fill,e=t.align,f=t.sign,h=t.symbol,p=t.zero,d=t.width,g=t.comma,v=t.precision,y=t.trim,m=t.type;"n"===m?(g=!0,m="g"):Hn[m]||(void 0===v&&(v=12),y=!0,m="g"),(p||"0"===n&&"="===e)&&(p=!0,n="0",e="=");var _="$"===h?i:"#"===h&&/[boxX]/.test(m)?"0"+m.toLowerCase():"",w="$"===h?o:/[%p]/.test(m)?l:"",b=Hn[m],x=/[defgprs%]/.test(m);function M(t){var i,o,l,h=_,M=w;if("c"===m)M=b(t)+M,t="";else{var A=(t=+t)<0||1/t<0;if(t=isNaN(t)?c:b(Math.abs(t),v),y&&(t=function(t){t:for(var n,e=t.length,r=1,i=-1;r<e;++r)switch(t[r]){case".":i=n=r;break;case"0":0===i&&(i=r),n=r;break;default:if(!+t[r])break t;i>0&&(i=0)}return i>0?t.slice(0,i)+t.slice(n+1):t}(t)),A&&0==+t&&"+"!==f&&(A=!1),h=(A?"("===f?f:s:"-"===f||"("===f?"":f)+h,M=("s"===m?$n[8+On/3]:"")+M+(A&&"("===f?")":""),x)for(i=-1,o=t.length;++i<o;)if(48>(l=t.charCodeAt(i))||l>57){M=(46===l?u+t.slice(i+1):t.slice(i))+M,t=t.slice(0,i);break}}g&&!p&&(t=r(t,1/0));var N=h.length+t.length+M.length,E=N<d?new Array(d-N+1).join(n):"";switch(g&&p&&(t=r(E+t,E.length?d-M.length:1/0),E=""),e){case"<":t=h+t+M+E;break;case"=":t=h+E+t+M;break;case"^":t=E.slice(0,N=E.length>>1)+h+t+M+E.slice(N);break;default:t=E+h+t+M}return a(t)}return v=void 0===v?6:/[gprs]/.test(m)?Math.max(1,Math.min(21,v)):Math.max(0,Math.min(20,v)),M.toString=function(){return t+""},M}return{format:f,formatPrefix:function(t,n){var e=f(((t=Tn(t)).type="f",t)),r=3*Math.max(-8,Math.min(8,Math.floor(qn(n)/3))),i=Math.pow(10,-r),o=$n[8+r/3];return function(t){return e(i*t)+o}}}}({thousands:",",grouping:[3],currency:["$",""]}),Xn=Vn.format,zn=Vn.formatPrefix,Wn.prototype=Zn.prototype={constructor:Wn,count:function(){return this.eachAfter(Fn)},each:function(t,n){let e=-1;for(const r of this)t.call(n,r,++e,this);return this},eachAfter:function(t,n){for(var e,r,i,o=this,u=[o],a=[],l=-1;o=u.pop();)if(a.push(o),e=o.children)for(r=0,i=e.length;r<i;++r)u.push(e[r]);for(;o=a.pop();)t.call(n,o,++l,this);return this},eachBefore:function(t,n){for(var e,r,i=this,o=[i],u=-1;i=o.pop();)if(t.call(n,i,++u,this),e=i.children)for(r=e.length-1;r>=0;--r)o.push(e[r]);return this},find:function(t,n){let e=-1;for(const r of this)if(t.call(n,r,++e,this))return r},sum:function(t){return this.eachAfter((function(n){for(var e=+t(n.data)||0,r=n.children,i=r&&r.length;--i>=0;)e+=r[i].value;n.value=e}))},sort:function(t){return this.eachBefore((function(n){n.children&&n.children.sort(t)}))},path:function(t){for(var n=this,e=function(t,n){if(t===n)return t;var e=t.ancestors(),r=n.ancestors(),i=null;for(t=e.pop(),n=r.pop();t===n;)i=t,t=e.pop(),n=r.pop();return i}(n,t),r=[n];n!==e;)n=n.parent,r.push(n);for(var i=r.length;t!==e;)r.splice(i,0,t),t=t.parent;return r},ancestors:function(){for(var t=this,n=[t];t=t.parent;)n.push(t);return n},descendants:function(){return Array.from(this)},leaves:function(){var t=[];return this.eachBefore((function(n){n.children||t.push(n)})),t},links:function(){var t=this,n=[];return t.each((function(e){e!==t&&n.push({source:e.parent,target:e})})),n},copy:function(){return Zn(this).eachBefore(Kn)},[Symbol.iterator]:function*(){var t,n,e,r,i=this,o=[i];do{for(t=o.reverse(),o=[];i=t.pop();)if(yield i,n=i.children)for(e=0,r=n.length;e<r;++e)o.push(n[e])}while(o.length)}};var te=Math.sqrt(50),ne=Math.sqrt(10),ee=Math.sqrt(2);function re(t,n,e){var r=(n-t)/Math.max(0,e),i=Math.floor(Math.log(r)/Math.LN10),o=r/Math.pow(10,i);return i>=0?(o>=te?10:o>=ne?5:o>=ee?2:1)*Math.pow(10,i):-Math.pow(10,-i)/(o>=te?10:o>=ne?5:o>=ee?2:1)}function ie(t){let n=t,e=t,r=t;function i(t,n,i=0,o=t.length){if(i<o){if(0!==e(n,n))return o;do{const e=i+o>>>1;r(t[e],n)<0?i=e+1:o=e}while(i<o)}return i}return 2!==t.length&&(n=(n,e)=>t(n)-e,e=Un,r=(n,e)=>Un(t(n),e)),{left:i,center:function(t,e,r=0,o=t.length){const u=i(t,e,r,o-1);return u>r&&n(t[u-1],e)>-n(t[u],e)?u-1:u},right:function(t,n,i=0,o=t.length){if(i<o){if(0!==e(n,n))return o;do{const e=i+o>>>1;r(t[e],n)<=0?i=e+1:o=e}while(i<o)}return i}}}const oe=ie(Un),ue=oe.right,ae=(oe.left,ie((function(t){return null===t?NaN:+t})).center,ue);function le(t,n,e){t.prototype=n.prototype=e,e.constructor=t}function se(t,n){var e=Object.create(t.prototype);for(var r in n)e[r]=n[r];return e}function ce(){}var fe=.7,he=1/fe,pe="\\s*([+-]?\\d+)\\s*",de="\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*",ge="\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)%\\s*",ve=/^#([0-9a-f]{3,8})$/,ye=new RegExp("^rgb\\("+[pe,pe,pe]+"\\)$"),me=new RegExp("^rgb\\("+[ge,ge,ge]+"\\)$"),_e=new RegExp("^rgba\\("+[pe,pe,pe,de]+"\\)$"),we=new RegExp("^rgba\\("+[ge,ge,ge,de]+"\\)$"),be=new RegExp("^hsl\\("+[de,ge,ge]+"\\)$"),xe=new RegExp("^hsla\\("+[de,ge,ge,de]+"\\)$"),Me={aliceblue:15792383,antiquewhite:16444375,aqua:65535,aquamarine:8388564,azure:15794175,beige:16119260,bisque:16770244,black:0,blanchedalmond:16772045,blue:255,blueviolet:9055202,brown:10824234,burlywood:14596231,cadetblue:6266528,chartreuse:8388352,chocolate:13789470,coral:16744272,cornflowerblue:6591981,cornsilk:16775388,crimson:14423100,cyan:65535,darkblue:139,darkcyan:35723,darkgoldenrod:12092939,darkgray:11119017,darkgreen:25600,darkgrey:11119017,darkkhaki:12433259,darkmagenta:9109643,darkolivegreen:5597999,darkorange:16747520,darkorchid:10040012,darkred:9109504,darksalmon:15308410,darkseagreen:9419919,darkslateblue:4734347,darkslategray:3100495,darkslategrey:3100495,darkturquoise:52945,darkviolet:9699539,deeppink:16716947,deepskyblue:49151,dimgray:6908265,dimgrey:6908265,dodgerblue:2003199,firebrick:11674146,floralwhite:16775920,forestgreen:2263842,fuchsia:16711935,gainsboro:14474460,ghostwhite:16316671,gold:16766720,goldenrod:14329120,gray:8421504,green:32768,greenyellow:11403055,grey:8421504,honeydew:15794160,hotpink:16738740,indianred:13458524,indigo:4915330,ivory:16777200,khaki:15787660,lavender:15132410,lavenderblush:16773365,lawngreen:8190976,lemonchiffon:16775885,lightblue:11393254,lightcoral:15761536,lightcyan:14745599,lightgoldenrodyellow:16448210,lightgray:13882323,lightgreen:9498256,lightgrey:13882323,lightpink:16758465,lightsalmon:16752762,lightseagreen:2142890,lightskyblue:8900346,lightslategray:7833753,lightslategrey:7833753,lightsteelblue:11584734,lightyellow:16777184,lime:65280,limegreen:3329330,linen:16445670,magenta:16711935,maroon:8388608,mediumaquamarine:6737322,mediumblue:205,mediumorchid:12211667,mediumpurple:9662683,mediumseagreen:3978097,mediumslateblue:8087790,mediumspringgreen:64154,mediumturquoise:4772300,mediumvioletred:13047173,midnightblue:1644912,mintcream:16121850,mistyrose:16770273,moccasin:16770229,navajowhite:16768685,navy:128,oldlace:16643558,olive:8421376,olivedrab:7048739,orange:16753920,orangered:16729344,orchid:14315734,palegoldenrod:15657130,palegreen:10025880,paleturquoise:11529966,palevioletred:14381203,papayawhip:16773077,peachpuff:16767673,peru:13468991,pink:16761035,plum:14524637,powderblue:11591910,purple:8388736,rebeccapurple:6697881,red:16711680,rosybrown:12357519,royalblue:4286945,saddlebrown:9127187,salmon:16416882,sandybrown:16032864,seagreen:3050327,seashell:16774638,sienna:10506797,silver:12632256,skyblue:8900331,slateblue:6970061,slategray:7372944,slategrey:7372944,snow:16775930,springgreen:65407,steelblue:4620980,tan:13808780,teal:32896,thistle:14204888,tomato:16737095,turquoise:4251856,violet:15631086,wheat:16113331,white:16777215,whitesmoke:16119285,yellow:16776960,yellowgreen:10145074};function Ae(){return this.rgb().formatHex()}function Ne(){return this.rgb().formatRgb()}function Ee(t){var n,e;return t=(t+"").trim().toLowerCase(),(n=ve.exec(t))?(e=n[1].length,n=parseInt(n[1],16),6===e?ke(n):3===e?new je(n>>8&15|n>>4&240,n>>4&15|240&n,(15&n)<<4|15&n,1):8===e?Se(n>>24&255,n>>16&255,n>>8&255,(255&n)/255):4===e?Se(n>>12&15|n>>8&240,n>>8&15|n>>4&240,n>>4&15|240&n,((15&n)<<4|15&n)/255):null):(n=ye.exec(t))?new je(n[1],n[2],n[3],1):(n=me.exec(t))?new je(255*n[1]/100,255*n[2]/100,255*n[3]/100,1):(n=_e.exec(t))?Se(n[1],n[2],n[3],n[4]):(n=we.exec(t))?Se(255*n[1]/100,255*n[2]/100,255*n[3]/100,n[4]):(n=be.exec(t))?Te(n[1],n[2]/100,n[3]/100,1):(n=xe.exec(t))?Te(n[1],n[2]/100,n[3]/100,n[4]):Me.hasOwnProperty(t)?ke(Me[t]):"transparent"===t?new je(NaN,NaN,NaN,0):null}function ke(t){return new je(t>>16&255,t>>8&255,255&t,1)}function Se(t,n,e,r){return r<=0&&(t=n=e=NaN),new je(t,n,e,r)}function Ce(t){return t instanceof ce||(t=Ee(t)),t?new je((t=t.rgb()).r,t.g,t.b,t.opacity):new je}function Pe(t,n,e,r){return 1===arguments.length?Ce(t):new je(t,n,e,null==r?1:r)}function je(t,n,e,r){this.r=+t,this.g=+n,this.b=+e,this.opacity=+r}function qe(){return"#"+Le(this.r)+Le(this.g)+Le(this.b)}function Oe(){var t=this.opacity;return(1===(t=isNaN(t)?1:Math.max(0,Math.min(1,t)))?"rgb(":"rgba(")+Math.max(0,Math.min(255,Math.round(this.r)||0))+", "+Math.max(0,Math.min(255,Math.round(this.g)||0))+", "+Math.max(0,Math.min(255,Math.round(this.b)||0))+(1===t?")":", "+t+")")}function Le(t){return((t=Math.max(0,Math.min(255,Math.round(t)||0)))<16?"0":"")+t.toString(16)}function Te(t,n,e,r){return r<=0?t=n=e=NaN:e<=0||e>=1?t=n=NaN:n<=0&&(t=NaN),new De(t,n,e,r)}function Be(t){if(t instanceof De)return new De(t.h,t.s,t.l,t.opacity);if(t instanceof ce||(t=Ee(t)),!t)return new De;if(t instanceof De)return t;var n=(t=t.rgb()).r/255,e=t.g/255,r=t.b/255,i=Math.min(n,e,r),o=Math.max(n,e,r),u=NaN,a=o-i,l=(o+i)/2;return a?(u=n===o?(e-r)/a+6*(e<r):e===o?(r-n)/a+2:(n-e)/a+4,a/=l<.5?o+i:2-o-i,u*=60):a=l>0&&l<1?0:u,new De(u,a,l,t.opacity)}function De(t,n,e,r){this.h=+t,this.s=+n,this.l=+e,this.opacity=+r}function He(t,n,e){return 255*(t<60?n+(e-n)*t/60:t<180?e:t<240?n+(e-n)*(240-t)/60:n)}function Re(t,n,e,r,i){var o=t*t,u=o*t;return((1-3*t+3*o-u)*n+(4-6*o+3*u)*e+(1+3*t+3*o-3*u)*r+u*i)/6}function Ve(t){return function(){return t}}function Xe(t,n){var e=n-t;return e?function(t,n){return function(e){return t+e*n}}(t,e):Ve(isNaN(t)?n:t)}le(ce,Ee,{copy:function(t){return Object.assign(new this.constructor,this,t)},displayable:function(){return this.rgb().displayable()},hex:Ae,formatHex:Ae,formatHsl:function(){return Be(this).formatHsl()},formatRgb:Ne,toString:Ne}),le(je,Pe,se(ce,{brighter:function(t){return t=null==t?he:Math.pow(he,t),new je(this.r*t,this.g*t,this.b*t,this.opacity)},darker:function(t){return t=null==t?fe:Math.pow(fe,t),new je(this.r*t,this.g*t,this.b*t,this.opacity)},rgb:function(){return this},displayable:function(){return-.5<=this.r&&this.r<255.5&&-.5<=this.g&&this.g<255.5&&-.5<=this.b&&this.b<255.5&&0<=this.opacity&&this.opacity<=1},hex:qe,formatHex:qe,formatRgb:Oe,toString:Oe})),le(De,(function(t,n,e,r){return 1===arguments.length?Be(t):new De(t,n,e,null==r?1:r)}),se(ce,{brighter:function(t){return t=null==t?he:Math.pow(he,t),new De(this.h,this.s,this.l*t,this.opacity)},darker:function(t){return t=null==t?fe:Math.pow(fe,t),new De(this.h,this.s,this.l*t,this.opacity)},rgb:function(){var t=this.h%360+360*(this.h<0),n=isNaN(t)||isNaN(this.s)?0:this.s,e=this.l,r=e+(e<.5?e:1-e)*n,i=2*e-r;return new je(He(t>=240?t-240:t+120,i,r),He(t,i,r),He(t<120?t+240:t-120,i,r),this.opacity)},displayable:function(){return(0<=this.s&&this.s<=1||isNaN(this.s))&&0<=this.l&&this.l<=1&&0<=this.opacity&&this.opacity<=1},formatHsl:function(){var t=this.opacity;return(1===(t=isNaN(t)?1:Math.max(0,Math.min(1,t)))?"hsl(":"hsla(")+(this.h||0)+", "+100*(this.s||0)+"%, "+100*(this.l||0)+"%"+(1===t?")":", "+t+")")}}));const ze=function t(n){var e=function(t){return 1==(t=+t)?Xe:function(n,e){return e-n?function(t,n,e){return t=Math.pow(t,e),n=Math.pow(n,e)-t,e=1/e,function(r){return Math.pow(t+r*n,e)}}(n,e,t):Ve(isNaN(n)?e:n)}}(n);function r(t,n){var r=e((t=Pe(t)).r,(n=Pe(n)).r),i=e(t.g,n.g),o=e(t.b,n.b),u=Xe(t.opacity,n.opacity);return function(n){return t.r=r(n),t.g=i(n),t.b=o(n),t.opacity=u(n),t+""}}return r.gamma=t,r}(1);function Ie(t){return function(n){var e,r,i=n.length,o=new Array(i),u=new Array(i),a=new Array(i);for(e=0;e<i;++e)r=Pe(n[e]),o[e]=r.r||0,u[e]=r.g||0,a[e]=r.b||0;return o=t(o),u=t(u),a=t(a),r.opacity=1,function(t){return r.r=o(t),r.g=u(t),r.b=a(t),r+""}}}function $e(t,n){var e,r=n?n.length:0,i=t?Math.min(r,t.length):0,o=new Array(i),u=new Array(r);for(e=0;e<i;++e)o[e]=Qe(t[e],n[e]);for(;e<r;++e)u[e]=n[e];return function(t){for(e=0;e<i;++e)u[e]=o[e](t);return u}}function Ue(t,n){var e=new Date;return t=+t,n=+n,function(r){return e.setTime(t*(1-r)+n*r),e}}function Ye(t,n){return t=+t,n=+n,function(e){return t*(1-e)+n*e}}function Fe(t,n){var e,r={},i={};for(e in null!==t&&"object"==typeof t||(t={}),null!==n&&"object"==typeof n||(n={}),n)e in t?r[e]=Qe(t[e],n[e]):i[e]=n[e];return function(t){for(e in r)i[e]=r[e](t);return i}}Ie((function(t){var n=t.length-1;return function(e){var r=e<=0?e=0:e>=1?(e=1,n-1):Math.floor(e*n),i=t[r],o=t[r+1],u=r>0?t[r-1]:2*i-o,a=r<n-1?t[r+2]:2*o-i;return Re((e-r/n)*n,u,i,o,a)}})),Ie((function(t){var n=t.length;return function(e){var r=Math.floor(((e%=1)<0?++e:e)*n),i=t[(r+n-1)%n],o=t[r%n],u=t[(r+1)%n],a=t[(r+2)%n];return Re((e-r/n)*n,i,o,u,a)}}));var Ze=/[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g,Ge=new RegExp(Ze.source,"g");function Je(t,n){var e,r,i,o=Ze.lastIndex=Ge.lastIndex=0,u=-1,a=[],l=[];for(t+="",n+="";(e=Ze.exec(t))&&(r=Ge.exec(n));)(i=r.index)>o&&(i=n.slice(o,i),a[u]?a[u]+=i:a[++u]=i),(e=e[0])===(r=r[0])?a[u]?a[u]+=r:a[++u]=r:(a[++u]=null,l.push({i:u,x:Ye(e,r)})),o=Ge.lastIndex;return o<n.length&&(i=n.slice(o),a[u]?a[u]+=i:a[++u]=i),a.length<2?l[0]?function(t){return function(n){return t(n)+""}}(l[0].x):function(t){return function(){return t}}(n):(n=l.length,function(t){for(var e,r=0;r<n;++r)a[(e=l[r]).i]=e.x(t);return a.join("")})}function Ke(t,n){n||(n=[]);var e,r=t?Math.min(n.length,t.length):0,i=n.slice();return function(o){for(e=0;e<r;++e)i[e]=t[e]*(1-o)+n[e]*o;return i}}function Qe(t,n){var e,r,i=typeof n;return null==n||"boolean"===i?Ve(n):("number"===i?Ye:"string"===i?(e=Ee(n))?(n=e,ze):Je:n instanceof Ee?ze:n instanceof Date?Ue:(r=n,!ArrayBuffer.isView(r)||r instanceof DataView?Array.isArray(n)?$e:"function"!=typeof n.valueOf&&"function"!=typeof n.toString||isNaN(n)?Fe:Ye:Ke))(t,n)}function We(t,n){return t=+t,n=+n,function(e){return Math.round(t*(1-e)+n*e)}}function tr(t){return+t}var nr=[0,1];function er(t){return t}function rr(t,n){return(n-=t=+t)?function(e){return(e-t)/n}:(e=isNaN(n)?NaN:.5,function(){return e});var e}function ir(t,n,e){var r=t[0],i=t[1],o=n[0],u=n[1];return i<r?(r=rr(i,r),o=e(u,o)):(r=rr(r,i),o=e(o,u)),function(t){return o(r(t))}}function or(t,n,e){var r=Math.min(t.length,n.length)-1,i=new Array(r),o=new Array(r),u=-1;for(t[r]<t[0]&&(t=t.slice().reverse(),n=n.slice().reverse());++u<r;)i[u]=rr(t[u],t[u+1]),o[u]=e(n[u],n[u+1]);return function(n){var e=ae(t,n,1,r)-1;return o[e](i[e](n))}}function ur(t,n){return n.domain(t.domain()).range(t.range()).interpolate(t.interpolate()).clamp(t.clamp()).unknown(t.unknown())}function ar(){return function(){var t,n,e,r,i,o,u=nr,a=nr,l=Qe,s=er;function c(){var t,n,e,l=Math.min(u.length,a.length);return s!==er&&(t=u[0],n=u[l-1],t>n&&(e=t,t=n,n=e),s=function(e){return Math.max(t,Math.min(n,e))}),r=l>2?or:ir,i=o=null,f}function f(n){return null==n||isNaN(n=+n)?e:(i||(i=r(u.map(t),a,l)))(t(s(n)))}return f.invert=function(e){return s(n((o||(o=r(a,u.map(t),Ye)))(e)))},f.domain=function(t){return arguments.length?(u=Array.from(t,tr),c()):u.slice()},f.range=function(t){return arguments.length?(a=Array.from(t),c()):a.slice()},f.rangeRound=function(t){return a=Array.from(t),l=We,c()},f.clamp=function(t){return arguments.length?(s=!!t||er,c()):s!==er},f.interpolate=function(t){return arguments.length?(l=t,c()):l},f.unknown=function(t){return arguments.length?(e=t,f):e},function(e,r){return t=e,n=r,c()}}()(er,er)}function lr(t,n){switch(arguments.length){case 0:break;case 1:this.range(t);break;default:this.range(n).domain(t)}return this}function sr(t){var n=t.domain;return t.ticks=function(t){var e=n();return function(t,n,e){var r,i,o,u,a=-1;if(e=+e,(t=+t)==(n=+n)&&e>0)return[t];if((r=n<t)&&(i=t,t=n,n=i),0===(u=re(t,n,e))||!isFinite(u))return[];if(u>0){let e=Math.round(t/u),r=Math.round(n/u);for(e*u<t&&++e,r*u>n&&--r,o=new Array(i=r-e+1);++a<i;)o[a]=(e+a)*u}else{u=-u;let e=Math.round(t*u),r=Math.round(n*u);for(e/u<t&&++e,r/u>n&&--r,o=new Array(i=r-e+1);++a<i;)o[a]=(e+a)/u}return r&&o.reverse(),o}(e[0],e[e.length-1],null==t?10:t)},t.tickFormat=function(t,e){var r=n();return function(t,n,e,r){var i,o=function(t,n,e){var r=Math.abs(n-t)/Math.max(0,e),i=Math.pow(10,Math.floor(Math.log(r)/Math.LN10)),o=r/i;return o>=te?i*=10:o>=ne?i*=5:o>=ee&&(i*=2),n<t?-i:i}(t,n,e);switch((r=Tn(null==r?",f":r)).type){case"s":var u=Math.max(Math.abs(t),Math.abs(n));return null!=r.precision||isNaN(i=function(t,n){return Math.max(0,3*Math.max(-8,Math.min(8,Math.floor(qn(n)/3)))-qn(Math.abs(t)))}(o,u))||(r.precision=i),zn(r,u);case"":case"e":case"g":case"p":case"r":null!=r.precision||isNaN(i=function(t,n){return t=Math.abs(t),n=Math.abs(n)-t,Math.max(0,qn(n)-qn(t))+1}(o,Math.max(Math.abs(t),Math.abs(n))))||(r.precision=i-("e"===r.type));break;case"f":case"%":null!=r.precision||isNaN(i=function(t){return Math.max(0,-qn(Math.abs(t)))}(o))||(r.precision=i-2*("%"===r.type))}return Xn(r)}(r[0],r[r.length-1],null==t?10:t,e)},t.nice=function(e){null==e&&(e=10);var r,i,o=n(),u=0,a=o.length-1,l=o[u],s=o[a],c=10;for(s<l&&(i=l,l=s,s=i,i=u,u=a,a=i);c-- >0;){if((i=re(l,s,e))===r)return o[u]=l,o[a]=s,n(o);if(i>0)l=Math.floor(l/i)*i,s=Math.ceil(s/i)*i;else{if(!(i<0))break;l=Math.ceil(l*i)/i,s=Math.floor(s*i)/i}r=i}return t},t}function cr(){var t=ar();return t.copy=function(){return ur(t,cr())},lr.apply(t,arguments),sr(t)}function fr(t){return((t*=2)<=1?t*t*t:(t-=2)*t*t+2)/2}var hr={value:()=>{}};function pr(){for(var t,n=0,e=arguments.length,r={};n<e;++n){if(!(t=arguments[n]+"")||t in r||/[\s.]/.test(t))throw new Error("illegal type: "+t);r[t]=[]}return new dr(r)}function dr(t){this._=t}function gr(t,n){return t.trim().split(/^|\s+/).map((function(t){var e="",r=t.indexOf(".");if(r>=0&&(e=t.slice(r+1),t=t.slice(0,r)),t&&!n.hasOwnProperty(t))throw new Error("unknown type: "+t);return{type:t,name:e}}))}function vr(t,n){for(var e,r=0,i=t.length;r<i;++r)if((e=t[r]).name===n)return e.value}function yr(t,n,e){for(var r=0,i=t.length;r<i;++r)if(t[r].name===n){t[r]=hr,t=t.slice(0,r).concat(t.slice(r+1));break}return null!=e&&t.push({name:n,value:e}),t}dr.prototype=pr.prototype={constructor:dr,on:function(t,n){var e,r=this._,i=gr(t+"",r),o=-1,u=i.length;if(!(arguments.length<2)){if(null!=n&&"function"!=typeof n)throw new Error("invalid callback: "+n);for(;++o<u;)if(e=(t=i[o]).type)r[e]=yr(r[e],t.name,n);else if(null==n)for(e in r)r[e]=yr(r[e],t.name,null);return this}for(;++o<u;)if((e=(t=i[o]).type)&&(e=vr(r[e],t.name)))return e},copy:function(){var t={},n=this._;for(var e in n)t[e]=n[e].slice();return new dr(t)},call:function(t,n){if((e=arguments.length-2)>0)for(var e,r,i=new Array(e),o=0;o<e;++o)i[o]=arguments[o+2];if(!this._.hasOwnProperty(t))throw new Error("unknown type: "+t);for(o=0,e=(r=this._[t]).length;o<e;++o)r[o].value.apply(n,i)},apply:function(t,n,e){if(!this._.hasOwnProperty(t))throw new Error("unknown type: "+t);for(var r=this._[t],i=0,o=r.length;i<o;++i)r[i].value.apply(n,e)}};const mr=pr;var _r,wr,br=0,xr=0,Mr=0,Ar=0,Nr=0,Er=0,kr="object"==typeof performance&&performance.now?performance:Date,Sr="object"==typeof window&&window.requestAnimationFrame?window.requestAnimationFrame.bind(window):function(t){setTimeout(t,17)};function Cr(){return Nr||(Sr(Pr),Nr=kr.now()+Er)}function Pr(){Nr=0}function jr(){this._call=this._time=this._next=null}function qr(t,n,e){var r=new jr;return r.restart(t,n,e),r}function Or(){Nr=(Ar=kr.now())+Er,br=xr=0;try{!function(){Cr(),++br;for(var t,n=_r;n;)(t=Nr-n._time)>=0&&n._call.call(null,t),n=n._next;--br}()}finally{br=0,function(){for(var t,n,e=_r,r=1/0;e;)e._call?(r>e._time&&(r=e._time),t=e,e=e._next):(n=e._next,e._next=null,e=t?t._next=n:_r=n);wr=t,Tr(r)}(),Nr=0}}function Lr(){var t=kr.now(),n=t-Ar;n>1e3&&(Er-=n,Ar=t)}function Tr(t){br||(xr&&(xr=clearTimeout(xr)),t-Nr>24?(t<1/0&&(xr=setTimeout(Or,t-kr.now()-Er)),Mr&&(Mr=clearInterval(Mr))):(Mr||(Ar=kr.now(),Mr=setInterval(Lr,1e3)),br=1,Sr(Or)))}function Br(t,n,e){var r=new jr;return n=null==n?0:+n,r.restart((function(e){r.stop(),t(e+n)}),n,e),r}jr.prototype=qr.prototype={constructor:jr,restart:function(t,n,e){if("function"!=typeof t)throw new TypeError("callback is not a function");e=(null==e?Cr():+e)+(null==n?0:+n),this._next||wr===this||(wr?wr._next=this:_r=this,wr=this),this._call=t,this._time=e,Tr()},stop:function(){this._call&&(this._call=null,this._time=1/0,Tr())}};var Dr=mr("start","end","cancel","interrupt"),Hr=[];function Rr(t,n,e,r,i,o){var u=t.__transition;if(u){if(e in u)return}else t.__transition={};!function(t,n,e){var r,i=t.__transition;function o(l){var s,c,f,h;if(1!==e.state)return a();for(s in i)if((h=i[s]).name===e.name){if(3===h.state)return Br(o);4===h.state?(h.state=6,h.timer.stop(),h.on.call("interrupt",t,t.__data__,h.index,h.group),delete i[s]):+s<n&&(h.state=6,h.timer.stop(),h.on.call("cancel",t,t.__data__,h.index,h.group),delete i[s])}if(Br((function(){3===e.state&&(e.state=4,e.timer.restart(u,e.delay,e.time),u(l))})),e.state=2,e.on.call("start",t,t.__data__,e.index,e.group),2===e.state){for(e.state=3,r=new Array(f=e.tween.length),s=0,c=-1;s<f;++s)(h=e.tween[s].value.call(t,t.__data__,e.index,e.group))&&(r[++c]=h);r.length=c+1}}function u(n){for(var i=n<e.duration?e.ease.call(null,n/e.duration):(e.timer.restart(a),e.state=5,1),o=-1,u=r.length;++o<u;)r[o].call(t,i);5===e.state&&(e.on.call("end",t,t.__data__,e.index,e.group),a())}function a(){for(var r in e.state=6,e.timer.stop(),delete i[n],i)return;delete t.__transition}i[n]=e,e.timer=qr((function(t){e.state=1,e.timer.restart(o,e.delay,e.time),e.delay<=t&&o(t-e.delay)}),0,e.time)}(t,e,{name:n,index:r,group:i,on:Dr,tween:Hr,time:o.time,delay:o.delay,duration:o.duration,ease:o.ease,timer:null,state:0})}function Vr(t,n){var e=zr(t,n);if(e.state>0)throw new Error("too late; already scheduled");return e}function Xr(t,n){var e=zr(t,n);if(e.state>3)throw new Error("too late; already running");return e}function zr(t,n){var e=t.__transition;if(!e||!(e=e[n]))throw new Error("transition not found");return e}var Ir,$r,Ur,Yr,Fr=180/Math.PI,Zr={translateX:0,translateY:0,rotate:0,skewX:0,scaleX:1,scaleY:1};function Gr(t,n,e,r,i,o){var u,a,l;return(u=Math.sqrt(t*t+n*n))&&(t/=u,n/=u),(l=t*e+n*r)&&(e-=t*l,r-=n*l),(a=Math.sqrt(e*e+r*r))&&(e/=a,r/=a,l/=a),t*r<n*e&&(t=-t,n=-n,l=-l,u=-u),{translateX:i,translateY:o,rotate:Math.atan2(n,t)*Fr,skewX:Math.atan(l)*Fr,scaleX:u,scaleY:a}}function Jr(t,n,e,r){function i(t){return t.length?t.pop()+" ":""}return function(o,u){var a=[],l=[];return o=t(o),u=t(u),function(t,r,i,o,u,a){if(t!==i||r!==o){var l=u.push("translate(",null,n,null,e);a.push({i:l-4,x:Ye(t,i)},{i:l-2,x:Ye(r,o)})}else(i||o)&&u.push("translate("+i+n+o+e)}(o.translateX,o.translateY,u.translateX,u.translateY,a,l),function(t,n,e,o){t!==n?(t-n>180?n+=360:n-t>180&&(t+=360),o.push({i:e.push(i(e)+"rotate(",null,r)-2,x:Ye(t,n)})):n&&e.push(i(e)+"rotate("+n+r)}(o.rotate,u.rotate,a,l),function(t,n,e,o){t!==n?o.push({i:e.push(i(e)+"skewX(",null,r)-2,x:Ye(t,n)}):n&&e.push(i(e)+"skewX("+n+r)}(o.skewX,u.skewX,a,l),function(t,n,e,r,o,u){if(t!==e||n!==r){var a=o.push(i(o)+"scale(",null,",",null,")");u.push({i:a-4,x:Ye(t,e)},{i:a-2,x:Ye(n,r)})}else 1===e&&1===r||o.push(i(o)+"scale("+e+","+r+")")}(o.scaleX,o.scaleY,u.scaleX,u.scaleY,a,l),o=u=null,function(t){for(var n,e=-1,r=l.length;++e<r;)a[(n=l[e]).i]=n.x(t);return a.join("")}}}var Kr=Jr((function(t){return"none"===t?Zr:(Ir||(Ir=document.createElement("DIV"),$r=document.documentElement,Ur=document.defaultView),Ir.style.transform=t,t=Ur.getComputedStyle($r.appendChild(Ir),null).getPropertyValue("transform"),$r.removeChild(Ir),Gr(+(t=t.slice(7,-1).split(","))[0],+t[1],+t[2],+t[3],+t[4],+t[5]))}),"px, ","px)","deg)"),Qr=Jr((function(t){return null==t?Zr:(Yr||(Yr=document.createElementNS("http://www.w3.org/2000/svg","g")),Yr.setAttribute("transform",t),(t=Yr.transform.baseVal.consolidate())?Gr((t=t.matrix).a,t.b,t.c,t.d,t.e,t.f):Zr)}),", ",")",")");function Wr(t,n){var e,r;return function(){var i=Xr(this,t),o=i.tween;if(o!==e)for(var u=0,a=(r=e=o).length;u<a;++u)if(r[u].name===n){(r=r.slice()).splice(u,1);break}i.tween=r}}function ti(t,n,e){var r,i;if("function"!=typeof e)throw new Error;return function(){var o=Xr(this,t),u=o.tween;if(u!==r){i=(r=u).slice();for(var a={name:n,value:e},l=0,s=i.length;l<s;++l)if(i[l].name===n){i[l]=a;break}l===s&&i.push(a)}o.tween=i}}function ni(t,n,e){var r=t._id;return t.each((function(){var t=Xr(this,r);(t.value||(t.value={}))[n]=e.apply(this,arguments)})),function(t){return zr(t,r).value[n]}}function ei(t,n){var e;return("number"==typeof n?Ye:n instanceof Ee?ze:(e=Ee(n))?(n=e,ze):Je)(t,n)}function ri(t){return function(){this.removeAttribute(t)}}function ii(t){return function(){this.removeAttributeNS(t.space,t.local)}}function oi(t,n,e){var r,i,o=e+"";return function(){var u=this.getAttribute(t);return u===o?null:u===r?i:i=n(r=u,e)}}function ui(t,n,e){var r,i,o=e+"";return function(){var u=this.getAttributeNS(t.space,t.local);return u===o?null:u===r?i:i=n(r=u,e)}}function ai(t,n,e){var r,i,o;return function(){var u,a,l=e(this);if(null!=l)return(u=this.getAttribute(t))===(a=l+"")?null:u===r&&a===i?o:(i=a,o=n(r=u,l));this.removeAttribute(t)}}function li(t,n,e){var r,i,o;return function(){var u,a,l=e(this);if(null!=l)return(u=this.getAttributeNS(t.space,t.local))===(a=l+"")?null:u===r&&a===i?o:(i=a,o=n(r=u,l));this.removeAttributeNS(t.space,t.local)}}function si(t,n){return function(e){this.setAttribute(t,n.call(this,e))}}function ci(t,n){return function(e){this.setAttributeNS(t.space,t.local,n.call(this,e))}}function fi(t,n){var e,r;function i(){var i=n.apply(this,arguments);return i!==r&&(e=(r=i)&&ci(t,i)),e}return i._value=n,i}function hi(t,n){var e,r;function i(){var i=n.apply(this,arguments);return i!==r&&(e=(r=i)&&si(t,i)),e}return i._value=n,i}function pi(t,n){return function(){Vr(this,t).delay=+n.apply(this,arguments)}}function di(t,n){return n=+n,function(){Vr(this,t).delay=n}}function gi(t,n){return function(){Xr(this,t).duration=+n.apply(this,arguments)}}function vi(t,n){return n=+n,function(){Xr(this,t).duration=n}}function yi(t,n){if("function"!=typeof n)throw new Error;return function(){Xr(this,t).ease=n}}function mi(t,n,e){var r,i,o=function(t){return(t+"").trim().split(/^|\s+/).every((function(t){var n=t.indexOf(".");return n>=0&&(t=t.slice(0,n)),!t||"start"===t}))}(n)?Vr:Xr;return function(){var u=o(this,t),a=u.on;a!==r&&(i=(r=a).copy()).on(n,e),u.on=i}}var _i=Cn.prototype.constructor;function wi(t){return function(){this.style.removeProperty(t)}}function bi(t,n,e){return function(r){this.style.setProperty(t,n.call(this,r),e)}}function xi(t,n,e){var r,i;function o(){var o=n.apply(this,arguments);return o!==i&&(r=(i=o)&&bi(t,o,e)),r}return o._value=n,o}function Mi(t){return function(n){this.textContent=t.call(this,n)}}function Ai(t){var n,e;function r(){var r=t.apply(this,arguments);return r!==e&&(n=(e=r)&&Mi(r)),n}return r._value=t,r}var Ni=0;function Ei(t,n,e,r){this._groups=t,this._parents=n,this._name=e,this._id=r}function ki(){return++Ni}var Si=Cn.prototype;Ei.prototype=function(t){return Cn().transition(t)}.prototype={constructor:Ei,select:function(t){var n=this._name,e=this._id;"function"!=typeof t&&(t=gt(t));for(var r=this._groups,i=r.length,o=new Array(i),u=0;u<i;++u)for(var a,l,s=r[u],c=s.length,f=o[u]=new Array(c),h=0;h<c;++h)(a=s[h])&&(l=t.call(a,a.__data__,h,s))&&("__data__"in a&&(l.__data__=a.__data__),f[h]=l,Rr(f[h],n,e,h,f,zr(a,e)));return new Ei(o,this._parents,n,e)},selectAll:function(t){var n=this._name,e=this._id;"function"!=typeof t&&(t=mt(t));for(var r=this._groups,i=r.length,o=[],u=[],a=0;a<i;++a)for(var l,s=r[a],c=s.length,f=0;f<c;++f)if(l=s[f]){for(var h,p=t.call(l,l.__data__,f,s),d=zr(l,e),g=0,v=p.length;g<v;++g)(h=p[g])&&Rr(h,n,e,g,p,d);o.push(p),u.push(l)}return new Ei(o,u,n,e)},selectChild:Si.selectChild,selectChildren:Si.selectChildren,filter:function(t){"function"!=typeof t&&(t=_t(t));for(var n=this._groups,e=n.length,r=new Array(e),i=0;i<e;++i)for(var o,u=n[i],a=u.length,l=r[i]=[],s=0;s<a;++s)(o=u[s])&&t.call(o,o.__data__,s,u)&&l.push(o);return new Ei(r,this._parents,this._name,this._id)},merge:function(t){if(t._id!==this._id)throw new Error;for(var n=this._groups,e=t._groups,r=n.length,i=e.length,o=Math.min(r,i),u=new Array(r),a=0;a<o;++a)for(var l,s=n[a],c=e[a],f=s.length,h=u[a]=new Array(f),p=0;p<f;++p)(l=s[p]||c[p])&&(h[p]=l);for(;a<r;++a)u[a]=n[a];return new Ei(u,this._parents,this._name,this._id)},selection:function(){return new _i(this._groups,this._parents)},transition:function(){for(var t=this._name,n=this._id,e=ki(),r=this._groups,i=r.length,o=0;o<i;++o)for(var u,a=r[o],l=a.length,s=0;s<l;++s)if(u=a[s]){var c=zr(u,n);Rr(u,t,e,s,a,{time:c.time+c.delay+c.duration,delay:0,duration:c.duration,ease:c.ease})}return new Ei(r,this._parents,t,e)},call:Si.call,nodes:Si.nodes,node:Si.node,size:Si.size,empty:Si.empty,each:Si.each,on:function(t,n){var e=this._id;return arguments.length<2?zr(this.node(),e).on.on(t):this.each(mi(e,t,n))},attr:function(t,n){var e=Tt(t),r="transform"===e?Qr:ei;return this.attrTween(t,"function"==typeof n?(e.local?li:ai)(e,r,ni(this,"attr."+t,n)):null==n?(e.local?ii:ri)(e):(e.local?ui:oi)(e,r,n))},attrTween:function(t,n){var e="attr."+t;if(arguments.length<2)return(e=this.tween(e))&&e._value;if(null==n)return this.tween(e,null);if("function"!=typeof n)throw new Error;var r=Tt(t);return this.tween(e,(r.local?fi:hi)(r,n))},style:function(t,n,e){var r="transform"==(t+="")?Kr:ei;return null==n?this.styleTween(t,function(t,n){var e,r,i;return function(){var o=Yt(this,t),u=(this.style.removeProperty(t),Yt(this,t));return o===u?null:o===e&&u===r?i:i=n(e=o,r=u)}}(t,r)).on("end.style."+t,wi(t)):"function"==typeof n?this.styleTween(t,function(t,n,e){var r,i,o;return function(){var u=Yt(this,t),a=e(this),l=a+"";return null==a&&(this.style.removeProperty(t),l=a=Yt(this,t)),u===l?null:u===r&&l===i?o:(i=l,o=n(r=u,a))}}(t,r,ni(this,"style."+t,n))).each(function(t,n){var e,r,i,o,u="style."+n,a="end."+u;return function(){var l=Xr(this,t),s=l.on,c=null==l.value[u]?o||(o=wi(n)):void 0;s===e&&i===c||(r=(e=s).copy()).on(a,i=c),l.on=r}}(this._id,t)):this.styleTween(t,function(t,n,e){var r,i,o=e+"";return function(){var u=Yt(this,t);return u===o?null:u===r?i:i=n(r=u,e)}}(t,r,n),e).on("end.style."+t,null)},styleTween:function(t,n,e){var r="style."+(t+="");if(arguments.length<2)return(r=this.tween(r))&&r._value;if(null==n)return this.tween(r,null);if("function"!=typeof n)throw new Error;return this.tween(r,xi(t,n,null==e?"":e))},text:function(t){return this.tween("text","function"==typeof t?function(t){return function(){var n=t(this);this.textContent=null==n?"":n}}(ni(this,"text",t)):function(t){return function(){this.textContent=t}}(null==t?"":t+""))},textTween:function(t){var n="text";if(arguments.length<1)return(n=this.tween(n))&&n._value;if(null==t)return this.tween(n,null);if("function"!=typeof t)throw new Error;return this.tween(n,Ai(t))},remove:function(){return this.on("end.remove",function(t){return function(){var n=this.parentNode;for(var e in this.__transition)if(+e!==t)return;n&&n.removeChild(this)}}(this._id))},tween:function(t,n){var e=this._id;if(t+="",arguments.length<2){for(var r,i=zr(this.node(),e).tween,o=0,u=i.length;o<u;++o)if((r=i[o]).name===t)return r.value;return null}return this.each((null==n?Wr:ti)(e,t,n))},delay:function(t){var n=this._id;return arguments.length?this.each(("function"==typeof t?pi:di)(n,t)):zr(this.node(),n).delay},duration:function(t){var n=this._id;return arguments.length?this.each(("function"==typeof t?gi:vi)(n,t)):zr(this.node(),n).duration},ease:function(t){var n=this._id;return arguments.length?this.each(yi(n,t)):zr(this.node(),n).ease},easeVarying:function(t){if("function"!=typeof t)throw new Error;return this.each(function(t,n){return function(){var e=n.apply(this,arguments);if("function"!=typeof e)throw new Error;Xr(this,t).ease=e}}(this._id,t))},end:function(){var t,n,e=this,r=e._id,i=e.size();return new Promise((function(o,u){var a={value:u},l={value:function(){0==--i&&o()}};e.each((function(){var e=Xr(this,r),i=e.on;i!==t&&((n=(t=i).copy())._.cancel.push(a),n._.interrupt.push(a),n._.end.push(l)),e.on=n})),0===i&&o()}))},[Symbol.iterator]:Si[Symbol.iterator]};var Ci={time:null,delay:0,duration:250,ease:fr};function Pi(t,n){for(var e;!(e=t.__transition)||!(e=e[n]);)if(!(t=t.parentNode))throw new Error(` + "`" + `transition ${n} not found` + "`" + `);return e}function ji(){let t=960,n=null,e=18,r=null,i=null,o="",u=750,a=fr,l=!1,s=!1,c=null,f=null,h=0,p=null,d=null,g=!1,v=!1,y=!1,m=null,_=!1,w=null,b=function(t){return t.data.n||t.data.name},x=function(t){return"v"in t?t.v:t.value},M=function(t){return t.c||t.children},A=function(t){return t.data.l||t.data.libtype},N=function(t){return"d"in t.data?t.data.d:t.data.delta},E=function(t,n,e){d=()=>{p&&(p.textContent="search: "+n+" of "+e+" total samples ( "+Xn(".3f")(n/e*100,3)+"%)")},d()};const k=E;let S=(t,n,e=!1)=>{if(!n)return!1;let r=b(t);e&&(n=n.toLowerCase(),r=r.toLowerCase());const i=new RegExp(n);return void 0!==r&&r&&r.match(i)};const C=S;let P=function(t){p&&(t?p.textContent=t:"function"==typeof d?d():p.textContent="")};const j=P;let q=function(t){return b(t)+" ("+Xn(".3f")(100*(t.x1-t.x0),3)+"%, "+x(t)+" samples)"},O=function(t){return t.highlight?"#E600E6":function(t,n){let e=w||"warm";w||void 0===n||""===n||(e="red",void 0!==t&&t&&t.match(/::/)&&(e="yellow"),"kernel"===n?e="orange":"jit"===n?e="green":"inlined"===n&&(e="aqua"));const r=function(t){let n=0;if(t){const e=t.split("` + "`" + `");e.length>1&&(t=e[e.length-1]),n=function(t){let n=0,e=0,r=1;if(t){for(let i=0;i<t.length&&!(i>6);i++)n+=r*(t.charCodeAt(i)%10),e+=9*r,r*=.7;e>0&&(n/=e)}return n}(t=t.split("(")[0])}return n}(t);return function(t,n){let e,r,i;return"red"===t?(e=200+Math.round(55*n),r=50+Math.round(80*n),i=r):"orange"===t?(e=190+Math.round(65*n),r=90+Math.round(65*n),i=0):"yellow"===t?(e=175+Math.round(55*n),r=e,i=50+Math.round(20*n)):"green"===t?(e=50+Math.round(60*n),r=200+Math.round(55*n),i=e):"pastelgreen"===t?(e=163+Math.round(75*n),r=195+Math.round(49*n),i=72+Math.round(149*n)):"blue"===t?(e=91+Math.round(126*n),r=156+Math.round(76*n),i=221+Math.round(26*n)):"aqua"===t?(e=50+Math.round(60*n),r=165+Math.round(55*n),i=r):"cold"===t?(e=0+Math.round(55*(1-n)),r=0+Math.round(230*(1-n)),i=200+Math.round(55*n)):(e=200+Math.round(55*n),r=0+Math.round(230*(1-n)),i=0+Math.round(55*(1-n))),"rgb("+e+","+r+","+i+")"}(e,r)}(b(t),A(t))};const L=O;function T(t){t.data.fade=!1,t.data.hide=!1,t.children&&t.children.forEach(T)}function B(t){t.parent&&(t.parent.data.fade=!0,B(t.parent))}function D(t){if(i&&i.hide(),function(t){let n,e,r,i=t,o=i.parent;for(;o;){for(n=o.children,e=n.length;e--;)r=n[e],r!==i&&(r.data.hide=!0);i=o,o=i.parent}}(t),T(t),B(t),z(),y){const n=Pn(this).select("svg")._groups[0][0].parentNode.offsetTop,r=(window.innerHeight-n)/e,i=(t.height-r+10)*e;window.scrollTo({top:n+i,left:0,behavior:"smooth"})}"function"==typeof c&&c(t)}function H(t,n){if(t.id===n)return t;{const e=M(t);if(e)for(let t=0;t<e.length;t++){const r=H(e[t],n);if(r)return r}}}function R(t){t.highlight=!1,M(t)&&M(t).forEach((function(t){R(t)}))}function V(t,n){return"function"==typeof l?l(t,n):l?Un(b(t),b(n)):void 0}const X=function(){var t=1,n=1,e=0,r=!1;function i(i){var o=i.height+1;return i.x0=i.y0=e,i.x1=t,i.y1=n/o,i.eachBefore(function(t,n){return function(r){r.children&&function(t,n,e,r,i){for(var o,u=t.children,a=-1,l=u.length,s=t.value&&(r-n)/t.value;++a<l;)(o=u[a]).y0=e,o.y1=i,o.x0=n,o.x1=n+=o.value*s}(r,r.x0,t*(r.depth+1)/n,r.x1,t*(r.depth+2)/n);var i=r.x0,o=r.y0,u=r.x1-e,a=r.y1-e;u<i&&(i=u=(i+u)/2),a<o&&(o=a=(o+a)/2),r.x0=i,r.y0=o,r.x1=u,r.y1=a}}(n,o)),r&&i.eachBefore(Yn),i}return i.round=function(t){return arguments.length?(r=!!t,i):r},i.size=function(e){return arguments.length?(t=+e[0],n=+e[1],i):[t,n]},i.padding=function(t){return arguments.length?(e=+t,i):e},i}();function z(){r.each((function(r){const o=cr().range([0,t]),c=cr().range([0,e]);$(r),l&&r.sort(V),X(r);const p=t/(r.x1-r.x0);function d(t){return(t.x1-t.x0)*p}const g=function(n){let e=n.descendants();if(h>0){const r=t/(n.x1-n.x0);e=e.filter((function(t){return(t.x1-t.x0)*r>h}))}return e}(r),y=Pn(this).select("svg");y.attr("width",t);let _=y.selectAll("g").data(g,(function(t){return t.id}));if(!n||v){const t=Math.max.apply(null,g.map((function(t){return t.depth})));n=(t+3)*e,n<m&&(n=m),y.attr("height",n)}_.transition().duration(u).ease(a).attr("transform",(function(t){return"translate("+o(t.x0)+","+(s?c(t.depth):n-c(t.depth)-e)+")"})),_.select("rect").transition().duration(u).ease(a).attr("width",d);const w=_.enter().append("svg:g").attr("transform",(function(t){return"translate("+o(t.x0)+","+(s?c(t.depth):n-c(t.depth)-e)+")"}));w.append("svg:rect").transition().delay(u/2).attr("width",d),i||w.append("svg:title"),w.append("foreignObject").append("xhtml:div"),_=y.selectAll("g").data(g,(function(t){return t.id})),_.attr("width",d).attr("height",(function(t){return e})).attr("name",(function(t){return b(t)})).attr("class",(function(t){return t.data.fade?"frame fade":"frame"})),_.select("rect").attr("height",(function(t){return e})).attr("fill",(function(t){return O(t)})),i||_.select("title").text(q),_.select("foreignObject").attr("width",d).attr("height",(function(t){return e})).select("div").attr("class","d3-flame-graph-label").style("display",(function(t){return d(t)<35?"none":"block"})).transition().delay(u).text(b),_.on("click",((t,n)=>{D(n)})),_.exit().remove(),_.on("mouseover",(function(t,n){i&&i.show(n,this),P(q(n)),"function"==typeof f&&f(n)})).on("mouseout",(function(){i&&i.hide(),P(null)}))}))}function I(t,n){n.forEach((function(n){const e=t.find((function(t){return t.name===n.name}));e?(e.value+=n.value,n.children&&(e.children||(e.children=[]),I(e.children,n.children))):t.push(n)}))}function $(t){let n,e,r,i,o,u,a,l;const s=[],c=[],f=[],h=!g;let p=t.data;for(p.hide?(t.value=0,e=t.children,e&&f.push(e)):(t.value=p.fade?0:x(p),s.push(t));n=s.pop();)if(e=n.children,e&&(o=e.length)){for(i=0;o--;)a=e[o],p=a.data,p.hide?(a.value=0,r=a.children,r&&f.push(r)):(p.fade?a.value=0:(l=x(p),a.value=l,i+=l),s.push(a));h&&n.value&&(n.value-=i),c.push(e)}for(o=c.length;o--;){for(e=c[o],i=0,u=e.length;u--;)i+=e[u].value;e[0].parent.value+=i}for(;f.length;)for(e=f.pop(),u=e.length;u--;)a=e[u],a.value=0,r=a.children,r&&f.push(r)}function U(){r.datum((t=>{if("Node"!==t.constructor.name){const n=Zn(t,M);return function(t){let n=0;!function(t,n){n(t);let e=t.children;if(e){const t=[e];let r,i,o;for(;t.length;)for(e=t.pop(),r=e.length;r--;)i=e[r],n(i),o=i.children,o&&t.push(o)}}(t,(function(t){t.id=n++}))}(n),$(n),n.originalValue=n.value,_&&n.eachAfter((t=>{let n=N(t);const e=t.children;let r=e&&e.length;for(;--r>=0;)n+=e[r].delta;t.delta=n})),n}}))}function Y(e){if(!arguments.length)return Y;r=e,U(),r.each((function(e){if(0===Pn(this).select("svg").size()){const e=Pn(this).append("svg:svg").attr("width",t).attr("class","partition d3-flame-graph");n&&(n<m&&(n=m),e.attr("height",n)),e.append("svg:text").attr("class","title").attr("text-anchor","middle").attr("y","25").attr("x",t/2).attr("fill","#808080").text(o),i&&e.call(i)}})),z()}return Y.height=function(t){return arguments.length?(n=t,Y):n},Y.minHeight=function(t){return arguments.length?(m=t,Y):m},Y.width=function(n){return arguments.length?(t=n,Y):t},Y.cellHeight=function(t){return arguments.length?(e=t,Y):e},Y.tooltip=function(t){return arguments.length?("function"==typeof t&&(i=t),Y):i},Y.title=function(t){return arguments.length?(o=t,Y):o},Y.transitionDuration=function(t){return arguments.length?(u=t,Y):u},Y.transitionEase=function(t){return arguments.length?(a=t,Y):a},Y.sort=function(t){return arguments.length?(l=t,Y):l},Y.inverted=function(t){return arguments.length?(s=t,Y):s},Y.computeDelta=function(t){return arguments.length?(_=t,Y):_},Y.setLabelHandler=function(t){return arguments.length?(q=t,Y):q},Y.label=Y.setLabelHandler,Y.search=function(t){const n=[];let e=0,i=0;r.each((function(r){const o=function(t,n){const e=[];let r=0;return function t(i,o){let u=!1;S(i,n)?(i.highlight=!0,u=!0,o||(r+=x(i)),e.push(i)):i.highlight=!1,M(i)&&M(i).forEach((function(n){t(n,o||u)}))}(t,!1),[e,r]}(r,t);n.push(...o[0]),e+=o[1],i+=r.originalValue})),E(n,e,i),z()},Y.findById=function(t){if(null==t)return null;let n=null;return r.each((function(e){null===n&&(n=H(e,t))})),n},Y.clear=function(){P(null),r.each((function(t){R(t),z()}))},Y.zoomTo=function(t){D(t)},Y.resetZoom=function(){r.each((function(t){D(t)}))},Y.onClick=function(t){return arguments.length?(c=t,Y):c},Y.onHover=function(t){return arguments.length?(f=t,Y):f},Y.merge=function(t){return r?(this.resetZoom(),d=null,P(null),r.datum((n=>(I([n.data],[t]),n.data))),U(),z(),Y):Y},Y.update=function(t){return r?(t&&(r.datum(t),U()),z(),Y):Y},Y.destroy=function(){return r?(i&&(i.hide(),"function"==typeof i.destroy&&i.destroy()),r.selectAll("svg").remove(),Y):Y},Y.setColorMapper=function(t){return arguments.length?(O=n=>{const e=L(n);return t(n,e)},Y):(O=L,Y)},Y.color=Y.setColorMapper,Y.setColorHue=function(t){return arguments.length?(w=t,Y):(w=null,Y)},Y.minFrameSize=function(t){return arguments.length?(h=t,Y):h},Y.setDetailsElement=function(t){return arguments.length?(p=t,Y):p},Y.details=Y.setDetailsElement,Y.selfValue=function(t){return arguments.length?(g=t,Y):g},Y.resetHeightOnZoom=function(t){return arguments.length?(v=t,Y):v},Y.scrollOnZoom=function(t){return arguments.length?(y=t,Y):y},Y.getName=function(t){return arguments.length?(b=t,Y):b},Y.getValue=function(t){return arguments.length?(x=t,Y):x},Y.getChildren=function(t){return arguments.length?(M=t,Y):M},Y.getLibtype=function(t){return arguments.length?(A=t,Y):A},Y.getDelta=function(t){return arguments.length?(N=t,Y):N},Y.setSearchHandler=function(t){return arguments.length?(E=t,Y):(E=k,Y)},Y.setDetailsHandler=function(t){return arguments.length?(P=t,Y):(P=j,Y)},Y.setSearchMatch=function(t){return arguments.length?(S=t,Y):(S=C,Y)},Y}return Cn.prototype.interrupt=function(t){return this.each((function(){!function(t,n){var e,r,i,o=t.__transition,u=!0;if(o){for(i in n=null==n?null:n+"",o)(e=o[i]).name===n?(r=e.state>2&&e.state<5,e.state=6,e.timer.stop(),e.on.call(r?"interrupt":"cancel",t,t.__data__,e.index,e.group),delete o[i]):u=!1;u&&delete t.__transition}}(this,t)}))},Cn.prototype.transition=function(t){var n,e;t instanceof Ei?(n=t._id,t=t._name):(n=ki(),(e=Ci).time=Cr(),t=null==t?null:t+"");for(var r=this._groups,i=r.length,o=0;o<i;++o)for(var u,a=r[o],l=a.length,s=0;s<l;++s)(u=a[s])&&Rr(u,t,n,s,a,e||Pi(u,n));return new Ei(r,this._parents,t,n)},n})()}));
+-`
+-
+-// CSSSource returns the d3-flamegraph.css file
+-const CSSSource = `
+-.d3-flame-graph rect {
+-  stroke: #EEEEEE;
+-  fill-opacity: .8;
+-}
+-
+-.d3-flame-graph rect:hover {
+-  stroke: #474747;
+-  stroke-width: 0.5;
+-  cursor: pointer;
+-}
+-
+-.d3-flame-graph-label {
+-  pointer-events: none;
+-  white-space: nowrap;
+-  text-overflow: ellipsis;
+-  overflow: hidden;
+-  font-size: 12px;
+-  font-family: Verdana;
+-  margin-left: 4px;
+-  margin-right: 4px;
+-  line-height: 1.5;
+-  padding: 0 0 0;
+-  font-weight: 400;
+-  color: black;
+-  text-align: left;
+-}
+-
+-.d3-flame-graph .fade {
+-  opacity: 0.6 !important;
+-}
+-
+-.d3-flame-graph .title {
+-  font-size: 20px;
+-  font-family: Verdana;
+-}
+-
+-.d3-flame-graph-tip {
+-    background-color: black;
+-    border: none;
+-    border-radius: 3px;
+-    padding: 5px 10px 5px 10px;
+-    min-width: 250px;
+-    text-align: left;
+-    color: white;
+-    z-index: 10;
+-}
+-`
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/index.js b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/index.js
+deleted file mode 100644
+index d6e0b5b6ed..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/index.js
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// This file exports a stripped-down API surface of d3 and d3-flame-graph,
+-// using only the functions used by pprof.
+-
+-export {
+-  select,
+-} from "d3-selection";
+-
+-export {
+-  default as flamegraph
+-// If we export from "d3-flame-graph" that exports the "dist" version which
+-// includes another copy of d3-selection. To avoid including d3-selection
+-// twice in the output, instead import the "src" version.
+-} from "d3-flame-graph/src/flamegraph";
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/package-lock.json b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/package-lock.json
+deleted file mode 100644
+index d5caba62f8..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/package-lock.json
++++ /dev/null
+@@ -1,1106 +0,0 @@
+-{
+-  "name": "d3-pprof",
+-  "version": "2.0.0",
+-  "lockfileVersion": 1,
+-  "requires": true,
+-  "dependencies": {
+-    "@discoveryjs/json-ext": {
+-      "version": "0.5.6",
+-      "resolved": "https://registry.npmjs.org/@discoveryjs/json-ext/-/json-ext-0.5.6.tgz",
+-      "integrity": "sha512-ws57AidsDvREKrZKYffXddNkyaF14iHNHm8VQnZH6t99E8gczjNN0GpvcGny0imC80yQ0tHz1xVUKk/KFQSUyA==",
+-      "dev": true
+-    },
+-    "@types/eslint": {
+-      "version": "8.2.1",
+-      "resolved": "https://registry.npmjs.org/@types/eslint/-/eslint-8.2.1.tgz",
+-      "integrity": "sha512-UP9rzNn/XyGwb5RQ2fok+DzcIRIYwc16qTXse5+Smsy8MOIccCChT15KAwnsgQx4PzJkaMq4myFyZ4CL5TjhIQ==",
+-      "dev": true,
+-      "requires": {
+-        "@types/estree": "*",
+-        "@types/json-schema": "*"
+-      }
+-    },
+-    "@types/eslint-scope": {
+-      "version": "3.7.1",
+-      "resolved": "https://registry.npmjs.org/@types/eslint-scope/-/eslint-scope-3.7.1.tgz",
+-      "integrity": "sha512-SCFeogqiptms4Fg29WpOTk5nHIzfpKCemSN63ksBQYKTcXoJEmJagV+DhVmbapZzY4/5YaOV1nZwrsU79fFm1g==",
+-      "dev": true,
+-      "requires": {
+-        "@types/eslint": "*",
+-        "@types/estree": "*"
+-      }
+-    },
+-    "@types/estree": {
+-      "version": "0.0.50",
+-      "resolved": "https://registry.npmjs.org/@types/estree/-/estree-0.0.50.tgz",
+-      "integrity": "sha512-C6N5s2ZFtuZRj54k2/zyRhNDjJwwcViAM3Nbm8zjBpbqAdZ00mr0CFxvSKeO8Y/e03WVFLpQMdHYVfUd6SB+Hw==",
+-      "dev": true
+-    },
+-    "@types/json-schema": {
+-      "version": "7.0.9",
+-      "resolved": "https://registry.npmjs.org/@types/json-schema/-/json-schema-7.0.9.tgz",
+-      "integrity": "sha512-qcUXuemtEu+E5wZSJHNxUXeCZhAfXKQ41D+duX+VYPde7xyEVZci+/oXKJL13tnRs9lR2pr4fod59GT6/X1/yQ==",
+-      "dev": true
+-    },
+-    "@types/node": {
+-      "version": "16.11.11",
+-      "resolved": "https://registry.npmjs.org/@types/node/-/node-16.11.11.tgz",
+-      "integrity": "sha512-KB0sixD67CeecHC33MYn+eYARkqTheIRNuu97y2XMjR7Wu3XibO1vaY6VBV6O/a89SPI81cEUIYT87UqUWlZNw==",
+-      "dev": true
+-    },
+-    "@webassemblyjs/ast": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/ast/-/ast-1.11.1.tgz",
+-      "integrity": "sha512-ukBh14qFLjxTQNTXocdyksN5QdM28S1CxHt2rdskFyL+xFV7VremuBLVbmCePj+URalXBENx/9Lm7lnhihtCSw==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/helper-numbers": "1.11.1",
+-        "@webassemblyjs/helper-wasm-bytecode": "1.11.1"
+-      }
+-    },
+-    "@webassemblyjs/floating-point-hex-parser": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/floating-point-hex-parser/-/floating-point-hex-parser-1.11.1.tgz",
+-      "integrity": "sha512-iGRfyc5Bq+NnNuX8b5hwBrRjzf0ocrJPI6GWFodBFzmFnyvrQ83SHKhmilCU/8Jv67i4GJZBMhEzltxzcNagtQ==",
+-      "dev": true
+-    },
+-    "@webassemblyjs/helper-api-error": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/helper-api-error/-/helper-api-error-1.11.1.tgz",
+-      "integrity": "sha512-RlhS8CBCXfRUR/cwo2ho9bkheSXG0+NwooXcc3PAILALf2QLdFyj7KGsKRbVc95hZnhnERon4kW/D3SZpp6Tcg==",
+-      "dev": true
+-    },
+-    "@webassemblyjs/helper-buffer": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/helper-buffer/-/helper-buffer-1.11.1.tgz",
+-      "integrity": "sha512-gwikF65aDNeeXa8JxXa2BAk+REjSyhrNC9ZwdT0f8jc4dQQeDQ7G4m0f2QCLPJiMTTO6wfDmRmj/pW0PsUvIcA==",
+-      "dev": true
+-    },
+-    "@webassemblyjs/helper-numbers": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/helper-numbers/-/helper-numbers-1.11.1.tgz",
+-      "integrity": "sha512-vDkbxiB8zfnPdNK9Rajcey5C0w+QJugEglN0of+kmO8l7lDb77AnlKYQF7aarZuCrv+l0UvqL+68gSDr3k9LPQ==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/floating-point-hex-parser": "1.11.1",
+-        "@webassemblyjs/helper-api-error": "1.11.1",
+-        "@xtuc/long": "4.2.2"
+-      }
+-    },
+-    "@webassemblyjs/helper-wasm-bytecode": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/helper-wasm-bytecode/-/helper-wasm-bytecode-1.11.1.tgz",
+-      "integrity": "sha512-PvpoOGiJwXeTrSf/qfudJhwlvDQxFgelbMqtq52WWiXC6Xgg1IREdngmPN3bs4RoO83PnL/nFrxucXj1+BX62Q==",
+-      "dev": true
+-    },
+-    "@webassemblyjs/helper-wasm-section": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/helper-wasm-section/-/helper-wasm-section-1.11.1.tgz",
+-      "integrity": "sha512-10P9No29rYX1j7F3EVPX3JvGPQPae+AomuSTPiF9eBQeChHI6iqjMIwR9JmOJXwpnn/oVGDk7I5IlskuMwU/pg==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@webassemblyjs/helper-buffer": "1.11.1",
+-        "@webassemblyjs/helper-wasm-bytecode": "1.11.1",
+-        "@webassemblyjs/wasm-gen": "1.11.1"
+-      }
+-    },
+-    "@webassemblyjs/ieee754": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/ieee754/-/ieee754-1.11.1.tgz",
+-      "integrity": "sha512-hJ87QIPtAMKbFq6CGTkZYJivEwZDbQUgYd3qKSadTNOhVY7p+gfP6Sr0lLRVTaG1JjFj+r3YchoqRYxNH3M0GQ==",
+-      "dev": true,
+-      "requires": {
+-        "@xtuc/ieee754": "^1.2.0"
+-      }
+-    },
+-    "@webassemblyjs/leb128": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/leb128/-/leb128-1.11.1.tgz",
+-      "integrity": "sha512-BJ2P0hNZ0u+Th1YZXJpzW6miwqQUGcIHT1G/sf72gLVD9DZ5AdYTqPNbHZh6K1M5VmKvFXwGSWZADz+qBWxeRw==",
+-      "dev": true,
+-      "requires": {
+-        "@xtuc/long": "4.2.2"
+-      }
+-    },
+-    "@webassemblyjs/utf8": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/utf8/-/utf8-1.11.1.tgz",
+-      "integrity": "sha512-9kqcxAEdMhiwQkHpkNiorZzqpGrodQQ2IGrHHxCy+Ozng0ofyMA0lTqiLkVs1uzTRejX+/O0EOT7KxqVPuXosQ==",
+-      "dev": true
+-    },
+-    "@webassemblyjs/wasm-edit": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/wasm-edit/-/wasm-edit-1.11.1.tgz",
+-      "integrity": "sha512-g+RsupUC1aTHfR8CDgnsVRVZFJqdkFHpsHMfJuWQzWU3tvnLC07UqHICfP+4XyL2tnr1amvl1Sdp06TnYCmVkA==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@webassemblyjs/helper-buffer": "1.11.1",
+-        "@webassemblyjs/helper-wasm-bytecode": "1.11.1",
+-        "@webassemblyjs/helper-wasm-section": "1.11.1",
+-        "@webassemblyjs/wasm-gen": "1.11.1",
+-        "@webassemblyjs/wasm-opt": "1.11.1",
+-        "@webassemblyjs/wasm-parser": "1.11.1",
+-        "@webassemblyjs/wast-printer": "1.11.1"
+-      }
+-    },
+-    "@webassemblyjs/wasm-gen": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/wasm-gen/-/wasm-gen-1.11.1.tgz",
+-      "integrity": "sha512-F7QqKXwwNlMmsulj6+O7r4mmtAlCWfO/0HdgOxSklZfQcDu0TpLiD1mRt/zF25Bk59FIjEuGAIyn5ei4yMfLhA==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@webassemblyjs/helper-wasm-bytecode": "1.11.1",
+-        "@webassemblyjs/ieee754": "1.11.1",
+-        "@webassemblyjs/leb128": "1.11.1",
+-        "@webassemblyjs/utf8": "1.11.1"
+-      }
+-    },
+-    "@webassemblyjs/wasm-opt": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/wasm-opt/-/wasm-opt-1.11.1.tgz",
+-      "integrity": "sha512-VqnkNqnZlU5EB64pp1l7hdm3hmQw7Vgqa0KF/KCNO9sIpI6Fk6brDEiX+iCOYrvMuBWDws0NkTOxYEb85XQHHw==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@webassemblyjs/helper-buffer": "1.11.1",
+-        "@webassemblyjs/wasm-gen": "1.11.1",
+-        "@webassemblyjs/wasm-parser": "1.11.1"
+-      }
+-    },
+-    "@webassemblyjs/wasm-parser": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/wasm-parser/-/wasm-parser-1.11.1.tgz",
+-      "integrity": "sha512-rrBujw+dJu32gYB7/Lup6UhdkPx9S9SnobZzRVL7VcBH9Bt9bCBLEuX/YXOOtBsOZ4NQrRykKhffRWHvigQvOA==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@webassemblyjs/helper-api-error": "1.11.1",
+-        "@webassemblyjs/helper-wasm-bytecode": "1.11.1",
+-        "@webassemblyjs/ieee754": "1.11.1",
+-        "@webassemblyjs/leb128": "1.11.1",
+-        "@webassemblyjs/utf8": "1.11.1"
+-      }
+-    },
+-    "@webassemblyjs/wast-printer": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/@webassemblyjs/wast-printer/-/wast-printer-1.11.1.tgz",
+-      "integrity": "sha512-IQboUWM4eKzWW+N/jij2sRatKMh99QEelo3Eb2q0qXkvPRISAj8Qxtmw5itwqK+TTkBuUIE45AxYPToqPtL5gg==",
+-      "dev": true,
+-      "requires": {
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@xtuc/long": "4.2.2"
+-      }
+-    },
+-    "@webpack-cli/configtest": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/@webpack-cli/configtest/-/configtest-1.1.0.tgz",
+-      "integrity": "sha512-ttOkEkoalEHa7RaFYpM0ErK1xc4twg3Am9hfHhL7MVqlHebnkYd2wuI/ZqTDj0cVzZho6PdinY0phFZV3O0Mzg==",
+-      "dev": true
+-    },
+-    "@webpack-cli/info": {
+-      "version": "1.4.0",
+-      "resolved": "https://registry.npmjs.org/@webpack-cli/info/-/info-1.4.0.tgz",
+-      "integrity": "sha512-F6b+Man0rwE4n0409FyAJHStYA5OIZERxmnUfLVwv0mc0V1wLad3V7jqRlMkgKBeAq07jUvglacNaa6g9lOpuw==",
+-      "dev": true,
+-      "requires": {
+-        "envinfo": "^7.7.3"
+-      }
+-    },
+-    "@webpack-cli/serve": {
+-      "version": "1.6.0",
+-      "resolved": "https://registry.npmjs.org/@webpack-cli/serve/-/serve-1.6.0.tgz",
+-      "integrity": "sha512-ZkVeqEmRpBV2GHvjjUZqEai2PpUbuq8Bqd//vEYsp63J8WyexI8ppCqVS3Zs0QADf6aWuPdU+0XsPI647PVlQA==",
+-      "dev": true
+-    },
+-    "@xtuc/ieee754": {
+-      "version": "1.2.0",
+-      "resolved": "https://registry.npmjs.org/@xtuc/ieee754/-/ieee754-1.2.0.tgz",
+-      "integrity": "sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==",
+-      "dev": true
+-    },
+-    "@xtuc/long": {
+-      "version": "4.2.2",
+-      "resolved": "https://registry.npmjs.org/@xtuc/long/-/long-4.2.2.tgz",
+-      "integrity": "sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==",
+-      "dev": true
+-    },
+-    "acorn": {
+-      "version": "8.6.0",
+-      "resolved": "https://registry.npmjs.org/acorn/-/acorn-8.6.0.tgz",
+-      "integrity": "sha512-U1riIR+lBSNi3IbxtaHOIKdH8sLFv3NYfNv8sg7ZsNhcfl4HF2++BfqqrNAxoCLQW1iiylOj76ecnaUxz+z9yw==",
+-      "dev": true
+-    },
+-    "acorn-import-assertions": {
+-      "version": "1.8.0",
+-      "resolved": "https://registry.npmjs.org/acorn-import-assertions/-/acorn-import-assertions-1.8.0.tgz",
+-      "integrity": "sha512-m7VZ3jwz4eK6A4Vtt8Ew1/mNbP24u0FhdyfA7fSvnJR6LMdfOYnmuIrrJAgrYfYJ10F/otaHTtrtrtmHdMNzEw==",
+-      "dev": true
+-    },
+-    "ajv": {
+-      "version": "6.12.6",
+-      "resolved": "https://registry.npmjs.org/ajv/-/ajv-6.12.6.tgz",
+-      "integrity": "sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==",
+-      "dev": true,
+-      "requires": {
+-        "fast-deep-equal": "^3.1.1",
+-        "fast-json-stable-stringify": "^2.0.0",
+-        "json-schema-traverse": "^0.4.1",
+-        "uri-js": "^4.2.2"
+-      }
+-    },
+-    "ajv-keywords": {
+-      "version": "3.5.2",
+-      "resolved": "https://registry.npmjs.org/ajv-keywords/-/ajv-keywords-3.5.2.tgz",
+-      "integrity": "sha512-5p6WTN0DdTGVQk6VjcEju19IgaHudalcfabD7yhDGeA6bcQnmL+CpveLJq/3hvfwd1aof6L386Ougkx6RfyMIQ==",
+-      "dev": true
+-    },
+-    "browserslist": {
+-      "version": "4.18.1",
+-      "resolved": "https://registry.npmjs.org/browserslist/-/browserslist-4.18.1.tgz",
+-      "integrity": "sha512-8ScCzdpPwR2wQh8IT82CA2VgDwjHyqMovPBZSNH54+tm4Jk2pCuv90gmAdH6J84OCRWi0b4gMe6O6XPXuJnjgQ==",
+-      "dev": true,
+-      "requires": {
+-        "caniuse-lite": "^1.0.30001280",
+-        "electron-to-chromium": "^1.3.896",
+-        "escalade": "^3.1.1",
+-        "node-releases": "^2.0.1",
+-        "picocolors": "^1.0.0"
+-      }
+-    },
+-    "buffer-from": {
+-      "version": "1.1.2",
+-      "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
+-      "integrity": "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==",
+-      "dev": true
+-    },
+-    "caniuse-lite": {
+-      "version": "1.0.30001284",
+-      "resolved": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001284.tgz",
+-      "integrity": "sha512-t28SKa7g6kiIQi6NHeOcKrOrGMzCRrXvlasPwWC26TH2QNdglgzQIRUuJ0cR3NeQPH+5jpuveeeSFDLm2zbkEw==",
+-      "dev": true
+-    },
+-    "chrome-trace-event": {
+-      "version": "1.0.3",
+-      "resolved": "https://registry.npmjs.org/chrome-trace-event/-/chrome-trace-event-1.0.3.tgz",
+-      "integrity": "sha512-p3KULyQg4S7NIHixdwbGX+nFHkoBiA4YQmyWtjb8XngSKV124nJmRysgAeujbUVb15vh+RvFUfCPqU7rXk+hZg==",
+-      "dev": true
+-    },
+-    "clone-deep": {
+-      "version": "4.0.1",
+-      "resolved": "https://registry.npmjs.org/clone-deep/-/clone-deep-4.0.1.tgz",
+-      "integrity": "sha512-neHB9xuzh/wk0dIHweyAXv2aPGZIVk3pLMe+/RNzINf17fe0OG96QroktYAUm7SM1PBnzTabaLboqqxDyMU+SQ==",
+-      "dev": true,
+-      "requires": {
+-        "is-plain-object": "^2.0.4",
+-        "kind-of": "^6.0.2",
+-        "shallow-clone": "^3.0.0"
+-      }
+-    },
+-    "colorette": {
+-      "version": "2.0.16",
+-      "resolved": "https://registry.npmjs.org/colorette/-/colorette-2.0.16.tgz",
+-      "integrity": "sha512-hUewv7oMjCp+wkBv5Rm0v87eJhq4woh5rSR+42YSQJKecCqgIqNkZ6lAlQms/BwHPJA5NKMRlpxPRv0n8HQW6g==",
+-      "dev": true
+-    },
+-    "commander": {
+-      "version": "2.20.3",
+-      "resolved": "https://registry.npmjs.org/commander/-/commander-2.20.3.tgz",
+-      "integrity": "sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==",
+-      "dev": true
+-    },
+-    "cross-spawn": {
+-      "version": "7.0.3",
+-      "resolved": "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.3.tgz",
+-      "integrity": "sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==",
+-      "dev": true,
+-      "requires": {
+-        "path-key": "^3.1.0",
+-        "shebang-command": "^2.0.0",
+-        "which": "^2.0.1"
+-      }
+-    },
+-    "d3-color": {
+-      "version": "1.4.1",
+-      "resolved": "https://registry.npmjs.org/d3-color/-/d3-color-1.4.1.tgz",
+-      "integrity": "sha512-p2sTHSLCJI2QKunbGb7ocOh7DgTAn8IrLx21QRc/BSnodXM4sv6aLQlnfpvehFMLZEfBc6g9pH9SWQccFYfJ9Q=="
+-    },
+-    "d3-flame-graph": {
+-      "version": "4.1.3",
+-      "resolved": "https://registry.npmjs.org/d3-flame-graph/-/d3-flame-graph-4.1.3.tgz",
+-      "integrity": "sha512-NijuhJZhaTMwobVgwGQ67x9PovqMMHXBbs0FMHEGJvsWZGuL4M7OsB03v8mHdyVyHhnQYGsYnb5w021e9+R+RQ==",
+-      "requires": {
+-        "d3-array": "^3.1.1",
+-        "d3-dispatch": "^3.0.1",
+-        "d3-ease": "^3.0.1",
+-        "d3-format": "^3.0.1",
+-        "d3-hierarchy": "^3.0.1",
+-        "d3-scale": "^4.0.2",
+-        "d3-selection": "^3.0.0",
+-        "d3-transition": "^3.0.1"
+-      },
+-      "dependencies": {
+-        "d3-array": {
+-          "version": "3.1.1",
+-          "resolved": "https://registry.npmjs.org/d3-array/-/d3-array-3.1.1.tgz",
+-          "integrity": "sha512-33qQ+ZoZlli19IFiQx4QEpf2CBEayMRzhlisJHSCsSUbDXv6ZishqS1x7uFVClKG4Wr7rZVHvaAttoLow6GqdQ==",
+-          "requires": {
+-            "internmap": "1 - 2"
+-          }
+-        },
+-        "d3-dispatch": {
+-          "version": "3.0.1",
+-          "resolved": "https://registry.npmjs.org/d3-dispatch/-/d3-dispatch-3.0.1.tgz",
+-          "integrity": "sha512-rzUyPU/S7rwUflMyLc1ETDeBj0NRuHKKAcvukozwhshr6g6c5d8zh4c2gQjY2bZ0dXeGLWc1PF174P2tVvKhfg=="
+-        },
+-        "d3-ease": {
+-          "version": "3.0.1",
+-          "resolved": "https://registry.npmjs.org/d3-ease/-/d3-ease-3.0.1.tgz",
+-          "integrity": "sha512-wR/XK3D3XcLIZwpbvQwQ5fK+8Ykds1ip7A2Txe0yxncXSdq1L9skcG7blcedkOX+ZcgxGAmLX1FrRGbADwzi0w=="
+-        },
+-        "d3-format": {
+-          "version": "3.0.1",
+-          "resolved": "https://registry.npmjs.org/d3-format/-/d3-format-3.0.1.tgz",
+-          "integrity": "sha512-hdL7+HBIohpgfolhBxr1KX47VMD6+vVD/oEFrxk5yhmzV2prk99EkFKYpXuhVkFpTgHdJ6/4bYcjdLPPXV4tIA=="
+-        },
+-        "d3-hierarchy": {
+-          "version": "3.0.1",
+-          "resolved": "https://registry.npmjs.org/d3-hierarchy/-/d3-hierarchy-3.0.1.tgz",
+-          "integrity": "sha512-RlLTaofEoOrMK1JoXYIGhKTkJFI/6rFrYPgxy6QlZo2BcVc4HGTqEU0rPpzuMq5T/5XcMtAzv1XiLA3zRTfygw=="
+-        },
+-        "d3-scale": {
+-          "version": "4.0.2",
+-          "resolved": "https://registry.npmjs.org/d3-scale/-/d3-scale-4.0.2.tgz",
+-          "integrity": "sha512-GZW464g1SH7ag3Y7hXjf8RoUuAFIqklOAq3MRl4OaWabTFJY9PN/E1YklhXLh+OQ3fM9yS2nOkCoS+WLZ6kvxQ==",
+-          "requires": {
+-            "d3-array": "2.10.0 - 3",
+-            "d3-format": "1 - 3",
+-            "d3-interpolate": "1.2.0 - 3",
+-            "d3-time": "2.1.1 - 3",
+-            "d3-time-format": "2 - 4"
+-          }
+-        },
+-        "d3-selection": {
+-          "version": "3.0.0",
+-          "resolved": "https://registry.npmjs.org/d3-selection/-/d3-selection-3.0.0.tgz",
+-          "integrity": "sha512-fmTRWbNMmsmWq6xJV8D19U/gw/bwrHfNXxrIN+HfZgnzqTHp9jOmKMhsTUjXOJnZOdZY9Q28y4yebKzqDKlxlQ=="
+-        },
+-        "d3-time": {
+-          "version": "3.0.0",
+-          "resolved": "https://registry.npmjs.org/d3-time/-/d3-time-3.0.0.tgz",
+-          "integrity": "sha512-zmV3lRnlaLI08y9IMRXSDshQb5Nj77smnfpnd2LrBa/2K281Jijactokeak14QacHs/kKq0AQ121nidNYlarbQ==",
+-          "requires": {
+-            "d3-array": "2 - 3"
+-          }
+-        },
+-        "d3-transition": {
+-          "version": "3.0.1",
+-          "resolved": "https://registry.npmjs.org/d3-transition/-/d3-transition-3.0.1.tgz",
+-          "integrity": "sha512-ApKvfjsSR6tg06xrL434C0WydLr7JewBB3V+/39RMHsaXTOG0zmt/OAXeng5M5LBm0ojmxJrpomQVZ1aPvBL4w==",
+-          "requires": {
+-            "d3-color": "1 - 3",
+-            "d3-dispatch": "1 - 3",
+-            "d3-ease": "1 - 3",
+-            "d3-interpolate": "1 - 3",
+-            "d3-timer": "1 - 3"
+-          }
+-        }
+-      }
+-    },
+-    "d3-interpolate": {
+-      "version": "1.4.0",
+-      "resolved": "https://registry.npmjs.org/d3-interpolate/-/d3-interpolate-1.4.0.tgz",
+-      "integrity": "sha512-V9znK0zc3jOPV4VD2zZn0sDhZU3WAE2bmlxdIwwQPPzPjvyLkd8B3JUVdS1IDUFDkWZ72c9qnv1GK2ZagTZ8EA==",
+-      "requires": {
+-        "d3-color": "1"
+-      }
+-    },
+-    "d3-selection": {
+-      "version": "3.0.0",
+-      "resolved": "https://registry.npmjs.org/d3-selection/-/d3-selection-3.0.0.tgz",
+-      "integrity": "sha512-fmTRWbNMmsmWq6xJV8D19U/gw/bwrHfNXxrIN+HfZgnzqTHp9jOmKMhsTUjXOJnZOdZY9Q28y4yebKzqDKlxlQ=="
+-    },
+-    "d3-time": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/d3-time/-/d3-time-1.1.0.tgz",
+-      "integrity": "sha512-Xh0isrZ5rPYYdqhAVk8VLnMEidhz5aP7htAADH6MfzgmmicPkTo8LhkLxci61/lCB7n7UmE3bN0leRt+qvkLxA=="
+-    },
+-    "d3-time-format": {
+-      "version": "2.3.0",
+-      "resolved": "https://registry.npmjs.org/d3-time-format/-/d3-time-format-2.3.0.tgz",
+-      "integrity": "sha512-guv6b2H37s2Uq/GefleCDtbe0XZAuy7Wa49VGkPVPMfLL9qObgBST3lEHJBMUp8S7NdLQAGIvr2KXk8Hc98iKQ==",
+-      "requires": {
+-        "d3-time": "1"
+-      }
+-    },
+-    "d3-timer": {
+-      "version": "1.0.10",
+-      "resolved": "https://registry.npmjs.org/d3-timer/-/d3-timer-1.0.10.tgz",
+-      "integrity": "sha512-B1JDm0XDaQC+uvo4DT79H0XmBskgS3l6Ve+1SBCfxgmtIb1AVrPIoqd+nPSv+loMX8szQ0sVUhGngL7D5QPiXw=="
+-    },
+-    "electron-to-chromium": {
+-      "version": "1.4.11",
+-      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.4.11.tgz",
+-      "integrity": "sha512-2OhsaYgsWGhWjx2et8kaUcdktPbBGjKM2X0BReUCKcSCPttEY+hz2zie820JLbttU8jwL92+JJysWwkut3wZgA==",
+-      "dev": true
+-    },
+-    "enhanced-resolve": {
+-      "version": "5.8.3",
+-      "resolved": "https://registry.npmjs.org/enhanced-resolve/-/enhanced-resolve-5.8.3.tgz",
+-      "integrity": "sha512-EGAbGvH7j7Xt2nc0E7D99La1OiEs8LnyimkRgwExpUMScN6O+3x9tIWs7PLQZVNx4YD+00skHXPXi1yQHpAmZA==",
+-      "dev": true,
+-      "requires": {
+-        "graceful-fs": "^4.2.4",
+-        "tapable": "^2.2.0"
+-      }
+-    },
+-    "envinfo": {
+-      "version": "7.8.1",
+-      "resolved": "https://registry.npmjs.org/envinfo/-/envinfo-7.8.1.tgz",
+-      "integrity": "sha512-/o+BXHmB7ocbHEAs6F2EnG0ogybVVUdkRunTT2glZU9XAaGmhqskrvKwqXuDfNjEO0LZKWdejEEpnq8aM0tOaw==",
+-      "dev": true
+-    },
+-    "es-module-lexer": {
+-      "version": "0.9.3",
+-      "resolved": "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-0.9.3.tgz",
+-      "integrity": "sha512-1HQ2M2sPtxwnvOvT1ZClHyQDiggdNjURWpY2we6aMKCQiUVxTmVs2UYPLIrD84sS+kMdUwfBSylbJPwNnBrnHQ==",
+-      "dev": true
+-    },
+-    "escalade": {
+-      "version": "3.1.1",
+-      "resolved": "https://registry.npmjs.org/escalade/-/escalade-3.1.1.tgz",
+-      "integrity": "sha512-k0er2gUkLf8O0zKJiAhmkTnJlTvINGv7ygDNPbeIsX/TJjGJZHuh9B2UxbsaEkmlEo9MfhrSzmhIlhRlI2GXnw==",
+-      "dev": true
+-    },
+-    "eslint-scope": {
+-      "version": "5.1.1",
+-      "resolved": "https://registry.npmjs.org/eslint-scope/-/eslint-scope-5.1.1.tgz",
+-      "integrity": "sha512-2NxwbF/hZ0KpepYN0cNbo+FN6XoK7GaHlQhgx/hIZl6Va0bF45RQOOwhLIy8lQDbuCiadSLCBnH2CFYquit5bw==",
+-      "dev": true,
+-      "requires": {
+-        "esrecurse": "^4.3.0",
+-        "estraverse": "^4.1.1"
+-      }
+-    },
+-    "esrecurse": {
+-      "version": "4.3.0",
+-      "resolved": "https://registry.npmjs.org/esrecurse/-/esrecurse-4.3.0.tgz",
+-      "integrity": "sha512-KmfKL3b6G+RXvP8N1vr3Tq1kL/oCFgn2NYXEtqP8/L3pKapUA4G8cFVaoF3SU323CD4XypR/ffioHmkti6/Tag==",
+-      "dev": true,
+-      "requires": {
+-        "estraverse": "^5.2.0"
+-      },
+-      "dependencies": {
+-        "estraverse": {
+-          "version": "5.3.0",
+-          "resolved": "https://registry.npmjs.org/estraverse/-/estraverse-5.3.0.tgz",
+-          "integrity": "sha512-MMdARuVEQziNTeJD8DgMqmhwR11BRQ/cBP+pLtYdSTnf3MIO8fFeiINEbX36ZdNlfU/7A9f3gUw49B3oQsvwBA==",
+-          "dev": true
+-        }
+-      }
+-    },
+-    "estraverse": {
+-      "version": "4.3.0",
+-      "resolved": "https://registry.npmjs.org/estraverse/-/estraverse-4.3.0.tgz",
+-      "integrity": "sha512-39nnKffWz8xN1BU/2c79n9nB9HDzo0niYUqx6xyqUnyoAnQyyWpOTdZEeiCch8BBu515t4wp9ZmgVfVhn9EBpw==",
+-      "dev": true
+-    },
+-    "events": {
+-      "version": "3.3.0",
+-      "resolved": "https://registry.npmjs.org/events/-/events-3.3.0.tgz",
+-      "integrity": "sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==",
+-      "dev": true
+-    },
+-    "execa": {
+-      "version": "5.1.1",
+-      "resolved": "https://registry.npmjs.org/execa/-/execa-5.1.1.tgz",
+-      "integrity": "sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==",
+-      "dev": true,
+-      "requires": {
+-        "cross-spawn": "^7.0.3",
+-        "get-stream": "^6.0.0",
+-        "human-signals": "^2.1.0",
+-        "is-stream": "^2.0.0",
+-        "merge-stream": "^2.0.0",
+-        "npm-run-path": "^4.0.1",
+-        "onetime": "^5.1.2",
+-        "signal-exit": "^3.0.3",
+-        "strip-final-newline": "^2.0.0"
+-      }
+-    },
+-    "fast-deep-equal": {
+-      "version": "3.1.3",
+-      "resolved": "https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz",
+-      "integrity": "sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==",
+-      "dev": true
+-    },
+-    "fast-json-stable-stringify": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/fast-json-stable-stringify/-/fast-json-stable-stringify-2.1.0.tgz",
+-      "integrity": "sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==",
+-      "dev": true
+-    },
+-    "fastest-levenshtein": {
+-      "version": "1.0.12",
+-      "resolved": "https://registry.npmjs.org/fastest-levenshtein/-/fastest-levenshtein-1.0.12.tgz",
+-      "integrity": "sha512-On2N+BpYJ15xIC974QNVuYGMOlEVt4s0EOI3wwMqOmK1fdDY+FN/zltPV8vosq4ad4c/gJ1KHScUn/6AWIgiow==",
+-      "dev": true
+-    },
+-    "find-up": {
+-      "version": "4.1.0",
+-      "resolved": "https://registry.npmjs.org/find-up/-/find-up-4.1.0.tgz",
+-      "integrity": "sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw==",
+-      "dev": true,
+-      "requires": {
+-        "locate-path": "^5.0.0",
+-        "path-exists": "^4.0.0"
+-      }
+-    },
+-    "function-bind": {
+-      "version": "1.1.1",
+-      "resolved": "https://registry.npmjs.org/function-bind/-/function-bind-1.1.1.tgz",
+-      "integrity": "sha512-yIovAzMX49sF8Yl58fSCWJ5svSLuaibPxXQJFLmBObTuCr0Mf1KiPopGM9NiFjiYBCbfaa2Fh6breQ6ANVTI0A==",
+-      "dev": true
+-    },
+-    "get-stream": {
+-      "version": "6.0.1",
+-      "resolved": "https://registry.npmjs.org/get-stream/-/get-stream-6.0.1.tgz",
+-      "integrity": "sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==",
+-      "dev": true
+-    },
+-    "glob-to-regexp": {
+-      "version": "0.4.1",
+-      "resolved": "https://registry.npmjs.org/glob-to-regexp/-/glob-to-regexp-0.4.1.tgz",
+-      "integrity": "sha512-lkX1HJXwyMcprw/5YUZc2s7DrpAiHB21/V+E1rHUrVNokkvB6bqMzT0VfV6/86ZNabt1k14YOIaT7nDvOX3Iiw==",
+-      "dev": true
+-    },
+-    "graceful-fs": {
+-      "version": "4.2.8",
+-      "resolved": "https://registry.npmjs.org/graceful-fs/-/graceful-fs-4.2.8.tgz",
+-      "integrity": "sha512-qkIilPUYcNhJpd33n0GBXTB1MMPp14TxEsEs0pTrsSVucApsYzW5V+Q8Qxhik6KU3evy+qkAAowTByymK0avdg==",
+-      "dev": true
+-    },
+-    "has": {
+-      "version": "1.0.3",
+-      "resolved": "https://registry.npmjs.org/has/-/has-1.0.3.tgz",
+-      "integrity": "sha512-f2dvO0VU6Oej7RkWJGrehjbzMAjFp5/VKPp5tTpWIV4JHHZK1/BxbFRtf/siA2SWTe09caDmVtYYzWEIbBS4zw==",
+-      "dev": true,
+-      "requires": {
+-        "function-bind": "^1.1.1"
+-      }
+-    },
+-    "has-flag": {
+-      "version": "4.0.0",
+-      "resolved": "https://registry.npmjs.org/has-flag/-/has-flag-4.0.0.tgz",
+-      "integrity": "sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==",
+-      "dev": true
+-    },
+-    "human-signals": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/human-signals/-/human-signals-2.1.0.tgz",
+-      "integrity": "sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==",
+-      "dev": true
+-    },
+-    "import-local": {
+-      "version": "3.0.3",
+-      "resolved": "https://registry.npmjs.org/import-local/-/import-local-3.0.3.tgz",
+-      "integrity": "sha512-bE9iaUY3CXH8Cwfan/abDKAxe1KGT9kyGsBPqf6DMK/z0a2OzAsrukeYNgIH6cH5Xr452jb1TUL8rSfCLjZ9uA==",
+-      "dev": true,
+-      "requires": {
+-        "pkg-dir": "^4.2.0",
+-        "resolve-cwd": "^3.0.0"
+-      }
+-    },
+-    "internmap": {
+-      "version": "2.0.3",
+-      "resolved": "https://registry.npmjs.org/internmap/-/internmap-2.0.3.tgz",
+-      "integrity": "sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg=="
+-    },
+-    "interpret": {
+-      "version": "2.2.0",
+-      "resolved": "https://registry.npmjs.org/interpret/-/interpret-2.2.0.tgz",
+-      "integrity": "sha512-Ju0Bz/cEia55xDwUWEa8+olFpCiQoypjnQySseKtmjNrnps3P+xfpUmGr90T7yjlVJmOtybRvPXhKMbHr+fWnw==",
+-      "dev": true
+-    },
+-    "is-core-module": {
+-      "version": "2.8.0",
+-      "resolved": "https://registry.npmjs.org/is-core-module/-/is-core-module-2.8.0.tgz",
+-      "integrity": "sha512-vd15qHsaqrRL7dtH6QNuy0ndJmRDrS9HAM1CAiSifNUFv4x1a0CCVsj18hJ1mShxIG6T2i1sO78MkP56r0nYRw==",
+-      "dev": true,
+-      "requires": {
+-        "has": "^1.0.3"
+-      }
+-    },
+-    "is-plain-object": {
+-      "version": "2.0.4",
+-      "resolved": "https://registry.npmjs.org/is-plain-object/-/is-plain-object-2.0.4.tgz",
+-      "integrity": "sha512-h5PpgXkWitc38BBMYawTYMWJHFZJVnBquFE57xFpjB8pJFiF6gZ+bU+WyI/yqXiFR5mdLsgYNaPe8uao6Uv9Og==",
+-      "dev": true,
+-      "requires": {
+-        "isobject": "^3.0.1"
+-      }
+-    },
+-    "is-stream": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/is-stream/-/is-stream-2.0.1.tgz",
+-      "integrity": "sha512-hFoiJiTl63nn+kstHGBtewWSKnQLpyb155KHheA1l39uvtO9nWIop1p3udqPcUd/xbF1VLMO4n7OI6p7RbngDg==",
+-      "dev": true
+-    },
+-    "isexe": {
+-      "version": "2.0.0",
+-      "resolved": "https://registry.npmjs.org/isexe/-/isexe-2.0.0.tgz",
+-      "integrity": "sha1-6PvzdNxVb/iUehDcsFctYz8s+hA=",
+-      "dev": true
+-    },
+-    "isobject": {
+-      "version": "3.0.1",
+-      "resolved": "https://registry.npmjs.org/isobject/-/isobject-3.0.1.tgz",
+-      "integrity": "sha1-TkMekrEalzFjaqH5yNHMvP2reN8=",
+-      "dev": true
+-    },
+-    "jest-worker": {
+-      "version": "27.4.2",
+-      "resolved": "https://registry.npmjs.org/jest-worker/-/jest-worker-27.4.2.tgz",
+-      "integrity": "sha512-0QMy/zPovLfUPyHuOuuU4E+kGACXXE84nRnq6lBVI9GJg5DCBiA97SATi+ZP8CpiJwEQy1oCPjRBf8AnLjN+Ag==",
+-      "dev": true,
+-      "requires": {
+-        "@types/node": "*",
+-        "merge-stream": "^2.0.0",
+-        "supports-color": "^8.0.0"
+-      }
+-    },
+-    "json-parse-better-errors": {
+-      "version": "1.0.2",
+-      "resolved": "https://registry.npmjs.org/json-parse-better-errors/-/json-parse-better-errors-1.0.2.tgz",
+-      "integrity": "sha512-mrqyZKfX5EhL7hvqcV6WG1yYjnjeuYDzDhhcAAUrq8Po85NBQBJP+ZDUT75qZQ98IkUoBqdkExkukOU7Ts2wrw==",
+-      "dev": true
+-    },
+-    "json-schema-traverse": {
+-      "version": "0.4.1",
+-      "resolved": "https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz",
+-      "integrity": "sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==",
+-      "dev": true
+-    },
+-    "kind-of": {
+-      "version": "6.0.3",
+-      "resolved": "https://registry.npmjs.org/kind-of/-/kind-of-6.0.3.tgz",
+-      "integrity": "sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==",
+-      "dev": true
+-    },
+-    "loader-runner": {
+-      "version": "4.2.0",
+-      "resolved": "https://registry.npmjs.org/loader-runner/-/loader-runner-4.2.0.tgz",
+-      "integrity": "sha512-92+huvxMvYlMzMt0iIOukcwYBFpkYJdpl2xsZ7LrlayO7E8SOv+JJUEK17B/dJIHAOLMfh2dZZ/Y18WgmGtYNw==",
+-      "dev": true
+-    },
+-    "locate-path": {
+-      "version": "5.0.0",
+-      "resolved": "https://registry.npmjs.org/locate-path/-/locate-path-5.0.0.tgz",
+-      "integrity": "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==",
+-      "dev": true,
+-      "requires": {
+-        "p-locate": "^4.1.0"
+-      }
+-    },
+-    "merge-stream": {
+-      "version": "2.0.0",
+-      "resolved": "https://registry.npmjs.org/merge-stream/-/merge-stream-2.0.0.tgz",
+-      "integrity": "sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==",
+-      "dev": true
+-    },
+-    "mime-db": {
+-      "version": "1.51.0",
+-      "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.51.0.tgz",
+-      "integrity": "sha512-5y8A56jg7XVQx2mbv1lu49NR4dokRnhZYTtL+KGfaa27uq4pSTXkwQkFJl4pkRMyNFz/EtYDSkiiEHx3F7UN6g==",
+-      "dev": true
+-    },
+-    "mime-types": {
+-      "version": "2.1.34",
+-      "resolved": "https://registry.npmjs.org/mime-types/-/mime-types-2.1.34.tgz",
+-      "integrity": "sha512-6cP692WwGIs9XXdOO4++N+7qjqv0rqxxVvJ3VHPh/Sc9mVZcQP+ZGhkKiTvWMQRr2tbHkJP/Yn7Y0npb3ZBs4A==",
+-      "dev": true,
+-      "requires": {
+-        "mime-db": "1.51.0"
+-      }
+-    },
+-    "mimic-fn": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/mimic-fn/-/mimic-fn-2.1.0.tgz",
+-      "integrity": "sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==",
+-      "dev": true
+-    },
+-    "neo-async": {
+-      "version": "2.6.2",
+-      "resolved": "https://registry.npmjs.org/neo-async/-/neo-async-2.6.2.tgz",
+-      "integrity": "sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==",
+-      "dev": true
+-    },
+-    "node-releases": {
+-      "version": "2.0.1",
+-      "resolved": "https://registry.npmjs.org/node-releases/-/node-releases-2.0.1.tgz",
+-      "integrity": "sha512-CqyzN6z7Q6aMeF/ktcMVTzhAHCEpf8SOarwpzpf8pNBY2k5/oM34UHldUwp8VKI7uxct2HxSRdJjBaZeESzcxA==",
+-      "dev": true
+-    },
+-    "npm-run-path": {
+-      "version": "4.0.1",
+-      "resolved": "https://registry.npmjs.org/npm-run-path/-/npm-run-path-4.0.1.tgz",
+-      "integrity": "sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==",
+-      "dev": true,
+-      "requires": {
+-        "path-key": "^3.0.0"
+-      }
+-    },
+-    "onetime": {
+-      "version": "5.1.2",
+-      "resolved": "https://registry.npmjs.org/onetime/-/onetime-5.1.2.tgz",
+-      "integrity": "sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==",
+-      "dev": true,
+-      "requires": {
+-        "mimic-fn": "^2.1.0"
+-      }
+-    },
+-    "p-limit": {
+-      "version": "2.3.0",
+-      "resolved": "https://registry.npmjs.org/p-limit/-/p-limit-2.3.0.tgz",
+-      "integrity": "sha512-//88mFWSJx8lxCzwdAABTJL2MyWB12+eIY7MDL2SqLmAkeKU9qxRvWuSyTjm3FUmpBEMuFfckAIqEaVGUDxb6w==",
+-      "dev": true,
+-      "requires": {
+-        "p-try": "^2.0.0"
+-      }
+-    },
+-    "p-locate": {
+-      "version": "4.1.0",
+-      "resolved": "https://registry.npmjs.org/p-locate/-/p-locate-4.1.0.tgz",
+-      "integrity": "sha512-R79ZZ/0wAxKGu3oYMlz8jy/kbhsNrS7SKZ7PxEHBgJ5+F2mtFW2fK2cOtBh1cHYkQsbzFV7I+EoRKe6Yt0oK7A==",
+-      "dev": true,
+-      "requires": {
+-        "p-limit": "^2.2.0"
+-      }
+-    },
+-    "p-try": {
+-      "version": "2.2.0",
+-      "resolved": "https://registry.npmjs.org/p-try/-/p-try-2.2.0.tgz",
+-      "integrity": "sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==",
+-      "dev": true
+-    },
+-    "path-exists": {
+-      "version": "4.0.0",
+-      "resolved": "https://registry.npmjs.org/path-exists/-/path-exists-4.0.0.tgz",
+-      "integrity": "sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==",
+-      "dev": true
+-    },
+-    "path-key": {
+-      "version": "3.1.1",
+-      "resolved": "https://registry.npmjs.org/path-key/-/path-key-3.1.1.tgz",
+-      "integrity": "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==",
+-      "dev": true
+-    },
+-    "path-parse": {
+-      "version": "1.0.7",
+-      "resolved": "https://registry.npmjs.org/path-parse/-/path-parse-1.0.7.tgz",
+-      "integrity": "sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==",
+-      "dev": true
+-    },
+-    "picocolors": {
+-      "version": "1.0.0",
+-      "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.0.0.tgz",
+-      "integrity": "sha512-1fygroTLlHu66zi26VoTDv8yRgm0Fccecssto+MhsZ0D/DGW2sm8E8AjW7NU5VVTRt5GxbeZ5qBuJr+HyLYkjQ==",
+-      "dev": true
+-    },
+-    "pkg-dir": {
+-      "version": "4.2.0",
+-      "resolved": "https://registry.npmjs.org/pkg-dir/-/pkg-dir-4.2.0.tgz",
+-      "integrity": "sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==",
+-      "dev": true,
+-      "requires": {
+-        "find-up": "^4.0.0"
+-      }
+-    },
+-    "punycode": {
+-      "version": "2.1.1",
+-      "resolved": "https://registry.npmjs.org/punycode/-/punycode-2.1.1.tgz",
+-      "integrity": "sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==",
+-      "dev": true
+-    },
+-    "randombytes": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/randombytes/-/randombytes-2.1.0.tgz",
+-      "integrity": "sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==",
+-      "dev": true,
+-      "requires": {
+-        "safe-buffer": "^5.1.0"
+-      }
+-    },
+-    "rechoir": {
+-      "version": "0.7.1",
+-      "resolved": "https://registry.npmjs.org/rechoir/-/rechoir-0.7.1.tgz",
+-      "integrity": "sha512-/njmZ8s1wVeR6pjTZ+0nCnv8SpZNRMT2D1RLOJQESlYFDBvwpTA4KWJpZ+sBJ4+vhjILRcK7JIFdGCdxEAAitg==",
+-      "dev": true,
+-      "requires": {
+-        "resolve": "^1.9.0"
+-      }
+-    },
+-    "resolve": {
+-      "version": "1.20.0",
+-      "resolved": "https://registry.npmjs.org/resolve/-/resolve-1.20.0.tgz",
+-      "integrity": "sha512-wENBPt4ySzg4ybFQW2TT1zMQucPK95HSh/nq2CFTZVOGut2+pQvSsgtda4d26YrYcr067wjbmzOG8byDPBX63A==",
+-      "dev": true,
+-      "requires": {
+-        "is-core-module": "^2.2.0",
+-        "path-parse": "^1.0.6"
+-      }
+-    },
+-    "resolve-cwd": {
+-      "version": "3.0.0",
+-      "resolved": "https://registry.npmjs.org/resolve-cwd/-/resolve-cwd-3.0.0.tgz",
+-      "integrity": "sha512-OrZaX2Mb+rJCpH/6CpSqt9xFVpN++x01XnN2ie9g6P5/3xelLAkXWVADpdz1IHD/KFfEXyE6V0U01OQ3UO2rEg==",
+-      "dev": true,
+-      "requires": {
+-        "resolve-from": "^5.0.0"
+-      }
+-    },
+-    "resolve-from": {
+-      "version": "5.0.0",
+-      "resolved": "https://registry.npmjs.org/resolve-from/-/resolve-from-5.0.0.tgz",
+-      "integrity": "sha512-qYg9KP24dD5qka9J47d0aVky0N+b4fTU89LN9iDnjB5waksiC49rvMB0PrUJQGoTmH50XPiqOvAjDfaijGxYZw==",
+-      "dev": true
+-    },
+-    "safe-buffer": {
+-      "version": "5.2.1",
+-      "resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.2.1.tgz",
+-      "integrity": "sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==",
+-      "dev": true
+-    },
+-    "schema-utils": {
+-      "version": "3.1.1",
+-      "resolved": "https://registry.npmjs.org/schema-utils/-/schema-utils-3.1.1.tgz",
+-      "integrity": "sha512-Y5PQxS4ITlC+EahLuXaY86TXfR7Dc5lw294alXOq86JAHCihAIZfqv8nNCWvaEJvaC51uN9hbLGeV0cFBdH+Fw==",
+-      "dev": true,
+-      "requires": {
+-        "@types/json-schema": "^7.0.8",
+-        "ajv": "^6.12.5",
+-        "ajv-keywords": "^3.5.2"
+-      }
+-    },
+-    "serialize-javascript": {
+-      "version": "6.0.0",
+-      "resolved": "https://registry.npmjs.org/serialize-javascript/-/serialize-javascript-6.0.0.tgz",
+-      "integrity": "sha512-Qr3TosvguFt8ePWqsvRfrKyQXIiW+nGbYpy8XK24NQHE83caxWt+mIymTT19DGFbNWNLfEwsrkSmN64lVWB9ag==",
+-      "dev": true,
+-      "requires": {
+-        "randombytes": "^2.1.0"
+-      }
+-    },
+-    "shallow-clone": {
+-      "version": "3.0.1",
+-      "resolved": "https://registry.npmjs.org/shallow-clone/-/shallow-clone-3.0.1.tgz",
+-      "integrity": "sha512-/6KqX+GVUdqPuPPd2LxDDxzX6CAbjJehAAOKlNpqqUpAqPM6HeL8f+o3a+JsyGjn2lv0WY8UsTgUJjU9Ok55NA==",
+-      "dev": true,
+-      "requires": {
+-        "kind-of": "^6.0.2"
+-      }
+-    },
+-    "shebang-command": {
+-      "version": "2.0.0",
+-      "resolved": "https://registry.npmjs.org/shebang-command/-/shebang-command-2.0.0.tgz",
+-      "integrity": "sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==",
+-      "dev": true,
+-      "requires": {
+-        "shebang-regex": "^3.0.0"
+-      }
+-    },
+-    "shebang-regex": {
+-      "version": "3.0.0",
+-      "resolved": "https://registry.npmjs.org/shebang-regex/-/shebang-regex-3.0.0.tgz",
+-      "integrity": "sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==",
+-      "dev": true
+-    },
+-    "signal-exit": {
+-      "version": "3.0.6",
+-      "resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-3.0.6.tgz",
+-      "integrity": "sha512-sDl4qMFpijcGw22U5w63KmD3cZJfBuFlVNbVMKje2keoKML7X2UzWbc4XrmEbDwg0NXJc3yv4/ox7b+JWb57kQ==",
+-      "dev": true
+-    },
+-    "source-map": {
+-      "version": "0.6.1",
+-      "resolved": "https://registry.npmjs.org/source-map/-/source-map-0.6.1.tgz",
+-      "integrity": "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==",
+-      "dev": true
+-    },
+-    "source-map-support": {
+-      "version": "0.5.21",
+-      "resolved": "https://registry.npmjs.org/source-map-support/-/source-map-support-0.5.21.tgz",
+-      "integrity": "sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==",
+-      "dev": true,
+-      "requires": {
+-        "buffer-from": "^1.0.0",
+-        "source-map": "^0.6.0"
+-      }
+-    },
+-    "strip-final-newline": {
+-      "version": "2.0.0",
+-      "resolved": "https://registry.npmjs.org/strip-final-newline/-/strip-final-newline-2.0.0.tgz",
+-      "integrity": "sha512-BrpvfNAE3dcvq7ll3xVumzjKjZQ5tI1sEUIKr3Uoks0XUl45St3FlatVqef9prk4jRDzhW6WZg+3bk93y6pLjA==",
+-      "dev": true
+-    },
+-    "supports-color": {
+-      "version": "8.1.1",
+-      "resolved": "https://registry.npmjs.org/supports-color/-/supports-color-8.1.1.tgz",
+-      "integrity": "sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q==",
+-      "dev": true,
+-      "requires": {
+-        "has-flag": "^4.0.0"
+-      }
+-    },
+-    "tapable": {
+-      "version": "2.2.1",
+-      "resolved": "https://registry.npmjs.org/tapable/-/tapable-2.2.1.tgz",
+-      "integrity": "sha512-GNzQvQTOIP6RyTfE2Qxb8ZVlNmw0n88vp1szwWRimP02mnTsx3Wtn5qRdqY9w2XduFNUgvOwhNnQsjwCp+kqaQ==",
+-      "dev": true
+-    },
+-    "terser": {
+-      "version": "5.10.0",
+-      "resolved": "https://registry.npmjs.org/terser/-/terser-5.10.0.tgz",
+-      "integrity": "sha512-AMmF99DMfEDiRJfxfY5jj5wNH/bYO09cniSqhfoyxc8sFoYIgkJy86G04UoZU5VjlpnplVu0K6Tx6E9b5+DlHA==",
+-      "dev": true,
+-      "requires": {
+-        "commander": "^2.20.0",
+-        "source-map": "~0.7.2",
+-        "source-map-support": "~0.5.20"
+-      },
+-      "dependencies": {
+-        "source-map": {
+-          "version": "0.7.3",
+-          "resolved": "https://registry.npmjs.org/source-map/-/source-map-0.7.3.tgz",
+-          "integrity": "sha512-CkCj6giN3S+n9qrYiBTX5gystlENnRW5jZeNLHpe6aue+SrHcG5VYwujhW9s4dY31mEGsxBDrHR6oI69fTXsaQ==",
+-          "dev": true
+-        }
+-      }
+-    },
+-    "terser-webpack-plugin": {
+-      "version": "5.2.5",
+-      "resolved": "https://registry.npmjs.org/terser-webpack-plugin/-/terser-webpack-plugin-5.2.5.tgz",
+-      "integrity": "sha512-3luOVHku5l0QBeYS8r4CdHYWEGMmIj3H1U64jgkdZzECcSOJAyJ9TjuqcQZvw1Y+4AOBN9SeYJPJmFn2cM4/2g==",
+-      "dev": true,
+-      "requires": {
+-        "jest-worker": "^27.0.6",
+-        "schema-utils": "^3.1.1",
+-        "serialize-javascript": "^6.0.0",
+-        "source-map": "^0.6.1",
+-        "terser": "^5.7.2"
+-      }
+-    },
+-    "uri-js": {
+-      "version": "4.4.1",
+-      "resolved": "https://registry.npmjs.org/uri-js/-/uri-js-4.4.1.tgz",
+-      "integrity": "sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==",
+-      "dev": true,
+-      "requires": {
+-        "punycode": "^2.1.0"
+-      }
+-    },
+-    "watchpack": {
+-      "version": "2.3.0",
+-      "resolved": "https://registry.npmjs.org/watchpack/-/watchpack-2.3.0.tgz",
+-      "integrity": "sha512-MnN0Q1OsvB/GGHETrFeZPQaOelWh/7O+EiFlj8sM9GPjtQkis7k01aAxrg/18kTfoIVcLL+haEVFlXDaSRwKRw==",
+-      "dev": true,
+-      "requires": {
+-        "glob-to-regexp": "^0.4.1",
+-        "graceful-fs": "^4.1.2"
+-      }
+-    },
+-    "webpack": {
+-      "version": "5.64.4",
+-      "resolved": "https://registry.npmjs.org/webpack/-/webpack-5.64.4.tgz",
+-      "integrity": "sha512-LWhqfKjCLoYJLKJY8wk2C3h77i8VyHowG3qYNZiIqD6D0ZS40439S/KVuc/PY48jp2yQmy0mhMknq8cys4jFMw==",
+-      "dev": true,
+-      "requires": {
+-        "@types/eslint-scope": "^3.7.0",
+-        "@types/estree": "^0.0.50",
+-        "@webassemblyjs/ast": "1.11.1",
+-        "@webassemblyjs/wasm-edit": "1.11.1",
+-        "@webassemblyjs/wasm-parser": "1.11.1",
+-        "acorn": "^8.4.1",
+-        "acorn-import-assertions": "^1.7.6",
+-        "browserslist": "^4.14.5",
+-        "chrome-trace-event": "^1.0.2",
+-        "enhanced-resolve": "^5.8.3",
+-        "es-module-lexer": "^0.9.0",
+-        "eslint-scope": "5.1.1",
+-        "events": "^3.2.0",
+-        "glob-to-regexp": "^0.4.1",
+-        "graceful-fs": "^4.2.4",
+-        "json-parse-better-errors": "^1.0.2",
+-        "loader-runner": "^4.2.0",
+-        "mime-types": "^2.1.27",
+-        "neo-async": "^2.6.2",
+-        "schema-utils": "^3.1.0",
+-        "tapable": "^2.1.1",
+-        "terser-webpack-plugin": "^5.1.3",
+-        "watchpack": "^2.3.0",
+-        "webpack-sources": "^3.2.2"
+-      }
+-    },
+-    "webpack-cli": {
+-      "version": "4.9.1",
+-      "resolved": "https://registry.npmjs.org/webpack-cli/-/webpack-cli-4.9.1.tgz",
+-      "integrity": "sha512-JYRFVuyFpzDxMDB+v/nanUdQYcZtqFPGzmlW4s+UkPMFhSpfRNmf1z4AwYcHJVdvEFAM7FFCQdNTpsBYhDLusQ==",
+-      "dev": true,
+-      "requires": {
+-        "@discoveryjs/json-ext": "^0.5.0",
+-        "@webpack-cli/configtest": "^1.1.0",
+-        "@webpack-cli/info": "^1.4.0",
+-        "@webpack-cli/serve": "^1.6.0",
+-        "colorette": "^2.0.14",
+-        "commander": "^7.0.0",
+-        "execa": "^5.0.0",
+-        "fastest-levenshtein": "^1.0.12",
+-        "import-local": "^3.0.2",
+-        "interpret": "^2.2.0",
+-        "rechoir": "^0.7.0",
+-        "webpack-merge": "^5.7.3"
+-      },
+-      "dependencies": {
+-        "commander": {
+-          "version": "7.2.0",
+-          "resolved": "https://registry.npmjs.org/commander/-/commander-7.2.0.tgz",
+-          "integrity": "sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==",
+-          "dev": true
+-        }
+-      }
+-    },
+-    "webpack-merge": {
+-      "version": "5.8.0",
+-      "resolved": "https://registry.npmjs.org/webpack-merge/-/webpack-merge-5.8.0.tgz",
+-      "integrity": "sha512-/SaI7xY0831XwP6kzuwhKWVKDP9t1QY1h65lAFLbZqMPIuYcD9QAW4u9STIbU9kaJbPBB/geU/gLr1wDjOhQ+Q==",
+-      "dev": true,
+-      "requires": {
+-        "clone-deep": "^4.0.1",
+-        "wildcard": "^2.0.0"
+-      }
+-    },
+-    "webpack-sources": {
+-      "version": "3.2.2",
+-      "resolved": "https://registry.npmjs.org/webpack-sources/-/webpack-sources-3.2.2.tgz",
+-      "integrity": "sha512-cp5qdmHnu5T8wRg2G3vZZHoJPN14aqQ89SyQ11NpGH5zEMDCclt49rzo+MaRazk7/UeILhAI+/sEtcM+7Fr0nw==",
+-      "dev": true
+-    },
+-    "which": {
+-      "version": "2.0.2",
+-      "resolved": "https://registry.npmjs.org/which/-/which-2.0.2.tgz",
+-      "integrity": "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==",
+-      "dev": true,
+-      "requires": {
+-        "isexe": "^2.0.0"
+-      }
+-    },
+-    "wildcard": {
+-      "version": "2.0.0",
+-      "resolved": "https://registry.npmjs.org/wildcard/-/wildcard-2.0.0.tgz",
+-      "integrity": "sha512-JcKqAHLPxcdb9KM49dufGXn2x3ssnfjbcaQdLlfZsL9rH9wgDQjUtDxbo8NE0F6SFvydeu1VhZe7hZuHsB2/pw==",
+-      "dev": true
+-    }
+-  }
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/package.json b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/package.json
+deleted file mode 100644
+index 1df57f0399..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/package.json
++++ /dev/null
+@@ -1,17 +0,0 @@
+-{
+-  "name": "d3-pprof",
+-  "version": "2.0.0",
+-  "description": "A d3.js bundle for pprof.",
+-  "scripts": {
+-    "prepare": "webpack --mode production"
+-  },
+-  "license": "Apache-2.0",
+-  "dependencies": {
+-    "d3-flame-graph": "^4.1.3",
+-    "d3-selection": "^3.0.0"
+-  },
+-  "devDependencies": {
+-    "webpack": "^5.64.4",
+-    "webpack-cli": "^4.9.1"
+-  }
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/update.sh b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/update.sh
+deleted file mode 100644
+index 7076c66673..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/update.sh
++++ /dev/null
+@@ -1,62 +0,0 @@
+-#  Copyright 2021 Google Inc. All Rights Reserved.
+-#
+-#  Licensed under the Apache License, Version 2.0 (the "License");
+-#  you may not use this file except in compliance with the License.
+-#  You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-#  Unless required by applicable law or agreed to in writing, software
+-#  distributed under the License is distributed on an "AS IS" BASIS,
+-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-#  See the License for the specific language governing permissions and
+-#  limitations under the License.
+-
+-#!/usr/bin/env bash
+-
+-set -eu
+-set -o pipefail
+-
+-D3FLAMEGRAPH_CSS="d3-flamegraph.css"
+-
+-cd $(dirname $0)
+-
+-generate_d3_flame_graph_go() {
+-    npm install
+-    # https://stackoverflow.com/a/21199041/171898
+-    local d3_js=$(cat d3.js | sed 's/`/`+"`"+`/g')
+-    local d3_css=$(cat "node_modules/d3-flame-graph/dist/${D3FLAMEGRAPH_CSS}")
+-
+-    cat <<-EOF > d3_flame_graph.go
+-// D3.js is a JavaScript library for manipulating documents based on data.
+-// https://github.com/d3/d3
+-// See D3_LICENSE file for license details
+-
+-// d3-flame-graph is a D3.js plugin that produces flame graphs from hierarchical data.
+-// https://github.com/spiermar/d3-flame-graph
+-// See D3_FLAME_GRAPH_LICENSE file for license details
+-
+-package d3flamegraph
+-
+-// JSSource returns the d3 and d3-flame-graph JavaScript bundle
+-const JSSource = \`
+-
+-$d3_js
+-\`
+-
+-// CSSSource returns the $D3FLAMEGRAPH_CSS file
+-const CSSSource = \`
+-$d3_css
+-\`
+-
+-EOF
+-    gofmt -w d3_flame_graph.go
+-}
+-
+-get_licenses() {
+-    cp node_modules/d3-selection/LICENSE D3_LICENSE
+-    cp node_modules/d3-flame-graph/LICENSE D3_FLAME_GRAPH_LICENSE
+-}
+-
+-get_licenses
+-generate_d3_flame_graph_go
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/webpack.config.js b/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/webpack.config.js
+deleted file mode 100644
+index 71239d9e96..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/d3flamegraph/webpack.config.js
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Minimal webpack config to package a minified JS bundle (including
+-// dependencies) for execution in a <script> tag in the browser.
+-module.exports = {
+-  entry: './index.js',
+-  output: {
+-    path: __dirname,  // Directory containing this webpack.config.js file.
+-    filename: 'd3.js',
+-    // Arbitrary; many module formats could be used, just keeping Universal
+-    // Module Definition as it's the same as what we used in a previous
+-    // version.
+-    libraryTarget: 'umd',
+-  },
+-};
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
+index 6ca08adedb..afb124d489 100644
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
++++ b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
+@@ -3,295 +3,9 @@
+ 
+ package svgpan
+ 
+-// https://github.com/aleofreddi/svgpan
+-
+-// JSSource returns the svgpan.js file
+-const JSSource = `
+-/**
+- *  SVGPan library 1.2.2
+- * ======================
+- *
+- * Given an unique existing element with id "viewport" (or when missing, the
+- * first g-element), including the library into any SVG adds the following
+- * capabilities:
+- *
+- *  - Mouse panning
+- *  - Mouse zooming (using the wheel)
+- *  - Object dragging
+- *
+- * You can configure the behaviour of the pan/zoom/drag with the variables
+- * listed in the CONFIGURATION section of this file.
+- *
+- * Known issues:
+- *
+- *  - Zooming (while panning) on Safari has still some issues
+- *
+- * Releases:
+- *
+- * 1.2.2, Tue Aug 30 17:21:56 CEST 2011, Andrea Leofreddi
+- *	- Fixed viewBox on root tag (#7)
+- *	- Improved zoom speed (#2)
+- *
+- * 1.2.1, Mon Jul  4 00:33:18 CEST 2011, Andrea Leofreddi
+- *	- Fixed a regression with mouse wheel (now working on Firefox 5)
+- *	- Working with viewBox attribute (#4)
+- *	- Added "use strict;" and fixed resulting warnings (#5)
+- *	- Added configuration variables, dragging is disabled by default (#3)
+- *
+- * 1.2, Sat Mar 20 08:42:50 GMT 2010, Zeng Xiaohui
+- *	Fixed a bug with browser mouse handler interaction
+- *
+- * 1.1, Wed Feb  3 17:39:33 GMT 2010, Zeng Xiaohui
+- *	Updated the zoom code to support the mouse wheel on Safari/Chrome
+- *
+- * 1.0, Andrea Leofreddi
+- *	First release
+- *
+- * This code is licensed under the following BSD license:
+- *
+- * Copyright 2009-2017 Andrea Leofreddi <a.leofreddi@vleo.net>. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without modification, are
+- * permitted provided that the following conditions are met:
+- *
+- *    1. Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *    2. Redistributions in binary form must reproduce the above copyright
+- *       notice, this list of conditions and the following disclaimer in the
+- *       documentation and/or other materials provided with the distribution.
+- *    3. Neither the name of the copyright holder nor the names of its
+- *       contributors may be used to endorse or promote products derived from
+- *       this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED BY COPYRIGHT HOLDERS AND CONTRIBUTORS ''AS IS'' AND ANY EXPRESS
+- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS OR
+- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- *
+- * The views and conclusions contained in the software and documentation are those of the
+- * authors and should not be interpreted as representing official policies, either expressed
+- * or implied, of Andrea Leofreddi.
+- */
+-
+-"use strict";
+-
+-/// CONFIGURATION
+-/// ====>
+-
+-var enablePan = 1; // 1 or 0: enable or disable panning (default enabled)
+-var enableZoom = 1; // 1 or 0: enable or disable zooming (default enabled)
+-var enableDrag = 0; // 1 or 0: enable or disable dragging (default disabled)
+-var zoomScale = 0.2; // Zoom sensitivity
+-
+-/// <====
+-/// END OF CONFIGURATION
+-
+-var root = document.documentElement;
+-
+-var state = 'none', svgRoot = null, stateTarget, stateOrigin, stateTf;
+-
+-setupHandlers(root);
+-
+-/**
+- * Register handlers
+- */
+-function setupHandlers(root){
+-	setAttributes(root, {
+-		"onmouseup" : "handleMouseUp(evt)",
+-		"onmousedown" : "handleMouseDown(evt)",
+-		"onmousemove" : "handleMouseMove(evt)",
+-		//"onmouseout" : "handleMouseUp(evt)", // Decomment this to stop the pan functionality when dragging out of the SVG element
+-	});
+-
+-	if(navigator.userAgent.toLowerCase().indexOf('webkit') >= 0)
+-		window.addEventListener('mousewheel', handleMouseWheel, false); // Chrome/Safari
+-	else
+-		window.addEventListener('DOMMouseScroll', handleMouseWheel, false); // Others
+-}
+-
+-/**
+- * Retrieves the root element for SVG manipulation. The element is then cached into the svgRoot global variable.
+- */
+-function getRoot(root) {
+-	if(svgRoot == null) {
+-		var r = root.getElementById("viewport") ? root.getElementById("viewport") : root.documentElement, t = r;
+-
+-		while(t != root) {
+-			if(t.getAttribute("viewBox")) {
+-				setCTM(r, t.getCTM());
+-
+-				t.removeAttribute("viewBox");
+-			}
+-
+-			t = t.parentNode;
+-		}
+-
+-		svgRoot = r;
+-	}
+-
+-	return svgRoot;
+-}
+-
+-/**
+- * Instance an SVGPoint object with given event coordinates.
+- */
+-function getEventPoint(evt) {
+-	var p = root.createSVGPoint();
+-
+-	p.x = evt.clientX;
+-	p.y = evt.clientY;
+-
+-	return p;
+-}
+-
+-/**
+- * Sets the current transform matrix of an element.
+- */
+-function setCTM(element, matrix) {
+-	var s = "matrix(" + matrix.a + "," + matrix.b + "," + matrix.c + "," + matrix.d + "," + matrix.e + "," + matrix.f + ")";
+-
+-	element.setAttribute("transform", s);
+-}
+-
+-/**
+- * Dumps a matrix to a string (useful for debug).
+- */
+-function dumpMatrix(matrix) {
+-	var s = "[ " + matrix.a + ", " + matrix.c + ", " + matrix.e + "\n  " + matrix.b + ", " + matrix.d + ", " + matrix.f + "\n  0, 0, 1 ]";
+-
+-	return s;
+-}
+-
+-/**
+- * Sets attributes of an element.
+- */
+-function setAttributes(element, attributes){
+-	for (var i in attributes)
+-		element.setAttributeNS(null, i, attributes[i]);
+-}
+-
+-/**
+- * Handle mouse wheel event.
+- */
+-function handleMouseWheel(evt) {
+-	if(!enableZoom)
+-		return;
+-
+-	if(evt.preventDefault)
+-		evt.preventDefault();
+-
+-	evt.returnValue = false;
+-
+-	var svgDoc = evt.target.ownerDocument;
+-
+-	var delta;
++import _ "embed"
+ 
+-	if(evt.wheelDelta)
+-		delta = evt.wheelDelta / 360; // Chrome/Safari
+-	else
+-		delta = evt.detail / -9; // Mozilla
+-
+-	var z = Math.pow(1 + zoomScale, delta);
+-
+-	var g = getRoot(svgDoc);
+-	
+-	var p = getEventPoint(evt);
+-
+-	p = p.matrixTransform(g.getCTM().inverse());
+-
+-	// Compute new scale matrix in current mouse position
+-	var k = root.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
+-
+-        setCTM(g, g.getCTM().multiply(k));
+-
+-	if(typeof(stateTf) == "undefined")
+-		stateTf = g.getCTM().inverse();
+-
+-	stateTf = stateTf.multiply(k.inverse());
+-}
+-
+-/**
+- * Handle mouse move event.
+- */
+-function handleMouseMove(evt) {
+-	if(evt.preventDefault)
+-		evt.preventDefault();
+-
+-	evt.returnValue = false;
+-
+-	var svgDoc = evt.target.ownerDocument;
+-
+-	var g = getRoot(svgDoc);
+-
+-	if(state == 'pan' && enablePan) {
+-		// Pan mode
+-		var p = getEventPoint(evt).matrixTransform(stateTf);
+-
+-		setCTM(g, stateTf.inverse().translate(p.x - stateOrigin.x, p.y - stateOrigin.y));
+-	} else if(state == 'drag' && enableDrag) {
+-		// Drag mode
+-		var p = getEventPoint(evt).matrixTransform(g.getCTM().inverse());
+-
+-		setCTM(stateTarget, root.createSVGMatrix().translate(p.x - stateOrigin.x, p.y - stateOrigin.y).multiply(g.getCTM().inverse()).multiply(stateTarget.getCTM()));
+-
+-		stateOrigin = p;
+-	}
+-}
+-
+-/**
+- * Handle click event.
+- */
+-function handleMouseDown(evt) {
+-	if(evt.preventDefault)
+-		evt.preventDefault();
+-
+-	evt.returnValue = false;
+-
+-	var svgDoc = evt.target.ownerDocument;
+-
+-	var g = getRoot(svgDoc);
+-
+-	if(
+-		evt.target.tagName == "svg"
+-		|| !enableDrag // Pan anyway when drag is disabled and the user clicked on an element
+-	) {
+-		// Pan mode
+-		state = 'pan';
+-
+-		stateTf = g.getCTM().inverse();
+-
+-		stateOrigin = getEventPoint(evt).matrixTransform(stateTf);
+-	} else {
+-		// Drag mode
+-		state = 'drag';
+-
+-		stateTarget = evt.target;
+-
+-		stateTf = g.getCTM().inverse();
+-
+-		stateOrigin = getEventPoint(evt).matrixTransform(stateTf);
+-	}
+-}
+-
+-/**
+- * Handle mouse button release event.
+- */
+-function handleMouseUp(evt) {
+-	if(evt.preventDefault)
+-		evt.preventDefault();
+-
+-	evt.returnValue = false;
+-
+-	var svgDoc = evt.target.ownerDocument;
++// https://github.com/aleofreddi/svgpan
+ 
+-	if(state == 'pan' || state == 'drag') {
+-		// Quit pan mode
+-		state = '';
+-	}
+-}
+-`
++//go:embed svgpan.js
++var JSSource string
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.js b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.js
+new file mode 100644
+index 0000000000..2c4951ecd3
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.js
+@@ -0,0 +1,261 @@
++/** 
++ *  SVGPan library 1.2.2
++ * ======================
++ *
++ * Given an unique existing element with id "viewport" (or when missing, the 
++ * first g-element), including the the library into any SVG adds the following 
++ * capabilities:
++ *
++ *  - Mouse panning
++ *  - Mouse zooming (using the wheel)
++ *  - Object dragging
++ *
++ * You can configure the behaviour of the pan/zoom/drag with the variables
++ * listed in the CONFIGURATION section of this file.
++ *
++ * This code is licensed under the following BSD license:
++ *
++ * Copyright 2009-2019 Andrea Leofreddi <a.leofreddi@vleo.net>. All rights reserved.
++ * 
++ * Redistribution and use in source and binary forms, with or without modification, are
++ * permitted provided that the following conditions are met:
++ * 
++ *    1. Redistributions of source code must retain the above copyright
++ *       notice, this list of conditions and the following disclaimer.
++ *    2. Redistributions in binary form must reproduce the above copyright
++ *       notice, this list of conditions and the following disclaimer in the
++ *       documentation and/or other materials provided with the distribution.
++ *    3. Neither the name of the copyright holder nor the names of its 
++ *       contributors may be used to endorse or promote products derived from 
++ *       this software without specific prior written permission.
++ * 
++ * THIS SOFTWARE IS PROVIDED BY COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
++ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
++ * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS OR
++ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
++ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
++ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
++ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
++ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ * 
++ * The views and conclusions contained in the software and documentation are those of the
++ * authors and should not be interpreted as representing official policies, either expressed
++ * or implied, of Andrea Leofreddi.
++ */
++
++"use strict";
++
++/// CONFIGURATION 
++/// ====>
++
++var enablePan = 1; // 1 or 0: enable or disable panning (default enabled)
++var enableZoom = 1; // 1 or 0: enable or disable zooming (default enabled)
++var enableDrag = 0; // 1 or 0: enable or disable dragging (default disabled)
++var zoomScale = 0.2; // Zoom sensitivity
++
++/// <====
++/// END OF CONFIGURATION 
++
++var root = document.documentElement;
++var state = 'none', svgRoot = null, stateTarget, stateOrigin, stateTf;
++
++setupHandlers(root);
++
++/**
++ * Register handlers
++ */
++function setupHandlers(root){
++	setAttributes(root, {
++		"onmouseup" : "handleMouseUp(evt)",
++		"onmousedown" : "handleMouseDown(evt)",
++		"onmousemove" : "handleMouseMove(evt)",
++		//"onmouseout" : "handleMouseUp(evt)", // Decomment this to stop the pan functionality when dragging out of the SVG element
++	});
++
++	if(navigator.userAgent.toLowerCase().indexOf('webkit') >= 0)
++		window.addEventListener('mousewheel', handleMouseWheel, false); // Chrome/Safari
++	else
++		window.addEventListener('DOMMouseScroll', handleMouseWheel, false); // Others
++}
++
++/**
++ * Retrieves the root element for SVG manipulation. The element is then cached into the svgRoot global variable.
++ */
++function getRoot(root) {
++	if(svgRoot == null) {
++		var r = root.getElementById("viewport") ? root.getElementById("viewport") : root.documentElement, t = r;
++
++		while(t != root) {
++			if(t.getAttribute("viewBox")) {
++				setCTM(r, t.getCTM());
++
++				t.removeAttribute("viewBox");
++			}
++
++			t = t.parentNode;
++		}
++
++		svgRoot = r;
++	}
++
++	return svgRoot;
++}
++
++/**
++ * Instance an SVGPoint object with given event coordinates.
++ */
++function getEventPoint(evt) {
++	var p = root.createSVGPoint();
++
++	p.x = evt.clientX;
++	p.y = evt.clientY;
++
++	return p;
++}
++
++/**
++ * Sets the current transform matrix of an element.
++ */
++function setCTM(element, matrix) {
++	var s = "matrix(" + matrix.a + "," + matrix.b + "," + matrix.c + "," + matrix.d + "," + matrix.e + "," + matrix.f + ")";
++
++	element.setAttribute("transform", s);
++}
++
++/**
++ * Dumps a matrix to a string (useful for debug).
++ */
++function dumpMatrix(matrix) {
++	var s = "[ " + matrix.a + ", " + matrix.c + ", " + matrix.e + "\n  " + matrix.b + ", " + matrix.d + ", " + matrix.f + "\n  0, 0, 1 ]";
++
++	return s;
++}
++
++/**
++ * Sets attributes of an element.
++ */
++function setAttributes(element, attributes){
++	for (var i in attributes)
++		element.setAttributeNS(null, i, attributes[i]);
++}
++
++/**
++ * Handle mouse wheel event.
++ */
++function handleMouseWheel(evt) {
++	if(!enableZoom)
++		return;
++
++	if(evt.preventDefault)
++		evt.preventDefault();
++
++	evt.returnValue = false;
++
++	var svgDoc = evt.target.ownerDocument;
++
++	var delta;
++
++	if(evt.wheelDelta)
++		delta = evt.wheelDelta / 360; // Chrome/Safari
++	else
++		delta = evt.detail / -9; // Mozilla
++
++	var z = Math.pow(1 + zoomScale, delta);
++
++	var g = getRoot(svgDoc);
++	
++	var p = getEventPoint(evt);
++
++	p = p.matrixTransform(g.getCTM().inverse());
++
++	// Compute new scale matrix in current mouse position
++	var k = root.createSVGMatrix().translate(p.x, p.y).scale(z).translate(-p.x, -p.y);
++
++	setCTM(g, g.getCTM().multiply(k));
++
++	if(typeof(stateTf) == "undefined")
++		stateTf = g.getCTM().inverse();
++
++	stateTf = stateTf.multiply(k.inverse());
++}
++
++/**
++ * Handle mouse move event.
++ */
++function handleMouseMove(evt) {
++	if(evt.preventDefault)
++		evt.preventDefault();
++
++	evt.returnValue = false;
++
++	var svgDoc = evt.target.ownerDocument;
++
++	var g = getRoot(svgDoc);
++
++	if(state == 'pan' && enablePan) {
++		// Pan mode
++		var p = getEventPoint(evt).matrixTransform(stateTf);
++
++		setCTM(g, stateTf.inverse().translate(p.x - stateOrigin.x, p.y - stateOrigin.y));
++	} else if(state == 'drag' && enableDrag) {
++		// Drag mode
++		var p = getEventPoint(evt).matrixTransform(g.getCTM().inverse());
++
++		setCTM(stateTarget, root.createSVGMatrix().translate(p.x - stateOrigin.x, p.y - stateOrigin.y).multiply(g.getCTM().inverse()).multiply(stateTarget.getCTM()));
++
++		stateOrigin = p;
++	}
++}
++
++/**
++ * Handle click event.
++ */
++function handleMouseDown(evt) {
++	if(evt.preventDefault)
++		evt.preventDefault();
++
++	evt.returnValue = false;
++
++	var svgDoc = evt.target.ownerDocument;
++
++	var g = getRoot(svgDoc);
++
++	if(
++		evt.target.tagName == "svg" 
++		|| !enableDrag // Pan anyway when drag is disabled and the user clicked on an element 
++	) {
++		// Pan mode
++		state = 'pan';
++
++		stateTf = g.getCTM().inverse();
++
++		stateOrigin = getEventPoint(evt).matrixTransform(stateTf);
++	} else {
++		// Drag mode
++		state = 'drag';
++
++		stateTarget = evt.target;
++
++		stateTf = g.getCTM().inverse();
++
++		stateOrigin = getEventPoint(evt).matrixTransform(stateTf);
++	}
++}
++
++/**
++ * Handle mouse button release event.
++ */
++function handleMouseUp(evt) {
++	if(evt.preventDefault)
++		evt.preventDefault();
++
++	evt.returnValue = false;
++
++	var svgDoc = evt.target.ownerDocument;
++
++	if(state == 'pan' || state == 'drag') {
++		// Quit pan mode
++		state = '';
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9a130d7091..576f81da2c 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
++# github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+ ## explicit; go 1.19
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+@@ -12,7 +12,6 @@ github.com/google/pprof/internal/symbolizer
+ github.com/google/pprof/internal/symbolz
+ github.com/google/pprof/internal/transport
+ github.com/google/pprof/profile
+-github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
+ ## explicit; go 1.13

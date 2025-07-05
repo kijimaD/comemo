@@ -11,8 +11,186 @@ Date:   Wed Oct 26 22:58:50 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go         | 40 +++++++++++++++++-------------
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/syntax.go      |  1 -
  3 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 57a8175724..59a047fdf2 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -531,12 +531,13 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
+ 	return n
+ }
+ 
+-func tinlvar(t *Field) *Node {
++func tinlvar(t *Field, inlvars map[*Node]*Node) *Node {
+ 	if t.Nname != nil && !isblank(t.Nname) {
+-		if t.Nname.Name.Inlvar == nil {
++		inlvar := inlvars[t.Nname]
++		if inlvar == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+-		return t.Nname.Name.Inlvar
++		return inlvar
+ 	}
+ 
+ 	return typecheck(nblank, Erv|Easgn)
+@@ -560,6 +561,8 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		return n
+ 	}
+ 
++	inlvars := make(map[*Node]*Node)
++
+ 	if Debug['l'] < 2 {
+ 		typecheckinl(fn)
+ 	}
+@@ -600,9 +603,9 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 			continue
+ 		}
+ 		if ln.Op == ONAME {
+-			ln.Name.Inlvar = typecheck(inlvar(ln), Erv)
++			inlvars[ln] = typecheck(inlvar(ln), Erv)
+ 			if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
+-				ninit.Append(nod(ODCL, ln.Name.Inlvar, nil))
++				ninit.Append(nod(ODCL, inlvars[ln], nil))
+ 			}
+ 		}
+ 	}
+@@ -613,7 +616,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
+ 			m = inlvar(t.Nname)
+ 			m = typecheck(m, Erv)
+-			t.Nname.Name.Inlvar = m
++			inlvars[t.Nname] = m
+ 		} else {
+ 			// anonymous return values, synthesize names for use in assignment that replaces return
+ 			m = retvar(t, i)
+@@ -629,7 +632,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		// method call with a receiver.
+ 		t := fn.Type.Recv()
+ 
+-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
++		if t != nil && t.Nname != nil && !isblank(t.Nname) && inlvars[t.Nname] == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if n.Left.Left == nil {
+@@ -638,7 +641,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		if t == nil {
+ 			Fatalf("method call unknown receiver type: %+v", n)
+ 		}
+-		as := nod(OAS, tinlvar(t), n.Left.Left)
++		as := nod(OAS, tinlvar(t, inlvars), n.Left.Left)
+ 		if as != nil {
+ 			as = typecheck(as, Etop)
+ 			ninit.Append(as)
+@@ -698,13 +701,13 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		// append receiver inlvar to LHS.
+ 		t := fn.Type.Recv()
+ 
+-		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
++		if t != nil && t.Nname != nil && !isblank(t.Nname) && inlvars[t.Nname] == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if t == nil {
+ 			Fatalf("method call unknown receiver type: %+v", n)
+ 		}
+-		as.List.Append(tinlvar(t))
++		as.List.Append(tinlvar(t, inlvars))
+ 		li++
+ 	}
+ 
+@@ -718,7 +721,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		var i int
+ 		for _, t := range fn.Type.Params().Fields().Slice() {
+ 			if variadic && t.Isddd {
+-				vararg = tinlvar(t)
++				vararg = tinlvar(t, inlvars)
+ 				for i = 0; i < varargcount && li < n.List.Len(); i++ {
+ 					m = argvar(varargtype, i)
+ 					varargs = append(varargs, m)
+@@ -728,7 +731,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 				break
+ 			}
+ 
+-			as.List.Append(tinlvar(t))
++			as.List.Append(tinlvar(t, inlvars))
+ 		}
+ 	} else {
+ 		// match arguments except final variadic (unless the call is dotted itself)
+@@ -740,14 +743,14 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 			if variadic && t.Isddd {
+ 				break
+ 			}
+-			as.List.Append(tinlvar(t))
++			as.List.Append(tinlvar(t, inlvars))
+ 			t = it.Next()
+ 			li++
+ 		}
+ 
+ 		// match varargcount arguments with variadic parameters.
+ 		if variadic && t != nil && t.Isddd {
+-			vararg = tinlvar(t)
++			vararg = tinlvar(t, inlvars)
+ 			var i int
+ 			for i = 0; i < varargcount && li < n.List.Len(); i++ {
+ 				m = argvar(varargtype, i)
+@@ -803,6 +806,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	subst := inlsubst{
+ 		retlabel: retlabel,
+ 		retvars:  retvars,
++		inlvars:  inlvars,
+ 	}
+ 
+ 	body := subst.list(fn.Func.Inl)
+@@ -909,6 +913,8 @@ type inlsubst struct {
+ 
+ 	// Temporary result variables.
+ 	retvars []*Node
++
++	inlvars map[*Node]*Node
+ }
+ 
+ // list inlines a list of nodes.
+@@ -931,11 +937,11 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 
+ 	switch n.Op {
+ 	case ONAME:
+-		if n.Name.Inlvar != nil { // These will be set during inlnode
++		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("substituting name %+v  ->  %+v\n", n, n.Name.Inlvar)
++				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
+ 			}
+-			return n.Name.Inlvar
++			return inlvar
+ 		}
+ 
+ 		if Debug['m'] > 2 {
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 2488ec9157..eeddecf00e 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 92, 160},
+-		{Name{}, 52, 80},
++		{Name{}, 48, 72},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+ 		{Type{}, 60, 96},
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 4d4ec4f24d..ea8e054354 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -167,7 +167,6 @@ type Name struct {
+ 	Pack      *Node  // real package for import . names
+ 	Pkg       *Pkg   // pkg for OPACK nodes
+ 	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
+-	Inlvar    *Node  // ONAME substitute while inlining (could move to Param?)
+ 	Defn      *Node  // initializing assignment
+ 	Curfn     *Node  // function for local variables
+ 	Param     *Param // additional fields for ONAME

@@ -7,6 +7,24 @@ Date:   Fri Aug 23 14:26:52 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13141045
-
+---
  src/pkg/net/dialgoogle_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 0a0f7eef28..f7939cc190 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -62,10 +62,10 @@ func TestDNSThreadLimit(t *testing.T) {
+ 	const N = 10000
+ 	c := make(chan int, N)
+ 	for i := 0; i < N; i++ {
+-		go func() {
++		go func(i int) {
+ 			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
+ 			c <- 1
+-		}()
++		}(i)
+ 	}
+ 	// Don't bother waiting for the stragglers; stop at 0.9 N.
+ 	for i := 0; i < N*9/10; i++ {

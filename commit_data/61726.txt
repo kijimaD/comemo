@@ -14,6 +14,19 @@ Date:   Thu Nov 21 09:51:44 2024 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/reflect/map_swiss.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/reflect/map_swiss.go b/src/reflect/map_swiss.go
+index a278f81e81..7098e21291 100644
+--- a/src/reflect/map_swiss.go
++++ b/src/reflect/map_swiss.go
+@@ -71,6 +71,7 @@ func MapOf(key, elem Type) Type {
+ 	mt.Hasher = func(p unsafe.Pointer, seed uintptr) uintptr {
+ 		return typehash(ktyp, p, seed)
+ 	}
++	mt.GroupSize = mt.Group.Size()
+ 	mt.SlotSize = slot.Size()
+ 	mt.ElemOff = slot.Field(1).Offset
+ 	mt.Flags = 0

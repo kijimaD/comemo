@@ -7,6 +7,16 @@ Date:   Sat Oct 15 07:12:10 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5286047
-
+---
  src/cmd/goyacc/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/goyacc/Makefile b/src/cmd/goyacc/Makefile
+index ac0f427cc5..87b3470c6a 100644
+--- a/src/cmd/goyacc/Makefile
++++ b/src/cmd/goyacc/Makefile
+@@ -15,3 +15,4 @@ units: goyacc units.y
+ 	$(GC) y.go
+ 	$(LD) -o units y.$O
+ 
++CLEANFILES += units y.go y.output

@@ -9,6 +9,22 @@ Date:   Fri Oct 25 23:00:22 2013 +0300
     R=golang-dev, dsymonds, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/16430043
-
+---
  src/pkg/net/url/url.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 597cb51c88..3b3787202b 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -558,8 +558,8 @@ func parseQuery(m Values, query string) (err error) {
+ 	return err
+ }
+ 
+-// Encode encodes the values into ``URL encoded'' form.
+-// e.g. "foo=bar&bar=baz"
++// Encode encodes the values into ``URL encoded'' form
++// ("bar=baz&foo=quux") sorted by key.
+ func (v Values) Encode() string {
+ 	if v == nil {
+ 		return ""

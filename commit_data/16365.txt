@@ -11,7 +11,53 @@ Date:   Tue May 21 15:21:30 2013 -0700
     R=iant
     CC=gobot, golang-dev
     https://golang.org/cl/9627043
-
+---
  src/pkg/net/http/transport.go      | 7 ++++++-
  src/pkg/net/http/transport_test.go | 9 ++++++---
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 4cd0533ffc..41ac7dea14 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -831,10 +831,15 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 	// uncompress the gzip stream if we were the layer that
+ 	// requested it.
+ 	requestedGzip := false
+-	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" {
++	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" && req.Method != "HEAD" {
+ 		// Request gzip only, not deflate. Deflate is ambiguous and
+ 		// not as universally supported anyway.
+ 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
++		//
++		// Note that we don't request this for HEAD requests,
++		// due to a bug in nginx:
++		//   http://trac.nginx.org/nginx/ticket/358
++		//   http://golang.org/issue/5522
+ 		requestedGzip = true
+ 		req.extraHeaders().Set("Accept-Encoding", "gzip")
+ 	}
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 9f64a6e4b5..9f5181e49c 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -585,13 +585,16 @@ func TestTransportGzip(t *testing.T) {
+ 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+ 	const nRandBytes = 1024 * 1024
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
++		if req.Method == "HEAD" {
++			if g := req.Header.Get("Accept-Encoding"); g != "" {
++				t.Errorf("HEAD request sent with Accept-Encoding of %q; want none", g)
++			}
++			return
++		}
+ 		if g, e := req.Header.Get("Accept-Encoding"), "gzip"; g != e {
+ 			t.Errorf("Accept-Encoding = %q, want %q", g, e)
+ 		}
+ 		rw.Header().Set("Content-Encoding", "gzip")
+-		if req.Method == "HEAD" {
+-			return
+-		}
+ 
+ 		var w io.Writer = rw
+ 		var buf bytes.Buffer

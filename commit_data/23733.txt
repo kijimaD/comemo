@@ -10,7 +10,56 @@ Date:   Fri Jun 5 10:39:23 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10780
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/lex.go |  4 ++--
  test/fixedbugs/issue10977.go       | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 46b7d5da16..afc5de95c5 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -370,7 +370,7 @@ func Main() {
+ 	defercheckwidth()
+ 
+ 	for l := xtop; l != nil; l = l.Next {
+-		if l.N.Op != ODCL && l.N.Op != OAS {
++		if l.N.Op != ODCL && l.N.Op != OAS && l.N.Op != OAS2 {
+ 			typecheck(&l.N, Etop)
+ 		}
+ 	}
+@@ -378,7 +378,7 @@ func Main() {
+ 	// Phase 2: Variable assignments.
+ 	//   To check interface assignments, depends on phase 1.
+ 	for l := xtop; l != nil; l = l.Next {
+-		if l.N.Op == ODCL || l.N.Op == OAS {
++		if l.N.Op == ODCL || l.N.Op == OAS || l.N.Op == OAS2 {
+ 			typecheck(&l.N, Etop)
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue10977.go b/test/fixedbugs/issue10977.go
+new file mode 100644
+index 0000000000..0b18c70005
+--- /dev/null
++++ b/test/fixedbugs/issue10977.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++
++var (
++	t = T{}
++	u = t.New()
++)
++
++func x(T) (int, int) { return 0, 0 }
++
++var _, _ = x(u)
++
++func (T) New() T { return T{} }

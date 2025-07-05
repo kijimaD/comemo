@@ -13,7 +13,7 @@ Date:   Mon May 31 15:53:55 2010 -0700
     R=r
     CC=golang-dev, hoisie
     https://golang.org/cl/1435041
-
+---
  src/pkg/container/vector/Makefile             |  2 ++
  src/pkg/container/vector/defs.go              | 27 ---------------------------
  src/pkg/container/vector/intvector.go         |  9 +++++++++
@@ -22,3 +22,194 @@ Date:   Mon May 31 15:53:55 2010 -0700
  src/pkg/container/vector/stringvector_test.go | 21 ++++++++++++---------
  src/pkg/container/vector/vector.go            |  9 +++++++++
  7 files changed, 50 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/container/vector/Makefile b/src/pkg/container/vector/Makefile
+index ffd8937a78..c456c6a6c1 100644
+--- a/src/pkg/container/vector/Makefile
++++ b/src/pkg/container/vector/Makefile
+@@ -44,6 +44,7 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='TestDo -> TestIntDo'\
+ 	| gofmt -r='TestIter -> TestIntIter'\
+ 	| gofmt -r='TestVectorData -> TestIntVectorData'\
++	| gofmt -r='interface{} -> int'\
+ 	> intvector_test.go\
+ 	
+ 	< vector_test.go cat\
+@@ -66,4 +67,5 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='TestDo -> TestStrDo'\
+ 	| gofmt -r='TestIter -> TestStrIter'\
+ 	| gofmt -r='TestVectorData -> TestStrVectorData'\
++	| gofmt -r='interface{} -> string'\
+ 	> stringvector_test.go
+diff --git a/src/pkg/container/vector/defs.go b/src/pkg/container/vector/defs.go
+index 7502865c9c..a2febb6dee 100644
+--- a/src/pkg/container/vector/defs.go
++++ b/src/pkg/container/vector/defs.go
+@@ -49,30 +49,3 @@ func (p *IntVector) Less(i, j int) bool { return (*p)[i] < (*p)[j] }
+ 
+ // Less returns a boolean denoting whether the i'th element is less than the j'th element.
+ func (p *StringVector) Less(i, j int) bool { return (*p)[i] < (*p)[j] }
+-
+-
+-// Do calls function f for each element of the vector, in order.
+-// The behavior of Do is undefined if f changes *p.
+-func (p *Vector) Do(f func(elem interface{})) {
+-	for _, e := range *p {
+-		f(e)
+-	}
+-}
+-
+-
+-// Do calls function f for each element of the vector, in order.
+-// The behavior of Do is undefined if f changes *p.
+-func (p *IntVector) Do(f func(elem int)) {
+-	for _, e := range *p {
+-		f(e)
+-	}
+-}
+-
+-
+-// Do calls function f for each element of the vector, in order.
+-// The behavior of Do is undefined if f changes *p.
+-func (p *StringVector) Do(f func(elem string)) {
+-	for _, e := range *p {
+-		f(e)
+-	}
+-}
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index 708108b183..6aad358e3d 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -214,3 +214,12 @@ func (p *IntVector) Iter() <-chan int {
+ 	go p.iterate(c)
+ 	return c
+ }
++
++
++// Do calls function f for each element of the vector, in order.
++// The behavior of Do is undefined if f changes *p.
++func (p *IntVector) Do(f func(elem int)) {
++	for _, e := range *p {
++		f(e)
++	}
++}
+diff --git a/src/pkg/container/vector/intvector_test.go b/src/pkg/container/vector/intvector_test.go
+index b8900478b2..c80dd52cca 100644
+--- a/src/pkg/container/vector/intvector_test.go
++++ b/src/pkg/container/vector/intvector_test.go
+@@ -279,8 +279,9 @@ func TestIntDo(t *testing.T) {
+ 		a.Set(i, int2IntValue(salt*i))
+ 	}
+ 	count := 0
+-	a.Do(func(i int) {
+-		if i != count*salt {
++	a.Do(func(e int) {
++		i := intf2IntValue(e)
++		if i != int2IntValue(count*salt) {
+ 			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
+ 		}
+ 		count++
+@@ -294,8 +295,9 @@ func TestIntDo(t *testing.T) {
+ 		(*b)[i] = int2IntValue(salt * i)
+ 	}
+ 	count = 0
+-	b.Do(func(i int) {
+-		if i != count*salt {
++	b.Do(func(e int) {
++		i := intf2IntValue(e)
++		if i != int2IntValue(count*salt) {
+ 			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
+ 		}
+ 		count++
+@@ -310,8 +312,9 @@ func TestIntDo(t *testing.T) {
+ 		c[i] = int2IntValue(salt * i)
+ 	}
+ 	count = 0
+-	c.Do(func(i int) {
+-		if i != count*salt {
++	c.Do(func(e int) {
++		i := intf2IntValue(e)
++		if i != int2IntValue(count*salt) {
+ 			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
+ 		}
+ 		count++
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index 86563ca203..ddc030f817 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -214,3 +214,12 @@ func (p *StringVector) Iter() <-chan string {
+ 	go p.iterate(c)
+ 	return c
+ }
++
++
++// Do calls function f for each element of the vector, in order.
++// The behavior of Do is undefined if f changes *p.
++func (p *StringVector) Do(f func(elem string)) {
++	for _, e := range *p {
++		f(e)
++	}
++}
+diff --git a/src/pkg/container/vector/stringvector_test.go b/src/pkg/container/vector/stringvector_test.go
+index 5bc8a626bf..859dac2fde 100644
+--- a/src/pkg/container/vector/stringvector_test.go
++++ b/src/pkg/container/vector/stringvector_test.go
+@@ -279,9 +279,10 @@ func TestStrDo(t *testing.T) {
+ 		a.Set(i, int2StrValue(salt*i))
+ 	}
+ 	count := 0
+-	a.Do(func(s string) {
+-		if s != int2StrValue(count*salt) {
+-			t.Error(tname(a), "value at", count, "should be", count*salt, "not", s)
++	a.Do(func(e string) {
++		i := intf2StrValue(e)
++		if i != int2StrValue(count*salt) {
++			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
+ 		}
+ 		count++
+ 	})
+@@ -294,9 +295,10 @@ func TestStrDo(t *testing.T) {
+ 		(*b)[i] = int2StrValue(salt * i)
+ 	}
+ 	count = 0
+-	b.Do(func(s string) {
+-		if s != int2StrValue(count*salt) {
+-			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", s)
++	b.Do(func(e string) {
++		i := intf2StrValue(e)
++		if i != int2StrValue(count*salt) {
++			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
+ 		}
+ 		count++
+ 	})
+@@ -310,9 +312,10 @@ func TestStrDo(t *testing.T) {
+ 		c[i] = int2StrValue(salt * i)
+ 	}
+ 	count = 0
+-	c.Do(func(s string) {
+-		if s != int2StrValue(count*salt) {
+-			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", s)
++	c.Do(func(e string) {
++		i := intf2StrValue(e)
++		if i != int2StrValue(count*salt) {
++			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
+ 		}
+ 		count++
+ 	})
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index 0771720965..986321b14b 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -214,3 +214,12 @@ func (p *Vector) Iter() <-chan interface{} {
+ 	go p.iterate(c)
+ 	return c
+ }
++
++
++// Do calls function f for each element of the vector, in order.
++// The behavior of Do is undefined if f changes *p.
++func (p *Vector) Do(f func(elem interface{})) {
++	for _, e := range *p {
++		f(e)
++	}
++}

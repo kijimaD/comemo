@@ -9,7 +9,41 @@ Date:   Mon Jan 23 16:57:12 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5574045
-
+---
  src/cmd/gc/walk.c        |  1 +
  test/fixedbugs/bug399.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 68bd01cda0..6ec978f0bb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -876,6 +876,7 @@ walkexpr(Node **np, NodeList **init)
+ 				// delayed until now because "abc"[2] is not
+ 				// an ideal constant.
+ 				nodconst(n, n->type, n->left->val.u.sval->s[v]);
++				n->typecheck = 1;
+ 			}
+ 		}
+ 		goto ret;
+diff --git a/test/fixedbugs/bug399.go b/test/fixedbugs/bug399.go
+new file mode 100644
+index 0000000000..25f6351e06
+--- /dev/null
++++ b/test/fixedbugs/bug399.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go || echo "Bug399"
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2674
++
++package main
++const dow = "\000\003"
++
++func main() {
++	println(int(dow[1]))
++}
++

@@ -9,7 +9,78 @@ Date:   Tue Dec 22 17:02:00 2009 +1100
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/180112
-
+---
  src/pkg/fmt/fmt_test.go |  7 ++++++-
  src/pkg/fmt/print.go    | 26 +++++++++-----------------
  2 files changed, 15 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 78d4cf29a3..c89a6acaca 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -217,6 +217,11 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%+v", B{1, 2}, `{i:<1> j:2}`},
+ 	fmtTest{"%+v", C{1, B{2, 3}}, `{i:1 B:{i:<2> j:3}}`},
+ 
++	// %p on non-pointers
++	fmtTest{"%p", make(chan int), "PTR"},
++	fmtTest{"%p", make(map[int]int), "PTR"},
++	fmtTest{"%p", make([]int, 1), "PTR"},
++
+ 	// go syntax
+ 	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+ 	fmtTest{"%#v", &b, "(*uint8)(PTR)"},
+@@ -233,7 +238,7 @@ func TestSprintf(t *testing.T) {
+ 			j := i + 2
+ 			for ; j < len(s); j++ {
+ 				c := s[j]
+-				if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
++				if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+ 					break
+ 				}
+ 			}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index d4ef3c62f6..044ac1702c 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -380,14 +380,6 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
+ 	return
+ }
+ 
+-func getPtr(v reflect.Value) (val uintptr, ok bool) {
+-	switch v := v.(type) {
+-	case *reflect.PtrValue:
+-		return uintptr(v.Get()), true
+-	}
+-	return
+-}
+-
+ // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
+ 
+ func parsenum(s string, start, end int) (n int, got bool, newi int) {
+@@ -808,16 +800,16 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 				goto badtype
+ 			}
+ 
+-		// pointer
++		// pointer, including addresses of reference types.
+ 		case 'p':
+-			if v, ok := getPtr(field); ok {
+-				if v == 0 {
+-					p.buf.Write(nilAngleBytes)
+-				} else {
+-					p.fmt.fmt_s("0x")
+-					p.fmt.fmt_uX64(uint64(v))
+-				}
+-			} else {
++			switch v := field.(type) {
++			case *reflect.PtrValue:
++				p.fmt.fmt_s("0x")
++				p.fmt.fmt_uX64(uint64(v.Get()))
++			case *reflect.ChanValue, *reflect.MapValue, *reflect.SliceValue:
++				p.fmt.fmt_s("0x")
++				p.fmt.fmt_uX64(uint64(field.Addr()))
++			default:
+ 				goto badtype
+ 			}
+ 

@@ -7,7 +7,25 @@ Date:   Tue Feb 21 07:11:44 2012 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5687052
-
+---
  src/pkg/net/hosts_test.go                      | 2 +-
  src/pkg/net/{hosts_testdata => testdata/hosts} | 0
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/hosts_test.go b/src/pkg/net/hosts_test.go
+index 1bd00541c6..064e7e4328 100644
+--- a/src/pkg/net/hosts_test.go
++++ b/src/pkg/net/hosts_test.go
+@@ -34,7 +34,7 @@ var hosttests = []hostTest{
+ 
+ func TestLookupStaticHost(t *testing.T) {
+ 	p := hostsPath
+-	hostsPath = "hosts_testdata"
++	hostsPath = "testdata/hosts"
+ 	for i := 0; i < len(hosttests); i++ {
+ 		tt := hosttests[i]
+ 		ips := lookupStaticHost(tt.host)
+diff --git a/src/pkg/net/hosts_testdata b/src/pkg/net/testdata/hosts
+similarity index 100%
+rename from src/pkg/net/hosts_testdata
+rename to src/pkg/net/testdata/hosts

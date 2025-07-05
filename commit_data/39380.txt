@@ -15,9 +15,224 @@ Date:   Tue Feb 5 22:52:03 2019 -0800
     Change-Id: Ib8c9efb29b7b3c08531ae69912c588209d6320e9
     Reviewed-on: https://go-review.googlesource.com/c/161202
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  lib/time/update.bash      |  13 -------
  lib/time/zoneinfo.zip     | Bin 365447 -> 788764 bytes
  src/time/zoneinfo_read.go |  96 ++++++++++++++++++++++++++++++++++++++++------
  src/time/zoneinfo_test.go |  21 ++++++++++
  4 files changed, 105 insertions(+), 25 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 8d6785b9af..5dc74f9f0b 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -21,21 +21,8 @@ curl -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.g
+ tar xzf tzcode$CODE.tar.gz
+ tar xzf tzdata$DATA.tar.gz
+ 
+-# Turn off 64-bit output in time zone files.
+-# We don't need those until 2037.
+-perl -p -i -e 's/pass <= 2/pass <= 1/' zic.c
+-
+ make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only
+ 
+-# America/Los_Angeles should not be bigger than 1100 bytes.
+-# If it is, we probably failed to disable the 64-bit output, which
+-# triples the size of the files.
+-size=$(ls -l zoneinfo/America/Los_Angeles | awk '{print $5}')
+-if [ $size -gt 1200 ]; then
+-	echo 'zone file too large; 64-bit edit failed?' >&2
+-	exit 2
+-fi
+-
+ cd zoneinfo
+ rm -f ../../zoneinfo.zip
+ zip -0 -r ../../zoneinfo.zip *
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index bacb724322..a79e5d98fd 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index d8d4070d5b..d54632fb49 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -59,6 +59,16 @@ func (d *dataIO) big4() (n uint32, ok bool) {
+ 	return uint32(p[3]) | uint32(p[2])<<8 | uint32(p[1])<<16 | uint32(p[0])<<24, true
+ }
+ 
++func (d *dataIO) big8() (n uint64, ok bool) {
++	n1, ok1 := d.big4()
++	n2, ok2 := d.big4()
++	if !ok1 || !ok2 {
++		d.error = true
++		return 0, false
++	}
++	return (uint64(n1) << 32) | uint64(n2), true
++}
++
+ func (d *dataIO) byte() (n byte, ok bool) {
+ 	p := d.read(1)
+ 	if len(p) < 1 {
+@@ -93,9 +103,21 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
++	var version int
+ 	var p []byte
+-	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' && p[0] != '3' {
++	if p = d.read(16); len(p) != 16 {
+ 		return nil, badData
++	} else {
++		switch p[0] {
++		case 0:
++			version = 1
++		case '2':
++			version = 2
++		case '3':
++			version = 3
++		default:
++			return nil, badData
++		}
+ 	}
+ 
+ 	// six big-endian 32-bit integers:
+@@ -119,11 +141,53 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 		if !ok {
+ 			return nil, badData
+ 		}
++		if uint32(int(nn)) != nn {
++			return nil, badData
++		}
+ 		n[i] = int(nn)
+ 	}
+ 
++	// If we have version 2 or 3, then the data is first written out
++	// in a 32-bit format, then written out again in a 64-bit format.
++	// Skip the 32-bit format and read the 64-bit one, as it can
++	// describe a broader range of dates.
++
++	is64 := false
++	if version > 1 {
++		// Skip the 32-bit data.
++		skip := n[NTime]*4 +
++			n[NTime] +
++			n[NZone]*6 +
++			n[NChar] +
++			n[NLeap]*8 +
++			n[NStdWall] +
++			n[NUTCLocal]
++		// Skip the version 2 header that we just read.
++		skip += 4 + 16
++		d.read(skip)
++
++		is64 = true
++
++		// Read the counts again, they can differ.
++		for i := 0; i < 6; i++ {
++			nn, ok := d.big4()
++			if !ok {
++				return nil, badData
++			}
++			if uint32(int(nn)) != nn {
++				return nil, badData
++			}
++			n[i] = int(nn)
++		}
++	}
++
++	size := 4
++	if is64 {
++		size = 8
++	}
++
+ 	// Transition times.
+-	txtimes := dataIO{d.read(n[NTime] * 4), false}
++	txtimes := dataIO{d.read(n[NTime] * size), false}
+ 
+ 	// Time zone indices for transition times.
+ 	txzones := d.read(n[NTime])
+@@ -135,7 +199,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 	abbrev := d.read(n[NChar])
+ 
+ 	// Leap-second time pairs
+-	d.read(n[NLeap] * 8)
++	d.read(n[NLeap] * (size + 4))
+ 
+ 	// Whether tx times associated with local time types
+ 	// are specified as standard time or wall time.
+@@ -149,10 +213,6 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 		return nil, badData
+ 	}
+ 
+-	// If version == 2 or 3, the entire file repeats, this time using
+-	// 8-byte ints for txtimes and leap seconds.
+-	// We won't need those until 2106.
+-
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+@@ -163,6 +223,9 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 		if n, ok = zonedata.big4(); !ok {
+ 			return nil, badData
+ 		}
++		if uint32(int(n)) != n {
++			return nil, badData
++		}
+ 		zone[i].offset = int(int32(n))
+ 		var b byte
+ 		if b, ok = zonedata.byte(); !ok {
+@@ -186,12 +249,21 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 	// Now the transition time info.
+ 	tx := make([]zoneTrans, n[NTime])
+ 	for i := range tx {
+-		var ok bool
+-		var n uint32
+-		if n, ok = txtimes.big4(); !ok {
+-			return nil, badData
++		var n int64
++		if !is64 {
++			if n4, ok := txtimes.big4(); !ok {
++				return nil, badData
++			} else {
++				n = int64(int32(n4))
++			}
++		} else {
++			if n8, ok := txtimes.big8(); !ok {
++				return nil, badData
++			} else {
++				n = int64(n8)
++			}
+ 		}
+-		tx[i].when = int64(int32(n))
++		tx[i].when = n
+ 		if int(txzones[i]) >= len(zone) {
+ 			return nil, badData
+ 		}
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index 4458ba8e26..cd0731768e 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -152,3 +152,24 @@ func TestLoadLocationFromTZData(t *testing.T) {
+ 		t.Errorf("return values of LoadLocationFromTZData and LoadLocation don't match")
+ 	}
+ }
++
++// Issue 30099.
++func TestEarlyLocation(t *testing.T) {
++	time.ForceZipFileForTesting(true)
++	defer time.ForceZipFileForTesting(false)
++
++	const locName = "America/New_York"
++	loc, err := time.LoadLocation(locName)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	d := time.Date(1900, time.January, 1, 0, 0, 0, 0, loc)
++	tzName, tzOffset := d.Zone()
++	if want := "EST"; tzName != want {
++		t.Errorf("Zone name == %s, want %s", tzName, want)
++	}
++	if want := -18000; tzOffset != want {
++		t.Errorf("Zone offset == %d, want %d", tzOffset, want)
++	}
++}

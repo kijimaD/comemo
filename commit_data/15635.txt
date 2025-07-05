@@ -7,6 +7,19 @@ Date:   Thu Mar 7 12:46:44 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7595043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d948e02bf9..8fbabbc270 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -238,6 +238,7 @@ Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
+ Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
++Keith Randall <khr@golang.org>
+ Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Rockot <ken@oz.gs> <ken.rockot@gmail.com>

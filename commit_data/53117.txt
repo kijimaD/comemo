@@ -36,6 +36,37 @@ Date:   Wed Jul 13 11:48:04 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/time.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index aec39083b4..80b0bfb72c 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -397,7 +397,11 @@ func dodeltimer(pp *p, i int) int {
+ 	if i == 0 {
+ 		updateTimer0When(pp)
+ 	}
+-	atomic.Xadd(&pp.numTimers, -1)
++	n := atomic.Xadd(&pp.numTimers, -1)
++	if n == 0 {
++		// If there are no timers, then clearly none are modified.
++		atomic.Store64(&pp.timerModifiedEarliest, 0)
++	}
+ 	return smallestChanged
+ }
+ 
+@@ -421,7 +425,11 @@ func dodeltimer0(pp *p) {
+ 		siftdownTimer(pp.timers, 0)
+ 	}
+ 	updateTimer0When(pp)
+-	atomic.Xadd(&pp.numTimers, -1)
++	n := atomic.Xadd(&pp.numTimers, -1)
++	if n == 0 {
++		// If there are no timers, then clearly none are modified.
++		atomic.Store64(&pp.timerModifiedEarliest, 0)
++	}
+ }
+ 
+ // modtimer modifies an existing timer.

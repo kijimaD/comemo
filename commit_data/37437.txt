@@ -23,8 +23,92 @@ Date:   Sat Jul 28 13:45:02 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js    |  2 +-
  src/syscall/fs_js.go      | 20 ++++++++------------
  src/syscall/syscall_js.go | 13 ++++++-------
  3 files changed, 15 insertions(+), 20 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 02a753c823..f3772652da 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -37,7 +37,7 @@
+ 
+ 		let outputBuf = "";
+ 		global.fs = {
+-			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1, O_NONBLOCK: -1, O_SYNC: -1 }, // unused
++			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused
+ 			writeSync(fd, buf) {
+ 				outputBuf += decoder.decode(buf);
+ 				const nl = outputBuf.lastIndexOf("\n");
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 36e9140759..00d6c76979 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"errors"
+ 	"io"
+ 	"sync"
+ 	"syscall/js"
+@@ -20,14 +21,12 @@ var jsFS = js.Global().Get("fs")
+ var constants = jsFS.Get("constants")
+ 
+ var (
+-	nodeWRONLY   = constants.Get("O_WRONLY").Int()
+-	nodeRDWR     = constants.Get("O_RDWR").Int()
+-	nodeCREATE   = constants.Get("O_CREAT").Int()
+-	nodeTRUNC    = constants.Get("O_TRUNC").Int()
+-	nodeAPPEND   = constants.Get("O_APPEND").Int()
+-	nodeEXCL     = constants.Get("O_EXCL").Int()
+-	nodeNONBLOCK = constants.Get("O_NONBLOCK").Int()
+-	nodeSYNC     = constants.Get("O_SYNC").Int()
++	nodeWRONLY = constants.Get("O_WRONLY").Int()
++	nodeRDWR   = constants.Get("O_RDWR").Int()
++	nodeCREATE = constants.Get("O_CREAT").Int()
++	nodeTRUNC  = constants.Get("O_TRUNC").Int()
++	nodeAPPEND = constants.Get("O_APPEND").Int()
++	nodeEXCL   = constants.Get("O_EXCL").Int()
+ )
+ 
+ type jsFile struct {
+@@ -78,11 +77,8 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 	if openmode&O_EXCL != 0 {
+ 		flags |= nodeEXCL
+ 	}
+-	if openmode&O_NONBLOCK != 0 {
+-		flags |= nodeNONBLOCK
+-	}
+ 	if openmode&O_SYNC != 0 {
+-		flags |= nodeSYNC
++		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
+ 	}
+ 
+ 	jsFD, err := fsCall("openSync", path, flags, perm)
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 356d925462..6822eec835 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -103,13 +103,12 @@ const (
+ 	O_WRONLY = 1
+ 	O_RDWR   = 2
+ 
+-	O_CREAT    = 0100
+-	O_CREATE   = O_CREAT
+-	O_TRUNC    = 01000
+-	O_APPEND   = 02000
+-	O_EXCL     = 0200
+-	O_NONBLOCK = 04000
+-	O_SYNC     = 010000
++	O_CREAT  = 0100
++	O_CREATE = O_CREAT
++	O_TRUNC  = 01000
++	O_APPEND = 02000
++	O_EXCL   = 0200
++	O_SYNC   = 010000
+ 
+ 	O_CLOEXEC = 0
+ )

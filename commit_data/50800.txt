@@ -16,7 +16,82 @@ Date:   Mon Jul 26 10:56:30 2021 +0200
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sync/map.go      |  5 +++--
  src/sync/map_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/map.go b/src/sync/map.go
+index dfb62dd3e8..7a6c82e5c3 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -311,8 +311,9 @@ func (e *entry) delete() (value interface{}, ok bool) {
+ //
+ // Range does not necessarily correspond to any consistent snapshot of the Map's
+ // contents: no key will be visited more than once, but if the value for any key
+-// is stored or deleted concurrently, Range may reflect any mapping for that key
+-// from any point during the Range call.
++// is stored or deleted concurrently (including by f), Range may reflect any
++// mapping for that key from any point during the Range call. Range does not
++// block other methods on the receiver; even f itself may call any method on m.
+ //
+ // Range may be O(N) with the number of elements in the map even if f returns
+ // false after a constant number of calls.
+diff --git a/src/sync/map_test.go b/src/sync/map_test.go
+index 7f163caa5c..c4a8f8b99a 100644
+--- a/src/sync/map_test.go
++++ b/src/sync/map_test.go
+@@ -195,3 +195,53 @@ func TestIssue40999(t *testing.T) {
+ 		runtime.GC()
+ 	}
+ }
++
++func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
++	var m sync.Map
++	for i, v := range [3]string{"hello", "world", "Go"} {
++		m.Store(i, v)
++	}
++	m.Range(func(key, value interface{}) bool {
++		m.Range(func(key, value interface{}) bool {
++			// We should be able to load the key offered in the Range callback,
++			// because there are no concurrent Delete involved in this tested map.
++			if v, ok := m.Load(key); !ok || !reflect.DeepEqual(v, value) {
++				t.Fatalf("Nested Range loads unexpected value, got %+v want %+v", v, value)
++			}
++
++			// We didn't keep 42 and a value into the map before, if somehow we loaded
++			// a value from such a key, meaning there must be an internal bug regarding
++			// nested range in the Map.
++			if _, loaded := m.LoadOrStore(42, "dummy"); loaded {
++				t.Fatalf("Nested Range loads unexpected value, want store a new value")
++			}
++
++			// Try to Store then LoadAndDelete the corresponding value with the key
++			// 42 to the Map. In this case, the key 42 and associated value should be
++			// removed from the Map. Therefore any future range won't observe key 42
++			// as we checked in above.
++			val := "sync.Map"
++			m.Store(42, val)
++			if v, loaded := m.LoadAndDelete(42); !loaded || !reflect.DeepEqual(v, val) {
++				t.Fatalf("Nested Range loads unexpected value, got %v, want %v", v, val)
++			}
++			return true
++		})
++
++		// Remove key from Map on-the-fly.
++		m.Delete(key)
++		return true
++	})
++
++	// After a Range of Delete, all keys should be removed and any
++	// further Range won't invoke the callback. Hence length remains 0.
++	length := 0
++	m.Range(func(key, value interface{}) bool {
++		length++
++		return true
++	})
++
++	if length != 0 {
++		t.Fatalf("Unexpected sync.Map size, got %v want %v", length, 0)
++	}
++}

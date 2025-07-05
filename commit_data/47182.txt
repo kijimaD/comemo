@@ -14,7 +14,7 @@ Date:   Sat Feb 13 10:49:37 2021 -0500
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go     |  7 +++++++
  src/cmd/compile/internal/amd64/ssa.go        |  2 ++
  src/cmd/compile/internal/ssa/expand_calls.go | 24 +++++++++++++++++++-----
@@ -24,3 +24,232 @@ Date:   Sat Feb 13 10:49:37 2021 -0500
  src/cmd/compile/internal/ssa/schedule.go     |  2 +-
  src/cmd/compile/internal/ssagen/ssa.go       | 12 +++++++++++-
  8 files changed, 64 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 8549c0325d..903cc5205d 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -158,6 +158,13 @@ func (a *ABIConfig) LocalsOffset() int64 {
+ 	return a.offsetForLocals
+ }
+ 
++// FloatIndexFor translates r into an index in the floating point parameter
++// registers.  If the result is negative, the input index was actually for the
++// integer parameter registers.
++func (a *ABIConfig) FloatIndexFor(r RegIndex) int64 {
++	return int64(r) - int64(a.regAmounts.intRegs)
++}
++
+ // NumParamRegs returns the number of parameter registers used for a given type,
+ // without regard for the number available.
+ func (a *ABIConfig) NumParamRegs(t *types.Type) int {
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index d83d78f080..3c43a1d41b 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -980,6 +980,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
++		ssagen.CheckArgReg(v)
+ 	case ssa.OpAMD64LoweredGetClosurePtr:
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 741d59258b..68fb0581f6 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -808,9 +808,9 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) *Value {
+ 		}
+ 		auxI := int64(i - firstArg)
+ 		aRegs := aux.RegsOfArg(auxI)
+-		aOffset := aux.OffsetOfArg(auxI)
+ 		aType := aux.TypeOfArg(auxI)
+ 		if a.Op == OpDereference {
++			aOffset := aux.OffsetOfArg(auxI)
+ 			if a.MemoryArg() != m0 {
+ 				x.f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
+ 			}
+@@ -821,13 +821,16 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) *Value {
+ 			// TODO(register args) this will be more complicated with registers in the picture.
+ 			mem = x.rewriteDereference(v.Block, x.sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, pos)
+ 		} else {
+-			if x.debug {
+-				fmt.Printf("storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
+-			}
+ 			var rc registerCursor
+ 			var result *[]*Value
++			var aOffset int64
+ 			if len(aRegs) > 0 {
+ 				result = &allResults
++			} else {
++				aOffset = aux.OffsetOfArg(auxI)
++			}
++			if x.debug {
++				fmt.Printf("storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
+ 			}
+ 			rc.init(aRegs, aux.abiInfo, result)
+ 			mem = x.storeArgOrLoad(pos, v.Block, x.sp, a, mem, aType, aOffset, 0, rc)
+@@ -1213,8 +1216,19 @@ func expandCalls(f *Func) {
+ 							pa.Offset(), frameOff, v.LongString()))
+ 					}
+ 				case 1:
++					r := pa.Registers[0]
++					i := f.ABISelf.FloatIndexFor(r)
++					// TODO seems like this has implications for debugging. How does this affect the location?
++					if i >= 0 { // float PR
++						v.Op = OpArgFloatReg
++					} else {
++						v.Op = OpArgIntReg
++						i = int64(r)
++					}
++					v.AuxInt = i
++
+ 				default:
+-					panic(badVal("Saw unexpeanded OpArg", v))
++					panic(badVal("Saw unexpanded OpArg", v))
+ 				}
+ 
+ 			case OpStaticLECall:
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index f6b2bf86a9..bbb80a7a30 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -21,8 +21,12 @@ func checkLower(f *Func) {
+ 				continue // lowered
+ 			}
+ 			switch v.Op {
+-			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
++			case OpSP, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
+ 				continue // ok not to lower
++			case OpMakeResult:
++				if len(b.Controls) == 1 && b.Controls[0] == v {
++					continue
++				}
+ 			case OpGetG:
+ 				if f.Config.hasGReg {
+ 					// has hardware g register, regalloc takes care of it
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 99e101281b..74dd70c3d9 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -800,7 +800,8 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
+ }
+ 
+ // regspec returns the regInfo for operation op.
+-func (s *regAllocState) regspec(op Op) regInfo {
++func (s *regAllocState) regspec(v *Value) regInfo {
++	op := v.Op
+ 	if op == OpConvert {
+ 		// OpConvert is a generic op, so it doesn't have a
+ 		// register set in the static table. It can use any
+@@ -808,6 +809,20 @@ func (s *regAllocState) regspec(op Op) regInfo {
+ 		m := s.allocatable & s.f.Config.gpRegMask
+ 		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+ 	}
++	if op == OpArgIntReg {
++		reg := v.Block.Func.Config.intParamRegs[v.AuxInt8()]
++		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
++	}
++	if op == OpArgFloatReg {
++		reg := v.Block.Func.Config.floatParamRegs[v.AuxInt8()]
++		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
++	}
++	if op.IsCall() {
++		// TODO Panic if not okay
++		if ac, ok := v.Aux.(*AuxCall); ok && ac.reg != nil {
++			return *ac.reg
++		}
++	}
+ 	return opcodeTable[op].reg
+ }
+ 
+@@ -1163,7 +1178,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		for i := len(oldSched) - 1; i >= 0; i-- {
+ 			v := oldSched[i]
+ 			prefs := desired.remove(v.ID)
+-			regspec := s.regspec(v.Op)
++			regspec := s.regspec(v)
+ 			desired.clobber(regspec.clobbers)
+ 			for _, j := range regspec.inputs {
+ 				if countRegs(j.regs) != 1 {
+@@ -1193,7 +1208,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("  processing %s\n", v.LongString())
+ 			}
+-			regspec := s.regspec(v.Op)
++			regspec := s.regspec(v)
+ 			if v.Op == OpPhi {
+ 				f.Fatalf("phi %s not at start of block", v)
+ 			}
+@@ -2447,7 +2462,7 @@ func (s *regAllocState) computeLive() {
+ 					// desired registers back though phi nodes.
+ 					continue
+ 				}
+-				regspec := s.regspec(v.Op)
++				regspec := s.regspec(v)
+ 				// Cancel desired registers if they get clobbered.
+ 				desired.clobber(regspec.clobbers)
+ 				// Update desired registers if there are any fixed register inputs.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 19b97a3ed1..9243000cef 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -795,8 +795,6 @@ func devirtLECall(v *Value, sym *obj.LSym) *Value {
+ 	v.Op = OpStaticLECall
+ 	auxcall := v.Aux.(*AuxCall)
+ 	auxcall.Fn = sym
+-	// TODO(register args) this should not be necessary when fully transition to the new register ABI.
+-	auxcall.abiInfo = v.Block.Func.ABIDefault.ABIAnalyzeTypes(nil, ACParamsToTypes(auxcall.args), ACParamsToTypes(auxcall.results))
+ 	v.RemoveArg(0)
+ 	return v
+ }
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 6b34310db7..c987647131 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -137,7 +137,7 @@ func schedule(f *Func) {
+ 			case v.Op == OpVarDef:
+ 				// We want all the vardefs next.
+ 				score[v.ID] = ScoreVarDef
+-			case v.Op == OpArg:
++			case v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
+ 				// We want all the args as early as possible, for better debugging.
+ 				score[v.ID] = ScoreArg
+ 			case v.Type.IsMemory():
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 210150d872..9088ce333b 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -485,7 +485,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, deferBitsTemp, s.mem(), false)
+ 	}
+ 
+-	params := s.f.ABISelf.ABIAnalyze(fn.Type())
++	var params *abi.ABIParamResultInfo
++	params = s.f.ABISelf.ABIAnalyze(fn.Type())
+ 
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*ir.Name]*ssa.Value{}
+@@ -7019,11 +7020,20 @@ func CheckLoweredPhi(v *ssa.Value) {
+ // That register contains the closure pointer on closure entry.
+ func CheckLoweredGetClosurePtr(v *ssa.Value) {
+ 	entry := v.Block.Func.Entry
++	// TODO register args: not all the register-producing ops can come first.
+ 	if entry != v.Block || entry.Values[0] != v {
+ 		base.Fatalf("in %s, badly placed LoweredGetClosurePtr: %v %v", v.Block.Func.Name, v.Block, v)
+ 	}
+ }
+ 
++// CheckArgReg ensures that v is in the function's entry block.
++func CheckArgReg(v *ssa.Value) {
++	entry := v.Block.Func.Entry
++	if entry != v.Block {
++		base.Fatalf("in %s, badly placed ArgIReg or ArgFReg: %v %v", v.Block.Func.Name, v.Block, v)
++	}
++}
++
+ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	n, off := ssa.AutoVar(v)
+ 	a.Type = obj.TYPE_MEM

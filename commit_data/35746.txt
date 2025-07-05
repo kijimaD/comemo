@@ -14,7 +14,41 @@ Date:   Tue Mar 6 16:11:59 2018 +0100
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/androidtest.bash | 5 +----
  src/cmd/dist/util.go | 6 +++---
  2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index a790f95920..773509f547 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -23,10 +23,7 @@ if [ "$GOOS" != "android" ]; then
+ 	exit 1
+ fi
+ 
+-if [ -z $GOARM ]; then
+-	export GOARM=7
+-fi
+-if [ "$GOARM" != "7" ]; then
++if [ -n "$GOARM" ] && [ "$GOARM" != "7" ]; then
+ 	echo "android only supports GOARM=7, got GOARM=$GOARM" 1>&2
+ 	exit 1
+ fi
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 7e27bbb064..808a60a28e 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -387,9 +387,9 @@ func xgetgoarm() string {
+ 		// NaCl guarantees VFPv3 and is always cross-compiled.
+ 		return "7"
+ 	}
+-	if goos == "darwin" {
+-		// Assume all darwin/arm devices are have VFPv3. This
+-		// port is also mostly cross-compiled, so it makes little
++	if goos == "darwin" || goos == "android" {
++		// Assume all darwin/arm and android devices have VFPv3.
++		// These ports are also mostly cross-compiled, so it makes little
+ 		// sense to auto-detect the setting.
+ 		return "7"
+ 	}

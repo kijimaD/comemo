@@ -11,6 +11,26 @@ Date:   Wed Jan 13 10:41:37 2016 -0800
     Change-Id: I9fd5bfbe9d0498c8733b6ca7b134a85defe16113
     Reviewed-on: https://go-review.googlesource.com/18596
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 2365d84931..0ef8eb4fc6 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -492,12 +492,10 @@ func (p *parser) parseField(parent *types.Package) (*types.Var, string) {
+ 		// anonymous field - typ must be T or *T and T must be a type name
+ 		switch typ := deref(typ).(type) {
+ 		case *types.Basic: // basic types are named types
+-			pkg = nil
++			pkg = nil // objects defined in Universe scope have no package
+ 			name = typ.Name()
+ 		case *types.Named:
+-			obj := typ.Obj()
+-			pkg = obj.Pkg()
+-			name = obj.Name()
++			name = typ.Obj().Name()
+ 		default:
+ 			p.errorf("anonymous field expected")
+ 		}

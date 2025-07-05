@@ -5,8 +5,102 @@ Date:   Wed Jun 18 11:51:21 2008 -0700
     add a bug: method call doesn't compile
     
     SVN=123403
-
+---
  test/bugs/bug048.go |  2 +-
  test/bugs/bug054.go | 27 +++++++++++++++++++++++++++
  test/golden.out     | 10 ++++------
  3 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/test/bugs/bug048.go b/test/bugs/bug048.go
+index 0dfbaae9ad..519d7bc7b2 100644
+--- a/test/bugs/bug048.go
++++ b/test/bugs/bug048.go
+@@ -9,5 +9,5 @@ package main
+ func main() {
+ 	type M map[int] int;
+ 	m0 := M(7 , 8);	// parses OK
+-	m1 := M(7 : 8);	// BUG: syntax error
++	m1 := M(7 : 8);	// BUG: syntax error  (grammar but not doc has [a:b]; what should we do?
+ }
+diff --git a/test/bugs/bug054.go b/test/bugs/bug054.go
+new file mode 100644
+index 0000000000..bfd09ec63e
+--- /dev/null
++++ b/test/bugs/bug054.go
+@@ -0,0 +1,27 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Element interface {
++}
++
++type Vector struct {
++	elem *[]Element;
++}
++
++func (v *Vector) At(i int) Element {
++	return v.elem[i];
++}
++
++type TStruct struct {
++	name string;
++	fields *Vector;
++}
++
++func (s *TStruct) field() {
++	t := s.fields.At(0);
++}
+diff --git a/test/golden.out b/test/golden.out
+index 13fb1d4ed5..b5445af501 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -26,7 +26,7 @@ hello, world
+ =========== ./literal.go
+ 
+ =========== ./nil.go
+-nil.go:30: fatal error: naddr: const <T>{<i><int32>INT32;}
++nil.go:30: illegal conversion of constant to <T>{}
+ BUG: known to fail incorrectly
+ 
+ =========== ./sieve.go
+@@ -142,8 +142,6 @@ bugs/bug022.go:8: illegal types for operand: INDEXPTR
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug023.go
+-bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>101({},{}){};}
+-BUG: known to fail incorrectly
+ 
+ =========== bugs/bug025.go
+ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+@@ -217,7 +215,7 @@ bugs/bug044.go:23: error in shape across assignment
+ BUG: compilation should succeed
+ 
+ =========== bugs/bug045.go
+-bugs/bug045.go:13: fatal error: naddr: const <T>{<i><int32>INT32;}
++bugs/bug045.go:13: illegal conversion of constant to <T>{}
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug046.go
+@@ -242,8 +240,6 @@ bugs/bug048.go:8: syntax error
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug049.go
+-bugs/bug049.go:6: fatal error: stringpool: not string
+-BUG: fatal error
+ 
+ =========== bugs/bug050.go
+ bugs/bug050.go:3: package statement must be first
+@@ -271,6 +267,8 @@ BUG: incorrect code for division
+ bugs/bug053.go:6: syntax error
+ BUG: len should not be a keyword
+ 
++=========== bugs/bug054.go
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

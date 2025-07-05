@@ -9,7 +9,7 @@ Date:   Thu May 2 22:15:05 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/debug/dwarf/buf.go      |  12 +++
  src/debug/dwarf/entry.go    | 217 +++++++++++++++++++++++++++++++++++++++++---
  src/debug/dwarf/line.go     | 215 +++++++++++++++++++++++++++++++++++++------
@@ -18,3 +18,875 @@ Date:   Thu May 2 22:15:05 2019 -0700
  src/debug/dwarf/unit.go     |  26 +++++-
  src/debug/elf/file.go       |  24 +++--
  7 files changed, 470 insertions(+), 51 deletions(-)
+
+diff --git a/src/debug/dwarf/buf.go b/src/debug/dwarf/buf.go
+index 24d266db10..3e6ce293fd 100644
+--- a/src/debug/dwarf/buf.go
++++ b/src/debug/dwarf/buf.go
+@@ -99,6 +99,18 @@ func (b *buf) uint16() uint16 {
+ 	return b.order.Uint16(a)
+ }
+ 
++func (b *buf) uint24() uint32 {
++	a := b.bytes(3)
++	if a == nil {
++		return 0
++	}
++	if b.dwarf.bigEndian {
++		return uint32(a[2]) | uint32(a[1])<<8 | uint32(a[0])<<16
++	} else {
++		return uint32(a[0]) | uint32(a[1])<<8 | uint32(a[2])<<16
++	}
++}
++
+ func (b *buf) uint32() uint32 {
+ 	a := b.bytes(4)
+ 	if a == nil {
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 6be0700b7e..dfc2f44abc 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -26,6 +26,7 @@ type afield struct {
+ 	attr  Attr
+ 	fmt   format
+ 	class Class
++	val   int64 // for formImplicitConst
+ }
+ 
+ // a map from entry format ids to their descriptions
+@@ -67,6 +68,9 @@ func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
+ 			if tag == 0 && fmt == 0 {
+ 				break
+ 			}
++			if format(fmt) == formImplicitConst {
++				b1.int()
++			}
+ 			n++
+ 		}
+ 		if b1.err != nil {
+@@ -82,6 +86,9 @@ func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
+ 			a.field[i].attr = Attr(b.uint())
+ 			a.field[i].fmt = format(b.uint())
+ 			a.field[i].class = formToClass(a.field[i].fmt, a.field[i].attr, vers, &b)
++			if a.field[i].fmt == formImplicitConst {
++				a.field[i].val = b.int()
++			}
+ 		}
+ 		b.uint()
+ 		b.uint()
+@@ -137,6 +144,11 @@ var attrPtrClass = map[Attr]Class{
+ 	AttrUseLocation:   ClassLocListPtr,
+ 	AttrVtableElemLoc: ClassLocListPtr,
+ 	AttrRanges:        ClassRangeListPtr,
++	// The following are new in DWARF 5.
++	AttrStrOffsetsBase: ClassStrOffsetsPtr,
++	AttrAddrBase:       ClassAddrPtr,
++	AttrRnglistsBase:   ClassRngListsPtr,
++	AttrLoclistsBase:   ClassLocListPtr,
+ }
+ 
+ // formToClass returns the DWARF 4 Class for the given form. If the
+@@ -148,7 +160,7 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
+ 		b.error("cannot determine class of unknown attribute form")
+ 		return 0
+ 
+-	case formAddr:
++	case formAddr, formAddrx, formAddrx1, formAddrx2, formAddrx3, formAddrx4:
+ 		return ClassAddress
+ 
+ 	case formDwarfBlock1, formDwarfBlock2, formDwarfBlock4, formDwarfBlock:
+@@ -163,7 +175,7 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
+ 		}
+ 		return ClassBlock
+ 
+-	case formData1, formData2, formData4, formData8, formSdata, formUdata:
++	case formData1, formData2, formData4, formData8, formSdata, formUdata, formData16, formImplicitConst:
+ 		// In DWARF 2 and 3, ClassPtr was encoded as a
+ 		// constant. Unlike ClassExprLoc/ClassBlock, some
+ 		// DWARF 4 attributes need to distinguish Class*Ptr
+@@ -177,13 +189,13 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
+ 	case formFlag, formFlagPresent:
+ 		return ClassFlag
+ 
+-	case formRefAddr, formRef1, formRef2, formRef4, formRef8, formRefUdata:
++	case formRefAddr, formRef1, formRef2, formRef4, formRef8, formRefUdata, formRefSup4, formRefSup8:
+ 		return ClassReference
+ 
+ 	case formRefSig8:
+ 		return ClassReferenceSig
+ 
+-	case formString, formStrp:
++	case formString, formStrp, formStrx, formStrpSup, formLineStrp, formStrx1, formStrx2, formStrx3, formStrx4:
+ 		return ClassString
+ 
+ 	case formSecOffset:
+@@ -203,6 +215,12 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
+ 
+ 	case formGnuStrpAlt:
+ 		return ClassStringAlt
++
++	case formLoclistx:
++		return ClassLocList
++
++	case formRnglistx:
++		return ClassRngList
+ 	}
+ }
+ 
+@@ -324,6 +342,27 @@ const (
+ 	// offset into the DWARF string section of an alternate object
+ 	// file.
+ 	ClassStringAlt
++
++	// ClassAddrPtr represents values that are an int64 offset
++	// into the "addr" section.
++	ClassAddrPtr
++
++	// ClassLocList represents values that are an int64 offset
++	// into the "loclists" section.
++	ClassLocList
++
++	// ClassRngList represents values that are an int64 offset
++	// from the base of the "rnglists" section.
++	ClassRngList
++
++	// ClassRngListsPtr represents values that are an int64 offset
++	// into the "rnglists" section. These are used as the base for
++	// ClassRngList values.
++	ClassRngListsPtr
++
++	// ClassStrOffsetsPtr represents values that are an int64
++	// offset into the "str_offsets" section.
++	ClassStrOffsetsPtr
+ )
+ 
+ //go:generate stringer -type=Class
+@@ -363,7 +402,7 @@ type Offset uint32
+ 
+ // Entry reads a single entry from buf, decoding
+ // according to the given abbreviation table.
+-func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
++func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset) *Entry {
+ 	off := b.off
+ 	id := uint32(b.uint())
+ 	if id == 0 {
+@@ -395,6 +434,54 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		// address
+ 		case formAddr:
+ 			val = b.addr()
++		case formAddrx, formAddrx1, formAddrx2, formAddrx3, formAddrx4:
++			var off uint64
++			switch fmt {
++			case formAddrx:
++				off = b.uint()
++			case formAddrx1:
++				off = uint64(b.uint8())
++			case formAddrx2:
++				off = uint64(b.uint16())
++			case formAddrx3:
++				off = uint64(b.uint24())
++			case formAddrx4:
++				off = uint64(b.uint32())
++			}
++			if len(b.dwarf.addr) == 0 {
++				b.error("DW_FORM_addrx with no .debug_addr section")
++			}
++			if b.err != nil {
++				return nil
++			}
++			addrsize := b.format.addrsize()
++			if addrsize == 0 {
++				b.error("unknown address size for DW_FORM_addrx")
++			}
++			off *= uint64(addrsize)
++
++			// We have to adjust by the offset of the
++			// compilation unit. This won't work if the
++			// program uses Reader.Seek to skip over the
++			// unit. Not much we can do about that.
++			if cu != nil {
++				cuOff, ok := cu.Val(AttrAddrBase).(int64)
++				if ok {
++					off += uint64(cuOff)
++				}
++			}
++
++			if uint64(int(off)) != off {
++				b.error("DW_FORM_addrx offset out of range")
++			}
++
++			b1 := makeBuf(b.dwarf, b.format, "addr", 0, b.dwarf.addr)
++			b1.skip(int(off))
++			val = b1.addr()
++			if b1.err != nil {
++				b.err = b1.err
++				return nil
++			}
+ 
+ 		// block
+ 		case formDwarfBlock1:
+@@ -415,10 +502,14 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 			val = int64(b.uint32())
+ 		case formData8:
+ 			val = int64(b.uint64())
++		case formData16:
++			val = b.bytes(16)
+ 		case formSdata:
+ 			val = int64(b.int())
+ 		case formUdata:
+ 			val = int64(b.uint())
++		case formImplicitConst:
++			val = a.field[i].val
+ 
+ 		// flag
+ 		case formFlag:
+@@ -460,29 +551,112 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		// string
+ 		case formString:
+ 			val = b.string()
+-		case formStrp:
++		case formStrp, formLineStrp:
+ 			var off uint64 // offset into .debug_str
+ 			is64, known := b.format.dwarf64()
+ 			if !known {
+-				b.error("unknown size for DW_FORM_strp")
++				b.error("unknown size for DW_FORM_strp/line_strp")
+ 			} else if is64 {
+ 				off = b.uint64()
+ 			} else {
+ 				off = uint64(b.uint32())
+ 			}
+ 			if uint64(int(off)) != off {
+-				b.error("DW_FORM_strp offset out of range")
++				b.error("DW_FORM_strp/line_strp offset out of range")
+ 			}
+ 			if b.err != nil {
+ 				return nil
+ 			}
+-			b1 := makeBuf(b.dwarf, unknownFormat{}, "str", 0, b.dwarf.str)
++			var b1 buf
++			if fmt == formStrp {
++				b1 = makeBuf(b.dwarf, b.format, "str", 0, b.dwarf.str)
++			} else {
++				if len(b.dwarf.lineStr) == 0 {
++					b.error("DW_FORM_line_strp with no .debug_line_str section")
++				}
++				b1 = makeBuf(b.dwarf, b.format, "line_str", 0, b.dwarf.lineStr)
++			}
+ 			b1.skip(int(off))
+ 			val = b1.string()
+ 			if b1.err != nil {
+ 				b.err = b1.err
+ 				return nil
+ 			}
++		case formStrx, formStrx1, formStrx2, formStrx3, formStrx4:
++			var off uint64
++			switch fmt {
++			case formStrx:
++				off = b.uint()
++			case formStrx1:
++				off = uint64(b.uint8())
++			case formStrx2:
++				off = uint64(b.uint16())
++			case formStrx3:
++				off = uint64(b.uint24())
++			case formStrx4:
++				off = uint64(b.uint32())
++			}
++			if len(b.dwarf.strOffsets) == 0 {
++				b.error("DW_FORM_strx with no .debug_str_offsets section")
++			}
++			is64, known := b.format.dwarf64()
++			if !known {
++				b.error("unknown offset size for DW_FORM_strx")
++			}
++			if b.err != nil {
++				return nil
++			}
++			if is64 {
++				off *= 8
++			} else {
++				off *= 4
++			}
++
++			// We have to adjust by the offset of the
++			// compilation unit. This won't work if the
++			// program uses Reader.Seek to skip over the
++			// unit. Not much we can do about that.
++			if cu != nil {
++				cuOff, ok := cu.Val(AttrStrOffsetsBase).(int64)
++				if ok {
++					off += uint64(cuOff)
++				}
++			}
++
++			if uint64(int(off)) != off {
++				b.error("DW_FORM_strx offset out of range")
++			}
++
++			b1 := makeBuf(b.dwarf, b.format, "str_offsets", 0, b.dwarf.strOffsets)
++			b1.skip(int(off))
++			if is64 {
++				off = b1.uint64()
++			} else {
++				off = uint64(b1.uint32())
++			}
++			if b1.err != nil {
++				b.err = b1.err
++				return nil
++			}
++			if uint64(int(off)) != off {
++				b.error("DW_FORM_strx indirect offset out of range")
++			}
++			b1 = makeBuf(b.dwarf, b.format, "str", 0, b.dwarf.str)
++			b1.skip(int(off))
++			val = b1.string()
++			if b1.err != nil {
++				b.err = b1.err
++				return nil
++			}
++		case formStrpSup:
++			is64, known := b.format.dwarf64()
++			if !known {
++				b.error("unknown size for DW_FORM_strp_sup")
++			} else if is64 {
++				val = b.uint64()
++			} else {
++				val = b.uint32()
++			}
+ 
+ 		// lineptr, loclistptr, macptr, rangelistptr
+ 		// New in DWARF 4, but clang can generate them with -gdwarf-2.
+@@ -507,6 +681,18 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		case formRefSig8:
+ 			// 64-bit type signature.
+ 			val = b.uint64()
++		case formRefSup4:
++			val = b.uint32()
++		case formRefSup8:
++			val = b.uint64()
++
++		// loclist
++		case formLoclistx:
++			val = b.uint()
++
++		// rnglist
++		case formRnglistx:
++			val = b.uint()
+ 		}
+ 		e.Field[i].Val = val
+ 	}
+@@ -528,6 +714,7 @@ type Reader struct {
+ 	unit         int
+ 	lastChildren bool   // .Children of last entry returned by Next
+ 	lastSibling  Offset // .Val(AttrSibling) of last entry returned by Next
++	cu           *Entry // current compilation unit
+ }
+ 
+ // Reader returns a new Reader for Data.
+@@ -557,6 +744,7 @@ func (r *Reader) Seek(off Offset) {
+ 		u := &d.unit[0]
+ 		r.unit = 0
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
++		r.cu = nil
+ 		return
+ 	}
+ 
+@@ -565,6 +753,9 @@ func (r *Reader) Seek(off Offset) {
+ 		r.err = errors.New("offset out of range")
+ 		return
+ 	}
++	if i != r.unit {
++		r.cu = nil
++	}
+ 	u := &d.unit[i]
+ 	r.unit = i
+ 	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+@@ -576,6 +767,7 @@ func (r *Reader) maybeNextUnit() {
+ 		r.unit++
+ 		u := &r.d.unit[r.unit]
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
++		r.cu = nil
+ 	}
+ }
+ 
+@@ -592,7 +784,7 @@ func (r *Reader) Next() (*Entry, error) {
+ 		return nil, nil
+ 	}
+ 	u := &r.d.unit[r.unit]
+-	e := r.b.entry(u.atable, u.base)
++	e := r.b.entry(r.cu, u.atable, u.base)
+ 	if r.b.err != nil {
+ 		r.err = r.b.err
+ 		return nil, r.err
+@@ -602,6 +794,9 @@ func (r *Reader) Next() (*Entry, error) {
+ 		if r.lastChildren {
+ 			r.lastSibling, _ = e.Val(AttrSibling).(Offset)
+ 		}
++		if e.Tag == TagCompileUnit || e.Tag == TagPartialUnit {
++			r.cu = e
++		}
+ 	} else {
+ 		r.lastChildren = false
+ 	}
+@@ -734,7 +929,7 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
+ 			}
+ 			u := &d.unit[i]
+ 			b := makeBuf(d, u, "info", u.off, u.data)
+-			cu = b.entry(u.atable, u.base)
++			cu = b.entry(nil, u.atable, u.base)
+ 			if b.err != nil {
+ 				return nil, b.err
+ 			}
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index b862b49d62..4fc1896dbc 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -23,8 +23,13 @@ type LineReader struct {
+ 	// Original .debug_line section data. Used by Seek.
+ 	section []byte
+ 
++	str     []byte // .debug_str
++	lineStr []byte // .debug_line_str
++
+ 	// Header information
+ 	version              uint16
++	addrsize             int
++	segmentSelectorSize  int
+ 	minInstructionLength int
+ 	maxOpsPerInstruction int
+ 	defaultIsStmt        bool
+@@ -158,10 +163,15 @@ func (d *Data) LineReader(cu *Entry) (*LineReader, error) {
+ 	u := &d.unit[d.offsetToUnit(cu.Offset)]
+ 	buf := makeBuf(d, u, "line", Offset(off), d.line[off:])
+ 	// The compilation directory is implicitly directories[0].
+-	r := LineReader{buf: buf, section: d.line, directories: []string{compDir}}
++	r := LineReader{
++		buf:     buf,
++		section: d.line,
++		str:     d.str,
++		lineStr: d.lineStr,
++	}
+ 
+ 	// Read the header.
+-	if err := r.readHeader(); err != nil {
++	if err := r.readHeader(compDir); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -173,7 +183,7 @@ func (d *Data) LineReader(cu *Entry) (*LineReader, error) {
+ 
+ // readHeader reads the line number program header from r.buf and sets
+ // all of the header fields in r.
+-func (r *LineReader) readHeader() error {
++func (r *LineReader) readHeader(compDir string) error {
+ 	buf := &r.buf
+ 
+ 	// Read basic header fields [DWARF2 6.2.4].
+@@ -184,7 +194,7 @@ func (r *LineReader) readHeader() error {
+ 		return DecodeError{"line", hdrOffset, fmt.Sprintf("line table end %d exceeds section size %d", r.endOffset, buf.off+Offset(len(buf.data)))}
+ 	}
+ 	r.version = buf.uint16()
+-	if buf.err == nil && (r.version < 2 || r.version > 4) {
++	if buf.err == nil && (r.version < 2 || r.version > 5) {
+ 		// DWARF goes to all this effort to make new opcodes
+ 		// backward-compatible, and then adds fields right in
+ 		// the middle of the header in new versions, so we're
+@@ -192,6 +202,13 @@ func (r *LineReader) readHeader() error {
+ 		// versions.
+ 		return DecodeError{"line", hdrOffset, fmt.Sprintf("unknown line table version %d", r.version)}
+ 	}
++	if r.version >= 5 {
++		r.addrsize = int(buf.uint8())
++		r.segmentSelectorSize = int(buf.uint8())
++	} else {
++		r.addrsize = buf.format.addrsize()
++		r.segmentSelectorSize = 0
++	}
+ 	var headerLength Offset
+ 	if dwarf64 {
+ 		headerLength = Offset(buf.uint64())
+@@ -238,39 +255,170 @@ func (r *LineReader) readHeader() error {
+ 		}
+ 	}
+ 
+-	// Read include directories table. The caller already set
+-	// directories[0] to the compilation directory.
+-	for {
+-		directory := buf.string()
+-		if buf.err != nil {
+-			return buf.err
++	if r.version < 5 {
++		// Read include directories table.
++		r.directories = []string{compDir}
++		for {
++			directory := buf.string()
++			if buf.err != nil {
++				return buf.err
++			}
++			if len(directory) == 0 {
++				break
++			}
++			if !pathIsAbs(directory) {
++				// Relative paths are implicitly relative to
++				// the compilation directory.
++				directory = pathJoin(compDir, directory)
++			}
++			r.directories = append(r.directories, directory)
+ 		}
+-		if len(directory) == 0 {
+-			break
++
++		// Read file name list. File numbering starts with 1,
++		// so leave the first entry nil.
++		r.fileEntries = make([]*LineFile, 1)
++		for {
++			if done, err := r.readFileEntry(); err != nil {
++				return err
++			} else if done {
++				break
++			}
+ 		}
+-		if !pathIsAbs(directory) {
+-			// Relative paths are implicitly relative to
+-			// the compilation directory.
+-			directory = pathJoin(r.directories[0], directory)
++	} else {
++		dirFormat := r.readLNCTFormat()
++		c := buf.uint()
++		r.directories = make([]string, c)
++		for i := range r.directories {
++			dir, _, _, err := r.readLNCT(dirFormat, dwarf64)
++			if err != nil {
++				return err
++			}
++			r.directories[i] = dir
+ 		}
+-		r.directories = append(r.directories, directory)
+-	}
+-
+-	// Read file name list. File numbering starts with 1, so leave
+-	// the first entry nil.
+-	r.fileEntries = make([]*LineFile, 1)
+-	for {
+-		if done, err := r.readFileEntry(); err != nil {
+-			return err
+-		} else if done {
+-			break
++		fileFormat := r.readLNCTFormat()
++		c = buf.uint()
++		r.fileEntries = make([]*LineFile, c)
++		for i := range r.fileEntries {
++			name, mtime, size, err := r.readLNCT(fileFormat, dwarf64)
++			if err != nil {
++				return err
++			}
++			r.fileEntries[i] = &LineFile{name, mtime, int(size)}
+ 		}
+ 	}
++
+ 	r.initialFileEntries = len(r.fileEntries)
+ 
+ 	return buf.err
+ }
+ 
++// lnctForm is a pair of an LNCT code and a form. This represents an
++// entry in the directory name or file name description in the DWARF 5
++// line number program header.
++type lnctForm struct {
++	lnct int
++	form format
++}
++
++// readLNCTFormat reads an LNCT format description.
++func (r *LineReader) readLNCTFormat() []lnctForm {
++	c := r.buf.uint8()
++	ret := make([]lnctForm, c)
++	for i := range ret {
++		ret[i].lnct = int(r.buf.uint())
++		ret[i].form = format(r.buf.uint())
++	}
++	return ret
++}
++
++// readLNCT reads a sequence of LNCT entries and returns path information.
++func (r *LineReader) readLNCT(s []lnctForm, dwarf64 bool) (path string, mtime uint64, size uint64, err error) {
++	var dir string
++	for _, lf := range s {
++		var str string
++		var val uint64
++		switch lf.form {
++		case formString:
++			str = r.buf.string()
++		case formStrp, formLineStrp:
++			var off uint64
++			if dwarf64 {
++				off = r.buf.uint64()
++			} else {
++				off = uint64(r.buf.uint32())
++			}
++			if uint64(int(off)) != off {
++				return "", 0, 0, DecodeError{"line", r.buf.off, "strp/line_strp offset out of range"}
++			}
++			var b1 buf
++			if lf.form == formStrp {
++				b1 = makeBuf(r.buf.dwarf, r.buf.format, "str", 0, r.str)
++			} else {
++				b1 = makeBuf(r.buf.dwarf, r.buf.format, "line_str", 0, r.lineStr)
++			}
++			b1.skip(int(off))
++			str = b1.string()
++			if b1.err != nil {
++				return "", 0, 0, DecodeError{"line", r.buf.off, b1.err.Error()}
++			}
++		case formStrpSup:
++			// Supplemental sections not yet supported.
++			if dwarf64 {
++				r.buf.uint64()
++			} else {
++				r.buf.uint32()
++			}
++		case formStrx:
++			// .debug_line.dwo sections not yet supported.
++			r.buf.uint()
++		case formStrx1:
++			r.buf.uint8()
++		case formStrx2:
++			r.buf.uint16()
++		case formStrx3:
++			r.buf.uint24()
++		case formStrx4:
++			r.buf.uint32()
++		case formData1:
++			val = uint64(r.buf.uint8())
++		case formData2:
++			val = uint64(r.buf.uint16())
++		case formData4:
++			val = uint64(r.buf.uint32())
++		case formData8:
++			val = r.buf.uint64()
++		case formData16:
++			r.buf.bytes(16)
++		case formDwarfBlock:
++			r.buf.bytes(int(r.buf.uint()))
++		case formUdata:
++			val = r.buf.uint()
++		}
++
++		switch lf.lnct {
++		case lnctPath:
++			path = str
++		case lnctDirectoryIndex:
++			if val >= uint64(len(r.directories)) {
++				return "", 0, 0, DecodeError{"line", r.buf.off, "directory index out of range"}
++			}
++			dir = r.directories[val]
++		case lnctTimestamp:
++			mtime = val
++		case lnctSize:
++			size = val
++		case lnctMD5:
++			// Ignored.
++		}
++	}
++
++	if dir != "" && path != "" {
++		path = pathJoin(dir, path)
++	}
++
++	return path, mtime, size, nil
++}
++
+ // readFileEntry reads a file entry from either the header or a
+ // DW_LNE_define_file extended opcode and adds it to r.fileEntries. A
+ // true return value indicates that there are no more entries to read.
+@@ -381,7 +529,18 @@ func (r *LineReader) step(entry *LineEntry) bool {
+ 			r.resetState()
+ 
+ 		case lneSetAddress:
+-			r.state.Address = r.buf.addr()
++			switch r.addrsize {
++			case 1:
++				r.state.Address = uint64(r.buf.uint8())
++			case 2:
++				r.state.Address = uint64(r.buf.uint16())
++			case 4:
++				r.state.Address = uint64(r.buf.uint32())
++			case 8:
++				r.state.Address = r.buf.uint64()
++			default:
++				r.buf.error("unknown address size")
++			}
+ 
+ 		case lneDefineFile:
+ 			if done, err := r.readFileEntry(); err != nil {
+diff --git a/src/debug/dwarf/open.go b/src/debug/dwarf/open.go
+index 57344d82b4..72ee64d558 100644
+--- a/src/debug/dwarf/open.go
++++ b/src/debug/dwarf/open.go
+@@ -22,8 +22,14 @@ type Data struct {
+ 	ranges   []byte
+ 	str      []byte
+ 
++	// New sections added in DWARF 5.
++	addr       []byte
++	lineStr    []byte
++	strOffsets []byte
++
+ 	// parsed data
+ 	abbrevCache map[uint64]abbrevTable
++	bigEndian   bool
+ 	order       binary.ByteOrder
+ 	typeCache   map[Offset]Type
+ 	typeSigs    map[uint64]*typeUnit
+@@ -72,8 +78,10 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
+ 	case x == 0 && y == 0:
+ 		return nil, DecodeError{"info", 4, "unsupported version 0"}
+ 	case x == 0:
++		d.bigEndian = true
+ 		d.order = binary.BigEndian
+ 	case y == 0:
++		d.bigEndian = false
+ 		d.order = binary.LittleEndian
+ 	default:
+ 		return nil, DecodeError{"info", 4, "cannot determine byte order"}
+@@ -94,3 +102,20 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
+ func (d *Data) AddTypes(name string, types []byte) error {
+ 	return d.parseTypes(name, types)
+ }
++
++// AddSection adds another DWARF section by name. The name should be a
++// DWARF section name such as ".debug_addr", ".debug_str_offsets", and
++// so forth. This approach is used for new DWARF sections added in
++// DWARF 5 and later.
++func (d *Data) AddSection(name string, contents []byte) error {
++	switch name {
++	case ".debug_addr":
++		d.addr = contents
++	case ".debug_line_str":
++		d.lineStr = contents
++	case ".debug_str_offsets":
++		d.strOffsets = contents
++	}
++	// Just ignore names that we don't yet support.
++	return nil
++}
+diff --git a/src/debug/dwarf/typeunit.go b/src/debug/dwarf/typeunit.go
+index 76b357ce28..a03dc84c83 100644
+--- a/src/debug/dwarf/typeunit.go
++++ b/src/debug/dwarf/typeunit.go
+@@ -137,7 +137,7 @@ func (tur *typeUnitReader) Next() (*Entry, error) {
+ 	if len(tur.tu.data) == 0 {
+ 		return nil, nil
+ 	}
+-	e := tur.b.entry(tur.tu.atable, tur.tu.base)
++	e := tur.b.entry(nil, tur.tu.atable, tur.tu.base)
+ 	if tur.b.err != nil {
+ 		tur.err = tur.b.err
+ 		return nil, tur.err
+diff --git a/src/debug/dwarf/unit.go b/src/debug/dwarf/unit.go
+index 98024ca1f8..29a744fd18 100644
+--- a/src/debug/dwarf/unit.go
++++ b/src/debug/dwarf/unit.go
+@@ -19,7 +19,8 @@ type unit struct {
+ 	atable abbrevTable
+ 	asize  int
+ 	vers   int
+-	is64   bool // True for 64-bit DWARF format
++	utype  uint8 // DWARF 5 unit type
++	is64   bool  // True for 64-bit DWARF format
+ }
+ 
+ // Implement the dataFormat interface.
+@@ -63,11 +64,15 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 		n, u.is64 = b.unitLength()
+ 		dataOff := b.off
+ 		vers := b.uint16()
+-		if vers != 2 && vers != 3 && vers != 4 {
++		if vers < 2 || vers > 5 {
+ 			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
+ 			break
+ 		}
+ 		u.vers = int(vers)
++		if vers >= 5 {
++			u.utype = b.uint8()
++			u.asize = int(b.uint8())
++		}
+ 		var abbrevOff uint64
+ 		if u.is64 {
+ 			abbrevOff = b.uint64()
+@@ -82,7 +87,22 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 			break
+ 		}
+ 		u.atable = atable
+-		u.asize = int(b.uint8())
++		if vers < 5 {
++			u.asize = int(b.uint8())
++		}
++
++		switch u.utype {
++		case utSkeleton, utSplitCompile:
++			b.uint64() // unit ID
++		case utType, utSplitType:
++			b.uint64()  // type signature
++			if u.is64 { // type offset
++				b.uint64()
++			} else {
++				b.uint32()
++			}
++		}
++
+ 		u.off = b.off
+ 		u.data = b.bytes(int(n - (b.off - dataOff)))
+ 	}
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 79ef467145..0f59fa4c32 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1174,9 +1174,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		return b, nil
+ 	}
+ 
+-	// There are many other DWARF sections, but these
+-	// are the ones the debug/dwarf package uses.
+-	// Don't bother loading others.
++	// There are many DWARf sections, but these are the ones
++	// the debug/dwarf package started with.
+ 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
+ 	for i, s := range f.Sections {
+ 		suffix := dwarfSuffix(s)
+@@ -1198,10 +1197,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Look for DWARF4 .debug_types sections.
++	// Look for DWARF4 .debug_types sections and DWARF5 sections.
+ 	for i, s := range f.Sections {
+ 		suffix := dwarfSuffix(s)
+-		if suffix != "types" {
++		if suffix == "" {
++			continue
++		}
++		if _, ok := dat[suffix]; ok {
++			// Already handled.
+ 			continue
+ 		}
+ 
+@@ -1210,9 +1213,14 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 			return nil, err
+ 		}
+ 
+-		err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
+-		if err != nil {
+-			return nil, err
++		if suffix == "types" {
++			if err := d.AddTypes(fmt.Sprintf("types-%d", i), b); err != nil {
++				return nil, err
++			}
++		} else {
++			if err := d.AddSection(".debug_"+suffix, b); err != nil {
++				return nil, err
++			}
+ 		}
+ 	}
+ 

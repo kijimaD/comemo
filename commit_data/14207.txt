@@ -7,8 +7,75 @@ Date:   Tue Oct 23 00:59:53 2012 +0800
     R=golang-dev, rsc
     CC=0xe2.0x9a.0x9b, golang-dev
     https://golang.org/cl/6742063
-
+---
  src/cmd/5l/obj.c | 4 ++--
  src/cmd/6l/obj.c | 4 ++--
  src/cmd/8l/obj.c | 4 ++--
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index bf2978d05e..4c2603d28a 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -688,7 +688,7 @@ loop:
+ 			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+-				s->type = SBSS;
++				s->type = SRODATA;
+ 				adduint32(s, ieeedtof(&p->from.ieee));
+ 				s->reachable = 0;
+ 			}
+@@ -710,7 +710,7 @@ loop:
+ 				p->from.ieee.l, p->from.ieee.h);
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+-				s->type = SBSS;
++				s->type = SRODATA;
+ 				adduint32(s, p->from.ieee.l);
+ 				adduint32(s, p->from.ieee.h);
+ 				s->reachable = 0;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 5987310f95..dad217cc86 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -682,7 +682,7 @@ loop:
+ 			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+-				s->type = SDATA;
++				s->type = SRODATA;
+ 				adduint32(s, ieeedtof(&p->from.ieee));
+ 				s->reachable = 0;
+ 			}
+@@ -716,7 +716,7 @@ loop:
+ 				p->from.ieee.l, p->from.ieee.h);
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+-				s->type = SDATA;
++				s->type = SRODATA;
+ 				adduint32(s, p->from.ieee.l);
+ 				adduint32(s, p->from.ieee.h);
+ 				s->reachable = 0;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 773a6ddfb1..19e351d998 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -675,7 +675,7 @@ loop:
+ 			sprint(literal, "$%ux", ieeedtof(&p->from.ieee));
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+-				s->type = SDATA;
++				s->type = SRODATA;
+ 				adduint32(s, ieeedtof(&p->from.ieee));
+ 				s->reachable = 0;
+ 			}
+@@ -709,7 +709,7 @@ loop:
+ 				p->from.ieee.l, p->from.ieee.h);
+ 			s = lookup(literal, 0);
+ 			if(s->type == 0) {
+-				s->type = SDATA;
++				s->type = SRODATA;
+ 				adduint32(s, p->from.ieee.l);
+ 				adduint32(s, p->from.ieee.h);
+ 				s->reachable = 0;

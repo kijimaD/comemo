@@ -7,6 +7,23 @@ Date:   Tue Mar 17 17:01:34 2015 -0700
     Change-Id: I79b7ed8f7e78e9d35b5e30ef70b98db64bc68a7b
     Reviewed-on: https://go-review.googlesource.com/7720
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/error.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 0b40c702b0..d8af4f156d 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -11,9 +11,9 @@ type Error interface {
+ 	error
+ 
+ 	// RuntimeError is a no-op function but
+-	// serves to distinguish types that are runtime
++	// serves to distinguish types that are run time
+ 	// errors from ordinary errors: a type is a
+-	// runtime error if it has a RuntimeError method.
++	// run time error if it has a RuntimeError method.
+ 	RuntimeError()
+ }
+ 

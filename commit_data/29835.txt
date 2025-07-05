@@ -11,7 +11,48 @@ Date:   Wed Oct 12 23:05:35 2016 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/unicode/letter.go      |  4 ++++
  src/unicode/letter_test.go | 14 ++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/unicode/letter.go b/src/unicode/letter.go
+index 8aec920d22..462daf88b9 100644
+--- a/src/unicode/letter.go
++++ b/src/unicode/letter.go
+@@ -332,6 +332,10 @@ type foldPair struct {
+ //	SimpleFold('1') = '1'
+ //
+ func SimpleFold(r rune) rune {
++	if r < 0 {
++		panic("unicode: negative rune is disallowed")
++	}
++
+ 	if int(r) < len(asciiFold) {
+ 		return rune(asciiFold[r])
+ 	}
+diff --git a/src/unicode/letter_test.go b/src/unicode/letter_test.go
+index 0eb9ee95b0..15e4ade2a3 100644
+--- a/src/unicode/letter_test.go
++++ b/src/unicode/letter_test.go
+@@ -434,6 +434,20 @@ func TestSimpleFold(t *testing.T) {
+ 	}
+ }
+ 
++func TestSimpleFoldPanic(t *testing.T) {
++	got := func() (r interface{}) {
++		defer func() { r = recover() }()
++		SimpleFold(-1)
++		return nil
++	}()
++	want := "unicode: negative rune is disallowed"
++
++	s, _ := got.(string)
++	if s != want {
++		t.Errorf("SimpleFold(-1) should panic, got: %q, want: %q", got, want)
++	}
++}
++
+ // Running 'go test -calibrate' runs the calibration to find a plausible
+ // cutoff point for linear search of a range list vs. binary search.
+ // We create a fake table and then time how long it takes to do a

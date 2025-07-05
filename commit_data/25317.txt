@@ -551,3 +551,4 @@ Date:   Tue Oct 20 15:46:15 2015 +0000
  test/import4.dir/import4.go                        |    4 +-
  test/recover4.go                                   |    4 +-
  545 files changed, 26667 insertions(+), 12833 deletions(-)
+

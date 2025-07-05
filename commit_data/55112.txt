@@ -14,6 +14,20 @@ Date:   Mon Jan 9 01:57:53 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/sync/atomic/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index 2bef76c928..8c491b4616 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -41,7 +41,7 @@ func (v *Value) Load() (val any) {
+ 
+ var firstStoreInProgress byte
+ 
+-// Store sets the value of the Value to x.
++// Store sets the value of the Value v to val.
+ // All calls to Store for a given Value must use values of the same concrete type.
+ // Store of an inconsistent type panics, as does Store(nil).
+ func (v *Value) Store(val any) {

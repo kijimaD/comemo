@@ -9,6 +9,20 @@ Date:   Mon Oct 31 08:58:42 2016 -0700
     Change-Id: I7d07c367e50b448579f9855bea43df76ddb82bd0
     Reviewed-on: https://go-review.googlesource.com/32420
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 89e02bccd7..66c27ebb93 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -63,7 +63,7 @@ type Type interface {
+ 	// method signature, without a receiver, and the Func field is nil.
+ 	MethodByName(string) (Method, bool)
+ 
+-	// NumMethod returns the number of methods in the type's method set.
++	// NumMethod returns the number of exported methods in the type's method set.
+ 	NumMethod() int
+ 
+ 	// Name returns the type's name within its package.

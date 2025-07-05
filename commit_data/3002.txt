@@ -19,7 +19,30 @@ Date:   Mon Aug 17 17:40:52 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=33398
     CL=33426
-
+---
  test/fixedbugs/bug165.go | 2 +-
  test/fixedbugs/bug188.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug165.go b/test/fixedbugs/bug165.go
+index a4fe715c2c..8ce67a46db 100644
+--- a/test/fixedbugs/bug165.go
++++ b/test/fixedbugs/bug165.go
+@@ -11,5 +11,5 @@ type I interface {
+ }
+ 
+ type S struct {
+-	m map[S] bool;	// ERROR "map key type|complete"
++	m map[S] bool;	// ERROR "map key type"
+ }
+diff --git a/test/fixedbugs/bug188.go b/test/fixedbugs/bug188.go
+index cbd421bb79..3851cb672c 100644
+--- a/test/fixedbugs/bug188.go
++++ b/test/fixedbugs/bug188.go
+@@ -10,5 +10,5 @@ import "sort"
+ 
+ func main() {
+ 	var x int;
+-	sort(x);	// ERROR "package.*selector"
++	sort(x);	// ERROR "package"
+ }

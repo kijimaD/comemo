@@ -13,10 +13,197 @@ Date:   Fri Oct 25 00:51:10 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203459
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go         |  9 +++++++++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 16 ++++++++--------
  src/cmd/compile/internal/ssa/gen/main.go     |  5 +++++
  src/cmd/compile/internal/ssa/op.go           |  1 +
  src/cmd/compile/internal/ssa/opGen.go        |  9 +++++++++
  5 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 5f0ece0ad7..d6ce9017e4 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -639,6 +639,15 @@ func (lv *Liveness) markUnsafePoints() {
+ 
+ 	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
+ 
++	// Mark architecture-specific unsafe pointes.
++	for _, b := range lv.f.Blocks {
++		for _, v := range b.Values {
++			if v.Op.UnsafePoint() {
++				lv.unsafePoints.Set(int32(v.ID))
++			}
++		}
++	}
++
+ 	// Mark write barrier unsafe points.
+ 	for _, wbBlock := range lv.f.WBLoads {
+ 		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 59a6004b97..6fdb5729c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -620,8 +620,8 @@ func init() {
+ 		// LDAXR	(Rarg0), Rout
+ 		// STLXR	Rarg1, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -2(PC)
+-		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+-		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
+ 		// atomic add.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+@@ -629,8 +629,8 @@ func init() {
+ 		// ADD		Rarg1, Rout
+ 		// STLXR	Rout, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -3(PC)
+-		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+-		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
+ 		// atomic add variant.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+@@ -653,8 +653,8 @@ func init() {
+ 		// STLXR	Rarg2, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -4(PC)
+ 		// CSET		EQ, Rout
+-		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+-		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
+ 		// atomic and/or.
+ 		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+@@ -662,8 +662,8 @@ func init() {
+ 		// AND/OR	Rarg1, Rout
+ 		// STLXRB	Rout, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -3(PC)
+-		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+-		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 55ba338efa..2107da4f4e 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -63,6 +63,7 @@ type opData struct {
+ 	usesScratch       bool   // this op requires scratch memory space
+ 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+ 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
++	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
+ 	symEffect         string // effect this op has on symbol in aux
+ 	scale             uint8  // amd64/386 indexed load scale
+ }
+@@ -325,6 +326,9 @@ func genOp() {
+ 			if v.zeroWidth {
+ 				fmt.Fprintln(w, "zeroWidth: true,")
+ 			}
++			if v.unsafePoint {
++				fmt.Fprintln(w, "unsafePoint: true,")
++			}
+ 			needEffect := strings.HasPrefix(v.aux, "Sym")
+ 			if v.symEffect != "" {
+ 				if !needEffect {
+@@ -401,6 +405,7 @@ func genOp() {
+ 
+ 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
+ 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
++	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
+ 
+ 	// generate registers
+ 	for _, a := range archs {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 10534433a7..ec9e7863a0 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -36,6 +36,7 @@ type opInfo struct {
+ 	usesScratch       bool      // this op requires scratch memory space
+ 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+ 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
++	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
+ 	symEffect         SymEffect // effect this op has on symbol in aux
+ 	scale             uint8     // amd64/386 indexed load scale
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9f112c10f1..e9a709467e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -18948,6 +18948,7 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -18964,6 +18965,7 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -18980,6 +18982,7 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -18996,6 +18999,7 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -19045,6 +19049,7 @@ var opcodeTable = [...]opInfo{
+ 		clobberFlags:    true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -19063,6 +19068,7 @@ var opcodeTable = [...]opInfo{
+ 		clobberFlags:    true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -19080,6 +19086,7 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		asm:             arm64.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -19097,6 +19104,7 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
++		unsafePoint:     true,
+ 		asm:             arm64.AORR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -31564,6 +31572,7 @@ func (o Op) String() string       { return opcodeTable[o].name }
+ func (o Op) UsesScratch() bool    { return opcodeTable[o].usesScratch }
+ func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
+ func (o Op) IsCall() bool         { return opcodeTable[o].call }
++func (o Op) UnsafePoint() bool    { return opcodeTable[o].unsafePoint }
+ 
+ var registers386 = [...]Register{
+ 	{0, x86.REG_AX, 0, "AX"},

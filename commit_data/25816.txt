@@ -12,6 +12,54 @@ Date:   Wed Oct 28 17:49:17 2015 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/race/testdata/chan_test.go | 39 ++++++++++++++++++++++++++++++++++
  1 file changed, 39 insertions(+)
+
+diff --git a/src/runtime/race/testdata/chan_test.go b/src/runtime/race/testdata/chan_test.go
+index eabd81f40c..cddd9a6e78 100644
+--- a/src/runtime/race/testdata/chan_test.go
++++ b/src/runtime/race/testdata/chan_test.go
+@@ -657,3 +657,42 @@ func TestNoRaceChanWaitGroup(t *testing.T) {
+ 		_ = data[i]
+ 	}
+ }
++
++// Test that sender synchronizes with receiver even if the sender was blocked.
++func TestNoRaceBlockedSendSync(t *testing.T) {
++	c := make(chan *int, 1)
++	c <- nil
++	go func() {
++		i := 42
++		c <- &i
++	}()
++	// Give the sender time to actually block.
++	// This sleep is completely optional: race report must not be printed
++	// regardless of whether the sender actually blocks or not.
++	// It cannot lead to flakiness.
++	time.Sleep(10 * time.Millisecond)
++	<-c
++	p := <-c
++	if *p != 42 {
++		t.Fatal()
++	}
++}
++
++// The same as TestNoRaceBlockedSendSync above, but sender unblock happens in a select.
++func TestNoRaceBlockedSelectSendSync(t *testing.T) {
++	c := make(chan *int, 1)
++	c <- nil
++	go func() {
++		i := 42
++		c <- &i
++	}()
++	time.Sleep(10 * time.Millisecond)
++	<-c
++	select {
++	case p := <-c:
++		if *p != 42 {
++			t.Fatal()
++		}
++	case <-make(chan int):
++	}
++}

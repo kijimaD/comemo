@@ -7,6 +7,19 @@ Date:   Mon Sep 24 14:36:07 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6553067
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9647dbcac8..d0696aac1c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -188,6 +188,7 @@ John Asmuth <jasmuth@gmail.com>
+ John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
+ Jonathan Allie <jonallie@google.com>
++Jonathan Feinberg <feinberg@google.com>
+ Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
+ Jonathan Pittman <jmpittman@google.com> <jonathan.mark.pittman@gmail.com>

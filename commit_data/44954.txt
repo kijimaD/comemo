@@ -13,6 +13,21 @@ Date:   Sun Aug 30 11:36:45 2020 +0800
     Reviewed-by: Bradford Lamson-Scribner <brad.lamson@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/html.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index ba37a80412..1c70b64708 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -119,7 +119,8 @@ td.collapsed {
+ }
+ 
+ td.collapsed div {
+-    /* TODO: Flip the direction of the phase's title 90 degrees on a collapsed column. */
++    text-align: right;
++    transform: rotate(180deg);
+     writing-mode: vertical-lr;
+     white-space: pre;
+ }

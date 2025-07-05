@@ -10,6 +10,27 @@ Date:   Sat Jun 30 02:59:37 2018 +0300
     Reviewed-on: https://go-review.googlesource.com/121795
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 692edf1524..66aab3f748 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -196,7 +196,6 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		fallthrough
+ 
+-		// fall through
+ 	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 1,
+ 		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 1,
+ 		512 + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
+@@ -224,7 +223,6 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		fallthrough
+ 
+-		// fall through
+ 	case 512 + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
+ 		if targ.Type != sym.SDYNIMPORT {
+ 			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)

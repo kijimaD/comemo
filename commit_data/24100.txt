@@ -7,6 +7,20 @@ Date:   Thu Jul 9 10:13:09 2015 -0700
     Change-Id: Ide5b0c81405fbf6b83a6f02527d629898e0fcf02
     Reviewed-on: https://go-review.googlesource.com/12000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 14214b0d82..43e9b0b208 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -530,7 +530,7 @@ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ron Hashimoto <mail@h2so5.net>
+ Ron Minnich <rminnich@gmail.com>
+-Ross Light <rlight2@gmail.com>
++Ross Light <light@google.com> <rlight2@gmail.com>
+ Rowan Worth <sqweek@gmail.com>
+ Rui Ueyama <ruiu@google.com>
+ Russ Cox <rsc@golang.org>

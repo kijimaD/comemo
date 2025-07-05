@@ -97,7 +97,69 @@ Date:   Tue Mar 28 12:35:06 2017 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/onepass.go      |  5 +++--
  src/regexp/onepass_test.go | 22 ++++++++++++++++++++++
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 1b0564c3fd..1f8c1d00bd 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -222,9 +222,10 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
+ 	p := &onePassProg{
+ 		Start:  prog.Start,
+ 		NumCap: prog.NumCap,
++		Inst:   make([]onePassInst, len(prog.Inst)),
+ 	}
+-	for _, inst := range prog.Inst {
+-		p.Inst = append(p.Inst, onePassInst{Inst: inst})
++	for i, inst := range prog.Inst {
++		p.Inst[i] = onePassInst{Inst: inst}
+ 	}
+ 
+ 	// rewrites one or more common Prog constructs that enable some otherwise
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index f4e336c43b..b1caa44515 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -7,6 +7,7 @@ package regexp
+ import (
+ 	"reflect"
+ 	"regexp/syntax"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -173,6 +174,7 @@ var onePassTests = []struct {
+ 	{`^.bc(d|e)*$`, onePass},
+ 	{`^(?:(?:aa)|.)$`, notOnePass},
+ 	{`^(?:(?:a{1,2}){1,2})$`, notOnePass},
++	{`^l` + strings.Repeat("o", 2<<8) + `ng$`, onePass},
+ }
+ 
+ func TestCompileOnePass(t *testing.T) {
+@@ -223,3 +225,23 @@ func TestRunOnePass(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkCompileOnepass(b *testing.B) {
++	for _, test := range onePassTests {
++		if test.onePass == notOnePass {
++			continue
++		}
++		name := test.re
++		if len(name) > 20 {
++			name = name[:20] + "..."
++		}
++		b.Run(name, func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				if _, err := Compile(test.re); err != nil {
++					b.Fatal(err)
++				}
++			}
++		})
++	}
++}

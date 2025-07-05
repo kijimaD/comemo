@@ -10,7 +10,88 @@ Date:   Thu Sep 18 14:48:47 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews, r
     https://golang.org/cl/145860043
-
+---
  src/os/os_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/os/path.go    |  5 ++++-
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 0224c9b01d..7a28497414 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 	"syscall"
+ 	"testing"
+ 	"text/template"
+@@ -1403,3 +1404,44 @@ func TestNilFileMethods(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func mkdirTree(t *testing.T, root string, level, max int) {
++	if level >= max {
++		return
++	}
++	level++
++	for i := 'a'; i < 'c'; i++ {
++		dir := filepath.Join(root, string(i))
++		if err := Mkdir(dir, 0700); err != nil {
++			t.Fatal(err)
++		}
++		mkdirTree(t, dir, level, max)
++	}
++}
++
++// Test that simultaneous RemoveAll do not report an error.
++// As long as it gets removed, we should be happy.
++func TestRemoveAllRace(t *testing.T) {
++	n := runtime.GOMAXPROCS(16)
++	defer runtime.GOMAXPROCS(n)
++	root, err := ioutil.TempDir("", "issue")
++	if err != nil {
++		t.Fatal(err)
++	}
++	mkdirTree(t, root, 1, 6)
++	hold := make(chan struct{})
++	var wg sync.WaitGroup
++	for i := 0; i < 4; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			<-hold
++			err := RemoveAll(root)
++			if err != nil {
++				t.Errorf("unexpected error: %T, %q", err, err)
++			}
++		}()
++	}
++	close(hold) // let workers race to remove root
++	wg.Wait()
++}
+diff --git a/src/os/path.go b/src/os/path.go
+index 02a77ec805..6cc69403b6 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -66,7 +66,7 @@ func MkdirAll(path string, perm FileMode) error {
+ func RemoveAll(path string) error {
+ 	// Simple case: if Remove works, we're done.
+ 	err := Remove(path)
+-	if err == nil {
++	if err == nil || IsNotExist(err) {
+ 		return nil
+ 	}
+ 
+@@ -116,6 +116,9 @@ func RemoveAll(path string) error {
+ 
+ 	// Remove directory.
+ 	err1 := Remove(path)
++	if err1 == nil || IsNotExist(err1) {
++		return nil
++	}
+ 	if err == nil {
+ 		err = err1
+ 	}

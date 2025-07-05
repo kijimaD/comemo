@@ -16,9 +16,82 @@ Date:   Thu Nov 9 23:55:15 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/77151
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cover/cover.go                     |  1 +
  src/cmd/go/go_test.go                      | 27 +++++++++++++++++++++++++++
  src/cmd/go/testdata/src/coverbad/p.go      |  5 +++++
  src/cmd/go/testdata/src/coverbad/p_test.go |  5 +++++
  4 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index d74a0f1880..500027ee0d 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -340,6 +340,7 @@ func annotate(name string) {
+ 		}
+ 	}
+ 
++	fmt.Fprintf(fd, "//line %s:1\n", name)
+ 	fd.Write(newContent)
+ 
+ 	// After printing the source tree, add some declarations for the counters etc.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2cf3d7d9de..d2933bc3cb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2430,6 +2430,33 @@ func TestCoveragePattern(t *testing.T) {
+ 	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
+ }
+ 
++func TestCoverageErrorLine(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GOTMPDIR", tg.tempdir)
++
++	tg.runFail("test", "coverbad")
++	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
++	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
++	stderr := tg.getStderr()
++
++	tg.runFail("test", "-cover", "coverbad")
++	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
++	stderr2 := tg.getStderr()
++
++	// It's OK that stderr2 drops the character position in the error,
++	// because of the //line directive.
++	stderr = strings.Replace(stderr, "p.go:4:2:", "p.go:4:", -1)
++	if stderr != stderr2 {
++		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
++		t.Skip("golang.org/issue/22660")
++		t.FailNow()
++	}
++}
++
+ func TestPluginNonMain(t *testing.T) {
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/src/cmd/go/testdata/src/coverbad/p.go b/src/cmd/go/testdata/src/coverbad/p.go
+new file mode 100644
+index 0000000000..16504a401e
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverbad/p.go
+@@ -0,0 +1,5 @@
++package p
++
++func f() {
++	g()
++}
+diff --git a/src/cmd/go/testdata/src/coverbad/p_test.go b/src/cmd/go/testdata/src/coverbad/p_test.go
+new file mode 100644
+index 0000000000..3a876d6296
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverbad/p_test.go
+@@ -0,0 +1,5 @@
++package p
++
++import "testing"
++
++func Test(t *testing.T) {}

@@ -14,7 +14,43 @@ Date:   Thu Jul 19 12:05:28 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/124936
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/make.bat | 4 ++--
  src/race.bat | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 2e718334a2..590e639830 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -80,7 +80,7 @@ set GOBIN=
+ "%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
+ endlocal
+ if errorlevel 1 goto fail
+-.\cmd\dist\dist env -w -p >env.bat
++.\cmd\dist\dist.exe env -w -p >env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+@@ -104,7 +104,7 @@ if x%4==x--no-banner set buildall=%buildall% --no-banner
+ :: Run dist bootstrap to complete make.bash.
+ :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
+ :: Throw ours, built with Go 1.4, away after bootstrap.
+-.\cmd\dist\dist bootstrap %vflag% %buildall% 
++.\cmd\dist\dist.exe bootstrap %vflag% %buildall%
+ if errorlevel 1 goto fail
+ del .\cmd\dist\dist.exe
+ goto end
+diff --git a/src/race.bat b/src/race.bat
+index e8df480811..e1c3fbf5d9 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -18,7 +18,7 @@ goto end
+ set GOROOT=%CD%\..
+ call make.bat --dist-tool >NUL
+ if errorlevel 1 goto fail
+-.\cmd\dist\dist env -w -p >env.bat
++.\cmd\dist\dist.exe env -w -p >env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat

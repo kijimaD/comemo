@@ -13,6 +13,28 @@ Date:   Thu Sep 24 12:44:19 2020 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 154bdbfeaf..e9e9e42130 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Jan 14, 2020",
++	"Subtitle": "Version of Sep 24, 2020",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3646,7 +3646,7 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
+ x &lt;= f()
+ ^a &gt;&gt; b
+ f() || g()
+-x == y+1 &amp;&amp; &lt;-chanPtr &gt; 0
++x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
+ </pre>
+ 
+ 

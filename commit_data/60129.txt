@@ -25,6 +25,33 @@ Date:   Mon May 20 19:24:42 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/586975
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d8279e7c81..596d2e75dd 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -515,6 +515,21 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
+ 	// Populate closure variables.
+ 	if fn.Needctxt() {
+ 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
++		if fn.RangeParent != nil {
++			// For a range body closure, keep its closure pointer live on the
++			// stack with a special name, so the debugger can look for it and
++			// find the parent frame.
++			sym := &types.Sym{Name: ".closureptr", Pkg: types.LocalPkg}
++			cloSlot := s.curfn.NewLocal(src.NoXPos, sym, s.f.Config.Types.BytePtr)
++			cloSlot.SetUsed(true)
++			cloSlot.SetEsc(ir.EscNever)
++			cloSlot.SetAddrtaken(true)
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, cloSlot, s.mem(), false)
++			addr := s.addr(cloSlot)
++			s.store(s.f.Config.Types.BytePtr, addr, clo)
++			// Keep it from being dead-store eliminated.
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, cloSlot, s.mem(), false)
++		}
+ 		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
+ 		for {
+ 			n, typ, offset := csiter.Next()

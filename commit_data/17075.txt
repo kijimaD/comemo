@@ -7,6 +7,43 @@ Date:   Wed Aug 7 11:31:01 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12620043
-
+---
  test/return.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/test/return.go b/test/return.go
+index c1fe843827..482f22bd5f 100644
+--- a/test/return.go
++++ b/test/return.go
+@@ -1406,6 +1406,16 @@ L:
+ 	}
+ } // ERROR "missing return"
+ 
++func _() int {
++	switch x.(type) {
++	default:
++		return 4
++	case int, float64:
++		print(2)
++		panic(3)
++	}
++}
++
+ // again, with func literals
+ 
+ var _ = func() int {
+@@ -2798,4 +2808,14 @@ L:
+ 	}
+ } // ERROR "missing return"
+ 
++var _ = func() int {
++	switch x.(type) {
++	default:
++		return 4
++	case int, float64:
++		print(2)
++		panic(3)
++	}
++}
++
+ /**/

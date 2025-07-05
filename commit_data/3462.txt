@@ -8,7 +8,7 @@ Date:   Tue Oct 6 15:38:57 2009 -0700
     DELTA=456  (6 added, 3 deleted, 447 changed)
     OCL=35398
     CL=35406
-
+---
  src/pkg/datafmt/parser.go |  52 +++----
  src/pkg/exec/exec.go      |  16 +--
  src/pkg/expvar/expvar.go  |  54 ++++----
@@ -18,3 +18,1806 @@ Date:   Tue Oct 6 15:38:57 2009 -0700
  src/pkg/fmt/format.go     |  58 ++++----
  src/pkg/fmt/print.go      | 140 +++++++++----------
  8 files changed, 410 insertions(+), 407 deletions(-)
+
+diff --git a/src/pkg/datafmt/parser.go b/src/pkg/datafmt/parser.go
+index 5458991321..d6382de406 100644
+--- a/src/pkg/datafmt/parser.go
++++ b/src/pkg/datafmt/parser.go
+@@ -18,13 +18,13 @@ import (
+ 
+ type parser struct {
+ 	scanner.ErrorVector;
+-	scanner scanner.Scanner;
+-	pos token.Position;  // token position
+-	tok token.Token;  // one token look-ahead
+-	lit []byte;  // token literal
++	scanner	scanner.Scanner;
++	pos	token.Position;	// token position
++	tok	token.Token;	// one token look-ahead
++	lit	[]byte;		// token literal
+ 
+-	packs map [string] string;  // PackageName -> ImportPath
+-	rules map [string] expr;  // RuleName -> Expression
++	packs	map[string]string;	// PackageName -> ImportPath
++	rules	map[string]expr;	// RuleName -> Expression
+ }
+ 
+ 
+@@ -34,17 +34,17 @@ func (p *parser) next() {
+ 	case token.CHAN, token.FUNC, token.INTERFACE, token.MAP, token.STRUCT:
+ 		// Go keywords for composite types are type names
+ 		// returned by reflect. Accept them as identifiers.
+-		p.tok = token.IDENT;  // p.lit is already set correctly
++		p.tok = token.IDENT;	// p.lit is already set correctly
+ 	}
+ }
+ 
+ 
+ func (p *parser) init(filename string, src []byte) {
+ 	p.ErrorVector.Init();
+-	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);  // return '@' as token.ILLEGAL w/o error message
+-	p.next();  // initializes pos, tok, lit
+-	p.packs = make(map [string] string);
+-	p.rules = make(map [string] expr);
++	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);	// return '@' as token.ILLEGAL w/o error message
++	p.next();							// initializes pos, tok, lit
++	p.packs = make(map[string]string);
++	p.rules = make(map[string]expr);
+ }
+ 
+ 
+@@ -67,7 +67,7 @@ func (p *parser) expect(tok token.Token) token.Position {
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'" + tok.String() + "'");
+ 	}
+-	p.next();  // make progress in any case
++	p.next();	// make progress in any case
+ 	return pos;
+ }
+ 
+@@ -114,7 +114,7 @@ func (p *parser) parseRuleName() (string, bool) {
+ 		p.next();
+ 	default:
+ 		p.errorExpected(p.pos, "rule name");
+-		p.next();  // make progress in any case
++		p.next();	// make progress in any case
+ 	}
+ 	return name, isIdent;
+ }
+@@ -151,15 +151,15 @@ func (p *parser) parseLiteral() literal {
+ 			// the next segment starts with a % format
+ 			if i0 < i {
+ 				// the current segment is not empty, split it off
+-				list.Push(s[i0 : i]);
++				list.Push(s[i0:i]);
+ 				i0 = i;
+ 			}
+-			i++;  // skip %; let loop skip over char after %
++			i++;	// skip %; let loop skip over char after %
+ 		}
+ 	}
+ 	// the final segment may start with any character
+ 	// (it is empty iff the string is empty)
+-	list.Push(s[i0 : len(s)]);
++	list.Push(s[i0:len(s)]);
+ 
+ 	// convert list into a literal
+ 	lit := make(literal, list.Len());
+@@ -231,7 +231,7 @@ func (p *parser) parseOperand() (x expr) {
+ 		p.expect(token.RBRACE);
+ 
+ 	default:
+-		x = p.parseField();  // may be nil
++		x = p.parseField();	// may be nil
+ 	}
+ 
+ 	return x;
+@@ -248,8 +248,10 @@ func (p *parser) parseSequence() expr {
+ 
+ 	// no need for a sequence if list.Len() < 2
+ 	switch list.Len() {
+-	case 0: return nil;
+-	case 1: return list.At(0).(expr);
++	case 0:
++		return nil;
++	case 1:
++		return list.At(0).(expr);
+ 	}
+ 
+ 	// convert list into a sequence
+@@ -278,8 +280,10 @@ func (p *parser) parseExpression() expr {
+ 
+ 	// no need for an alternatives if list.Len() < 2
+ 	switch list.Len() {
+-	case 0: return nil;
+-	case 1: return list.At(0).(expr);
++	case 0:
++		return nil;
++	case 1:
++		return list.At(0).(expr);
+ 	}
+ 
+ 	// convert list into a alternatives
+@@ -324,7 +328,7 @@ func (p *parser) parseFormat() {
+ 
+ 		default:
+ 			p.errorExpected(p.pos, "package declaration or format rule");
+-			p.next();  // make progress in any case
++			p.next();	// make progress in any case
+ 		}
+ 
+ 		if p.tok == token.SEMICOLON {
+@@ -340,10 +344,10 @@ func (p *parser) parseFormat() {
+ func remap(p *parser, name string) string {
+ 	i := strings.Index(name, ".");
+ 	if i >= 0 {
+-		packageName, suffix := name[0 : i], name[i : len(name)];
++		packageName, suffix := name[0:i], name[i:len(name)];
+ 		// lookup package
+ 		if importPath, found := p.packs[packageName]; found {
+-			name = importPath + suffix;
++			name = importPath+suffix;
+ 		} else {
+ 			var invalidPos token.Position;
+ 			p.Error(invalidPos, "package not declared: " + packageName);
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index a057bdcac0..fc68561223 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -12,7 +12,7 @@ import (
+ 
+ // Arguments to Run.
+ const (
+-	DevNull = iota;
++	DevNull	= iota;
+ 	PassThrough;
+ 	Pipe;
+ 	MergeWithStdout;
+@@ -24,10 +24,10 @@ const (
+ // or else nil, depending on the arguments to Run.
+ // Pid is the running command's operating system process ID.
+ type Cmd struct {
+-	Stdin *os.File;
+-	Stdout *os.File;
+-	Stderr *os.File;
+-	Pid int;
++	Stdin	*os.File;
++	Stdout	*os.File;
++	Stderr	*os.File;
++	Pid	int;
+ }
+ 
+ // Given mode (DevNull, etc), return file for child
+@@ -78,8 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+ // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+ // of the returned Cmd is the other end of the pipe.
+ // Otherwise the field in Cmd is nil.
+-func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error)
+-{
++func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
+ 	p = new(Cmd);
+ 	var fd [3]*os.File;
+ 
+@@ -184,7 +183,7 @@ func (p *Cmd) Close() os.Error {
+ 	return err;
+ }
+ 
+-func canExec(file string) bool{
++func canExec(file string) bool {
+ 	d, err := os.Stat(file);
+ 	if err != nil {
+ 		return false;
+@@ -220,4 +219,3 @@ func LookPath(file string) (string, os.Error) {
+ 	}
+ 	return "", os.ENOENT;
+ }
+-
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 9d04a427cd..9a975fc1f1 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -23,12 +23,12 @@ type Var interface {
+ 
+ // Int is a 64-bit integer variable, and satisfies the Var interface.
+ type Int struct {
+-	i int64;
+-	mu sync.Mutex;
++	i	int64;
++	mu	sync.Mutex;
+ }
+ 
+ func (v *Int) String() string {
+-	return strconv.Itoa64(v.i)
++	return strconv.Itoa64(v.i);
+ }
+ 
+ func (v *Int) Add(delta int64) {
+@@ -39,14 +39,14 @@ func (v *Int) Add(delta int64) {
+ 
+ // Map is a string-to-Var map variable, and satisfies the Var interface.
+ type Map struct {
+-	m map[string] Var;
+-	mu sync.Mutex;
++	m	map[string]Var;
++	mu	sync.Mutex;
+ }
+ 
+ // KeyValue represents a single entry in a Map.
+ type KeyValue struct {
+-	Key string;
+-	Value Var;
++	Key	string;
++	Value	Var;
+ }
+ 
+ func (v *Map) String() string {
+@@ -63,21 +63,21 @@ func (v *Map) String() string {
+ 		first = false;
+ 	}
+ 	fmt.Fprintf(b, "}");
+-	return b.String()
++	return b.String();
+ }
+ 
+ func (v *Map) Init() *Map {
+-	v.m = make(map[string] Var);
+-	return v
++	v.m = make(map[string]Var);
++	return v;
+ }
+ 
+ func (v *Map) Get(key string) Var {
+ 	v.mu.Lock();
+ 	defer v.mu.Unlock();
+ 	if av, ok := v.m[key]; ok {
+-		return av
++		return av;
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ func (v *Map) Set(key string, av Var) {
+@@ -104,7 +104,7 @@ func (v *Map) Add(key string, delta int64) {
+ // TODO(rsc): Make sure map access in separate thread is safe.
+ func (v *Map) iterate(c chan<- KeyValue) {
+ 	for k, v := range v.m {
+-		c <- KeyValue{ k, v };
++		c <- KeyValue{k, v};
+ 	}
+ 	close(c);
+ }
+@@ -112,7 +112,7 @@ func (v *Map) iterate(c chan<- KeyValue) {
+ func (v *Map) Iter() <-chan KeyValue {
+ 	c := make(chan KeyValue);
+ 	go v.iterate(c);
+-	return c
++	return c;
+ }
+ 
+ // String is a string variable, and satisfies the Var interface.
+@@ -121,7 +121,7 @@ type String struct {
+ }
+ 
+ func (v *String) String() string {
+-	return strconv.Quote(v.s)
++	return strconv.Quote(v.s);
+ }
+ 
+ func (v *String) Set(value string) {
+@@ -130,16 +130,16 @@ func (v *String) Set(value string) {
+ 
+ // IntFunc wraps a func() int64 to create a value that satisfies the Var interface.
+ // The function will be called each time the Var is evaluated.
+-type IntFunc func() int64;
++type IntFunc func() int64
+ 
+ func (v IntFunc) String() string {
+-	return strconv.Itoa64(v())
++	return strconv.Itoa64(v());
+ }
+ 
+ 
+ // All published variables.
+-var vars map[string] Var = make(map[string] Var);
+-var mutex sync.Mutex;
++var vars map[string]Var = make(map[string]Var)
++var mutex sync.Mutex
+ 
+ // Publish declares an named exported variable. This should be called from a
+ // package's init function when it creates its Vars. If the name is already
+@@ -156,9 +156,9 @@ func Publish(name string, v Var) {
+ // Get retrieves a named exported variable.
+ func Get(name string) Var {
+ 	if v, ok := vars[name]; ok {
+-		return v
++		return v;
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ // RemoveAll removes all exported variables.
+@@ -166,7 +166,7 @@ func Get(name string) Var {
+ func RemoveAll() {
+ 	mutex.Lock();
+ 	defer mutex.Unlock();
+-	vars = make(map[string] Var);
++	vars = make(map[string]Var);
+ }
+ 
+ // Convenience functions for creating new exported variables.
+@@ -174,25 +174,25 @@ func RemoveAll() {
+ func NewInt(name string) *Int {
+ 	v := new(Int);
+ 	Publish(name, v);
+-	return v
++	return v;
+ }
+ 
+ func NewMap(name string) *Map {
+ 	v := new(Map).Init();
+ 	Publish(name, v);
+-	return v
++	return v;
+ }
+ 
+ func NewString(name string) *String {
+ 	v := new(String);
+ 	Publish(name, v);
+-	return v
++	return v;
+ }
+ 
+ // TODO(rsc): Make sure map access in separate thread is safe.
+ func iterate(c chan<- KeyValue) {
+ 	for k, v := range vars {
+-		c <- KeyValue{ k, v };
++		c <- KeyValue{k, v};
+ 	}
+ 	close(c);
+ }
+@@ -200,7 +200,7 @@ func iterate(c chan<- KeyValue) {
+ func Iter() <-chan KeyValue {
+ 	c := make(chan KeyValue);
+ 	go iterate(c);
+-	return c
++	return c;
+ }
+ 
+ func expvarHandler(c *http.Conn, req *http.Request) {
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index f10edaa4fc..067e45d95b 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -45,18 +45,18 @@ package flag
+ import (
+ 	"fmt";
+ 	"os";
+-	"strconv"
++	"strconv";
+ )
+ 
+ // TODO(r): BUG: atob belongs elsewhere
+ func atob(str string) (value bool, ok bool) {
+ 	switch str {
+-		case "1", "t", "T", "true", "TRUE", "True":
+-			return true, true;
+-		case "0", "f", "F", "false", "FALSE", "False":
+-			return false, true
++	case "1", "t", "T", "true", "TRUE", "True":
++		return true, true;
++	case "0", "f", "F", "false", "FALSE", "False":
++		return false, true;
+ 	}
+-	return false, false
++	return false, false;
+ }
+ 
+ // -- Bool Value
+@@ -66,87 +66,87 @@ type boolValue struct {
+ 
+ func newBoolValue(val bool, p *bool) *boolValue {
+ 	*p = val;
+-	return &boolValue{p}
++	return &boolValue{p};
+ }
+ 
+ func (b *boolValue) set(s string) bool {
+-	v, ok  := atob(s);
++	v, ok := atob(s);
+ 	*b.p = v;
+-	return ok
++	return ok;
+ }
+ 
+ func (b *boolValue) String() string {
+-	return fmt.Sprintf("%v", *b.p)
++	return fmt.Sprintf("%v", *b.p);
+ }
+ 
+ // -- Int Value
+ type intValue struct {
+-	p	*int;
++	p *int;
+ }
+ 
+ func newIntValue(val int, p *int) *intValue {
+ 	*p = val;
+-	return &intValue{p}
++	return &intValue{p};
+ }
+ 
+ func (i *intValue) set(s string) bool {
+-	v, err  := strconv.Atoi(s);
++	v, err := strconv.Atoi(s);
+ 	*i.p = int(v);
+-	return err == nil
++	return err == nil;
+ }
+ 
+ func (i *intValue) String() string {
+-	return fmt.Sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p);
+ }
+ 
+ // -- Int64 Value
+ type int64Value struct {
+-	p	*int64;
++	p *int64;
+ }
+ 
+ func newInt64Value(val int64, p *int64) *int64Value {
+ 	*p = val;
+-	return &int64Value{p}
++	return &int64Value{p};
+ }
+ 
+ func (i *int64Value) set(s string) bool {
+-	v, err  := strconv.Atoi64(s);
++	v, err := strconv.Atoi64(s);
+ 	*i.p = v;
+ 	return err == nil;
+ }
+ 
+ func (i *int64Value) String() string {
+-	return fmt.Sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p);
+ }
+ 
+ // -- Uint Value
+ type uintValue struct {
+-	p	*uint;
++	p *uint;
+ }
+ 
+ func newUintValue(val uint, p *uint) *uintValue {
+ 	*p = val;
+-	return &uintValue{p}
++	return &uintValue{p};
+ }
+ 
+ func (i *uintValue) set(s string) bool {
+-	v, err  := strconv.Atoui(s);
++	v, err := strconv.Atoui(s);
+ 	*i.p = uint(v);
+ 	return err == nil;
+ }
+ 
+ func (i *uintValue) String() string {
+-	return fmt.Sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p);
+ }
+ 
+ // -- uint64 Value
+ type uint64Value struct {
+-	p	*uint64;
++	p *uint64;
+ }
+ 
+ func newUint64Value(val uint64, p *uint64) *uint64Value {
+ 	*p = val;
+-	return &uint64Value{p}
++	return &uint64Value{p};
+ }
+ 
+ func (i *uint64Value) set(s string) bool {
+@@ -156,17 +156,17 @@ func (i *uint64Value) set(s string) bool {
+ }
+ 
+ func (i *uint64Value) String() string {
+-	return fmt.Sprintf("%v", *i.p)
++	return fmt.Sprintf("%v", *i.p);
+ }
+ 
+ // -- string Value
+ type stringValue struct {
+-	p	*string;
++	p *string;
+ }
+ 
+ func newStringValue(val string, p *string) *stringValue {
+ 	*p = val;
+-	return &stringValue{p}
++	return &stringValue{p};
+ }
+ 
+ func (s *stringValue) set(val string) bool {
+@@ -175,7 +175,7 @@ func (s *stringValue) set(val string) bool {
+ }
+ 
+ func (s *stringValue) String() string {
+-	return fmt.Sprintf("%s", *s.p)
++	return fmt.Sprintf("%s", *s.p);
+ }
+ 
+ // FlagValue is the interface to the dynamic value stored in a flag.
+@@ -187,31 +187,31 @@ type FlagValue interface {
+ 
+ // A Flag represents the state of a flag.
+ type Flag struct {
+-	Name	string;	// name as it appears on command line
+-	Usage	string;	// help message
+-	Value	FlagValue;	// value as set
+-	DefValue	string;	// default value (as text); for usage message
++	Name		string;		// name as it appears on command line
++	Usage		string;		// help message
++	Value		FlagValue;	// value as set
++	DefValue	string;		// default value (as text); for usage message
+ }
+ 
+ type allFlags struct {
+-	actual map[string] *Flag;
+-	formal map[string] *Flag;
++	actual		map[string]*Flag;
++	formal		map[string]*Flag;
+ 	first_arg	int;	// 0 is the program name, 1 is first arg
+ }
+ 
+-var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
++var flags *allFlags = &allFlags{make(map[string]*Flag), make(map[string]*Flag), 1}
+ 
+ // VisitAll visits the flags, calling fn for each. It visits all flags, even those not set.
+ func VisitAll(fn func(*Flag)) {
+ 	for _, f := range flags.formal {
+-		fn(f)
++		fn(f);
+ 	}
+ }
+ 
+ // Visit visits the flags, calling fn for each. It visits only those flags that have been set.
+ func Visit(fn func(*Flag)) {
+ 	for _, f := range flags.actual {
+-		fn(f)
++		fn(f);
+ 	}
+ }
+ 
+@@ -219,9 +219,9 @@ func Visit(fn func(*Flag)) {
+ func Lookup(name string) *Flag {
+ 	f, ok := flags.formal[name];
+ 	if !ok {
+-		return nil
++		return nil;
+ 	}
+-	return f
++	return f;
+ }
+ 
+ // Set sets the value of the named flag.  It returns true if the set succeeded; false if
+@@ -229,11 +229,11 @@ func Lookup(name string) *Flag {
+ func Set(name, value string) bool {
+ 	f, ok := flags.formal[name];
+ 	if !ok {
+-		return false
++		return false;
+ 	}
+ 	ok = f.Value.set(value);
+ 	if !ok {
+-		return false
++		return false;
+ 	}
+ 	flags.actual[name] = f;
+ 	return true;
+@@ -248,7 +248,7 @@ func PrintDefaults() {
+ 			format = "  -%s=%q: %s\n";
+ 		}
+ 		fmt.Fprintf(os.Stderr, format, f.Name, f.DefValue, f.Usage);
+-	})
++	});
+ }
+ 
+ // Usage prints to standard error a default usage message documenting all defined flags.
+@@ -259,7 +259,7 @@ var Usage = func() {
+ }
+ 
+ func NFlag() int {
+-	return len(flags.actual)
++	return len(flags.actual);
+ }
+ 
+ // Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument
+@@ -269,17 +269,17 @@ func Arg(i int) string {
+ 	if i < 0 || i >= len(os.Args) {
+ 		return "";
+ 	}
+-	return os.Args[i]
++	return os.Args[i];
+ }
+ 
+ // NArg is the number of arguments remaining after flags have been processed.
+ func NArg() int {
+-	return len(os.Args) - flags.first_arg
++	return len(os.Args) - flags.first_arg;
+ }
+ 
+ // Args returns the non-flag command-line arguments.
+ func Args() []string {
+-	return os.Args[flags.first_arg:len(os.Args)];
++	return os.Args[flags.first_arg : len(os.Args)];
+ }
+ 
+ func add(name string, value FlagValue, usage string) {
+@@ -377,27 +377,26 @@ func String(name, value string, usage string) *string {
+ 	return p;
+ }
+ 
+-func (f *allFlags) parseOne(index int) (ok bool, next int)
+-{
++func (f *allFlags) parseOne(index int) (ok bool, next int) {
+ 	s := os.Args[index];
+-	f.first_arg = index;  // until proven otherwise
++	f.first_arg = index;	// until proven otherwise
+ 	if len(s) == 0 {
+-		return false, -1
++		return false, -1;
+ 	}
+ 	if s[0] != '-' {
+-		return false, -1
++		return false, -1;
+ 	}
+ 	num_minuses := 1;
+ 	if len(s) == 1 {
+-		return false, index
++		return false, index;
+ 	}
+ 	if s[1] == '-' {
+ 		num_minuses++;
+ 		if len(s) == 2 {	// "--" terminates the flags
+-			return false, index + 1
++			return false, index+1;
+ 		}
+ 	}
+-	name := s[num_minuses : len(s)];
++	name := s[num_minuses:len(s)];
+ 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
+ 		fmt.Fprintln(os.Stderr, "bad flag syntax:", s);
+ 		Usage();
+@@ -407,11 +406,11 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ 	// it's a flag. does it have an argument?
+ 	has_value := false;
+ 	value := "";
+-	for i := 1; i < len(name); i++ {  // equals cannot be first
++	for i := 1; i < len(name); i++ {	// equals cannot be first
+ 		if name[i] == '=' {
+ 			value = name[i+1 : len(name)];
+ 			has_value = true;
+-			name = name[0 : i];
++			name = name[0:i];
+ 			break;
+ 		}
+ 	}
+@@ -422,7 +421,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ 		os.Exit(2);
+ 	}
+ 	m := flags.formal;
+-	flag, alreadythere = m[name]; // BUG
++	flag, alreadythere = m[name];	// BUG
+ 	if !alreadythere {
+ 		fmt.Fprintf(os.Stderr, "flag provided but not defined: -%s\n", name);
+ 		Usage();
+@@ -436,11 +435,11 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ 				os.Exit(2);
+ 			}
+ 		} else {
+-			f.set("true")
++			f.set("true");
+ 		}
+ 	} else {
+ 		// It must have a value, which might be the next argument.
+-		if !has_value && index < len(os.Args)-1 {
++		if !has_value && index < len(os.Args) - 1 {
+ 			// value is the next arg
+ 			has_value = true;
+ 			index++;
+@@ -459,7 +458,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ 		}
+ 	}
+ 	flags.actual[name] = flag;
+-	return true, index + 1
++	return true, index+1;
+ }
+ 
+ // Parse parses the command-line flags.  Must be called after all flags are defined
+@@ -472,7 +471,7 @@ func Parse() {
+ 			i = next;
+ 		}
+ 		if !ok {
+-			break
++			break;
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index 7b796cb147..bb013b780b 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -5,28 +5,28 @@
+ package flag_test
+ 
+ import (
+-	. "flag";
+-	"testing";
++	.	"flag";
++		"testing";
+ )
+ 
+ var (
+-	test_bool = Bool("test_bool", false, "bool value");
+-	test_int = Int("test_int", 0, "int value");
+-	test_int64 = Int64("test_int64", 0, "int64 value");
+-	test_uint = Uint("test_uint", 0, "uint value");
+-	test_uint64 = Uint64("test_uint64", 0, "uint64 value");
+-	test_string = String("test_string", "0", "string value");
++	test_bool	= Bool("test_bool", false, "bool value");
++	test_int	= Int("test_int", 0, "int value");
++	test_int64	= Int64("test_int64", 0, "int64 value");
++	test_uint	= Uint("test_uint", 0, "uint value");
++	test_uint64	= Uint64("test_uint64", 0, "uint64 value");
++	test_string	= String("test_string", "0", "string value");
+ )
+ 
+ func boolString(s string) string {
+ 	if s == "0" {
+-		return "false"
++		return "false";
+ 	}
+-	return "true"
++	return "true";
+ }
+ 
+ func TestEverything(t *testing.T) {
+-	m := make(map[string] *Flag);
++	m := make(map[string]*Flag);
+ 	desired := "0";
+ 	visitor := func(f *Flag) {
+ 		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
+@@ -47,15 +47,15 @@ func TestEverything(t *testing.T) {
+ 	if len(m) != 6 {
+ 		t.Error("VisitAll misses some flags");
+ 		for k, v := range m {
+-			t.Log(k, *v)
++			t.Log(k, *v);
+ 		}
+ 	}
+-	m = make(map[string] *Flag);
++	m = make(map[string]*Flag);
+ 	Visit(visitor);
+ 	if len(m) != 0 {
+ 		t.Errorf("Visit sees unset flags");
+ 		for k, v := range m {
+-			t.Log(k, *v)
++			t.Log(k, *v);
+ 		}
+ 	}
+ 	// Now set all flags
+@@ -70,7 +70,7 @@ func TestEverything(t *testing.T) {
+ 	if len(m) != 6 {
+ 		t.Error("Visit fails after set");
+ 		for k, v := range m {
+-			t.Log(k, *v)
++			t.Log(k, *v);
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 65e76b9641..43bdb82993 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -5,15 +5,15 @@
+ package fmt_test
+ 
+ import (
+-	. "fmt";
+-	"io";
+-	"math";
+-	"strings";
+-	"testing";
++	.	"fmt";
++		"io";
++		"math";
++		"strings";
++		"testing";
+ )
+ 
+ func TestFmtInterface(t *testing.T) {
+-	var i1 interface{};
++	var i1 interface{}
+ 	i1 = "abc";
+ 	s := Sprintf("%s", i1);
+ 	if s != "abc" {
+@@ -22,174 +22,175 @@ func TestFmtInterface(t *testing.T) {
+ }
+ 
+ type fmtTest struct {
+-	fmt string;
+-	val interface { };
+-	out string;
++	fmt	string;
++	val	interface{};
++	out	string;
+ }
+ 
+ const b32 uint32 = 1<<32 - 1
+ const b64 uint64 = 1<<64 - 1
++
+ var array = []int{1, 2, 3, 4, 5}
+ var iarray = []interface{}{1, "hello", 2.5, nil}
+ 
+ type A struct {
+-	i int;
+-	j uint;
+-	s string;
+-	x []int;
++	i	int;
++	j	uint;
++	s	string;
++	x	[]int;
+ }
+ 
+-var b byte;
++var b byte
+ 
+ var fmttests = []fmtTest{
+ 	// basic string
+-	fmtTest{ "%s",	"abc",	"abc" },
+-	fmtTest{ "%x",	"abc",	"616263" },
+-	fmtTest{ "%x",	"xyz",	"78797a" },
+-	fmtTest{ "%X",	"xyz",	"78797A" },
+-	fmtTest{ "%q",	"abc",	`"abc"` },
++	fmtTest{"%s", "abc", "abc"},
++	fmtTest{"%x", "abc", "616263"},
++	fmtTest{"%x", "xyz", "78797a"},
++	fmtTest{"%X", "xyz", "78797A"},
++	fmtTest{"%q", "abc", `"abc"`},
+ 
+ 	// basic bytes
+-	fmtTest{ "%s",	strings.Bytes("abc"),	"abc" },
+-	fmtTest{ "%x",	strings.Bytes("abc"),	"616263" },
+-	fmtTest{ "% x",	strings.Bytes("abc"),	"61 62 63" },
+-	fmtTest{ "%x",	strings.Bytes("xyz"),	"78797a" },
+-	fmtTest{ "%X",	strings.Bytes("xyz"),	"78797A" },
+-	fmtTest{ "%q",	strings.Bytes("abc"),	`"abc"` },
++	fmtTest{"%s", strings.Bytes("abc"), "abc"},
++	fmtTest{"%x", strings.Bytes("abc"), "616263"},
++	fmtTest{"% x", strings.Bytes("abc"), "61 62 63"},
++	fmtTest{"%x", strings.Bytes("xyz"), "78797a"},
++	fmtTest{"%X", strings.Bytes("xyz"), "78797A"},
++	fmtTest{"%q", strings.Bytes("abc"), `"abc"`},
+ 
+ 	// escaped strings
+-	fmtTest{ "%#q",	`abc`,		"`abc`" },
+-	fmtTest{ "%#q",	`"`,		"`\"`" },
+-	fmtTest{ "1 %#q", `\n`,		"1 `\\n`" },
+-	fmtTest{ "2 %#q", "\n",		`2 "\n"` },
+-	fmtTest{ "%q",	`"`,		`"\""` },
+-	fmtTest{ "%q",	"\a\b\f\r\n\t\v",	`"\a\b\f\r\n\t\v"` },
+-	fmtTest{ "%q",	"abc\xffdef",		`"abc\xffdef"` },
+-	fmtTest{ "%q",	"\u263a",	`"\u263a"` },
+-	fmtTest{ "%q",	"\U0010ffff",	`"\U0010ffff"` },
++	fmtTest{"%#q", `abc`, "`abc`"},
++	fmtTest{"%#q", `"`, "`\"`"},
++	fmtTest{"1 %#q", `\n`, "1 `\\n`"},
++	fmtTest{"2 %#q", "\n", `2 "\n"`},
++	fmtTest{"%q", `"`, `"\""`},
++	fmtTest{"%q", "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
++	fmtTest{"%q", "abc\xffdef", `"abc\xffdef"`},
++	fmtTest{"%q", "\u263a", `"\u263a"`},
++	fmtTest{"%q", "\U0010ffff", `"\U0010ffff"`},
+ 
+ 	// width
+-	fmtTest{ "%5s",		"abc",	"  abc" },
+-	fmtTest{ "%-5s",	"abc",	"abc  " },
+-	fmtTest{ "%05s",	"abc",	"00abc" },
++	fmtTest{"%5s", "abc", "  abc"},
++	fmtTest{"%-5s", "abc", "abc  "},
++	fmtTest{"%05s", "abc", "00abc"},
+ 
+ 	// integers
+-	fmtTest{ "%d",		12345,	"12345" },
+-	fmtTest{ "%d",		-12345,	"-12345" },
+-	fmtTest{ "%10d",	12345,	"     12345" },
+-	fmtTest{ "%10d",	-12345,	"    -12345" },
+-	fmtTest{ "%+10d",	12345,	"    +12345" },
+-	fmtTest{ "%010d",	12345,	"0000012345" },
+-	fmtTest{ "%010d",	-12345,	"-000012345" },
+-	fmtTest{ "%-10d",	12345,	"12345     " },
+-	fmtTest{ "%010.3d",	1,	"       001" },
+-	fmtTest{ "%010.3d",	-1,	"      -001" },
+-	fmtTest{ "%+d",		12345,	"+12345" },
+-	fmtTest{ "%+d",		-12345,	"-12345" },
+-	fmtTest{ "% d",		12345,	" 12345" },
++	fmtTest{"%d", 12345, "12345"},
++	fmtTest{"%d", -12345, "-12345"},
++	fmtTest{"%10d", 12345, "     12345"},
++	fmtTest{"%10d", -12345, "    -12345"},
++	fmtTest{"%+10d", 12345, "    +12345"},
++	fmtTest{"%010d", 12345, "0000012345"},
++	fmtTest{"%010d", -12345, "-000012345"},
++	fmtTest{"%-10d", 12345, "12345     "},
++	fmtTest{"%010.3d", 1, "       001"},
++	fmtTest{"%010.3d", -1, "      -001"},
++	fmtTest{"%+d", 12345, "+12345"},
++	fmtTest{"%+d", -12345, "-12345"},
++	fmtTest{"% d", 12345, " 12345"},
+ 
+ 	// erroneous formats
+-	fmtTest{ "",		2,			"?(extra int=2)" },
+-	fmtTest{ "%d",		"hello",		"%d(string=hello)" },
++	fmtTest{"", 2, "?(extra int=2)"},
++	fmtTest{"%d", "hello", "%d(string=hello)"},
+ 
+ 	// old test/fmt_test.go
+-	fmtTest{ "%d",		1234,			"1234" },
+-	fmtTest{ "%d",		-1234,			"-1234" },
+-	fmtTest{ "%d",		uint(1234),		"1234" },
+-	fmtTest{ "%d",		uint32(b32),		"4294967295" },
+-	fmtTest{ "%d",		uint64(b64),		"18446744073709551615" },
+-	fmtTest{ "%o",		01234,			"1234" },
+-	fmtTest{ "%#o",		01234,			"01234" },
+-	fmtTest{ "%o",		uint32(b32),		"37777777777" },
+-	fmtTest{ "%o",		uint64(b64),		"1777777777777777777777" },
+-	fmtTest{ "%x",		0x1234abcd,		"1234abcd" },
+-	fmtTest{ "%#x",		0x1234abcd,		"0x1234abcd" },
+-	fmtTest{ "%x",		b32-0x1234567,		"fedcba98" },
+-	fmtTest{ "%X",		0x1234abcd,		"1234ABCD" },
+-	fmtTest{ "%X",		b32-0x1234567,		"FEDCBA98" },
+-	fmtTest{ "%#X",		0,		"0X0" },
+-	fmtTest{ "%x",		b64,			"ffffffffffffffff" },
+-	fmtTest{ "%b",		7,			"111" },
+-	fmtTest{ "%b",		b64,			"1111111111111111111111111111111111111111111111111111111111111111" },
+-	fmtTest{ "%e",		float64(1),		"1.000000e+00" },
+-	fmtTest{ "%e",		float64(1234.5678e3),	"1.234568e+06" },
+-	fmtTest{ "%e",		float64(1234.5678e-8),	"1.234568e-05" },
+-	fmtTest{ "%e",		float64(-7),		"-7.000000e+00" },
+-	fmtTest{ "%e",		float64(-1e-9),		"-1.000000e-09" },
+-	fmtTest{ "%f",		float64(1234.5678e3),	"1234567.800000" },
+-	fmtTest{ "%f",		float64(1234.5678e-8),	"0.000012" },
+-	fmtTest{ "%f",		float64(-7),		"-7.000000" },
+-	fmtTest{ "%f",		float64(-1e-9),		"-0.000000" },
+-	fmtTest{ "%g",		float64(1234.5678e3),	"1.2345678e+06" },
+-	fmtTest{ "%g",		float32(1234.5678e3),	"1.2345678e+06" },
+-	fmtTest{ "%g",		float64(1234.5678e-8),	"1.2345678e-05" },
+-	fmtTest{ "%g",		float64(-7),		"-7" },
+-	fmtTest{ "%g",		float64(-1e-9),		"-1e-09",	 },
+-	fmtTest{ "%g",		float32(-1e-9),		"-1e-09" },
+-	fmtTest{ "%E",		float64(1),		"1.000000E+00" },
+-	fmtTest{ "%E",		float64(1234.5678e3),	"1.234568E+06" },
+-	fmtTest{ "%E",		float64(1234.5678e-8),	"1.234568E-05" },
+-	fmtTest{ "%E",		float64(-7),		"-7.000000E+00" },
+-	fmtTest{ "%E",		float64(-1e-9),		"-1.000000E-09" },
+-	fmtTest{ "%G",		float64(1234.5678e3),	"1.2345678E+06" },
+-	fmtTest{ "%G",		float32(1234.5678e3),	"1.2345678E+06" },
+-	fmtTest{ "%G",		float64(1234.5678e-8),	"1.2345678E-05" },
+-	fmtTest{ "%G",		float64(-7),		"-7" },
+-	fmtTest{ "%G",		float64(-1e-9),		"-1E-09",	 },
+-	fmtTest{ "%G",		float32(-1e-9),		"-1E-09" },
+-	fmtTest{ "%c",		'x',			"x" },
+-	fmtTest{ "%c",		0xe4,			"ä" },
+-	fmtTest{ "%c",		0x672c,			"本" },
+-	fmtTest{ "%c",		'日',			"日" },
+-	fmtTest{ "%20.8d",	1234,			"            00001234" },
+-	fmtTest{ "%20.8d",	-1234,			"           -00001234" },
+-	fmtTest{ "%20d",	1234,			"                1234" },
+-	fmtTest{ "%-20.8d",	1234,			"00001234            " },
+-	fmtTest{ "%-20.8d",	-1234,			"-00001234           " },
+-	fmtTest{ "%-#20.8x",		0x1234abc,		"0x01234abc          " },
+-	fmtTest{ "%-#20.8X",		0x1234abc,		"0X01234ABC          " },
+-	fmtTest{ "%-#20.8o",		01234,		"00001234            " },
+-	fmtTest{ "%.20b",	7,			"00000000000000000111" },
+-	fmtTest{ "%20.5s",	"qwertyuiop",		"               qwert" },
+-	fmtTest{ "%.5s",	"qwertyuiop",		"qwert" },
+-	fmtTest{ "%-20.5s",	"qwertyuiop",		"qwert               " },
+-	fmtTest{ "%20c",	'x',			"                   x" },
+-	fmtTest{ "%-20c",	'x',			"x                   " },
+-	fmtTest{ "%20.6e",	1.2345e3,		"        1.234500e+03" },
+-	fmtTest{ "%20.6e",	1.2345e-3,		"        1.234500e-03" },
+-	fmtTest{ "%20e",	1.2345e3,		"        1.234500e+03" },
+-	fmtTest{ "%20e",	1.2345e-3,		"        1.234500e-03" },
+-	fmtTest{ "%20.8e",	1.2345e3,		"      1.23450000e+03" },
+-	fmtTest{ "%20f",	float64(1.23456789e3),	"         1234.567890" },
+-	fmtTest{ "%20f",	float64(1.23456789e-3),	"            0.001235" },
+-	fmtTest{ "%20f",	float64(12345678901.23456789),	"  12345678901.234568" },
+-	fmtTest{ "%-20f",	float64(1.23456789e3),	"1234.567890         " },
+-	fmtTest{ "%20.8f",	float64(1.23456789e3),	"       1234.56789000" },
+-	fmtTest{ "%20.8f",	float64(1.23456789e-3),	"          0.00123457" },
+-	fmtTest{ "%g",		float64(1.23456789e3),	"1234.56789" },
+-	fmtTest{ "%g",		float64(1.23456789e-3),	"0.00123456789" },
+-	fmtTest{ "%g",		float64(1.23456789e20),	"1.23456789e+20" },
+-	fmtTest{ "%20e",	math.Inf(1),		"                +Inf" },
+-	fmtTest{ "%-20f",	math.Inf(-1),		"-Inf                " },
+-	fmtTest{ "%20g",	math.NaN(),		"                 NaN" },
++	fmtTest{"%d", 1234, "1234"},
++	fmtTest{"%d", -1234, "-1234"},
++	fmtTest{"%d", uint(1234), "1234"},
++	fmtTest{"%d", uint32(b32), "4294967295"},
++	fmtTest{"%d", uint64(b64), "18446744073709551615"},
++	fmtTest{"%o", 01234, "1234"},
++	fmtTest{"%#o", 01234, "01234"},
++	fmtTest{"%o", uint32(b32), "37777777777"},
++	fmtTest{"%o", uint64(b64), "1777777777777777777777"},
++	fmtTest{"%x", 0x1234abcd, "1234abcd"},
++	fmtTest{"%#x", 0x1234abcd, "0x1234abcd"},
++	fmtTest{"%x", b32 - 0x1234567, "fedcba98"},
++	fmtTest{"%X", 0x1234abcd, "1234ABCD"},
++	fmtTest{"%X", b32 - 0x1234567, "FEDCBA98"},
++	fmtTest{"%#X", 0, "0X0"},
++	fmtTest{"%x", b64, "ffffffffffffffff"},
++	fmtTest{"%b", 7, "111"},
++	fmtTest{"%b", b64, "1111111111111111111111111111111111111111111111111111111111111111"},
++	fmtTest{"%e", float64(1), "1.000000e+00"},
++	fmtTest{"%e", float64(1234.5678e3), "1.234568e+06"},
++	fmtTest{"%e", float64(1234.5678e-8), "1.234568e-05"},
++	fmtTest{"%e", float64(-7), "-7.000000e+00"},
++	fmtTest{"%e", float64(-1e-9), "-1.000000e-09"},
++	fmtTest{"%f", float64(1234.5678e3), "1234567.800000"},
++	fmtTest{"%f", float64(1234.5678e-8), "0.000012"},
++	fmtTest{"%f", float64(-7), "-7.000000"},
++	fmtTest{"%f", float64(-1e-9), "-0.000000"},
++	fmtTest{"%g", float64(1234.5678e3), "1.2345678e+06"},
++	fmtTest{"%g", float32(1234.5678e3), "1.2345678e+06"},
++	fmtTest{"%g", float64(1234.5678e-8), "1.2345678e-05"},
++	fmtTest{"%g", float64(-7), "-7"},
++	fmtTest{"%g", float64(-1e-9), "-1e-09"},
++	fmtTest{"%g", float32(-1e-9), "-1e-09"},
++	fmtTest{"%E", float64(1), "1.000000E+00"},
++	fmtTest{"%E", float64(1234.5678e3), "1.234568E+06"},
++	fmtTest{"%E", float64(1234.5678e-8), "1.234568E-05"},
++	fmtTest{"%E", float64(-7), "-7.000000E+00"},
++	fmtTest{"%E", float64(-1e-9), "-1.000000E-09"},
++	fmtTest{"%G", float64(1234.5678e3), "1.2345678E+06"},
++	fmtTest{"%G", float32(1234.5678e3), "1.2345678E+06"},
++	fmtTest{"%G", float64(1234.5678e-8), "1.2345678E-05"},
++	fmtTest{"%G", float64(-7), "-7"},
++	fmtTest{"%G", float64(-1e-9), "-1E-09"},
++	fmtTest{"%G", float32(-1e-9), "-1E-09"},
++	fmtTest{"%c", 'x', "x"},
++	fmtTest{"%c", 0xe4, "ä"},
++	fmtTest{"%c", 0x672c, "本"},
++	fmtTest{"%c", '日', "日"},
++	fmtTest{"%20.8d", 1234, "            00001234"},
++	fmtTest{"%20.8d", -1234, "           -00001234"},
++	fmtTest{"%20d", 1234, "                1234"},
++	fmtTest{"%-20.8d", 1234, "00001234            "},
++	fmtTest{"%-20.8d", -1234, "-00001234           "},
++	fmtTest{"%-#20.8x", 0x1234abc, "0x01234abc          "},
++	fmtTest{"%-#20.8X", 0x1234abc, "0X01234ABC          "},
++	fmtTest{"%-#20.8o", 01234, "00001234            "},
++	fmtTest{"%.20b", 7, "00000000000000000111"},
++	fmtTest{"%20.5s", "qwertyuiop", "               qwert"},
++	fmtTest{"%.5s", "qwertyuiop", "qwert"},
++	fmtTest{"%-20.5s", "qwertyuiop", "qwert               "},
++	fmtTest{"%20c", 'x', "                   x"},
++	fmtTest{"%-20c", 'x', "x                   "},
++	fmtTest{"%20.6e", 1.2345e3, "        1.234500e+03"},
++	fmtTest{"%20.6e", 1.2345e-3, "        1.234500e-03"},
++	fmtTest{"%20e", 1.2345e3, "        1.234500e+03"},
++	fmtTest{"%20e", 1.2345e-3, "        1.234500e-03"},
++	fmtTest{"%20.8e", 1.2345e3, "      1.23450000e+03"},
++	fmtTest{"%20f", float64(1.23456789e3), "         1234.567890"},
++	fmtTest{"%20f", float64(1.23456789e-3), "            0.001235"},
++	fmtTest{"%20f", float64(12345678901.23456789), "  12345678901.234568"},
++	fmtTest{"%-20f", float64(1.23456789e3), "1234.567890         "},
++	fmtTest{"%20.8f", float64(1.23456789e3), "       1234.56789000"},
++	fmtTest{"%20.8f", float64(1.23456789e-3), "          0.00123457"},
++	fmtTest{"%g", float64(1.23456789e3), "1234.56789"},
++	fmtTest{"%g", float64(1.23456789e-3), "0.00123456789"},
++	fmtTest{"%g", float64(1.23456789e20), "1.23456789e+20"},
++	fmtTest{"%20e", math.Inf(1), "                +Inf"},
++	fmtTest{"%-20f", math.Inf(-1), "-Inf                "},
++	fmtTest{"%20g", math.NaN(), "                 NaN"},
+ 
+ 	// arrays
+-	fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
+-	fmtTest{ "%v",		iarray,			"[1 hello 2.5 <nil>]" },
+-	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
+-	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
++	fmtTest{"%v", array, "[1 2 3 4 5]"},
++	fmtTest{"%v", iarray, "[1 hello 2.5 <nil>]"},
++	fmtTest{"%v", &array, "&[1 2 3 4 5]"},
++	fmtTest{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
+ 
+ 	// structs
+-	fmtTest{ "%v",		A{1,2,"a",[]int{1,2}},	`{1 2 a [1 2]}` },
+-	fmtTest{ "%+v",		A{1,2,"a",[]int{1,2}},	`{i:1 j:2 s:a x:[1 2]}` },
++	fmtTest{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},
++	fmtTest{"%+v", A{1, 2, "a", []int{1, 2}}, `{i:1 j:2 s:a x:[1 2]}`},
+ 
+ 	// go syntax
+-	fmtTest{ "%#v",		A{1,2,"a",[]int{1,2}},	`fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}` },
+-	fmtTest{ "%#v",		&b,			"(*uint8)(PTR)" },
+-	fmtTest{ "%#v",		TestFmtInterface,	"(func(*testing.T))(PTR)" },
+-	fmtTest{ "%#v",		make(chan int),		"(chan int)(PTR)" },
+-	fmtTest{ "%#v",		uint64(1<<64-1),	"0xffffffffffffffff" },
+-	fmtTest{ "%#v",		1000000000,		"1000000000" },
++	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
++	fmtTest{"%#v", &b, "(*uint8)(PTR)"},
++	fmtTest{"%#v", TestFmtInterface, "(func(*testing.T))(PTR)"},
++	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
++	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
++	fmtTest{"%#v", 1000000000, "1000000000"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+@@ -203,7 +204,7 @@ func TestSprintf(t *testing.T) {
+ 					break;
+ 				}
+ 			}
+-			s = s[0:i] + "PTR" + s[j:len(s)];
++			s = s[0:i]+"PTR"+s[j:len(s)];
+ 		}
+ 		if s != tt.out {
+ 			if _, ok := tt.val.(string); ok {
+@@ -217,7 +218,8 @@ func TestSprintf(t *testing.T) {
+ 	}
+ }
+ 
+-type flagPrinter struct { }
++type flagPrinter struct{}
++
+ func (*flagPrinter) Format(f State, c int) {
+ 	s := "%";
+ 	for i := 0; i < 128; i++ {
+@@ -236,23 +238,23 @@ func (*flagPrinter) Format(f State, c int) {
+ }
+ 
+ type flagTest struct {
+-	in string;
+-	out string;
++	in	string;
++	out	string;
+ }
+ 
+-var flagtests = []flagTest {
+-	flagTest{ "%a", "[%a]" },
+-	flagTest{ "%-a", "[%-a]" },
+-	flagTest{ "%+a", "[%+a]" },
+-	flagTest{ "%#a", "[%#a]" },
+-	flagTest{ "% a", "[% a]" },
+-	flagTest{ "%0a", "[%0a]" },
+-	flagTest{ "%1.2a", "[%1.2a]" },
+-	flagTest{ "%-1.2a", "[%-1.2a]" },
+-	flagTest{ "%+1.2a", "[%+1.2a]" },
+-	flagTest{ "%-+1.2a", "[%+-1.2a]" },
+-	flagTest{ "%-+1.2abc", "[%+-1.2a]bc" },
+-	flagTest{ "%-1.2abc", "[%-1.2a]bc" },
++var flagtests = []flagTest{
++	flagTest{"%a", "[%a]"},
++	flagTest{"%-a", "[%-a]"},
++	flagTest{"%+a", "[%+a]"},
++	flagTest{"%#a", "[%#a]"},
++	flagTest{"% a", "[% a]"},
++	flagTest{"%0a", "[%0a]"},
++	flagTest{"%1.2a", "[%1.2a]"},
++	flagTest{"%-1.2a", "[%-1.2a]"},
++	flagTest{"%+1.2a", "[%+1.2a]"},
++	flagTest{"%-+1.2a", "[%+-1.2a]"},
++	flagTest{"%-+1.2abc", "[%+-1.2a]bc"},
++	flagTest{"%-1.2abc", "[%-1.2a]bc"},
+ }
+ 
+ func TestFlagParser(t *testing.T) {
+@@ -267,20 +269,20 @@ func TestFlagParser(t *testing.T) {
+ 
+ func TestStructPrinter(t *testing.T) {
+ 	var s struct {
+-		a string;
+-		b string;
+-		c int;
+-	};
++		a	string;
++		b	string;
++		c	int;
++	}
+ 	s.a = "abc";
+ 	s.b = "def";
+ 	s.c = 123;
+ 	type Test struct {
+-		fmt string;
+-		out string;
++		fmt	string;
++		out	string;
+ 	}
+-	var tests = []Test {
+-		Test{ "%v", "{abc def 123}" },
+-		Test{ "%+v", "{a:abc b:def c:123}" },
++	var tests = []Test{
++		Test{"%v", "{abc def 123}"},
++		Test{"%+v", "{a:abc b:def c:123}"},
+ 	};
+ 	for _, tt := range tests {
+ 		out := Sprintf(tt.fmt, s);
+@@ -306,12 +308,12 @@ func presentInMap(s string, a []string, t *testing.T) {
+ }
+ 
+ func TestMapPrinter(t *testing.T) {
+-	m0 := make(map[int] string);
++	m0 := make(map[int]string);
+ 	s := Sprint(m0);
+ 	if s != "map[]" {
+ 		t.Errorf("empty map printed as %q not %q", s, "map[]");
+ 	}
+-	m1 := map[int]string{1:"one", 2:"two", 3:"three"};
++	m1 := map[int]string{1: "one", 2: "two", 3: "three"};
+ 	a := []string{"1:one", "2:two", "3:three"};
+ 	presentInMap(Sprintf("%v", m1), a, t);
+ 	presentInMap(Sprint(m1), a, t);
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 728be3ea4c..c929ea879d 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -9,10 +9,10 @@ import (
+ )
+ 
+ 
+-const nByte = 64;
+-const nPows10 = 160;
++const nByte = 64
++const nPows10 = 160
+ 
+-var ldigits string = "0123456789abcdef"  // var not const because we take its address
++var ldigits string = "0123456789abcdef"	// var not const because we take its address
+ var udigits string = "0123456789ABCDEF"
+ 
+ /*
+@@ -29,17 +29,17 @@ var udigits string = "0123456789ABCDEF"
+ 		f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
+ */
+ type Fmt struct {
+-	buf string;
+-	wid int;
+-	wid_present bool;
+-	prec int;
+-	prec_present bool;
++	buf		string;
++	wid		int;
++	wid_present	bool;
++	prec		int;
++	prec_present	bool;
+ 	// flags
+-	minus bool;
+-	plus bool;
+-	sharp bool;
+-	space bool;
+-	zero bool;
++	minus	bool;
++	plus	bool;
++	sharp	bool;
++	space	bool;
++	zero	bool;
+ }
+ 
+ func (f *Fmt) clearflags() {
+@@ -140,9 +140,9 @@ func (f *Fmt) pad(s string) {
+ 				buf[i] = padchar;
+ 			}
+ 			if left {
+-				s = string(buf) + s;
++				s = string(buf)+s;
+ 			} else {
+-				s = s + string(buf);
++				s = s+string(buf);
+ 			}
+ 		}
+ 	}
+@@ -155,7 +155,7 @@ func (f *Fmt) pad(s string) {
+ // marginally faster by splitting the 32-bit case out into a separate function
+ // but it's not worth the duplication, so val has 64 bits.
+ func putint(buf []byte, base, val uint64, digits string) int {
+-	i := len(buf) - 1;
++	i := len(buf)-1;
+ 	for val >= base {
+ 		buf[i] = digits[val%base];
+ 		i--;
+@@ -190,10 +190,10 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string
+ 	if f.prec_present {
+ 		prec = f.prec;
+ 		f.zero = false;
+-	} else if f.zero && f.wid_present && !f.minus && f.wid > 0{
++	} else if f.zero && f.wid_present && !f.minus && f.wid > 0 {
+ 		prec = f.wid;
+ 		if negative || f.plus || f.space {
+-			prec--;  // leave room for sign
++			prec--;	// leave room for sign
+ 		}
+ 	}
+ 
+@@ -211,7 +211,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string
+ 				i--;
+ 			}
+ 		case 16:
+-			buf[i] = 'x' + digits[10]-'a';
++			buf[i] = 'x'+digits[10]-'a';
+ 			i--;
+ 			buf[i] = '0';
+ 			i--;
+@@ -228,7 +228,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string
+ 		buf[i] = ' ';
+ 		i--;
+ 	}
+-	return string(buf[i+1:nByte]);
++	return string(buf[i+1 : nByte]);
+ }
+ 
+ // Fmt_d64 formats an int64 in decimal.
+@@ -395,7 +395,7 @@ func (f *Fmt) Fmt_c(v int) *Fmt {
+ func (f *Fmt) Fmt_s(s string) *Fmt {
+ 	if f.prec_present {
+ 		if f.prec < len(s) {
+-			s = s[0:f.prec];
++			s = s[0 : f.prec];
+ 		}
+ 	}
+ 	f.pad(s);
+@@ -527,28 +527,28 @@ func (f *Fmt) Fmt_fb32(v float32) *Fmt {
+ // float
+ func (x *Fmt) f(a float) *Fmt {
+ 	if strconv.FloatSize == 32 {
+-		return x.Fmt_f32(float32(a))
++		return x.Fmt_f32(float32(a));
+ 	}
+-	return x.Fmt_f64(float64(a))
++	return x.Fmt_f64(float64(a));
+ }
+ 
+ func (x *Fmt) e(a float) *Fmt {
+ 	if strconv.FloatSize == 32 {
+-		return x.Fmt_e32(float32(a))
++		return x.Fmt_e32(float32(a));
+ 	}
+-	return x.Fmt_e64(float64(a))
++	return x.Fmt_e64(float64(a));
+ }
+ 
+ func (x *Fmt) g(a float) *Fmt {
+ 	if strconv.FloatSize == 32 {
+-		return x.Fmt_g32(float32(a))
++		return x.Fmt_g32(float32(a));
+ 	}
+-	return x.Fmt_g64(float64(a))
++	return x.Fmt_g64(float64(a));
+ }
+ 
+ func (x *Fmt) fb(a float) *Fmt {
+ 	if strconv.FloatSize == 32 {
+-		return x.Fmt_fb32(float32(a))
++		return x.Fmt_fb32(float32(a));
+ 	}
+-	return x.Fmt_fb64(float64(a))
++	return x.Fmt_fb64(float64(a));
+ }
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 3c694f25f3..64f6f6ad42 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -90,12 +90,12 @@ type State interface {
+ 	// Write is the function to call to emit formatted output to be printed.
+ 	Write(b []byte) (ret int, err os.Error);
+ 	// Width returns the value of the width option and whether it has been set.
+-	Width()	(wid int, ok bool);
++	Width() (wid int, ok bool);
+ 	// Precision returns the value of the precision option and whether it has been set.
+-	Precision()	(prec int, ok bool);
++	Precision() (prec int, ok bool);
+ 
+ 	// Flag returns whether the flag c, a character, has been set.
+-	Flag(int)	bool;
++	Flag(int) bool;
+ }
+ 
+ // Formatter is the interface implemented by values with a custom formatter.
+@@ -110,7 +110,7 @@ type Formatter interface {
+ // The String method is used to print values passed as an operand
+ // to a %s or %v format or to an unformatted printer such as Print.
+ type Stringer interface {
+-	String() string
++	String() string;
+ }
+ 
+ // GoStringer is implemented by any value that has a GoString() method,
+@@ -118,7 +118,7 @@ type Stringer interface {
+ // The GoString method is used to print values passed as an operand
+ // to a %#v format.
+ type GoStringer interface {
+-	GoString() string
++	GoString() string;
+ }
+ 
+ const runeSelf = utf8.RuneSelf
+@@ -137,11 +137,11 @@ func newPrinter() *pp {
+ }
+ 
+ func (p *pp) Width() (wid int, ok bool) {
+-	return p.fmt.wid, p.fmt.wid_present
++	return p.fmt.wid, p.fmt.wid_present;
+ }
+ 
+ func (p *pp) Precision() (prec int, ok bool) {
+-	return p.fmt.prec, p.fmt.prec_present
++	return p.fmt.prec, p.fmt.prec_present;
+ }
+ 
+ func (p *pp) Flag(b int) bool {
+@@ -157,14 +157,14 @@ func (p *pp) Flag(b int) bool {
+ 	case '0':
+ 		return p.fmt.zero;
+ 	}
+-	return false
++	return false;
+ }
+ 
+ func (p *pp) ensure(n int) {
+ 	if len(p.buf) < n {
+ 		newn := allocSize + len(p.buf);
+ 		if newn < n {
+-			newn = n + allocSize
++			newn = n+allocSize;
+ 		}
+ 		b := make([]byte, newn);
+ 		for i := 0; i < p.n; i++ {
+@@ -184,7 +184,7 @@ func (p *pp) addstr(s string) {
+ }
+ 
+ func (p *pp) addbytes(b []byte, start, end int) {
+-	p.ensure(p.n + end-start);
++	p.ensure(p.n + end - start);
+ 	for i := start; i < end; i++ {
+ 		p.buf[p.n] = b[i];
+ 		p.n++;
+@@ -215,7 +215,7 @@ func Fprintf(w io.Writer, format string, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(*reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprintf(format, v);
+-	n, error = w.Write(p.buf[0:p.n]);
++	n, error = w.Write(p.buf[0 : p.n]);
+ 	return n, error;
+ }
+ 
+@@ -242,7 +242,7 @@ func Fprint(w io.Writer, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(*reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, false, false);
+-	n, error = w.Write(p.buf[0:p.n]);
++	n, error = w.Write(p.buf[0 : p.n]);
+ 	return n, error;
+ }
+ 
+@@ -273,7 +273,7 @@ func Fprintln(w io.Writer, a ...) (n int, error os.Error) {
+ 	v := reflect.NewValue(a).(*reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, true, true);
+-	n, error = w.Write(p.buf[0:p.n]);
++	n, error = w.Write(p.buf[0 : p.n]);
+ 	return n, error;
+ }
+ 
+@@ -360,7 +360,7 @@ func getFloat32(v reflect.Value) (val float32, ok bool) {
+ 	case *reflect.Float32Value:
+ 		return float32(v.Get()), true;
+ 	case *reflect.FloatValue:
+-		if v.Type().Size()*8 == 32 {
++		if v.Type().Size() * 8 == 32 {
+ 			return float32(v.Get()), true;
+ 		}
+ 	}
+@@ -370,7 +370,7 @@ func getFloat32(v reflect.Value) (val float32, ok bool) {
+ func getFloat64(v reflect.Value) (val float64, ok bool) {
+ 	switch v := v.(type) {
+ 	case *reflect.FloatValue:
+-		if v.Type().Size()*8 == 64 {
++		if v.Type().Size() * 8 == 64 {
+ 			return float64(v.Get()), true;
+ 		}
+ 	case *reflect.Float64Value:
+@@ -391,12 +391,12 @@ func getPtr(v reflect.Value) (val uintptr, ok bool) {
+ 
+ func parsenum(s string, start, end int) (n int, got bool, newi int) {
+ 	if start >= end {
+-		return 0, false, end
++		return 0, false, end;
+ 	}
+ 	isnum := false;
+ 	num := 0;
+ 	for '0' <= s[start] && s[start] <= '9' {
+-		num = num*10 + int(s[start] - '0');
++		num = num*10 + int(s[start]-'0');
+ 		start++;
+ 		isnum = true;
+ 	}
+@@ -422,8 +422,8 @@ func (p *pp) printField(field reflect.Value, plus, sharp bool, depth int) (was_s
+ 				return false;	// this value is not a string
+ 			}
+ 		}
+-	}
+-	s := "";
++		}
++		s := "";
+ BigSwitch:
+ 	switch f := field.(type) {
+ 	case *reflect.BoolValue:
+@@ -433,7 +433,7 @@ BigSwitch:
+ 	case *reflect.Float64Value:
+ 		s = p.fmt.Fmt_g64(f.Get()).Str();
+ 	case *reflect.FloatValue:
+-		if field.Type().Size()*8 == 32 {
++		if field.Type().Size() * 8 == 32 {
+ 			s = p.fmt.Fmt_g32(float32(f.Get())).Str();
+ 		} else {
+ 			s = p.fmt.Fmt_g64(float64(f.Get())).Str();
+@@ -478,7 +478,7 @@ BigSwitch:
+ 		v := f;
+ 		t := v.Type().(*reflect.StructType);
+ 		p.fmt.clearflags();	// clear flags for p.printField
+-		for i := 0; i < v.NumField();  i++ {
++		for i := 0; i < v.NumField(); i++ {
+ 			if i > 0 {
+ 				if sharp {
+ 					p.addstr(", ");
+@@ -502,7 +502,7 @@ BigSwitch:
+ 				p.addstr(field.Type().String());
+ 				p.addstr("(nil)");
+ 			} else {
+-				s = "<nil>"
++				s = "<nil>";
+ 			}
+ 		} else {
+ 			return p.printField(value, plus, sharp, depth+1);
+@@ -562,7 +562,7 @@ BigSwitch:
+ 			s = "<nil>";
+ 			break;
+ 		}
+-		p.fmt.sharp = true;  // turn 0x on
++		p.fmt.sharp = true;	// turn 0x on
+ 		s = p.fmt.Fmt_ux64(uint64(v)).Str();
+ 	case uintptrGetter:
+ 		v := f.Get();
+@@ -578,7 +578,7 @@ BigSwitch:
+ 			}
+ 			p.addstr(")");
+ 		} else {
+-			p.fmt.sharp = true;  // turn 0x on
++			p.fmt.sharp = true;	// turn 0x on
+ 			p.addstr(p.fmt.Fmt_ux64(uint64(f.Get())).Str());
+ 		}
+ 	default:
+@@ -604,9 +604,9 @@ BigSwitch:
+ 
+ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 	p.ensure(len(format));	// a good starting size
+-	end := len(format) - 1;
++	end := len(format)-1;
+ 	fieldnum := 0;	// we process one field per non-trivial format
+-	for i := 0; i <= end;  {
++	for i := 0; i <= end; {
+ 		c, w := utf8.DecodeRuneInString(format[i:len(format)]);
+ 		if c != '%' || i == end {
+ 			p.add(c);
+@@ -616,7 +616,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 		i++;
+ 		// flags and widths
+ 		p.fmt.clearflags();
+-		F: for ; i < end; i++ {
++	F:	for ; i < end; i++ {
+ 			switch format[i] {
+ 			case '#':
+ 				p.fmt.sharp = true;
+@@ -681,105 +681,105 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 		// int
+ 		case 'b':
+ 			if v, _, ok := getInt(field); ok {
+-				s = p.fmt.Fmt_b64(uint64(v)).Str()	// always unsigned
++				s = p.fmt.Fmt_b64(uint64(v)).Str();	// always unsigned
+ 			} else if v, ok := getFloat32(field); ok {
+-				s = p.fmt.Fmt_fb32(v).Str()
++				s = p.fmt.Fmt_fb32(v).Str();
+ 			} else if v, ok := getFloat64(field); ok {
+-				s = p.fmt.Fmt_fb64(v).Str()
++				s = p.fmt.Fmt_fb64(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'c':
+ 			if v, _, ok := getInt(field); ok {
+-				s = p.fmt.Fmt_c(int(v)).Str()
++				s = p.fmt.Fmt_c(int(v)).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'd':
+ 			if v, signed, ok := getInt(field); ok {
+ 				if signed {
+-					s = p.fmt.Fmt_d64(v).Str()
++					s = p.fmt.Fmt_d64(v).Str();
+ 				} else {
+-					s = p.fmt.Fmt_ud64(uint64(v)).Str()
++					s = p.fmt.Fmt_ud64(uint64(v)).Str();
+ 				}
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'o':
+ 			if v, signed, ok := getInt(field); ok {
+ 				if signed {
+-					s = p.fmt.Fmt_o64(v).Str()
++					s = p.fmt.Fmt_o64(v).Str();
+ 				} else {
+-					s = p.fmt.Fmt_uo64(uint64(v)).Str()
++					s = p.fmt.Fmt_uo64(uint64(v)).Str();
+ 				}
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'x':
+ 			if v, signed, ok := getInt(field); ok {
+ 				if signed {
+-					s = p.fmt.Fmt_x64(v).Str()
++					s = p.fmt.Fmt_x64(v).Str();
+ 				} else {
+-					s = p.fmt.Fmt_ux64(uint64(v)).Str()
++					s = p.fmt.Fmt_ux64(uint64(v)).Str();
+ 				}
+ 			} else if v, ok := getString(field); ok {
+ 				s = p.fmt.Fmt_sx(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'X':
+ 			if v, signed, ok := getInt(field); ok {
+ 				if signed {
+-					s = p.fmt.Fmt_X64(v).Str()
++					s = p.fmt.Fmt_X64(v).Str();
+ 				} else {
+-					s = p.fmt.Fmt_uX64(uint64(v)).Str()
++					s = p.fmt.Fmt_uX64(uint64(v)).Str();
+ 				}
+ 			} else if v, ok := getString(field); ok {
+ 				s = p.fmt.Fmt_sX(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 
+ 		// float
+ 		case 'e':
+ 			if v, ok := getFloat32(field); ok {
+-				s = p.fmt.Fmt_e32(v).Str()
++				s = p.fmt.Fmt_e32(v).Str();
+ 			} else if v, ok := getFloat64(field); ok {
+-				s = p.fmt.Fmt_e64(v).Str()
++				s = p.fmt.Fmt_e64(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'E':
+ 			if v, ok := getFloat32(field); ok {
+-				s = p.fmt.Fmt_E32(v).Str()
++				s = p.fmt.Fmt_E32(v).Str();
+ 			} else if v, ok := getFloat64(field); ok {
+-				s = p.fmt.Fmt_E64(v).Str()
++				s = p.fmt.Fmt_E64(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'f':
+ 			if v, ok := getFloat32(field); ok {
+-				s = p.fmt.Fmt_f32(v).Str()
++				s = p.fmt.Fmt_f32(v).Str();
+ 			} else if v, ok := getFloat64(field); ok {
+-				s = p.fmt.Fmt_f64(v).Str()
++				s = p.fmt.Fmt_f64(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'g':
+ 			if v, ok := getFloat32(field); ok {
+-				s = p.fmt.Fmt_g32(v).Str()
++				s = p.fmt.Fmt_g32(v).Str();
+ 			} else if v, ok := getFloat64(field); ok {
+-				s = p.fmt.Fmt_g64(v).Str()
++				s = p.fmt.Fmt_g64(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'G':
+ 			if v, ok := getFloat32(field); ok {
+-				s = p.fmt.Fmt_G32(v).Str()
++				s = p.fmt.Fmt_G32(v).Str();
+ 			} else if v, ok := getFloat64(field); ok {
+-				s = p.fmt.Fmt_G64(v).Str()
++				s = p.fmt.Fmt_G64(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 
+ 		// string
+@@ -792,27 +792,27 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 				}
+ 			}
+ 			if v, ok := getString(field); ok {
+-				s = p.fmt.Fmt_s(v).Str()
++				s = p.fmt.Fmt_s(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 		case 'q':
+ 			if v, ok := getString(field); ok {
+-				s = p.fmt.Fmt_q(v).Str()
++				s = p.fmt.Fmt_q(v).Str();
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 
+ 		// pointer
+ 		case 'p':
+ 			if v, ok := getPtr(field); ok {
+ 				if v == 0 {
+-					s = "<nil>"
++					s = "<nil>";
+ 				} else {
+-					s = "0x" + p.fmt.Fmt_uX64(uint64(v)).Str()
++					s = "0x" + p.fmt.Fmt_uX64(uint64(v)).Str();
+ 				}
+ 			} else {
+-				goto badtype
++				goto badtype;
+ 			}
+ 
+ 		// arbitrary value; do your best
+@@ -842,7 +842,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 			p.addstr(field.Type().String());
+ 			p.addstr("=");
+ 			p.printField(field, false, false, 0);
+-			if fieldnum + 1 < v.NumField() {
++			if fieldnum+1 < v.NumField() {
+ 				p.addstr(", ");
+ 			}
+ 		}
+@@ -852,7 +852,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 
+ func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool) {
+ 	prev_string := false;
+-	for fieldnum := 0; fieldnum < v.NumField();  fieldnum++ {
++	for fieldnum := 0; fieldnum < v.NumField(); fieldnum++ {
+ 		// always add spaces if we're doing println
+ 		field := getField(v, fieldnum);
+ 		if fieldnum > 0 {
+@@ -864,6 +864,6 @@ func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool) {
+ 		prev_string = p.printField(field, false, false, 0);
+ 	}
+ 	if addnewline {
+-		p.add('\n')
++		p.add('\n');
+ 	}
+ }

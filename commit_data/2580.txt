@@ -8,7 +8,120 @@ Date:   Thu Jul 2 18:02:42 2009 -0700
     DELTA=59  (44 added, 13 deleted, 2 changed)
     OCL=31105
     CL=31105
-
+---
  src/pkg/gob/codec_test.go |  4 +++-
  src/pkg/gob/decode.go     | 53 ++++++++++++++++++++++++++++++++++++-----------
  2 files changed, 44 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 8dd252b4ce..e25a719fad 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -525,7 +525,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ }
+ 
+ 
+-func TestEncode(t *testing.T) {
++func TestEndToEnd(t *testing.T) {
+ 	type T2 struct {
+ 		t string
+ 	}
+@@ -535,6 +535,7 @@ func TestEncode(t *testing.T) {
+ 		a, b,c int;
+ 		n *[3]float;
+ 		strs *[2]string;
++		int64s *[]int64;
+ 		s string;
+ 		y []byte;
+ 		t *T2;
+@@ -545,6 +546,7 @@ func TestEncode(t *testing.T) {
+ 		c: -5,
+ 		n: &[3]float{1.5, 2.5, 3.5},
+ 		strs: &[2]string{s1, s2},
++		int64s: &[]int64{77, 89, 123412342134},
+ 		s: "Now is the time",
+ 		y: strings.Bytes("hello, sailor"),
+ 		t: &T2{"this is T2"},
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 8a7440b0b4..80d772fd0d 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -313,30 +313,54 @@ func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uin
+ 	return state.err
+ }
+ 
+-func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid int, length int, indir, elemIndir int) os.Error {
++func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid, length, elemIndir int) os.Error {
++	instr := &decInstr{elemOp, 0, elemIndir, 0};
++	for i := 0; i < length && state.err == nil; i++ {
++		up := unsafe.Pointer(p);
++		if elemIndir > 1 {
++			up = decIndirect(up, elemIndir);
++		}
++		elemOp(instr, state, up);
++		p += uintptr(elemWid);
++	}
++	return state.err
++}
++
++func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid, length, indir, elemIndir int) os.Error {
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+ 		if *(*unsafe.Pointer)(up) == nil {
+-			// Allocate the structure by making a slice of bytes and recording the
+-			// address of the beginning of the array. TODO(rsc).
++			// Allocate the array by making a slice of bytes of the correct size
++			// and taking the address of the beginning of the array. TODO(rsc).
+ 			b := make([]byte, atyp.Size());
+-			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
++			*(**byte)(up) = &b[0];
+ 		}
+ 		p = *(*uintptr)(up);
+ 	}
+-	instr := &decInstr{elemOp, 0, elemIndir, 0};
+ 	if DecodeUint(state) != uint64(length) {
+-		state.err = os.ErrorString("length mismatch in decodeArray");
++		return os.ErrorString("length mismatch in decodeArray");
+ 	}
+-	for i := 0; i < length && state.err == nil; i++ {
++	return decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir);
++}
++
++func decodeSlice(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid, indir, elemIndir int) os.Error {
++	length := int(DecodeUint(state));
++	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+-		if elemIndir > 1 {
+-			up = decIndirect(up, elemIndir);
++		if *(*unsafe.Pointer)(up) == nil {
++			// Allocate the slice header.
++			*(*unsafe.Pointer)(up) = unsafe.Pointer(new(reflect.SliceHeader));
+ 		}
+-		elemOp(instr, state, up);
+-		p += uintptr(elemWid);
++		p = *(*uintptr)(up);
+ 	}
+-	return state.err
++	// Allocate storage for the slice elements, that is, the underlying array.
++	data := make([]byte, length*atyp.Elem().Size());
++	// Always write a header at p.
++	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
++	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
++	hdrp.Len = uint32(length);
++	hdrp.Cap = uint32(length);
++	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, length, elemIndir);
+ }
+ 
+ var decEngineMap = make(map[reflect.Type] *decEngine)
+@@ -370,6 +394,11 @@ func decOpFor(typ reflect.Type) decOp {
+ 			case atyp.Elem().Kind() == reflect.Uint8Kind:
+ 				op = decUint8Array
+ 			case atyp.IsSlice():
++				elemOp := decOpFor(atyp.Elem());
++				_, elemIndir := indirect(atyp.Elem());
++				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
++					state.err = decodeSlice(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), i.indir, elemIndir);
++				};
+ 			case !atyp.IsSlice():
+ 				elemOp := decOpFor(atyp.Elem());
+ 				_, elemIndir := indirect(atyp.Elem());

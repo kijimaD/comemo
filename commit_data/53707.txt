@@ -14,6 +14,20 @@ Date:   Sun Aug 28 12:36:50 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/unified.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index f5a4fbc26b..394336c020 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -188,7 +188,7 @@ func writePkgStub(noders []*noder) string {
+ 		scope := pkg.Scope()
+ 		names := scope.Names()
+ 		w.Len(len(names))
+-		for _, name := range scope.Names() {
++		for _, name := range names {
+ 			w.obj(scope.Lookup(name), nil)
+ 		}
+ 

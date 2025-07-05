@@ -15,7 +15,145 @@ Date:   Sun Oct 19 10:33:22 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/156390043
-
+---
  src/flag/flag.go      | 30 ++++++++++++++++++++++++++
  src/flag/flag_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 90 insertions(+)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 323e452a83..56860fc9de 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -235,6 +235,9 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
+ // If a Value has an IsBoolFlag() bool method returning true,
+ // the command-line parser makes -name equivalent to -name=true
+ // rather than using the next command-line argument.
++//
++// It is the implementer's responsibility to verify, if required, that the
++// flag has been set only once.
+ type Value interface {
+ 	String() string
+ 	Set(string) error
+@@ -270,6 +273,7 @@ type FlagSet struct {
+ 	parsed        bool
+ 	actual        map[string]*Flag
+ 	formal        map[string]*Flag
++	set           map[*Flag]bool
+ 	args          []string // arguments after flags
+ 	errorHandling ErrorHandling
+ 	output        io.Writer // nil means stderr; use out() accessor
+@@ -717,6 +721,25 @@ func (f *FlagSet) usage() {
+ 	}
+ }
+ 
++// alreadySet reports whether the flag has already been set during parsing.
++// Because user-defined flags may legally be set multiple times, it only
++// complains about flags defined in this package.
++func (f *FlagSet) alreadySet(flag *Flag) bool {
++	if f.set == nil {
++		f.set = make(map[*Flag]bool)
++	}
++	switch flag.Value.(type) {
++	case *boolValue, *intValue, *int64Value, *uintValue, *uint64Value, *stringValue, *float64Value, *durationValue:
++	default:
++		return false // Not one of ours.
++	}
++	if f.set[flag] {
++		return true
++	}
++	f.set[flag] = true
++	return false
++}
++
+ // parseOne parses one flag. It reports whether a flag was seen.
+ func (f *FlagSet) parseOne() (bool, error) {
+ 	if len(f.args) == 0 {
+@@ -760,6 +783,12 @@ func (f *FlagSet) parseOne() (bool, error) {
+ 		}
+ 		return false, f.failf("flag provided but not defined: -%s", name)
+ 	}
++
++	// has it already been set?
++	if f.alreadySet(flag) {
++		return false, f.failf("flag set multiple times: -%s", name)
++	}
++
+ 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
+ 		if has_value {
+ 			if err := fv.Set(value); err != nil {
+@@ -795,6 +824,7 @@ func (f *FlagSet) parseOne() (bool, error) {
+ // The return value will be ErrHelp if -help or -h were set but not defined.
+ func (f *FlagSet) Parse(arguments []string) error {
+ 	f.parsed = true
++	f.set = nil
+ 	f.args = arguments
+ 	for {
+ 		seen, err := f.parseOne()
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 8c88c8c274..80d92a5e71 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -377,3 +377,63 @@ func TestHelp(t *testing.T) {
+ 		t.Fatal("help was called; should not have been for defined help flag")
+ 	}
+ }
++
++// Test that a standard flag can be set only once. Need to verify every flag type.
++// User-defined flags can be set multiple times, and this is verified in the tests above.
++func TestErrorOnMultipleSettings(t *testing.T) {
++	check := func(typ string, err error) {
++		if err == nil {
++			t.Errorf("%s flag can be set multiple times")
++		} else if !strings.Contains(err.Error(), "flag set multiple") {
++			t.Fatalf("expected multiple setting error, got %q", err)
++		}
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Bool("v", false, "usage")
++		check("bool", flags.Parse([]string{"-v", "-v"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Int("v", 0, "usage")
++		check("int", flags.Parse([]string{"-v", "1", "-v", "2"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Int64("v", 0, "usage")
++		check("int64", flags.Parse([]string{"-v", "1", "-v", "2"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Uint("v", 0, "usage")
++		check("uint", flags.Parse([]string{"-v", "1", "-v", "2"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Uint64("v", 0, "usage")
++		check("uint64", flags.Parse([]string{"-v", "1", "-v", "2"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.String("v", "", "usage")
++		check("string", flags.Parse([]string{"-v", "1", "-v", "2"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Float64("v", 0, "usage")
++		check("float64", flags.Parse([]string{"-v", "1", "-v", "2"}))
++	}
++	{
++		var flags FlagSet
++		flags.Init("test", ContinueOnError)
++		flags.Duration("v", 0, "usage")
++		check("duration", flags.Parse([]string{"-v", "1s", "-v", "2s"}))
++	}
++}

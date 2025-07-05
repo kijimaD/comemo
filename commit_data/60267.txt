@@ -15,7 +15,38 @@ Date:   Fri May 24 18:04:11 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/588316
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/testshared/testdata/depBase/dep.go | 5 +++++
  src/cmd/link/internal/ld/deadcode.go                    | 6 ++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go b/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
+index a143fe2ff1..6a8bf49c58 100644
+--- a/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
++++ b/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
+@@ -51,3 +51,8 @@ func F() int {
+ 	defer func() {}()
+ 	return V
+ }
++
++func H() {
++	// Issue 67635: deadcoded closures causes linker crash.
++	func() { F() }()
++}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 241cf603db..20609ed7bf 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -50,6 +50,12 @@ func (d *deadcodePass) init() {
+ 		n := d.ldr.NDef()
+ 		for i := 1; i < n; i++ {
+ 			s := loader.Sym(i)
++			if d.ldr.SymType(s) == sym.STEXT && d.ldr.SymSize(s) == 0 {
++				// Zero-sized text symbol is a function deadcoded by the
++				// compiler. It doesn't really get compiled, and its
++				// metadata may be missing.
++				continue
++			}
+ 			d.mark(s, 0)
+ 		}
+ 		d.mark(d.ctxt.mainInittasks, 0)

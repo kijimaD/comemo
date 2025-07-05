@@ -9,7 +9,40 @@ Date:   Thu Jan 12 15:21:21 2017 -0800
     Change-Id: I50bded3af0db673fc92b20c41a86b9cae614acd9
     Reviewed-on: https://go-review.googlesource.com/35191
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go   | 2 +-
  src/cmd/compile/internal/gc/universe.go | 8 ++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7a52dc612f..1955a0e42f 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -284,7 +284,7 @@ type Param struct {
+ 	//
+ 	// TODO: Should Func pragmas also be stored on the Name?
+ 	Pragma Pragma
+-	Alias  bool // node is alias for Ntype
++	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
+ }
+ 
+ // Func holds Node fields used only with function-like nodes.
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 30c9c3783a..d23aebeafb 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -398,6 +398,14 @@ func lexinit1() {
+ 	// errortype.Orig = makeErrorInterface()
+ 	s.Def = typenod(errortype)
+ 
++	// We create separate byte and rune types for better error messages
++	// rather than just creating type alias *Sym's for the uint8 and
++	// int32 types. Hence, (bytetype|runtype).Sym.isAlias() is false.
++	// TODO(gri) Should we get rid of this special case (at the cost
++	// of less informative error messages involving bytes and runes)?
++	// (Alternatively, we could introduce an OTALIAS node representing
++	// type aliases, albeit at the cost of having to deal with it everywhere).
++
+ 	// byte alias
+ 	s = Pkglookup("byte", builtinpkg)
+ 	bytetype = typ(TUINT8)

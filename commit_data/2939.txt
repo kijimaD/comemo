@@ -8,6 +8,11 @@ Date:   Tue Aug 11 11:23:05 2009 -0700
     DELTA=80  (40 added, 40 deleted, 0 changed)
     OCL=33024
     CL=33027
-
+---
  src/pkg/bignum/{fast.arith.s => arith_amd64.s} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/bignum/fast.arith.s b/src/pkg/bignum/arith_amd64.s
+similarity index 100%
+rename from src/pkg/bignum/fast.arith.s
+rename to src/pkg/bignum/arith_amd64.s

@@ -16,9 +16,129 @@ Date:   Fri Jan 29 18:26:06 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/clientserver_test.go  | 21 +++++++++++++++++++++
  src/net/http/response.go           | 11 +++++++----
  src/net/http/responsewrite_test.go | 33 +++++++++++++++++++++++++++++++++
  src/net/http/server.go             |  2 +-
  4 files changed, 62 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index fdc47db60a..c2bab378e3 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1102,6 +1102,27 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
+ 	}
+ }
+ 
++// Tests that we support bogus under-100 HTTP statuses, because we historically
++// have. This might change at some point, but not yet in Go 1.6.
++func TestBogusStatusWorks_h1(t *testing.T) { testBogusStatusWorks(t, h1Mode) }
++func TestBogusStatusWorks_h2(t *testing.T) { testBogusStatusWorks(t, h2Mode) }
++func testBogusStatusWorks(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	const code = 7
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.WriteHeader(code)
++	}))
++	defer cst.close()
++
++	res, err := cst.c.Get(cst.ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if res.StatusCode != code {
++		t.Errorf("StatusCode = %d; want %d", res.StatusCode, code)
++	}
++}
++
+ type noteCloseConn struct {
+ 	net.Conn
+ 	closeFunc func()
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index a596d1d342..b49b77d8b9 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"crypto/tls"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"net/textproto"
+ 	"net/url"
+@@ -228,11 +229,13 @@ func (r *Response) Write(w io.Writer) error {
+ 		if !ok {
+ 			text = "status code " + strconv.Itoa(r.StatusCode)
+ 		}
++	} else {
++		// Just to reduce stutter, if user set r.Status to "200 OK" and StatusCode to 200.
++		// Not important.
++		text = strings.TrimPrefix(text, strconv.Itoa(r.StatusCode)+" ")
+ 	}
+-	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
+-	statusCode := strconv.Itoa(r.StatusCode) + " "
+-	text = strings.TrimPrefix(text, statusCode)
+-	if _, err := io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n"); err != nil {
++
++	if _, err := fmt.Fprintf(w, "HTTP/%d.%d %03d %s\r\n", r.ProtoMajor, r.ProtoMinor, r.StatusCode, text); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/net/http/responsewrite_test.go b/src/net/http/responsewrite_test.go
+index a2a32d0107..90f6767d96 100644
+--- a/src/net/http/responsewrite_test.go
++++ b/src/net/http/responsewrite_test.go
+@@ -222,6 +222,39 @@ func TestResponseWrite(t *testing.T) {
+ 			},
+ 			"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef",
+ 		},
++
++		// Status code under 100 should be zero-padded to
++		// three digits.  Still bogus, but less bogus. (be
++		// consistent with generating three digits, since the
++		// Transport requires it)
++		{
++			Response{
++				StatusCode: 7,
++				Status:     "license to violate specs",
++				ProtoMajor: 1,
++				ProtoMinor: 0,
++				Request:    dummyReq("GET"),
++				Header:     Header{},
++				Body:       nil,
++			},
++
++			"HTTP/1.0 007 license to violate specs\r\nContent-Length: 0\r\n\r\n",
++		},
++
++		// No stutter.
++		{
++			Response{
++				StatusCode: 123,
++				Status:     "123 Sesame Street",
++				ProtoMajor: 1,
++				ProtoMinor: 0,
++				Request:    dummyReq("GET"),
++				Header:     Header{},
++				Body:       nil,
++			},
++
++			"HTTP/1.0 123 Sesame Street\r\nContent-Length: 0\r\n\r\n",
++		},
+ 	}
+ 
+ 	for i := range respWriteTests {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a2f9083a51..a2ef0ddf20 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1152,7 +1152,7 @@ func statusLine(req *Request, code int) string {
+ 	if proto11 {
+ 		proto = "HTTP/1.1"
+ 	}
+-	codestring := strconv.Itoa(code)
++	codestring := fmt.Sprintf("%03d", code)
+ 	text, ok := statusText[code]
+ 	if !ok {
+ 		text = "status code " + codestring

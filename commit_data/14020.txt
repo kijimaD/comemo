@@ -7,7 +7,7 @@ Date:   Thu Oct 4 16:53:05 2012 +1000
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/6523045
-
+---
  doc/play/playground.js | 154 ++++++++++++++++++++-----------------------------
  doc/style.css          |  78 +++++++++++++++++++++++++
  lib/godoc/example.html |  23 ++++++--
@@ -15,3 +15,579 @@ Date:   Thu Oct 4 16:53:05 2012 +1000
  src/cmd/godoc/godoc.go |  32 +++++++---
  src/cmd/godoc/main.go  |  26 ++++++++-
  6 files changed, 248 insertions(+), 107 deletions(-)
+
+diff --git a/doc/play/playground.js b/doc/play/playground.js
+index d7cc58d6e8..3f766a9bf1 100644
+--- a/doc/play/playground.js
++++ b/doc/play/playground.js
+@@ -3,23 +3,18 @@
+ // license that can be found in the LICENSE file.
+ 
+ // opts is an object with these keys
+-// 	codeEl - code editor element 
++// 	codeEl - code editor element
+ // 	outputEl - program output element
+-// 	runEl - run button element
++//	runEl - run button element
+ // 	fmtEl - fmt button element (optional)
+ // 	shareEl - share button element (optional)
+ // 	shareURLEl - share URL text input element (optional)
+ // 	shareRedirect - base URL to redirect to on share (optional)
+-// 	preCompile - callback to mutate request data before compiling (optional)
+-// 	postCompile - callback to read response data after compiling (optional)
+-// 	simple - use plain textarea instead of CodeMirror. (optional)
+-// 	toysEl - select element with a list of toys. (optional)
++//	enableHistory - enable using HTML5 history API (optional)
+ function playground(opts) {
+-	var simple = opts['simple'];
+ 	var code = $(opts['codeEl']);
+-	var editor;
+ 
+-	// autoindent helpers for simple mode.
++	// autoindent helpers.
+ 	function insertTabs(n) {
+ 		// find the selection start and end
+ 		var start = code[0].selectionStart;
+@@ -49,12 +44,12 @@ function playground(opts) {
+ 			}
+ 		}
+ 		setTimeout(function() {
+-			insertTabs(tabs, 1);
++			insertTabs(tabs);
+ 		}, 1);
+ 	}
+ 
+ 	function keyHandler(e) {
+-		if (simple && e.keyCode == 9) { // tab
++		if (e.keyCode == 9) { // tab
+ 			insertTabs(1);
+ 			e.preventDefault();
+ 			return false;
+@@ -64,58 +59,19 @@ function playground(opts) {
+ 				run();
+ 				e.preventDefault();
+ 				return false;
+-			} else if (simple) {
++			} else {
+ 				autoindent(e.target);
+ 			}
+ 		}
+ 		return true;
+ 	}
+-	if (simple) {
+-		code.unbind('keydown').bind('keydown', keyHandler);
+-	} else {
+-		editor = CodeMirror.fromTextArea(
+-			code[0],
+-			{
+-				lineNumbers: true,
+-				indentUnit: 8,
+-				indentWithTabs: true,
+-				onKeyEvent: function(editor, e) { keyHandler(e); }
+-			}
+-		);
+-	}
++	code.unbind('keydown').bind('keydown', keyHandler);
+ 	var output = $(opts['outputEl']);
+ 
+-	function clearErrors() {
+-		if (!editor) {
+-			return;
+-		}
+-		var lines = editor.lineCount();
+-		for (var i = 0; i < lines; i++) {
+-			editor.setLineClass(i, null);
+-		}
+-	}
+-	function highlightErrors(text) {
+-		if (!editor) {
+-			return;
+-		}
+-		var errorRe = /[a-z]+\.go:([0-9]+):/g;
+-		var result;
+-		while ((result = errorRe.exec(text)) != null) {
+-			var line = result[1]*1-1;
+-			editor.setLineClass(line, "errLine")
+-		}
+-	}
+ 	function body() {
+-		if (editor) {
+-			return editor.getValue();
+-		}
+ 		return $(opts['codeEl']).val();
+ 	}
+ 	function setBody(text) {
+-		if (editor) {
+-			editor.setValue(text);
+-			return;
+-		}
+ 		$(opts['codeEl']).val(text);
+ 	}
+ 	function origin(href) {
+@@ -128,22 +84,56 @@ function playground(opts) {
+ 	}
+ 	function setOutput(text, error) {
+ 		output.empty();
++		$(".lineerror").removeClass("lineerror");
+ 		if (error) {
+ 			output.addClass("error");
++			var regex = /prog.go:([0-9]+)/g;
++			var r;
++			while (r = regex.exec(text)) {
++				$(".lines div").eq(r[1]-1).addClass("lineerror");
++			}
+ 		}
+ 		$("<pre/>").text(text).appendTo(output);
+ 	}
+ 
++	var pushedEmpty = (window.location.pathname == "/");
++	function inputChanged() {
++		if (pushedEmpty) {
++			return;
++		}
++		pushedEmpty = true;
++
++		$(opts['shareURLEl']).hide();
++		window.history.pushState(null, "", "/");
++	}
++
++	function popState(e) {
++		if (e == null) {
++			return;
++		}
++
++		if (e && e.state && e.state.code) {
++			setBody(e.state.code);
++		}
++	}
++
++	var rewriteHistory = false;
++
++	if (window.history &&
++		window.history.pushState &&
++		window.addEventListener &&
++		opts['enableHistory']) {
++		rewriteHistory = true;
++		code[0].addEventListener('input', inputChanged);
++		window.addEventListener('popstate', popState)
++	}
++
+ 	var seq = 0;
+ 	function run() {
+-		clearErrors();
+ 		loading();
+ 		seq++;
+ 		var cur = seq;
+ 		var data = {"body": body()};
+-		if (opts['preCompile']) {
+-			opts['preCompile'](data);
+-		}
+ 		$.ajax("/compile", {
+ 			data: data,
+ 			type: "POST",
+@@ -152,15 +142,11 @@ function playground(opts) {
+ 				if (seq != cur) {
+ 					return;
+ 				}
+-				if (opts['postCompile']) {
+-					opts['postCompile'](data);
+-				}
+ 				if (!data) {
+ 					return;
+ 				}
+ 				if (data.compile_errors != "") {
+ 					setOutput(data.compile_errors, true);
+-					highlightErrors(data.compile_errors);
+ 					return;
+ 				}
+ 				var out = ""+data.output;
+@@ -174,12 +160,10 @@ function playground(opts) {
+ 				}
+ 				setOutput(out, false);
+ 			},
+-			error: function(xhr) {
+-				var text = "Error communicating with remote server.";
+-				if (xhr.status == 501) {
+-					text = xhr.responseText;
+-				}
+-				output.addClass("error").text(text);
++			error: function() {
++				output.addClass("error").text(
++					"Error communicating with remote server."
++				);
+ 			}
+ 		});
+ 	}
+@@ -194,7 +178,6 @@ function playground(opts) {
+ 			success: function(data) {
+ 				if (data.Error) {
+ 					setOutput(data.Error, true);
+-					highlightErrors(data.Error);
+ 					return;
+ 				}
+ 				setBody(data.Body);
+@@ -203,23 +186,6 @@ function playground(opts) {
+ 		});
+ 	});
+ 
+-	$(opts['toysEl']).bind('change', function() {
+-		var toy = $(this).val();
+-		loading();
+-		$.ajax("/doc/play/"+toy, {
+-			processData: false,
+-			type: "GET",
+-			complete: function(xhr) {
+-				if (xhr.status != 200) {
+-					setOutput("Server error; try again.", true);
+-					return;
+-				}
+-				setBody(xhr.responseText);
+-				setOutput("", false);
+-			}
+-		});
+-	});
+-
+ 	if (opts['shareEl'] != null && (opts['shareURLEl'] != null || opts['shareRedirect'] != null)) {
+ 		var shareURL;
+ 		if (opts['shareURLEl']) {
+@@ -229,16 +195,13 @@ function playground(opts) {
+ 		$(opts['shareEl']).click(function() {
+ 			if (sharing) return;
+ 			sharing = true;
++			var sharingData = body();
+ 			$.ajax("/share", {
+ 				processData: false,
+-				data: body(),
++				data: sharingData,
+ 				type: "POST",
+ 				complete: function(xhr) {
+ 					sharing = false;
+-					if (xhr.status == 501) {
+-						alert(xhr.responseText);
+-						return;
+-					}
+ 					if (xhr.status != 200) {
+ 						alert("Server error; try again.");
+ 						return;
+@@ -247,13 +210,20 @@ function playground(opts) {
+ 						window.location = opts['shareRedirect'] + xhr.responseText;
+ 					}
+ 					if (shareURL) {
+-						var url = origin(window.location) + "/p/" + xhr.responseText;
++						var path = "/p/" + xhr.responseText
++						var url = origin(window.location) + path;
+ 						shareURL.show().val(url).focus().select();
++
++						if (rewriteHistory) {
++							var historyData = {
++								"code": sharingData,
++							};
++							window.history.pushState(historyData, "", path);
++							pushedEmpty = false;
++						}
+ 					}
+ 				}
+ 			});
+ 		});
+ 	}
+-
+-	return editor;
+ }
+diff --git a/doc/style.css b/doc/style.css
+index a0c6320987..4dd10c4c9e 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -161,6 +161,7 @@ div#footer {
+ div#menu > a,
+ div#menu > input,
+ div#learn .buttons a,
++div.play .buttons a,
+ div#blog .read a {
+ 	padding: 10px;
+ 
+@@ -181,6 +182,7 @@ div#menu > a {
+ }
+ a#start,
+ div#learn .buttons a,
++div.play .buttons a,
+ div#blog .read a {
+ 	color: #222;
+ 	border: 1px solid #375EAB;
+@@ -391,3 +393,79 @@ img.gopher {
+ 	margin-bottom: -120px;
+ }
+ h2 { clear: right; }
++
++div.play {
++	padding: 0 20px 40px 20px;
++}
++div.play pre,
++div.play textarea,
++div.play .lines {
++	padding: 0;
++	margin: 0;
++	font-family: Menlo, monospace;
++	font-size: 14px;
++}
++div.play .input {
++	padding: 10px;
++	margin-top: 10px;
++
++	-webkit-border-top-left-radius: 5px;
++	-webkit-border-top-right-radius: 5px;
++	-moz-border-radius-topleft: 5px;
++	-moz-border-radius-topright: 5px;
++	border-top-left-radius: 5px;
++	border-top-right-radius: 5px;
++
++	overflow: hidden;
++}
++div.play .input textarea {
++	width: 100%;
++	height: 100%;
++	border: none;
++	outline: none;
++	resize: none;
++
++	overflow: hidden;
++}
++div.play .output {
++	border-top: none !important;
++
++	padding: 10px;
++	max-height: 200px;
++	overflow: auto;
++
++	-webkit-border-bottom-right-radius: 5px;
++	-webkit-border-bottom-left-radius: 5px;
++	-moz-border-radius-bottomright: 5px;
++	-moz-border-radius-bottomleft: 5px;
++	border-bottom-right-radius: 5px;
++	border-bottom-left-radius: 5px;
++}
++div.play .output pre {
++	padding: 0;
++
++	-webkit-border-radius: 0;
++	-moz-border-radius: 0;
++	border-radius: 0;
++}
++div.play .input,
++div.play .input textarea,
++div.play .output,
++div.play .output pre {
++	background: #FFFFD8;
++}
++div.play .input,
++div.play .output {
++	border: 1px solid #375EAB;
++}
++div.play .buttons {
++	float: right;
++	padding: 20px 0 10px 0;
++	text-align: right;
++}
++div.play .buttons a {
++	height: 16px;
++	margin-left: 5px;
++	padding: 10px;
++	cursor: pointer;
++}
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index ede31d61f9..a6df54be6f 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -5,11 +5,24 @@
+ 	<div class="expanded">
+ 		<p class="exampleHeading toggleButton">▾ <span class="text">Example{{example_suffix .Name}}</span></p>
+ 		{{with .Doc}}<p>{{html .}}</p>{{end}}
+-		<p>Code:</p>
+-		<pre class="code">{{.Code}}</pre>
+-		{{with .Output}}
+-		<p>Output:</p>
+-		<pre class="output">{{html .}}</pre>
++		{{$output := .Output}}
++		{{with .Play}}
++			<div class="play">
++				<div class="input"><textarea class="code">{{.}}</textarea></div>
++				<div class="output"><pre>{{html $output}}</pre></div>
++				<div class="buttons">
++					<a class="run" title="Run this code [shift-enter]">Run</a>
++					<a class="fmt" title="Format this code">Format</a>
++					<a class="share" title="Share this code">Share</a>
++				</div>
++			</div>
++		{{else}}
++			<p>Code:</p>
++			<pre class="code">{{.Code}}</pre>
++			{{with .Output}}
++			<p>Output:</p>
++			<pre class="output">{{html .}}</pre>
++			{{end}}
+ 		{{end}}
+ 	</div>
+ </div>
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 3c0dfa41bf..c5152741ec 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -222,3 +222,45 @@
+ 	<p>Need more packages? Take a look at the <a href="http://godashboard.appspot.com/">Go Project Dashboard</a>.</p>
+ 	{{end}}
+ {{end}}
++
++{{if $.Examples}}
++<script type="text/javascript" src="/doc/play/playground.js"></script>
++<script>
++$(document).ready(function() {
++	'use strict';
++	// Set up playground when each element is toggled.
++	$('div.play').each(function (i, el) {
++		var built = false;
++		$(el).closest('.toggle').click(function() {
++			// Only set up playground once.
++			if (built) {
++				return;
++			}
++			built = true;
++
++			// Set up playground.
++			var code = $('.code', el);
++			playground({
++				'codeEl':   code,
++				'outputEl': $('.output', el),
++				'runEl':    $('.run', el),
++				'fmtEl':    $('.fmt', el),
++				'shareEl':  $('.share', el),
++				'shareRedirect': 'http://play.golang.org/p/'
++			});
++
++			// Make the code textarea resize to fit content.
++			var resize = function() {
++				code.height(0);
++				var h = code[0].scrollHeight;
++				code.height(h+20); // minimize bouncing
++				code.closest('.input').height(h);
++			};
++			code.on('keydown', resize);
++			code.on('keyup', resize);
++			code.keyup(); // resize now.
++		});
++	});
++});
++</script>
++{{end}}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5cdc3a5a04..0dc2378e23 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -62,6 +62,7 @@ var (
+ 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
+ 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
+ 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
++	showPlayground = flag.Bool("play", false, "enable playground in web interface")
+ 
+ 	// search index
+ 	indexEnabled = flag.Bool("index", false, "enable search index")
+@@ -320,8 +321,8 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 	for _, eg := range examples {
+ 		name := eg.Name
+ 
+-		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name
+-		// while keeping uppercase Braz in Foo_Braz
++		// Strip lowercase braz in Foo_braz or Foo_Bar_braz from name
++		// while keeping uppercase Braz in Foo_Braz.
+ 		if i := strings.LastIndex(name, "_"); i != -1 {
+ 			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
+ 				name = name[:i]
+@@ -336,9 +337,11 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
+ 		code := node_htmlFunc(cnode, fset)
+ 		out := eg.Output
++		wholeFile := true
+ 
+-		// additional formatting if this is a function body
++		// Additional formatting if this is a function body.
+ 		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
++			wholeFile = false
+ 			// remove surrounding braces
+ 			code = code[1 : n-1]
+ 			// unindent
+@@ -347,14 +350,29 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
+ 				code = strings.TrimSpace(code[:loc[0]])
+ 			}
+-		} else {
+-			// drop output, as the output comment will appear in the code
++		}
++
++		// Write out the playground code in standard Go style
++		// (use tabs, no comment highlight, etc).
++		play := ""
++		if eg.Play != nil && *showPlayground {
++			var buf bytes.Buffer
++			err := (&printer.Config{Mode: printer.TabIndent, Tabwidth: 8}).Fprint(&buf, fset, eg.Play)
++			if err != nil {
++				log.Print(err)
++			} else {
++				play = buf.String()
++			}
++		}
++
++		// Drop output, as the output comment will appear in the code.
++		if wholeFile && play == "" {
+ 			out = ""
+ 		}
+ 
+ 		err := exampleHTML.Execute(&buf, struct {
+-			Name, Doc, Code, Output string
+-		}{eg.Name, eg.Doc, code, out})
++			Name, Doc, Code, Play, Output string
++		}{eg.Name, eg.Doc, code, play, out})
+ 		if err != nil {
+ 			log.Print(err)
+ 		}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index fba39853a5..b2b4248da0 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -283,9 +283,13 @@ func main() {
+ 
+ 		registerPublicHandlers(http.DefaultServeMux)
+ 
+-		// Playground handlers are not available in local godoc.
+-		http.HandleFunc("/compile", disabledHandler)
+-		http.HandleFunc("/share", disabledHandler)
++		playHandler := disabledHandler
++		if *showPlayground {
++			playHandler = bounceToPlayground
++		}
++		http.HandleFunc("/compile", playHandler)
++		http.HandleFunc("/share", playHandler)
++		http.HandleFunc("/fmt", playHandler)
+ 
+ 		// Initialize default directory tree with corresponding timestamp.
+ 		// (Do it in a goroutine so that launch is quick.)
+@@ -466,6 +470,22 @@ type httpWriter struct {
+ func (w *httpWriter) Header() http.Header  { return w.h }
+ func (w *httpWriter) WriteHeader(code int) { w.code = code }
+ 
++// bounceToPlayground forwards the request to play.golang.org.
++// TODO(adg): implement this stuff locally.
++func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
++	defer req.Body.Close()
++	req.URL.Scheme = "http"
++	req.URL.Host = "play.golang.org"
++	resp, err := http.Post(req.URL.String(), req.Header.Get("Content-type"), req.Body)
++	if err != nil {
++		http.Error(w, err.Error(), 500)
++		return
++	}
++	w.WriteHeader(resp.StatusCode)
++	io.Copy(w, resp.Body)
++	resp.Body.Close()
++}
++
+ // disabledHandler serves a 501 "Not Implemented" response.
+ func disabledHandler(w http.ResponseWriter, r *http.Request) {
+ 	w.WriteHeader(http.StatusNotImplemented)

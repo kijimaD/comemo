@@ -14,6 +14,20 @@ Date:   Mon Apr 28 19:35:38 2025 +0800
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/internal/obj/loong64/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 0d098f74f8..e9ff365b8c 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -836,7 +836,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 	call.Mark |= BRANCH
+ 
+-	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
++	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
+ 
+ 	// JMP start
+ 	jmp := obj.Appendp(unspill, c.newprog)

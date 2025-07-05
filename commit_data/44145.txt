@@ -12,6 +12,20 @@ Date:   Thu May 14 16:11:53 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 13ccb86a03..e29b6e8e3b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1730,7 +1730,7 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
+ 
+ 	// Coverage instrumentation counters for libfuzzer.
+-	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
++	if len(state.data2[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+ 		state.allocateNamedSectionAndAssignSyms2(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+ 	}
+ 

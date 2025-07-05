@@ -9,7 +9,46 @@ Date:   Fri Aug 25 21:24:15 2017 -0400
     Change-Id: I739db561acff6d91b0f3559c8bb45437f11c0b04
     Reviewed-on: https://go-review.googlesource.com/59250
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/cipherhw/cipherhw_amd64.go | 8 ++++++++
  src/crypto/internal/cipherhw/generic.go        | 4 +---
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/cipherhw/cipherhw_amd64.go b/src/crypto/internal/cipherhw/cipherhw_amd64.go
+index be0d490a22..a1267b17a2 100644
+--- a/src/crypto/internal/cipherhw/cipherhw_amd64.go
++++ b/src/crypto/internal/cipherhw/cipherhw_amd64.go
+@@ -6,11 +6,19 @@
+ 
+ package cipherhw
+ 
++import "crypto/internal/boring"
++
+ // defined in asm_amd64.s
+ func hasAESNI() bool
+ 
+ // AESGCMSupport returns true if the Go standard library supports AES-GCM in
+ // hardware.
+ func AESGCMSupport() bool {
++	// If BoringCrypto is enabled, we report having
++	// AES-GCM support, so that crypto/tls will
++	// prioritize AES-GCM usage.
++	if boring.Enabled {
++		return true
++	}
+ 	return hasAESNI()
+ }
+diff --git a/src/crypto/internal/cipherhw/generic.go b/src/crypto/internal/cipherhw/generic.go
+index 4e7d2cb041..64d90d3b41 100644
+--- a/src/crypto/internal/cipherhw/generic.go
++++ b/src/crypto/internal/cipherhw/generic.go
+@@ -6,8 +6,6 @@
+ 
+ package cipherhw
+ 
+-import "crypto/internal/boring"
+-
+ func AESGCMSupport() bool {
+-	return boring.Enabled
++	return false
+ }

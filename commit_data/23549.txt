@@ -16,7 +16,7 @@ Date:   Fri May 22 13:58:03 2015 -0700
     Change-Id: Ifd2e01bdafb3043345972ca22a90248d055bd29b
     Reviewed-on: https://go-review.googlesource.com/10359
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/bits_test.go         | 20 ++++++++++----------
  src/math/big/float.go             |  2 ++
  src/math/big/float_test.go        | 30 +++++++++++++++---------------
@@ -24,3 +24,208 @@ Date:   Fri May 22 13:58:03 2015 -0700
  src/math/big/floatconv_test.go    | 24 ++++++++++++------------
  src/math/big/floatexample_test.go |  6 +++---
  6 files changed, 48 insertions(+), 40 deletions(-)
+
+diff --git a/src/math/big/bits_test.go b/src/math/big/bits_test.go
+index 3ce24222d7..14ecab5909 100644
+--- a/src/math/big/bits_test.go
++++ b/src/math/big/bits_test.go
+@@ -203,18 +203,18 @@ func TestFromBits(t *testing.T) {
+ 	}{
+ 		// all different bit numbers
+ 		{nil, "0"},
+-		{Bits{0}, "0x.8p1"},
+-		{Bits{1}, "0x.8p2"},
+-		{Bits{-1}, "0x.8p0"},
+-		{Bits{63}, "0x.8p64"},
+-		{Bits{33, -30}, "0x.8000000000000001p34"},
+-		{Bits{255, 0}, "0x.8000000000000000000000000000000000000000000000000000000000000001p256"},
++		{Bits{0}, "0x.8p+1"},
++		{Bits{1}, "0x.8p+2"},
++		{Bits{-1}, "0x.8p+0"},
++		{Bits{63}, "0x.8p+64"},
++		{Bits{33, -30}, "0x.8000000000000001p+34"},
++		{Bits{255, 0}, "0x.8000000000000000000000000000000000000000000000000000000000000001p+256"},
+ 
+ 		// multiple equal bit numbers
+-		{Bits{0, 0}, "0x.8p2"},
+-		{Bits{0, 0, 0, 0}, "0x.8p3"},
+-		{Bits{0, 1, 0}, "0x.8p3"},
+-		{append(Bits{2, 1, 0} /* 7 */, Bits{3, 1} /* 10 */ ...), "0x.88p5" /* 17 */},
++		{Bits{0, 0}, "0x.8p+2"},
++		{Bits{0, 0, 0, 0}, "0x.8p+3"},
++		{Bits{0, 1, 0}, "0x.8p+3"},
++		{append(Bits{2, 1, 0} /* 7 */, Bits{3, 1} /* 10 */ ...), "0x.88p+5" /* 17 */},
+ 	} {
+ 		f := test.bits.Float()
+ 		if got := f.Format('p', 0); got != test.want {
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index dcb72c5754..e663c1c6ac 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -913,6 +913,7 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 			}
+ 			return float32(math.Inf(+1)), Above
+ 		}
++		// e <= emax
+ 
+ 		// Determine sign, biased exponent, and mantissa.
+ 		var sign, bexp, mant uint32
+@@ -1019,6 +1020,7 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 			}
+ 			return math.Inf(+1), Above
+ 		}
++		// e <= emax
+ 
+ 		// Determine sign, biased exponent, and mantissa.
+ 		var sign, bexp, mant uint64
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 8bd3a9c8c9..7df9fc74bc 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1563,32 +1563,32 @@ func TestFloatArithmeticOverflow(t *testing.T) {
+ 		x, y, want string
+ 		acc        Accuracy
+ 	}{
+-		{4, ToNearestEven, '+', "0", "0", "0", Exact},                // smoke test
+-		{4, ToNearestEven, '+', "0x.8p0", "0x.8p0", "0x.8p1", Exact}, // smoke test
++		{4, ToNearestEven, '+', "0", "0", "0", Exact},                   // smoke test
++		{4, ToNearestEven, '+', "0x.8p+0", "0x.8p+0", "0x.8p+1", Exact}, // smoke test
+ 
+-		{4, ToNearestEven, '+', "0", "0x.8p2147483647", "0x.8p2147483647", Exact},
+-		{4, ToNearestEven, '+', "0x.8p2147483500", "0x.8p2147483647", "0x.8p2147483647", Below}, // rounded to zero
+-		{4, ToNearestEven, '+', "0x.8p2147483647", "0x.8p2147483647", "+Inf", Above},            // exponent overflow in +
+-		{4, ToNearestEven, '+', "-0x.8p2147483647", "-0x.8p2147483647", "-Inf", Below},          // exponent overflow in +
+-		{4, ToNearestEven, '-', "-0x.8p2147483647", "0x.8p2147483647", "-Inf", Below},           // exponent overflow in -
++		{4, ToNearestEven, '+', "0", "0x.8p2147483647", "0x.8p+2147483647", Exact},
++		{4, ToNearestEven, '+', "0x.8p2147483500", "0x.8p2147483647", "0x.8p+2147483647", Below}, // rounded to zero
++		{4, ToNearestEven, '+', "0x.8p2147483647", "0x.8p2147483647", "+Inf", Above},             // exponent overflow in +
++		{4, ToNearestEven, '+', "-0x.8p2147483647", "-0x.8p2147483647", "-Inf", Below},           // exponent overflow in +
++		{4, ToNearestEven, '-', "-0x.8p2147483647", "0x.8p2147483647", "-Inf", Below},            // exponent overflow in -
+ 
+-		{4, ToZero, '+', "0x.fp2147483647", "0x.8p2147483643", "0x.fp2147483647", Below}, // rounded to zero
+-		{4, ToNearestEven, '+', "0x.fp2147483647", "0x.8p2147483643", "+Inf", Above},     // exponent overflow in rounding
+-		{4, AwayFromZero, '+', "0x.fp2147483647", "0x.8p2147483643", "+Inf", Above},      // exponent overflow in rounding
++		{4, ToZero, '+', "0x.fp2147483647", "0x.8p2147483643", "0x.fp+2147483647", Below}, // rounded to zero
++		{4, ToNearestEven, '+', "0x.fp2147483647", "0x.8p2147483643", "+Inf", Above},      // exponent overflow in rounding
++		{4, AwayFromZero, '+', "0x.fp2147483647", "0x.8p2147483643", "+Inf", Above},       // exponent overflow in rounding
+ 
+-		{4, AwayFromZero, '-', "-0x.fp2147483647", "0x.8p2147483644", "-Inf", Below},       // exponent overflow in rounding
+-		{4, ToNearestEven, '-', "-0x.fp2147483647", "0x.8p2147483643", "-Inf", Below},      // exponent overflow in rounding
+-		{4, ToZero, '-', "-0x.fp2147483647", "0x.8p2147483643", "-0x.fp2147483647", Above}, // rounded to zero
++		{4, AwayFromZero, '-', "-0x.fp2147483647", "0x.8p2147483644", "-Inf", Below},        // exponent overflow in rounding
++		{4, ToNearestEven, '-', "-0x.fp2147483647", "0x.8p2147483643", "-Inf", Below},       // exponent overflow in rounding
++		{4, ToZero, '-', "-0x.fp2147483647", "0x.8p2147483643", "-0x.fp+2147483647", Above}, // rounded to zero
+ 
+ 		{4, ToNearestEven, '+', "0", "0x.8p-2147483648", "0x.8p-2147483648", Exact},
+ 		{4, ToNearestEven, '+', "0x.8p-2147483648", "0x.8p-2147483648", "0x.8p-2147483647", Exact},
+ 
+-		{4, ToNearestEven, '*', "1", "0x.8p2147483647", "0x.8p2147483647", Exact},
++		{4, ToNearestEven, '*', "1", "0x.8p2147483647", "0x.8p+2147483647", Exact},
+ 		{4, ToNearestEven, '*', "2", "0x.8p2147483647", "+Inf", Above},  // exponent overflow in *
+ 		{4, ToNearestEven, '*', "-2", "0x.8p2147483647", "-Inf", Below}, // exponent overflow in *
+ 
+ 		{4, ToNearestEven, '/', "0.5", "0x.8p2147483647", "0x.8p-2147483646", Exact},
+-		{4, ToNearestEven, '/', "0x.8p0", "0x.8p2147483647", "0x.8p-2147483646", Exact},
++		{4, ToNearestEven, '/', "0x.8p+0", "0x.8p2147483647", "0x.8p-2147483646", Exact},
+ 		{4, ToNearestEven, '/', "0x.8p-1", "0x.8p2147483647", "0x.8p-2147483647", Exact},
+ 		{4, ToNearestEven, '/', "0x.8p-2", "0x.8p2147483647", "0x.8p-2147483648", Exact},
+ 		{4, ToNearestEven, '/', "0x.8p-3", "0x.8p2147483647", "0", Below}, // exponent underflow in /
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index b929d1202c..5ab75e9031 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -67,6 +67,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
+ // defined if an error is reported.
+ //
+ // BUG(gri) The Float.Scan signature conflicts with Scan(s fmt.ScanState, ch rune) error.
++//          (https://github.com/golang/go/issues/10938)
+ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 	prec := z.prec
+ 	if prec == 0 {
+@@ -268,6 +269,8 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
+ // The prec value is ignored for the 'b' or 'p' format.
+ //
+ // BUG(gri) Float.Format does not accept negative precisions.
++// BUG(gri) The Float.Format signature conflicts with Format(f fmt.State, c rune).
++//          (https://github.com/golang/go/issues/10938)
+ func (x *Float) Format(format byte, prec int) string {
+ 	const extra = 10 // TODO(gri) determine a good/better value here
+ 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
+@@ -369,5 +372,8 @@ func (x *Float) pstring(buf []byte) []byte {
+ 	buf = append(buf, "0x."...)
+ 	buf = append(buf, strings.TrimRight(x.mant.hexString(), "0")...)
+ 	buf = append(buf, 'p')
++	if x.exp >= 0 {
++		buf = append(buf, '+')
++	}
+ 	return strconv.AppendInt(buf, int64(x.exp), 10)
+ }
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index 96c01eed81..6ba15754e5 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -145,8 +145,8 @@ func TestFloat64Format(t *testing.T) {
+ 
+ 		{0, 'p', 0, "0"},
+ 		{math.Copysign(0, -1), 'p', 0, "-0"},
+-		{1024.0, 'p', 0, "0x.8p11"},
+-		{-1024.0, 'p', 0, "-0x.8p11"},
++		{1024.0, 'p', 0, "0x.8p+11"},
++		{-1024.0, 'p', 0, "-0x.8p+11"},
+ 
+ 		// all test cases below from strconv/ftoa_test.go
+ 		{1, 'e', 5, "1.00000e+00"},
+@@ -331,8 +331,8 @@ func TestFloatFormat(t *testing.T) {
+ 		{"3e40", 100, 'g', 40, "3e+40"},
+ 
+ 		// make sure "stupid" exponents don't stall the machine
+-		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap3321929"},
+-		{"1e1000000000", 64, 'p', 0, "0x.ecc5f45aa573d3p1538481529"},
++		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap+3321929"},
++		{"1e1000000000", 64, 'p', 0, "0x.ecc5f45aa573d3p+1538481529"},
+ 		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
+ 		{"1e-1000000000", 64, 'p', 0, "0x.8a64dd983a4c7dabp-1538481528"},
+ 
+@@ -352,17 +352,17 @@ func TestFloatFormat(t *testing.T) {
+ 		{"3.00", 350, 'b', 0, "1720123961992553633708115671476565205597423741876210842803191629540192157066363606052513914832594264915968p-348"},
+ 		{"3.000", 350, 'b', 0, "1720123961992553633708115671476565205597423741876210842803191629540192157066363606052513914832594264915968p-348"},
+ 
+-		{"3", 350, 'p', 0, "0x.cp2"},
+-		{"03", 350, 'p', 0, "0x.cp2"},
+-		{"3.", 350, 'p', 0, "0x.cp2"},
+-		{"3.0", 350, 'p', 0, "0x.cp2"},
+-		{"3.00", 350, 'p', 0, "0x.cp2"},
+-		{"3.000", 350, 'p', 0, "0x.cp2"},
++		{"3", 350, 'p', 0, "0x.cp+2"},
++		{"03", 350, 'p', 0, "0x.cp+2"},
++		{"3.", 350, 'p', 0, "0x.cp+2"},
++		{"3.0", 350, 'p', 0, "0x.cp+2"},
++		{"3.00", 350, 'p', 0, "0x.cp+2"},
++		{"3.000", 350, 'p', 0, "0x.cp+2"},
+ 
+ 		{"0", 64, 'p', 0, "0"},
+ 		{"-0", 64, 'p', 0, "-0"},
+-		{"1024.0", 64, 'p', 0, "0x.8p11"},
+-		{"-1024.0", 64, 'p', 0, "-0x.8p11"},
++		{"1024.0", 64, 'p', 0, "0x.8p+11"},
++		{"-1024.0", 64, 'p', 0, "-0x.8p+11"},
+ 
+ 		// unsupported format
+ 		{"3.14", 64, 'x', 0, "%x"},
+diff --git a/src/math/big/floatexample_test.go b/src/math/big/floatexample_test.go
+index 7db10238bc..d9d39ed365 100644
+--- a/src/math/big/floatexample_test.go
++++ b/src/math/big/floatexample_test.go
+@@ -21,9 +21,9 @@ func ExampleFloat_Add() {
+ 	fmt.Printf("y = %s (%s, prec = %d, acc = %s)\n", &y, y.Format('p', 0), y.Prec(), y.Acc())
+ 	fmt.Printf("z = %s (%s, prec = %d, acc = %s)\n", &z, z.Format('p', 0), z.Prec(), z.Acc())
+ 	// Output:
+-	// x = 1000 (0x.fap10, prec = 64, acc = Exact)
+-	// y = 2.718281828 (0x.adf85458248cd8p2, prec = 53, acc = Exact)
+-	// z = 1002.718282 (0x.faadf854p10, prec = 32, acc = Below)
++	// x = 1000 (0x.fap+10, prec = 64, acc = Exact)
++	// y = 2.718281828 (0x.adf85458248cd8p+2, prec = 53, acc = Exact)
++	// z = 1002.718282 (0x.faadf854p+10, prec = 32, acc = Below)
+ }
+ 
+ func Example_Shift() {

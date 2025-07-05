@@ -6,7 +6,139 @@ Date:   Wed Nov 4 17:03:08 2009 -0800
     
     R=rsc
     http://go/go-review/1018047
-
+---
  src/pkg/asn1/asn1.go      | 42 +++++++++++++++++++++---------------------
  src/pkg/asn1/asn1_test.go |  4 ++--
  2 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index f3de79612a..e89adb2729 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -31,7 +31,7 @@ import (
+ // A StructuralError suggests that the ASN.1 data is valid, but the Go type
+ // which is receiving it doesn't match.
+ type StructuralError struct {
+-	Msg	string;
++	Msg string;
+ }
+ 
+ func (e StructuralError) String() string {
+@@ -40,7 +40,7 @@ func (e StructuralError) String() string {
+ 
+ // A SyntaxError suggests that the ASN.1 data is invalid.
+ type SyntaxError struct {
+-	Msg	string;
++	Msg string;
+ }
+ 
+ func (e SyntaxError) String() string {
+@@ -110,9 +110,9 @@ func (b BitString) At(i int) int {
+ 	if i < 0 || i >= b.BitLength {
+ 		return 0;
+ 	}
+-	x := i / 8;
+-	y := 7 - uint(i % 8);
+-	return int(b.Bytes[x] >> y) & 1;
++	x := i/8;
++	y := 7-uint(i%8);
++	return int(b.Bytes[x] >> y)&1;
+ }
+ 
+ // parseBitString parses an ASN.1 bit string from the given byte array and returns it.
+@@ -123,8 +123,8 @@ func parseBitString(bytes []byte) (ret BitString, err os.Error) {
+ 	}
+ 	paddingBits := int(bytes[0]);
+ 	if paddingBits > 7 ||
+-	   len(bytes) == 1 && paddingBits > 0 ||
+-	   bytes[len(bytes)-1] & ((1 << bytes[0])-1) != 0 {
++		len(bytes) == 1 && paddingBits > 0 ||
++		bytes[len(bytes)-1]&((1<<bytes[0])-1) != 0 {
+ 		err = SyntaxError{"invalid padding bits in BIT STRING"};
+ 		return;
+ 	}
+@@ -152,8 +152,8 @@ func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
+ 	s = make([]int, len(bytes)+1);
+ 
+ 	// The first byte is 40*value1 + value2:
+-	s[0] = int(bytes[0]) / 40;
+-	s[1] = int(bytes[0]) % 40;
++	s[0] = int(bytes[0])/40;
++	s[1] = int(bytes[0])%40;
+ 	i := 2;
+ 	for offset := 1; offset < len(bytes); i++ {
+ 		var v int;
+@@ -201,7 +201,7 @@ func twoDigits(bytes []byte, max int) (int, bool) {
+ 			return 0, false;
+ 		}
+ 	}
+-	value := (int(bytes[0]) - '0')*10 + int(bytes[1] - '0');
++	value := (int(bytes[0])-'0')*10 + int(bytes[1]-'0');
+ 	if value > max {
+ 		return 0, false;
+ 	}
+@@ -305,14 +305,14 @@ func parsePrintableString(bytes []byte) (ret string, err os.Error) {
+ // isPrintable returns true iff the given b is in the ASN.1 PrintableString set.
+ func isPrintable(b byte) bool {
+ 	return 'a' <= b && b <= 'z' ||
+-	       'A' <= b && b <= 'Z' ||
+-	       '0' <= b && b <= '9' ||
+-	       '\'' <= b && b <= ')' ||
+-	       '+' <= b && b <= '/' ||
+-	       b == ' ' ||
+-	       b == ':' ||
+-	       b == '=' ||
+-	       b == '?';
++		'A' <= b && b <= 'Z' ||
++		'0' <= b && b <= '9' ||
++		'\'' <= b && b <= ')' ||
++		'+' <= b && b <= '/' ||
++		b == ' ' ||
++		b == ':' ||
++		b == '=' ||
++		b == '?';
+ }
+ 
+ // IA5String
+@@ -459,8 +459,8 @@ type fieldParameters struct {
+ 	defaultValue	*int64;	// a default value for INTEGER typed fields (maybe nil).
+ 	tag		*int;	// the EXPLICIT or IMPLICIT tag (maybe nil).
+ 
+-// Invariants:
+-//   if explicit is set, tag is non-nil.
++	// Invariants:
++	//   if explicit is set, tag is non-nil.
+ }
+ 
+ // Given a tag string with the format specified in the package comment,
+@@ -643,7 +643,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			case tagOctetString:
+ 				result = innerBytes;
+ 			default:
+-			// If we don't know how to handle the type, we just leave Value as nil.
++				// If we don't know how to handle the type, we just leave Value as nil.
+ 			}
+ 		}
+ 		offset += t.length;
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index c3e1a13c9b..ca27292253 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -236,7 +236,7 @@ type TestObjectIdentifierStruct struct {
+ }
+ 
+ type TestContextSpecificTags struct {
+-	A	int	"tag:1";
++	A int "tag:1";
+ }
+ 
+ type TestContextSpecificTags2 struct {
+@@ -255,7 +255,7 @@ var unmarshalTestData []unmarshalTest = []unmarshalTest{
+ 	unmarshalTest{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte{'t', 'e', 's', 't'}}},
+ 	unmarshalTest{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}}},
+ 	unmarshalTest{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
+-	unmarshalTest{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1,2}},
++	unmarshalTest{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},
+ 	unmarshalTest{[]byte{0x01, 0x01, 0x00}, newBool(false)},
+ 	unmarshalTest{[]byte{0x01, 0x01, 0x01}, newBool(true)},
+ }

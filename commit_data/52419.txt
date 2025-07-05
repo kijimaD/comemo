@@ -14,10 +14,286 @@ Date:   Wed Mar 30 22:18:43 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/48409.txt                  |   1 +
  src/runtime/debug/garbage.go        |  64 +++++++++++++++++++-
  src/runtime/gc_test.go              |  28 +++++++++
  src/runtime/mgc.go                  |   2 +-
  src/runtime/testdata/testprog/gc.go | 115 ++++++++++++++++++++++++++++++++++++
  5 files changed, 208 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/48409.txt b/api/next/48409.txt
+new file mode 100644
+index 0000000000..1acd9024b0
+--- /dev/null
++++ b/api/next/48409.txt
+@@ -0,0 +1 @@
++pkg runtime/debug, func SetMemoryLimit(int64) int64 #48409
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index ce4bb10407..73dd61b83e 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -87,7 +87,11 @@ func ReadGCStats(stats *GCStats) {
+ // SetGCPercent returns the previous setting.
+ // The initial setting is the value of the GOGC environment variable
+ // at startup, or 100 if the variable is not set.
+-// A negative percentage disables garbage collection.
++// This setting may be effectively reduced in order to maintain a memory
++// limit.
++// A negative percentage effectively disables garbage collection, unless
++// the memory limit is reached.
++// See SetMemoryLimit for more details.
+ func SetGCPercent(percent int) int {
+ 	return int(setGCPercent(int32(percent)))
+ }
+@@ -175,3 +179,61 @@ func WriteHeapDump(fd uintptr)
+ // If SetTraceback is called with a level lower than that of the
+ // environment variable, the call is ignored.
+ func SetTraceback(level string)
++
++// SetMemoryLimit provides the runtime with a soft memory limit.
++//
++// The runtime undertakes several processes to try to respect this
++// memory limit, including adjustments to the frequency of garbage
++// collections and returning memory to the underlying system more
++// aggressively. This limit will be respected even if GOGC=off (or,
++// if SetGCPercent(-1) is executed).
++//
++//
++// The input limit is provided as bytes, and includes all memory
++// mapped, managed, and not released by the Go runtime. Notably, it
++// does not account for space used by the Go binary and memory
++// external to Go, such as memory managed by the underlying system
++// on behalf of the process, or memory managed by non-Go code inside
++// the same process. Examples of excluded memory sources include: OS
++// kernel memory held on behalf of the process, memory allocated by
++// C code, and memory mapped by syscall.Mmap (because it is not
++// managed by the Go runtime).
++//
++// More specifically, the following expression accurately reflects
++// the value the runtime attempts to maintain as the limit:
++//
++//     runtime.MemStats.Sys - runtime.MemStats.HeapReleased
++//
++// or in terms of the runtime/metrics package:
++//
++//     /memory/classes/total:bytes - /memory/classes/heap/released:bytes
++//
++// A zero limit or a limit that's lower than the amount of memory
++// used by the Go runtime may cause the garbage collector to run
++// nearly continuously. However, the application may still make
++// progress.
++//
++// The memory limit is always respected by the Go runtime, so to
++// effectively disable this behavior, set the limit very high.
++// math.MaxInt64 is the canonical value for disabling the limit,
++// but values much greater than the available memory on the underlying
++// system work just as well.
++//
++// See https://go.dev/doc/gc-guide for a detailed guide explaining
++// the soft memory limit in more detail, as well as a variety of common
++// use-cases and scenarios.
++//
++// The initial setting is math.MaxInt64 unless the GOMEMLIMIT
++// environment variable is set, in which case it provides the initial
++// setting. GOMEMLIMIT is a numeric value in bytes with an optional
++// unit suffix. The supported suffixes include B, KiB, MiB, GiB, and
++// TiB. These suffixes represent quantities of bytes as defined by
++// the IEC 80000-13 standard. That is, they are based on powers of
++// two: KiB means 2^10 bytes, MiB means 2^20 bytes, and so on.
++//
++// SetMemoryLimit returns the previously set memory limit.
++// A negative input does not adjust the limit, and allows for
++// retrieval of the currently set memory limit.
++func SetMemoryLimit(limit int64) int64 {
++	return setMemoryLimit(limit)
++}
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 84baa009d5..122818fbfe 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -904,3 +904,31 @@ func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
+ 	*n--
+ 	countpwg(n, ready, teardown)
+ }
++
++func TestMemoryLimit(t *testing.T) {
++	if testing.Short() {
++		t.Skip("stress test that takes time to run")
++	}
++	if runtime.NumCPU() < 4 {
++		t.Skip("want at least 4 CPUs for this test")
++	}
++	got := runTestProg(t, "testprog", "GCMemoryLimit")
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
++
++func TestMemoryLimitNoGCPercent(t *testing.T) {
++	if testing.Short() {
++		t.Skip("stress test that takes time to run")
++	}
++	if runtime.NumCPU() < 4 {
++		t.Skip("want at least 4 CPUs for this test")
++	}
++	got := runTestProg(t, "testprog", "GCMemoryLimitNoGCPercent")
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 93d090f6ed..4578e41115 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -159,7 +159,7 @@ func gcinit() {
+ 	// Initialize GC pacer state.
+ 	// Use the environment variable GOGC for the initial gcPercent value.
+ 	// Use the environment variable GOMEMLIMIT for the initial memoryLimit value.
+-	gcController.init(readGOGC(), maxInt64)
++	gcController.init(readGOGC(), readGOMEMLIMIT())
+ 
+ 	work.startSema = 1
+ 	work.markDoneSema = 1
+diff --git a/src/runtime/testdata/testprog/gc.go b/src/runtime/testdata/testprog/gc.go
+index 215228ea05..0f44575381 100644
+--- a/src/runtime/testdata/testprog/gc.go
++++ b/src/runtime/testdata/testprog/gc.go
+@@ -6,9 +6,12 @@ package main
+ 
+ import (
+ 	"fmt"
++	"math"
+ 	"os"
+ 	"runtime"
+ 	"runtime/debug"
++	"runtime/metrics"
++	"sync"
+ 	"sync/atomic"
+ 	"time"
+ 	"unsafe"
+@@ -21,6 +24,8 @@ func init() {
+ 	register("GCPhys", GCPhys)
+ 	register("DeferLiveness", DeferLiveness)
+ 	register("GCZombie", GCZombie)
++	register("GCMemoryLimit", GCMemoryLimit)
++	register("GCMemoryLimitNoGCPercent", GCMemoryLimitNoGCPercent)
+ }
+ 
+ func GCSys() {
+@@ -303,3 +308,113 @@ func GCZombie() {
+ 	runtime.KeepAlive(keep)
+ 	runtime.KeepAlive(zombies)
+ }
++
++func GCMemoryLimit() {
++	gcMemoryLimit(100)
++}
++
++func GCMemoryLimitNoGCPercent() {
++	gcMemoryLimit(-1)
++}
++
++// Test SetMemoryLimit functionality.
++//
++// This test lives here instead of runtime/debug because the entire
++// implementation is in the runtime, and testprog gives us a more
++// consistent testing environment to help avoid flakiness.
++func gcMemoryLimit(gcPercent int) {
++	if oldProcs := runtime.GOMAXPROCS(4); oldProcs < 4 {
++		// Fail if the default GOMAXPROCS isn't at least 4.
++		// Whatever invokes this should check and do a proper t.Skip.
++		println("insufficient CPUs")
++		return
++	}
++	debug.SetGCPercent(gcPercent)
++
++	const myLimit = 256 << 20
++	if limit := debug.SetMemoryLimit(-1); limit != math.MaxInt64 {
++		print("expected MaxInt64 limit, got ", limit, " bytes instead\n")
++		return
++	}
++	if limit := debug.SetMemoryLimit(myLimit); limit != math.MaxInt64 {
++		print("expected MaxInt64 limit, got ", limit, " bytes instead\n")
++		return
++	}
++	if limit := debug.SetMemoryLimit(-1); limit != myLimit {
++		print("expected a ", myLimit, "-byte limit, got ", limit, " bytes instead\n")
++		return
++	}
++
++	target := make(chan int64)
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++
++		sinkSize := int(<-target / memLimitUnit)
++		for {
++			if len(memLimitSink) != sinkSize {
++				memLimitSink = make([]*[memLimitUnit]byte, sinkSize)
++			}
++			for i := 0; i < len(memLimitSink); i++ {
++				memLimitSink[i] = new([memLimitUnit]byte)
++				// Write to this memory to slow down the allocator, otherwise
++				// we get flaky behavior. See #52433.
++				for j := range memLimitSink[i] {
++					memLimitSink[i][j] = 9
++				}
++			}
++			// Again, Gosched to slow down the allocator.
++			runtime.Gosched()
++			select {
++			case newTarget := <-target:
++				if newTarget == math.MaxInt64 {
++					return
++				}
++				sinkSize = int(newTarget / memLimitUnit)
++			default:
++			}
++		}
++	}()
++	var m [2]metrics.Sample
++	m[0].Name = "/memory/classes/total:bytes"
++	m[1].Name = "/memory/classes/heap/released:bytes"
++
++	// Don't set this too high, because this is a *live heap* target which
++	// is not directly comparable to a total memory limit.
++	maxTarget := int64((myLimit / 10) * 8)
++	increment := int64((myLimit / 10) * 1)
++	for i := increment; i < maxTarget; i += increment {
++		target <- i
++
++		// Check to make sure the memory limit is maintained.
++		// We're just sampling here so if it transiently goes over we might miss it.
++		// The internal accounting is inconsistent anyway, so going over by a few
++		// pages is certainly possible. Just make sure we're within some bound.
++		// Note that to avoid flakiness due to #52433 (especially since we're allocating
++		// somewhat heavily here) this bound is kept loose. In practice the Go runtime
++		// should do considerably better than this bound.
++		bound := int64(myLimit + 16<<20)
++		start := time.Now()
++		for time.Now().Sub(start) < 200*time.Millisecond {
++			metrics.Read(m[:])
++			retained := int64(m[0].Value.Uint64() - m[1].Value.Uint64())
++			if retained > bound {
++				print("retained=", retained, " limit=", myLimit, " bound=", bound, "\n")
++				panic("exceeded memory limit by more than bound allows")
++			}
++			runtime.Gosched()
++		}
++	}
++
++	if limit := debug.SetMemoryLimit(math.MaxInt64); limit != myLimit {
++		print("expected a ", myLimit, "-byte limit, got ", limit, " bytes instead\n")
++		return
++	}
++	println("OK")
++}
++
++// Pick a value close to the page size. We want to m
++const memLimitUnit = 8000
++
++var memLimitSink []*[memLimitUnit]byte

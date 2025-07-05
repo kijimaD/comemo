@@ -20,7 +20,7 @@ Date:   Mon Jan 22 11:47:50 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/557457
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     | 12 ++--
  src/cmd/go.sum                                     | 20 +++---
  src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   | 39 +++++-----
@@ -64,3 +64,1059 @@ Date:   Mon Jan 22 11:47:50 2024 -0500
  .../x/crypto/internal/poly1305/sum_generic.go      | 43 +++++------
  src/vendor/modules.txt                             |  6 +-
  42 files changed, 295 insertions(+), 171 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 7a426887b4..4f22e5dcbd 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -1,15 +1,15 @@
+ module cmd
+ 
+-go 1.22
++go 1.23
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+-	golang.org/x/arch v0.6.0
++	golang.org/x/arch v0.7.0
+ 	golang.org/x/mod v0.14.0
+-	golang.org/x/sync v0.5.0
+-	golang.org/x/sys v0.15.0
+-	golang.org/x/term v0.15.0
+-	golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d
++	golang.org/x/sync v0.6.0
++	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
++	golang.org/x/term v0.16.0
++	golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 8ea3d75bd1..306d328665 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -2,15 +2,15 @@ github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17 h1:0h35ESZ02+hN/MFZb7
+ github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17/go.mod h1:Jh3hGz2jkYak8qXPD19ryItVnUgpgeqzdkY/D0EaeuA=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe6ZTd9F8kXETBoijjFJ/ntaa//1wiH9BZu4zU=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+-golang.org/x/arch v0.6.0 h1:S0JTfE48HbRj80+4tbvZDYsJ3tGv6BUU3XxyZ7CirAc=
+-golang.org/x/arch v0.6.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
++golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
++golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=
+ golang.org/x/mod v0.14.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+-golang.org/x/sync v0.5.0 h1:60k92dhOjHxJkrqnwsfl8KuaHbn/5dl0lUPUklKo3qE=
+-golang.org/x/sync v0.5.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
+-golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/term v0.15.0 h1:y/Oo/a/q3IXu26lQgl04j/gjuBDOBlx7X6Om1j2CPW4=
+-golang.org/x/term v0.15.0/go.mod h1:BDl952bC7+uMoWR75FIrCDx79TPU9oHkTZ9yRbYOrX0=
+-golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d h1:9YOyUBubvYqtjjtZBnI62JT9/QB9jfPwOQ7xLeyuOIU=
+-golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d/go.mod h1:kYVVN6I1mBNoB1OX+noeBjbRk4IUEPa7JJ+TJMEooJ0=
++golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
++golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f h1:GvGFYRZ5kIldzXQj3UmUiUTMe5spPODuLKQvP38A+Qc=
++golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/term v0.16.0 h1:m+B6fahuftsE9qjo0VWp2FW0mB3MTJvR0BaMQrq0pmE=
++golang.org/x/term v0.16.0/go.mod h1:yn7UURbUtPyrVJPGPq404EukNFxcm/foM+bV/bfcDsY=
++golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006 h1:nQlBrWcYwVcWPZJ3VI2s/bH4yjgiWJXNTELOKrnS0qk=
++golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006/go.mod h1:xsh6VxdV005rRVaS6SSAf9oiAqljS7UZUacMZ8Bnsps=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 6202638bae..fdcaa974d2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -248,6 +248,7 @@ struct ltchars {
+ #include <linux/module.h>
+ #include <linux/mount.h>
+ #include <linux/netfilter/nfnetlink.h>
++#include <linux/netfilter/nf_tables.h>
+ #include <linux/netlink.h>
+ #include <linux/net_namespace.h>
+ #include <linux/nfc.h>
+@@ -283,10 +284,6 @@ struct ltchars {
+ #include <asm/termbits.h>
+ #endif
+ 
+-#ifndef MSG_FASTOPEN
+-#define MSG_FASTOPEN    0x20000000
+-#endif
+-
+ #ifndef PTRACE_GETREGS
+ #define PTRACE_GETREGS	0xc
+ #endif
+@@ -295,14 +292,6 @@ struct ltchars {
+ #define PTRACE_SETREGS	0xd
+ #endif
+ 
+-#ifndef SOL_NETLINK
+-#define SOL_NETLINK	270
+-#endif
+-
+-#ifndef SOL_SMC
+-#define SOL_SMC 286
+-#endif
+-
+ #ifdef SOL_BLUETOOTH
+ // SPARC includes this in /usr/include/sparc64-linux-gnu/bits/socket.h
+ // but it is already in bluetooth_linux.go
+@@ -319,10 +308,23 @@ struct ltchars {
+ #undef TIPC_WAIT_FOREVER
+ #define TIPC_WAIT_FOREVER 0xffffffff
+ 
+-// Copied from linux/l2tp.h
+-// Including linux/l2tp.h here causes conflicts between linux/in.h
+-// and netinet/in.h included via net/route.h above.
+-#define IPPROTO_L2TP		115
++// Copied from linux/netfilter/nf_nat.h
++// Including linux/netfilter/nf_nat.h here causes conflicts between linux/in.h
++// and netinet/in.h.
++#define NF_NAT_RANGE_MAP_IPS			(1 << 0)
++#define NF_NAT_RANGE_PROTO_SPECIFIED		(1 << 1)
++#define NF_NAT_RANGE_PROTO_RANDOM		(1 << 2)
++#define NF_NAT_RANGE_PERSISTENT			(1 << 3)
++#define NF_NAT_RANGE_PROTO_RANDOM_FULLY		(1 << 4)
++#define NF_NAT_RANGE_PROTO_OFFSET		(1 << 5)
++#define NF_NAT_RANGE_NETMAP			(1 << 6)
++#define NF_NAT_RANGE_PROTO_RANDOM_ALL		\
++	(NF_NAT_RANGE_PROTO_RANDOM | NF_NAT_RANGE_PROTO_RANDOM_FULLY)
++#define NF_NAT_RANGE_MASK					\
++	(NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED |	\
++	 NF_NAT_RANGE_PROTO_RANDOM | NF_NAT_RANGE_PERSISTENT |	\
++	 NF_NAT_RANGE_PROTO_RANDOM_FULLY | NF_NAT_RANGE_PROTO_OFFSET | \
++	 NF_NAT_RANGE_NETMAP)
+ 
+ // Copied from linux/hid.h.
+ // Keep in sync with the size of the referenced fields.
+@@ -582,7 +584,7 @@ ccflags="$@"
+ 		$2 ~ /^KEY_(SPEC|REQKEY_DEFL)_/ ||
+ 		$2 ~ /^KEYCTL_/ ||
+ 		$2 ~ /^PERF_/ ||
+-		$2 ~ /^SECCOMP_MODE_/ ||
++		$2 ~ /^SECCOMP_/ ||
+ 		$2 ~ /^SEEK_/ ||
+ 		$2 ~ /^SCHED_/ ||
+ 		$2 ~ /^SPLICE_/ ||
+@@ -603,6 +605,9 @@ ccflags="$@"
+ 		$2 ~ /^FSOPT_/ ||
+ 		$2 ~ /^WDIO[CFS]_/ ||
+ 		$2 ~ /^NFN/ ||
++		$2 !~ /^NFT_META_IIFTYPE/ &&
++		$2 ~ /^NFT_/ ||
++		$2 ~ /^NF_NAT_/ ||
+ 		$2 ~ /^XDP_/ ||
+ 		$2 ~ /^RWF_/ ||
+ 		$2 ~ /^(HDIO|WIN|SMART)_/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index c73cfe2f10..f8351ca168 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -2127,6 +2127,60 @@ const (
+ 	NFNL_SUBSYS_QUEUE                           = 0x3
+ 	NFNL_SUBSYS_ULOG                            = 0x4
+ 	NFS_SUPER_MAGIC                             = 0x6969
++	NFT_CHAIN_FLAGS                             = 0x7
++	NFT_CHAIN_MAXNAMELEN                        = 0x100
++	NFT_CT_MAX                                  = 0x17
++	NFT_DATA_RESERVED_MASK                      = 0xffffff00
++	NFT_DATA_VALUE_MAXLEN                       = 0x40
++	NFT_EXTHDR_OP_MAX                           = 0x4
++	NFT_FIB_RESULT_MAX                          = 0x3
++	NFT_INNER_MASK                              = 0xf
++	NFT_LOGLEVEL_MAX                            = 0x8
++	NFT_NAME_MAXLEN                             = 0x100
++	NFT_NG_MAX                                  = 0x1
++	NFT_OBJECT_CONNLIMIT                        = 0x5
++	NFT_OBJECT_COUNTER                          = 0x1
++	NFT_OBJECT_CT_EXPECT                        = 0x9
++	NFT_OBJECT_CT_HELPER                        = 0x3
++	NFT_OBJECT_CT_TIMEOUT                       = 0x7
++	NFT_OBJECT_LIMIT                            = 0x4
++	NFT_OBJECT_MAX                              = 0xa
++	NFT_OBJECT_QUOTA                            = 0x2
++	NFT_OBJECT_SECMARK                          = 0x8
++	NFT_OBJECT_SYNPROXY                         = 0xa
++	NFT_OBJECT_TUNNEL                           = 0x6
++	NFT_OBJECT_UNSPEC                           = 0x0
++	NFT_OBJ_MAXNAMELEN                          = 0x100
++	NFT_OSF_MAXGENRELEN                         = 0x10
++	NFT_QUEUE_FLAG_BYPASS                       = 0x1
++	NFT_QUEUE_FLAG_CPU_FANOUT                   = 0x2
++	NFT_QUEUE_FLAG_MASK                         = 0x3
++	NFT_REG32_COUNT                             = 0x10
++	NFT_REG32_SIZE                              = 0x4
++	NFT_REG_MAX                                 = 0x4
++	NFT_REG_SIZE                                = 0x10
++	NFT_REJECT_ICMPX_MAX                        = 0x3
++	NFT_RT_MAX                                  = 0x4
++	NFT_SECMARK_CTX_MAXLEN                      = 0x100
++	NFT_SET_MAXNAMELEN                          = 0x100
++	NFT_SOCKET_MAX                              = 0x3
++	NFT_TABLE_F_MASK                            = 0x3
++	NFT_TABLE_MAXNAMELEN                        = 0x100
++	NFT_TRACETYPE_MAX                           = 0x3
++	NFT_TUNNEL_F_MASK                           = 0x7
++	NFT_TUNNEL_MAX                              = 0x1
++	NFT_TUNNEL_MODE_MAX                         = 0x2
++	NFT_USERDATA_MAXLEN                         = 0x100
++	NFT_XFRM_KEY_MAX                            = 0x6
++	NF_NAT_RANGE_MAP_IPS                        = 0x1
++	NF_NAT_RANGE_MASK                           = 0x7f
++	NF_NAT_RANGE_NETMAP                         = 0x40
++	NF_NAT_RANGE_PERSISTENT                     = 0x8
++	NF_NAT_RANGE_PROTO_OFFSET                   = 0x20
++	NF_NAT_RANGE_PROTO_RANDOM                   = 0x4
++	NF_NAT_RANGE_PROTO_RANDOM_ALL               = 0x14
++	NF_NAT_RANGE_PROTO_RANDOM_FULLY             = 0x10
++	NF_NAT_RANGE_PROTO_SPECIFIED                = 0x2
+ 	NILFS_SUPER_MAGIC                           = 0x3434
+ 	NL0                                         = 0x0
+ 	NL1                                         = 0x100
+@@ -2859,9 +2913,38 @@ const (
+ 	SCM_RIGHTS                                  = 0x1
+ 	SCM_TIMESTAMP                               = 0x1d
+ 	SC_LOG_FLUSH                                = 0x100000
++	SECCOMP_ADDFD_FLAG_SEND                     = 0x2
++	SECCOMP_ADDFD_FLAG_SETFD                    = 0x1
++	SECCOMP_FILTER_FLAG_LOG                     = 0x2
++	SECCOMP_FILTER_FLAG_NEW_LISTENER            = 0x8
++	SECCOMP_FILTER_FLAG_SPEC_ALLOW              = 0x4
++	SECCOMP_FILTER_FLAG_TSYNC                   = 0x1
++	SECCOMP_FILTER_FLAG_TSYNC_ESRCH             = 0x10
++	SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV      = 0x20
++	SECCOMP_GET_ACTION_AVAIL                    = 0x2
++	SECCOMP_GET_NOTIF_SIZES                     = 0x3
++	SECCOMP_IOCTL_NOTIF_RECV                    = 0xc0502100
++	SECCOMP_IOCTL_NOTIF_SEND                    = 0xc0182101
++	SECCOMP_IOC_MAGIC                           = '!'
+ 	SECCOMP_MODE_DISABLED                       = 0x0
+ 	SECCOMP_MODE_FILTER                         = 0x2
+ 	SECCOMP_MODE_STRICT                         = 0x1
++	SECCOMP_RET_ACTION                          = 0x7fff0000
++	SECCOMP_RET_ACTION_FULL                     = 0xffff0000
++	SECCOMP_RET_ALLOW                           = 0x7fff0000
++	SECCOMP_RET_DATA                            = 0xffff
++	SECCOMP_RET_ERRNO                           = 0x50000
++	SECCOMP_RET_KILL                            = 0x0
++	SECCOMP_RET_KILL_PROCESS                    = 0x80000000
++	SECCOMP_RET_KILL_THREAD                     = 0x0
++	SECCOMP_RET_LOG                             = 0x7ffc0000
++	SECCOMP_RET_TRACE                           = 0x7ff00000
++	SECCOMP_RET_TRAP                            = 0x30000
++	SECCOMP_RET_USER_NOTIF                      = 0x7fc00000
++	SECCOMP_SET_MODE_FILTER                     = 0x1
++	SECCOMP_SET_MODE_STRICT                     = 0x0
++	SECCOMP_USER_NOTIF_FD_SYNC_WAKE_UP          = 0x1
++	SECCOMP_USER_NOTIF_FLAG_CONTINUE            = 0x1
+ 	SECRETMEM_MAGIC                             = 0x5345434d
+ 	SECURITYFS_MAGIC                            = 0x73636673
+ 	SEEK_CUR                                    = 0x1
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 4920821cf3..42ff8c3c1b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -281,6 +281,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index a0c1e41127..dca436004f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -282,6 +282,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index c63985560f..5cca668ac3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -288,6 +288,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 47cc62e25c..d8cae6d153 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -278,6 +278,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+index 27ac4a09e2..28e39afdcb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+@@ -275,6 +275,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index 54694642a5..cd66e92cb4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -281,6 +281,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x80
+ 	SIOCATMARK                       = 0x40047307
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index 3adb81d758..c1595eba78 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -281,6 +281,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x80
+ 	SIOCATMARK                       = 0x40047307
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index 2dfe98f0d1..ee9456b0da 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -281,6 +281,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x80
+ 	SIOCATMARK                       = 0x40047307
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index f5398f84f0..8cfca81e1b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -281,6 +281,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x80
+ 	SIOCATMARK                       = 0x40047307
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+index c54f152d68..60b0deb3af 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+@@ -336,6 +336,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index 76057dc72f..f90aa7281b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -340,6 +340,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index e0c3725e2b..ba9e015033 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -340,6 +340,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index 18f2813ed5..07cdfd6e9f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -272,6 +272,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index 11619d4ec8..2f1dd214a7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -344,6 +344,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x23
+ 	SCM_TXTIME                       = 0x3d
+ 	SCM_WIFI_STATUS                  = 0x29
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x40182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x40082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x40082104
+ 	SFD_CLOEXEC                      = 0x80000
+ 	SFD_NONBLOCK                     = 0x800
+ 	SIOCATMARK                       = 0x8905
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index 396d994da7..f40519d901 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -335,6 +335,9 @@ const (
+ 	SCM_TIMESTAMPNS                  = 0x21
+ 	SCM_TXTIME                       = 0x3f
+ 	SCM_WIFI_STATUS                  = 0x25
++	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103
++	SECCOMP_IOCTL_NOTIF_ID_VALID     = 0x80082102
++	SECCOMP_IOCTL_NOTIF_SET_FLAGS    = 0x80082104
+ 	SFD_CLOEXEC                      = 0x400000
+ 	SFD_NONBLOCK                     = 0x4000
+ 	SF_FP                            = 0x38
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go
+index a1d061597c..9dc42410b7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_386.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go
+index 5b2a740977..0d3a0751cd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_amd64.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go
+index f6eda1344a..c39f7776db 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go
+index 55df20ae9d..57571d072f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_arm64.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go
+index 8c1155cbc0..e62963e67e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_mips64.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go
+index 7cc80c58d9..00831354c8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_ppc64.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go
+index 0688737f49..79029ed584 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_openbsd_riscv64.go
+@@ -2297,5 +2297,3 @@ func unveil(path *byte, flags *byte) (err error) {
+ var libc_unveil_trampoline_addr uintptr
+ 
+ //go:cgo_import_dynamic libc_unveil unveil "libc.so"
+-
+-
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 47dc579676..ffb8708ccf 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -194,6 +194,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	GetComputerName(buf *uint16, n *uint32) (err error) = GetComputerNameW
+ //sys	GetComputerNameEx(nametype uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+ //sys	SetEndOfFile(handle Handle) (err error)
++//sys	SetFileValidData(handle Handle, validDataLength int64) (err error)
+ //sys	GetSystemTimeAsFileTime(time *Filetime)
+ //sys	GetSystemTimePreciseAsFileTime(time *Filetime)
+ //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) [failretval==0xffffffff]
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 146a1f0196..e8791c82c3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -342,6 +342,7 @@ var (
+ 	procSetDefaultDllDirectories                             = modkernel32.NewProc("SetDefaultDllDirectories")
+ 	procSetDllDirectoryW                                     = modkernel32.NewProc("SetDllDirectoryW")
+ 	procSetEndOfFile                                         = modkernel32.NewProc("SetEndOfFile")
++	procSetFileValidData                                     = modkernel32.NewProc("SetFileValidData")
+ 	procSetEnvironmentVariableW                              = modkernel32.NewProc("SetEnvironmentVariableW")
+ 	procSetErrorMode                                         = modkernel32.NewProc("SetErrorMode")
+ 	procSetEvent                                             = modkernel32.NewProc("SetEvent")
+@@ -2988,6 +2989,14 @@ func SetEndOfFile(handle Handle) (err error) {
+ 	return
+ }
+ 
++func SetFileValidData(handle Handle, validDataLength int64) (err error) {
++	r1, _, e1 := syscall.Syscall(procSetFileValidData.Addr(), 2, uintptr(handle), uintptr(validDataLength), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func SetEnvironmentVariable(name *uint16, value *uint16) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procSetEnvironmentVariableW.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
+ 	if r1 == 0 {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+index f67c97294b..c638f27581 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -31,14 +31,14 @@ type Diagnostic struct {
+ 	// see https://pkg.go.dev/net/url#URL.ResolveReference.
+ 	URL string
+ 
+-	// SuggestedFixes contains suggested fixes for a diagnostic
+-	// which can be used to perform edits to a file that address
+-	// the diagnostic.
+-	//
+-	// Diagnostics should not contain SuggestedFixes that overlap.
+-	SuggestedFixes []SuggestedFix // optional
++	// SuggestedFixes is an optional list of fixes to address the
++	// problem described by the diagnostic, each one representing
++	// an alternative strategy; at most one may be applied.
++	SuggestedFixes []SuggestedFix
+ 
+-	Related []RelatedInformation // optional
++	// Related contains optional secondary positions and messages
++	// related to the primary diagnostic.
++	Related []RelatedInformation
+ }
+ 
+ // RelatedInformation contains information related to a diagnostic.
+@@ -55,8 +55,7 @@ type RelatedInformation struct {
+ // user can choose to apply to their code. Usually the SuggestedFix is
+ // meant to fix the issue flagged by the diagnostic.
+ //
+-// TextEdits for a SuggestedFix should not overlap,
+-// nor contain edits for other packages.
++// The TextEdits must not overlap, nor contain edits for other packages.
+ type SuggestedFix struct {
+ 	// A description for this suggested fix to be shown to a user deciding
+ 	// whether to accept it.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index 9e3fde72bb..ff14ff58f9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -362,15 +362,24 @@ type JSONSuggestedFix struct {
+ 	Edits   []JSONTextEdit `json:"edits"`
+ }
+ 
+-// A JSONDiagnostic can be used to encode and decode analysis.Diagnostics to and
+-// from JSON.
+-// TODO(matloob): Should the JSON diagnostics contain ranges?
+-// If so, how should they be formatted?
++// A JSONDiagnostic describes the JSON schema of an analysis.Diagnostic.
++//
++// TODO(matloob): include End position if present.
+ type JSONDiagnostic struct {
+-	Category       string             `json:"category,omitempty"`
+-	Posn           string             `json:"posn"`
+-	Message        string             `json:"message"`
+-	SuggestedFixes []JSONSuggestedFix `json:"suggested_fixes,omitempty"`
++	Category       string                   `json:"category,omitempty"`
++	Posn           string                   `json:"posn"` // e.g. "file.go:line:column"
++	Message        string                   `json:"message"`
++	SuggestedFixes []JSONSuggestedFix       `json:"suggested_fixes,omitempty"`
++	Related        []JSONRelatedInformation `json:"related,omitempty"`
++}
++
++// A JSONRelated describes a secondary position and message related to
++// a primary diagnostic.
++//
++// TODO(adonovan): include End position if present.
++type JSONRelatedInformation struct {
++	Posn    string `json:"posn"` // e.g. "file.go:line:column"
++	Message string `json:"message"`
+ }
+ 
+ // Add adds the result of analysis 'name' on package 'id'.
+@@ -401,11 +410,19 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
+ 					Edits:   edits,
+ 				})
+ 			}
++			var related []JSONRelatedInformation
++			for _, r := range f.Related {
++				related = append(related, JSONRelatedInformation{
++					Posn:    fset.Position(r.Pos).String(),
++					Message: r.Message,
++				})
++			}
+ 			jdiag := JSONDiagnostic{
+ 				Category:       f.Category,
+ 				Posn:           fset.Position(f.Pos).String(),
+ 				Message:        f.Message,
+ 				SuggestedFixes: fixes,
++				Related:        related,
+ 			}
+ 			diagnostics = append(diagnostics, jdiag)
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index 2bccb67502..bf56a5c06f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -172,7 +172,18 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
+ 			lineno := pass.Fset.Position(stmt.Pos()).Line
+ 			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
+-			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
++
++			pos, end := ret.Pos(), ret.End()
++			// golang/go#64547: cfg.Block.Return may return a synthetic
++			// ReturnStmt that overflows the file.
++			if pass.Fset.File(pos) != pass.Fset.File(end) {
++				end = pos
++			}
++			pass.Report(analysis.Diagnostic{
++				Pos:     pos,
++				End:     end,
++				Message: fmt.Sprintf("this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno),
++			})
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+index 7f79b4a754..76f42b052e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+@@ -59,7 +59,25 @@ func init() {
+ 	// List standard library functions here.
+ 	// The context.With{Cancel,Deadline,Timeout} entries are
+ 	// effectively redundant wrt the lostcancel analyzer.
+-	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
++	funcs = stringSetFlag{
++		"context.WithCancel":   true,
++		"context.WithDeadline": true,
++		"context.WithTimeout":  true,
++		"context.WithValue":    true,
++		"errors.New":           true,
++		"fmt.Errorf":           true,
++		"fmt.Sprint":           true,
++		"fmt.Sprintf":          true,
++		"slices.Clip":          true,
++		"slices.Compact":       true,
++		"slices.CompactFunc":   true,
++		"slices.Delete":        true,
++		"slices.DeleteFunc":    true,
++		"slices.Grow":          true,
++		"slices.Insert":        true,
++		"slices.Replace":       true,
++		"sort.Reverse":         true,
++	}
+ 	Analyzer.Flags.Var(&funcs, "funcs",
+ 		"comma-separated list of functions whose results must be used")
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go b/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go
+index 37d799f4bc..e9c48d51da 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/cfg/cfg.go
+@@ -113,7 +113,11 @@ func (b *Block) String() string {
+ 	return fmt.Sprintf("block %d (%s)", b.Index, b.comment)
+ }
+ 
+-// Return returns the return statement at the end of this block if present, nil otherwise.
++// Return returns the return statement at the end of this block if present, nil
++// otherwise.
++//
++// When control falls off the end of the function, the ReturnStmt is synthetic
++// and its [ast.Node.End] position may be beyond the end of the file.
+ func (b *Block) Return() (ret *ast.ReturnStmt) {
+ 	if len(b.Nodes) > 0 {
+ 		ret, _ = b.Nodes[len(b.Nodes)-1].(*ast.ReturnStmt)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 2b29168047..b24a0fba9e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -151,6 +151,10 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+ 				},
+ 			})
+ 		}
++		if t.Variadic() {
++			last := params[len(params)-1]
++			last.Type = &ast.Ellipsis{Elt: last.Type.(*ast.ArrayType).Elt}
++		}
+ 		var returns []*ast.Field
+ 		for i := 0; i < t.Results().Len(); i++ {
+ 			r := TypeExpr(f, pkg, t.Results().At(i).Type())
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index d2caf1ffb0..9716c3e9fc 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -17,7 +17,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.6.0
++# golang.org/x/arch v0.7.0
+ ## explicit; go 1.18
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+@@ -34,18 +34,18 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.5.0
++# golang.org/x/sync v0.6.0
+ ## explicit; go 1.18
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.15.0
++# golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.15.0
++# golang.org/x/term v0.16.0
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/tools v0.16.2-0.20231218185909-83bceaf2424d
++# golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index c18ae7760f..6b0e3c58ee 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -1,13 +1,13 @@
+ module std
+ 
+-go 1.22
++go 1.23
+ 
+ require (
+-	golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb
+-	golang.org/x/net v0.19.0
++	golang.org/x/crypto v0.18.0
++	golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a
+ )
+ 
+ require (
+-	golang.org/x/sys v0.15.0 // indirect
++	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f // indirect
+ 	golang.org/x/text v0.14.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 7c3519882a..c59bf5956b 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb h1:1ceSY7sk6sJuiDREHpfyrqDnDljsLfEP2GuTClhBBfI=
+-golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb/go.mod h1:gCAAfMLgwOJRpTjQ2zCCt2OcSfYMTeZVSRtQlPC7Nq4=
+-golang.org/x/net v0.19.0 h1:zTwKpTd2XuCqf8huc7Fo2iSy+4RHPd10s4KzeTnVr1c=
+-golang.org/x/net v0.19.0/go.mod h1:CfAk/cbD4CthTvqiEl8NpboMuiuOYsAr/7NOjZJtv1U=
+-golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
+-golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/crypto v0.18.0 h1:PGVlW0xEltQnzFZ55hkuX5+KLyrMYhHld1YHO4AKcdc=
++golang.org/x/crypto v0.18.0/go.mod h1:R0j02AL6hcrfOiy9T4ZYp/rcWeMxM3L6QYxlOuEG1mg=
++golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a h1:VHlux4LIHGkrTO1cETOIekMY3h7UnpTakEdoxS/+o28=
++golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a/go.mod h1:z8BVo6PvndSri0LbOE3hAn0apkU+1YvI6E70E9jsnvY=
++golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f h1:GvGFYRZ5kIldzXQj3UmUiUTMe5spPODuLKQvP38A+Qc=
++golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index ac41144d5b..2fc8ace61e 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -2914,13 +2914,12 @@ func (mh *http2MetaHeadersFrame) checkPseudos() error {
+ }
+ 
+ func (fr *http2Framer) maxHeaderStringLen() int {
+-	v := fr.maxHeaderListSize()
+-	if uint32(int(v)) == v {
+-		return int(v)
++	v := int(fr.maxHeaderListSize())
++	if v < 0 {
++		// If maxHeaderListSize overflows an int, use no limit (0).
++		return 0
+ 	}
+-	// They had a crazy big number for MaxHeaderBytes anyway,
+-	// so give them unlimited header lengths:
+-	return 0
++	return v
+ }
+ 
+ // readMetaFrame returns 0 or more CONTINUATION frames from fr and
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/bits_compat.go b/src/vendor/golang.org/x/crypto/internal/poly1305/bits_compat.go
+deleted file mode 100644
+index d33c8890fc..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/bits_compat.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !go1.13
+-
+-package poly1305
+-
+-// Generic fallbacks for the math/bits intrinsics, copied from
+-// src/math/bits/bits.go. They were added in Go 1.12, but Add64 and Sum64 had
+-// variable time fallbacks until Go 1.13.
+-
+-func bitsAdd64(x, y, carry uint64) (sum, carryOut uint64) {
+-	sum = x + y + carry
+-	carryOut = ((x & y) | ((x | y) &^ sum)) >> 63
+-	return
+-}
+-
+-func bitsSub64(x, y, borrow uint64) (diff, borrowOut uint64) {
+-	diff = x - y - borrow
+-	borrowOut = ((^x & y) | (^(x ^ y) & diff)) >> 63
+-	return
+-}
+-
+-func bitsMul64(x, y uint64) (hi, lo uint64) {
+-	const mask32 = 1<<32 - 1
+-	x0 := x & mask32
+-	x1 := x >> 32
+-	y0 := y & mask32
+-	y1 := y >> 32
+-	w0 := x0 * y0
+-	t := x1*y0 + w0>>32
+-	w1 := t & mask32
+-	w2 := t >> 32
+-	w1 += x0 * y1
+-	hi = x1*y1 + w2 + w1>>32
+-	lo = x * y
+-	return
+-}
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/bits_go1.13.go b/src/vendor/golang.org/x/crypto/internal/poly1305/bits_go1.13.go
+deleted file mode 100644
+index 495c1fa697..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/bits_go1.13.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.13
+-
+-package poly1305
+-
+-import "math/bits"
+-
+-func bitsAdd64(x, y, carry uint64) (sum, carryOut uint64) {
+-	return bits.Add64(x, y, carry)
+-}
+-
+-func bitsSub64(x, y, borrow uint64) (diff, borrowOut uint64) {
+-	return bits.Sub64(x, y, borrow)
+-}
+-
+-func bitsMul64(x, y uint64) (hi, lo uint64) {
+-	return bits.Mul64(x, y)
+-}
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go
+index e041da5ea3..ec2202bd7d 100644
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go
+@@ -7,7 +7,10 @@
+ 
+ package poly1305
+ 
+-import "encoding/binary"
++import (
++	"encoding/binary"
++	"math/bits"
++)
+ 
+ // Poly1305 [RFC 7539] is a relatively simple algorithm: the authentication tag
+ // for a 64 bytes message is approximately
+@@ -114,13 +117,13 @@ type uint128 struct {
+ }
+ 
+ func mul64(a, b uint64) uint128 {
+-	hi, lo := bitsMul64(a, b)
++	hi, lo := bits.Mul64(a, b)
+ 	return uint128{lo, hi}
+ }
+ 
+ func add128(a, b uint128) uint128 {
+-	lo, c := bitsAdd64(a.lo, b.lo, 0)
+-	hi, c := bitsAdd64(a.hi, b.hi, c)
++	lo, c := bits.Add64(a.lo, b.lo, 0)
++	hi, c := bits.Add64(a.hi, b.hi, c)
+ 	if c != 0 {
+ 		panic("poly1305: unexpected overflow")
+ 	}
+@@ -155,8 +158,8 @@ func updateGeneric(state *macState, msg []byte) {
+ 		// hide leading zeroes. For full chunks, that's 1 << 128, so we can just
+ 		// add 1 to the most significant (2¹²⁸) limb, h2.
+ 		if len(msg) >= TagSize {
+-			h0, c = bitsAdd64(h0, binary.LittleEndian.Uint64(msg[0:8]), 0)
+-			h1, c = bitsAdd64(h1, binary.LittleEndian.Uint64(msg[8:16]), c)
++			h0, c = bits.Add64(h0, binary.LittleEndian.Uint64(msg[0:8]), 0)
++			h1, c = bits.Add64(h1, binary.LittleEndian.Uint64(msg[8:16]), c)
+ 			h2 += c + 1
+ 
+ 			msg = msg[TagSize:]
+@@ -165,8 +168,8 @@ func updateGeneric(state *macState, msg []byte) {
+ 			copy(buf[:], msg)
+ 			buf[len(msg)] = 1
+ 
+-			h0, c = bitsAdd64(h0, binary.LittleEndian.Uint64(buf[0:8]), 0)
+-			h1, c = bitsAdd64(h1, binary.LittleEndian.Uint64(buf[8:16]), c)
++			h0, c = bits.Add64(h0, binary.LittleEndian.Uint64(buf[0:8]), 0)
++			h1, c = bits.Add64(h1, binary.LittleEndian.Uint64(buf[8:16]), c)
+ 			h2 += c
+ 
+ 			msg = nil
+@@ -219,9 +222,9 @@ func updateGeneric(state *macState, msg []byte) {
+ 		m3 := h2r1
+ 
+ 		t0 := m0.lo
+-		t1, c := bitsAdd64(m1.lo, m0.hi, 0)
+-		t2, c := bitsAdd64(m2.lo, m1.hi, c)
+-		t3, _ := bitsAdd64(m3.lo, m2.hi, c)
++		t1, c := bits.Add64(m1.lo, m0.hi, 0)
++		t2, c := bits.Add64(m2.lo, m1.hi, c)
++		t3, _ := bits.Add64(m3.lo, m2.hi, c)
+ 
+ 		// Now we have the result as 4 64-bit limbs, and we need to reduce it
+ 		// modulo 2¹³⁰ - 5. The special shape of this Crandall prime lets us do
+@@ -243,14 +246,14 @@ func updateGeneric(state *macState, msg []byte) {
+ 
+ 		// To add c * 5 to h, we first add cc = c * 4, and then add (cc >> 2) = c.
+ 
+-		h0, c = bitsAdd64(h0, cc.lo, 0)
+-		h1, c = bitsAdd64(h1, cc.hi, c)
++		h0, c = bits.Add64(h0, cc.lo, 0)
++		h1, c = bits.Add64(h1, cc.hi, c)
+ 		h2 += c
+ 
+ 		cc = shiftRightBy2(cc)
+ 
+-		h0, c = bitsAdd64(h0, cc.lo, 0)
+-		h1, c = bitsAdd64(h1, cc.hi, c)
++		h0, c = bits.Add64(h0, cc.lo, 0)
++		h1, c = bits.Add64(h1, cc.hi, c)
+ 		h2 += c
+ 
+ 		// h2 is at most 3 + 1 + 1 = 5, making the whole of h at most
+@@ -287,9 +290,9 @@ func finalize(out *[TagSize]byte, h *[3]uint64, s *[2]uint64) {
+ 	// in constant time, we compute t = h - (2¹³⁰ - 5), and select h as the
+ 	// result if the subtraction underflows, and t otherwise.
+ 
+-	hMinusP0, b := bitsSub64(h0, p0, 0)
+-	hMinusP1, b := bitsSub64(h1, p1, b)
+-	_, b = bitsSub64(h2, p2, b)
++	hMinusP0, b := bits.Sub64(h0, p0, 0)
++	hMinusP1, b := bits.Sub64(h1, p1, b)
++	_, b = bits.Sub64(h2, p2, b)
+ 
+ 	// h = h if h < p else h - p
+ 	h0 = select64(b, h0, hMinusP0)
+@@ -301,8 +304,8 @@ func finalize(out *[TagSize]byte, h *[3]uint64, s *[2]uint64) {
+ 	//
+ 	// by just doing a wide addition with the 128 low bits of h and discarding
+ 	// the overflow.
+-	h0, c := bitsAdd64(h0, s[0], 0)
+-	h1, _ = bitsAdd64(h1, s[1], c)
++	h0, c := bits.Add64(h0, s[0], 0)
++	h1, _ = bits.Add64(h1, s[1], c)
+ 
+ 	binary.LittleEndian.PutUint64(out[0:8], h0)
+ 	binary.LittleEndian.PutUint64(out[8:16], h1)
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 338c496bf9..56f7d546ee 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb
++# golang.org/x/crypto v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.19.0
++# golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,7 +17,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.15.0
++# golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.14.0

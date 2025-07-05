@@ -28,7 +28,7 @@ Date:   Thu Dec 17 02:56:26 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/abiutilsaux_test.go |   2 +-
  src/cmd/compile/internal/gc/alg.go              |   2 +-
  src/cmd/compile/internal/gc/align.go            |   6 +-
@@ -51,3 +51,1201 @@ Date:   Thu Dec 17 02:56:26 2020 -0500
  src/cmd/compile/internal/ir/name.go             |  20 +++-
  src/cmd/compile/internal/ir/node_gen.go         |   5 +-
  21 files changed, 223 insertions(+), 176 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/abiutilsaux_test.go b/src/cmd/compile/internal/gc/abiutilsaux_test.go
+index 5489a512d2..fd0b197207 100644
+--- a/src/cmd/compile/internal/gc/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/gc/abiutilsaux_test.go
+@@ -76,7 +76,7 @@ func tokenize(src string) []string {
+ 
+ func verifyParamResultOffset(t *testing.T, f *types.Field, r ABIParamAssignment, which string, idx int) int {
+ 	n := ir.AsNode(f.Nname).(*ir.Name)
+-	if n.Offset() != int64(r.Offset) {
++	if n.FrameOffset() != int64(r.Offset) {
+ 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
+ 			which, idx, r.Offset, n.Offset(), f.Type)
+ 		return 1
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 25dadffc24..f03aec3237 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -878,7 +878,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
+ 	return call
+ }
+ 
+-func eqmemfunc(size int64, t *types.Type) (fn ir.Node, needsize bool) {
++func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
+ 	switch size {
+ 	default:
+ 		fn = syslook("memequal")
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 9944a3a38a..95a5dbef29 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -128,10 +128,10 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			// It's possible the ordering has changed and this is
+ 			// now the common case. I'm not sure.
+ 			if n.Name().Stackcopy != nil {
+-				n.Name().Stackcopy.SetOffset(o)
+-				n.SetOffset(0)
++				n.Name().Stackcopy.SetFrameOffset(o)
++				n.SetFrameOffset(0)
+ 			} else {
+-				n.SetOffset(o)
++				n.SetFrameOffset(o)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a2c9edb481..34ba372843 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -96,7 +96,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 	}
+ 
+ 	if ctxt == ir.PAUTO {
+-		n.SetOffset(0)
++		n.SetFrameOffset(0)
+ 	}
+ 
+ 	if s.Block == types.Block {
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 5124af945e..235cef47ea 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -515,6 +515,10 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
+ 		}
+ 		e.flow(k, e.oldLoc(n))
+ 
++	case ir.ONAMEOFFSET:
++		n := n.(*ir.NameOffsetExpr)
++		e.expr(k, n.Name_)
++
+ 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
+ 		n := n.(*ir.UnaryExpr)
+ 		e.discard(n.Left())
+@@ -778,6 +782,9 @@ func (e *Escape) addr(n ir.Node) EscHole {
+ 			break
+ 		}
+ 		k = e.oldLoc(n).asHole()
++	case ir.ONAMEOFFSET:
++		n := n.(*ir.NameOffsetExpr)
++		e.addr(n.Name_)
+ 	case ir.ODOT:
+ 		n := n.(*ir.SelectorExpr)
+ 		k = e.addr(n.Left())
+@@ -2008,7 +2015,7 @@ func moveToHeap(n *ir.Name) {
+ 	// in addition to the copy in the heap that may live longer than
+ 	// the function.
+ 	if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
+-		if n.Offset() == types.BADWIDTH {
++		if n.FrameOffset() == types.BADWIDTH {
+ 			base.Fatalf("addrescapes before param assignment")
+ 		}
+ 
+@@ -2018,7 +2025,7 @@ func moveToHeap(n *ir.Name) {
+ 		// so that analyses of the local (on-stack) variables use it.
+ 		stackcopy := NewName(n.Sym())
+ 		stackcopy.SetType(n.Type())
+-		stackcopy.SetOffset(n.Offset())
++		stackcopy.SetFrameOffset(n.FrameOffset())
+ 		stackcopy.SetClass(n.Class())
+ 		stackcopy.Heapaddr = heapaddr
+ 		if n.Class() == ir.PPARAMOUT {
+@@ -2055,7 +2062,7 @@ func moveToHeap(n *ir.Name) {
+ 
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+ 	n.SetClass(ir.PAUTOHEAP)
+-	n.SetOffset(0)
++	n.SetFrameOffset(0)
+ 	n.Heapaddr = heapaddr
+ 	n.SetEsc(EscHeap)
+ 	if base.Flag.LowerM != 0 {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e1308718aa..b571c2b914 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1220,11 +1220,19 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		if n.Sym() != nil {
+ 			return n
+ 		}
++		if n, ok := n.(*ir.Name); ok && n.Op() == ir.OLITERAL {
++			// This happens for unnamed OLITERAL.
++			// which should really not be a *Name, but for now it is.
++			// ir.Copy(n) is not allowed generally and would panic below,
++			// but it's OK in this situation.
++			n = n.CloneName()
++			n.SetPos(subst.updatedPos(n.Pos()))
++			return n
++		}
+ 
+-		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
+-
+-	//		dump("Return before substitution", n);
+ 	case ir.ORETURN:
++		// Since we don't handle bodies with closures,
++		// this return is guaranteed to belong to the current inlined function.
+ 		init := subst.list(n.Init())
+ 		if len(subst.retvars) != 0 && n.List().Len() != 0 {
+ 			as := ir.Nod(ir.OAS2, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 042b625fc9..cd1500d1ed 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -490,11 +490,11 @@ func slicedata(pos src.XPos, s string) *ir.Name {
+ 	return symnode
+ }
+ 
+-func slicebytes(nam *ir.Name, s string) {
++func slicebytes(nam *ir.Name, off int64, s string) {
+ 	if nam.Op() != ir.ONAME {
+ 		base.Fatalf("slicebytes %v", nam)
+ 	}
+-	slicesym(nam, slicedata(nam.Pos(), s), int64(len(s)))
++	slicesym(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
+ }
+ 
+ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+@@ -529,22 +529,21 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
+ 	return off
+ }
+ 
+-// slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
++// slicesym writes a static slice symbol {&arr, lencap, lencap} to n+noff.
+ // slicesym does not modify n.
+-func slicesym(n, arr *ir.Name, lencap int64) {
++func slicesym(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
+ 	s := n.Sym().Linksym()
+-	off := n.Offset()
+ 	if arr.Op() != ir.ONAME {
+ 		base.Fatalf("slicesym non-name arr %v", arr)
+ 	}
+-	s.WriteAddr(base.Ctxt, off, Widthptr, arr.Sym().Linksym(), arr.Offset())
+-	s.WriteInt(base.Ctxt, off+sliceLenOffset, Widthptr, lencap)
+-	s.WriteInt(base.Ctxt, off+sliceCapOffset, Widthptr, lencap)
++	s.WriteAddr(base.Ctxt, noff, Widthptr, arr.Sym().Linksym(), 0)
++	s.WriteInt(base.Ctxt, noff+sliceLenOffset, Widthptr, lencap)
++	s.WriteInt(base.Ctxt, noff+sliceCapOffset, Widthptr, lencap)
+ }
+ 
+ // addrsym writes the static address of a to n. a must be an ONAME.
+ // Neither n nor a is modified.
+-func addrsym(n, a *ir.Name) {
++func addrsym(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("addrsym n op %v", n.Op())
+ 	}
+@@ -555,12 +554,12 @@ func addrsym(n, a *ir.Name) {
+ 		base.Fatalf("addrsym a op %v", a.Op())
+ 	}
+ 	s := n.Sym().Linksym()
+-	s.WriteAddr(base.Ctxt, n.Offset(), Widthptr, a.Sym().Linksym(), a.Offset())
++	s.WriteAddr(base.Ctxt, noff, Widthptr, a.Sym().Linksym(), aoff)
+ }
+ 
+ // pfuncsym writes the static address of f to n. f must be a global function.
+ // Neither n nor f is modified.
+-func pfuncsym(n, f *ir.Name) {
++func pfuncsym(n *ir.Name, noff int64, f *ir.Name) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("pfuncsym n op %v", n.Op())
+ 	}
+@@ -571,21 +570,18 @@ func pfuncsym(n, f *ir.Name) {
+ 		base.Fatalf("pfuncsym class not PFUNC %d", f.Class())
+ 	}
+ 	s := n.Sym().Linksym()
+-	s.WriteAddr(base.Ctxt, n.Offset(), Widthptr, funcsym(f.Sym()).Linksym(), f.Offset())
++	s.WriteAddr(base.Ctxt, noff, Widthptr, funcsym(f.Sym()).Linksym(), 0)
+ }
+ 
+ // litsym writes the static literal c to n.
+ // Neither n nor c is modified.
+-func litsym(n *ir.Name, c ir.Node, wid int) {
++func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("litsym n op %v", n.Op())
+ 	}
+ 	if n.Sym() == nil {
+ 		base.Fatalf("litsym nil n sym")
+ 	}
+-	if !types.Identical(n.Type(), c.Type()) {
+-		base.Fatalf("litsym: type mismatch: %v has type %v, but %v has type %v", n, n.Type(), c, c.Type())
+-	}
+ 	if c.Op() == ir.ONIL {
+ 		return
+ 	}
+@@ -596,37 +592,37 @@ func litsym(n *ir.Name, c ir.Node, wid int) {
+ 	switch u := c.Val(); u.Kind() {
+ 	case constant.Bool:
+ 		i := int64(obj.Bool2int(constant.BoolVal(u)))
+-		s.WriteInt(base.Ctxt, n.Offset(), wid, i)
++		s.WriteInt(base.Ctxt, noff, wid, i)
+ 
+ 	case constant.Int:
+-		s.WriteInt(base.Ctxt, n.Offset(), wid, ir.IntVal(n.Type(), u))
++		s.WriteInt(base.Ctxt, noff, wid, ir.IntVal(c.Type(), u))
+ 
+ 	case constant.Float:
+ 		f, _ := constant.Float64Val(u)
+-		switch n.Type().Kind() {
++		switch c.Type().Kind() {
+ 		case types.TFLOAT32:
+-			s.WriteFloat32(base.Ctxt, n.Offset(), float32(f))
++			s.WriteFloat32(base.Ctxt, noff, float32(f))
+ 		case types.TFLOAT64:
+-			s.WriteFloat64(base.Ctxt, n.Offset(), f)
++			s.WriteFloat64(base.Ctxt, noff, f)
+ 		}
+ 
+ 	case constant.Complex:
+ 		re, _ := constant.Float64Val(constant.Real(u))
+ 		im, _ := constant.Float64Val(constant.Imag(u))
+-		switch n.Type().Kind() {
++		switch c.Type().Kind() {
+ 		case types.TCOMPLEX64:
+-			s.WriteFloat32(base.Ctxt, n.Offset(), float32(re))
+-			s.WriteFloat32(base.Ctxt, n.Offset()+4, float32(im))
++			s.WriteFloat32(base.Ctxt, noff, float32(re))
++			s.WriteFloat32(base.Ctxt, noff+4, float32(im))
+ 		case types.TCOMPLEX128:
+-			s.WriteFloat64(base.Ctxt, n.Offset(), re)
+-			s.WriteFloat64(base.Ctxt, n.Offset()+8, im)
++			s.WriteFloat64(base.Ctxt, noff, re)
++			s.WriteFloat64(base.Ctxt, noff+8, im)
+ 		}
+ 
+ 	case constant.String:
+ 		i := constant.StringVal(u)
+ 		symdata := stringsym(n.Pos(), i)
+-		s.WriteAddr(base.Ctxt, n.Offset(), Widthptr, symdata, 0)
+-		s.WriteInt(base.Ctxt, n.Offset()+int64(Widthptr), Widthptr, int64(len(i)))
++		s.WriteAddr(base.Ctxt, noff, Widthptr, symdata, 0)
++		s.WriteInt(base.Ctxt, noff+int64(Widthptr), Widthptr, int64(len(i)))
+ 
+ 	default:
+ 		base.Fatalf("litsym unhandled OLITERAL %v", c)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 0034556995..174037e30a 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -239,7 +239,7 @@ func (o *Order) addrTemp(n ir.Node) ir.Node {
+ 		dowidth(n.Type())
+ 		vstat := readonlystaticname(n.Type())
+ 		var s InitSchedule
+-		s.staticassign(vstat, n)
++		s.staticassign(vstat, 0, n, n.Type())
+ 		if s.out != nil {
+ 			base.Fatalf("staticassign of const generated code: %+v", n)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5b04e10657..901af567fa 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -74,7 +74,7 @@ func cmpstackvarlt(a, b *ir.Name) bool {
+ 	}
+ 
+ 	if a.Class() != ir.PAUTO {
+-		return a.Offset() < b.Offset()
++		return a.FrameOffset() < b.FrameOffset()
+ 	}
+ 
+ 	if a.Used() != b.Used() {
+@@ -186,7 +186,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+ 			s.stksize = Rnd(s.stksize, int64(Widthptr))
+ 		}
+-		n.SetOffset(-s.stksize)
++		n.SetFrameOffset(-s.stksize)
+ 	}
+ 
+ 	s.stksize = Rnd(s.stksize, int64(Widthreg))
+@@ -536,10 +536,11 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf
+ 
+ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	var abbrev int
+-	offs := n.Offset()
++	var offs int64
+ 
+ 	switch n.Class() {
+ 	case ir.PAUTO:
++		offs = n.FrameOffset()
+ 		abbrev = dwarf.DW_ABRV_AUTO
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			offs -= int64(Widthptr)
+@@ -551,7 +552,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 
+ 	case ir.PPARAM, ir.PPARAMOUT:
+ 		abbrev = dwarf.DW_ABRV_PARAM
+-		offs += base.Ctxt.FixedFrameSize()
++		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+ 	default:
+ 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class(), n)
+ 	}
+@@ -693,7 +694,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			Name:          n.Sym().Name,
+ 			IsReturnValue: isReturnValue,
+ 			Abbrev:        abbrev,
+-			StackOffset:   int32(n.Offset()),
++			StackOffset:   int32(n.FrameOffset()),
+ 			Type:          base.Ctxt.Lookup(typename),
+ 			DeclFile:      declpos.RelFilename(),
+ 			DeclLine:      declpos.RelLine(),
+@@ -737,6 +738,7 @@ func stackOffset(slot ssa.LocalSlot) int32 {
+ 	var off int64
+ 	switch n.Class() {
+ 	case ir.PAUTO:
++		off = n.FrameOffset()
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			off -= int64(Widthptr)
+ 		}
+@@ -745,9 +747,9 @@ func stackOffset(slot ssa.LocalSlot) int32 {
+ 			off -= int64(Widthptr)
+ 		}
+ 	case ir.PPARAM, ir.PPARAMOUT:
+-		off += base.Ctxt.FixedFrameSize()
++		off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+ 	}
+-	return int32(off + n.Offset() + slot.Off)
++	return int32(off + slot.Off)
+ }
+ 
+ // createComplexVar builds a single DWARF variable entry and location list.
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index ad8b87c6f5..3875fb7223 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -43,7 +43,7 @@ func TestCmpstackvar(t *testing.T) {
+ 		}
+ 		n := NewName(s)
+ 		n.SetType(t)
+-		n.SetOffset(xoffset)
++		n.SetFrameOffset(xoffset)
+ 		n.SetClass(cl)
+ 		return n
+ 	}
+@@ -158,7 +158,7 @@ func TestStackvarSort(t *testing.T) {
+ 	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Name {
+ 		n := NewName(s)
+ 		n.SetType(t)
+-		n.SetOffset(xoffset)
++		n.SetFrameOffset(xoffset)
+ 		n.SetClass(cl)
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 6deb3ecc7a..8e266d6599 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -496,10 +496,10 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*ir.Name, args, locals bvec)
+ 		node := vars[i]
+ 		switch node.Class() {
+ 		case ir.PAUTO:
+-			onebitwalktype1(node.Type(), node.Offset()+lv.stkptrsize, locals)
++			onebitwalktype1(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
+ 
+ 		case ir.PPARAM, ir.PPARAMOUT:
+-			onebitwalktype1(node.Type(), node.Offset(), args)
++			onebitwalktype1(node.Type(), node.FrameOffset(), args)
+ 		}
+ 	}
+ }
+@@ -1173,7 +1173,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	for _, n := range lv.vars {
+ 		switch n.Class() {
+ 		case ir.PPARAM, ir.PPARAMOUT:
+-			if maxArgNode == nil || n.Offset() > maxArgNode.Offset() {
++			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
+ 				maxArgNode = n
+ 			}
+ 		}
+@@ -1181,7 +1181,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	// Next, find the offset of the largest pointer in the largest node.
+ 	var maxArgs int64
+ 	if maxArgNode != nil {
+-		maxArgs = maxArgNode.Offset() + typeptrdata(maxArgNode.Type())
++		maxArgs = maxArgNode.FrameOffset() + typeptrdata(maxArgNode.Type())
+ 	}
+ 
+ 	// Size locals bitmaps to be stkptrsize sized.
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 6b5d53e806..472deb16e3 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -83,9 +83,9 @@ func instrument(fn *ir.Func) {
+ 			// This only works for amd64. This will not
+ 			// work on arm or others that might support
+ 			// race in the future.
+-			nodpc := ir.Copy(nodfp).(*ir.Name)
++			nodpc := nodfp.CloneName()
+ 			nodpc.SetType(types.Types[types.TUINTPTR])
+-			nodpc.SetOffset(int64(-Widthptr))
++			nodpc.SetFrameOffset(int64(-Widthptr))
+ 			fn.Dcl = append(fn.Dcl, nodpc)
+ 			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
+ 			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index cfda4afcd8..e2c31e4dd7 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -67,14 +67,16 @@ func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
+ 	}
+ 	lno := setlineno(n)
+ 	defer func() { base.Pos = lno }()
+-	return s.staticassign(n.Left().(*ir.Name), n.Right())
++	nam := n.Left().(*ir.Name)
++	return s.staticassign(nam, 0, n.Right(), nam.Type())
+ }
+ 
+ // like staticassign but we are copying an already
+ // initialized value r.
+-func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
++func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
+ 	if rn.Class() == ir.PFUNC {
+-		pfuncsym(l, rn)
++		// TODO if roff != 0 { panic }
++		pfuncsym(l, loff, rn)
+ 		return true
+ 	}
+ 	if rn.Class() != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+@@ -92,7 +94,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
+ 	orig := rn
+ 	r := rn.Defn.(*ir.AssignStmt).Right()
+ 
+-	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), l.Type()) {
++	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
+ 		r = r.(*ir.ConvExpr).Left()
+ 	}
+ 
+@@ -102,12 +104,16 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
+ 		fallthrough
+ 	case ir.ONAME:
+ 		r := r.(*ir.Name)
+-		if s.staticcopy(l, r) {
++		if s.staticcopy(l, loff, r, typ) {
+ 			return true
+ 		}
+ 		// We may have skipped past one or more OCONVNOPs, so
+ 		// use conv to ensure r is assignable to l (#13263).
+-		s.append(ir.Nod(ir.OAS, l, conv(r, l.Type())))
++		dst := ir.Node(l)
++		if loff != 0 || !types.Identical(typ, l.Type()) {
++			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
++		}
++		s.append(ir.Nod(ir.OAS, dst, conv(r, typ)))
+ 		return true
+ 
+ 	case ir.ONIL:
+@@ -117,13 +123,13 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
+ 		if isZero(r) {
+ 			return true
+ 		}
+-		litsym(l, r, int(l.Type().Width))
++		litsym(l, loff, r, int(typ.Width))
+ 		return true
+ 
+ 	case ir.OADDR:
+ 		if a := r.Left(); a.Op() == ir.ONAME {
+ 			a := a.(*ir.Name)
+-			addrsym(l, a)
++			addrsym(l, loff, a, 0)
+ 			return true
+ 		}
+ 
+@@ -131,41 +137,35 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
+ 		switch r.Left().Op() {
+ 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
+ 			// copy pointer
+-			addrsym(l, s.inittemps[r])
++			addrsym(l, loff, s.inittemps[r], 0)
+ 			return true
+ 		}
+ 
+ 	case ir.OSLICELIT:
+ 		// copy slice
+-		a := s.inittemps[r]
+-		slicesym(l, a, ir.Int64Val(r.Right()))
++		slicesym(l, loff, s.inittemps[r], ir.Int64Val(r.Right()))
+ 		return true
+ 
+ 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+ 		p := s.initplans[r]
+-
+-		n := ir.Copy(l).(*ir.Name)
+ 		for i := range p.E {
+ 			e := &p.E[i]
+-			n.SetOffset(l.Offset() + e.Xoffset)
+-			n.SetType(e.Expr.Type())
++			typ := e.Expr.Type()
+ 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+-				litsym(n, e.Expr, int(n.Type().Width))
++				litsym(l, loff+e.Xoffset, e.Expr, int(typ.Width))
+ 				continue
+ 			}
+-			ll := ir.SepCopy(n).(*ir.Name)
+ 			x := e.Expr
+ 			if x.Op() == ir.OMETHEXPR {
+ 				x = x.(*ir.MethodExpr).FuncName()
+ 			}
+-			if x.Op() == ir.ONAME && s.staticcopy(ll, x.(*ir.Name)) {
++			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
+ 				continue
+ 			}
+ 			// Requires computation, but we're
+ 			// copying someone else's computation.
+-			rr := ir.SepCopy(orig).(*ir.Name)
+-			rr.SetType(ll.Type())
+-			rr.SetOffset(rr.Offset() + e.Xoffset)
++			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
++			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
+ 			setlineno(rr)
+ 			s.append(ir.Nod(ir.OAS, ll, rr))
+ 		}
+@@ -176,7 +176,7 @@ func (s *InitSchedule) staticcopy(l *ir.Name, rn *ir.Name) bool {
+ 	return false
+ }
+ 
+-func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
++func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+ 	for r.Op() == ir.OCONVNOP {
+ 		r = r.(*ir.ConvExpr).Left()
+ 	}
+@@ -184,11 +184,11 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 	switch r.Op() {
+ 	case ir.ONAME:
+ 		r := r.(*ir.Name)
+-		return s.staticcopy(l, r)
++		return s.staticcopy(l, loff, r, typ)
+ 
+ 	case ir.OMETHEXPR:
+ 		r := r.(*ir.MethodExpr)
+-		return s.staticcopy(l, r.FuncName())
++		return s.staticcopy(l, loff, r.FuncName(), typ)
+ 
+ 	case ir.ONIL:
+ 		return true
+@@ -197,12 +197,12 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 		if isZero(r) {
+ 			return true
+ 		}
+-		litsym(l, r, int(l.Type().Width))
++		litsym(l, loff, r, int(typ.Width))
+ 		return true
+ 
+ 	case ir.OADDR:
+-		if nam := stataddr(r.Left()); nam != nil {
+-			addrsym(l, nam)
++		if name, offset, ok := stataddr(r.Left()); ok {
++			addrsym(l, loff, name, offset)
+ 			return true
+ 		}
+ 		fallthrough
+@@ -214,10 +214,10 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 			a := staticname(r.Left().Type())
+ 
+ 			s.inittemps[r] = a
+-			addrsym(l, a)
++			addrsym(l, loff, a, 0)
+ 
+ 			// Init underlying literal.
+-			if !s.staticassign(a, r.Left()) {
++			if !s.staticassign(a, 0, r.Left(), a.Type()) {
+ 				s.append(ir.Nod(ir.OAS, a, r.Left()))
+ 			}
+ 			return true
+@@ -227,7 +227,7 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 	case ir.OSTR2BYTES:
+ 		if l.Class() == ir.PEXTERN && r.Left().Op() == ir.OLITERAL {
+ 			sval := ir.StringVal(r.Left())
+-			slicebytes(l, sval)
++			slicebytes(l, loff, sval)
+ 			return true
+ 		}
+ 
+@@ -239,27 +239,25 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 		ta.SetNoalg(true)
+ 		a := staticname(ta)
+ 		s.inittemps[r] = a
+-		slicesym(l, a, bound)
++		slicesym(l, loff, a, bound)
+ 		// Fall through to init underlying array.
+ 		l = a
++		loff = 0
+ 		fallthrough
+ 
+ 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+ 		s.initplan(r)
+ 
+ 		p := s.initplans[r]
+-		n := ir.Copy(l).(*ir.Name)
+ 		for i := range p.E {
+ 			e := &p.E[i]
+-			n.SetOffset(l.Offset() + e.Xoffset)
+-			n.SetType(e.Expr.Type())
+ 			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+-				litsym(n, e.Expr, int(n.Type().Width))
++				litsym(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
+ 				continue
+ 			}
+ 			setlineno(e.Expr)
+-			a := ir.SepCopy(n).(*ir.Name)
+-			if !s.staticassign(a, e.Expr) {
++			if !s.staticassign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
++				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
+ 				s.append(ir.Nod(ir.OAS, a, e.Expr))
+ 			}
+ 		}
+@@ -276,7 +274,8 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 			}
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+-			pfuncsym(l, r.Func().Nname)
++			// TODO if roff != 0 { panic }
++			pfuncsym(l, loff, r.Func().Nname)
+ 			return true
+ 		}
+ 		closuredebugruntimecheck(r)
+@@ -303,18 +302,16 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 		markTypeUsedInInterface(val.Type(), l.Sym().Linksym())
+ 
+ 		var itab *ir.AddrExpr
+-		if l.Type().IsEmptyInterface() {
++		if typ.IsEmptyInterface() {
+ 			itab = typename(val.Type())
+ 		} else {
+-			itab = itabname(val.Type(), l.Type())
++			itab = itabname(val.Type(), typ)
+ 		}
+ 
+ 		// Create a copy of l to modify while we emit data.
+-		n := ir.Copy(l).(*ir.Name)
+ 
+ 		// Emit itab, advance offset.
+-		addrsym(n, itab.Left().(*ir.Name))
+-		n.SetOffset(n.Offset() + int64(Widthptr))
++		addrsym(l, loff, itab.Left().(*ir.Name), 0)
+ 
+ 		// Emit data.
+ 		if isdirectiface(val.Type()) {
+@@ -323,20 +320,19 @@ func (s *InitSchedule) staticassign(l *ir.Name, r ir.Node) bool {
+ 				return true
+ 			}
+ 			// Copy val directly into n.
+-			n.SetType(val.Type())
+ 			setlineno(val)
+-			a := ir.SepCopy(n).(*ir.Name)
+-			if !s.staticassign(a, val) {
++			if !s.staticassign(l, loff+int64(Widthptr), val, val.Type()) {
++				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(Widthptr), val.Type())
+ 				s.append(ir.Nod(ir.OAS, a, val))
+ 			}
+ 		} else {
+ 			// Construct temp to hold val, write pointer to temp into n.
+ 			a := staticname(val.Type())
+ 			s.inittemps[val] = a
+-			if !s.staticassign(a, val) {
++			if !s.staticassign(a, 0, val, val.Type()) {
+ 				s.append(ir.Nod(ir.OAS, a, val))
+ 			}
+-			addrsym(n, a)
++			addrsym(l, loff+int64(Widthptr), a, 0)
+ 		}
+ 
+ 		return true
+@@ -626,11 +622,11 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 
+ 		// copy static to slice
+ 		var_ = typecheck(var_, ctxExpr|ctxAssign)
+-		nam := stataddr(var_)
+-		if nam == nil || nam.Class() != ir.PEXTERN {
++		name, offset, ok := stataddr(var_)
++		if !ok || name.Class() != ir.PEXTERN {
+ 			base.Fatalf("slicelit: %v", var_)
+ 		}
+-		slicesym(nam, vstat, t.NumElem())
++		slicesym(name, offset, vstat, t.NumElem())
+ 		return
+ 	}
+ 
+@@ -989,34 +985,32 @@ func getlit(lit ir.Node) int {
+ }
+ 
+ // stataddr returns the static address of n, if n has one, or else nil.
+-func stataddr(n ir.Node) *ir.Name {
++func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
+ 	if n == nil {
+-		return nil
++		return nil, 0, false
+ 	}
+ 
+ 	switch n.Op() {
+ 	case ir.ONAME:
+-		return ir.SepCopy(n).(*ir.Name)
++		n := n.(*ir.Name)
++		return n, 0, true
+ 
+ 	case ir.OMETHEXPR:
+ 		n := n.(*ir.MethodExpr)
+ 		return stataddr(n.FuncName())
+ 
+ 	case ir.ODOT:
+-		nam := stataddr(n.Left())
+-		if nam == nil {
++		if name, offset, ok = stataddr(n.Left()); !ok {
+ 			break
+ 		}
+-		nam.SetOffset(nam.Offset() + n.Offset())
+-		nam.SetType(n.Type())
+-		return nam
++		offset += n.Offset()
++		return name, offset, true
+ 
+ 	case ir.OINDEX:
+ 		if n.Left().Type().IsSlice() {
+ 			break
+ 		}
+-		nam := stataddr(n.Left())
+-		if nam == nil {
++		if name, offset, ok = stataddr(n.Left()); !ok {
+ 			break
+ 		}
+ 		l := getlit(n.Right())
+@@ -1028,12 +1022,11 @@ func stataddr(n ir.Node) *ir.Name {
+ 		if n.Type().Width != 0 && thearch.MAXWIDTH/n.Type().Width <= int64(l) {
+ 			break
+ 		}
+-		nam.SetOffset(nam.Offset() + int64(l)*n.Type().Width)
+-		nam.SetType(n.Type())
+-		return nam
++		offset += int64(l) * n.Type().Width
++		return name, offset, true
+ 	}
+ 
+-	return nil
++	return nil, 0, false
+ }
+ 
+ func (s *InitSchedule) initplan(n ir.Node) {
+@@ -1154,23 +1147,26 @@ func genAsStatic(as *ir.AssignStmt) {
+ 		base.Fatalf("genAsStatic as.Left not typechecked")
+ 	}
+ 
+-	nam := stataddr(as.Left())
+-	if nam == nil || (nam.Class() != ir.PEXTERN && as.Left() != ir.BlankNode) {
++	name, offset, ok := stataddr(as.Left())
++	if !ok || (name.Class() != ir.PEXTERN && as.Left() != ir.BlankNode) {
+ 		base.Fatalf("genAsStatic: lhs %v", as.Left())
+ 	}
+ 
+ 	switch r := as.Right(); r.Op() {
+ 	case ir.OLITERAL:
+-		litsym(nam, r, int(r.Type().Width))
++		litsym(name, offset, r, int(r.Type().Width))
+ 		return
+ 	case ir.OMETHEXPR:
+ 		r := r.(*ir.MethodExpr)
+-		pfuncsym(nam, r.FuncName())
++		pfuncsym(name, offset, r.FuncName())
+ 		return
+ 	case ir.ONAME:
+ 		r := r.(*ir.Name)
++		if r.Offset() != 0 {
++			base.Fatalf("genAsStatic %+v", as)
++		}
+ 		if r.Class() == ir.PFUNC {
+-			pfuncsym(nam, r)
++			pfuncsym(name, offset, r)
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2a0134703c..fbfed0640d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -258,14 +258,14 @@ func (s *state) emitOpenDeferInfo() {
+ 		}
+ 	}
+ 	off = dvarint(x, off, maxargsize)
+-	off = dvarint(x, off, -s.deferBitsTemp.Offset())
++	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
+ 	off = dvarint(x, off, int64(len(s.openDefers)))
+ 
+ 	// Write in reverse-order, for ease of running in that order at runtime
+ 	for i := len(s.openDefers) - 1; i >= 0; i-- {
+ 		r := s.openDefers[i]
+ 		off = dvarint(x, off, r.n.Left().Type().ArgWidth())
+-		off = dvarint(x, off, -r.closureNode.Offset())
++		off = dvarint(x, off, -r.closureNode.FrameOffset())
+ 		numArgs := len(r.argNodes)
+ 		if r.rcvrNode != nil {
+ 			// If there's an interface receiver, treat/place it as the first
+@@ -275,13 +275,13 @@ func (s *state) emitOpenDeferInfo() {
+ 		}
+ 		off = dvarint(x, off, int64(numArgs))
+ 		if r.rcvrNode != nil {
+-			off = dvarint(x, off, -r.rcvrNode.Offset())
++			off = dvarint(x, off, -r.rcvrNode.FrameOffset())
+ 			off = dvarint(x, off, s.config.PtrSize)
+ 			off = dvarint(x, off, 0)
+ 		}
+ 		for j, arg := range r.argNodes {
+ 			f := getParam(r.n, j)
+-			off = dvarint(x, off, -arg.Offset())
++			off = dvarint(x, off, -arg.FrameOffset())
+ 			off = dvarint(x, off, f.Type.Size())
+ 			off = dvarint(x, off, f.Offset)
+ 		}
+@@ -418,10 +418,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		switch n.Class() {
+ 		case ir.PPARAM:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+-			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.Offset())})
++			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
+ 		case ir.PPARAMOUT:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+-			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.Offset())})
++			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
+ 			if s.canSSA(n) {
+ 				// Save ssa-able PPARAMOUT variables so we can
+ 				// store them back to the stack at the end of
+@@ -2101,6 +2101,13 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		}
+ 		addr := s.addr(n)
+ 		return s.load(n.Type(), addr)
++	case ir.ONAMEOFFSET:
++		n := n.(*ir.NameOffsetExpr)
++		if s.canSSAName(n.Name_) && canSSAType(n.Type()) {
++			return s.variable(n, n.Type())
++		}
++		addr := s.addr(n)
++		return s.load(n.Type(), addr)
+ 	case ir.OCLOSUREREAD:
+ 		addr := s.addr(n)
+ 		return s.load(n.Type(), addr)
+@@ -4927,7 +4934,13 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	}
+ 
+ 	t := types.NewPtr(n.Type())
++	var offset int64
+ 	switch n.Op() {
++	case ir.ONAMEOFFSET:
++		no := n.(*ir.NameOffsetExpr)
++		offset = no.Offset_
++		n = no.Name_
++		fallthrough
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+ 		switch n.Class() {
+@@ -4935,8 +4948,8 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			// global variable
+ 			v := s.entryNewValue1A(ssa.OpAddr, t, n.Sym().Linksym(), s.sb)
+ 			// TODO: Make OpAddr use AuxInt as well as Aux.
+-			if n.Offset() != 0 {
+-				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Offset(), v)
++			if offset != 0 {
++				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
+ 			}
+ 			return v
+ 		case ir.PPARAM:
+@@ -5050,7 +5063,10 @@ func (s *state) canSSA(n ir.Node) bool {
+ 	if n.Op() != ir.ONAME {
+ 		return false
+ 	}
+-	name := n.(*ir.Name)
++	return s.canSSAName(n.(*ir.Name)) && canSSAType(n.Type())
++}
++
++func (s *state) canSSAName(name *ir.Name) bool {
+ 	if name.Addrtaken() {
+ 		return false
+ 	}
+@@ -5084,7 +5100,7 @@ func (s *state) canSSA(n ir.Node) bool {
+ 		// TODO: treat as a PPARAMOUT?
+ 		return false
+ 	}
+-	return canSSAType(name.Type())
++	return true
+ 	// TODO: try to make more variables SSAable?
+ }
+ 
+@@ -6184,9 +6200,6 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
+ 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
+ 		return
+ 	}
+-	if n.Class() == ir.PAUTO && n.Offset() != 0 {
+-		s.Fatalf("AUTO var with offset %v %d", n, n.Offset())
+-	}
+ 	loc := ssa.LocalSlot{N: n.Name(), Type: n.Type(), Off: 0}
+ 	values, ok := s.f.NamedValues[loc]
+ 	if !ok {
+@@ -6309,7 +6322,7 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
+ type byXoffset []*ir.Name
+ 
+ func (s byXoffset) Len() int           { return len(s) }
+-func (s byXoffset) Less(i, j int) bool { return s[i].Offset() < s[j].Offset() }
++func (s byXoffset) Less(i, j int) bool { return s[i].FrameOffset() < s[j].FrameOffset() }
+ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+ func emitStackObjects(e *ssafn, pp *Progs) {
+@@ -6335,7 +6348,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
+ 		// Note: arguments and return values have non-negative Xoffset,
+ 		// in which case the offset is relative to argp.
+ 		// Locals have a negative Xoffset, in which case the offset is relative to varp.
+-		off = duintptr(x, off, uint64(v.Offset()))
++		off = duintptr(x, off, uint64(v.FrameOffset()))
+ 		if !typesym(v.Type()).Siggen() {
+ 			e.Fatalf(v.Pos(), "stack object's type symbol not generated for type %s", v.Type())
+ 		}
+@@ -6708,13 +6721,13 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 		if n.Class() != ir.PAUTO {
+ 			e.Fatalf(n.Pos(), "needzero class %d", n.Class())
+ 		}
+-		if n.Type().Size()%int64(Widthptr) != 0 || n.Offset()%int64(Widthptr) != 0 || n.Type().Size() == 0 {
++		if n.Type().Size()%int64(Widthptr) != 0 || n.FrameOffset()%int64(Widthptr) != 0 || n.Type().Size() == 0 {
+ 			e.Fatalf(n.Pos(), "var %L has size %d offset %d", n, n.Type().Size(), n.Offset())
+ 		}
+ 
+-		if lo != hi && n.Offset()+n.Type().Size() >= lo-int64(2*Widthreg) {
++		if lo != hi && n.FrameOffset()+n.Type().Size() >= lo-int64(2*Widthreg) {
+ 			// Merge with range we already have.
+-			lo = n.Offset()
++			lo = n.FrameOffset()
+ 			continue
+ 		}
+ 
+@@ -6722,7 +6735,7 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 		p = thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
+ 
+ 		// Set new range.
+-		lo = n.Offset()
++		lo = n.FrameOffset()
+ 		hi = lo + n.Type().Size()
+ 	}
+ 
+@@ -6793,12 +6806,12 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
+ 			a.Name = obj.NAME_PARAM
+ 			a.Sym = ir.Orig(n).Sym().Linksym()
+-			a.Offset += n.Offset()
++			a.Offset += n.FrameOffset()
+ 			break
+ 		}
+ 		a.Name = obj.NAME_AUTO
+ 		a.Sym = n.Sym().Linksym()
+-		a.Offset += n.Offset()
++		a.Offset += n.FrameOffset()
+ 	default:
+ 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+ 	}
+@@ -6941,7 +6954,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	a.Type = obj.TYPE_MEM
+ 	a.Sym = n.Sym().Linksym()
+ 	a.Reg = int16(thearch.REGSP)
+-	a.Offset = n.Offset() + off
++	a.Offset = n.FrameOffset() + off
+ 	if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
+ 		a.Name = obj.NAME_PARAM
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 03998b99be..9c26edf136 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -572,12 +572,12 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+ 	return ptr, length
+ }
+ 
+-func syslook(name string) ir.Node {
++func syslook(name string) *ir.Name {
+ 	s := Runtimepkg.Lookup(name)
+ 	if s == nil || s.Def == nil {
+ 		base.Fatalf("syslook: can't find runtime.%s", name)
+ 	}
+-	return ir.AsNode(s.Def)
++	return ir.AsNode(s.Def).(*ir.Name)
+ }
+ 
+ // typehash computes a hash value for type t to use in type switch statements.
+@@ -609,7 +609,7 @@ func calcHasCall(n ir.Node) bool {
+ 		base.Fatalf("calcHasCall %+v", n)
+ 		panic("unreachable")
+ 
+-	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE:
++	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE, ir.ONAMEOFFSET:
+ 		if n.HasCall() {
+ 			base.Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
+ 		}
+@@ -770,7 +770,7 @@ func safeexpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	switch n.Op() {
+-	case ir.ONAME, ir.OLITERAL, ir.ONIL:
++	case ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+ 		return n
+ 
+ 	case ir.OLEN, ir.OCAP:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5e56ace7c7..83939fd6bf 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -488,6 +488,10 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 		}
+ 		return n
+ 
++	case ir.ONAMEOFFSET:
++		// type already set
++		return n
++
+ 	case ir.OPACK:
+ 		base.Errorf("use of package %v without selector", n.Sym())
+ 		n.SetType(nil)
+@@ -3106,6 +3110,9 @@ func islvalue(n ir.Node) bool {
+ 			return false
+ 		}
+ 		return true
++
++	case ir.ONAMEOFFSET:
++		return true
+ 	}
+ 
+ 	return false
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 91d3ad215e..23d1ce6003 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -530,7 +530,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ, ir.OMETHEXPR:
+ 		return n
+ 
+-	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL:
++	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+ 		// Perhaps refactor to use Node.mayBeShared for these instead.
+ 		// If these return early, make sure to still call
+@@ -1999,7 +1999,7 @@ func walkprint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			continue
+ 		}
+ 
+-		var on ir.Node
++		var on *ir.Name
+ 		switch n.Type().Kind() {
+ 		case types.TINTER:
+ 			if n.Type().IsEmptyInterface() {
+@@ -3958,8 +3958,8 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ // type syntax expression n.Type.
+ // The result of substArgTypes MUST be assigned back to old, e.g.
+ // 	n.Left = substArgTypes(n.Left, t1, t2)
+-func substArgTypes(old ir.Node, types_ ...*types.Type) ir.Node {
+-	n := ir.Copy(old)
++func substArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
++	n := old.CloneName()
+ 
+ 	for _, t := range types_ {
+ 		dowidth(t)
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index a6e90a899e..6f15645813 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -631,6 +631,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		n := n.(*MethodExpr)
+ 		fmt.Fprint(s, n.FuncName().Sym())
+ 
++	case ONAMEOFFSET:
++		n := n.(*NameOffsetExpr)
++		fmt.Fprintf(s, "(%v)(%v@%d)", n.Type(), n.Name_, n.Offset_)
++
+ 	case OTYPE:
+ 		if n.Type() == nil && n.Sym() != nil {
+ 			fmt.Fprint(s, n.Sym())
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index f9b398fe28..f5dacee622 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -67,18 +67,23 @@ func main() {
+ 		fmt.Fprintf(&buf, "\n")
+ 		fmt.Fprintf(&buf, "func (n *%s) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }\n", name)
+ 
+-		fmt.Fprintf(&buf, "func (n *%s) copy() Node { c := *n\n", name)
+-		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
+-			switch {
+-			case is(nodesType):
+-				fmt.Fprintf(&buf, "c.%s = c.%s.Copy()\n", name, name)
+-			case is(ptrFieldType):
+-				fmt.Fprintf(&buf, "if c.%s != nil { c.%s = c.%s.copy() }\n", name, name, name)
+-			case is(slicePtrFieldType):
+-				fmt.Fprintf(&buf, "c.%s = copyFields(c.%s)\n", name, name)
+-			}
+-		})
+-		fmt.Fprintf(&buf, "return &c }\n")
++		switch name {
++		case "Name":
++			fmt.Fprintf(&buf, "func (n *%s) copy() Node {panic(\"%s.copy\")}\n", name, name)
++		default:
++			fmt.Fprintf(&buf, "func (n *%s) copy() Node { c := *n\n", name)
++			forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
++				switch {
++				case is(nodesType):
++					fmt.Fprintf(&buf, "c.%s = c.%s.Copy()\n", name, name)
++				case is(ptrFieldType):
++					fmt.Fprintf(&buf, "if c.%s != nil { c.%s = c.%s.copy() }\n", name, name, name)
++				case is(slicePtrFieldType):
++					fmt.Fprintf(&buf, "c.%s = copyFields(c.%s)\n", name, name)
++				}
++			})
++			fmt.Fprintf(&buf, "return &c }\n")
++		}
+ 
+ 		fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) error) error { var err error\n", name)
+ 		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 96cb0ee054..0c36ffdf7a 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -139,6 +139,12 @@ type Name struct {
+ 	Outer     *Name
+ }
+ 
++// CloneName makes a cloned copy of the name.
++// It's not ir.Copy(n) because in general that operation is a mistake on names,
++// which uniquely identify variables.
++// Callers must use n.CloneName to make clear they intend to create a separate name.
++func (n *Name) CloneName() *Name { c := *n; return &c }
++
+ func (n *Name) isExpr() {}
+ 
+ // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
+@@ -186,10 +192,16 @@ func (n *Name) Class() Class        { return n.Class_ }
+ func (n *Name) SetClass(x Class)    { n.Class_ = x }
+ func (n *Name) Func() *Func         { return n.fn }
+ func (n *Name) SetFunc(x *Func)     { n.fn = x }
+-func (n *Name) Offset() int64       { return n.Offset_ }
+-func (n *Name) SetOffset(x int64)   { n.Offset_ = x }
+-func (n *Name) Iota() int64         { return n.Offset_ }
+-func (n *Name) SetIota(x int64)     { n.Offset_ = x }
++func (n *Name) Offset() int64       { panic("Name.Offset") }
++func (n *Name) SetOffset(x int64) {
++	if x != 0 {
++		panic("Name.SetOffset")
++	}
++}
++func (n *Name) FrameOffset() int64     { return n.Offset_ }
++func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
++func (n *Name) Iota() int64            { return n.Offset_ }
++func (n *Name) SetIota(x int64)        { n.Offset_ = x }
+ 
+ func (*Name) CanBeNtype()    {}
+ func (*Name) CanBeAnSSASym() {}
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 10dfe3c927..a0fae2b949 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -639,10 +639,7 @@ func (n *MethodExpr) editChildren(edit func(Node) Node) {
+ }
+ 
+ func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *Name) copy() Node {
+-	c := *n
+-	return &c
+-}
++func (n *Name) copy() Node                    { panic("Name.copy") }
+ func (n *Name) doChildren(do func(Node) error) error {
+ 	var err error
+ 	return err

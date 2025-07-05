@@ -14,7 +14,103 @@ Date:   Thu Aug 18 16:20:44 2016 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/pem/pem.go      | 19 ++++++++++++++++++-
  src/encoding/pem/pem_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index ff2bed161a..fbf49997d5 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -119,19 +119,36 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 		rest = next
+ 	}
+ 
+-	var endIndex int
++	var endIndex, endTrailerIndex int
++
+ 	// If there were no headers, the END line might occur
+ 	// immediately, without a leading newline.
+ 	if len(p.Headers) == 0 && bytes.HasPrefix(rest, pemEnd[1:]) {
+ 		endIndex = 0
++		endTrailerIndex = len(pemEnd) - 1
+ 	} else {
+ 		endIndex = bytes.Index(rest, pemEnd)
++		endTrailerIndex = endIndex + len(pemEnd)
+ 	}
+ 
+ 	if endIndex < 0 {
+ 		return decodeError(data, rest)
+ 	}
+ 
++	// After the "-----" of the ending line should be the same type and a
++	// final five dashes.
++	endTrailer := rest[endTrailerIndex:]
++	endTrailerLen := len(typeLine) + len(pemEndOfLine)
++	if len(endTrailer) < endTrailerLen {
++		return decodeError(data, rest)
++	}
++
++	endTrailer = endTrailer[:endTrailerLen]
++	if !bytes.HasPrefix(endTrailer, typeLine) ||
++		!bytes.HasSuffix(endTrailer, pemEndOfLine) {
++		return decodeError(data, rest)
++	}
++
+ 	base64Data := removeWhitespace(rest[:endIndex])
+ 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
+ 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 958dbc1a3a..6321dec382 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -78,6 +78,48 @@ func TestDecode(t *testing.T) {
+ 	}
+ }
+ 
++const pemTooFewEndingDashes = `
++-----BEGIN FOO-----
++dGVzdA==
++-----END FOO----`
++
++const pemWrongEndingType = `
++-----BEGIN FOO-----
++dGVzdA==
++-----END BAR-----`
++
++const pemMissingEndingSpace = `
++-----BEGIN FOO-----
++dGVzdA==
++-----ENDBAR-----`
++
++var badPEMTests = []struct {
++	name  string
++	input string
++}{
++	{
++		"too few trailing dashes",
++		pemTooFewEndingDashes,
++	},
++	{
++		"incorrect ending type",
++		pemWrongEndingType,
++	},
++	{
++		"missing ending space",
++		pemMissingEndingSpace,
++	},
++}
++
++func TestBadDecode(t *testing.T) {
++	for _, test := range badPEMTests {
++		result, _ := Decode([]byte(test.input))
++		if result != nil {
++			t.Errorf("unexpected success while parsing %q", test.name)
++		}
++	}
++}
++
+ func TestEncode(t *testing.T) {
+ 	r := EncodeToMemory(privateKey2)
+ 	if string(r) != pemPrivateKey2 {

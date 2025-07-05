@@ -14,7 +14,64 @@ Date:   Tue Feb 13 17:07:54 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sys_linux_amd64.s   | 4 +++-
  src/runtime/sys_linux_mips64x.s | 6 ++++--
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 017e7dcaef..fdbb958bb2 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -10,6 +10,8 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
++#define AT_FDCWD -100
++
+ #define SYS_read		0
+ #define SYS_write		1
+ #define SYS_close		3
+@@ -66,7 +68,7 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0-20
+ 	// This uses openat instead of open, because Android O blocks open.
+-	MOVL	$-100, DI // AT_FDCWD, so this acts like open
++	MOVL	$AT_FDCWD, DI // AT_FDCWD, so this acts like open
+ 	MOVQ	name+0(FP), SI
+ 	MOVL	mode+8(FP), DX
+ 	MOVL	perm+12(FP), R10
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 50e103bb63..ba55526c26 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -13,10 +13,11 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
++#define AT_FDCWD -100
++
+ #define SYS_exit		5058
+ #define SYS_read		5000
+ #define SYS_write		5001
+-#define SYS_openat		5247
+ #define SYS_close		5003
+ #define SYS_getpid		5038
+ #define SYS_kill		5060
+@@ -42,6 +43,7 @@
+ #define SYS_exit_group		5205
+ #define SYS_epoll_create	5207
+ #define SYS_epoll_ctl		5208
++#define SYS_openat		5247
+ #define SYS_epoll_pwait		5272
+ #define SYS_clock_gettime	5222
+ #define SYS_epoll_create1	5285
+@@ -68,7 +70,7 @@ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 
+ TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
+ 	// This uses openat instead of open, because Android O blocks open.
+-	MOVW	$-100, R4 // AT_FDCWD, so this acts like open
++	MOVW	$AT_FDCWD, R4 // AT_FDCWD, so this acts like open
+ 	MOVV	name+0(FP), R5
+ 	MOVW	mode+8(FP), R6
+ 	MOVW	perm+12(FP), R7

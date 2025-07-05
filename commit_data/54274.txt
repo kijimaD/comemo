@@ -23,7 +23,55 @@ Date:   Sat Oct 1 00:23:48 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/closure3.dir/main.go | 8 ++++----
  test/run.go               | 3 +--
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 7ef0a47595..4d02a4d10e 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -252,10 +252,10 @@ func main() {
+ 			b := 3
+ 			return func(y int) int { // ERROR "can inline main.func27.1"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.2"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+-			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.2"
++			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.(func)?2"
+ 		}(1000); r != 2350 {
+ 			ppanic("r != 2350")
+ 		}
+@@ -267,13 +267,13 @@ func main() {
+ 			b := 3
+ 			return func(y int) int { // ERROR "can inline main.func28.1"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.2"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+-			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.2"
++			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.(func)?2"
+ 		}(1000); r != 2350 {
+ 			ppanic("r != 2350")
+ 		}
+diff --git a/test/run.go b/test/run.go
+index 34b9675d2e..e33ab4cff3 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2020,8 +2020,7 @@ var _ = setOf(
+ )
+ 
+ var unifiedFailures = setOf(
+-	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
+-	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
++	"escape4.go", // unified IR can inline f5 and f6; test doesn't expect this
+ )
+ 
+ func setOf(keys ...string) map[string]bool {

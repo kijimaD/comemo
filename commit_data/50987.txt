@@ -18,7 +18,7 @@ Date:   Mon Nov 22 13:53:21 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/366276
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go         |  3 ---
  src/cmd/compile/internal/types2/operand.go             |  2 +-
  .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
@@ -28,3 +28,158 @@ Date:   Mon Nov 22 13:53:21 2021 -0800
  test/fixedbugs/issue6402.go                            |  2 +-
  test/fixedbugs/issue7223.go                            | 11 ++++++-----
  8 files changed, 25 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index a3d32093d6..ac4f7b88a4 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -220,9 +220,6 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 		return nil
+ 	case variable, mapindex:
+ 		// ok
+-	case nilvalue:
+-		check.error(&z, "cannot assign to nil") // default would print "untyped nil"
+-		return nil
+ 	default:
+ 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
+ 			var op operand
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 6581d80323..f6bd0291ec 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -116,7 +116,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 		case nil, Typ[Invalid]:
+ 			return "nil (with invalid type)"
+ 		case Typ[UntypedNil]:
+-			return "untyped nil"
++			return "nil"
+ 		default:
+ 			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index d744f2ba81..353444f068 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -69,10 +69,10 @@ func assignments1() {
+ 
+ 	// test cases for issue 5800
+ 	var (
+-		_ int = nil /* ERROR "untyped nil" */
+-		_ [10]int = nil /* ERROR "untyped nil" */
++		_ int = nil /* ERROR "nil" */
++		_ [10]int = nil /* ERROR "nil" */
+ 		_ []byte = nil
+-		_ struct{} = nil /* ERROR "untyped nil" */
++		_ struct{} = nil /* ERROR "nil" */
+ 		_ func() = nil
+ 		_ map[int]string = nil
+ 		_ chan int = nil
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2
+index 8f52acc8a4..eaa8e4dc7d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2
+@@ -9,7 +9,7 @@ func _[
+         T1 []int,
+         T2 ~float64 | ~complex128 | chan int,
+ ]() {
+-        _ = T0(nil /* ERROR cannot convert untyped nil to T0 */ )
++        _ = T0(nil /* ERROR cannot convert nil to T0 */ )
+         _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
+         _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/assignability.go2 b/src/cmd/compile/internal/types2/testdata/spec/assignability.go2
+index fb28358bbb..507fe6d021 100644
+--- a/src/cmd/compile/internal/types2/testdata/spec/assignability.go2
++++ b/src/cmd/compile/internal/types2/testdata/spec/assignability.go2
+@@ -153,28 +153,28 @@ func _[
+ 
+ // "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"
+ func _[TP Interface](X TP) {
+-	b = nil // ERROR cannot use untyped nil
+-	a = nil // ERROR cannot use untyped nil
++	b = nil // ERROR cannot use nil
++	a = nil // ERROR cannot use nil
+ 	l = nil
+-	s = nil // ERROR cannot use untyped nil
++	s = nil // ERROR cannot use nil
+ 	p = nil
+ 	f = nil
+ 	i = nil
+ 	m = nil
+ 	c = nil
+-	d = nil // ERROR cannot use untyped nil
++	d = nil // ERROR cannot use nil
+ 
+-	B = nil // ERROR cannot use untyped nil
+-	A = nil // ERROR cannot use untyped nil
++	B = nil // ERROR cannot use nil
++	A = nil // ERROR cannot use nil
+ 	L = nil
+-	S = nil // ERROR cannot use untyped nil
++	S = nil // ERROR cannot use nil
+ 	P = nil
+ 	F = nil
+ 	I = nil
+ 	M = nil
+ 	C = nil
+-	D = nil // ERROR cannot use untyped nil
+-	X = nil // ERROR cannot use untyped nil
++	D = nil // ERROR cannot use nil
++	X = nil // ERROR cannot use nil
+ }
+ 
+ // "x is an untyped constant representable by a value of type T"
+diff --git a/test/fixedbugs/issue6004.go b/test/fixedbugs/issue6004.go
+index 2b3dcd923d..99d6ab85ea 100644
+--- a/test/fixedbugs/issue6004.go
++++ b/test/fixedbugs/issue6004.go
+@@ -7,9 +7,8 @@
+ package main
+ 
+ func main() {
+-	_ = nil // ERROR "use of untyped nil"
+-	_, _ = nil, 1 // ERROR "use of untyped nil"
+-	_, _ = 1, nil // ERROR "use of untyped nil"
+-	_ = append(nil, 1, 2, 3) // ERROR "untyped nil"
++	_ = nil                  // ERROR "use of untyped nil"
++	_, _ = nil, 1            // ERROR "use of untyped nil"
++	_, _ = 1, nil            // ERROR "use of untyped nil"
++	_ = append(nil, 1, 2, 3) // ERROR "untyped nil|nil"
+ }
+-
+diff --git a/test/fixedbugs/issue6402.go b/test/fixedbugs/issue6402.go
+index 39cb9ac3f0..9977027d18 100644
+--- a/test/fixedbugs/issue6402.go
++++ b/test/fixedbugs/issue6402.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f() uintptr {
+-	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot use untyped nil"
++	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot use nil"
+ }
+diff --git a/test/fixedbugs/issue7223.go b/test/fixedbugs/issue7223.go
+index c78de287ff..129e20f497 100644
+--- a/test/fixedbugs/issue7223.go
++++ b/test/fixedbugs/issue7223.go
+@@ -7,14 +7,15 @@
+ package main
+ 
+ var bits1 uint = 10
++
+ const bits2 uint = 10
+ 
+ func main() {
+ 	_ = make([]byte, 1<<bits1)
+ 	_ = make([]byte, 1<<bits2)
+-	_ = make([]byte, nil) // ERROR "non-integer.*len|untyped nil"
+-	_ = make([]byte, nil, 2) // ERROR "non-integer.*len|untyped nil"
+-	_ = make([]byte, 1, nil) // ERROR "non-integer.*cap|untyped nil"
+-	_ = make([]byte, true) // ERROR "non-integer.*len|untyped bool"
+-	_ = make([]byte, "abc") // ERROR "non-integer.*len|untyped string"
++	_ = make([]byte, nil)    // ERROR "non-integer.*len|nil"
++	_ = make([]byte, nil, 2) // ERROR "non-integer.*len|nil"
++	_ = make([]byte, 1, nil) // ERROR "non-integer.*cap|nil"
++	_ = make([]byte, true)   // ERROR "non-integer.*len|untyped bool"
++	_ = make([]byte, "abc")  // ERROR "non-integer.*len|untyped string"
+ }

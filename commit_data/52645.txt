@@ -18,7 +18,48 @@ Date:   Sat May 14 16:15:26 2022 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  4 ++--
  test/fixedbugs/issue52907.go           | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 7c45f1443b..ff2780de82 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -714,8 +714,8 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		}
+ 	} else {
+ 		// Don't inline a function fn that has shape parameters, but is passed no shape arg.
+-		// See comments (1) above, and issue #51909
+-		inlineable := false
++		// See comments (1) above, and issue #51909.
++		inlineable := len(n.Args) == 0 // Function has shape in type, with no arguments can always be inlined.
+ 		for _, arg := range n.Args {
+ 			if arg.Type().HasShape() {
+ 				inlineable = true
+diff --git a/test/fixedbugs/issue52907.go b/test/fixedbugs/issue52907.go
+new file mode 100644
+index 0000000000..776be7f280
+--- /dev/null
++++ b/test/fixedbugs/issue52907.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f[T int](t T) {
++	for true {
++		func() {
++			t = func() T { return t }()
++		}()
++	}
++}
++
++func main() {
++	f(0)
++}

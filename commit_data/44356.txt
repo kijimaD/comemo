@@ -19,6 +19,20 @@ Date:   Mon Jun 15 15:16:51 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/238019
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b100d07e6f..f5a57cb96e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1783,7 +1783,7 @@ func asmbElf(ctxt *Link) {
+ 	var symo int64
+ 	if !*FlagS {
+ 		symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+-		symo = Rnd(symo, int64(*FlagRound))
++		symo = Rnd(symo, int64(ctxt.Arch.PtrSize))
+ 		ctxt.Out.SeekSet(symo)
+ 		asmElfSym(ctxt)
+ 		ctxt.Out.Write(Elfstrdat)

@@ -13,7 +13,63 @@ Date:   Tue Oct 16 14:31:49 2018 -0700
     Change-Id: I5c0a424812c82c1b95b6d124c5626cfc4408bdb6
     Reviewed-on: https://go-review.googlesource.com/c/142718
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 11 ++++++++---
  test/fixedbugs/issue22327.go        | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 41e2ad3589..29d9abd702 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2884,6 +2884,8 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	}
+ 	walkexprlistsafe(n.List.Slice()[1:], init)
+ 
++	nsrc := n.List.First()
++
+ 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+ 	// and n are name or literal, but those may index the slice we're
+ 	// modifying here. Fix explicitly.
+@@ -2892,11 +2894,14 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	// before we begin to modify the slice in a visible way.
+ 	ls := n.List.Slice()[1:]
+ 	for i, n := range ls {
+-		ls[i] = cheapexpr(n, init)
++		n = cheapexpr(n, init)
++		if !eqtype(n.Type, nsrc.Type.Elem()) {
++			n = assignconv(n, nsrc.Type.Elem(), "append")
++			n = walkexpr(n, init)
++		}
++		ls[i] = n
+ 	}
+ 
+-	nsrc := n.List.First()
+-
+ 	argc := n.List.Len() - 1
+ 	if argc < 1 {
+ 		return nsrc
+diff --git a/test/fixedbugs/issue22327.go b/test/fixedbugs/issue22327.go
+new file mode 100644
+index 0000000000..7b21d83402
+--- /dev/null
++++ b/test/fixedbugs/issue22327.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Using a multi-result function as an argument to
++// append should compile successfully. Previously there
++// was a missing *int -> interface{} conversion that caused
++// the compiler to ICE.
++
++package p
++
++func f() ([]interface{}, *int) {
++	return nil, nil
++}
++
++var _ = append(f())

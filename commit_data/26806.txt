@@ -11,7 +11,7 @@ Date:   Fri Feb 26 13:32:28 2016 -0800
     Change-Id: Ibb7e1f8c418a0b5bc6ff813cbdde7bc6f0013b5a
     Reviewed-on: https://go-review.googlesource.com/19966
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/bimport.go  |  3 +--
  src/cmd/compile/internal/gc/cgen.go     |  4 ++--
  src/cmd/compile/internal/gc/dcl.go      |  2 +-
@@ -23,3 +23,308 @@ Date:   Fri Feb 26 13:32:28 2016 -0800
  src/cmd/compile/internal/gc/racewalk.go |  2 +-
  src/cmd/compile/internal/gc/syntax.go   | 16 +++++---------
  10 files changed, 50 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 731f31ba52..f330f1b9e6 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -240,10 +240,9 @@ func (p *importer) typ() *Type {
+ 			{
+ 				saved := structpkg
+ 				structpkg = tsym.Pkg
+-				addmethod(sym, n.Type, false, nointerface)
++				addmethod(sym, n.Type, false, false)
+ 				structpkg = saved
+ 			}
+-			nointerface = false
+ 			funchdr(n)
+ 
+ 			// (comment from go.y)
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index fdeb6e65f7..7be050dd56 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -781,7 +781,7 @@ var sys_wbptr *Node
+ 
+ func cgen_wbptr(n, res *Node) {
+ 	if Curfn != nil {
+-		if Curfn.Func.Nowritebarrier {
++		if Curfn.Func.Pragma&Nowritebarrier != 0 {
+ 			Yyerror("write barrier prohibited")
+ 		}
+ 		if Curfn.Func.WBLineno == 0 {
+@@ -831,7 +831,7 @@ func cgen_wbptr(n, res *Node) {
+ 
+ func cgen_wbfat(n, res *Node) {
+ 	if Curfn != nil {
+-		if Curfn.Func.Nowritebarrier {
++		if Curfn.Func.Pragma&Nowritebarrier != 0 {
+ 			Yyerror("write barrier prohibited")
+ 		}
+ 		if Curfn.Func.WBLineno == 0 {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ccbb2d9d70..e485f9d79f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1530,7 +1530,7 @@ func checknowritebarrierrec() {
+ 
+ 		// Check nowritebarrierrec functions.
+ 		for _, n := range list {
+-			if !n.Func.Nowritebarrierrec {
++			if n.Func.Pragma&Nowritebarrierrec == 0 {
+ 				continue
+ 			}
+ 			call, hasWB := c.best[n]
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index a6fe8947c3..dbf3a97e7c 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -616,23 +616,10 @@ var flag_largemodel int
+ // when the race detector is enabled.
+ var instrumenting bool
+ 
+-// Pending annotations for next func declaration.
+-var (
+-	noescape          bool
+-	noinline          bool
+-	norace            bool
+-	nosplit           bool
+-	nowritebarrier    bool
+-	nowritebarrierrec bool
+-	systemstack       bool
+-)
+-
+ var debuglive int
+ 
+ var Ctxt *obj.Link
+ 
+-var nointerface bool
+-
+ var writearchive int
+ 
+ var bstdout obj.Biobuf
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index cae15f91de..17cc61a823 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -107,7 +107,7 @@ func caninl(fn *Node) {
+ 	}
+ 
+ 	// If marked "go:noinline", don't inline
+-	if fn.Func.Noinline {
++	if fn.Func.Pragma&Noinline != 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index d6a18c7286..c15fefb71d 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -844,6 +844,19 @@ func plan9quote(s string) string {
+ 	return s
+ }
+ 
++type Pragma uint8
++
++const (
++	Nointerface       Pragma = 1 << iota
++	Noescape                 // func parameters don't escape
++	Norace                   // func must not have race detector annotations
++	Nosplit                  // func should not execute on separate stack
++	Noinline                 // func should not be inlined
++	Systemstack              // func must run on system stack
++	Nowritebarrier           // emit compiler error instead of write barrier
++	Nowritebarrierrec        // error on write barrier in this or recursive callees
++)
++
+ type lexer struct {
+ 	// source
+ 	bin    *obj.Biobuf
+@@ -852,6 +865,10 @@ type lexer struct {
+ 
+ 	nlsemi bool // if set, '\n' and EOF translate to ';'
+ 
++	// pragma flags
++	// accumulated by lexer; reset by parser
++	pragma Pragma
++
+ 	// current token
+ 	tok  int32
+ 	sym_ *Sym // valid if tok == LNAME
+@@ -1650,32 +1667,31 @@ func (l *lexer) getlinepragma() rune {
+ 			Lookup(f[1]).Linkname = f[2]
+ 		case "go:nointerface":
+ 			if obj.Fieldtrack_enabled != 0 {
+-				nointerface = true
++				l.pragma |= Nointerface
+ 			}
+ 		case "go:noescape":
+-			noescape = true
++			l.pragma |= Noescape
+ 		case "go:norace":
+-			norace = true
++			l.pragma |= Norace
+ 		case "go:nosplit":
+-			nosplit = true
++			l.pragma |= Nosplit
+ 		case "go:noinline":
+-			noinline = true
++			l.pragma |= Noinline
+ 		case "go:systemstack":
+ 			if compiling_runtime == 0 {
+ 				Yyerror("//go:systemstack only allowed in runtime")
+ 			}
+-			systemstack = true
++			l.pragma |= Systemstack
+ 		case "go:nowritebarrier":
+ 			if compiling_runtime == 0 {
+ 				Yyerror("//go:nowritebarrier only allowed in runtime")
+ 			}
+-			nowritebarrier = true
++			l.pragma |= Nowritebarrier
+ 		case "go:nowritebarrierrec":
+ 			if compiling_runtime == 0 {
+ 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
+ 			}
+-			nowritebarrierrec = true
+-			nowritebarrier = true // Implies nowritebarrier
++			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+ 		}
+ 		return c
+ 	}
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 5a67a3fa3a..d42572391d 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1893,25 +1893,21 @@ func (p *parser) xfndcl() *Node {
+ 	}
+ 
+ 	p.want(LFUNC)
+-	f := p.fndcl()
++	f := p.fndcl(p.pragma&Nointerface != 0)
+ 	body := p.fnbody()
+ 
+ 	if f == nil {
+ 		return nil
+ 	}
+-	if noescape && body != nil {
+-		Yyerror("can only use //go:noescape with external func implementations")
+-	}
+ 
+ 	f.Nbody = body
++	f.Noescape = p.pragma&Noescape != 0
++	if f.Noescape && body != nil {
++		Yyerror("can only use //go:noescape with external func implementations")
++	}
++	f.Func.Pragma = p.pragma
+ 	f.Func.Endlineno = lineno
+-	f.Noescape = noescape
+-	f.Func.Norace = norace
+-	f.Func.Nosplit = nosplit
+-	f.Func.Noinline = noinline
+-	f.Func.Nowritebarrier = nowritebarrier
+-	f.Func.Nowritebarrierrec = nowritebarrierrec
+-	f.Func.Systemstack = systemstack
++
+ 	funcbody(f)
+ 
+ 	return f
+@@ -1922,7 +1918,7 @@ func (p *parser) xfndcl() *Node {
+ // Function     = Signature FunctionBody .
+ // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
+ // Receiver     = Parameters .
+-func (p *parser) fndcl() *Node {
++func (p *parser) fndcl(nointerface bool) *Node {
+ 	if trace && Debug['x'] != 0 {
+ 		defer p.trace("fndcl")()
+ 	}
+@@ -2058,8 +2054,7 @@ func (p *parser) hidden_fndcl() *Node {
+ 		ss.Type = functype(s2.N, s6, s8)
+ 
+ 		checkwidth(ss.Type)
+-		addmethod(s4, ss.Type, false, nointerface)
+-		nointerface = false
++		addmethod(s4, ss.Type, false, false)
+ 		funchdr(ss)
+ 
+ 		// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
+@@ -2140,18 +2135,10 @@ loop:
+ 			testdclstack()
+ 		}
+ 
+-		noescape = false
+-		noinline = false
+-		nointerface = false
+-		norace = false
+-		nosplit = false
+-		nowritebarrier = false
+-		nowritebarrierrec = false
+-		systemstack = false
++		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
++		// since comments before may set pragmas for the next function decl.
++		p.pragma = 0
+ 
+-		// Consume ';' AFTER resetting the above flags since
+-		// it may read the subsequent comment line which may
+-		// set the flags for the next function declaration.
+ 		if p.tok != EOF && !p.got(';') {
+ 			p.syntax_error("after top level declaration")
+ 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index a44cc734f6..475d8e7b83 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -434,10 +434,10 @@ func compile(fn *Node) {
+ 	if fn.Func.Needctxt {
+ 		ptxt.From3.Offset |= obj.NEEDCTXT
+ 	}
+-	if fn.Func.Nosplit {
++	if fn.Func.Pragma&Nosplit != 0 {
+ 		ptxt.From3.Offset |= obj.NOSPLIT
+ 	}
+-	if fn.Func.Systemstack {
++	if fn.Func.Pragma&Systemstack != 0 {
+ 		ptxt.From.Sym.Cfunc = 1
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 8a6eba3964..d1ae6be0ad 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -50,7 +50,7 @@ func ispkgin(pkgs []string) bool {
+ }
+ 
+ func instrument(fn *Node) {
+-	if ispkgin(omit_pkgs) || fn.Func.Norace {
++	if ispkgin(omit_pkgs) || fn.Func.Pragma&Norace != 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index adf447de01..83ee4aedeb 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -169,18 +169,12 @@ type Func struct {
+ 	Depth   int32
+ 
+ 	Endlineno int32
++	WBLineno  int32 // line number of first write barrier
+ 
+-	Norace            bool // func must not have race detector annotations
+-	Nosplit           bool // func should not execute on separate stack
+-	Noinline          bool // func should not be inlined
+-	Nowritebarrier    bool // emit compiler error instead of write barrier
+-	Nowritebarrierrec bool // error on write barrier in this or recursive callees
+-	Dupok             bool // duplicate definitions ok
+-	Wrapper           bool // is method wrapper
+-	Needctxt          bool // function uses context register (has closure variables)
+-	Systemstack       bool // must run on system stack
+-
+-	WBLineno int32 // line number of first write barrier
++	Pragma   Pragma // go:xxx function annotations
++	Dupok    bool   // duplicate definitions ok
++	Wrapper  bool   // is method wrapper
++	Needctxt bool   // function uses context register (has closure variables)
+ }
+ 
+ type Op uint8

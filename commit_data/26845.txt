@@ -30,7 +30,7 @@ Date:   Sun Feb 28 15:52:49 2016 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/effective_go.html            |  6 ++--
  src/archive/zip/reader.go        | 11 +++---
  src/bufio/bufio.go               | 13 ++++---
@@ -72,3 +72,1520 @@ Date:   Sun Feb 28 15:52:49 2016 -0800
  src/text/template/parse/parse.go |  8 ++---
  src/time/time.go                 | 10 +++---
  40 files changed, 247 insertions(+), 240 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 5a522f607d..4ea3fae318 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -239,9 +239,9 @@ starts with the name being declared.
+ </p>
+ 
+ <pre>
+-// Compile parses a regular expression and returns, if successful, a Regexp
+-// object that can be used to match against text.
+-func Compile(str string) (regexp *Regexp, err error) {
++// Compile parses a regular expression and returns, if successful,
++// a Regexp that can be used to match against text.
++func Compile(str string) (*Regexp, error) {
+ </pre>
+ 
+ <p>
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 10e8172875..d741d105dc 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -153,19 +153,18 @@ func (f *File) DataOffset() (offset int64, err error) {
+ 
+ // Open returns a ReadCloser that provides access to the File's contents.
+ // Multiple files may be read concurrently.
+-func (f *File) Open() (rc io.ReadCloser, err error) {
++func (f *File) Open() (io.ReadCloser, error) {
+ 	bodyOffset, err := f.findBodyOffset()
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	size := int64(f.CompressedSize64)
+ 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
+ 	dcomp := f.zip.decompressor(f.Method)
+ 	if dcomp == nil {
+-		err = ErrAlgorithm
+-		return
++		return nil, ErrAlgorithm
+ 	}
+-	rc = dcomp(r)
++	var rc io.ReadCloser = dcomp(r)
+ 	var desr io.Reader
+ 	if f.hasDataDescriptor() {
+ 		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
+@@ -176,7 +175,7 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 		f:    f,
+ 		desr: desr,
+ 	}
+-	return
++	return rc, nil
+ }
+ 
+ type checksumReader struct {
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 33470ccd41..2925946c97 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -220,7 +220,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
+ 
+ // ReadByte reads and returns a single byte.
+ // If no byte is available, returns an error.
+-func (b *Reader) ReadByte() (c byte, err error) {
++func (b *Reader) ReadByte() (byte, error) {
+ 	b.lastRuneSize = -1
+ 	for b.r == b.w {
+ 		if b.err != nil {
+@@ -228,7 +228,7 @@ func (b *Reader) ReadByte() (c byte, err error) {
+ 		}
+ 		b.fill() // buffer is empty
+ 	}
+-	c = b.buf[b.r]
++	c := b.buf[b.r]
+ 	b.r++
+ 	b.lastByte = int(c)
+ 	return c, nil
+@@ -395,12 +395,12 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
+ // ReadBytes returns err != nil if and only if the returned data does not end in
+ // delim.
+ // For simple uses, a Scanner may be more convenient.
+-func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
++func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
+ 	// Use ReadSlice to look for array,
+ 	// accumulating full buffers.
+ 	var frag []byte
+ 	var full [][]byte
+-
++	var err error
+ 	for {
+ 		var e error
+ 		frag, e = b.ReadSlice(delim)
+@@ -442,10 +442,9 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
+ // ReadString returns err != nil if and only if the returned data does not end in
+ // delim.
+ // For simple uses, a Scanner may be more convenient.
+-func (b *Reader) ReadString(delim byte) (line string, err error) {
++func (b *Reader) ReadString(delim byte) (string, error) {
+ 	bytes, err := b.ReadBytes(delim)
+-	line = string(bytes)
+-	return line, err
++	return string(bytes), err
+ }
+ 
+ // WriteTo implements io.WriterTo.
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index f135b46959..1aed86924d 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -293,14 +293,14 @@ func (b *Buffer) Next(n int) []byte {
+ 
+ // ReadByte reads and returns the next byte from the buffer.
+ // If no byte is available, it returns error io.EOF.
+-func (b *Buffer) ReadByte() (c byte, err error) {
++func (b *Buffer) ReadByte() (byte, error) {
+ 	b.lastRead = opInvalid
+ 	if b.off >= len(b.buf) {
+ 		// Buffer is empty, reset to recover space.
+ 		b.Truncate(0)
+ 		return 0, io.EOF
+ 	}
+-	c = b.buf[b.off]
++	c := b.buf[b.off]
+ 	b.off++
+ 	b.lastRead = opRead
+ 	return c, nil
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index b89d1548f1..5941ebdab4 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -63,14 +63,14 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+ 	return
+ }
+ 
+-func (r *Reader) ReadByte() (b byte, err error) {
++func (r *Reader) ReadByte() (byte, error) {
+ 	r.prevRune = -1
+ 	if r.i >= int64(len(r.s)) {
+ 		return 0, io.EOF
+ 	}
+-	b = r.s[r.i]
++	b := r.s[r.i]
+ 	r.i++
+-	return
++	return b, nil
+ }
+ 
+ func (r *Reader) UnreadByte() error {
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index 28e981b9dd..96768ce2a0 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -52,7 +52,7 @@ const numMRTests = 64
+ 
+ // GenerateParameters puts a random, valid set of DSA parameters into params.
+ // This function can take many seconds, even on fast machines.
+-func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) (err error) {
++func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) error {
+ 	// This function doesn't follow FIPS 186-3 exactly in that it doesn't
+ 	// use a verification seed to generate the primes. The verification
+ 	// seed doesn't appear to be exported or used by other code and
+@@ -87,9 +87,8 @@ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes
+ 
+ GeneratePrimes:
+ 	for {
+-		_, err = io.ReadFull(rand, qBytes)
+-		if err != nil {
+-			return
++		if _, err := io.ReadFull(rand, qBytes); err != nil {
++			return err
+ 		}
+ 
+ 		qBytes[len(qBytes)-1] |= 1
+@@ -101,9 +100,8 @@ GeneratePrimes:
+ 		}
+ 
+ 		for i := 0; i < 4*L; i++ {
+-			_, err = io.ReadFull(rand, pBytes)
+-			if err != nil {
+-				return
++			if _, err := io.ReadFull(rand, pBytes); err != nil {
++				return err
+ 			}
+ 
+ 			pBytes[len(pBytes)-1] |= 1
+@@ -142,7 +140,7 @@ GeneratePrimes:
+ 		}
+ 
+ 		params.G = g
+-		return
++		return nil
+ 	}
+ }
+ 
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 0731f2b670..42ec92b6f9 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -96,17 +96,17 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error)
+ }
+ 
+ // GenerateKey generates a public and private key pair.
+-func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
++func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+ 	k, err := randFieldElement(c, rand)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+-	priv = new(PrivateKey)
++	priv := new(PrivateKey)
+ 	priv.PublicKey.Curve = c
+ 	priv.D = k
+ 	priv.PublicKey.X, priv.PublicKey.Y = c.ScalarBaseMult(k.Bytes())
+-	return
++	return priv, nil
+ }
+ 
+ // hashToInt converts a hash value to an integer. There is some disagreement
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 5c5f415c88..3517a8c776 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -24,31 +24,32 @@ type PKCS1v15DecryptOptions struct {
+ 	SessionKeyLen int
+ }
+ 
+-// EncryptPKCS1v15 encrypts the given message with RSA and the padding scheme from PKCS#1 v1.5.
+-// The message must be no longer than the length of the public modulus minus 11 bytes.
++// EncryptPKCS1v15 encrypts the given message with RSA and the padding
++// scheme from PKCS#1 v1.5.  The message must be no longer than the
++// length of the public modulus minus 11 bytes.
+ //
+-// The rand parameter is used as a source of entropy to ensure that encrypting
+-// the same message twice doesn't result in the same ciphertext.
++// The rand parameter is used as a source of entropy to ensure that
++// encrypting the same message twice doesn't result in the same
++// ciphertext.
+ //
+-// WARNING: use of this function to encrypt plaintexts other than session keys
+-// is dangerous. Use RSA OAEP in new protocols.
+-func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err error) {
++// WARNING: use of this function to encrypt plaintexts other than
++// session keys is dangerous. Use RSA OAEP in new protocols.
++func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+ 	if err := checkPub(pub); err != nil {
+ 		return nil, err
+ 	}
+ 	k := (pub.N.BitLen() + 7) / 8
+ 	if len(msg) > k-11 {
+-		err = ErrMessageTooLong
+-		return
++		return nil, ErrMessageTooLong
+ 	}
+ 
+ 	// EM = 0x00 || 0x02 || PS || 0x00 || M
+ 	em := make([]byte, k)
+ 	em[1] = 2
+ 	ps, mm := em[2:len(em)-len(msg)-1], em[len(em)-len(msg):]
+-	err = nonZeroRandomBytes(ps, rand)
++	err := nonZeroRandomBytes(ps, rand)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	em[len(em)-len(msg)-1] = 0
+ 	copy(mm, msg)
+@@ -57,8 +58,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
+ 	c := encrypt(new(big.Int), pub, m)
+ 
+ 	copyWithLeftPad(em, c.Bytes())
+-	out = em
+-	return
++	return em, nil
+ }
+ 
+ // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
+@@ -69,19 +69,18 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
+ // learn whether each instance returned an error then they can decrypt and
+ // forge signatures as if they had the private key. See
+ // DecryptPKCS1v15SessionKey for a way of solving this problem.
+-func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err error) {
++func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
+ 	valid, out, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	if valid == 0 {
+ 		return nil, ErrDecryption
+ 	}
+-	out = out[index:]
+-	return
++	return out[index:], nil
+ }
+ 
+ // DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS#1 v1.5.
+@@ -103,7 +102,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
+ // a random value was used (because it'll be different for the same ciphertext)
+ // and thus whether the padding was correct. This defeats the point of this
+ // function. Using at least a 16-byte key will protect against this attack.
+-func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
++func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return err
+ 	}
+@@ -114,7 +113,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
+ 
+ 	valid, em, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+ 	if err != nil {
+-		return
++		return err
+ 	}
+ 
+ 	if len(em) != k {
+@@ -125,7 +124,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
+ 
+ 	valid &= subtle.ConstantTimeEq(int32(len(em)-index), int32(len(key)))
+ 	subtle.ConstantTimeCopy(valid, key, em[len(em)-len(key):])
+-	return
++	return nil
+ }
+ 
+ // decryptPKCS1v15 decrypts ciphertext using priv and blinds the operation if
+@@ -213,21 +212,23 @@ var hashPrefixes = map[crypto.Hash][]byte{
+ 	crypto.RIPEMD160: {0x30, 0x20, 0x30, 0x08, 0x06, 0x06, 0x28, 0xcf, 0x06, 0x03, 0x00, 0x31, 0x04, 0x14},
+ }
+ 
+-// SignPKCS1v15 calculates the signature of hashed using RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.
+-// Note that hashed must be the result of hashing the input message using the
+-// given hash function. If hash is zero, hashed is signed directly. This isn't
++// SignPKCS1v15 calculates the signature of hashed using
++// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.  Note that hashed must
++// be the result of hashing the input message using the given hash
++// function. If hash is zero, hashed is signed directly. This isn't
+ // advisable except for interoperability.
+ //
+-// If rand is not nil then RSA blinding will be used to avoid timing side-channel attacks.
++// If rand is not nil then RSA blinding will be used to avoid timing
++// side-channel attacks.
+ //
+-// This function is deterministic. Thus, if the set of possible messages is
+-// small, an attacker may be able to build a map from messages to signatures
+-// and identify the signed messages. As ever, signatures provide authenticity,
+-// not confidentiality.
+-func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) (s []byte, err error) {
++// This function is deterministic. Thus, if the set of possible
++// messages is small, an attacker may be able to build a map from
++// messages to signatures and identify the signed messages. As ever,
++// signatures provide authenticity, not confidentiality.
++func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+ 	tLen := len(prefix) + hashLen
+@@ -248,12 +249,11 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ 	m := new(big.Int).SetBytes(em)
+ 	c, err := decryptAndCheck(rand, priv, m)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+ 	copyWithLeftPad(em, c.Bytes())
+-	s = em
+-	return
++	return em, nil
+ }
+ 
+ // VerifyPKCS1v15 verifies an RSA PKCS#1 v1.5 signature.
+@@ -261,17 +261,16 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ // function and sig is the signature. A valid signature is indicated by
+ // returning a nil error. If hash is zero then hashed is used directly. This
+ // isn't advisable except for interoperability.
+-func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (err error) {
++func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+-		return
++		return err
+ 	}
+ 
+ 	tLen := len(prefix) + hashLen
+ 	k := (pub.N.BitLen() + 7) / 8
+ 	if k < tLen+11 {
+-		err = ErrVerification
+-		return
++		return ErrVerification
+ 	}
+ 
+ 	c := new(big.Int).SetBytes(sig)
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 8a94589b1c..7c82f181cb 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -246,7 +246,7 @@ func (opts *PSSOptions) saltLength() int {
+ // Note that hashed must be the result of hashing the input message using the
+ // given hash function. The opts argument may be nil, in which case sensible
+ // defaults are used.
+-func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) (s []byte, err error) {
++func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) ([]byte, error) {
+ 	saltLength := opts.saltLength()
+ 	switch saltLength {
+ 	case PSSSaltLengthAuto:
+@@ -260,8 +260,8 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte,
+ 	}
+ 
+ 	salt := make([]byte, saltLength)
+-	if _, err = io.ReadFull(rand, salt); err != nil {
+-		return
++	if _, err := io.ReadFull(rand, salt); err != nil {
++		return nil, err
+ 	}
+ 	return signPSSWithSalt(rand, priv, hash, hashed, salt)
+ }
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index dc57a6335a..3f353f891f 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -191,7 +191,7 @@ func (priv *PrivateKey) Validate() error {
+ 
+ // GenerateKey generates an RSA keypair of the given bit size using the
+ // random source random (for example, crypto/rand.Reader).
+-func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
++func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ 	return GenerateMultiPrimeKey(random, 2, bits)
+ }
+ 
+@@ -206,8 +206,8 @@ func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
+ //
+ // [1] US patent 4405829 (1972, expired)
+ // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *PrivateKey, err error) {
+-	priv = new(PrivateKey)
++func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
++	priv := new(PrivateKey)
+ 	priv.E = 65537
+ 
+ 	if nprimes < 2 {
+@@ -234,6 +234,7 @@ NextSetOfPrimes:
+ 			todo += (nprimes - 2) / 5
+ 		}
+ 		for i := 0; i < nprimes; i++ {
++			var err error
+ 			primes[i], err = rand.Prime(random, todo/(nprimes-i))
+ 			if err != nil {
+ 				return nil, err
+@@ -283,7 +284,7 @@ NextSetOfPrimes:
+ 	}
+ 
+ 	priv.Precompute()
+-	return
++	return priv, nil
+ }
+ 
+ // incCounter increments a four byte, big-endian counter.
+@@ -348,15 +349,14 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
+ //
+ // The message must be no longer than the length of the public modulus less
+ // twice the hash length plus 2.
+-func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err error) {
++func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+ 	if err := checkPub(pub); err != nil {
+ 		return nil, err
+ 	}
+ 	hash.Reset()
+ 	k := (pub.N.BitLen() + 7) / 8
+ 	if len(msg) > k-2*hash.Size()-2 {
+-		err = ErrMessageTooLong
+-		return
++		return nil, ErrMessageTooLong
+ 	}
+ 
+ 	hash.Write(label)
+@@ -371,9 +371,9 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	db[len(db)-len(msg)-1] = 1
+ 	copy(db[len(db)-len(msg):], msg)
+ 
+-	_, err = io.ReadFull(random, seed)
++	_, err := io.ReadFull(random, seed)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+ 	mgf1XOR(db, hash, seed)
+@@ -382,7 +382,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	m := new(big.Int)
+ 	m.SetBytes(em)
+ 	c := encrypt(new(big.Int), pub, m)
+-	out = c.Bytes()
++	out := c.Bytes()
+ 
+ 	if len(out) < k {
+ 		// If the output is too small, we need to left-pad with zeros.
+@@ -391,7 +391,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 		out = t
+ 	}
+ 
+-	return
++	return out, nil
+ }
+ 
+ // ErrDecryption represents a failure to decrypt a message.
+@@ -562,22 +562,21 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
+ //
+ // The label parameter must match the value given when encrypting. See
+ // EncryptOAEP for details.
+-func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
++func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
+ 	k := (priv.N.BitLen() + 7) / 8
+ 	if len(ciphertext) > k ||
+ 		k < hash.Size()*2+2 {
+-		err = ErrDecryption
+-		return
++		return nil, ErrDecryption
+ 	}
+ 
+ 	c := new(big.Int).SetBytes(ciphertext)
+ 
+ 	m, err := decrypt(random, priv, c)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+ 	hash.Write(label)
+@@ -625,12 +624,10 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext
+ 	}
+ 
+ 	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
+-		err = ErrDecryption
+-		return
++		return nil, ErrDecryption
+ 	}
+ 
+-	msg = rest[index+1:]
+-	return
++	return rest[index+1:], nil
+ }
+ 
+ // leftPad returns a new slice of length size. The contents of input are right
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 4bedd7682d..55e0d5f083 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -47,14 +47,13 @@ type listener struct {
+ }
+ 
+ // Accept waits for and returns the next incoming TLS connection.
+-// The returned connection c is a *tls.Conn.
+-func (l *listener) Accept() (c net.Conn, err error) {
+-	c, err = l.Listener.Accept()
++// The returned connection is of type *Conn.
++func (l *listener) Accept() (net.Conn, error) {
++	c, err := l.Listener.Accept()
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	c = Server(c, l.config)
+-	return
++	return Server(c, l.config), nil
+ }
+ 
+ // NewListener creates a Listener which accepts connections from an inner
+diff --git a/src/crypto/x509/pkcs1.go b/src/crypto/x509/pkcs1.go
+index acebe35139..df20a44204 100644
+--- a/src/crypto/x509/pkcs1.go
++++ b/src/crypto/x509/pkcs1.go
+@@ -36,15 +36,14 @@ type pkcs1AdditionalRSAPrime struct {
+ }
+ 
+ // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
+-func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
++func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	var priv pkcs1PrivateKey
+ 	rest, err := asn1.Unmarshal(der, &priv)
+ 	if len(rest) > 0 {
+-		err = asn1.SyntaxError{Msg: "trailing data"}
+-		return
++		return nil, asn1.SyntaxError{Msg: "trailing data"}
+ 	}
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+ 	if priv.Version > 1 {
+@@ -55,7 +54,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
+ 		return nil, errors.New("x509: private key contains zero or negative value")
+ 	}
+ 
+-	key = new(rsa.PrivateKey)
++	key := new(rsa.PrivateKey)
+ 	key.PublicKey = rsa.PublicKey{
+ 		E: priv.E,
+ 		N: priv.N,
+@@ -80,7 +79,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
+ 	}
+ 	key.Precompute()
+ 
+-	return
++	return key, nil
+ }
+ 
+ // MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index f484b6d042..5f1b3ecc7c 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -29,7 +29,7 @@ type ecPrivateKey struct {
+ }
+ 
+ // ParseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
+-func ParseECPrivateKey(der []byte) (key *ecdsa.PrivateKey, err error) {
++func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
+ 	return parseECPrivateKey(nil, der)
+ }
+ 
+@@ -41,8 +41,8 @@ func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
+ 	}
+ 
+ 	privateKeyBytes := key.D.Bytes()
+-	paddedPrivateKey := make([]byte, (key.Curve.Params().N.BitLen() + 7) / 8)
+-	copy(paddedPrivateKey[len(paddedPrivateKey) - len(privateKeyBytes):], privateKeyBytes)
++	paddedPrivateKey := make([]byte, (key.Curve.Params().N.BitLen()+7)/8)
++	copy(paddedPrivateKey[len(paddedPrivateKey)-len(privateKeyBytes):], privateKeyBytes)
+ 
+ 	return asn1.Marshal(ecPrivateKey{
+ 		Version:       1,
+@@ -84,7 +84,7 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key *e
+ 	priv.Curve = curve
+ 	priv.D = k
+ 
+-	privateKey := make([]byte, (curveOrder.BitLen() + 7) / 8)
++	privateKey := make([]byte, (curveOrder.BitLen()+7)/8)
+ 
+ 	// Some private keys have leading zero padding. This is invalid
+ 	// according to [SEC1], but this code will ignore it.
+@@ -98,7 +98,7 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key *e
+ 	// Some private keys remove all leading zeros, this is also invalid
+ 	// according to [SEC1] but since OpenSSL used to do this, we ignore
+ 	// this too.
+-	copy(privateKey[len(privateKey) - len(privKey.PrivateKey):], privKey.PrivateKey)
++	copy(privateKey[len(privateKey)-len(privKey.PrivateKey):], privKey.PrivateKey)
+ 	priv.X, priv.Y = curve.ScalarBaseMult(privateKey)
+ 
+ 	return priv, nil
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index dc793cadea..341a460200 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -641,7 +641,7 @@ var entrustBrokenSPKI = []byte{
+ 
+ // CheckSignatureFrom verifies that the signature on c is a valid signature
+ // from parent.
+-func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err error) {
++func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
+ 	// RFC 5280, 4.2.1.9:
+ 	// "If the basic constraints extension is not present in a version 3
+ 	// certificate, or the extension is present but the cA boolean is not
+@@ -669,7 +669,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err error) {
+ 
+ // CheckSignature verifies that signature is a valid signature over signed from
+ // c's public key.
+-func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) (err error) {
++func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) error {
+ 	return checkSignature(algo, signed, signature, c.PublicKey)
+ }
+ 
+@@ -737,7 +737,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ }
+ 
+ // CheckCRLSignature checks that the signature in crl is from c.
+-func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) (err error) {
++func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) error {
+ 	algo := getSignatureAlgorithmFromOID(crl.SignatureAlgorithm.Algorithm)
+ 	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
+ }
+@@ -1654,7 +1654,7 @@ var pemType = "X509 CRL"
+ // encoded CRLs will appear where they should be DER encoded, so this function
+ // will transparently handle PEM encoding as long as there isn't any leading
+ // garbage.
+-func ParseCRL(crlBytes []byte) (certList *pkix.CertificateList, err error) {
++func ParseCRL(crlBytes []byte) (*pkix.CertificateList, error) {
+ 	if bytes.HasPrefix(crlBytes, pemCRLPrefix) {
+ 		block, _ := pem.Decode(crlBytes)
+ 		if block != nil && block.Type == pemType {
+@@ -1665,8 +1665,8 @@ func ParseCRL(crlBytes []byte) (certList *pkix.CertificateList, err error) {
+ }
+ 
+ // ParseDERCRL parses a DER encoded CRL from the given bytes.
+-func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err error) {
+-	certList = new(pkix.CertificateList)
++func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
++	certList := new(pkix.CertificateList)
+ 	if rest, err := asn1.Unmarshal(derBytes, certList); err != nil {
+ 		return nil, err
+ 	} else if len(rest) != 0 {
+@@ -2071,7 +2071,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 	return out, nil
+ }
+ 
+-// CheckSignature verifies that the signature on c is a valid signature
+-func (c *CertificateRequest) CheckSignature() (err error) {
++// CheckSignature reports whether the signature on c is valid.
++func (c *CertificateRequest) CheckSignature() error {
+ 	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
+ }
+diff --git a/src/debug/macho/fat.go b/src/debug/macho/fat.go
+index 93b8315263..a34232e022 100644
+--- a/src/debug/macho/fat.go
++++ b/src/debug/macho/fat.go
+@@ -122,18 +122,18 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
+ 
+ // OpenFat opens the named file using os.Open and prepares it for use as a Mach-O
+ // universal binary.
+-func OpenFat(name string) (ff *FatFile, err error) {
++func OpenFat(name string) (*FatFile, error) {
+ 	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	ff, err = NewFatFile(f)
++	ff, err := NewFatFile(f)
+ 	if err != nil {
+ 		f.Close()
+ 		return nil, err
+ 	}
+ 	ff.closer = f
+-	return
++	return ff, nil
+ }
+ 
+ func (ff *FatFile) Close() error {
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index a6056285b4..e8739fb554 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -37,27 +37,28 @@ func NewWriter(w io.Writer) *Writer {
+ 
+ // Writer writes a single CSV record to w along with any necessary quoting.
+ // A record is a slice of strings with each string being one field.
+-func (w *Writer) Write(record []string) (err error) {
++func (w *Writer) Write(record []string) error {
+ 	for n, field := range record {
+ 		if n > 0 {
+-			if _, err = w.w.WriteRune(w.Comma); err != nil {
+-				return
++			if _, err := w.w.WriteRune(w.Comma); err != nil {
++				return err
+ 			}
+ 		}
+ 
+ 		// If we don't have to have a quoted field then just
+ 		// write out the field and continue to the next field.
+ 		if !w.fieldNeedsQuotes(field) {
+-			if _, err = w.w.WriteString(field); err != nil {
+-				return
++			if _, err := w.w.WriteString(field); err != nil {
++				return err
+ 			}
+ 			continue
+ 		}
+-		if err = w.w.WriteByte('"'); err != nil {
+-			return
++		if err := w.w.WriteByte('"'); err != nil {
++			return err
+ 		}
+ 
+ 		for _, r1 := range field {
++			var err error
+ 			switch r1 {
+ 			case '"':
+ 				_, err = w.w.WriteString(`""`)
+@@ -75,20 +76,21 @@ func (w *Writer) Write(record []string) (err error) {
+ 				_, err = w.w.WriteRune(r1)
+ 			}
+ 			if err != nil {
+-				return
++				return err
+ 			}
+ 		}
+ 
+-		if err = w.w.WriteByte('"'); err != nil {
+-			return
++		if err := w.w.WriteByte('"'); err != nil {
++			return err
+ 		}
+ 	}
++	var err error
+ 	if w.UseCRLF {
+ 		_, err = w.w.WriteString("\r\n")
+ 	} else {
+ 		err = w.w.WriteByte('\n')
+ 	}
+-	return
++	return err
+ }
+ 
+ // Flush writes any buffered data to the underlying io.Writer.
+@@ -104,9 +106,9 @@ func (w *Writer) Error() error {
+ }
+ 
+ // WriteAll writes multiple CSV records to w using Write and then calls Flush.
+-func (w *Writer) WriteAll(records [][]string) (err error) {
++func (w *Writer) WriteAll(records [][]string) error {
+ 	for _, record := range records {
+-		err = w.Write(record)
++		err := w.Write(record)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 45f4157318..5c2fb6f90e 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -237,10 +237,11 @@ func NewDecoder(r io.Reader) *Decoder {
+ // set to the URL identifying its name space when known.
+ // If Token encounters an unrecognized name space prefix,
+ // it uses the prefix as the Space rather than report an error.
+-func (d *Decoder) Token() (t Token, err error) {
++func (d *Decoder) Token() (Token, error) {
++	var t Token
++	var err error
+ 	if d.stk != nil && d.stk.kind == stkEOF {
+-		err = io.EOF
+-		return
++		return nil, io.EOF
+ 	}
+ 	if d.nextToken != nil {
+ 		t = d.nextToken
+@@ -249,7 +250,7 @@ func (d *Decoder) Token() (t Token, err error) {
+ 		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+ 			err = d.syntaxError("unexpected EOF")
+ 		}
+-		return
++		return t, err
+ 	}
+ 
+ 	if !d.Strict {
+@@ -292,7 +293,7 @@ func (d *Decoder) Token() (t Token, err error) {
+ 		}
+ 		t = t1
+ 	}
+-	return
++	return t, err
+ }
+ 
+ const xmlURL = "http://www.w3.org/XML/1998/namespace"
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index b59599da65..2a1e5fb222 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -38,7 +38,7 @@ const (
+ // the flags and options for the operand's format specifier.
+ type State interface {
+ 	// Write is the function to call to emit formatted output to be printed.
+-	Write(b []byte) (ret int, err error)
++	Write(b []byte) (n int, err error)
+ 	// Width returns the value of the width option and whether it has been set.
+ 	Width() (wid int, ok bool)
+ 	// Precision returns the value of the precision option and whether it has been set.
+diff --git a/src/go/ast/print.go b/src/go/ast/print.go
+index f15dc11dc0..d86d9ba64b 100644
+--- a/src/go/ast/print.go
++++ b/src/go/ast/print.go
+@@ -36,8 +36,11 @@ func NotNilFilter(_ string, v reflect.Value) bool {
+ // struct fields for which f(fieldname, fieldvalue) is true are
+ // printed; all others are filtered from the output. Unexported
+ // struct fields are never printed.
+-//
+-func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
++func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) error {
++	return fprint(w, fset, x, f)
++}
++
++func fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
+ 	// setup printer
+ 	p := printer{
+ 		output: w,
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index d3b83b9f46..fe8c31ff7b 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -87,11 +87,11 @@ type Context struct {
+ 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
+ 	// describing the content of the named directory.
+ 	// If ReadDir is nil, Import uses ioutil.ReadDir.
+-	ReadDir func(dir string) (fi []os.FileInfo, err error)
++	ReadDir func(dir string) ([]os.FileInfo, error)
+ 
+ 	// OpenFile opens a file (not a directory) for reading.
+ 	// If OpenFile is nil, Import uses os.Open.
+-	OpenFile func(path string) (r io.ReadCloser, err error)
++	OpenFile func(path string) (io.ReadCloser, error)
+ }
+ 
+ // joinPath calls ctxt.JoinPath (if not nil) or else filepath.Join.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index bb0b07415e..0279be0e84 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -215,7 +215,9 @@ func (check *Checker) handleBailout(err *error) {
+ }
+ 
+ // Files checks the provided files as part of the checker's package.
+-func (check *Checker) Files(files []*ast.File) (err error) {
++func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
++
++func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	defer check.handleBailout(&err)
+ 
+ 	check.initFiles(files)
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index f928ee6923..831d771d80 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -34,7 +34,7 @@ import (
+ // level untyped constants will return an untyped type rather then the
+ // respective context-specific type.
+ //
+-func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv TypeAndValue, err error) {
++func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (TypeAndValue, error) {
+ 	// determine scope
+ 	var scope *Scope
+ 	if pkg == nil {
+diff --git a/src/io/io.go b/src/io/io.go
+index 8e7855c665..016e9247eb 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -226,7 +226,7 @@ type WriterAt interface {
+ //
+ // ReadByte reads and returns the next byte from the input.
+ type ByteReader interface {
+-	ReadByte() (c byte, err error)
++	ReadByte() (byte, error)
+ }
+ 
+ // ByteScanner is the interface that adds the UnreadByte method to the
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 0e342242ec..f489059d5a 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -103,7 +103,7 @@ type netConn struct {
+ // New establishes a new connection to the system log daemon.  Each
+ // write to the returned writer sends a log message with the given
+ // priority and prefix.
+-func New(priority Priority, tag string) (w *Writer, err error) {
++func New(priority Priority, tag string) (*Writer, error) {
+ 	return Dial("", "", priority, tag)
+ }
+ 
+@@ -187,57 +187,57 @@ func (w *Writer) Close() error {
+ 
+ // Emerg logs a message with severity LOG_EMERG, ignoring the severity
+ // passed to New.
+-func (w *Writer) Emerg(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_EMERG, m)
++func (w *Writer) Emerg(m string) error {
++	_, err := w.writeAndRetry(LOG_EMERG, m)
+ 	return err
+ }
+ 
+ // Alert logs a message with severity LOG_ALERT, ignoring the severity
+ // passed to New.
+-func (w *Writer) Alert(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_ALERT, m)
++func (w *Writer) Alert(m string) error {
++	_, err := w.writeAndRetry(LOG_ALERT, m)
+ 	return err
+ }
+ 
+ // Crit logs a message with severity LOG_CRIT, ignoring the severity
+ // passed to New.
+-func (w *Writer) Crit(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_CRIT, m)
++func (w *Writer) Crit(m string) error {
++	_, err := w.writeAndRetry(LOG_CRIT, m)
+ 	return err
+ }
+ 
+ // Err logs a message with severity LOG_ERR, ignoring the severity
+ // passed to New.
+-func (w *Writer) Err(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_ERR, m)
++func (w *Writer) Err(m string) error {
++	_, err := w.writeAndRetry(LOG_ERR, m)
+ 	return err
+ }
+ 
+ // Warning logs a message with severity LOG_WARNING, ignoring the
+ // severity passed to New.
+-func (w *Writer) Warning(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_WARNING, m)
++func (w *Writer) Warning(m string) error {
++	_, err := w.writeAndRetry(LOG_WARNING, m)
+ 	return err
+ }
+ 
+ // Notice logs a message with severity LOG_NOTICE, ignoring the
+ // severity passed to New.
+-func (w *Writer) Notice(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_NOTICE, m)
++func (w *Writer) Notice(m string) error {
++	_, err := w.writeAndRetry(LOG_NOTICE, m)
+ 	return err
+ }
+ 
+ // Info logs a message with severity LOG_INFO, ignoring the severity
+ // passed to New.
+-func (w *Writer) Info(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_INFO, m)
++func (w *Writer) Info(m string) error {
++	_, err := w.writeAndRetry(LOG_INFO, m)
+ 	return err
+ }
+ 
+ // Debug logs a message with severity LOG_DEBUG, ignoring the severity
+ // passed to New.
+-func (w *Writer) Debug(m string) (err error) {
+-	_, err = w.writeAndRetry(LOG_DEBUG, m)
++func (w *Writer) Debug(m string) error {
++	_, err := w.writeAndRetry(LOG_DEBUG, m)
+ 	return err
+ }
+ 
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index eee53fc8dd..8085bd3975 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -20,7 +20,11 @@ import (
+ // a Content-Disposition of "form-data".
+ // It stores up to maxMemory bytes of the file parts in memory
+ // and the remainder on disk in temporary files.
+-func (r *Reader) ReadForm(maxMemory int64) (f *Form, err error) {
++func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
++	return r.readForm(maxMemory)
++}
++
++func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 	form := &Form{make(map[string][]string), make(map[string][]*FileHeader)}
+ 	defer func() {
+ 		if err != nil {
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index c3e43bb99d..4037f40a3e 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -704,7 +704,9 @@ func putTextprotoReader(r *textproto.Reader) {
+ }
+ 
+ // ReadRequest reads and parses an incoming request from b.
+-func ReadRequest(b *bufio.Reader) (req *Request, err error) { return readRequest(b, deleteHostHeader) }
++func ReadRequest(b *bufio.Reader) (*Request, error) {
++	return readRequest(b, deleteHostHeader)
++}
+ 
+ // Constants for readRequest's deleteHostHeader parameter.
+ const (
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index fb2397e26f..eb047b5321 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -309,14 +309,14 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	return newUnixConn(fd), nil
+ }
+ 
+-// Accept implements the Accept method in the Listener interface; it
+-// waits for the next call and returns a generic Conn.
+-func (l *UnixListener) Accept() (c Conn, err error) {
+-	c1, err := l.AcceptUnix()
++// Accept implements the Accept method in the Listener interface.
++// Returned connections will be of type *UnixConn.
++func (l *UnixListener) Accept() (Conn, error) {
++	c, err := l.AcceptUnix()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return c1, nil
++	return c, nil
+ }
+ 
+ // Close stops listening on the Unix address.  Already accepted
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 48119f4a5d..86ed887931 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -411,10 +411,11 @@ func split(s string, c string, cutc bool) (string, string) {
+ 
+ // Parse parses rawurl into a URL structure.
+ // The rawurl may be relative or absolute.
+-func Parse(rawurl string) (url *URL, err error) {
++func Parse(rawurl string) (*URL, error) {
+ 	// Cut off #frag
+ 	u, frag := split(rawurl, "#", true)
+-	if url, err = parse(u, false); err != nil {
++	url, err := parse(u, false)
++	if err != nil {
+ 		return nil, err
+ 	}
+ 	if frag == "" {
+@@ -431,7 +432,7 @@ func Parse(rawurl string) (url *URL, err error) {
+ // only as an absolute URI or an absolute path.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+-func ParseRequestURI(rawurl string) (url *URL, err error) {
++func ParseRequestURI(rawurl string) (*URL, error) {
+ 	return parse(rawurl, true)
+ }
+ 
+@@ -744,10 +745,10 @@ func (v Values) Del(key string) {
+ // ParseQuery always returns a non-nil map containing all the
+ // valid query parameters found; err describes the first decoding error
+ // encountered, if any.
+-func ParseQuery(query string) (m Values, err error) {
+-	m = make(Values)
+-	err = parseQuery(m, query)
+-	return
++func ParseQuery(query string) (Values, error) {
++	m := make(Values)
++	err := parseQuery(m, query)
++	return m, err
+ }
+ 
+ func parseQuery(m Values, query string) (err error) {
+diff --git a/src/os/doc.go b/src/os/doc.go
+index 869a28a8a4..b52aba3958 100644
+--- a/src/os/doc.go
++++ b/src/os/doc.go
+@@ -112,7 +112,7 @@ func Hostname() (name string, err error) {
+ // nil error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+-func (f *File) Readdir(n int) (fi []FileInfo, err error) {
++func (f *File) Readdir(n int) ([]FileInfo, error) {
+ 	if f == nil {
+ 		return nil, ErrInvalid
+ 	}
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 0b0712dcad..c76a5992fd 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -46,7 +46,7 @@ func findExecutable(file string, exts []string) (string, error) {
+ 			return f, nil
+ 		}
+ 	}
+-	return ``, os.ErrNotExist
++	return "", os.ErrNotExist
+ }
+ 
+ // LookPath searches for an executable binary named file
+@@ -55,9 +55,9 @@ func findExecutable(file string, exts []string) (string, error) {
+ // LookPath also uses PATHEXT environment variable to match
+ // a suitable candidate.
+ // The result may be an absolute path or a path relative to the current directory.
+-func LookPath(file string) (f string, err error) {
++func LookPath(file string) (string, error) {
+ 	x := os.Getenv(`PATHEXT`)
+-	if x == `` {
++	if x == "" {
+ 		x = `.COM;.EXE;.BAT;.CMD`
+ 	}
+ 	exts := []string{}
+@@ -71,22 +71,23 @@ func LookPath(file string) (f string, err error) {
+ 		exts = append(exts, e)
+ 	}
+ 	if strings.ContainsAny(file, `:\/`) {
+-		if f, err = findExecutable(file, exts); err == nil {
+-			return
++		if f, err := findExecutable(file, exts); err == nil {
++			return f, nil
++		} else {
++			return "", &Error{file, err}
+ 		}
+-		return ``, &Error{file, err}
+ 	}
+-	if f, err = findExecutable(`.\`+file, exts); err == nil {
+-		return
++	if f, err := findExecutable(`.\`+file, exts); err == nil {
++		return f, nil
+ 	}
+-	if pathenv := os.Getenv(`PATH`); pathenv != `` {
++	if pathenv := os.Getenv(`PATH`); pathenv != "" {
+ 		for _, dir := range splitList(pathenv) {
+-			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
+-				return
++			if f, err := findExecutable(dir+`\`+file, exts); err == nil {
++				return f, nil
+ 			}
+ 		}
+ 	}
+-	return ``, &Error{file, ErrNotFound}
++	return "", &Error{file, ErrNotFound}
+ }
+ 
+ func splitList(path string) []string {
+@@ -115,7 +116,7 @@ func splitList(path string) []string {
+ 	// Remove quotes.
+ 	for i, s := range list {
+ 		if strings.Contains(s, `"`) {
+-			list[i] = strings.Replace(s, `"`, ``, -1)
++			list[i] = strings.Replace(s, `"`, "", -1)
+ 		}
+ 	}
+ 
+diff --git a/src/strconv/atob.go b/src/strconv/atob.go
+index d0cb097213..879ceb385e 100644
+--- a/src/strconv/atob.go
++++ b/src/strconv/atob.go
+@@ -7,7 +7,7 @@ package strconv
+ // ParseBool returns the boolean value represented by the string.
+ // It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
+ // Any other value returns an error.
+-func ParseBool(str string) (value bool, err error) {
++func ParseBool(str string) (bool, error) {
+ 	switch str {
+ 	case "1", "t", "T", "true", "TRUE", "True":
+ 		return true, nil
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index 85b959f1e1..ce76252340 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -528,11 +528,10 @@ func atof64(s string) (f float64, err error) {
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+ // ParseFloat returns f = ±Inf, err.Err = ErrRange.
+-func ParseFloat(s string, bitSize int) (f float64, err error) {
++func ParseFloat(s string, bitSize int) (float64, error) {
+ 	if bitSize == 32 {
+-		f1, err1 := atof32(s)
+-		return float64(f1), err1
++		f, err := atof32(s)
++		return float64(f), err
+ 	}
+-	f1, err1 := atof64(s)
+-	return f1, err1
++	return atof64(s)
+ }
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 965e3a218f..e6febcb7d8 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -39,7 +39,9 @@ const IntSize = intSize
+ const maxUint64 = (1<<64 - 1)
+ 
+ // ParseUint is like ParseInt but for unsigned numbers.
+-func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
++func ParseUint(s string, base int, bitSize int) (uint64, error) {
++	var n uint64
++	var err error
+ 	var cutoff, maxVal uint64
+ 
+ 	if bitSize == 0 {
+@@ -196,7 +198,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ }
+ 
+ // Atoi is shorthand for ParseInt(s, 10, 0).
+-func Atoi(s string) (i int, err error) {
++func Atoi(s string) (int, error) {
+ 	i64, err := ParseInt(s, 10, 0)
+ 	return int(i64), err
+ }
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index a37a309f26..8a60159d41 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -347,7 +347,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ // that s quotes.  (If s is single-quoted, it would be a Go
+ // character literal; Unquote returns the corresponding
+ // one-character string.)
+-func Unquote(s string) (t string, err error) {
++func Unquote(s string) (string, error) {
+ 	n := len(s)
+ 	if n < 2 {
+ 		return "", ErrSyntax
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index 7a872fbcb0..248e55245c 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -62,14 +62,14 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+ 	return
+ }
+ 
+-func (r *Reader) ReadByte() (b byte, err error) {
++func (r *Reader) ReadByte() (byte, error) {
+ 	r.prevRune = -1
+ 	if r.i >= int64(len(r.s)) {
+ 		return 0, io.EOF
+ 	}
+-	b = r.s[r.i]
++	b := r.s[r.i]
+ 	r.i++
+-	return
++	return b, nil
+ }
+ 
+ func (r *Reader) UnreadByte() error {
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 0c2bf2d72b..1056aa2488 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -262,24 +262,21 @@ func (s *CheckEqualError) Error() string {
+ // 			t.Error(err)
+ // 		}
+ // 	}
+-func Check(f interface{}, config *Config) (err error) {
++func Check(f interface{}, config *Config) error {
+ 	if config == nil {
+ 		config = &defaultConfig
+ 	}
+ 
+ 	fVal, fType, ok := functionAndType(f)
+ 	if !ok {
+-		err = SetupError("argument is not a function")
+-		return
++		return SetupError("argument is not a function")
+ 	}
+ 
+ 	if fType.NumOut() != 1 {
+-		err = SetupError("function does not return one value")
+-		return
++		return SetupError("function does not return one value")
+ 	}
+ 	if fType.Out(0).Kind() != reflect.Bool {
+-		err = SetupError("function does not return a bool")
+-		return
++		return SetupError("function does not return a bool")
+ 	}
+ 
+ 	arguments := make([]reflect.Value, fType.NumIn())
+@@ -287,43 +284,39 @@ func Check(f interface{}, config *Config) (err error) {
+ 	maxCount := config.getMaxCount()
+ 
+ 	for i := 0; i < maxCount; i++ {
+-		err = arbitraryValues(arguments, fType, config, rand)
++		err := arbitraryValues(arguments, fType, config, rand)
+ 		if err != nil {
+-			return
++			return err
+ 		}
+ 
+ 		if !fVal.Call(arguments)[0].Bool() {
+-			err = &CheckError{i + 1, toInterfaces(arguments)}
+-			return
++			return &CheckError{i + 1, toInterfaces(arguments)}
+ 		}
+ 	}
+ 
+-	return
++	return nil
+ }
+ 
+ // CheckEqual looks for an input on which f and g return different results.
+ // It calls f and g repeatedly with arbitrary values for each argument.
+ // If f and g return different answers, CheckEqual returns a *CheckEqualError
+ // describing the input and the outputs.
+-func CheckEqual(f, g interface{}, config *Config) (err error) {
++func CheckEqual(f, g interface{}, config *Config) error {
+ 	if config == nil {
+ 		config = &defaultConfig
+ 	}
+ 
+ 	x, xType, ok := functionAndType(f)
+ 	if !ok {
+-		err = SetupError("f is not a function")
+-		return
++		return SetupError("f is not a function")
+ 	}
+ 	y, yType, ok := functionAndType(g)
+ 	if !ok {
+-		err = SetupError("g is not a function")
+-		return
++		return SetupError("g is not a function")
+ 	}
+ 
+ 	if xType != yType {
+-		err = SetupError("functions have different types")
+-		return
++		return SetupError("functions have different types")
+ 	}
+ 
+ 	arguments := make([]reflect.Value, xType.NumIn())
+@@ -331,21 +324,20 @@ func CheckEqual(f, g interface{}, config *Config) (err error) {
+ 	maxCount := config.getMaxCount()
+ 
+ 	for i := 0; i < maxCount; i++ {
+-		err = arbitraryValues(arguments, xType, config, rand)
++		err := arbitraryValues(arguments, xType, config, rand)
+ 		if err != nil {
+-			return
++			return err
+ 		}
+ 
+ 		xOut := toInterfaces(x.Call(arguments))
+ 		yOut := toInterfaces(y.Call(arguments))
+ 
+ 		if !reflect.DeepEqual(xOut, yOut) {
+-			err = &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut}
+-			return
++			return &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut}
+ 		}
+ 	}
+ 
+-	return
++	return nil
+ }
+ 
+ // arbitraryValues writes Values to args such that args contains Values
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index 4cafdba2b2..796e1e8699 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -462,8 +462,11 @@ func handlePanic(err *error, op string) {
+ // that any data buffered in the Writer is written to output. Any
+ // incomplete escape sequence at the end is considered
+ // complete for formatting purposes.
+-//
+-func (b *Writer) Flush() (err error) {
++func (b *Writer) Flush() error {
++	return b.flush()
++}
++
++func (b *Writer) flush() (err error) {
+ 	defer b.reset() // even in the presence of errors
+ 	defer handlePanic(&err, "Flush")
+ 
+@@ -478,8 +481,7 @@ func (b *Writer) Flush() (err error) {
+ 
+ 	// format contents of buffer
+ 	b.format(0, 0, len(b.lines))
+-
+-	return
++	return nil
+ }
+ 
+ var hbar = []byte("---\n")
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 5ea45a4c53..e5be4fe7c7 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -164,7 +164,11 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{})
+ // execution stops, but partial results may already have been written to
+ // the output writer.
+ // A template may be executed safely in parallel.
+-func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
++func (t *Template) Execute(wr io.Writer, data interface{}) error {
++	return t.execute(wr, data)
++}
++
++func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
+ 	defer errRecover(&err)
+ 	value := reflect.ValueOf(data)
+ 	state := &state{
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index dc56cf7aa0..a53e8ff771 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -48,12 +48,12 @@ func (t *Tree) Copy() *Tree {
+ // templates described in the argument string. The top-level template will be
+ // given the specified name. If an error is encountered, parsing stops and an
+ // empty map is returned with the error.
+-func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (treeSet map[string]*Tree, err error) {
+-	treeSet = make(map[string]*Tree)
++func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (map[string]*Tree, error) {
++	treeSet := make(map[string]*Tree)
+ 	t := New(name)
+ 	t.text = text
+-	_, err = t.Parse(text, leftDelim, rightDelim, treeSet, funcs...)
+-	return
++	_, err := t.Parse(text, leftDelim, rightDelim, treeSet, funcs...)
++	return treeSet, err
+ }
+ 
+ // next returns the next token.
+diff --git a/src/time/time.go b/src/time/time.go
+index ef4ba5842d..5744200d8c 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -945,10 +945,11 @@ func (t Time) MarshalJSON() ([]byte, error) {
+ 
+ // UnmarshalJSON implements the json.Unmarshaler interface.
+ // The time is expected to be a quoted string in RFC 3339 format.
+-func (t *Time) UnmarshalJSON(data []byte) (err error) {
++func (t *Time) UnmarshalJSON(data []byte) error {
+ 	// Fractional seconds are handled implicitly by Parse.
++	var err error
+ 	*t, err = Parse(`"`+RFC3339+`"`, string(data))
+-	return
++	return err
+ }
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+@@ -964,10 +965,11 @@ func (t Time) MarshalText() ([]byte, error) {
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+ // The time is expected to be in RFC 3339 format.
+-func (t *Time) UnmarshalText(data []byte) (err error) {
++func (t *Time) UnmarshalText(data []byte) error {
+ 	// Fractional seconds are handled implicitly by Parse.
++	var err error
+ 	*t, err = Parse(RFC3339, string(data))
+-	return
++	return err
+ }
+ 
+ // Unix returns the local Time corresponding to the given Unix time,

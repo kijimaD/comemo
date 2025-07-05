@@ -15,10 +15,147 @@ Date:   Thu Sep 30 10:46:03 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  api/next.txt                          |  1 +
  src/cmd/go/internal/load/pkg.go       |  3 +++
  src/debug/buildinfo/buildinfo.go      |  3 ++-
  src/debug/buildinfo/buildinfo_test.go |  7 ++++---
  src/runtime/debug/mod.go              | 20 ++++++++++++++++----
  5 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index 0a976d7b19..ced738e480 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -3,6 +3,7 @@ pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
+ pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
+ pkg runtime/debug, method (*BuildInfo) MarshalText() ([]byte, error)
+ pkg runtime/debug, method (*BuildInfo) UnmarshalText() ([]byte, error)
++pkg runtime/debug, type BuildInfo struct, GoVersion string
+ pkg syscall (darwin-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
+ pkg syscall (darwin-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (darwin-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a7428ed420..0fc5afbc36 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2200,6 +2200,9 @@ func (p *Package) collectDeps() {
+ // setBuildInfo should only be called on a main package with no errors.
+ //
+ // This information can be retrieved using debug.ReadBuildInfo.
++//
++// Note that the GoVersion field is not set here to avoid encoding it twice.
++// It is stored separately in the binary, mostly for historical reasons.
+ func (p *Package) setBuildInfo() {
+ 	setPkgErrorf := func(format string, args ...interface{}) {
+ 		if p.Error == nil {
+diff --git a/src/debug/buildinfo/buildinfo.go b/src/debug/buildinfo/buildinfo.go
+index 8def2eae6e..f84429a342 100644
+--- a/src/debug/buildinfo/buildinfo.go
++++ b/src/debug/buildinfo/buildinfo.go
+@@ -71,7 +71,7 @@ func ReadFile(name string) (info *BuildInfo, err error) {
+ // accessed through the given ReaderAt. Most information is only available for
+ // binaries built with module support.
+ func Read(r io.ReaderAt) (*BuildInfo, error) {
+-	_, mod, err := readRawBuildInfo(r)
++	vers, mod, err := readRawBuildInfo(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -79,6 +79,7 @@ func Read(r io.ReaderAt) (*BuildInfo, error) {
+ 	if err := bi.UnmarshalText([]byte(mod)); err != nil {
+ 		return nil, err
+ 	}
++	bi.GoVersion = vers
+ 	return bi, nil
+ }
+ 
+diff --git a/src/debug/buildinfo/buildinfo_test.go b/src/debug/buildinfo/buildinfo_test.go
+index 765bf24627..ab307d75c2 100644
+--- a/src/debug/buildinfo/buildinfo_test.go
++++ b/src/debug/buildinfo/buildinfo_test.go
+@@ -142,7 +142,8 @@ func TestReadFile(t *testing.T) {
+ 		{
+ 			name:  "valid_modules",
+ 			build: buildWithModules,
+-			want: "path\texample.com/m\n" +
++			want: "go\t$GOVERSION\n" +
++				"path\texample.com/m\n" +
+ 				"mod\texample.com/m\t(devel)\t\n",
+ 		},
+ 		{
+@@ -157,7 +158,7 @@ func TestReadFile(t *testing.T) {
+ 		{
+ 			name:  "valid_gopath",
+ 			build: buildWithGOPATH,
+-			want:  "",
++			want:  "go\t$GOVERSION\n",
+ 		},
+ 		{
+ 			name: "invalid_gopath",
+@@ -193,7 +194,7 @@ func TestReadFile(t *testing.T) {
+ 						} else if got, err := info.MarshalText(); err != nil {
+ 							t.Fatalf("unexpected error marshaling BuildInfo: %v", err)
+ 						} else {
+-							got := string(got)
++							got := strings.ReplaceAll(string(got), runtime.Version(), "$GOVERSION")
+ 							if got != tc.want {
+ 								t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
+ 							}
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 8c6c48089b..0c6488753b 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -7,6 +7,7 @@ package debug
+ import (
+ 	"bytes"
+ 	"fmt"
++	"runtime"
+ )
+ 
+ // exported from runtime
+@@ -25,14 +26,22 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
+ 	if err := bi.UnmarshalText([]byte(data)); err != nil {
+ 		return nil, false
+ 	}
++
++	// The go version is stored separately from other build info, mostly for
++	// historical reasons. It is not part of the modinfo() string, and
++	// ParseBuildInfo does not recognize it. We inject it here to hide this
++	// awkwardness from the user.
++	bi.GoVersion = runtime.Version()
++
+ 	return bi, true
+ }
+ 
+ // BuildInfo represents the build information read from a Go binary.
+ type BuildInfo struct {
+-	Path string    // The main package path
+-	Main Module    // The module containing the main package
+-	Deps []*Module // Module dependencies
++	GoVersion string    // Version of Go that produced this binary.
++	Path      string    // The main package path
++	Main      Module    // The module containing the main package
++	Deps      []*Module // Module dependencies
+ }
+ 
+ // Module represents a module.
+@@ -45,6 +54,9 @@ type Module struct {
+ 
+ func (bi *BuildInfo) MarshalText() ([]byte, error) {
+ 	buf := &bytes.Buffer{}
++	if bi.GoVersion != "" {
++		fmt.Fprintf(buf, "go\t%s\n", bi.GoVersion)
++	}
+ 	if bi.Path != "" {
+ 		fmt.Fprintf(buf, "path\t%s\n", bi.Path)
+ 	}
+@@ -116,7 +128,7 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
+ 		line []byte
+ 		ok   bool
+ 	)
+-	// Reverse of BuildInfo.String()
++	// Reverse of BuildInfo.String(), except for go version.
+ 	for len(data) > 0 {
+ 		line, data, ok = bytes.Cut(data, newline)
+ 		if !ok {

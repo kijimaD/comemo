@@ -9,6 +9,18 @@ Date:   Sat Mar 10 11:16:24 2018 +0100
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/rewriteARM64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a5ff6637cf..4784c8621b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -22057,4 +22057,4 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 	}
+ 	return false
+-}
+\ No newline at end of file
++}

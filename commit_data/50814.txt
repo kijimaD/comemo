@@ -10,6 +10,22 @@ Date:   Sat Oct 2 22:50:31 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Carlos Amedee <carlos@golang.org>
-
+---
  src/io/example_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index f6d9fd575f..419e449982 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -142,7 +142,9 @@ func ExampleTeeReader() {
+ 	r = io.TeeReader(r, os.Stdout)
+ 
+ 	// Everything read from r will be copied to stdout.
+-	io.ReadAll(r)
++	if _, err := io.ReadAll(r); err != nil {
++		log.Fatal(err)
++	}
+ 
+ 	// Output:
+ 	// some io.Reader stream to be read

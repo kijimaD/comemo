@@ -16,7 +16,71 @@ Date:   Wed Jun 30 14:28:18 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  src/net/lookup.go              |  4 +++-
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index d69107a2f2..59cdd2bf3e 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -1957,3 +1957,43 @@ func TestCVE202133195(t *testing.T) {
+ 		t.Errorf("LookupAddr returned unexpected error, got %q, want %q", err, expected)
+ 	}
+ }
++
++func TestNullMX(t *testing.T) {
++	fake := fakeDNSServer{
++		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			r := dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:       q.Header.ID,
++					Response: true,
++					RCode:    dnsmessage.RCodeSuccess,
++				},
++				Questions: q.Questions,
++				Answers: []dnsmessage.Resource{
++					{
++						Header: dnsmessage.ResourceHeader{
++							Name:  q.Questions[0].Name,
++							Type:  dnsmessage.TypeMX,
++							Class: dnsmessage.ClassINET,
++						},
++						Body: &dnsmessage.MXResource{
++							MX: dnsmessage.MustNewName("."),
++						},
++					},
++				},
++			}
++			return r, nil
++		},
++	}
++	r := Resolver{PreferGo: true, Dial: fake.DialContext}
++	rrset, err := r.LookupMX(context.Background(), "golang.org")
++	if err != nil {
++		t.Fatalf("LookupMX: %v", err)
++	}
++	if want := []*MX{&MX{Host: "."}}; !reflect.DeepEqual(rrset, want) {
++		records := []string{}
++		for _, rr := range rrset {
++			records = append(records, fmt.Sprintf("%v", rr))
++		}
++		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
++	}
++}
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 02a4cdcd1e..b5af3a0f86 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -500,7 +500,9 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 		if mx == nil {
+ 			continue
+ 		}
+-		if !isDomainName(mx.Host) {
++		// Bypass the hostname validity check for targets which contain only a dot,
++		// as this is used to represent a 'Null' MX record.
++		if mx.Host != "." && !isDomainName(mx.Host) {
+ 			return nil, &DNSError{Err: "MX target is invalid", Name: name}
+ 		}
+ 	}

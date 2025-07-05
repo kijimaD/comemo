@@ -16,6 +16,29 @@ Date:   Thu Jul 7 17:20:00 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 0082be9e2e..fc4db4513b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -434,7 +434,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 		if nargs < min || min+1 < nargs {
+-			check.errorf(call.Pos(), "%s expects %d or %d arguments; found %d", call, min, min+1, nargs)
++			check.errorf(call.Pos(), "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+ 			return
+ 		}
+ 		var sizes []int64 // constant integer arguments, if any
+@@ -595,7 +595,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 		if !constant.BoolVal(x.val) {
+-			check.errorf(call.Pos(), "%s failed", call)
++			check.errorf(call.Pos(), "%v failed", call)
+ 			// compile-time assertion failure - safe to continue
+ 		}
+ 		// result is constant - no need to record signature

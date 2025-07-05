@@ -13,6 +13,20 @@ Date:   Mon Oct 29 13:49:32 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/c/145577
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bufio/bufio.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 8d162b34a0..e498dfea1e 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -187,6 +187,8 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
+ // The bytes are taken from at most one Read on the underlying Reader,
+ // hence n may be less than len(p).
+ // At EOF, the count will be zero and err will be io.EOF.
++//
++// To read exactly len(p) bytes, use io.ReadFull(b, p).
+ func (b *Reader) Read(p []byte) (n int, err error) {
+ 	n = len(p)
+ 	if n == 0 {

@@ -12,6 +12,37 @@ Date:   Mon Aug 20 10:56:41 2012 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/6461082
-
+---
  src/pkg/exp/locale/collate/build/contract.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/build/contract.go b/src/pkg/exp/locale/collate/build/contract.go
+index 45d8f74b9b..f7cf64a730 100644
+--- a/src/pkg/exp/locale/collate/build/contract.go
++++ b/src/pkg/exp/locale/collate/build/contract.go
+@@ -241,8 +241,8 @@ func (ct *contractTrieSet) lookup(h ctHandle, str []byte) (index, ns int) {
+ 		e := states[i]
+ 		c := str[p]
+ 		if c >= e.l {
+-			p++
+ 			if e.l == c {
++				p++
+ 				if e.i != noIndex {
+ 					index, ns = int(e.i), p
+ 				}
+@@ -252,12 +252,13 @@ func (ct *contractTrieSet) lookup(h ctHandle, str []byte) (index, ns int) {
+ 				} else {
+ 					return
+ 				}
++				continue
+ 			} else if e.n == final && c <= e.h {
++				p++
+ 				return int(c-e.l) + int(e.i), p
+ 			}
+-		} else {
+-			i++
+ 		}
++		i++
+ 	}
+ 	return
+ }

@@ -7,7 +7,36 @@ Date:   Mon Jan 9 15:09:40 2012 -0800
     R=golang-dev, akumar, rsc
     CC=golang-dev
     https://golang.org/cl/5534055
-
+---
  src/buildscript_plan9_386.sh  | 3 +--
  src/pkg/syscall/types_plan9.c | 2 ++
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/buildscript_plan9_386.sh b/src/buildscript_plan9_386.sh
+index 2b3cae6087..07cb12a3ce 100755
+--- a/src/buildscript_plan9_386.sh
++++ b/src/buildscript_plan9_386.sh
+@@ -263,9 +263,8 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/plan9_386/encoding/json.a
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+ 8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_plan9.go ./exec_plan9.go ./str.go ./syscall.go ./syscall_386.go ./syscall_plan9.go ./syscall_plan9_386.go ./zerrors_plan9_386.go ./zsyscall_plan9_386.go ./zsysnum_plan9_386.go ./ztypes_plan9_386.go
+-8c -FVw -I "$WORK"/syscall/_obj/ -I "$GOROOT"/pkg/plan9_386 -o "$WORK"/syscall/_obj/types_plan9.8 -DGOOS_plan9 -DGOARCH_386 ./types_plan9.c
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_plan9_386.8 -DGOOS_plan9 -DGOARCH_386 ./asm_plan9_386.s
+-gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/types_plan9.8 "$WORK"/syscall/_obj/asm_plan9_386.8
++gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_plan9_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/plan9_386/syscall.a
+ 
+ #
+diff --git a/src/pkg/syscall/types_plan9.c b/src/pkg/syscall/types_plan9.c
+index 1da9d377c9..cd9e15fa8c 100644
+--- a/src/pkg/syscall/types_plan9.c
++++ b/src/pkg/syscall/types_plan9.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to godefs.  See also mkerrors.sh and mkall.sh
+ */

@@ -13,7 +13,143 @@ Date:   Wed Aug 22 20:49:16 2012 -0700
     R=golang-dev, r, remyoudompheng
     CC=golang-dev, rsc
     https://golang.org/cl/6460069
-
+---
  src/pkg/time/time.go      |  9 ++++-
  src/pkg/time/time_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 105 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index ef966c3ef0..1eb17858a8 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -412,6 +412,13 @@ func (t Time) Nanosecond() int {
+ 	return int(t.nsec)
+ }
+ 
++// YearDay returns the day of the year specified by t, in the range [1, 365] for non-leap years,
++// and [1,366] in leap years.
++func (t Time) YearDay() int {
++	_, _, _, yday := t.date(false)
++	return yday + 1
++}
++
+ // A Duration represents the elapsed time between two instants
+ // as an int64 nanosecond count.  The representation limits the
+ // largest representable duration to approximately 290 years.
+@@ -641,7 +648,7 @@ const (
+ 	days1970To2001   = 31*365 + 8
+ )
+ 
+-// date computes the year and, only when full=true,
++// date computes the year, day of year, and when full=true,
+ // the month and day in which t occurs.
+ func (t Time) date(full bool) (year int, month Month, day int, yday int) {
+ 	return absDate(t.abs(), full)
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 0204fc29ee..3311d70be5 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -611,6 +611,103 @@ func TestISOWeek(t *testing.T) {
+ 	}
+ }
+ 
++type YearDayTest struct {
++	year, month, day int
++	yday             int
++}
++
++// Test YearDay in several different scenarios
++// and corner cases
++var yearDayTests = []YearDayTest{
++	// Non-leap-year tests
++	{2007, 1, 1, 1},
++	{2007, 1, 15, 15},
++	{2007, 2, 1, 32},
++	{2007, 2, 15, 46},
++	{2007, 3, 1, 60},
++	{2007, 3, 15, 74},
++	{2007, 4, 1, 91},
++	{2007, 12, 31, 365},
++
++	// Leap-year tests
++	{2008, 1, 1, 1},
++	{2008, 1, 15, 15},
++	{2008, 2, 1, 32},
++	{2008, 2, 15, 46},
++	{2008, 3, 1, 61},
++	{2008, 3, 15, 75},
++	{2008, 4, 1, 92},
++	{2008, 12, 31, 366},
++
++	// Looks like leap-year (but isn't) tests
++	{1900, 1, 1, 1},
++	{1900, 1, 15, 15},
++	{1900, 2, 1, 32},
++	{1900, 2, 15, 46},
++	{1900, 3, 1, 60},
++	{1900, 3, 15, 74},
++	{1900, 4, 1, 91},
++	{1900, 12, 31, 365},
++
++	// Year one tests (non-leap)
++	{1, 1, 1, 1},
++	{1, 1, 15, 15},
++	{1, 2, 1, 32},
++	{1, 2, 15, 46},
++	{1, 3, 1, 60},
++	{1, 3, 15, 74},
++	{1, 4, 1, 91},
++	{1, 12, 31, 365},
++
++	// Year minus one tests (non-leap)
++	{-1, 1, 1, 1},
++	{-1, 1, 15, 15},
++	{-1, 2, 1, 32},
++	{-1, 2, 15, 46},
++	{-1, 3, 1, 60},
++	{-1, 3, 15, 74},
++	{-1, 4, 1, 91},
++	{-1, 12, 31, 365},
++
++	// 400 BC tests (leap-year)
++	{-400, 1, 1, 1},
++	{-400, 1, 15, 15},
++	{-400, 2, 1, 32},
++	{-400, 2, 15, 46},
++	{-400, 3, 1, 61},
++	{-400, 3, 15, 75},
++	{-400, 4, 1, 92},
++	{-400, 12, 31, 366},
++
++	// Special Cases
++
++	// Gregorian calendar change (no effect)
++	{1582, 10, 4, 277},
++	{1582, 10, 15, 288},
++}
++
++// Check to see if YearDay is location sensitive
++var yearDayLocations = []*Location{
++	FixedZone("UTC-8", -8*60*60),
++	FixedZone("UTC-4", -4*60*60),
++	UTC,
++	FixedZone("UTC+4", 4*60*60),
++	FixedZone("UTC+8", 8*60*60),
++}
++
++func TestYearDay(t *testing.T) {
++	for _, loc := range yearDayLocations {
++		for _, ydt := range yearDayTests {
++			dt := Date(ydt.year, Month(ydt.month), ydt.day, 0, 0, 0, 0, loc)
++			yday := dt.YearDay()
++			if yday != ydt.yday {
++				t.Errorf("got %d, expected %d for %d-%02d-%02d in %v",
++					yday, ydt.yday, ydt.year, ydt.month, ydt.day, loc)
++			}
++		}
++	}
++}
++
+ var durationTests = []struct {
+ 	str string
+ 	d   Duration

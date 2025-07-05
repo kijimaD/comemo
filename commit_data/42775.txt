@@ -13,7 +13,60 @@ Date:   Fri Jan 10 13:43:21 2020 -0500
     Change-Id: Ie46118eddbd7c3ed0bb9ecee4bdc1cb6fdaf06a0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214291
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                     | 21 ---------------------
  src/cmd/go/testdata/script/cover_runs.txt | 13 +++++++++++++
  2 files changed, 13 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 35571a7546..4d9486f5f0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1709,27 +1709,6 @@ func TestShadowingLogic(t *testing.T) {
+ 	}
+ }
+ 
+-// Check that coverage analysis works at all.
+-// Don't worry about the exact numbers but require not 0.0%.
+-func checkCoverage(tg *testgoData, data string) {
+-	tg.t.Helper()
+-	if regexp.MustCompile(`[^0-9]0\.0%`).MatchString(data) {
+-		tg.t.Error("some coverage results are 0.0%")
+-	}
+-}
+-
+-func TestCoverageRuns(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-short", "-coverpkg=strings", "strings", "regexp")
+-	data := tg.getStdout() + tg.getStderr()
+-	tg.run("test", "-short", "-cover", "strings", "math", "regexp")
+-	data += tg.getStdout() + tg.getStderr()
+-	checkCoverage(tg, data)
+-}
+-
+ func TestBuildDryRunWithCgo(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+diff --git a/src/cmd/go/testdata/script/cover_runs.txt b/src/cmd/go/testdata/script/cover_runs.txt
+new file mode 100644
+index 0000000000..38a7bb77a5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_runs.txt
+@@ -0,0 +1,13 @@
++[gccgo] skip 'gccgo has no cover tool'
++[short] skip
++
++go test -short -coverpkg=strings strings regexp
++! stdout '[^0-9]0\.0%'
++stdout  'strings.*coverage:.*[1-9][0-9.]+%'
++stdout  'regexp.*coverage:.*[1-9][0-9.]+%'
++
++go test -short -cover strings math regexp
++! stdout '[^0-9]0\.0%'
++stdout  'strings.*coverage:.*[1-9][0-9.]+%'
++stdout  'math.*coverage:.*[1-9][0-9.]+%'
++stdout  'regexp.*coverage:.*[1-9][0-9.]+%'
+\ No newline at end of file

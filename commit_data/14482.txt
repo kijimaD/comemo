@@ -8,7 +8,43 @@ Date:   Tue Nov 27 01:46:54 2012 +0800
     R=golang-dev, remyoudompheng, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/6850097
-
+---
  src/cmd/gc/typecheck.c      |  2 +-
  test/fixedbugs/issue4429.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2d1dbd75f1..3b32de2116 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -482,7 +482,7 @@ reswitch:
+ 			n->left = N;
+ 			goto ret;
+ 		}
+-		if((top & Erv) && !isptr[t->etype]) {
++		if((top & (Erv | Etop)) && !isptr[t->etype]) {
+ 			yyerror("invalid indirect of %lN", n->left);
+ 			goto error;
+ 		}
+diff --git a/test/fixedbugs/issue4429.go b/test/fixedbugs/issue4429.go
+new file mode 100644
+index 0000000000..8a93b02045
+--- /dev/null
++++ b/test/fixedbugs/issue4429.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type a struct {
++  a int
++}
++
++func main() {
++  av := a{};
++  *a(av); // ERROR "invalid indirect"
++}

@@ -14,6 +14,32 @@ Date:   Mon Jan 9 15:38:07 2012 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5531053
-
+---
  src/cmd/go/build.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e3a96ea421..791ec817de 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -509,9 +509,9 @@ func (b *builder) build(a *action) error {
+ 	incMap[build.Path[0].PkgDir()] = true // goroot
+ 	incMap[""] = true                     // ignore empty strings
+ 
+-	// build package directories of dependencies
++	// temporary build package directories of dependencies.
+ 	for _, a1 := range a.deps {
+-		if pkgdir := a1.pkgdir; !incMap[pkgdir] {
++		if pkgdir := a1.pkgdir; pkgdir != a1.p.t.PkgDir() && !incMap[pkgdir] {
+ 			incMap[pkgdir] = true
+ 			inc = append(inc, "-I", pkgdir)
+ 		}
+@@ -522,7 +522,7 @@ func (b *builder) build(a *action) error {
+ 
+ 	// then installed package directories of dependencies
+ 	for _, a1 := range a.deps {
+-		if pkgdir := a1.p.t.PkgDir(); !incMap[pkgdir] {
++		if pkgdir := a1.p.t.PkgDir(); pkgdir == a1.pkgdir && !incMap[pkgdir] {
+ 			incMap[pkgdir] = true
+ 			inc = append(inc, "-I", pkgdir)
+ 		}

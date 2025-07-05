@@ -11,6 +11,25 @@ Date:   Fri Jan 15 14:52:06 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/lex.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index fb30d58527..01eb3a5656 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -843,6 +843,13 @@ func importfile(f *Val, line int) {
+ 		}
+ 		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
+ 		cannedimports(file, p)
++		// Reset incannedimport flag (we are not truly in a
++		// canned import) - this will cause importpkg.Direct to
++		// be set via parser.import_package (was issue #13977).
++		//
++		// TODO(gri) Remove this global variable and convoluted
++		// code in the process of streamlining the import code.
++		incannedimport = 0
+ 
+ 	default:
+ 		Yyerror("no import in %q", f.U.(string))

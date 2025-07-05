@@ -9,8 +9,633 @@ Date:   Sat Mar 3 19:17:20 2018 +0100
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 347 +-------------------------------
  test/codegen/math.go                    | 140 +++++++++++++
  test/codegen/rotate.go                  |   8 -
  3 files changed, 151 insertions(+), 344 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b9180dafcb..88c8df2c77 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -224,19 +224,18 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "amd64",
+ 		os:      "linux",
+-		imports: []string{"math", "math/bits", "unsafe", "runtime"},
++		imports: []string{"math/bits", "unsafe", "runtime"},
+ 		tests:   linuxAMD64Tests,
+ 	},
+ 	{
+-		arch:    "386",
+-		os:      "linux",
+-		imports: []string{"math"},
+-		tests:   linux386Tests,
++		arch:  "386",
++		os:    "linux",
++		tests: linux386Tests,
+ 	},
+ 	{
+ 		arch:    "s390x",
+ 		os:      "linux",
+-		imports: []string{"math", "math/bits"},
++		imports: []string{"math/bits"},
+ 		tests:   linuxS390XTests,
+ 	},
+ 	{
+@@ -248,25 +247,24 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "arm64",
+ 		os:      "linux",
+-		imports: []string{"math", "math/bits"},
++		imports: []string{"math/bits"},
+ 		tests:   linuxARM64Tests,
+ 	},
+ 	{
+ 		arch:    "mips",
+ 		os:      "linux",
+-		imports: []string{"math/bits", "math"},
++		imports: []string{"math/bits"},
+ 		tests:   linuxMIPSTests,
+ 	},
+ 	{
+-		arch:    "mips64",
+-		os:      "linux",
+-		imports: []string{"math"},
+-		tests:   linuxMIPS64Tests,
++		arch:  "mips64",
++		os:    "linux",
++		tests: linuxMIPS64Tests,
+ 	},
+ 	{
+ 		arch:    "ppc64le",
+ 		os:      "linux",
+-		imports: []string{"math", "math/bits"},
++		imports: []string{"math/bits"},
+ 		tests:   linuxPPC64LETests,
+ 	},
+ 	{
+@@ -694,14 +692,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		}`,
+ 		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
+ 	},
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Sqrt(x)
+-		}
+-		`,
+-		pos: []string{"SQRTSD"},
+-	},
+ 	// multiplication merging tests
+ 	{
+ 		fn: `
+@@ -975,57 +965,7 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-8"},
+ 	},
+-	// math.Abs using integer registers
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Abs(x)
+-		}
+-		`,
+-		pos: []string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,"},
+-	},
+-	// math.Copysign using integer registers
+-	{
+-		fn: `
+-		func $(x, y float64) float64 {
+-			return math.Copysign(x, y)
+-		}
+-		`,
+-		pos: []string{"\tSHLQ\t[$]1,", "\tSHRQ\t[$]1,", "\tSHRQ\t[$]63,", "\tSHLQ\t[$]63,", "\tORQ\t"},
+-	},
+ 	// int <-> fp moves
+-	{
+-		fn: `
+-		func $(x float64) uint64 {
+-			return math.Float64bits(x+1) + 1
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\tX.*, [^X].*"},
+-	},
+-	{
+-		fn: `
+-		func $(x float32) uint32 {
+-			return math.Float32bits(x+1) + 1
+-		}
+-		`,
+-		pos: []string{"\tMOVL\tX.*, [^X].*"},
+-	},
+-	{
+-		fn: `
+-		func $(x uint64) float64 {
+-			return math.Float64frombits(x+1) + 1
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\t[^X].*, X.*"},
+-	},
+-	{
+-		fn: `
+-		func $(x uint32) float32 {
+-			return math.Float32frombits(x+1) + 1
+-		}
+-		`,
+-		pos: []string{"\tMOVL\t[^X].*, X.*"},
+-	},
+ 	{
+ 		fn: `
+ 		func $(x uint32) bool {
+@@ -1290,16 +1230,6 @@ var linux386Tests = []*asmTest{
+ 		`,
+ 		neg: []string{"memmove"},
+ 	},
+-
+-	// Intrinsic tests for math
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Sqrt(x)
+-		}
+-		`,
+-		pos: []string{"FSQRT|SQRTSD"}, // 387|sse2
+-	},
+ }
+ 
+ var linuxS390XTests = []*asmTest{
+@@ -1514,47 +1444,6 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tFLOGR\t"},
+ 	},
+-	// Intrinsic tests for math.
+-	{
+-		fn: `
+-		func ceil(x float64) float64 {
+-			return math.Ceil(x)
+-		}
+-		`,
+-		pos: []string{"\tFIDBR\t[$]6"},
+-	},
+-	{
+-		fn: `
+-		func floor(x float64) float64 {
+-			return math.Floor(x)
+-		}
+-		`,
+-		pos: []string{"\tFIDBR\t[$]7"},
+-	},
+-	{
+-		fn: `
+-		func round(x float64) float64 {
+-			return math.Round(x)
+-		}
+-		`,
+-		pos: []string{"\tFIDBR\t[$]1"},
+-	},
+-	{
+-		fn: `
+-		func trunc(x float64) float64 {
+-			return math.Trunc(x)
+-		}
+-		`,
+-		pos: []string{"\tFIDBR\t[$]5"},
+-	},
+-	{
+-		fn: `
+-		func roundToEven(x float64) float64 {
+-			return math.RoundToEven(x)
+-		}
+-		`,
+-		pos: []string{"\tFIDBR\t[$]4"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+@@ -1565,118 +1454,6 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-8"},
+ 	},
+-	// Constant propagation through raw bits conversions.
+-	{
+-		// uint32 constant converted to float32 constant
+-		fn: `
+-		func $(x float32) float32 {
+-			if x > math.Float32frombits(0x3f800000) {
+-				return -x
+-			}
+-			return x
+-		}
+-		`,
+-		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
+-	},
+-	{
+-		// float32 constant converted to uint32 constant
+-		fn: `
+-		func $(x uint32) uint32 {
+-			if x > math.Float32bits(1) {
+-				return -x
+-			}
+-			return x
+-		}
+-		`,
+-		neg: []string{"\tFMOVS\t"},
+-	},
+-	// Constant propagation through float comparisons.
+-	{
+-		fn: `
+-		func $() bool {
+-			return 0.5 == float64(uint32(1)) ||
+-				1.5 > float64(uint64(1<<63)) ||
+-				math.NaN() == math.NaN()
+-		}
+-		`,
+-		pos: []string{"\tMOV(B|BZ|D)\t[$]0,"},
+-		neg: []string{"\tFCMPU\t", "\tMOV(B|BZ|D)\t[$]1,"},
+-	},
+-	{
+-		fn: `
+-		func $() bool {
+-			return float32(0.5) <= float32(int64(1)) &&
+-				float32(1.5) >= float32(int32(-1<<31)) &&
+-				float32(math.NaN()) != float32(math.NaN())
+-		}
+-		`,
+-		pos: []string{"\tMOV(B|BZ|D)\t[$]1,"},
+-		neg: []string{"\tCEBR\t", "\tMOV(B|BZ|D)\t[$]0,"},
+-	},
+-	// math tests
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Abs(x)
+-		}
+-		`,
+-		pos: []string{"\tLPDFR\t"},
+-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+-	},
+-	{
+-		fn: `
+-		func $(x float32) float32 {
+-			return float32(math.Abs(float64(x)))
+-		}
+-		`,
+-		pos: []string{"\tLPDFR\t"},
+-		neg: []string{"\tLDEBR\t", "\tLEDBR\t"}, // no float64 conversion
+-	},
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Float64frombits(math.Float64bits(x)|1<<63)
+-		}
+-		`,
+-		pos: []string{"\tLNDFR\t"},
+-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+-	},
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return -math.Abs(x)
+-		}
+-		`,
+-		pos: []string{"\tLNDFR\t"},
+-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+-	},
+-	{
+-		fn: `
+-		func $(x, y float64) float64 {
+-			return math.Copysign(x, y)
+-		}
+-		`,
+-		pos: []string{"\tCPSDR\t"},
+-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+-	},
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Copysign(x, -1)
+-		}
+-		`,
+-		pos: []string{"\tLNDFR\t"},
+-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+-	},
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Copysign(-1, x)
+-		}
+-		`,
+-		pos: []string{"\tCPSDR\t"},
+-		neg: []string{"\tMOVD\t"}, // no integer loads/stores
+-	},
+ }
+ 
+ var linuxARMTests = []*asmTest{
+@@ -2139,47 +1916,6 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"\tMOVHU\t\\(R[0-9]+\\)"},
+ 		neg: []string{"ORR\tR[0-9]+<<8\t"},
+ 	},
+-	// Intrinsic tests for math.
+-	{
+-		fn: `
+-		func sqrt(x float64) float64 {
+-			return math.Sqrt(x)
+-		}
+-		`,
+-		pos: []string{"FSQRTD"},
+-	},
+-	{
+-		fn: `
+-		func ceil(x float64) float64 {
+-			return math.Ceil(x)
+-		}
+-		`,
+-		pos: []string{"FRINTPD"},
+-	},
+-	{
+-		fn: `
+-		func floor(x float64) float64 {
+-			return math.Floor(x)
+-		}
+-		`,
+-		pos: []string{"FRINTMD"},
+-	},
+-	{
+-		fn: `
+-		func round(x float64) float64 {
+-			return math.Round(x)
+-		}
+-		`,
+-		pos: []string{"FRINTAD"},
+-	},
+-	{
+-		fn: `
+-		func trunc(x float64) float64 {
+-			return math.Trunc(x)
+-		}
+-		`,
+-		pos: []string{"FRINTZD"},
+-	},
+ 	{
+ 		// make sure that CSEL is emitted for conditional moves
+ 		fn: `
+@@ -2521,15 +2257,6 @@ var linuxMIPSTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tCLZ\t"},
+ 	},
+-	// Intrinsic tests for math.
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Sqrt(x)
+-		}
+-		`,
+-		pos: []string{"SQRTD"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+@@ -2553,15 +2280,6 @@ var linuxMIPS64Tests = []*asmTest{
+ 		pos: []string{"SLLV\t\\$17"},
+ 		neg: []string{"SGT"},
+ 	},
+-	// Intrinsic tests for math.
+-	{
+-		fn: `
+-		func $(x float64) float64 {
+-			return math.Sqrt(x)
+-		}
+-		`,
+-		pos: []string{"SQRTD"},
+-	},
+ }
+ 
+ var linuxPPC64LETests = []*asmTest{
+@@ -2663,24 +2381,6 @@ var linuxPPC64LETests = []*asmTest{
+ 		pos: []string{"\tROTL\t"},
+ 	},
+ 
+-	{
+-		fn: `
+-                func f12(a, b float64) float64 {
+-                        return math.Copysign(a, b)
+-                }
+-                `,
+-		pos: []string{"\tFCPSGN\t"},
+-	},
+-
+-	{
+-		fn: `
+-                func f13(a float64) float64 {
+-                        return math.Abs(a)
+-                }
+-                `,
+-		pos: []string{"\tFABS\t"},
+-	},
+-
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+@@ -2691,31 +2391,6 @@ var linuxPPC64LETests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-8"},
+ 	},
+-	// Constant propagation through raw bits conversions.
+-	{
+-		// uint32 constant converted to float32 constant
+-		fn: `
+-		func $(x float32) float32 {
+-			if x > math.Float32frombits(0x3f800000) {
+-				return -x
+-			}
+-			return x
+-		}
+-		`,
+-		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
+-	},
+-	{
+-		// float32 constant converted to uint32 constant
+-		fn: `
+-		func $(x uint32) uint32 {
+-			if x > math.Float32bits(1) {
+-				return -x
+-			}
+-			return x
+-		}
+-		`,
+-		neg: []string{"\tFMOVS\t"},
+-	},
+ }
+ 
+ var plan9AMD64Tests = []*asmTest{
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+new file mode 100644
+index 0000000000..df3c10f79e
+--- /dev/null
++++ b/test/codegen/math.go
+@@ -0,0 +1,140 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++import "math"
++
++var sink64 [8]float64
++
++func approx(x float64) {
++	// s390x:"FIDBR\t[$]6"
++	// arm64:"FRINTPD"
++	sink64[0] = math.Ceil(x)
++
++	// s390x:"FIDBR\t[$]7"
++	// arm64:"FRINTMD"
++	sink64[1] = math.Floor(x)
++
++	// s390x:"FIDBR\t[$]1"
++	// arm64:"FRINTAD"
++	sink64[2] = math.Round(x)
++
++	// s390x:"FIDBR\t[$]5"
++	// arm64:"FRINTZD"
++	sink64[3] = math.Trunc(x)
++
++	// s390x:"FIDBR\t[$]4"
++	sink64[4] = math.RoundToEven(x)
++}
++
++func sqrt(x float64) float64 {
++	// amd64:"SQRTSD"
++	// 386:"FSQRT|SQRTSD"   (387 or sse2)
++	// arm64:"FSQRTD"
++	// mips:"SQRTD" mips64:"SQRTD"
++	return math.Sqrt(x)
++}
++
++// Check that it's using integer registers
++func abs(x, y float64) {
++	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1,"
++	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64le:"FABS\t"
++	sink64[0] = math.Abs(x)
++
++	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1,"
++	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64le:"FNABS\t"
++	sink64[1] = -math.Abs(y)
++}
++
++// Check that it's using integer registers
++func abs32(x float32) float32 {
++	// s390x:"LPDFR",-"LDEBR",-"LEDBR"     (no float64 conversion)
++	return float32(math.Abs(float64(x)))
++}
++
++// Check that it's using integer registers
++func copysign(a, b, c float64) {
++	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
++	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
++	// ppc64le:"FCPSGN"
++	sink64[0] = math.Copysign(a, b)
++
++	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1",-"SHRQ\t[$]63",-"SHLQ\t[$]63","ORQ"
++	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64le:"FCPSGN"
++	sink64[1] = math.Copysign(c, -1)
++
++	// Like math.Copysign(c, -1), but with integer operations. Useful
++	// for platforms that have a copysign opcode to see if it's detected.
++	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
++	sink64[2] = math.Float64frombits(math.Float64bits(a) | 1<<63)
++
++	// amd64:-"SHLQ\t[$]1",-"SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
++	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
++	// ppc64le:"FCPSGN"
++	sink64[3] = math.Copysign(-1, c)
++}
++
++func fromFloat64(f64 float64) uint64 {
++	// amd64:"MOVQ\tX.*, [^X].*"
++	return math.Float64bits(f64+1) + 1
++}
++
++func fromFloat32(f32 float32) uint32 {
++	// amd64:"MOVL\tX.*, [^X].*"
++	return math.Float32bits(f32+1) + 1
++}
++
++func toFloat64(u64 uint64) float64 {
++	// amd64:"MOVQ\t[^X].*, X.*"
++	return math.Float64frombits(u64+1) + 1
++}
++
++func toFloat32(u32 uint32) float32 {
++	// amd64:"MOVL\t[^X].*, X.*"
++	return math.Float32frombits(u32+1) + 1
++}
++
++// Test that comparisons with constants converted to float
++// are evaluated at compile-time
++
++func constantCheck64() bool {
++	// amd64:"MOVB\t[$]0",-"FCMP",-"MOVB\t[$]1"
++	// s390x:"MOV(B|BZ|D)\t[$]0,",-"FCMPU",-"MOV(B|BZ|D)\t[$]1,"
++	return 0.5 == float64(uint32(1)) || 1.5 > float64(uint64(1<<63)) || math.NaN() == math.NaN()
++}
++
++func constantCheck32() bool {
++	// amd64:"MOVB\t[$]1",-"FCMP",-"MOVB\t[$]0"
++	// s390x:"MOV(B|BZ|D)\t[$]1,",-"FCMPU",-"MOV(B|BZ|D)\t[$]0,"
++	return float32(0.5) <= float32(int64(1)) && float32(1.5) >= float32(int32(-1<<31)) && float32(math.NaN()) != float32(math.NaN())
++}
++
++// Test that integer constants are converted to floating point constants
++// at compile-time
++
++func constantConvert32(x float32) float32 {
++	// amd64:"MOVSS\t[$]f32.3f800000\\(SB\\)"
++	// s390x:"FMOVS\t[$]f32.3f800000\\(SB\\)"
++	// ppc64le:"FMOVS\t[$]f32.3f800000\\(SB\\)"
++	if x > math.Float32frombits(0x3f800000) {
++		return -x
++	}
++	return x
++}
++
++func constantConvertInt32(x uint32) uint32 {
++	// amd64:-"MOVSS"
++	// s390x:-"FMOVS"
++	// ppc64le:-"FMOVS"
++	if x > math.Float32bits(1) {
++		return -x
++	}
++	return x
++}
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index 0c8a35b0c7..a4df05ae20 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -6,8 +6,6 @@
+ 
+ package codegen
+ 
+-import "math"
+-
+ func rot32(x uint32) uint32 {
+ 	var a uint32
+ 	a += x<<7 | x>>25 // amd64:"ROLL.*[$]7"  arm:"MOVW.*@>25"
+@@ -23,9 +21,3 @@ func rot64(x uint64) uint64 {
+ 	a += x<<9 ^ x>>55 // amd64:"ROL"
+ 	return a
+ }
+-
+-func copysign(a, b float64) float64 {
+-	// amd64:"SHLQ\t[$]1","SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+-	// ppc64le:"FCPSGN" s390x:"CPSDR",-"MOVD"
+-	return math.Copysign(a, b)
+-}

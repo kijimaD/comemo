@@ -12,6 +12,73 @@ Date:   Tue Oct 5 10:21:09 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/versions_test.go | 37 +++++++++++++++++++++++--
  1 file changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index b47de12efd..de677f3a69 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
++	"math"
+ 	"math/bits"
+ 	"os"
+ 	"os/exec"
+@@ -107,7 +108,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 		if err := cmd.Start(); err != nil {
+ 			t.Fatal(err)
+ 		}
+-		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z]+)`)
++		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z0-9]+)`)
+ 	}
+ 
+ 	// Find all the instruction addresses we need to edit.
+@@ -209,7 +210,8 @@ var featureToOpcodes = map[string][]string{
+ 	// native objdump doesn't include [QL] on linux.
+ 	"popcnt": []string{"popcntq", "popcntl", "popcnt"},
+ 	"bmi1":   []string{"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
+-	// TODO: more?
++	"sse41":  []string{"roundsd"},
++	"fma":    []string{"vfmadd231sd"},
+ }
+ 
+ // Test to use POPCNT instruction, if available
+@@ -333,3 +335,34 @@ func TestTrailingZeros(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRound(t *testing.T) {
++	for _, tt := range []struct {
++		x, want float64
++	}{
++		{1.4, 1},
++		{1.5, 2},
++		{1.6, 2},
++		{2.4, 2},
++		{2.5, 2},
++		{2.6, 3},
++	} {
++		if got := math.RoundToEven(tt.x); got != tt.want {
++			t.Errorf("RoundToEven(%f) = %f, want %f", tt.x, got, tt.want)
++		}
++	}
++}
++
++func TestFMA(t *testing.T) {
++	for _, tt := range []struct {
++		x, y, z, want float64
++	}{
++		{2, 3, 4, 10},
++		{3, 4, 5, 17},
++	} {
++		if got := math.FMA(tt.x, tt.y, tt.z); got != tt.want {
++			t.Errorf("FMA(%f,%f,%f) = %f, want %f", tt.x, tt.y, tt.z, got, tt.want)
++		}
++	}
++
++}

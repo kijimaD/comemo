@@ -32,7 +32,89 @@ Date:   Sat Sep 26 12:31:59 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go   | 13 ++++---------
  src/runtime/mheap.go |  8 ++++++++
  2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 268e9b9ccd..efb8a32dfa 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1565,14 +1565,9 @@ func gcSweep(mode gcMode) {
+ 		return
+ 	}
+ 
+-	// Account how much sweeping needs to be done before the next
+-	// GC cycle and set up proportional sweep statistics.
+-	var pagesToSweep uintptr
+-	for _, s := range work.spans {
+-		if s.state == mSpanInUse {
+-			pagesToSweep += s.npages
+-		}
+-	}
++	// Concurrent sweep needs to sweep all of the in-use pages by
++	// the time the allocated heap reaches the GC trigger. Compute
++	// the ratio of in-use pages to sweep per byte allocated.
+ 	heapDistance := int64(memstats.next_gc) - int64(memstats.heap_live)
+ 	// Add a little margin so rounding errors and concurrent
+ 	// sweep are less likely to leave pages unswept when GC starts.
+@@ -1582,7 +1577,7 @@ func gcSweep(mode gcMode) {
+ 		heapDistance = _PageSize
+ 	}
+ 	lock(&mheap_.lock)
+-	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
++	mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
+ 	mheap_.pagesSwept = 0
+ 	mheap_.spanBytesAlloc = 0
+ 	unlock(&mheap_.lock)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b0834bc173..6740470827 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -29,9 +29,12 @@ type mheap struct {
+ 	spans_mapped uintptr
+ 
+ 	// Proportional sweep
++	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
+ 	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
+ 	pagesSwept        uint64  // pages swept this cycle; updated atomically
+ 	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
++	// TODO(austin): pagesInUse should be a uintptr, but the 386
++	// compiler can't 8-byte align fields.
+ 
+ 	// Malloc stats.
+ 	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+@@ -447,6 +450,7 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 		}
+ 
+ 		// update stats, sweep lists
++		h.pagesInUse += uint64(npage)
+ 		if large {
+ 			memstats.heap_objects++
+ 			memstats.heap_live += uint64(npage << _PageShift)
+@@ -614,6 +618,8 @@ func bestFit(list *mspan, npage uintptr, best *mspan) *mspan {
+ 
+ // Try to add at least npage pages of memory to the heap,
+ // returning whether it worked.
++//
++// h must be locked.
+ func mHeap_Grow(h *mheap, npage uintptr) bool {
+ 	// Ask for a big chunk, to reduce the number of mappings
+ 	// the operating system needs to track; also amortizes
+@@ -648,6 +654,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
+ 	}
+ 	atomicstore(&s.sweepgen, h.sweepgen)
+ 	s.state = _MSpanInUse
++	h.pagesInUse += uint64(npage)
+ 	mHeap_FreeSpanLocked(h, s, false, true, 0)
+ 	return true
+ }
+@@ -728,6 +735,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
+ 			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " ref ", s.ref, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+ 			throw("MHeap_FreeSpanLocked - invalid free")
+ 		}
++		h.pagesInUse -= uint64(s.npages)
+ 	default:
+ 		throw("MHeap_FreeSpanLocked - invalid span state")
+ 	}

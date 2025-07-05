@@ -7,6 +7,19 @@ Date:   Tue Jun 30 13:58:54 2015 +0200
     Change-Id: Iacb84421215ca80c7add2818118b2af1a650fd58
     Reviewed-on: https://go-review.googlesource.com/11639
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/opnames.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index fc03ec6666..9134bd4332 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -33,6 +33,7 @@ var opnames = []string{
+ 	OAS2MAPR:         "AS2MAPR",
+ 	OAS2DOTTYPE:      "AS2DOTTYPE",
+ 	OASOP:            "ASOP",
++	OASWB:            "ASWB",
+ 	OCALL:            "CALL",
+ 	OCALLFUNC:        "CALLFUNC",
+ 	OCALLMETH:        "CALLMETH",

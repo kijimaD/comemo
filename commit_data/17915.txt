@@ -7,6 +7,22 @@ Date:   Fri Dec 6 13:33:10 2013 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/38560043
-
+---
  doc/gccgo_install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index eef5ac220a..d7a015c898 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -291,9 +291,9 @@ first one that it finds.
+ 
+ <ul>
+ <li><code><var>FILE</var>.gox</code>
+-<li><code><var>FILE</var>.o</code>
+ <li><code>lib<var>FILE</var>.so</code>
+ <li><code>lib<var>FILE</var>.a</code>
++<li><code><var>FILE</var>.o</code>
+ </ul>
+ 
+ <p>

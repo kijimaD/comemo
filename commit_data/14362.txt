@@ -15,10 +15,105 @@ Date:   Thu Nov 8 16:07:05 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6827064
-
+---
  src/cmd/gc/export.c                |  1 +
  test/fixedbugs/issue4370.dir/p1.go | 20 ++++++++++++++++++++
  test/fixedbugs/issue4370.dir/p2.go | 16 ++++++++++++++++
  test/fixedbugs/issue4370.dir/p3.go | 13 +++++++++++++
  test/fixedbugs/issue4370.go        |  9 +++++++++
  5 files changed, 59 insertions(+)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 50303afd80..ad0dc740d6 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -152,6 +152,7 @@ reexportdep(Node *n)
+ 	case OCONVIFACE:
+ 	case OCONVNOP:
+ 	case ODOTTYPE:
++	case ODOTTYPE2:
+ 	case OSTRUCTLIT:
+ 	case OPTRLIT:
+ 		t = n->type;
+diff --git a/test/fixedbugs/issue4370.dir/p1.go b/test/fixedbugs/issue4370.dir/p1.go
+new file mode 100644
+index 0000000000..d732c8b363
+--- /dev/null
++++ b/test/fixedbugs/issue4370.dir/p1.go
+@@ -0,0 +1,20 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p1
++
++type Magic int
++
++type T struct {
++	x interface{}
++}
++
++func (t *T) M() bool {
++	_, ok := t.x.(Magic)
++	return ok
++}
++
++func F(t *T) {
++	println(t)
++}
+diff --git a/test/fixedbugs/issue4370.dir/p2.go b/test/fixedbugs/issue4370.dir/p2.go
+new file mode 100644
+index 0000000000..33370d07a4
+--- /dev/null
++++ b/test/fixedbugs/issue4370.dir/p2.go
+@@ -0,0 +1,16 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p2
++
++import "./p1"
++
++type T struct {
++	p1.T
++}
++
++func F() {
++	var t T
++	p1.F(&t.T)
++}
+diff --git a/test/fixedbugs/issue4370.dir/p3.go b/test/fixedbugs/issue4370.dir/p3.go
+new file mode 100644
+index 0000000000..13c996bc22
+--- /dev/null
++++ b/test/fixedbugs/issue4370.dir/p3.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p3
++
++import "./p2"
++
++func F() {
++	p2.F()
++	var t p2.T
++	println(t.T.M())
++}
+diff --git a/test/fixedbugs/issue4370.go b/test/fixedbugs/issue4370.go
+new file mode 100644
+index 0000000000..76b47e1a6d
+--- /dev/null
++++ b/test/fixedbugs/issue4370.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Re-exporting inlined function bodies missed types in x, ok := v.(Type)
++
++package ignored

@@ -7,7 +7,7 @@ Date:   Sun Jun 19 16:36:33 2011 +1000
     R=paulzhol, mirtchovski, r, r, rsc
     CC=golang-dev
     https://golang.org/cl/4362041
-
+---
  src/pkg/time/Makefile          | 12 ++++++++
  src/pkg/time/sys.go            | 13 +--------
  src/pkg/time/sys_plan9.go      | 18 ++++++++++++
@@ -16,3 +16,332 @@ Date:   Sun Jun 19 16:36:33 2011 +1000
  src/pkg/time/zoneinfo_posix.go | 62 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/time/zoneinfo_unix.go  | 56 --------------------------------------
  7 files changed, 170 insertions(+), 68 deletions(-)
+
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 3fa96065e0..023e8775ec 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -13,17 +13,29 @@ GOFILES=\
+ 	time.go\
+ 
+ GOFILES_freebsd=\
++	sys_posix.go\
++	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_darwin=\
++	sys_posix.go\
++	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_linux=\
++	sys_posix.go\
++	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_windows=\
++	sys_posix.go\
+ 	zoneinfo_windows.go\
+ 
++GOFILES_plan9=\
++	sys_plan9.go\
++	zoneinfo_posix.go\
++	zoneinfo_plan9.go\
++
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/time/sys.go b/src/pkg/time/sys.go
+index 63f4cbf3d7..9fde3b3b65 100644
+--- a/src/pkg/time/sys.go
++++ b/src/pkg/time/sys.go
+@@ -4,10 +4,7 @@
+ 
+ package time
+ 
+-import (
+-	"os"
+-	"syscall"
+-)
++import "os"
+ 
+ // Seconds reports the number of seconds since the Unix epoch,
+ // January 1, 1970 00:00:00 UTC.
+@@ -52,11 +49,3 @@ func sleep(t, ns int64) (int64, os.Error) {
+ 	}
+ 	return t, nil
+ }
+-
+-func sysSleep(t int64) os.Error {
+-	errno := syscall.Sleep(t)
+-	if errno != 0 && errno != syscall.EINTR {
+-		return os.NewSyscallError("sleep", errno)
+-	}
+-	return nil
+-}
+diff --git a/src/pkg/time/sys_plan9.go b/src/pkg/time/sys_plan9.go
+new file mode 100644
+index 0000000000..abe8649a24
+--- /dev/null
++++ b/src/pkg/time/sys_plan9.go
+@@ -0,0 +1,18 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import (
++	"os"
++	"syscall"
++)
++
++func sysSleep(t int64) os.Error {
++	err := syscall.Sleep(t)
++	if err != nil {
++		return os.NewSyscallError("sleep", err)
++	}
++	return nil
++}
+diff --git a/src/pkg/time/sys_posix.go b/src/pkg/time/sys_posix.go
+new file mode 100644
+index 0000000000..0d1eb72fcf
+--- /dev/null
++++ b/src/pkg/time/sys_posix.go
+@@ -0,0 +1,18 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import (
++	"os"
++	"syscall"
++)
++
++func sysSleep(t int64) os.Error {
++	errno := syscall.Sleep(t)
++	if errno != 0 && errno != syscall.EINTR {
++		return os.NewSyscallError("sleep", errno)
++	}
++	return nil
++}
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+new file mode 100644
+index 0000000000..3c3e7c4244
+--- /dev/null
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -0,0 +1,59 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parse Plan 9 timezone(2) files.
++
++package time
++
++import (
++	"os"
++	"strconv"
++	"strings"
++)
++
++func parseZones(s string) (zt []zonetime) {
++	f := strings.Fields(s)
++	if len(f) < 4 {
++		return
++	}
++
++	// standard timezone offset
++	o, err := strconv.Atoi(f[1])
++	if err != nil {
++		return
++	}
++	std := &zone{name: f[0], utcoff: o, isdst: false}
++
++	// alternate timezone offset
++	o, err = strconv.Atoi(f[3])
++	if err != nil {
++		return
++	}
++	dst := &zone{name: f[2], utcoff: o, isdst: true}
++
++	// transition time pairs
++	f = f[4:]
++	for i := 0; i < len(f); i++ {
++		z := std
++		if i%2 == 0 {
++			z = dst
++		}
++		t, err := strconv.Atoi(f[i])
++		if err != nil {
++			return nil
++		}
++		t -= std.utcoff
++		zt = append(zt, zonetime{time: int32(t), zone: z})
++	}
++	return
++}
++
++func setupZone() {
++	t, err := os.Getenverror("timezone")
++	if err != nil {
++		// do nothing: use UTC
++		return
++	}
++	zones = parseZones(t)
++}
+diff --git a/src/pkg/time/zoneinfo_posix.go b/src/pkg/time/zoneinfo_posix.go
+new file mode 100644
+index 0000000000..b49216410f
+--- /dev/null
++++ b/src/pkg/time/zoneinfo_posix.go
+@@ -0,0 +1,62 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import "sync"
++
++// Parsed representation
++type zone struct {
++	utcoff int
++	isdst  bool
++	name   string
++}
++
++type zonetime struct {
++	time         int32 // transition time, in seconds since 1970 GMT
++	zone         *zone // the zone that goes into effect at that time
++	isstd, isutc bool  // ignored - no idea what these mean
++}
++
++var zones []zonetime
++var onceSetupZone sync.Once
++
++// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
++func lookupTimezone(sec int64) (zone string, offset int) {
++	onceSetupZone.Do(setupZone)
++	if len(zones) == 0 {
++		return "UTC", 0
++	}
++
++	// Binary search for entry with largest time <= sec
++	tz := zones
++	for len(tz) > 1 {
++		m := len(tz) / 2
++		if sec < int64(tz[m].time) {
++			tz = tz[0:m]
++		} else {
++			tz = tz[m:]
++		}
++	}
++	z := tz[0].zone
++	return z.name, z.utcoff
++}
++
++// lookupByName returns the time offset for the
++// time zone with the given abbreviation. It only considers
++// time zones that apply to the current system.
++// For example, for a system configured as being in New York,
++// it only recognizes "EST" and "EDT".
++// For a system in San Francisco, "PST" and "PDT".
++// For a system in Sydney, "EST" and "EDT", though they have
++// different meanings than they do in New York.
++func lookupByName(name string) (off int, found bool) {
++	onceSetupZone.Do(setupZone)
++	for _, z := range zones {
++		if name == z.zone.name {
++			return z.zone.utcoff, true
++		}
++	}
++	return 0, false
++}
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index 42659ed606..2a83e0c16c 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -12,7 +12,6 @@ package time
+ import (
+ 	"io/ioutil"
+ 	"os"
+-	"sync"
+ )
+ 
+ const (
+@@ -66,19 +65,6 @@ func byteString(p []byte) string {
+ 	return string(p)
+ }
+ 
+-// Parsed representation
+-type zone struct {
+-	utcoff int
+-	isdst  bool
+-	name   string
+-}
+-
+-type zonetime struct {
+-	time         int32 // transition time, in seconds since 1970 GMT
+-	zone         *zone // the zone that goes into effect at that time
+-	isstd, isutc bool  // ignored - no idea what these mean
+-}
+-
+ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	d := data{bytes, false}
+ 
+@@ -201,9 +187,6 @@ func readinfofile(name string) ([]zonetime, bool) {
+ 	return parseinfo(buf)
+ }
+ 
+-var zones []zonetime
+-var onceSetupZone sync.Once
+-
+ func setupZone() {
+ 	// consult $TZ to find the time zone to use.
+ 	// no $TZ means use the system default /etc/localtime.
+@@ -230,42 +213,3 @@ func setupZone() {
+ 		// do nothing: use UTC
+ 	}
+ }
+-
+-// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+-func lookupTimezone(sec int64) (zone string, offset int) {
+-	onceSetupZone.Do(setupZone)
+-	if len(zones) == 0 {
+-		return "UTC", 0
+-	}
+-
+-	// Binary search for entry with largest time <= sec
+-	tz := zones
+-	for len(tz) > 1 {
+-		m := len(tz) / 2
+-		if sec < int64(tz[m].time) {
+-			tz = tz[0:m]
+-		} else {
+-			tz = tz[m:]
+-		}
+-	}
+-	z := tz[0].zone
+-	return z.name, z.utcoff
+-}
+-
+-// lookupByName returns the time offset for the
+-// time zone with the given abbreviation. It only considers
+-// time zones that apply to the current system.
+-// For example, for a system configured as being in New York,
+-// it only recognizes "EST" and "EDT".
+-// For a system in San Francisco, "PST" and "PDT".
+-// For a system in Sydney, "EST" and "EDT", though they have
+-// different meanings than they do in New York.
+-func lookupByName(name string) (off int, found bool) {
+-	onceSetupZone.Do(setupZone)
+-	for _, z := range zones {
+-		if name == z.zone.name {
+-			return z.zone.utcoff, true
+-		}
+-	}
+-	return 0, false
+-}

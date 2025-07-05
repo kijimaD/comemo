@@ -13,6 +13,21 @@ Date:   Mon Jun 15 10:59:00 2015 -0700
     Change-Id: Ifc87d9ccb4177d73e304fb7ffcef4367bd163c9e
     Reviewed-on: https://go-review.googlesource.com/11121
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/testing/testing.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index f64629fe53..fb22e3a559 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -546,9 +546,6 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				continue
+ 			}
+ 			testName := tests[i].Name
+-			if procs != 1 {
+-				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
+-			}
+ 			t := &T{
+ 				common: common{
+ 					signal: make(chan interface{}),

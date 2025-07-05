@@ -14,7 +14,34 @@ Date:   Sun Apr 28 09:05:16 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_arm.c   | 2 +-
  src/runtime/cgo/gcc_darwin_arm64.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index b1e2502b5d..205977c4ba 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -103,7 +103,7 @@ init_working_dir()
+ 	}
+ 	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
+ 	if (url_ref == NULL) {
+-		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
++		// No Info.plist found. It can happen on Corellium virtual devices.
+ 		return;
+ 	}
+ 	CFStringRef url_str_ref = CFURLGetString(url_ref);
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index a0f75910c8..e6e305789f 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -105,7 +105,7 @@ init_working_dir()
+ 	}
+ 	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
+ 	if (url_ref == NULL) {
+-		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
++		// No Info.plist found. It can happen on Corellium virtual devices.
+ 		return;
+ 	}
+ 	CFStringRef url_str_ref = CFURLGetString(url_ref);

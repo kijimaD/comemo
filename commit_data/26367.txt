@@ -12,10 +12,180 @@ Date:   Wed Jan 13 23:20:20 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  api/go1.6.txt                 |  4 ++++
  src/go/importer/importer.go   | 10 +++++-----
  src/go/types/api.go           | 28 ++++++++++++++--------------
  src/go/types/resolver.go      |  6 +++---
  src/go/types/resolver_test.go |  8 ++++----
  5 files changed, 30 insertions(+), 26 deletions(-)
+
+diff --git a/api/go1.6.txt b/api/go1.6.txt
+index 109ce7a05c..d63efd0705 100644
+--- a/api/go1.6.txt
++++ b/api/go1.6.txt
+@@ -186,6 +186,10 @@ pkg go/constant, func ToFloat(Value) Value
+ pkg go/constant, func ToInt(Value) Value
+ pkg go/constant, type Value interface, ExactString() string
+ pkg go/types, method (*Package) SetName(string)
++pkg go/types, type ImportMode int
++pkg go/types, type ImporterFrom interface { Import, ImportFrom }
++pkg go/types, type ImporterFrom interface, Import(string) (*Package, error)
++pkg go/types, type ImporterFrom interface, ImportFrom(string, string, ImportMode) (*Package, error)
+ pkg html/template, func IsTrue(interface{}) (bool, bool)
+ pkg html/template, method (*Template) DefinedTemplates() string
+ pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA
+diff --git a/src/go/importer/importer.go b/src/go/importer/importer.go
+index 1f7b67cd11..560b853c39 100644
+--- a/src/go/importer/importer.go
++++ b/src/go/importer/importer.go
+@@ -50,7 +50,7 @@ func For(compiler string, lookup Lookup) types.Importer {
+ }
+ 
+ // Default returns an Importer for the compiler that built the running binary.
+-// If available, the result implements types.Importer2.
++// If available, the result implements types.ImporterFrom.
+ func Default() types.Importer {
+ 	return For(runtime.Compiler, nil)
+ }
+@@ -60,10 +60,10 @@ func Default() types.Importer {
+ type gcimports map[string]*types.Package
+ 
+ func (m gcimports) Import(path string) (*types.Package, error) {
+-	return m.Import2(path, "" /* no vendoring */, 0)
++	return m.ImportFrom(path, "" /* no vendoring */, 0)
+ }
+ 
+-func (m gcimports) Import2(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
++func (m gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
+ 	if mode != 0 {
+ 		panic("mode must be 0")
+ 	}
+@@ -78,10 +78,10 @@ type gccgoimports struct {
+ }
+ 
+ func (m *gccgoimports) Import(path string) (*types.Package, error) {
+-	return m.Import2(path, "" /* no vendoring */, 0)
++	return m.ImportFrom(path, "" /* no vendoring */, 0)
+ }
+ 
+-func (m *gccgoimports) Import2(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
++func (m *gccgoimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
+ 	if mode != 0 {
+ 		panic("mode must be 0")
+ 	}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 1adcdf9f8c..ca109f0a80 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -54,37 +54,37 @@ func (err Error) Error() string {
+ // An Importer resolves import paths to Packages.
+ //
+ // CAUTION: This interface does not support the import of locally
+-// vendored packages. See also https://golang.org/s/go15vendor.
+-// If possible, external implementations should implement Importer2.
++// vendored packages. See https://golang.org/s/go15vendor.
++// If possible, external implementations should implement ImporterFrom.
+ type Importer interface {
+ 	// Import returns the imported package for the given import
+ 	// path, or an error if the package couldn't be imported.
+-	// Two calls to Import with the same path and srcDir return
+-	// the same package.
++	// Two calls to Import with the same path return the same
++	// package.
+ 	Import(path string) (*Package, error)
+ }
+ 
+ // ImportMode is reserved for future use.
+ type ImportMode int
+ 
+-// An Importer2 resolves import paths to packages; it
++// An ImporterFrom resolves import paths to packages; it
+ // supports vendoring per https://golang.org/s/go15vendor.
+-// Use go/importer to obtain an Importer2 implementation.
+-type Importer2 interface {
++// Use go/importer to obtain an ImporterFrom implementation.
++type ImporterFrom interface {
+ 	// Importer is present for backward-compatibility. Calling
+-	// Import(path) is the same as calling Import(path, "", 0);
++	// Import(path) is the same as calling ImportFrom(path, "", 0);
+ 	// i.e., locally vendored packages may not be found.
+-	// The types package does not call Import if an Importer2
++	// The types package does not call Import if an ImporterFrom
+ 	// is present.
+ 	Importer
+ 
+-	// Import2 returns the imported package for the given import
++	// ImportFrom returns the imported package for the given import
+ 	// path when imported by the package in srcDir, or an error
+ 	// if the package couldn't be imported. The mode value must
+ 	// be 0; it is reserved for future use.
+-	// Two calls to Import2 with the same path and srcDir return
++	// Two calls to ImportFrom with the same path and srcDir return
+ 	// the same package.
+-	Import2(path, srcDir string, mode ImportMode) (*Package, error)
++	ImportFrom(path, srcDir string, mode ImportMode) (*Package, error)
+ }
+ 
+ // A Config specifies the configuration for type checking.
+@@ -114,8 +114,8 @@ type Config struct {
+ 
+ 	// An importer is used to import packages referred to from
+ 	// import declarations.
+-	// If the installed importer implements Importer2, the type
+-	// checker calls Import2 instead of Import.
++	// If the installed importer implements ImporterFrom, the type
++	// checker calls ImportFrom instead of Import.
+ 	// The type checker reports an error if an importer is needed
+ 	// but none was installed.
+ 	Importer Importer
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 56ee5e1c64..14148a585b 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -187,10 +187,10 @@ func (check *Checker) collectObjects() {
+ 							// ordinary import
+ 							if importer := check.conf.Importer; importer == nil {
+ 								err = fmt.Errorf("Config.Importer not installed")
+-							} else if importer2, ok := importer.(Importer2); ok {
+-								imp, err = importer2.Import2(path, srcDir, 0)
++							} else if importerFrom, ok := importer.(ImporterFrom); ok {
++								imp, err = importerFrom.ImportFrom(path, srcDir, 0)
+ 								if imp == nil && err == nil {
+-									err = fmt.Errorf("Config.Importer.Import2(%s, %s, 0) returned nil but no error", path, pkg.path)
++									err = fmt.Errorf("Config.Importer.ImportFrom(%s, %s, 0) returned nil but no error", path, pkg.path)
+ 								}
+ 							} else {
+ 								imp, err = importer.Import(path)
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index 9ffbd0c2f2..4bb63b6648 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ type resolveTestImporter struct {
+-	importer Importer2
++	importer ImporterFrom
+ 	imported map[string]bool
+ }
+ 
+@@ -26,15 +26,15 @@ func (imp *resolveTestImporter) Import(string) (*Package, error) {
+ 	panic("should not be called")
+ }
+ 
+-func (imp *resolveTestImporter) Import2(path, srcDir string, mode ImportMode) (*Package, error) {
++func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode) (*Package, error) {
+ 	if mode != 0 {
+ 		panic("mode must be 0")
+ 	}
+ 	if imp.importer == nil {
+-		imp.importer = importer.Default().(Importer2)
++		imp.importer = importer.Default().(ImporterFrom)
+ 		imp.imported = make(map[string]bool)
+ 	}
+-	pkg, err := imp.importer.Import2(path, srcDir, mode)
++	pkg, err := imp.importer.ImportFrom(path, srcDir, mode)
+ 	if err != nil {
+ 		return nil, err
+ 	}

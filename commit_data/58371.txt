@@ -15,6 +15,21 @@ Date:   Thu Nov 2 12:59:24 2023 +0000
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/syntax/nodes_test.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/nodes_test.go b/src/cmd/compile/internal/syntax/nodes_test.go
+index a39f08c1a4..a86ae87adf 100644
+--- a/src/cmd/compile/internal/syntax/nodes_test.go
++++ b/src/cmd/compile/internal/syntax/nodes_test.go
+@@ -322,8 +322,5 @@ func stripAt(s string) (string, int) {
+ func typeOf(n Node) string {
+ 	const prefix = "*syntax."
+ 	k := fmt.Sprintf("%T", n)
+-	if strings.HasPrefix(k, prefix) {
+-		return k[len(prefix):]
+-	}
+-	return k
++	return strings.TrimPrefix(k, prefix)
+ }

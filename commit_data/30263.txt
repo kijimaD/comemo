@@ -8,6 +8,19 @@ Date:   Fri Oct 28 13:16:25 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32316
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/sizeof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 22646552a1..b86188c314 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -24,6 +24,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Func{}, 92, 160},
+ 		{Name{}, 44, 72},
++		{Param{}, 24, 48},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+ 		{Type{}, 60, 96},

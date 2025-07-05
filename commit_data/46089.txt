@@ -14,7 +14,7 @@ Date:   Fri Dec 4 13:20:06 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275517
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check.go           |  1 +
  src/cmd/compile/internal/types2/decl.go            | 23 ++++++++++++----
  src/cmd/compile/internal/types2/errors.go          | 11 ++++++++
@@ -23,3 +23,199 @@ Date:   Fri Dec 4 13:20:06 2020 -0800
  test/fixedbugs/issue8183.go                        |  6 ++---
  test/run.go                                        |  1 -
  7 files changed, 72 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 4504586545..6ba8506916 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -51,6 +51,7 @@ type context struct {
+ 	scope         *Scope                    // top-most scope for lookups
+ 	pos           syntax.Pos                // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 	iota          constant.Value            // value of iota in a constant declaration; nil otherwise
++	errpos        syntax.Pos                // if valid, identifier position of a constant with inherited initializer
+ 	sig           *Signature                // function signature if inside a function; nil otherwise
+ 	isPanic       map[*syntax.CallExpr]bool // set of panic call expressions (used for termination check)
+ 	hasLabel      bool                      // set if a function makes use of labels (only ~1% of functions); unused outside functions
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index bb33e38051..bc3e665b71 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -187,7 +187,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	switch obj := obj.(type) {
+ 	case *Const:
+ 		check.decl = d // new package-level const decl
+-		check.constDecl(obj, d.vtyp, d.init)
++		check.constDecl(obj, d.vtyp, d.init, d.inherited)
+ 	case *Var:
+ 		check.decl = d // new package-level var decl
+ 		check.varDecl(obj, d.lhs, d.vtyp, d.init)
+@@ -421,12 +421,16 @@ func firstInSrc(path []Object) int {
+ 	return fst
+ }
+ 
+-func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
++func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited bool) {
+ 	assert(obj.typ == nil)
+ 
+-	// use the correct value of iota
+-	defer func(iota constant.Value) { check.iota = iota }(check.iota)
++	// use the correct value of iota and errpos
++	defer func(iota constant.Value, errpos syntax.Pos) {
++		check.iota = iota
++		check.errpos = errpos
++	}(check.iota, check.errpos)
+ 	check.iota = obj.val
++	check.errpos = nopos
+ 
+ 	// provide valid constant value under all circumstances
+ 	obj.val = constant.MakeUnknown()
+@@ -449,6 +453,15 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
+ 	// check initialization
+ 	var x operand
+ 	if init != nil {
++		if inherited {
++			// The initialization expression is inherited from a previous
++			// constant declaration, and (error) positions refer to that
++			// expression and not the current constant declaration. Use
++			// the constant identifier position for any errors during
++			// init expression evaluation since that is all we have
++			// (see issues #42991, #42992).
++			check.errpos = obj.pos
++		}
+ 		check.expr(&x, init)
+ 	}
+ 	check.initConst(obj, &x)
+@@ -898,7 +911,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
+ 					init = values[i]
+ 				}
+ 
+-				check.constDecl(obj, last.Type, init)
++				check.constDecl(obj, last.Type, init, inherited)
+ 			}
+ 
+ 			// Constants must always have init values.
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 07f9aad48b..941e7c6fd3 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -87,6 +87,17 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
+ 		return
+ 	}
+ 
++	// If we are encountering an error while evaluating an inherited
++	// constant initialization expression, pos is the position of in
++	// the original expression, and not of the currently declared
++	// constant identifier. Use the provided errpos instead.
++	// TODO(gri) We may also want to augment the error message and
++	// refer to the position (pos) in the original expression.
++	if check.errpos.IsKnown() {
++		assert(check.iota != nil)
++		pos = check.errpos
++	}
++
+ 	err := Error{pos, stripAnnotations(msg), msg, soft}
+ 	if check.firstErr == nil {
+ 		check.firstErr = err
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index b116888bf2..cf9893ca87 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -17,12 +17,13 @@ import (
+ 
+ // A declInfo describes a package-level const, type, var, or func declaration.
+ type declInfo struct {
+-	file  *Scope           // scope of file containing this declaration
+-	lhs   []*Var           // lhs of n:1 variable declarations, or nil
+-	vtyp  syntax.Expr      // type, or nil (for const and var declarations only)
+-	init  syntax.Expr      // init/orig expression, or nil (for const and var declarations only)
+-	tdecl *syntax.TypeDecl // type declaration, or nil
+-	fdecl *syntax.FuncDecl // func declaration, or nil
++	file      *Scope           // scope of file containing this declaration
++	lhs       []*Var           // lhs of n:1 variable declarations, or nil
++	vtyp      syntax.Expr      // type, or nil (for const and var declarations only)
++	init      syntax.Expr      // init/orig expression, or nil (for const and var declarations only)
++	inherited bool             // if set, the init expression is inherited from a previous constant declaration
++	tdecl     *syntax.TypeDecl // type declaration, or nil
++	fdecl     *syntax.FuncDecl // func declaration, or nil
+ 
+ 	// The deps field tracks initialization expression dependencies.
+ 	deps map[Object]bool // lazily initialized
+@@ -338,7 +339,7 @@ func (check *Checker) collectObjects() {
+ 						init = values[i]
+ 					}
+ 
+-					d := &declInfo{file: fileScope, vtyp: last.Type, init: init}
++					d := &declInfo{file: fileScope, vtyp: last.Type, init: init, inherited: inherited}
+ 					check.declarePkgObj(name, obj, d)
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/constdecl.src b/src/cmd/compile/internal/types2/testdata/constdecl.src
+index e9a5162e9c..1a7ed003a4 100644
+--- a/src/cmd/compile/internal/types2/testdata/constdecl.src
++++ b/src/cmd/compile/internal/types2/testdata/constdecl.src
+@@ -104,4 +104,35 @@ func _() {
+ 	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
+ }
+ 
++// Test cases for errors in inherited constant initialization expressions.
++// Errors related to inherited initialization expressions must appear at
++// the constant identifier being declared, not at the original expression
++// (issues #42991, #42992).
++const (
++	_ byte = 255 + iota
++	/* some gap */
++	_ // ERROR overflows byte
++	/* some gap */
++	/* some gap */ _ /* ERROR overflows byte */; _ /* ERROR overflows byte */
++	/* some gap */
++	_ = 255 + iota
++	_ = byte /* ERROR overflows byte */ (255) + iota
++	_ /* ERROR overflows byte */
++)
++
++// Test cases from issue.
++const (
++	ok = byte(iota + 253)
++	bad
++	barn
++	bard // ERROR cannot convert
++)
++
++const (
++	c = len([1 - iota]int{})
++	d
++	e // ERROR invalid array length
++	f // ERROR invalid array length
++)
++
+ // TODO(gri) move extra tests from testdata/const0.src into here
+diff --git a/test/fixedbugs/issue8183.go b/test/fixedbugs/issue8183.go
+index 531dd4dbf8..01954dd107 100644
+--- a/test/fixedbugs/issue8183.go
++++ b/test/fixedbugs/issue8183.go
+@@ -12,12 +12,12 @@ const (
+ 	ok = byte(iota + 253)
+ 	bad
+ 	barn
+-	bard // ERROR "constant 256 overflows byte"
++	bard // ERROR "constant 256 overflows byte|cannot convert"
+ )
+ 
+ const (
+ 	c = len([1 - iota]int{})
+ 	d
+-	e // ERROR "array bound must be non-negative"
+-	f // ERROR "array bound must be non-negative"
++	e // ERROR "array bound must be non-negative|invalid array length"
++	f // ERROR "array bound must be non-negative|invalid array length"
+ )
+diff --git a/test/run.go b/test/run.go
+index 0ffb2c1a3d..a3e2ac5e32 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2132,5 +2132,4 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
+ 	"fixedbugs/issue8501.go":   true, // crashes
+ 	"fixedbugs/issue8507.go":   true, // crashes
+-	"fixedbugs/issue8183.go":   true, // issue #42992
+ }

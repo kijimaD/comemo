@@ -13,7 +13,7 @@ Date:   Fri Oct 21 14:16:41 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/biasedsparsemap.go |  5 +-
  src/cmd/compile/internal/ssa/cache.go           |  9 +--
  src/cmd/compile/internal/ssa/deadstore.go       |  3 +-
@@ -23,3 +23,291 @@ Date:   Fri Oct 21 14:16:41 2022 -0700
  src/cmd/compile/internal/ssa/sparsemap.go       | 10 +---
  src/cmd/compile/internal/ssa/sparsemappos.go    | 79 +++++++++++++++++++++++++
  8 files changed, 121 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/biasedsparsemap.go b/src/cmd/compile/internal/ssa/biasedsparsemap.go
+index 0d35154454..948aef9a9b 100644
+--- a/src/cmd/compile/internal/ssa/biasedsparsemap.go
++++ b/src/cmd/compile/internal/ssa/biasedsparsemap.go
+@@ -5,7 +5,6 @@
+ package ssa
+ 
+ import (
+-	"cmd/internal/src"
+ 	"math"
+ )
+ 
+@@ -86,7 +85,7 @@ func (s *biasedSparseMap) add(x uint) {
+ 	if int(x) < s.first || int(x) >= s.cap() {
+ 		return
+ 	}
+-	s.s.set(ID(int(x)-s.first), 0, src.NoXPos)
++	s.s.set(ID(int(x)-s.first), 0)
+ }
+ 
+ // add inserts x->v into s, provided that x is in the range of keys stored in s.
+@@ -94,7 +93,7 @@ func (s *biasedSparseMap) set(x uint, v int32) {
+ 	if int(x) < s.first || int(x) >= s.cap() {
+ 		return
+ 	}
+-	s.s.set(ID(int(x)-s.first), v, src.NoXPos)
++	s.s.set(ID(int(x)-s.first), v)
+ }
+ 
+ // remove removes key x from s.
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index dbec2e139c..7577eb6c95 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -21,10 +21,11 @@ type Cache struct {
+ 	// See stackalloc.go's {new,put}StackAllocState.
+ 	stackAllocState *stackAllocState
+ 
+-	domblockstore []ID         // scratch space for computing dominators
+-	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
+-	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
+-	scrPoset      []*poset     // scratch poset to be reused
++	domblockstore   []ID            // scratch space for computing dominators
++	scrSparseSet    []*sparseSet    // scratch sparse sets to be re-used.
++	scrSparseMap    []*sparseMap    // scratch sparse maps to be re-used.
++	scrSparseMapPos []*sparseMapPos // scratch sparse maps to be re-used.
++	scrPoset        []*poset        // scratch poset to be reused
+ 	// deadcode contains reusable slices specifically for the deadcode pass.
+ 	// It gets special treatment because of the frequency with which it is run.
+ 	deadcode struct {
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index b0e4e2bb09..648b68af78 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -7,7 +7,6 @@ package ssa
+ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ )
+ 
+ // dse does dead-store elimination on the Function.
+@@ -112,7 +111,7 @@ func dse(f *Func) {
+ 				if sz > 0x7fffffff { // work around sparseMap's int32 value type
+ 					sz = 0x7fffffff
+ 				}
+-				shadowed.set(v.Args[0].ID, int32(sz), src.NoXPos)
++				shadowed.set(v.Args[0].ID, int32(sz))
+ 			}
+ 		}
+ 		// walk to previous store
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index a8eb74efdb..a1330a539e 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -151,6 +151,30 @@ func (f *Func) retSparseMap(ss *sparseMap) {
+ 	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
+ }
+ 
++// newSparseMapPos returns a sparse map that can store at least up to n integers.
++func (f *Func) newSparseMapPos(n int) *sparseMapPos {
++	for i, scr := range f.Cache.scrSparseMapPos {
++		if scr != nil && scr.cap() >= n {
++			f.Cache.scrSparseMapPos[i] = nil
++			scr.clear()
++			return scr
++		}
++	}
++	return newSparseMapPos(n)
++}
++
++// retSparseMapPos returns a sparse map to the config's cache of sparse
++// sets to be reused by f.newSparseMapPos.
++func (f *Func) retSparseMapPos(ss *sparseMapPos) {
++	for i, scr := range f.Cache.scrSparseMapPos {
++		if scr == nil {
++			f.Cache.scrSparseMapPos[i] = ss
++			return
++		}
++	}
++	f.Cache.scrSparseMapPos = append(f.Cache.scrSparseMapPos, ss)
++}
++
+ // newPoset returns a new poset from the internal cache
+ func (f *Func) newPoset() *poset {
+ 	if len(f.Cache.scrPoset) > 0 {
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 521cdfd7ae..5f23790c97 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -308,7 +308,7 @@ func nilcheckelim2(f *Func) {
+ 				}
+ 				// This instruction is guaranteed to fault if ptr is nil.
+ 				// Any previous nil check op is unnecessary.
+-				unnecessary.set(ptr.ID, int32(i), src.NoXPos)
++				unnecessary.set(ptr.ID, int32(i))
+ 			}
+ 		}
+ 		// Remove values we've clobbered with OpUnknown.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 806f6985c8..ea7117586a 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2498,10 +2498,10 @@ func (s *regAllocState) computeLive() {
+ 	s.desired = make([]desiredState, f.NumBlocks())
+ 	var phis []*Value
+ 
+-	live := f.newSparseMap(f.NumValues())
+-	defer f.retSparseMap(live)
+-	t := f.newSparseMap(f.NumValues())
+-	defer f.retSparseMap(t)
++	live := f.newSparseMapPos(f.NumValues())
++	defer f.retSparseMapPos(live)
++	t := f.newSparseMapPos(f.NumValues())
++	defer f.retSparseMapPos(t)
+ 
+ 	// Keep track of which value we want in each register.
+ 	var desired desiredState
+@@ -2630,7 +2630,7 @@ func (s *regAllocState) computeLive() {
+ 					d := e.val + delta
+ 					if !t.contains(e.key) || d < t.get(e.key) {
+ 						update = true
+-						t.set(e.key, d, e.aux)
++						t.set(e.key, d, e.pos)
+ 					}
+ 				}
+ 				// Also add the correct arg from the saved phi values.
+@@ -2653,7 +2653,7 @@ func (s *regAllocState) computeLive() {
+ 					l = make([]liveInfo, 0, t.size())
+ 				}
+ 				for _, e := range t.contents() {
+-					l = append(l, liveInfo{e.key, e.val, e.aux})
++					l = append(l, liveInfo{e.key, e.val, e.pos})
+ 				}
+ 				s.live[p.ID] = l
+ 				changed = true
+diff --git a/src/cmd/compile/internal/ssa/sparsemap.go b/src/cmd/compile/internal/ssa/sparsemap.go
+index f55db54b1c..9443c8b4b4 100644
+--- a/src/cmd/compile/internal/ssa/sparsemap.go
++++ b/src/cmd/compile/internal/ssa/sparsemap.go
+@@ -4,15 +4,12 @@
+ 
+ package ssa
+ 
+-import "cmd/internal/src"
+-
+ // from https://research.swtch.com/sparse
+ // in turn, from Briggs and Torczon
+ 
+ type sparseEntry struct {
+ 	key ID
+ 	val int32
+-	aux src.XPos
+ }
+ 
+ type sparseMap struct {
+@@ -49,14 +46,13 @@ func (s *sparseMap) get(k ID) int32 {
+ 	return -1
+ }
+ 
+-func (s *sparseMap) set(k ID, v int32, a src.XPos) {
++func (s *sparseMap) set(k ID, v int32) {
+ 	i := s.sparse[k]
+ 	if i < int32(len(s.dense)) && s.dense[i].key == k {
+ 		s.dense[i].val = v
+-		s.dense[i].aux = a
+ 		return
+ 	}
+-	s.dense = append(s.dense, sparseEntry{k, v, a})
++	s.dense = append(s.dense, sparseEntry{k, v})
+ 	s.sparse[k] = int32(len(s.dense)) - 1
+ }
+ 
+@@ -70,7 +66,7 @@ func (s *sparseMap) setBit(k ID, v uint) {
+ 		s.dense[i].val |= 1 << v
+ 		return
+ 	}
+-	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.NoXPos})
++	s.dense = append(s.dense, sparseEntry{k, 1 << v})
+ 	s.sparse[k] = int32(len(s.dense)) - 1
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/sparsemappos.go b/src/cmd/compile/internal/ssa/sparsemappos.go
+new file mode 100644
+index 0000000000..60bad8298b
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/sparsemappos.go
+@@ -0,0 +1,79 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "cmd/internal/src"
++
++// from https://research.swtch.com/sparse
++// in turn, from Briggs and Torczon
++
++type sparseEntryPos struct {
++	key ID
++	val int32
++	pos src.XPos
++}
++
++type sparseMapPos struct {
++	dense  []sparseEntryPos
++	sparse []int32
++}
++
++// newSparseMapPos returns a sparseMapPos that can map
++// integers between 0 and n-1 to the pair <int32,src.XPos>.
++func newSparseMapPos(n int) *sparseMapPos {
++	return &sparseMapPos{dense: nil, sparse: make([]int32, n)}
++}
++
++func (s *sparseMapPos) cap() int {
++	return len(s.sparse)
++}
++
++func (s *sparseMapPos) size() int {
++	return len(s.dense)
++}
++
++func (s *sparseMapPos) contains(k ID) bool {
++	i := s.sparse[k]
++	return i < int32(len(s.dense)) && s.dense[i].key == k
++}
++
++// get returns the value for key k, or -1 if k does
++// not appear in the map.
++func (s *sparseMapPos) get(k ID) int32 {
++	i := s.sparse[k]
++	if i < int32(len(s.dense)) && s.dense[i].key == k {
++		return s.dense[i].val
++	}
++	return -1
++}
++
++func (s *sparseMapPos) set(k ID, v int32, a src.XPos) {
++	i := s.sparse[k]
++	if i < int32(len(s.dense)) && s.dense[i].key == k {
++		s.dense[i].val = v
++		s.dense[i].pos = a
++		return
++	}
++	s.dense = append(s.dense, sparseEntryPos{k, v, a})
++	s.sparse[k] = int32(len(s.dense)) - 1
++}
++
++func (s *sparseMapPos) remove(k ID) {
++	i := s.sparse[k]
++	if i < int32(len(s.dense)) && s.dense[i].key == k {
++		y := s.dense[len(s.dense)-1]
++		s.dense[i] = y
++		s.sparse[y.key] = i
++		s.dense = s.dense[:len(s.dense)-1]
++	}
++}
++
++func (s *sparseMapPos) clear() {
++	s.dense = s.dense[:0]
++}
++
++func (s *sparseMapPos) contents() []sparseEntryPos {
++	return s.dense
++}

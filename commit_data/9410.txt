@@ -7,7 +7,77 @@ Date:   Thu Aug 18 13:48:44 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4887048
-
+---
  src/cmd/gofix/fix.go | 15 ++++++++++++---
  src/cmd/gofix/url.go | 10 ----------
  2 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index c1c5a746cc..cc85ceafa3 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -71,17 +71,21 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 		walkBeforeAfter(*n, before, after)
+ 	case **ast.FuncType:
+ 		walkBeforeAfter(*n, before, after)
++	case **ast.Ident:
++		walkBeforeAfter(*n, before, after)
+ 
+ 	// pointers to slices
+-	case *[]ast.Stmt:
++	case *[]ast.Decl:
+ 		walkBeforeAfter(*n, before, after)
+ 	case *[]ast.Expr:
+ 		walkBeforeAfter(*n, before, after)
+-	case *[]ast.Decl:
++	case *[]*ast.File:
++		walkBeforeAfter(*n, before, after)
++	case *[]*ast.Ident:
+ 		walkBeforeAfter(*n, before, after)
+ 	case *[]ast.Spec:
+ 		walkBeforeAfter(*n, before, after)
+-	case *[]*ast.File:
++	case *[]ast.Stmt:
+ 		walkBeforeAfter(*n, before, after)
+ 
+ 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+@@ -212,6 +216,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 	case *ast.ValueSpec:
+ 		walkBeforeAfter(&n.Type, before, after)
+ 		walkBeforeAfter(&n.Values, before, after)
++		walkBeforeAfter(&n.Names, before, after)
+ 	case *ast.TypeSpec:
+ 		walkBeforeAfter(&n.Type, before, after)
+ 
+@@ -245,6 +250,10 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 		for i := range n {
+ 			walkBeforeAfter(&n[i], before, after)
+ 		}
++	case []*ast.Ident:
++		for i := range n {
++			walkBeforeAfter(&n[i], before, after)
++		}
+ 	case []ast.Stmt:
+ 		for i := range n {
+ 			walkBeforeAfter(&n[i], before, after)
+diff --git a/src/cmd/gofix/url.go b/src/cmd/gofix/url.go
+index 047fb192fb..c1e47bd4e5 100644
+--- a/src/cmd/gofix/url.go
++++ b/src/cmd/gofix/url.go
+@@ -51,16 +51,6 @@ func url(f *ast.File) bool {
+ 			ident.Name = "url_"
+ 			return
+ 		}
+-		// Find declared identifiers called url that might be confused.
+-		// TODO: Why does gofix not walk the Names in a ValueSpec?
+-		// TODO: Just a bug; fix later as it will have consequences.
+-		if valSpec, ok := n.(*ast.ValueSpec); ok {
+-			for _, ident := range valSpec.Names {
+-				if ident.Name == "url" {
+-					ident.Name = "url_"
+-				}
+-			}
+-		}
+ 		// Parameter and result names.
+ 		if fn, ok := n.(*ast.FuncType); ok {
+ 			fixed = urlDoFields(fn.Params) || fixed

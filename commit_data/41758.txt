@@ -9,6 +9,27 @@ Date:   Wed Oct 23 22:09:25 2019 +0530
     Change-Id: Ie7c52f39203cf16d8b53a333b591cffccdf7446a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202877
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/verify.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index c8bad642f0..358fca4705 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -578,13 +578,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 	}
+ 	if now.Before(c.NotBefore) {
+ 		return CertificateInvalidError{
+-			Cert: c,
++			Cert:   c,
+ 			Reason: Expired,
+ 			Detail: fmt.Sprintf("current time %s is before %s", now.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
+ 		}
+ 	} else if now.After(c.NotAfter) {
+ 		return CertificateInvalidError{
+-			Cert: c,
++			Cert:   c,
+ 			Reason: Expired,
+ 			Detail: fmt.Sprintf("current time %s is after %s", now.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
+ 		}

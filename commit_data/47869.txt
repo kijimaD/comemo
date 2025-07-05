@@ -24,7 +24,54 @@ Date:   Wed Apr 14 09:34:28 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/walk.go            |  6 +++++-
  src/go/ast/walk_typeparams.go | 10 ++++++++--
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 9224264e29..ac1395fafd 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -112,7 +112,11 @@ func Walk(v Visitor, node Node) {
+ 
+ 	case *IndexExpr:
+ 		Walk(v, n.X)
+-		Walk(v, n.Index)
++		// n.Index may be nil for invalid type instantiation expressions, e.g.
++		// var x T[].
++		if n.Index != nil {
++			Walk(v, n.Index)
++		}
+ 
+ 	case *SliceExpr:
+ 		Walk(v, n.X)
+diff --git a/src/go/ast/walk_typeparams.go b/src/go/ast/walk_typeparams.go
+index 77267a5b8c..b6621335b8 100644
+--- a/src/go/ast/walk_typeparams.go
++++ b/src/go/ast/walk_typeparams.go
+@@ -7,6 +7,10 @@
+ 
+ package ast
+ 
++import (
++	"fmt"
++)
++
+ func walkFuncTypeParams(v Visitor, n *FuncType) {
+ 	if n.TParams != nil {
+ 		Walk(v, n.TParams)
+@@ -20,9 +24,11 @@ func walkTypeSpecParams(v Visitor, n *TypeSpec) {
+ }
+ 
+ func walkOtherNodes(v Visitor, n Node) {
+-	if e, ok := n.(*ast.ListExpr); ok {
++	if e, ok := n.(*ListExpr); ok {
+ 		if e != nil {
+-			Walk(v, e)
++			for _, elem := range e.ElemList {
++				Walk(v, elem)
++			}
+ 		}
+ 	} else {
+ 		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))

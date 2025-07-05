@@ -11,7 +11,225 @@ Date:   Thu Feb 27 18:56:28 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  17 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 136 +++++++++++++++++++++++++++
  2 files changed, 153 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f915ea4355..c165fed485 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -758,6 +758,7 @@
+ (MULQconst [c] (MULQconst [d] x)) && is32Bit(c*d) -> (MULQconst [c * d] x)
+ 
+ (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
++(ORQ x (MOVLconst [c])) -> (ORQconst [c] x)
+ (ORL x (MOVLconst [c])) -> (ORLconst [c] x)
+ 
+ (XORQ x (MOVQconst [c])) && is32Bit(c) -> (XORQconst [c] x)
+@@ -1307,6 +1308,15 @@
+ (CMPBconst (MOVLconst [x]) [y]) && int8(x)>int8(y) && uint8(x)<uint8(y) -> (FlagGT_ULT)
+ (CMPBconst (MOVLconst [x]) [y]) && int8(x)>int8(y) && uint8(x)>uint8(y) -> (FlagGT_UGT)
+ 
++// CMPQconst requires a 32 bit const, but we can still constant-fold 64 bit consts.
++// In theory this applies to any of the simplifications above,
++// but CMPQ is the only one I've actually seen occur.
++(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x==y -> (FlagEQ)
++(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x<y && uint64(x)<uint64(y) -> (FlagLT_ULT)
++(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x<y && uint64(x)>uint64(y) -> (FlagLT_UGT)
++(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x>y && uint64(x)<uint64(y) -> (FlagGT_ULT)
++(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x>y && uint64(x)>uint64(y) -> (FlagGT_UGT)
++
+ // Other known comparisons.
+ (CMPQconst (MOVBQZX _) [c]) && 0xFF < c -> (FlagLT_ULT)
+ (CMPQconst (MOVWQZX _) [c]) && 0xFFFF < c -> (FlagLT_ULT)
+@@ -1480,6 +1490,12 @@
+ (BTCQconst [c] (MOVQconst [d])) -> (MOVQconst [d^(1<<uint32(c))])
+ (BTCLconst [c] (MOVLconst [d])) -> (MOVLconst [d^(1<<uint32(c))])
+ 
++// If c or d doesn't fit into 32 bits, then we can't construct ORQconst,
++// but we can still constant-fold.
++// In theory this applies to any of the simplifications above,
++// but ORQ is the only one I've actually seen occur.
++(ORQ (MOVQconst [c]) (MOVQconst [d])) -> (MOVQconst [c|d])
++
+ // generic simplifications
+ // TODO: more of this
+ (ADDQ x (NEGQ y)) -> (SUBQ x y)
+@@ -1495,6 +1511,7 @@
+ 
+ (SHLLconst [d] (MOVLconst [c])) -> (MOVLconst [int64(int32(c)) << uint64(d)])
+ (SHLQconst [d] (MOVQconst [c])) -> (MOVQconst [c << uint64(d)])
++(SHLQconst [d] (MOVLconst [c])) -> (MOVQconst [int64(int32(c)) << uint64(d)])
+ 
+ // Fold NEG into ADDconst/MULconst. Take care to keep c in 32 bit range.
+ (NEGQ (ADDQconst [c] (NEGQ x))) && c != -(1<<31) -> (ADDQconst [-c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ee7f9ad190..c0329c1528 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -8136,6 +8136,96 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
++	// cond: x==y
++	// result: (FlagEQ)
++	for {
++		if v_0.Op != OpAMD64MOVQconst {
++			break
++		}
++		x := v_0.AuxInt
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		y := v_1.AuxInt
++		if !(x == y) {
++			break
++		}
++		v.reset(OpAMD64FlagEQ)
++		return true
++	}
++	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
++	// cond: x<y && uint64(x)<uint64(y)
++	// result: (FlagLT_ULT)
++	for {
++		if v_0.Op != OpAMD64MOVQconst {
++			break
++		}
++		x := v_0.AuxInt
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		y := v_1.AuxInt
++		if !(x < y && uint64(x) < uint64(y)) {
++			break
++		}
++		v.reset(OpAMD64FlagLT_ULT)
++		return true
++	}
++	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
++	// cond: x<y && uint64(x)>uint64(y)
++	// result: (FlagLT_UGT)
++	for {
++		if v_0.Op != OpAMD64MOVQconst {
++			break
++		}
++		x := v_0.AuxInt
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		y := v_1.AuxInt
++		if !(x < y && uint64(x) > uint64(y)) {
++			break
++		}
++		v.reset(OpAMD64FlagLT_UGT)
++		return true
++	}
++	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
++	// cond: x>y && uint64(x)<uint64(y)
++	// result: (FlagGT_ULT)
++	for {
++		if v_0.Op != OpAMD64MOVQconst {
++			break
++		}
++		x := v_0.AuxInt
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		y := v_1.AuxInt
++		if !(x > y && uint64(x) < uint64(y)) {
++			break
++		}
++		v.reset(OpAMD64FlagGT_ULT)
++		return true
++	}
++	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
++	// cond: x>y && uint64(x)>uint64(y)
++	// result: (FlagGT_UGT)
++	for {
++		if v_0.Op != OpAMD64MOVQconst {
++			break
++		}
++		x := v_0.AuxInt
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		y := v_1.AuxInt
++		if !(x > y && uint64(x) > uint64(y)) {
++			break
++		}
++		v.reset(OpAMD64FlagGT_UGT)
++		return true
++	}
+ 	// match: (CMPQ l:(MOVQload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPQload {sym} [off] ptr x mem)
+@@ -24138,6 +24228,22 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ORQ x (MOVLconst [c]))
++	// result: (ORQconst [c] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpAMD64MOVLconst {
++				continue
++			}
++			c := v_1.AuxInt
++			v.reset(OpAMD64ORQconst)
++			v.AuxInt = c
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
+ 	// match: (ORQ (SHLQconst x [c]) (SHRQconst x [d]))
+ 	// cond: d==64-c
+ 	// result: (ROLQconst x [c])
+@@ -24366,6 +24472,24 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ORQ (MOVQconst [c]) (MOVQconst [d]))
++	// result: (MOVQconst [c|d])
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpAMD64MOVQconst {
++				continue
++			}
++			c := v_0.AuxInt
++			if v_1.Op != OpAMD64MOVQconst {
++				continue
++			}
++			d := v_1.AuxInt
++			v.reset(OpAMD64MOVQconst)
++			v.AuxInt = c | d
++			return true
++		}
++		break
++	}
+ 	// match: (ORQ x x)
+ 	// result: x
+ 	for {
+@@ -31787,6 +31911,18 @@ func rewriteValueAMD64_OpAMD64SHLQconst(v *Value) bool {
+ 		v.AuxInt = c << uint64(d)
+ 		return true
+ 	}
++	// match: (SHLQconst [d] (MOVLconst [c]))
++	// result: (MOVQconst [int64(int32(c)) << uint64(d)])
++	for {
++		d := v.AuxInt
++		if v_0.Op != OpAMD64MOVLconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpAMD64MOVQconst)
++		v.AuxInt = int64(int32(c)) << uint64(d)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SHRB(v *Value) bool {

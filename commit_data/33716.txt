@@ -20,10 +20,219 @@ Date:   Tue May 23 23:01:08 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/progs/run.go            |  7 -------
  misc/cgo/test/issue18720.go | 30 ++++++++++++++++++++++++++++--
  src/cmd/cgo/gcc.go          | 27 +++++++++++++++++----------
  src/cmd/cgo/main.go         |  2 +-
  src/cmd/cgo/out.go          | 32 ++++++++++++++++++++------------
  5 files changed, 66 insertions(+), 32 deletions(-)
+
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+index 8479a66b67..06ea130d99 100644
+--- a/doc/progs/run.go
++++ b/doc/progs/run.go
+@@ -219,12 +219,5 @@ func fixcgo() {
+ 		// cgo1 and cgo2 don't run on netbsd, srandom has a different signature
+ 		skipTest("cgo1")
+ 		skipTest("cgo2")
+-		// cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly, see issue #10715.
+-		skipTest("cgo3")
+-		skipTest("cgo4")
+-	case "openbsd", "solaris":
+-		// cgo3 and cgo4 don't run on openbsd and solaris, since cgo cannot handle stdout correctly, see issue #10715.
+-		skipTest("cgo3")
+-		skipTest("cgo4")
+ 	}
+ }
+diff --git a/misc/cgo/test/issue18720.go b/misc/cgo/test/issue18720.go
+index a93304498e..3d64003be7 100644
+--- a/misc/cgo/test/issue18720.go
++++ b/misc/cgo/test/issue18720.go
+@@ -12,13 +12,39 @@ package cgotest
+ struct foo { char c; };
+ #define SIZE_OF(x) sizeof(x)
+ #define SIZE_OF_FOO SIZE_OF(struct foo)
++#define VAR1 VAR
++#define VAR var
++int var = 5;
++
++#define ADDR &var
++
++#define CALL fn()
++int fn(void) {
++	return ++var;
++}
+ */
+ import "C"
+ import "testing"
+ 
+ func test18720(t *testing.T) {
+-	if C.HELLO_WORLD != "hello\000world" {
+-		t.Fatalf(`expected "hello\000world", but got %q`, C.HELLO_WORLD)
++	if got, want := C.HELLO_WORLD, "hello\000world"; got != want {
++		t.Errorf("C.HELLO_WORLD == %q, expected %q", got, want)
++	}
++
++	if got, want := C.VAR1, C.int(5); got != want {
++		t.Errorf("C.VAR1 == %v, expected %v", got, want)
++	}
++
++	if got, want := *C.ADDR, C.int(5); got != want {
++		t.Errorf("*C.ADDR == %v, expected %v", got, want)
++	}
++
++	if got, want := C.CALL, C.int(6); got != want {
++		t.Errorf("C.CALL == %v, expected %v", got, want)
++	}
++
++	if got, want := C.CALL, C.int(7); got != want {
++		t.Errorf("C.CALL == %v, expected %v", got, want)
+ 	}
+ 
+ 	// Issue 20125.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b8334f5626..6cfd83f835 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -264,10 +264,6 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			if n.IsConst() {
+ 				continue
+ 			}
+-
+-			if isName(n.Define) {
+-				n.C = n.Define
+-			}
+ 		}
+ 
+ 		// If this is a struct, union, or enum type name, no need to guess the kind.
+@@ -1073,7 +1069,17 @@ func (p *Package) rewriteRef(f *File) {
+ 	// Assign mangled names.
+ 	for _, n := range f.Name {
+ 		if n.Kind == "not-type" {
+-			n.Kind = "var"
++			if n.Define == "" {
++				n.Kind = "var"
++			} else {
++				n.Kind = "macro"
++				n.FuncType = &FuncType{
++					Result: n.Type,
++					Go: &ast.FuncType{
++						Results: &ast.FieldList{List: []*ast.Field{{Type: n.Type.Go}}},
++					},
++				}
++			}
+ 		}
+ 		if n.Mangle == "" {
+ 			p.mangleName(n)
+@@ -1127,7 +1133,8 @@ func (p *Package) rewriteRef(f *File) {
+ 				break
+ 			}
+ 		case "expr":
+-			if r.Name.Kind == "func" {
++			switch r.Name.Kind {
++			case "func":
+ 				if builtinDefs[r.Name.C] != "" {
+ 					error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
+ 				}
+@@ -1154,24 +1161,24 @@ func (p *Package) rewriteRef(f *File) {
+ 					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
+ 					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
+ 				}
+-			} else if r.Name.Kind == "type" {
++			case "type":
+ 				// Okay - might be new(T)
+ 				if r.Name.Type == nil {
+ 					error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+ 					break
+ 				}
+ 				expr = r.Name.Type.Go
+-			} else if r.Name.Kind == "var" {
++			case "var":
+ 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
++			case "macro":
++				expr = &ast.CallExpr{Fun: expr}
+ 			}
+-
+ 		case "selector":
+ 			if r.Name.Kind == "var" {
+ 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+ 			} else {
+ 				error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
+ 			}
+-
+ 		case "type":
+ 			if r.Name.Kind != "type" {
+ 				error_(r.Pos(), "expression C.%s used as type", fixGo(r.Name.Go))
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 2964790efd..c43985d1bf 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -89,7 +89,7 @@ type Name struct {
+ 	Mangle   string // name used in generated Go
+ 	C        string // name used in C
+ 	Define   string // #define expansion
+-	Kind     string // "iconst", "uconst", "fconst", "sconst", "type", "var", "fpvar", "func", "not-type"
++	Kind     string // "iconst", "uconst", "fconst", "sconst", "type", "var", "fpvar", "func", "macro", "not-type"
+ 	Type     *Type  // the type of xxx
+ 	FuncType *FuncType
+ 	AddError bool
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 6e1a47669d..edbfc35b1d 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -400,10 +400,12 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
+ 	inProlog := builtinDefs[name] != ""
+ 	cname := fmt.Sprintf("_cgo%s%s", cPrefix, n.Mangle)
+ 	paramnames := []string(nil)
+-	for i, param := range d.Type.Params.List {
+-		paramName := fmt.Sprintf("p%d", i)
+-		param.Names = []*ast.Ident{ast.NewIdent(paramName)}
+-		paramnames = append(paramnames, paramName)
++	if d.Type.Params != nil {
++		for i, param := range d.Type.Params.List {
++			paramName := fmt.Sprintf("p%d", i)
++			param.Names = []*ast.Ident{ast.NewIdent(paramName)}
++			paramnames = append(paramnames, paramName)
++		}
+ 	}
+ 
+ 	if *gccgo {
+@@ -502,8 +504,10 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
+ 		fmt.Fprintf(fgo2, "\tif errno != 0 { r2 = syscall.Errno(errno) }\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
+-	for i := range d.Type.Params.List {
+-		fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
++	if d.Type.Params != nil {
++		for i := range d.Type.Params.List {
++			fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
++		}
+ 	}
+ 	fmt.Fprintf(fgo2, "\t}\n")
+ 	fmt.Fprintf(fgo2, "\treturn\n")
+@@ -615,14 +619,18 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
+ 		}
+ 	}
+-	fmt.Fprintf(fgcc, "%s(", n.C)
+-	for i := range n.FuncType.Params {
+-		if i > 0 {
+-			fmt.Fprintf(fgcc, ", ")
++	if n.Kind == "macro" {
++		fmt.Fprintf(fgcc, "%s;\n", n.C)
++	} else {
++		fmt.Fprintf(fgcc, "%s(", n.C)
++		for i := range n.FuncType.Params {
++			if i > 0 {
++				fmt.Fprintf(fgcc, ", ")
++			}
++			fmt.Fprintf(fgcc, "a->p%d", i)
+ 		}
+-		fmt.Fprintf(fgcc, "a->p%d", i)
++		fmt.Fprintf(fgcc, ");\n")
+ 	}
+-	fmt.Fprintf(fgcc, ");\n")
+ 	if n.AddError {
+ 		fmt.Fprintf(fgcc, "\t_cgo_errno = errno;\n")
+ 	}

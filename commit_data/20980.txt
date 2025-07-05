@@ -8,6 +8,20 @@ Date:   Fri Oct 31 10:20:36 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/168860044
-
+---
  src/net/http/main_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 9f1dfc3727..b8c71fd19f 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -70,7 +70,7 @@ func goroutineLeaked() bool {
+ 	}
+ 	fmt.Fprintf(os.Stderr, "Too many goroutines running after net/http test(s).\n")
+ 	for stack, count := range stackCount {
+-		fmt.Fprintf(os.Stderr, "%d instances of:\n%s", count, stack)
++		fmt.Fprintf(os.Stderr, "%d instances of:\n%s\n", count, stack)
+ 	}
+ 	return true
+ }

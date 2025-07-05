@@ -10,6 +10,17 @@ Date:   Wed Apr 28 11:24:24 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fuse.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fuse.go b/test/fuse.go
+index 7d39c3cdb9..ea908bfd4d 100644
+--- a/test/fuse.go
++++ b/test/fuse.go
+@@ -1,4 +1,4 @@
+-// +build amd64 arm64
++// +build amd64,!gcflags_noopt arm64,!gcflags_noopt
+ // errorcheck -0 -d=ssa/late_fuse/debug=1
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.

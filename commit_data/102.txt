@@ -6,7 +6,7 @@ Date:   Fri Jun 6 14:27:34 2008 -0700
     update run to work with multiple directories
     
     SVN=121485
-
+---
  test/golden.out        |  68 +++++++++---
  test/ken/for.go        |  19 ++++
  test/ken/interfun.go   |  64 +++++++++++
@@ -35,3 +35,2096 @@ Date:   Fri Jun 6 14:27:34 2008 -0700
  test/ken/strvar.go     |  79 +++++++++++++
  test/run               |  21 ++--
  27 files changed, 1864 insertions(+), 23 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 13324ad6b9..10e0159942 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,40 +1,40 @@
+-=========== char_lit.go
++=========== ./char_lit.go
+ char_lit.go:5: syntax error
+ char_lit.go:17: unknown escape sequence: \
+ char_lit.go:19: unknown escape sequence: "
+ BUG: known to fail incorrectly
+-=========== float_lit.go
++=========== ./float_lit.go
+ float_lit.go:5: syntax error
+ float_lit.go:28: overflow in float constant
+ float_lit.go:56: overflow in float constant
+ float_lit.go:60: overflow in float constant
+ float_lit.go:64: overflow in float constant
+ BUG: known to fail incorrectly
+-=========== for.go
++=========== ./for.go
+ for.go:45: fatal error: optoas: no entry MOD-<int32>INT32
+ BUG: known to fail incorrectly
+-=========== func.go
+-=========== hashmap.go
++=========== ./func.go
++=========== ./hashmap.go
+ hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
+ BUG: known to fail incorrectly
+-=========== helloworld.go
++=========== ./helloworld.go
+ hello, world
+-=========== if.go
+-=========== int_lit.go
++=========== ./if.go
++=========== ./int_lit.go
+ int_lit.go:5: syntax error
+ BUG: known to fail incorrectly
+-=========== iota.go
+-=========== literal.go
+-=========== sieve.go
++=========== ./iota.go
++=========== ./literal.go
++=========== ./sieve.go
+ sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(8)
+ BUG: known to fail incorrectly
+-=========== string_lit.go
++=========== ./string_lit.go
+ string_lit.go:5: syntax error
+ string_lit.go:12: unknown escape sequence: \
+ string_lit.go:12: unknown escape sequence: '
+ BUG: known to fail incorrectly
+-=========== switch.go
+-=========== test0.go
++=========== ./switch.go
++=========== ./test0.go
+ test0.go:23: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW
+ test0.go:48: illegal types for operand
+ 	(<float32>FLOAT32) AS (<int32>INT32)
+@@ -47,5 +47,43 @@ test0.go:54: function call must be single valued (0)
+ test0.go:54: illegal types for operand
+ 	(<Point2>{}) AS ({})
+ BUG: known to fail incorrectly
+-=========== turing.go
++=========== ./turing.go
+ Hello World!
++=========== ken/for.go
++=========== ken/interfun.go
++=========== ken/intervar.go
++ print 1 bio 2 file 3 -- abc
++=========== ken/label.go
++100
++=========== ken/litfun.go
++=========== ken/mfunc.go
++ken/mfunc.go:13: function call must be single valued (2)
++BUG: known to fail incorrectly
++=========== ken/ptrfun.go
++=========== ken/ptrvar.go
++=========== ken/rob1.go
++=========== ken/rob2.go
++=========== ken/robfor.go
++ken/robfor.go:45: fatal error: optoas: no entry MOD-<int32>INT32
++BUG: known to fail incorrectly
++=========== ken/robfunc.go
++ken/robfunc.go:74: function call must be single valued (2)
++ken/robfunc.go:79: function call must be single valued (2)
++ken/robfunc.go:84: function call must be single valued (2)
++BUG: known to fail incorrectly
++=========== ken/robif.go
++=========== ken/robiota.go
++=========== ken/robliteral.go
++=========== ken/robswitch.go
++=========== ken/simparray.go
++=========== ken/simpbool.go
++=========== ken/simpconv.go
++=========== ken/simpfun.go
++=========== ken/simpprint.go
++hello world
++=========== ken/simpswitch.go
++0out01out12out2aout34out4fiveout56out6aout78out89out9
++=========== ken/simpvar.go
++=========== ken/string.go
++abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
++=========== ken/strvar.go
+diff --git a/test/ken/for.go b/test/ken/for.go
+new file mode 100644
+index 0000000000..52ccbff088
+--- /dev/null
++++ b/test/ken/for.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func
++main()
++{
++	var t,i int;
++
++	for i=0; i<100; i=i+1 {
++		t = t+i;
++	}
++	if t != 50*99  { panic t; }
++}
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+new file mode 100644
+index 0000000000..8142b9bd28
+--- /dev/null
++++ b/test/ken/interfun.go
+@@ -0,0 +1,64 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct
++{
++	a,b	int;
++}
++
++type I1 interface
++{
++	f	()int;
++}
++
++type I2 interface
++{
++	g,f	()int;
++}
++
++func
++(this *S) f()int
++{
++	return this.a;
++}
++
++func
++(this *S) g()int
++{
++	return this.b;
++}
++
++func
++main()
++{
++	var i1 I1;
++	var i2 I2;
++	var g *S;
++
++	s := new(S);
++	s.a = 5;
++	s.b = 6;
++
++	// call structure
++	if s.f() != 5 { panic 11; }
++	if s.g() != 6 { panic 12; }
++
++	i1 = s;		// convert S to I1
++	i2 = i1;	// convert I1 to I2
++
++	// call interface
++	if i1.f() != 5 { panic 21; }
++	if i2.f() != 5 { panic 22; }
++	if i2.g() != 6 { panic 23; }
++
++	g = i1;		// convert I1 to S
++	if g != s { panic 31; }
++
++	g = i2;		// convert I2 to S
++	if g != s { panic 32; }
++}
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+new file mode 100644
+index 0000000000..1c0aefde66
+--- /dev/null
++++ b/test/ken/intervar.go
+@@ -0,0 +1,75 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type	Iputs	interface
++{
++	puts	func(s string);
++}
++
++// ---------
++
++type	Print	struct
++{
++	whoami	int;
++	put	Iputs;
++}
++
++func (p *Print)
++dop()
++{
++	print " print ", p.whoami;
++	p.put.puts("abc");
++}
++
++// ---------
++
++type	Bio	struct
++{
++	whoami	int;
++	put	Iputs;
++}
++
++func (b *Bio)
++puts(s string)
++{
++	print " bio ", b.whoami;
++	b.put.puts(s);
++}
++
++// ---------
++
++type	File	struct
++{
++	whoami	int;
++	put	Iputs;
++}
++
++func (f *File)
++puts(s string)
++{
++	print " file ", f.whoami, " -- ", s;
++}
++
++func
++main()
++{
++	p := new(Print);
++	b := new(Bio);
++	f := new(File);
++
++	p.whoami = 1;
++	p.put = b;
++
++	b.whoami = 2;
++	b.put = f;
++
++	f.whoami = 3;
++
++	p.dop();
++	print "\n";
++}
+diff --git a/test/ken/label.go b/test/ken/label.go
+new file mode 100644
+index 0000000000..17c69cdad9
+--- /dev/null
++++ b/test/ken/label.go
+@@ -0,0 +1,37 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func
++main()
++{
++	i := 0;
++	if false {
++		goto gogoloop;
++	}
++	if false {
++		goto gogoloop;
++	}
++	if false {
++		goto gogoloop;
++	}
++	goto gogoloop;
++
++// backward declared
++loop:
++	i = i+1;
++	if i < 100 {
++		goto loop;
++	}
++	print i;
++	print "\n";
++	return;
++
++gogoloop:
++	goto loop;
++}
+diff --git a/test/ken/litfun.go b/test/ken/litfun.go
+new file mode 100644
+index 0000000000..83c1916cde
+--- /dev/null
++++ b/test/ken/litfun.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func
++main()
++{
++	x := func(a int)int {
++		x := func(a int)int {
++			x := func(a int)int {
++				return a+5;
++			};
++			return x(a)+7;
++		};
++		return x(a)+11;
++	};
++	if x(3) != 3+5+7+11 { panic x(3); }
++}
+diff --git a/test/ken/mfunc.go b/test/ken/mfunc.go
+new file mode 100644
+index 0000000000..5a4e795340
+--- /dev/null
++++ b/test/ken/mfunc.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func	simple(ia,ib,ic int) (oa,ob int);
++
++func
++main()
++{
++	var x,y int;
++
++	x,y = simple(10,20,30);
++	if x+y != 65 { panic x+y; }
++}
++
++func
++simple(ia,ib,ic int) (oa,ob int)
++{
++	return ia+5, ib+ic;
++}
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+new file mode 100644
+index 0000000000..70f45dfc7c
+--- /dev/null
++++ b/test/ken/ptrfun.go
+@@ -0,0 +1,52 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++type C struct
++{
++	a	int;
++	x	*func(p *C)int;
++}
++
++func	g(p *C)int;
++
++func
++(this *C) f()int
++{
++	return this.a;
++}
++
++func
++main()
++{
++	var v int;
++	var c *C;
++
++	c = new(C);
++	c.a = 6;
++	c.x = &g;
++
++	v = g(c);
++	if v != 6 { panic v; }
++
++	v = c.x(c);
++	if v != 6 { panic v; }
++
++	v = c.f();
++	if v != 6 { panic v; }
++}
++
++func
++g(p *C)int
++{
++	var v int;
++
++	v = p.a;
++	if v != 6 { panic v; }
++	return p.a;
++}
+diff --git a/test/ken/ptrvar.go b/test/ken/ptrvar.go
+new file mode 100644
+index 0000000000..c2e2d611d1
+--- /dev/null
++++ b/test/ken/ptrvar.go
+@@ -0,0 +1,54 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++type	x2	struct { a,b,c int; d int; };
++var	g1	x2;
++var	g2	struct { a,b,c int; d x2; };
++
++func
++main()
++{
++	var x int;
++	var s1 *x2;
++	var s2 *struct { a,b,c int; d x2; };
++
++	s1 = &g1;
++	s2 = &g2;
++
++	s1.a = 1;
++	s1.b = 2;
++	s1.c = 3;
++	s1.d = 5;
++
++	s2.a = 7;
++	s2.b = 11;
++	s2.c = 13;
++	s2.d.a = 17;
++	s2.d.b = 19;
++	s2.d.c = 23;
++	s2.d.d = 20;
++
++	if(s2.d.c != 23) { panic 1; }
++	if(g2.d.c != 23) { panic 2; }
++
++	x =	s1.a +
++		s1.b +
++		s1.c +
++		s1.d +
++
++		s2.a +
++		s2.b +
++		s2.c +
++		s2.d.a +
++		s2.d.b +
++		s2.d.c +
++		s2.d.d;
++
++	if(x != 121) { panic x; }
++}
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+new file mode 100644
+index 0000000000..97a9ca897c
+--- /dev/null
++++ b/test/ken/rob1.go
+@@ -0,0 +1,82 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Item interface
++{
++	Print_BUG	func();
++}
++
++type ListItem struct
++{
++	item    Item;
++	next    *ListItem;
++}
++
++type List struct
++{
++	head    *ListItem;
++}
++
++func (list *List)
++Init()
++{
++	list.head = nil;
++}
++
++func (list *List)
++Insert(i Item)
++{
++	item := new(ListItem);
++	item.item = i;
++	item.next = list.head;
++	list.head = item;
++}
++
++func (list *List)
++Print()
++{
++	i := list.head;
++	for i != nil {
++		i.item.Print_BUG();
++		i = i.next;
++	}
++}
++
++// Something to put in a list
++type Integer struct
++{
++	val		int;
++}
++
++func (this *Integer)
++Init_BUG(i int) *Integer
++{
++	this.val = i;
++	return this;
++}
++
++func (this *Integer)
++Print_BUG()
++{
++	print this.val;
++}
++
++func
++main() int32
++{
++	list := new(List);
++	list.Init();
++	for i := 0; i < 10; i = i + 1 {
++		integer := new(Integer);
++		integer.Init_BUG(i);
++		list.Insert(integer);
++	}
++
++	list.Print();
++	return 0;
++}
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+new file mode 100644
+index 0000000000..6f49b9aaf4
+--- /dev/null
++++ b/test/ken/rob2.go
+@@ -0,0 +1,296 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++const nilchar = 0;
++
++type Atom struct {
++	str		string;
++	integer		int;
++	next		*Slist;	/* in hash bucket */
++}
++
++type List struct {
++	car		*Slist;
++	cdr*Slist;
++}
++
++type Slist struct {
++	isatom		bool;
++	isstring	bool;
++	//union {
++	atom		Atom;
++	list		List;
++	//} u;
++
++}
++
++func (this *Slist) Print();
++
++func (this *Slist) Car() *Slist {
++	return this.list.car;
++}
++
++func (this *Slist) Cdr() *Slist {
++	return this.list.cdr;
++}
++
++func (this *Slist) String() string {
++	return this.atom.str;
++}
++
++func (this *Slist) Integer() int {
++	return this.atom.integer;
++}
++
++func (slist *Slist) Free() {
++	if slist == nil {
++		return;
++	}
++	if slist.isatom {
++//		free(slist.String());
++	} else {
++		slist.Car().Free();
++		slist.Cdr().Free();
++	}
++//	free(slist);
++}
++
++func OpenFile();
++func Parse() *Slist;
++
++//Slist* atom(byte *s, int i);
++
++var token int;
++var peekc int = -1;
++var lineno int32 = 1;
++
++var input string;
++var inputindex int = 0;
++var tokenbuf [100]byte;
++
++const EOF int = -1;
++
++func main() int32
++{
++	var list *Slist;
++
++	OpenFile();
++	for ;; {
++		list = Parse();
++		if list == nil {
++			break;
++		}
++		list.Print();
++		list.Free();
++		break;
++	}
++
++	return 0;
++}
++
++func (slist *Slist) PrintOne(doparen bool)
++{
++	if slist == nil {
++		return;
++	}
++	if slist.isatom {
++		if slist.isstring {
++			print slist.String();
++		} else {
++			print slist.Integer();
++		}
++	} else {
++		if doparen {
++			print "(" ;
++		}
++		slist.Car().PrintOne(true);
++		if slist.Cdr() != nil {
++			print " ";
++			slist.Cdr().PrintOne(false);
++		}
++		if doparen {
++			print ")";
++		}
++	}
++}
++
++func (slist *Slist) Print()
++{
++	slist.PrintOne(true);
++	print "\n";
++}
++
++func Get() int
++{
++	var c int;
++
++	if peekc >= 0 {
++		c = peekc;
++		peekc = -1;
++	} else {
++		c = convert(int, input[inputindex]);
++		inputindex = inputindex + 1; // BUG should be incr one expr
++		if c == '\n' {
++			lineno = lineno + 1;
++		}
++		if c == nilchar {
++			inputindex = inputindex - 1;
++			c = EOF;
++		}
++	}
++	return c;
++}
++
++func WhiteSpace(c int) bool
++{
++	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
++}
++
++func NextToken()
++{
++	var i, c int;
++	var backslash bool;
++
++	tokenbuf[0] = nilchar;	// clear previous token
++	c = Get();
++	for WhiteSpace(c) {
++		c = Get();
++	}
++	switch c {
++		case EOF:
++			token = EOF;
++		case '(':
++		case ')':
++			token = c;
++			break;
++		default:
++			for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
++				tokenbuf[i] = convert(byte, c);
++				i = i + 1;
++				c = Get();
++				if c == EOF {
++					break;
++				}
++				if WhiteSpace(c) || c == ')' {
++					peekc = c;
++					break;
++				}
++			}
++			if i >= 100 - 1 {	// sizeof tokenbuf - 1
++				panic "atom too long\n";
++			}
++			tokenbuf[i] = nilchar;
++			if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
++				token = '0';
++			} else {
++				token = 'A';
++			}
++	}
++}
++
++func Expect(c int)
++{
++	if token != c {
++		print "parse error: expected ", c, "\n";
++		panic "parse";
++	}
++	NextToken();
++}
++
++// Parse a non-parenthesized list up to a closing paren or EOF
++func ParseList() *Slist
++{
++	var slist, retval *Slist;
++
++	slist = new(Slist);
++	slist.list.car = nil;
++	slist.list.cdr = nil;
++	slist.isatom = false;
++	slist.isstring = false;
++
++	retval = slist;
++	for ;; {
++		slist.list.car = Parse();
++		if token == ')' {	// empty cdr
++			break;
++		}
++		if token == EOF {	// empty cdr BUG SHOULD USE ||
++			break;
++		}
++		slist.list.cdr = new(Slist);
++		slist = slist.list.cdr;
++	}
++	return retval;
++}
++
++func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
++{
++	var h, length int;
++	var slist, tail *Slist;
++
++	slist = new(Slist);
++	if token == '0' {
++		slist.atom.integer = i;
++		slist.isstring = false;
++	} else {
++		slist.atom.str = "hello";
++		slist.isstring = true;
++	}
++	slist.isatom = true;
++	return slist;
++}
++
++func atoi() int	// BUG: uses tokenbuf; should take argument
++{
++	var v int = 0;
++	for i := 0; '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
++		v = 10 * v + convert(int, tokenbuf[i] - '0');
++	}
++	return v;
++}
++
++func Parse() *Slist
++{
++	var slist *Slist;
++
++	if token == EOF || token == ')' {
++		return nil;
++	}
++	if token == '(' {
++		NextToken();
++		slist = ParseList();
++		Expect(')');
++		return slist;
++	} else {
++		// Atom
++		switch token {
++			case EOF:
++				return nil;
++			case '0':
++				slist = atom(atoi());
++			case '"':
++			case 'A':
++				slist = atom(0);
++			default:
++				slist = nil;
++				print "unknown token"; //, token, tokenbuf;
++		}
++		NextToken();
++		return slist;
++	}
++	return nil;
++}
++
++func OpenFile()
++{
++	input = "(defn foo (add 12 34))\n\x00";
++	inputindex = 0;
++	peekc = -1;		// BUG
++	NextToken();
++}
+diff --git a/test/ken/robfor.go b/test/ken/robfor.go
+new file mode 100644
+index 0000000000..60e3f1fddf
+--- /dev/null
++++ b/test/ken/robfor.go
+@@ -0,0 +1,56 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assertequal(is, shouldbe int, msg string) {
++	if is != shouldbe {
++		print "assertion fail" + msg + "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	var i, sum int;
++
++	i = 0;
++	for {
++		i = i + 1;
++		if i > 5 {
++			break;
++		}
++	}
++	assertequal(i, 6, "break");
++
++	sum = 0;
++	for i := 0; i <= 10; i++ {
++		sum = sum + i;
++	}
++	assertequal(sum, 55, "all three");
++
++	sum = 0;
++	for i := 0; i <= 10; {
++		sum = sum + i;
++		i++;
++	}
++	assertequal(sum, 55, "only two");
++
++	sum = 0;
++	for sum < 100 {
++		sum = sum + 9;
++	}
++	assertequal(sum, 99 + 9, "only one");
++
++	sum = 0;
++	for i := 0; i <= 10; i++ {
++		if i % 2 == 0 {
++			continue;
++		}
++		sum = sum + i;
++	}
++	assertequal(sum, 1+3+5+7+9, "continue");
++
++}
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+new file mode 100644
+index 0000000000..addd05b269
+--- /dev/null
++++ b/test/ken/robfunc.go
+@@ -0,0 +1,96 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assertequal(is, shouldbe int, msg string) {
++	if is != shouldbe {
++		print "assertion fail" + msg + "\n";
++		panic 1;
++	}
++}
++
++func f1() {
++}
++
++func f2(a int) {
++}
++
++func f3(a, b int) int {
++	return a+b;
++}
++
++func f4(a, b int, c float) int {
++	return (a+b)/2 + int(c);
++}
++
++func f5(a int) int {
++	return 5;
++}
++
++func f6(a int) (r int) {
++	return 6;
++}
++
++func f7(a int) (int, float) {
++	return 7, 7.0;
++}
++
++
++func f8(a int) (a int, b float) {
++	return 8, 8.0;
++}
++
++type T struct {
++	x, y int;
++}
++
++func (t *T) m10(a int, b float) int {
++	return (t.x+a) * (t.y+int(b));
++}
++
++
++func f9(a int) (i int, f float) {
++// BUG funny return value
++	i := 9;
++	f := float(9);
++	return i, f;
++//	return;
++}
++
++
++func main() {
++	f1();
++	f2(1);
++	r3 := f3(1, 2);
++	assertequal(r3, 3, "3");
++	r4 := f4(0, 2, 3.0);
++	assertequal(r4, 4, "4");
++	r5 := f5(1);
++	assertequal(r5, 5, "5");
++	r6 := f6(1);
++	assertequal(r6, 6, "6");
++	var r7 int;
++	var s7 float;
++	r7, s7 = f7(1);
++	assertequal(r7, 7, "r7");
++	assertequal(int(s7), 7, "s7");
++	var r8 int;
++	var s8 float;
++	r8, s8 = f8(1);
++	assertequal(r8, 8, "r8");
++	assertequal(int(s8), 8, "s8");
++		var r9 int;
++		var s9 float;
++		r9, s9 = f9(1);
++		assertequal(r9, 9, "r9");
++		assertequal(int(s9), 9, "s9");
++		var t *T = new(T);
++		t.x = 1;
++		t.y = 2;
++		r10 := t.m10(1, 3.0);
++		assertequal(r10, 10, "10");
++}
+diff --git a/test/ken/robif.go b/test/ken/robif.go
+new file mode 100644
+index 0000000000..7a099769d4
+--- /dev/null
++++ b/test/ken/robif.go
+@@ -0,0 +1,94 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func assertequal(is, shouldbe int, msg string) {
++	if is != shouldbe {
++		print "assertion fail" + msg + "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	i5 := 5;
++	i7 := 7;
++
++	var count int;
++
++	count = 0;
++	if true {
++		count = count + 1;	
++	}
++	assertequal(count, 1, "if true");
++
++	count = 0;
++	if false {
++		count = count + 1;	
++	}
++	assertequal(count, 0, "if false");
++
++	count = 0;
++	if one := 1; true {
++		count = count + one;	
++	}
++	assertequal(count, 1, "if true one");
++
++	count = 0;
++	if one := 1; false {
++		count = count + 1;	
++	}
++	assertequal(count, 0, "if false one");
++
++	count = 0;
++	if {
++		count = count + 1;	
++	}
++	assertequal(count, 1, "if empty");
++
++	count = 0;
++	if one := 1; {
++		count = count + one;	
++	}
++	assertequal(count, 1, "if empty one");
++
++	count = 0;
++	if i5 < i7 {
++		count = count + 1;	
++	}
++	assertequal(count, 1, "if cond");
++
++	count = 0;
++	if true {
++		count = count + 1;	
++	} else
++		count = count - 1;
++	assertequal(count, 1, "if else true");
++
++	count = 0;
++	if false {
++		count = count + 1;	
++	} else
++		count = count - 1;
++	assertequal(count, -1, "if else false");
++
++	count = 0;
++	if t:=1; false {
++		count = count + 1;
++		t := 7;	
++	} else
++		count = count - t;
++	assertequal(count, -1, "if else false var");
++
++	count = 0;
++	t := 1;
++	if false {
++		count = count + 1;
++		t := 7;	
++	} else
++		count = count - t;
++	assertequal(count, -1, "if else false var outside");
++}
+diff --git a/test/ken/robiota.go b/test/ken/robiota.go
+new file mode 100644
+index 0000000000..685d1290e2
+--- /dev/null
++++ b/test/ken/robiota.go
+@@ -0,0 +1,30 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++package main
++
++func assert(cond bool, msg string) {
++	if !cond {
++		print "assertion fail: " + msg + "\n";
++		panic 1;
++	}
++}
++
++const (
++	x int = iota;
++	y = iota;
++	z = 1 << iota;
++	f float = 2 * iota;
++	g float = 4.5 * float(iota);
++);
++
++func main() {
++	assert(x == 0, "x");
++	assert(y == 1, "y");
++	assert(z == 4, "z");
++	assert(f == 6.0, "f");
++	assert(g == 18.0, "g");
++}
+diff --git a/test/ken/robliteral.go b/test/ken/robliteral.go
+new file mode 100644
+index 0000000000..18fc353b03
+--- /dev/null
++++ b/test/ken/robliteral.go
+@@ -0,0 +1,210 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++package main
++
++func assert(cond bool, msg string) {
++	if !cond {
++		print "assertion fail: " + msg + "\n";
++		//panic 1;  this file has errors; print them all
++	}
++}
++
++func main() {
++	// bool
++	var t bool = true;
++	var f bool = false;
++	assert(t == !f, "bool");
++
++	// int8
++	var i00 int8 = 0;
++	var i01 int8 = 1;
++	var i02 int8 = -1;
++	var i03 int8 = 127;
++	var i04 int8 = -127;
++	var i05 int8 = -128;
++	var i06 int8 = +127;
++	assert(i01 == i00 + 1, "i01");
++	assert(i02 == -i01, "i02");
++	assert(i03 == -i04, "i03");
++	assert(-(i05+1) == i06, "i05");
++
++	// int16
++	var i10 int16 = 0;
++	var i11 int16 = 1;
++	var i12 int16 = -1;
++	var i13 int16 = 32767;
++	var i14 int16 = -32767;
++	var i15 int16 = -32768;
++	var i16 int16 = +32767;
++	assert(i11 == i10 + 1, "i11");
++	assert(i12 == -i11, "i12");
++	assert(i13 == -i14, "i13");
++	assert(-(i15+1) == i16, "i15");
++
++	// int32
++	var i20 int32 = 0;
++	var i21 int32 = 1;
++	var i22 int32 = -1;
++	var i23 int32 = 2147483647;
++	var i24 int32 = -2147483647;
++	var i25 int32 = -2147483648;
++	var i26 int32 = +2147483647;
++	assert(i21 == i20 + 1, "i21");
++	assert(i22 == -i21, "i22");
++	assert(i23 == -i24, "i23");
++	assert(-(i25+1) == i26, "i25");
++	assert(i23 == (1 << 31) - 1, "i23 size");
++
++	// int64
++	var i30 int64 = 0;
++	var i31 int64 = 1;
++	var i32 int64 = -1;
++	var i33 int64 = 9223372036854775807;  // BUG? not sure these really work
++	var i34 int64 = -9223372036854775807;
++	var i35 int64 = -9223372036854775808;
++	var i36 int64 = +9223372036854775807;
++	assert(i31 == i30 + 1, "i31");
++	assert(i32 == -i31, "i32");
++	assert(i33 == -i34, "i33");
++	assert(-(i35+1) == i36, "i35");
++	assert(i33 == (1<<63) - 1, "i33 size");
++
++	// uint8
++	var u00 uint8 = 0;
++	var u01 uint8 = 1;
++	var u02 uint8 = 255;
++	var u03 uint8 = +255;
++	assert(u01 == u00 + 1, "u01");
++	assert(u02 == u03, "u02");
++	assert(u03 == (1<<8) - 1, "u03 size");
++
++	// uint16
++	var u10 uint16 = 0;
++	var u11 uint16 = 1;
++	var u12 uint16 = 65535;
++	var u13 uint16 = +65535;
++	assert(u11 == u10 + 1, "u11");
++	assert(u12 == u13, "u12");
++
++	// uint32
++	var u20 uint32 = 0;
++	var u21 uint32 = 1;
++	var u22 uint32 = 4294967295;
++	var u23 uint32 = +4294967295;
++	assert(u21 == u20 + 1, "u21");
++	assert(u22 == u23, "u22");
++
++	// uint64
++	var u30 uint64 = 0;
++	var u31 uint64 = 1;
++	var u32 uint64 = 18446744073709551615;
++	var u33 uint64 = +18446744073709551615;
++
++	// float
++	var f00 float = 3.14159;
++	var f01 float = -3.14159;
++	var f02 float = +3.14159;
++	var f03 float = 0.0;
++	var f04 float = .0;
++	var f05 float = 0.;
++	var f06 float = -0.0;
++	var f07 float = 1e10;
++	var f08 float = -1e10;
++	var f09 float = 1e-10;
++	var f10 float = 1e+10;
++	var f11 float = 1.e-10;
++	var f12 float = 1.e+10;
++	var f13 float = .1e-10;
++	var f14 float = .1e+10;
++	var f15 float = 1.1e-10;
++	var f16 float = 1.1e+10;
++	assert(f01 == -f00, "f01");
++	assert(f02 == -f01, "f02");
++	assert(f03 == f04, "f03");
++	assert(f04 == f05, "f04");
++	assert(f05 == f06, "f05");
++	assert(f07 == -f08, "f07");
++	assert(f09 == 1/f10, "f09");
++	assert(f11 == f09, "f11");
++	assert(f12 == f10, "f12");
++	assert(f13 == f09/10.0, "f13");
++	assert(f14 == f12/10.0, "f14");
++	assert(f15 == f16/1e20, "f15");
++
++	// character
++	var c0 uint8 = 'a';
++	var c1 uint8 = 'ä';
++	var c2 uint8 = '\a';
++	var c3 uint8 = '\b';
++	var c4 uint8 = '\f';
++	var c5 uint8 = '\n';
++	var c6 uint8 = '\r';
++	var c7 uint8 = '\t';
++	var c8 uint8 = '\v';
++	// var c9 uint8 = '本'; // correctly caught as error
++	var c9 uint16 = '本';
++	assert(c0 == 0x61, "c0");
++	assert(c1 == 0xe4, "c1");
++	assert(c2 == 0x07, "c2");
++	assert(c3 == 0x08, "c3");
++	assert(c4 == 0x0c, "c4");
++	assert(c5 == 0x0a, "c4");
++	assert(c6 == 0x0d, "c6");
++	assert(c7 == 0x09, "c7");
++	assert(c8 == 0x0b, "c8");
++	assert(c9 == 0x672c, "c9");
++
++
++	var c00 uint8 = '\000';
++	var c01 uint8 = '\007';
++	var c02 uint8 = '\177';
++	var c03 uint8 = '\377';
++	assert(c00 == 0, "c00");
++	assert(c01 == 7, "c01");
++	assert(c02 == 127, "c02");
++	assert(c03 == 255, "c03");
++
++	var cx0 uint8 = '\x00';
++	var cx1 uint8 = '\x0f';
++	var cx2 uint8 = '\xff';
++	assert(cx0 == 0, "cx0");
++	assert(cx1 == 15, "cx1");
++	assert(cx2 == 255, "cx2");
++
++	var cu0 uint16 = '\u1234';
++	var cu1 uint32 = '\U00101234';
++	assert(cu0 == 0x1234, "cu0");
++	assert(cu1 == 0x101234, "cu1");
++
++	// string
++	var s0 string = "";
++	var s1 string = "hellô";
++	assert(s1[0] == 'h', "s1-0");
++	assert(s1[4] == 0xc3, "s1-4");
++	assert(s1[5] == 0xb4, "s1-5");
++	var s2 string = "\a\b\f\n\r\t\v";
++
++	var s00 string = "\000";
++	var s01 string = "\007";
++	var s02 string = "\377";
++	assert(s00[0] == 0, "s00");
++	assert(s01[0] == 7, "s01");
++	assert(s02[0] == 255, "s02");
++
++	var x00 string = "\x00";
++	var x01 string = "\x0f";
++	var x02 string = "\xff";
++	assert(x00[0] == 0, "x00");
++	assert(x01[0] == 15, "x01");
++	assert(x02[0] == 255, "x02");
++
++	// these are all the same string
++	var sj0 string = "日本語";
++	var sj1 string = "\u65e5\u672c\u8a9e";
++	var sj2 string = "\U000065e5\U0000672c\U00008a9e";
++	var sj3 string = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";
++}
+diff --git a/test/ken/robswitch.go b/test/ken/robswitch.go
+new file mode 100644
+index 0000000000..26c2330d49
+--- /dev/null
++++ b/test/ken/robswitch.go
+@@ -0,0 +1,131 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++package main
++
++func assert(cond bool, msg string) {
++	if !cond {
++		print "assertion fail: " + msg + "\n";
++		panic 1;
++	}
++}
++
++func main() {
++	i5 := 5;
++	i7 := 7;
++
++	switch true {
++	case i5 < 5: assert(false, "<");
++	case i5 == 5: assert(true, "!");
++	case i5 > 5: assert(false, ">");
++	}
++
++	switch {
++	case i5 < 5: assert(false, "<");
++	case i5 == 5: assert(true, "!");
++	case i5 > 5: assert(false, ">");
++	}
++
++	switch x := 5; true {
++	case i5 < x: assert(false, "<");
++	case i5 == x: assert(true, "!");
++	case i5 > x: assert(false, ">");
++	}
++
++	switch x := 5; {
++	case i5 < x: assert(false, "<");
++	case i5 == x: assert(true, "!");
++	case i5 > x: assert(false, ">");
++	}
++
++	switch i5 {
++	case 0: assert(false, "0");
++	case 1: assert(false, "1");
++	case 2: assert(false, "2");
++	case 3: assert(false, "3");
++	case 4: assert(false, "4");
++	case 5: assert(true, "5");
++	case 6: assert(false, "6");
++	case 7: assert(false, "7");
++	case 8: assert(false, "8");
++	case 9: assert(false, "9");
++	default: assert(false, "default");
++	}
++
++	switch i5 {
++	case 0,1,2,3,4: assert(false, "4");
++	case 5: assert(true, "5");
++	case 6,7,8,9: assert(false, "9");
++	default: assert(false, "default");
++	}
++
++	switch i5 {
++	case 0:
++	case 1:
++	case 2:
++	case 3:
++	case 4: assert(false, "4");
++	case 5: assert(true, "5");
++	case 6:
++	case 7:
++	case 8:
++	case 9: 
++	default: assert(i5 == 5, "good");
++	}
++
++	switch i5 {
++	case 0: dummy := 0; fallthrough;
++	case 1: dummy := 0; fallthrough;
++	case 2: dummy := 0; fallthrough;
++	case 3: dummy := 0; fallthrough;
++	case 4: dummy := 0; assert(false, "4");
++	case 5: dummy := 0; fallthrough;
++	case 6: dummy := 0; fallthrough;
++	case 7: dummy := 0; fallthrough;
++	case 8: dummy := 0; fallthrough;
++	case 9: dummy := 0; fallthrough;
++	default: dummy := 0; assert(i5 == 5, "good");
++	}
++
++	fired := 0;  // BUG: should be able to use 'false'
++	switch i5 {
++	case 0: dummy := 0; fallthrough;  // tests scoping of cases
++	case 1: dummy := 0; fallthrough;
++	case 2: dummy := 0; fallthrough;
++	case 3: dummy := 0; fallthrough;
++	case 4: dummy := 0; assert(false, "4");
++	case 5: dummy := 0; fallthrough;
++	case 6: dummy := 0; fallthrough;
++	case 7: dummy := 0; fallthrough;
++	case 8: dummy := 0; fallthrough;
++	case 9: dummy := 0; fallthrough;
++	default: dummy := 0; fired = fired + 1; assert(i5 == 5, "good");
++	}
++	assert(fired > 0, "fired");
++
++	count := 0;
++	switch i5 {
++	case 0: count = count + 1; fallthrough;
++	case 1: count = count + 1; fallthrough;
++	case 2: count = count + 1; fallthrough;
++	case 3: count = count + 1; fallthrough;
++	case 4: count = count + 1; assert(false, "4");
++	case 5: count = count + 1; fallthrough;
++	case 6: count = count + 1; fallthrough;
++	case 7: count = count + 1; fallthrough;
++	case 8: count = count + 1; fallthrough;
++	case 9: count = count + 1; fallthrough;
++	default: assert(i5 == count, "good");
++	}
++	assert(fired > 0, "fired");
++
++	fired = 0;
++	switch i := i5 + 2; i {
++	case i7: fired = 1;
++	default: assert(false, "fail");
++	}
++	assert(fired == 1, "var");
++}
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+new file mode 100644
+index 0000000000..e1b41058f1
+--- /dev/null
++++ b/test/ken/simparray.go
+@@ -0,0 +1,49 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var b[10] float;
++
++func
++main()
++{
++	var a[10] float;
++
++	for i:=short(5); i<10; i=i+1 {
++		a[i] = float(i);
++	}
++
++	s := float(0);
++	for i:=5; i<10; i=i+1 {
++		s = s + a[i];
++	}
++
++	if s != 35 { panic s; }
++
++	for i:=short(5); i<10; i=i+1 {
++		b[i] = float(i);
++	}
++
++	s := float(0);
++	for i:=5; i<10; i=i+1 {
++		s = s + b[i];
++	}
++
++	if s != 35 { panic s; }
++
++	b := new([100]int);
++	for i:=0; i<100; i=i+1 {
++		b[i] = i;
++	}
++
++	s := 0;
++	for i:=0; i<100; i=i+1 {
++		s = s+b[i];
++	}
++
++	if s != 4950 { panic s; }
++}
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+new file mode 100644
+index 0000000000..6a223e8523
+--- /dev/null
++++ b/test/ken/simpbool.go
+@@ -0,0 +1,107 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type s struct
++{
++	a	bool;
++	b	bool;
++}
++
++func
++main()
++{
++	var a,b bool;
++
++	a = true;
++	b = false;
++
++	if !a { panic 1; }
++	if b { panic 2; }
++	if !!!a { panic 3; }
++	if !!b { panic 4; }
++
++	a = !b;
++	if !a { panic 5; }
++	if !!!a { panic 6; }
++
++	var x *s;
++	x = new(s);
++	x.a = true;
++	x.b = false;
++
++	if !x.a { panic 7; }
++	if x.b { panic 8; }
++	if !!!x.a { panic 9; }
++	if !!x.b { panic 10; }
++
++	x.a = !x.b;
++	if !x.a { panic 11; }
++	if !!!x.a { panic 12; }
++
++	/*
++	 * test &&
++	 */
++	a = true;
++	b = true;
++	if !(a && b) { panic 21; }
++	if a && !b { panic 22; }
++	if !a && b { panic 23; }
++	if !a && !b { panic 24; }
++
++	a = false;
++	b = true;
++	if !(!a && b) { panic 31; }
++	if !a && !b { panic 32; }
++	if a && b { panic 33; }
++	if a && !b { panic 34; }
++
++	a = true;
++	b = false;
++	if !(a && !b) { panic 41; }
++	if a && b { panic 41; }
++	if !a && !b { panic 41; }
++	if !a && b { panic 44; }
++
++	a = false;
++	b = false;
++	if !(!a && !b) { panic 51; }
++	if !a && b { panic 52; }
++	if a && !b { panic 53; }
++	if a && b { panic 54; }
++
++	/*
++	 * test ||
++	 */
++	a = true;
++	b = true;
++	if !(a || b) { panic 61; }
++	if !(a || !b) { panic 62; }
++	if !(!a || b) { panic 63; }
++	if !a || !b { panic 64; }
++
++	a = false;
++	b = true;
++	if !(!a || b) { panic 71; }
++	if !(!a || !b) { panic 72; }
++	if !(a || b) { panic 73; }
++	if a || !b { panic 74; }
++
++	a = true;
++	b = false;
++	if !(a || !b) { panic 81; }
++	if !(a || b) { panic 82; }
++	if !(!a || !b) { panic 83; }
++	if !a || b { panic 84; }
++
++	a = false;
++	b = false;
++	if !(!a || !b) { panic 91; }
++	if !(!a || b) { panic 92; }
++	if !(a || !b) { panic 93; }
++	if a || b { panic 94; }
++}
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+new file mode 100644
+index 0000000000..df8242ba35
+--- /dev/null
++++ b/test/ken/simpconv.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func
++main()
++{
++	s := vlong(0);
++	for i:=short(0); i<10; i=i+1 {
++		s = s + vlong(i);
++	}
++	if s != 45 { panic s; }
++
++	s := float(0);
++	for i:=0; i<10; i=i+1 {
++		s = s + float(i);
++	}
++	if s != 45 { panic s; }
++}
+diff --git a/test/ken/simpfun.go b/test/ken/simpfun.go
+new file mode 100644
+index 0000000000..3605fa2862
+--- /dev/null
++++ b/test/ken/simpfun.go
+@@ -0,0 +1,29 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func fun(ia,ib,ic int)int;
++
++func
++main()
++{
++	var x int;
++
++	x = fun(10,20,30);
++	if x != 60 { panic x; }
++}
++
++func
++fun(ia,ib,ic int)int
++{
++	var o int;
++
++	o = ia+ib+ic;
++	if o != 60 { panic o; }
++	return o;
++}
+diff --git a/test/ken/simpprint.go b/test/ken/simpprint.go
+new file mode 100644
+index 0000000000..37ca084253
+--- /dev/null
++++ b/test/ken/simpprint.go
+@@ -0,0 +1,14 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func
++main()
++{
++	print "hello world\n";
++}
+diff --git a/test/ken/simpswitch.go b/test/ken/simpswitch.go
+new file mode 100644
+index 0000000000..88c2a99813
+--- /dev/null
++++ b/test/ken/simpswitch.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func
++main()
++{
++	a := 3;
++	for i:=0; i<10; i=i+1 {
++		switch(i) {
++		case 5:
++			print "five";
++		case a,7:
++			print "a";
++		default:
++			print i;
++		}
++		print "out", i;
++	}
++	print "\n";
++}
+diff --git a/test/ken/simpvar.go b/test/ken/simpvar.go
+new file mode 100644
+index 0000000000..2dd4e73acd
+--- /dev/null
++++ b/test/ken/simpvar.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++var	x,y	int;
++
++func
++main()
++{
++
++	x = 15;
++	y = 20;
++	{
++		var x int;
++		x = 25;
++		y = 25;
++	}
++	x = x+y;
++	if(x != 40) { panic x; }
++}
+diff --git a/test/ken/string.go b/test/ken/string.go
+new file mode 100644
+index 0000000000..85cb83a645
+--- /dev/null
++++ b/test/ken/string.go
+@@ -0,0 +1,103 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++func
++main()
++{
++	var c string;
++
++	a := `abc`;
++	b := `xyz`;
++
++	/* print a literal */
++	print `abc`;
++
++	/* print a variable */
++	print b, "-";
++
++	/* catenate literals */
++	print `abc` + `xyz`, "-";
++
++	/* catenate variables */
++	print a+b, "-";
++
++	/* compare literals */
++	if `abc` == `xyz` || `abc` != "abc" || `abc` > `xyz` {
++		panic "compare literals";
++	}
++
++	/* compare variables */
++	if a == b || a != a || a > b {
++		panic "compare variables";
++	}
++
++	/* cat */
++	c = a+b;
++	print c, "-";
++
++	/* catequal */
++	c = a;
++	c += b;
++	print c, "-";
++
++	/* clumsy evaluation */
++	c = b;
++	c = a + c;
++	print c, "-";
++
++	/* len */
++	if len(c) != 6 {
++		panic "len ", len(c);
++	}
++
++	/* index strings */
++	for i:=0; i<len(c); i=i+1 {
++		if c[i] != (a+b)[i] {
++			panic "index ", i, " ", c[i], " ", (a+b)[i];
++		}
++	}
++
++	/* slice strings */
++	print c[0:3], c[3:6];
++
++	print "\n";
++
++	/* create string with integer constant */
++	c = string('x');
++	if c != "x" {
++		panic "create int ", c;
++	}
++
++	/* create string with integer variable */
++	v := 'x';
++	c = string(v);
++	if c != "x" {
++		panic "create int ", c;
++	}
++
++	/* create string with byte array */
++	var z [3]byte;
++	z[0] = 'a';
++	z[1] = 'b';
++	z[2] = 'c';
++	c = string(z);
++	if c != "abc" {
++		panic "create array ", c;
++	}
++
++	/* create string with byte array pointer */
++	z := new([3]byte);
++	z[0] = 'a';
++	z[1] = 'b';
++	z[2] = 'c';
++	c = string(z);
++	if c != "abc" {
++		panic "create array pointer ", c;
++	}
++}
+diff --git a/test/ken/strvar.go b/test/ken/strvar.go
+new file mode 100644
+index 0000000000..cf5b35d8d3
+--- /dev/null
++++ b/test/ken/strvar.go
+@@ -0,0 +1,79 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++type	x2	struct { a,b,c int; d int; };
++var	g1	x2;
++var	g2	struct { a,b,c int; d x2; };
++
++func
++main()
++{
++	var x int;
++	var s1 *x2;
++	var s2 *struct { a,b,c int; d x2; };
++	var s3 struct { a,b,c int; d x2; };
++
++	s1 = &g1;
++	s2 = &g2;
++
++	s1.a = 1;
++	s1.b = 2;
++	s1.c = 3;
++	s1.d = 5;
++
++	if(s1.c != 3) { panic s1.c; }
++	if(g1.c != 3) { panic g1.c; }
++
++	s2.a = 7;
++	s2.b = 11;
++	s2.c = 13;
++	s2.d.a = 17;
++	s2.d.b = 19;
++	s2.d.c = 23;
++	s2.d.d = 29;
++
++	if(s2.d.c != 23) { panic s2.d.c; }
++	if(g2.d.c != 23) { panic g2.d.c; }
++
++	x =	s1.a +
++		s1.b +
++		s1.c +
++		s1.d +
++
++		s2.a +
++		s2.b +
++		s2.c +
++		s2.d.a +
++		s2.d.b +
++		s2.d.c +
++		s2.d.d;
++
++	if(x != 130) { panic x; }
++
++	// test an automatic struct
++	s3.a = 7;
++	s3.b = 11;
++	s3.c = 13;
++	s3.d.a = 17;
++	s3.d.b = 19;
++	s3.d.c = 23;
++	s3.d.d = 29;
++
++	if(s3.d.c != 23) { panic s3.d.c; }
++
++	x =	s3.a +
++		s3.b +
++		s3.c +
++		s3.d.a +
++		s3.d.b +
++		s3.d.c +
++		s3.d.d;
++
++	if(x != 119) { panic x; }
++}
+diff --git a/test/run b/test/run
+index 209e707d52..0d314e83bd 100755
+--- a/test/run
++++ b/test/run
+@@ -3,6 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++
+ case X"$GOARCH" in
+ Xamd64)
+ 	export A=6
+@@ -18,15 +19,19 @@ export L=${A}l
+ 
+ failed=0
+ 
+-for i in *.go
++for dir in . ken
+ do
+-	echo '===========' $i
+-	export F=$(basename $i .go)
+-	sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
+-	if ! sh /tmp/$USER.$$.gotest
+-	then
+-		echo >&2 fail: $i
+-	fi
++	for i in $dir/*.go
++	do
++		echo '===========' $i
++		export F=$(basename $i .go)
++		export D=$dir
++		sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
++		if ! sh /tmp/$USER.$$.gotest
++		then
++			echo >&2 fail: $i
++		fi
++	done
+ done | cat -v >run.out
+ 
+ case $failed in

@@ -9,6 +9,40 @@ Date:   Wed May 30 16:04:29 2012 -0400
     R=golang-dev, sameer, bradfitz, ryanb
     CC=golang-dev
     https://golang.org/cl/6206043
-
+---
  misc/emacs/go-mode.el | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index f806de6a2b..0e7e218439 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -33,8 +33,8 @@
+     ;; Operators (punctuation)
+     (modify-syntax-entry ?+  "." st)
+     (modify-syntax-entry ?-  "." st)
+-    (modify-syntax-entry ?*  ". 23" st)   ; also part of comments
+-    (modify-syntax-entry ?/  ". 124b" st) ; ditto
++    (modify-syntax-entry ?*  ". 23" st)                                    ; also part of comments
++    (modify-syntax-entry ?/ (if (featurep 'xemacs) ". 1456" ". 124b") st)  ; ditto
+     (modify-syntax-entry ?%  "." st)
+     (modify-syntax-entry ?&  "." st)
+     (modify-syntax-entry ?|  "." st)
+@@ -442,7 +442,7 @@ if no further tokens of the type exist."
+ 		  (when (search-forward "\n" (cdr cs) t)
+ 		    (put-text-property
+ 		     (car cs) (cdr cs) 'font-lock-multline t))
+-		  (set-match-data (list (car cs) (cdr cs) (current-buffer)))
++		  (set-match-data (list (car cs) (copy-marker (cdr cs))))
+ 		  (goto-char (cdr cs))
+ 		  (setq result t))
+ 	      ;; Wrong type.  Look for next comment/string after this one.
+@@ -554,7 +554,7 @@ token on the line."
+ (defun go-mode-whitespace-p (char)
+   "Is newline, or char whitespace in the syntax table for go."
+   (or (eq char ?\n)
+-      (eq 32 (char-syntax char))))
++      (= (char-syntax char) ?\ )))
+ 
+ (defun go-mode-backward-skip-comments ()
+   "Skip backward over comments and whitespace."

@@ -9,7 +9,95 @@ Date:   Thu May 21 14:06:43 2009 -0700
     DELTA=52  (42 added, 1 deleted, 9 changed)
     OCL=29180
     CL=29195
-
+---
  src/lib/reflect/all_test.go | 28 ++++++++++++++++++++++++++++
  src/lib/reflect/value.go    | 31 ++++++++++++++++++++++---------
  2 files changed, 50 insertions(+), 9 deletions(-)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index c473fe3391..903b0f5260 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -583,3 +583,31 @@ func TestInterfaceExtraction(t *testing.T) {
+ 		t.Errorf("Interface() on interface: ", v, s.w);
+ 	}
+ }
++
++func TestInterfaceEditing(t *testing.T) {
++	// strings are bigger than one word,
++	// so the interface conversion allocates
++	// memory to hold a string and puts that
++	// pointer in the interface.
++	var i interface{} = "hello";
++
++	// if i pass the interface value by value
++	// to NewValue, i should get a fresh copy
++	// of the value.
++	v := NewValue(i);
++
++	// and setting that copy to "bye" should
++	// not change the value stored in i.
++	v.(StringValue).Set("bye");
++	if i.(string) != "hello" {
++		t.Errorf(`Set("bye") changed i to %s`, i.(string));
++	}
++
++	// the same should be true of smaller items.
++	i = 123;
++	v = NewValue(i);
++	v.(IntValue).Set(234);
++	if i.(int) != 123 {
++		t.Errorf("Set(234) changed i to %d", i.(int));
++	}
++}
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 6007787242..0a86e7166d 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -646,7 +646,6 @@ func (v *arrayValueStruct) Set(src ArrayValue) {
+ func (v *arrayValueStruct) Elem(i int) Value {
+ 	data_uint := uintptr(v.addr) + uintptr(i * v.elemsize);
+ 	return newValueAddr(v.elemtype, Addr(data_uint));
+-	return nil
+ }
+ 
+ func (v *arrayValueStruct) CopyFrom(src ArrayValue, n int) {
+@@ -949,16 +948,30 @@ func NewValue(e interface {}) Value {
+ 		typecache[typestring] = typ;
+ 	}
+ 
++	var ap Addr;
+ 	if indir {
+-		// Content of interface is a pointer.
+-		return newValueAddr(typ, Addr(uintptr(value)));
++		// Content of interface is large and didn't
++		// fit, so it's a pointer to the actual content.
++		// We have an address, but we need to
++		// make a copy to avoid letting the caller
++		// edit the content inside the interface.
++		n := uintptr(typ.Size());
++		data := make([]byte, n);
++		p1 := uintptr(Addr(&data[0]));
++		p2 := uintptr(value);
++		for i := uintptr(0); i < n; i++ {
++			*(*byte)(Addr(p1+i)) = *(*byte)(Addr(p2+i));
++		}
++		ap = Addr(&data[0]);
++	} else {
++		// Content of interface is small and stored
++		// inside the interface.  Make a copy so we
++		// can take its address.
++		x := new(uint64);
++		*x = value;
++		ap = Addr(x);
+ 	}
+-
+-	// Content of interface is a value;
+-	// need a permanent copy to take its address.
+-	ap := new(uint64);
+-	*ap = value;
+-	return newValueAddr(typ, Addr(ap));
++	return newValueAddr(typ, ap);
+ }
+ 
+ // Indirect indirects one level through a value, if it is a pointer.

@@ -11,10 +11,177 @@ Date:   Tue May 14 09:53:24 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +++
  .../go/analysis/internal/analysisflags/flags.go    | 37 ++++++++++++++++++++++
  .../x/tools/go/analysis/passes/bools/bools.go      | 21 +++++++-----
  src/cmd/vendor/modules.txt                         |  2 +-
  5 files changed, 56 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index db43541d89..407f12b3e0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190510144052-35884eef200b
++	golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index f6a34ea1f0..92886bba7b 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -17,3 +17,7 @@ golang.org/x/tools v0.0.0-20190509153222-73554e0f7805 h1:1ufBXAsTpUhSmmPXEEs5PrG
+ golang.org/x/tools v0.0.0-20190509153222-73554e0f7805/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+ golang.org/x/tools v0.0.0-20190510144052-35884eef200b h1:4muk7BhMes67ZgDeK3n4Jvi+FvNDRZzh6ZRqIXZNYwQ=
+ golang.org/x/tools v0.0.0-20190510144052-35884eef200b/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/tools v0.0.0-20190513233021-7d589f28aaf4 h1:sIGsLZaMtLBc5sLK7s2xtr7VaKk8h31mrJyHwEZq2WQ=
++golang.org/x/tools v0.0.0-20190513233021-7d589f28aaf4/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0 h1:0Bz67IMuNMofIoO/F+rX8oPltlfrAC5HU68DEyynMQg=
++golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index a03a185fc0..062d062487 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -8,6 +8,7 @@ package analysisflags
+ 
+ import (
+ 	"crypto/sha256"
++	"encoding/gob"
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+@@ -32,6 +33,14 @@ var (
+ // including (in multi mode) a flag named after the analyzer,
+ // parses the flags, then filters and returns the list of
+ // analyzers enabled by flags.
++//
++// The result is intended to be passed to unitchecker.Run or checker.Run.
++// Use in unitchecker.Run will gob.Register all fact types for the returned
++// graph of analyzers but of course not the ones only reachable from
++// dropped analyzers. To avoid inconsistency about which gob types are
++// registered from run to run, Parse itself gob.Registers all the facts
++// only reachable from dropped analyzers.
++// This is not a particularly elegant API, but this is an internal package.
+ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 	// Connect each analysis flag to the command line as -analysis.flag.
+ 	enabled := make(map[*analysis.Analyzer]*triState)
+@@ -88,6 +97,8 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 		os.Exit(0)
+ 	}
+ 
++	everything := expand(analyzers)
++
+ 	// If any -NAME flag is true,  run only those analyzers. Otherwise,
+ 	// if any -NAME flag is false, run all but those analyzers.
+ 	if multi {
+@@ -119,9 +130,35 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 		}
+ 	}
+ 
++	// Register fact types of skipped analyzers
++	// in case we encounter them in imported files.
++	kept := expand(analyzers)
++	for a := range everything {
++		if !kept[a] {
++			for _, f := range a.FactTypes {
++				gob.Register(f)
++			}
++		}
++	}
++
+ 	return analyzers
+ }
+ 
++func expand(analyzers []*analysis.Analyzer) map[*analysis.Analyzer]bool {
++	seen := make(map[*analysis.Analyzer]bool)
++	var visitAll func([]*analysis.Analyzer)
++	visitAll = func(analyzers []*analysis.Analyzer) {
++		for _, a := range analyzers {
++			if !seen[a] {
++				seen[a] = true
++				visitAll(a.Requires)
++			}
++		}
++	}
++	visitAll(analyzers)
++	return seen
++}
++
+ func printFlags() {
+ 	type jsonFlag struct {
+ 		Name  string
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+index 833c9d7aae..c82d3675b9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+@@ -30,8 +30,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	nodeFilter := []ast.Node{
+ 		(*ast.BinaryExpr)(nil),
+ 	}
++	seen := make(map[*ast.BinaryExpr]bool)
+ 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+ 		e := n.(*ast.BinaryExpr)
++		if seen[e] {
++			// Already processed as a subexpression of an earlier node.
++			return
++		}
+ 
+ 		var op boolOp
+ 		switch e.Op {
+@@ -43,10 +48,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return
+ 		}
+ 
+-		// TODO(adonovan): this reports n(n-1)/2 errors for an
+-		// expression e||...||e of depth n. Fix.
+-		// See https://golang.org/issue/28086.
+-		comm := op.commutativeSets(pass.TypesInfo, e)
++		comm := op.commutativeSets(pass.TypesInfo, e, seen)
+ 		for _, exprs := range comm {
+ 			op.checkRedundant(pass, exprs)
+ 			op.checkSuspect(pass, exprs)
+@@ -70,8 +72,9 @@ var (
+ // expressions in e that are connected by op.
+ // For example, given 'a || b || f() || c || d' with the or op,
+ // commutativeSets returns {{b, a}, {d, c}}.
+-func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr) [][]ast.Expr {
+-	exprs := op.split(e)
++// commutativeSets adds any expanded BinaryExprs to seen.
++func (op boolOp) commutativeSets(info *types.Info, e *ast.BinaryExpr, seen map[*ast.BinaryExpr]bool) [][]ast.Expr {
++	exprs := op.split(e, seen)
+ 
+ 	// Partition the slice of expressions into commutative sets.
+ 	i := 0
+@@ -188,11 +191,13 @@ func hasSideEffects(info *types.Info, e ast.Expr) bool {
+ // split returns a slice of all subexpressions in e that are connected by op.
+ // For example, given 'a || (b || c) || d' with the or op,
+ // split returns []{d, c, b, a}.
+-func (op boolOp) split(e ast.Expr) (exprs []ast.Expr) {
++// seen[e] is already true; any newly processed exprs are added to seen.
++func (op boolOp) split(e ast.Expr, seen map[*ast.BinaryExpr]bool) (exprs []ast.Expr) {
+ 	for {
+ 		e = unparen(e)
+ 		if b, ok := e.(*ast.BinaryExpr); ok && b.Op == op.tok {
+-			exprs = append(exprs, op.split(b.Y)...)
++			seen[b] = true
++			exprs = append(exprs, op.split(b.Y, seen)...)
+ 			e = b.X
+ 		} else {
+ 			exprs = append(exprs, e)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 53cf548512..ef8408cd51 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190510144052-35884eef200b
++# golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts

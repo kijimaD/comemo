@@ -7,6 +7,19 @@ Date:   Mon Dec 12 16:14:38 2011 +1100
     R=golang-dev, r, alex.brainman, r
     CC=golang-dev
     https://golang.org/cl/5479069
-
+---
  doc/progs/run | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index dd586399fa..d8efe96c25 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -35,7 +35,6 @@ go_tutorial="
+ 	cat.go 
+ 	cat_rot13.go 
+ 	echo.go 
+-	file.go
+ 	helloworld.go 
+ 	helloworld3.go 
+ 	print.go 

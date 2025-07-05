@@ -12,8 +12,105 @@ Date:   Tue Jan 31 17:21:14 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/script/cmds.go       | 46 +++++++++++++++++++++-----------
  src/cmd/go/internal/script/cmds_other.go | 11 ++++++++
  src/cmd/go/internal/script/cmds_posix.go | 16 +++++++++++
  3 files changed, 58 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index b87a8e2837..36e16c55cc 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -432,21 +432,37 @@ func Exec(cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
+ }
+ 
+ func startCommand(s *State, name, path string, args []string, cancel func(*exec.Cmd) error, waitDelay time.Duration) (WaitFunc, error) {
+-	var stdoutBuf, stderrBuf strings.Builder
+-	cmd := exec.CommandContext(s.Context(), path, args...)
+-	if cancel == nil {
+-		cmd.Cancel = nil
+-	} else {
+-		cmd.Cancel = func() error { return cancel(cmd) }
+-	}
+-	cmd.WaitDelay = waitDelay
+-	cmd.Args[0] = name
+-	cmd.Dir = s.Getwd()
+-	cmd.Env = s.env
+-	cmd.Stdout = &stdoutBuf
+-	cmd.Stderr = &stderrBuf
+-	if err := cmd.Start(); err != nil {
+-		return nil, err
++	var (
++		cmd                  *exec.Cmd
++		stdoutBuf, stderrBuf strings.Builder
++	)
++	for {
++		cmd = exec.CommandContext(s.Context(), path, args...)
++		if cancel == nil {
++			cmd.Cancel = nil
++		} else {
++			cmd.Cancel = func() error { return cancel(cmd) }
++		}
++		cmd.WaitDelay = waitDelay
++		cmd.Args[0] = name
++		cmd.Dir = s.Getwd()
++		cmd.Env = s.env
++		cmd.Stdout = &stdoutBuf
++		cmd.Stderr = &stderrBuf
++		err := cmd.Start()
++		if err == nil {
++			break
++		}
++		if isETXTBSY(err) {
++			// If the script (or its host process) just wrote the executable we're
++			// trying to run, a fork+exec in another thread may be holding open the FD
++			// that we used to write the executable (see https://go.dev/issue/22315).
++			// Since the descriptor should have CLOEXEC set, the problem should
++			// resolve as soon as the forked child reaches its exec call.
++			// Keep retrying until that happens.
++		} else {
++			return nil, err
++		}
+ 	}
+ 
+ 	wait := func(s *State) (stdout, stderr string, err error) {
+diff --git a/src/cmd/go/internal/script/cmds_other.go b/src/cmd/go/internal/script/cmds_other.go
+new file mode 100644
+index 0000000000..847b225ae6
+--- /dev/null
++++ b/src/cmd/go/internal/script/cmds_other.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(unix || windows)
++
++package script
++
++func isETXTBSY(err error) bool {
++	return false
++}
+diff --git a/src/cmd/go/internal/script/cmds_posix.go b/src/cmd/go/internal/script/cmds_posix.go
+new file mode 100644
+index 0000000000..2525f6e752
+--- /dev/null
++++ b/src/cmd/go/internal/script/cmds_posix.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || windows
++
++package script
++
++import (
++	"errors"
++	"syscall"
++)
++
++func isETXTBSY(err error) bool {
++	return errors.Is(err, syscall.ETXTBSY)
++}

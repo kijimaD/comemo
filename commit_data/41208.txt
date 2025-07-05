@@ -15,7 +15,7 @@ Date:   Sun Sep 8 01:56:26 2019 +1000
     Change-Id: I181ffb2d37a34764a3e91eded177d13a89c69f9a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/194117
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go            | 122 +++++++++++++++++
  src/cmd/asm/internal/asm/endtoend_test.go    |   4 +
  src/cmd/asm/internal/asm/testdata/riscvenc.s |  11 ++
@@ -25,3 +25,460 @@ Date:   Sun Sep 8 01:56:26 2019 +1000
  src/cmd/internal/obj/riscv/list.go           |  33 +++++
  src/cmd/internal/obj/riscv/obj.go            | 189 +++++++++++++++++++++++++++
  8 files changed, 364 insertions(+)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 638ab736cc..5d1f9a5326 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/obj/arm64"
+ 	"cmd/internal/obj/mips"
+ 	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/riscv"
+ 	"cmd/internal/obj/s390x"
+ 	"cmd/internal/obj/wasm"
+ 	"cmd/internal/obj/x86"
+@@ -73,6 +74,8 @@ func Set(GOARCH string) *Arch {
+ 		return archPPC64(&ppc64.Linkppc64)
+ 	case "ppc64le":
+ 		return archPPC64(&ppc64.Linkppc64le)
++	case "riscv64":
++		return archRISCV64()
+ 	case "s390x":
+ 		return archS390x()
+ 	case "wasm":
+@@ -85,6 +88,14 @@ func jumpX86(word string) bool {
+ 	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
+ }
+ 
++func jumpRISCV(word string) bool {
++	switch word {
++	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
++		return true
++	}
++	return false
++}
++
+ func jumpWasm(word string) bool {
+ 	return word == "JMP" || word == "CALL" || word == "Call" || word == "Br" || word == "BrIf"
+ }
+@@ -516,6 +527,117 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
+ 	}
+ }
+ 
++func archRISCV64() *Arch {
++	register := make(map[string]int16)
++
++	// Standard register names.
++	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
++		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
++		register[name] = int16(i)
++	}
++	for i := riscv.REG_F0; i <= riscv.REG_F31; i++ {
++		name := fmt.Sprintf("F%d", i-riscv.REG_F0)
++		register[name] = int16(i)
++	}
++
++	// General registers with ABI names.
++	register["ZERO"] = riscv.REG_ZERO
++	register["RA"] = riscv.REG_RA
++	register["SP"] = riscv.REG_SP
++	register["GP"] = riscv.REG_GP
++	register["TP"] = riscv.REG_TP
++	register["T0"] = riscv.REG_T0
++	register["T1"] = riscv.REG_T1
++	register["T2"] = riscv.REG_T2
++	register["S0"] = riscv.REG_S0
++	register["S1"] = riscv.REG_S1
++	register["A0"] = riscv.REG_A0
++	register["A1"] = riscv.REG_A1
++	register["A2"] = riscv.REG_A2
++	register["A3"] = riscv.REG_A3
++	register["A4"] = riscv.REG_A4
++	register["A5"] = riscv.REG_A5
++	register["A6"] = riscv.REG_A6
++	register["A7"] = riscv.REG_A7
++	register["S2"] = riscv.REG_S2
++	register["S3"] = riscv.REG_S3
++	register["S4"] = riscv.REG_S4
++	register["S5"] = riscv.REG_S5
++	register["S6"] = riscv.REG_S6
++	register["S7"] = riscv.REG_S7
++	register["S8"] = riscv.REG_S8
++	register["S9"] = riscv.REG_S9
++	register["S10"] = riscv.REG_S10
++	register["S11"] = riscv.REG_S11
++	register["T3"] = riscv.REG_T3
++	register["T4"] = riscv.REG_T4
++	register["T5"] = riscv.REG_T5
++	register["T6"] = riscv.REG_T6
++
++	// Go runtime register names.
++	register["g"] = riscv.REG_G
++	register["CTXT"] = riscv.REG_CTXT
++	register["TMP"] = riscv.REG_TMP
++
++	// ABI names for floating point register.
++	register["FT0"] = riscv.REG_FT0
++	register["FT1"] = riscv.REG_FT1
++	register["FT2"] = riscv.REG_FT2
++	register["FT3"] = riscv.REG_FT3
++	register["FT4"] = riscv.REG_FT4
++	register["FT5"] = riscv.REG_FT5
++	register["FT6"] = riscv.REG_FT6
++	register["FT7"] = riscv.REG_FT7
++	register["FS0"] = riscv.REG_FS0
++	register["FS1"] = riscv.REG_FS1
++	register["FA0"] = riscv.REG_FA0
++	register["FA1"] = riscv.REG_FA1
++	register["FA2"] = riscv.REG_FA2
++	register["FA3"] = riscv.REG_FA3
++	register["FA4"] = riscv.REG_FA4
++	register["FA5"] = riscv.REG_FA5
++	register["FA6"] = riscv.REG_FA6
++	register["FA7"] = riscv.REG_FA7
++	register["FS2"] = riscv.REG_FS2
++	register["FS3"] = riscv.REG_FS3
++	register["FS4"] = riscv.REG_FS4
++	register["FS5"] = riscv.REG_FS5
++	register["FS6"] = riscv.REG_FS6
++	register["FS7"] = riscv.REG_FS7
++	register["FS8"] = riscv.REG_FS8
++	register["FS9"] = riscv.REG_FS9
++	register["FS10"] = riscv.REG_FS10
++	register["FS11"] = riscv.REG_FS11
++	register["FT8"] = riscv.REG_FT8
++	register["FT9"] = riscv.REG_FT9
++	register["FT10"] = riscv.REG_FT10
++	register["FT11"] = riscv.REG_FT11
++
++	// Pseudo-registers.
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++
++	instructions := make(map[string]obj.As)
++	for i, s := range obj.Anames {
++		instructions[s] = obj.As(i)
++	}
++	for i, s := range riscv.Anames {
++		if obj.As(i) >= obj.A_ARCHSPECIFIC {
++			instructions[s] = obj.As(i) + obj.ABaseRISCV
++		}
++	}
++
++	return &Arch{
++		LinkArch:       &riscv.LinkRISCV64,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: nil,
++		RegisterNumber: nilRegisterNumber,
++		IsJump:         jumpRISCV,
++	}
++}
++
+ func archS390x() *Arch {
+ 	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index d31141d887..5c7a024435 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -441,6 +441,10 @@ func TestPPC64Encoder(t *testing.T) {
+ 	testEndToEnd(t, "ppc64", "ppc64enc")
+ }
+ 
++func TestRISCVEncoder(t *testing.T) {
++	testEndToEnd(t, "riscv64", "riscvenc")
++}
++
+ func TestS390XEndToEnd(t *testing.T) {
+ 	testEndToEnd(t, "s390x", "s390x")
+ }
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+new file mode 100644
+index 0000000000..eea5738f2c
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../../../../runtime/textflag.h"
++
++TEXT asmtest(SB),DUPOK|NOSPLIT,$0
++
++	// Arbitrary bytes (entered in little-endian mode)
++	WORD	$0x12345678	// WORD $305419896	// 78563412
++	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index b434d4f60f..f293891511 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -60,6 +60,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/obj/arm64",
+ 	"cmd/internal/obj/mips",
+ 	"cmd/internal/obj/ppc64",
++	"cmd/internal/obj/riscv",
+ 	"cmd/internal/obj/s390x",
+ 	"cmd/internal/obj/x86",
+ 	"cmd/internal/obj/wasm",
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 8b6c460897..c034b637bd 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -241,4 +241,5 @@ var Anames = []string{
+ 	"MOVWU",
+ 	"SEQZ",
+ 	"SNEZ",
++	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 2df02d9d4f..8c6817284b 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -519,6 +519,9 @@ const (
+ 	AMOVWU
+ 	ASEQZ
+ 	ASNEZ
++
++	// End marker
++	ALAST
+ )
+ 
+ // All unary instructions which write to their arguments (as opposed to reading
+diff --git a/src/cmd/internal/obj/riscv/list.go b/src/cmd/internal/obj/riscv/list.go
+new file mode 100644
+index 0000000000..f5f7ef21e4
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/list.go
+@@ -0,0 +1,33 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv
++
++import (
++	"fmt"
++
++	"cmd/internal/obj"
++)
++
++func init() {
++	obj.RegisterRegister(obj.RBaseRISCV, REG_END, regName)
++	obj.RegisterOpcode(obj.ABaseRISCV, Anames)
++}
++
++func regName(r int) string {
++	switch {
++	case r == 0:
++		return "NONE"
++	case r == REG_G:
++		return "g"
++	case r == REG_SP:
++		return "SP"
++	case REG_X0 <= r && r <= REG_X31:
++		return fmt.Sprintf("X%d", r-REG_X0)
++	case REG_F0 <= r && r <= REG_F31:
++		return fmt.Sprintf("F%d", r-REG_F0)
++	default:
++		return fmt.Sprintf("Rgok(%d)", r-obj.RBaseRISCV)
++	}
++}
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+new file mode 100644
+index 0000000000..af07522cfd
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -0,0 +1,189 @@
++// Copyright © 2015 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package riscv
++
++import (
++	"cmd/internal/obj"
++	"cmd/internal/sys"
++	"fmt"
++)
++
++// TODO(jsing): Populate.
++var RISCV64DWARFRegisters = map[int16]int16{}
++
++func buildop(ctxt *obj.Link) {}
++
++func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
++	// TODO(jsing): Implement.
++}
++
++// setPCs sets the Pc field in all instructions reachable from p.
++// It uses pc as the initial value.
++func setPCs(p *obj.Prog, pc int64) {
++	for ; p != nil; p = p.Link {
++		p.Pc = pc
++		pc += int64(encodingForProg(p).length)
++	}
++}
++
++func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	if cursym.Func.Text == nil || cursym.Func.Text.Link == nil {
++		return
++	}
++
++	text := cursym.Func.Text
++	if text.As != obj.ATEXT {
++		ctxt.Diag("preprocess: found symbol that does not start with TEXT directive")
++		return
++	}
++
++	stacksize := text.To.Offset
++	if stacksize == -8 {
++		// Historical way to mark NOFRAME.
++		text.From.Sym.Set(obj.AttrNoFrame, true)
++		stacksize = 0
++	}
++	if stacksize < 0 {
++		ctxt.Diag("negative frame size %d - did you mean NOFRAME?", stacksize)
++	}
++	if text.From.Sym.NoFrame() {
++		if stacksize != 0 {
++			ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", stacksize)
++		}
++	}
++
++	cursym.Func.Args = text.To.Val.(int32)
++	cursym.Func.Locals = int32(stacksize)
++
++	// TODO(jsing): Implement.
++
++	setPCs(cursym.Func.Text, 0)
++
++	// Validate all instructions - this provides nice error messages.
++	for p := cursym.Func.Text; p != nil; p = p.Link {
++		encodingForProg(p).validate(p)
++	}
++}
++
++func validateRaw(p *obj.Prog) {
++	// Treat the raw value specially as a 32-bit unsigned integer.
++	// Nobody wants to enter negative machine code.
++	a := p.From
++	if a.Type != obj.TYPE_CONST {
++		p.Ctxt.Diag("%v\texpected immediate in raw position but got %s", p, obj.Dconv(p, &a))
++		return
++	}
++	if a.Offset < 0 || 1<<32 <= a.Offset {
++		p.Ctxt.Diag("%v\timmediate in raw position cannot be larger than 32 bits but got %d", p, a.Offset)
++	}
++}
++
++func encodeRaw(p *obj.Prog) uint32 {
++	// Treat the raw value specially as a 32-bit unsigned integer.
++	// Nobody wants to enter negative machine code.
++	a := p.From
++	if a.Type != obj.TYPE_CONST {
++		panic(fmt.Sprintf("ill typed: %+v", a))
++	}
++	if a.Offset < 0 || 1<<32 <= a.Offset {
++		panic(fmt.Sprintf("immediate %d in %v cannot fit in 32 bits", a.Offset, a))
++	}
++	return uint32(a.Offset)
++}
++
++type encoding struct {
++	encode   func(*obj.Prog) uint32 // encode returns the machine code for an *obj.Prog
++	validate func(*obj.Prog)        // validate validates an *obj.Prog, calling ctxt.Diag for any issues
++	length   int                    // length of encoded instruction; 0 for pseudo-ops, 4 otherwise
++}
++
++var (
++	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
++
++	// pseudoOpEncoding panics if encoding is attempted, but does no validation.
++	pseudoOpEncoding = encoding{encode: nil, validate: func(*obj.Prog) {}, length: 0}
++
++	// badEncoding is used when an invalid op is encountered.
++	// An error has already been generated, so let anything else through.
++	badEncoding = encoding{encode: func(*obj.Prog) uint32 { return 0 }, validate: func(*obj.Prog) {}, length: 0}
++)
++
++// encodingForAs contains the encoding for a RISC-V instruction.
++// Instructions are masked with obj.AMask to keep indices small.
++var encodingForAs = [ALAST & obj.AMask]encoding{
++	// TODO(jsing): Implement remaining instructions.
++
++	// Escape hatch
++	AWORD & obj.AMask: rawEncoding,
++
++	// Pseudo-operations
++	obj.AFUNCDATA: pseudoOpEncoding,
++	obj.APCDATA:   pseudoOpEncoding,
++	obj.ATEXT:     pseudoOpEncoding,
++	obj.ANOP:      pseudoOpEncoding,
++}
++
++// encodingForProg returns the encoding (encode+validate funcs) for an *obj.Prog.
++func encodingForProg(p *obj.Prog) encoding {
++	if base := p.As &^ obj.AMask; base != obj.ABaseRISCV && base != 0 {
++		p.Ctxt.Diag("encodingForProg: not a RISC-V instruction %s", p.As)
++		return badEncoding
++	}
++	as := p.As & obj.AMask
++	if int(as) >= len(encodingForAs) {
++		p.Ctxt.Diag("encodingForProg: bad RISC-V instruction %s", p.As)
++		return badEncoding
++	}
++	enc := encodingForAs[as]
++	if enc.validate == nil {
++		p.Ctxt.Diag("encodingForProg: no encoding for instruction %s", p.As)
++		return badEncoding
++	}
++	return enc
++}
++
++// assemble emits machine code.
++// It is called at the very end of the assembly process.
++func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
++	var symcode []uint32
++	for p := cursym.Func.Text; p != nil; p = p.Link {
++		enc := encodingForProg(p)
++		if enc.length > 0 {
++			symcode = append(symcode, enc.encode(p))
++		}
++	}
++	cursym.Size = int64(4 * len(symcode))
++
++	cursym.Grow(cursym.Size)
++	for p, i := cursym.P, 0; i < len(symcode); p, i = p[4:], i+1 {
++		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
++	}
++}
++
++var LinkRISCV64 = obj.LinkArch{
++	Arch:           sys.ArchRISCV64,
++	Init:           buildop,
++	Preprocess:     preprocess,
++	Assemble:       assemble,
++	Progedit:       progedit,
++	UnaryDst:       unaryDst,
++	DWARFRegisters: RISCV64DWARFRegisters,
++}

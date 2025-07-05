@@ -7,7 +7,7 @@ Date:   Wed Nov 11 12:54:52 2009 -0800
     TBR=agl1
     CC=golang-dev
     https://golang.org/cl/154065
-
+---
  src/pkg/Make.deps              |   8 +-
  src/pkg/big/int.go             | 107 ++++++++++----
  src/pkg/big/int_test.go        | 113 ++-------------
@@ -17,3 +17,1135 @@ Date:   Wed Nov 11 12:54:52 2009 -0800
  src/pkg/crypto/rsa/rsa.go      |  64 +++++----
  src/pkg/crypto/rsa/rsa_test.go |  22 +--
  8 files changed, 162 insertions(+), 563 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index ec73b4a20b..b1f6b3d67b 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -1,6 +1,6 @@
+ archive/tar.install: bytes.install io.install os.install strconv.install strings.install
+ asn1.install: fmt.install os.install reflect.install strconv.install strings.install time.install
+-big.install: rand.install
++big.install:
+ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install unicode.install utf8.install
+@@ -19,8 +19,8 @@ crypto/rc4.install: os.install strconv.install
+ crypto/rsa.install: big.install bytes.install crypto/subtle.install hash.install io.install os.install
+ crypto/sha1.install: hash.install os.install
+ crypto/subtle.install:
+-crypto/tls.install: bufio.install bytes.install container/list.install crypto/hmac.install crypto/md5.install crypto/rc4.install crypto/rsa.install crypto/sha1.install crypto/subtle.install crypto/x509.install fmt.install hash.install io.install net.install os.install strings.install time.install
+-crypto/x509.install: asn1.install big.install container/vector.install crypto/rsa.install os.install time.install
++crypto/tls.install: bufio.install bytes.install container/list.install crypto/hmac.install crypto/md5.install crypto/rc4.install crypto/rsa.install crypto/sha1.install crypto/subtle.install fmt.install hash.install io.install net.install os.install strings.install time.install
++crypto/x509.install: asn1.install big.install crypto/rsa.install os.install
+ debug/dwarf.install: encoding/binary.install os.install strconv.install
+ debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+ debug/elf.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+@@ -43,7 +43,7 @@ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: fmt.install go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install go/ast.install go/token.install io.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+-go/printer.install: bytes.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
++go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
+ go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
+ go/token.install: fmt.install strconv.install
+ gob.install: bytes.install fmt.install io.install math.install os.install reflect.install sync.install
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index a22f2322bf..0a41022065 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -119,6 +119,40 @@ func (z *Int) Mod(x, y *Int) (r *Int) {
+ 
+ 
+ func div(q, r, x, y *Int) {
++	if len(y.abs) == 0 {
++		panic("Divide by zero undefined")
++	}
++
++	if cmpNN(x.abs, y.abs) < 0 {
++		q.neg = false;
++		q.abs = nil;
++		r.neg = y.neg;
++
++		src := x.abs;
++		dst := x.abs;
++		if r == x {
++			dst = nil
++		}
++
++		r.abs = makeN(dst, len(src), false);
++		for i, v := range src {
++			r.abs[i] = v
++		}
++		return;
++	}
++
++	if len(y.abs) == 1 {
++		var rprime Word;
++		q.abs, rprime = divNW(q.abs, x.abs, y.abs[0]);
++		if rprime > 0 {
++			r.abs = makeN(r.abs, 1, false);
++			r.abs[0] = rprime;
++			r.neg = x.neg;
++		}
++		q.neg = len(q.abs) > 0 && x.neg != y.neg;
++		return;
++	}
++
+ 	q.neg = x.neg != y.neg;
+ 	r.neg = x.neg;
+ 	q.abs, r.abs = divNN(q.abs, r.abs, x.abs, y.abs);
+@@ -134,13 +168,15 @@ func (z *Int) Neg(x *Int) *Int {
+ }
+ 
+ 
+-// Cmp compares x and y. The result is
++// TODO(gri) Should this be x.Cmp(y) instead?
++
++// CmpInt compares x and y. The result is
+ //
+ //   -1 if x <  y
+ //    0 if x == y
+ //   +1 if x >  y
+ //
+-func (x *Int) Cmp(y *Int) (r int) {
++func CmpInt(x, y *Int) (r int) {
+ 	// x cmp y == x cmp y
+ 	// x cmp (-y) == x
+ 	// (-x) cmp y == y
+@@ -271,7 +307,7 @@ func (z *Int) Len() int {
+ 		return 0
+ 	}
+ 
+-	return len(z.abs)*_W - int(leadingZeros(z.abs[len(z.abs)-1]));
++	return len(z.abs)*int(_W) - int(leadingZeros(z.abs[len(z.abs)-1]));
+ }
+ 
+ 
+@@ -284,12 +320,52 @@ func (z *Int) Exp(x, y, m *Int) *Int {
+ 		return z;
+ 	}
+ 
+-	var mWords []Word;
+-	if m != nil {
+-		mWords = m.abs
++	z.Set(x);
++	v := y.abs[len(y.abs)-1];
++	// It's invalid for the most significant word to be zero, therefore we
++	// will find a one bit.
++	shift := leadingZeros(v) + 1;
++	v <<= shift;
++
++	const mask = 1 << (_W - 1);
++
++	// We walk through the bits of the exponent one by one. Each time we see
++	// a bit, we square, thus doubling the power. If the bit is a one, we
++	// also multiply by x, thus adding one to the power.
++
++	w := int(_W) - int(shift);
++	for j := 0; j < w; j++ {
++		z.Mul(z, z);
++
++		if v&mask != 0 {
++			z.Mul(z, x)
++		}
++
++		if m != nil {
++			z.Mod(z, m)
++		}
++
++		v <<= 1;
++	}
++
++	for i := len(y.abs) - 2; i >= 0; i-- {
++		v = y.abs[i];
++
++		for j := 0; j < int(_W); j++ {
++			z.Mul(z, z);
++
++			if v&mask != 0 {
++				z.Mul(z, x)
++			}
++
++			if m != nil {
++				z.Mod(z, m)
++			}
++
++			v <<= 1;
++		}
+ 	}
+ 
+-	z.abs = expNNN(z.abs, x.abs, y.abs, mWords);
+ 	z.neg = x.neg && y.abs[0]&1 == 1;
+ 	return z;
+ }
+@@ -351,20 +427,3 @@ func GcdInt(d, x, y, a, b *Int) {
+ 
+ 	*d = *A;
+ }
+-
+-
+-// ProbablyPrime performs n Miller-Rabin tests to check whether z is prime.
+-// If it returns true, z is prime with probability 1 - 1/4^n.
+-// If it returns false, z is not prime.
+-func ProbablyPrime(z *Int, reps int) bool	{ return !z.neg && probablyPrime(z.abs, reps) }
+-
+-
+-// Rsh sets z = x >> s and returns z.
+-func (z *Int) Rsh(x *Int, n int) *Int {
+-	removedWords := n / _W;
+-	z.abs = makeN(z.abs, len(x.abs)-removedWords, false);
+-	z.neg = x.neg;
+-	shiftRight(z.abs, x.abs[removedWords:len(x.abs)], n%_W);
+-	z.abs = normN(z.abs);
+-	return z;
+-}
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 4ce40ef365..ec8adb91f8 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -46,7 +46,7 @@ func TestSetZ(t *testing.T) {
+ 	for _, a := range sumZZ {
+ 		var z Int;
+ 		z.Set(a.z);
+-		if (&z).Cmp(a.z) != 0 {
++		if CmpInt(&z, a.z) != 0 {
+ 			t.Errorf("got z = %v; want %v", z, a.z)
+ 		}
+ 	}
+@@ -56,7 +56,7 @@ func TestSetZ(t *testing.T) {
+ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
+ 	var z Int;
+ 	f(&z, a.x, a.y);
+-	if (&z).Cmp(a.z) != 0 {
++	if CmpInt(&z, a.z) != 0 {
+ 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
+ 	}
+ }
+@@ -165,7 +165,7 @@ func TestSetString(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if n.Cmp(new(Int).New(test.out)) != 0 {
++		if CmpInt(n, new(Int).New(test.out)) != 0 {
+ 			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n, test.out)
+ 		}
+ 	}
+@@ -196,7 +196,7 @@ func TestDivSigns(t *testing.T) {
+ 		expectedQ := new(Int).New(test.q);
+ 		expectedR := new(Int).New(test.r);
+ 
+-		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
++		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
+ 			t.Errorf("#%d: got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
+ 		}
+ 	}
+@@ -251,7 +251,7 @@ func checkDiv(x, y []byte) bool {
+ 
+ 	q, r := new(Int).Div(u, v);
+ 
+-	if r.Cmp(v) >= 0 {
++	if CmpInt(r, v) >= 0 {
+ 		return false
+ 	}
+ 
+@@ -259,7 +259,7 @@ func checkDiv(x, y []byte) bool {
+ 	uprime.Mul(uprime, v);
+ 	uprime.Add(uprime, r);
+ 
+-	return uprime.Cmp(u) == 0;
++	return CmpInt(uprime, u) == 0;
+ }
+ 
+ 
+@@ -276,12 +276,6 @@ var divTests = []divTest{
+ 		"50911",
+ 		"1",
+ 	},
+-	divTest{
+-		"11510768301994997771168",
+-		"1328165573307167369775",
+-		"8",
+-		"885443715537658812968",
+-	},
+ }
+ 
+ 
+@@ -299,7 +293,7 @@ func TestDiv(t *testing.T) {
+ 
+ 		q, r := new(Int).Div(x, y);
+ 
+-		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
++		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
+ 			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
+ 		}
+ 	}
+@@ -407,7 +401,7 @@ func TestExp(t *testing.T) {
+ 		}
+ 
+ 		z := new(Int).Exp(x, y, m);
+-		if z.Cmp(out) != 0 {
++		if CmpInt(z, out) != 0 {
+ 			t.Errorf("#%d got %s want %s", i, z, out)
+ 		}
+ 	}
+@@ -427,7 +421,7 @@ func checkGcd(aBytes, bBytes []byte) bool {
+ 	y.Mul(y, b);
+ 	x.Add(x, y);
+ 
+-	return x.Cmp(d) == 0;
++	return CmpInt(x, d) == 0;
+ }
+ 
+ 
+@@ -457,95 +451,12 @@ func TestGcd(t *testing.T) {
+ 
+ 		GcdInt(d, x, y, a, b);
+ 
+-		if expectedX.Cmp(x) != 0 ||
+-			expectedY.Cmp(y) != 0 ||
+-			expectedD.Cmp(d) != 0 {
++		if CmpInt(expectedX, x) != 0 ||
++			CmpInt(expectedY, y) != 0 ||
++			CmpInt(expectedD, d) != 0 {
+ 			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD)
+ 		}
+ 	}
+ 
+ 	quick.Check(checkGcd, nil);
+ }
+-
+-
+-var primes = []string{
+-	"2",
+-	"3",
+-	"5",
+-	"7",
+-	"11",
+-	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
+-	"94560208308847015747498523884063394671606671904944666360068158221458669711639",
+-	// http://primes.utm.edu/lists/small/small3.html
+-	"449417999055441493994709297093108513015373787049558499205492347871729927573118262811508386655998299074566974373711472560655026288668094291699357843464363003144674940345912431129144354948751003607115263071543163",
+-	"230975859993204150666423538988557839555560243929065415434980904258310530753006723857139742334640122533598517597674807096648905501653461687601339782814316124971547968912893214002992086353183070342498989426570593",
+-	"5521712099665906221540423207019333379125265462121169655563495403888449493493629943498064604536961775110765377745550377067893607246020694972959780839151452457728855382113555867743022746090187341871655890805971735385789993",
+-	"203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123",
+-}
+-
+-
+-var composites = []string{
+-	"21284175091214687912771199898307297748211672914763848041968395774954376176754",
+-	"6084766654921918907427900243509372380954290099172559290432744450051395395951",
+-	"84594350493221918389213352992032324280367711247940675652888030554255915464401",
+-	"82793403787388584738507275144194252681",
+-}
+-
+-
+-func TestProbablyPrime(t *testing.T) {
+-	for i, s := range primes {
+-		p, _ := new(Int).SetString(s, 10);
+-		if !ProbablyPrime(p, 20) {
+-			t.Errorf("#%d prime found to be non-prime", i)
+-		}
+-	}
+-
+-	for i, s := range composites {
+-		c, _ := new(Int).SetString(s, 10);
+-		if ProbablyPrime(c, 20) {
+-			t.Errorf("#%d composite found to be prime", i)
+-		}
+-	}
+-}
+-
+-
+-type rshTest struct {
+-	in	string;
+-	shift	int;
+-	out	string;
+-}
+-
+-
+-var rshTests = []rshTest{
+-	rshTest{"0", 0, "0"},
+-	rshTest{"0", 1, "0"},
+-	rshTest{"0", 2, "0"},
+-	rshTest{"1", 0, "1"},
+-	rshTest{"1", 1, "0"},
+-	rshTest{"1", 2, "0"},
+-	rshTest{"2", 0, "2"},
+-	rshTest{"2", 1, "1"},
+-	rshTest{"2", 2, "0"},
+-	rshTest{"4294967296", 0, "4294967296"},
+-	rshTest{"4294967296", 1, "2147483648"},
+-	rshTest{"4294967296", 2, "1073741824"},
+-	rshTest{"18446744073709551616", 0, "18446744073709551616"},
+-	rshTest{"18446744073709551616", 1, "9223372036854775808"},
+-	rshTest{"18446744073709551616", 2, "4611686018427387904"},
+-	rshTest{"18446744073709551616", 64, "1"},
+-	rshTest{"340282366920938463463374607431768211456", 64, "18446744073709551616"},
+-	rshTest{"340282366920938463463374607431768211456", 128, "1"},
+-}
+-
+-
+-func TestRsh(t *testing.T) {
+-	for i, test := range rshTests {
+-		in, _ := new(Int).SetString(test.in, 10);
+-		expected, _ := new(Int).SetString(test.out, 10);
+-		out := new(Int).Rsh(in, test.shift);
+-
+-		if out.Cmp(expected) != 0 {
+-			t.Errorf("#%d got %s want %s", i, out, expected)
+-		}
+-	}
+-}
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 8fabd7c8d0..c8e69a3826 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -6,7 +6,9 @@
+ // These are the building blocks for the operations on signed integers
+ // and rationals.
+ 
+-// This package implements multi-precision arithmetic (big numbers).
++//	NOTE: PACKAGE UNDER CONSTRUCTION.
++//
++// The big package implements multi-precision arithmetic (big numbers).
+ // The following numeric types are supported:
+ //
+ //	- Int	signed integers
+@@ -15,13 +17,8 @@
+ // of the operands it may be overwritten (and its memory reused).
+ // To enable chaining of operations, the result is also returned.
+ //
+-// If possible, one should use big over bignum as the latter is headed for
+-// deprecation.
+-//
+ package big
+ 
+-import "rand"
+-
+ // An unsigned integer x of the form
+ //
+ //   x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
+@@ -260,40 +257,12 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
+ }
+ 
+ 
+-func divNN(z, z2, u, v []Word) (q, r []Word) {
+-	if len(v) == 0 {
+-		panic("Divide by zero undefined")
+-	}
+-
+-	if cmpNN(u, v) < 0 {
+-		q = makeN(z, 0, false);
+-		r = setN(z2, u);
+-		return;
+-	}
+-
+-	if len(v) == 1 {
+-		var rprime Word;
+-		q, rprime = divNW(z, u, v[0]);
+-		if rprime > 0 {
+-			r = makeN(z2, 1, false);
+-			r[0] = rprime;
+-		} else {
+-			r = makeN(z2, 0, false)
+-		}
+-		return;
+-	}
+-
+-	q, r = divLargeNN(z, z2, u, v);
+-	return;
+-}
+-
+-
+ // q = (uIn-r)/v, with 0 <= r < y
+ // See Knuth, Volume 2, section 4.3.1, Algorithm D.
+ // Preconditions:
+ //    len(v) >= 2
+-//    len(uIn) >= len(v)
+-func divLargeNN(z, z2, uIn, v []Word) (q, r []Word) {
++//    len(uIn) >= 1 + len(vIn)
++func divNN(z, z2, uIn, v []Word) (q, r []Word) {
+ 	n := len(v);
+ 	m := len(uIn) - len(v);
+ 
+@@ -305,7 +274,7 @@ func divLargeNN(z, z2, uIn, v []Word) (q, r []Word) {
+ 	shift := leadingZeroBits(v[n-1]);
+ 	shiftLeft(v, v, shift);
+ 	shiftLeft(u, uIn, shift);
+-	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - uint(shift));
++	u[len(uIn)] = uIn[len(uIn)-1] >> (uint(_W) - uint(shift));
+ 
+ 	// D2.
+ 	for j := m; j >= 0; j-- {
+@@ -366,7 +335,7 @@ func log2(x Word) int {
+ func log2N(x []Word) int {
+ 	m := len(x);
+ 	if m > 0 {
+-		return (m-1)*_W + log2(x[m-1])
++		return (m-1)*int(_W) + log2(x[m-1])
+ 	}
+ 	return -1;
+ }
+@@ -470,7 +439,7 @@ func leadingZeroBits(x Word) int {
+ 	c := 0;
+ 	if x < 1<<(_W/2) {
+ 		x <<= _W / 2;
+-		c = _W / 2;
++		c = int(_W / 2);
+ 	}
+ 
+ 	for i := 0; x != 0; i++ {
+@@ -480,47 +449,7 @@ func leadingZeroBits(x Word) int {
+ 		x <<= 1;
+ 	}
+ 
+-	return _W;
+-}
+-
+-const deBruijn32 = 0x077CB531
+-
+-var deBruijn32Lookup = []byte{
+-	0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+-	31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9,
+-}
+-
+-const deBruijn64 = 0x03f79d71b4ca8b09
+-
+-var deBruijn64Lookup = []byte{
+-	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
+-	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
+-	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
+-	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
+-}
+-
+-// trailingZeroBits returns the number of consecutive zero bits on the right
+-// side of the given Word.
+-// See Knuth, volume 4, section 7.3.1
+-func trailingZeroBits(x Word) int {
+-	// x & -x leaves only the right-most bit set in the word. Let k be the
+-	// index of that bit. Since only a single bit is set, the value is two
+-	// to the power of k. Multipling by a power of two is equivalent to
+-	// left shifting, in this case by k bits.  The de Bruijn constant is
+-	// such that all six bit, consecutive substrings are distinct.
+-	// Therefore, if we have a left shifted version of this constant we can
+-	// find by how many bits it was shifted by looking at which six bit
+-	// substring ended up at the top of the word.
+-	switch _W {
+-	case 32:
+-		return int(deBruijn32Lookup[((x&-x)*deBruijn32)>>27])
+-	case 64:
+-		return int(deBruijn64Lookup[((x&-x)*(deBruijn64&_M))>>58])
+-	default:
+-		panic("Unknown word size")
+-	}
+-
+-	return 0;
++	return int(_W);
+ }
+ 
+ 
+@@ -529,7 +458,7 @@ func shiftLeft(dst, src []Word, n int) {
+ 		return
+ 	}
+ 
+-	ñ := _W - uint(n);
++	ñ := uint(_W) - uint(n);
+ 	for i := len(src) - 1; i >= 1; i-- {
+ 		dst[i] = src[i] << uint(n);
+ 		dst[i] |= src[i-1] >> ñ;
+@@ -543,7 +472,7 @@ func shiftRight(dst, src []Word, n int) {
+ 		return
+ 	}
+ 
+-	ñ := _W - uint(n);
++	ñ := uint(_W) - uint(n);
+ 	for i := 0; i < len(src)-1; i++ {
+ 		dst[i] = src[i] >> uint(n);
+ 		dst[i] |= src[i+1] << ñ;
+@@ -554,221 +483,3 @@ func shiftRight(dst, src []Word, n int) {
+ 
+ // greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
+ func greaterThan(x1, x2, y1, y2 Word) bool	{ return x1 > y1 || x1 == y1 && x2 > y2 }
+-
+-
+-// modNW returns x % d.
+-func modNW(x []Word, d Word) (r Word) {
+-	// TODO(agl): we don't actually need to store the q value.
+-	q := makeN(nil, len(x), false);
+-	return divWVW(&q[0], 0, &x[0], d, len(x));
+-}
+-
+-
+-// powersOfTwoDecompose finds q and k such that q * 1<<k = n and q is odd.
+-func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
+-	if len(n) == 0 {
+-		return n, 0
+-	}
+-
+-	zeroWords := 0;
+-	for n[zeroWords] == 0 {
+-		zeroWords++
+-	}
+-	// One of the words must be non-zero by invariant, therefore
+-	// zeroWords < len(n).
+-	x := trailingZeroBits(n[zeroWords]);
+-
+-	q = makeN(nil, len(n)-zeroWords, false);
+-	shiftRight(q, n[zeroWords:len(n)], x);
+-
+-	k = Word(_W*zeroWords + x);
+-	return;
+-}
+-
+-
+-// randomN creates a random integer in [0..limit), using the space in z if
+-// possible. n is the bit length of limit.
+-func randomN(z []Word, rand *rand.Rand, limit []Word, n int) []Word {
+-	bitLengthOfMSW := uint(n % _W);
+-	mask := Word((1 << bitLengthOfMSW) - 1);
+-	z = makeN(z, len(limit), false);
+-
+-	for {
+-		for i := range z {
+-			switch _W {
+-			case 32:
+-				z[i] = Word(rand.Uint32())
+-			case 64:
+-				z[i] = Word(rand.Uint32()) | Word(rand.Uint32())<<32
+-			}
+-		}
+-
+-		z[len(limit)-1] &= mask;
+-
+-		if cmpNN(z, limit) < 0 {
+-			break
+-		}
+-	}
+-
+-	return z;
+-}
+-
+-
+-// If m != nil, expNNN calculates x**y mod m. Otherwise it calculates x**y. It
+-// reuses the storage of z if possible.
+-func expNNN(z, x, y, m []Word) []Word {
+-	if len(y) == 0 {
+-		z = makeN(z, 1, false);
+-		z[0] = 1;
+-		return z;
+-	}
+-
+-	if m != nil {
+-		// We likely end up being as long as the modulus.
+-		z = makeN(z, len(m), false)
+-	}
+-	z = setN(z, x);
+-	v := y[len(y)-1];
+-	// It's invalid for the most significant word to be zero, therefore we
+-	// will find a one bit.
+-	shift := leadingZeros(v) + 1;
+-	v <<= shift;
+-	var q []Word;
+-
+-	const mask = 1 << (_W - 1);
+-
+-	// We walk through the bits of the exponent one by one. Each time we
+-	// see a bit, we square, thus doubling the power. If the bit is a one,
+-	// we also multiply by x, thus adding one to the power.
+-
+-	w := _W - int(shift);
+-	for j := 0; j < w; j++ {
+-		z = mulNN(z, z, z);
+-
+-		if v&mask != 0 {
+-			z = mulNN(z, z, x)
+-		}
+-
+-		if m != nil {
+-			q, z = divNN(q, z, z, m)
+-		}
+-
+-		v <<= 1;
+-	}
+-
+-	for i := len(y) - 2; i >= 0; i-- {
+-		v = y[i];
+-
+-		for j := 0; j < _W; j++ {
+-			z = mulNN(z, z, z);
+-
+-			if v&mask != 0 {
+-				z = mulNN(z, z, x)
+-			}
+-
+-			if m != nil {
+-				q, z = divNN(q, z, z, m)
+-			}
+-
+-			v <<= 1;
+-		}
+-	}
+-
+-	return z;
+-}
+-
+-
+-// lenN returns the bit length of z.
+-func lenN(z []Word) int {
+-	if len(z) == 0 {
+-		return 0
+-	}
+-
+-	return (len(z)-1)*_W + (_W - leadingZeroBits(z[len(z)-1]));
+-}
+-
+-
+-const (
+-	primesProduct32	= 0xC0CFD797;		// Π {p ∈ primes, 2 < p <= 29}
+-	primesProduct64	= 0xE221F97C30E94E1D;	// Π {p ∈ primes, 2 < p <= 53}
+-)
+-
+-var bigOne = []Word{1}
+-var bigTwo = []Word{2}
+-
+-// ProbablyPrime performs n Miller-Rabin tests to check whether n is prime.
+-// If it returns true, n is prime with probability 1 - 1/4^n.
+-// If it returns false, n is not prime.
+-func probablyPrime(n []Word, reps int) bool {
+-	if len(n) == 0 {
+-		return false
+-	}
+-
+-	if len(n) == 1 {
+-		if n[0]%2 == 0 {
+-			return n[0] == 2
+-		}
+-
+-		// We have to exclude these cases because we reject all
+-		// multiples of these numbers below.
+-		if n[0] == 3 || n[0] == 5 || n[0] == 7 || n[0] == 11 ||
+-			n[0] == 13 || n[0] == 17 || n[0] == 19 || n[0] == 23 ||
+-			n[0] == 29 || n[0] == 31 || n[0] == 37 || n[0] == 41 ||
+-			n[0] == 43 || n[0] == 47 || n[0] == 53 {
+-			return true
+-		}
+-	}
+-
+-	var r Word;
+-	switch _W {
+-	case 32:
+-		r = modNW(n, primesProduct32)
+-	case 64:
+-		r = modNW(n, primesProduct64&_M)
+-	default:
+-		panic("Unknown word size")
+-	}
+-
+-	if r%3 == 0 || r%5 == 0 || r%7 == 0 || r%11 == 0 ||
+-		r%13 == 0 || r%17 == 0 || r%19 == 0 || r%23 == 0 || r%29 == 0 {
+-		return false
+-	}
+-
+-	if _W == 64 && (r%31 == 0 || r%37 == 0 || r%41 == 0 ||
+-		r%43 == 0 || r%47 == 0 || r%53 == 0) {
+-		return false
+-	}
+-
+-	nm1 := subNN(nil, n, bigOne);
+-	// 1<<k * q = nm1;
+-	q, k := powersOfTwoDecompose(nm1);
+-
+-	nm3 := subNN(nil, nm1, bigTwo);
+-	rand := rand.New(rand.NewSource(int64(n[0])));
+-
+-	var x, y, quotient []Word;
+-	nm3Len := lenN(nm3);
+-
+-NextRandom:
+-	for i := 0; i < reps; i++ {
+-		x = randomN(x, rand, nm3, nm3Len);
+-		addNN(x, x, bigTwo);
+-		y = expNNN(y, x, q, n);
+-		if cmpNN(y, bigOne) == 0 || cmpNN(y, nm1) == 0 {
+-			continue
+-		}
+-		for j := Word(1); j < k; j++ {
+-			y = mulNN(y, y, y);
+-			quotient, y = divNN(quotient, y, y, n);
+-			if cmpNN(y, nm1) == 0 {
+-				continue NextRandom
+-			}
+-			if cmpNN(y, bigOne) == 0 {
+-				return false
+-			}
+-		}
+-		return false;
+-	}
+-
+-	return true;
+-}
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index b1c9c1a102..dbd015a61f 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -120,7 +120,7 @@ func TestStringN(t *testing.T) {
+ 
+ func TestLeadingZeroBits(t *testing.T) {
+ 	var x Word = 1 << (_W - 1);
+-	for i := 0; i <= _W; i++ {
++	for i := 0; i <= int(_W); i++ {
+ 		if leadingZeroBits(x) != i {
+ 			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
+ 		}
+@@ -185,97 +185,3 @@ func TestShiftRight(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-
+-type modNWTest struct {
+-	in		string;
+-	dividend	string;
+-	out		string;
+-}
+-
+-
+-var modNWTests32 = []modNWTest{
+-	modNWTest{"23492635982634928349238759823742", "252341", "220170"},
+-}
+-
+-
+-var modNWTests64 = []modNWTest{
+-	modNWTest{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
+-}
+-
+-
+-func runModNWTests(t *testing.T, tests []modNWTest) {
+-	for i, test := range tests {
+-		in, _ := new(Int).SetString(test.in, 10);
+-		d, _ := new(Int).SetString(test.dividend, 10);
+-		out, _ := new(Int).SetString(test.out, 10);
+-
+-		r := modNW(in.abs, d.abs[0]);
+-		if r != out.abs[0] {
+-			t.Errorf("#%d failed: got %s want %s\n", i, r, out)
+-		}
+-	}
+-}
+-
+-
+-func TestModNW(t *testing.T) {
+-	if _W >= 32 {
+-		runModNWTests(t, modNWTests32)
+-	}
+-	if _W >= 64 {
+-		runModNWTests(t, modNWTests32)
+-	}
+-}
+-
+-
+-func TestTrailingZeroBits(t *testing.T) {
+-	var x Word;
+-	x--;
+-	for i := 0; i < _W; i++ {
+-		if trailingZeroBits(x) != i {
+-			t.Errorf("Failed at step %d: x: %x got: %d\n", i, x, trailingZeroBits(x))
+-		}
+-		x <<= 1;
+-	}
+-}
+-
+-
+-type expNNNTest struct {
+-	x, y, m	string;
+-	out	string;
+-}
+-
+-
+-var expNNNTests = []expNNNTest{
+-	expNNNTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
+-	expNNNTest{"0x8000000000000000", "2", "6719", "4944"},
+-	expNNNTest{"0x8000000000000000", "3", "6719", "5447"},
+-	expNNNTest{"0x8000000000000000", "1000", "6719", "1603"},
+-	expNNNTest{"0x8000000000000000", "1000000", "6719", "3199"},
+-	expNNNTest{
+-		"2938462938472983472983659726349017249287491026512746239764525612965293865296239471239874193284792387498274256129746192347",
+-		"298472983472983471903246121093472394872319615612417471234712061",
+-		"29834729834729834729347290846729561262544958723956495615629569234729836259263598127342374289365912465901365498236492183464",
+-		"23537740700184054162508175125554701713153216681790245129157191391322321508055833908509185839069455749219131480588829346291",
+-	},
+-}
+-
+-
+-func TestExpNNN(t *testing.T) {
+-	for i, test := range expNNNTests {
+-		x, _, _ := scanN(nil, test.x, 0);
+-		y, _, _ := scanN(nil, test.y, 0);
+-		out, _, _ := scanN(nil, test.out, 0);
+-
+-		var m []Word;
+-
+-		if len(test.m) > 0 {
+-			m, _, _ = scanN(nil, test.m, 0)
+-		}
+-
+-		z := expNNN(nil, x, y, m);
+-		if cmpNN(z, out) != 0 {
+-			t.Errorf("#%d got %v want %v", i, z, out)
+-		}
+-	}
+-}
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+index 8106a26645..a85e1d2b9c 100755
+--- a/src/pkg/bignum/bignum.go
++++ b/src/pkg/bignum/bignum.go
+@@ -9,10 +9,6 @@
+ //	- Integer	signed integers
+ //	- Rational	rational numbers
+ //
+-// This package has been designed for ease of use but the functions it provides
+-// are likely to be quite slow. It may be deprecated eventually. Use package
+-// big instead, if possible.
+-//
+ package bignum
+ 
+ import (
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 42a8888355..e425cf91cd 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -19,11 +19,15 @@ import (
+ var bigZero = big.NewInt(0)
+ var bigOne = big.NewInt(1)
+ 
++/*
++
++TODO(agl): Enable once big implements ProbablyPrime.
++
+ // randomSafePrime returns a number, p, of the given size, such that p and
+ // (p-1)/2 are both prime with high probability.
+ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+ 	if bits < 1 {
+-		err = os.EINVAL
++		err = os.EINVAL;
+ 	}
+ 
+ 	bytes := make([]byte, (bits+7)/8);
+@@ -33,7 +37,7 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+ 	for {
+ 		_, err = io.ReadFull(rand, bytes);
+ 		if err != nil {
+-			return
++			return;
+ 		}
+ 
+ 		// Don't let the value be too small.
+@@ -42,10 +46,10 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+ 		bytes[len(bytes)-1] |= 1;
+ 
+ 		p.SetBytes(bytes);
+-		if big.ProbablyPrime(p, 20) {
++		if p.ProbablyPrime(20) {
+ 			p2.Rsh(p, 1);	// p2 = (p - 1)/2
+-			if big.ProbablyPrime(p2, 20) {
+-				return
++			if p2.ProbablyPrime(20) {
++				return;
+ 			}
+ 		}
+ 	}
+@@ -53,6 +57,8 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+ 	return;
+ }
+ 
++*/
++
+ // randomNumber returns a uniform random value in [0, max).
+ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
+ 	k := (max.Len() + 7) / 8;
+@@ -78,7 +84,7 @@ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
+ 		bytes[0] &= uint8(int(1<<r) - 1);
+ 
+ 		n.SetBytes(bytes);
+-		if n.Cmp(max) < 0 {
++		if big.CmpInt(n, max) < 0 {
+ 			return
+ 		}
+ 	}
+@@ -103,20 +109,20 @@ type PrivateKey struct {
+ // It returns nil if the key is valid, or else an os.Error describing a problem.
+ 
+ func (priv PrivateKey) Validate() os.Error {
+-	// Check that p and q are prime. Note that this is just a sanity
+-	// check. Since the random witnesses chosen by ProbablyPrime are
+-	// deterministic, given the candidate number, it's easy for an attack
+-	// to generate composites that pass this test.
+-	if !big.ProbablyPrime(priv.P, 20) {
+-		return os.ErrorString("P is composite")
+-	}
+-	if !big.ProbablyPrime(priv.Q, 20) {
+-		return os.ErrorString("Q is composite")
+-	}
++	/*
++		TODO(agl): Enable once big implements ProbablyPrime.
+ 
++		// Check that p and q are prime.
++		if !priv.P.ProbablyPrime(20) {
++			return os.ErrorString("P is composite");
++		}
++		if !priv.Q.ProbablyPrime(20) {
++			return os.ErrorString("Q is composite");
++		}
++	*/
+ 	// Check that p*q == n.
+ 	modulus := new(big.Int).Mul(priv.P, priv.Q);
+-	if modulus.Cmp(priv.N) != 0 {
++	if big.CmpInt(modulus, priv.N) != 0 {
+ 		return os.ErrorString("invalid modulus")
+ 	}
+ 	// Check that e and totient(p, q) are coprime.
+@@ -128,18 +134,20 @@ func (priv PrivateKey) Validate() os.Error {
+ 	x := new(big.Int);
+ 	y := new(big.Int);
+ 	big.GcdInt(gcd, x, y, totient, e);
+-	if gcd.Cmp(bigOne) != 0 {
++	if big.CmpInt(gcd, bigOne) != 0 {
+ 		return os.ErrorString("invalid public exponent E")
+ 	}
+ 	// Check that de ≡ 1 (mod totient(p, q))
+ 	de := new(big.Int).Mul(priv.D, e);
+ 	de.Mod(de, totient);
+-	if de.Cmp(bigOne) != 0 {
++	if big.CmpInt(de, bigOne) != 0 {
+ 		return os.ErrorString("invalid private exponent D")
+ 	}
+ 	return nil;
+ }
+ 
++/*
++
+ // GenerateKeyPair generates an RSA keypair of the given bit size.
+ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	priv = new(PrivateKey);
+@@ -160,16 +168,16 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	for {
+ 		p, err := randomSafePrime(rand, bits/2);
+ 		if err != nil {
+-			return
++			return;
+ 		}
+ 
+ 		q, err := randomSafePrime(rand, bits/2);
+ 		if err != nil {
+-			return
++			return;
+ 		}
+ 
+-		if p.Cmp(q) == 0 {
+-			continue
++		if big.CmpInt(p, q) == 0 {
++			continue;
+ 		}
+ 
+ 		n := new(big.Int).Mul(p, q);
+@@ -183,7 +191,7 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 		e := big.NewInt(int64(priv.E));
+ 		big.GcdInt(g, priv.D, y, e, totient);
+ 
+-		if g.Cmp(bigOne) == 0 {
++		if big.CmpInt(g, bigOne) == 0 {
+ 			priv.D.Add(priv.D, totient);
+ 			priv.P = p;
+ 			priv.Q = q;
+@@ -196,6 +204,8 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	return;
+ }
+ 
++*/
++
+ // incCounter increments a four byte, big-endian counter.
+ func incCounter(c *[4]byte) {
+ 	if c[3]++; c[3] != 0 {
+@@ -295,7 +305,7 @@ func modInverse(a, n *big.Int) (ia *big.Int) {
+ 	x := new(big.Int);
+ 	y := new(big.Int);
+ 	big.GcdInt(g, x, y, a, n);
+-	if x.Cmp(bigOne) < 0 {
++	if big.CmpInt(x, bigOne) < 0 {
+ 		// 0 is not the multiplicative inverse of any element so, if x
+ 		// < 1, then x is negative.
+ 		x.Add(x, n)
+@@ -308,7 +318,7 @@ func modInverse(a, n *big.Int) (ia *big.Int) {
+ // random source is given, RSA blinding is used.
+ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.Error) {
+ 	// TODO(agl): can we get away with reusing blinds?
+-	if c.Cmp(priv.N) > 0 {
++	if big.CmpInt(c, priv.N) > 0 {
+ 		err = DecryptionError{};
+ 		return;
+ 	}
+@@ -325,7 +335,7 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
+ 			err = err1;
+ 			return;
+ 		}
+-		if r.Cmp(bigZero) == 0 {
++		if big.CmpInt(r, bigZero) == 0 {
+ 			r = bigOne
+ 		}
+ 		ir = modInverse(r, priv.N);
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index ae1aa3e713..feeefd476e 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -12,36 +12,42 @@ import (
+ 	"testing";
+ )
+ 
++/*
++
++TODO(agl): Enable once big implements ProbablyPrime.
++
+ func TestKeyGeneration(t *testing.T) {
+ 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
+ 	if err != nil {
+-		t.Errorf("failed to open /dev/urandom")
++		t.Errorf("failed to open /dev/urandom");
+ 	}
+ 
+ 	priv, err := GenerateKey(urandom, 16);
+ 	if err != nil {
+-		t.Errorf("failed to generate key")
++		t.Errorf("failed to generate key");
+ 	}
+ 	pub := &priv.PublicKey;
+ 	m := big.NewInt(42);
+ 	c := encrypt(new(big.Int), pub, m);
+ 	m2, err := decrypt(nil, priv, c);
+ 	if err != nil {
+-		t.Errorf("error while decrypting: %s", err)
++		t.Errorf("error while decrypting: %s", err);
+ 	}
+-	if m.Cmp(m2) != 0 {
+-		t.Errorf("got:%v, want:%v (%s)", m2, m, priv)
++	if big.CmpInt(m, m2) != 0 {
++		t.Errorf("got:%v, want:%v (%s)", m2, m, priv);
+ 	}
+ 
+ 	m3, err := decrypt(urandom, priv, c);
+ 	if err != nil {
+-		t.Errorf("error while decrypting (blind): %s", err)
++		t.Errorf("error while decrypting (blind): %s", err);
+ 	}
+-	if m.Cmp(m3) != 0 {
+-		t.Errorf("(blind) got:%v, want:%v", m3, m)
++	if big.CmpInt(m, m3) != 0 {
++		t.Errorf("(blind) got:%v, want:%v", m3, m);
+ 	}
+ }
+ 
++*/
++
+ type testEncryptOAEPMessage struct {
+ 	in	[]byte;
+ 	seed	[]byte;

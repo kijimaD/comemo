@@ -13,6 +13,22 @@ Date:   Mon Feb 14 16:07:05 2022 -0500
     Trust: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/net_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 76a9c8b151..fa5ad632bb 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -549,9 +549,7 @@ func TestNotTemporaryRead(t *testing.T) {
+ 		if runtime.GOOS == "plan9" {
+ 			return
+ 		}
+-		// TODO: during an open development cycle, try making this a failure
+-		// and see whether it causes the test to become flaky anywhere else.
+-		return
++		t.Fatal("Read unexpectedly returned io.EOF after socket was abruptly closed")
+ 	}
+ 	if ne, ok := err.(Error); !ok {
+ 		t.Errorf("Read error does not implement net.Error: %v", err)

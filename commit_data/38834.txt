@@ -17,7 +17,100 @@ Date:   Thu Nov 29 17:46:14 2018 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go |  9 ++++++++-
  src/cmd/go/internal/modfetch/unzip.go | 38 +++++++++++++++++++----------------
  2 files changed, 29 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 159bc56929..81a6c843ab 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -120,7 +120,14 @@ func download(mod module.Version, dir string) (err error) {
+ 		return err
+ 	}
+ 
+-	return os.Rename(tmpDir, dir)
++	if err := os.Rename(tmpDir, dir); err != nil {
++		return err
++	}
++
++	// Make dir read-only only *after* renaming it.
++	// os.Rename was observed to fail for read-only directories on macOS.
++	makeDirsReadOnly(dir)
++	return nil
+ }
+ 
+ var downloadZipCache par.Cache
+diff --git a/src/cmd/go/internal/modfetch/unzip.go b/src/cmd/go/internal/modfetch/unzip.go
+index 113d5b743b..ac13ede257 100644
+--- a/src/cmd/go/internal/modfetch/unzip.go
++++ b/src/cmd/go/internal/modfetch/unzip.go
+@@ -12,7 +12,6 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+-	"sort"
+ 	"strings"
+ 
+ 	"cmd/go/internal/modfetch/codehost"
+@@ -98,18 +97,12 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
+ 	}
+ 
+ 	// Unzip, enforcing sizes checked earlier.
+-	dirs := map[string]bool{dir: true}
+ 	for _, zf := range z.File {
+ 		if zf.Name == prefix || strings.HasSuffix(zf.Name, "/") {
+ 			continue
+ 		}
+ 		name := zf.Name[len(prefix):]
+ 		dst := filepath.Join(dir, name)
+-		parent := filepath.Dir(dst)
+-		for parent != dir {
+-			dirs[parent] = true
+-			parent = filepath.Dir(parent)
+-		}
+ 		if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
+ 			return err
+ 		}
+@@ -137,19 +130,30 @@ func Unzip(dir, zipfile, prefix string, maxSize int64) error {
+ 		}
+ 	}
+ 
+-	// Mark directories unwritable, best effort.
+-	var dirlist []string
+-	for dir := range dirs {
+-		dirlist = append(dirlist, dir)
++	return nil
++}
++
++// makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
++// and its transitive contents.
++func makeDirsReadOnly(dir string) {
++	type pathMode struct {
++		path string
++		mode os.FileMode
+ 	}
+-	sort.Strings(dirlist)
++	var dirs []pathMode // in lexical order
++	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++		if err == nil && info.Mode()&0222 != 0 {
++			if info.IsDir() {
++				dirs = append(dirs, pathMode{path, info.Mode()})
++			}
++		}
++		return nil
++	})
++
+ 	// Run over list backward to chmod children before parents.
+-	for i := len(dirlist) - 1; i >= 0; i-- {
+-		// TODO(bcmills): Does this end up stomping on the umask of the cache directory?
+-		os.Chmod(dirlist[i], 0555)
++	for i := len(dirs) - 1; i >= 0; i-- {
++		os.Chmod(dirs[i].path, dirs[i].mode&^0222)
+ 	}
+-
+-	return nil
+ }
+ 
+ // RemoveAll removes a directory written by Download or Unzip, first applying

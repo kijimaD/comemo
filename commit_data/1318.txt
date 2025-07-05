@@ -8,6 +8,25 @@ Date:   Wed Dec 10 15:46:45 2008 -0800
     DELTA=10  (10 added, 0 deleted, 0 changed)
     OCL=20928
     CL=20931
-
+---
  src/lib/io/io.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 9ae9264416..26c2aaab76 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -144,3 +144,13 @@ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
+ 	return written, err
+ }
+ 
++// Convert a string to an array of bytes for easy marshaling.
++// Could fill with syscall.StringToBytes but it adds an unnecessary \000
++// so the length would be wrong.
++export func StringBytes(s string) *[]byte {
++	b := new([]byte, len(s));
++	for i := 0; i < len(s); i++ {
++		b[i] = s[i];
++	}
++	return b;
++}

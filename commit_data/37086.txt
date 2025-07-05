@@ -9,7 +9,36 @@ Date:   Tue Jun 26 13:48:05 2018 +0700
     Change-Id: Ica16f14a65c03659a19926852cca5e554c99baf1
     Reviewed-on: https://go-review.googlesource.com/120935
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/doc.go              | 4 +++-
  src/cmd/link/internal/ld/data.go | 1 +
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index d61b66a938..963d86a35f 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -39,8 +39,10 @@ Flags:
+ 		Print linker version and exit.
+ 	-X importpath.name=value
+ 		Set the value of the string variable in importpath named name to value.
++		This is only effective if the variable is declared in the source code either uninitialized
++		or initialized to a constant string expression. -X will not work if the initializer makes
++		a function call or refers to other variables.
+ 		Note that before Go 1.5 this option took two separate arguments.
+-		Now it takes one argument split on the first = sign.
+ 	-buildmode mode
+ 		Set build mode (default exe).
+ 	-cpuprofile file
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 93c77c006b..c337c5e7ed 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -828,6 +828,7 @@ func addstrdata1(ctxt *Link, arg string) {
+ 	strdata[name] = value
+ }
+ 
++// addstrdata sets the initial value of the string variable name to value.
+ func addstrdata(ctxt *Link, name, value string) {
+ 	s := ctxt.Syms.ROLookup(name, 0)
+ 	if s == nil || s.Gotype == nil {

@@ -9,7 +9,107 @@ Date:   Fri Jan 20 12:57:53 2012 -0800
     R=rsc, r, r
     CC=golang-dev
     https://golang.org/cl/5557072
-
+---
  src/pkg/encoding/binary/varint.go      | 17 -----------------
  src/pkg/encoding/binary/varint_test.go | 32 ++++++++------------------------
  2 files changed, 8 insertions(+), 41 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/varint.go b/src/pkg/encoding/binary/varint.go
+index d4872eea2c..6566ab0600 100644
+--- a/src/pkg/encoding/binary/varint.go
++++ b/src/pkg/encoding/binary/varint.go
+@@ -98,14 +98,6 @@ func Varint(buf []byte) (int64, int) {
+ 	return x, n
+ }
+ 
+-// WriteUvarint encodes x and writes the result to w.
+-func WriteUvarint(w io.Writer, x uint64) error {
+-	var buf [MaxVarintLen64]byte
+-	n := PutUvarint(buf[:], x)
+-	_, err := w.Write(buf[0:n])
+-	return err
+-}
+-
+ var overflow = errors.New("binary: varint overflows a 64-bit integer")
+ 
+ // ReadUvarint reads an encoded unsigned integer from r and returns it as a uint64.
+@@ -129,15 +121,6 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
+ 	panic("unreachable")
+ }
+ 
+-// WriteVarint encodes x and writes the result to w.
+-func WriteVarint(w io.Writer, x int64) error {
+-	ux := uint64(x) << 1
+-	if x < 0 {
+-		ux = ^ux
+-	}
+-	return WriteUvarint(w, ux)
+-}
+-
+ // ReadVarint reads an encoded unsigned integer from r and returns it as a uint64.
+ func ReadVarint(r io.ByteReader) (int64, error) {
+ 	ux, err := ReadUvarint(r) // ok to continue in presence of error
+diff --git a/src/pkg/encoding/binary/varint_test.go b/src/pkg/encoding/binary/varint_test.go
+index dc550f22f4..9476bd5fb7 100644
+--- a/src/pkg/encoding/binary/varint_test.go
++++ b/src/pkg/encoding/binary/varint_test.go
+@@ -25,9 +25,9 @@ func TestConstants(t *testing.T) {
+ }
+ 
+ func testVarint(t *testing.T, x int64) {
+-	buf1 := make([]byte, MaxVarintLen64)
+-	n := PutVarint(buf1[:], x)
+-	y, m := Varint(buf1[0:n])
++	buf := make([]byte, MaxVarintLen64)
++	n := PutVarint(buf, x)
++	y, m := Varint(buf[0:n])
+ 	if x != y {
+ 		t.Errorf("Varint(%d): got %d", x, y)
+ 	}
+@@ -35,15 +35,7 @@ func testVarint(t *testing.T, x int64) {
+ 		t.Errorf("Varint(%d): got n = %d; want %d", x, m, n)
+ 	}
+ 
+-	var buf2 bytes.Buffer
+-	err := WriteVarint(&buf2, x)
+-	if err != nil {
+-		t.Errorf("WriteVarint(%d): %s", x, err)
+-	}
+-	if n != buf2.Len() {
+-		t.Errorf("WriteVarint(%d): got n = %d; want %d", x, buf2.Len(), n)
+-	}
+-	y, err = ReadVarint(&buf2)
++	y, err := ReadVarint(bytes.NewBuffer(buf))
+ 	if err != nil {
+ 		t.Errorf("ReadVarint(%d): %s", x, err)
+ 	}
+@@ -53,9 +45,9 @@ func testVarint(t *testing.T, x int64) {
+ }
+ 
+ func testUvarint(t *testing.T, x uint64) {
+-	buf1 := make([]byte, MaxVarintLen64)
+-	n := PutUvarint(buf1[:], x)
+-	y, m := Uvarint(buf1[0:n])
++	buf := make([]byte, MaxVarintLen64)
++	n := PutUvarint(buf, x)
++	y, m := Uvarint(buf[0:n])
+ 	if x != y {
+ 		t.Errorf("Uvarint(%d): got %d", x, y)
+ 	}
+@@ -63,15 +55,7 @@ func testUvarint(t *testing.T, x uint64) {
+ 		t.Errorf("Uvarint(%d): got n = %d; want %d", x, m, n)
+ 	}
+ 
+-	var buf2 bytes.Buffer
+-	err := WriteUvarint(&buf2, x)
+-	if err != nil {
+-		t.Errorf("WriteUvarint(%d): %s", x, err)
+-	}
+-	if n != buf2.Len() {
+-		t.Errorf("WriteUvarint(%d): got n = %d; want %d", x, buf2.Len(), n)
+-	}
+-	y, err = ReadUvarint(&buf2)
++	y, err := ReadUvarint(bytes.NewBuffer(buf))
+ 	if err != nil {
+ 		t.Errorf("ReadUvarint(%d): %s", x, err)
+ 	}

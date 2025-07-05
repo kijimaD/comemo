@@ -15,7 +15,79 @@ Date:   Tue Aug 15 20:10:33 2023 +0800
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/loong64/galign.go |  2 ++
  src/cmd/compile/internal/loong64/ssa.go    | 31 +++++++++++++++++++++++++++++-
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/loong64/galign.go b/src/cmd/compile/internal/loong64/galign.go
+index 99ab7bdfb5..a613165054 100644
+--- a/src/cmd/compile/internal/loong64/galign.go
++++ b/src/cmd/compile/internal/loong64/galign.go
+@@ -20,4 +20,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
++	arch.LoadRegResult = loadRegResult
++	arch.SpillArgReg = spillArgReg
+ }
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 06490a7ba5..e7298bdb9f 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
++	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/types"
+@@ -145,6 +146,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = r
+ 		ssagen.AddrAuto(&p.To, v)
+ 	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
++		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
++		// The loop only runs once.
++		for _, a := range v.Block.Func.RegArgs {
++			// Pass the spill/unspill information along to the assembler, offset by size of
++			// the saved LR slot.
++			addr := ssagen.SpillSlotAddr(a, loong64.REGSP, base.Ctxt.Arch.FixedFrameSize)
++			s.FuncInfo().AddSpill(
++				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type, a.Reg), Spill: storeByType(a.Type, a.Reg)})
++		}
++		v.Block.Func.RegArgs = nil
+ 		ssagen.CheckArgReg(v)
+ 	case ssa.OpLOONG64ADDV,
+ 		ssa.OpLOONG64SUBV,
+@@ -370,7 +381,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
+-
+ 	case ssa.OpLOONG64LoweredZero:
+ 		// MOVx	R0, (Rarg0)
+ 		// ADDV	$sz, Rarg0
+@@ -799,3 +809,22 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+ 	}
+ }
++
++func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p := s.Prog(loadByType(t, reg))
++	p.From.Type = obj.TYPE_MEM
++	p.From.Name = obj.NAME_AUTO
++	p.From.Sym = n.Linksym()
++	p.From.Offset = n.FrameOffset() + off
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = reg
++	return p
++}
++
++func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p = pp.Append(p, storeByType(t, reg), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
++	p.To.Name = obj.NAME_PARAM
++	p.To.Sym = n.Linksym()
++	p.Pos = p.Pos.WithNotStmt()
++	return p
++}

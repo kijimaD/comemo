@@ -10,9 +10,72 @@ Date:   Wed Oct 15 13:13:37 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/154410043
-
+---
  misc/cgo/test/issue8828.go          | 16 ++++++++++++++++
  misc/cgo/test/issue8828/issue8828.c |  7 +++++++
  misc/cgo/test/issue8828/trivial.go  |  8 ++++++++
  src/cmd/go/build.go                 |  2 +-
  4 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue8828.go b/misc/cgo/test/issue8828.go
+new file mode 100644
+index 0000000000..304797c929
+--- /dev/null
++++ b/misc/cgo/test/issue8828.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8828: compiling a file with -compiler=gccgo fails if a .c file
++// has the same name as compiled directory.
++
++package cgotest
++
++import "./issue8828"
++
++func p() {
++	issue8828.Bar()
++}
+diff --git a/misc/cgo/test/issue8828/issue8828.c b/misc/cgo/test/issue8828/issue8828.c
+new file mode 100644
+index 0000000000..2950f87cfb
+--- /dev/null
++++ b/misc/cgo/test/issue8828/issue8828.c
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++void foo()
++{
++}
+diff --git a/misc/cgo/test/issue8828/trivial.go b/misc/cgo/test/issue8828/trivial.go
+new file mode 100644
+index 0000000000..e7b9a4e573
+--- /dev/null
++++ b/misc/cgo/test/issue8828/trivial.go
+@@ -0,0 +1,8 @@
++package issue8828
++
++//void foo();
++import "C"
++
++func Bar() {
++	C.foo()
++}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 9c7b42650a..49b84709e2 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1852,7 +1852,7 @@ func (gccgoToolchain) linker() string {
+ }
+ 
+ func (gccgoToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
+-	out := p.Name + ".o"
++	out := "_go_.o"
+ 	ofile = obj + out
+ 	gcargs := []string{"-g"}
+ 	gcargs = append(gcargs, b.gccArchArgs()...)

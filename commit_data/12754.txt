@@ -12,7 +12,34 @@ Date:   Mon Mar 26 09:12:15 2012 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5909045
-
+---
  doc/style.css        | 2 +-
  lib/godoc/godoc.html | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index ea66f988a6..95be3a17a4 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -150,7 +150,7 @@ div#plusone {
+ 	float: right;
+ }
+ 
+-div#copyright {
++div#footer {
+ 	color: #666;
+ 	font-size: 14px;
+ 	margin: 40px 0;
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index feb96e50f4..d970778c46 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -50,7 +50,7 @@
+ 
+ </div>
+ 
+-<div id="copyright">
++<div id="footer">
+ Build version {{html .Version}}.
+ Except as noted, this content is licensed under a
+ Creative Commons Attribution 3.0 License.

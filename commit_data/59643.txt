@@ -15,6 +15,20 @@ Date:   Wed Apr 3 22:43:58 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/zip/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 9e2dcff713..8d868de5e0 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -608,7 +608,7 @@ func (w *fileWriter) writeDataDescriptor() error {
+ 	}
+ 	// Write data descriptor. This is more complicated than one would
+ 	// think, see e.g. comments in zipfile.c:putextended() and
+-	// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=7073588.
++	// https://bugs.openjdk.org/browse/JDK-7073588.
+ 	// The approach here is to write 8 byte sizes if needed without
+ 	// adding a zip64 extra in the local header (too late anyway).
+ 	var buf []byte

@@ -36,9 +36,318 @@ Date:   Thu Jul 30 10:45:01 2015 -0400
     Change-Id: I09a13c76ad08ba75b3bd5d46a3eb78e66a84ab38
     Reviewed-on: https://go-review.googlesource.com/12899
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go | 68 +++++++++++++---------------------------
  src/runtime/runtime2.go          |  7 +++--
  src/runtime/vlop_arm.s           | 54 +++++++++++++++++--------------
  test/fixedbugs/issue10486.go     | 31 ++++++++++++++++++
  4 files changed, 87 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index ce1cad9c47..3ecf6bc9d5 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -505,6 +505,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 		case ADIV, ADIVU, AMOD, AMODU:
++			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
++				ctxt.Diag("cannot divide in NOSPLIT function")
++			}
+ 			if ctxt.Debugdivmod != 0 {
+ 				break
+ 			}
+@@ -514,22 +517,35 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if p.To.Type != obj.TYPE_REG {
+ 				break
+ 			}
+-			q1 = p
+ 
+-			/* MOV a,4(SP) */
+-			p = obj.Appendp(ctxt, p)
++			// Make copy because we overwrite p below.
++			q1 := *p
++			if q1.Reg == REGTMP || q1.Reg == 0 && q1.To.Reg == REGTMP {
++				ctxt.Diag("div already using REGTMP: %v", p)
++			}
+ 
++			/* MOV m(g),REGTMP */
++			p.As = AMOVW
++			p.Lineno = q1.Lineno
++			p.From.Type = obj.TYPE_MEM
++			p.From.Reg = REGG
++			p.From.Offset = 6 * 4 // offset of g.m
++			p.Reg = 0
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = REGTMP
++
++			/* MOV a,m_divmod(REGTMP) */
++			p = obj.Appendp(ctxt, p)
+ 			p.As = AMOVW
+ 			p.Lineno = q1.Lineno
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = q1.From.Reg
+ 			p.To.Type = obj.TYPE_MEM
+-			p.To.Reg = REGSP
+-			p.To.Offset = 4
++			p.To.Reg = REGTMP
++			p.To.Offset = 8 * 4 // offset of m.divmod
+ 
+ 			/* MOV b,REGTMP */
+ 			p = obj.Appendp(ctxt, p)
+-
+ 			p.As = AMOVW
+ 			p.Lineno = q1.Lineno
+ 			p.From.Type = obj.TYPE_REG
+@@ -543,7 +559,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			/* CALL appropriate */
+ 			p = obj.Appendp(ctxt, p)
+-
+ 			p.As = ABL
+ 			p.Lineno = q1.Lineno
+ 			p.To.Type = obj.TYPE_BRANCH
+@@ -563,7 +578,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			/* MOV REGTMP, b */
+ 			p = obj.Appendp(ctxt, p)
+-
+ 			p.As = AMOVW
+ 			p.Lineno = q1.Lineno
+ 			p.From.Type = obj.TYPE_REG
+@@ -572,44 +586,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = q1.To.Reg
+ 
+-			/* ADD $8,SP */
+-			p = obj.Appendp(ctxt, p)
+-
+-			p.As = AADD
+-			p.Lineno = q1.Lineno
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Reg = 0
+-			p.From.Offset = 8
+-			p.Reg = 0
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REGSP
+-			p.Spadj = -8
+-
+-			/* Keep saved LR at 0(SP) after SP change. */
+-			/* MOVW 0(SP), REGTMP; MOVW REGTMP, -8!(SP) */
+-			/* TODO: Remove SP adjustments; see issue 6699. */
+-			q1.As = AMOVW
+-
+-			q1.From.Type = obj.TYPE_MEM
+-			q1.From.Reg = REGSP
+-			q1.From.Offset = 0
+-			q1.Reg = 0
+-			q1.To.Type = obj.TYPE_REG
+-			q1.To.Reg = REGTMP
+-
+-			/* SUB $8,SP */
+-			q1 = obj.Appendp(ctxt, q1)
+-
+-			q1.As = AMOVW
+-			q1.From.Type = obj.TYPE_REG
+-			q1.From.Reg = REGTMP
+-			q1.Reg = 0
+-			q1.To.Type = obj.TYPE_MEM
+-			q1.To.Reg = REGSP
+-			q1.To.Offset = -8
+-			q1.Scond |= C_WBIT
+-			q1.Spadj = 8
+-
+ 		case AMOVW:
+ 			if (p.Scond&C_WBIT != 0) && p.To.Type == obj.TYPE_MEM && p.To.Reg == REGSP {
+ 				p.Spadj = int32(-p.To.Offset)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a1c790fa85..a157f016d1 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -222,6 +222,7 @@ type g struct {
+ 
+ 	_panic         *_panic // innermost panic - offset known to liblink
+ 	_defer         *_defer // innermost defer
++	m              *m      // current m; offset known to arm liblink
+ 	stackAlloc     uintptr // stack allocation is [stack.lo,stack.lo+stackAlloc)
+ 	sched          gobuf
+ 	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+@@ -245,7 +246,6 @@ type g struct {
+ 	sysblocktraced bool   // StartTrace has emitted EvGoInSyscall about this goroutine
+ 	sysexitticks   int64  // cputicks when syscall has returned (for tracing)
+ 	sysexitseq     uint64 // trace seq when syscall has returned (for tracing)
+-	m              *m     // for debuggers, but offset not hard-coded
+ 	lockedm        *m
+ 	sig            uint32
+ 	writebuf       []byte
+@@ -273,8 +273,9 @@ type mscratch struct {
+ }
+ 
+ type m struct {
+-	g0      *g    // goroutine with scheduling stack
+-	morebuf gobuf // gobuf arg to morestack
++	g0      *g     // goroutine with scheduling stack
++	morebuf gobuf  // gobuf arg to morestack
++	divmod  uint32 // div/mod denominator for arm - known to liblink
+ 
+ 	// Fields not known to debuggers.
+ 	procid        uint64     // for debuggers, but offset not hard-coded
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index b4a40c0ab2..ae1f58254a 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -25,6 +25,7 @@
+ 
+ #include "go_asm.h"
+ #include "go_tls.h"
++#include "funcdata.h"
+ #include "textflag.h"
+ 
+ /* replaced use of R10 by R11 because the former can be the data segment base register */
+@@ -177,22 +178,8 @@ udiv_by_0_or_1:
+ 	RET
+ 
+ udiv_by_0:
+-	// The ARM toolchain expects it can emit references to DIV and MOD
+-	// instructions. The linker rewrites each pseudo-instruction into
+-	// a sequence that pushes two values onto the stack and then calls
+-	// _divu, _modu, _div, or _mod (below), all of which have a 16-byte
+-	// frame plus the saved LR. The traceback routine knows the expanded
+-	// stack frame size at the pseudo-instruction call site, but it
+-	// doesn't know that the frame has a non-standard layout. In particular,
+-	// it expects to find a saved LR in the bottom word of the frame.
+-	// Unwind the stack back to the pseudo-instruction call site, copy the
+-	// saved LR where the traceback routine will look for it, and make it
+-	// appear that panicdivide was called from that PC.
+-	MOVW	0(R13), LR
+-	ADD	$20, R13
+-	MOVW	8(R13), R1 // actual saved LR
+-	MOVW	R1, 0(R13) // expected here for traceback
+-	B 	runtime·panicdivide(SB)
++	MOVW	$runtime·panicdivide(SB), R11
++	B	(R11)
+ 
+ // var tab [64]byte
+ // tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
+@@ -219,14 +206,27 @@ GLOBL fast_udiv_tab<>(SB), RODATA, $64
+ // expects the result in RTMP
+ #define RTMP R11
+ 
+-TEXT _divu(SB), NOSPLIT, $16
++TEXT _divu(SB), NOSPLIT, $16-0
++	// It's not strictly true that there are no local pointers.
++	// It could be that the saved registers Rq, Rr, Rs, and Rm
++	// contain pointers. However, the only way this can matter
++	// is if the stack grows (which it can't, udiv is nosplit)
++	// or if a fault happens and more frames are added to
++	// the stack due to deferred functions.
++	// In the latter case, the stack can grow arbitrarily,
++	// and garbage collection can happen, and those
++	// operations care about pointers, but in that case
++	// the calling frame is dead, and so are the saved
++	// registers. So we can claim there are no pointers here.
++	NO_LOCAL_POINTERS
+ 	MOVW	Rq, 4(R13)
+ 	MOVW	Rr, 8(R13)
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	den+0(FP), Rq 		/* denominator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	BL  	udiv<>(SB)
+ 	MOVW	Rq, RTMP
+ 	MOVW	4(R13), Rq
+@@ -235,14 +235,16 @@ TEXT _divu(SB), NOSPLIT, $16
+ 	MOVW	16(R13), RM
+ 	RET
+ 
+-TEXT _modu(SB), NOSPLIT, $16
++TEXT _modu(SB), NOSPLIT, $16-0
++	NO_LOCAL_POINTERS
+ 	MOVW	Rq, 4(R13)
+ 	MOVW	Rr, 8(R13)
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	den+0(FP), Rq 		/* denominator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	BL  	udiv<>(SB)
+ 	MOVW	Rr, RTMP
+ 	MOVW	4(R13), Rq
+@@ -251,13 +253,15 @@ TEXT _modu(SB), NOSPLIT, $16
+ 	MOVW	16(R13), RM
+ 	RET
+ 
+-TEXT _div(SB),NOSPLIT,$16
++TEXT _div(SB),NOSPLIT,$16-0
++	NO_LOCAL_POINTERS
+ 	MOVW	Rq, 4(R13)
+ 	MOVW	Rr, 8(R13)
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	den+0(FP), Rq 		/* denominator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	CMP 	$0, Rr
+ 	BGE 	d1
+ 	RSB 	$0, Rr, Rr
+@@ -282,13 +286,15 @@ out1:
+ 	MOVW	16(R13), RM
+ 	RET
+ 
+-TEXT _mod(SB),NOSPLIT,$16
++TEXT _mod(SB),NOSPLIT,$16-0
++	NO_LOCAL_POINTERS
+ 	MOVW	Rq, 4(R13)
+ 	MOVW	Rr, 8(R13)
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	den+0(FP), Rq 		/* denominator */
++	MOVW	g_m(g), Rq
++	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	CMP 	$0, Rq
+ 	RSB.LT	$0, Rq, Rq
+ 	CMP 	$0, Rr
+diff --git a/test/fixedbugs/issue10486.go b/test/fixedbugs/issue10486.go
+new file mode 100644
+index 0000000000..f346828ec6
+--- /dev/null
++++ b/test/fixedbugs/issue10486.go
+@@ -0,0 +1,31 @@
++// run
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10486.
++// Check stack walk during div by zero fault,
++// especially on software divide systems.
++
++package main
++
++import "runtime"
++
++var A, B int
++
++func divZero() int {
++	defer func() {
++		if p := recover(); p != nil {
++			var pcs [512]uintptr
++			runtime.Callers(2, pcs[:])
++			runtime.GC()
++		}
++	}()
++	return A / B
++}
++
++func main() {
++	A = 1
++	divZero()
++}

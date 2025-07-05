@@ -23,6 +23,22 @@ Date:   Sun Jul 29 13:15:25 2018 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/script_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 263e26fa35..90cf3a5679 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -98,6 +98,10 @@ func (ts *testScript) setup() {
+ 		":=" + string(os.PathListSeparator),
+ 	}
+ 
++	if runtime.GOOS == "plan9" {
++		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
++	}
++
+ 	if runtime.GOOS == "windows" {
+ 		ts.env = append(ts.env, "exe=.exe")
+ 	} else {

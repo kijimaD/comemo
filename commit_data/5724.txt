@@ -7,6 +7,20 @@ Date:   Tue Jun 29 07:12:14 2010 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/1747041
-
+---
  src/pkg/runtime/windows/386/signal.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index 663ed874bd..278bb7fc4c 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "runtime.h"
++
+ void
+ initsig(int32 queue)
+ {

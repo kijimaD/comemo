@@ -14,6 +14,19 @@ Date:   Wed Feb 7 09:12:05 2024 -0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 42300750bc..7b9dd3862a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Language version go1.22 (Jan 30, 2023)",
++	"Subtitle": "Language version go1.22 (Feb 6, 2024)",
+ 	"Path": "/ref/spec"
+ }-->
+ 

@@ -7,6 +7,18 @@ Date:   Wed Jul 21 15:59:11 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1888041
-
+---
  test/arm-pass.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 974fbf02ce..4d19904f0f 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,5 +1,5 @@
+ ./235.go
+-./64bit.go
++# ./64bit.go	# flaky
+ ./args.go
+ ./assign.go
+ ./assign1.go

@@ -9,6 +9,20 @@ Date:   Mon Apr 8 18:56:38 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8550043
-
+---
  src/pkg/runtime/hashmap.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 0f32d94e0f..892f0a1700 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -451,7 +451,7 @@ hash_grow(MapType *t, Hmap *h)
+ 	old_buckets = h->buckets;
+ 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
+ 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-	new_buckets = runtime·mallocgc(h->bucketsize << (h->B + 1), 0, 1, 0);
++	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, 1, 0);
+ 	flags = (h->flags & ~(Iterator | OldIterator));
+ 	if((h->flags & Iterator) != 0) {
+ 		flags |= OldIterator;

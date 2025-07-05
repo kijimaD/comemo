@@ -9,6 +9,24 @@ Date:   Thu Oct 20 11:10:03 2016 -0700
     Change-Id: I3311c6850a3c714d18209fdff500dd817e9dfcb2
     Reviewed-on: https://go-review.googlesource.com/31594
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/cgo/gcc.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 714d6360cc..408d9eea9e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -615,8 +615,10 @@ func (p *Package) rewriteCalls(f *File) bool {
+ 	return needsUnsafe
+ }
+ 
+-// rewriteCall rewrites one call to add pointer checks. We replace
+-// each pointer argument x with _cgoCheckPointer(x).(T).
++// rewriteCall rewrites one call to add pointer checks.
++// If any pointer checks are required, we rewrite the call into a
++// function literal that calls _cgoCheckPointer for each pointer
++// argument and then calls the original function.
+ // This returns whether the package needs to import unsafe as _cgo_unsafe.
+ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 	// Avoid a crash if the number of arguments is

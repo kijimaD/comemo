@@ -19,7 +19,59 @@ Date:   Thu Apr 23 09:18:44 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229604
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go        |  6 +++++-
  src/cmd/link/internal/loader/symbolbuilder.go | 16 ++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index ba0cff3ff6..c0893daece 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -58,7 +58,7 @@ type Reloc2 struct {
+ 
+ 	// External reloc types may not fit into a uint8 which the Go object file uses.
+ 	// Store it here, instead of in the byte of goobj2.Reloc2.
+-	// For Go symbols this will always be 0.
++	// For Go symbols this will always be zero.
+ 	// goobj2.Reloc2.Type() + typ is always the right type, for both Go and external
+ 	// symbols.
+ 	typ objabi.RelocType
+@@ -73,6 +73,10 @@ func (rel Reloc2) SetType(t objabi.RelocType) {
+ 		panic("SetType: type doesn't fit into Reloc2")
+ 	}
+ 	rel.Reloc.SetType(uint8(t))
++	if rel.typ != 0 {
++		// should use SymbolBuilder.SetRelocType
++		panic("wrong method to set reloc type")
++	}
+ }
+ 
+ // Aux2 holds a "handle" to access an aux symbol record from an
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index f5db69856b..21ed621f80 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -143,6 +143,22 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
+ 	}
+ }
+ 
++// SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
++func (sb *SymbolBuilder) SetRelocType(i int, t objabi.RelocType) {
++	sb.relocs[i].SetType(0)
++	sb.reltypes[i] = t
++}
++
++// SetRelocSym sets the target sym of the 'i'-th relocation on this sym to 's'
++func (sb *SymbolBuilder) SetRelocSym(i int, tgt Sym) {
++	sb.relocs[i].SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(tgt)})
++}
++
++// SetRelocAdd sets the addend of the 'i'-th relocation on this sym to 'a'
++func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
++	sb.relocs[i].SetAdd(a)
++}
++
+ // Add n relocations, return a handle to the relocations.
+ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+ 	sb.relocs = append(sb.relocs, make([]goobj2.Reloc, n)...)

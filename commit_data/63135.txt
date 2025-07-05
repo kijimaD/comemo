@@ -38,7 +38,7 @@ Date:   Mon May 5 13:44:26 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/670497
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  api/next/73193.txt                                 |   1 +
  doc/godebug.md                                     |  11 +
  doc/next/4-runtime.md                              |  25 ++
@@ -64,3 +64,1744 @@ Date:   Mon May 5 13:44:26 2025 -0400
  src/runtime/testdata/testprog/gomaxprocs.go        | 152 ++++++++++
  .../testdata/testprog/gomaxprocs_windows.go        |  63 ++++
  24 files changed, 1327 insertions(+), 43 deletions(-)
+
+diff --git a/api/next/73193.txt b/api/next/73193.txt
+new file mode 100644
+index 0000000000..f2b6ea748c
+--- /dev/null
++++ b/api/next/73193.txt
+@@ -0,0 +1 @@
++pkg runtime, func SetDefaultGOMAXPROCS() #73193
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 1d6e6d78d0..b0c820da46 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -169,6 +169,17 @@ Go command will follow symlinks to regular files embedding files.
+ The default value `embedfollowsymlinks=0` does not allow following
+ symlinks. `embedfollowsymlinks=1` will allow following symlinks.
+ 
++Go 1.25 added a new `containermaxprocs` setting that controls whether the Go
++runtime will consider cgroup CPU limits when setting the default GOMAXPROCS.
++The default value `containermaxprocs=1` will use cgroup limits in addition to
++the total logical CPU count and CPU affinity. `containermaxprocs=0` will
++disable consideration of cgroup limits. This setting only affects Linux.
++
++Go 1.25 added a new `updatemaxprocs` setting that controls whether the Go
++runtime will periodically update GOMAXPROCS for new CPU affinity or cgroup
++limits. The default value `updatemaxprocs=1` will enable periodic updates.
++`updatemaxprocs=0` will disable periodic updates.
++
+ Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
+ and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
+ 
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+index 4e8182c8cf..67c1cee401 100644
+--- a/doc/next/4-runtime.md
++++ b/doc/next/4-runtime.md
+@@ -17,6 +17,31 @@ This program will now print:
+ 
+     panic: PANIC [recovered, repanicked]
+ 
++<!-- go.dev/issue/73193 -->
++
++The default behavior of the `GOMAXPROCS` has changed. In prior versions of Go,
++`GOMAXPROCS` defaults to the number of logical CPUs available at startup
++([runtime.NumCPU]). Go 1.25 introduces two changes:
++
++1. On Linux, the runtime considers the CPU bandwidth limit of the cgroup
++   containing the process, if any. If the CPU bandwidth limit is lower than the
++   number of logical CPUs available, `GOMAXPROCS` will default to the lower
++   limit. In container runtime systems like Kubernetes, cgroup CPU bandwidth
++   limits generally correspond to the "CPU limit" option. The Go runtime does
++   not consider the "CPU requests" option.
++
++2. On all OSes, the runtime periodically updates `GOMAXPROCS` if the number
++   of logical CPUs available or the cgroup CPU bandwidth limit change.
++
++Both of these behaviors are automatically disabled if `GOMAXPROCS` is set
++manually via the `GOMAXPROCS` environment variable or a call to
++[runtime.GOMAXPROCS]. They can also be disabled explicitly with the [GODEBUG
++settings](/doc/godebug) `containermaxprocs=0` and `updatemaxprocs=0`,
++respectively.
++
++In order to support reading updated cgroup limits, the runtime will keep cached
++file descriptors for the cgroup files for the duration of the process lifetime.
++
+ <!-- go.dev/issue/71546 -->
+ 
+ On Linux systems with kernel support for anonymous VMA names
+diff --git a/doc/next/6-stdlib/99-minor/runtime/73193.md b/doc/next/6-stdlib/99-minor/runtime/73193.md
+new file mode 100644
+index 0000000000..a729f6a3c4
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/73193.md
+@@ -0,0 +1,5 @@
++The new [SetDefaultGOMAXPROCS] function sets `GOMAXPROCS` to the runtime
++default value, as if the `GOMAXPROCS` environment variable is not set. This is
++useful for enabling the [new `GOMAXPROCS` default](#runtime) if it has been
++disabled by the `GOMAXPROCS` environment variable or a prior call to
++[GOMAXPROCS].
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6fee3b6679..e4fcc766b7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -795,6 +795,8 @@ var depsRules = `
+ 	FMT, compress/gzip, embed, encoding/binary < encoding/json/internal/jsontest;
+ 	CGO, internal/syscall/unix < net/internal/cgotest;
+ 	FMT < math/big/internal/asmgen;
++
++	FMT, testing < internal/cgrouptest;
+ `
+ 
+ // listStdPkgs returns the same list of packages as "go list std".
+diff --git a/src/internal/cgrouptest/cgrouptest_linux.go b/src/internal/cgrouptest/cgrouptest_linux.go
+new file mode 100644
+index 0000000000..f23c37a705
+--- /dev/null
++++ b/src/internal/cgrouptest/cgrouptest_linux.go
+@@ -0,0 +1,206 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cgrouptest provides best-effort helpers for running tests inside a
++// cgroup.
++package cgrouptest
++
++import (
++	"fmt"
++	"internal/runtime/cgroup"
++	"os"
++	"path/filepath"
++	"slices"
++	"strconv"
++	"strings"
++	"syscall"
++	"testing"
++)
++
++type CgroupV2 struct {
++	orig string
++	path string
++}
++
++func (c *CgroupV2) Path() string {
++	return c.path
++}
++
++// Path to cpu.max.
++func (c *CgroupV2) CPUMaxPath() string {
++	return filepath.Join(c.path, "cpu.max")
++}
++
++// Set cpu.max. Pass -1 for quota to disable the limit.
++func (c *CgroupV2) SetCPUMax(quota, period int64) error {
++	q := "max"
++	if quota >= 0 {
++		q = strconv.FormatInt(quota, 10)
++	}
++	buf := fmt.Sprintf("%s %d", q, period)
++	return os.WriteFile(c.CPUMaxPath(), []byte(buf), 0)
++}
++
++// InCgroupV2 creates a new v2 cgroup, migrates the current process into it,
++// and then calls fn. When fn returns, the current process is migrated back to
++// the original cgroup and the new cgroup is destroyed.
++//
++// If a new cgroup cannot be created, the test is skipped.
++//
++// This must not be used in parallel tests, as it affects the entire process.
++func InCgroupV2(t *testing.T, fn func(*CgroupV2)) {
++	mount, rel := findCurrent(t)
++	parent := findOwnedParent(t, mount, rel)
++	orig := filepath.Join(mount, rel)
++
++	// Make sure the parent allows children to control cpu.
++	b, err := os.ReadFile(filepath.Join(parent, "cgroup.subtree_control"))
++	if err != nil {
++		t.Skipf("unable to read cgroup.subtree_control: %v", err)
++	}
++	if !slices.Contains(strings.Fields(string(b)), "cpu") {
++		// N.B. We should have permission to add cpu to
++		// subtree_control, but it seems like a bad idea to change this
++		// on a high-level cgroup that probably has lots of existing
++		// children.
++		t.Skipf("Parent cgroup %s does not allow children to control cpu, only %q", parent, string(b))
++	}
++
++	path, err := os.MkdirTemp(parent, "go-cgrouptest")
++	if err != nil {
++		t.Skipf("unable to create cgroup directory: %v", err)
++	}
++	// Important: defer cleanups so they run even in the event of panic.
++	//
++	// TODO(prattmic): Consider running everything in a subprocess just so
++	// we can clean up if it throws or otherwise doesn't run the defers.
++	defer func() {
++		if err := os.Remove(path); err != nil {
++			// Not much we can do, but at least inform of the
++			// problem.
++			t.Errorf("Error removing cgroup directory: %v", err)
++		}
++	}()
++
++	migrateTo(t, path)
++	defer migrateTo(t, orig)
++
++	c := &CgroupV2{
++		orig: orig,
++		path: path,
++	}
++	fn(c)
++}
++
++// Returns the mount and relative directory of the current cgroup the process
++// is in.
++func findCurrent(t *testing.T) (string, string) {
++	// Find the path to our current CPU cgroup. Currently this package is
++	// only used for CPU cgroup testing, so the distinction of different
++	// controllers doesn't matter.
++	var scratch [cgroup.ParseSize]byte
++	buf := make([]byte, cgroup.PathSize)
++	n, err := cgroup.FindCPUMountPoint(buf, scratch[:])
++	if err != nil {
++		t.Skipf("cgroup: unable to find current cgroup mount: %v", err)
++	}
++	mount := string(buf[:n])
++
++	n, ver, err := cgroup.FindCPURelativePath(buf, scratch[:])
++	if err != nil {
++		t.Skipf("cgroup: unable to find current cgroup path: %v", err)
++	}
++	if ver != cgroup.V2 {
++		t.Skipf("cgroup: running on cgroup v%d want v2", ver)
++	}
++	rel := string(buf[1:n]) // The returned path always starts with /, skip it.
++	rel = filepath.Join(".", rel) // Make sure this isn't empty string at root.
++	return mount, rel
++}
++
++// Returns a parent directory in which we can create our own cgroup subdirectory.
++func findOwnedParent(t *testing.T, mount, rel string) string {
++	// There are many ways cgroups may be set up on a system. We don't try
++	// to cover all of them, just common ones.
++	//
++	// To start with, systemd:
++	//
++	// Our test process is likely running inside a user session, in which
++	// case we are likely inside a cgroup that looks something like:
++	//
++	//   /sys/fs/cgroup/user.slice/user-1234.slice/user@1234.service/vte-spawn-1.scope/
++	//
++	// Possibly with additional slice layers between user@1234.service and
++	// the leaf scope.
++	//
++	// On new enough kernel and systemd versions (exact versions unknown),
++	// full unprivileged control of the user's cgroups is permitted
++	// directly via the cgroup filesystem. Specifically, the
++	// user@1234.service directory is owned by the user, as are all
++	// subdirectories.
++
++	// We want to create our own subdirectory that we can migrate into and
++	// then manipulate at will. It is tempting to create a new subdirectory
++	// inside the current cgroup we are already in, however that will likey
++	// not work. cgroup v2 only allows processes to be in leaf cgroups. Our
++	// current cgroup likely contains multiple processes (at least this one
++	// and the cmd/go test runner). If we make a subdirectory and try to
++	// move our process into that cgroup, then the subdirectory and parent
++	// would both contain processes. Linux won't allow us to do that [1].
++	//
++	// Instead, we will simply walk up to the highest directory that our
++	// user owns and create our new subdirectory. Since that directory
++	// already has a bunch of subdirectories, it must not directly contain
++	// and processes.
++	//
++	// (This would fall apart if we already in the highest directory we
++	// own, such as if there was simply a single cgroup for the entire
++	// user. Luckily systemd at least does not do this.)
++	//
++	// [1] Minor technicality: By default a new subdirectory has no cgroup
++	// controller (they must be explicitly enabled in the parent's
++	// cgroup.subtree_control). Linux will allow moving processes into a
++	// subdirectory that has no controllers while there are still processes
++	// in the parent, but it won't allow adding controller until the parent
++	// is empty. As far as I tell, the only purpose of this is to allow
++	// reorganizing processes into a new set of subdirectories and then
++	// adding controllers once done.
++	root, err := os.OpenRoot(mount)
++	if err != nil {
++		t.Fatalf("error opening cgroup mount root: %v", err)
++	}
++
++	uid := os.Getuid()
++	var prev string
++	for rel != "." {
++		fi, err := root.Stat(rel)
++		if err != nil {
++			t.Fatalf("error stating cgroup path: %v", err)
++		}
++
++		st := fi.Sys().(*syscall.Stat_t)
++		if int(st.Uid) != uid {
++			// Stop at first directory we don't own.
++			break
++		}
++
++		prev = rel
++		rel = filepath.Join(rel, "..")
++	}
++
++	if prev == "" {
++		t.Skipf("No parent cgroup owned by UID %d", uid)
++	}
++
++	// We actually want the last directory where we were the owner.
++	return filepath.Join(mount, prev)
++}
++
++// Migrate the current process to the cgroup directory dst.
++func migrateTo(t *testing.T, dst string) {
++	pid := []byte(strconv.FormatInt(int64(os.Getpid()), 10))
++	if err := os.WriteFile(filepath.Join(dst, "cgroup.procs"), pid, 0); err != nil {
++		t.Skipf("Unable to migrate into %s: %v", dst, err)
++	}
++}
+diff --git a/src/internal/cgrouptest/cgrouptest_linux_test.go b/src/internal/cgrouptest/cgrouptest_linux_test.go
+new file mode 100644
+index 0000000000..f3a4a133e8
+--- /dev/null
++++ b/src/internal/cgrouptest/cgrouptest_linux_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgrouptest
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestInCgroupV2(t *testing.T) {
++	InCgroupV2(t, func(c *CgroupV2) {
++		fmt.Println("Created", c.Path())
++		if err := c.SetCPUMax(500000, 100000); err != nil {
++			t.Errorf("Erroring setting cpu.max: %v", err)
++		}
++	})
++}
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index f68523a348..30b5ad49ac 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -45,18 +45,29 @@ package coverage
+ // as opposed to a fixed list.
+ 
+ var rtPkgs = [...]string{
++	"internal/asan",
++	"internal/byteorder",
++	"internal/coverage/rtcov",
+ 	"internal/cpu",
++	"internal/bytealg",
+ 	"internal/goarch",
+-	"internal/runtime/atomic",
+-	"internal/goos",
++	"internal/abi",
+ 	"internal/chacha8rand",
++	"internal/godebugs",
++	"internal/goexperiment",
++	"internal/goos",
++	"internal/msan",
++	"internal/profilerecord",
++	"internal/race",
++	"internal/runtime/atomic",
++	"internal/runtime/exithook",
++	"internal/runtime/gc",
++	"internal/runtime/math",
++	"internal/runtime/strconv",
+ 	"internal/runtime/sys",
+-	"internal/abi",
+ 	"internal/runtime/maps",
+-	"internal/runtime/math",
+-	"internal/bytealg",
+-	"internal/goexperiment",
+ 	"internal/runtime/syscall",
++	"internal/runtime/cgroup",
+ 	"internal/stringslite",
+ 	"runtime",
+ }
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 8ebe221fd3..9262ce23ba 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -26,6 +26,7 @@ type Info struct {
+ // (Otherwise the test in this package will fail.)
+ var All = []Info{
+ 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
++	{Name: "containermaxprocs", Package: "runtime", Changed: 25, Old: "0"},
+ 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
+ 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
+ 	{Name: "embedfollowsymlinks", Package: "cmd/go"},
+@@ -61,6 +62,7 @@ var All = []Info{
+ 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
++	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
+ 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
+ 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
+ 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+diff --git a/src/runtime/cgroup_linux.go b/src/runtime/cgroup_linux.go
+new file mode 100644
+index 0000000000..73e7363eb4
+--- /dev/null
++++ b/src/runtime/cgroup_linux.go
+@@ -0,0 +1,119 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"internal/runtime/cgroup"
++)
++
++// cgroup-aware GOMAXPROCS default
++//
++// At startup (defaultGOMAXPROCSInit), we read /proc/self/cgroup and /proc/self/mountinfo
++// to find our current CPU cgroup and open its limit file(s), which remain open
++// for the entire process lifetime. We periodically read the current limit by
++// rereading the limit file(s) from the beginning.
++//
++// This makes reading updated limits simple, but has a few downsides:
++//
++// 1. We only read the limit from the leaf cgroup that actually contains this
++// process. But a parent cgroup may have a tighter limit. That tighter limit
++// would be our effective limit. That said, container runtimes tend to hide
++// parent cgroups from the container anyway.
++//
++// 2. If the process is migrated to another cgroup while it is running it will
++// not notice, as we only check which cgroup we are in once at startup.
++var (
++	// We can't allocate during early initialization when we need to find
++	// the cgroup. Simply use a fixed global as a scratch parsing buffer.
++	cgroupScratch [cgroup.ScratchSize]byte
++
++	cgroupOK  bool
++	cgroupCPU cgroup.CPU
++
++	// defaultGOMAXPROCSInit runs before internal/godebug init, so we can't
++	// directly update the GODEBUG counter. Store the result until after
++	// init runs.
++	containermaxprocsNonDefault bool
++	containermaxprocs           = &godebugInc{name: "containermaxprocs"}
++)
++
++// Prepare for defaultGOMAXPROCS.
++//
++// Must run after parsedebugvars.
++func defaultGOMAXPROCSInit() {
++	c, err := cgroup.OpenCPU(cgroupScratch[:])
++	if err != nil {
++		// Likely cgroup.ErrNoCgroup.
++		return
++	}
++
++	if debug.containermaxprocs > 0 {
++		// Normal operation.
++		cgroupCPU = c
++		cgroupOK = true
++		return
++	}
++
++	// cgroup-aware GOMAXPROCS is disabled. We still check the cgroup once
++	// at startup to see if enabling the GODEBUG would result in a
++	// different default GOMAXPROCS. If so, we increment runtime/metrics
++	// /godebug/non-default-behavior/cgroupgomaxprocs:events.
++	procs := getCPUCount()
++	cgroupProcs := adjustCgroupGOMAXPROCS(procs, c)
++	if procs != cgroupProcs {
++		containermaxprocsNonDefault = true
++	}
++
++	// Don't need the cgroup for remaining execution.
++	c.Close()
++}
++
++// defaultGOMAXPROCSUpdateGODEBUG updates the internal/godebug counter for
++// container GOMAXPROCS, once internal/godebug is initialized.
++func defaultGOMAXPROCSUpdateGODEBUG() {
++	if containermaxprocsNonDefault {
++		containermaxprocs.IncNonDefault()
++	}
++}
++
++// Return the default value for GOMAXPROCS when it has not been set explicitly.
++//
++// ncpu is the optional precomputed value of getCPUCount. If passed as 0,
++// defaultGOMAXPROCS will call getCPUCount.
++func defaultGOMAXPROCS(ncpu int32) int32 {
++	// GOMAXPROCS is the minimum of:
++	//
++	// 1. Total number of logical CPUs available from sched_getaffinity.
++	//
++	// 2. The average CPU cgroup throughput limit (average throughput =
++	// quota/period). A limit less than 2 is rounded up to 2, and any
++	// fractional component is rounded up.
++	//
++	// TODO: add rationale.
++
++	procs := ncpu
++	if procs <= 0 {
++		procs = getCPUCount()
++	}
++	if !cgroupOK {
++		// No cgroup, or disabled by debug.containermaxprocs.
++		return procs
++	}
++
++	return adjustCgroupGOMAXPROCS(procs, cgroupCPU)
++}
++
++// Lower procs as necessary for the current cgroup CPU limit.
++func adjustCgroupGOMAXPROCS(procs int32, cpu cgroup.CPU) int32 {
++	limit, ok, err := cgroup.ReadCPULimit(cpu)
++	if err == nil && ok {
++		limit = ceil(limit)
++		limit = max(limit, 2)
++		if int32(limit) < procs {
++			procs = int32(limit)
++		}
++	}
++	return procs
++}
+diff --git a/src/runtime/cgroup_linux_test.go b/src/runtime/cgroup_linux_test.go
+new file mode 100644
+index 0000000000..0b060572b6
+--- /dev/null
++++ b/src/runtime/cgroup_linux_test.go
+@@ -0,0 +1,325 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"fmt"
++	"internal/cgrouptest"
++	"runtime"
++	"strings"
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++func mustHaveFourCPUs(t *testing.T) {
++	// If NumCPU is lower than the cgroup limit, GOMAXPROCS will use
++	// NumCPU.
++	//
++	// cgroup GOMAXPROCS also have a minimum of 2. We need some room above
++	// that to test interesting properies.
++	if runtime.NumCPU() < 4 {
++		t.Helper()
++		t.Skip("skipping test: fewer than 4 CPUs")
++	}
++}
++
++func TestCgroupGOMAXPROCS(t *testing.T) {
++	mustHaveFourCPUs(t)
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	tests := []struct {
++		godebug int
++		want    int
++	}{
++		// With containermaxprocs=1, GOMAXPROCS should use the cgroup
++		// limit.
++		{
++			godebug: 1,
++			want:    3,
++		},
++		// With containermaxprocs=0, it should be ignored.
++		{
++			godebug: 0,
++			want:    runtime.NumCPU(),
++		},
++	}
++	for _, tc := range tests {
++		t.Run(fmt.Sprintf("containermaxprocs=%d", tc.godebug), func(t *testing.T) {
++			cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++				if err := c.SetCPUMax(300000, 100000); err != nil {
++					t.Fatalf("unable to set CPU limit: %v", err)
++				}
++
++				got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", fmt.Sprintf("GODEBUG=containermaxprocs=%d", tc.godebug))
++				want := fmt.Sprintf("%d\n", tc.want)
++				if got != want {
++					t.Fatalf("output got %q want %q", got, want)
++				}
++			})
++		})
++	}
++}
++
++// Without a cgroup limit, GOMAXPROCS uses NumCPU.
++func TestCgroupGOMAXPROCSNoLimit(t *testing.T) {
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++		if err := c.SetCPUMax(-1, 100000); err != nil {
++			t.Fatalf("unable to set CPU limit: %v", err)
++		}
++
++		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
++		want := fmt.Sprintf("%d\n", runtime.NumCPU())
++		if got != want {
++			t.Fatalf("output got %q want %q", got, want)
++		}
++	})
++}
++
++// If the cgroup limit is higher than NumCPU, GOMAXPROCS uses NumCPU.
++func TestCgroupGOMAXPROCSHigherThanNumCPU(t *testing.T) {
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++		if err := c.SetCPUMax(2*int64(runtime.NumCPU())*100000, 100000); err != nil {
++			t.Fatalf("unable to set CPU limit: %v", err)
++		}
++
++		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
++		want := fmt.Sprintf("%d\n", runtime.NumCPU())
++		if got != want {
++			t.Fatalf("output got %q want %q", got, want)
++		}
++	})
++}
++
++func TestCgroupGOMAXPROCSRound(t *testing.T) {
++	mustHaveFourCPUs(t)
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	tests := []struct {
++		quota int64
++		want  int
++	}{
++		// We always round the fractional component up.
++		{
++			quota: 200001,
++			want:  3,
++		},
++		{
++			quota: 250000,
++			want:  3,
++		},
++		{
++			quota: 299999,
++			want:  3,
++		},
++		// Anything less than two rounds up to a minimum of 2.
++		{
++			quota: 50000, // 0.5
++			want:  2,
++		},
++		{
++			quota: 100000,
++			want:  2,
++		},
++		{
++			quota: 150000,
++			want:  2,
++		},
++	}
++	for _, tc := range tests {
++		t.Run(fmt.Sprintf("%d", tc.quota), func(t *testing.T) {
++			cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++				if err := c.SetCPUMax(tc.quota, 100000); err != nil {
++					t.Fatalf("unable to set CPU limit: %v", err)
++				}
++
++				got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
++				want := fmt.Sprintf("%d\n", tc.want)
++				if got != want {
++					t.Fatalf("output got %q want %q", got, want)
++				}
++			})
++		})
++	}
++}
++
++// Environment variable takes precedence over defaults.
++func TestCgroupGOMAXPROCSEnvironment(t *testing.T) {
++	mustHaveFourCPUs(t)
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++		if err := c.SetCPUMax(200000, 100000); err != nil {
++			t.Fatalf("unable to set CPU limit: %v", err)
++		}
++
++		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", "GOMAXPROCS=3")
++		want := "3\n"
++		if got != want {
++			t.Fatalf("output got %q want %q", got, want)
++		}
++	})
++}
++
++// CPU affinity takes priority if lower than cgroup limit.
++func TestCgroupGOMAXPROCSSchedAffinity(t *testing.T) {
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++		if err := c.SetCPUMax(300000, 100000); err != nil {
++			t.Fatalf("unable to set CPU limit: %v", err)
++		}
++
++		// CPU affinity is actually a per-thread attribute.
++		runtime.LockOSThread()
++		defer runtime.UnlockOSThread()
++
++		const maxCPUs = 64 * 1024
++		var orig [maxCPUs / 8]byte
++		_, _, errno := syscall.Syscall6(syscall.SYS_SCHED_GETAFFINITY, 0, unsafe.Sizeof(orig), uintptr(unsafe.Pointer(&orig[0])), 0, 0, 0)
++		if errno != 0 {
++			t.Fatalf("unable to get CPU affinity: %v", errno)
++		}
++
++		// We're going to restrict to CPUs 0 and 1. Make sure those are already available.
++		if orig[0]&0b11 != 0b11 {
++			t.Skipf("skipping test: CPUs 0 and 1 not available")
++		}
++
++		var mask [maxCPUs / 8]byte
++		mask[0] = 0b11
++		_, _, errno = syscall.Syscall6(syscall.SYS_SCHED_SETAFFINITY, 0, unsafe.Sizeof(mask), uintptr(unsafe.Pointer(&mask[0])), 0, 0, 0)
++		if errno != 0 {
++			t.Fatalf("unable to set CPU affinity: %v", errno)
++		}
++		defer func() {
++			_, _, errno = syscall.Syscall6(syscall.SYS_SCHED_SETAFFINITY, 0, unsafe.Sizeof(orig), uintptr(unsafe.Pointer(&orig[0])), 0, 0, 0)
++			if errno != 0 {
++				t.Fatalf("unable to restore CPU affinity: %v", errno)
++			}
++		}()
++
++		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
++		want := "2\n"
++		if got != want {
++			t.Fatalf("output got %q want %q", got, want)
++		}
++	})
++}
++
++func TestCgroupGOMAXPROCSSetDefault(t *testing.T) {
++	mustHaveFourCPUs(t)
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	tests := []struct {
++		godebug int
++		want    int
++	}{
++		// With containermaxprocs=1, SetDefaultGOMAXPROCS should observe
++		// the cgroup limit.
++		{
++			godebug: 1,
++			want:    3,
++		},
++		// With containermaxprocs=0, it should be ignored.
++		{
++			godebug: 0,
++			want:    runtime.NumCPU(),
++		},
++	}
++	for _, tc := range tests {
++		t.Run(fmt.Sprintf("containermaxprocs=%d", tc.godebug), func(t *testing.T) {
++			cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++				env := []string{
++					fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()),
++					"GO_TEST_CPU_MAX_QUOTA=300000",
++					fmt.Sprintf("GODEBUG=containermaxprocs=%d", tc.godebug),
++				}
++				got := runBuiltTestProg(t, exe, "SetLimitThenDefaultGOMAXPROCS", env...)
++				want := fmt.Sprintf("%d\n", tc.want)
++				if got != want {
++					t.Fatalf("output got %q want %q", got, want)
++				}
++			})
++		})
++	}
++}
++
++func TestCgroupGOMAXPROCSUpdate(t *testing.T) {
++	mustHaveFourCPUs(t)
++
++	if testing.Short() {
++		t.Skip("skipping test: long sleeps")
++	}
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++		got := runBuiltTestProg(t, exe, "UpdateGOMAXPROCS", fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()))
++		if !strings.Contains(got, "OK") {
++			t.Fatalf("output got %q want OK", got)
++		}
++	})
++}
++
++func TestCgroupGOMAXPROCSDontUpdate(t *testing.T) {
++	mustHaveFourCPUs(t)
++
++	if testing.Short() {
++		t.Skip("skipping test: long sleeps")
++	}
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Two ways to disable updates: explicit GOMAXPROCS or GODEBUG for
++	// update feature.
++	for _, v := range []string{"GOMAXPROCS=4", "GODEBUG=updatemaxprocs=0"} {
++		t.Run(v, func(t *testing.T) {
++			cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
++				got := runBuiltTestProg(t, exe, "DontUpdateGOMAXPROCS",
++					fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()),
++					v)
++				if !strings.Contains(got, "OK") {
++					t.Fatalf("output got %q want OK", got)
++				}
++			})
++		})
++	}
++}
+diff --git a/src/runtime/cgroup_stubs.go b/src/runtime/cgroup_stubs.go
+new file mode 100644
+index 0000000000..1f37b1783b
+--- /dev/null
++++ b/src/runtime/cgroup_stubs.go
+@@ -0,0 +1,24 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux
++
++package runtime
++
++func defaultGOMAXPROCSInit()          {}
++func defaultGOMAXPROCSUpdateGODEBUG() {}
++
++func defaultGOMAXPROCS(ncpu int32) int32 {
++	// Use the total number of logical CPUs available now, as CPU affinity
++	// may change after start.
++	//
++	// TODO(prattmic): On some GOOS getCPUCount can never change. Don't
++	// bother calling over and over.
++
++	procs := ncpu
++	if procs <= 0 {
++		procs = getCPUCount()
++	}
++	return procs
++}
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 57e9ba8d7d..94d1dab34d 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -10,9 +10,28 @@ import (
+ )
+ 
+ // GOMAXPROCS sets the maximum number of CPUs that can be executing
+-// simultaneously and returns the previous setting. It defaults to
+-// the value of [runtime.NumCPU]. If n < 1, it does not change the current setting.
+-// This call will go away when the scheduler improves.
++// simultaneously and returns the previous setting. If n < 1, it does not change
++// the current setting.
++//
++// If the GOMAXPROCS environment variable is set to a positive whole number,
++// GOMAXPROCS defaults to that value.
++//
++// Otherwise, the Go runtime selects an appropriate default value based on the
++// number of logical CPUs on the machine, the process’s CPU affinity mask, and,
++// on Linux, the process’s average CPU throughput limit based on cgroup CPU
++// quota, if any.
++//
++// The Go runtime periodically updates the default value based on changes to
++// the total logical CPU count, the CPU affinity mask, or cgroup quota. Setting
++// a custom value with the GOMAXPROCS environment variable or by calling
++// GOMAXPROCS disables automatic updates. The default value and automatic
++// updates can be restored by calling [SetDefaultGOMAXPROCS].
++//
++// If GODEBUG=containermaxprocs=0 is set, GOMAXPROCS defaults to the value of
++// [runtime.NumCPU]. If GODEBUG=updatemaxprocs=0 is set, the Go runtime does
++// not perform automatic GOMAXPROCS updating.
++//
++// The default GOMAXPROCS behavior may change as the scheduler improves.
+ func GOMAXPROCS(n int) int {
+ 	if GOARCH == "wasm" && n > 1 {
+ 		n = 1 // WebAssembly has no threads yet, so only one CPU is possible.
+@@ -28,12 +47,55 @@ func GOMAXPROCS(n int) int {
+ 	stw := stopTheWorldGC(stwGOMAXPROCS)
+ 
+ 	// newprocs will be processed by startTheWorld
++	//
++	// TODO(prattmic): this could use a nicer API. Perhaps add it to the
++	// stw parameter?
+ 	newprocs = int32(n)
++	newprocsCustom = true
+ 
+ 	startTheWorldGC(stw)
+ 	return ret
+ }
+ 
++// SetDefaultGOMAXPROCS updates the GOMAXPROCS setting to the runtime
++// default, as described by [GOMAXPROCS], ignoring the GOMAXPROCS
++// environment variable.
++//
++// SetDefaultGOMAXPROCS can be used to enable the default automatic updating
++// GOMAXPROCS behavior if it has been disabled by the GOMAXPROCS
++// environment variable or a prior call to [GOMAXPROCS], or to force an immediate
++// update if the caller is aware of a change to the total logical CPU count, CPU
++// affinity mask or cgroup quota.
++func SetDefaultGOMAXPROCS() {
++	// SetDefaultGOMAXPROCS conceptually means "[re]do what the runtime
++	// would do at startup if the GOMAXPROCS environment variable were
++	// unset." It still respects GODEBUG.
++
++	procs := defaultGOMAXPROCS(0)
++
++	lock(&sched.lock)
++	curr := gomaxprocs
++	custom := sched.customGOMAXPROCS
++	unlock(&sched.lock)
++
++	if !custom && procs == curr {
++		// Nothing to do if we're already using automatic GOMAXPROCS
++		// and the limit is unchanged.
++		return
++	}
++
++	stw := stopTheWorldGC(stwGOMAXPROCS)
++
++	// newprocs will be processed by startTheWorld
++	//
++	// TODO(prattmic): this could use a nicer API. Perhaps add it to the
++	// stw parameter?
++	newprocs = procs
++	newprocsCustom = false
++
++	startTheWorldGC(stw)
++}
++
+ // NumCPU returns the number of logical CPUs usable by the current process.
+ //
+ // The set of available CPUs is checked by querying the operating system
+diff --git a/src/runtime/float.go b/src/runtime/float.go
+index 9f281c4045..d8573c103b 100644
+--- a/src/runtime/float.go
++++ b/src/runtime/float.go
+@@ -6,6 +6,12 @@ package runtime
+ 
+ import "unsafe"
+ 
++const (
++	float64Mask  = 0x7FF
++	float64Shift = 64 - 11 - 1
++	float64Bias  = 1023
++)
++
+ var inf = float64frombits(0x7FF0000000000000)
+ 
+ // isNaN reports whether f is an IEEE 754 “not-a-number” value.
+@@ -52,3 +58,76 @@ func float64bits(f float64) uint64 {
+ func float64frombits(b uint64) float64 {
+ 	return *(*float64)(unsafe.Pointer(&b))
+ }
++
++// floor returns the greatest integer value less than or equal to x.
++//
++// Special cases are:
++//
++//	floor(±0) = ±0
++//	floor(±Inf) = ±Inf
++//	floor(NaN) = NaN
++//
++// N.B. Portable floor copied from math. math also has optimized arch-specific
++// implementations.
++func floor(x float64) float64 {
++	if x == 0 || isNaN(x) || isInf(x) {
++		return x
++	}
++	if x < 0 {
++		d, fract := modf(-x)
++		if fract != 0.0 {
++			d = d + 1
++		}
++		return -d
++	}
++	d, _ := modf(x)
++	return d
++}
++
++// ceil returns the least integer value greater than or equal to x.
++//
++// Special cases are:
++//
++//	Ceil(±0) = ±0
++//	Ceil(±Inf) = ±Inf
++//	Ceil(NaN) = NaN
++//
++// N.B. Portable ceil copied from math. math also has optimized arch-specific
++// implementations.
++func ceil(x float64) float64 {
++	return -floor(-x)
++}
++
++// modf returns integer and fractional floating-point numbers
++// that sum to f. Both values have the same sign as f.
++//
++// Special cases are:
++//
++//	Modf(±Inf) = ±Inf, NaN
++//	Modf(NaN) = NaN, NaN
++//
++// N.B. Portable modf copied from math. math also has optimized arch-specific
++// implementations.
++func modf(f float64) (int float64, frac float64) {
++	if f < 1 {
++		switch {
++		case f < 0:
++			int, frac = modf(-f)
++			return -int, -frac
++		case f == 0:
++			return f, f // Return -0, -0 when f == -0
++		}
++		return 0, f
++	}
++
++	x := float64bits(f)
++	e := uint(x>>float64Shift)&float64Mask - float64Bias
++
++	// Keep the top 12+e bits, the integer part; clear the rest.
++	if e < 64-12 {
++		x &^= 1<<(64-12-e) - 1
++	}
++	int = float64frombits(x)
++	frac = f - int
++	return
++}
+diff --git a/src/runtime/gomaxprocs_windows_test.go b/src/runtime/gomaxprocs_windows_test.go
+new file mode 100644
+index 0000000000..caa3e0cf8a
+--- /dev/null
++++ b/src/runtime/gomaxprocs_windows_test.go
+@@ -0,0 +1,44 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestGOMAXPROCSUpdate(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test: long sleeps")
++	}
++
++	got := runTestProg(t, "testprog", "WindowsUpdateGOMAXPROCS")
++	if strings.Contains(got, "SKIP") {
++		t.Skip(got)
++	}
++	if !strings.Contains(got, "OK") {
++		t.Fatalf("output got %q want OK", got)
++	}
++}
++
++func TestCgroupGOMAXPROCSDontUpdate(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test: long sleeps")
++	}
++
++	// Two ways to disable updates: explicit GOMAXPROCS or GODEBUG for
++	// update feature.
++	for _, v := range []string{"GOMAXPROCS=4", "GODEBUG=updatemaxprocs=0"} {
++		t.Run(v, func(t *testing.T) {
++			got := runTestProg(t, "testprog", "WindowsUpdateGOMAXPROCS", v)
++			if strings.Contains(got, "SKIP") {
++				t.Skip(got)
++			}
++			if !strings.Contains(got, "OK") {
++				t.Fatalf("output got %q want OK", got)
++			}
++		})
++	}
++}
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 024fc1ebf4..456f2b75e6 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -14,6 +14,7 @@ const (
+ 	lockRankSysmon
+ 	lockRankScavenge
+ 	lockRankForcegc
++	lockRankUpdateGOMAXPROCS
+ 	lockRankDefer
+ 	lockRankSweepWaiters
+ 	lockRankAssistQueue
+@@ -90,6 +91,7 @@ var lockNames = []string{
+ 	lockRankSysmon:              "sysmon",
+ 	lockRankScavenge:            "scavenge",
+ 	lockRankForcegc:             "forcegc",
++	lockRankUpdateGOMAXPROCS:    "updateGOMAXPROCS",
+ 	lockRankDefer:               "defer",
+ 	lockRankSweepWaiters:        "sweepWaiters",
+ 	lockRankAssistQueue:         "assistQueue",
+@@ -172,6 +174,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankSysmon:              {},
+ 	lockRankScavenge:            {lockRankSysmon},
+ 	lockRankForcegc:             {lockRankSysmon},
++	lockRankUpdateGOMAXPROCS:    {lockRankSysmon},
+ 	lockRankDefer:               {},
+ 	lockRankSweepWaiters:        {},
+ 	lockRankAssistQueue:         {},
+@@ -188,11 +191,11 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankPollDesc:            {},
+ 	lockRankWakeableSleep:       {},
+ 	lockRankHchan:               {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankWakeableSleep, lockRankHchan},
+-	lockRankAllocmR:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
+-	lockRankExecR:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
+-	lockRankSched:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR},
+-	lockRankAllg:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
+-	lockRankAllp:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
++	lockRankAllocmR:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
++	lockRankExecR:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
++	lockRankSched:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR},
++	lockRankAllg:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
++	lockRankAllp:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
+ 	lockRankNotifyList:          {},
+ 	lockRankSudog:               {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList},
+ 	lockRankTimers:              {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankTimers},
+@@ -205,29 +208,29 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankUserArenaState:      {},
+ 	lockRankTraceBuf:            {lockRankSysmon, lockRankScavenge},
+ 	lockRankTraceStrings:        {lockRankSysmon, lockRankScavenge, lockRankTraceBuf},
+-	lockRankFin:                 {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankSpanSetSpine:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankMspanSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankTraceTypeTab:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankGcBitsArenas:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
+-	lockRankProfInsert:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfBlock:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfMemActive:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfMemFuture:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
+-	lockRankGscan:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture},
+-	lockRankStackpool:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankStackLarge:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankHchanLeaf:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankHchanLeaf},
+-	lockRankWbufSpans:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankMheap:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
+-	lockRankMheapSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankGlobalAlloc:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankMheapSpecial},
+-	lockRankTrace:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankTraceStackTab:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
++	lockRankFin:                 {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankSpanSetSpine:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankMspanSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankTraceTypeTab:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankGcBitsArenas:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
++	lockRankProfInsert:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfBlock:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfMemActive:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfMemFuture:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
++	lockRankGscan:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture},
++	lockRankStackpool:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankStackLarge:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankHchanLeaf:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankHchanLeaf},
++	lockRankWbufSpans:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankMheap:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
++	lockRankMheapSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
++	lockRankGlobalAlloc:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankMheapSpecial},
++	lockRankTrace:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
++	lockRankTraceStackTab:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
+ 	lockRankPanic:               {},
+ 	lockRankDeadlock:            {lockRankPanic, lockRankDeadlock},
+ 	lockRankRaceFini:            {lockRankPanic},
+-	lockRankAllocmRInternal:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankAllocmW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR},
+-	lockRankExecRInternal:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankExecR},
++	lockRankAllocmRInternal:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankAllocmW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR},
++	lockRankExecRInternal:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankUpdateGOMAXPROCS, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankExecR},
+ 	lockRankTestRInternal:       {lockRankTestR, lockRankTestW},
+ }
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 0d35314e06..8204e87fd1 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -234,6 +234,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the time package
+ 		due to a non-default GODEBUG=asynctimerchan=... setting.
+ 
++	/godebug/non-default-behavior/containermaxprocs:events
++		The number of non-default behaviors executed by the runtime
++		package due to a non-default GODEBUG=containermaxprocs=...
++		setting.
++
+ 	/godebug/non-default-behavior/embedfollowsymlinks:events
+ 		The number of non-default behaviors executed by the cmd/go
+ 		package due to a non-default GODEBUG=embedfollowsymlinks=...
+@@ -349,6 +354,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/tls
+ 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+ 
++	/godebug/non-default-behavior/updatemaxprocs:events
++		The number of non-default behaviors executed by the runtime
++		package due to a non-default GODEBUG=updatemaxprocs=... setting.
++
+ 	/godebug/non-default-behavior/winreadlinkvolume:events
+ 		The number of non-default behaviors executed by the os package
+ 		due to a non-default GODEBUG=winreadlinkvolume=... setting.
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index dd30541211..6cccece9b5 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -41,7 +41,7 @@ const ranks = `
+ # Sysmon
+ NONE
+ < sysmon
+-< scavenge, forcegc;
++< scavenge, forcegc, updateGOMAXPROCS;
+ 
+ # Defer
+ NONE < defer;
+@@ -66,6 +66,7 @@ assistQueue,
+   cleanupQueue,
+   cpuprof,
+   forcegc,
++  updateGOMAXPROCS,
+   hchan,
+   pollDesc, # pollDesc can interact with timers, which can lock sched.
+   scavenge,
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 55cb630b5d..4925528783 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -210,6 +210,7 @@ func main() {
+ 	}()
+ 
+ 	gcenable()
++	defaultGOMAXPROCSUpdateEnable() // don't STW before runtime initialized.
+ 
+ 	main_init_done = make(chan bool)
+ 	if iscgo {
+@@ -897,12 +898,24 @@ func schedinit() {
+ 
+ 	// mcommoninit runs before parsedebugvars, so init profstacks again.
+ 	mProfStackInit(gp.m)
++	defaultGOMAXPROCSInit()
+ 
+ 	lock(&sched.lock)
+ 	sched.lastpoll.Store(nanotime())
+-	procs := numCPUStartup
++	var procs int32
+ 	if n, ok := strconv.Atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
+ 		procs = n
++		sched.customGOMAXPROCS = true
++	} else {
++		// Use numCPUStartup for initial GOMAXPROCS for two reasons:
++		//
++		// 1. We just computed it in osinit, recomputing is (minorly) wasteful.
++		//
++		// 2. More importantly, if debug.containermaxprocs == 0 &&
++		//    debug.updatemaxprocs == 0, we want to guarantee that
++		//    runtime.GOMAXPROCS(0) always equals runtime.NumCPU (which is
++		//    just numCPUStartup).
++		procs = defaultGOMAXPROCS(numCPUStartup)
+ 	}
+ 	if procresize(procs) != nil {
+ 		throw("unknown runnable goroutine during bootstrap")
+@@ -1714,6 +1727,7 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
+ 	procs := gomaxprocs
+ 	if newprocs != 0 {
+ 		procs = newprocs
++		sched.customGOMAXPROCS = newprocsCustom
+ 		newprocs = 0
+ 	}
+ 	p1 := procresize(procs)
+@@ -6146,6 +6160,7 @@ func sysmon() {
+ 	checkdead()
+ 	unlock(&sched.lock)
+ 
++	lastgomaxprocs := int64(0)
+ 	lasttrace := int64(0)
+ 	idle := 0 // how many cycles in succession we had not wokeup somebody
+ 	delay := uint32(0)
+@@ -6259,6 +6274,11 @@ func sysmon() {
+ 				startm(nil, false, false)
+ 			}
+ 		}
++		// Check if we need to update GOMAXPROCS at most once per second.
++		if debug.updatemaxprocs != 0 && lastgomaxprocs+1e9 <= now {
++			sysmonUpdateGOMAXPROCS()
++			lastgomaxprocs = now
++		}
+ 		if scavenger.sysmonWake.Load() != 0 {
+ 			// Kick the scavenger awake if someone requested it.
+ 			scavenger.wake()
+@@ -6526,6 +6546,97 @@ func schedtrace(detailed bool) {
+ 	unlock(&sched.lock)
+ }
+ 
++type updateGOMAXPROCSState struct {
++	lock mutex
++	g    *g
++	idle atomic.Bool
++
++	// Readable when idle == false, writable when idle == true.
++	procs int32 // new GOMAXPROCS value
++}
++
++var (
++	updateGOMAXPROCS updateGOMAXPROCSState
++
++	updatemaxprocs = &godebugInc{name: "updatemaxprocs"}
++)
++
++// Start GOMAXPROCS update helper goroutine.
++//
++// This is based on forcegchelper.
++func defaultGOMAXPROCSUpdateEnable() {
++	go updateGOMAXPROCSHelper()
++}
++
++func updateGOMAXPROCSHelper() {
++	updateGOMAXPROCS.g = getg()
++	lockInit(&updateGOMAXPROCS.lock, lockRankUpdateGOMAXPROCS)
++	for {
++		lock(&updateGOMAXPROCS.lock)
++		if updateGOMAXPROCS.idle.Load() {
++			throw("updateGOMAXPROCS: phase error")
++		}
++		updateGOMAXPROCS.idle.Store(true)
++		goparkunlock(&updateGOMAXPROCS.lock, waitReasonUpdateGOMAXPROCSIdle, traceBlockSystemGoroutine, 1)
++		// This goroutine is explicitly resumed by sysmon.
++
++		stw := stopTheWorldGC(stwGOMAXPROCS)
++
++		// Still OK to update?
++		lock(&sched.lock)
++		custom := sched.customGOMAXPROCS
++		unlock(&sched.lock)
++		if custom {
++			startTheWorldGC(stw)
++			return
++		}
++
++		// newprocs will be processed by startTheWorld
++		//
++		// TODO(prattmic): this could use a nicer API. Perhaps add it to the
++		// stw parameter?
++		newprocs = updateGOMAXPROCS.procs
++		newprocsCustom = false
++
++		startTheWorldGC(stw)
++
++		// We actually changed something.
++		updatemaxprocs.IncNonDefault()
++	}
++}
++
++func sysmonUpdateGOMAXPROCS() {
++	// No update if GOMAXPROCS was set manually.
++	lock(&sched.lock)
++	custom := sched.customGOMAXPROCS
++	curr := gomaxprocs
++	unlock(&sched.lock)
++	if custom {
++		return
++	}
++
++	// Don't hold sched.lock while we read the filesystem.
++	procs := defaultGOMAXPROCS(0)
++
++	if procs == curr {
++		// Nothing to do.
++		return
++	}
++
++	// Sysmon can't directly stop the world. Run the helper to do so on our
++	// behalf. If updateGOMAXPROCS.idle is false, then a previous update is
++	// still pending.
++	if updateGOMAXPROCS.idle.Load() {
++		lock(&updateGOMAXPROCS.lock)
++		updateGOMAXPROCS.procs = procs
++		updateGOMAXPROCS.idle.Store(false)
++		var list gList
++		list.push(updateGOMAXPROCS.g)
++		injectglist(&list)
++		unlock(&updateGOMAXPROCS.lock)
++	}
++}
++
+ // schedEnableUser enables or disables the scheduling of user
+ // goroutines.
+ //
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 3afb6558b0..016cbdae58 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -151,6 +151,7 @@ func godebug_setNewIncNonDefault(newIncNonDefault func(string) func()) {
+ 	p := new(func(string) func())
+ 	*p = newIncNonDefault
+ 	godebugNewIncNonDefault.Store(p)
++	defaultGOMAXPROCSUpdateGODEBUG()
+ }
+ 
+ // A godebugInc provides access to internal/godebug's IncNonDefault function
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 975d401694..424745d235 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -310,6 +310,7 @@ type dbgVar struct {
+ var debug struct {
+ 	cgocheck                 int32
+ 	clobberfree              int32
++	containermaxprocs        int32
+ 	decoratemappings         int32
+ 	disablethp               int32
+ 	dontfreezetheworld       int32
+@@ -325,6 +326,7 @@ var debug struct {
+ 	scheddetail              int32
+ 	schedtrace               int32
+ 	tracebackancestors       int32
++	updatemaxprocs           int32
+ 	asyncpreemptoff          int32
+ 	harddecommit             int32
+ 	adaptivestackstart       int32
+@@ -370,6 +372,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
+ 	{name: "cgocheck", value: &debug.cgocheck},
+ 	{name: "clobberfree", value: &debug.clobberfree},
++	{name: "containermaxprocs", value: &debug.containermaxprocs, def: 1},
+ 	{name: "dataindependenttiming", value: &debug.dataindependenttiming},
+ 	{name: "decoratemappings", value: &debug.decoratemappings, def: 1},
+ 	{name: "disablethp", value: &debug.disablethp},
+@@ -396,6 +399,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
+ 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+ 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
++	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},
+ }
+ 
+ func parsedebugvars() {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 65b31f737b..94ab87f6db 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -840,6 +840,8 @@ type schedt struct {
+ 	procresizetime int64 // nanotime() of last change to gomaxprocs
+ 	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
+ 
++	customGOMAXPROCS bool // GOMAXPROCS was manually set from the environment or runtime.GOMAXPROCS
++
+ 	// sysmonlock protects sysmon's actions on the runtime.
+ 	//
+ 	// Acquire and hold this mutex to block sysmon from interacting
+@@ -1067,6 +1069,7 @@ const (
+ 	waitReasonChanSend                                // "chan send"
+ 	waitReasonFinalizerWait                           // "finalizer wait"
+ 	waitReasonForceGCIdle                             // "force gc (idle)"
++	waitReasonUpdateGOMAXPROCSIdle                    // "GOMAXPROCS updater (idle)"
+ 	waitReasonSemacquire                              // "semacquire"
+ 	waitReasonSleep                                   // "sleep"
+ 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
+@@ -1115,6 +1118,7 @@ var waitReasonStrings = [...]string{
+ 	waitReasonChanSend:              "chan send",
+ 	waitReasonFinalizerWait:         "finalizer wait",
+ 	waitReasonForceGCIdle:           "force gc (idle)",
++	waitReasonUpdateGOMAXPROCSIdle:  "GOMAXPROCS updater (idle)",
+ 	waitReasonSemacquire:            "semacquire",
+ 	waitReasonSleep:                 "sleep",
+ 	waitReasonSyncCondWait:          "sync.Cond.Wait",
+@@ -1201,12 +1205,13 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
+ }
+ 
+ var (
+-	allm          *m
+-	gomaxprocs    int32
+-	numCPUStartup int32
+-	forcegc       forcegcstate
+-	sched         schedt
+-	newprocs      int32
++	allm           *m
++	gomaxprocs     int32
++	numCPUStartup  int32
++	forcegc        forcegcstate
++	sched          schedt
++	newprocs       int32
++	newprocsCustom bool // newprocs value is manually set via runtime.GOMAXPROCS.
+ )
+ 
+ var (
+diff --git a/src/runtime/testdata/testprog/gomaxprocs.go b/src/runtime/testdata/testprog/gomaxprocs.go
+new file mode 100644
+index 0000000000..915e3c4dad
+--- /dev/null
++++ b/src/runtime/testdata/testprog/gomaxprocs.go
+@@ -0,0 +1,152 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++	"strconv"
++	"time"
++)
++
++func init() {
++	register("PrintGOMAXPROCS", PrintGOMAXPROCS)
++	register("SetLimitThenDefaultGOMAXPROCS", SetLimitThenDefaultGOMAXPROCS)
++	register("UpdateGOMAXPROCS", UpdateGOMAXPROCS)
++	register("DontUpdateGOMAXPROCS", DontUpdateGOMAXPROCS)
++}
++
++func PrintGOMAXPROCS() {
++	println(runtime.GOMAXPROCS(0))
++}
++
++func mustSetCPUMax(path string, quota int64) {
++	q := "max"
++	if quota >= 0 {
++		q = strconv.FormatInt(quota, 10)
++	}
++	buf := fmt.Sprintf("%s 100000", q)
++	if err := os.WriteFile(path, []byte(buf), 0); err != nil {
++		panic(fmt.Sprintf("error setting cpu.max: %v", err))
++	}
++}
++
++func mustParseInt64(s string) int64 {
++	v, err := strconv.ParseInt(s, 10, 64)
++	if err != nil {
++		panic(err)
++	}
++	return v
++}
++
++// Inputs:
++// GO_TEST_CPU_MAX_PATH: Path to cgroup v2 cpu.max file.
++// GO_TEST_CPU_MAX_QUOTA: CPU quota to set.
++func SetLimitThenDefaultGOMAXPROCS() {
++	path := os.Getenv("GO_TEST_CPU_MAX_PATH")
++	quota := mustParseInt64(os.Getenv("GO_TEST_CPU_MAX_QUOTA"))
++
++	mustSetCPUMax(path, quota)
++
++	runtime.SetDefaultGOMAXPROCS()
++	println(runtime.GOMAXPROCS(0))
++}
++
++// Wait for GOMAXPROCS to change from from to to. Times out after 10s.
++func waitForMaxProcsChange(from, to int) {
++	start := time.Now()
++	for {
++		if time.Since(start) > 10*time.Second {
++			panic("no update for >10s")
++		}
++
++		procs := runtime.GOMAXPROCS(0)
++		println("GOMAXPROCS:", procs)
++		if procs == to {
++			return
++		}
++		if procs != from {
++			panic(fmt.Sprintf("GOMAXPROCS change got %d want %d", procs, to))
++		}
++
++		time.Sleep(100*time.Millisecond)
++	}
++}
++
++// Make sure that GOMAXPROCS does not change from curr.
++//
++// It is impossible to assert that it never changes, so this just makes sure it
++// stays for 5s.
++func mustNotChangeMaxProcs(curr int) {
++	start := time.Now()
++	for {
++		if time.Since(start) > 5*time.Second {
++			return
++		}
++
++		procs := runtime.GOMAXPROCS(0)
++		println("GOMAXPROCS:", procs)
++		if procs != curr {
++			panic(fmt.Sprintf("GOMAXPROCS change got %d want %d", procs, curr))
++		}
++
++		time.Sleep(100*time.Millisecond)
++	}
++}
++
++// Inputs:
++// GO_TEST_CPU_MAX_PATH: Path to cgroup v2 cpu.max file.
++func UpdateGOMAXPROCS() {
++	// We start with no limit.
++
++	ncpu := runtime.NumCPU()
++
++	procs := runtime.GOMAXPROCS(0)
++	println("GOMAXPROCS:", procs)
++	if procs != ncpu {
++		panic(fmt.Sprintf("GOMAXPROCS got %d want %d", procs, ncpu))
++	}
++
++	path := os.Getenv("GO_TEST_CPU_MAX_PATH")
++
++	// Drop down to 3 CPU.
++	mustSetCPUMax(path, 300000)
++	waitForMaxProcsChange(ncpu, 3)
++
++	// Drop even further. Now we hit the minimum GOMAXPROCS=2.
++	mustSetCPUMax(path, 100000)
++	waitForMaxProcsChange(3, 2)
++
++	// Increase back up.
++	mustSetCPUMax(path, 300000)
++	waitForMaxProcsChange(2, 3)
++
++	// Remove limit entirely.
++	mustSetCPUMax(path, -1)
++	waitForMaxProcsChange(3, ncpu)
++
++	// Setting GOMAXPROCS explicitly disables updates.
++	runtime.GOMAXPROCS(3)
++	mustSetCPUMax(path, 200000)
++	mustNotChangeMaxProcs(3)
++
++	println("OK")
++}
++
++// Inputs:
++// GO_TEST_CPU_MAX_PATH: Path to cgroup v2 cpu.max file.
++func DontUpdateGOMAXPROCS() {
++	// The caller has disabled updates. Make sure they don't happen.
++
++	curr := runtime.GOMAXPROCS(0)
++	println("GOMAXPROCS:", curr)
++
++	path := os.Getenv("GO_TEST_CPU_MAX_PATH")
++	mustSetCPUMax(path, 300000)
++	mustNotChangeMaxProcs(curr)
++
++	println("OK")
++}
+diff --git a/src/runtime/testdata/testprog/gomaxprocs_windows.go b/src/runtime/testdata/testprog/gomaxprocs_windows.go
+new file mode 100644
+index 0000000000..bc7a4b1063
+--- /dev/null
++++ b/src/runtime/testdata/testprog/gomaxprocs_windows.go
+@@ -0,0 +1,63 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os"
++	"runtime"
++	"syscall"
++	"unsafe"
++)
++
++func init() {
++	register("WindowsUpdateGOMAXPROCS", WindowsUpdateGOMAXPROCS)
++	register("WindowsDontUpdateGOMAXPROCS", WindowsDontUpdateGOMAXPROCS)
++}
++
++// Set CPU affinity mask to only two CPUs.
++//
++// Skips the test if CPUs 0 and 1 are not available.
++func setAffinity2() {
++	kernel32 := syscall.MustLoadDLL("kernel32.dll")
++	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
++	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
++
++	h, err := syscall.GetCurrentProcess()
++	if err != nil {
++		panic(err)
++	}
++
++	var mask, sysmask uintptr
++	ret, _, err := _GetProcessAffinityMask.Call(uintptr(h), uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
++	if ret == 0 {
++		panic(err)
++	}
++
++	// We're going to restrict to CPUs 0 and 1. Make sure those are already available.
++	if mask & 0b11 != 0b11 {
++		println("SKIP: CPUs 0 and 1 not available")
++		os.Exit(0)
++	}
++
++	mask = 0b11
++	ret, _, err = _SetProcessAffinityMask.Call(uintptr(h), mask)
++	if ret == 0 {
++		panic(err)
++	}
++}
++
++func WindowsUpdateGOMAXPROCS() {
++	ncpu := runtime.NumCPU()
++	setAffinity2()
++	waitForMaxProcsChange(ncpu, 2)
++	println("OK")
++}
++
++func WindowsDontUpdateGOMAXPROCS() {
++	ncpu := runtime.NumCPU()
++	setAffinity2()
++	mustNotChangeMaxProcs(ncpu)
++	println("OK")
++}

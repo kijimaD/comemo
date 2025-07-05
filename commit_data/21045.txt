@@ -11,7 +11,7 @@ Date:   Mon Nov 10 14:59:36 2014 -0500
     R=rlh
     CC=golang-codereviews
     https://golang.org/cl/166440044
-
+---
  src/runtime/asm_386.s      |  6 +++---
  src/runtime/asm_amd64.s    |  6 +++---
  src/runtime/asm_amd64p32.s |  6 +++---
@@ -24,3 +24,318 @@ Date:   Mon Nov 10 14:59:36 2014 -0500
  src/runtime/string.c       |  2 +-
  src/runtime/stubs.go       |  3 ---
  11 files changed, 67 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 2d102b2735..d456e6bca4 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -502,7 +502,7 @@ fail:
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-13
++TEXT runtime·casp1(SB), NOSPLIT, $0-13
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+@@ -537,7 +537,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+@@ -555,7 +555,7 @@ again:
+ 	JNZ	again
+ 	RET
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ac9c58cf3e..5d176575c3 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -489,7 +489,7 @@ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-25
++TEXT runtime·casp1(SB), NOSPLIT, $0-25
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	old+8(FP), AX
+ 	MOVQ	new+16(FP), CX
+@@ -541,7 +541,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-24
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	new+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+@@ -559,7 +559,7 @@ again:
+ 	JNZ	again
+ 	RET
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index de3ef3a237..2b2155753e 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -460,7 +460,7 @@ fail:
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-17
++TEXT runtime·casp1(SB), NOSPLIT, $0-17
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+@@ -512,7 +512,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-12
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+@@ -530,7 +530,7 @@ again:
+ 	JNZ	again
+ 	RET
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+diff --git a/src/runtime/asm_power64x.s b/src/runtime/asm_power64x.s
+index f77658032e..fd0c6be161 100644
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_power64x.s
+@@ -472,7 +472,7 @@ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-25
++TEXT runtime·casp1(SB), NOSPLIT, $0-25
+ 	BR runtime·cas64(SB)
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+@@ -529,7 +529,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVD	R3, ret+16(FP)
+ 	RETURN
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-24
++TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
+ 	BR	runtime·xchg64(SB)
+ 
+ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+@@ -538,7 +538,7 @@ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ 	RETURN
+ 
+-TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
++TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
+ 	BR	runtime·atomicstore64(SB)
+ 
+ TEXT runtime·atomicstore(SB), NOSPLIT, $0-12
+diff --git a/src/runtime/atomic.go b/src/runtime/atomic.go
+index 7e9d9b3aad..a0e4d84e98 100644
+--- a/src/runtime/atomic.go
++++ b/src/runtime/atomic.go
+@@ -20,8 +20,16 @@ func xchg(ptr *uint32, new uint32) uint32
+ //go:noescape
+ func xchg64(ptr *uint64, new uint64) uint64
+ 
+-//go:noescape
+-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
++// Cannot use noescape here: ptr does not but new does escape.
++// Instead use noescape(ptr) in wrapper below.
++func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
++
++//go:nosplit
++func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
++	old := xchgp1(noescape(ptr), new)
++	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
++	return old
++}
+ 
+ //go:noescape
+ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+@@ -47,5 +55,27 @@ func atomicstore(ptr *uint32, val uint32)
+ //go:noescape
+ func atomicstore64(ptr *uint64, val uint64)
+ 
+-//go:noescape
+-func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
++// Cannot use noescape here: ptr does not but val does escape.
++// Instead use noescape(ptr) in wrapper below.
++func atomicstorep1(ptr unsafe.Pointer, val unsafe.Pointer)
++
++//go:nosplit
++func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer) {
++	atomicstorep1(noescape(ptr), val)
++	// TODO(rsc): Why does the compiler think writebarrierptr_nostore's dst argument escapes?
++	writebarrierptr_nostore((*uintptr)(noescape(ptr)), uintptr(val))
++}
++
++// Cannot use noescape here: ptr does not but new does escape.
++// Instead use noescape(ptr) in wrapper below.
++func casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
++
++//go:nosplit
++func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
++	ok := casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), old, new)
++	if !ok {
++		return false
++	}
++	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
++	return true
++}
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 3f6cce5c0f..8d87107c74 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1098,7 +1098,6 @@ runtime·gcmarkwb_m()
+ 	slot = (byte**)g->m->scalararg[0];
+ 	ptr = (byte*)g->m->scalararg[1];
+ 
+-	*slot = ptr;
+ 	switch(runtime·gcphase) {
+ 	default:
+ 		runtime·throw("gcphasework in bad gcphase");
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index ce5c290efa..760d2a5453 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -92,13 +92,24 @@ const (
+ // but if we do that, Go inserts a write barrier on *dst = src.
+ //go:nosplit
+ func writebarrierptr(dst *uintptr, src uintptr) {
++	*dst = src
++	writebarrierptr_nostore(dst, src)
++}
++
++// Like writebarrierptr, but the store has already been applied.
++// Do not reapply.
++//go:nosplit
++func writebarrierptr_nostore(dst *uintptr, src uintptr) {
++	if getg() == nil { // very low-level startup
++		return
++	}
++
+ 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
+ 		onM(func() { gothrow("bad pointer in write barrier") })
+ 	}
+ 
+ 	mp := acquirem()
+ 	if mp.inwb {
+-		*dst = src
+ 		releasem(mp)
+ 		return
+ 	}
+@@ -112,7 +123,6 @@ func writebarrierptr(dst *uintptr, src uintptr) {
+ 	mp.scalararg[1] = oldscalar1
+ 	mp.inwb = false
+ 	releasem(mp)
+-	//	*dst = src is done inside of the write barrier.
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 9626bd1012..e5e2df2e42 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -1060,7 +1060,7 @@ runtime·dropm(void)
+ 	unlockextra(mp);
+ }
+ 
+-#define MLOCKED ((M*)1)
++#define MLOCKED 1
+ 
+ // lockextra locks the extra list and returns the list head.
+ // The caller must unlock the list by storing a new list head
+@@ -1071,28 +1071,28 @@ runtime·dropm(void)
+ static M*
+ lockextra(bool nilokay)
+ {
+-	M *mp;
++	uintptr mpx;
+ 	void (*yield)(void);
+ 
+ 	for(;;) {
+-		mp = runtime·atomicloadp(&runtime·extram);
+-		if(mp == MLOCKED) {
++		mpx = runtime·atomicloaduintptr((uintptr*)&runtime·extram);
++		if(mpx == MLOCKED) {
+ 			yield = runtime·osyield;
+ 			yield();
+ 			continue;
+ 		}
+-		if(mp == nil && !nilokay) {
++		if(mpx == 0 && !nilokay) {
+ 			runtime·usleep(1);
+ 			continue;
+ 		}
+-		if(!runtime·casp(&runtime·extram, mp, MLOCKED)) {
++		if(!runtime·casuintptr((uintptr*)&runtime·extram, mpx, MLOCKED)) {
+ 			yield = runtime·osyield;
+ 			yield();
+ 			continue;
+ 		}
+ 		break;
+ 	}
+-	return mp;
++	return (M*)mpx;
+ }
+ 
+ #pragma textflag NOSPLIT
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index a0f1acc05f..a4186f4505 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -894,6 +894,7 @@ int32	runtime·round2(int32 x); // round x up to a power of 2.
+ bool	runtime·cas(uint32*, uint32, uint32);
+ bool	runtime·cas64(uint64*, uint64, uint64);
+ bool	runtime·casp(void**, void*, void*);
++bool	runtime·casuintptr(uintptr*, uintptr, uintptr);
+ // Don't confuse with XADD x86 instruction,
+ // this one is actually 'addx', that is, add-and-fetch.
+ uint32	runtime·xadd(uint32 volatile*, int32);
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index ed5debc33e..475ea2de66 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -48,7 +48,7 @@ runtime·gostringnocopy(byte *str)
+ 	s.len = runtime·findnull(str);
+ 	while(true) {
+ 		ms = runtime·maxstring;
+-		if(s.len <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)s.len))
++		if(s.len <= ms || runtime·casuintptr(&runtime·maxstring, ms, s.len))
+ 			return s;
+ 	}
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 852f4ddbb6..421ab04e50 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -213,9 +213,6 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ //go:noescape
+ func cas(ptr *uint32, old, new uint32) bool
+ 
+-//go:noescape
+-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+-
+ //go:noescape
+ func casuintptr(ptr *uintptr, old, new uintptr) bool
+ 

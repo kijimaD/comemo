@@ -16,7 +16,7 @@ Date:   Wed Sep 13 12:50:17 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/elf_test.go             | 25 +++++++++++++++++++++++++
  src/cmd/link/internal/amd64/obj.go   | 15 +++++++--------
  src/cmd/link/internal/arm/obj.go     | 13 ++++++-------
@@ -32,3 +32,418 @@ Date:   Wed Sep 13 12:50:17 2023 -0400
  src/cmd/link/internal/s390x/obj.go   |  6 +++---
  src/cmd/link/internal/x86/obj.go     | 18 ++++--------------
  14 files changed, 85 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index d662145847..902ce28b10 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -498,3 +498,28 @@ func TestIssue51939(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestFlagR(t *testing.T) {
++	// Test that using the -R flag to specify a (large) alignment generates
++	// a working binary.
++	// (Test only on ELF for now. The alignment allowed differs from platform
++	// to platform.)
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++	tmpdir := t.TempDir()
++	src := filepath.Join(tmpdir, "x.go")
++	if err := os.WriteFile(src, []byte(goSource), 0444); err != nil {
++		t.Fatal(err)
++	}
++	exe := filepath.Join(tmpdir, "x.exe")
++
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-R=0x100000", "-o", exe, src)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("build failed: %v, output:\n%s", err, out)
++	}
++
++	cmd = testenv.Command(t, exe)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Errorf("executable failed to run: %v\n%s", err, out)
++	}
++}
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index b99cdbc356..3a6141b909 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -86,13 +86,12 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32 + 8
+-
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x200000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x200000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x200000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+@@ -100,7 +99,7 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 4096
+ 		}
+ 		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x1000000 + int64(ld.HEADR)
++			*ld.FlagTextAddr = ld.Rnd(0x1000000, *ld.FlagRound) + int64(ld.HEADR)
+ 		}
+ 
+ 	case objabi.Hlinux, /* elf64 executable */
+@@ -112,12 +111,12 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Elfinit(ctxt)
+ 
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = (1 << 22) + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(1<<22, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+ 		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 52fd5b6523..3a1830ce10 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -84,13 +84,12 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+-
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 4128
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hlinux, /* arm elf */
+ 		objabi.Hfreebsd,
+@@ -100,12 +99,12 @@ func archinit(ctxt *ld.Link) {
+ 		// with dynamic linking
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+ 		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 34b693ed6c..3d358155ba 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -86,13 +86,12 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+-
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hlinux, /* arm64 elf */
+ 		objabi.Hfreebsd,
+@@ -100,21 +99,21 @@ func archinit(ctxt *ld.Link) {
+ 		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 1<<32 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 16384 // 16K page alignment
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(1<<32, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+ 		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index aa6c00ce88..b978cfc7d4 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -98,7 +98,7 @@ var (
+ 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
+ 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
+ 	FlagStrictDups    = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+-	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
++	FlagRound         = flag.Int64("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr      = flag.Int64("T", -1, "set the start address of text symbols")
+ 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
+ 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 1502b3eb39..a2c5a99e8e 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1149,11 +1149,11 @@ func Peinit(ctxt *Link) {
+ 	}
+ 
+ 	HEADR = PEFILEHEADR
+-	if *FlagTextAddr == -1 {
+-		*FlagTextAddr = PEBASE + int64(PESECTHEADR)
+-	}
+ 	if *FlagRound == -1 {
+-		*FlagRound = int(PESECTALIGN)
++		*FlagRound = PESECTALIGN
++	}
++	if *FlagTextAddr == -1 {
++		*FlagTextAddr = Rnd(PEBASE, *FlagRound) + int64(PESECTHEADR)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 158a86f61d..1e4a85a12e 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -544,15 +544,14 @@ func Xcoffinit(ctxt *Link) {
+ 	xfile.dynLibraries = make(map[string]int)
+ 
+ 	HEADR = int32(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
+-	if *FlagTextAddr != -1 {
+-		Errorf(nil, "-T not available on AIX")
+-	}
+-	*FlagTextAddr = XCOFFTEXTBASE + int64(HEADR)
+ 	if *FlagRound != -1 {
+ 		Errorf(nil, "-R not available on AIX")
+ 	}
+-	*FlagRound = int(XCOFFSECTALIGN)
+-
++	*FlagRound = XCOFFSECTALIGN
++	if *FlagTextAddr != -1 {
++		Errorf(nil, "-T not available on AIX")
++	}
++	*FlagTextAddr = Rnd(XCOFFTEXTBASE, *FlagRound) + int64(HEADR)
+ }
+ 
+ // SYMBOL TABLE
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index fd193a2445..b68ed494f6 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -53,11 +53,11 @@ func archinit(ctxt *ld.Link) {
+ 	case objabi.Hlinux: /* loong64 elf */
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 1caddac6be..e07ee0b208 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -91,12 +91,12 @@ func archinit(ctxt *ld.Link) {
+ 	case objabi.Hlinux: /* mips elf */
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 7fb19e92ac..193ad1f271 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -88,24 +88,23 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+-
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 16*1024 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 16 * 1024
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(16*1024, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hlinux, /* mips64 elf */
+ 		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 	}
+ 
+ 	dynSymCount = 0
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 7de0f8eac6..703c8ec2e8 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -92,24 +92,23 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+-
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 4128
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hlinux, /* ppc64 elf */
+ 		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Haix:
+ 		ld.Xcoffinit(ctxt)
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 1532d29366..a18e8369fd 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -60,12 +60,12 @@ func archinit(ctxt *ld.Link) {
+ 	case objabi.Hlinux, objabi.Hfreebsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
+ 	}
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index c2386fb9e9..76aa962a82 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -81,11 +81,11 @@ func archinit(ctxt *ld.Link) {
+ 	case objabi.Hlinux: // s390x ELF
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 0x10000
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 6ccb8e093f..4336f01ea3 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -82,21 +82,11 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hplan9: /* plan 9 */
+ 		ld.HEADR = 32
+-
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
+-
+-	case objabi.Hdarwin: /* apple MACH */
+-		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+-		}
+-		if *ld.FlagRound == -1 {
+-			*ld.FlagRound = 4096
++			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
+ 		}
+ 
+ 	case objabi.Hlinux, /* elf32 executable */
+@@ -106,12 +96,12 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Elfinit(ctxt)
+ 
+ 		ld.HEADR = ld.ELFRESERVE
+-		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 0x08048000 + int64(ld.HEADR)
+-		}
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+ 		}
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = ld.Rnd(0x08048000, *ld.FlagRound) + int64(ld.HEADR)
++		}
+ 
+ 	case objabi.Hwindows: /* PE executable */
+ 		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit

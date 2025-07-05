@@ -12,7 +12,79 @@ Date:   Mon Jun 10 10:27:26 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/syntax/issues_test.go | 51 ++++++++++++++++++++++++++
  src/cmd/compile/internal/syntax/positions.go   |  3 +-
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/issues_test.go b/src/cmd/compile/internal/syntax/issues_test.go
+new file mode 100644
+index 0000000000..d72890ca5e
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/issues_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file holds test cases for individual issues
++// for which there is (currently) no better location.
++
++package syntax
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestIssue67866(t *testing.T) {
++	var tests = []string{
++		"package p; var _ = T{@0: 0}",
++		"package p; var _ = T{@1 + 2: 0}",
++		"package p; var _ = T{@x[i]: 0}",
++		"package p; var _ = T{@f(1, 2, 3): 0}",
++		"package p; var _ = T{@a + f(b) + <-ch: 0}",
++	}
++
++	for _, src := range tests {
++		// identify column position of @ and remove it from src
++		i := strings.Index(src, "@")
++		if i < 0 {
++			t.Errorf("%s: invalid test case (missing @)", src)
++			continue
++		}
++		src = src[:i] + src[i+1:]
++		want := colbase + uint(i)
++
++		f, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
++		if err != nil {
++			t.Errorf("%s: %v", src, err)
++			continue
++		}
++
++		// locate KeyValueExpr
++		Inspect(f, func(n Node) bool {
++			_, ok := n.(*KeyValueExpr)
++			if ok {
++				if got := StartPos(n).Col(); got != want {
++					t.Errorf("%s: got col = %d, want %d", src, got, want)
++				}
++			}
++			return !ok
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/positions.go b/src/cmd/compile/internal/syntax/positions.go
+index 93596559a0..419855f70f 100644
+--- a/src/cmd/compile/internal/syntax/positions.go
++++ b/src/cmd/compile/internal/syntax/positions.go
+@@ -36,7 +36,8 @@ func StartPos(n Node) Pos {
+ 				continue
+ 			}
+ 			return n.Pos()
+-		// case *KeyValueExpr:
++		case *KeyValueExpr:
++			m = n.Key
+ 		// case *FuncLit:
+ 		// case *ParenExpr:
+ 		case *SelectorExpr:

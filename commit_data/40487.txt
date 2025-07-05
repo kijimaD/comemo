@@ -11,6 +11,20 @@ Date:   Fri May 17 03:27:15 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177777
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Elias Naur <mail@eliasnaur.com>
-
+---
  misc/android/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/android/README b/misc/android/README
+index 38e7cf41e3..13b59d92f4 100644
+--- a/misc/android/README
++++ b/misc/android/README
+@@ -12,7 +12,7 @@ C compiler from the Android NDK. For example,
+ 	CGO_ENABLED=1 \
+ 	GOOS=android \
+ 	GOARCH=arm64 \
+-	CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang \
++	CC_FOR_TARGET=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang \
+ 	./all.bash
+ 
+ To run tests on the Android device, add the bin directory to PATH so the

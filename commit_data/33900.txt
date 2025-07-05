@@ -13,7 +13,42 @@ Date:   Wed Sep 13 23:07:38 2017 -0400
     Change-Id: I1ddc64342a50a1b65a48d827e4d564f1faab1945
     Reviewed-on: https://go-review.googlesource.com/63914
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/rsa/boring_test.go | 5 +++++
  src/crypto/rsa/rsa.go         | 7 ++++---
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/rsa/boring_test.go b/src/crypto/rsa/boring_test.go
+index 0b19e92d74..f40e2748ca 100644
+--- a/src/crypto/rsa/boring_test.go
++++ b/src/crypto/rsa/boring_test.go
+@@ -158,6 +158,11 @@ func TestBoringRandGenerateKey(t *testing.T) {
+ 		t.Fatalf("GenerateKey: wrong N\nhave %x\nwant %x", k.N, n)
+ 	}
+ 	r.checkOffset(35200)
++
++	// Non-Boring GenerateKey always sets CRTValues to a non-nil (possibly empty) slice.
++	if k.Precomputed.CRTValues == nil {
++		t.Fatalf("GenerateKey: Precomputed.CRTValues = nil")
++	}
+ }
+ 
+ func TestBoringRandGenerateMultiPrimeKey(t *testing.T) {
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 53b8f963f6..8e63185ec6 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -233,9 +233,10 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
+ 			D:      D,
+ 			Primes: []*big.Int{P, Q},
+ 			Precomputed: PrecomputedValues{
+-				Dp:   Dp,
+-				Dq:   Dq,
+-				Qinv: Qinv,
++				Dp:        Dp,
++				Dq:        Dq,
++				Qinv:      Qinv,
++				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+ 			},
+ 		}
+ 		return key, nil

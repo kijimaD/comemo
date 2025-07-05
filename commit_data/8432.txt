@@ -7,6 +7,26 @@ Date:   Wed May 18 13:28:01 2011 -0400
     R=golang-dev, devon.odell
     CC=golang-dev
     https://golang.org/cl/4552051
-
+---
  src/pkg/syscall/mkall.sh | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index a2e6c5d710..0a4ca0326b 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -109,12 +109,12 @@ _* | *_ | _)
+ freebsd_386)
+ 	mkerrors="$mkerrors -f -m32"
+ 	mksyscall="./mksyscall.pl -l32"
+-	mksysnum="curl -s 'http://svn.freebsd.org/viewvc/base/head/sys/kern/syscalls.master?view=markup' | ./mksysnum_freebsd.pl"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	mktypes="godefs -gsyscall -f-m32"
+ 	;;
+ freebsd_amd64)
+ 	mkerrors="$mkerrors -f -m64"
+-	mksysnum="curl -s 'http://svn.freebsd.org/viewvc/base/head/sys/kern/syscalls.master?view=markup' | ./mksysnum_freebsd.pl"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	mktypes="godefs -gsyscall -f-m64"
+ 	;;
+ darwin_386)

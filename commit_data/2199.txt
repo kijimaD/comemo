@@ -7,6 +7,27 @@ Date:   Wed May 13 10:34:11 2009 -0700
     R=rsc
     OCL=28752
     CL=28752
-
+---
  src/lib/template/template.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 335a306901..9a40109f90 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -70,12 +70,12 @@ import (
+ // Errors returned during parsing and execution.  Users may extract the information and reformat
+ // if they desire.
+ type Error struct {
+-   Line int;
+-   Msg string;
++	Line int;
++	Msg string;
+ }
+ 
+ func (e *Error) String() string {
+-   return fmt.Sprintf("line %d: %s", e.Line, e.Msg)
++	return fmt.Sprintf("line %d: %s", e.Line, e.Msg)
+ }
+ 
+ // Most of the literals are aces.

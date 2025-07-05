@@ -8,10 +8,238 @@ Date:   Thu Sep 3 16:17:21 2009 -0700
     DELTA=140  (128 added, 0 deleted, 12 changed)
     OCL=34344
     CL=34347
-
+---
  src/pkg/debug/proc/proc_linux.go       |  10 +--
  src/pkg/debug/proc/regs_linux_386.go   | 113 +++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_linux_386.go   |   8 +++
  src/pkg/syscall/syscall_linux_amd64.go |   7 ++
  src/pkg/syscall/ztypes_linux_386.go    |  12 ++--
  5 files changed, 139 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 913b212a03..a3ee088ad1 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -289,7 +289,7 @@ func (t *thread) logTrace(format string, args ...) {
+ 		var regs syscall.PtraceRegs;
+ 		err := t.ptraceGetRegs(&regs);
+ 		if err == nil {
+-			fmt.Fprintf(os.Stderr, "@%x", regs.Rip);
++			fmt.Fprintf(os.Stderr, "@%x", regs.PC());
+ 		}
+ 	}
+ 	fmt.Fprint(os.Stderr, ": ");
+@@ -516,7 +516,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
+ 		return stopped, err;
+ 	}
+ 
+-	b, ok := t.proc.breakpoints[uintptr(regs.Rip)-uintptr(len(bpinst386))];
++	b, ok := t.proc.breakpoints[uintptr(regs.PC())-uintptr(len(bpinst386))];
+ 	if !ok {
+ 		// We must have hit a breakpoint that was actually in
+ 		// the program.  Leave the IP where it is so we don't
+@@ -526,9 +526,9 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
+ 	}
+ 
+ 	t.breakpoint = b;
+-	t.logTrace("at breakpoint %v, backing up PC from %#x", b, regs.Rip);
++	t.logTrace("at breakpoint %v, backing up PC from %#x", b, regs.PC());
+ 
+-	regs.Rip = uint64(b.pc);
++	regs.SetPC(uint64(b.pc));
+ 	err = t.ptraceSetRegs(&regs);
+ 	if err != nil {
+ 		return stopped, err;
+@@ -997,7 +997,7 @@ func (p *process) Continue() os.Error {
+ 			if err != nil {
+ 				return err;
+ 			}
+-			if b, ok := p.breakpoints[uintptr(regs.Rip)]; ok {
++			if b, ok := p.breakpoints[uintptr(regs.PC())]; ok {
+ 				t.logTrace("stepping over breakpoint %v", b);
+ 				if err := t.stepAsync(ready); err != nil {
+ 					return err;
+diff --git a/src/pkg/debug/proc/regs_linux_386.go b/src/pkg/debug/proc/regs_linux_386.go
+index e171f72a95..725223ccda 100644
+--- a/src/pkg/debug/proc/regs_linux_386.go
++++ b/src/pkg/debug/proc/regs_linux_386.go
+@@ -4,3 +4,116 @@
+ 
+ package proc
+ 
++import (
++	"os";
++	"strconv";
++	"syscall";
++)
++
++type _386Regs struct {
++	syscall.PtraceRegs;
++	setter func (*syscall.PtraceRegs) os.Error;
++}
++
++var names = [...]string {
++	"eax",
++	"ebx",
++	"ecx",
++	"edx",
++	"esi",
++	"edi",
++	"ebp",
++	"esp",
++	"eip",
++	"eflags",
++	"cs",
++	"ss",
++	"ds",
++	"es",
++	"fs",
++	"gs",
++}
++
++func (r *_386Regs) PC() Word {
++	return Word(r.Eip);
++}
++
++func (r *_386Regs) SetPC(val Word) os.Error {
++	r.Eip = int32(val);
++	return r.setter(&r.PtraceRegs);
++}
++
++func (r *_386Regs) Link() Word {
++	// TODO(austin)
++	panic("No link register");
++}
++
++func (r *_386Regs) SetLink(val Word) os.Error {
++	panic("No link register");
++}
++
++func (r *_386Regs) SP() Word {
++	return Word(r.Esp);
++}
++
++func (r *_386Regs) SetSP(val Word) os.Error {
++	r.Esp = int32(val);
++	return r.setter(&r.PtraceRegs);
++}
++
++func (r *_386Regs) Names() []string {
++	return &names;
++}
++
++func (r *_386Regs) Get(i int) Word {
++	switch i {
++	case 0: return Word(uint32(r.Eax));
++	case 1: return Word(uint32(r.Ebx));
++	case 2: return Word(uint32(r.Ecx));
++	case 3: return Word(uint32(r.Edx));
++	case 4: return Word(uint32(r.Esi));
++	case 5: return Word(uint32(r.Edi));
++	case 6: return Word(uint32(r.Ebp));
++	case 7: return Word(uint32(r.Esp));
++	case 8: return Word(uint32(r.Eip));
++	case 9: return Word(uint32(r.Eflags));
++	case 10: return Word(r.Cs);
++	case 11: return Word(r.Ss);
++	case 12: return Word(r.Ds);
++	case 13: return Word(r.Es);
++	case 14: return Word(r.Fs);
++	case 15: return Word(r.Gs);
++	}
++	panic("invalid register index ", strconv.Itoa(i));
++}
++
++func (r *_386Regs) Set(i int, val Word) os.Error {
++	switch i {
++	case 0: r.Eax = int32(val);
++	case 1: r.Ebx = int32(val);
++	case 2: r.Ecx = int32(val);
++	case 3: r.Edx = int32(val);
++	case 4: r.Esi = int32(val);
++	case 5: r.Edi = int32(val);
++	case 6: r.Ebp = int32(val);
++	case 7: r.Esp = int32(val);
++	case 8: r.Eip = int32(val);
++	case 9: r.Eflags = int32(val);
++	case 10: r.Cs = uint16(val);
++	case 11: r.Ss = uint16(val);
++	case 12: r.Ds = uint16(val);
++	case 13: r.Es = uint16(val);
++	case 14: r.Fs = uint16(val);
++	case 15: r.Gs = uint16(val);
++	default:
++		panic("invalid register index ", strconv.Itoa(i));
++	}
++	return r.setter(&r.PtraceRegs);
++}
++
++func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
++	res := _386Regs{};
++	res.PtraceRegs = *regs;
++	res.setter = setter;
++	return &res;
++}
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index dc64ae79f2..46ed428da5 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -136,3 +136,11 @@ func Listen(s int, n int) (errno int) {
+ 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
+ 	return;
+ }
++
++func (r *PtraceRegs) PC() uint64 {
++	return uint64(uint32(r.Eip));
++}
++
++func (r *PtraceRegs) SetPC(pc uint64) {
++	r.Eip = int32(pc);
++}
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 28d74b758e..cfb4285efd 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -62,3 +62,10 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return;
+ }
+ 
++func (r *PtraceRegs) PC() uint64 {
++	return r.Rip;
++}
++
++func (r *PtraceRegs) SetPC(pc uint64) {
++	r.Rip = pc;
++}
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index c038e02435..16a86afbbe 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -307,21 +307,21 @@ type PtraceRegs struct {
+ 	Ebp int32;
+ 	Eax int32;
+ 	Ds uint16;
+-	__ds uint16;
++	X__ds uint16;
+ 	Es uint16;
+-	__es uint16;
++	X__es uint16;
+ 	Fs uint16;
+-	__fs uint16;
++	X__fs uint16;
+ 	Gs uint16;
+-	__gs uint16;
++	X__gs uint16;
+ 	Orig_eax int32;
+ 	Eip int32;
+ 	Cs uint16;
+-	__cs uint16;
++	X__cs uint16;
+ 	Eflags int32;
+ 	Esp int32;
+ 	Ss uint16;
+-	__ss uint16;
++	X__ss uint16;
+ }
+ 
+ type FdSet struct {

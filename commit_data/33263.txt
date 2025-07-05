@@ -32,7 +32,72 @@ Date:   Tue Aug 8 15:38:21 2017 -0400
     Change-Id: I3a4b0db51d652fd25fb2065fbc2157a3dec4dd38
     Reviewed-on: https://go-review.googlesource.com/53950
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs.go     |  8 +++-----
  src/net/http/server.go | 18 +++++++++++++++---
  2 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index cda08b4a5b..a5881e98b3 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -98,12 +98,10 @@ type File interface {
+ 	Stat() (os.FileInfo, error)
+ }
+ 
+-func dirList(w ResponseWriter, f File) {
++func dirList(w ResponseWriter, r *Request, f File) {
+ 	dirs, err := f.Readdir(-1)
+ 	if err != nil {
+-		// TODO: log err.Error() to the Server.ErrorLog, once it's possible
+-		// for a handler to get at its Server via the ResponseWriter. See
+-		// Issue 12438.
++		logf(r, "http: error reading directory: %v", err)
+ 		Error(w, "Error reading directory", StatusInternalServerError)
+ 		return
+ 	}
+@@ -615,7 +613,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 			return
+ 		}
+ 		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
+-		dirList(w, f)
++		dirList(w, r, f)
+ 		return
+ 	}
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d370be9ecd..e5ac252a68 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2400,9 +2400,9 @@ type Server struct {
+ 	ConnState func(net.Conn, ConnState)
+ 
+ 	// ErrorLog specifies an optional logger for errors accepting
+-	// connections and unexpected behavior from handlers.
+-	// If nil, logging goes to os.Stderr via the log package's
+-	// standard logger.
++	// connections, unexpected behavior from handlers, and
++	// underlying FileSystem errors.
++	// If nil, logging is done via the log package's standard logger.
+ 	ErrorLog *log.Logger
+ 
+ 	disableKeepAlives int32     // accessed atomically.
+@@ -2853,6 +2853,18 @@ func (s *Server) logf(format string, args ...interface{}) {
+ 	}
+ }
+ 
++// logf prints to the ErrorLog of the *Server associated with request r
++// via ServerContextKey. If there's no associated server, or if ErrorLog
++// is nil, logging is done via the log package's standard logger.
++func logf(r *Request, format string, args ...interface{}) {
++	s, _ := r.Context().Value(ServerContextKey).(*Server)
++	if s != nil && s.ErrorLog != nil {
++		s.ErrorLog.Printf(format, args...)
++	} else {
++		log.Printf(format, args...)
++	}
++}
++
+ // ListenAndServe listens on the TCP network address addr
+ // and then calls Serve with handler to handle requests
+ // on incoming connections.

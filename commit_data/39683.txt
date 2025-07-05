@@ -11,9 +11,84 @@ Date:   Tue Mar 12 15:43:16 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modconv/convert_test.go   | 2 ++
  src/cmd/go/internal/modfetch/coderepo_test.go | 2 ++
  src/cmd/go/internal/modfetch/proxy.go         | 8 ++++++++
  src/cmd/go/internal/modload/query_test.go     | 6 ++++++
  4 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index 4d55d73f21..d6316e36e9 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -28,6 +28,8 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
++	modfetch.SetProxy("direct")
++
+ 	if _, err := exec.LookPath("git"); err != nil {
+ 		fmt.Fprintln(os.Stderr, "skipping because git binary not found")
+ 		fmt.Println("PASS")
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 7a419576ce..2c756c50f2 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -24,6 +24,8 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
++	SetProxy("direct")
++
+ 	dir, err := ioutil.TempDir("", "gitrepo-test-")
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 60ed2a3796..3d4d2becf4 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -87,6 +87,14 @@ cached module versions with GOPROXY=https://example.com/proxy.
+ 
+ var proxyURL = os.Getenv("GOPROXY")
+ 
++// SetProxy sets the proxy to use when fetching modules.
++// It accepts the same syntax as the GOPROXY environment variable,
++// which also provides its default configuration.
++// SetProxy must not be called after the first module fetch has begun.
++func SetProxy(url string) {
++	proxyURL = url
++}
++
+ func lookupProxy(path string) (Repo, error) {
+ 	if strings.Contains(proxyURL, ",") {
+ 		return nil, fmt.Errorf("invalid $GOPROXY setting: cannot have comma")
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 9b07383217..d6e52c6b74 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+@@ -24,11 +25,16 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
++	modfetch.SetProxy("direct")
++
+ 	dir, err := ioutil.TempDir("", "modload-test-")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
++
++	os.Setenv("GOPATH", dir)
++	cfg.BuildContext.GOPATH = dir
+ 	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
+ 	codehost.WorkRoot = filepath.Join(dir, "codework")
+ 	return m.Run()

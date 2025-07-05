@@ -14,7 +14,37 @@ Date:   Tue Oct 12 15:31:25 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/slice.go   | 2 +-
  test/unsafebuiltins.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index cfa862e047..66bb7d9d93 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -124,7 +124,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ 	}
+ 
+ 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+-	if overflow || mem > maxAlloc || len < 0 {
++	if overflow || mem > -uintptr(ptr) || len < 0 {
+ 		panicunsafeslicelen()
+ 	}
+ }
+diff --git a/test/unsafebuiltins.go b/test/unsafebuiltins.go
+index 4c940aa855..d04bcbdc7d 100644
+--- a/test/unsafebuiltins.go
++++ b/test/unsafebuiltins.go
+@@ -47,6 +47,11 @@ func main() {
+ 		// size overflows address space
+ 		mustPanic(func() { _ = unsafe.Slice(new(uint64), maxUintptr/8) })
+ 		mustPanic(func() { _ = unsafe.Slice(new(uint64), maxUintptr/8+1) })
++
++		// sliced memory overflows address space
++		last := (*byte)(unsafe.Pointer(^uintptr(0)))
++		_ = unsafe.Slice(last, 1)
++		mustPanic(func() { _ = unsafe.Slice(last, 2) })
+ 	}
+ }
+ 

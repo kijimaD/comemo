@@ -14,6 +14,36 @@ Date:   Mon Sep 28 14:17:37 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/257963
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/buildall.bash | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index 19ea172c5b..7b3751f42e 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -37,7 +37,6 @@ GOROOT="$(cd .. && pwd)"
+ 
+ gettargets() {
+ 	../bin/go tool dist list | sed -e 's|/|-|'
+-	echo linux-386-387
+ 	echo linux-arm-arm5
+ }
+ 
+@@ -64,15 +63,11 @@ do
+ 	echo "### Building $target"
+ 	export GOOS=$(echo $target | sed 's/-.*//')
+ 	export GOARCH=$(echo $target | sed 's/.*-//')
+-	unset GO386 GOARM
++	unset GOARM
+ 	if [ "$GOARCH" = "arm5" ]; then
+ 		export GOARCH=arm
+ 		export GOARM=5
+ 	fi
+-	if [ "$GOARCH" = "387" ]; then
+-		export GOARCH=386
+-		export GO386=387
+-	fi
+ 
+ 	# Build and vet everything.
+ 	# cmd/go/internal/work/exec.go enables the same vet flags during go test of std cmd

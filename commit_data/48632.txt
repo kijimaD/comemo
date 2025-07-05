@@ -22,10 +22,109 @@ Date:   Thu May 6 09:08:32 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go       |  1 -
  src/go/types/api_typeparams.go |  5 +++++
  src/go/types/check.go          |  1 +
  src/go/types/type.go           | 17 ++++++++++++-----
  src/go/types/types_test.go     |  8 --------
  5 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index f37b91d5a4..5a2d4a4ca3 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -353,7 +353,6 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		ResetId() // avoid renumbering of type parameter ids when adding tests
+ 		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+ 			continue
+ 		}
+diff --git a/src/go/types/api_typeparams.go b/src/go/types/api_typeparams.go
+index ed744c4dba..ae2c5a7fd0 100644
+--- a/src/go/types/api_typeparams.go
++++ b/src/go/types/api_typeparams.go
+@@ -19,6 +19,11 @@ type (
+ 
+ func NewSum(types []Type) Type { return _NewSum(types) }
+ 
++// NewTypeParam returns a new TypeParam.
++func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
++	return (*Checker)(nil).newTypeParam(obj, index, bound)
++}
++
+ func (s *Signature) TParams() []*TypeName           { return s._TParams() }
+ func (s *Signature) SetTParams(tparams []*TypeName) { s._SetTParams(tparams) }
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index a923c3c612..e82056e722 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -86,6 +86,7 @@ type Checker struct {
+ 	pkg  *Package
+ 	*Info
+ 	version version                    // accepted language version
++	nextID  uint64                     // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+ 	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 2660ce4408..2ea4d76d8b 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -732,11 +732,11 @@ func (t *Named) AddMethod(m *Func) {
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available
+ // on all platforms.
+-var lastId uint32
++var lastID uint32
+ 
+-// nextId returns a value increasing monotonically by 1 with
++// nextID returns a value increasing monotonically by 1 with
+ // each call, starting with 1. It may be called concurrently.
+-func nextId() uint64 { return uint64(atomic.AddUint32(&lastId, 1)) }
++func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
+ 
+ // A _TypeParam represents a type parameter type.
+ type _TypeParam struct {
+@@ -747,10 +747,17 @@ type _TypeParam struct {
+ 	bound Type      // *Named or *Interface; underlying type is always *Interface
+ }
+ 
+-// newTypeParam returns a new TypeParam.
+ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeParam {
+ 	assert(bound != nil)
+-	typ := &_TypeParam{check: check, id: nextId(), obj: obj, index: index, bound: bound}
++
++	// Always increment lastID, even if it is not used.
++	id := nextID()
++	if check != nil {
++		check.nextID++
++		id = check.nextID
++	}
++
++	typ := &_TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+diff --git a/src/go/types/types_test.go b/src/go/types/types_test.go
+index 25cd996628..e1a40f1f6e 100644
+--- a/src/go/types/types_test.go
++++ b/src/go/types/types_test.go
+@@ -4,14 +4,6 @@
+ 
+ package types
+ 
+-import "sync/atomic"
+-
+-// Upon calling ResetId, nextId starts with 1 again.
+-// It may be called concurrently. This is only needed
+-// for tests where we may want to have a consistent
+-// numbering for each individual test case.
+-func ResetId() { atomic.StoreUint32(&lastId, 0) }
+-
+ // SetGoVersion sets the unexported goVersion field on config, so that tests
+ // which assert on behavior for older Go versions can set it.
+ func SetGoVersion(config *Config, goVersion string) {

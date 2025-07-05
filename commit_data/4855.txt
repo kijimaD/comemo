@@ -9,9 +9,166 @@ Date:   Tue Feb 16 11:20:25 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/207087
-
+---
  src/pkg/exp/parser/interface.go |  7 +++---
  src/pkg/go/ast/ast.go           |  3 +--
  src/pkg/go/doc/doc.go           |  8 +++---
  src/pkg/go/parser/interface.go  | 54 +++++++++++++++++++++++++++++------------
  4 files changed, 46 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/exp/parser/interface.go b/src/pkg/exp/parser/interface.go
+index 26b08c2d96..e04ff18887 100644
+--- a/src/pkg/exp/parser/interface.go
++++ b/src/pkg/exp/parser/interface.go
+@@ -183,11 +183,12 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
+ 	for i := 0; i < len(list); i++ {
+ 		entry := &list[i]
+ 		if filter == nil || filter(entry) {
+-			src, err := ParsePkgFile(name, pathutil.Join(path, entry.Name), mode)
++			filename := pathutil.Join(path, entry.Name)
++			src, err := ParsePkgFile(name, filename, mode)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			files[entry.Name] = src
++			files[filename] = src
+ 			if name == "" {
+ 				name = src.Name.Name()
+ 			}
+@@ -198,5 +199,5 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
+ 		return nil, os.NewError(path + ": no package found")
+ 	}
+ 
+-	return &ast.Package{name, path, nil, files}, nil
++	return &ast.Package{name, nil, files}, nil
+ }
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index ed87039a7e..95700cb14d 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -722,7 +722,6 @@ type File struct {
+ //
+ type Package struct {
+ 	Name  string           // package name
+-	Path  string           // package path
+ 	Scope *Scope           // package scope
+-	Files map[string]*File // path-relative filenames
++	Files map[string]*File // Go source files by filename
+ }
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index d97548715b..9bd1158de7 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -293,7 +293,7 @@ func NewFileDoc(file *ast.File) *PackageDoc {
+ 	var r docReader
+ 	r.init(file.Name.Name())
+ 	r.addFile(file)
+-	return r.newDoc("", "", nil)
++	return r.newDoc("", nil)
+ }
+ 
+ 
+@@ -307,7 +307,7 @@ func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
+ 		filenames[i] = filename
+ 		i++
+ 	}
+-	return r.newDoc(importpath, pkg.Path, filenames)
++	return r.newDoc(importpath, filenames)
+ }
+ 
+ 
+@@ -511,7 +511,6 @@ func makeBugDocs(v *vector.Vector) []string {
+ type PackageDoc struct {
+ 	PackageName string
+ 	ImportPath  string
+-	FilePath    string
+ 	Filenames   []string
+ 	Doc         string
+ 	Consts      []*ValueDoc
+@@ -524,11 +523,10 @@ type PackageDoc struct {
+ 
+ // newDoc returns the accumulated documentation for the package.
+ //
+-func (doc *docReader) newDoc(importpath, filepath string, filenames []string) *PackageDoc {
++func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc {
+ 	p := new(PackageDoc)
+ 	p.PackageName = doc.pkgName
+ 	p.ImportPath = importpath
+-	p.FilePath = filepath
+ 	sort.SortStrings(filenames)
+ 	p.Filenames = filenames
+ 	p.Doc = CommentText(doc.doc)
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 1bd63dd49d..931f03de67 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -143,6 +143,35 @@ func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*
+ }
+ 
+ 
++// ParseFiles calls ParseFile for each file in the filenames list and returns
++// a map of package name -> package AST with all the packages found. The mode
++// bits are passed to ParseFile unchanged.
++//
++// Files with parse errors are ignored. In this case the map of packages may
++// be incomplete (missing packages and/or incomplete packages) and the last
++// error encountered is returned.
++//
++func ParseFiles(filenames []string, scope *ast.Scope, mode uint) (map[string]*ast.Package, os.Error) {
++	pkgs := make(map[string]*ast.Package)
++	var err os.Error
++	for _, filename := range filenames {
++		var src *ast.File
++		src, err = ParseFile(filename, nil, scope, mode)
++		if err == nil {
++			name := src.Name.Name()
++			pkg, found := pkgs[name]
++			if !found {
++				pkg = &ast.Package{name, scope, make(map[string]*ast.File)}
++				pkgs[name] = pkg
++			}
++			pkg.Files[filename] = src
++		}
++	}
++
++	return pkgs, err
++}
++
++
+ // ParseDir calls ParseFile for the files in the directory specified by path and
+ // returns a map of package name -> package AST with all the packages found. If
+ // filter != nil, only the files with os.Dir entries passing through the filter
+@@ -164,24 +193,17 @@ func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*as
+ 		return nil, err
+ 	}
+ 
+-	var scope *ast.Scope = nil // for now tracking of declarations is disabled
+-	pkgs := make(map[string]*ast.Package)
++	filenames := make([]string, len(list))
++	n := 0
+ 	for i := 0; i < len(list); i++ {
+-		entry := &list[i]
+-		if filter == nil || filter(entry) {
+-			src, err := ParseFile(pathutil.Join(path, entry.Name), nil, scope, mode)
+-			if err != nil {
+-				return pkgs, err
+-			}
+-			name := src.Name.Name()
+-			pkg, found := pkgs[name]
+-			if !found {
+-				pkg = &ast.Package{name, path, scope, make(map[string]*ast.File)}
+-				pkgs[name] = pkg
+-			}
+-			pkg.Files[entry.Name] = src
++		d := &list[i]
++		if filter == nil || filter(d) {
++			filenames[n] = pathutil.Join(path, d.Name)
++			n++
+ 		}
+ 	}
++	filenames = filenames[0:n]
+ 
+-	return pkgs, nil
++	var scope *ast.Scope = nil // for now tracking of declarations is disabled
++	return ParseFiles(filenames, scope, mode)
+ }

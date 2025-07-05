@@ -21,9 +21,91 @@ Date:   Tue Sep 3 15:13:01 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/os/error_errno.go     |  7 +++++--
  src/os/error_plan9.go     |  1 +
  src/os/getwd.go           |  5 +++--
  src/os/getwd_unix_test.go | 15 ++++++++++++++-
  4 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/error_errno.go b/src/os/error_errno.go
+index c4d540cdff..662258338b 100644
+--- a/src/os/error_errno.go
++++ b/src/os/error_errno.go
+@@ -10,5 +10,8 @@ import "syscall"
+ 
+ type syscallErrorType = syscall.Errno
+ 
+-const errENOSYS = syscall.ENOSYS
+-const errERANGE = syscall.ERANGE
++const (
++	errENOSYS = syscall.ENOSYS
++	errERANGE = syscall.ERANGE
++	errENOMEM = syscall.ENOMEM
++)
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+index 61b56211b4..35026554c2 100644
+--- a/src/os/error_plan9.go
++++ b/src/os/error_plan9.go
+@@ -10,3 +10,4 @@ type syscallErrorType = syscall.ErrorString
+ 
+ var errENOSYS = syscall.NewError("function not implemented")
+ var errERANGE = syscall.NewError("out of range")
++var errENOMEM = syscall.NewError("cannot allocate memory")
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 8dca70fc2e..82f0d944df 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -60,9 +60,10 @@ func Getwd() (dir string, err error) {
+ 			}
+ 		}
+ 		// Linux returns ENAMETOOLONG if the result is too long.
+-		// BSD systems appear to return EINVAL.
++		// Some BSD systems appear to return EINVAL.
++		// FreeBSD systems appear to use ENOMEM
+ 		// Solaris appears to use ERANGE.
+-		if err != syscall.ENAMETOOLONG && err != syscall.EINVAL && err != errERANGE {
++		if err != syscall.ENAMETOOLONG && err != syscall.EINVAL && err != errERANGE && err != errENOMEM {
+ 			return dir, NewSyscallError("getwd", err)
+ 		}
+ 	}
+diff --git a/src/os/getwd_unix_test.go b/src/os/getwd_unix_test.go
+index a0c4f5bef1..084344735c 100644
+--- a/src/os/getwd_unix_test.go
++++ b/src/os/getwd_unix_test.go
+@@ -9,6 +9,7 @@ package os_test
+ import (
+ 	"errors"
+ 	. "os"
++	"runtime"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -56,6 +57,12 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
+ 		wd, err := Getwd()
+ 		t.Logf("Getwd len: %d", len(wd))
+ 		if err != nil {
++			// We can get an EPERM error if we can't read up
++			// to root, which happens on the Android builders.
++			if errors.Is(err, syscall.EPERM) {
++				t.Logf("ignoring EPERM error: %v", err)
++				break
++			}
+ 			t.Fatal(err)
+ 		}
+ 		if setPWD && wd != dir {
+@@ -72,7 +79,13 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
+ 		// all Unix platforms (4096, on Linux).
+ 		if _, err := Stat(wd); err != nil || len(wd) > 4096 {
+ 			t.Logf("Done; len(wd)=%d", len(wd))
+-			if err != nil && !errors.Is(err, syscall.ENAMETOOLONG) {
++			// Most systems return ENAMETOOLONG.
++			// Dragonfly returns EFAULT.
++			switch {
++			case err == nil:
++			case errors.Is(err, syscall.ENAMETOOLONG):
++			case runtime.GOOS == "dragonfly" && errors.Is(err, syscall.EFAULT):
++			default:
+ 				t.Fatalf("unexpected Stat error: %v", err)
+ 			}
+ 			break

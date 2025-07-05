@@ -10,6 +10,20 @@ Date:   Fri Feb 19 18:36:02 2016 -0800
     Change-Id: I49098ecef32b735c4a01374443c2f847235ff964
     Reviewed-on: https://go-review.googlesource.com/19750
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 0bcfb3687d..e506f7a117 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -851,7 +851,7 @@ func importfile(f *Val) {
+ func cannedimports(file string, cp string) {
+ 	lexlineno++ // if sys.6 is included on line 1,
+ 	pushedio = curio
+-	curio = Io{infile: file, cp: cp}
++	curio = Io{infile: file, bin: obj.Binitr(strings.NewReader(cp))}
+ 	typecheckok = true
+ 	incannedimport = 1
+ 

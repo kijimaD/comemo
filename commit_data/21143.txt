@@ -8,7 +8,137 @@ Date:   Wed Nov 19 11:55:15 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/176970043
-
+---
  src/runtime/sys_windows_386.s   | 16 ++++++++--------
  src/runtime/sys_windows_amd64.s | 14 +++++++-------
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 2793e52216..c8a830cdf8 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -44,7 +44,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
+ 	// stderr
+ 	MOVL	$-12, 0(SP)
+ 	MOVL	SP, BP
+-	CALL	*runtime·GetStdHandle(SB)
++	CALL	*runtime·_GetStdHandle(SB)
+ 	MOVL	BP, SP
+ 
+ 	MOVL	AX, 0(SP)	// handle
+@@ -56,7 +56,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
+ 	MOVL	$0, 0(DX)
+ 	MOVL	DX, 12(SP)
+ 	MOVL	$0, 16(SP) // overlapped
+-	CALL	*runtime·WriteFile(SB)
++	CALL	*runtime·_WriteFile(SB)
+ 	MOVL	BP, SI
+ 	RET
+ 
+@@ -208,7 +208,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	MOVL	BX, g_m(SP)
+ 	LEAL	-8192(SP), CX
+ 	MOVL	CX, (g_stack+stack_lo)(SP)
+-	ADDL	$const_StackGuard, CX
++	ADDL	$const__StackGuard, CX
+ 	MOVL	CX, g_stackguard0(SP)
+ 	MOVL	CX, g_stackguard1(SP)
+ 	MOVL	DX, (g_stack+stack_hi)(SP)
+@@ -255,8 +255,8 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+ 	MOVL	-4(BX)(AX*4), BX
+ 
+ 	// extract callback context
+-	MOVL	cbctxt_gobody(BX), AX
+-	MOVL	cbctxt_argsize(BX), DX
++	MOVL	wincallbackcontext_gobody(BX), AX
++	MOVL	wincallbackcontext_argsize(BX), DX
+ 
+ 	// preserve whatever's at the memory location that
+ 	// the callback will use to store the return value
+@@ -266,7 +266,7 @@ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+ 	ADDL	$4, DX
+ 
+ 	// remember how to restore stack on return
+-	MOVL	cbctxt_restorestack(BX), BX
++	MOVL	wincallbackcontext_restorestack(BX), BX
+ 	PUSHL	BX
+ 
+ 	// call target Go function
+@@ -314,7 +314,7 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
+ 	MOVL	AX, (g_stack+stack_hi)(DX)
+ 	SUBL	$(64*1024), AX		// stack size
+ 	MOVL	AX, (g_stack+stack_lo)(DX)
+-	ADDL	$const_StackGuard, AX
++	ADDL	$const__StackGuard, AX
+ 	MOVL	AX, g_stackguard0(DX)
+ 	MOVL	AX, g_stackguard1(DX)
+ 
+@@ -415,7 +415,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
+ 	MOVL	$0, alertable-16(SP)
+ 	MOVL	$-1, handle-20(SP)
+ 	MOVL	SP, BP
+-	MOVL	runtime·NtWaitForSingleObject(SB), AX
++	MOVL	runtime·_NtWaitForSingleObject(SB), AX
+ 	CALL	AX
+ 	MOVL	BP, SP
+ 	RET
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 5e5c2e7f5a..68f7cd3924 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -66,7 +66,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
+ 	// stderr
+ 	MOVQ	$-12, CX // stderr
+ 	MOVQ	CX, 0(SP)
+-	MOVQ	runtime·GetStdHandle(SB), AX
++	MOVQ	runtime·_GetStdHandle(SB), AX
+ 	CALL	AX
+ 
+ 	MOVQ	AX, CX	// handle
+@@ -79,7 +79,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
+ 	MOVQ	$0, 0(R9)
+ 	MOVQ	R9, 24(SP)
+ 	MOVQ	$0, 32(SP)	// overlapped
+-	MOVQ	runtime·WriteFile(SB), AX
++	MOVQ	runtime·_WriteFile(SB), AX
+ 	CALL	AX
+ 	
+ 	RET
+@@ -245,7 +245,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 
+ 	LEAQ	-8192(SP), CX
+ 	MOVQ	CX, (g_stack+stack_lo)(SP)
+-	ADDQ	$const_StackGuard, CX
++	ADDQ	$const__StackGuard, CX
+ 	MOVQ	CX, g_stackguard0(SP)
+ 	MOVQ	CX, g_stackguard1(SP)
+ 	MOVQ	DX, (g_stack+stack_hi)(SP)
+@@ -294,8 +294,8 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	MOVQ	-8(CX)(AX*8), AX
+ 
+ 	// extract callback context
+-	MOVQ	cbctxt_argsize(AX), DX
+-	MOVQ	cbctxt_gobody(AX), AX
++	MOVQ	wincallbackcontext_argsize(AX), DX
++	MOVQ	wincallbackcontext_gobody(AX), AX
+ 
+ 	// preserve whatever's at the memory location that
+ 	// the callback will use to store the return value
+@@ -355,7 +355,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	MOVQ	AX, (g_stack+stack_hi)(DX)
+ 	SUBQ	$(64*1024), AX		// stack size
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+-	ADDQ	$const_StackGuard, AX
++	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(DX)
+ 	MOVQ	AX, g_stackguard1(DX)
+ 
+@@ -436,7 +436,7 @@ TEXT runtime·usleep2(SB),NOSPLIT,$16
+ 	MOVQ	BX, (R8)
+ 	MOVQ	$-1, CX // handle
+ 	MOVQ	$0, DX // alertable
+-	MOVQ	runtime·NtWaitForSingleObject(SB), AX
++	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
+ 	CALL	AX
+ 	MOVQ	8(SP), SP
+ 	RET

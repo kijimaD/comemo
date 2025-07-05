@@ -22,8 +22,137 @@ Date:   Thu Jan 23 23:11:04 2014 -0500
     TBR=khr, iant
     CC=golang-codereviews
     https://golang.org/cl/56430043
-
+---
  src/cmd/6g/ggen.c      | 35 +++++++++++++++++++++++++++++++++--
  src/cmd/gc/plive.c     | 26 +++++++++++++++-----------
  src/pkg/runtime/mgc0.c |  2 +-
  3 files changed, 49 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index fa965470e4..2bdb12bdd0 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -9,10 +9,13 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
++static Prog *appendpp(Prog*, int, int, vlong, int, vlong);
++
+ void
+ defframe(Prog *ptxt)
+ {
+ 	uint32 frame;
++	Prog *p;
+ 
+ 	// fill in argument size
+ 	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
+@@ -21,6 +24,35 @@ defframe(Prog *ptxt)
+ 	ptxt->to.offset <<= 32;
+ 	frame = rnd(stksize+maxarg, widthptr);
+ 	ptxt->to.offset |= frame;
++	
++	// insert code to contain ambiguously live variables
++	// so that garbage collector only sees initialized values
++	// when it looks for pointers.
++	p = ptxt;
++	if(stkzerosize > 0) {
++		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);	
++		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthptr, D_CX, 0);	
++		p = appendpp(p, ALEAQ, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
++		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);	
++		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);	
++	}
++}
++
++static Prog*	
++appendpp(Prog *p, int as, int ftype, vlong foffset, int ttype, vlong toffset)	
++{
++	Prog *q;
++	q = mal(sizeof(*q));	
++	clearp(q);	
++	q->as = as;	
++	q->lineno = p->lineno;	
++	q->from.type = ftype;	
++	q->from.offset = foffset;	
++	q->to.type = ttype;	
++	q->to.offset = toffset;	
++	q->link = p->link;	
++	p->link = q;	
++	return q;	
+ }
+ 
+ // Sweep the prog list to mark any used nodes.
+@@ -990,14 +1022,13 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
++	gfatvardef(nl);
+ 
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(N, nl))
+ 		return;
+ 
+-	gfatvardef(nl);
+-
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+ 
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 27eac707e1..5c03eaad6e 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1498,25 +1498,29 @@ livenessepilogue(Liveness *lv)
+ 			bvor(all, all, avarinit);
+ 
+ 			if(issafepoint(p)) {
+-				if(debuglive >= 3) {
+-					// Diagnose ambiguously live variables (any &^ all).
+-					// livein and liveout are dead here and used as temporaries.
++				// Annotate ambiguously live variables so that they can
++				// be zeroed at function entry.
++				// livein and liveout are dead here and used as temporaries.
++				// For now, only enabled when using GOEXPERIMENT=precisestack
++				// during make.bash / all.bash.
++				if(precisestack_enabled) {
+ 					bvresetall(livein);
+ 					bvandnot(liveout, any, all);
+-					if(bvcmp(livein, liveout) != 0) {
++					if(!bvisempty(liveout)) {
+ 						for(pos = 0; pos < liveout->n; pos++) {
+-							if(bvget(liveout, pos)) {
+-								n = *(Node**)arrayget(lv->vars, pos);
+-								if(!n->diag && strncmp(n->sym->name, "autotmp_", 8) != 0) {
+-									n->diag = 1;
++							bvset(all, pos); // silence future warnings in this block
++							if(!bvget(liveout, pos))
++								continue;
++							n = *(Node**)arrayget(lv->vars, pos);
++							if(!n->needzero) {
++								n->needzero = 1;
++								if(debuglive >= 3)
+ 									warnl(p->lineno, "%N: %lN is ambiguously live", curfn->nname, n);
+-								}
+ 							}
+-							bvset(all, pos); // silence future warnings in this block
+ 						}
+ 					}
+ 				}
+-
++	
+ 				// Allocate a bit vector for each class and facet of
+ 				// value we are tracking.
+ 	
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2c82fb3ac4..aa93bfbeda 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1505,7 +1505,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 	if(stackmap != nil) {
+ 		bv = stackmapdata(stackmap, pcdata);
+-		scanbitvector(frame->argp, bv, false, wbufp);
++		scanbitvector(frame->argp, bv, true, wbufp);
+ 	} else
+ 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
+ }

@@ -18,7 +18,40 @@ Date:   Thu May 28 12:37:12 2015 -0400
     Change-Id: Id9f4d5e2e5b839bc3f200ec1723a4a12dd677ab4
     Reviewed-on: https://go-review.googlesource.com/10458
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 3 +++
  src/runtime/stack1.go  | 7 +++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 6bc2d73d55..c4c922bda8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -258,6 +258,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ // work is done here.
+ //go:nowritebarrier
+ func gcphasework(gp *g) {
++	if gp.gcworkdone {
++		return
++	}
+ 	switch gcphase {
+ 	default:
+ 		throw("gcphasework in bad gcphase")
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index f77e87cdf9..5c2388d0e6 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -743,8 +743,11 @@ func newstack() {
+ 		}
+ 		if gp.preemptscan {
+ 			for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
+-				// Likely to be racing with the GC as it sees a _Gwaiting and does the stack scan.
+-				// If so this stack will be scanned twice which does not change correctness.
++				// Likely to be racing with the GC as
++				// it sees a _Gwaiting and does the
++				// stack scan. If so, gcworkdone will
++				// be set and gcphasework will simply
++				// return.
+ 			}
+ 			gcphasework(gp)
+ 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)

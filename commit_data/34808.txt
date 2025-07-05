@@ -13,9 +13,155 @@ Date:   Fri Nov 10 15:46:56 2017 -0500
     Change-Id: Ia2064fea40078c46fd97e3a3b8c9fa1488f913e3
     Reviewed-on: https://go-review.googlesource.com/77154
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/out.go                     |  3 ++-
  src/cmd/go/go_test.go                  |  9 +++++----
  src/cmd/go/internal/work/exec.go       | 35 ++++++++++++++++++++--------------
  src/cmd/go/testdata/src/coverbad/p1.go |  7 +++++++
  4 files changed, 35 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8ae96a031e..8834c3db5a 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/token"
+ 	"io"
+ 	"os"
++	"path/filepath"
+ 	"sort"
+ 	"strings"
+ )
+@@ -526,7 +527,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	if strings.HasSuffix(base, ".go") {
+ 		base = base[0 : len(base)-3]
+ 	}
+-	base = strings.Map(slashToUnderscore, base)
++	base = filepath.Base(base)
+ 	fgo1 := creat(*objDir + base + ".cgo1.go")
+ 	fgcc := creat(*objDir + base + ".cgo2.c")
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 9dd5f8347c..075f430778 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2439,16 +2439,16 @@ func TestCoverageErrorLine(t *testing.T) {
+ 	tg.setenv("GOTMPDIR", tg.tempdir)
+ 
+ 	tg.runFail("test", "coverbad")
+-	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
++	tg.grepStderr(`coverbad[\\/]p\.go:4`, "did not find coverbad/p.go:4")
++	tg.grepStderr(`coverbad[\\/]p1\.go:6`, "did not find coverbad/p1.go:6")
+ 	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
+ 	stderr := tg.getStderr()
+ 
+ 	tg.runFail("test", "-cover", "coverbad")
+-	tg.grepStderr(`coverbad[\\/]p.go:4`, "did not find correct line number for error")
+ 	stderr2 := tg.getStderr()
+ 
+ 	// It's OK that stderr2 drops the character position in the error,
+-	// because of the //line directive.
++	// because of the //line directive (see golang.org/issue/22662).
+ 	stderr = strings.Replace(stderr, "p.go:4:2:", "p.go:4:", -1)
+ 	if stderr != stderr2 {
+ 		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
+@@ -4707,10 +4707,11 @@ func TestExecBuildX(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	out, err = exec.Command("/bin/sh", sh).CombinedOutput()
++	out, err = exec.Command("/usr/bin/env", "bash", "-x", sh).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("/bin/sh %s: %v\n%s", sh, err, out)
+ 	}
++	t.Logf("shell output:\n%s", out)
+ 
+ 	out, err = exec.Command(obj).CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 08f7d00da1..60e6cedda1 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -426,7 +426,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 			sfiles = nil
+ 		}
+ 
+-		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
++		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -481,17 +481,10 @@ func (b *Builder) build(a *Action) (err error) {
+ 		// so that vet's error messages will use absolute paths,
+ 		// so that we can reformat them relative to the directory
+ 		// in which the go command is invoked.
+-		absfiles := make([]string, len(gofiles))
+-		for i, f := range gofiles {
+-			if !filepath.IsAbs(f) {
+-				f = filepath.Join(a.Package.Dir, f)
+-			}
+-			absfiles[i] = f
+-		}
+ 		vcfg = &vetConfig{
+ 			Compiler:    cfg.BuildToolchainName,
+ 			Dir:         a.Package.Dir,
+-			GoFiles:     absfiles,
++			GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
+ 			ImportMap:   make(map[string]string),
+ 			PackageFile: make(map[string]string),
+ 		}
+@@ -1351,8 +1344,8 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
+ // print this error.
+ var errPrintedOutput = errors.New("already printed output - no need to show error")
+ 
+-var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.cgo1\.go:[0-9]+(:[0-9]+)?\]`)
+-var cgoTypeSigRe = regexp.MustCompile(`\b_Ctype_\B`)
++var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
++var cgoTypeSigRe = regexp.MustCompile(`\b_C2?(type|func|var|macro)_\B`)
+ 
+ // run runs the command given by cmdline in the directory dir.
+ // If the command fails, run prints information about the failure
+@@ -1895,9 +1888,9 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	gofiles := []string{objdir + "_cgo_gotypes.go"}
+ 	cfiles := []string{"_cgo_export.c"}
+ 	for _, fn := range cgofiles {
+-		f := cgoRe.ReplaceAllString(fn[:len(fn)-2], "_")
+-		gofiles = append(gofiles, objdir+f+"cgo1.go")
+-		cfiles = append(cfiles, f+"cgo2.c")
++		f := strings.TrimSuffix(filepath.Base(fn), ".go")
++		gofiles = append(gofiles, objdir+f+".cgo1.go")
++		cfiles = append(cfiles, f+".cgo2.c")
+ 	}
+ 
+ 	// TODO: make cgo not depend on $GOARCH?
+@@ -2286,3 +2279,17 @@ func (b *Builder) disableBuildID(ldflags []string) []string {
+ 	}
+ 	return ldflags
+ }
++
++// mkAbsFiles converts files into a list of absolute files,
++// assuming they were originally relative to dir,
++// and returns that new list.
++func mkAbsFiles(dir string, files []string) []string {
++	abs := make([]string, len(files))
++	for i, f := range files {
++		if !filepath.IsAbs(f) {
++			f = filepath.Join(dir, f)
++		}
++		abs[i] = f
++	}
++	return abs
++}
+diff --git a/src/cmd/go/testdata/src/coverbad/p1.go b/src/cmd/go/testdata/src/coverbad/p1.go
+new file mode 100644
+index 0000000000..2d25c8e190
+--- /dev/null
++++ b/src/cmd/go/testdata/src/coverbad/p1.go
+@@ -0,0 +1,7 @@
++package p
++
++import "C"
++
++func h() {
++	j()
++}

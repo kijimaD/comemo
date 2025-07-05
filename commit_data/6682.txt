@@ -7,8 +7,169 @@ Date:   Mon Nov 1 16:42:33 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2303043
-
+---
  src/pkg/syscall/mkerrors.sh            |  2 ++
  src/pkg/syscall/zerrors_linux_386.go   | 59 ++++++++++++++++++++++++++++++++++
  src/pkg/syscall/zerrors_linux_amd64.go | 59 ++++++++++++++++++++++++++++++++++
  3 files changed, 120 insertions(+)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index a402da6a02..f7b4adb14f 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -24,6 +24,7 @@ includes_Linux='
+ #include <sys/types.h>
+ #include <sys/epoll.h>
+ #include <sys/inotify.h>
++#include <sys/ioctl.h>
+ #include <linux/ptrace.h>
+ #include <linux/wait.h>
+ #include <netpacket/packet.h>
+@@ -91,6 +92,7 @@ done
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
++		$2 ~ /^SIO/ ||
+ 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
+ 		$2 ~ /^__WCOREFLAG$/ {next}
+ 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", substr($2,3), $2)}
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index 13b5d6b365..c6b31a19bd 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -514,6 +514,65 @@ const (
+ 	SIGWINCH                         = 0x1c
+ 	SIGXCPU                          = 0x18
+ 	SIGXFSZ                          = 0x19
++	SIOCADDDLCI                      = 0x8980
++	SIOCADDMULTI                     = 0x8931
++	SIOCADDRT                        = 0x890b
++	SIOCATMARK                       = 0x8905
++	SIOCDARP                         = 0x8953
++	SIOCDELDLCI                      = 0x8981
++	SIOCDELMULTI                     = 0x8932
++	SIOCDELRT                        = 0x890c
++	SIOCDEVPRIVATE                   = 0x89f0
++	SIOCDIFADDR                      = 0x8936
++	SIOCDRARP                        = 0x8960
++	SIOCGARP                         = 0x8954
++	SIOCGIFADDR                      = 0x8915
++	SIOCGIFBR                        = 0x8940
++	SIOCGIFBRDADDR                   = 0x8919
++	SIOCGIFCONF                      = 0x8912
++	SIOCGIFCOUNT                     = 0x8938
++	SIOCGIFDSTADDR                   = 0x8917
++	SIOCGIFENCAP                     = 0x8925
++	SIOCGIFFLAGS                     = 0x8913
++	SIOCGIFHWADDR                    = 0x8927
++	SIOCGIFINDEX                     = 0x8933
++	SIOCGIFMAP                       = 0x8970
++	SIOCGIFMEM                       = 0x891f
++	SIOCGIFMETRIC                    = 0x891d
++	SIOCGIFMTU                       = 0x8921
++	SIOCGIFNAME                      = 0x8910
++	SIOCGIFNETMASK                   = 0x891b
++	SIOCGIFPFLAGS                    = 0x8935
++	SIOCGIFSLAVE                     = 0x8929
++	SIOCGIFTXQLEN                    = 0x8942
++	SIOCGPGRP                        = 0x8904
++	SIOCGRARP                        = 0x8961
++	SIOCGSTAMP                       = 0x8906
++	SIOCGSTAMPNS                     = 0x8907
++	SIOCPROTOPRIVATE                 = 0x89e0
++	SIOCRTMSG                        = 0x890d
++	SIOCSARP                         = 0x8955
++	SIOCSIFADDR                      = 0x8916
++	SIOCSIFBR                        = 0x8941
++	SIOCSIFBRDADDR                   = 0x891a
++	SIOCSIFDSTADDR                   = 0x8918
++	SIOCSIFENCAP                     = 0x8926
++	SIOCSIFFLAGS                     = 0x8914
++	SIOCSIFHWADDR                    = 0x8924
++	SIOCSIFHWBROADCAST               = 0x8937
++	SIOCSIFLINK                      = 0x8911
++	SIOCSIFMAP                       = 0x8971
++	SIOCSIFMEM                       = 0x8920
++	SIOCSIFMETRIC                    = 0x891e
++	SIOCSIFMTU                       = 0x8922
++	SIOCSIFNAME                      = 0x8923
++	SIOCSIFNETMASK                   = 0x891c
++	SIOCSIFPFLAGS                    = 0x8934
++	SIOCSIFSLAVE                     = 0x8930
++	SIOCSIFTXQLEN                    = 0x8943
++	SIOCSPGRP                        = 0x8902
++	SIOCSRARP                        = 0x8962
++	SIOGIFINDEX                      = 0x8933
+ 	SOCK_CLOEXEC                     = 0x80000
+ 	SOCK_DCCP                        = 0x6
+ 	SOCK_DGRAM                       = 0x2
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index af7f924ff5..9a5f035fd6 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -515,6 +515,65 @@ const (
+ 	SIGWINCH                         = 0x1c
+ 	SIGXCPU                          = 0x18
+ 	SIGXFSZ                          = 0x19
++	SIOCADDDLCI                      = 0x8980
++	SIOCADDMULTI                     = 0x8931
++	SIOCADDRT                        = 0x890b
++	SIOCATMARK                       = 0x8905
++	SIOCDARP                         = 0x8953
++	SIOCDELDLCI                      = 0x8981
++	SIOCDELMULTI                     = 0x8932
++	SIOCDELRT                        = 0x890c
++	SIOCDEVPRIVATE                   = 0x89f0
++	SIOCDIFADDR                      = 0x8936
++	SIOCDRARP                        = 0x8960
++	SIOCGARP                         = 0x8954
++	SIOCGIFADDR                      = 0x8915
++	SIOCGIFBR                        = 0x8940
++	SIOCGIFBRDADDR                   = 0x8919
++	SIOCGIFCONF                      = 0x8912
++	SIOCGIFCOUNT                     = 0x8938
++	SIOCGIFDSTADDR                   = 0x8917
++	SIOCGIFENCAP                     = 0x8925
++	SIOCGIFFLAGS                     = 0x8913
++	SIOCGIFHWADDR                    = 0x8927
++	SIOCGIFINDEX                     = 0x8933
++	SIOCGIFMAP                       = 0x8970
++	SIOCGIFMEM                       = 0x891f
++	SIOCGIFMETRIC                    = 0x891d
++	SIOCGIFMTU                       = 0x8921
++	SIOCGIFNAME                      = 0x8910
++	SIOCGIFNETMASK                   = 0x891b
++	SIOCGIFPFLAGS                    = 0x8935
++	SIOCGIFSLAVE                     = 0x8929
++	SIOCGIFTXQLEN                    = 0x8942
++	SIOCGPGRP                        = 0x8904
++	SIOCGRARP                        = 0x8961
++	SIOCGSTAMP                       = 0x8906
++	SIOCGSTAMPNS                     = 0x8907
++	SIOCPROTOPRIVATE                 = 0x89e0
++	SIOCRTMSG                        = 0x890d
++	SIOCSARP                         = 0x8955
++	SIOCSIFADDR                      = 0x8916
++	SIOCSIFBR                        = 0x8941
++	SIOCSIFBRDADDR                   = 0x891a
++	SIOCSIFDSTADDR                   = 0x8918
++	SIOCSIFENCAP                     = 0x8926
++	SIOCSIFFLAGS                     = 0x8914
++	SIOCSIFHWADDR                    = 0x8924
++	SIOCSIFHWBROADCAST               = 0x8937
++	SIOCSIFLINK                      = 0x8911
++	SIOCSIFMAP                       = 0x8971
++	SIOCSIFMEM                       = 0x8920
++	SIOCSIFMETRIC                    = 0x891e
++	SIOCSIFMTU                       = 0x8922
++	SIOCSIFNAME                      = 0x8923
++	SIOCSIFNETMASK                   = 0x891c
++	SIOCSIFPFLAGS                    = 0x8934
++	SIOCSIFSLAVE                     = 0x8930
++	SIOCSIFTXQLEN                    = 0x8943
++	SIOCSPGRP                        = 0x8902
++	SIOCSRARP                        = 0x8962
++	SIOGIFINDEX                      = 0x8933
+ 	SOCK_CLOEXEC                     = 0x80000
+ 	SOCK_DCCP                        = 0x6
+ 	SOCK_DGRAM                       = 0x2

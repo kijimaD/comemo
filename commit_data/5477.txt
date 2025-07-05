@@ -11,9 +11,489 @@ Date:   Sat May 15 10:23:41 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1233041
-
+---
  src/pkg/big/int.go      |  81 ++++++++++++++++++++----
  src/pkg/big/int_test.go | 161 ++++++++++++++++++++++++++++++++++++++----------
  src/pkg/big/nat.go      |  37 ++++++-----
  src/pkg/big/nat_test.go |  34 +++++-----
  4 files changed, 234 insertions(+), 79 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 4126ce62db..cdf5a7d554 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -6,6 +6,9 @@
+ 
+ package big
+ 
++import "fmt"
++
++
+ // An Int represents a signed multi-precision integer.
+ // The zero value for an Int represents the value 0.
+ type Int struct {
+@@ -19,12 +22,13 @@ var intOne = &Int{false, natOne}
+ 
+ // SetInt64 sets z to x and returns z.
+ func (z *Int) SetInt64(x int64) *Int {
+-	z.neg = false
++	neg := false
+ 	if x < 0 {
+-		z.neg = true
++		neg = true
+ 		x = -x
+ 	}
+-	z.abs = z.abs.new(uint64(x))
++	z.abs = z.abs.setUint64(uint64(x))
++	z.neg = neg
+ 	return z
+ }
+ 
+@@ -37,8 +41,8 @@ func NewInt(x int64) *Int {
+ 
+ // Set sets z to x.
+ func (z *Int) Set(x *Int) *Int {
+-	z.neg = x.neg
+ 	z.abs = z.abs.set(x.abs)
++	z.neg = x.neg
+ 	return z
+ }
+ 
+@@ -99,6 +103,30 @@ func (z *Int) Mul(x, y *Int) *Int {
+ }
+ 
+ 
++// MulRange sets z to the product of all integers
++// in the range [a, b] inclusively and returns z.
++// If a > b (empty range), the result is 1.
++func (z *Int) MulRange(a, b int64) *Int {
++	switch {
++	case a > b:
++		return z.SetInt64(1) // empty range
++	case a <= 0 && b >= 0:
++		return z.SetInt64(0) // range includes 0
++	}
++	// a <= b && (b < 0 || a > 0)
++
++	neg := false
++	if a < 0 {
++		neg = (b-a)&1 == 0
++		a, b = -b, -a
++	}
++
++	z.abs = z.abs.mulRange(uint64(a), uint64(b))
++	z.neg = neg
++	return z
++}
++
++
+ // Quo sets z to the quotient x/y for y != 0 and returns z.
+ // If y == 0, a division-by-zero run-time panic occurs.
+ // See QuoRem for more details.
+@@ -243,26 +271,53 @@ func (x *Int) Cmp(y *Int) (r int) {
+ }
+ 
+ 
+-func (z *Int) String() string {
++func (x *Int) String() string {
+ 	s := ""
+-	if z.neg {
++	if x.neg {
+ 		s = "-"
+ 	}
+-	return s + z.abs.string(10)
++	return s + x.abs.string(10)
++}
++
++
++func fmtbase(ch int) int {
++	switch ch {
++	case 'b':
++		return 2
++	case 'o':
++		return 8
++	case 'd':
++		return 10
++	case 'x':
++		return 16
++	}
++	return 10
++}
++
++
++// Format is a support routine for fmt.Formatter. It accepts
++// the formats 'b' (binary), 'o' (octal), 'd' (decimal) and
++// 'x' (hexadecimal).
++//
++func (x *Int) Format(s fmt.State, ch int) {
++	if x.neg {
++		fmt.Fprint(s, "-")
++	}
++	fmt.Fprint(s, x.abs.string(fmtbase(ch)))
+ }
+ 
+ 
+ // Int64 returns the int64 representation of z.
+ // If z cannot be represented in an int64, the result is undefined.
+-func (z *Int) Int64() int64 {
+-	if len(z.abs) == 0 {
++func (x *Int) Int64() int64 {
++	if len(x.abs) == 0 {
+ 		return 0
+ 	}
+-	v := int64(z.abs[0])
+-	if _W == 32 && len(z.abs) > 1 {
+-		v |= int64(z.abs[1]) << 32
++	v := int64(x.abs[0])
++	if _W == 32 && len(x.abs) > 1 {
++		v |= int64(x.abs[1]) << 32
+ 	}
+-	if z.neg {
++	if x.neg {
+ 		v = -v
+ 	}
+ 	return v
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index fe2974308d..064f467311 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -7,6 +7,7 @@ package big
+ import (
+ 	"bytes"
+ 	"encoding/hex"
++	"fmt"
+ 	"testing"
+ 	"testing/quick"
+ )
+@@ -156,47 +157,143 @@ func TestMul(t *testing.T) {
+ }
+ 
+ 
+-type fromStringTest struct {
++type mulRangeZ struct {
++	a, b int64
++	prod string
++}
++
++
++var mulRangesZ = []mulRangeZ{
++	// entirely positive ranges are covered by mulRangesN
++	mulRangeZ{-1, 1, "0"},
++	mulRangeZ{-2, -1, "2"},
++	mulRangeZ{-3, -2, "6"},
++	mulRangeZ{-3, -1, "-6"},
++	mulRangeZ{1, 3, "6"},
++	mulRangeZ{-10, -10, "-10"},
++	mulRangeZ{0, -1, "1"},                      // empty range
++	mulRangeZ{-1, -100, "1"},                   // empty range
++	mulRangeZ{-1, 1, "0"},                      // range includes 0
++	mulRangeZ{-1e9, 0, "0"},                    // range includes 0
++	mulRangeZ{-1e9, 1e9, "0"},                  // range includes 0
++	mulRangeZ{-10, -1, "3628800"},              // 10!
++	mulRangeZ{-20, -2, "-2432902008176640000"}, // -20!
++	mulRangeZ{-99, -1,
++		"-933262154439441526816992388562667004907159682643816214685929" +
++			"638952175999932299156089414639761565182862536979208272237582" +
++			"511852109168640000000000000000000000", // -99!
++	},
++}
++
++
++func TestMulRangeZ(t *testing.T) {
++	var tmp Int
++	// test entirely positive ranges
++	for i, r := range mulRangesN {
++		prod := tmp.MulRange(int64(r.a), int64(r.b)).String()
++		if prod != r.prod {
++			t.Errorf("#%da: got %s; want %s", i, prod, r.prod)
++		}
++	}
++	// test other ranges
++	for i, r := range mulRangesZ {
++		prod := tmp.MulRange(r.a, r.b).String()
++		if prod != r.prod {
++			t.Errorf("#%db: got %s; want %s", i, prod, r.prod)
++		}
++	}
++}
++
++
++type stringTest struct {
+ 	in   string
++	out  string
+ 	base int
+-	out  int64
++	val  int64
+ 	ok   bool
+ }
+ 
+ 
+-var fromStringTests = []fromStringTest{
+-	fromStringTest{in: "", ok: false},
+-	fromStringTest{in: "a", ok: false},
+-	fromStringTest{in: "z", ok: false},
+-	fromStringTest{in: "+", ok: false},
+-	fromStringTest{"0", 0, 0, true},
+-	fromStringTest{"0", 10, 0, true},
+-	fromStringTest{"0", 16, 0, true},
+-	fromStringTest{"10", 0, 10, true},
+-	fromStringTest{"10", 10, 10, true},
+-	fromStringTest{"10", 16, 16, true},
+-	fromStringTest{"-10", 16, -16, true},
+-	fromStringTest{in: "0x", ok: false},
+-	fromStringTest{"0x10", 0, 16, true},
+-	fromStringTest{in: "0x10", base: 16, ok: false},
+-	fromStringTest{"-0x10", 0, -16, true},
+-	fromStringTest{"00", 0, 0, true},
+-	fromStringTest{"0", 8, 0, true},
+-	fromStringTest{"07", 0, 7, true},
+-	fromStringTest{"7", 8, 7, true},
+-	fromStringTest{in: "08", ok: false},
+-	fromStringTest{in: "8", base: 8, ok: false},
+-	fromStringTest{"023", 0, 19, true},
+-	fromStringTest{"23", 8, 19, true},
++var stringTests = []stringTest{
++	stringTest{in: "", ok: false},
++	stringTest{in: "a", ok: false},
++	stringTest{in: "z", ok: false},
++	stringTest{in: "+", ok: false},
++	stringTest{in: "0b", ok: false},
++	stringTest{in: "0x", ok: false},
++	stringTest{in: "2", base: 2, ok: false},
++	stringTest{in: "0b2", base: 0, ok: false},
++	stringTest{in: "08", ok: false},
++	stringTest{in: "8", base: 8, ok: false},
++	stringTest{in: "0xg", base: 0, ok: false},
++	stringTest{in: "g", base: 16, ok: false},
++	stringTest{"0", "0", 0, 0, true},
++	stringTest{"0", "0", 10, 0, true},
++	stringTest{"0", "0", 16, 0, true},
++	stringTest{"10", "10", 0, 10, true},
++	stringTest{"10", "10", 10, 10, true},
++	stringTest{"10", "10", 16, 16, true},
++	stringTest{"-10", "-10", 16, -16, true},
++	stringTest{"0x10", "16", 0, 16, true},
++	stringTest{in: "0x10", base: 16, ok: false},
++	stringTest{"-0x10", "-16", 0, -16, true},
++	stringTest{"00", "0", 0, 0, true},
++	stringTest{"0", "0", 8, 0, true},
++	stringTest{"07", "7", 0, 7, true},
++	stringTest{"7", "7", 8, 7, true},
++	stringTest{"023", "19", 0, 19, true},
++	stringTest{"23", "23", 8, 19, true},
++	stringTest{"cafebabe", "cafebabe", 16, 0xcafebabe, true},
++	stringTest{"0b0", "0", 0, 0, true},
++	stringTest{"-111", "-111", 2, -7, true},
++	stringTest{"-0b111", "-7", 0, -7, true},
++	stringTest{"0b1001010111", "599", 0, 0x257, true},
++	stringTest{"1001010111", "1001010111", 2, 0x257, true},
++}
++
++
++func format(base int) string {
++	switch base {
++	case 2:
++		return "%b"
++	case 8:
++		return "%o"
++	case 16:
++		return "%x"
++	}
++	return "%d"
++}
++
++
++func TestGetString(t *testing.T) {
++	z := new(Int)
++	for i, test := range stringTests {
++		if !test.ok {
++			continue
++		}
++		z.SetInt64(test.val)
++
++		if test.base == 10 {
++			s := z.String()
++			if s != test.out {
++				t.Errorf("#%da got %s; want %s\n", i, s, test.out)
++			}
++		}
++
++		s := fmt.Sprintf(format(test.base), z)
++		if s != test.out {
++			t.Errorf("#%db got %s; want %s\n", i, s, test.out)
++		}
++	}
+ }
+ 
+ 
+ func TestSetString(t *testing.T) {
+-	n2 := new(Int)
+-	for i, test := range fromStringTests {
++	tmp := new(Int)
++	for i, test := range stringTests {
+ 		n1, ok1 := new(Int).SetString(test.in, test.base)
+-		n2, ok2 := n2.SetString(test.in, test.base)
+-		expected := NewInt(test.out)
++		n2, ok2 := tmp.SetString(test.in, test.base)
++		expected := NewInt(test.val)
+ 		if ok1 != test.ok || ok2 != test.ok {
+ 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
+ 			continue
+@@ -213,10 +310,10 @@ func TestSetString(t *testing.T) {
+ 		}
+ 
+ 		if n1.Cmp(expected) != 0 {
+-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.out)
++			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.val)
+ 		}
+ 		if n2.Cmp(expected) != 0 {
+-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.out)
++			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.val)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index f752ce6477..56f3c444ef 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -69,7 +69,7 @@ func (z nat) make(n int) nat {
+ }
+ 
+ 
+-func (z nat) new(x uint64) nat {
++func (z nat) setUint64(x uint64) nat {
+ 	if x == 0 {
+ 		return z.make(0)
+ 	}
+@@ -194,7 +194,7 @@ func (x nat) cmp(y nat) (r int) {
+ func (z nat) mulAddWW(x nat, y, r Word) nat {
+ 	m := len(x)
+ 	if m == 0 || y == 0 {
+-		return z.new(uint64(r)) // result is r
++		return z.setUint64(uint64(r)) // result is r
+ 	}
+ 	// m > 0
+ 
+@@ -456,13 +456,13 @@ func (z nat) mulRange(a, b uint64) nat {
+ 	switch {
+ 	case a == 0:
+ 		// cut long ranges short (optimization)
+-		return z.new(0)
++		return z.setUint64(0)
+ 	case a > b:
+-		return z.new(1)
++		return z.setUint64(1)
+ 	case a == b:
+-		return z.new(a)
++		return z.setUint64(a)
+ 	case a+1 == b:
+-		return z.mul(nat(nil).new(a), nat(nil).new(b))
++		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
+ 	}
+ 	m := (a + b) / 2
+ 	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
+@@ -621,7 +621,8 @@ func hexValue(ch byte) int {
+ //
+ // If the base argument is 0, the string prefix determines the actual
+ // conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
+-// ``0'' prefix selects base 8. Otherwise the selected base is 10.
++// ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
++// base 2. Otherwise the selected base is 10.
+ //
+ func (z nat) scan(s string, base int) (nat, int, int) {
+ 	// determine base if necessary
+@@ -629,23 +630,25 @@ func (z nat) scan(s string, base int) (nat, int, int) {
+ 	if base == 0 {
+ 		base = 10
+ 		if n > 0 && s[0] == '0' {
+-			if n > 1 && (s[1] == 'x' || s[1] == 'X') {
+-				if n == 2 {
+-					// Reject a string which is just '0x' as nonsense.
+-					return nil, 0, 0
++			base, i = 8, 1
++			if n > 1 {
++				switch s[1] {
++				case 'x', 'X':
++					base, i = 16, 2
++				case 'b', 'B':
++					base, i = 2, 2
+ 				}
+-				base, i = 16, 2
+-			} else {
+-				base, i = 8, 1
+ 			}
+ 		}
+ 	}
+-	if base < 2 || 16 < base {
+-		panic("illegal base")
++
++	// reject illegal bases or strings consisting only of prefix
++	if base < 2 || 16 < base || (base != 8 && i >= n) {
++		return nil, 0, 0
+ 	}
+ 
+ 	// convert string
+-	z = z[0:0]
++	z = z.make(0)
+ 	for ; i < n; i++ {
+ 		d := hexValue(s[i])
+ 		if 0 <= d && d < base {
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index f353822f0b..8545981c03 100755
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -111,25 +111,25 @@ func TestFunNN(t *testing.T) {
+ }
+ 
+ 
+-type mulRange struct {
++type mulRangeN struct {
+ 	a, b uint64
+ 	prod string
+ }
+ 
+ 
+-var mulRanges = []mulRange{
+-	mulRange{0, 0, "0"},
+-	mulRange{1, 1, "1"},
+-	mulRange{1, 2, "2"},
+-	mulRange{1, 3, "6"},
+-	mulRange{1, 3, "6"},
+-	mulRange{10, 10, "10"},
+-	mulRange{0, 100, "0"},
+-	mulRange{0, 1e9, "0"},
+-	mulRange{100, 1, "1"},                  // empty range
+-	mulRange{1, 10, "3628800"},             // 10!
+-	mulRange{1, 20, "2432902008176640000"}, // 20!
+-	mulRange{1, 100,
++var mulRangesN = []mulRangeN{
++	mulRangeN{0, 0, "0"},
++	mulRangeN{1, 1, "1"},
++	mulRangeN{1, 2, "2"},
++	mulRangeN{1, 3, "6"},
++	mulRangeN{10, 10, "10"},
++	mulRangeN{0, 100, "0"},
++	mulRangeN{0, 1e9, "0"},
++	mulRangeN{1, 0, "1"},                    // empty range
++	mulRangeN{100, 1, "1"},                  // empty range
++	mulRangeN{1, 10, "3628800"},             // 10!
++	mulRangeN{1, 20, "2432902008176640000"}, // 20!
++	mulRangeN{1, 100,
+ 		"933262154439441526816992388562667004907159682643816214685929" +
+ 			"638952175999932299156089414639761565182862536979208272237582" +
+ 			"51185210916864000000000000000000000000", // 100!
+@@ -137,11 +137,11 @@ var mulRanges = []mulRange{
+ }
+ 
+ 
+-func TestMulRange(t *testing.T) {
+-	for i, r := range mulRanges {
++func TestMulRangeN(t *testing.T) {
++	for i, r := range mulRangesN {
+ 		prod := nat(nil).mulRange(r.a, r.b).string(10)
+ 		if prod != r.prod {
+-			t.Errorf("%d: got %s; want %s", i, prod, r.prod)
++			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
+ 		}
+ 	}
+ }

@@ -17,7 +17,33 @@ Date:   Mon Jul 29 23:41:12 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12052043
-
+---
  src/pkg/runtime/vlop_arm.s | 2 +-
  src/pkg/runtime/vlrt_arm.c | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index 3a9cac9448..bbd42230c9 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -27,7 +27,7 @@ arg=0
+ 
+ /* replaced use of R10 by R11 because the former can be the data segment base register */
+ 
+-TEXT _mulv(SB), $0
++TEXT _mulv(SB), 7, $0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R2	/* l0 */
+ 	MOVW	8(FP), R11	/* h0 */
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index ab80501775..614f35ad26 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -62,6 +62,7 @@ struct  Vlong
+ 
+ void    runtime·abort(void);
+ 
++#pragma textflag 7
+ void
+ _addv(Vlong *r, Vlong a, Vlong b)
+ {

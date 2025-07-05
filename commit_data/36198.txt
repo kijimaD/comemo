@@ -19,7 +19,7 @@ Date:   Wed Apr 11 11:12:28 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/syslist.go                         |  2 +-
  src/runtime/internal/sys/zgoarch_386.go         |  2 ++
  src/runtime/internal/sys/zgoarch_amd64.go       |  2 ++
@@ -45,3 +45,361 @@ Date:   Wed Apr 11 11:12:28 2018 +0200
  src/runtime/internal/sys/zgoarch_sparc64.go     |  2 ++
  src/runtime/internal/sys/zgoarch_wasm.go        |  2 ++
  24 files changed, 105 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index d1fcc8f5bd..d7938fad54 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -5,4 +5,4 @@
+ package build
+ 
+ const goosList = "android darwin dragonfly freebsd js linux nacl netbsd openbsd plan9 solaris windows zos "
+-const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc s390 s390x sparc sparc64 wasm "
++const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+diff --git a/src/runtime/internal/sys/zgoarch_386.go b/src/runtime/internal/sys/zgoarch_386.go
+index 209b7749f6..c286d0df2b 100644
+--- a/src/runtime/internal/sys/zgoarch_386.go
++++ b/src/runtime/internal/sys/zgoarch_386.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_amd64.go b/src/runtime/internal/sys/zgoarch_amd64.go
+index 950a196786..d21c1d7d2a 100644
+--- a/src/runtime/internal/sys/zgoarch_amd64.go
++++ b/src/runtime/internal/sys/zgoarch_amd64.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_amd64p32.go b/src/runtime/internal/sys/zgoarch_amd64p32.go
+index 0d27361471..13dc2e756d 100644
+--- a/src/runtime/internal/sys/zgoarch_amd64p32.go
++++ b/src/runtime/internal/sys/zgoarch_amd64p32.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm.go b/src/runtime/internal/sys/zgoarch_arm.go
+index 46f7fb880f..9085fb0ea8 100644
+--- a/src/runtime/internal/sys/zgoarch_arm.go
++++ b/src/runtime/internal/sys/zgoarch_arm.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm64.go b/src/runtime/internal/sys/zgoarch_arm64.go
+index 67893f99cc..ed7ef2ebcb 100644
+--- a/src/runtime/internal/sys/zgoarch_arm64.go
++++ b/src/runtime/internal/sys/zgoarch_arm64.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm64be.go b/src/runtime/internal/sys/zgoarch_arm64be.go
+index 0a9451f388..faf3111053 100644
+--- a/src/runtime/internal/sys/zgoarch_arm64be.go
++++ b/src/runtime/internal/sys/zgoarch_arm64be.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_armbe.go b/src/runtime/internal/sys/zgoarch_armbe.go
+index 84cc570ec8..cb28301e0b 100644
+--- a/src/runtime/internal/sys/zgoarch_armbe.go
++++ b/src/runtime/internal/sys/zgoarch_armbe.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips.go b/src/runtime/internal/sys/zgoarch_mips.go
+index 6ff4b24fcf..315dea1c84 100644
+--- a/src/runtime/internal/sys/zgoarch_mips.go
++++ b/src/runtime/internal/sys/zgoarch_mips.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64.go b/src/runtime/internal/sys/zgoarch_mips64.go
+index 55a8b860a5..5258cbfbe7 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64.go
++++ b/src/runtime/internal/sys/zgoarch_mips64.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64le.go b/src/runtime/internal/sys/zgoarch_mips64le.go
+index ea0d94a39e..1721698518 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64le.go
++++ b/src/runtime/internal/sys/zgoarch_mips64le.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 1
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64p32.go b/src/runtime/internal/sys/zgoarch_mips64p32.go
+index fe0b9f6bf1..44c4624da9 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64p32.go
++++ b/src/runtime/internal/sys/zgoarch_mips64p32.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 1
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64p32le.go b/src/runtime/internal/sys/zgoarch_mips64p32le.go
+index 273e224973..eb63225430 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64p32le.go
++++ b/src/runtime/internal/sys/zgoarch_mips64p32le.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 1
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mipsle.go b/src/runtime/internal/sys/zgoarch_mipsle.go
+index 802d1ecd4f..e0ebfbf038 100644
+--- a/src/runtime/internal/sys/zgoarch_mipsle.go
++++ b/src/runtime/internal/sys/zgoarch_mipsle.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc.go b/src/runtime/internal/sys/zgoarch_ppc.go
+index ca24130458..ef26aa3201 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc.go
++++ b/src/runtime/internal/sys/zgoarch_ppc.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 1
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc64.go b/src/runtime/internal/sys/zgoarch_ppc64.go
+index e307121cd8..32c2d46d4c 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc64.go
++++ b/src/runtime/internal/sys/zgoarch_ppc64.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc64le.go b/src/runtime/internal/sys/zgoarch_ppc64le.go
+index afc67c59a3..3a6e56763c 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc64le.go
++++ b/src/runtime/internal/sys/zgoarch_ppc64le.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_riscv.go b/src/runtime/internal/sys/zgoarch_riscv.go
+new file mode 100644
+index 0000000000..d8f6b49093
+--- /dev/null
++++ b/src/runtime/internal/sys/zgoarch_riscv.go
+@@ -0,0 +1,31 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++// +build riscv
++
++package sys
++
++const GOARCH = `riscv`
++
++const Goarch386 = 0
++const GoarchAmd64 = 0
++const GoarchAmd64p32 = 0
++const GoarchArm = 0
++const GoarchArmbe = 0
++const GoarchArm64 = 0
++const GoarchArm64be = 0
++const GoarchPpc64 = 0
++const GoarchPpc64le = 0
++const GoarchMips = 0
++const GoarchMipsle = 0
++const GoarchMips64 = 0
++const GoarchMips64le = 0
++const GoarchMips64p32 = 0
++const GoarchMips64p32le = 0
++const GoarchPpc = 0
++const GoarchRiscv = 1
++const GoarchRiscv64 = 0
++const GoarchS390 = 0
++const GoarchS390x = 0
++const GoarchSparc = 0
++const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_riscv64.go b/src/runtime/internal/sys/zgoarch_riscv64.go
+new file mode 100644
+index 0000000000..0ba843b5ac
+--- /dev/null
++++ b/src/runtime/internal/sys/zgoarch_riscv64.go
+@@ -0,0 +1,31 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++// +build riscv64
++
++package sys
++
++const GOARCH = `riscv64`
++
++const Goarch386 = 0
++const GoarchAmd64 = 0
++const GoarchAmd64p32 = 0
++const GoarchArm = 0
++const GoarchArmbe = 0
++const GoarchArm64 = 0
++const GoarchArm64be = 0
++const GoarchPpc64 = 0
++const GoarchPpc64le = 0
++const GoarchMips = 0
++const GoarchMipsle = 0
++const GoarchMips64 = 0
++const GoarchMips64le = 0
++const GoarchMips64p32 = 0
++const GoarchMips64p32le = 0
++const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 1
++const GoarchS390 = 0
++const GoarchS390x = 0
++const GoarchSparc = 0
++const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_s390.go b/src/runtime/internal/sys/zgoarch_s390.go
+index 1f4a1c262b..20a1b234a6 100644
+--- a/src/runtime/internal/sys/zgoarch_s390.go
++++ b/src/runtime/internal/sys/zgoarch_s390.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 1
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_s390x.go b/src/runtime/internal/sys/zgoarch_s390x.go
+index 13fdd2314f..ffdda0c827 100644
+--- a/src/runtime/internal/sys/zgoarch_s390x.go
++++ b/src/runtime/internal/sys/zgoarch_s390x.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 1
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_sparc.go b/src/runtime/internal/sys/zgoarch_sparc.go
+index 825d013f93..b4949510d5 100644
+--- a/src/runtime/internal/sys/zgoarch_sparc.go
++++ b/src/runtime/internal/sys/zgoarch_sparc.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 1
+diff --git a/src/runtime/internal/sys/zgoarch_sparc64.go b/src/runtime/internal/sys/zgoarch_sparc64.go
+index 939c56f2d3..0f6df411ce 100644
+--- a/src/runtime/internal/sys/zgoarch_sparc64.go
++++ b/src/runtime/internal/sys/zgoarch_sparc64.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+diff --git a/src/runtime/internal/sys/zgoarch_wasm.go b/src/runtime/internal/sys/zgoarch_wasm.go
+index 20a22414d0..e69afb0cb3 100644
+--- a/src/runtime/internal/sys/zgoarch_wasm.go
++++ b/src/runtime/internal/sys/zgoarch_wasm.go
+@@ -22,6 +22,8 @@ const GoarchMips64le = 0
+ const GoarchMips64p32 = 0
+ const GoarchMips64p32le = 0
+ const GoarchPpc = 0
++const GoarchRiscv = 0
++const GoarchRiscv64 = 0
+ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0

@@ -10,6 +10,20 @@ Date:   Mon Apr 2 20:24:43 2018 +0000
     Change-Id: I5e72cedc0e0f067382545d272f48a9c7dfb5a9b7
     Reviewed-on: https://go-review.googlesource.com/104116
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 4a815148bf..7bcfac44aa 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -952,7 +952,7 @@ func (u *URL) Parse(ref string) (*URL, error) {
+ }
+ 
+ // ResolveReference resolves a URI reference to an absolute URI from
+-// an absolute base URI, per RFC 3986 Section 5.2.  The URI reference
++// an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
+ // may be relative or absolute. ResolveReference always returns a new
+ // URL instance, even if the returned URL is identical to either the
+ // base or reference. If ref is an absolute URL, then ResolveReference

@@ -7,6 +7,19 @@ Date:   Mon Sep 15 19:07:23 2008 -0700
     R=r
     OCL=15375
     CL=15375
-
+---
  src/cmd/gc/dcl.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 5d2bfacb4a..134982ec7d 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -313,6 +313,7 @@ addmethod(Node *n, Type *t, int local)
+ 		}
+ 		if(!eqtype(t, f->type, 0))
+ 			yyerror("method redeclared: %S of type %S", sf, st);
++		return;
+ 	}
+ 
+ 	if(d == T)

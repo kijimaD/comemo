@@ -7,6 +7,19 @@ Date:   Sun Feb 3 22:41:24 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7284047
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7e1ca5bb56..aec4580312 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -40,6 +40,7 @@ Alan Donovan <adonovan@google.com>
+ Albert Strasheim <fullung@gmail.com>
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
++Alex Bramley <abramley@google.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>

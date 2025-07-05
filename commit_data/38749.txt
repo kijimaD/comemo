@@ -14,6 +14,23 @@ Date:   Tue Nov 20 21:49:41 2018 +0100
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 83704a054f..743eaf70b2 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -61,6 +61,11 @@
+ 				err.code = "ENOSYS";
+ 				callback(err);
+ 			},
++			read(fd, buffer, offset, length, position, callback) {
++				const err = new Error("not implemented");
++				err.code = "ENOSYS";
++				callback(err);
++			},
+ 			fsync(fd, callback) {
+ 				callback(null);
+ 			},

@@ -49,7 +49,7 @@ Date:   Wed Apr 27 23:21:12 2011 -0400
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/4437075
-
+---
  src/pkg/runtime/386/asm.s   |  2 +-
  src/pkg/runtime/amd64/asm.s |  2 +-
  src/pkg/runtime/arm/asm.s   |  2 +-
@@ -57,3 +57,230 @@ Date:   Wed Apr 27 23:21:12 2011 -0400
  src/pkg/runtime/proc.c      | 38 ++++++++++++++++++++++++++++++++------
  src/pkg/runtime/runtime.h   |  4 ++++
  6 files changed, 76 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 598fc68464..e2cabef146 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -149,7 +149,7 @@ TEXT runtime·gogocall(SB), 7, $0
+ 
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+-// Fn must never return.  It should gogo(&g->gobuf)
++// Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+ TEXT runtime·mcall(SB), 7, $0
+ 	MOVL	fn+0(FP), DI
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index a611985c54..46d82e3657 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -133,7 +133,7 @@ TEXT runtime·gogocall(SB), 7, $0
+ 
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+-// Fn must never return.  It should gogo(&g->gobuf)
++// Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+ TEXT runtime·mcall(SB), 7, $0
+ 	MOVQ	fn+0(FP), DI
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 4d36606a76..63153658f1 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -128,7 +128,7 @@ TEXT runtime·gogocall(SB), 7, $-4
+ 
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+-// Fn must never return.  It should gogo(&g->gobuf)
++// Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+ TEXT runtime·mcall(SB), 7, $-4
+ 	MOVW	fn+0(FP), R0
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 14d485b71b..276e70fd04 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -6,6 +6,7 @@
+ 
+ #include "runtime.h"
+ #include "malloc.h"
++#include "stack.h"
+ 
+ enum {
+ 	Debug = 0,
+@@ -92,6 +93,11 @@ scanblock(byte *b, int64 n)
+ 	void **bw, **w, **ew;
+ 	Workbuf *wbuf;
+ 
++	if((int64)(uintptr)n != n || n < 0) {
++		runtime·printf("scanblock %p %D\n", b, n);
++		runtime·throw("scanblock");
++	}
++
+ 	// Memory arena parameters.
+ 	arena_start = runtime·mheap.arena_start;
+ 	
+@@ -323,20 +329,47 @@ getfull(Workbuf *b)
+ static void
+ scanstack(G *gp)
+ {
++	int32 n;
+ 	Stktop *stk;
+-	byte *sp;
++	byte *sp, *guard;
++
++	stk = (Stktop*)gp->stackbase;
++	guard = gp->stackguard;
+ 
+-	if(gp == g)
++	if(gp == g) {
++		// Scanning our own stack: start at &gp.
+ 		sp = (byte*)&gp;
+-	else
++	} else {
++		// Scanning another goroutine's stack.
++		// The goroutine is usually asleep (the world is stopped).
+ 		sp = gp->sched.sp;
++
++		// The exception is that if gp->status == Gsyscall, the goroutine
++		// is about to enter or might have just exited a system call, in
++		// which case it may be executing code such as schedlock and
++		// may have needed to start a new stack segment.
++		// Use the stack segment and stack pointer at the time of
++		// the entersyscall.
++		if(g->gcstack != nil) {
++			stk = (Stktop*)gp->gcstack;
++			sp = gp->gcsp;
++			guard = gp->gcguard;
++		}
++	}
++
+ 	if(Debug > 1)
+ 		runtime·printf("scanstack %d %p\n", gp->goid, sp);
+-	stk = (Stktop*)gp->stackbase;
++	n = 0;
+ 	while(stk) {
++		if(sp < guard-StackGuard || (byte*)stk < sp) {
++			runtime·printf("scanstack inconsistent: g%d#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
++			runtime·throw("scanstack");
++		}
+ 		scanblock(sp, (byte*)stk - sp);
+ 		sp = stk->gobuf.sp;
++		guard = stk->stackguard;
+ 		stk = (Stktop*)stk->stackbase;
++		n++;
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index a823dc6928..52784854fd 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -590,6 +590,9 @@ schedule(G *gp)
+ // re-queues g and runs everyone else who is waiting
+ // before running g again.  If g->status is Gmoribund,
+ // kills off g.
++// Cannot split stack because it is called from exitsyscall.
++// See comment below.
++#pragma textflag 7
+ void
+ runtime·gosched(void)
+ {
+@@ -604,19 +607,17 @@ runtime·gosched(void)
+ // Record that it's not using the cpu anymore.
+ // This is called only from the go syscall library and cgocall,
+ // not from the low-level system calls used by the runtime.
++//
+ // Entersyscall cannot split the stack: the runtime·gosave must
+-// make g->sched refer to the caller's stack pointer.
++// make g->sched refer to the caller's stack segment, because
++// entersyscall is going to return immediately after.
+ // It's okay to call matchmg and notewakeup even after
+ // decrementing mcpu, because we haven't released the
+-// sched lock yet.
++// sched lock yet, so the garbage collector cannot be running.
+ #pragma textflag 7
+ void
+ runtime·entersyscall(void)
+ {
+-	// Leave SP around for gc and traceback.
+-	// Do before notewakeup so that gc
+-	// never sees Gsyscall with wrong stack.
+-	runtime·gosave(&g->sched);
+ 	if(runtime·sched.predawn)
+ 		return;
+ 	schedlock();
+@@ -625,10 +626,23 @@ runtime·entersyscall(void)
+ 	runtime·sched.msyscall++;
+ 	if(runtime·sched.gwait != 0)
+ 		matchmg();
++
+ 	if(runtime·sched.waitstop && runtime·sched.mcpu <= runtime·sched.mcpumax) {
+ 		runtime·sched.waitstop = 0;
+ 		runtime·notewakeup(&runtime·sched.stopped);
+ 	}
++
++	// Leave SP around for gc and traceback.
++	// Do before schedunlock so that gc
++	// never sees Gsyscall with wrong stack.
++	runtime·gosave(&g->sched);
++	g->gcsp = g->sched.sp;
++	g->gcstack = g->stackbase;
++	g->gcguard = g->stackguard;
++	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
++		runtime·printf("entersyscall inconsistent %p [%p,%p]\n", g->gcsp, g->gcguard-StackGuard, g->gcstack);
++		runtime·throw("entersyscall");
++	}
+ 	schedunlock();
+ }
+ 
+@@ -647,7 +661,11 @@ runtime·exitsyscall(void)
+ 	runtime·sched.mcpu++;
+ 	// Fast path - if there's room for this m, we're done.
+ 	if(m->profilehz == runtime·sched.profilehz && runtime·sched.mcpu <= runtime·sched.mcpumax) {
++		// There's a cpu for us, so we can run.
+ 		g->status = Grunning;
++		// Garbage collector isn't running (since we are),
++		// so okay to clear gcstack.
++		g->gcstack = nil;
+ 		schedunlock();
+ 		return;
+ 	}
+@@ -663,6 +681,14 @@ runtime·exitsyscall(void)
+ 	// When the scheduler takes g away from m,
+ 	// it will undo the runtime·sched.mcpu++ above.
+ 	runtime·gosched();
++	
++	// Gosched returned, so we're allowed to run now.
++	// Delete the gcstack information that we left for
++	// the garbage collector during the system call.
++	// Must wait until now because until gosched returns
++	// we don't know for sure that the garbage collector
++	// is not running.
++	g->gcstack = nil;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index fd84396131..f9b404e152 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -183,6 +183,9 @@ struct	G
+ 	Defer*	defer;
+ 	Panic*	panic;
+ 	Gobuf	sched;
++	byte*	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
++	byte*	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
++	byte*	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+ 	byte*	stack0;
+ 	byte*	entry;		// initial function
+ 	G*	alllink;	// on allg
+@@ -241,6 +244,7 @@ struct	M
+ 	void*	sehframe;
+ #endif
+ };
++
+ struct	Stktop
+ {
+ 	// The offsets of these fields are known to (hard-coded in) libmach.

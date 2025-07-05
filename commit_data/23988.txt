@@ -20,6 +20,20 @@ Date:   Fri Jun 26 17:24:12 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11570
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index efdcb8fca4..ef17409ebe 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1193,7 +1193,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
+ 		}
+ 		trailer[i] = byte(n)
+ 		i++
+-		n = count
++		n = count - 1
+ 		for ; n >= 0x80; n >>= 7 {
+ 			trailer[i] = byte(n | 0x80)
+ 			i++

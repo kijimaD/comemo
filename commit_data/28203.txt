@@ -12,6 +12,20 @@ Date:   Wed May 4 22:07:50 2016 -0700
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index c34c629b9c..5d1cc77c98 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -51,6 +51,8 @@ func TestCgoCallbackGC(t *testing.T) {
+ 			t.Skip("see golang.org/issue/11990")
+ 		case runtime.GOOS == "linux" && runtime.GOARCH == "arm":
+ 			t.Skip("too slow for arm builders")
++		case runtime.GOOS == "linux" && (runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le"):
++			t.Skip("too slow for mips64x builders")
+ 		}
+ 	}
+ 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")

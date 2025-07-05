@@ -14,6 +14,38 @@ Date:   Thu May 13 20:52:41 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/io/fs/example_test.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/src/io/fs/example_test.go b/src/io/fs/example_test.go
+new file mode 100644
+index 0000000000..c9027034c4
+--- /dev/null
++++ b/src/io/fs/example_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	"fmt"
++	"io/fs"
++	"log"
++	"os"
++)
++
++func ExampleWalkDir() {
++	root := "/usr/local/go/bin"
++	fileSystem := os.DirFS(root)
++
++	fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
++		if err != nil {
++			log.Fatal(err)
++		}
++		fmt.Println(path)
++		return nil
++	})
++}

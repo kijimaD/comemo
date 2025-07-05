@@ -19,8 +19,148 @@ Date:   Wed Jan 27 19:02:37 2021 +0000
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/os_windows.go                  |  7 ++++
  src/runtime/signal_windows_test.go         | 64 ++++++++++++++++++++++++++++++
  src/runtime/testdata/testwinsignal/main.go | 19 +++++++++
  3 files changed, 90 insertions(+)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 83d0d63e5d..e6b22e3167 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -46,6 +46,7 @@ const (
+ //go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
++//go:cgo_import_dynamic runtime._Sleep Sleep%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
+@@ -97,6 +98,7 @@ var (
+ 	_SetThreadPriority,
+ 	_SetUnhandledExceptionFilter,
+ 	_SetWaitableTimer,
++	_Sleep,
+ 	_SuspendThread,
+ 	_SwitchToThread,
+ 	_TlsAlloc,
+@@ -1094,6 +1096,11 @@ func ctrlhandler1(_type uint32) uint32 {
+ 	}
+ 
+ 	if sigsend(s) {
++		if s == _SIGTERM {
++			// Windows terminates the process after this handler returns.
++			// Block indefinitely to give signal handlers a chance to clean up.
++			stdcall1(_Sleep, uintptr(_INFINITE))
++		}
+ 		return 1
+ 	}
+ 	return 0
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index a5a885c2f7..33a9b92ee7 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -79,6 +80,69 @@ func sendCtrlBreak(pid int) error {
+ 	return nil
+ }
+ 
++// TestCtrlHandler tests that Go can gracefully handle closing the console window.
++// See https://golang.org/issues/41884.
++func TestCtrlHandler(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	// build go program
++	exe := filepath.Join(t.TempDir(), "test.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "testdata/testwinsignal/main.go")
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build go exe: %v\n%s", err, out)
++	}
++
++	// run test program
++	cmd = exec.Command(exe)
++	var stderr bytes.Buffer
++	cmd.Stderr = &stderr
++	outPipe, err := cmd.StdoutPipe()
++	if err != nil {
++		t.Fatalf("Failed to create stdout pipe: %v", err)
++	}
++	outReader := bufio.NewReader(outPipe)
++
++	// in a new command window
++	const _CREATE_NEW_CONSOLE = 0x00000010
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		CreationFlags: _CREATE_NEW_CONSOLE,
++		HideWindow:    true,
++	}
++	if err := cmd.Start(); err != nil {
++		t.Fatalf("Start failed: %v", err)
++	}
++	defer func() {
++		cmd.Process.Kill()
++		cmd.Wait()
++	}()
++
++	// wait for child to be ready to receive signals
++	if line, err := outReader.ReadString('\n'); err != nil {
++		t.Fatalf("could not read stdout: %v", err)
++	} else if strings.TrimSpace(line) != "ready" {
++		t.Fatalf("unexpected message: %s", line)
++	}
++
++	// gracefully kill pid, this closes the command window
++	if err := exec.Command("taskkill.exe", "/pid", strconv.Itoa(cmd.Process.Pid)).Run(); err != nil {
++		t.Fatalf("failed to kill: %v", err)
++	}
++
++	// check child received, handled SIGTERM
++	if line, err := outReader.ReadString('\n'); err != nil {
++		t.Fatalf("could not read stdout: %v", err)
++	} else if expected, got := syscall.SIGTERM.String(), strings.TrimSpace(line); expected != got {
++		t.Fatalf("Expected '%s' got: %s", expected, got)
++	}
++
++	// check child exited gracefully, did not timeout
++	if err := cmd.Wait(); err != nil {
++		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
++	}
++}
++
+ // TestLibraryCtrlHandler tests that Go DLL allows calling program to handle console control events.
+ // See https://golang.org/issues/35965.
+ func TestLibraryCtrlHandler(t *testing.T) {
+diff --git a/src/runtime/testdata/testwinsignal/main.go b/src/runtime/testdata/testwinsignal/main.go
+new file mode 100644
+index 0000000000..d8cd884ffa
+--- /dev/null
++++ b/src/runtime/testdata/testwinsignal/main.go
+@@ -0,0 +1,19 @@
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/signal"
++	"time"
++)
++
++func main() {
++	c := make(chan os.Signal, 1)
++	signal.Notify(c)
++
++	fmt.Println("ready")
++	sig := <-c
++
++	time.Sleep(time.Second)
++	fmt.Println(sig)
++}

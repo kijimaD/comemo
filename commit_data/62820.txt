@@ -13,6 +13,28 @@ Date:   Sun Apr 13 16:21:52 2025 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/strings/compare_test.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/strings/compare_test.go b/src/strings/compare_test.go
+index a43578423d..2fd3df4435 100644
+--- a/src/strings/compare_test.go
++++ b/src/strings/compare_test.go
+@@ -36,9 +36,13 @@ var compareTests = []struct {
+ 
+ func TestCompare(t *testing.T) {
+ 	for _, tt := range compareTests {
+-		cmp := Compare(tt.a, tt.b)
+-		if cmp != tt.i {
+-			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
++		numShifts := 16
++		for offset := 0; offset <= numShifts; offset++ {
++			shiftedB := (Repeat("*", offset) + tt.b)[offset:]
++			cmp := Compare(tt.a, shiftedB)
++			if cmp != tt.i {
++				t.Errorf(`Compare(%q, %q), offset %d = %v; want %v`, tt.a, tt.b, offset, cmp, tt.i)
++			}
+ 		}
+ 	}
+ }

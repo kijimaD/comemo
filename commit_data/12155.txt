@@ -7,7 +7,7 @@ Date:   Wed Feb 22 21:45:01 2012 -0500
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5687076
-
+---
  src/pkg/runtime/debug.go  |  33 +++++++++----
  src/pkg/runtime/malloc.h  |  10 +---
  src/pkg/runtime/mgc0.c    |  35 +++++++++-----
@@ -16,3 +16,575 @@ Date:   Wed Feb 22 21:45:01 2012 -0500
  src/pkg/runtime/proc.c    |   6 +++
  src/pkg/runtime/runtime.h |   6 ++-
  7 files changed, 207 insertions(+), 59 deletions(-)
+
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 6526f16a04..b802fc63f7 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -30,7 +30,7 @@ func NumCPU() int
+ func NumCgoCall() int64
+ 
+ // NumGoroutine returns the number of goroutines that currently exist.
+-func NumGoroutine() int32
++func NumGoroutine() int
+ 
+ // MemProfileRate controls the fraction of memory allocations
+ // that are recorded and reported in the memory profile.
+@@ -89,15 +89,14 @@ func (r *MemProfileRecord) Stack() []uintptr {
+ // of calling MemProfile directly.
+ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
+ 
+-// A ThreadProfileRecord describes the execution stack that
+-// caused a new thread to be created.
+-type ThreadProfileRecord struct {
++// A StackRecord describes a single execution stack.
++type StackRecord struct {
+ 	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
+ }
+ 
+ // Stack returns the stack trace associated with the record,
+ // a prefix of r.Stack0.
+-func (r *ThreadProfileRecord) Stack() []uintptr {
++func (r *StackRecord) Stack() []uintptr {
+ 	for i, v := range r.Stack0 {
+ 		if v == 0 {
+ 			return r.Stack0[0:i]
+@@ -106,13 +105,21 @@ func (r *ThreadProfileRecord) Stack() []uintptr {
+ 	return r.Stack0[0:]
+ }
+ 
+-// ThreadProfile returns n, the number of records in the current thread profile.
+-// If len(p) >= n, ThreadProfile copies the profile into p and returns n, true.
+-// If len(p) < n, ThreadProfile does not change p and returns n, false.
++// ThreadCreateProfile returns n, the number of records in the thread creation profile.
++// If len(p) >= n, ThreadCreateProfile copies the profile into p and returns n, true.
++// If len(p) < n, ThreadCreateProfile does not change p and returns n, false.
+ //
+ // Most clients should use the runtime/pprof package instead
+-// of calling ThreadProfile directly.
+-func ThreadProfile(p []ThreadProfileRecord) (n int, ok bool)
++// of calling ThreadCreateProfile directly.
++func ThreadCreateProfile(p []StackRecord) (n int, ok bool)
++
++// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
++// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
++// If len(p) < n, GoroutineProfile does not change p and returns n, false.
++//
++// Most clients should use the runtime/pprof package instead
++// of calling GoroutineProfile directly.
++func GoroutineProfile(p []StackRecord) (n int, ok bool)
+ 
+ // CPUProfile returns the next chunk of binary CPU profiling stack trace data,
+ // blocking until data is available.  If profiling is turned off and all the profile
+@@ -130,3 +137,9 @@ func CPUProfile() []byte
+ // the testing package's -test.cpuprofile flag instead of calling
+ // SetCPUProfileRate directly.
+ func SetCPUProfileRate(hz int)
++
++// Stack formats a stack trace of the calling goroutine into buf
++// and returns the number of bytes written to buf.
++// If all is true, Stack formats stack traces of all other goroutines
++// into buf after the trace for the current goroutine.
++func Stack(buf []byte, all bool) int
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 5f03693f52..d846f6810b 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -411,17 +411,9 @@ enum
+ 
+ void	runtime·MProf_Malloc(void*, uintptr);
+ void	runtime·MProf_Free(void*, uintptr);
++void	runtime·MProf_GC(void);
+ int32	runtime·helpgc(bool*);
+ void	runtime·gchelper(void);
+ 
+-// Malloc profiling settings.
+-// Must match definition in extern.go.
+-enum {
+-	MProf_None = 0,
+-	MProf_Sample = 1,
+-	MProf_All = 2,
+-};
+-extern int32 runtime·malloc_profile;
+-
+ bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
+ void	runtime·walkfintab(void (*fn)(void*));
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index fd1babfd35..e043864c19 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -52,6 +52,21 @@ enum {
+ 
+ #define bitMask (bitBlockBoundary | bitAllocated | bitMarked | bitSpecial)
+ 
++// Holding worldsema grants an M the right to try to stop the world.
++// The procedure is:
++//
++//	runtime·semacquire(&runtime·worldsema);
++//	m->gcing = 1;
++//	runtime·stoptheworld();
++//
++//	... do stuff ...
++//
++//	m->gcing = 0;
++//	runtime·semrelease(&runtime·worldsema);
++//	runtime·starttheworld();
++//
++uint32 runtime·worldsema = 1;
++
+ // TODO: Make these per-M.
+ static uint64 nhandoff;
+ 
+@@ -816,11 +831,6 @@ runtime·gchelper(void)
+ 		runtime·notewakeup(&work.alldone);
+ }
+ 
+-// Semaphore, not Lock, so that the goroutine
+-// reschedules when there is contention rather
+-// than spinning.
+-static uint32 gcsema = 1;
+-
+ // Initialized from $GOGC.  GOGC=off means no gc.
+ //
+ // Next gc is after we've allocated an extra amount of
+@@ -903,9 +913,9 @@ runtime·gc(int32 force)
+ 	if(gcpercent < 0)
+ 		return;
+ 
+-	runtime·semacquire(&gcsema);
++	runtime·semacquire(&runtime·worldsema);
+ 	if(!force && mstats.heap_alloc < mstats.next_gc) {
+-		runtime·semrelease(&gcsema);
++		runtime·semrelease(&runtime·worldsema);
+ 		return;
+ 	}
+ 
+@@ -981,8 +991,9 @@ runtime·gc(int32 force)
+ 			mstats.nmalloc, mstats.nfree,
+ 			nhandoff);
+ 	}
+-
+-	runtime·semrelease(&gcsema);
++	
++	runtime·MProf_GC();
++	runtime·semrelease(&runtime·worldsema);
+ 
+ 	// If we could have used another helper proc, start one now,
+ 	// in the hope that it will be available next time.
+@@ -1004,17 +1015,17 @@ runtime·gc(int32 force)
+ void
+ runtime·ReadMemStats(MStats *stats)
+ {
+-	// Have to acquire gcsema to stop the world,
++	// Have to acquire worldsema to stop the world,
+ 	// because stoptheworld can only be used by
+ 	// one goroutine at a time, and there might be
+ 	// a pending garbage collection already calling it.
+-	runtime·semacquire(&gcsema);
++	runtime·semacquire(&runtime·worldsema);
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+ 	cachestats();
+ 	*stats = mstats;
+ 	m->gcing = 0;
+-	runtime·semrelease(&gcsema);
++	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld(false);
+ }
+ 
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 70e991b8bb..0bbce85836 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -26,6 +26,10 @@ struct Bucket
+ 	uintptr	frees;
+ 	uintptr	alloc_bytes;
+ 	uintptr	free_bytes;
++	uintptr	recent_allocs;  // since last gc
++	uintptr	recent_frees;
++	uintptr	recent_alloc_bytes;
++	uintptr	recent_free_bytes;
+ 	uintptr	hash;
+ 	uintptr	nstk;
+ 	uintptr	stk[1];
+@@ -39,7 +43,7 @@ static uintptr bucketmem;
+ 
+ // Return the bucket for stk[0:nstk], allocating new bucket if needed.
+ static Bucket*
+-stkbucket(uintptr *stk, int32 nstk)
++stkbucket(uintptr *stk, int32 nstk, bool alloc)
+ {
+ 	int32 i;
+ 	uintptr h;
+@@ -66,6 +70,9 @@ stkbucket(uintptr *stk, int32 nstk)
+ 		   runtime·mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
+ 			return b;
+ 
++	if(!alloc)
++		return nil;
++
+ 	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
+ 	bucketmem += sizeof *b + nstk*sizeof stk[0];
+ 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
+@@ -78,6 +85,26 @@ stkbucket(uintptr *stk, int32 nstk)
+ 	return b;
+ }
+ 
++// Record that a gc just happened: all the 'recent' statistics are now real.
++void
++runtime·MProf_GC(void)
++{
++	Bucket *b;
++	
++	runtime·lock(&proflock);
++	for(b=buckets; b; b=b->allnext) {
++		b->allocs += b->recent_allocs;
++		b->frees += b->recent_frees;
++		b->alloc_bytes += b->recent_alloc_bytes;
++		b->free_bytes += b->recent_free_bytes;
++		b->recent_allocs = 0;
++		b->recent_frees = 0;
++		b->recent_alloc_bytes = 0;
++		b->recent_free_bytes = 0;
++	}
++	runtime·unlock(&proflock);
++}
++
+ // Map from pointer to Bucket* that allocated it.
+ // Three levels:
+ //	Linked-list hash table for top N-20 bits.
+@@ -198,9 +225,9 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 	m->nomemprof++;
+ 	nstk = runtime·callers(1, stk, 32);
+ 	runtime·lock(&proflock);
+-	b = stkbucket(stk, nstk);
+-	b->allocs++;
+-	b->alloc_bytes += size;
++	b = stkbucket(stk, nstk, true);
++	b->recent_allocs++;
++	b->recent_alloc_bytes += size;
+ 	setaddrbucket((uintptr)p, b);
+ 	runtime·unlock(&proflock);
+ 	m->nomemprof--;
+@@ -219,8 +246,8 @@ runtime·MProf_Free(void *p, uintptr size)
+ 	runtime·lock(&proflock);
+ 	b = getaddrbucket((uintptr)p);
+ 	if(b != nil) {
+-		b->frees++;
+-		b->free_bytes += size;
++		b->recent_frees++;
++		b->recent_free_bytes += size;
+ 	}
+ 	runtime·unlock(&proflock);
+ 	m->nomemprof--;
+@@ -274,13 +301,13 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
+ 	runtime·unlock(&proflock);
+ }
+ 
+-// Must match ThreadProfileRecord in debug.go.
++// Must match StackRecord in debug.go.
+ typedef struct TRecord TRecord;
+ struct TRecord {
+ 	uintptr stk[32];
+ };
+ 
+-func ThreadProfile(p Slice) (n int32, ok bool) {
++func ThreadCreateProfile(p Slice) (n int32, ok bool) {
+ 	TRecord *r;
+ 	M *first, *m;
+ 	
+@@ -298,3 +325,80 @@ func ThreadProfile(p Slice) (n int32, ok bool) {
+ 		}
+ 	}
+ }
++
++func Stack(b Slice, all bool) (n int32) {
++	byte *pc, *sp;
++	
++	sp = runtime·getcallersp(&b);
++	pc = runtime·getcallerpc(&b);
++
++	if(all) {
++		runtime·semacquire(&runtime·worldsema);
++		m->gcing = 1;
++		runtime·stoptheworld();
++	}
++
++	if(b.len == 0)
++		n = 0;
++	else{
++		g->writebuf = (byte*)b.array;
++		g->writenbuf = b.len;
++		runtime·goroutineheader(g);
++		runtime·traceback(pc, sp, 0, g);
++		if(all)
++			runtime·tracebackothers(g);
++		n = b.len - g->writenbuf;
++		g->writebuf = nil;
++		g->writenbuf = 0;
++	}
++	
++	if(all) {
++		m->gcing = 0;
++		runtime·semrelease(&runtime·worldsema);
++		runtime·starttheworld(false);
++	}
++}
++
++static void
++saveg(byte *pc, byte *sp, G *g, TRecord *r)
++{
++	int32 n;
++	
++	n = runtime·gentraceback(pc, sp, 0, g, 0, r->stk, nelem(r->stk));
++	if(n < nelem(r->stk))
++		r->stk[n] = 0;
++}
++
++func GoroutineProfile(b Slice) (n int32, ok bool) {
++	byte *pc, *sp;
++	TRecord *r;
++	G *gp;
++	
++	sp = runtime·getcallersp(&b);
++	pc = runtime·getcallerpc(&b);
++	
++	ok = false;
++	n = runtime·gcount();
++	if(n <= b.len) {
++		runtime·semacquire(&runtime·worldsema);
++		m->gcing = 1;
++		runtime·stoptheworld();
++
++		n = runtime·gcount();
++		if(n <= b.len) {
++			ok = true;
++			r = (TRecord*)b.array;
++			saveg(pc, sp, g, r++);
++			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
++				if(gp == g || gp->status == Gdead)
++					continue;
++				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
++			}
++		}
++	
++		m->gcing = 0;
++		runtime·semrelease(&runtime·worldsema);
++		runtime·starttheworld(false);
++	}
++}
++
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 0d8caaf912..6702c3cde7 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -9,6 +9,26 @@
+ 
+ static void vprintf(int8*, byte*);
+ 
++// write to goroutine-local buffer if diverting output,
++// or else standard error.
++static void
++gwrite(void *v, int32 n)
++{
++	if(g == nil || g->writebuf == nil) {
++		runtime·write(2, v, n);
++		return;
++	}
++	
++	if(g->writenbuf == 0)
++		return;
++	
++	if(n > g->writenbuf)
++		n = g->writenbuf;
++	runtime·memmove(g->writebuf, v, n);
++	g->writebuf += n;
++	g->writenbuf -= n;
++}
++
+ void
+ runtime·dump(byte *p, int32 n)
+ {
+@@ -29,7 +49,7 @@ runtime·dump(byte *p, int32 n)
+ void
+ runtime·prints(int8 *s)
+ {
+-	runtime·write(2, s, runtime·findnull((byte*)s));
++	gwrite(s, runtime·findnull((byte*)s));
+ }
+ 
+ #pragma textflag 7
+@@ -59,7 +79,7 @@ vprintf(int8 *s, byte *base)
+ 		if(*p != '%')
+ 			continue;
+ 		if(p > lp)
+-			runtime·write(2, lp, p-lp);
++			gwrite(lp, p-lp);
+ 		p++;
+ 		narg = 0;
+ 		switch(*p) {
+@@ -150,7 +170,7 @@ vprintf(int8 *s, byte *base)
+ 		lp = p+1;
+ 	}
+ 	if(p > lp)
+-		runtime·write(2, lp, p-lp);
++		gwrite(lp, p-lp);
+ 
+ 	//runtime·unlock(&debuglock);
+ }
+@@ -176,10 +196,10 @@ void
+ runtime·printbool(bool v)
+ {
+ 	if(v) {
+-		runtime·write(2, (byte*)"true", 4);
++		gwrite((byte*)"true", 4);
+ 		return;
+ 	}
+-	runtime·write(2, (byte*)"false", 5);
++	gwrite((byte*)"false", 5);
+ }
+ 
+ void
+@@ -190,15 +210,15 @@ runtime·printfloat(float64 v)
+ 	float64 h;
+ 
+ 	if(runtime·isNaN(v)) {
+-		runtime·write(2, "NaN", 3);
++		gwrite("NaN", 3);
+ 		return;
+ 	}
+ 	if(runtime·isInf(v, 1)) {
+-		runtime·write(2, "+Inf", 4);
++		gwrite("+Inf", 4);
+ 		return;
+ 	}
+ 	if(runtime·isInf(v, -1)) {
+-		runtime·write(2, "-Inf", 4);
++		gwrite("-Inf", 4);
+ 		return;
+ 	}
+ 
+@@ -257,16 +277,16 @@ runtime·printfloat(float64 v)
+ 	buf[n+4] = (e/100) + '0';
+ 	buf[n+5] = (e/10)%10 + '0';
+ 	buf[n+6] = (e%10) + '0';
+-	runtime·write(2, buf, n+7);
++	gwrite(buf, n+7);
+ }
+ 
+ void
+ runtime·printcomplex(Complex128 v)
+ {
+-	runtime·write(2, "(", 1);
++	gwrite("(", 1);
+ 	runtime·printfloat(v.real);
+ 	runtime·printfloat(v.imag);
+-	runtime·write(2, "i)", 2);
++	gwrite("i)", 2);
+ }
+ 
+ void
+@@ -281,14 +301,14 @@ runtime·printuint(uint64 v)
+ 			break;
+ 		v = v/10;
+ 	}
+-	runtime·write(2, buf+i, nelem(buf)-i);
++	gwrite(buf+i, nelem(buf)-i);
+ }
+ 
+ void
+ runtime·printint(int64 v)
+ {
+ 	if(v < 0) {
+-		runtime·write(2, "-", 1);
++		gwrite("-", 1);
+ 		v = -v;
+ 	}
+ 	runtime·printuint(v);
+@@ -308,7 +328,7 @@ runtime·printhex(uint64 v)
+ 		buf[--i] = '0';
+ 	buf[--i] = 'x';
+ 	buf[--i] = '0';
+-	runtime·write(2, buf+i, nelem(buf)-i);
++	gwrite(buf+i, nelem(buf)-i);
+ }
+ 
+ void
+@@ -323,23 +343,23 @@ runtime·printstring(String v)
+ 	extern uint32 runtime·maxstring;
+ 
+ 	if(v.len > runtime·maxstring) {
+-		runtime·write(2, "[invalid string]", 16);
++		gwrite("[invalid string]", 16);
+ 		return;
+ 	}
+ 	if(v.len > 0)
+-		runtime·write(2, v.str, v.len);
++		gwrite(v.str, v.len);
+ }
+ 
+ void
+ runtime·printsp(void)
+ {
+-	runtime·write(2, " ", 1);
++	gwrite(" ", 1);
+ }
+ 
+ void
+ runtime·printnl(void)
+ {
+-	runtime·write(2, "\n", 1);
++	gwrite("\n", 1);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d09f075327..d94bec8855 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1664,6 +1664,12 @@ runtime·NumGoroutine(int32 ret)
+ 	FLUSH(&ret);
+ }
+ 
++int32
++runtime·gcount(void)
++{
++	return runtime·sched.gcount;
++}
++
+ int32
+ runtime·mcount(void)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 910f00c8a2..1f4407a093 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -191,6 +191,8 @@ struct	G
+ 	M*	lockedm;
+ 	M*	idlem;
+ 	int32	sig;
++	int32	writenbuf;
++	byte*	writebuf;
+ 	uintptr	sigcode0;
+ 	uintptr	sigcode1;
+ 	uintptr	sigpc;
+@@ -545,6 +547,7 @@ bool	runtime·addfinalizer(void*, void(*fn)(void*), int32);
+ void	runtime·runpanic(Panic*);
+ void*	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
++int32	runtime·gcount(void);
+ void	runtime·mcall(void(*)(G*));
+ uint32	runtime·fastrand1(void);
+ 
+@@ -585,10 +588,9 @@ int64	runtime·cputicks(void);
+ #pragma	varargck	type	"s"	uint8*
+ #pragma	varargck	type	"S"	String
+ 
+-// TODO(rsc): Remove. These are only temporary,
+-// for the mark and sweep collector.
+ void	runtime·stoptheworld(void);
+ void	runtime·starttheworld(bool);
++extern uint32 runtime·worldsema;
+ 
+ /*
+  * mutual exclusion locks.  in the uncontended case,

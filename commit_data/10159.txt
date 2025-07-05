@@ -7,6 +7,20 @@ Date:   Mon Oct 31 17:50:38 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5306087
-
+---
  test/fixedbugs/bug107.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug107.go b/test/fixedbugs/bug107.go
+index d0b062a659..0554bbc8b8 100644
+--- a/test/fixedbugs/bug107.go
++++ b/test/fixedbugs/bug107.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ import os "os"
+-type _ os.Error
++type _ os.FileInfo
+ func f() (os int) {
+ 	 // In the next line "os" should refer to the result variable, not
+ 	 // to the package.

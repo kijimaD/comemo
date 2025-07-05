@@ -11,7 +11,7 @@ Date:   Fri Apr 17 14:35:54 2015 +0900
     Change-Id: Ie3bb534c19a724cacb3ea3f3656e46c810b2123f
     Reviewed-on: https://go-review.googlesource.com/8996
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go     | 74 +++++++++++++++++++++++++++++++++++++++++++++++
  src/net/fd_unix.go        |  4 +--
  src/net/fd_windows.go     | 12 +++-----
@@ -20,3 +20,298 @@ Date:   Fri Apr 17 14:35:54 2015 +0900
  src/net/unixsock_plan9.go |  4 +--
  src/net/unixsock_posix.go |  5 ++--
  7 files changed, 109 insertions(+), 32 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 9f4a90d8e1..ebb395d8f9 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"testing"
++	"time"
+ )
+ 
+ func isTimeoutError(err error) bool {
+@@ -424,3 +425,76 @@ func TestCloseError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// parseAcceptError parses nestedErr and reports whether it is a valid
++// error value from Accept functions.
++// It returns nil when nestedErr is valid.
++func parseAcceptError(nestedErr error) error {
++	if nestedErr == nil {
++		return nil
++	}
++
++	switch err := nestedErr.(type) {
++	case *OpError:
++		if err := err.isValid(); err != nil {
++			return err
++		}
++		nestedErr = err.Err
++		goto second
++	}
++	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
++
++second:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	switch err := nestedErr.(type) {
++	case *os.SyscallError:
++		nestedErr = err.Err
++		goto third
++	}
++	switch nestedErr {
++	case errClosing, errTimeout:
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
++
++third:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
++}
++
++func TestAcceptError(t *testing.T) {
++	handler := func(ls *localServer, ln Listener) {
++		for {
++			ln.(*TCPListener).SetDeadline(time.Now().Add(5 * time.Millisecond))
++			c, err := ln.Accept()
++			if perr := parseAcceptError(err); perr != nil {
++				t.Error(perr)
++			}
++			if err != nil {
++				if c != nil {
++					t.Errorf("Accept returned non-nil interface %T(%v) with err != nil", c, c)
++				}
++				if !isTimeoutError(err) && !isTemporaryError(err) {
++					return
++				}
++				continue
++			}
++			c.Close()
++		}
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := ls.buildup(handler); err != nil {
++		ls.teardown()
++		t.Fatal(err)
++	}
++
++	time.Sleep(100 * time.Millisecond)
++	ls.teardown()
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index a7e6d40359..329819e80a 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -377,7 +377,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 	var s int
+ 	var rsa syscall.Sockaddr
+ 	if err = fd.pd.PrepareRead(); err != nil {
+-		return nil, &OpError{"accept", fd.net, fd.laddr, err}
++		return nil, err
+ 	}
+ 	for {
+ 		s, rsa, err = accept(fd.sysfd)
+@@ -391,7 +391,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 				// before we Accept()ed it; it's a silly error, so try again.
+ 				continue
+ 			}
+-			return nil, &OpError{"accept", fd.net, fd.laddr, err}
++			return nil, err
+ 		}
+ 		break
+ 	}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index bdc6d5f15e..4826a88236 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -522,14 +522,14 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
+ 	// Get new socket.
+ 	s, err := sysSocket(fd.family, fd.sotype, 0)
+ 	if err != nil {
+-		return nil, &OpError{"socket", fd.net, fd.laddr, err}
++		return nil, err
+ 	}
+ 
+ 	// Associate our new socket with IOCP.
+ 	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
+ 	if err != nil {
+ 		closeFunc(s)
+-		return nil, &OpError{"accept", fd.net, fd.laddr, err}
++		return nil, err
+ 	}
+ 	if err := netfd.init(); err != nil {
+ 		fd.Close()
+@@ -551,7 +551,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
+ 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
+ 	if err != nil {
+ 		netfd.Close()
+-		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
++		return nil, err
+ 	}
+ 
+ 	return netfd, nil
+@@ -577,11 +577,7 @@ func (fd *netFD) accept() (*netFD, error) {
+ 		// before AcceptEx could complete. These errors relate to new
+ 		// connection, not to AcceptEx, so ignore broken connection and
+ 		// try AcceptEx again for more connections.
+-		operr, ok := err.(*OpError)
+-		if !ok {
+-			return nil, err
+-		}
+-		errno, ok := operr.Err.(syscall.Errno)
++		errno, ok := err.(syscall.Errno)
+ 		if !ok {
+ 			return nil, err
+ 		}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 5a4c28be4f..da4dd50257 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -241,7 +241,7 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
+ 	}
+ 	fd, err := l.fd.accept()
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "accept", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+ 	}
+ 	return newTCPConn(fd), nil
+ }
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index fd5658ae5f..3ef22fa76f 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -81,16 +81,28 @@ func TestAcceptTimeout(t *testing.T) {
+ 	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseAcceptError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseAcceptError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
+ 	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseAcceptError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
++	if perr := parseAcceptError(err); perr != nil {
++		t.Error(perr)
++	}
+ 	ln.(*TCPListener).SetDeadline(noDeadline)
+ 	errc := make(chan error)
+ 	go func() {
+@@ -104,15 +116,9 @@ func TestAcceptTimeout(t *testing.T) {
+ 	default:
+ 	}
+ 	ln.Close()
+-	switch nerr := <-errc; err := nerr.(type) {
+-	case *OpError:
+-		if err.Err != errClosing {
+-			t.Fatalf("Accept: expected err %v, got %v", errClosing, err)
+-		}
+-	default:
+-		if err != errClosing {
+-			t.Fatalf("Accept: expected err %v, got %v", errClosing, err)
+-		}
++	err = <-errc
++	if perr := parseAcceptError(err); perr != nil {
++		t.Error(perr)
+ 	}
+ }
+ 
+@@ -356,18 +362,18 @@ func TestDeadlineReset(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTimeoutAccept(t *testing.T) {
++func TestConcurrentAcceptTimeout(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+-	ln, err := Listen("tcp", "127.0.0.1:0")
++
++	ln, err := newLocalListener("tcp")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer ln.Close()
+-	tl := ln.(*TCPListener)
+-	tl.SetDeadline(time.Now().Add(100 * time.Millisecond))
++	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
+ 	errc := make(chan error, 1)
+ 	go func() {
+ 		_, err := ln.Accept()
+@@ -376,9 +382,11 @@ func TestTimeoutAccept(t *testing.T) {
+ 	select {
+ 	case <-time.After(1 * time.Second):
+ 		// Accept shouldn't block indefinitely
+-		t.Errorf("Accept didn't return in an expected time")
+-	case <-errc:
+-		// Pass.
++		t.Error("Accept didn't return in an expected time")
++	case err := <-errc:
++		if perr := parseAcceptError(err); perr != nil {
++			t.Error(perr)
++		}
+ 	}
+ }
+ 
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index fb47e72e0c..2972702004 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -99,13 +99,13 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ // AcceptUnix accepts the next incoming call and returns the new
+ // connection.
+ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+-	return nil, syscall.EPLAN9
++	return nil, &OpError{Op: "accept", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
+ }
+ 
+ // Accept implements the Accept method in the Listener interface; it
+ // waits for the next call and returns a generic Conn.
+ func (l *UnixListener) Accept() (Conn, error) {
+-	return nil, syscall.EPLAN9
++	return nil, &OpError{Op: "accept", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
+ }
+ 
+ // Close stops listening on the Unix address.  Already accepted
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 4087c9d6bd..2881437ec0 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -307,10 +307,9 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	}
+ 	fd, err := l.fd.accept()
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "accept", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
+ 	}
+-	c := newUnixConn(fd)
+-	return c, nil
++	return newUnixConn(fd), nil
+ }
+ 
+ // Accept implements the Accept method in the Listener interface; it

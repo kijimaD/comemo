@@ -12,6 +12,19 @@ Date:   Wed Nov 8 19:05:11 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/buildcfg/exp.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 75ed7b2459..a45cfaf862 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -74,6 +74,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		RegabiArgs:       regabiSupported,
+ 		CoverageRedesign: true,
+ 		AllocHeaders:     true,
++		ExecTracer2:      true,
+ 	}
+ 
+ 	// Start with the statically enabled set of experiments.

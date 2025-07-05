@@ -7,9 +7,557 @@ Date:   Mon Aug 4 13:27:05 2008 -0700
     R=r
     OCL=13816
     CL=13816
-
+---
  usr/gri/gosrc/export.go  | 151 ++++++++++++++++++++++----------------------
  usr/gri/gosrc/globals.go |  14 +----
  usr/gri/gosrc/import.go  | 158 +++++++++++++++++++++++------------------------
  usr/gri/gosrc/parser.go  |  12 ++--
  4 files changed, 163 insertions(+), 172 deletions(-)
+
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index ac6afd9bbd..6d6767b4ba 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -21,9 +21,7 @@ type Exporter struct {
+ };
+ 
+ 
+-func (E *Exporter) WriteType(typ *Globals.Type);
+ func (E *Exporter) WriteObject(obj *Globals.Object);
+-func (E *Exporter) WritePackage(pno int);
+ 
+ 
+ func (E *Exporter) WriteByte(x byte) {
+@@ -65,13 +63,14 @@ func (E *Exporter) WriteString(s string) {
+ }
+ 
+ 
+-func (E *Exporter) WriteObjectTag(tag int) {
+-	if tag < 0 {
+-		panic "tag < 0";
+-	}
++func (E *Exporter) WritePackageTag(tag int) {
+ 	E.WriteInt(tag);
+ 	if E.debug {
+-		print "\n", Object.KindStr(tag);
++		if tag >= 0 {
++			print " [P", tag, "]";  // package ref
++		} else {
++			print "\nP", E.pkg_ref, ":";
++		}
+ 	}
+ }
+ 
+@@ -88,27 +87,44 @@ func (E *Exporter) WriteTypeTag(tag int) {
+ }
+ 
+ 
+-func (E *Exporter) WritePackageTag(tag int) {
++func (E *Exporter) WriteObjectTag(tag int) {
++	if tag < 0 {
++		panic "tag < 0";
++	}
+ 	E.WriteInt(tag);
+ 	if E.debug {
+-		if tag >= 0 {
+-			print " [P", tag, "]";  // package ref
+-		} else {
+-			print "\nP", E.pkg_ref, ":";
+-		}
++		print "\n", Object.KindStr(tag);
++	}
++}
++
++
++func (E *Exporter) WritePackage(pkg *Globals.Package) {
++	if E.comp.pkg_list[pkg.obj.pnolev] != pkg {
++		panic "inconsistent package object"
++	}
++
++	if pkg.ref >= 0 {
++		E.WritePackageTag(pkg.ref);  // package already exported
++		return;
+ 	}
++
++	E.WritePackageTag(-1);
++	pkg.ref = E.pkg_ref;
++	E.pkg_ref++;
++
++	E.WriteString(pkg.obj.ident);
++	E.WriteString(pkg.file_name);
++	E.WriteString(pkg.key);
+ }
+ 
+ 
+-func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
++func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 	if E.debug {
+ 		print " {";
+ 	}
+ 
+ 	for p := scope.entries.first; p != nil; p = p.next {
+-		if export_all || p.obj.exported {
+-			E.WriteObject(p.obj);
+-		}
++		E.WriteObject(p.obj);
+ 	}
+ 	E.WriteObject(nil);
+ 	
+@@ -118,42 +134,6 @@ func (E *Exporter) WriteScope(scope *Globals.Scope, export_all bool) {
+ }
+ 
+ 
+-func (E *Exporter) WriteObject(obj *Globals.Object) {
+-	if obj == nil {
+-		E.WriteObjectTag(Object.END);
+-		return;
+-	}
+-
+-	E.WriteObjectTag(obj.kind);
+-	if obj.kind == Object.TYPE {
+-		// named types are always primary types
+-		// and handled entirely by WriteType()
+-		if obj.typ.obj != obj {
+-			panic "inconsistent primary type"
+-		}
+-		E.WriteType(obj.typ);
+-		return;
+-	}
+-
+-	E.WriteString(obj.ident);
+-	E.WriteType(obj.typ);
+-
+-	switch obj.kind {
+-	case Object.CONST:
+-		E.WriteInt(0);  // should be the correct value
+-
+-	case Object.VAR:
+-		E.WriteInt(0);  // should be the correct address/offset
+-		
+-	case Object.FUNC:
+-		E.WriteInt(0);  // should be the correct address/offset
+-		
+-	default:
+-		panic "UNREACHABLE";
+-	}
+-}
+-
+-
+ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	if typ.ref >= 0 {
+ 		E.WriteTypeTag(typ.ref);  // type already exported
+@@ -161,18 +141,18 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	}
+ 
+ 	if -typ.form >= 0 {
+-		panic "-typ.form >= 0";  // conflict with ref numbers
++		panic "conflict with ref numbers";
+ 	}
+ 	E.WriteTypeTag(-typ.form);
+ 	typ.ref = E.type_ref;
+ 	E.type_ref++;
+ 
+-	// if we have a primary type, export the type identifier and package
++	// if we have a named type, export the type identifier and package
+ 	ident := "";
+ 	if typ.obj != nil {
+-		// primary type
++		// named type
+ 		if typ.obj.typ != typ {
+-			panic "inconsistent primary type";
++			panic "inconsistent named type";
+ 		}
+ 		ident = typ.obj.ident;
+ 		if !typ.obj.exported {
+@@ -185,8 +165,8 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	
+ 	E.WriteString(ident);
+ 	if len(ident) > 0 {
+-		// primary type
+-		E.WritePackage(typ.obj.pnolev);
++		// named type
++		E.WritePackage(E.comp.pkg_list[typ.obj.pnolev]);
+ 	}
+ 	
+ 	switch typ.form {
+@@ -207,10 +187,10 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 
+ 	case Type.FUNCTION:
+ 		E.WriteInt(typ.flags);
+-		E.WriteScope(typ.scope, true);
++		E.WriteScope(typ.scope);
+ 		
+ 	case Type.STRUCT, Type.INTERFACE:
+-		E.WriteScope(typ.scope, true);  // for now
++		E.WriteScope(typ.scope);
+ 
+ 	case Type.POINTER, Type.REFERENCE:
+ 		E.WriteType(typ.elt);
+@@ -221,23 +201,38 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ }
+ 
+ 
+-func (E *Exporter) WritePackage(pno int) {
+-	if pno < 0 {
+-		pno = 0;
++func (E *Exporter) WriteObject(obj *Globals.Object) {
++	if obj == nil {
++		E.WriteObjectTag(Object.END);
++		return;
+ 	}
+-	pkg := E.comp.pkg_list[pno];
+-	if pkg.ref >= 0 {
+-		E.WritePackageTag(pkg.ref);  // package already exported
++	E.WriteObjectTag(obj.kind);
++
++	if obj.kind == Object.TYPE {
++		// named types are handled entirely by WriteType()
++		if obj.typ.obj != obj {
++			panic "inconsistent named type"
++		}
++		E.WriteType(obj.typ);
+ 		return;
+ 	}
+ 
+-	E.WritePackageTag(-1);
+-	pkg.ref = E.pkg_ref;
+-	E.pkg_ref++;
++	E.WriteString(obj.ident);
++	E.WriteType(obj.typ);
+ 
+-	E.WriteString(pkg.obj.ident);
+-	E.WriteString(pkg.file_name);
+-	E.WriteString(pkg.key);
++	switch obj.kind {
++	case Object.CONST:
++		E.WriteInt(0);  // should be the correct value
++
++	case Object.VAR:
++		E.WriteInt(0);  // should be the correct address/offset
++		
++	case Object.FUNC:
++		E.WriteInt(0);  // should be the correct address/offset
++		
++	default:
++		panic "UNREACHABLE";
++	}
+ }
+ 
+ 
+@@ -264,9 +259,15 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	}
+ 	E.type_ref = Universe.types.len_;
+ 	
++	// export package 0
+ 	pkg := comp.pkg_list[0];
+-	E.WritePackage(0);
+-	E.WriteScope(pkg.scope, false);
++	E.WritePackage(pkg);
++	for p := pkg.scope.entries.first; p != nil; p = p.next {
++		if p.obj.exported {
++			E.WriteObject(p.obj);
++		}
++	}
++	E.WriteObject(nil);
+ 	
+ 	if E.debug {
+ 		print "\n(", E.buf_pos, " bytes)\n";
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 7969a35291..6c01660a7b 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -126,12 +126,13 @@ func NewType(form int) *Type {
+ 
+ 
+ export NewPackage;
+-func NewPackage(file_name string, obj *Object) *Package {
++func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 	pkg := new(Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+ 	pkg.key = "<the package key>";  // TODO fix this
+ 	pkg.obj = obj;
++	pkg.scope = scope;
+ 	return pkg;
+ }
+ 
+@@ -316,14 +317,3 @@ func (C *Compilation) Insert(pkg *Package) {
+ 	C.pkg_list[C.pkg_ref] = pkg;
+ 	C.pkg_ref++;
+ }
+-
+-
+-func (C *Compilation) InsertImport(pkg *Package) *Package {
+-	p := C.Lookup(pkg.file_name);
+-	if (p == nil) {
+-		// no primary package found
+-		C.Insert(pkg);
+-		p = pkg;
+-	}
+-	return p;
+-}
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 3c0c5d7006..a2cfa214e5 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -23,9 +23,7 @@ type Importer struct {
+ };
+ 
+ 
+-func (I *Importer) ReadType() *Globals.Type;
+ func (I *Importer) ReadObject() *Globals.Object;
+-func (I *Importer) ReadPackage() *Globals.Package;
+ 
+ 
+ func (I *Importer) ReadByte() byte {
+@@ -74,13 +72,14 @@ func (I *Importer) ReadString() string {
+ }
+ 
+ 
+-func (I *Importer) ReadObjectTag() int {
++func (I *Importer) ReadPackageTag() int {
+ 	tag := I.ReadInt();
+-	if tag < 0 {
+-		panic "tag < 0";
+-	}
+ 	if I.debug {
+-		print "\n", Object.KindStr(tag);
++		if tag >= 0 {
++			print " [P", tag, "]";  // package ref
++		} else {
++			print "\nP", I.pkg_ref, ":";
++		}
+ 	}
+ 	return tag;
+ }
+@@ -99,19 +98,48 @@ func (I *Importer) ReadTypeTag() int {
+ }
+ 
+ 
+-func (I *Importer) ReadPackageTag() int {
++func (I *Importer) ReadObjectTag() int {
+ 	tag := I.ReadInt();
++	if tag < 0 {
++		panic "tag < 0";
++	}
+ 	if I.debug {
+-		if tag >= 0 {
+-			print " [P", tag, "]";  // package ref
+-		} else {
+-			print "\nP", I.pkg_ref, ":";
+-		}
++		print "\n", Object.KindStr(tag);
+ 	}
+ 	return tag;
+ }
+ 
+ 
++func (I *Importer) ReadPackage() *Globals.Package {
++	tag := I.ReadPackageTag();
++	if tag >= 0 {
++		return I.pkg_list[tag];  // package already imported
++	}
++
++	ident := I.ReadString();
++	file_name := I.ReadString();
++	key := I.ReadString();
++	
++	// Canonicalize package - if it was imported before,
++	// use the primary import.
++	pkg := I.comp.Lookup(file_name);
++	if pkg == nil {
++		// new package
++		obj := Globals.NewObject(-1, Object.PACKAGE, ident);
++		pkg = Globals.NewPackage(file_name, obj, Globals.NewScope(nil));
++		I.comp.Insert(pkg);
++	} else if key != pkg.key {
++		// the package was imported before but the package
++		// key has changed
++		panic "package key inconsistency";
++	}
++	I.pkg_list[I.pkg_ref] = pkg;
++	I.pkg_ref++;
++
++	return pkg;
++}
++
++
+ func (I *Importer) ReadScope() *Globals.Scope {
+ 	if I.debug {
+ 		print " {";
+@@ -120,7 +148,7 @@ func (I *Importer) ReadScope() *Globals.Scope {
+ 	scope := Globals.NewScope(nil);
+ 	obj := I.ReadObject();
+ 	for obj != nil {
+-		scope.InsertImport(obj);
++		scope.Insert(obj);
+ 		obj = I.ReadObject();
+ 	}
+ 	
+@@ -132,44 +160,6 @@ func (I *Importer) ReadScope() *Globals.Scope {
+ }
+ 
+ 
+-func (I *Importer) ReadObject() *Globals.Object {
+-	tag := I.ReadObjectTag();
+-	if tag == Object.END {
+-		return nil;
+-	}
+-	
+-	if tag == Object.TYPE {
+-		// named types are always primary types
+-		// and handled entirely by ReadType()
+-		typ := I.ReadType();
+-		if typ.obj.typ != typ {
+-			panic "inconsistent primary type";
+-		}
+-		return typ.obj;
+-	}
+-	
+-	ident := I.ReadString();
+-	obj := Globals.NewObject(0, tag, ident);
+-	obj.typ = I.ReadType();
+-
+-	switch (tag) {
+-	case Object.CONST:
+-		I.ReadInt();  // should set the value field
+-
+-	case Object.VAR:
+-		I.ReadInt();  // should set the address/offset field
+-
+-	case Object.FUNC:
+-		I.ReadInt();  // should set the address/offset field
+-		
+-	default:
+-		panic "UNREACHABLE";
+-	}
+-
+-	return obj;
+-}
+-
+-
+ func (I *Importer) ReadType() *Globals.Type {
+ 	tag := I.ReadTypeTag();
+ 	if tag >= 0 {
+@@ -181,7 +171,7 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ 	ident := I.ReadString();
+ 	if len(ident) > 0 {
+-		// primary type
++		// named type
+ 		pkg := I.ReadPackage();
+ 		
+ 		// create corresponding type object
+@@ -234,32 +224,40 @@ func (I *Importer) ReadType() *Globals.Type {
+ }
+ 
+ 
+-func (I *Importer) ReadPackage() *Globals.Package {
+-	tag := I.ReadPackageTag();
+-	if tag >= 0 {
+-		return I.pkg_list[tag];  // package already imported
++func (I *Importer) ReadObject() *Globals.Object {
++	tag := I.ReadObjectTag();
++	if tag == Object.END {
++		return nil;
+ 	}
+-
++	
++	if tag == Object.TYPE {
++		// named types are handled entirely by ReadType()
++		typ := I.ReadType();
++		if typ.obj.typ != typ {
++			panic "inconsistent named type";
++		}
++		return typ.obj;
++	}
++	
+ 	ident := I.ReadString();
+-	file_name := I.ReadString();
+-	key := I.ReadString();
+-	pkg := I.comp.Lookup(file_name);
++	obj := Globals.NewObject(0, tag, ident);
++	obj.typ = I.ReadType();
+ 
+-	if pkg == nil {
+-		// new package
+-		obj := Globals.NewObject(-1, Object.PACKAGE, ident);
+-		pkg = Globals.NewPackage(file_name, obj);
+-		pkg.scope = Globals.NewScope(nil);
+-		pkg = I.comp.InsertImport(pkg);
++	switch (tag) {
++	case Object.CONST:
++		I.ReadInt();  // should set the value field
+ 
+-	} else if key != pkg.key {
+-		// package inconsistency
+-		panic "package key inconsistency";
++	case Object.VAR:
++		I.ReadInt();  // should set the address/offset field
++
++	case Object.FUNC:
++		I.ReadInt();  // should set the address/offset field
++		
++	default:
++		panic "UNREACHABLE";
+ 	}
+-	I.pkg_list[I.pkg_ref] = pkg;
+-	I.pkg_ref++;
+ 
+-	return pkg;
++	return obj;
+ }
+ 
+ 
+@@ -290,14 +288,16 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 		I.type_ref++;
+ 	}
+ 
++	// import package
+ 	pkg := I.ReadPackage();
+-	obj := I.ReadObject();
+-	for obj != nil {
+-		obj.pnolev = pkg.obj.pnolev;
+-		pkg.scope.InsertImport(obj);
+-		obj = I.ReadObject();
++	{	obj := I.ReadObject();
++		for obj != nil {
++			obj.pnolev = pkg.obj.pnolev;
++			pkg.scope.InsertImport(obj);
++			obj = I.ReadObject();
++		}
+ 	}
+-
++	
+ 	if I.debug {
+ 		print "\n(", I.buf_pos, " bytes)\n";
+ 	}
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 0008562042..a19bd14734 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -1917,18 +1917,18 @@ func (P *Parser) ParseProgram() {
+ 	P.OpenScope();
+ 	P.Expect(Scanner.PACKAGE);
+ 	obj := P.ParseIdentDecl(Object.PACKAGE);
+-	pkg := Globals.NewPackage(P.S.filename, obj);
+-	P.comp.Insert(pkg);
+-	if P.comp.pkg_ref != 1 {
+-		panic "should have exactly one package now";
+-	}
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+ 	{	if P.level != 0 {
+ 			panic "incorrect scope level";
+ 		}
+ 		P.OpenScope();
+-		pkg.scope = P.top_scope;
++		
++		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
++		if P.comp.pkg_ref != 1 {
++			panic "should have exactly one package now";
++		}
++
+ 		for P.tok == Scanner.IMPORT {
+ 			P.ParseDecl(false, Scanner.IMPORT);
+ 			P.Optional(Scanner.SEMICOLON);

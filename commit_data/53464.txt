@@ -13,7 +13,7 @@ Date:   Tue Aug 16 10:50:35 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go                          |  6 ++--
  src/crypto/aes/cbc_ppc64x.go                       |  4 +--
  src/crypto/aes/cbc_s390x.go                        |  4 +--
@@ -34,3 +34,569 @@ Date:   Tue Aug 16 10:50:35 2022 -0400
  src/crypto/rc4/rc4.go                              |  4 +--
  src/go/build/deps_test.go                          |  3 +-
  19 files changed, 51 insertions(+), 95 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index ebae646a13..f77d27969a 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	subtleoverlap "crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ )
+@@ -114,7 +114,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	gcmAesData(&g.productTable, data, &tagOut)
+ 
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if subtleoverlap.InexactOverlap(out[:len(plaintext)], plaintext) {
++	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	if len(plaintext) > 0 {
+@@ -167,7 +167,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	gcmAesData(&g.productTable, data, &expectedTag)
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if subtleoverlap.InexactOverlap(out, ciphertext) {
++	if alias.InexactOverlap(out, ciphertext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	if len(ciphertext) > 0 {
+diff --git a/src/crypto/aes/cbc_ppc64x.go b/src/crypto/aes/cbc_ppc64x.go
+index 797023e9ec..c23c37156e 100644
+--- a/src/crypto/aes/cbc_ppc64x.go
++++ b/src/crypto/aes/cbc_ppc64x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/subtle"
++	"crypto/internal/alias"
+ )
+ 
+ // Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
+@@ -54,7 +54,7 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	if len(src) > 0 {
+diff --git a/src/crypto/aes/cbc_s390x.go b/src/crypto/aes/cbc_s390x.go
+index 766247abff..eaa21f8a65 100644
+--- a/src/crypto/aes/cbc_s390x.go
++++ b/src/crypto/aes/cbc_s390x.go
+@@ -6,7 +6,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/subtle"
++	"crypto/internal/alias"
+ )
+ 
+ // Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
+@@ -50,7 +50,7 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	if len(src) > 0 {
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index db0ee38b78..183c1697c8 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -6,8 +6,8 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
++	"crypto/internal/alias"
+ 	"crypto/internal/boring"
+-	"crypto/internal/subtle"
+ 	"strconv"
+ )
+ 
+@@ -62,7 +62,7 @@ func (c *aesCipher) Encrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/aes: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+ 	encryptBlockGo(c.enc, dst, src)
+@@ -75,7 +75,7 @@ func (c *aesCipher) Decrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/aes: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+ 	decryptBlockGo(c.dec, dst, src)
+diff --git a/src/crypto/aes/cipher_asm.go b/src/crypto/aes/cipher_asm.go
+index 1482b22d08..90031c5e2c 100644
+--- a/src/crypto/aes/cipher_asm.go
++++ b/src/crypto/aes/cipher_asm.go
+@@ -8,8 +8,8 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
++	"crypto/internal/alias"
+ 	"crypto/internal/boring"
+-	"crypto/internal/subtle"
+ 	"internal/cpu"
+ 	"internal/goarch"
+ )
+@@ -75,7 +75,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/aes: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+ 	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
+@@ -89,7 +89,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/aes: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+ 	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+index e357851143..8dd3d8f053 100644
+--- a/src/crypto/aes/cipher_s390x.go
++++ b/src/crypto/aes/cipher_s390x.go
+@@ -6,7 +6,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"internal/cpu"
+ )
+ 
+@@ -69,7 +69,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/aes: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+ 	cryptBlocks(c.function, &c.key[0], &dst[0], &src[0], BlockSize)
+@@ -82,7 +82,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/aes: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+ 	// The decrypt function code is equal to the function code + 128.
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+index f5c33d5299..0d3a58e034 100644
+--- a/src/crypto/aes/ctr_s390x.go
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -6,7 +6,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"encoding/binary"
+ )
+ 
+@@ -69,7 +69,7 @@ func (c *aesctr) XORKeyStream(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	for len(src) > 0 {
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index 98d530aeda..d95f1694c6 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -6,7 +6,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	subtleoverlap "crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"crypto/subtle"
+ 	"encoding/binary"
+ 	"errors"
+@@ -211,7 +211,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	}
+ 
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if subtleoverlap.InexactOverlap(out[:len(plaintext)], plaintext) {
++	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+@@ -260,7 +260,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if subtleoverlap.InexactOverlap(out, ciphertext) {
++	if alias.InexactOverlap(out, ciphertext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+@@ -312,7 +312,7 @@ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	}
+ 
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if subtleoverlap.InexactOverlap(out[:len(plaintext)], plaintext) {
++	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+@@ -342,7 +342,7 @@ func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	tag := ciphertext[len(ciphertext)-g.tagSize:]
+ 	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if subtleoverlap.InexactOverlap(out, ciphertext) {
++	if alias.InexactOverlap(out, ciphertext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index a719b61e24..1ce165e791 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -11,7 +11,7 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/subtle"
++import "crypto/internal/alias"
+ 
+ type cbc struct {
+ 	b         Block
+@@ -72,7 +72,7 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+@@ -143,7 +143,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	if len(src) == 0 {
+diff --git a/src/crypto/cipher/cfb.go b/src/crypto/cipher/cfb.go
+index 80c9bc24ea..33615b01d5 100644
+--- a/src/crypto/cipher/cfb.go
++++ b/src/crypto/cipher/cfb.go
+@@ -6,7 +6,7 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/subtle"
++import "crypto/internal/alias"
+ 
+ type cfb struct {
+ 	b       Block
+@@ -21,7 +21,7 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	for len(src) > 0 {
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index cba028d2a4..3b8e32a9a4 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -12,7 +12,7 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/subtle"
++import "crypto/internal/alias"
+ 
+ type ctr struct {
+ 	b       Block
+@@ -76,7 +76,7 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	for len(src) > 0 {
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 5b14c0a7e2..a23ebb1d90 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -5,7 +5,7 @@
+ package cipher
+ 
+ import (
+-	subtleoverlap "crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"crypto/subtle"
+ 	"encoding/binary"
+ 	"errors"
+@@ -174,7 +174,7 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	}
+ 
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if subtleoverlap.InexactOverlap(out, plaintext) {
++	if alias.InexactOverlap(out, plaintext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+@@ -225,7 +225,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if subtleoverlap.InexactOverlap(out, ciphertext) {
++	if alias.InexactOverlap(out, ciphertext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 
+diff --git a/src/crypto/cipher/ofb.go b/src/crypto/cipher/ofb.go
+index fc47724865..64e34a9676 100644
+--- a/src/crypto/cipher/ofb.go
++++ b/src/crypto/cipher/ofb.go
+@@ -6,7 +6,7 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/subtle"
++import "crypto/internal/alias"
+ 
+ type ofb struct {
+ 	b       Block
+@@ -59,7 +59,7 @@ func (x *ofb) XORKeyStream(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
+ 	for len(src) > 0 {
+diff --git a/src/crypto/des/cipher.go b/src/crypto/des/cipher.go
+index 9e6779c216..ece764f171 100644
+--- a/src/crypto/des/cipher.go
++++ b/src/crypto/des/cipher.go
+@@ -6,7 +6,7 @@ package des
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"encoding/binary"
+ 	"strconv"
+ )
+@@ -45,7 +45,7 @@ func (c *desCipher) Encrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/des: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 	encryptBlock(c.subkeys[:], dst, src)
+@@ -58,7 +58,7 @@ func (c *desCipher) Decrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/des: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 	decryptBlock(c.subkeys[:], dst, src)
+@@ -91,7 +91,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/des: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 
+@@ -126,7 +126,7 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+ 	if len(dst) < BlockSize {
+ 		panic("crypto/des: output not full block")
+ 	}
+-	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 
+diff --git a/src/crypto/internal/subtle/aliasing.go b/src/crypto/internal/alias/alias.go
+similarity index 79%
+rename from src/crypto/internal/subtle/aliasing.go
+rename to src/crypto/internal/alias/alias.go
+index 16e2fcab12..936cc253e3 100644
+--- a/src/crypto/internal/subtle/aliasing.go
++++ b/src/crypto/internal/alias/alias.go
+@@ -2,13 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !appengine
+-
+-// Package subtle implements functions that are often useful in cryptographic
+-// code but require careful thought to use correctly.
+-//
+-// This is a mirror of golang.org/x/crypto/internal/subtle.
+-package subtle // import "crypto/internal/subtle"
++// Package alias implements memory alaising tests.
++// This code also exists as golang.org/x/crypto/internal/alias.
++package alias
+ 
+ import "unsafe"
+ 
+diff --git a/src/crypto/internal/subtle/aliasing_test.go b/src/crypto/internal/alias/alias_test.go
+similarity index 89%
+rename from src/crypto/internal/subtle/aliasing_test.go
+rename to src/crypto/internal/alias/alias_test.go
+index f1e7238481..a68fb33667 100644
+--- a/src/crypto/internal/subtle/aliasing_test.go
++++ b/src/crypto/internal/alias/alias_test.go
+@@ -2,13 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package subtle_test
++package alias
+ 
+-import (
+-	"testing"
+-
+-	"crypto/internal/subtle"
+-)
++import "testing"
+ 
+ var a, b [100]byte
+ 
+@@ -32,11 +28,11 @@ var aliasingTests = []struct {
+ }
+ 
+ func testAliasing(t *testing.T, i int, x, y []byte, anyOverlap, inexactOverlap bool) {
+-	any := subtle.AnyOverlap(x, y)
++	any := AnyOverlap(x, y)
+ 	if any != anyOverlap {
+ 		t.Errorf("%d: wrong AnyOverlap result, expected %v, got %v", i, anyOverlap, any)
+ 	}
+-	inexact := subtle.InexactOverlap(x, y)
++	inexact := InexactOverlap(x, y)
+ 	if inexact != inexactOverlap {
+ 		t.Errorf("%d: wrong InexactOverlap result, expected %v, got %v", i, inexactOverlap, any)
+ 	}
+diff --git a/src/crypto/internal/subtle/aliasing_appengine.go b/src/crypto/internal/subtle/aliasing_appengine.go
+deleted file mode 100644
+index 90ac4b61cc..0000000000
+--- a/src/crypto/internal/subtle/aliasing_appengine.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build appengine
+-
+-// Package subtle implements functions that are often useful in cryptographic
+-// code but require careful thought to use correctly.
+-//
+-// This is a mirror of golang.org/x/crypto/internal/subtle.
+-package subtle // import "crypto/internal/subtle"
+-
+-// This is the Google App Engine standard variant based on reflect
+-// because the unsafe package and cgo are disallowed.
+-
+-import "reflect"
+-
+-// AnyOverlap reports whether x and y share memory at any (not necessarily
+-// corresponding) index. The memory beyond the slice length is ignored.
+-func AnyOverlap(x, y []byte) bool {
+-	return len(x) > 0 && len(y) > 0 &&
+-		reflect.ValueOf(&x[0]).Pointer() <= reflect.ValueOf(&y[len(y)-1]).Pointer() &&
+-		reflect.ValueOf(&y[0]).Pointer() <= reflect.ValueOf(&x[len(x)-1]).Pointer()
+-}
+-
+-// InexactOverlap reports whether x and y share memory at any non-corresponding
+-// index. The memory beyond the slice length is ignored. Note that x and y can
+-// have different lengths and still not have any inexact overlap.
+-//
+-// InexactOverlap can be used to implement the requirements of the crypto/cipher
+-// AEAD, Block, BlockMode and Stream interfaces.
+-func InexactOverlap(x, y []byte) bool {
+-	if len(x) == 0 || len(y) == 0 || &x[0] == &y[0] {
+-		return false
+-	}
+-	return AnyOverlap(x, y)
+-}
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index c2df0db2dc..f08da0e469 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -10,7 +10,7 @@
+ package rc4
+ 
+ import (
+-	"crypto/internal/subtle"
++	"crypto/internal/alias"
+ 	"strconv"
+ )
+ 
+@@ -62,7 +62,7 @@ func (c *Cipher) XORKeyStream(dst, src []byte) {
+ 	if len(src) == 0 {
+ 		return
+ 	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
++	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/rc4: invalid buffer overlap")
+ 	}
+ 	i, j := c.i, c.j
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 061345f64b..07bac04dcb 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -381,7 +381,7 @@ var depsRules = `
+ 	hash, embed
+ 	< crypto
+ 	< crypto/subtle
+-	< crypto/internal/subtle
++	< crypto/internal/alias
+ 	< crypto/internal/randutil
+ 	< crypto/internal/nistec/fiat
+ 	< crypto/internal/nistec
+@@ -415,6 +415,7 @@ var depsRules = `
+ 
+ 	# TLS, Prince of Dependencies.
+ 	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
++	< golang.org/x/crypto/internal/alias
+ 	< golang.org/x/crypto/internal/subtle
+ 	< golang.org/x/crypto/chacha20
+ 	< golang.org/x/crypto/internal/poly1305

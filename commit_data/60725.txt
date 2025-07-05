@@ -18,9 +18,275 @@ Date:   Wed Aug 14 12:34:32 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/internal/pkgbits/decoder.go      | 22 +++++-----
  src/internal/pkgbits/encoder.go      | 22 +++++-----
  src/internal/pkgbits/pkgbits_test.go | 67 ++++++++++++++++++++++++++++++
  src/internal/pkgbits/version.go      | 79 ++++++++++++++++++++++++++++++++++++
  4 files changed, 169 insertions(+), 21 deletions(-)
+
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 76eb255fc2..ca66446dba 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -21,7 +21,7 @@ import (
+ // export data.
+ type PkgDecoder struct {
+ 	// version is the file format version.
+-	version uint32
++	version Version
+ 
+ 	// sync indicates whether the file uses sync markers.
+ 	sync bool
+@@ -68,8 +68,6 @@ func (pr *PkgDecoder) SyncMarkers() bool { return pr.sync }
+ // NewPkgDecoder returns a PkgDecoder initialized to read the Unified
+ // IR export data from input. pkgPath is the package path for the
+ // compilation unit that produced the export data.
+-//
+-// TODO(mdempsky): Remove pkgPath parameter; unneeded since CL 391014.
+ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 	pr := PkgDecoder{
+ 		pkgPath: pkgPath,
+@@ -80,14 +78,15 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 
+ 	r := strings.NewReader(input)
+ 
+-	assert(binary.Read(r, binary.LittleEndian, &pr.version) == nil)
++	var ver uint32
++	assert(binary.Read(r, binary.LittleEndian, &ver) == nil)
++	pr.version = Version(ver)
+ 
+-	switch pr.version {
+-	default:
+-		panicf("unsupported version: %v", pr.version)
+-	case 0:
+-		// no flags
+-	case 1:
++	if pr.version >= V2 { // TODO(taking): Switch to numVersions.
++		panic(fmt.Errorf("cannot decode %q, export data version %d is too new", pkgPath, pr.version))
++	}
++
++	if pr.version.Has(Flags) {
+ 		var flags uint32
+ 		assert(binary.Read(r, binary.LittleEndian, &flags) == nil)
+ 		pr.sync = flags&flagSyncMarkers != 0
+@@ -513,3 +512,6 @@ func (pr *PkgDecoder) PeekObj(idx Index) (string, string, CodeObj) {
+ 
+ 	return path, name, tag
+ }
++
++// Version reports the version of the bitstream.
++func (w *Decoder) Version() Version { return w.common.version }
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index e52bc85014..a1489c88d0 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -15,20 +15,15 @@ import (
+ 	"strings"
+ )
+ 
+-// currentVersion is the current version number.
+-//
+-//   - v0: initial prototype
+-//
+-//   - v1: adds the flags uint32 word
+-//
+-// TODO(mdempsky): For the next version bump:
+-//   - remove the legacy "has init" bool from the public root
+-//   - remove obj's "derived func instance" bool
+-const currentVersion uint32 = 1
++// currentVersion is the current version number written.
++const currentVersion = V1
+ 
+ // A PkgEncoder provides methods for encoding a package's Unified IR
+ // export data.
+ type PkgEncoder struct {
++	// version of the bitstream.
++	version Version
++
+ 	// elems holds the bitstream for previously encoded elements.
+ 	elems [numRelocs][]string
+ 
+@@ -54,6 +49,8 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
+ // negative, then sync markers are omitted entirely.
+ func NewPkgEncoder(syncFrames int) PkgEncoder {
+ 	return PkgEncoder{
++		// TODO(taking): Change NewPkgEncoder to take a version as an argument, and remove currentVersion.
++		version:    currentVersion,
+ 		stringsIdx: make(map[string]Index),
+ 		syncFrames: syncFrames,
+ 	}
+@@ -69,7 +66,7 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+ 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
+ 	}
+ 
+-	writeUint32(currentVersion)
++	writeUint32(uint32(pw.version))
+ 
+ 	var flags uint32
+ 	if pw.SyncMarkers() {
+@@ -392,3 +389,6 @@ func (w *Encoder) bigFloat(v *big.Float) {
+ 	b := v.Append(nil, 'p', -1)
+ 	w.String(string(b)) // TODO: More efficient encoding.
+ }
++
++// Version reports the version of the bitstream.
++func (w *Encoder) Version() Version { return w.p.version }
+diff --git a/src/internal/pkgbits/pkgbits_test.go b/src/internal/pkgbits/pkgbits_test.go
+new file mode 100644
+index 0000000000..a5f93c7e8e
+--- /dev/null
++++ b/src/internal/pkgbits/pkgbits_test.go
+@@ -0,0 +1,67 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgbits_test
++
++import (
++	"internal/pkgbits"
++	"strings"
++	"testing"
++)
++
++func TestRoundTrip(t *testing.T) {
++	pw := pkgbits.NewPkgEncoder(-1)
++	w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
++	w.Flush()
++
++	var b strings.Builder
++	_ = pw.DumpTo(&b)
++	input := b.String()
++
++	pr := pkgbits.NewPkgDecoder("package_id", input)
++	r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++
++	if r.Version() != w.Version() {
++		t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
++	}
++}
++
++// Type checker to enforce that know V* have the constant values they must have.
++var _ [0]bool = [pkgbits.V0]bool{}
++var _ [1]bool = [pkgbits.V1]bool{}
++
++func TestVersions(t *testing.T) {
++	type vfpair struct {
++		v pkgbits.Version
++		f pkgbits.Field
++	}
++
++	// has field tests
++	for _, c := range []vfpair{
++		{pkgbits.V1, pkgbits.Flags},
++		{pkgbits.V2, pkgbits.Flags},
++		{pkgbits.V0, pkgbits.HasInit},
++		{pkgbits.V1, pkgbits.HasInit},
++		{pkgbits.V0, pkgbits.DerivedFuncInstance},
++		{pkgbits.V1, pkgbits.DerivedFuncInstance},
++		{pkgbits.V2, pkgbits.AliasTypeParamNames},
++	} {
++		if !c.v.Has(c.f) {
++			t.Errorf("Expected version %v to have field %v", c.v, c.f)
++		}
++	}
++
++	// does not have field tests
++	for _, c := range []vfpair{
++		{pkgbits.V0, pkgbits.Flags},
++		{pkgbits.V2, pkgbits.HasInit},
++		{pkgbits.V2, pkgbits.DerivedFuncInstance},
++		{pkgbits.V0, pkgbits.AliasTypeParamNames},
++		{pkgbits.V1, pkgbits.AliasTypeParamNames},
++	} {
++		if c.v.Has(c.f) {
++			t.Errorf("Expected version %v to not have field %v", c.v, c.f)
++		}
++	}
++}
+diff --git a/src/internal/pkgbits/version.go b/src/internal/pkgbits/version.go
+new file mode 100644
+index 0000000000..fe5901a9ef
+--- /dev/null
++++ b/src/internal/pkgbits/version.go
+@@ -0,0 +1,79 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgbits
++
++// Version indicates a version of a unified IR bitstream.
++// Each Version indicates the addition, removal, or change of
++// new data in the bitstream.
++//
++// These are serialized to disk and the interpretation remains fixed.
++type Version uint32
++
++const (
++	// V0: initial prototype.
++	//
++	// All data that is not assigned a Field is in version V0
++	// and has not been deprecated.
++	V0 Version = iota
++
++	// V1: adds the Flags uint32 word
++	V1
++
++	// V2: removes unused legacy fields and supports type parameters for aliases.
++	// - remove the legacy "has init" bool from the public root
++	// - remove obj's "derived func instance" bool
++	// - add a TypeParamNames field to ObjAlias
++	V2
++
++	numVersions = iota
++)
++
++// Field denotes a unit of data in the serialized unified IR bitstream.
++// It is conceptually a like field in a structure.
++//
++// We only really need Fields when the data may or may not be present
++// in a stream based on the Version of the bitstream.
++//
++// Unlike much of pkgbits, Fields are not serialized and
++// can change values as needed.
++type Field int
++
++const (
++	// Flags in a uint32 in the header of a bitstream
++	// that is used to indicate whether optional features are enabled.
++	Flags Field = iota
++
++	// Deprecated: HasInit was a bool indicating whether a package
++	// has any init functions.
++	HasInit
++
++	// Deprecated: DerivedFuncInstance was a bool indicating
++	// whether an object was a function instance.
++	DerivedFuncInstance
++
++	// ObjAlias has a list of TypeParamNames.
++	AliasTypeParamNames
++
++	numFields = iota
++)
++
++// introduced is the version a field was added.
++var introduced = [numFields]Version{
++	Flags:               V1,
++	AliasTypeParamNames: V2,
++}
++
++// removed is the version a field was removed in or 0 for fields
++// that have not yet been deprecated.
++// (So removed[f]-1 is the last version it is included in.)
++var removed = [numFields]Version{
++	HasInit:             V2,
++	DerivedFuncInstance: V2,
++}
++
++// Has reports whether field f is present in a bitstream at version v.
++func (v Version) Has(f Field) bool {
++	return introduced[f] <= v && (v < removed[f] || removed[f] == V0)
++}

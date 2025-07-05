@@ -13,7 +13,56 @@ Date:   Wed Jun 5 22:01:40 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/security.go      | 4 ++++
  src/cmd/go/internal/work/security_test.go | 8 ++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index ecfb9df1b2..0d8da21ae3 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -184,6 +184,8 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,-framework,[^,@\-][^,]+`),
+ 	re(`-Wl,-headerpad_max_install_names`),
+ 	re(`-Wl,--no-undefined`),
++	re(`-Wl,-R([^@\-][^,@]*$)`),
++	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
+ 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
+ 	re(`-Wl,-s`),
+ 	re(`-Wl,-search_paths_first`),
+@@ -213,6 +215,8 @@ var validLinkerFlagsWithNextArg = []string{
+ 	"-target",
+ 	"-Wl,-framework",
+ 	"-Wl,-rpath",
++	"-Wl,-R",
++	"-Wl,--just-symbols",
+ 	"-Wl,-undefined",
+ }
+ 
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index d23b6eadff..fd8caeab4e 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -125,6 +125,11 @@ var goodLinkerFlags = [][]string{
+ 	{"-pthread"},
+ 	{"-Wl,-rpath,foo"},
+ 	{"-Wl,-rpath,$ORIGIN/foo"},
++	{"-Wl,-R", "/foo"},
++	{"-Wl,-R", "foo"},
++	{"-Wl,-R,foo"},
++	{"-Wl,--just-symbols=foo"},
++	{"-Wl,--just-symbols,foo"},
+ 	{"-Wl,--warn-error"},
+ 	{"-Wl,--no-warn-error"},
+ 	{"foo.so"},
+@@ -197,6 +202,9 @@ var badLinkerFlags = [][]string{
+ 	{"-x", "--c"},
+ 	{"-x", "@obj"},
+ 	{"-Wl,-rpath,@foo"},
++	{"-Wl,-R,foo,bar"},
++	{"-Wl,-R,@foo"},
++	{"-Wl,--just-symbols,@foo"},
+ 	{"../x.o"},
+ }
+ 

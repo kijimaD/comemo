@@ -7,7 +7,34 @@ Date:   Wed Dec 21 07:52:07 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5503057
-
+---
  src/pkg/os/signal/signal.go      | 2 ++
  src/pkg/os/signal/signal_test.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/os/signal/signal.go
+index 520f3f8a9e..bbf9d17289 100644
+--- a/src/pkg/os/signal/signal.go
++++ b/src/pkg/os/signal/signal.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux netbsd openbsd windows
++
+ // Package signal implements operating system-independent signal handling.
+ package signal
+ 
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index 00eb29578f..8445a78460 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux netbsd openbsd windows
++
+ package signal
+ 
+ import (

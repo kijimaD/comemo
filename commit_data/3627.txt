@@ -6,6 +6,32 @@ Date:   Thu Oct 22 11:21:13 2009 -0700
     
     R=r
     http://go/go-review/1013007
-
+---
  lib/codereview/codereview.py | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 23b5733304..f0092a3c60 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -618,7 +618,8 @@ def mail(ui, repo, *pats, **opts):
+ 	pmsg = "Hello " + JoinComma(cl.reviewer) + ",\n"
+ 	pmsg += "\n"
+ 	pmsg += "I'd like you to review the following change.\n"
+-	PostMessage(cl.name, pmsg, send_mail="checked", subject="code review: " + line1(cl.desc))
++	subject = "code review %s: %s" % (cl.name, line1(cl.desc))
++	PostMessage(cl.name, pmsg, send_mail="checked", subject=subject)
+ 	
+ def submit(ui, repo, *pats, **opts):
+ 	"""submit change to remote repository
+@@ -835,9 +836,7 @@ class FormParser(HTMLParser):
+ 			self.curtag = None
+ 			self.curdata = None
+ 	def handle_charref(self, name):
+-		import unicodedata
+-		char = unicodedata.name(unichr(int(name)))
+-		self.handle_data(char)
++		self.handle_data(unichr(int(name)))
+ 	def handle_entityref(self, name):
+ 		import htmlentitydefs
+ 		if name in htmlentitydefs.entitydefs:

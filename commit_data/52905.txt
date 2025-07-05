@@ -17,6 +17,28 @@ Date:   Wed Jun 8 11:53:22 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/dial_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index e49b4a61d6..1256867da8 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -405,6 +405,16 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 
++		// Workaround for https://go.dev/issue/37795.
++		// On arm64 macOS (current as of macOS 12.4),
++		// reading from a socket at the same time as the client
++		// is closing it occasionally hangs for 60 seconds before
++		// returning ECONNRESET. Sleep for a bit to give the
++		// socket time to close before trying to read from it.
++		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++			time.Sleep(10 * time.Millisecond)
++		}
++
+ 		// The client should close itself, without sending data.
+ 		c.SetReadDeadline(readDeadline)
+ 		var b [1]byte

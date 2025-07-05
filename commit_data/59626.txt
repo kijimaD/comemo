@@ -15,7 +15,7 @@ Date:   Tue Apr 2 11:23:47 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/poll/splice_linux.go      | 21 ++++++++-------------
  src/internal/poll/splice_linux_test.go |  6 +++---
  src/net/splice_linux.go                |  8 ++++----
@@ -23,3 +23,194 @@ Date:   Tue Apr 2 11:23:47 2024 +0200
  src/os/readfrom_linux_test.go          |  9 ++++-----
  src/os/zero_copy_linux.go              |  5 ++---
  6 files changed, 25 insertions(+), 33 deletions(-)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 72cca34fe4..193a56215c 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -31,12 +31,10 @@ const (
+ //
+ // Splice gets a pipe buffer from the pool or creates a new one if needed, to serve as a buffer for the data transfer.
+ // src and dst must both be stream-oriented sockets.
+-//
+-// If err != nil, sc is the system call which caused the error.
+-func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string, err error) {
+-	p, sc, err := getPipe()
++func Splice(dst, src *FD, remain int64) (written int64, handled bool, err error) {
++	p, err := getPipe()
+ 	if err != nil {
+-		return 0, false, sc, err
++		return 0, false, err
+ 	}
+ 	defer putPipe(p)
+ 	var inPipe, n int
+@@ -71,9 +69,9 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
+ 		}
+ 	}
+ 	if err != nil {
+-		return written, handled, "splice", err
++		return written, handled, err
+ 	}
+-	return written, true, "", nil
++	return written, true, nil
+ }
+ 
+ // spliceDrain moves data from a socket to a pipe.
+@@ -204,15 +202,12 @@ func newPoolPipe() any {
+ }
+ 
+ // getPipe tries to acquire a pipe buffer from the pool or create a new one with newPipe() if it gets nil from the cache.
+-//
+-// Note that it may fail to create a new pipe buffer by newPipe(), in which case getPipe() will return a generic error
+-// and system call name splice in a string as the indication.
+-func getPipe() (*splicePipe, string, error) {
++func getPipe() (*splicePipe, error) {
+ 	v := splicePipePool.Get()
+ 	if v == nil {
+-		return nil, "splice", syscall.EINVAL
++		return nil, syscall.EINVAL
+ 	}
+-	return v.(*splicePipe), "", nil
++	return v.(*splicePipe), nil
+ }
+ 
+ func putPipe(p *splicePipe) {
+diff --git a/src/internal/poll/splice_linux_test.go b/src/internal/poll/splice_linux_test.go
+index 29bcaab414..e4a7eb2b43 100644
+--- a/src/internal/poll/splice_linux_test.go
++++ b/src/internal/poll/splice_linux_test.go
+@@ -41,7 +41,7 @@ func TestSplicePipePool(t *testing.T) {
+ 	t.Cleanup(func() { closeHook.Store((func(int))(nil)) })
+ 
+ 	for i := 0; i < N; i++ {
+-		p, _, err = poll.GetPipe()
++		p, err = poll.GetPipe()
+ 		if err != nil {
+ 			t.Skipf("failed to create pipe due to error(%v), skip this test", err)
+ 		}
+@@ -93,7 +93,7 @@ func TestSplicePipePool(t *testing.T) {
+ func BenchmarkSplicePipe(b *testing.B) {
+ 	b.Run("SplicePipeWithPool", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+-			p, _, err := poll.GetPipe()
++			p, err := poll.GetPipe()
+ 			if err != nil {
+ 				continue
+ 			}
+@@ -114,7 +114,7 @@ func BenchmarkSplicePipe(b *testing.B) {
+ func BenchmarkSplicePipePoolParallel(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			p, _, err := poll.GetPipe()
++			p, err := poll.GetPipe()
+ 			if err != nil {
+ 				continue
+ 			}
+diff --git a/src/net/splice_linux.go b/src/net/splice_linux.go
+index 9fc26b4c23..b62e8a722d 100644
+--- a/src/net/splice_linux.go
++++ b/src/net/splice_linux.go
+@@ -41,11 +41,11 @@ func spliceFrom(c *netFD, r io.Reader) (written int64, err error, handled bool)
+ 		return 0, nil, false
+ 	}
+ 
+-	written, handled, sc, err := pollSplice(&c.pfd, &s.pfd, remain)
++	written, handled, err = pollSplice(&c.pfd, &s.pfd, remain)
+ 	if lr != nil {
+ 		lr.N -= written
+ 	}
+-	return written, wrapSyscallError(sc, err), handled
++	return written, wrapSyscallError("splice", err), handled
+ }
+ 
+ // spliceTo transfers data from c to w using the splice system call to minimize
+@@ -59,6 +59,6 @@ func spliceTo(w io.Writer, c *netFD) (written int64, err error, handled bool) {
+ 		return
+ 	}
+ 
+-	written, handled, sc, err := pollSplice(&uc.fd.pfd, &c.pfd, 1<<63-1)
+-	return written, wrapSyscallError(sc, err), handled
++	written, handled, err = pollSplice(&uc.fd.pfd, &c.pfd, 1<<63-1)
++	return written, wrapSyscallError("splice", err), handled
+ }
+diff --git a/src/net/splice_linux_test.go b/src/net/splice_linux_test.go
+index 2edd744406..52efafa8c5 100644
+--- a/src/net/splice_linux_test.go
++++ b/src/net/splice_linux_test.go
+@@ -519,21 +519,20 @@ type spliceHook struct {
+ 
+ 	written int64
+ 	handled bool
+-	sc      string
+ 	err     error
+ 
+-	original func(dst, src *poll.FD, remain int64) (int64, bool, string, error)
++	original func(dst, src *poll.FD, remain int64) (int64, bool, error)
+ }
+ 
+ func (h *spliceHook) install() {
+ 	h.original = pollSplice
+-	pollSplice = func(dst, src *poll.FD, remain int64) (int64, bool, string, error) {
++	pollSplice = func(dst, src *poll.FD, remain int64) (int64, bool, error) {
+ 		h.called = true
+ 		h.dstfd = dst.Sysfd
+ 		h.srcfd = src.Sysfd
+ 		h.remain = remain
+-		h.written, h.handled, h.sc, h.err = h.original(dst, src, remain)
+-		return h.written, h.handled, h.sc, h.err
++		h.written, h.handled, h.err = h.original(dst, src, remain)
++		return h.written, h.handled, h.err
+ 	}
+ }
+ 
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index b292bffe2b..8dcb9cb217 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -693,21 +693,20 @@ type spliceFileHook struct {
+ 
+ 	written int64
+ 	handled bool
+-	sc      string
+ 	err     error
+ 
+-	original func(dst, src *poll.FD, remain int64) (int64, bool, string, error)
++	original func(dst, src *poll.FD, remain int64) (int64, bool, error)
+ }
+ 
+ func (h *spliceFileHook) install() {
+ 	h.original = *PollSpliceFile
+-	*PollSpliceFile = func(dst, src *poll.FD, remain int64) (int64, bool, string, error) {
++	*PollSpliceFile = func(dst, src *poll.FD, remain int64) (int64, bool, error) {
+ 		h.called = true
+ 		h.dstfd = dst.Sysfd
+ 		h.srcfd = src.Sysfd
+ 		h.remain = remain
+-		h.written, h.handled, h.sc, h.err = h.original(dst, src, remain)
+-		return h.written, h.handled, h.sc, h.err
++		h.written, h.handled, h.err = h.original(dst, src, remain)
++		return h.written, h.handled, h.err
+ 	}
+ }
+ 
+diff --git a/src/os/zero_copy_linux.go b/src/os/zero_copy_linux.go
+index d9cf18c22f..70a05ffa1e 100644
+--- a/src/os/zero_copy_linux.go
++++ b/src/os/zero_copy_linux.go
+@@ -87,14 +87,13 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
+ 		return
+ 	}
+ 
+-	var syscallName string
+-	written, handled, syscallName, err = pollSplice(&f.pfd, pfd, remain)
++	written, handled, err = pollSplice(&f.pfd, pfd, remain)
+ 
+ 	if lr != nil {
+ 		lr.N = remain - written
+ 	}
+ 
+-	return written, handled, wrapSyscallError(syscallName, err)
++	return written, handled, wrapSyscallError("splice", err)
+ }
+ 
+ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err error) {

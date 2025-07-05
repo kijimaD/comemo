@@ -19,10 +19,479 @@ Date:   Wed Jan 27 11:01:00 2021 -0500
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/defs_windows.go       | 127 ++++++++++++++++++++------------------
  src/runtime/defs_windows_386.go   |  84 ++-----------------------
  src/runtime/defs_windows_amd64.go |  87 ++------------------------
  src/runtime/defs_windows_arm.go   |  79 +-----------------------
  src/runtime/signal_windows.go     |   4 +-
  5 files changed, 78 insertions(+), 303 deletions(-)
+
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 43f358d56a..656fd2b8b6 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -2,77 +2,82 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
+-
+-/*
+-Input to cgo.
+-
+-GOARCH=amd64 go tool cgo -cdefs defs_windows.go > defs_windows_amd64.h
+-GOARCH=386 go tool cgo -cdefs defs_windows.go > defs_windows_386.h
+-*/
++// Windows architecture-independent definitions.
+ 
+ package runtime
+ 
+-/*
+-#include <signal.h>
+-#include <stdarg.h>
+-#include <windef.h>
+-#include <winbase.h>
+-#include <wincon.h>
++const (
++	_PROT_NONE  = 0
++	_PROT_READ  = 1
++	_PROT_WRITE = 2
++	_PROT_EXEC  = 4
+ 
+-#ifndef _X86_
+-typedef struct {} FLOATING_SAVE_AREA;
+-#endif
+-#ifndef _AMD64_
+-typedef struct {} M128A;
+-#endif
+-*/
+-import "C"
++	_MAP_ANON    = 1
++	_MAP_PRIVATE = 2
+ 
+-const (
+-	PROT_NONE  = 0
+-	PROT_READ  = 1
+-	PROT_WRITE = 2
+-	PROT_EXEC  = 4
++	_DUPLICATE_SAME_ACCESS   = 0x2
++	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
+-	MAP_ANON    = 1
+-	MAP_PRIVATE = 2
++	_SIGINT              = 0x2
++	_SIGTERM             = 0xF
++	_CTRL_C_EVENT        = 0x0
++	_CTRL_BREAK_EVENT    = 0x1
++	_CTRL_CLOSE_EVENT    = 0x2
++	_CTRL_LOGOFF_EVENT   = 0x5
++	_CTRL_SHUTDOWN_EVENT = 0x6
+ 
+-	DUPLICATE_SAME_ACCESS   = C.DUPLICATE_SAME_ACCESS
+-	THREAD_PRIORITY_HIGHEST = C.THREAD_PRIORITY_HIGHEST
++	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
++	_EXCEPTION_BREAKPOINT           = 0x80000003
++	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
++	_EXCEPTION_FLT_DIVIDE_BY_ZERO   = 0xc000008e
++	_EXCEPTION_FLT_INEXACT_RESULT   = 0xc000008f
++	_EXCEPTION_FLT_OVERFLOW         = 0xc0000091
++	_EXCEPTION_FLT_UNDERFLOW        = 0xc0000093
++	_EXCEPTION_INT_DIVIDE_BY_ZERO   = 0xc0000094
++	_EXCEPTION_INT_OVERFLOW         = 0xc0000095
+ 
+-	SIGINT              = C.SIGINT
+-	SIGTERM             = C.SIGTERM
+-	CTRL_C_EVENT        = C.CTRL_C_EVENT
+-	CTRL_BREAK_EVENT    = C.CTRL_BREAK_EVENT
+-	CTRL_CLOSE_EVENT    = C.CTRL_CLOSE_EVENT
+-	CTRL_LOGOFF_EVENT   = C.CTRL_LOGOFF_EVENT
+-	CTRL_SHUTDOWN_EVENT = C.CTRL_SHUTDOWN_EVENT
++	_INFINITE     = 0xffffffff
++	_WAIT_TIMEOUT = 0x102
+ 
+-	CONTEXT_CONTROL = C.CONTEXT_CONTROL
+-	CONTEXT_FULL    = C.CONTEXT_FULL
++	_EXCEPTION_CONTINUE_EXECUTION = -0x1
++	_EXCEPTION_CONTINUE_SEARCH    = 0x0
++)
+ 
+-	EXCEPTION_ACCESS_VIOLATION     = C.STATUS_ACCESS_VIOLATION
+-	EXCEPTION_BREAKPOINT           = C.STATUS_BREAKPOINT
+-	EXCEPTION_FLT_DENORMAL_OPERAND = C.STATUS_FLOAT_DENORMAL_OPERAND
+-	EXCEPTION_FLT_DIVIDE_BY_ZERO   = C.STATUS_FLOAT_DIVIDE_BY_ZERO
+-	EXCEPTION_FLT_INEXACT_RESULT   = C.STATUS_FLOAT_INEXACT_RESULT
+-	EXCEPTION_FLT_OVERFLOW         = C.STATUS_FLOAT_OVERFLOW
+-	EXCEPTION_FLT_UNDERFLOW        = C.STATUS_FLOAT_UNDERFLOW
+-	EXCEPTION_INT_DIVIDE_BY_ZERO   = C.STATUS_INTEGER_DIVIDE_BY_ZERO
+-	EXCEPTION_INT_OVERFLOW         = C.STATUS_INTEGER_OVERFLOW
++type systeminfo struct {
++	anon0                       [4]byte
++	dwpagesize                  uint32
++	lpminimumapplicationaddress *byte
++	lpmaximumapplicationaddress *byte
++	dwactiveprocessormask       uintptr
++	dwnumberofprocessors        uint32
++	dwprocessortype             uint32
++	dwallocationgranularity     uint32
++	wprocessorlevel             uint16
++	wprocessorrevision          uint16
++}
+ 
+-	INFINITE     = C.INFINITE
+-	WAIT_TIMEOUT = C.WAIT_TIMEOUT
++type exceptionrecord struct {
++	exceptioncode        uint32
++	exceptionflags       uint32
++	exceptionrecord      *exceptionrecord
++	exceptionaddress     *byte
++	numberparameters     uint32
++	exceptioninformation [15]uintptr
++}
+ 
+-	EXCEPTION_CONTINUE_EXECUTION = C.EXCEPTION_CONTINUE_EXECUTION
+-	EXCEPTION_CONTINUE_SEARCH    = C.EXCEPTION_CONTINUE_SEARCH
+-)
++type overlapped struct {
++	internal     uintptr
++	internalhigh uintptr
++	anon0        [8]byte
++	hevent       *byte
++}
+ 
+-type SystemInfo C.SYSTEM_INFO
+-type ExceptionRecord C.EXCEPTION_RECORD
+-type FloatingSaveArea C.FLOATING_SAVE_AREA
+-type M128a C.M128A
+-type Context C.CONTEXT
+-type Overlapped C.OVERLAPPED
+-type MemoryBasicInformation C.MEMORY_BASIC_INFORMATION
++type memoryBasicInformation struct {
++	baseAddress       uintptr
++	allocationBase    uintptr
++	allocationProtect uint32
++	regionSize        uintptr
++	state             uint32
++	protect           uint32
++	type_             uint32
++}
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 3c5057b86f..37fe74c542 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -1,69 +1,10 @@
+-// created by cgo -cdefs and then converted to Go
+-// cgo -cdefs defs_windows.go
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ package runtime
+ 
+-const (
+-	_PROT_NONE  = 0
+-	_PROT_READ  = 1
+-	_PROT_WRITE = 2
+-	_PROT_EXEC  = 4
+-
+-	_MAP_ANON    = 1
+-	_MAP_PRIVATE = 2
+-
+-	_DUPLICATE_SAME_ACCESS   = 0x2
+-	_THREAD_PRIORITY_HIGHEST = 0x2
+-
+-	_SIGINT              = 0x2
+-	_SIGTERM             = 0xF
+-	_CTRL_C_EVENT        = 0x0
+-	_CTRL_BREAK_EVENT    = 0x1
+-	_CTRL_CLOSE_EVENT    = 0x2
+-	_CTRL_LOGOFF_EVENT   = 0x5
+-	_CTRL_SHUTDOWN_EVENT = 0x6
+-
+-	_CONTEXT_CONTROL = 0x10001
+-	_CONTEXT_FULL    = 0x10007
+-
+-	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
+-	_EXCEPTION_BREAKPOINT           = 0x80000003
+-	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
+-	_EXCEPTION_FLT_DIVIDE_BY_ZERO   = 0xc000008e
+-	_EXCEPTION_FLT_INEXACT_RESULT   = 0xc000008f
+-	_EXCEPTION_FLT_OVERFLOW         = 0xc0000091
+-	_EXCEPTION_FLT_UNDERFLOW        = 0xc0000093
+-	_EXCEPTION_INT_DIVIDE_BY_ZERO   = 0xc0000094
+-	_EXCEPTION_INT_OVERFLOW         = 0xc0000095
+-
+-	_INFINITE     = 0xffffffff
+-	_WAIT_TIMEOUT = 0x102
+-
+-	_EXCEPTION_CONTINUE_EXECUTION = -0x1
+-	_EXCEPTION_CONTINUE_SEARCH    = 0x0
+-)
+-
+-type systeminfo struct {
+-	anon0                       [4]byte
+-	dwpagesize                  uint32
+-	lpminimumapplicationaddress *byte
+-	lpmaximumapplicationaddress *byte
+-	dwactiveprocessormask       uint32
+-	dwnumberofprocessors        uint32
+-	dwprocessortype             uint32
+-	dwallocationgranularity     uint32
+-	wprocessorlevel             uint16
+-	wprocessorrevision          uint16
+-}
+-
+-type exceptionrecord struct {
+-	exceptioncode        uint32
+-	exceptionflags       uint32
+-	exceptionrecord      *exceptionrecord
+-	exceptionaddress     *byte
+-	numberparameters     uint32
+-	exceptioninformation [15]uint32
+-}
++const _CONTEXT_CONTROL = 0x10001
+ 
+ type floatingsavearea struct {
+ 	controlword   uint32
+@@ -130,20 +71,3 @@ func dumpregs(r *context) {
+ 	print("fs      ", hex(r.segfs), "\n")
+ 	print("gs      ", hex(r.seggs), "\n")
+ }
+-
+-type overlapped struct {
+-	internal     uint32
+-	internalhigh uint32
+-	anon0        [8]byte
+-	hevent       *byte
+-}
+-
+-type memoryBasicInformation struct {
+-	baseAddress       uintptr
+-	allocationBase    uintptr
+-	allocationProtect uint32
+-	regionSize        uintptr
+-	state             uint32
+-	protect           uint32
+-	type_             uint32
+-}
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index ebb1506e2f..ac636a68ec 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -1,70 +1,10 @@
+-// created by cgo -cdefs and then converted to Go
+-// cgo -cdefs defs_windows.go
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ package runtime
+ 
+-const (
+-	_PROT_NONE  = 0
+-	_PROT_READ  = 1
+-	_PROT_WRITE = 2
+-	_PROT_EXEC  = 4
+-
+-	_MAP_ANON    = 1
+-	_MAP_PRIVATE = 2
+-
+-	_DUPLICATE_SAME_ACCESS   = 0x2
+-	_THREAD_PRIORITY_HIGHEST = 0x2
+-
+-	_SIGINT              = 0x2
+-	_SIGTERM             = 0xF
+-	_CTRL_C_EVENT        = 0x0
+-	_CTRL_BREAK_EVENT    = 0x1
+-	_CTRL_CLOSE_EVENT    = 0x2
+-	_CTRL_LOGOFF_EVENT   = 0x5
+-	_CTRL_SHUTDOWN_EVENT = 0x6
+-
+-	_CONTEXT_CONTROL = 0x100001
+-	_CONTEXT_FULL    = 0x10000b
+-
+-	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
+-	_EXCEPTION_BREAKPOINT           = 0x80000003
+-	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
+-	_EXCEPTION_FLT_DIVIDE_BY_ZERO   = 0xc000008e
+-	_EXCEPTION_FLT_INEXACT_RESULT   = 0xc000008f
+-	_EXCEPTION_FLT_OVERFLOW         = 0xc0000091
+-	_EXCEPTION_FLT_UNDERFLOW        = 0xc0000093
+-	_EXCEPTION_INT_DIVIDE_BY_ZERO   = 0xc0000094
+-	_EXCEPTION_INT_OVERFLOW         = 0xc0000095
+-
+-	_INFINITE     = 0xffffffff
+-	_WAIT_TIMEOUT = 0x102
+-
+-	_EXCEPTION_CONTINUE_EXECUTION = -0x1
+-	_EXCEPTION_CONTINUE_SEARCH    = 0x0
+-)
+-
+-type systeminfo struct {
+-	anon0                       [4]byte
+-	dwpagesize                  uint32
+-	lpminimumapplicationaddress *byte
+-	lpmaximumapplicationaddress *byte
+-	dwactiveprocessormask       uint64
+-	dwnumberofprocessors        uint32
+-	dwprocessortype             uint32
+-	dwallocationgranularity     uint32
+-	wprocessorlevel             uint16
+-	wprocessorrevision          uint16
+-}
+-
+-type exceptionrecord struct {
+-	exceptioncode        uint32
+-	exceptionflags       uint32
+-	exceptionrecord      *exceptionrecord
+-	exceptionaddress     *byte
+-	numberparameters     uint32
+-	pad_cgo_0            [4]byte
+-	exceptioninformation [15]uint64
+-}
++const _CONTEXT_CONTROL = 0x100001
+ 
+ type m128a struct {
+ 	low  uint64
+@@ -123,7 +63,7 @@ type context struct {
+ func (c *context) ip() uintptr { return uintptr(c.rip) }
+ func (c *context) sp() uintptr { return uintptr(c.rsp) }
+ 
+-// Amd64 does not have link register, so this returns 0.
++// AMD64 does not have link register, so this returns 0.
+ func (c *context) lr() uintptr      { return 0 }
+ func (c *context) set_lr(x uintptr) {}
+ 
+@@ -152,20 +92,3 @@ func dumpregs(r *context) {
+ 	print("fs      ", hex(r.segfs), "\n")
+ 	print("gs      ", hex(r.seggs), "\n")
+ }
+-
+-type overlapped struct {
+-	internal     uint64
+-	internalhigh uint64
+-	anon0        [8]byte
+-	hevent       *byte
+-}
+-
+-type memoryBasicInformation struct {
+-	baseAddress       uintptr
+-	allocationBase    uintptr
+-	allocationProtect uint32
+-	regionSize        uintptr
+-	state             uint32
+-	protect           uint32
+-	type_             uint32
+-}
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index b275b0572a..4021f77ba8 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -4,67 +4,7 @@
+ 
+ package runtime
+ 
+-const (
+-	_PROT_NONE  = 0
+-	_PROT_READ  = 1
+-	_PROT_WRITE = 2
+-	_PROT_EXEC  = 4
+-
+-	_MAP_ANON    = 1
+-	_MAP_PRIVATE = 2
+-
+-	_DUPLICATE_SAME_ACCESS   = 0x2
+-	_THREAD_PRIORITY_HIGHEST = 0x2
+-
+-	_SIGINT              = 0x2
+-	_SIGTERM             = 0xF
+-	_CTRL_C_EVENT        = 0x0
+-	_CTRL_BREAK_EVENT    = 0x1
+-	_CTRL_CLOSE_EVENT    = 0x2
+-	_CTRL_LOGOFF_EVENT   = 0x5
+-	_CTRL_SHUTDOWN_EVENT = 0x6
+-
+-	_CONTEXT_CONTROL = 0x10001
+-	_CONTEXT_FULL    = 0x10007
+-
+-	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
+-	_EXCEPTION_BREAKPOINT           = 0x80000003
+-	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
+-	_EXCEPTION_FLT_DIVIDE_BY_ZERO   = 0xc000008e
+-	_EXCEPTION_FLT_INEXACT_RESULT   = 0xc000008f
+-	_EXCEPTION_FLT_OVERFLOW         = 0xc0000091
+-	_EXCEPTION_FLT_UNDERFLOW        = 0xc0000093
+-	_EXCEPTION_INT_DIVIDE_BY_ZERO   = 0xc0000094
+-	_EXCEPTION_INT_OVERFLOW         = 0xc0000095
+-
+-	_INFINITE     = 0xffffffff
+-	_WAIT_TIMEOUT = 0x102
+-
+-	_EXCEPTION_CONTINUE_EXECUTION = -0x1
+-	_EXCEPTION_CONTINUE_SEARCH    = 0x0
+-)
+-
+-type systeminfo struct {
+-	anon0                       [4]byte
+-	dwpagesize                  uint32
+-	lpminimumapplicationaddress *byte
+-	lpmaximumapplicationaddress *byte
+-	dwactiveprocessormask       uint32
+-	dwnumberofprocessors        uint32
+-	dwprocessortype             uint32
+-	dwallocationgranularity     uint32
+-	wprocessorlevel             uint16
+-	wprocessorrevision          uint16
+-}
+-
+-type exceptionrecord struct {
+-	exceptioncode        uint32
+-	exceptionflags       uint32
+-	exceptionrecord      *exceptionrecord
+-	exceptionaddress     *byte
+-	numberparameters     uint32
+-	exceptioninformation [15]uint32
+-}
++const _CONTEXT_CONTROL = 0x10001
+ 
+ type neon128 struct {
+ 	low  uint64
+@@ -132,23 +72,6 @@ func dumpregs(r *context) {
+ 	print("cpsr ", hex(r.cpsr), "\n")
+ }
+ 
+-type overlapped struct {
+-	internal     uint32
+-	internalhigh uint32
+-	anon0        [8]byte
+-	hevent       *byte
+-}
+-
+-type memoryBasicInformation struct {
+-	baseAddress       uintptr
+-	allocationBase    uintptr
+-	allocationProtect uint32
+-	regionSize        uintptr
+-	state             uint32
+-	protect           uint32
+-	type_             uint32
+-}
+-
+ func stackcheck() {
+ 	// TODO: not implemented on ARM
+ }
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 3af2e39b08..89d12617f4 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -112,8 +112,8 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	// augmenting the stack frame would break
+ 	// the unwinding code.
+ 	gp.sig = info.exceptioncode
+-	gp.sigcode0 = uintptr(info.exceptioninformation[0])
+-	gp.sigcode1 = uintptr(info.exceptioninformation[1])
++	gp.sigcode0 = info.exceptioninformation[0]
++	gp.sigcode1 = info.exceptioninformation[1]
+ 	gp.sigpc = r.ip()
+ 
+ 	// Only push runtime·sigpanic if r.ip() != 0.

@@ -14,7 +14,7 @@ Date:   Thu Aug 18 14:13:33 2022 -0700
     Reviewed-by: Ruinan Sun <Ruinan.Sun@arm.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules     |   6 -
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |   3 -
  src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
@@ -23,3 +23,551 @@ Date:   Thu Aug 18 14:13:33 2022 -0700
  src/cmd/compile/internal/ssa/rewritegeneric.go | 304 +++++++++++++++++++++++++
  test/codegen/rotate.go                         |  14 +-
  7 files changed, 323 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 0a84ba2301..5e30ca9fd7 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -427,12 +427,6 @@
+ (SHLL x (ANDLconst [31] y)) => (SHLL x y)
+ (SHRL x (ANDLconst [31] y)) => (SHRL x y)
+ 
+-// Rotate instructions
+-
+-(ROLLconst [c] (ROLLconst [d] x)) => (ROLLconst [(c+d)&31] x)
+-(ROLWconst [c] (ROLWconst [d] x)) => (ROLWconst [(c+d)&15] x)
+-(ROLBconst [c] (ROLBconst [d] x)) => (ROLBconst [(c+d)& 7] x)
+-
+ // Constant shift simplifications
+ 
+ (SHLLconst x [0]) => x
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 076438edb7..0e1a36015a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1820,9 +1820,6 @@
+ (ORNshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [-1])
+ (ORNshiftRO (RORconst x [c]) x [c]) => (MOVDconst [-1])
+ 
+-(RORconst [c] (RORconst [d] x)) => (RORconst [(c+d)&63] x)
+-(RORWconst [c] (RORWconst [d] x)) => (RORWconst [(c+d)&31] x)
+-
+ // rev16w | rev16
+ // ((x>>8) | (x<<8)) => (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
+ ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [armBFAuxInt(8, 8)] x) x) => (REV16W x)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ac0b6eb8c1..16253a8d7a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2636,3 +2636,11 @@
+ (RotateLeft32 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft32 x (Const32 <t> [int32(c)]))
+ (RotateLeft16 x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft16 x (Const32 <t> [int32(c)]))
+ (RotateLeft8  x (Const64 <t> [c])) && config.PtrSize == 4 => (RotateLeft8  x (Const32 <t> [int32(c)]))
++
++// Rotating by c, then by d, is the same as rotating by c+d.
++// We're trading a rotate for an add, which seems generally a good choice. It is especially good when c and d are constants.
++// This rule is a bit tricky as c and d might be different widths. We handle only cases where they are the same width.
++(RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 8 && d.Type.Size() == 8 => (RotateLeft(64|32|16|8) x (Add64 <c.Type> c d))
++(RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 4 && d.Type.Size() == 4 => (RotateLeft(64|32|16|8) x (Add32 <c.Type> c d))
++(RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 2 && d.Type.Size() == 2 => (RotateLeft(64|32|16|8) x (Add16 <c.Type> c d))
++(RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 8372e72600..08d81451f5 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -6690,20 +6690,6 @@ func rewriteValue386_Op386ROLB(v *Value) bool {
+ }
+ func rewriteValue386_Op386ROLBconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (ROLBconst [c] (ROLBconst [d] x))
+-	// result: (ROLBconst [(c+d)& 7] x)
+-	for {
+-		c := auxIntToInt8(v.AuxInt)
+-		if v_0.Op != Op386ROLBconst {
+-			break
+-		}
+-		d := auxIntToInt8(v_0.AuxInt)
+-		x := v_0.Args[0]
+-		v.reset(Op386ROLBconst)
+-		v.AuxInt = int8ToAuxInt((c + d) & 7)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (ROLBconst [0] x)
+ 	// result: x
+ 	for {
+@@ -6736,20 +6722,6 @@ func rewriteValue386_Op386ROLL(v *Value) bool {
+ }
+ func rewriteValue386_Op386ROLLconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (ROLLconst [c] (ROLLconst [d] x))
+-	// result: (ROLLconst [(c+d)&31] x)
+-	for {
+-		c := auxIntToInt32(v.AuxInt)
+-		if v_0.Op != Op386ROLLconst {
+-			break
+-		}
+-		d := auxIntToInt32(v_0.AuxInt)
+-		x := v_0.Args[0]
+-		v.reset(Op386ROLLconst)
+-		v.AuxInt = int32ToAuxInt((c + d) & 31)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (ROLLconst [0] x)
+ 	// result: x
+ 	for {
+@@ -6782,20 +6754,6 @@ func rewriteValue386_Op386ROLW(v *Value) bool {
+ }
+ func rewriteValue386_Op386ROLWconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (ROLWconst [c] (ROLWconst [d] x))
+-	// result: (ROLWconst [(c+d)&15] x)
+-	for {
+-		c := auxIntToInt16(v.AuxInt)
+-		if v_0.Op != Op386ROLWconst {
+-			break
+-		}
+-		d := auxIntToInt16(v_0.AuxInt)
+-		x := v_0.Args[0]
+-		v.reset(Op386ROLWconst)
+-		v.AuxInt = int16ToAuxInt((c + d) & 15)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (ROLWconst [0] x)
+ 	// result: x
+ 	for {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index fc1fa5337e..002659f92a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -345,10 +345,6 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64ROR(v)
+ 	case OpARM64RORW:
+ 		return rewriteValueARM64_OpARM64RORW(v)
+-	case OpARM64RORWconst:
+-		return rewriteValueARM64_OpARM64RORWconst(v)
+-	case OpARM64RORconst:
+-		return rewriteValueARM64_OpARM64RORconst(v)
+ 	case OpARM64SBCSflags:
+ 		return rewriteValueARM64_OpARM64SBCSflags(v)
+ 	case OpARM64SLL:
+@@ -20419,42 +20415,6 @@ func rewriteValueARM64_OpARM64RORW(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueARM64_OpARM64RORWconst(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (RORWconst [c] (RORWconst [d] x))
+-	// result: (RORWconst [(c+d)&31] x)
+-	for {
+-		c := auxIntToInt64(v.AuxInt)
+-		if v_0.Op != OpARM64RORWconst {
+-			break
+-		}
+-		d := auxIntToInt64(v_0.AuxInt)
+-		x := v_0.Args[0]
+-		v.reset(OpARM64RORWconst)
+-		v.AuxInt = int64ToAuxInt((c + d) & 31)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueARM64_OpARM64RORconst(v *Value) bool {
+-	v_0 := v.Args[0]
+-	// match: (RORconst [c] (RORconst [d] x))
+-	// result: (RORconst [(c+d)&63] x)
+-	for {
+-		c := auxIntToInt64(v.AuxInt)
+-		if v_0.Op != OpARM64RORconst {
+-			break
+-		}
+-		d := auxIntToInt64(v_0.AuxInt)
+-		x := v_0.Args[0]
+-		v.reset(OpARM64RORconst)
+-		v.AuxInt = int64ToAuxInt((c + d) & 63)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueARM64_OpARM64SBCSflags(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 19a4f47914..fe452a4451 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -22304,6 +22304,82 @@ func rewriteValuegeneric_OpRotateLeft16(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (RotateLeft16 (RotateLeft16 x c) d)
++	// cond: c.Type.Size() == 8 && d.Type.Size() == 8
++	// result: (RotateLeft16 x (Add64 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft16 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 8 && d.Type.Size() == 8) {
++			break
++		}
++		v.reset(OpRotateLeft16)
++		v0 := b.NewValue0(v.Pos, OpAdd64, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft16 (RotateLeft16 x c) d)
++	// cond: c.Type.Size() == 4 && d.Type.Size() == 4
++	// result: (RotateLeft16 x (Add32 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft16 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 4 && d.Type.Size() == 4) {
++			break
++		}
++		v.reset(OpRotateLeft16)
++		v0 := b.NewValue0(v.Pos, OpAdd32, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft16 (RotateLeft16 x c) d)
++	// cond: c.Type.Size() == 2 && d.Type.Size() == 2
++	// result: (RotateLeft16 x (Add16 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft16 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 2 && d.Type.Size() == 2) {
++			break
++		}
++		v.reset(OpRotateLeft16)
++		v0 := b.NewValue0(v.Pos, OpAdd16, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft16 (RotateLeft16 x c) d)
++	// cond: c.Type.Size() == 1 && d.Type.Size() == 1
++	// result: (RotateLeft16 x (Add8 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft16 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 1 && d.Type.Size() == 1) {
++			break
++		}
++		v.reset(OpRotateLeft16)
++		v0 := b.NewValue0(v.Pos, OpAdd8, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
+@@ -22773,6 +22849,82 @@ func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (RotateLeft32 (RotateLeft32 x c) d)
++	// cond: c.Type.Size() == 8 && d.Type.Size() == 8
++	// result: (RotateLeft32 x (Add64 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft32 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 8 && d.Type.Size() == 8) {
++			break
++		}
++		v.reset(OpRotateLeft32)
++		v0 := b.NewValue0(v.Pos, OpAdd64, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft32 (RotateLeft32 x c) d)
++	// cond: c.Type.Size() == 4 && d.Type.Size() == 4
++	// result: (RotateLeft32 x (Add32 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft32 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 4 && d.Type.Size() == 4) {
++			break
++		}
++		v.reset(OpRotateLeft32)
++		v0 := b.NewValue0(v.Pos, OpAdd32, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft32 (RotateLeft32 x c) d)
++	// cond: c.Type.Size() == 2 && d.Type.Size() == 2
++	// result: (RotateLeft32 x (Add16 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft32 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 2 && d.Type.Size() == 2) {
++			break
++		}
++		v.reset(OpRotateLeft32)
++		v0 := b.NewValue0(v.Pos, OpAdd16, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft32 (RotateLeft32 x c) d)
++	// cond: c.Type.Size() == 1 && d.Type.Size() == 1
++	// result: (RotateLeft32 x (Add8 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft32 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 1 && d.Type.Size() == 1) {
++			break
++		}
++		v.reset(OpRotateLeft32)
++		v0 := b.NewValue0(v.Pos, OpAdd8, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
+@@ -23242,6 +23394,82 @@ func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (RotateLeft64 (RotateLeft64 x c) d)
++	// cond: c.Type.Size() == 8 && d.Type.Size() == 8
++	// result: (RotateLeft64 x (Add64 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft64 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 8 && d.Type.Size() == 8) {
++			break
++		}
++		v.reset(OpRotateLeft64)
++		v0 := b.NewValue0(v.Pos, OpAdd64, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft64 (RotateLeft64 x c) d)
++	// cond: c.Type.Size() == 4 && d.Type.Size() == 4
++	// result: (RotateLeft64 x (Add32 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft64 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 4 && d.Type.Size() == 4) {
++			break
++		}
++		v.reset(OpRotateLeft64)
++		v0 := b.NewValue0(v.Pos, OpAdd32, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft64 (RotateLeft64 x c) d)
++	// cond: c.Type.Size() == 2 && d.Type.Size() == 2
++	// result: (RotateLeft64 x (Add16 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft64 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 2 && d.Type.Size() == 2) {
++			break
++		}
++		v.reset(OpRotateLeft64)
++		v0 := b.NewValue0(v.Pos, OpAdd16, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft64 (RotateLeft64 x c) d)
++	// cond: c.Type.Size() == 1 && d.Type.Size() == 1
++	// result: (RotateLeft64 x (Add8 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft64 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 1 && d.Type.Size() == 1) {
++			break
++		}
++		v.reset(OpRotateLeft64)
++		v0 := b.NewValue0(v.Pos, OpAdd8, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
+@@ -23711,6 +23939,82 @@ func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (RotateLeft8 (RotateLeft8 x c) d)
++	// cond: c.Type.Size() == 8 && d.Type.Size() == 8
++	// result: (RotateLeft8 x (Add64 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft8 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 8 && d.Type.Size() == 8) {
++			break
++		}
++		v.reset(OpRotateLeft8)
++		v0 := b.NewValue0(v.Pos, OpAdd64, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft8 (RotateLeft8 x c) d)
++	// cond: c.Type.Size() == 4 && d.Type.Size() == 4
++	// result: (RotateLeft8 x (Add32 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft8 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 4 && d.Type.Size() == 4) {
++			break
++		}
++		v.reset(OpRotateLeft8)
++		v0 := b.NewValue0(v.Pos, OpAdd32, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft8 (RotateLeft8 x c) d)
++	// cond: c.Type.Size() == 2 && d.Type.Size() == 2
++	// result: (RotateLeft8 x (Add16 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft8 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 2 && d.Type.Size() == 2) {
++			break
++		}
++		v.reset(OpRotateLeft8)
++		v0 := b.NewValue0(v.Pos, OpAdd16, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (RotateLeft8 (RotateLeft8 x c) d)
++	// cond: c.Type.Size() == 1 && d.Type.Size() == 1
++	// result: (RotateLeft8 x (Add8 <c.Type> c d))
++	for {
++		if v_0.Op != OpRotateLeft8 {
++			break
++		}
++		c := v_0.Args[1]
++		x := v_0.Args[0]
++		d := v_1
++		if !(c.Type.Size() == 1 && d.Type.Size() == 1) {
++			break
++		}
++		v.reset(OpRotateLeft8)
++		v0 := b.NewValue0(v.Pos, OpAdd8, c.Type)
++		v0.AddArg2(c, d)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRound32F(v *Value) bool {
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index f42993532d..b22288f82a 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -204,6 +204,14 @@ func f32(x uint32) uint32 {
+ 	return rot32nc(x, 7)
+ }
+ 
++func doubleRotate(x uint64) uint64 {
++	x = (x << 5) | (x >> 59)
++	// amd64:"ROLQ\t[$]15"
++	// arm64:"ROR\t[$]49"
++	x = (x << 10) | (x >> 54)
++	return x
++}
++
+ // --------------------------------------- //
+ //    Combined Rotate + Masking operations //
+ // --------------------------------------- //
+@@ -234,16 +242,16 @@ func checkMaskedRotate32(a []uint32, r int) {
+ 	i++
+ 	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
+ 	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
+-	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
++	a[i] = bits.RotateLeft32(a[i], r) & 0xFF00
+ 	i++
+ 
+ 	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
+ 	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
+-	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
++	a[i] = bits.RotateLeft32(a[i], r) & 0xFFF00FFF
+ 	i++
+ 	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
+ 	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
+-	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
++	a[i] = bits.RotateLeft32(a[i], 4) & 0xFFF00FFF
+ 	i++
+ }
+ 

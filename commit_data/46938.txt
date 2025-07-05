@@ -23,7 +23,52 @@ Date:   Thu Jan 28 10:18:24 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/mvs/mvs.go      |  5 +++++
  src/cmd/go/internal/mvs/mvs_test.go | 13 +++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index b630b610f1..f016d8ff15 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -293,10 +293,15 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
+ 	}
+ 	// First walk the base modules that must be listed.
+ 	var min []module.Version
++	haveBase := map[string]bool{}
+ 	for _, path := range base {
++		if haveBase[path] {
++			continue
++		}
+ 		m := module.Version{Path: path, Version: max[path]}
+ 		min = append(min, m)
+ 		walk(m)
++		haveBase[path] = true
+ 	}
+ 	// Now the reverse postorder to bring in anything else.
+ 	for i := len(postorder) - 1; i >= 0; i-- {
+diff --git a/src/cmd/go/internal/mvs/mvs_test.go b/src/cmd/go/internal/mvs/mvs_test.go
+index 721cd9635c..995a38fa92 100644
+--- a/src/cmd/go/internal/mvs/mvs_test.go
++++ b/src/cmd/go/internal/mvs/mvs_test.go
+@@ -327,6 +327,19 @@ B1: Cnone D1
+ E1: Fnone
+ build M: M B1 D1 E1
+ req M: B1 E1
++
++name: reqdup
++M: A1 B1
++A1: B1
++B1:
++req M A A: A1
++
++name: reqcross
++M: A1 B1 C1
++A1: B1 C1
++B1: C1
++C1:
++req M A B: A1 B1
+ `
+ 
+ func Test(t *testing.T) {

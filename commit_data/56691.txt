@@ -11,7 +11,7 @@ Date:   Mon May 22 09:44:42 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 14 +++++++-------
  src/cmd/compile/internal/types2/call.go     |  6 +++---
  src/cmd/compile/internal/types2/decl.go     |  4 ++--
@@ -29,3 +29,474 @@ Date:   Mon May 22 09:44:42 2023 -0700
  src/go/types/typexpr.go                     |  4 ++--
  src/go/types/version.go                     |  7 ++++---
  16 files changed, 50 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 0d1b9ed5e5..a65054661e 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -227,7 +227,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Clear:
+ 		// clear(m)
+-		check.verifyVersionf(check.pkg, call.Fun, go1_21, "clear")
++		check.verifyVersionf(call.Fun, go1_21, "clear")
+ 
+ 		if !underIs(x.typ, func(u Type) bool {
+ 			switch u.(type) {
+@@ -534,7 +534,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	case _Max, _Min:
+ 		// max(x, ...)
+ 		// min(x, ...)
+-		check.verifyVersionf(check.pkg, call.Fun, go1_21, bin.name)
++		check.verifyVersionf(call.Fun, go1_21, bin.name)
+ 
+ 		op := token.LSS
+ 		if id == _Max {
+@@ -655,7 +655,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Add:
+ 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
+-		check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Add")
++		check.verifyVersionf(call.Fun, go1_17, "unsafe.Add")
+ 
+ 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
+ 		if x.mode == invalid {
+@@ -787,7 +787,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+-		check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Slice")
++		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
+ 
+ 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
+ 		if ptr == nil {
+@@ -808,7 +808,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _SliceData:
+ 		// unsafe.SliceData(slice []T) *T
+-		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.SliceData")
++		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
+ 
+ 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
+ 		if slice == nil {
+@@ -824,7 +824,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _String:
+ 		// unsafe.String(ptr *byte, len IntegerType) string
+-		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.String")
++		check.verifyVersionf(call.Fun, go1_20, "unsafe.String")
+ 
+ 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
+ 		if x.mode == invalid {
+@@ -844,7 +844,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _StringData:
+ 		// unsafe.StringData(str string) *byte
+-		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.StringData")
++		check.verifyVersionf(call.Fun, go1_20, "unsafe.StringData")
+ 
+ 		check.assignment(x, Typ[String], "argument to unsafe.StringData")
+ 		if x.mode == invalid {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index bc3634b6bb..e08e46fff4 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -42,7 +42,7 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 	} else {
+ 		instErrPos = pos
+ 	}
+-	versionErr := !check.verifyVersionf(check.pkg, instErrPos, go1_18, "function instantiation")
++	versionErr := !check.verifyVersionf(instErrPos, go1_18, "function instantiation")
+ 
+ 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
+ 	var targs []Type
+@@ -311,7 +311,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		// is an error checking its arguments (for example, if an incorrect number
+ 		// of arguments is supplied).
+ 		if got == want && want > 0 {
+-			check.verifyVersionf(check.pkg, inst, go1_18, "function instantiation")
++			check.verifyVersionf(inst, go1_18, "function instantiation")
+ 			sig = check.instantiateSignature(inst.Pos(), inst, sig, targs, xlist)
+ 			// targs have been consumed; proceed with checking arguments of the
+ 			// non-generic signature.
+@@ -620,7 +620,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	assert(len(tparams) == len(targs))
+ 
+ 	// at the moment we only support implicit instantiations of argument functions
+-	_ = len(genericArgs) > 0 && check.verifyVersionf(check.pkg, args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
++	_ = len(genericArgs) > 0 && check.verifyVersionf(args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
+ 
+ 	// tparams holds the type parameters of the callee and generic function arguments, if any:
+ 	// the first n type parameters belong to the callee, followed by mi type parameters for each
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 193308f197..88864cb93e 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -492,7 +492,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 			check.validType(t)
+ 		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+-		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(check.pkg, tdecl.Type, go1_18, "using type constraint %s", rhs)
++		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
+ 	}).describef(obj, "validType(%s)", obj.Name())
+ 
+ 	alias := tdecl.Alias
+@@ -505,7 +505,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	// alias declaration
+ 	if alias {
+-		check.verifyVersionf(check.pkg, tdecl, go1_9, "type aliases")
++		check.verifyVersionf(tdecl, go1_9, "type aliases")
+ 		check.brokenAlias(obj)
+ 		rhs = check.typ(tdecl.Type)
+ 		check.validAlias(obj, rhs)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 6904de1a0b..67afbfb058 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -679,7 +679,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 		// Check that RHS is otherwise at least of integer type.
+ 		switch {
+ 		case allInteger(y.typ):
+-			if !allUnsigned(y.typ) && !check.verifyVersionf(check.pkg, y, go1_13, invalidOp+"signed shift count %s", y) {
++			if !allUnsigned(y.typ) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
+ 				x.mode = invalid
+ 				return
+ 			}
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index e1fe5aa9b7..956f8d503c 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -223,7 +223,7 @@ func (check *Checker) collectObjects() {
+ 		// but there is no corresponding package object.
+ 		check.recordDef(file.PkgName, nil)
+ 
+-		fileScope := NewScope(check.pkg.scope, syntax.StartPos(file), syntax.EndPos(file), check.filename(fileNo))
++		fileScope := NewScope(pkg.scope, syntax.StartPos(file), syntax.EndPos(file), check.filename(fileNo))
+ 		fileScopes = append(fileScopes, fileScope)
+ 		check.recordScope(file, fileScope)
+ 
+@@ -406,7 +406,7 @@ func (check *Checker) collectObjects() {
+ 				}
+ 
+ 			case *syntax.TypeDecl:
+-				_ = len(s.TParamList) != 0 && check.verifyVersionf(pkg, s.TParamList[0], go1_18, "type parameter")
++				_ = len(s.TParamList) != 0 && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
+ 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
+ 
+@@ -453,7 +453,7 @@ func (check *Checker) collectObjects() {
+ 					}
+ 					check.recordDef(s.Name, obj)
+ 				}
+-				_ = len(s.TParamList) != 0 && !hasTParamError && check.verifyVersionf(pkg, s.TParamList[0], go1_18, "type parameter")
++				_ = len(s.TParamList) != 0 && !hasTParamError && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
+ 				info := &declInfo{file: fileScope, fdecl: s}
+ 				// Methods are not package-level objects but we still track them in the
+ 				// object map so that we can handle them like regular functions (if the
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index fe1d8773cd..9c1c69c40b 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -278,7 +278,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			assert(!isTypeParam(typ))
+ 			tset := computeInterfaceTypeSet(check, pos, u)
+ 			// If typ is local, an error was already reported where typ is specified/defined.
+-			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(check.pkg, pos, go1_18, "embedding constraint interface %s", typ) {
++			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(pos, go1_18, "embedding constraint interface %s", typ) {
+ 				continue
+ 			}
+ 			comparable = tset.comparable
+@@ -287,7 +287,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			}
+ 			terms = tset.terms
+ 		case *Union:
+-			if check != nil && !check.verifyVersionf(check.pkg, pos, go1_18, "embedding interface element %s", u) {
++			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding interface element %s", u) {
+ 				continue
+ 			}
+ 			tset := computeUnionTypeSet(check, unionSets, pos, u)
+@@ -301,7 +301,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			if u == Typ[Invalid] {
+ 				continue
+ 			}
+-			if check != nil && !check.verifyVersionf(check.pkg, pos, go1_18, "embedding non-interface type %s", typ) {
++			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding non-interface type %s", typ) {
+ 				continue
+ 			}
+ 			terms = termlist{{false, typ}}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 1670b12a96..ca717fed8b 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -42,7 +42,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+-		if !check.verifyVersionf(check.pkg, e, go1_18, "predeclared %s", e.Value) {
++		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
+ 			return // avoid follow-on errors
+ 		}
+ 	}
+@@ -271,7 +271,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		}
+ 
+ 	case *syntax.IndexExpr:
+-		check.verifyVersionf(check.pkg, e, go1_18, "type instantiation")
++		check.verifyVersionf(e, go1_18, "type instantiation")
+ 		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
+ 
+ 	case *syntax.ParenExpr:
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index 3b655aad38..7d01b829a9 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -141,9 +141,10 @@ func (check *Checker) allowVersion(pkg *Package, at poser, v version) bool {
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+-// which are used to report a version error if allowVersion returns false.
+-func (check *Checker) verifyVersionf(pkg *Package, at poser, v version, format string, args ...interface{}) bool {
+-	if !check.allowVersion(pkg, at, v) {
++// which are used to report a version error if allowVersion returns false. It uses the
++// current package.
++func (check *Checker) verifyVersionf(at poser, v version, format string, args ...interface{}) bool {
++	if !check.allowVersion(check.pkg, at, v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 8544933840..fcbb712494 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -226,7 +226,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Clear:
+ 		// clear(m)
+-		check.verifyVersionf(check.pkg, call.Fun, go1_21, "clear")
++		check.verifyVersionf(call.Fun, go1_21, "clear")
+ 
+ 		if !underIs(x.typ, func(u Type) bool {
+ 			switch u.(type) {
+@@ -533,7 +533,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Max, _Min:
+ 		// max(x, ...)
+ 		// min(x, ...)
+-		check.verifyVersionf(check.pkg, call.Fun, go1_21, bin.name)
++		check.verifyVersionf(call.Fun, go1_21, bin.name)
+ 
+ 		op := token.LSS
+ 		if id == _Max {
+@@ -654,7 +654,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Add:
+ 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
+-		check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Add")
++		check.verifyVersionf(call.Fun, go1_17, "unsafe.Add")
+ 
+ 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
+ 		if x.mode == invalid {
+@@ -786,7 +786,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+-		check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Slice")
++		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
+ 
+ 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
+ 		if ptr == nil {
+@@ -807,7 +807,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _SliceData:
+ 		// unsafe.SliceData(slice []T) *T
+-		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.SliceData")
++		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
+ 
+ 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
+ 		if slice == nil {
+@@ -823,7 +823,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _String:
+ 		// unsafe.String(ptr *byte, len IntegerType) string
+-		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.String")
++		check.verifyVersionf(call.Fun, go1_20, "unsafe.String")
+ 
+ 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
+ 		if x.mode == invalid {
+@@ -843,7 +843,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _StringData:
+ 		// unsafe.StringData(str string) *byte
+-		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.StringData")
++		check.verifyVersionf(call.Fun, go1_20, "unsafe.StringData")
+ 
+ 		check.assignment(x, Typ[String], "argument to unsafe.StringData")
+ 		if x.mode == invalid {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index df48bf19e4..9016f6fd50 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -44,7 +44,7 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 	} else {
+ 		instErrPos = atPos(pos)
+ 	}
+-	versionErr := !check.verifyVersionf(check.pkg, instErrPos, go1_18, "function instantiation")
++	versionErr := !check.verifyVersionf(instErrPos, go1_18, "function instantiation")
+ 
+ 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
+ 	var targs []Type
+@@ -316,7 +316,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 		// is an error checking its arguments (for example, if an incorrect number
+ 		// of arguments is supplied).
+ 		if got == want && want > 0 {
+-			check.verifyVersionf(check.pkg, atPos(ix.Lbrack), go1_18, "function instantiation")
++			check.verifyVersionf(atPos(ix.Lbrack), go1_18, "function instantiation")
+ 			sig = check.instantiateSignature(ix.Pos(), ix.Orig, sig, targs, xlist)
+ 			// targs have been consumed; proceed with checking arguments of the
+ 			// non-generic signature.
+@@ -623,7 +623,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 	assert(len(tparams) == len(targs))
+ 
+ 	// at the moment we only support implicit instantiations of argument functions
+-	_ = len(genericArgs) > 0 && check.verifyVersionf(check.pkg, args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
++	_ = len(genericArgs) > 0 && check.verifyVersionf(args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
+ 
+ 	// tparams holds the type parameters of the callee and generic function arguments, if any:
+ 	// the first n type parameters belong to the callee, followed by mi type parameters for each
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 4b7fb331c6..af8ec8435e 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -561,7 +561,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 			check.validType(t)
+ 		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+-		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(check.pkg, tdecl.Type, go1_18, "using type constraint %s", rhs)
++		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
+ 	}).describef(obj, "validType(%s)", obj.Name())
+ 
+ 	alias := tdecl.Assign.IsValid()
+@@ -574,7 +574,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 
+ 	// alias declaration
+ 	if alias {
+-		check.verifyVersionf(check.pkg, atPos(tdecl.Assign), go1_9, "type aliases")
++		check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type aliases")
+ 		check.brokenAlias(obj)
+ 		rhs = check.typ(tdecl.Type)
+ 		check.validAlias(obj, rhs)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 69cf008b99..fd776c2350 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -657,7 +657,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 		// Check that RHS is otherwise at least of integer type.
+ 		switch {
+ 		case allInteger(y.typ):
+-			if !allUnsigned(y.typ) && !check.verifyVersionf(check.pkg, y, go1_13, invalidOp+"signed shift count %s", y) {
++			if !allUnsigned(y.typ) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
+ 				x.mode = invalid
+ 				return
+ 			}
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 6e175a7615..6f927446e2 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -242,7 +242,7 @@ func (check *Checker) collectObjects() {
+ 		if f := check.fset.File(file.Pos()); f != nil {
+ 			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
+ 		}
+-		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
++		fileScope := NewScope(pkg.scope, pos, end, check.filename(fileNo))
+ 		fileScopes = append(fileScopes, fileScope)
+ 		check.recordScope(file, fileScope)
+ 
+@@ -386,7 +386,7 @@ func (check *Checker) collectObjects() {
+ 					check.declarePkgObj(name, obj, di)
+ 				}
+ 			case typeDecl:
+-				_ = d.spec.TypeParams.NumFields() != 0 && check.verifyVersionf(pkg, d.spec.TypeParams.List[0], go1_18, "type parameter")
++				_ = d.spec.TypeParams.NumFields() != 0 && check.verifyVersionf(d.spec.TypeParams.List[0], go1_18, "type parameter")
+ 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
+ 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+ 			case funcDecl:
+@@ -442,7 +442,7 @@ func (check *Checker) collectObjects() {
+ 					}
+ 					check.recordDef(d.decl.Name, obj)
+ 				}
+-				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(pkg, d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
++				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
+ 				info := &declInfo{file: fileScope, fdecl: d.decl}
+ 				// Methods are not package-level objects but we still track them in the
+ 				// object map so that we can handle them like regular functions (if the
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 9489f6ae87..2644fa3951 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -276,7 +276,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			assert(!isTypeParam(typ))
+ 			tset := computeInterfaceTypeSet(check, pos, u)
+ 			// If typ is local, an error was already reported where typ is specified/defined.
+-			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(check.pkg, atPos(pos), go1_18, "embedding constraint interface %s", typ) {
++			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
+ 				continue
+ 			}
+ 			comparable = tset.comparable
+@@ -285,7 +285,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			}
+ 			terms = tset.terms
+ 		case *Union:
+-			if check != nil && !check.verifyVersionf(check.pkg, atPos(pos), go1_18, "embedding interface element %s", u) {
++			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
+ 				continue
+ 			}
+ 			tset := computeUnionTypeSet(check, unionSets, pos, u)
+@@ -299,7 +299,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			if u == Typ[Invalid] {
+ 				continue
+ 			}
+-			if check != nil && !check.verifyVersionf(check.pkg, atPos(pos), go1_18, "embedding non-interface type %s", typ) {
++			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
+ 				continue
+ 			}
+ 			terms = termlist{{false, typ}}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 8347e8ec76..ca390ab922 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -43,7 +43,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+-		if !check.verifyVersionf(check.pkg, e, go1_18, "predeclared %s", e.Name) {
++		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Name) {
+ 			return // avoid follow-on errors
+ 		}
+ 	}
+@@ -272,7 +272,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+-		check.verifyVersionf(check.pkg, inNode(e, ix.Lbrack), go1_18, "type instantiation")
++		check.verifyVersionf(inNode(e, ix.Lbrack), go1_18, "type instantiation")
+ 		return check.instantiatedType(ix, def)
+ 
+ 	case *ast.ParenExpr:
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 8962e2f06c..07a42a79ee 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -142,9 +142,10 @@ func (check *Checker) allowVersion(pkg *Package, at positioner, v version) bool
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+-// which are used to report a version error if allowVersion returns false.
+-func (check *Checker) verifyVersionf(pkg *Package, at positioner, v version, format string, args ...interface{}) bool {
+-	if !check.allowVersion(pkg, at, v) {
++// which are used to report a version error if allowVersion returns false. It uses the
++// current package.
++func (check *Checker) verifyVersionf(at positioner, v version, format string, args ...interface{}) bool {
++	if !check.allowVersion(check.pkg, at, v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}

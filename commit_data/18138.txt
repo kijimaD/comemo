@@ -9,7 +9,44 @@ Date:   Mon Dec 30 17:17:19 2013 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/43960045
-
+---
  src/pkg/text/template/multi_test.go | 12 ++++++++++++
  src/pkg/text/template/template.go   |  2 +-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index 1f6ed5d8e2..e4e804880a 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -259,6 +259,18 @@ func TestAddParseTree(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 7032
++func TestAddParseTreeToUnparsedTemplate(t *testing.T) {
++	master := "{{define \"master\"}}{{end}}"
++	tmpl := New("master")
++	tree, err := parse.Parse("master", master, "", "", nil)
++	if err != nil {
++		t.Fatalf("unexpected parse err: %v", err)
++	}
++	masterTree := tree["master"]
++	tmpl.AddParseTree("master", masterTree) // used to panic
++}
++
+ func TestRedefinition(t *testing.T) {
+ 	var tmpl *Template
+ 	var err error
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index a2b9062ad1..249d0cbfb9 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -105,7 +105,7 @@ func (t *Template) copy(c *common) *Template {
+ // AddParseTree creates a new template with the name and parse tree
+ // and associates it with t.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
+-	if t.tmpl[name] != nil {
++	if t.common != nil && t.tmpl[name] != nil {
+ 		return nil, fmt.Errorf("template: redefinition of template %q", name)
+ 	}
+ 	nt := t.New(name)

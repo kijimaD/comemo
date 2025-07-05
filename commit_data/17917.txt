@@ -7,6 +7,21 @@ Date:   Fri Dec 6 15:36:54 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/38640043
-
+---
  src/cmd/gc/plive.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index a309db9f66..5d09f4b964 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -224,7 +224,8 @@ blockany(BasicBlock *bb, int (*callback)(Prog*))
+ }
+ 
+ // Collects and returns and array of Node*s for functions arguments and local
+-// variables.  TODO(cshapiro): only return pointer containing nodes.
++// variables.  TODO(cshapiro): only return pointer containing nodes if we are
++// not also generating a dead value map.
+ static Array*
+ getvariables(Node *fn)
+ {

@@ -18,6 +18,24 @@ Date:   Fri Nov 27 02:06:08 2020 +1100
     Trust: Joel Sing <joel@sing.id.au>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 360c5338ba..2d09a6160a 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -413,11 +413,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	case objabi.R_CALL:
+ 		if siz == 4 {
+ 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
+-				if ctxt.DynlinkingGo() {
+-					out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+-				} else {
+-					out.Write64(uint64(elf.R_X86_64_GOTPCREL) | uint64(elfsym)<<32)
+-				}
++				out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 			} else {
+ 				out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+ 			}

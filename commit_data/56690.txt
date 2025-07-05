@@ -12,8 +12,51 @@ Date:   Sat May 20 13:48:22 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_freebsd_arm64.s   | 3 ---
  src/runtime/sys_freebsd_riscv64.s | 3 ---
  src/runtime/sys_netbsd_arm64.s    | 3 ---
  3 files changed, 9 deletions(-)
+
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index ef0366277f..e9b2abcb65 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -14,9 +14,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		4
+-#define F_GETFL			3
+-#define F_SETFL			4
+-#define O_NONBLOCK		4
+ 
+ #define SYS_exit		1
+ #define SYS_read		3
+diff --git a/src/runtime/sys_freebsd_riscv64.s b/src/runtime/sys_freebsd_riscv64.s
+index be6966b9aa..fd69ba695e 100644
+--- a/src/runtime/sys_freebsd_riscv64.s
++++ b/src/runtime/sys_freebsd_riscv64.s
+@@ -13,9 +13,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		4
+-#define F_GETFL			3
+-#define F_SETFL			4
+-#define O_NONBLOCK		4
+ 
+ #define SYS_exit		1
+ #define SYS_read		3
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 611b9e1d74..2c0324b7a6 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -13,9 +13,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		3
+-#define F_GETFL			3
+-#define F_SETFL			4
+-#define O_NONBLOCK		4
+ 
+ #define SYS_exit			1
+ #define SYS_read			3

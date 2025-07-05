@@ -19,6 +19,35 @@ Date:   Wed May 22 09:57:14 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index e6fa068060..512e07e491 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1349,14 +1349,21 @@ func TestMutexProfileRateAdjust(t *testing.T) {
+ 		}
+ 
+ 		for _, s := range p.Sample {
++			var match, runtimeInternal bool
+ 			for _, l := range s.Location {
+ 				for _, line := range l.Line {
+ 					if line.Function.Name == "runtime/pprof.blockMutex.func1" {
+-						contentions += s.Value[0]
+-						delay += s.Value[1]
++						match = true
++					}
++					if line.Function.Name == "runtime.unlock" {
++						runtimeInternal = true
+ 					}
+ 				}
+ 			}
++			if match && !runtimeInternal {
++				contentions += s.Value[0]
++				delay += s.Value[1]
++			}
+ 		}
+ 		return
+ 	}

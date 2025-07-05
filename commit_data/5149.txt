@@ -7,6 +7,19 @@ Date:   Fri Mar 26 14:48:04 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/784041
-
+---
  src/cmd/godoc/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 3154c1f7e1..074ce4028f 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -30,6 +30,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"http"
++	_ "http/pprof"
+ 	"io"
+ 	"log"
+ 	"os"

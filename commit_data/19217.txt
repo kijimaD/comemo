@@ -12,7 +12,111 @@ Date:   Mon Apr 21 19:28:02 2014 +1000
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/89470043
-
+---
  src/cmd/ld/pe.c       | 13 ++++++++++++-
  src/cmd/nm/nm_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 61 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index cd1dd03683..27c5574363 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -509,6 +509,17 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
+ 	ncoffsym++;
+ }
+ 
++static vlong
++datoffsect(vlong addr)
++{
++	if(addr >= segdata.vaddr)
++		return addr - segdata.vaddr;
++	if(addr >= segtext.vaddr)
++		return addr - segtext.vaddr;
++	diag("datoff %#llx", addr);
++	return 0;
++}
++
+ static void
+ addsymtable(void)
+ {
+@@ -540,7 +551,7 @@ addsymtable(void)
+ 			lputl(0);
+ 			lputl(s->strtbloff);
+ 		}
+-		lputl(datoff(s->sym->value));
++		lputl(datoffsect(s->sym->value));
+ 		wputl(s->sect);
+ 		wputl(0x0308);  // "array of structs"
+ 		cput(2);        // storage class: external
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index ba9dc00f56..761c5325f2 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -5,13 +5,55 @@
+ package main
+ 
+ import (
++	"bufio"
++	"bytes"
++	"fmt"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
++var testData uint32
++
++func checkSymbols(t *testing.T, nmoutput []byte) {
++	var checkSymbolsFound, testDataFound bool
++	scanner := bufio.NewScanner(bytes.NewBuffer(nmoutput))
++	for scanner.Scan() {
++		f := strings.Fields(scanner.Text())
++		if len(f) < 3 {
++			t.Error("nm must have at least 3 columns")
++			continue
++		}
++		switch f[2] {
++		case "cmd/nm.checkSymbols":
++			checkSymbolsFound = true
++			addr := "0x" + f[0]
++			if addr != fmt.Sprintf("%p", checkSymbols) {
++				t.Errorf("nm shows wrong address %v for checkSymbols (%p)", addr, checkSymbols)
++			}
++		case "cmd/nm.testData":
++			testDataFound = true
++			addr := "0x" + f[0]
++			if addr != fmt.Sprintf("%p", &testData) {
++				t.Errorf("nm shows wrong address %v for testData (%p)", addr, &testData)
++			}
++		}
++	}
++	if err := scanner.Err(); err != nil {
++		t.Errorf("error while reading symbols: %v", err)
++		return
++	}
++	if !checkSymbolsFound {
++		t.Error("nm shows no checkSymbols symbol")
++	}
++	if !testDataFound {
++		t.Error("nm shows no testData symbol")
++	}
++}
++
+ func TestNM(t *testing.T) {
+ 	out, err := exec.Command("go", "build", "-o", "testnm.exe", "cmd/nm").CombinedOutput()
+ 	if err != nil {
+@@ -37,4 +79,11 @@ func TestNM(t *testing.T) {
+ 			t.Fatalf("go tool nm %v: %v\n%s", exepath, err, string(out))
+ 		}
+ 	}
++
++	cmd := exec.Command("./testnm.exe", os.Args[0])
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
++	}
++	checkSymbols(t, out)
+ }

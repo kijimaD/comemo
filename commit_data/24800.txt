@@ -12,6 +12,36 @@ Date:   Sat Aug 29 12:51:04 2015 -0500
     Change-Id: I26883d69e80357c56b343428fb528102b3f26e7a
     Reviewed-on: https://go-review.googlesource.com/14042
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 18 +++++++++++++++---
  1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index de0b4acbf4..cf5f872e0f 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -89,9 +89,21 @@ func schedule(f *Func) {
+ 			// Force the control value to be scheduled at the end,
+ 			// unless it is a phi value (which must be first).
+ 			score[b.Control.ID] = 4
+-			// TODO: some times control values are used by other values
+-			// in the block.  So the control value will not appear at
+-			// the very end.  Decide if this is a problem or not.
++
++			// Schedule values dependent on the control value at the end.
++			// This reduces the number of register spills. We don't find
++			// all values that depend on the control, just values with a
++			// direct dependency.  This is cheaper and in testing there
++			// was no difference in the number of spills.
++			for _, v := range b.Values {
++				if v.Op != OpPhi {
++					for _, a := range v.Args {
++						if a == b.Control {
++							score[v.ID] = 4
++						}
++					}
++				}
++			}
+ 		}
+ 
+ 		// Initialize priority queue with schedulable values.

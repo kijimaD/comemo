@@ -37,6 +37,20 @@ Date:   Fri Jun 16 16:30:52 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 238355732c..83d5faf28f 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -160,7 +160,7 @@ func GetModule(modroot string) (*Module, error) {
+ 		return nil, errNotFromModuleCache
+ 	}
+ 	modroot = filepath.Clean(modroot)
+-	if !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
++	if str.HasFilePathPrefix(modroot, cfg.GOROOTsrc) || !str.HasFilePathPrefix(modroot, cfg.GOMODCACHE) {
+ 		return nil, errNotFromModuleCache
+ 	}
+ 	return openIndexModule(modroot, true)

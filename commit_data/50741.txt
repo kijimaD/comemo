@@ -14,7 +14,7 @@ Date:   Thu Oct 21 14:26:55 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              | 200 +++++++++++----------
  src/cmd/go/internal/modcmd/mod.go                  |   2 -
  .../{modcmd/editwork.go => workcmd/edit.go}        |  97 +++++++---
@@ -25,3 +25,631 @@ Date:   Thu Oct 21 14:26:55 2021 -0400
  src/cmd/go/testdata/script/work_edit.txt           |  22 +--
  .../go/testdata/script/work_replace_conflict.txt   |   2 +-
  9 files changed, 230 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c9426801c5..d8ebc8d61d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -25,6 +25,7 @@
+ // 	install     compile and install packages and dependencies
+ // 	list        list packages or modules
+ // 	mod         module maintenance
++// 	work        workspace maintenance
+ // 	run         compile and run Go program
+ // 	test        test packages
+ // 	tool        run specified go tool
+@@ -1055,10 +1056,8 @@
+ //
+ // 	download    download modules to local cache
+ // 	edit        edit go.mod from tools or scripts
+-// 	editwork    edit go.work from tools or scripts
+ // 	graph       print module requirement graph
+ // 	init        initialize new module in current directory
+-// 	initwork    initialize workspace file
+ // 	tidy        add missing and remove unused modules
+ // 	vendor      make vendored copy of dependencies
+ // 	verify      verify dependencies have expected content
+@@ -1218,77 +1217,6 @@
+ // See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
+ //
+ //
+-// Edit go.work from tools or scripts
+-//
+-// Usage:
+-//
+-// 	go mod editwork [editing flags] [go.work]
+-//
+-// Editwork provides a command-line interface for editing go.work,
+-// for use primarily by tools or scripts. It only reads go.work;
+-// it does not look up information about the modules involved.
+-// If no file is specified, editwork looks for a go.work file in the current
+-// directory and its parent directories
+-//
+-// The editing flags specify a sequence of editing operations.
+-//
+-// The -fmt flag reformats the go.work file without making other changes.
+-// This reformatting is also implied by any other modifications that use or
+-// rewrite the go.mod file. The only time this flag is needed is if no other
+-// flags are specified, as in 'go mod editwork -fmt'.
+-//
+-// The -directory=path and -dropdirectory=path flags
+-// add and drop a directory from the go.work files set of module directories.
+-//
+-// The -replace=old[@v]=new[@v] flag adds a replacement of the given
+-// module path and version pair. If the @v in old@v is omitted, a
+-// replacement without a version on the left side is added, which applies
+-// to all versions of the old module path. If the @v in new@v is omitted,
+-// the new path should be a local module root directory, not a module
+-// path. Note that -replace overrides any redundant replacements for old[@v],
+-// so omitting @v will drop existing replacements for specific versions.
+-//
+-// The -dropreplace=old[@v] flag drops a replacement of the given
+-// module path and version pair. If the @v is omitted, a replacement without
+-// a version on the left side is dropped.
+-//
+-// The -directory, -dropdirectory, -replace, and -dropreplace,
+-// editing flags may be repeated, and the changes are applied in the order given.
+-//
+-// The -go=version flag sets the expected Go language version.
+-//
+-// The -print flag prints the final go.work in its text format instead of
+-// writing it back to go.mod.
+-//
+-// The -json flag prints the final go.work file in JSON format instead of
+-// writing it back to go.mod. The JSON output corresponds to these Go types:
+-//
+-// 	type Module struct {
+-// 		Path    string
+-// 		Version string
+-// 	}
+-//
+-// 	type GoWork struct {
+-// 		Go        string
+-// 		Directory []Directory
+-// 		Replace   []Replace
+-// 	}
+-//
+-// 	type Directory struct {
+-// 		Path       string
+-// 		ModulePath string
+-// 	}
+-//
+-// 	type Replace struct {
+-// 		Old Module
+-// 		New Module
+-// 	}
+-//
+-// See the workspaces design proposal at
+-// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+-// more information.
+-//
+-//
+ // Print module requirement graph
+ //
+ // Usage:
+@@ -1328,23 +1256,6 @@
+ // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+ //
+ //
+-// Initialize workspace file
+-//
+-// Usage:
+-//
+-// 	go mod initwork [moddirs]
+-//
+-// go mod initwork initializes and writes a new go.work file in the current
+-// directory, in effect creating a new workspace at the current directory.
+-//
+-// go mod initwork optionally accepts paths to the workspace modules as arguments.
+-// If the argument is omitted, an empty workspace with no modules will be created.
+-//
+-// See the workspaces design proposal at
+-// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+-// more information.
+-//
+-//
+ // Add missing and remove unused modules
+ //
+ // Usage:
+@@ -1453,6 +1364,115 @@
+ // See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
+ //
+ //
++// Workspace maintenance
++//
++// Go workspace provides access to operations on worskpaces.
++//
++// Note that support for workspaces is built into many other commands,
++// not just 'go work'.
++//
++// See 'go help modules' for information about Go's module system of
++// which workspaces are a part.
++//
++// Usage:
++//
++// 	go work <command> [arguments]
++//
++// The commands are:
++//
++// 	edit        edit go.work from tools or scripts
++// 	init        initialize workspace file
++//
++// Use "go help work <command>" for more information about a command.
++//
++// Edit go.work from tools or scripts
++//
++// Usage:
++//
++// 	go work edit [editing flags] [go.work]
++//
++// Editwork provides a command-line interface for editing go.work,
++// for use primarily by tools or scripts. It only reads go.work;
++// it does not look up information about the modules involved.
++// If no file is specified, editwork looks for a go.work file in the current
++// directory and its parent directories
++//
++// The editing flags specify a sequence of editing operations.
++//
++// The -fmt flag reformats the go.work file without making other changes.
++// This reformatting is also implied by any other modifications that use or
++// rewrite the go.mod file. The only time this flag is needed is if no other
++// flags are specified, as in 'go mod editwork -fmt'.
++//
++// The -directory=path and -dropdirectory=path flags
++// add and drop a directory from the go.work files set of module directories.
++//
++// The -replace=old[@v]=new[@v] flag adds a replacement of the given
++// module path and version pair. If the @v in old@v is omitted, a
++// replacement without a version on the left side is added, which applies
++// to all versions of the old module path. If the @v in new@v is omitted,
++// the new path should be a local module root directory, not a module
++// path. Note that -replace overrides any redundant replacements for old[@v],
++// so omitting @v will drop existing replacements for specific versions.
++//
++// The -dropreplace=old[@v] flag drops a replacement of the given
++// module path and version pair. If the @v is omitted, a replacement without
++// a version on the left side is dropped.
++//
++// The -directory, -dropdirectory, -replace, and -dropreplace,
++// editing flags may be repeated, and the changes are applied in the order given.
++//
++// The -go=version flag sets the expected Go language version.
++//
++// The -print flag prints the final go.work in its text format instead of
++// writing it back to go.mod.
++//
++// The -json flag prints the final go.work file in JSON format instead of
++// writing it back to go.mod. The JSON output corresponds to these Go types:
++//
++// 	type Module struct {
++// 		Path    string
++// 		Version string
++// 	}
++//
++// 	type GoWork struct {
++// 		Go        string
++// 		Directory []Directory
++// 		Replace   []Replace
++// 	}
++//
++// 	type Directory struct {
++// 		Path       string
++// 		ModulePath string
++// 	}
++//
++// 	type Replace struct {
++// 		Old Module
++// 		New Module
++// 	}
++//
++// See the workspaces design proposal at
++// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
++// more information.
++//
++//
++// Initialize workspace file
++//
++// Usage:
++//
++// 	go work init [moddirs]
++//
++// go mod initwork initializes and writes a new go.work file in the current
++// directory, in effect creating a new workspace at the current directory.
++//
++// go mod initwork optionally accepts paths to the workspace modules as arguments.
++// If the argument is omitted, an empty workspace with no modules will be created.
++//
++// See the workspaces design proposal at
++// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
++// more information.
++//
++//
+ // Compile and run Go program
+ //
+ // Usage:
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index 29aad58324..d72d0cacd6 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -23,10 +23,8 @@ See 'go help modules' for an overview of module functionality.
+ 	Commands: []*base.Command{
+ 		cmdDownload,
+ 		cmdEdit,
+-		cmdEditwork,
+ 		cmdGraph,
+ 		cmdInit,
+-		cmdInitwork,
+ 		cmdTidy,
+ 		cmdVendor,
+ 		cmdVerify,
+diff --git a/src/cmd/go/internal/modcmd/editwork.go b/src/cmd/go/internal/workcmd/edit.go
+similarity index 74%
+rename from src/cmd/go/internal/modcmd/editwork.go
+rename to src/cmd/go/internal/workcmd/edit.go
+index 50f86366a0..f4e630f43f 100644
+--- a/src/cmd/go/internal/modcmd/editwork.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// go mod editwork
++// go work edit
+ 
+-package modcmd
++package workcmd
+ 
+ import (
+ 	"bytes"
+@@ -14,15 +14,18 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
++	"fmt"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+ 
++	"golang.org/x/mod/module"
++
+ 	"golang.org/x/mod/modfile"
+ )
+ 
+-var cmdEditwork = &base.Command{
+-	UsageLine: "go mod editwork [editing flags] [go.work]",
++var cmdEdit = &base.Command{
++	UsageLine: "go work edit [editing flags] [go.work]",
+ 	Short:     "edit go.work from tools or scripts",
+ 	Long: `Editwork provides a command-line interface for editing go.work,
+ for use primarily by tools or scripts. It only reads go.work;
+@@ -91,37 +94,42 @@ more information.
+ }
+ 
+ var (
+-	editworkFmt   = cmdEditwork.Flag.Bool("fmt", false, "")
+-	editworkGo    = cmdEditwork.Flag.String("go", "", "")
+-	editworkJSON  = cmdEditwork.Flag.Bool("json", false, "")
+-	editworkPrint = cmdEditwork.Flag.Bool("print", false, "")
+-	workedits     []func(file *modfile.WorkFile) // edits specified in flags
++	editFmt   = cmdEdit.Flag.Bool("fmt", false, "")
++	editGo    = cmdEdit.Flag.String("go", "", "")
++	editJSON  = cmdEdit.Flag.Bool("json", false, "")
++	editPrint = cmdEdit.Flag.Bool("print", false, "")
++	workedits []func(file *modfile.WorkFile) // edits specified in flags
+ )
+ 
++type flagFunc func(string)
++
++func (f flagFunc) String() string     { return "" }
++func (f flagFunc) Set(s string) error { f(s); return nil }
++
+ func init() {
+-	cmdEditwork.Run = runEditwork // break init cycle
++	cmdEdit.Run = runEditwork // break init cycle
+ 
+-	cmdEditwork.Flag.Var(flagFunc(flagEditworkDirectory), "directory", "")
+-	cmdEditwork.Flag.Var(flagFunc(flagEditworkDropDirectory), "dropdirectory", "")
+-	cmdEditwork.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
+-	cmdEditwork.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkDirectory), "directory", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkDropDirectory), "dropdirectory", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkReplace), "replace", "")
++	cmdEdit.Flag.Var(flagFunc(flagEditworkDropReplace), "dropreplace", "")
+ 
+-	base.AddWorkfileFlag(&cmdEditwork.Flag)
++	base.AddWorkfileFlag(&cmdEdit.Flag)
+ }
+ 
+ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 	anyFlags :=
+-		*editworkGo != "" ||
+-			*editworkJSON ||
+-			*editworkPrint ||
+-			*editworkFmt ||
++		*editGo != "" ||
++			*editJSON ||
++			*editPrint ||
++			*editFmt ||
+ 			len(workedits) > 0
+ 
+ 	if !anyFlags {
+ 		base.Fatalf("go: no flags specified (see 'go help mod editwork').")
+ 	}
+ 
+-	if *editworkJSON && *editworkPrint {
++	if *editJSON && *editPrint {
+ 		base.Fatalf("go: cannot use both -json and -print")
+ 	}
+ 
+@@ -136,8 +144,8 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 		gowork = modload.WorkFilePath()
+ 	}
+ 
+-	if *editworkGo != "" {
+-		if !modfile.GoVersionRE.MatchString(*editworkGo) {
++	if *editGo != "" {
++		if !modfile.GoVersionRE.MatchString(*editGo) {
+ 			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
+ 		}
+ 	}
+@@ -152,8 +160,8 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gowork), err)
+ 	}
+ 
+-	if *editworkGo != "" {
+-		if err := workFile.AddGoStmt(*editworkGo); err != nil {
++	if *editGo != "" {
++		if err := workFile.AddGoStmt(*editGo); err != nil {
+ 			base.Fatalf("go: internal error: %v", err)
+ 		}
+ 	}
+@@ -166,14 +174,14 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 	workFile.SortBlocks()
+ 	workFile.Cleanup() // clean file after edits
+ 
+-	if *editworkJSON {
+-		editworkPrintJSON(workFile)
++	if *editJSON {
++		editPrintJSON(workFile)
+ 		return
+ 	}
+ 
+ 	out := modfile.Format(workFile.Syntax)
+ 
+-	if *editworkPrint {
++	if *editPrint {
+ 		os.Stdout.Write(out)
+ 		return
+ 	}
+@@ -213,6 +221,34 @@ func flagEditworkDropDirectory(arg string) {
+ 	})
+ }
+ 
++// allowedVersionArg returns whether a token may be used as a version in go.mod.
++// We don't call modfile.CheckPathVersion, because that insists on versions
++// being in semver form, but here we want to allow versions like "master" or
++// "1234abcdef", which the go command will resolve the next time it runs (or
++// during -fix).  Even so, we need to make sure the version is a valid token.
++func allowedVersionArg(arg string) bool {
++	return !modfile.MustQuote(arg)
++}
++
++// parsePathVersionOptional parses path[@version], using adj to
++// describe any errors.
++func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
++	if i := strings.Index(arg, "@"); i < 0 {
++		path = arg
++	} else {
++		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
++	}
++	if err := module.CheckImportPath(path); err != nil {
++		if !allowDirPath || !modfile.IsDirectoryPath(path) {
++			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
++		}
++	}
++	if path != arg && !allowedVersionArg(version) {
++		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
++	}
++	return path, version, nil
++}
++
+ // flagReplace implements the -replace flag.
+ func flagEditworkReplace(arg string) {
+ 	var i int
+@@ -255,8 +291,13 @@ func flagEditworkDropReplace(arg string) {
+ 	})
+ }
+ 
++type replaceJSON struct {
++	Old module.Version
++	New module.Version
++}
++
+ // editPrintJSON prints the -json output.
+-func editworkPrintJSON(workFile *modfile.WorkFile) {
++func editPrintJSON(workFile *modfile.WorkFile) {
+ 	var f workfileJSON
+ 	if workFile.Go != nil {
+ 		f.Go = workFile.Go.Version
+diff --git a/src/cmd/go/internal/modcmd/initwork.go b/src/cmd/go/internal/workcmd/init.go
+similarity index 83%
+rename from src/cmd/go/internal/modcmd/initwork.go
+rename to src/cmd/go/internal/workcmd/init.go
+index 4182aa071d..1342748023 100644
+--- a/src/cmd/go/internal/modcmd/initwork.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -4,7 +4,7 @@
+ 
+ // go mod initwork
+ 
+-package modcmd
++package workcmd
+ 
+ import (
+ 	"cmd/go/internal/base"
+@@ -17,8 +17,8 @@ var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
+ 	"enough for those trying workspaces out, there should be more through" +
+ 	"documentation if the proposal is accepted and released.")
+ 
+-var cmdInitwork = &base.Command{
+-	UsageLine: "go mod initwork [moddirs]",
++var cmdInit = &base.Command{
++	UsageLine: "go work init [moddirs]",
+ 	Short:     "initialize workspace file",
+ 	Long: `go mod initwork initializes and writes a new go.work file in the current
+ directory, in effect creating a new workspace at the current directory.
+@@ -30,15 +30,15 @@ See the workspaces design proposal at
+ https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+ more information.
+ `,
+-	Run: runInitwork,
++	Run: runInit,
+ }
+ 
+ func init() {
+-	base.AddModCommonFlags(&cmdInitwork.Flag)
+-	base.AddWorkfileFlag(&cmdInitwork.Flag)
++	base.AddModCommonFlags(&cmdInit.Flag)
++	base.AddWorkfileFlag(&cmdInit.Flag)
+ }
+ 
+-func runInitwork(ctx context.Context, cmd *base.Command, args []string) {
++func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+ 
+ 	modload.ForceUseModules = true
+diff --git a/src/cmd/go/internal/workcmd/work.go b/src/cmd/go/internal/workcmd/work.go
+new file mode 100644
+index 0000000000..2e7f68b675
+--- /dev/null
++++ b/src/cmd/go/internal/workcmd/work.go
+@@ -0,0 +1,28 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package workcmd implements the ``go work'' command.
++package workcmd
++
++import (
++	"cmd/go/internal/base"
++)
++
++var CmdWork = &base.Command{
++	UsageLine: "go work",
++	Short:     "workspace maintenance",
++	Long: `Go workspace provides access to operations on worskpaces.
++
++Note that support for workspaces is built into many other commands,
++not just 'go work'.
++
++See 'go help modules' for information about Go's module system of
++which workspaces are a part.
++`,
++
++	Commands: []*base.Command{
++		cmdEdit,
++		cmdInit,
++	},
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 16361e02ca..c0a1d3ccfc 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/workcmd"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -56,6 +57,7 @@ func init() {
+ 		work.CmdInstall,
+ 		list.CmdList,
+ 		modcmd.CmdMod,
++		workcmd.CmdWork,
+ 		run.CmdRun,
+ 		test.CmdTest,
+ 		tool.CmdTool,
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 613f037615..68bd3ea08b 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -1,9 +1,9 @@
+-! go mod initwork doesnotexist
++! go work init doesnotexist
+ stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
+ go env GOWORK
+ ! stdout .
+ 
+-go mod initwork ./a ./b
++go work init ./a ./b
+ cmp go.work go.work.want
+ go env GOWORK
+ stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
+diff --git a/src/cmd/go/testdata/script/work_edit.txt b/src/cmd/go/testdata/script/work_edit.txt
+index 979c1f98e0..060d1f0386 100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@ -1,36 +1,36 @@
+ # Test editing go.work files.
+ 
+-go mod initwork m
++go work init m
+ cmp go.work go.work.want_initial
+ 
+-go mod editwork -directory n
++go work edit -directory n
+ cmp go.work go.work.want_directory_n
+ 
+-go mod editwork -go 1.18
++go work edit -go 1.18
+ cmp go.work go.work.want_go_118
+ 
+-go mod editwork -dropdirectory m
++go work edit -dropdirectory m
+ cmp go.work go.work.want_dropdirectory_m
+ 
+-go mod editwork -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
++go work edit -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+ cmp go.work go.work.want_add_replaces
+ 
+-go mod editwork -directory n -directory ../a -directory /b -directory c -directory c
++go work edit -directory n -directory ../a -directory /b -directory c -directory c
+ cmp go.work go.work.want_multidirectory
+ 
+-go mod editwork -dropdirectory /b -dropdirectory n
++go work edit -dropdirectory /b -dropdirectory n
+ cmp go.work go.work.want_multidropdirectory
+ 
+-go mod editwork -dropreplace='x.1@v1.4.0'
++go work edit -dropreplace='x.1@v1.4.0'
+ cmp go.work go.work.want_dropreplace
+ 
+-go mod editwork -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
++go work edit -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_print
+ 
+-go mod editwork -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
++go work edit -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_json
+ 
+-go mod editwork -print -fmt -workfile $GOPATH/src/unformatted
++go work edit -print -fmt -workfile $GOPATH/src/unformatted
+ cmp stdout formatted
+ 
+ -- m/go.mod --
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict.txt b/src/cmd/go/testdata/script/work_replace_conflict.txt
+index a2f76d13a0..f91b63cd86 100644
+--- a/src/cmd/go/testdata/script/work_replace_conflict.txt
++++ b/src/cmd/go/testdata/script/work_replace_conflict.txt
+@@ -3,7 +3,7 @@
+ 
+ ! go list -m example.com/dep
+ stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go mod editwork -replace example.com/dep@v1.0.0=\[override\]" to resolve'
+-go mod editwork -replace example.com/dep@v1.0.0=./dep1
++go work edit -replace example.com/dep@v1.0.0=./dep1
+ go list -m example.com/dep
+ stdout 'example.com/dep v1.0.0 => ./dep1'
+ 

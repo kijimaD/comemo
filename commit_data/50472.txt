@@ -11,8 +11,55 @@ Date:   Wed Jul 7 22:33:09 2021 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 3 +--
  src/cmd/cover/testdata/test.go          | 1 +
  test/linkname2.go                       | 7 ++-----
  3 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index fc1541f74e..b36db67a50 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -323,8 +323,7 @@ func (p *noder) processPragmas() {
+ 		}
+ 		n := ir.AsNode(typecheck.Lookup(l.local).Def)
+ 		if n == nil || n.Op() != ir.ONAME {
+-			// TODO(mdempsky): Change to p.errorAt before Go 1.17 release.
+-			// base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
++			p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
+ 			continue
+ 		}
+ 		if n.Sym().Linkname != "" {
+diff --git a/src/cmd/cover/testdata/test.go b/src/cmd/cover/testdata/test.go
+index b794962205..703fba57a4 100644
+--- a/src/cmd/cover/testdata/test.go
++++ b/src/cmd/cover/testdata/test.go
+@@ -13,6 +13,7 @@ package main
+ import _ "unsafe" // for go:linkname
+ 
+ //go:linkname some_name some_name
++var some_name int
+ 
+ const anything = 1e9 // Just some unlikely value that means "we got here, don't care how often"
+ 
+diff --git a/test/linkname2.go b/test/linkname2.go
+index 43e66a5849..cb7f9be345 100644
+--- a/test/linkname2.go
++++ b/test/linkname2.go
+@@ -16,13 +16,10 @@ var x, y int
+ //go:linkname x ok
+ 
+ // ERROR "//go:linkname requires linkname argument or -p compiler flag"
+-// BAD: want error "//go:linkname must refer to declared function or variable"
+-// BAD: want error "//go:linkname must refer to declared function or variable"
++// ERROR "//go:linkname must refer to declared function or variable"
++// ERROR "//go:linkname must refer to declared function or variable"
+ // ERROR "duplicate //go:linkname for x"
+ 
+-// The two BAD lines are just waiting for #42938 before we can
+-// re-enable the errors.
+-
+ //line linkname2.go:18
+ //go:linkname y
+ //go:linkname nonexist nonexist

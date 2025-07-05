@@ -15,7 +15,36 @@ Date:   Mon Jun 15 13:04:05 2020 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/generate_env.txt   | 3 ++-
  src/cmd/go/testdata/script/mod_gomodcache.txt | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/generate_env.txt b/src/cmd/go/testdata/script/generate_env.txt
+index 0d3693fa33..2df1663376 100644
+--- a/src/cmd/go/testdata/script/generate_env.txt
++++ b/src/cmd/go/testdata/script/generate_env.txt
+@@ -1,7 +1,8 @@
+ # Install an env command because Windows and plan9 don't have it.
+ env GOBIN=$WORK/tmp/bin
+ go install env.go
+-env PATH=$GOBIN${:}$PATH
++[plan9] env path=$GOBIN${:}$path
++[!plan9] env PATH=$GOBIN${:}$PATH
+ 
+ # Test generators have access to the environment
+ go generate ./printenv.go
+diff --git a/src/cmd/go/testdata/script/mod_gomodcache.txt b/src/cmd/go/testdata/script/mod_gomodcache.txt
+index 67a8f07b2c..b2143e2093 100644
+--- a/src/cmd/go/testdata/script/mod_gomodcache.txt
++++ b/src/cmd/go/testdata/script/mod_gomodcache.txt
+@@ -24,7 +24,8 @@ grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/
+ 
+ # If neither GOMODCACHE or GOPATH are set, GOPATH defaults to the user's $HOME/go, so GOMODCACHE becomes $HOME/go/pkg/mod
+ [windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
+-[!windows] env HOME=$WORK/home
++[plan9] env home=$WORK/home
++[!windows] [!plan9] env HOME=$WORK/home
+ env GOMODCACHE=
+ env GOPATH=
+ go env GOMODCACHE

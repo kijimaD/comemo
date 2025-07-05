@@ -7,6 +7,20 @@ Date:   Mon Apr 22 15:41:06 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8915043
-
+---
  src/pkg/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index f18ea62f60..22bc1bfe0b 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -634,7 +634,7 @@ func skip(value, prefix string) (string, error) {
+ // Parse parses a formatted string and returns the time value it represents.
+ // The layout  defines the format by showing how the reference time,
+ //	Mon Jan 2 15:04:05 -0700 MST 2006
+-// would be interepreted if it were the value; it serves as an example of
++// would be interpreted if it were the value; it serves as an example of
+ // the input format. The same interpretation will then be made to the
+ // input string.
+ // Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard

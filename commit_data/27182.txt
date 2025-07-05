@@ -13,6 +13,24 @@ Date:   Sun Mar 13 21:34:46 2016 -0400
     Change-Id: I56b11a8e86b048abfb00812eaad37802fd2adcc5
     Reviewed-on: https://go-review.googlesource.com/20710
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/user/user_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 361c48a7bd..9d8d94d8da 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -104,7 +104,11 @@ func TestLookupGroup(t *testing.T) {
+ 
+ 	g1, err := LookupGroupId(user.Gid)
+ 	if err != nil {
+-		t.Fatalf("LookupGroupId(%q): %v", user.Gid, err)
++		// NOTE(rsc): Maybe the group isn't defined. That's fine.
++		// On my OS X laptop, rsc logs in with group 5000 even
++		// though there's no name for group 5000. Such is Unix.
++		t.Logf("LookupGroupId(%q): %v", user.Gid, err)
++		return
+ 	}
+ 	if g1.Gid != user.Gid {
+ 		t.Errorf("LookupGroupId(%q).Gid = %s; want %s", user.Gid, g1.Gid, user.Gid)

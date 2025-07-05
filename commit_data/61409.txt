@@ -20,7 +20,71 @@ Date:   Wed Nov 6 11:08:51 2024 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/626055
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/client.go      | 11 ++++++++---
  src/net/http/client_test.go |  6 +++---
  2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 67b2a89ac9..fda7815436 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -611,7 +611,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 
+ 		// Redirect behavior:
+ 		redirectMethod string
+-		includeBody    bool
++		includeBody    = true
+ 	)
+ 	uerr := func(err error) error {
+ 		// the body may have been closed already by c.send()
+@@ -728,11 +728,16 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 			return nil, uerr(err)
+ 		}
+ 
+-		var shouldRedirect bool
+-		redirectMethod, shouldRedirect, includeBody = redirectBehavior(req.Method, resp, reqs[0])
++		var shouldRedirect, includeBodyOnHop bool
++		redirectMethod, shouldRedirect, includeBodyOnHop = redirectBehavior(req.Method, resp, reqs[0])
+ 		if !shouldRedirect {
+ 			return resp, nil
+ 		}
++		if !includeBodyOnHop {
++			// Once a hop drops the body, we never send it again
++			// (because we're now handling a redirect for a request with no body).
++			includeBody = false
++		}
+ 
+ 		req.closeBody()
+ 	}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 04e2e32cf0..429b8f1d2c 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -346,7 +346,7 @@ func TestPostRedirects(t *testing.T) {
+ 		`POST /?code=307&next=303,308,302 "c307"`,
+ 		`POST /?code=303&next=308,302 "c307"`,
+ 		`GET /?code=308&next=302 ""`,
+-		`GET /?code=302 "c307"`,
++		`GET /?code=302 ""`,
+ 		`GET / ""`,
+ 		`POST /?code=308&next=302,301 "c308"`,
+ 		`POST /?code=302&next=301 "c308"`,
+@@ -376,7 +376,7 @@ func TestDeleteRedirects(t *testing.T) {
+ 		`DELETE /?code=301&next=302,308 "c301"`,
+ 		`GET /?code=302&next=308 ""`,
+ 		`GET /?code=308 ""`,
+-		`GET / "c301"`,
++		`GET / ""`,
+ 		`DELETE /?code=302&next=302 "c302"`,
+ 		`GET /?code=302 ""`,
+ 		`GET / ""`,
+@@ -385,7 +385,7 @@ func TestDeleteRedirects(t *testing.T) {
+ 		`DELETE /?code=307&next=301,308,303,302,304 "c307"`,
+ 		`DELETE /?code=301&next=308,303,302,304 "c307"`,
+ 		`GET /?code=308&next=303,302,304 ""`,
+-		`GET /?code=303&next=302,304 "c307"`,
++		`GET /?code=303&next=302,304 ""`,
+ 		`GET /?code=302&next=304 ""`,
+ 		`GET /?code=304 ""`,
+ 		`DELETE /?code=308&next=307 "c308"`,

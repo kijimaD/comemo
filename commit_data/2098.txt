@@ -10,6 +10,21 @@ Date:   Mon Apr 27 21:52:30 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=27929
     CL=27932
-
+---
  src/lib/Makefile | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 2a3d76dcc5..2957755085 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -108,7 +108,8 @@ strings.6: utf8.install
+ testing.6: flag.install fmt.dirinstall
+ 
+ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
+-go.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall fmt.dirinstall
++go.dirinstall: regexp.dirinstall sort.install strconv.dirinstall strings.install \
++	utf8.install unicode.dirinstall fmt.dirinstall
+ hash.dirinstall: os.dirinstall
+ http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall path.install strings.install log.install
+ io.dirinstall: os.dirinstall sync.dirinstall

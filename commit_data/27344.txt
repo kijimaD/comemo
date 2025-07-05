@@ -11,6 +11,39 @@ Date:   Sun Mar 20 22:00:06 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue9400/asm_s390x.s | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/misc/cgo/test/issue9400/asm_s390x.s b/misc/cgo/test/issue9400/asm_s390x.s
+new file mode 100644
+index 0000000000..fc9ad724c1
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_s390x.s
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !gccgo
++
++#include "textflag.h"
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$0-0
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADD	$(1024 * 8), R15
++
++	// Ask signaller to setgid
++	MOVD	$·Baton(SB), R5
++	MOVW	$1, 0(R5)
++
++	// Wait for setgid completion
++loop:
++	SYNC
++	MOVW	·Baton(SB), R3
++	CMPBNE	R3, $0, loop
++
++	// Restore stack
++	SUB	$(1024 * 8), R15
++	RET

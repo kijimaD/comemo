@@ -11,6 +11,25 @@ Date:   Mon Jan 13 11:24:56 2014 +1100
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/50960043
-
+---
  src/pkg/syscall/syscall_bsd.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index fce764028b..a62cbe2835 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -296,10 +296,9 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
+ 	if err = getsockname(fd, &rsa, &len); err != nil {
+ 		return
+ 	}
+-	// TODO(jsing): Remove after OpenBSD 5.4 is released (see issue 3349).
+-	// TODO(jsing): Apparently dragonfly has the same "bug", which should
+-	// be reported upstream.
+-	if (runtime.GOOS == "dragonfly" || runtime.GOOS == "openbsd") && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
++	// TODO(jsing): DragonFly has a "bug" (see issue 3349), which should be
++	// reported upstream.
++	if runtime.GOOS == "dragonfly" && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
+ 		rsa.Addr.Family = AF_UNIX
+ 		rsa.Addr.Len = SizeofSockaddrUnix
+ 	}

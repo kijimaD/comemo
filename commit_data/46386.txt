@@ -21,9 +21,214 @@ Date:   Fri Dec 25 00:34:32 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/280294
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  3 +-
  src/cmd/compile/internal/ssagen/ssa.go          | 59 +++----------------------
  src/cmd/compile/internal/typecheck/dcl.go       |  3 ++
  src/cmd/compile/internal/walk/expr.go           | 26 +++++------
  4 files changed, 24 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 27ee09ade2..64cc3e87ca 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -836,8 +836,7 @@ func TypeSym(t *types.Type) *types.Sym {
+ 		base.Fatalf("typenamesym %v", t)
+ 	}
+ 	if t.Kind() == types.TFUNC && t.Recv() != nil {
+-		// TODO(mdempsky): Fix callers and make fatal.
+-		t = typecheck.NewMethodType(t, t.Recv().Type)
++		base.Fatalf("misuse of method type: %v", t)
+ 	}
+ 	s := types.TypeSym(t)
+ 	signatmu.Lock()
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 69e1696423..25efeee112 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -214,10 +214,7 @@ func InitConfig() {
+ func getParam(n *ir.CallExpr, i int) *types.Field {
+ 	t := n.X.Type()
+ 	if n.Op() == ir.OCALLMETH {
+-		if i == 0 {
+-			return t.Recv()
+-		}
+-		return t.Params().Field(i - 1)
++		base.Fatalf("OCALLMETH missed by walkCall")
+ 	}
+ 	return t.Params().Field(i)
+ }
+@@ -1166,7 +1163,7 @@ func (s *state) stmt(n ir.Node) {
+ 		}
+ 		fallthrough
+ 
+-	case ir.OCALLMETH, ir.OCALLINTER:
++	case ir.OCALLINTER:
+ 		n := n.(*ir.CallExpr)
+ 		s.callResult(n, callNormal)
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
+@@ -4396,16 +4393,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
+ 			opendefer.closure = closure
+ 		}
+ 	} else if n.Op() == ir.OCALLMETH {
+-		if fn.Op() != ir.ODOTMETH {
+-			base.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+-		}
+-		fn := fn.(*ir.SelectorExpr)
+-		closureVal := s.getMethodClosure(fn)
+-		// We must always store the function value in a stack slot for the
+-		// runtime panic code to use. But in the defer exit code, we will
+-		// call the method directly.
+-		closure := s.openDeferSave(nil, fn.Type(), closureVal)
+-		opendefer.closureNode = closure.Aux.(*ir.Name)
++		base.Fatalf("OCALLMETH missed by walkCall")
+ 	} else {
+ 		if fn.Op() != ir.ODOTINTER {
+ 			base.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
+@@ -4679,18 +4667,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			s.maybeNilCheckClosure(closure, k)
+ 		}
+ 	case ir.OCALLMETH:
+-		if fn.Op() != ir.ODOTMETH {
+-			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+-		}
+-		fn := fn.(*ir.SelectorExpr)
+-		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
+-		if k == callNormal {
+-			sym = fn.Sel
+-			break
+-		}
+-		closure = s.getMethodClosure(fn)
+-		// Note: receiver is already present in n.Rlist, so we don't
+-		// want to set it here.
++		base.Fatalf("OCALLMETH missed by walkCall")
+ 	case ir.OCALLINTER:
+ 		if fn.Op() != ir.ODOTINTER {
+ 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
+@@ -4755,9 +4732,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 		// Set receiver (for method calls).
+ 		if n.Op() == ir.OCALLMETH {
+-			f := ft.Recv()
+-			s.storeArgWithBase(args[0], f.Type, addr, off+f.Offset)
+-			args = args[1:]
++			base.Fatalf("OCALLMETH missed by walkCall")
+ 		}
+ 		// Set other args.
+ 		for _, f := range ft.Params().Fields().Slice() {
+@@ -4825,11 +4800,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		t := n.X.Type()
+ 		args := n.Rargs
+ 		if n.Op() == ir.OCALLMETH {
+-			f := t.Recv()
+-			ACArg, arg := s.putArg(args[0], f.Type, argStart+f.Offset, testLateExpansion)
+-			ACArgs = append(ACArgs, ACArg)
+-			callArgs = append(callArgs, arg)
+-			args = args[1:]
++			base.Fatalf("OCALLMETH missed by walkCall")
+ 		}
+ 		for i, n := range args {
+ 			f := t.Params().Field(i)
+@@ -4947,22 +4918,6 @@ func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
+ 	}
+ }
+ 
+-// getMethodClosure returns a value representing the closure for a method call
+-func (s *state) getMethodClosure(fn *ir.SelectorExpr) *ssa.Value {
+-	// Make a name n2 for the function.
+-	// fn.Sym might be sync.(*Mutex).Unlock.
+-	// Make a PFUNC node out of that, then evaluate it.
+-	// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
+-	// We can then pass that to defer or go.
+-	n2 := ir.NewNameAt(fn.Pos(), fn.Sel)
+-	n2.Curfn = s.curfn
+-	n2.Class_ = ir.PFUNC
+-	// n2.Sym already existed, so it's already marked as a function.
+-	n2.SetPos(fn.Pos())
+-	n2.SetType(types.Types[types.TUINT8]) // fake type for a static closure. Could use runtime.funcval if we had it.
+-	return s.expr(n2)
+-}
+-
+ // getClosureAndRcvr returns values for the appropriate closure and receiver of an
+ // interface call
+ func (s *state) getClosureAndRcvr(fn *ir.SelectorExpr) (*ssa.Value, *ssa.Value) {
+@@ -5089,7 +5044,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		}
+ 		addr := s.addr(n.X)
+ 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
+-	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
++	case ir.OCALLFUNC, ir.OCALLINTER:
+ 		n := n.(*ir.CallExpr)
+ 		return s.callAddr(n, callNormal)
+ 	case ir.ODOTTYPE:
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index db18c17e13..0da0956c3a 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -556,6 +556,9 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	if t == nil {
+ 		base.Fatalf("tempAt called with nil type")
+ 	}
++	if t.Kind() == types.TFUNC && t.Recv() != nil {
++		base.Fatalf("misuse of method type: %v", t)
++	}
+ 
+ 	s := &types.Sym{
+ 		Name: autotmpname(len(curfn.Dcl)),
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 882e455749..4eee32cf44 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -535,22 +535,31 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		return // already walked
+ 	}
+ 
+-	params := n.X.Type().Params()
+ 	args := n.Args
+ 
+ 	n.X = walkExpr(n.X, init)
+ 	walkExprList(args, init)
+ 
+-	// If this is a method call, add the receiver at the beginning of the args.
++	// If this is a method call t.M(...),
++	// rewrite into a function call T.M(t, ...).
++	// TODO(mdempsky): Do this right after type checking.
+ 	if n.Op() == ir.OCALLMETH {
+ 		withRecv := make([]ir.Node, len(args)+1)
+ 		dot := n.X.(*ir.SelectorExpr)
+ 		withRecv[0] = dot.X
+-		dot.X = nil
+ 		copy(withRecv[1:], args)
+ 		args = withRecv
++
++		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
++		fn := typecheck.Expr(dot).(*ir.MethodExpr).FuncName()
++		fn.Type().Size()
++
++		n.SetOp(ir.OCALLFUNC)
++		n.X = fn
+ 	}
+ 
++	params := n.X.Type().Params()
++
+ 	// For any argument whose evaluation might require a function call,
+ 	// store that argument into a temporary variable,
+ 	// to prevent that calls from clobbering arguments already on the stack.
+@@ -559,16 +568,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 	for i, arg := range args {
+ 		updateHasCall(arg)
+ 		// Determine param type.
+-		var t *types.Type
+-		if n.Op() == ir.OCALLMETH {
+-			if i == 0 {
+-				t = n.X.Type().Recv().Type
+-			} else {
+-				t = params.Field(i - 1).Type
+-			}
+-		} else {
+-			t = params.Field(i).Type
+-		}
++		t := params.Field(i).Type
+ 		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
+ 			// make assignment of fncall to tempAt
+ 			tmp := typecheck.Temp(t)

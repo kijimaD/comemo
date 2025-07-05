@@ -9,6 +9,19 @@ Date:   Tue Aug 13 14:14:24 2013 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12763043
-
+---
  src/pkg/runtime/time.goc | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 4f20300ff1..6670b45ba9 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -175,6 +175,7 @@ timerproc(void)
+ 
+ 	for(;;) {
+ 		runtime·lock(&timers);
++		timers.sleeping = false;
+ 		now = runtime·nanotime();
+ 		for(;;) {
+ 			if(timers.len == 0) {

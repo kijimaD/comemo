@@ -27,7 +27,7 @@ Date:   Mon Feb 26 19:54:41 2024 +0000
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/security.go      |   3 +-
  src/cmd/go/internal/work/security_test.go |   4 +
  src/cmd/link/doc.go                       |   2 +
@@ -37,3 +37,340 @@ Date:   Mon Feb 26 19:54:41 2024 +0000
  src/cmd/link/internal/ld/main.go          |   1 +
  src/internal/testenv/testenv.go           |   9 ++
  8 files changed, 198 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 88504be6cd..3289276e77 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -210,8 +210,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
+ 	re(`-Wl,--(no-)?warn-([^,]+)`),
+ 	re(`-Wl,-?-wrap[=,][^,@\-][^,]*`),
+-	re(`-Wl,-z,(no)?execstack`),
+-	re(`-Wl,-z,relro`),
++	re(`-Wl(,-z,(relro|now|(no)?execstack))+`),
+ 
+ 	re(`[a-zA-Z0-9_/].*\.(a|o|obj|dll|dylib|so|tbd)`), // direct linker inputs: x.o or libfoo.so (but not -foo.o or @foo.o)
+ 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index c05ba7b9a4..a4c055670a 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -167,6 +167,10 @@ var goodLinkerFlags = [][]string{
+ 	{"-Wl,-framework", "-Wl,Chocolate"},
+ 	{"-Wl,-framework,Chocolate"},
+ 	{"-Wl,-unresolved-symbols=ignore-all"},
++	{"-Wl,-z,relro"},
++	{"-Wl,-z,relro,-z,now"},
++	{"-Wl,-z,now"},
++	{"-Wl,-z,noexecstack"},
+ 	{"libcgotbdtest.tbd"},
+ 	{"./libcgotbdtest.tbd"},
+ }
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index b0f2700ac1..bd620f9878 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -47,6 +47,8 @@ Flags:
+ 		Link with C/C++ address sanitizer support.
+ 	-aslr
+ 		Enable ASLR for buildmode=c-shared on windows (default true).
++	-bindnow
++		Mark a dynamically linked ELF object for immediate function binding (default false).
+ 	-buildid id
+ 		Record id as Go toolchain build id.
+ 	-buildmode mode
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index be9e22946a..7c035df97e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1056,11 +1056,17 @@ func elfdynhash(ctxt *Link) {
+ 	}
+ 
+ 	s = ldr.CreateSymForUpdate(".dynamic", 0)
++
++	var dtFlags1 elf.DynFlag1
++	if *flagBindNow {
++		dtFlags1 |= elf.DF_1_NOW
++		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS, uint64(elf.DF_BIND_NOW))
++	}
+ 	if ctxt.BuildMode == BuildModePIE {
+-		// https://github.com/bminor/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/elf/elf.h#L986
+-		const DTFLAGS_1_PIE = 0x08000000
+-		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(DTFLAGS_1_PIE))
++		dtFlags1 |= elf.DF_1_PIE
+ 	}
++	Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(dtFlags1))
++
+ 	elfverneed = nfile
+ 	if elfverneed != 0 {
+ 		elfWriteDynEntSym(ctxt, s, elf.DT_VERNEED, gnuVersionR.Sym())
+@@ -1107,6 +1113,7 @@ func elfphload(seg *sym.Segment) *ElfPhdr {
+ func elfphrelro(seg *sym.Segment) {
+ 	ph := newElfPhdr()
+ 	ph.Type = elf.PT_GNU_RELRO
++	ph.Flags = elf.PF_R
+ 	ph.Vaddr = seg.Vaddr
+ 	ph.Paddr = seg.Vaddr
+ 	ph.Memsz = seg.Length
+@@ -1556,7 +1563,11 @@ func (ctxt *Link) doelf() {
+ 
+ 		/* global offset table */
+ 		got := ldr.CreateSymForUpdate(".got", 0)
+-		got.SetType(sym.SELFGOT) // writable
++		if ctxt.UseRelro() {
++			got.SetType(sym.SRODATARELRO)
++		} else {
++			got.SetType(sym.SELFGOT) // writable
++		}
+ 
+ 		/* ppc64 glink resolver */
+ 		if ctxt.IsPPC64() {
+@@ -1569,7 +1580,11 @@ func (ctxt *Link) doelf() {
+ 		hash.SetType(sym.SELFROSECT)
+ 
+ 		gotplt := ldr.CreateSymForUpdate(".got.plt", 0)
+-		gotplt.SetType(sym.SELFSECT) // writable
++		if ctxt.UseRelro() && *flagBindNow {
++			gotplt.SetType(sym.SRODATARELRO)
++		} else {
++			gotplt.SetType(sym.SELFSECT) // writable
++		}
+ 
+ 		plt := ldr.CreateSymForUpdate(".plt", 0)
+ 		if ctxt.IsPPC64() {
+@@ -1591,9 +1606,12 @@ func (ctxt *Link) doelf() {
+ 
+ 		/* define dynamic elf table */
+ 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
+-		if thearch.ELF.DynamicReadOnly {
++		switch {
++		case thearch.ELF.DynamicReadOnly:
+ 			dynamic.SetType(sym.SELFROSECT)
+-		} else {
++		case ctxt.UseRelro():
++			dynamic.SetType(sym.SRODATARELRO)
++		default:
+ 			dynamic.SetType(sym.SELFSECT)
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index e535af6a1c..16bf4039b1 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -8,6 +8,7 @@ package ld
+ 
+ import (
+ 	"debug/elf"
++	"fmt"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -182,3 +183,152 @@ func main() {
+ 		}
+ 	}
+ }
++
++func TestElfBindNow(t *testing.T) {
++	t.Parallel()
++	testenv.MustHaveGoBuild(t)
++
++	const (
++		prog = `package main; func main() {}`
++		// with default buildmode code compiles in a statically linked binary, hence CGO
++		progC = `package main; import "C"; func main() {}`
++	)
++
++	tests := []struct {
++		name                 string
++		args                 []string
++		prog                 string
++		mustHaveBuildModePIE bool
++		mustHaveCGO          bool
++		mustInternalLink     bool
++		wantDfBindNow        bool
++		wantDf1Now           bool
++		wantDf1Pie           bool
++	}{
++		{name: "default", prog: prog},
++		{
++			name:                 "pie-linkmode-internal",
++			args:                 []string{"-buildmode=pie", "-ldflags", "-linkmode=internal"},
++			prog:                 prog,
++			mustHaveBuildModePIE: true,
++			mustInternalLink:     true,
++			wantDf1Pie:           true,
++		},
++		{
++			name:             "bindnow-linkmode-internal",
++			args:             []string{"-ldflags", "-bindnow -linkmode=internal"},
++			prog:             progC,
++			mustHaveCGO:      true,
++			mustInternalLink: true,
++			wantDfBindNow:    true,
++			wantDf1Now:       true,
++		},
++		{
++			name:                 "bindnow-pie-linkmode-internal",
++			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=internal"},
++			prog:                 prog,
++			mustHaveBuildModePIE: true,
++			mustInternalLink:     true,
++			wantDfBindNow:        true,
++			wantDf1Now:           true,
++			wantDf1Pie:           true,
++		},
++		{
++			name:                 "bindnow-pie-linkmode-external",
++			args:                 []string{"-buildmode=pie", "-ldflags", "-bindnow -linkmode=external"},
++			prog:                 prog,
++			mustHaveBuildModePIE: true,
++			mustHaveCGO:          true,
++			wantDfBindNow:        true,
++			wantDf1Now:           true,
++			wantDf1Pie:           true,
++		},
++	}
++
++	gotDynFlag := func(flags []uint64, dynFlag uint64) bool {
++		for _, flag := range flags {
++			if gotFlag := dynFlag&flag != 0; gotFlag {
++				return true
++			}
++		}
++
++		return false
++	}
++
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			if test.mustInternalLink {
++				testenv.MustInternalLink(t, test.mustHaveCGO)
++			}
++			if test.mustHaveCGO {
++				testenv.MustHaveCGO(t)
++			}
++			if test.mustHaveBuildModePIE {
++				testenv.MustHaveBuildMode(t, "pie")
++			}
++			if test.mustHaveBuildModePIE && test.mustInternalLink {
++				testenv.MustInternalLinkPIE(t)
++			}
++
++			var (
++				dir     = t.TempDir()
++				src     = filepath.Join(dir, fmt.Sprintf("elf_%s.go", test.name))
++				binFile = filepath.Join(dir, test.name)
++			)
++
++			if err := os.WriteFile(src, []byte(test.prog), 0666); err != nil {
++				t.Fatal(err)
++			}
++
++			cmdArgs := append([]string{"build", "-o", binFile}, append(test.args, src)...)
++			cmd := testenv.Command(t, testenv.GoToolPath(t), cmdArgs...)
++
++			if out, err := cmd.CombinedOutput(); err != nil {
++				t.Fatalf("failed to build %v: %v:\n%s", cmd.Args, err, out)
++			}
++
++			fi, err := os.Open(binFile)
++			if err != nil {
++				t.Fatalf("failed to open built file: %v", err)
++			}
++			defer fi.Close()
++
++			elfFile, err := elf.NewFile(fi)
++			if err != nil {
++				t.Skip("The system may not support ELF, skipped.")
++			}
++			defer elfFile.Close()
++
++			flags, err := elfFile.DynValue(elf.DT_FLAGS)
++			if err != nil {
++				t.Fatalf("failed to get DT_FLAGS: %v", err)
++			}
++
++			flags1, err := elfFile.DynValue(elf.DT_FLAGS_1)
++			if err != nil {
++				t.Fatalf("failed to get DT_FLAGS_1: %v", err)
++			}
++
++			gotDfBindNow := gotDynFlag(flags, uint64(elf.DF_BIND_NOW))
++			gotDf1Now := gotDynFlag(flags1, uint64(elf.DF_1_NOW))
++
++			bindNowFlagsMatch := gotDfBindNow == test.wantDfBindNow && gotDf1Now == test.wantDf1Now
++
++			// some external linkers may set one of the two flags but not both.
++			if !test.mustInternalLink {
++				bindNowFlagsMatch = gotDfBindNow == test.wantDfBindNow || gotDf1Now == test.wantDf1Now
++			}
++
++			if !bindNowFlagsMatch {
++				t.Fatalf("Dynamic flags mismatch:\n"+
++					"DT_FLAGS BIND_NOW	got: %v,	want: %v\n"+
++					"DT_FLAGS_1 DF_1_NOW	got: %v,	want: %v",
++					gotDfBindNow, test.wantDfBindNow, gotDf1Now, test.wantDf1Now)
++			}
++
++			if gotDf1Pie := gotDynFlag(flags1, uint64(elf.DF_1_PIE)); gotDf1Pie != test.wantDf1Pie {
++				t.Fatalf("DT_FLAGS_1 DF_1_PIE got: %v, want: %v", gotDf1Pie, test.wantDf1Pie)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index df83896100..97f3ed37e3 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1599,12 +1599,16 @@ func (ctxt *Link) hostlink() {
+ 	}
+ 
+ 	var altLinker string
+-	if ctxt.IsELF && ctxt.DynlinkingGo() {
+-		// We force all symbol resolution to be done at program startup
++	if ctxt.IsELF && (ctxt.DynlinkingGo() || *flagBindNow) {
++		// For ELF targets, when producing dynamically linked Go code
++		// or when immediate binding is explicitly requested,
++		// we force all symbol resolution to be done at program startup
+ 		// because lazy PLT resolution can use large amounts of stack at
+ 		// times we cannot allow it to do so.
+ 		argv = append(argv, "-Wl,-z,now")
++	}
+ 
++	if ctxt.IsELF && ctxt.DynlinkingGo() {
+ 		// Do not let the host linker generate COPY relocations. These
+ 		// can move symbols out of sections that rely on stable offsets
+ 		// from the beginning of the section (like sym.STYPE).
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a0cc52a029..13077668e7 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -63,6 +63,7 @@ func init() {
+ // Flags used by the linker. The exported flags are used by the architecture-specific packages.
+ var (
+ 	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
++	flagBindNow = flag.Bool("bindnow", false, "mark a dynamically linked ELF object for immediate function binding")
+ 
+ 	flagOutfile    = flag.String("o", "", "write output to `file`")
+ 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index f767ac590c..3b9d2fd1e9 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -369,6 +369,15 @@ func MustInternalLink(t testing.TB, withCgo bool) {
+ 	}
+ }
+ 
++// MustInternalLinkPIE checks whether the current system can link PIE binary using
++// internal linking.
++// If not, MustInternalLinkPIE calls t.Skip with an explanation.
++func MustInternalLinkPIE(t testing.TB) {
++	if !platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
++		t.Skipf("skipping test: internal linking for buildmode=pie on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
++	}
++}
++
+ // MustHaveBuildMode reports whether the current system can build programs in
+ // the given build mode.
+ // If not, MustHaveBuildMode calls t.Skip with an explanation.

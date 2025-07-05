@@ -12,6 +12,19 @@ Date:   Fri Jul 5 10:12:13 2013 +1000
     R=r, dsymonds, adg
     CC=andybons, golang-dev
     https://golang.org/cl/10821043
-
+---
  src/pkg/image/gif/reader.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 3b4417767f..5adc8b97fa 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -190,6 +190,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
+ 			// A wonderfully Go-like piece of magic.
+ 			br := &blockReader{r: d.r}
+ 			lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
++			defer lzwr.Close()
+ 			if _, err = io.ReadFull(lzwr, m.Pix); err != nil {
+ 				if err != io.ErrUnexpectedEOF {
+ 					return err

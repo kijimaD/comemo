@@ -7,10 +7,158 @@ Date:   Tue Sep 16 19:40:38 2008 -0700
     R=gri
     OCL=15417
     CL=15417
-
+---
  doc/go_tutorial.txt  | 9 +++------
  doc/progs/server.go  | 4 ++--
  doc/progs/server1.go | 9 ++++-----
  doc/progs/sieve.go   | 4 ++--
  doc/progs/sieve1.go  | 6 +++---
  5 files changed, 14 insertions(+), 18 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index fb6717ed0a..6ce7b60290 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -456,18 +456,17 @@ Here is the first function in "progs/sieve.go":
+ --PROG progs/sieve.go /Send/ /^}/
+ 
+ The function "Generate" sends the sequence 2, 3, 4, 5, ... to its
+-argument channel, "ch", using the binary send operator "-&lt".
++argument channel, "ch", using the binary communications operator "&lt-".
+ Channels block, so if there's no recipient for the the value on "ch",
+ the send operation will wait until one becomes available.
+ 
+ The "Filter" function has three arguments: an input channel, an output
+ channel, and a prime number.  It copies values from the input to the
+-output, discarding anything divisible by the prime.  The unary prefix
++output, discarding anything divisible by the prime.  The unary communications
+ operator "&lt;-" (receive) retrieves the next value on the channel.
+ 
+ --PROG progs/sieve.go /Copy/ /^}/
+ 
+-
+ The generator and filters execute concurrently.  Go has
+ its own model of process/threads/light-weight processes/coroutines,
+ so to avoid notational confusion we'll call concurrently executing
+@@ -567,9 +566,7 @@ Inside "Server", a "select" statement chooses which of the multiple communicatio
+ listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
+ multiple can proceed, it chooses one at random.  In this instance, the "select" allows
+ the server to honor requests until it receives a quit message, at which point it
+-returns, terminating its execution.  (The language doesn't yet allow the ":="
+-syntax in "select" statements, although it might one day.  Also, observe the use
+-of the binary, infix form of the receive operator.)
++returns, terminating its execution.
+ 
+ 
+ All that's left is to strobe the "quit" channel
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index 00bc3b96d5..ea089785d9 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -13,7 +13,7 @@ type BinOp (a, b int) int;
+ 
+ func Run(op *BinOp, request *Request) {
+ 	result := op(request.a, request.b);
+-	request.replyc -< result;
++	request.replyc <- result;
+ }
+ 
+ func Server(op *BinOp, service *chan *Request) {
+@@ -38,7 +38,7 @@ func main() {
+ 		req.a = i;
+ 		req.b = i + N;
+ 		req.replyc = new(chan int);
+-		adder -< req;
++		adder <- req;
+ 	}
+ 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+ 		if <-reqs[i].replyc != N + 2*i {
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index 9f6c709b38..69bf22d871 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -13,14 +13,13 @@ type BinOp (a, b int) int;
+ 
+ func Run(op *BinOp, request *Request) {
+ 	result := op(request.a, request.b);
+-	request.replyc -< result;
++	request.replyc <- result;
+ }
+ 
+ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
+ 	for {
+-		var request *Request;
+ 		select {
+-		case request <- service:
++		case request := <-service:
+ 			go Run(op, request);  // don't wait for it
+ 		case <-quit:
+ 			return;
+@@ -44,12 +43,12 @@ func main() {
+ 		req.a = i;
+ 		req.b = i + N;
+ 		req.replyc = new(chan int);
+-		adder -< req;
++		adder <- req;
+ 	}
+ 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+ 		if <-reqs[i].replyc != N + 2*i {
+ 			print("fail at ", i, "\n");
+ 		}
+ 	}
+-	quit -< true;
++	quit <- true;
+ }
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index 60760cf4e8..2ee3bb7ff0 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -7,7 +7,7 @@ package main
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch *chan int) {
+ 	for i := 2; ; i++ {
+-		ch -< i  // Send 'i' to channel 'ch'.
++		ch <- i  // Send 'i' to channel 'ch'.
+ 	}
+ }
+ 
+@@ -17,7 +17,7 @@ func Filter(in *chan int, out *chan int, prime int) {
+ 	for {
+ 		i := <-in  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+-			out -< i  // Send 'i' to channel 'out'.
++			out <- i  // Send 'i' to channel 'out'.
+ 		}
+ 	}
+ }
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index 2d6e069f40..d1c3c7277d 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -9,7 +9,7 @@ func Generate() *chan int {
+ 	ch := new(chan int);
+ 	go func(ch *chan int){
+ 		for i := 2; ; i++ {
+-			ch -< i
++			ch <- i
+ 		}
+ 	}(ch);
+ 	return ch;
+@@ -21,7 +21,7 @@ func Filter(in *chan int, prime int) *chan int {
+ 	go func(in *chan int, out *chan int, prime int) {
+ 		for {
+ 			if i := <-in; i % prime != 0 {
+-				out -< i
++				out <- i
+ 			}
+ 		}
+ 	}(in, out, prime);
+@@ -34,7 +34,7 @@ func Sieve() *chan int {
+ 		ch := Generate();
+ 		for {
+ 			prime := <-ch;
+-			out -< prime;
++			out <- prime;
+ 			ch = Filter(ch, prime);
+ 		}
+ 	}(out);

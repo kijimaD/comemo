@@ -14,7 +14,7 @@ Date:   Fri Mar 3 02:43:44 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/opnames.go   | 1 -
  src/cmd/compile/internal/gc/racewalk.go  | 1 -
  src/cmd/compile/internal/gc/ssa.go       | 9 +--------
@@ -23,3 +23,103 @@ Date:   Fri Mar 3 02:43:44 2017 -0800
  src/cmd/compile/internal/gc/universe.go  | 1 -
  src/cmd/compile/internal/gc/walk.go      | 1 -
  7 files changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 8524015c90..445b193970 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -152,7 +152,6 @@ var opnames = []string{
+ 	OVARKILL:         "VARKILL",
+ 	OVARLIVE:         "VARLIVE",
+ 	OINDREGSP:        "INDREGSP",
+-	OHMUL:            "HMUL",
+ 	ORETJMP:          "RETJMP",
+ 	OGETG:            "GETG",
+ 	OEND:             "END",
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index d6c4501ee7..1d5323a46e 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -232,7 +232,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OXOR,
+ 		OSUB,
+ 		OMUL,
+-		OHMUL,
+ 		OEQ,
+ 		ONE,
+ 		OLT,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 09667a73f0..97fba5f0e4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1046,13 +1046,6 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ODIV, TFLOAT32}: ssa.OpDiv32F,
+ 	opAndType{ODIV, TFLOAT64}: ssa.OpDiv64F,
+ 
+-	opAndType{OHMUL, TINT8}:   ssa.OpHmul8,
+-	opAndType{OHMUL, TUINT8}:  ssa.OpHmul8u,
+-	opAndType{OHMUL, TINT16}:  ssa.OpHmul16,
+-	opAndType{OHMUL, TUINT16}: ssa.OpHmul16u,
+-	opAndType{OHMUL, TINT32}:  ssa.OpHmul32,
+-	opAndType{OHMUL, TUINT32}: ssa.OpHmul32u,
+-
+ 	opAndType{ODIV, TINT8}:   ssa.OpDiv8,
+ 	opAndType{ODIV, TUINT8}:  ssa.OpDiv8u,
+ 	opAndType{ODIV, TINT16}:  ssa.OpDiv16,
+@@ -1848,7 +1841,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.newValue2(op, pt, s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b)))
+ 		}
+ 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+-	case OAND, OOR, OHMUL, OXOR:
++	case OAND, OOR, OXOR:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 36b6af5e10..0a63747825 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -493,7 +493,6 @@ const (
+ 	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
+ 
+ 	// arch-specific opcodes
+-	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+ 	ORETJMP // return to other function
+ 	OGETG   // runtime.getg() (read g pointer)
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 3a5f35359d..b162647c34 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -521,7 +521,6 @@ OpSwitch:
+ 		OEQ,
+ 		OGE,
+ 		OGT,
+-		OHMUL,
+ 		OLE,
+ 		OLT,
+ 		OLSH,
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index d23aebeafb..a54a05a8f5 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -287,7 +287,6 @@ func typeinit() {
+ 	okfor[OLE] = okforcmp[:]
+ 	okfor[OLT] = okforcmp[:]
+ 	okfor[OMOD] = okforand[:]
+-	okfor[OHMUL] = okforarith[:]
+ 	okfor[OMUL] = okforarith[:]
+ 	okfor[ONE] = okforeq[:]
+ 	okfor[OOR] = okforand[:]
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0bcea85e25..dcc4ee3bb2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -565,7 +565,6 @@ opswitch:
+ 
+ 	case OAND,
+ 		OSUB,
+-		OHMUL,
+ 		OMUL,
+ 		OLT,
+ 		OLE,

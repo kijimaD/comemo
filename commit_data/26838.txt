@@ -12,7 +12,81 @@ Date:   Sun Feb 28 15:58:17 2016 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-
+---
  src/cmd/compile/internal/ssa/prove.go      | 10 +---------
  src/cmd/compile/internal/ssa/sparsetree.go | 20 ++++++++++++++++++--
  2 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index f0f4649896..a915e0b5a7 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -127,14 +127,6 @@ var (
+ func prove(f *Func) {
+ 	idom := dominators(f)
+ 	sdom := newSparseTree(f, idom)
+-	domTree := make([][]*Block, f.NumBlocks())
+-
+-	// Create a block ID -> [dominees] mapping
+-	for _, b := range f.Blocks {
+-		if dom := idom[b.ID]; dom != nil {
+-			domTree[dom.ID] = append(domTree[dom.ID], b)
+-		}
+-	}
+ 
+ 	// current node state
+ 	type walkState int
+@@ -179,7 +171,7 @@ func prove(f *Func) {
+ 				saved: saved,
+ 			})
+ 
+-			for _, s := range domTree[node.block.ID] {
++			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
+ 				work = append(work, bp{
+ 					block: s,
+ 					state: descend,
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index 14bcb44b1b..9a08f35d9d 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -5,7 +5,6 @@
+ package ssa
+ 
+ type sparseTreeNode struct {
+-	block   *Block
+ 	child   *Block
+ 	sibling *Block
+ 	parent  *Block
+@@ -43,7 +42,6 @@ func newSparseTree(f *Func, parentOf []*Block) sparseTree {
+ 	t := make(sparseTree, f.NumBlocks())
+ 	for _, b := range f.Blocks {
+ 		n := &t[b.ID]
+-		n.block = b
+ 		if p := parentOf[b.ID]; p != nil {
+ 			n.parent = p
+ 			n.sibling = t[p.ID].child
+@@ -98,6 +96,24 @@ func (t sparseTree) numberBlock(b *Block, n int32) int32 {
+ 	return n + 2
+ }
+ 
++// Sibling returns a sibling of x in the dominator tree (i.e.,
++// a node with the same immediate dominator) or nil if there
++// are no remaining siblings in the arbitrary but repeatable
++// order chosen.  Because the Child-Sibling order is used
++// to assign entry and exit numbers in the treewalk, those
++// numbers are also consistent with this order (i.e.,
++// Sibling(x) has entry number larger than x's exit number).
++func (t sparseTree) Sibling(x *Block) *Block {
++	return t[x.ID].sibling
++}
++
++// Child returns a child of x in the dominator tree, or
++// nil if there are none.  The choice of first child is
++// arbitrary but repeatable.
++func (t sparseTree) Child(x *Block) *Block {
++	return t[x.ID].child
++}
++
+ // isAncestorEq reports whether x is an ancestor of or equal to y.
+ func (t sparseTree) isAncestorEq(x, y *Block) bool {
+ 	xx := &t[x.ID]

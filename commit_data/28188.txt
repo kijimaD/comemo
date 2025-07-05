@@ -9,6 +9,17 @@ Date:   Wed Apr 27 22:18:58 2016 -0400
     Change-Id: I13e90c39dad86e60781adecdbe8e6bc9e522f740
     Reviewed-on: https://go-review.googlesource.com/19811
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/issue10607.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue10607.go b/test/fixedbugs/issue10607.go
+index a1a65a75df..bf527d0f77 100644
+--- a/test/fixedbugs/issue10607.go
++++ b/test/fixedbugs/issue10607.go
+@@ -1,4 +1,4 @@
+-// +build linux,!ppc64,!ppc64le,!mips64,!mips64le
++// +build linux,!ppc64,!ppc64le
+ // run
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.

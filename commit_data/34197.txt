@@ -16,9 +16,89 @@ Date:   Tue Oct 10 10:26:35 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 11 ++---------
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 -
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 14 +++++++-------
  src/cmd/compile/internal/ssa/opGen.go        |  9 ++++-----
  4 files changed, 13 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c30494f8f1..8b6f1e2de0 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -593,15 +593,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.Reg = v.Args[0].Reg()
+-
+-		if v.Aux != nil {
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = gc.AuxOffset(v)
+-		} else {
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = v.AuxInt
+-		}
+-
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 374b5c0cb1..b80d8ce83e 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -287,7 +287,6 @@
+ // (MaskIfNotCarry CarrySet) -> -1
+ 
+ (Addr {sym} base) -> (MOVDaddr {sym} base)
+-// (Addr {sym} base) -> (ADDconst {sym} base)
+ (OffPtr [off] ptr) -> (ADD (MOVDconst <typ.Int64> [off]) ptr)
+ 
+ (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index e31c450344..57924d7b71 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -155,13 +155,13 @@ func init() {
+ 		callerSave  = regMask(gp | fp | gr)
+ 	)
+ 	ops := []opData{
+-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                     // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "SymOff", symEffect: "Addr"}, // arg0 + auxInt + aux.(*gc.Sym)
+-		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},                   // arg0+arg1
+-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},                 // arg0+arg1
+-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                        // arg0-arg1
+-		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                                      // arg0-arg1
+-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                                    // arg0-arg1
++		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
++		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "Int64"},     // arg0 + auxInt
++		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
++		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
++		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
++		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
++		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
+ 
+ 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
+ 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 819de9d2c2..b458dc36f7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -16713,11 +16713,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:      "ADDconst",
+-		auxType:   auxSymOff,
+-		argLen:    1,
+-		symEffect: SymAddr,
+-		asm:       ppc64.AADD,
++		name:    "ADDconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.AADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29

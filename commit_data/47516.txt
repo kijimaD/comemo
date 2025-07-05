@@ -10,6 +10,18 @@ Date:   Wed Mar 24 13:18:13 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/bug513.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/fixedbugs/bug513.go b/test/fixedbugs/bug513.go
+index f7604f681c..459a9c396a 100644
+--- a/test/fixedbugs/bug513.go
++++ b/test/fixedbugs/bug513.go
+@@ -1,5 +1,6 @@
+ // run -race -gcflags=all=-d=checkptr=0
+ // +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++// +build cgo
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -15,6 +15,29 @@ Date:   Mon Apr 7 10:12:06 2025 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/cpu/cpu_arm64_hwcap.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_arm64_hwcap.go b/src/internal/cpu/cpu_arm64_hwcap.go
+index cdc1d89c9e..e6711ae275 100644
+--- a/src/internal/cpu/cpu_arm64_hwcap.go
++++ b/src/internal/cpu/cpu_arm64_hwcap.go
+@@ -67,9 +67,14 @@ func hwcapInit(os string) {
+ 		// d40 - NeoverseV1
+ 		// d49 - NeoverseN2
+ 		// d4f - NeoverseV2
+-		if implementer == 'A' && (part_num == 0xd0c || part_num == 0xd40 ||
+-			part_num == 0xd49 || part_num == 0xd4f) {
+-			ARM64.IsNeoverse = true
++		// d8e - NeoverseN3
++		// d84 - NeoverseV3
++		// d83 - NeoverseV3ae
++		if implementer == 'A' {
++			switch part_num {
++			case 0xd0c, 0xd40, 0xd49, 0xd4f, 0xd8e, 0xd84, 0xd83:
++				ARM64.IsNeoverse = true
++			}
+ 		}
+ 	}
+ }

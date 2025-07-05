@@ -14,6 +14,49 @@ Date:   Mon Apr 26 13:00:15 2021 -0700
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/pcg.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/internal/fuzz/pcg.go b/src/internal/fuzz/pcg.go
+index 5f0c1c39f6..18e553bc94 100644
+--- a/src/internal/fuzz/pcg.go
++++ b/src/internal/fuzz/pcg.go
+@@ -6,6 +6,9 @@ package fuzz
+ 
+ import (
+ 	"math/bits"
++	"os"
++	"strconv"
++	"strings"
+ 	"sync/atomic"
+ 	"time"
+ )
+@@ -28,10 +31,27 @@ type pcgRand struct {
+ 	inc    uint64
+ }
+ 
++func godebugSeed() *int {
++	debug := strings.Split(os.Getenv("GODEBUG"), ",")
++	for _, f := range debug {
++		if strings.HasPrefix(f, "fuzzseed=") {
++			seed, err := strconv.Atoi(strings.TrimPrefix(f, "fuzzseed="))
++			if err != nil {
++				panic("malformed fuzzseed")
++			}
++			return &seed
++		}
++	}
++	return nil
++}
++
+ // newPcgRand generates a new, seeded Rand, ready for use.
+ func newPcgRand() *pcgRand {
+ 	r := new(pcgRand)
+ 	now := uint64(time.Now().UnixNano())
++	if seed := godebugSeed(); seed != nil {
++		now = uint64(*seed)
++	}
+ 	inc := atomic.AddUint64(&globalInc, 1)
+ 	r.state = now
+ 	r.inc = (inc << 1) | 1

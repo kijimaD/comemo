@@ -7,7 +7,32 @@ Date:   Tue Feb 22 10:40:22 2011 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4186065
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4047d0a4b5..5d683a7586 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -95,6 +95,7 @@ Môshe van der Sterre <moshevds@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>
++Padraig Kitterick <padraigkitterick@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2a15ac4cc8..3131a35e16 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -145,6 +145,7 @@ Nicholas Waples <nwaples@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Olivier Antoine <olivier.antoine@gmail.com>
++Padraig Kitterick <padraigkitterick@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>

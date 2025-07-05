@@ -7,6 +7,20 @@ Date:   Thu Dec 1 20:30:22 2016 +0100
     Change-Id: Iacced25363f54ee2cc1e00a71605dba7fb447162
     Reviewed-on: https://go-review.googlesource.com/33772
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/writev_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 4d2fc39506..7160d28c3a 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -151,7 +151,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 
+ 		var wantSum int
+ 		switch runtime.GOOS {
+-		case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
++		case "android", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+ 			var wantMinCalls int
+ 			wantSum = want.Len()
+ 			v := chunks

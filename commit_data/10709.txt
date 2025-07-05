@@ -8,10 +8,330 @@ Date:   Mon Dec 12 15:22:55 2011 -0500
     R=rsc, r, n13m3y3r, gustavo, adg
     CC=golang-dev
     https://golang.org/cl/5440130
-
+---
  src/pkg/archive/zip/reader_test.go     |  64 +++++++++++++++++++-----
  src/pkg/archive/zip/struct.go          |  88 ++++++++++++++++++++++++++++++---
  src/pkg/archive/zip/testdata/unix.zip  | Bin 0 -> 620 bytes
  src/pkg/archive/zip/testdata/winxp.zip | Bin 0 -> 412 bytes
  src/pkg/archive/zip/writer_test.go     |  24 ++++++++-
  5 files changed, 153 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 8c0ecaa438..9594fe8e50 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/binary"
+ 	"io"
+ 	"io/ioutil"
++	"os"
+ 	"testing"
+ 	"time"
+ )
+@@ -25,7 +26,7 @@ type ZipTestFile struct {
+ 	Content []byte // if blank, will attempt to compare against File
+ 	File    string // name of file to compare to (relative to testdata/)
+ 	Mtime   string // modified time in format "mm-dd-yy hh:mm:ss"
+-	Mode    uint32
++	Mode    os.FileMode
+ }
+ 
+ // Caution: The Mtime values found for the test files should correspond to
+@@ -47,13 +48,13 @@ var tests = []ZipTest{
+ 				Name:    "test.txt",
+ 				Content: []byte("This is a test text file.\n"),
+ 				Mtime:   "09-05-10 12:12:02",
+-				Mode:    0x81a4,
++				Mode:    0644,
+ 			},
+ 			{
+ 				Name:  "gophercolor16x16.png",
+ 				File:  "gophercolor16x16.png",
+ 				Mtime: "09-05-10 15:52:58",
+-				Mode:  0x81a4,
++				Mode:  0644,
+ 			},
+ 		},
+ 	},
+@@ -64,6 +65,7 @@ var tests = []ZipTest{
+ 				Name:  "r/r.zip",
+ 				File:  "r.zip",
+ 				Mtime: "03-04-10 00:24:16",
++				Mode:  0666,
+ 			},
+ 		},
+ 	},
+@@ -76,9 +78,43 @@ var tests = []ZipTest{
+ 				Name:    "filename",
+ 				Content: []byte("This is a test textfile.\n"),
+ 				Mtime:   "02-02-11 13:06:20",
++				Mode:    0666,
+ 			},
+ 		},
+ 	},
++	{
++		// created in windows XP file manager.
++		Name: "winxp.zip",
++		File: crossPlatform,
++	},
++	{
++		// created by Zip 3.0 under Linux
++		Name: "unix.zip",
++		File: crossPlatform,
++	},
++}
++
++var crossPlatform = []ZipTestFile{
++	{
++		Name:    "hello",
++		Content: []byte("world \r\n"),
++		Mode:    0666,
++	},
++	{
++		Name:    "dir/bar",
++		Content: []byte("foo \r\n"),
++		Mode:    0666,
++	},
++	{
++		Name:    "dir/empty/",
++		Content: []byte{},
++		Mode:    os.ModeDir | 0777,
++	},
++	{
++		Name:    "readonly",
++		Content: []byte("important \r\n"),
++		Mode:    0444,
++	},
+ }
+ 
+ func TestReader(t *testing.T) {
+@@ -159,13 +195,15 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 		t.Errorf("name=%q, want %q", f.Name, ft.Name)
+ 	}
+ 
+-	mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-	if ft := f.ModTime(); !ft.Equal(mtime) {
+-		t.Errorf("%s: mtime=%s, want %s", f.Name, ft, mtime)
++	if ft.Mtime != "" {
++		mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		if ft := f.ModTime(); !ft.Equal(mtime) {
++			t.Errorf("%s: mtime=%s, want %s", f.Name, ft, mtime)
++		}
+ 	}
+ 
+ 	testFileMode(t, f, ft.Mode)
+@@ -191,7 +229,7 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 	r.Close()
+ 
+ 	var c []byte
+-	if len(ft.Content) != 0 {
++	if ft.Content != nil {
+ 		c = ft.Content
+ 	} else if c, err = ioutil.ReadFile("testdata/" + ft.File); err != nil {
+ 		t.Error(err)
+@@ -211,7 +249,7 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 	}
+ }
+ 
+-func testFileMode(t *testing.T, f *File, want uint32) {
++func testFileMode(t *testing.T, f *File, want os.FileMode) {
+ 	mode, err := f.Mode()
+ 	if want == 0 {
+ 		if err == nil {
+@@ -220,7 +258,7 @@ func testFileMode(t *testing.T, f *File, want uint32) {
+ 	} else if err != nil {
+ 		t.Errorf("%s mode: %s", f.Name, err)
+ 	} else if mode != want {
+-		t.Errorf("%s mode: want 0x%x, got 0x%x", f.Name, want, mode)
++		t.Errorf("%s mode: want %v, got %v", f.Name, want, mode)
+ 	}
+ }
+ 
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 43c04bb27b..c53a83c4e7 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -12,7 +12,7 @@ This package does not support ZIP64 or disk spanning.
+ package zip
+ 
+ import (
+-	"errors"
++	"os"
+ 	"time"
+ )
+ 
+@@ -32,7 +32,11 @@ const (
+ 	dataDescriptorLen        = 12
+ 
+ 	// Constants for the first byte in CreatorVersion
+-	creatorUnix = 3
++	creatorFAT    = 0
++	creatorUnix   = 3
++	creatorNTFS   = 11
++	creatorVFAT   = 14
++	creatorMacOSX = 19
+ )
+ 
+ type FileHeader struct {
+@@ -98,17 +102,85 @@ func (h *FileHeader) ModTime() time.Time {
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
++// traditional names for Unix constants
++const (
++	s_IFMT  = 0xf000
++	s_IFDIR = 0x4000
++	s_IFREG = 0x8000
++	s_ISUID = 0x800
++	s_ISGID = 0x400
++
++	msdosDir      = 0x10
++	msdosReadOnly = 0x01
++)
++
+ // Mode returns the permission and mode bits for the FileHeader.
+ // An error is returned in case the information is not available.
+-func (h *FileHeader) Mode() (mode uint32, err error) {
+-	if h.CreatorVersion>>8 == creatorUnix {
+-		return h.ExternalAttrs >> 16, nil
++func (h *FileHeader) Mode() (mode os.FileMode, err error) {
++	switch h.CreatorVersion >> 8 {
++	case creatorUnix, creatorMacOSX:
++		mode = unixModeToFileMode(h.ExternalAttrs >> 16)
++	case creatorNTFS, creatorVFAT, creatorFAT:
++		mode = msdosModeToFileMode(h.ExternalAttrs)
+ 	}
+-	return 0, errors.New("file mode not available")
++	if len(h.Name) > 0 && h.Name[len(h.Name)-1] == '/' {
++		mode |= os.ModeDir
++	}
++	return mode, nil
+ }
+ 
+ // SetMode changes the permission and mode bits for the FileHeader.
+-func (h *FileHeader) SetMode(mode uint32) {
++func (h *FileHeader) SetMode(mode os.FileMode) {
+ 	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
+-	h.ExternalAttrs = mode << 16
++	h.ExternalAttrs = fileModeToUnixMode(mode) << 16
++
++	// set MSDOS attributes too, as the original zip does.
++	if mode&os.ModeDir != 0 {
++		h.ExternalAttrs |= msdosDir
++	}
++	if mode&0200 == 0 {
++		h.ExternalAttrs |= msdosReadOnly
++	}
++}
++
++func msdosModeToFileMode(m uint32) (mode os.FileMode) {
++	if m&msdosDir != 0 {
++		mode = os.ModeDir | 0777
++	} else {
++		mode = 0666
++	}
++	if m&msdosReadOnly != 0 {
++		mode &^= 0222
++	}
++	return mode
++}
++
++func fileModeToUnixMode(mode os.FileMode) uint32 {
++	var m uint32
++	if mode&os.ModeDir != 0 {
++		m = s_IFDIR
++	} else {
++		m = s_IFREG
++	}
++	if mode&os.ModeSetuid != 0 {
++		m |= s_ISUID
++	}
++	if mode&os.ModeSetgid != 0 {
++		m |= s_ISGID
++	}
++	return m | uint32(mode&0777)
++}
++
++func unixModeToFileMode(m uint32) os.FileMode {
++	var mode os.FileMode
++	if m&s_IFMT == s_IFDIR {
++		mode |= os.ModeDir
++	}
++	if m&s_ISGID != 0 {
++		mode |= os.ModeSetgid
++	}
++	if m&s_ISUID != 0 {
++		mode |= os.ModeSetuid
++	}
++	return mode | os.FileMode(m&0777)
+ }
+diff --git a/src/pkg/archive/zip/testdata/unix.zip b/src/pkg/archive/zip/testdata/unix.zip
+new file mode 100644
+index 0000000000..ce1a981b28
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/unix.zip differ
+diff --git a/src/pkg/archive/zip/testdata/winxp.zip b/src/pkg/archive/zip/testdata/winxp.zip
+new file mode 100644
+index 0000000000..3919322f0c
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/winxp.zip differ
+diff --git a/src/pkg/archive/zip/writer_test.go b/src/pkg/archive/zip/writer_test.go
+index 1188103568..5a576b1c32 100644
+--- a/src/pkg/archive/zip/writer_test.go
++++ b/src/pkg/archive/zip/writer_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"math/rand"
++	"os"
+ 	"testing"
+ )
+ 
+@@ -17,7 +18,7 @@ type WriteTest struct {
+ 	Name   string
+ 	Data   []byte
+ 	Method uint16
+-	Mode   uint32
++	Mode   os.FileMode
+ }
+ 
+ var writeTests = []WriteTest{
+@@ -25,12 +26,31 @@ var writeTests = []WriteTest{
+ 		Name:   "foo",
+ 		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
+ 		Method: Store,
++		Mode:   0666,
+ 	},
+ 	{
+ 		Name:   "bar",
+ 		Data:   nil, // large data set in the test
+ 		Method: Deflate,
+-		Mode:   0x81ed,
++		Mode:   0644,
++	},
++	{
++		Name:   "setuid",
++		Data:   []byte("setuid file"),
++		Method: Deflate,
++		Mode:   0755 | os.ModeSetuid,
++	},
++	{
++		Name:   "setgid",
++		Data:   []byte("setgid file"),
++		Method: Deflate,
++		Mode:   0755 | os.ModeSetgid,
++	},
++	{
++		Name:   "setgid",
++		Data:   []byte("setgid file"),
++		Method: Deflate,
++		Mode:   0755 | os.ModeSetgid,
+ 	},
+ }
+ 

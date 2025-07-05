@@ -18,6 +18,21 @@ Date:   Sat Sep 28 14:33:10 2019 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index b401215898..3bb2df9917 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -945,7 +945,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 		fallthrough
+ 
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		mode.Fprintf(s, "%.v = %.v", n.List, n.Right)
++		mode.Fprintf(s, "%.v = %v", n.List, n.Right)
++
+ 	case ORETURN:
+ 		mode.Fprintf(s, "return %.v", n.List)
+ 

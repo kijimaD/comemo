@@ -11,7 +11,7 @@ Date:   Wed Dec 5 17:23:25 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/152719
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/nacl/testzip.proto                                     |   6 +++---
  src/cmd/cgo/gcc.go                                          |   2 +-
  src/cmd/cgo/out.go                                          |   2 +-
@@ -29,3 +29,202 @@ Date:   Wed Dec 5 17:23:25 2018 +0100
  src/{cmd => }/internal/xcoff/testdata/hello.c               |   0
  src/{cmd => }/internal/xcoff/xcoff.go                       |   0
  16 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 720663db9b..d05219364d 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -37,9 +37,6 @@ go	src=..
+ 				buildid
+ 					testdata
+ 						+
+-				xcoff
+-					testdata
+-						+
+ 			gofmt
+ 				gofmt.go
+ 				gofmt_test.go
+@@ -157,6 +154,9 @@ go	src=..
+ 			trace
+ 				testdata
+ 					+
++			xcoff
++				testdata
++					+
+ 		io
+ 			+
+ 		mime
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b59bfe68fe..e7766e740f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -9,7 +9,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/xcoff"
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
+@@ -21,6 +20,7 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"internal/xcoff"
+ 	"math"
+ 	"os"
+ 	"strconv"
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 401a87feca..0985a7e72e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/xcoff"
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"debug/pe"
+@@ -14,6 +13,7 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"go/token"
++	"internal/xcoff"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 6fc0239ffe..c71f8befd9 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -1,13 +1,13 @@
+ package ssa_test
+ 
+ import (
+-	"cmd/internal/xcoff"
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"debug/pe"
+ 	"fmt"
+ 	"internal/testenv"
++	"internal/xcoff"
+ 	"io"
+ 	"runtime"
+ 	"testing"
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 2db115e20e..71ed4ba8bc 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -65,7 +65,6 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/obj/wasm",
+ 	"cmd/internal/src",
+ 	"cmd/internal/sys",
+-	"cmd/internal/xcoff",
+ 	"cmd/link",
+ 	"cmd/link/internal/amd64",
+ 	"cmd/link/internal/arm",
+@@ -90,6 +89,7 @@ var bootstrapDirs = []string{
+ 	"debug/elf",
+ 	"debug/macho",
+ 	"debug/pe",
++	"internal/xcoff",
+ 	"math/big",
+ 	"math/bits",
+ 	"sort",
+diff --git a/src/cmd/internal/buildid/buildid.go b/src/cmd/internal/buildid/buildid.go
+index 8205f696eb..ac238d70ea 100644
+--- a/src/cmd/internal/buildid/buildid.go
++++ b/src/cmd/internal/buildid/buildid.go
+@@ -6,9 +6,9 @@ package buildid
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/xcoff"
+ 	"debug/elf"
+ 	"fmt"
++	"internal/xcoff"
+ 	"io"
+ 	"os"
+ 	"strconv"
+diff --git a/src/cmd/internal/objfile/xcoff.go b/src/cmd/internal/objfile/xcoff.go
+index f62a7edf89..d438c80226 100644
+--- a/src/cmd/internal/objfile/xcoff.go
++++ b/src/cmd/internal/objfile/xcoff.go
+@@ -7,9 +7,9 @@
+ package objfile
+ 
+ import (
+-	"cmd/internal/xcoff"
+ 	"debug/dwarf"
+ 	"fmt"
++	"internal/xcoff"
+ 	"io"
+ 	"unicode"
+ )
+diff --git a/src/cmd/link/internal/loadxcoff/ldxcoff.go b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+index 7204d34388..7c863d79c5 100644
+--- a/src/cmd/link/internal/loadxcoff/ldxcoff.go
++++ b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+@@ -9,10 +9,10 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+-	"cmd/internal/xcoff"
+ 	"cmd/link/internal/sym"
+ 	"errors"
+ 	"fmt"
++	"internal/xcoff"
+ )
+ 
+ // ldSection is an XCOFF section with its symbols.
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 87baa09d38..1f2ad53ef2 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -64,7 +64,7 @@ func TestNonGoExecs(t *testing.T) {
+ 		"debug/pe/testdata/gcc-386-mingw-exec",
+ 		"debug/plan9obj/testdata/amd64-plan9-exec",
+ 		"debug/plan9obj/testdata/386-plan9-exec",
+-		"cmd/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
++		"internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec",
+ 	}
+ 	for _, f := range testfiles {
+ 		exepath := filepath.Join(runtime.GOROOT(), "src", f)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7251274756..dd38cc0a6a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -273,6 +273,7 @@ var pkgDeps = map[string][]string{
+ 	"internal/goroot":                {"L4", "OS"},
+ 	"internal/singleflight":          {"sync"},
+ 	"internal/trace":                 {"L4", "OS", "container/heap"},
++	"internal/xcoff":                 {"L4", "OS", "debug/dwarf"},
+ 	"math/big":                       {"L4"},
+ 	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+ 	"mime/quotedprintable":           {"L4"},
+diff --git a/src/cmd/internal/xcoff/file.go b/src/internal/xcoff/file.go
+similarity index 100%
+rename from src/cmd/internal/xcoff/file.go
+rename to src/internal/xcoff/file.go
+diff --git a/src/cmd/internal/xcoff/file_test.go b/src/internal/xcoff/file_test.go
+similarity index 100%
+rename from src/cmd/internal/xcoff/file_test.go
+rename to src/internal/xcoff/file_test.go
+diff --git a/src/cmd/internal/xcoff/testdata/gcc-ppc32-aix-dwarf2-exec b/src/internal/xcoff/testdata/gcc-ppc32-aix-dwarf2-exec
+similarity index 100%
+rename from src/cmd/internal/xcoff/testdata/gcc-ppc32-aix-dwarf2-exec
+rename to src/internal/xcoff/testdata/gcc-ppc32-aix-dwarf2-exec
+diff --git a/src/cmd/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec b/src/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec
+similarity index 100%
+rename from src/cmd/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec
+rename to src/internal/xcoff/testdata/gcc-ppc64-aix-dwarf2-exec
+diff --git a/src/cmd/internal/xcoff/testdata/hello.c b/src/internal/xcoff/testdata/hello.c
+similarity index 100%
+rename from src/cmd/internal/xcoff/testdata/hello.c
+rename to src/internal/xcoff/testdata/hello.c
+diff --git a/src/cmd/internal/xcoff/xcoff.go b/src/internal/xcoff/xcoff.go
+similarity index 100%
+rename from src/cmd/internal/xcoff/xcoff.go
+rename to src/internal/xcoff/xcoff.go

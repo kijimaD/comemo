@@ -23,6 +23,21 @@ Date:   Mon Apr 12 10:41:56 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/mod_sumdb.txt | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_sumdb.txt b/src/cmd/go/testdata/script/mod_sumdb.txt
+index 9a688e1461..fa3483c5cb 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb.txt
+@@ -37,3 +37,9 @@ go get -d rsc.io/fortune
+ 
+ -- go.mod.orig --
+ module m
++
++go 1.16
++-- m.go --
++package m
++
++import _ "rsc.io/quote"

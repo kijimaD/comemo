@@ -18,6 +18,34 @@ Date:   Fri Jan 4 19:09:01 2019 -0500
     Change-Id: I24ff0461f71cec953b888a60b05b99bc37dad2ed
     Reviewed-on: https://go-review.googlesource.com/c/156329
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_darwin_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index 2780653812..5ad19d72cd 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"crypto/rsa"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -104,6 +105,14 @@ func TestSystemRoots(t *testing.T) {
+ 			continue
+ 		}
+ 
++		// On 10.11 there are five unexplained roots that only show up from the
++		// C API. They have in common the fact that they are old, 1024-bit
++		// certificates. It's arguably better to ignore them anyway.
++		if key, ok := c.PublicKey.(*rsa.PublicKey); ok && key.N.BitLen() == 1024 {
++			t.Logf("1024-bit certificate only present in cgo pool (acceptable): %v", c.Subject)
++			continue
++		}
++
+ 		t.Errorf("certificate only present in cgo pool: %v", c.Subject)
+ 	}
+ 

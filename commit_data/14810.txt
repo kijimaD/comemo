@@ -10,6 +10,28 @@ Date:   Sun Jan 6 16:56:06 2013 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/7027049
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ad3fa519b2..e54068a2d7 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of January 2, 2013",
++	"Subtitle": "Version of January 6, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3027,7 +3027,7 @@ int64    -9223372036854775808
+ <p>
+ If the divisor is a <a href="#Constants">constant</a>, it must not be zero.
+ If the divisor is zero at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
+-If the dividend is positive and the divisor is a constant power of 2,
++If the dividend is non-negative and the divisor is a constant power of 2,
+ the division may be replaced by a right shift, and computing the remainder may
+ be replaced by a bitwise AND operation:
+ </p>

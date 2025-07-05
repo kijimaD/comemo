@@ -7,6 +7,27 @@ Date:   Tue Jun 11 15:12:54 2019 -0400
     Change-Id: I4923f0726ae0261a7c7b0f85e7433ae0f605c123
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181738
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.13.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 7bcc8af32c..10f63882bf 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -24,6 +24,15 @@ Do not send CLs removing the interior tags from such phrases.
+   </strong>
+ </p>
+ 
++<p>
++  As of Go 1.13, the go command downloads and authenticates modules using
++  the Go module mirror and Go checksum database run by Google. See
++  <a href="https://proxy.golang.org/privacy">https://proxy.golang.org/privacy</a>
++  for privacy information about these services and the
++  <a href="/cmd/go/#hdr-Module_downloading_and_verification">go command documentation</a>
++  for configuration details.
++</p>
++
+ <p>
+ TODO
+ </p>

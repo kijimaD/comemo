@@ -16,7 +16,58 @@ Date:   Fri Aug 10 15:25:15 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/search.go       | 12 ++++++++++++
  src/cmd/go/testdata/script/mod_patterns.txt |  2 ++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 6aaabe6a08..24825cc35d 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -37,6 +37,10 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 
+ 	walkPkgs := func(root, importPathRoot string) {
+ 		root = filepath.Clean(root)
++		var cmd string
++		if root == cfg.GOROOTsrc {
++			cmd = filepath.Join(root, "cmd")
++		}
+ 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+ 			if err != nil {
+ 				return nil
+@@ -47,6 +51,14 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 				return nil
+ 			}
+ 
++			// GOROOT/src/cmd makes use of GOROOT/src/cmd/vendor,
++			// which module mode can't deal with. Eventually we'll stop using
++			// that vendor directory, and then we can remove this exclusion.
++			// golang.org/issue/26924.
++			if path == cmd {
++				return filepath.SkipDir
++			}
++
+ 			want := true
+ 			// Avoid .foo, _foo, and testdata directory trees.
+ 			_, elem := filepath.Split(path)
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index 2a3629f764..36d738a867 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -15,6 +15,7 @@ stdout '^unsafe$'
+ ! stdout index/suffixarray
+ 
+ # 'go list ...' should list packages in all active modules and the standard library.
++# But not cmd/* - see golang.org/issue/26924.
+ go list ...
+ stdout example.com/unused/useerrors
+ stdout example.com/m/useunsafe
+@@ -23,6 +24,7 @@ stdout example.com/m/useunsafe
+ stdout '^unicode$'
+ stdout '^unsafe$'
+ stdout index/suffixarray
++! stdout cmd/pprof
+ 
+ # 'go list example.com/m/...' should list packages in all modules that begin with
+ # "example.com/m/".

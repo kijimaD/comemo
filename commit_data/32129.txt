@@ -13,7 +13,33 @@ Date:   Tue Apr 4 13:54:54 2017 -0400
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_windows.go | 2 +-
  src/syscall/ztypes_windows.go  | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index f4f8f3ad09..19a7deb230 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -110,7 +110,7 @@ func (e Errno) Error() string {
+ }
+ 
+ func (e Errno) Temporary() bool {
+-	return e == EINTR || e == EMFILE || e.Timeout()
++	return e == EINTR || e == EMFILE || e == WSAECONNABORTED || e == WSAECONNRESET || e.Timeout()
+ }
+ 
+ func (e Errno) Timeout() bool {
+diff --git a/src/syscall/ztypes_windows.go b/src/syscall/ztypes_windows.go
+index 1fb6f5c29f..bc9bd4dbd8 100644
+--- a/src/syscall/ztypes_windows.go
++++ b/src/syscall/ztypes_windows.go
+@@ -27,6 +27,7 @@ const (
+ 	ERROR_NOT_FOUND           Errno = 1168
+ 	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
+ 	WSAEACCES                 Errno = 10013
++	WSAECONNABORTED           Errno = 10053
+ 	WSAECONNRESET             Errno = 10054
+ )
+ 

@@ -14,7 +14,33 @@ Date:   Fri Feb 2 13:00:02 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/560776
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/proc.go    | 1 +
  src/runtime/runtime.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a7a3fb62cb..538ed0a282 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -775,6 +775,7 @@ func schedinit() {
+ 	}
+ 
+ 	sched.maxmcount = 10000
++	crashFD.Store(^uintptr(0))
+ 
+ 	// The world starts stopped.
+ 	worldStopped()
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 4dfb2f840a..c7a511b2a4 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -244,6 +244,8 @@ func writeErrData(data *byte, n int32) {
+ // set by debug.SetCrashOutput (see #42888). If it is a valid fd (not
+ // all ones), writeErr and related functions write to it in addition
+ // to standard error.
++//
++// Initialized to -1 in schedinit.
+ var crashFD atomic.Uintptr
+ 
+ //go:linkname setCrashFD

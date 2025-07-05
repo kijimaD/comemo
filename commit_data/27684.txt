@@ -11,7 +11,38 @@ Date:   Thu Apr 7 19:59:59 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client_test.go            | 2 +-
  src/net/http/httptest/httptest_test.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index b9e17c5270..a9b30b1bf5 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -311,7 +311,7 @@ func TestClientRedirectContext(t *testing.T) {
+ 	_, err := c.Do(req)
+ 	ue, ok := err.(*url.Error)
+ 	if !ok {
+-		t.Fatalf("got error %T; want *url.Error")
++		t.Fatalf("got error %T; want *url.Error", err)
+ 	}
+ 	if ue.Err != ExportErrRequestCanceled && ue.Err != ExportErrRequestCanceledConn {
+ 		t.Errorf("url.Error.Err = %v; want errRequestCanceled or errRequestCanceledConn", ue.Err)
+diff --git a/src/net/http/httptest/httptest_test.go b/src/net/http/httptest/httptest_test.go
+index 18ba73880e..4f9ecbd8bb 100644
+--- a/src/net/http/httptest/httptest_test.go
++++ b/src/net/http/httptest/httptest_test.go
+@@ -155,10 +155,10 @@ func TestNewRequest(t *testing.T) {
+ 		got := NewRequest(tt.method, tt.uri, tt.body)
+ 		slurp, err := ioutil.ReadAll(got.Body)
+ 		if err != nil {
+-			t.Errorf("%i. ReadAll: %v", i, err)
++			t.Errorf("%d. ReadAll: %v", i, err)
+ 		}
+ 		if string(slurp) != tt.wantBody {
+-			t.Errorf("%i. Body = %q; want %q", i, slurp, tt.wantBody)
++			t.Errorf("%d. Body = %q; want %q", i, slurp, tt.wantBody)
+ 		}
+ 		got.Body = nil // before DeepEqual
+ 		if !reflect.DeepEqual(got.URL, tt.want.URL) {

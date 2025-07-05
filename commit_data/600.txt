@@ -8,8 +8,115 @@ Date:   Wed Sep 10 12:14:39 2008 -0700
     DELTA=76  (76 added, 0 deleted, 0 changed)
     OCL=15086
     CL=15088
-
+---
  src/lib/os/Makefile   | 28 ++++++++++++++++++++++++++++
  src/lib/os/os.go      | 18 ++++++++++++++++++
  src/lib/os/os_file.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 88 insertions(+)
+
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+new file mode 100644
+index 0000000000..1196cf7119
+--- /dev/null
++++ b/src/lib/os/Makefile
+@@ -0,0 +1,28 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++O=6
++GC=$(O)g
++
++PKG=os.a
++
++OFILES=\
++	os.$O \
++	os_file.$O \
++
++
++install: $(PKG)
++	cp $(PKG) $(GOROOT)/pkg/$(PKG)
++
++$(PKG): $(OFILES)
++	$(O)ar grc $(PKG) $(OFILES)
++
++nuke:
++	rm -f *.$(O) *.a $(GOROOT)/pkg/$(PKG)
++
++clean:
++	rm -f *.$(O) *.a
++
++%.$O:	%.go
++	$(GC) $<
+diff --git a/src/lib/os/os.go b/src/lib/os/os.go
+new file mode 100644
+index 0000000000..0759a09415
+--- /dev/null
++++ b/src/lib/os/os.go
+@@ -0,0 +1,18 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++// Support routines for OS library
++
++export func StringToBytes(b *[]byte, s string) bool {
++	if len(s) >= len(b) {
++		return false
++	}
++	for i := 0; i < len(s); i++ {
++		b[i] = s[i]
++	}
++	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
++	return true
++}
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+new file mode 100644
+index 0000000000..8edb2d01c9
+--- /dev/null
++++ b/src/lib/os/os_file.go
+@@ -0,0 +1,42 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import syscall "syscall"
++import os "os"
++
++export func Open(name string, mode int64, flags int64) (ret int64, errno int64) {
++	var buf [512]byte;
++	if !StringToBytes(&buf, name) {
++		return -1, syscall.ENAMETOOLONG
++	}
++	r, e := syscall.open(&buf[0], mode, flags);  // BUG: should be able to just return
++	return r, e
++}
++
++export func Close(fd int64) (ret int64, errno int64) {
++	r, e := syscall.close(fd);  // BUG: should be able to just return
++	return r, e
++}
++
++export func Read(fd int64, b *[]byte) (ret int64, errno int64) {
++	r, e := syscall.read(fd, &b[0], int64(len(b)));  // BUG: should be able to just return
++	return r, e
++}
++
++export func Write(fd int64, b *[]byte) (ret int64, errno int64) {
++	r, e := syscall.write(fd, &b[0], int64(len(b)));  // BUG: should be able to just return
++	return r, e
++}
++
++export func WriteString(fd int64, s string) (ret int64, errno int64) {
++	b := new([]byte, len(s)+1);
++	if !StringToBytes(b, s) {
++		return -1, syscall.EIO
++	}
++	r, e := syscall.write(fd, &b[0], int64(len(s)));  // BUG: should be able to just return
++	return r, e
++}
++

@@ -14,7 +14,7 @@ Date:   Tue Jun 20 17:40:21 2017 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vendor/github.com/google/pprof/README.md   |   9 +-
  .../github.com/google/pprof/driver/driver.go       |   8 +-
  .../google/pprof/internal/binutils/disasm_test.go  |   4 +-
@@ -67,3 +67,2317 @@ Date:   Tue Jun 20 17:40:21 2017 +0200
  .../github.com/google/pprof/profile/prune_test.go  |  91 +++++++++++++++
  src/cmd/vendor/vendor.json                         |   4 +-
  51 files changed, 872 insertions(+), 331 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/README.md b/src/cmd/vendor/github.com/google/pprof/README.md
+index a134872079..14a33daf78 100644
+--- a/src/cmd/vendor/github.com/google/pprof/README.md
++++ b/src/cmd/vendor/github.com/google/pprof/README.md
+@@ -1,3 +1,6 @@
++[![Build Status](https://travis-ci.org/google/pprof.svg?branch=master)](https://travis-ci.org/google/pprof)
++[![codecov](https://codecov.io/gh/google/pprof/graph/badge.svg)](https://codecov.io/gh/google/pprof)
++
+ # Introduction
+ 
+ pprof is a tool for visualization and analysis of profiling data.
+@@ -24,7 +27,7 @@ them through the use of the native binutils tools (addr2line and nm).
+ 
+ Prerequisites:
+ 
+-- Go development kit. Known to work with Go 1.5.
++- Go development kit. Requires Go 1.7 or newer.
+   Follow [these instructions](http://golang.org/doc/code.html) to install the 
+   go tool and set up GOPATH.
+ 
+@@ -35,6 +38,10 @@ To build and install it, use the `go get` tool.
+ 
+     go get github.com/google/pprof
+ 
++Remember to set GOPATH to the directory where you want pprof to be
++installed.  The binary will be in $GOPATH/bin and the sources under
++$GOPATH/src/github.com/google/pprof.
++
+ # Basic usage
+ 
+ pprof can read a profile from a file or directly from a server via http.
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index d01d0fa344..ee7d67d784 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -29,10 +29,10 @@ import (
+ // manager. Then it generates a report formatted according to the
+ // options selected through the flags package.
+ func PProf(o *Options) error {
+-	return internaldriver.PProf(o.InternalOptions())
++	return internaldriver.PProf(o.internalOptions())
+ }
+ 
+-func (o *Options) InternalOptions() *plugin.Options {
++func (o *Options) internalOptions() *plugin.Options {
+ 	var obj plugin.ObjTool
+ 	if o.Obj != nil {
+ 		obj = &internalObjTool{o.Obj}
+@@ -273,9 +273,9 @@ type internalSymbolizer struct {
+ }
+ 
+ func (s *internalSymbolizer) Symbolize(mode string, srcs plugin.MappingSources, prof *profile.Profile) error {
+-	isrcs := plugin.MappingSources{}
++	isrcs := MappingSources{}
+ 	for m, s := range srcs {
+ 		isrcs[m] = s
+ 	}
+-	return s.Symbolize(mode, isrcs, prof)
++	return s.Symbolizer.Symbolize(mode, isrcs, prof)
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go
+index 7fc25741ce..3563198f48 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm_test.go
+@@ -73,7 +73,7 @@ func TestFindSymbols(t *testing.T) {
+ 
+ func checkSymbol(got []*plugin.Sym, want []plugin.Sym) error {
+ 	if len(got) != len(want) {
+-		return fmt.Errorf("unexpected number of symbols %d (want %d)\n", len(got), len(want))
++		return fmt.Errorf("unexpected number of symbols %d (want %d)", len(got), len(want))
+ 	}
+ 
+ 	for i, g := range got {
+@@ -134,8 +134,6 @@ func TestFunctionAssembly(t *testing.T) {
+ 		},
+ 	}
+ 
+-	const objdump = "testdata/wrapper/objdump"
+-
+ 	for _, tc := range testcases {
+ 		insts, err := disassemble([]byte(tc.asm))
+ 		if err != nil {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+index 5e54062771..5799b1f249 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+@@ -227,9 +227,6 @@ var pprofVariables = variables{
+ 	"functions": &variable{boolKind, "t", "granularity", helpText(
+ 		"Aggregate at the function level.",
+ 		"Takes into account the filename/lineno where the function was defined.")},
+-	"functionnameonly": &variable{boolKind, "f", "granularity", helpText(
+-		"Aggregate at the function level.",
+-		"Ignores the filename/lineno where the function was defined.")},
+ 	"files": &variable{boolKind, "f", "granularity", "Aggregate at the file level."},
+ 	"lines": &variable{boolKind, "f", "granularity", "Aggregate at the source code line level."},
+ 	"addresses": &variable{boolKind, "f", "granularity", helpText(
+@@ -471,7 +468,7 @@ func (vars variables) set(name, value string) error {
+ 	case boolKind:
+ 		var b bool
+ 		if b, err = stringToBool(value); err == nil {
+-			if v.group != "" && b == false {
++			if v.group != "" && !b {
+ 				err = fmt.Errorf("%q can only be set to true", name)
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 2ca09dfa32..32d60e6b1d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -160,20 +160,20 @@ func applyCommandOverrides(cmd []string, v variables) variables {
+ 			v.set("nodecount", "80")
+ 		}
+ 	}
+-	if trim == false {
++	if !trim {
+ 		v.set("nodecount", "0")
+ 		v.set("nodefraction", "0")
+ 		v.set("edgefraction", "0")
+ 	}
+-	if focus == false {
++	if !focus {
+ 		v.set("focus", "")
+ 		v.set("ignore", "")
+ 	}
+-	if tagfocus == false {
++	if !tagfocus {
+ 		v.set("tagfocus", "")
+ 		v.set("tagignore", "")
+ 	}
+-	if hide == false {
++	if !hide {
+ 		v.set("hide", "")
+ 		v.set("show", "")
+ 	}
+@@ -196,18 +196,13 @@ func aggregate(prof *profile.Profile, v variables) error {
+ 	case v["functions"].boolValue():
+ 		inlines = true
+ 		function = true
+-		filename = true
+ 	case v["noinlines"].boolValue():
+ 		function = true
+-		filename = true
+ 	case v["addressnoinlines"].boolValue():
+ 		function = true
+ 		filename = true
+ 		linenumber = true
+ 		address = true
+-	case v["functionnameonly"].boolValue():
+-		inlines = true
+-		function = true
+ 	default:
+ 		return fmt.Errorf("unexpected granularity")
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+index c60ad8157e..e2591ffa7a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+@@ -59,7 +59,7 @@ func applyFocus(prof *profile.Profile, v variables, ui plugin.UI) error {
+ 	if prunefrom != nil {
+ 		prof.PruneFrom(prunefrom)
+ 	}
+-	return nil
++	return err
+ }
+ 
+ func compileRegexOption(name, value string, err error) (*regexp.Regexp, error) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
+index 75eaebec39..0ef89751d1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
+@@ -16,8 +16,11 @@ package driver
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"fmt"
+ 	"io/ioutil"
++	"net"
++	_ "net/http/pprof"
+ 	"os"
+ 	"regexp"
+ 	"runtime"
+@@ -32,6 +35,8 @@ import (
+ 	"github.com/google/pprof/profile"
+ )
+ 
++var updateFlag = flag.Bool("update", false, "Update the golden files")
++
+ func TestParse(t *testing.T) {
+ 	// Override weblist command to collect output in buffer
+ 	pprofCommands["weblist"].postProcess = nil
+@@ -43,13 +48,12 @@ func TestParse(t *testing.T) {
+ 	savePath := os.Getenv("PPROF_BINARY_PATH")
+ 	os.Setenv("PPROF_BINARY_PATH", "/path/to")
+ 	defer os.Setenv("PPROF_BINARY_PATH", savePath)
+-
+ 	testcase := []struct {
+ 		flags, source string
+ 	}{
+ 		{"text,functions,flat", "cpu"},
+ 		{"tree,addresses,flat,nodecount=4", "cpusmall"},
+-		{"text,functions,flat", "unknown"},
++		{"text,functions,flat,nodecount=5,call_tree", "unknown"},
+ 		{"text,alloc_objects,flat", "heap_alloc"},
+ 		{"text,files,flat", "heap"},
+ 		{"text,inuse_objects,flat", "heap"},
+@@ -59,8 +63,10 @@ func TestParse(t *testing.T) {
+ 		{"tree,lines,cum,focus=[24]00", "heap"},
+ 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
+ 		{"callgrind", "cpu"},
++		{"callgrind,call_tree", "cpu"},
+ 		{"callgrind", "heap"},
+ 		{"dot,functions,flat", "cpu"},
++		{"dot,functions,flat,call_tree", "cpu"},
+ 		{"dot,lines,flat,focus=[12]00", "heap"},
+ 		{"dot,addresses,flat,ignore=[X3]002,focus=[X1]000", "contention"},
+ 		{"dot,files,cum", "contention"},
+@@ -99,6 +105,7 @@ func TestParse(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("cannot create tempfile: %v", err)
+ 		}
++		defer os.Remove(protoTempFile.Name())
+ 		defer protoTempFile.Close()
+ 		f.strings["output"] = protoTempFile.Name()
+ 
+@@ -124,6 +131,7 @@ func TestParse(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("cannot create tempfile: %v", err)
+ 		}
++		defer os.Remove(outputTempFile.Name())
+ 		defer outputTempFile.Close()
+ 		f.strings["output"] = outputTempFile.Name()
+ 		f.args = []string{protoTempFile.Name()}
+@@ -180,6 +188,12 @@ func TestParse(t *testing.T) {
+ 				t.Fatalf("diff %s %v", solution, err)
+ 			}
+ 			t.Errorf("%s\n%s\n", solution, d)
++			if *updateFlag {
++				err := ioutil.WriteFile(solution, b, 0644)
++				if err != nil {
++					t.Errorf("failed to update the solution file %q: %v", solution, err)
++				}
++			}
+ 		}
+ 	}
+ }
+@@ -214,14 +228,19 @@ func addFlags(f *testFlags, flags []string) {
+ 	}
+ }
+ 
++func testSourceURL(port int) string {
++	return fmt.Sprintf("http://%s/", net.JoinHostPort(testSourceAddress, strconv.Itoa(port)))
++}
++
+ // solutionFilename returns the name of the solution file for the test
+ func solutionFilename(source string, f *testFlags) string {
+-	name := []string{"pprof", strings.TrimPrefix(source, "http://host:8000/")}
++	name := []string{"pprof", strings.TrimPrefix(source, testSourceURL(8000))}
+ 	name = addString(name, f, []string{"flat", "cum"})
+ 	name = addString(name, f, []string{"functions", "files", "lines", "addresses"})
+ 	name = addString(name, f, []string{"inuse_space", "inuse_objects", "alloc_space", "alloc_objects"})
+ 	name = addString(name, f, []string{"relative_percentages"})
+ 	name = addString(name, f, []string{"seconds"})
++	name = addString(name, f, []string{"call_tree"})
+ 	name = addString(name, f, []string{"text", "tree", "callgrind", "dot", "svg", "tags", "dot", "traces", "disasm", "peek", "weblist", "topproto", "comments"})
+ 	if f.strings["focus"] != "" || f.strings["tagfocus"] != "" {
+ 		name = append(name, "focus")
+@@ -345,9 +364,6 @@ func baseFlags() testFlags {
+ 	}
+ }
+ 
+-type testProfile struct {
+-}
+-
+ const testStart = 0x1000
+ const testOffset = 0x5000
+ 
+@@ -355,7 +371,6 @@ type testFetcher struct{}
+ 
+ func (testFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string, error) {
+ 	var p *profile.Profile
+-	s = strings.TrimPrefix(s, "http://host:8000/")
+ 	switch s {
+ 	case "cpu", "unknown":
+ 		p = cpuProfile()
+@@ -373,17 +388,10 @@ func (testFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string
+ 		p = contentionProfile()
+ 	case "symbolz":
+ 		p = symzProfile()
+-	case "http://host2/symbolz":
+-		p = symzProfile()
+-		p.Mapping[0].Start += testOffset
+-		p.Mapping[0].Limit += testOffset
+-		for i := range p.Location {
+-			p.Location[i].Address += testOffset
+-		}
+ 	default:
+ 		return nil, "", fmt.Errorf("unexpected source: %s", s)
+ 	}
+-	return p, s, nil
++	return p, testSourceURL(8000) + s, nil
+ }
+ 
+ type testSymbolizer struct{}
+@@ -406,7 +414,19 @@ func (testSymbolizeDemangler) Symbolize(_ string, _ plugin.MappingSources, p *pr
+ func testFetchSymbols(source, post string) ([]byte, error) {
+ 	var buf bytes.Buffer
+ 
+-	if source == "http://host2/symbolz" {
++	switch source {
++	case testSourceURL(8000) + "symbolz":
++		for _, address := range strings.Split(post, "+") {
++			a, _ := strconv.ParseInt(address, 0, 64)
++			fmt.Fprintf(&buf, "%v\t", address)
++			if a-testStart > testOffset {
++				fmt.Fprintf(&buf, "wrong_source_%v_", address)
++				continue
++			}
++			fmt.Fprintf(&buf, "%#x\n", a-testStart)
++		}
++		return buf.Bytes(), nil
++	case testSourceURL(8001) + "symbolz":
+ 		for _, address := range strings.Split(post, "+") {
+ 			a, _ := strconv.ParseInt(address, 0, 64)
+ 			fmt.Fprintf(&buf, "%v\t", address)
+@@ -417,17 +437,9 @@ func testFetchSymbols(source, post string) ([]byte, error) {
+ 			fmt.Fprintf(&buf, "%#x\n", a-testStart-testOffset)
+ 		}
+ 		return buf.Bytes(), nil
++	default:
++		return nil, fmt.Errorf("unexpected source: %s", source)
+ 	}
+-	for _, address := range strings.Split(post, "+") {
+-		a, _ := strconv.ParseInt(address, 0, 64)
+-		fmt.Fprintf(&buf, "%v\t", address)
+-		if a-testStart > testOffset {
+-			fmt.Fprintf(&buf, "wrong_source_%v_", address)
+-			continue
+-		}
+-		fmt.Fprintf(&buf, "%#x\n", a-testStart)
+-	}
+-	return buf.Bytes(), nil
+ }
+ 
+ type testSymbolzSymbolizer struct{}
+@@ -543,32 +555,32 @@ func cpuProfile() *profile.Profile {
+ 				Location: []*profile.Location{cpuL[0], cpuL[1], cpuL[2]},
+ 				Value:    []int64{1000, 1000},
+ 				Label: map[string][]string{
+-					"key1": []string{"tag1"},
+-					"key2": []string{"tag1"},
++					"key1": {"tag1"},
++					"key2": {"tag1"},
+ 				},
+ 			},
+ 			{
+ 				Location: []*profile.Location{cpuL[0], cpuL[3]},
+ 				Value:    []int64{100, 100},
+ 				Label: map[string][]string{
+-					"key1": []string{"tag2"},
+-					"key3": []string{"tag2"},
++					"key1": {"tag2"},
++					"key3": {"tag2"},
+ 				},
+ 			},
+ 			{
+ 				Location: []*profile.Location{cpuL[1], cpuL[4]},
+ 				Value:    []int64{10, 10},
+ 				Label: map[string][]string{
+-					"key1": []string{"tag3"},
+-					"key2": []string{"tag2"},
++					"key1": {"tag3"},
++					"key2": {"tag2"},
+ 				},
+ 			},
+ 			{
+ 				Location: []*profile.Location{cpuL[2]},
+ 				Value:    []int64{10, 10},
+ 				Label: map[string][]string{
+-					"key1": []string{"tag4"},
+-					"key2": []string{"tag1"},
++					"key1": {"tag4"},
++					"key2": {"tag1"},
+ 				},
+ 			},
+ 		},
+@@ -745,28 +757,28 @@ func heapProfile() *profile.Profile {
+ 				Location: []*profile.Location{heapL[0], heapL[1], heapL[2]},
+ 				Value:    []int64{10, 1024000},
+ 				NumLabel: map[string][]int64{
+-					"bytes": []int64{102400},
++					"bytes": {102400},
+ 				},
+ 			},
+ 			{
+ 				Location: []*profile.Location{heapL[0], heapL[3]},
+ 				Value:    []int64{20, 4096000},
+ 				NumLabel: map[string][]int64{
+-					"bytes": []int64{204800},
++					"bytes": {204800},
+ 				},
+ 			},
+ 			{
+ 				Location: []*profile.Location{heapL[1], heapL[4]},
+ 				Value:    []int64{40, 65536000},
+ 				NumLabel: map[string][]int64{
+-					"bytes": []int64{1638400},
++					"bytes": {1638400},
+ 				},
+ 			},
+ 			{
+ 				Location: []*profile.Location{heapL[2]},
+ 				Value:    []int64{80, 32768000},
+ 				NumLabel: map[string][]int64{
+-					"bytes": []int64{409600},
++					"bytes": {409600},
+ 				},
+ 			},
+ 		},
+@@ -977,13 +989,36 @@ func TestTagFilter(t *testing.T) {
+ 	}
+ }
+ 
++type testSymbolzMergeFetcher struct{}
++
++func (testSymbolzMergeFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string, error) {
++	var p *profile.Profile
++	switch s {
++	case testSourceURL(8000) + "symbolz":
++		p = symzProfile()
++	case testSourceURL(8001) + "symbolz":
++		p = symzProfile()
++		p.Mapping[0].Start += testOffset
++		p.Mapping[0].Limit += testOffset
++		for i := range p.Location {
++			p.Location[i].Address += testOffset
++		}
++	default:
++		return nil, "", fmt.Errorf("unexpected source: %s", s)
++	}
++	return p, s, nil
++}
++
+ func TestSymbolzAfterMerge(t *testing.T) {
+ 	baseVars := pprofVariables
+ 	pprofVariables = baseVars.makeCopy()
+ 	defer func() { pprofVariables = baseVars }()
+ 
+ 	f := baseFlags()
+-	f.args = []string{"symbolz", "http://host2/symbolz"}
++	f.args = []string{
++		testSourceURL(8000) + "symbolz",
++		testSourceURL(8001) + "symbolz",
++	}
+ 
+ 	o := setDefaults(nil)
+ 	o.Flagset = f
+@@ -997,7 +1032,7 @@ func TestSymbolzAfterMerge(t *testing.T) {
+ 		t.Fatalf("parseFlags returned command %v, want [proto]", cmd)
+ 	}
+ 
+-	o.Fetch = testFetcher{}
++	o.Fetch = testSymbolzMergeFetcher{}
+ 	o.Sym = testSymbolzSymbolizer{}
+ 	p, err := fetchProfiles(src, o)
+ 	if err != nil {
+@@ -1028,10 +1063,10 @@ func (m *mockObjTool) Disasm(file string, start, end uint64) ([]plugin.Inst, err
+ 	switch start {
+ 	case 0x1000:
+ 		return []plugin.Inst{
+-			{Addr: 0x1000, Text: "instruction one"},
+-			{Addr: 0x1001, Text: "instruction two"},
+-			{Addr: 0x1002, Text: "instruction three"},
+-			{Addr: 0x1003, Text: "instruction four"},
++			{Addr: 0x1000, Text: "instruction one", File: "file1000.src", Line: 1},
++			{Addr: 0x1001, Text: "instruction two", File: "file1000.src", Line: 1},
++			{Addr: 0x1002, Text: "instruction three", File: "file1000.src", Line: 2},
++			{Addr: 0x1003, Text: "instruction four", File: "file1000.src", Line: 1},
+ 		}, nil
+ 	case 0x3000:
+ 		return []plugin.Inst{
+@@ -1046,7 +1081,7 @@ func (m *mockObjTool) Disasm(file string, start, end uint64) ([]plugin.Inst, err
+ }
+ 
+ type mockFile struct {
+-	name, buildId string
++	name, buildID string
+ 	base          uint64
+ }
+ 
+@@ -1062,7 +1097,7 @@ func (m *mockFile) Base() uint64 {
+ 
+ // BuildID returns the GNU build ID of the file, or an empty string.
+ func (m *mockFile) BuildID() string {
+-	return m.buildId
++	return m.buildID
+ }
+ 
+ // SourceLine reports the source line information for a given
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index f9e8231419..7c365734b2 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -242,6 +242,8 @@ func setTmpDir(ui plugin.UI) (string, error) {
+ 	return "", fmt.Errorf("failed to identify temp dir")
+ }
+ 
++const testSourceAddress = "pproftest.local"
++
+ // grabProfile fetches a profile. Returns the profile, sources for the
+ // profile mappings, a bool indicating if the profile was fetched
+ // remotely, and an error.
+@@ -276,6 +278,11 @@ func grabProfile(s *source, source string, scale float64, fetcher plugin.Fetcher
+ 	if src != "" {
+ 		msrc = collectMappingSources(p, src)
+ 		remote = true
++		if strings.HasPrefix(src, "http://"+testSourceAddress) {
++			// Treat test inputs as local to avoid saving
++			// testcase profiles during driver testing.
++			remote = false
++		}
+ 	}
+ 	return
+ }
+@@ -366,20 +373,20 @@ mapping:
+ 			}
+ 		}
+ 	}
++	if len(p.Mapping) == 0 {
++		// If there are no mappings, add a fake mapping to attempt symbolization.
++		// This is useful for some profiles generated by the golang runtime, which
++		// do not include any mappings. Symbolization with a fake mapping will only
++		// be successful against a non-PIE binary.
++		m := &profile.Mapping{ID: 1}
++		p.Mapping = []*profile.Mapping{m}
++		for _, l := range p.Location {
++			l.Mapping = m
++		}
++	}
+ 	// Replace executable filename/buildID with the overrides from source.
+ 	// Assumes the executable is the first Mapping entry.
+ 	if execName, buildID := s.ExecName, s.BuildID; execName != "" || buildID != "" {
+-		if len(p.Mapping) == 0 {
+-			// If there are no mappings, add a fake mapping to attempt symbolization.
+-			// This is useful for some profiles generated by the golang runtime, which
+-			// do not include any mappings. Symbolization with a fake mapping will only
+-			// be successful against a non-PIE binary.
+-			m := &profile.Mapping{ID: 1}
+-			p.Mapping = []*profile.Mapping{m}
+-			for _, l := range p.Location {
+-				l.Mapping = m
+-			}
+-		}
+ 		m := p.Mapping[0]
+ 		if execName != "" {
+ 			m.File = execName
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index 90b84b27c5..5ac3b734ad 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -15,8 +15,15 @@
+ package driver
+ 
+ import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/pem"
+ 	"fmt"
+ 	"io/ioutil"
++	"math/big"
+ 	"net/http"
+ 	"net/url"
+ 	"os"
+@@ -24,11 +31,14 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ 	"time"
+ 
++	"github.com/google/pprof/internal/binutils"
+ 	"github.com/google/pprof/internal/plugin"
+ 	"github.com/google/pprof/internal/proftest"
++	"github.com/google/pprof/internal/symbolizer"
+ 	"github.com/google/pprof/profile"
+ )
+ 
+@@ -165,6 +175,8 @@ func TestFetch(t *testing.T) {
+ 	const path = "testdata/"
+ 
+ 	// Intercept http.Get calls from HTTPFetcher.
++	savedHTTPGet := httpGet
++	defer func() { httpGet = savedHTTPGet }()
+ 	httpGet = stubHTTPGet
+ 
+ 	type testcase struct {
+@@ -227,3 +239,108 @@ func stubHTTPGet(source string, _ time.Duration) (*http.Response, error) {
+ 	c := &http.Client{Transport: t}
+ 	return c.Get("file:///" + file)
+ }
++
++func TestHttpsInsecure(t *testing.T) {
++
++	if runtime.GOOS == "nacl" {
++		t.Skip("test assumes tcp available")
++	}
++
++	baseVars := pprofVariables
++	pprofVariables = baseVars.makeCopy()
++	defer func() { pprofVariables = baseVars }()
++
++	tlsConfig := &tls.Config{Certificates: []tls.Certificate{selfSignedCert(t)}}
++
++	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
++	if err != nil {
++		t.Fatalf("net.Listen: got error %v, want no error", err)
++	}
++
++	donec := make(chan error, 1)
++	go func(donec chan<- error) {
++		donec <- http.Serve(l, nil)
++	}(donec)
++	defer func() {
++		if got, want := <-donec, "use of closed"; !strings.Contains(got.Error(), want) {
++			t.Fatalf("Serve got error %v, want %q", got, want)
++		}
++	}()
++	defer l.Close()
++
++	go func() {
++		deadline := time.Now().Add(5 * time.Second)
++		for time.Now().Before(deadline) {
++			// Simulate a hotspot function.
++		}
++	}()
++
++	outputTempFile, err := ioutil.TempFile("", "profile_output")
++	if err != nil {
++		t.Fatalf("Failed to create tempfile: %v", err)
++	}
++	defer os.Remove(outputTempFile.Name())
++	defer outputTempFile.Close()
++
++	address := "https+insecure://" + l.Addr().String() + "/debug/pprof/profile"
++	s := &source{
++		Sources:   []string{address},
++		Seconds:   10,
++		Timeout:   10,
++		Symbolize: "remote",
++	}
++	o := &plugin.Options{
++		Obj: &binutils.Binutils{},
++		UI:  &proftest.TestUI{T: t, IgnoreRx: "Saved profile in"},
++	}
++	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
++	p, err := fetchProfiles(s, o)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(p.SampleType) == 0 {
++		t.Fatalf("grabProfile(%s) got empty profile: len(p.SampleType)==0", address)
++	}
++	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
++		t.Fatalf("grabProfile(%s) %v", address, err)
++	}
++}
++
++func checkProfileHasFunction(p *profile.Profile, fname string) error {
++	for _, f := range p.Function {
++		if strings.Contains(f.Name, fname) {
++			return nil
++		}
++	}
++	return fmt.Errorf("got %s, want function %q", p.String(), fname)
++}
++
++func selfSignedCert(t *testing.T) tls.Certificate {
++	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatalf("failed to generate private key: %v", err)
++	}
++	b, err := x509.MarshalECPrivateKey(privKey)
++	if err != nil {
++		t.Fatalf("failed to marshal private key: %v", err)
++	}
++	bk := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
++
++	tmpl := x509.Certificate{
++		SerialNumber: big.NewInt(1),
++		NotBefore:    time.Now(),
++		NotAfter:     time.Now().Add(10 * time.Minute),
++	}
++
++	b, err = x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
++	if err != nil {
++		t.Fatalf("failed to create cert: %v", err)
++	}
++	bc := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: b})
++
++	cert, err := tls.X509KeyPair(bc, bk)
++	if err != nil {
++		t.Fatalf("failed to create TLS key pair: %v", err)
++	}
++	return cert
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.call_tree.callgrind b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.call_tree.callgrind
+new file mode 100644
+index 0000000000..e2286f631a
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.call_tree.callgrind
+@@ -0,0 +1,99 @@
++positions: instr line
++events: cpu(ms)
++
++ob=(1) /path/to/testbinary
++fl=(1) testdata/file1000.src
++fn=(1) line1000
++0x1000 1 1000
++* 1 100
++
++ob=(1)
++fl=(2) testdata/file2000.src
++fn=(2) line2001
+++4096 9 10
++
++ob=(1)
++fl=(3) testdata/file3000.src
++fn=(3) line3002
+++4096 2 10
++cfl=(2)
++cfn=(4) line2000 [1/2]
++calls=0 * 4
++* * 1000
++
++ob=(1)
++fl=(2)
++fn=(5) line2000
++-4096 4 0
++cfl=(2)
++cfn=(6) line2001 [2/2]
++calls=0 -4096 9
++* * 1000
++* 4 0
++cfl=(2)
++cfn=(7) line2001 [1/2]
++calls=0 * 9
++* * 10
++
++ob=(1)
++fl=(2)
++fn=(2)
++* 9 0
++cfl=(1)
++cfn=(8) line1000 [1/2]
++calls=0 -4096 1
++* * 1000
++
++ob=(1)
++fl=(3)
++fn=(9) line3000
+++4096 6 0
++cfl=(3)
++cfn=(10) line3001 [1/2]
++calls=0 +4096 5
++* * 1010
++
++ob=(1)
++fl=(3)
++fn=(11) line3001
++* 5 0
++cfl=(3)
++cfn=(12) line3002 [1/2]
++calls=0 * 2
++* * 1010
++
++ob=(1)
++fl=(3)
++fn=(9)
+++1 9 0
++cfl=(3)
++cfn=(13) line3001 [2/2]
++calls=0 +1 8
++* * 100
++
++ob=(1)
++fl=(3)
++fn=(11)
++* 8 0
++cfl=(1)
++cfn=(14) line1000 [2/2]
++calls=0 -8193 1
++* * 100
++
++ob=(1)
++fl=(3)
++fn=(9)
+++1 9 0
++cfl=(3)
++cfn=(15) line3002 [2/2]
++calls=0 +1 5
++* * 10
++
++ob=(1)
++fl=(3)
++fn=(3)
++* 5 0
++cfl=(2)
++cfn=(16) line2000 [2/2]
++calls=0 -4098 4
++* * 10
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.disasm b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.disasm
+index 9c8e603195..e1df7b1b64 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.disasm
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.disasm
+@@ -2,9 +2,9 @@ Total: 1.12s
+ ROUTINE ======================== line1000
+      1.10s      1.10s (flat, cum) 98.21% of Total
+      1.10s      1.10s       1000: instruction one                         ;line1000 file1000.src:1
+-         .          .       1001: instruction two
+-         .          .       1002: instruction three
+-         .          .       1003: instruction four
++         .          .       1001: instruction two                         ;file1000.src:1
++         .          .       1002: instruction three                       ;file1000.src:2
++         .          .       1003: instruction four                        ;file1000.src:1
+ ROUTINE ======================== line3000
+       10ms      1.12s (flat, cum)   100% of Total
+       10ms      1.01s       3000: instruction one                         ;line3000 file3000.src:6
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.weblist b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.weblist
+index ccf4ee8449..d624f19015 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.weblist
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.weblist
+@@ -2,6 +2,7 @@
+ <!DOCTYPE html>
+ <html>
+ <head>
++<meta charset="UTF-8">
+ <title>Pprof listing</title>
+ <style type="text/css">
+ body {
+@@ -70,15 +71,17 @@ Duration: 10s, Total samples = 1.12s (11.20%)<br>Total: 1.12s</div><h1>line1000<
+ <pre onClick="pprof_toggle_asm(event)">
+   Total:       1.10s      1.10s (flat, cum) 98.21%
+ <span class=line>      1</span> <span class=deadsrc>       1.10s      1.10s line1 </span><span class=asm>               1.10s      1.10s     1000: instruction one                                  <span class=disasmloc>file1000.src:1</span>
+-                   .          .     1001: instruction two                                  <span class=disasmloc></span>
+-                   .          .     1002: instruction three                                <span class=disasmloc></span>
+-                   .          .     1003: instruction four                                 <span class=disasmloc></span>
++                   .          .     1001: instruction two                                  <span class=disasmloc>file1000.src:1</span>
++                                       ⋮
++                   .          .     1003: instruction four                                 <span class=disasmloc>file1000.src:1</span>
++</span>
++<span class=line>      2</span> <span class=deadsrc>           .          . line2 </span><span class=asm>                   .          .     1002: instruction three                                <span class=disasmloc>file1000.src:2</span>
+ </span>
+-<span class=line>      2</span> <span class=nop>           .          . line2 </span>
+ <span class=line>      3</span> <span class=nop>           .          . line3 </span>
+ <span class=line>      4</span> <span class=nop>           .          . line4 </span>
+ <span class=line>      5</span> <span class=nop>           .          . line5 </span>
+ <span class=line>      6</span> <span class=nop>           .          . line6 </span>
++<span class=line>      7</span> <span class=nop>           .          . line7 </span>
+ </pre>
+ <h1>line3000</h1>testdata/file3000.src
+ <pre onClick="pprof_toggle_asm(event)">
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.call_tree.dot b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.call_tree.dot
+new file mode 100644
+index 0000000000..9e240897cd
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.call_tree.dot
+@@ -0,0 +1,21 @@
++digraph "testbinary" {
++node [style=filled fillcolor="#f8f8f8"]
++subgraph cluster_L { "File: testbinary" [shape=box fontsize=16 label="File: testbinary\lType: cpu\lDuration: 10s, Total samples = 1.12s (11.20%)\lShowing nodes accounting for 1.11s, 99.11% of 1.12s total\lDropped 3 nodes (cum <= 0.06s)\l"] }
++N1 [label="line1000\n1s (89.29%)" fontsize=24 shape=box tooltip="line1000 (1s)" color="#b20500" fillcolor="#edd6d5"]
++N1_0 [label = "key1:tag1\nkey2:tag1" fontsize=8 shape=box3d tooltip="1s"]
++N1 -> N1_0 [label=" 1s" weight=100 tooltip="1s" labeltooltip="1s"]
++N2 [label="line3000\n0 of 1.12s (100%)" fontsize=8 shape=box tooltip="line3000 (1.12s)" color="#b20000" fillcolor="#edd5d5"]
++N3 [label="line3001\n0 of 1.11s (99.11%)" fontsize=8 shape=box tooltip="line3001 (1.11s)" color="#b20000" fillcolor="#edd5d5"]
++N4 [label="line1000\n0.10s (8.93%)" fontsize=14 shape=box tooltip="line1000 (0.10s)" color="#b28b62" fillcolor="#ede8e2"]
++N4_0 [label = "key1:tag2\nkey3:tag2" fontsize=8 shape=box3d tooltip="0.10s"]
++N4 -> N4_0 [label=" 0.10s" weight=100 tooltip="0.10s" labeltooltip="0.10s"]
++N5 [label="line3002\n0.01s (0.89%)\nof 1.01s (90.18%)" fontsize=10 shape=box tooltip="line3002 (1.01s)" color="#b20500" fillcolor="#edd6d5"]
++N6 [label="line2000\n0 of 1s (89.29%)" fontsize=8 shape=box tooltip="line2000 (1s)" color="#b20500" fillcolor="#edd6d5"]
++N7 [label="line2001\n0 of 1s (89.29%)" fontsize=8 shape=box tooltip="line2001 (1s)" color="#b20500" fillcolor="#edd6d5"]
++N2 -> N3 [label=" 1.11s\n (inline)" weight=100 penwidth=5 color="#b20000" tooltip="line3000 -> line3001 (1.11s)" labeltooltip="line3000 -> line3001 (1.11s)"]
++N3 -> N5 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line3001 -> line3002 (1.01s)" labeltooltip="line3001 -> line3002 (1.01s)"]
++N6 -> N7 [label=" 1s\n (inline)" weight=90 penwidth=5 color="#b20500" tooltip="line2000 -> line2001 (1s)" labeltooltip="line2000 -> line2001 (1s)"]
++N7 -> N1 [label=" 1s" weight=90 penwidth=5 color="#b20500" tooltip="line2001 -> line1000 (1s)" labeltooltip="line2001 -> line1000 (1s)"]
++N5 -> N6 [label=" 1s" weight=90 penwidth=5 color="#b20500" tooltip="line3002 -> line2000 (1s)" labeltooltip="line3002 -> line2000 (1s)"]
++N3 -> N4 [label=" 0.10s" weight=9 color="#b28b62" tooltip="line3001 -> line1000 (0.10s)" labeltooltip="line3001 -> line1000 (0.10s)"]
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.dot b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.dot
+index 18b1abf54a..a8c5344e1c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.dot
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.dot
+@@ -1,20 +1,20 @@
+ digraph "testbinary" {
+ node [style=filled fillcolor="#f8f8f8"]
+ subgraph cluster_L { "File: testbinary" [shape=box fontsize=16 label="File: testbinary\lType: cpu\lDuration: 10s, Total samples = 1.12s (11.20%)\lShowing nodes accounting for 1.12s, 100% of 1.12s total\l"] }
+-N1 [label="line1000\nfile1000.src\n1.10s (98.21%)" fontsize=24 shape=box tooltip="line1000 testdata/file1000.src (1.10s)" color="#b20000" fillcolor="#edd5d5"]
++N1 [label="line1000\n1.10s (98.21%)" fontsize=24 shape=box tooltip="line1000 (1.10s)" color="#b20000" fillcolor="#edd5d5"]
+ N1_0 [label = "key1:tag1\nkey2:tag1" fontsize=8 shape=box3d tooltip="1s"]
+ N1 -> N1_0 [label=" 1s" weight=100 tooltip="1s" labeltooltip="1s"]
+ N1_1 [label = "key1:tag2\nkey3:tag2" fontsize=8 shape=box3d tooltip="0.10s"]
+ N1 -> N1_1 [label=" 0.10s" weight=100 tooltip="0.10s" labeltooltip="0.10s"]
+-N2 [label="line3000\nfile3000.src\n0 of 1.12s (100%)" fontsize=8 shape=box tooltip="line3000 testdata/file3000.src (1.12s)" color="#b20000" fillcolor="#edd5d5"]
+-N3 [label="line3001\nfile3000.src\n0 of 1.11s (99.11%)" fontsize=8 shape=box tooltip="line3001 testdata/file3000.src (1.11s)" color="#b20000" fillcolor="#edd5d5"]
+-N4 [label="line3002\nfile3000.src\n0.01s (0.89%)\nof 1.02s (91.07%)" fontsize=10 shape=box tooltip="line3002 testdata/file3000.src (1.02s)" color="#b20400" fillcolor="#edd6d5"]
+-N5 [label="line2001\nfile2000.src\n0.01s (0.89%)\nof 1.01s (90.18%)" fontsize=10 shape=box tooltip="line2001 testdata/file2000.src (1.01s)" color="#b20500" fillcolor="#edd6d5"]
+-N6 [label="line2000\nfile2000.src\n0 of 1.01s (90.18%)" fontsize=8 shape=box tooltip="line2000 testdata/file2000.src (1.01s)" color="#b20500" fillcolor="#edd6d5"]
+-N2 -> N3 [label=" 1.11s\n (inline)" weight=100 penwidth=5 color="#b20000" tooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (1.11s)" labeltooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (1.11s)"]
+-N6 -> N5 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line2000 testdata/file2000.src -> line2001 testdata/file2000.src (1.01s)" labeltooltip="line2000 testdata/file2000.src -> line2001 testdata/file2000.src (1.01s)"]
+-N3 -> N4 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line3001 testdata/file3000.src -> line3002 testdata/file3000.src (1.01s)" labeltooltip="line3001 testdata/file3000.src -> line3002 testdata/file3000.src (1.01s)"]
+-N4 -> N6 [label=" 1.01s" weight=91 penwidth=5 color="#b20500" tooltip="line3002 testdata/file3000.src -> line2000 testdata/file2000.src (1.01s)" labeltooltip="line3002 testdata/file3000.src -> line2000 testdata/file2000.src (1.01s)"]
+-N5 -> N1 [label=" 1s" weight=90 penwidth=5 color="#b20500" tooltip="line2001 testdata/file2000.src -> line1000 testdata/file1000.src (1s)" labeltooltip="line2001 testdata/file2000.src -> line1000 testdata/file1000.src (1s)"]
+-N3 -> N1 [label=" 0.10s" weight=9 color="#b28b62" tooltip="line3001 testdata/file3000.src -> line1000 testdata/file1000.src (0.10s)" labeltooltip="line3001 testdata/file3000.src -> line1000 testdata/file1000.src (0.10s)"]
++N2 [label="line3000\n0 of 1.12s (100%)" fontsize=8 shape=box tooltip="line3000 (1.12s)" color="#b20000" fillcolor="#edd5d5"]
++N3 [label="line3001\n0 of 1.11s (99.11%)" fontsize=8 shape=box tooltip="line3001 (1.11s)" color="#b20000" fillcolor="#edd5d5"]
++N4 [label="line3002\n0.01s (0.89%)\nof 1.02s (91.07%)" fontsize=10 shape=box tooltip="line3002 (1.02s)" color="#b20400" fillcolor="#edd6d5"]
++N5 [label="line2001\n0.01s (0.89%)\nof 1.01s (90.18%)" fontsize=10 shape=box tooltip="line2001 (1.01s)" color="#b20500" fillcolor="#edd6d5"]
++N6 [label="line2000\n0 of 1.01s (90.18%)" fontsize=8 shape=box tooltip="line2000 (1.01s)" color="#b20500" fillcolor="#edd6d5"]
++N2 -> N3 [label=" 1.11s\n (inline)" weight=100 penwidth=5 color="#b20000" tooltip="line3000 -> line3001 (1.11s)" labeltooltip="line3000 -> line3001 (1.11s)"]
++N6 -> N5 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line2000 -> line2001 (1.01s)" labeltooltip="line2000 -> line2001 (1.01s)"]
++N3 -> N4 [label=" 1.01s\n (inline)" weight=91 penwidth=5 color="#b20500" tooltip="line3001 -> line3002 (1.01s)" labeltooltip="line3001 -> line3002 (1.01s)"]
++N4 -> N6 [label=" 1.01s" weight=91 penwidth=5 color="#b20500" tooltip="line3002 -> line2000 (1.01s)" labeltooltip="line3002 -> line2000 (1.01s)"]
++N5 -> N1 [label=" 1s" weight=90 penwidth=5 color="#b20500" tooltip="line2001 -> line1000 (1s)" labeltooltip="line2001 -> line1000 (1s)"]
++N3 -> N1 [label=" 0.10s" weight=9 color="#b28b62" tooltip="line3001 -> line1000 (0.10s)" labeltooltip="line3001 -> line1000 (0.10s)"]
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.text
+index 0807ed2325..66e4189e0a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.text
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.text
+@@ -1,8 +1,8 @@
+ Showing nodes accounting for 1.12s, 100% of 1.12s total
+       flat  flat%   sum%        cum   cum%
+-     1.10s 98.21% 98.21%      1.10s 98.21%  line1000 testdata/file1000.src
+-     0.01s  0.89% 99.11%      1.01s 90.18%  line2001 testdata/file2000.src (inline)
+-     0.01s  0.89%   100%      1.02s 91.07%  line3002 testdata/file3000.src (inline)
+-         0     0%   100%      1.01s 90.18%  line2000 testdata/file2000.src
+-         0     0%   100%      1.12s   100%  line3000 testdata/file3000.src
+-         0     0%   100%      1.11s 99.11%  line3001 testdata/file3000.src (inline)
++     1.10s 98.21% 98.21%      1.10s 98.21%  line1000
++     0.01s  0.89% 99.11%      1.01s 90.18%  line2001 (inline)
++     0.01s  0.89%   100%      1.02s 91.07%  line3002 (inline)
++         0     0%   100%      1.01s 90.18%  line2000
++         0     0%   100%      1.12s   100%  line3000
++         0     0%   100%      1.11s 99.11%  line3001 (inline)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.peek b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.peek
+index 1a4a70c4d7..3b8a3537b4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.peek
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.peek
+@@ -2,12 +2,12 @@ Showing nodes accounting for 1.12s, 100% of 1.12s total
+ ----------------------------------------------------------+-------------
+       flat  flat%   sum%        cum   cum%   calls calls% + context 	 	 
+ ----------------------------------------------------------+-------------
+-                                             1.01s   100% |   line2000 testdata/file2000.src (inline)
+-     0.01s  0.89%  0.89%      1.01s 90.18%                | line2001 testdata/file2000.src
+-                                                1s 99.01% |   line1000 testdata/file1000.src
+-----------------------------------------------------------+-------------
+-                                             1.11s   100% |   line3000 testdata/file3000.src (inline)
+-         0     0%  0.89%      1.11s 99.11%                | line3001 testdata/file3000.src
+-                                             1.01s 90.99% |   line3002 testdata/file3000.src (inline)
+-                                             0.10s  9.01% |   line1000 testdata/file1000.src
++                                             1.01s   100% |   line2000 (inline)
++     0.01s  0.89%  0.89%      1.01s 90.18%                | line2001
++                                                1s 99.01% |   line1000
++----------------------------------------------------------+-------------
++                                             1.11s   100% |   line3000 (inline)
++         0     0%  0.89%      1.11s 99.11%                | line3001
++                                             1.01s 90.99% |   line3002 (inline)
++                                             0.10s  9.01% |   line1000
+ ----------------------------------------------------------+-------------
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags
+index fc784f0c4c..5998b5ba5b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags
+@@ -1,13 +1,13 @@
+-key1: Total 1120
+-      1000 (89.29%): tag1
+-       100 ( 8.93%): tag2
+-        10 ( 0.89%): tag3
+-        10 ( 0.89%): tag4
++ key1: Total 1.1s
++          1.0s (89.29%): tag1
++       100.0ms ( 8.93%): tag2
++        10.0ms ( 0.89%): tag3
++        10.0ms ( 0.89%): tag4
+ 
+-key2: Total 1020
+-      1010 (99.02%): tag1
+-        10 ( 0.98%): tag2
++ key2: Total 1.0s
++         1.0s (99.02%): tag1
++       10.0ms ( 0.98%): tag2
+ 
+-key3: Total 100
+-       100 (  100%): tag2
++ key3: Total 100.0ms
++       100.0ms (  100%): tag2
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags.focus.ignore b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags.focus.ignore
+index 650ebb1fdb..9b99d4368c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags.focus.ignore
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.tags.focus.ignore
+@@ -1,6 +1,6 @@
+-key1: Total 100
+-       100 (  100%): tag2
++ key1: Total 100.0ms
++       100.0ms (  100%): tag2
+ 
+-key3: Total 100
+-       100 (  100%): tag2
++ key3: Total 100.0ms
++       100.0ms (  100%): tag2
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.traces b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.traces
+index d59fe30fe0..d9637c0e42 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.traces
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.traces
+@@ -4,29 +4,29 @@ Duration: 10s, Total samples = 1.12s (11.20%)
+ -----------+-------------------------------------------------------
+       key1:  tag1
+       key2:  tag1
+-        1s   line1000 testdata/file1000.src
+-             line2001 testdata/file2000.src
+-             line2000 testdata/file2000.src
+-             line3002 testdata/file3000.src
+-             line3001 testdata/file3000.src
+-             line3000 testdata/file3000.src
++        1s   line1000
++             line2001
++             line2000
++             line3002
++             line3001
++             line3000
+ -----------+-------------------------------------------------------
+       key1:  tag2
+       key3:  tag2
+-     100ms   line1000 testdata/file1000.src
+-             line3001 testdata/file3000.src
+-             line3000 testdata/file3000.src
++     100ms   line1000
++             line3001
++             line3000
+ -----------+-------------------------------------------------------
+       key1:  tag3
+       key2:  tag2
+-      10ms   line2001 testdata/file2000.src
+-             line2000 testdata/file2000.src
+-             line3002 testdata/file3000.src
+-             line3000 testdata/file3000.src
++      10ms   line2001
++             line2000
++             line3002
++             line3000
+ -----------+-------------------------------------------------------
+       key1:  tag4
+       key2:  tag1
+-      10ms   line3002 testdata/file3000.src
+-             line3001 testdata/file3000.src
+-             line3000 testdata/file3000.src
++      10ms   line3002
++             line3001
++             line3000
+ -----------+-------------------------------------------------------
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.cum.relative_percentages.tree.focus b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.cum.relative_percentages.tree.focus
+index 35f0bf5762..3b4f161ab6 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.cum.relative_percentages.tree.focus
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.cum.relative_percentages.tree.focus
+@@ -3,17 +3,17 @@ Dropped 2 nodes (cum <= 3.17MB)
+ ----------------------------------------------------------+-------------
+       flat  flat%   sum%        cum   cum%   calls calls% + context 	 	 
+ ----------------------------------------------------------+-------------
+-                                           63.48MB   100% |   line3002 testdata/file3000.src
+-         0     0%     0%    63.48MB   100%                | line2000 testdata/file2000.src
+-                                           63.48MB   100% |   line2001 testdata/file2000.src (inline)
++                                           63.48MB   100% |   line3002
++         0     0%     0%    63.48MB   100%                | line2000
++                                           63.48MB   100% |   line2001 (inline)
+ ----------------------------------------------------------+-------------
+-                                           63.48MB   100% |   line2000 testdata/file2000.src (inline)
+-   62.50MB 98.46% 98.46%    63.48MB   100%                | line2001 testdata/file2000.src
++                                           63.48MB   100% |   line2000 (inline)
++   62.50MB 98.46% 98.46%    63.48MB   100%                | line2001
+ ----------------------------------------------------------+-------------
+-         0     0% 98.46%    63.48MB   100%                | line3000 testdata/file3000.src
+-                                           63.48MB   100% |   line3002 testdata/file3000.src (inline)
++         0     0% 98.46%    63.48MB   100%                | line3000
++                                           63.48MB   100% |   line3002 (inline)
+ ----------------------------------------------------------+-------------
+-                                           63.48MB   100% |   line3000 testdata/file3000.src (inline)
+-         0     0% 98.46%    63.48MB   100%                | line3002 testdata/file3000.src
+-                                           63.48MB   100% |   line2000 testdata/file2000.src
++                                           63.48MB   100% |   line3000 (inline)
++         0     0% 98.46%    63.48MB   100%                | line3002
++                                           63.48MB   100% |   line2000
+ ----------------------------------------------------------+-------------
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_objects.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_objects.text
+index bc061ad733..929461a3c1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_objects.text
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_objects.text
+@@ -1,8 +1,8 @@
+ Showing nodes accounting for 150, 100% of 150 total
+       flat  flat%   sum%        cum   cum%
+-        80 53.33% 53.33%        130 86.67%  line3002 testdata/file3000.src (inline)
+-        40 26.67% 80.00%         50 33.33%  line2001 testdata/file2000.src (inline)
+-        30 20.00%   100%         30 20.00%  line1000 testdata/file1000.src
+-         0     0%   100%         50 33.33%  line2000 testdata/file2000.src
+-         0     0%   100%        150   100%  line3000 testdata/file3000.src
+-         0     0%   100%        110 73.33%  line3001 testdata/file3000.src (inline)
++        80 53.33% 53.33%        130 86.67%  line3002 (inline)
++        40 26.67% 80.00%         50 33.33%  line2001 (inline)
++        30 20.00%   100%         30 20.00%  line1000
++         0     0%   100%         50 33.33%  line2000
++         0     0%   100%        150   100%  line3000
++         0     0%   100%        110 73.33%  line3001 (inline)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus
+index c8533f3d44..97694966e3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus
+@@ -1,13 +1,13 @@
+ digraph "unnamed" {
+ node [style=filled fillcolor="#f8f8f8"]
+ subgraph cluster_L { "Build ID: buildid" [shape=box fontsize=16 label="Build ID: buildid\lcomment\lType: inuse_space\lShowing nodes accounting for 62.50MB, 63.37% of 98.63MB total\l"] }
+-N1 [label="line2001\nfile2000.src\n62.50MB (63.37%)" fontsize=24 shape=box tooltip="line2001 testdata/file2000.src (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
++N1 [label="line2001\n62.50MB (63.37%)" fontsize=24 shape=box tooltip="line2001 (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
+ NN1_0 [label = "1.56MB" fontsize=8 shape=box3d tooltip="62.50MB"]
+ N1 -> NN1_0 [label=" 62.50MB" weight=100 tooltip="62.50MB" labeltooltip="62.50MB"]
+-N2 [label="line3000\nfile3000.src\n0 of 62.50MB (63.37%)" fontsize=8 shape=box tooltip="line3000 testdata/file3000.src (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
+-N3 [label="line2000\nfile2000.src\n0 of 62.50MB (63.37%)" fontsize=8 shape=box tooltip="line2000 testdata/file2000.src (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
+-N4 [label="line3002\nfile3000.src\n0 of 62.50MB (63.37%)" fontsize=8 shape=box tooltip="line3002 testdata/file3000.src (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
+-N3 -> N1 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line2000 testdata/file2000.src -> line2001 testdata/file2000.src (62.50MB)" labeltooltip="line2000 testdata/file2000.src -> line2001 testdata/file2000.src (62.50MB)"]
+-N2 -> N4 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line3000 testdata/file3000.src -> line3002 testdata/file3000.src (62.50MB)" labeltooltip="line3000 testdata/file3000.src -> line3002 testdata/file3000.src (62.50MB)"]
+-N4 -> N3 [label=" 62.50MB" weight=64 penwidth=4 color="#b21600" tooltip="line3002 testdata/file3000.src -> line2000 testdata/file2000.src (62.50MB)" labeltooltip="line3002 testdata/file3000.src -> line2000 testdata/file2000.src (62.50MB)"]
++N2 [label="line3000\n0 of 62.50MB (63.37%)" fontsize=8 shape=box tooltip="line3000 (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
++N3 [label="line2000\n0 of 62.50MB (63.37%)" fontsize=8 shape=box tooltip="line2000 (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
++N4 [label="line3002\n0 of 62.50MB (63.37%)" fontsize=8 shape=box tooltip="line3002 (62.50MB)" color="#b21600" fillcolor="#edd8d5"]
++N3 -> N1 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line2000 -> line2001 (62.50MB)" labeltooltip="line2000 -> line2001 (62.50MB)"]
++N2 -> N4 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line3000 -> line3002 (62.50MB)" labeltooltip="line3000 -> line3002 (62.50MB)"]
++N4 -> N3 [label=" 62.50MB" weight=64 penwidth=4 color="#b21600" tooltip="line3002 -> line2000 (62.50MB)" labeltooltip="line3002 -> line2000 (62.50MB)"]
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus.ignore b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus.ignore
+index 40354dd35d..d931a455fc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus.ignore
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.flat.inuse_space.dot.focus.ignore
+@@ -1,16 +1,16 @@
+ digraph "unnamed" {
+ node [style=filled fillcolor="#f8f8f8"]
+ subgraph cluster_L { "Build ID: buildid" [shape=box fontsize=16 label="Build ID: buildid\lcomment\lType: inuse_space\lShowing nodes accounting for 36.13MB, 36.63% of 98.63MB total\lDropped 2 nodes (cum <= 4.93MB)\l"] }
+-N1 [label="line3002\nfile3000.src\n31.25MB (31.68%)\nof 32.23MB (32.67%)" fontsize=24 shape=box tooltip="line3002 testdata/file3000.src (32.23MB)" color="#b23200" fillcolor="#eddcd5"]
++N1 [label="line3002\n31.25MB (31.68%)\nof 32.23MB (32.67%)" fontsize=24 shape=box tooltip="line3002 (32.23MB)" color="#b23200" fillcolor="#eddcd5"]
+ NN1_0 [label = "400kB" fontsize=8 shape=box3d tooltip="31.25MB"]
+ N1 -> NN1_0 [label=" 31.25MB" weight=100 tooltip="31.25MB" labeltooltip="31.25MB"]
+-N2 [label="line3000\nfile3000.src\n0 of 36.13MB (36.63%)" fontsize=8 shape=box tooltip="line3000 testdata/file3000.src (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
+-N3 [label="line3001\nfile3000.src\n0 of 36.13MB (36.63%)" fontsize=8 shape=box tooltip="line3001 testdata/file3000.src (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
+-N4 [label="line1000\nfile1000.src\n4.88MB (4.95%)" fontsize=15 shape=box tooltip="line1000 testdata/file1000.src (4.88MB)" color="#b2a086" fillcolor="#edeae7"]
++N2 [label="line3000\n0 of 36.13MB (36.63%)" fontsize=8 shape=box tooltip="line3000 (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
++N3 [label="line3001\n0 of 36.13MB (36.63%)" fontsize=8 shape=box tooltip="line3001 (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
++N4 [label="line1000\n4.88MB (4.95%)" fontsize=15 shape=box tooltip="line1000 (4.88MB)" color="#b2a086" fillcolor="#edeae7"]
+ NN4_0 [label = "200kB" fontsize=8 shape=box3d tooltip="3.91MB"]
+ N4 -> NN4_0 [label=" 3.91MB" weight=100 tooltip="3.91MB" labeltooltip="3.91MB"]
+-N2 -> N3 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (36.13MB)" labeltooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (36.13MB)"]
+-N3 -> N1 [label=" 32.23MB\n (inline)" weight=33 penwidth=2 color="#b23200" tooltip="line3001 testdata/file3000.src -> line3002 testdata/file3000.src (32.23MB)" labeltooltip="line3001 testdata/file3000.src -> line3002 testdata/file3000.src (32.23MB)"]
+-N3 -> N4 [label=" 3.91MB" weight=4 color="#b2a58f" tooltip="line3001 testdata/file3000.src -> line1000 testdata/file1000.src (3.91MB)" labeltooltip="line3001 testdata/file3000.src -> line1000 testdata/file1000.src (3.91MB)"]
+-N1 -> N4 [label=" 0.98MB" color="#b2b0a9" tooltip="line3002 testdata/file3000.src ... line1000 testdata/file1000.src (0.98MB)" labeltooltip="line3002 testdata/file3000.src ... line1000 testdata/file1000.src (0.98MB)" style="dotted" minlen=2]
++N2 -> N3 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 -> line3001 (36.13MB)" labeltooltip="line3000 -> line3001 (36.13MB)"]
++N3 -> N1 [label=" 32.23MB\n (inline)" weight=33 penwidth=2 color="#b23200" tooltip="line3001 -> line3002 (32.23MB)" labeltooltip="line3001 -> line3002 (32.23MB)"]
++N3 -> N4 [label=" 3.91MB" weight=4 color="#b2a58f" tooltip="line3001 -> line1000 (3.91MB)" labeltooltip="line3001 -> line1000 (3.91MB)"]
++N1 -> N4 [label=" 0.98MB" color="#b2b0a9" tooltip="line3002 ... line1000 (0.98MB)" labeltooltip="line3002 ... line1000 (0.98MB)" style="dotted" minlen=2]
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags
+index 7a6f0a78f9..630e452a9f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags
+@@ -1,6 +1,6 @@
+-bytes: Total 150
+-        80 (53.33%): 400kB
+-        40 (26.67%): 1.56MB
+-        20 (13.33%): 200kB
+-        10 ( 6.67%): 100kB
++ bytes: Total 98.6MB
++          62.5MB (63.37%): 1.56MB
++          31.2MB (31.68%): 400kB
++           3.9MB ( 3.96%): 200kB
++        1000.0kB ( 0.99%): 100kB
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags.unit b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags.unit
+index 7238b36710..5e565fc019 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags.unit
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap.tags.unit
+@@ -1,6 +1,6 @@
+-bytes: Total 150
+-        80 (53.33%): 409600B
+-        40 (26.67%): 1638400B
+-        20 (13.33%): 204800B
+-        10 ( 6.67%): 102400B
++ bytes: Total 103424000.0B
++        65536000.0B (63.37%): 1638400B
++        32768000.0B (31.68%): 409600B
++         4096000.0B ( 3.96%): 204800B
++         1024000.0B ( 0.99%): 102400B
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_objects.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_objects.text
+index bc061ad733..929461a3c1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_objects.text
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_objects.text
+@@ -1,8 +1,8 @@
+ Showing nodes accounting for 150, 100% of 150 total
+       flat  flat%   sum%        cum   cum%
+-        80 53.33% 53.33%        130 86.67%  line3002 testdata/file3000.src (inline)
+-        40 26.67% 80.00%         50 33.33%  line2001 testdata/file2000.src (inline)
+-        30 20.00%   100%         30 20.00%  line1000 testdata/file1000.src
+-         0     0%   100%         50 33.33%  line2000 testdata/file2000.src
+-         0     0%   100%        150   100%  line3000 testdata/file3000.src
+-         0     0%   100%        110 73.33%  line3001 testdata/file3000.src (inline)
++        80 53.33% 53.33%        130 86.67%  line3002 (inline)
++        40 26.67% 80.00%         50 33.33%  line2001 (inline)
++        30 20.00%   100%         30 20.00%  line1000
++         0     0%   100%         50 33.33%  line2000
++         0     0%   100%        150   100%  line3000
++         0     0%   100%        110 73.33%  line3001 (inline)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.focus b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.focus
+index c693ef3478..5519486868 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.focus
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.focus
+@@ -1,18 +1,18 @@
+ digraph "unnamed" {
+ node [style=filled fillcolor="#f8f8f8"]
+ subgraph cluster_L { "Build ID: buildid" [shape=box fontsize=16 label="Build ID: buildid\lcomment\lType: alloc_space\lShowing nodes accounting for 93.75MB, 95.05% of 98.63MB total\lDropped 1 node (cum <= 4.93MB)\l"] }
+-N1 [label="line3002\nfile3000.src\n31.25MB (31.68%)\nof 94.73MB (96.04%)" fontsize=20 shape=box tooltip="line3002 testdata/file3000.src (94.73MB)" color="#b20200" fillcolor="#edd5d5"]
++N1 [label="line3002\n31.25MB (31.68%)\nof 94.73MB (96.04%)" fontsize=20 shape=box tooltip="line3002 (94.73MB)" color="#b20200" fillcolor="#edd5d5"]
+ NN1_0 [label = "400kB" fontsize=8 shape=box3d tooltip="31.25MB"]
+ N1 -> NN1_0 [label=" 31.25MB" weight=100 tooltip="31.25MB" labeltooltip="31.25MB"]
+-N2 [label="line3000\nfile3000.src\n0 of 98.63MB (100%)" fontsize=8 shape=box tooltip="line3000 testdata/file3000.src (98.63MB)" color="#b20000" fillcolor="#edd5d5"]
+-N3 [label="line2001\nfile2000.src\n62.50MB (63.37%)\nof 63.48MB (64.36%)" fontsize=24 shape=box tooltip="line2001 testdata/file2000.src (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
++N2 [label="line3000\n0 of 98.63MB (100%)" fontsize=8 shape=box tooltip="line3000 (98.63MB)" color="#b20000" fillcolor="#edd5d5"]
++N3 [label="line2001\n62.50MB (63.37%)\nof 63.48MB (64.36%)" fontsize=24 shape=box tooltip="line2001 (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
+ NN3_0 [label = "1.56MB" fontsize=8 shape=box3d tooltip="62.50MB"]
+ N3 -> NN3_0 [label=" 62.50MB" weight=100 tooltip="62.50MB" labeltooltip="62.50MB"]
+-N4 [label="line2000\nfile2000.src\n0 of 63.48MB (64.36%)" fontsize=8 shape=box tooltip="line2000 testdata/file2000.src (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
+-N5 [label="line3001\nfile3000.src\n0 of 36.13MB (36.63%)" fontsize=8 shape=box tooltip="line3001 testdata/file3000.src (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
+-N4 -> N3 [label=" 63.48MB\n (inline)" weight=65 penwidth=4 color="#b21600" tooltip="line2000 testdata/file2000.src -> line2001 testdata/file2000.src (63.48MB)" labeltooltip="line2000 testdata/file2000.src -> line2001 testdata/file2000.src (63.48MB)"]
+-N1 -> N4 [label=" 63.48MB" weight=65 penwidth=4 color="#b21600" tooltip="line3002 testdata/file3000.src -> line2000 testdata/file2000.src (63.48MB)" labeltooltip="line3002 testdata/file3000.src -> line2000 testdata/file2000.src (63.48MB)" minlen=2]
+-N2 -> N1 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line3000 testdata/file3000.src -> line3002 testdata/file3000.src (62.50MB)" labeltooltip="line3000 testdata/file3000.src -> line3002 testdata/file3000.src (62.50MB)"]
+-N2 -> N5 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (36.13MB)" labeltooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (36.13MB)"]
+-N5 -> N1 [label=" 32.23MB\n (inline)" weight=33 penwidth=2 color="#b23200" tooltip="line3001 testdata/file3000.src -> line3002 testdata/file3000.src (32.23MB)" labeltooltip="line3001 testdata/file3000.src -> line3002 testdata/file3000.src (32.23MB)"]
++N4 [label="line2000\n0 of 63.48MB (64.36%)" fontsize=8 shape=box tooltip="line2000 (63.48MB)" color="#b21600" fillcolor="#edd8d5"]
++N5 [label="line3001\n0 of 36.13MB (36.63%)" fontsize=8 shape=box tooltip="line3001 (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
++N4 -> N3 [label=" 63.48MB\n (inline)" weight=65 penwidth=4 color="#b21600" tooltip="line2000 -> line2001 (63.48MB)" labeltooltip="line2000 -> line2001 (63.48MB)"]
++N1 -> N4 [label=" 63.48MB" weight=65 penwidth=4 color="#b21600" tooltip="line3002 -> line2000 (63.48MB)" labeltooltip="line3002 -> line2000 (63.48MB)" minlen=2]
++N2 -> N1 [label=" 62.50MB\n (inline)" weight=64 penwidth=4 color="#b21600" tooltip="line3000 -> line3002 (62.50MB)" labeltooltip="line3000 -> line3002 (62.50MB)"]
++N2 -> N5 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 -> line3001 (36.13MB)" labeltooltip="line3000 -> line3001 (36.13MB)"]
++N5 -> N1 [label=" 32.23MB\n (inline)" weight=33 penwidth=2 color="#b23200" tooltip="line3001 -> line3002 (32.23MB)" labeltooltip="line3001 -> line3002 (32.23MB)"]
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.hide b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.hide
+index 26a51c57a0..1bb0189d41 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.hide
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.heap_alloc.flat.alloc_space.dot.hide
+@@ -1,11 +1,11 @@
+ digraph "unnamed" {
+ node [style=filled fillcolor="#f8f8f8"]
+ subgraph cluster_L { "Build ID: buildid" [shape=box fontsize=16 label="Build ID: buildid\lcomment\lType: alloc_space\lShowing nodes accounting for 93.75MB, 95.05% of 98.63MB total\lDropped 1 node (cum <= 4.93MB)\l"] }
+-N1 [label="line3000\nfile3000.src\n62.50MB (63.37%)\nof 98.63MB (100%)" fontsize=24 shape=box tooltip="line3000 testdata/file3000.src (98.63MB)" color="#b20000" fillcolor="#edd5d5"]
++N1 [label="line3000\n62.50MB (63.37%)\nof 98.63MB (100%)" fontsize=24 shape=box tooltip="line3000 (98.63MB)" color="#b20000" fillcolor="#edd5d5"]
+ NN1_0 [label = "1.56MB" fontsize=8 shape=box3d tooltip="62.50MB"]
+ N1 -> NN1_0 [label=" 62.50MB" weight=100 tooltip="62.50MB" labeltooltip="62.50MB"]
+-N2 [label="line3001\nfile3000.src\n31.25MB (31.68%)\nof 36.13MB (36.63%)" fontsize=20 shape=box tooltip="line3001 testdata/file3000.src (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
++N2 [label="line3001\n31.25MB (31.68%)\nof 36.13MB (36.63%)" fontsize=20 shape=box tooltip="line3001 (36.13MB)" color="#b22e00" fillcolor="#eddbd5"]
+ NN2_0 [label = "400kB" fontsize=8 shape=box3d tooltip="31.25MB"]
+ N2 -> NN2_0 [label=" 31.25MB" weight=100 tooltip="31.25MB" labeltooltip="31.25MB"]
+-N1 -> N2 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (36.13MB)" labeltooltip="line3000 testdata/file3000.src -> line3001 testdata/file3000.src (36.13MB)" minlen=2]
++N1 -> N2 [label=" 36.13MB\n (inline)" weight=37 penwidth=2 color="#b22e00" tooltip="line3000 -> line3001 (36.13MB)" labeltooltip="line3000 -> line3001 (36.13MB)" minlen=2]
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.unknown.flat.functions.call_tree.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.unknown.flat.functions.call_tree.text
+new file mode 100644
+index 0000000000..78a2298f95
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.unknown.flat.functions.call_tree.text
+@@ -0,0 +1,8 @@
++Showing nodes accounting for 1.12s, 100% of 1.12s total
++Showing top 5 nodes out of 6
++      flat  flat%   sum%        cum   cum%
++     1.10s 98.21% 98.21%      1.10s 98.21%  line1000
++     0.01s  0.89% 99.11%      1.01s 90.18%  line2001 (inline)
++     0.01s  0.89%   100%      1.02s 91.07%  line3002 (inline)
++         0     0%   100%      1.01s 90.18%  line2000
++         0     0%   100%      1.12s   100%  line3000
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.unknown.flat.functions.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.unknown.flat.functions.text
+deleted file mode 100644
+index 0807ed2325..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.unknown.flat.functions.text
++++ /dev/null
+@@ -1,8 +0,0 @@
+-Showing nodes accounting for 1.12s, 100% of 1.12s total
+-      flat  flat%   sum%        cum   cum%
+-     1.10s 98.21% 98.21%      1.10s 98.21%  line1000 testdata/file1000.src
+-     0.01s  0.89% 99.11%      1.01s 90.18%  line2001 testdata/file2000.src (inline)
+-     0.01s  0.89%   100%      1.02s 91.07%  line3002 testdata/file3000.src (inline)
+-         0     0%   100%      1.01s 90.18%  line2000 testdata/file2000.src
+-         0     0%   100%      1.12s   100%  line3000 testdata/file3000.src
+-         0     0%   100%      1.11s 99.11%  line3001 testdata/file3000.src (inline)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index c46272e8fc..9b238c5b87 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -131,7 +131,7 @@ func GetBuildID(binary io.ReaderAt) ([]byte, error) {
+ 				if buildID == nil {
+ 					buildID = note.Desc
+ 				} else {
+-					return nil, fmt.Errorf("multiple build ids found, don't know which to use!")
++					return nil, fmt.Errorf("multiple build ids found, don't know which to use")
+ 				}
+ 			}
+ 		}
+@@ -240,17 +240,22 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 		}
+ 		return start, nil
+ 	case elf.ET_DYN:
+-		if offset != 0 {
+-			if loadSegment == nil || loadSegment.Vaddr == 0 {
+-				return start - offset, nil
+-			}
+-			return 0, fmt.Errorf("Don't know how to handle mapping. Offset=%x, vaddr=%x",
+-				offset, loadSegment.Vaddr)
+-		}
++		// The process mapping information, start = start of virtual address range,
++		// and offset = offset in the executable file of the start address, tells us
++		// that a runtime virtual address x maps to a file offset
++		// fx = x - start + offset.
+ 		if loadSegment == nil {
+-			return start, nil
++			return start - offset, nil
+ 		}
+-		return start - loadSegment.Vaddr, nil
++		// The program header, if not nil, indicates the offset in the file where
++		// the executable segment is located (loadSegment.Off), and the base virtual
++		// address where the first byte of the segment is loaded
++		// (loadSegment.Vaddr). A file offset fx maps to a virtual (symbol) address
++		// sx = fx - loadSegment.Off + loadSegment.Vaddr.
++		//
++		// Thus, a runtime virtual address x maps to a symbol address
++		// sx = x - start + offset - loadSegment.Off + loadSegment.Vaddr.
++		return start - offset + loadSegment.Off - loadSegment.Vaddr, nil
+ 	}
+ 	return 0, fmt.Errorf("Don't know how to handle FileHeader.Type %v", fh.Type)
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go
+index b9f2a841a6..c6b8fe4c22 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go
+@@ -62,8 +62,9 @@ func TestGetBase(t *testing.T) {
+ 		{"exec chromeos kernel 4", fhExec, kernelHeader, uint64p(0xffffffff81200198), 0x198, 0x100000, 0, 0x7ee00000, false},
+ 		{"exec chromeos kernel unremapped", fhExec, kernelHeader, uint64p(0xffffffff810001c8), 0xffffffff834001c8, 0xffffffffc0000000, 0xffffffff834001c8, 0x2400000, false},
+ 		{"dyn", fhDyn, nil, nil, 0x200000, 0x300000, 0, 0x200000, false},
+-		{"dyn offset", fhDyn, lsOffset, nil, 0x0, 0x300000, 0, 0xFFFFFFFFFFC00000, false},
++		{"dyn map", fhDyn, lsOffset, nil, 0x0, 0x300000, 0, 0xFFFFFFFFFFE00000, false},
+ 		{"dyn nomap", fhDyn, nil, nil, 0x0, 0x0, 0, 0, false},
++		{"dyn map+offset", fhDyn, lsOffset, nil, 0x900000, 0xa00000, 0x200000, 0x500000, false},
+ 		{"rel", fhRel, nil, nil, 0x2000000, 0x3000000, 0, 0x2000000, false},
+ 		{"rel nomap", fhRel, nil, nil, 0x0, ^uint64(0), 0, 0, false},
+ 		{"rel offset", fhRel, nil, nil, 0x100000, 0x200000, 0x1, 0, true},
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+index c99e8992de..514156a184 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+@@ -50,7 +50,9 @@ type DotConfig struct {
+ 	Total       int64                      // The total weight of the graph, used to compute percentages
+ }
+ 
+-// Compose creates and writes a in the DOT format to the writer, using
++const maxNodelets = 4 // Number of nodelets for labels (both numeric and non)
++
++// ComposeDot creates and writes a in the DOT format to the writer, using
+ // the configurations given.
+ func ComposeDot(w io.Writer, g *Graph, a *DotAttributes, c *DotConfig) {
+ 	builder := &builder{w, a, c}
+@@ -204,13 +206,11 @@ func (b *builder) addNode(node *Node, nodeID int, maxFlat float64) {
+ 
+ // addNodelets generates the DOT boxes for the node tags if they exist.
+ func (b *builder) addNodelets(node *Node, nodeID int) bool {
+-	const maxNodelets = 4    // Number of nodelets for alphanumeric labels
+-	const maxNumNodelets = 4 // Number of nodelets for numeric labels
+ 	var nodelets string
+ 
+ 	// Populate two Tag slices, one for LabelTags and one for NumericTags.
+ 	var ts []*Tag
+-	lnts := make(map[string][]*Tag, 0)
++	lnts := make(map[string][]*Tag)
+ 	for _, t := range node.LabelTags {
+ 		ts = append(ts, t)
+ 	}
+@@ -242,12 +242,12 @@ func (b *builder) addNodelets(node *Node, nodeID int) bool {
+ 		nodelets += fmt.Sprintf(`N%d_%d [label = "%s" fontsize=8 shape=box3d tooltip="%s"]`+"\n", nodeID, i, t.Name, weight)
+ 		nodelets += fmt.Sprintf(`N%d -> N%d_%d [label=" %s" weight=100 tooltip="%s" labeltooltip="%s"]`+"\n", nodeID, nodeID, i, weight, weight, weight)
+ 		if nts := lnts[t.Name]; nts != nil {
+-			nodelets += b.numericNodelets(nts, maxNumNodelets, flatTags, fmt.Sprintf(`N%d_%d`, nodeID, i))
++			nodelets += b.numericNodelets(nts, maxNodelets, flatTags, fmt.Sprintf(`N%d_%d`, nodeID, i))
+ 		}
+ 	}
+ 
+ 	if nts := lnts[""]; nts != nil {
+-		nodelets += b.numericNodelets(nts, maxNumNodelets, flatTags, fmt.Sprintf(`N%d`, nodeID))
++		nodelets += b.numericNodelets(nts, maxNodelets, flatTags, fmt.Sprintf(`N%d`, nodeID))
+ 	}
+ 
+ 	fmt.Fprint(b, nodelets)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph_test.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph_test.go
+index 7f51269769..c9d4bca5de 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph_test.go
+@@ -209,6 +209,59 @@ func compareGraphs(t *testing.T, got, want []byte) {
+ 	}
+ }
+ 
++func TestNodeletCountCapping(t *testing.T) {
++	labelTags := make(TagMap)
++	for i := 0; i < 10; i++ {
++		name := fmt.Sprintf("tag-%d", i)
++		labelTags[name] = &Tag{
++			Name: name,
++			Flat: 10,
++			Cum:  10,
++		}
++	}
++	numTags := make(TagMap)
++	for i := 0; i < 10; i++ {
++		name := fmt.Sprintf("num-tag-%d", i)
++		numTags[name] = &Tag{
++			Name:  name,
++			Unit:  "mb",
++			Value: 16,
++			Flat:  10,
++			Cum:   10,
++		}
++	}
++	node1 := &Node{
++		Info:        NodeInfo{Name: "node1-with-tags"},
++		Flat:        10,
++		Cum:         10,
++		NumericTags: map[string]TagMap{"": numTags},
++		LabelTags:   labelTags,
++	}
++	node2 := &Node{
++		Info: NodeInfo{Name: "node2"},
++		Flat: 15,
++		Cum:  15,
++	}
++	node3 := &Node{
++		Info: NodeInfo{Name: "node3"},
++		Flat: 15,
++		Cum:  15,
++	}
++	g := &Graph{
++		Nodes: Nodes{
++			node1,
++			node2,
++			node3,
++		},
++	}
++	for n := 1; n <= 3; n++ {
++		input := maxNodelets + n
++		if got, want := len(g.SelectTopNodes(input, true)), n; got != want {
++			t.Errorf("SelectTopNodes(%d): got %d nodes, want %d", input, got, want)
++		}
++	}
++}
++
+ func TestMultilinePrintableName(t *testing.T) {
+ 	ni := &NodeInfo{
+ 		Name:    "test1.test2::test3",
+@@ -240,19 +293,19 @@ func TestTagCollapse(t *testing.T) {
+ 	}
+ 
+ 	tagWant := [][]*Tag{
+-		[]*Tag{
++		{
+ 			makeTag("1B..2GB", "", 0, 2401, 2401),
+ 		},
+-		[]*Tag{
++		{
+ 			makeTag("2GB", "", 0, 1000, 1000),
+ 			makeTag("1B..12MB", "", 0, 1401, 1401),
+ 		},
+-		[]*Tag{
++		{
+ 			makeTag("2GB", "", 0, 1000, 1000),
+ 			makeTag("12MB", "", 0, 100, 100),
+ 			makeTag("1B..1MB", "", 0, 1301, 1301),
+ 		},
+-		[]*Tag{
++		{
+ 			makeTag("2GB", "", 0, 1000, 1000),
+ 			makeTag("1MB", "", 0, 1000, 1000),
+ 			makeTag("2B..1kB", "", 0, 201, 201),
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index 428e6257c7..7947e2dd42 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -240,6 +240,8 @@ type Edge struct {
+ 	Inline bool
+ }
+ 
++// WeightValue returns the weight value for this edge, normalizing if a
++// divisor is available.
+ func (e *Edge) WeightValue() int64 {
+ 	if e.WeightDiv == 0 {
+ 		return e.Weight
+@@ -800,7 +802,11 @@ func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
+ 			// If generating a visual graph, count tags as nodes. Update
+ 			// maxNodes to account for them.
+ 			for i, n := range g.Nodes {
+-				if count += countTags(n) + 1; count >= maxNodes {
++				tags := countTags(n)
++				if tags > maxNodelets {
++					tags = maxNodelets
++				}
++				if count += tags + 1; count >= maxNodes {
+ 					maxNodes = i + 1
+ 					break
+ 				}
+@@ -832,17 +838,6 @@ func countTags(n *Node) int {
+ 	return count
+ }
+ 
+-// countEdges counts the number of edges below the specified cutoff.
+-func countEdges(el EdgeMap, cutoff int64) int {
+-	count := 0
+-	for _, e := range el {
+-		if e.Weight > cutoff {
+-			count++
+-		}
+-	}
+-	return count
+-}
+-
+ // RemoveRedundantEdges removes residual edges if the destination can
+ // be reached through another path. This is done to simplify the graph
+ // while preserving connectivity.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+index 0f7a21d26a..2e17ebed4b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+@@ -170,12 +170,16 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok
+ 
+ 	switch fromUnit {
+ 	case "byte", "b":
+-	case "kilobyte", "kb":
++	case "kb", "kbyte", "kilobyte":
+ 		value *= 1024
+-	case "megabyte", "mb":
++	case "mb", "mbyte", "megabyte":
+ 		value *= 1024 * 1024
+-	case "gigabyte", "gb":
++	case "gb", "gbyte", "gigabyte":
+ 		value *= 1024 * 1024 * 1024
++	case "tb", "tbyte", "terabyte":
++		value *= 1024 * 1024 * 1024 * 1024
++	case "pb", "pbyte", "petabyte":
++		value *= 1024 * 1024 * 1024 * 1024 * 1024
+ 	default:
+ 		return 0, "", false
+ 	}
+@@ -188,8 +192,12 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok
+ 			toUnit = "kb"
+ 		case value < 1024*1024*1024:
+ 			toUnit = "mb"
+-		default:
++		case value < 1024*1024*1024*1024:
+ 			toUnit = "gb"
++		case value < 1024*1024*1024*1024*1024:
++			toUnit = "tb"
++		default:
++			toUnit = "pb"
+ 		}
+ 	}
+ 
+@@ -203,6 +211,10 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok
+ 		output, toUnit = float64(value)/(1024*1024), "MB"
+ 	case "gb", "gbyte", "gigabyte":
+ 		output, toUnit = float64(value)/(1024*1024*1024), "GB"
++	case "tb", "tbyte", "terabyte":
++		output, toUnit = float64(value)/(1024*1024*1024*1024), "TB"
++	case "pb", "pbyte", "petabyte":
++		output, toUnit = float64(value)/(1024*1024*1024*1024*1024), "PB"
+ 	}
+ 	return output, toUnit, true
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement_test.go b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement_test.go
+new file mode 100644
+index 0000000000..709f1f840f
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2017 Google Inc. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package measurement
++
++import (
++	"testing"
++)
++
++func TestScale(t *testing.T) {
++	for _, tc := range []struct {
++		value            int64
++		fromUnit, toUnit string
++		wantValue        float64
++		wantUnit         string
++	}{
++		{1, "s", "ms", 1000, "ms"},
++		{1, "kb", "b", 1024, "B"},
++		{1, "kbyte", "b", 1024, "B"},
++		{1, "kilobyte", "b", 1024, "B"},
++		{1, "mb", "kb", 1024, "kB"},
++		{1, "gb", "mb", 1024, "MB"},
++		{1024, "gb", "tb", 1, "TB"},
++		{1024, "tb", "pb", 1, "PB"},
++		{2048, "mb", "auto", 2, "GB"},
++	} {
++		if gotValue, gotUnit := Scale(tc.value, tc.fromUnit, tc.toUnit); gotValue != tc.wantValue || gotUnit != tc.wantUnit {
++			t.Errorf("Scale(%d, %q, %q) = (%f, %q), want (%f, %q)",
++				tc.value, tc.fromUnit, tc.toUnit, gotValue, gotUnit, tc.wantValue, tc.wantUnit)
++		}
++	}
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go b/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go
+index 9767b2eedb..a5e0f6cac3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/proftest/proftest.go
+@@ -22,6 +22,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"regexp"
+ 	"testing"
+ )
+ 
+@@ -71,10 +72,11 @@ func EncodeJSON(x interface{}) []byte {
+ }
+ 
+ // TestUI implements the plugin.UI interface, triggering test failures
+-// if more than Ignore errors are printed.
++// if more than Ignore errors not matching IgnoreRx are printed.
+ type TestUI struct {
+-	T      *testing.T
+-	Ignore int
++	T        *testing.T
++	Ignore   int
++	IgnoreRx string
+ }
+ 
+ // ReadLine returns no input, as no input is expected during testing.
+@@ -89,6 +91,14 @@ func (ui *TestUI) Print(args ...interface{}) {
+ // PrintErr messages may trigger an error failure. A fixed number of
+ // error messages are permitted when appropriate.
+ func (ui *TestUI) PrintErr(args ...interface{}) {
++	if ui.IgnoreRx != "" {
++		if matched, err := regexp.MatchString(ui.IgnoreRx, fmt.Sprint(args)); matched || err != nil {
++			if err != nil {
++				ui.T.Errorf("failed to match against regex %q: %v", ui.IgnoreRx, err)
++			}
++			return
++		}
++	}
+ 	if ui.Ignore > 0 {
+ 		ui.Ignore--
+ 		return
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index ecfd6982b1..f018fceccb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -25,6 +25,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"text/tabwriter"
+ 	"time"
+ 
+ 	"github.com/google/pprof/internal/graph"
+@@ -125,6 +126,9 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
+ 	visualMode := o.OutputFormat == Dot
+ 	cumSort := o.CumSort
+ 
++	// The call_tree option is only honored when generating visual representations of the callgraph.
++	callTree := o.CallTree && (o.OutputFormat == Dot || o.OutputFormat == Callgrind)
++
+ 	// First step: Build complete graph to identify low frequency nodes, based on their cum weight.
+ 	g = rpt.newGraph(nil)
+ 	totalValue, _ := g.Nodes.Sum()
+@@ -133,7 +137,7 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
+ 
+ 	// Filter out nodes with cum value below nodeCutoff.
+ 	if nodeCutoff > 0 {
+-		if o.CallTree {
++		if callTree {
+ 			if nodesKept := g.DiscardLowFrequencyNodePtrs(nodeCutoff); len(g.Nodes) != len(nodesKept) {
+ 				droppedNodes = len(g.Nodes) - len(nodesKept)
+ 				g.TrimTree(nodesKept)
+@@ -154,7 +158,7 @@ func (rpt *Report) newTrimmedGraph() (g *graph.Graph, origCount, droppedNodes, d
+ 		// Remove low frequency tags and edges as they affect selection.
+ 		g.TrimLowFrequencyTags(nodeCutoff)
+ 		g.TrimLowFrequencyEdges(edgeCutoff)
+-		if o.CallTree {
++		if callTree {
+ 			if nodesKept := g.SelectTopNodePtrs(nodeCount, visualMode); len(g.Nodes) != len(nodesKept) {
+ 				g.TrimTree(nodesKept)
+ 				g.SortNodes(cumSort, visualMode)
+@@ -528,6 +532,7 @@ type assemblyInstruction struct {
+ 	line            int
+ 	flat, cum       int64
+ 	flatDiv, cumDiv int64
++	startsBlock     bool
+ }
+ 
+ func (a *assemblyInstruction) flatValue() int64 {
+@@ -617,25 +622,23 @@ func printTags(w io.Writer, rpt *Report) error {
+ 	for _, s := range p.Sample {
+ 		for key, vals := range s.Label {
+ 			for _, val := range vals {
+-				if valueMap, ok := tagMap[key]; ok {
+-					valueMap[val] = valueMap[val] + s.Value[0]
+-					continue
++				valueMap, ok := tagMap[key]
++				if !ok {
++					valueMap = make(map[string]int64)
++					tagMap[key] = valueMap
+ 				}
+-				valueMap := make(map[string]int64)
+-				valueMap[val] = s.Value[0]
+-				tagMap[key] = valueMap
++				valueMap[val] += o.SampleValue(s.Value)
+ 			}
+ 		}
+ 		for key, vals := range s.NumLabel {
+ 			for _, nval := range vals {
+ 				val := formatTag(nval, key)
+-				if valueMap, ok := tagMap[key]; ok {
+-					valueMap[val] = valueMap[val] + s.Value[0]
+-					continue
++				valueMap, ok := tagMap[key]
++				if !ok {
++					valueMap = make(map[string]int64)
++					tagMap[key] = valueMap
+ 				}
+-				valueMap := make(map[string]int64)
+-				valueMap[val] = s.Value[0]
+-				tagMap[key] = valueMap
++				valueMap[val] += o.SampleValue(s.Value)
+ 			}
+ 		}
+ 	}
+@@ -644,6 +647,7 @@ func printTags(w io.Writer, rpt *Report) error {
+ 	for key := range tagMap {
+ 		tagKeys = append(tagKeys, &graph.Tag{Name: key})
+ 	}
++	tabw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.AlignRight)
+ 	for _, tagKey := range graph.SortTags(tagKeys, true) {
+ 		var total int64
+ 		key := tagKey.Name
+@@ -653,18 +657,19 @@ func printTags(w io.Writer, rpt *Report) error {
+ 			tags = append(tags, &graph.Tag{Name: t, Flat: c})
+ 		}
+ 
+-		fmt.Fprintf(w, "%s: Total %d\n", key, total)
++		f, u := measurement.Scale(total, o.SampleUnit, o.OutputUnit)
++		fmt.Fprintf(tabw, "%s:\t Total %.1f%s\n", key, f, u)
+ 		for _, t := range graph.SortTags(tags, true) {
++			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
+ 			if total > 0 {
+-				fmt.Fprintf(w, "  %8d (%s): %s\n", t.FlatValue(),
+-					percentage(t.FlatValue(), total), t.Name)
++				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, percentage(t.FlatValue(), total), t.Name)
+ 			} else {
+-				fmt.Fprintf(w, "  %8d: %s\n", t.FlatValue(), t.Name)
++				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
+ 			}
+ 		}
+-		fmt.Fprintln(w)
++		fmt.Fprintln(tabw)
+ 	}
+-	return nil
++	return tabw.Flush()
+ }
+ 
+ // printComments prints all freeform comments in the profile.
+@@ -1055,9 +1060,7 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
+ 
+ 	var label []string
+ 	if len(rpt.options.ProfileLabels) > 0 {
+-		for _, l := range rpt.options.ProfileLabels {
+-			label = append(label, l)
+-		}
++		label = append(label, rpt.options.ProfileLabels...)
+ 	} else if fullHeaders || !rpt.options.CompactLabels {
+ 		label = ProfileLabels(rpt)
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index f5e3b6b9d7..f78934b717 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -167,7 +167,7 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+ 	}
+ 
+ 	if len(fileNodes) == 0 {
+-		return fmt.Errorf("No source information for %s\n", o.Symbol.String())
++		return fmt.Errorf("No source information for %s", o.Symbol.String())
+ 	}
+ 
+ 	sourceFiles := make(graph.Nodes, 0, len(fileNodes))
+@@ -236,11 +236,18 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj
+ 	srcBase := filepath.Base(src)
+ 	anodes := annotateAssembly(insts, rs, o.base)
+ 	var lineno = 0
++	var prevline = 0
+ 	for _, an := range anodes {
+ 		if filepath.Base(an.file) == srcBase {
+ 			lineno = an.line
+ 		}
+ 		if lineno != 0 {
++			if lineno != prevline {
++				// This instruction starts a new block
++				// of contiguous instructions on this line.
++				an.startsBlock = true
++			}
++			prevline = lineno
+ 			assembly[lineno] = append(assembly[lineno], an)
+ 		}
+ 	}
+@@ -306,7 +313,12 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
+ 		valueOrDot(fn.Flat, rpt), valueOrDot(fn.Cum, rpt),
+ 		template.HTMLEscapeString(fn.Info.Name))
+ 	fmt.Fprint(w, "<span class=asm>")
+-	for _, an := range assembly {
++	for i, an := range assembly {
++		if an.startsBlock && i != 0 {
++			// Insert a separator between discontiguous blocks.
++			fmt.Fprintf(w, " %8s %30s\n", "", "⋮")
++		}
++
+ 		var fileline string
+ 		class := "disasmloc"
+ 		if an.file != "" {
+@@ -322,10 +334,10 @@ func printFunctionSourceLine(w io.Writer, fn *graph.Node, assembly []assemblyIns
+ 		if an.cumDiv != 0 {
+ 			cum = cum / an.cumDiv
+ 		}
+-		fmt.Fprintf(w, " %8s %10s %10s %8x: %-48s <span class=%s>%s</span>\n", "",
++		fmt.Fprintf(w, " %8s %10s %10s %8x: %s <span class=%s>%s</span>\n", "",
+ 			valueOrDot(flat, rpt), valueOrDot(cum, rpt),
+ 			an.address,
+-			template.HTMLEscapeString(an.instruction),
++			template.HTMLEscapeString(fmt.Sprintf("%-48s", strings.Replace(an.instruction, "\t", " ", -1))),
+ 			class,
+ 			template.HTMLEscapeString(fileline))
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
+index 2bb81f2025..9cbee4684a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
+@@ -18,6 +18,7 @@ const weblistPageHeader = `
+ <!DOCTYPE html>
+ <html>
+ <head>
++<meta charset="UTF-8">
+ <title>Pprof listing</title>
+ <style type="text/css">
+ body {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index 2c1c729ddf..e1f531cd89 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -18,6 +18,7 @@
+ package symbolizer
+ 
+ import (
++	"crypto/tls"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"net/http"
+@@ -90,7 +91,26 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
+ 
+ // postURL issues a POST to a URL over HTTP.
+ func postURL(source, post string) ([]byte, error) {
+-	resp, err := http.Post(source, "application/octet-stream", strings.NewReader(post))
++	url, err := url.Parse(source)
++	if err != nil {
++		return nil, err
++	}
++
++	var tlsConfig *tls.Config
++	if url.Scheme == "https+insecure" {
++		tlsConfig = &tls.Config{
++			InsecureSkipVerify: true,
++		}
++		url.Scheme = "https"
++		source = url.String()
++	}
++
++	client := &http.Client{
++		Transport: &http.Transport{
++			TLSClientConfig: tlsConfig,
++		},
++	}
++	resp, err := client.Post(source, "application/octet-stream", strings.NewReader(post))
+ 	if err != nil {
+ 		return nil, fmt.Errorf("http post %s: %v", source, err)
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
+index 66cad3eaa1..10f163cac3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
+@@ -207,11 +207,11 @@ func checkSymbolizedLocation(a uint64, got []profile.Line) error {
+ }
+ 
+ var mockAddresses = map[uint64][]plugin.Frame{
+-	1000: []plugin.Frame{frame("fun11", "file11.src", 10)},
+-	2000: []plugin.Frame{frame("fun21", "file21.src", 20), frame("fun22", "file22.src", 20)},
+-	3000: []plugin.Frame{frame("fun31", "file31.src", 30), frame("fun32", "file32.src", 30), frame("fun33", "file33.src", 30)},
+-	4000: []plugin.Frame{frame("fun41", "file41.src", 40), frame("fun42", "file42.src", 40), frame("fun43", "file43.src", 40), frame("fun44", "file44.src", 40)},
+-	5000: []plugin.Frame{frame("fun51", "file51.src", 50), frame("fun52", "file52.src", 50), frame("fun53", "file53.src", 50), frame("fun54", "file54.src", 50), frame("fun55", "file55.src", 50)},
++	1000: {frame("fun11", "file11.src", 10)},
++	2000: {frame("fun21", "file21.src", 20), frame("fun22", "file22.src", 20)},
++	3000: {frame("fun31", "file31.src", 30), frame("fun32", "file32.src", 30), frame("fun33", "file33.src", 30)},
++	4000: {frame("fun41", "file41.src", 40), frame("fun42", "file42.src", 40), frame("fun43", "file43.src", 40), frame("fun44", "file44.src", 40)},
++	5000: {frame("fun51", "file51.src", 50), frame("fun52", "file52.src", 50), frame("fun53", "file53.src", 50), frame("fun54", "file54.src", 50), frame("fun55", "file55.src", 50)},
+ }
+ 
+ func frame(fname, file string, line int) plugin.Frame {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go b/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
+index 7b40f5d24c..544edf0f75 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
+@@ -212,7 +212,7 @@ func parseJavaSamples(pType string, b []byte, p *Profile) ([]byte, map[uint64]*L
+ 			switch pType {
+ 			case "heap":
+ 				const javaHeapzSamplingRate = 524288 // 512K
+-				s.NumLabel = map[string][]int64{"bytes": []int64{s.Value[1] / s.Value[0]}}
++				s.NumLabel = map[string][]int64{"bytes": {s.Value[1] / s.Value[0]}}
+ 				s.Value[0], s.Value[1] = scaleHeapSample(s.Value[0], s.Value[1], javaHeapzSamplingRate)
+ 			case "contention":
+ 				if period := p.Period; period != 0 {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index fb3d4fd4fb..13888f1594 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -596,10 +596,11 @@ func (p *Profile) HasFileLines() bool {
+ }
+ 
+ // Unsymbolizable returns true if a mapping points to a binary for which
+-// locations can't be symbolized in principle, at least now.
++// locations can't be symbolized in principle, at least now. Examples are
++// "[vdso]", [vsyscall]" and some others, see the code.
+ func (m *Mapping) Unsymbolizable() bool {
+ 	name := filepath.Base(m.File)
+-	return name == "[vdso]" || strings.HasPrefix(name, "linux-vdso") || name == "[heap]" || strings.HasPrefix(m.File, "/dev/dri/")
++	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/")
+ }
+ 
+ // Copy makes a fully independent copy of a profile.
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go b/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go
+index c2319a6500..bae2e8f677 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go
+@@ -230,40 +230,40 @@ var testProfile = &Profile{
+ 			Location: []*Location{cpuL[0]},
+ 			Value:    []int64{1000, 1000},
+ 			Label: map[string][]string{
+-				"key1": []string{"tag1"},
+-				"key2": []string{"tag1"},
++				"key1": {"tag1"},
++				"key2": {"tag1"},
+ 			},
+ 		},
+ 		{
+ 			Location: []*Location{cpuL[1], cpuL[0]},
+ 			Value:    []int64{100, 100},
+ 			Label: map[string][]string{
+-				"key1": []string{"tag2"},
+-				"key3": []string{"tag2"},
++				"key1": {"tag2"},
++				"key3": {"tag2"},
+ 			},
+ 		},
+ 		{
+ 			Location: []*Location{cpuL[2], cpuL[0]},
+ 			Value:    []int64{10, 10},
+ 			Label: map[string][]string{
+-				"key1": []string{"tag3"},
+-				"key2": []string{"tag2"},
++				"key1": {"tag3"},
++				"key2": {"tag2"},
+ 			},
+ 		},
+ 		{
+ 			Location: []*Location{cpuL[3], cpuL[0]},
+ 			Value:    []int64{10000, 10000},
+ 			Label: map[string][]string{
+-				"key1": []string{"tag4"},
+-				"key2": []string{"tag1"},
++				"key1": {"tag4"},
++				"key2": {"tag1"},
+ 			},
+ 		},
+ 		{
+ 			Location: []*Location{cpuL[4], cpuL[0]},
+ 			Value:    []int64{1, 1},
+ 			Label: map[string][]string{
+-				"key1": []string{"tag4"},
+-				"key2": []string{"tag1"},
++				"key1": {"tag4"},
++				"key2": {"tag1"},
+ 			},
+ 		},
+ 	},
+@@ -273,10 +273,10 @@ var testProfile = &Profile{
+ }
+ 
+ var aggTests = map[string]aggTest{
+-	"precise":         aggTest{true, true, true, true, 5},
+-	"fileline":        aggTest{false, true, true, true, 4},
+-	"inline_function": aggTest{false, true, false, true, 3},
+-	"function":        aggTest{false, true, false, false, 2},
++	"precise":         {true, true, true, true, 5},
++	"fileline":        {false, true, true, true, 4},
++	"inline_function": {false, true, false, true, 3},
++	"function":        {false, true, false, false, 2},
+ }
+ 
+ type aggTest struct {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/proto.go b/src/cmd/vendor/github.com/google/pprof/profile/proto.go
+index 01b7f7ae18..e7df33ac2b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/proto.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/proto.go
+@@ -71,7 +71,7 @@ func encodeLength(b *buffer, tag int, len int) {
+ 
+ func encodeUint64(b *buffer, tag int, x uint64) {
+ 	// append varint to b.data
+-	encodeVarint(b, uint64(tag)<<3|0)
++	encodeVarint(b, uint64(tag)<<3)
+ 	encodeVarint(b, x)
+ }
+ 
+@@ -145,13 +145,6 @@ func encodeStrings(b *buffer, tag int, x []string) {
+ 	}
+ }
+ 
+-func encodeStringOpt(b *buffer, tag int, x string) {
+-	if x == "" {
+-		return
+-	}
+-	encodeString(b, tag, x)
+-}
+-
+ func encodeBool(b *buffer, tag int, x bool) {
+ 	if x {
+ 		encodeUint64(b, tag, 1)
+@@ -161,10 +154,9 @@ func encodeBool(b *buffer, tag int, x bool) {
+ }
+ 
+ func encodeBoolOpt(b *buffer, tag int, x bool) {
+-	if x == false {
+-		return
++	if x {
++		encodeBool(b, tag, x)
+ 	}
+-	encodeBool(b, tag, x)
+ }
+ 
+ func encodeMessage(b *buffer, tag int, m message) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/proto_test.go b/src/cmd/vendor/github.com/google/pprof/profile/proto_test.go
+index d2a351373e..9578c5b2fe 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/proto_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/proto_test.go
+@@ -100,8 +100,8 @@ var all = &Profile{
+ 		{
+ 			Location: []*Location{testL[0], testL[1], testL[2], testL[1], testL[1]},
+ 			Label: map[string][]string{
+-				"key1": []string{"value1"},
+-				"key2": []string{"value2"},
++				"key1": {"value1"},
++				"key2": {"value2"},
+ 			},
+ 			Value: []int64{10, 20},
+ 		},
+@@ -109,12 +109,12 @@ var all = &Profile{
+ 			Location: []*Location{testL[1], testL[2], testL[0], testL[1]},
+ 			Value:    []int64{30, 40},
+ 			Label: map[string][]string{
+-				"key1": []string{"value1"},
+-				"key2": []string{"value2"},
++				"key1": {"value1"},
++				"key2": {"value2"},
+ 			},
+ 			NumLabel: map[string][]int64{
+-				"key1": []int64{1, 2},
+-				"key2": []int64{3, 4},
++				"key1": {1, 2},
++				"key2": {3, 4},
+ 			},
+ 		},
+ 	},
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/prune.go b/src/cmd/vendor/github.com/google/pprof/profile/prune.go
+index cf9cbb3894..02d21a8184 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/prune.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/prune.go
+@@ -22,6 +22,39 @@ import (
+ 	"strings"
+ )
+ 
++var (
++	reservedNames = []string{"(anonymous namespace)", "operator()"}
++	bracketRx     = func() *regexp.Regexp {
++		var quotedNames []string
++		for _, name := range append(reservedNames, "(") {
++			quotedNames = append(quotedNames, regexp.QuoteMeta(name))
++		}
++		return regexp.MustCompile(strings.Join(quotedNames, "|"))
++	}()
++)
++
++// simplifyFunc does some primitive simplification of function names.
++func simplifyFunc(f string) string {
++	// Account for leading '.' on the PPC ELF v1 ABI.
++	funcName := strings.TrimPrefix(f, ".")
++	// Account for unsimplified names -- try  to remove the argument list by trimming
++	// starting from the first '(', but skipping reserved names that have '('.
++	for _, ind := range bracketRx.FindAllStringSubmatchIndex(funcName, -1) {
++		foundReserved := false
++		for _, res := range reservedNames {
++			if funcName[ind[0]:ind[1]] == res {
++				foundReserved = true
++				break
++			}
++		}
++		if !foundReserved {
++			funcName = funcName[:ind[0]]
++			break
++		}
++	}
++	return funcName
++}
++
+ // Prune removes all nodes beneath a node matching dropRx, and not
+ // matching keepRx. If the root node of a Sample matches, the sample
+ // will have an empty stack.
+@@ -33,12 +66,7 @@ func (p *Profile) Prune(dropRx, keepRx *regexp.Regexp) {
+ 		var i int
+ 		for i = len(loc.Line) - 1; i >= 0; i-- {
+ 			if fn := loc.Line[i].Function; fn != nil && fn.Name != "" {
+-				// Account for leading '.' on the PPC ELF v1 ABI.
+-				funcName := strings.TrimPrefix(fn.Name, ".")
+-				// Account for unsimplified names -- trim starting from the first '('.
+-				if index := strings.Index(funcName, "("); index > 0 {
+-					funcName = funcName[:index]
+-				}
++				funcName := simplifyFunc(fn.Name)
+ 				if dropRx.MatchString(funcName) {
+ 					if keepRx == nil || !keepRx.MatchString(funcName) {
+ 						break
+@@ -126,12 +154,7 @@ func (p *Profile) PruneFrom(dropRx *regexp.Regexp) {
+ 	for _, loc := range p.Location {
+ 		for i := 0; i < len(loc.Line); i++ {
+ 			if fn := loc.Line[i].Function; fn != nil && fn.Name != "" {
+-				// Account for leading '.' on the PPC ELF v1 ABI.
+-				funcName := strings.TrimPrefix(fn.Name, ".")
+-				// Account for unsimplified names -- trim starting from the first '('.
+-				if index := strings.Index(funcName, "("); index > 0 {
+-					funcName = funcName[:index]
+-				}
++				funcName := simplifyFunc(fn.Name)
+ 				if dropRx.MatchString(funcName) {
+ 					// Found matching entry to prune.
+ 					pruneBeneath[loc.ID] = true
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/prune_test.go b/src/cmd/vendor/github.com/google/pprof/profile/prune_test.go
+index 58fa25ee2d..75d7c6d4f7 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/prune_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/prune_test.go
+@@ -25,6 +25,7 @@ func TestPrune(t *testing.T) {
+ 		want string
+ 	}{
+ 		{in1, out1},
++		{in2, out2},
+ 	} {
+ 		in := test.in.Copy()
+ 		in.RemoveUninteresting()
+@@ -50,6 +51,10 @@ var funs = []*Function{
+ 	{ID: 4, Name: "fun3", SystemName: "fun3", Filename: "fun.c"},
+ 	{ID: 5, Name: "fun4", SystemName: "fun4", Filename: "fun.c"},
+ 	{ID: 6, Name: "fun5", SystemName: "fun5", Filename: "fun.c"},
++	{ID: 7, Name: "unsimplified_fun(int)", SystemName: "unsimplified_fun(int)", Filename: "fun.c"},
++	{ID: 8, Name: "Foo::(anonymous namespace)::Test::Bar", SystemName: "Foo::(anonymous namespace)::Test::Bar", Filename: "fun.c"},
++	{ID: 9, Name: "Hello::(anonymous namespace)::World(const Foo::(anonymous namespace)::Test::Bar)", SystemName: "Hello::(anonymous namespace)::World(const Foo::(anonymous namespace)::Test::Bar)", Filename: "fun.c"},
++	{ID: 10, Name: "Foo::operator()(::Bar)", SystemName: "Foo::operator()(::Bar)", Filename: "fun.c"},
+ }
+ 
+ var locs1 = []*Location{
+@@ -137,3 +142,89 @@ Locations
+      4: 0x0 fun5 fun.c:2 s=0
+ Mappings
+ `
++
++var locs2 = []*Location{
++	{
++		ID: 1,
++		Line: []Line{
++			{Function: funs[0], Line: 1},
++		},
++	},
++	{
++		ID: 2,
++		Line: []Line{
++			{Function: funs[6], Line: 1},
++		},
++	},
++	{
++		ID: 3,
++		Line: []Line{
++			{Function: funs[7], Line: 1},
++		},
++	},
++	{
++		ID: 4,
++		Line: []Line{
++			{Function: funs[8], Line: 1},
++		},
++	},
++	{
++		ID: 5,
++		Line: []Line{
++			{Function: funs[9], Line: 1},
++		},
++	},
++}
++
++var in2 = &Profile{
++	PeriodType:    &ValueType{Type: "cpu", Unit: "milliseconds"},
++	Period:        1,
++	DurationNanos: 10e9,
++	SampleType: []*ValueType{
++		{Type: "samples", Unit: "count"},
++		{Type: "cpu", Unit: "milliseconds"},
++	},
++	Sample: []*Sample{
++		// Unsimplified name with parameters shouldn't match.
++		{
++			Location: []*Location{locs2[1], locs2[0]},
++			Value:    []int64{1, 1},
++		},
++		// .*Foo::.*::Bar.* should (and will be dropped) regardless of the anonymous namespace.
++		{
++			Location: []*Location{locs2[2], locs2[0]},
++			Value:    []int64{1, 1},
++		},
++		// .*Foo::.*::Bar.* shouldn't match inside the parameter list.
++		{
++			Location: []*Location{locs2[3], locs2[0]},
++			Value:    []int64{1, 1},
++		},
++		// .*operator\(\) should match, regardless of parameters.
++		{
++			Location: []*Location{locs2[4], locs2[0]},
++			Value:    []int64{1, 1},
++		},
++	},
++	Location:   locs2,
++	Function:   funs,
++	DropFrames: `unsimplified_fun\(int\)|.*Foo::.*::Bar.*|.*operator\(\)`,
++}
++
++const out2 = `PeriodType: cpu milliseconds
++Period: 1
++Duration: 10s
++Samples:
++samples/count cpu/milliseconds
++          1          1: 2 1
++          1          1: 1
++          1          1: 4 1
++          1          1: 1
++Locations
++     1: 0x0 main main.c:1 s=0
++     2: 0x0 unsimplified_fun(int) fun.c:1 s=0
++     3: 0x0 Foo::(anonymous namespace)::Test::Bar fun.c:1 s=0
++     4: 0x0 Hello::(anonymous namespace)::World(const Foo::(anonymous namespace)::Test::Bar) fun.c:1 s=0
++     5: 0x0 Foo::operator()(::Bar) fun.c:1 s=0
++Mappings
++`
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 6e8171df89..726a303436 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -9,8 +9,8 @@
+ 		{
+ 			"canonical": "github.com/google/pprof",
+ 			"local": "github.com/google/pprof",
+-			"revision": "dec22b42d9eee442222c36c8da24ddc9905e7ee6",
+-			"revisionTime": "2017-03-01T19:58:13Z",
++			"revision": "fffc5831a499a958516664a34cb7ba2b9e228793",
++			"revisionTime": "2017-05-27T06:02:07Z",
+ 		},
+ 		{
+ 			"canonical": "golang.org/x/arch/x86/x86asm",

@@ -17,9 +17,261 @@ Date:   Sat Sep 23 16:03:43 2017 -0400
     Change-Id: I75d5a0e5f5dc3dae335721fbec1bbcd4a3b862f2
     Reviewed-on: https://go-review.googlesource.com/65730
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/arm64/a.out.go   |  4 +--
  src/cmd/internal/obj/arm64/anames7.go |  2 --
  src/cmd/internal/obj/arm64/asm7.go    | 63 +++++++++++++----------------------
  test/fixedbugs/issue19137.go          | 16 +++++++++
  4 files changed, 41 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 9f225b6f5d..c4bd8ff39e 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -293,8 +293,7 @@ const (
+ 	C_NSAUTO     // -256 <= x < 0
+ 	C_PSAUTO_8   // 0 to 255, 0 mod 8
+ 	C_PSAUTO     // 0 to 255
+-	C_PPAUTO_8   // 0 to 504, 0 mod 8
+-	C_PPAUTO     // 0 to 504
++	C_PPAUTO     // 0 to 504, 0 mod 8
+ 	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
+ 	C_UAUTO4K_4  // 0 to 4095, 0 mod 4
+ 	C_UAUTO4K_2  // 0 to 4095, 0 mod 2
+@@ -319,7 +318,6 @@ const (
+ 	C_NSOREG
+ 	C_PSOREG_8
+ 	C_PSOREG
+-	C_PPOREG_8
+ 	C_PPOREG
+ 	C_UOREG4K_8
+ 	C_UOREG4K_4
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index 6ad9d58132..a9cccc19f6 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -37,7 +37,6 @@ var cnames7 = []string{
+ 	"NSAUTO",
+ 	"PSAUTO_8",
+ 	"PSAUTO",
+-	"PPAUTO_8",
+ 	"PPAUTO",
+ 	"UAUTO4K_8",
+ 	"UAUTO4K_4",
+@@ -61,7 +60,6 @@ var cnames7 = []string{
+ 	"NSOREG",
+ 	"PSOREG_8",
+ 	"PSOREG",
+-	"PPOREG_8",
+ 	"PPOREG",
+ 	"UOREG4K_8",
+ 	"UOREG4K_4",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 10f0303785..b5bc858d7e 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -432,9 +432,9 @@ var optab = []Optab{
+ 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+ 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+ 	{ALDP, C_NPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+-	{ALDP, C_PPAUTO_8, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{ALDP, C_PPAUTO_8, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{ALDP, C_PPAUTO_8, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
++	{ALDP, C_PPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
++	{ALDP, C_PPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
++	{ALDP, C_PPAUTO, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{ALDP, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{ALDP, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPRE},
+ 	{ALDP, C_UAUTO4K, C_NONE, C_PAIR, 74, 8, REGSP, 0, C_XPOST},
+@@ -444,9 +444,9 @@ var optab = []Optab{
+ 	{ALDP, C_NPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
+ 	{ALDP, C_NPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
+ 	{ALDP, C_NPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
+-	{ALDP, C_PPOREG_8, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
+-	{ALDP, C_PPOREG_8, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
+-	{ALDP, C_PPOREG_8, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
++	{ALDP, C_PPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, 0},
++	{ALDP, C_PPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPRE},
++	{ALDP, C_PPOREG, C_NONE, C_PAIR, 66, 4, 0, 0, C_XPOST},
+ 	{ALDP, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, 0},
+ 	{ALDP, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, C_XPRE},
+ 	{ALDP, C_UOREG4K, C_NONE, C_PAIR, 74, 8, 0, 0, C_XPOST},
+@@ -457,9 +457,9 @@ var optab = []Optab{
+ 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPRE},
+ 	{ASTP, C_PAIR, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPOST},
+-	{ASTP, C_PAIR, C_NONE, C_PPAUTO_8, 67, 4, REGSP, 0, 0},
+-	{ASTP, C_PAIR, C_NONE, C_PPAUTO_8, 67, 4, REGSP, 0, C_XPRE},
+-	{ASTP, C_PAIR, C_NONE, C_PPAUTO_8, 67, 4, REGSP, 0, C_XPOST},
++	{ASTP, C_PAIR, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, 0},
++	{ASTP, C_PAIR, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPRE},
++	{ASTP, C_PAIR, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPOST},
+ 	{ASTP, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, C_XPRE},
+ 	{ASTP, C_PAIR, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, C_XPOST},
+@@ -469,9 +469,9 @@ var optab = []Optab{
+ 	{ASTP, C_PAIR, C_NONE, C_NPOREG, 67, 4, 0, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_NPOREG, 67, 4, 0, 0, C_XPRE},
+ 	{ASTP, C_PAIR, C_NONE, C_NPOREG, 67, 4, 0, 0, C_XPOST},
+-	{ASTP, C_PAIR, C_NONE, C_PPOREG_8, 67, 4, 0, 0, 0},
+-	{ASTP, C_PAIR, C_NONE, C_PPOREG_8, 67, 4, 0, 0, C_XPRE},
+-	{ASTP, C_PAIR, C_NONE, C_PPOREG_8, 67, 4, 0, 0, C_XPOST},
++	{ASTP, C_PAIR, C_NONE, C_PPOREG, 67, 4, 0, 0, 0},
++	{ASTP, C_PAIR, C_NONE, C_PPOREG, 67, 4, 0, 0, C_XPRE},
++	{ASTP, C_PAIR, C_NONE, C_PPOREG, 67, 4, 0, 0, C_XPOST},
+ 	{ASTP, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, C_XPRE},
+ 	{ASTP, C_PAIR, C_NONE, C_UOREG4K, 76, 8, 0, 0, C_XPOST},
+@@ -808,7 +808,6 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 	case C_PSAUTO,
+ 		C_PSAUTO_8,
+ 		C_PPAUTO,
+-		C_PPAUTO_8,
+ 		C_UAUTO4K_8,
+ 		C_UAUTO4K_4,
+ 		C_UAUTO4K_2,
+@@ -823,7 +822,6 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 		C_NPAUTO,
+ 		C_LAUTO,
+ 		C_PPOREG,
+-		C_PPOREG_8,
+ 		C_PSOREG,
+ 		C_PSOREG_8,
+ 		C_UOREG4K_8,
+@@ -1051,10 +1049,7 @@ func autoclass(l int64) int {
+ 		}
+ 		return C_PSAUTO
+ 	}
+-	if l <= 504 {
+-		if (l & 7) == 0 {
+-			return C_PPAUTO_8
+-		}
++	if l <= 504 && l&7 == 0 {
+ 		return C_PPAUTO
+ 	}
+ 	if l <= 4095 {
+@@ -1457,36 +1452,31 @@ func cmp(a int, b int) bool {
+ 		}
+ 
+ 	case C_PPAUTO:
+-		if b == C_PSAUTO || b == C_PSAUTO_8 {
+-			return true
+-		}
+-
+-	case C_PPAUTO_8:
+ 		if b == C_PSAUTO_8 {
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO4K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
++		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO8K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
++		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO16K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
++		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO32K:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
++		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
+ 			return true
+ 		}
+ 
+@@ -1495,7 +1485,7 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_LAUTO:
+ 		switch b {
+-		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO, C_PPAUTO_8,
++		case C_PSAUTO, C_PSAUTO_8, C_PPAUTO,
+ 			C_UAUTO4K, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8,
+ 			C_UAUTO8K, C_UAUTO8K_4, C_UAUTO8K_8,
+ 			C_UAUTO16K, C_UAUTO16K_8,
+@@ -1511,36 +1501,31 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_PPOREG:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG, C_PSOREG_8, C_PPOREG_8:
+-			return true
+-		}
+-
+-	case C_PPOREG_8:
+-		if b == C_ZOREG || b == C_PSOREG_8 {
++		case C_ZOREG, C_PSOREG_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG4K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
++		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG8K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
++		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG16K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
++		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG32K:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
++		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
+ 			return true
+ 		}
+ 
+@@ -1549,7 +1534,7 @@ func cmp(a int, b int) bool {
+ 
+ 	case C_LOREG:
+ 		switch b {
+-		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG_8, C_PPOREG,
++		case C_ZOREG, C_PSOREG_8, C_PSOREG, C_PPOREG,
+ 			C_UOREG4K, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8,
+ 			C_UOREG8K, C_UOREG8K_4, C_UOREG8K_8,
+ 			C_UOREG16K, C_UOREG16K_8,
+diff --git a/test/fixedbugs/issue19137.go b/test/fixedbugs/issue19137.go
+index 946f029be1..0539a850ca 100644
+--- a/test/fixedbugs/issue19137.go
++++ b/test/fixedbugs/issue19137.go
+@@ -33,3 +33,19 @@ func zero() ([20]byte, [20]byte) {
+ 	_ = x
+ 	return [20]byte{}, [20]byte{} // the second return value is not 8-byte aligned to SP
+ }
++
++// Issue 21992: unaligned offset between 256 and 504 and handled
++// incorrectly.
++type T2 struct {
++	a [257]byte
++	// fields below are not 8-, 4-, 2-byte aligned
++	b [8]byte
++	c [4]byte
++	d [2]byte
++}
++
++func f2(x *T2) {
++	x.b = [8]byte{}
++	x.c = [4]byte{}
++	x.d = [2]byte{}
++}

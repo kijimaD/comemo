@@ -9,7 +9,7 @@ Date:   Tue Dec 12 20:40:33 2023 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go   |  2 +-
  src/cmd/link/internal/ld/decodesym.go  |  2 +-
  src/cmd/link/internal/ld/dwarf.go      |  2 +-
@@ -20,3 +20,267 @@ Date:   Tue Dec 12 20:40:33 2023 -0800
  src/runtime/iface.go                   | 40 +++++++++++++++++-----------------
  src/runtime/runtime2.go                | 12 +---------
  9 files changed, 50 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 70b4a7ca30..de4395d5df 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -201,7 +201,7 @@ func (d *deadcodePass) flood() {
+ 				rs := r.Sym()
+ 				if d.ldr.IsItab(rs) {
+ 					// This relocation can also point at an itab, in which case it
+-					// means "the _type field of that itab".
++					// means "the Type field of that itab".
+ 					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
+ 				}
+ 				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 05da11ec1e..b66f227549 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -301,7 +301,7 @@ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+ 	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+ }
+ 
+-// decodeItabType returns the itab._type field from an itab.
++// decodeItabType returns the itab.Type field from an itab.
+ func decodeItabType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+ 	relocs := ldr.Relocs(symIdx)
+ 	return decodeRelocSym(ldr, symIdx, &relocs, int32(arch.PtrSize))
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index f3296e1728..e2bb3f45f9 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1786,7 +1786,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 		"type:internal/abi.SliceType",
+ 		"type:internal/abi.StructType",
+ 		"type:internal/abi.InterfaceType",
+-		"type:runtime.itab",
++		"type:internal/abi.ITab",
+ 		"type:internal/abi.Imethod"} {
+ 		d.defgotype(d.lookupOrDiag(typ))
+ 	}
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 9c581953d5..8cea573999 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -65,7 +65,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
+ 		"internal/abi.SliceType":     true,
+ 		"internal/abi.StructType":    true,
+ 		"internal/abi.InterfaceType": true,
+-		"runtime.itab":               true,
++		"internal/abi.ITab":          true,
+ 	}
+ 
+ 	found := findTypes(t, dwarf, want)
+diff --git a/src/internal/abi/iface.go b/src/internal/abi/iface.go
+new file mode 100644
+index 0000000000..01235f64e6
+--- /dev/null
++++ b/src/internal/abi/iface.go
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++// The first word of every non-empty interface type contains an *ITab.
++// It records the underlying concrete type (Type), the interface type it
++// is implementing (Inter), and some ancillary information.
++//
++// layout of ITab known to compilers
++// allocated in non-garbage-collected memory
++// Needs to be in sync with
++// cmd/compile/internal/reflectdata/reflect.go:/^func.WritePluginTable.
++type ITab struct {
++	Inter *InterfaceType
++	Type  *Type
++	Hash  uint32 // copy of Type.Hash. Used for type switches.
++	_     [4]byte
++	Fun   [1]uintptr // variable sized. fun[0]==0 means Type does not implement Inter.
++}
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index eaf9c91490..93b14accb4 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -100,7 +100,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
+ 	if tab == nil {
+ 		return h
+ 	}
+-	t := tab._type
++	t := tab.Type
+ 	if t.Equal == nil {
+ 		// Check hashability here. We could do this check inside
+ 		// typehash, but we want to report the topmost type in
+@@ -223,7 +223,7 @@ func mapKeyError2(t *_type, p unsafe.Pointer) error {
+ 			if a.tab == nil {
+ 				return nil
+ 			}
+-			t = a.tab._type
++			t = a.tab.Type
+ 			pdata = &a.data
+ 		}
+ 
+@@ -329,7 +329,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
+ 	if tab == nil {
+ 		return true
+ 	}
+-	t := tab._type
++	t := tab.Type
+ 	eq := t.Equal
+ 	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + toRType(t).string()))
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 276c5bfaf6..cca6172960 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -540,7 +540,7 @@ func dumpparams() {
+ }
+ 
+ func itab_callback(tab *itab) {
+-	t := tab._type
++	t := tab.Type
+ 	dumptype(t)
+ 	dumpint(tagItab)
+ 	dumpint(uint64(uintptr(unsafe.Pointer(tab))))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index bad49a346e..4caf717685 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -66,19 +66,19 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 
+ 	// Entry doesn't exist yet. Make a new entry & add it.
+ 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.Methods)-1)*goarch.PtrSize, 0, &memstats.other_sys))
+-	m.inter = inter
+-	m._type = typ
++	m.Inter = inter
++	m.Type = typ
+ 	// The hash is used in type switches. However, compiler statically generates itab's
+ 	// for all interface/type pairs used in switches (which are added to itabTable
+ 	// in itabsinit). The dynamically-generated itab's never participate in type switches,
+ 	// and thus the hash is irrelevant.
+-	// Note: m.hash is _not_ the hash used for the runtime itabTable hash table.
+-	m.hash = 0
+-	m.init()
++	// Note: m.Hash is _not_ the hash used for the runtime itabTable hash table.
++	m.Hash = 0
++	itabInit(m)
+ 	itabAdd(m)
+ 	unlock(&itabLock)
+ finish:
+-	if m.fun[0] != 0 {
++	if m.Fun[0] != 0 {
+ 		return m
+ 	}
+ 	if canfail {
+@@ -90,7 +90,7 @@ finish:
+ 	// The cached result doesn't record which
+ 	// interface function was missing, so initialize
+ 	// the itab again to get the missing function name.
+-	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: m.init()})
++	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: itabInit(m)})
+ }
+ 
+ // find finds the given interface/type pair in t.
+@@ -110,7 +110,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
+ 		if m == nil {
+ 			return nil
+ 		}
+-		if m.inter == inter && m._type == typ {
++		if m.Inter == inter && m.Type == typ {
+ 			return m
+ 		}
+ 		h += i
+@@ -161,7 +161,7 @@ func (t *itabTableType) add(m *itab) {
+ 	// See comment in find about the probe sequence.
+ 	// Insert new itab in the first empty spot in the probe sequence.
+ 	mask := t.size - 1
+-	h := itabHashFunc(m.inter, m._type) & mask
++	h := itabHashFunc(m.Inter, m.Type) & mask
+ 	for i := uintptr(1); ; i++ {
+ 		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
+ 		m2 := *p
+@@ -186,13 +186,13 @@ func (t *itabTableType) add(m *itab) {
+ 	}
+ }
+ 
+-// init fills in the m.fun array with all the code pointers for
+-// the m.inter/m._type pair. If the type does not implement the interface,
+-// it sets m.fun[0] to 0 and returns the name of an interface function that is missing.
++// init fills in the m.Fun array with all the code pointers for
++// the m.Inter/m.Type pair. If the type does not implement the interface,
++// it sets m.Fun[0] to 0 and returns the name of an interface function that is missing.
+ // It is ok to call this multiple times on the same m, even concurrently.
+-func (m *itab) init() string {
+-	inter := m.inter
+-	typ := m._type
++func itabInit(m *itab) string {
++	inter := m.Inter
++	typ := m.Type
+ 	x := typ.Uncommon()
+ 
+ 	// both inter and typ have method sorted by name,
+@@ -203,7 +203,7 @@ func (m *itab) init() string {
+ 	nt := int(x.Mcount)
+ 	xmhdr := (*[1 << 16]abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff)))[:nt:nt]
+ 	j := 0
+-	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
++	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.Fun[0]))[:ni:ni]
+ 	var fun0 unsafe.Pointer
+ imethods:
+ 	for k := 0; k < ni; k++ {
+@@ -227,7 +227,7 @@ imethods:
+ 				if tname.IsExported() || pkgPath == ipkg {
+ 					ifn := rtyp.textOff(t.Ifn)
+ 					if k == 0 {
+-						fun0 = ifn // we'll set m.fun[0] at the end
++						fun0 = ifn // we'll set m.Fun[0] at the end
+ 					} else {
+ 						methods[k] = ifn
+ 					}
+@@ -236,10 +236,10 @@ imethods:
+ 			}
+ 		}
+ 		// didn't find method
+-		m.fun[0] = 0
++		m.Fun[0] = 0
+ 		return iname
+ 	}
+-	m.fun[0] = uintptr(fun0)
++	m.Fun[0] = uintptr(fun0)
+ 	return ""
+ }
+ 
+@@ -267,7 +267,7 @@ func panicdottypeE(have, want, iface *_type) {
+ func panicdottypeI(have *itab, want, iface *_type) {
+ 	var t *_type
+ 	if have != nil {
+-		t = have._type
++		t = have.Type
+ 	}
+ 	panicdottypeE(t, want, iface)
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 63320d4a8a..248f489da5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -990,17 +990,7 @@ type funcinl struct {
+ 	startLine int32
+ }
+ 
+-// layout of Itab known to compilers
+-// allocated in non-garbage-collected memory
+-// Needs to be in sync with
+-// ../cmd/compile/internal/reflectdata/reflect.go:/^func.WritePluginTable.
+-type itab struct {
+-	inter *interfacetype
+-	_type *_type
+-	hash  uint32 // copy of _type.hash. Used for type switches.
+-	_     [4]byte
+-	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
+-}
++type itab = abi.ITab
+ 
+ // Lock-free stack node.
+ // Also known to export_test.go.

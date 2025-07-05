@@ -13,10 +13,156 @@ Date:   Wed Aug 7 11:58:59 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12397043
-
+---
  src/pkg/net/http/client.go      | 25 +++++++++++++------------
  src/pkg/net/http/client_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/pkg/net/http/request.go     |  4 +---
  src/pkg/net/http/transport.go   |  5 +++--
  src/pkg/net/url/url.go          |  4 ++--
  5 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 331e8ad90e..22f2e865cf 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -161,18 +161,9 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
+ 	}
+ 
+ 	if u := req.URL.User; u != nil {
+-		auth := u.String()
+-		// UserInfo.String() only returns the colon when the
+-		// password is set, so we must add it here.
+-		//
+-		// See 2 (end of page 4) http://www.ietf.org/rfc/rfc2617.txt
+-		// "To receive authorization, the client sends the userid and password,
+-		// separated by a single colon (":") character, within a base64
+-		// encoded string in the credentials."
+-		if _, hasPassword := u.Password(); !hasPassword {
+-			auth += ":"
+-		}
+-		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(auth)))
++		username := u.Username()
++		password, _ := u.Password()
++		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+ 	}
+ 	resp, err = t.RoundTrip(req)
+ 	if err != nil {
+@@ -184,6 +175,16 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
+ 	return resp, nil
+ }
+ 
++// See 2 (end of page 4) http://www.ietf.org/rfc/rfc2617.txt
++// "To receive authorization, the client sends the userid and password,
++// separated by a single colon (":") character, within a base64
++// encoded string in the credentials."
++// It is not meant to be urlencoded.
++func basicAuth(username, password string) string {
++	auth := username + ":" + password
++	return base64.StdEncoding.EncodeToString([]byte(auth))
++}
++
+ // True if the specified HTTP status code is one for which the Get utility should
+ // automatically redirect.
+ func shouldRedirectGet(statusCode int) bool {
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 69fa168dd4..997d04151c 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -765,3 +765,37 @@ func TestEmptyPasswordAuth(t *testing.T) {
+ 	}
+ 	defer resp.Body.Close()
+ }
++
++func TestBasicAuth(t *testing.T) {
++	defer afterTest(t)
++	tr := &recordingTransport{}
++	client := &Client{Transport: tr}
++
++	url := "http://My%20User:My%20Pass@dummy.faketld/"
++	expected := "My User:My Pass"
++	client.Get(url)
++
++	if tr.req.Method != "GET" {
++		t.Errorf("got method %q, want %q", tr.req.Method, "GET")
++	}
++	if tr.req.URL.String() != url {
++		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
++	}
++	if tr.req.Header == nil {
++		t.Fatalf("expected non-nil request Header")
++	}
++	auth := tr.req.Header.Get("Authorization")
++	if strings.HasPrefix(auth, "Basic ") {
++		encoded := auth[6:]
++		decoded, err := base64.StdEncoding.DecodeString(encoded)
++		if err != nil {
++			t.Fatal(err)
++		}
++		s := string(decoded)
++		if expected != s {
++			t.Errorf("Invalid Authorization header. Got %q, wanted %q", s, expected)
++		}
++	} else {
++		t.Errorf("Invalid auth %q", auth)
++	}
++}
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 90e56225dd..603299df55 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -10,7 +10,6 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"crypto/tls"
+-	"encoding/base64"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -467,8 +466,7 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ // With HTTP Basic Authentication the provided username and password
+ // are not encrypted.
+ func (r *Request) SetBasicAuth(username, password string) {
+-	s := username + ":" + password
+-	r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(s)))
++	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+ }
+ 
+ // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 49a034b9b5..f6871afacd 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -13,7 +13,6 @@ import (
+ 	"bufio"
+ 	"compress/gzip"
+ 	"crypto/tls"
+-	"encoding/base64"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -273,7 +272,9 @@ func (cm *connectMethod) proxyAuth() string {
+ 		return ""
+ 	}
+ 	if u := cm.proxyURL.User; u != nil {
+-		return "Basic " + base64.URLEncoding.EncodeToString([]byte(u.String()))
++		username := u.Username()
++		password, _ := u.Password()
++		return "Basic " + basicAuth(username, password)
+ 	}
+ 	return ""
+ }
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 043fd48539..95432f4337 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -451,8 +451,8 @@ func (u *URL) String() string {
+ 	} else {
+ 		if u.Scheme != "" || u.Host != "" || u.User != nil {
+ 			buf.WriteString("//")
+-			if u := u.User; u != nil {
+-				buf.WriteString(u.String())
++			if ui := u.User; ui != nil {
++				buf.WriteString(ui.String())
+ 				buf.WriteByte('@')
+ 			}
+ 			if h := u.Host; h != "" {

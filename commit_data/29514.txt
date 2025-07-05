@@ -16,7 +16,7 @@ Date:   Sat Sep 17 09:39:33 2016 -0400
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go  |  32 +++---
  src/cmd/link/internal/arm/asm.go    |  42 ++++----
  src/cmd/link/internal/arm64/asm.go  |  28 ++---
@@ -39,3 +39,2914 @@ Date:   Sat Sep 17 09:39:33 2016 -0400
  src/cmd/link/internal/s390x/asm.go  |  41 ++++----
  src/cmd/link/internal/x86/asm.go    |  30 +++---
  21 files changed, 410 insertions(+), 404 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index ea31d6a739..104d37e4cb 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -103,17 +103,17 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ctxt.Diag("unexpected relocation type %d", r.Type)
++			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+ 	case 256 + ld.R_X86_64_PC32:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		if targ.Type == 0 || targ.Type == obj.SXREF {
+-			ctxt.Diag("unknown symbol %s in pcrel", targ.Name)
++			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+ 		}
+ 		r.Type = obj.R_PCREL
+ 		r.Add += 4
+@@ -155,7 +155,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 	case 256 + ld.R_X86_64_64:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = obj.R_ADDR
+ 		return true
+@@ -168,7 +168,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Type = obj.R_ADDR
+ 
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected reloc for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
+ 		}
+ 		return true
+ 
+@@ -191,7 +191,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Type = obj.R_PCREL
+ 
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected pc-relative reloc for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected pc-relative reloc for dynamic symbol %s", targ.Name)
+ 		}
+ 		return true
+ 
+@@ -200,7 +200,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// have symbol
+ 			// turn MOVQ of GOT entry into LEAQ of symbol itself
+ 			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
+-				ctxt.Diag("unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ.Name)
++				ld.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ.Name)
+ 				return false
+ 			}
+ 
+@@ -213,7 +213,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		// fall through
+ 	case 512 + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
+ 		if targ.Type != obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+ 		}
+ 		addgotsym(ctxt, targ)
+ 		r.Type = obj.R_PCREL
+@@ -421,14 +421,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	return 0
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_PCREL {
+ 		if rs.Dynid < 0 {
+-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -437,7 +437,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+@@ -481,13 +481,13 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	return 0
+ }
+ 
+-func pereloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
++func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Dynid < 0 {
+-		ctxt.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
++		ld.Errorf(s, "reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 		return false
+ 	}
+ 
+@@ -615,7 +615,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		ld.Adduint8(ctxt, plt, 0x25)
+ 		ld.Addpcrelplus(ctxt, plt, ld.Linklookup(ctxt, ".got", 0), int64(s.Got))
+ 	} else {
+-		ctxt.Diag("addpltsym: unsupported binary format")
++		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -637,7 +637,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	} else if ld.Headtype == obj.Hdarwin {
+ 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
+ 	} else {
+-		ctxt.Diag("addgotsym: unsupported binary format")
++		ld.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -695,7 +695,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	switch ld.Headtype {
+ 	default:
+-		ctxt.Diag("unknown header type %d", ld.Headtype)
++		ld.Errorf(nil, "unknown header type %v", ld.Headtype)
+ 		fallthrough
+ 
+ 	case obj.Hplan9:
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index e246d0f71a..6aa24932b4 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -119,7 +119,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ctxt.Diag("unexpected relocation type %d", r.Type)
++			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+ 			return false
+ 		}
+ 
+@@ -193,7 +193,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 	case 256 + ld.R_ARM_ABS32:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = obj.R_ADDR
+ 		return true
+@@ -327,14 +327,14 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if r.Type == obj.R_PCREL {
+ 		if rs.Type == obj.SHOSTOBJ {
+-			ctxt.Diag("pc-relative relocation of external symbol is not supported")
++			ld.Errorf(s, "pc-relative relocation of external symbol is not supported")
+ 			return -1
+ 		}
+ 		if r.Siz != 4 {
+@@ -356,15 +356,15 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 		o2 |= 2 << 28 // size = 4
+ 
+ 		ld.Thearch.Lput(o1)
+-		ld.Thearch.Lput(uint32(ld.Symaddr(ctxt, rs)))
++		ld.Thearch.Lput(uint32(ld.Symaddr(rs)))
+ 		ld.Thearch.Lput(o2)
+-		ld.Thearch.Lput(uint32(ctxt.Cursym.Value + int64(r.Off)))
++		ld.Thearch.Lput(uint32(s.Value + int64(r.Off)))
+ 		return 0
+ 	}
+ 
+ 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM {
+ 		if rs.Dynid < 0 {
+-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -373,7 +373,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+@@ -427,12 +427,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			}
+ 			r.Xadd *= 4
+ 			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
++				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+ 				rs = rs.Outer
+ 			}
+ 
+ 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+-				ctxt.Diag("missing section for %s", rs.Name)
++				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+ 
+@@ -442,7 +442,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			// we need to compensate that by removing the instruction's address
+ 			// from addend.
+ 			if ld.Headtype == obj.Hdarwin {
+-				r.Xadd -= ld.Symaddr(ctxt, s) + int64(r.Off)
++				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
+ 			}
+ 
+ 			*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4))))
+@@ -458,30 +458,30 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+ 		return 0
+ 
+ 		// The following three arch specific relocations are only for generation of
+ 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
+ 	case obj.R_PLT0: // add ip, pc, #0xXX00000
+-		if ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got.plt", 0)) < ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0)) {
+-			ctxt.Diag(".got.plt should be placed after .plt section.")
++		if ld.Symaddr(ld.Linklookup(ctxt, ".got.plt", 0)) < ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0)) {
++			ld.Errorf(s, ".got.plt should be placed after .plt section.")
+ 		}
+-		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(ctxt, r.Sym)-(ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add)) >> 20))
++		*val = 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add)) >> 20))
+ 		return 0
+ 
+ 	case obj.R_PLT1: // add ip, ip, #0xYY000
+-		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(ctxt, r.Sym)-(ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
++		*val = 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+4)) >> 12))
+ 
+ 		return 0
+ 
+ 	case obj.R_PLT2: // ldr pc, [ip, #0xZZZ]!
+-		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(ctxt, r.Sym)-(ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+8)))
++		*val = 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(ld.Linklookup(ctxt, ".plt", 0))+int64(r.Off))+r.Add+8)))
+ 
+ 		return 0
+ 
+ 	case obj.R_CALLARM: // bl XXXXXX or b YYYYYY
+-		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32((ld.Symaddr(ctxt, r.Sym)+int64((uint32(r.Add))*4)-(s.Value+int64(r.Off)))/4))))
++		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32((ld.Symaddr(r.Sym)+int64((uint32(r.Add))*4)-(s.Value+int64(r.Off)))/4))))
+ 
+ 		return 0
+ 	}
+@@ -544,7 +544,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 
+ 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_JUMP_SLOT))
+ 	} else {
+-		ctxt.Diag("addpltsym: unsupported binary format")
++		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -560,7 +560,7 @@ func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
+ 
+ 	if ld.Iself {
+ 	} else {
+-		ctxt.Diag("addgotsyminternal: unsupported binary format")
++		ld.Errorf(s, "addgotsyminternal: unsupported binary format")
+ 	}
+ }
+ 
+@@ -579,7 +579,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
+ 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_ARM_GLOB_DAT))
+ 	} else {
+-		ctxt.Diag("addgotsym: unsupported binary format")
++		ld.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 17f8a7354e..8b22eaebb1 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -148,7 +148,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+@@ -158,7 +158,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	// UNSIGNED relocation at all.
+ 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM64 || r.Type == obj.R_ADDRARM64 || r.Type == obj.R_ADDR {
+ 		if rs.Dynid < 0 {
+-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -167,7 +167,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+@@ -181,7 +181,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 
+ 	case obj.R_CALLARM64:
+ 		if r.Xadd != 0 {
+-			ctxt.Diag("ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
++			ld.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
+ 		}
+ 
+ 		v |= 1 << 24 // pc-relative bit
+@@ -252,7 +252,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			// add + R_ADDRARM64.
+ 			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ctxt.DynlinkingGo() {
+ 				if o2&0xffc00000 != 0xf9400000 {
+-					ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
++					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+ 				}
+ 				o2 = 0x91000000 | (o2 & 0x000003ff)
+ 				r.Type = obj.R_ADDRARM64
+@@ -271,12 +271,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			rs := r.Sym
+ 			r.Xadd = r.Add
+ 			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
++				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+ 				rs = rs.Outer
+ 			}
+ 
+ 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+-				ctxt.Diag("missing section for %s", rs.Name)
++				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+ 
+@@ -330,13 +330,13 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+ 		return 0
+ 
+ 	case obj.R_ADDRARM64:
+-		t := ld.Symaddr(ctxt, r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
++		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
+ 		if t >= 1<<32 || t < -1<<32 {
+-			ctxt.Diag("program too large, address relocation distance = %d", t)
++			ld.Errorf(s, "program too large, address relocation distance = %d", t)
+ 		}
+ 
+ 		var o0, o1 uint32
+@@ -363,21 +363,21 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	case obj.R_ARM64_TLS_LE:
+ 		r.Done = 0
+ 		if ld.Headtype != obj.Hlinux {
+-			ctxt.Diag("TLS reloc on unsupported OS %s", ld.Headtype)
++			ld.Errorf(s, "TLS reloc on unsupported OS %v", ld.Headtype)
+ 		}
+ 		// The TCB is two pointers. This is not documented anywhere, but is
+ 		// de facto part of the ABI.
+ 		v := r.Sym.Value + int64(2*ld.SysArch.PtrSize)
+ 		if v < 0 || v >= 32678 {
+-			ctxt.Diag("TLS offset out of range %d", v)
++			ld.Errorf(s, "TLS offset out of range %d", v)
+ 		}
+ 		*val |= v << 5
+ 		return 0
+ 
+ 	case obj.R_CALLARM64:
+-		t := (ld.Symaddr(ctxt, r.Sym) + r.Add) - (s.Value + int64(r.Off))
++		t := (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
+ 		if t >= 1<<27 || t < -1<<27 {
+-			ctxt.Diag("program too large, call relocation distance = %d", t)
++			ld.Errorf(s, "program too large, call relocation distance = %d", t)
+ 		}
+ 		*val |= (t >> 2) & 0x03ffffff
+ 		return 0
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7ac0eb5b2e..52e2efbb8e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -330,7 +330,11 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		off = r.Off
+ 		siz = int32(r.Siz)
+ 		if off < 0 || off+siz > int32(len(s.P)) {
+-			ctxt.Diag("%s: invalid relocation %d+%d not in [%d,%d)", s.Name, off, siz, 0, len(s.P))
++			rname := ""
++			if r.Sym != nil {
++				rname = r.Sym.Name
++			}
++			Errorf(s, "invalid relocation %s: %d+%d not in [%d,%d)", rname, off, siz, 0, len(s.P))
+ 			continue
+ 		}
+ 
+@@ -346,7 +350,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 					continue
+ 				}
+ 			} else {
+-				ctxt.Diag("%s: not defined", r.Sym.Name)
++				Errorf(s, "relocation target %s not defined", r.Sym.Name)
+ 				continue
+ 			}
+ 		}
+@@ -362,11 +366,11 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		// shared libraries, and Solaris needs it always
+ 		if Headtype != obj.Hsolaris && r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT && !ctxt.DynlinkingGo() {
+ 			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
+-				ctxt.Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
++				Errorf(s, "unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
+ 			}
+ 		}
+ 		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Attr.Reachable() {
+-			ctxt.Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
++			Errorf(s, "unreachable sym in relocation: %s", r.Sym.Name)
+ 		}
+ 
+ 		// TODO(mundaym): remove this special case - see issue 14218.
+@@ -384,7 +388,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		default:
+ 			switch siz {
+ 			default:
+-				ctxt.Diag("bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
++				Errorf(s, "bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
+ 			case 1:
+ 				o = int64(s.P[off])
+ 			case 2:
+@@ -395,7 +399,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
+ 			}
+ 			if Thearch.Archreloc(ctxt, r, s, &o) < 0 {
+-				ctxt.Diag("unknown reloc %d", r.Type)
++				Errorf(s, "unknown reloc to %v: %v", r.Sym.Name, r.Type)
+ 			}
+ 
+ 		case obj.R_TLS_LE:
+@@ -472,12 +476,12 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 				r.Xadd = r.Add
+ 				for rs.Outer != nil {
+-					r.Xadd += Symaddr(ctxt, rs) - Symaddr(ctxt, rs.Outer)
++					r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
+ 					rs = rs.Outer
+ 				}
+ 
+ 				if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+-					ctxt.Diag("missing section for %s", rs.Name)
++					Errorf(s, "missing section for relocation target %s", rs.Name)
+ 				}
+ 				r.Xsym = rs
+ 
+@@ -494,22 +498,22 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 					// extern relocation by requiring rs->dynid >= 0.
+ 					if rs.Type != obj.SHOSTOBJ {
+ 						if SysArch.Family == sys.ARM64 && rs.Dynid < 0 {
+-							ctxt.Diag("R_ADDR reloc to %s+%d is not supported on darwin/arm64", rs.Name, o)
++							Errorf(s, "R_ADDR reloc to %s+%d is not supported on darwin/arm64", rs.Name, o)
+ 						}
+ 						if SysArch.Family != sys.ARM64 {
+-							o += Symaddr(ctxt, rs)
++							o += Symaddr(rs)
+ 						}
+ 					}
+ 				} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+ 					// nothing to do
+ 				} else {
+-					ctxt.Diag("unhandled pcrel relocation for %s", Headtype)
++					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
+ 				}
+ 
+ 				break
+ 			}
+ 
+-			o = Symaddr(ctxt, r.Sym) + r.Add
++			o = Symaddr(r.Sym) + r.Add
+ 
+ 			// On amd64, 4-byte offsets will be sign-extended, so it is impossible to
+ 			// access more than 2GB of static data; fail at link time is better than
+@@ -517,20 +521,20 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			// Instead of special casing only amd64, we treat this as an error on all
+ 			// 64-bit architectures so as to be future-proof.
+ 			if int32(o) < 0 && SysArch.PtrSize > 4 && siz == 4 {
+-				ctxt.Diag("non-pc-relative relocation address is too big: %#x (%#x + %#x)", uint64(o), Symaddr(ctxt, r.Sym), r.Add)
++				Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", r.Sym.Name, uint64(o), Symaddr(r.Sym), r.Add)
+ 				errorexit()
+ 			}
+ 
+ 		case obj.R_DWARFREF:
+ 			if r.Sym.Sect == nil {
+-				ctxt.Diag("missing DWARF section: %s from %s", r.Sym.Name, s.Name)
++				Errorf(s, "missing DWARF section for relocation target %s", r.Sym.Name)
+ 			}
+ 			if Linkmode == LinkExternal {
+ 				r.Done = 0
+ 				r.Type = obj.R_ADDR
+ 
+ 				r.Xsym = Linkrlookup(ctxt, r.Sym.Sect.Name, 0)
+-				r.Xadd = r.Add + Symaddr(ctxt, r.Sym) - int64(r.Sym.Sect.Vaddr)
++				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
+ 				o = r.Xadd
+ 				rs = r.Xsym
+ 				if Iself && SysArch.Family == sys.AMD64 {
+@@ -538,10 +542,10 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				}
+ 				break
+ 			}
+-			o = Symaddr(ctxt, r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
++			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
+ 
+ 		case obj.R_ADDROFF:
+-			o = Symaddr(ctxt, r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
++			o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
+ 
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+ 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
+@@ -553,13 +557,13 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 				r.Xadd = r.Add
+ 				for rs.Outer != nil {
+-					r.Xadd += Symaddr(ctxt, rs) - Symaddr(ctxt, rs.Outer)
++					r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
+ 					rs = rs.Outer
+ 				}
+ 
+ 				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
+ 				if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+-					ctxt.Diag("missing section for %s", rs.Name)
++					Errorf(s, "missing section for relocation target %s", rs.Name)
+ 				}
+ 				r.Xsym = rs
+ 
+@@ -571,12 +575,12 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				} else if Headtype == obj.Hdarwin {
+ 					if r.Type == obj.R_CALL {
+ 						if rs.Type != obj.SHOSTOBJ {
+-							o += int64(uint64(Symaddr(ctxt, rs)) - rs.Sect.Vaddr)
++							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+ 						}
+ 						o -= int64(r.Off) // relative to section offset, not symbol
+ 					} else if SysArch.Family == sys.ARM {
+ 						// see ../arm/asm.go:/machoreloc1
+-						o += Symaddr(ctxt, rs) - int64(ctxt.Cursym.Value) - int64(r.Off)
++						o += Symaddr(rs) - int64(ctxt.Cursym.Value) - int64(r.Off)
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+@@ -588,7 +592,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 					// relocated address, compensate that.
+ 					o -= int64(s.Sect.Vaddr - PEBASE)
+ 				} else {
+-					ctxt.Diag("unhandled pcrel relocation for %s", Headtype)
++					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
+ 				}
+ 
+ 				break
+@@ -596,7 +600,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 			o = 0
+ 			if r.Sym != nil {
+-				o += Symaddr(ctxt, r.Sym)
++				o += Symaddr(r.Sym)
+ 			}
+ 
+ 			o += r.Add - (s.Value + int64(r.Off) + int64(r.Siz))
+@@ -614,12 +618,12 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			if r.Sym != nil {
+ 				nam = r.Sym.Name
+ 			}
+-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(ctxt, r.Sym), r.Add, r.Type, r.Variant, o)
++			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, r.Variant, o)
+ 		}
+ 		switch siz {
+ 		default:
+ 			ctxt.Cursym = s
+-			ctxt.Diag("bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
++			Errorf(s, "bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
+ 			fallthrough
+ 
+ 			// TODO(rsc): Remove.
+@@ -628,7 +632,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 		case 2:
+ 			if o != int64(int16(o)) {
+-				ctxt.Diag("relocation address is too big: %#x", o)
++				Errorf(s, "relocation address for %s is too big: %#x", r.Sym.Name, o)
+ 			}
+ 			i16 = int16(o)
+ 			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i16))
+@@ -636,11 +640,11 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		case 4:
+ 			if r.Type == obj.R_PCREL || r.Type == obj.R_CALL {
+ 				if o != int64(int32(o)) {
+-					ctxt.Diag("pc-relative relocation address is too big: %#x", o)
++					Errorf(s, "pc-relative relocation address for %s is too big: %#x", r.Sym.Name, o)
+ 				}
+ 			} else {
+ 				if o != int64(int32(o)) && o != int64(uint32(o)) {
+-					ctxt.Diag("non-pc-relative relocation address is too big: %#x", uint64(o))
++					Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", r.Sym.Name, uint64(o))
+ 				}
+ 			}
+ 
+@@ -682,7 +686,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ 				continue
+ 			}
+ 			if !targ.Attr.Reachable() {
+-				ctxt.Diag("internal inconsistency: dynamic symbol %s is not reachable.", targ.Name)
++				Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
+ 			}
+ 			if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
+ 				targ.Plt = int32(rel.Size)
+@@ -723,11 +727,10 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ 		}
+ 		if r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT || r.Type >= 256 {
+ 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+-				ctxt.Diag("internal inconsistency: dynamic symbol %s is not reachable.", r.Sym.Name)
++				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+ 			if !Thearch.Adddynrel(ctxt, s, r) {
+-				ctxt.Cursym = s
+-				ctxt.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", r.Sym.Name, r.Type, r.Sym.Type)
++				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d stype=%d)", r.Sym.Name, r.Type, r.Sym.Type)
+ 			}
+ 		}
+ 	}
+@@ -841,7 +844,7 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
+ 		}
+ 		ctxt.Cursym = s
+ 		if s.Value < addr {
+-			ctxt.Diag("phase error: addr=%#x but sym=%#x type=%d", addr, s.Value, s.Type)
++			Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, s.Value, s.Type)
+ 			errorexit()
+ 		}
+ 		if addr < s.Value {
+@@ -855,7 +858,7 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
+ 			addr = s.Value + s.Size
+ 		}
+ 		if addr != s.Value+s.Size {
+-			ctxt.Diag("phase error: addr=%#x value+size=%#x", addr, s.Value+s.Size)
++			Errorf(s, "phase error: addr=%#x value+size=%#x", addr, s.Value+s.Size)
+ 			errorexit()
+ 		}
+ 		if s.Value+s.Size >= eaddr {
+@@ -1012,9 +1015,9 @@ func addstrdata(ctxt *Link, name string, value string) {
+ func (ctxt *Link) checkstrdata() {
+ 	for _, s := range strdata {
+ 		if s.Type == obj.STEXT {
+-			ctxt.Diag("cannot use -X with text symbol %s", s.Name)
++			Errorf(s, "cannot use -X with text symbol")
+ 		} else if s.Gotype != nil && s.Gotype.Name != "type.string" {
+-			ctxt.Diag("cannot use -X with non-string symbol %s", s.Name)
++			Errorf(s, "cannot use -X with non-string symbol")
+ 		}
+ 	}
+ }
+@@ -1026,7 +1029,7 @@ func Addstring(ctxt *Link, s *Symbol, str string) int64 {
+ 	s.Attr |= AttrReachable
+ 	r := s.Size
+ 	if s.Name == ".shstrtab" {
+-		elfsetstring(ctxt, str, int(r))
++		elfsetstring(s, str, int(r))
+ 	}
+ 	s.P = append(s.P, str...)
+ 	s.P = append(s.P, 0)
+@@ -1039,7 +1042,7 @@ func Addstring(ctxt *Link, s *Symbol, str string) int64 {
+ func addgostring(ctxt *Link, s *Symbol, symname, str string) {
+ 	sym := Linklookup(ctxt, symname, 0)
+ 	if sym.Type != obj.Sxxx {
+-		ctxt.Diag("duplicate symname in addgostring: %s", symname)
++		Errorf(s, "duplicate symname in addgostring: %s", symname)
+ 	}
+ 	sym.Attr |= AttrReachable
+ 	sym.Attr |= AttrLocal
+@@ -1141,7 +1144,7 @@ func (p *GCProg) AddSym(s *Symbol) {
+ 	// Things without pointers should be in SNOPTRDATA or SNOPTRBSS;
+ 	// everything we see should have pointers and should therefore have a type.
+ 	if typ == nil {
+-		p.ctxt.Diag("missing Go type information for global symbol: %s size %d", s.Name, int(s.Size))
++		Errorf(s, "missing Go type information for global symbol: size %d", s.Size)
+ 		return
+ 	}
+ 
+@@ -1193,7 +1196,7 @@ const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+ 
+ func checkdatsize(ctxt *Link, datsize int64, symn obj.SymKind) {
+ 	if datsize > cutoff {
+-		ctxt.Diag("too much data in section %v (over %d bytes)", symn, cutoff)
++		Errorf(nil, "too much data in section %v (over %d bytes)", symn, cutoff)
+ 	}
+ }
+ 
+@@ -1265,8 +1268,8 @@ func (ctxt *Link) dodata() {
+ 			// symbol and the outer end up in the same section).
+ 			for _, s := range relro {
+ 				if s.Outer != nil && s.Outer.Type != s.Type {
+-					ctxt.Diag("inconsistent types for %s and its Outer %s (%d != %d)",
+-						s.Name, s.Outer.Name, s.Type, s.Outer.Type)
++					Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
++						s.Outer.Name, s.Type, s.Outer.Type)
+ 				}
+ 			}
+ 
+@@ -1487,7 +1490,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	/* read-only executable ELF, Mach-O sections */
+ 	if len(data[obj.STEXT]) != 0 {
+-		ctxt.Diag("dodata found an STEXT symbol: %s", data[obj.STEXT][0].Name)
++		Errorf(nil, "dodata found an STEXT symbol: %s", data[obj.STEXT][0].Name)
+ 	}
+ 	for _, s := range data[obj.SELFRXSECT] {
+ 		sect := addsection(&Segtext, s.Name, 04)
+@@ -1605,7 +1608,7 @@ func (ctxt *Link) dodata() {
+ 			for _, s := range data[symn] {
+ 				datsize = aligndatsize(datsize, s)
+ 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+-					ctxt.Diag("s.Outer (%s) in different section from s (%s), %s != %s", s.Outer.Name, s.Name, s.Outer.Sect.Name, sect.Name)
++					Errorf(s, "s.Outer (%s) in different section from s, %s != %s", s.Outer.Name, s.Outer.Sect.Name, sect.Name)
+ 				}
+ 				s.Sect = sect
+ 				s.Type = obj.SRODATA
+@@ -1688,7 +1691,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+ 	if datsize != int64(uint32(datsize)) {
+-		ctxt.Diag("read-only data segment too large")
++		Errorf(nil, "read-only data segment too large: %d", datsize)
+ 	}
+ 
+ 	for symn := obj.SELFRXSECT; symn < obj.SXREF; symn++ {
+@@ -1780,11 +1783,11 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
+ 		s.Attr |= AttrOnList
+ 		switch {
+ 		case s.Size < int64(len(s.P)):
+-			ctxt.Diag("%s: initialize bounds (%d < %d)", s.Name, s.Size, len(s.P))
++			Errorf(s, "initialize bounds (%d < %d)", s.Size, len(s.P))
+ 		case s.Size < 0:
+-			ctxt.Diag("%s: negative size (%d bytes)", s.Name, s.Size)
++			Errorf(s, "negative size (%d bytes)", s.Size)
+ 		case s.Size > cutoff:
+-			ctxt.Diag("%s: symbol too large (%d bytes)", s.Name, s.Size)
++			Errorf(s, "symbol too large (%d bytes)", s.Size)
+ 		}
+ 
+ 		symsSort[i] = dataSortKey{
+@@ -2099,12 +2102,12 @@ func (ctxt *Link) address() {
+ 
+ 	sym := Linklookup(ctxt, "runtime.gcdata", 0)
+ 	sym.Attr |= AttrLocal
+-	ctxt.xdefine("runtime.egcdata", obj.SRODATA, Symaddr(ctxt, sym)+sym.Size)
++	ctxt.xdefine("runtime.egcdata", obj.SRODATA, Symaddr(sym)+sym.Size)
+ 	Linklookup(ctxt, "runtime.egcdata", 0).Sect = sym.Sect
+ 
+ 	sym = Linklookup(ctxt, "runtime.gcbss", 0)
+ 	sym.Attr |= AttrLocal
+-	ctxt.xdefine("runtime.egcbss", obj.SRODATA, Symaddr(ctxt, sym)+sym.Size)
++	ctxt.xdefine("runtime.egcbss", obj.SRODATA, Symaddr(sym)+sym.Size)
+ 	Linklookup(ctxt, "runtime.egcbss", 0).Sect = sym.Sect
+ 
+ 	ctxt.xdefine("runtime.symtab", obj.SRODATA, int64(symtab.Vaddr))
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 1fb42b61ab..4b78184a25 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -56,7 +56,7 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 	ls := s.(*Symbol)
+ 	switch size {
+ 	default:
+-		c.linkctxt.Diag("invalid size %d in adddwarfref\n", size)
++		Errorf(ls, "invalid size %d in adddwarfref\n", size)
+ 		fallthrough
+ 	case SysArch.PtrSize:
+ 		Addaddr(c.linkctxt, ls, t.(*Symbol))
+@@ -220,7 +220,7 @@ func adddwarfref(ctxt *Link, s *Symbol, t *Symbol, size int) int64 {
+ 	var result int64
+ 	switch size {
+ 	default:
+-		ctxt.Diag("invalid size %d in adddwarfref\n", size)
++		Errorf(s, "invalid size %d in adddwarfref\n", size)
+ 		fallthrough
+ 	case SysArch.PtrSize:
+ 		result = Addaddr(ctxt, s, t)
+@@ -335,7 +335,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
+ 		return
+ 	}
+ 	if def == nil {
+-		ctxt.Diag("dwarf: bad def in dotypedef")
++		Errorf(nil, "dwarf: bad def in dotypedef")
+ 	}
+ 
+ 	sym := Linklookup(ctxt, dtolsym(def.Sym).Name+"..def", 0)
+@@ -359,7 +359,7 @@ func defgotype(ctxt *Link, gotype *Symbol) *Symbol {
+ 	}
+ 
+ 	if !strings.HasPrefix(gotype.Name, "type.") {
+-		ctxt.Diag("dwarf: type name doesn't start with \"type.\": %s", gotype.Name)
++		Errorf(gotype, "dwarf: type name doesn't start with \"type.\"")
+ 		return mustFind(ctxt, "<unspecified>")
+ 	}
+ 
+@@ -526,7 +526,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_BARE_PTRTYPE, name, 0)
+ 
+ 	default:
+-		ctxt.Diag("dwarf: definition of unknown kind %d: %s", kind, gotype.Name)
++		Errorf(gotype, "dwarf: definition of unknown kind %d", kind)
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_TYPEDECL, name, 0)
+ 		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "<unspecified>"))
+ 	}
+@@ -1535,8 +1535,7 @@ func dwarfaddpeheaders(ctxt *Link) {
+ 		h := newPEDWARFSection(ctxt, sect.Name, int64(sect.Length))
+ 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
+ 		if uint64(h.PointerToRawData) != fileoff {
+-			ctxt.Diag("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
+-			errorexit()
++			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 70cf2540ce..5603df6f2e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1055,13 +1055,13 @@ func elfwriteshdrs() uint32 {
+ 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
+ }
+ 
+-func elfsetstring(ctxt *Link, s string, off int) {
++func elfsetstring(s *Symbol, str string, off int) {
+ 	if nelfstr >= len(elfstr) {
+-		ctxt.Diag("too many elf strings")
++		Errorf(s, "too many elf strings")
+ 		errorexit()
+ 	}
+ 
+-	elfstr[nelfstr].s = s
++	elfstr[nelfstr].s = str
+ 	elfstr[nelfstr].off = off
+ 	nelfstr++
+ }
+@@ -1080,10 +1080,10 @@ func elfwritephdrs() uint32 {
+ 	return uint32(ehdr.phnum) * ELF32PHDRSIZE
+ }
+ 
+-func newElfPhdr(ctxt *Link) *ElfPhdr {
++func newElfPhdr() *ElfPhdr {
+ 	e := new(ElfPhdr)
+ 	if ehdr.phnum >= NSECT {
+-		ctxt.Diag("too many phdrs")
++		Errorf(nil, "too many phdrs")
+ 	} else {
+ 		phdr[ehdr.phnum] = e
+ 		ehdr.phnum++
+@@ -1096,12 +1096,12 @@ func newElfPhdr(ctxt *Link) *ElfPhdr {
+ 	return e
+ }
+ 
+-func newElfShdr(ctxt *Link, name int64) *ElfShdr {
++func newElfShdr(name int64) *ElfShdr {
+ 	e := new(ElfShdr)
+ 	e.name = uint32(name)
+ 	e.shnum = int(ehdr.shnum)
+ 	if ehdr.shnum >= NSECT {
+-		ctxt.Diag("too many shdrs")
++		Errorf(nil, "too many shdrs")
+ 	} else {
+ 		shdr[ehdr.shnum] = e
+ 		ehdr.shnum++
+@@ -1217,7 +1217,7 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
+ }
+ 
+ func elfwriteinterp(ctxt *Link) int {
+-	sh := elfshname(ctxt, ".interp")
++	sh := elfshname(".interp")
+ 	Cseek(int64(sh.off))
+ 	coutbuf.WriteString(interp)
+ 	Cput(0)
+@@ -1239,8 +1239,8 @@ func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int
+ 	return int(n)
+ }
+ 
+-func elfwritenotehdr(ctxt *Link, str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
+-	sh := elfshname(ctxt, str)
++func elfwritenotehdr(str string, namesz uint32, descsz uint32, tag uint32) *ElfShdr {
++	sh := elfshname(str)
+ 
+ 	// Write Elf_Note header.
+ 	Cseek(int64(sh.off))
+@@ -1267,9 +1267,9 @@ func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	return elfnote(sh, startva, resoff, n, true)
+ }
+ 
+-func elfwritenetbsdsig(ctxt *Link) int {
++func elfwritenetbsdsig() int {
+ 	// Write Elf_Note header.
+-	sh := elfwritenotehdr(ctxt, ".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
++	sh := elfwritenotehdr(".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG)
+ 
+ 	if sh == nil {
+ 		return 0
+@@ -1299,9 +1299,9 @@ func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	return elfnote(sh, startva, resoff, n, true)
+ }
+ 
+-func elfwriteopenbsdsig(ctxt *Link) int {
++func elfwriteopenbsdsig() int {
+ 	// Write Elf_Note header.
+-	sh := elfwritenotehdr(ctxt, ".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
++	sh := elfwritenotehdr(".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG)
+ 
+ 	if sh == nil {
+ 		return 0
+@@ -1360,8 +1360,8 @@ func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	return elfnote(sh, startva, resoff, n, true)
+ }
+ 
+-func elfwritebuildinfo(ctxt *Link) int {
+-	sh := elfwritenotehdr(ctxt, ".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
++func elfwritebuildinfo() int {
++	sh := elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, uint32(len(buildinfo)), ELF_NOTE_BUILDINFO_TAG)
+ 	if sh == nil {
+ 		return 0
+ 	}
+@@ -1374,8 +1374,8 @@ func elfwritebuildinfo(ctxt *Link) int {
+ 	return int(sh.size)
+ }
+ 
+-func elfwritegobuildid(ctxt *Link) int {
+-	sh := elfwritenotehdr(ctxt, ".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
++func elfwritegobuildid() int {
++	sh := elfwritenotehdr(".note.go.buildid", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(*flagBuildid)), ELF_NOTE_GOBUILDID_TAG)
+ 	if sh == nil {
+ 		return 0
+ 	}
+@@ -1579,7 +1579,7 @@ func elfdynhash(ctxt *Link) {
+ }
+ 
+ func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
+-	ph := newElfPhdr(ctxt)
++	ph := newElfPhdr()
+ 	ph.type_ = PT_LOAD
+ 	if seg.Rwx&4 != 0 {
+ 		ph.flags |= PF_R
+@@ -1601,7 +1601,7 @@ func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
+ }
+ 
+ func elfphrelro(ctxt *Link, seg *Segment) {
+-	ph := newElfPhdr(ctxt)
++	ph := newElfPhdr()
+ 	ph.type_ = PT_GNU_RELRO
+ 	ph.vaddr = seg.Vaddr
+ 	ph.paddr = seg.Vaddr
+@@ -1611,7 +1611,7 @@ func elfphrelro(ctxt *Link, seg *Segment) {
+ 	ph.align = uint64(*FlagRound)
+ }
+ 
+-func elfshname(ctxt *Link, name string) *ElfShdr {
++func elfshname(name string) *ElfShdr {
+ 	var off int
+ 	var sh *ElfShdr
+ 
+@@ -1625,24 +1625,23 @@ func elfshname(ctxt *Link, name string) *ElfShdr {
+ 				}
+ 			}
+ 
+-			sh = newElfShdr(ctxt, int64(off))
++			sh = newElfShdr(int64(off))
+ 			return sh
+ 		}
+ 	}
+ 
+-	ctxt.Diag("cannot find elf name %s", name)
+-	errorexit()
++	Exitf("cannot find elf name %s", name)
+ 	return nil
+ }
+ 
+-func elfshalloc(ctxt *Link, sect *Section) *ElfShdr {
+-	sh := elfshname(ctxt, sect.Name)
++func elfshalloc(sect *Section) *ElfShdr {
++	sh := elfshname(sect.Name)
+ 	sect.Elfsect = sh
+ 	return sh
+ }
+ 
+-func elfshbits(ctxt *Link, sect *Section) *ElfShdr {
+-	sh := elfshalloc(ctxt, sect)
++func elfshbits(sect *Section) *ElfShdr {
++	sh := elfshalloc(sect)
+ 	// If this section has already been set up as a note, we assume type_ and
+ 	// flags are already correct, but the other fields still need filling in.
+ 	if sh.type_ == SHT_NOTE {
+@@ -1654,7 +1653,7 @@ func elfshbits(ctxt *Link, sect *Section) *ElfShdr {
+ 			// list note). The real fix is probably to define new values
+ 			// for Symbol.Type corresponding to mapped and unmapped notes
+ 			// and handle them in dodata().
+-			ctxt.Diag("sh.type_ == SHT_NOTE in elfshbits when linking internally")
++			Errorf(nil, "sh.type_ == SHT_NOTE in elfshbits when linking internally")
+ 		}
+ 		sh.addralign = uint64(sect.Align)
+ 		sh.size = sect.Length
+@@ -1717,13 +1716,13 @@ func elfshreloc(ctxt *Link, sect *Section) *ElfShdr {
+ 		typ = SHT_REL
+ 	}
+ 
+-	sh := elfshname(ctxt, elfRelType+sect.Name)
++	sh := elfshname(elfRelType + sect.Name)
+ 	sh.type_ = uint32(typ)
+ 	sh.entsize = uint64(SysArch.RegSize) * 2
+ 	if typ == SHT_RELA {
+ 		sh.entsize += uint64(SysArch.RegSize)
+ 	}
+-	sh.link = uint32(elfshname(ctxt, ".symtab").shnum)
++	sh.link = uint32(elfshname(".symtab").shnum)
+ 	sh.info = uint32(sect.Elfsect.shnum)
+ 	sh.off = sect.Reloff
+ 	sh.size = sect.Rellen
+@@ -1768,14 +1767,17 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 				continue
+ 			}
+ 			if r.Xsym == nil {
+-				ctxt.Diag("missing xsym in relocation")
++				Errorf(sym, "missing xsym in relocation")
+ 				continue
+ 			}
+ 			if r.Xsym.ElfsymForReloc() == 0 {
+-				ctxt.Diag("reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
++				Errorf(sym, "reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
++			}
++			if !r.Xsym.Attr.Reachable() {
++				Errorf(sym, "unreachable reloc %v target %v", r.Type, r.Xsym.Name)
+ 			}
+ 			if Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
+-				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
++				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+ 			}
+ 		}
+ 	}
+@@ -2102,11 +2104,11 @@ func (ctxt *Link) doelf() {
+ 
+ // Do not write DT_NULL.  elfdynhash will finish it.
+ func shsym(ctxt *Link, sh *ElfShdr, s *Symbol) {
+-	addr := Symaddr(ctxt, s)
++	addr := Symaddr(s)
+ 	if sh.flags&SHF_ALLOC != 0 {
+ 		sh.addr = uint64(addr)
+ 	}
+-	sh.off = uint64(datoff(ctxt, addr))
++	sh.off = uint64(datoff(s, addr))
+ 	sh.size = uint64(s.Size)
+ }
+ 
+@@ -2121,22 +2123,22 @@ func phsh(ph *ElfPhdr, sh *ElfShdr) {
+ 
+ func Asmbelfsetup(ctxt *Link) {
+ 	/* This null SHdr must appear before all others */
+-	elfshname(ctxt, "")
++	elfshname("")
+ 
+ 	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+-		elfshalloc(ctxt, sect)
++		elfshalloc(sect)
+ 	}
+ 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+-		elfshalloc(ctxt, sect)
++		elfshalloc(sect)
+ 	}
+ 	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+-		elfshalloc(ctxt, sect)
++		elfshalloc(sect)
+ 	}
+ 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+-		elfshalloc(ctxt, sect)
++		elfshalloc(sect)
+ 	}
+ 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+-		elfshalloc(ctxt, sect)
++		elfshalloc(sect)
+ 	}
+ }
+ 
+@@ -2174,17 +2176,17 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		eh.phentsize = 0
+ 
+ 		if Buildmode == BuildmodeShared {
+-			sh := elfshname(ctxt, ".note.go.pkg-list")
++			sh := elfshname(".note.go.pkg-list")
+ 			sh.type_ = SHT_NOTE
+-			sh = elfshname(ctxt, ".note.go.abihash")
++			sh = elfshname(".note.go.abihash")
+ 			sh.type_ = SHT_NOTE
+ 			sh.flags = SHF_ALLOC
+-			sh = elfshname(ctxt, ".note.go.deps")
++			sh = elfshname(".note.go.deps")
+ 			sh.type_ = SHT_NOTE
+ 		}
+ 
+ 		if *flagBuildid != "" {
+-			sh := elfshname(ctxt, ".note.go.buildid")
++			sh := elfshname(".note.go.buildid")
+ 			sh.type_ = SHT_NOTE
+ 			sh.flags = SHF_ALLOC
+ 		}
+@@ -2193,7 +2195,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	}
+ 
+ 	/* program header info */
+-	pph = newElfPhdr(ctxt)
++	pph = newElfPhdr()
+ 
+ 	pph.type_ = PT_PHDR
+ 	pph.flags = PF_R
+@@ -2218,7 +2220,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 
+ 	if !*FlagD { /* -d suppresses dynamic loader format */
+ 		/* interpreter */
+-		sh := elfshname(ctxt, ".interp")
++		sh := elfshname(".interp")
+ 
+ 		sh.type_ = SHT_PROGBITS
+ 		sh.flags = SHF_ALLOC
+@@ -2247,7 +2249,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 
+ 		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
+ 
+-		ph := newElfPhdr(ctxt)
++		ph := newElfPhdr()
+ 		ph.type_ = PT_INTERP
+ 		ph.flags = PF_R
+ 		phsh(ph, sh)
+@@ -2258,26 +2260,26 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		var sh *ElfShdr
+ 		switch Headtype {
+ 		case obj.Hnetbsd:
+-			sh = elfshname(ctxt, ".note.netbsd.ident")
++			sh = elfshname(".note.netbsd.ident")
+ 			resoff -= int64(elfnetbsdsig(sh, uint64(startva), uint64(resoff)))
+ 
+ 		case obj.Hopenbsd:
+-			sh = elfshname(ctxt, ".note.openbsd.ident")
++			sh = elfshname(".note.openbsd.ident")
+ 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
+ 		}
+ 
+-		pnote = newElfPhdr(ctxt)
++		pnote = newElfPhdr()
+ 		pnote.type_ = PT_NOTE
+ 		pnote.flags = PF_R
+ 		phsh(pnote, sh)
+ 	}
+ 
+ 	if len(buildinfo) > 0 {
+-		sh := elfshname(ctxt, ".note.gnu.build-id")
++		sh := elfshname(".note.gnu.build-id")
+ 		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
+ 
+ 		if pnote == nil {
+-			pnote = newElfPhdr(ctxt)
++			pnote = newElfPhdr()
+ 			pnote.type_ = PT_NOTE
+ 			pnote.flags = PF_R
+ 		}
+@@ -2286,10 +2288,10 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	}
+ 
+ 	if *flagBuildid != "" {
+-		sh := elfshname(ctxt, ".note.go.buildid")
++		sh := elfshname(".note.go.buildid")
+ 		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
+ 
+-		pnote := newElfPhdr(ctxt)
++		pnote := newElfPhdr()
+ 		pnote.type_ = PT_NOTE
+ 		pnote.flags = PF_R
+ 		phsh(pnote, sh)
+@@ -2309,7 +2311,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 
+ 	/* Dynamic linking sections */
+ 	if !*FlagD {
+-		sh := elfshname(ctxt, ".dynsym")
++		sh := elfshname(".dynsym")
+ 		sh.type_ = SHT_DYNSYM
+ 		sh.flags = SHF_ALLOC
+ 		if elf64 {
+@@ -2318,79 +2320,79 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF32SYMSIZE
+ 		}
+ 		sh.addralign = uint64(SysArch.RegSize)
+-		sh.link = uint32(elfshname(ctxt, ".dynstr").shnum)
++		sh.link = uint32(elfshname(".dynstr").shnum)
+ 
+ 		// sh->info = index of first non-local symbol (number of local symbols)
+ 		shsym(ctxt, sh, Linklookup(ctxt, ".dynsym", 0))
+ 
+-		sh = elfshname(ctxt, ".dynstr")
++		sh = elfshname(".dynstr")
+ 		sh.type_ = SHT_STRTAB
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
+ 		shsym(ctxt, sh, Linklookup(ctxt, ".dynstr", 0))
+ 
+ 		if elfverneed != 0 {
+-			sh := elfshname(ctxt, ".gnu.version")
++			sh := elfshname(".gnu.version")
+ 			sh.type_ = SHT_GNU_VERSYM
+ 			sh.flags = SHF_ALLOC
+ 			sh.addralign = 2
+-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
++			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			sh.entsize = 2
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".gnu.version", 0))
+ 
+-			sh = elfshname(ctxt, ".gnu.version_r")
++			sh = elfshname(".gnu.version_r")
+ 			sh.type_ = SHT_GNU_VERNEED
+ 			sh.flags = SHF_ALLOC
+ 			sh.addralign = uint64(SysArch.RegSize)
+ 			sh.info = uint32(elfverneed)
+-			sh.link = uint32(elfshname(ctxt, ".dynstr").shnum)
++			sh.link = uint32(elfshname(".dynstr").shnum)
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".gnu.version_r", 0))
+ 		}
+ 
+ 		if elfRelType == ".rela" {
+-			sh := elfshname(ctxt, ".rela.plt")
++			sh := elfshname(".rela.plt")
+ 			sh.type_ = SHT_RELA
+ 			sh.flags = SHF_ALLOC
+ 			sh.entsize = ELF64RELASIZE
+ 			sh.addralign = uint64(SysArch.RegSize)
+-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
+-			sh.info = uint32(elfshname(ctxt, ".plt").shnum)
++			sh.link = uint32(elfshname(".dynsym").shnum)
++			sh.info = uint32(elfshname(".plt").shnum)
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".rela.plt", 0))
+ 
+-			sh = elfshname(ctxt, ".rela")
++			sh = elfshname(".rela")
+ 			sh.type_ = SHT_RELA
+ 			sh.flags = SHF_ALLOC
+ 			sh.entsize = ELF64RELASIZE
+ 			sh.addralign = 8
+-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
++			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".rela", 0))
+ 		} else {
+-			sh := elfshname(ctxt, ".rel.plt")
++			sh := elfshname(".rel.plt")
+ 			sh.type_ = SHT_REL
+ 			sh.flags = SHF_ALLOC
+ 			sh.entsize = ELF32RELSIZE
+ 			sh.addralign = 4
+-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
++			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".rel.plt", 0))
+ 
+-			sh = elfshname(ctxt, ".rel")
++			sh = elfshname(".rel")
+ 			sh.type_ = SHT_REL
+ 			sh.flags = SHF_ALLOC
+ 			sh.entsize = ELF32RELSIZE
+ 			sh.addralign = 4
+-			sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
++			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".rel", 0))
+ 		}
+ 
+ 		if eh.machine == EM_PPC64 {
+-			sh := elfshname(ctxt, ".glink")
++			sh := elfshname(".glink")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
+ 			sh.addralign = 4
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".glink", 0))
+ 		}
+ 
+-		sh = elfshname(ctxt, ".plt")
++		sh = elfshname(".plt")
+ 		sh.type_ = SHT_PROGBITS
+ 		sh.flags = SHF_ALLOC + SHF_EXECINSTR
+ 		if eh.machine == EM_X86_64 {
+@@ -2413,14 +2415,14 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		// On ppc64, .got comes from the input files, so don't
+ 		// create it here, and .got.plt is not used.
+ 		if eh.machine != EM_PPC64 {
+-			sh := elfshname(ctxt, ".got")
++			sh := elfshname(".got")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+ 			sh.entsize = uint64(SysArch.RegSize)
+ 			sh.addralign = uint64(SysArch.RegSize)
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".got", 0))
+ 
+-			sh = elfshname(ctxt, ".got.plt")
++			sh = elfshname(".got.plt")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+ 			sh.entsize = uint64(SysArch.RegSize)
+@@ -2428,24 +2430,24 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			shsym(ctxt, sh, Linklookup(ctxt, ".got.plt", 0))
+ 		}
+ 
+-		sh = elfshname(ctxt, ".hash")
++		sh = elfshname(".hash")
+ 		sh.type_ = SHT_HASH
+ 		sh.flags = SHF_ALLOC
+ 		sh.entsize = 4
+ 		sh.addralign = uint64(SysArch.RegSize)
+-		sh.link = uint32(elfshname(ctxt, ".dynsym").shnum)
++		sh.link = uint32(elfshname(".dynsym").shnum)
+ 		shsym(ctxt, sh, Linklookup(ctxt, ".hash", 0))
+ 
+ 		/* sh and PT_DYNAMIC for .dynamic section */
+-		sh = elfshname(ctxt, ".dynamic")
++		sh = elfshname(".dynamic")
+ 
+ 		sh.type_ = SHT_DYNAMIC
+ 		sh.flags = SHF_ALLOC + SHF_WRITE
+ 		sh.entsize = 2 * uint64(SysArch.RegSize)
+ 		sh.addralign = uint64(SysArch.RegSize)
+-		sh.link = uint32(elfshname(ctxt, ".dynstr").shnum)
++		sh.link = uint32(elfshname(".dynstr").shnum)
+ 		shsym(ctxt, sh, Linklookup(ctxt, ".dynamic", 0))
+-		ph := newElfPhdr(ctxt)
++		ph := newElfPhdr()
+ 		ph.type_ = PT_DYNAMIC
+ 		ph.flags = PF_R + PF_W
+ 		phsh(ph, sh)
+@@ -2464,7 +2466,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 				}
+ 			}
+ 			if tlssize != 0 {
+-				ph := newElfPhdr(ctxt)
++				ph := newElfPhdr()
+ 				ph.type_ = PT_TLS
+ 				ph.flags = PF_R
+ 				ph.memsz = tlssize
+@@ -2474,19 +2476,19 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	}
+ 
+ 	if Headtype == obj.Hlinux {
+-		ph := newElfPhdr(ctxt)
++		ph := newElfPhdr()
+ 		ph.type_ = PT_GNU_STACK
+ 		ph.flags = PF_W + PF_R
+ 		ph.align = uint64(SysArch.RegSize)
+ 
+-		ph = newElfPhdr(ctxt)
++		ph = newElfPhdr()
+ 		ph.type_ = PT_PAX_FLAGS
+ 		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
+ 		ph.align = uint64(SysArch.RegSize)
+ 	}
+ 
+ elfobj:
+-	sh := elfshname(ctxt, ".shstrtab")
++	sh := elfshname(".shstrtab")
+ 	sh.type_ = SHT_STRTAB
+ 	sh.addralign = 1
+ 	shsym(ctxt, sh, Linklookup(ctxt, ".shstrtab", 0))
+@@ -2494,24 +2496,24 @@ elfobj:
+ 
+ 	// put these sections early in the list
+ 	if !*FlagS {
+-		elfshname(ctxt, ".symtab")
+-		elfshname(ctxt, ".strtab")
++		elfshname(".symtab")
++		elfshname(".strtab")
+ 	}
+ 
+ 	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+-		elfshbits(ctxt, sect)
++		elfshbits(sect)
+ 	}
+ 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+-		elfshbits(ctxt, sect)
++		elfshbits(sect)
+ 	}
+ 	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+-		elfshbits(ctxt, sect)
++		elfshbits(sect)
+ 	}
+ 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+-		elfshbits(ctxt, sect)
++		elfshbits(sect)
+ 	}
+ 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+-		elfshbits(ctxt, sect)
++		elfshbits(sect)
+ 	}
+ 
+ 	if Linkmode == LinkExternal {
+@@ -2536,7 +2538,7 @@ elfobj:
+ 			}
+ 		}
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+-		sh := elfshname(ctxt, ".note.GNU-stack")
++		sh := elfshname(".note.GNU-stack")
+ 
+ 		sh.type_ = SHT_PROGBITS
+ 		sh.addralign = 1
+@@ -2544,16 +2546,16 @@ elfobj:
+ 	}
+ 
+ 	if !*FlagS {
+-		sh := elfshname(ctxt, ".symtab")
++		sh := elfshname(".symtab")
+ 		sh.type_ = SHT_SYMTAB
+ 		sh.off = uint64(symo)
+ 		sh.size = uint64(Symsize)
+ 		sh.addralign = uint64(SysArch.RegSize)
+ 		sh.entsize = 8 + 2*uint64(SysArch.RegSize)
+-		sh.link = uint32(elfshname(ctxt, ".strtab").shnum)
++		sh.link = uint32(elfshname(".strtab").shnum)
+ 		sh.info = uint32(elfglobalsymndx)
+ 
+-		sh = elfshname(ctxt, ".strtab")
++		sh = elfshname(".strtab")
+ 		sh.type_ = SHT_STRTAB
+ 		sh.off = uint64(symo) + uint64(Symsize)
+ 		sh.size = uint64(len(Elfstrdat))
+@@ -2616,21 +2618,21 @@ elfobj:
+ 	}
+ 	if Linkmode != LinkExternal {
+ 		if Headtype == obj.Hnetbsd {
+-			a += int64(elfwritenetbsdsig(ctxt))
++			a += int64(elfwritenetbsdsig())
+ 		}
+ 		if Headtype == obj.Hopenbsd {
+-			a += int64(elfwriteopenbsdsig(ctxt))
++			a += int64(elfwriteopenbsdsig())
+ 		}
+ 		if len(buildinfo) > 0 {
+-			a += int64(elfwritebuildinfo(ctxt))
++			a += int64(elfwritebuildinfo())
+ 		}
+ 		if *flagBuildid != "" {
+-			a += int64(elfwritegobuildid(ctxt))
++			a += int64(elfwritegobuildid())
+ 		}
+ 	}
+ 
+ 	if a > elfreserve {
+-		ctxt.Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
++		Errorf(nil, "ELFRESERVE too small: %d > %d", a, elfreserve)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 5e95774c03..7309f99dbf 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -311,7 +311,7 @@ func adddynlib(ctxt *Link, lib string) {
+ 		}
+ 		Elfwritedynent(ctxt, Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
+ 	} else {
+-		ctxt.Diag("adddynlib: unsupported binary format")
++		Errorf(nil, "adddynlib: unsupported binary format")
+ 	}
+ }
+ 
+@@ -323,11 +323,11 @@ func Adddynsym(ctxt *Link, s *Symbol) {
+ 	if Iself {
+ 		Elfadddynsym(ctxt, s)
+ 	} else if Headtype == obj.Hdarwin {
+-		ctxt.Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
++		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
+ 	} else if Headtype == obj.Hwindows {
+ 		// already taken care of
+ 	} else {
+-		ctxt.Diag("adddynsym: unsupported binary format")
++		Errorf(s, "adddynsym: unsupported binary format")
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index eefc0e9b80..bc0b2cfbde 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -118,7 +118,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
+ 	if shlibnamefile != "" {
+ 		shlibbytes, err := ioutil.ReadFile(shlibnamefile)
+ 		if err != nil {
+-			ctxt.Diag("cannot read %s: %v", shlibnamefile, err)
++			Errorf(nil, "cannot read %s: %v", shlibnamefile, err)
+ 		}
+ 		l.Shlib = strings.TrimSpace(string(shlibbytes))
+ 	}
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 141f752505..f6799e2e71 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -537,54 +537,54 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	if e.Uint16(hdr.Type[:]) != ElfTypeRelocatable {
+-		ctxt.Diag("%s: elf but not elf relocatable object", pn)
++		Errorf(nil, "%s: elf but not elf relocatable object", pn)
+ 		return
+ 	}
+ 
+ 	switch SysArch.Family {
+ 	default:
+-		ctxt.Diag("%s: elf %s unimplemented", pn, SysArch.Name)
++		Errorf(nil, "%s: elf %s unimplemented", pn, SysArch.Name)
+ 		return
+ 
+ 	case sys.MIPS64:
+ 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
+-			ctxt.Diag("%s: elf object but not mips64", pn)
++			Errorf(nil, "%s: elf object but not mips64", pn)
+ 			return
+ 		}
+ 
+ 	case sys.ARM:
+ 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
+-			ctxt.Diag("%s: elf object but not arm", pn)
++			Errorf(nil, "%s: elf object but not arm", pn)
+ 			return
+ 		}
+ 
+ 	case sys.AMD64:
+ 		if e != binary.LittleEndian || elfobj.machine != ElfMachAmd64 || hdr.Ident[4] != ElfClass64 {
+-			ctxt.Diag("%s: elf object but not amd64", pn)
++			Errorf(nil, "%s: elf object but not amd64", pn)
+ 			return
+ 		}
+ 
+ 	case sys.ARM64:
+ 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
+-			ctxt.Diag("%s: elf object but not arm64", pn)
++			Errorf(nil, "%s: elf object but not arm64", pn)
+ 			return
+ 		}
+ 
+ 	case sys.I386:
+ 		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
+-			ctxt.Diag("%s: elf object but not 386", pn)
++			Errorf(nil, "%s: elf object but not 386", pn)
+ 			return
+ 		}
+ 
+ 	case sys.PPC64:
+ 		if elfobj.machine != ElfMachPower64 || hdr.Ident[4] != ElfClass64 {
+-			ctxt.Diag("%s: elf object but not ppc64", pn)
++			Errorf(nil, "%s: elf object but not ppc64", pn)
+ 			return
+ 		}
+ 
+ 	case sys.S390X:
+ 		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
+-			ctxt.Diag("%s: elf object but not s390x", pn)
++			Errorf(nil, "%s: elf object but not s390x", pn)
+ 			return
+ 		}
+ 	}
+@@ -660,7 +660,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	if elfobj.symtab.link <= 0 || elfobj.symtab.link >= uint32(elfobj.nsect) {
+-		ctxt.Diag("%s: elf object has symbol table with invalid string table link", pn)
++		Errorf(nil, "%s: elf object has symbol table with invalid string table link", pn)
+ 		return
+ 	}
+ 
+@@ -782,7 +782,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			if strings.HasPrefix(sym.name, ".LASF") { // gcc on s390x does this
+ 				continue
+ 			}
+-			ctxt.Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
++			Errorf(sym.sym, "%s: sym#%d: ignoring symbol in section %d (type %d)", pn, i, sym.shndx, sym.type_)
+ 			continue
+ 		}
+ 
+@@ -805,7 +805,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		s.Outer = sect.sym
+ 		if sect.sym.Type == obj.STEXT {
+ 			if s.Attr.External() && !s.Attr.DuplicateOK() {
+-				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
++				Errorf(s, "%s: duplicate symbol definition", pn)
+ 			}
+ 			s.Attr |= AttrExternal
+ 		}
+@@ -815,7 +815,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			if 2 <= flag && flag <= 6 {
+ 				s.Localentry = 1 << uint(flag-2)
+ 			} else if flag == 7 {
+-				ctxt.Diag("%s: invalid sym.other 0x%x for %s", pn, sym.other, s.Name)
++				Errorf(s, "%s: invalid sym.other 0x%x", pn, sym.other)
+ 			}
+ 		}
+ 	}
+@@ -926,7 +926,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 				} else if rp.Siz == 8 {
+ 					rp.Add = int64(e.Uint64(sect.base[rp.Off:]))
+ 				} else {
+-					ctxt.Diag("invalid rela size %d", rp.Siz)
++					Errorf(nil, "invalid rela size %d", rp.Siz)
+ 				}
+ 			}
+ 
+@@ -950,7 +950,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	return
+ 
+ bad:
+-	ctxt.Diag("%s: malformed elf file: %v", pn, err)
++	Errorf(nil, "%s: malformed elf file: %v", pn, err)
+ }
+ 
+ func section(elfobj *ElfObj, name string) *ElfSect {
+@@ -990,7 +990,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 	}
+ 
+ 	if i == 0 {
+-		ctxt.Diag("readym: read null symbol!")
++		Errorf(nil, "readym: read null symbol!")
+ 	}
+ 
+ 	if elfobj.is64 != 0 {
+@@ -1134,7 +1134,7 @@ func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
+ 
+ 	switch uint32(SysArch.Family) | elftype<<24 {
+ 	default:
+-		ctxt.Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
++		Errorf(nil, "%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
+ 		fallthrough
+ 
+ 	case S390X | R_390_8<<24:
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index b846f0cbae..0c07edf57d 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -487,18 +487,18 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 	switch SysArch.Family {
+ 	default:
+-		ctxt.Diag("%s: mach-o %s unimplemented", pn, SysArch.Name)
++		Errorf(nil, "%s: mach-o %s unimplemented", pn, SysArch.Name)
+ 		return
+ 
+ 	case sys.AMD64:
+ 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
+-			ctxt.Diag("%s: mach-o object but not amd64", pn)
++			Errorf(nil, "%s: mach-o object but not amd64", pn)
+ 			return
+ 		}
+ 
+ 	case sys.I386:
+ 		if e != binary.LittleEndian || m.cputype != LdMachoCpu386 {
+-			ctxt.Diag("%s: mach-o object but not 386", pn)
++			Errorf(nil, "%s: mach-o object but not 386", pn)
+ 			return
+ 		}
+ 	}
+@@ -673,7 +673,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 		if outer.Type == obj.STEXT {
+ 			if s.Attr.External() && !s.Attr.DuplicateOK() {
+-				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
++				Errorf(s, "%s: duplicate symbol definition", pn)
+ 			}
+ 			s.Attr |= AttrExternal
+ 		}
+@@ -738,7 +738,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			if rel.scattered != 0 {
+ 				if SysArch.Family != sys.I386 {
+ 					// mach-o only uses scattered relocation on 32-bit platforms
+-					ctxt.Diag("unexpected scattered relocation")
++					Errorf(s, "unexpected scattered relocation")
+ 					continue
+ 				}
+ 
+@@ -900,5 +900,5 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	return
+ 
+ bad:
+-	ctxt.Diag("%s: malformed mach-o file: %v", pn, err)
++	Errorf(nil, "%s: malformed mach-o file: %v", pn, err)
+ }
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index daf130b4ed..d7e98e142e 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -313,7 +313,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			rp.Off = int32(rva)
+ 			switch type_ {
+ 			default:
+-				ctxt.Diag("%s: unknown relocation type %d;", pn, type_)
++				Errorf(rsect.sym, "%s: unknown relocation type %d;", pn, type_)
+ 				fallthrough
+ 
+ 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
+@@ -389,10 +389,10 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		} else if sym.sectnum > 0 && uint(sym.sectnum) <= peobj.nsect {
+ 			sect = &peobj.sect[sym.sectnum-1]
+ 			if sect.sym == nil {
+-				ctxt.Diag("%s: %s sym == 0!", pn, s.Name)
++				Errorf(s, "%s: missing sect.sym", pn)
+ 			}
+ 		} else {
+-			ctxt.Diag("%s: %s sectnum < 0!", pn, s.Name)
++			Errorf(s, "%s: sectnum < 0!", pn)
+ 		}
+ 
+ 		if sect == nil {
+@@ -414,7 +414,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		s.Outer = sect.sym
+ 		if sect.sym.Type == obj.STEXT {
+ 			if s.Attr.External() && !s.Attr.DuplicateOK() {
+-				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
++				Errorf(s, "%s: duplicate symbol definition", pn)
+ 			}
+ 			s.Attr |= AttrExternal
+ 		}
+@@ -449,7 +449,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	return
+ 
+ bad:
+-	ctxt.Diag("%s: malformed pe file: %v", pn, err)
++	Errorf(nil, "%s: malformed pe file: %v", pn, err)
+ }
+ 
+ func pemap(peobj *PeObj, sect *PeSect) int {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f5df2352e5..552f08e7e4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -103,8 +103,8 @@ type Arch struct {
+ 	Elfreloc1        func(*Link, *Reloc, int64) int
+ 	Elfsetupplt      func(*Link)
+ 	Gentext          func(*Link)
+-	Machoreloc1      func(*Link, *Reloc, int64) int
+-	PEreloc1         func(*Link, *Reloc, int64) bool
++	Machoreloc1      func(*Symbol, *Reloc, int64) int
++	PEreloc1         func(*Symbol, *Reloc, int64) bool
+ 	Wput             func(uint16)
+ 	Lput             func(uint32)
+ 	Vput             func(uint64)
+@@ -305,20 +305,11 @@ func libinit(ctxt *Link) {
+ 		case BuildmodeShared, BuildmodePlugin:
+ 			// No *flagEntrySymbol for -buildmode=shared and plugin
+ 		default:
+-			ctxt.Diag("unknown *flagEntrySymbol for buildmode %v", Buildmode)
++			Errorf(nil, "unknown *flagEntrySymbol for buildmode %v", Buildmode)
+ 		}
+ 	}
+ }
+ 
+-func Exitf(format string, a ...interface{}) {
+-	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
+-	if coutbuf.f != nil {
+-		coutbuf.f.Close()
+-		mayberemoveoutfile()
+-	}
+-	Exit(2)
+-}
+-
+ func errorexit() {
+ 	if coutbuf.f != nil {
+ 		if nerrors != 0 {
+@@ -493,7 +484,7 @@ func (ctxt *Link) loadlib() {
+ 		tlsg.Type = obj.STLSBSS
+ 		tlsg.Size = int64(SysArch.PtrSize)
+ 	} else if tlsg.Type != obj.SDYNIMPORT {
+-		ctxt.Diag("internal error: runtime declared tlsg variable %d", tlsg.Type)
++		Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
+ 	}
+ 	tlsg.Attr |= AttrReachable
+ 	ctxt.Tlsg = tlsg
+@@ -693,12 +684,12 @@ func objfile(ctxt *Link, lib *Library) {
+ 	l := nextar(f, off, &arhdr)
+ 	var pname string
+ 	if l <= 0 {
+-		ctxt.Diag("%s: short read on archive file symbol header", lib.File)
++		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
+ 		goto out
+ 	}
+ 
+ 	if !strings.HasPrefix(arhdr.name, pkgname) {
+-		ctxt.Diag("%s: cannot find package header", lib.File)
++		Errorf(nil, "%s: cannot find package header", lib.File)
+ 		goto out
+ 	}
+ 
+@@ -706,7 +697,7 @@ func objfile(ctxt *Link, lib *Library) {
+ 		before := f.Offset()
+ 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
+ 		if _, err := io.ReadFull(f, pkgdefBytes); err != nil {
+-			ctxt.Diag("%s: short read on archive file symbol header: %v", lib.File, err)
++			Errorf(nil, "%s: short read on archive file symbol header: %v", lib.File, err)
+ 		}
+ 		hash := sha1.Sum(pkgdefBytes)
+ 		lib.hash = hash[:]
+@@ -1119,7 +1110,7 @@ func (l *Link) hostlink() {
+ 		// new and we test for its support first.
+ 		src := filepath.Join(*flagTmpdir, "trivial.c")
+ 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+-			l.Diag("WriteFile trivial.c failed: %v", err)
++			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+ 		}
+ 		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
+ 		cmd.Dir = *flagTmpdir
+@@ -1174,7 +1165,6 @@ func (l *Link) hostlink() {
+ 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
+ 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+ 			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+-				l.Cursym = nil
+ 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+ 			}
+ 			// Skip combining if `dsymutil` didn't generate a file. See #11994.
+@@ -1184,12 +1174,10 @@ func (l *Link) hostlink() {
+ 			// For os.Rename to work reliably, must be in same directory as outfile.
+ 			combinedOutput := *flagOutfile + "~"
+ 			if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput); err != nil {
+-				l.Cursym = nil
+ 				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+ 			}
+ 			os.Remove(*flagOutfile)
+ 			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+-				l.Cursym = nil
+ 				Exitf("%s: %v", os.Args[0], err)
+ 			}
+ 		}
+@@ -1243,7 +1231,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 	/* check the header */
+ 	line, err := f.ReadString('\n')
+ 	if err != nil {
+-		ctxt.Diag("truncated object file: %s: %v", pn, err)
++		Errorf(nil, "truncated object file: %s: %v", pn, err)
+ 		return nil
+ 	}
+ 
+@@ -1255,11 +1243,11 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 
+ 		if line == SysArch.Name {
+ 			// old header format: just $GOOS
+-			ctxt.Diag("%s: stale object file", pn)
++			Errorf(nil, "%s: stale object file", pn)
+ 			return nil
+ 		}
+ 
+-		ctxt.Diag("%s: not an object file", pn)
++		Errorf(nil, "%s: not an object file", pn)
+ 		return nil
+ 	}
+ 
+@@ -1268,7 +1256,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 
+ 	line = strings.TrimRight(line, "\n")
+ 	if !strings.HasPrefix(line[10:]+" ", t) && !*flagF {
+-		ctxt.Diag("%s: object is [%s] expected [%s]", pn, line[10:], t)
++		Errorf(nil, "%s: object is [%s] expected [%s]", pn, line[10:], t)
+ 		return nil
+ 	}
+ 
+@@ -1279,7 +1267,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 		if theline == "" {
+ 			theline = line[10:]
+ 		} else if theline != line[10:] {
+-			ctxt.Diag("%s: object is [%s] expected [%s]", pn, line[10:], theline)
++			Errorf(nil, "%s: object is [%s] expected [%s]", pn, line[10:], theline)
+ 			return nil
+ 		}
+ 	}
+@@ -1295,7 +1283,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 		c2 = c3
+ 		c3 = bgetc(f)
+ 		if c3 == -1 {
+-			ctxt.Diag("truncated object file: %s", pn)
++			Errorf(nil, "truncated object file: %s", pn)
+ 			return nil
+ 		}
+ 	}
+@@ -1314,11 +1302,11 @@ func readelfsymboldata(ctxt *Link, f *elf.File, sym *elf.Symbol) []byte {
+ 	data := make([]byte, sym.Size)
+ 	sect := f.Sections[sym.Section]
+ 	if sect.Type != elf.SHT_PROGBITS && sect.Type != elf.SHT_NOTE {
+-		ctxt.Diag("reading %s from non-data section", sym.Name)
++		Errorf(nil, "reading %s from non-data section", sym.Name)
+ 	}
+ 	n, err := sect.ReadAt(data, int64(sym.Value-sect.Addr))
+ 	if uint64(n) != sym.Size {
+-		ctxt.Diag("reading contents of %s: %v", sym.Name, err)
++		Errorf(nil, "reading contents of %s: %v", sym.Name, err)
+ 	}
+ 	return data
+ }
+@@ -1379,7 +1367,7 @@ func findshlib(ctxt *Link, shlib string) string {
+ 			return libpath
+ 		}
+ 	}
+-	ctxt.Diag("cannot find shared library: %s", shlib)
++	Errorf(nil, "cannot find shared library: %s", shlib)
+ 	return ""
+ }
+ 
+@@ -1399,26 +1387,26 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 
+ 	f, err := elf.Open(libpath)
+ 	if err != nil {
+-		ctxt.Diag("cannot open shared library: %s", libpath)
++		Errorf(nil, "cannot open shared library: %s", libpath)
+ 		return
+ 	}
+ 
+ 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
+ 	if err != nil {
+-		ctxt.Diag("cannot read ABI hash from shared library %s: %v", libpath, err)
++		Errorf(nil, "cannot read ABI hash from shared library %s: %v", libpath, err)
+ 		return
+ 	}
+ 
+ 	depsbytes, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GODEPS_TAG)
+ 	if err != nil {
+-		ctxt.Diag("cannot read dep list from shared library %s: %v", libpath, err)
++		Errorf(nil, "cannot read dep list from shared library %s: %v", libpath, err)
+ 		return
+ 	}
+ 	deps := strings.Split(string(depsbytes), "\n")
+ 
+ 	syms, err := f.DynamicSymbols()
+ 	if err != nil {
+-		ctxt.Diag("cannot read symbols from shared library: %s", libpath)
++		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
+ 		return
+ 	}
+ 	gcdataLocations := make(map[uint64]*Symbol)
+@@ -1459,7 +1447,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 					if err == io.EOF {
+ 						break
+ 					} else if err != nil {
+-						ctxt.Diag("reading relocation failed %v", err)
++						Errorf(nil, "reading relocation failed %v", err)
+ 						return
+ 					}
+ 					t := elf.R_AARCH64(rela.Info & 0xffff)
+@@ -1600,7 +1588,6 @@ func (ctxt *Link) dostkcheck() {
+ 		}
+ 
+ 		if s.Attr.NoSplit() {
+-			ctxt.Cursym = s
+ 			ch.sym = s
+ 			stkcheck(ctxt, &ch, 0)
+ 		}
+@@ -1608,7 +1595,6 @@ func (ctxt *Link) dostkcheck() {
+ 
+ 	for _, s := range ctxt.Textp {
+ 		if !s.Attr.NoSplit() {
+-			ctxt.Cursym = s
+ 			ch.sym = s
+ 			stkcheck(ctxt, &ch, 0)
+ 		}
+@@ -1630,7 +1616,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 	}
+ 
+ 	if depth > 100 {
+-		ctxt.Diag("nosplit stack check too deep")
++		Errorf(s, "nosplit stack check too deep")
+ 		stkbroke(ctxt, up, 0)
+ 		return -1
+ 	}
+@@ -1642,7 +1628,8 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 		// TODO(mwhudson): actually think about this.
+ 		if depth == 1 && s.Type != obj.SXREF && !ctxt.DynlinkingGo() &&
+ 			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared && Buildmode != BuildmodePlugin {
+-			ctxt.Diag("call to external function %s", s.Name)
++
++			Errorf(s, "call to external function")
+ 		}
+ 		return -1
+ 	}
+@@ -1729,7 +1716,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ }
+ 
+ func stkbroke(ctxt *Link, ch *chain, limit int) {
+-	ctxt.Diag("nosplit stack overflow")
++	Errorf(ch.sym, "nosplit stack overflow")
+ 	stkprint(ctxt, ch, limit)
+ }
+ 
+@@ -1866,16 +1853,16 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+-			put(ctxt, s, s.Name, DataSym, Symaddr(ctxt, s), s.Gotype)
++			put(ctxt, s, s.Name, DataSym, Symaddr(s), s.Gotype)
+ 
+ 		case obj.SBSS, obj.SNOPTRBSS:
+ 			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+ 			if len(s.P) > 0 {
+-				ctxt.Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, len(s.P), s.Type, s.Attr.Special())
++				Errorf(s, "should not be bss (size=%d type=%d special=%v)", len(s.P), s.Type, s.Attr.Special())
+ 			}
+-			put(ctxt, s, s.Name, BSSSym, Symaddr(ctxt, s), s.Gotype)
++			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
+ 
+ 		case obj.SFILE:
+ 			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
+@@ -1893,7 +1880,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 
+ 		case obj.STLSBSS:
+ 			if Linkmode == LinkExternal && Headtype != obj.Hopenbsd {
+-				put(ctxt, s, s.Name, TLSSym, Symaddr(ctxt, s), s.Gotype)
++				put(ctxt, s, s.Name, TLSSym, Symaddr(s), s.Gotype)
+ 			}
+ 		}
+ 	}
+@@ -1947,9 +1934,9 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 	}
+ }
+ 
+-func Symaddr(ctxt *Link, s *Symbol) int64 {
++func Symaddr(s *Symbol) int64 {
+ 	if !s.Attr.Reachable() {
+-		ctxt.Diag("unreachable symbol in symaddr - %s", s.Name)
++		Errorf(s, "unreachable symbol in symaddr")
+ 	}
+ 	return s.Value
+ }
+@@ -1963,14 +1950,14 @@ func (ctxt *Link) xdefine(p string, t obj.SymKind, v int64) {
+ 	s.Attr |= AttrLocal
+ }
+ 
+-func datoff(ctxt *Link, addr int64) int64 {
++func datoff(s *Symbol, addr int64) int64 {
+ 	if uint64(addr) >= Segdata.Vaddr {
+ 		return int64(uint64(addr) - Segdata.Vaddr + Segdata.Fileoff)
+ 	}
+ 	if uint64(addr) >= Segtext.Vaddr {
+ 		return int64(uint64(addr) - Segtext.Vaddr + Segtext.Fileoff)
+ 	}
+-	ctxt.Diag("datoff %#x", addr)
++	Errorf(s, "invalid datoff %#x", addr)
+ 	return 0
+ }
+ 
+@@ -1984,7 +1971,7 @@ func Entryvalue(ctxt *Link) int64 {
+ 		return *FlagTextAddr
+ 	}
+ 	if s.Type != obj.STEXT {
+-		ctxt.Diag("entry not text: %s", s.Name)
++		Errorf(s, "entry not text")
+ 	}
+ 	return s.Value
+ }
+@@ -1992,17 +1979,16 @@ func Entryvalue(ctxt *Link) int64 {
+ func undefsym(ctxt *Link, s *Symbol) {
+ 	var r *Reloc
+ 
+-	ctxt.Cursym = s
+ 	for i := 0; i < len(s.R); i++ {
+ 		r = &s.R[i]
+ 		if r.Sym == nil { // happens for some external ARM relocs
+ 			continue
+ 		}
+ 		if r.Sym.Type == obj.Sxxx || r.Sym.Type == obj.SXREF {
+-			ctxt.Diag("undefined: %s", r.Sym.Name)
++			Errorf(s, "undefined: %q", r.Sym.Name)
+ 		}
+ 		if !r.Sym.Attr.Reachable() {
+-			ctxt.Diag("use of unreachable symbol: %s", r.Sym.Name)
++			Errorf(s, "relocation target %q", r.Sym.Name)
+ 		}
+ 	}
+ }
+@@ -2039,23 +2025,6 @@ func (ctxt *Link) callgraph() {
+ 	}
+ }
+ 
+-func (ctxt *Link) Diag(format string, args ...interface{}) {
+-	tn := ""
+-	sep := ""
+-	if ctxt.Cursym != nil {
+-		tn = ctxt.Cursym.Name
+-		sep = ": "
+-	}
+-	fmt.Printf("%s%s%s\n", tn, sep, fmt.Sprintf(format, args...))
+-	nerrors++
+-	if *flagH {
+-		panic("error")
+-	}
+-	if nerrors > 20 {
+-		Exitf("too many errors")
+-	}
+-}
+-
+ func Rnd(v int64, r int64) int64 {
+ 	if r <= 0 {
+ 		return v
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index fa7d2b7d11..f2f767faf8 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -376,7 +376,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+ 	if sect.Vaddr < sect.Seg.Vaddr+sect.Seg.Filelen {
+ 		// data in file
+ 		if sect.Length > sect.Seg.Vaddr+sect.Seg.Filelen-sect.Vaddr {
+-			ctxt.Diag("macho cannot represent section %s crossing data and bss", sect.Name)
++			Errorf(nil, "macho cannot represent section %s crossing data and bss", sect.Name)
+ 		}
+ 		msect.off = uint32(sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr)
+ 	} else {
+@@ -716,13 +716,13 @@ func machosymtab(ctxt *Link) {
+ 				o = o.Outer
+ 			}
+ 			if o.Sect == nil {
+-				ctxt.Diag("missing section for %s", s.Name)
++				Errorf(s, "missing section for symbol")
+ 				Adduint8(ctxt, symtab, 0)
+ 			} else {
+ 				Adduint8(ctxt, symtab, uint8(o.Sect.Extnum))
+ 			}
+ 			Adduint16(ctxt, symtab, 0) // desc
+-			adduintxx(ctxt, symtab, uint64(Symaddr(ctxt, s)), SysArch.PtrSize)
++			adduintxx(ctxt, symtab, uint64(Symaddr(s)), SysArch.PtrSize)
+ 		}
+ 	}
+ }
+@@ -834,15 +834,20 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 		if sym.Value >= int64(eaddr) {
+ 			break
+ 		}
+-		ctxt.Cursym = sym
+-
+ 		for ri := 0; ri < len(sym.R); ri++ {
+ 			r := &sym.R[ri]
+ 			if r.Done != 0 {
+ 				continue
+ 			}
+-			if Thearch.Machoreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
+-				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
++			if r.Xsym == nil {
++				Errorf(sym, "missing xsym in relocation")
++				continue
++			}
++			if !r.Xsym.Attr.Reachable() {
++				Errorf(sym, "unreachable reloc %v target %v", r.Type, r.Xsym.Name)
++			}
++			if Thearch.Machoreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
++				Errorf(sym, "unsupported obj reloc %v/%d to %s", r.Type, r.Siz, r.Sym.Name)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 41c83bef37..05ef137100 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -300,7 +300,7 @@ func (ctxt *Link) pclntab() {
+ 				var it Pciter
+ 				for pciterinit(ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
+ 					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
+-						ctxt.Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
++						Errorf(ctxt.Cursym, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
+ 						errorexit()
+ 					}
+ 				}
+@@ -339,7 +339,7 @@ func (ctxt *Link) pclntab() {
+ 		}
+ 
+ 		if off != end {
+-			ctxt.Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
++			Errorf(ctxt.Cursym, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
+ 			errorexit()
+ 		}
+ 
+@@ -457,16 +457,16 @@ func (ctxt *Link) findfunctab() {
+ 	for i := int32(0); i < nbuckets; i++ {
+ 		base := indexes[i*SUBBUCKETS]
+ 		if base == NOIDX {
+-			ctxt.Diag("hole in findfunctab")
++			Errorf(nil, "hole in findfunctab")
+ 		}
+ 		setuint32(ctxt, t, int64(i)*(4+SUBBUCKETS), uint32(base))
+ 		for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
+ 			idx = indexes[i*SUBBUCKETS+j]
+ 			if idx == NOIDX {
+-				ctxt.Diag("hole in findfunctab")
++				Errorf(nil, "hole in findfunctab")
+ 			}
+ 			if idx-base >= 256 {
+-				ctxt.Diag("too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
++				Errorf(nil, "too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
+ 			}
+ 
+ 			setuint8(ctxt, t, int64(i)*(4+SUBBUCKETS)+4+int64(j), uint8(idx-base))
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index d6be4206a5..ca968e7adf 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -379,7 +379,7 @@ var nexport int
+ 
+ func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
+ 	if pensect == 16 {
+-		ctxt.Diag("too many sections")
++		Errorf(nil, "too many sections")
+ 		errorexit()
+ 	}
+ 
+@@ -400,19 +400,19 @@ func addpesection(ctxt *Link, name string, sectsize int, filesize int) *IMAGE_SE
+ 
+ func chksectoff(ctxt *Link, h *IMAGE_SECTION_HEADER, off int64) {
+ 	if off != int64(h.PointerToRawData) {
+-		ctxt.Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
++		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(off))
+ 		errorexit()
+ 	}
+ }
+ 
+ func chksectseg(ctxt *Link, h *IMAGE_SECTION_HEADER, s *Segment) {
+ 	if s.Vaddr-PEBASE != uint64(h.VirtualAddress) {
+-		ctxt.Diag("%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
++		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.VirtualAddress)), uint64(int64(s.Vaddr-PEBASE)))
+ 		errorexit()
+ 	}
+ 
+ 	if s.Fileoff != uint64(h.PointerToRawData) {
+-		ctxt.Diag("%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
++		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", cstring(h.Name[:]), uint64(int64(h.PointerToRawData)), uint64(int64(s.Fileoff)))
+ 		errorexit()
+ 	}
+ }
+@@ -505,7 +505,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 			var err error
+ 			m.argsize, err = strconv.Atoi(s.Extname[i+1:])
+ 			if err != nil {
+-				ctxt.Diag("failed to parse stdcall decoration: %v", err)
++				Errorf(s, "failed to parse stdcall decoration: %v", err)
+ 			}
+ 			m.argsize *= SysArch.PtrSize
+ 			s.Extname = s.Extname[:i]
+@@ -686,7 +686,7 @@ func initdynexport(ctxt *Link) {
+ 			continue
+ 		}
+ 		if nexport+1 > len(dexport) {
+-			ctxt.Diag("pe dynexport table is full")
++			Errorf(s, "pe dynexport table is full")
+ 			errorexit()
+ 		}
+ 
+@@ -798,15 +798,15 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
+ 				continue
+ 			}
+ 			if r.Xsym == nil {
+-				ctxt.Diag("missing xsym in relocation")
++				Errorf(sym, "missing xsym in relocation")
+ 				continue
+ 			}
+ 
+ 			if r.Xsym.Dynid < 0 {
+-				ctxt.Diag("reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
++				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+ 			}
+-			if !Thearch.PEreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-PEBASE)) {
+-				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
++			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-PEBASE)) {
++				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+ 			}
+ 
+ 			relocs++
+@@ -969,7 +969,7 @@ func writePESymTableRecords(ctxt *Link) int {
+ 		} else if type_ == UndefinedSym {
+ 			typ = IMAGE_SYM_DTYPE_FUNCTION
+ 		} else {
+-			ctxt.Diag("addpesym %#x", addr)
++			Errorf(s, "addpesym %#x", addr)
+ 		}
+ 
+ 		// write COFF symbol table record
+@@ -1049,7 +1049,7 @@ func addpesymtable(ctxt *Link) {
+ 
+ func setpersrc(ctxt *Link, sym *Symbol) {
+ 	if rsrcsym != nil {
+-		ctxt.Diag("too many .rsrc sections")
++		Errorf(sym, "too many .rsrc sections")
+ 	}
+ 
+ 	rsrcsym = sym
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 2d6f74dd75..1a3d6f16df 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -113,13 +113,11 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
+ 		elfshnum = SHN_UNDEF
+ 	} else {
+ 		if xo.Sect == nil {
+-			ctxt.Cursym = x
+-			ctxt.Diag("missing section in putelfsym")
++			Errorf(x, "missing section in putelfsym")
+ 			return
+ 		}
+ 		if xo.Sect.Elfsect == nil {
+-			ctxt.Cursym = x
+-			ctxt.Diag("missing ELF section in putelfsym")
++			Errorf(x, "missing ELF section in putelfsym")
+ 			return
+ 		}
+ 		elfshnum = xo.Sect.Elfsect.shnum
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 047c060b37..925aab6b36 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -7,6 +7,7 @@ package ld
+ import (
+ 	"bytes"
+ 	"encoding/binary"
++	"fmt"
+ 	"os"
+ 	"strings"
+ 	"time"
+@@ -70,15 +71,45 @@ func AtExit(f func()) {
+ 	atExitFuncs = append(atExitFuncs, f)
+ }
+ 
++// Exit exits with code after executing all atExitFuncs.
+ func Exit(code int) {
+ 	for i := len(atExitFuncs) - 1; i >= 0; i-- {
+-		f := atExitFuncs[i]
+-		atExitFuncs = atExitFuncs[:i]
+-		f()
++		atExitFuncs[i]()
+ 	}
+ 	os.Exit(code)
+ }
+ 
++// Exitf logs an error message then calls Exit(2).
++func Exitf(format string, a ...interface{}) {
++	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
++	if coutbuf.f != nil {
++		coutbuf.f.Close()
++		mayberemoveoutfile()
++	}
++	Exit(2)
++}
++
++// Errorf logs an error message.
++//
++// If more than 20 errors have been printed, exit with an error.
++//
++// Logging an error means that on exit cmd/link will delete any
++// output file and return a non-zero error code.
++func Errorf(s *Symbol, format string, args ...interface{}) {
++	if s != nil {
++		format = s.Name + ": " + format
++	}
++	format += "\n"
++	fmt.Fprintf(os.Stderr, format, args...)
++	nerrors++
++	if *flagH {
++		panic("error")
++	}
++	if nerrors > 20 {
++		Exitf("too many errors")
++	}
++}
++
+ func artrim(x []byte) string {
+ 	i := 0
+ 	j := len(x)
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 869bc139b3..0a48a3e531 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -98,7 +98,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	return -1
+ }
+ 
+@@ -116,12 +116,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			rs := r.Sym
+ 			r.Xadd = r.Add
+ 			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
++				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+ 				rs = rs.Outer
+ 			}
+ 
+ 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+-				ctxt.Diag("missing section for %s", rs.Name)
++				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+ 
+@@ -143,12 +143,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+ 		return 0
+ 
+ 	case obj.R_ADDRMIPS,
+ 		obj.R_ADDRMIPSU:
+-		t := ld.Symaddr(ctxt, r.Sym) + r.Add
++		t := ld.Symaddr(r.Sym) + r.Add
+ 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+ 		if r.Type == obj.R_ADDRMIPS {
+ 			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
+@@ -159,9 +159,9 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 
+ 	case obj.R_ADDRMIPSTLS:
+ 		// thread pointer is at 0x7000 offset from the start of TLS data area
+-		t := ld.Symaddr(ctxt, r.Sym) + r.Add - 0x7000
++		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
+ 		if t < -32768 || t >= 32678 {
+-			ctxt.Diag("TLS offset out of range %d", t)
++			ld.Errorf(s, "TLS offset out of range %d", t)
+ 		}
+ 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+ 		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
+@@ -170,7 +170,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	case obj.R_CALLMIPS,
+ 		obj.R_JMPMIPS:
+ 		// Low 26 bits = (S + A) >> 2
+-		t := ld.Symaddr(ctxt, r.Sym) + r.Add
++		t := ld.Symaddr(r.Sym) + r.Add
+ 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+ 		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
+ 		return 0
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 7f009f7c9a..73f675190f 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -247,7 +247,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ctxt.Diag("unexpected relocation type %d", r.Type)
++			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+ 			return false
+ 		}
+ 
+@@ -264,7 +264,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			// Should have been handled in elfsetupplt
+-			ctxt.Diag("unexpected R_PPC64_REL24 for dyn import")
++			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
+ 		}
+ 
+ 		return true
+@@ -274,7 +274,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Add += 4
+ 
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_PPC_REL32 for dyn import")
++			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
+ 		}
+ 
+ 		return true
+@@ -443,7 +443,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	return -1
+ }
+ 
+@@ -458,7 +458,7 @@ func symtoc(ctxt *ld.Link, s *ld.Symbol) int64 {
+ 	}
+ 
+ 	if toc == nil {
+-		ctxt.Diag("TOC-relative relocation in object without .TOC.")
++		ld.Errorf(s, "TOC-relative relocation in object without .TOC.")
+ 		return 0
+ 	}
+ 
+@@ -482,9 +482,9 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	// instruction (it is an error in this case if the low 2 bits of the address
+ 	// are non-zero).
+ 
+-	t := ld.Symaddr(ctxt, r.Sym) + r.Add
++	t := ld.Symaddr(r.Sym) + r.Add
+ 	if t < 0 || t >= 1<<31 {
+-		ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(ctxt, r.Sym))
++		ld.Errorf(s, "relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
+ 	}
+ 	if t&0x8000 != 0 {
+ 		t += 0x10000
+@@ -498,7 +498,7 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	case obj.R_ADDRPOWER_DS:
+ 		o1 |= (uint32(t) >> 16) & 0xffff
+ 		if t&3 != 0 {
+-			ctxt.Diag("bad DS reloc for %s: %d", s.Name, ld.Symaddr(ctxt, r.Sym))
++			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+ 		}
+ 		o2 |= uint32(t) & 0xfffc
+ 
+@@ -539,12 +539,12 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			rs := r.Sym
+ 			r.Xadd = r.Add
+ 			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(ctxt, rs) - ld.Symaddr(ctxt, rs.Outer)
++				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+ 				rs = rs.Outer
+ 			}
+ 
+ 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+-				ctxt.Diag("missing section for %s", rs.Name)
++				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+ 
+@@ -564,7 +564,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+ 		return 0
+ 
+ 	case obj.R_ADDRPOWER, obj.R_ADDRPOWER_DS:
+@@ -573,21 +573,21 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	case obj.R_CALLPOWER:
+ 		// Bits 6 through 29 = (S + A - P) >> 2
+ 
+-		t := ld.Symaddr(ctxt, r.Sym) + r.Add - (s.Value + int64(r.Off))
++		t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
+ 		if t&3 != 0 {
+-			ctxt.Diag("relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
++			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
+ 		}
+ 		if int64(int32(t<<6)>>6) != t {
+ 			// TODO(austin) This can happen if text > 32M.
+ 			// Add a call trampoline to .text in that case.
+-			ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
++			ld.Errorf(s, "relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
+ 		}
+ 
+ 		*val |= int64(uint32(t) &^ 0xfc000003)
+ 		return 0
+ 
+ 	case obj.R_POWER_TOC: // S + A - .TOC.
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - symtoc(ctxt, s)
++		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s)
+ 
+ 		return 0
+ 
+@@ -598,7 +598,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		// Specification".
+ 		v := r.Sym.Value - 0x7000
+ 		if int64(int16(v)) != v {
+-			ctxt.Diag("TLS offset out of range %d", v)
++			ld.Errorf(s, "TLS offset out of range %d", v)
+ 		}
+ 		*val = (*val &^ 0xffff) | (v & 0xffff)
+ 		return 0
+@@ -610,7 +610,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ 	switch r.Variant & ld.RV_TYPE_MASK {
+ 	default:
+-		ctxt.Diag("unexpected relocation variant %d", r.Variant)
++		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
+ 		fallthrough
+ 
+ 	case ld.RV_NONE:
+@@ -685,7 +685,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ 			o1 = uint32(ld.Le16(s.P[r.Off:]))
+ 		}
+ 		if t&3 != 0 {
+-			ctxt.Diag("relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
++			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
+ 		}
+ 		if (r.Variant&ld.RV_CHECK_OVERFLOW != 0) && int64(int16(t)) != t {
+ 			goto overflow
+@@ -694,7 +694,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ 	}
+ 
+ overflow:
+-	ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
++	ld.Errorf(s, "relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
+ 	return t
+ }
+ 
+@@ -739,7 +739,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_PPC64_JMP_SLOT))
+ 		ld.Adduint64(ctxt, rela, 0)
+ 	} else {
+-		ctxt.Diag("addpltsym: unsupported binary format")
++		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index d20402736c..d25e2b26c5 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -100,19 +100,18 @@ func gentext(ctxt *ld.Link) {
+ 
+ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	targ := r.Sym
+-	ctxt.Cursym = s
+ 
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ctxt.Diag("unexpected relocation type %d", r.Type)
++			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+ 	case 256 + ld.R_390_12,
+ 		256 + ld.R_390_GOT12:
+-		ctxt.Diag("s390x 12-bit relocations have not been implemented (relocation type %d)", r.Type-256)
++		ld.Errorf(s, "s390x 12-bit relocations have not been implemented (relocation type %d)", r.Type-256)
+ 		return false
+ 
+ 	case 256 + ld.R_390_8,
+@@ -120,7 +119,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		256 + ld.R_390_32,
+ 		256 + ld.R_390_64:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_390_nn relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_390_nn relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = obj.R_ADDR
+ 		return true
+@@ -129,10 +128,10 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		256 + ld.R_390_PC32,
+ 		256 + ld.R_390_PC64:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_390_PCnn relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_390_PCnn relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		if targ.Type == 0 || targ.Type == obj.SXREF {
+-			ctxt.Diag("unknown symbol %s in pcrel", targ.Name)
++			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+ 		}
+ 		r.Type = obj.R_PCREL
+ 		r.Add += int64(r.Siz)
+@@ -141,7 +140,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case 256 + ld.R_390_GOT16,
+ 		256 + ld.R_390_GOT32,
+ 		256 + ld.R_390_GOT64:
+-		ctxt.Diag("unimplemented S390x relocation: %v", r.Type-256)
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
+ 		return true
+ 
+ 	case 256 + ld.R_390_PLT16DBL,
+@@ -168,24 +167,24 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		return true
+ 
+ 	case 256 + ld.R_390_COPY:
+-		ctxt.Diag("unimplemented S390x relocation: %v", r.Type-256)
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
+ 		return false
+ 
+ 	case 256 + ld.R_390_GLOB_DAT:
+-		ctxt.Diag("unimplemented S390x relocation: %v", r.Type-256)
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
+ 		return false
+ 
+ 	case 256 + ld.R_390_JMP_SLOT:
+-		ctxt.Diag("unimplemented S390x relocation: %v", r.Type-256)
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
+ 		return false
+ 
+ 	case 256 + ld.R_390_RELATIVE:
+-		ctxt.Diag("unimplemented S390x relocation: %v", r.Type-256)
++		ld.Errorf(s, "unimplemented S390x relocation: %v", r.Type-256)
+ 		return false
+ 
+ 	case 256 + ld.R_390_GOTOFF:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_390_GOTOFF relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_390_GOTOFF relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = obj.R_GOTOFF
+ 		return true
+@@ -202,7 +201,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 		r.Variant = ld.RV_390_DBL
+ 		r.Add += int64(r.Siz)
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_390_PCnnDBL relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_390_PCnnDBL relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		return true
+ 
+@@ -380,7 +379,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	return -1
+ }
+ 
+@@ -395,7 +394,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+ 		return 0
+ 	}
+ 
+@@ -405,7 +404,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ 	switch r.Variant & ld.RV_TYPE_MASK {
+ 	default:
+-		ctxt.Diag("unexpected relocation variant %d", r.Variant)
++		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
+ 		return t
+ 
+ 	case ld.RV_NONE:
+@@ -413,7 +412,7 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ 
+ 	case ld.RV_390_DBL:
+ 		if (t & 1) != 0 {
+-			ctxt.Diag("%s+%v is not 2-byte aligned", r.Sym.Name, r.Sym.Value)
++			ld.Errorf(s, "%s+%v is not 2-byte aligned", r.Sym.Name, r.Sym.Value)
+ 		}
+ 		return t >> 1
+ 	}
+@@ -478,7 +477,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		s.Plt = int32(plt.Size - 32)
+ 
+ 	} else {
+-		ctxt.Diag("addpltsym: unsupported binary format")
++		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -498,7 +497,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_390_GLOB_DAT))
+ 		ld.Adduint64(ctxt, rela, 0)
+ 	} else {
+-		ctxt.Diag("addgotsym: unsupported binary format")
++		ld.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -551,7 +550,7 @@ func asmb(ctxt *ld.Link) {
+ 	symo := uint32(0)
+ 	if !*ld.FlagS {
+ 		if !ld.Iself {
+-			ctxt.Diag("unsupported executable format")
++			ld.Errorf(nil, "unsupported executable format")
+ 		}
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("%5.2f sym\n", obj.Cputime())
+@@ -583,7 +582,7 @@ func asmb(ctxt *ld.Link) {
+ 	ld.Cseek(0)
+ 	switch ld.Headtype {
+ 	default:
+-		ctxt.Diag("unsupported operating system")
++		ld.Errorf(nil, "unsupported operating system")
+ 	case obj.Hlinux:
+ 		ld.Asmbelf(ctxt, int64(symo))
+ 	}
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 284d768acd..5db3489370 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -169,17 +169,17 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ctxt.Diag("unexpected relocation type %d", r.Type)
++			ld.Errorf(s, "unexpected relocation type %d", r.Type)
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+ 	case 256 + ld.R_386_PC32:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		if targ.Type == 0 || targ.Type == obj.SXREF {
+-			ctxt.Diag("unknown symbol %s in pcrel", targ.Name)
++			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+ 		}
+ 		r.Type = obj.R_PCREL
+ 		r.Add += 4
+@@ -217,7 +217,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 				return true
+ 			}
+ 
+-			ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+ 			return false
+ 		}
+ 
+@@ -239,7 +239,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 
+ 	case 256 + ld.R_386_32:
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
+ 		}
+ 		r.Type = obj.R_ADDR
+ 		return true
+@@ -247,7 +247,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
+ 		r.Type = obj.R_ADDR
+ 		if targ.Type == obj.SDYNIMPORT {
+-			ctxt.Diag("unexpected reloc for dynamic symbol %s", targ.Name)
++			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
+ 		}
+ 		return true
+ 
+@@ -268,7 +268,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			// have symbol
+ 			// turn MOVL of GOT entry into LEAL of symbol itself
+ 			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
+-				ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
++				ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+ 				return false
+ 			}
+ 
+@@ -408,14 +408,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	return 0
+ }
+ 
+-func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
++func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Type == obj.SHOSTOBJ {
+ 		if rs.Dynid < 0 {
+-			ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -424,7 +424,7 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+ 			return -1
+ 		}
+ 	}
+@@ -464,13 +464,13 @@ func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	return 0
+ }
+ 
+-func pereloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
++func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Dynid < 0 {
+-		ctxt.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
++		ld.Errorf(s, "reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 		return false
+ 	}
+ 
+@@ -504,7 +504,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_GOTOFF:
+-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ctxt, ".got", 0))
+ 		return 0
+ 	}
+ 
+@@ -599,7 +599,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
+ 		ld.Adduint8(ctxt, plt, 0x25)
+ 		ld.Addaddrplus(ctxt, plt, ld.Linklookup(ctxt, ".got", 0), int64(s.Got))
+ 	} else {
+-		ctxt.Diag("addpltsym: unsupported binary format")
++		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -620,7 +620,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ 	} else if ld.Headtype == obj.Hdarwin {
+ 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
+ 	} else {
+-		ctxt.Diag("addgotsym: unsupported binary format")
++		ld.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+ 

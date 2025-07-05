@@ -7,6 +7,20 @@ Date:   Tue Mar 12 21:39:49 2013 +0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7760043
-
+---
  src/pkg/runtime/netpoll_stub.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/runtime/netpoll_stub.c b/src/pkg/runtime/netpoll_stub.c
+index 90da7a85de..4dba88620a 100644
+--- a/src/pkg/runtime/netpoll_stub.c
++++ b/src/pkg/runtime/netpoll_stub.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build windows
+-
+ #include "runtime.h"
+ 
+ // Polls for ready network connections.

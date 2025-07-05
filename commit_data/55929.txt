@@ -22,8 +22,55 @@ Date:   Mon Mar 27 10:21:10 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/attr.go   | 4 ++++
  src/log/slog/record.go | 2 +-
  src/log/slog/value.go  | 3 ++-
  3 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+index 29431cb7a7..2e9bc0e6ef 100644
+--- a/src/log/slog/attr.go
++++ b/src/log/slog/attr.go
+@@ -82,3 +82,7 @@ func (a Attr) Equal(b Attr) bool {
+ func (a Attr) String() string {
+ 	return fmt.Sprintf("%s=%s", a.Key, a.Value)
+ }
++
++func (a Attr) isEmpty() bool {
++	return a.Key == "" && a.Value.num == 0 && a.Value.any == nil
++}
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 08fb850df9..0ee2a27f0e 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -106,7 +106,7 @@ func (r *Record) AddAttrs(attrs ...Attr) {
+ 	// and seeing if the Attr there is non-zero.
+ 	if cap(r.back) > len(r.back) {
+ 		end := r.back[:len(r.back)+1][len(r.back)]
+-		if end != (Attr{}) {
++		if !end.isEmpty() {
+ 			panic("copies of a slog.Record were both modified")
+ 		}
+ 	}
+diff --git a/src/log/slog/value.go b/src/log/slog/value.go
+index b434eb368a..fcfc884dc3 100644
+--- a/src/log/slog/value.go
++++ b/src/log/slog/value.go
+@@ -17,6 +17,7 @@ import (
+ // it can represent most small values without an allocation.
+ // The zero Value corresponds to nil.
+ type Value struct {
++	_ [0]func() // disallow ==
+ 	// num holds the value for Kinds Int64, Uint64, Float64, Bool and Duration,
+ 	// the string length for KindString, and nanoseconds since the epoch for KindTime.
+ 	num uint64
+@@ -371,7 +372,7 @@ func (v Value) group() []Attr {
+ 
+ //////////////// Other
+ 
+-// Equal reports whether v and w have equal keys and values.
++// Equal reports whether v and w represent the same Go value.
+ func (v Value) Equal(w Value) bool {
+ 	k1 := v.Kind()
+ 	k2 := w.Kind()

@@ -14,7 +14,7 @@ Date:   Mon Jun 27 15:26:36 2011 -0700
     R=r, rsc, gri, adg, dsymonds, r, gri
     CC=golang-dev
     https://golang.org/cl/4629047
-
+---
  src/cmd/godoc/godoc.go           |  2 +-
  src/cmd/gofix/Makefile           |  1 +
  src/cmd/gofix/httpfs.go          | 63 ++++++++++++++++++++++++++++++++++++++
@@ -23,3 +23,465 @@ Date:   Mon Jun 27 15:26:36 2011 -0700
  src/pkg/http/fs_test.go          | 66 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/readrequest_test.go | 48 +++++++++++++++++++++++------
  7 files changed, 264 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 6987d911b7..30f18e8820 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -84,7 +84,7 @@ var (
+ 
+ func initHandlers() {
+ 	fsMap.Init(*pkgPath)
+-	fileServer = http.FileServer(*goroot, "")
++	fileServer = http.FileServer(http.Dir(*goroot))
+ 	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
+ 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
+ }
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index ab16bd5aa5..bce22121e0 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	filepath.go\
+ 	fix.go\
+ 	httpfinalurl.go\
++	httpfs.go\
+ 	httpheaders.go\
+ 	httpserver.go\
+ 	main.go\
+diff --git a/src/cmd/gofix/httpfs.go b/src/cmd/gofix/httpfs.go
+new file mode 100644
+index 0000000000..7f27656809
+--- /dev/null
++++ b/src/cmd/gofix/httpfs.go
+@@ -0,0 +1,63 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++var httpFileSystemFix = fix{
++	"httpfs",
++	httpfs,
++	`Adapt http FileServer to take a FileSystem.
++
++http://codereview.appspot.com/4629047  http FileSystem interface
++`,
++}
++
++func init() {
++	register(httpFileSystemFix)
++}
++
++func httpfs(f *ast.File) bool {
++	if !imports(f, "http") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		if !ok || !isPkgDot(call.Fun, "http", "FileServer") {
++			return
++		}
++		if len(call.Args) != 2 {
++			return
++		}
++		dir, prefix := call.Args[0], call.Args[1]
++		call.Args = []ast.Expr{&ast.CallExpr{
++			Fun:  &ast.SelectorExpr{ast.NewIdent("http"), ast.NewIdent("Dir")},
++			Args: []ast.Expr{dir},
++		}}
++		wrapInStripHandler := true
++		if prefixLit, ok := prefix.(*ast.BasicLit); ok {
++			if prefixLit.Kind == token.STRING && (prefixLit.Value == `"/"` || prefixLit.Value == `""`) {
++				wrapInStripHandler = false
++			}
++		}
++		if wrapInStripHandler {
++			call.Fun.(*ast.SelectorExpr).Sel = ast.NewIdent("StripPrefix")
++			call.Args = []ast.Expr{
++				prefix,
++				&ast.CallExpr{
++					Fun:  &ast.SelectorExpr{ast.NewIdent("http"), ast.NewIdent("FileServer")},
++					Args: call.Args,
++				},
++			}
++		}
++		fixed = true
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/httpfs_test.go b/src/cmd/gofix/httpfs_test.go
+new file mode 100644
+index 0000000000..d1804e93bf
+--- /dev/null
++++ b/src/cmd/gofix/httpfs_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(httpFileSystemTests)
++}
++
++var httpFileSystemTests = []testCase{
++	{
++		Name: "httpfs.0",
++		In: `package httpfs
++
++import (
++	"http"
++)
++
++func f() {
++	_ = http.FileServer("/var/www/foo", "/")
++	_ = http.FileServer("/var/www/foo", "")
++	_ = http.FileServer("/var/www/foo/bar", "/bar")
++	s := "/foo"
++	_ = http.FileServer(s, "/")
++	prefix := "/p"
++	_ = http.FileServer(s, prefix)
++}
++`,
++		Out: `package httpfs
++
++import (
++	"http"
++)
++
++func f() {
++	_ = http.FileServer(http.Dir("/var/www/foo"))
++	_ = http.FileServer(http.Dir("/var/www/foo"))
++	_ = http.StripPrefix("/bar", http.FileServer(http.Dir("/var/www/foo/bar")))
++	s := "/foo"
++	_ = http.FileServer(http.Dir(s))
++	prefix := "/p"
++	_ = http.StripPrefix(prefix, http.FileServer(http.Dir(s)))
++}
++`,
++	},
++}
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 866abe6a4b..139fe2cb0f 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"mime"
+ 	"os"
++	"path"
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
+@@ -18,6 +19,38 @@ import (
+ 	"utf8"
+ )
+ 
++// A Dir implements http.FileSystem using the native file
++// system restricted to a specific directory tree.
++type Dir string
++
++func (d Dir) Open(name string) (File, os.Error) {
++	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
++		return nil, os.NewError("http: invalid character in file path")
++	}
++	f, err := os.Open(filepath.Join(string(d), filepath.FromSlash(path.Clean("/"+name))))
++	if err != nil {
++		return nil, err
++	}
++	return f, nil
++}
++
++// A FileSystem implements access to a collection of named files.
++// The elements in a file path are separated by slash ('/', U+002F)
++// characters, regardless of host operating system convention.
++type FileSystem interface {
++	Open(name string) (File, os.Error)
++}
++
++// A File is returned by a FileSystem's Open method and can be
++// served by the FileServer implementation.
++type File interface {
++	Close() os.Error
++	Stat() (*os.FileInfo, os.Error)
++	Readdir(count int) ([]os.FileInfo, os.Error)
++	Read([]byte) (int, os.Error)
++	Seek(offset int64, whence int) (int64, os.Error)
++}
++
+ // Heuristic: b is text if it is valid UTF-8 and doesn't
+ // contain any unprintable ASCII or Unicode characters.
+ func isText(b []byte) bool {
+@@ -44,7 +77,7 @@ func isText(b []byte) bool {
+ 	return true
+ }
+ 
+-func dirList(w ResponseWriter, f *os.File) {
++func dirList(w ResponseWriter, f File) {
+ 	fmt.Fprintf(w, "<pre>\n")
+ 	for {
+ 		dirs, err := f.Readdir(100)
+@@ -63,7 +96,8 @@ func dirList(w ResponseWriter, f *os.File) {
+ 	fmt.Fprintf(w, "</pre>\n")
+ }
+ 
+-func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
++// name is '/'-separated, not filepath.Separator.
++func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirect bool) {
+ 	const indexPage = "/index.html"
+ 
+ 	// redirect .../index.html to .../
+@@ -72,7 +106,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 		return
+ 	}
+ 
+-	f, err := os.Open(name)
++	f, err := fs.Open(name)
+ 	if err != nil {
+ 		// TODO expose actual error?
+ 		NotFound(w, r)
+@@ -113,7 +147,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDirectory() {
+ 		index := name + filepath.FromSlash(indexPage)
+-		ff, err := os.Open(index)
++		ff, err := fs.Open(index)
+ 		if err == nil {
+ 			defer ff.Close()
+ 			dd, err := ff.Stat()
+@@ -188,24 +222,26 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 
+ // ServeFile replies to the request with the contents of the named file or directory.
+ func ServeFile(w ResponseWriter, r *Request, name string) {
+-	serveFile(w, r, name, false)
++	serveFile(w, r, Dir(name), "", false)
+ }
+ 
+ type fileHandler struct {
+-	root string
++	root FileSystem
+ }
+ 
+ // FileServer returns a handler that serves HTTP requests
+ // with the contents of the file system rooted at root.
+-// It strips prefix from the incoming requests before
+-// looking up the file name in the file system.
+-func FileServer(root, prefix string) Handler {
+-	return StripPrefix(prefix, &fileHandler{root})
++//
++// To use the operating system's file system implementation,
++// use http.Dir:
++//
++//     http.Handle("/", http.FileServer(http.Dir("/tmp")))
++func FileServer(root FileSystem) Handler {
++	return &fileHandler{root}
+ }
+ 
+ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
+-	path := r.URL.Path
+-	serveFile(w, r, filepath.Join(f.root, filepath.FromSlash(path)), true)
++	serveFile(w, r, f.root, path.Clean(r.URL.Path), true)
+ }
+ 
+ // httpRange specifies the byte range to be sent to the client.
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index 554053449e..dbbdf05bdc 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -85,6 +85,72 @@ func TestServeFile(t *testing.T) {
+ 	}
+ }
+ 
++type testFileSystem struct {
++	open func(name string) (File, os.Error)
++}
++
++func (fs *testFileSystem) Open(name string) (File, os.Error) {
++	return fs.open(name)
++}
++
++func TestFileServerCleans(t *testing.T) {
++	ch := make(chan string, 1)
++	fs := FileServer(&testFileSystem{func(name string) (File, os.Error) {
++		ch <- name
++		return nil, os.ENOENT
++	}})
++	tests := []struct {
++		reqPath, openArg string
++	}{
++		{"/foo.txt", "/foo.txt"},
++		{"//foo.txt", "/foo.txt"},
++		{"/../foo.txt", "/foo.txt"},
++	}
++	req, _ := NewRequest("GET", "http://example.com", nil)
++	for n, test := range tests {
++		rec := httptest.NewRecorder()
++		req.URL.Path = test.reqPath
++		fs.ServeHTTP(rec, req)
++		if got := <-ch; got != test.openArg {
++			t.Errorf("test %d: got %q, want %q", n, got, test.openArg)
++		}
++	}
++}
++
++func TestDirJoin(t *testing.T) {
++	wfi, err := os.Stat("/etc/hosts")
++	if err != nil {
++		t.Logf("skipping test; no /etc/hosts file")
++		return
++	}
++	test := func(d Dir, name string) {
++		f, err := d.Open(name)
++		if err != nil {
++			t.Fatalf("open of %s: %v", name, err)
++		}
++		defer f.Close()
++		gfi, err := f.Stat()
++		if err != nil {
++			t.Fatalf("stat of %s: %v", err)
++		}
++		if gfi.Ino != wfi.Ino {
++			t.Errorf("%s got different inode")
++		}
++	}
++	test(Dir("/etc/"), "/hosts")
++	test(Dir("/etc/"), "hosts")
++	test(Dir("/etc/"), "../../../../hosts")
++	test(Dir("/etc"), "/hosts")
++	test(Dir("/etc"), "hosts")
++	test(Dir("/etc"), "../../../../hosts")
++
++	// Not really directories, but since we use this trick in
++	// ServeFile, test it:
++	test(Dir("/etc/hosts"), "")
++	test(Dir("/etc/hosts"), "/")
++	test(Dir("/etc/hosts"), "../")
++}
++
+ func TestServeFileContentType(t *testing.T) {
+ 	const ctype = "icecream/chocolate"
+ 	override := false
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 0df6d21a84..79f8de70d3 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -13,11 +13,15 @@ import (
+ )
+ 
+ type reqTest struct {
+-	Raw  string
+-	Req  Request
+-	Body string
++	Raw   string
++	Req   *Request
++	Body  string
++	Error string
+ }
+ 
++var noError = ""
++var noBody = ""
++
+ var reqTests = []reqTest{
+ 	// Baseline test; All Request fields included for template use
+ 	{
+@@ -33,7 +37,7 @@ var reqTests = []reqTest{
+ 			"Proxy-Connection: keep-alive\r\n\r\n" +
+ 			"abcdef\n???",
+ 
+-		Request{
++		&Request{
+ 			Method: "GET",
+ 			RawURL: "http://www.techcrunch.com/",
+ 			URL: &URL{
+@@ -67,6 +71,8 @@ var reqTests = []reqTest{
+ 		},
+ 
+ 		"abcdef\n",
++
++		noError,
+ 	},
+ 
+ 	// GET request with no body (the normal case)
+@@ -74,7 +80,7 @@ var reqTests = []reqTest{
+ 		"GET / HTTP/1.1\r\n" +
+ 			"Host: foo.com\r\n\r\n",
+ 
+-		Request{
++		&Request{
+ 			Method: "GET",
+ 			RawURL: "/",
+ 			URL: &URL{
+@@ -91,7 +97,8 @@ var reqTests = []reqTest{
+ 			Form:          Values{},
+ 		},
+ 
+-		"",
++		noBody,
++		noError,
+ 	},
+ 
+ 	// Tests that we don't parse a path that looks like a
+@@ -100,7 +107,7 @@ var reqTests = []reqTest{
+ 		"GET //user@host/is/actually/a/path/ HTTP/1.1\r\n" +
+ 			"Host: test\r\n\r\n",
+ 
+-		Request{
++		&Request{
+ 			Method: "GET",
+ 			RawURL: "//user@host/is/actually/a/path/",
+ 			URL: &URL{
+@@ -124,7 +131,26 @@ var reqTests = []reqTest{
+ 			Form:          Values{},
+ 		},
+ 
+-		"",
++		noBody,
++		noError,
++	},
++
++	// Tests a bogus abs_path on the Request-Line (RFC 2616 section 5.1.2)
++	{
++		"GET ../../../../etc/passwd HTTP/1.1\r\n" +
++			"Host: test\r\n\r\n",
++		nil,
++		noBody,
++		"parse ../../../../etc/passwd: invalid URI for request",
++	},
++
++	// Tests missing URL:
++	{
++		"GET  HTTP/1.1\r\n" +
++			"Host: test\r\n\r\n",
++		nil,
++		noBody,
++		"parse : empty url",
+ 	},
+ }
+ 
+@@ -135,12 +161,14 @@ func TestReadRequest(t *testing.T) {
+ 		braw.WriteString(tt.Raw)
+ 		req, err := ReadRequest(bufio.NewReader(&braw))
+ 		if err != nil {
+-			t.Errorf("#%d: %s", i, err)
++			if err.String() != tt.Error {
++				t.Errorf("#%d: error %q, want error %q", i, err.String(), tt.Error)
++			}
+ 			continue
+ 		}
+ 		rbody := req.Body
+ 		req.Body = nil
+-		diff(t, fmt.Sprintf("#%d Request", i), req, &tt.Req)
++		diff(t, fmt.Sprintf("#%d Request", i), req, tt.Req)
+ 		var bout bytes.Buffer
+ 		if rbody != nil {
+ 			io.Copy(&bout, rbody)

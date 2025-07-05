@@ -13,6 +13,38 @@ Date:   Wed Apr 22 21:34:48 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/zcse.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/zcse.go b/src/cmd/compile/internal/ssa/zcse.go
+index 44688d9573..ec38b7d1ba 100644
+--- a/src/cmd/compile/internal/ssa/zcse.go
++++ b/src/cmd/compile/internal/ssa/zcse.go
+@@ -15,9 +15,8 @@ func zcse(f *Func) {
+ 	vals := make(map[vkey]*Value)
+ 
+ 	for _, b := range f.Blocks {
+-		for i := 0; i < len(b.Values); {
++		for i := 0; i < len(b.Values); i++ {
+ 			v := b.Values[i]
+-			next := true
+ 			if opcodeTable[v.Op].argLen == 0 {
+ 				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
+ 				if vals[key] == nil {
+@@ -33,14 +32,10 @@ func zcse(f *Func) {
+ 						b.Values[last] = nil
+ 						b.Values = b.Values[:last]
+ 
+-						// process b.Values[i] again
+-						next = false
++						i-- // process b.Values[i] again
+ 					}
+ 				}
+ 			}
+-			if next {
+-				i++
+-			}
+ 		}
+ 	}
+ 

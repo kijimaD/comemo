@@ -21,7 +21,7 @@ Date:   Fri Nov 18 22:25:29 2022 +0100
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go.mod                                         |   4 +-
  src/go.sum                                         |   8 +-
  src/vendor/golang.org/x/crypto/cryptobyte/asn1.go  |  77 +++++----
@@ -29,3 +29,485 @@ Date:   Fri Nov 18 22:25:29 2022 +0100
  src/vendor/golang.org/x/net/http2/hpack/tables.go  |  78 +--------
  src/vendor/modules.txt                             |   4 +-
  6 files changed, 239 insertions(+), 120 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index faa57c0abf..ac0d8929c2 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,8 +3,8 @@ module std
+ go 1.20
+ 
+ require (
+-	golang.org/x/crypto v0.1.0
+-	golang.org/x/net v0.1.0
++	golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
++	golang.org/x/net v0.2.0
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 4e589f9c43..cb3d39f122 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+-golang.org/x/crypto v0.1.0 h1:MDRAIl0xIo9Io2xV565hzXHw3zVseKrJKodhohM5CjU=
+-golang.org/x/crypto v0.1.0/go.mod h1:RecgLatLF4+eUMCP1PoPZQb+cVrJcOPbHkTkbkB9sbw=
+-golang.org/x/net v0.1.0 h1:hZ/3BUoy5aId7sCpA/Tc5lt8DkFgdVS2onTpJsZ/fl0=
+-golang.org/x/net v0.1.0/go.mod h1:Cx3nUiGt4eDBEyega/BKRp+/AlGL8hYe7U9odMt2Cco=
++golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a h1:diz9pEYuTIuLMJLs3rGDkeaTsNyRs6duYdFyPAxzE/U=
++golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a/go.mod h1:hebNnKkNXi2UzZN1eVRvBB7co0a+JxK6XbPiWVs/3J4=
++golang.org/x/net v0.2.0 h1:sZfSu1wtKLGlWI4ZZayP0ck9Y73K1ynO6gqzTdBVdPU=
++golang.org/x/net v0.2.0/go.mod h1:KqCZLdyyvdV855qA2rE3GC2aiw5xGR5TEjj8smXukLY=
+ golang.org/x/sys v0.2.0 h1:ljd4t30dBnAvMZaQCevtY0xLLD0A+bRZXbgLMLU1F/A=
+ golang.org/x/sys v0.2.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.4.0 h1:BrVqGRd7+k1DiOgtnFvAkoQEWQvBc25ouMJM6429SFg=
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index 3a1674a1e5..401414dde2 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -264,36 +264,35 @@ func (s *String) ReadASN1Boolean(out *bool) bool {
+ 	return true
+ }
+ 
+-var bigIntType = reflect.TypeOf((*big.Int)(nil)).Elem()
+-
+ // ReadASN1Integer decodes an ASN.1 INTEGER into out and advances. If out does
+-// not point to an integer or to a big.Int, it panics. It reports whether the
+-// read was successful.
++// not point to an integer, to a big.Int, or to a []byte it panics. Only
++// positive and zero values can be decoded into []byte, and they are returned as
++// big-endian binary values that share memory with s. Positive values will have
++// no leading zeroes, and zero will be returned as a single zero byte.
++// ReadASN1Integer reports whether the read was successful.
+ func (s *String) ReadASN1Integer(out interface{}) bool {
+-	if reflect.TypeOf(out).Kind() != reflect.Ptr {
+-		panic("out is not a pointer")
+-	}
+-	switch reflect.ValueOf(out).Elem().Kind() {
+-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++	switch out := out.(type) {
++	case *int, *int8, *int16, *int32, *int64:
+ 		var i int64
+ 		if !s.readASN1Int64(&i) || reflect.ValueOf(out).Elem().OverflowInt(i) {
+ 			return false
+ 		}
+ 		reflect.ValueOf(out).Elem().SetInt(i)
+ 		return true
+-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++	case *uint, *uint8, *uint16, *uint32, *uint64:
+ 		var u uint64
+ 		if !s.readASN1Uint64(&u) || reflect.ValueOf(out).Elem().OverflowUint(u) {
+ 			return false
+ 		}
+ 		reflect.ValueOf(out).Elem().SetUint(u)
+ 		return true
+-	case reflect.Struct:
+-		if reflect.TypeOf(out).Elem() == bigIntType {
+-			return s.readASN1BigInt(out.(*big.Int))
+-		}
++	case *big.Int:
++		return s.readASN1BigInt(out)
++	case *[]byte:
++		return s.readASN1Bytes(out)
++	default:
++		panic("out does not point to an integer type")
+ 	}
+-	panic("out does not point to an integer type")
+ }
+ 
+ func checkASN1Integer(bytes []byte) bool {
+@@ -333,6 +332,21 @@ func (s *String) readASN1BigInt(out *big.Int) bool {
+ 	return true
+ }
+ 
++func (s *String) readASN1Bytes(out *[]byte) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) {
++		return false
++	}
++	if bytes[0]&0x80 == 0x80 {
++		return false
++	}
++	for len(bytes) > 1 && bytes[0] == 0 {
++		bytes = bytes[1:]
++	}
++	*out = bytes
++	return true
++}
++
+ func (s *String) readASN1Int64(out *int64) bool {
+ 	var bytes String
+ 	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) || !asn1Signed(out, bytes) {
+@@ -532,7 +546,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
+ 		return false
+ 	}
+ 
+-	paddingBits := uint8(bytes[0])
++	paddingBits := bytes[0]
+ 	bytes = bytes[1:]
+ 	if paddingBits > 7 ||
+ 		len(bytes) == 0 && paddingBits != 0 ||
+@@ -554,7 +568,7 @@ func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
+ 		return false
+ 	}
+ 
+-	paddingBits := uint8(bytes[0])
++	paddingBits := bytes[0]
+ 	if paddingBits != 0 {
+ 		return false
+ 	}
+@@ -654,34 +668,27 @@ func (s *String) SkipOptionalASN1(tag asn1.Tag) bool {
+ 	return s.ReadASN1(&unused, tag)
+ }
+ 
+-// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER
+-// explicitly tagged with tag into out and advances. If no element with a
+-// matching tag is present, it writes defaultValue into out instead. If out
+-// does not point to an integer or to a big.Int, it panics. It reports
+-// whether the read was successful.
++// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER explicitly
++// tagged with tag into out and advances. If no element with a matching tag is
++// present, it writes defaultValue into out instead. Otherwise, it behaves like
++// ReadASN1Integer.
+ func (s *String) ReadOptionalASN1Integer(out interface{}, tag asn1.Tag, defaultValue interface{}) bool {
+-	if reflect.TypeOf(out).Kind() != reflect.Ptr {
+-		panic("out is not a pointer")
+-	}
+ 	var present bool
+ 	var i String
+ 	if !s.ReadOptionalASN1(&i, &present, tag) {
+ 		return false
+ 	}
+ 	if !present {
+-		switch reflect.ValueOf(out).Elem().Kind() {
+-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++		switch out.(type) {
++		case *int, *int8, *int16, *int32, *int64,
++			*uint, *uint8, *uint16, *uint32, *uint64, *[]byte:
+ 			reflect.ValueOf(out).Elem().Set(reflect.ValueOf(defaultValue))
+-		case reflect.Struct:
+-			if reflect.TypeOf(out).Elem() != bigIntType {
+-				panic("invalid integer type")
+-			}
+-			if reflect.TypeOf(defaultValue).Kind() != reflect.Ptr ||
+-				reflect.TypeOf(defaultValue).Elem() != bigIntType {
++		case *big.Int:
++			if defaultValue, ok := defaultValue.(*big.Int); ok {
++				out.(*big.Int).Set(defaultValue)
++			} else {
+ 				panic("out points to big.Int, but defaultValue does not")
+ 			}
+-			out.(*big.Int).Set(defaultValue.(*big.Int))
+ 		default:
+ 			panic("invalid integer type")
+ 		}
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/static_table.go b/src/vendor/golang.org/x/net/http2/hpack/static_table.go
+new file mode 100644
+index 0000000000..754a1eb919
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/http2/hpack/static_table.go
+@@ -0,0 +1,188 @@
++// go generate gen.go
++// Code generated by the command above; DO NOT EDIT.
++
++package hpack
++
++var staticTable = &headerFieldTable{
++	evictCount: 0,
++	byName: map[string]uint64{
++		":authority":                  1,
++		":method":                     3,
++		":path":                       5,
++		":scheme":                     7,
++		":status":                     14,
++		"accept-charset":              15,
++		"accept-encoding":             16,
++		"accept-language":             17,
++		"accept-ranges":               18,
++		"accept":                      19,
++		"access-control-allow-origin": 20,
++		"age":                         21,
++		"allow":                       22,
++		"authorization":               23,
++		"cache-control":               24,
++		"content-disposition":         25,
++		"content-encoding":            26,
++		"content-language":            27,
++		"content-length":              28,
++		"content-location":            29,
++		"content-range":               30,
++		"content-type":                31,
++		"cookie":                      32,
++		"date":                        33,
++		"etag":                        34,
++		"expect":                      35,
++		"expires":                     36,
++		"from":                        37,
++		"host":                        38,
++		"if-match":                    39,
++		"if-modified-since":           40,
++		"if-none-match":               41,
++		"if-range":                    42,
++		"if-unmodified-since":         43,
++		"last-modified":               44,
++		"link":                        45,
++		"location":                    46,
++		"max-forwards":                47,
++		"proxy-authenticate":          48,
++		"proxy-authorization":         49,
++		"range":                       50,
++		"referer":                     51,
++		"refresh":                     52,
++		"retry-after":                 53,
++		"server":                      54,
++		"set-cookie":                  55,
++		"strict-transport-security":   56,
++		"transfer-encoding":           57,
++		"user-agent":                  58,
++		"vary":                        59,
++		"via":                         60,
++		"www-authenticate":            61,
++	},
++	byNameValue: map[pairNameValue]uint64{
++		{name: ":authority", value: ""}:                   1,
++		{name: ":method", value: "GET"}:                   2,
++		{name: ":method", value: "POST"}:                  3,
++		{name: ":path", value: "/"}:                       4,
++		{name: ":path", value: "/index.html"}:             5,
++		{name: ":scheme", value: "http"}:                  6,
++		{name: ":scheme", value: "https"}:                 7,
++		{name: ":status", value: "200"}:                   8,
++		{name: ":status", value: "204"}:                   9,
++		{name: ":status", value: "206"}:                   10,
++		{name: ":status", value: "304"}:                   11,
++		{name: ":status", value: "400"}:                   12,
++		{name: ":status", value: "404"}:                   13,
++		{name: ":status", value: "500"}:                   14,
++		{name: "accept-charset", value: ""}:               15,
++		{name: "accept-encoding", value: "gzip, deflate"}: 16,
++		{name: "accept-language", value: ""}:              17,
++		{name: "accept-ranges", value: ""}:                18,
++		{name: "accept", value: ""}:                       19,
++		{name: "access-control-allow-origin", value: ""}:  20,
++		{name: "age", value: ""}:                          21,
++		{name: "allow", value: ""}:                        22,
++		{name: "authorization", value: ""}:                23,
++		{name: "cache-control", value: ""}:                24,
++		{name: "content-disposition", value: ""}:          25,
++		{name: "content-encoding", value: ""}:             26,
++		{name: "content-language", value: ""}:             27,
++		{name: "content-length", value: ""}:               28,
++		{name: "content-location", value: ""}:             29,
++		{name: "content-range", value: ""}:                30,
++		{name: "content-type", value: ""}:                 31,
++		{name: "cookie", value: ""}:                       32,
++		{name: "date", value: ""}:                         33,
++		{name: "etag", value: ""}:                         34,
++		{name: "expect", value: ""}:                       35,
++		{name: "expires", value: ""}:                      36,
++		{name: "from", value: ""}:                         37,
++		{name: "host", value: ""}:                         38,
++		{name: "if-match", value: ""}:                     39,
++		{name: "if-modified-since", value: ""}:            40,
++		{name: "if-none-match", value: ""}:                41,
++		{name: "if-range", value: ""}:                     42,
++		{name: "if-unmodified-since", value: ""}:          43,
++		{name: "last-modified", value: ""}:                44,
++		{name: "link", value: ""}:                         45,
++		{name: "location", value: ""}:                     46,
++		{name: "max-forwards", value: ""}:                 47,
++		{name: "proxy-authenticate", value: ""}:           48,
++		{name: "proxy-authorization", value: ""}:          49,
++		{name: "range", value: ""}:                        50,
++		{name: "referer", value: ""}:                      51,
++		{name: "refresh", value: ""}:                      52,
++		{name: "retry-after", value: ""}:                  53,
++		{name: "server", value: ""}:                       54,
++		{name: "set-cookie", value: ""}:                   55,
++		{name: "strict-transport-security", value: ""}:    56,
++		{name: "transfer-encoding", value: ""}:            57,
++		{name: "user-agent", value: ""}:                   58,
++		{name: "vary", value: ""}:                         59,
++		{name: "via", value: ""}:                          60,
++		{name: "www-authenticate", value: ""}:             61,
++	},
++	ents: []HeaderField{
++		{Name: ":authority", Value: "", Sensitive: false},
++		{Name: ":method", Value: "GET", Sensitive: false},
++		{Name: ":method", Value: "POST", Sensitive: false},
++		{Name: ":path", Value: "/", Sensitive: false},
++		{Name: ":path", Value: "/index.html", Sensitive: false},
++		{Name: ":scheme", Value: "http", Sensitive: false},
++		{Name: ":scheme", Value: "https", Sensitive: false},
++		{Name: ":status", Value: "200", Sensitive: false},
++		{Name: ":status", Value: "204", Sensitive: false},
++		{Name: ":status", Value: "206", Sensitive: false},
++		{Name: ":status", Value: "304", Sensitive: false},
++		{Name: ":status", Value: "400", Sensitive: false},
++		{Name: ":status", Value: "404", Sensitive: false},
++		{Name: ":status", Value: "500", Sensitive: false},
++		{Name: "accept-charset", Value: "", Sensitive: false},
++		{Name: "accept-encoding", Value: "gzip, deflate", Sensitive: false},
++		{Name: "accept-language", Value: "", Sensitive: false},
++		{Name: "accept-ranges", Value: "", Sensitive: false},
++		{Name: "accept", Value: "", Sensitive: false},
++		{Name: "access-control-allow-origin", Value: "", Sensitive: false},
++		{Name: "age", Value: "", Sensitive: false},
++		{Name: "allow", Value: "", Sensitive: false},
++		{Name: "authorization", Value: "", Sensitive: false},
++		{Name: "cache-control", Value: "", Sensitive: false},
++		{Name: "content-disposition", Value: "", Sensitive: false},
++		{Name: "content-encoding", Value: "", Sensitive: false},
++		{Name: "content-language", Value: "", Sensitive: false},
++		{Name: "content-length", Value: "", Sensitive: false},
++		{Name: "content-location", Value: "", Sensitive: false},
++		{Name: "content-range", Value: "", Sensitive: false},
++		{Name: "content-type", Value: "", Sensitive: false},
++		{Name: "cookie", Value: "", Sensitive: false},
++		{Name: "date", Value: "", Sensitive: false},
++		{Name: "etag", Value: "", Sensitive: false},
++		{Name: "expect", Value: "", Sensitive: false},
++		{Name: "expires", Value: "", Sensitive: false},
++		{Name: "from", Value: "", Sensitive: false},
++		{Name: "host", Value: "", Sensitive: false},
++		{Name: "if-match", Value: "", Sensitive: false},
++		{Name: "if-modified-since", Value: "", Sensitive: false},
++		{Name: "if-none-match", Value: "", Sensitive: false},
++		{Name: "if-range", Value: "", Sensitive: false},
++		{Name: "if-unmodified-since", Value: "", Sensitive: false},
++		{Name: "last-modified", Value: "", Sensitive: false},
++		{Name: "link", Value: "", Sensitive: false},
++		{Name: "location", Value: "", Sensitive: false},
++		{Name: "max-forwards", Value: "", Sensitive: false},
++		{Name: "proxy-authenticate", Value: "", Sensitive: false},
++		{Name: "proxy-authorization", Value: "", Sensitive: false},
++		{Name: "range", Value: "", Sensitive: false},
++		{Name: "referer", Value: "", Sensitive: false},
++		{Name: "refresh", Value: "", Sensitive: false},
++		{Name: "retry-after", Value: "", Sensitive: false},
++		{Name: "server", Value: "", Sensitive: false},
++		{Name: "set-cookie", Value: "", Sensitive: false},
++		{Name: "strict-transport-security", Value: "", Sensitive: false},
++		{Name: "transfer-encoding", Value: "", Sensitive: false},
++		{Name: "user-agent", Value: "", Sensitive: false},
++		{Name: "vary", Value: "", Sensitive: false},
++		{Name: "via", Value: "", Sensitive: false},
++		{Name: "www-authenticate", Value: "", Sensitive: false},
++	},
++}
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/tables.go b/src/vendor/golang.org/x/net/http2/hpack/tables.go
+index a66cfbea69..8cbdf3f019 100644
+--- a/src/vendor/golang.org/x/net/http2/hpack/tables.go
++++ b/src/vendor/golang.org/x/net/http2/hpack/tables.go
+@@ -96,8 +96,7 @@ func (t *headerFieldTable) evictOldest(n int) {
+ // meaning t.ents is reversed for dynamic tables. Hence, when t is a dynamic
+ // table, the return value i actually refers to the entry t.ents[t.len()-i].
+ //
+-// All tables are assumed to be a dynamic tables except for the global
+-// staticTable pointer.
++// All tables are assumed to be a dynamic tables except for the global staticTable.
+ //
+ // See Section 2.3.3.
+ func (t *headerFieldTable) search(f HeaderField) (i uint64, nameValueMatch bool) {
+@@ -125,81 +124,6 @@ func (t *headerFieldTable) idToIndex(id uint64) uint64 {
+ 	return k + 1
+ }
+ 
+-// http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-07#appendix-B
+-var staticTable = newStaticTable()
+-var staticTableEntries = [...]HeaderField{
+-	{Name: ":authority"},
+-	{Name: ":method", Value: "GET"},
+-	{Name: ":method", Value: "POST"},
+-	{Name: ":path", Value: "/"},
+-	{Name: ":path", Value: "/index.html"},
+-	{Name: ":scheme", Value: "http"},
+-	{Name: ":scheme", Value: "https"},
+-	{Name: ":status", Value: "200"},
+-	{Name: ":status", Value: "204"},
+-	{Name: ":status", Value: "206"},
+-	{Name: ":status", Value: "304"},
+-	{Name: ":status", Value: "400"},
+-	{Name: ":status", Value: "404"},
+-	{Name: ":status", Value: "500"},
+-	{Name: "accept-charset"},
+-	{Name: "accept-encoding", Value: "gzip, deflate"},
+-	{Name: "accept-language"},
+-	{Name: "accept-ranges"},
+-	{Name: "accept"},
+-	{Name: "access-control-allow-origin"},
+-	{Name: "age"},
+-	{Name: "allow"},
+-	{Name: "authorization"},
+-	{Name: "cache-control"},
+-	{Name: "content-disposition"},
+-	{Name: "content-encoding"},
+-	{Name: "content-language"},
+-	{Name: "content-length"},
+-	{Name: "content-location"},
+-	{Name: "content-range"},
+-	{Name: "content-type"},
+-	{Name: "cookie"},
+-	{Name: "date"},
+-	{Name: "etag"},
+-	{Name: "expect"},
+-	{Name: "expires"},
+-	{Name: "from"},
+-	{Name: "host"},
+-	{Name: "if-match"},
+-	{Name: "if-modified-since"},
+-	{Name: "if-none-match"},
+-	{Name: "if-range"},
+-	{Name: "if-unmodified-since"},
+-	{Name: "last-modified"},
+-	{Name: "link"},
+-	{Name: "location"},
+-	{Name: "max-forwards"},
+-	{Name: "proxy-authenticate"},
+-	{Name: "proxy-authorization"},
+-	{Name: "range"},
+-	{Name: "referer"},
+-	{Name: "refresh"},
+-	{Name: "retry-after"},
+-	{Name: "server"},
+-	{Name: "set-cookie"},
+-	{Name: "strict-transport-security"},
+-	{Name: "transfer-encoding"},
+-	{Name: "user-agent"},
+-	{Name: "vary"},
+-	{Name: "via"},
+-	{Name: "www-authenticate"},
+-}
+-
+-func newStaticTable() *headerFieldTable {
+-	t := &headerFieldTable{}
+-	t.init()
+-	for _, e := range staticTableEntries[:] {
+-		t.addEntry(e)
+-	}
+-	return t
+-}
+-
+ var huffmanCodes = [256]uint32{
+ 	0x1ff8,
+ 	0x7fffd8,
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 229113a694..a41fde2c8b 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.1.0
++# golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
+ ## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.1.0
++# golang.org/x/net v0.2.0
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

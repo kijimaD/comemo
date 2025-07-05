@@ -7,7 +7,55 @@ Date:   Sat Dec 17 13:14:59 2011 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5495073
-
+---
  src/cmd/goinstall/download.go | 14 +++++++++-----
  src/cmd/goinstall/main.go     |  4 ++++
  2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 11f6f5f4ac..ccce680ce8 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -367,6 +367,14 @@ func (v *vcs) findURL(root string) (string, error) {
+ 
+ var oldGoogleRepo = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
+ 
++type errOldGoogleRepo struct {
++	fixedPath string
++}
++
++func (e *errOldGoogleRepo) Error() string {
++	return fmt.Sprintf("unsupported import path; should be %q", e.fixedPath)
++}
++
+ // download checks out or updates the specified package from the remote server.
+ func download(importPath, srcDir string) (public bool, err error) {
+ 	if strings.Contains(importPath, "..") {
+@@ -376,11 +384,7 @@ func download(importPath, srcDir string) (public bool, err error) {
+ 
+ 	if m := oldGoogleRepo.FindStringSubmatch(importPath); m != nil {
+ 		fixedPath := "code.google.com/p/" + m[1] + m[3]
+-		err = fmt.Errorf(
+-			"unsupported import path; should be %q\n"+
+-				"Run goinstall with -fix to gofix the code.",
+-			fixedPath,
+-		)
++		err = &errOldGoogleRepo{fixedPath}
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 072588457e..ba8592b54a 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -249,6 +249,10 @@ func install(pkg, parent string) error {
+ 			printf("%s: download\n", pkg)
+ 			public, err = download(pkg, tree.SrcDir())
+ 			if err != nil {
++				// only suggest -fix if the bad import was not on the command line
++				if e, ok := err.(*errOldGoogleRepo); ok && parent != "" {
++					err = fmt.Errorf("%v\nRun goinstall with -fix to gofix the code.", e)
++				}
+ 				return &DownloadError{pkg, tree.Goroot, err}
+ 			}
+ 		} else {

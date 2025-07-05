@@ -17,10 +17,118 @@ Date:   Mon Sep 14 18:42:39 2015 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/x86/a.out.go  |  5 +++++
  src/cmd/internal/obj/x86/anames.go |  4 ++++
  src/cmd/internal/obj/x86/asm6.go   |  4 ++++
  src/math/floor_amd64.s             | 23 +++++++++++++++++++++++
  src/math/floor_asm.go              | 12 ++++++++++++
  5 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index c7f46e1801..95868a8ba9 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -734,6 +734,11 @@ const (
+ 	AAESIMC
+ 	AAESKEYGENASSIST
+ 
++	AROUNDPS
++	AROUNDSS
++	AROUNDPD
++	AROUNDSD
++
+ 	APSHUFD
+ 	APCLMULQDQ
+ 
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 7f7708cdcc..330e816119 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -677,6 +677,10 @@ var Anames = []string{
+ 	"AESDECLAST",
+ 	"AESIMC",
+ 	"AESKEYGENASSIST",
++	"ROUNDPS",
++	"ROUNDSS",
++	"ROUNDPD",
++	"ROUNDSD",
+ 	"PSHUFD",
+ 	"PCLMULQDQ",
+ 	"JCXZW",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 0d2e869df3..495b35df18 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1474,6 +1474,10 @@ var optab =
+ 	{AAESDECLAST, yaes, Pq, [23]uint8{0x38, 0xdf, 0}},
+ 	{AAESIMC, yaes, Pq, [23]uint8{0x38, 0xdb, 0}},
+ 	{AAESKEYGENASSIST, yaes2, Pq, [23]uint8{0x3a, 0xdf, 0}},
++	{AROUNDPD, yaes2, Pq, [23]uint8{0x3a, 0x09, 0}},
++	{AROUNDPS, yaes2, Pq, [23]uint8{0x3a, 0x08, 0}},
++	{AROUNDSD, yaes2, Pq, [23]uint8{0x3a, 0x0b, 0}},
++	{AROUNDSS, yaes2, Pq, [23]uint8{0x3a, 0x0a, 0}},
+ 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
+ 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
+ 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+diff --git a/src/math/floor_amd64.s b/src/math/floor_amd64.s
+index 67b7cdec04..7f512e7c22 100644
+--- a/src/math/floor_amd64.s
++++ b/src/math/floor_amd64.s
+@@ -6,8 +6,25 @@
+ 
+ #define Big		0x4330000000000000 // 2**52
+ 
++// func hasSSE4() bool
++// returns whether SSE4.1 is supported
++TEXT ·hasSSE4(SB),NOSPLIT,$0
++	XORQ AX, AX
++	INCL AX
++	CPUID
++	SHRQ $19, CX
++	ANDQ $1, CX
++	MOVB CX, ret+0(FP)
++	RET
++
+ // func Floor(x float64) float64
+ TEXT ·Floor(SB),NOSPLIT,$0
++	CMPB    math·useSSE4(SB), $1
++	JNE     nosse4
++	ROUNDSD $1, x+0(FP), X0
++	MOVQ X0, ret+8(FP)
++	RET
++nosse4:
+ 	MOVQ	x+0(FP), AX
+ 	MOVQ	$~(1<<63), DX // sign bit mask
+ 	ANDQ	AX,DX // DX = |x|
+@@ -30,6 +47,12 @@ isBig_floor:
+ 
+ // func Ceil(x float64) float64
+ TEXT ·Ceil(SB),NOSPLIT,$0
++	CMPB    math·useSSE4(SB), $1
++	JNE     nosse4
++	ROUNDSD $2, x+0(FP), X0
++	MOVQ X0, ret+8(FP)
++	RET
++nosse4:
+ 	MOVQ	x+0(FP), AX
+ 	MOVQ	$~(1<<63), DX // sign bit mask
+ 	MOVQ	AX, BX // BX = copy of x
+diff --git a/src/math/floor_asm.go b/src/math/floor_asm.go
+new file mode 100644
+index 0000000000..28e56a5d51
+--- /dev/null
++++ b/src/math/floor_asm.go
+@@ -0,0 +1,12 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64 amd64p32
++
++package math
++
++//defined in floor_amd64.s
++func hasSSE4() bool
++
++var useSSE4 = hasSSE4()

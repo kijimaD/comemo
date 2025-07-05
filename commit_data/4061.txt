@@ -8,6 +8,23 @@ Date:   Sun Nov 15 12:57:21 2009 -0800
     
     R=r
     https://golang.org/cl/155048
-
+---
  src/cmd/cgo/main.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 1eadfba9b1..fa88e9de58 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -52,6 +52,11 @@ func main() {
+ 		fatal("unknown architecture %s", arch)
+ 	}
+ 
++	// Clear locale variables so gcc emits English errors [sic].
++	os.Setenv("LANG", "en_US.UTF-8");
++	os.Setenv("LC_ALL", "C");
++	os.Setenv("LC_CTYPE", "C");
++
+ 	p := openProg(input);
+ 	for _, cref := range p.Crefs {
+ 		// Convert C.ulong to C.unsigned long, etc.

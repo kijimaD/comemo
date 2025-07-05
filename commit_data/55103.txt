@@ -18,7 +18,7 @@ Date:   Tue Jan 3 16:01:49 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 25 +++++++++++--------
  src/go/types/instantiate.go                        | 25 +++++++++++--------
  src/internal/types/testdata/check/issues1.go       |  8 +++----
@@ -44,3 +44,709 @@ Date:   Tue Jan 3 16:01:49 2023 -0800
  test/typeparam/mdempsky/8.dir/b.go                 |  2 +-
  test/typeparam/mincheck.dir/main.go                |  4 ++--
  24 files changed, 111 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 52f60d79a6..f028161118 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -188,7 +188,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ // is set, T is a type constraint.
+ //
+ // If the provided cause is non-nil, it may be set to an error string
+-// explaining why V does not implement T.
++// explaining why V does not implement (or satisfy, for constraints) T.
+ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+@@ -199,6 +199,11 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		return true // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
++	verb := "implement"
++	if constraint {
++		verb = "satisfy"
++	}
++
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+ 		if cause != nil {
+@@ -208,7 +213,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 			} else {
+ 				detail = check.sprintf("%s is not an interface", T)
+ 			}
+-			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
++			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
+ 		}
+ 		return false
+ 	}
+@@ -230,7 +235,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	// No type with non-empty type set satisfies the empty type set.
+ 	if Ti.typeSet().IsEmpty() {
+ 		if cause != nil {
+-			*cause = check.sprintf("cannot implement %s (empty type set)", T)
++			*cause = check.sprintf("cannot %s %s (empty type set)", verb, T)
+ 		}
+ 		return false
+ 	}
+@@ -238,7 +243,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	// V must implement T's methods, if any.
+ 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+ 		if cause != nil {
+-			*cause = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodCause(V, T, m, wrong))
++			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, check.missingMethodCause(V, T, m, wrong))
+ 		}
+ 		return false
+ 	}
+@@ -258,7 +263,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		// TODO(gri) remove this check for Go 1.21
+ 		if check != nil && check.conf.OldComparableSemantics {
+ 			if cause != nil {
+-				*cause = check.sprintf("%s does not implement comparable", V)
++				*cause = check.sprintf("%s does not %s comparable", V, verb)
+ 			}
+ 			return false
+ 		}
+@@ -270,12 +275,12 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 				return true
+ 			}
+ 			if cause != nil {
+-				*cause = check.sprintf("%s to implement comparable requires go1.20 or later", V)
++				*cause = check.sprintf("%s to %s comparable requires go1.20 or later", V, verb)
+ 			}
+ 			return false
+ 		}
+ 		if cause != nil {
+-			*cause = check.sprintf("%s does not implement comparable", V)
++			*cause = check.sprintf("%s does not %s comparable", V, verb)
+ 		}
+ 		return false
+ 	}
+@@ -293,7 +298,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+ 			if cause != nil {
+-				*cause = check.sprintf("%s does not implement %s", V, T)
++				*cause = check.sprintf("%s does not %s %s", V, verb, T)
+ 			}
+ 			return false
+ 		}
+@@ -320,9 +325,9 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	}) {
+ 		if cause != nil {
+ 			if alt != nil {
+-				*cause = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
++				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
+ 			} else {
+-				*cause = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
+ 			}
+ 		}
+ 		return false
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 59ac1009f5..9f565c326b 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -188,7 +188,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ // is set, T is a type constraint.
+ //
+ // If the provided cause is non-nil, it may be set to an error string
+-// explaining why V does not implement T.
++// explaining why V does not implement (or satisfy, for constraints) T.
+ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+@@ -199,6 +199,11 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		return true // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
++	verb := "implement"
++	if constraint {
++		verb = "satisfy"
++	}
++
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+ 		if cause != nil {
+@@ -208,7 +213,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 			} else {
+ 				detail = check.sprintf("%s is not an interface", T)
+ 			}
+-			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
++			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
+ 		}
+ 		return false
+ 	}
+@@ -230,7 +235,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	// No type with non-empty type set satisfies the empty type set.
+ 	if Ti.typeSet().IsEmpty() {
+ 		if cause != nil {
+-			*cause = check.sprintf("cannot implement %s (empty type set)", T)
++			*cause = check.sprintf("cannot %s %s (empty type set)", verb, T)
+ 		}
+ 		return false
+ 	}
+@@ -238,7 +243,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	// V must implement T's methods, if any.
+ 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+ 		if cause != nil {
+-			*cause = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodCause(V, T, m, wrong))
++			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, check.missingMethodCause(V, T, m, wrong))
+ 		}
+ 		return false
+ 	}
+@@ -258,7 +263,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		// TODO(gri) remove this check for Go 1.21
+ 		if check != nil && check.conf.oldComparableSemantics {
+ 			if cause != nil {
+-				*cause = check.sprintf("%s does not implement comparable", V)
++				*cause = check.sprintf("%s does not %s comparable", V, verb)
+ 			}
+ 			return false
+ 		}
+@@ -270,12 +275,12 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 				return true
+ 			}
+ 			if cause != nil {
+-				*cause = check.sprintf("%s to implement comparable requires go1.20 or later", V)
++				*cause = check.sprintf("%s to %s comparable requires go1.20 or later", V, verb)
+ 			}
+ 			return false
+ 		}
+ 		if cause != nil {
+-			*cause = check.sprintf("%s does not implement comparable", V)
++			*cause = check.sprintf("%s does not %s comparable", V, verb)
+ 		}
+ 		return false
+ 	}
+@@ -293,7 +298,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
+ 			// TODO(gri) report which type is missing
+ 			if cause != nil {
+-				*cause = check.sprintf("%s does not implement %s", V, T)
++				*cause = check.sprintf("%s does not %s %s", V, verb, T)
+ 			}
+ 			return false
+ 		}
+@@ -320,9 +325,9 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	}) {
+ 		if cause != nil {
+ 			if alt != nil {
+-				*cause = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
++				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
+ 			} else {
+-				*cause = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
++				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
+ 			}
+ 		}
+ 		return false
+diff --git a/src/internal/types/testdata/check/issues1.go b/src/internal/types/testdata/check/issues1.go
+index 02ad822e0f..2f3414de61 100644
+--- a/src/internal/types/testdata/check/issues1.go
++++ b/src/internal/types/testdata/check/issues1.go
+@@ -22,7 +22,7 @@ func _[X comparable, Y interface{comparable; m()}]() {
+ 	eql(x, x)
+ 	eql(y, y)
+ 	eql(y, nil /* ERROR cannot use nil as Y value in argument to eql */ )
+-	eql[io /* ERROR does not implement comparable */ .Reader](nil, nil)
++	eql[io /* ERROR does not satisfy comparable */ .Reader](nil, nil)
+ }
+ 
+ // If we have a receiver of pointer to type parameter type (below: *T)
+@@ -58,7 +58,7 @@ func _() {
+ type T1[P interface{~uint}] struct{}
+ 
+ func _[P any]() {
+-    _ = T1[P /* ERROR P does not implement interface{~uint} */ ]{}
++    _ = T1[P /* ERROR P does not satisfy interface{~uint} */ ]{}
+ }
+ 
+ // This is the original (simplified) program causing the same issue.
+@@ -74,8 +74,8 @@ func (u T2[U]) Add1() U {
+     return u.s + 1
+ }
+ 
+-func NewT2[U any]() T2[U /* ERROR U does not implement Unsigned */ ] {
+-    return T2[U /* ERROR U does not implement Unsigned */ ]{}
++func NewT2[U any]() T2[U /* ERROR U does not satisfy Unsigned */ ] {
++    return T2[U /* ERROR U does not satisfy Unsigned */ ]{}
+ }
+ 
+ func _() {
+diff --git a/src/internal/types/testdata/check/typeinst1.go b/src/internal/types/testdata/check/typeinst1.go
+index e7b4539ff3..e7bb247941 100644
+--- a/src/internal/types/testdata/check/typeinst1.go
++++ b/src/internal/types/testdata/check/typeinst1.go
+@@ -210,7 +210,7 @@ func f0[T I0]() {}
+ var _ = f0[int]
+ var _ = f0[bool]
+ var _ = f0[string]
+-var _ = f0[float64 /* ERROR does not implement I0 */ ]
++var _ = f0[float64 /* ERROR does not satisfy I0 */ ]
+ 
+ type I01 interface {
+ 	E0
+@@ -219,9 +219,9 @@ type I01 interface {
+ 
+ func f01[T I01]() {}
+ var _ = f01[int]
+-var _ = f01[bool /* ERROR does not implement I0 */ ]
++var _ = f01[bool /* ERROR does not satisfy I0 */ ]
+ var _ = f01[string]
+-var _ = f01[float64 /* ERROR does not implement I0 */ ]
++var _ = f01[float64 /* ERROR does not satisfy I0 */ ]
+ 
+ type I012 interface {
+ 	E0
+@@ -230,10 +230,10 @@ type I012 interface {
+ }
+ 
+ func f012[T I012]() {}
+-var _ = f012[int /* ERROR cannot implement I012.*empty type set */ ]
+-var _ = f012[bool /* ERROR cannot implement I012.*empty type set */ ]
+-var _ = f012[string /* ERROR cannot implement I012.*empty type set */ ]
+-var _ = f012[float64 /* ERROR cannot implement I012.*empty type set */ ]
++var _ = f012[int /* ERROR cannot satisfy I012.*empty type set */ ]
++var _ = f012[bool /* ERROR cannot satisfy I012.*empty type set */ ]
++var _ = f012[string /* ERROR cannot satisfy I012.*empty type set */ ]
++var _ = f012[float64 /* ERROR cannot satisfy I012.*empty type set */ ]
+ 
+ type I12 interface {
+ 	E1
+@@ -241,9 +241,9 @@ type I12 interface {
+ }
+ 
+ func f12[T I12]() {}
+-var _ = f12[int /* ERROR does not implement I12 */ ]
+-var _ = f12[bool /* ERROR does not implement I12 */ ]
+-var _ = f12[string /* ERROR does not implement I12 */ ]
++var _ = f12[int /* ERROR does not satisfy I12 */ ]
++var _ = f12[bool /* ERROR does not satisfy I12 */ ]
++var _ = f12[string /* ERROR does not satisfy I12 */ ]
+ var _ = f12[float64]
+ 
+ type I0_ interface {
+@@ -253,9 +253,9 @@ type I0_ interface {
+ 
+ func f0_[T I0_]() {}
+ var _ = f0_[int]
+-var _ = f0_[bool /* ERROR does not implement I0_ */ ]
+-var _ = f0_[string /* ERROR does not implement I0_ */ ]
+-var _ = f0_[float64 /* ERROR does not implement I0_ */ ]
++var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
++var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
++var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
+ 
+ // Using a function instance as a type is an error.
+ var _ f0 // ERROR not a type
+@@ -273,7 +273,7 @@ func gg[T any]() {}
+ func hh[T ~int]() {}
+ 
+ func _[T none]() {
+-	_ = ff[int /* ERROR cannot implement none \(empty type set\) */ ]
++	_ = ff[int /* ERROR cannot satisfy none \(empty type set\) */ ]
+ 	_ = ff[T]  // pathological but ok because T's type set is empty, too
+ 	_ = gg[int]
+ 	_ = gg[T]
+diff --git a/src/internal/types/testdata/examples/inference.go b/src/internal/types/testdata/examples/inference.go
+index 23a3d81f3d..073df9ce3b 100644
+--- a/src/internal/types/testdata/examples/inference.go
++++ b/src/internal/types/testdata/examples/inference.go
+@@ -97,7 +97,7 @@ func _() {
+ 	// last.
+ 	related2(1.2, []float64{})
+ 	related2(1.0, []int{})
+-	related2 /* ERROR does not implement */ (float64(1.0), []int{}) // TODO(gri) fix error position
++	related2 /* ERROR does not satisfy */ (float64(1.0), []int{}) // TODO(gri) fix error position
+ }
+ 
+ type List[P any] []P
+diff --git a/src/internal/types/testdata/fixedbugs/issue39754.go b/src/internal/types/testdata/fixedbugs/issue39754.go
+index 9edd239d7d..97365e2ddd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39754.go
++++ b/src/internal/types/testdata/fixedbugs/issue39754.go
+@@ -16,6 +16,6 @@ func f[V interface{}, A, B Box[V]]() {}
+ 
+ func _() {
+ 	f[int, Optional[int], Optional[int]]()
+-	_ = f[int, Optional[int], Optional /* ERROR does not implement Box */ [string]]
+-	_ = f[int, Optional[int], Optional /* ERROR Optional.* does not implement Box.* */ [string]]
++	_ = f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]
++	_ = f[int, Optional[int], Optional /* ERROR Optional.* does not satisfy Box.* */ [string]]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue40350.go b/src/internal/types/testdata/fixedbugs/issue40350.go
+index 7ffd551c2e..96ad1678d4 100644
+--- a/src/internal/types/testdata/fixedbugs/issue40350.go
++++ b/src/internal/types/testdata/fixedbugs/issue40350.go
+@@ -12,5 +12,5 @@ type number interface {
+ func f[T number]() {}
+ 
+ func _() {
+-	_ = f[int /* ERROR int does not implement number \(int missing in float64 | ~int32\)*/]
++	_ = f[int /* ERROR int does not satisfy number \(int missing in float64 \| ~int32\)*/]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue45920.go b/src/internal/types/testdata/fixedbugs/issue45920.go
+index d67dfc0f9d..0a281c5484 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45920.go
++++ b/src/internal/types/testdata/fixedbugs/issue45920.go
+@@ -8,10 +8,10 @@ func f1[T any, C chan T | <-chan T](ch C) {}
+ 
+ func _(ch chan int)   { f1(ch) }
+ func _(ch <-chan int) { f1(ch) }
+-func _(ch chan<- int) { f1 /* ERROR chan<- int does not implement chan int \| <-chan int */ (ch) }
++func _(ch chan<- int) { f1 /* ERROR chan<- int does not satisfy chan int \| <-chan int */ (ch) }
+ 
+ func f2[T any, C chan T | chan<- T](ch C) {}
+ 
+ func _(ch chan int)   { f2(ch) }
+-func _(ch <-chan int) { f2 /* ERROR <-chan int does not implement chan int \| chan<- int */ (ch) }
++func _(ch <-chan int) { f2 /* ERROR <-chan int does not satisfy chan int \| chan<- int */ (ch) }
+ func _(ch chan<- int) { f2(ch) }
+diff --git a/src/internal/types/testdata/fixedbugs/issue47411.go b/src/internal/types/testdata/fixedbugs/issue47411.go
+index 12303072ed..33b169a39e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47411.go
++++ b/src/internal/types/testdata/fixedbugs/issue47411.go
+@@ -15,12 +15,12 @@ func _[P comparable,
+         _ = f[int]
+         _ = f[P]
+         _ = f[Q]
+-        _ = f[func /* ERROR does not implement comparable */ ()]
+-        _ = f[R /* ERROR R does not implement comparable */ ]
++        _ = f[func /* ERROR does not satisfy comparable */ ()]
++        _ = f[R /* ERROR R does not satisfy comparable */ ]
+ 
+         _ = g[int]
+-        _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int \| ~string} */ ]
++        _ = g[P /* ERROR P does not satisfy interface{interface{comparable; ~int \| ~string} */ ]
+         _ = g[Q]
+-        _ = g[func /* ERROR func\(\) does not implement interface{interface{comparable; ~int \| ~string}} */ ()]
+-        _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int \| ~string} */ ]
++        _ = g[func /* ERROR func\(\) does not satisfy interface{interface{comparable; ~int \| ~string}} */ ()]
++        _ = g[R /* ERROR R does not satisfy interface{interface{comparable; ~int \| ~string} */ ]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49112.go b/src/internal/types/testdata/fixedbugs/issue49112.go
+index 61b757ccb2..dea2608219 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49112.go
++++ b/src/internal/types/testdata/fixedbugs/issue49112.go
+@@ -8,8 +8,8 @@ func f[P int](P) {}
+ 
+ func _() {
+         _ = f[int]
+-        _ = f[[ /* ERROR \[\]int does not implement int */ ]int]
++        _ = f[[ /* ERROR \[\]int does not satisfy int */ ]int]
+ 
+         f(0)
+-        f/* ERROR \[\]int does not implement int */ ([]int{})
++        f/* ERROR \[\]int does not satisfy int */ ([]int{})
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49179.go b/src/internal/types/testdata/fixedbugs/issue49179.go
+index 8890e92f51..468d83edbe 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49179.go
++++ b/src/internal/types/testdata/fixedbugs/issue49179.go
+@@ -17,7 +17,7 @@ func _() {
+ 	_ = f2[myInt]
+ 	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint ~int \| string \| float64 */]
+ 	var x myInt
+-	f3 /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ (x)
++	f3 /* ERROR myInt does not satisfy int \(possibly missing ~ for int in constraint int\) */ (x)
+ }
+ 
+ // test case from the issue
+@@ -33,5 +33,5 @@ func Map[S SliceConstraint[E], E any](s S, f func(E) E) S {
+ type MySlice []int
+ 
+ func f(s MySlice) {
+-	Map[MySlice /* ERROR MySlice does not implement SliceConstraint\[int\] \(possibly missing ~ for \[\]int in constraint SliceConstraint\[int\]\) */, int](s, nil)
++	Map[MySlice /* ERROR MySlice does not satisfy SliceConstraint\[int\] \(possibly missing ~ for \[\]int in constraint SliceConstraint\[int\]\) */, int](s, nil)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49739.go b/src/internal/types/testdata/fixedbugs/issue49739.go
+index 46b1e71a3b..7feb5637dc 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49739.go
++++ b/src/internal/types/testdata/fixedbugs/issue49739.go
+@@ -17,7 +17,7 @@ func g[_ interface{ C }]() {}
+ func h[_ C | int]()        {}
+ 
+ func _() {
+-	_ = f[int /* ERROR cannot implement C \(empty type set\) */]
+-	_ = g[int /* ERROR cannot implement interface{C} \(empty type set\) */]
++	_ = f[int /* ERROR cannot satisfy C \(empty type set\) */]
++	_ = g[int /* ERROR cannot satisfy interface{C} \(empty type set\) */]
+ 	_ = h[int]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue50417.go b/src/internal/types/testdata/fixedbugs/issue50417.go
+index 2caef1b986..69ebf31b16 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50417.go
++++ b/src/internal/types/testdata/fixedbugs/issue50417.go
+@@ -25,8 +25,8 @@ func f0t[P ~struct{f int}](p P) {
+ var _ = f0[Sf]
+ var _ = f0t[Sf]
+ 
+-var _ = f0[Sm /* ERROR does not implement */ ]
+-var _ = f0t[Sm /* ERROR does not implement */ ]
++var _ = f0[Sm /* ERROR does not satisfy */ ]
++var _ = f0t[Sm /* ERROR does not satisfy */ ]
+ 
+ func f1[P interface{ Sf; m() }](p P) {
+         _ = p.f // ERROR p\.f undefined
+@@ -35,7 +35,7 @@ func f1[P interface{ Sf; m() }](p P) {
+ }
+ 
+ var _ = f1[Sf /* ERROR missing method m */ ]
+-var _ = f1[Sm /* ERROR does not implement */ ]
++var _ = f1[Sm /* ERROR does not satisfy */ ]
+ 
+ type Sm struct {}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue50646.go b/src/internal/types/testdata/fixedbugs/issue50646.go
+index bc53700704..ed7261c6b8 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50646.go
++++ b/src/internal/types/testdata/fixedbugs/issue50646.go
+@@ -13,16 +13,16 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T /* ERROR T does not implement comparable */ ]
+-	_ = f1[any /* ERROR any does not implement comparable */ ]
++	_ = f1[T /* ERROR T does not satisfy comparable */ ]
++	_ = f1[any /* ERROR any does not satisfy comparable */ ]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+-	_ = f1[R /* ERROR R does not implement comparable */]
++	_ = f1[R /* ERROR R does not satisfy comparable */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T /* ERROR T does not implement comparable */ ]
+-	_ = f2[any /* ERROR any does not implement comparable */ ]
++	_ = f2[T /* ERROR T does not satisfy comparable */ ]
++	_ = f2[any /* ERROR any does not satisfy comparable */ ]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+-	_ = f2[R /* ERROR R does not implement comparable */]
++	_ = f2[R /* ERROR R does not satisfy comparable */]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue50782.go b/src/internal/types/testdata/fixedbugs/issue50782.go
+index fd1ab11b8c..0e7b712a09 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50782.go
++++ b/src/internal/types/testdata/fixedbugs/issue50782.go
+@@ -21,7 +21,7 @@ type numericAbs[T Numeric] interface {
+ 
+ // AbsDifference computes the absolute value of the difference of
+ // a and b, where the absolute value is determined by the Abs method.
+-func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a, b T) T {
++func absDifference[T numericAbs[T /* ERROR T does not satisfy Numeric */]](a, b T) T {
+ 	// Field accesses are not permitted for now. Keep an error so
+ 	// we can find and fix this code once the situation changes.
+ 	return a.Value // ERROR a\.Value undefined
+@@ -33,15 +33,15 @@ func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a,
+ // The second example from the issue.
+ type T[P int] struct{ f P }
+ 
+-func _[P T[P /* ERROR "P does not implement int" */ ]]() {}
++func _[P T[P /* ERROR "P does not satisfy int" */ ]]() {}
+ 
+ // Additional tests
+-func _[P T[T /* ERROR "T\[P\] does not implement int" */ [P /* ERROR "P does not implement int" */ ]]]() {}
+-func _[P T[Q /* ERROR "Q does not implement int" */ ], Q T[P /* ERROR "P does not implement int" */ ]]() {}
++func _[P T[T /* ERROR "T\[P\] does not satisfy int" */ [P /* ERROR "P does not satisfy int" */ ]]]() {}
++func _[P T[Q /* ERROR "Q does not satisfy int" */ ], Q T[P /* ERROR "P does not satisfy int" */ ]]() {}
+ func _[P T[Q], Q int]() {}
+ 
+ type C[P comparable] struct{ f P }
+ func _[P C[C[P]]]() {}
+-func _[P C[C /* ERROR "C\[Q\] does not implement comparable" */ [Q /* ERROR "Q does not implement comparable" */]], Q func()]() {}
++func _[P C[C /* ERROR "C\[Q\] does not satisfy comparable" */ [Q /* ERROR "Q does not satisfy comparable" */]], Q func()]() {}
+ func _[P [10]C[P]]() {}
+ func _[P struct{ f C[C[P]]}]() {}
+diff --git a/src/internal/types/testdata/fixedbugs/issue51257.go b/src/internal/types/testdata/fixedbugs/issue51257.go
+index 4730c98e2f..be4b81fee7 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51257.go
++++ b/src/internal/types/testdata/fixedbugs/issue51257.go
+@@ -14,13 +14,13 @@ type S3 struct{ x [10]interface{ m() } }
+ 
+ func _[P1 comparable, P2 S2]() {
+ 	_ = f[S1]
+-	_ = f[S2 /* ERROR S2 does not implement comparable */ ]
+-	_ = f[S3 /* ERROR S3 does not implement comparable */ ]
++	_ = f[S2 /* ERROR S2 does not satisfy comparable */ ]
++	_ = f[S3 /* ERROR S3 does not satisfy comparable */ ]
+ 
+ 	type L1 struct { x P1 }
+ 	type L2 struct { x P2 }
+ 	_ = f[L1]
+-	_ = f[L2 /* ERROR L2 does not implement comparable */ ]
++	_ = f[L2 /* ERROR L2 does not satisfy comparable */ ]
+ }
+ 
+ 
+@@ -41,7 +41,7 @@ func NewSetFromSlice[T comparable](items []T) *Set[T] {
+ type T struct{ x any }
+ 
+ func main() {
+-	NewSetFromSlice /* ERROR T does not implement comparable */ ([]T{
++	NewSetFromSlice /* ERROR T does not satisfy comparable */ ([]T{
+ 		{"foo"},
+ 		{5},
+ 	})
+diff --git a/src/internal/types/testdata/fixedbugs/issue51376.go b/src/internal/types/testdata/fixedbugs/issue51376.go
+index d51607b7ab..3801d6883c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51376.go
++++ b/src/internal/types/testdata/fixedbugs/issue51376.go
+@@ -12,7 +12,7 @@ func g[M map[K]V, K comparable, V any](M) {}
+ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+         var m1 M1
+         f(m1)
+-        g /* ERROR M1 does not implement map\[K\]V */ (m1) // M1 has tilde
++        g /* ERROR M1 does not satisfy map\[K\]V */ (m1) // M1 has tilde
+ 
+         var m2 M2
+         f(m2)
+@@ -20,5 +20,5 @@ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+ 
+         var m3 Map
+         f(m3)
+-        g /* ERROR Map does not implement map\[string\]int */ (m3) // M in g does not have tilde
++        g /* ERROR Map does not satisfy map\[string\]int */ (m3) // M in g does not have tilde
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51472.go b/src/internal/types/testdata/fixedbugs/issue51472.go
+index 52ae09dad7..a0f9e9c025 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51472.go
++++ b/src/internal/types/testdata/fixedbugs/issue51472.go
+@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
+ }
+ 
+ func _(s []byte) {
+-	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte \| string} */ (s)
+-        _ = f[[ /* ERROR does not implement */ ]byte]
++	f /* ERROR \[\]byte does not satisfy interface{comparable; \[\]byte \| string} */ (s)
++        _ = f[[ /* ERROR does not satisfy */ ]byte]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57486.go b/src/internal/types/testdata/fixedbugs/issue57486.go
+index ff9e3d1db5..f6ba1b60b8 100644
+--- a/src/internal/types/testdata/fixedbugs/issue57486.go
++++ b/src/internal/types/testdata/fixedbugs/issue57486.go
+@@ -17,13 +17,13 @@ func G1[T C1](t T) { _ = t == t }
+ func G2[T C2](t T) { _ = t == t }
+ 
+ func F1[V [2]any](v V) {
+-	_ = G1[V /* ERROR "V does not implement comparable" */]
++	_ = G1[V /* ERROR "V does not satisfy comparable" */]
+ 	_ = G1[[2]any]
+ 	_ = G1[int]
+ }
+ 
+ func F2[V [2]any](v V) {
+-	_ = G2[V /* ERROR "V does not implement C2" */]
+-	_ = G2[[ /* ERROR "\[2\]any does not implement C2 \(\[2\]any missing in int\)" */ 2]any]
++	_ = G2[V /* ERROR "V does not satisfy C2" */]
++	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(\[2\]any missing in int\)" */ 2]any]
+ 	_ = G2[int]
+ }
+diff --git a/src/internal/types/testdata/spec/comparable.go b/src/internal/types/testdata/spec/comparable.go
+index 03c8471393..f407c356d3 100644
+--- a/src/internal/types/testdata/spec/comparable.go
++++ b/src/internal/types/testdata/spec/comparable.go
+@@ -11,16 +11,16 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T /* T does implement comparable */]
+-	_ = f1[any /* any does implement comparable */]
++	_ = f1[T /* T does satisfy comparable */]
++	_ = f1[any /* any does satisfy comparable */]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+-	_ = f1[R /* ERROR R does not implement comparable */]
++	_ = f1[R /* ERROR R does not satisfy comparable */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T /* T does implement comparable */]
+-	_ = f2[any /* any does implement comparable */]
++	_ = f2[T /* T does satisfy comparable */]
++	_ = f2[any /* any does satisfy comparable */]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+-	_ = f2[R /* ERROR R does not implement comparable */]
++	_ = f2[R /* ERROR R does not satisfy comparable */]
+ }
+diff --git a/src/internal/types/testdata/spec/comparable1.19.go b/src/internal/types/testdata/spec/comparable1.19.go
+index c9c87e4f77..dc1c5fa029 100644
+--- a/src/internal/types/testdata/spec/comparable1.19.go
++++ b/src/internal/types/testdata/spec/comparable1.19.go
+@@ -13,16 +13,16 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T /* ERROR T to implement comparable requires go1\.20 or later */]
+-	_ = f1[any /* ERROR any to implement comparable requires go1\.20 or later */]
++	_ = f1[T /* ERROR T to satisfy comparable requires go1\.20 or later */]
++	_ = f1[any /* ERROR any to satisfy comparable requires go1\.20 or later */]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+-	_ = f1[R /* ERROR R does not implement comparable */]
++	_ = f1[R /* ERROR R does not satisfy comparable */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T /* ERROR T to implement comparable requires go1\.20 or later */]
+-	_ = f2[any /* ERROR any to implement comparable requires go1\.20 or later */]
++	_ = f2[T /* ERROR T to satisfy comparable requires go1\.20 or later */]
++	_ = f2[any /* ERROR any to satisfy comparable requires go1\.20 or later */]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+-	_ = f2[R /* ERROR R does not implement comparable */]
++	_ = f2[R /* ERROR R does not satisfy comparable */]
+ }
+diff --git a/src/internal/types/testdata/spec/oldcomparable.go b/src/internal/types/testdata/spec/oldcomparable.go
+index 9f6cf749f0..081d972ab0 100644
+--- a/src/internal/types/testdata/spec/oldcomparable.go
++++ b/src/internal/types/testdata/spec/oldcomparable.go
+@@ -13,16 +13,16 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T /* ERROR T does not implement comparable */]
+-	_ = f1[any /* ERROR any does not implement comparable */]
++	_ = f1[T /* ERROR T does not satisfy comparable */]
++	_ = f1[any /* ERROR any does not satisfy comparable */]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+-	_ = f1[R /* ERROR R does not implement comparable */]
++	_ = f1[R /* ERROR R does not satisfy comparable */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T /* ERROR T does not implement comparable */]
+-	_ = f2[any /* ERROR any does not implement comparable */]
++	_ = f2[T /* ERROR T does not satisfy comparable */]
++	_ = f2[any /* ERROR any does not satisfy comparable */]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+-	_ = f2[R /* ERROR R does not implement comparable */]
++	_ = f2[R /* ERROR R does not satisfy comparable */]
+ }
+diff --git a/test/typeparam/mdempsky/8.dir/b.go b/test/typeparam/mdempsky/8.dir/b.go
+index 84037bf763..ef2637b894 100644
+--- a/test/typeparam/mdempsky/8.dir/b.go
++++ b/test/typeparam/mdempsky/8.dir/b.go
+@@ -7,5 +7,5 @@ package b
+ import "./a"
+ 
+ func init() {
+-	a.F[func()]() // ERROR "does not implement comparable"
++	a.F[func()]() // ERROR "does not satisfy comparable"
+ }
+diff --git a/test/typeparam/mincheck.dir/main.go b/test/typeparam/mincheck.dir/main.go
+index c9ca50a23b..6f85f9e5e1 100644
+--- a/test/typeparam/mincheck.dir/main.go
++++ b/test/typeparam/mincheck.dir/main.go
+@@ -28,11 +28,11 @@ func main() {
+ 	}
+ 
+ 	const want2 = "ay"
+-	if got := a.Min[string]("bb", "ay"); got != want2 { // ERROR "string does not implement"
++	if got := a.Min[string]("bb", "ay"); got != want2 { // ERROR "string does not satisfy"
+ 		panic(fmt.Sprintf("got %d, want %d", got, want2))
+ 	}
+ 
+-	if got := a.Min("bb", "ay"); got != want2 { // ERROR "string does not implement"
++	if got := a.Min("bb", "ay"); got != want2 { // ERROR "string does not satisfy"
+ 		panic(fmt.Sprintf("got %d, want %d", got, want2))
+ 	}
+ }

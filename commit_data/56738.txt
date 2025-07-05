@@ -14,9 +14,87 @@ Date:   Mon Nov 21 21:41:54 2022 +0000
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics.go             |  7 +++++++
  src/runtime/metrics/description.go |  5 +++++
  src/runtime/metrics/doc.go         |  4 ++++
  src/runtime/metrics_test.go        | 10 ++++++++++
  4 files changed, 26 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 4a51ae573f..ad6348136e 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -248,6 +248,13 @@ func initMetrics() {
+ 				out.scalar = in.sysStats.heapGoal
+ 			},
+ 		},
++		"/gc/heap/live:bytes": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = gcController.heapMarked
++			},
++		},
+ 		"/gc/heap/objects:objects": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 2d5b0f2195..f5b1020271 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -245,6 +245,11 @@ var allDesc = []Description{
+ 		Description: "Heap size target for the end of the GC cycle.",
+ 		Kind:        KindUint64,
+ 	},
++	{
++		Name:        "/gc/heap/live:bytes",
++		Description: "Heap memory occupied by live objects that were marked by the previous GC.",
++		Kind:        KindUint64,
++	},
+ 	{
+ 		Name:        "/gc/heap/objects:objects",
+ 		Description: "Number of objects, live or unswept, occupying heap memory.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 34d2c09de6..fe0d1f58e9 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -180,6 +180,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/heap/goal:bytes
+ 		Heap size target for the end of the GC cycle.
+ 
++	/gc/heap/live:bytes
++		Heap memory occupied by live objects that were marked by the
++		previous GC.
++
+ 	/gc/heap/objects:objects
+ 		Number of objects, live or unswept, occupying heap memory.
+ 
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index d981c8ee00..c1a991ead0 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -28,6 +28,9 @@ func prepareAllMetricsSamples() (map[string]metrics.Description, []metrics.Sampl
+ }
+ 
+ func TestReadMetrics(t *testing.T) {
++	// Run a GC cycle to get some of the stats to be non-zero.
++	runtime.GC()
++
+ 	// Tests whether readMetrics produces values aligning
+ 	// with ReadMemStats while the world is stopped.
+ 	var mstats runtime.MemStats
+@@ -128,6 +131,13 @@ func TestReadMetrics(t *testing.T) {
+ 			mallocs = samples[i].Value.Uint64()
+ 		case "/gc/heap/frees:objects":
+ 			frees = samples[i].Value.Uint64()
++		case "/gc/heap/live:bytes":
++			if live := samples[i].Value.Uint64(); live > mstats.HeapAlloc {
++				t.Errorf("live bytes: %d > heap alloc: %d", live, mstats.HeapAlloc)
++			} else if live == 0 {
++				// Might happen if we don't call runtime.GC() above.
++				t.Error("live bytes is 0")
++			}
+ 		case "/gc/heap/objects:objects":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
+ 		case "/gc/heap/goal:bytes":

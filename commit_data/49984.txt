@@ -16,7 +16,136 @@ Date:   Fri Sep 24 23:02:08 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 29 +++++++++++++++++++++++++----
  src/cmd/compile/internal/noder/helpers.go | 30 ++++++++----------------------
  2 files changed, 33 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 9cd9545b75..1f40503302 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -167,7 +167,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			index := g.expr(expr.Index)
+ 			if index.Op() != ir.OTYPE {
+ 				// This is just a normal index expression
+-				return Index(pos, g.typ(typ), g.expr(expr.X), index)
++				n := Index(pos, g.typ(typ), g.expr(expr.X), index)
++				if !delayTransform() {
++					// transformIndex will modify n.Type() for OINDEXMAP.
++					transformIndex(n)
++				}
++				return n
+ 			}
+ 			// This is generic function instantiation with a single type
+ 			targs = []ir.Node{index}
+@@ -200,7 +205,11 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		return g.selectorExpr(pos, typ, expr)
+ 
+ 	case *syntax.SliceExpr:
+-		return Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
++		n := Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
++		if !delayTransform() {
++			transformSlice(n)
++		}
++		return n
+ 
+ 	case *syntax.Operation:
+ 		if expr.Y == nil {
+@@ -208,9 +217,21 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		}
+ 		switch op := g.op(expr.Op, binOps[:]); op {
+ 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
+-			return Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
++			n := Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
++			if !delayTransform() {
++				transformCompare(n)
++			}
++			return n
++		case ir.OANDAND, ir.OOROR:
++			x := g.expr(expr.X)
++			y := g.expr(expr.Y)
++			return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
+ 		default:
+-			return Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
++			n := Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
++			if op == ir.OADD && !delayTransform() {
++				return transformAdd(n)
++			}
++			return n
+ 		}
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 636b5d64cd..aecda86e9d 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -89,20 +89,16 @@ func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
+ 	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
+ }
+ 
+-func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
++func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) *ir.BinaryExpr {
+ 	switch op {
+-	case ir.OANDAND, ir.OOROR:
+-		return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
+ 	case ir.OADD:
+ 		n := ir.NewBinaryExpr(pos, op, x, y)
+ 		typed(typ, n)
+-		r := ir.Node(n)
+-		if !delayTransform() {
+-			r = transformAdd(n)
+-		}
+-		return r
++		return n
+ 	default:
+-		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
++		n := ir.NewBinaryExpr(pos, op, x, y)
++		typed(x.Type(), n)
++		return n
+ 	}
+ }
+ 
+@@ -195,12 +191,9 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	return n
+ }
+ 
+-func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
++func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) *ir.BinaryExpr {
+ 	n := ir.NewBinaryExpr(pos, op, x, y)
+ 	typed(typ, n)
+-	if !delayTransform() {
+-		transformCompare(n)
+-	}
+ 	return n
+ }
+ 
+@@ -270,26 +263,19 @@ func method(typ *types.Type, index int) *types.Field {
+ 	return types.ReceiverBaseType(typ).Methods().Index(index)
+ }
+ 
+-func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
++func Index(pos src.XPos, typ *types.Type, x, index ir.Node) *ir.IndexExpr {
+ 	n := ir.NewIndexExpr(pos, x, index)
+ 	typed(typ, n)
+-	if !delayTransform() {
+-		// transformIndex will modify n.Type() for OINDEXMAP.
+-		transformIndex(n)
+-	}
+ 	return n
+ }
+ 
+-func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
++func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) *ir.SliceExpr {
+ 	op := ir.OSLICE
+ 	if max != nil {
+ 		op = ir.OSLICE3
+ 	}
+ 	n := ir.NewSliceExpr(pos, op, x, low, high, max)
+ 	typed(typ, n)
+-	if !delayTransform() {
+-		transformSlice(n)
+-	}
+ 	return n
+ }
+ 

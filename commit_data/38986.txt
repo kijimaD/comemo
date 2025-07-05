@@ -11,7 +11,32 @@ Date:   Mon Jun 25 20:27:58 2018 +0000
     GitHub-Pull-Request: golang/go#26054
     Reviewed-on: https://go-review.googlesource.com/c/120835
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/html/template/js.go      | 1 +
  src/html/template/js_test.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 98e821b73c..872f6786b3 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -391,6 +391,7 @@ func isJSType(mimeType string) bool {
+ 		"application/ecmascript",
+ 		"application/javascript",
+ 		"application/json",
++		"application/ld+json",
+ 		"application/x-ecmascript",
+ 		"application/x-javascript",
+ 		"text/ecmascript",
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 12a850d6e3..05fa105be0 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -343,6 +343,7 @@ func TestIsJsMimeType(t *testing.T) {
+ 		{"application/javascript/version=1.8", false},
+ 		{"text/javascript", true},
+ 		{"application/json", true},
++		{"application/ld+json", true},
+ 	}
+ 
+ 	for _, test := range tests {

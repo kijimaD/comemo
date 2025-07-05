@@ -12,7 +12,73 @@ Date:   Thu May 12 13:55:46 2016 -0700
     Change-Id: I3dcf1d669104690a17847a20fbfeb6d7e39e8751
     Reviewed-on: https://go-review.googlesource.com/23091
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec.go      | 19 +++++++++++++++----
  src/text/template/exec_test.go | 13 +++++++++++++
  2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 22881c6852..8e5ad93ca6 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -15,14 +15,21 @@ import (
+ 	"text/template/parse"
+ )
+ 
++// maxExecDepth specifies the maximum stack depth of templates within
++// templates. This limit is only practically reached by accidentally
++// recursive template invocations. This limit allows us to return
++// an error instead of triggering a stack overflow.
++const maxExecDepth = 100000
++
+ // state represents the state of an execution. It's not part of the
+ // template so that multiple executions of the same template
+ // can execute in parallel.
+ type state struct {
+-	tmpl *Template
+-	wr   io.Writer
+-	node parse.Node // current node, for errors
+-	vars []variable // push-down stack of variable values.
++	tmpl  *Template
++	wr    io.Writer
++	node  parse.Node // current node, for errors
++	vars  []variable // push-down stack of variable values.
++	depth int        // the height of the stack of executing templates.
+ }
+ 
+ // variable holds the dynamic value of a variable such as $, $x etc.
+@@ -363,9 +370,13 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
+ 	if tmpl == nil {
+ 		s.errorf("template %q not defined", t.Name)
+ 	}
++	if s.depth == maxExecDepth {
++		s.errorf("exceeded maximum template depth (%v)", maxExecDepth)
++	}
+ 	// Variables declared by the pipeline persist.
+ 	dot = s.evalPipeline(dot, t.Pipe)
+ 	newState := *s
++	newState.depth++
+ 	newState.tmpl = tmpl
+ 	// No dynamic scoping: template invocations inherit no variables.
+ 	newState.vars = []variable{{"$", dot}}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index bc2aa683ec..3ef065edcf 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1297,3 +1297,16 @@ func TestMissingFieldOnNil(t *testing.T) {
+ 		t.Errorf("got error %q, want %q", got, want)
+ 	}
+ }
++
++func TestMaxExecDepth(t *testing.T) {
++	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
++	err := tmpl.Execute(ioutil.Discard, nil)
++	got := "<nil>"
++	if err != nil {
++		got = err.Error()
++	}
++	const want = "exceeded maximum template depth"
++	if !strings.Contains(got, want) {
++		t.Errorf("got error %q; want %q", got, want)
++	}
++}

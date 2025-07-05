@@ -16,7 +16,42 @@ Date:   Fri Mar 20 13:34:03 2015 -0400
     Change-Id: I5277b5abb070e47f8d783bc15a310b379c6adc22
     Reviewed-on: https://go-review.googlesource.com/8247
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 3 ---
  src/runtime/mgcwork.go | 7 +++++++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f6452ea133..bdb5888a28 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -366,9 +366,6 @@ func gcDrain(gcw *gcWork) {
+ }
+ 
+ // gcDrainN scans n objects, blackening grey objects.
+-//
+-// This MUST be run on the system stack to prevent a stop-the-world
+-// while this locally holds GC work buffers.
+ //go:nowritebarrier
+ func gcDrainN(gcw *gcWork, n int) {
+ 	checknocurrentwbuf()
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index ecf603a739..f69d6bb6a1 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -41,8 +41,15 @@ func (wp wbufptr) ptr() *workbuf {
+ // The usual pattern for using gcWork is:
+ //
+ //     var gcw gcWork
++//     disable preemption
+ //     .. call gcw.put() to produce and gcw.get() to consume ..
+ //     gcw.dispose()
++//     enable preemption
++//
++// It's important that any use of gcWork during the mark phase prevent
++// the garbage collector from transitioning to mark termination since
++// gcWork may locally hold GC work buffers. This can be done by
++// disabling preemption (systemstack or acquirem).
+ type gcWork struct {
+ 	// Invariant: wbuf is never full or empty
+ 	wbuf wbufptr

@@ -14,7 +14,63 @@ Date:   Wed Feb 8 10:06:34 2017 -0800
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/conn.go      |  2 +-
  src/crypto/tls/conn_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 03895a723f..e6d85aa263 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1206,10 +1206,10 @@ func (c *Conn) Close() error {
+ 	var alertErr error
+ 
+ 	c.handshakeMutex.Lock()
+-	defer c.handshakeMutex.Unlock()
+ 	if c.handshakeComplete {
+ 		alertErr = c.closeNotify()
+ 	}
++	c.handshakeMutex.Unlock()
+ 
+ 	if err := c.conn.Close(); err != nil {
+ 		return err
+diff --git a/src/crypto/tls/conn_test.go b/src/crypto/tls/conn_test.go
+index 5e5c7a2e96..e58077e692 100644
+--- a/src/crypto/tls/conn_test.go
++++ b/src/crypto/tls/conn_test.go
+@@ -241,3 +241,34 @@ func TestDynamicRecordSizingWithAEAD(t *testing.T) {
+ 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
+ 	runDynamicRecordSizingTest(t, config)
+ }
++
++// hairpinConn is a net.Conn that makes a “hairpin” call when closed, back into
++// the tls.Conn which is calling it.
++type hairpinConn struct {
++	net.Conn
++	tlsConn *Conn
++}
++
++func (conn *hairpinConn) Close() error {
++	conn.tlsConn.ConnectionState()
++	return nil
++}
++
++func TestHairpinInClose(t *testing.T) {
++	// This tests that the underlying net.Conn can call back into the
++	// tls.Conn when being closed without deadlocking.
++	client, server := net.Pipe()
++	defer server.Close()
++	defer client.Close()
++
++	conn := &hairpinConn{client, nil}
++	tlsConn := Server(conn, &Config{
++		GetCertificate: func(*ClientHelloInfo) (*Certificate, error) {
++			panic("unreachable")
++		},
++	})
++	conn.tlsConn = tlsConn
++
++	// This call should not deadlock.
++	tlsConn.Close()
++}

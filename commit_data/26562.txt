@@ -11,6 +11,27 @@ Date:   Sat Feb 6 22:35:34 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19303
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 71d5920824..b7019d68b7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -544,6 +544,15 @@ func (s *state) stmt(n *Node) {
+ 	// Expression statements
+ 	case OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		s.call(n, callNormal)
++		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC && n.Left.Sym.Pkg == Runtimepkg && n.Left.Sym.Name == "gopanic" {
++			m := s.mem()
++			b := s.endBlock()
++			b.Kind = ssa.BlockExit
++			b.Control = m
++			// TODO: never rewrite OPANIC to OCALLFUNC in the
++			// first place.  Need to wait until all backends
++			// go through SSA.
++		}
+ 	case ODEFER:
+ 		s.call(n.Left, callDefer)
+ 	case OPROC:

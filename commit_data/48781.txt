@@ -17,9 +17,138 @@ Date:   Mon Jun 14 12:39:14 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/runtime/heapdump.go |  7 +++----
  src/runtime/panic.go    | 25 +++++++++++++++++--------
  src/runtime/runtime2.go |  8 ++++----
  src/runtime/stubs.go    |  2 +-
  4 files changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 47e4b6b0d1..934e55f495 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -381,13 +381,12 @@ func dumpgoroutine(gp *g) {
+ 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
+ 		dumpint(uint64(d.sp))
+ 		dumpint(uint64(d.pc))
+-		fn := *(**funcval)(unsafe.Pointer(&d.fn))
+-		dumpint(uint64(uintptr(unsafe.Pointer(fn))))
+-		if fn == nil {
++		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
++		if d.fn == nil {
+ 			// d.fn can be nil for open-coded defers
+ 			dumpint(uint64(0))
+ 		} else {
+-			dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
++			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+ 		}
+ 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
+ 	}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 86d41c4e1c..04b95e51e5 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -226,7 +226,7 @@ func panicmemAddr(addr uintptr) {
+ 
+ // Create a new deferred function fn, which has no arguments and results.
+ // The compiler turns a defer statement into a call to this.
+-func deferproc(fn func()) {
++func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
+ 	gp := getg()
+ 	if gp.m.curg != gp {
+ 		// go code on the system stack can't defer
+@@ -302,6 +302,16 @@ func deferprocStack(d *_defer) {
+ 	// been set and must not be clobbered.
+ }
+ 
++// deferFunc returns d's deferred function. This is temporary while we
++// support both modes of GOEXPERIMENT=regabidefer. Once we commit to
++// that experiment, we should change the type of d.fn.
++//go:nosplit
++func deferFunc(d *_defer) func() {
++	var fn func()
++	*(**funcval)(unsafe.Pointer(&fn)) = d.fn
++	return fn
++}
++
+ // Each P holds a pool for defers.
+ 
+ // Allocate a Defer, usually using per-P pool.
+@@ -461,9 +471,7 @@ func deferreturn() {
+ 	// called with a callback on an LR architecture and jmpdefer is on the
+ 	// stack, because the stack trace can be incorrect in that case - see
+ 	// issue #8153).
+-	if fn == nil {
+-		fn()
+-	}
++	_ = fn.fn
+ 	jmpdefer(fn, argp)
+ }
+ 
+@@ -527,7 +535,7 @@ func Goexit() {
+ 		} else {
+ 			// Save the pc/sp in deferCallSave(), so we can "recover" back to this
+ 			// loop if necessary.
+-			deferCallSave(&p, d.fn)
++			deferCallSave(&p, deferFunc(d))
+ 		}
+ 		if p.aborted {
+ 			// We had a recursive panic in the defer d we started, and
+@@ -719,12 +727,12 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
+ 		if deferBits&(1<<i) == 0 {
+ 			continue
+ 		}
+-		closure := *(*func())(unsafe.Pointer(d.varp - uintptr(closureOffset)))
++		closure := *(**funcval)(unsafe.Pointer(d.varp - uintptr(closureOffset)))
+ 		d.fn = closure
+ 		deferBits = deferBits &^ (1 << i)
+ 		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
+ 		p := d._panic
+-		deferCallSave(p, d.fn)
++		deferCallSave(p, deferFunc(d))
+ 		if p != nil && p.aborted {
+ 			break
+ 		}
+@@ -845,7 +853,8 @@ func gopanic(e interface{}) {
+ 			}
+ 		} else {
+ 			p.argp = unsafe.Pointer(getargp())
+-			d.fn()
++			fn := deferFunc(d)
++			fn()
+ 		}
+ 		p.argp = nil
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 75c4818599..f13c649a09 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -953,10 +953,10 @@ type _defer struct {
+ 	// defers. We have only one defer record for the entire frame (which may
+ 	// currently have 0, 1, or more defers active).
+ 	openDefer bool
+-	sp        uintptr // sp at time of defer
+-	pc        uintptr // pc at time of defer
+-	fn        func()  // can be nil for open-coded defers
+-	_panic    *_panic // panic that is running defer
++	sp        uintptr  // sp at time of defer
++	pc        uintptr  // pc at time of defer
++	fn        *funcval // can be nil for open-coded defers
++	_panic    *_panic  // panic that is running defer
+ 	link      *_defer
+ 
+ 	// If openDefer is true, the fields below record values about the stack
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index b94acdea1f..16d7583202 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -177,7 +177,7 @@ func cgocallback(fn, frame, ctxt uintptr)
+ func gogo(buf *gobuf)
+ 
+ //go:noescape
+-func jmpdefer(fv func(), argp uintptr)
++func jmpdefer(fv *funcval, argp uintptr)
+ func asminit()
+ func setg(gg *g)
+ func breakpoint()

@@ -20,7 +20,7 @@ Date:   Mon Oct 12 10:26:38 2009 -0700
     DELTA=94  (65 added, 18 deleted, 11 changed)
     OCL=35591
     CL=35604
-
+---
  src/cmd/6l/pass.c           | 50 +++++++++++++++++++++++++++++++++++++++------
  src/pkg/runtime/386/asm.s   | 14 +++++++++++--
  src/pkg/runtime/amd64/asm.s | 20 ++++++++++++++----
@@ -29,3 +29,240 @@ Date:   Mon Oct 12 10:26:38 2009 -0700
  src/pkg/runtime/proc.c      | 11 +---------
  src/pkg/runtime/runtime.h   |  1 -
  7 files changed, 77 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index e5b948a6ed..7a95f7427e 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -638,6 +638,9 @@ dostkoff(void)
+ 
+ 			q = P;
+ 			q1 = P;
++			if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
++				diag("nosplit func likely to overflow stack");
++
+ 			if(!(p->from.scale & NOSPLIT)) {
+ 				if(debug['K']) {
+ 					// 6l -K means check not only for stack
+@@ -792,8 +795,44 @@ dostkoff(void)
+ 				if(q != P)
+ 					q->pcond = p;
+ 			}
+-
+ 			deltasp = autoffset;
++
++			if(debug['K'] > 1 && autoffset) {
++				// 6l -KK means double-check for stack overflow
++				// even after calling morestack and even if the
++				// function is marked as nosplit.
++				p = appendp(p);
++				p->as = AMOVQ;
++				p->from.type = D_INDIR+D_R15;
++				p->from.offset = 0;
++				p->to.type = D_BX;
++
++				p = appendp(p);
++				p->as = ASUBQ;
++				p->from.type = D_CONST;
++				p->from.offset = StackSmall+32;
++				p->to.type = D_BX;
++
++				p = appendp(p);
++				p->as = ACMPQ;
++				p->from.type = D_SP;
++				p->to.type = D_BX;
++
++				p = appendp(p);
++				p->as = AJHI;
++				p->to.type = D_BRANCH;
++				q1 = p;
++
++				p = appendp(p);
++				p->as = AINT;
++				p->from.type = D_CONST;
++				p->from.offset = 3;
++
++				p = appendp(p);
++				p->as = ANOP;
++				q1->pcond = p;
++				q1 = P;
++			}
+ 		}
+ 		pcsize = p->mode/8;
+ 		a = p->from.type;
+@@ -844,13 +883,12 @@ dostkoff(void)
+ 			goto become;
+ 
+ 		if(autoffset) {
+-			q = p;
++			p->as = AADJSP;
++			p->from.type = D_CONST;
++			p->from.offset = -autoffset;
++
+ 			p = appendp(p);
+ 			p->as = ARET;
+-
+-			q->as = AADJSP;
+-			q->from.type = D_CONST;
+-			q->from.offset = -autoffset;
+ 		}
+ 		continue;
+ 
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 5aa73a6b8f..9df7fb1466 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -300,12 +300,22 @@ TEXT	abort(SB),7,$0
+ 	INT $0x3
+ 
+ // runcgo(void(*fn)(void*), void *arg)
+-// Just call fn(arg), but first align the stack
+-// appropriately for the gcc ABI.
++// Call fn(arg) on the scheduler stack,
++// aligned appropriately for the gcc ABI.
+ TEXT	runcgo(SB),7,$16
+ 	MOVL	fn+0(FP), AX
+ 	MOVL	arg+4(FP), BX
+ 	MOVL	SP, CX
++
++	// Figure out if we need to switch to m->g0 stack.
++	MOVL	m, DX
++	MOVL	m_g0(DX), SI
++	CMPL	g, SI
++	JEQ	2(PC)
++	MOVL	(m_sched+gobuf_sp)(DX), SP
++
++	// Now on a scheduling stack (a pthread-created stack).
++	SUBL	$16, SP
+ 	ANDL	$~15, SP	// alignment for gcc ABI
+ 	MOVL	CX, 4(SP)
+ 	MOVL	BX, 0(SP)
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 6cb6d5c77a..87bc222e14 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -272,20 +272,32 @@ TEXT jmpdefer(SB), 7, $0
+ 	JMP	AX	// but first run the deferred function
+ 
+ // runcgo(void(*fn)(void*), void *arg)
+-// Call fn(arg), but align the stack
+-// appropriately for the gcc ABI
+-// and also save g and m across the call,
++// Call fn(arg) on the scheduler stack,
++// aligned appropriately for the gcc ABI.
++// Save g and m across the call,
+ // since the foreign code might reuse them.
+ TEXT runcgo(SB),7,$32
++	// Save old registers.
+ 	MOVQ	fn+0(FP),AX
+ 	MOVQ	arg+8(FP),DI	// DI = first argument in AMD64 ABI
+ 	MOVQ	SP, CX
++
++	// Figure out if we need to switch to m->g0 stack.
++	MOVQ	m_g0(m), R8
++	CMPQ	R8, g
++	JEQ	2(PC)
++	MOVQ	(m_sched+gobuf_sp)(m), SP
++
++	// Now on a scheduling stack (a pthread-created stack).
++	SUBQ	$32, SP
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+ 	MOVQ	g, 24(SP)	// save old g, m, SP
+ 	MOVQ	m, 16(SP)
+ 	MOVQ	CX, 8(SP)
+ 	CALL	AX
+-	MOVQ	16(SP), m	// restore
++
++	// Restore registers, stack pointer.
++	MOVQ	16(SP), m
+ 	MOVQ	24(SP), g
+ 	MOVQ	8(SP), SP
+ 	RET
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index a475603957..70382ceee1 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -25,10 +25,7 @@ cgocall(void (*fn)(void*), void *arg)
+ 	 * foreign code.
+ 	 */
+ 	sys·entersyscall();
+-	g->cgofn = fn;
+-	g->cgoarg = arg;
+-	g->status = Gcgocall;
+-	gosched();
++	runcgo(fn, arg);
+ 	sys·exitsyscall();
+ 	return;
+ }
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index fb2881be55..4a358a8116 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -4,7 +4,7 @@
+ 
+ #include "runtime.h"
+ 
+-static Lock debuglock;
++//static Lock debuglock;
+ 
+ void
+ dump(byte *p, int32 n)
+@@ -37,7 +37,7 @@ printf(int8 *s, ...)
+ 	int8 *p, *lp;
+ 	byte *arg, *narg;
+ 
+-	lock(&debuglock);
++//	lock(&debuglock);
+ 
+ 	lp = p = s;
+ 	arg = (byte*)(&s+1);
+@@ -100,7 +100,7 @@ printf(int8 *s, ...)
+ 	if(p > lp)
+ 		write(1, lp, p-lp);
+ 
+-	unlock(&debuglock);
++//	unlock(&debuglock);
+ }
+ 
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index f6f2bb2b36..4113002ada 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -95,7 +95,7 @@ schedinit(void)
+ {
+ 	int32 n;
+ 	byte *p;
+-	
++
+ 	allm = m;
+ 
+ 	mallocinit();
+@@ -452,15 +452,6 @@ scheduler(void)
+ 	lock(&sched);
+ 	if(gosave(&m->sched) != 0){
+ 		gp = m->curg;
+-		if(gp->status == Gcgocall){
+-			// Runtime call into external code (FFI).
+-			// When running with FFI, the scheduler stack is a
+-			// native pthread stack, so it suffices to switch to the
+-			// scheduler stack and make the call.
+-			runcgo(gp->cgofn, gp->cgoarg);
+-			gp->status = Grunning;
+-			gogo(&gp->sched, 1);
+-		}
+ 
+ 		// Jumped here via gosave/gogo, so didn't
+ 		// execute lock(&sched) above.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b44eb929cc..b560d68f98 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -94,7 +94,6 @@ enum
+ 	Gwaiting,
+ 	Gmoribund,
+ 	Gdead,
+-	Gcgocall,
+ };
+ enum
+ {

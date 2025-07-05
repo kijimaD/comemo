@@ -12,6 +12,20 @@ Date:   Thu May 17 23:21:29 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/113715
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/vet/vetflag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index d4664cc7e9..03770ea920 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -90,7 +90,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 			}
+ 			switch f.Name {
+ 			// Flags known to the build but not to vet, so must be dropped.
+-			case "x", "n", "vettool":
++			case "x", "n", "vettool", "compiler":
+ 				if extraWord {
+ 					args = append(args[:i], args[i+2:]...)
+ 					extraWord = false

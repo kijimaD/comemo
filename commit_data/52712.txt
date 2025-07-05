@@ -12,6 +12,28 @@ Date:   Thu May 19 02:55:03 2022 +0430
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/reflect/example_test.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/reflect/example_test.go b/src/reflect/example_test.go
+index 3db971c3ae..b4f3b2932f 100644
+--- a/src/reflect/example_test.go
++++ b/src/reflect/example_test.go
+@@ -194,3 +194,16 @@ func ExampleValue_FieldByIndex() {
+ 	// Output:
+ 	// embedded last name: Embedded Doe
+ }
++
++func ExampleValue_FieldByName() {
++	type user struct {
++		firstName string
++		lastName  string
++	}
++	u := user{firstName: "John", lastName: "Doe"}
++	s := reflect.ValueOf(u)
++
++	fmt.Println("Name:", s.FieldByName("firstName"))
++	// Output:
++	// Name: John
++}

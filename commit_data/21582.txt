@@ -9,6 +9,22 @@ Date:   Sun Jan 18 20:05:44 2015 -0500
     Change-Id: Ic4d7cad8ff62023c1beecd2d62e48eb9258f5306
     Reviewed-on: https://go-review.googlesource.com/3013
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index bb832ea645..9dc2a0d75d 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -178,8 +178,8 @@
+ 	However, the notation [n] immediately before the verb indicates that the
+ 	nth one-indexed argument is to be formatted instead. The same notation
+ 	before a '*' for a width or precision selects the argument index holding
+-	the value. After processing a bracketed expression [n], arguments n+1,
+-	n+2, etc. will be processed unless otherwise directed.
++	the value. After processing a bracketed expression [n], subsequent verbs
++	will use arguments n+1, n+2, etc. unless otherwise directed.
+ 
+ 	For example,
+ 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)

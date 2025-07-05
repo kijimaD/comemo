@@ -13,6 +13,71 @@ Date:   Tue Mar 14 09:12:55 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index f9375158e2..d67184749f 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -321,7 +321,7 @@ func compile(fn *Node) {
+ 	}(setlineno(fn))
+ 
+ 	Curfn = fn
+-	dowidth(Curfn.Type)
++	dowidth(fn.Type)
+ 
+ 	if fn.Nbody.Len() == 0 {
+ 		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
+@@ -335,25 +335,25 @@ func compile(fn *Node) {
+ 
+ 	saveerrors()
+ 
+-	order(Curfn)
++	order(fn)
+ 	if nerrors != 0 {
+ 		return
+ 	}
+ 
+ 	hasdefer = false
+-	walk(Curfn)
++	walk(fn)
+ 	if nerrors != 0 {
+ 		return
+ 	}
+ 	if instrumenting {
+-		instrument(Curfn)
++		instrument(fn)
+ 	}
+ 	if nerrors != 0 {
+ 		return
+ 	}
+ 
+ 	// Build an SSA backend function.
+-	ssafn := buildssa(Curfn)
++	ssafn := buildssa(fn)
+ 	if nerrors != 0 {
+ 		return
+ 	}
+@@ -363,9 +363,9 @@ func compile(fn *Node) {
+ 	Clearp(pc)
+ 	plist.Firstpc = pc
+ 
+-	setlineno(Curfn)
++	setlineno(fn)
+ 
+-	nam := Curfn.Func.Nname
++	nam := fn.Func.Nname
+ 	if isblank(nam) {
+ 		nam = nil
+ 	}
+@@ -402,7 +402,7 @@ func compile(fn *Node) {
+ 	// See test/recover.go for test cases and src/reflect/value.go
+ 	// for the actual functions being considered.
+ 	if myimportpath == "reflect" {
+-		if Curfn.Func.Nname.Sym.Name == "callReflect" || Curfn.Func.Nname.Sym.Name == "callMethod" {
++		if fn.Func.Nname.Sym.Name == "callReflect" || fn.Func.Nname.Sym.Name == "callMethod" {
+ 			ptxt.From3.Offset |= obj.WRAPPER
+ 		}
+ 	}

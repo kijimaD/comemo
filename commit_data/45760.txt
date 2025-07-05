@@ -13,9 +13,101 @@ Date:   Fri Nov 13 14:42:45 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/269819
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go            | 14 ++++++++++++++
  misc/cgo/testplugin/testdata/method/main.go   | 26 ++++++++++++++++++++++++++
  misc/cgo/testplugin/testdata/method/plugin.go | 13 +++++++++++++
  src/cmd/compile/internal/gc/reflect.go        |  6 +++++-
  4 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 2875271c03..9055dbda04 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -196,3 +196,17 @@ func TestIssue25756(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestMethod(t *testing.T) {
++	// Exported symbol's method must be live.
++	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
++	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
++
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	cmd := exec.CommandContext(ctx, "./method.exe")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++}
+diff --git a/misc/cgo/testplugin/testdata/method/main.go b/misc/cgo/testplugin/testdata/method/main.go
+new file mode 100644
+index 0000000000..5e9189b450
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method/main.go
+@@ -0,0 +1,26 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 42579: methods of symbols exported from plugin must be live.
++
++package main
++
++import (
++	"plugin"
++	"reflect"
++)
++
++func main() {
++	p, err := plugin.Open("plugin.so")
++	if err != nil {
++		panic(err)
++	}
++
++	x, err := p.Lookup("X")
++	if err != nil {
++		panic(err)
++	}
++
++	reflect.ValueOf(x).Elem().MethodByName("M").Call(nil)
++}
+diff --git a/misc/cgo/testplugin/testdata/method/plugin.go b/misc/cgo/testplugin/testdata/method/plugin.go
+new file mode 100644
+index 0000000000..240edd3bc4
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/method/plugin.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {}
++
++type T int
++
++func (T) M() { println("M") }
++
++var X T
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 21429af782..9401eba7a5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1591,8 +1591,12 @@ func dumptabs() {
+ 			//	typ  typeOff // pointer to symbol
+ 			// }
+ 			nsym := dname(p.s.Name, "", nil, true)
++			tsym := dtypesym(p.t)
+ 			ot = dsymptrOff(s, ot, nsym)
+-			ot = dsymptrOff(s, ot, dtypesym(p.t))
++			ot = dsymptrOff(s, ot, tsym)
++			// Plugin exports symbols as interfaces. Mark their types
++			// as UsedInIface.
++			tsym.Set(obj.AttrUsedInIface, true)
+ 		}
+ 		ggloblsym(s, int32(ot), int16(obj.RODATA))
+ 

@@ -20,6 +20,21 @@ Date:   Fri Jul 8 07:52:02 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/structtag.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index abff14fb1d..8134c585b3 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -34,7 +34,8 @@ func checkCanonicalFieldTag(f *File, node ast.Node) {
+ 	}
+ 
+ 	if err := validateStructTag(tag); err != nil {
+-		f.Badf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get: %s", field.Tag.Value, err)
++		raw, _ := strconv.Unquote(field.Tag.Value) // field.Tag.Value is known to be a quoted string
++		f.Badf(field.Pos(), "struct field tag %q not compatible with reflect.StructTag.Get: %s", raw, err)
+ 	}
+ 
+ 	// Check for use of json or xml tags with unexported fields.

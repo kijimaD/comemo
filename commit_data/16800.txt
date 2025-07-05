@@ -7,6 +7,22 @@ Date:   Thu Jul 18 10:10:10 2013 +1000
     R=golang-dev, dsymonds, rogpeppe
     CC=golang-dev
     https://golang.org/cl/11432044
-
+---
  src/pkg/net/http/request.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 6d4569146f..3b29aefcd0 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -424,6 +424,10 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ }
+ 
+ // NewRequest returns a new Request given a method, URL, and optional body.
++//
++// If the provided body is also an io.Closer, the returned
++// Request.Body is set to body and will be closed by the Client
++// methods Do, Post, and PostForm, and Transport.RoundTrip.
+ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 	u, err := url.Parse(urlStr)
+ 	if err != nil {

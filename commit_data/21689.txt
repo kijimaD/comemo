@@ -9,7 +9,84 @@ Date:   Wed Jan 28 12:44:54 2015 -0600
     Change-Id: I9c9e7393d5e29d64ab797e346b34b1fa1dfe6d96
     Reviewed-on: https://go-review.googlesource.com/3441
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/net/http/main_test.go  |  2 +-
  src/net/http/serve_test.go | 19 +++++++++++++++----
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index b8c71fd19f..c7407df707 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -75,7 +75,7 @@ func goroutineLeaked() bool {
+ 	return true
+ }
+ 
+-func afterTest(t *testing.T) {
++func afterTest(t testing.TB) {
+ 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+ 	if testing.Short() {
+ 		return
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6839865658..85d5705137 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2902,11 +2902,23 @@ func BenchmarkServer(b *testing.B) {
+ 	}
+ }
+ 
++// getNoBody wraps Get but closes any Response.Body before returning the response.
++func getNoBody(urlStr string) (*Response, error) {
++	res, err := Get(urlStr)
++	if err != nil {
++		return nil, err
++	}
++	res.Body.Close()
++	return res, nil
++}
++
+ // A benchmark for profiling the client without the HTTP server code.
+ // The server code runs in a subprocess.
+ func BenchmarkClient(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
++	defer afterTest(b)
++
+ 	port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
+ 	if port == "" {
+ 		port = "39207"
+@@ -2922,7 +2934,7 @@ func BenchmarkClient(b *testing.B) {
+ 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+ 			w.Write(data)
+ 		})
+-		log.Fatal(ListenAndServe(":"+port, nil))
++		log.Fatal(ListenAndServe("localhost:"+port, nil))
+ 	}
+ 
+ 	// Start server process.
+@@ -2941,7 +2953,7 @@ func BenchmarkClient(b *testing.B) {
+ 	url := "http://localhost:" + port + "/"
+ 	for i := 0; i < 100; i++ {
+ 		time.Sleep(50 * time.Millisecond)
+-		if _, err := Get(url); err == nil {
++		if _, err := getNoBody(url); err == nil {
+ 			break
+ 		}
+ 		if i == 99 {
+@@ -2968,7 +2980,7 @@ func BenchmarkClient(b *testing.B) {
+ 	b.StopTimer()
+ 
+ 	// Instruct server process to stop.
+-	Get(url + "?stop=yes")
++	getNoBody(url + "?stop=yes")
+ 	select {
+ 	case err := <-done:
+ 		if err != nil {
+@@ -2977,7 +2989,6 @@ func BenchmarkClient(b *testing.B) {
+ 	case <-time.After(5 * time.Second):
+ 		b.Fatalf("subprocess did not stop")
+ 	}
+-	DefaultTransport.(*Transport).CloseIdleConnections()
+ }
+ 
+ func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {

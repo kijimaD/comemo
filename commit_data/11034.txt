@@ -12,6 +12,20 @@ Date:   Thu Jan 5 13:19:25 2012 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5520045
-
+---
  src/cmd/go/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1807e42f72..fb0ba7b4d0 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -228,7 +228,7 @@ func runTest(cmd *Command, args []string) {
+ 	for _, p := range pkgs {
+ 		buildTest, runTest, err := b.test(p)
+ 		if err != nil {
+-			errorf("%s: %s", p, err)
++			errorf("%s", err)
+ 			continue
+ 		}
+ 		builds = append(builds, buildTest)

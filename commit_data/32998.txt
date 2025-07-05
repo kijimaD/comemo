@@ -9,6 +9,21 @@ Date:   Tue Jun 6 11:12:34 2017 +0900
     Change-Id: Ic6fc7485cb50bfae99fda69d0cd9c4ae434af4c3
     Reviewed-on: https://go-review.googlesource.com/44910
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ip.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 668818cc4f..6b7ba4c23e 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -108,7 +108,8 @@ var (
+ 	IPv6linklocalallrouters    = IP{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02}
+ )
+ 
+-// IsUnspecified reports whether ip is an unspecified address.
++// IsUnspecified reports whether ip is an unspecified address, either
++// the IPv4 address "0.0.0.0" or the IPv6 address "::".
+ func (ip IP) IsUnspecified() bool {
+ 	return ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified)
+ }

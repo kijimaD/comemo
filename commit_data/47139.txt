@@ -17,7 +17,7 @@ Date:   Thu Jan 7 14:01:29 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go       |  5 +----
  src/cmd/compile/internal/amd64/ssa.go |  6 +++---
  src/cmd/compile/internal/arm/ssa.go   |  4 ++--
@@ -27,3 +27,297 @@ Date:   Thu Jan 7 14:01:29 2021 -0800
  src/cmd/compile/internal/x86/ssa.go   |  2 +-
  src/cmd/internal/obj/link.go          | 14 ++++++++++++++
  8 files changed, 41 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index c4032759bb..06867cd507 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -811,10 +811,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			} else {
+ 				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
+ 			}
+-			prog.SetFrom3(obj.Addr{
+-				Type:   obj.TYPE_CONST,
+-				Offset: int64(mask),
+-			})
++			prog.SetFrom3Const(int64(mask))
+ 			prog.To = a[4]
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 230219a383..32cb0a9368 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -201,7 +201,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()})
++		p.SetFrom3Reg(v.Args[1].Reg())
+ 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+@@ -588,7 +588,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
++		p.SetFrom3Reg(v.Args[0].Reg())
+ 
+ 	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst,
+ 		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst,
+@@ -1073,7 +1073,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 		p.From.Offset = val
+ 		p.From.Type = obj.TYPE_CONST
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
++		p.SetFrom3Reg(v.Args[0].Reg())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL:
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 6cbdf4377d..c4d8cbf149 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -279,7 +279,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt >> 8
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
++		p.SetFrom3Const(v.AuxInt & 0xff)
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -299,7 +299,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 				p := s.Prog(arm.ABFC)
+ 				p.From.Type = obj.TYPE_CONST
+ 				p.From.Offset = int64(width)
+-				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(lsb)})
++				p.SetFrom3Const(int64(lsb))
+ 				p.To.Type = obj.TYPE_REG
+ 				p.To.Reg = v.Reg()
+ 				break
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 2576aeb600..5067d92dfe 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -229,7 +229,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = ra
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = rm
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: rn})
++		p.SetFrom3Reg(rn)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = rt
+ 	case ssa.OpARM64ADDconst,
+@@ -292,7 +292,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
++		p.SetFrom3Reg(v.Args[0].Reg())
+ 		p.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -522,7 +522,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt >> 8
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
++		p.SetFrom3Const(v.AuxInt & 0xff)
+ 		p.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -533,7 +533,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt >> 8
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
++		p.SetFrom3Const(v.AuxInt & 0xff)
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -952,7 +952,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+ 		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
+ 		p.Reg = v.Args[0].Reg()
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r1})
++		p.SetFrom3Reg(r1)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpARM64DUFFZERO:
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c85e110ed3..f984079c4b 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -419,7 +419,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// If it is a Compare-and-Swap-Release operation, set the EH field with
+ 		// the release hint.
+ 		if v.AuxInt == 0 {
+-			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
++			p.SetFrom3Const(0)
+ 		}
+ 		// CMP reg1,reg2
+ 		p1 := s.Prog(cmp)
+@@ -586,7 +586,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
++		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+@@ -598,7 +598,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
++		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+@@ -610,7 +610,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		shifts := v.AuxInt
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
++		p.SetFrom3Const(ssa.GetPPC64Shiftmb(shifts))
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+@@ -658,7 +658,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
++		p.SetFrom3Const(int64(mask))
+ 
+ 		// Auxint holds mask
+ 	case ssa.OpPPC64RLWNM:
+@@ -667,7 +667,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
++		p.SetFrom3Const(int64(mask))
+ 
+ 	case ssa.OpPPC64MADDLD:
+ 		r := v.Reg()
+@@ -679,7 +679,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = r1
+ 		p.Reg = r2
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
++		p.SetFrom3Reg(r3)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+@@ -693,7 +693,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = r1
+ 		p.Reg = r3
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
++		p.SetFrom3Reg(r2)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+@@ -720,7 +720,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 	case ssa.OpPPC64SUBFCconst:
+ 		p := s.Prog(v.Op.Asm())
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt})
++		p.SetFrom3Const(v.AuxInt)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+@@ -910,7 +910,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// AuxInt values 4,5,6 implemented with reverse operand order from 0,1,2
+ 		if v.AuxInt > 3 {
+ 			p.Reg = r.Reg
+-			p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
++			p.SetFrom3Reg(v.Args[0].Reg())
+ 		} else {
+ 			p.Reg = v.Args[0].Reg()
+ 			p.SetFrom3(r)
+@@ -1784,7 +1784,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		pp.To.Reg = ppc64.REG_LR
+ 
+ 		// Insert a hint this is not a subroutine return.
+-		pp.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 1})
++		pp.SetFrom3Const(1)
+ 
+ 		if base.Ctxt.Flag_shared {
+ 			// When compiling Go into PIC, the function we just
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 0c65f7a238..4830d902c2 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -894,7 +894,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = s390x.REG_R3
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
++		p.SetFrom3Const(0)
+ 		if b.Succs[0].Block() != next {
+ 			s.Br(s390x.ABR, b.Succs[0].Block())
+ 		}
+@@ -937,17 +937,17 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = b.Controls[0].Reg()
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()})
++		p.SetFrom3Reg(b.Controls[1].Reg())
+ 	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = b.Controls[0].Reg()
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))})
++		p.SetFrom3Const(int64(int8(b.AuxInt)))
+ 	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = b.Controls[0].Reg()
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))})
++		p.SetFrom3Const(int64(uint8(b.AuxInt)))
+ 	default:
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index c5fe3ae2e2..4d134c6926 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -342,7 +342,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
++		p.SetFrom3Reg(v.Args[0].Reg())
+ 
+ 	case ssa.Op386SUBLconst,
+ 		ssa.Op386ADCLconst,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a24461cef2..c74de779d2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -360,6 +360,20 @@ func (p *Prog) SetFrom3(a Addr) {
+ 	p.RestArgs = []AddrPos{{a, Source}}
+ }
+ 
++// SetFrom3Reg calls p.SetFrom3 with a register Addr containing reg.
++//
++// Deprecated: for the same reasons as Prog.GetFrom3.
++func (p *Prog) SetFrom3Reg(reg int16) {
++	p.SetFrom3(Addr{Type: TYPE_REG, Reg: reg})
++}
++
++// SetFrom3Const calls p.SetFrom3 with a const Addr containing x.
++//
++// Deprecated: for the same reasons as Prog.GetFrom3.
++func (p *Prog) SetFrom3Const(off int64) {
++	p.SetFrom3(Addr{Type: TYPE_CONST, Offset: off})
++}
++
+ // SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
+ // operand does not fit into prog.RegTo2.
+ func (p *Prog) SetTo2(a Addr) {

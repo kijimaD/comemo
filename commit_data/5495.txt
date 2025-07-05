@@ -7,6 +7,23 @@ Date:   Thu May 20 09:43:13 2010 -0700
     R=rsc
     CC=adg, golang-dev, r
     https://golang.org/cl/1253043
-
+---
  src/pkg/syscall/syscall_linux.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 39ab10309d..c0f580c7bc 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -403,6 +403,11 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+ 	return sendto(fd, p, flags, ptr, n)
+ }
+ 
++// BindToDevice binds the socket associated with fd to device.
++func BindToDevice(fd int, device string) (errno int) {
++	return SetsockoptString(fd, SOL_SOCKET, SO_BINDTODEVICE, device)
++}
++
+ //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
+ 
+ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {

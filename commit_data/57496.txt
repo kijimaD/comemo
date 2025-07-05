@@ -23,8 +23,354 @@ Date:   Thu Aug 10 21:09:33 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 99 ++++++++++++++++++++----------
  src/cmd/compile/internal/objw/prog.go      | 46 +++++---------
  src/cmd/compile/internal/ssagen/ssa.go     | 16 ++---
  3 files changed, 93 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index e240ba6736..6916a5eb17 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -116,6 +116,10 @@ type liveness struct {
+ 	// unsafePoints bit i is set if Value ID i is an unsafe-point
+ 	// (preemption is not allowed). Only valid if !allUnsafe.
+ 	unsafePoints bitvec.BitVec
++	// unsafeBlocks bit i is set if Block ID i is an unsafe-point
++	// (preemption is not allowed on any end-of-block
++	// instructions). Only valid if !allUnsafe.
++	unsafeBlocks bitvec.BitVec
+ 
+ 	// An array with a bit vector for each safe point in the
+ 	// current Block during liveness.epilogue. Indexed in Value
+@@ -141,36 +145,61 @@ type liveness struct {
+ 	noClobberArgs bool // Do not clobber function arguments
+ }
+ 
+-// Map maps from *ssa.Value to LivenessIndex.
++// Map maps from *ssa.Value to StackMapIndex.
++// Also keeps track of unsafe ssa.Values and ssa.Blocks.
++// (unsafe = can't be interrupted during GC.)
+ type Map struct {
+-	Vals map[ssa.ID]objw.LivenessIndex
++	Vals         map[ssa.ID]objw.StackMapIndex
++	UnsafeVals   map[ssa.ID]bool
++	UnsafeBlocks map[ssa.ID]bool
+ 	// The set of live, pointer-containing variables at the DeferReturn
+ 	// call (only set when open-coded defers are used).
+-	DeferReturn objw.LivenessIndex
++	DeferReturn objw.StackMapIndex
+ }
+ 
+ func (m *Map) reset() {
+ 	if m.Vals == nil {
+-		m.Vals = make(map[ssa.ID]objw.LivenessIndex)
++		m.Vals = make(map[ssa.ID]objw.StackMapIndex)
++		m.UnsafeVals = make(map[ssa.ID]bool)
++		m.UnsafeBlocks = make(map[ssa.ID]bool)
+ 	} else {
+ 		for k := range m.Vals {
+ 			delete(m.Vals, k)
+ 		}
++		for k := range m.UnsafeVals {
++			delete(m.UnsafeVals, k)
++		}
++		for k := range m.UnsafeBlocks {
++			delete(m.UnsafeBlocks, k)
++		}
+ 	}
+-	m.DeferReturn = objw.LivenessDontCare
++	m.DeferReturn = objw.StackMapDontCare
+ }
+ 
+-func (m *Map) set(v *ssa.Value, i objw.LivenessIndex) {
++func (m *Map) set(v *ssa.Value, i objw.StackMapIndex) {
+ 	m.Vals[v.ID] = i
+ }
++func (m *Map) setUnsafeVal(v *ssa.Value) {
++	m.UnsafeVals[v.ID] = true
++}
++func (m *Map) setUnsafeBlock(b *ssa.Block) {
++	m.UnsafeBlocks[b.ID] = true
++}
+ 
+-func (m Map) Get(v *ssa.Value) objw.LivenessIndex {
+-	// If v isn't in the map, then it's a "don't care" and not an
+-	// unsafe-point.
++func (m Map) Get(v *ssa.Value) objw.StackMapIndex {
++	// If v isn't in the map, then it's a "don't care".
+ 	if idx, ok := m.Vals[v.ID]; ok {
+ 		return idx
+ 	}
+-	return objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: false}
++	return objw.StackMapDontCare
++}
++func (m Map) GetUnsafe(v *ssa.Value) bool {
++	// default is safe
++	return m.UnsafeVals[v.ID]
++}
++func (m Map) GetUnsafeBlock(b *ssa.Block) bool {
++	// default is safe
++	return m.UnsafeBlocks[b.ID]
+ }
+ 
+ type progeffectscache struct {
+@@ -377,8 +406,15 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
+ 		if cap(lc.be) >= f.NumBlocks() {
+ 			lv.be = lc.be[:f.NumBlocks()]
+ 		}
+-		lv.livenessMap = Map{Vals: lc.livenessMap.Vals, DeferReturn: objw.LivenessDontCare}
++		lv.livenessMap = Map{
++			Vals:         lc.livenessMap.Vals,
++			UnsafeVals:   lc.livenessMap.UnsafeVals,
++			UnsafeBlocks: lc.livenessMap.UnsafeBlocks,
++			DeferReturn:  objw.StackMapDontCare,
++		}
+ 		lc.livenessMap.Vals = nil
++		lc.livenessMap.UnsafeVals = nil
++		lc.livenessMap.UnsafeBlocks = nil
+ 	}
+ 	if lv.be == nil {
+ 		lv.be = make([]blockEffects, f.NumBlocks())
+@@ -460,6 +496,7 @@ func (lv *liveness) markUnsafePoints() {
+ 	}
+ 
+ 	lv.unsafePoints = bitvec.New(int32(lv.f.NumValues()))
++	lv.unsafeBlocks = bitvec.New(int32(lv.f.NumBlocks()))
+ 
+ 	// Mark architecture-specific unsafe points.
+ 	for _, b := range lv.f.Blocks {
+@@ -558,15 +595,13 @@ func (lv *liveness) markUnsafePoints() {
+ 
+ 			// Mark everything after the load unsafe.
+ 			found := false
+-			for i, v := range decisionBlock.Values {
+-				if found || i == len(decisionBlock.Values)-1 {
+-					// Note: we need at least one instruction marked so that
+-					// the branch instruction at the end of the block also
+-					// gets marked.
++			for _, v := range decisionBlock.Values {
++				if found {
+ 					lv.unsafePoints.Set(int32(v.ID))
+ 				}
+ 				found = found || v == load
+ 			}
++			lv.unsafeBlocks.Set(int32(decisionBlock.ID))
+ 
+ 			// Mark the write barrier on/off blocks as unsafe.
+ 			for _, e := range decisionBlock.Succs {
+@@ -577,6 +612,7 @@ func (lv *liveness) markUnsafePoints() {
+ 				for _, v := range x.Values {
+ 					lv.unsafePoints.Set(int32(v.ID))
+ 				}
++				lv.unsafeBlocks.Set(int32(x.ID))
+ 			}
+ 
+ 			// Mark from the join point up to the WBend as unsafe.
+@@ -826,13 +862,10 @@ func (lv *liveness) epilogue() {
+ 
+ 	// If we have an open-coded deferreturn call, make a liveness map for it.
+ 	if lv.fn.OpenCodedDeferDisallowed() {
+-		lv.livenessMap.DeferReturn = objw.LivenessDontCare
++		lv.livenessMap.DeferReturn = objw.StackMapDontCare
+ 	} else {
+ 		idx, _ := lv.stackMapSet.add(livedefer)
+-		lv.livenessMap.DeferReturn = objw.LivenessIndex{
+-			StackMapIndex: idx,
+-			IsUnsafePoint: false,
+-		}
++		lv.livenessMap.DeferReturn = objw.StackMapIndex(idx)
+ 	}
+ 
+ 	// Done compacting. Throw out the stack map set.
+@@ -873,17 +906,18 @@ func (lv *liveness) compact(b *ssa.Block) {
+ 		pos++
+ 	}
+ 	for _, v := range b.Values {
+-		hasStackMap := lv.hasStackMap(v)
+-		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
+-		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
+-		if hasStackMap {
+-			idx.StackMapIndex, _ = lv.stackMapSet.add(lv.livevars[pos])
++		if lv.hasStackMap(v) {
++			idx, _ := lv.stackMapSet.add(lv.livevars[pos])
+ 			pos++
++			lv.livenessMap.set(v, objw.StackMapIndex(idx))
+ 		}
+-		if hasStackMap || isUnsafePoint {
+-			lv.livenessMap.set(v, idx)
++		if lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID)) {
++			lv.livenessMap.setUnsafeVal(v)
+ 		}
+ 	}
++	if lv.allUnsafe || lv.unsafeBlocks.Get(int32(b.ID)) {
++		lv.livenessMap.setUnsafeBlock(b)
++	}
+ 
+ 	// Reset livevars.
+ 	lv.livevars = lv.livevars[:0]
+@@ -1219,7 +1253,7 @@ func (lv *liveness) printDebug() {
+ 				fmt.Printf("\tlive=")
+ 				printed = false
+ 				if pcdata.StackMapValid() {
+-					live := lv.stackMaps[pcdata.StackMapIndex]
++					live := lv.stackMaps[pcdata]
+ 					for j, n := range lv.vars {
+ 						if !live.Get(int32(j)) {
+ 							continue
+@@ -1234,10 +1268,13 @@ func (lv *liveness) printDebug() {
+ 				fmt.Printf("\n")
+ 			}
+ 
+-			if pcdata.IsUnsafePoint {
++			if lv.livenessMap.GetUnsafe(v) {
+ 				fmt.Printf("\tunsafe-point\n")
+ 			}
+ 		}
++		if lv.livenessMap.GetUnsafeBlock(b) {
++			fmt.Printf("\tunsafe-block\n")
++		}
+ 
+ 		// bb bitsets
+ 		fmt.Printf("end\n")
+@@ -1331,7 +1368,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) (Map
+ 		for _, b := range f.Blocks {
+ 			for _, val := range b.Values {
+ 				if idx := lv.livenessMap.Get(val); idx.StackMapValid() {
+-					lv.showlive(val, lv.stackMaps[idx.StackMapIndex])
++					lv.showlive(val, lv.stackMaps[idx])
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/objw/prog.go b/src/cmd/compile/internal/objw/prog.go
+index 3175123e6e..8ab603432f 100644
+--- a/src/cmd/compile/internal/objw/prog.go
++++ b/src/cmd/compile/internal/objw/prog.go
+@@ -57,8 +57,9 @@ func NewProgs(fn *ir.Func, worker int) *Progs {
+ 	pp.Pos = fn.Pos()
+ 	pp.SetText(fn)
+ 	// PCDATA tables implicitly start with index -1.
+-	pp.PrevLive = LivenessIndex{-1, false}
++	pp.PrevLive = -1
+ 	pp.NextLive = pp.PrevLive
++	pp.NextUnsafe = pp.PrevUnsafe
+ 	return pp
+ }
+ 
+@@ -72,38 +73,25 @@ type Progs struct {
+ 	Cache      []obj.Prog // local progcache
+ 	CacheIndex int        // first free element of progcache
+ 
+-	NextLive LivenessIndex // liveness index for the next Prog
+-	PrevLive LivenessIndex // last emitted liveness index
+-}
++	NextLive StackMapIndex // liveness index for the next Prog
++	PrevLive StackMapIndex // last emitted liveness index
+ 
+-// LivenessIndex stores the liveness map information for a Value.
+-type LivenessIndex struct {
+-	StackMapIndex int
+-
+-	// IsUnsafePoint indicates that this is an unsafe-point.
+-	//
+-	// Note that it's possible for a call Value to have a stack
+-	// map while also being an unsafe-point. This means it cannot
+-	// be preempted at this instruction, but that a preemption or
+-	// stack growth may happen in the called function.
+-	IsUnsafePoint bool
++	NextUnsafe bool // unsafe mark for the next Prog
++	PrevUnsafe bool // last emitted unsafe mark
+ }
+ 
++type StackMapIndex int
++
+ // StackMapDontCare indicates that the stack map index at a Value
+ // doesn't matter.
+ //
+ // This is a sentinel value that should never be emitted to the PCDATA
+ // stream. We use -1000 because that's obviously never a valid stack
+ // index (but -1 is).
+-const StackMapDontCare = -1000
+-
+-// LivenessDontCare indicates that the liveness information doesn't
+-// matter. Currently it is used in deferreturn liveness when we don't
+-// actually need it. It should never be emitted to the PCDATA stream.
+-var LivenessDontCare = LivenessIndex{StackMapDontCare, true}
++const StackMapDontCare StackMapIndex = -1000
+ 
+-func (idx LivenessIndex) StackMapValid() bool {
+-	return idx.StackMapIndex != StackMapDontCare
++func (s StackMapIndex) StackMapValid() bool {
++	return s != StackMapDontCare
+ }
+ 
+ func (pp *Progs) NewProg() *obj.Prog {
+@@ -139,20 +127,20 @@ func (pp *Progs) Free() {
+ 
+ // Prog adds a Prog with instruction As to pp.
+ func (pp *Progs) Prog(as obj.As) *obj.Prog {
+-	if pp.NextLive.StackMapValid() && pp.NextLive.StackMapIndex != pp.PrevLive.StackMapIndex {
++	if pp.NextLive != StackMapDontCare && pp.NextLive != pp.PrevLive {
+ 		// Emit stack map index change.
+-		idx := pp.NextLive.StackMapIndex
+-		pp.PrevLive.StackMapIndex = idx
++		idx := pp.NextLive
++		pp.PrevLive = idx
+ 		p := pp.Prog(obj.APCDATA)
+ 		p.From.SetConst(abi.PCDATA_StackMapIndex)
+ 		p.To.SetConst(int64(idx))
+ 	}
+-	if pp.NextLive.IsUnsafePoint != pp.PrevLive.IsUnsafePoint {
++	if pp.NextUnsafe != pp.PrevUnsafe {
+ 		// Emit unsafe-point marker.
+-		pp.PrevLive.IsUnsafePoint = pp.NextLive.IsUnsafePoint
++		pp.PrevUnsafe = pp.NextUnsafe
+ 		p := pp.Prog(obj.APCDATA)
+ 		p.From.SetConst(abi.PCDATA_UnsafePoint)
+-		if pp.NextLive.IsUnsafePoint {
++		if pp.NextUnsafe {
+ 			p.To.SetConst(abi.UnsafePointUnsafe)
+ 		} else {
+ 			p.To.SetConst(abi.UnsafePointSafe)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 03b9e56869..1143d58bf3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7098,14 +7098,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		s.lineRunStart = nil
+ 		s.SetPos(s.pp.Pos.WithNotStmt()) // It needs a non-empty Pos, but cannot be a statement boundary (yet).
+ 
+-		// Attach a "default" liveness info. Normally this will be
+-		// overwritten in the Values loop below for each Value. But
+-		// for an empty block this will be used for its control
+-		// instruction. We won't use the actual liveness map on a
+-		// control instruction. Just mark it something that is
+-		// preemptible, unless this function is "all unsafe".
+-		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
+-
+ 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
+ 			argLiveIdx = idx
+ 			p := s.pp.Prog(obj.APCDATA)
+@@ -7165,6 +7157,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 				// Attach this safe point to the next
+ 				// instruction.
+ 				s.pp.NextLive = s.livenessMap.Get(v)
++				s.pp.NextUnsafe = s.livenessMap.GetUnsafe(v)
+ 
+ 				// let the backend handle it
+ 				Arch.SSAGenValue(&s, v)
+@@ -7199,6 +7192,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 			}
+ 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
+ 		}
++
++		// Set unsafe mark for any end-of-block generated instructions
++		// (normally, conditional or unconditional branches).
++		// This is particularly important for empty blocks, as there
++		// are no values to inherit the unsafe mark from.
++		s.pp.NextUnsafe = s.livenessMap.GetUnsafeBlock(b)
++
+ 		// Emit control flow instructions for block
+ 		var next *ssa.Block
+ 		if i < len(f.Blocks)-1 && base.Flag.N == 0 {

@@ -13,7 +13,38 @@ Date:   Fri Apr 21 06:50:02 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go  | 6 ++++--
  src/cmd/compile/internal/gc/plive.go | 2 +-
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 8faaf0ffb8..ea9c3a9cc1 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -625,8 +625,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
+ 		s.Call(v)
+ 	case ssa.OpARMCALLudiv:
+-		v.Aux = gc.Udiv
+-		s.Call(v)
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Udiv
+ 	case ssa.OpARMDUFFZERO:
+ 		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 4525426d4f..96fbb327f2 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -502,7 +502,7 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
+ // Returns true for instructions that are safe points that must be annotated
+ // with liveness information.
+ func issafepoint(v *ssa.Value) bool {
+-	return v.Op.IsCall() || v.Op == ssa.OpARMCALLudiv
++	return v.Op.IsCall()
+ }
+ 
+ // Initializes the sets for solving the live variables. Visits all the

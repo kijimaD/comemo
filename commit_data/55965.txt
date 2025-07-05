@@ -18,7 +18,45 @@ Date:   Fri Mar 24 14:31:29 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Keith Randall <khr@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 9 +++++++--
  test/nilptr3.go                        | 7 +++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index a37604963f..e67241004e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3277,10 +3277,15 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 		// slice.ptr
+ 		n := n.(*ir.ConvExpr)
+ 		v := s.expr(n.X)
+-		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
++		nelem := n.Type().Elem().NumElem()
++		arrlen := s.constInt(types.Types[types.TINT], nelem)
+ 		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
+ 		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
+-		return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), v)
++		op := ssa.OpSlicePtr
++		if nelem == 0 {
++			op = ssa.OpSlicePtrUnchecked
++		}
++		return s.newValue1(op, n.Type(), v)
+ 
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 0e818ebf66..5f08a5b20c 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -248,3 +248,10 @@ func f10(p **int) int {
+ 	/* */
+ 	*p // ERROR "removed nil check"
+ }
++
++func f11(x []byte) {
++	p := (*[0]byte)(x)
++	_ = *p // ERROR "generated nil check"
++	q := (*[4]byte)(x)
++	_ = *q // ERROR "removed nil check"
++}

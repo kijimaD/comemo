@@ -18,7 +18,7 @@ Date:   Wed May 14 19:51:15 2014 -0400
     R=crawshaw, iant
     CC=golang-codereviews
     https://golang.org/cl/91360046
-
+---
  src/cmd/objdump/Makefile             |   2 +-
  src/cmd/objdump/elf.go               |  65 +++++++++
  src/cmd/objdump/macho.go             |  77 +++++++++++
@@ -28,3 +28,798 @@ Date:   Wed May 14 19:51:15 2014 -0400
  src/cmd/objdump/plan9obj.go          |  48 +++++++
  src/cmd/objdump/testdata/fmthello.go |   7 +
  8 files changed, 607 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/objdump/Makefile b/src/cmd/objdump/Makefile
+index 426b95e53c..40901909e6 100644
+--- a/src/cmd/objdump/Makefile
++++ b/src/cmd/objdump/Makefile
+@@ -1,5 +1,5 @@
+ x86.go: bundle
+-	./bundle -p main -x x86_ rsc.io/x86/x86asm >x86.go
++	./bundle -p main -x x86_ rsc.io/x86/x86asm | gofmt >x86.go
+ 
+ bundle:
+ 	go build -o bundle code.google.com/p/rsc/cmd/bundle
+diff --git a/src/cmd/objdump/elf.go b/src/cmd/objdump/elf.go
+new file mode 100644
+index 0000000000..017c2034e5
+--- /dev/null
++++ b/src/cmd/objdump/elf.go
+@@ -0,0 +1,65 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of ELF executables (Linux, FreeBSD, and so on).
++
++package main
++
++import (
++	"debug/elf"
++	"os"
++)
++
++func elfSymbols(f *os.File) (syms []Sym, goarch string) {
++	p, err := elf.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return
++	}
++
++	elfSyms, err := p.Symbols()
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return
++	}
++
++	switch p.Machine {
++	case elf.EM_X86_64:
++		goarch = "amd64"
++	case elf.EM_386:
++		goarch = "386"
++	case elf.EM_ARM:
++		goarch = "arm"
++	}
++
++	for _, s := range elfSyms {
++		sym := Sym{Addr: s.Value, Name: s.Name, Size: int64(s.Size), Code: '?'}
++		switch s.Section {
++		case elf.SHN_UNDEF:
++			sym.Code = 'U'
++		case elf.SHN_COMMON:
++			sym.Code = 'B'
++		default:
++			i := int(s.Section)
++			if i <= 0 || i > len(p.Sections) {
++				break
++			}
++			sect := p.Sections[i-1]
++			switch sect.Flags & (elf.SHF_WRITE | elf.SHF_ALLOC | elf.SHF_EXECINSTR) {
++			case elf.SHF_ALLOC | elf.SHF_EXECINSTR:
++				sym.Code = 'T'
++			case elf.SHF_ALLOC:
++				sym.Code = 'R'
++			case elf.SHF_ALLOC | elf.SHF_WRITE:
++				sym.Code = 'D'
++			}
++		}
++		if elf.ST_BIND(s.Info) == elf.STB_LOCAL {
++			sym.Code += 'a' - 'A'
++		}
++		syms = append(syms, sym)
++	}
++
++	return
++}
+diff --git a/src/cmd/objdump/macho.go b/src/cmd/objdump/macho.go
+new file mode 100644
+index 0000000000..6e0ad223d4
+--- /dev/null
++++ b/src/cmd/objdump/macho.go
+@@ -0,0 +1,77 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of Mach-O executables (OS X).
++
++package main
++
++import (
++	"debug/macho"
++	"os"
++	"sort"
++)
++
++func machoSymbols(f *os.File) (syms []Sym, goarch string) {
++	p, err := macho.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return
++	}
++
++	if p.Symtab == nil {
++		errorf("%s: no symbol table", f.Name())
++		return
++	}
++
++	switch p.Cpu {
++	case macho.Cpu386:
++		goarch = "386"
++	case macho.CpuAmd64:
++		goarch = "amd64"
++	case macho.CpuArm:
++		goarch = "arm"
++	}
++
++	// Build sorted list of addresses of all symbols.
++	// We infer the size of a symbol by looking at where the next symbol begins.
++	var addrs []uint64
++	for _, s := range p.Symtab.Syms {
++		addrs = append(addrs, s.Value)
++	}
++	sort.Sort(uint64s(addrs))
++
++	for _, s := range p.Symtab.Syms {
++		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
++		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
++		if i < len(addrs) {
++			sym.Size = int64(addrs[i] - s.Value)
++		}
++		if s.Sect == 0 {
++			sym.Code = 'U'
++		} else if int(s.Sect) <= len(p.Sections) {
++			sect := p.Sections[s.Sect-1]
++			switch sect.Seg {
++			case "__TEXT":
++				sym.Code = 'R'
++			case "__DATA":
++				sym.Code = 'D'
++			}
++			switch sect.Seg + " " + sect.Name {
++			case "__TEXT __text":
++				sym.Code = 'T'
++			case "__DATA __bss", "__DATA __noptrbss":
++				sym.Code = 'B'
++			}
++		}
++		syms = append(syms, sym)
++	}
++
++	return
++}
++
++type uint64s []uint64
++
++func (x uint64s) Len() int           { return len(x) }
++func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 82b896f44c..62cbdec90d 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -2,17 +2,24 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Objdump is a minimal simulation of the GNU objdump tool,
+-// just enough to support pprof.
++// Objdump disassembles executable files.
+ //
+ // Usage:
++//
++//	go tool objdump [-s symregexp] binary
++//
++// Objdump prints a disassembly of all text symbols (code) in the binary.
++// If the -s option is present, objdump only disassembles
++// symbols with names matching the regular expression.
++//
++// Alternate usage:
++//
+ //	go tool objdump binary start end
+ //
+-// Objdump disassembles the binary starting at the start address and
++// In this mode, objdump disassembles the binary starting at the start address and
+ // stopping at the end address. The start and end addresses are program
+ // counters written in hexadecimal with optional leading 0x prefix.
+-//
+-// It prints a sequence of stanzas of the form:
++// In this mode, objdump prints a sequence of stanzas of the form:
+ //
+ //	file:line
+ //	 address: assembly
+@@ -21,49 +28,61 @@
+ //
+ // Each stanza gives the disassembly for a contiguous range of addresses
+ // all mapped to the same original source file and line number.
++// This mode is intended for use by pprof.
+ //
+-// The disassembler is missing (golang.org/issue/7452) but will be added
++// The ARM disassembler is missing (golang.org/issue/7452) but will be added
+ // before the Go 1.3 release.
+-//
+-// This tool is intended for use only by pprof; its interface may change or
+-// it may be deleted entirely in future releases.
+ package main
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"debug/elf"
+ 	"debug/gosym"
+ 	"debug/macho"
+ 	"debug/pe"
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"log"
+ 	"os"
++	"regexp"
++	"sort"
+ 	"strconv"
+ 	"strings"
++	"text/tabwriter"
+ )
+ 
+-func printUsage(w *os.File) {
+-	fmt.Fprintf(w, "usage: objdump binary start end\n")
+-	fmt.Fprintf(w, "disassembles binary from start PC to end PC.\n")
+-	fmt.Fprintf(w, "start and end are hexadecimal numbers with optional leading 0x prefix.\n")
+-}
++var symregexp = flag.String("s", "", "only dump symbols matching this regexp")
++var symRE *regexp.Regexp
+ 
+ func usage() {
+-	printUsage(os.Stderr)
++	fmt.Fprintf(os.Stderr, "usage: go tool objdump [-s symregexp] binary [start end]\n\n")
++	flag.PrintDefaults()
+ 	os.Exit(2)
+ }
+ 
++type lookupFunc func(addr uint64) (sym string, base uint64)
++type disasmFunc func(code []byte, pc uint64, lookup lookupFunc) (text string, size int)
++
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("objdump: ")
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
+-	if flag.NArg() != 3 {
++	if flag.NArg() != 1 && flag.NArg() != 3 {
+ 		usage()
+ 	}
+ 
++	if *symregexp != "" {
++		re, err := regexp.Compile(*symregexp)
++		if err != nil {
++			log.Fatalf("invalid -s regexp: %v", err)
++		}
++		symRE = re
++	}
++
+ 	f, err := os.Open(flag.Arg(0))
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -74,12 +93,140 @@ func main() {
+ 		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+ 	}
+ 
++	syms, goarch, err := loadSymbols(f)
++	if err != nil {
++		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++	}
++
++	// Filter out section symbols, overwriting syms in place.
++	keep := syms[:0]
++	for _, sym := range syms {
++		switch sym.Name {
++		case "text", "_text", "etext", "_etext":
++			// drop
++		default:
++			keep = append(keep, sym)
++		}
++	}
++	syms = keep
++
++	disasm := disasms[goarch]
++	if disasm == nil {
++		log.Fatalf("reading %s: unknown architecture", flag.Arg(0))
++	}
++
++	lookup := func(addr uint64) (string, uint64) {
++		i := sort.Search(len(syms), func(i int) bool { return syms[i].Addr > addr })
++		if i > 0 {
++			s := syms[i-1]
++			if s.Addr <= addr && addr < s.Addr+uint64(s.Size) && s.Name != "etext" && s.Name != "_etext" {
++				return s.Name, s.Addr
++			}
++		}
++		return "", 0
++	}
++
+ 	pcln := gosym.NewLineTable(pclntab, textStart)
+ 	tab, err := gosym.NewTable(symtab, pcln)
+ 	if err != nil {
+ 		log.Fatalf("reading %s: %v", flag.Arg(0), err)
+ 	}
+ 
++	if flag.NArg() == 1 {
++		// disassembly of entire object - our format
++		dump(tab, lookup, disasm, syms, textData, textStart)
++		os.Exit(exitCode)
++	}
++
++	// disassembly of specific piece of object - gnu objdump format for pprof
++	gnuDump(tab, lookup, disasm, textData, textStart)
++	os.Exit(exitCode)
++}
++
++// base returns the final element in the path.
++// It works on both Windows and Unix paths.
++func base(path string) string {
++	path = path[strings.LastIndex(path, "/")+1:]
++	path = path[strings.LastIndex(path, `\`)+1:]
++	return path
++}
++
++func dump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, syms []Sym, textData []byte, textStart uint64) {
++	stdout := bufio.NewWriter(os.Stdout)
++	defer stdout.Flush()
++
++	printed := false
++	for _, sym := range syms {
++		if sym.Code != 'T' || sym.Size == 0 || sym.Name == "_text" || sym.Name == "text" || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
++			continue
++		}
++		if sym.Addr >= textStart+uint64(len(textData)) || sym.Addr+uint64(sym.Size) > textStart+uint64(len(textData)) {
++			break
++		}
++		if printed {
++			fmt.Fprintf(stdout, "\n")
++		} else {
++			printed = true
++		}
++		file, _, _ := tab.PCToLine(sym.Addr)
++		fmt.Fprintf(stdout, "TEXT %s(SB) %s\n", sym.Name, file)
++		tw := tabwriter.NewWriter(stdout, 1, 8, 1, '\t', 0)
++		start := sym.Addr
++		end := sym.Addr + uint64(sym.Size)
++		for pc := start; pc < end; {
++			i := pc - textStart
++			text, size := disasm(textData[i:end-textStart], pc, lookup)
++			file, line, _ := tab.PCToLine(pc)
++			fmt.Fprintf(tw, "\t%s:%d\t%#x\t%x\t%s\n", base(file), line, pc, textData[i:i+uint64(size)], text)
++			pc += uint64(size)
++		}
++		tw.Flush()
++	}
++}
++
++func disasm_386(code []byte, pc uint64, lookup lookupFunc) (string, int) {
++	return disasm_x86(code, pc, lookup, 32)
++}
++
++func disasm_amd64(code []byte, pc uint64, lookup lookupFunc) (string, int) {
++	return disasm_x86(code, pc, lookup, 64)
++}
++
++func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, int) {
++	inst, err := x86_Decode(code, 64)
++	var text string
++	size := inst.Len
++	if err != nil || size == 0 || inst.Op == 0 {
++		size = 1
++		text = "?"
++	} else {
++		text = x86_plan9Syntax(inst, pc, lookup)
++	}
++	return text, size
++}
++
++func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
++	/*
++		inst, size, err := arm_Decode(code, 64)
++		var text string
++		if err != nil || size == 0 || inst.Op == 0 {
++			size = 1
++			text = "?"
++		} else {
++			text = arm_plan9Syntax(inst, pc, lookup)
++		}
++		return text, size
++	*/
++	return "?", 4
++}
++
++var disasms = map[string]disasmFunc{
++	"386":   disasm_386,
++	"amd64": disasm_amd64,
++	"arm":   disasm_arm,
++}
++
++func gnuDump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, textData []byte, textStart uint64) {
+ 	start, err := strconv.ParseUint(strings.TrimPrefix(flag.Arg(1), "0x"), 16, 64)
+ 	if err != nil {
+ 		log.Fatalf("invalid start PC: %v", err)
+@@ -90,6 +237,7 @@ func main() {
+ 	}
+ 
+ 	stdout := bufio.NewWriter(os.Stdout)
++	defer stdout.Flush()
+ 
+ 	// For now, find spans of same PC/line/fn and
+ 	// emit them as having dummy instructions.
+@@ -105,13 +253,10 @@ func main() {
+ 			return
+ 		}
+ 		fmt.Fprintf(stdout, "%s:%d\n", spanFile, spanLine)
+-		for pc := spanPC; pc < endPC; pc++ {
+-			// TODO(rsc): Disassemble instructions here.
+-			if textStart <= pc && pc-textStart < uint64(len(textData)) {
+-				fmt.Fprintf(stdout, " %x: byte %#x\n", pc, textData[pc-textStart])
+-			} else {
+-				fmt.Fprintf(stdout, " %x: ?\n", pc)
+-			}
++		for pc := spanPC; pc < endPC; {
++			text, size := disasm(textData[pc-textStart:], pc, lookup)
++			fmt.Fprintf(stdout, " %x: %s\n", pc, text)
++			pc += uint64(size)
+ 		}
+ 		spanPC = 0
+ 	}
+@@ -124,8 +269,6 @@ func main() {
+ 		}
+ 	}
+ 	flush(end)
+-
+-	stdout.Flush()
+ }
+ 
+ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte, err error) {
+@@ -217,3 +360,59 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
+ 	}
+ 	return data[ssym.Value:esym.Value], nil
+ }
++
++// TODO(rsc): This code is taken from cmd/nm. Arrange some way to share the code.
++
++var exitCode = 0
++
++func errorf(format string, args ...interface{}) {
++	log.Printf(format, args...)
++	exitCode = 1
++}
++
++func loadSymbols(f *os.File) (syms []Sym, goarch string, err error) {
++	f.Seek(0, 0)
++	buf := make([]byte, 16)
++	io.ReadFull(f, buf)
++	f.Seek(0, 0)
++
++	for _, p := range parsers {
++		if bytes.HasPrefix(buf, p.prefix) {
++			syms, goarch = p.parse(f)
++			sort.Sort(byAddr(syms))
++			return
++		}
++	}
++	err = fmt.Errorf("unknown file format")
++	return
++}
++
++type Sym struct {
++	Addr uint64
++	Size int64
++	Code rune
++	Name string
++	Type string
++}
++
++var parsers = []struct {
++	prefix []byte
++	parse  func(*os.File) ([]Sym, string)
++}{
++	{[]byte("\x7FELF"), elfSymbols},
++	{[]byte("\xFE\xED\xFA\xCE"), machoSymbols},
++	{[]byte("\xFE\xED\xFA\xCF"), machoSymbols},
++	{[]byte("\xCE\xFA\xED\xFE"), machoSymbols},
++	{[]byte("\xCF\xFA\xED\xFE"), machoSymbols},
++	{[]byte("MZ"), peSymbols},
++	{[]byte("\x00\x00\x01\xEB"), plan9Symbols}, // 386
++	{[]byte("\x00\x00\x04\x07"), plan9Symbols}, // mips
++	{[]byte("\x00\x00\x06\x47"), plan9Symbols}, // arm
++	{[]byte("\x00\x00\x8A\x97"), plan9Symbols}, // amd64
++}
++
++type byAddr []Sym
++
++func (x byAddr) Len() int           { return len(x) }
++func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index ba2862c8d5..e65b2c8096 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -79,19 +79,10 @@ func TestObjDump(t *testing.T) {
+ 	}
+ 	syms := loadSyms(t)
+ 
+-	tmpDir, err := ioutil.TempDir("", "TestObjDump")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpDir)
+-
+-	exepath := filepath.Join(tmpDir, "testobjdump.exe")
+-	out, err := exec.Command("go", "build", "-o", exepath, "cmd/objdump").CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("go build -o %v cmd/objdump: %v\n%s", exepath, err, string(out))
+-	}
++	tmp, exe := buildObjdump(t)
++	defer os.RemoveAll(tmp)
+ 
+-	srcPath, srcLineNo := runObjDump(t, exepath, syms["cmd/objdump.TestObjDump"])
++	srcPath, srcLineNo := runObjDump(t, exe, syms["cmd/objdump.TestObjDump"])
+ 	fi1, err := os.Stat("objdump_test.go")
+ 	if err != nil {
+ 		t.Fatalf("Stat failed: %v", err)
+@@ -107,3 +98,86 @@ func TestObjDump(t *testing.T) {
+ 		t.Fatalf("line number = %v; want 76", srcLineNo)
+ 	}
+ }
++
++func buildObjdump(t *testing.T) (tmp, exe string) {
++	tmp, err := ioutil.TempDir("", "TestObjDump")
++	if err != nil {
++		t.Fatal("TempDir failed: ", err)
++	}
++
++	exe = filepath.Join(tmp, "testobjdump.exe")
++	out, err := exec.Command("go", "build", "-o", exe, "cmd/objdump").CombinedOutput()
++	if err != nil {
++		os.RemoveAll(tmp)
++		t.Fatalf("go build -o %v cmd/objdump: %v\n%s", exe, err, string(out))
++	}
++	return
++}
++
++var x86Need = []string{
++	"fmthello.go:6",
++	"TEXT main.main(SB)",
++	"JMP main.main(SB)",
++	"CALL fmt.Println(SB)",
++	"RET",
++}
++
++var armNeed = []string{
++	"fmthello.go:6",
++	"TEXT main.main(SB)",
++	"B main.main(SB)",
++	"BL fmt.Println(SB)",
++	"RET",
++}
++
++// objdump is fully cross platform: it can handle binaries
++// from any known operating system and architecture.
++// We could in principle add binaries to testdata and check
++// all the supported systems during this test. However, the
++// binaries would be about 1 MB each, and we don't want to
++// add that much junk to the hg repository. Instead, build a
++// binary for the current system (only) and test that objdump
++// can handle that one.
++
++func TestDisasm(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7947")
++	}
++
++	tmp, exe := buildObjdump(t)
++	defer os.RemoveAll(tmp)
++
++	hello := filepath.Join(tmp, "hello.exe")
++	out, err := exec.Command("go", "build", "-o", hello, "testdata/fmthello.go").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
++	}
++	need := []string{
++		"fmthello.go:6",
++		"TEXT main.main(SB)",
++	}
++	switch runtime.GOARCH {
++	case "amd64", "386":
++		need = append(need, x86Need...)
++	case "arm":
++		need = append(need, armNeed...)
++		t.Skip("disassembler not ready on arm yet")
++	}
++
++	out, err = exec.Command(exe, "-s", "main.main", hello).CombinedOutput()
++	if err != nil {
++		t.Fatalf("objdump fmthello.exe: %v\n%s", err, out)
++	}
++
++	text := string(out)
++	ok := true
++	for _, s := range need {
++		if !strings.Contains(text, s) {
++			t.Errorf("disassembly missing '%s'", s)
++			ok = false
++		}
++	}
++	if !ok {
++		t.Logf("full disassembly:\n%s", text)
++	}
++}
+diff --git a/src/cmd/objdump/pe.go b/src/cmd/objdump/pe.go
+new file mode 100644
+index 0000000000..38190095a3
+--- /dev/null
++++ b/src/cmd/objdump/pe.go
+@@ -0,0 +1,99 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of PE executables (Microsoft Windows).
++
++package main
++
++import (
++	"debug/pe"
++	"os"
++	"sort"
++)
++
++func peSymbols(f *os.File) (syms []Sym, goarch string) {
++	p, err := pe.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return
++	}
++
++	// Build sorted list of addresses of all symbols.
++	// We infer the size of a symbol by looking at where the next symbol begins.
++	var addrs []uint64
++
++	var imageBase uint64
++	switch oh := p.OptionalHeader.(type) {
++	case *pe.OptionalHeader32:
++		imageBase = uint64(oh.ImageBase)
++		goarch = "386"
++	case *pe.OptionalHeader64:
++		imageBase = oh.ImageBase
++		goarch = "amd64"
++	default:
++		errorf("parsing %s: file format not recognized", f.Name())
++		return
++	}
++
++	for _, s := range p.Symbols {
++		const (
++			N_UNDEF = 0  // An undefined (extern) symbol
++			N_ABS   = -1 // An absolute symbol (e_value is a constant, not an address)
++			N_DEBUG = -2 // A debugging symbol
++		)
++		sym := Sym{Name: s.Name, Addr: uint64(s.Value), Code: '?'}
++		switch s.SectionNumber {
++		case N_UNDEF:
++			sym.Code = 'U'
++		case N_ABS:
++			sym.Code = 'C'
++		case N_DEBUG:
++			sym.Code = '?'
++		default:
++			if s.SectionNumber < 0 {
++				errorf("parsing %s: invalid section number %d", f.Name(), s.SectionNumber)
++				return
++			}
++			if len(p.Sections) < int(s.SectionNumber) {
++				errorf("parsing %s: section number %d is large then max %d", f.Name(), s.SectionNumber, len(p.Sections))
++				return
++			}
++			sect := p.Sections[s.SectionNumber-1]
++			const (
++				text  = 0x20
++				data  = 0x40
++				bss   = 0x80
++				permX = 0x20000000
++				permR = 0x40000000
++				permW = 0x80000000
++			)
++			ch := sect.Characteristics
++			switch {
++			case ch&text != 0:
++				sym.Code = 'T'
++			case ch&data != 0:
++				if ch&permW == 0 {
++					sym.Code = 'R'
++				} else {
++					sym.Code = 'D'
++				}
++			case ch&bss != 0:
++				sym.Code = 'B'
++			}
++			sym.Addr += imageBase + uint64(sect.VirtualAddress)
++		}
++		syms = append(syms, sym)
++		addrs = append(addrs, sym.Addr)
++	}
++
++	sort.Sort(uint64s(addrs))
++	for i := range syms {
++		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
++		if j < len(addrs) {
++			syms[i].Size = int64(addrs[j] - syms[i].Addr)
++		}
++	}
++
++	return
++}
+diff --git a/src/cmd/objdump/plan9obj.go b/src/cmd/objdump/plan9obj.go
+new file mode 100644
+index 0000000000..5434f8e440
+--- /dev/null
++++ b/src/cmd/objdump/plan9obj.go
+@@ -0,0 +1,48 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parsing of Plan 9 a.out executables.
++
++package main
++
++import (
++	"debug/plan9obj"
++	"os"
++	"sort"
++)
++
++func plan9Symbols(f *os.File) (syms []Sym, goarch string) {
++	p, err := plan9obj.NewFile(f)
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return
++	}
++
++	plan9Syms, err := p.Symbols()
++	if err != nil {
++		errorf("parsing %s: %v", f.Name(), err)
++		return
++	}
++
++	goarch = "386"
++
++	// Build sorted list of addresses of all symbols.
++	// We infer the size of a symbol by looking at where the next symbol begins.
++	var addrs []uint64
++	for _, s := range plan9Syms {
++		addrs = append(addrs, s.Value)
++	}
++	sort.Sort(uint64s(addrs))
++
++	for _, s := range plan9Syms {
++		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
++		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
++		if i < len(addrs) {
++			sym.Size = int64(addrs[i] - s.Value)
++		}
++		syms = append(syms, sym)
++	}
++
++	return
++}
+diff --git a/src/cmd/objdump/testdata/fmthello.go b/src/cmd/objdump/testdata/fmthello.go
+new file mode 100644
+index 0000000000..635db7ae6c
+--- /dev/null
++++ b/src/cmd/objdump/testdata/fmthello.go
+@@ -0,0 +1,7 @@
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("hello, world")
++}

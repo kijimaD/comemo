@@ -10,7 +10,47 @@ Date:   Fri Sep 25 11:36:27 2009 -0700
     DELTA=8  (6 added, 0 deleted, 2 changed)
     OCL=35009
     CL=35011
-
+---
  src/run.bash             | 6 ++++++
  usr/austin/ogle/Makefile | 4 ++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 9ae1ece742..c8f5d0c082 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -26,6 +26,7 @@ maketest() {
+ 
+ maketest \
+ 	pkg \
++	../usr/austin/eval \
+ 
+ # all of these are subtly different
+ # from what maketest does.
+@@ -49,6 +50,11 @@ time make
+ time make test
+ ) || exit $?
+ 
++(xcd ../usr/austin/ogle
++make clean
++time make ogle
++) || exit $?
++
+ (xcd ../doc/progs
+ time ./run
+ ) || exit $?
+diff --git a/usr/austin/ogle/Makefile b/usr/austin/ogle/Makefile
+index a169d063b5..df0bb2d32d 100644
+--- a/usr/austin/ogle/Makefile
++++ b/usr/austin/ogle/Makefile
+@@ -20,8 +20,8 @@ GOFILES=\
+ 
+ include $(GOROOT)/src/Make.pkg
+ 
+-main.6: main.go
++main.$O: main.go package
+ 	$(GC) -I_obj $<
+ 
+-ogle: main.6 package
++ogle: main.$O
+ 	$(LD) -L_obj -o $@ $<

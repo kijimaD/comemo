@@ -24,10 +24,345 @@ Date:   Thu Oct 24 16:27:44 2024 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/fips/subtle/xor.go      |   9 ++
  src/crypto/internal/fips/subtle/xor_test.go |  98 ----------------------
  src/crypto/subtle/xor.go                    |   4 +
  src/crypto/subtle/xor_linux_test.go         |  46 +++++++++++
  src/crypto/subtle/xor_test.go               | 124 ++++++++++++++++++++++++++++
  5 files changed, 183 insertions(+), 98 deletions(-)
+
+diff --git a/src/crypto/internal/fips/subtle/xor.go b/src/crypto/internal/fips/subtle/xor.go
+index 158dbcede9..76e8ee036d 100644
+--- a/src/crypto/internal/fips/subtle/xor.go
++++ b/src/crypto/internal/fips/subtle/xor.go
+@@ -4,10 +4,16 @@
+ 
+ package subtle
+ 
++import "crypto/internal/fips/alias"
++
+ // XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
+ // returning n, the number of bytes written to dst.
++//
+ // If dst does not have length at least n,
+ // XORBytes panics without writing anything to dst.
++//
++// dst and x or y may overlap exactly or not at all,
++// otherwise XORBytes may panic.
+ func XORBytes(dst, x, y []byte) int {
+ 	n := min(len(x), len(y))
+ 	if n == 0 {
+@@ -16,6 +22,9 @@ func XORBytes(dst, x, y []byte) int {
+ 	if n > len(dst) {
+ 		panic("subtle.XORBytes: dst too short")
+ 	}
++	if alias.InexactOverlap(dst[:n], x[:n]) || alias.InexactOverlap(dst[:n], y[:n]) {
++		panic("subtle.XORBytes: invalid overlap")
++	}
+ 	xorBytes(&dst[0], &x[0], &y[0], n) // arch-specific
+ 	return n
+ }
+diff --git a/src/crypto/internal/fips/subtle/xor_test.go b/src/crypto/internal/fips/subtle/xor_test.go
+deleted file mode 100644
+index 3f5ef980a3..0000000000
+--- a/src/crypto/internal/fips/subtle/xor_test.go
++++ /dev/null
+@@ -1,98 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package subtle_test
+-
+-import (
+-	"bytes"
+-	. "crypto/internal/fips/subtle"
+-	"crypto/rand"
+-	"fmt"
+-	"io"
+-	"testing"
+-)
+-
+-func TestXORBytes(t *testing.T) {
+-	for n := 1; n <= 1024; n++ {
+-		if n > 16 && testing.Short() {
+-			n += n >> 3
+-		}
+-		for alignP := 0; alignP < 8; alignP++ {
+-			for alignQ := 0; alignQ < 8; alignQ++ {
+-				for alignD := 0; alignD < 8; alignD++ {
+-					p := make([]byte, alignP+n, alignP+n+10)[alignP:]
+-					q := make([]byte, alignQ+n, alignQ+n+10)[alignQ:]
+-					if n&1 != 0 {
+-						p = p[:n]
+-					} else {
+-						q = q[:n]
+-					}
+-					if _, err := io.ReadFull(rand.Reader, p); err != nil {
+-						t.Fatal(err)
+-					}
+-					if _, err := io.ReadFull(rand.Reader, q); err != nil {
+-						t.Fatal(err)
+-					}
+-
+-					d := make([]byte, alignD+n, alignD+n+10)
+-					for i := range d {
+-						d[i] = 0xdd
+-					}
+-					want := make([]byte, len(d), cap(d))
+-					copy(want[:cap(want)], d[:cap(d)])
+-					for i := 0; i < n; i++ {
+-						want[alignD+i] = p[i] ^ q[i]
+-					}
+-
+-					if XORBytes(d[alignD:], p, q); !bytes.Equal(d, want) {
+-						t.Fatalf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
+-					}
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-func TestXorBytesPanic(t *testing.T) {
+-	mustPanic(t, "subtle.XORBytes: dst too short", func() {
+-		XORBytes(nil, make([]byte, 1), make([]byte, 1))
+-	})
+-	mustPanic(t, "subtle.XORBytes: dst too short", func() {
+-		XORBytes(make([]byte, 1), make([]byte, 2), make([]byte, 3))
+-	})
+-}
+-
+-func BenchmarkXORBytes(b *testing.B) {
+-	dst := make([]byte, 1<<15)
+-	data0 := make([]byte, 1<<15)
+-	data1 := make([]byte, 1<<15)
+-	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 15}
+-	for _, size := range sizes {
+-		b.Run(fmt.Sprintf("%dBytes", size), func(b *testing.B) {
+-			s0 := data0[:size]
+-			s1 := data1[:size]
+-			b.SetBytes(int64(size))
+-			for i := 0; i < b.N; i++ {
+-				XORBytes(dst, s0, s1)
+-			}
+-		})
+-	}
+-}
+-
+-func mustPanic(t *testing.T, expected string, f func()) {
+-	t.Helper()
+-	defer func() {
+-		switch msg := recover().(type) {
+-		case nil:
+-			t.Errorf("expected panic(%q), but did not panic", expected)
+-		case string:
+-			if msg != expected {
+-				t.Errorf("expected panic(%q), but got panic(%q)", expected, msg)
+-			}
+-		default:
+-			t.Errorf("expected panic(%q), but got panic(%T%v)", expected, msg, msg)
+-		}
+-	}()
+-	f()
+-}
+diff --git a/src/crypto/subtle/xor.go b/src/crypto/subtle/xor.go
+index 86cbd5cb54..a1582764c2 100644
+--- a/src/crypto/subtle/xor.go
++++ b/src/crypto/subtle/xor.go
+@@ -8,8 +8,12 @@ import "crypto/internal/fips/subtle"
+ 
+ // XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
+ // returning n, the number of bytes written to dst.
++//
+ // If dst does not have length at least n,
+ // XORBytes panics without writing anything to dst.
++//
++// dst and x or y may overlap exactly or not at all,
++// otherwise XORBytes may panic.
+ func XORBytes(dst, x, y []byte) int {
+ 	return subtle.XORBytes(dst, x, y)
+ }
+diff --git a/src/crypto/subtle/xor_linux_test.go b/src/crypto/subtle/xor_linux_test.go
+new file mode 100644
+index 0000000000..66c96c710c
+--- /dev/null
++++ b/src/crypto/subtle/xor_linux_test.go
+@@ -0,0 +1,46 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle_test
++
++import (
++	"crypto/subtle"
++	"syscall"
++	"testing"
++)
++
++// dangerousSlice returns a slice which is immediately
++// preceded and followed by a faulting page.
++// Copied from the bytes package tests.
++func dangerousSlice(t *testing.T) []byte {
++	pagesize := syscall.Getpagesize()
++	b, err := syscall.Mmap(0, 0, 3*pagesize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANONYMOUS|syscall.MAP_PRIVATE)
++	if err != nil {
++		t.Fatalf("mmap failed %s", err)
++	}
++	err = syscall.Mprotect(b[:pagesize], syscall.PROT_NONE)
++	if err != nil {
++		t.Fatalf("mprotect low failed %s\n", err)
++	}
++	err = syscall.Mprotect(b[2*pagesize:], syscall.PROT_NONE)
++	if err != nil {
++		t.Fatalf("mprotect high failed %s\n", err)
++	}
++	return b[pagesize : 2*pagesize]
++}
++
++func TestXORBytesBoundary(t *testing.T) {
++	safe := make([]byte, syscall.Getpagesize()*2)
++	spicy := dangerousSlice(t)
++	for i := 1; i <= syscall.Getpagesize(); i++ {
++		start := spicy[:i]
++		end := spicy[len(spicy)-i:]
++		subtle.XORBytes(end, safe, safe[:i])
++		subtle.XORBytes(start, safe, safe[:i])
++		subtle.XORBytes(safe, start, safe)
++		subtle.XORBytes(safe, end, safe)
++		subtle.XORBytes(safe, safe, start)
++		subtle.XORBytes(safe, safe, end)
++	}
++}
+diff --git a/src/crypto/subtle/xor_test.go b/src/crypto/subtle/xor_test.go
+new file mode 100644
+index 0000000000..2e2169db0a
+--- /dev/null
++++ b/src/crypto/subtle/xor_test.go
+@@ -0,0 +1,124 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle_test
++
++import (
++	"bytes"
++	"crypto/rand"
++	. "crypto/subtle"
++	"fmt"
++	"testing"
++)
++
++func TestXORBytes(t *testing.T) {
++	for n := 1; n <= 1024; n++ {
++		if n > 16 && testing.Short() {
++			n += n >> 3
++		}
++		for alignP := 0; alignP < 8; alignP++ {
++			for alignQ := 0; alignQ < 8; alignQ++ {
++				for alignD := 0; alignD < 8; alignD++ {
++					p := make([]byte, alignP+n, alignP+n+100)[alignP:]
++					q := make([]byte, alignQ+n, alignQ+n+100)[alignQ:]
++					if n&1 != 0 {
++						p = p[:n]
++					} else {
++						q = q[:n]
++					}
++					rand.Read(p)
++					rand.Read(q)
++
++					d := make([]byte, alignD+n+100)
++					rand.Read(d)
++
++					want := bytes.Clone(d)
++					for i := range n {
++						want[alignD+i] = p[i] ^ q[i]
++					}
++
++					if nn := XORBytes(d[alignD:], p, q); !bytes.Equal(d, want) {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
++					} else if nn != n {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
++					}
++					p1 := bytes.Clone(p)
++					if nn := XORBytes(p, p, q); !bytes.Equal(p, want[alignD:alignD+n]) {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
++					} else if nn != n {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
++					}
++					if nn := XORBytes(q, p1, q); !bytes.Equal(q, want[alignD:alignD+n]) {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
++					} else if nn != n {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
++					}
++
++					if nn := XORBytes(p, p, p); !bytes.Equal(p, make([]byte, n)) {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %x, want %x", n, alignP, alignQ, alignD, p, make([]byte, n))
++					} else if nn != n {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
++					}
++					if nn := XORBytes(p1, q, q); !bytes.Equal(p1, make([]byte, n)) {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %x, want %x", n, alignP, alignQ, alignD, p1, make([]byte, n))
++					} else if nn != n {
++						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
++					}
++				}
++			}
++		}
++	}
++}
++
++func TestXorBytesPanic(t *testing.T) {
++	mustPanic(t, "subtle.XORBytes: dst too short", func() {
++		XORBytes(nil, make([]byte, 1), make([]byte, 1))
++	})
++	mustPanic(t, "subtle.XORBytes: dst too short", func() {
++		XORBytes(make([]byte, 1), make([]byte, 2), make([]byte, 3))
++	})
++	mustPanic(t, "subtle.XORBytes: invalid overlap", func() {
++		x := make([]byte, 3)
++		XORBytes(x, x[1:], make([]byte, 2))
++	})
++	mustPanic(t, "subtle.XORBytes: invalid overlap", func() {
++		x := make([]byte, 3)
++		XORBytes(x, make([]byte, 2), x[1:])
++	})
++}
++
++func BenchmarkXORBytes(b *testing.B) {
++	dst := make([]byte, 1<<15)
++	data0 := make([]byte, 1<<15)
++	data1 := make([]byte, 1<<15)
++	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 15}
++	for _, size := range sizes {
++		b.Run(fmt.Sprintf("%dBytes", size), func(b *testing.B) {
++			s0 := data0[:size]
++			s1 := data1[:size]
++			b.SetBytes(int64(size))
++			for i := 0; i < b.N; i++ {
++				XORBytes(dst, s0, s1)
++			}
++		})
++	}
++}
++
++func mustPanic(t *testing.T, expected string, f func()) {
++	t.Helper()
++	defer func() {
++		t.Helper()
++		switch msg := recover().(type) {
++		case nil:
++			t.Errorf("expected panic(%q), but did not panic", expected)
++		case string:
++			if msg != expected {
++				t.Errorf("expected panic(%q), but got panic(%q)", expected, msg)
++			}
++		default:
++			t.Errorf("expected panic(%q), but got panic(%T%v)", expected, msg, msg)
++		}
++	}()
++	f()
++}

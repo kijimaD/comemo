@@ -6,6 +6,19 @@ Date:   Mon Jun 30 12:28:20 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/103690043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 09fe387f37..f864857920 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -5,6 +5,7 @@ Please keep the descriptions to a single line, starting with the
+ package or cmd/xxx directory name, and ending in a CL number.
+ Please keep the list sorted (as in sort.Strings of the lines).
+ 
++encoding/gob: remove unsafe (CL 102680045)
+ runtime/race: freebsd is supported (CL 107270043)
+ syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
+ text/scanner: add IsIdentRune field of Scanner. (CL 108030044)

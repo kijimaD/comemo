@@ -15,9 +15,90 @@ Date:   Fri Nov 6 00:06:52 2015 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/amd64/peep.go |  4 ++++
  src/cmd/compile/internal/amd64/prog.go |  2 +-
  src/cmd/compile/internal/amd64/reg.go  |  1 +
  test/fixedbugs/issue13171.go           | 34 ++++++++++++++++++++++++++++++++++
  4 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/peep.go b/src/cmd/compile/internal/amd64/peep.go
+index 130f369a8b..452f954bd8 100644
+--- a/src/cmd/compile/internal/amd64/peep.go
++++ b/src/cmd/compile/internal/amd64/peep.go
+@@ -823,6 +823,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		return 2
+ 	}
+ 
++	if (p.Info.Reguse|p.Info.Regset)&FtoB(int(v.Reg)) != 0 {
++		return 2
++	}
++
+ 	if p.Info.Flags&gc.LeftAddr != 0 {
+ 		if copyas(&p.From, v) {
+ 			return 2
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index eff6ccee5b..ae8f5255a9 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -140,7 +140,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.AMOVSL:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+ 	x86.AMOVSQ:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+ 	x86.AMOVSW:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
+-	obj.ADUFFCOPY:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | CX},
++	obj.ADUFFCOPY:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | X0},
+ 	x86.AMOVSD:     {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+ 	x86.AMOVSS:     {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+diff --git a/src/cmd/compile/internal/amd64/reg.go b/src/cmd/compile/internal/amd64/reg.go
+index 8fab6399b1..60822fbfe9 100644
+--- a/src/cmd/compile/internal/amd64/reg.go
++++ b/src/cmd/compile/internal/amd64/reg.go
+@@ -107,6 +107,7 @@ const (
+ 	DI  = 1 << (x86.REG_DI - x86.REG_AX)
+ 	SI  = 1 << (x86.REG_SI - x86.REG_AX)
+ 	R15 = 1 << (x86.REG_R15 - x86.REG_AX)
++	X0  = 1 << 16
+ )
+ 
+ func RtoB(r int) uint64 {
+diff --git a/test/fixedbugs/issue13171.go b/test/fixedbugs/issue13171.go
+new file mode 100644
+index 0000000000..5d127a5426
+--- /dev/null
++++ b/test/fixedbugs/issue13171.go
+@@ -0,0 +1,34 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Make sure the compiler knows that DUFFCOPY clobbers X0
++
++import "fmt"
++
++//go:noinline
++func f(x float64) float64 {
++	// y is allocated to X0
++	y := x + 5
++	// marshals z before y.  Marshalling z
++	// calls DUFFCOPY.
++	return g(z, y)
++}
++
++//go:noinline
++func g(b [64]byte, y float64) float64 {
++	return y
++}
++
++var z [64]byte
++
++func main() {
++	got := f(5)
++	if got != 10 {
++		panic(fmt.Sprintf("want 10, got %f", got))
++	}
++}

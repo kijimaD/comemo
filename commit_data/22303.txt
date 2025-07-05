@@ -8,10 +8,106 @@ Date:   Thu Feb 26 18:25:29 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6210
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/net/conn_test.go       | 4 ++++
  src/net/net_test.go        | 4 ++++
  src/net/packetconn_test.go | 6 ++++++
  src/net/protoconn_test.go  | 8 ++++++++
  src/net/server_test.go     | 4 ++++
  5 files changed, 26 insertions(+)
+
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 9c9d1a8057..b86ef437fb 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -36,6 +36,10 @@ func TestConnAndListener(t *testing.T) {
+ 			case "nacl", "plan9", "windows":
+ 				continue
+ 			}
++			// iOS does not support unix domain sockets
++			if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
++				continue
++			}
+ 		case "unixpacket":
+ 			switch runtime.GOOS {
+ 			case "android", "darwin", "nacl", "openbsd", "plan9", "windows":
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index bfed4d657f..acf9ee5a35 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -66,6 +66,10 @@ func TestShutdownUnix(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 	f, err := ioutil.TempFile("", "go_net_unixtest")
+ 	if err != nil {
+diff --git a/src/net/packetconn_test.go b/src/net/packetconn_test.go
+index 5bbfc0f82a..72bdb49196 100644
+--- a/src/net/packetconn_test.go
++++ b/src/net/packetconn_test.go
+@@ -51,6 +51,9 @@ var packetConnTests = []struct {
+ }
+ 
+ func TestPacketConn(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
++		t.Skip("skipping test on darwin/arm")
++	}
+ 	closer := func(c PacketConn, net, addr1, addr2 string) {
+ 		c.Close()
+ 		switch net {
+@@ -106,6 +109,9 @@ func TestPacketConn(t *testing.T) {
+ }
+ 
+ func TestConnAndPacketConn(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
++		t.Skip("skipping test on darwin/arm")
++	}
+ 	closer := func(c PacketConn, net, addr1, addr2 string) {
+ 		c.Close()
+ 		switch net {
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 61c35dfc70..18ac4a6bdf 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -221,6 +221,10 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	addr := testUnixAddr()
+@@ -263,6 +267,10 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	addr1, addr2, addr3 := testUnixAddr(), testUnixAddr(), testUnixAddr()
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index bf7feab8f5..e0768e67cf 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -21,6 +21,10 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxOnly bool)
+ 		if net == unixsotype {
+ 			return true
+ 		}
++	case "darwin":
++		if runtime.GOARCH == "arm" && net == unixsotype {
++			return true
++		}
+ 	default:
+ 		if net == unixsotype && linuxOnly {
+ 			return true

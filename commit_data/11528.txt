@@ -24,7 +24,7 @@ Date:   Tue Jan 31 18:44:20 2012 -0500
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5604048
-
+---
  src/buildscript/darwin_386.sh    | 60 ++++++++++++++++++++--------------------
  src/buildscript/darwin_amd64.sh  | 60 ++++++++++++++++++++--------------------
  src/buildscript/freebsd_386.sh   | 60 ++++++++++++++++++++--------------------
@@ -44,3 +44,1367 @@ Date:   Tue Jan 31 18:44:20 2012 -0500
  src/cmd/go/pkg.go                | 16 +++++++++++
  src/cmd/go/tool.go               |  2 +-
  18 files changed, 465 insertions(+), 463 deletions(-)
+
+diff --git a/src/buildscript/darwin_386.sh b/src/buildscript/darwin_386.sh
+index e6fae7332e..d713667c0c 100755
+--- a/src/buildscript/darwin_386.sh
++++ b/src/buildscript/darwin_386.sh
+@@ -174,6 +174,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/darwin_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/darwin_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/darwin_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/darwin_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -195,26 +225,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/darwin_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/darwin_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/darwin_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/darwin_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -307,16 +317,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/darwin_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/darwin_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/darwin_amd64.sh b/src/buildscript/darwin_amd64.sh
+index 15dffce9b6..6b02a3e02d 100755
+--- a/src/buildscript/darwin_amd64.sh
++++ b/src/buildscript/darwin_amd64.sh
+@@ -173,6 +173,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.6 "$WORK"/math/_obj/abs_amd64.6 "$WORK"/math/_obj/asin_amd64.6 "$WORK"/math/_obj/atan2_amd64.6 "$WORK"/math/_obj/atan_amd64.6 "$WORK"/math/_obj/dim_amd64.6 "$WORK"/math/_obj/exp2_amd64.6 "$WORK"/math/_obj/exp_amd64.6 "$WORK"/math/_obj/expm1_amd64.6 "$WORK"/math/_obj/floor_amd64.6 "$WORK"/math/_obj/fltasm_amd64.6 "$WORK"/math/_obj/frexp_amd64.6 "$WORK"/math/_obj/hypot_amd64.6 "$WORK"/math/_obj/ldexp_amd64.6 "$WORK"/math/_obj/log10_amd64.6 "$WORK"/math/_obj/log1p_amd64.6 "$WORK"/math/_obj/log_amd64.6 "$WORK"/math/_obj/mod_amd64.6 "$WORK"/math/_obj/modf_amd64.6 "$WORK"/math/_obj/remainder_amd64.6 "$WORK"/math/_obj/sin_amd64.6 "$WORK"/math/_obj/sincos_amd64.6 "$WORK"/math/_obj/sqrt_amd64.6 "$WORK"/math/_obj/tan_amd64.6
+ cp "$WORK"/math.a "$GOROOT"/pkg/darwin_amd64/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
++cp "$WORK"/strings.a "$GOROOT"/pkg/darwin_amd64/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
++cp "$WORK"/strconv.a "$GOROOT"/pkg/darwin_amd64/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
++cp "$WORK"/bufio.a "$GOROOT"/pkg/darwin_amd64/bufio.a
++
+ #
+ # sort
+ #
+@@ -194,26 +224,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/darwin_amd64/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/darwin_amd64/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
+-cp "$WORK"/strings.a "$GOROOT"/pkg/darwin_amd64/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/darwin_amd64/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -306,16 +316,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.6
+ cp "$WORK"/flag.a "$GOROOT"/pkg/darwin_amd64/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/darwin_amd64/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/freebsd_386.sh b/src/buildscript/freebsd_386.sh
+index 632eeed8c1..040e4dd950 100755
+--- a/src/buildscript/freebsd_386.sh
++++ b/src/buildscript/freebsd_386.sh
+@@ -174,6 +174,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/freebsd_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/freebsd_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/freebsd_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -195,26 +225,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/freebsd_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/freebsd_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/freebsd_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/freebsd_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -307,16 +317,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/freebsd_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/freebsd_amd64.sh b/src/buildscript/freebsd_amd64.sh
+index a0ef46af78..4a9e0180b8 100755
+--- a/src/buildscript/freebsd_amd64.sh
++++ b/src/buildscript/freebsd_amd64.sh
+@@ -173,6 +173,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.6 "$WORK"/math/_obj/abs_amd64.6 "$WORK"/math/_obj/asin_amd64.6 "$WORK"/math/_obj/atan2_amd64.6 "$WORK"/math/_obj/atan_amd64.6 "$WORK"/math/_obj/dim_amd64.6 "$WORK"/math/_obj/exp2_amd64.6 "$WORK"/math/_obj/exp_amd64.6 "$WORK"/math/_obj/expm1_amd64.6 "$WORK"/math/_obj/floor_amd64.6 "$WORK"/math/_obj/fltasm_amd64.6 "$WORK"/math/_obj/frexp_amd64.6 "$WORK"/math/_obj/hypot_amd64.6 "$WORK"/math/_obj/ldexp_amd64.6 "$WORK"/math/_obj/log10_amd64.6 "$WORK"/math/_obj/log1p_amd64.6 "$WORK"/math/_obj/log_amd64.6 "$WORK"/math/_obj/mod_amd64.6 "$WORK"/math/_obj/modf_amd64.6 "$WORK"/math/_obj/remainder_amd64.6 "$WORK"/math/_obj/sin_amd64.6 "$WORK"/math/_obj/sincos_amd64.6 "$WORK"/math/_obj/sqrt_amd64.6 "$WORK"/math/_obj/tan_amd64.6
+ cp "$WORK"/math.a "$GOROOT"/pkg/freebsd_amd64/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
++cp "$WORK"/strings.a "$GOROOT"/pkg/freebsd_amd64/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
++cp "$WORK"/strconv.a "$GOROOT"/pkg/freebsd_amd64/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
++cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_amd64/bufio.a
++
+ #
+ # sort
+ #
+@@ -194,26 +224,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/freebsd_amd64/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/freebsd_amd64/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
+-cp "$WORK"/strings.a "$GOROOT"/pkg/freebsd_amd64/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/freebsd_amd64/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -306,16 +316,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.6
+ cp "$WORK"/flag.a "$GOROOT"/pkg/freebsd_amd64/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_amd64/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/linux_386.sh b/src/buildscript/linux_386.sh
+index 84781d768c..2cd4f49929 100755
+--- a/src/buildscript/linux_386.sh
++++ b/src/buildscript/linux_386.sh
+@@ -174,6 +174,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/linux_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/linux_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/linux_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -195,26 +225,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/linux_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/linux_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/linux_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/linux_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -307,16 +317,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/linux_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/linux_amd64.sh b/src/buildscript/linux_amd64.sh
+index a1aac63485..c99fe30f39 100755
+--- a/src/buildscript/linux_amd64.sh
++++ b/src/buildscript/linux_amd64.sh
+@@ -173,6 +173,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.6 "$WORK"/math/_obj/abs_amd64.6 "$WORK"/math/_obj/asin_amd64.6 "$WORK"/math/_obj/atan2_amd64.6 "$WORK"/math/_obj/atan_amd64.6 "$WORK"/math/_obj/dim_amd64.6 "$WORK"/math/_obj/exp2_amd64.6 "$WORK"/math/_obj/exp_amd64.6 "$WORK"/math/_obj/expm1_amd64.6 "$WORK"/math/_obj/floor_amd64.6 "$WORK"/math/_obj/fltasm_amd64.6 "$WORK"/math/_obj/frexp_amd64.6 "$WORK"/math/_obj/hypot_amd64.6 "$WORK"/math/_obj/ldexp_amd64.6 "$WORK"/math/_obj/log10_amd64.6 "$WORK"/math/_obj/log1p_amd64.6 "$WORK"/math/_obj/log_amd64.6 "$WORK"/math/_obj/mod_amd64.6 "$WORK"/math/_obj/modf_amd64.6 "$WORK"/math/_obj/remainder_amd64.6 "$WORK"/math/_obj/sin_amd64.6 "$WORK"/math/_obj/sincos_amd64.6 "$WORK"/math/_obj/sqrt_amd64.6 "$WORK"/math/_obj/tan_amd64.6
+ cp "$WORK"/math.a "$GOROOT"/pkg/linux_amd64/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
++cp "$WORK"/strings.a "$GOROOT"/pkg/linux_amd64/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
++cp "$WORK"/strconv.a "$GOROOT"/pkg/linux_amd64/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
++cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_amd64/bufio.a
++
+ #
+ # sort
+ #
+@@ -194,26 +224,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/linux_amd64/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/linux_amd64/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
+-cp "$WORK"/strings.a "$GOROOT"/pkg/linux_amd64/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/linux_amd64/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -306,16 +316,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.6
+ cp "$WORK"/flag.a "$GOROOT"/pkg/linux_amd64/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_amd64/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/linux_arm.sh b/src/buildscript/linux_arm.sh
+index b511a3274f..44b97c1323 100755
+--- a/src/buildscript/linux_arm.sh
++++ b/src/buildscript/linux_arm.sh
+@@ -177,6 +177,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.5 "$WORK"/math/_obj/abs_arm.5 "$WORK"/math/_obj/asin_arm.5 "$WORK"/math/_obj/atan2_arm.5 "$WORK"/math/_obj/atan_arm.5 "$WORK"/math/_obj/dim_arm.5 "$WORK"/math/_obj/exp2_arm.5 "$WORK"/math/_obj/exp_arm.5 "$WORK"/math/_obj/expm1_arm.5 "$WORK"/math/_obj/floor_arm.5 "$WORK"/math/_obj/frexp_arm.5 "$WORK"/math/_obj/hypot_arm.5 "$WORK"/math/_obj/ldexp_arm.5 "$WORK"/math/_obj/log10_arm.5 "$WORK"/math/_obj/log1p_arm.5 "$WORK"/math/_obj/log_arm.5 "$WORK"/math/_obj/mod_arm.5 "$WORK"/math/_obj/modf_arm.5 "$WORK"/math/_obj/remainder_arm.5 "$WORK"/math/_obj/sin_arm.5 "$WORK"/math/_obj/sincos_arm.5 "$WORK"/math/_obj/sqrt_arm.5 "$WORK"/math/_obj/tan_arm.5
+ cp "$WORK"/math.a "$GOROOT"/pkg/linux_arm/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/5g -o "$WORK"/strings/_obj/_go_.5 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.5
++cp "$WORK"/strings.a "$GOROOT"/pkg/linux_arm/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/5g -o "$WORK"/strconv/_obj/_go_.5 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.5
++cp "$WORK"/strconv.a "$GOROOT"/pkg/linux_arm/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/5g -o "$WORK"/bufio/_obj/_go_.5 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.5
++cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_arm/bufio.a
++
+ #
+ # sort
+ #
+@@ -198,26 +228,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/linux_arm/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/linux_arm/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/5g -o "$WORK"/strings/_obj/_go_.5 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.5
+-cp "$WORK"/strings.a "$GOROOT"/pkg/linux_arm/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/5g -o "$WORK"/strconv/_obj/_go_.5 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.5
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/linux_arm/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -310,16 +320,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.5
+ cp "$WORK"/flag.a "$GOROOT"/pkg/linux_arm/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/5g -o "$WORK"/bufio/_obj/_go_.5 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.5
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/linux_arm/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/netbsd_386.sh b/src/buildscript/netbsd_386.sh
+index f7dadc3341..6d3e7072d7 100755
+--- a/src/buildscript/netbsd_386.sh
++++ b/src/buildscript/netbsd_386.sh
+@@ -174,6 +174,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/netbsd_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/netbsd_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/netbsd_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/netbsd_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -195,26 +225,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/netbsd_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/netbsd_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/netbsd_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/netbsd_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -307,16 +317,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/netbsd_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/netbsd_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/netbsd_amd64.sh b/src/buildscript/netbsd_amd64.sh
+index e066919d93..2af9abab5f 100755
+--- a/src/buildscript/netbsd_amd64.sh
++++ b/src/buildscript/netbsd_amd64.sh
+@@ -173,6 +173,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.6 "$WORK"/math/_obj/abs_amd64.6 "$WORK"/math/_obj/asin_amd64.6 "$WORK"/math/_obj/atan2_amd64.6 "$WORK"/math/_obj/atan_amd64.6 "$WORK"/math/_obj/dim_amd64.6 "$WORK"/math/_obj/exp2_amd64.6 "$WORK"/math/_obj/exp_amd64.6 "$WORK"/math/_obj/expm1_amd64.6 "$WORK"/math/_obj/floor_amd64.6 "$WORK"/math/_obj/fltasm_amd64.6 "$WORK"/math/_obj/frexp_amd64.6 "$WORK"/math/_obj/hypot_amd64.6 "$WORK"/math/_obj/ldexp_amd64.6 "$WORK"/math/_obj/log10_amd64.6 "$WORK"/math/_obj/log1p_amd64.6 "$WORK"/math/_obj/log_amd64.6 "$WORK"/math/_obj/mod_amd64.6 "$WORK"/math/_obj/modf_amd64.6 "$WORK"/math/_obj/remainder_amd64.6 "$WORK"/math/_obj/sin_amd64.6 "$WORK"/math/_obj/sincos_amd64.6 "$WORK"/math/_obj/sqrt_amd64.6 "$WORK"/math/_obj/tan_amd64.6
+ cp "$WORK"/math.a "$GOROOT"/pkg/netbsd_amd64/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
++cp "$WORK"/strings.a "$GOROOT"/pkg/netbsd_amd64/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
++cp "$WORK"/strconv.a "$GOROOT"/pkg/netbsd_amd64/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
++cp "$WORK"/bufio.a "$GOROOT"/pkg/netbsd_amd64/bufio.a
++
+ #
+ # sort
+ #
+@@ -194,26 +224,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/netbsd_amd64/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/netbsd_amd64/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
+-cp "$WORK"/strings.a "$GOROOT"/pkg/netbsd_amd64/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/netbsd_amd64/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -306,16 +316,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.6
+ cp "$WORK"/flag.a "$GOROOT"/pkg/netbsd_amd64/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/netbsd_amd64/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/openbsd_386.sh b/src/buildscript/openbsd_386.sh
+index 000ac08d24..1c76164e92 100755
+--- a/src/buildscript/openbsd_386.sh
++++ b/src/buildscript/openbsd_386.sh
+@@ -174,6 +174,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/openbsd_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/openbsd_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/openbsd_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/openbsd_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -195,26 +225,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/openbsd_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/openbsd_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/openbsd_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/openbsd_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -307,16 +317,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/openbsd_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/openbsd_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/openbsd_amd64.sh b/src/buildscript/openbsd_amd64.sh
+index 0d4e4baccb..4beff96add 100755
+--- a/src/buildscript/openbsd_amd64.sh
++++ b/src/buildscript/openbsd_amd64.sh
+@@ -173,6 +173,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.6 "$WORK"/math/_obj/abs_amd64.6 "$WORK"/math/_obj/asin_amd64.6 "$WORK"/math/_obj/atan2_amd64.6 "$WORK"/math/_obj/atan_amd64.6 "$WORK"/math/_obj/dim_amd64.6 "$WORK"/math/_obj/exp2_amd64.6 "$WORK"/math/_obj/exp_amd64.6 "$WORK"/math/_obj/expm1_amd64.6 "$WORK"/math/_obj/floor_amd64.6 "$WORK"/math/_obj/fltasm_amd64.6 "$WORK"/math/_obj/frexp_amd64.6 "$WORK"/math/_obj/hypot_amd64.6 "$WORK"/math/_obj/ldexp_amd64.6 "$WORK"/math/_obj/log10_amd64.6 "$WORK"/math/_obj/log1p_amd64.6 "$WORK"/math/_obj/log_amd64.6 "$WORK"/math/_obj/mod_amd64.6 "$WORK"/math/_obj/modf_amd64.6 "$WORK"/math/_obj/remainder_amd64.6 "$WORK"/math/_obj/sin_amd64.6 "$WORK"/math/_obj/sincos_amd64.6 "$WORK"/math/_obj/sqrt_amd64.6 "$WORK"/math/_obj/tan_amd64.6
+ cp "$WORK"/math.a "$GOROOT"/pkg/openbsd_amd64/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
++cp "$WORK"/strings.a "$GOROOT"/pkg/openbsd_amd64/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
++cp "$WORK"/strconv.a "$GOROOT"/pkg/openbsd_amd64/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
++cp "$WORK"/bufio.a "$GOROOT"/pkg/openbsd_amd64/bufio.a
++
+ #
+ # sort
+ #
+@@ -194,26 +224,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/openbsd_amd64/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/openbsd_amd64/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
+-cp "$WORK"/strings.a "$GOROOT"/pkg/openbsd_amd64/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/openbsd_amd64/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -306,16 +316,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.6
+ cp "$WORK"/flag.a "$GOROOT"/pkg/openbsd_amd64/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/openbsd_amd64/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/plan9_386.sh b/src/buildscript/plan9_386.sh
+index 8ff39e0064..1e21ca4571 100755
+--- a/src/buildscript/plan9_386.sh
++++ b/src/buildscript/plan9_386.sh
+@@ -174,6 +174,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/plan9_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/plan9_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/plan9_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/plan9_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -195,26 +225,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/plan9_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/plan9_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/plan9_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/plan9_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -307,16 +317,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/plan9_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/plan9_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/windows_386.sh b/src/buildscript/windows_386.sh
+index 3d027caa47..ba6c80026c 100755
+--- a/src/buildscript/windows_386.sh
++++ b/src/buildscript/windows_386.sh
+@@ -176,6 +176,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+ cp "$WORK"/math.a "$GOROOT"/pkg/windows_386/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
++cp "$WORK"/strings.a "$GOROOT"/pkg/windows_386/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
++cp "$WORK"/strconv.a "$GOROOT"/pkg/windows_386/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
++cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_386/bufio.a
++
+ #
+ # sort
+ #
+@@ -197,26 +227,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/windows_386/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/windows_386/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+-cp "$WORK"/strings.a "$GOROOT"/pkg/windows_386/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/windows_386/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -309,16 +319,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+ cp "$WORK"/flag.a "$GOROOT"/pkg/windows_386/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_386/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/buildscript/windows_amd64.sh b/src/buildscript/windows_amd64.sh
+index d7f18bb805..e006fb84ba 100755
+--- a/src/buildscript/windows_amd64.sh
++++ b/src/buildscript/windows_amd64.sh
+@@ -175,6 +175,36 @@ cd "$GOROOT"/src/pkg/math
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.6 "$WORK"/math/_obj/abs_amd64.6 "$WORK"/math/_obj/asin_amd64.6 "$WORK"/math/_obj/atan2_amd64.6 "$WORK"/math/_obj/atan_amd64.6 "$WORK"/math/_obj/dim_amd64.6 "$WORK"/math/_obj/exp2_amd64.6 "$WORK"/math/_obj/exp_amd64.6 "$WORK"/math/_obj/expm1_amd64.6 "$WORK"/math/_obj/floor_amd64.6 "$WORK"/math/_obj/fltasm_amd64.6 "$WORK"/math/_obj/frexp_amd64.6 "$WORK"/math/_obj/hypot_amd64.6 "$WORK"/math/_obj/ldexp_amd64.6 "$WORK"/math/_obj/log10_amd64.6 "$WORK"/math/_obj/log1p_amd64.6 "$WORK"/math/_obj/log_amd64.6 "$WORK"/math/_obj/mod_amd64.6 "$WORK"/math/_obj/modf_amd64.6 "$WORK"/math/_obj/remainder_amd64.6 "$WORK"/math/_obj/sin_amd64.6 "$WORK"/math/_obj/sincos_amd64.6 "$WORK"/math/_obj/sqrt_amd64.6 "$WORK"/math/_obj/tan_amd64.6
+ cp "$WORK"/math.a "$GOROOT"/pkg/windows_amd64/math.a
+ 
++#
++# strings
++#
++
++mkdir -p "$WORK"/strings/_obj/
++cd "$GOROOT"/src/pkg/strings
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
++cp "$WORK"/strings.a "$GOROOT"/pkg/windows_amd64/strings.a
++
++#
++# strconv
++#
++
++mkdir -p "$WORK"/strconv/_obj/
++cd "$GOROOT"/src/pkg/strconv
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
++cp "$WORK"/strconv.a "$GOROOT"/pkg/windows_amd64/strconv.a
++
++#
++# bufio
++#
++
++mkdir -p "$WORK"/bufio/_obj/
++cd "$GOROOT"/src/pkg/bufio
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
++"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
++cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_amd64/bufio.a
++
+ #
+ # sort
+ #
+@@ -196,26 +226,6 @@ cd "$GOROOT"/src/pkg/container/heap
+ mkdir -p "$GOROOT"/pkg/windows_amd64/container/
+ cp "$WORK"/container/heap.a "$GOROOT"/pkg/windows_amd64/container/heap.a
+ 
+-#
+-# strings
+-#
+-
+-mkdir -p "$WORK"/strings/_obj/
+-cd "$GOROOT"/src/pkg/strings
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strings/_obj/_go_.6 -p strings -I "$WORK" reader.go replace.go strings.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.6
+-cp "$WORK"/strings.a "$GOROOT"/pkg/windows_amd64/strings.a
+-
+-#
+-# strconv
+-#
+-
+-mkdir -p "$WORK"/strconv/_obj/
+-cd "$GOROOT"/src/pkg/strconv
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/strconv/_obj/_go_.6 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.6
+-cp "$WORK"/strconv.a "$GOROOT"/pkg/windows_amd64/strconv.a
+-
+ #
+ # encoding/base64
+ #
+@@ -308,16 +318,6 @@ cd "$GOROOT"/src/pkg/flag
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.6
+ cp "$WORK"/flag.a "$GOROOT"/pkg/windows_amd64/flag.a
+ 
+-#
+-# bufio
+-#
+-
+-mkdir -p "$WORK"/bufio/_obj/
+-cd "$GOROOT"/src/pkg/bufio
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/bufio/_obj/_go_.6 -p bufio -I "$WORK" bufio.go
+-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.6
+-cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_amd64/bufio.a
+-
+ #
+ # encoding/gob
+ #
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f928afef39..5f3cbb4574 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -700,33 +700,6 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 	return inc
+ }
+ 
+-// removeByRenaming removes file name by moving it to a tmp
+-// directory and deleting the target if possible.
+-func removeByRenaming(name string) error {
+-	f, err := ioutil.TempFile("", "")
+-	if err != nil {
+-		return err
+-	}
+-	tmpname := f.Name()
+-	f.Close()
+-	err = os.Remove(tmpname)
+-	if err != nil {
+-		return err
+-	}
+-	err = os.Rename(name, tmpname)
+-	if err != nil {
+-		// assume name file does not exists,
+-		// otherwise later code will fail.
+-		return nil
+-	}
+-	err = os.Remove(tmpname)
+-	if err != nil {
+-		// TODO(brainman): file is locked and can't be deleted.
+-		// We need to come up with a better way of doing it. 
+-	}
+-	return nil
+-}
+-
+ // copyFile is like 'cp src dst'.
+ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
+ 	if buildN || buildX {
+@@ -741,23 +714,30 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
+ 		return err
+ 	}
+ 	defer sf.Close()
++
++	// On Windows, remove lingering ~ file from last attempt.
++	if toolIsWindows {
++		if _, err := os.Stat(dst + "~"); err == nil {
++			os.Remove(dst + "~")
++		}
++	}
++
+ 	os.Remove(dst)
+ 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+-	if err != nil {
+-		if !toolIsWindows {
+-			return err
+-		}
+-		// Windows does not allow to replace binary file
+-		// while it is executing. We will cheat.
+-		err = removeByRenaming(dst)
+-		if err != nil {
+-			return err
++	if err != nil && toolIsWindows {
++		// Windows does not allow deletion of a binary file
++		// while it is executing.  Try to move it out of the way.
++		// If the remove fails, which is likely, we'll try again the
++		// next time we do an install of this binary.
++		if err := os.Rename(dst, dst+"~"); err == nil {
++			os.Remove(dst + "~")
+ 		}
+ 		df, err = os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+-		if err != nil {
+-			return err
+-		}
+ 	}
++	if err != nil {
++		return err
++	}
++
+ 	_, err = io.Copy(df, sf)
+ 	df.Close()
+ 	if err != nil {
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index af211f98d2..30baaa7b2f 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bufio"
+ 	"encoding/json"
+ 	"os"
+ 	"text/template"
+@@ -81,15 +82,19 @@ var listJson = cmdList.Flag.Bool("json", false, "")
+ var nl = []byte{'\n'}
+ 
+ func runList(cmd *Command, args []string) {
++	out := bufio.NewWriter(os.Stdout)
++	defer out.Flush()
++
+ 	var do func(*Package)
+ 	if *listJson {
+ 		do = func(p *Package) {
+ 			b, err := json.MarshalIndent(p, "", "\t")
+ 			if err != nil {
++				out.Flush()
+ 				fatalf("%s", err)
+ 			}
+-			os.Stdout.Write(b)
+-			os.Stdout.Write(nl)
++			out.Write(b)
++			out.Write(nl)
+ 		}
+ 	} else {
+ 		tmpl, err := template.New("main").Parse(*listFmt + "\n")
+@@ -97,7 +102,8 @@ func runList(cmd *Command, args []string) {
+ 			fatalf("%s", err)
+ 		}
+ 		do = func(p *Package) {
+-			if err := tmpl.Execute(os.Stdout, p); err != nil {
++			if err := tmpl.Execute(out, p); err != nil {
++				out.Flush()
+ 				fatalf("%s", err)
+ 			}
+ 		}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 5b4959a28a..f1c873b6d8 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -5,7 +5,9 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"go/build"
++	"go/scanner"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -259,6 +261,20 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 			ImportStack: stk.copy(),
+ 			Err:         err.Error(),
+ 		}
++		// Look for parser errors.
++		if err, ok := err.(scanner.ErrorList); ok {
++			// Prepare error with \n before each message.
++			// When printed in something like context: %v
++			// this will put the leading file positions each on
++			// its own line.  It will also show all the errors
++			// instead of just the first, as err.Error does.
++			var buf bytes.Buffer
++			for _, e := range err {
++				buf.WriteString("\n")
++				buf.WriteString(e.Error())
++			}
++			p.Error.Err = buf.String()
++		}
+ 		p.Incomplete = true
+ 		return p
+ 	}
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 346336562a..b21cd30fbf 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -75,7 +75,7 @@ func runTool(cmd *Command, args []string) {
+ 	}
+ 	err := toolCmd.Run()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go tool %s failed: %s\n", tool, err)
++		fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+ 		setExitStatus(1)
+ 		return
+ 	}

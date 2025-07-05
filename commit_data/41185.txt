@@ -22,8 +22,152 @@ Date:   Thu Aug 22 05:23:41 2019 +0800
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modconv/convert.go      | 11 +++---
  src/cmd/go/internal/modfetch/repo.go        | 56 -----------------------------
  src/cmd/go/testdata/script/mod_init_dep.txt | 11 +++---
  3 files changed, 14 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert.go b/src/cmd/go/internal/modconv/convert.go
+index 558664a8b3..85f9a6aafe 100644
+--- a/src/cmd/go/internal/modconv/convert.go
++++ b/src/cmd/go/internal/modconv/convert.go
+@@ -66,16 +66,19 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
+ 
+ 	work.Do(10, func(item interface{}) {
+ 		r := item.(module.Version)
+-		repo, info, err := modfetch.ImportRepoRev(r.Path, r.Version)
++		var info *modfetch.RevInfo
++		err := modfetch.TryProxies(func(proxy string) (err error) {
++			info, err = modfetch.Stat(proxy, r.Path, r.Version)
++			return err
++		})
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), r.Path, r.Version, err)
+ 			return
+ 		}
+ 		mu.Lock()
+-		path := repo.ModulePath()
+ 		// Don't use semver.Max here; need to preserve +incompatible suffix.
+-		if v, ok := need[path]; !ok || semver.Compare(v, info.Version) < 0 {
+-			need[path] = info.Version
++		if v, ok := need[r.Path]; !ok || semver.Compare(v, info.Version) < 0 {
++			need[r.Path] = info.Version
+ 		}
+ 		mu.Unlock()
+ 	})
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index be52a8dc11..e56820e1d7 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -161,15 +161,6 @@ type RevInfo struct {
+ // and it can check that the path can be resolved to a target repository.
+ // To avoid version control access except when absolutely necessary,
+ // Lookup does not attempt to connect to the repository itself.
+-//
+-// The ImportRepoRev function is a variant of Import which is limited
+-// to code in a source code repository at a particular revision identifier
+-// (usually a commit hash or source code repository tag, not necessarily
+-// a module version).
+-// ImportRepoRev is used when converting legacy dependency requirements
+-// from older systems into go.mod files. Those older systems worked
+-// at either package or repository granularity, and most of the time they
+-// recorded commit hashes, not tagged versions.
+ 
+ var lookupCache par.Cache
+ 
+@@ -279,53 +270,6 @@ func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
+ 	return code, nil
+ }
+ 
+-// ImportRepoRev returns the module and version to use to access
+-// the given import path loaded from the source code repository that
+-// the original "go get" would have used, at the specific repository revision
+-// (typically a commit hash, but possibly also a source control tag).
+-func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+-	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
+-		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
+-	}
+-
+-	// Note: Because we are converting a code reference from a legacy
+-	// version control system, we ignore meta tags about modules
+-	// and use only direct source control entries (get.IgnoreMod).
+-	security := web.SecureOnly
+-	if get.Insecure {
+-		security = web.Insecure
+-	}
+-	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	code, err := lookupCodeRepo(rr)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	revInfo, err := code.Stat(rev)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	// TODO: Look in repo to find path, check for go.mod files.
+-	// For now we're just assuming rr.Root is the module path,
+-	// which is true in the absence of go.mod files.
+-
+-	repo, err := newCodeRepo(code, rr.Root, rr.Root)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-
+-	info, err := repo.(*codeRepo).convert(revInfo, rev)
+-	if err != nil {
+-		return nil, nil, err
+-	}
+-	return repo, info, nil
+-}
+-
+ func SortVersions(list []string) {
+ 	sort.Slice(list, func(i, j int) bool {
+ 		cmp := semver.Compare(list[i], list[j])
+diff --git a/src/cmd/go/testdata/script/mod_init_dep.txt b/src/cmd/go/testdata/script/mod_init_dep.txt
+index 755076eae8..67dda1fe31 100644
+--- a/src/cmd/go/testdata/script/mod_init_dep.txt
++++ b/src/cmd/go/testdata/script/mod_init_dep.txt
+@@ -1,23 +1,26 @@
+ env GO111MODULE=on
+ 
+-# modconv uses git directly to examine what old 'go get' would
+-[!net] skip
+-[!exec:git] skip
++# modconv uses modules to examine instead of using git directly
++[short] skip
+ 
+ # go build should populate go.mod from Gopkg.lock
+ cp go.mod1 go.mod
+ go build
+ stderr 'copying requirements from Gopkg.lock'
++stderr 'finding rsc.io/sampler v1.0.0'
+ go list -m all
+ ! stderr 'copying requirements from Gopkg.lock'
++! stderr 'finding rsc.io/sampler v1.0.0'
+ stdout 'rsc.io/sampler v1.0.0'
+ 
+ # go list should populate go.mod from Gopkg.lock
+ cp go.mod1 go.mod
+ go list
+ stderr 'copying requirements from Gopkg.lock'
++! stderr 'finding rsc.io/sampler v1.0.0'
+ go list
+ ! stderr 'copying requirements from Gopkg.lock'
++! stderr 'finding rsc.io/sampler v1.0.0'
+ go list -m all
+ stdout 'rsc.io/sampler v1.0.0'
+ 
+@@ -54,4 +57,4 @@ go $goversion
+ 
+ replace z v1.0.0 => rsc.io/quote v1.0.0
+ 
+-require rsc.io/quote v1.0.0
+\ No newline at end of file
++require rsc.io/quote v1.0.0

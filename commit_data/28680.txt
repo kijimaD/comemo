@@ -16,7 +16,54 @@ Date:   Mon Jun 27 08:21:55 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  2 +-
  test/fixedbugs/issue16193.go           | 27 +++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index ecdf19a2c4..66c710f8e5 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -166,7 +166,7 @@ func closurename(n *Node) *Sym {
+ 	prefix := ""
+ 	if n.Func.Outerfunc == nil {
+ 		// Global closure.
+-		outer = "glob"
++		outer = "glob."
+ 
+ 		prefix = "func"
+ 		closurename_closgen++
+diff --git a/test/fixedbugs/issue16193.go b/test/fixedbugs/issue16193.go
+new file mode 100644
+index 0000000000..eada62de9a
+--- /dev/null
++++ b/test/fixedbugs/issue16193.go
+@@ -0,0 +1,27 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The compiler used the name "glob" as the function holding a global
++// function literal, colliding with an actual function named "glob".
++
++package main
++
++func glob() {
++	func() {
++	}()
++}
++
++var c1 = func() {
++}
++
++var c2 = func() {
++}
++
++func main() {
++	glob()
++	c1()
++	c2()
++}

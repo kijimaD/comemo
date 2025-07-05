@@ -12,7 +12,55 @@ Date:   Fri Jan 16 10:45:28 2009 -0800
     R=ken
     OCL=22944
     CL=22944
-
+---
  src/cmd/gc/export.c | 9 ++++++---
  src/cmd/gc/go.y     | 8 ++++++++
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 13a481cab9..f71f929b2a 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -119,9 +119,9 @@ dumpexportconst(Sym *s)
+ 		Bprint(bout, "export ");
+ 	else if(s->export == 2)
+ 		Bprint(bout, "package ");
+-	Bprint(bout, "const %lS ", s);
++	Bprint(bout, "const %lS", s);
+ 	if(t != T)
+-		Bprint(bout, "%#T ", t);
++		Bprint(bout, " %#T", t);
+ 	Bprint(bout, " = ");
+ 
+ 	switch(n->val.ctype) {
+@@ -133,7 +133,10 @@ dumpexportconst(Sym *s)
+ 		Bprint(bout, "%B\n", n->val.u.xval);
+ 		break;
+ 	case CTBOOL:
+-		Bprint(bout, "0x%llux\n", n->val.u.bval);
++		if(n->val.u.bval)
++			Bprint(bout, "true\n");
++		else
++			Bprint(bout, "false\n");
+ 		break;
+ 	case CTFLT:
+ 		Bprint(bout, "%F\n", n->val.u.fval);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index a6ea498d42..442baadda4 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1969,6 +1969,14 @@ hidden_constant:
+ 			yyerror("bad negated constant");
+ 		}
+ 	}
++|	LTRUE
++	{
++		$$ = booltrue->val;
++	}
++|	LFALSE
++	{
++		$$ = boolfalse->val;
++	}
+ 
+ hidden_importsym:
+ 	sym1 '.' sym2

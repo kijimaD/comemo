@@ -16,9 +16,102 @@ Date:   Tue May 10 17:06:19 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go         |  2 +-
  src/go/internal/gcimporter/gcimporter.go      |  2 +-
  src/go/internal/gcimporter/gcimporter_test.go | 39 +++++++++++++++++++++++++++
  src/go/internal/gcimporter/testdata/p.go      | 13 +++++++++
  4 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 964bf5512e..341358287a 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -170,7 +170,7 @@ func (p *importer) declare(obj types.Object) {
+ 		// imported.
+ 		// (See also the comment in cmd/compile/internal/gc/bimport.go importer.obj,
+ 		// switch case importing functions).
+-		panic(fmt.Sprintf("%s already declared", alt.Name()))
++		panic(fmt.Sprintf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj))
+ 	}
+ }
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index b2848c3023..2c6e676225 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -163,7 +163,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
+ 		var data []byte
+ 		data, err = ioutil.ReadAll(buf)
+ 		if err == nil {
+-			_, pkg, err = BImportData(packages, data, path)
++			_, pkg, err = BImportData(packages, data, id)
+ 			return
+ 		}
+ 	default:
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 8b94f9a105..8de36c713c 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -361,3 +361,42 @@ func TestIssue13898(t *testing.T) {
+ 		t.Fatalf("found %v; want go/types", m.Pkg())
+ 	}
+ }
++
++func TestIssue15517(t *testing.T) {
++	skipSpecialPlatforms(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++		return
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	if f := compile(t, "testdata", "p.go"); f != "" {
++		defer os.Remove(f)
++	}
++
++	// Multiple imports of p must succeed without redeclaration errors.
++	// We use an import path that's not cleaned up so that the eventual
++	// file path for the package is different from the package path; this
++	// will expose the error if it is present.
++	//
++	// (Issue: Both the textual and the binary importer used the file path
++	// of the package to be imported as key into the shared packages map.
++	// However, the binary importer then used the package path to identify
++	// the imported package to mark it as complete; effectively marking the
++	// wrong package as complete. By using an "unclean" package path, the
++	// file and package path are different, exposing the problem if present.
++	// The same issue occurs with vendoring.)
++	imports := make(map[string]*types.Package)
++	for i := 0; i < 3; i++ {
++		if _, err := Import(imports, "./././testdata/p", "."); err != nil {
++			t.Fatal(err)
++		}
++	}
++}
+diff --git a/src/go/internal/gcimporter/testdata/p.go b/src/go/internal/gcimporter/testdata/p.go
+new file mode 100644
+index 0000000000..9e2e705765
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/p.go
+@@ -0,0 +1,13 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Input for TestIssue15517
++
++package p
++
++const C = 0
++
++var V int
++
++func F() {}

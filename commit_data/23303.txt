@@ -8,7 +8,42 @@ Date:   Mon Mar 30 23:07:18 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/8262
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/cgo_solaris.go | 15 +++++++++++++++
  src/net/cgo_unix.go    |  2 +-
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/cgo_solaris.go b/src/net/cgo_solaris.go
+new file mode 100644
+index 0000000000..2d452b9e17
+--- /dev/null
++++ b/src/net/cgo_solaris.go
+@@ -0,0 +1,15 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo,!netgo
++
++package net
++
++/*
++#cgo LDFLAGS: -lsocket -lnsl
++#include <netdb.h>
++*/
++import "C"
++
++const cgoAddrInfoFlags = C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 7f7b600003..34588a3baa 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build cgo,!netgo
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 

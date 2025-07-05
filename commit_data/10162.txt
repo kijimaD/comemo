@@ -37,7 +37,58 @@ Date:   Tue Nov 1 11:42:54 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5305074
-
+---
  src/pkg/html/parse.go      | 8 +++++++-
  src/pkg/html/parse_test.go | 6 +++---
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 49c7a65bab..2538ea9811 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -126,6 +126,7 @@ func (p *parser) addChild(n *Node) {
+ // fosterParent adds a child node according to the foster parenting rules.
+ // Section 11.2.5.3, "foster parenting".
+ func (p *parser) fosterParent(n *Node) {
++	p.fosterParenting = false
+ 	var table, parent *Node
+ 	var i int
+ 	for i = len(p.oe) - 1; i >= 0; i-- {
+@@ -986,7 +987,12 @@ func inCellIM(p *parser) (insertionMode, bool) {
+ 	case EndTagToken:
+ 		switch p.tok.Data {
+ 		case "td", "th":
+-			// TODO.
++			if !p.popUntil(tableScopeStopTags, p.tok.Data) {
++				// Ignore the token.
++				return inCellIM, true
++			}
++			p.clearActiveFormattingElements()
++			return inRowIM, true
+ 		case "body", "caption", "col", "colgroup", "html":
+ 			// TODO.
+ 		case "table", "tbody", "tfoot", "thead", "tr":
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 861070d103..caf3c92bc7 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -132,7 +132,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 77; i++ {
++		for i := 0; i < 78; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {
+@@ -161,8 +161,8 @@ func TestParser(t *testing.T) {
+ 				continue
+ 			}
+ 			// Check that rendering and re-parsing results in an identical tree.
+-			if filename == "tests1.dat" && i == 30 {
+-				// Test 30 in tests1.dat is such messed-up markup that a correct parse
++			if filename == "tests1.dat" && (i == 30 || i == 77) {
++				// Some tests in tests1.dat have such messed-up markup that a correct parse
+ 				// results in a non-conforming tree (one <a> element nested inside another).
+ 				// Therefore when it is rendered and re-parsed, it isn't the same.
+ 				// So we skip rendering on that test.

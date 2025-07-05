@@ -11,6 +11,21 @@ Date:   Fri Nov 5 14:55:52 2021 -0700
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/netip/netip.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 1596acbb8e..01f6fe5efa 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -32,6 +32,9 @@ import (
+ //
+ // Unlike net.IP or net.IPAddr, Addr is a comparable value
+ // type (it supports == and can be a map key) and is immutable.
++//
++// The zero Addr is not a valid IP address.
++// Addr{} is distinct from both 0.0.0.0 and ::.
+ type Addr struct {
+ 	// addr is the hi and lo bits of an IPv6 address. If z==z4,
+ 	// hi and lo contain the IPv4-mapped IPv6 address.

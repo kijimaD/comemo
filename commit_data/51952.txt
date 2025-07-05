@@ -11,6 +11,33 @@ Date:   Tue Mar 22 16:35:21 2022 +0000
     Reviewed-by: mzh <mzh@golangcn.org>
     Trust: mzh <mzh@golangcn.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/go/build/deps_test.go | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7b9826e0f2..d541f0926d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -626,21 +626,6 @@ func TestDependencies(t *testing.T) {
+ 			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+ 		}
+ 	}
+-
+-	// depPath returns the path between the given from and to packages.
+-	// It returns the empty string if there's no dependency path.
+-	var depPath func(string, string) string
+-	depPath = func(from, to string) string {
+-		if sawImport[from][to] {
+-			return from + " => " + to
+-		}
+-		for pkg := range sawImport[from] {
+-			if p := depPath(pkg, to); p != "" {
+-				return from + " => " + p
+-			}
+-		}
+-		return ""
+-	}
+ }
+ 
+ var buildIgnore = []byte("\n//go:build ignore")

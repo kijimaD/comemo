@@ -7,6 +7,20 @@ Date:   Fri Feb 15 17:11:13 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7352044
-
+---
  src/pkg/os/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index c469e58533..2cc17530c2 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -79,6 +79,8 @@ func (p *ProcessState) Sys() interface{} {
+ // SysUsage returns system-dependent resource usage information about
+ // the exited process.  Convert it to the appropriate underlying
+ // type, such as *syscall.Rusage on Unix, to access its contents.
++// (On Unix, *syscall.Rusage matches struct rusage as defined in the
++// getrusage(2) manual page.)
+ func (p *ProcessState) SysUsage() interface{} {
+ 	return p.sysUsage()
+ }

@@ -22,7 +22,128 @@ Date:   Sun Nov 12 17:05:57 2023 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/riscv/asm_test.go | 32 ++++++++++++++++++++++++++++++++
  src/cmd/internal/obj/riscv/obj.go      | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 64 insertions(+)
+
+diff --git a/src/cmd/internal/obj/riscv/asm_test.go b/src/cmd/internal/obj/riscv/asm_test.go
+index afe0525532..96ea230841 100644
+--- a/src/cmd/internal/obj/riscv/asm_test.go
++++ b/src/cmd/internal/obj/riscv/asm_test.go
+@@ -9,8 +9,10 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -277,3 +279,33 @@ func TestBranch(t *testing.T) {
+ 		t.Errorf("Branch test failed: %v\n%s", err, out)
+ 	}
+ }
++
++func TestPCAlign(t *testing.T) {
++	dir := t.TempDir()
++	tmpfile := filepath.Join(dir, "x.s")
++	asm := `
++TEXT _stub(SB),$0-0
++	FENCE
++	PCALIGN	$8
++	FENCE
++	RET
++`
++	if err := os.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
++		t.Fatal(err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
++	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("Failed to assemble: %v\n%s", err, out)
++	}
++	// The expected instruction sequence after alignment:
++	//	FENCE
++	//	NOP
++	//	FENCE
++	//	RET
++	want := "0f 00 f0 0f 13 00 00 00 0f 00 f0 0f 67 80 00 00"
++	if !strings.Contains(string(out), want) {
++		t.Errorf("PCALIGN test failed - got %s\nwant %s", out, want)
++	}
++}
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 93bda45096..11d6c202ea 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -308,6 +308,12 @@ func setPCs(p *obj.Prog, pc int64) int64 {
+ 		for _, ins := range instructionsForProg(p) {
+ 			pc += int64(ins.length())
+ 		}
++
++		if p.As == obj.APCALIGN {
++			alignedValue := p.From.Offset
++			v := pcAlignPadLength(pc, alignedValue)
++			pc += int64(v)
++		}
+ 	}
+ 	return pc
+ }
+@@ -733,6 +739,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
+ 				p.Link.To.Offset = low
+ 			}
++
++		case obj.APCALIGN:
++			alignedValue := p.From.Offset
++			if (alignedValue&(alignedValue-1) != 0) || 4 > alignedValue || alignedValue > 2048 {
++				ctxt.Diag("alignment value of an instruction must be a power of two and in the range [4, 2048], got %d\n", alignedValue)
++			}
++			// Update the current text symbol alignment value.
++			if int32(alignedValue) > cursym.Func().Align {
++				cursym.Func().Align = int32(alignedValue)
++			}
+ 		}
+ 	}
+ 
+@@ -744,6 +760,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ }
+ 
++func pcAlignPadLength(pc int64, alignedValue int64) int {
++	return int(-pc & (alignedValue - 1))
++}
++
+ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgAlloc, framesize int64) *obj.Prog {
+ 	// Leaf function with no frame is effectively NOSPLIT.
+ 	if framesize == 0 {
+@@ -1708,6 +1728,7 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	obj.ANOP:      pseudoOpEncoding,
+ 	obj.ADUFFZERO: pseudoOpEncoding,
+ 	obj.ADUFFCOPY: pseudoOpEncoding,
++	obj.APCALIGN:  pseudoOpEncoding,
+ }
+ 
+ // encodingForAs returns the encoding for an obj.As.
+@@ -2425,6 +2446,17 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			rel.Sym = addr.Sym
+ 			rel.Add = addr.Offset
+ 			rel.Type = rt
++
++		case obj.APCALIGN:
++			alignedValue := p.From.Offset
++			v := pcAlignPadLength(p.Pc, alignedValue)
++			offset := p.Pc
++			for ; v >= 4; v -= 4 {
++				// NOP
++				cursym.WriteBytes(ctxt, offset, []byte{0x13, 0, 0, 0})
++				offset += 4
++			}
++			continue
+ 		}
+ 
+ 		offset := p.Pc

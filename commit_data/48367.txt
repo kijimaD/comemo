@@ -15,7 +15,7 @@ Date:   Wed May 12 17:55:42 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ssa/flags_amd64_test.s | 2 --
  src/cmd/compile/internal/ssa/flags_arm64_test.s | 2 --
  src/cmd/dist/vfp_arm.s                          | 3 ++-
@@ -107,3 +107,1120 @@ Date:   Wed May 12 17:55:42 2021 +0200
  src/sync/atomic/asm.s                           | 1 +
  src/sync/atomic/race.s                          | 1 +
  90 files changed, 98 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/flags_amd64_test.s b/src/cmd/compile/internal/ssa/flags_amd64_test.s
+index 8bd87019af..7402f6badb 100644
+--- a/src/cmd/compile/internal/ssa/flags_amd64_test.s
++++ b/src/cmd/compile/internal/ssa/flags_amd64_test.s
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64
+-
+ #include "textflag.h"
+ 
+ TEXT ·asmAddFlags(SB),NOSPLIT,$0-24
+diff --git a/src/cmd/compile/internal/ssa/flags_arm64_test.s b/src/cmd/compile/internal/ssa/flags_arm64_test.s
+index f201bcc994..639d7e3aed 100644
+--- a/src/cmd/compile/internal/ssa/flags_arm64_test.s
++++ b/src/cmd/compile/internal/ssa/flags_arm64_test.s
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build arm64
+-
+ #include "textflag.h"
+ 
+ TEXT ·asmAddFlags(SB),NOSPLIT,$0-24
+diff --git a/src/cmd/dist/vfp_arm.s b/src/cmd/dist/vfp_arm.s
+index d571f8b82a..525ee9b366 100644
+--- a/src/cmd/dist/vfp_arm.s
++++ b/src/cmd/dist/vfp_arm.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc,arm
++//go:build gc
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/cmd/dist/vfp_default.s b/src/cmd/dist/vfp_default.s
+index 84829beeff..0c1e16b0aa 100644
+--- a/src/cmd/dist/vfp_default.s
++++ b/src/cmd/dist/vfp_default.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !arm,gc
++//go:build gc && !arm
++// +build gc,!arm
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/crypto/cipher/xor_ppc64x.s b/src/crypto/cipher/xor_ppc64x.s
+index 4cef31d0ee..2ba6d9639c 100644
+--- a/src/crypto/cipher/xor_ppc64x.s
++++ b/src/crypto/cipher/xor_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/crypto/md5/md5block_ppc64x.s b/src/crypto/md5/md5block_ppc64x.s
+index e1f859e337..8c28ec2473 100644
+--- a/src/crypto/md5/md5block_ppc64x.s
++++ b/src/crypto/md5/md5block_ppc64x.s
+@@ -10,6 +10,7 @@
+ // Licence: I hereby disclaim the copyright on this code and place it
+ // in the public domain.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/crypto/x509/internal/macos/corefoundation.s b/src/crypto/x509/internal/macos/corefoundation.s
+index a9efaa299d..cda2336c9d 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.s
++++ b/src/crypto/x509/internal/macos/corefoundation.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin && !ios
+ // +build darwin,!ios
+ 
+ #include "textflag.h"
+diff --git a/src/crypto/x509/internal/macos/security.s b/src/crypto/x509/internal/macos/security.s
+index 09ce5c6c76..0038f25b27 100644
+--- a/src/crypto/x509/internal/macos/security.s
++++ b/src/crypto/x509/internal/macos/security.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin && !ios
+ // +build darwin,!ios
+ 
+ #include "textflag.h"
+diff --git a/src/internal/bytealg/compare_mips64x.s b/src/internal/bytealg/compare_mips64x.s
+index 4f05fceaca..b472e510bc 100644
+--- a/src/internal/bytealg/compare_mips64x.s
++++ b/src/internal/bytealg/compare_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/compare_mipsx.s b/src/internal/bytealg/compare_mipsx.s
+index 9ac5ba5687..dcc4916e56 100644
+--- a/src/internal/bytealg/compare_mipsx.s
++++ b/src/internal/bytealg/compare_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/compare_ppc64x.s b/src/internal/bytealg/compare_ppc64x.s
+index 7819da31cd..83444fa826 100644
+--- a/src/internal/bytealg/compare_ppc64x.s
++++ b/src/internal/bytealg/compare_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/count_ppc64x.s b/src/internal/bytealg/count_ppc64x.s
+index a64d7d792d..94163cbd8a 100644
+--- a/src/internal/bytealg/count_ppc64x.s
++++ b/src/internal/bytealg/count_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64le || ppc64
+ // +build ppc64le ppc64
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/equal_mips64x.s b/src/internal/bytealg/equal_mips64x.s
+index 641e3ff06c..c2f7d3997e 100644
+--- a/src/internal/bytealg/equal_mips64x.s
++++ b/src/internal/bytealg/equal_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/equal_mipsx.s b/src/internal/bytealg/equal_mipsx.s
+index 1cabc70178..11e5549e45 100644
+--- a/src/internal/bytealg/equal_mipsx.s
++++ b/src/internal/bytealg/equal_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/equal_ppc64x.s b/src/internal/bytealg/equal_ppc64x.s
+index 18171eaedc..5f0fea521b 100644
+--- a/src/internal/bytealg/equal_ppc64x.s
++++ b/src/internal/bytealg/equal_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/index_ppc64x.s b/src/internal/bytealg/index_ppc64x.s
+index b7a1e2d7a2..3ed9442125 100644
+--- a/src/internal/bytealg/index_ppc64x.s
++++ b/src/internal/bytealg/index_ppc64x.s
+@@ -21,6 +21,7 @@
+ // work is still needed for a big endian
+ // implementation on power9.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/indexbyte_mips64x.s b/src/internal/bytealg/indexbyte_mips64x.s
+index 6ebf0dee24..0f377f5a4c 100644
+--- a/src/internal/bytealg/indexbyte_mips64x.s
++++ b/src/internal/bytealg/indexbyte_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/indexbyte_mipsx.s b/src/internal/bytealg/indexbyte_mipsx.s
+index e44440b5f9..bed015bbd6 100644
+--- a/src/internal/bytealg/indexbyte_mipsx.s
++++ b/src/internal/bytealg/indexbyte_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/bytealg/indexbyte_ppc64x.s b/src/internal/bytealg/indexbyte_ppc64x.s
+index 6e14e80af1..8e13c5a56e 100644
+--- a/src/internal/bytealg/indexbyte_ppc64x.s
++++ b/src/internal/bytealg/indexbyte_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/internal/cpu/cpu_x86.s b/src/internal/cpu/cpu_x86.s
+index 93c712d784..0df5da1cc7 100644
+--- a/src/internal/cpu/cpu_x86.s
++++ b/src/internal/cpu/cpu_x86.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build 386 || amd64
+ // +build 386 amd64
+ 
+ #include "textflag.h"
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index d0ea949fe6..acf2b06665 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !math_big_pure_go
+ // +build !math_big_pure_go
+ 
+ #include "textflag.h"
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 61043ca2d9..59be952200 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !math_big_pure_go
+ // +build !math_big_pure_go
+ 
+ #include "textflag.h"
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index cbf7445e7a..f2872d80a1 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !math_big_pure_go
+ // +build !math_big_pure_go
+ 
+ #include "textflag.h"
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index 22357d088e..7bfe08e7b7 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !math_big_pure_go
+ // +build !math_big_pure_go
+ 
+ #include "textflag.h"
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 804b9fe06e..4b5c502440 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !math_big_pure_go,mips64 !math_big_pure_go,mips64le
++//go:build !math_big_pure_go && (mips64 || mips64le)
++// +build !math_big_pure_go
++// +build mips64 mips64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index efdecb80f3..e72e6d6377 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !math_big_pure_go,mips !math_big_pure_go,mipsle
++//go:build !math_big_pure_go && (mips || mipsle)
++// +build !math_big_pure_go
++// +build mips mipsle
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index b299ccc2fb..68c6286494 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !math_big_pure_go,ppc64 !math_big_pure_go,ppc64le
++//go:build !math_big_pure_go && (ppc64 || ppc64le)
++// +build !math_big_pure_go
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index a2f7666c7b..2e950ddd0f 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !math_big_pure_go && riscv64
+ // +build !math_big_pure_go,riscv64
+ 
+ #include "textflag.h"
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index e96480699a..ad822f76b3 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !math_big_pure_go,s390x
++//go:build !math_big_pure_go
++// +build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index add1064469..e8605f1e15 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !math_big_pure_go
+ // +build !math_big_pure_go
+ 
+ #include "textflag.h"
+diff --git a/src/math/floor_ppc64x.s b/src/math/floor_ppc64x.s
+index 29b92a62c3..584c27e28f 100644
+--- a/src/math/floor_ppc64x.s
++++ b/src/math/floor_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/math/modf_ppc64x.s b/src/math/modf_ppc64x.s
+index caa435eef9..1303067661 100644
+--- a/src/math/modf_ppc64x.s
++++ b/src/math/modf_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/math/sqrt_mipsx.s b/src/math/sqrt_mipsx.s
+index c619c19ec2..291d4af39c 100644
+--- a/src/math/sqrt_mipsx.s
++++ b/src/math/sqrt_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/math/sqrt_ppc64x.s b/src/math/sqrt_ppc64x.s
+index 174b63e35a..c929da2159 100644
+--- a/src/math/sqrt_ppc64x.s
++++ b/src/math/sqrt_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/math/sqrt_riscv64.s b/src/math/sqrt_riscv64.s
+index f223510c42..0dbdbc99ed 100644
+--- a/src/math/sqrt_riscv64.s
++++ b/src/math/sqrt_riscv64.s
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build riscv64
+-
+ #include "textflag.h"
+ 
+ // func archSqrt(x float64) float64
+diff --git a/src/reflect/asm_mips64x.s b/src/reflect/asm_mips64x.s
+index ae661262cb..8d01c5fb7e 100644
+--- a/src/reflect/asm_mips64x.s
++++ b/src/reflect/asm_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "textflag.h"
+diff --git a/src/reflect/asm_mipsx.s b/src/reflect/asm_mipsx.s
+index 47fef844a1..6ea8233108 100644
+--- a/src/reflect/asm_mipsx.s
++++ b/src/reflect/asm_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/reflect/asm_ppc64x.s b/src/reflect/asm_ppc64x.s
+index 010811c31a..d955e4110f 100644
+--- a/src/reflect/asm_ppc64x.s
++++ b/src/reflect/asm_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index c3b57e472a..d4d2280105 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 1d828b03cf..ea7edf20cf 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 2c39b38912..942cc14f17 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/atomic_mips64x.s b/src/runtime/atomic_mips64x.s
+index 6f42412502..e2118e6a20 100644
+--- a/src/runtime/atomic_mips64x.s
++++ b/src/runtime/atomic_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/atomic_mipsx.s b/src/runtime/atomic_mipsx.s
+index ed078a2d8a..1eacd273b4 100644
+--- a/src/runtime/atomic_mipsx.s
++++ b/src/runtime/atomic_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/atomic_ppc64x.s b/src/runtime/atomic_ppc64x.s
+index 57f672f330..b63de2dbd3 100644
+--- a/src/runtime/atomic_ppc64x.s
++++ b/src/runtime/atomic_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+index e51cdf3d12..ba948071fa 100644
+--- a/src/runtime/cgo/asm_mips64x.s
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/cgo/asm_mipsx.s b/src/runtime/cgo/asm_mipsx.s
+index 1127c8beb4..fd5d78ef97 100644
+--- a/src/runtime/cgo/asm_mipsx.s
++++ b/src/runtime/cgo/asm_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/cgo/asm_ppc64x.s b/src/runtime/cgo/asm_ppc64x.s
+index f4efc1e67d..9dec8d04ce 100644
+--- a/src/runtime/cgo/asm_ppc64x.s
++++ b/src/runtime/cgo/asm_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/cgo/asm_riscv64.s b/src/runtime/cgo/asm_riscv64.s
+index b4ddbb020f..fcd1d36ca8 100644
+--- a/src/runtime/cgo/asm_riscv64.s
++++ b/src/runtime/cgo/asm_riscv64.s
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build riscv64
+-
+ #include "textflag.h"
+ 
+ // Called by C code generated by cmd/cgo.
+diff --git a/src/runtime/duff_mips64x.s b/src/runtime/duff_mips64x.s
+index c4e04ccc9d..a897d7fd9b 100644
+--- a/src/runtime/duff_mips64x.s
++++ b/src/runtime/duff_mips64x.s
+@@ -2,6 +2,7 @@
+ // Run go generate from src/runtime to update.
+ // See mkduff.go for comments.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/duff_ppc64x.s b/src/runtime/duff_ppc64x.s
+index d6b89ba940..d4e3b409d2 100644
+--- a/src/runtime/duff_ppc64x.s
++++ b/src/runtime/duff_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Run go generate from src/runtime to update.
+ // See mkduff.go for comments.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index 2751c6f808..fba668f94a 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.s b/src/runtime/internal/atomic/atomic_mipsx.s
+index 3f61321450..c0835d66ed 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.s
++++ b/src/runtime/internal/atomic/atomic_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index 37c8515d37..dca26cb334 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+-
+ // For more details about how various memory models are
+ // enforced on POWER, the following paper provides more
+ // details about how they enforce C/C++ like models. This
+diff --git a/src/runtime/internal/atomic/sys_nonlinux_arm.s b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+index 57568b2238..04036ca970 100644
+--- a/src/runtime/internal/atomic/sys_nonlinux_arm.s
++++ b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !linux,arm
++//go:build !linux
++// +build !linux
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+index 890fde341b..13645fc7af 100644
+--- a/src/runtime/libfuzzer_amd64.s
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build libfuzzer
+ // +build libfuzzer
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/libfuzzer_arm64.s b/src/runtime/libfuzzer_arm64.s
+index 121673e092..4ad8242804 100644
+--- a/src/runtime/libfuzzer_arm64.s
++++ b/src/runtime/libfuzzer_arm64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build libfuzzer
+ // +build libfuzzer
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index d2ef17f7ce..046c344119 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !plan9
+ // +build !plan9
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index 5d2bebb901..a10f57bd8c 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !plan9
+ // +build !plan9
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/memclr_mips64x.s b/src/runtime/memclr_mips64x.s
+index d7a3251e20..bc037013fe 100644
+--- a/src/runtime/memclr_mips64x.s
++++ b/src/runtime/memclr_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/memclr_mipsx.s b/src/runtime/memclr_mipsx.s
+index eb2a8a7219..3d21c3c414 100644
+--- a/src/runtime/memclr_mipsx.s
++++ b/src/runtime/memclr_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index 7512620894..65639322b2 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index d99546c633..1a43a1f724 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -23,6 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++//go:build !plan9
+ // +build !plan9
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index f1e3403596..24c6529f58 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -23,6 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++//go:build !plan9
+ // +build !plan9
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/memmove_mips64x.s b/src/runtime/memmove_mips64x.s
+index 8a1b88afba..fef3c6be82 100644
+--- a/src/runtime/memmove_mips64x.s
++++ b/src/runtime/memmove_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/memmove_mipsx.s b/src/runtime/memmove_mipsx.s
+index 6c86558f8d..cd02fc25c4 100644
+--- a/src/runtime/memmove_mipsx.s
++++ b/src/runtime/memmove_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index dbd835506f..fd16ad8129 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 8632fe08a3..da191cc594 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -179,6 +179,7 @@ func copyARM64(w io.Writer) {
+ 
+ func tagsPPC64x(w io.Writer) {
+ 	fmt.Fprintln(w)
++	fmt.Fprintln(w, "//go:build ppc64 || ppc64le")
+ 	fmt.Fprintln(w, "// +build ppc64 ppc64le")
+ 	fmt.Fprintln(w)
+ }
+@@ -202,6 +203,7 @@ func copyPPC64x(w io.Writer) {
+ 
+ func tagsMIPS64x(w io.Writer) {
+ 	fmt.Fprintln(w)
++	fmt.Fprintln(w, "//go:build mips64 || mips64le")
+ 	fmt.Fprintln(w, "// +build mips64 mips64le")
+ 	fmt.Fprintln(w)
+ }
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 3a9e6cc478..6c980540f5 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -123,6 +123,7 @@ func header(arch string) {
+ 	fmt.Fprintf(out, "// Code generated by mkpreempt.go; DO NOT EDIT.\n\n")
+ 	if beLe[arch] {
+ 		base := arch[:len(arch)-1]
++		fmt.Fprintf(out, "//go:build %s || %sle\n", base, base)
+ 		fmt.Fprintf(out, "// +build %s %sle\n\n", base, base)
+ 	}
+ 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
+diff --git a/src/runtime/msan_amd64.s b/src/runtime/msan_amd64.s
+index 669e9ca73f..1bb57a3b7e 100644
+--- a/src/runtime/msan_amd64.s
++++ b/src/runtime/msan_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build msan
+ // +build msan
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/msan_arm64.s b/src/runtime/msan_arm64.s
+index f19906cfc8..93ade8dd89 100644
+--- a/src/runtime/msan_arm64.s
++++ b/src/runtime/msan_arm64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build msan
+ // +build msan
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/preempt_mips64x.s b/src/runtime/preempt_mips64x.s
+index 0d0c157c36..b755425bc5 100644
+--- a/src/runtime/preempt_mips64x.s
++++ b/src/runtime/preempt_mips64x.s
+@@ -1,5 +1,6 @@
+ // Code generated by mkpreempt.go; DO NOT EDIT.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/preempt_mipsx.s b/src/runtime/preempt_mipsx.s
+index 86d3a918d3..c1bff60859 100644
+--- a/src/runtime/preempt_mipsx.s
++++ b/src/runtime/preempt_mipsx.s
+@@ -1,5 +1,6 @@
+ // Code generated by mkpreempt.go; DO NOT EDIT.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/preempt_ppc64x.s b/src/runtime/preempt_ppc64x.s
+index 90634386db..70bd91982b 100644
+--- a/src/runtime/preempt_ppc64x.s
++++ b/src/runtime/preempt_ppc64x.s
+@@ -1,5 +1,6 @@
+ // Code generated by mkpreempt.go; DO NOT EDIT.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 58a919efe8..8d4813eadd 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build race
+ // +build race
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 82e3caadc8..c6d5b91edc 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build race
+ // +build race
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 069e4d86dd..963e57099c 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build race
+ // +build race
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/rt0_linux_mips64x.s b/src/runtime/rt0_linux_mips64x.s
+index 55506755df..fabd8570b5 100644
+--- a/src/runtime/rt0_linux_mips64x.s
++++ b/src/runtime/rt0_linux_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && (mips64 || mips64le)
+ // +build linux
+ // +build mips64 mips64le
+ 
+diff --git a/src/runtime/rt0_linux_mipsx.s b/src/runtime/rt0_linux_mipsx.s
+index 74b8f50b73..9f5842b51a 100644
+--- a/src/runtime/rt0_linux_mipsx.s
++++ b/src/runtime/rt0_linux_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && (mips || mipsle)
+ // +build linux
+ // +build mips mipsle
+ 
+diff --git a/src/runtime/sys_aix_ppc64.s b/src/runtime/sys_aix_ppc64.s
+index a56d043f42..c171c191c0 100644
+--- a/src/runtime/sys_aix_ppc64.s
++++ b/src/runtime/sys_aix_ppc64.s
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix
+-// +build ppc64 ppc64le
+-
+ //
+ // System calls and other sys.stuff for ppc64, Aix
+ //
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 0206cb88bd..e18d291445 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && (mips64 || mips64le)
+ // +build linux
+ // +build mips64 mips64le
+ 
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index d5317d3957..b3970be9cf 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && (mips || mipsle)
+ // +build linux
+ // +build mips mipsle
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 46387288d5..05b5916db4 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && (ppc64 || ppc64le)
+ // +build linux
+ // +build ppc64 ppc64le
+ 
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index e42de8deb4..879caac9e1 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/tls_mips64x.s b/src/runtime/tls_mips64x.s
+index 888c0efec6..779d64ba31 100644
+--- a/src/runtime/tls_mips64x.s
++++ b/src/runtime/tls_mips64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips64 || mips64le
+ // +build mips64 mips64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/tls_mipsx.s b/src/runtime/tls_mipsx.s
+index d2ffcd954c..ada8d06a9e 100644
+--- a/src/runtime/tls_mipsx.s
++++ b/src/runtime/tls_mipsx.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build mips || mipsle
+ // +build mips mipsle
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/tls_ppc64x.s b/src/runtime/tls_ppc64x.s
+index 25d796fcc6..7e935d0eb2 100644
+--- a/src/runtime/tls_ppc64x.s
++++ b/src/runtime/tls_ppc64x.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ppc64 || ppc64le
+ // +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+diff --git a/src/runtime/wincallback.go b/src/runtime/wincallback.go
+index 8411c98412..a7a787d8f6 100644
+--- a/src/runtime/wincallback.go
++++ b/src/runtime/wincallback.go
+@@ -22,7 +22,9 @@ func genasm386Amd64() {
+ 
+ 	buf.WriteString(`// Code generated by wincallback.go using 'go generate'. DO NOT EDIT.
+ 
++//go:build 386 || amd64
+ // +build 386 amd64
++
+ // runtime·callbackasm is called by external code to
+ // execute Go implemented callback function. It is not
+ // called from the start, instead runtime·compilecallback
+diff --git a/src/runtime/zcallback_windows.s b/src/runtime/zcallback_windows.s
+index 37ffb38aca..e451c2b9d0 100644
+--- a/src/runtime/zcallback_windows.s
++++ b/src/runtime/zcallback_windows.s
+@@ -1,6 +1,8 @@
+ // Code generated by wincallback.go using 'go generate'. DO NOT EDIT.
+ 
++//go:build 386 || amd64
+ // +build 386 amd64
++
+ // runtime·callbackasm is called by external code to
+ // execute Go implemented callback function. It is not
+ // called from the start, instead runtime·compilecallback
+diff --git a/src/sync/atomic/asm.s b/src/sync/atomic/asm.s
+index f86726f3a1..7b8c9b9430 100644
+--- a/src/sync/atomic/asm.s
++++ b/src/sync/atomic/asm.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !race
+ // +build !race
+ 
+ #include "textflag.h"
+diff --git a/src/sync/atomic/race.s b/src/sync/atomic/race.s
+index fd6ca22700..0866487cc7 100644
+--- a/src/sync/atomic/race.s
++++ b/src/sync/atomic/race.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build race
+ // +build race
+ 
+ // This file is here only to allow external functions.

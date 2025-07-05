@@ -8,7 +8,35 @@ Date:   Fri Apr 17 14:45:51 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9061
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/decode.go       | 3 +++
  src/encoding/gob/encoder_test.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 40dcc8eb7e..b34110f6f9 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -575,6 +575,9 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
+ func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
+ 	instr := &decInstr{elemOp, 0, nil, errors.New("no error")}
+ 	for i := 0; i < length; i++ {
++		if state.b.Len() == 0 {
++			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
++		}
+ 		elemOp(instr, state, noValue)
+ 	}
+ }
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 87b3e2af13..c0bd379c93 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -953,6 +953,8 @@ var badDataTests = []badDataTest{
+ 	{"130a00fb5dad0bf8ff020263e70002fa28020202a89859", "slice length too large", nil},
+ 	{"0f1000fb285d003316020735ff023a65c5", "interface encoding", nil},
+ 	{"03fffb0616fffc00f902ff02ff03bf005d02885802a311a8120228022c028ee7", "GobDecoder", nil},
++	// Issue 10491.
++	{"10fe010f020102fe01100001fe010e000016fe010d030102fe010e00010101015801fe01100000000bfe011000f85555555555555555", "length exceeds input size", nil},
+ }
+ 
+ // TestBadData tests that various problems caused by malformed input

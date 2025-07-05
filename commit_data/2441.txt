@@ -9,7 +9,7 @@ Date:   Wed Jun 10 11:53:07 2009 -0700
     DELTA=1329  (1264 added, 1 deleted, 64 changed)
     OCL=30040
     CL=30158
-
+---
  src/pkg/runtime/Makefile           |   5 +
  src/pkg/runtime/arm/asm.s          | 246 ++++++++----
  src/pkg/runtime/arm/traceback.c    | 147 ++++++++
@@ -19,3 +19,1524 @@ Date:   Wed Jun 10 11:53:07 2009 -0700
  src/pkg/runtime/linux/arm/signal.c | 100 +++++
  src/pkg/runtime/linux/arm/sys.s    |  24 +-
  8 files changed, 1380 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 5a5ace9c57..cd0bdaaf4a 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -31,6 +31,11 @@ OFILES_386=\
+ 	vlop.$O\
+ 	vlrt.$O\
+ 
++# arm-specific object files
++OFILES_arm=\
++	vlop.$O\
++	vlrt.$O\
++
+ OFILES=\
+ 	array.$O\
+ 	asm.$O\
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 232ab4ddf0..e47ab86e31 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT _rt0_arm(SB),7,$0
+-	// copy arguments forward on an even stack
+-    //      	MOVW	$0(SP), R0
+-    //	MOVL	0(SP), R1		// argc
++// copy arguments forward on an even stack
++//     	MOVW	$0(SP), R0
++//	MOVL	0(SP), R1		// argc
+ //	LEAL	4(SP), R1		// argv
+ //	SUBL	$128, SP		// plenty of scratch
+ //	ANDL	$~7, SP
+@@ -13,71 +13,193 @@ TEXT _rt0_arm(SB),7,$0
+ //	MOVL	BX, 124(SP)
+ 
+ 
+-// 	// write "go386\n"
+-// 	PUSHL	$6
+-// 	PUSHL	$hello(SB)
+-// 	PUSHL	$1
+-// 	CALL	sys·write(SB)
+-// 	POPL	AX
+-// 	POPL	AX
+-// 	POPL	AX
++//	// write "go386\n"
++//	PUSHL	$6
++//	PUSHL	$hello(SB)
++//	PUSHL	$1
++//	CALL	sys·write(SB)
++//	POPL	AX
++//	POPL	AX
++//	POPL	AX
+ 
+ 
+-// 	CALL	ldt0setup(SB)
++//	CALL	ldt0setup(SB)
+ 
+ 	// set up %fs to refer to that ldt entry
+-// 	MOVL	$(7*8+7), AX
+-// 	MOVW	AX, FS
+-
+-// 	// store through it, to make sure it works
+-// 	MOVL	$0x123, 0(FS)
+-// 	MOVL	tls0(SB), AX
+-// 	CMPL	AX, $0x123
+-// 	JEQ	ok
+-// 	MOVL	AX, 0
++//	MOVL	$(7*8+7), AX
++//	MOVW	AX, FS
++
++//	// store through it, to make sure it works
++//	MOVL	$0x123, 0(FS)
++//	MOVL	tls0(SB), AX
++//	CMPL	AX, $0x123
++//	JEQ	ok
++//	MOVL	AX, 0
+ // ok:
+ 
+-// 	// set up m and g "registers"
+-// 	// g is 0(FS), m is 4(FS)
+-// 	LEAL	g0(SB), CX
+-// 	MOVL	CX, 0(FS)
+-// 	LEAL	m0(SB), AX
+-// 	MOVL	AX, 4(FS)
+-
+-// 	// save m->g0 = g0
+-// 	MOVL	CX, 0(AX)
+-
+-// 	// create istack out of the OS stack
+-// 	LEAL	(-8192+104)(SP), AX	// TODO: 104?
+-// 	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
+-// 	MOVL	SP, 4(CX)	// 12(g) is base
+-// 	CALL	emptyfunc(SB)	// fault if stack check is wrong
+-
+-// 	// convention is D is always cleared
+-// 	CLD
+-
+-// 	CALL	check(SB)
+-
+-// 	// saved argc, argv
+-// 	MOVL	120(SP), AX
+-// 	MOVL	AX, 0(SP)
+-// 	MOVL	124(SP), AX
+-// 	MOVL	AX, 4(SP)
+-// 	CALL	args(SB)
+-// 	CALL	osinit(SB)
+-// 	CALL	schedinit(SB)
+-
+-// 	// create a new goroutine to start program
+-// 	PUSHL	$mainstart(SB)	// entry
+-// 	PUSHL	$8	// arg size
+-// 	CALL	sys·newproc(SB)
+-// 	POPL	AX
+-// 	POPL	AX
+-
+-// 	// start this M
+-// 	CALL	mstart(SB)
+-
+-	BL	main�main(SB)
++//	// set up m and g "registers"
++//	// g is 0(FS), m is 4(FS)
++//	LEAL	g0(SB), CX
++//	MOVL	CX, 0(FS)
++//	LEAL	m0(SB), AX
++//	MOVL	AX, 4(FS)
++
++//	// save m->g0 = g0
++//	MOVL	CX, 0(AX)
++
++//	// create istack out of the OS stack
++//	LEAL	(-8192+104)(SP), AX	// TODO: 104?
++//	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
++//	MOVL	SP, 4(CX)	// 12(g) is base
++//	CALL	emptyfunc(SB)	// fault if stack check is wrong
++
++//	// convention is D is always cleared
++//	CLD
++
++//	CALL	check(SB)
++
++//	// saved argc, argv
++//	MOVL	120(SP), AX
++//	MOVL	AX, 0(SP)
++//	MOVL	124(SP), AX
++//	MOVL	AX, 4(SP)
++//	CALL	args(SB)
++//	CALL	osinit(SB)
++//	CALL	schedinit(SB)
++
++//	// create a new goroutine to start program
++//	PUSHL	$mainstart(SB)	// entry
++//	PUSHL	$8	// arg size
++//	CALL	sys·newproc(SB)
++//	POPL	AX
++//	POPL	AX
++
++//	// start this M
++//	CALL	mstart(SB)
++
++	BL	main·main(SB)
+ 	MOVW	$99, R0
+ 	SWI	$0x00900001
+ 
++// TODO(kaib): remove these once linker works properly
++// pull in dummy dependencies
++// TEXT _dep_dummy(SB),7,$0
++//	BL	sys·morestack(SB)
++
++
++TEXT	breakpoint(SB),7,$0
++	BL	abort(SB)
++//	BYTE $0xcc
++//	RET
++
++// go-routine
++TEXT	gogo(SB), 7, $0
++	BL	abort(SB)
++//	MOVL	4(SP), AX	// gobuf
++//	MOVL	0(AX), SP	// restore SP
++//	MOVL	4(AX), AX
++//	MOVL	AX, 0(SP)	// put PC on the stack
++//	MOVL	$1, AX
++//	RET
++
++TEXT gosave(SB), 7, $0
++	BL	abort(SB)
++//	MOVL	4(SP), AX	// gobuf
++//	MOVL	SP, 0(AX)	// save SP
++//	MOVL	0(SP), BX
++//	MOVL	BX, 4(AX)	// save PC
++//	MOVL	$0, AX	// return 0
++//	RET
++
++// support for morestack
++
++// return point when leaving new stack.
++// save AX, jmp to lesstack to switch back
++TEXT	retfromnewstack(SB),7,$0
++	BL	abort(SB)
++//	MOVL	4(FS), BX	// m
++//	MOVL	AX, 12(BX)	// save AX in m->cret
++//	JMP	lessstack(SB)
++
++// gogo, returning 2nd arg instead of 1
++TEXT gogoret(SB), 7, $0
++	BL	abort(SB)
++//	MOVL	8(SP), AX	// return 2nd arg
++//	MOVL	4(SP), BX	// gobuf
++//	MOVL	0(BX), SP	// restore SP
++//	MOVL	4(BX), BX
++//	MOVL	BX, 0(SP)	// put PC on the stack
++//	RET
++
++TEXT setspgoto(SB), 7, $0
++	BL	abort(SB)
++//	MOVL	4(SP), AX	// SP
++//	MOVL	8(SP), BX	// fn to call
++//	MOVL	12(SP), CX	// fn to return
++//	MOVL	AX, SP
++//	PUSHL	CX
++//	JMP	BX
++//	POPL	AX	// not reached
++//	RET
++
++// bool cas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	}else
++//		return 0;
++TEXT cas(SB), 7, $0
++	BL	abort(SB)
++//	MOVL	4(SP), BX
++//	MOVL	8(SP), AX
++//	MOVL	12(SP), CX
++//	LOCK
++//	CMPXCHGL	CX, 0(BX)
++//	JZ 3(PC)
++//	MOVL	$0, AX
++//	RET
++//	MOVL	$1, AX
++//	RET
++
++// void jmpdefer(fn, sp);
++// called from deferreturn.
++// 1. pop the caller
++// 2. sub 5 bytes from the callers return
++// 3. jmp to the argument
++TEXT jmpdefer(SB), 7, $0
++	BL	abort(SB)
++//	MOVL	4(SP), AX	// fn
++//	MOVL	8(SP), BX	// caller sp
++//	LEAL	-4(BX), SP	// caller sp after CALL
++//	SUBL	$5, (SP)	// return to CALL again
++//	JMP	AX	// but first run the deferred function
++
++TEXT	sys·memclr(SB),7,$0
++	BL	abort(SB)
++//	MOVL	4(SP), DI		// arg 1 addr
++//	MOVL	8(SP), CX		// arg 2 count
++//	ADDL	$3, CX
++//	SHRL	$2, CX
++//	MOVL	$0, AX
++//	CLD
++//	REP
++//	STOSL
++//	RET
++
++TEXT	sys·getcallerpc+0(SB),7,$0
++	BL	abort(SB)
++//	MOVL	x+0(FP),AX		// addr of first arg
++//	MOVL	-4(AX),AX		// get calling pc
++//	RET
++
++TEXT	sys·setcallerpc+0(SB),7,$0
++	BL	abort(SB)
++//	MOVL	x+0(FP),AX		// addr of first arg
++//	MOVL	x+4(FP), BX
++//	MOVL	BX, -4(AX)		// set calling pc
++//	RET
++
++TEXT abort(SB),7,$0
++	WORD	$0
++
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+new file mode 100644
+index 0000000000..3b862c3ee4
+--- /dev/null
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -0,0 +1,147 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// TODO(rsc): Move this into portable code, with calls to a
++// machine-dependent isclosure() function.
++
++void
++traceback(byte *pc0, byte *sp, G *g)
++{
++// 	Stktop *stk;
++// 	uintptr pc;
++// 	int32 i, n;
++// 	Func *f;
++// 	byte *p;
++
++// 	pc = (uintptr)pc0;
++
++// 	// If the PC is zero, it's likely a nil function call.
++// 	// Start in the caller's frame.
++// 	if(pc == 0) {
++// 		pc = *(uintptr*)sp;
++// 		sp += sizeof(uintptr);
++// 	}
++
++// 	stk = (Stktop*)g->stackbase;
++// 	for(n=0; n<100; n++) {
++// 		while(pc == (uintptr)retfromnewstack) {
++// 			// pop to earlier stack block
++// 			sp = stk->oldsp;
++// 			stk = (Stktop*)stk->oldbase;
++// 			pc = *(uintptr*)(sp+sizeof(uintptr));
++// 			sp += 2*sizeof(uintptr);	// two irrelevant calls on stack: morestack plus its call
++// 		}
++// 		f = findfunc(pc);
++// 		if(f == nil) {
++// 			// dangerous, but poke around to see if it is a closure
++// 			p = (byte*)pc;
++// 			// ADDL $xxx, SP; RET
++// 			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++// 				sp += *(uint32*)(p+2) + 8;
++// 				pc = *(uintptr*)(sp - 8);
++// 				if(pc <= 0x1000)
++// 					return;
++// 				continue;
++// 			}
++// 			printf("%p unknown pc\n", pc);
++// 			return;
++// 		}
++// 		if(f->frame < sizeof(uintptr))	// assembly funcs say 0 but lie
++// 			sp += sizeof(uintptr);
++// 		else
++// 			sp += f->frame;
++
++// 		// print this frame
++// 		//	main+0xf /home/rsc/go/src/runtime/x.go:23
++// 		//		main(0x1, 0x2, 0x3)
++// 		printf("%S", f->name);
++// 		if(pc > f->entry)
++// 			printf("+%p", (uintptr)(pc - f->entry));
++// 		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
++// 		printf("\t%S(", f->name);
++// 		for(i = 0; i < f->args; i++) {
++// 			if(i != 0)
++// 				prints(", ");
++// 			sys·printhex(((uint32*)sp)[i]);
++// 			if(i >= 4) {
++// 				prints(", ...");
++// 				break;
++// 			}
++// 		}
++// 		prints(")\n");
++
++// 		pc = *(uintptr*)(sp-sizeof(uintptr));
++// 		if(pc <= 0x1000)
++// 			return;
++// 	}
++// 	prints("...\n");
++}
++
++// func caller(n int) (pc uintptr, file string, line int, ok bool)
++void
++runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retbool)
++{
++// 	uintptr pc;
++// 	byte *sp;
++// 	byte *p;
++// 	Stktop *stk;
++// 	Func *f;
++
++// 	// our caller's pc, sp.
++// 	sp = (byte*)&n;
++// 	pc = *((uintptr*)sp - 1);
++// 	if((f = findfunc(pc)) == nil) {
++// 	error:
++// 		retpc = 0;
++// 		retline = 0;
++// 		retfile = emptystring;
++// 		retbool = false;
++// 		FLUSH(&retpc);
++// 		FLUSH(&retfile);
++// 		FLUSH(&retline);
++// 		FLUSH(&retbool);
++// 		return;
++// 	}
++
++// 	// now unwind n levels
++// 	stk = (Stktop*)g->stackbase;
++// 	while(n-- > 0) {
++// 		while(pc == (uintptr)retfromnewstack) {
++// 			sp = stk->oldsp;
++// 			stk = (Stktop*)stk->oldbase;
++// 			pc = *((uintptr*)sp + 1);
++// 			sp += 2*sizeof(uintptr);
++// 		}
++
++// 		if(f->frame < sizeof(uintptr))	// assembly functions lie
++// 			sp += sizeof(uintptr);
++// 		else
++// 			sp += f->frame;
++
++// 	loop:
++// 		pc = *((uintptr*)sp - 1);
++// 		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
++// 			// dangerous, but let's try this.
++// 			// see if it is a closure.
++// 			p = (byte*)pc;
++// 			// ADDL $xxx, SP; RET
++// 			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++// 				sp += *(uint32*)(p+2) + sizeof(uintptr);
++// 				goto loop;
++// 			}
++// 			goto error;
++// 		}
++// 	}
++
++// 	retpc = pc;
++// 	retfile = f->src;
++// 	retline = funcline(f, pc-1);
++// 	retbool = true;
++// 	FLUSH(&retpc);
++// 	FLUSH(&retfile);
++// 	FLUSH(&retline);
++// 	FLUSH(&retbool);
++}
+diff --git a/src/pkg/runtime/arm/traceback.s b/src/pkg/runtime/arm/traceback.s
+deleted file mode 100644
+index e69de29bb2..0000000000
+diff --git a/src/pkg/runtime/arm/vlop.s b/src/pkg/runtime/arm/vlop.s
+new file mode 100644
+index 0000000000..010e62ae65
+--- /dev/null
++++ b/src/pkg/runtime/arm/vlop.s
+@@ -0,0 +1,178 @@
++// Inferno's libkern/vlop-arm.s
++// http://code.google.com/p/inferno-os/source/browse/libkern/vlop-arm.s
++//
++//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
++//         Portions Copyright 2009 The Go Authors. All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#define UMULL(Rs,Rm,Rhi,Rlo,S)  WORD	 $((14<<28)|(4<<21)|(S<<20)|(Rhi<<16)|(Rlo<<12)|(Rs<<8)|(9<<4)|Rm)
++#define UMLAL(Rs,Rm,Rhi,Rlo,S)  WORD	 $((14<<28)|(5<<21)|(S<<20)|(Rhi<<16)|(Rlo<<12)|(Rs<<8)|(9<<4)|Rm)
++#define MUL(Rs,Rm,Rd,S) WORD	 $((14<<28)|(0<<21)|(S<<20)|(Rd<<16)|(Rs<<8)|(9<<4)|Rm)
++arg=0
++
++/* replaced use of R10 by R11 because the former can be the data segment base register */
++
++TEXT	_mulv(SB), $0
++	MOVW	8(FP), R9		/* l0 */
++	MOVW	4(FP), R11	  /* h0 */
++	MOVW	16(FP), R4	  /* l1 */
++	MOVW	12(FP), R5	  /* h1 */
++	UMULL(4, 9, 7, 6, 0)
++	MUL(11, 4, 8, 0)
++	ADD	R8, R7
++	MUL(9, 5, 8, 0)
++	ADD	R8, R7
++	MOVW	R6, 4(R(arg))
++	MOVW	R7, 0(R(arg))
++	RET
++
++/* multiply, add, and right-shift, yielding a 32-bit result, while
++	using 64-bit accuracy for the multiply -- for fast fixed-point math */
++TEXT	_mularsv(SB), $0
++	MOVW	4(FP), R11	  /* m1 */
++	MOVW	8(FP),  R8	  /* a */
++	MOVW	12(FP), R4	  /* rs */
++	MOVW	$0, R9
++	UMLAL(0, 11, 9, 8, 0)
++	MOVW	R8>>R4, R8
++	RSB	$32, R4, R4
++	ORR	R9<<R4, R8, R0
++	RET
++
++Q	= 0
++N	= 1
++D	= 2
++CC	= 3
++TMP	= 11
++
++TEXT	save<>(SB), 7, $0
++	MOVW	R(Q), 0(FP)
++	MOVW	R(N), 4(FP)
++	MOVW	R(D), 8(FP)
++	MOVW	R(CC), 12(FP)
++
++	MOVW	R(TMP), R(Q)		/* numerator */
++	MOVW	20(FP), R(D)		/* denominator */
++	CMP	$0, R(D)
++	BNE	s1
++	SWI		 0
++/*	  MOVW	-1(R(D)), R(TMP)	/* divide by zero fault */
++s1:	 RET
++
++TEXT	rest<>(SB), 7, $0
++	MOVW	0(FP), R(Q)
++	MOVW	4(FP), R(N)
++	MOVW	8(FP), R(D)
++	MOVW	12(FP), R(CC)
++/*
++ * return to caller
++ * of rest<>
++ */
++	MOVW	0(R13), R14
++	ADD	$20, R13
++	B	(R14)
++
++TEXT	div<>(SB), 7, $0
++	MOVW	$32, R(CC)
++/*
++ * skip zeros 8-at-a-time
++ */
++e1:
++	AND.S	$(0xff<<24),R(Q), R(N)
++	BNE	e2
++	SLL	$8, R(Q)
++	SUB.S	$8, R(CC)
++	BNE	e1
++	RET
++e2:
++	MOVW	$0, R(N)
++
++loop:
++/*
++ * shift R(N||Q) left one
++ */
++	SLL	$1, R(N)
++	CMP	$0, R(Q)
++	ORR.LT  $1, R(N)
++	SLL	$1, R(Q)
++
++/*
++ * compare numerator to denominator
++ * if less, subtract and set quotent bit
++ */
++	CMP	R(D), R(N)
++	ORR.HS  $1, R(Q)
++	SUB.HS  R(D), R(N)
++	SUB.S	$1, R(CC)
++	BNE	loop
++	RET
++
++TEXT	_div(SB), 7, $16
++	BL	save<>(SB)
++	CMP	$0, R(Q)
++	BGE	d1
++	RSB	$0, R(Q), R(Q)
++	CMP	$0, R(D)
++	BGE	d2
++	RSB	$0, R(D), R(D)
++d0:
++	BL	div<>(SB)			/* none/both neg */
++	MOVW	R(Q), R(TMP)
++	B	out
++d1:
++	CMP	$0, R(D)
++	BGE	d0
++	RSB	$0, R(D), R(D)
++d2:
++	BL	div<>(SB)			/* one neg */
++	RSB	$0, R(Q), R(TMP)
++	B	out
++
++TEXT	_mod(SB), 7, $16
++	BL	save<>(SB)
++	CMP	$0, R(D)
++	RSB.LT	$0, R(D), R(D)
++	CMP	$0, R(Q)
++	BGE	m1
++	RSB	$0, R(Q), R(Q)
++	BL	div<>(SB)			/* neg numerator */
++	RSB	$0, R(N), R(TMP)
++	B	out
++m1:
++	BL	div<>(SB)			/* pos numerator */
++	MOVW	R(N), R(TMP)
++	B	out
++
++TEXT	_divu(SB), 7, $16
++	BL	save<>(SB)
++	BL	div<>(SB)
++	MOVW	R(Q), R(TMP)
++	B	out
++
++TEXT	_modu(SB), 7, $16
++	BL	save<>(SB)
++	BL	div<>(SB)
++	MOVW	R(N), R(TMP)
++	B	out
++
++out:
++	BL	rest<>(SB)
++	B	out
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/arm/vlrt.c
+new file mode 100755
+index 0000000000..6f695b3ebd
+--- /dev/null
++++ b/src/pkg/runtime/arm/vlrt.c
+@@ -0,0 +1,743 @@
++// Inferno's libkern/vlrt-arm.c
++// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
++//
++//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
++//         Portions Copyright 2009 The Go Authors. All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++typedef unsigned long   ulong;
++typedef unsigned int    uint;
++typedef unsigned short  ushort;
++typedef unsigned char   uchar;
++typedef signed char     schar;
++
++#define SIGN(n) (1UL<<(n-1))
++
++typedef struct  Vlong   Vlong;
++struct  Vlong
++{
++        union
++        {
++                struct
++                {
++                        ulong   hi;
++                        ulong   lo;
++                };
++                struct
++                {
++                        ushort  hims;
++                        ushort  hils;
++                        ushort  loms;
++                        ushort  lols;
++                };
++        };
++};
++
++void    abort(void);
++
++void
++_addv(Vlong *r, Vlong a, Vlong b)
++{
++        ulong lo, hi;
++
++        lo = a.lo + b.lo;
++        hi = a.hi + b.hi;
++        if(lo < a.lo)
++                hi++;
++        r->lo = lo;
++        r->hi = hi;
++}
++
++void
++_subv(Vlong *r, Vlong a, Vlong b)
++{
++        ulong lo, hi;
++
++        lo = a.lo - b.lo;
++        hi = a.hi - b.hi;
++        if(lo > a.lo)
++                hi--;
++        r->lo = lo;
++        r->hi = hi;
++}
++
++
++void
++_d2v(Vlong *y, double d)
++{
++        union { double d; struct Vlong; } x;
++        ulong xhi, xlo, ylo, yhi;
++        int sh;
++
++        x.d = d;
++
++        xhi = (x.hi & 0xfffff) | 0x100000;
++        xlo = x.lo;
++        sh = 1075 - ((x.hi >> 20) & 0x7ff);
++
++        ylo = 0;
++        yhi = 0;
++        if(sh >= 0) {
++                /* v = (hi||lo) >> sh */
++                if(sh < 32) {
++                        if(sh == 0) {
++                                ylo = xlo;
++                                yhi = xhi;
++                        } else {
++                                ylo = (xlo >> sh) | (xhi << (32-sh));
++                                yhi = xhi >> sh;
++                        }
++                } else {
++                        if(sh == 32) {
++                                ylo = xhi;
++                        } else
++                        if(sh < 64) {
++                                ylo = xhi >> (sh-32);
++                        }
++                }
++        } else {
++                /* v = (hi||lo) << -sh */
++                sh = -sh;
++                if(sh <= 10) {
++                        ylo = xlo << sh;
++                        yhi = (xhi << sh) | (xlo >> (32-sh));
++                } else {
++                        /* overflow */
++                        yhi = d;        /* causes something awful */
++                }
++        }
++        if(x.hi & SIGN(32)) {
++                if(ylo != 0) {
++                        ylo = -ylo;
++                        yhi = ~yhi;
++                } else
++                        yhi = -yhi;
++        }
++
++        y->hi = yhi;
++        y->lo = ylo;
++}
++
++void
++_f2v(Vlong *y, float f)
++{
++        _d2v(y, f);
++}
++
++double
++_v2d(Vlong x)
++{
++        if(x.hi & SIGN(32)) {
++                if(x.lo) {
++                        x.lo = -x.lo;
++                        x.hi = ~x.hi;
++                } else
++                        x.hi = -x.hi;
++                return -((long)x.hi*4294967296. + x.lo);
++        }
++        return (long)x.hi*4294967296. + x.lo;
++}
++
++float
++_v2f(Vlong x)
++{
++        return _v2d(x);
++}
++
++static void
++dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
++{
++        ulong numlo, numhi, denhi, denlo, quohi, quolo, t;
++        int i;
++
++        numhi = num.hi;
++        numlo = num.lo;
++        denhi = den.hi;
++        denlo = den.lo;
++
++        /*
++         * get a divide by zero
++         */
++        if(denlo==0 && denhi==0) {
++                numlo = numlo / denlo;
++        }
++
++        /*
++         * set up the divisor and find the number of iterations needed
++         */
++        if(numhi >= SIGN(32)) {
++                quohi = SIGN(32);
++                quolo = 0;
++        } else {
++                quohi = numhi;
++                quolo = numlo;
++        }
++        i = 0;
++        while(denhi < quohi || (denhi == quohi && denlo < quolo)) {
++                denhi = (denhi<<1) | (denlo>>31);
++                denlo <<= 1;
++                i++;
++        }
++
++        quohi = 0;
++        quolo = 0;
++        for(; i >= 0; i--) {
++                quohi = (quohi<<1) | (quolo>>31);
++                quolo <<= 1;
++                if(numhi > denhi || (numhi == denhi && numlo >= denlo)) {
++                        t = numlo;
++                        numlo -= denlo;
++                        if(numlo > t)
++                                numhi--;
++                        numhi -= denhi;
++                        quolo |= 1;
++                }
++                denlo = (denlo>>1) | (denhi<<31);
++                denhi >>= 1;
++        }
++
++        if(q) {
++                q->lo = quolo;
++                q->hi = quohi;
++        }
++        if(r) {
++                r->lo = numlo;
++                r->hi = numhi;
++        }
++}
++
++void
++_divvu(Vlong *q, Vlong n, Vlong d)
++{
++
++        if(n.hi == 0 && d.hi == 0) {
++                q->hi = 0;
++                q->lo = n.lo / d.lo;
++                return;
++        }
++        dodiv(n, d, q, 0);
++}
++
++void
++_modvu(Vlong *r, Vlong n, Vlong d)
++{
++
++        if(n.hi == 0 && d.hi == 0) {
++                r->hi = 0;
++                r->lo = n.lo % d.lo;
++                return;
++        }
++        dodiv(n, d, 0, r);
++}
++
++static void
++vneg(Vlong *v)
++{
++
++        if(v->lo == 0) {
++                v->hi = -v->hi;
++                return;
++        }
++        v->lo = -v->lo;
++        v->hi = ~v->hi;
++}
++
++void
++_divv(Vlong *q, Vlong n, Vlong d)
++{
++        long nneg, dneg;
++
++        if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
++                q->lo = (long)n.lo / (long)d.lo;
++                q->hi = ((long)q->lo) >> 31;
++                return;
++        }
++        nneg = n.hi >> 31;
++        if(nneg)
++                vneg(&n);
++        dneg = d.hi >> 31;
++        if(dneg)
++                vneg(&d);
++        dodiv(n, d, q, 0);
++        if(nneg != dneg)
++                vneg(q);
++}
++
++void
++_modv(Vlong *r, Vlong n, Vlong d)
++{
++        long nneg, dneg;
++
++        if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
++                r->lo = (long)n.lo % (long)d.lo;
++                r->hi = ((long)r->lo) >> 31;
++                return;
++        }
++        nneg = n.hi >> 31;
++        if(nneg)
++                vneg(&n);
++        dneg = d.hi >> 31;
++        if(dneg)
++                vneg(&d);
++        dodiv(n, d, 0, r);
++        if(nneg)
++                vneg(r);
++}
++
++void
++_rshav(Vlong *r, Vlong a, int b)
++{
++        long t;
++
++        t = a.hi;
++        if(b >= 32) {
++                r->hi = t>>31;
++                if(b >= 64) {
++                        /* this is illegal re C standard */
++                        r->lo = t>>31;
++                        return;
++                }
++                r->lo = t >> (b-32);
++                return;
++        }
++        if(b <= 0) {
++                r->hi = t;
++                r->lo = a.lo;
++                return;
++        }
++        r->hi = t >> b;
++        r->lo = (t << (32-b)) | (a.lo >> b);
++}
++
++void
++_rshlv(Vlong *r, Vlong a, int b)
++{
++        ulong t;
++
++        t = a.hi;
++        if(b >= 32) {
++                r->hi = 0;
++                if(b >= 64) {
++                        /* this is illegal re C standard */
++                        r->lo = 0;
++                        return;
++                }
++                r->lo = t >> (b-32);
++                return;
++        }
++        if(b <= 0) {
++                r->hi = t;
++                r->lo = a.lo;
++                return;
++        }
++        r->hi = t >> b;
++        r->lo = (t << (32-b)) | (a.lo >> b);
++}
++
++void
++_lshv(Vlong *r, Vlong a, int b)
++{
++        ulong t;
++
++        t = a.lo;
++        if(b >= 32) {
++                r->lo = 0;
++                if(b >= 64) {
++                        /* this is illegal re C standard */
++                        r->hi = 0;
++                        return;
++                }
++                r->hi = t << (b-32);
++                return;
++        }
++        if(b <= 0) {
++                r->lo = t;
++                r->hi = a.hi;
++                return;
++        }
++        r->lo = t << b;
++        r->hi = (t >> (32-b)) | (a.hi << b);
++}
++
++void
++_andv(Vlong *r, Vlong a, Vlong b)
++{
++        r->hi = a.hi & b.hi;
++        r->lo = a.lo & b.lo;
++}
++
++void
++_orv(Vlong *r, Vlong a, Vlong b)
++{
++        r->hi = a.hi | b.hi;
++        r->lo = a.lo | b.lo;
++}
++
++void
++_xorv(Vlong *r, Vlong a, Vlong b)
++{
++        r->hi = a.hi ^ b.hi;
++        r->lo = a.lo ^ b.lo;
++}
++
++void
++_vpp(Vlong *l, Vlong *r)
++{
++
++        l->hi = r->hi;
++        l->lo = r->lo;
++        r->lo++;
++        if(r->lo == 0)
++                r->hi++;
++}
++
++void
++_vmm(Vlong *l, Vlong *r)
++{
++
++        l->hi = r->hi;
++        l->lo = r->lo;
++        if(r->lo == 0)
++                r->hi--;
++        r->lo--;
++}
++
++void
++_ppv(Vlong *l, Vlong *r)
++{
++
++        r->lo++;
++        if(r->lo == 0)
++                r->hi++;
++        l->hi = r->hi;
++        l->lo = r->lo;
++}
++
++void
++_mmv(Vlong *l, Vlong *r)
++{
++
++        if(r->lo == 0)
++                r->hi--;
++        r->lo--;
++        l->hi = r->hi;
++        l->lo = r->lo;
++}
++
++void
++_vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
++{
++        Vlong t, u;
++
++        u = *ret;
++        switch(type) {
++        default:
++                abort();
++                break;
++
++        case 1: /* schar */
++                t.lo = *(schar*)lv;
++                t.hi = t.lo >> 31;
++                fn(&u, t, rv);
++                *(schar*)lv = u.lo;
++                break;
++
++        case 2: /* uchar */
++                t.lo = *(uchar*)lv;
++                t.hi = 0;
++                fn(&u, t, rv);
++                *(uchar*)lv = u.lo;
++                break;
++
++        case 3: /* short */
++                t.lo = *(short*)lv;
++                t.hi = t.lo >> 31;
++                fn(&u, t, rv);
++                *(short*)lv = u.lo;
++                break;
++
++        case 4: /* ushort */
++                t.lo = *(ushort*)lv;
++                t.hi = 0;
++                fn(&u, t, rv);
++                *(ushort*)lv = u.lo;
++                break;
++
++        case 9: /* int */
++                t.lo = *(int*)lv;
++                t.hi = t.lo >> 31;
++                fn(&u, t, rv);
++                *(int*)lv = u.lo;
++                break;
++
++        case 10:        /* uint */
++                t.lo = *(uint*)lv;
++                t.hi = 0;
++                fn(&u, t, rv);
++                *(uint*)lv = u.lo;
++                break;
++
++        case 5: /* long */
++                t.lo = *(long*)lv;
++                t.hi = t.lo >> 31;
++                fn(&u, t, rv);
++                *(long*)lv = u.lo;
++                break;
++
++        case 6: /* ulong */
++                t.lo = *(ulong*)lv;
++                t.hi = 0;
++                fn(&u, t, rv);
++                *(ulong*)lv = u.lo;
++                break;
++
++        case 7: /* vlong */
++        case 8: /* uvlong */
++                fn(&u, *(Vlong*)lv, rv);
++                *(Vlong*)lv = u;
++                break;
++        }
++        *ret = u;
++}
++
++void
++_p2v(Vlong *ret, void *p)
++{
++        long t;
++
++        t = (ulong)p;
++        ret->lo = t;
++        ret->hi = 0;
++}
++
++void
++_sl2v(Vlong *ret, long sl)
++{
++        long t;
++
++        t = sl;
++        ret->lo = t;
++        ret->hi = t >> 31;
++}
++
++void
++_ul2v(Vlong *ret, ulong ul)
++{
++        long t;
++
++        t = ul;
++        ret->lo = t;
++        ret->hi = 0;
++}
++
++void
++_si2v(Vlong *ret, int si)
++{
++        long t;
++
++        t = si;
++        ret->lo = t;
++        ret->hi = t >> 31;
++}
++
++void
++_ui2v(Vlong *ret, uint ui)
++{
++        long t;
++
++        t = ui;
++        ret->lo = t;
++        ret->hi = 0;
++}
++
++void
++_sh2v(Vlong *ret, long sh)
++{
++        long t;
++
++        t = (sh << 16) >> 16;
++        ret->lo = t;
++        ret->hi = t >> 31;
++}
++
++void
++_uh2v(Vlong *ret, ulong ul)
++{
++        long t;
++
++        t = ul & 0xffff;
++        ret->lo = t;
++        ret->hi = 0;
++}
++
++void
++_sc2v(Vlong *ret, long uc)
++{
++        long t;
++
++        t = (uc << 24) >> 24;
++        ret->lo = t;
++        ret->hi = t >> 31;
++}
++
++void
++_uc2v(Vlong *ret, ulong ul)
++{
++        long t;
++
++        t = ul & 0xff;
++        ret->lo = t;
++        ret->hi = 0;
++}
++
++long
++_v2sc(Vlong rv)
++{
++        long t;
++
++        t = rv.lo & 0xff;
++        return (t << 24) >> 24;
++}
++
++long
++_v2uc(Vlong rv)
++{
++
++        return rv.lo & 0xff;
++}
++
++long
++_v2sh(Vlong rv)
++{
++        long t;
++
++        t = rv.lo & 0xffff;
++        return (t << 16) >> 16;
++}
++
++long
++_v2uh(Vlong rv)
++{
++
++        return rv.lo & 0xffff;
++}
++
++long
++_v2sl(Vlong rv)
++{
++
++        return rv.lo;
++}
++
++long
++_v2ul(Vlong rv)
++{
++
++        return rv.lo;
++}
++
++long
++_v2si(Vlong rv)
++{
++
++        return rv.lo;
++}
++
++long
++_v2ui(Vlong rv)
++{
++
++        return rv.lo;
++}
++
++int
++_testv(Vlong rv)
++{
++        return rv.lo || rv.hi;
++}
++
++int
++_eqv(Vlong lv, Vlong rv)
++{
++        return lv.lo == rv.lo && lv.hi == rv.hi;
++}
++
++int
++_nev(Vlong lv, Vlong rv)
++{
++        return lv.lo != rv.lo || lv.hi != rv.hi;
++}
++
++int
++_ltv(Vlong lv, Vlong rv)
++{
++        return (long)lv.hi < (long)rv.hi ||
++                (lv.hi == rv.hi && lv.lo < rv.lo);
++}
++
++int
++_lev(Vlong lv, Vlong rv)
++{
++        return (long)lv.hi < (long)rv.hi ||
++                (lv.hi == rv.hi && lv.lo <= rv.lo);
++}
++
++int
++_gtv(Vlong lv, Vlong rv)
++{
++        return (long)lv.hi > (long)rv.hi ||
++                (lv.hi == rv.hi && lv.lo > rv.lo);
++}
++
++int
++_gev(Vlong lv, Vlong rv)
++{
++        return (long)lv.hi > (long)rv.hi ||
++                (lv.hi == rv.hi && lv.lo >= rv.lo);
++}
++
++int
++_lov(Vlong lv, Vlong rv)
++{
++        return lv.hi < rv.hi ||
++                (lv.hi == rv.hi && lv.lo < rv.lo);
++}
++
++int
++_lsv(Vlong lv, Vlong rv)
++{
++        return lv.hi < rv.hi ||
++                (lv.hi == rv.hi && lv.lo <= rv.lo);
++}
++
++int
++_hiv(Vlong lv, Vlong rv)
++{
++        return lv.hi > rv.hi ||
++                (lv.hi == rv.hi && lv.lo > rv.lo);
++}
++
++int
++_hsv(Vlong lv, Vlong rv)
++{
++        return lv.hi > rv.hi ||
++                (lv.hi == rv.hi && lv.lo >= rv.lo);
++}
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 024018d5a4..f14dcbf912 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -2,3 +2,103 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "runtime.h"
++#include "defs.h"
++#include "signals.h"
++#include "os.h"
++
++void dumpregs(void) {}
++// void
++// dumpregs(Sigcontext *r)
++// {
++// 	printf("eax     %X\n", r->eax);
++// 	printf("ebx     %X\n", r->ebx);
++// 	printf("ecx     %X\n", r->ecx);
++// 	printf("edx     %X\n", r->edx);
++// 	printf("edi     %X\n", r->edi);
++// 	printf("esi     %X\n", r->esi);
++// 	printf("ebp     %X\n", r->ebp);
++// 	printf("esp     %X\n", r->esp);
++// 	printf("eip     %X\n", r->eip);
++// 	printf("eflags  %X\n", r->eflags);
++// 	printf("cs      %X\n", r->cs);
++// 	printf("fs      %X\n", r->fs);
++// 	printf("gs      %X\n", r->gs);
++// }
++
++
++/*
++ * This assembler routine takes the args from registers, puts them on the stack,
++ * and calls sighandler().
++ */
++extern void sigtramp(void);
++extern void sigignore(void);	// just returns
++extern void sigreturn(void);	// calls sigreturn
++
++void sighandler(void) {}
++// void
++// sighandler(int32 sig, Siginfo* info, void* context)
++// {
++// 	Ucontext *uc;
++// 	Sigcontext *sc;
++
++// 	if(panicking)	// traceback already printed
++// 		exit(2);
++// 	panicking = 1;
++
++// 	uc = context;
++// 	sc = &uc->uc_mcontext;
++
++// 	if(sig < 0 || sig >= NSIG)
++// 		printf("Signal %d\n", sig);
++// 	else
++// 		printf("%s\n", sigtab[sig].name);
++
++// 	printf("Faulting address: %p\n", *(void**)info->_sifields);
++// 	printf("pc=%X\n", sc->eip);
++// 	printf("\n");
++
++// 	if(gotraceback()){
++// 		traceback((void*)sc->eip, (void*)sc->esp, m->curg);
++// 		tracebackothers(m->curg);
++// 		dumpregs(sc);
++// 	}
++
++// 	breakpoint();
++// 	exit(2);
++// }
++
++void
++signalstack(byte *p, int32 n)
++{
++// 	Sigaltstack st;
++
++// 	st.ss_sp = p;
++// 	st.ss_size = n;
++// 	st.ss_flags = 0;
++// 	sigaltstack(&st, nil);
++}
++
++void
++initsig(void)
++{
++// 	static Sigaction sa;
++
++// 	int32 i;
++// 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++// 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
++// 	sa.sa_restorer = (void*)sigreturn;
++// 	for(i = 0; i<NSIG; i++) {
++// 		if(sigtab[i].flags) {
++// 			if(sigtab[i].flags & SigCatch)
++// 				*(void**)sa._u = (void*)sigtramp;	// handler
++// 			else
++// 				*(void**)sa._u = (void*)sigignore;	// handler
++// 			if(sigtab[i].flags & SigRestart)
++// 				sa.sa_flags |= SA_RESTART;
++// 			else
++// 				sa.sa_flags &= ~SA_RESTART;
++// 			rt_sigaction(i, &sa, nil, 8);
++// 		}
++// 	}
++}
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index f5db32305b..25e64a3587 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -7,9 +7,31 @@
+ //
+ 
+ TEXT write(SB),7,$0
+-	MOVW	4(SP), R0
+ 	MOVW	8(SP), R1
+ 	MOVW	12(SP), R2
+     	SWI	$0x00900004  // syscall write
+ 	RET
+ 
++TEXT exit(SB),7,$0
++	SWI         $0x00900001 // exit value in R0
++
++TEXT sys·write(SB),7,$0
++	MOVW	8(SP), R1
++	MOVW	12(SP), R2
++    	SWI	$0x00900004  // syscall write
++	RET
++
++TEXT sys·mmap(SB),7,$0
++	BL  abort(SB)
++	RET
++
++// int64 futex(int32 *uaddr, int32 op, int32 val,
++//	struct timespec *timeout, int32 *uaddr2, int32 val2);
++TEXT futex(SB),7,$0
++	BL  abort(SB)
++	RET
++
++// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
++TEXT clone(SB),7,$0
++	BL  abort(SB)
++    	RET

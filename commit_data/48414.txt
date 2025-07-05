@@ -14,7 +14,33 @@ Date:   Mon May 17 10:50:41 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/resolver.go | 2 +-
  test/run.go                                 | 1 -
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index fa30650bd4..ef49a8b48d 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -265,7 +265,7 @@ func (check *Checker) collectObjects() {
+ 				}
+ 
+ 				if name == "init" {
+-					check.error(s.LocalPkgName, "cannot import package as init - init must be a func")
++					check.error(s, "cannot import package as init - init must be a func")
+ 					continue
+ 				}
+ 
+diff --git a/test/run.go b/test/run.go
+index d64affb772..506380a7a5 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2091,7 +2091,6 @@ var excludedFiles = map[string]bool{
+ 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+ 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue43479.go":  true, // ICE in iexport due to Syms from the wrong package
+-	"fixedbugs/issue43962.go":  true, // types2 panics when importing package named "init"
+ 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
+ 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message

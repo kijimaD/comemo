@@ -19,7 +19,7 @@ Date:   Tue Jan 6 20:38:44 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/2420
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/export.c             |  1 +
  src/runtime/iface.go            | 11 +++++------
  src/runtime/malloc2.go          |  2 +-
@@ -28,3 +28,184 @@ Date:   Tue Jan 6 20:38:44 2015 -0800
  src/runtime/sys_windows_amd64.s | 10 +++++-----
  src/runtime/type.go             |  2 --
  7 files changed, 18 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index aeee552362..47c0545d55 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -551,6 +551,7 @@ dumpasmhdr(void)
+ 			t = n->type;
+ 			if(t->etype != TSTRUCT || t->map != T || t->funarg)
+ 				break;
++			Bprint(b, "#define %s__size %d\n", t->sym->name, (int)t->width);
+ 			for(t=t->type; t != T; t=t->down)
+ 				if(!isblanksym(t->sym))
+ 					Bprint(b, "#define %s_%s %d\n", n->sym->name, t->sym->name, (int)t->width);
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index b453bbfaf7..811a31bcd9 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -35,8 +35,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 		if canfail {
+ 			return nil
+ 		}
+-		i := (*imethod)(add(unsafe.Pointer(inter), unsafe.Sizeof(interfacetype{})))
+-		panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *i.name})
++		panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *inter.mhdr[0].name})
+ 	}
+ 
+ 	// compiler has provided some good hash codes for us.
+@@ -76,7 +75,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 		}
+ 	}
+ 
+-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr))*ptrSize, 0, &memstats.other_sys))
++	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*ptrSize, 0, &memstats.other_sys))
+ 	m.inter = inter
+ 	m._type = typ
+ 
+@@ -89,15 +88,15 @@ search:
+ 	nt := len(x.mhdr)
+ 	j := 0
+ 	for k := 0; k < ni; k++ {
+-		i := (*imethod)(add(unsafe.Pointer(inter), unsafe.Sizeof(interfacetype{})+uintptr(k)*unsafe.Sizeof(imethod{})))
++		i := &inter.mhdr[k]
+ 		iname := i.name
+ 		ipkgpath := i.pkgpath
+ 		itype := i._type
+ 		for ; j < nt; j++ {
+-			t := (*method)(add(unsafe.Pointer(x), unsafe.Sizeof(uncommontype{})+uintptr(j)*unsafe.Sizeof(method{})))
++			t := &x.mhdr[j]
+ 			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
+ 				if m != nil {
+-					*(*unsafe.Pointer)(add(unsafe.Pointer(m), unsafe.Sizeof(itab{})+uintptr(k)*ptrSize)) = t.ifn
++					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*ptrSize)) = t.ifn
+ 				}
+ 				goto nextimethod
+ 			}
+diff --git a/src/runtime/malloc2.go b/src/runtime/malloc2.go
+index 3766da886f..8cdf668214 100644
+--- a/src/runtime/malloc2.go
++++ b/src/runtime/malloc2.go
+@@ -498,7 +498,7 @@ type bitvector struct {
+ type stackmap struct {
+ 	n        int32   // number of bitmaps
+ 	nbit     int32   // number of bits in each bitmap
+-	bytedata [0]byte // bitmaps, each starting on a 32-bit boundary
++	bytedata [1]byte // bitmaps, each starting on a 32-bit boundary
+ }
+ 
+ // Returns pointer map data for the given stackmap index
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3afc67baff..2a721fd4f6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -215,7 +215,6 @@ type g struct {
+ 	gopc         uintptr // pc of go statement that created this goroutine
+ 	racectx      uintptr
+ 	waiting      *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+-	end          [0]byte
+ }
+ 
+ type mts struct {
+@@ -298,7 +297,6 @@ type m struct {
+ 	notesig *int8
+ 	errstr  *byte
+ 	//#endif
+-	end [0]byte
+ }
+ 
+ type p struct {
+@@ -425,7 +423,7 @@ type itab struct {
+ 	link   *itab
+ 	bad    int32
+ 	unused int32
+-	fun    [0]uintptr
++	fun    [1]uintptr // variable sized
+ }
+ 
+ // Lock-free stack node.
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index c8a830cdf8..9c2692b93d 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -189,22 +189,22 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	MOVL	SP, DX
+ 
+ 	// setup dummy m, g
+-	SUBL	$m_end, SP		// space for M
++	SUBL	$m__size, SP		// space for M
+ 	MOVL	SP, 0(SP)
+-	MOVL	$m_end, 4(SP)
++	MOVL	$m__size, 4(SP)
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+ 
+ 	LEAL	m_tls(SP), CX
+ 	MOVL	CX, 0x14(FS)
+ 	MOVL	SP, BX
+-	SUBL	$g_end, SP		// space for G
++	SUBL	$g__size, SP		// space for G
+ 	MOVL	SP, g(CX)
+ 	MOVL	SP, m_g0(BX)
+ 
+ 	MOVL	SP, 0(SP)
+-	MOVL	$g_end, 4(SP)
++	MOVL	$g__size, 4(SP)
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+-	LEAL	g_end(SP), BX
++	LEAL	g__size(SP), BX
+ 	MOVL	BX, g_m(SP)
+ 	LEAL	-8192(SP), CX
+ 	MOVL	CX, (g_stack+stack_lo)(SP)
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 68f7cd3924..27e48bf9c2 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -225,22 +225,22 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	MOVQ	SP, DX
+ 
+ 	// setup dummy m, g
+-	SUBQ	$m_end, SP		// space for M
++	SUBQ	$m__size, SP		// space for M
+ 	MOVQ	SP, 0(SP)
+-	MOVQ	$m_end, 8(SP)
++	MOVQ	$m__size, 8(SP)
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+ 
+ 	LEAQ	m_tls(SP), CX
+ 	MOVQ	CX, 0x28(GS)
+ 	MOVQ	SP, BX
+-	SUBQ	$g_end, SP		// space for G
++	SUBQ	$g__size, SP		// space for G
+ 	MOVQ	SP, g(CX)
+ 	MOVQ	SP, m_g0(BX)
+ 
+ 	MOVQ	SP, 0(SP)
+-	MOVQ	$g_end, 8(SP)
++	MOVQ	$g__size, 8(SP)
+ 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+-	LEAQ	g_end(SP), BX
++	LEAQ	g__size(SP), BX
+ 	MOVQ	BX, g_m(SP)
+ 
+ 	LEAQ	-8192(SP), CX
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 943d7bfd0e..d092f248a1 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -47,7 +47,6 @@ type uncommontype struct {
+ 	name    *string
+ 	pkgpath *string
+ 	mhdr    []method
+-	m       [0]method
+ }
+ 
+ type imethod struct {
+@@ -59,7 +58,6 @@ type imethod struct {
+ type interfacetype struct {
+ 	typ  _type
+ 	mhdr []imethod
+-	m    [0]imethod
+ }
+ 
+ type maptype struct {

@@ -7,7 +7,100 @@ Date:   Mon Nov 12 12:21:00 2012 +0100
     R=adg, dave
     CC=gobot, golang-dev
     https://golang.org/cl/6811080
-
+---
  src/pkg/archive/zip/reader.go   |  6 +++++-
  src/pkg/archive/zip/zip_test.go | 47 ++++++++++++++++++++++++++---------------
  2 files changed, 35 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index fed3988974..eed05beb01 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -238,7 +238,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 
+ 	if len(f.Extra) > 0 {
+ 		b := readBuf(f.Extra)
+-		for len(b) > 0 {
++		for len(b) > 4 { // need at least tag and size
+ 			tag := b.uint16()
+ 			size := b.uint16()
+ 			if int(size) > len(b) {
+@@ -259,6 +259,10 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 			}
+ 			b = b[size:]
+ 		}
++		// Should have consumed the whole header.
++		if len(b) != 0 {
++			return ErrFormat
++		}
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index 54daf2482a..34c899d9f2 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -174,13 +174,31 @@ func TestZip64(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 4302.
+-func TestInvalidExtraHedaer(t *testing.T) {
+-	const timeFormat = "20060102T150405.000.txt"
+-
++func testInvalidHeader(h *FileHeader, t *testing.T) {
+ 	var buf bytes.Buffer
+ 	z := NewWriter(&buf)
+ 
++	f, err := z.CreateHeader(h)
++	if err != nil {
++		t.Fatalf("error creating header: %v", err)
++	}
++	if _, err := f.Write([]byte("hi")); err != nil {
++		t.Fatalf("error writing content: %v", err)
++	}
++	if err := z.Close(); err != nil {
++		t.Fatal("error closing zip writer: %v", err)
++	}
++
++	b := buf.Bytes()
++	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != ErrFormat {
++		t.Fatal("got %v, expected ErrFormat", err)
++	}
++}
++
++// Issue 4302.
++func TestHeaderInvalidTagAndSize(t *testing.T) {
++	const timeFormat = "20060102T150405.000.txt"
++
+ 	ts := time.Now()
+ 	filename := ts.Format(timeFormat)
+ 
+@@ -191,19 +209,14 @@ func TestInvalidExtraHedaer(t *testing.T) {
+ 	}
+ 	h.SetModTime(ts)
+ 
+-	fh, err := z.CreateHeader(&h)
+-	if err != nil {
+-		t.Fatalf("error creating header: %v", err)
+-	}
+-	if _, err := fh.Write([]byte("hi")); err != nil {
+-		t.Fatalf("error writing content: %v", err)
+-	}
+-	if err := z.Close(); err != nil {
+-		t.Fatal("error closing zip writer: %v", err)
+-	}
++	testInvalidHeader(&h, t)
++}
+ 
+-	b := buf.Bytes()
+-	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err == nil {
+-		t.Fatal("expected ErrFormat")
++func TestHeaderTooShort(t *testing.T) {
++	h := FileHeader{
++		Name:   "foo.txt",
++		Method: Deflate,
++		Extra:  []byte{zip64ExtraId}, // missing size
+ 	}
++	testInvalidHeader(&h, t)
+ }

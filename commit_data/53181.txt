@@ -16,7 +16,149 @@ Date:   Mon Jul 25 12:21:21 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 18 +++++++++---------
  src/cmd/compile/internal/noder/writer.go | 29 +++++++++++++++++------------
  2 files changed, 26 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index afc2705909..a8ef0a8e25 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1547,7 +1547,11 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 				cases = nil // TODO(mdempsky): Unclear if this matters.
+ 			}
+ 			for i := range cases {
+-				cases[i] = r.exprType(true)
++				if r.Bool() { // case nil
++					cases[i] = typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
++				} else {
++					cases[i] = r.exprType()
++				}
+ 			}
+ 		} else {
+ 			cases = r.exprList()
+@@ -1734,7 +1738,7 @@ func (r *reader) expr() (res ir.Node) {
+ 	case exprAssert:
+ 		x := r.expr()
+ 		pos := r.pos()
+-		typ := r.exprType(false)
++		typ := r.exprType()
+ 		srcRType := r.rtype(pos)
+ 
+ 		// TODO(mdempsky): Always emit ODYNAMICDOTTYPE for uniformity?
+@@ -1800,7 +1804,7 @@ func (r *reader) expr() (res ir.Node) {
+ 
+ 	case exprMake:
+ 		pos := r.pos()
+-		typ := r.exprType(false)
++		typ := r.exprType()
+ 		extra := r.exprs()
+ 		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
+ 		n.RType = r.rtype(pos)
+@@ -1808,7 +1812,7 @@ func (r *reader) expr() (res ir.Node) {
+ 
+ 	case exprNew:
+ 		pos := r.pos()
+-		typ := r.exprType(false)
++		typ := r.exprType()
+ 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+ 
+ 	case exprConvert:
+@@ -2043,13 +2047,9 @@ func (r *reader) convRTTI(pos src.XPos) (typeWord, srcRType ir.Node) {
+ 	return
+ }
+ 
+-func (r *reader) exprType(nilOK bool) ir.Node {
++func (r *reader) exprType() ir.Node {
+ 	r.Sync(pkgbits.SyncExprType)
+ 
+-	if nilOK && r.Bool() {
+-		return typecheck.Expr(types.BuiltinPkg.Lookup("nil").Def.(*ir.NilExpr))
+-	}
+-
+ 	pos := r.pos()
+ 	setBasePos(pos)
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index d96ba0202f..0005c2e7fa 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1464,7 +1464,10 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 		if iface != nil {
+ 			w.Len(len(cases))
+ 			for _, cas := range cases {
+-				w.exprType(iface, cas, true)
++				if w.Bool(isNil(w.p.info, cas)) {
++					continue
++				}
++				w.exprType(iface, cas)
+ 			}
+ 		} else {
+ 			// As if w.exprList(clause.Cases),
+@@ -1642,7 +1645,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.Code(exprAssert)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+-		w.exprType(iface, expr.Type, false)
++		w.exprType(iface, expr.Type)
+ 		w.rtype(iface)
+ 
+ 	case *syntax.Operation:
+@@ -1702,7 +1705,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 				w.Code(exprMake)
+ 				w.pos(expr)
+-				w.exprType(nil, expr.ArgList[0], false)
++				w.exprType(nil, expr.ArgList[0])
+ 				w.exprs(expr.ArgList[1:])
+ 
+ 				typ := w.p.typeOf(expr)
+@@ -1725,7 +1728,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 				w.Code(exprNew)
+ 				w.pos(expr)
+-				w.exprType(nil, expr.ArgList[0], false)
++				w.exprType(nil, expr.ArgList[0])
+ 				return
+ 
+ 			case "append":
+@@ -1960,21 +1963,15 @@ func (w *writer) convRTTI(src, dst types2.Type) {
+ 	w.typ(dst)
+ }
+ 
+-func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
++func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
+ 	base.Assertf(iface == nil || isInterface(iface), "%v must be nil or an interface type", iface)
+ 
+ 	tv, ok := w.p.info.Types[typ]
+ 	assert(ok)
+-
+-	w.Sync(pkgbits.SyncExprType)
+-
+-	if nilOK && w.Bool(tv.IsNil()) {
+-		return
+-	}
+-
+ 	assert(tv.IsType())
+ 	info := w.p.typIdx(tv.Type, w.dict)
+ 
++	w.Sync(pkgbits.SyncExprType)
+ 	w.pos(typ)
+ 
+ 	if w.Bool(info.derived && iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
+@@ -2386,6 +2383,14 @@ func isMultiValueExpr(info *types2.Info, expr syntax.Expr) bool {
+ 	return false
+ }
+ 
++// isNil reports whether expr is a (possibly parenthesized) reference
++// to the predeclared nil value.
++func isNil(info *types2.Info, expr syntax.Expr) bool {
++	tv, ok := info.Types[expr]
++	assert(ok)
++	return tv.IsNil()
++}
++
+ // recvBase returns the base type for the given receiver parameter.
+ func recvBase(recv *types2.Var) *types2.Named {
+ 	typ := recv.Type()

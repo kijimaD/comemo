@@ -9,7 +9,100 @@ Date:   Mon Dec 3 14:04:18 2012 +0100
     R=golang-dev, dave, daniel.morsing, bradfitz
     CC=golang-dev
     https://golang.org/cl/6849128
-
+---
  src/pkg/bytes/buffer.go      | 24 ++++++++++++++++--------
  src/pkg/bytes/buffer_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index efb9798ee0..3ae930384f 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -360,16 +360,24 @@ func (b *Buffer) UnreadByte() error {
+ // ReadBytes returns err != nil if and only if the returned data does not end in
+ // delim.
+ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
++	slice, err := b.readSlice(delim)
++	// return a copy of slice. The buffer's backing array may
++	// be overwritten by later calls.
++	line = append(line, slice...)
++	return
++}
++
++// readSlice is like readBytes but returns a reference to internal buffer data.
++func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
+ 	i := IndexByte(b.buf[b.off:], delim)
+-	size := i + 1
++	end := b.off + i + 1
+ 	if i < 0 {
+-		size = len(b.buf) - b.off
++		end = len(b.buf)
+ 		err = io.EOF
+ 	}
+-	line = make([]byte, size)
+-	copy(line, b.buf[b.off:])
+-	b.off += size
+-	return
++	line = b.buf[b.off:end]
++	b.off = end
++	return line, err
+ }
+ 
+ // ReadString reads until the first occurrence of delim in the input,
+@@ -379,8 +387,8 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
+ // ReadString returns err != nil if and only if the returned data does not end
+ // in delim.
+ func (b *Buffer) ReadString(delim byte) (line string, err error) {
+-	bytes, err := b.ReadBytes(delim)
+-	return string(bytes), err
++	slice, err := b.readSlice(delim)
++	return string(slice), err
+ }
+ 
+ // NewBuffer creates and initializes a new Buffer using buf as its initial
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 92e29146b3..c53544a74a 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -375,6 +375,41 @@ func TestReadBytes(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadString(t *testing.T) {
++	for _, test := range readBytesTests {
++		buf := NewBufferString(test.buffer)
++		var err error
++		for _, expected := range test.expected {
++			var s string
++			s, err = buf.ReadString(test.delim)
++			if s != expected {
++				t.Errorf("expected %q, got %q", expected, s)
++			}
++			if err != nil {
++				break
++			}
++		}
++		if err != test.err {
++			t.Errorf("expected error %v, got %v", test.err, err)
++		}
++	}
++}
++
++func BenchmarkReadString(b *testing.B) {
++	const n = 32 << 10
++
++	data := make([]byte, n)
++	data[n-1] = 'x'
++	b.SetBytes(int64(n))
++	for i := 0; i < b.N; i++ {
++		buf := NewBuffer(data)
++		_, err := buf.ReadString('x')
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
+ func TestGrow(t *testing.T) {
+ 	x := []byte{'x'}
+ 	y := []byte{'y'}

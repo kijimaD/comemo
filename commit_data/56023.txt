@@ -24,7 +24,103 @@ Date:   Thu Mar 16 14:18:04 2023 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/mime/multipart/formdata.go      | 15 +++++++++---
  src/mime/multipart/formdata_test.go | 49 +++++++++++++++++++++++++++++++++++++
  2 files changed, 61 insertions(+), 3 deletions(-)
+
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index e62727dbb1..902bb10e57 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -88,6 +88,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 			maxMemoryBytes = math.MaxInt64
+ 		}
+ 	}
++	var copyBuf []byte
+ 	for {
+ 		p, err := r.nextPart(false, maxMemoryBytes)
+ 		if err == io.EOF {
+@@ -151,14 +152,22 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 				}
+ 			}
+ 			numDiskFiles++
+-			size, err := io.Copy(file, io.MultiReader(&b, p))
++			if _, err := file.Write(b.Bytes()); err != nil {
++				return nil, err
++			}
++			if copyBuf == nil {
++				copyBuf = make([]byte, 32*1024) // same buffer size as io.Copy uses
++			}
++			// os.File.ReadFrom will allocate its own copy buffer if we let io.Copy use it.
++			type writerOnly struct{ io.Writer }
++			remainingSize, err := io.CopyBuffer(writerOnly{file}, p, copyBuf)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+ 			fh.tmpfile = file.Name()
+-			fh.Size = size
++			fh.Size = int64(b.Len()) + remainingSize
+ 			fh.tmpoff = fileOff
+-			fileOff += size
++			fileOff += fh.Size
+ 			if !combineFiles {
+ 				if err := file.Close(); err != nil {
+ 					return nil, err
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 9b3f9ec392..e0ceb6f7aa 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -399,3 +399,52 @@ func testReadFormManyFiles(t *testing.T, distinct bool) {
+ 		t.Fatalf("temp dir contains %v files; want 0", len(names))
+ 	}
+ }
++
++func BenchmarkReadForm(b *testing.B) {
++	for _, test := range []struct {
++		name string
++		form func(fw *Writer, count int)
++	}{{
++		name: "fields",
++		form: func(fw *Writer, count int) {
++			for i := 0; i < count; i++ {
++				w, _ := fw.CreateFormField(fmt.Sprintf("field%v", i))
++				fmt.Fprintf(w, "value %v", i)
++			}
++		},
++	}, {
++		name: "files",
++		form: func(fw *Writer, count int) {
++			for i := 0; i < count; i++ {
++				w, _ := fw.CreateFormFile(fmt.Sprintf("field%v", i), fmt.Sprintf("file%v", i))
++				fmt.Fprintf(w, "value %v", i)
++			}
++		},
++	}} {
++		b.Run(test.name, func(b *testing.B) {
++			for _, maxMemory := range []int64{
++				0,
++				1 << 20,
++			} {
++				var buf bytes.Buffer
++				fw := NewWriter(&buf)
++				test.form(fw, 10)
++				if err := fw.Close(); err != nil {
++					b.Fatal(err)
++				}
++				b.Run(fmt.Sprintf("maxMemory=%v", maxMemory), func(b *testing.B) {
++					b.ReportAllocs()
++					for i := 0; i < b.N; i++ {
++						fr := NewReader(bytes.NewReader(buf.Bytes()), fw.Boundary())
++						form, err := fr.ReadForm(maxMemory)
++						if err != nil {
++							b.Fatal(err)
++						}
++						form.RemoveAll()
++					}
++
++				})
++			}
++		})
++	}
++}

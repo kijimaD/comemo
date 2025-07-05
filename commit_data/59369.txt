@@ -11,8 +11,60 @@ Date:   Tue Mar 5 10:56:01 2024 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/dirent.go        | 3 ++-
  src/syscall/endian_big.go    | 9 ---------
  src/syscall/endian_little.go | 9 ---------
  3 files changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/syscall/dirent.go b/src/syscall/dirent.go
+index 1a0f1eec11..a9eab15736 100644
+--- a/src/syscall/dirent.go
++++ b/src/syscall/dirent.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"internal/goarch"
+ 	"runtime"
+ 	"unsafe"
+ )
+@@ -16,7 +17,7 @@ func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
+ 	if len(b) < int(off+size) {
+ 		return 0, false
+ 	}
+-	if isBigEndian {
++	if goarch.BigEndian {
+ 		return readIntBE(b[off:], size), true
+ 	}
+ 	return readIntLE(b[off:], size), true
+diff --git a/src/syscall/endian_big.go b/src/syscall/endian_big.go
+deleted file mode 100644
+index 8e3874eb86..0000000000
+--- a/src/syscall/endian_big.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-//
+-//go:build ppc64 || s390x || mips || mips64
+-
+-package syscall
+-
+-const isBigEndian = true
+diff --git a/src/syscall/endian_little.go b/src/syscall/endian_little.go
+deleted file mode 100644
+index f5fcb58db4..0000000000
+--- a/src/syscall/endian_little.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-//
+-//go:build 386 || amd64 || arm || arm64 || loong64 || ppc64le || mips64le || mipsle || riscv64 || wasm
+-
+-package syscall
+-
+-const isBigEndian = false

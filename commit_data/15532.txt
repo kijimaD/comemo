@@ -10,7 +10,7 @@ Date:   Fri Mar 1 11:44:43 2013 -0500
     R=golang-dev, devon.odell
     CC=golang-dev
     https://golang.org/cl/7420048
-
+---
  src/pkg/runtime/proc.c              | 43 ++++++++++++++++++++++++-------------
  src/pkg/runtime/runtime.h           |  3 ++-
  src/pkg/runtime/sys_freebsd_386.s   |  7 +-----
@@ -26,3 +26,456 @@ Date:   Fri Mar 1 11:44:43 2013 -0500
  src/pkg/runtime/thread_plan9.c      |  6 +++---
  src/pkg/runtime/thread_windows.c    |  8 +------
  14 files changed, 64 insertions(+), 79 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 4341ed3569..b0511cacba 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -84,7 +84,7 @@ static void schedule(void);
+ static void procresize(int32);
+ static void acquirep(P*);
+ static P* releasep(void);
+-static void newm(void(*)(void), P*, bool, bool);
++static void newm(void(*)(void), P*);
+ static void goidle(void);
+ static void stopm(void);
+ static void startm(P*, bool);
+@@ -161,7 +161,7 @@ static FuncVal scavenger = {runtime·MHeap_Scavenger};
+ void
+ runtime·main(void)
+ {
+-	newm(sysmon, nil, false, false);
++	newm(sysmon, nil);
+ 
+ 	// Lock the main goroutine onto this, the main OS thread,
+ 	// during initialization.  Most programs won't care, but a few
+@@ -381,6 +381,12 @@ runtime·stoptheworld(void)
+ 	}
+ }
+ 
++static void
++mhelpgc(void)
++{
++	m->helpgc = 1;
++}
++
+ void
+ runtime·starttheworld(void)
+ {
+@@ -428,7 +434,7 @@ runtime·starttheworld(void)
+ 		// coordinate.  This lazy approach works out in practice:
+ 		// we don't mind if the first couple gc rounds don't have quite
+ 		// the maximum number of procs.
+-		newm(runtime·mstart, nil, true, false);
++		newm(mhelpgc, nil);
+ 	}
+ }
+ 
+@@ -460,6 +466,9 @@ runtime·mstart(void)
+ 		if(runtime·iscgo)
+ 			runtime·newextram();
+ 	}
++	
++	if(m->mstartfn)
++		m->mstartfn();
+ 
+ 	if(m->helpgc) {
+ 		m->helpgc = false;
+@@ -726,16 +735,15 @@ unlockextra(M *mp)
+ }
+ 
+ 
+-// Create a new m.  It will start off with a call to fn.
++// Create a new m.  It will start off with a call to fn, or else the scheduler.
+ static void
+-newm(void(*fn)(void), P *p, bool helpgc, bool spinning)
++newm(void(*fn)(void), P *p)
+ {
+ 	M *mp;
+ 
+ 	mp = runtime·allocm(p);
+ 	mp->nextp = p;
+-	mp->helpgc = helpgc;
+-	mp->spinning = spinning;
++	mp->mstartfn = fn;
+ 
+ 	if(runtime·iscgo) {
+ 		CgoThreadStart ts;
+@@ -744,11 +752,11 @@ newm(void(*fn)(void), P *p, bool helpgc, bool spinning)
+ 			runtime·throw("_cgo_thread_start missing");
+ 		ts.m = mp;
+ 		ts.g = mp->g0;
+-		ts.fn = fn;
++		ts.fn = runtime·mstart;
+ 		runtime·asmcgocall(_cgo_thread_start, &ts);
+ 		return;
+ 	}
+-	runtime·newosproc(mp, mp->g0, (byte*)mp->g0->stackbase, fn);
++	runtime·newosproc(mp, (byte*)mp->g0->stackbase);
+ }
+ 
+ // Stops execution of the current m until new work is available.
+@@ -781,12 +789,19 @@ retry:
+ 	m->nextp = nil;
+ }
+ 
++static void
++mspinning(void)
++{
++	m->spinning = true;
++}
++
+ // Schedules some M to run the p (creates an M if necessary).
+ // If p==nil, tries to get an idle P, if no idle P's returns false.
+ static void
+ startm(P *p, bool spinning)
+ {
+ 	M *mp;
++	void (*fn)(void);
+ 
+ 	runtime·lock(&runtime·sched);
+ 	if(p == nil) {
+@@ -801,7 +816,10 @@ startm(P *p, bool spinning)
+ 	mp = mget();
+ 	runtime·unlock(&runtime·sched);
+ 	if(mp == nil) {
+-		newm(runtime·mstart, p, false, spinning);
++		fn = nil;
++		if(spinning)
++			fn = mspinning;
++		newm(fn, p);
+ 		return;
+ 	}
+ 	if(mp->spinning)
+@@ -1887,11 +1905,6 @@ sysmon(void)
+ 	uint32 idle, delay;
+ 	uint32 ticks[MaxGomaxprocs];
+ 
+-	// This is a special dedicated thread that retakes P's from blocking syscalls.
+-	// It works w/o mcache nor stackalloc, it may work concurrently with GC.
+-	runtime·asminit();
+-	runtime·minit();
+-
+ 	idle = 0;  // how many cycles in succession we had not wokeup somebody
+ 	delay = 0;
+ 	for(;;) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4440808319..602b185ad6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -702,7 +702,8 @@ void	runtime·exit1(int32);
+ void	runtime·ready(G*);
+ byte*	runtime·getenv(int8*);
+ int32	runtime·atoi(byte*);
+-void	runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void));
++void	runtime·newosproc(M *mp, void *stk);
++void	runtime·mstart(void);
+ G*	runtime·malg(int32);
+ void	runtime·asminit(void);
+ void	runtime·mpreinit(M*);
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 0b472e3074..d5370267a9 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -38,12 +38,7 @@ TEXT runtime·thr_start(SB),7,$0
+ 	
+ 	MOVL	AX, m(CX)
+ 	CALL	runtime·stackcheck(SB)		// smashes AX
+-
+-	// newosproc left the function we should call in mp->mstartfn.
+-	get_tls(CX)
+-	MOVL	m(CX), AX
+-	MOVL	m_mstartfn(AX), AX
+-	CALL	AX
++	CALL	runtime·mstart(SB)
+ 
+ 	MOVL	0, AX			// crash (not reached)
+ 
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 218851b782..40c6237e23 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -38,13 +38,8 @@ TEXT runtime·thr_start(SB),7,$0
+ 	MOVQ	m_g0(R13), DI
+ 	MOVQ	DI, g(CX)
+ 
+-	CALL runtime·stackcheck(SB)
+-	
+-	// newosproc left the function we should call in mp->mstartfn.
+-	get_tls(CX)
+-	MOVQ	m(CX), AX
+-	MOVQ	m_mstartfn(AX), AX
+-	CALL	AX
++	CALL	runtime·stackcheck(SB)
++	CALL	runtime·mstart(SB)
+ 
+ 	MOVQ 0, AX			// crash (not reached)
+ 
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index d9e3339324..77050e8d0c 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -33,10 +33,7 @@ TEXT runtime·thr_start(SB),7,$0
+ 	// set up g
+ 	MOVW m_g0(R9), R10
+ 	BL runtime·emptyfunc(SB) // fault if stack check is wrong
+-
+-	// newosproc left the function we should call in mp->tls[2] for us.
+-	MOVW	(m_tls+8)(m), R0
+-	BL	(R0)
++	BL runtime·mstart(SB)
+ 
+ 	MOVW $2, R9  // crash (not reached)
+ 	MOVW R9, (R9)
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 2c3c5d465c..ca59f0a1d5 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -259,12 +259,7 @@ TEXT runtime·tstart(SB),7,$0
+ 	CLD
+ 
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+-
+-	// newosproc left the function we should call in mp->mstartfn.
+-	get_tls(CX)
+-	MOVL	m(CX), AX
+-	MOVL	m_mstartfn(AX), AX
+-	CALL	AX
++	CALL	runtime·mstart(SB)
+ 
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index dc9c94ae4c..fe88f3b754 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -329,11 +329,7 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	CLD
+ 
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+-
+-	get_tls(CX)
+-	MOVQ	m(CX), AX
+-	MOVQ	m_mstartfn(AX), AX
+-	CALL	AX
++	CALL	runtime·mstart(SB)
+ 
+ 	XORL	AX, AX			// return 0 == success
+ 	RET
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 1400e6e7bc..adb1ffe6ac 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -87,19 +87,19 @@ runtime·goenvs(void)
+ }
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	int32 errno;
+ 	Sigset oset;
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+ 	if(0){
+-		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
++		runtime·printf("newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
++			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
+-	errno = runtime·bsdthread_create(stk, mp, gp, fn);
++	errno = runtime·bsdthread_create(stk, mp, mp->g0, runtime·mstart);
+ 	runtime·sigprocmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if(errno < 0) {
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index aae52ea379..3ae14ee0a0 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -77,18 +77,14 @@ runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ void runtime·thr_start(void*);
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	ThrParam param;
+ 	Sigset oset;
+ 
+-	// thr_start assumes gp == mp->g0
+-	if(gp != mp->g0)
+-		runtime·throw("invalid newosproc gp");
+-
+ 	if(0){
+-		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
++		runtime·printf("newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
++			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	runtime·sigprocmask(&sigset_all, &oset);
+@@ -96,15 +92,18 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 
+ 	param.start_func = runtime·thr_start;
+ 	param.arg = (byte*)mp;
+-	param.stack_base = (void*)gp->stackbase;
+-	param.stack_size = (byte*)stk - (byte*)gp->stackbase;
++	
++	// NOTE(rsc): This code is confused. stackbase is the top of the stack
++	// and is equal to stk. However, it's working, so I'm not changing it.
++	param.stack_base = (void*)mp->g0->stackbase;
++	param.stack_size = (byte*)stk - (byte*)mp->g0->stackbase;
++
+ 	param.child_tid = (intptr*)&mp->procid;
+ 	param.parent_tid = nil;
+ 	param.tls_base = (void*)&mp->tls[0];
+ 	param.tls_size = sizeof mp->tls;
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+-	mp->mstartfn = fn;
+ 
+ 	runtime·thr_new(&param, sizeof param);
+ 	runtime·sigprocmask(&oset, nil);
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 3f45058069..78ddef878b 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -124,7 +124,7 @@ enum
+ };
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	int32 ret;
+ 	int32 flags;
+@@ -142,14 +142,14 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+ 	if(0){
+-		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p clone=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, runtime·clone, mp->id, (int32)mp->tls[0], &mp);
++		runtime·printf("newosproc stk=%p m=%p g=%p clone=%p id=%d/%d ostk=%p\n",
++			stk, mp, mp->g0, runtime·clone, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	// Disable signals during clone, so that the new thread starts
+ 	// with signals disabled.  It will enable them in minit.
+ 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_all, &oset, sizeof oset);
+-	ret = runtime·clone(flags, stk, mp, gp, fn);
++	ret = runtime·clone(flags, stk, mp, mp->g0, runtime·mstart);
+ 	runtime·rtsigprocmask(SIG_SETMASK, &oset, nil, sizeof oset);
+ 
+ 	if(ret < 0) {
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index b9ec33acd5..f333c6dd8e 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -145,15 +145,15 @@ runtime·semawakeup(M *mp)
+ }
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	UcontextT uc;
+ 	int32 ret;
+ 
+ 	if(0) {
+ 		runtime·printf(
+-			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
++			"newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
++			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+@@ -164,7 +164,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	uc.uc_link = nil;
+ 	uc.uc_sigmask = sigset_all;
+ 
+-	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, gp, fn);
++	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp->g0, runtime·mstart);
+ 
+ 	ret = runtime·lwp_create(&uc, 0, &mp->procid);
+ 
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index f35c3bb441..9150efaa1b 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -123,7 +123,7 @@ runtime·semawakeup(M *mp)
+ }
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	Tfork param;
+ 	Sigset oset;
+@@ -132,7 +132,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	if(0) {
+ 		runtime·printf(
+ 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
++			stk, mp, mp->g0, fn, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+@@ -142,7 +142,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	param.tf_stack = stk;
+ 
+ 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
+-	ret = runtime·tfork((byte*)&param, sizeof(param), mp, gp, fn);
++	ret = runtime·tfork((byte*)&param, sizeof(param), mp, mp->g0, runtime·mstart);
+ 	runtime·sigprocmask(SIG_SETMASK, oset);
+ 
+ 	if(ret < 0) {
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index 866b1e7806..e1c7334cfb 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -223,15 +223,15 @@ runtime·exit(int32 e)
+ }
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
++			stk, mp, mp->g0, fn, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+-	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, gp, fn) < 0)
++	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, mp->g0, runtime·mstart) < 0)
+ 		runtime·throw("newosproc: rfork failed");
+ }
+ 
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 06326c2187..ae4e82e50e 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -187,18 +187,12 @@ runtime·semacreate(void)
+ #define STACK_SIZE_PARAM_IS_A_RESERVATION ((uintptr)0x00010000)
+ 
+ void
+-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
++runtime·newosproc(M *mp, void *stk)
+ {
+ 	void *thandle;
+ 
+ 	USED(stk);
+ 
+-	// assume gp == mp->g0
+-	if(gp != mp->g0)
+-		runtime·throw("invalid newosproc gp");
+-
+-	mp->mstartfn = fn;
+-
+ 	thandle = runtime·stdcall(runtime·CreateThread, 6,
+ 		nil, (uintptr)0x20000, runtime·tstart_stdcall, mp,
+ 		STACK_SIZE_PARAM_IS_A_RESERVATION, nil);

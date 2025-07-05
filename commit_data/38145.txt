@@ -14,8 +14,58 @@ Date:   Fri Oct 5 04:47:09 2018 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang_org/x/net/route/interface.go   | 2 +-
  src/vendor/golang_org/x/net/route/sys_freebsd.go | 5 ++++-
  src/vendor/golang_org/x/net/route/syscall.go     | 2 +-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/route/interface.go b/src/vendor/golang_org/x/net/route/interface.go
+index 854906d9c4..05ef2a9ce3 100644
+--- a/src/vendor/golang_org/x/net/route/interface.go
++++ b/src/vendor/golang_org/x/net/route/interface.go
+@@ -37,7 +37,7 @@ func (m *InterfaceAddrMessage) Sys() []Sys { return nil }
+ // address message.
+ type InterfaceMulticastAddrMessage struct {
+ 	Version int    // message version
+-	Type    int    // messsage type
++	Type    int    // message type
+ 	Flags   int    // interface flags
+ 	Index   int    // interface index
+ 	Addrs   []Addr // addresses
+diff --git a/src/vendor/golang_org/x/net/route/sys_freebsd.go b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+index 89ba1c4e26..a1a0d79b61 100644
+--- a/src/vendor/golang_org/x/net/route/sys_freebsd.go
++++ b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+@@ -57,7 +57,7 @@ func (m *InterfaceMessage) Sys() []Sys {
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	var p uintptr
+ 	wordSize := int(unsafe.Sizeof(p))
+-	align := int(unsafe.Sizeof(p))
++	align := wordSize
+ 	// In the case of kern.supported_archs="amd64 i386", we need
+ 	// to know the underlying kernel's architecture because the
+ 	// alignment for routing facilities are set at the build time
+@@ -129,6 +129,9 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 		} else {
+ 			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
+ 		}
++		if rel >= 1102000 { // see https://github.com/freebsd/freebsd/commit/027c7f4d66ff8d8c4a46c3665a5ee7d6d8462034#diff-ad4e5b7f1449ea3fc87bc97280de145b
++			align = wordSize
++		}
+ 	}
+ 	rtm.parse = rtm.parseRouteMessage
+ 	ifm.parse = ifm.parseInterfaceMessage
+diff --git a/src/vendor/golang_org/x/net/route/syscall.go b/src/vendor/golang_org/x/net/route/syscall.go
+index c211188b10..5f69ea63d9 100644
+--- a/src/vendor/golang_org/x/net/route/syscall.go
++++ b/src/vendor/golang_org/x/net/route/syscall.go
+@@ -20,7 +20,7 @@ func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	} else {
+ 		p = unsafe.Pointer(&zero)
+ 	}
+-	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
++	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), newlen)
+ 	if errno != 0 {
+ 		return error(errno)
+ 	}

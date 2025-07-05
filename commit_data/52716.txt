@@ -13,8 +13,89 @@ Date:   Thu May 19 02:44:00 2022 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/database/sql/fakedb_test.go |  5 ++++-
  src/database/sql/sql.go         |  2 ++
  src/database/sql/sql_test.go    | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index ec47ce4714..2fe5ea42da 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1089,6 +1089,9 @@ type rowsCursor struct {
+ 	// This is separate from the fakeConn.line to allow for drivers that
+ 	// can start multiple queries on the same transaction at the same time.
+ 	line int64
++
++	// closeErr is returned when rowsCursor.Close
++	closeErr error
+ }
+ 
+ func (rc *rowsCursor) touchMem() {
+@@ -1100,7 +1103,7 @@ func (rc *rowsCursor) Close() error {
+ 	rc.touchMem()
+ 	rc.parentMem.touchMem()
+ 	rc.closed = true
+-	return nil
++	return rc.closeErr
+ }
+ 
+ func (rc *rowsCursor) Columns() []string {
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 04897b3360..854a895281 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -3331,6 +3331,8 @@ func (rs *Rows) close(err error) error {
+ 		rs.closeStmt.Close()
+ 	}
+ 	rs.releaseConn(err)
++
++	rs.lasterr = rs.lasterrOrErrLocked(err)
+ 	return err
+ }
+ 
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 41631c735f..6bc869fc86 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2636,6 +2636,39 @@ func TestRowsImplicitClose(t *testing.T) {
+ 	}
+ }
+ 
++func TestRowsCloseError(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer db.Close()
++	rows, err := db.Query("SELECT|people|age,name|")
++	if err != nil {
++		t.Fatalf("Query: %v", err)
++	}
++	type row struct {
++		age  int
++		name string
++	}
++	got := []row{}
++
++	rc, ok := rows.rowsi.(*rowsCursor)
++	if !ok {
++		t.Fatal("not using *rowsCursor")
++	}
++	rc.closeErr = errors.New("rowsCursor: failed to close")
++
++	for rows.Next() {
++		var r row
++		err = rows.Scan(&r.age, &r.name)
++		if err != nil {
++			t.Fatalf("Scan: %v", err)
++		}
++		got = append(got, r)
++	}
++	err = rows.Err()
++	if err != rc.closeErr {
++		t.Fatalf("unexpected err: got %v, want %v", err, rc.closeErr)
++	}
++}
++
+ func TestStmtCloseOrder(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)

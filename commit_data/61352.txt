@@ -12,6 +12,19 @@ Date:   Mon Jun 24 16:56:22 2024 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/buildcfg/exp.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 8c8a16c571..f71cada455 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -72,6 +72,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		RegabiArgs:       regabiSupported,
+ 		CoverageRedesign: true,
+ 		AliasTypeParams:  true,
++		SwissMap:         true,
+ 	}
+ 
+ 	// Start with the statically enabled set of experiments.

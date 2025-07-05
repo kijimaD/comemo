@@ -20,6 +20,21 @@ Date:   Mon Jun 12 16:11:35 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/main.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 093bb4365b..7743562909 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -110,6 +110,9 @@ var (
+ 
+ // Main is the main entry point for the linker code.
+ func Main(arch *sys.Arch, theArch Arch) {
++	log.SetPrefix("link: ")
++	log.SetFlags(0)
++
+ 	thearch = theArch
+ 	ctxt := linknew(arch)
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)

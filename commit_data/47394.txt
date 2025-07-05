@@ -8,8 +8,48 @@ Date:   Sun Mar 14 13:19:12 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/301569
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/sendfile_bsd.go     | 2 +-
  src/internal/poll/sendfile_linux.go   | 2 +-
  src/internal/poll/sendfile_solaris.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 9eda85882c..3ba30a2154 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -23,7 +23,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 
+-	dst := int(dstFD.Sysfd)
++	dst := dstFD.Sysfd
+ 	var written int64
+ 	var err error
+ 	for remain > 0 {
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index d6442e8666..6e7852347b 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -20,7 +20,7 @@ func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 
+-	dst := int(dstFD.Sysfd)
++	dst := dstFD.Sysfd
+ 	var written int64
+ 	var err error
+ 	for remain > 0 {
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 748c85131e..0a884307bb 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -24,7 +24,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 
+-	dst := int(dstFD.Sysfd)
++	dst := dstFD.Sysfd
+ 	var written int64
+ 	var err error
+ 	for remain > 0 {

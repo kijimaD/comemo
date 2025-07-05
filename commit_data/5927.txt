@@ -7,6 +7,27 @@ Date:   Mon Aug 2 09:52:15 2010 +1000
     R=rsc
     CC=golang-dev, mpl
     https://golang.org/cl/1894047
-
+---
  src/pkg/image/png/writer.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index e186ca819b..323e66f114 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -32,8 +32,15 @@ func writeUint32(b []uint8, u uint32) {
+ 	b[3] = uint8(u >> 0)
+ }
+ 
++type opaquer interface {
++	Opaque() bool
++}
++
+ // Returns whether or not the image is fully opaque.
+ func opaque(m image.Image) bool {
++	if o, ok := m.(opaquer); ok {
++		return o.Opaque()
++	}
+ 	for y := 0; y < m.Height(); y++ {
+ 		for x := 0; x < m.Width(); x++ {
+ 			_, _, _, a := m.At(x, y).RGBA()

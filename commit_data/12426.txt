@@ -7,6 +7,78 @@ Date:   Tue Mar 6 11:05:16 2012 -0800
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5756045
-
+---
  src/pkg/go/parser/parser.go | 24 ++++++++++++++++++------
  1 file changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index a122baf087..cc3923bbfc 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -362,9 +362,9 @@ func (p *parser) expect(tok token.Token) token.Pos {
+ // expectClosing is like expect but provides a better error message
+ // for the common case of a missing comma before a newline.
+ //
+-func (p *parser) expectClosing(tok token.Token, construct string) token.Pos {
++func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
+ 	if p.tok != tok && p.tok == token.SEMICOLON && p.lit == "\n" {
+-		p.error(p.pos, "missing ',' before newline in "+construct)
++		p.error(p.pos, "missing ',' before newline in "+context)
+ 		p.next()
+ 	}
+ 	return p.expect(tok)
+@@ -376,6 +376,18 @@ func (p *parser) expectSemi() {
+ 	}
+ }
+ 
++func (p *parser) seesComma(context string) bool {
++	if p.tok == token.COMMA {
++		return true
++	}
++	if p.tok == token.SEMICOLON && p.lit == "\n" {
++		p.error(p.pos, "missing ',' before newline in "+context)
++		return true // "insert" the comma and continue
++
++	}
++	return false
++}
++
+ func assert(cond bool, msg string) {
+ 	if !cond {
+ 		panic("go/parser internal error: " + msg)
+@@ -647,7 +659,7 @@ func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
+ 	// accept them all for more robust parsing and complain later
+ 	for typ := p.parseVarType(isParam); typ != nil; {
+ 		list = append(list, typ)
+-		if p.tok != token.COMMA {
++		if !p.seesComma("variable list") {
+ 			break
+ 		}
+ 		p.next()
+@@ -688,7 +700,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 			// Go spec: The scope of an identifier denoting a function
+ 			// parameter or result variable is the function body.
+ 			p.declare(field, nil, scope, ast.Var, idents...)
+-			if p.tok != token.COMMA {
++			if !p.seesComma("parameter list") {
+ 				break
+ 			}
+ 			p.next()
+@@ -1078,7 +1090,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 			ellipsis = p.pos
+ 			p.next()
+ 		}
+-		if p.tok != token.COMMA {
++		if !p.seesComma("argument list") {
+ 			break
+ 		}
+ 		p.next()
+@@ -1118,7 +1130,7 @@ func (p *parser) parseElementList() (list []ast.Expr) {
+ 
+ 	for p.tok != token.RBRACE && p.tok != token.EOF {
+ 		list = append(list, p.parseElement(true))
+-		if p.tok != token.COMMA {
++		if !p.seesComma("composite literal") {
+ 			break
+ 		}
+ 		p.next()

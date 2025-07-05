@@ -25,7 +25,220 @@ Date:   Thu Mar 5 16:17:45 2020 -0500
     Change-Id: I58b2c6a0f143bce55d6460fd4ddc3db83577ada7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222277
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../lockedfile/internal/filelock/filelock_fcntl.go | 70 ++++++++++++++--
  src/cmd/go/internal/lockedfile/lockedfile_test.go  | 98 ++++++++++++++++++++++
  2 files changed, 163 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+index 2831975c0c..c60a78ed92 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+@@ -13,19 +13,19 @@
+ // or an F_OFD_SETLK command for 'fcntl', that allows for better concurrency and
+ // does not require per-inode bookkeeping in the application.
+ //
+-// TODO(bcmills): If we add a build tag for Illumos (see golang.org/issue/20603)
+-// then Illumos should use F_OFD_SETLK, and the resulting code would be as
+-// simple as filelock_unix.go. We will still need the code in this file for AIX
+-// or as long as Oracle Solaris provides only F_SETLK.
++// TODO(golang.org/issue/35618): add a syscall.Flock binding for Illumos and
++// switch it over to use filelock_unix.go.
+ 
+ package filelock
+ 
+ import (
+ 	"errors"
+ 	"io"
++	"math/rand"
+ 	"os"
+ 	"sync"
+ 	"syscall"
++	"time"
+ )
+ 
+ type lockType int16
+@@ -91,7 +91,67 @@ func lock(f File, lt lockType) (err error) {
+ 		wait <- f
+ 	}
+ 
+-	err = setlkw(f.Fd(), lt)
++	// Spurious EDEADLK errors arise on platforms that compute deadlock graphs at
++	// the process, rather than thread, level. Consider processes P and Q, with
++	// threads P.1, P.2, and Q.3. The following trace is NOT a deadlock, but will be
++	// reported as a deadlock on systems that consider only process granularity:
++	//
++	// 	P.1 locks file A.
++	// 	Q.3 locks file B.
++	// 	Q.3 blocks on file A.
++	// 	P.2 blocks on file B. (This is erroneously reported as a deadlock.)
++	// 	P.1 unlocks file A.
++	// 	Q.3 unblocks and locks file A.
++	// 	Q.3 unlocks files A and B.
++	// 	P.2 unblocks and locks file B.
++	// 	P.2 unlocks file B.
++	//
++	// These spurious errors were observed in practice on AIX and Solaris in
++	// cmd/go: see https://golang.org/issue/32817.
++	//
++	// We work around this bug by treating EDEADLK as always spurious. If there
++	// really is a lock-ordering bug between the interacting processes, it will
++	// become a livelock instead, but that's not appreciably worse than if we had
++	// a proper flock implementation (which generally does not even attempt to
++	// diagnose deadlocks).
++	//
++	// In the above example, that changes the trace to:
++	//
++	// 	P.1 locks file A.
++	// 	Q.3 locks file B.
++	// 	Q.3 blocks on file A.
++	// 	P.2 spuriously fails to lock file B and goes to sleep.
++	// 	P.1 unlocks file A.
++	// 	Q.3 unblocks and locks file A.
++	// 	Q.3 unlocks files A and B.
++	// 	P.2 wakes up and locks file B.
++	// 	P.2 unlocks file B.
++	//
++	// We know that the retry loop will not introduce a *spurious* livelock
++	// because, according to the POSIX specification, EDEADLK is only to be
++	// returned when “the lock is blocked by a lock from another process”.
++	// If that process is blocked on some lock that we are holding, then the
++	// resulting livelock is due to a real deadlock (and would manifest as such
++	// when using, for example, the flock implementation of this package).
++	// If the other process is *not* blocked on some other lock that we are
++	// holding, then it will eventually release the requested lock.
++
++	nextSleep := 1 * time.Millisecond
++	const maxSleep = 500 * time.Millisecond
++	for {
++		err = setlkw(f.Fd(), lt)
++		if err != syscall.EDEADLK {
++			break
++		}
++		time.Sleep(nextSleep)
++
++		nextSleep += nextSleep
++		if nextSleep > maxSleep {
++			nextSleep = maxSleep
++		}
++		// Apply 10% jitter to avoid synchronizing collisions when we finally unblock.
++		nextSleep += time.Duration((0.1*rand.Float64() - 0.05) * float64(nextSleep))
++	}
+ 
+ 	if err != nil {
+ 		unlock(f)
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_test.go b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+index 8f7a7d5604..416c69d83b 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_test.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+@@ -8,8 +8,11 @@
+ package lockedfile_test
+ 
+ import (
++	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ 	"time"
+@@ -172,3 +175,98 @@ func TestCanLockExistingFile(t *testing.T) {
+ 	f.Close()
+ 	wait(t)
+ }
++
++// TestSpuriousEDEADLK verifies that the spurious EDEADLK reported in
++// https://golang.org/issue/32817 no longer occurs.
++func TestSpuriousEDEADLK(t *testing.T) {
++	// 	P.1 locks file A.
++	// 	Q.3 locks file B.
++	// 	Q.3 blocks on file A.
++	// 	P.2 blocks on file B. (Spurious EDEADLK occurs here.)
++	// 	P.1 unlocks file A.
++	// 	Q.3 unblocks and locks file A.
++	// 	Q.3 unlocks files A and B.
++	// 	P.2 unblocks and locks file B.
++	// 	P.2 unlocks file B.
++
++	testenv.MustHaveExec(t)
++
++	dirVar := t.Name() + "DIR"
++
++	if dir := os.Getenv(dirVar); dir != "" {
++		// Q.3 locks file B.
++		b, err := lockedfile.Edit(filepath.Join(dir, "B"))
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer b.Close()
++
++		if err := ioutil.WriteFile(filepath.Join(dir, "locked"), []byte("ok"), 0666); err != nil {
++			t.Fatal(err)
++		}
++
++		// Q.3 blocks on file A.
++		a, err := lockedfile.Edit(filepath.Join(dir, "A"))
++		// Q.3 unblocks and locks file A.
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer a.Close()
++
++		// Q.3 unlocks files A and B.
++		return
++	}
++
++	dir, remove := mustTempDir(t)
++	defer remove()
++
++	// P.1 locks file A.
++	a, err := lockedfile.Edit(filepath.Join(dir, "A"))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
++	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
++
++	qDone := make(chan struct{})
++	waitQ := mustBlock(t, "Edit A and B in subprocess", func() {
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Errorf("%v:\n%s", err, out)
++		}
++		close(qDone)
++	})
++
++	// Wait until process Q has either failed or locked file B.
++	// Otherwise, P.2 might not block on file B as intended.
++locked:
++	for {
++		if _, err := os.Stat(filepath.Join(dir, "locked")); !os.IsNotExist(err) {
++			break locked
++		}
++		select {
++		case <-qDone:
++			break locked
++		case <-time.After(1 * time.Millisecond):
++		}
++	}
++
++	waitP2 := mustBlock(t, "Edit B", func() {
++		// P.2 blocks on file B. (Spurious EDEADLK occurs here.)
++		b, err := lockedfile.Edit(filepath.Join(dir, "B"))
++		// P.2 unblocks and locks file B.
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		// P.2 unlocks file B.
++		b.Close()
++	})
++
++	// P.1 unlocks file A.
++	a.Close()
++
++	waitQ(t)
++	waitP2(t)
++}

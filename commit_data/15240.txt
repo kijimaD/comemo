@@ -9,6 +9,38 @@ Date:   Thu Feb 14 09:29:34 2013 -0800
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/7300099
-
+---
  src/pkg/net/net.go | 18 +++++++++++++++---
  1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index a3d1759820..72b2b646c4 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -276,11 +276,23 @@ type Listener interface {
+ 
+ var errMissingAddress = errors.New("missing address")
+ 
++// OpError is the error type usually returned by functions in the net
++// package. It describes the operation, network type, and address of
++// an error.
+ type OpError struct {
+-	Op   string
+-	Net  string
++	// Op is the operation which caused the error, such as
++	// "read" or "write".
++	Op string
++
++	// Net is the network type on which this error occurred,
++	// such as "tcp" or "udp6".
++	Net string
++
++	// Addr is the network address on which this error occurred.
+ 	Addr Addr
+-	Err  error
++
++	// Err is the error that occurred during the operation.
++	Err error
+ }
+ 
+ func (e *OpError) Error() string {

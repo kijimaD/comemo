@@ -16,7 +16,50 @@ Date:   Tue Jul 26 14:21:03 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/make.bat | 10 ++++++----
  src/make.rc  |  6 +++++-
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 8f43470819..29a9cce888 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -89,14 +89,16 @@ if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+ set GOROOT=%GOROOT_TEMP%
+ set GOROOT_TEMP=
+ 
+-echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%
+-if x%vflag==x-v echo cmd/dist
+ setlocal
+-set GOROOT=%GOROOT_BOOTSTRAP%
+ set GOOS=
+ set GOARCH=
+-set GOBIN=
+ set GOEXPERIMENT=
++for /f "tokens=*" %%g IN ('%GOROOT_BOOTSTRAP%\bin\go version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
++set GOROOT_BOOTSTRAP_VERSION=%GOROOT_BOOTSTRAP_VERSION:go version =%
++echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
++if x%vflag==x-v echo cmd/dist
++set GOROOT=%GOROOT_BOOTSTRAP%
++set GOBIN=
+ set GO111MODULE=off
+ set GOENV=off
+ set GOFLAGS=
+diff --git a/src/make.rc b/src/make.rc
+index 4597403a04..d9c7f2d817 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -81,7 +81,11 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
+ 	exit bootstrap
+ }
+ 
+-echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
++# Get the exact bootstrap toolchain version to help with debugging.
++# We clear GOOS and GOARCH to avoid an ominous but harmless warning if
++# the bootstrap doesn't support them.
++GOROOT_BOOTSTRAP_VERSION=`{GOOS='' GOARCH='' GOEXPERIMENT='' $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //'}
++echo 'Building Go cmd/dist using '$GOROOT_BOOTSTRAP'. ('$"GOROOT_BOOTSTRAP_VERSION')'
+ if(~ $#vflag 1)
+ 	echo cmd/dist
+ GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off GOENV=off GOFLAGS='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist

@@ -70,10 +70,1575 @@ Date:   Thu Jul 19 08:09:13 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |   48 +
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |    8 +-
  src/cmd/compile/internal/ssa/opGen.go        |   28 +-
  src/cmd/compile/internal/ssa/rewriteARM64.go | 1224 ++++++++++++++++++++++++++
  test/codegen/comparisons.go                  |   34 +-
  5 files changed, 1322 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 374ece24e5..ede7ed3d7a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -574,8 +574,17 @@
+ 
+ (EQ (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TST x y) yes no)
+ (NE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TST x y) yes no)
++(LT (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LT (TST x y) yes no)
++(LE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LE (TST x y) yes no)
++(GT (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GT (TST x y) yes no)
++(GE (CMPconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GE (TST x y) yes no)
++
+ (EQ (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (EQ (TSTW x y) yes no)
+ (NE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (NE (TSTW x y) yes no)
++(LT (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LT (TSTW x y) yes no)
++(LE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (LE (TSTW x y) yes no)
++(GT (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GT (TSTW x y) yes no)
++(GE (CMPWconst [0] z:(AND x y)) yes no) && z.Uses == 1 -> (GE (TSTW x y) yes no)
+ 
+ (EQ (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTconst [c] y) yes no)
+ (NE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTconst [c] y) yes no)
+@@ -584,10 +593,47 @@
+ (GT (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (GT (TSTconst [c] y) yes no)
+ (GE (CMPconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (GE (TSTconst [c] y) yes no)
+ 
++(EQ (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (CMNconst [c] y) yes no)
++(NE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (NE (CMNconst [c] y) yes no)
++(LT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LT (CMNconst [c] y) yes no)
++(LE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LE (CMNconst [c] y) yes no)
++(GT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GT (CMNconst [c] y) yes no)
++(GE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GE (CMNconst [c] y) yes no)
++
++(EQ (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (CMNWconst [c] y) yes no)
++(NE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (NE (CMNWconst [c] y) yes no)
++(LT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LT (CMNWconst [c] y) yes no)
++(LE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (LE (CMNWconst [c] y) yes no)
++(GT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GT (CMNWconst [c] y) yes no)
++(GE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 -> (GE (CMNWconst [c] y) yes no)
++
+ (EQ (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (EQ (CMN x y) yes no)
+ (NE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (NE (CMN x y) yes no)
++(LT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LT (CMN x y) yes no)
++(LE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LE (CMN x y) yes no)
++(GT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GT (CMN x y) yes no)
++(GE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GE (CMN x y) yes no)
++
++(EQ (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (EQ (CMNW x y) yes no)
++(NE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (NE (CMNW x y) yes no)
++(LT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LT (CMNW x y) yes no)
++(LE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (LE (CMNW x y) yes no)
++(GT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GT (CMNW x y) yes no)
++(GE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 -> (GE (CMNW x y) yes no)
++
+ (EQ (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (EQ (CMN x y) yes no)
+ (NE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (NE (CMN x y) yes no)
++(LT (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (LT (CMN x y) yes no)
++(LE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (LE (CMN x y) yes no)
++(GT (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (GT (CMN x y) yes no)
++(GE (CMP x z:(NEG y)) yes no) && z.Uses == 1 -> (GE (CMN x y) yes no)
++
++(EQ (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (EQ (CMNW x y) yes no)
++(NE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (NE (CMNW x y) yes no)
++(LT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (LT (CMNW x y) yes no)
++(LE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (LE (CMNW x y) yes no)
++(GT (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (GT (CMNW x y) yes no)
++(GE (CMPW x z:(NEG y)) yes no) && z.Uses == 1 -> (GE (CMNW x y) yes no)
+ 
+ (EQ (CMPconst [0] x) yes no) -> (Z x yes no)
+ (NE (CMPconst [0] x) yes no) -> (NZ x yes no)
+@@ -1066,7 +1112,9 @@
+ (OR  x (MOVDconst [c])) -> (ORconst  [c] x)
+ (XOR x (MOVDconst [c])) -> (XORconst [c] x)
+ (TST x (MOVDconst [c])) -> (TSTconst [c] x)
++(TSTW x (MOVDconst [c])) -> (TSTWconst [c] x)
+ (CMN x (MOVDconst [c])) -> (CMNconst [c] x)
++(CMNW x (MOVDconst [c])) -> (CMNWconst [c] x)
+ (BIC x (MOVDconst [c])) -> (ANDconst [^c] x)
+ (EON x (MOVDconst [c])) -> (XORconst [^c] x)
+ (ORN x (MOVDconst [c])) -> (ORconst  [^c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 2c434f4a74..eb0ad530a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -258,13 +258,13 @@ func init() {
+ 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int64", typ: "Flags"},   // arg0 compare to auxInt
+ 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1, 32 bit
+ 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt, 32 bit
+-		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                      // arg0 compare to -arg1
++		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags", commutative: true},   // arg0 compare to -arg1
+ 		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int64", typ: "Flags"},   // arg0 compare to -auxInt
+-		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags"},                    // arg0 compare to -arg1, 32 bit
++		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags", commutative: true}, // arg0 compare to -arg1, 32 bit
+ 		{name: "CMNWconst", argLength: 1, reg: gp1flags, asm: "CMNW", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt, 32 bit
+-		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags"},                      // arg0 & arg1 compare to 0
++		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true},   // arg0 & arg1 compare to 0
+ 		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int64", typ: "Flags"},   // arg0 & auxInt compare to 0
+-		{name: "TSTW", argLength: 2, reg: gp2flags, asm: "TSTW", typ: "Flags"},                    // arg0 & arg1 compare to 0, 32 bit
++		{name: "TSTW", argLength: 2, reg: gp2flags, asm: "TSTW", typ: "Flags", commutative: true}, // arg0 & arg1 compare to 0, 32 bit
+ 		{name: "TSTWconst", argLength: 1, reg: gp1flags, asm: "TSTW", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0, 32 bit
+ 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "FCMPS", typ: "Flags"},                  // arg0 compare to arg1, float32
+ 		{name: "FCMPD", argLength: 2, reg: fp2flags, asm: "FCMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6243bfca4d..0ff15db914 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -15205,9 +15205,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CMN",
+-		argLen: 2,
+-		asm:    arm64.ACMN,
++		name:        "CMN",
++		argLen:      2,
++		commutative: true,
++		asm:         arm64.ACMN,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -15227,9 +15228,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CMNW",
+-		argLen: 2,
+-		asm:    arm64.ACMNW,
++		name:        "CMNW",
++		argLen:      2,
++		commutative: true,
++		asm:         arm64.ACMNW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -15249,9 +15251,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "TST",
+-		argLen: 2,
+-		asm:    arm64.ATST,
++		name:        "TST",
++		argLen:      2,
++		commutative: true,
++		asm:         arm64.ATST,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -15271,9 +15274,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "TSTW",
+-		argLen: 2,
+-		asm:    arm64.ATSTW,
++		name:        "TSTW",
++		argLen:      2,
++		commutative: true,
++		asm:         arm64.ATSTW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a84d1afdf4..fbdf352998 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -45,6 +45,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64BICshiftRL_0(v)
+ 	case OpARM64CMN:
+ 		return rewriteValueARM64_OpARM64CMN_0(v)
++	case OpARM64CMNW:
++		return rewriteValueARM64_OpARM64CMNW_0(v)
+ 	case OpARM64CMNWconst:
+ 		return rewriteValueARM64_OpARM64CMNWconst_0(v)
+ 	case OpARM64CMNconst:
+@@ -295,6 +297,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64SUBshiftRL_0(v)
+ 	case OpARM64TST:
+ 		return rewriteValueARM64_OpARM64TST_0(v)
++	case OpARM64TSTW:
++		return rewriteValueARM64_OpARM64TSTW_0(v)
+ 	case OpARM64TSTWconst:
+ 		return rewriteValueARM64_OpARM64TSTWconst_0(v)
+ 	case OpARM64TSTconst:
+@@ -2375,6 +2379,57 @@ func rewriteValueARM64_OpARM64CMN_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMN (MOVDconst [c]) x)
++	// cond:
++	// result: (CMNconst [c] x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(OpARM64CMNconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64CMNW_0(v *Value) bool {
++	// match: (CMNW x (MOVDconst [c]))
++	// cond:
++	// result: (CMNWconst [c] x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64CMNWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (CMNW (MOVDconst [c]) x)
++	// cond:
++	// result: (CMNWconst [c] x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(OpARM64CMNWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64CMNWconst_0(v *Value) bool {
+@@ -25219,6 +25274,57 @@ func rewriteValueARM64_OpARM64TST_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (TST (MOVDconst [c]) x)
++	// cond:
++	// result: (TSTconst [c] x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(OpARM64TSTconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64TSTW_0(v *Value) bool {
++	// match: (TSTW x (MOVDconst [c]))
++	// cond:
++	// result: (TSTWconst [c] x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64TSTWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (TSTW (MOVDconst [c]) x)
++	// cond:
++	// result: (TSTWconst [c] x)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(OpARM64TSTWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64TSTWconst_0(v *Value) bool {
+@@ -32789,6 +32895,62 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (EQ (CMPconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (EQ (CMNconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64EQ
++			v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (EQ (CMPWconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (EQ (CMNWconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64EQ
++			v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (EQ (CMPconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+ 		// result: (EQ (CMN x y) yes no)
+@@ -32818,6 +32980,35 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (EQ (CMPWconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (EQ (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64EQ
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (EQ (CMP x z:(NEG y)) yes no)
+ 		// cond: z.Uses == 1
+ 		// result: (EQ (CMN x y) yes no)
+@@ -32844,6 +33035,32 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (EQ (CMPW x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (EQ (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPW {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64EQ
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (EQ (CMPconst [0] x) yes no)
+ 		// cond:
+ 		// result: (Z x yes no)
+@@ -33158,6 +33375,64 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (GE (CMPconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GE (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPWconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GE (TSTW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (GE (CMPconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+ 		// result: (GE (TSTconst [c] y) yes no)
+@@ -33186,6 +33461,172 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (GE (CMPconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (GE (CMNconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (GE (CMNWconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GE (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPWconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GE (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMP x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GE (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMP {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPW x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GE (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPW {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (GE (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+ 		// result: (GE (CMN a (MUL <x.Type> x y)) yes no)
+@@ -33462,6 +33903,64 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (GT (CMPconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GT (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPWconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GT (TSTW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (GT (CMPconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+ 		// result: (GT (TSTconst [c] y) yes no)
+@@ -33490,6 +33989,172 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (GT (CMPconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (GT (CMNconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPWconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (GT (CMNWconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GT (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPWconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GT (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMP x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GT (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMP {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPW x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (GT (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPW {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64GT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (GT (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+ 		// result: (GT (CMN a (MUL <x.Type> x y)) yes no)
+@@ -33886,6 +34551,64 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (LE (CMPconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LE (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPWconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LE (TSTW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (LE (CMPconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+ 		// result: (LE (TSTconst [c] y) yes no)
+@@ -33914,6 +34637,172 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (LE (CMPconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (LE (CMNconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (LE (CMNWconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LE (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPWconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LE (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMP x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LE (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMP {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPW x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LE (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPW {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (LE (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+ 		// result: (LE (CMN a (MUL <x.Type> x y)) yes no)
+@@ -34156,6 +35045,64 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (LT (CMPconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LT (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64TST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPWconst [0] z:(AND x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LT (TSTW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64AND {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64TSTW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (LT (CMPconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+ 		// result: (LT (TSTconst [c] y) yes no)
+@@ -34184,6 +35131,172 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (LT (CMPconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (LT (CMNconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPWconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (LT (CMNWconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LT (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPWconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LT (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMP x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LT (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMP {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPW x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (LT (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPW {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64LT
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (LT (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+ 		// result: (LT (CMN a (MUL <x.Type> x y)) yes no)
+@@ -34547,6 +35660,62 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (CMPconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (NE (CMNconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64NE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (NE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
++		// cond: x.Uses == 1
++		// result: (NE (CMNWconst [c] y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			if x.Op != OpARM64ADDconst {
++				break
++			}
++			c := x.AuxInt
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64NE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (CMPconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+ 		// result: (NE (CMN x y) yes no)
+@@ -34576,6 +35745,35 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (CMPWconst [0] z:(ADD x y)) yes no)
++		// cond: z.Uses == 1
++		// result: (NE (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			z := v.Args[0]
++			if z.Op != OpARM64ADD {
++				break
++			}
++			_ = z.Args[1]
++			x := z.Args[0]
++			y := z.Args[1]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64NE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (CMP x z:(NEG y)) yes no)
+ 		// cond: z.Uses == 1
+ 		// result: (NE (CMN x y) yes no)
+@@ -34602,6 +35800,32 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (CMPW x z:(NEG y)) yes no)
++		// cond: z.Uses == 1
++		// result: (NE (CMNW x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPW {
++				break
++			}
++			_ = v.Args[1]
++			x := v.Args[0]
++			z := v.Args[1]
++			if z.Op != OpARM64NEG {
++				break
++			}
++			y := z.Args[0]
++			if !(z.Uses == 1) {
++				break
++			}
++			b.Kind = BlockARM64NE
++			v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (CMPconst [0] x) yes no)
+ 		// cond:
+ 		// result: (NZ x yes no)
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 22d06363ba..8475b130c2 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -158,13 +158,39 @@ func CmpZero4(a int64, ptr *int) {
+ 	}
+ }
+ 
+-func CmpToZero(a, b int32) int32 {
+-	if a&b < 0 { // arm:`TST`,-`AND`
++func CmpToZero(a, b, d int32) int32 {
++	// arm:`TST`,-`AND`
++	// arm64:`TSTW`,-`AND`
++	c0 := a&b < 0
++	// arm:`CMN`,-`ADD`
++	// arm64:`CMNW`,-`ADD`
++	c1 := a+b < 0
++	// arm:`TEQ`,-`XOR`
++	c2 := a^b < 0
++	// arm64:`TST`,-`AND`
++	c3 := int64(a)&int64(b) < 0
++	// arm64:`CMN`,-`ADD`
++	c4 := int64(a)+int64(b) < 0
++	// not optimized to CMNW/CMN due to further use of b+d
++	// arm64:`ADD`,-`CMNW`
++	c5 := b+d == 0
++	// not optimized to TSTW/TST due to further use of a&d
++	// arm64:`AND`,-`TSTW`
++	c6 := a&d >= 0
++	if c0 {
+ 		return 1
+-	} else if a+b < 0 { // arm:`CMN`,-`ADD`
++	} else if c1 {
+ 		return 2
+-	} else if a^b < 0 { // arm:`TEQ`,-`XOR`
++	} else if c2 {
+ 		return 3
++	} else if c3 {
++		return 4
++	} else if c4 {
++		return 5
++	} else if c5 {
++		return b + d
++	} else if c6 {
++		return a & d
+ 	} else {
+ 		return 0
+ 	}

@@ -22,7 +22,7 @@ Date:   Tue Apr 4 01:10:55 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/asm_amd64.s      | 2 +-
  src/runtime/asm_arm64.s      | 2 +-
  src/runtime/export_test.go   | 2 +-
@@ -39,3 +39,198 @@ Date:   Tue Apr 4 01:10:55 2023 +0200
  src/runtime/stubs_s390x.go   | 5 +++--
  src/runtime/trace.go         | 2 +-
  15 files changed, 35 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7fb1ae2cff..403ef3fc56 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2060,6 +2060,6 @@ TEXT runtime·retpolineR13(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(13)
+ TEXT runtime·retpolineR14(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(14)
+ TEXT runtime·retpolineR15(SB),NOSPLIT|NOFRAME,$0; RETPOLINE(15)
+ 
+-TEXT ·getcallerfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT ·getfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ BP, AX
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6fe04a6445..6c5105210b 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1544,6 +1544,6 @@ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R3, R1
+ 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+ 
+-TEXT ·getcallerfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT ·getfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD R29, R0
+ 	RET
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 07d14591a6..bd230c0476 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1820,5 +1820,5 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
+ // FPCallers works like Callers and uses frame pointer unwinding to populate
+ // pcBuf with the return addresses of the physical frames on the stack.
+ func FPCallers(skip int, pcBuf []uintptr) int {
+-	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf)
++	return fpTracebackPCs(unsafe.Pointer(getfp()), skip, pcBuf)
+ }
+diff --git a/src/runtime/os_wasm.go b/src/runtime/os_wasm.go
+index 1a6f7d802f..bf78dfb5f9 100644
+--- a/src/runtime/os_wasm.go
++++ b/src/runtime/os_wasm.go
+@@ -137,8 +137,9 @@ func preemptM(mp *m) {
+ 	// No threads, so nothing to do.
+ }
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+ 
+ func setProcessCPUProfiler(hz int32) {}
+ func setThreadCPUProfiler(hz int32)  {}
+diff --git a/src/runtime/stubs_386.go b/src/runtime/stubs_386.go
+index ef531367c9..a1dd023974 100644
+--- a/src/runtime/stubs_386.go
++++ b/src/runtime/stubs_386.go
+@@ -19,5 +19,6 @@ func emptyfunc()
+ //go:noescape
+ func asmcgocall_no_g(fn, arg unsafe.Pointer)
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_amd64.go b/src/runtime/stubs_amd64.go
+index 3e7cf4f383..a86a496457 100644
+--- a/src/runtime/stubs_amd64.go
++++ b/src/runtime/stubs_amd64.go
+@@ -48,6 +48,6 @@ func asmcgocall_no_g(fn, arg unsafe.Pointer)
+ func spillArgs()
+ func unspillArgs()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
+ // TODO: Make this a compiler intrinsic
+-func getcallerfp() uintptr
++func getfp() uintptr
+diff --git a/src/runtime/stubs_arm.go b/src/runtime/stubs_arm.go
+index be40a2b06a..e19f1a87b2 100644
+--- a/src/runtime/stubs_arm.go
++++ b/src/runtime/stubs_arm.go
+@@ -24,5 +24,6 @@ func read_tls_fallback()
+ //go:noescape
+ func asmcgocall_no_g(fn, arg unsafe.Pointer)
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_arm64.go b/src/runtime/stubs_arm64.go
+index 723337ce52..df04e64291 100644
+--- a/src/runtime/stubs_arm64.go
++++ b/src/runtime/stubs_arm64.go
+@@ -22,6 +22,6 @@ func emptyfunc()
+ func spillArgs()
+ func unspillArgs()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
+ // TODO: Make this a compiler intrinsic
+-func getcallerfp() uintptr
++func getfp() uintptr
+diff --git a/src/runtime/stubs_loong64.go b/src/runtime/stubs_loong64.go
+index 0575c3093d..556983cad1 100644
+--- a/src/runtime/stubs_loong64.go
++++ b/src/runtime/stubs_loong64.go
+@@ -10,5 +10,6 @@ package runtime
+ func load_g()
+ func save_g()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_mips64x.go b/src/runtime/stubs_mips64x.go
+index dbc4424f6c..f0cf088620 100644
+--- a/src/runtime/stubs_mips64x.go
++++ b/src/runtime/stubs_mips64x.go
+@@ -15,5 +15,6 @@ func save_g()
+ //go:noescape
+ func asmcgocall_no_g(fn, arg unsafe.Pointer)
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_mipsx.go b/src/runtime/stubs_mipsx.go
+index abae8418a1..84ba147b85 100644
+--- a/src/runtime/stubs_mipsx.go
++++ b/src/runtime/stubs_mipsx.go
+@@ -10,5 +10,6 @@ package runtime
+ func load_g()
+ func save_g()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_ppc64x.go b/src/runtime/stubs_ppc64x.go
+index 67035eb7e8..0b7771ef03 100644
+--- a/src/runtime/stubs_ppc64x.go
++++ b/src/runtime/stubs_ppc64x.go
+@@ -16,5 +16,6 @@ func reginit()
+ func spillArgs()
+ func unspillArgs()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_riscv64.go b/src/runtime/stubs_riscv64.go
+index 0df1659c4a..b07d7f8746 100644
+--- a/src/runtime/stubs_riscv64.go
++++ b/src/runtime/stubs_riscv64.go
+@@ -15,5 +15,6 @@ func save_g()
+ func spillArgs()
+ func unspillArgs()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/stubs_s390x.go b/src/runtime/stubs_s390x.go
+index 799f4e948f..a2b07ff8aa 100644
+--- a/src/runtime/stubs_s390x.go
++++ b/src/runtime/stubs_s390x.go
+@@ -8,5 +8,6 @@ package runtime
+ func load_g()
+ func save_g()
+ 
+-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+-func getcallerfp() uintptr { return 0 }
++// getfp returns the frame pointer register of its caller or 0 if not implemented.
++// TODO: Make this a compiler intrinsic
++func getfp() uintptr { return 0 }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 5eb68271d1..327059dd50 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -906,7 +906,7 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
+ 		// Fast path: Unwind using frame pointers.
+ 		pcBuf[0] = uintptr(skip)
+ 		if curgp == gp {
+-			nstk += fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf[1:])
++			nstk += fpTracebackPCs(unsafe.Pointer(getfp()), skip, pcBuf[1:])
+ 		} else if curgp != nil {
+ 			// We're called on the g0 stack through mcall(fn) or systemstack(fn). To
+ 			// behave like gcallers above, we start unwinding from sched.bp, which

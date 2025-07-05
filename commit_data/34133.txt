@@ -12,8 +12,159 @@ Date:   Sat Aug 19 00:13:25 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/67311
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/internal/cache/cache.go     | 13 ++++++
  src/cmd/go/internal/cache/hash.go      | 73 ++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/cache/hash_test.go | 46 +++++++++++++++++++++
  3 files changed, 132 insertions(+)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+new file mode 100644
+index 0000000000..97afe959fc
+--- /dev/null
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cache implements a package cache,
++// or more properly a build artifact cache,
++// but our only cached build artifacts are packages.
++package cache
++
++// An ActionID is a cache action key, the hash of a complete description of a
++// repeatable computation (command line, environment variables,
++// input file contents, executable contents).
++type ActionID [HashSize]byte
+diff --git a/src/cmd/go/internal/cache/hash.go b/src/cmd/go/internal/cache/hash.go
+new file mode 100644
+index 0000000000..edb2d31a18
+--- /dev/null
++++ b/src/cmd/go/internal/cache/hash.go
+@@ -0,0 +1,73 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cache
++
++import (
++	"crypto/sha256"
++	"fmt"
++	"hash"
++	"io"
++	"os"
++)
++
++const debugHash = false
++
++// HashSize is the number of bytes in a hash.
++const HashSize = 32
++
++// A Hash provides access to the canonical hash function used to index the cache.
++// The current implementation uses SHA256, but clients must not assume this.
++type Hash struct {
++	h    hash.Hash
++	name string // for debugging
++}
++
++// NewHash returns a new Hash.
++// The caller is expected to Write data to it and then call Sum.
++func NewHash(name string) *Hash {
++	h := &Hash{h: sha256.New(), name: name}
++	if debugHash {
++		fmt.Fprintf(os.Stderr, "HASH[%s]\n", h.name)
++	}
++	return h
++}
++
++// Write writes data to the running hash.
++func (h *Hash) Write(b []byte) (int, error) {
++	if debugHash {
++		fmt.Fprintf(os.Stderr, "HASH[%s]: %q\n", h.name, b)
++	}
++	return h.h.Write(b)
++}
++
++// Sum returns the hash of the data written previously.
++func (h *Hash) Sum() [HashSize]byte {
++	var out [HashSize]byte
++	h.h.Sum(out[:0])
++	if debugHash {
++		fmt.Fprintf(os.Stderr, "HASH[%s]: %x\n", h.name, out)
++	}
++	return out
++}
++
++// HashFile returns the hash of the named file.
++func HashFile(file string) ([HashSize]byte, error) {
++	h := sha256.New()
++	f, err := os.Open(file)
++	if err != nil {
++		if debugHash {
++			fmt.Fprintf(os.Stderr, "HASH %s: %v\n", file, err)
++		}
++		return [HashSize]byte{}, err
++	}
++	io.Copy(h, f)
++	f.Close()
++	var out [HashSize]byte
++	h.Sum(out[:0])
++	if debugHash {
++		fmt.Fprintf(os.Stderr, "HASH %s: %x\n", file, out)
++	}
++	return out, nil
++}
+diff --git a/src/cmd/go/internal/cache/hash_test.go b/src/cmd/go/internal/cache/hash_test.go
+new file mode 100644
+index 0000000000..493d39339f
+--- /dev/null
++++ b/src/cmd/go/internal/cache/hash_test.go
+@@ -0,0 +1,46 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cache
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"testing"
++)
++
++func TestHash(t *testing.T) {
++	h := NewHash("alice")
++	h.Write([]byte("hello world"))
++	sum := fmt.Sprintf("%x", h.Sum())
++	want := "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
++	if sum != want {
++		t.Errorf("hash(hello world) = %v, want %v", sum, want)
++	}
++}
++
++func TestHashFile(t *testing.T) {
++	f, err := ioutil.TempFile("", "cmd-go-test-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	name := f.Name()
++	fmt.Fprintf(f, "hello world")
++	defer os.Remove(name)
++	if err := f.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	var h ActionID // make sure hash result is assignable to ActionID
++	h, err = HashFile(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	sum := fmt.Sprintf("%x", h)
++	want := "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
++	if sum != want {
++		t.Errorf("hash(hello world) = %v, want %v", sum, want)
++	}
++}

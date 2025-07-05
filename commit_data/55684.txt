@@ -14,6 +14,23 @@ Date:   Wed Mar 1 22:32:46 2023 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index b441964492..0e8670c8e5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4242,6 +4242,11 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		AVPGATHERQD,
+ 		AVPGATHERDQ,
+ 		AVPGATHERQQ:
++		if p.GetFrom3() == nil {
++			// gathers need a 3rd arg. See issue 58822.
++			ctxt.Diag("need a third arg for gather instruction: %v", p)
++			return
++		}
+ 		// AVX512 gather requires explicit K mask.
+ 		if p.GetFrom3().Reg >= REG_K0 && p.GetFrom3().Reg <= REG_K7 {
+ 			if !avx512gatherValid(ctxt, p) {

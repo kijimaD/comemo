@@ -9,7 +9,38 @@ Date:   Sat Mar 14 10:03:55 2015 +1100
     Change-Id: I449613cf348254e9de6cc7a6b7737e43ea7d10fe
     Reviewed-on: https://go-review.googlesource.com/7580
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/7g/ggen.go  | 2 +-
  src/cmd/7g/gsubr.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 6bf1d56373..7cc8bc57c8 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -76,7 +76,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p.Reg = ppc64.REGSP
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		f := gc.Sysfunc("duffzero")
+-		p.To = gc.Naddr(f, 1)
++		p.To = gc.Naddr(f)
+ 		gc.Afunclit(&p.To, f)
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 5db301a282..01572195c8 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -700,10 +700,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	at := obj.Addr(obj.Addr{})
+ 	if f != nil {
+-		af = gc.Naddr(f, 1)
++		af = gc.Naddr(f)
+ 	}
+ 	if t != nil {
+-		at = gc.Naddr(t, 1)
++		at = gc.Naddr(t)
+ 	}
+ 	p := (*obj.Prog)(gc.Prog(as))
+ 	if f != nil {

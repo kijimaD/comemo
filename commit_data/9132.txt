@@ -7,7 +7,7 @@ Date:   Tue Jul 19 10:47:33 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4725041
-
+---
  src/cmd/6l/asm.c                    |  2 +-
  src/cmd/ld/data.c                   | 40 ++++++++++++++++++++++++++++++++-----
  src/cmd/ld/ldpe.c                   | 29 +++++++++++++++++++++++++++
@@ -15,3 +15,198 @@ Date:   Tue Jul 19 10:47:33 2011 -0400
  src/pkg/runtime/cgo/windows_amd64.c |  9 ++++++---
  src/pkg/runtime/windows/amd64/rt0.s |  3 +++
  6 files changed, 77 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 09b5a414cb..723ac0efe3 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -524,7 +524,7 @@ adddynsym(Sym *s)
+ 			adduint64(d, 0);	// value
+ 		else
+ 			addaddr(d, s);
+-	} else {
++	} else if(HEADTYPE != Hwindows) {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+ }
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 2153fdebd4..9974dbc513 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -36,6 +36,7 @@
+ #include	"../ld/pe.h"
+ 
+ void	dynreloc(void);
++static vlong addaddrplus4(Sym *s, Sym *t, int32 add);
+ 
+ /*
+  * divide-and-conquer list-link
+@@ -255,11 +256,19 @@ dynrelocsym(Sym *s)
+ 				r->add = targ->plt;
+ 				
+ 				// jmp *addr
+-				adduint8(rel, 0xff);
+-				adduint8(rel, 0x25);
+-				addaddr(rel, targ);
+-				adduint8(rel, 0x90);
+-				adduint8(rel, 0x90);
++				if(thechar == '8') {
++					adduint8(rel, 0xff);
++					adduint8(rel, 0x25);
++					addaddr(rel, targ);
++					adduint8(rel, 0x90);
++					adduint8(rel, 0x90);
++				} else {
++					adduint8(rel, 0xff);
++					adduint8(rel, 0x24);
++					adduint8(rel, 0x25);
++					addaddrplus4(rel, targ, 0);
++					adduint8(rel, 0x90);
++				}
+ 			} else if(r->sym->plt >= 0) {
+ 				r->sym = rel;
+ 				r->add = targ->plt;
+@@ -678,6 +687,27 @@ addaddrplus(Sym *s, Sym *t, int32 add)
+ 	return i;
+ }
+ 
++vlong
++addaddrplus4(Sym *s, Sym *t, int32 add)
++{
++	vlong i;
++	Reloc *r;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	i = s->size;
++	s->size += 4;
++	symgrow(s, s->size);
++	r = addrel(s);
++	r->sym = t;
++	r->off = i;
++	r->siz = 4;
++	r->type = D_ADDR;
++	r->add = add;
++	return i;
++}
++
+ vlong
+ addpcrelplus(Sym *s, Sym *t, int32 add)
+ {
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 98c866feeb..3e2b57112a 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -73,6 +73,24 @@
+ #define IMAGE_REL_I386_SECREL7	0x000D
+ #define IMAGE_REL_I386_REL32	0x0014
+ 
++#define IMAGE_REL_AMD64_ABSOLUTE 0x0000
++#define IMAGE_REL_AMD64_ADDR64 0x0001 // R_X86_64_64
++#define IMAGE_REL_AMD64_ADDR32 0x0002 // R_X86_64_PC32
++#define IMAGE_REL_AMD64_ADDR32NB 0x0003
++#define IMAGE_REL_AMD64_REL32 0x0004 
++#define IMAGE_REL_AMD64_REL32_1 0x0005
++#define IMAGE_REL_AMD64_REL32_2 0x0006
++#define IMAGE_REL_AMD64_REL32_3 0x0007
++#define IMAGE_REL_AMD64_REL32_4 0x0008
++#define IMAGE_REL_AMD64_REL32_5 0x0009
++#define IMAGE_REL_AMD64_SECTION 0x000A
++#define IMAGE_REL_AMD64_SECREL 0x000B
++#define IMAGE_REL_AMD64_SECREL7 0x000C
++#define IMAGE_REL_AMD64_TOKEN 0x000D
++#define IMAGE_REL_AMD64_SREL32 0x000E
++#define IMAGE_REL_AMD64_PAIR 0x000F
++#define IMAGE_REL_AMD64_SSPAN32 0x0010
++
+ typedef struct PeSym PeSym;
+ typedef struct PeSect PeSect;
+ typedef struct PeObj PeObj;
+@@ -261,6 +279,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				default:
+ 					diag("%s: unknown relocation type %d;", pn, type);
+ 				case IMAGE_REL_I386_REL32:
++				case IMAGE_REL_AMD64_REL32:
+ 					rp->type = D_PCREL;
+ 					rp->add = 0;
+ 					break;
+@@ -270,6 +289,16 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					// load addend from image
+ 					rp->add = le32(rsect->base+rp->off);
+ 					break;
++				case IMAGE_REL_AMD64_ADDR32: // R_X86_64_PC32
++					rp->type = D_PCREL;
++					rp->add += 4;
++					break;
++				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
++					rp->siz = 8;
++					rp->type = D_ADDR;
++					// load addend from image
++					rp->add = le64(rsect->base+rp->off);
++					break;
+ 			}
+ 		}
+ 		qsort(r, rsect->sh.NumberOfRelocations, sizeof r[0], rbyoff);
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 2734ae1dca..2b16587f8c 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -18,7 +18,8 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	TESTQ	AX, AX
+ 	JZ	needtls
+ 	CALL	AX
+-	JMP ok
++	CMPL	runtime·iswindows(SB), $0
++	JEQ ok
+ 
+ needtls:
+ 	LEAQ	runtime·tls0(SB), DI
+@@ -432,6 +433,7 @@ TEXT runtime·asmcgocall(SB),7,$0
+ 	MOVQ	DI, 16(SP)	// save g
+ 	MOVQ	DX, 8(SP)	// save SP
+ 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
++	MOVQ	BX, CX		// CX = first argument in Win64
+ 	CALL	AX
+ 
+ 	// Restore registers, g, stack pointer.
+diff --git a/src/pkg/runtime/cgo/windows_amd64.c b/src/pkg/runtime/cgo/windows_amd64.c
+index fd5b397ab5..e8313e250a 100755
+--- a/src/pkg/runtime/cgo/windows_amd64.c
++++ b/src/pkg/runtime/cgo/windows_amd64.c
+@@ -30,6 +30,7 @@ static void*
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
++	void *tls0;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -45,11 +46,13 @@ threadentry(void *v)
+ 	/*
+ 	 * Set specific keys in thread local storage.
+ 	 */
++	tls0 = (void*)LocalAlloc(LPTR, 64);
+ 	asm volatile (
++	  "movq %0, %%gs:0x58\n"	// MOVL tls0, 0x58(GS)
+ 	  "movq %%gs:0x58, %%rax\n" // MOVQ 0x58(GS), tmp
+-	  "movq %0, 0(%%rax)\n" // MOVQ g, 0(GS)
+-	  "movq %1, 8(%%rax)\n" // MOVQ m, 8(GS)
+-	  :: "r"(ts.g), "r"(ts.m) : "%rax"
++	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
++	  "movq %2, 8(%%rax)\n" // MOVQ m, 8(GS)
++	  :: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%rax"
+ 	);
+ 
+ 	crosscall_amd64(ts.fn);
+diff --git a/src/pkg/runtime/windows/amd64/rt0.s b/src/pkg/runtime/windows/amd64/rt0.s
+index e54e7edeb9..35978bc746 100644
+--- a/src/pkg/runtime/windows/amd64/rt0.s
++++ b/src/pkg/runtime/windows/amd64/rt0.s
+@@ -8,3 +8,6 @@ TEXT	_rt0_amd64_windows(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+ 	MOVQ	SP, DI
+ 	JMP	AX
++
++DATA  runtime·iswindows(SB)/4, $1
++GLOBL runtime·iswindows(SB), $4

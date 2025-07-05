@@ -18,7 +18,7 @@ Date:   Thu Sep 22 17:02:22 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm_386.s      |  5 -----
  src/runtime/asm_amd64.s    |  5 -----
  src/runtime/asm_amd64p32.s |  5 -----
@@ -29,3 +29,166 @@ Date:   Thu Sep 22 17:02:22 2016 -0400
  src/runtime/asm_s390x.s    |  6 ------
  src/runtime/stubs.go       | 11 ++++++++---
  9 files changed, 8 insertions(+), 48 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 12038220ac..56d495aede 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -808,11 +808,6 @@ setbar:
+ 	CALL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB), NOSPLIT, $0-8
+-	MOVL	argp+0(FP), AX
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 488c34a233..8d992188de 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -825,11 +825,6 @@ setbar:
+ 	CALL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+-	MOVQ	argp+0(FP), AX
+-	MOVQ	AX, ret+8(FP)
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 6aa230841e..0b42c666ae 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -521,11 +521,6 @@ setbar:
+ 	CALL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-12
+-	MOVL	argp+0(FP), AX
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 29f39cf15d..d768060af2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -695,12 +695,6 @@ setbar:
+ 	BL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$-4-8
+-	MOVW	argp+0(FP), R0
+-	MOVW	$-4(R0), R0
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 066b534900..c46569f68c 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -731,12 +731,6 @@ setbar:
+ 	BL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+-	MOVD	argp+0(FP), R0
+-	SUB	$8, R0
+-	MOVD	R0, ret+8(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	B	(ZR)
+ 	UNDEF
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 15105b90c3..138181833c 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -643,12 +643,6 @@ setbar:
+ 	JAL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+-	MOVV	argp+0(FP), R1
+-	ADDV	$-8, R1
+-	MOVV	R1, ret+8(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 67b3d50691..b5cd12bb3c 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -742,12 +742,6 @@ setbar:
+ 	BL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+-	MOVD	argp+0(FP), R3
+-	SUB	$FIXED_FRAME, R3
+-	MOVD	R3, ret+8(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 3fe224df37..6d0533a3dc 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -715,12 +715,6 @@ setbar:
+ 	BL	runtime·setNextBarrierPC(SB)
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+-	MOVD	argp+0(FP), R3
+-	SUB	$8, R3
+-	MOVD	R3, ret+8(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index f6bb2fba16..88f4139ba3 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ // Should be a built-in for unsafe.Pointer?
+ //go:nosplit
+@@ -196,8 +199,10 @@ func setcallerpc(argp unsafe.Pointer, pc uintptr)
+ //go:noescape
+ func getcallerpc(argp unsafe.Pointer) uintptr
+ 
+-//go:noescape
+-func getcallersp(argp unsafe.Pointer) uintptr
++//go:nosplit
++func getcallersp(argp unsafe.Pointer) uintptr {
++	return uintptr(argp) - sys.MinFrameSize
++}
+ 
+ //go:noescape
+ func asmcgocall(fn, arg unsafe.Pointer) int32

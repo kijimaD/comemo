@@ -12,6 +12,21 @@ Date:   Wed Aug 28 11:16:55 2013 -0700
     R=golang-dev, adg, r, alex.brainman
     CC=golang-dev
     https://golang.org/cl/13271045
-
+---
  src/pkg/time/sleep.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 591fa27b09..4f55bebe62 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -4,7 +4,8 @@
+ 
+ package time
+ 
+-// Sleep pauses the current goroutine for the duration d.
++// Sleep pauses the current goroutine for at least the duration d.
++// A negative or zero duration causes Sleep to return immediately.
+ func Sleep(d Duration)
+ 
+ func nano() int64 {

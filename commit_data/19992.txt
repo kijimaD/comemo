@@ -12,10 +12,106 @@ Date:   Mon Aug 11 15:24:36 2014 -0400
     R=golang-codereviews, r
     CC=dave, golang-codereviews, iant, remyoudompheng
     https://golang.org/cl/124950043
-
+---
  src/cmd/6g/ggen.c           |  2 +-
  src/cmd/6g/peep.c           |  5 +++++
  src/cmd/8g/ggen.c           |  2 +-
  src/cmd/8g/peep.c           |  5 +++++
  test/fixedbugs/issue8325.go | 31 +++++++++++++++++++++++++++++++
  5 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index c385798f2e..9665d831b3 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -943,7 +943,7 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
+ 	if(t->width == 1) {
+ 		// byte multiply behaves differently.
+ 		nodreg(&ax, t, D_AH);
+-		nodreg(&dx, t, D_DL);
++		nodreg(&dx, t, D_DX);
+ 		gmove(&ax, &dx);
+ 	}
+ 	nodreg(&dx, t, D_DX);
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 0f27204434..24617836fe 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -838,6 +838,11 @@ copyu(Prog *p, Adr *v, Adr *s)
+ static int
+ copyas(Adr *a, Adr *v)
+ {
++	if(D_AL <= a->type && a->type <= D_R15B)
++		fatal("use of byte register");
++	if(D_AL <= v->type && v->type <= D_R15B)
++		fatal("use of byte register");
++
+ 	if(a->type != v->type)
+ 		return 0;
+ 	if(regtyp(v))
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 2285a04e61..5e31404806 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -991,7 +991,7 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
+ 	if(t->width == 1) {
+ 		// byte multiply behaves differently.
+ 		nodreg(&ax, t, D_AH);
+-		nodreg(&dx, t, D_DL);
++		nodreg(&dx, t, D_DX);
+ 		gmove(&ax, &dx);
+ 	}
+ 	nodreg(&dx, t, D_DX);
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index d88987f954..35129a7c46 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -636,6 +636,11 @@ copyu(Prog *p, Adr *v, Adr *s)
+ static int
+ copyas(Adr *a, Adr *v)
+ {
++	if(D_AL <= a->type && a->type <= D_R15B)
++		fatal("use of byte register");
++	if(D_AL <= v->type && v->type <= D_R15B)
++		fatal("use of byte register");
++
+ 	if(a->type != v->type)
+ 		return 0;
+ 	if(regtyp(v))
+diff --git a/test/fixedbugs/issue8325.go b/test/fixedbugs/issue8325.go
+new file mode 100644
+index 0000000000..e22fd319db
+--- /dev/null
++++ b/test/fixedbugs/issue8325.go
+@@ -0,0 +1,31 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8325: corrupted byte operations during optimization
++// pass.
++
++package main
++
++const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
++
++func main() {
++	var bytes = []byte{10, 20, 30, 40, 50}
++
++	for i, b := range bytes {
++		bytes[i] = alphanum[b%byte(len(alphanum))]
++	}
++
++	for _, b := range bytes {
++		switch {
++		case '0' <= b && b <= '9',
++			'A' <= b && b <= 'Z':
++		default:
++			println("found a bad character", string(b))
++			panic("BUG")
++		}
++
++	}
++}

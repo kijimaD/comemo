@@ -13,7 +13,7 @@ Date:   Sun Apr 9 08:11:06 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/386.rules     |  8 +++----
  src/cmd/compile/internal/ssa/_gen/AMD64.rules   | 10 ++++----
  src/cmd/compile/internal/ssa/_gen/ARM.rules     |  6 ++---
@@ -35,3 +35,879 @@ Date:   Sun Apr 9 08:11:06 2023 -0700
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 16 ++++++-------
  src/cmd/compile/internal/ssa/rewriteS390X.go    | 16 ++++++-------
  20 files changed, 111 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/386.rules b/src/cmd/compile/internal/ssa/_gen/386.rules
+index 03413b289e..9abc981079 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386.rules
++++ b/src/cmd/compile/internal/ssa/_gen/386.rules
+@@ -206,11 +206,9 @@
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
+ 
+ // Lowering stores
+-// These more-specific FP versions of Store pattern should come first.
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVSDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVSSstore ptr val mem)
+-
+-(Store {t} ptr val mem) && t.Size() == 4 => (MOVLstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVSDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVSSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index d93811e9ff..905bffe3bf 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -234,12 +234,10 @@
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
+ 
+ // Lowering stores
+-// These more-specific FP versions of Store pattern should come first.
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVSDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVSSstore ptr val mem)
+-
+-(Store {t} ptr val mem) && t.Size() == 8 => (MOVQstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 => (MOVLstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVSDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVSSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVQstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM.rules b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+index 9ea9f9674a..0947b77231 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+@@ -264,9 +264,9 @@
+ // stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zero instructions
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 3eb3c2e63b..70d286b62a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -340,10 +340,10 @@
+ // stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
+ 
+ // zeroing
+ (Zero [0] _   mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index e68baf07f6..d15bf1bd63 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -246,10 +246,10 @@
+ // stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVVstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVVstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zeroing
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS.rules b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+index b74ab7b609..d07f657982 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+@@ -226,9 +226,9 @@
+ // stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zero instructions
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index e5cfd90e82..d6cc63cdb0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -237,10 +237,10 @@
+ // stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVVstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVVstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zeroing
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 1c8142cd81..9e0b44bd2d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -430,11 +430,10 @@
+ (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+ 
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && is32BitFloat(val.Type) => (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) => x -- type is wrong
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitInt(val.Type) => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 378b8c06f8..b6700cc6ee 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -296,10 +296,10 @@
+ // Stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 &&  is32BitFloat(val.Type) => (FMOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 &&  is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
+ 
+ // We need to fold MOVaddr into the LD/MOVDstore ops so that the live variable analysis
+ // knows what variables are being read/written by the ops.
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+index 4502a57384..c85c559b48 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+@@ -346,12 +346,10 @@
+ (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+ 
+ // Lowering stores
+-// These more-specific FP versions of Store pattern should come first.
+-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
+-
+-(Store {t} ptr val mem) && t.Size() == 8 => (MOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 => (MOVWstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index fe5bbe56a3..550e7d5e4b 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -11224,14 +11224,14 @@ func rewriteValue386_OpStore(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (MOVSDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVSDstore)
+@@ -11239,14 +11239,14 @@ func rewriteValue386_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (MOVSSstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVSSstore)
+@@ -11254,14 +11254,14 @@ func rewriteValue386_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVLstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVLstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 86b69b5905..2cc80408a3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -33049,14 +33049,14 @@ func rewriteValueAMD64_OpStore(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (MOVSDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVSDstore)
+@@ -33064,14 +33064,14 @@ func rewriteValueAMD64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (MOVSSstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVSSstore)
+@@ -33079,14 +33079,14 @@ func rewriteValueAMD64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVQstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVQstore)
+@@ -33094,14 +33094,14 @@ func rewriteValueAMD64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVLstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVLstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 896ea50223..b495a9cbe8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -15912,14 +15912,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWstore)
+@@ -15927,14 +15927,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (MOVFstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVFstore)
+@@ -15942,14 +15942,14 @@ func rewriteValueARM_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVDstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index b7466f945f..f6e57962d1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -28941,14 +28941,14 @@ func rewriteValueARM64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWstore)
+@@ -28956,14 +28956,14 @@ func rewriteValueARM64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && !is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && !is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDstore)
+@@ -28971,14 +28971,14 @@ func rewriteValueARM64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (FMOVSstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVSstore)
+@@ -28986,14 +28986,14 @@ func rewriteValueARM64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (FMOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVDstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 8eacc1fda7..1581e82698 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -7225,14 +7225,14 @@ func rewriteValueLOONG64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVWstore)
+@@ -7240,14 +7240,14 @@ func rewriteValueLOONG64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && !is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVVstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && !is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVVstore)
+@@ -7255,14 +7255,14 @@ func rewriteValueLOONG64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (MOVFstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVFstore)
+@@ -7270,14 +7270,14 @@ func rewriteValueLOONG64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVDstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 4d56908b30..85be0336ad 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -6785,14 +6785,14 @@ func rewriteValueMIPS_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVWstore)
+@@ -6800,14 +6800,14 @@ func rewriteValueMIPS_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (MOVFstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVFstore)
+@@ -6815,14 +6815,14 @@ func rewriteValueMIPS_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVDstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 8b01407e01..af4ab1efd7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -7337,14 +7337,14 @@ func rewriteValueMIPS64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVWstore)
+@@ -7352,14 +7352,14 @@ func rewriteValueMIPS64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && !is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVVstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && !is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVstore)
+@@ -7367,14 +7367,14 @@ func rewriteValueMIPS64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (MOVFstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVFstore)
+@@ -7382,14 +7382,14 @@ func rewriteValueMIPS64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVDstore)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 50c10fd9c4..e4ef3934ae 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -16056,14 +16056,14 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (FMOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64FMOVDstore)
+@@ -16071,29 +16071,14 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is32BitFloat(val.Type)
+-	// result: (FMOVDstore ptr val mem)
+-	for {
+-		t := auxToType(v.Aux)
+-		ptr := v_0
+-		val := v_1
+-		mem := v_2
+-		if !(t.Size() == 8 && is32BitFloat(val.Type)) {
+-			break
+-		}
+-		v.reset(OpPPC64FMOVDstore)
+-		v.AddArg3(ptr, val, mem)
+-		return true
+-	}
+-	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (FMOVSstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64FMOVSstore)
+@@ -16101,14 +16086,14 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && !is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && !is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstore)
+@@ -16116,14 +16101,14 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitInt(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitInt(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 6885127216..021db10ce6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -7862,14 +7862,14 @@ func rewriteValueRISCV64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && !is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && !is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVWstore)
+@@ -7877,14 +7877,14 @@ func rewriteValueRISCV64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && !is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && !is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVDstore)
+@@ -7892,14 +7892,14 @@ func rewriteValueRISCV64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (FMOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64FMOVWstore)
+@@ -7907,14 +7907,14 @@ func rewriteValueRISCV64_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (FMOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64FMOVDstore)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index e8cc88d655..bd920ef4a9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -15646,14 +15646,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
++	// cond: t.Size() == 8 && t.IsFloat()
+ 	// result: (FMOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
++		if !(t.Size() == 8 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XFMOVDstore)
+@@ -15661,14 +15661,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
++	// cond: t.Size() == 4 && t.IsFloat()
+ 	// result: (FMOVSstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
++		if !(t.Size() == 4 && t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XFMOVSstore)
+@@ -15676,14 +15676,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 8
++	// cond: t.Size() == 8 && !t.IsFloat()
+ 	// result: (MOVDstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 8) {
++		if !(t.Size() == 8 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVDstore)
+@@ -15691,14 +15691,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Store {t} ptr val mem)
+-	// cond: t.Size() == 4
++	// cond: t.Size() == 4 && !t.IsFloat()
+ 	// result: (MOVWstore ptr val mem)
+ 	for {
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		val := v_1
+ 		mem := v_2
+-		if !(t.Size() == 4) {
++		if !(t.Size() == 4 && !t.IsFloat()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWstore)

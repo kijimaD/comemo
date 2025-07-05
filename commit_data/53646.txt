@@ -15,8 +15,48 @@ Date:   Thu Aug 25 09:42:30 2022 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/chan.go     | 2 +-
  src/runtime/runtime2.go | 2 +-
  src/runtime/select.go   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 853a300ab5..a9ef0781ce 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -791,7 +791,7 @@ func (q *waitq) dequeue() *sudog {
+ 		// We use a flag in the G struct to tell us when someone
+ 		// else has won the race to signal this goroutine but the goroutine
+ 		// hasn't removed itself from the queue yet.
+-		if sgp.isSelect && !atomic.Cas(&sgp.g.selectDone, 0, 1) {
++		if sgp.isSelect && !sgp.g.selectDone.CompareAndSwap(0, 1) {
+ 			continue
+ 		}
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2d6602071b..19ccfcea0e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -487,7 +487,7 @@ type g struct {
+ 	cgoCtxt        []uintptr      // cgo traceback context
+ 	labels         unsafe.Pointer // profiler labels
+ 	timer          *timer         // cached timer for time.Sleep
+-	selectDone     uint32         // are we participating in a select and did someone win the race?
++	selectDone     atomic.Uint32  // are we participating in a select and did someone win the race?
+ 
+ 	// goroutineProfiled indicates the status of this goroutine's stack for the
+ 	// current in-progress goroutine profile
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 2dd6333fa7..1072465365 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -329,7 +329,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 
+ 	sellock(scases, lockorder)
+ 
+-	gp.selectDone = 0
++	gp.selectDone.Store(0)
+ 	sg = (*sudog)(gp.param)
+ 	gp.param = nil
+ 

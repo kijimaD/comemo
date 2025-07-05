@@ -7,6 +7,20 @@ Date:   Wed Dec 8 17:12:25 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3524041
-
+---
  src/pkg/exp/nacl/av/event.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/nacl/av/event.go b/src/pkg/exp/nacl/av/event.go
+index f8fe329b8a..5d04613516 100644
+--- a/src/pkg/exp/nacl/av/event.go
++++ b/src/pkg/exp/nacl/av/event.go
+@@ -435,7 +435,7 @@ func (w *Window) readEvents() {
+ 		}
+ 		r := reader(buf)
+ 		if err := binary.Read(&r, binary.LittleEndian, e); err != nil {
+-			log.Print("unpacking %T event: %s", e, err)
++			log.Printf("unpacking %T event: %s", e, err)
+ 			continue
+ 		}
+ 		// log.Printf("%#v\n", e);

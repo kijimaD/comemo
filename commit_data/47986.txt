@@ -31,9 +31,285 @@ Date:   Wed Apr 14 17:12:27 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/tidy.go       | 14 +------------
  src/cmd/go/internal/modload/buildlist.go | 21 +++++++------------
  src/cmd/go/internal/modload/init.go      | 36 +++++++++++++++++++-------------
  src/cmd/go/internal/modload/load.go      | 30 +++++++++++++++++---------
  4 files changed, 51 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index fc70cd3f22..a9b277817f 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -60,26 +60,14 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	// request that their test dependencies be included.
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+-	modload.DisallowWriteGoMod() // Suppress writing until we've tidied the file.
+ 
+ 	modload.LoadPackages(ctx, modload.PackageOpts{
+ 		Tags:                     imports.AnyTags(),
++		Tidy:                     true,
+ 		VendorModulesInGOROOTSrc: true,
+ 		ResolveMissingImports:    true,
+ 		LoadTests:                true,
+ 		AllowErrors:              tidyE,
+ 		SilenceMissingStdImports: true,
+ 	}, "all")
+-
+-	modload.TidyBuildList(ctx)
+-	modload.TrimGoSum(ctx)
+-
+-	modload.AllowWriteGoMod()
+-
+-	// TODO(#40775): Toggling global state via AllowWriteGoMod makes the
+-	// invariants for go.mod cleanliness harder to reason about. Instead, either
+-	// make DisallowWriteGoMod an explicit PackageOpts field, or add a Tidy
+-	// argument to modload.LoadPackages so that Tidy is just one call into the
+-	// module loader, or perhaps both.
+-	modload.WriteGoMod(ctx)
+ }
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index ad138887a0..2eb47d2c9f 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -79,8 +79,8 @@ type cachedGraph struct {
+ //
+ // It is always non-nil if the main module's go.mod file has been loaded.
+ //
+-// This variable should only be read from the LoadModFile function,
+-// and should only be written in the writeGoMod function.
++// This variable should only be read from the loadModFile function, and should
++// only be written in the loadModFile and commitRequirements functions.
+ // All other functions that need or produce a *Requirements should
+ // accept and/or return an explicit parameter.
+ var requirements *Requirements
+@@ -538,14 +538,9 @@ type Conflict struct {
+ 	Constraint module.Version
+ }
+ 
+-// TidyBuildList trims the build list to the minimal requirements needed to
+-// retain the same versions of all packages from the preceding call to
+-// LoadPackages.
+-func TidyBuildList(ctx context.Context) {
+-	if loaded == nil {
+-		panic("internal error: TidyBuildList called when no packages have been loaded")
+-	}
+-
++// tidyBuildList trims the build list to the minimal requirements needed to
++// retain the same versions of all packages loaded by ld.
++func tidyBuildList(ctx context.Context, ld *loader, initialRS *Requirements) *Requirements {
+ 	if go117LazyTODO {
+ 		// Tidy needs to maintain the lazy-loading invariants for lazy modules.
+ 		// The implementation for eager modules should be factored out into a function.
+@@ -557,7 +552,7 @@ func TidyBuildList(ctx context.Context) {
+ 		// changed after loading packages.
+ 	}
+ 
+-	tidy, err := updateRoots(ctx, depth, loaded.requirements.direct, loaded.pkgs, nil)
++	tidy, err := updateRoots(ctx, depth, ld.requirements.direct, ld.pkgs, nil)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -565,7 +560,7 @@ func TidyBuildList(ctx context.Context) {
+ 	if cfg.BuildV {
+ 		mg, _ := tidy.Graph(ctx)
+ 
+-		for _, m := range LoadModFile(ctx).rootModules {
++		for _, m := range initialRS.rootModules {
+ 			if mg.Selected(m.Path) == "none" {
+ 				fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
+ 			} else if go117LazyTODO {
+@@ -575,7 +570,7 @@ func TidyBuildList(ctx context.Context) {
+ 		}
+ 	}
+ 
+-	commitRequirements(ctx, tidy)
++	return tidy
+ }
+ 
+ // updateRoots returns a set of root requirements that includes the selected
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 35bbcc795e..953419a718 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -365,8 +365,8 @@ var errGoModDirty error = goModDirtyError{}
+ // build list from its go.mod file.
+ //
+ // LoadModFile may make changes in memory, like adding a go directive and
+-// ensuring requirements are consistent. WriteGoMod should be called later to
+-// write changes out to disk or report errors in readonly mode.
++// ensuring requirements are consistent, and will write those changes back to
++// disk unless DisallowWriteGoMod is in effect.
+ //
+ // As a side-effect, LoadModFile may change cfg.BuildMod to "vendor" if
+ // -mod wasn't set explicitly and automatic vendoring should be enabled.
+@@ -379,8 +379,22 @@ var errGoModDirty error = goModDirtyError{}
+ // it for global consistency. Most callers outside of the modload package should
+ // use LoadModGraph instead.
+ func LoadModFile(ctx context.Context) *Requirements {
++	rs, needCommit := loadModFile(ctx)
++	if needCommit {
++		commitRequirements(ctx, rs)
++	}
++	return rs
++}
++
++// loadModFile is like LoadModFile, but does not implicitly commit the
++// requirements back to disk after fixing inconsistencies.
++//
++// If needCommit is true, after the caller makes any other needed changes to the
++// returned requirements they should invoke commitRequirements to fix any
++// inconsistencies that may be present in the on-disk go.mod file.
++func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	if requirements != nil {
+-		return requirements
++		return requirements, false
+ 	}
+ 
+ 	Init()
+@@ -388,8 +402,8 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		Target = module.Version{Path: "command-line-arguments"}
+ 		targetPrefix = "command-line-arguments"
+ 		rawGoVersion.Store(Target, latestGoVersion())
+-		commitRequirements(ctx, newRequirements(index.depth(), nil, nil))
+-		return requirements
++		requirements = newRequirements(index.depth(), nil, nil)
++		return requirements, false
+ 	}
+ 
+ 	gomod := ModFilePath()
+@@ -418,7 +432,7 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 	}
+ 
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+-	rs := requirementsFromModFile(ctx, f)
++	rs = requirementsFromModFile(ctx, f)
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+@@ -450,9 +464,8 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		}
+ 	}
+ 
+-	// Fix up roots if inconsistent.
+-	commitRequirements(ctx, rs)
+-	return requirements
++	requirements = rs
++	return requirements, true
+ }
+ 
+ // CreateModFile initializes a new module by creating a go.mod file.
+@@ -1136,8 +1149,3 @@ const (
+ func modkey(m module.Version) module.Version {
+ 	return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+ }
+-
+-func TrimGoSum(ctx context.Context) {
+-	rs := LoadModFile(ctx)
+-	modfetch.TrimGoSum(keepSums(ctx, loaded, rs, loadedZipSumsOnly))
+-}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 5de26c15e7..1da8493c36 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -138,6 +138,11 @@ type PackageOpts struct {
+ 	// If nil, treated as equivalent to imports.Tags().
+ 	Tags map[string]bool
+ 
++	// Tidy, if true, requests that the build list and go.sum file be reduced to
++	// the minimial dependencies needed to reproducibly reload the requested
++	// packages.
++	Tidy bool
++
+ 	// VendorModulesInGOROOTSrc indicates that if we are within a module in
+ 	// GOROOT/src, packages in the module's vendor directory should be resolved as
+ 	// actual module dependencies (instead of standard-library packages).
+@@ -202,8 +207,6 @@ type PackageOpts struct {
+ // LoadPackages identifies the set of packages matching the given patterns and
+ // loads the packages in the import graph rooted at that set.
+ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (matches []*search.Match, loadedPackages []string) {
+-	rs := LoadModFile(ctx)
+-
+ 	if opts.Tags == nil {
+ 		opts.Tags = imports.Tags()
+ 	}
+@@ -218,7 +221,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		}
+ 	}
+ 
+-	updateMatches := func(ld *loader) {
++	updateMatches := func(rs *Requirements, ld *loader) {
+ 		for _, m := range matches {
+ 			switch {
+ 			case m.IsLocal():
+@@ -293,15 +296,17 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		}
+ 	}
+ 
++	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
++
+ 	ld := loadFromRoots(ctx, loaderParams{
+ 		PackageOpts:  opts,
+-		requirements: rs,
++		requirements: initialRS,
+ 
+ 		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
+ 		allPatternIsRoot:   allPatternIsRoot,
+ 
+-		listRoots: func() (roots []string) {
+-			updateMatches(nil)
++		listRoots: func(rs *Requirements) (roots []string) {
++			updateMatches(rs, nil)
+ 			for _, m := range matches {
+ 				roots = append(roots, m.Pkgs...)
+ 			}
+@@ -310,7 +315,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 	})
+ 
+ 	// One last pass to finalize wildcards.
+-	updateMatches(ld)
++	updateMatches(ld.requirements, ld)
+ 
+ 	// Report errors, if any.
+ 	checkMultiplePaths(ld.requirements)
+@@ -365,6 +370,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		search.WarnUnmatched(matches)
+ 	}
+ 
++	if ld.Tidy {
++		ld.requirements = tidyBuildList(ctx, ld, initialRS)
++		modfetch.TrimGoSum(keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly))
++	}
++
+ 	// Success! Update go.mod (if needed) and return the results.
+ 	loaded = ld
+ 	commitRequirements(ctx, loaded.requirements)
+@@ -588,7 +598,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 		},
+ 		requirements:       rs,
+ 		allClosesOverTests: index.allPatternClosesOverTests(),
+-		listRoots: func() (roots []string) {
++		listRoots: func(*Requirements) (roots []string) {
+ 			roots = append(roots, imports...)
+ 			roots = append(roots, testImports...)
+ 			return roots
+@@ -747,7 +757,7 @@ type loaderParams struct {
+ 	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
+ 	allPatternIsRoot   bool // Is the "all" pattern an additional root?
+ 
+-	listRoots func() []string
++	listRoots func(rs *Requirements) []string
+ }
+ 
+ func (ld *loader) reset() {
+@@ -876,7 +886,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		// Note: the returned roots can change on each iteration,
+ 		// since the expansion of package patterns depends on the
+ 		// build list we're using.
+-		rootPkgs := ld.listRoots()
++		rootPkgs := ld.listRoots(ld.requirements)
+ 
+ 		if go117LazyTODO {
+ 			// Before we start loading transitive imports of packages, locate all of

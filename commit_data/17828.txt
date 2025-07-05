@@ -7,6 +7,19 @@ Date:   Tue Oct 22 16:43:32 2013 +0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/14930046
-
+---
  src/pkg/go/build/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index b5fc071d61..b2f04ea45c 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -94,6 +94,7 @@
+ //	- the compiler being used, either "gc" or "gccgo"
+ //	- "cgo", if ctxt.CgoEnabled is true
+ //	- "go1.1", from Go version 1.1 onward
++//	- "go1.2", from Go version 1.2 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // If a file's name, after stripping the extension and a possible _test suffix,

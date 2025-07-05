@@ -13,7 +13,7 @@ Date:   Wed Mar 30 14:56:08 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
  src/cmd/compile/internal/gc/alg.go       |  2 +-
  src/cmd/compile/internal/gc/bexport.go   |  4 +--
@@ -36,3 +36,919 @@ Date:   Wed Mar 30 14:56:08 2016 -0700
  src/cmd/compile/internal/gc/walk.go      | 20 +++++++--------
  src/cmd/compile/internal/x86/gsubr.go    |  2 +-
  21 files changed, 95 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 5c9f650ecd..cbac6c87a9 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -112,7 +112,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	// A special case to make write barriers more efficient.
+ 	// Comparing the first field of a named struct can be done directly.
+ 	base := n1
+-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Sym {
++	if n1.Op == gc.ODOT && n1.Left.Type.IsStruct() && n1.Left.Type.Field(0).Sym == n1.Sym {
+ 		base = n1.Left
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index a751ba4a2e..de26237b32 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -570,7 +570,7 @@ func memrun(t *Type, start int) (size int64, next int) {
+ // ispaddedfield reports whether the i'th field of struct type t is followed
+ // by padding.
+ func ispaddedfield(t *Type, i int) bool {
+-	if t.Etype != TSTRUCT {
++	if !t.IsStruct() {
+ 		Fatalf("ispaddedfield called non-struct %v", t)
+ 	}
+ 	end := t.Width
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 24537ac96a..24812abf59 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -457,7 +457,7 @@ func (p *exporter) typ(t *Type) {
+ 		p.typ(t.Orig)
+ 
+ 		// interfaces don't have associated methods
+-		if t.Orig.Etype == TINTER {
++		if t.Orig.IsInterface() {
+ 			return
+ 		}
+ 
+@@ -645,7 +645,7 @@ func basetypeName(t *Type) string {
+ }
+ 
+ func (p *exporter) paramList(params *Type, numbered bool) {
+-	if params.Etype != TSTRUCT || !params.Funarg {
++	if !params.IsStruct() || !params.Funarg {
+ 		Fatalf("exporter: parameter list expected")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 6a4caeca98..0ecd15a1fb 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -231,7 +231,7 @@ func (p *importer) typ() *Type {
+ 		importtype(t, t0) // parser.go:hidden_import
+ 
+ 		// interfaces don't have associated methods
+-		if t0.Etype == TINTER {
++		if t0.IsInterface() {
+ 			break
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 6002b60919..5d84f146dd 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1034,7 +1034,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				}
+ 				v := uint64(nr.Val().U.(*Mpint).Int64())
+ 				var n2 Node
+-				if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++				if nl.Type.IsSlice() || nl.Type.IsString() {
+ 					if Debug['B'] == 0 && !n.Bounded {
+ 						n1 = n3
+ 						n1.Op = OINDREG
+@@ -1069,7 +1069,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				// check bounds
+ 				if Isconst(nl, CTSTR) {
+ 					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val().U.(string))))
+-				} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++				} else if nl.Type.IsSlice() || nl.Type.IsString() {
+ 					n1 = n3
+ 					n1.Op = OINDREG
+ 					n1.Type = Types[Tptr]
+@@ -1095,7 +1095,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
+ 				Datastring(nl.Val().U.(string), &p1.From)
+ 				p1.From.Type = obj.TYPE_ADDR
+-			} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++			} else if nl.Type.IsSlice() || nl.Type.IsString() {
+ 				n1 = n3
+ 				n1.Op = OINDREG
+ 				n1.Type = Types[Tptr]
+@@ -1185,7 +1185,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 					Fatalf("constant string constant index") // front end should handle
+ 				}
+ 				v := uint64(nr.Val().U.(*Mpint).Int64())
+-				if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++				if nl.Type.IsSlice() || nl.Type.IsString() {
+ 					if Debug['B'] == 0 && !n.Bounded {
+ 						nlen := n3
+ 						nlen.Type = Types[TUINT32]
+@@ -1230,7 +1230,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				var nlen Node
+ 				if Isconst(nl, CTSTR) {
+ 					Nodconst(&nlen, t, int64(len(nl.Val().U.(string))))
+-				} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++				} else if nl.Type.IsSlice() || nl.Type.IsString() {
+ 					nlen = n3
+ 					nlen.Type = t
+ 					nlen.Xoffset += int64(Array_nel)
+@@ -1258,7 +1258,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			// Load base pointer in n3.
+ 			Regalloc(&tmp, Types[Tptr], &n3)
+ 
+-			if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++			if nl.Type.IsSlice() || nl.Type.IsString() {
+ 				n3.Type = Types[Tptr]
+ 				n3.Xoffset += int64(Array_array)
+ 				Thearch.Gmove(&n3, &tmp)
+@@ -1375,7 +1375,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				Fatalf("constant string constant index") // front end should handle
+ 			}
+ 			v := uint64(nr.Val().U.(*Mpint).Int64())
+-			if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++			if nl.Type.IsSlice() || nl.Type.IsString() {
+ 				if Debug['B'] == 0 && !n.Bounded {
+ 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
+ 					Ginscall(Panicindex, -1)
+@@ -1413,7 +1413,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			}
+ 			if Isconst(nl, CTSTR) {
+ 				Nodconst(&nlen, t, int64(len(nl.Val().U.(string))))
+-			} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
++			} else if nl.Type.IsSlice() || nl.Type.IsString() {
+ 				// nlen already initialized
+ 			} else {
+ 				Nodconst(&nlen, t, nl.Type.Bound)
+@@ -1789,7 +1789,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		}
+ 	}
+ 
+-	if n.Type.Etype != TBOOL {
++	if !n.Type.IsBoolean() {
+ 		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(n.Op, 0))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 42b70bb8cf..738a83a4d3 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -492,7 +492,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	if Isptr[rcvrtype.Etype] {
+ 		basetype = basetype.Elem()
+ 	}
+-	if basetype.Etype != TINTER && basetype.Sym == nil {
++	if !basetype.IsInterface() && basetype.Sym == nil {
+ 		Fatalf("missing base type for %v", rcvrtype)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 05ae214ab1..e93c3f9dc6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -135,7 +135,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 	switch n.Op {
+ 	default:
+ 		if n.Type == idealbool {
+-			if t.Etype == TBOOL {
++			if t.IsBoolean() {
+ 				n.Type = t
+ 			} else {
+ 				n.Type = Types[TBOOL]
+@@ -661,7 +661,7 @@ func evconst(n *Node) {
+ 
+ 		case OCONV_ | CTNIL_,
+ 			OARRAYBYTESTR_ | CTNIL_:
+-			if n.Type.Etype == TSTRING {
++			if n.Type.IsString() {
+ 				v = tostr(v)
+ 				nl.Type = n.Type
+ 				break
+@@ -1302,7 +1302,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
+ 
+ 	case CTBOOL:
+ 		t1 := Types[TBOOL]
+-		if t != nil && t.Etype == TBOOL {
++		if t != nil && t.IsBoolean() {
+ 			t1 = t
+ 		}
+ 		n = convlit1(n, t1, false, reuse)
+@@ -1379,7 +1379,7 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
+ 		return l, r
+ 	}
+ 
+-	if l.Type.Etype == TBOOL {
++	if l.Type.IsBoolean() {
+ 		l = convlit(l, Types[TBOOL])
+ 		r = convlit(r, Types[TBOOL])
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5e23aaa9fb..9be0b14bdf 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -717,7 +717,7 @@ func checkembeddedtype(t *Type) {
+ 
+ 	if t.Sym == nil && Isptr[t.Etype] {
+ 		t = t.Elem()
+-		if t.Etype == TINTER {
++		if t.IsInterface() {
+ 			Yyerror("embedded type cannot be a pointer to interface")
+ 		}
+ 	}
+@@ -813,7 +813,7 @@ func tostruct(l []*Node) *Type {
+ }
+ 
+ func tostruct0(t *Type, l []*Node) {
+-	if t == nil || t.Etype != TSTRUCT {
++	if t == nil || !t.IsStruct() {
+ 		Fatalf("struct expected")
+ 	}
+ 
+@@ -937,7 +937,7 @@ func tointerface(l []*Node) *Type {
+ }
+ 
+ func tointerface0(t *Type, l []*Node) *Type {
+-	if t == nil || t.Etype != TINTER {
++	if t == nil || !t.IsInterface() {
+ 		Fatalf("interface expected")
+ 	}
+ 
+@@ -945,7 +945,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 	for _, n := range l {
+ 		f := interfacefield(n)
+ 
+-		if n.Left == nil && f.Type.Etype == TINTER {
++		if n.Left == nil && f.Type.IsInterface() {
+ 			// embedded interface, inline methods
+ 			for _, t1 := range f.Type.Fields().Slice() {
+ 				f = newField()
+@@ -1021,7 +1021,7 @@ func isifacemethod(f *Type) bool {
+ 		return false
+ 	}
+ 	t = t.Elem()
+-	if t.Sym != nil || t.Etype != TSTRUCT || t.NumFields() != 0 {
++	if t.Sym != nil || !t.IsStruct() || t.NumFields() != 0 {
+ 		return false
+ 	}
+ 	return true
+@@ -1214,7 +1214,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 				return
+ 			}
+ 
+-			if t.Etype == TINTER {
++			if t.IsInterface() {
+ 				Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
+ 				return
+ 			}
+@@ -1237,7 +1237,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 		return
+ 	}
+ 
+-	if pa.Etype == TSTRUCT {
++	if pa.IsStruct() {
+ 		for _, f := range pa.Fields().Slice() {
+ 			if f.Sym == msym {
+ 				Yyerror("type %v has both field and method named %v", pa, msym)
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index edb877ac43..e73649c472 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1435,7 +1435,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	ll := n.List
+ 	if n.List.Len() == 1 {
+ 		a := n.List.First()
+-		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).
++		if a.Type.IsStruct() && a.Type.Funarg { // f(g()).
+ 			ll = e.nodeEscState(a).Escretval
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 436336099f..8e4cc3e872 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -595,7 +595,7 @@ func dumpasmhdr() {
+ 
+ 		case OTYPE:
+ 			t := n.Type
+-			if t.Etype != TSTRUCT || t.Map != nil || t.Funarg {
++			if !t.IsStruct() || t.Map != nil || t.Funarg {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 4079f5afd3..7f7b20a729 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -603,7 +603,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 			return "chan<- " + t.Elem().String()
+ 		}
+ 
+-		if t.Elem() != nil && t.Elem().Etype == TCHAN && t.Elem().Sym == nil && t.Elem().Chan == Crecv {
++		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().Chan == Crecv {
+ 			return "chan (" + t.Elem().String() + ")"
+ 		}
+ 		return "chan " + t.Elem().String()
+@@ -1095,7 +1095,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+-			if Isptr[n.Type.Etype] || (n.Type.Etype == TCHAN && n.Type.Chan == Crecv) {
++			if Isptr[n.Type.Etype] || (n.Type.IsChan() && n.Type.Chan == Crecv) {
+ 				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(n.Val(), 0))
+ 			} else {
+ 				return fmt.Sprintf("%v(%v)", n.Type, Vconv(n.Val(), 0))
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 51d1d316e8..38e32c6f93 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -416,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		// A special case to make write barriers more efficient.
+ 		// Taking the address of the first field of a named struct
+ 		// is the same as taking the address of the struct.
+-		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Field(0).Sym != n.Sym {
++		if !n.Left.Type.IsStruct() || n.Left.Type.Field(0).Sym != n.Sym {
+ 			Debug['h'] = 1
+ 			Dump("naddr", n)
+ 			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
+@@ -541,7 +541,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 	switch t := t.(type) {
+ 	case *Type:
+ 		// entire argument struct, not just one arg
+-		if t.Etype != TSTRUCT || !t.Funarg {
++		if !t.IsStruct() || !t.Funarg {
+ 			Fatalf("nodarg: bad type %v", t)
+ 		}
+ 		n = Nod(ONAME, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4ca2fa4f84..4017e96d0b 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -324,7 +324,7 @@ func ismulticall(l Nodes) bool {
+ // Copyret emits t1, t2, ... = n, where n is a function call,
+ // and then returns the list t1, t2, ....
+ func copyret(n *Node, order *Order) []*Node {
+-	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
++	if !n.Type.IsStruct() || !n.Type.Funarg {
+ 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
+ 	}
+ 
+@@ -744,7 +744,7 @@ func orderstmt(n *Node, order *Order) {
+ 			// make copy.
+ 			r := n.Right
+ 
+-			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
++			if r.Type.IsString() && r.Type != Types[TSTRING] {
+ 				r = Nod(OCONV, r, nil)
+ 				r.Type = Types[TSTRING]
+ 				r = typecheck(r, Erv)
+@@ -1185,7 +1185,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		n.Left = orderexpr(n.Left, order, nil)
+ 		n.Right = orderexpr(n.Right, order, nil)
+ 		t := n.Left.Type
+-		if t.Etype == TSTRUCT || t.IsArray() {
++		if t.IsStruct() || t.IsArray() {
+ 			// for complex comparisons, we need both args to be
+ 			// addressable so we can pass them to the runtime.
+ 			n.Left = orderaddrtemp(n.Left, order)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 755a677a08..6ef6d47b8f 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -294,7 +294,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		}
+ 
+ 		instrumentnode(&n.Right, init, 0, 0)
+-		if n.Left.Type.Etype != TSTRING {
++		if !n.Left.Type.IsString() {
+ 			callinstr(&n, init, wr, skip)
+ 		}
+ 		goto ret
+@@ -509,7 +509,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 				Fatalf("instrument: %v badwidth", t)
+ 			}
+ 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+-		} else if flag_race != 0 && (t.Etype == TSTRUCT || t.IsArray()) {
++		} else if flag_race != 0 && (t.IsStruct() || t.IsArray()) {
+ 			name := "racereadrange"
+ 			if wr != 0 {
+ 				name = "racewriterange"
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 040958c14d..21e5d1248f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1033,7 +1033,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		anylit(ctxt, n.Left, var_, init)
+ 
+ 	case OSTRUCTLIT:
+-		if t.Etype != TSTRUCT {
++		if !t.IsStruct() {
+ 			Fatalf("anylit: not struct")
+ 		}
+ 
+@@ -1117,7 +1117,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		arraylit(ctxt, 3, n, var_, init)
+ 
+ 	case OMAPLIT:
+-		if t.Etype != TMAP {
++		if !t.IsMap() {
+ 			Fatalf("anylit: not map")
+ 		}
+ 		maplit(ctxt, n, var_, init)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index af1ed3114d..99ff002c2b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4117,7 +4117,7 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
+ func fieldIdx(n *Node) int {
+ 	t := n.Left.Type
+ 	f := n.Sym
+-	if t.Etype != TSTRUCT {
++	if !t.IsStruct() {
+ 		panic("ODOT's LHS is not a struct")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6cca009a5b..b9671a638d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -628,7 +628,7 @@ func methtype(t *Type, mustname int) *Type {
+ 	}
+ 
+ 	// need a type name
+-	if t.Sym == nil && (mustname != 0 || t.Etype != TSTRUCT) {
++	if t.Sym == nil && (mustname != 0 || !t.IsStruct()) {
+ 		return nil
+ 	}
+ 
+@@ -768,7 +768,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ // For deciding whether the result struct from g can be copied
+ // directly when compiling f(g()).
+ func eqtypenoname(t1 *Type, t2 *Type) bool {
+-	if t1 == nil || t2 == nil || t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
++	if t1 == nil || t2 == nil || !t1.IsStruct() || !t2.IsStruct() {
+ 		return false
+ 	}
+ 
+@@ -823,7 +823,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	}
+ 
+ 	// 3. dst is an interface type and src implements dst.
+-	if dst.Etype == TINTER && src.Etype != TNIL {
++	if dst.IsInterface() && src.Etype != TNIL {
+ 		var missing, have *Field
+ 		var ptr int
+ 		if implements(src, dst, &missing, &have, &ptr) {
+@@ -861,7 +861,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 		return 0
+ 	}
+ 
+-	if src.Etype == TINTER && dst.Etype != TBLANK {
++	if src.IsInterface() && dst.Etype != TBLANK {
+ 		var missing, have *Field
+ 		var ptr int
+ 		if why != nil && implements(dst, src, &missing, &have, &ptr) {
+@@ -873,7 +873,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	// 4. src is a bidirectional channel value, dst is a channel type,
+ 	// src and dst have identical element types, and
+ 	// either src or dst is not a named type.
+-	if src.Etype == TCHAN && src.Chan == Cboth && dst.Etype == TCHAN {
++	if src.IsChan() && src.Chan == Cboth && dst.IsChan() {
+ 		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+ 			return OCONVNOP
+ 		}
+@@ -933,7 +933,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 	// than assignments. If interfaces are involved, stop now
+ 	// with the good message from assignop.
+ 	// Otherwise clear the error.
+-	if src.Etype == TINTER || dst.Etype == TINTER {
++	if src.IsInterface() || dst.IsInterface() {
+ 		return 0
+ 	}
+ 	if why != nil {
+@@ -971,11 +971,11 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// 6. src is an integer or has type []byte or []rune
+ 	// and dst is a string type.
+-	if Isint[src.Etype] && dst.Etype == TSTRING {
++	if Isint[src.Etype] && dst.IsString() {
+ 		return ORUNESTR
+ 	}
+ 
+-	if src.IsSlice() && dst.Etype == TSTRING {
++	if src.IsSlice() && dst.IsString() {
+ 		if src.Elem().Etype == bytetype.Etype {
+ 			return OARRAYBYTESTR
+ 		}
+@@ -986,7 +986,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// 7. src is a string and dst is []byte or []rune.
+ 	// String to slice.
+-	if src.Etype == TSTRING && dst.IsSlice() {
++	if src.IsString() && dst.IsSlice() {
+ 		if dst.Elem().Etype == bytetype.Etype {
+ 			return OSTRARRAYBYTE
+ 		}
+@@ -1032,7 +1032,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ 
+ 	// Convert ideal bool from comparison to plain bool
+ 	// if the next step is non-bool (like interface{}).
+-	if n.Type == idealbool && t.Etype != TBOOL {
++	if n.Type == idealbool && !t.IsBoolean() {
+ 		if n.Op == ONAME || n.Op == OLITERAL {
+ 			r := Nod(OCONVNOP, n, nil)
+ 			r.Type = Types[TBOOL]
+@@ -1266,9 +1266,9 @@ func badtype(op Op, tl *Type, tr *Type) {
+ 
+ 	// common mistake: *struct and *interface.
+ 	if tl != nil && tr != nil && Isptr[tl.Etype] && Isptr[tr.Etype] {
+-		if tl.Elem().Etype == TSTRUCT && tr.Elem().Etype == TINTER {
++		if tl.Elem().IsStruct() && tr.Elem().IsInterface() {
+ 			fmt_ += "\n\t(*struct vs *interface)"
+-		} else if tl.Elem().Etype == TINTER && tr.Elem().Etype == TSTRUCT {
++		} else if tl.Elem().IsInterface() && tr.Elem().IsStruct() {
+ 			fmt_ += "\n\t(*interface vs *struct)"
+ 		}
+ 	}
+@@ -1437,7 +1437,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
+ 	}
+ 
+ 	c := 0
+-	if u.Etype == TSTRUCT || u.Etype == TINTER {
++	if u.IsStruct() || u.IsInterface() {
+ 		for _, f := range u.Fields().Slice() {
+ 			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
+ 				if save != nil {
+@@ -1491,7 +1491,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
+ 	if Isptr[u.Etype] {
+ 		u = u.Elem()
+ 	}
+-	if u.Etype != TSTRUCT && u.Etype != TINTER {
++	if !u.IsStruct() && !u.IsInterface() {
+ 		goto out
+ 	}
+ 
+@@ -1602,7 +1602,7 @@ func expand0(t *Type, followptr bool) {
+ 		u = u.Elem()
+ 	}
+ 
+-	if u.Etype == TINTER {
++	if u.IsInterface() {
+ 		for _, f := range u.Fields().Slice() {
+ 			if f.Sym.Flags&SymUniq != 0 {
+ 				continue
+@@ -1642,7 +1642,7 @@ func expand1(t *Type, top, followptr bool) {
+ 		u = u.Elem()
+ 	}
+ 
+-	if u.Etype != TSTRUCT && u.Etype != TINTER {
++	if !u.IsStruct() && !u.IsInterface() {
+ 		goto out
+ 	}
+ 
+@@ -1877,7 +1877,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	testdclstack()
+ 
+ 	// wrappers where T is anonymous (struct or interface) can be duplicated.
+-	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Elem().Etype == TSTRUCT {
++	if rcvr.IsStruct() || rcvr.IsInterface() || Isptr[rcvr.Etype] && rcvr.Elem().IsStruct() {
+ 		fn.Func.Dupok = true
+ 	}
+ 	fn = typecheck(fn, Etop)
+@@ -1946,7 +1946,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
+ 	// could sort these first
+ 	// and then do one loop.
+ 
+-	if t.Etype == TINTER {
++	if t.IsInterface() {
+ 		for _, im := range iface.Fields().Slice() {
+ 			for _, tm := range t.Fields().Slice() {
+ 				if tm.Sym == im.Sym {
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index d3f611ed8d..ae8af76517 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -69,7 +69,7 @@ func typecheckswitch(n *Node) {
+ 		top = Etype
+ 		n.Left.Right = typecheck(n.Left.Right, Erv)
+ 		t = n.Left.Right.Type
+-		if t != nil && t.Etype != TINTER {
++		if t != nil && !t.IsInterface() {
+ 			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, FmtLong))
+ 		}
+ 	} else {
+@@ -91,11 +91,11 @@ func typecheckswitch(n *Node) {
+ 				nilonly = "slice"
+ 			case t.Etype == TARRAY && t.IsArray() && algtype1(t, nil) == ANOEQ:
+ 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
+-			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
++			case t.IsStruct() && algtype1(t, &badtype) == ANOEQ:
+ 				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
+ 			case t.Etype == TFUNC:
+ 				nilonly = "func"
+-			case t.Etype == TMAP:
++			case t.IsMap():
+ 				nilonly = "map"
+ 			}
+ 		}
+@@ -154,7 +154,7 @@ func typecheckswitch(n *Node) {
+ 						// reset to original type
+ 						n1 = n.Left.Right
+ 						ls[i1] = n1
+-					case n1.Type.Etype != TINTER && t.Etype == TINTER && !implements(n1.Type, t, &missing, &have, &ptr):
++					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
+ 						if have != nil && !missing.Broke && !have.Broke {
+ 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, FmtShort), missing.Sym, Tconv(missing.Type, FmtShort))
+ 						} else if !missing.Broke {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c40a69a2db..e7b0e3c405 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -668,7 +668,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		if l.Type.Etype == TMAP && !isnil(l) && !isnil(r) {
++		if l.Type.IsMap() && !isnil(l) && !isnil(r) {
+ 			Yyerror("invalid operation: %v (map can only be compared to nil)", n)
+ 			n.Type = nil
+ 			return n
+@@ -681,7 +681,7 @@ OpSwitch:
+ 		}
+ 
+ 		var badtype *Type
+-		if l.Type.Etype == TSTRUCT && algtype1(l.Type, &badtype) == ANOEQ {
++		if l.Type.IsStruct() && algtype1(l.Type, &badtype) == ANOEQ {
+ 			Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, badtype)
+ 			n.Type = nil
+ 			return n
+@@ -864,7 +864,7 @@ OpSwitch:
+ 			break OpSwitch
+ 		}
+ 
+-		if Isptr[t.Etype] && t.Elem().Etype != TINTER {
++		if Isptr[t.Etype] && !t.Elem().IsInterface() {
+ 			t = t.Elem()
+ 			if t == nil {
+ 				n.Type = nil
+@@ -945,7 +945,7 @@ OpSwitch:
+ 			}
+ 		}
+ 
+-		if n.Type != nil && n.Type.Etype != TINTER {
++		if n.Type != nil && !n.Type.IsInterface() {
+ 			var missing, have *Field
+ 			var ptr int
+ 			if !implements(n.Type, t, &missing, &have, &ptr) {
+@@ -986,7 +986,7 @@ OpSwitch:
+ 
+ 		case TSTRING, TARRAY:
+ 			n.Right = indexlit(n.Right)
+-			if t.Etype == TSTRING {
++			if t.IsString() {
+ 				n.Type = bytetype
+ 			} else {
+ 				n.Type = t.Elem()
+@@ -1040,7 +1040,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		if t.Etype != TCHAN {
++		if !t.IsChan() {
+ 			Yyerror("invalid operation: %v (receive from non-chan type %v)", n, t)
+ 			n.Type = nil
+ 			return n
+@@ -1067,7 +1067,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		if t.Etype != TCHAN {
++		if !t.IsChan() {
+ 			Yyerror("invalid operation: %v (send to non-chan type %v)", n, t)
+ 			n.Type = nil
+ 			return n
+@@ -1520,7 +1520,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		if t.Etype != TCHAN {
++		if !t.IsChan() {
+ 			Yyerror("invalid operation: %v (non-chan type %v)", n, t)
+ 			n.Type = nil
+ 			return n
+@@ -1559,7 +1559,7 @@ OpSwitch:
+ 		typecheckslice(args.Slice(), Erv)
+ 		l := args.First()
+ 		r := args.Second()
+-		if l.Type != nil && l.Type.Etype != TMAP {
++		if l.Type != nil && !l.Type.IsMap() {
+ 			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, FmtLong))
+ 			n.Type = nil
+ 			return n
+@@ -1683,7 +1683,7 @@ OpSwitch:
+ 		}
+ 
+ 		// copy([]byte, string)
+-		if n.Left.Type.IsSlice() && n.Right.Type.Etype == TSTRING {
++		if n.Left.Type.IsSlice() && n.Right.Type.IsString() {
+ 			if Eqtype(n.Left.Type.Elem(), bytetype) {
+ 				break OpSwitch
+ 			}
+@@ -1958,7 +1958,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		if t.Etype != TINTER {
++		if !t.IsInterface() {
+ 			Fatalf("OITAB of %v", t)
+ 		}
+ 		n.Type = Ptrto(Types[TUINTPTR])
+@@ -1972,10 +1972,10 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		if !t.IsSlice() && t.Etype != TSTRING {
++		if !t.IsSlice() && !t.IsString() {
+ 			Fatalf("OSPTR of %v", t)
+ 		}
+-		if t.Etype == TSTRING {
++		if t.IsString() {
+ 			n.Type = Ptrto(Types[TUINT8])
+ 		} else {
+ 			n.Type = Ptrto(t.Elem())
+@@ -2051,7 +2051,7 @@ OpSwitch:
+ 		n.Left = typecheck(n.Left, Erv)
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+-			if t != nil && t.Etype != TBOOL {
++			if t != nil && !t.IsBoolean() {
+ 				Yyerror("non-bool %v used as for condition", Nconv(n.Left, FmtLong))
+ 			}
+ 		}
+@@ -2066,7 +2066,7 @@ OpSwitch:
+ 		n.Left = typecheck(n.Left, Erv)
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+-			if t != nil && t.Etype != TBOOL {
++			if t != nil && !t.IsBoolean() {
+ 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, FmtLong))
+ 			}
+ 		}
+@@ -2394,7 +2394,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
+ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 	s := n.Sym
+ 
+-	if t.Etype == TINTER {
++	if t.IsInterface() {
+ 		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
+ 		if f1 == nil {
+ 			return false
+@@ -2454,7 +2454,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 
+ 	dowidth(t)
+ 	var f1 *Field
+-	if t.Etype == TSTRUCT || t.Etype == TINTER {
++	if t.IsStruct() || t.IsInterface() {
+ 		f1 = lookdot1(n, s, t, t.Fields(), dostrcmp)
+ 	}
+ 
+@@ -2484,7 +2484,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 		if obj.Fieldtrack_enabled > 0 {
+ 			dotField[typeSym{t.Orig, s}] = f1
+ 		}
+-		if t.Etype == TINTER {
++		if t.IsInterface() {
+ 			if Isptr[n.Left.Type.Etype] {
+ 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
+ 				n.Left.Implicit = true
+@@ -2595,7 +2595,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 	if nl.Len() == 1 {
+ 		n = nl.First()
+ 		if n.Type != nil {
+-			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
++			if n.Type.IsStruct() && n.Type.Funarg {
+ 				if !hasddd(tstruct) {
+ 					n1 := tstruct.NumFields()
+ 					n2 := n.Type.NumFields()
+@@ -3145,7 +3145,7 @@ func islvalue(n *Node) bool {
+ 		if n.Left.Type != nil && n.Left.Type.IsArray() {
+ 			return islvalue(n.Left)
+ 		}
+-		if n.Left.Type != nil && n.Left.Type.Etype == TSTRING {
++		if n.Left.Type != nil && n.Left.Type.IsString() {
+ 			return false
+ 		}
+ 		fallthrough
+@@ -3337,7 +3337,7 @@ func typecheckas2(n *Node) {
+ 		}
+ 		switch r.Op {
+ 		case OCALLMETH, OCALLINTER, OCALLFUNC:
+-			if r.Type.Etype != TSTRUCT || !r.Type.Funarg {
++			if !r.Type.IsStruct() || !r.Type.Funarg {
+ 				break
+ 			}
+ 			cr = r.Type.NumFields()
+@@ -3386,7 +3386,7 @@ func typecheckas2(n *Node) {
+ 				l.Type = r.Type
+ 			}
+ 			l := n.List.Second()
+-			if l.Type != nil && l.Type.Etype != TBOOL {
++			if l.Type != nil && !l.Type.IsBoolean() {
+ 				checkassignto(Types[TBOOL], l)
+ 			}
+ 			if l.Name != nil && l.Name.Defn == n && l.Name.Param.Ntype == nil {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ea963bb076..425128eb73 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1341,7 +1341,7 @@ opswitch:
+ 		}
+ 
+ 		r = typecheck(r, Erv)
+-		if n.Type.Etype != TBOOL {
++		if !n.Type.IsBoolean() {
+ 			Fatalf("cmp %v", n.Type)
+ 		}
+ 		r.Type = n.Type
+@@ -1783,7 +1783,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
+ 	var nn []*Node
+ 
+ 	// f(g()) where g has multiple return values
+-	if r != nil && len(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
++	if r != nil && len(lr) <= 1 && r.Type.IsStruct() && r.Type.Funarg {
+ 		// optimization - can do block copy
+ 		if eqtypenoname(r.Type, nl) {
+ 			arg := nodarg(nl, fp)
+@@ -2625,7 +2625,7 @@ func conv(n *Node, t *Type) *Node {
+ }
+ 
+ func chanfn(name string, n int, t *Type) *Node {
+-	if t.Etype != TCHAN {
++	if !t.IsChan() {
+ 		Fatalf("chanfn %v", t)
+ 	}
+ 	fn := syslook(name)
+@@ -2641,7 +2641,7 @@ func chanfn(name string, n int, t *Type) *Node {
+ }
+ 
+ func mapfn(name string, t *Type) *Node {
+-	if t.Etype != TMAP {
++	if !t.IsMap() {
+ 		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name)
+@@ -2650,7 +2650,7 @@ func mapfn(name string, t *Type) *Node {
+ }
+ 
+ func mapfndel(name string, t *Type) *Node {
+-	if t.Etype != TMAP {
++	if !t.IsMap() {
+ 		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name)
+@@ -2803,7 +2803,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		nptr1.Etype = 1
+ 		nptr2 := l2
+ 		var fn *Node
+-		if l2.Type.Etype == TSTRING {
++		if l2.Type.IsString() {
+ 			fn = syslook("slicestringcopy")
+ 		} else {
+ 			fn = syslook("slicecopy")
+@@ -2956,7 +2956,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 
+ 	if runtimecall {
+ 		var fn *Node
+-		if n.Right.Type.Etype == TSTRING {
++		if n.Right.Type.IsString() {
+ 			fn = syslook("slicestringcopy")
+ 		} else {
+ 			fn = syslook("slicecopy")
+@@ -3174,7 +3174,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		}
+ 	}
+ 
+-	if t.Etype == TSTRUCT && t.NumFields() <= 4 {
++	if t.IsStruct() && t.NumFields() <= 4 {
+ 		// Struct of four or fewer fields.
+ 		// Inline comparisons.
+ 		var li *Node
+@@ -3739,10 +3739,10 @@ func usemethod(n *Node) {
+ 			return
+ 		}
+ 	} else {
+-		if p0.Type.Etype != TSTRING {
++		if !p0.Type.IsString() {
+ 			return
+ 		}
+-		if res1.Type.Etype != TBOOL {
++		if !res1.Type.IsBoolean() {
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 82281825a6..13ef5a9506 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -639,7 +639,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	// A special case to make write barriers more efficient.
+ 	// Comparing the first field of a named struct can be done directly.
+ 	base := n1
+-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Sym {
++	if n1.Op == gc.ODOT && n1.Left.Type.IsStruct() && n1.Left.Type.Field(0).Sym == n1.Sym {
+ 		base = n1.Left
+ 	}
+ 

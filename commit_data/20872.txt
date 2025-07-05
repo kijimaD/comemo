@@ -10,10 +10,94 @@ Date:   Tue Oct 21 14:46:07 2014 -0700
     R=golang-codereviews, bradfitz, dave, minux
     CC=golang-codereviews
     https://golang.org/cl/161110044
-
+---
  src/runtime/asm_386.s      | 6 ------
  src/runtime/asm_amd64.s    | 7 -------
  src/runtime/asm_amd64p32.s | 7 -------
  src/runtime/asm_arm.s      | 3 ---
  src/runtime/stubs.go       | 4 ++++
  5 files changed, 4 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b0ed2d8ceb..20d3c47c94 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -871,12 +871,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+-TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+-	RDTSC
+-	MOVL    AX, ret_lo+0(FP)
+-	MOVL    DX, ret_hi+4(FP)
+-	RET
+-
+ TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
+ 	// set up ldt 7 to point at tls0
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2ee3312086..709834180e 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -855,13 +855,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+-	RDTSC
+-	SHLQ    $32, DX
+-	ADDQ    DX, AX
+-	MOVQ    AX, ret+0(FP)
+-	RET
+-
+ // hash function using AES hardware instructions
+ TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+ 	MOVQ	p+0(FP), AX	// ptr to data
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index e27f67e1ee..28875bc55a 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -657,13 +657,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+-	RDTSC
+-	SHLQ    $32, DX
+-	ADDQ    DX, AX
+-	MOVQ    AX, ret+0(FP)
+-	RET
+-
+ // hash function using AES hardware instructions
+ // For now, our one amd64p32 system (NaCl) does not
+ // support using AES instructions, so have not bothered to
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index b21441488a..621d13187a 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1275,9 +1275,6 @@ TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
+ 	MOVW	R0, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·gocputicks(SB),NOSPLIT,$0
+-	B runtime·cputicks(SB)
+-
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 6561094ff1..3419047198 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -180,7 +180,11 @@ func exit(code int32)
+ func breakpoint()
+ func nanotime() int64
+ func usleep(usec uint32)
++
++// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
++// noticed drift between cpus on certain os/arch combinations.  See issue 8976.
+ func cputicks() int64
++
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+ func munmap(addr unsafe.Pointer, n uintptr)
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32)

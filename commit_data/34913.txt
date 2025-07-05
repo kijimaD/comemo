@@ -9,6 +9,32 @@ Date:   Mon Nov 27 21:45:58 2017 +0000
     Change-Id: Ib2b7ee42a23b84db21cdfa693b62d5e6fbfdb54e
     Reviewed-on: https://go-review.googlesource.com/80075
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/response.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 0357b60502..4c614bfab0 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -27,6 +27,9 @@ var respExcludeHeader = map[string]bool{
+ 
+ // Response represents the response from an HTTP request.
+ //
++// The Client and Transport return Responses from servers once
++// the response headers have been received. The response body
++// is streamed on demand as the Body field is read.
+ type Response struct {
+ 	Status     string // e.g. "200 OK"
+ 	StatusCode int    // e.g. 200
+@@ -47,6 +50,10 @@ type Response struct {
+ 
+ 	// Body represents the response body.
+ 	//
++	// The response body is streamed on demand as the Body field
++	// is read. If the network connection fails or the server
++	// terminates the response, Body.Read calls return an error.
++	//
+ 	// The http Client and Transport guarantee that Body is always
+ 	// non-nil, even on responses without a body or responses with
+ 	// a zero-length body. It is the caller's responsibility to

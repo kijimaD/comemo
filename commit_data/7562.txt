@@ -9,6 +9,29 @@ Date:   Thu Feb 24 14:36:18 2011 -0500
     R=bradfitzgo, r
     CC=golang-dev
     https://golang.org/cl/4209045
-
+---
  src/pkg/http/transport.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 7f61962c2f..41d639c7e2 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -9,7 +9,6 @@ import (
+ 	"crypto/tls"
+ 	"encoding/base64"
+ 	"fmt"
+-	"log"
+ 	"net"
+ 	"os"
+ 	"strings"
+@@ -77,9 +76,7 @@ func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
+ 	}
+ 
+ 	// Connect to server or proxy
+-	log.Printf("Temporary necessary log statement to work around http://code.google.com/p/go/issues/detail?id=1547")
+ 	conn, err := net.Dial("tcp", "", addr)
+-	log.Printf("Temporary necessary log statement to work around http://code.google.com/p/go/issues/detail?id=1547")
+ 	if err != nil {
+ 		return nil, err
+ 	}

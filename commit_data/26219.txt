@@ -13,7 +13,57 @@ Date:   Sun Jan 3 18:44:15 2016 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  5 +++--
  test/fixedbugs/bug13343.go           | 18 ++++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 6d88e45ea0..b7f7ea0bea 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -124,10 +124,10 @@ func init1(n *Node, out **NodeList) {
+ 			}
+ 
+ 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
+-			if defn.Initorder != InitNotStarted {
++			if defn.Initorder == InitDone {
+ 				break
+ 			}
+-			defn.Initorder = InitDone
++			defn.Initorder = InitPending
+ 			for l := defn.Rlist; l != nil; l = l.Next {
+ 				init1(l.N, out)
+ 			}
+@@ -135,6 +135,7 @@ func init1(n *Node, out **NodeList) {
+ 				Dump("nonstatic", defn)
+ 			}
+ 			*out = list(*out, defn)
++			defn.Initorder = InitDone
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/bug13343.go b/test/fixedbugs/bug13343.go
+new file mode 100644
+index 0000000000..4c30dac6a9
+--- /dev/null
++++ b/test/fixedbugs/bug13343.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var (
++	a, b = f() // ERROR "initialization loop|depends upon itself"
++	c    = b
++)
++
++func f() (int, int) {
++	return c, c
++}
++
++func main() {}

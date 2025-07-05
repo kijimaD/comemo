@@ -161,3 +161,362 @@ Date:   Thu Oct 16 15:00:08 2014 -0400
  test/interface/explicit.go                    |   4 +-
  test/interface/fail.go                        |  14 -
  150 files changed, 2548 insertions(+), 853 deletions(-)
+
+diff --cc src/reflect/type.go
+index f099546d27,b92d524c3b..26328e74b9
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@@ -1514,20 -1514,36 +1514,32 @@@ func (gc *gcProg) appendProg(t *rtype) 
+  		gc.size += t.size
+  		return
+  	}
+- 	nptr := t.size / unsafe.Sizeof(uintptr(0))
+- 	var prog []byte
+- 	if t.kind&kindGCProg != 0 {
+- 		// Ensure that the runtime has unrolled GC program.
+- 		// TODO(rsc): Do not allocate.
+- 		unsafe_New(t)
+- 		// The program is stored in t.gc[0], skip unroll flag.
+- 		prog = (*[1 << 30]byte)(unsafe.Pointer(t.gc[0]))[1:]
+- 	} else {
+- 		// The mask is embed directly in t.gc.
+- 		prog = (*[1 << 30]byte)(unsafe.Pointer(&t.gc[0]))[:]
+- 	}
+- 	for i := uintptr(0); i < nptr; i++ {
+- 		gc.appendWord(extractGCWord(prog, i))
++ 	switch t.Kind() {
++ 	default:
++ 		panic("reflect: non-pointer type marked as having pointers")
++ 	case Ptr, UnsafePointer, Chan, Func, Map:
++ 		gc.appendWord(bitsPointer)
++ 	case Slice:
++ 		gc.appendWord(bitsPointer)
++ 		gc.appendWord(bitsScalar)
++ 		gc.appendWord(bitsScalar)
++ 	case String:
++ 		gc.appendWord(bitsPointer)
++ 		gc.appendWord(bitsScalar)
++ 	case Array:
++ 		c := t.Len()
++ 		e := t.Elem().common()
++ 		for i := 0; i < c; i++ {
++ 			gc.appendProg(e)
++ 		}
++ 	case Interface:
+ -		gc.appendWord(bitsMultiWord)
+ -		if t.NumMethod() == 0 {
+ -			gc.appendWord(bitsEface)
+ -		} else {
+ -			gc.appendWord(bitsIface)
+ -		}
+++		gc.appendWord(bitsPointer)
+++		gc.appendWord(bitsPointer)
++ 	case Struct:
++ 		c := t.NumField()
++ 		for i := 0; i < c; i++ {
++ 			gc.appendProg(t.Field(i).Type.common())
++ 		}
+  	}
+  }
+  
+diff --cc src/runtime/mgc0.c
+index dabd38a608,05cabe7085..8620f47af0
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@@ -225,251 -162,47 +225,247 @@@ struct WorkData 
+  };
+  WorkData runtime·work;
+  
+ -// Is _cgo_allocate linked into the binary?
+ +// Is address b in the known heap. If it doesn't have a valid gcmap
+ +// returns false. For example pointers into stacks will return false.
+  static bool
+ -have_cgo_allocate(void)
+ +inheap(byte *b)
+  {
+ -	extern	byte	go·weak·runtime·_cgo_allocate_internal[1];
+ -	return go·weak·runtime·_cgo_allocate_internal != nil;
+ +	MSpan *s;
+ +	pageID k;
+ +	uintptr x;
+ +
+ +	if(b == nil || b < runtime·mheap.arena_start || b >= runtime·mheap.arena_used)
+ +		return false;
+ +	// Not a beginning of a block, consult span table to find the block beginning.
+ +	k = (uintptr)b>>PageShift;
+ +	x = k;
+ +	x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+ +	s = runtime·mheap.spans[x];
+ +	if(s == nil || k < s->start || b >= s->limit || s->state != MSpanInUse)
+ +		return false;
+ +	return true;
+  }
+  
+ -// scanblock scans a block of n bytes starting at pointer b for references
+ -// to other objects, scanning any it finds recursively until there are no
+ -// unscanned objects left.  Instead of using an explicit recursion, it keeps
+ -// a work list in the Workbuf* structures and loops in the main function
+ -// body.  Keeping an explicit work list is easier on the stack allocator and
+ -// more efficient.
+ +// Given an address in the heap return the relevant byte from the gcmap. This routine
+ +// can be used on addresses to the start of an object or to the interior of the an object.
+  static void
+ -scanblock(byte *b, uintptr n, byte *ptrmask)
+ +slottombits(byte *obj, Markbits *mbits)
+  {
+ -	byte *obj, *obj0, *p, *arena_start, *arena_used, **wp, *scanbuf[8], *ptrbitp, *bitp;
+ -	uintptr i, j, nobj, size, idx, x, off, scanbufpos, bits, xbits, shift;
+ -	Workbuf *wbuf;
+ -	Iface *iface;
+ -	Eface *eface;
+ -	Type *typ;
+ +	uintptr off;
+ +
+ +	off = (uintptr*)((uintptr)obj&~(PtrSize-1)) - (uintptr*)runtime·mheap.arena_start;
+ +	mbits->bitp = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
+ +	mbits->shift = (off % wordsPerBitmapByte) * gcBits;
+ +	mbits->xbits = *mbits->bitp;
+ +	mbits->bits = (mbits->xbits >> mbits->shift) & bitMask;
+ +}
+ +
+ +// b is a pointer into the heap.
+ +// Find the start of the object refered to by b.
+ +// Set mbits to the associated bits from the bit map.
+ +static byte*
+ +objectstart(byte *b, Markbits *mbits)
+ +{
+ +	byte *obj, *p;
+  	MSpan *s;
+  	pageID k;
+ -	bool keepworking;
+ +	uintptr x, size, idx;
+  
+ -	// Cache memory arena parameters in local vars.
+ -	arena_start = runtime·mheap.arena_start;
+ -	arena_used = runtime·mheap.arena_used;
+ +	obj = (byte*)((uintptr)b&~(PtrSize-1));
+ +	for(;;) {
+ +		slottombits(obj, mbits);
+ +		if(mbits->bits&bitBoundary == bitBoundary)
+ +			break;
+ +		
+ +		// Not a beginning of a block, consult span table to find the block beginning.
+ +		k = (uintptr)obj>>PageShift;
+ +		x = k;
+ +		x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+ +		s = runtime·mheap.spans[x];
+ +		if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse){
+ +			if(s->state == MSpanStack)
+ +				break; // This is legit.
+ +
+ +			// The following is catching some bugs left over from
+ +			// us not being rigerous about what data structures are
+ +			// hold valid pointers and different parts of the system
+ +			// considering different structures as roots. For example
+ +			// if there is a pointer into a stack that is left in 
+ +			// a global data structure but that part of the runtime knows that 
+ +			// those structures will be reinitialized before they are 
+ +			// reused. Unfortunately the GC believes these roots are valid.
+ +			// Typically a stack gets moved and only the structures that part of
+ +			// the system knows are alive are updated. The span is freed
+ +			// after the stack copy and the pointer is still alive. This 
+ +			// check is catching that bug but for now we will not throw, 
+ +			// instead we will simply break out of this routine and depend
+ +			// on the caller to recognize that this pointer is not a valid 
+ +			// heap pointer. I leave the code that catches the bug so that once
+ +			// resolved we can turn this check back on and throw.
+ +
+ +			//runtime·printf("Runtime: Span weird: obj=%p, k=%p", obj, k);
+ +			//if (s == nil)
+ +			//	runtime·printf(" s=nil\n");
+ +			//else
+ +			//	runtime·printf(" s->start=%p s->limit=%p, s->state=%d\n", s->start*PageSize, s->limit, s->state);
+ +			//runtime·throw("Blowup on weird span");
+ +			break; // We are not in a real block throw??
+ +		}
+ +		p = (byte*)((uintptr)s->start<<PageShift);
+ +		if(s->sizeclass != 0) {
+ +			size = s->elemsize;
+ +			idx = ((byte*)obj - p)/size;
+ +			p = p+idx*size;
+ +		}
+ +		if(p == obj) {
+ +			runtime·printf("runtime: failed to find block beginning for %p s=%p s->limit=%p\n",
+ +				       p, s->start*PageSize, s->limit);
+ +			runtime·throw("failed to find block beginning");
+ +		}
+ +		obj = p;
+ +	}
+ +	// if size(obj.firstfield) < PtrSize, the &obj.secondfield could map to the boundary bit
+ +	// Clear any low bits to get to the start of the object.
+ +	// greyobject depends on this.
+ +	return obj;
+ +}
+  
+ -	wbuf = getempty(nil);
+ -	nobj = wbuf->nobj;
+ -	wp = &wbuf->obj[nobj];
+ -	keepworking = b == nil;
+ -	scanbufpos = 0;
+ -	for(i = 0; i < nelem(scanbuf); i++)
+ -		scanbuf[i] = nil;
+ +// obj is the start of an object with mark mbits.
+ +// If it isn't already marked, mark it and enqueue into workbuf.
+ +// Return possibly new workbuf to use.
+ +static Workbuf*
+ +greyobject(byte *obj, Markbits *mbits, Workbuf *wbuf) 
+ +{
+ +	// obj should be start of allocation, and so must be at least pointer-aligned.
+ +	if(((uintptr)obj & (PtrSize-1)) != 0)
+ +		runtime·throw("greyobject: obj not pointer-aligned");
+ +
+ +	// If marked we have nothing to do.
+ +	if((mbits->bits&bitMarked) != 0)
+ +		return wbuf;
+ +
+ +	// Each byte of GC bitmap holds info for two words.
+ +	// If the current object is larger than two words, or if the object is one word
+ +	// but the object it shares the byte with is already marked,
+ +	// then all the possible concurrent updates are trying to set the same bit,
+ +	// so we can use a non-atomic update.
+ +	if((mbits->xbits&(bitMask|(bitMask<<gcBits))) != (bitBoundary|(bitBoundary<<gcBits)) || runtime·work.nproc == 1)
+ +		*mbits->bitp = mbits->xbits | (bitMarked<<mbits->shift);
+ +	else
+ +		runtime·atomicor8(mbits->bitp, bitMarked<<mbits->shift);
+ +	
+ +	if(((mbits->xbits>>(mbits->shift+2))&BitsMask) == BitsDead)
+ +		return wbuf;  // noscan object
+ +
+ +	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but
+ +	// seems like a nice optimization that can be added back in.
+ +	// There needs to be time between the PREFETCH and the use.
+ +	// Previously we put the obj in an 8 element buffer that is drained at a rate
+ +	// to give the PREFETCH time to do its work.
+ +	// Use of PREFETCHNTA might be more appropriate than PREFETCH
+ +
+ +	// If workbuf is full, obtain an empty one.
+ +	if(wbuf->nobj >= nelem(wbuf->obj)) {
+ +		wbuf = getempty(wbuf);
+ +	}
+ +
+ +	wbuf->obj[wbuf->nobj] = obj;
+ +	wbuf->nobj++;
+ +	return wbuf;                    
+ +}
+  
+ +// Scan the object b of size n, adding pointers to wbuf.
+ +// Return possibly new wbuf to use.
+ +// If ptrmask != nil, it specifies where pointers are in b.
+ +// If ptrmask == nil, the GC bitmap should be consulted.
+ +// In this case, n may be an overestimate of the size; the GC bitmap
+ +// must also be used to make sure the scan stops at the end of b.
+ +static Workbuf*
+ +scanobject(byte *b, uintptr n, byte *ptrmask, Workbuf *wbuf)
+ +{
+- 	byte *obj, *arena_start, *arena_used, *ptrbitp, bits, cshift, cached;
+- 	uintptr i;
+- 	intptr ncached;
+++	byte *obj, *arena_start, *arena_used, *ptrbitp;
+++	uintptr i, j;
+++	int32 bits;
+ +	Markbits mbits;
+ +
+ +	arena_start = (byte*)runtime·mheap.arena_start;
+ +	arena_used = runtime·mheap.arena_used;
+  	ptrbitp = nil;
+- 	cached = 0;
+- 	ncached = 0;
+  
+ +	// Find bits of the beginning of the object.
+ +	if(ptrmask == nil) {
+ +		b = objectstart(b, &mbits);
+ +		ptrbitp = mbits.bitp; //arena_start - off/wordsPerBitmapByte - 1;
+- 		cshift = mbits.shift; //(off % wordsPerBitmapByte) * gcBits;
+- 		cached = *ptrbitp >> cshift;
+- 		cached &= ~bitBoundary;
+- 		ncached = (8 - cshift)/gcBits;
+ +	}
+ +	for(i = 0; i < n; i += PtrSize) {
+ +		// Find bits for this word.
+ +		if(ptrmask != nil) {
+ +			// dense mask (stack or data)
+ +			bits = (ptrmask[(i/PtrSize)/4]>>(((i/PtrSize)%4)*BitsPerPointer))&BitsMask;
+ +		} else {
+ +			// Check if we have reached end of span.
+ +			if((((uintptr)b+i)%PageSize) == 0 &&
+ +				runtime·mheap.spans[(b-arena_start)>>PageShift] != runtime·mheap.spans[(b+i-arena_start)>>PageShift])
+ +				break;
+ +			// Consult GC bitmap.
+- 			if(ncached <= 0) {
+- 				// Refill cache.
+- 				cached = *--ptrbitp;
+- 				ncached = 2;
+- 			}
+- 			bits = cached;
+- 			cached >>= gcBits;
+- 			ncached--;
+- 			
+- 			if((bits&bitBoundary) != 0)
+++			bits = *ptrbitp;
+++			if(wordsPerBitmapByte != 2)
+++				runtime·throw("alg doesn't work for wordsPerBitmapByte != 2");
+++			j = ((uintptr)b+i)/PtrSize & 1;
+++			bits >>= gcBits*j;
+++			if(i == 0)
+++				bits &= ~bitBoundary;
+++			ptrbitp -= j;
+++		
+++			if((bits&bitBoundary) != 0 && i != 0)
+ +				break; // reached beginning of the next object
+ +			bits = (bits>>2)&BitsMask;
+ +			if(bits == BitsDead)
+ +				break; // reached no-scan part of the object
+ +		} 
+ +
+- 		if(bits == BitsScalar || bits == BitsDead)
+++		if(bits <= BitsScalar) // Bits Scalar || BitsDead
+ +			continue;
+- 		if(bits != BitsPointer)
+++		if(bits != BitsPointer) {
+++			runtime·printf("gc bits=%x\n", bits);
+ +			runtime·throw("unexpected garbage collection bits");
+++		}
+ +
+ +		obj = *(byte**)(b+i);
+ +		// At this point we have extracted the next potential pointer.
+ +		// Check if it points into heap.
+ +		if(obj == nil || obj < arena_start || obj >= arena_used)
+ +			continue;
+ +		// Mark the object. return some important bits.
+ +		// We we combine the following two rotines we don't have to pass mbits or obj around.
+ +		obj = objectstart(obj, &mbits);
+ +		wbuf = greyobject(obj, &mbits, wbuf);
+ +	}
+ +	return wbuf;
+ +}
+ +
+ +// scanblock starts by scanning b as scanobject would.
+ +// If the gcphase is GCscan, that's all scanblock does.
+ +// Otherwise it traverses some fraction of the pointers it found in b, recursively.
+ +// As a special case, scanblock(nil, 0, nil) means to scan previously queued work,
+ +// stopping only when no work is left in the system.
+ +static void
+ +scanblock(byte *b, uintptr n, byte *ptrmask)
+ +{
+ +	Workbuf *wbuf;
+ +	bool keepworking;
+ +
+ +	wbuf = getpartial();
+ +	if(b != nil) {
+ +		wbuf = scanobject(b, n, ptrmask, wbuf);
+ +		if(runtime·gcphase == GCscan) {
+ +			putpartial(wbuf);
+ +			return;
+ +		}
+ +	}
+ +
+ +	keepworking = b == nil;
+ +
+  	// ptrmask can have 2 possible values:
+  	// 1. nil - obtain pointer mask from GC bitmap.
+  	// 2. pointer to a compact mask (for stacks and data).

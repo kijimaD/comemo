@@ -9,8 +9,100 @@ Date:   Mon Jul 20 12:33:39 2015 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go              |  2 +-
  src/cmd/link/internal/ld/macho.go |  2 +-
  src/runtime/rt0_darwin_386.s      | 55 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 858ad58dd3..0afe4c6060 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -573,7 +573,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			return false
+ 		}
+ 		switch pair {
+-		case "darwin-amd64", "darwin-arm", "darwin-arm64",
++		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+ 			"linux-amd64", "linux-386":
+ 			return true
+ 		}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index c02b83f3fc..af93361000 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -444,7 +444,7 @@ func Asmbmacho() {
+ 		ms = newMachoSeg("", 40)
+ 
+ 		ms.fileoffset = Segtext.Fileoff
+-		if Thearch.Thechar == '5' {
++		if Thearch.Thechar == '5' || Buildmode == BuildmodeCArchive {
+ 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
+ 		} else {
+ 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+diff --git a/src/runtime/rt0_darwin_386.s b/src/runtime/rt0_darwin_386.s
+index 4c8c92dda8..be2e5640ed 100644
+--- a/src/runtime/rt0_darwin_386.s
++++ b/src/runtime/rt0_darwin_386.s
+@@ -12,5 +12,60 @@ TEXT _rt0_386_darwin(SB),NOSPLIT,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
++// With -buildmode=c-archive, this symbol is called from a global constructor.
++TEXT _rt0_386_darwin_lib(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	PUSHL	BX
++	PUSHL	SI
++	PUSHL	DI
++
++	MOVL	8(BP), AX
++	MOVL	AX, _rt0_386_darwin_lib_argc<>(SB)
++	MOVL	12(BP), AX
++	MOVL	AX, _rt0_386_darwin_lib_argv<>(SB)
++
++	SUBL	$12, SP
++
++	// Create a new thread to do the runtime initialization and return.
++	MOVL	_cgo_sys_thread_create(SB), AX
++	TESTL	AX, AX
++	JZ	nocgo
++	MOVL	$_rt0_386_darwin_lib_go(SB), BX
++	MOVL	BX, 0(SP)
++	MOVL	$0, 4(SP)
++	CALL	AX
++	JMP     restore
++
++nocgo:
++	MOVL	$0x800000, 0(SP)               // stacksize = 8192KB
++	MOVL	$_rt0_386_darwin_lib_go(SB), AX
++	MOVL	AX, 4(SP)                      // fn
++	MOVL	$0, 8(SP)                      // fnarg
++	MOVL	$runtime·newosproc0(SB), AX
++	CALL	AX
++
++restore:
++	ADDL	$12, SP
++	POPL	DI
++	POPL	SI
++	POPL	BX
++	POPL	BP
++	RET
++
++TEXT _rt0_386_darwin_lib_go(SB),NOSPLIT,$12
++	MOVL	_rt0_386_darwin_lib_argc<>(SB), AX
++	MOVL	AX, 0(SP)
++	MOVL	_rt0_386_darwin_lib_argv<>(SB), AX
++	MOVL	AX, 4(SP)
++	MOVL	$runtime·rt0_go(SB), AX
++	CALL	AX
++	RET
++
++DATA _rt0_386_darwin_lib_argc<>(SB)/4, $0
++GLOBL _rt0_386_darwin_lib_argc<>(SB),NOPTR, $4
++DATA _rt0_386_darwin_lib_argv<>(SB)/4, $0
++GLOBL _rt0_386_darwin_lib_argv<>(SB),NOPTR, $4
++
+ TEXT main(SB),NOSPLIT,$0
+ 	JMP	runtime·rt0_go(SB)

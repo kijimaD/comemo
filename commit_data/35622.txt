@@ -26,6 +26,64 @@ Date:   Sun Feb 25 16:41:22 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/strings/builder_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 49 insertions(+)
+
+diff --git a/src/strings/builder_test.go b/src/strings/builder_test.go
+index ecbaeaa5c1..29d49e98a7 100644
+--- a/src/strings/builder_test.go
++++ b/src/strings/builder_test.go
+@@ -302,3 +302,52 @@ func TestBuilderCopyPanic(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var someBytes = []byte("some bytes sdljlk jsklj3lkjlk djlkjw")
++
++var sinkS string
++
++func benchmarkBuilder(b *testing.B, f func(b *testing.B, numWrite int, grow bool)) {
++	b.Run("1Write_NoGrow", func(b *testing.B) {
++		b.ReportAllocs()
++		f(b, 1, false)
++	})
++	b.Run("3Write_NoGrow", func(b *testing.B) {
++		b.ReportAllocs()
++		f(b, 3, false)
++	})
++	b.Run("3Write_Grow", func(b *testing.B) {
++		b.ReportAllocs()
++		f(b, 3, true)
++	})
++}
++
++func BenchmarkBuildString_Builder(b *testing.B) {
++	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
++		for i := 0; i < b.N; i++ {
++			var buf Builder
++			if grow {
++				buf.Grow(len(someBytes) * numWrite)
++			}
++			for i := 0; i < numWrite; i++ {
++				buf.Write(someBytes)
++			}
++			sinkS = buf.String()
++		}
++	})
++}
++
++func BenchmarkBuildString_ByteBuffer(b *testing.B) {
++	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
++		for i := 0; i < b.N; i++ {
++			var buf bytes.Buffer
++			if grow {
++				buf.Grow(len(someBytes) * numWrite)
++			}
++			for i := 0; i < numWrite; i++ {
++				buf.Write(someBytes)
++			}
++			sinkS = buf.String()
++		}
++	})
++}

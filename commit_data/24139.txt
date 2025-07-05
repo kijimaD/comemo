@@ -10,9 +10,206 @@ Date:   Fri Jul 10 12:32:03 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12026
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/signal_386.go    | 24 ++++++++++++------
  src/runtime/signal_amd64x.go | 24 ++++++++++++------
  test/fixedbugs/issue11656.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
  test/run.go                  | 23 ++++++++++++------
  4 files changed, 107 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 8fb197952e..b6f55ffedf 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -67,21 +67,31 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 			}
+ 		}
+ 
+-		// Only push runtime.sigpanic if rip != 0.
+-		// If rip == 0, probably panicked because of a
++		pc := uintptr(c.eip())
++		sp := uintptr(c.esp())
++
++		// If we don't recognize the PC as code
++		// but we do recognize the top pointer on the stack as code,
++		// then assume this was a call to non-code and treat like
++		// pc == 0, to make unwinding show the context.
++		if pc != 0 && findfunc(pc) == nil && findfunc(*(*uintptr)(unsafe.Pointer(sp))) != nil {
++			pc = 0
++		}
++
++		// Only push runtime.sigpanic if pc != 0.
++		// If pc == 0, probably panicked because of a
+ 		// call to a nil func.  Not pushing that onto sp will
+ 		// make the trace look like a call to runtime.sigpanic instead.
+ 		// (Otherwise the trace will end at runtime.sigpanic and we
+ 		// won't get to see who faulted.)
+-		if c.eip() != 0 {
+-			sp := c.esp()
++		if pc != 0 {
+ 			if regSize > ptrSize {
+ 				sp -= ptrSize
+-				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
++				*(*uintptr)(unsafe.Pointer(sp)) = 0
+ 			}
+ 			sp -= ptrSize
+-			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(c.eip())
+-			c.set_esp(sp)
++			*(*uintptr)(unsafe.Pointer(sp)) = pc
++			c.set_esp(uint32(sp))
+ 		}
+ 		c.set_eip(uint32(funcPC(sigpanic)))
+ 		return
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 182b16e5ec..13ee5af0c1 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -101,21 +101,31 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 			}
+ 		}
+ 
+-		// Only push runtime.sigpanic if rip != 0.
+-		// If rip == 0, probably panicked because of a
++		pc := uintptr(c.rip())
++		sp := uintptr(c.rsp())
++
++		// If we don't recognize the PC as code
++		// but we do recognize the top pointer on the stack as code,
++		// then assume this was a call to non-code and treat like
++		// pc == 0, to make unwinding show the context.
++		if pc != 0 && findfunc(pc) == nil && findfunc(*(*uintptr)(unsafe.Pointer(sp))) != nil {
++			pc = 0
++		}
++
++		// Only push runtime.sigpanic if pc != 0.
++		// If pc == 0, probably panicked because of a
+ 		// call to a nil func.  Not pushing that onto sp will
+ 		// make the trace look like a call to runtime.sigpanic instead.
+ 		// (Otherwise the trace will end at runtime.sigpanic and we
+ 		// won't get to see who faulted.)
+-		if c.rip() != 0 {
+-			sp := c.rsp()
++		if pc != 0 {
+ 			if regSize > ptrSize {
+ 				sp -= ptrSize
+-				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
++				*(*uintptr)(unsafe.Pointer(sp)) = 0
+ 			}
+ 			sp -= ptrSize
+-			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(c.rip())
+-			c.set_rsp(sp)
++			*(*uintptr)(unsafe.Pointer(sp)) = pc
++			c.set_rsp(uint64(sp))
+ 		}
+ 		c.set_rip(uint64(funcPC(sigpanic)))
+ 		return
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+new file mode 100644
+index 0000000000..4bf657c5a8
+--- /dev/null
++++ b/test/fixedbugs/issue11656.go
+@@ -0,0 +1,58 @@
++// run
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// darwin/386 seems to mangle the PC and SP before
++// it manages to invoke the signal handler, so this test fails there.
++// +build !darwin !386
++//
++// openbsd/386 and plan9/386 don't work, not sure why.
++// +build !openbsd !386
++// +build !plan9 !386
++//
++// windows doesn't work, because Windows exception handling
++// delivers signals based on the current PC, and that current PC
++// doesn't go into the Go runtime.
++// +build !windows
++
++package main
++
++import (
++	"runtime"
++	"runtime/debug"
++	"unsafe"
++)
++
++func main() {
++	debug.SetPanicOnFault(true)
++	defer func() {
++		if err := recover(); err == nil {
++			panic("not panicking")
++		}
++		pc, _, _, _ := runtime.Caller(10)
++		f := runtime.FuncForPC(pc)
++		if f == nil || f.Name() != "main.f" {
++			if f == nil {
++				println("no func for ", unsafe.Pointer(pc))
++			} else {
++				println("found func:", f.Name())
++			}
++			panic("cannot find main.f on stack")
++		}
++	}()
++	f(20)
++}
++
++func f(n int) {
++	if n > 0 {
++		f(n-1)
++	}
++	var f struct {
++		x uintptr
++	}
++	f.x = uintptr(unsafe.Pointer(&f))
++	fn := *(*func())(unsafe.Pointer(&f))
++	fn()
++}
+diff --git a/test/run.go b/test/run.go
+index 0a2f82d439..6e1cde9390 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -412,19 +412,13 @@ func (t *test) run() {
+ 		t.err = skipError("starts with newline")
+ 		return
+ 	}
++
++	// Execution recipe stops at first blank line.
+ 	pos := strings.Index(t.src, "\n\n")
+ 	if pos == -1 {
+ 		t.err = errors.New("double newline not found")
+ 		return
+ 	}
+-	// Check for build constraints only upto the first blank line.
+-	if ok, why := shouldTest(t.src[:pos], goos, goarch); !ok {
+-		t.action = "skip"
+-		if *showSkips {
+-			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)
+-		}
+-		return
+-	}
+ 	action := t.src[:pos]
+ 	if nl := strings.Index(action, "\n"); nl >= 0 && strings.Contains(action[:nl], "+build") {
+ 		// skip first line
+@@ -434,6 +428,19 @@ func (t *test) run() {
+ 		action = action[2:]
+ 	}
+ 
++	// Check for build constraints only up to the actual code.
++	pkgPos := strings.Index(t.src, "\npackage")
++	if pkgPos == -1 {
++		pkgPos = pos // some files are intentionally malformed
++	}
++	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
++		t.action = "skip"
++		if *showSkips {
++			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)
++		}
++		return
++	}
++
+ 	var args, flags []string
+ 	wantError := false
+ 	f := strings.Fields(action)

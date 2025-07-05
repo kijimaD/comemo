@@ -7,6 +7,20 @@ Date:   Wed Jun 21 17:17:22 2017 +0200
     Change-Id: Ief076151739147378f8ca35cd09aabb59c3c9a52
     Reviewed-on: https://go-review.googlesource.com/46350
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sync/waitgroup.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 4b23540ae7..f266f7c2b9 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -95,7 +95,7 @@ func (wg *WaitGroup) Add(delta int) {
+ 	}
+ }
+ 
+-// Done decrements the WaitGroup counter.
++// Done decrements the WaitGroup counter by one.
+ func (wg *WaitGroup) Done() {
+ 	wg.Add(-1)
+ }

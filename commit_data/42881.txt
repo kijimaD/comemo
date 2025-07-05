@@ -14,8 +14,95 @@ Date:   Mon Dec 23 18:16:22 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go |  8 ++++----
  test/fixedbugs/issue36259.go                   | 28 ++++++++++++++++++++++++++
  3 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 529669ec6a..1382cdc259 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1938,6 +1938,7 @@
+ 
+ // Inline small or disjoint runtime.memmove calls with constant length.
+ (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
++	&& sz >= 0
+ 	&& isSameSym(sym,"runtime.memmove")
+ 	&& t.(*types.Type).IsPtr() // avoids TUINTPTR, see issue 30061
+ 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 9d88652d4a..a4a2506d8e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -19680,7 +19680,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+ 	// match: (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
+-	// cond: isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
++	// cond: sz >= 0 && isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
+ 	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+ 	for {
+ 		sym := v.Aux
+@@ -19707,7 +19707,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		t := s3.Aux
+ 		mem := s3.Args[2]
+ 		dst := s3.Args[1]
+-		if !(isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
++		if !(sz >= 0 && isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+@@ -19719,7 +19719,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
+-	// cond: isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
++	// cond: sz >= 0 && isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
+ 	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+ 	for {
+ 		sym := v.Aux
+@@ -19746,7 +19746,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+ 		t := s3.Aux
+ 		mem := s3.Args[2]
+ 		dst := s3.Args[1]
+-		if !(isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
++		if !(sz >= 0 && isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+diff --git a/test/fixedbugs/issue36259.go b/test/fixedbugs/issue36259.go
+new file mode 100644
+index 0000000000..246eb3527e
+--- /dev/null
++++ b/test/fixedbugs/issue36259.go
+@@ -0,0 +1,28 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func rotate(s []int, m int) {
++    l := len(s)
++    m = m % l
++    buf := make([]int, m)
++
++    copy(buf, s)
++    copy(s, s[m:])
++    copy(s[l-m:], buf)
++}
++
++func main() {
++    a0 := [...]int{1,2,3,4,5}
++    println(a0[0])
++
++    rotate(a0[:], 1)
++    println(a0[0])
++
++    rotate(a0[:], -3)
++    println(a0[0])
++}

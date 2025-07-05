@@ -13,6 +13,28 @@ Date:   Mon Jun 27 14:10:08 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/lookup_windows_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 823ec088b8..b7a60e1278 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -156,7 +156,7 @@ func TestLookupLocalPTR(t *testing.T) {
+ 	}
+ 	expected, err := lookupPTR(addr.String())
+ 	if err != nil {
+-		t.Logf("skipping failed lookup %s test: %s", addr.String(), err)
++		t.Skipf("skipping failed lookup %s test: %s", addr.String(), err)
+ 	}
+ 	sort.Strings(expected)
+ 	sort.Strings(names)
+@@ -179,6 +179,7 @@ func TestLookupPTR(t *testing.T) {
+ 		expected, err := lookupPTR(addr)
+ 		if err != nil {
+ 			t.Logf("skipping failed lookup %s test: %s", addr, err)
++			continue
+ 		}
+ 		sort.Strings(expected)
+ 		sort.Strings(names)

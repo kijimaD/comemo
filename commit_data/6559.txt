@@ -8,7 +8,7 @@ Date:   Tue Oct 19 13:08:17 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2490043
-
+---
  src/cmd/5l/asm.c    |  45 +++++++------------
  src/cmd/5l/l.h      |   5 ++-
  src/cmd/5l/list.c   |  30 +++++++++++++
@@ -29,3 +29,1370 @@ Date:   Tue Oct 19 13:08:17 2010 -0400
  src/cmd/ld/lib.h    |   8 ++++
  src/cmd/ld/macho.c  |   8 ++--
  19 files changed, 284 insertions(+), 380 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 0b38e0b29b..5bfb285ef1 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -305,42 +305,29 @@ asmb(void)
+ 	symo = 0;
+ 
+ 	if(debug['v'])
+-		Bprint(&bso, "%5.2f asm\n", cputime());
++		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+-	OFFSET = HEADR;
+-	seek(cout, OFFSET, 0);
+-	pc = INITTEXT;
+-	codeblk(pc, segtext.sect->len);
+-	pc += segtext.sect->len;
+-	if(seek(cout, 0, 1) != pc - segtext.vaddr + segtext.fileoff)
+-		diag("text phase error");
++
++	sect = segtext.sect;
++	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	codeblk(sect->vaddr, sect->len);
+ 
+ 	/* output read-only data in text segment */
+ 	sect = segtext.sect->next;
+ 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+ 	datblk(sect->vaddr, sect->len);
+ 
+-	/* output data segment */
+-	cursym = nil;
+-	switch(HEADTYPE) {
+-	case 0:
+-	case 1:
+-	case 2:
+-	case 5:
+-		OFFSET = HEADR+textsize;
+-		seek(cout, OFFSET, 0);
+-		break;
+-	case 3:
+-		OFFSET = rnd(HEADR+textsize, 4096);
+-		seek(cout, OFFSET, 0);
+-		break;
+-	case 6:
+-		OFFSET = rnd(segtext.fileoff+segtext.filelen, INITRND);
+-		seek(cout, OFFSET, 0);
+-		break;
+-	}
+-	segdata.fileoff = seek(cout, 0, 1);
+-	datblk(INITDAT, segdata.filelen);
++	if(debug['v'])
++		Bprint(&bso, "%5.2f datblk\n", cputime());
++	Bflush(&bso);
++
++	seek(cout, segdata.fileoff, 0);
++	datblk(segdata.vaddr, segdata.filelen);
++
++	/* output read-only data in text segment */
++	sect = segtext.sect->next;
++	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	datblk(sect->vaddr, sect->len);
+ 
+ 	/* output symbol table */
+ 	symsize = 0;
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 4f7ec52235..fd829e4e50 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -45,6 +45,8 @@ enum
+ /* do not undefine this - code will be removed eventually */
+ #define	CALLEEBX
+ 
++#define	dynptrsize	0
++
+ typedef	struct	Adr	Adr;
+ typedef	struct	Sym	Sym;
+ typedef	struct	Autom	Auto;
+@@ -262,7 +264,7 @@ enum
+ 	C_HREG,
+ 	C_OFFPC,		/* thumb */
+ 
+-	C_ADDR,		/* relocatable address */
++	C_ADDR,		/* reference to relocatable address */
+ 
+ 	C_GOK,
+ 
+@@ -369,6 +371,7 @@ EXTERN	Prog*	prog_modu;
+ int	Aconv(Fmt*);
+ int	Cconv(Fmt*);
+ int	Dconv(Fmt*);
++int	Iconv(Fmt*);
+ int	Nconv(Fmt*);
+ int	Oconv(Fmt*);
+ int	Pconv(Fmt*);
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 5df41ff1b3..c7cb95b98a 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -44,6 +44,7 @@ listinit(void)
+ 	fmtinstall('S', Sconv);
+ 	fmtinstall('N', Nconv);
+ 	fmtinstall('O', Oconv);		// C_type constants
++	fmtinstall('I', Iconv);
+ }
+ 
+ void
+@@ -374,6 +375,35 @@ Sconv(Fmt *fp)
+ 	return fmtstrcpy(fp, str);
+ }
+ 
++int
++Iconv(Fmt *fp)
++{
++	int i, n;
++	uint32 *p;
++	char *s;
++	Fmt fmt;
++	
++	n = fp->prec;
++	fp->prec = 0;
++	if(!(fp->flags&FmtPrec) || n < 0)
++		return fmtstrcpy(fp, "%I");
++	fp->flags &= ~FmtPrec;
++	p = va_arg(fp->args, uint32*);
++
++	// format into temporary buffer and
++	// call fmtstrcpy to handle padding.
++	fmtstrinit(&fmt);
++	for(i=0; i<n/4; i++) {
++		if(i > 0)
++			fmtprint(&fmt, " ");
++		fmtprint(&fmt, "%.8ux", *p++);
++	}
++	s = fmtstrflush(&fmt);
++	fmtstrcpy(fp, s);
++	free(s);
++	return 0;
++}
++
+ static char*
+ cnames[] =
+ {
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 5a508b4f4a..0486b763b4 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -255,11 +255,12 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	doelf();
+-	dodata();
+ 	follow();
+ 	softfloat();
+ 	noops();
+ 	span();
++	dodata();
++	address();
+ 	reloc();
+ 	asmb();
+ 	undef();
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 048a4768b6..f8781604bd 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -169,16 +169,13 @@ span(void)
+ 	int m, bflag, i, v;
+ 	int32 c, otxt, out[6];
+ 	int lastthumb = -1;
+-	Section *rosect, *sect;
+-	Sym *sym;
++	Section *sect;
+ 	uchar *bp;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f span\n", cputime());
+ 	Bflush(&bso);
+ 
+-	xdefine("etext", STEXT, 0);
+-
+ 	bflag = 0;
+ 	c = INITTEXT;
+ 	op = nil;
+@@ -202,6 +199,7 @@ span(void)
+ 			pool.extra += brextra(p);
+ 
+ 		for(op = p, p = p->link; p != P; op = p, p = p->link) {
++			curp = p;
+ 			setarch(p);
+ 			p->pc = c;
+ 			o = oplook(p);
+@@ -256,6 +254,7 @@ span(void)
+ 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 			cursym->value = c;
+ 			for(p = cursym->text; p != P; p = p->link) {
++				curp = p;
+ 				setarch(p);
+ 				p->pc = c;
+ 				if(thumb && isbranch(p))
+@@ -319,6 +318,7 @@ span(void)
+ 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 			cursym->value = c;
+ 			for(p = cursym->text; p != P; oop = op, op = p, p = p->link) {
++				curp = p;
+ 				setarch(p);
+ 				if(p->pc != c)
+ 					again = 1;
+@@ -369,8 +369,6 @@ span(void)
+ 		}
+ 	}
+ 	c = rnd(c, 8);
+-	xdefine("etext", STEXT, c);
+-	textsize = c - INITTEXT;
+ 	
+ 	/*
+ 	 * lay out the code.  all the pc-relative code references,
+@@ -388,6 +386,7 @@ span(void)
+ 	
+ 		bp = cursym->p;
+ 		for(p = p->link; p != P; p = p->link) {
++			curp = p;
+ 			pc = p->pc;
+ 			curp = p;
+ 			o = oplook(p);
+@@ -401,55 +400,9 @@ span(void)
+ 			}
+ 		}
+ 	}
+-
+-	rosect = segtext.sect->next;
+-	if(rosect) {
+-		if(INITRND)
+-			c = rnd(c, INITRND);
+-		rosect->vaddr = c;
+-		c += rosect->len;
+-	}
+-
+-	if(INITRND)
+-		INITDAT = rnd(c, INITRND);
+-	
+-	if(debug['v'])
+-		Bprint(&bso, "tsize = %ux\n", textsize);
+-	Bflush(&bso);
+-	
+-	segtext.rwx = 05;
+-	segtext.vaddr = INITTEXT - HEADR;
+-	segtext.len = INITDAT - INITTEXT + HEADR;
+-	segtext.filelen = segtext.len;
+-	
+-	sect = segtext.sect;
++	sect = addsection(&segtext, ".text", 05);
+ 	sect->vaddr = INITTEXT;
+-	sect->len = textsize;
+-
+-	// Adjust everything now that we know INITDAT.
+-	// This will get simpler when everything is relocatable
+-	// and we can run span before dodata.
+-
+-	segdata.vaddr += INITDAT;
+-	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+-		sect->vaddr += INITDAT;
+-
+-	xdefine("data", SBSS, INITDAT);
+-	xdefine("edata", SBSS, INITDAT+segdata.filelen);
+-	xdefine("end", SBSS, INITDAT+segdata.len);
+-
+-	for(sym=datap; sym!=nil; sym=sym->next) {
+-		switch(sym->type) {
+-		case SELFDATA:
+-		case SRODATA:
+-			sym->value += rosect->vaddr;
+-			break;
+-		case SDATA:
+-		case SBSS:
+-			sym->value += INITDAT;
+-			break;
+-		}
+-	}
++	sect->len = c - INITTEXT;
+ }
+ 
+ /*
+@@ -694,13 +647,9 @@ aclass(Adr *a)
+ 			}
+ 			s = a->sym;
+ 			t = s->type;
+-			if(t == 0 || t == SXREF) {
+-				diag("undefined external: %s in %s",
+-					s->name, TNAME);
+-				s->type = SDATA;
+-			}
+-			instoffset = s->value + a->offset;
++			instoffset = 0;	// s.b. unused but just in case
+ 			return C_ADDR;
++
+ 		case D_AUTO:
+ 			instoffset = autosize + a->offset;
+ 			t = immaddr(instoffset);
+@@ -755,13 +704,8 @@ aclass(Adr *a)
+ 		case D_STATIC:
+ 			s = a->sym;
+ 			t = s->type;
+-			if(t == 0 || t == SXREF) {
+-				diag("undefined external: %s in %s",
+-					s->name, TNAME);
+-				s->type = SDATA;
+-			}
+-			instoffset = symaddr(s) + a->offset;
+-			return C_LCON;
++			instoffset = 0;	// s.b. unused but just in case
++			return C_ADDR;
+ 		}
+ 		return C_GOK;
+ 
+@@ -791,12 +735,7 @@ aclass(Adr *a)
+ 			if(s == S)
+ 				break;
+ 			t = s->type;
+-			if(t == 0 || t == SXREF) {
+-				diag("undefined external: %s in %s",
+-					s->name, TNAME);
+-				s->type = SDATA;
+-			}
+-			instoffset = symaddr(s) + a->offset;
++			instoffset = 0;	// s.b. unused but just in case
+ 			return C_LCON;
+ 
+ 		case D_AUTO:
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index b9358a8a0a..0f010f617f 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -344,7 +344,7 @@ phsh(ElfPhdr *ph, ElfShdr *sh)
+ void
+ asmb(void)
+ {
+-	int32 v, magic;
++	int32 magic;
+ 	int a, dynsym;
+ 	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
+ 	vlong symdatva = SYMDATVA;
+@@ -357,45 +357,47 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
+-	segtext.fileoff = 0;
+ 	elftextsh = 0;
+ 	elfsymsize = 0;
+ 	elfstro = 0;
+ 	elfsymo = 0;
+-	seek(cout, HEADR, 0);
+-	pc = INITTEXT;
+-	codeblk(pc, segtext.sect->len);
+-	pc += segtext.sect->len;
++	
++	if(debug['v'])
++		Bprint(&bso, "%5.2f codeblk\n", cputime());
++	Bflush(&bso);
++
++	sect = segtext.sect;
++	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	codeblk(sect->vaddr, sect->len);
+ 
+ 	/* output read-only data in text segment */
+ 	sect = segtext.sect->next;
+-	datblk(pc, sect->vaddr + sect->len - pc);
++	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	datblk(sect->vaddr, sect->len);
++
++	if(debug['v'])
++		Bprint(&bso, "%5.2f datblk\n", cputime());
++	Bflush(&bso);
++
++	seek(cout, segdata.fileoff, 0);
++	datblk(segdata.vaddr, segdata.filelen);
++
++	machlink = 0;
++	if(HEADTYPE == 6)
++		machlink = domacholink();
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown header type %d", HEADTYPE);
+ 	case 2:
+ 	case 5:
+-		seek(cout, HEADR+textsize, 0);
+ 		break;
+ 	case 6:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+-		v = HEADR+textsize;
+-		seek(cout, v, 0);
+-		v = rnd(v, 4096) - v;
+-		while(v > 0) {
+-			cput(0);
+-			v--;
+-		}
+-		cflush();
+ 		break;
+-
+ 	case 7:
+ 	case 9:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+-		v = rnd(HEADR+textsize, INITRND);
+-		seek(cout, v, 0);
+-		
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes 8 extra sections before the .text section */
+ 		elftextsh = 1;
+@@ -404,17 +406,6 @@ asmb(void)
+ 		break;
+ 	}
+ 
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f datblk\n", cputime());
+-	Bflush(&bso);
+-
+-	segdata.fileoff = seek(cout, 0, 1);
+-	datblk(INITDAT, segdata.filelen);
+-
+-	machlink = 0;
+-	if(HEADTYPE == 6)
+-		machlink = domacholink();
+-
+ 	symsize = 0;
+ 	spsize = 0;
+ 	lcsize = 0;
+@@ -428,14 +419,14 @@ asmb(void)
+ 		case 2:
+ 		case 5:
+ 			debug['s'] = 1;
+-			symo = HEADR+textsize+segdata.filelen;
++			symo = HEADR+segtext.len+segdata.filelen;
+ 			break;
+ 		case 6:
+-			symo = rnd(HEADR+textsize, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
++			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+ 		case 7:
+ 		case 9:
+-			symo = rnd(HEADR+textsize, INITRND)+segdata.filelen;
++			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+@@ -490,7 +481,7 @@ asmb(void)
+ 		magic = 4*26*26+7;
+ 		magic |= 0x00008000;		/* fat header */
+ 		lputb(magic);			/* magic */
+-		lputb(textsize);			/* sizes */
++		lputb(segtext.filelen);			/* sizes */
+ 		lputb(segdata.filelen);
+ 		lputb(segdata.len - segdata.filelen);
+ 		lputb(symsize);			/* nsyms */
+@@ -503,7 +494,7 @@ asmb(void)
+ 	case 3:	/* plan9 */
+ 		magic = 4*26*26+7;
+ 		lputb(magic);			/* magic */
+-		lputb(textsize);		/* sizes */
++		lputb(segtext.filelen);		/* sizes */
+ 		lputb(segdata.filelen);
+ 		lputb(segdata.len - segdata.filelen);
+ 		lputb(symsize);			/* nsyms */
+@@ -522,7 +513,7 @@ asmb(void)
+ 		fo = HEADR;
+ 		startva = INITTEXT - HEADR;
+ 		va = startva + fo;
+-		w = textsize;
++		w = segtext.filelen;
+ 
+ 		/* This null SHdr must appear before all others */
+ 		sh = newElfShdr(elfstr[ElfStrEmpty]);
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index c79c6837d6..b33c69ae60 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -310,9 +310,9 @@ EXTERN union
+ 
+ EXTERN	int32	HEADR;
+ EXTERN	int32	HEADTYPE;
+-EXTERN	vlong	INITDAT;
+ EXTERN	int32	INITRND;
+ EXTERN	vlong	INITTEXT;
++EXTERN	vlong	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+ EXTERN	Biobuf	bso;
+ EXTERN	int	cbc;
+@@ -344,7 +344,6 @@ EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+-EXTERN	vlong	textsize;
+ EXTERN	int	tlsoffset;
+ EXTERN	int	version;
+ EXTERN	Prog	zprg;
+@@ -367,6 +366,7 @@ extern	char*	anames[];
+ 
+ int	Aconv(Fmt*);
+ int	Dconv(Fmt*);
++int	Iconv(Fmt*);
+ int	Pconv(Fmt*);
+ int	Rconv(Fmt*);
+ int	Sconv(Fmt*);
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 63b0d43bda..c5fb3ee9ac 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -44,6 +44,7 @@ listinit(void)
+ 	fmtinstall('D', Dconv);
+ 	fmtinstall('S', Sconv);
+ 	fmtinstall('P', Pconv);
++	fmtinstall('I', Iconv);
+ }
+ 
+ int
+@@ -393,6 +394,32 @@ Sconv(Fmt *fp)
+ 	return fmtstrcpy(fp, str);
+ }
+ 
++int
++Iconv(Fmt *fp)
++{
++	int i, n;
++	uchar *p;
++	char *s;
++	Fmt fmt;
++	
++	n = fp->prec;
++	fp->prec = 0;
++	if(!(fp->flags&FmtPrec) || n < 0)
++		return fmtstrcpy(fp, "%I");
++	fp->flags &= ~FmtPrec;
++	p = va_arg(fp->args, uchar*);
++
++	// format into temporary buffer and
++	// call fmtstrcpy to handle padding.
++	fmtstrinit(&fmt);
++	for(i=0; i<n; i++)
++		fmtprint(&fmt, "%.8ux", *p++);
++	s = fmtstrflush(&fmt);
++	fmtstrcpy(fp, s);
++	free(s);
++	return 0;
++}
++
+ void
+ diag(char *fmt, ...)
+ {
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 97b79d53cb..a16fdc1c61 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -237,7 +237,6 @@ main(int argc, char *argv[])
+ 	doelf();
+ 	if(HEADTYPE == 6)
+ 		domacho();
+-	dodata();
+ 	dostkoff();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+ 	if(debug['p'])
+@@ -246,6 +245,8 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	dodata();
++	address();
+ 	reloc();
+ 	asmb();
+ 	undef();
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 08b604ba49..37ca8ac1b4 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -137,19 +137,11 @@ span(void)
+ 	int32 v;
+ 	vlong c;
+ 	int n;
+-	Sym *s;
+-	Section *sect, *rosect;
++	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f span\n", cputime());
+ 
+-	segtext.rwx = 05;
+-	segtext.vaddr = INITTEXT - HEADR;
+-	
+-	xdefine("etext", STEXT, 0L);
+-	xdefine("rodata", SRODATA, 0L);
+-	xdefine("erodata", SRODATA, 0L);
+-
+ 	// NOTE(rsc): If we get rid of the globals we should
+ 	// be able to parallelize these iterations.
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+@@ -184,7 +176,7 @@ span(void)
+ 	// Could parallelize here too, by assigning to text 
+ 	// and then letting threads copy down, but probably not worth it.
+ 	c = INITTEXT;
+-	sect = segtext.sect;
++	sect = addsection(&segtext, ".text", 05);
+ 	sect->vaddr = c;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		cursym->value = c;
+@@ -193,53 +185,6 @@ span(void)
+ 		c += cursym->size;
+ 	}
+ 	sect->len = c - sect->vaddr;
+-	xdefine("etext", STEXT, c);
+-	if(debug['v'])
+-		Bprint(&bso, "etext = %llux\n", c);
+-
+-	xdefine("rodata", SRODATA, c);
+-	if(INITRND)
+-		c = rnd(c, INITRND);
+-	rosect = segtext.sect->next;
+-	rosect->vaddr = c;
+-	c += rosect->len;
+-	xdefine("erodata", SRODATA, c);
+-	textsize = c - INITTEXT;
+-	if(debug['v'])
+-		Bprint(&bso, "erodata = %llux", c);
+-	Bflush(&bso);
+-
+-	segtext.len = c - segtext.vaddr;
+-	segtext.filelen = segtext.len;
+-
+-	if(INITRND)
+-		c = rnd(c, INITRND);
+-	INITDAT = c;
+-	
+-	// Adjust everything now that we know INITDAT.
+-	// This will get simpler when everything is relocatable
+-	// and we can run span before dodata.
+-
+-	segdata.vaddr += INITDAT;
+-	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+-		sect->vaddr += INITDAT;
+-
+-	xdefine("data", SBSS, INITDAT);
+-	xdefine("edata", SBSS, INITDAT+segdata.filelen);
+-	xdefine("end", SBSS, INITDAT+segdata.len);
+-
+-	for(s=datap; s!=nil; s=s->next) {
+-		switch(s->type) {
+-		case SELFDATA:
+-		case SRODATA:
+-			s->value += rosect->vaddr;
+-			break;
+-		case SDATA:
+-		case SBSS:
+-			s->value += INITDAT;
+-			break;
+-		}
+-	}
+ }
+ 
+ void
+@@ -250,6 +195,7 @@ xdefine(char *p, int t, vlong v)
+ 	s = lookup(p, 0);
+ 	s->type = t;
+ 	s->value = v;
++	s->reachable = 1;
+ }
+ 
+ void
+@@ -729,8 +675,8 @@ symaddr(Sym *s)
+ 		return s->value;
+ 	
+ 	case SMACHO:
+-		return INITDAT + segdata.filelen - dynptrsize + s->value;
+-	
++		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
++
+ 	default:
+ 		if(!s->reachable)
+ 			diag("unreachable symbol in symaddr - %s", s->name);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index b9998b1fbe..a2c09b4334 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -335,7 +335,6 @@ asmb(void)
+ 	int32 v, magic;
+ 	int a, dynsym;
+ 	uint32 va, fo, w, symo, startva, machlink;
+-	ulong expectpc;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -345,77 +344,23 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
+-	seek(cout, HEADR, 0);
+-	pc = INITTEXT;
+-	codeblk(pc, segtext.sect->len);
+-	pc += segtext.sect->len;
+-
+-	if(HEADTYPE == 8) {
+-		int32 etext;
+-		
+-		etext = rnd(segtext.vaddr + segtext.filelen, 4096);
+-		while(pc < etext) {
+-			cput(0xf4);	// hlt
+-			pc++;
+-		}
+-		pc = segrodata.vaddr;
+-		cflush();
+-	}
++	sect = segtext.sect;
++	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	codeblk(sect->vaddr, sect->len);
++	
++	// TODO: NaCl: pad with HLT
+ 
+ 	/* output read-only data in text segment */
+ 	sect = segtext.sect->next;
+-	datblk(pc, sect->vaddr + sect->len - pc);
+-
+-	switch(HEADTYPE) {
+-	default:
+-		if(iself)
+-			goto Elfseek;
+-		diag("unknown header type %d", HEADTYPE);
+-	case 0:
+-		seek(cout, rnd(HEADR+textsize, 8192), 0);
+-		break;
+-	case 1:
+-		textsize = rnd(HEADR+textsize, 4096)-HEADR;
+-		seek(cout, textsize+HEADR, 0);
+-		break;
+-	case 2:
+-		seek(cout, HEADR+textsize, 0);
+-		break;
+-	case 3:
+-	case 4:
+-		seek(cout, HEADR+rnd(textsize, INITRND), 0);
+-		break;
+-	case 6:
+-		v = HEADR+textsize;
+-		seek(cout, v, 0);
+-		v = rnd(v, 4096) - v;
+-		while(v > 0) {
+-			cput(0);
+-			v--;
+-		}
+-		cflush();
+-		break;
+-	case 8:
+-		// Native Client only needs to round
+-		// text segment file address to 4096 bytes,
+-		// but text segment memory address rounds
+-		// to INITRND (65536).
+-		v = rnd(segrodata.fileoff+segrodata.filelen, 4096);
+-		seek(cout, v, 0);
+-		break;
+-	Elfseek:
+-	case 10:
+-		v = rnd(segtext.fileoff+segtext.filelen, INITRND);
+-		seek(cout, v, 0);
+-		break;
+-	}
++	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	datblk(sect->vaddr, sect->len);
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+ 	Bflush(&bso);
+ 
+-	segdata.fileoff = seek(cout, 0, 1);
+-	datblk(INITDAT, segdata.filelen);
++	seek(cout, segdata.fileoff, 0);
++	datblk(segdata.vaddr, segdata.filelen);
+ 
+ 	machlink = 0;
+ 	if(HEADTYPE == 6)
+@@ -434,26 +379,26 @@ asmb(void)
+ 			if(iself)
+ 				goto Elfsym;
+ 		case 0:
+-			seek(cout, rnd(HEADR+textsize, 8192)+segdata.filelen, 0);
++			seek(cout, rnd(HEADR+segtext.filelen, 8192)+segdata.filelen, 0);
+ 			break;
+ 		case 1:
+-			seek(cout, rnd(HEADR+textsize, INITRND)+segdata.filelen, 0);
++			seek(cout, rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen, 0);
+ 			break;
+ 		case 2:
+-			seek(cout, HEADR+textsize+segdata.filelen, 0);
+-			symo = HEADR+textsize+segdata.filelen;
++			seek(cout, HEADR+segtext.filelen+segdata.filelen, 0);
++			symo = HEADR+segtext.filelen+segdata.filelen;
+ 			break;
+ 		case 3:
+ 		case 4:
+ 			debug['s'] = 1;
+-			symo = HEADR+textsize+segdata.filelen;
++			symo = HEADR+segtext.filelen+segdata.filelen;
+ 			break;
+ 		case 6:
+-			symo = rnd(HEADR+textsize, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
++			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+ 		Elfsym:
+ 		case 10:
+-			symo = rnd(HEADR+textsize, INITRND)+segdata.filelen;
++			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+@@ -493,17 +438,17 @@ asmb(void)
+ 	case 0:	/* garbage */
+ 		lput(0x160L<<16);		/* magic and sections */
+ 		lput(0L);			/* time and date */
+-		lput(rnd(HEADR+textsize, 4096)+segdata.filelen);
++		lput(rnd(HEADR+segtext.filelen, 4096)+segdata.filelen);
+ 		lput(symsize);			/* nsyms */
+ 		lput((0x38L<<16)|7L);		/* size of optional hdr and flags */
+ 		lput((0413<<16)|0437L);		/* magic and version */
+-		lput(rnd(HEADR+textsize, 4096));	/* sizes */
++		lput(rnd(HEADR+segtext.filelen, 4096));	/* sizes */
+ 		lput(segdata.filelen);
+ 		lput(segdata.len - segdata.filelen);
+ 		lput(entryvalue());		/* va of entry */
+ 		lput(INITTEXT-HEADR);		/* va of base of text */
+-		lput(INITDAT);			/* va of base of data */
+-		lput(INITDAT+segdata.filelen);		/* va of base of bss */
++		lput(segdata.vaddr);			/* va of base of data */
++		lput(segdata.vaddr+segdata.filelen);		/* va of base of bss */
+ 		lput(~0L);			/* gp reg mask */
+ 		lput(0L);
+ 		lput(0L);
+@@ -525,19 +470,19 @@ asmb(void)
+ 		 * a.out header
+ 		 */
+ 		lputl(0x10b);			/* magic, version stamp */
+-		lputl(rnd(textsize, INITRND));	/* text sizes */
++		lputl(rnd(segtext.filelen, INITRND));	/* text sizes */
+ 		lputl(segdata.filelen);			/* data sizes */
+ 		lputl(segdata.len - segdata.filelen);			/* bss sizes */
+ 		lput(entryvalue());		/* va of entry */
+ 		lputl(INITTEXT);		/* text start */
+-		lputl(INITDAT);			/* data start */
++		lputl(segdata.vaddr);			/* data start */
+ 		/*
+ 		 * text section header
+ 		 */
+ 		s8put(".text");
+ 		lputl(HEADR);			/* pa */
+ 		lputl(HEADR);			/* va */
+-		lputl(textsize);		/* text size */
++		lputl(segtext.filelen);		/* text size */
+ 		lputl(HEADR);			/* file offset */
+ 		lputl(0);			/* relocation */
+ 		lputl(0);			/* line numbers */
+@@ -547,10 +492,10 @@ asmb(void)
+ 		 * data section header
+ 		 */
+ 		s8put(".data");
+-		lputl(INITDAT);			/* pa */
+-		lputl(INITDAT);			/* va */
++		lputl(segdata.vaddr);			/* pa */
++		lputl(segdata.vaddr);			/* va */
+ 		lputl(segdata.filelen);			/* data size */
+-		lputl(HEADR+textsize);		/* file offset */
++		lputl(HEADR+segtext.filelen);		/* file offset */
+ 		lputl(0);			/* relocation */
+ 		lputl(0);			/* line numbers */
+ 		lputl(0);			/* relocation, line numbers */
+@@ -559,8 +504,8 @@ asmb(void)
+ 		 * bss section header
+ 		 */
+ 		s8put(".bss");
+-		lputl(INITDAT+segdata.filelen);		/* pa */
+-		lputl(INITDAT+segdata.filelen);		/* va */
++		lputl(segdata.vaddr+segdata.filelen);		/* pa */
++		lputl(segdata.vaddr+segdata.filelen);		/* va */
+ 		lputl(segdata.len - segdata.filelen);			/* bss size */
+ 		lputl(0);			/* file offset */
+ 		lputl(0);			/* relocation */
+@@ -574,16 +519,16 @@ asmb(void)
+ 		lputl(0);			/* pa */
+ 		lputl(0);			/* va */
+ 		lputl(symsize+lcsize);		/* comment size */
+-		lputl(HEADR+textsize+segdata.filelen);	/* file offset */
+-		lputl(HEADR+textsize+segdata.filelen);	/* offset of syms */
+-		lputl(HEADR+textsize+segdata.filelen+symsize);/* offset of line numbers */
++		lputl(HEADR+segtext.filelen+segdata.filelen);	/* file offset */
++		lputl(HEADR+segtext.filelen+segdata.filelen);	/* offset of syms */
++		lputl(HEADR+segtext.filelen+segdata.filelen+symsize);/* offset of line numbers */
+ 		lputl(0);			/* relocation, line numbers */
+ 		lputl(0x200);			/* flags comment only */
+ 		break;
+ 	case 2:	/* plan9 */
+ 		magic = 4*11*11+7;
+ 		lput(magic);		/* magic */
+-		lput(textsize);			/* sizes */
++		lput(segtext.filelen);			/* sizes */
+ 		lput(segdata.filelen);
+ 		lput(segdata.len - segdata.filelen);
+ 		lput(symsize);			/* nsyms */
+@@ -596,7 +541,7 @@ asmb(void)
+ 		break;
+ 	case 4:
+ 		/* fake MS-DOS .EXE */
+-		v = rnd(HEADR+textsize, INITRND)+segdata.filelen;
++		v = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 		wputl(0x5A4D);			/* 'MZ' */
+ 		wputl(v % 512);			/* bytes in last page */
+ 		wputl(rnd(v, 512)/512);		/* total number of pages */
+@@ -630,7 +575,7 @@ asmb(void)
+ 		fo = HEADR;
+ 		startva = INITTEXT - HEADR;
+ 		va = startva + fo;
+-		w = textsize;
++		w = segtext.filelen;
+ 
+ 		/* This null SHdr must appear before all others */
+ 		sh = newElfShdr(elfstr[ElfStrEmpty]);
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 72d2adcee4..3e0c3b04af 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -272,9 +272,9 @@ EXTERN union
+ 
+ EXTERN	int32	HEADR;
+ EXTERN	int32	HEADTYPE;
+-EXTERN	int32	INITDAT;
+ EXTERN	int32	INITRND;
+ EXTERN	int32	INITTEXT;
++EXTERN	int32	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+ EXTERN	Biobuf	bso;
+ EXTERN	int32	casepc;
+@@ -322,6 +322,7 @@ extern	char*	anames[];
+ 
+ int	Aconv(Fmt*);
+ int	Dconv(Fmt*);
++int	Iconv(Fmt*);
+ int	Pconv(Fmt*);
+ int	Rconv(Fmt*);
+ int	Sconv(Fmt*);
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 6e17fbe926..8e28bd1249 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -42,6 +42,7 @@ listinit(void)
+ 	fmtinstall('D', Dconv);
+ 	fmtinstall('S', Sconv);
+ 	fmtinstall('P', Pconv);
++	fmtinstall('I', Iconv);
+ }
+ 
+ static	Prog	*bigP;
+@@ -317,6 +318,32 @@ Sconv(Fmt *fp)
+ 	return fmtstrcpy(fp, str);
+ }
+ 
++int
++Iconv(Fmt *fp)
++{
++	int i, n;
++	uchar *p;
++	char *s;
++	Fmt fmt;
++	
++	n = fp->prec;
++	fp->prec = 0;
++	if(!(fp->flags&FmtPrec) || n < 0)
++		return fmtstrcpy(fp, "%I");
++	fp->flags &= ~FmtPrec;
++	p = va_arg(fp->args, uchar*);
++
++	// format into temporary buffer and
++	// call fmtstrcpy to handle padding.
++	fmtstrinit(&fmt);
++	for(i=0; i<n; i++)
++		fmtprint(&fmt, "%.8ux", *p++);
++	s = fmtstrflush(&fmt);
++	fmtstrcpy(fp, s);
++	free(s);
++	return 0;
++}
++
+ void
+ diag(char *fmt, ...)
+ {
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index b1574fc2b5..20002b4857 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -320,7 +320,6 @@ main(int argc, char *argv[])
+ 	doelf();
+ 	if(HEADTYPE == 6)
+ 		domacho();
+-	dodata();
+ 	dostkoff();
+ 	if(debug['p'])
+ 		if(debug['1'])
+@@ -328,6 +327,8 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	dodata();
++	address();
+ 	reloc();
+ 	if(HEADTYPE == 10)
+ 		dope();
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index ffde369025..07b30a3913 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -134,19 +134,11 @@ span(void)
+ 	Prog *p, *q;
+ 	int32 v, c;
+ 	int n;
+-	Sym *s;
+-	Section *sect, *rosect;
++	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f span\n", cputime());
+ 
+-	segtext.rwx = 05;
+-	segtext.vaddr = INITTEXT - HEADR;
+-	
+-	xdefine("etext", STEXT, 0L);
+-	xdefine("rodata", SRODATA, 0L);
+-	xdefine("erodata", SRODATA, 0L);
+-
+ 	// NOTE(rsc): If we get rid of the globals we should
+ 	// be able to parallelize these iterations.
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+@@ -181,7 +173,7 @@ span(void)
+ 	// Could parallelize here too, by assigning to text 
+ 	// and then letting threads copy down, but probably not worth it.
+ 	c = INITTEXT;
+-	sect = segtext.sect;
++	sect = addsection(&segtext, ".text", 05);
+ 	sect->vaddr = c;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		cursym->value = c;
+@@ -190,53 +182,6 @@ span(void)
+ 		c += cursym->size;
+ 	}
+ 	sect->len = c - sect->vaddr;
+-	xdefine("etext", STEXT, c);
+-	if(debug['v'])
+-		Bprint(&bso, "etext = %llux\n", c);
+-
+-	xdefine("rodata", SRODATA, c);
+-	if(INITRND)
+-		c = rnd(c, INITRND);
+-	rosect = segtext.sect->next;
+-	rosect->vaddr = c;
+-	c += rosect->len;
+-	xdefine("erodata", SRODATA, c);
+-	textsize = c - INITTEXT;
+-	if(debug['v'])
+-		Bprint(&bso, "erodata = %llux", c);
+-	Bflush(&bso);
+-
+-	segtext.len = c - segtext.vaddr;
+-	segtext.filelen = segtext.len;
+-
+-	if(INITRND)
+-		c = rnd(c, INITRND);
+-	INITDAT = c;
+-	
+-	// Adjust everything now that we know INITDAT.
+-	// This will get simpler when everything is relocatable
+-	// and we can run span before dodata.
+-
+-	segdata.vaddr += INITDAT;
+-	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+-		sect->vaddr += INITDAT;
+-
+-	xdefine("data", SBSS, INITDAT);
+-	xdefine("edata", SBSS, INITDAT+segdata.filelen);
+-	xdefine("end", SBSS, INITDAT+segdata.len);
+-
+-	for(s=datap; s!=nil; s=s->next) {
+-		switch(s->type) {
+-		case SELFDATA:
+-		case SRODATA:
+-			s->value += rosect->vaddr;
+-			break;
+-		case SDATA:
+-		case SBSS:
+-			s->value += INITDAT;
+-			break;
+-		}
+-	}
+ }
+ 
+ void
+@@ -247,6 +192,7 @@ xdefine(char *p, int t, int32 v)
+ 	s = lookup(p, 0);
+ 	s->type = t;
+ 	s->value = v;
++	s->reachable = 1;
+ }
+ 
+ void
+@@ -561,7 +507,7 @@ symaddr(Sym *s)
+ 		return s->value;
+ 	
+ 	case SMACHO:
+-		return INITDAT + segdata.filelen - dynptrsize + s->value;
++		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
+ 	
+ 	default:
+ 		if(!s->reachable)
+diff --git a/src/cmd/8l/symtab.c b/src/cmd/8l/symtab.c
+index 356dc6a7b9..96aa84d1bc 100644
+--- a/src/cmd/8l/symtab.c
++++ b/src/cmd/8l/symtab.c
+@@ -65,7 +65,7 @@ putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
+ 	if(go) {
+ 		if(!go->reachable)
+ 			sysfatal("unreachable type %s", go->name);
+-		gv = go->value+INITDAT;
++		gv = symaddr(go);
+ 	}
+ 	lput(gv);
+ 
+@@ -114,13 +114,13 @@ genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
+ 			case SMACHO:
+ 				if(!s->reachable)
+ 					continue;
+-				put(s->name, 'D', s->value+INITDAT+segdata.filelen-dynptrsize, s->size, s->version, s->gotype);
++				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SBSS:
+ 				if(!s->reachable)
+ 					continue;
+-				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
++				put(s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SFIXED:
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 7e1282969c..5d642db108 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -166,7 +166,21 @@ relocsym(Sym *s)
+ 		o += r->add;
+ 		switch(siz) {
+ 		default:
+-			diag("bad reloc size %d", siz);
++			diag("bad reloc size %#ux", siz);
++		case 4 + Rbig:
++			fl = o;
++			s->p[off] = fl>>24;
++			s->p[off+1] = fl>>16;
++			s->p[off+2] = fl>>8;
++			s->p[off+3] = fl;
++			break;
++		case 4 + Rlittle:
++			fl = o;
++			s->p[off] = fl;
++			s->p[off+1] = fl>>8;
++			s->p[off+2] = fl>>16;
++			s->p[off+3] = fl>>24;
++			break;
+ 		case 4:
+ 			fl = o;
+ 			cast = (uchar*)&fl;
+@@ -317,7 +331,7 @@ blk(Sym *allsym, int32 addr, int32 size)
+ 		if(sym->value >= eaddr)
+ 			break;
+ 		if(sym->value < addr) {
+-			diag("phase error: addr=%#llx but sym=%#llx type=%d", addr, sym->value, sym->type);
++			diag("phase error: addr=%#llx but sym=%#llx type=%d", (vlong)addr, (vlong)sym->value, sym->type);
+ 			errorexit();
+ 		}
+ 		cursym = sym;
+@@ -345,7 +359,7 @@ void
+ codeblk(int32 addr, int32 size)
+ {
+ 	Sym *sym;
+-	int32 eaddr, i, n, epc;
++	int32 eaddr, n, epc;
+ 	Prog *p;
+ 	uchar *q;
+ 
+@@ -379,7 +393,7 @@ codeblk(int32 addr, int32 size)
+ 			Bprint(&bso, "\n");
+ 		}
+ 		p = sym->text;
+-		Bprint(&bso, "%-20s %.8llux| %P\n", sym->name, addr, p);
++		Bprint(&bso, "%.6llux\t%-20s | %P\n", addr, sym->name, p);
+ 		for(p = p->link; p != P; p = p->link) {
+ 			if(p->link != P)
+ 				epc = p->link->pc;
+@@ -388,11 +402,7 @@ codeblk(int32 addr, int32 size)
+ 			Bprint(&bso, "%.6ux\t", p->pc);
+ 			q = sym->p + p->pc - sym->value;
+ 			n = epc - p->pc;
+-			for(i=0; i<n; i++)
+-				Bprint(&bso, "%.2ux", *q++);
+-			for(; i < 10; i++)
+-				Bprint(&bso, "  ");
+-			Bprint(&bso, " | %P\n", p);
++			Bprint(&bso, "%-20.*I | %P\n", n, q, p);
+ 			addr += n;
+ 		}
+ 	}
+@@ -593,9 +603,6 @@ dodata(void)
+ 		Bprint(&bso, "%5.2f dodata\n", cputime());
+ 	Bflush(&bso);
+ 
+-	segdata.rwx = 06;
+-	segdata.vaddr = 0;	/* span will += INITDAT */
+-
+ 	last = nil;
+ 	datap = nil;
+ 	for(h=0; h<NHASH; h++) {
+@@ -627,8 +634,6 @@ dodata(void)
+ 	 * so we can just walk it for each piece we want to emit.
+ 	 */
+ 
+-	sect = addsection(&segtext, ".text", 05);	// set up for span TODO(rsc): clumsy
+-	
+ 	/* read-only data */
+ 	sect = addsection(&segtext, ".rodata", 06);
+ 	sect->vaddr = 0;
+@@ -666,7 +671,7 @@ dodata(void)
+ 		datsize += t;
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+-	segdata.filelen = datsize;
++	datsize += dynptrsize;
+ 
+ 	/* bss */
+ 	sect = addsection(&segdata, ".bss", 06);
+@@ -690,15 +695,61 @@ dodata(void)
+ 		datsize += t;
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+-	segdata.len = datsize;
++}
+ 
+-	xdefine("data", SBSS, 0);
+-	xdefine("edata", SBSS, segdata.filelen);
+-	xdefine("end", SBSS, segdata.len);
++// assign addresses
++void
++address(void)
++{
++	Section *s, *text, *data, *rodata, *bss;
++	Sym *sym;
++	uvlong va;
++
++	va = INITTEXT;
++	segtext.rwx = 05;
++	segtext.vaddr = va;
++	segtext.fileoff = HEADR;
++	for(s=segtext.sect; s != nil; s=s->next) {
++		s->vaddr = va;
++		va += s->len;
++		segtext.len = va - INITTEXT;
++		va = rnd(va, INITRND);
++	}
++	segtext.filelen = segtext.len;
++
++	segdata.rwx = 06;
++	segdata.vaddr = va;
++	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
++	for(s=segdata.sect; s != nil; s=s->next) {
++		s->vaddr = va;
++		va += s->len;
++		segdata.len = va - segdata.vaddr;
++	}
++	segdata.filelen = segdata.sect->len + dynptrsize;	// assume .data is first
++	
++	text = segtext.sect;
++	rodata = segtext.sect->next;
++	data = segdata.sect;
++	bss = segdata.sect->next;
+ 
+-	if(debug['s'] || HEADTYPE == 8)
++	for(sym = datap; sym != nil; sym = sym->next) {
++		cursym = sym;
++		if(sym->type < SDATA)
++			sym->value += rodata->vaddr;
++		else
++			sym->value += data->vaddr;
++	}
++	
++	xdefine("text", STEXT, text->vaddr);
++	xdefine("etext", STEXT, text->vaddr + text->len);
++	xdefine("rodata", SRODATA, rodata->vaddr);
++	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
++	xdefine("data", SBSS, data->vaddr);
++	xdefine("edata", SBSS, data->vaddr + data->len);
++	xdefine("end", SBSS, segdata.vaddr + segdata.len);
++
++	if(debug['s'])
+ 		xdefine("symdat", SFIXED, 0);
+ 	else
+ 		xdefine("symdat", SFIXED, SYMDATVA);
+ }
+-
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 5d09bd2c98..1f9f26cd07 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -146,12 +146,20 @@ vlong	addsize(Sym*, Sym*);
+ vlong	adduint8(Sym*, uint8);
+ vlong	adduint16(Sym*, uint16);
+ void	strnput(char*, int);
++void	dodata(void);
++void	address(void);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+ void	unmal(void*, uint32);
+ void	mywhatsys(void);
+ 
++// relocation size bits
++enum {
++	Rbig = 128,
++	Rlittle = 64,
++};
++
+ /* set by call to mywhatsys() */
+ extern	char*	goroot;
+ extern	char*	goarch;
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 863fff3c35..3098370d6c 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -411,7 +411,7 @@ domacholink(void)
+ 
+ 	linkoff = 0;
+ 	if(nlinkdata > 0 || nstrtab > 0) {
+-		linkoff = rnd(HEADR+textsize, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
++		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen - dynptrsize, INITRND);
+ 		seek(cout, linkoff, 0);
+ 
+ 		for(i = 0; i<nexpsym; ++i) {
+@@ -420,7 +420,7 @@ domacholink(void)
+ 			if(s->type == SXREF)
+ 				diag("export of undefined symbol %s", s->name);
+ 			if (s->type != STEXT)
+-				val += INITDAT;
++				val += segdata.vaddr;
+ 			p = linkdata+expsym[i].off;
+ 			p[0] = val;
+ 			p[1] = val >> 8;
+@@ -477,7 +477,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 	ms->vsize = va;
+ 
+ 	/* text */
+-	v = rnd(HEADR+textsize, INITRND);
++	v = rnd(HEADR+segtext.len, INITRND);
+ 	ms = newMachoSeg("__TEXT", 1);
+ 	ms->vaddr = va;
+ 	ms->vsize = v;
+@@ -487,7 +487,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 
+ 	msect = newMachoSect(ms, "__text");
+ 	msect->addr = INITTEXT;
+-	msect->size = textsize;
++	msect->size = segtext.sect->len;
+ 	msect->off = INITTEXT - va;
+ 	msect->flag = 0x400;	/* flag - some instructions */
+ 

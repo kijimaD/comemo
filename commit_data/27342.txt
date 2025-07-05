@@ -13,7 +13,43 @@ Date:   Fri Mar 18 16:30:29 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/link.go | 5 +++++
  src/cmd/internal/obj/util.go | 1 +
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index e2993630a9..0bf72817e6 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -299,6 +299,7 @@ const (
+ 	ABasePPC64
+ 	ABaseARM64
+ 	ABaseMIPS64
++	ABaseS390X
+ 
+ 	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
+ )
+@@ -564,6 +565,10 @@ const (
+ 	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
+ 	// relocated symbol rather than the symbol's address.
+ 	R_ADDRPOWER_TOCREL_DS
++
++	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
++	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
++	R_PCRELDBL
+ )
+ 
+ type Auto struct {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index b04b1a55d4..245fab9690 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -529,6 +529,7 @@ const (
+ 	RBasePPC64  = 4 * 1024  // range [4k, 8k)
+ 	RBaseARM64  = 8 * 1024  // range [8k, 13k)
+ 	RBaseMIPS64 = 13 * 1024 // range [13k, 14k)
++	RBaseS390X  = 14 * 1024 // range [14k, 15k)
+ )
+ 
+ // RegisterRegister binds a pretty-printer (Rconv) for register

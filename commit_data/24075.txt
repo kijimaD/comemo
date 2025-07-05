@@ -14,6 +14,19 @@ Date:   Sat Jul 4 13:01:04 2015 -0700
     Change-Id: Ib68360d583cf53e1a8ca4acff50644b570382728
     Reviewed-on: https://go-review.googlesource.com/11877
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9ad2890003..b21b4137dc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -330,6 +330,7 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 		if n.Op == OGOTO && s.curBlock == nil {
+ 			s.Unimplementedf("goto at start of function; see test/goto.go")
++			panic("stop compiling here, on pain of infinite loops")
+ 		}
+ 
+ 	case OAS, OASWB:

@@ -5,7 +5,57 @@ Date:   Fri Jun 6 17:42:03 2008 -0700
     '\Ucafebabe'
     
     SVN=121562
-
+---
  src/cmd/gc/go.h  |  2 +-
  src/cmd/gc/lex.c | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 199497abf0..34b4a0561d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -387,7 +387,7 @@ void	lexinit(void);
+ char*	lexname(int);
+ long	getr(void);
+ int	getnsc(void);
+-long	escchar(long, int*);
++ulong	escchar(int, int*);
+ int	getc(void);
+ void	ungetc(int);
+ void	mkpackage(char*);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 5757614c21..1af9c0daef 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -171,7 +171,7 @@ cannedimports(void)
+ long
+ yylex(void)
+ {
+-	long c, c1;
++	ulong c, c1;
+ 	char *cp;
+ 	Rune rune;
+ 	int escflag;
+@@ -696,10 +696,10 @@ getnsc(void)
+ }
+ 
+ 
+-long
+-escchar(long e, int *escflg)
++ulong
++escchar(int e, int *escflg)
+ {
+-	long c, l;
++	ulong c, l;
+ 	int i;
+ 
+ 	*escflg = 0;
+@@ -753,7 +753,7 @@ loop:
+ 
+ 	default:
+ 		if(c != e)
+-		warn("unknown escape sequence: %c", c);
++			warn("unknown escape sequence: %c", c);
+ 	}
+ 	return c;
+ 

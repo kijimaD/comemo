@@ -8,6 +8,78 @@ Date:   Tue Jun 18 17:42:44 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/182800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.13.html | 43 +++++++++++++++++++++++++++++++------------
  1 file changed, 31 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 83536f1a5c..02c0adf32b 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -103,17 +103,8 @@ TODO
+   <code>go mod edit -go=1.13</code>.
+ </p>
+ 
+-
+ <h2 id="ports">Ports</h2>
+ 
+-<p>
+-TODO
+-</p>
+-
+-<p><!-- CL 174457 -->
+-  TODO: <a href="https://golang.org/cl/174457">https://golang.org/cl/174457</a>: add new GOOS=illumos, split out of GOOS=solaris
+-</p>
+-
+ <h3 id="android">Android</h3>
+ 
+ <p><!-- CL 170127 -->
+@@ -137,10 +128,31 @@ TODO
+   FreeBSD 12.0 or later requires a kernel with the COMPAT_FREEBSD11 option set (this is the default).
+ </p>
+ 
+-<h3 id="aix-ppc64">AIX on PPC64</h3>
++<h3 id="illumos">Illumos</h3>
++
++<p><!-- CL 174457 -->
++  Go now supports Illumos with <code>GOOS=illumos</code>.
++  The <code>illumos</code> build tag implies the <code>solaris</code>
++  build tag.
++</p>
++
++<h3 id="aix">AIX</h3>
+ 
+-<p><!-- CL 164003 -->
+-  AIX on PPC64 now supports cgo and external linking.
++<p><!-- CL 164003, CL 169120 -->
++  AIX on PPC64 (<code>aix/ppc64</code>) now supports cgo, external
++  linking, and the <code>c-archive</code> and <code>pie</code> build
++  modes.
++</p>
++
++<h3 id="windows">Windows</h3>
++
++<p><!-- CL 178977 -->
++  The Windows version specified by internally-linked Windows binaries
++  is now Windows 7 rather than NT 4.0. This was already the minimum
++  required version for Go, but can affect the behavior of system calls
++  that have a backwards-compatibility mode. These will now behave as
++  documented. Externally-linked binaries (any program using cgo) have
++  always specified a more recent Windows version.
+ </p>
+ 
+ <h2 id="tools">Tools</h2>
+@@ -172,6 +184,13 @@ TODO
+   form that could not be used as numeric constant in assembly code.
+ </p>
+ 
++<h3 id="assembler">Assembler</h3>
++
++<p><!-- CL 157001 -->
++  The assembler now supports many of the atomic instructions
++  introduced in ARM v8.1.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p><!-- CL 161477 -->

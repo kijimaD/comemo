@@ -16,7 +16,52 @@ Date:   Fri Apr 28 12:45:46 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/runtime/profbuf.go   | 13 +++++++++++++
  src/runtime/proflabel.go |  8 ++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index 605d8d34a4..2719238bc1 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -544,5 +544,18 @@ Read:
+ 	// Remember how much we returned, to commit read on next call.
+ 	b.rNext = br.addCountsAndClearFlags(skip+di, ti)
+ 
++	if raceenabled {
++		// Match racewritepc in runtime_setProfLabel,
++		// so that the setting of the labels in runtime_setProfLabel
++		// is treated as happening before any use of the labels
++		// by our caller. The synchronization on labelSync itself is a fiction
++		// for the race detector. The actual synchronization is handled
++		// by the fact that the signal handler only reads from the current
++		// goroutine and uses atomics to write the updated queue indices,
++		// and then the read-out from the signal handler buffer uses
++		// atomics to read those queue indices.
++		raceacquire(unsafe.Pointer(&labelSync))
++	}
++
+ 	return data[:di], tags[:ti], false
+ }
+diff --git a/src/runtime/proflabel.go b/src/runtime/proflabel.go
+index 9742afafd7..1b41a8a16e 100644
+--- a/src/runtime/proflabel.go
++++ b/src/runtime/proflabel.go
+@@ -6,8 +6,16 @@ package runtime
+ 
+ import "unsafe"
+ 
++var labelSync uintptr
++
+ //go:linkname runtime_setProfLabel runtime/pprof.runtime_setProfLabel
+ func runtime_setProfLabel(labels unsafe.Pointer) {
++	// Introduce race edge for read-back via profile.
++	// This would more properly use &getg().labels as the sync address,
++	// but we do the read in a signal handler and can't call the race runtime then.
++	if raceenabled {
++		racerelease(unsafe.Pointer(&labelSync))
++	}
+ 	getg().labels = labels
+ }
+ 

@@ -34,6 +34,40 @@ Date:   Wed Oct 22 12:30:15 2014 +1100
     R=iant, minux
     CC=golang-codereviews
     https://golang.org/cl/158180047
-
+---
  src/runtime/cgo/gcc_arm.S | 15 ++++++---------
  1 file changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_arm.S b/src/runtime/cgo/gcc_arm.S
+index 2e4b3528ba..d5833bfad0 100644
+--- a/src/runtime/cgo/gcc_arm.S
++++ b/src/runtime/cgo/gcc_arm.S
+@@ -11,13 +11,6 @@
+ #define EXT(s) s
+ #endif
+ 
+-/*
+- * Because the assembler might target an earlier revision of the ISA
+- * by default, we must explicitly specify the ISA revision to ensure
+- * BLX is recognized as a valid instruction.
+- */	
+-.arch armv5t
+-
+ /*
+  * void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+@@ -31,8 +24,12 @@ EXT(crosscall_arm1):
+ 	mov r4, r0
+ 	mov r5, r1
+ 	mov r0, r2
+-	blx r5 // setg(g) 
+-	blx r4 // fn() 
++
++	// Because the assembler might target an earlier revision of the ISA
++	// by default, we encode BLX as a .word.
++	.word 0xe12fff35 // blx r5 // setg(g)
++	.word 0xe12fff34 // blx r4 // fn()
++
+ 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
+ 
+ .globl EXT(__stack_chk_fail_local)

@@ -9,6 +9,19 @@ Date:   Wed Oct 28 16:35:22 2015 +1300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/link.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index a384b9508d..7102edfb4d 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -67,7 +67,6 @@ type LSym struct {
+ 	Locals      int32
+ 	Value       int64
+ 	Size        int64
+-	Hash        *LSym
+ 	Allsym      *LSym
+ 	Next        *LSym
+ 	Sub         *LSym

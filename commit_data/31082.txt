@@ -20,9 +20,248 @@ Date:   Wed Jan 25 15:05:39 2017 -0800
     Change-Id: Ie833a9b5a559c4ec0f2eef2c5dc97aa263dca53a
     Reviewed-on: https://go-review.googlesource.com/35811
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/printer/nodes.go                  | 17 ++++++---
  src/go/printer/printer.go                | 11 ++++--
  src/go/printer/testdata/comments2.golden | 59 ++++++++++++++++++++++++++++++
  src/go/printer/testdata/comments2.input  | 63 ++++++++++++++++++++++++++++++++
  4 files changed, 142 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 11f26d45ea..ea432860a8 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -733,7 +733,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 
+ 	case *ast.FuncLit:
+ 		p.expr(x.Type)
+-		p.adjBlock(p.distanceFrom(x.Type.Pos()), blank, x.Body)
++		p.funcBody(p.distanceFrom(x.Type.Pos()), blank, x.Body)
+ 
+ 	case *ast.ParenExpr:
+ 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
+@@ -825,6 +825,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		if x.Type != nil {
+ 			p.expr1(x.Type, token.HighestPrec, depth)
+ 		}
++		p.level++
+ 		p.print(x.Lbrace, token.LBRACE)
+ 		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace)
+ 		// do not insert extra line break following a /*-style comment
+@@ -837,6 +838,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 			mode |= noExtraBlank
+ 		}
+ 		p.print(mode, x.Rbrace, token.RBRACE, mode)
++		p.level--
+ 
+ 	case *ast.Ellipsis:
+ 		p.print(token.ELLIPSIS)
+@@ -1557,18 +1559,23 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
+ 	return bodySize
+ }
+ 
+-// adjBlock prints an "adjacent" block (e.g., a for-loop or function body) following
+-// a header (e.g., a for-loop control clause or function signature) of given headerSize.
++// funcBody prints a function body following a function header of given headerSize.
+ // If the header's and block's size are "small enough" and the block is "simple enough",
+ // the block is printed on the current line, without line breaks, spaced from the header
+ // by sep. Otherwise the block's opening "{" is printed on the current line, followed by
+ // lines for the block's statements and its closing "}".
+ //
+-func (p *printer) adjBlock(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
++func (p *printer) funcBody(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
+ 	if b == nil {
+ 		return
+ 	}
+ 
++	// save/restore composite literal nesting level
++	defer func(level int) {
++		p.level = level
++	}(p.level)
++	p.level = 0
++
+ 	const maxSize = 100
+ 	if headerSize+p.bodySize(b, maxSize) <= maxSize {
+ 		p.print(sep, b.Lbrace, token.LBRACE)
+@@ -1613,7 +1620,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
+ 	}
+ 	p.expr(d.Name)
+ 	p.signature(d.Type.Params, d.Type.Results)
+-	p.adjBlock(p.distanceFrom(d.Pos()), vtab, d.Body)
++	p.funcBody(p.distanceFrom(d.Pos()), vtab, d.Body)
+ }
+ 
+ func (p *printer) decl(decl ast.Decl) {
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index eabf23e8b2..be61dad590 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -58,6 +58,7 @@ type printer struct {
+ 	// Current state
+ 	output      []byte       // raw printer result
+ 	indent      int          // current indentation
++	level       int          // level == 0: outside composite literal; level > 0: inside composite literal
+ 	mode        pmode        // current printer mode
+ 	impliedSemi bool         // if set, a linebreak implies a semicolon
+ 	lastTok     token.Token  // last token printed (token.ILLEGAL if it's whitespace)
+@@ -744,15 +745,19 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
+ 		// follows on the same line but is not a comma, and not a "closing"
+ 		// token immediately following its corresponding "opening" token,
+ 		// add an extra separator unless explicitly disabled. Use a blank
+-		// as separator unless we have pending linebreaks and they are not
+-		// disabled, in which case we want a linebreak (issue 15137).
++		// as separator unless we have pending linebreaks, they are not
++		// disabled, and we are outside a composite literal, in which case
++		// we want a linebreak (issue 15137).
++		// TODO(gri) This has become overly complicated. We should be able
++		// to track whether we're inside an expression or statement and
++		// use that information to decide more directly.
+ 		needsLinebreak := false
+ 		if p.mode&noExtraBlank == 0 &&
+ 			last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line &&
+ 			tok != token.COMMA &&
+ 			(tok != token.RPAREN || p.prevOpen == token.LPAREN) &&
+ 			(tok != token.RBRACK || p.prevOpen == token.LBRACK) {
+-			if p.containsLinebreak() && p.mode&noExtraLinebreak == 0 {
++			if p.containsLinebreak() && p.mode&noExtraLinebreak == 0 && p.level == 0 {
+ 				needsLinebreak = true
+ 			} else {
+ 				p.writeByte(' ', 1)
+diff --git a/src/go/printer/testdata/comments2.golden b/src/go/printer/testdata/comments2.golden
+index 7676a26c12..8b3a94ddcd 100644
+--- a/src/go/printer/testdata/comments2.golden
++++ b/src/go/printer/testdata/comments2.golden
+@@ -103,3 +103,62 @@ label:
+ 	mask := uint64(1)<<c - 1		// Allocation mask
+ 	used := atomic.LoadUint64(&h.used)	// Current allocations
+ }
++
++// Test cases for issue 18782
++var _ = [][]int{
++	/*       a, b, c, d, e */
++	/* a */ {0, 0, 0, 0, 0},
++	/* b */ {0, 5, 4, 4, 4},
++	/* c */ {0, 4, 5, 4, 4},
++	/* d */ {0, 4, 4, 5, 4},
++	/* e */ {0, 4, 4, 4, 5},
++}
++
++var _ = T{ /* a */ 0}
++
++var _ = T{ /* a */ /* b */ 0}
++
++var _ = T{	/* a */	/* b */
++	/* c */ 0,
++}
++
++var _ = T{	/* a */	/* b */
++	/* c */
++	/* d */ 0,
++}
++
++var _ = T{
++	/* a */
++	/* b */ 0,
++}
++
++var _ = T{ /* a */ {}}
++
++var _ = T{ /* a */ /* b */ {}}
++
++var _ = T{	/* a */	/* b */
++	/* c */ {},
++}
++
++var _ = T{	/* a */	/* b */
++	/* c */
++	/* d */ {},
++}
++
++var _ = T{
++	/* a */
++	/* b */ {},
++}
++
++var _ = []T{
++	func() {
++		var _ = [][]int{
++			/*       a, b, c, d, e */
++			/* a */ {0, 0, 0, 0, 0},
++			/* b */ {0, 5, 4, 4, 4},
++			/* c */ {0, 4, 5, 4, 4},
++			/* d */ {0, 4, 4, 5, 4},
++			/* e */ {0, 4, 4, 4, 5},
++		}
++	},
++}
+diff --git a/src/go/printer/testdata/comments2.input b/src/go/printer/testdata/comments2.input
+index 4a055c8277..8d38c4194b 100644
+--- a/src/go/printer/testdata/comments2.input
++++ b/src/go/printer/testdata/comments2.input
+@@ -103,3 +103,66 @@ label:
+    mask := uint64(1)<<c - 1 // Allocation mask
+    used := atomic.LoadUint64(&h.used) // Current allocations
+ }
++
++// Test cases for issue 18782
++var _ = [][]int{
++   /*       a, b, c, d, e */
++   /* a */ {0, 0, 0, 0, 0},
++   /* b */ {0, 5, 4, 4, 4},
++   /* c */ {0, 4, 5, 4, 4},
++   /* d */ {0, 4, 4, 5, 4},
++   /* e */ {0, 4, 4, 4, 5},
++}
++
++var _ = T{ /* a */ 0,
++}
++
++var _ = T{ /* a */ /* b */ 0,
++}
++
++var _ = T{ /* a */ /* b */
++   /* c */ 0,
++}
++
++var _ = T{ /* a */ /* b */
++   /* c */
++   /* d */ 0,
++}
++
++var _ = T{
++   /* a */
++   /* b */ 0,
++}
++
++var _ = T{ /* a */ {},
++}
++
++var _ = T{ /* a */ /* b */ {},
++}
++
++var _ = T{ /* a */ /* b */
++   /* c */ {},
++}
++
++var _ = T{ /* a */ /* b */
++   /* c */
++   /* d */ {},
++}
++
++var _ = T{
++   /* a */
++   /* b */ {},
++}
++
++var _ = []T{
++   func() {
++      var _ = [][]int{
++         /*       a, b, c, d, e */
++         /* a */ {0, 0, 0, 0, 0},
++         /* b */ {0, 5, 4, 4, 4},
++         /* c */ {0, 4, 5, 4, 4},
++         /* d */ {0, 4, 4, 5, 4},
++         /* e */ {0, 4, 4, 4, 5},
++      }
++   },
++}

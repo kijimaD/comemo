@@ -7,6 +7,20 @@ Date:   Tue Sep 28 21:37:12 2010 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/2296041
-
+---
  src/pkg/runtime/freebsd/mem.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index 7dfffaec8c..81e324e4f8 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -11,7 +11,7 @@ SysAlloc(uintptr n)
+ 	mstats.sys += n;
+ 	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(v < (void*)4096) {
+-		printf("mmap: errno=%p\n", p);
++		printf("mmap: errno=%p\n", v);
+ 		throw("mmap");
+ 	}
+ 	return v;

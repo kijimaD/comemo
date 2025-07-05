@@ -8,6 +8,25 @@ Date:   Wed Feb 18 21:11:42 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/5283
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0e29ec4046..db1c93b8ac 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1702,11 +1702,8 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 		if err := toolVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
+ 			return err
+ 		}
+-		switch goarch {
+-		case "386", "amd64", "amd64p32", "arm": // Asm only supports these architectures so far.
+-			if err := toolVerify(b, p, "asm", ofile, args); err != nil {
+-				return err
+-			}
++		if err := toolVerify(b, p, "asm", ofile, args); err != nil {
++			return err
+ 		}
+ 	}
+ 	return nil

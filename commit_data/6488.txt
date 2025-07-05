@@ -10,6 +10,28 @@ Date:   Mon Oct 11 14:45:01 2010 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/2390042
-
+---
  src/cmd/ld/macho.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 63668a81dd..a3d302401e 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -497,7 +497,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 	ms->vaddr = va+v;
+ 	ms->vsize = w;
+ 	ms->fileoffset = v;
+-	ms->filesize = datsize;
++	ms->filesize = datsize+dynptrsize;
+ 	ms->prot1 = 7;
+ 	ms->prot2 = 3;
+ 
+@@ -510,6 +510,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 		msect = newMachoSect(ms, "__nl_symbol_ptr");
+ 		msect->addr = va+v+datsize;
+ 		msect->size = dynptrsize;
++		msect->off = v+datsize;
+ 		msect->align = 2;
+ 		msect->flag = 6;	/* section with nonlazy symbol pointers */
+ 		/*

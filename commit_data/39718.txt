@@ -39,7 +39,7 @@ Date:   Tue Mar 5 01:56:17 2019 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          |  42 ++--
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  25 +++
  src/cmd/compile/internal/ssa/gen/WasmOps.go |  13 ++
@@ -50,3 +50,1112 @@ Date:   Tue Mar 5 01:56:17 2019 +0100
  test/codegen/mathbits.go                    |  21 ++
  test/run.go                                 |   4 +
  9 files changed, 566 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d61f463ccf..62301642f5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3190,22 +3190,22 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X)
++		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X, sys.Wasm)
+ 	addF("math", "Trunc",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.PPC64, sys.S390X)
++		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
+ 	addF("math", "Ceil",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCeil, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.PPC64, sys.S390X)
++		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
+ 	addF("math", "Floor",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpFloor, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.PPC64, sys.S390X)
++		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
+ 	addF("math", "Round",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
+@@ -3215,17 +3215,17 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.S390X)
++		sys.ARM64, sys.S390X, sys.Wasm)
+ 	addF("math", "Abs",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.PPC64)
++		sys.ARM64, sys.PPC64, sys.Wasm)
+ 	addF("math", "Copysign",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.Wasm)
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -3275,12 +3275,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[TUINT32], args[0])
+@@ -3293,7 +3293,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64)
++		sys.AMD64, sys.ARM64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+@@ -3314,7 +3314,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz8, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64)
++		sys.AMD64, sys.ARM64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
+@@ -3331,7 +3331,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
+@@ -3345,7 +3345,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -3355,7 +3355,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen16, types.Types[TINT], args[0])
+@@ -3370,7 +3370,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen8, types.Types[TINT], args[0])
+@@ -3383,7 +3383,7 @@ func init() {
+ 			}
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	// LeadingZeros is handled because it trivially calls Len.
+ 	addF("math/bits", "Reverse64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -3432,7 +3432,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
+ 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
+ 
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -3476,7 +3476,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount64, types.Types[TINT], args[0])
+ 		},
+-		sys.PPC64, sys.ARM64, sys.S390X)
++		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
+ 	addF("math/bits", "OnesCount32",
+ 		makeOnesCountAMD64(ssa.OpPopCount32, ssa.OpPopCount32),
+ 		sys.AMD64)
+@@ -3484,7 +3484,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount32, types.Types[TINT], args[0])
+ 		},
+-		sys.PPC64, sys.ARM64, sys.S390X)
++		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
+ 	addF("math/bits", "OnesCount16",
+ 		makeOnesCountAMD64(ssa.OpPopCount16, ssa.OpPopCount16),
+ 		sys.AMD64)
+@@ -3492,12 +3492,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount16, types.Types[TINT], args[0])
+ 		},
+-		sys.ARM64, sys.S390X, sys.PPC64)
++		sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "OnesCount8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount8, types.Types[TINT], args[0])
+ 		},
+-		sys.S390X, sys.PPC64)
++		sys.S390X, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "OnesCount",
+ 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+ 		sys.AMD64)
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index b7ecae7d8c..83e1be798e 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -357,6 +357,31 @@
+ // Write barrier.
+ (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+ 
++// --- Intrinsics ---
++(Sqrt x) -> (F64Sqrt x)
++(Trunc x) -> (F64Trunc x)
++(Ceil x) -> (F64Ceil x)
++(Floor x) -> (F64Floor x)
++(RoundToEven x) -> (F64Nearest x)
++(Abs x) -> (F64Abs x)
++(Copysign x y) -> (F64Copysign x y)
++
++(Ctz64 x) -> (I64Ctz x)
++(Ctz32 x) -> (I64Ctz (I64Or x (I64Const [0x100000000])))
++(Ctz16 x) -> (I64Ctz (I64Or x (I64Const [0x10000])))
++(Ctz8  x) -> (I64Ctz (I64Or x (I64Const [0x100])))
++
++(Ctz(64|32|16|8)NonZero x) -> (I64Ctz x)
++
++(BitLen64 x) -> (I64Sub (I64Const [64]) (I64Clz x))
++
++(RotateLeft64 x y) -> (I64Rotl x y)
++
++(PopCount64 x) -> (I64Popcnt x)
++(PopCount32 x) -> (I64Popcnt (ZeroExt32to64 x))
++(PopCount16 x) -> (I64Popcnt (ZeroExt16to64 x))
++(PopCount8  x) -> (I64Popcnt (ZeroExt8to64  x))
++
+ // --- Optimizations ---
+ (I64Add (I64Const [x]) (I64Const [y])) -> (I64Const [x + y])
+ (I64Mul (I64Const [x]) (I64Const [y])) -> (I64Const [x * y])
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index c0ad9498ff..4a01bf6c28 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -191,6 +191,19 @@ func init() {
+ 		{name: "I64TruncF64U", asm: "I64TruncF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to an unsigned integer
+ 		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
+ 		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
++
++		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp11, typ: "Float64"},         // sqrt(arg0)
++		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp11, typ: "Float64"},       // trunc(arg0)
++		{name: "F64Ceil", asm: "F64Ceil", argLength: 1, reg: fp11, typ: "Float64"},         // ceil(arg0)
++		{name: "F64Floor", asm: "F64Floor", argLength: 1, reg: fp11, typ: "Float64"},       // floor(arg0)
++		{name: "F64Nearest", asm: "F64Nearest", argLength: 1, reg: fp11, typ: "Float64"},   // round(arg0)
++		{name: "F64Abs", asm: "F64Abs", argLength: 1, reg: fp11, typ: "Float64"},           // abs(arg0)
++		{name: "F64Copysign", asm: "F64Copysign", argLength: 2, reg: fp21, typ: "Float64"}, // copysign(arg0, arg1)
++
++		{name: "I64Ctz", asm: "I64Ctz", argLength: 1, reg: gp11, typ: "Int64"},       // ctz(arg0)
++		{name: "I64Clz", asm: "I64Clz", argLength: 1, reg: gp11, typ: "Int64"},       // clz(arg0)
++		{name: "I64Rotl", asm: "I64Rotl", argLength: 2, reg: gp21, typ: "Int64"},     // rotl(arg0, arg1)
++		{name: "I64Popcnt", asm: "I64Popcnt", argLength: 1, reg: gp11, typ: "Int64"}, // popcnt(arg0)
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ae1a2b47e6..bf9fe7c960 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2094,6 +2094,17 @@ const (
+ 	OpWasmI64TruncF64U
+ 	OpWasmF64ConvertI64S
+ 	OpWasmF64ConvertI64U
++	OpWasmF64Sqrt
++	OpWasmF64Trunc
++	OpWasmF64Ceil
++	OpWasmF64Floor
++	OpWasmF64Nearest
++	OpWasmF64Abs
++	OpWasmF64Copysign
++	OpWasmI64Ctz
++	OpWasmI64Clz
++	OpWasmI64Rotl
++	OpWasmI64Popcnt
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -28178,6 +28189,151 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "F64Sqrt",
++		argLen: 1,
++		asm:    wasm.AF64Sqrt,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F64Trunc",
++		argLen: 1,
++		asm:    wasm.AF64Trunc,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F64Ceil",
++		argLen: 1,
++		asm:    wasm.AF64Ceil,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F64Floor",
++		argLen: 1,
++		asm:    wasm.AF64Floor,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F64Nearest",
++		argLen: 1,
++		asm:    wasm.AF64Nearest,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F64Abs",
++		argLen: 1,
++		asm:    wasm.AF64Abs,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F64Copysign",
++		argLen: 2,
++		asm:    wasm.AF64Copysign,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "I64Ctz",
++		argLen: 1,
++		asm:    wasm.AI64Ctz,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64Clz",
++		argLen: 1,
++		asm:    wasm.AI64Clz,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64Rotl",
++		argLen: 2,
++		asm:    wasm.AI64Rotl,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64Popcnt",
++		argLen: 1,
++		asm:    wasm.AI64Popcnt,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "Add8",
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 8418e51f6a..c5fc8c815f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -17,6 +17,8 @@ var _ = types.TypeMem // in case not otherwise used
+ 
+ func rewriteValueWasm(v *Value) bool {
+ 	switch v.Op {
++	case OpAbs:
++		return rewriteValueWasm_OpAbs_0(v)
+ 	case OpAdd16:
+ 		return rewriteValueWasm_OpAdd16_0(v)
+ 	case OpAdd32:
+@@ -43,6 +45,10 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpAnd8_0(v)
+ 	case OpAndB:
+ 		return rewriteValueWasm_OpAndB_0(v)
++	case OpBitLen64:
++		return rewriteValueWasm_OpBitLen64_0(v)
++	case OpCeil:
++		return rewriteValueWasm_OpCeil_0(v)
+ 	case OpClosureCall:
+ 		return rewriteValueWasm_OpClosureCall_0(v)
+ 	case OpCom16:
+@@ -71,6 +77,24 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpConstNil_0(v)
+ 	case OpConvert:
+ 		return rewriteValueWasm_OpConvert_0(v)
++	case OpCopysign:
++		return rewriteValueWasm_OpCopysign_0(v)
++	case OpCtz16:
++		return rewriteValueWasm_OpCtz16_0(v)
++	case OpCtz16NonZero:
++		return rewriteValueWasm_OpCtz16NonZero_0(v)
++	case OpCtz32:
++		return rewriteValueWasm_OpCtz32_0(v)
++	case OpCtz32NonZero:
++		return rewriteValueWasm_OpCtz32NonZero_0(v)
++	case OpCtz64:
++		return rewriteValueWasm_OpCtz64_0(v)
++	case OpCtz64NonZero:
++		return rewriteValueWasm_OpCtz64NonZero_0(v)
++	case OpCtz8:
++		return rewriteValueWasm_OpCtz8_0(v)
++	case OpCtz8NonZero:
++		return rewriteValueWasm_OpCtz8NonZero_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueWasm_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto32U:
+@@ -143,6 +167,8 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpEqB_0(v)
+ 	case OpEqPtr:
+ 		return rewriteValueWasm_OpEqPtr_0(v)
++	case OpFloor:
++		return rewriteValueWasm_OpFloor_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueWasm_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -347,10 +373,22 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpOr8_0(v)
+ 	case OpOrB:
+ 		return rewriteValueWasm_OpOrB_0(v)
++	case OpPopCount16:
++		return rewriteValueWasm_OpPopCount16_0(v)
++	case OpPopCount32:
++		return rewriteValueWasm_OpPopCount32_0(v)
++	case OpPopCount64:
++		return rewriteValueWasm_OpPopCount64_0(v)
++	case OpPopCount8:
++		return rewriteValueWasm_OpPopCount8_0(v)
++	case OpRotateLeft64:
++		return rewriteValueWasm_OpRotateLeft64_0(v)
+ 	case OpRound32F:
+ 		return rewriteValueWasm_OpRound32F_0(v)
+ 	case OpRound64F:
+ 		return rewriteValueWasm_OpRound64F_0(v)
++	case OpRoundToEven:
++		return rewriteValueWasm_OpRoundToEven_0(v)
+ 	case OpRsh16Ux16:
+ 		return rewriteValueWasm_OpRsh16Ux16_0(v)
+ 	case OpRsh16Ux32:
+@@ -429,6 +467,8 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpSignExt8to64_0(v)
+ 	case OpSlicemask:
+ 		return rewriteValueWasm_OpSlicemask_0(v)
++	case OpSqrt:
++		return rewriteValueWasm_OpSqrt_0(v)
+ 	case OpStaticCall:
+ 		return rewriteValueWasm_OpStaticCall_0(v)
+ 	case OpStore:
+@@ -447,6 +487,8 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpSub8_0(v)
+ 	case OpSubPtr:
+ 		return rewriteValueWasm_OpSubPtr_0(v)
++	case OpTrunc:
++		return rewriteValueWasm_OpTrunc_0(v)
+ 	case OpTrunc16to8:
+ 		return rewriteValueWasm_OpTrunc16to8_0(v)
+ 	case OpTrunc32to16:
+@@ -536,6 +578,17 @@ func rewriteValueWasm(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueWasm_OpAbs_0(v *Value) bool {
++	// match: (Abs x)
++	// cond:
++	// result: (F64Abs x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmF64Abs)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpAdd16_0(v *Value) bool {
+ 	// match: (Add16 x y)
+ 	// cond:
+@@ -705,6 +758,35 @@ func rewriteValueWasm_OpAndB_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpBitLen64_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (BitLen64 x)
++	// cond:
++	// result: (I64Sub (I64Const [64]) (I64Clz x))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Sub)
++		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
++		v0.AuxInt = 64
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpWasmI64Clz, typ.Int64)
++		v1.AddArg(x)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueWasm_OpCeil_0(v *Value) bool {
++	// match: (Ceil x)
++	// cond:
++	// result: (F64Ceil x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmF64Ceil)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpClosureCall_0(v *Value) bool {
+ 	// match: (ClosureCall [argwid] entry closure mem)
+ 	// cond:
+@@ -888,6 +970,128 @@ func rewriteValueWasm_OpConvert_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpCopysign_0(v *Value) bool {
++	// match: (Copysign x y)
++	// cond:
++	// result: (F64Copysign x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		v.reset(OpWasmF64Copysign)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz16_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz16 x)
++	// cond:
++	// result: (I64Ctz (I64Or x (I64Const [0x10000])))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v0 := b.NewValue0(v.Pos, OpWasmI64Or, typ.Int64)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
++		v1.AuxInt = 0x10000
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz16NonZero_0(v *Value) bool {
++	// match: (Ctz16NonZero x)
++	// cond:
++	// result: (I64Ctz x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz32_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz32 x)
++	// cond:
++	// result: (I64Ctz (I64Or x (I64Const [0x100000000])))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v0 := b.NewValue0(v.Pos, OpWasmI64Or, typ.Int64)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
++		v1.AuxInt = 0x100000000
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz32NonZero_0(v *Value) bool {
++	// match: (Ctz32NonZero x)
++	// cond:
++	// result: (I64Ctz x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz64_0(v *Value) bool {
++	// match: (Ctz64 x)
++	// cond:
++	// result: (I64Ctz x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz64NonZero_0(v *Value) bool {
++	// match: (Ctz64NonZero x)
++	// cond:
++	// result: (I64Ctz x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz8_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz8 x)
++	// cond:
++	// result: (I64Ctz (I64Or x (I64Const [0x100])))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v0 := b.NewValue0(v.Pos, OpWasmI64Or, typ.Int64)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
++		v1.AuxInt = 0x100
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueWasm_OpCtz8NonZero_0(v *Value) bool {
++	// match: (Ctz8NonZero x)
++	// cond:
++	// result: (I64Ctz x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Ctz)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+@@ -1409,6 +1613,17 @@ func rewriteValueWasm_OpEqPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpFloor_0(v *Value) bool {
++	// match: (Floor x)
++	// cond:
++	// result: (F64Floor x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmF64Floor)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpGeq16_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+@@ -3492,6 +3707,75 @@ func rewriteValueWasm_OpOrB_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpPopCount16_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount16 x)
++	// cond:
++	// result: (I64Popcnt (ZeroExt16to64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Popcnt)
++		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueWasm_OpPopCount32_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount32 x)
++	// cond:
++	// result: (I64Popcnt (ZeroExt32to64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Popcnt)
++		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueWasm_OpPopCount64_0(v *Value) bool {
++	// match: (PopCount64 x)
++	// cond:
++	// result: (I64Popcnt x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Popcnt)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueWasm_OpPopCount8_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount8 x)
++	// cond:
++	// result: (I64Popcnt (ZeroExt8to64 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmI64Popcnt)
++		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueWasm_OpRotateLeft64_0(v *Value) bool {
++	// match: (RotateLeft64 x y)
++	// cond:
++	// result: (I64Rotl x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		v.reset(OpWasmI64Rotl)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueWasm_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+@@ -3515,6 +3799,17 @@ func rewriteValueWasm_OpRound64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpRoundToEven_0(v *Value) bool {
++	// match: (RoundToEven x)
++	// cond:
++	// result: (F64Nearest x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmF64Nearest)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpRsh16Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+@@ -4344,6 +4639,17 @@ func rewriteValueWasm_OpSlicemask_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpSqrt_0(v *Value) bool {
++	// match: (Sqrt x)
++	// cond:
++	// result: (F64Sqrt x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmF64Sqrt)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpStaticCall_0(v *Value) bool {
+ 	// match: (StaticCall [argwid] {target} mem)
+ 	// cond:
+@@ -4555,6 +4861,17 @@ func rewriteValueWasm_OpSubPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpTrunc_0(v *Value) bool {
++	// match: (Trunc x)
++	// cond:
++	// result: (F64Trunc x)
++	for {
++		x := v.Args[0]
++		v.reset(OpWasmF64Trunc)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueWasm_OpTrunc16to8_0(v *Value) bool {
+ 	// match: (Trunc16to8 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 604c88247f..d2ac2df613 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -291,7 +291,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		s.Prog(v.Op.Asm())
+ 		s.Prog(wasm.AI64ExtendI32U)
+ 
+-	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div:
++	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div, ssa.OpWasmF64Copysign, ssa.OpWasmI64Rotl:
+ 		getValue64(s, v.Args[0])
+ 		getValue64(s, v.Args[1])
+ 		s.Prog(v.Op.Asm())
+@@ -317,7 +317,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(wasm.ACall)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+ 
+-	case ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U:
++	case ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U, ssa.OpWasmF64Sqrt, ssa.OpWasmF64Trunc, ssa.OpWasmF64Ceil, ssa.OpWasmF64Floor, ssa.OpWasmF64Nearest, ssa.OpWasmF64Abs, ssa.OpWasmI64Ctz, ssa.OpWasmI64Clz, ssa.OpWasmI64Popcnt:
+ 		getValue64(s, v.Args[0])
+ 		s.Prog(v.Op.Asm())
+ 
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index aaf6b080ff..597271ce72 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -15,12 +15,14 @@ func approx(x float64) {
+ 	// arm64:"FRINTPD"
+ 	// ppc64:"FRIP"
+ 	// ppc64le:"FRIP"
++	// wasm:"F64Ceil"
+ 	sink64[0] = math.Ceil(x)
+ 
+ 	// s390x:"FIDBR\t[$]7"
+ 	// arm64:"FRINTMD"
+ 	// ppc64:"FRIM"
+ 	// ppc64le:"FRIM"
++	// wasm:"F64Floor"
+ 	sink64[1] = math.Floor(x)
+ 
+ 	// s390x:"FIDBR\t[$]1"
+@@ -33,10 +35,12 @@ func approx(x float64) {
+ 	// arm64:"FRINTZD"
+ 	// ppc64:"FRIZ"
+ 	// ppc64le:"FRIZ"
++	// wasm:"F64Trunc"
+ 	sink64[3] = math.Trunc(x)
+ 
+ 	// s390x:"FIDBR\t[$]4"
+ 	// arm64:"FRINTND"
++	// wasm:"F64Nearest"
+ 	sink64[4] = math.RoundToEven(x)
+ }
+ 
+@@ -47,6 +51,7 @@ func sqrt(x float64) float64 {
+ 	// arm/7:"SQRTD"
+ 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
+ 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
++	// wasm:"F64Sqrt"
+ 	return math.Sqrt(x)
+ }
+ 
+@@ -57,6 +62,7 @@ func abs(x, y float64) {
+ 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64:"FABS\t"
+ 	// ppc64le:"FABS\t"
++	// wasm:"F64Abs"
+ 	sink64[0] = math.Abs(x)
+ 
+ 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
+@@ -78,6 +84,7 @@ func copysign(a, b, c float64) {
+ 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
+ 	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
++	// wasm:"F64Copysign"
+ 	sink64[0] = math.Copysign(a, b)
+ 
+ 	// amd64:"BTSQ\t[$]63"
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index c77b66c3f7..9a4051a0ce 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -17,6 +17,7 @@ func LeadingZeros(n uint) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.LeadingZeros(n)
+ }
+ 
+@@ -25,6 +26,7 @@ func LeadingZeros64(n uint64) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.LeadingZeros64(n)
+ }
+ 
+@@ -33,6 +35,7 @@ func LeadingZeros32(n uint32) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZW"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.LeadingZeros32(n)
+ }
+ 
+@@ -41,6 +44,7 @@ func LeadingZeros16(n uint16) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.LeadingZeros16(n)
+ }
+ 
+@@ -49,6 +53,7 @@ func LeadingZeros8(n uint8) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.LeadingZeros8(n)
+ }
+ 
+@@ -61,6 +66,7 @@ func Len(n uint) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.Len(n)
+ }
+ 
+@@ -69,6 +75,7 @@ func Len64(n uint64) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.Len64(n)
+ }
+ 
+@@ -77,6 +84,7 @@ func Len32(n uint32) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.Len32(n)
+ }
+ 
+@@ -85,6 +93,7 @@ func Len16(n uint16) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.Len16(n)
+ }
+ 
+@@ -93,6 +102,7 @@ func Len8(n uint8) int {
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
++	// wasm:"I64Clz"
+ 	return bits.Len8(n)
+ }
+ 
+@@ -106,6 +116,7 @@ func OnesCount(n uint) int {
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
+ 	// ppc64le:"POPCNTD"
++	// wasm:"I64Popcnt"
+ 	return bits.OnesCount(n)
+ }
+ 
+@@ -115,6 +126,7 @@ func OnesCount64(n uint64) int {
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
+ 	// ppc64le:"POPCNTD"
++	// wasm:"I64Popcnt"
+ 	return bits.OnesCount64(n)
+ }
+ 
+@@ -124,6 +136,7 @@ func OnesCount32(n uint32) int {
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"
+ 	// ppc64le:"POPCNTW"
++	// wasm:"I64Popcnt"
+ 	return bits.OnesCount32(n)
+ }
+ 
+@@ -133,6 +146,7 @@ func OnesCount16(n uint16) int {
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"
+ 	// ppc64le:"POPCNTW"
++	// wasm:"I64Popcnt"
+ 	return bits.OnesCount16(n)
+ }
+ 
+@@ -140,6 +154,7 @@ func OnesCount8(n uint8) int {
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTB"
+ 	// ppc64le:"POPCNTB"
++	// wasm:"I64Popcnt"
+ 	return bits.OnesCount8(n)
+ }
+ 
+@@ -187,6 +202,7 @@ func RotateLeft64(n uint64) uint64 {
+ 	// ppc64:"ROTL"
+ 	// ppc64le:"ROTL"
+ 	// s390x:"RLLG"
++	// wasm:"I64Rotl"
+ 	return bits.RotateLeft64(n, 37)
+ }
+ 
+@@ -246,6 +262,7 @@ func TrailingZeros(n uint) int {
+ 	// s390x:"FLOGR"
+ 	// ppc64:"ANDN","POPCNTD"
+ 	// ppc64le:"ANDN","POPCNTD"
++	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros(n)
+ }
+ 
+@@ -255,6 +272,7 @@ func TrailingZeros64(n uint64) int {
+ 	// s390x:"FLOGR"
+ 	// ppc64:"ANDN","POPCNTD"
+ 	// ppc64le:"ANDN","POPCNTD"
++	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros64(n)
+ }
+ 
+@@ -264,6 +282,7 @@ func TrailingZeros32(n uint32) int {
+ 	// s390x:"FLOGR","MOVWZ"
+ 	// ppc64:"ANDN","POPCNTW"
+ 	// ppc64le:"ANDN","POPCNTW"
++	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros32(n)
+ }
+ 
+@@ -273,6 +292,7 @@ func TrailingZeros16(n uint16) int {
+ 	// s390x:"FLOGR","OR\t\\$65536"
+ 	// ppc64:"POPCNTD","OR\\t\\$65536"
+ 	// ppc64le:"POPCNTD","OR\\t\\$65536"
++	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros16(n)
+ }
+ 
+@@ -280,6 +300,7 @@ func TrailingZeros8(n uint8) int {
+ 	// amd64:"BSFL","BTSL\\t\\$8"
+ 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
+ 	// s390x:"FLOGR","OR\t\\$256"
++	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros8(n)
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index 7a764d5f8d..97d54902a7 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1385,6 +1385,7 @@ var (
+ 		"ppc64":   {"GOPPC64", "power8", "power9"},
+ 		"ppc64le": {"GOPPC64", "power8", "power9"},
+ 		"s390x":   {},
++		"wasm":    {},
+ 	}
+ )
+ 
+@@ -1463,6 +1464,9 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
+ 				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
+ 			default: // 1 component: "386"
+ 				os, arch, subarch = "linux", archspec[0], ""
++				if arch == "wasm" {
++					os = "js"
++				}
+ 			}
+ 
+ 			if _, ok := archVariants[arch]; !ok {

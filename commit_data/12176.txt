@@ -9,6 +9,81 @@ Date:   Thu Feb 23 15:38:07 2012 -0500
     R=golang-dev, 0xe2.0x9a.0x9b, ality, rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5700044
-
+---
  src/cmd/dist/build.c | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 1b68883ce4..5664c1890a 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -539,7 +539,7 @@ install(char *dir)
+ 	Buf b, b1, path;
+ 	Vec compile, files, link, go, missing, clean, lib, extra;
+ 	Time ttarg, t;
+-	int i, j, k, n, doclean;
++	int i, j, k, n, doclean, targ;
+ 
+ 	if(vflag) {
+ 		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
+@@ -601,7 +601,7 @@ install(char *dir)
+ 		exe = ".exe";
+ 	
+ 	// Start final link command line.
+-	// Note: code below knows that link.p[2] is the target.
++	// Note: code below knows that link.p[targ] is the target.
+ 	if(islib) {
+ 		// C library.
+ 		vadd(&link, "ar");
+@@ -609,6 +609,7 @@ install(char *dir)
+ 		prefix = "";
+ 		if(!hasprefix(name, "lib"))
+ 			prefix = "lib";
++		targ = link.len;
+ 		vadd(&link, bpathf(&b, "%s/pkg/obj/%s_%s/%s%s.a", goroot, gohostos, gohostarch, prefix, name));
+ 	} else if(ispkg) {
+ 		// Go library (package).
+@@ -617,6 +618,7 @@ install(char *dir)
+ 		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
+ 		*xstrrchr(p, '/') = '\0';
+ 		xmkdirall(p);
++		targ = link.len;
+ 		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir+4));
+ 	} else if(streq(dir, "cmd/go") || streq(dir, "cmd/cgo")) {
+ 		// Go command.
+@@ -625,21 +627,20 @@ install(char *dir)
+ 		elem = name;
+ 		if(streq(elem, "go"))
+ 			elem = "go_bootstrap";
++		targ = link.len;
+ 		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, elem, exe));
+ 	} else {
+-		// C command.
+-		// Use gccargs, but ensure that link.p[2] is output file,
+-		// as noted above.
+-		vadd(&link, gccargs.p[0]);
++		// C command. Use gccargs.
++		vcopy(&link, gccargs.p, gccargs.len);
+ 		vadd(&link, "-o");
++		targ = link.len;
+ 		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
+-		vcopy(&link, gccargs.p+1, gccargs.len-1);
+ 		if(streq(gohostarch, "amd64"))
+ 			vadd(&link, "-m64");
+ 		else if(streq(gohostarch, "386"))
+ 			vadd(&link, "-m32");
+ 	}
+-	ttarg = mtime(link.p[2]);
++	ttarg = mtime(link.p[targ]);
+ 
+ 	// Gather files that are sources for this target.
+ 	// Everything in that directory, and any target-specific
+@@ -926,7 +927,7 @@ install(char *dir)
+ 	}
+ 
+ 	// Remove target before writing it.
+-	xremove(link.p[2]);
++	xremove(link.p[targ]);
+ 
+ 	runv(nil, nil, CheckExit, &link);
+ 

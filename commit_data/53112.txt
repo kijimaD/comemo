@@ -10,6 +10,20 @@ Date:   Wed May 4 11:11:20 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 8eaf254b44..747022759e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -247,7 +247,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
+ 
+ 	lockfile = dir + ".lock"
+ 	if cfg.BuildX {
+-		fmt.Fprintf(os.Stderr, "# lock %s", lockfile)
++		fmt.Fprintf(os.Stderr, "# lock %s\n", lockfile)
+ 	}
+ 
+ 	unlock, err := lockedfile.MutexAt(lockfile).Lock()

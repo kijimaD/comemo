@@ -9,6 +9,20 @@ Date:   Mon Nov 16 17:08:37 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/go/build/deps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 58d7d377e0..608a277886 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -337,7 +337,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// SSL/TLS.
+ 	"crypto/tls": {
+-		"L4", "CRYPTO-MATH", "CGO", "OS",
++		"L4", "CRYPTO-MATH", "OS",
+ 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
+ 	},
+ 	"crypto/x509": {

@@ -7,6 +7,20 @@ Date:   Fri Jan 27 13:44:48 2012 +1100
     R=rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5573075
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f3934ad243..0a377822ea 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1149,7 +1149,7 @@ assignop(Type *src, Type *dst, char **why)
+ 	if(why != nil)
+ 		*why = "";
+ 
+-	if(safemode && src != T && src->etype == TUNSAFEPTR) {
++	if(safemode && (importpkg == nil || importpkg == localpkg) && src != T && src->etype == TUNSAFEPTR) {
+ 		yyerror("cannot use unsafe.Pointer");
+ 		errorexit();
+ 	}

@@ -16,7 +16,7 @@ Date:   Mon Aug 16 11:22:22 2010 -0400
     R=agl, rsc, agl1
     CC=golang-dev
     https://golang.org/cl/1975042
-
+---
  src/pkg/crypto/rsa/pkcs1v15.go                |   7 +-
  src/pkg/crypto/tls/common.go                  |  37 +++++--
  src/pkg/crypto/tls/conn.go                    |   4 +
@@ -26,3 +26,544 @@ Date:   Mon Aug 16 11:22:22 2010 -0400
  src/pkg/crypto/tls/handshake_server.go        |  80 ++++++++++++++
  src/pkg/http/server.go                        |   2 +-
  8 files changed, 355 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index 5fd25d58c7..b4e322dc3c 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -146,6 +146,7 @@ const (
+ 	HashSHA256
+ 	HashSHA384
+ 	HashSHA512
++	HashMD5SHA1 // combined MD5 and SHA1 hash used for RSA signing in TLS.
+ )
+ 
+ // These are ASN1 DER structures:
+@@ -153,7 +154,7 @@ const (
+ //     digestAlgorithm AlgorithmIdentifier,
+ //     digest OCTET STRING
+ //   }
+-// For performance, we don't use the generic ASN1 encoding. Rather, we
++// For performance, we don't use the generic ASN1 encoder. Rather, we
+ // precompute a prefix of the digest value that makes a valid ASN1 DER string
+ // with the correct contents.
+ var hashPrefixes = [][]byte{
+@@ -167,6 +168,8 @@ var hashPrefixes = [][]byte{
+ 	[]byte{0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
+ 	// HashSHA512
+ 	[]byte{0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
++	// HashMD5SHA1
++	[]byte{}, // A special TLS case which doesn't use an ASN1 prefix.
+ }
+ 
+ // SignPKCS1v15 calcuates the signature of hashed using RSASSA-PSS-SIGN from RSA PKCS#1 v1.5.
+@@ -252,6 +255,8 @@ func pkcs1v15HashInfo(hash PKCS1v15Hash, inLen int) (hashLen int, prefix []byte,
+ 		hashLen = 48
+ 	case HashSHA512:
+ 		hashLen = 64
++	case HashMD5SHA1:
++		hashLen = 36
+ 	default:
+ 		return 0, nil, os.ErrorString("unknown hash function")
+ 	}
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 18c572c018..a4f2b804f1 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -35,14 +35,16 @@ const (
+ 
+ // TLS handshake message types.
+ const (
+-	typeClientHello       uint8 = 1
+-	typeServerHello       uint8 = 2
+-	typeCertificate       uint8 = 11
+-	typeCertificateStatus uint8 = 22
+-	typeServerHelloDone   uint8 = 14
+-	typeClientKeyExchange uint8 = 16
+-	typeFinished          uint8 = 20
+-	typeNextProtocol      uint8 = 67 // Not IANA assigned
++	typeClientHello        uint8 = 1
++	typeServerHello        uint8 = 2
++	typeCertificate        uint8 = 11
++	typeCertificateRequest uint8 = 13
++	typeServerHelloDone    uint8 = 14
++	typeCertificateVerify  uint8 = 15
++	typeClientKeyExchange  uint8 = 16
++	typeFinished           uint8 = 20
++	typeCertificateStatus  uint8 = 22
++	typeNextProtocol       uint8 = 67 // Not IANA assigned
+ )
+ 
+ // TLS cipher suites.
+@@ -67,6 +69,15 @@ const (
+ 	statusTypeOCSP uint8 = 1
+ )
+ 
++// Certificate types (for certificateRequestMsg)
++const (
++	certTypeRSASign    = 1 // A certificate containing an RSA key
++	certTypeDSSSign    = 2 // A certificate containing a DSA key
++	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
++	certTypeDSSFixedDH = 4 // A certficiate containing a static DH key
++	// Rest of these are reserved by the TLS spec
++)
++
+ type ConnectionState struct {
+ 	HandshakeComplete  bool
+ 	CipherSuite        uint16
+@@ -79,7 +90,8 @@ type Config struct {
+ 	// Rand provides the source of entropy for nonces and RSA blinding.
+ 	Rand io.Reader
+ 	// Time returns the current time as the number of seconds since the epoch.
+-	Time         func() int64
++	Time func() int64
++	// Certificates contains one or more certificate chains.
+ 	Certificates []Certificate
+ 	RootCAs      *CASet
+ 	// NextProtos is a list of supported, application level protocols.
+@@ -88,9 +100,16 @@ type Config struct {
+ 	// ServerName is included in the client's handshake to support virtual
+ 	// hosting.
+ 	ServerName string
++	// AuthenticateClient determines if a server will request a certificate
++	// from the client. It does not require that the client send a
++	// certificate nor, if it does, that the certificate is anything more
++	// than self-signed.
++	AuthenticateClient bool
+ }
+ 
+ type Certificate struct {
++	// Certificate contains a chain of one or more certificates. Leaf
++	// certificate first.
+ 	Certificate [][]byte
+ 	PrivateKey  *rsa.PrivateKey
+ }
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 7f5d97d4be..4e8d05b6c3 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -534,12 +534,16 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
+ 		m = new(serverHelloMsg)
+ 	case typeCertificate:
+ 		m = new(certificateMsg)
++	case typeCertificateRequest:
++		m = new(certificateRequestMsg)
+ 	case typeCertificateStatus:
+ 		m = new(certificateStatusMsg)
+ 	case typeServerHelloDone:
+ 		m = new(serverHelloDoneMsg)
+ 	case typeClientKeyExchange:
+ 		m = new(clientKeyExchangeMsg)
++	case typeCertificateVerify:
++		m = new(certificateVerifyMsg)
+ 	case typeNextProtocol:
+ 		m = new(nextProtoMsg)
+ 	case typeFinished:
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index b15bbd331a..4c4626ced8 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -130,12 +130,64 @@ func (c *Conn) clientHandshake() os.Error {
+ 	if err != nil {
+ 		return err
+ 	}
++
++	transmitCert := false
++	certReq, ok := msg.(*certificateRequestMsg)
++	if ok {
++		// We only accept certificates with RSA keys.
++		rsaAvail := false
++		for _, certType := range certReq.certificateTypes {
++			if certType == certTypeRSASign {
++				rsaAvail = true
++				break
++			}
++		}
++
++		// For now, only send a certificate back if the server gives us an
++		// empty list of certificateAuthorities.
++		//
++		// RFC 4346 on the certificateAuthorities field:
++		// A list of the distinguished names of acceptable certificate
++		// authorities.  These distinguished names may specify a desired
++		// distinguished name for a root CA or for a subordinate CA; thus,
++		// this message can be used to describe both known roots and a
++		// desired authorization space.  If the certificate_authorities
++		// list is empty then the client MAY send any certificate of the
++		// appropriate ClientCertificateType, unless there is some
++		// external arrangement to the contrary.
++		if rsaAvail && len(certReq.certificateAuthorities) == 0 {
++			transmitCert = true
++		}
++
++		finishedHash.Write(certReq.marshal())
++
++		msg, err = c.readHandshake()
++		if err != nil {
++			return err
++		}
++	}
++
+ 	shd, ok := msg.(*serverHelloDoneMsg)
+ 	if !ok {
+ 		return c.sendAlert(alertUnexpectedMessage)
+ 	}
+ 	finishedHash.Write(shd.marshal())
+ 
++	var cert *x509.Certificate
++	if transmitCert {
++		certMsg = new(certificateMsg)
++		if len(c.config.Certificates) > 0 {
++			cert, err = x509.ParseCertificate(c.config.Certificates[0].Certificate[0])
++			if err == nil && cert.PublicKeyAlgorithm == x509.RSA {
++				certMsg.certificates = c.config.Certificates[0].Certificate
++			} else {
++				cert = nil
++			}
++		}
++		finishedHash.Write(certMsg.marshal())
++		c.writeRecord(recordTypeHandshake, certMsg.marshal())
++	}
++
+ 	ckx := new(clientKeyExchangeMsg)
+ 	preMasterSecret := make([]byte, 48)
+ 	preMasterSecret[0] = byte(hello.vers >> 8)
+@@ -153,6 +205,21 @@ func (c *Conn) clientHandshake() os.Error {
+ 	finishedHash.Write(ckx.marshal())
+ 	c.writeRecord(recordTypeHandshake, ckx.marshal())
+ 
++	if cert != nil {
++		certVerify := new(certificateVerifyMsg)
++		var digest [36]byte
++		copy(digest[0:16], finishedHash.serverMD5.Sum())
++		copy(digest[16:36], finishedHash.serverSHA1.Sum())
++		signed, err := rsa.SignPKCS1v15(c.config.Rand, c.config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, digest[0:])
++		if err != nil {
++			return c.sendAlert(alertInternalError)
++		}
++		certVerify.signature = signed
++
++		finishedHash.Write(certVerify.marshal())
++		c.writeRecord(recordTypeHandshake, certVerify.marshal())
++	}
++
+ 	suite := cipherSuites[0]
+ 	masterSecret, clientMAC, serverMAC, clientKey, serverKey :=
+ 		keysFromPreMasterSecret11(preMasterSecret, hello.random, serverHello.random, suite.hashLength, suite.cipherKeyLength)
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 6d4e5c7094..b3b982b1c0 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -668,3 +668,153 @@ func (m *nextProtoMsg) unmarshal(data []byte) bool {
+ 
+ 	return true
+ }
++
++type certificateRequestMsg struct {
++	raw                    []byte
++	certificateTypes       []byte
++	certificateAuthorities [][]byte
++}
++
++func (m *certificateRequestMsg) marshal() (x []byte) {
++	if m.raw != nil {
++		return m.raw
++	}
++
++	// See http://tools.ietf.org/html/rfc4346#section-7.4.4
++	length := 1 + len(m.certificateTypes) + 2
++	for _, ca := range m.certificateAuthorities {
++		length += 2 + len(ca)
++	}
++
++	x = make([]byte, 4+length)
++	x[0] = typeCertificateRequest
++	x[1] = uint8(length >> 16)
++	x[2] = uint8(length >> 8)
++	x[3] = uint8(length)
++
++	x[4] = uint8(len(m.certificateTypes))
++
++	copy(x[5:], m.certificateTypes)
++	y := x[5+len(m.certificateTypes):]
++
++	numCA := len(m.certificateAuthorities)
++	y[0] = uint8(numCA >> 8)
++	y[1] = uint8(numCA)
++	y = y[2:]
++	for _, ca := range m.certificateAuthorities {
++		y[0] = uint8(len(ca) >> 8)
++		y[1] = uint8(len(ca))
++		y = y[2:]
++		copy(y, ca)
++		y = y[len(ca):]
++	}
++
++	m.raw = x
++
++	return
++}
++
++func (m *certificateRequestMsg) unmarshal(data []byte) bool {
++	m.raw = data
++
++	if len(data) < 5 {
++		return false
++	}
++
++	length := uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
++	if uint32(len(data))-4 != length {
++		return false
++	}
++
++	numCertTypes := int(data[4])
++	data = data[5:]
++	if numCertTypes == 0 || len(data) <= numCertTypes {
++		return false
++	}
++
++	m.certificateTypes = make([]byte, numCertTypes)
++	if copy(m.certificateTypes, data) != numCertTypes {
++		return false
++	}
++
++	data = data[numCertTypes:]
++	if len(data) < 2 {
++		return false
++	}
++
++	numCAs := uint16(data[0])<<16 | uint16(data[1])
++	data = data[2:]
++
++	m.certificateAuthorities = make([][]byte, numCAs)
++	for i := uint16(0); i < numCAs; i++ {
++		if len(data) < 2 {
++			return false
++		}
++		caLen := uint16(data[0])<<16 | uint16(data[1])
++
++		data = data[2:]
++		if len(data) < int(caLen) {
++			return false
++		}
++
++		ca := make([]byte, caLen)
++		copy(ca, data)
++		m.certificateAuthorities[i] = ca
++		data = data[caLen:]
++	}
++
++	if len(data) > 0 {
++		return false
++	}
++
++	return true
++}
++
++type certificateVerifyMsg struct {
++	raw       []byte
++	signature []byte
++}
++
++func (m *certificateVerifyMsg) marshal() (x []byte) {
++	if m.raw != nil {
++		return m.raw
++	}
++
++	// See http://tools.ietf.org/html/rfc4346#section-7.4.8
++	siglength := len(m.signature)
++	length := 2 + siglength
++	x = make([]byte, 4+length)
++	x[0] = typeCertificateVerify
++	x[1] = uint8(length >> 16)
++	x[2] = uint8(length >> 8)
++	x[3] = uint8(length)
++	x[4] = uint8(siglength >> 8)
++	x[5] = uint8(siglength)
++	copy(x[6:], m.signature)
++
++	m.raw = x
++
++	return
++}
++
++func (m *certificateVerifyMsg) unmarshal(data []byte) bool {
++	m.raw = data
++
++	if len(data) < 6 {
++		return false
++	}
++
++	length := uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
++	if uint32(len(data))-4 != length {
++		return false
++	}
++
++	siglength := int(data[4])<<8 + int(data[5])
++	if len(data)-6 != siglength {
++		return false
++	}
++
++	m.signature = data[6:]
++
++	return true
++}
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index 274e16f9b5..64d23e06ca 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -16,6 +16,8 @@ var tests = []interface{}{
+ 	&serverHelloMsg{},
+ 
+ 	&certificateMsg{},
++	&certificateRequestMsg{},
++	&certificateVerifyMsg{},
+ 	&certificateStatusMsg{},
+ 	&clientKeyExchangeMsg{},
+ 	&finishedMsg{},
+@@ -148,6 +150,23 @@ func (*certificateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	return reflect.NewValue(m)
+ }
+ 
++func (*certificateRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value {
++	m := &certificateRequestMsg{}
++	m.certificateTypes = randomBytes(rand.Intn(5)+1, rand)
++	numCAs := rand.Intn(100)
++	m.certificateAuthorities = make([][]byte, numCAs)
++	for i := 0; i < numCAs; i++ {
++		m.certificateAuthorities[i] = randomBytes(rand.Intn(15)+1, rand)
++	}
++	return reflect.NewValue(m)
++}
++
++func (*certificateVerifyMsg) Generate(rand *rand.Rand, size int) reflect.Value {
++	m := &certificateVerifyMsg{}
++	m.signature = randomBytes(rand.Intn(15)+1, rand)
++	return reflect.NewValue(m)
++}
++
+ func (*certificateStatusMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	m := &certificateStatusMsg{}
+ 	if rand.Intn(10) > 5 {
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index ebf956763a..734c0fece1 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -18,6 +18,7 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/subtle"
++	"crypto/x509"
+ 	"io"
+ 	"os"
+ )
+@@ -112,10 +113,62 @@ func (c *Conn) serverHandshake() os.Error {
+ 	finishedHash.Write(certMsg.marshal())
+ 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+ 
++	if config.AuthenticateClient {
++		// Request a client certificate
++		certReq := new(certificateRequestMsg)
++		certReq.certificateTypes = []byte{certTypeRSASign}
++		// An empty list of certificateAuthorities signals to
++		// the client that it may send any certificate in response
++		// to our request.
++
++		finishedHash.Write(certReq.marshal())
++		c.writeRecord(recordTypeHandshake, certReq.marshal())
++	}
++
+ 	helloDone := new(serverHelloDoneMsg)
+ 	finishedHash.Write(helloDone.marshal())
+ 	c.writeRecord(recordTypeHandshake, helloDone.marshal())
+ 
++	var pub *rsa.PublicKey
++	if config.AuthenticateClient {
++		// Get client certificate
++		msg, err = c.readHandshake()
++		if err != nil {
++			return err
++		}
++		certMsg, ok = msg.(*certificateMsg)
++		if !ok {
++			return c.sendAlert(alertUnexpectedMessage)
++		}
++		finishedHash.Write(certMsg.marshal())
++
++		certs := make([]*x509.Certificate, len(certMsg.certificates))
++		for i, asn1Data := range certMsg.certificates {
++			cert, err := x509.ParseCertificate(asn1Data)
++			if err != nil {
++				return c.sendAlert(alertBadCertificate)
++			}
++			certs[i] = cert
++		}
++
++		// TODO(agl): do better validation of certs: max path length, name restrictions etc.
++		for i := 1; i < len(certs); i++ {
++			if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
++				return c.sendAlert(alertBadCertificate)
++			}
++		}
++
++		if len(certs) > 0 {
++			key, ok := certs[0].PublicKey.(*rsa.PublicKey)
++			if !ok {
++				return c.sendAlert(alertUnsupportedCertificate)
++			}
++			pub = key
++			c.peerCertificates = certs
++		}
++	}
++
++	// Get client key exchange
+ 	msg, err = c.readHandshake()
+ 	if err != nil {
+ 		return err
+@@ -126,6 +179,33 @@ func (c *Conn) serverHandshake() os.Error {
+ 	}
+ 	finishedHash.Write(ckx.marshal())
+ 
++	// If we received a client cert in response to our certificate request message,
++	// the client will send us a certificateVerifyMsg immediately after the
++	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceeding
++	// handshake-layer messages that is signed using the private key corresponding
++	// to the client's certificate. This allows us to verify that the client is in
++	// posession of the private key of the certificate.
++	if len(c.peerCertificates) > 0 {
++		msg, err = c.readHandshake()
++		if err != nil {
++			return err
++		}
++		certVerify, ok := msg.(*certificateVerifyMsg)
++		if !ok {
++			return c.sendAlert(alertUnexpectedMessage)
++		}
++
++		digest := make([]byte, 36)
++		copy(digest[0:16], finishedHash.serverMD5.Sum())
++		copy(digest[16:36], finishedHash.serverSHA1.Sum())
++		err = rsa.VerifyPKCS1v15(pub, rsa.HashMD5SHA1, digest, certVerify.signature)
++		if err != nil {
++			return c.sendAlert(alertBadCertificate)
++		}
++
++		finishedHash.Write(certVerify.marshal())
++	}
++
+ 	preMasterSecret := make([]byte, 48)
+ 	_, err = io.ReadFull(config.Rand, preMasterSecret[2:])
+ 	if err != nil {
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 42c3f30d7c..430f65ad9e 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -661,7 +661,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
+ //	func main() {
+ //		http.HandleFunc("/", handler)
+ //		log.Stdoutf("About to listen on 10443. Go to https://127.0.0.1:10443/")
+-//		err := http.ListenAndServe(":10443", "cert.pem", "key.pem", nil)
++//		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
+ //		if err != nil {
+ //			log.Exit(err)
+ //		}

@@ -7,8 +7,69 @@ Date:   Thu Feb 16 12:43:22 2012 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/5677061
-
+---
  lib/godoc/example.html    | 5 +++--
  src/cmd/godoc/godoc.go    | 4 ++--
  src/pkg/go/ast/example.go | 6 ++++++
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index f70e447d9e..d7b219371a 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -4,11 +4,12 @@
+ 	</div>
+ 	<div class="expanded">
+ 		<p class="exampleHeading">▾ Example{{example_suffix .Name}}</p>
++		{{with .Doc}}<p>{{html .}}</p>{{end}}
+ 		<p>Code:</p>
+ 		<pre class="code">{{.Code}}</pre>
+-		{{if .Output}}
++		{{with .Output}}
+ 		<p>Output:</p>
+-		<pre class="output">{{html .Output}}</pre>
++		<pre class="output">{{html .}}</pre>
+ 		{{end}}
+ 	</div>
+ </div>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5652547238..19f3cb8f6d 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -539,8 +539,8 @@ func example_htmlFunc(funcName string, examples []*ast.Example, fset *token.File
+ 		}
+ 
+ 		err := exampleHTML.Execute(&buf, struct {
+-			Name, Code, Output string
+-		}{eg.Name, code, out})
++			Name, Doc, Code, Output string
++		}{eg.Name, eg.Doc, code, out})
+ 		if err != nil {
+ 			log.Print(err)
+ 		}
+diff --git a/src/pkg/go/ast/example.go b/src/pkg/go/ast/example.go
+index dd6bb6faa3..33a836894a 100644
+--- a/src/pkg/go/ast/example.go
++++ b/src/pkg/go/ast/example.go
+@@ -16,6 +16,7 @@ import (
+ 
+ type Example struct {
+ 	Name     string // name of the item being exemplified
++	Doc      string // example function doc string
+ 	Code     Node
+ 	Comments []*CommentGroup
+ 	Output   string // expected output
+@@ -45,8 +46,13 @@ func Examples(files ...*File) []*Example {
+ 			if !isTest(name, "Example") {
+ 				continue
+ 			}
++			var doc string
++			if f.Doc != nil {
++				doc = f.Doc.Text()
++			}
+ 			flist = append(flist, &Example{
+ 				Name:     name[len("Example"):],
++				Doc:      doc,
+ 				Code:     f.Body,
+ 				Comments: file.Comments,
+ 				Output:   exampleOutput(f, file.Comments),

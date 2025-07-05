@@ -22,7 +22,7 @@ Date:   Fri May 5 15:53:33 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/495446
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cover/cfg_test.go                          | 155 ++++++++++++++++-----
  src/cmd/cover/cover.go                             |  97 +++++++++----
  src/cmd/cover/testdata/pkgcfg/b/b.go               |  10 --
@@ -32,3 +32,468 @@ Date:   Fri May 5 15:53:33 2023 -0400
  .../cover/testdata/pkgcfg/yesFuncsNoTests/yfnt.go  |  13 ++
  src/internal/coverage/covcmd/cmddefs.go            |   7 +
  8 files changed, 220 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index 91c33a0ac2..81157ea089 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -21,14 +21,15 @@ func writeFile(t *testing.T, path string, contents []byte) {
+ 	}
+ }
+ 
+-func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string) string {
++func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string, mpath string) string {
+ 	incfg := filepath.Join(outdir, tag+"incfg.txt")
+ 	outcfg := filepath.Join(outdir, "outcfg.txt")
+ 	p := covcmd.CoverPkgConfig{
+-		PkgPath:     ppath,
+-		PkgName:     pname,
+-		Granularity: gran,
+-		OutConfig:   outcfg,
++		PkgPath:      ppath,
++		PkgName:      pname,
++		Granularity:  gran,
++		OutConfig:    outcfg,
++		EmitMetaFile: mpath,
+ 	}
+ 	data, err := json.Marshal(p)
+ 	if err != nil {
+@@ -74,10 +75,6 @@ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode str
+ 	}
+ }
+ 
+-// Set to true when debugging unit test (to inspect debris, etc).
+-// Note that this functionality does not work on windows.
+-const debugWorkDir = false
+-
+ func TestCoverWithCfg(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 
+@@ -85,29 +82,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 
+ 	// Subdir in testdata that has our input files of interest.
+ 	tpath := filepath.Join("testdata", "pkgcfg")
+-
+-	// Helper to collect input paths (go files) for a subdir in 'pkgcfg'
+-	pfiles := func(subdir string) []string {
+-		de, err := os.ReadDir(filepath.Join(tpath, subdir))
+-		if err != nil {
+-			t.Fatalf("reading subdir %s: %v", subdir, err)
+-		}
+-		paths := []string{}
+-		for _, e := range de {
+-			if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+-				continue
+-			}
+-			paths = append(paths, filepath.Join(tpath, subdir, e.Name()))
+-		}
+-		return paths
+-	}
+-
+ 	dir := tempDir(t)
+-	if debugWorkDir {
+-		dir = "/tmp/qqq"
+-		os.RemoveAll(dir)
+-		os.Mkdir(dir, 0777)
+-	}
+ 	instdira := filepath.Join(dir, "insta")
+ 	if err := os.Mkdir(instdira, 0777); err != nil {
+ 		t.Fatal(err)
+@@ -131,6 +106,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 	}
+ 
+ 	var incfg string
++	apkgfiles := []string{filepath.Join(tpath, "a", "a.go")}
+ 	for _, scenario := range scenarios {
+ 		// Instrument package "a", producing a set of instrumented output
+ 		// files and an 'output config' file to pass on to the compiler.
+@@ -139,9 +115,9 @@ func TestCoverWithCfg(t *testing.T) {
+ 		mode := scenario.mode
+ 		gran := scenario.gran
+ 		tag := mode + "_" + gran
+-		incfg = writePkgConfig(t, instdira, tag, ppath, pname, gran)
++		incfg = writePkgConfig(t, instdira, tag, ppath, pname, gran, "")
+ 		ofs, outcfg, _ := runPkgCover(t, instdira, tag, incfg, mode,
+-			pfiles("a"), false)
++			apkgfiles, false)
+ 		t.Logf("outfiles: %+v\n", ofs)
+ 
+ 		// Run the compiler on the files to make sure the result is
+@@ -161,7 +137,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 	errExpected := true
+ 	tag := "errors"
+ 	_, _, errmsg := runPkgCover(t, instdira, tag, "/not/a/file", mode,
+-		pfiles("a"), errExpected)
++		apkgfiles, errExpected)
+ 	want := "error reading pkgconfig file"
+ 	if !strings.Contains(errmsg, want) {
+ 		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
+@@ -171,7 +147,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 	t.Logf("mangling in config")
+ 	writeFile(t, incfg, []byte("blah=foo\n"))
+ 	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
+-		pfiles("a"), errExpected)
++		apkgfiles, errExpected)
+ 	want = "error reading pkgconfig file"
+ 	if !strings.Contains(errmsg, want) {
+ 		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
+@@ -181,8 +157,115 @@ func TestCoverWithCfg(t *testing.T) {
+ 	t.Logf("writing empty config")
+ 	writeFile(t, incfg, []byte("\n"))
+ 	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
+-		pfiles("a"), errExpected)
++		apkgfiles, errExpected)
+ 	if !strings.Contains(errmsg, want) {
+ 		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
+ 	}
+ }
++
++func TestCoverOnPackageWithNoTestFiles(t *testing.T) {
++	testenv.MustHaveGoRun(t)
++
++	// For packages with no test files, the new "go test -cover"
++	// strategy is to run cmd/cover on the package in a special
++	// "EmitMetaFile" mode. When running in this mode, cmd/cover walks
++	// the package doing instrumention, but when finished, instead of
++	// writing out instrumented source files, it directly emits a
++	// meta-data file for the package in question, essentially
++	// simulating the effect that you would get if you added a dummy
++	// "no-op" x_test.go file and then did a build and run of the test.
++
++	t.Run("YesFuncsNoTests", func(t *testing.T) {
++		testCoverNoTestsYesFuncs(t)
++	})
++	t.Run("NoFuncsNoTests", func(t *testing.T) {
++		testCoverNoTestsNoFuncs(t)
++	})
++}
++
++func testCoverNoTestsYesFuncs(t *testing.T) {
++	t.Parallel()
++	dir := tempDir(t)
++
++	// Run the cover command with "emit meta" enabled on a package
++	// with functions but no test files.
++	tpath := filepath.Join("testdata", "pkgcfg")
++	pkg1files := []string{filepath.Join(tpath, "yesFuncsNoTests", "yfnt.go")}
++	ppath := "cfg/yesFuncsNoTests"
++	pname := "yesFuncsNoTests"
++	mode := "count"
++	gran := "perblock"
++	tag := mode + "_" + gran
++	instdir := filepath.Join(dir, "inst")
++	if err := os.Mkdir(instdir, 0777); err != nil {
++		t.Fatal(err)
++	}
++	mdir := filepath.Join(dir, "meta")
++	if err := os.Mkdir(mdir, 0777); err != nil {
++		t.Fatal(err)
++	}
++	mpath := filepath.Join(mdir, "covmeta.xxx")
++	incfg := writePkgConfig(t, instdir, tag, ppath, pname, gran, mpath)
++	_, _, errmsg := runPkgCover(t, instdir, tag, incfg, mode,
++		pkg1files, false)
++	if errmsg != "" {
++		t.Fatalf("runPkgCover err: %q", errmsg)
++	}
++
++	// Check for existence of meta-data file.
++	if inf, err := os.Open(mpath); err != nil {
++		t.Fatalf("meta-data file not created: %v", err)
++	} else {
++		inf.Close()
++	}
++
++	// Make sure it is digestible.
++	cdargs := []string{"tool", "covdata", "percent", "-i", mdir}
++	cmd := testenv.Command(t, testenv.GoToolPath(t), cdargs...)
++	run(cmd, t)
++}
++
++func testCoverNoTestsNoFuncs(t *testing.T) {
++	t.Parallel()
++	dir := tempDir(t)
++
++	// Run the cover command with "emit meta" enabled on a package
++	// with no functions and no test files.
++	tpath := filepath.Join("testdata", "pkgcfg")
++	pkgfiles := []string{filepath.Join(tpath, "noFuncsNoTests", "nfnt.go")}
++	pname := "noFuncsNoTests"
++	mode := "count"
++	gran := "perblock"
++	ppath := "cfg/" + pname
++	tag := mode + "_" + gran
++	instdir := filepath.Join(dir, "inst2")
++	if err := os.Mkdir(instdir, 0777); err != nil {
++		t.Fatal(err)
++	}
++	mdir := filepath.Join(dir, "meta2")
++	if err := os.Mkdir(mdir, 0777); err != nil {
++		t.Fatal(err)
++	}
++	mpath := filepath.Join(mdir, "covmeta.yyy")
++	incfg := writePkgConfig(t, instdir, tag, ppath, pname, gran, mpath)
++	_, _, errmsg := runPkgCover(t, instdir, tag, incfg, mode,
++		pkgfiles, false)
++	if errmsg != "" {
++		t.Fatalf("runPkgCover err: %q", errmsg)
++	}
++
++	// We expect to see an empty meta-data file in this case.
++	if inf, err := os.Open(mpath); err != nil {
++		t.Fatalf("opening meta-data file: error %v", err)
++	} else {
++		defer inf.Close()
++		fi, err := inf.Stat()
++		if err != nil {
++			t.Fatalf("stat meta-data file: %v", err)
++		}
++		if fi.Size() != 0 {
++			t.Fatalf("want zero-sized meta-data file got size %d",
++				fi.Size())
++		}
++	}
++}
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index eb44d40001..4883d5aa31 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -64,30 +64,22 @@ func usage() {
+ }
+ 
+ var (
+-	mode        = flag.String("mode", "", "coverage mode: set, count, atomic")
+-	varVar      = flag.String("var", "GoCover", "name of coverage variable to generate")
+-	output      = flag.String("o", "", "file for output")
+-	outfilelist = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
+-	htmlOut     = flag.String("html", "", "generate HTML representation of coverage profile")
+-	funcOut     = flag.String("func", "", "output coverage profile information for each function")
+-	pkgcfg      = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
++	mode             = flag.String("mode", "", "coverage mode: set, count, atomic")
++	varVar           = flag.String("var", "GoCover", "name of coverage variable to generate")
++	output           = flag.String("o", "", "file for output")
++	outfilelist      = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
++	htmlOut          = flag.String("html", "", "generate HTML representation of coverage profile")
++	funcOut          = flag.String("func", "", "output coverage profile information for each function")
++	pkgcfg           = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
++	pkgconfig        covcmd.CoverPkgConfig
++	outputfiles      []string // list of *.cover.go instrumented outputs to write, one per input (set when -pkgcfg is in use)
++	profile          string   // The profile to read; the value of -html or -func
++	counterStmt      func(*File, string) string
++	covervarsoutfile string // an additional Go source file into which we'll write definitions of coverage counter variables + meta data variables (set when -pkgcfg is in use).
++	cmode            coverage.CounterMode
++	cgran            coverage.CounterGranularity
+ )
+ 
+-var pkgconfig covcmd.CoverPkgConfig
+-
+-// outputfiles is the list of *.cover.go instrumented outputs to write,
+-// one per input (set when -pkgcfg is in use)
+-var outputfiles []string
+-
+-// covervarsoutfile is an additional Go source file into which we'll
+-// write definitions of coverage counter variables + meta data variables
+-// (set when -pkgcfg is in use).
+-var covervarsoutfile string
+-
+-var profile string // The profile to read; the value of -html or -func
+-
+-var counterStmt func(*File, string) string
+-
+ const (
+ 	atomicPackagePath = "sync/atomic"
+ 	atomicPackageName = "_cover_atomic_"
+@@ -152,12 +144,19 @@ func parseFlags() error {
+ 		switch *mode {
+ 		case "set":
+ 			counterStmt = setCounterStmt
++			cmode = coverage.CtrModeSet
+ 		case "count":
+ 			counterStmt = incCounterStmt
++			cmode = coverage.CtrModeCount
+ 		case "atomic":
+ 			counterStmt = atomicCounterStmt
+-		case "regonly", "testmain":
++			cmode = coverage.CtrModeAtomic
++		case "regonly":
++			counterStmt = nil
++			cmode = coverage.CtrModeRegOnly
++		case "testmain":
+ 			counterStmt = nil
++			cmode = coverage.CtrModeTestMain
+ 		default:
+ 			return fmt.Errorf("unknown -mode %v", *mode)
+ 		}
+@@ -215,7 +214,12 @@ func readPackageConfig(path string) error {
+ 	if err := json.Unmarshal(data, &pkgconfig); err != nil {
+ 		return fmt.Errorf("error reading pkgconfig file %q: %v", path, err)
+ 	}
+-	if pkgconfig.Granularity != "perblock" && pkgconfig.Granularity != "perfunc" {
++	switch pkgconfig.Granularity {
++	case "perblock":
++		cgran = coverage.CtrGranularityPerBlock
++	case "perfunc":
++		cgran = coverage.CtrGranularityPerFunc
++	default:
+ 		return fmt.Errorf(`%s: pkgconfig requires perblock/perfunc value`, path)
+ 	}
+ 	return nil
+@@ -1088,6 +1092,14 @@ func (p *Package) emitMetaData(w io.Writer) {
+ 		return
+ 	}
+ 
++	// If the "EmitMetaFile" path has been set, invoke a helper
++	// that will write out a pre-cooked meta-data file for this package
++	// to the specified location, in effect simulating the execution
++	// of a test binary that doesn't do any testing to speak of.
++	if pkgconfig.EmitMetaFile != "" {
++		p.emitMetaFile(pkgconfig.EmitMetaFile)
++	}
++
+ 	// Something went wrong if regonly/testmain mode is in effect and
+ 	// we have instrumented functions.
+ 	if counterStmt == nil && len(p.counterLengths) != 0 {
+@@ -1158,3 +1170,40 @@ func atomicPackagePrefix() string {
+ 	}
+ 	return atomicPackageName + "."
+ }
++
++func (p *Package) emitMetaFile(outpath string) {
++	// Open output file.
++	of, err := os.OpenFile(outpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
++	if err != nil {
++		log.Fatalf("opening covmeta %s: %v", outpath, err)
++	}
++
++	if len(p.counterLengths) == 0 {
++		// This corresponds to the case where we have no functions
++		// in the package to instrument. Leave the file empty file if
++		// this happens.
++		if err = of.Close(); err != nil {
++			log.Fatalf("closing meta-data file: %v", err)
++		}
++		return
++	}
++
++	// Encode meta-data.
++	var sws slicewriter.WriteSeeker
++	digest, err := p.mdb.Emit(&sws)
++	if err != nil {
++		log.Fatalf("encoding meta-data: %v", err)
++	}
++	payload := sws.BytesWritten()
++	blobs := [][]byte{payload}
++
++	// Write meta-data file directly.
++	mfw := encodemeta.NewCoverageMetaFileWriter(outpath, of)
++	err = mfw.Write(digest, blobs, cmode, cgran)
++	if err != nil {
++		log.Fatalf("writing meta-data file: %v", err)
++	}
++	if err = of.Close(); err != nil {
++		log.Fatalf("closing meta-data file: %v", err)
++	}
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/b/b.go b/src/cmd/cover/testdata/pkgcfg/b/b.go
+deleted file mode 100644
+index 9e330ee2ac..0000000000
+--- a/src/cmd/cover/testdata/pkgcfg/b/b.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package b
+-
+-func B(x int) int {
+-	if x == 0 {
+-		return 22
+-	} else if x == 1 {
+-		return 33
+-	}
+-	return 44
+-}
+diff --git a/src/cmd/cover/testdata/pkgcfg/b/b_test.go b/src/cmd/cover/testdata/pkgcfg/b/b_test.go
+deleted file mode 100644
+index 7bdb73bf42..0000000000
+--- a/src/cmd/cover/testdata/pkgcfg/b/b_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-package b
+-
+-import "testing"
+-
+-func TestB(t *testing.T) {
+-	B(0)
+-	B(1)
+-	B(2)
+-}
+diff --git a/src/cmd/cover/testdata/pkgcfg/main/main.go b/src/cmd/cover/testdata/pkgcfg/main/main.go
+deleted file mode 100644
+index a908931f00..0000000000
+--- a/src/cmd/cover/testdata/pkgcfg/main/main.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-package main
+-
+-import (
+-	"cfg/a"
+-	"cfg/b"
+-)
+-
+-func main() {
+-	a.A(2)
+-	a.A(1)
+-	a.A(0)
+-	b.B(1)
+-	b.B(0)
+-	println("done")
+-}
+diff --git a/src/cmd/cover/testdata/pkgcfg/noFuncsNoTests/nfnt.go b/src/cmd/cover/testdata/pkgcfg/noFuncsNoTests/nfnt.go
+new file mode 100644
+index 0000000000..52df23c8c9
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/noFuncsNoTests/nfnt.go
+@@ -0,0 +1,8 @@
++package noFuncsNoTests
++
++const foo = 1
++
++var G struct {
++	x int
++	y bool
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/yesFuncsNoTests/yfnt.go b/src/cmd/cover/testdata/pkgcfg/yesFuncsNoTests/yfnt.go
+new file mode 100644
+index 0000000000..4e536b0438
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/yesFuncsNoTests/yfnt.go
+@@ -0,0 +1,13 @@
++package yesFuncsNoTests
++
++func F1() {
++	println("hi")
++}
++
++func F2(x int) int {
++	if x < 0 {
++		return 9
++	} else {
++		return 10
++	}
++}
+diff --git a/src/internal/coverage/covcmd/cmddefs.go b/src/internal/coverage/covcmd/cmddefs.go
+index 8a350f3903..e8ce204825 100644
+--- a/src/internal/coverage/covcmd/cmddefs.go
++++ b/src/internal/coverage/covcmd/cmddefs.go
+@@ -32,6 +32,13 @@ type CoverPkgConfig struct {
+ 	// corresponding field in cmd/go's PackageInternal struct for more
+ 	// info.
+ 	Local bool
++
++	// EmitMetaFile if non-empty is the path to which the cover tool should
++	// directly emit a coverage meta-data file for the package, if the
++	// package has any functions in it. The go command will pass in a value
++	// here if we've been asked to run "go test -cover" on a package that
++	// doesn't have any *_test.go files.
++	EmitMetaFile string
+ }
+ 
+ // CoverFixupConfig contains annotations/notes generated by the

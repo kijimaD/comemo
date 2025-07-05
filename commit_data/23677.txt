@@ -11,7 +11,36 @@ Date:   Thu Jun 4 12:57:53 2015 -0700
     Reviewed-by: Brett Slatkin <bslatkin@google.com>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cookie.go      | 2 +-
  src/net/http/cookie_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index a0d0fdbbd0..635a265706 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -156,7 +156,7 @@ func (c *Cookie) String() string {
+ 		}
+ 	}
+ 	if c.Expires.Unix() > 0 {
+-		fmt.Fprintf(&b, "; Expires=%s", c.Expires.UTC().Format(time.RFC1123))
++		fmt.Fprintf(&b, "; Expires=%s", c.Expires.UTC().Format(TimeFormat))
+ 	}
+ 	if c.MaxAge > 0 {
+ 		fmt.Fprintf(&b, "; Max-Age=%d", c.MaxAge)
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 1ec993e935..bcad88c012 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -52,6 +52,10 @@ var writeSetCookiesTests = []struct {
+ 		&Cookie{Name: "cookie-8", Value: "eight", Domain: "::1"},
+ 		"cookie-8=eight",
+ 	},
++	{
++		&Cookie{Name: "cookie-9", Value: "expiring", Expires: time.Unix(1257894000, 0)},
++		"cookie-9=expiring; Expires=Tue, 10 Nov 2009 23:00:00 GMT",
++	},
+ 	// The "special" cookies have values containing commas or spaces which
+ 	// are disallowed by RFC 6265 but are common in the wild.
+ 	{

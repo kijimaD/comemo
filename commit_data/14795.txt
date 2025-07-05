@@ -12,9 +12,58 @@ Date:   Fri Jan 4 11:02:49 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6736054
-
+---
  src/cmd/5g/ggen.c | 1 +
  src/cmd/5g/reg.c  | 1 -
  src/cmd/5l/asm.c  | 1 +
  src/cmd/ld/pe.c   | 1 +
  4 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 840d55a95c..40ef0bd7bc 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -543,6 +543,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 	Type *tr;
+ 	uvlong sc;
+ 
++	USED(bounded);
+ 	if(nl->type->width > 4)
+ 		fatal("cgen_shift %T", nl->type);
+ 
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 14cda51488..5f7ed2e88d 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -207,7 +207,6 @@ regopt(Prog *firstp)
+ 		return;
+ 	}
+ 
+-	r1 = R;
+ 	firstr = R;
+ 	lastr = R;
+ 
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index f62c927e24..1937d899ab 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -913,6 +913,7 @@ asmb(void)
+ 			}
+ 			phsh(pnote, sh);
+ 		}
++		USED(resoff);
+ 
+ 		elfphload(&segtext);
+ 		elfphload(&segdata);
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index d263562aec..f2903ba0f9 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -536,6 +536,7 @@ addexcept(IMAGE_SECTION_HEADER *text)
+ 	uvlong n;
+ 	Sym *sym;
+ 
++	USED(text);
+ 	if(thechar != '6')
+ 		return;
+ 

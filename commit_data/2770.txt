@@ -8,6 +8,24 @@ Date:   Tue Jul 21 15:09:59 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=31944
     CL=31950
-
+---
  src/pkg/bignum/bignum.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+index 71bf66d761..dd2200b6aa 100755
+--- a/src/pkg/bignum/bignum.go
++++ b/src/pkg/bignum/bignum.go
+@@ -5,9 +5,9 @@
+ // A package for arbitrary precision arithmethic.
+ // It implements the following numeric types:
+ //
+-// - Natural	unsigned integers
+-// - Integer	signed integers
+-// - Rational	rational numbers
++//	- Natural	unsigned integers
++//	- Integer	signed integers
++//	- Rational	rational numbers
+ //
+ package bignum
+ 

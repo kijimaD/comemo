@@ -11,7 +11,81 @@ Date:   Mon Oct 19 21:58:16 2009 -0700
     DELTA=19  (5 added, 6 deleted, 8 changed)
     OCL=35903
     CL=35906
-
+---
  src/pkg/runtime/arm/asm.s | 18 +++++++-----------
  test/arm-pass.txt         |  7 +++++--
  2 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 4052bccba1..d8b5a120cc 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -240,18 +240,14 @@ TEXT	runtime·memclr(SB),7,$20
+ 	MOVW	-4(SP), g
+ 	RET
+ 
+-TEXT	runtime·getcallerpc+0(SB),7,$0
+-	BL	abort(SB)
+-//	MOVL	x+0(FP),AX		// addr of first arg
+-//	MOVL	-4(AX),AX		// get calling pc
+-//	RET
++TEXT	runtime·getcallerpc+0(SB),7,$-4
++	MOVW	0(SP), R0
++	RET
+ 
+-TEXT	runtime·setcallerpc+0(SB),7,$0
+-	BL	abort(SB)
+-//	MOVL	x+0(FP),AX		// addr of first arg
+-//	MOVL	x+4(FP), BX
+-//	MOVL	BX, -4(AX)		// set calling pc
+-//	RET
++TEXT	runtime·setcallerpc+0(SB),7,$-4
++	MOVW	x+4(FP), R0
++	MOVW	R0, 0(SP)
++	RET
+ 
+ // runcgo(void(*fn)(void*), void *arg)
+ // Just call fn(arg), but first align the stack
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 6930db1a9c..fabe039ce8 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -6,12 +6,12 @@ blank.go
+ blank1.go
+ bugs/bug136.go
+ bugs/bug162.go
+-bugs/bug169.go
+-bugs/bug190.go
+ bugs/bug193.go
+ bugs/bug196.go
+ chan/perm.go
++chan/select.go
+ char_lit.go
++closedchan.go
+ cmp1.go
+ cmp2.go
+ cmp3.go
+@@ -176,6 +176,7 @@ fixedbugs/bug165.go
+ fixedbugs/bug166.go
+ fixedbugs/bug167.go
+ fixedbugs/bug168.go
++fixedbugs/bug169.go
+ fixedbugs/bug170.go
+ fixedbugs/bug171.go
+ fixedbugs/bug172.go
+@@ -194,6 +195,7 @@ fixedbugs/bug186.go
+ fixedbugs/bug187.go
+ fixedbugs/bug188.go
+ fixedbugs/bug189.go
++fixedbugs/bug190.go
+ fixedbugs/bug191.go
+ fixedbugs/bug192.go
+ fixedbugs/bug194.go
+@@ -210,6 +212,7 @@ fixedbugs/bug205.go
+ fixedbugs/bug206.go
+ fixedbugs/bug208.go
+ fixedbugs/bug209.go
++fixedbugs/bug211.go
+ float_lit.go
+ for.go
+ func.go

@@ -10,6 +10,23 @@ Date:   Wed Jul 6 13:00:54 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4639101
-
+---
  src/pkg/json/scanner_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 0d4de3246d..023e7c81ee 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -252,7 +252,10 @@ func genArray(n int) []interface{} {
+ 	if f > n {
+ 		f = n
+ 	}
+-	x := make([]interface{}, int(f))
++	if n > 0 && f == 0 {
++		f = 1
++	}
++	x := make([]interface{}, f)
+ 	for i := range x {
+ 		x[i] = genValue(((i+1)*n)/f - (i*n)/f)
+ 	}

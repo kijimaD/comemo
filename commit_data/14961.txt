@@ -12,9 +12,165 @@ Date:   Tue Jan 22 14:29:38 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7181051
-
+---
  api/go1.txt                                | 20 ++++++++++----------
  src/cmd/api/goapi.go                       | 10 ++++++++--
  src/cmd/api/testdata/src/pkg/p1/golden.txt |  8 +++++---
  src/cmd/api/testdata/src/pkg/p1/p1.go      |  4 ++++
  4 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/api/go1.txt b/api/go1.txt
+index 8c14b16795..6aa2f90d9a 100644
+--- a/api/go1.txt
++++ b/api/go1.txt
+@@ -2835,7 +2835,7 @@ pkg go/ast, type Field struct, Doc *CommentGroup
+ pkg go/ast, type Field struct, Names []*Ident
+ pkg go/ast, type Field struct, Tag *BasicLit
+ pkg go/ast, type Field struct, Type Expr
+-pkg go/ast, type FieldFilter func(name string, value reflect.Value) bool
++pkg go/ast, type FieldFilter func(string, reflect.Value) bool
+ pkg go/ast, type FieldList struct
+ pkg go/ast, type FieldList struct, Closing token.Pos
+ pkg go/ast, type FieldList struct, List []*Field
+@@ -2895,7 +2895,7 @@ pkg go/ast, type ImportSpec struct, Doc *CommentGroup
+ pkg go/ast, type ImportSpec struct, EndPos token.Pos
+ pkg go/ast, type ImportSpec struct, Name *Ident
+ pkg go/ast, type ImportSpec struct, Path *BasicLit
+-pkg go/ast, type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
++pkg go/ast, type Importer func(map[string]*Object, string) (*Object, error)
+ pkg go/ast, type IncDecStmt struct
+ pkg go/ast, type IncDecStmt struct, Tok token.Token
+ pkg go/ast, type IncDecStmt struct, TokPos token.Pos
+@@ -3033,7 +3033,7 @@ pkg go/build, type Context struct, GOARCH string
+ pkg go/build, type Context struct, GOOS string
+ pkg go/build, type Context struct, GOPATH string
+ pkg go/build, type Context struct, GOROOT string
+-pkg go/build, type Context struct, HasSubdir func(string) (string, bool)
++pkg go/build, type Context struct, HasSubdir func(string, string) (string, bool)
+ pkg go/build, type Context struct, IsAbsPath func(string) bool
+ pkg go/build, type Context struct, IsDir func(string) bool
+ pkg go/build, type Context struct, JoinPath func(...string) string
+@@ -3160,7 +3160,7 @@ pkg go/scanner, method (ErrorList) Swap(int, int)
+ pkg go/scanner, type Error struct
+ pkg go/scanner, type Error struct, Msg string
+ pkg go/scanner, type Error struct, Pos token.Position
+-pkg go/scanner, type ErrorHandler func(pos token.Position, msg string)
++pkg go/scanner, type ErrorHandler func(token.Position, string)
+ pkg go/scanner, type ErrorList []*Error
+ pkg go/scanner, type Mode uint
+ pkg go/scanner, type Scanner struct
+@@ -4808,7 +4808,7 @@ pkg net/http, type Server struct, ReadTimeout time.Duration
+ pkg net/http, type Server struct, TLSConfig *tls.Config
+ pkg net/http, type Server struct, WriteTimeout time.Duration
+ pkg net/http, type Transport struct
+-pkg net/http, type Transport struct, Dial func(string) (net.Conn, error)
++pkg net/http, type Transport struct, Dial func(string, string) (net.Conn, error)
+ pkg net/http, type Transport struct, DisableCompression bool
+ pkg net/http, type Transport struct, DisableKeepAlives bool
+ pkg net/http, type Transport struct, MaxIdleConnsPerHost int
+@@ -5327,7 +5327,7 @@ pkg path/filepath, func SplitList(string) []string
+ pkg path/filepath, func ToSlash(string) string
+ pkg path/filepath, func VolumeName(string) string
+ pkg path/filepath, func Walk(string, WalkFunc) error
+-pkg path/filepath, type WalkFunc func(path string, info os.FileInfo, err error) error
++pkg path/filepath, type WalkFunc func(string, os.FileInfo, error) error
+ pkg path/filepath, var ErrBadPattern error
+ pkg path/filepath, var SkipDir error
+ pkg reflect, const Array Kind
+@@ -30127,10 +30127,10 @@ pkg syscall, type Timeval struct
+ pkg syscall, var ForkLock sync.RWMutex
+ pkg syscall, var SocketDisableIPv6 bool
+ pkg testing, func Benchmark(func(*B)) BenchmarkResult
+-pkg testing, func Main(func(string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample)
+-pkg testing, func RunBenchmarks(func(string) (bool, error), []InternalBenchmark)
+-pkg testing, func RunExamples(func(string) (bool, error), []InternalExample) bool
+-pkg testing, func RunTests(func(string) (bool, error), []InternalTest) bool
++pkg testing, func Main(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample)
++pkg testing, func RunBenchmarks(func(string, string) (bool, error), []InternalBenchmark)
++pkg testing, func RunExamples(func(string, string) (bool, error), []InternalExample) bool
++pkg testing, func RunTests(func(string, string) (bool, error), []InternalTest) bool
+ pkg testing, func Short() bool
+ pkg testing, method (*B) Error(...interface{})
+ pkg testing, method (*B) Errorf(string, ...interface{})
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 6d39a463f6..1ee852ea79 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -879,7 +879,7 @@ func (w *Walker) walkTypeSpec(ts *ast.TypeSpec) {
+ 	case *ast.InterfaceType:
+ 		w.walkInterfaceType(name, t)
+ 	default:
+-		w.emitFeature(fmt.Sprintf("type %s %s", name, w.nodeString(ts.Type)))
++		w.emitFeature(fmt.Sprintf("type %s %s", name, w.nodeString(w.namelessType(ts.Type))))
+ 	}
+ }
+ 
+@@ -1120,7 +1120,13 @@ func (w *Walker) namelessFieldList(fl *ast.FieldList) *ast.FieldList {
+ 	fl2 := &ast.FieldList{}
+ 	if fl != nil {
+ 		for _, f := range fl.List {
+-			fl2.List = append(fl2.List, w.namelessField(f))
++			repeats := 1
++			if len(f.Names) > 1 {
++				repeats = len(f.Names)
++			}
++			for i := 0; i < repeats; i++ {
++				fl2.List = append(fl2.List, w.namelessField(f))
++			}
+ 		}
+ 	}
+ 	return fl2
+diff --git a/src/cmd/api/testdata/src/pkg/p1/golden.txt b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+index 180c8db434..9cbdefb77a 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+@@ -10,6 +10,7 @@ pkg p1, func Bar(int8, int16, int64)
+ pkg p1, func Bar1(int8, int16, int64) uint64
+ pkg p1, func Bar2(int8, int16, int64) (uint8, uint64)
+ pkg p1, func BarE() Error
++pkg p1, func PlainFunc(int, int, string) (*B, error)
+ pkg p1, func TakesFunc(func(int) int)
+ pkg p1, method (*B) JustOnB()
+ pkg p1, method (*B) OnBothTandBPtr()
+@@ -37,20 +38,21 @@ pkg p1, type Embedded struct
+ pkg p1, type Error interface { Error, Temporary }
+ pkg p1, type Error interface, Error() string
+ pkg p1, type Error interface, Temporary() bool
+-pkg p1, type I interface, unexported methods
++pkg p1, type FuncType func(int, int, string) (*B, error)
+ pkg p1, type I interface, Get(string) int64
+ pkg p1, type I interface, GetNamed(string) int64
+ pkg p1, type I interface, Name() string
+ pkg p1, type I interface, PackageTwoMeth()
+ pkg p1, type I interface, Set(string, int64)
++pkg p1, type I interface, unexported methods
+ pkg p1, type MyInt int
+ pkg p1, type Namer interface { Name }
+ pkg p1, type Namer interface, Name() string
++pkg p1, type Private interface, X()
++pkg p1, type Private interface, unexported methods
+ pkg p1, type Public interface { X, Y }
+ pkg p1, type Public interface, X()
+ pkg p1, type Public interface, Y()
+-pkg p1, type Private interface, unexported methods
+-pkg p1, type Private interface, X()
+ pkg p1, type S struct
+ pkg p1, type S struct, Public *int
+ pkg p1, type S struct, PublicTime time.Time
+diff --git a/src/cmd/api/testdata/src/pkg/p1/p1.go b/src/cmd/api/testdata/src/pkg/p1/p1.go
+index a18a6418fa..1af59d5ca9 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/p1.go
++++ b/src/cmd/api/testdata/src/pkg/p1/p1.go
+@@ -149,8 +149,12 @@ type TPtrExported struct {
+ 	*Embedded
+ }
+ 
++type FuncType func(x, y int, s string) (b *B, err error)
++
+ type Embedded struct{}
+ 
++func PlainFunc(x, y int, s string) (b *B, err error)
++
+ func (*Embedded) OnEmbedded() {}
+ 
+ func (*T) JustOnT()             {}

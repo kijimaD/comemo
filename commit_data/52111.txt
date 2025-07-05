@@ -25,7 +25,7 @@ Date:   Sun Jan 30 20:13:43 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/value.go              |  3 +++
  src/cmd/compile/internal/test/float_test.go        |  1 +
  .../internal/test/testdata/addressed_test.go       |  4 +++
@@ -175,3 +175,3429 @@ Date:   Sun Jan 30 20:13:43 2022 -0500
  src/time/time.go                                   |  1 +
  src/time/tzdata/tzdata.go                          |  1 +
  148 files changed, 363 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 7b411a4612..8f125cef99 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -228,6 +228,7 @@ func (v *Value) auxString() string {
+ 
+ // If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
+ // Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
++//
+ //go:noinline
+ func (v *Value) AddArg(w *Value) {
+ 	if v.Args == nil {
+@@ -331,6 +332,7 @@ func (v *Value) resetArgs() {
+ // reset is called from most rewrite rules.
+ // Allowing it to be inlined increases the size
+ // of cmd/compile by almost 10%, and slows it down.
++//
+ //go:noinline
+ func (v *Value) reset(op Op) {
+ 	if v.InCache {
+@@ -377,6 +379,7 @@ func (v *Value) invalidateRecursively() bool {
+ 
+ // copyOf is called from rewrite rules.
+ // It modifies v to be (Copy a).
++//
+ //go:noinline
+ func (v *Value) copyOf(a *Value) {
+ 	if v == a {
+diff --git a/src/cmd/compile/internal/test/float_test.go b/src/cmd/compile/internal/test/float_test.go
+index 884a983bdd..c736f970f9 100644
+--- a/src/cmd/compile/internal/test/float_test.go
++++ b/src/cmd/compile/internal/test/float_test.go
+@@ -170,6 +170,7 @@ func cvt8(a float32) int32 {
+ }
+ 
+ // make sure to cover int, uint cases (issue #16738)
++//
+ //go:noinline
+ func cvt9(a float64) int {
+ 	return int(a)
+diff --git a/src/cmd/compile/internal/test/testdata/addressed_test.go b/src/cmd/compile/internal/test/testdata/addressed_test.go
+index cdabf978f0..4cc9ac4d5b 100644
+--- a/src/cmd/compile/internal/test/testdata/addressed_test.go
++++ b/src/cmd/compile/internal/test/testdata/addressed_test.go
+@@ -145,6 +145,7 @@ func (v V) val() int64 {
+ // and y.val() should be equal to which and y.p.val() should
+ // be equal to z.val().  Also, x(.p)**8 == x; that is, the
+ // autos are all linked into a ring.
++//
+ //go:noinline
+ func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
+ 	fill_ssa(v.w, v.x, &v, v.p) // gratuitous no-op to force addressing
+@@ -191,6 +192,7 @@ func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
+ 
+ // gets is an address-mentioning way of implementing
+ // structure assignment.
++//
+ //go:noinline
+ func (to *V) gets(from *V) {
+ 	*to = *from
+@@ -198,12 +200,14 @@ func (to *V) gets(from *V) {
+ 
+ // gets is an address-and-interface-mentioning way of
+ // implementing structure assignment.
++//
+ //go:noinline
+ func (to *V) getsI(from interface{}) {
+ 	*to = *from.(*V)
+ }
+ 
+ // fill_ssa initializes r with V{w:w, x:x, p:p}
++//
+ //go:noinline
+ func fill_ssa(w, x int64, r, p *V) {
+ 	*r = V{w: w, x: x, p: p}
+diff --git a/src/cmd/compile/internal/test/testdata/arith_test.go b/src/cmd/compile/internal/test/testdata/arith_test.go
+index 7d54a9181d..253142a0fb 100644
+--- a/src/cmd/compile/internal/test/testdata/arith_test.go
++++ b/src/cmd/compile/internal/test/testdata/arith_test.go
+@@ -225,6 +225,7 @@ func testArithConstShift(t *testing.T) {
+ 
+ // overflowConstShift_ssa verifes that constant folding for shift
+ // doesn't wrap (i.e. x << MAX_INT << 1 doesn't get folded to x << 0).
++//
+ //go:noinline
+ func overflowConstShift64_ssa(x int64) int64 {
+ 	return x << uint64(0xffffffffffffffff) << uint64(1)
+diff --git a/src/cmd/compile/internal/test/testdata/ctl_test.go b/src/cmd/compile/internal/test/testdata/ctl_test.go
+index 16d571ce2c..ff3a1609c5 100644
+--- a/src/cmd/compile/internal/test/testdata/ctl_test.go
++++ b/src/cmd/compile/internal/test/testdata/ctl_test.go
+@@ -117,6 +117,7 @@ type junk struct {
+ 
+ // flagOverwrite_ssa is intended to reproduce an issue seen where a XOR
+ // was scheduled between a compare and branch, clearing flags.
++//
+ //go:noinline
+ func flagOverwrite_ssa(s *junk, c int) int {
+ 	if '0' <= c && c <= '9' {
+diff --git a/src/cmd/compile/internal/test/testdata/fp_test.go b/src/cmd/compile/internal/test/testdata/fp_test.go
+index 7d61a8063e..b96ce84a6c 100644
+--- a/src/cmd/compile/internal/test/testdata/fp_test.go
++++ b/src/cmd/compile/internal/test/testdata/fp_test.go
+@@ -14,6 +14,7 @@ import (
+ // manysub_ssa is designed to tickle bugs that depend on register
+ // pressure or unfriendly operand ordering in registers (and at
+ // least once it succeeded in this).
++//
+ //go:noinline
+ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc, cd, da, db, dc, dd float64) {
+ 	aa = a + 11.0 - a
+@@ -37,6 +38,7 @@ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc
+ 
+ // fpspill_ssa attempts to trigger a bug where phis with floating point values
+ // were stored in non-fp registers causing an error in doasm.
++//
+ //go:noinline
+ func fpspill_ssa(a int) float64 {
+ 
+diff --git a/src/cmd/compile/internal/test/testdata/loadstore_test.go b/src/cmd/compile/internal/test/testdata/loadstore_test.go
+index 57571f5d17..052172819a 100644
+--- a/src/cmd/compile/internal/test/testdata/loadstore_test.go
++++ b/src/cmd/compile/internal/test/testdata/loadstore_test.go
+@@ -73,6 +73,7 @@ var b int
+ 
+ // testDeadStorePanic_ssa ensures that we don't optimize away stores
+ // that could be read by after recover().  Modeled after fixedbugs/issue1304.
++//
+ //go:noinline
+ func testDeadStorePanic_ssa(a int) (r int) {
+ 	defer func() {
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 67597cebb4..581928c005 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -212,6 +212,7 @@ var runtimeDecls = [...]struct {
+ }
+ 
+ // Not inlining this function removes a significant chunk of init code.
++//
+ //go:noinline
+ func newSig(params, results []*types.Field) *types.Type {
+ 	return types.NewSignature(types.NoPkg, nil, nil, params, results)
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index 6dbd1869b3..9b27557956 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -105,6 +105,7 @@ func mkbuiltin(w io.Writer, name string) {
+ 
+ 	fmt.Fprintln(w, `
+ // Not inlining this function removes a significant chunk of init code.
++//
+ //go:noinline
+ func newSig(params, results []*types.Field) *types.Type {
+ 	return types.NewSignature(types.NoPkg, nil, nil, params, results)
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_test.go b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+index c9907db46c..79352bc8c7 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_test.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // js does not support inter-process file locking.
++//
+ //go:build !js
+ 
+ package lockedfile_test
+diff --git a/src/cmd/go/internal/lockedfile/transform_test.go b/src/cmd/go/internal/lockedfile/transform_test.go
+index 3c1caa334e..833cbf7879 100644
+--- a/src/cmd/go/internal/lockedfile/transform_test.go
++++ b/src/cmd/go/internal/lockedfile/transform_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // js does not support inter-process file locking.
++//
+ //go:build !js
+ 
+ package lockedfile_test
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index 28f430fc54..dba23a54bd 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -37,6 +37,7 @@ type SymKind uint8
+ // These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
+ //
+ // TODO(rsc): Give idiomatic Go names.
++//
+ //go:generate stringer -type=SymKind
+ const (
+ 	// An otherwise invalid zero value for the type
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index b1ee3c5628..e372b3724a 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -13,6 +13,7 @@ import (
+ )
+ 
+ // Implemented in the syscall package.
++//
+ //go:linkname fcntl syscall.fcntl
+ func fcntl(fd int, cmd int, arg int) (int, error)
+ 
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 0a0741f84b..3ed04c49af 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -38,6 +38,7 @@ type SymKind uint8
+ // Defined SymKind values.
+ //
+ // TODO(rsc): Give idiomatic Go names.
++//
+ //go:generate stringer -type=SymKind
+ const (
+ 	Sxxx SymKind = iota
+diff --git a/src/crypto/aes/cbc_s390x.go b/src/crypto/aes/cbc_s390x.go
+index 28a6b1d546..766247abff 100644
+--- a/src/crypto/aes/cbc_s390x.go
++++ b/src/crypto/aes/cbc_s390x.go
+@@ -39,6 +39,7 @@ func (x *cbc) BlockSize() int { return BlockSize }
+ 
+ // cryptBlocksChain invokes the cipher message with chaining (KMC) instruction
+ // with the given function code. The length must be a multiple of BlockSize (16).
++//
+ //go:noescape
+ func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
+ 
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+index 65b6b2fc1b..e357851143 100644
+--- a/src/crypto/aes/cipher_s390x.go
++++ b/src/crypto/aes/cipher_s390x.go
+@@ -28,6 +28,7 @@ type aesCipherAsm struct {
+ // cryptBlocks invokes the cipher message (KM) instruction with
+ // the given function code. This is equivalent to AES in ECB
+ // mode. The length must be a multiple of BlockSize (16).
++//
+ //go:noescape
+ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+index bfa8cbba7f..f5c33d5299 100644
+--- a/src/crypto/aes/ctr_s390x.go
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -17,6 +17,7 @@ var _ ctrAble = (*aesCipherAsm)(nil)
+ // dst. If a and b are not the same length then the number of bytes processed
+ // will be equal to the length of shorter of the two. Returns the number
+ // of bytes processed.
++//
+ //go:noescape
+ func xorBytes(dst, a, b []byte) int
+ 
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index c58aa2cda8..98d530aeda 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -100,6 +100,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
+ // ghash uses the GHASH algorithm to hash data with the given key. The initial
+ // hash value is given by hash which will be updated with the new hash value.
+ // The length of data must be a multiple of 16-bytes.
++//
+ //go:noescape
+ func ghash(key *gcmHashKey, hash *[16]byte, data []byte)
+ 
+@@ -127,6 +128,7 @@ func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
+ // The lengths of both dst and buf must be greater than or equal to the length
+ // of src. buf may be partially or completely overwritten during the execution
+ // of the function.
++//
+ //go:noescape
+ func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *gcmCount)
+ 
+@@ -295,6 +297,7 @@ const (
+ // will be calculated and written to tag. cnt should contain the current
+ // counter state and will be overwritten with the updated counter state.
+ // TODO(mundaym): could pass in hash subkey
++//
+ //go:noescape
+ func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+ 
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.go b/src/crypto/ecdsa/ecdsa_s390x.go
+index 1480d1bf6f..bd9257977c 100644
+--- a/src/crypto/ecdsa/ecdsa_s390x.go
++++ b/src/crypto/ecdsa/ecdsa_s390x.go
+@@ -18,6 +18,7 @@ import (
+ // The return value corresponds to the condition code set by the
+ // instruction. Interrupted invocations are handled by the
+ // function.
++//
+ //go:noescape
+ func kdsa(fc uint64, params *[4096]byte) (errn uint64)
+ 
+diff --git a/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go b/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
+index 363020bd6b..70c541692c 100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
++++ b/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
+@@ -5,9 +5,11 @@
+ package field
+ 
+ // feMul sets out = a * b. It works like feMulGeneric.
++//
+ //go:noescape
+ func feMul(out *Element, a *Element, b *Element)
+ 
+ // feSquare sets out = a * a. It works like feSquareGeneric.
++//
+ //go:noescape
+ func feSquare(out *Element, a *Element)
+diff --git a/src/crypto/elliptic/p256_asm.go b/src/crypto/elliptic/p256_asm.go
+index 8624e031a3..93adaf9056 100644
+--- a/src/crypto/elliptic/p256_asm.go
++++ b/src/crypto/elliptic/p256_asm.go
+@@ -53,26 +53,32 @@ func (curve p256Curve) Params() *CurveParams {
+ 
+ // Functions implemented in p256_asm_*64.s
+ // Montgomery multiplication modulo P256
++//
+ //go:noescape
+ func p256Mul(res, in1, in2 []uint64)
+ 
+ // Montgomery square modulo P256, repeated n times (n >= 1)
++//
+ //go:noescape
+ func p256Sqr(res, in []uint64, n int)
+ 
+ // Montgomery multiplication by 1
++//
+ //go:noescape
+ func p256FromMont(res, in []uint64)
+ 
+ // iff cond == 1  val <- -val
++//
+ //go:noescape
+ func p256NegCond(val []uint64, cond int)
+ 
+ // if cond == 0 res <- b; else res <- a
++//
+ //go:noescape
+ func p256MovCond(res, a, b []uint64, cond int)
+ 
+ // Endianness swap
++//
+ //go:noescape
+ func p256BigToLittle(res []uint64, in []byte)
+ 
+@@ -80,6 +86,7 @@ func p256BigToLittle(res []uint64, in []byte)
+ func p256LittleToBig(res []byte, in []uint64)
+ 
+ // Constant time table access
++//
+ //go:noescape
+ func p256Select(point, table []uint64, idx int)
+ 
+@@ -87,10 +94,12 @@ func p256Select(point, table []uint64, idx int)
+ func p256SelectBase(point *[12]uint64, table string, idx int)
+ 
+ // Montgomery multiplication modulo Ord(G)
++//
+ //go:noescape
+ func p256OrdMul(res, in1, in2 []uint64)
+ 
+ // Montgomery square modulo Ord(G), repeated n times
++//
+ //go:noescape
+ func p256OrdSqr(res, in []uint64, n int)
+ 
+@@ -98,16 +107,19 @@ func p256OrdSqr(res, in []uint64, n int)
+ // If sign == 1 -> in2 = -in2
+ // If sel == 0 -> res = in1
+ // if zero == 0 -> res = in2
++//
+ //go:noescape
+ func p256PointAddAffineAsm(res, in1, in2 []uint64, sign, sel, zero int)
+ 
+ // Point add. Returns one if the two input points were equal and zero
+ // otherwise. (Note that, due to the way that the equations work out, some
+ // representations of ∞ are considered equal to everything by this function.)
++//
+ //go:noescape
+ func p256PointAddAsm(res, in1, in2 []uint64) int
+ 
+ // Point double
++//
+ //go:noescape
+ func p256PointDoubleAsm(res, in []uint64)
+ 
+diff --git a/src/crypto/x509/internal/macos/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+index eb91a5db6e..2677ff706a 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.go
++++ b/src/crypto/x509/internal/macos/corefoundation.go
+@@ -19,6 +19,7 @@ import (
+ )
+ 
+ // Core Foundation linker flags for the external linker. See Issue 42459.
++//
+ //go:cgo_ldflag "-framework"
+ //go:cgo_ldflag "CoreFoundation"
+ 
+diff --git a/src/crypto/x509/internal/macos/security.go b/src/crypto/x509/internal/macos/security.go
+index 381d918a94..d8147ba8ba 100644
+--- a/src/crypto/x509/internal/macos/security.go
++++ b/src/crypto/x509/internal/macos/security.go
+@@ -15,6 +15,7 @@ import (
+ )
+ 
+ // Security.framework linker flags for the external linker. See Issue 42459.
++//
+ //go:cgo_ldflag "-framework"
+ //go:cgo_ldflag "Security"
+ 
+diff --git a/src/crypto/x509/root.go b/src/crypto/x509/root.go
+index eef9c047b2..91f4d29a1f 100644
+--- a/src/crypto/x509/root.go
++++ b/src/crypto/x509/root.go
+@@ -8,6 +8,7 @@ package x509
+ // argument to the latest security_certificates version from
+ // https://opensource.apple.com/source/security_certificates/
+ // and run "go generate". See https://golang.org/issue/38843.
++//
+ //go:generate go run root_ios_gen.go -version 55188.120.1.0.1
+ 
+ import "sync"
+diff --git a/src/encoding/gob/debug.go b/src/encoding/gob/debug.go
+index b6d5a3e95c..c989ab1ad6 100644
+--- a/src/encoding/gob/debug.go
++++ b/src/encoding/gob/debug.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Delete the next line to include in the gob package.
++//
+ //go:build ignore
+ 
+ package gob
+diff --git a/src/hash/crc32/crc32_amd64.go b/src/hash/crc32/crc32_amd64.go
+index 7017a89304..6be129f5dd 100644
+--- a/src/hash/crc32/crc32_amd64.go
++++ b/src/hash/crc32/crc32_amd64.go
+@@ -18,11 +18,13 @@ import (
+ 
+ // castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE 4.2 CRC32
+ // instruction.
++//
+ //go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
+ // castagnoliSSE42Triple is defined in crc32_amd64.s and uses the SSE 4.2 CRC32
+ // instruction.
++//
+ //go:noescape
+ func castagnoliSSE42Triple(
+ 	crcA, crcB, crcC uint32,
+@@ -32,6 +34,7 @@ func castagnoliSSE42Triple(
+ 
+ // ieeeCLMUL is defined in crc_amd64.s and uses the PCLMULQDQ
+ // instruction as well as SSE 4.1.
++//
+ //go:noescape
+ func ieeeCLMUL(crc uint32, p []byte) uint32
+ 
+diff --git a/src/hash/crc32/crc32_ppc64le.go b/src/hash/crc32/crc32_ppc64le.go
+index 686722761d..dcd32351a5 100644
+--- a/src/hash/crc32/crc32_ppc64le.go
++++ b/src/hash/crc32/crc32_ppc64le.go
+@@ -19,6 +19,7 @@ const (
+ func ppc64SlicingUpdateBy8(crc uint32, table8 *slicing8Table, p []byte) uint32
+ 
+ // this function requires the buffer to be 16 byte aligned and > 16 bytes long
++//
+ //go:noescape
+ func vectorCrc32(crc uint32, poly uint32, p []byte) uint32
+ 
+diff --git a/src/hash/crc32/crc32_s390x.go b/src/hash/crc32/crc32_s390x.go
+index 3a98bd8799..4e50b56c6f 100644
+--- a/src/hash/crc32/crc32_s390x.go
++++ b/src/hash/crc32/crc32_s390x.go
+@@ -17,11 +17,13 @@ var hasVX = cpu.S390X.HasVX
+ 
+ // vectorizedCastagnoli implements CRC32 using vector instructions.
+ // It is defined in crc32_s390x.s.
++//
+ //go:noescape
+ func vectorizedCastagnoli(crc uint32, p []byte) uint32
+ 
+ // vectorizedIEEE implements CRC32 using vector instructions.
+ // It is defined in crc32_s390x.s.
++//
+ //go:noescape
+ func vectorizedIEEE(crc uint32, p []byte) uint32
+ 
+diff --git a/src/internal/goarch/goarch.go b/src/internal/goarch/goarch.go
+index 921f5a208f..e8de67b01b 100644
+--- a/src/internal/goarch/goarch.go
++++ b/src/internal/goarch/goarch.go
+@@ -9,6 +9,7 @@ package goarch
+ // per-arch information, including constants named $GOARCH for every
+ // GOARCH. The constant is 1 on the current system, 0 otherwise; multiplying
+ // by them is useful for defining GOARCH-specific constants.
++//
+ //go:generate go run gengoarch.go
+ 
+ type ArchFamilyType int
+diff --git a/src/internal/goos/goos.go b/src/internal/goos/goos.go
+index ebb521fec6..02dc9688cb 100644
+--- a/src/internal/goos/goos.go
++++ b/src/internal/goos/goos.go
+@@ -9,4 +9,5 @@ package goos
+ // per-OS information, including constants named Is$GOOS for every
+ // known GOOS. The constant is 1 on the current system, 0 otherwise;
+ // multiplying by them is useful for defining GOOS-specific constants.
++//
+ //go:generate go run gengoos.go
+diff --git a/src/internal/intern/intern.go b/src/internal/intern/intern.go
+index 75641106ab..c7639b4668 100644
+--- a/src/internal/intern/intern.go
++++ b/src/internal/intern/intern.go
+@@ -93,6 +93,7 @@ func GetByString(s string) *Value {
+ // We play unsafe games that violate Go's rules (and assume a non-moving
+ // collector). So we quiet Go here.
+ // See the comment below Get for more implementation details.
++//
+ //go:nocheckptr
+ func get(k key) *Value {
+ 	mu.Lock()
+diff --git a/src/internal/poll/fcntl_libc.go b/src/internal/poll/fcntl_libc.go
+index f503d7a336..13614dc3e8 100644
+--- a/src/internal/poll/fcntl_libc.go
++++ b/src/internal/poll/fcntl_libc.go
+@@ -9,5 +9,6 @@ package poll
+ import _ "unsafe" // for go:linkname
+ 
+ // Implemented in the syscall package.
++//
+ //go:linkname fcntl syscall.fcntl
+ func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/internal/poll/fd_opendir_darwin.go b/src/internal/poll/fd_opendir_darwin.go
+index 8eb770c358..3ae2dc8448 100644
+--- a/src/internal/poll/fd_opendir_darwin.go
++++ b/src/internal/poll/fd_opendir_darwin.go
+@@ -34,5 +34,6 @@ func (fd *FD) OpenDir() (uintptr, string, error) {
+ }
+ 
+ // Implemented in syscall/syscall_darwin.go.
++//
+ //go:linkname fdopendir syscall.fdopendir
+ func fdopendir(fd int) (dir uintptr, err error)
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 2e9cd5c9d7..4d3cc78405 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -15,6 +15,7 @@ import (
+ )
+ 
+ // runtimeNano returns the current value of the runtime clock in nanoseconds.
++//
+ //go:linkname runtimeNano runtime.nanotime
+ func runtimeNano() int64
+ 
+diff --git a/src/internal/poll/fd_writev_darwin.go b/src/internal/poll/fd_writev_darwin.go
+index 8137510c8b..b5b8998df8 100644
+--- a/src/internal/poll/fd_writev_darwin.go
++++ b/src/internal/poll/fd_writev_darwin.go
+@@ -12,5 +12,6 @@ import (
+ )
+ 
+ // Implemented in syscall/syscall_darwin.go.
++//
+ //go:linkname writev syscall.writev
+ func writev(fd int, iovecs []syscall.Iovec) (uintptr, error)
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 0a884307bb..7ae18f4b1a 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -7,6 +7,7 @@ package poll
+ import "syscall"
+ 
+ // Not strictly needed, but very helpful for debugging, see issue #10221.
++//
+ //go:cgo_import_dynamic _ _ "libsendfile.so"
+ //go:cgo_import_dynamic _ _ "libsocket.so"
+ 
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 966230f581..b9bca3ab44 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -458,6 +458,7 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
+ func ifaceE2I(t *rtype, src any, dst unsafe.Pointer)
+ 
+ // typedmemmove copies a value of type t to dst from src.
++//
+ //go:noescape
+ func typedmemmove(t *rtype, dst, src unsafe.Pointer)
+ 
+diff --git a/src/internal/syscall/unix/nonblocking_libc.go b/src/internal/syscall/unix/nonblocking_libc.go
+index 75c6e92a6e..84940714c3 100644
+--- a/src/internal/syscall/unix/nonblocking_libc.go
++++ b/src/internal/syscall/unix/nonblocking_libc.go
+@@ -20,5 +20,6 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
+ }
+ 
+ // Implemented in the syscall package.
++//
+ //go:linkname fcntl syscall.fcntl
+ func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/net/fcntl_libc_test.go b/src/net/fcntl_libc_test.go
+index 3478ce7231..78892e3a9f 100644
+--- a/src/net/fcntl_libc_test.go
++++ b/src/net/fcntl_libc_test.go
+@@ -9,5 +9,6 @@ package net
+ import _ "unsafe" // for go:linkname
+ 
+ // Implemented in the syscall package.
++//
+ //go:linkname fcntl syscall.fcntl
+ func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 20716bce1e..26565853e1 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test broken pipes on Unix systems.
++//
+ //go:build !plan9 && !js
+ 
+ package os_test
+diff --git a/src/os/rawconn_test.go b/src/os/rawconn_test.go
+index fd2038a233..62b99f8784 100644
+--- a/src/os/rawconn_test.go
++++ b/src/os/rawconn_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test use of raw connections.
++//
+ //go:build !plan9 && !js
+ 
+ package os_test
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index c59f11ef71..6ba0f78065 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -150,5 +150,6 @@ var (
+ func lastmoduleinit() (pluginpath string, syms map[string]any, errstr string)
+ 
+ // doInit is defined in package runtime
++//
+ //go:linkname doInit runtime.doInit
+ func doInit(t unsafe.Pointer) // t should be a *runtime.initTask
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index c9a4cd1c8e..9d93472779 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -545,6 +545,7 @@ func passEmptyStruct(a int, b struct{}, c float64) (int, struct{}, float64) {
+ 
+ // This test case forces a large argument to the stack followed by more
+ // in-register arguments.
++//
+ //go:registerparams
+ //go:noinline
+ func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index 3d9279ceaa..0a680765cd 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -158,6 +158,7 @@ type makeFuncCtxt struct {
+ // nosplit because pointers are being held in uintptr slots in args, so
+ // having our stack scanned now could lead to accidentally freeing
+ // memory.
++//
+ //go:nosplit
+ func moveMakeFuncArgPtrs(ctxt *makeFuncCtxt, args *abi.RegArgs) {
+ 	for i, arg := range args.Ints {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index f1454b8ae2..c5c212ea36 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2757,6 +2757,7 @@ type runtimeSelect struct {
+ // If the case was a receive, val is filled in with the received value.
+ // The conventional OK bool indicates whether the receive corresponds
+ // to a sent value.
++//
+ //go:noescape
+ func rselect([]runtimeSelect) (chosen int, recvOK bool)
+ 
+@@ -3493,6 +3494,7 @@ func maplen(m unsafe.Pointer) int
+ // Arguments passed through to call do not escape. The type is used only in a
+ // very limited callee of call, the stackArgs are copied, and regArgs is only
+ // used in the call frame.
++//
+ //go:noescape
+ //go:linkname call runtime.reflectcall
+ func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
+@@ -3500,29 +3502,35 @@ func call(stackArgsType *rtype, f, stackArgs unsafe.Pointer, stackArgsSize, stac
+ func ifaceE2I(t *rtype, src any, dst unsafe.Pointer)
+ 
+ // memmove copies size bytes to dst from src. No write barriers are used.
++//
+ //go:noescape
+ func memmove(dst, src unsafe.Pointer, size uintptr)
+ 
+ // typedmemmove copies a value of type t to dst from src.
++//
+ //go:noescape
+ func typedmemmove(t *rtype, dst, src unsafe.Pointer)
+ 
+ // typedmemmovepartial is like typedmemmove but assumes that
+ // dst and src point off bytes into the value and only copies size bytes.
++//
+ //go:noescape
+ func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
+ 
+ // typedmemclr zeros the value at ptr of type t.
++//
+ //go:noescape
+ func typedmemclr(t *rtype, ptr unsafe.Pointer)
+ 
+ // typedmemclrpartial is like typedmemclr but assumes that
+ // dst points off bytes into the value and only clears size bytes.
++//
+ //go:noescape
+ func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
+ 
+ // typedslicecopy copies a slice of elemType values from src to dst,
+ // returning the number of elements copied.
++//
+ //go:noescape
+ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
+ 
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index 5f1e6370d2..8c41e418f7 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -56,6 +56,7 @@ func asanunpoison(addr unsafe.Pointer, sz uintptr)
+ func asanpoison(addr unsafe.Pointer, sz uintptr)
+ 
+ // These are called from asan_GOARCH.s
++//
+ //go:cgo_import_static __asan_read_go
+ //go:cgo_import_static __asan_write_go
+ //go:cgo_import_static __asan_unpoison_go
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index cd8b795387..e7c8ef3e07 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -21,6 +21,7 @@ import "unsafe"
+ // that pattern working. In particular, crosscall2 actually takes four
+ // arguments, but it works to call it with three arguments when
+ // calling _cgo_panic.
++//
+ //go:cgo_export_static crosscall2
+ //go:cgo_export_dynamic crosscall2
+ 
+diff --git a/src/runtime/cgo/callbacks_aix.go b/src/runtime/cgo/callbacks_aix.go
+index f4b6fe25fa..8f756fbdd9 100644
+--- a/src/runtime/cgo/callbacks_aix.go
++++ b/src/runtime/cgo/callbacks_aix.go
+@@ -6,6 +6,7 @@ package cgo
+ 
+ // These functions must be exported in order to perform
+ // longcall on cgo programs (cf gcc_aix_ppc64.c).
++//
+ //go:cgo_export_static __cgo_topofstack
+ //go:cgo_export_static runtime.rt0_go
+ //go:cgo_export_static _rt0_ppc64_aix_lib
+diff --git a/src/runtime/cgo/openbsd.go b/src/runtime/cgo/openbsd.go
+index 872d02e334..26b62fbdaf 100644
+--- a/src/runtime/cgo/openbsd.go
++++ b/src/runtime/cgo/openbsd.go
+@@ -17,4 +17,5 @@ var _guard_local uintptr
+ 
+ // This is normally marked as hidden and placed in the
+ // .openbsd.randomdata section.
++//
+ //go:cgo_export_dynamic __guard_local __guard_local
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index 0cb25bdcda..4cb3e65f14 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -12,11 +12,13 @@ import "unsafe"
+ 
+ // _cgo_mmap is filled in by runtime/cgo when it is linked into the
+ // program, so it is only non-nil when using cgo.
++//
+ //go:linkname _cgo_mmap _cgo_mmap
+ var _cgo_mmap unsafe.Pointer
+ 
+ // _cgo_munmap is filled in by runtime/cgo when it is linked into the
+ // program, so it is only non-nil when using cgo.
++//
+ //go:linkname _cgo_munmap _cgo_munmap
+ var _cgo_munmap unsafe.Pointer
+ 
+@@ -24,6 +26,7 @@ var _cgo_munmap unsafe.Pointer
+ // support sanitizer interceptors. Don't allow stack splits, since this function
+ // (used by sysAlloc) is called in a lot of low-level parts of the runtime and
+ // callers often assume it won't acquire any locks.
++//
+ //go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	if _cgo_mmap != nil {
+diff --git a/src/runtime/cgo_ppc64x.go b/src/runtime/cgo_ppc64x.go
+index 97b962e40f..c723213809 100644
+--- a/src/runtime/cgo_ppc64x.go
++++ b/src/runtime/cgo_ppc64x.go
+@@ -9,4 +9,5 @@ package runtime
+ // crosscall_ppc64 calls into the runtime to set up the registers the
+ // Go runtime expects and so the symbol it calls needs to be exported
+ // for external linking to work.
++//
+ //go:cgo_export_static _cgo_reginit
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index a2e12f0f0e..9500c52205 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -12,6 +12,7 @@ import "unsafe"
+ 
+ // _cgo_sigaction is filled in by runtime/cgo when it is linked into the
+ // program, so it is only non-nil when using cgo.
++//
+ //go:linkname _cgo_sigaction _cgo_sigaction
+ var _cgo_sigaction unsafe.Pointer
+ 
+@@ -88,5 +89,6 @@ func sigaction(sig uint32, new, old *sigactiont) {
+ 
+ // callCgoSigaction calls the sigaction function in the runtime/cgo package
+ // using the GCC calling convention. It is implemented in assembly.
++//
+ //go:noescape
+ func callCgoSigaction(sig uintptr, new, old *sigactiont) int32
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index a0c9560fd0..977d049378 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -102,6 +102,7 @@ type argset struct {
+ }
+ 
+ // wrapper for syscall package to call cgocall for libc (cgo) calls.
++//
+ //go:linkname syscall_cgocaller syscall.cgocaller
+ //go:nosplit
+ //go:uintptrescapes
+@@ -199,6 +200,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ }
+ 
+ // Call from C back to Go. fn must point to an ABIInternal Go entry-point.
++//
+ //go:nosplit
+ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	gp := getg()
+@@ -598,6 +600,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ // cgoIsGoPointer reports whether the pointer is a Go pointer--a
+ // pointer to Go memory. We only care about Go memory that might
+ // contain pointers.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func cgoIsGoPointer(p unsafe.Pointer) bool {
+@@ -619,6 +622,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
+ }
+ 
+ // cgoInRange reports whether p is between start and end.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 3acbadf803..74a2ec09bc 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -61,6 +61,7 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+ // size is the number of bytes to copy.
+ // It throws if the program is copying a block that contains a Go pointer
+ // into non-Go memory.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+@@ -81,6 +82,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ // typ is the element type of the slice.
+ // It throws if the program is copying slice elements that contain Go pointers
+ // into non-Go memory.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+@@ -103,6 +105,7 @@ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+ // cgoCheckTypedBlock checks the block of memory at src, for up to size bytes,
+ // and throws if it finds a Go pointer. The type of the memory is typ,
+ // and src is off bytes into that type.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+@@ -166,6 +169,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ // cgoCheckBits checks the block of memory at src, for up to size
+ // bytes, and throws if it finds a Go pointer. The gcbits mark each
+ // pointer value. The src pointer is off bytes into the gcbits.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+@@ -201,6 +205,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ // We only use this when looking at a value on the stack when the type
+ // uses a GC program, because otherwise it's more efficient to use the
+ // GC bits. This is called on the system stack.
++//
+ //go:nowritebarrier
+ //go:systemstack
+ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index a16782ae94..308667d7bc 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -139,6 +139,7 @@ func full(c *hchan) bool {
+ }
+ 
+ // entry point for c <- x from compiled code
++//
+ //go:nosplit
+ func chansend1(c *hchan, elem unsafe.Pointer) {
+ 	chansend(c, elem, true, getcallerpc())
+@@ -435,6 +436,7 @@ func empty(c *hchan) bool {
+ }
+ 
+ // entry points for <- c from compiled code
++//
+ //go:nosplit
+ func chanrecv1(c *hchan, elem unsafe.Pointer) {
+ 	chanrecv(c, elem, true)
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 48cef46fe9..07673c9bd0 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -88,6 +88,7 @@ func SetCPUProfileRate(hz int) {
+ // and cannot allocate memory or acquire locks that might be
+ // held at the time of the signal, nor can it use substantial amounts
+ // of stack.
++//
+ //go:nowritebarrierrec
+ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ 	// Simple cas-lock to coordinate with setcpuprofilerate.
+@@ -117,6 +118,7 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ // Instead, we copy the stack into cpuprof.extra,
+ // which will be drained the next time a Go thread
+ // gets the signal handling event.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func (p *cpuProfile) addNonGo(stk []uintptr) {
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index f1ac4760a7..65480c8217 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -25,6 +25,7 @@ const (
+ // For Plan 9 shared environment semantics, instead of Getenv(key) and
+ // Setenv(key, value), one can use os.ReadFile("/env/" + key) and
+ // os.WriteFile("/env/" + key, value, 0666) respectively.
++//
+ //go:nosplit
+ func goenvs() {
+ 	buf := make([]byte, envBufSize)
+@@ -71,6 +72,7 @@ func goenvs() {
+ 
+ // Dofiles reads the directory opened with file descriptor fd, applying function f
+ // to each filename in it.
++//
+ //go:nosplit
+ func dofiles(dirfd int32, f func([]byte)) {
+ 	dirbuf := new([dirBufSize]byte)
+@@ -96,6 +98,7 @@ func dofiles(dirfd int32, f func([]byte)) {
+ // Gdirname returns the first filename from a buffer of directory entries,
+ // and a slice containing the remaining directory entries.
+ // If the buffer doesn't start with a valid directory entry, the returned name is nil.
++//
+ //go:nosplit
+ func gdirname(buf []byte) (name []byte, rest []byte) {
+ 	if 2+nameOffset+2 > len(buf) {
+@@ -116,6 +119,7 @@ func gdirname(buf []byte) (name []byte, rest []byte) {
+ 
+ // Gbit16 reads a 16-bit little-endian binary number from b and returns it
+ // with the remaining slice of b.
++//
+ //go:nosplit
+ func gbit16(b []byte) (int, []byte) {
+ 	return int(b[0]) | int(b[1])<<8, b[2:]
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 7d01ab4dd7..94a19d80d8 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -49,6 +49,7 @@ var _cgo_unsetenv unsafe.Pointer // pointer to C function
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.Setenv.
++//
+ //go:linkname syscall_setenv_c syscall.setenv_c
+ func syscall_setenv_c(k string, v string) {
+ 	if _cgo_setenv == nil {
+@@ -60,6 +61,7 @@ func syscall_setenv_c(k string, v string) {
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.unsetenv.
++//
+ //go:linkname syscall_unsetenv_c syscall.unsetenv_c
+ func syscall_unsetenv_c(k string) {
+ 	if _cgo_unsetenv == nil {
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 0156981524..af27050bfd 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1143,6 +1143,7 @@ func SemNwait(addr *uint32) uint32 {
+ }
+ 
+ // mspan wrapper for testing.
++//
+ //go:notinheap
+ type MSpan mspan
+ 
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index cd7e29a8c8..eddfbab3bc 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -84,6 +84,7 @@ type timeHistogram struct {
+ //
+ // Disallow preemptions and stack growths because this function
+ // may run in sensitive locations.
++//
+ //go:nosplit
+ func (h *timeHistogram) record(duration int64) {
+ 	if duration < 0 {
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index 27a77ec37a..bf2f4b9229 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -9,6 +9,7 @@ package atomic
+ import "unsafe"
+ 
+ // Export some functions via linkname to assembly in sync/atomic.
++//
+ //go:linkname Load
+ //go:linkname Loadp
+ 
+diff --git a/src/runtime/internal/atomic/atomic_amd64.go b/src/runtime/internal/atomic/atomic_amd64.go
+index e36eb83a11..52a83620c8 100644
+--- a/src/runtime/internal/atomic/atomic_amd64.go
++++ b/src/runtime/internal/atomic/atomic_amd64.go
+@@ -7,6 +7,7 @@ package atomic
+ import "unsafe"
+ 
+ // Export some functions via linkname to assembly in sync/atomic.
++//
+ //go:linkname Load
+ //go:linkname Loadp
+ //go:linkname Load64
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index e2539b6c7e..bdb1847279 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -12,6 +12,7 @@ import (
+ )
+ 
+ // Export some functions via linkname to assembly in sync/atomic.
++//
+ //go:linkname Xchg
+ //go:linkname Xchguintptr
+ 
+@@ -43,6 +44,7 @@ func addrLock(addr *uint64) *spinlock {
+ }
+ 
+ // Atomic add and return new value.
++//
+ //go:nosplit
+ func Xadd(val *uint32, delta int32) uint32 {
+ 	for {
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index e552e57495..5dd15a0b02 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -5,6 +5,7 @@
+ //go:build mips || mipsle
+ 
+ // Export some functions via linkname to assembly in sync/atomic.
++//
+ //go:linkname Xadd64
+ //go:linkname Xchg64
+ //go:linkname Cas64
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index a058d60102..9855bf0780 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -7,6 +7,7 @@ package atomic
+ import "unsafe"
+ 
+ // Export some functions via linkname to assembly in sync/atomic.
++//
+ //go:linkname Load
+ //go:linkname Loadp
+ //go:linkname Load64
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 3f77f16b4e..835fc43ccf 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -6,6 +6,7 @@
+ // See https://github.com/WebAssembly/design/issues/1073
+ 
+ // Export some functions via linkname to assembly in sync/atomic.
++//
+ //go:linkname Load
+ //go:linkname Loadp
+ //go:linkname Load64
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 575df7a1d5..1578984ce2 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -38,6 +38,7 @@ const (
+ // affect mutex's state.
+ 
+ // We use the uintptr mutex.key and note.key as a uint32.
++//
+ //go:nosplit
+ func key32(p *uintptr) *uint32 {
+ 	return (*uint32)(unsafe.Pointer(p))
+diff --git a/src/runtime/lockrank_off.go b/src/runtime/lockrank_off.go
+index daa45b542d..bf046a1041 100644
+--- a/src/runtime/lockrank_off.go
++++ b/src/runtime/lockrank_off.go
+@@ -23,6 +23,7 @@ func lockWithRank(l *mutex, rank lockRank) {
+ }
+ 
+ // This function may be called in nosplit context and thus must be nosplit.
++//
+ //go:nosplit
+ func acquireLockRank(rank lockRank) {
+ }
+@@ -32,6 +33,7 @@ func unlockWithRank(l *mutex) {
+ }
+ 
+ // This function may be called in nosplit context and thus must be nosplit.
++//
+ //go:nosplit
+ func releaseLockRank(rank lockRank) {
+ }
+diff --git a/src/runtime/lockrank_on.go b/src/runtime/lockrank_on.go
+index 3c8c367c19..a170569d6e 100644
+--- a/src/runtime/lockrank_on.go
++++ b/src/runtime/lockrank_on.go
+@@ -82,6 +82,7 @@ func lockWithRank(l *mutex, rank lockRank) {
+ }
+ 
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func printHeldLocks(gp *g) {
+ 	if gp.m.locksHeldLen == 0 {
+@@ -97,6 +98,7 @@ func printHeldLocks(gp *g) {
+ // acquireLockRank acquires a rank which is not associated with a mutex lock
+ //
+ // This function may be called in nosplit context and thus must be nosplit.
++//
+ //go:nosplit
+ func acquireLockRank(rank lockRank) {
+ 	gp := getg()
+@@ -181,6 +183,7 @@ func unlockWithRank(l *mutex) {
+ // releaseLockRank releases a rank which is not associated with a mutex lock
+ //
+ // This function may be called in nosplit context and thus must be nosplit.
++//
+ //go:nosplit
+ func releaseLockRank(rank lockRank) {
+ 	gp := getg()
+@@ -226,6 +229,7 @@ func lockWithRankMayAcquire(l *mutex, rank lockRank) {
+ }
+ 
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func checkLockHeld(gp *g, l *mutex) bool {
+ 	for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
+@@ -239,6 +243,7 @@ func checkLockHeld(gp *g, l *mutex) bool {
+ // assertLockHeld throws if l is not held by the caller.
+ //
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func assertLockHeld(l *mutex) {
+ 	gp := getg()
+@@ -264,6 +269,7 @@ func assertLockHeld(l *mutex) {
+ // pointer to the exact mutex is not available.
+ //
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func assertRankHeld(r lockRank) {
+ 	gp := getg()
+@@ -289,6 +295,7 @@ func assertRankHeld(r lockRank) {
+ // Caller must hold worldsema.
+ //
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func worldStopped() {
+ 	if stopped := atomic.Xadd(&worldIsStopped, 1); stopped != 1 {
+@@ -304,6 +311,7 @@ func worldStopped() {
+ // Caller must hold worldsema.
+ //
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func worldStarted() {
+ 	if stopped := atomic.Xadd(&worldIsStopped, -1); stopped != 0 {
+@@ -315,6 +323,7 @@ func worldStarted() {
+ }
+ 
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func checkWorldStopped() bool {
+ 	stopped := atomic.Load(&worldIsStopped)
+@@ -332,6 +341,7 @@ func checkWorldStopped() bool {
+ // which M stopped the world.
+ //
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func assertWorldStopped() {
+ 	if checkWorldStopped() {
+@@ -345,6 +355,7 @@ func assertWorldStopped() {
+ // passed lock is not held.
+ //
+ // nosplit to ensure it can be called in as many contexts as possible.
++//
+ //go:nosplit
+ func assertWorldStoppedOrLockHeld(l *mutex) {
+ 	if checkWorldStopped() {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a00878a11c..c182197782 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1326,6 +1326,7 @@ func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 
+ // Must run on system stack because stack growth can (re)invoke it.
+ // See issue 9174.
++//
+ //go:systemstack
+ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
+ 	const (
+@@ -1395,6 +1396,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
+ // inPersistentAlloc reports whether p points to memory allocated by
+ // persistentalloc. This must be nosplit because it is called by the
+ // cgo checker code, which is called by the write barrier code.
++//
+ //go:nosplit
+ func inPersistentAlloc(p uintptr) bool {
+ 	chunk := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&persistentChunks)))
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index a0d145ec76..c3b45415a9 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -199,6 +199,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ // typedmemmovepartial is like typedmemmove but assumes that
+ // dst and src point off bytes into the value and only copies size bytes.
+ // off must be a multiple of goarch.PtrSize.
++//
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ 	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 937968807b..665a9c6f63 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -65,6 +65,7 @@ const (
+ )
+ 
+ // addb returns the byte pointer p+n.
++//
+ //go:nowritebarrier
+ //go:nosplit
+ func addb(p *byte, n uintptr) *byte {
+@@ -75,6 +76,7 @@ func addb(p *byte, n uintptr) *byte {
+ }
+ 
+ // subtractb returns the byte pointer p-n.
++//
+ //go:nowritebarrier
+ //go:nosplit
+ func subtractb(p *byte, n uintptr) *byte {
+@@ -85,6 +87,7 @@ func subtractb(p *byte, n uintptr) *byte {
+ }
+ 
+ // add1 returns the byte pointer p+1.
++//
+ //go:nowritebarrier
+ //go:nosplit
+ func add1(p *byte) *byte {
+@@ -95,9 +98,11 @@ func add1(p *byte) *byte {
+ }
+ 
+ // subtract1 returns the byte pointer p-1.
++//
+ //go:nowritebarrier
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
++//
+ //go:nosplit
+ func subtract1(p *byte) *byte {
+ 	// Note: wrote out full expression instead of calling subtractb(p, 1)
+@@ -314,6 +319,7 @@ func (m *markBits) advance() {
+ // In particular, be careful not to point past the end of an object.
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
++//
+ //go:nosplit
+ func heapBitsForAddr(addr uintptr) (h heapBits) {
+ 	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
+@@ -381,6 +387,7 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
+ //
+ // It is nosplit so it is safe for p to be a pointer to the current goroutine's stack.
+ // Since p is a uintptr, it would not be adjusted if the stack were to move.
++//
+ //go:nosplit
+ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
+ 	s = spanOf(p)
+@@ -418,6 +425,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ }
+ 
+ // verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
++//
+ //go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
+ func reflect_verifyNotInHeapPtr(p uintptr) bool {
+ 	// Conversion to a pointer is ok as long as findObject above does not call badPointer.
+@@ -431,6 +439,7 @@ func reflect_verifyNotInHeapPtr(p uintptr) bool {
+ // Note that next does not modify h. The caller must record the result.
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
++//
+ //go:nosplit
+ func (h heapBits) next() heapBits {
+ 	if h.shift < 3*heapBitsShift {
+@@ -477,6 +486,7 @@ func (h heapBits) nextArena() heapBits {
+ // h.forward(1) is equivalent to h.next(), just slower.
+ // Note that forward does not modify h. The caller must record the result.
+ // bits returns the heap bits for the current word.
++//
+ //go:nosplit
+ func (h heapBits) forward(n uintptr) heapBits {
+ 	n += uintptr(h.shift) / heapBitsShift
+@@ -517,6 +527,7 @@ func (h heapBits) forwardOrBoundary(n uintptr) (heapBits, uintptr) {
+ // described by the same bitmap byte.
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
++//
+ //go:nosplit
+ func (h heapBits) bits() uint32 {
+ 	// The (shift & 31) eliminates a test and conditional branch
+@@ -534,6 +545,7 @@ func (h heapBits) morePointers() bool {
+ // isPointer reports whether the heap bits describe a pointer word.
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
++//
+ //go:nosplit
+ func (h heapBits) isPointer() bool {
+ 	return h.bits()&bitPointer != 0
+@@ -633,6 +645,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ //
+ // This is used for special cases where e.g. dst was just
+ // created and zeroed with malloc.
++//
+ //go:nosplit
+ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+ 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
+@@ -1951,6 +1964,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
+ 
+ // gcbits returns the GC type info for x, for testing.
+ // The result is the bitmap entries (0 or 1), one entry per byte.
++//
+ //go:linkname reflect_gcbits reflect.gcbits
+ func reflect_gcbits(x any) []byte {
+ 	ret := getgcmask(x)
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index d6a181ad4d..21726b56ae 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -10,6 +10,7 @@ import (
+ 
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+@@ -39,6 +40,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index e83145e86b..782465ae26 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -12,6 +12,7 @@ import (
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+@@ -33,6 +34,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index d63b5559aa..25862cf161 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -10,6 +10,7 @@ import (
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+@@ -37,6 +38,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+diff --git a/src/runtime/mem_js.go b/src/runtime/mem_js.go
+index c66b91eedd..e87c5f26ae 100644
+--- a/src/runtime/mem_js.go
++++ b/src/runtime/mem_js.go
+@@ -12,6 +12,7 @@ import (
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	p := sysReserveOS(nil, n)
+@@ -30,6 +31,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ }
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 980f7bb53d..1630664cff 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -16,6 +16,7 @@ const (
+ 
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+@@ -162,6 +163,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	munmap(v, n)
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index c8f039f50b..b1292fc725 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -23,6 +23,7 @@ const (
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAllocOS(n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+@@ -95,6 +96,7 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 10623e4d67..979e0b4a2c 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -439,6 +439,7 @@ okarg:
+ }
+ 
+ // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
++//
+ //go:noinline
+ 
+ // KeepAlive marks its argument as currently reachable.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 3e1a0b560a..cd0ec007f3 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -888,6 +888,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
+ }
+ 
+ // Scan a stack frame: local variables and function arguments/results.
++//
+ //go:nowritebarrier
+ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 	if _DebugGC > 1 && frame.continpc != 0 {
+@@ -1185,6 +1186,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ // gcw.bytesMarked or gcw.heapScanWork.
+ //
+ // If stk != nil, possible stack pointers are also reported to stk.putPtr.
++//
+ //go:nowritebarrier
+ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState) {
+ 	// Use local copies of original parameters, so that a stack trace
+@@ -1413,6 +1415,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
+ // Shade the object if it isn't already.
+ // The object is not nil and known to be in the heap.
+ // Preemption must be disabled.
++//
+ //go:nowritebarrier
+ func shade(b uintptr) {
+ 	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index 49dc54e165..472c61a491 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -158,6 +158,7 @@ type stackObject struct {
+ }
+ 
+ // obj.r = r, but with no write barrier.
++//
+ //go:nowritebarrier
+ func (obj *stackObject) setRecord(r *stackObjectRecord) {
+ 	// Types of stack objects are always in read-only memory, not the heap.
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index a46f4ec2c6..c863ea9cd8 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -424,6 +424,7 @@ func isSweepDone() bool {
+ }
+ 
+ // Returns only when span s has been swept.
++//
+ //go:nowritebarrier
+ func (s *mspan) ensureSwept() {
+ 	// Caller must disable preemption.
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 56d0b1cd62..5c47006cc2 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -107,6 +107,7 @@ func (w *gcWork) init() {
+ 
+ // put enqueues a pointer for the garbage collector to trace.
+ // obj must point to the beginning of a heap object or an oblet.
++//
+ //go:nowritebarrierrec
+ func (w *gcWork) put(obj uintptr) {
+ 	flushed := false
+@@ -145,6 +146,7 @@ func (w *gcWork) put(obj uintptr) {
+ 
+ // putFast does a put and reports whether it can be done quickly
+ // otherwise it returns false and the caller needs to call put.
++//
+ //go:nowritebarrierrec
+ func (w *gcWork) putFast(obj uintptr) bool {
+ 	wbuf := w.wbuf1
+@@ -196,6 +198,7 @@ func (w *gcWork) putBatch(obj []uintptr) {
+ // If there are no pointers remaining in this gcWork or in the global
+ // queue, tryGet returns 0.  Note that there may still be pointers in
+ // other gcWork instances or other caches.
++//
+ //go:nowritebarrierrec
+ func (w *gcWork) tryGet() uintptr {
+ 	wbuf := w.wbuf1
+@@ -225,6 +228,7 @@ func (w *gcWork) tryGet() uintptr {
+ // tryGetFast dequeues a pointer for the garbage collector to trace
+ // if one is readily available. Otherwise it returns 0 and
+ // the caller is expected to call tryGet().
++//
+ //go:nowritebarrierrec
+ func (w *gcWork) tryGetFast() uintptr {
+ 	wbuf := w.wbuf1
+@@ -278,6 +282,7 @@ func (w *gcWork) dispose() {
+ 
+ // balance moves some work that's cached in this gcWork back on the
+ // global queue.
++//
+ //go:nowritebarrierrec
+ func (w *gcWork) balance() {
+ 	if w.wbuf1 == nil {
+@@ -300,6 +305,7 @@ func (w *gcWork) balance() {
+ }
+ 
+ // empty reports whether w has no mark work available.
++//
+ //go:nowritebarrierrec
+ func (w *gcWork) empty() bool {
+ 	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)
+@@ -340,6 +346,7 @@ func (b *workbuf) checkempty() {
+ 
+ // getempty pops an empty work buffer off the work.empty list,
+ // allocating new buffers if none are available.
++//
+ //go:nowritebarrier
+ func getempty() *workbuf {
+ 	var b *workbuf
+@@ -395,6 +402,7 @@ func getempty() *workbuf {
+ 
+ // putempty puts a workbuf onto the work.empty list.
+ // Upon entry this goroutine owns b. The lfstack.push relinquishes ownership.
++//
+ //go:nowritebarrier
+ func putempty(b *workbuf) {
+ 	b.checkempty()
+@@ -404,6 +412,7 @@ func putempty(b *workbuf) {
+ // putfull puts the workbuf on the work.full list for the GC.
+ // putfull accepts partially full buffers so the GC can avoid competing
+ // with the mutators for ownership of partially full buffers.
++//
+ //go:nowritebarrier
+ func putfull(b *workbuf) {
+ 	b.checknonempty()
+@@ -412,6 +421,7 @@ func putfull(b *workbuf) {
+ 
+ // trygetfull tries to get a full or partially empty workbuffer.
+ // If one is not immediately available return nil
++//
+ //go:nowritebarrier
+ func trygetfull() *workbuf {
+ 	b := (*workbuf)(work.full.pop())
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d2a63d0938..a8a1e61ef2 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -589,6 +589,7 @@ func (i arenaIdx) l2() uint {
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+ // It returns false for pointers into mSpanManual spans.
+ // Non-preemptible because it is used by write barriers.
++//
+ //go:nowritebarrier
+ //go:nosplit
+ func inheap(b uintptr) bool {
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+index 902a1e9e74..c485216583 100644
+--- a/src/runtime/msan.go
++++ b/src/runtime/msan.go
+@@ -54,6 +54,7 @@ func msanfree(addr unsafe.Pointer, sz uintptr)
+ func msanmove(dst, src unsafe.Pointer, sz uintptr)
+ 
+ // These are called from msan_GOARCH.s
++//
+ //go:cgo_import_static __msan_read_go
+ //go:cgo_import_static __msan_write_go
+ //go:cgo_import_static __msan_malloc_go
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index e5c3471ca3..e8b42fbbbe 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -550,6 +550,7 @@ func readGCStats(pauses *[]uint64) {
+ 
+ // readGCStats_m must be called on the system stack because it acquires the heap
+ // lock. See mheap for details.
++//
+ //go:systemstack
+ func readGCStats_m(pauses *[]uint64) {
+ 	p := *pauses
+@@ -622,6 +623,7 @@ type sysMemStat uint64
+ // load atomically reads the value of the stat.
+ //
+ // Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
++//
+ //go:nosplit
+ func (s *sysMemStat) load() uint64 {
+ 	return atomic.Load64((*uint64)(s))
+@@ -630,6 +632,7 @@ func (s *sysMemStat) load() uint64 {
+ // add atomically adds the sysMemStat by n.
+ //
+ // Must be nosplit as it is called in runtime initialization, e.g. newosproc0.
++//
+ //go:nosplit
+ func (s *sysMemStat) add(n int64) {
+ 	if s == nil {
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 864148b715..6dcc60953f 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -271,6 +271,7 @@ func (c *pollCache) free(pd *pollDesc) {
+ // poll_runtime_pollReset, which is internal/poll.runtime_pollReset,
+ // prepares a descriptor for polling in mode, which is 'r' or 'w'.
+ // This returns an error code; the codes are defined above.
++//
+ //go:linkname poll_runtime_pollReset internal/poll.runtime_pollReset
+ func poll_runtime_pollReset(pd *pollDesc, mode int) int {
+ 	errcode := netpollcheckerr(pd, int32(mode))
+@@ -289,6 +290,7 @@ func poll_runtime_pollReset(pd *pollDesc, mode int) int {
+ // waits for a descriptor to be ready for reading or writing,
+ // according to mode, which is 'r' or 'w'.
+ // This returns an error code; the codes are defined above.
++//
+ //go:linkname poll_runtime_pollWait internal/poll.runtime_pollWait
+ func poll_runtime_pollWait(pd *pollDesc, mode int) int {
+ 	errcode := netpollcheckerr(pd, int32(mode))
+@@ -438,6 +440,7 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
+ // whether the fd is ready for reading or writing or both.
+ //
+ // This may run while the world is stopped, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func netpollready(toRun *gList, pd *pollDesc, mode int32) {
+ 	var rg, wg *g
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index 90950af444..22cc513881 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -146,6 +146,7 @@ func netpollBreak() {
+ // delay < 0: blocks indefinitely
+ // delay == 0: does not block, just polls
+ // delay > 0: block for up to that many nanoseconds
++//
+ //go:nowritebarrierrec
+ func netpoll(delay int64) gList {
+ 	var timeout uintptr
+diff --git a/src/runtime/norace_linux_test.go b/src/runtime/norace_linux_test.go
+index b188a2e88b..3521b24655 100644
+--- a/src/runtime/norace_linux_test.go
++++ b/src/runtime/norace_linux_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The file contains tests that cannot run under race detector for some reason.
++//
+ //go:build !race
+ 
+ package runtime_test
+diff --git a/src/runtime/norace_test.go b/src/runtime/norace_test.go
+index d49f2ec0df..3b5eca5341 100644
+--- a/src/runtime/norace_test.go
++++ b/src/runtime/norace_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The file contains tests that cannot run under race detector for some reason.
++//
+ //go:build !race
+ 
+ package runtime_test
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 4d77f0de6d..9ad1caa816 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -452,6 +452,7 @@ func pipe() (r, w int32, errno int32) {
+ // assembly routine; the higher bits (if required), should be provided
+ // by the assembly routine as 0.
+ // The err result is an OS error code such as ENOMEM.
++//
+ //go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	r, err0 := syscall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index f465a3aa3f..8c85b71532 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -141,6 +141,7 @@ func osinit() {
+ func tstart_sysvicall(newm *m) uint32
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	var (
+@@ -267,6 +268,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 292ff94795..15e4929779 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -150,6 +150,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func libpreinit() {
+@@ -296,6 +297,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 9065b76375..8562d7d906 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -195,6 +195,7 @@ func goenvs() {
+ }
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+@@ -292,6 +293,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func libpreinit() {
+@@ -324,6 +326,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	// iOS does not support alternate signal stack.
+@@ -410,6 +413,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index a56706b415..83478143b9 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -142,6 +142,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ func lwp_start(uintptr)
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+@@ -201,6 +202,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
+@@ -247,6 +249,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	s.ss_sp = sp
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index e4d15474d8..23efd1a46e 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -192,6 +192,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
+ func thr_start()
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+@@ -221,6 +222,7 @@ func newosproc(mp *m) {
+ }
+ 
+ // Version of newosproc that doesn't require a valid G.
++//
+ //go:nosplit
+ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+@@ -261,6 +263,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func libpreinit() {
+@@ -318,6 +321,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
+@@ -359,6 +363,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	s.ss_sp = sp
+@@ -431,6 +436,7 @@ func sysauxv(auxv []uintptr) {
+ }
+ 
+ // sysSigaction calls the sigaction system call.
++//
+ //go:nosplit
+ func sysSigaction(sig uint32, new, old *sigactiont) {
+ 	// Use system stack to avoid split stack overflow on amd64
+@@ -442,6 +448,7 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
+ }
+ 
+ // asmSigaction is implemented in assembly.
++//
+ //go:noescape
+ func asmSigaction(sig uintptr, new, old *sigactiont) int32
+ 
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 9ed916705b..7ec1210b73 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -126,6 +126,7 @@ func initsig(preinit bool) {
+ }
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	panic("newosproc: not implemented")
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index efb54ff20e..812a0b4ad3 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -55,6 +55,7 @@ const (
+ //	if(*addr == val) sleep
+ // Might be woken up spuriously; that's allowed.
+ // Don't sleep longer than ns; ns < 0 means forever.
++//
+ //go:nosplit
+ func futexsleep(addr *uint32, val uint32, ns int64) {
+ 	// Some Linux kernels have a bug where futex of
+@@ -73,6 +74,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
+ }
+ 
+ // If any procs are sleeping on addr, wake up at most cnt.
++//
+ //go:nosplit
+ func futexwakeup(addr *uint32, cnt uint32) {
+ 	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE_PRIVATE, cnt, nil, nil, 0)
+@@ -157,6 +159,7 @@ const (
+ func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+@@ -184,6 +187,7 @@ func newosproc(mp *m) {
+ }
+ 
+ // Version of newosproc that doesn't require a valid G.
++//
+ //go:nosplit
+ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+@@ -365,6 +369,7 @@ func goenvs() {
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func libpreinit() {
+@@ -392,6 +397,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
+@@ -497,6 +503,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
+@@ -507,6 +514,7 @@ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
+ 
+ // sysSigaction calls the rt_sigaction system call.
++//
+ //go:nosplit
+ func sysSigaction(sig uint32, new, old *sigactiont) {
+ 	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
+@@ -531,6 +539,7 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
+ }
+ 
+ // rt_sigaction is implemented in assembly.
++//
+ //go:noescape
+ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+ 
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 88a4a8b90e..3cbace38f9 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -201,6 +201,7 @@ func semawakeup(mp *m) {
+ }
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+@@ -248,6 +249,7 @@ func netbsdMstart()
+ // baroque to remove a signal stack here only to add one in minit, but
+ // it's a simple change that keeps NetBSD working like other OS's.
+ // At this point all signals are blocked, so there is no race.
++//
+ //go:nosplit
+ func netbsdMstart0() {
+ 	st := stackt{ss_flags: _SS_DISABLE}
+@@ -304,6 +306,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
+@@ -350,6 +353,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	s.ss_sp = sp
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 1a00b890db..2383dc8428 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -168,6 +168,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
+@@ -214,6 +215,7 @@ func getsig(i uint32) uintptr {
+ }
+ 
+ // setSignaltstackSP sets the ss_sp field of a stackt.
++//
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	s.ss_sp = sp
+diff --git a/src/runtime/os_openbsd_libc.go b/src/runtime/os_openbsd_libc.go
+index ff21eccb4b..4ad2a061bd 100644
+--- a/src/runtime/os_openbsd_libc.go
++++ b/src/runtime/os_openbsd_libc.go
+@@ -17,6 +17,7 @@ var failThreadCreate = []byte("runtime: failed to create new OS thread\n")
+ func mstart_stub()
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func newosproc(mp *m) {
+ 	if false {
+diff --git a/src/runtime/os_openbsd_syscall.go b/src/runtime/os_openbsd_syscall.go
+index 8128c20453..9d67a7ebbd 100644
+--- a/src/runtime/os_openbsd_syscall.go
++++ b/src/runtime/os_openbsd_syscall.go
+@@ -16,6 +16,7 @@ import (
+ func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index a48f5fa88a..e4c9d2fe89 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -39,6 +39,7 @@ func usleep_no_g(usec uint32) {
+ 
+ // write calls the write system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
++//
+ //go:noescape
+ func write1(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 975d460a7d..1a0c0e9363 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -444,6 +444,7 @@ func exit(e int32) {
+ }
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+ 	if false {
+@@ -506,6 +507,7 @@ func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
+ var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
+ 
+ // This runs on a foreign stack, without an m or a g. No stack split.
++//
+ //go:nosplit
+ func badsignal2() {
+ 	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index c76add7802..2f6ec75cf8 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -902,6 +902,7 @@ func semacreate(mp *m) {
+ // May run with m.p==nil, so write barriers are not allowed. This
+ // function is called by newosproc0, so it is also required to
+ // operate without stack guards.
++//
+ //go:nowritebarrierrec
+ //go:nosplit
+ func newosproc(mp *m) {
+@@ -930,6 +931,7 @@ func newosproc(mp *m) {
+ // Used by the C library build mode. On Linux this function would allocate a
+ // stack, but that's not necessary for Windows. No stack guards are present
+ // and the GC has not been initialized, so write barriers will fail.
++//
+ //go:nowritebarrierrec
+ //go:nosplit
+ func newosproc0(mp *m, stk unsafe.Pointer) {
+@@ -1019,6 +1021,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//
+ //go:nosplit
+ func unminit() {
+ 	mp := getg().m
+@@ -1032,6 +1035,7 @@ func unminit() {
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
+ //go:nosplit
+ func mdestroy(mp *m) {
+ 	if mp.highResTimer != 0 {
+@@ -1050,6 +1054,7 @@ func mdestroy(mp *m) {
+ 
+ // Calling stdcall on os stack.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrier
+ //go:nosplit
+ func stdcall(fn stdFunction) uintptr {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 6600410cb6..f2137c6853 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -944,6 +944,7 @@ func gopanic(e any) {
+ 
+ // getargp returns the location where the caller
+ // writes outgoing function call arguments.
++//
+ //go:nosplit
+ //go:noinline
+ func getargp() uintptr {
+@@ -956,6 +957,7 @@ func getargp() uintptr {
+ //
+ // TODO(rsc): Once we commit to CopyStackAlways,
+ // this doesn't need to be nosplit.
++//
+ //go:nosplit
+ func gorecover(argp uintptr) any {
+ 	// Must be in a function running as part of a deferred call during the panic.
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index ff4ecb4c68..1742dc0cdc 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1175,6 +1175,7 @@ func blockInfrequentLong(rate int) {
+ }
+ 
+ // Used by TestBlockProfileBias.
++//
+ //go:linkname blockevent runtime.blockevent
+ func blockevent(cycles int64, skip int)
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f9f82f3867..ae4440786e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -277,6 +277,7 @@ func main() {
+ }
+ 
+ // os_beforeExit is called from os.Exit(0).
++//
+ //go:linkname os_beforeExit os.runtime_beforeExit
+ func os_beforeExit() {
+ 	if raceenabled {
+@@ -319,6 +320,7 @@ func Gosched() {
+ 
+ // goschedguarded yields the processor like gosched, but also checks
+ // for forbidden states and opts out of the yield in those cases.
++//
+ //go:nosplit
+ func goschedguarded() {
+ 	mcall(goschedguarded_m)
+@@ -894,6 +896,7 @@ func freezetheworld() {
+ 
+ // All reads and writes of g's status go through readgstatus, casgstatus
+ // castogscanstatus, casfrom_Gscanstatus.
++//
+ //go:nosplit
+ func readgstatus(gp *g) uint32 {
+ 	return atomic.Load(&gp.atomicstatus)
+@@ -955,6 +958,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ // and casfrom_Gscanstatus instead.
+ // casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that
+ // put it in the Gscan state is finished.
++//
+ //go:nosplit
+ func casgstatus(gp *g, oldval, newval uint32) {
+ 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
+@@ -1028,6 +1032,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ // async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
+ // it might have become Grunnable by the time we get to the cas. If we called casgstatus,
+ // it would loop waiting for the status to go back to Gwaiting, which it never will.
++//
+ //go:nosplit
+ func casgcopystack(gp *g) uint32 {
+ 	for {
+@@ -1387,6 +1392,7 @@ func mstart0() {
+ 
+ // The go:noinline is to guarantee the getcallerpc/getcallersp below are safe,
+ // so that we can set up g0.sched to return to the call of mstart1 above.
++//
+ //go:noinline
+ func mstart1() {
+ 	_g_ := getg()
+@@ -1443,6 +1449,7 @@ func mstartm0() {
+ }
+ 
+ // mPark causes a thread to park itself, returning once woken.
++//
+ //go:nosplit
+ func mPark() {
+ 	gp := getg()
+@@ -1795,6 +1802,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
+ //
+ // When the callback is done with the m, it calls dropm to
+ // put the m back on the list.
++//
+ //go:nosplit
+ func needm() {
+ 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
+@@ -2000,6 +2008,7 @@ var extraMWaiters uint32
+ // to extram. If nilokay is true, then lockextra will
+ // return a nil list head if that's what it finds. If nilokay is false,
+ // lockextra will keep waiting until the list head is no longer nil.
++//
+ //go:nosplit
+ func lockextra(nilokay bool) *m {
+ 	const locked = 1
+@@ -2073,6 +2082,7 @@ var newmHandoff struct {
+ // May run with m.p==nil, so write barriers are not allowed.
+ //
+ // id is optional pre-allocated m ID. Omit by passing -1.
++//
+ //go:nowritebarrierrec
+ func newm(fn func(), _p_ *p, id int64) {
+ 	// allocm adds a new M to allm, but they do not start until created by
+@@ -2245,6 +2255,7 @@ func mspinning() {
+ // comment on acquirem below.
+ //
+ // Must not have write barriers because this may be called without a P.
++//
+ //go:nowritebarrierrec
+ func startm(_p_ *p, spinning bool) {
+ 	// Disable preemption.
+@@ -2329,6 +2340,7 @@ func startm(_p_ *p, spinning bool) {
+ 
+ // Hands off P from syscall or locked M.
+ // Always runs without a P, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func handoffp(_p_ *p) {
+ 	// handoffp must start an M in any situation where
+@@ -2432,6 +2444,7 @@ func stoplockedm() {
+ 
+ // Schedules the locked m to run the locked gp.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func startlockedm(gp *g) {
+ 	_g_ := getg()
+@@ -3248,6 +3261,7 @@ func dropg() {
+ // If the time when the next timer should run is not 0,
+ // it is always larger than the returned time.
+ // We pass now in and out to avoid extra calls of nanotime.
++//
+ //go:yeswritebarrierrec
+ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+ 	// If it's not yet time for the first timer, or the first adjusted
+@@ -3680,6 +3694,7 @@ func entersyscall_gcwait() {
+ }
+ 
+ // The same as entersyscall(), but with a hint that the syscall is blocking.
++//
+ //go:nosplit
+ func entersyscallblock() {
+ 	_g_ := getg()
+@@ -3939,6 +3954,7 @@ func exitsyscall0(gp *g) {
+ }
+ 
+ // Called from syscall package before fork.
++//
+ //go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
+ //go:nosplit
+ func syscall_runtime_BeforeFork() {
+@@ -3959,6 +3975,7 @@ func syscall_runtime_BeforeFork() {
+ }
+ 
+ // Called from syscall package after fork in parent.
++//
+ //go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
+ //go:nosplit
+ func syscall_runtime_AfterFork() {
+@@ -4009,6 +4026,7 @@ func syscall_runtime_AfterForkInChild() {
+ var pendingPreemptSignals uint32
+ 
+ // Called from syscall package before Exec.
++//
+ //go:linkname syscall_runtime_BeforeExec syscall.runtime_BeforeExec
+ func syscall_runtime_BeforeExec() {
+ 	// Prevent thread creation during exec.
+@@ -4024,6 +4042,7 @@ func syscall_runtime_BeforeExec() {
+ }
+ 
+ // Called from syscall package after Exec.
++//
+ //go:linkname syscall_runtime_AfterExec syscall.runtime_AfterExec
+ func syscall_runtime_AfterExec() {
+ 	execLock.unlock()
+@@ -4305,6 +4324,7 @@ func Breakpoint() {
+ // dolockOSThread is called by LockOSThread and lockOSThread below
+ // after they modify m.locked. Do not allow preemption during this call,
+ // or else the m might be different in this function than in the caller.
++//
+ //go:nosplit
+ func dolockOSThread() {
+ 	if GOARCH == "wasm" {
+@@ -4356,6 +4376,7 @@ func lockOSThread() {
+ // dounlockOSThread is called by UnlockOSThread and unlockOSThread below
+ // after they update m->locked. Do not allow preemption during this call,
+ // or else the m might be in different in this function than in the caller.
++//
+ //go:nosplit
+ func dounlockOSThread() {
+ 	if GOARCH == "wasm" {
+@@ -4438,6 +4459,7 @@ func _VDSO()                      { _VDSO() }
+ 
+ // Called if we receive a SIGPROF signal.
+ // Called by the signal handler, may run during STW.
++//
+ //go:nowritebarrierrec
+ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	if prof.hz == 0 {
+@@ -5446,6 +5468,7 @@ func schedEnabled(gp *g) bool {
+ // Put mp on midle list.
+ // sched.lock must be held.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func mput(mp *m) {
+ 	assertLockHeld(&sched.lock)
+@@ -5459,6 +5482,7 @@ func mput(mp *m) {
+ // Try to get an m from midle list.
+ // sched.lock must be held.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func mget() *m {
+ 	assertLockHeld(&sched.lock)
+@@ -5474,6 +5498,7 @@ func mget() *m {
+ // Put gp on the global runnable queue.
+ // sched.lock must be held.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func globrunqput(gp *g) {
+ 	assertLockHeld(&sched.lock)
+@@ -5485,6 +5510,7 @@ func globrunqput(gp *g) {
+ // Put gp at the head of the global runnable queue.
+ // sched.lock must be held.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func globrunqputhead(gp *g) {
+ 	assertLockHeld(&sched.lock)
+@@ -5497,6 +5523,7 @@ func globrunqputhead(gp *g) {
+ // This clears *batch.
+ // sched.lock must be held.
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func globrunqputbatch(batch *gQueue, n int32) {
+ 	assertLockHeld(&sched.lock)
+@@ -5609,6 +5636,7 @@ func updateTimerPMask(pp *p) {
+ // sched.lock must be held.
+ //
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func pidleput(_p_ *p) {
+ 	assertLockHeld(&sched.lock)
+@@ -5628,6 +5656,7 @@ func pidleput(_p_ *p) {
+ // sched.lock must be held.
+ //
+ // May run during STW, so write barriers are not allowed.
++//
+ //go:nowritebarrierrec
+ func pidleget() *p {
+ 	assertLockHeld(&sched.lock)
+@@ -6083,6 +6112,7 @@ func sync_atomic_runtime_procUnpin() {
+ }
+ 
+ // Active spinning for sync.Mutex.
++//
+ //go:linkname sync_runtime_canSpin sync.runtime_canSpin
+ //go:nosplit
+ func sync_runtime_canSpin(i int) bool {
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 719d0d1aee..c49d6ae8a8 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1023,6 +1023,7 @@ func TestLockOSThreadTemplateThreadRace(t *testing.T) {
+ }
+ 
+ // fakeSyscall emulates a system call.
++//
+ //go:nosplit
+ func fakeSyscall(duration time.Duration) {
+ 	runtime.Entersyscall()
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index e019923bb5..4694288082 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -233,6 +233,7 @@ func raceSymbolizeData(ctx *symbolizeDataContext) {
+ }
+ 
+ // Race runtime functions called via runtime·racecall.
++//
+ //go:linkname __tsan_init __tsan_init
+ var __tsan_init byte
+ 
+@@ -285,6 +286,7 @@ var __tsan_go_ignore_sync_end byte
+ var __tsan_report_count byte
+ 
+ // Mimic what cmd/cgo would do.
++//
+ //go:cgo_import_static __tsan_init
+ //go:cgo_import_static __tsan_fini
+ //go:cgo_import_static __tsan_proc_create
+@@ -304,6 +306,7 @@ var __tsan_report_count byte
+ //go:cgo_import_static __tsan_report_count
+ 
+ // These are called from race_amd64.s.
++//
+ //go:cgo_import_static __tsan_read
+ //go:cgo_import_static __tsan_read_pc
+ //go:cgo_import_static __tsan_read_range
+@@ -348,6 +351,7 @@ func racecallbackthunk(uintptr)
+ func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
+ 
+ // checks if the address has shadow (i.e. heap or data/bss)
++//
+ //go:nosplit
+ func isvalidaddr(addr unsafe.Pointer) bool {
+ 	return racearenastart <= uintptr(addr) && uintptr(addr) < racearenaend ||
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 65e1e0eebc..5429aa2e5b 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -53,6 +53,7 @@ var (
+ )
+ 
+ // nosplit for use in linux startup sysargs
++//
+ //go:nosplit
+ func argv_index(argv **byte, i int32) *byte {
+ 	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
+@@ -438,6 +439,7 @@ func setTraceback(level string) {
+ // int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
+ // Handles overflow in a time-specific manner.
+ // This keeps us within no-split stack limits on 32-bit processors.
++//
+ //go:nosplit
+ func timediv(v int64, div int32, rem *int32) int32 {
+ 	res := int32(0)
+@@ -493,18 +495,21 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
+ }
+ 
+ // reflect_resolveNameOff resolves a name offset from a base pointer.
++//
+ //go:linkname reflect_resolveNameOff reflect.resolveNameOff
+ func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+ 	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+ }
+ 
+ // reflect_resolveTypeOff resolves an *rtype offset from a base type.
++//
+ //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
+ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ 	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+ }
+ 
+ // reflect_resolveTextOff resolves a function pointer offset from a base type.
++//
+ //go:linkname reflect_resolveTextOff reflect.resolveTextOff
+ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ 	return (*_type)(rtype).textOff(textOff(off))
+@@ -512,18 +517,21 @@ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ }
+ 
+ // reflectlite_resolveNameOff resolves a name offset from a base pointer.
++//
+ //go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
+ func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+ 	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+ }
+ 
+ // reflectlite_resolveTypeOff resolves an *rtype offset from a base type.
++//
+ //go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
+ func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ 	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+ }
+ 
+ // reflect_addReflectOff adds a pointer to the reflection offset lookup map.
++//
+ //go:linkname reflect_addReflectOff reflect.addReflectOff
+ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+ 	reflectOffsLock()
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index dc18bf927e..b903cc8011 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -272,6 +272,7 @@ func (gp *guintptr) cas(old, new guintptr) bool {
+ 
+ // setGNoWB performs *gp = new without a write barrier.
+ // For times when it's impractical to use a guintptr.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func setGNoWB(gp **g, new *g) {
+@@ -305,6 +306,7 @@ func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
+ 
+ // setMNoWB performs *mp = new without a write barrier.
+ // For times when it's impractical to use an muintptr.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func setMNoWB(mp **m, new *m) {
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 12f261bdd2..1dc04ac55d 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -196,6 +196,7 @@ func TestSetPanicOnFault(t *testing.T) {
+ // testSetPanicOnFault tests one potentially faulting address.
+ // It deliberately constructs and uses an invalid pointer,
+ // so mark it as nocheckptr.
++//
+ //go:nocheckptr
+ func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
+ 	if GOOS == "js" {
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index f94c1aa891..e83deee083 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -475,6 +475,7 @@ func less(a, b uint32) bool {
+ // notifyListAdd adds the caller to a notify list such that it can receive
+ // notifications. The caller must eventually call notifyListWait to wait for
+ // such a notification, passing the returned ticket number.
++//
+ //go:linkname notifyListAdd sync.runtime_notifyListAdd
+ func notifyListAdd(l *notifyList) uint32 {
+ 	// This may be called concurrently, for example, when called from
+@@ -484,6 +485,7 @@ func notifyListAdd(l *notifyList) uint32 {
+ 
+ // notifyListWait waits for a notification. If one has been sent since
+ // notifyListAdd was called, it returns immediately. Otherwise, it blocks.
++//
+ //go:linkname notifyListWait sync.runtime_notifyListWait
+ func notifyListWait(l *notifyList, t uint32) {
+ 	lockWithRank(&l.lock, lockRankNotifyList)
+@@ -518,6 +520,7 @@ func notifyListWait(l *notifyList, t uint32) {
+ }
+ 
+ // notifyListNotifyAll notifies all entries in the list.
++//
+ //go:linkname notifyListNotifyAll sync.runtime_notifyListNotifyAll
+ func notifyListNotifyAll(l *notifyList) {
+ 	// Fast-path: if there are no new waiters since the last notification
+@@ -550,6 +553,7 @@ func notifyListNotifyAll(l *notifyList) {
+ }
+ 
+ // notifyListNotifyOne notifies one entry in the list.
++//
+ //go:linkname notifyListNotifyOne sync.runtime_notifyListNotifyOne
+ func notifyListNotifyOne(l *notifyList) {
+ 	// Fast-path: if there are no new waiters since the last notification
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 0e11c57683..8bde739c64 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -108,6 +108,7 @@ var signalsOK bool
+ 
+ // Initialize signals.
+ // Called by libpreinit so runtime may not be initialized.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func initsig(preinit bool) {
+@@ -260,6 +261,7 @@ func sigignore(sig uint32) {
+ // back to the default. This is called by the child after a fork, so that
+ // we can enable the signal mask for the exec without worrying about
+ // running a signal handler in the child.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func clearSignalHandlers() {
+@@ -519,6 +521,7 @@ func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ // sigprofNonGoPC is called when a profiling signal arrived on a
+ // non-Go thread and we have a single PC value, not a stack trace.
+ // g is nil, and what we can do is very limited.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigprofNonGoPC(pc uintptr) {
+@@ -536,6 +539,7 @@ func sigprofNonGoPC(pc uintptr) {
+ // We do this in case some non-Go code called sigaltstack.
+ // This reports whether the stack was adjusted, and if so stores the old
+ // signal stack in *gsigstack.
++//
+ //go:nosplit
+ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
+ 	sp := uintptr(unsafe.Pointer(&sig))
+@@ -795,6 +799,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ // getg().throwsplit, since sigpanic may need to grow the stack.
+ //
+ // This is exported via linkname to assembly in runtime/cgo.
++//
+ //go:linkname sigpanic
+ func sigpanic() {
+ 	g := getg()
+@@ -843,6 +848,7 @@ func sigpanic() {
+ // dieFromSignal kills the program with a signal.
+ // This provides the expected exit status for the shell.
+ // This is only called with fatal signals expected to kill the process.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func dieFromSignal(sig uint32) {
+@@ -1015,6 +1021,7 @@ func signalDuringFork(sig uint32) {
+ var badginsignalMsg = "fatal: bad g in signal handler\n"
+ 
+ // This runs on a foreign stack, without an m or a g. No stack split.
++//
+ //go:nosplit
+ //go:norace
+ //go:nowritebarrierrec
+@@ -1044,6 +1051,7 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+ // signal to the handler that was installed before Go's. Returns whether the
+ // signal was forwarded.
+ // This is called by the signal handler, and the world may be stopped.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+@@ -1113,6 +1121,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ // thread calls a Go function.
+ // This is nosplit and nowritebarrierrec because it is called by needm
+ // which may be called on a non-Go thread with no g available.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigsave(p *sigset) {
+@@ -1124,6 +1133,7 @@ func sigsave(p *sigset) {
+ // calls a Go function.
+ // This is nosplit and nowritebarrierrec because it is called by dropm
+ // after g has been cleared.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func msigrestore(sigmask sigset) {
+@@ -1143,6 +1153,7 @@ var sigsetAllExiting = sigset_all
+ // definition of sigset_all is used.
+ // This is nosplit and nowritebarrierrec because it is called by needm
+ // which may be called on a non-Go thread with no g available.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigblock(exiting bool) {
+@@ -1157,6 +1168,7 @@ func sigblock(exiting bool) {
+ // This is nosplit and nowritebarrierrec because it is called from
+ // dieFromSignal, which can be called by sigfwdgo while running in the
+ // signal handler, on the signal stack, with no g available.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func unblocksig(sig uint32) {
+@@ -1215,6 +1227,7 @@ func minitSignalMask() {
+ 
+ // unminitSignals is called from dropm, via unminit, to undo the
+ // effect of calling minit on a non-Go thread.
++//
+ //go:nosplit
+ func unminitSignals() {
+ 	if getg().m.newSigstack {
+@@ -1264,6 +1277,7 @@ type gsignalStack struct {
+ // It saves the old values in *old for use by restoreGsignalStack.
+ // This is used when handling a signal if non-Go code has set the
+ // alternate signal stack.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func setGsignalStack(st *stackt, old *gsignalStack) {
+@@ -1283,6 +1297,7 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
+ 
+ // restoreGsignalStack restores the gsignal stack to the value it had
+ // before entering the signal handler.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func restoreGsignalStack(st *gsignalStack) {
+@@ -1294,6 +1309,7 @@ func restoreGsignalStack(st *gsignalStack) {
+ }
+ 
+ // signalstack sets the current thread's alternate signal stack to s.
++//
+ //go:nosplit
+ func signalstack(s *stack) {
+ 	st := stackt{ss_size: s.hi - s.lo}
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index fdf99d94a2..49502cbed3 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -125,6 +125,7 @@ Send:
+ 
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_recv os/signal.signal_recv
+ func signal_recv() uint32 {
+ 	for {
+@@ -173,6 +174,7 @@ func signal_recv() uint32 {
+ // the signal(s) in question, and here we are just waiting to make sure
+ // that all the signals have been delivered to the user channels
+ // by the os/signal package.
++//
+ //go:linkname signalWaitUntilIdle os/signal.signalWaitUntilIdle
+ func signalWaitUntilIdle() {
+ 	// Although the signals we care about have been removed from
+@@ -193,6 +195,7 @@ func signalWaitUntilIdle() {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_enable os/signal.signal_enable
+ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+@@ -221,6 +224,7 @@ func signal_enable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_disable os/signal.signal_disable
+ func signal_disable(s uint32) {
+ 	if s >= uint32(len(sig.wanted)*32) {
+@@ -234,6 +238,7 @@ func signal_disable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_ignore os/signal.signal_ignore
+ func signal_ignore(s uint32) {
+ 	if s >= uint32(len(sig.wanted)*32) {
+@@ -253,6 +258,7 @@ func signal_ignore(s uint32) {
+ // sigInitIgnored marks the signal as already ignored. This is called at
+ // program start by initsig. In a shared library initsig is called by
+ // libpreinit, so the runtime may not be initialized yet.
++//
+ //go:nosplit
+ func sigInitIgnored(s uint32) {
+ 	i := sig.ignored[s/32]
+@@ -261,6 +267,7 @@ func sigInitIgnored(s uint32) {
+ }
+ 
+ // Checked by signal handlers.
++//
+ //go:linkname signal_ignored os/signal.signal_ignored
+ func signal_ignored(s uint32) bool {
+ 	i := atomic.Load(&sig.ignored[s/32])
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index d5fe8f8b35..9ed6fb5886 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -94,6 +94,7 @@ func sendNote(s *byte) bool {
+ 
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_recv os/signal.signal_recv
+ func signal_recv() string {
+ 	for {
+@@ -117,6 +118,7 @@ func signal_recv() string {
+ // the signal(s) in question, and here we are just waiting to make sure
+ // that all the signals have been delivered to the user channels
+ // by the os/signal package.
++//
+ //go:linkname signalWaitUntilIdle os/signal.signalWaitUntilIdle
+ func signalWaitUntilIdle() {
+ 	for {
+@@ -131,6 +133,7 @@ func signalWaitUntilIdle() {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_enable os/signal.signal_enable
+ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+@@ -141,11 +144,13 @@ func signal_enable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_disable os/signal.signal_disable
+ func signal_disable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//
+ //go:linkname signal_ignore os/signal.signal_ignore
+ func signal_ignore(s uint32) {
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index eec29075b9..bef097c87e 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -325,6 +325,7 @@ func gobytes(p *byte, n int) (b []byte) {
+ }
+ 
+ // This is exported via linkname to assembly in syscall (for Plan9).
++//
+ //go:linkname gostring
+ func gostring(p *byte) string {
+ 	l := findnull(p)
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index cd7c91029b..8c4ab3ed4e 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -12,6 +12,7 @@ import (
+ )
+ 
+ // Should be a built-in for unsafe.Pointer?
++//
+ //go:nosplit
+ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(uintptr(p) + x)
+@@ -111,6 +112,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ func memmove(to, from unsafe.Pointer, n uintptr)
+ 
+ // Outside assembly calls memmove. Make sure it has ABI wrappers.
++//
+ //go:linkname memmove
+ 
+ //go:linkname reflect_memmove reflect.memmove
+@@ -165,6 +167,7 @@ func net_fastrand() uint32 { return fastrand() }
+ func os_fastrand() uint32 { return fastrand() }
+ 
+ // in internal/bytealg/equal_*.s
++//
+ //go:noescape
+ func memequal(a, b unsafe.Pointer, size uintptr) bool
+ 
+@@ -173,6 +176,7 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
+ // output depends on the input.  noescape is inlined and currently
+ // compiles down to zero instructions.
+ // USE CAREFULLY!
++//
+ //go:nosplit
+ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ 	x := uintptr(p)
+@@ -235,6 +239,7 @@ func breakpoint()
+ // Arguments passed through to reflectcall do not escape. The type is used
+ // only in a very limited callee of reflectcall, the stackArgs are copied, and
+ // regArgs is only used in the reflectcall frame.
++//
+ //go:noescape
+ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
+ 
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 9aa965454d..94a888dec6 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -24,6 +24,7 @@ func usleep_no_g(usec uint32) {
+ 
+ // write calls the write system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
++//
+ //go:noescape
+ func write1(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
+diff --git a/src/runtime/stubs_linux.go b/src/runtime/stubs_linux.go
+index 06c14e2160..2367dc2bd0 100644
+--- a/src/runtime/stubs_linux.go
++++ b/src/runtime/stubs_linux.go
+@@ -13,6 +13,7 @@ func sbrk0() uintptr
+ // Called from write_err_android.go only, but defined in sys_linux_*.s;
+ // declared here (instead of in write_err_android.go) for go vet on non-android builds.
+ // The return value is the raw syscall result, which may encode an error number.
++//
+ //go:noescape
+ func access(name *byte, mode int32) int32
+ func connect(fd int32, addr unsafe.Pointer, len int32) int32
+diff --git a/src/runtime/stubs_ppc64.go b/src/runtime/stubs_ppc64.go
+index 07127629d1..6919b748f0 100644
+--- a/src/runtime/stubs_ppc64.go
++++ b/src/runtime/stubs_ppc64.go
+@@ -7,5 +7,6 @@
+ package runtime
+ 
+ // This is needed for vet
++//
+ //go:noescape
+ func callCgoSigaction(sig uintptr, new, old *sigactiont) int32
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ee4db47314..ad34b68c7d 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -494,6 +494,7 @@ var modulesSlice *[]*moduledata // see activeModules
+ //
+ // This is nosplit/nowritebarrier because it is called by the
+ // cgo pointer checking code.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func activeModules() []*moduledata {
+@@ -659,6 +660,7 @@ func moduledataverify1(datap *moduledata) {
+ // relocated baseaddr to compute the function address.
+ //
+ // It is nosplit because it is part of the findfunc implementation.
++//
+ //go:nosplit
+ func (md *moduledata) textAddr(off32 uint32) uintptr {
+ 	off := uintptr(off32)
+@@ -683,6 +685,7 @@ func (md *moduledata) textAddr(off32 uint32) uintptr {
+ // to md.text, and returns if the PC is in any Go text section.
+ //
+ // It is nosplit because it is part of the findfunc implementation.
++//
+ //go:nosplit
+ func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
+ 	res := uint32(pc - md.text)
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index a83afc3385..79a114b02b 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -29,6 +29,7 @@ func TestCaller(t *testing.T) {
+ 
+ // These are marked noinline so that we can use FuncForPC
+ // in testCallerBar.
++//
+ //go:noinline
+ func testCallerFoo(t *testing.T) {
+ 	testCallerBar(t)
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 58b3a9171c..ea81fd4f46 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -170,6 +170,7 @@ func pthread_kill_trampoline()
+ // mmap is used to do low-level memory allocation via mmap. Don't allow stack
+ // splits, since this function (used by sysAlloc) is called in a lot of low-level
+ // parts of the runtime and callers often assume it won't acquire any locks.
++//
+ //go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	args := struct {
+@@ -236,6 +237,7 @@ func close_trampoline()
+ //go:cgo_unsafe_args
+ //
+ // This is exported via linkname to assembly in runtime/cgo.
++//
+ //go:linkname exit
+ func exit(code int32) {
+ 	libcCall(unsafe.Pointer(abi.FuncPCABI0(exit_trampoline)), unsafe.Pointer(&code))
+diff --git a/src/runtime/sys_libc.go b/src/runtime/sys_libc.go
+index 7012b4167e..0c6f13ca9f 100644
+--- a/src/runtime/sys_libc.go
++++ b/src/runtime/sys_libc.go
+@@ -12,6 +12,7 @@ import "unsafe"
+ // fn is the raw pc value of the entry point of the desired function.
+ // Switches to the system stack, if not already there.
+ // Preserves the calling point as the location where a profiler traceback will begin.
++//
+ //go:nosplit
+ func libcCall(fn, arg unsafe.Pointer) int32 {
+ 	// Leave caller's PC/SP/G around for traceback.
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index d174d87a49..f936e0cfc3 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -12,6 +12,7 @@ import (
+ )
+ 
+ // This is exported via linkname to assembly in runtime/cgo.
++//
+ //go:linkname exit
+ //go:nosplit
+ //go:cgo_unsafe_args
+@@ -45,6 +46,7 @@ func thrkill_trampoline()
+ // mmap is used to do low-level memory allocation via mmap. Don't allow stack
+ // splits, since this function (used by sysAlloc) is called in a lot of low-level
+ // parts of the runtime and callers often assume it won't acquire any locks.
++//
+ //go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	args := struct {
+diff --git a/src/runtime/syscall_aix.go b/src/runtime/syscall_aix.go
+index 79b51240e9..f294922e7d 100644
+--- a/src/runtime/syscall_aix.go
++++ b/src/runtime/syscall_aix.go
+@@ -126,6 +126,7 @@ func syscall_chroot1(path uintptr) (err uintptr) {
+ }
+ 
+ // like close, but must not split stack, for fork.
++//
+ //go:linkname syscall_close syscall.close
+ //go:nosplit
+ func syscall_close(fd int32) int32 {
+@@ -148,6 +149,7 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
+ }
+ 
+ // like exit, but must not split stack, for fork.
++//
+ //go:linkname syscall_exit syscall.exit
+ //go:nosplit
+ func syscall_exit(code uintptr) {
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 79775711ae..e7bab3b23f 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -85,6 +85,7 @@ func syscall_chroot(path uintptr) (err uintptr) {
+ }
+ 
+ // like close, but must not split stack, for forkx.
++//
+ //go:nosplit
+ //go:linkname syscall_close
+ func syscall_close(fd int32) int32 {
+@@ -113,6 +114,7 @@ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
+ }
+ 
+ // like exit, but must not split stack, for forkx.
++//
+ //go:nosplit
+ //go:linkname syscall_exit
+ func syscall_exit(code uintptr) {
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 9c38facf08..a841a31a27 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -399,6 +399,7 @@ const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
+ // parameter and the important SEARCH_SYSTEM32 argument. But on systems that
+ // do not have that option, absoluteFilepath should contain a fallback
+ // to the full path inside of system32 for use with vanilla LoadLibrary.
++//
+ //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
+ //go:nosplit
+ //go:cgo_unsafe_args
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 034a1d84db..37f8f40cfb 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -469,6 +469,7 @@ func sum5andPair(i1, i2, i3, i4, i5 uint8Pair) uintptr {
+ // that insufficient spill slots allocated (according to the ABI)
+ // may cause compiler-generated spills to clobber the return PC.
+ // Then, the GC stack scanning will catch that.
++//
+ //go:registerparams
+ func sum9andGC(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint32) uintptr {
+ 	runtime.GC()
+diff --git a/src/runtime/testdata/testprogcgo/dropm_stub.go b/src/runtime/testdata/testprogcgo/dropm_stub.go
+index f7f142c1fd..6997cfd3fa 100644
+--- a/src/runtime/testdata/testprogcgo/dropm_stub.go
++++ b/src/runtime/testdata/testprogcgo/dropm_stub.go
+@@ -7,5 +7,6 @@ package main
+ import _ "unsafe" // for go:linkname
+ 
+ // Defined in the runtime package.
++//
+ //go:linkname runtime_getm_for_test runtime.getm
+ func runtime_getm_for_test() uintptr
+diff --git a/src/runtime/testdata/testprogcgo/eintr.go b/src/runtime/testdata/testprogcgo/eintr.go
+index b35b280a76..6e9677f988 100644
+--- a/src/runtime/testdata/testprogcgo/eintr.go
++++ b/src/runtime/testdata/testprogcgo/eintr.go
+@@ -70,6 +70,7 @@ func EINTR() {
+ 
+ // spin does CPU bound spinning and allocating for a millisecond,
+ // to get a SIGURG.
++//
+ //go:noinline
+ func spin() (float64, []byte) {
+ 	stop := time.Now().Add(time.Millisecond)
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index a9ad620776..3ff3b668c0 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -173,6 +173,7 @@ const verifyTimers = false
+ // time.now is implemented in assembly.
+ 
+ // timeSleep puts the current goroutine to sleep for at least ns nanoseconds.
++//
+ //go:linkname timeSleep time.Sleep
+ func timeSleep(ns int64) {
+ 	if ns <= 0 {
+@@ -205,6 +206,7 @@ func resetForSleep(gp *g, ut unsafe.Pointer) bool {
+ }
+ 
+ // startTimer adds t to the timer heap.
++//
+ //go:linkname startTimer time.startTimer
+ func startTimer(t *timer) {
+ 	if raceenabled {
+@@ -215,12 +217,14 @@ func startTimer(t *timer) {
+ 
+ // stopTimer stops a timer.
+ // It reports whether t was stopped before being run.
++//
+ //go:linkname stopTimer time.stopTimer
+ func stopTimer(t *timer) bool {
+ 	return deltimer(t)
+ }
+ 
+ // resetTimer resets an inactive timer, adding it to the heap.
++//
+ //go:linkname resetTimer time.resetTimer
+ // Reports whether the timer was modified before it was run.
+ func resetTimer(t *timer, when int64) bool {
+@@ -231,6 +235,7 @@ func resetTimer(t *timer, when int64) bool {
+ }
+ 
+ // modTimer modifies an existing timer.
++//
+ //go:linkname modTimer time.modTimer
+ func modTimer(t *timer, when, period int64, f func(any, uintptr), arg any, seq uintptr) {
+ 	modtimer(t, when, period, f, arg, seq)
+@@ -737,6 +742,7 @@ func addAdjustedTimers(pp *p, moved []*timer) {
+ // should wake up the netpoller. It returns 0 if there are no timers.
+ // This function is invoked when dropping a P, and must run without
+ // any write barriers.
++//
+ //go:nowritebarrierrec
+ func nobarrierWakeTime(pp *p) int64 {
+ 	next := int64(atomic.Load64(&pp.timer0When))
+@@ -753,6 +759,7 @@ func nobarrierWakeTime(pp *p) int64 {
+ // when the first timer should run.
+ // The caller must have locked the timers for pp.
+ // If a timer is run, this will temporarily unlock the timers.
++//
+ //go:systemstack
+ func runtimer(pp *p, now int64) int64 {
+ 	for {
+@@ -819,6 +826,7 @@ func runtimer(pp *p, now int64) int64 {
+ // runOneTimer runs a single timer.
+ // The caller must have locked the timers for pp.
+ // This will temporarily unlock the timers while running the timer function.
++//
+ //go:systemstack
+ func runOneTimer(pp *p, t *timer, now int64) {
+ 	if raceenabled {
+diff --git a/src/runtime/time_fake.go b/src/runtime/time_fake.go
+index b5e0463588..9e24f70931 100644
+--- a/src/runtime/time_fake.go
++++ b/src/runtime/time_fake.go
+@@ -44,6 +44,7 @@ func time_now() (sec int64, nsec int32, mono int64) {
+ // write is like the Unix write system call.
+ // We have to avoid write barriers to avoid potential deadlock
+ // on write calls.
++//
+ //go:nowritebarrierrec
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+ 	if !(fd == 1 || fd == 2) {
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index cff2000767..2ebdd44e94 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -280,6 +280,7 @@ func vdsoauxv(tag, val uintptr) {
+ }
+ 
+ // vdsoMarker reports whether PC is on the VDSO page.
++//
+ //go:nosplit
+ func inVDSOPage(pc uintptr) bool {
+ 	for _, k := range vdsoSymbolKeys {
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index ba4df618bf..3caddabd4e 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -22,6 +22,7 @@ type Builder struct {
+ // noescape is inlined and currently compiles down to zero instructions.
+ // USE CAREFULLY!
+ // This was copied from the runtime; see issues 23382 and 7921.
++//
+ //go:nosplit
+ //go:nocheckptr
+ func noescape(p unsafe.Pointer) unsafe.Pointer {
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index bb20043a54..5e38597441 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Pool is no-op under race detector, so all these tests do not work.
++//
+ //go:build !race
+ 
+ package sync_test
+diff --git a/src/syscall/dir_plan9.go b/src/syscall/dir_plan9.go
+index 4ed052de76..1667cbc02f 100644
+--- a/src/syscall/dir_plan9.go
++++ b/src/syscall/dir_plan9.go
+@@ -184,6 +184,7 @@ func gbit8(b []byte) (uint8, []byte) {
+ }
+ 
+ // gbit16 reads a 16-bit number in little-endian order from b and returns it with the remaining slice of b.
++//
+ //go:nosplit
+ func gbit16(b []byte) (uint16, []byte) {
+ 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 530b48cb70..4762ae751a 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -49,6 +49,7 @@ func runtime_AfterForkInChild()
+ // For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//
+ //go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+diff --git a/src/syscall/exec_freebsd.go b/src/syscall/exec_freebsd.go
+index 90793fe83f..851b8fbd06 100644
+--- a/src/syscall/exec_freebsd.go
++++ b/src/syscall/exec_freebsd.go
+@@ -54,6 +54,7 @@ func runtime_AfterForkInChild()
+ // For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//
+ //go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index c8549c4964..aee1b8c98a 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -75,6 +75,7 @@ func init() {
+ // because we need to avoid lazy-loading the functions (might malloc,
+ // split the stack, or acquire mutexes). We can't call RawSyscall
+ // because it's not safe even for BSD-subsystem calls.
++//
+ //go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+diff --git a/src/syscall/exec_libc2.go b/src/syscall/exec_libc2.go
+index 91a39ba1b8..9eb61a5d35 100644
+--- a/src/syscall/exec_libc2.go
++++ b/src/syscall/exec_libc2.go
+@@ -50,6 +50,7 @@ func runtime_AfterForkInChild()
+ // For the same reason compiler does not race instrument it.
+ // The calls to rawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//
+ //go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 0f0dee8ea5..6d4b6939ad 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -77,6 +77,7 @@ func runtime_AfterForkInChild()
+ // For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//
+ //go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Set up and fork. This returns immediately in the parent or
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index c469fe1812..6680e6f2ef 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -19,6 +19,7 @@ var ForkLock sync.RWMutex
+ // gstringb reads a non-empty string from b, prefixed with a 16-bit length in little-endian order.
+ // It returns the string as a byte slice, or nil if b is too short to contain the length or
+ // the full string.
++//
+ //go:nosplit
+ func gstringb(b []byte) []byte {
+ 	if len(b) < 2 {
+@@ -37,6 +38,7 @@ const nameOffset = 39
+ // gdirname returns the first filename from a buffer of directory entries,
+ // and a slice containing the remaining directory entries.
+ // If the buffer doesn't start with a valid directory entry, the returned name is nil.
++//
+ //go:nosplit
+ func gdirname(buf []byte) (name []byte, rest []byte) {
+ 	if len(buf) < 2 {
+@@ -119,6 +121,7 @@ var dupdev, _ = BytePtrFromString("#d")
+ // no rescheduling, no malloc calls, and no new stack segments.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//
+ //go:norace
+ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, pipe int, rflag int) (pid int, err error) {
+ 	// Declare all variables at top in case any
+@@ -302,6 +305,7 @@ childerror1:
+ }
+ 
+ // close the numbered file descriptor, unless it is fd1, fd2, or a member of fds.
++//
+ //go:nosplit
+ func closeFdExcept(n int, fd1 int, fd2 int, fds []int) {
+ 	if n == fd1 || n == fd2 {
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index f74a79c285..a00d8c94a2 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -968,6 +968,7 @@ func Getpgrp() (pid int) {
+ // Provided by runtime.syscall_runtime_doAllThreadsSyscall which stops the
+ // world and invokes the syscall on each OS thread. Once this function returns,
+ // all threads are in sync.
++//
+ //go:uintptrescapes
+ func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
+@@ -986,6 +987,7 @@ func runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2,
+ // AllThreadsSyscall is unaware of any threads that are launched
+ // explicitly by cgo linked code, so the function always returns
+ // ENOTSUP in binaries that use cgo.
++//
+ //go:uintptrescapes
+ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+ 	if cgo_libc_setegid != nil {
+@@ -997,6 +999,7 @@ func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+ 
+ // AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
+ // arguments.
++//
+ //go:uintptrescapes
+ func AllThreadsSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+ 	if cgo_libc_setegid != nil {
+@@ -1007,6 +1010,7 @@ func AllThreadsSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
+ }
+ 
+ // linked by runtime.cgocall.go
++//
+ //go:uintptrescapes
+ func cgocaller(unsafe.Pointer, ...uintptr) uintptr
+ 
+diff --git a/src/time/time.go b/src/time/time.go
+index 88301ec16b..7dc1e49bc1 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1068,6 +1068,7 @@ func daysSinceEpoch(year int) uint64 {
+ func now() (sec int64, nsec int32, mono int64)
+ 
+ // runtimeNano returns the current value of the runtime clock in nanoseconds.
++//
+ //go:linkname runtimeNano runtime.nanotime
+ func runtimeNano() int64
+ 
+diff --git a/src/time/tzdata/tzdata.go b/src/time/tzdata/tzdata.go
+index 25725bd84d..324de5cd85 100644
+--- a/src/time/tzdata/tzdata.go
++++ b/src/time/tzdata/tzdata.go
+@@ -29,6 +29,7 @@ import (
+ )
+ 
+ // registerLoadFromEmbeddedTZData is defined in package time.
++//
+ //go:linkname registerLoadFromEmbeddedTZData time.registerLoadFromEmbeddedTZData
+ func registerLoadFromEmbeddedTZData(func(string) (string, error))
+ 

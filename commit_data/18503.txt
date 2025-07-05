@@ -13,6 +13,16 @@ Date:   Thu Feb 13 20:30:42 2014 +0100
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/63410043
-
+---
  src/lib9/utf/utfdef.h | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/lib9/utf/utfdef.h b/src/lib9/utf/utfdef.h
+index adc6d95fb5..4bbdfc643c 100644
+--- a/src/lib9/utf/utfdef.h
++++ b/src/lib9/utf/utfdef.h
+@@ -25,4 +25,3 @@ typedef unsigned int		uint;
+ typedef unsigned long		ulong;
+ 
+ #define nelem(x) (sizeof(x)/sizeof((x)[0]))
+-#define nil ((void*)0)

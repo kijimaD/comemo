@@ -15,8 +15,90 @@ Date:   Mon Oct 25 13:37:29 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_libc.go       | 26 ++++++++++++++++++++------
  src/syscall/syscall_aix.go     |  2 ++
  src/syscall/syscall_solaris.go |  2 ++
  3 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index 8a84954051..b14abd4e63 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -10,6 +10,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -197,11 +198,19 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+-		_, err1 = dup2child(uintptr(pipe), uintptr(nextfd))
++		switch runtime.GOOS {
++		case "illumos":
++			_, err1 = fcntl1(uintptr(pipe), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
++		default:
++			_, err1 = dup2child(uintptr(pipe), uintptr(nextfd))
++			if err1 != 0 {
++				goto childerror
++			}
++			_, err1 = fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++		}
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+-		fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 		pipe = nextfd
+ 		nextfd++
+ 	}
+@@ -210,11 +219,16 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+-			_, err1 = dup2child(uintptr(fd[i]), uintptr(nextfd))
+-			if err1 != 0 {
+-				goto childerror
++			switch runtime.GOOS {
++			case "illumos":
++				_, err1 = fcntl1(uintptr(fd[i]), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
++			default:
++				_, err1 = dup2child(uintptr(fd[i]), uintptr(nextfd))
++				if err1 != 0 {
++					goto childerror
++				}
++				_, err1 = fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			}
+-			_, err1 = fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index 9c6afba442..20e77ac875 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -31,6 +31,8 @@ const (
+ 	F_DUPFD_CLOEXEC = 0
+ 	// AF_LOCAL doesn't exist on AIX
+ 	AF_LOCAL = AF_UNIX
++
++	_F_DUP2FD_CLOEXEC = 0
+ )
+ 
+ func (ts *StTimespec_t) Unix() (sec int64, nsec int64) {
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index daa4b88a71..dedfbd03c0 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -14,6 +14,8 @@ package syscall
+ 
+ import "unsafe"
+ 
++const _F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
++
+ // Implemented in asm_solaris_amd64.s.
+ func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)

@@ -16,7 +16,7 @@ Date:   Mon Sep 11 17:45:37 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go  |  2 +-
  src/cmd/compile/internal/escape/escape.go |  6 +++---
  src/cmd/compile/internal/inline/inl.go    |  2 +-
@@ -24,3 +24,144 @@ Date:   Mon Sep 11 17:45:37 2023 -0700
  src/cmd/compile/internal/types/fmt.go     | 31 -------------------------------
  src/cmd/compile/internal/walk/assign.go   |  2 +-
  6 files changed, 7 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 0ff8c0961a..db795b2d0a 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -423,7 +423,7 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
+ 
+ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isResult, setNname bool) {
+ 	if f.Offset != types.BADWIDTH {
+-		base.Fatalf("field offset for %s at %s has been set to %d", f.Sym.Name, base.FmtPos(f.Pos), f.Offset)
++		base.Fatalf("field offset for %s at %s has been set to %d", f.Sym, base.FmtPos(f.Pos), f.Offset)
+ 	}
+ 
+ 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index ef352fa078..7df367caf7 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -379,8 +379,8 @@ const (
+ 
+ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 	name := func() string {
+-		if f.Sym != nil {
+-			return f.Sym.Name
++		if f.Nname != nil {
++			return f.Nname.Sym().Name
+ 		}
+ 		return fmt.Sprintf("arg#%d", narg)
+ 	}
+@@ -481,7 +481,7 @@ func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Typ
+ 	}
+ 	for i := 0; i < numEscResults; i++ {
+ 		if x := esc.Result(i); x >= 0 {
+-			res := sig.Result(i).Sym
++			res := sig.Result(i).Nname.Sym().Name
+ 			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
+ 			warned = true
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 115c7e5faf..acb06ee5d7 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -471,7 +471,7 @@ func canDelayResults(fn *ir.Func) bool {
+ 
+ 	// temporaries for return values.
+ 	for _, param := range fn.Type().Results() {
+-		if sym := types.OrigSym(param.Sym); sym != nil && !sym.IsBlank() {
++		if sym := param.Sym; sym != nil && !sym.IsBlank() {
+ 			return false // found a named result parameter (case 3)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 4c7b2e3e51..2fe593c8e3 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1507,7 +1507,7 @@ func (r *reader) funcargs(fn *ir.Func) {
+ 	}
+ 
+ 	for i, param := range sig.Results() {
+-		sym := types.OrigSym(param.Sym)
++		sym := param.Sym
+ 
+ 		if sym == nil || sym.IsBlank() {
+ 			prefix := "~r"
+@@ -1536,7 +1536,6 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
+ 
+ 	if r.inlCall == nil {
+ 		if !r.funarghack {
+-			param.Sym = sym
+ 			param.Nname = name
+ 		}
+ 	} else {
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 1b53430af7..4f27baeab7 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -9,7 +9,6 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"strconv"
+-	"strings"
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
+@@ -28,31 +27,6 @@ var UnsafePkg *Pkg
+ // BlankSym is the blank (_) symbol.
+ var BlankSym *Sym
+ 
+-// OrigSym returns the original symbol written by the user.
+-func OrigSym(s *Sym) *Sym {
+-	if s == nil {
+-		return nil
+-	}
+-
+-	if len(s.Name) > 1 && s.Name[0] == '~' {
+-		switch s.Name[1] {
+-		case 'r': // originally an unnamed result
+-			return nil
+-		case 'b': // originally the blank identifier _
+-			// TODO(mdempsky): Does s.Pkg matter here?
+-			return BlankSym
+-		}
+-		return s
+-	}
+-
+-	if strings.HasPrefix(s.Name, ".anon") {
+-		// originally an unnamed or _ name (see subr.go: NewFuncParams)
+-		return nil
+-	}
+-
+-	return s
+-}
+-
+ // numImport tracks how often a package with a given name is imported.
+ // It is used to provide a better error message (by using the package
+ // path to disambiguate) if a package that appears multiple times with
+@@ -583,11 +557,6 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 	if verb != 'S' {
+ 		s := f.Sym
+ 
+-		// Take the name from the original.
+-		if mode == fmtGo {
+-			s = OrigSym(s)
+-		}
+-
+ 		// Using type aliases and embedded fields, it's possible to
+ 		// construct types that can't be directly represented as a
+ 		// type literal. For example, given "type Int = int" (#50190),
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index e601ba61a1..8f3ff340c4 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -392,7 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
+ 			continue
+ 		}
+ 
+-		if sym := types.OrigSym(name.Sym()); sym == nil || sym.IsBlank() {
++		if ir.IsBlank(name) {
+ 			// We can ignore assignments to blank or anonymous result parameters.
+ 			// These can't appear in expressions anyway.
+ 			continue

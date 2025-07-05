@@ -33,10 +33,123 @@ Date:   Thu Jun 27 03:04:21 2019 +0200
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/doc/doc_test.go        | 12 ++++++++++++
  src/cmd/doc/main.go            |  2 ++
  src/cmd/doc/pkg.go             | 18 ++++++++++++++----
  src/cmd/go/alldocs.go          |  2 ++
  src/cmd/go/internal/doc/doc.go |  2 ++
  5 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 11d0bdafd9..7bc5842cc6 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -210,6 +210,18 @@ var tests = []test{
+ 			`func \(unexportedType\)`,
+ 		},
+ 	},
++	// Package dump -short
++	{
++		"full package with -short",
++		[]string{`-short`, p},
++		[]string{
++			`const ExportedConstant = 1`,               // Simple constant.
++			`func ReturnUnexported\(\) unexportedType`, // Function with unexported return type.
++		},
++		[]string{
++			`MultiLine(String|Method|Field)`, // No data from multi line portions.
++		},
++	},
+ 	// Package dump -u
+ 	{
+ 		"full package with u",
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index a739761afe..dd15e801fb 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -57,6 +57,7 @@ var (
+ 	showAll    bool // -all flag
+ 	showCmd    bool // -cmd flag
+ 	showSrc    bool // -src flag
++	short      bool // -short flag
+ )
+ 
+ // usage is a replacement usage function for the flags package.
+@@ -94,6 +95,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 	flagSet.BoolVar(&showAll, "all", false, "show all documentation for package")
+ 	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
+ 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
++	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
+ 	flagSet.Parse(args)
+ 	var paths []string
+ 	var symbol, method string
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 2c0c6c161a..fa31eba64b 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -507,24 +507,34 @@ func (pkg *Package) allDoc() {
+ func (pkg *Package) packageDoc() {
+ 	defer pkg.flush()
+ 
+-	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
+-	pkg.newlines(1)
++	if !short {
++		doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
++		pkg.newlines(1)
++	}
+ 
+ 	if pkg.pkg.Name == "main" && !showCmd {
+ 		// Show only package docs for commands.
+ 		return
+ 	}
+ 
+-	pkg.newlines(2) // Guarantee blank line before the components.
++	if !short {
++		pkg.newlines(2) // Guarantee blank line before the components.
++	}
++
+ 	pkg.valueSummary(pkg.doc.Consts, false)
+ 	pkg.valueSummary(pkg.doc.Vars, false)
+ 	pkg.funcSummary(pkg.doc.Funcs, false)
+ 	pkg.typeSummary()
+-	pkg.bugs()
++	if !short {
++		pkg.bugs()
++	}
+ }
+ 
+ // packageClause prints the package clause.
+ func (pkg *Package) packageClause() {
++	if short {
++		return
++	}
+ 	importPath := pkg.build.ImportComment
+ 	if importPath == "" {
+ 		importPath = pkg.build.ImportPath
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 36fa528a90..847a7c5020 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -363,6 +363,8 @@
+ // 		Treat a command (package main) like a regular package.
+ // 		Otherwise package main's exported symbols are hidden
+ // 		when showing the package's top-level documentation.
++// 	-short
++// 		One-line representation for each symbol.
+ // 	-src
+ // 		Show the full source code for the symbol. This will
+ // 		display the full Go source of its declaration and
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index bad05ff912..4ff08bb928 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -114,6 +114,8 @@ Flags:
+ 		Treat a command (package main) like a regular package.
+ 		Otherwise package main's exported symbols are hidden
+ 		when showing the package's top-level documentation.
++	-short
++		One-line representation for each symbol.
+ 	-src
+ 		Show the full source code for the symbol. This will
+ 		display the full Go source of its declaration and

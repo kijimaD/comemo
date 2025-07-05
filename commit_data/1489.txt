@@ -8,7 +8,58 @@ Date:   Thu Jan 15 16:43:51 2009 -0800
     R=ken
     OCL=22891
     CL=22891
-
+---
  src/cmd/gc/export.c | 10 ++++++----
  src/cmd/gc/go.y     |  9 +++++++--
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 2b3a6f701f..13a481cab9 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -73,12 +73,14 @@ autoexport(Sym *s)
+ 		return;
+ 	if(exportname(s->name)) {
+ 		if(dcladj != exportsym)
+-			warn("uppercase missing export");
++			warn("uppercase missing export: %S", s);
+ 		exportsym(s);
+ 	} else {
+-		if(dcladj == exportsym)
+-			warn("export missing uppercase");
+-		packagesym(s);
++		if(dcladj == exportsym) {
++			warn("export missing uppercase: %S", s);
++			exportsym(s);
++		} else
++			packagesym(s);
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 1dd55523c0..a6ea498d42 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -186,6 +186,8 @@ xdcl:
+ 	}
+ |	xfndcl
+ 	{
++		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
++			autoexport($1->nname->sym);
+ 		$$ = N;
+ 	}
+ |	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
+@@ -205,8 +207,11 @@ xdcl:
+ 	}
+ |	LEXPORT xfndcl
+ 	{
+-		if($2 != N && $2->nname != N)
+-			exportsym($2->nname->sym);
++		if($2 != N && $2->nname != N) {
++			dcladj = exportsym;
++			autoexport($2->nname->sym);
++			dcladj = nil;
++		}
+ 		$$ = N;
+ 	}
+ |	LPACKAGE { warn("package is gone"); } xfndcl

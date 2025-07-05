@@ -11,6 +11,24 @@ Date:   Tue Feb 24 22:05:26 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5880
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 20709c0b54..88d44b2b75 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -455,12 +455,6 @@ func gcMark(start_time int64) {
+ 	work.ndone = 0
+ 	work.nproc = uint32(gcprocs())
+ 
+-	// World is stopped so allglen will not change.
+-	for i := uintptr(0); i < allglen; i++ {
+-		gp := allgs[i]
+-		gp.gcworkdone = false // set to true in gcphasework
+-	}
+-
+ 	if trace.enabled {
+ 		traceGCScanStart()
+ 	}

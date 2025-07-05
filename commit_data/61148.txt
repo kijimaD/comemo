@@ -11,7 +11,7 @@ Date:   Fri Oct 4 14:19:05 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/syscall/unix/asm_darwin.s            |  2 +
  src/internal/syscall/unix/asm_openbsd.s           |  4 ++
  src/internal/syscall/unix/at.go                   | 41 ++++++++++++++++
@@ -36,3 +36,542 @@ Date:   Fri Oct 4 14:19:05 2024 -0700
  src/internal/syscall/unix/sysnum_linux_ppc64x.go  |  1 +
  src/internal/syscall/unix/sysnum_linux_s390x.go   |  1 +
  23 files changed, 301 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 99f28765fe..b96eb1e807 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -23,3 +23,5 @@ TEXT ·libc_getgrnam_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrnam_r(SB)
+ TEXT ·libc_getgrgid_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrgid_r(SB)
+ TEXT ·libc_sysconf_trampoline(SB),NOSPLIT,$0-0; JMP libc_sysconf(SB)
+ TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0; JMP libc_faccessat(SB)
++TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0; JMP libc_readlinkat(SB)
++TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0; JMP libc_mkdirat(SB)
+diff --git a/src/internal/syscall/unix/asm_openbsd.s b/src/internal/syscall/unix/asm_openbsd.s
+index d6c4320539..90f6831e4e 100644
+--- a/src/internal/syscall/unix/asm_openbsd.s
++++ b/src/internal/syscall/unix/asm_openbsd.s
+@@ -10,3 +10,7 @@ TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_faccessat(SB)
+ TEXT ·libc_arc4random_buf_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_arc4random_buf(SB)
++TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_readlinkat(SB)
++TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_mkdirat(SB)
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index cfb6e410b1..27a798e046 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -38,3 +38,44 @@ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+ 
+ 	return int(fd), nil
+ }
++
++func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
++	p0, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++	var p1 unsafe.Pointer
++	if len(buf) > 0 {
++		p1 = unsafe.Pointer(&buf[0])
++	} else {
++		p1 = unsafe.Pointer(&_zero)
++	}
++	n, _, errno := syscall.Syscall6(readlinkatTrap,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p0)),
++		uintptr(p1),
++		uintptr(len(buf)),
++		0, 0)
++	if errno != 0 {
++		return 0, errno
++	}
++
++	return int(n), nil
++}
++
++func Mkdirat(dirfd int, path string, mode uint32) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	_, _, errno := syscall.Syscall6(mkdiratTrap,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode),
++		0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+index 04cacf7f30..5c2f00efe5 100644
+--- a/src/internal/syscall/unix/at_aix.go
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -7,6 +7,8 @@ package unix
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_readlinkat readlinkat "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_mkdirat mkdirat "libc.a/shr_64.o"
+ 
+ const (
+ 	AT_EACCESS          = 0x1
+diff --git a/src/internal/syscall/unix/at_darwin.go b/src/internal/syscall/unix/at_darwin.go
+new file mode 100644
+index 0000000000..dbcae5a788
+--- /dev/null
++++ b/src/internal/syscall/unix/at_darwin.go
+@@ -0,0 +1,60 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++func libc_readlinkat_trampoline()
++
++//go:cgo_import_dynamic libc_readlinkat readlinkat "/usr/lib/libSystem.B.dylib"
++
++func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
++	p0, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++	var p1 unsafe.Pointer
++	if len(buf) > 0 {
++		p1 = unsafe.Pointer(&buf[0])
++	} else {
++		p1 = unsafe.Pointer(&_zero)
++	}
++	n, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_readlinkat_trampoline),
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p0)),
++		uintptr(p1),
++		uintptr(len(buf)),
++		0,
++		0)
++	if errno != 0 {
++		return 0, errno
++	}
++	return int(n), nil
++}
++
++func libc_mkdirat_trampoline()
++
++//go:cgo_import_dynamic libc_mkdirat mkdirat "/usr/lib/libSystem.B.dylib"
++
++func Mkdirat(dirfd int, path string, mode uint32) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall(abi.FuncPCABI0(libc_mkdirat_trampoline),
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode))
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index f48d3791e3..faf38be602 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -14,11 +14,15 @@ import (
+ //go:linkname procFstatat libc_fstatat
+ //go:linkname procOpenat libc_openat
+ //go:linkname procUnlinkat libc_unlinkat
++//go:linkname procReadlinkat libc_readlinkat
++//go:linkname procMkdirat libc_mkdirat
+ 
+ var (
+ 	procFstatat,
+ 	procOpenat,
+-	procUnlinkat uintptr
++	procUnlinkat,
++	procReadlinkat,
++	procMkdirat uintptr
+ )
+ 
+ func Unlinkat(dirfd int, path string, flags int) error {
+@@ -62,3 +66,44 @@ func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
+ 
+ 	return nil
+ }
++
++func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
++	p0, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++	var p1 unsafe.Pointer
++	if len(buf) > 0 {
++		p1 = unsafe.Pointer(&buf[0])
++	} else {
++		p1 = unsafe.Pointer(&_zero)
++	}
++	n, _, errno := syscall6(uintptr(unsafe.Pointer(&procReadlinkat)), 4,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p0)),
++		uintptr(p1),
++		uintptr(len(buf)),
++		0, 0)
++	if errno != 0 {
++		return 0, errno
++	}
++
++	return int(n), nil
++}
++
++func Mkdirat(dirfd int, path string, mode uint32) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procMkdirat)), 3,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode),
++		0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+new file mode 100644
+index 0000000000..69463e00b9
+--- /dev/null
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -0,0 +1,51 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build openbsd && !mips64
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_readlinkat readlinkat "libc.so"
++
++func libc_readlinkat_trampoline()
++
++func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
++	p0, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++	var p1 unsafe.Pointer
++	if len(buf) > 0 {
++		p1 = unsafe.Pointer(&buf[0])
++	} else {
++		p1 = unsafe.Pointer(&_zero)
++	}
++	n, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_readlinkat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p0)), uintptr(p1), uintptr(len(buf)), 0, 0)
++	if errno != 0 {
++		return 0, errno
++	}
++	return int(n), nil
++}
++
++//go:cgo_import_dynamic libc_mkdirat mkdirat "libc.so"
++
++func libc_mkdirat_trampoline()
++
++func Mkdirat(dirfd int, path string, mode uint32) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), 0, 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index 7a29eb309c..fa65d9e8d9 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -16,6 +16,8 @@ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
++//go:cgo_import_dynamic libc_readlinkat readlinkat "libc.so"
++//go:cgo_import_dynamic libc_mkdirat mkdirat "libc.so"
+ //go:cgo_import_dynamic libc_uname uname "libc.so"
+ 
+ const (
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index a8164dcc8e..d0ba12a78a 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -7,9 +7,11 @@ package unix
+ import "syscall"
+ 
+ const (
+-	unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-	openatTrap   uintptr = syscall.SYS_OPENAT
+-	fstatatTrap  uintptr = syscall.SYS_FSTATAT
++	unlinkatTrap   uintptr = syscall.SYS_UNLINKAT
++	openatTrap     uintptr = syscall.SYS_OPENAT
++	fstatatTrap    uintptr = syscall.SYS_FSTATAT
++	readlinkatTrap uintptr = syscall.SYS_READLINKAT
++	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
+ 
+ 	AT_EACCESS          = 0x4
+ 	AT_FDCWD            = 0xfffafdcd
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index f74961d508..0f34722432 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -17,4 +17,6 @@ const (
+ 	unlinkatTrap       uintptr = syscall.SYS_UNLINKAT
+ 	openatTrap         uintptr = syscall.SYS_OPENAT
+ 	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
++	readlinkatTrap     uintptr = syscall.SYS_READLINKAT
++	mkdiratTrap        uintptr = syscall.SYS_MKDIRAT
+ )
+diff --git a/src/internal/syscall/unix/at_sysnum_linux.go b/src/internal/syscall/unix/at_sysnum_linux.go
+index 7c3b15c303..2885c7c681 100644
+--- a/src/internal/syscall/unix/at_sysnum_linux.go
++++ b/src/internal/syscall/unix/at_sysnum_linux.go
+@@ -6,8 +6,12 @@ package unix
+ 
+ import "syscall"
+ 
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
++const (
++	unlinkatTrap   uintptr = syscall.SYS_UNLINKAT
++	openatTrap     uintptr = syscall.SYS_OPENAT
++	readlinkatTrap uintptr = syscall.SYS_READLINKAT
++	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
++)
+ 
+ const (
+ 	AT_EACCESS          = 0x200
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+index ffb1d2eaf8..820b977436 100644
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_netbsd.go
+@@ -6,9 +6,13 @@ package unix
+ 
+ import "syscall"
+ 
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
++const (
++	unlinkatTrap   uintptr = syscall.SYS_UNLINKAT
++	openatTrap     uintptr = syscall.SYS_OPENAT
++	fstatatTrap    uintptr = syscall.SYS_FSTATAT
++	readlinkatTrap uintptr = syscall.SYS_READLINKAT
++	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
++)
+ 
+ const (
+ 	AT_EACCESS          = 0x100
+diff --git a/src/internal/syscall/unix/at_sysnum_openbsd.go b/src/internal/syscall/unix/at_sysnum_openbsd.go
+index 3b0c0dbd19..7672414cf7 100644
+--- a/src/internal/syscall/unix/at_sysnum_openbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_openbsd.go
+@@ -6,9 +6,13 @@ package unix
+ 
+ import "syscall"
+ 
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
++const (
++	unlinkatTrap   uintptr = syscall.SYS_UNLINKAT
++	openatTrap     uintptr = syscall.SYS_OPENAT
++	fstatatTrap    uintptr = syscall.SYS_FSTATAT
++	readlinkatTrap uintptr = syscall.SYS_READLINKAT
++	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
++)
+ 
+ const (
+ 	AT_EACCESS          = 0x1
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index 3d47d7ebe0..5cce1030f1 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -2,8 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build wasip1
++
+ package unix
+ 
++import (
++	"syscall"
++	"unsafe"
++)
++
+ const (
+ 	// UTIME_OMIT is the sentinel value to indicate that a time value should not
+ 	// be changed. It is useful for example to indicate for example with UtimesNano
+@@ -11,3 +18,46 @@ const (
+ 	// Its value must match syscall/fs_wasip1.go
+ 	UTIME_OMIT = -0x2
+ )
++
++func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
++	var nwritten size
++	errno := path_readlink(
++		int32(dirfd),
++		unsafe.Pointer(unsafe.StringData(path)),
++		size(len(path)),
++		unsafe.Pointer(&buf[0]),
++		size(len(buf)),
++		unsafe.Pointer(&nwritten))
++	return int(nwritten), errnoErr(errno)
++
++}
++
++type (
++	size = uint32
++)
++
++//go:wasmimport wasi_snapshot_preview1 path_readlink
++//go:noescape
++func path_readlink(fd int32, path unsafe.Pointer, pathLen size, buf unsafe.Pointer, bufLen size, nwritten unsafe.Pointer) syscall.Errno
++
++func Mkdirat(dirfd int, path string, mode uint32) error {
++	if path == "" {
++		return syscall.EINVAL
++	}
++	return errnoErr(path_create_directory(
++		int32(dirfd),
++		unsafe.Pointer(unsafe.StringData(path)),
++		size(len(path)),
++	))
++}
++
++//go:wasmimport wasi_snapshot_preview1 path_create_directory
++//go:noescape
++func path_create_directory(fd int32, path unsafe.Pointer, pathLen size) syscall.Errno
++
++func errnoErr(errno syscall.Errno) error {
++	if errno == 0 {
++		return nil
++	}
++	return errno
++}
+diff --git a/src/internal/syscall/unix/syscall.go b/src/internal/syscall/unix/syscall.go
+new file mode 100644
+index 0000000000..99805d986b
+--- /dev/null
++++ b/src/internal/syscall/unix/syscall.go
+@@ -0,0 +1,8 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++// Single-word zero for use when we need a valid pointer to 0 bytes.
++var _zero uintptr
+diff --git a/src/internal/syscall/unix/sysnum_linux_386.go b/src/internal/syscall/unix/sysnum_linux_386.go
+index be048bcf73..c83beef749 100644
+--- a/src/internal/syscall/unix/sysnum_linux_386.go
++++ b/src/internal/syscall/unix/sysnum_linux_386.go
+@@ -9,4 +9,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 377
+ 	pidfdSendSignalTrap uintptr = 424
+ 	pidfdOpenTrap       uintptr = 434
++	openat2Trap         uintptr = 437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_amd64.go b/src/internal/syscall/unix/sysnum_linux_amd64.go
+index 525de9cbd8..098e3320a0 100644
+--- a/src/internal/syscall/unix/sysnum_linux_amd64.go
++++ b/src/internal/syscall/unix/sysnum_linux_amd64.go
+@@ -9,4 +9,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 326
+ 	pidfdSendSignalTrap uintptr = 424
+ 	pidfdOpenTrap       uintptr = 434
++	openat2Trap         uintptr = 437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_arm.go b/src/internal/syscall/unix/sysnum_linux_arm.go
+index b803892278..f0cd45f9b0 100644
+--- a/src/internal/syscall/unix/sysnum_linux_arm.go
++++ b/src/internal/syscall/unix/sysnum_linux_arm.go
+@@ -9,4 +9,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 391
+ 	pidfdSendSignalTrap uintptr = 424
+ 	pidfdOpenTrap       uintptr = 434
++	openat2Trap         uintptr = 437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_generic.go b/src/internal/syscall/unix/sysnum_linux_generic.go
+index b06bf69273..ec622cff0d 100644
+--- a/src/internal/syscall/unix/sysnum_linux_generic.go
++++ b/src/internal/syscall/unix/sysnum_linux_generic.go
+@@ -15,4 +15,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 285
+ 	pidfdSendSignalTrap uintptr = 424
+ 	pidfdOpenTrap       uintptr = 434
++	openat2Trap         uintptr = 437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_mips64x.go b/src/internal/syscall/unix/sysnum_linux_mips64x.go
+index 8764f5dc8f..3875105d7d 100644
+--- a/src/internal/syscall/unix/sysnum_linux_mips64x.go
++++ b/src/internal/syscall/unix/sysnum_linux_mips64x.go
+@@ -11,4 +11,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 5320
+ 	pidfdSendSignalTrap uintptr = 5424
+ 	pidfdOpenTrap       uintptr = 5434
++	openat2Trap         uintptr = 5437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_mipsx.go b/src/internal/syscall/unix/sysnum_linux_mipsx.go
+index 9b2e587ba5..bdd2fef2c3 100644
+--- a/src/internal/syscall/unix/sysnum_linux_mipsx.go
++++ b/src/internal/syscall/unix/sysnum_linux_mipsx.go
+@@ -11,4 +11,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 4360
+ 	pidfdSendSignalTrap uintptr = 4424
+ 	pidfdOpenTrap       uintptr = 4434
++	openat2Trap         uintptr = 4437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_ppc64x.go b/src/internal/syscall/unix/sysnum_linux_ppc64x.go
+index 03e9c19743..9291d58f5d 100644
+--- a/src/internal/syscall/unix/sysnum_linux_ppc64x.go
++++ b/src/internal/syscall/unix/sysnum_linux_ppc64x.go
+@@ -11,4 +11,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 379
+ 	pidfdSendSignalTrap uintptr = 424
+ 	pidfdOpenTrap       uintptr = 434
++	openat2Trap         uintptr = 437
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_s390x.go b/src/internal/syscall/unix/sysnum_linux_s390x.go
+index c6e3e02e46..65a82d1c3d 100644
+--- a/src/internal/syscall/unix/sysnum_linux_s390x.go
++++ b/src/internal/syscall/unix/sysnum_linux_s390x.go
+@@ -9,4 +9,5 @@ const (
+ 	copyFileRangeTrap   uintptr = 375
+ 	pidfdSendSignalTrap uintptr = 424
+ 	pidfdOpenTrap       uintptr = 434
++	openat2Trap         uintptr = 437
+ )

@@ -9,7 +9,50 @@ Date:   Wed Aug 17 14:32:49 2016 +0000
     Change-Id: I709daa87926a31e5f8fd46a4c5ef69718ae349b1
     Reviewed-on: https://go-review.googlesource.com/27209
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/log/syslog/example_test.go | 23 +++++++++++++++++++++++
  src/log/syslog/syslog.go       |  2 ++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/log/syslog/example_test.go b/src/log/syslog/example_test.go
+new file mode 100644
+index 0000000000..3d5b76d219
+--- /dev/null
++++ b/src/log/syslog/example_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows,!nacl,!plan9
++
++package syslog_test
++
++import (
++	"fmt"
++	"log"
++	"log/syslog"
++)
++
++func ExampleDial() {
++	sysLog, err := syslog.Dial("tcp", "localhost:1234",
++		syslog.LOG_WARNING|syslog.LOG_DAEMON, "demotag")
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Fprintf(sysLog, "This is a daemon warning with demotag.")
++	sysLog.Emerg("And this is a daemon emergency with demotag.")
++}
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 9e888dd1d9..df9ffb8e33 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -112,6 +112,8 @@ func New(priority Priority, tag string) (*Writer, error) {
+ // writer sends a log message with the given facility, severity and
+ // tag.
+ // If network is empty, Dial will connect to the local syslog server.
++// Otherwise, see the documentation for net.Dial for valid values
++// of network and raddr.
+ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
+ 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
+ 		return nil, errors.New("log/syslog: invalid priority")

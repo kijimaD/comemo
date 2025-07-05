@@ -11,6 +11,20 @@ Date:   Tue Jan 28 16:38:38 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217062
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 47393a9584..3eea1fd8cd 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -322,7 +322,7 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
+ 		if overwrite {
+ 			// new symbol overwrites old symbol.
+ 			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
+-			if !oldtyp.IsData() && r.DataSize(li) == 0 {
++			if !(oldtyp.IsData() && oldr.DataSize(li) == 0) {
+ 				log.Fatalf("duplicated definition of symbol " + name)
+ 			}
+ 			l.overwrite[oldi] = i

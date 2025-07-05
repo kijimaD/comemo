@@ -15,6 +15,48 @@ Date:   Wed Mar 12 10:21:34 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/74080043
-
+---
  src/pkg/runtime/stack.c | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 4d699f1101..4bdc24107c 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -102,7 +102,7 @@ runtime·stackalloc(G *gp, uint32 n)
+ 		runtime·printf("stackalloc %d\n", n);
+ 
+ 	gp->stacksize += n;
+-	if(StackFromSystem)
++	if(runtime·debug.efence || StackFromSystem)
+ 		return runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
+ 
+ 	// Minimum-sized stacks are allocated with a fixed-size free-list allocator,
+@@ -143,8 +143,8 @@ runtime·stackfree(G *gp, void *v, Stktop *top)
+ 	if(StackDebug >= 1)
+ 		runtime·printf("stackfree %p %d\n", v, (int32)n);
+ 	gp->stacksize -= n;
+-	if(StackFromSystem) {
+-		if(StackFaultOnFree)
++	if(runtime·debug.efence || StackFromSystem) {
++		if(runtime·debug.efence || StackFaultOnFree)
+ 			runtime·SysFault(v, n);
+ 		else
+ 			runtime·SysFree(v, n, &mstats.stacks_sys);
+@@ -819,7 +819,15 @@ runtime·shrinkstack(G *gp)
+ 		gp->stack0 = (uintptr)oldstk + newsize;
+ 	gp->stacksize -= oldsize - newsize;
+ 
+-	// Free bottom half of the stack.  First, we trick malloc into thinking
++	// Free bottom half of the stack.
++	if(runtime·debug.efence || StackFromSystem) {
++		if(runtime·debug.efence || StackFaultOnFree)
++			runtime·SysFault(oldstk, newsize);
++		else
++			runtime·SysFree(oldstk, newsize, &mstats.stacks_sys);
++		return;
++	}
++	// First, we trick malloc into thinking
+ 	// we allocated the stack as two separate half-size allocs.  Then the
+ 	// free() call does the rest of the work for us.
+ 	if(oldsize == PageSize) {

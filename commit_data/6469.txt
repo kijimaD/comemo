@@ -15,8 +15,90 @@ Date:   Thu Oct 7 04:42:44 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2384042
-
+---
  src/cmd/gc/go.h        |  3 ++-
  src/cmd/gc/print.c     | 17 +++++++++++++++--
  src/cmd/gc/typecheck.c |  4 +++-
  3 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 490710b7e0..ec1ada74ed 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -210,8 +210,9 @@ struct	Node
+ 	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
+ 	uchar	isddd;
+-	uchar	pun;		// dont registerize variable ONAME
++	uchar	pun;		// don't registerize variable ONAME
+ 	uchar	readonly;
++	uchar	implicit;	// don't show in printout
+ 
+ 	// most nodes
+ 	Node*	left;
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index ca013fabb3..32e8b7de55 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -23,12 +23,18 @@ void
+ exprfmt(Fmt *f, Node *n, int prec)
+ {
+ 	int nprec;
++	char *p;
+ 
+ 	nprec = 0;
+ 	if(n == nil) {
+ 		fmtprint(f, "<nil>");
+ 		return;
+ 	}
++	
++	if(n->implicit) {
++		exprfmt(f, n->left, prec);
++		return;
++	}
+ 
+ 	switch(n->op) {
+ 	case ONAME:
+@@ -298,8 +304,15 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		exprfmt(f, n->left, 7);
+ 		if(n->right == N || n->right->sym == S)
+ 			fmtprint(f, ".<nil>");
+-		else
+-			fmtprint(f, ".%s", n->right->sym->name);
++		else {
++			// skip leading type· in method name
++			p = utfrrune(n->right->sym->name, 0xb7);
++			if(p)
++				p+=2;
++			else
++				p = n->right->sym->name;
++			fmtprint(f, ".%s", p);
++		}
+ 		break;
+ 
+ 	case ODOTTYPE:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f139ee8210..28382f1fd2 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1254,7 +1254,7 @@ ret:
+ 		goto error;
+ 	}
+ 	if((ok & Ecall) && !(top & Ecall)) {
+-		yyerror("must call %#N", n);
++		yyerror("method %#N is not an expression, must be called", n);
+ 		goto error;
+ 	}
+ 	// TODO(rsc): simplify
+@@ -1483,9 +1483,11 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 				checklvalue(n->left, "call pointer method on");
+ 				addrescapes(n->left);
+ 				n->left = nod(OADDR, n->left, N);
++				n->left->implicit = 1;
+ 				typecheck(&n->left, Etype|Erv);
+ 			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
+ 				n->left = nod(OIND, n->left, N);
++				n->left->implicit = 1;
+ 				typecheck(&n->left, Etype|Erv);
+ 			} else {
+ 				// method is attached to wrong type?

@@ -13,6 +13,29 @@ Date:   Fri Jan 26 10:28:10 2018 -0500
     Change-Id: I96539bf8215e5c1cd8cc997a90204f57347c48c8
     Reviewed-on: https://go-review.googlesource.com/90221
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/trace/trace.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 2832b90b82..6fa459c7c2 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -726,8 +726,17 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
+ 		Stack:    ctx.stack(ev.Stk),
+ 		EndStack: ctx.stack(ev.Link.Stk),
+ 	}
++
+ 	// grey out non-overlapping events if the event is not a global event (ev.G == 0)
+ 	if ctx.mode == taskTraceview && ev.G != 0 {
++		// include P information.
++		if t := ev.Type; t == trace.EvGoStart || t == trace.EvGoStartLabel {
++			type Arg struct {
++				P int
++			}
++			sl.Arg = &Arg{P: ev.P}
++		}
++		// grey out non-overlapping events.
+ 		overlapping := false
+ 		for _, task := range ctx.tasks {
+ 			if _, overlapped := task.overlappingDuration(ev); overlapped {

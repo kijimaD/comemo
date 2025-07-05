@@ -8,6 +8,20 @@ Date:   Wed Mar 3 18:43:36 2010 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/223108
-
+---
  src/pkg/net/fd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 83705a5a87..df5a39db4c 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -228,7 +228,7 @@ func (s *pollServer) Run() {
+ 		var t = s.deadline
+ 		if t > 0 {
+ 			t = t - s.Now()
+-			if t < 0 {
++			if t <= 0 {
+ 				s.CheckDeadlines()
+ 				continue
+ 			}

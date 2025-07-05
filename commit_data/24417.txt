@@ -10,6 +10,35 @@ Date:   Mon Jul 27 23:29:09 2015 -0700
     Change-Id: I034baf7c8531566bebfdbc5a4061352cbcc31449
     Reviewed-on: https://go-review.googlesource.com/12773
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 40ac3b95ea..792188fea6 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -16,7 +16,6 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_exit exit "libc.so"
+ //go:cgo_import_dynamic libc_fstat fstat "libc.so"
+ //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
+-//go:cgo_import_dynamic libc_getpid getpid "libc.so"
+ //go:cgo_import_dynamic libc_getrlimit getrlimit "libc.so"
+ //go:cgo_import_dynamic libc_kill kill "libc.so"
+ //go:cgo_import_dynamic libc_madvise madvise "libc.so"
+@@ -52,7 +51,6 @@ import "unsafe"
+ //go:linkname libc_exit libc_exit
+ //go:linkname libc_fstat libc_fstat
+ //go:linkname libc_getcontext libc_getcontext
+-//go:linkname libc_getpid libc_getpid
+ //go:linkname libc_getrlimit libc_getrlimit
+ //go:linkname libc_kill libc_kill
+ //go:linkname libc_madvise libc_madvise
+@@ -89,7 +87,6 @@ var (
+ 	libc_exit,
+ 	libc_fstat,
+ 	libc_getcontext,
+-	libc_getpid,
+ 	libc_getrlimit,
+ 	libc_kill,
+ 	libc_madvise,

@@ -7,6 +7,20 @@ Date:   Wed Jun 15 11:50:21 2011 +1000
     R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4601058
-
+---
  src/pkg/syscall/mksyscall_windows.pl | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+index fb5a1272b2..83f5f03b17 100755
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ b/src/pkg/syscall/mksyscall_windows.pl
+@@ -27,6 +27,8 @@ $cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
+ $errors = 0;
+ $_32bit = "";
+ 
++binmode STDOUT;
++
+ if($ARGV[0] eq "-b32") {
+ 	$_32bit = "big-endian";
+ 	shift;

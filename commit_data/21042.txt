@@ -8,6 +8,20 @@ Date:   Mon Nov 10 08:12:43 2014 -0800
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/171360043
-
+---
  src/cmd/cgo/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 69c7ce893c..6179c7afd1 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -152,7 +152,7 @@ In C, a function argument written as a fixed size array
+ actually requires a pointer to the first element of the array.
+ C compilers are aware of this calling convention and adjust
+ the call accordingly, but Go cannot.  In Go, you must pass
+-the pointer to the first element explicitly: C.f(&x[0]).
++the pointer to the first element explicitly: C.f(&C.x[0]).
+ 
+ A few special functions convert between Go and C types
+ by making copies of the data.  In pseudo-Go definitions:

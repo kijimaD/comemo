@@ -9,7 +9,88 @@ Date:   Thu Feb 17 17:14:50 2011 -0500
     R=agl1
     CC=golang-dev
     https://golang.org/cl/4167054
-
+---
  src/pkg/http/client.go  | 20 +++++++++++++-------
  src/pkg/http/request.go | 22 +++++++++++++++++++++-
  2 files changed, 34 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index ae37879ae9..cc0ac323dc 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -92,19 +92,25 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 
+ 	var proxyURL *URL
+ 	proxyAuth := ""
+-	proxy := os.Getenv("HTTP_PROXY")
+-	if proxy == "" {
+-		proxy = os.Getenv("http_proxy")
+-	}
+-	if matchNoProxy(addr) {
+-		proxy = ""
++	proxy := ""
++	if !matchNoProxy(addr) {
++		proxy = os.Getenv("HTTP_PROXY")
++		if proxy == "" {
++			proxy = os.Getenv("http_proxy")
++		}
+ 	}
+ 
+ 	if proxy != "" {
+-		proxyURL, err = ParseURL(proxy)
++		proxyURL, err = ParseRequestURL(proxy)
+ 		if err != nil {
+ 			return nil, os.ErrorString("invalid proxy address")
+ 		}
++		if proxyURL.Host == "" {
++			proxyURL, err = ParseRequestURL("http://" + proxy)
++			if err != nil {
++				return nil, os.ErrorString("invalid proxy address")
++			}
++		}
+ 		addr = proxyURL.Host
+ 		proxyInfo := proxyURL.RawUserinfo
+ 		if proxyInfo != "" {
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 04bebaaf55..e682c2c1ad 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -184,6 +184,17 @@ const defaultUserAgent = "Go http package"
+ // If Body is present, Write forces "Transfer-Encoding: chunked" as a header
+ // and then closes Body when finished sending it.
+ func (req *Request) Write(w io.Writer) os.Error {
++	return req.write(w, false)
++}
++
++// WriteProxy is like Write but writes the request in the form
++// expected by an HTTP proxy.  It includes the scheme and host
++// name in the URI instead of using a separate Host: header line.
++func (req *Request) WriteProxy(w io.Writer) os.Error {
++	return req.write(w, true)
++}
++
++func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 	host := req.Host
+ 	if host == "" {
+ 		host = req.URL.Host
+@@ -197,10 +208,19 @@ func (req *Request) Write(w io.Writer) os.Error {
+ 		}
+ 	}
+ 
++	if usingProxy {
++		if uri == "" || uri[0] != '/' {
++			uri = "/" + uri
++		}
++		uri = req.URL.Scheme + "://" + host + uri
++	}
++
+ 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
+ 
+ 	// Header lines
+-	fmt.Fprintf(w, "Host: %s\r\n", host)
++	if !usingProxy {
++		fmt.Fprintf(w, "Host: %s\r\n", host)
++	}
+ 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
+ 	if req.Referer != "" {
+ 		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)

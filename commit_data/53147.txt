@@ -20,8 +20,55 @@ Date:   Mon Jul 18 13:13:46 2022 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go  | 1 +
  src/cmd/compile/internal/noder/reader.go | 5 +++++
  src/cmd/compile/internal/noder/writer.go | 7 +++++++
  3 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index f7ad2503c2..1a60ea39bb 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -53,6 +53,7 @@ const (
+ 	exprConvert
+ 	exprNew
+ 	exprMake
++	exprNil
+ )
+ 
+ type codeAssign int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 8cb0df182c..4c90f9dc54 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1684,6 +1684,11 @@ func (r *reader) expr() (res ir.Node) {
+ 		orig := r.String()
+ 		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
+ 
++	case exprNil:
++		pos := r.pos()
++		typ := r.typ()
++		return Nil(pos, typ)
++
+ 	case exprCompLit:
+ 		return r.compLit()
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 7ad87146fb..47384c6c64 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1413,6 +1413,13 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			w.String(syntax.String(expr))
+ 			return
+ 		}
++
++		if _, isNil := obj.(*types2.Nil); isNil {
++			w.Code(exprNil)
++			w.pos(expr)
++			w.typ(tv.Type)
++			return
++		}
+ 	}
+ 
+ 	if obj != nil {

@@ -14,10 +14,117 @@ Date:   Thu Feb 21 10:56:35 2019 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cthread_unix.c  |  2 +-
  misc/cgo/test/issue18146.go   |  2 ++
  misc/cgo/testso/so_test.go    |  7 ++++++-
  misc/cgo/testsovar/so_test.go |  7 ++++++-
  src/cmd/dist/test.go          | 12 +++++++++---
  5 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/cthread_unix.c b/misc/cgo/test/cthread_unix.c
+index 6323e4980e..247d636d06 100644
+--- a/misc/cgo/test/cthread_unix.c
++++ b/misc/cgo/test/cthread_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ #include <pthread.h>
+ #include "_cgo_export.h"
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index 6483903fed..0605a24ee9 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -46,6 +46,8 @@ func test18146(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	default:
+ 		setNproc = false
++	case "aix":
++		nproc = 9
+ 	case "linux":
+ 		nproc = 6
+ 	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index 500b08fae8..68388caa90 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -25,7 +25,12 @@ func requireTestSOSupported(t *testing.T) {
+ 			t.Skip("No exec facility on iOS.")
+ 		}
+ 	case "ppc64":
+-		t.Skip("External linking not implemented on ppc64 (issue #8912).")
++		if runtime.GOOS == "linux" {
++			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
++		}
++		if runtime.GOOS == "aix" {
++			t.Skip("Using shared object isn't yet available on aix/ppc64 (issue #30565)")
++		}
+ 	case "mips64le", "mips64":
+ 		t.Skip("External linking not implemented on mips64.")
+ 	}
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index 500b08fae8..68388caa90 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -25,7 +25,12 @@ func requireTestSOSupported(t *testing.T) {
+ 			t.Skip("No exec facility on iOS.")
+ 		}
+ 	case "ppc64":
+-		t.Skip("External linking not implemented on ppc64 (issue #8912).")
++		if runtime.GOOS == "linux" {
++			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
++		}
++		if runtime.GOOS == "aix" {
++			t.Skip("Using shared object isn't yet available on aix/ppc64 (issue #30565)")
++		}
+ 	case "mips64le", "mips64":
+ 		t.Skip("External linking not implemented on mips64.")
+ 	}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5ecef4494d..eaed9c4946 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -877,7 +877,8 @@ func (t *tester) out(v string) {
+ func (t *tester) extLink() bool {
+ 	pair := gohostos + "-" + goarch
+ 	switch pair {
+-	case "android-arm",
++	case "aix-ppc64",
++		"android-arm",
+ 		"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+ 		"dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+@@ -912,6 +913,10 @@ func (t *tester) internalLink() bool {
+ 	if goarch == "arm64" || goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" {
+ 		return false
+ 	}
++	if goos == "aix" {
++		// linkmode=internal isn't supported.
++		return false
++	}
+ 	return true
+ }
+ 
+@@ -1013,7 +1018,8 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 		}
+ 		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external")
+ 		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
+-	case "android-arm",
++	case "aix-ppc64",
++		"android-arm",
+ 		"dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+ 		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
+@@ -1027,7 +1033,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")
+ 
+ 		switch pair {
+-		case "netbsd-386", "netbsd-amd64":
++		case "aix-ppc64", "netbsd-386", "netbsd-amd64":
+ 			// no static linking
+ 		case "freebsd-arm":
+ 			// -fPIC compiled tls code will use __tls_get_addr instead

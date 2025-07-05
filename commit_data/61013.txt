@@ -9,7 +9,7 @@ Date:   Tue Aug 27 21:07:57 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/gstate.go                    | 12 +++++-------
  src/cmd/trace/pprof.go                     | 20 ++++++++++----------
  src/cmd/trace/regions.go                   |  5 ++---
@@ -20,3 +20,275 @@ Date:   Tue Aug 27 21:07:57 2024 +0200
  src/internal/trace/trace_test.go           | 18 ++++++------------
  src/runtime/trace_cgo_test.go              |  5 ++---
  9 files changed, 42 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/trace/gstate.go b/src/cmd/trace/gstate.go
+index 76c58073b3..ea501ef57d 100644
+--- a/src/cmd/trace/gstate.go
++++ b/src/cmd/trace/gstate.go
+@@ -362,11 +362,9 @@ func (gs *gState[R]) rangeEnd(ts trace.Time, name string, stack trace.Stack, ctx
+ 	delete(gs.activeRanges, name)
+ }
+ 
+-func lastFunc(s trace.Stack) string {
+-	var last trace.StackFrame
+-	s.Frames()(func(f trace.StackFrame) bool {
+-		last = f
+-		return true
+-	})
+-	return last.Func
++func lastFunc(s trace.Stack) (fn string) {
++	for frame := range s.Frames() {
++		fn = frame.Func
++	}
++	return
+ }
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index 856b97b75f..d27dfa7aa3 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -306,19 +306,19 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
+ 	prof := make([]traceviewer.ProfileRecord, 0, len(m.stacks))
+ 	for stack, record := range m.stacks {
+ 		rec := *record
+-		i := 0
+-		stack.Frames()(func(frame trace.StackFrame) bool {
++		for i, frame := range slices.Collect(stack.Frames()) {
+ 			rec.Stack = append(rec.Stack, &trace.Frame{
+ 				PC:   frame.PC,
+ 				Fn:   frame.Func,
+ 				File: frame.File,
+ 				Line: int(frame.Line),
+ 			})
+-			i++
+ 			// Cut this off at pprofMaxStack because that's as far
+ 			// as our deduplication goes.
+-			return i < pprofMaxStack
+-		})
++			if i >= pprofMaxStack {
++				break
++			}
++		}
+ 		prof = append(prof, rec)
+ 	}
+ 	return prof
+@@ -326,10 +326,10 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
+ 
+ // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
+ func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
+-	i := 0
+-	stack.Frames()(func(frame trace.StackFrame) bool {
++	for i, frame := range slices.Collect(stack.Frames()) {
+ 		pcs[i] = frame.PC
+-		i++
+-		return i < len(pcs)
+-	})
++		if i >= len(pcs) {
++			break
++		}
++	}
+ }
+diff --git a/src/cmd/trace/regions.go b/src/cmd/trace/regions.go
+index cae38355a5..4073b6b07d 100644
+--- a/src/cmd/trace/regions.go
++++ b/src/cmd/trace/regions.go
+@@ -72,10 +72,9 @@ func fingerprintRegion(r *trace.UserRegionSummary) regionFingerprint {
+ func regionTopStackFrame(r *trace.UserRegionSummary) trace.StackFrame {
+ 	var frame trace.StackFrame
+ 	if r.Start != nil && r.Start.Stack() != trace.NoStack {
+-		r.Start.Stack().Frames()(func(f trace.StackFrame) bool {
++		for f := range r.Start.Stack().Frames() {
+ 			frame = f
+-			return false
+-		})
++		}
+ 	}
+ 	return frame
+ }
+diff --git a/src/cmd/trace/viewer.go b/src/cmd/trace/viewer.go
+index c367c7d636..6ce74b75b8 100644
+--- a/src/cmd/trace/viewer.go
++++ b/src/cmd/trace/viewer.go
+@@ -15,15 +15,14 @@ import (
+ // used to store the frames to reduce allocations.
+ func viewerFrames(stk trace.Stack) []*trace.Frame {
+ 	var frames []*trace.Frame
+-	stk.Frames()(func(f trace.StackFrame) bool {
++	for f := range stk.Frames() {
+ 		frames = append(frames, &trace.Frame{
+ 			PC:   f.PC,
+ 			Fn:   f.Func,
+ 			File: f.File,
+ 			Line: int(f.Line),
+ 		})
+-		return true
+-	})
++	}
+ 	return frames
+ }
+ 
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index 90effce653..a5c5aec2f8 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -798,11 +798,10 @@ func (e Event) String() string {
+ 		if s.Stack != NoStack {
+ 			fmt.Fprintln(&sb)
+ 			fmt.Fprintln(&sb, "TransitionStack=")
+-			s.Stack.Frames()(func(f StackFrame) bool {
++			for f := range s.Stack.Frames() {
+ 				fmt.Fprintf(&sb, "\t%s @ 0x%x\n", f.Func, f.PC)
+ 				fmt.Fprintf(&sb, "\t\t%s:%d\n", f.File, f.Line)
+-				return true
+-			})
++			}
+ 		}
+ 	case EventExperimental:
+ 		r := e.Experimental()
+@@ -811,11 +810,10 @@ func (e Event) String() string {
+ 	if stk := e.Stack(); stk != NoStack {
+ 		fmt.Fprintln(&sb)
+ 		fmt.Fprintln(&sb, "Stack=")
+-		stk.Frames()(func(f StackFrame) bool {
++		for f := range stk.Frames() {
+ 			fmt.Fprintf(&sb, "\t%s @ 0x%x\n", f.Func, f.PC)
+ 			fmt.Fprintf(&sb, "\t\t%s:%d\n", f.File, f.Line)
+-			return true
+-		})
++		}
+ 	}
+ 	return sb.String()
+ }
+diff --git a/src/internal/trace/summary.go b/src/internal/trace/summary.go
+index 1cd506ac5a..f31439feb8 100644
+--- a/src/internal/trace/summary.go
++++ b/src/internal/trace/summary.go
+@@ -390,24 +390,14 @@ func (s *Summarizer) Event(ev *Event) {
+ 			// This root frame will be identical for all transitions on this
+ 			// goroutine, because it represents its immutable start point.
+ 			if g.Name == "" {
+-				stk := st.Stack
+-				if stk != NoStack {
+-					var frame StackFrame
+-					var ok bool
+-					stk.Frames()(func(f StackFrame) bool {
+-						frame = f
+-						ok = true
+-						return true
+-					})
+-					if ok {
+-						// NB: this PC won't actually be consistent for
+-						// goroutines which existed at the start of the
+-						// trace. The UI doesn't use it directly; this
+-						// mainly serves as an indication that we
+-						// actually saw a call stack for the goroutine
+-						g.PC = frame.PC
+-						g.Name = frame.Func
+-					}
++				for frame := range st.Stack.Frames() {
++					// NB: this PC won't actually be consistent for
++					// goroutines which existed at the start of the
++					// trace. The UI doesn't use it directly; this
++					// mainly serves as an indication that we
++					// actually saw a call stack for the goroutine
++					g.PC = frame.PC
++					g.Name = frame.Func
+ 				}
+ 			}
+ 
+diff --git a/src/internal/trace/testtrace/validation.go b/src/internal/trace/testtrace/validation.go
+index 42a561f1f0..59ff19e610 100644
+--- a/src/internal/trace/testtrace/validation.go
++++ b/src/internal/trace/testtrace/validation.go
+@@ -350,20 +350,17 @@ func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace
+ 
+ func checkStack(e *errAccumulator, stk trace.Stack) {
+ 	// Check for non-empty values, but we also check for crashes due to incorrect validation.
+-	i := 0
+-	stk.Frames()(func(f trace.StackFrame) bool {
++	for i, f := range slices.Collect(stk.Frames()) {
+ 		if i == 0 {
+ 			// Allow for one fully zero stack.
+ 			//
+ 			// TODO(mknyszek): Investigate why that happens.
+-			return true
++			continue
+ 		}
+ 		if f.Func == "" || f.File == "" || f.PC == 0 || f.Line == 0 {
+ 			e.Errorf("invalid stack frame %#v: missing information", f)
+ 		}
+-		i++
+-		return true
+-	})
++	}
+ }
+ 
+ type errAccumulator struct {
+diff --git a/src/internal/trace/trace_test.go b/src/internal/trace/trace_test.go
+index dcf9d05fb4..facac47eef 100644
+--- a/src/internal/trace/trace_test.go
++++ b/src/internal/trace/trace_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -148,12 +149,11 @@ func TestTraceCPUProfile(t *testing.T) {
+ 				if hogRegion != nil && ev.Goroutine() == hogRegion.Goroutine() {
+ 					traceSamples++
+ 					var fns []string
+-					ev.Stack().Frames()(func(frame trace.StackFrame) bool {
++					for frame := range ev.Stack().Frames() {
+ 						if frame.Func != "runtime.goexit" {
+ 							fns = append(fns, fmt.Sprintf("%s:%d", frame.Func, frame.Line))
+ 						}
+-						return true
+-					})
++					}
+ 					stack := strings.Join(fns, "|")
+ 					traceStacks[stack]++
+ 				}
+@@ -436,21 +436,15 @@ func TestTraceStacks(t *testing.T) {
+ 			}...)
+ 		}
+ 		stackMatches := func(stk trace.Stack, frames []frame) bool {
+-			i := 0
+-			match := true
+-			stk.Frames()(func(f trace.StackFrame) bool {
++			for i, f := range slices.Collect(stk.Frames()) {
+ 				if f.Func != frames[i].fn {
+-					match = false
+ 					return false
+ 				}
+ 				if line := uint64(frames[i].line); line != 0 && line != f.Line {
+-					match = false
+ 					return false
+ 				}
+-				i++
+-				return true
+-			})
+-			return match
++			}
++			return true
+ 		}
+ 		r, err := trace.NewReader(bytes.NewReader(tb))
+ 		if err != nil {
+diff --git a/src/runtime/trace_cgo_test.go b/src/runtime/trace_cgo_test.go
+index 28b6f7833e..871698f8b4 100644
+--- a/src/runtime/trace_cgo_test.go
++++ b/src/runtime/trace_cgo_test.go
+@@ -94,10 +94,9 @@ func mustFindLogV2(t *testing.T, trc io.Reader, category string) trace.Event {
+ // dumpStack returns e.Stack() as a string.
+ func dumpStackV2(e *trace.Event) string {
+ 	var buf bytes.Buffer
+-	e.Stack().Frames()(func(f trace.StackFrame) bool {
++	for f := range e.Stack().Frames() {
+ 		file := strings.TrimPrefix(f.File, runtime.GOROOT())
+ 		fmt.Fprintf(&buf, "%s\n\t%s:%d\n", f.Func, file, f.Line)
+-		return true
+-	})
++	}
+ 	return buf.String()
+ }

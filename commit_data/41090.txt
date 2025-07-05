@@ -9,7 +9,7 @@ Date:   Fri Aug 23 11:38:12 2019 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go               | 2 ++
  src/cmd/go/internal/work/init.go   | 1 +
  src/cmd/link/internal/ld/config.go | 2 +-
@@ -17,3 +17,81 @@ Date:   Fri Aug 23 11:38:12 2019 -0400
  src/plugin/plugin_dlopen.go        | 2 +-
  src/plugin/plugin_stubs.go         | 2 +-
  6 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f63c94697c..3be9754e67 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -972,6 +972,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			return true
+ 		case "darwin-amd64":
+ 			return true
++		case "freebsd-amd64":
++			return true
+ 		}
+ 		return false
+ 	case "pie":
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 35d3a505cc..c220d87123 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -197,6 +197,7 @@ func buildModeInit() {
+ 			case "darwin/amd64":
+ 				// Skip DWARF generation due to #21647
+ 				forcedLdflags = append(forcedLdflags, "-w")
++			case "freebsd/amd64":
+ 			default:
+ 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
+ 			}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 8525a033da..e119599317 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -95,7 +95,7 @@ func (mode *BuildMode) Set(s string) error {
+ 			default:
+ 				return badmode()
+ 			}
+-		case "darwin":
++		case "darwin", "freebsd":
+ 			switch objabi.GOARCH {
+ 			case "amd64":
+ 			default:
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index 5506e95692..4a524bfa3f 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -13,7 +13,7 @@
+ // already part of the program are called. The main function is not run.
+ // A plugin is only initialized once, and cannot be closed.
+ //
+-// Currently plugins are only supported on Linux and macOS.
++// Currently plugins are only supported on Linux, FreeBSD, and macOS.
+ // Please report any issues.
+ package plugin
+ 
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index 03d3f08717..9200fdc3cb 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,cgo darwin,cgo
++// +build linux,cgo darwin,cgo freebsd,cgo
+ 
+ package plugin
+ 
+diff --git a/src/plugin/plugin_stubs.go b/src/plugin/plugin_stubs.go
+index 40a41643b1..1893203017 100644
+--- a/src/plugin/plugin_stubs.go
++++ b/src/plugin/plugin_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !linux,!darwin !cgo
++// +build !linux,!freebsd,!darwin !cgo
+ 
+ package plugin
+ 

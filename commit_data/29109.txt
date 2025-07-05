@@ -20,7 +20,7 @@ Date:   Mon Jul 11 16:05:57 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rc4/rc4_arm.s                    |  4 +-
  src/crypto/sha256/sha256block_386.s         |  2 +-
  src/math/modf_386.s                         | 12 ++--
@@ -74,3 +74,1959 @@ Date:   Mon Jul 11 16:05:57 2016 -0700
  src/syscall/syscall_netbsd.go               |  2 +-
  src/syscall/syscall_openbsd.go              |  2 +-
  52 files changed, 361 insertions(+), 356 deletions(-)
+
+diff --git a/src/crypto/rc4/rc4_arm.s b/src/crypto/rc4/rc4_arm.s
+index 05e94cbcf2..c726d6d1c0 100644
+--- a/src/crypto/rc4/rc4_arm.s
++++ b/src/crypto/rc4/rc4_arm.s
+@@ -25,8 +25,8 @@ TEXT ·xorKeyStream(SB),NOSPLIT,$0
+ 	MOVW src+4(FP), Rsrc
+ 	MOVW n+8(FP), Rn
+ 	MOVW state+12(FP), Rstate
+-	MOVW pi+16(FP), Rpi
+-	MOVW pj+20(FP), Rpj
++	MOVW i+16(FP), Rpi
++	MOVW j+20(FP), Rpj
+ 	MOVBU (Rpi), Ri
+ 	MOVBU (Rpj), Rj
+ 	MOVW $0, Rk
+diff --git a/src/crypto/sha256/sha256block_386.s b/src/crypto/sha256/sha256block_386.s
+index e0353c3edc..33ed027e1f 100644
+--- a/src/crypto/sha256/sha256block_386.s
++++ b/src/crypto/sha256/sha256block_386.s
+@@ -141,7 +141,7 @@
+ 	MSGSCHEDULE1(index); \
+ 	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+ 
+-TEXT ·block(SB),0,$296-12
++TEXT ·block(SB),0,$296-16
+ 	MOVL	p_base+4(FP), SI
+ 	MOVL	p_len+8(FP), DX
+ 	SHRL	$6, DX
+diff --git a/src/math/modf_386.s b/src/math/modf_386.s
+index d9b1eebe57..e9160735d3 100644
+--- a/src/math/modf_386.s
++++ b/src/math/modf_386.s
+@@ -7,16 +7,16 @@
+ // func Modf(f float64) (int float64, frac float64)
+ TEXT ·Modf(SB),NOSPLIT,$0
+ 	// special case for f == -0.0
+-	MOVL f+4(FP), DX	// high word
+-	MOVL f+0(FP), AX	// low word
++	MOVL f_hi+4(FP), DX	// high word
++	MOVL f_lo+0(FP), AX	// low word
+ 	CMPL DX, $(1<<31)	// beginning of -0.0
+ 	JNE notNegativeZero
+ 	CMPL AX, $0			// could be denormalized
+ 	JNE notNegativeZero
+-	MOVL AX, int+8(FP)
+-	MOVL DX, int+12(FP)
+-	MOVL AX, frac+16(FP)
+-	MOVL DX, frac+20(FP)
++	MOVL AX, int_lo+8(FP)
++	MOVL DX, int_hi+12(FP)
++	MOVL AX, frac_lo+16(FP)
++	MOVL DX, frac_hi+20(FP)
+ 	RET
+ notNegativeZero:
+ 	FMOVD   f+0(FP), F0  // F0=f
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b9dabc004f..f039fbf42e 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -843,9 +843,6 @@ TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+-TEXT runtime·abort(SB),NOSPLIT,$0-0
+-	INT $0x3
+-
+ // memhash_varlen(p unsafe.Pointer, h seed) uintptr
+ // redirects to memhash(p, h, size) using the size
+ // stored in the closure.
+@@ -1290,15 +1287,15 @@ eq:
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-17
+-	MOVL	s1str+0(FP), SI
+-	MOVL	s2str+8(FP), DI
++	MOVL	s1_base+0(FP), SI
++	MOVL	s2_base+8(FP), DI
+ 	CMPL	SI, DI
+ 	JEQ	same
+-	MOVL	s1len+4(FP), BX
+-	LEAL	v+16(FP), AX
++	MOVL	s1_len+4(FP), BX
++	LEAL	ret+16(FP), AX
+ 	JMP	runtime·memeqbody(SB)
+ same:
+-	MOVB	$1, v+16(FP)
++	MOVB	$1, ret+16(FP)
+ 	RET
+ 
+ TEXT bytes·Equal(SB),NOSPLIT,$0-25
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6103d54ba6..3383bbe446 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1340,15 +1340,15 @@ eq:
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+-	MOVQ	s1str+0(FP), SI
+-	MOVQ	s2str+16(FP), DI
++	MOVQ	s1_base+0(FP), SI
++	MOVQ	s2_base+16(FP), DI
+ 	CMPQ	SI, DI
+ 	JEQ	eq
+-	MOVQ	s1len+8(FP), BX
+-	LEAQ	v+32(FP), AX
++	MOVQ	s1_len+8(FP), BX
++	LEAQ	ret+32(FP), AX
+ 	JMP	runtime·memeqbody(SB)
+ eq:
+-	MOVB	$1, v+32(FP)
++	MOVB	$1, ret+32(FP)
+ 	RET
+ 
+ // a in SI
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index f02297e8f0..59a0e75734 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -855,13 +855,13 @@ samebytes:
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
+-	MOVW	s1str+0(FP), R2
+-	MOVW	s2str+8(FP), R3
++	MOVW	s1_base+0(FP), R2
++	MOVW	s2_base+8(FP), R3
+ 	MOVW	$1, R8
+-	MOVB	R8, v+16(FP)
++	MOVB	R8, ret+16(FP)
+ 	CMP	R2, R3
+ 	RET.EQ
+-	MOVW	s1len+4(FP), R0
++	MOVW	s1_len+4(FP), R0
+ 	ADD	R2, R0, R6
+ loop:
+ 	CMP	R2, R6
+@@ -871,7 +871,7 @@ loop:
+ 	CMP	R4, R5
+ 	BEQ	loop
+ 	MOVW	$0, R8
+-	MOVB	R8, v+16(FP)
++	MOVB	R8, ret+16(FP)
+ 	RET
+ 
+ // TODO: share code with memequal?
+@@ -1033,8 +1033,8 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
+ 	SUB	R1, R3, R1
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-4
+-        RET
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
++	RET
+ 
+ #ifndef GOOS_nacl
+ // This is called from .init_array and follows the platform, not Go, ABI.
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 7ebd7bacb9..df74cdcf3d 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -869,9 +869,9 @@ samebytes:
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+-	MOVD	s1str+0(FP), R0
+-	MOVD	s1len+8(FP), R1
+-	MOVD	s2str+16(FP), R2
++	MOVD	s1_base+0(FP), R0
++	MOVD	s1_len+8(FP), R1
++	MOVD	s2_base+16(FP), R2
+ 	ADD	R0, R1		// end
+ loop:
+ 	CMP	R0, R1
+@@ -996,8 +996,8 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
+-        RET
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
++	RET
+ 
+ // This is called from .init_array and follows the platform, not Go, ABI.
+ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 7dd35aa0f5..ec7ee6c96b 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -746,13 +746,13 @@ eq:
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+-	MOVV	s1str+0(FP), R1
+-	MOVV	s2str+16(FP), R2
++	MOVV	s1_base+0(FP), R1
++	MOVV	s2_base+16(FP), R2
+ 	MOVV	$1, R3
+ 	MOVB	R3, ret+32(FP)
+ 	BNE	R1, R2, 2(PC)
+ 	RET
+-	MOVV	s1len+8(FP), R3
++	MOVV	s1_len+8(FP), R3
+ 	ADDV	R1, R3, R4
+ loop:
+ 	BNE	R1, R4, 2(PC)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 32c63c2671..874f6c68c4 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -908,14 +908,14 @@ equal:
+ // See runtime_test.go:eqstring_generic for
+ // equivalent Go code.
+ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+-	MOVD    s1str+0(FP), R3
+-	MOVD    s2str+16(FP), R4
++	MOVD    s1_base+0(FP), R3
++	MOVD    s2_base+16(FP), R4
+ 	MOVD    $1, R5
+ 	MOVB    R5, ret+32(FP)
+ 	CMP     R3, R4
+ 	BNE     2(PC)
+ 	RET
+-	MOVD    s1len+8(FP), R5
++	MOVD    s1_len+8(FP), R5
+ 	BL      runtime·memeqbody(SB)
+ 	MOVB    R9, ret+32(FP)
+ 	RET
+@@ -1109,8 +1109,8 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
+-        RET
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
++	RET
+ 
+ // prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
+ // module containing runtime) to the frame that goexit will execute in when
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/asm_386.s
+index 357d830289..631f122350 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/asm_386.s
+@@ -61,7 +61,7 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-21
+ 	SETEQ	ret+20(FP)
+ 	RET
+ 
+-// bool Casp(void **p, void *old, void *new)
++// bool Casp1(void **p, void *old, void *new)
+ // Atomically:
+ //	if(*p == old){
+ //		*p = new;
+diff --git a/src/runtime/internal/atomic/asm_amd64.s b/src/runtime/internal/atomic/asm_amd64.s
+index 0001d2301c..32dbbf763d 100644
+--- a/src/runtime/internal/atomic/asm_amd64.s
++++ b/src/runtime/internal/atomic/asm_amd64.s
+@@ -55,7 +55,7 @@ TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
+ TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
+ 	JMP	runtime∕internal∕atomic·Xadd64(SB)
+ 
+-// bool Casp(void **val, void *old, void *new)
++// bool Casp1(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){
+ //		*val = new;
+diff --git a/src/runtime/internal/atomic/asm_amd64p32.s b/src/runtime/internal/atomic/asm_amd64p32.s
+index 22c707c325..87f7a079ca 100644
+--- a/src/runtime/internal/atomic/asm_amd64p32.s
++++ b/src/runtime/internal/atomic/asm_amd64p32.s
+@@ -55,7 +55,7 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
+ 	SETEQ	ret+24(FP)
+ 	RET
+ 
+-// bool Casp(void **val, void *old, void *new)
++// bool Casp1(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){
+ //		*val = new;
+diff --git a/src/runtime/internal/atomic/asm_arm.s b/src/runtime/internal/atomic/asm_arm.s
+index 12da22390d..5e2380e07b 100644
+--- a/src/runtime/internal/atomic/asm_arm.s
++++ b/src/runtime/internal/atomic/asm_arm.s
+@@ -19,7 +19,7 @@
+ //		B	runtime∕internal∕atomic·armcas(SB)
+ //
+ TEXT runtime∕internal∕atomic·armcas(SB),NOSPLIT,$0-13
+-	MOVW	valptr+0(FP), R1
++	MOVW	ptr+0(FP), R1
+ 	MOVW	old+4(FP), R2
+ 	MOVW	new+8(FP), R3
+ casl:
+diff --git a/src/runtime/internal/atomic/asm_arm64.s b/src/runtime/internal/atomic/asm_arm64.s
+index 929bf7189c..b6af632efa 100644
+--- a/src/runtime/internal/atomic/asm_arm64.s
++++ b/src/runtime/internal/atomic/asm_arm64.s
+@@ -47,7 +47,7 @@ TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
+ TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
+ 	B	runtime∕internal∕atomic·Xadd64(SB)
+ 
+-// bool Casp(void **val, void *old, void *new)
++// bool Casp1(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){
+ //		*val = new;
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 244237df4d..211f52663b 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -181,3 +181,6 @@ func And8(addr *uint8, v uint8) {
+ 		}
+ 	}
+ }
++
++//go:nosplit
++func armcas(ptr *uint32, old, new uint32) bool
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index 1a7537ed33..c9c2d1fc0c 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -6,9 +6,9 @@
+ 
+ #include "textflag.h"
+ 
+-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* addr)
++// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
+-	MOVD	addr+0(FP), R3
++	MOVD	ptr+0(FP), R3
+ 	SYNC
+ 	MOVWZ	0(R3), R3
+ 	CMPW	R3, R3, CR7
+@@ -17,9 +17,9 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVW	R3, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* addr)
++// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
+-	MOVD	addr+0(FP), R3
++	MOVD	ptr+0(FP), R3
+ 	SYNC
+ 	MOVD	0(R3), R3
+ 	CMP	R3, R3, CR7
+@@ -28,9 +28,9 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD	R3, ret+8(FP)
+ 	RET
+ 
+-// void *runtime∕internal∕atomic·Loadp(void *volatile *addr)
++// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
+ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$-8-16
+-	MOVD	addr+0(FP), R3
++	MOVD	ptr+0(FP), R3
+ 	SYNC
+ 	MOVD	0(R3), R3
+ 	CMP	R3, R3, CR7
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 0a8f9e6f52..586836c789 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x,s390x}.s
++// These routines have corresponding stubs in stubs_asm.go.
+ 
+ // +build mips64 mips64le
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 9368e0d5c6..15881cf6bb 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -131,7 +131,7 @@ func osinit() {
+ 	ncpu = getncpu()
+ }
+ 
+-func tstart_sysvicall()
++func tstart_sysvicall(newm *m) uint32
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
+ //go:nowritebarrier
+@@ -565,7 +565,7 @@ func sysconf(name int32) int64 {
+ 	return int64(sysvicall1(&libc_sysconf, uintptr(name)))
+ }
+ 
+-func usleep1(uint32)
++func usleep1(usec uint32)
+ 
+ //go:nosplit
+ func usleep(µs uint32) {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index a0e3d8ed6b..8f218150b0 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -503,13 +503,15 @@ func sigaction(mode uint32, new *sigactiont, old *usigactiont)
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+ 
+-func sigtramp()
++// darwin/arm64 uses registers instead of stack-based arguments.
++// TODO: does this matter?
++func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer)
+ 
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+ func raise(sig int32)
+-func raiseproc(int32)
++func raiseproc(sig int32)
+ 
+ //extern SigTabTT runtime·sigtab[];
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 0131c6687d..796e05a69e 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -133,7 +133,7 @@ const (
+ )
+ 
+ //go:noescape
+-func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
++func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
+ //go:nowritebarrier
+@@ -360,7 +360,7 @@ func memlimit() uintptr {
+ //#endif
+ 
+ func sigreturn()
+-func sigtramp()
++func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
+ func cgoSigtramp()
+ 
+ //go:noescape
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index a594c1b791..72951ae0b2 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -206,6 +206,7 @@ func asmcgocall(fn, arg unsafe.Pointer) int32
+ const _NoArgs = ^uintptr(0)
+ 
+ func morestack()
++func morestack_noctxt()
+ func rt0_go()
+ 
+ // stackBarrier records that the stack has been unwound past a certain
+@@ -273,3 +274,6 @@ func round(n, a uintptr) uintptr {
+ 
+ // checkASM returns whether assembly runtime checks have passed.
+ func checkASM() bool
++
++func memequal_varlen(a, b unsafe.Pointer) bool
++func eqstring(s1, s2 string) bool
+diff --git a/src/runtime/stubs_asm.go b/src/runtime/stubs_asm.go
+new file mode 100644
+index 0000000000..fd2eed95d6
+--- /dev/null
++++ b/src/runtime/stubs_asm.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !mips64,!mips64le
++
++// Declarations for routines that are implemented in noasm.go.
++
++package runtime
++
++func cmpstring(s1, s2 string) int
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index b5e65e6869..d19e56317c 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -280,26 +280,26 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
+ // It is called with the following arguments on the stack:
+ //	0(SP)	"return address" - ignored
+ //	4(SP)	actual handler
+-//	8(SP)	signal number
+-//	12(SP)	siginfo style
++//	8(SP)	siginfo style
++//	12(SP)	signal number
+ //	16(SP)	siginfo
+ //	20(SP)	context
+ TEXT runtime·sigtramp(SB),NOSPLIT,$20
+ 	MOVL	fn+0(FP), BX
+ 	MOVL	BX, 0(SP)
+-	MOVL	style+4(FP), BX
++	MOVL	infostyle+4(FP), BX
+ 	MOVL	BX, 4(SP)
+ 	MOVL	sig+8(FP), BX
+ 	MOVL	BX, 8(SP)
+ 	MOVL	info+12(FP), BX
+ 	MOVL	BX, 12(SP)
+-	MOVL	context+16(FP), BX
++	MOVL	ctx+16(FP), BX
+ 	MOVL	BX, 16(SP)
+ 	CALL	runtime·sigtrampgo(SB)
+ 
+ 	// call sigreturn
+-	MOVL	context+16(FP), CX
+-	MOVL	style+4(FP), BX
++	MOVL	ctx+16(FP), CX
++	MOVL	infostyle+4(FP), BX
+ 	MOVL	$0, 0(SP)	// "caller PC" - ignored
+ 	MOVL	CX, 4(SP)
+ 	MOVL	BX, 8(SP)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index ea2cc068f6..69cee55299 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -197,7 +197,7 @@ TEXT time·now(SB),NOSPLIT,$0-12
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVL	sig+0(FP), DI
++	MOVL	how+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+ 	MOVQ	old+16(FP), DX
+ 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 985ff50245..2c03c91683 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -106,7 +106,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$24
+ 	MOVW	$SYS_getpid, R12
+ 	SWI	$0x80
+ 	// arg 1 pid already in R0 from getpid
+-	MOVW	arg+0(FP), R1	// arg 2 - signal
++	MOVW	sig+0(FP), R1	// arg 2 - signal
+ 	MOVW	$1, R2	// arg 3 - posix
+ 	MOVW	$SYS_kill, R12
+ 	SWI $0x80
+@@ -286,7 +286,7 @@ ret:
+ 	B	runtime·exit(SB)
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVW	sig+0(FP), R0
++	MOVW	how+0(FP), R0
+ 	MOVW	new+4(FP), R1
+ 	MOVW	old+8(FP), R2
+ 	MOVW	$SYS_pthread_sigmask, R12
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 8e6b5b1ebf..c02d000774 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -271,7 +271,7 @@ ret:
+ 	B	runtime·exit(SB)
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVW	sig+0(FP), R0
++	MOVW	how+0(FP), R0
+ 	MOVD	new+8(FP), R1
+ 	MOVD	old+16(FP), R2
+ 	MOVW	$SYS_pthread_sigmask, R16
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index be964cb3ec..76dff10670 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -333,11 +333,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI
+-	MOVQ	ev1+8(FP), SI
+-	MOVL	nev1+16(FP), DX
+-	MOVQ	ev2+24(FP), R10
+-	MOVL	nev2+32(FP), R8
++	MOVL	kq+0(FP), DI
++	MOVQ	ch+8(FP), SI
++	MOVL	nch+16(FP), DX
++	MOVQ	ev+24(FP), R10
++	MOVL	nev+32(FP), R8
+ 	MOVQ	ts+40(FP), R9
+ 	MOVL	$363, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 9700117d0f..2455abe141 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -311,11 +311,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI
+-	MOVQ	ev1+8(FP), SI
+-	MOVL	nev1+16(FP), DX
+-	MOVQ	ev2+24(FP), R10
+-	MOVL	nev2+32(FP), R8
++	MOVL	kq+0(FP), DI
++	MOVQ	ch+8(FP), SI
++	MOVL	nch+16(FP), DX
++	MOVQ	ev+24(FP), R10
++	MOVL	nev+32(FP), R8
+ 	MOVQ	ts+40(FP), R9
+ 	MOVL	$363, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 4fe07e0837..8b41275bd0 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -227,7 +227,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+ 	MOVL	BX, 4(SP)
+-	MOVL	context+8(FP), BX
++	MOVL	ctx+8(FP), BX
+ 	MOVL	BX, 8(SP)
+ 	CALL	runtime·sigtrampgo(SB)
+ 	RET
+@@ -297,15 +297,15 @@ TEXT runtime·futex(SB),NOSPLIT,$0
+ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	$120, AX	// clone
+ 	MOVL	flags+0(FP), BX
+-	MOVL	stack+4(FP), CX
++	MOVL	stk+4(FP), CX
+ 	MOVL	$0, DX	// parent tid ptr
+ 	MOVL	$0, DI	// child tid ptr
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+ 	SUBL	$16, CX
+-	MOVL	mm+8(FP), SI
++	MOVL	mp+8(FP), SI
+ 	MOVL	SI, 0(CX)
+-	MOVL	gg+12(FP), SI
++	MOVL	gp+12(FP), SI
+ 	MOVL	SI, 4(CX)
+ 	MOVL	fn+16(FP), SI
+ 	MOVL	SI, 8(CX)
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 8a8f3cce8b..830441ed78 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -388,10 +388,10 @@ TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+-// int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
++// int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	flags+0(FP), DI
+-	MOVQ	stack+8(FP), SI
++	MOVQ	stk+8(FP), SI
+ 	MOVQ	$0, DX
+ 	MOVQ	$0, R10
+ 
+@@ -548,7 +548,7 @@ TEXT runtime·access(SB),NOSPLIT,$0
+ TEXT runtime·connect(SB),NOSPLIT,$0-28
+ 	MOVL	fd+0(FP), DI
+ 	MOVQ	addr+8(FP), SI
+-	MOVL	addrlen+16(FP), DX
++	MOVL	len+16(FP), DX
+ 	MOVL	$42, AX  // syscall entry
+ 	SYSCALL
+ 	MOVL	AX, ret+24(FP)
+@@ -557,8 +557,8 @@ TEXT runtime·connect(SB),NOSPLIT,$0-28
+ // int socket(int domain, int type, int protocol)
+ TEXT runtime·socket(SB),NOSPLIT,$0-20
+ 	MOVL	domain+0(FP), DI
+-	MOVL	type+4(FP), SI
+-	MOVL	protocol+8(FP), DX
++	MOVL	typ+4(FP), SI
++	MOVL	prot+8(FP), DX
+ 	MOVL	$41, AX  // syscall entry
+ 	SYSCALL
+ 	MOVL	AX, ret+16(FP)
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 5e5fcf0e6f..ede558c5b7 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -235,13 +235,12 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT runtime·futex(SB),NOSPLIT,$0
+-	// TODO: Rewrite to use FP references. Vet complains.
+-	MOVW	4(R13), R0
+-	MOVW	8(R13), R1
+-	MOVW	12(R13), R2
+-	MOVW	16(R13), R3
+-	MOVW	20(R13), R4
+-	MOVW	24(R13), R5
++	MOVW    addr+0(FP), R0
++	MOVW    op+4(FP), R1
++	MOVW    val+8(FP), R2
++	MOVW    ts+12(FP), R3
++	MOVW    addr2+16(FP), R4
++	MOVW    val3+20(FP), R5
+ 	MOVW	$SYS_futex, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+24(FP)
+@@ -259,9 +258,9 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	// Copy mp, gp, fn off parent stack for use by child.
+ 	// TODO(kaib): figure out which registers are clobbered by clone and avoid stack copying
+ 	MOVW	$-16(R1), R1
+-	MOVW	mm+8(FP), R6
++	MOVW	mp+8(FP), R6
+ 	MOVW	R6, 0(R1)
+-	MOVW	gg+12(FP), R6
++	MOVW	gp+12(FP), R6
+ 	MOVW	R6, 4(R1)
+ 	MOVW	fn+16(FP), R6
+ 	MOVW	R6, 8(R1)
+@@ -491,7 +490,7 @@ TEXT runtime·access(SB),NOSPLIT,$0
+ TEXT runtime·connect(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0
+ 	MOVW	addr+4(FP), R1
+-	MOVW	addrlen+8(FP), R2
++	MOVW	len+8(FP), R2
+ 	MOVW	$SYS_connect, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+@@ -499,8 +498,8 @@ TEXT runtime·connect(SB),NOSPLIT,$0
+ 
+ TEXT runtime·socket(SB),NOSPLIT,$0
+ 	MOVW	domain+0(FP), R0
+-	MOVW	type+4(FP), R1
+-	MOVW	protocol+8(FP), R2
++	MOVW	typ+4(FP), R1
++	MOVW	prot+8(FP), R2
+ 	MOVW	$SYS_socket, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 1bee8477ed..52c51f6579 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -319,8 +319,8 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 	MOVD	stk+8(FP), R1
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+-	MOVD	mm+16(FP), R10
+-	MOVD	gg+24(FP), R11
++	MOVD	mp+16(FP), R10
++	MOVD	gp+24(FP), R11
+ 	MOVD	fn+32(FP), R12
+ 
+ 	MOVD	R10, -8(R1)
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index d4a81ca364..d0141bce78 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -309,8 +309,8 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+ 	// Careful: Linux system call clobbers ???.
+-	MOVV	mm+16(FP), R16
+-	MOVV	gg+24(FP), R17
++	MOVV	mp+16(FP), R16
++	MOVV	gp+24(FP), R17
+ 	MOVV	fn+32(FP), R18
+ 
+ 	MOVV	R16, -8(R5)
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 883aef8409..0afd333b36 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -304,8 +304,8 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
+ 
+ 	// Copy mp, gp, fn off parent stack for use by child.
+ 	// Careful: Linux system call clobbers ???.
+-	MOVD	mm+16(FP), R7
+-	MOVD	gg+24(FP), R8
++	MOVD	mp+16(FP), R7
++	MOVD	gp+24(FP), R8
+ 	MOVD	fn+32(FP), R12
+ 
+ 	MOVD	R7, -8(R4)
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index e69a0b7bfe..05de20c546 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -368,9 +368,9 @@ ret:
+ 
+ // func getRandomData([]byte)
+ TEXT runtime·getRandomData(SB),NOSPLIT,$8-12
+-	MOVL buf+0(FP), AX
++	MOVL arg_base+0(FP), AX
+ 	MOVL AX, 0(SP)
+-	MOVL len+4(FP), AX
++	MOVL arg_len+4(FP), AX
+ 	MOVL AX, 4(SP)
+ 	NACL_SYSCALL(SYS_get_random_bytes)
+ 	RET
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index d6b5d35232..8c3dca264e 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -337,11 +337,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI
+-	MOVQ	ev1+8(FP), SI
+-	MOVL	nev1+16(FP), DX
+-	MOVQ	ev2+24(FP), R10
+-	MOVL	nev2+32(FP), R8
++	MOVL	kq+0(FP), DI
++	MOVQ	ch+8(FP), SI
++	MOVL	nch+16(FP), DX
++	MOVQ	ev+24(FP), R10
++	MOVL	nev+32(FP), R8
+ 	MOVQ	ts+40(FP), R9
+ 	MOVL	$435, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index c9fb8322c5..944188cda2 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -327,11 +327,11 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI
+-	MOVQ	ev1+8(FP), SI
+-	MOVL	nev1+16(FP), DX
+-	MOVQ	ev2+24(FP), R10
+-	MOVL	nev2+32(FP), R8
++	MOVL	kq+0(FP), DI
++	MOVQ	ch+8(FP), SI
++	MOVL	nch+16(FP), DX
++	MOVQ	ev+24(FP), R10
++	MOVL	nev+32(FP), R8
+ 	MOVQ	ts+40(FP), R9
+ 	MOVL	$72, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 952069bc1a..7815ca6541 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -15,7 +15,7 @@
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-4
+-	MOVW	status+0(FP), R0	// arg 1 - status
++	MOVW	code+0(FP), R0	// arg 1 - status
+ 	MOVW	$1, R12			// sys_exit
+ 	SWI	$0
+ 	MOVW.CS	$0, R8			// crash on syscall failure
+@@ -31,9 +31,9 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$-4
+-	MOVW	path+0(FP), R0		// arg 1 - path
+-	MOVW	flags+4(FP), R1		// arg 2 - flags
+-	MOVW	mode+8(FP), R2		// arg 3 - mode
++	MOVW	name+0(FP), R0		// arg 1 - path
++	MOVW	mode+4(FP), R1		// arg 2 - mode
++	MOVW	perm+8(FP), R2		// arg 3 - perm
+ 	MOVW	$5, R12			// sys_open
+ 	SWI	$0
+ 	MOVW.CS	$-1, R0
+@@ -41,7 +41,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	RET
+ 
+ TEXT runtime·closefd(SB),NOSPLIT,$-4
+-	MOVW	path+0(FP), R0		// arg 1 - path
++	MOVW	fd+0(FP), R0		// arg 1 - fd
+ 	MOVW	$6, R12			// sys_close
+ 	SWI	$0
+ 	MOVW.CS	$-1, R0
+@@ -50,8 +50,8 @@ TEXT runtime·closefd(SB),NOSPLIT,$-4
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVW	fd+0(FP), R0		// arg 1 - fd
+-	MOVW	buf+4(FP), R1		// arg 2 - buf
+-	MOVW	nbyte+8(FP), R2		// arg 3 - nbyte
++	MOVW	p+4(FP), R1		// arg 2 - buf
++	MOVW	n+8(FP), R2		// arg 3 - nbyte
+ 	MOVW	$3, R12			// sys_read
+ 	SWI	$0
+ 	MOVW.CS	$-1, R0
+@@ -60,8 +60,8 @@ TEXT runtime·read(SB),NOSPLIT,$-4
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVW	fd+0(FP), R0		// arg 1 - fd
+-	MOVW	buf+4(FP), R1		// arg 2 - buf
+-	MOVW	nbyte+8(FP), R2		// arg 3 - nbyte
++	MOVW	p+4(FP), R1		// arg 2 - buf
++	MOVW	n+8(FP), R2		// arg 3 - nbyte
+ 	MOVW	$4, R12			// sys_write
+ 	SWI	$0
+ 	MOVW.CS	$-1, R0
+@@ -104,14 +104,14 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$16
+ 	MOVW	addr+0(FP), R0		// arg 1 - addr
+-	MOVW	len+4(FP), R1		// arg 2 - len
++	MOVW	n+4(FP), R1		// arg 2 - len
+ 	MOVW	prot+8(FP), R2		// arg 3 - prot
+ 	MOVW	flags+12(FP), R3	// arg 4 - flags
+ 	MOVW	fd+16(FP), R4		// arg 5 - fd (on stack)
+ 	MOVW	R4, 4(R13)
+ 	MOVW	$0, R5			// arg 6 - pad (on stack)
+ 	MOVW	R5, 8(R13)
+-	MOVW	offset+20(FP), R6	// arg 7 - offset (on stack)
++	MOVW	off+20(FP), R6		// arg 7 - offset (on stack)
+ 	MOVW	R6, 12(R13)		// lower 32 bits (from Go runtime)
+ 	MOVW	$0, R7
+ 	MOVW	R7, 16(R13)		// high 32 bits
+@@ -124,7 +124,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R0		// arg 1 - addr
+-	MOVW	len+4(FP), R1		// arg 2 - len
++	MOVW	n+4(FP), R1		// arg 2 - len
+ 	MOVW	$73, R12		// sys_munmap
+ 	SWI	$0
+ 	MOVW.CS	$0, R8			// crash on syscall failure
+@@ -133,8 +133,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R0		// arg 1 - addr
+-	MOVW	len+4(FP), R1		// arg 2 - len
+-	MOVW	behav+8(FP), R2		// arg 2 - behav
++	MOVW	n+4(FP), R1		// arg 2 - len
++	MOVW	flags+8(FP), R2		// arg 2 - flags
+ 	MOVW	$75, R12		// sys_madvise
+ 	SWI	$0
+ 	MOVW.CS	$0, R8			// crash on syscall failure
+@@ -142,9 +142,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$0
+-	MOVW	which+0(FP), R0		// arg 1 - which
+-	MOVW	value+4(FP), R1		// arg 2 - value
+-	MOVW	ovalue+8(FP), R2	// arg 3 - ovalue
++	MOVW	mode+0(FP), R0		// arg 1 - mode
++	MOVW	new+4(FP), R1		// arg 2 - new value
++	MOVW	old+8(FP), R2		// arg 3 - old value
+ 	MOVW	$69, R12		// sys_setitimer
+ 	SWI	$0
+ 	RET
+@@ -189,9 +189,9 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$0
+-	MOVW	signum+0(FP), R0	// arg 1 - signum
+-	MOVW	nsa+4(FP), R1		// arg 2 - nsa
+-	MOVW	osa+8(FP), R2		// arg 3 - osa
++	MOVW	sig+0(FP), R0		// arg 1 - signum
++	MOVW	new+4(FP), R1		// arg 2 - new sigaction
++	MOVW	old+8(FP), R2		// arg 3 - old sigaction
+ 	MOVW	$46, R12		// sys_sigaction
+ 	SWI	$0
+ 	MOVW.CS	$3, R8			// crash on syscall failure
+@@ -199,8 +199,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVW	how+0(FP), R0		// arg 1 - how
+-	MOVW	mask+4(FP), R1		// arg 2 - mask
++	MOVW	mode+0(FP), R0		// arg 1 - mode
++	MOVW	new+4(FP), R1		// arg 2 - new
+ 	MOVW	$48, R12		// sys_sigprocmask
+ 	SWI	$0
+ 	MOVW.CS	$3, R8			// crash on syscall failure
+@@ -274,8 +274,8 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+-	MOVW	nss+0(FP), R0		// arg 1 - nss
+-	MOVW	oss+4(FP), R1		// arg 2 - oss
++	MOVW	new+0(FP), R0		// arg 1 - new sigaltstack
++	MOVW	old+4(FP), R1		// arg 2 - old sigaltstack
+ 	MOVW	$288, R12		// sys_sigaltstack
+ 	SWI	$0
+ 	MOVW.CS	$0, R8			// crash on syscall failure
+@@ -290,7 +290,7 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ TEXT runtime·thrsleep(SB),NOSPLIT,$4
+ 	MOVW	ident+0(FP), R0		// arg 1 - ident
+ 	MOVW	clock_id+4(FP), R1	// arg 2 - clock_id
+-	MOVW	tp+8(FP), R2		// arg 3 - tp
++	MOVW	tsp+8(FP), R2		// arg 3 - tsp
+ 	MOVW	lock+12(FP), R3		// arg 4 - lock
+ 	MOVW	abort+16(FP), R4	// arg 5 - abort (on stack)
+ 	MOVW	R4, 4(R13)
+@@ -310,13 +310,13 @@ TEXT runtime·thrwakeup(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$8
+-	MOVW	name+0(FP), R0		// arg 1 - name
+-	MOVW	namelen+4(FP), R1	// arg 2 - namelen
+-	MOVW	oldp+8(FP), R2		// arg 3 - oldp
+-	MOVW	oldlenp+12(FP), R3	// arg 4 - oldlenp
+-	MOVW	newp+16(FP), R4		// arg 5 - newp (on stack)
++	MOVW	mib+0(FP), R0		// arg 1 - mib
++	MOVW	miblen+4(FP), R1	// arg 2 - miblen
++	MOVW	out+8(FP), R2		// arg 3 - out
++	MOVW	size+12(FP), R3		// arg 4 - size
++	MOVW	dst+16(FP), R4		// arg 5 - dest (on stack)
+ 	MOVW	R4, 4(R13)
+-	MOVW	newlen+20(FP), R5	// arg 6 - newlen (on stack)
++	MOVW	ndst+20(FP), R5		// arg 6 - newlen (on stack)
+ 	MOVW	R5, 8(R13)
+ 	ADD	$4, R13
+ 	MOVW	$202, R12		// sys___sysctl
+@@ -337,13 +337,13 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$8
+-	MOVW	fd+0(FP), R0		// arg 1 - fd
+-	MOVW	changelist+4(FP), R1	// arg 2 - changelist
+-	MOVW	nchanges+8(FP), R2	// arg 3 - nchanges
+-	MOVW	eventlist+12(FP), R3	// arg 4 - eventlist
+-	MOVW	nevents+16(FP), R4	// arg 5 - nevents (on stack)
++	MOVW	kq+0(FP), R0		// arg 1 - kq
++	MOVW	ch+4(FP), R1		// arg 2 - changelist
++	MOVW	nch+8(FP), R2		// arg 3 - nchanges
++	MOVW	ev+12(FP), R3		// arg 4 - eventlist
++	MOVW	nev+16(FP), R4		// arg 5 - nevents (on stack)
+ 	MOVW	R4, 4(R13)
+-	MOVW	timeout+20(FP), R5	// arg 6 - timeout (on stack)
++	MOVW	ts+20(FP), R5		// arg 6 - timeout (on stack)
+ 	MOVW	R5, 8(R13)
+ 	ADD	$4, R13
+ 	MOVW	$72, R12		// sys_kevent
+diff --git a/src/runtime/vlop_386.s b/src/runtime/vlop_386.s
+index 92232d57bc..0a84bde55b 100644
+--- a/src/runtime/vlop_386.s
++++ b/src/runtime/vlop_386.s
+@@ -29,28 +29,28 @@
+  * C runtime for 64-bit divide.
+  */
+ 
+-// runtime·_mul64x32(r *uint64, a uint64, b uint32) uint32
+-// sets *r = low 64 bits of 96-bit product a*b; returns high 32 bits.
++// runtime·_mul64x32(lo64 *uint64, a uint64, b uint32) (hi32 uint32)
++// sets *lo64 = low 64 bits of 96-bit product a*b; returns high 32 bits.
+ TEXT runtime·_mul64by32(SB), NOSPLIT, $0
+-	MOVL	r+0(FP), CX
+-	MOVL	a+4(FP), AX
++	MOVL	lo64+0(FP), CX
++	MOVL	a_lo+4(FP), AX
+ 	MULL	b+12(FP)
+ 	MOVL	AX, 0(CX)
+ 	MOVL	DX, BX
+-	MOVL	a+8(FP), AX
++	MOVL	a_hi+8(FP), AX
+ 	MULL	b+12(FP)
+ 	ADDL	AX, BX
+ 	ADCL	$0, DX
+ 	MOVL	BX, 4(CX)
+ 	MOVL	DX, AX
+-	MOVL	AX, ret+16(FP)
++	MOVL	AX, hi32+16(FP)
+ 	RET
+ 
+ TEXT runtime·_div64by32(SB), NOSPLIT, $0
+ 	MOVL	r+12(FP), CX
+-	MOVL	a+0(FP), AX
+-	MOVL	a+4(FP), DX
++	MOVL	a_lo+0(FP), AX
++	MOVL	a_hi+4(FP), DX
+ 	DIVL	b+8(FP)
+ 	MOVL	DX, 0(CX)
+-	MOVL	AX, ret+16(FP)
++	MOVL	AX, q+16(FP)
+ 	RET
+diff --git a/src/sync/atomic/asm_arm.s b/src/sync/atomic/asm_arm.s
+index d35ea2a4e0..77b0b248bc 100644
+--- a/src/sync/atomic/asm_arm.s
++++ b/src/sync/atomic/asm_arm.s
+@@ -35,11 +35,11 @@ casloop:
+ 	BNE	casloop
+ 	MOVW	$1, R0
+ 	DMB_ISH_7
+-	MOVBU	R0, ret+12(FP)
++	MOVBU	R0, swapped+12(FP)
+ 	RET
+ casfail:
+ 	MOVW	$0, R0
+-	MOVBU	R0, ret+12(FP)
++	MOVBU	R0, swapped+12(FP)
+ 	RET
+ 
+ TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
+@@ -49,10 +49,10 @@ TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
+ 	AND.S	$7, R1, R2
+ 	BEQ 	2(PC)
+ 	MOVW	R2, (R2)
+-	MOVW	oldlo+4(FP), R2
+-	MOVW	oldhi+8(FP), R3
+-	MOVW	newlo+12(FP), R4
+-	MOVW	newhi+16(FP), R5
++	MOVW	old_lo+4(FP), R2
++	MOVW	old_hi+8(FP), R3
++	MOVW	new_lo+12(FP), R4
++	MOVW	new_hi+16(FP), R5
+ cas64loop:
+ 	// LDREXD and STREXD were introduced in ARMv6k.
+ 	LDREXD	(R1), R6  // loads R6 and R7
+@@ -66,11 +66,11 @@ cas64loop:
+ 	BNE	cas64loop
+ 	MOVW	$1, R0
+ 	DMB_ISH_7
+-	MOVBU	R0, ret+20(FP)
++	MOVBU	R0, swapped+20(FP)
+ 	RET
+ cas64fail:
+ 	MOVW	$0, R0
+-	MOVBU	R0, ret+20(FP)
++	MOVBU	R0, swapped+20(FP)
+ 	RET
+ 
+ TEXT ·armAddUint32(SB),NOSPLIT,$0-12
+@@ -85,7 +85,7 @@ addloop:
+ 	CMP	$0, R0
+ 	BNE	addloop
+ 	DMB_ISH_7
+-	MOVW	R3, ret+8(FP)
++	MOVW	R3, new+8(FP)
+ 	RET
+ 
+ TEXT ·armAddUint64(SB),NOSPLIT,$0-20
+@@ -95,8 +95,8 @@ TEXT ·armAddUint64(SB),NOSPLIT,$0-20
+ 	AND.S	$7, R1, R2
+ 	BEQ 	2(PC)
+ 	MOVW	R2, (R2)
+-	MOVW	deltalo+4(FP), R2
+-	MOVW	deltahi+8(FP), R3
++	MOVW	delta_lo+4(FP), R2
++	MOVW	delta_hi+8(FP), R3
+ add64loop:
+ 	// LDREXD and STREXD were introduced in ARMv6k.
+ 	LDREXD	(R1), R4	// loads R4 and R5
+@@ -107,8 +107,8 @@ add64loop:
+ 	CMP	$0, R0
+ 	BNE	add64loop
+ 	DMB_ISH_7
+-	MOVW	R4, retlo+12(FP)
+-	MOVW	R5, rethi+16(FP)
++	MOVW	R4, new_lo+12(FP)
++	MOVW	R5, new_hi+16(FP)
+ 	RET
+ 
+ TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
+@@ -132,8 +132,8 @@ TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
+ 	AND.S	$7, R1, R2
+ 	BEQ 	2(PC)
+ 	MOVW	R2, (R2)
+-	MOVW	newlo+4(FP), R2
+-	MOVW	newhi+8(FP), R3
++	MOVW	new_lo+4(FP), R2
++	MOVW	new_hi+8(FP), R3
+ swap64loop:
+ 	// LDREXD and STREXD were introduced in ARMv6k.
+ 	LDREXD	(R1), R4	// loads R4 and R5
+@@ -142,8 +142,8 @@ swap64loop:
+ 	CMP	$0, R0
+ 	BNE	swap64loop
+ 	DMB_ISH_7
+-	MOVW	R4, oldlo+12(FP)
+-	MOVW	R5, oldhi+16(FP)
++	MOVW	R4, old_lo+12(FP)
++	MOVW	R5, old_hi+16(FP)
+ 	RET
+ 
+ TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
+@@ -160,8 +160,8 @@ load64loop:
+ 	CMP	$0, R0
+ 	BNE	load64loop
+ 	DMB_ISH_7
+-	MOVW	R2, vallo+4(FP)
+-	MOVW	R3, valhi+8(FP)
++	MOVW	R2, val_lo+4(FP)
++	MOVW	R3, val_hi+8(FP)
+ 	RET
+ 
+ TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
+@@ -171,8 +171,8 @@ TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
+ 	AND.S	$7, R1, R2
+ 	BEQ 	2(PC)
+ 	MOVW	R2, (R2)
+-	MOVW	vallo+4(FP), R2
+-	MOVW	valhi+8(FP), R3
++	MOVW	val_lo+4(FP), R2
++	MOVW	val_hi+8(FP), R3
+ store64loop:
+ 	LDREXD	(R1), R4	// loads R4 and R5
+ 	DMB_ISHST_7
+diff --git a/src/sync/atomic/asm_mips64x.s b/src/sync/atomic/asm_mips64x.s
+index b3c4627116..b7d4168a42 100644
+--- a/src/sync/atomic/asm_mips64x.s
++++ b/src/sync/atomic/asm_mips64x.s
+@@ -104,7 +104,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
+ 	MOVV	R4, R1
+ 	SC(2, 4)	// *R2 = R4
+ 	BEQ	R4, -4(PC)
+-	MOVW	R1, ret+16(FP)
++	MOVW	R1, new+16(FP)
+ 	SYNC
+ 	RET
+ 
+@@ -123,7 +123,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0-24
+ 	MOVV	R4, R1
+ 	SCV(2, 4)	// *R2 = R4
+ 	BEQ	R4, -4(PC)
+-	MOVV	R1, ret+16(FP)
++	MOVV	R1, new+16(FP)
+ 	SYNC
+ 	RET
+ 
+diff --git a/src/sync/atomic/asm_ppc64x.s b/src/sync/atomic/asm_ppc64x.s
+index 2474e96435..44e26698b4 100644
+--- a/src/sync/atomic/asm_ppc64x.s
++++ b/src/sync/atomic/asm_ppc64x.s
+@@ -92,7 +92,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
+ 	STWCCC	R5, (R3)
+ 	BNE	-3(PC)
+ 	ISYNC
+-	MOVW	R5, ret+16(FP)
++	MOVW	R5, new+16(FP)
+ 	RET
+ 
+ TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+@@ -110,7 +110,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0-24
+ 	STDCCC	R5, (R3)
+ 	BNE	-3(PC)
+ 	ISYNC
+-	MOVD	R5, ret+16(FP)
++	MOVD	R5, new+16(FP)
+ 	RET
+ 
+ TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+diff --git a/src/syscall/asm9_unix1_amd64.s b/src/syscall/asm9_unix1_amd64.s
+index 67433aa763..29af78c801 100644
+--- a/src/syscall/asm9_unix1_amd64.s
++++ b/src/syscall/asm9_unix1_amd64.s
+@@ -4,9 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -17,16 +14,16 @@
+ // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
+ TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	8(SP), AX	// syscall entry
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
+-	MOVQ	40(SP), R10
+-	MOVQ	48(SP), R8
+-	MOVQ	56(SP), R9
+-	MOVQ	64(SP), R11
+-	MOVQ	72(SP), R12
+-	MOVQ	80(SP), R13
++	MOVQ	num+0(FP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
++	MOVQ	a4+32(FP), R10
++	MOVQ	a5+40(FP), R8
++	MOVQ	a6+48(FP), R9
++	MOVQ	a7+56(FP), R11
++	MOVQ	a8+64(FP), R12
++	MOVQ	a9+72(FP), R13
+ 	SUBQ    $32, SP
+ 	MOVQ	R11, 8(SP)	// arg 7
+ 	MOVQ	R12, 16(SP)	// arg 8
+diff --git a/src/syscall/asm9_unix2_amd64.s b/src/syscall/asm9_unix2_amd64.s
+index ee95fa7ed0..11a6c1f485 100644
+--- a/src/syscall/asm9_unix2_amd64.s
++++ b/src/syscall/asm9_unix2_amd64.s
+@@ -4,9 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -17,33 +14,33 @@
+ // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
+ TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	8(SP), AX	// syscall entry
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
+-	MOVQ	40(SP), R10
+-	MOVQ	48(SP), R8
+-	MOVQ	56(SP), R9
++	MOVQ	num+0(FP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
++	MOVQ	a4+32(FP), R10
++	MOVQ	a5+40(FP), R8
++	MOVQ	a6+48(FP), R9
+ 
+ 	// shift around the last three arguments so they're at the
+ 	// top of the stack when the syscall is called.
+-	MOVQ	64(SP), R11 // arg 7
++	MOVQ	a7+56(FP), R11 // arg 7
+ 	MOVQ	R11, 8(SP)
+-	MOVQ	72(SP), R11 // arg 8
++	MOVQ	a8+64(FP), R11 // arg 8
+ 	MOVQ	R11, 16(SP)
+-	MOVQ	80(SP), R11 // arg 9
++	MOVQ	a9+72(FP), R11 // arg 9
+ 	MOVQ	R11, 24(SP)
+ 
+ 	SYSCALL
+ 	JCC	ok9
+-	MOVQ	$-1, 88(SP)	// r1
+-	MOVQ	$0, 96(SP)	// r2
+-	MOVQ	AX, 104(SP)	// errno
++	MOVQ	$-1, r1+80(FP)	// r1
++	MOVQ	$0, r2+88(FP)	// r2
++	MOVQ	AX, err+96(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok9:
+-	MOVQ	AX, 88(SP)	// r1
+-	MOVQ	DX, 96(SP)	// r2
+-	MOVQ	$0, 104(SP)	// errno
++	MOVQ	AX, r1+80(FP)	// r1
++	MOVQ	DX, r2+88(FP)	// r2
++	MOVQ	$0, err+96(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+diff --git a/src/syscall/asm_darwin_arm64.s b/src/syscall/asm_darwin_arm64.s
+index e18ff6a124..95b6dc0db5 100644
+--- a/src/syscall/asm_darwin_arm64.s
++++ b/src/syscall/asm_darwin_arm64.s
+@@ -8,10 +8,10 @@
+ // System call support for ARM64, Darwin
+ //
+ 
+-// func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	BL	runtime·entersyscall(SB)
+-	MOVD	syscall+0(FP), R16
++	MOVD	trap+0(FP), R16
+ 	MOVD	a1+8(FP), R0
+ 	MOVD	a2+16(FP), R1
+ 	MOVD	a3+24(FP), R2
+@@ -20,19 +20,19 @@ TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	MOVD	$-1, R1
+ 	MOVD	R1, r1+32(FP)	// r1
+ 	MOVD	ZR, r2+40(FP)	// r2
+-	MOVD	R0, errno+48(FP)	// errno
++	MOVD	R0, err+48(FP)	// err
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVD	R0, r1+32(FP) // r1
+ 	MOVD	R1, r2+40(FP)	// r2
+-	MOVD	ZR, errno+48(FP)	// errno
++	MOVD	ZR, err+48(FP)	// err
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVD	syscall+0(FP), R16	// syscall entry
++	MOVD	trap+0(FP), R16	// syscall entry
+ 	MOVD	a1+8(FP), R0
+ 	MOVD	a2+16(FP), R1
+ 	MOVD	a3+24(FP), R2
+@@ -41,18 +41,18 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVD	$-1, R1
+ 	MOVD	R1, r1+32(FP)	// r1
+ 	MOVD	ZR, r2+40(FP)	// r2
+-	MOVD	R0, errno+48(FP)	// errno
++	MOVD	R0, err+48(FP)	// err
+ 	RET
+ ok:
+ 	MOVD	R0, r1+32(FP) // r1
+ 	MOVD	R1, r2+40(FP)	// r2
+-	MOVD	ZR, errno+48(FP)	// errno
++	MOVD	ZR, err+48(FP)	// err
+ 	RET
+ 
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	BL	runtime·entersyscall(SB)
+-	MOVD	syscall+0(FP), R16	// syscall entry
++	MOVD	trap+0(FP), R16	// syscall entry
+ 	MOVD	a1+8(FP), R0
+ 	MOVD	a2+16(FP), R1
+ 	MOVD	a3+24(FP), R2
+@@ -64,13 +64,13 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	MOVD	$-1, R1
+ 	MOVD	R1, r1+56(FP)	// r1
+ 	MOVD	ZR, r2+64(FP)	// r2
+-	MOVD	R0, errno+72(FP)	// errno
++	MOVD	R0, err+72(FP)	// err
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVD	R0, r1+56(FP) // r1
+ 	MOVD	R1, r2+64(FP)	// r2
+-	MOVD	ZR, errno+72(FP)	// errno
++	MOVD	ZR, err+72(FP)	// err
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ 
+@@ -88,19 +88,19 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVD	$-1, R1
+ 	MOVD	R1, r1+56(FP)	// r1
+ 	MOVD	ZR, r2+64(FP)	// r2
+-	MOVD	R0, errno+72(FP)	// errno
++	MOVD	R0, err+72(FP)	// err
+ 	RET
+ ok:
+ 	MOVD	R0, r1+56(FP) // r1
+ 	MOVD	R1, r2+64(FP)	// r2
+ 	MOVD	ZR, R0
+-	MOVD	R0, errno+72(FP)	// errno
++	MOVD	R0, err+72(FP)	// err
+ 	RET
+ 
+ // Actually Syscall7
+ TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	BL	runtime·entersyscall(SB)
+-	MOVD	syscall+0(FP), R16	// syscall entry
++	MOVD	num+0(FP), R16	// syscall entry
+ 	MOVD	a1+8(FP), R0
+ 	MOVD	a2+16(FP), R1
+ 	MOVD	a3+24(FP), R2
+@@ -115,13 +115,13 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 	MOVD	$-1, R1
+ 	MOVD	R1, r1+80(FP)	// r1
+ 	MOVD	ZR, r2+88(FP)	// r2
+-	MOVD	R0, errno+96(FP)	// errno
++	MOVD	R0, err+96(FP)	// err
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVD	R0, r1+80(FP) // r1
+ 	MOVD	R1, r2+88(FP)	// r2
+-	MOVD	ZR, errno+96(FP)	// errno
++	MOVD	ZR, err+96(FP)	// err
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ 
+diff --git a/src/syscall/asm_openbsd_arm.s b/src/syscall/asm_openbsd_arm.s
+index 4f034a0898..9279ed960f 100644
+--- a/src/syscall/asm_openbsd_arm.s
++++ b/src/syscall/asm_openbsd_arm.s
+@@ -17,7 +17,7 @@
+ 
+ TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	BL runtime·entersyscall(SB)
+-	MOVW syscall+0(FP), R12		// syscall number
++	MOVW trap+0(FP), R12		// syscall number
+ 	MOVW a1+4(FP), R0		// arg 1
+ 	MOVW a2+8(FP), R1		// arg 2
+ 	MOVW a3+12(FP), R2		// arg 3
+@@ -39,7 +39,7 @@ error:
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	BL runtime·entersyscall(SB)
+-	MOVW syscall+0(FP), R12		// syscall number
++	MOVW trap+0(FP), R12		// syscall number
+ 	MOVW a1+4(FP), R0		// arg 1
+ 	MOVW a2+8(FP), R1		// arg 2
+ 	MOVW a3+12(FP), R2		// arg 3
+@@ -65,7 +65,7 @@ error6:
+ 
+ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	BL runtime·entersyscall(SB)
+-	MOVW syscall+0(FP), R12		// syscall number
++	MOVW num+0(FP), R12		// syscall number
+ 	MOVW a1+4(FP), R0		// arg 1
+ 	MOVW a2+8(FP), R1		// arg 2
+ 	MOVW a3+12(FP), R2		// arg 3
+@@ -90,7 +90,7 @@ error9:
+ 	RET
+ 
+ TEXT	·RawSyscall(SB),NOSPLIT,$0-28
+-	MOVW syscall+0(FP), R12		// syscall number
++	MOVW trap+0(FP), R12		// syscall number
+ 	MOVW a1+4(FP), R0		// arg 1
+ 	MOVW a2+8(FP), R1		// arg 2
+ 	MOVW a3+12(FP), R2		// arg 3
+@@ -109,7 +109,7 @@ errorr:
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	MOVW syscall+0(FP), R12		// syscall number
++	MOVW trap+0(FP), R12		// syscall number
+ 	MOVW a1+4(FP), R0		// arg 1
+ 	MOVW a2+8(FP), R1		// arg 2
+ 	MOVW a3+12(FP), R2		// arg 3
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index fc13640b93..59764a7b66 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -20,10 +20,10 @@
+ // Trap # in AX, args on stack above caller pc.
+ TEXT	·Syscall(SB),NOSPLIT,$0-32
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL	8(SP), SI
++	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -55,10 +55,10 @@ copyresult3:
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-44
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL	8(SP), SI
++	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -92,10 +92,10 @@ copyresult4:
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL	8(SP), SI
++	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -107,10 +107,10 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL	8(SP), SI
++	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -136,8 +136,8 @@ TEXT ·seek(SB),NOSPLIT,$0-36
+ 	
+ 	CMPL	AX, $-1
+ 	JNE	ok6
+-	MOVL	AX, 24(SP)	// newoffset low
+-	MOVL	AX, 28(SP)	// newoffset high
++	MOVL	AX, newoffset_lo+20(FP)
++	MOVL	AX, newoffset_hi+24(FP)
+ 	
+ 	SUBL	$8, SP
+ 	CALL	syscall·errstr(SB)
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index 92419b7172..cb1d104b7b 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -19,7 +19,7 @@
+ 
+ TEXT	·Syscall(SB),NOSPLIT,$0-64
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	8(SP), BP	// syscall entry
++	MOVQ	trap+0(FP), BP	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAQ	16(SP), SI
+ 	LEAQ	8(SP), DI
+@@ -54,10 +54,10 @@ copyresult3:
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-88
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	8(SP), BP	// syscall entry
++	MOVQ	trap+0(FP), BP	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAQ		16(SP), SI
+-	LEAQ		8(SP), DI
++	LEAQ	16(SP), SI
++	LEAQ	8(SP), DI
+ 	CLD
+ 	MOVSQ
+ 	MOVSQ
+@@ -91,10 +91,10 @@ copyresult4:
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVQ	8(SP), BP	// syscall entry
++	MOVQ	trap+0(FP), BP	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAQ		16(SP), SI
+-	LEAQ		8(SP), DI
++	LEAQ	16(SP), SI
++	LEAQ	8(SP), DI
+ 	CLD
+ 	MOVSQ
+ 	MOVSQ
+@@ -106,10 +106,10 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	MOVQ	8(SP), BP	// syscall entry
++	MOVQ	trap+0(FP), BP	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAQ		16(SP), SI
+-	LEAQ		8(SP), DI
++	LEAQ	16(SP), SI
++	LEAQ	8(SP), DI
+ 	CLD
+ 	MOVSQ
+ 	MOVSQ
+diff --git a/src/syscall/asm_unix_386.s b/src/syscall/asm_unix_386.s
+index df7a07d732..263355c493 100644
+--- a/src/syscall/asm_unix_386.s
++++ b/src/syscall/asm_unix_386.s
+@@ -4,9 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -20,7 +17,7 @@
+ 
+ TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+ 	LEAL		4(SP), DI
+@@ -30,21 +27,21 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok
+-	MOVL	$-1, 20(SP)	// r1
+-	MOVL	$-1, 24(SP)	// r2
+-	MOVL	AX, 28(SP)		// errno
++	MOVL	$-1, r1+16(FP)	// r1
++	MOVL	$-1, r2+20(FP)	// r2
++	MOVL	AX, err+24(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+-	MOVL	AX, 20(SP)	// r1
+-	MOVL	DX, 24(SP)	// r2
+-	MOVL	$0, 28(SP)	// errno
++	MOVL	AX, r1+16(FP)	// r1
++	MOVL	DX, r2+20(FP)	// r2
++	MOVL	$0, err+24(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+ 	LEAL		4(SP), DI
+@@ -57,21 +54,21 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok6
+-	MOVL	$-1, 32(SP)	// r1
+-	MOVL	$-1, 36(SP)	// r2
+-	MOVL	AX, 40(SP)		// errno
++	MOVL	$-1, r1+28(FP)	// r1
++	MOVL	$-1, r2+32(FP)	// r2
++	MOVL	AX, err+36(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+-	MOVL	AX, 32(SP)	// r1
+-	MOVL	DX, 36(SP)	// r2
+-	MOVL	$0, 40(SP)	// errno
++	MOVL	AX, r1+28(FP)	// r1
++	MOVL	DX, r2+32(FP)	// r2
++	MOVL	$0, err+36(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	num+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+ 	LEAL		4(SP), DI
+@@ -87,20 +84,20 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok9
+-	MOVL	$-1, 44(SP)	// r1
+-	MOVL	$-1, 48(SP)	// r2
+-	MOVL	AX, 52(SP)		// errno
++	MOVL	$-1, r1+40(FP)	// r1
++	MOVL	$-1, r2+44(FP)	// r2
++	MOVL	AX, err+48(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok9:
+-	MOVL	AX, 44(SP)	// r1
+-	MOVL	DX, 48(SP)	// r2
+-	MOVL	$0, 52(SP)	// errno
++	MOVL	AX, r1+40(FP)	// r1
++	MOVL	DX, r2+44(FP)	// r2
++	MOVL	$0, err+48(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+ 	LEAL		4(SP), DI
+@@ -110,18 +107,18 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok1
+-	MOVL	$-1, 20(SP)	// r1
+-	MOVL	$-1, 24(SP)	// r2
+-	MOVL	AX, 28(SP)		// errno
++	MOVL	$-1, r1+16(FP)	// r1
++	MOVL	$-1, r2+20(FP)	// r2
++	MOVL	AX, err+24(FP)	// errno
+ 	RET
+ ok1:
+-	MOVL	AX, 20(SP)	// r1
+-	MOVL	DX, 24(SP)	// r2
+-	MOVL	$0, 28(SP)	// errno
++	MOVL	AX, r1+16(FP)	// r1
++	MOVL	DX, r2+20(FP)	// r2
++	MOVL	$0, err+24(FP)	// errno
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	MOVL	4(SP), AX	// syscall entry
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+ 	LEAL		4(SP), DI
+@@ -134,12 +131,12 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVSL
+ 	INT	$0x80
+ 	JAE	ok2
+-	MOVL	$-1, 32(SP)	// r1
+-	MOVL	$-1, 36(SP)	// r2
+-	MOVL	AX, 40(SP)		// errno
++	MOVL	$-1, r1+28(FP)	// r1
++	MOVL	$-1, r2+32(FP)	// r2
++	MOVL	AX, err+36(FP)	// errno
+ 	RET
+ ok2:
+-	MOVL	AX, 32(SP)	// r1
+-	MOVL	DX, 36(SP)	// r2
+-	MOVL	$0, 40(SP)	// errno
++	MOVL	AX, r1+28(FP)	// r1
++	MOVL	DX, r2+32(FP)	// r2
++	MOVL	$0, err+36(FP)	// errno
+ 	RET
+diff --git a/src/syscall/asm_unix_amd64.s b/src/syscall/asm_unix_amd64.s
+index cba80159d0..025408f9e1 100644
+--- a/src/syscall/asm_unix_amd64.s
++++ b/src/syscall/asm_unix_amd64.s
+@@ -4,9 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -14,92 +11,92 @@
+ // System call support for AMD64 unixes
+ //
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+-// func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
++// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64)
++// func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64)
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+ TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	8(SP), AX	// syscall entry
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
++	MOVQ	trap+0(FP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
+ 	MOVQ	$0, R10
+ 	MOVQ	$0, R8
+ 	MOVQ	$0, R9
+ 	SYSCALL
+ 	JCC	ok
+-	MOVQ	$-1, 40(SP)	// r1
+-	MOVQ	$0, 48(SP)	// r2
+-	MOVQ	AX, 56(SP)	// errno
++	MOVQ	$-1, r1+32(FP)	// r1
++	MOVQ	$0, r2+40(FP)	// r2
++	MOVQ	AX, err+48(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+-	MOVQ	AX, 40(SP)	// r1
+-	MOVQ	DX, 48(SP)	// r2
+-	MOVQ	$0, 56(SP)	// errno
++	MOVQ	AX, r1+32(FP)	// r1
++	MOVQ	DX, r2+40(FP)	// r2
++	MOVQ	$0, err+48(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+-	MOVQ	8(SP), AX	// syscall entry
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
+-	MOVQ	40(SP), R10
+-	MOVQ	48(SP), R8
+-	MOVQ	56(SP), R9
++	MOVQ	trap+0(FP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
++	MOVQ	a4+32(FP), R10
++	MOVQ	a5+40(FP), R8
++	MOVQ	a6+48(FP), R9
+ 	SYSCALL
+ 	JCC	ok6
+-	MOVQ	$-1, 64(SP)	// r1
+-	MOVQ	$0, 72(SP)	// r2
+-	MOVQ	AX, 80(SP)  	// errno
++	MOVQ	$-1, r1+56(FP)	// r1
++	MOVQ	$0, r2+64(FP)	// r2
++	MOVQ	AX, err+72(FP)  // errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+-	MOVQ	AX, 64(SP)	// r1
+-	MOVQ	DX, 72(SP)	// r2
+-	MOVQ	$0, 80(SP)	// errno
++	MOVQ	AX, r1+56(FP)	// r1
++	MOVQ	DX, r2+64(FP)	// r2
++	MOVQ	$0, err+72(FP)	// errno
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
+ 	MOVQ	$0, R10
+ 	MOVQ	$0, R8
+ 	MOVQ	$0, R9
+-	MOVQ	8(SP), AX	// syscall entry
++	MOVQ	trap+0(FP), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	ok1
+-	MOVQ	$-1, 40(SP)	// r1
+-	MOVQ	$0, 48(SP)	// r2
+-	MOVQ	AX, 56(SP)	// errno
++	MOVQ	$-1, r1+32(FP)	// r1
++	MOVQ	$0, r2+40(FP)	// r2
++	MOVQ	AX, err+48(FP)	// errno
+ 	RET
+ ok1:
+-	MOVQ	AX, 40(SP)	// r1
+-	MOVQ	DX, 48(SP)	// r2
+-	MOVQ	$0, 56(SP)	// errno
++	MOVQ	AX, r1+32(FP)	// r1
++	MOVQ	DX, r2+40(FP)	// r2
++	MOVQ	$0, err+48(FP)	// errno
+ 	RET
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	MOVQ	16(SP), DI
+-	MOVQ	24(SP), SI
+-	MOVQ	32(SP), DX
+-	MOVQ	40(SP), R10
+-	MOVQ	48(SP), R8
+-	MOVQ	56(SP), R9
+-	MOVQ	8(SP), AX	// syscall entry
++	MOVQ	a1+8(FP), DI
++	MOVQ	a2+16(FP), SI
++	MOVQ	a3+24(FP), DX
++	MOVQ	a4+32(FP), R10
++	MOVQ	a5+40(FP), R8
++	MOVQ	a6+48(FP), R9
++	MOVQ	trap+0(FP), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	ok2
+-	MOVQ	$-1, 64(SP)	// r1
+-	MOVQ	$0, 72(SP)	// r2
+-	MOVQ	AX, 80(SP)	// errno
++	MOVQ	$-1, r1+56(FP)	// r1
++	MOVQ	$0, r2+64(FP)	// r2
++	MOVQ	AX, err+72(FP)	// errno
+ 	RET
+ ok2:
+-	MOVQ	AX, 64(SP)	// r1
+-	MOVQ	DX, 72(SP)	// r2
+-	MOVQ	$0, 80(SP)	// errno
++	MOVQ	AX, r1+56(FP)	// r1
++	MOVQ	DX, r2+64(FP)	// r2
++	MOVQ	$0, err+72(FP)	// errno
+ 	RET
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 7fd6e2bf46..081af62cc5 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -26,7 +26,7 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
+-func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
+ 	var olen uintptr
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index e196e5966c..68218cf93b 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -26,7 +26,7 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
+-func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func nametomib(name string) (mib []_C_int, err error) {
+ 

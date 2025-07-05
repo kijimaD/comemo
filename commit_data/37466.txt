@@ -7,6 +7,31 @@ Date:   Thu Aug 2 19:34:38 2018 +0000
     Change-Id: I612041d31c01d49135947796fe2a09db3e6894d4
     Reviewed-on: https://go-review.googlesource.com/127657
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 01ba64819d..e02fc502c7 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -18,14 +18,11 @@
+ // err is an operating system error describing the failure.
+ // On most systems, that error has type syscall.Errno.
+ //
+-// NOTE: This package is locked down. Code outside the standard
+-// Go repository should be migrated to use the corresponding
+-// package in the golang.org/x/sys repository. That is also where updates
+-// required by new systems or versions should be applied.
+-// Signal, Errno and SysProcAttr are not yet available in
+-// golang.org/x/sys and must still be referenced from the
+-// syscall package. See https://golang.org/s/go1.4-syscall
+-// for more information.
++// Deprecated: this package is locked down. Callers should use the
++// corresponding package in the golang.org/x/sys repository instead.
++// That is also where updates required by new systems or versions
++// should be applied. See https://golang.org/s/go1.4-syscall for more
++// information.
+ //
+ package syscall
+ 

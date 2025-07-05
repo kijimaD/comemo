@@ -8,7 +8,7 @@ Date:   Tue Nov 18 17:12:07 2008 -0800
     DELTA=137  (56 added, 4 deleted, 77 changed)
     OCL=19505
     CL=19522
-
+---
  src/lib/strconv/atof.go | 57 +++++++++++++++++-------------
  src/lib/strconv/atoi.go | 93 +++++++++++++++++++++++++++++++++++--------------
  test/bugs/bug120.go     |  6 ++--
@@ -16,3 +16,363 @@ Date:   Tue Nov 18 17:12:07 2008 -0800
  test/golden.out         |  5 +--
  test/stringslib.go      | 22 ++++++------
  6 files changed, 121 insertions(+), 69 deletions(-)
+
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index c0bb1a61c9..5f019d3ec0 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -10,7 +10,10 @@
+ 
+ package strconv
+ 
+-import "strconv"
++import (
++	"os";
++	"strconv";
++)
+ 
+ // TODO(rsc): Better truncation handling.
+ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
+@@ -314,43 +317,49 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
+ // returns f, false, true, where f is the nearest floating point
+ // number rounded using IEEE754 unbiased rounding.
+ //
+-// If s is not syntactically well-formed, returns ok == false.
++// If s is not syntactically well-formed, returns err = os.EINVAL.
+ //
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+-// returns f = ±Inf, overflow = true, ok = true.
+-export func atof64(s string) (f float64, overflow bool, ok bool) {
+-	neg, d, trunc, ok1 := StringToDecimal(s);
+-	if !ok1 {
+-		return 0, false, false;
++// returns f = ±Inf, err = os.ERANGE.
++export func atof64(s string) (f float64, err *os.Error) {
++	neg, d, trunc, ok := StringToDecimal(s);
++	if !ok {
++		return 0, os.EINVAL;
+ 	}
+ 	if f, ok := DecimalToFloat64(neg, d, trunc); ok {
+-		return f, false, true;
++		return f, nil;
+ 	}
+-	b, overflow1 := DecimalToFloatBits(neg, d, trunc, &float64info);
+-	return sys.float64frombits(b), overflow1, true;
++	b, ovf := DecimalToFloatBits(neg, d, trunc, &float64info);
++	f = sys.float64frombits(b);
++	if ovf {
++		err = os.ERANGE;
++	}
++	return f, err
+ }
+ 
+-export func atof32(s string) (f float32, overflow bool, ok bool) {
+-	neg, d, trunc, ok1 := StringToDecimal(s);
+-	if !ok1 {
+-		return 0, false, false;
++export func atof32(s string) (f float32, err *os.Error) {
++	neg, d, trunc, ok := StringToDecimal(s);
++	if !ok {
++		return 0, os.EINVAL;
+ 	}
+ 	if f, ok := DecimalToFloat32(neg, d, trunc); ok {
+-		return f, false, true;
++		return f, nil;
++	}
++	b, ovf := DecimalToFloatBits(neg, d, trunc, &float32info);
++	f = sys.float32frombits(uint32(b));
++	if ovf {
++		err = os.ERANGE;
+ 	}
+-	b, overflow1 := DecimalToFloatBits(neg, d, trunc, &float32info);
+-	return sys.float32frombits(uint32(b)), overflow1, true;
++	return f, err
+ }
+ 
+-export func atof(s string) (f float, overflow bool, ok bool) {
++export func atof(s string) (f float, err *os.Error) {
+ 	if floatsize == 32 {
+-		var f1 float32;
+-		f1, overflow, ok = atof32(s);
+-		return float(f1), overflow, ok;
++		f1, err1 := atof32(s);
++		return float(f1), err1;
+ 	}
+-	var f1 float64;
+-	f1, overflow, ok = atof64(s);
+-	return float(f1), overflow, ok;
++	f1, err1 := atof64(s);
++	return float(f1), err1;
+ }
+ 
+diff --git a/src/lib/strconv/atoi.go b/src/lib/strconv/atoi.go
+index 7f741c3041..cd02df1aaf 100644
+--- a/src/lib/strconv/atoi.go
++++ b/src/lib/strconv/atoi.go
+@@ -3,42 +3,59 @@
+ // license that can be found in the LICENSE file.
+ 
+ package strconv
++import "os"
++
++func IntSize() uint {
++	siz := uint(8);
++	for 1<<siz != 0 {
++		siz *= 2
++	}
++	return siz
++}
++var intsize = IntSize();
+ 
+ // Convert decimal string to unsigned integer.
+-// TODO: Doesn't check for overflow.
+-export func atoui64(s string) (i uint64, ok bool) {
++export func atoui64(s string) (i uint64, err *os.Error) {
+ 	// empty string bad
+-	if len(s) == 0 { 
+-		return 0, false
++	if len(s) == 0 {
++		return 0, os.EINVAL
+ 	}
+ 
+ 	// pick off zero
+ 	if s == "0" {
+-		return 0, true
++		return 0, nil
+ 	}
+-	
+-	// otherwise, leading zero bad
++
++	// otherwise, leading zero bad:
++	// don't want to take something intended as octal.
+ 	if s[0] == '0' {
+-		return 0, false
++		return 0, os.EINVAL
+ 	}
+ 
+ 	// parse number
+ 	n := uint64(0);
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] < '0' || s[i] > '9' {
+-			return 0, false
++			return 0, os.EINVAL
++		}
++		if n > (1<<64)/10 {
++			return 1<<64-1, os.ERANGE
+ 		}
+-		n = n*10 + uint64(s[i] - '0')
++		n = n*10;
++		d := uint64(s[i] - '0');
++		if n+d < n {
++			return 1<<64-1, os.ERANGE
++		}
++		n += d;
+ 	}
+-	return n, true
++	return n, nil
+ }
+ 
+ // Convert decimal string to integer.
+-// TODO: Doesn't check for overflow.
+-export func atoi64(s string) (i int64, ok bool) {
++export func atoi64(s string) (i int64, err *os.Error) {
+ 	// empty string bad
+ 	if len(s) == 0 {
+-		return 0, false
++		return 0, os.EINVAL
+ 	}
+ 
+ 	// pick off leading sign
+@@ -51,25 +68,49 @@ export func atoi64(s string) (i int64, ok bool) {
+ 	}
+ 
+ 	var un uint64;
+-	un, ok = atoui64(s);
+-	if !ok {
+-		return 0, false
++	un, err = atoui64(s);
++	if err != nil && err != os.ERANGE {
++		return 0, err
++	}
++	if !neg && un >= 1<<63 {
++		return 1<<63-1, os.ERANGE
++	}
++	if neg && un > 1<<63 {
++		return -1<<63, os.ERANGE
+ 	}
+ 	n := int64(un);
+ 	if neg {
+ 		n = -n
+ 	}
+-	return n, true
++	return n, nil
+ }
+ 
+-export func atoui(s string) (i uint, ok bool) {
+-	ii, okok := atoui64(s);
+-	i = uint(ii);
+-	return i, okok
++export func atoui(s string) (i uint, err *os.Error) {
++	i1, e1 := atoui64(s);
++	if e1 != nil && e1 != os.ERANGE {
++		return 0, e1
++	}
++	i = uint(i1);
++	if uint64(i) != i1 {
++		// TODO: return uint(^0), os.ERANGE.
++		i1 = 1<<64-1;
++		return uint(i1), os.ERANGE
++	}
++	return i, nil
+ }
+ 
+-export func atoi(s string) (i int, ok bool) {
+-	ii, okok := atoi64(s);
+-	i = int(ii);
+-	return i, okok
++export func atoi(s string) (i int, err *os.Error) {
++	i1, e1 := atoi64(s);
++	if e1 != nil && e1 != os.ERANGE {
++		return 0, e1
++	}
++	i = int(i1);
++	if int64(i) != i1 {
++		if i1 < 0 {
++			return -1<<(intsize-1), os.ERANGE
++		}
++		return 1<<(intsize-1) - 1, os.ERANGE
++	}
++	return i, nil
+ }
++
+diff --git a/test/bugs/bug120.go b/test/bugs/bug120.go
+index f4727bc93f..421f1db9ae 100644
+--- a/test/bugs/bug120.go
++++ b/test/bugs/bug120.go
+@@ -43,8 +43,8 @@ func main() {
+ 		v := strconv.ftoa64(t.f, 'g', -1);
+ 		if v != t.out {
+ 			println("Bad float64 const:", t.in, "want", t.out, "got", v);
+-			x, overflow, ok := strconv.atof64(t.out);
+-			if !ok {
++			x, err := strconv.atof64(t.out);
++			if err != nil {
+ 				panicln("bug120: strconv.atof64", t.out);
+ 			}
+ 			println("\twant exact:", strconv.ftoa64(x, 'g', 1000));
+@@ -53,6 +53,6 @@ func main() {
+ 		}
+ 	}
+ 	if !ok {
+-		panicln("bug120");
++		sys.exit(1);
+ 	}
+ }
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index b480e5085f..3fd80f29b7 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -10,6 +10,7 @@
+ package main
+ 
+ import (
++	"os";
+ 	"strconv";
+ )
+ 
+@@ -20,9 +21,9 @@ func f(left, right *chan int) {
+ func main() {
+ 	var n = 10000;
+ 	if sys.argc() > 1 {
+-		var ok bool;
+-		n, ok = strconv.atoi(sys.argv(1));
+-		if !ok {
++		var err *os.Error;
++		n, err = strconv.atoi(sys.argv(1));
++		if err != nil {
+ 			print("bad arg\n");
+ 			sys.exit(1);
+ 		}
+diff --git a/test/golden.out b/test/golden.out
+index efad87433d..2a870d6f67 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -125,7 +125,7 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
+ 
+ =========== bugs/bug105.go
+ bugs/bug105.go:8: P: undefined
+-bugs/bug105.go:9: illegal types for operand: RETURN
++bugs/bug105.go:8: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+@@ -139,7 +139,7 @@ BUG: bug115 should compile
+ 
+ =========== bugs/bug117.go
+ bugs/bug117.go:9: undefined DOT get on PS
+-bugs/bug117.go:10: illegal types for operand: RETURN
++bugs/bug117.go:9: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+@@ -156,6 +156,7 @@ Bad float64 const: 1e23+8.388608e6 want 1.0000000000000001e+23 got 1e+23
+ Bad float64 const: 1e23+1 want 1.0000000000000001e+23 got 1e+23
+ 	want exact: 100000000000000008388608
+ 	got exact:  99999999999999991611392
++BUG: bug120
+ 
+ =========== bugs/bug121.go
+ BUG: compilation succeeds incorrectly
+diff --git a/test/stringslib.go b/test/stringslib.go
+index d02890bc0d..c44c1397b6 100644
+--- a/test/stringslib.go
++++ b/test/stringslib.go
+@@ -35,7 +35,7 @@ func explode(s string) *[]string {
+ 
+ func itoa(i int) string {
+ 	s := strconv.itoa(i);
+-	n, ok := strconv.atoi(s);
++	n, err := strconv.atoi(s);
+ 	if n != i {
+ 		print("itoa: ", i, " ", s, "\n");
+ 		panic("itoa")
+@@ -92,20 +92,20 @@ func main() {
+ 		a := split(faces, "");
+ 		if len(a) != 3 || a[0] != "☺" || a[1] != "☻" || a[2] != "☹" { panic("split faces empty") }
+ 	}
+-	
++
+ 	{
+-		n, ok := strconv.atoi("0"); if n != 0 || !ok { panic("atoi 0") }
+-		n, ok = strconv.atoi("-1"); if n != -1 || !ok { panic("atoi -1") }
+-		n, ok = strconv.atoi("+345"); if n != 345 || !ok { panic("atoi +345") }
+-		n, ok = strconv.atoi("9999"); if n != 9999 || !ok { panic("atoi 9999") }
+-		n, ok = strconv.atoi("20ba"); if n != 0 || ok { panic("atoi 20ba") }
+-		n, ok = strconv.atoi("hello"); if n != 0 || ok { panic("hello") }
++		n, err := strconv.atoi("0"); if n != 0 || err != nil { panic("atoi 0") }
++		n, err = strconv.atoi("-1"); if n != -1 || err != nil { panic("atoi -1") }
++		n, err = strconv.atoi("+345"); if n != 345 || err != nil { panic("atoi +345") }
++		n, err = strconv.atoi("9999"); if n != 9999 || err != nil { panic("atoi 9999") }
++		n, err = strconv.atoi("20ba"); if n != 0 || err == nil { panic("atoi 20ba") }
++		n, err = strconv.atoi("hello"); if n != 0 || err == nil { panic("hello") }
+ 	}
+ 
+ 	if strconv.ftoa(1e6, 'e', 6) != "1.000000e+06" { panic("ftoa 1e6") }
+ 	if strconv.ftoa(-1e-6, 'e', 6) != "-1.000000e-06" { panic("ftoa -1e-6") }
+ 	if strconv.ftoa(-1.234567e-6, 'e', 6) != "-1.234567e-06" { panic("ftoa -1.234567e-6") }
+-	
++
+ 	if itoa(0) != "0" { panic("itoa 0") }
+ 	if itoa(12345) != "12345" { panic("itoa 12345") }
+ 	if itoa(-1<<31) != "-2147483648" { panic("itoa 1<<31") }
+@@ -114,7 +114,7 @@ func main() {
+ 	// if itoa(-1<<63) != "-9223372036854775808" { panic("itoa 1<<63") }
+ 
+ 	{
+-		a, overflow, ok := strconv.atof64("-1.2345e4");
+-		if !ok || a != -12345. { panic(a, "atof64 -1.2345e4") }
++		a, err := strconv.atof64("-1.2345e4");
++		if err != nil || a != -12345. { panic(a, "atof64 -1.2345e4") }
+ 	}
+ }

@@ -9,6 +9,42 @@ Date:   Thu Feb 9 16:45:24 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5643069
-
+---
  src/pkg/net/http/httptest/server_test.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/src/pkg/net/http/httptest/server_test.go b/src/pkg/net/http/httptest/server_test.go
+new file mode 100644
+index 0000000000..500a9f0b80
+--- /dev/null
++++ b/src/pkg/net/http/httptest/server_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package httptest
++
++import (
++	"io/ioutil"
++	"net/http"
++	"testing"
++)
++
++func TestServer(t *testing.T) {
++	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte("hello"))
++	}))
++	defer ts.Close()
++	res, err := http.Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	got, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(got) != "hello" {
++		t.Errorf("got %q, want hello", string(got))
++	}
++}

@@ -13,6 +13,21 @@ Date:   Fri Oct 21 12:19:52 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/help.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 34fef7aca3..f90cfcc7e9 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -62,6 +62,9 @@ Go library.
+ - "cmd" expands to the Go repository's commands and their
+ internal libraries.
+ 
++Import paths beginning with "cmd/" only match source code in
++the Go repository.
++
+ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+ strings containing slashes.  Such a pattern expands to all package

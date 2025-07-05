@@ -13,10 +13,146 @@ Date:   Tue Nov 2 11:59:56 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_aix.go     | 15 +--------------
  src/syscall/syscall_bsd.go     | 15 +--------------
  src/syscall/syscall_linux.go   | 16 +---------------
  src/syscall/syscall_solaris.go | 15 +--------------
  src/syscall/syscall_unix.go    | 17 +++++++++++++++++
  5 files changed, 21 insertions(+), 57 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index f3b160cae4..36172cc678 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -360,20 +360,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	return
+ }
+ 
+-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+-	_, err = SendmsgN(fd, p, oob, to, flags)
+-	return
+-}
+-
+-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+-	var ptr unsafe.Pointer
+-	var salen _Socklen
+-	if to != nil {
+-		ptr, salen, err = to.sockaddr()
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
++func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+ 	var msg Msghdr
+ 	msg.Name = (*byte)(unsafe.Pointer(ptr))
+ 	msg.Namelen = uint32(salen)
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 8945661300..71a331d6c0 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -394,20 +394,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ 
+-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+-	_, err = SendmsgN(fd, p, oob, to, flags)
+-	return
+-}
+-
+-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+-	var ptr unsafe.Pointer
+-	var salen _Socklen
+-	if to != nil {
+-		ptr, salen, err = to.sockaddr()
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
++func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+ 	var msg Msghdr
+ 	msg.Name = (*byte)(unsafe.Pointer(ptr))
+ 	msg.Namelen = uint32(salen)
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 1c6033bbab..695ce2b198 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -679,21 +679,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	return
+ }
+ 
+-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+-	_, err = SendmsgN(fd, p, oob, to, flags)
+-	return
+-}
+-
+-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+-	var ptr unsafe.Pointer
+-	var salen _Socklen
+-	if to != nil {
+-		var err error
+-		ptr, salen, err = to.sockaddr()
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
++func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+ 	var msg Msghdr
+ 	msg.Name = (*byte)(ptr)
+ 	msg.Namelen = uint32(salen)
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 13616fca9d..15b3c2bb40 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -365,22 +365,9 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	return
+ }
+ 
+-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+-	_, err = SendmsgN(fd, p, oob, to, flags)
+-	return
+-}
+-
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_sendmsg
+ 
+-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+-	var ptr unsafe.Pointer
+-	var salen _Socklen
+-	if to != nil {
+-		ptr, salen, err = to.sockaddr()
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
++func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+ 	var msg Msghdr
+ 	msg.Name = (*byte)(unsafe.Pointer(ptr))
+ 	msg.Namelen = uint32(salen)
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index adc1e5dbfb..2837c976e3 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -324,6 +324,23 @@ func recvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err
+ 	return
+ }
+ 
++func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
++	_, err = SendmsgN(fd, p, oob, to, flags)
++	return
++}
++
++func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
++	var ptr unsafe.Pointer
++	var salen _Socklen
++	if to != nil {
++		ptr, salen, err = to.sockaddr()
++		if err != nil {
++			return 0, err
++		}
++	}
++	return sendmsgN(fd, p, oob, ptr, salen, flags)
++}
++
+ func sendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) (err error) {
+ 	ptr, n, err := to.sockaddr()
+ 	if err != nil {

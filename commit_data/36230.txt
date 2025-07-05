@@ -9,6 +9,34 @@ Date:   Thu Apr 12 11:23:33 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/env_test.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 78c8fe57cb..0198f1925d 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -62,6 +62,22 @@ func TestExpand(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkExpand(b *testing.B) {
++	var s string
++	b.Run("noop", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			s = Expand("tick tick tick tick", func(string) string { return "" })
++		}
++	})
++	b.Run("multiple", func(b *testing.B) {
++		b.ReportAllocs()
++		for i := 0; i < b.N; i++ {
++			s = Expand("$a $a $a $a", func(string) string { return "boom" })
++		}
++	})
++}
++
+ func TestConsistentEnviron(t *testing.T) {
+ 	e0 := Environ()
+ 	for i := 0; i < 10; i++ {

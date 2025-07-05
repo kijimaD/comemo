@@ -8,6 +8,27 @@ Date:   Sun Oct 26 08:27:27 2008 -0700
     DELTA=442  (0 added, 442 deleted, 0 changed)
     OCL=17854
     CL=17866
-
+---
  src/run.bash | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index ae5b2562b5..c88fa57a23 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -36,15 +36,6 @@ make test
+ )
+ 
+ 
+-(xcd ../usr/r/refl
+-rm -f *.6 6.out
+-6g refl.go
+-6g printf.go
+-6g main.go
+-6l main.6
+-./6.out
+-)
+-
+ (xcd ../test
+ ./run
+ )

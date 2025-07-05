@@ -12,8 +12,104 @@ Date:   Thu Aug 4 12:21:05 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_darwin_386.go   | 21 ++++++++++++++-------
  src/syscall/syscall_darwin_amd64.go | 21 ++++++++++++++-------
  src/syscall/syscall_darwin_test.go  | 23 +++++++++++++++++++++++
  3 files changed, 51 insertions(+), 14 deletions(-)
+
+diff --git a/src/syscall/syscall_darwin_386.go b/src/syscall/syscall_darwin_386.go
+index 7dbb1c3d64..f75de000bd 100644
+--- a/src/syscall/syscall_darwin_386.go
++++ b/src/syscall/syscall_darwin_386.go
+@@ -26,14 +26,21 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ }
+ 
+ //sysnb	gettimeofday(tp *Timeval) (sec int32, usec int32, err error)
+-func Gettimeofday(tv *Timeval) (err error) {
+-	// The tv passed to gettimeofday must be non-nil
+-	// but is otherwise unused. The answers come back
+-	// in the two registers.
++func Gettimeofday(tv *Timeval) error {
++	// The tv passed to gettimeofday must be non-nil.
++	// Before macOS Sierra (10.12), tv was otherwise unused and
++	// the answers came back in the two registers.
++	// As of Sierra, gettimeofday return zeros and populates
++	// tv itself.
+ 	sec, usec, err := gettimeofday(tv)
+-	tv.Sec = int32(sec)
+-	tv.Usec = int32(usec)
+-	return err
++	if err != nil {
++		return err
++	}
++	if sec != 0 || usec != 0 {
++		tv.Sec = int32(sec)
++		tv.Usec = int32(usec)
++	}
++	return nil
+ }
+ 
+ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+diff --git a/src/syscall/syscall_darwin_amd64.go b/src/syscall/syscall_darwin_amd64.go
+index 80e6024aeb..79083117b6 100644
+--- a/src/syscall/syscall_darwin_amd64.go
++++ b/src/syscall/syscall_darwin_amd64.go
+@@ -26,14 +26,21 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ }
+ 
+ //sysnb	gettimeofday(tp *Timeval) (sec int64, usec int32, err error)
+-func Gettimeofday(tv *Timeval) (err error) {
+-	// The tv passed to gettimeofday must be non-nil
+-	// but is otherwise unused. The answers come back
+-	// in the two registers.
++func Gettimeofday(tv *Timeval) error {
++	// The tv passed to gettimeofday must be non-nil.
++	// Before macOS Sierra (10.12), tv was otherwise unused and
++	// the answers came back in the two registers.
++	// As of Sierra, gettimeofday return zeros and populates
++	// tv itself.
+ 	sec, usec, err := gettimeofday(tv)
+-	tv.Sec = sec
+-	tv.Usec = usec
+-	return err
++	if err != nil {
++		return err
++	}
++	if sec != 0 || usec != 0 {
++		tv.Sec = sec
++		tv.Usec = usec
++	}
++	return nil
+ }
+ 
+ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+diff --git a/src/syscall/syscall_darwin_test.go b/src/syscall/syscall_darwin_test.go
+new file mode 100644
+index 0000000000..dd0e32b968
+--- /dev/null
++++ b/src/syscall/syscall_darwin_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++// +build amd64 386
++
++package syscall_test
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestDarwinGettimeofday(t *testing.T) {
++	tv := &syscall.Timeval{}
++	if err := syscall.Gettimeofday(tv); err != nil {
++		t.Fatal(err)
++	}
++	if tv.Sec == 0 && tv.Usec == 0 {
++		t.Fatal("Sec and Usec both zero")
++	}
++}

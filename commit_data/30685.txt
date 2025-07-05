@@ -10,6 +10,19 @@ Date:   Wed Nov 23 00:50:46 2016 +0100
     Change-Id: I31200187033349c642965a4bb077bcc77d5329a3
     Reviewed-on: https://go-review.googlesource.com/33397
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 588d56d5e0..d6f615ab7a 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -256,6 +256,7 @@ runtime: sleep on CLOCK_MONOTONIC in futexsleep1 on freebsd (CL 30154)
+ runtime: use RtlGenRandom instead of CryptGenRandom (CL 29700)
+ runtime: use clock_gettime(CLOCK_REALTIME) for nanosecond-precision time.now on arm64, mips64x (CL 32177)
+ runtime: use correct system page size on all arches (CL 25022)
++runtime: handle SIGPIPE in c-archive and c-shared programs (CL 32796)
+ 
+ syscall: Clearenv now unsets env vars on Windows (CL 33168)
+ syscall: add bounds checking and error returns to ParseNetlinkMessage (CL 26990)

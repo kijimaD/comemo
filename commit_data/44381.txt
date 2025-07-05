@@ -9,6 +9,20 @@ Date:   Tue Jun 23 00:09:26 2020 +0000
     GitHub-Pull-Request: golang/go#39622
     Reviewed-on: https://go-review.googlesource.com/c/go/+/239383
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/parse/node.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 1c116ea6fa..dddc7752a2 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -349,7 +349,7 @@ func (i *IdentifierNode) Copy() Node {
+ 	return NewIdentifier(i.Ident).SetTree(i.tr).SetPos(i.Pos)
+ }
+ 
+-// AssignNode holds a list of variable names, possibly with chained field
++// VariableNode holds a list of variable names, possibly with chained field
+ // accesses. The dollar sign is part of the (first) name.
+ type VariableNode struct {
+ 	NodeType

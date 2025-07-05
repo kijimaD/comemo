@@ -14,10 +14,127 @@ Date:   Mon Aug 14 09:56:51 2017 -0700
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime2.go       | 17 ++++++++---------
  src/syscall/asm_plan9_386.s   |  6 +++---
  src/syscall/asm_plan9_amd64.s |  6 +++---
  src/syscall/asm_plan9_arm.s   |  2 +-
  src/syscall/syscall_plan9.go  |  2 ++
  5 files changed, 17 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6871d9c68c..adfdec6eac 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -716,15 +716,14 @@ const (
+ const _TracebackMaxFrames = 100
+ 
+ var (
+-	emptystring string
+-	allglen     uintptr
+-	allm        *m
+-	allp        [_MaxGomaxprocs + 1]*p
+-	gomaxprocs  int32
+-	ncpu        int32
+-	forcegc     forcegcstate
+-	sched       schedt
+-	newprocs    int32
++	allglen    uintptr
++	allm       *m
++	allp       [_MaxGomaxprocs + 1]*p
++	gomaxprocs int32
++	ncpu       int32
++	forcegc    forcegcstate
++	sched      schedt
++	newprocs   int32
+ 
+ 	// Information about what cpu features are available.
+ 	// Set on startup in asm_{386,amd64,amd64p32}.s.
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index 047ae59887..c6ec2a987c 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -38,7 +38,7 @@ TEXT	·Syscall(SB),NOSPLIT,$0-32
+ 	JMP	copyresult3
+ 	
+ ok3:
+-	LEAL	runtime·emptystring(SB), SI	
++	LEAL	·emptystring(SB), SI
+ 	
+ copyresult3:
+ 	LEAL	err+24(FP), DI
+@@ -76,7 +76,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-44
+ 	JMP	copyresult4
+ 	
+ ok4:
+-	LEAL	runtime·emptystring(SB), SI
++	LEAL	·emptystring(SB), SI
+ 	
+ copyresult4:
+ 	LEAL	err+36(FP), DI
+@@ -143,7 +143,7 @@ TEXT ·seek(SB),NOSPLIT,$0-36
+ 	JMP	copyresult6
+ 	
+ ok6:
+-	LEAL	runtime·emptystring(SB), SI
++	LEAL	·emptystring(SB), SI
+ 	
+ copyresult6:
+ 	LEAL	err+28(FP), DI
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index 84050235e0..da77ec4e1c 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -37,7 +37,7 @@ TEXT	·Syscall(SB),NOSPLIT,$0-64
+ 	JMP	copyresult3
+ 	
+ ok3:
+-	LEAQ	runtime·emptystring(SB), SI	
++	LEAQ	·emptystring(SB), SI
+ 	
+ copyresult3:
+ 	LEAQ	err+48(FP), DI
+@@ -75,7 +75,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-88
+ 	JMP	copyresult4
+ 	
+ ok4:
+-	LEAQ	runtime·emptystring(SB), SI
++	LEAQ	·emptystring(SB), SI
+ 	
+ copyresult4:
+ 	LEAQ	err+72(FP), DI
+@@ -141,7 +141,7 @@ TEXT ·seek(SB),NOSPLIT,$0-56
+ 	JMP	copyresult6
+ 	
+ ok6:
+-	LEAQ	runtime·emptystring(SB), SI
++	LEAQ	·emptystring(SB), SI
+ 	
+ copyresult6:
+ 	LEAQ	err+40(FP), DI
+diff --git a/src/syscall/asm_plan9_arm.s b/src/syscall/asm_plan9_arm.s
+index 2a338a0d40..7ffd4dc761 100644
+--- a/src/syscall/asm_plan9_arm.s
++++ b/src/syscall/asm_plan9_arm.s
+@@ -10,7 +10,7 @@
+ // System call support for plan9 on arm
+ 
+ TEXT	sysresult<>(SB),NOSPLIT,$12
+-	MOVW	$runtime·emptystring+0(SB), R2
++	MOVW	$·emptystring+0(SB), R2
+ 	CMP		$-1, R0
+ 	B.NE	ok
+ 	MOVW	R1, save-4(SP)
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index b7a0d543d9..7d1576dc34 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -31,6 +31,8 @@ func (e ErrorString) Timeout() bool {
+ 	return e == EBUSY || e == ETIMEDOUT
+ }
+ 
++var emptystring string
++
+ // A Note is a string describing a process note.
+ // It implements the os.Signal interface.
+ type Note string

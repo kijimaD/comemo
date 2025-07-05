@@ -32,7 +32,7 @@ Date:   Fri Jul 31 15:58:00 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs_linux_386.go   |  11 ----
  src/runtime/defs_linux_amd64.go |  11 ----
  src/runtime/export_test.go      |   2 -
@@ -44,3 +44,385 @@ Date:   Fri Jul 31 15:58:00 2020 -0400
  src/runtime/sys_linux_386.s     |  19 -------
  src/runtime/sys_linux_amd64.s   |  19 -------
  10 files changed, 1 insertion(+), 263 deletions(-)
+
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index f4db8cf927..64a0fbcaaa 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -226,14 +226,3 @@ type sockaddr_un struct {
+ 	family uint16
+ 	path   [108]byte
+ }
+-
+-const __NEW_UTS_LEN = 64
+-
+-type new_utsname struct {
+-	sysname    [__NEW_UTS_LEN + 1]byte
+-	nodename   [__NEW_UTS_LEN + 1]byte
+-	release    [__NEW_UTS_LEN + 1]byte
+-	version    [__NEW_UTS_LEN + 1]byte
+-	machine    [__NEW_UTS_LEN + 1]byte
+-	domainname [__NEW_UTS_LEN + 1]byte
+-}
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 8480d85219..1ae18a309b 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -262,14 +262,3 @@ type sockaddr_un struct {
+ 	family uint16
+ 	path   [108]byte
+ }
+-
+-const __NEW_UTS_LEN = 64
+-
+-type new_utsname struct {
+-	sysname    [__NEW_UTS_LEN + 1]byte
+-	nodename   [__NEW_UTS_LEN + 1]byte
+-	release    [__NEW_UTS_LEN + 1]byte
+-	version    [__NEW_UTS_LEN + 1]byte
+-	machine    [__NEW_UTS_LEN + 1]byte
+-	domainname [__NEW_UTS_LEN + 1]byte
+-}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 5ab03f3f99..d591fdc4e9 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -43,8 +43,6 @@ var PhysHugePageSize = physHugePageSize
+ 
+ var NetpollGenericInit = netpollGenericInit
+ 
+-var ParseRelease = parseRelease
+-
+ var Memmove = memmove
+ var MemclrNoHeapPointers = memclrNoHeapPointers
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 7b95ff2428..22931b4d5c 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -328,20 +328,11 @@ func libpreinit() {
+ 	initsig(true)
+ }
+ 
+-// gsignalInitQuirk, if non-nil, is called for every allocated gsignal G.
+-//
+-// TODO(austin): Remove this after Go 1.15 when we remove the
+-// mlockGsignal workaround.
+-var gsignalInitQuirk func(gsignal *g)
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+ 	mp.gsignal = malg(32 * 1024) // Linux wants >= 2K
+ 	mp.gsignal.m = mp
+-	if gsignalInitQuirk != nil {
+-		gsignalInitQuirk(mp.gsignal)
+-	}
+ }
+ 
+ func gettid() uint32
+diff --git a/src/runtime/os_linux_x86.go b/src/runtime/os_linux_x86.go
+index 97f870707d..d91fa1a0d1 100644
+--- a/src/runtime/os_linux_x86.go
++++ b/src/runtime/os_linux_x86.go
+@@ -7,120 +7,4 @@
+ 
+ package runtime
+ 
+-import (
+-	"runtime/internal/atomic"
+-	"unsafe"
+-)
+-
+-//go:noescape
+-func uname(utsname *new_utsname) int
+-
+-func mlock(addr, len uintptr) int
+-
+-func osArchInit() {
+-	// Linux 5.2 introduced a bug that can corrupt vector
+-	// registers on return from a signal if the signal stack isn't
+-	// faulted in:
+-	// https://bugzilla.kernel.org/show_bug.cgi?id=205663
+-	//
+-	// It was fixed in 5.3.15, 5.4.2, and all 5.5 and later
+-	// kernels.
+-	//
+-	// If we're on an affected kernel, work around this issue by
+-	// mlocking the top page of every signal stack. This doesn't
+-	// help for signal stacks created in C, but there's not much
+-	// we can do about that.
+-	//
+-	// TODO(austin): Remove this in Go 1.15, at which point it
+-	// will be unlikely to encounter any of the affected kernels
+-	// in the wild.
+-
+-	var uts new_utsname
+-	if uname(&uts) < 0 {
+-		throw("uname failed")
+-	}
+-	// Check for null terminator to ensure gostringnocopy doesn't
+-	// walk off the end of the release string.
+-	found := false
+-	for _, b := range uts.release {
+-		if b == 0 {
+-			found = true
+-			break
+-		}
+-	}
+-	if !found {
+-		return
+-	}
+-	rel := gostringnocopy(&uts.release[0])
+-
+-	major, minor, patch, ok := parseRelease(rel)
+-	if !ok {
+-		return
+-	}
+-
+-	if major == 5 && minor == 4 && patch < 2 {
+-		// All 5.4 versions of Ubuntu are patched.
+-		procVersion := []byte("/proc/version\000")
+-		f := open(&procVersion[0], _O_RDONLY, 0)
+-		if f >= 0 {
+-			var buf [512]byte
+-			p := noescape(unsafe.Pointer(&buf[0]))
+-			n := read(f, p, int32(len(buf)))
+-			closefd(f)
+-
+-			needle := []byte("Ubuntu")
+-		contains:
+-			for i, c := range buf[:n] {
+-				if c != needle[0] {
+-					continue
+-				}
+-				if int(n)-i < len(needle) {
+-					break
+-				}
+-				for j, c2 := range needle {
+-					if c2 != buf[i+j] {
+-						continue contains
+-					}
+-				}
+-				// This is an Ubuntu system.
+-				return
+-			}
+-		}
+-	}
+-
+-	if major == 5 && (minor == 2 || minor == 3 && patch < 15 || minor == 4 && patch < 2) {
+-		gsignalInitQuirk = mlockGsignal
+-		if m0.gsignal != nil {
+-			throw("gsignal quirk too late")
+-		}
+-		throwReportQuirk = throwBadKernel
+-	}
+-}
+-
+-func mlockGsignal(gsignal *g) {
+-	if atomic.Load(&touchStackBeforeSignal) != 0 {
+-		// mlock has already failed, don't try again.
+-		return
+-	}
+-
+-	// This mlock call may fail, but we don't report the failure.
+-	// Instead, if something goes badly wrong, we rely on prepareSignalM
+-	// and throwBadKernel to do further mitigation and to report a problem
+-	// to the user if mitigation fails. This is because many
+-	// systems have a limit on the total mlock size, and many kernels
+-	// that appear to have bad versions are actually patched to avoid the
+-	// bug described above. We want Go 1.14 to run on those systems.
+-	// See #37436.
+-	if errno := mlock(gsignal.stack.hi-physPageSize, physPageSize); errno < 0 {
+-		atomic.Store(&touchStackBeforeSignal, uint32(-errno))
+-	}
+-}
+-
+-// throwBadKernel is called, via throwReportQuirk, by throw.
+-func throwBadKernel() {
+-	if errno := atomic.Load(&touchStackBeforeSignal); errno != 0 {
+-		println("runtime: note: your Linux kernel may be buggy")
+-		println("runtime: note: see https://golang.org/wiki/LinuxKernelSignalVectorBug")
+-		println("runtime: note: mlock workaround for kernel bug failed with errno", errno)
+-	}
+-}
++func osArchInit() {}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 615249f33c..127843b081 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1283,12 +1283,6 @@ func startpanic_m() bool {
+ 	}
+ }
+ 
+-// throwReportQuirk, if non-nil, is called by throw after dumping the stacks.
+-//
+-// TODO(austin): Remove this after Go 1.15 when we remove the
+-// mlockGsignal workaround.
+-var throwReportQuirk func()
+-
+ var didothers bool
+ var deadlock mutex
+ 
+@@ -1335,10 +1329,6 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
+ 
+ 	printDebugLog()
+ 
+-	if throwReportQuirk != nil {
+-		throwReportQuirk()
+-	}
+-
+ 	return docrash
+ }
+ 
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 0515b56573..251044231e 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -499,37 +499,3 @@ func gostringw(strw *uint16) string {
+ 	b[n2] = 0 // for luck
+ 	return s[:n2]
+ }
+-
+-// parseRelease parses a dot-separated version number. It follows the
+-// semver syntax, but allows the minor and patch versions to be
+-// elided.
+-func parseRelease(rel string) (major, minor, patch int, ok bool) {
+-	// Strip anything after a dash or plus.
+-	for i := 0; i < len(rel); i++ {
+-		if rel[i] == '-' || rel[i] == '+' {
+-			rel = rel[:i]
+-			break
+-		}
+-	}
+-
+-	next := func() (int, bool) {
+-		for i := 0; i < len(rel); i++ {
+-			if rel[i] == '.' {
+-				ver, ok := atoi(rel[:i])
+-				rel = rel[i+1:]
+-				return ver, ok
+-			}
+-		}
+-		ver, ok := atoi(rel)
+-		rel = ""
+-		return ver, ok
+-	}
+-	if major, ok = next(); !ok || rel == "" {
+-		return
+-	}
+-	if minor, ok = next(); !ok || rel == "" {
+-		return
+-	}
+-	patch, ok = next()
+-	return
+-}
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index b9ac667533..4eda12c35d 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -454,34 +454,3 @@ func TestAtoi32(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-type parseReleaseTest struct {
+-	in                  string
+-	major, minor, patch int
+-}
+-
+-var parseReleaseTests = []parseReleaseTest{
+-	{"", -1, -1, -1},
+-	{"x", -1, -1, -1},
+-	{"5", 5, 0, 0},
+-	{"5.12", 5, 12, 0},
+-	{"5.12-x", 5, 12, 0},
+-	{"5.12.1", 5, 12, 1},
+-	{"5.12.1-x", 5, 12, 1},
+-	{"5.12.1.0", 5, 12, 1},
+-	{"5.20496382327982653440", -1, -1, -1},
+-}
+-
+-func TestParseRelease(t *testing.T) {
+-	for _, test := range parseReleaseTests {
+-		major, minor, patch, ok := runtime.ParseRelease(test.in)
+-		if !ok {
+-			major, minor, patch = -1, -1, -1
+-		}
+-		if test.major != major || test.minor != minor || test.patch != patch {
+-			t.Errorf("parseRelease(%q) = (%v, %v, %v) want (%v, %v, %v)",
+-				test.in, major, minor, patch,
+-				test.major, test.minor, test.patch)
+-		}
+-	}
+-}
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 5b9b638ad7..1e3a834812 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -39,8 +39,6 @@
+ #define SYS_socketcall		102
+ #define SYS_setittimer		104
+ #define SYS_clone		120
+-#define SYS_uname		122
+-#define SYS_mlock		150
+ #define SYS_sched_yield 	158
+ #define SYS_nanosleep		162
+ #define SYS_rt_sigreturn	173
+@@ -808,20 +806,3 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+ 	INVOKE_SYSCALL
+ 	MOVL	AX, ret+0(FP)
+ 	RET
+-
+-// func uname(utsname *new_utsname) int
+-TEXT ·uname(SB),NOSPLIT,$0-8
+-	MOVL    $SYS_uname, AX
+-	MOVL    utsname+0(FP), BX
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+-// func mlock(addr, len uintptr) int
+-TEXT ·mlock(SB),NOSPLIT,$0-12
+-	MOVL    $SYS_mlock, AX
+-	MOVL    addr+0(FP), BX
+-	MOVL    len+4(FP), CX
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+8(FP)
+-	RET
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index fe9c6bce85..b60057ce83 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -33,10 +33,8 @@
+ #define SYS_clone		56
+ #define SYS_exit		60
+ #define SYS_kill		62
+-#define SYS_uname		63
+ #define SYS_fcntl		72
+ #define SYS_sigaltstack 	131
+-#define SYS_mlock		149
+ #define SYS_arch_prctl		158
+ #define SYS_gettid		186
+ #define SYS_futex		202
+@@ -789,20 +787,3 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	SYSCALL
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+-
+-// func uname(utsname *new_utsname) int
+-TEXT ·uname(SB),NOSPLIT,$0-16
+-	MOVQ    utsname+0(FP), DI
+-	MOVL    $SYS_uname, AX
+-	SYSCALL
+-	MOVQ	AX, ret+8(FP)
+-	RET
+-
+-// func mlock(addr, len uintptr) int
+-TEXT ·mlock(SB),NOSPLIT,$0-24
+-	MOVQ    addr+0(FP), DI
+-	MOVQ    len+8(FP), SI
+-	MOVL    $SYS_mlock, AX
+-	SYSCALL
+-	MOVQ	AX, ret+16(FP)
+-	RET

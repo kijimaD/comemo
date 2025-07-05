@@ -14,6 +14,20 @@ Date:   Fri Oct 2 21:57:24 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 224b6c0c3e..37fc522356 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -129,7 +129,7 @@ func main() {
+ 			gohostarch = "riscv64"
+ 		case strings.Contains(out, "s390x"):
+ 			gohostarch = "s390x"
+-		case gohostos == "darwin":
++		case gohostos == "darwin", gohostos == "ios":
+ 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
+ 				gohostarch = "arm64"
+ 			}

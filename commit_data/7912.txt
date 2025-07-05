@@ -10,6 +10,21 @@ Date:   Tue Mar 29 06:48:20 2011 -0700
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4327041
-
+---
  test/syntax/if.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/syntax/if.go b/test/syntax/if.go
+index 913d418854..a3b51f0c07 100644
+--- a/test/syntax/if.go
++++ b/test/syntax/if.go
+@@ -6,6 +6,9 @@
+ 
+ package main
+ 
++func x() {
++}
++
+ func main() {
+ 	if {  // ERROR "missing condition"
+ 	}

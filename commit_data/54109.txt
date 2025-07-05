@@ -18,7 +18,42 @@ Date:   Mon Sep 26 14:53:54 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/saferio/io.go      | 7 +++++--
  src/internal/saferio/io_test.go | 7 +++++++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/saferio/io.go b/src/internal/saferio/io.go
+index b10d117513..66cc044c74 100644
+--- a/src/internal/saferio/io.go
++++ b/src/internal/saferio/io.go
+@@ -121,8 +121,11 @@ func SliceCap(v any, c uint64) int {
+ 	if typ.Kind() != reflect.Ptr {
+ 		panic("SliceCap called with non-pointer type")
+ 	}
+-	size := typ.Elem().Size()
+-	if uintptr(c)*size > chunk {
++	size := uint64(typ.Elem().Size())
++	if size > 0 && c > (1<<64-1)/size {
++		return -1
++	}
++	if c*size > chunk {
+ 		c = uint64(chunk / size)
+ 		if c == 0 {
+ 			c = 1
+diff --git a/src/internal/saferio/io_test.go b/src/internal/saferio/io_test.go
+index 290181f2a0..356c9ebdd1 100644
+--- a/src/internal/saferio/io_test.go
++++ b/src/internal/saferio/io_test.go
+@@ -126,4 +126,11 @@ func TestSliceCap(t *testing.T) {
+ 			t.Errorf("SliceCap returned %d, expected failure", c)
+ 		}
+ 	})
++
++	t.Run("overflow", func(t *testing.T) {
++		c := SliceCap((*int64)(nil), 1<<62)
++		if c >= 0 {
++			t.Errorf("SliceCap returned %d, expected failure", c)
++		}
++	})
+ }

@@ -21,6 +21,19 @@ Date:   Mon Jul 30 10:13:54 2012 -0400
     TBR=dsymonds
     CC=golang-dev
     https://golang.org/cl/6454064
-
+---
  misc/dashboard/codereview/dashboard/cl.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index 181d2e40fe..c9cee24527 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -49,6 +49,7 @@ type CL struct {
+ 	FirstLine   string `datastore:",noindex"`
+ 	LGTMs       []string
+ 	NotLGTMs    []string
++	LastUpdate  string
+ 
+ 	// Mail information.
+ 	Subject       string   `datastore:",noindex"`

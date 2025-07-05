@@ -14,6 +14,56 @@ Date:   Wed Nov 9 11:09:42 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/reflectlite/type.go | 21 ++++++---------------
  1 file changed, 6 insertions(+), 15 deletions(-)
+
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 21e3c1278d..43440b1126 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -6,10 +6,7 @@
+ // any package except for "runtime" and "unsafe".
+ package reflectlite
+ 
+-import (
+-	"internal/unsafeheader"
+-	"unsafe"
+-)
++import "unsafe"
+ 
+ // Type is the representation of a Go type.
+ //
+@@ -341,27 +338,21 @@ func (n name) readVarint(off int) (int, int) {
+ 	}
+ }
+ 
+-func (n name) name() (s string) {
++func (n name) name() string {
+ 	if n.bytes == nil {
+-		return
++		return ""
+ 	}
+ 	i, l := n.readVarint(1)
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
+-	hdr.Len = l
+-	return
++	return unsafe.String(n.data(1+i, "non-empty string"), l)
+ }
+ 
+-func (n name) tag() (s string) {
++func (n name) tag() string {
+ 	if !n.hasTag() {
+ 		return ""
+ 	}
+ 	i, l := n.readVarint(1)
+ 	i2, l2 := n.readVarint(1 + i + l)
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
+-	hdr.Len = l2
+-	return
++	return unsafe.String(n.data(1+i+l+i2, "non-empty string"), l2)
+ }
+ 
+ func (n name) pkgPath() string {

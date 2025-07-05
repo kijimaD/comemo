@@ -8,7 +8,75 @@ Date:   Wed Dec 8 07:55:03 2010 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/3466044
-
+---
  src/pkg/html/entity.go      | 20 --------------------
  src/pkg/html/entity_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/html/entity.go b/src/pkg/html/entity.go
+index f12d5f061d..1530290cb3 100644
+--- a/src/pkg/html/entity.go
++++ b/src/pkg/html/entity.go
+@@ -4,10 +4,6 @@
+ 
+ package html
+ 
+-import (
+-	"utf8"
+-)
+-
+ // entity is a map from HTML entity names to their values. The semicolon matters:
+ // http://www.whatwg.org/specs/web-apps/current-work/multipage/named-character-references.html
+ // lists both "amp" and "amp;" as two separate entries.
+@@ -2252,19 +2248,3 @@ var entity2 = map[string][2]int{
+ 	"vsupnE;":                  {'\u2ACC', '\uFE00'},
+ 	"vsupne;":                  {'\u228B', '\uFE00'},
+ }
+-
+-func init() {
+-	// We verify that the length of UTF-8 encoding of each value is <= 1 + len(key).
+-	// The +1 comes from the leading "&". This property implies that the length of
+-	// unescaped text is <= the length of escaped text.
+-	for k, v := range entity {
+-		if 1+len(k) < utf8.RuneLen(v) {
+-			panic("escaped entity &" + k + " is shorter than its UTF-8 encoding " + string(v))
+-		}
+-	}
+-	for k, v := range entity2 {
+-		if 1+len(k) < utf8.RuneLen(v[0])+utf8.RuneLen(v[1]) {
+-			panic("escaped entity &" + k + " is shorter than its UTF-8 encoding " + string(v[0]) + string(v[1]))
+-		}
+-	}
+-}
+diff --git a/src/pkg/html/entity_test.go b/src/pkg/html/entity_test.go
+new file mode 100644
+index 0000000000..a1eb4d4f01
+--- /dev/null
++++ b/src/pkg/html/entity_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"testing"
++	"utf8"
++)
++
++func TestEntityLength(t *testing.T) {
++	// We verify that the length of UTF-8 encoding of each value is <= 1 + len(key).
++	// The +1 comes from the leading "&". This property implies that the length of
++	// unescaped text is <= the length of escaped text.
++	for k, v := range entity {
++		if 1+len(k) < utf8.RuneLen(v) {
++			t.Error("escaped entity &" + k + " is shorter than its UTF-8 encoding " + string(v))
++		}
++	}
++	for k, v := range entity2 {
++		if 1+len(k) < utf8.RuneLen(v[0])+utf8.RuneLen(v[1]) {
++			t.Error("escaped entity &" + k + " is shorter than its UTF-8 encoding " + string(v[0]) + string(v[1]))
++		}
++	}
++}

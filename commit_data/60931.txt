@@ -10,6 +10,24 @@ Date:   Tue Sep 10 12:47:22 2024 +0200
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/format.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index cab78f73a0..b9cd702c0d 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1259,9 +1259,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			hr, _, err = getnum(hour, true)
+ 			if err == nil {
+ 				mm, _, err = getnum(min, true)
+-			}
+-			if err == nil {
+-				ss, _, err = getnum(seconds, true)
++				if err == nil {
++					ss, _, err = getnum(seconds, true)
++				}
+ 			}
+ 
+ 			// The range test use > rather than >=,

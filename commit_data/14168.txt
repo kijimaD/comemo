@@ -7,6 +7,20 @@ Date:   Thu Oct 18 08:12:44 2012 +1100
     R=r, minux.ma, adg
     CC=golang-dev
     https://golang.org/cl/6710044
-
+---
  doc/codewalk/markov.xml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codewalk/markov.xml b/doc/codewalk/markov.xml
+index b7b7117834..7f12818177 100644
+--- a/doc/codewalk/markov.xml
++++ b/doc/codewalk/markov.xml
+@@ -58,7 +58,7 @@ Prefix               Map key
+ 	this data.
+ </step>
+ 
+-<step title="The NewChain constructor function" src="doc/codewalk/markov.go:/func New/,/}/">
++<step title="The NewChain constructor function" src="doc/codewalk/markov.go:/func New/,/\n}/">
+ 	The <code>Chain</code> struct has two unexported fields (those that
+ 	do not begin with an upper case character), and so we write a
+ 	<code>NewChain</code> constructor function that initializes the

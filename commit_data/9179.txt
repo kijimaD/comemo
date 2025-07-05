@@ -16,7 +16,7 @@ Date:   Fri Jul 22 09:55:37 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4803047
-
+---
  src/cmd/gofmt/doc.go           |  6 +++++-
  src/cmd/gofmt/gofmt.go         |  4 ++++
  src/cmd/gotype/doc.go          | 14 ++++++++------
@@ -24,3 +24,207 @@ Date:   Fri Jul 22 09:55:37 2011 -0700
  src/pkg/go/parser/interface.go | 27 ++++++++++++++++++++-------
  src/pkg/go/parser/parser.go    |  9 ++++++++-
  6 files changed, 49 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 1373b26576..fca42b76ba 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -14,11 +14,12 @@ Usage:
+ 	gofmt [flags] [path ...]
+ 
+ The flags are:
+-
+ 	-d
+ 		Do not print reformatted sources to standard output.
+ 		If a file's formatting is different than gofmt's, print diffs
+ 		to standard output.
++	-e
++		Print all (including spurious) errors.
+ 	-l
+ 		Do not print reformatted sources to standard output.
+ 		If a file's formatting is different from gofmt's, print its name
+@@ -31,6 +32,8 @@ The flags are:
+ 		Do not print reformatted sources to standard output.
+ 		If a file's formatting is different from gofmt's, overwrite it
+ 		with gofmt's version.
++
++Formatting control flags:
+ 	-comments=true
+ 		Print comments; if false, all comments are elided from the output.
+ 	-spaces
+@@ -40,6 +43,7 @@ The flags are:
+ 	-tabwidth=8
+ 		Tab width in spaces.
+ 
++
+ The rewrite rule specified with the -r flag must be a string of the form:
+ 
+ 	pattern -> replacement
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 2543e30778..975ae6ac6f 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -29,6 +29,7 @@ var (
+ 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
+ 	simplifyAST = flag.Bool("s", false, "simplify code")
+ 	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
++	allErrors   = flag.Bool("e", false, "print all (including spurious) errors")
+ 
+ 	// layout control
+ 	comments  = flag.Bool("comments", true, "print comments")
+@@ -64,6 +65,9 @@ func initParserMode() {
+ 	if *comments {
+ 		parserMode |= parser.ParseComments
+ 	}
++	if *allErrors {
++		parserMode |= parser.SpuriousErrors
++	}
+ }
+ 
+ func initPrinterMode() {
+diff --git a/src/cmd/gotype/doc.go b/src/cmd/gotype/doc.go
+index ec4eb7c244..1aa0faa751 100644
+--- a/src/cmd/gotype/doc.go
++++ b/src/cmd/gotype/doc.go
+@@ -24,18 +24,20 @@ Usage:
+ 	gotype [flags] [path ...]
+ 
+ The flags are:
++	-e
++		Print all (including spurious) errors.
+ 	-p pkgName
+-		process only those files in package pkgName.
++		Process only those files in package pkgName.
+ 	-r
+-		recursively process subdirectories.
++		Recursively process subdirectories.
+ 	-v
+-		verbose mode.
++		Verbose mode.
+ 
+ Debugging flags:
+-	-trace
+-		print parse trace (disables concurrent parsing).
+ 	-ast
+-		print AST (disables concurrent parsing).
++		Print AST (disables concurrent parsing).
++	-trace
++		Print parse trace (disables concurrent parsing).
+ 
+ 
+ Examples
+diff --git a/src/cmd/gotype/gotype.go b/src/cmd/gotype/gotype.go
+index aaa702fdf2..e5e9417ff1 100644
+--- a/src/cmd/gotype/gotype.go
++++ b/src/cmd/gotype/gotype.go
+@@ -23,6 +23,7 @@ var (
+ 	pkgName   = flag.String("p", "", "process only those files in package pkgName")
+ 	recursive = flag.Bool("r", false, "recursively process subdirectories")
+ 	verbose   = flag.Bool("v", false, "verbose mode")
++	allErrors = flag.Bool("e", false, "print all (including spurious) errors")
+ 
+ 	// debugging support
+ 	printTrace = flag.Bool("trace", false, "print parse trace")
+@@ -68,6 +69,9 @@ func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
+ 
+ 	// parse entire file
+ 	mode := parser.DeclarationErrors
++	if *allErrors {
++		mode |= parser.SpuriousErrors
++	}
+ 	if *printTrace {
+ 		mode |= parser.Trace
+ 	}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 77459fc373..4f980fc653 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -48,9 +48,12 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 	return ioutil.ReadFile(filename)
+ }
+ 
+-func (p *parser) parseEOF() os.Error {
+-	p.expect(token.EOF)
+-	return p.GetError(scanner.Sorted)
++func (p *parser) errors() os.Error {
++	mode := scanner.Sorted
++	if p.mode&SpuriousErrors == 0 {
++		mode = scanner.NoMultiples
++	}
++	return p.GetError(mode)
+ }
+ 
+ // ParseExpr parses a Go expression and returns the corresponding
+@@ -70,7 +73,9 @@ func ParseExpr(fset *token.FileSet, filename string, src interface{}) (ast.Expr,
+ 	if p.tok == token.SEMICOLON {
+ 		p.next() // consume automatically inserted semicolon, if any
+ 	}
+-	return x, p.parseEOF()
++	p.expect(token.EOF)
++
++	return x, p.errors()
+ }
+ 
+ // ParseStmtList parses a list of Go statements and returns the list
+@@ -86,7 +91,10 @@ func ParseStmtList(fset *token.FileSet, filename string, src interface{}) ([]ast
+ 
+ 	var p parser
+ 	p.init(fset, filename, data, 0)
+-	return p.parseStmtList(), p.parseEOF()
++	list := p.parseStmtList()
++	p.expect(token.EOF)
++
++	return list, p.errors()
+ }
+ 
+ // ParseDeclList parses a list of Go declarations and returns the list
+@@ -102,7 +110,10 @@ func ParseDeclList(fset *token.FileSet, filename string, src interface{}) ([]ast
+ 
+ 	var p parser
+ 	p.init(fset, filename, data, 0)
+-	return p.parseDeclList(), p.parseEOF()
++	list := p.parseDeclList()
++	p.expect(token.EOF)
++
++	return list, p.errors()
+ }
+ 
+ // ParseFile parses the source code of a single Go source file and returns
+@@ -133,7 +144,9 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint)
+ 
+ 	var p parser
+ 	p.init(fset, filename, data, mode)
+-	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
++	file := p.parseFile() // parseFile reads to EOF
++
++	return file, p.errors()
+ }
+ 
+ // ParseFiles calls ParseFile for each file in the filenames list and returns
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 6965f9c91e..618a150765 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -26,6 +26,7 @@ const (
+ 	ParseComments                      // parse comments and add them to AST
+ 	Trace                              // print a trace of parsed productions
+ 	DeclarationErrors                  // report declaration errors
++	SpuriousErrors                     // report all (not just the first) errors per line
+ )
+ 
+ // The parser structure holds the parser's internal state.
+@@ -1408,7 +1409,13 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 			p.declare(stmt, nil, p.labelScope, ast.Lbl, label)
+ 			return stmt
+ 		}
+-		p.error(x[0].Pos(), "illegal label declaration")
++		// The label declaration typically starts at x[0].Pos(), but the label
++		// declaration may be erroneous due to a token after that position (and
++		// before the ':'). If SpuriousErrors is not set, the (only) error re-
++		// ported for the line is the illegal label error instead of the token
++		// before the ':' that caused the problem. Thus, use the (latest) colon
++		// position for error reporting.
++		p.error(colon, "illegal label declaration")
+ 		return &ast.BadStmt{x[0].Pos(), colon + 1}
+ 
+ 	case token.ARROW:

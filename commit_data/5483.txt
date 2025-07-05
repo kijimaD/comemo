@@ -10,6 +10,20 @@ Date:   Tue May 18 22:41:12 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1243041
-
+---
  src/cmd/gc/align.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 460358df18..00dd9d88ea 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -491,7 +491,7 @@ typeinit(void)
+ 	okfor[OGT] = okforcmp;
+ 	okfor[OLE] = okforcmp;
+ 	okfor[OLT] = okforcmp;
+-	okfor[OMOD] = okforarith;
++	okfor[OMOD] = okforand;
+ 	okfor[OMUL] = okforarith;
+ 	okfor[ONE] = okforeq;
+ 	okfor[OOR] = okforand;

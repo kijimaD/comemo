@@ -10,9 +10,97 @@ Date:   Sun Sep 4 18:53:24 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/align_test.go          | 3 +--
  src/runtime/debuglog_test.go       | 5 ++---
  src/runtime/signal_windows_test.go | 4 ++--
  src/runtime/stack_test.go          | 3 +--
  4 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/align_test.go b/src/runtime/align_test.go
+index 55cf783caa..d3bdf007dc 100644
+--- a/src/runtime/align_test.go
++++ b/src/runtime/align_test.go
+@@ -5,7 +5,6 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+ 	"go/ast"
+ 	"go/build"
+ 	"go/importer"
+@@ -180,7 +179,7 @@ func (v *Visitor) checkAddr(n ast.Node) {
+ }
+ 
+ func (v *Visitor) print(n ast.Node) string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	printer.Fprint(&b, v.fset, n)
+ 	return b.String()
+ }
+diff --git a/src/runtime/debuglog_test.go b/src/runtime/debuglog_test.go
+index 2570e3565b..10dc72cf51 100644
+--- a/src/runtime/debuglog_test.go
++++ b/src/runtime/debuglog_test.go
+@@ -23,7 +23,6 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"regexp"
+ 	"runtime"
+@@ -94,7 +93,7 @@ func TestDebugLogInterleaving(t *testing.T) {
+ 		}
+ 		wg.Done()
+ 	}()
+-	var want bytes.Buffer
++	var want strings.Builder
+ 	for i := 0; i < 1000; i++ {
+ 		runtime.Dlog().I(i).End()
+ 		fmt.Fprintf(&want, "[] %d\n", i)
+@@ -122,7 +121,7 @@ func TestDebugLogWraparound(t *testing.T) {
+ 
+ 	runtime.ResetDebugLog()
+ 	var longString = strings.Repeat("a", 128)
+-	var want bytes.Buffer
++	var want strings.Builder
+ 	for i, j := 0, 0; j < 2*runtime.DebugLogBytes; i, j = i+1, j+len(longString) {
+ 		runtime.Dlog().I(i).S(longString).End()
+ 		fmt.Fprintf(&want, "[] %d %s\n", i, longString)
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 731f22da61..8b32ad8974 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -93,8 +93,8 @@ func TestCtrlHandler(t *testing.T) {
+ 
+ 	// run test program
+ 	cmd = exec.Command(exe)
+-	var stdout bytes.Buffer
+-	var stderr bytes.Buffer
++	var stdout strings.Builder
++	var stderr strings.Builder
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	inPipe, err := cmd.StdinPipe()
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index fe73a6362a..92d58803fc 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -5,7 +5,6 @@
+ package runtime_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"reflect"
+ 	"regexp"
+@@ -778,7 +777,7 @@ func TestTracebackSystemstack(t *testing.T) {
+ 	// and that we see TestTracebackSystemstack.
+ 	countIn, countOut := 0, 0
+ 	frames := CallersFrames(pcs)
+-	var tb bytes.Buffer
++	var tb strings.Builder
+ 	for {
+ 		frame, more := frames.Next()
+ 		fmt.Fprintf(&tb, "\n%s+0x%x %s:%d", frame.Function, frame.PC-frame.Entry, frame.File, frame.Line)

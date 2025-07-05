@@ -7,6 +7,21 @@ Date:   Sat May 15 10:08:29 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/1231041
-
+---
  src/make.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index d8638145ea..b718bb9562 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -6,7 +6,8 @@
+ set -e
+ . ./env.bash
+ 
+-export MAKEFLAGS=-j4
++MAKEFLAGS=${MAKEFLAGS:-"-j4"}
++export MAKEFLAGS
+ unset CDPATH	# in case user has it set
+ 
+ rm -f "$GOBIN"/quietgcc

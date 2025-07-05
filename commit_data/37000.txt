@@ -9,7 +9,99 @@ Date:   Thu Apr 12 20:25:07 2018 +0000
     Change-Id: I8b1e7c5a74018a0c333f8c38a7ec5f5827ab1606
     Reviewed-on: https://go-review.googlesource.com/106715
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/serve_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     | 22 ++++++++++++++++++++--
  2 files changed, 58 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 10651fff7c..4e5741ed90 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5886,6 +5886,44 @@ func TestServerListenNotComparableListener(t *testing.T) {
+ 	s.Serve(make(eofListenerNotComparable, 1)) // used to panic
+ }
+ 
++// countCloseListener is a Listener wrapper that counts the number of Close calls.
++type countCloseListener struct {
++	net.Listener
++	closes int32 // atomic
++}
++
++func (p *countCloseListener) Close() error {
++	atomic.AddInt32(&p.closes, 1)
++	return nil
++}
++
++// Issue 24803: don't call Listener.Close on Server.Shutdown.
++func TestServerCloseListenerOnce(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++
++	ln := newLocalListener(t)
++	defer ln.Close()
++
++	cl := &countCloseListener{Listener: ln}
++	server := &Server{}
++	sdone := make(chan bool, 1)
++
++	go func() {
++		server.Serve(cl)
++		sdone <- true
++	}()
++	time.Sleep(10 * time.Millisecond)
++	server.Shutdown(context.Background())
++	ln.Close()
++	<-sdone
++
++	nclose := atomic.LoadInt32(&cl.closes)
++	if nclose != 1 {
++		t.Errorf("Close calls = %v; want 1", nclose)
++	}
++}
++
+ func BenchmarkResponseStatusLine(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.RunParallel(func(pb *testing.PB) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 407546d6c9..d54b745cd2 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2770,10 +2770,13 @@ var ErrServerClosed = errors.New("http: Server closed")
+ // Serve always returns a non-nil error. After Shutdown or Close, the
+ // returned error is ErrServerClosed.
+ func (srv *Server) Serve(l net.Listener) error {
+-	defer l.Close()
+ 	if fn := testHookServerServe; fn != nil {
+-		fn(srv, l)
++		fn(srv, l) // call hook with unwrapped listener
+ 	}
++
++	l = &onceCloseListener{Listener: l}
++	defer l.Close()
++
+ 	var tempDelay time.Duration // how long to sleep on accept failure
+ 
+ 	if err := srv.setupHTTP2_Serve(); err != nil {
+@@ -3249,6 +3252,21 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+ 	return tc, nil
+ }
+ 
++// onceCloseListener wraps a net.Listener, protecting it from
++// multiple Close calls.
++type onceCloseListener struct {
++	net.Listener
++	once     sync.Once
++	closeErr error
++}
++
++func (oc *onceCloseListener) Close() error {
++	oc.once.Do(oc.close)
++	return oc.closeErr
++}
++
++func (oc *onceCloseListener) close() { oc.closeErr = oc.Listener.Close() }
++
+ // globalOptionsHandler responds to "OPTIONS *" requests.
+ type globalOptionsHandler struct{}
+ 

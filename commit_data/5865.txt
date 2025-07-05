@@ -12,7 +12,7 @@ Date:   Wed Jul 21 13:44:49 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1886043
-
+---
  src/cmd/6l/obj.c  | 60 +++++++++++++++++++++----------------------------------
  src/cmd/6l/pass.c |  7 +++++--
  src/cmd/8l/obj.c  | 51 +++++++++++++++-------------------------------
@@ -20,3 +20,291 @@ Date:   Wed Jul 21 13:44:49 2010 -0700
  src/cmd/ld/lib.c  |  6 ++++++
  src/cmd/ld/lib.h  |  1 +
  6 files changed, 58 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index fcef816e3c..d0661c720d 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -51,28 +51,6 @@ char*	paramspace	= "FP";
+  *	options used: 189BLQSWabcjlnpsvz
+  */
+ 
+-static int
+-isobjfile(char *f)
+-{
+-	int n, v;
+-	Biobuf *b;
+-	char buf1[5], buf2[SARMAG];
+-
+-	b = Bopen(f, OREAD);
+-	if(b == nil)
+-		return 0;
+-	n = Bread(b, buf1, 5);
+-	if(n == 5 && (buf1[2] == 1 && buf1[3] == '<' || buf1[3] == 1 && buf1[4] == '<'))
+-		v = 1;	/* good enough for our purposes */
+-	else {
+-		Bseek(b, 0, 0);
+-		n = Bread(b, buf2, SARMAG);
+-		v = n == SARMAG && strncmp(buf2, ARMAG, SARMAG) == 0;
+-	}
+-	Bterm(b);
+-	return v;
+-}
+-
+ void
+ usage(void)
+ {
+@@ -400,10 +378,21 @@ main(int argc, char *argv[])
+ 	errorexit();
+ }
+ 
++Sym*
++zsym(char *pn, Biobuf *f, Sym *h[])
++{	
++	int o;
++	
++	o = Bgetc(f);
++	if(o < 0 || o >= NSYM || h[o] == nil)
++		mangle(pn);
++	return h[o];
++}
++
+ void
+ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ {
+-	int o, t;
++	int t;
+ 	int32 l;
+ 	Sym *s;
+ 	Auto *u;
+@@ -424,14 +413,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		}
+ 	}
+ 	a->sym = S;
+-	if(t & T_SYM) {
+-		o = Bgetc(f);
+-		if(o < 0 || o >= NSYM || h[o] == nil) {
+-			fprint(2, "%s: mangled input file\n", pn);
+-			errorexit();
+-		}
+-		a->sym = h[o];
+-	}
++	if(t & T_SYM)
++		a->sym = zsym(pn, f, h);
+ 	a->type = D_NONE;
+ 	if(t & T_FCONST) {
+ 		a->ieee.l = Bget4(f);
+@@ -446,10 +429,15 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		a->type = Bgetc(f);
+ 	adrgotype = S;
+ 	if(t & T_GOTYPE)
+-		adrgotype = h[Bgetc(f)];
++		adrgotype = zsym(pn, f, h);
+ 	s = a->sym;
+-	if(s == S)
++	if(s == S) {
++		switch(a->type) {
++		case D_SIZE:
++			mangle(pn);
++		}
+ 		return;
++	}
+ 
+ 	t = a->type;
+ 	if(t != D_AUTO && t != D_PARAM) {
+@@ -563,10 +551,8 @@ loop:
+ 
+ 		if(debug['W'])
+ 			print("	ANAME	%s\n", s->name);
+-		if(o < 0 || o >= nelem(h)) {
+-			fprint(2, "%s: mangled input file\n", pn);
+-			errorexit();
+-		}
++		if(o < 0 || o >= nelem(h))
++			mangle(pn);
+ 		h[o] = s;
+ 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+ 			s->type = SXREF;
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index f869429261..8eced5083e 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -323,7 +323,7 @@ loop:
+ 	if(a != ACALL) {
+ 		q = brchain(p->link);
+ 		if(q != P && q->mark)
+-		if(a != ALOOP) {
++		if(a != ALOOP && a != ATEXT) {
+ 			p->as = relinv(a);
+ 			p->link = p->pcond;
+ 			p->pcond = q;
+@@ -376,6 +376,7 @@ relinv(int a)
+ 	case AJOC:	return AJOS;
+ 	}
+ 	diag("unknown relation: %s in %s", anames[a], TNAME);
++	errorexit();
+ 	return a;
+ }
+ 
+@@ -574,7 +575,7 @@ dostkoff(void)
+ 
+ 	for(i=0; i<nelem(morename); i++) {
+ 		if(pmorestack[i] == P)
+-			diag("morestack trampoline not defined");
++			diag("morestack trampoline not defined - %s", morename[i]);
+ 	}
+ 
+ 	curframe = 0;
+@@ -1036,6 +1037,8 @@ newtext(Prog *p, Sym *s)
+ 		p->as = ATEXT;
+ 		p->from.sym = s;
+ 	}
++	if(p->from.sym == S)
++		abort();
+ 	s->type = STEXT;
+ 	s->text = p;
+ 	s->value = pc;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index c508c1de44..f3584bf01d 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -56,28 +56,6 @@ char	*thestring 	= "386";
+  *	-H9 -Tx -Rx			is FreeBSD ELF32
+  */
+ 
+-static int
+-isobjfile(char *f)
+-{
+-	int n, v;
+-	Biobuf *b;
+-	char buf1[5], buf2[SARMAG];
+-
+-	b = Bopen(f, OREAD);
+-	if(b == nil)
+-		return 0;
+-	n = Bread(b, buf1, 5);
+-	if(n == 5 && (buf1[2] == 1 && buf1[3] == '<' || buf1[3] == 1 && buf1[4] == '<'))
+-		v = 1;	/* good enough for our purposes */
+-	else{
+-		Bseek(b, 0, 0);
+-		n = Bread(b, buf2, SARMAG);
+-		v = n == SARMAG && strncmp(buf2, ARMAG, SARMAG) == 0;
+-	}
+-	Bterm(b);
+-	return v;
+-}
+-
+ void
+ usage(void)
+ {
+@@ -439,6 +417,17 @@ main(int argc, char *argv[])
+ 	errorexit();
+ }
+ 
++Sym*
++zsym(char *pn, Biobuf *f, Sym *h[])
++{	
++	int o;
++	
++	o = Bgetc(f);
++	if(o < 0 || o >= NSYM || h[o] == nil)
++		mangle(pn);
++	return h[o];
++}
++
+ void
+ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ {
+@@ -464,14 +453,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		a->type = D_CONST2;
+ 	}
+ 	a->sym = S;
+-	if(t & T_SYM) {
+-		o = Bgetc(f);
+-		if(o < 0 || o >= NSYM || h[o] == nil) {
+-			fprint(2, "%s: mangled input file\n", pn);
+-			errorexit();
+-		}
+-		a->sym = h[o];
+-	}
++	if(t & T_SYM)
++		a->sym = zsym(pn, f, h);
+ 	if(t & T_FCONST) {
+ 		a->ieee.l = Bget4(f);
+ 		a->ieee.h = Bget4(f);
+@@ -485,7 +468,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		a->type = Bgetc(f);
+ 	adrgotype = S;
+ 	if(t & T_GOTYPE)
+-		adrgotype = h[Bgetc(f)];
++		adrgotype = zsym(pn, f, h);
+ 
+ 	t = a->type;
+ 	if(t == D_INDIR+D_GS)
+@@ -605,10 +588,8 @@ loop:
+ 
+ 		if(debug['W'])
+ 			print("	ANAME	%s\n", s->name);
+-		if(o < 0 || o >= nelem(h)) {
+-			fprint(2, "%s: mangled input file\n", pn);
+-			errorexit();
+-		}
++		if(o < 0 || o >= nelem(h))
++			mangle(pn);
+ 		h[o] = s;
+ 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+ 			s->type = SXREF;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 82b2fb1f3d..01f04048b1 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -294,16 +294,18 @@ loop:
+ 	if(a != ACALL) {
+ 		q = brchain(p->link);
+ 		if(q != P && q->mark)
+-		if(a != ALOOP) {
++		if(a != ALOOP && a != ATEXT) {
+ 			p->as = relinv(a);
+ 			p->link = p->pcond;
+ 			p->pcond = q;
+ 		}
+ 		xfol(p->link);
+-		q = brchain(p->pcond);
+-		if(q->mark) {
+-			p->pcond = q;
+-			return;
++		if(a != ATEXT) {
++			q = brchain(p->pcond);
++			if(q->mark) {
++				p->pcond = q;
++				return;
++			}
+ 		}
+ 		p = q;
+ 		goto loop;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 59e4d3d36e..982ff6b4dd 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -901,3 +901,9 @@ iconv(Fmt *fp)
+ 	return 0;
+ }
+ 
++void
++mangle(char *file)
++{
++	fprint(2, "%s; mangled input file\n", file);
++	errorexit();
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 652d845fb2..501b6a2cbc 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -83,6 +83,7 @@ void	readundefs(char *f, int t);
+ int32	Bget4(Biobuf *f);
+ void	loadlib(void);
+ void	errorexit(void);
++void	mangle(char*);
+ void	objfile(char *file, char *pkg);
+ void	libinit(void);
+ void	Lflag(char *arg);

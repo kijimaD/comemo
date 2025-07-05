@@ -9,7 +9,75 @@ Date:   Thu Jan 17 14:41:53 2013 +1100
     R=adg, rsc, rogpeppe, andrewdg, bradfitz
     CC=golang-dev
     https://golang.org/cl/7086050
-
+---
  src/pkg/time/sleep.go      | 15 +++++++++++++--
  src/pkg/time/sleep_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 657e254103..1e6b4f2e44 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -35,10 +35,10 @@ type Timer struct {
+ 
+ // Stop prevents the Timer from firing.
+ // It returns true if the call stops the timer, false if the timer has already
+-// expired or stopped.
++// expired or been stopped.
+ // Stop does not close the channel, to prevent a read from the channel succeeding
+ // incorrectly.
+-func (t *Timer) Stop() (ok bool) {
++func (t *Timer) Stop() bool {
+ 	return stopTimer(&t.r)
+ }
+ 
+@@ -58,6 +58,17 @@ func NewTimer(d Duration) *Timer {
+ 	return t
+ }
+ 
++// Reset changes the timer to expire after duration d.
++// It returns true if the timer had been active, false if the timer had
++// expired or been stopped.
++func (t *Timer) Reset(d Duration) bool {
++	when := nano() + int64(d)
++	active := stopTimer(&t.r)
++	t.r.when = when
++	startTimer(&t.r)
++	return active
++}
++
+ func sendTime(now int64, c interface{}) {
+ 	// Non-blocking send of time on c.
+ 	// Used in NewTimer, it cannot block anyway (buffer).
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index e05773df6e..3e4b6c072c 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -245,3 +245,27 @@ func TestSleepZeroDeadlock(t *testing.T) {
+ 	}
+ 	<-c
+ }
++
++func TestReset(t *testing.T) {
++	t0 := NewTimer(100 * Millisecond)
++	Sleep(50 * Millisecond)
++	if t0.Reset(150*Millisecond) != true {
++		t.Fatalf("resetting unfired timer returned false")
++	}
++	Sleep(100 * Millisecond)
++	select {
++	case <-t0.C:
++		t.Fatalf("timer fired early")
++	default:
++	}
++	Sleep(100 * Millisecond)
++	select {
++	case <-t0.C:
++	default:
++		t.Fatalf("reset timer did not fire")
++	}
++
++	if t0.Reset(50*Millisecond) != false {
++		t.Fatalf("resetting expired timer returned true")
++	}
++}

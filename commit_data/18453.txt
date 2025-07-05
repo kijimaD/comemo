@@ -8,6 +8,22 @@ Date:   Tue Feb 11 09:34:43 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/61410046
-
+---
  src/pkg/runtime/os_plan9.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index dd2828b1d9..214cb224ba 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -310,6 +310,10 @@ runtime·sigpanic(void)
+ {
+ 	if(g->sigpc == 0)
+ 		runtime·panicstring("call of nil func value");
++	if(runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: fault read addr") >= 0 || runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: fault write addr") >= 0)
++		runtime·panicstring("invalid memory address or nil pointer dereference");
++	if(runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: divide error") >= 0)
++		runtime·panicstring("integer divide by zero");
+ 	runtime·panicstring(m->notesig);
+ 
+ 	if(g->sig == 1 || g->sig == 2)

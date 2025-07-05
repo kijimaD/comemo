@@ -42,7 +42,58 @@ Date:   Mon Oct 18 23:12:16 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356711
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go   |  2 +-
  src/runtime/mheap.go | 10 ++++------
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 654fa4118a..56ef1c4e38 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1459,7 +1459,7 @@ func gcSweep(mode gcMode) {
+ 	mheap_.sweepDrained = 0
+ 	mheap_.pagesSwept.Store(0)
+ 	mheap_.sweepArenas = mheap_.allArenas
+-	mheap_.reclaimIndex = 0
++	mheap_.reclaimIndex.Store(0)
+ 	mheap_.reclaimCredit = 0
+ 	unlock(&mheap_.lock)
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 90e55315a6..fc86023f4d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -123,9 +123,7 @@ type mheap struct {
+ 	//
+ 	// If this is >= 1<<63, the page reclaimer is done scanning
+ 	// the page marks.
+-	//
+-	// This is accessed atomically.
+-	reclaimIndex uint64
++	reclaimIndex atomic.Uint64
+ 	// reclaimCredit is spare credit for extra pages swept. Since
+ 	// the page reclaimer works in large chunks, it may reclaim
+ 	// more than requested. Any spare pages released go to this
+@@ -739,7 +737,7 @@ func (h *mheap) reclaim(npage uintptr) {
+ 	// batching heap frees.
+ 
+ 	// Bail early if there's no more reclaim work.
+-	if atomic.Load64(&h.reclaimIndex) >= 1<<63 {
++	if h.reclaimIndex.Load() >= 1<<63 {
+ 		return
+ 	}
+ 
+@@ -769,10 +767,10 @@ func (h *mheap) reclaim(npage uintptr) {
+ 		}
+ 
+ 		// Claim a chunk of work.
+-		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
++		idx := uintptr(h.reclaimIndex.Add(pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
+ 		if idx/pagesPerArena >= uintptr(len(arenas)) {
+ 			// Page reclaiming is done.
+-			atomic.Store64(&h.reclaimIndex, 1<<63)
++			h.reclaimIndex.Store(1 << 63)
+ 			break
+ 		}
+ 

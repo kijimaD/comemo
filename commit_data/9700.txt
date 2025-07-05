@@ -36,7 +36,7 @@ Date:   Thu Sep 15 16:48:57 2011 -0400
     R=golang-dev, r, gri, r, gustavo
     CC=golang-dev
     https://golang.org/cl/5011046
-
+---
  src/pkg/crypto/rand/rand_unix.go   | 2 ++
  src/pkg/exec/lp_unix.go            | 2 ++
  src/pkg/net/cgo_bsd.go             | 2 ++
@@ -83,3 +83,596 @@ Date:   Thu Sep 15 16:48:57 2011 -0400
  src/pkg/time/zoneinfo_posix.go     | 2 ++
  src/pkg/time/zoneinfo_unix.go      | 2 ++
  45 files changed, 89 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index 3a06aa8b14..76a7365b7f 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Unix cryptographically secure pseudorandom number
+ // generator.
+ 
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index 008fb11a81..0cd19e7ac9 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package exec
+ 
+ import (
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+index 4984df4a2c..63750f7a3d 100644
+--- a/src/pkg/net/cgo_bsd.go
++++ b/src/pkg/net/cgo_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd
++
+ package net
+ 
+ /*
+diff --git a/src/pkg/net/cgo_stub.go b/src/pkg/net/cgo_stub.go
+index c6277cb657..565cbe7fec 100644
+--- a/src/pkg/net/cgo_stub.go
++++ b/src/pkg/net/cgo_stub.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build openbsd
++
+ // Stub cgo routines for systems that do not use cgo to do network lookups.
+ 
+ package net
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index a3711d6012..ec2a393e81 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux
++
+ package net
+ 
+ /*
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index cb46455091..a28eb16158 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+ 
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index 54e334342a..afc0599177 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Read system DNS config from /etc/resolv.conf
+ 
+ package net
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 707dccaa42..9084e88755 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file.go
+index 0e411a192f..d8528e41bd 100644
+--- a/src/pkg/net/file.go
++++ b/src/pkg/net/file.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index 2675f94b97..9171827d22 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd openbsd
++
+ // Network interface identification for BSD variants
+ 
+ package net
+diff --git a/src/pkg/net/interface_stub.go b/src/pkg/net/interface_stub.go
+index 950de6c592..282b38b5e4 100644
+--- a/src/pkg/net/interface_stub.go
++++ b/src/pkg/net/interface_stub.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build plan9
++
+ // Network interface identification
+ 
+ package net
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 5cbc588702..35aceb2233 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ // (Raw) IP sockets
+ 
+ package net
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 0c522fb7fb..049df9ea4c 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/lookup_unix.go b/src/pkg/net/lookup_unix.go
+index 309f14ec30..7368b751ee 100644
+--- a/src/pkg/net/lookup_unix.go
++++ b/src/pkg/net/lookup_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package net
+ 
+ import (
+@@ -52,7 +54,7 @@ func LookupCNAME(name string) (cname string, err os.Error) {
+ // LookupSRV tries to resolve an SRV query of the given service,
+ // protocol, and domain name, as specified in RFC 2782. In most cases
+ // the proto argument can be the same as the corresponding
+-// Addr.Network(). The returned records are sorted by priority 
++// Addr.Network(). The returned records are sorted by priority
+ // and randomized by weight within a priority.
+ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
+ 	target := "_" + service + "._" + proto + "." + name
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver.go
+index 427208701b..3c9a6da537 100644
+--- a/src/pkg/net/newpollserver.go
++++ b/src/pkg/net/newpollserver.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index 8f8327a373..a8ca60c60a 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Read system port mappings from /etc/services
+ 
+ package net
+diff --git a/src/pkg/net/sendfile_stub.go b/src/pkg/net/sendfile_stub.go
+index 43e8104e94..c55be6c080 100644
+--- a/src/pkg/net/sendfile_stub.go
++++ b/src/pkg/net/sendfile_stub.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd openbsd
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 821716e43b..366e050ff3 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ // Sockets
+ 
+ package net
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sock_bsd.go
+index 5fd52074ad..c59802fecb 100644
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sock_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd
++
+ // Sockets for BSD variants
+ 
+ package net
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index f2e9197027..35d536c319 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ // TCP sockets
+ 
+ package net
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 1dc79f736a..06298ee40c 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ // UDP sockets
+ 
+ package net
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 38c6fe9eb1..fccf0189c0 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ // Unix domain sockets
+ 
+ package net
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index 7835ed52b5..5295933951 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/env_unix.go b/src/pkg/os/env_unix.go
+index 9cc0b03d87..8dd84ae4f3 100644
+--- a/src/pkg/os/env_unix.go
++++ b/src/pkg/os/env_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Unix environment variables.
+ 
+ package os
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index d43f1786d3..9dc258a796 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ package os
+ 
+ import syscall "syscall"
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index f37bfab589..035b156cbd 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 41e77230ad..e1adb203e0 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index ff8554bfc8..5269149565 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd windows
++
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index ab32ce98d4..a4470f1b42 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package os
+ 
+ import (
+diff --git a/src/pkg/os/path_unix.go b/src/pkg/os/path_unix.go
+index 0d327cddd3..33045b60c4 100644
+--- a/src/pkg/os/path_unix.go
++++ b/src/pkg/os/path_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package os
+ 
+ const (
+diff --git a/src/pkg/os/str.go b/src/pkg/os/str.go
+index 8dc9e4747d..e3606b61eb 100644
+--- a/src/pkg/os/str.go
++++ b/src/pkg/os/str.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build plan9
++
+ package os
+ 
+ func itoa(val int) string { // do it here rather than with fmt to avoid dependency
+diff --git a/src/pkg/os/sys_bsd.go b/src/pkg/os/sys_bsd.go
+index 188993b696..b0d097a22a 100644
+--- a/src/pkg/os/sys_bsd.go
++++ b/src/pkg/os/sys_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd openbsd
++
+ // os code shared between *BSD systems including OS X (Darwin)
+ // and FreeBSD.
+ 
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index 2f08f70fd5..2d2de989f0 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build openbsd plan9 windows
++
+ package user
+ 
+ import (
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 1b2c9e8c99..817eb791cb 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux
++
+ package user
+ 
+ import (
+diff --git a/src/pkg/path/Makefile b/src/pkg/path/Makefile
+index fc3e2519ce..a7e05714a9 100644
+--- a/src/pkg/path/Makefile
++++ b/src/pkg/path/Makefile
+@@ -9,6 +9,4 @@ GOFILES=\
+ 	match.go\
+ 	path.go\
+ 
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+ include ../../Make.pkg
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index b2a4151c1a..daf0eb2af7 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package filepath
+ 
+ import "strings"
+diff --git a/src/pkg/syscall/bpf_bsd.go b/src/pkg/syscall/bpf_bsd.go
+index 1eac9a3d8d..06a2953e7f 100644
+--- a/src/pkg/syscall/bpf_bsd.go
++++ b/src/pkg/syscall/bpf_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd openbsd
++
+ // Berkeley packet filter for BSD variants
+ 
+ package syscall
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 94f075622c..2399c89cc5 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Fork, exec, wait, etc.
+ 
+ package syscall
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 22a0a4f80e..f6b124b64e 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd openbsd
++
+ // Routing sockets and messages
+ 
+ package syscall
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+index b437560e70..c9872aeba3 100644
+--- a/src/pkg/syscall/sockcmsg_unix.go
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Socket control messages
+ 
+ package syscall
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index f59e8b1095..59c6f4560b 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd openbsd
++
+ // BSD system call wrappers shared by *BSD based systems
+ // including OS X (Darwin) and FreeBSD.  Like the other
+ // syscall_*.go files it is compiled as Go code but also
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index c298b91b43..1590b6d4f2 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package syscall
+ 
+ import (
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+index 0f9128e20a..0119bdf7bf 100644
+--- a/src/pkg/time/sys_unix.go
++++ b/src/pkg/time/sys_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ package time
+ 
+ import (
+diff --git a/src/pkg/time/zoneinfo_posix.go b/src/pkg/time/zoneinfo_posix.go
+index b49216410f..b0fa6c33b6 100644
+--- a/src/pkg/time/zoneinfo_posix.go
++++ b/src/pkg/time/zoneinfo_posix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd plan9
++
+ package time
+ 
+ import "sync"
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index ce4d9f13af..0dc4235313 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin freebsd linux openbsd
++
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
+ // See tzfile(5), http://en.wikipedia.org/wiki/Zoneinfo,

@@ -14,6 +14,24 @@ Date:   Sat Jun 25 20:32:40 2016 +0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httptest/example_test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/net/http/httptest/example_test.go b/src/net/http/httptest/example_test.go
+index 42a0ec953b..124ce7513e 100644
+--- a/src/net/http/httptest/example_test.go
++++ b/src/net/http/httptest/example_test.go
+@@ -17,11 +17,7 @@ func ExampleResponseRecorder() {
+ 		http.Error(w, "something failed", http.StatusInternalServerError)
+ 	}
+ 
+-	req, err := http.NewRequest("GET", "http://example.com/foo", nil)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
++	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
+ 	w := httptest.NewRecorder()
+ 	handler(w, req)
+ 

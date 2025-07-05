@@ -8,10 +8,71 @@ Date:   Wed Oct 14 13:02:05 2009 -0700
     DELTA=209  (65 added, 114 deleted, 30 changed)
     OCL=35718
     CL=35721
-
+---
  doc/effective_go.html     |   4 +++-
  doc/go_tutorial.html      |   2 +-
  doc/progs/echo.go         |   2 +-
  doc/sieve.gif             | Bin 0 -> 11567 bytes
  src/pkg/runtime/runtime.h |   3 +--
  5 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 11f6eac51f..11944183d4 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1696,8 +1696,10 @@ used by both <code>TestEncoder</code> and <code>TestDecoder</code>.
+ 
+ <p>
+ This data-driven style dominates in the Go package tests.
++<!--
+ <br>
+-<!-- search for for.*range here -->
++link to go code search for 'for.*range' here
++-->
+ </p>
+ 
+ <h3 id="reflect.DeepEqual">Use reflect.DeepEqual to compare complex values</h3>
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index cdf1443e9e..91bee3fa85 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -57,7 +57,7 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
+ <p>
+ 07    import (
+ 08        &quot;os&quot;;
+-09        &quot;flag&quot;;
++09        &quot;flag&quot;;  // command line option parser
+ 10    )
+ <p>
+ 12    var n_flag = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
+diff --git a/doc/progs/echo.go b/doc/progs/echo.go
+index 3ddb4f83e2..b2c09d958d 100644
+--- a/doc/progs/echo.go
++++ b/doc/progs/echo.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"os";
+-	"flag";
++	"flag";  // command line option parser
+ )
+ 
+ var n_flag = flag.Bool("n", false, "don't print final newline")
+diff --git a/doc/sieve.gif b/doc/sieve.gif
+new file mode 100644
+index 0000000000..c33bafd06b
+Binary files /dev/null and b/doc/sieve.gif differ
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index fe3194d543..d45ac50405 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -413,8 +413,7 @@ void	lock(Lock*);
+ void	unlock(Lock*);
+ 
+ /*
+- * sleep and wakeup on one-time events, like
+- * Notification (but shorter to type).
++ * sleep and wakeup on one-time events.
+  * before any calls to notesleep or notewakeup,
+  * must call noteclear to initialize the Note.
+  * then, any number of threads can call notesleep

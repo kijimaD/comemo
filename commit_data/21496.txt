@@ -10,8 +10,85 @@ Date:   Thu Jan 8 05:13:28 2015 -0500
     Change-Id: I11eb40a24273e7be397e092ef040e54efb8ffe86
     Reviewed-on: https://go-review.googlesource.com/2541
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/doc.go   | 21 ++++++++++++++++++++-
  src/cmd/go/help.go  | 21 ++++++++++++++++++++-
  src/cmd/go/mkdoc.sh |  2 +-
  3 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 65640fb483..d0d8a8a5b2 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -875,7 +875,26 @@ listed in the GOPATH environment variable (see 'go help gopath').
+ 
+ The go command attempts to download the version of the
+ package appropriate for the Go release being used.
+-Run 'go help install' for more.
++Run 'go help get' for more.
++
++Import path checking
++
++When the custom import path feature described above redirects to a
++known code hosting site, each of the resulting packages has two possible
++import paths, using the custom domain or the known hosting site.
++
++A package statement is said to have an "import comment" if it is immediately
++followed (before the next newline) by a comment of one of these two forms:
++
++	package math // import "path"
++	package math /* import "path" * /
++
++The go command will refuse to install a package with an import comment
++unless it is being referred to by that import path. In this way, import comments
++let package authors make sure the custom import path is used and not a
++direct path to the underlying code hosting site.
++
++See https://golang.org/s/go14customimport for details.
+ 
+ 
+ Description of package lists
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 201f0e2d79..c590fdb37f 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -235,7 +235,26 @@ listed in the GOPATH environment variable (see 'go help gopath').
+ 
+ The go command attempts to download the version of the
+ package appropriate for the Go release being used.
+-Run 'go help install' for more.
++Run 'go help get' for more.
++
++Import path checking
++
++When the custom import path feature described above redirects to a
++known code hosting site, each of the resulting packages has two possible
++import paths, using the custom domain or the known hosting site.
++
++A package statement is said to have an "import comment" if it is immediately
++followed (before the next newline) by a comment of one of these two forms:
++
++	package math // import "path"
++	package math /* import "path" */
++
++The go command will refuse to install a package with an import comment
++unless it is being referred to by that import path. In this way, import comments
++let package authors make sure the custom import path is used and not a
++direct path to the underlying code hosting site.
++
++See https://golang.org/s/go14customimport for details.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/mkdoc.sh b/src/cmd/go/mkdoc.sh
+index 12fd7ba3e7..e15e8809ce 100755
+--- a/src/cmd/go/mkdoc.sh
++++ b/src/cmd/go/mkdoc.sh
+@@ -4,6 +4,6 @@
+ # license that can be found in the LICENSE file.
+ 
+ go install # So the next line will produce updated documentation.
+-go help documentation > doc.go
++go help documentation | sed 's; \*/; * /;' >doc.go
+ gofmt -w doc.go
+ 

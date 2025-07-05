@@ -12,6 +12,22 @@ Date:   Wed Mar 2 18:12:30 2016 -0800
     Change-Id: I707ac24aea3f988656b95b1816ee5c9690106985
     Reviewed-on: https://go-review.googlesource.com/20154
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 439496ac81..6307a8612d 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -624,6 +624,10 @@ func TestLookupPort(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
++	case "android":
++		if netGo {
++			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
++		}
+ 	}
+ 
+ 	for _, tt := range lookupPortTests {

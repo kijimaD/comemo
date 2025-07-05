@@ -7,6 +7,37 @@ Date:   Mon Dec 12 16:25:31 2011 -0500
     R=golang-dev, ality
     CC=golang-dev, rsc
     https://golang.org/cl/5467066
-
+---
  src/cmd/gc/lex.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index af6c207c79..8c544f6b92 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -38,6 +38,7 @@ static struct {
+ 	int *val;
+ } exper[] = {
+ //	{"rune32", &rune32},
++	{nil, nil},
+ };
+ 
+ static void
+@@ -45,7 +46,7 @@ addexp(char *s)
+ {
+ 	int i;
+ 	
+-	for(i=0; i<nelem(exper); i++) {
++	for(i=0; exper[i].name != nil; i++) {
+ 		if(strcmp(exper[i].name, s) == 0) {
+ 			*exper[i].val = 1;
+ 			return;
+@@ -75,7 +76,7 @@ expstring(void)
+ 	static char buf[512];
+ 
+ 	strcpy(buf, "X");
+-	for(i=0; i<nelem(exper); i++)
++	for(i=0; exper[i].name != nil; i++)
+ 		if(*exper[i].val)
+ 			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
+ 	if(strlen(buf) == 1)

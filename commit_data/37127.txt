@@ -29,8 +29,77 @@ Date:   Tue Jun 26 14:40:51 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/121035
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue26066.go | 19 +++++++++++++++++++
  src/cmd/cgo/gcc.go          | 20 +++++++++++++++++++-
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 4c7f676e0b..ba2a89ef82 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -90,6 +90,7 @@ func Test22906(t *testing.T)                 { test22906(t) }
+ func Test24206(t *testing.T)                 { test24206(t) }
+ func Test25143(t *testing.T)                 { test25143(t) }
+ func Test23356(t *testing.T)                 { test23356(t) }
++func Test26066(t *testing.T)                 { test26066(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+ func BenchmarkGoString(b *testing.B) { benchGoString(b) }
+diff --git a/misc/cgo/test/issue26066.go b/misc/cgo/test/issue26066.go
+new file mode 100644
+index 0000000000..21028e7479
+--- /dev/null
++++ b/misc/cgo/test/issue26066.go
+@@ -0,0 +1,19 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Wrong type of constant with GCC 8 and newer.
++
++package cgotest
++
++// const unsigned long long int issue26066 = (const unsigned long long) -1;
++import "C"
++
++import "testing"
++
++func test26066(t *testing.T) {
++	var i = int64(C.issue26066)
++	if i != -1 {
++		t.Errorf("got %d, want -1", i)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index ae1df0d90f..169894273b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -586,7 +586,25 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 					}
+ 				}
+ 			case "fconst":
+-				if i < len(floats) {
++				if i >= len(floats) {
++					break
++				}
++				switch base(types[i]).(type) {
++				case *dwarf.IntType, *dwarf.UintType:
++					// This has an integer type so it's
++					// not really a floating point
++					// constant. This can happen when the
++					// C compiler complains about using
++					// the value as an integer constant,
++					// but not as a general constant.
++					// Treat this as a variable of the
++					// appropriate type, not a constant,
++					// to get C-style type handling,
++					// avoiding the problem that C permits
++					// uint64(-1) but Go does not.
++					// See issue 26066.
++					n.Kind = "var"
++				default:
+ 					n.Const = fmt.Sprintf("%f", floats[i])
+ 				}
+ 			case "sconst":

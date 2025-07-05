@@ -7,6 +7,20 @@ Date:   Sat May 9 01:29:03 2015 +0900
     Change-Id: I4ade27469d82839b4396e1a88465dddc6b31d578
     Reviewed-on: https://go-review.googlesource.com/9838
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/net/cgo_unix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/cgo_unix_test.go b/src/net/cgo_unix_test.go
+index 55ea86a458..4d5ab23fd3 100644
+--- a/src/net/cgo_unix_test.go
++++ b/src/net/cgo_unix_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build cgo,!netgo
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 

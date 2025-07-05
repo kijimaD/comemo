@@ -12,7 +12,7 @@ Date:   Thu Jan 30 15:53:06 2025 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  api/next/67002.txt                               |  1 +
  doc/next/6-stdlib/99-minor/os/67002.md           |  3 ++
  src/internal/syscall/unix/asm_darwin.s           |  1 +
@@ -36,3 +36,549 @@ Date:   Thu Jan 30 15:53:06 2025 -0800
  src/os/root_windows.go                           | 46 ++++++++++++++++-
  src/syscall/types_windows.go                     |  1 +
  22 files changed, 273 insertions(+), 5 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+new file mode 100644
+index 0000000000..06119c0e75
+--- /dev/null
++++ b/api/next/67002.txt
+@@ -0,0 +1 @@
++pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+new file mode 100644
+index 0000000000..a0751c30e2
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -0,0 +1,3 @@
++The [os.Root] type supports the following additional methods:
++
++  * [os.Root.Chmod]
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index b96eb1e807..de6e01ee4a 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -25,3 +25,4 @@ TEXT ·libc_sysconf_trampoline(SB),NOSPLIT,$0-0; JMP libc_sysconf(SB)
+ TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0; JMP libc_faccessat(SB)
+ TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0; JMP libc_readlinkat(SB)
+ TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0; JMP libc_mkdirat(SB)
++TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0; JMP libc_fchmodat(SB)
+diff --git a/src/internal/syscall/unix/asm_openbsd.s b/src/internal/syscall/unix/asm_openbsd.s
+index 90f6831e4e..306ef4664d 100644
+--- a/src/internal/syscall/unix/asm_openbsd.s
++++ b/src/internal/syscall/unix/asm_openbsd.s
+@@ -14,3 +14,5 @@ TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_readlinkat(SB)
+ TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_mkdirat(SB)
++TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_fchmodat(SB)
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index 27a798e046..2a29dd6a5a 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -79,3 +79,20 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	}
+ 	return nil
+ }
++
++func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall.Syscall6(fchmodatTrap,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode),
++		uintptr(flags),
++		0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_darwin.go b/src/internal/syscall/unix/at_darwin.go
+index dbcae5a788..759b0943f5 100644
+--- a/src/internal/syscall/unix/at_darwin.go
++++ b/src/internal/syscall/unix/at_darwin.go
+@@ -58,3 +58,25 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	}
+ 	return nil
+ }
++
++func libc_fchmodat_trampoline()
++
++//go:cgo_import_dynamic libc_fchmodat fchmodat "/usr/lib/libSystem.B.dylib"
++
++func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode),
++		uintptr(flags),
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index faf38be602..f88e09d31d 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -16,13 +16,15 @@ import (
+ //go:linkname procUnlinkat libc_unlinkat
+ //go:linkname procReadlinkat libc_readlinkat
+ //go:linkname procMkdirat libc_mkdirat
++//go:linkname procFchmodat libc_fchmodat
+ 
+ var (
+ 	procFstatat,
+ 	procOpenat,
+ 	procUnlinkat,
+ 	procReadlinkat,
+-	procMkdirat uintptr
++	procMkdirat,
++	procFchmodat uintptr
+ )
+ 
+ func Unlinkat(dirfd int, path string, flags int) error {
+@@ -107,3 +109,20 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	}
+ 	return nil
+ }
++
++func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFchmodat)), 4,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode),
++		uintptr(flags),
++		0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 69463e00b9..26ca70322b 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -49,3 +49,25 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	}
+ 	return nil
+ }
++
++//go:cgo_import_dynamic libc_fchmodat fchmodat "libc.so"
++
++func libc_fchmodat_trampoline()
++
++func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(mode),
++		uintptr(flags),
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index d0ba12a78a..84c60c47b8 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -12,6 +12,7 @@ const (
+ 	fstatatTrap    uintptr = syscall.SYS_FSTATAT
+ 	readlinkatTrap uintptr = syscall.SYS_READLINKAT
+ 	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
++	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+ 
+ 	AT_EACCESS          = 0x4
+ 	AT_FDCWD            = 0xfffafdcd
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index 0f34722432..22ff4e7e89 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -19,4 +19,5 @@ const (
+ 	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
+ 	readlinkatTrap     uintptr = syscall.SYS_READLINKAT
+ 	mkdiratTrap        uintptr = syscall.SYS_MKDIRAT
++	fchmodatTrap       uintptr = syscall.SYS_FCHMODAT
+ )
+diff --git a/src/internal/syscall/unix/at_sysnum_linux.go b/src/internal/syscall/unix/at_sysnum_linux.go
+index 2885c7c681..8fba319cab 100644
+--- a/src/internal/syscall/unix/at_sysnum_linux.go
++++ b/src/internal/syscall/unix/at_sysnum_linux.go
+@@ -11,6 +11,7 @@ const (
+ 	openatTrap     uintptr = syscall.SYS_OPENAT
+ 	readlinkatTrap uintptr = syscall.SYS_READLINKAT
+ 	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
++	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+ )
+ 
+ const (
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+index 820b977436..f2b7a4f9eb 100644
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_netbsd.go
+@@ -12,6 +12,7 @@ const (
+ 	fstatatTrap    uintptr = syscall.SYS_FSTATAT
+ 	readlinkatTrap uintptr = syscall.SYS_READLINKAT
+ 	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
++	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+ )
+ 
+ const (
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index cd0cb4b7e4..7289317110 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -101,6 +101,11 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	))
+ }
+ 
++func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
++	// WASI preview 1 doesn't support changing file modes.
++	return syscall.ENOSYS
++}
++
+ //go:wasmimport wasi_snapshot_preview1 path_create_directory
+ //go:noescape
+ func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 18429773c0..19bcc0dbac 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -20,9 +20,10 @@ const (
+ 	O_DIRECTORY    = 0x100000   // target must be a directory
+ 	O_NOFOLLOW_ANY = 0x20000000 // disallow symlinks anywhere in the path
+ 	O_OPEN_REPARSE = 0x40000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
++	O_WRITE_ATTRS  = 0x80000000 // FILE_WRITE_ATTRIBUTES, used by Chmod
+ )
+ 
+-func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall.Handle, e1 error) {
++func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ syscall.Handle, e1 error) {
+ 	if len(name) == 0 {
+ 		return syscall.InvalidHandle, syscall.ERROR_FILE_NOT_FOUND
+ 	}
+@@ -61,6 +62,9 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ 	if flag&syscall.O_SYNC != 0 {
+ 		options |= FILE_WRITE_THROUGH
+ 	}
++	if flag&O_WRITE_ATTRS != 0 {
++		access |= FILE_WRITE_ATTRIBUTES
++	}
+ 	// Allow File.Stat.
+ 	access |= STANDARD_RIGHTS_READ | FILE_READ_ATTRIBUTES | FILE_READ_EA
+ 
+@@ -129,7 +133,7 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ }
+ 
+ // ntCreateFileError maps error returns from NTCreateFile to user-visible errors.
+-func ntCreateFileError(err error, flag int) error {
++func ntCreateFileError(err error, flag uint64) error {
+ 	s, ok := err.(NTStatus)
+ 	if !ok {
+ 		// Shouldn't really be possible, NtCreateFile always returns NTStatus.
+diff --git a/src/internal/syscall/windows/at_windows_test.go b/src/internal/syscall/windows/at_windows_test.go
+index 7da9ecf07a..daeb4fcde3 100644
+--- a/src/internal/syscall/windows/at_windows_test.go
++++ b/src/internal/syscall/windows/at_windows_test.go
+@@ -46,7 +46,7 @@ func TestOpen(t *testing.T) {
+ 			continue
+ 		}
+ 		base := filepath.Base(tt.path)
+-		h, err := windows.Openat(dirfd, base, tt.flag, 0o660)
++		h, err := windows.Openat(dirfd, base, uint64(tt.flag), 0o660)
+ 		syscall.CloseHandle(dirfd)
+ 		if err == nil {
+ 			syscall.CloseHandle(h)
+diff --git a/src/os/root.go b/src/os/root.go
+index f91c0f75f3..cd26144ab7 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -54,11 +54,16 @@ func OpenInRoot(dir, name string) (*File, error) {
+ //
+ //   - When GOOS=windows, file names may not reference Windows reserved device names
+ //     such as NUL and COM1.
++//   - On Unix, [Root.Chmod] and [Root.Chown] are vulnerable to a race condition.
++//     If the target of the operation is changed from a regular file to a symlink
++//     while the operation is in progress, the operation may be peformed on the link
++//     rather than the link target.
+ //   - When GOOS=js, Root is vulnerable to TOCTOU (time-of-check-time-of-use)
+ //     attacks in symlink validation, and cannot ensure that operations will not
+ //     escape the root.
+ //   - When GOOS=plan9 or GOOS=js, Root does not track directories across renames.
+ //     On these platforms, a Root references a directory name, not a file descriptor.
++//   - WASI preview 1 (GOOS=wasip1) does not support [Root.Chmod].
+ type Root struct {
+ 	root *root
+ }
+@@ -127,6 +132,12 @@ func (r *Root) OpenRoot(name string) (*Root, error) {
+ 	return openRootInRoot(r, name)
+ }
+ 
++// Chmod changes the mode of the named file in the root to mode.
++// See [Chmod] for more details.
++func (r *Root) Chmod(name string, mode FileMode) error {
++	return rootChmod(r, name, mode)
++}
++
+ // Mkdir creates a new directory in the root
+ // with the specified name and permission bits (before umask).
+ // See [Mkdir] for more details.
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index 8be55a029f..819486f289 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -95,6 +95,16 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ 	return fi, nil
+ }
+ 
++func rootChmod(r *Root, name string, mode FileMode) error {
++	if err := checkPathEscapes(r, name); err != nil {
++		return &PathError{Op: "chmodat", Path: name, Err: err}
++	}
++	if err := Chmod(joinPath(r.root.name, name), mode); err != nil {
++		return &PathError{Op: "chmodat", Path: name, Err: underlyingError(err)}
++	}
++	return nil
++}
++
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	if err := checkPathEscapes(r, name); err != nil {
+ 		return &PathError{Op: "mkdirat", Path: name, Err: err}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index a03208b4c1..97e389db8d 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -64,6 +64,16 @@ func (r *root) Name() string {
+ 	return r.name
+ }
+ 
++func rootChmod(r *Root, name string, mode FileMode) error {
++	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++		return struct{}{}, chmodat(parent, name, mode)
++	})
++	if err != nil {
++		return &PathError{Op: "chmodat", Path: name, Err: err}
++	}
++	return err
++}
++
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, mkdirat(parent, name, perm)
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index cbb985b2ce..3591214ffd 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -389,6 +389,43 @@ func TestRootCreate(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootChmod(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		t.Skip("Chmod not supported on " + runtime.GOOS)
++	}
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			if target != "" {
++				// Create a file with no read/write permissions,
++				// to ensure we can use Chmod on an inaccessible file.
++				if err := os.WriteFile(target, nil, 0o000); err != nil {
++					t.Fatal(err)
++				}
++			}
++			if runtime.GOOS == "windows" {
++				// On Windows, Chmod("symlink") affects the link, not its target.
++				// See issue 71492.
++				fi, err := root.Lstat(test.open)
++				if err == nil && !fi.Mode().IsRegular() {
++					t.Skip("https://go.dev/issue/71492")
++				}
++			}
++			want := os.FileMode(0o666)
++			err := root.Chmod(test.open, want)
++			if errEndsTest(t, err, test.wantError, "root.Chmod(%q)", test.open) {
++				return
++			}
++			st, err := os.Stat(target)
++			if err != nil {
++				t.Fatalf("os.Stat(%q) = %v", target, err)
++			}
++			if got := st.Mode(); got != want {
++				t.Errorf("after root.Chmod(%q, %v): file mode = %v, want %v", test.open, want, got, want)
++			}
++		})
++	}
++}
++
+ func TestRootMkdir(t *testing.T) {
+ 	for _, test := range rootTestCases {
+ 		test.run(t, func(t *testing.T, target string, root *os.Root) {
+@@ -877,6 +914,35 @@ func TestRootConsistencyCreate(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootConsistencyChmod(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		t.Skip("Chmod not supported on " + runtime.GOOS)
++	}
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			chmod := os.Chmod
++			lstat := os.Lstat
++			if r != nil {
++				chmod = r.Chmod
++				lstat = r.Lstat
++			}
++
++			var m1, m2 os.FileMode
++			err := chmod(path, 0o555)
++			fi, err := lstat(path)
++			if err == nil {
++				m1 = fi.Mode()
++			}
++			err = chmod(path, 0o777)
++			fi, err = lstat(path)
++			if err == nil {
++				m2 = fi.Mode()
++			}
++			return fmt.Sprintf("%v %v", m1, m2), err
++		})
++	}
++}
++
+ func TestRootConsistencyMkdir(t *testing.T) {
+ 	for _, test := range rootConsistencyTestCases {
+ 		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 02d3b4bdad..31773ef681 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -131,6 +131,32 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ 	return fi, nil
+ }
+ 
++// On systems which use fchmodat, fchownat, etc., we have a race condition:
++// When "name" is a symlink, Root.Chmod("name") should act on the target of that link.
++// However, fchmodat doesn't allow us to chmod a file only if it is not a symlink;
++// the AT_SYMLINK_NOFOLLOW parameter causes the operation to act on the symlink itself.
++//
++// We do the best we can by first checking to see if the target of the operation is a symlink,
++// and only attempting the fchmodat if it is not. If the target is replaced between the check
++// and the fchmodat, we will chmod the symlink rather than following it.
++//
++// This race condition is unfortunate, but does not permit escaping a root:
++// We may act on the wrong file, but that file will be contained within the root.
++func afterResolvingSymlink(parent int, name string, f func() error) error {
++	if err := checkSymlink(parent, name, nil); err != nil {
++		return err
++	}
++	return f()
++}
++
++func chmodat(parent int, name string, mode FileMode) error {
++	return afterResolvingSymlink(parent, name, func() error {
++		return ignoringEINTR(func() error {
++			return unix.Fchmodat(parent, name, syscallMode(mode), unix.AT_SYMLINK_NOFOLLOW)
++		})
++	})
++}
++
+ func mkdirat(fd int, name string, perm FileMode) error {
+ 	return ignoringEINTR(func() error {
+ 		return unix.Mkdirat(fd, name, syscallMode(perm))
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 32dfa070b7..ba809bd6e0 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -134,7 +134,7 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
+ }
+ 
+ func openat(dirfd syscall.Handle, name string, flag int, perm FileMode) (syscall.Handle, error) {
+-	h, err := windows.Openat(dirfd, name, flag|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
++	h, err := windows.Openat(dirfd, name, uint64(flag)|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
+ 	if err == syscall.ELOOP || err == syscall.ENOTDIR {
+ 		if link, err := readReparseLinkAt(dirfd, name); err == nil {
+ 			return syscall.InvalidHandle, errSymlink(link)
+@@ -232,6 +232,50 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ 	return fi, nil
+ }
+ 
++func chmodat(parent syscall.Handle, name string, mode FileMode) error {
++	// Currently, on Windows os.Chmod("symlink") will act on "symlink",
++	// not on any file it points to.
++	//
++	// This may or may not be the desired behavior: https://go.dev/issue/71492
++	//
++	// For now, be consistent with os.Symlink.
++	// Passing O_OPEN_REPARSE causes us to open the named file itself,
++	// not any file that it links to.
++	//
++	// If we want to change this in the future, pass O_NOFOLLOW_ANY instead
++	// and return errSymlink when encountering a symlink:
++	//
++	//     if err == syscall.ELOOP || err == syscall.ENOTDIR {
++	//         if link, err := readReparseLinkAt(parent, name); err == nil {
++	//                 return errSymlink(link)
++	//         }
++	//     }
++	h, err := windows.Openat(parent, name, syscall.O_CLOEXEC|windows.O_OPEN_REPARSE|windows.O_WRITE_ATTRS, 0)
++	if err != nil {
++		return err
++	}
++	defer syscall.CloseHandle(h)
++
++	var d syscall.ByHandleFileInformation
++	if err := syscall.GetFileInformationByHandle(h, &d); err != nil {
++		return err
++	}
++	attrs := d.FileAttributes
++
++	if mode&syscall.S_IWRITE != 0 {
++		attrs &^= syscall.FILE_ATTRIBUTE_READONLY
++	} else {
++		attrs |= syscall.FILE_ATTRIBUTE_READONLY
++	}
++	if attrs == d.FileAttributes {
++		return nil
++	}
++
++	var fbi windows.FILE_BASIC_INFO
++	fbi.FileAttributes = attrs
++	return windows.SetFileInformationByHandle(h, windows.FileBasicInfo, unsafe.Pointer(&fbi), uint32(unsafe.Sizeof(fbi)))
++}
++
+ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
+ 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
+ }
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index fa34053178..b61889cc43 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -49,6 +49,7 @@ const (
+ 	o_DIRECTORY    = 0x100000   // used by internal/syscall/windows
+ 	o_NOFOLLOW_ANY = 0x20000000 // used by internal/syscall/windows
+ 	o_OPEN_REPARSE = 0x40000000 // used by internal/syscall/windows
++	o_WRITE_ATTRS  = 0x80000000 // used by internal/syscall/windows
+ )
+ 
+ const (

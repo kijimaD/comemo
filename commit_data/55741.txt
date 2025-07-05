@@ -23,7 +23,88 @@ Date:   Thu Mar 9 15:59:17 2023 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../testdata/script/test_fuzz_limit_dup_entry.txt  | 37 ++++++++++++++++++++++
  src/internal/fuzz/fuzz.go                          | 12 +++----
  2 files changed, 43 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt b/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
+new file mode 100644
+index 0000000000..83235f4b6d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
+@@ -0,0 +1,37 @@
++[!fuzz] skip
++[short] skip
++
++# FuzzA attempts to cause the mutator to create duplicate inputs that generate
++# new coverage. Previously this would trigger a corner case when the fuzzer
++# had a execution limit, causing it to deadlock and sit in the coordinator
++# loop indefinitely, failing to exit once the limit had been exhausted.
++
++go clean --fuzzcache
++go test -fuzz=FuzzA -fuzztime=100x -parallel=1
++
++-- go.mod --
++module m
++
++go 1.16
++-- fuzz_test.go --
++package fuzz_test
++
++import (
++	"fmt"
++	"testing"
++)
++
++func FuzzA(f *testing.F) {
++	f.Add([]byte("seed"))
++	i := 0
++	f.Fuzz(func(t *testing.T, b []byte) {
++		i++
++		if string(b) == "seed" {
++			if i == 0 {
++				fmt.Println("a")
++			} else if i > 1 {
++				fmt.Println("b")
++			}
++		}
++	})
++}
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 7d4fe06198..fd3dad29b4 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -195,6 +195,11 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 
+ 	c.logStats()
+ 	for {
++		// If there is an execution limit, and we've reached it, stop.
++		if c.opts.Limit > 0 && c.count >= c.opts.Limit {
++			stop(nil)
++		}
++
+ 		var inputC chan fuzzInput
+ 		input, ok := c.peekInput()
+ 		if ok && c.crashMinimizing == nil && !stopping {
+@@ -311,6 +316,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					if c.canMinimize() && result.canMinimize && c.crashMinimizing == nil {
+ 						// Send back to workers to find a smaller value that preserves
+ 						// at least one new coverage bit.
++
+ 						c.queueForMinimization(result, keepCoverage)
+ 					} else {
+ 						// Update the coordinator's coverage mask and save the value.
+@@ -370,12 +376,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 				}
+ 			}
+ 
+-			// Once the result has been processed, stop the worker if we
+-			// have reached the fuzzing limit.
+-			if c.opts.Limit > 0 && c.count >= c.opts.Limit {
+-				stop(nil)
+-			}
+-
+ 		case inputC <- input:
+ 			// Sent the next input to a worker.
+ 			c.sentInput(input)

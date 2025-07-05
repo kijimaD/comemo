@@ -8,7 +8,7 @@ Date:   Mon Sep 8 10:14:41 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/134630043
-
+---
  src/runtime/asm_386.s      | 4 ++--
  src/runtime/asm_amd64.s    | 4 ++--
  src/runtime/asm_amd64p32.s | 4 ++--
@@ -17,3 +17,154 @@ Date:   Mon Sep 8 10:14:41 2014 -0700
  src/runtime/stubs.go       | 9 +--------
  src/runtime/thunk.s        | 4 ++--
  7 files changed, 13 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 25026417bf..7eba8977c6 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -328,7 +328,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ 	MOVL	$0, DX
+ 	JMP runtime·morestack(SB)
+ 
+-// reflect·call: call a function with the given argument list
++// reflectcall: call a function with the given argument list
+ // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+@@ -341,7 +341,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-16
++TEXT runtime·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVL	argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index cc32ad8a18..a47fb09522 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -307,7 +307,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
+-// reflect·call: call a function with the given argument list
++// reflectcall: call a function with the given argument list
+ // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+@@ -320,7 +320,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-24
++TEXT runtime·reflectcall(SB), NOSPLIT, $0-24
+ 	MOVLQZX argsize+16(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 6c10bec5c3..95d04cae4f 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -280,7 +280,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
+-// reflect·call: call a function with the given argument list
++// reflectcall: call a function with the given argument list
+ // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+@@ -293,7 +293,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-16
++TEXT runtime·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVLQZX argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 3db907945c..af536f079c 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -319,7 +319,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R7
+ 	B runtime·morestack(SB)
+ 
+-// reflect·call: call a function with the given argument list
++// reflectcall: call a function with the given argument list
+ // func call(f *FuncVal, arg *byte, argsize, retoffset uint32).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+@@ -331,7 +331,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$NAME(SB), R1;		\
+ 	B	(R1)
+ 
+-TEXT reflect·call(SB),NOSPLIT,$-4-16
++TEXT runtime·reflectcall(SB),NOSPLIT,$-4-16
+ 	MOVW	argsize+8(FP), R0
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 883ca0cef7..b3c9c1fd78 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -35,6 +35,8 @@ const (
+ 	bitMask     = bitBoundary | bitMarked
+ 
+ 	mSpanInUse = 0
++
++	concurrentSweep = true
+ )
+ 
+ // Page number (address>>pageShift)
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 03f618e155..bf6c33a41e 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -7,9 +7,6 @@ package runtime
+ import "unsafe"
+ 
+ // Declarations for runtime services implemented in C or assembly.
+-// C implementations of these functions are in stubs.goc.
+-// Assembly implementations are in various files, see comments with
+-// each function.
+ 
+ const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
+ const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
+@@ -26,7 +23,7 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(uintptr(p) + delta)
+ }
+ 
+-// in stubs.goc
++// in runtime.c
+ func getg() *g
+ func acquirem() *m
+ func releasem(mp *m)
+@@ -114,10 +111,6 @@ func memclr(ptr unsafe.Pointer, n uintptr)
+ //go:noescape
+ func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
+ 
+-const (
+-	concurrentSweep = true
+-)
+-
+ func gosched()
+ func starttheworld()
+ func stoptheworld()
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index babc927680..7bdf7b950d 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -56,8 +56,8 @@ TEXT runtime∕pprof·runtime_cyclesPerSecond(SB),NOSPLIT,$0-0
+ TEXT bytes·Compare(SB),NOSPLIT,$0-0
+ 	JMP	runtime·cmpbytes(SB)
+ 
+-TEXT runtime·reflectcall(SB), NOSPLIT, $0-0
+-	JMP	reflect·call(SB)
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	JMP	runtime·reflectcall(SB)
+ 
+ TEXT reflect·chanclose(SB), NOSPLIT, $0-0
+ 	JMP	runtime·closechan(SB)

@@ -18,9 +18,125 @@ Date:   Mon Sep 20 12:17:31 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2249042
-
+---
  src/pkg/crypto/tls/ca_set.go           |  3 ++-
  src/pkg/crypto/tls/handshake_client.go | 24 +++++++++++++++++++++++-
  src/pkg/crypto/x509/x509.go            | 21 +++++++++++----------
  src/pkg/crypto/x509/x509_test.go       |  2 +-
  4 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/ca_set.go b/src/pkg/crypto/tls/ca_set.go
+index 7f7566e460..d2fb69ced8 100644
+--- a/src/pkg/crypto/tls/ca_set.go
++++ b/src/pkg/crypto/tls/ca_set.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"crypto/x509"
+ 	"encoding/pem"
++	"strings"
+ )
+ 
+ // A CASet is a set of certificates.
+@@ -23,7 +24,7 @@ func NewCASet() *CASet {
+ }
+ 
+ func nameToKey(name *x509.Name) string {
+-	return name.Country + "/" + name.Organization + "/" + name.OrganizationalUnit + "/" + name.CommonName
++	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
+ }
+ 
+ // FindParent attempts to find the certificate in s which signs the given
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index c629920648..a37fc78cca 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -84,8 +84,30 @@ func (c *Conn) clientHandshake() os.Error {
+ 		certs[i] = cert
+ 	}
+ 
+-	// TODO(agl): do better validation of certs: max path length, name restrictions etc.
+ 	for i := 1; i < len(certs); i++ {
++		if !certs[i].BasicConstraintsValid || !certs[i].IsCA {
++			return c.sendAlert(alertBadCertificate)
++		}
++		// KeyUsage status flags are ignored. From Engineering
++		// Security, Peter Gutmann:
++		// A European government CA marked its signing certificates as
++		// being valid for encryption only, but no-one noticed. Another
++		// European CA marked its signature keys as not being valid for
++		// signatures. A different CA marked its own trusted root
++		// certificate as being invalid for certificate signing.
++		// Another national CA distributed a certificate to be used to
++		// encrypt data for the country’s tax authority that was marked
++		// as only being usable for digital signatures but not for
++		// encryption. Yet another CA reversed the order of the bit
++		// flags in the keyUsage due to confusion over encoding
++		// endianness, essentially setting a random keyUsage in
++		// certificates that it issued. Another CA created a
++		// self-invalidating certificate by adding a certificate policy
++		// statement stipulating that the certificate had to be used
++		// strictly as specified in the keyUsage, and a keyUsage
++		// containing a flag indicating that the RSA encryption key
++		// could only be used for Diffie-Hellman key agreement.
++
+ 		if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
+ 			return c.sendAlert(alertBadCertificate)
+ 		}
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 3d940e585b..1fd5f6ca0f 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -162,9 +162,10 @@ const (
+ // Name represents an X.509 distinguished name. This only includes the common
+ // elements of a DN.  Additional elements in the name are ignored.
+ type Name struct {
+-	Country, Organization, OrganizationalUnit string
+-	CommonName, SerialNumber, Locality        string
+-	Province, StreetAddress, PostalCode       string
++	Country, Organization, OrganizationalUnit []string
++	Locality, Province                        []string
++	StreetAddress, PostalCode                 []string
++	SerialNumber, CommonName                  string
+ }
+ 
+ func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
+@@ -186,19 +187,19 @@ func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
+ 			case 5:
+ 				n.SerialNumber = value
+ 			case 6:
+-				n.Country = value
++				n.Country = appendString(n.Country, value)
+ 			case 7:
+-				n.Locality = value
++				n.Locality = appendString(n.Locality, value)
+ 			case 8:
+-				n.Province = value
++				n.Province = appendString(n.Province, value)
+ 			case 9:
+-				n.StreetAddress = value
++				n.StreetAddress = appendString(n.StreetAddress, value)
+ 			case 10:
+-				n.Organization = value
++				n.Organization = appendString(n.Organization, value)
+ 			case 11:
+-				n.OrganizationalUnit = value
++				n.OrganizationalUnit = appendString(n.OrganizationalUnit, value)
+ 			case 17:
+-				n.PostalCode = value
++				n.PostalCode = appendString(n.PostalCode, value)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 12292c1b2e..8a024528bd 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -158,7 +158,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		SerialNumber: []byte{1},
+ 		Subject: Name{
+ 			CommonName:   "test.example.com",
+-			Organization: "Acme Co",
++			Organization: []string{"Acme Co"},
+ 		},
+ 		NotBefore: time.SecondsToUTC(1000),
+ 		NotAfter:  time.SecondsToUTC(100000),

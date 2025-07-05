@@ -8,7 +8,51 @@ Date:   Mon Jun 25 16:48:20 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6331062
-
+---
  src/pkg/fmt/fmt_test.go | 12 ++++++++++++
  src/pkg/fmt/print.go    |  5 +++--
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index e7a5bd82aa..bce859581f 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -851,3 +851,15 @@ func TestIsSpace(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestNilDoesNotBecomeTyped(t *testing.T) {
++	type A struct{}
++	type B struct{}
++	var a *A = nil
++	var b B = B{}
++	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil)
++	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
++	if got != expect {
++		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
++	}
++}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 5007de2e39..8691004eca 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -712,6 +712,9 @@ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString
+ }
+ 
+ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
++	p.field = field
++	p.value = reflect.Value{}
++
+ 	if field == nil {
+ 		if verb == 'T' || verb == 'v' {
+ 			p.buf.Write(nilAngleBytes)
+@@ -721,8 +724,6 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
+ 		return false
+ 	}
+ 
+-	p.field = field
+-	p.value = reflect.Value{}
+ 	// Special processing considerations.
+ 	// %T (the value's type) and %p (its address) are special; we always do them first.
+ 	switch verb {

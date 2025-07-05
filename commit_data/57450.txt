@@ -25,9 +25,170 @@ Date:   Mon Aug 7 11:24:13 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/os/os_windows_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  src/os/stat.go            |  4 ++++
  src/os/stat_windows.go    | 18 +++++++++---------
  src/os/types_windows.go   | 10 ++++++++++
  4 files changed, 62 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 75ac61bb96..daac3db1da 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -553,6 +553,45 @@ func TestNetworkSymbolicLink(t *testing.T) {
+ 	}
+ }
+ 
++func TestStatLxSymLink(t *testing.T) {
++	if _, err := exec.LookPath("wsl"); err != nil {
++		t.Skip("skipping: WSL not detected")
++	}
++
++	temp := t.TempDir()
++	chdir(t, temp)
++
++	const target = "target"
++	const link = "link"
++
++	_, err := testenv.Command(t, "wsl", "/bin/mkdir", target).Output()
++	if err != nil {
++		// This normally happens when WSL still doesn't have a distro installed to run on.
++		t.Skipf("skipping: WSL is not correctly installed: %v", err)
++	}
++
++	_, err = testenv.Command(t, "wsl", "/bin/ln", "-s", target, link).Output()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	fi, err := os.Lstat(link)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if m := fi.Mode(); m&fs.ModeSymlink != 0 {
++		// This can happen depending on newer WSL versions when running as admin or in developer mode.
++		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of a IO_REPARSE_TAG_LX_SYMLINK")
++	}
++	// Stat'ing a IO_REPARSE_TAG_LX_SYMLINK from outside WSL always return ERROR_CANT_ACCESS_FILE.
++	// We check this condition to validate that os.Stat has tried to follow the link.
++	_, err = os.Stat(link)
++	const ERROR_CANT_ACCESS_FILE = syscall.Errno(1920)
++	if err == nil || !errors.Is(err, ERROR_CANT_ACCESS_FILE) {
++		t.Fatalf("os.Stat(%q): got %v, want ERROR_CANT_ACCESS_FILE", link, err)
++	}
++}
++
+ func TestStartProcessAttr(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/src/os/stat.go b/src/os/stat.go
+index af66838e3e..11d9efa457 100644
+--- a/src/os/stat.go
++++ b/src/os/stat.go
+@@ -17,6 +17,10 @@ func Stat(name string) (FileInfo, error) {
+ // If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link. Lstat makes no attempt to follow the link.
+ // If there is an error, it will be of type *PathError.
++//
++// On Windows, if the file is a reparse point that is a surrogate for another
++// named entity (such as a symbolic link or mounted folder), the returned
++// FileInfo describes the reparse point, and makes no attempt to resolve it.
+ func Lstat(name string) (FileInfo, error) {
+ 	testlog.Stat(name)
+ 	return lstatNolog(name)
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 033c3b9353..668255f74a 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -20,7 +20,7 @@ func (file *File) Stat() (FileInfo, error) {
+ }
+ 
+ // stat implements both Stat and Lstat of a file.
+-func stat(funcname, name string, followSymlinks bool) (FileInfo, error) {
++func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{Op: funcname, Path: name, Err: syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+@@ -44,7 +44,7 @@ func stat(funcname, name string, followSymlinks bool) (FileInfo, error) {
+ 		}
+ 		syscall.FindClose(sh)
+ 		if fd.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+-			// Not a symlink or mount point. FindFirstFile is good enough.
++			// Not a surrogate for another named entity. FindFirstFile is good enough.
+ 			fs := newFileStatFromWin32finddata(&fd)
+ 			if err := fs.saveInfoFromPath(name); err != nil {
+ 				return nil, err
+@@ -54,7 +54,7 @@ func stat(funcname, name string, followSymlinks bool) (FileInfo, error) {
+ 	}
+ 
+ 	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+-		// The file is definitely not a symlink, because it isn't any kind of reparse point.
++		// Not a surrogate for another named entity, because it isn't any kind of reparse point.
+ 		// The information we got from GetFileAttributesEx is good enough for now.
+ 		fs := &fileStat{
+ 			FileAttributes: fa.FileAttributes,
+@@ -70,21 +70,21 @@ func stat(funcname, name string, followSymlinks bool) (FileInfo, error) {
+ 		return fs, nil
+ 	}
+ 
+-	// Use CreateFile to determine whether the file is a symlink and, if so,
++	// Use CreateFile to determine whether the file is a name surrogate and, if so,
+ 	// save information about the link target.
+ 	// Set FILE_FLAG_BACKUP_SEMANTICS so that CreateFile will create the handle
+ 	// even if name refers to a directory.
+ 	h, err := syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+ 	if err != nil {
+ 		// Since CreateFile failed, we can't determine whether name refers to a
+-		// symlink, or some other kind of reparse point. Since we can't return a
++		// name surrogate, or some other kind of reparse point. Since we can't return a
+ 		// FileInfo with a known-accurate Mode, we must return an error.
+ 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
+ 	}
+ 
+ 	fi, err := statHandle(name, h)
+ 	syscall.CloseHandle(h)
+-	if err == nil && followSymlinks && fi.(*fileStat).isSymlink() {
++	if err == nil && followSurrogates && fi.(*fileStat).isReparseTagNameSurrogate() {
+ 		// To obtain information about the link target, we reopen the file without
+ 		// FILE_FLAG_OPEN_REPARSE_POINT and examine the resulting handle.
+ 		// (See https://devblogs.microsoft.com/oldnewthing/20100212-00/?p=14963.)
+@@ -123,14 +123,14 @@ func statNolog(name string) (FileInfo, error) {
+ 
+ // lstatNolog implements Lstat for Windows.
+ func lstatNolog(name string) (FileInfo, error) {
+-	followSymlinks := false
++	followSurrogates := false
+ 	if name != "" && IsPathSeparator(name[len(name)-1]) {
+ 		// We try to implement POSIX semantics for Lstat path resolution
+ 		// (per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12):
+ 		// symlinks before the last separator in the path must be resolved. Since
+ 		// the last separator in this case follows the last path element, we should
+ 		// follow symlinks in the last path element.
+-		followSymlinks = true
++		followSurrogates = true
+ 	}
+-	return stat("Lstat", name, followSymlinks)
++	return stat("Lstat", name, followSurrogates)
+ }
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index d1623f7b17..e0b3a73581 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -120,6 +120,16 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+ 	return fs
+ }
+ 
++// isReparseTagNameSurrogate determines whether a tag's associated
++// reparse point is a surrogate for another named entity (for example, a mounted folder).
++//
++// See https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-isreparsetagnamesurrogate
++// and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
++func (fs *fileStat) isReparseTagNameSurrogate() bool {
++	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
++	return fs.ReparseTag&0x20000000 != 0
++}
++
+ func (fs *fileStat) isSymlink() bool {
+ 	// As of https://go.dev/cl/86556, we treat MOUNT_POINT reparse points as
+ 	// symlinks because otherwise certain directory junction tests in the

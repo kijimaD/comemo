@@ -29,8 +29,112 @@ Date:   Tue Oct 13 16:33:46 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  doc/go1.16.html              |  8 ++++++++
  src/crypto/hmac/hmac.go      | 15 +++++++++++++++
  src/crypto/hmac/hmac_test.go | 24 +++++++++++++++++++++++-
  3 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 7b99e0cc43..43bcc779e5 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -181,6 +181,14 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO
+ </p>
+ 
++<h3 id="crypto/hmac"><a href="/pkg/crypto/hmac">crypto/hmac</a></h3>
++
++<p><!-- CL 261960 -->
++  <a href="/pkg/crypto/hmac/#New">New</a> will now panic if separate calls to
++  the hash generation function fail to return new values. Previously, the
++  behavior was undefined and invalid outputs were sometimes generated.
++</p>
++
+ <h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+ 
+ <p><!-- CL 256897 -->
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index a6ba71c275..cdda33c2cb 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -120,6 +120,8 @@ func (h *hmac) Reset() {
+ }
+ 
+ // New returns a new HMAC hash using the given hash.Hash type and key.
++// New functions like sha256.New from crypto/sha256 can be used as h.
++// h must return a new Hash every time it is called.
+ // Note that unlike other hash implementations in the standard library,
+ // the returned Hash does not implement encoding.BinaryMarshaler
+ // or encoding.BinaryUnmarshaler.
+@@ -127,6 +129,19 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	hm := new(hmac)
+ 	hm.outer = h()
+ 	hm.inner = h()
++	unique := true
++	func() {
++		defer func() {
++			// The comparison might panic if the underlying types are not comparable.
++			_ = recover()
++		}()
++		if hm.outer == hm.inner {
++			unique = false
++		}
++	}()
++	if !unique {
++		panic("crypto/hmac: hash generation function does not produce unique values")
++	}
+ 	blocksize := hm.inner.BlockSize()
+ 	hm.ipad = make([]byte, blocksize)
+ 	hm.opad = make([]byte, blocksize)
+diff --git a/src/crypto/hmac/hmac_test.go b/src/crypto/hmac/hmac_test.go
+index 453bfb3b7f..25e67d7fe5 100644
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@ -556,6 +556,17 @@ func TestHMAC(t *testing.T) {
+ 	}
+ }
+ 
++func TestNonUniqueHash(t *testing.T) {
++	sha := sha256.New()
++	defer func() {
++		err := recover()
++		if err == nil {
++			t.Error("expected panic when calling New with a non-unique hash generation function")
++		}
++	}()
++	New(func() hash.Hash { return sha }, []byte("bytes"))
++}
++
+ // justHash implements just the hash.Hash methods and nothing else
+ type justHash struct {
+ 	hash.Hash
+@@ -587,8 +598,8 @@ func BenchmarkHMACSHA256_1K(b *testing.B) {
+ 	b.SetBytes(int64(len(buf)))
+ 	for i := 0; i < b.N; i++ {
+ 		h.Write(buf)
+-		h.Reset()
+ 		mac := h.Sum(nil)
++		h.Reset()
+ 		buf[0] = mac[0]
+ 	}
+ }
+@@ -600,7 +611,18 @@ func BenchmarkHMACSHA256_32(b *testing.B) {
+ 	b.SetBytes(int64(len(buf)))
+ 	for i := 0; i < b.N; i++ {
+ 		h.Write(buf)
++		mac := h.Sum(nil)
+ 		h.Reset()
++		buf[0] = mac[0]
++	}
++}
++
++func BenchmarkNewWriteSum(b *testing.B) {
++	buf := make([]byte, 32)
++	b.SetBytes(int64(len(buf)))
++	for i := 0; i < b.N; i++ {
++		h := New(sha256.New, make([]byte, 32))
++		h.Write(buf)
+ 		mac := h.Sum(nil)
+ 		buf[0] = mac[0]
+ 	}

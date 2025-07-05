@@ -7,7 +7,7 @@ Date:   Tue Mar 30 10:51:11 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/833044
-
+---
  src/cmd/godoc/index.go              |  4 +-
  src/cmd/goinstall/main.go           |  2 +-
  src/cmd/hgpatch/main.go             | 14 +++----
@@ -36,3 +36,769 @@ Date:   Tue Mar 30 10:51:11 2010 -0700
  src/pkg/websocket/websocket_test.go | 10 ++---
  test/bench/k-nucleotide.go          | 13 +-----
  27 files changed, 96 insertions(+), 194 deletions(-)
+
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index aa108d0db5..a2c71c97bd 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -682,8 +682,8 @@ func (x *Index) Size() (nwords int, nspots int) {
+ 
+ 
+ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
+-	match, _ = x.words[w]
+-	alt, _ = x.alts[canonical(w)]
++	match = x.words[w]
++	alt = x.alts[canonical(w)]
+ 	// remove current spelling from alternatives
+ 	// (if there is no match, the alternatives do
+ 	// not contain the current spelling)
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index bc6301baa2..59e66288b9 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -85,7 +85,7 @@ func printDeps(pkg string) {
+ // install installs the package named by path, which is needed by parent.
+ func install(pkg, parent string) {
+ 	// Make sure we're not already trying to install pkg.
+-	switch v, _ := visit[pkg]; v {
++	switch visit[pkg] {
+ 	case done:
+ 		return
+ 	case visiting:
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 3d18971cf7..89aebda552 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -62,20 +62,20 @@ func main() {
+ 	// Make sure we won't be editing files with local pending changes.
+ 	dirtylist, err := hgModified()
+ 	chk(err)
+-	dirty := make(map[string]int)
++	dirty := make(map[string]bool)
+ 	for _, f := range dirtylist {
+-		dirty[f] = 1
++		dirty[f] = true
+ 	}
+-	conflict := make(map[string]int)
++	conflict := make(map[string]bool)
+ 	for _, f := range pset.File {
+ 		if f.Verb == patch.Delete || f.Verb == patch.Rename {
+-			if _, ok := dirty[f.Src]; ok {
+-				conflict[f.Src] = 1
++			if dirty[f.Src] {
++				conflict[f.Src] = true
+ 			}
+ 		}
+ 		if f.Verb != patch.Delete {
+-			if _, ok := dirty[f.Dst]; ok {
+-				conflict[f.Dst] = 1
++			if dirty[f.Dst] {
++				conflict[f.Dst] = true
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 8130555f38..89d444dd54 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -149,9 +149,9 @@ func TestRemove2(t *testing.T) {
+ 	}
+ 	h.verify(t, 0)
+ 
+-	m := make(map[int]int)
++	m := make(map[int]bool)
+ 	for h.Len() > 0 {
+-		m[Remove(h, (h.Len()-1)/2).(int)] = 1
++		m[Remove(h, (h.Len()-1)/2).(int)] = true
+ 		h.verify(t, 0)
+ 	}
+ 
+@@ -159,7 +159,7 @@ func TestRemove2(t *testing.T) {
+ 		t.Errorf("len(m) = %d; want %d", len(m), N)
+ 	}
+ 	for i := 0; i < len(m); i++ {
+-		if _, exists := m[i]; !exists {
++		if !m[i] {
+ 			t.Errorf("m[%d] doesn't exist", i)
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/tls/ca_set.go b/src/pkg/crypto/tls/ca_set.go
+index c11539c8b1..7f7566e460 100644
+--- a/src/pkg/crypto/tls/ca_set.go
++++ b/src/pkg/crypto/tls/ca_set.go
+@@ -29,18 +29,10 @@ func nameToKey(name *x509.Name) string {
+ // FindParent attempts to find the certificate in s which signs the given
+ // certificate. If no such certificate can be found, it returns nil.
+ func (s *CASet) FindParent(cert *x509.Certificate) (parent *x509.Certificate) {
+-	var ok bool
+-
+ 	if len(cert.AuthorityKeyId) > 0 {
+-		parent, ok = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
+-	} else {
+-		parent, ok = s.byName[nameToKey(&cert.Issuer)]
+-	}
+-
+-	if !ok {
+-		return nil
++		return s.bySubjectKeyId[string(cert.AuthorityKeyId)]
+ 	}
+-	return parent
++	return s.byName[nameToKey(&cert.Issuer)]
+ }
+ 
+ // SetFromPEM attempts to parse a series of PEM encoded root certificates. It
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+index c3e456024c..6c2daaa56d 100644
+--- a/src/pkg/debug/dwarf/type_test.go
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -87,7 +87,7 @@ func testTypedefs(t *testing.T, d *Data) {
+ 			}
+ 
+ 			if want, ok := typedefTests[t1.Name]; ok {
+-				if _, ok := seen[t1.Name]; ok {
++				if seen[t1.Name] {
+ 					t.Errorf("multiple definitions for %s", t1.Name)
+ 				}
+ 				seen[t1.Name] = true
+@@ -102,7 +102,7 @@ func testTypedefs(t *testing.T, d *Data) {
+ 	}
+ 
+ 	for k := range typedefTests {
+-		if _, ok := seen[k]; !ok {
++		if !seen[k] {
+ 			t.Errorf("missing %s", k)
+ 		}
+ 	}
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index e630578bdd..15520830ff 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -845,7 +845,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 		}
+ 
+ 		// Don't check the same type twice and avoid loops
+-		if _, ok := visited[t]; ok {
++		if visited[t] {
+ 			return nil
+ 		}
+ 		visited[t] = true
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index fbb428679e..8a0a2cf2fa 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -119,7 +119,7 @@ nextEnt:
+ 
+ func (m typeArrayMap) Put(key []Type, v interface{}) interface{} {
+ 	hash := hashTypeArray(key)
+-	ent, _ := m[hash]
++	ent := m[hash]
+ 
+ 	new := &typeArrayMapEntry{key, v, ent}
+ 	m[hash] = new
+diff --git a/src/pkg/exp/eval/value.go b/src/pkg/exp/eval/value.go
+index 1558d11ddb..153349c437 100644
+--- a/src/pkg/exp/eval/value.go
++++ b/src/pkg/exp/eval/value.go
+@@ -539,10 +539,7 @@ type evalMap map[interface{}]Value
+ func (m evalMap) Len(t *Thread) int64 { return int64(len(m)) }
+ 
+ func (m evalMap) Elem(t *Thread, key interface{}) Value {
+-	if v, ok := m[key]; ok {
+-		return v
+-	}
+-	return nil
++	return m[key]
+ }
+ 
+ func (m evalMap) SetElem(t *Thread, key interface{}, val Value) {
+diff --git a/src/pkg/exp/ogle/rtype.go b/src/pkg/exp/ogle/rtype.go
+index b20acbad5e..ce4fdb6637 100644
+--- a/src/pkg/exp/ogle/rtype.go
++++ b/src/pkg/exp/ogle/rtype.go
+@@ -38,7 +38,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 	}
+ 
+ 	// Get the type map for this architecture
+-	typeMap, _ := manualTypes[arch]
++	typeMap := manualTypes[arch]
+ 	if typeMap == nil {
+ 		typeMap = make(map[eval.Type]*remoteType)
+ 		manualTypes[arch] = typeMap
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index bed31db5dc..070ba4ee6a 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -87,10 +87,7 @@ func (v *Map) Init() *Map {
+ func (v *Map) Get(key string) Var {
+ 	v.mu.Lock()
+ 	defer v.mu.Unlock()
+-	if av, ok := v.m[key]; ok {
+-		return av
+-	}
+-	return nil
++	return v.m[key]
+ }
+ 
+ func (v *Map) Set(key string, av Var) {
+@@ -168,10 +165,7 @@ func Publish(name string, v Var) {
+ 
+ // Get retrieves a named exported variable.
+ func Get(name string) Var {
+-	if v, ok := vars[name]; ok {
+-		return v
+-	}
+-	return nil
++	return vars[name]
+ }
+ 
+ // RemoveAll removes all exported variables.
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 0c2589c9e9..a0cb4f5cae 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -239,11 +239,7 @@ func Visit(fn func(*Flag)) {
+ 
+ // Lookup returns the Flag structure of the named flag, returning nil if none exists.
+ func Lookup(name string) *Flag {
+-	f, ok := flags.formal[name]
+-	if !ok {
+-		return nil
+-	}
+-	return f
++	return flags.formal[name]
+ }
+ 
+ // Set sets the value of the named flag.  It returns true if the set succeeded; false if
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 9db695bd4e..f3b91a930f 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -91,8 +91,8 @@ func TestParse4(t *testing.T) {
+ 	if len(pkgs) != 1 {
+ 		t.Errorf("incorrect number of packages: %d", len(pkgs))
+ 	}
+-	pkg, found := pkgs["parser"]
+-	if pkg == nil || !found {
++	pkg := pkgs["parser"]
++	if pkg == nil {
+ 		t.Errorf(`package "parser" not found`)
+ 		return
+ 	}
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 73f0979ed8..90dc2e34c8 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -40,7 +40,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ 
+ func (dec *Decoder) recvType(id typeId) {
+ 	// Have we already seen this type?  That's an error
+-	if _, alreadySeen := dec.wireType[id]; alreadySeen {
++	if dec.wireType[id] != nil {
+ 		dec.state.err = os.ErrorString("gob: duplicate type received")
+ 		return
+ 	}
+@@ -109,8 +109,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 
+ 		// No, it's a value.
+ 		// Make sure the type has been defined already.
+-		_, ok := dec.wireType[id]
+-		if !ok {
++		if dec.wireType[id] == nil {
+ 			dec.state.err = errBadType
+ 			break
+ 		}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index f08f2a04d0..2a178af04b 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -133,7 +133,7 @@ func newArrayType(name string, elem gobType, length int) *arrayType {
+ }
+ 
+ func (a *arrayType) safeString(seen map[typeId]bool) string {
+-	if _, ok := seen[a._id]; ok {
++	if seen[a._id] {
+ 		return a.name
+ 	}
+ 	seen[a._id] = true
+@@ -155,7 +155,7 @@ func newSliceType(name string, elem gobType) *sliceType {
+ }
+ 
+ func (s *sliceType) safeString(seen map[typeId]bool) string {
+-	if _, ok := seen[s._id]; ok {
++	if seen[s._id] {
+ 		return s.name
+ 	}
+ 	seen[s._id] = true
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 33c12c024a..83a335bec0 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -49,13 +49,13 @@ type badStringError struct {
+ 
+ func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
+ 
+-var reqExcludeHeader = map[string]int{
+-	"Host":              0,
+-	"User-Agent":        0,
+-	"Referer":           0,
+-	"Content-Length":    0,
+-	"Transfer-Encoding": 0,
+-	"Trailer":           0,
++var reqExcludeHeader = map[string]bool{
++	"Host":              true,
++	"User-Agent":        true,
++	"Referer":           true,
++	"Content-Length":    true,
++	"Transfer-Encoding": true,
++	"Trailer":           true,
+ }
+ 
+ // A Request represents a parsed HTTP request header.
+@@ -518,24 +518,19 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	//	Host: doesntmatter
+ 	// the same.  In the second case, any Host line is ignored.
+ 	req.Host = req.URL.Host
+-	if v, present := req.Header["Host"]; present {
+-		if req.Host == "" {
+-			req.Host = v
+-		}
+-		req.Header["Host"] = "", false
++	if req.Host == "" {
++		req.Host = req.Header["Host"]
+ 	}
++	req.Header["Host"] = "", false
+ 
+ 	fixPragmaCacheControl(req.Header)
+ 
+ 	// Pull out useful fields as a convenience to clients.
+-	if v, present := req.Header["Referer"]; present {
+-		req.Referer = v
+-		req.Header["Referer"] = "", false
+-	}
+-	if v, present := req.Header["User-Agent"]; present {
+-		req.UserAgent = v
+-		req.Header["User-Agent"] = "", false
+-	}
++	req.Referer = req.Header["Referer"]
++	req.Header["Referer"] = "", false
++
++	req.UserAgent = req.Header["User-Agent"]
++	req.Header["User-Agent"] = "", false
+ 
+ 	// TODO: Parse specific header values:
+ 	//	Accept
+@@ -572,7 +567,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ }
+ 
+ func ParseQuery(query string) (m map[string][]string, err os.Error) {
+-	data := make(map[string]*vector.StringVector)
++	m = make(map[string][]string)
+ 	for _, kv := range strings.Split(query, "&", 0) {
+ 		kvPair := strings.Split(kv, "=", 2)
+ 
+@@ -586,17 +581,9 @@ func ParseQuery(query string) (m map[string][]string, err os.Error) {
+ 			err = e
+ 		}
+ 
+-		vec, ok := data[key]
+-		if !ok {
+-			vec = new(vector.StringVector)
+-			data[key] = vec
+-		}
++		vec := vector.StringVector(m[key])
+ 		vec.Push(value)
+-	}
+-
+-	m = make(map[string][]string)
+-	for k, vec := range data {
+-		m[k] = vec.Data()
++		m[key] = vec
+ 	}
+ 
+ 	return
+@@ -618,7 +605,7 @@ func (r *Request) ParseForm() (err os.Error) {
+ 			r.Form = make(map[string][]string)
+ 			return os.ErrorString("missing form body")
+ 		}
+-		ct, _ := r.Header["Content-Type"]
++		ct := r.Header["Content-Type"]
+ 		switch strings.Split(ct, ";", 2)[0] {
+ 		case "text/plain", "application/x-www-form-urlencoded", "":
+ 			var b []byte
+@@ -643,7 +630,7 @@ func (r *Request) FormValue(key string) string {
+ 	if r.Form == nil {
+ 		r.ParseForm()
+ 	}
+-	if vs, ok := r.Form[key]; ok && len(vs) > 0 {
++	if vs := r.Form[key]; len(vs) > 0 {
+ 		return vs[0]
+ 	}
+ 	return ""
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 3a46375765..6a209c9f88 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -16,10 +16,10 @@ import (
+ 	"strings"
+ )
+ 
+-var respExcludeHeader = map[string]int{
+-	"Content-Length":    0,
+-	"Transfer-Encoding": 0,
+-	"Trailer":           0,
++var respExcludeHeader = map[string]bool{
++	"Content-Length":    true,
++	"Transfer-Encoding": true,
++	"Trailer":           true,
+ }
+ 
+ // Response represents the response from an HTTP request.
+@@ -133,7 +133,7 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
+ // like
+ //	Cache-Control: no-cache
+ func fixPragmaCacheControl(header map[string]string) {
+-	if v, present := header["Pragma"]; present && v == "no-cache" {
++	if header["Pragma"] == "no-cache" {
+ 		if _, presentcc := header["Cache-Control"]; !presentcc {
+ 			header["Cache-Control"] = "no-cache"
+ 		}
+@@ -157,8 +157,7 @@ func (r *Response) AddHeader(key, value string) {
+ // with a comma delimiter.  If there were no response headers with the given
+ // key, GetHeader returns an empty string.  Keys are not case sensitive.
+ func (r *Response) GetHeader(key string) (value string) {
+-	value, _ = r.Header[CanonicalHeaderKey(key)]
+-	return
++	return r.Header[CanonicalHeaderKey(key)]
+ }
+ 
+ // ProtoAtLeast returns whether the HTTP protocol used
+@@ -228,11 +227,11 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 	return nil
+ }
+ 
+-func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]int) os.Error {
++func writeSortedKeyValue(w io.Writer, kvm map[string]string, exclude map[string]bool) os.Error {
+ 	kva := make([]string, len(kvm))
+ 	i := 0
+ 	for k, v := range kvm {
+-		if _, exc := exclude[k]; !exc {
++		if !exclude[k] {
+ 			kva[i] = fmt.Sprint(k + ": " + v + "\r\n")
+ 			i++
+ 		}
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 017077a995..26266cbcac 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -340,11 +340,8 @@ func fixLength(status int, requestMethod string, header map[string]string, te []
+ 	// Logic based on media type. The purpose of the following code is just
+ 	// to detect whether the unsupported "multipart/byteranges" is being
+ 	// used. A proper Content-Type parser is needed in the future.
+-	if ct, present := header["Content-Type"]; present {
+-		ct = strings.ToLower(ct)
+-		if strings.Index(ct, "multipart/byteranges") >= 0 {
+-			return -1, ErrNotSupported
+-		}
++	if strings.Index(strings.ToLower(header["Content-Type"]), "multipart/byteranges") >= 0 {
++		return -1, ErrNotSupported
+ 	}
+ 
+ 	// Body-EOF logic based on other methods (like closing, or chunked coding)
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index 6d946b5e6e..3706afc473 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -78,6 +78,5 @@ func initMime() {
+ // When ext has no associated type, TypeByExtension returns "".
+ func TypeByExtension(ext string) string {
+ 	once.Do(initMime)
+-	typ, _ := mimeTypes[ext]
+-	return typ
++	return mimeTypes[ext]
+ }
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+index 266ce3f370..006352b178 100644
+--- a/src/pkg/net/hosts.go
++++ b/src/pkg/net/hosts.go
+@@ -44,8 +44,7 @@ func readHosts() {
+ 			}
+ 			for i := 1; i < len(f); i++ {
+ 				h := f[i]
+-				old, _ := hs[h]
+-				hs[h] = appendHost(old, f[0])
++				hs[h] = appendHost(hs[h], f[0])
+ 			}
+ 		}
+ 		// Update the data cache.
+diff --git a/src/pkg/once/once.go b/src/pkg/once/once.go
+index b53cd97bd8..43949ee197 100644
+--- a/src/pkg/once/once.go
++++ b/src/pkg/once/once.go
+@@ -38,8 +38,8 @@ var joblock sync.Mutex
+ // func each time f runs, and each of those funcs is run once.
+ func Do(f func()) {
+ 	joblock.Lock()
+-	j, present := jobs[f]
+-	if !present {
++	j := jobs[f]
++	if j == nil {
+ 		// run it
+ 		j = new(job)
+ 		j.Lock()
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 575946c1e1..a50925e51e 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -45,7 +45,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ 
+ 	// ... or already seen
+ 	h := 17*addr1 + addr2
+-	seen, _ := visited[h]
++	seen := visited[h]
+ 	typ := v1.Type()
+ 	for p := seen; p != nil; p = p.next {
+ 		if p.a1 == addr1 && p.a2 == addr2 && p.typ == typ {
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index b82f1e23ed..a8df033af4 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -510,7 +510,7 @@ const inf = 1 << 30 // infinity - no struct has that many nesting levels
+ func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
+ 	fd = inf // field depth
+ 
+-	if _, marked := mark[t]; marked {
++	if mark[t] {
+ 		// Struct already seen.
+ 		return
+ 	}
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 52870800cc..90597a8212 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -25,14 +25,10 @@ type ProtocolError struct {
+ 
+ var (
+ 	ErrBadStatus            = &ProtocolError{"bad status"}
+-	ErrNoUpgrade            = &ProtocolError{"no upgrade"}
+-	ErrBadUpgrade           = &ProtocolError{"bad upgrade"}
+-	ErrNoWebSocketOrigin    = &ProtocolError{"no WebSocket-Origin"}
+-	ErrBadWebSocketOrigin   = &ProtocolError{"bad WebSocket-Origin"}
+-	ErrNoWebSocketLocation  = &ProtocolError{"no WebSocket-Location"}
+-	ErrBadWebSocketLocation = &ProtocolError{"bad WebSocket-Location"}
+-	ErrNoWebSocketProtocol  = &ProtocolError{"no WebSocket-Protocol"}
+-	ErrBadWebSocketProtocol = &ProtocolError{"bad WebSocket-Protocol"}
++	ErrBadUpgrade           = &ProtocolError{"missing or bad upgrade"}
++	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
++	ErrBadWebSocketLocation = &ProtocolError{"missing or bad WebSocket-Location"}
++	ErrBadWebSocketProtocol = &ProtocolError{"missing or bad WebSocket-Protocol"}
+ 	ErrChallengeResponse    = &ProtocolError{"mismatch challange/response"}
+ 	secKeyRandomChars       [0x30 - 0x21 + 0x7F - 0x3A]byte
+ )
+@@ -244,40 +240,21 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ 	}
+ 
+ 	// Step 41. check websocket headers.
+-	upgrade, found := resp.Header["Upgrade"]
+-	if !found {
+-		return ErrNoUpgrade
+-	}
+-	if upgrade != "WebSocket" {
+-		return ErrBadUpgrade
+-	}
+-	connection, found := resp.Header["Connection"]
+-	if !found || strings.ToLower(connection) != "upgrade" {
++	if resp.Header["Upgrade"] != "WebSocket" ||
++		strings.ToLower(resp.Header["Connection"]) != "upgrade" {
+ 		return ErrBadUpgrade
+ 	}
+ 
+-	s, found := resp.Header["Sec-Websocket-Origin"]
+-	if !found {
+-		return ErrNoWebSocketOrigin
+-	}
+-	if s != origin {
++	if resp.Header["Sec-Websocket-Origin"] != origin {
+ 		return ErrBadWebSocketOrigin
+ 	}
+-	s, found = resp.Header["Sec-Websocket-Location"]
+-	if !found {
+-		return ErrNoWebSocketLocation
+-	}
+-	if s != location {
++
++	if resp.Header["Sec-Websocket-Location"] != location {
+ 		return ErrBadWebSocketLocation
+ 	}
+-	if protocol != "" {
+-		s, found = resp.Header["Sec-Websocket-Protocol"]
+-		if !found {
+-			return ErrNoWebSocketProtocol
+-		}
+-		if s != protocol {
+-			return ErrBadWebSocketProtocol
+-		}
++
++	if protocol != "" && resp.Header["Sec-Websocket-Protocol"] != protocol {
++		return ErrBadWebSocketProtocol
+ 	}
+ 
+ 	// Step 42-43. get expected data from challange data.
+@@ -322,40 +299,18 @@ func draft75handshake(resourceName, host, origin, location, protocol string, br
+ 	if resp.Status != "101 Web Socket Protocol Handshake" {
+ 		return ErrBadStatus
+ 	}
+-	upgrade, found := resp.Header["Upgrade"]
+-	if !found {
+-		return ErrNoUpgrade
+-	}
+-	if upgrade != "WebSocket" {
+-		return ErrBadUpgrade
+-	}
+-	connection, found := resp.Header["Connection"]
+-	if !found || connection != "Upgrade" {
++	if resp.Header["Upgrade"] != "WebSocket" ||
++		resp.Header["Connection"] != "Upgrade" {
+ 		return ErrBadUpgrade
+ 	}
+-
+-	ws_origin, found := resp.Header["Websocket-Origin"]
+-	if !found {
+-		return ErrNoWebSocketOrigin
+-	}
+-	if ws_origin != origin {
++	if resp.Header["Websocket-Origin"] != origin {
+ 		return ErrBadWebSocketOrigin
+ 	}
+-	ws_location, found := resp.Header["Websocket-Location"]
+-	if !found {
+-		return ErrNoWebSocketLocation
+-	}
+-	if ws_location != location {
++	if resp.Header["Websocket-Location"] != location {
+ 		return ErrBadWebSocketLocation
+ 	}
+-	if protocol != "" {
+-		ws_protocol, found := resp.Header["Websocket-Protocol"]
+-		if !found {
+-			return ErrNoWebSocketProtocol
+-		}
+-		if ws_protocol != protocol {
+-			return ErrBadWebSocketProtocol
+-		}
++	if protocol != "" && resp.Header["Websocket-Protocol"] != protocol {
++		return ErrBadWebSocketProtocol
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index cc1ff93854..7faf6ba49e 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -75,14 +75,11 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	}
+ 	// HTTP version can be safely ignored.
+ 
+-	if v, found := req.Header["Upgrade"]; !found ||
+-		strings.ToLower(v) != "websocket" {
+-		return
+-	}
+-	if v, found := req.Header["Connection"]; !found ||
+-		strings.ToLower(v) != "upgrade" {
++	if strings.ToLower(req.Header["Upgrade"]) != "websocket" ||
++		strings.ToLower(req.Header["Connection"]) != "upgrade" {
+ 		return
+ 	}
++
+ 	// TODO(ukai): check Host
+ 	origin, found := req.Header["Origin"]
+ 	if !found {
+@@ -181,12 +178,12 @@ func (f Draft75Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 		io.WriteString(c, "Unexpected request")
+ 		return
+ 	}
+-	if v, found := req.Header["Upgrade"]; !found || v != "WebSocket" {
++	if req.Header["Upgrade"] != "WebSocket" {
+ 		c.WriteHeader(http.StatusBadRequest)
+ 		io.WriteString(c, "missing Upgrade: WebSocket header")
+ 		return
+ 	}
+-	if v, found := req.Header["Connection"]; !found || v != "Upgrade" {
++	if req.Header["Connection"] != "Upgrade" {
+ 		c.WriteHeader(http.StatusBadRequest)
+ 		io.WriteString(c, "missing Connection: Upgrade header")
+ 		return
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 58065580e7..0762fca699 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -42,18 +42,18 @@ func TestEcho(t *testing.T) {
+ 	ws, err := newClient("/echo", "localhost", "http://localhost",
+ 		"ws://localhost/echo", "", client, handshake)
+ 	if err != nil {
+-		t.Errorf("WebSocket handshake error", err)
++		t.Errorf("WebSocket handshake error: %v", err)
+ 		return
+ 	}
+ 
+ 	msg := []byte("hello, world\n")
+ 	if _, err := ws.Write(msg); err != nil {
+-		t.Errorf("Write: error %v", err)
++		t.Errorf("Write: %v", err)
+ 	}
+ 	var actual_msg = make([]byte, 512)
+ 	n, err := ws.Read(actual_msg)
+ 	if err != nil {
+-		t.Errorf("Read: error %v", err)
++		t.Errorf("Read: %v", err)
+ 	}
+ 	actual_msg = actual_msg[0:n]
+ 	if !bytes.Equal(msg, actual_msg) {
+@@ -73,7 +73,7 @@ func TestEchoDraft75(t *testing.T) {
+ 	ws, err := newClient("/echoDraft75", "localhost", "http://localhost",
+ 		"ws://localhost/echoDraft75", "", client, draft75handshake)
+ 	if err != nil {
+-		t.Errorf("WebSocket handshake error", err)
++		t.Errorf("WebSocket handshake: %v", err)
+ 		return
+ 	}
+ 
+@@ -104,7 +104,7 @@ func TestWithQuery(t *testing.T) {
+ 	ws, err := newClient("/echo?q=v", "localhost", "http://localhost",
+ 		"ws://localhost/echo?q=v", "", client, handshake)
+ 	if err != nil {
+-		t.Errorf("WebSocket handshake error", err)
++		t.Errorf("WebSocket handshake: %v", err)
+ 		return
+ 	}
+ 	ws.Close()
+diff --git a/test/bench/k-nucleotide.go b/test/bench/k-nucleotide.go
+index b4d4098d0d..fdc98ed472 100644
+--- a/test/bench/k-nucleotide.go
++++ b/test/bench/k-nucleotide.go
+@@ -51,24 +51,15 @@ func count(data string, n int) map[string]int {
+ 	top := len(data) - n
+ 	for i := 0; i <= top; i++ {
+ 		s := data[i : i+n]
+-		if k, ok := counts[s]; ok {
+-			counts[s] = k + 1
+-		} else {
+-			counts[s] = 1
+-		}
++		counts[s]++
+ 	}
+ 	return counts
+ }
+ 
+ func countOne(data string, s string) int {
+-	counts := count(data, len(s))
+-	if i, ok := counts[s]; ok {
+-		return i
+-	}
+-	return 0
++	return count(data, len(s))[s]
+ }
+ 
+-
+ type kNuc struct {
+ 	name  string
+ 	count int

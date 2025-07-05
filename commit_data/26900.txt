@@ -11,7 +11,7 @@ Date:   Wed Mar 2 11:01:25 2016 -0800
     Change-Id: Ibf7de679eea528a31c9692ef1c76a1d9b3239211
     Reviewed-on: https://go-review.googlesource.com/20131
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   |  2 +-
  src/cmd/compile/internal/arm/ggen.go     |  2 +-
  src/cmd/compile/internal/arm64/ggen.go   |  2 +-
@@ -33,3 +33,803 @@ Date:   Wed Mar 2 11:01:25 2016 -0800
  src/cmd/compile/internal/ppc64/ggen.go   |  2 +-
  src/cmd/compile/internal/x86/ggen.go     |  2 +-
  20 files changed, 87 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 55fb9e0a43..6c921dd4c2 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -728,7 +728,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			continue
+ 		}
+ 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
+-			gc.Warnl(int(p.Lineno), "generated nil check")
++			gc.Warnl(p.Lineno, "generated nil check")
+ 		}
+ 
+ 		// check is
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 5e282c8cd5..d52e27a3b1 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -421,7 +421,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			continue
+ 		}
+ 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
+-			gc.Warnl(int(p.Lineno), "generated nil check")
++			gc.Warnl(p.Lineno, "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+ 			gc.Fatalf("invalid nil check %v", p)
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index a33b2b42bf..b8bccd4e88 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -491,7 +491,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			continue
+ 		}
+ 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
+-			gc.Warnl(int(p.Lineno), "generated nil check")
++			gc.Warnl(p.Lineno, "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+ 			gc.Fatalf("invalid nil check %v\n", p)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index a33ddeb9b5..72b5a74f6a 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -261,7 +261,7 @@ func capturevars(xfunc *Node) {
+ 			if v.Name.Byval {
+ 				how = "value"
+ 			}
+-			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
++			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
+ 		}
+ 
+ 		typecheck(&outer, Erv)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index f68cffb33e..eb0ccf087f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -50,21 +50,12 @@ func pushdcl(s *Sym) *Sym {
+ }
+ 
+ func popdcl() {
+-	var d *Sym
+-	var s *Sym
+-	var lno int
+-
+-	//	if(dflag())
+-	//		print("revert\n");
+-
+-	for d = dclstack; d != nil; d = d.Link {
+-		if d.Name == "" {
+-			break
+-		}
+-		s = Pkglookup(d.Name, d.Pkg)
+-		lno = int(s.Lastlineno)
++	d := dclstack
++	for ; d != nil && d.Name != ""; d = d.Link {
++		s := Pkglookup(d.Name, d.Pkg)
++		lno := s.Lastlineno
+ 		dcopy(s, d)
+-		d.Lastlineno = int32(lno)
++		d.Lastlineno = lno
+ 		if dflag() {
+ 			fmt.Printf("\t%v pop %v %p\n", Ctxt.Line(int(lineno)), s, s.Def)
+ 		}
+@@ -73,7 +64,8 @@ func popdcl() {
+ 	if d == nil {
+ 		Fatalf("popdcl: no mark")
+ 	}
+-	dclstack = d.Link
++
++	dclstack = d.Link // pop mark
+ 	block = d.Block
+ }
+ 
+@@ -86,11 +78,7 @@ func markdcl() {
+ 	block = blockgen
+ }
+ 
+-//	if(dflag())
+-//		print("markdcl\n");
+ func dumpdcl(st string) {
+-	var s *Sym
+-
+ 	i := 0
+ 	for d := dclstack; d != nil; d = d.Link {
+ 		i++
+@@ -101,8 +89,7 @@ func dumpdcl(st string) {
+ 		}
+ 
+ 		fmt.Printf(" '%s'", d.Name)
+-		s = Pkglookup(d.Name, d.Pkg)
+-		fmt.Printf(" %v\n", s)
++		fmt.Printf(" %v\n", Pkglookup(d.Name, d.Pkg))
+ 	}
+ }
+ 
+@@ -113,7 +100,6 @@ func testdclstack() {
+ 				errorexit()
+ 			}
+ 			Yyerror("mark left on the stack")
+-			continue
+ 		}
+ 	}
+ }
+@@ -129,8 +115,8 @@ func redeclare(s *Sym, where string) {
+ 		pkgstr := tmp
+ 		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", s, where, pkgstr)
+ 	} else {
+-		line1 := parserline()
+-		line2 := int(s.Lastlineno)
++		line1 := lineno
++		line2 := s.Lastlineno
+ 
+ 		// When an import and a declaration collide in separate files,
+ 		// present the import as the "redeclared", because the declaration
+@@ -138,10 +124,10 @@ func redeclare(s *Sym, where string) {
+ 		// See issue 4510.
+ 		if s.Def == nil {
+ 			line2 = line1
+-			line1 = int(s.Lastlineno)
++			line1 = s.Lastlineno
+ 		}
+ 
+-		yyerrorl(int(line1), "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, Ctxt.Line(line2))
++		yyerrorl(line1, "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, Ctxt.Line(int(line2)))
+ 	}
+ }
+ 
+@@ -164,7 +150,7 @@ func declare(n *Node, ctxt Class) {
+ 		// named OLITERAL needs Name; most OLITERALs don't.
+ 		n.Name = new(Name)
+ 	}
+-	n.Lineno = int32(parserline())
++	n.Lineno = lineno
+ 	s := n.Sym
+ 
+ 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
+@@ -213,7 +199,7 @@ func declare(n *Node, ctxt Class) {
+ 	}
+ 
+ 	s.Block = block
+-	s.Lastlineno = int32(parserline())
++	s.Lastlineno = lineno
+ 	s.Def = n
+ 	n.Name.Vargen = int32(gen)
+ 	n.Name.Funcdepth = Funcdepth
+@@ -466,13 +452,13 @@ func colasdefn(left *NodeList, defn *Node) {
+ 			continue
+ 		}
+ 		if !colasname(n) {
+-			yyerrorl(int(defn.Lineno), "non-name %v on left side of :=", n)
++			yyerrorl(defn.Lineno, "non-name %v on left side of :=", n)
+ 			nerr++
+ 			continue
+ 		}
+ 
+ 		if n.Sym.Flags&SymUniq == 0 {
+-			yyerrorl(int(defn.Lineno), "%v repeated on left side of :=", n.Sym)
++			yyerrorl(defn.Lineno, "%v repeated on left side of :=", n.Sym)
+ 			n.Diag++
+ 			nerr++
+ 			continue
+@@ -492,7 +478,7 @@ func colasdefn(left *NodeList, defn *Node) {
+ 	}
+ 
+ 	if nnew == 0 && nerr == 0 {
+-		yyerrorl(int(defn.Lineno), "no new variables on left side of :=")
++		yyerrorl(defn.Lineno, "no new variables on left side of :=")
+ 	}
+ }
+ 
+@@ -1546,7 +1532,7 @@ func checknowritebarrierrec() {
+ 				call = c.best[n]
+ 			}
+ 			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
+-			yyerrorl(int(n.Func.WBLineno), err)
++			yyerrorl(n.Func.WBLineno, err)
+ 		}
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 7ba377b200..08cdc88496 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -462,7 +462,7 @@ func escAnalyze(all []*Node, recursive bool) {
+ 	if Debug['m'] != 0 {
+ 		for l := e.noesc; l != nil; l = l.Next {
+ 			if l.N.Esc == EscNone {
+-				Warnl(int(l.N.Lineno), "%v %v does not escape", e.curfnSym(l.N), Nconv(l.N, obj.FmtShort))
++				Warnl(l.N.Lineno, "%v %v does not escape", e.curfnSym(l.N), Nconv(l.N, obj.FmtShort))
+ 			}
+ 		}
+ 	}
+@@ -632,7 +632,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
+ 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+ 		if Debug['m'] > 1 {
+-			Warnl(int(n.Lineno), "%v is too large for stack", n)
++			Warnl(n.Lineno, "%v is too large for stack", n)
+ 		}
+ 		n.Esc = EscHeap
+ 		addrescapes(n)
+@@ -732,7 +732,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+ 			// that b does not escape when b contents do.
+ 			if Debug['m'] != 0 {
+-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
++				Warnl(n.Lineno, "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
+ 			}
+ 
+ 			break
+@@ -827,7 +827,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			slice2 := n.List.Next.N
+ 			escassignDereference(e, &e.theSink, slice2) // lose track of assign of dereference
+ 			if Debug['m'] > 2 {
+-				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
++				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
+ 			}
+ 		}
+ 		escassignDereference(e, &e.theSink, n.List.N) // The original elements are now leaked, too
+@@ -1667,9 +1667,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		// 4. return *in
+ 		if Debug['m'] != 0 {
+ 			if Debug['m'] == 1 {
+-				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
++				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
+ 			} else {
+-				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
++				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
+ 			}
+ 		}
+ 		if src.Esc&EscMask != EscReturn {
+@@ -1686,7 +1686,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		level.int() > 0 {
+ 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 		if Debug['m'] != 0 {
+-			Warnl(int(src.Lineno), "mark escaped content: %v", Nconv(src, obj.FmtShort))
++			Warnl(src.Lineno, "mark escaped content: %v", Nconv(src, obj.FmtShort))
+ 		}
+ 	}
+ 
+@@ -1699,9 +1699,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] == 1 {
+-						Warnl(int(src.Lineno), "leaking param content: %v", Nconv(src, obj.FmtShort))
++						Warnl(src.Lineno, "leaking param content: %v", Nconv(src, obj.FmtShort))
+ 					} else {
+-						Warnl(int(src.Lineno), "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
++						Warnl(src.Lineno, "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+ 							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
+ 					}
+ 				}
+@@ -1709,9 +1709,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 				src.Esc = EscScope
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] == 1 {
+-						Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
++						Warnl(src.Lineno, "leaking param: %v", Nconv(src, obj.FmtShort))
+ 					} else {
+-						Warnl(int(src.Lineno), "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
++						Warnl(src.Lineno, "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+ 							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
+ 					}
+ 				}
+@@ -1722,7 +1722,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		// original variable.
+ 		if src.Class == PPARAMREF {
+ 			if leaks && Debug['m'] != 0 {
+-				Warnl(int(src.Lineno), "leaking closure reference %v", Nconv(src, obj.FmtShort))
++				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, obj.FmtShort))
+ 			}
+ 			escwalk(e, level, dst, src.Name.Param.Closure)
+ 		}
+@@ -1737,10 +1737,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 					p = p.Left // merely to satisfy error messages in tests
+ 				}
+ 				if Debug['m'] > 1 {
+-					Warnl(int(src.Lineno), "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
++					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
+ 						Nconv(p, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
+ 				} else {
+-					Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
++					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, obj.FmtShort))
+ 				}
+ 			}
+ 			escwalkBody(e, level.dec(), dst, src.Left, modSrcLoopdepth)
+@@ -1756,7 +1756,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 {
+-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
++				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, obj.FmtShort))
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+ 		}
+@@ -1790,7 +1790,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 {
+-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
++				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, obj.FmtShort))
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+ 		}
+@@ -1878,7 +1878,7 @@ func esctag(e *EscState, func_ *Node) {
+ 					} else {
+ 						name = fmt.Sprintf("arg#%d", narg)
+ 					}
+-					Warnl(int(func_.Lineno), "%v assuming %v is unsafe uintptr", funcSym(func_), name)
++					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name)
+ 				}
+ 				t.Note = &unsafeUintptrTag
+ 			}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b36fe7b9e4..237fa4f0b5 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -558,7 +558,7 @@ func importtype(pt *Type, t *Type) {
+ 		copytype(pt.Nod, t)
+ 		pt.Nod = n // unzero nod
+ 		pt.Sym.Importdef = importpkg
+-		pt.Sym.Lastlineno = int32(parserline())
++		pt.Sym.Lastlineno = lineno
+ 		declare(n, PEXTERN)
+ 		checkwidth(pt)
+ 	} else if !Eqtype(pt.Orig, t) {
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index c151ca3559..38dc27da31 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -983,13 +983,13 @@ func checklabels() {
+ 	for lab := labellist; lab != nil; lab = lab.Link {
+ 		if lab.Def == nil {
+ 			for _, n := range lab.Use {
+-				yyerrorl(int(n.Lineno), "label %v not defined", lab.Sym)
++				yyerrorl(n.Lineno, "label %v not defined", lab.Sym)
+ 			}
+ 			continue
+ 		}
+ 
+ 		if lab.Use == nil && !lab.Used {
+-			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
++			yyerrorl(lab.Def.Lineno, "label %v defined and not used", lab.Sym)
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 13695f1455..9cf5ae74d0 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1900,7 +1900,7 @@ redo:
+ 	c := obj.Bgetc(l.bin)
+ 	if c < utf8.RuneSelf {
+ 		if c == 0 {
+-			yyerrorl(int(lexlineno), "illegal NUL byte")
++			yyerrorl(lexlineno, "illegal NUL byte")
+ 			return 0
+ 		}
+ 		if c == '\n' && importpkg == nil {
+@@ -1924,11 +1924,11 @@ redo:
+ 		// The string conversion here makes a copy for passing
+ 		// to fmt.Printf, so that buf itself does not escape and
+ 		// can be allocated on the stack.
+-		yyerrorl(int(lexlineno), "illegal UTF-8 sequence % x", string(buf[:i]))
++		yyerrorl(lexlineno, "illegal UTF-8 sequence % x", string(buf[:i]))
+ 	}
+ 
+ 	if r == BOM {
+-		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
++		yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file")
+ 		goto redo
+ 	}
+ 
+@@ -2299,7 +2299,7 @@ func lexname(lex rune) string {
+ 	return fmt.Sprintf("LEX-%d", lex)
+ }
+ 
+-func pkgnotused(lineno int, path string, name string) {
++func pkgnotused(lineno int32, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.
+ 	// Note that this handles both renamed imports and imports of
+@@ -2311,9 +2311,9 @@ func pkgnotused(lineno int, path string, name string) {
+ 		elem = elem[i+1:]
+ 	}
+ 	if name == "" || elem == name {
+-		yyerrorl(int(lineno), "imported and not used: %q", path)
++		yyerrorl(lineno, "imported and not used: %q", path)
+ 	} else {
+-		yyerrorl(int(lineno), "imported and not used: %q as %s", path, name)
++		yyerrorl(lineno, "imported and not used: %q as %s", path, name)
+ 	}
+ }
+ 
+@@ -2338,7 +2338,7 @@ func mkpackage(pkgname string) {
+ 				// errors if a conflicting top-level name is
+ 				// introduced by a different file.
+ 				if !s.Def.Used && nsyntaxerrors == 0 {
+-					pkgnotused(int(s.Def.Lineno), s.Def.Name.Pkg.Path, s.Name)
++					pkgnotused(s.Def.Lineno, s.Def.Name.Pkg.Path, s.Name)
+ 				}
+ 				s.Def = nil
+ 				continue
+@@ -2348,7 +2348,7 @@ func mkpackage(pkgname string) {
+ 				// throw away top-level name left over
+ 				// from previous import . "x"
+ 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+-					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Name.Pkg.Path, "")
++					pkgnotused(s.Def.Name.Pack.Lineno, s.Def.Name.Pack.Name.Pkg.Path, "")
+ 					s.Def.Name.Pack.Used = true
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index a485fa181a..122aba6174 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -327,7 +327,7 @@ func (p *parser) importdcl() {
+ 		return
+ 	}
+ 
+-	line := int32(parserline())
++	line := lineno
+ 
+ 	// We need to clear importpkg before calling p.next(),
+ 	// otherwise it will affect lexlineno.
+@@ -1568,7 +1568,7 @@ func (p *parser) dcl_name() *Node {
+ 	symlineno := lineno
+ 	sym := p.sym()
+ 	if sym == nil {
+-		yyerrorl(int(symlineno), "invalid declaration")
++		yyerrorl(symlineno, "invalid declaration")
+ 		return nil
+ 	}
+ 	return dclname(sym)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 384261b05e..3d57c350f1 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1270,7 +1270,7 @@ func livenessepilogue(lv *Liveness) {
+ 						if !n.Name.Needzero {
+ 							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+-								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
++								Warnl(p.Lineno, "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
+ 							}
+ 
+ 							// Record in 'ambiguous' bitmap.
+@@ -1367,7 +1367,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n = lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
++							yyerrorl(p.Lineno, "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 0a2d8c45d4..64136e0ea7 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -927,7 +927,7 @@ func nilopt(firstp *obj.Prog) {
+ 		ncheck++
+ 		if Thearch.Stackaddr(&p.From) {
+ 			if Debug_checknil != 0 && p.Lineno > 1 {
+-				Warnl(int(p.Lineno), "removed nil check of SP address")
++				Warnl(p.Lineno, "removed nil check of SP address")
+ 			}
+ 			f.Data = &killed
+ 			continue
+@@ -936,7 +936,7 @@ func nilopt(firstp *obj.Prog) {
+ 		nilwalkfwd(f)
+ 		if f.Data != nil {
+ 			if Debug_checknil != 0 && p.Lineno > 1 {
+-				Warnl(int(p.Lineno), "removed nil check before indirect")
++				Warnl(p.Lineno, "removed nil check before indirect")
+ 			}
+ 			continue
+ 		}
+@@ -944,7 +944,7 @@ func nilopt(firstp *obj.Prog) {
+ 		nilwalkback(f)
+ 		if f.Data != nil {
+ 			if Debug_checknil != 0 && p.Lineno > 1 {
+-				Warnl(int(p.Lineno), "removed repeated nil check")
++				Warnl(p.Lineno, "removed repeated nil check")
+ 			}
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 91c491648e..e5c65c7002 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -182,11 +182,11 @@ func buildssa(fn *Node) *ssa.Func {
+ 	// Check that we used all labels
+ 	for name, lab := range s.labels {
+ 		if !lab.used() && !lab.reported {
+-			yyerrorl(int(lab.defNode.Lineno), "label %v defined and not used", name)
++			yyerrorl(lab.defNode.Lineno, "label %v defined and not used", name)
+ 			lab.reported = true
+ 		}
+ 		if lab.used() && !lab.defined() && !lab.reported {
+-			yyerrorl(int(lab.useNode.Lineno), "label %v not defined", name)
++			yyerrorl(lab.useNode.Lineno, "label %v not defined", name)
+ 			lab.reported = true
+ 		}
+ 	}
+@@ -372,7 +372,7 @@ func (s *state) peekLine() int32 {
+ }
+ 
+ func (s *state) Error(msg string, args ...interface{}) {
+-	yyerrorl(int(s.peekLine()), msg, args...)
++	yyerrorl(s.peekLine(), msg, args...)
+ }
+ 
+ // newValue0 adds a new value with no arguments to the current block.
+@@ -2796,7 +2796,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
+ 	s.startBlock(bEnd)
+ 
+ 	if Debug_wb > 0 {
+-		Warnl(int(line), "write barrier")
++		Warnl(line, "write barrier")
+ 	}
+ }
+ 
+@@ -2842,7 +2842,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+ 	s.startBlock(bEnd)
+ 
+ 	if Debug_wb > 0 {
+-		Warnl(int(line), "write barrier")
++		Warnl(line, "write barrier")
+ 	}
+ }
+ 
+@@ -3339,7 +3339,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	}
+ 
+ 	if Debug_typeassert > 0 {
+-		Warnl(int(n.Lineno), "type assertion inlined")
++		Warnl(n.Lineno, "type assertion inlined")
+ 	}
+ 
+ 	// TODO:  If we have a nonempty interface and its itab field is nil,
+@@ -3444,7 +3444,7 @@ func (s *state) checkgoto(from *Node, to *Node) {
+ 			fs = fs.Link
+ 		}
+ 
+-		lno := int(from.Left.Lineno)
++		lno := from.Left.Lineno
+ 		if block != nil {
+ 			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
+ 		} else {
+@@ -4658,7 +4658,7 @@ func (s *genState) genValue(v *ssa.Value) {
+ 				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore:
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+ 					if Debug_checknil != 0 && int(v.Line) > 1 {
+-						Warnl(int(v.Line), "removed nil check")
++						Warnl(v.Line, "removed nil check")
+ 					}
+ 					return
+ 				}
+@@ -4666,7 +4666,7 @@ func (s *genState) genValue(v *ssa.Value) {
+ 				off := ssa.ValAndOff(v.AuxInt).Off()
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+ 					if Debug_checknil != 0 && int(v.Line) > 1 {
+-						Warnl(int(v.Line), "removed nil check")
++						Warnl(v.Line, "removed nil check")
+ 					}
+ 					return
+ 				}
+@@ -4694,7 +4694,7 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		p.To.Reg = regnum(v.Args[0])
+ 		addAux(&p.To, v)
+ 		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+-			Warnl(int(v.Line), "generated nil check")
++			Warnl(v.Line, "generated nil check")
+ 		}
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+@@ -5223,7 +5223,7 @@ func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{})
+ // Warnl reports a "warning", which is usually flag-triggered
+ // logging output for the benefit of tests.
+ func (e *ssaExport) Warnl(line int, fmt_ string, args ...interface{}) {
+-	Warnl(line, fmt_, args...)
++	Warnl(int32(line), fmt_, args...)
+ }
+ 
+ func (e *ssaExport) Debug_checknil() bool {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ce1a317530..386955c2da 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ type Error struct {
+-	lineno int
++	lineno int32
+ 	msg    string
+ }
+ 
+@@ -32,10 +32,6 @@ func errorexit() {
+ 	os.Exit(2)
+ }
+ 
+-func parserline() int {
+-	return int(lineno)
+-}
+-
+ func adderrorname(n *Node) {
+ 	if n.Op != ODOT {
+ 		return
+@@ -46,10 +42,10 @@ func adderrorname(n *Node) {
+ 	}
+ }
+ 
+-func adderr(line int, format string, args ...interface{}) {
++func adderr(line int32, format string, args ...interface{}) {
+ 	errors = append(errors, Error{
+ 		lineno: line,
+-		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(line), fmt.Sprintf(format, args...)),
++		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(int(line)), fmt.Sprintf(format, args...)),
+ 	})
+ }
+ 
+@@ -85,14 +81,14 @@ func hcrash() {
+ 	}
+ }
+ 
+-func yyerrorl(line int, format string, args ...interface{}) {
++func yyerrorl(line int32, format string, args ...interface{}) {
+ 	adderr(line, format, args...)
+ 
+ 	hcrash()
+ 	nerrors++
+ 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
+ 		Flusherrors()
+-		fmt.Printf("%v: too many errors\n", Ctxt.Line(line))
++		fmt.Printf("%v: too many errors\n", Ctxt.Line(int(line)))
+ 		errorexit()
+ 	}
+ }
+@@ -110,28 +106,28 @@ func Yyerror(format string, args ...interface{}) {
+ 		}
+ 		yyerror_lastsyntax = lineno
+ 
+-		yyerrorl(int(lineno), "%s", msg)
++		yyerrorl(lineno, "%s", msg)
+ 		return
+ 	}
+ 
+-	adderr(parserline(), "%s", msg)
++	adderr(lineno, "%s", msg)
+ 
+ 	hcrash()
+ 	nerrors++
+ 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
+ 		Flusherrors()
+-		fmt.Printf("%v: too many errors\n", Ctxt.Line(parserline()))
++		fmt.Printf("%v: too many errors\n", Ctxt.Line(int(lineno)))
+ 		errorexit()
+ 	}
+ }
+ 
+ func Warn(fmt_ string, args ...interface{}) {
+-	adderr(parserline(), fmt_, args...)
++	adderr(lineno, fmt_, args...)
+ 
+ 	hcrash()
+ }
+ 
+-func Warnl(line int, fmt_ string, args ...interface{}) {
++func Warnl(line int32, fmt_ string, args ...interface{}) {
+ 	adderr(line, fmt_, args...)
+ 	if Debug['m'] != 0 {
+ 		Flusherrors()
+@@ -304,7 +300,7 @@ func importdot(opkg *Pkg, pack *Node) {
+ 
+ 	if n == 0 {
+ 		// can't possibly be used - there were no symbols
+-		yyerrorl(int(pack.Lineno), "imported and not used: %q", opkg.Path)
++		yyerrorl(pack.Lineno, "imported and not used: %q", opkg.Path)
+ 	}
+ }
+ 
+@@ -313,7 +309,7 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
+ 	n.Op = op
+ 	n.Left = nleft
+ 	n.Right = nright
+-	n.Lineno = int32(parserline())
++	n.Lineno = lineno
+ 	n.Xoffset = BADWIDTH
+ 	n.Orig = n
+ 	switch op {
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 6e743492eb..7ad66c3e70 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -483,7 +483,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
+ 					break
+ 				}
+ 				if Eqtype(c1.node.Left.Type, c2.node.Left.Type) {
+-					yyerrorl(int(c2.node.Lineno), "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
++					yyerrorl(c2.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f912061423..05a1b26f74 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -164,7 +164,7 @@ func typecheck(np **Node, top int) *Node {
+ 				break
+ 			}
+ 			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
+-			yyerrorl(int(n.Lineno), "constant definition loop%s", fmt_)
++			yyerrorl(n.Lineno, "constant definition loop%s", fmt_)
+ 		}
+ 
+ 		if nsavederrors+nerrors == 0 {
+@@ -4013,7 +4013,7 @@ func checkreturn(fn *Node) {
+ 	if fn.Type.Outtuple != 0 && len(fn.Nbody.Slice()) != 0 {
+ 		markbreakslice(fn.Nbody.Slice(), nil)
+ 		if !fn.Nbody.isterminating() {
+-			yyerrorl(int(fn.Func.Endlineno), "missing return at end of function")
++			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 04dac7ca2c..f72176b6c9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2142,7 +2142,7 @@ func needwritebarrier(l *Node, r *Node) bool {
+ func applywritebarrier(n *Node) *Node {
+ 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
+ 		if Debug_wb > 1 {
+-			Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
++			Warnl(n.Lineno, "marking %v for barrier", Nconv(n.Left, 0))
+ 		}
+ 		n.Op = OASWB
+ 		return n
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 429eb351a2..9789629ba1 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -453,7 +453,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			continue
+ 		}
+ 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
+-			gc.Warnl(int(p.Lineno), "generated nil check")
++			gc.Warnl(p.Lineno, "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+ 			gc.Fatalf("invalid nil check %v\n", p)
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 5e50f9e0e8..4be00c7ee2 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -485,7 +485,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			continue
+ 		}
+ 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
+-			gc.Warnl(int(p.Lineno), "generated nil check")
++			gc.Warnl(p.Lineno, "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+ 			gc.Fatalf("invalid nil check %v\n", p)
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 480ae1c585..cf605feefc 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -843,7 +843,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			continue
+ 		}
+ 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
+-			gc.Warnl(int(p.Lineno), "generated nil check")
++			gc.Warnl(p.Lineno, "generated nil check")
+ 		}
+ 
+ 		// check is

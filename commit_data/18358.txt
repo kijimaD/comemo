@@ -8,6 +8,19 @@ Date:   Mon Jan 27 11:17:12 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/54660046
-
+---
  src/cmd/6a/lex.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index e69069e41a..4319e6435f 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -507,6 +507,7 @@ struct
+ 	"MOVLQZX",	LTYPE3, AMOVLQZX,
+ 	"MOVNTIL",	LTYPE3,	AMOVNTIL,
+ 	"MOVNTIQ",	LTYPE3,	AMOVNTIQ,
++	"MOVQL",	LTYPE3, AMOVQL,
+ 	"MOVWLSX",	LTYPE3, AMOVWLSX,
+ 	"MOVWLZX",	LTYPE3, AMOVWLZX,
+ 	"MOVWQSX",	LTYPE3,	AMOVWQSX,

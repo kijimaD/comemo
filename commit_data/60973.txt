@@ -14,6 +14,31 @@ Date:   Fri Sep 13 13:14:51 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/gob/type.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index c3ac1dbd61..a26070713f 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -8,6 +8,7 @@ import (
+ 	"encoding"
+ 	"errors"
+ 	"fmt"
++	"maps"
+ 	"os"
+ 	"reflect"
+ 	"sync"
+@@ -779,10 +780,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
+ 
+ 	// Create new map with old contents plus new entry.
+ 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
+-	newm := make(map[reflect.Type]*typeInfo, len(m))
+-	for k, v := range m {
+-		newm[k] = v
+-	}
++	newm := maps.Clone(m)
+ 	newm[rt] = info
+ 	typeInfoMap.Store(newm)
+ 	return info, nil

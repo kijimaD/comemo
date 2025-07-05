@@ -11,6 +11,24 @@ Date:   Fri Apr 19 16:35:24 2019 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 55b96e5c9b..04dd2f7c2d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -416,12 +416,6 @@ func nodintconst(v int64) *Node {
+ 	return nodlit(Val{u})
+ }
+ 
+-func nodfltconst(v *Mpflt) *Node {
+-	u := newMpflt()
+-	u.Set(v)
+-	return nodlit(Val{u})
+-}
+-
+ func nodnil() *Node {
+ 	return nodlit(Val{new(NilVal)})
+ }

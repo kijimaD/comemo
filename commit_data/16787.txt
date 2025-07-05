@@ -10,7 +10,7 @@ Date:   Tue Jul 16 16:25:10 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11371043
-
+---
  src/cmd/5g/gg.h    |  1 +
  src/cmd/5g/ggen.c  | 22 +++++++++++++++++-----
  src/cmd/5g/gsubr.c | 11 +++++++++++
@@ -22,3 +22,327 @@ Date:   Tue Jul 16 16:25:10 2013 -0400
  src/cmd/8g/ggen.c  | 22 +++++++++++++++++-----
  src/cmd/8g/gsubr.c | 11 +++++++++++
  10 files changed, 88 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 5d78915926..90fcbe394c 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -146,6 +146,7 @@ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ Node*	ncon(uint32 i);
+ void	gtrack(Sym*);
++void	gargsize(int32);
+ 
+ /*
+  * obj.c
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index eb027c6a67..6e4f564618 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -73,9 +73,23 @@ fixautoused(Prog* p)
+ void
+ ginscall(Node *f, int proc)
+ {
++	int32 arg;
+ 	Prog *p;
+ 	Node n1, r, r1, con;
+ 
++	if(f->type != T)
++		setmaxarg(f->type);
++
++	arg = -1;
++	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++		arg = f->type->argwid;
++		if(proc == 1 || proc == 2)
++			arg += 3*widthptr;
++	}
++
++	if(arg != -1)
++		gargsize(arg);
++
+ 	switch(proc) {
+ 	default:
+ 		fatal("ginscall: bad proc %d", proc);
+@@ -170,6 +184,9 @@ ginscall(Node *f, int proc)
+ 		}
+ 		break;
+ 	}
++	
++	if(arg != -1)
++		gargsize(-1);
+ }
+ 
+ /*
+@@ -239,14 +256,11 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 		p->from.type = D_CONST;	// REG = &(20+offset(REG)) -- i.tab->fun[f]
+ 	}
+ 
+-	// BOTCH nodr.type = fntype;
+ 	nodr.type = n->left->type;
+ 	ginscall(&nodr, proc);
+ 
+ 	regfree(&nodr);
+ 	regfree(&nodo);
+-
+-	setmaxarg(n->left->type);
+ }
+ 
+ /*
+@@ -274,8 +288,6 @@ cgen_call(Node *n, int proc)
+ 	genlist(n->list);		// assign the args
+ 	t = n->left->type;
+ 
+-	setmaxarg(t);
+-
+ 	// call tempname pointer
+ 	if(n->left->ullman >= UINF) {
+ 		regalloc(&nod, types[tptr], N);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 56b27da136..be4b7df503 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -31,6 +31,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 5l for all GOOS.
+@@ -209,6 +210,16 @@ ggloblnod(Node *nam)
+ 		p->reg |= NOPTR;
+ }
+ 
++void
++gargsize(int32 size)
++{
++	Node n1, n2;
++	
++	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
++	nodconst(&n2, types[TINT32], size);
++	gins(APCDATA, &n1, &n2);
++}
++
+ void
+ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 01d4a1bbf2..87afa86a8c 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1199,6 +1199,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ALOCALS:	/* funny */
+ 	case ANPTRS:
+ 	case APTRS:
++	case APCDATA:
+ 		return 0;
+ 	}
+ }
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index d5b6728376..74382a248f 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -131,6 +131,7 @@ int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*, Node*);
+ void	nodfconst(Node*, Type*, Mpflt*);
+ void	gtrack(Sym*);
++void	gargsize(vlong);
+ 
+ /*
+  * cplx.c
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 36d9dce466..7883dad593 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -70,10 +70,24 @@ fixautoused(Prog *p)
+ void
+ ginscall(Node *f, int proc)
+ {
++	int32 arg;
+ 	Prog *p;
+ 	Node reg, con;
+ 	Node r1;
+ 
++	if(f->type != T)
++		setmaxarg(f->type);
++
++	arg = -1;
++	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++		arg = f->type->argwid;
++		if(proc == 1 || proc == 2)
++			arg += 2*widthptr;
++	}
++
++	if(arg != -1)
++		gargsize(arg);
++
+ 	switch(proc) {
+ 	default:
+ 		fatal("ginscall: bad proc %d", proc);
+@@ -143,6 +157,9 @@ ginscall(Node *f, int proc)
+ 		}
+ 		break;
+ 	}
++
++	if(arg != -1)
++		gargsize(-1);
+ }
+ 
+ /*
+@@ -202,14 +219,11 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 		gins(ALEAQ, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
+ 	}
+ 
+-	// BOTCH nodr.type = fntype;
+ 	nodr.type = n->left->type;
+ 	ginscall(&nodr, proc);
+ 
+ 	regfree(&nodr);
+ 	regfree(&nodo);
+-
+-	setmaxarg(n->left->type);
+ }
+ 
+ /*
+@@ -237,8 +251,6 @@ cgen_call(Node *n, int proc)
+ 	genlist(n->list);		// assign the args
+ 	t = n->left->type;
+ 
+-	setmaxarg(t);
+-
+ 	// call tempname pointer
+ 	if(n->left->ullman >= UINF) {
+ 		regalloc(&nod, types[tptr], N);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c494215442..88b1687922 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -31,6 +31,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 6l for all GOOS.
+@@ -218,6 +219,16 @@ gtrack(Sym *s)
+ 	p->from.sym = s;
+ }
+ 
++void
++gargsize(vlong size)
++{
++	Node n1, n2;
++	
++	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
++	nodconst(&n2, types[TINT32], size);
++	gins(APCDATA, &n1, &n2);
++}
++
+ void
+ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 5e31159773..6907d7ebb4 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -151,7 +151,7 @@ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ void	nswap(Node*, Node*);
+ void	gtrack(Sym*);
+-
++void	gargsize(int32);
+ /*
+  * cplx.c
+  */
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 4dec3c8082..1095d5e441 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -115,9 +115,23 @@ clearfat(Node *nl)
+ void
+ ginscall(Node *f, int proc)
+ {
++	int32 arg;
+ 	Prog *p;
+ 	Node reg, r1, con;
+ 
++	if(f->type != T)
++		setmaxarg(f->type);
++
++	arg = -1;
++	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++		arg = f->type->argwid;
++		if(proc == 1 || proc == 2)
++			arg += 2*widthptr;
++	}
++
++	if(arg != -1)
++		gargsize(arg);
++
+ 	switch(proc) {
+ 	default:
+ 		fatal("ginscall: bad proc %d", proc);
+@@ -177,6 +191,9 @@ ginscall(Node *f, int proc)
+ 		}
+ 		break;
+ 	}
++	
++	if(arg != -1)
++		gargsize(-1);
+ }
+ 
+ /*
+@@ -237,14 +254,11 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 		gins(ALEAL, &nodo, &nodr);	// REG = &(20+offset(REG)) -- i.tab->fun[f]
+ 	}
+ 
+-	// BOTCH nodr.type = fntype;
+ 	nodr.type = n->left->type;
+ 	ginscall(&nodr, proc);
+ 
+ 	regfree(&nodr);
+ 	regfree(&nodo);
+-
+-	setmaxarg(n->left->type);
+ }
+ 
+ /*
+@@ -272,8 +286,6 @@ cgen_call(Node *n, int proc)
+ 	genlist(n->list);		// assign the args
+ 	t = n->left->type;
+ 
+-	setmaxarg(t);
+-
+ 	// call tempname pointer
+ 	if(n->left->ullman >= UINF) {
+ 		regalloc(&nod, types[tptr], N);
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 7ffc77a268..703a0b5c12 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -31,6 +31,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 8l for all GOOS.
+@@ -208,6 +209,16 @@ ggloblnod(Node *nam)
+ 		p->from.scale |= NOPTR;
+ }
+ 
++void
++gargsize(int32 size)
++{
++	Node n1, n2;
++	
++	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
++	nodconst(&n2, types[TINT32], size);
++	gins(APCDATA, &n1, &n2);
++}
++
+ void
+ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {

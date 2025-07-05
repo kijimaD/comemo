@@ -8,6 +8,37 @@ Date:   Wed Dec 9 14:18:32 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/170044
-
+---
  src/pkg/os/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 03c6d57018..459b78cc22 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -141,11 +141,11 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
+ 		if m == 0 && e == 0 {
+ 			return n, EOF
+ 		}
+-		n += m;
+ 		if e != 0 {
+ 			err = &PathError{"read", file.name, Errno(e)};
+ 			break;
+ 		}
++		n += m;
+ 		b = b[m:];
+ 		off += int64(m);
+ 	}
+@@ -186,11 +186,11 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := syscall.Pwrite(file.fd, b, off);
+-		n += m;
+ 		if e != 0 {
+ 			err = &PathError{"write", file.name, Errno(e)};
+ 			break;
+ 		}
++		n += m;
+ 		b = b[m:];
+ 		off += int64(m);
+ 	}

@@ -9,6 +9,24 @@ Date:   Wed Jun 1 15:19:34 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4561055
-
+---
  src/pkg/big/nat_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index c358cc8cda..50ea469be0 100755
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -251,12 +251,6 @@ var natScanTests = []struct {
+ 	{"0x", 16, nil, 16, true, 'x'},
+ 	{"0xdeadbeef", 0, nat{0xdeadbeef}, 16, true, 0},
+ 	{"0XDEADBEEF", 0, nat{0xdeadbeef}, 16, true, 0},
+-	{"0xfedcba9876543213fedcba9876543212fedcba9876543211fedcba9876543210",
+-		0,
+-		nat{0xfedcba9876543210, 0xfedcba9876543211, 0xfedcba9876543212, 0xfedcba9876543213},
+-		16,
+-		true,
+-		0},
+ }
+ 
+ 

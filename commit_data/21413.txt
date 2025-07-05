@@ -12,6 +12,41 @@ Date:   Thu Jan 1 01:10:39 2015 -0500
     Change-Id: I714fdd3e35f9a7e5f5659cf26367feec9412444f
     Reviewed-on: https://go-review.googlesource.com/2235
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 98c4c1c0d4..5cfcf5ab1f 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -9,6 +9,7 @@ package runtime_test
+ import (
+ 	"runtime"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -52,8 +53,20 @@ func TestCgoExternalThreadPanic(t *testing.T) {
+ 
+ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	// issue 9456.
+-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
++	switch runtime.GOOS {
++	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
++	case "darwin":
++		// static constructor needs external linking, but we don't support
++		// external linking on OS X 10.6.
++		osver, err := syscall.Sysctl("kern.osrelease")
++		if err != nil {
++			t.Fatalf("Sysctl(kern.osrelease) failed: %v", err)
++		}
++		// OS X 10.6 == Darwin 10.x
++		if strings.HasPrefix(osver, "10.") {
++			t.Skipf("no external linking on OS X 10.6")
++		}
+ 	}
+ 	got := executeTest(t, cgoExternalThreadSIGPROFSource, nil)
+ 	want := "OK\n"

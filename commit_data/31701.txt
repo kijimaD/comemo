@@ -12,7 +12,63 @@ Date:   Wed Mar 8 22:54:52 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/internal/srcimporter/srcimporter_test.go |  6 +++---
  src/internal/testenv/testenv.go                 | 13 +++++++++++++
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index f289bfb44b..79921b5e78 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -76,7 +76,7 @@ func walkDir(t *testing.T, path string, endTime time.Time) (int, bool) {
+ }
+ 
+ func TestImportStdLib(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
++	if !testenv.HasSrc() {
+ 		t.Skip("no source code available")
+ 	}
+ 
+@@ -102,7 +102,7 @@ var importedObjectTests = []struct {
+ }
+ 
+ func TestImportedTypes(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
++	if !testenv.HasSrc() {
+ 		t.Skip("no source code available")
+ 	}
+ 
+@@ -134,7 +134,7 @@ func TestImportedTypes(t *testing.T) {
+ }
+ 
+ func TestReimport(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
++	if !testenv.HasSrc() {
+ 		t.Skip("no source code available")
+ 	}
+ 
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 10384b6206..4cd8a2b541 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -114,6 +114,19 @@ func HasExec() bool {
+ 	return true
+ }
+ 
++// HasSrc reports whether the entire source tree is available under GOROOT.
++func HasSrc() bool {
++	switch runtime.GOOS {
++	case "nacl":
++		return false
++	case "darwin":
++		if strings.HasPrefix(runtime.GOARCH, "arm") {
++			return false
++		}
++	}
++	return true
++}
++
+ // MustHaveExec checks that the current system can start new processes
+ // using os.StartProcess or (more commonly) exec.Command.
+ // If not, MustHaveExec calls t.Skip with an explanation.

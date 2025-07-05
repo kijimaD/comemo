@@ -9,7 +9,45 @@ Date:   Tue Jan 20 14:35:33 2015 -0800
     Change-Id: I7b18f26c2fb812978fc7adc5bfd39ebfffe48701
     Reviewed-on: https://go-review.googlesource.com/3080
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/gc/typecheck.c      |  2 +-
  test/fixedbugs/issue9634.go | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 8a3b486bd6..1abdb83c58 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1346,7 +1346,7 @@ reswitch:
+ 			goto error;
+ 
+ 		// Unpack multiple-return result before type-checking.
+-		if(istype(t, TSTRUCT)) {
++		if(istype(t, TSTRUCT) && t->funarg) {
+ 			t = t->type;
+ 			if(istype(t, TFIELD))
+ 				t = t->type;
+diff --git a/test/fixedbugs/issue9634.go b/test/fixedbugs/issue9634.go
+new file mode 100644
+index 0000000000..2d5aae4a30
+--- /dev/null
++++ b/test/fixedbugs/issue9634.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 9634: Structs are incorrectly unpacked when passed as an argument
++// to append.
++
++package main
++
++func main() {
++	s := struct{
++		t []int
++		u int
++	}{}
++	_ = append(s, 0) // ERROR "must be a slice|must be slice"
++}

@@ -18,9 +18,159 @@ Date:   Sat Jun 11 17:12:28 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go   | 10 ----------
  src/cmd/link/internal/amd64/asm.go |  3 ++-
  src/cmd/link/internal/ld/data.go   | 37 ++++++++++++++++++++++---------------
  src/cmd/link/internal/x86/asm.go   |  3 ++-
  4 files changed, 26 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 414a4d34a5..676da40ba5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1986,16 +1986,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 		c = naclpad(ctxt, s, c, -c&31)
+ 	}
+ 
+-	// Pad functions with trap instruction, to catch invalid jumps
+-	if c&(FuncAlign-1) != 0 {
+-		v := -c & (FuncAlign - 1)
+-		s.Grow(int64(c) + int64(v))
+-		for i := c; i < c+v; i++ {
+-			// 0xCC is INT $3 - breakpoint instruction
+-			s.P[i] = uint8(0xCC)
+-		}
+-		c += v
+-	}
+ 	s.Size = int64(c)
+ 
+ 	if false { /* debug['a'] > 1 */
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 48250c92c8..eff9a22566 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -615,7 +615,8 @@ func asmb() {
+ 
+ 	sect := ld.Segtext.Sect
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+-	ld.Codeblk(int64(sect.Vaddr), int64(sect.Length))
++	// 0xCC is INT $3 - breakpoint instruction
++	ld.CodeblkPad(int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
+ 	for sect = sect.Next; sect != nil; sect = sect.Next {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(int64(sect.Vaddr), int64(sect.Length))
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 6e326ec1c9..57a0dad491 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -790,11 +790,14 @@ func blk(start *LSym, addr int64, size int64) {
+ }
+ 
+ func Codeblk(addr int64, size int64) {
++	CodeblkPad(addr, size, zeros[:])
++}
++func CodeblkPad(addr int64, size int64, pad []byte) {
+ 	if Debug['a'] != 0 {
+ 		fmt.Fprintf(Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+ 	}
+ 
+-	blkSlice(Ctxt.Textp, addr, size)
++	blkSlice(Ctxt.Textp, addr, size, pad)
+ 
+ 	/* again for printing */
+ 	if Debug['a'] == 0 {
+@@ -858,7 +861,7 @@ func Codeblk(addr int64, size int64) {
+ // blkSlice is a variant of blk that processes slices.
+ // After text symbols are converted from a linked list to a slice,
+ // delete blk and give this function its name.
+-func blkSlice(syms []*LSym, addr, size int64) {
++func blkSlice(syms []*LSym, addr, size int64, pad []byte) {
+ 	for i, s := range syms {
+ 		if s.Type&obj.SSUB == 0 && s.Value >= addr {
+ 			syms = syms[i:]
+@@ -880,13 +883,13 @@ func blkSlice(syms []*LSym, addr, size int64) {
+ 			errorexit()
+ 		}
+ 		if addr < s.Value {
+-			strnput("", int(s.Value-addr))
++			strnputPad("", int(s.Value-addr), pad)
+ 			addr = s.Value
+ 		}
+ 		Cwrite(s.P)
+ 		addr += int64(len(s.P))
+ 		if addr < s.Value+s.Size {
+-			strnput("", int(s.Value+s.Size-addr))
++			strnputPad("", int(s.Value+s.Size-addr), pad)
+ 			addr = s.Value + s.Size
+ 		}
+ 		if addr != s.Value+s.Size {
+@@ -899,7 +902,7 @@ func blkSlice(syms []*LSym, addr, size int64) {
+ 	}
+ 
+ 	if addr < eaddr {
+-		strnput("", int(eaddr-addr))
++		strnputPad("", int(eaddr-addr), pad)
+ 	}
+ 	Cflush()
+ }
+@@ -909,7 +912,7 @@ func Datblk(addr int64, size int64) {
+ 		fmt.Fprintf(Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+ 	}
+ 
+-	blkSlice(datap, addr, size)
++	blkSlice(datap, addr, size, zeros[:])
+ 
+ 	/* again for printing */
+ 	if Debug['a'] == 0 {
+@@ -986,23 +989,27 @@ func Dwarfblk(addr int64, size int64) {
+ var zeros [512]byte
+ 
+ // strnput writes the first n bytes of s.
+-// If n is larger then len(s),
++// If n is larger than len(s),
+ // it is padded with NUL bytes.
+ func strnput(s string, n int) {
++	strnputPad(s, n, zeros[:])
++}
++
++// strnput writes the first n bytes of s.
++// If n is larger than len(s),
++// it is padded with the bytes in pad (repeated as needed).
++func strnputPad(s string, n int, pad []byte) {
+ 	if len(s) >= n {
+ 		Cwritestring(s[:n])
+ 	} else {
+ 		Cwritestring(s)
+ 		n -= len(s)
+-		for n > 0 {
+-			if len(zeros) >= n {
+-				Cwrite(zeros[:n])
+-				return
+-			} else {
+-				Cwrite(zeros[:])
+-				n -= len(zeros)
+-			}
++		for n > len(pad) {
++			Cwrite(pad)
++			n -= len(pad)
++
+ 		}
++		Cwrite(pad[:n])
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 2a3513f6a6..cc8f96f27f 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -609,7 +609,8 @@ func asmb() {
+ 
+ 	sect := ld.Segtext.Sect
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+-	ld.Codeblk(int64(sect.Vaddr), int64(sect.Length))
++	// 0xCC is INT $3 - breakpoint instruction
++	ld.CodeblkPad(int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
+ 	for sect = sect.Next; sect != nil; sect = sect.Next {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(int64(sect.Vaddr), int64(sect.Length))

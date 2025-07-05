@@ -8,7 +8,39 @@ Date:   Mon Oct 19 11:47:42 2009 -0700
     DELTA=17  (17 added, 0 deleted, 0 changed)
     OCL=35852
     CL=35876
-
+---
  test/bugs/bug211.go | 14 ++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 17 insertions(+)
+
+diff --git a/test/bugs/bug211.go b/test/bugs/bug211.go
+new file mode 100644
+index 0000000000..69aeeeeac5
+--- /dev/null
++++ b/test/bugs/bug211.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type R interface { duplicate() }
++type S interface { duplicate() }
++type T interface { R; S }	// ERROR "duplicate"
++
++func main() {
++}
+diff --git a/test/golden.out b/test/golden.out
+index dea36ea2bd..52fe9ec53b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -170,3 +170,6 @@ BUG: bug196
+ =========== bugs/bug210.go
+ bugs/bug210.go:10: invalid recursive type []T
+ BUG: should compile
++
++=========== bugs/bug211.go
++BUG: errchk: command succeeded unexpectedly

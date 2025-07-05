@@ -15,8 +15,59 @@ Date:   Fri Aug 19 19:01:05 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/parser/parser.go              | 2 +-
  src/go/parser/short_test.go          | 4 ++--
  src/go/types/testdata/check/stmt0.go | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 2883ea1d3e..3ac350d8f8 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1997,7 +1997,7 @@ func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
+ 	}
+ 	if _, isBad := x.(*ast.BadExpr); !isBad {
+ 		// only report error if it's a new one
+-		p.error(p.safePos(x.End()), fmt.Sprintf("function must be invoked in %s statement", callType))
++		p.error(p.safePos(x.End()), fmt.Sprintf("expression in %s must be function call", callType))
+ 	}
+ 	return nil
+ }
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 88d93d67d6..86779e7e7e 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -170,8 +170,8 @@ var invalids = []string{
+ 	`package p; func f() { for x /* ERROR "boolean or range expression" */ := []string {} }`,
+ 	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x = []string {} }`,
+ 	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x := []string {} }`,
+-	`package p; func f() { go f /* ERROR HERE "function must be invoked" */ }`,
+-	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
++	`package p; func f() { go f /* ERROR HERE "must be function call" */ }`,
++	`package p; func f() { defer func() {} /* ERROR HERE "must be function call" */ }`,
+ 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
+ 	`package p; func _() (type /* ERROR "found 'type'" */ T)(T)`,
+ 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
+diff --git a/src/go/types/testdata/check/stmt0.go b/src/go/types/testdata/check/stmt0.go
+index 0f164d36c8..b466ec8c60 100644
+--- a/src/go/types/testdata/check/stmt0.go
++++ b/src/go/types/testdata/check/stmt0.go
+@@ -229,7 +229,7 @@ func selects() {
+ }
+ 
+ func gos() {
+-	go 1 /* ERROR HERE "function must be invoked" */
++	go 1 /* ERROR HERE "must be function call" */
+ 	go int /* ERROR "go requires function call, not conversion" */ (0)
+ 	go gos()
+ 	var c chan int
+@@ -238,7 +238,7 @@ func gos() {
+ }
+ 
+ func defers() {
+-	defer 1 /* ERROR HERE "function must be invoked" */
++	defer 1 /* ERROR HERE "must be function call" */
+ 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
+ 	defer defers()
+ 	var c chan int

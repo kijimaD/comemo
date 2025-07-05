@@ -7,6 +7,20 @@ Date:   Tue Feb 3 08:35:38 2015 -0500
     Change-Id: Ife7d30f4191e6a8aaf3a442340d277989f7a062d
     Reviewed-on: https://go-review.googlesource.com/3780
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/stack1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 1e9ccfebb5..6a1f6aee92 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -468,7 +468,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	// Adjust saved base pointer if there is one.
+ 	if thechar == '6' && frame.argp-frame.varp == 2*ptrSize {
+ 		if !framepointer_enabled {
+-			print("runtime: found space for saved base pointer, but no framepointer experiment")
++			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
+ 			throw("bad frame layout")
+ 		}
+ 		if stackDebug >= 3 {

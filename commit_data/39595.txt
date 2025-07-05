@@ -60,10 +60,340 @@ Date:   Fri Feb 15 11:21:46 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |   6 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   3 +
  src/cmd/compile/internal/ssa/opGen.go        |  22 ++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 158 +++++++++++++++++++++++++++
  5 files changed, 199 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 0bc8f3a5ab..0ea3c191ac 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -301,6 +301,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64FCMPS0,
++		ssa.OpARM64FCMPD0:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_FCONST
++		p.From.Val = math.Float64frombits(0)
++		p.Reg = v.Args[0].Reg()
+ 	case ssa.OpARM64CMP,
+ 		ssa.OpARM64CMPW,
+ 		ssa.OpARM64CMN,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 8b263a092f..3adb7895a2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -348,6 +348,12 @@
+ (Geq32U x y) -> (GreaterEqualU (CMPW x y))
+ (Geq64U x y) -> (GreaterEqualU (CMP x y))
+ 
++// Optimize comparision between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
++(FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)
++(FCMPS (FMOVSconst [0]) x) -> (InvertFlags (FCMPS0 x))
++(FCMPD x (FMOVDconst [0])) -> (FCMPD0 x)
++(FCMPD (FMOVDconst [0]) x) -> (InvertFlags (FCMPD0 x))
++
+ // CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
+ (CondSelect x y bool) && flagArg(bool) != nil -> (CSEL {bool.Op} x y flagArg(bool))
+ (CondSelect x y bool) && flagArg(bool) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
+@@ -1615,6 +1621,10 @@
+ (LessEqualU (InvertFlags x)) -> (GreaterEqualU x)
+ (GreaterEqual (InvertFlags x)) -> (LessEqual x)
+ (GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
++(LessThanF (InvertFlags x)) -> (GreaterThanF x)
++(LessEqualF (InvertFlags x)) -> (GreaterEqualF x)
++(GreaterThanF (InvertFlags x)) -> (LessThanF x)
++(GreaterEqualF (InvertFlags x)) -> (LessEqualF x)
+ 
+ // Boolean-generating instructions always
+ // zero upper bit of the register; no need to zero-extend
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 2a65d547bd..b6bf10315e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -158,6 +158,7 @@ func init() {
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+ 		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+ 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
++		fp1flags  = regInfo{inputs: []regMask{fp}}
+ 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+ 		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
+ 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+@@ -271,6 +272,8 @@ func init() {
+ 		{name: "TSTWconst", argLength: 1, reg: gp1flags, asm: "TSTW", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0, 32 bit
+ 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "FCMPS", typ: "Flags"},                  // arg0 compare to arg1, float32
+ 		{name: "FCMPD", argLength: 2, reg: fp2flags, asm: "FCMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
++		{name: "FCMPS0", argLength: 1, reg: fp1flags, asm: "FCMPS", typ: "Flags"},                 // arg0 compare to 0, float32
++		{name: "FCMPD0", argLength: 1, reg: fp1flags, asm: "FCMPD", typ: "Flags"},                 // arg0 compare to 0, float64
+ 
+ 		// shifted ops
+ 		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0<<auxInt)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b50532fb69..9222f52b58 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1218,6 +1218,8 @@ const (
+ 	OpARM64TSTWconst
+ 	OpARM64FCMPS
+ 	OpARM64FCMPD
++	OpARM64FCMPS0
++	OpARM64FCMPD0
+ 	OpARM64MVNshiftLL
+ 	OpARM64MVNshiftRL
+ 	OpARM64MVNshiftRA
+@@ -16146,6 +16148,26 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FCMPS0",
++		argLen: 1,
++		asm:    arm64.AFCMPS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FCMPD0",
++		argLen: 1,
++		asm:    arm64.AFCMPD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:    "MVNshiftLL",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 7ad04ead93..a8acb4fec8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -95,6 +95,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64FADDD_0(v)
+ 	case OpARM64FADDS:
+ 		return rewriteValueARM64_OpARM64FADDS_0(v)
++	case OpARM64FCMPD:
++		return rewriteValueARM64_OpARM64FCMPD_0(v)
++	case OpARM64FCMPS:
++		return rewriteValueARM64_OpARM64FCMPS_0(v)
+ 	case OpARM64FMOVDfpgp:
+ 		return rewriteValueARM64_OpARM64FMOVDfpgp_0(v)
+ 	case OpARM64FMOVDgpfp:
+@@ -133,18 +137,26 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64FSUBS_0(v)
+ 	case OpARM64GreaterEqual:
+ 		return rewriteValueARM64_OpARM64GreaterEqual_0(v)
++	case OpARM64GreaterEqualF:
++		return rewriteValueARM64_OpARM64GreaterEqualF_0(v)
+ 	case OpARM64GreaterEqualU:
+ 		return rewriteValueARM64_OpARM64GreaterEqualU_0(v)
+ 	case OpARM64GreaterThan:
+ 		return rewriteValueARM64_OpARM64GreaterThan_0(v)
++	case OpARM64GreaterThanF:
++		return rewriteValueARM64_OpARM64GreaterThanF_0(v)
+ 	case OpARM64GreaterThanU:
+ 		return rewriteValueARM64_OpARM64GreaterThanU_0(v)
+ 	case OpARM64LessEqual:
+ 		return rewriteValueARM64_OpARM64LessEqual_0(v)
++	case OpARM64LessEqualF:
++		return rewriteValueARM64_OpARM64LessEqualF_0(v)
+ 	case OpARM64LessEqualU:
+ 		return rewriteValueARM64_OpARM64LessEqualU_0(v)
+ 	case OpARM64LessThan:
+ 		return rewriteValueARM64_OpARM64LessThan_0(v)
++	case OpARM64LessThanF:
++		return rewriteValueARM64_OpARM64LessThanF_0(v)
+ 	case OpARM64LessThanU:
+ 		return rewriteValueARM64_OpARM64LessThanU_0(v)
+ 	case OpARM64MADD:
+@@ -5224,6 +5236,88 @@ func rewriteValueARM64_OpARM64FADDS_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FCMPD_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (FCMPD x (FMOVDconst [0]))
++	// cond:
++	// result: (FCMPD0 x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVDconst {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpARM64FCMPD0)
++		v.AddArg(x)
++		return true
++	}
++	// match: (FCMPD (FMOVDconst [0]) x)
++	// cond:
++	// result: (InvertFlags (FCMPD0 x))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FMOVDconst {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpARM64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpARM64FCMPD0, types.TypeFlags)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64FCMPS_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (FCMPS x (FMOVSconst [0]))
++	// cond:
++	// result: (FCMPS0 x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVSconst {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpARM64FCMPS0)
++		v.AddArg(x)
++		return true
++	}
++	// match: (FCMPS (FMOVSconst [0]) x)
++	// cond:
++	// result: (InvertFlags (FCMPS0 x))
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FMOVSconst {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpARM64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpARM64FCMPS0, types.TypeFlags)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMOVDfpgp_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -6310,6 +6404,22 @@ func rewriteValueARM64_OpARM64GreaterEqual_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64GreaterEqualF_0(v *Value) bool {
++	// match: (GreaterEqualF (InvertFlags x))
++	// cond:
++	// result: (LessEqualF x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpARM64LessEqualF)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64GreaterEqualU_0(v *Value) bool {
+ 	// match: (GreaterEqualU (FlagEQ))
+ 	// cond:
+@@ -6462,6 +6572,22 @@ func rewriteValueARM64_OpARM64GreaterThan_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64GreaterThanF_0(v *Value) bool {
++	// match: (GreaterThanF (InvertFlags x))
++	// cond:
++	// result: (LessThanF x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpARM64LessThanF)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64GreaterThanU_0(v *Value) bool {
+ 	// match: (GreaterThanU (FlagEQ))
+ 	// cond:
+@@ -6614,6 +6740,22 @@ func rewriteValueARM64_OpARM64LessEqual_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64LessEqualF_0(v *Value) bool {
++	// match: (LessEqualF (InvertFlags x))
++	// cond:
++	// result: (GreaterEqualF x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpARM64GreaterEqualF)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64LessEqualU_0(v *Value) bool {
+ 	// match: (LessEqualU (FlagEQ))
+ 	// cond:
+@@ -6766,6 +6908,22 @@ func rewriteValueARM64_OpARM64LessThan_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64LessThanF_0(v *Value) bool {
++	// match: (LessThanF (InvertFlags x))
++	// cond:
++	// result: (GreaterThanF x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64InvertFlags {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpARM64GreaterThanF)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64LessThanU_0(v *Value) bool {
+ 	// match: (LessThanU (FlagEQ))
+ 	// cond:

@@ -15,7 +15,43 @@ Date:   Mon May 23 20:40:52 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/ip.go      | 4 ++--
  src/net/ip_test.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 06d349b5f2..d0c82630b5 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -272,7 +272,7 @@ func (ip IP) String() string {
+ 			uitoa(uint(p4[3]))
+ 	}
+ 	if len(p) != IPv6len {
+-		return hexString(ip)
++		return "?" + hexString(ip)
+ 	}
+ 
+ 	// Find longest run of zeros.
+@@ -338,7 +338,7 @@ func (ip IP) MarshalText() ([]byte, error) {
+ 		return []byte(""), nil
+ 	}
+ 	if len(ip) != IPv4len && len(ip) != IPv6len {
+-		return nil, &AddrError{Err: "invalid IP address", Addr: ip.String()}
++		return nil, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
+ 	}
+ 	return []byte(ip.String()), nil
+ }
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 87c12133c3..b6ac26da05 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -225,7 +225,7 @@ var ipStringTests = []struct {
+ 	// Opaque byte sequence
+ 	{
+ 		IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
+-		"0123456789abcdef",
++		"?0123456789abcdef",
+ 		nil,
+ 		&AddrError{Err: "invalid IP address", Addr: "0123456789abcdef"},
+ 	},

@@ -13,9 +13,108 @@ Date:   Thu Oct 5 17:36:13 2017 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go              |  3 ++-
  src/cmd/go/internal/work/build.go | 11 +++++++++--
  src/cmd/internal/obj/x86/asm6.go  |  2 +-
  src/cmd/link/internal/ld/lib.go   | 11 +++++++----
  4 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 41fc84e3ed..3bbeb76e4d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -817,7 +817,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
+ 			"darwin-amd64", "darwin-386",
+-			"android-arm", "android-arm64", "android-386":
++			"android-arm", "android-arm64", "android-386",
++			"windows-amd64", "windows-386":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 92e2a3750d..13bbabf65b 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -301,6 +301,9 @@ func BuildModeInit() {
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64", "darwin/386":
++			case "windows/amd64", "windows/386":
++				// Do not add usual .exe suffix to the .dll file.
++				cfg.ExeSuffix = ""
+ 			default:
+ 				base.Fatalf("-buildmode=c-shared not supported on %s\n", platform)
+ 			}
+@@ -997,12 +1000,14 @@ func (b *Builder) action1(mode BuildMode, depMode BuildMode, p *load.Package, lo
+ 			name := "a.out"
+ 			if p.Internal.ExeName != "" {
+ 				name = p.Internal.ExeName
+-			} else if cfg.Goos == "darwin" && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
++			} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
+ 				// On OS X, the linker output name gets recorded in the
+ 				// shared library's LC_ID_DYLIB load command.
+ 				// The code invoking the linker knows to pass only the final
+ 				// path element. Arrange that the path element matches what
+ 				// we'll install it as; otherwise the library is only loadable as "a.out".
++				// On Windows, DLL file name is recorded in PE file
++				// export section, so do like on OS X.
+ 				_, name = filepath.Split(p.Internal.Target)
+ 			}
+ 			a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
+@@ -2641,8 +2646,10 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
+ 	// (and making the resulting shared library useless),
+ 	// run the link in the output directory so that -o can name
+ 	// just the final path element.
++	// On Windows, DLL file name is recorded in PE file
++	// export section, so do like on OS X.
+ 	dir := "."
+-	if cfg.Goos == "darwin" && cfg.BuildBuildmode == "c-shared" {
++	if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" {
+ 		dir, out = filepath.Split(out)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 7482b28c74..53bef1cf78 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2290,7 +2290,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		return 0x26
+ 
+ 	case REG_TLS:
+-		if ctxt.Flag_shared {
++		if ctxt.Flag_shared && ctxt.Headtype != objabi.Hwindows {
+ 			// When building for inclusion into a shared library, an instruction of the form
+ 			//     MOV 0(CX)(TLS*1), AX
+ 			// becomes
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0621b22c75..e4dcadb8a9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -592,7 +592,7 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	if ctxt.Arch == sys.Arch386 {
+-		if (ctxt.BuildMode == BuildModeCArchive && Iself) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
++		if (ctxt.BuildMode == BuildModeCArchive && Iself) || (ctxt.BuildMode == BuildModeCShared && Headtype != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+ 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 			got.Type = sym.SDYNIMPORT
+ 			got.Attr |= sym.AttrReachable
+@@ -1126,9 +1126,12 @@ func (ctxt *Link) hostlink() {
+ 			if ctxt.UseRelro() {
+ 				argv = append(argv, "-Wl,-z,relro")
+ 			}
+-			// Pass -z nodelete to mark the shared library as
+-			// non-closeable: a dlclose will do nothing.
+-			argv = append(argv, "-shared", "-Wl,-z,nodelete")
++			argv = append(argv, "-shared")
++			if Headtype != objabi.Hwindows {
++				// Pass -z nodelete to mark the shared library as
++				// non-closeable: a dlclose will do nothing.
++				argv = append(argv, "-Wl,-z,nodelete")
++			}
+ 		}
+ 	case BuildModeShared:
+ 		if ctxt.UseRelro() {

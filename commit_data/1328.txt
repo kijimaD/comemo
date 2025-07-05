@@ -8,8 +8,192 @@ Date:   Thu Dec 11 14:41:12 2008 -0800
     DELTA=70  (35 added, 4 deleted, 31 changed)
     OCL=20993
     CL=20998
-
+---
  src/lib/fmt/print.go     |  9 +++--
  src/lib/reflect/type.go  |  4 +++
  src/lib/reflect/value.go | 88 ++++++++++++++++++++++++++++++------------------
  3 files changed, 66 insertions(+), 35 deletions(-)
+
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 9c1b0ddfcd..0ce27cefbe 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -231,6 +231,8 @@ func getInt(v reflect.Value) (val int64, signed, ok bool) {
+ 		return int64(v.(reflect.Uint32Value).Get()), false, true;
+ 	case reflect.Uint64Kind:
+ 		return int64(v.(reflect.Uint64Value).Get()), false, true;
++	case reflect.UintptrKind:
++		return int64(v.(reflect.UintptrValue).Get()), false, true;
+ 	}
+ 	return 0, false, false;
+ }
+@@ -324,6 +326,10 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 	case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
+ 		v, signed, ok := getInt(field);
+ 		s = p.fmt.ud64(uint64(v)).str();
++	case reflect.UintptrKind:
++		v, signed, ok := getInt(field);
++		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
++		s = p.fmt.ux64(uint64(v)).str();
+ 	case reflect.Float32Kind:
+ 		v, ok := getFloat32(field);
+ 		s = p.fmt.g32(v).str();
+@@ -357,8 +363,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 				}
+ 				p.addstr("]");
+ 			} else {
+-				p.add('0');
+-				p.add('x');
++				p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
+ 				s = p.fmt.uX64(uint64(v)).str();
+ 			}
+ 		}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index f1bbe42b82..b6caca1ffc 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -41,6 +41,7 @@ export const (
+ 	Uint32Kind;
+ 	Uint64Kind;
+ 	Uint8Kind;
++	UintptrKind;
+ )
+ 
+ // Int is guaranteed large enough to store a size.
+@@ -106,6 +107,7 @@ export var (
+ 	Uint16 = NewBasicType("uint16", Uint16Kind, 2);
+ 	Uint32 = NewBasicType("uint32", Uint32Kind, 4);
+ 	Uint64 = NewBasicType("uint64", Uint64Kind, 8);
++	Uintptr = NewBasicType("uintptr", UintptrKind, 8);	// TODO: need to know how big a uintptr is
+ 	Float = NewBasicType("float", FloatKind, 4);	// TODO: need to know how big a float is
+ 	Float32 = NewBasicType("float32", Float32Kind, 4);
+ 	Float64 = NewBasicType("float64", Float64Kind, 8);
+@@ -422,6 +424,7 @@ func init() {
+ 	types["uint16"] = Uint16;
+ 	types["uint32"] = Uint32;
+ 	types["uint64"] = Uint64;
++	types["uintptr"] = Uintptr;
+ 	types["float"] = Float;
+ 	types["float32"] = Float32;
+ 	types["float64"] = Float64;
+@@ -444,6 +447,7 @@ func init() {
+ 	basicstub["uint16"] = NewStubType("uint16", Uint16);
+ 	basicstub["uint32"] = NewStubType("uint32", Uint32);
+ 	basicstub["uint64"] = NewStubType("uint64", Uint64);
++	basicstub["uintptr"] = NewStubType("uintptr", Uintptr);
+ 	basicstub["float"] = NewStubType("float", Float);
+ 	basicstub["float32"] = NewStubType("float32", Float32);
+ 	basicstub["float64"] = NewStubType("float64", Float64);
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 9df6c62315..ea02f066f6 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -12,7 +12,7 @@ import (
+ 	"unsafe";
+ )
+ 
+-type Addr unsafe.pointer	// TODO: where are ptrint/intptr etc?
++type Addr unsafe.pointer
+ 
+ func EqualType(a, b Type) bool {
+ 	return a.String() == b.String()
+@@ -320,6 +320,31 @@ func (v *Uint64ValueStruct) Set(i uint64) {
+ 	*v.addr.(*uint64) = i
+ }
+ 
++// -- Uintptr
++
++export type UintptrValue interface {
++	Kind()	int;
++	Get()	uintptr;
++	Set(uintptr);
++	Type()	Type;
++}
++
++type UintptrValueStruct struct {
++	Common
++}
++
++func UintptrCreator(typ Type, addr Addr) Value {
++	return &UintptrValueStruct{ Common{UintptrKind, typ, addr} }
++}
++
++func (v *UintptrValueStruct) Get() uintptr {
++	return *v.addr.(*uintptr)
++}
++
++func (v *UintptrValueStruct) Set(i uintptr) {
++	*v.addr.(*uintptr) = i
++}
++
+ // -- Float
+ 
+ export type FloatValue interface {
+@@ -727,38 +752,35 @@ func FuncCreator(typ Type, addr Addr) Value {
+ 	return &FuncValueStruct{ Common{FuncKind, typ, addr} }
+ }
+ 
+-var creator *map[int] Creator
+-var typecache *map[string] *Type
+-
+-func init() {
+-	creator = new(map[int] Creator);
+-	creator[MissingKind] = &MissingCreator;
+-	creator[IntKind] = &IntCreator;
+-	creator[Int8Kind] = &Int8Creator;
+-	creator[Int16Kind] = &Int16Creator;
+-	creator[Int32Kind] = &Int32Creator;
+-	creator[Int64Kind] = &Int64Creator;
+-	creator[UintKind] = &UintCreator;
+-	creator[Uint8Kind] = &Uint8Creator;
+-	creator[Uint16Kind] = &Uint16Creator;
+-	creator[Uint32Kind] = &Uint32Creator;
+-	creator[Uint64Kind] = &Uint64Creator;
+-	creator[FloatKind] = &FloatCreator;
+-	creator[Float32Kind] = &Float32Creator;
+-	creator[Float64Kind] = &Float64Creator;
+-	creator[Float80Kind] = &Float80Creator;
+-	creator[StringKind] = &StringCreator;
+-	creator[BoolKind] = &BoolCreator;
+-	creator[PtrKind] = &PtrCreator;
+-	creator[ArrayKind] = &ArrayCreator;
+-	creator[MapKind] = &MapCreator;
+-	creator[ChanKind] = &ChanCreator;
+-	creator[StructKind] = &StructCreator;
+-	creator[InterfaceKind] = &InterfaceCreator;
+-	creator[FuncKind] = &FuncCreator;
+-
+-	typecache = new(map[string] *Type);
+-}
++var creator = map[int] Creator {
++	MissingKind : &MissingCreator,
++	IntKind : &IntCreator,
++	Int8Kind : &Int8Creator,
++	Int16Kind : &Int16Creator,
++	Int32Kind : &Int32Creator,
++	Int64Kind : &Int64Creator,
++	UintKind : &UintCreator,
++	Uint8Kind : &Uint8Creator,
++	Uint16Kind : &Uint16Creator,
++	Uint32Kind : &Uint32Creator,
++	Uint64Kind : &Uint64Creator,
++	UintptrKind : &UintptrCreator,
++	FloatKind : &FloatCreator,
++	Float32Kind : &Float32Creator,
++	Float64Kind : &Float64Creator,
++	Float80Kind : &Float80Creator,
++	StringKind : &StringCreator,
++	BoolKind : &BoolCreator,
++	PtrKind : &PtrCreator,
++	ArrayKind : &ArrayCreator,
++	MapKind : &MapCreator,
++	ChanKind : &ChanCreator,
++	StructKind : &StructCreator,
++	InterfaceKind : &InterfaceCreator,
++	FuncKind : &FuncCreator,
++}
++
++var typecache = new(map[string] *Type);
+ 
+ func NewValueAddr(typ Type, addr Addr) Value {
+ 	c, ok := creator[typ.Kind()];

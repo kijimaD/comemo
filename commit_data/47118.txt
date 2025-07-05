@@ -22,6 +22,24 @@ Date:   Thu Feb 25 01:29:58 2021 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/signal_windows.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 6215d0ba2d..63158f0bc4 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -45,9 +45,10 @@ func initExceptionHandler() {
+ //go:nosplit
+ func isAbort(r *context) bool {
+ 	pc := r.ip()
+-	if GOARCH == "386" || GOARCH == "amd64" {
++	if GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" {
+ 		// In the case of an abort, the exception IP is one byte after
+-		// the INT3 (this differs from UNIX OSes).
++		// the INT3 (this differs from UNIX OSes). Note that on ARM,
++		// this means that the exception IP is no longer aligned.
+ 		pc--
+ 	}
+ 	return isAbortPC(pc)

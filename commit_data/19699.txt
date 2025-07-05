@@ -12,6 +12,22 @@ Date:   Wed Jul 9 17:00:54 2014 +0400
     R=golang-codereviews, dave, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/106450044
-
+---
  src/pkg/runtime/mheap.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 961b32e504..2637eb5b00 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -310,8 +310,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	// Ask for a big chunk, to reduce the number of mappings
+ 	// the operating system needs to track; also amortizes
+ 	// the overhead of an operating system mapping.
+-	// Allocate a multiple of 64kB (16 pages).
+-	npage = (npage+15)&~15;
++	// Allocate a multiple of 64kB.
++	npage = ROUND(npage, (64<<10)/PageSize);
+ 	ask = npage<<PageShift;
+ 	if(ask < HeapAllocChunk)
+ 		ask = HeapAllocChunk;

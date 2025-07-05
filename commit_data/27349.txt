@@ -10,8 +10,105 @@ Date:   Fri Jan 29 17:14:51 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/18898
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/testing/benchmark.go | 11 +++++++----
  src/testing/sub_test.go  |  6 ------
  src/testing/testing.go   |  6 +++---
  3 files changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 2e2e82e82e..9bc0d6df9d 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -14,7 +14,7 @@ import (
+ 	"time"
+ )
+ 
+-var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
++var matchBenchmarks = flag.String("test.bench", "", "regular expression per path component to select benchmarks to run")
+ var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+ var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+ 
+@@ -380,7 +380,7 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
+ 		common: common{name: "Main"},
+ 		benchFunc: func(b *B) {
+ 			for _, Benchmark := range bs {
+-				b.runBench(Benchmark.Name, Benchmark.F)
++				b.Run(Benchmark.Name, Benchmark.F)
+ 			}
+ 		},
+ 		benchTime: *benchTime,
+@@ -429,12 +429,12 @@ func (ctx *benchContext) processBench(b *B) {
+ 	}
+ }
+ 
+-// runBench benchmarks f as a subbenchmark with the given name. It reports
++// Run benchmarks f as a subbenchmark with the given name. It reports
+ // whether there were any failures.
+ //
+ // A subbenchmark is like any other benchmark. A benchmark that calls Run at
+ // least once will not be measured itself.
+-func (b *B) runBench(name string, f func(b *B)) bool {
++func (b *B) Run(name string, f func(b *B)) bool {
+ 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
+ 	// Release the lock and acquire it on exit to ensure locks stay paired.
+ 	b.hasSub = true
+@@ -590,6 +590,9 @@ func (b *B) SetParallelism(p int) {
+ 
+ // Benchmark benchmarks a single function. Useful for creating
+ // custom benchmarks that do not use the "go test" command.
++//
++// If f calls Run, the result will be an estimate of running all its
++// subbenchmarks that don't call Run in sequence in a single benchmark.
+ func Benchmark(f func(b *B)) BenchmarkResult {
+ 	b := &B{
+ 		common: common{
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 58def85441..660028e700 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -107,9 +107,6 @@ func TestTestContext(t *T) {
+ 	}
+ }
+ 
+-// TODO: remove this stub when API is exposed
+-func (t *T) Run(name string, f func(t *T)) bool { return t.run(name, f) }
+-
+ func TestTRun(t *T) {
+ 	realTest := t
+ 	testCases := []struct {
+@@ -330,9 +327,6 @@ func TestTRun(t *T) {
+ 	}
+ }
+ 
+-// TODO: remove this stub when API is exposed
+-func (b *B) Run(name string, f func(b *B)) bool { return b.runBench(name, f) }
+-
+ func TestBRun(t *T) {
+ 	work := func(b *B) {
+ 		for i := 0; i < b.N; i++ {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5c6f16e41a..f9bb43b618 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -548,9 +548,9 @@ func tRunner(t *T, fn func(t *T)) {
+ 	t.finished = true
+ }
+ 
+-// run runs f as a subtest of t called name. It reports whether f succeeded.
++// Run runs f as a subtest of t called name. It reports whether f succeeded.
+ // Run will block until all its parallel subtests have completed.
+-func (t *T) run(name string, f func(t *T)) bool {
++func (t *T) Run(name string, f func(t *T)) bool {
+ 	testName, ok := t.context.match.fullName(&t.common, name)
+ 	if !ok {
+ 		return true
+@@ -721,7 +721,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 		}
+ 		tRunner(t, func(t *T) {
+ 			for _, test := range tests {
+-				t.run(test.Name, test.F)
++				t.Run(test.Name, test.F)
+ 			}
+ 			// Run catching the signal rather than the tRunner as a separate
+ 			// goroutine to avoid adding a goroutine during the sequential

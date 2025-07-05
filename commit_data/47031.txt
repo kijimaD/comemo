@@ -18,6 +18,20 @@ Date:   Fri Feb 19 10:34:55 2021 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gccgoimporter/gccgoinstallation_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation_test.go b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+index b332babc7b..df0188ace7 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation_test.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+@@ -184,7 +184,7 @@ func TestInstallationImporter(t *testing.T) {
+ 		{pkgpath: "io", name: "ReadWriter", want: "type ReadWriter interface{Reader; Writer}"},
+ 		{pkgpath: "math", name: "Pi", want: "const Pi untyped float"},
+ 		{pkgpath: "math", name: "Sin", want: "func Sin(x float64) float64"},
+-		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
++		{pkgpath: "sort", name: "Search", want: "func Search(n int, f func(int) bool) int"},
+ 		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer"},
+ 	} {
+ 		runImporterTest(t, imp, nil, &test)

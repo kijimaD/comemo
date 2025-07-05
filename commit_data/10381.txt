@@ -9,7 +9,69 @@ Date:   Mon Nov 14 21:59:48 2011 +0300
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5381043
-
+---
  src/pkg/runtime/time.goc   |  8 +++++++-
  src/pkg/time/sleep_test.go | 16 ++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 5904f887fe..23ad1aaef7 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -149,6 +149,8 @@ timerproc(void)
+ {
+ 	int64 delta, now;
+ 	Timer *t;
++	void (*f)(int64, Eface);
++	Eface arg;
+ 
+ 	for(;;) {
+ 		runtime·lock(&timers);
+@@ -173,7 +175,11 @@ timerproc(void)
+ 				siftdown(0);
+ 				t->i = -1;  // mark as removed
+ 			}
+-			t->f(now, t->arg);
++			f = t->f;
++			arg = t->arg;
++			runtime·unlock(&timers);
++			f(now, arg);
++			runtime·lock(&timers);
+ 		}
+ 		if(delta < 0) {
+ 			// No timers left - put goroutine to sleep.
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 029a6cca07..dae7dfe8fb 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -7,7 +7,9 @@ package time_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"runtime"
+ 	"sort"
++	"sync/atomic"
+ 	"testing"
+ 	. "time"
+ )
+@@ -47,6 +49,20 @@ func TestAfterFunc(t *testing.T) {
+ 	<-c
+ }
+ 
++func TestAfterStress(t *testing.T) {
++	stop := uint32(0)
++	go func() {
++		for atomic.LoadUint32(&stop) == 0 {
++			runtime.GC()
++		}
++	}()
++	c := Tick(1)
++	for i := 0; i < 100; i++ {
++		<-c
++	}
++	atomic.StoreUint32(&stop, 1)
++}
++
+ func BenchmarkAfterFunc(b *testing.B) {
+ 	i := b.N
+ 	c := make(chan bool)

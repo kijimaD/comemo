@@ -14,9 +14,62 @@ Date:   Fri May 5 22:45:32 2023 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/math/asinh.go             | 2 +-
  src/net/http/cookiejar/jar.go | 2 +-
  src/runtime/exithook.go       | 2 +-
  src/runtime/metrics.go        | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/asinh.go b/src/math/asinh.go
+index 6f6e9e4608..d913239d1e 100644
+--- a/src/math/asinh.go
++++ b/src/math/asinh.go
+@@ -25,7 +25,7 @@ package math
+ //	        asinh(x) = sign(x) * log [ |x| + sqrt(x*x+1) ]
+ //	we have
+ //	asinh(x) := x  if  1+x*x=1,
+-//	         := sign(x)*(log(x)+ln2)) for large |x|, else
++//	         := sign(x)*(log(x)+ln2) for large |x|, else
+ //	         := sign(x)*log(2|x|+1/(|x|+sqrt(x*x+1))) if|x|>2, else
+ //	         := sign(x)*log1p(|x| + x**2/(1 + sqrt(1+x**2)))
+ //
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index d573147650..273b54c84c 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -465,7 +465,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
+ 		// dot in the domain-attribute before processing the cookie.
+ 		//
+ 		// Most browsers don't do that for IP addresses, only curl
+-		// version 7.54) and IE (version 11) do not reject a
++		// (version 7.54) and IE (version 11) do not reject a
+ 		//     Set-Cookie: a=1; domain=.127.0.0.1
+ 		// This leading dot is optional and serves only as hint for
+ 		// humans to indicate that a cookie with "domain=.bbc.co.uk"
+diff --git a/src/runtime/exithook.go b/src/runtime/exithook.go
+index bb29a94724..65b426b383 100644
+--- a/src/runtime/exithook.go
++++ b/src/runtime/exithook.go
+@@ -37,7 +37,7 @@ var exitHooks struct {
+ // runExitHooks runs any registered exit hook functions (funcs
+ // previously registered using runtime.addExitHook). Here 'exitCode'
+ // is the status code being passed to os.Exit, or zero if the program
+-// is terminating normally without calling os.Exit).
++// is terminating normally without calling os.Exit.
+ func runExitHooks(exitCode int) {
+ 	if exitHooks.runningExitHooks {
+ 		throw("internal error: exit hook invoked exit")
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 442fbf64cd..4cd447a70c 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -72,7 +72,7 @@ func initMetrics() {
+ 		// and exclusive lower bound (e.g. 48-byte size class is
+ 		// (32, 48]) whereas we want and inclusive lower-bound
+ 		// and exclusive upper-bound (e.g. 48-byte size class is
+-		// [33, 49). We can achieve this by shifting all bucket
++		// [33, 49)). We can achieve this by shifting all bucket
+ 		// boundaries up by 1.
+ 		//
+ 		// Also, a float64 can precisely represent integers with

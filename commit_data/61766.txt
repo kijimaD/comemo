@@ -16,7 +16,45 @@ Date:   Thu Nov 21 19:10:49 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/fips140/rsa/pkcs1v22.go | 6 +++---
  src/crypto/rsa/fips.go                      | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/rsa/pkcs1v22.go b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+index 2e82317ffa..c7aa955bb4 100644
+--- a/src/crypto/internal/fips140/rsa/pkcs1v22.go
++++ b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+@@ -374,7 +374,7 @@ func checkApprovedHash(hash fips140.Hash) {
+ // EncryptOAEP encrypts the given message with RSAES-OAEP.
+ //
+ // In FIPS mode, random is ignored and can be nil.
+-func EncryptOAEP(hash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
++func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+ 	// Note that while we don't commit to deterministic execution with respect
+ 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+ 	// Law it's probably relied upon by some. It's a tolerable promise because a
+@@ -413,8 +413,8 @@ func EncryptOAEP(hash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte
+ 		}
+ 	}
+ 
+-	mgf1XOR(db, hash, seed)
+-	mgf1XOR(seed, hash, db)
++	mgf1XOR(db, mgfHash, seed)
++	mgf1XOR(seed, mgfHash, db)
+ 
+ 	return encrypt(pub, em)
+ }
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index a08de0e75e..309ed273ec 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -172,7 +172,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return fipsError2(rsa.EncryptOAEP(hash, random, k, msg, label))
++	return fipsError2(rsa.EncryptOAEP(hash, hash, random, k, msg, label))
+ }
+ 
+ // DecryptOAEP decrypts ciphertext using RSA-OAEP.

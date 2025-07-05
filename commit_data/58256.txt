@@ -18,6 +18,28 @@ Date:   Wed Oct 18 13:42:25 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Paul Murphy <murp@ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  test/codegen/arithmetic.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 0d6d969000..174c2dbcc9 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -16,12 +16,12 @@ package codegen
+ 
+ func AddLargeConst(a uint64, out []uint64) {
+ 	// ppc64x/power10:"ADD\t[$]4294967296,"
+-	// ppc64x/power9:"MOVD\t[$]i64.0000000100000000[(]SB[)]", "ADD\tR[0-9]*"
+-	// ppc64x/power8:"MOVD\t[$]i64.0000000100000000[(]SB[)]", "ADD\tR[0-9]*"
++	// ppc64x/power9:"MOVD\t[$]1", "SLD\t[$]32" "ADD\tR[0-9]*"
++	// ppc64x/power8:"MOVD\t[$]1", "SLD\t[$]32" "ADD\tR[0-9]*"
+ 	out[0] = a + 0x100000000
+ 	// ppc64x/power10:"ADD\t[$]-8589934592,"
+-	// ppc64x/power9:"MOVD\t[$]i64.fffffffe00000000[(]SB[)]", "ADD\tR[0-9]*"
+-	// ppc64x/power8:"MOVD\t[$]i64.fffffffe00000000[(]SB[)]", "ADD\tR[0-9]*"
++	// ppc64x/power9:"MOVD\t[$]-1", "SLD\t[$]33" "ADD\tR[0-9]*"
++	// ppc64x/power8:"MOVD\t[$]-1", "SLD\t[$]33" "ADD\tR[0-9]*"
+ 	out[1] = a + 0xFFFFFFFE00000000
+ }
+ 

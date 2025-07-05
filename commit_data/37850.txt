@@ -11,6 +11,21 @@ Date:   Mon Sep 3 16:24:12 2018 +0000
     GitHub-Pull-Request: golang/go#27472
     Reviewed-on: https://go-review.googlesource.com/133057
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 36179855db..7537f87d47 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2735,8 +2735,7 @@ func (rs *Rows) Err() error {
+ }
+ 
+ // Columns returns the column names.
+-// Columns returns an error if the rows are closed, or if the rows
+-// are from QueryRow and there was a deferred error.
++// Columns returns an error if the rows are closed.
+ func (rs *Rows) Columns() ([]string, error) {
+ 	rs.closemu.RLock()
+ 	defer rs.closemu.RUnlock()

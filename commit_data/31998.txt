@@ -18,7 +18,72 @@ Date:   Tue Mar 28 17:55:26 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go |  9 ++++++++-
  test/fixedbugs/issue19743.go       | 31 +++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 5992c07215..e97b06c8e5 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -477,6 +477,10 @@ func escAnalyze(all []*Node, recursive bool) {
+ 	for _, n := range all {
+ 		if n.Op == ODCLFUNC {
+ 			n.Esc = EscFuncPlanned
++			if Debug['m'] > 3 {
++				Dump("escAnalyze", n)
++			}
++
+ 		}
+ 	}
+ 
+@@ -1682,7 +1686,10 @@ func (e *EscState) escflows(dst, src *Node, why *EscStep) {
+ 	}
+ 
+ 	// Don't bother building a graph for scalars.
+-	if src.Type != nil && !haspointers(src.Type) {
++	if src.Type != nil && !haspointers(src.Type) && !isReflectHeaderDataField(src) {
++		if Debug['m'] > 3 {
++			fmt.Printf("%v::NOT flows:: %S <- %S\n", linestr(lineno), dst, src)
++		}
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue19743.go b/test/fixedbugs/issue19743.go
+new file mode 100644
+index 0000000000..e57b19c8d0
+--- /dev/null
++++ b/test/fixedbugs/issue19743.go
+@@ -0,0 +1,31 @@
++// errorcheck -0 -m -l
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++// Escape analysis needs to treat the uintptr-typed reflect.*Header fields as pointers.
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++type immutableBytes []byte
++
++// Bug was failure to leak param b.
++func toString(b immutableBytes) string { // ERROR "leaking param: b$"
++	var s string
++	if len(b) == 0 {
++		return s
++	}
++
++	strHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))         // ERROR "toString &s does not escape$"
++	strHeader.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data // ERROR "toString &b does not escape$"
++
++	l := len(b)
++	strHeader.Len = l
++	return s
++}

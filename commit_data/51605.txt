@@ -23,7 +23,7 @@ Date:   Sun Feb 20 12:58:21 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go            |  2 +-
  src/cmd/compile/internal/types2/instantiate.go     |  2 +-
  src/cmd/compile/internal/types2/predicates.go      | 11 +++---
@@ -35,3 +35,278 @@ Date:   Sun Feb 20 12:58:21 2022 -0800
  src/go/types/testdata/fixedbugs/issue51257.go2     | 46 ++++++++++++++++++++++
  src/go/types/typeset.go                            |  2 +-
  10 files changed, 110 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 02ece21e67..ac5630dbbb 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -899,7 +899,7 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 	}
+ 	// see if we can extract a more specific error
+ 	var cause string
+-	comparable(typ, nil, func(format string, args ...interface{}) {
++	comparable(typ, true, nil, func(format string, args ...interface{}) {
+ 		cause = check.sprintf(format, args...)
+ 	})
+ 	return cause
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index f54938b6e1..c2653a3834 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -204,7 +204,7 @@ func (check *Checker) implements(V, T Type) error {
+ 	// If T is comparable, V must be comparable.
+ 	// Remember as a pending error and report only if we don't have a more specific error.
+ 	var pending error
+-	if Ti.IsComparable() && ((Vi != nil && !Vi.IsComparable()) || (Vi == nil && !Comparable(V))) {
++	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+ 		pending = errorf("%s does not implement comparable", V)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 0e46333af7..ba259341f6 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -102,11 +102,12 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparable(T, nil, nil)
++	return comparable(T, true, nil, nil)
+ }
+ 
++// If dynamic is set, non-type parameter interfaces are always comparable.
+ // If reportf != nil, it may be used to report why T is not comparable.
+-func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})) bool {
++func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+ 	if seen[T] {
+ 		return true
+ 	}
+@@ -124,7 +125,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparable(f.typ, seen, nil) {
++			if !comparable(f.typ, dynamic, seen, nil) {
+ 				if reportf != nil {
+ 					reportf("struct containing %s cannot be compared", f.typ)
+ 				}
+@@ -133,7 +134,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
+ 		}
+ 		return true
+ 	case *Array:
+-		if !comparable(t.elem, seen, nil) {
++		if !comparable(t.elem, dynamic, seen, nil) {
+ 			if reportf != nil {
+ 				reportf("%s cannot be compared", t)
+ 			}
+@@ -141,7 +142,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
+ 		}
+ 		return true
+ 	case *Interface:
+-		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
++		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go2
+new file mode 100644
+index 0000000000..bc4208e6ee
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go2
+@@ -0,0 +1,46 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[_ comparable]() {}
++
++type S1 struct{ x int }
++type S2 struct{ x any }
++type S3 struct{ x [10]interface{ m() } }
++
++func _[P1 comparable, P2 S2]() {
++	_ = f[S1]
++	_ = f[S2 /* ERROR S2 does not implement comparable */ ]
++	_ = f[S3 /* ERROR S3 does not implement comparable */ ]
++
++	type L1 struct { x P1 }
++	type L2 struct { x P2 }
++	_ = f[L1]
++	_ = f[L2 /* ERROR L2 does not implement comparable */ ]
++}
++
++
++// example from issue
++
++type Set[T comparable] map[T]struct{}
++
++func NewSetFromSlice[T comparable](items []T) *Set[T] {
++	s := Set[T]{}
++
++	for _, item := range items {
++		s[item] = struct{}{}
++	}
++
++	return &s
++}
++
++type T struct{ x any }
++
++func main() {
++	NewSetFromSlice( /* ERROR T does not implement comparable */ []T{
++		{"foo"},
++		{5},
++	})
++}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index fff348bcf4..2c3e826a3f 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -39,7 +39,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparable(t.typ, seen, nil)
++		return t != nil && comparable(t.typ, false, seen, nil)
+ 	})
+ }
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 8747838c4b..e8038dd178 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -859,7 +859,7 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 	}
+ 	// see if we can extract a more specific error
+ 	var cause string
+-	comparable(typ, nil, func(format string, args ...interface{}) {
++	comparable(typ, true, nil, func(format string, args ...interface{}) {
+ 		cause = check.sprintf(format, args...)
+ 	})
+ 	return cause
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 4aeaeb7f11..4b8e3d4661 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -204,7 +204,7 @@ func (check *Checker) implements(V, T Type) error {
+ 	// If T is comparable, V must be comparable.
+ 	// Remember as a pending error and report only if we don't have a more specific error.
+ 	var pending error
+-	if Ti.IsComparable() && ((Vi != nil && !Vi.IsComparable()) || (Vi == nil && !Comparable(V))) {
++	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
+ 		pending = errorf("%s does not implement comparable", V)
+ 	}
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 14e99bf426..0360f27ee6 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -104,11 +104,12 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparable(T, nil, nil)
++	return comparable(T, true, nil, nil)
+ }
+ 
++// If dynamic is set, non-type parameter interfaces are always comparable.
+ // If reportf != nil, it may be used to report why T is not comparable.
+-func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})) bool {
++func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+ 	if seen[T] {
+ 		return true
+ 	}
+@@ -126,7 +127,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparable(f.typ, seen, nil) {
++			if !comparable(f.typ, dynamic, seen, nil) {
+ 				if reportf != nil {
+ 					reportf("struct containing %s cannot be compared", f.typ)
+ 				}
+@@ -135,7 +136,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
+ 		}
+ 		return true
+ 	case *Array:
+-		if !comparable(t.elem, seen, nil) {
++		if !comparable(t.elem, dynamic, seen, nil) {
+ 			if reportf != nil {
+ 				reportf("%s cannot be compared", t)
+ 			}
+@@ -143,7 +144,7 @@ func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})
+ 		}
+ 		return true
+ 	case *Interface:
+-		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
++		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
+ 	}
+ 	return false
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue51257.go2 b/src/go/types/testdata/fixedbugs/issue51257.go2
+new file mode 100644
+index 0000000000..8a3eb3278d
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51257.go2
+@@ -0,0 +1,46 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[_ comparable]() {}
++
++type S1 struct{ x int }
++type S2 struct{ x any }
++type S3 struct{ x [10]interface{ m() } }
++
++func _[P1 comparable, P2 S2]() {
++	_ = f[S1]
++	_ = f[S2 /* ERROR S2 does not implement comparable */ ]
++	_ = f[S3 /* ERROR S3 does not implement comparable */ ]
++
++	type L1 struct { x P1 }
++	type L2 struct { x P2 }
++	_ = f[L1]
++	_ = f[L2 /* ERROR L2 does not implement comparable */ ]
++}
++
++
++// example from issue
++
++type Set[T comparable] map[T]struct{}
++
++func NewSetFromSlice[T comparable](items []T) *Set[T] {
++	s := Set[T]{}
++
++	for _, item := range items {
++		s[item] = struct{}{}
++	}
++
++	return &s
++}
++
++type T struct{ x any }
++
++func main() {
++	NewSetFromSlice /* ERROR T does not implement comparable */ ([]T{
++		{"foo"},
++		{5},
++	})
++}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index e1f73015b9..3bc9474660 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -37,7 +37,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparable(t.typ, seen, nil)
++		return t != nil && comparable(t.typ, false, seen, nil)
+ 	})
+ }
+ 

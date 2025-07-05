@@ -19,10 +19,386 @@ Date:   Wed Aug 28 21:56:47 2019 -0700
     Change-Id: I4d79ad6e3b50632dd5fb3fc32ca3df0598ee77b4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/192278
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/nodes.go        |  1 +
  src/cmd/compile/internal/syntax/parser.go       | 15 ++---
  src/cmd/compile/internal/syntax/scanner.go      | 77 ++++++++++++++-----------
  src/cmd/compile/internal/syntax/scanner_test.go |  6 +-
  src/cmd/compile/internal/syntax/tokens.go       |  2 +-
  5 files changed, 57 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 6d468ed80e..9a74c0250b 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -139,6 +139,7 @@ type (
+ 	BasicLit struct {
+ 		Value string
+ 		Kind  LitKind
++		Bad   bool // true means the literal Value has syntax errors
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 6ad1e5b9a5..f3c2c60ec8 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -550,7 +550,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	d.Alias = p.gotAssign()
+ 	d.Type = p.typeOrNil()
+ 	if d.Type == nil {
+-		d.Type = p.bad()
++		d.Type = p.badExpr()
+ 		p.syntaxError("in type declaration")
+ 		p.advance(_Semi, _Rparen)
+ 	}
+@@ -867,7 +867,7 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 		return p.type_() // othertype
+ 
+ 	default:
+-		x := p.bad()
++		x := p.badExpr()
+ 		p.syntaxError("expecting expression")
+ 		p.advance(_Rparen, _Rbrack, _Rbrace)
+ 		return x
+@@ -1083,7 +1083,7 @@ func (p *parser) type_() Expr {
+ 
+ 	typ := p.typeOrNil()
+ 	if typ == nil {
+-		typ = p.bad()
++		typ = p.badExpr()
+ 		p.syntaxError("expecting type")
+ 		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
+ 	}
+@@ -1220,7 +1220,7 @@ func (p *parser) chanElem() Expr {
+ 
+ 	typ := p.typeOrNil()
+ 	if typ == nil {
+-		typ = p.bad()
++		typ = p.badExpr()
+ 		p.syntaxError("missing channel element type")
+ 		// assume element type is simply absent - don't advance
+ 	}
+@@ -1401,6 +1401,7 @@ func (p *parser) oliteral() *BasicLit {
+ 		b.pos = p.pos()
+ 		b.Value = p.lit
+ 		b.Kind = p.kind
++		b.Bad = p.bad
+ 		p.next()
+ 		return b
+ 	}
+@@ -1515,7 +1516,7 @@ func (p *parser) dotsType() *DotsType {
+ 	p.want(_DotDotDot)
+ 	t.Elem = p.typeOrNil()
+ 	if t.Elem == nil {
+-		t.Elem = p.bad()
++		t.Elem = p.badExpr()
+ 		p.syntaxError("final argument in variadic function missing type")
+ 	}
+ 
+@@ -1572,7 +1573,7 @@ func (p *parser) paramList() (list []*Field) {
+ 			} else {
+ 				// par.Type == nil && typ == nil => we only have a par.Name
+ 				ok = false
+-				t := p.bad()
++				t := p.badExpr()
+ 				t.pos = par.Name.Pos() // correct position
+ 				par.Type = t
+ 			}
+@@ -1585,7 +1586,7 @@ func (p *parser) paramList() (list []*Field) {
+ 	return
+ }
+ 
+-func (p *parser) bad() *BadExpr {
++func (p *parser) badExpr() *BadExpr {
+ 	b := new(BadExpr)
+ 	b.pos = p.pos()
+ 	return b
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index fbb3e1a40e..30ee6c0e5f 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -36,6 +36,7 @@ type scanner struct {
+ 	line, col uint
+ 	tok       token
+ 	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF")
++	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be incorrect
+ 	kind      LitKind  // valid if tok is _Literal
+ 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
+ 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
+@@ -47,10 +48,20 @@ func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mod
+ 	s.nlsemi = false
+ }
+ 
++// errorf reports an error at the most recently read character position.
+ func (s *scanner) errorf(format string, args ...interface{}) {
++	// TODO(gri) Consider using s.bad to consistently suppress multiple errors
++	//           per token, here and below.
++	s.bad = true
+ 	s.error(fmt.Sprintf(format, args...))
+ }
+ 
++// errorAtf reports an error at a byte column offset relative to the current token start.
++func (s *scanner) errorAtf(offset int, format string, args ...interface{}) {
++	s.bad = true
++	s.errh(s.line, s.col+uint(offset), fmt.Sprintf(format, args...))
++}
++
+ // next advances the scanner by reading the next token.
+ //
+ // If a read, source encoding, or lexical error occurs, next calls
+@@ -442,6 +453,7 @@ func (s *scanner) digits(c0 rune, base int, invalid *int) (c rune, digsep int) {
+ 
+ func (s *scanner) number(c rune) {
+ 	s.startLit()
++	s.bad = false
+ 
+ 	base := 10        // number base
+ 	prefix := rune(0) // one of 0 (decimal), '0' (0-octal), 'x', 'o', or 'b'
+@@ -477,14 +489,14 @@ func (s *scanner) number(c rune) {
+ 	if c == '.' {
+ 		s.kind = FloatLit
+ 		if prefix == 'o' || prefix == 'b' {
+-			s.error("invalid radix point in " + litname(prefix))
++			s.errorf("invalid radix point in %s", litname(prefix))
+ 		}
+ 		c, ds = s.digits(s.getr(), base, &invalid)
+ 		digsep |= ds
+ 	}
+ 
+ 	if digsep&1 == 0 {
+-		s.error(litname(prefix) + " has no digits")
++		s.errorf("%s has no digits", litname(prefix))
+ 	}
+ 
+ 	// exponent
+@@ -503,10 +515,10 @@ func (s *scanner) number(c rune) {
+ 		c, ds = s.digits(c, 10, nil)
+ 		digsep |= ds
+ 		if ds&1 == 0 {
+-			s.error("exponent has no digits")
++			s.errorf("exponent has no digits")
+ 		}
+ 	} else if prefix == 'x' && s.kind == FloatLit {
+-		s.error("hexadecimal mantissa requires a 'p' exponent")
++		s.errorf("hexadecimal mantissa requires a 'p' exponent")
+ 	}
+ 
+ 	// suffix 'i'
+@@ -521,12 +533,12 @@ func (s *scanner) number(c rune) {
+ 	s.tok = _Literal
+ 
+ 	if s.kind == IntLit && invalid >= 0 {
+-		s.errh(s.line, s.col+uint(invalid), fmt.Sprintf("invalid digit %q in %s", s.lit[invalid], litname(prefix)))
++		s.errorAtf(invalid, "invalid digit %q in %s", s.lit[invalid], litname(prefix))
+ 	}
+ 
+ 	if digsep&2 != 0 {
+ 		if i := invalidSep(s.lit); i >= 0 {
+-			s.errh(s.line, s.col+uint(i), "'_' must separate successive digits")
++			s.errorAtf(i, "'_' must separate successive digits")
+ 		}
+ 	}
+ }
+@@ -585,8 +597,8 @@ func invalidSep(x string) int {
+ 
+ func (s *scanner) rune() {
+ 	s.startLit()
++	s.bad = false
+ 
+-	ok := true // only report errors if we're ok so far
+ 	n := 0
+ 	for ; ; n++ {
+ 		r := s.getr()
+@@ -594,33 +606,29 @@ func (s *scanner) rune() {
+ 			break
+ 		}
+ 		if r == '\\' {
+-			if !s.escape('\'') {
+-				ok = false
+-			}
++			s.escape('\'')
+ 			continue
+ 		}
+ 		if r == '\n' {
+ 			s.ungetr() // assume newline is not part of literal
+-			if ok {
+-				s.error("newline in character literal")
+-				ok = false
++			if !s.bad {
++				s.errorf("newline in character literal")
+ 			}
+ 			break
+ 		}
+ 		if r < 0 {
+-			if ok {
+-				s.errh(s.line, s.col, "invalid character literal (missing closing ')")
+-				ok = false
++			if !s.bad {
++				s.errorAtf(0, "invalid character literal (missing closing ')")
+ 			}
+ 			break
+ 		}
+ 	}
+ 
+-	if ok {
++	if !s.bad {
+ 		if n == 0 {
+-			s.error("empty character literal or unescaped ' in character literal")
++			s.errorf("empty character literal or unescaped ' in character literal")
+ 		} else if n != 1 {
+-			s.errh(s.line, s.col, "invalid character literal (more than one character)")
++			s.errorAtf(0, "invalid character literal (more than one character)")
+ 		}
+ 	}
+ 
+@@ -632,6 +640,7 @@ func (s *scanner) rune() {
+ 
+ func (s *scanner) stdString() {
+ 	s.startLit()
++	s.bad = false
+ 
+ 	for {
+ 		r := s.getr()
+@@ -644,11 +653,11 @@ func (s *scanner) stdString() {
+ 		}
+ 		if r == '\n' {
+ 			s.ungetr() // assume newline is not part of literal
+-			s.error("newline in string")
++			s.errorf("newline in string")
+ 			break
+ 		}
+ 		if r < 0 {
+-			s.errh(s.line, s.col, "string not terminated")
++			s.errorAtf(0, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -661,6 +670,7 @@ func (s *scanner) stdString() {
+ 
+ func (s *scanner) rawString() {
+ 	s.startLit()
++	s.bad = false
+ 
+ 	for {
+ 		r := s.getr()
+@@ -668,7 +678,7 @@ func (s *scanner) rawString() {
+ 			break
+ 		}
+ 		if r < 0 {
+-			s.errh(s.line, s.col, "string not terminated")
++			s.errorAtf(0, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -741,7 +751,7 @@ func (s *scanner) skipComment(r rune) bool {
+ 		}
+ 		r = s.getr()
+ 	}
+-	s.errh(s.line, s.col, "comment not terminated")
++	s.errorAtf(0, "comment not terminated")
+ 	return false
+ }
+ 
+@@ -782,14 +792,14 @@ func (s *scanner) fullComment() {
+ 	}
+ }
+ 
+-func (s *scanner) escape(quote rune) bool {
++func (s *scanner) escape(quote rune) {
+ 	var n int
+ 	var base, max uint32
+ 
+ 	c := s.getr()
+ 	switch c {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+-		return true
++		return
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+ 		n, base, max = 3, 8, 255
+ 	case 'x':
+@@ -803,10 +813,10 @@ func (s *scanner) escape(quote rune) bool {
+ 		n, base, max = 8, 16, unicode.MaxRune
+ 	default:
+ 		if c < 0 {
+-			return true // complain in caller about EOF
++			return // complain in caller about EOF
+ 		}
+-		s.error("unknown escape sequence")
+-		return false
++		s.errorf("unknown escape sequence")
++		return
+ 	}
+ 
+ 	var x uint32
+@@ -820,7 +830,7 @@ func (s *scanner) escape(quote rune) bool {
+ 		}
+ 		if d >= base {
+ 			if c < 0 {
+-				return true // complain in caller about EOF
++				return // complain in caller about EOF
+ 			}
+ 			kind := "hex"
+ 			if base == 8 {
+@@ -828,7 +838,7 @@ func (s *scanner) escape(quote rune) bool {
+ 			}
+ 			s.errorf("non-%s character in escape sequence: %c", kind, c)
+ 			s.ungetr()
+-			return false
++			return
+ 		}
+ 		// d < base
+ 		x = x*base + d
+@@ -838,13 +848,10 @@ func (s *scanner) escape(quote rune) bool {
+ 
+ 	if x > max && base == 8 {
+ 		s.errorf("octal escape value > 255: %d", x)
+-		return false
++		return
+ 	}
+ 
+ 	if x > max || 0xD800 <= x && x < 0xE000 /* surrogate range */ {
+-		s.error("escape sequence is invalid Unicode code point")
+-		return false
++		s.errorf("escape sequence is invalid Unicode code point %#U", x)
+ 	}
+-
+-	return true
+ }
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index bfc44950be..3030bfd4c0 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -499,6 +499,10 @@ func TestNumbers(t *testing.T) {
+ 			err = ""
+ 			s.next()
+ 
++			if err != "" && !s.bad {
++				t.Errorf("%q: got error but bad not set", test.src)
++			}
++
+ 			// compute lit where where s.lit is not defined
+ 			var lit string
+ 			switch s.tok {
+@@ -598,7 +602,7 @@ func TestScanErrors(t *testing.T) {
+ 		{`"\x`, "string not terminated", 0, 0},
+ 		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+ 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
+-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 0, 18},
++		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point U+FFFFFFFF", 0, 18},
+ 
+ 		// former problem cases
+ 		{"package p\n\n\xef", "invalid UTF-8 encoding", 2, 0},
+diff --git a/src/cmd/compile/internal/syntax/tokens.go b/src/cmd/compile/internal/syntax/tokens.go
+index 9b26c9f12f..3b97cb66f2 100644
+--- a/src/cmd/compile/internal/syntax/tokens.go
++++ b/src/cmd/compile/internal/syntax/tokens.go
+@@ -90,7 +90,7 @@ func contains(tokset uint64, tok token) bool {
+ 	return tokset&(1<<tok) != 0
+ }
+ 
+-type LitKind uint
++type LitKind uint8
+ 
+ // TODO(gri) With the 'i' (imaginary) suffix now permitted on integer
+ //           and floating-point numbers, having a single ImagLit does

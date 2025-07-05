@@ -11,6 +11,20 @@ Date:   Sat Nov 17 19:21:32 2018 +0000
     GitHub-Pull-Request: golang/go#28846
     Reviewed-on: https://go-review.googlesource.com/c/150138
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/syscall/js/js.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 19cdedc309..885723f87d 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -114,6 +114,8 @@ func Global() Value {
+ //  | string                 | string                 |
+ //  | []interface{}          | new array              |
+ //  | map[string]interface{} | new object             |
++//
++// Panics if x is not one of the expected types.
+ func ValueOf(x interface{}) Value {
+ 	switch x := x.(type) {
+ 	case Value: // should precede Wrapper to avoid a loop

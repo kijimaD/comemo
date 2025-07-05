@@ -9,6 +9,20 @@ Date:   Tue Mar 15 19:49:50 2016 +0100
     Change-Id: I987438847389500cf3b5bc545ef918c66917b51a
     Reviewed-on: https://go-review.googlesource.com/20683
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/reader_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 72cf5d9cf4..dfaae78436 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -399,7 +399,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	// Don't bother uncompressing: too big.
+ 	if ft.Content == nil && ft.File == "" && ft.Size > 0 {
+ 		if size != ft.Size {
+-			t.Errorf("%v: uncompressed size %#x, want %#x", size, ft.Size)
++			t.Errorf("%v: uncompressed size %#x, want %#x", ft.Name, size, ft.Size)
+ 		}
+ 		r.Close()
+ 		return

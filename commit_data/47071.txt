@@ -18,8 +18,114 @@ Date:   Fri Feb 12 15:55:25 2021 -0800
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 54 ++++++++++++++++++++++++++++
  test/codegen/bits.go                         |  9 +++++
  3 files changed, 68 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index acd2170ea7..01a8a16456 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2191,6 +2191,11 @@
+ 	&& clobber(l) =>
+   @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff64(0, int64(off))] ptr mem)
+ 
++// Convert ANDload to MOVload when we can do the AND in a containing TEST op.
++// Only do when it's within the same block, so we don't have flags live across basic block boundaries.
++// See issue 44228.
++(TEST(Q|L) a:(AND(Q|L)load [off] {sym} x ptr mem) a) && a.Uses == 2 && a.Block == v.Block && clobber(a) => (TEST(Q|L) (MOV(Q|L)load <a.Type> [off] {sym} ptr mem) x)
++
+ (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
+ (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ (MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4074d37d35..5fb6c303fd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -27141,6 +27141,33 @@ func rewriteValueAMD64_OpAMD64TESTL(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (TESTL a:(ANDLload [off] {sym} x ptr mem) a)
++	// cond: a.Uses == 2 && a.Block == v.Block && clobber(a)
++	// result: (TESTL (MOVLload <a.Type> [off] {sym} ptr mem) x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			a := v_0
++			if a.Op != OpAMD64ANDLload {
++				continue
++			}
++			off := auxIntToInt32(a.AuxInt)
++			sym := auxToSym(a.Aux)
++			mem := a.Args[2]
++			x := a.Args[0]
++			ptr := a.Args[1]
++			if a != v_1 || !(a.Uses == 2 && a.Block == v.Block && clobber(a)) {
++				continue
++			}
++			v.reset(OpAMD64TESTL)
++			v0 := b.NewValue0(a.Pos, OpAMD64MOVLload, a.Type)
++			v0.AuxInt = int32ToAuxInt(off)
++			v0.Aux = symToAux(sym)
++			v0.AddArg2(ptr, mem)
++			v.AddArg2(v0, x)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64TESTLconst(v *Value) bool {
+@@ -27246,6 +27273,33 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (TESTQ a:(ANDQload [off] {sym} x ptr mem) a)
++	// cond: a.Uses == 2 && a.Block == v.Block && clobber(a)
++	// result: (TESTQ (MOVQload <a.Type> [off] {sym} ptr mem) x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			a := v_0
++			if a.Op != OpAMD64ANDQload {
++				continue
++			}
++			off := auxIntToInt32(a.AuxInt)
++			sym := auxToSym(a.Aux)
++			mem := a.Args[2]
++			x := a.Args[0]
++			ptr := a.Args[1]
++			if a != v_1 || !(a.Uses == 2 && a.Block == v.Block && clobber(a)) {
++				continue
++			}
++			v.reset(OpAMD64TESTQ)
++			v0 := b.NewValue0(a.Pos, OpAMD64MOVQload, a.Type)
++			v0.AuxInt = int32ToAuxInt(off)
++			v0.Aux = symToAux(sym)
++			v0.AddArg2(ptr, mem)
++			v.AddArg2(v0, x)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64TESTQconst(v *Value) bool {
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 4508eba487..806dad13c8 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -352,3 +352,12 @@ func cont0Mask64U(x uint64) uint64 {
+ 	// s390x:"RISBGZ\t[$]48, [$]15, [$]0,"
+ 	return x & 0xffff00000000ffff
+ }
++
++func issue44228a(a []int64, i int) bool {
++	// amd64: "BTQ", -"SHL"
++	return a[i>>6]&(1<<(i&63)) != 0
++}
++func issue44228b(a []int32, i int) bool {
++	// amd64: "BTL", -"SHL"
++	return a[i>>5]&(1<<(i&31)) != 0
++}

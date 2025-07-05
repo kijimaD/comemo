@@ -31,6 +31,20 @@ Date:   Mon Feb 23 03:55:54 2015 -0500
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/5554
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 49dd78446f..2d1bfa9a48 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -375,7 +375,7 @@ func TestBlockProfile(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		if !regexp.MustCompile(test.re).MatchString(prof) {
++		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
+ 			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
+ 		}
+ 	}

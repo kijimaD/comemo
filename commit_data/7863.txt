@@ -7,10 +7,213 @@ Date:   Fri Mar 25 12:30:49 2011 -0400
     R=adg, dfc, r
     CC=golang-dev
     https://golang.org/cl/4296042
-
+---
  src/pkg/runtime/arm/traceback.c    |  2 +-
  src/pkg/runtime/linux/arm/defs.h   | 42 ++++++++++++++++++++++++--------------
  src/pkg/runtime/linux/arm/signal.c |  3 +--
  src/pkg/runtime/linux/arm/sys.s    |  4 ++--
  src/pkg/runtime/linux/defs_arm.c   | 31 ++++++++++++++++++++++------
  5 files changed, 56 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index 5a289db4e3..c3934c37cb 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -14,7 +14,7 @@ void _mod(void);
+ void _divu(void);
+ void _modu(void);
+ 
+-static int32
++int32
+ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ {
+ 	int32 i, n, iter;
+diff --git a/src/pkg/runtime/linux/arm/defs.h b/src/pkg/runtime/linux/arm/defs.h
+index ff43d689a2..6b2f22c66a 100644
+--- a/src/pkg/runtime/linux/arm/defs.h
++++ b/src/pkg/runtime/linux/arm/defs.h
+@@ -1,4 +1,4 @@
+-// godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include -f-D__KERNEL__ -f-D__ARCH_SI_UID_T=int defs_arm.c
++// godefs -f-I/usr/src/linux-headers-2.6.26-2-versatile/include defs_arm.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -58,23 +58,15 @@ enum {
+ 	BUS_OBJERR = 0x3,
+ 	SEGV_MAPERR = 0x1,
+ 	SEGV_ACCERR = 0x2,
++	ITIMER_REAL = 0,
++	ITIMER_PROF = 0x2,
++	ITIMER_VIRTUAL = 0x1,
+ };
+ 
+ // Types
+ #pragma pack on
+ 
+-typedef struct Sigset Sigset;
+-struct Sigset {
+-	uint32 sig[2];
+-};
+-
+-typedef struct Sigaction Sigaction;
+-struct Sigaction {
+-	void *sa_handler;
+-	uint32 sa_flags;
+-	void *sa_restorer;
+-	Sigset sa_mask;
+-};
++typedef uint32 Sigset;
+ 
+ typedef struct Timespec Timespec;
+ struct Timespec {
+@@ -120,11 +112,23 @@ struct Ucontext {
+ 	Ucontext *uc_link;
+ 	Sigaltstack uc_stack;
+ 	Sigcontext uc_mcontext;
+-	Sigset uc_sigmask;
+-	int32 __unused[30];
++	uint32 uc_sigmask;
++	int32 __unused[31];
+ 	uint32 uc_regspace[128];
+ };
+ 
++typedef struct Timeval Timeval;
++struct Timeval {
++	int32 tv_sec;
++	int32 tv_usec;
++};
++
++typedef struct Itimerval Itimerval;
++struct Itimerval {
++	Timeval it_interval;
++	Timeval it_value;
++};
++
+ typedef struct Siginfo Siginfo;
+ struct Siginfo {
+ 	int32 si_signo;
+@@ -132,4 +136,12 @@ struct Siginfo {
+ 	int32 si_code;
+ 	uint8 _sifields[4];
+ };
++
++typedef struct Sigaction Sigaction;
++struct Sigaction {
++	void *sa_handler;
++	uint32 sa_flags;
++	void *sa_restorer;
++	uint32 sa_mask;
++};
+ #pragma pack off
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 5a2b47dd6a..bf4cb4819e 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -135,7 +135,7 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0ULL;
+ 	sa.sa_restorer = (void*)runtime·sigreturn;
+-	sa.k_sa_handler = fn;
++	sa.sa_handler = fn;
+ 	runtime·rt_sigaction(i, &sa, nil, 8);
+ }
+ 
+@@ -163,7 +163,6 @@ runtime·initsig(int32 queue)
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+-	Sigaction sa;
+ 	Itimerval it;
+ 	
+ 	runtime·memclr((byte*)&it, sizeof it);
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 2b01f0cbb3..b9767a0284 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -73,10 +73,10 @@ TEXT runtime·munmap(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·getitimer(SB),7,$0
++TEXT runtime·setitimer(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+-	MOWW	8(FP), R2
++	MOVW	8(FP), R2
+ 	MOVW	$SYS_setitimer, R7
+ 	SWI	$0
+ 	RET
+diff --git a/src/pkg/runtime/linux/defs_arm.c b/src/pkg/runtime/linux/defs_arm.c
+index a5897d6d0e..1f935046e2 100644
+--- a/src/pkg/runtime/linux/defs_arm.c
++++ b/src/pkg/runtime/linux/defs_arm.c
+@@ -4,16 +4,18 @@
+ 
+ /*
+  * Input to godefs
+-	godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include -f-D__KERNEL__ -f-D__ARCH_SI_UID_T=int defs_arm.c >arm/defs.h
+-
+- * Another input file for ARM defs.h
++ * On a Debian Lenny arm linux distribution:
++	godefs -f-I/usr/src/linux-headers-2.6.26-2-versatile/include defs_arm.c
+  */
+ 
++#define __ARCH_SI_UID_T int
++
+ #include <asm/signal.h>
+ #include <asm/mman.h>
+ #include <asm/sigcontext.h>
+ #include <asm/ucontext.h>
+ #include <asm/siginfo.h>
++#include <linux/time.h>
+ 
+ /*
+ #include <sys/signal.h>
+@@ -21,8 +23,6 @@
+ #include <ucontext.h>
+ */
+ 
+-#include <time.h>
+-
+ enum {
+ 	$PROT_NONE = PROT_NONE,
+ 	$PROT_READ = PROT_READ,
+@@ -84,14 +84,19 @@ enum {
+ 	
+ 	$SEGV_MAPERR = SEGV_MAPERR & 0xFFFF,
+ 	$SEGV_ACCERR = SEGV_ACCERR & 0xFFFF,
++
++	$ITIMER_REAL = ITIMER_REAL,
++	$ITIMER_PROF = ITIMER_PROF,
++	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
+ };
+ 
+ typedef sigset_t $Sigset;
+-typedef struct sigaction $Sigaction;
+ typedef struct timespec $Timespec;
+ typedef struct sigaltstack $Sigaltstack;
+ typedef struct sigcontext $Sigcontext;
+ typedef struct ucontext $Ucontext;
++typedef struct timeval $Timeval;
++typedef struct itimerval $Itimerval;
+ 
+ struct xsiginfo {
+ 	int si_signo;
+@@ -101,3 +106,17 @@ struct xsiginfo {
+ };
+ 
+ typedef struct xsiginfo $Siginfo;
++
++#undef sa_handler
++#undef sa_flags
++#undef sa_restorer
++#undef sa_mask
++
++struct xsigaction {
++	void (*sa_handler)(void);
++	unsigned long sa_flags;
++	void (*sa_restorer)(void);
++	unsigned int sa_mask;		/* mask last for extensibility */
++};
++
++typedef struct xsigaction $Sigaction;

@@ -13,8 +13,48 @@ Date:   Mon Sep 22 10:56:54 2008 -0700
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=15615
     CL=15622
-
+---
  src/cmd/6a/Makefile | 2 +-
  src/cmd/cc/Makefile | 2 +-
  src/cmd/gc/Makefile | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index d4bfd210cb..db54157815 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -33,7 +33,7 @@ y.tab.h: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+-	# do nothing
++	test -f y.tab.c && touch y.tab.c
+ 
+ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 4247a8b971..61aec26a72 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -42,7 +42,7 @@ y.tab.h: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+-	# do nothing
++	test -f y.tab.c && touch y.tab.c
+ 
+ clean:
+ 	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 4a7445a91d..600c3b4420 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -37,7 +37,7 @@ y.tab.h: $(YFILES)
+ 	yacc $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+-	# do nothing
++	test -f y.tab.c && touch y.tab.c
+ 
+ sysimport.c:	sys.go mksys.bash
+ 	bash mksys.bash

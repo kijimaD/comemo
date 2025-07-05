@@ -10,7 +10,7 @@ Date:   Fri Nov 4 15:01:09 2016 -0700
     Change-Id: Ie04f24e529db2d29c5dd2e36413f5f37f628df39
     Reviewed-on: https://go-review.googlesource.com/32819
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go |  6 +++++-
  src/go/types/api_test.go              |  6 +++---
  src/go/types/check_test.go            |  2 +-
@@ -19,3 +19,223 @@ Date:   Fri Nov 4 15:01:09 2016 -0700
  src/go/types/resolver.go              | 11 ++++++-----
  src/go/types/typexpr.go               | 15 ++++++++-------
  7 files changed, 46 insertions(+), 38 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 574b71dcb6..a8f349052a 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -284,7 +284,11 @@ func (p *importer) obj(tag int) {
+ 		if pkg, name := p.qualifiedName(); pkg != nil {
+ 			orig = pkg.Scope().Lookup(name)
+ 		}
+-		p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
++		// Alias-related code. Keep for now.
++		_ = pos
++		_ = name
++		_ = orig
++		// p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
+ 
+ 	default:
+ 		errorf("unexpected object tag %d", tag)
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 17a98f91a8..1208eb8b3a 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -12,9 +12,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/testenv"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+ 	"reflect"
+ 	"regexp"
+ 	"strings"
+@@ -1299,6 +1296,8 @@ func f(x int) { y := x; print(y) }
+ 	}
+ }
+ 
++// Alias-related code. Keep for now.
++/*
+ func TestAliases(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+@@ -1447,3 +1446,4 @@ var _ = Implements(nil, nil)
+ 		t.Errorf("missing aliases: %v", defs)
+ 	}
+ }
++*/
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index d823344066..f844575269 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -72,7 +72,7 @@ var tests = [][]string{
+ 	{"testdata/const1.src"},
+ 	{"testdata/constdecl.src"},
+ 	{"testdata/vardecl.src"},
+-	{"testdata/aliasdecl.src"},
++	//{"testdata/aliasdecl.src"},
+ 	{"testdata/expr0.src"},
+ 	{"testdata/expr1.src"},
+ 	{"testdata/expr2.src"},
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index be04f0d82e..dced7a6d6d 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -85,9 +85,10 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 	case *Func:
+ 		// functions may be recursive - no need to track dependencies
+ 		check.funcDecl(obj, d)
+-	case *Alias:
+-		// aliases cannot be recursive - no need to track dependencies
+-		check.aliasDecl(obj, d)
++	// Alias-related code. Keep for now.
++	// case *Alias:
++	// 	// aliases cannot be recursive - no need to track dependencies
++	// 	check.aliasDecl(obj, d)
+ 	default:
+ 		unreachable()
+ 	}
+@@ -337,17 +338,17 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ // but it may be nil.
+ func original(obj Object) Object {
+ 	// an alias stands for the original object; use that one instead
+-	if alias, _ := obj.(*Alias); alias != nil {
++	if alias, _ := obj.(*disabledAlias); alias != nil {
+ 		obj = alias.orig
+ 		// aliases always refer to non-alias originals
+-		if _, ok := obj.(*Alias); ok {
++		if _, ok := obj.(*disabledAlias); ok {
+ 			panic("original is an alias")
+ 		}
+ 	}
+ 	return obj
+ }
+ 
+-func (check *Checker) aliasDecl(obj *Alias, decl *declInfo) {
++func (check *Checker) aliasDecl(obj *disabledAlias, decl *declInfo) {
+ 	assert(obj.typ == nil)
+ 
+ 	// alias declarations cannot use iota
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 4ebbd23543..6c0c5c4a24 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -216,13 +216,13 @@ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
+ 
+ // An Alias represents a declared alias.
+-type Alias struct {
++type disabledAlias struct {
+ 	object
+ 	orig Object      // aliased constant, type, variable, or function; never an alias
+ 	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC (only needed during resolve phase)
+ }
+ 
+-func NewAlias(pos token.Pos, pkg *Package, name string, orig Object) *Alias {
++func disabledNewAlias(pos token.Pos, pkg *Package, name string, orig Object) *disabledAlias {
+ 	var typ Type = Typ[Invalid]
+ 	if orig != nil {
+ 		typ = orig.Type()
+@@ -230,12 +230,12 @@ func NewAlias(pos token.Pos, pkg *Package, name string, orig Object) *Alias {
+ 	// No need to set a valid Alias.kind - that field is only used during identifier
+ 	// resolution (1st type-checker pass). We could store the field outside but it's
+ 	// easier to keep it here.
+-	return &Alias{object{nil, pos, pkg, name, typ, 0, token.NoPos}, orig, token.ILLEGAL}
++	return &disabledAlias{object{nil, pos, pkg, name, typ, 0, token.NoPos}, orig, token.ILLEGAL}
+ }
+ 
+ // Orig returns the aliased object, or nil if there was an error.
+ // The returned object is never an Alias.
+-func (obj *Alias) Orig() Object { return obj.orig }
++func (obj *disabledAlias) disabledOrig() Object { return obj.orig }
+ 
+ // A Label represents a declared label.
+ type Label struct {
+@@ -295,8 +295,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 		return
+ 
+-	case *Alias:
+-		buf.WriteString("alias")
++	// Alias-related code. Keep for now.
++	// case *Alias:
++	// 	buf.WriteString("alias")
+ 
+ 	case *Label:
+ 		buf.WriteString("label")
+@@ -352,15 +353,15 @@ func ObjectString(obj Object, qf Qualifier) string {
+ 	return buf.String()
+ }
+ 
+-func (obj *PkgName) String() string  { return ObjectString(obj, nil) }
+-func (obj *Const) String() string    { return ObjectString(obj, nil) }
+-func (obj *TypeName) String() string { return ObjectString(obj, nil) }
+-func (obj *Var) String() string      { return ObjectString(obj, nil) }
+-func (obj *Func) String() string     { return ObjectString(obj, nil) }
+-func (obj *Alias) String() string    { return ObjectString(obj, nil) }
+-func (obj *Label) String() string    { return ObjectString(obj, nil) }
+-func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
+-func (obj *Nil) String() string      { return ObjectString(obj, nil) }
++func (obj *PkgName) String() string       { return ObjectString(obj, nil) }
++func (obj *Const) String() string         { return ObjectString(obj, nil) }
++func (obj *TypeName) String() string      { return ObjectString(obj, nil) }
++func (obj *Var) String() string           { return ObjectString(obj, nil) }
++func (obj *Func) String() string          { return ObjectString(obj, nil) }
++func (obj *disabledAlias) String() string { return ObjectString(obj, nil) }
++func (obj *Label) String() string         { return ObjectString(obj, nil) }
++func (obj *Builtin) String() string       { return ObjectString(obj, nil) }
++func (obj *Nil) String() string           { return ObjectString(obj, nil) }
+ 
+ func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
+ 	if f.typ != nil {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index b630a159e0..046e147456 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -274,11 +274,12 @@ func (check *Checker) collectObjects() {
+ 							check.declare(fileScope, nil, obj, token.NoPos)
+ 						}
+ 
+-					case *ast.AliasSpec:
+-						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
+-						obj.typ = nil // unresolved
+-						obj.kind = d.Tok
+-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
++					// Alias-related code. Keep for now.
++					// case *ast.AliasSpec:
++					// 	obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, nil)
++					// 	obj.typ = nil // unresolved
++					// 	obj.kind = d.Tok
++					// 	check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
+ 
+ 					case *ast.ValueSpec:
+ 						switch d.Tok {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 6d93a76ebb..ecc0a7da02 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -45,15 +45,16 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 		delete(check.unusedDotImports[scope], pkg)
+ 	}
+ 
++	// Alias-related code. Keep for now.
+ 	// An alias stands for the original object; use that one instead.
+ 	// TODO(gri) We should be able to factor out the Typ[Invalid] test.
+-	if alias, _ := obj.(*Alias); alias != nil {
+-		obj = original(obj)
+-		if obj == nil || typ == Typ[Invalid] {
+-			return
+-		}
+-		assert(typ == obj.Type())
+-	}
++	// if alias, _ := obj.(*Alias); alias != nil {
++	// 	obj = original(obj)
++	// 	if obj == nil || typ == Typ[Invalid] {
++	// 		return
++	// 	}
++	// 	assert(typ == obj.Type())
++	// }
+ 
+ 	switch obj := obj.(type) {
+ 	case *PkgName:

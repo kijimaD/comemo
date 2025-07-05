@@ -14,8 +14,59 @@ Date:   Thu Jul 28 11:15:59 2011 +1000
     R=nigeltao, bradfitz
     CC=golang-dev
     https://golang.org/cl/4815061
-
+---
  src/pkg/image/tiff/reader.go            |   4 ++++
  src/pkg/image/tiff/reader_test.go       |  25 +++++++++++++++++++++++++
  src/pkg/image/tiff/testdata/no_rps.tiff | Bin 0 -> 1294 bytes
  3 files changed, 29 insertions(+)
+
+diff --git a/src/pkg/image/tiff/reader.go b/src/pkg/image/tiff/reader.go
+index 26e52144d4..f5652667aa 100644
+--- a/src/pkg/image/tiff/reader.go
++++ b/src/pkg/image/tiff/reader.go
+@@ -362,6 +362,10 @@ func Decode(r io.Reader) (img image.Image, err os.Error) {
+ 
+ 	// Check if we have the right number of strips, offsets and counts.
+ 	rps := int(d.firstVal(tRowsPerStrip))
++	if rps == 0 {
++		// Assume only one strip.
++		rps = d.config.Height
++	}
+ 	numStrips := (d.config.Height + rps - 1) / rps
+ 	if rps == 0 || len(d.features[tStripOffsets]) < numStrips || len(d.features[tStripByteCounts]) < numStrips {
+ 		return nil, FormatError("inconsistent header")
+diff --git a/src/pkg/image/tiff/reader_test.go b/src/pkg/image/tiff/reader_test.go
+new file mode 100644
+index 0000000000..f2122c4403
+--- /dev/null
++++ b/src/pkg/image/tiff/reader_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tiff
++
++import (
++	"os"
++	"testing"
++)
++
++// TestNoRPS tries to decode an image that has no RowsPerStrip tag.
++// The tag is mandatory according to the spec but some software omits
++// it in the case of a single strip.
++func TestNoRPS(t *testing.T) {
++	f, err := os.Open("testdata/no_rps.tiff")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	_, err = Decode(f)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/pkg/image/tiff/testdata/no_rps.tiff b/src/pkg/image/tiff/testdata/no_rps.tiff
+new file mode 100644
+index 0000000000..3280cf8e34
+Binary files /dev/null and b/src/pkg/image/tiff/testdata/no_rps.tiff differ

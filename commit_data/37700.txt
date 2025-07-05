@@ -7,6 +7,20 @@ Date:   Mon Aug 20 01:13:33 2018 +0000
     Change-Id: I2ecbd68b1b30ab64e64ae120101761400c22457b
     Reviewed-on: https://go-review.googlesource.com/129757
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e4c0f5a587..f54c8eb14f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -407,7 +407,7 @@ type gcControllerState struct {
+ 	// each P that isn't running a dedicated worker.
+ 	//
+ 	// For example, if the utilization goal is 25% and there are
+-	// no dedicated workers, this will be 0.25. If there goal is
++	// no dedicated workers, this will be 0.25. If the goal is
+ 	// 25%, there is one dedicated worker, and GOMAXPROCS is 5,
+ 	// this will be 0.05 to make up the missing 5%.
+ 	//

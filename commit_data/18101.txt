@@ -18,9 +18,128 @@ Date:   Fri Dec 20 14:24:39 2013 -0500
     R=golang-codereviews, gobot, r, iant
     CC=golang-codereviews
     https://golang.org/cl/44650043
-
+---
  src/cmd/5g/gobj.c | 21 ---------------------
  src/cmd/6g/gobj.c | 21 ---------------------
  src/cmd/8g/gobj.c | 22 ----------------------
  src/cmd/gc/obj.c  | 10 ++++++++++
  4 files changed, 10 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index eaa28c1113..5e988878f7 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -223,27 +223,6 @@ dgostringptr(Sym *s, int off, char *str)
+ 	return dgostrlitptr(s, off, lit);
+ }
+ 
+-int
+-duintxx(Sym *s, int off, uint64 v, int wid)
+-{
+-	Prog *p;
+-
+-	off = rnd(off, wid);
+-
+-	p = gins(ADATA, N, N);
+-	p->from.type = D_OREG;
+-	p->from.name = D_EXTERN;
+-	p->from.sym = linksym(s);
+-	p->from.offset = off;
+-	p->reg = wid;
+-	p->to.type = D_CONST;
+-	p->to.name = D_NONE;
+-	p->to.offset = v;
+-	off += wid;
+-
+-	return off;
+-}
+-
+ int
+ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ {
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index e22defe4f1..04e837b138 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -205,27 +205,6 @@ dgostringptr(Sym *s, int off, char *str)
+ 	return dgostrlitptr(s, off, lit);
+ }
+ 
+-int
+-duintxx(Sym *s, int off, uint64 v, int wid)
+-{
+-	Prog *p;
+-
+-	off = rnd(off, wid);
+-
+-	p = gins(ADATA, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
+-	p->from.sym = linksym(s);
+-	p->from.offset = off;
+-	p->from.scale = wid;
+-	p->to.type = D_CONST;
+-	p->to.index = D_NONE;
+-	p->to.offset = v;
+-	off += wid;
+-
+-	return off;
+-}
+-
+ int
+ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ {
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 68846ef219..fa0605e6c7 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -216,28 +216,6 @@ dgostringptr(Sym *s, int off, char *str)
+ 	return dgostrlitptr(s, off, lit);
+ }
+ 
+-
+-int
+-duintxx(Sym *s, int off, uint64 v, int wid)
+-{
+-	Prog *p;
+-
+-	off = rnd(off, wid);
+-
+-	p = gins(ADATA, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
+-	p->from.sym = linksym(s);
+-	p->from.offset = off;
+-	p->from.scale = wid;
+-	p->to.type = D_CONST;
+-	p->to.index = D_NONE;
+-	p->to.offset = v;
+-	off += wid;
+-
+-	return off;
+-}
+-
+ int
+ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ {
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 3b9a97320f..c17be5c398 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -160,6 +160,16 @@ linksym(Sym *s)
+ 	return s->lsym;	
+ }
+ 
++int
++duintxx(Sym *s, int off, uint64 v, int wid)
++{
++	// Update symbol data directly instead of generating a
++	// DATA instruction that liblink will have to interpret later.
++	// This reduces compilation time and memory usage.
++	off = rnd(off, wid);
++	return setuintxx(ctxt, linksym(s), off, v, wid);
++}
++
+ int
+ duint8(Sym *s, int off, uint8 v)
+ {

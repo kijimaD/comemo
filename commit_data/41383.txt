@@ -16,7 +16,7 @@ Date:   Wed Sep 25 00:02:29 2019 +0530
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  8 +--
  .../golang.org/x/tools/go/analysis/analysis.go     | 21 ++----
@@ -39,3 +39,702 @@ Date:   Wed Sep 25 00:02:29 2019 +0530
  src/cmd/vendor/modules.txt                         |  2 +-
  src/fmt/errors_test.go                             | 10 ++-
  21 files changed, 189 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 19496a3c67..d8172ad2f5 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
++	golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9aa94eee7b..7c3ee7304b 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,14 +7,14 @@ golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1/go.mod h1:flIaEI6LNU6xOCD5P
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0FNOmBrHfq7vN4btdGoDZgI=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/net v0.0.0-20190311183353-d8887717615a h1:oWX7TPOiFAMXLq8o0ikBYfCJVlRHBcsciT5bXOrH628=
+-golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190611154301-25a4f137592f h1:6awn5JC4pwVI5HiBqs7MDtRxnwV9PpO5iSA9v6P09pA=
+-golang.org/x/tools v0.0.0-20190611154301-25a4f137592f/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
++golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b h1:gyG4T6EqWG9fqSgT0VbHhzp8bHbFux5mvlgz1gUkEaQ=
++golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 19e1e421a3..bc58c31c9f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -128,11 +128,13 @@ type Pass struct {
+ 	// See comments for ExportObjectFact.
+ 	ExportPackageFact func(fact Fact)
+ 
+-	// AllPackageFacts returns a new slice containing all package facts in unspecified order.
++	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
++	// in unspecified order.
+ 	// WARNING: This is an experimental API and may change in the future.
+ 	AllPackageFacts func() []PackageFact
+ 
+-	// AllObjectFacts returns a new slice containing all object facts in unspecified order.
++	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
++	// in unspecified order.
+ 	// WARNING: This is an experimental API and may change in the future.
+ 	AllObjectFacts func() []ObjectFact
+ 
+@@ -211,18 +213,3 @@ func (pass *Pass) String() string {
+ type Fact interface {
+ 	AFact() // dummy method to avoid type errors
+ }
+-
+-// A Diagnostic is a message associated with a source location or range.
+-//
+-// An Analyzer may return a variety of diagnostics; the optional Category,
+-// which should be a constant, may be used to classify them.
+-// It is primarily intended to make it easy to look up documentation.
+-//
+-// If End is provided, the diagnostic is specified to apply to the range between
+-// Pos and End.
+-type Diagnostic struct {
+-	Pos      token.Pos
+-	End      token.Pos // optional
+-	Category string    // optional
+-	Message  string
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+new file mode 100644
+index 0000000000..744072cd79
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -0,0 +1,48 @@
++package analysis
++
++import "go/token"
++
++// A Diagnostic is a message associated with a source location or range.
++//
++// An Analyzer may return a variety of diagnostics; the optional Category,
++// which should be a constant, may be used to classify them.
++// It is primarily intended to make it easy to look up documentation.
++//
++// If End is provided, the diagnostic is specified to apply to the range between
++// Pos and End.
++type Diagnostic struct {
++	Pos      token.Pos
++	End      token.Pos // optional
++	Category string    // optional
++	Message  string
++
++	// SuggestedFixes contains suggested fixes for a diagnostic which can be used to perform
++	// edits to a file that address the diagnostic.
++	// TODO(matloob): Should multiple SuggestedFixes be allowed for a diagnostic?
++	// Diagnostics should not contain SuggestedFixes that overlap.
++	// Experimental: This API is experimental and may change in the future.
++	SuggestedFixes []SuggestedFix // optional
++}
++
++// A SuggestedFix is a code change associated with a Diagnostic that a user can choose
++// to apply to their code. Usually the SuggestedFix is meant to fix the issue flagged
++// by the diagnostic.
++// TextEdits for a SuggestedFix should not overlap. TextEdits for a SuggestedFix
++// should not contain edits for other packages.
++// Experimental: This API is experimental and may change in the future.
++type SuggestedFix struct {
++	// A description for this suggested fix to be shown to a user deciding
++	// whether to accept it.
++	Message   string
++	TextEdits []TextEdit
++}
++
++// A TextEdit represents the replacement of the code between Pos and End with the new text.
++// Each TextEdit should apply to a single file. End should not be earlier in the file than Pos.
++// Experimental: This API is experimental and may change in the future.
++type TextEdit struct {
++	// For a pure insertion, End can either be set to Pos or token.NoPos.
++	Pos     token.Pos
++	End     token.Pos
++	NewText []byte
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 2d44b0458a..a2353fc88b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -67,7 +67,7 @@ To add a new Analyzer to an existing driver, add another item to the list:
+ 	}
+ 
+ A driver may use the name, flags, and documentation to provide on-line
+-help that describes the analyses its performs.
++help that describes the analyses it performs.
+ The doc comment contains a brief one-line summary,
+ optionally followed by paragraphs of explanation.
+ The vet command, shown below, is an example of a driver that runs
+@@ -169,7 +169,7 @@ type information, and source positions for a single package of Go code.
+ 
+ The OtherFiles field provides the names, but not the contents, of non-Go
+ files such as assembly that are part of this package. See the "asmdecl"
+-or "buildtags" analyzers for examples of loading non-Go files and report
++or "buildtags" analyzers for examples of loading non-Go files and reporting
+ diagnostics against them.
+ 
+ The ResultOf field provides the results computed by the analyzers
+@@ -231,7 +231,7 @@ understood as alternative or non-standard type systems. For example,
+ vet's printf checker infers whether a function has the "printf wrapper"
+ type, and it applies stricter checks to calls of such functions. In
+ addition, it records which functions are printf wrappers for use by
+-later analysis units to identify other printf wrappers by induction.
++later analysis passes to identify other printf wrappers by induction.
+ A result such as “f is a printf wrapper” that is not interesting by
+ itself but serves as a stepping stone to an interesting result (such as
+ a diagnostic) is called a "fact".
+@@ -252,9 +252,9 @@ An Analyzer that uses facts must declare their types:
+ 
+ 	type isWrapper struct{} // => *types.Func f “is a printf wrapper”
+ 
+-A driver program ensures that facts for a pass’s dependencies are
+-generated before analyzing the pass and are responsible for propagating
+-facts between from one pass to another, possibly across address spaces.
++The driver program ensures that facts for a pass’s dependencies are
++generated before analyzing the package and is responsible for propagating
++facts from one package to another, possibly across address spaces.
+ Consequently, Facts must be serializable. The API requires that drivers
+ use the gob encoding, an efficient, robust, self-describing binary
+ protocol. A fact type may implement the GobEncoder/GobDecoder interfaces
+@@ -288,10 +288,10 @@ not currently apply analyzers to packages of the standard library.
+ Therefore, for best results, analyzer authors should not rely on
+ analysis facts being available for standard packages.
+ For example, although the printf checker is capable of deducing during
+-analysis of the log package that log.Printf is a printf-wrapper,
++analysis of the log package that log.Printf is a printf wrapper,
+ this fact is built in to the analyzer so that it correctly checks
+ calls to log.Printf even when run in a driver that does not apply
+-it to standard packages. We plan to remove this limitation in future.
++it to standard packages. We would like to remove this limitation in future.
+ 
+ 
+ Testing an Analyzer
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index a3c2f09630..0778f42207 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -168,10 +168,10 @@ func printFlags() {
+ 	var flags []jsonFlag = nil
+ 	flag.VisitAll(func(f *flag.Flag) {
+ 		// Don't report {single,multi}checker debugging
+-		// flags as these have no effect on unitchecker
++		// flags or fix as these have no effect on unitchecker
+ 		// (as invoked by 'go vet').
+ 		switch f.Name {
+-		case "debug", "cpuprofile", "memprofile", "trace":
++		case "debug", "cpuprofile", "memprofile", "trace", "fix":
+ 			return
+ 		}
+ 
+@@ -209,7 +209,7 @@ func (versionFlag) Set(s string) error {
+ 		log.Fatalf("unsupported flag value: -V=%s", s)
+ 	}
+ 
+-	// This replicates the miminal subset of
++	// This replicates the minimal subset of
+ 	// cmd/internal/objabi.AddVersionFlag, which is private to the
+ 	// go tool yet forms part of our command-line interface.
+ 	// TODO(adonovan): clarify the contract.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+index 468f148900..07984521c3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/facts/facts.go
+@@ -29,7 +29,7 @@
+ // The notion of "exportedness" that matters here is that of the
+ // compiler. According to the language spec, a method pkg.T.f is
+ // unexported simply because its name starts with lowercase. But the
+-// compiler must nonethless export f so that downstream compilations can
++// compiler must nonetheless export f so that downstream compilations can
+ // accurately ascertain whether pkg.T implements an interface pkg.I
+ // defined as interface{f()}. Exported thus means "described in export
+ // data".
+@@ -99,6 +99,16 @@ func (s *Set) ExportObjectFact(obj types.Object, fact analysis.Fact) {
+ 	s.mu.Unlock()
+ }
+ 
++func (s *Set) AllObjectFacts(filter map[reflect.Type]bool) []analysis.ObjectFact {
++	var facts []analysis.ObjectFact
++	for k, v := range s.m {
++		if k.obj != nil && filter[k.t] {
++			facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: v})
++		}
++	}
++	return facts
++}
++
+ // ImportPackageFact implements analysis.Pass.ImportPackageFact.
+ func (s *Set) ImportPackageFact(pkg *types.Package, ptr analysis.Fact) bool {
+ 	if pkg == nil {
+@@ -122,6 +132,16 @@ func (s *Set) ExportPackageFact(fact analysis.Fact) {
+ 	s.mu.Unlock()
+ }
+ 
++func (s *Set) AllPackageFacts(filter map[reflect.Type]bool) []analysis.PackageFact {
++	var facts []analysis.PackageFact
++	for k, v := range s.m {
++		if k.obj == nil && filter[k.t] {
++			facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: v})
++		}
++	}
++	return facts
++}
++
+ // gobFact is the Gob declaration of a serialized fact.
+ type gobFact struct {
+ 	PkgPath string          // path of package
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go
+index 4dff2908c3..3586638efc 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go
+@@ -9,6 +9,7 @@ package assign
+ // methods that are on T instead of *T.
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"reflect"
+@@ -59,7 +60,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			le := analysisutil.Format(pass.Fset, lhs)
+ 			re := analysisutil.Format(pass.Fset, rhs)
+ 			if le == re {
+-				pass.Reportf(stmt.Pos(), "self-assignment of %s to %s", re, le)
++				pass.Report(analysis.Diagnostic{
++					Pos: stmt.Pos(), Message: fmt.Sprintf("self-assignment of %s to %s", re, le),
++					SuggestedFixes: []analysis.SuggestedFix{
++						{Message: "Remove", TextEdits: []analysis.TextEdit{
++							{Pos: stmt.Pos(), End: stmt.End(), NewText: []byte{}},
++						}},
++					},
++				})
+ 			}
+ 		}
+ 	})
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index 1e4fac8595..d499f3c329 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -107,7 +107,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
+ // cgo files of a package (those that import "C"). Such files are not
+ // Go, so there may be gaps in type information around C.f references.
+ //
+-// This checker was initially written in vet to inpect raw cgo source
++// This checker was initially written in vet to inspect raw cgo source
+ // files using partial type information. However, Analyzers in the new
+ // analysis API are presented with the type-checked, "cooked" Go ASTs
+ // resulting from cgo-processing files, so we must choose between
+@@ -133,7 +133,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
+ //	func (T) f(int) string { ... }
+ //
+ // we synthesize a new ast.File, shown below, that dot-imports the
+-// orginal "cooked" package using a special name ("·this·"), so that all
++// original "cooked" package using a special name ("·this·"), so that all
+ // references to package members resolve correctly. (References to
+ // unexported names cause an "unexported" error, which we ignore.)
+ //
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go
+index ab609f279b..1e5f5fd20b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go
+@@ -24,6 +24,7 @@ var unkeyedLiteral = map[string]bool{
+ 	"image.Uniform":       true,
+ 
+ 	"unicode.Range16": true,
++	"unicode.Range32": true,
+ 
+ 	// These three structs are used in generated test main files,
+ 	// but the generator can be trusted.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
+index 75655c5bad..51600ffc7e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
+@@ -102,10 +102,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+ 		switch n := n.(type) {
+ 		case *ast.FuncDecl:
+-			fn := pass.TypesInfo.Defs[n.Name].(*types.Func)
+-			funcDecls[fn] = &declInfo{decl: n}
+-			decls = append(decls, fn)
+-
++			// Type information may be incomplete.
++			if fn, ok := pass.TypesInfo.Defs[n.Name].(*types.Func); ok {
++				funcDecls[fn] = &declInfo{decl: n}
++				decls = append(decls, fn)
++			}
+ 		case *ast.FuncLit:
+ 			funcLits[n] = new(litInfo)
+ 			lits = append(lits, n)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index c411466c28..01abc70017 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The errorsas package defines an Analyzer that checks that the second arugment to
++// The errorsas package defines an Analyzer that checks that the second argument to
+ // errors.As is a pointer to a type implementing error.
+ package errorsas
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index f59e95dc21..f0d7e44c65 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -67,15 +67,20 @@ of arguments with no format string.
+ `
+ 
+ // isWrapper is a fact indicating that a function is a print or printf wrapper.
+-type isWrapper struct{ Printf bool }
++type isWrapper struct{ Kind funcKind }
+ 
+ func (f *isWrapper) AFact() {}
+ 
+ func (f *isWrapper) String() string {
+-	if f.Printf {
++	switch f.Kind {
++	case kindPrintf:
+ 		return "printfWrapper"
+-	} else {
++	case kindPrint:
+ 		return "printWrapper"
++	case kindErrorf:
++		return "errorfWrapper"
++	default:
++		return "unknownWrapper"
+ 	}
+ }
+ 
+@@ -112,7 +117,11 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
+ 	if !ok || fdecl.Body == nil {
+ 		return nil
+ 	}
+-	fn := info.Defs[fdecl.Name].(*types.Func)
++	fn, ok := info.Defs[fdecl.Name].(*types.Func)
++	// Type information may be incomplete.
++	if !ok {
++		return nil
++	}
+ 
+ 	sig := fn.Type().(*types.Signature)
+ 	if !sig.Variadic() {
+@@ -223,16 +232,20 @@ func match(info *types.Info, arg ast.Expr, param *types.Var) bool {
+ 	return ok && info.ObjectOf(id) == param
+ }
+ 
++type funcKind int
++
+ const (
+-	kindPrintf = 1
+-	kindPrint  = 2
++	kindUnknown funcKind = iota
++	kindPrintf           = iota
++	kindPrint
++	kindErrorf
+ )
+ 
+ // checkPrintfFwd checks that a printf-forwarding wrapper is forwarding correctly.
+ // It diagnoses writing fmt.Printf(format, args) instead of fmt.Printf(format, args...).
+-func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind int) {
++func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind funcKind) {
+ 	matched := kind == kindPrint ||
+-		kind == kindPrintf && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
++		kind != kindUnknown && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
+ 	if !matched {
+ 		return
+ 	}
+@@ -262,7 +275,7 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ 	fn := w.obj
+ 	var fact isWrapper
+ 	if !pass.ImportObjectFact(fn, &fact) {
+-		fact.Printf = kind == kindPrintf
++		fact.Kind = kind
+ 		pass.ExportObjectFact(fn, &fact)
+ 		for _, caller := range w.callers {
+ 			checkPrintfFwd(pass, caller.w, caller.call, kind)
+@@ -414,42 +427,42 @@ func checkCall(pass *analysis.Pass) {
+ 		call := n.(*ast.CallExpr)
+ 		fn, kind := printfNameAndKind(pass, call)
+ 		switch kind {
+-		case kindPrintf:
+-			checkPrintf(pass, call, fn)
++		case kindPrintf, kindErrorf:
++			checkPrintf(pass, kind, call, fn)
+ 		case kindPrint:
+ 			checkPrint(pass, call, fn)
+ 		}
+ 	})
+ }
+ 
+-func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind int) {
++func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind funcKind) {
+ 	fn, _ = typeutil.Callee(pass.TypesInfo, call).(*types.Func)
+ 	if fn == nil {
+ 		return nil, 0
+ 	}
+ 
+-	var fact isWrapper
+-	if pass.ImportObjectFact(fn, &fact) {
+-		if fact.Printf {
+-			return fn, kindPrintf
+-		} else {
+-			return fn, kindPrint
+-		}
+-	}
+-
+ 	_, ok := isPrint[fn.FullName()]
+ 	if !ok {
+ 		// Next look up just "printf", for use with -printf.funcs.
+ 		_, ok = isPrint[strings.ToLower(fn.Name())]
+ 	}
+ 	if ok {
+-		if strings.HasSuffix(fn.Name(), "f") {
++		if fn.Name() == "Errorf" {
++			kind = kindErrorf
++		} else if strings.HasSuffix(fn.Name(), "f") {
+ 			kind = kindPrintf
+ 		} else {
+ 			kind = kindPrint
+ 		}
++		return fn, kind
++	}
++
++	var fact isWrapper
++	if pass.ImportObjectFact(fn, &fact) {
++		return fn, fact.Kind
+ 	}
+-	return fn, kind
++
++	return fn, kindUnknown
+ }
+ 
+ // isFormatter reports whether t satisfies fmt.Formatter.
+@@ -491,7 +504,7 @@ type formatState struct {
+ }
+ 
+ // checkPrintf checks a call to a formatted print routine such as Printf.
+-func checkPrintf(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
++func checkPrintf(pass *analysis.Pass, kind funcKind, call *ast.CallExpr, fn *types.Func) {
+ 	format, idx := formatString(pass, call)
+ 	if idx < 0 {
+ 		if false {
+@@ -511,6 +524,7 @@ func checkPrintf(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 	argNum := firstArg
+ 	maxArgNum := firstArg
+ 	anyIndex := false
++	anyW := false
+ 	for i, w := 0, 0; i < len(format); i += w {
+ 		w = 1
+ 		if format[i] != '%' {
+@@ -527,6 +541,17 @@ func checkPrintf(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if state.hasIndex {
+ 			anyIndex = true
+ 		}
++		if state.verb == 'w' {
++			if kind != kindErrorf {
++				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w", state.name)
++				return
++			}
++			if anyW {
++				pass.Reportf(call.Pos(), "%s call has more than one error-wrapping directive %%w", state.name)
++				return
++			}
++			anyW = true
++		}
+ 		if len(state.argNums) > 0 {
+ 			// Continue with the next sequential argument.
+ 			argNum = state.argNums[len(state.argNums)-1] + 1
+@@ -697,6 +722,7 @@ const (
+ 	argFloat
+ 	argComplex
+ 	argPointer
++	argError
+ 	anyType printfArgType = ^0
+ )
+ 
+@@ -739,7 +765,7 @@ var printVerbs = []printVerb{
+ 	{'T', "-", anyType},
+ 	{'U', "-#", argRune | argInt},
+ 	{'v', allFlags, anyType},
+-	{'w', noFlag, anyType},
++	{'w', allFlags, argError},
+ 	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
+ 	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 12286fd5df..bd8a594ef5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -37,6 +37,12 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 			return true // probably a type check problem
+ 		}
+ 	}
++
++	// %w accepts only errors.
++	if t == argError {
++		return types.ConvertibleTo(typ, errorType)
++	}
++
+ 	// If the type implements fmt.Formatter, we have nothing to check.
+ 	if isFormatter(typ) {
+ 		return true
+@@ -228,7 +234,7 @@ func matchStructArgType(pass *analysis.Pass, t printfArgType, typ *types.Struct,
+ 			return false
+ 		}
+ 		if t&argString != 0 && !typf.Exported() && isConvertibleToString(pass, typf.Type()) {
+-			// Issue #17798: unexported Stringer or error cannot be properly fomatted.
++			// Issue #17798: unexported Stringer or error cannot be properly formatted.
+ 			return false
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index acc6e6c770..e09160379f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -40,7 +40,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		(*ast.StructType)(nil),
+ 	}
+ 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+-		styp := pass.TypesInfo.Types[n.(*ast.StructType)].Type.(*types.Struct)
++		styp, ok := pass.TypesInfo.Types[n.(*ast.StructType)].Type.(*types.Struct)
++		// Type information may be incomplete.
++		if !ok {
++			return
++		}
+ 		var seen namesSeen
+ 		for i := 0; i < styp.NumFields(); i++ {
+ 			field := styp.Field(i)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index ba2e66fed2..2ed274949b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -42,6 +42,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -322,6 +323,11 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				return
+ 			}
+ 
++			factFilter := make(map[reflect.Type]bool)
++			for _, f := range a.FactTypes {
++				factFilter[reflect.TypeOf(f)] = true
++			}
++
+ 			pass := &analysis.Pass{
+ 				Analyzer:          a,
+ 				Fset:              fset,
+@@ -334,8 +340,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
+ 				ImportObjectFact:  facts.ImportObjectFact,
+ 				ExportObjectFact:  facts.ExportObjectFact,
++				AllObjectFacts:    func() []analysis.ObjectFact { return facts.AllObjectFacts(factFilter) },
+ 				ImportPackageFact: facts.ImportPackageFact,
+ 				ExportPackageFact: facts.ExportPackageFact,
++				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
+ 			}
+ 
+ 			t0 := time.Now()
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+index 6e6cf4984f..b984ab6c2d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+@@ -10,7 +10,7 @@ import (
+ // Checks include:
+ // that the name is a valid identifier;
+ // that analyzer names are unique;
+-// that the Requires graph is acylic;
++// that the Requires graph is acyclic;
+ // that analyzer fact types are unique;
+ // that each fact type is a pointer.
+ func Validate(analyzers []*Analyzer) error {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go b/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go
+index 24e1aba033..7f95a2961a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/cfg/builder.go
+@@ -149,7 +149,7 @@ func (b *builder) branchStmt(s *ast.BranchStmt) {
+ 		}
+ 
+ 	case token.FALLTHROUGH:
+-		for t := b.targets; t != nil; t = t.tail {
++		for t := b.targets; t != nil && block == nil; t = t.tail {
+ 			block = t._fallthrough
+ 		}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index 0d85488efb..882e3b3d8a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -376,7 +376,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 		return nil, fmt.Errorf("package %s does not contain %q", pkg.Path(), pkgobj)
+ 	}
+ 
+-	// abtraction of *types.{Pointer,Slice,Array,Chan,Map}
++	// abstraction of *types.{Pointer,Slice,Array,Chan,Map}
+ 	type hasElem interface {
+ 		Elem() types.Type
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e873ad4455..43f539fd81 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
++# golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts
+diff --git a/src/fmt/errors_test.go b/src/fmt/errors_test.go
+index 0c774bc28b..481a7b8403 100644
+--- a/src/fmt/errors_test.go
++++ b/src/fmt/errors_test.go
+@@ -11,6 +11,10 @@ import (
+ )
+ 
+ func TestErrorf(t *testing.T) {
++	// noVetErrorf is an alias for fmt.Errorf that does not trigger vet warnings for
++	// %w format strings.
++	noVetErrorf := fmt.Errorf
++
+ 	wrapped := errors.New("inner error")
+ 	for _, test := range []struct {
+ 		err        error
+@@ -46,13 +50,13 @@ func TestErrorf(t *testing.T) {
+ 		err:      fmt.Errorf("%v with added context", wrapped),
+ 		wantText: "inner error with added context",
+ 	}, {
+-		err:      fmt.Errorf("%w is not an error", "not-an-error"),
++		err:      noVetErrorf("%w is not an error", "not-an-error"),
+ 		wantText: "%!w(string=not-an-error) is not an error",
+ 	}, {
+-		err:      fmt.Errorf("wrapped two errors: %w %w", errString("1"), errString("2")),
++		err:      noVetErrorf("wrapped two errors: %w %w", errString("1"), errString("2")),
+ 		wantText: "wrapped two errors: 1 %!w(fmt_test.errString=2)",
+ 	}, {
+-		err:      fmt.Errorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
++		err:      noVetErrorf("wrapped three errors: %w %w %w", errString("1"), errString("2"), errString("3")),
+ 		wantText: "wrapped three errors: 1 %!w(fmt_test.errString=2) %!w(fmt_test.errString=3)",
+ 	}, {
+ 		err:        fmt.Errorf("%w", nil),

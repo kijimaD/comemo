@@ -15,7 +15,100 @@ Date:   Sun Oct 11 04:16:58 2015 +0800
     Change-Id: Id858701801158409be01e962d2cda843424bd22a
     Reviewed-on: https://go-review.googlesource.com/15684
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/marshal.go      | 18 ++++++++++--------
  src/encoding/xml/marshal_test.go |  8 +++++++-
  2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index abb078ce27..4fa1de040a 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -760,14 +760,6 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 		}
+ 		vf := finfo.value(val)
+ 
+-		// Dereference or skip nil pointer, interface values.
+-		switch vf.Kind() {
+-		case reflect.Ptr, reflect.Interface:
+-			if !vf.IsNil() {
+-				vf = vf.Elem()
+-			}
+-		}
+-
+ 		switch finfo.flags & fMode {
+ 		case fCDATA, fCharData:
+ 			emit := EscapeText
+@@ -800,6 +792,16 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 					continue
+ 				}
+ 			}
++			// Drill into interfaces and pointers.
++			// This can turn into an infinite loop given a cyclic chain,
++			// but it matches the Go 1 behavior.
++			for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
++				if vf.IsNil() {
++					return nil
++				}
++				vf = vf.Elem()
++			}
++
+ 			var scratch [64]byte
+ 			switch vf.Kind() {
+ 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index c0c6a0cd9f..e5cf1f6bfd 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -207,6 +207,7 @@ type OmitAttrTest struct {
+ 	Bool  bool    `xml:",attr,omitempty"`
+ 	Str   string  `xml:",attr,omitempty"`
+ 	Bytes []byte  `xml:",attr,omitempty"`
++	PStr  *string `xml:",attr,omitempty"`
+ }
+ 
+ type OmitFieldTest struct {
+@@ -217,6 +218,7 @@ type OmitFieldTest struct {
+ 	Bool  bool          `xml:",omitempty"`
+ 	Str   string        `xml:",omitempty"`
+ 	Bytes []byte        `xml:",omitempty"`
++	PStr  *string       `xml:",omitempty"`
+ 	Ptr   *PresenceTest `xml:",omitempty"`
+ }
+ 
+@@ -377,6 +379,7 @@ var (
+ 	nameAttr     = "Sarah"
+ 	ageAttr      = uint(12)
+ 	contentsAttr = "lorem ipsum"
++	empty = ""
+ )
+ 
+ // Unless explicitly stated as such (or *Plain), all of the
+@@ -835,9 +838,10 @@ var marshalTests = []struct {
+ 			Bool:  true,
+ 			Str:   "str",
+ 			Bytes: []byte("byt"),
++			PStr:  &empty,
+ 		},
+ 		ExpectXML: `<OmitAttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
+-			` Bool="true" Str="str" Bytes="byt"></OmitAttrTest>`,
++			` Bool="true" Str="str" Bytes="byt" PStr=""></OmitAttrTest>`,
+ 	},
+ 	{
+ 		Value:     &OmitAttrTest{},
+@@ -868,6 +872,7 @@ var marshalTests = []struct {
+ 			Bool:  true,
+ 			Str:   "str",
+ 			Bytes: []byte("byt"),
++			PStr:   &empty,
+ 			Ptr:   &PresenceTest{},
+ 		},
+ 		ExpectXML: `<OmitFieldTest>` +
+@@ -878,6 +883,7 @@ var marshalTests = []struct {
+ 			`<Bool>true</Bool>` +
+ 			`<Str>str</Str>` +
+ 			`<Bytes>byt</Bytes>` +
++			`<PStr></PStr>` +
+ 			`<Ptr></Ptr>` +
+ 			`</OmitFieldTest>`,
+ 	},

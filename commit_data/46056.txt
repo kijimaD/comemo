@@ -20,7 +20,7 @@ Date:   Fri Sep 11 11:11:08 2020 -0400
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/internal/load/test.go                |   1 +
  src/cmd/go/internal/test/test.go                |   8 ++
  src/cmd/go/testdata/script/test_fuzz.txt        |  56 +++++++++
@@ -29,3 +29,465 @@ Date:   Fri Sep 11 11:11:08 2020 -0400
  src/testing/fuzz.go                             | 146 ++++++++++++++++--------
  src/testing/testing.go                          |   2 +-
  7 files changed, 283 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 93ec5facc5..d4453846e6 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -595,6 +595,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 				return err
+ 			}
+ 			t.FuzzTargets = append(t.FuzzTargets, testFunc{pkg, name, "", false})
++			*doImport, *seen = true, true
+ 		}
+ 	}
+ 	ex := doc.Examples(f)
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 721236ca36..109acb53da 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1064,6 +1064,8 @@ func declareCoverVars(p *load.Package, files ...string) map[string]*load.CoverVa
+ }
+ 
+ var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
++var noTargetsToFuzz = []byte("\ntesting: warning: no targets to fuzz\n")
++var tooManyTargetsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one target, won't fuzz\n")
+ 
+ type runCache struct {
+ 	disableCache bool // cache should be disabled for this run
+@@ -1260,6 +1262,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
+ 			norun = " [no tests to run]"
+ 		}
++		if bytes.HasPrefix(out, noTargetsToFuzz[1:]) || bytes.Contains(out, noTargetsToFuzz) {
++			norun = " [no targets to fuzz]"
++		}
++		if bytes.HasPrefix(out, tooManyTargetsToFuzz[1:]) || bytes.Contains(out, tooManyTargetsToFuzz) {
++			norun = " [will not fuzz, -fuzz matches more than one target]"
++		}
+ 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
+ 		c.saveOutput(a)
+ 	} else {
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+new file mode 100644
+index 0000000000..68e5041822
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -0,0 +1,56 @@
++# Test that calling f.Fatal in a fuzz target causes a non-zero exit status.
++! go test fail_fuzz_test.go
++! stdout ^ok
++stdout FAIL
++
++# Test that successful test exits cleanly.
++go test success_fuzz_test.go
++stdout ok
++! stdout FAIL
++
++[short] stop
++
++# Test that calling panic(nil) in a fuzz target causes a non-zero exit status.
++! go test panic_fuzz_test.go
++! stdout ^ok
++stdout FAIL
++
++# Test that skipped test exits cleanly.
++go test skipped_fuzz_test.go
++stdout ok
++! stdout FAIL
++
++-- fail_fuzz_test.go --
++package fail_fuzz
++
++import "testing"
++
++func FuzzFail(f *testing.F) {
++    f.Fatal("fatal in target")
++}
++
++-- panic_fuzz_test.go --
++package panic_fuzz
++
++import "testing"
++
++func FuzzPanic(f *testing.F) {
++    panic(nil)
++}
++
++-- success_fuzz_test.go --
++package success_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++}
++
++-- skipped_fuzz_test.go --
++package skipped_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++    f.Skip()
++}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+new file mode 100644
+index 0000000000..56b20bedad
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -0,0 +1,64 @@
++[short] skip
++
++# Run chatty fuzz targets with an error and fatal.
++! go test -v chatty_fail_fuzz_test.go
++! stdout '^ok'
++stdout 'FAIL'
++stdout 'error in target'
++stdout 'fatal in target'
++
++# Run chatty fuzz target with a panic
++! go test -v chatty_panic_fuzz_test.go
++! stdout ^ok
++stdout FAIL
++stdout 'this is bad'
++
++# Run skipped chatty fuzz targets.
++go test -v chatty_skipped_fuzz_test.go
++stdout ok
++stdout SKIP
++! stdout FAIL
++
++# Run successful chatty fuzz targets.
++go test -v chatty_fuzz_test.go
++stdout ok
++stdout PASS
++stdout 'all good here'
++! stdout FAIL
++
++-- chatty_fail_fuzz_test.go --
++package chatty_fail_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++    f.Error("error in target")
++    f.Fatal("fatal in target")
++}
++
++-- chatty_panic_fuzz_test.go --
++package chatty_panic_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++    panic("this is bad")
++}
++
++-- chatty_skipped_fuzz_test.go --
++package chatty_skipped_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++    f.Skip()
++}
++
++-- chatty_fuzz_test.go --
++package chatty_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++    f.Log("all good here")
++}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+new file mode 100644
+index 0000000000..da7e7f13ab
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -0,0 +1,54 @@
++# Matches only fuzz targets to test.
++go test standalone_fuzz_test.go
++! stdout '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++# Matches only for fuzzing.
++go test -fuzz Fuzz standalone_fuzz_test.go
++! stdout '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++# Matches none for fuzzing but will run the fuzz target as a test.
++go test -fuzz ThisWillNotMatch standalone_fuzz_test.go
++! stdout '^ok.*\[no tests to run\]'
++stdout ok
++stdout '\[no targets to fuzz\]'
++
++[short] stop
++
++# Matches only fuzz targets to test with -run.
++go test -run Fuzz standalone_fuzz_test.go
++! stdout '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++# Matches no fuzz targets.
++go test -run ThisWillNotMatch standalone_fuzz_test.go
++stdout '^ok.*\[no tests to run\]'
++! stdout '\[no targets to fuzz\]'
++
++# Matches more than one fuzz target for fuzzing.
++go test -fuzz Fuzz multiple_fuzz_test.go
++# The tests should run, but not be fuzzed
++! stdout '\[no tests to run\]'
++! stdout '\[no targets to fuzz\]'
++stdout ok
++stdout '\[will not fuzz, -fuzz matches more than one target\]'
++
++-- standalone_fuzz_test.go --
++package standalone_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++}
++
++-- multiple_fuzz_test.go --
++package multiple_fuzz
++
++import "testing"
++
++func FuzzA(f *testing.F) {
++}
++
++func FuzzB(f *testing.F) {
++}
+\ No newline at end of file
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index aaa4ad1931..f5162115b4 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -54,18 +54,79 @@ func (f *F) Fuzz(ff interface{}) {
+ 	return
+ }
+ 
++func (f *F) report(name string) {
++	if f.Failed() {
++		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", name, f.result.String())
++	} else if f.chatty != nil {
++		if f.Skipped() {
++			f.chatty.Updatef(name, "SKIP\n")
++		} else {
++			f.chatty.Updatef(name, "PASS\n")
++		}
++	}
++}
++
++// run runs each fuzz target in its own goroutine with its own *F.
++func (f *F) run(name string, fn func(f *F)) (ran, ok bool) {
++	innerF := &F{
++		common: common{
++			signal: make(chan bool),
++			name:   name,
++			chatty: f.chatty,
++			w:      f.w,
++		},
++		context: f.context,
++	}
++	if innerF.chatty != nil {
++		if f.fuzz {
++			innerF.chatty.Updatef(name, "--- FUZZ: %s\n", name)
++		} else {
++			innerF.chatty.Updatef(name, "=== RUN   %s\n", name)
++		}
++	}
++	go runTarget(innerF, fn)
++	<-innerF.signal
++	return innerF.ran, !innerF.failed
++}
++
++// runTarget runs the given target, handling panics and exits
++// within the test, and reporting errors.
++func runTarget(f *F, fn func(f *F)) {
++	defer func() {
++		err := recover()
++		// If the function has recovered but the test hasn't finished,
++		// it is due to a nil panic or runtime.GoExit.
++		if !f.finished && err == nil {
++			err = errNilPanicOrGoexit
++		}
++		if err != nil {
++			f.Fail()
++			f.result = FuzzResult{Error: fmt.Errorf("%s", err)}
++		}
++		f.report(f.name)
++		f.setRan()
++		f.signal <- true // signal that the test has finished
++	}()
++	fn(f)
++	f.finished = true
++}
++
+ // FuzzResult contains the results of a fuzz run.
+ type FuzzResult struct {
+ 	N       int           // The number of iterations.
+ 	T       time.Duration // The total time taken.
+-	Crasher corpusEntry   // Crasher is the corpus entry that caused the crash
++	Crasher *corpusEntry  // Crasher is the corpus entry that caused the crash
+ 	Error   error         // Error is the error from the crash
+ }
+ 
+ func (r FuzzResult) String() string {
+ 	s := ""
+-	if len(r.Error.Error()) != 0 {
+-		s = fmt.Sprintf("error: %s\ncrasher: %b", r.Error.Error(), r.Crasher)
++	if r.Error == nil {
++		return s
++	}
++	s = fmt.Sprintf("error: %s", r.Error.Error())
++	if r.Crasher != nil {
++		s += fmt.Sprintf("\ncrasher: %b", r.Crasher)
+ 	}
+ 	return s
+ }
+@@ -85,41 +146,37 @@ func RunFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets
+ 
+ // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
+ // only run the f.Fuzz function for each seed corpus without using the fuzzing
+-// engine to generate or mutate inputs. If -fuzz matches a given fuzz target,
+-// then such test will be skipped and run later during fuzzing.
++// engine to generate or mutate inputs.
+ func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+-	ran, ok = true, true
++	ok = true
+ 	if len(fuzzTargets) == 0 {
+-		return false, ok
++		return ran, ok
+ 	}
++	ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
++	var fts []InternalFuzzTarget
+ 	for _, ft := range fuzzTargets {
+-		ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
+-		f := &F{
+-			common: common{
+-				signal:  make(chan bool),
+-				barrier: make(chan bool),
+-				w:       os.Stdout,
+-				name:    ft.Name,
+-			},
+-			context: ctx,
+-		}
+-		testName, matched, _ := ctx.runMatch.fullName(&f.common, f.name)
+-		if !matched {
+-			continue
++		if _, matched, _ := ctx.runMatch.fullName(nil, ft.Name); matched {
++			fts = append(fts, ft)
+ 		}
+-		if *matchFuzz != "" {
+-			ctx.fuzzMatch = newMatcher(matchString, *matchFuzz, "-test.fuzz")
+-			if _, doFuzz, partial := ctx.fuzzMatch.fullName(&f.common, f.name); doFuzz && !partial {
+-				continue // this will be run later when fuzzed
++	}
++	f := &F{
++		common: common{
++			w: os.Stdout,
++		},
++		fuzzFunc: func(f *F) {
++			for _, ft := range fts {
++				// Run each fuzz target in it's own goroutine.
++				ftRan, ftOk := f.run(ft.Name, ft.Fn)
++				ran = ran || ftRan
++				ok = ok && ftOk
+ 			}
+-		}
+-		if Verbose() {
+-			f.chatty = newChattyPrinter(f.w)
+-		}
+-		if f.chatty != nil {
+-			f.chatty.Updatef(f.name, "=== RUN  %s\n", testName)
+-		}
++		},
++		context: ctx,
+ 	}
++	if Verbose() {
++		f.chatty = newChattyPrinter(f.w)
++	}
++	f.fuzzFunc(f)
+ 	return ran, ok
+ }
+ 
+@@ -131,13 +188,11 @@ func RunFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
+ }
+ 
+ // runFuzzing runs the fuzz target matching the pattern for -fuzz. Only one such
+-// fuzz target must match. This will run the f.Fuzz function for each seed
+-// corpus and will run the fuzzing engine to generate and mutate new inputs
+-// against f.Fuzz.
++// fuzz target must match. This will run the fuzzing engine to generate and
++// mutate new inputs against the f.Fuzz function.
+ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+-	ran, ok = true, true
+ 	if len(fuzzTargets) == 0 {
+-		return false, ok
++		return false, true
+ 	}
+ 	ctx := &fuzzContext{
+ 		fuzzMatch: newMatcher(matchString, *matchFuzz, "-test.fuzz"),
+@@ -147,9 +202,7 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
+ 	}
+ 	f := &F{
+ 		common: common{
+-			signal:  make(chan bool),
+-			barrier: make(chan bool),
+-			w:       os.Stdout,
++			w: os.Stdout,
+ 		},
+ 		context: ctx,
+ 		fuzz:    true,
+@@ -163,19 +216,19 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
+ 		if matched {
+ 			found++
+ 			if found > 1 {
+-				fmt.Fprintf(f.w, "testing: warning: -fuzz matched more than one target, won't run\n")
+-				return false, ok
++				fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
++				return false, true
+ 			}
+ 			f.name = testName
+ 		}
+ 	}
++	if found == 0 {
++		return false, true
++	}
+ 	if Verbose() {
+ 		f.chatty = newChattyPrinter(f.w)
+ 	}
+-	if f.chatty != nil {
+-		f.chatty.Updatef(f.name, "--- FUZZ  %s\n", f.name)
+-	}
+-	return ran, ok
++	return f.run(ft.Name, ft.Fn)
+ }
+ 
+ // Fuzz runs a single fuzz target. It is useful for creating
+@@ -186,8 +239,7 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
+ func Fuzz(fn func(f *F)) FuzzResult {
+ 	f := &F{
+ 		common: common{
+-			signal: make(chan bool),
+-			w:      discard{},
++			w: discard{},
+ 		},
+ 		fuzzFunc: fn,
+ 	}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 3e0d2b689e..4fd628c0ff 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1396,7 +1396,7 @@ func (m *M) Run() (code int) {
+ 
+ 	fuzzingRan, fuzzingOk := runFuzzing(m.deps.MatchString, m.fuzzTargets)
+ 	if *matchFuzz != "" && !fuzzingRan {
+-		fmt.Fprintln(os.Stderr, "testing: warning: no fuzz targets to run")
++		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
+ 	}
+ 	if !fuzzingOk {
+ 		fmt.Println("FAIL")

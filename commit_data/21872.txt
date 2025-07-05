@@ -7,7 +7,40 @@ Date:   Tue Feb 10 13:24:47 2015 +1100
     Change-Id: Iad1764707d173a09467fd36e8c49a58147f12219
     Reviewed-on: https://go-review.googlesource.com/4320
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/doc.go   | 1 +
  src/cmd/go/mkdoc.sh | 9 ++++++---
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 398f83d113..5bf089df0a 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -310,6 +310,7 @@ The generator is run in the package's source directory.
+ Go generate accepts one specific flag:
+ 
+ 	-run=""
++		TODO: This flag is unimplemented.
+ 		if non-empty, specifies a regular expression to
+ 		select directives whose command matches the expression.
+ 
+diff --git a/src/cmd/go/mkdoc.sh b/src/cmd/go/mkdoc.sh
+index e15e8809ce..507a8aeddc 100755
+--- a/src/cmd/go/mkdoc.sh
++++ b/src/cmd/go/mkdoc.sh
+@@ -1,9 +1,12 @@
+-#!/bin/sh
++#!/bin/bash
+ # Copyright 2012 The Go Authors.  All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-go install # So the next line will produce updated documentation.
+-go help documentation | sed 's; \*/; * /;' >doc.go
++set -e
++
++go build -o go.latest
++./go.latest help documentation | sed 's; \*/; * /;' >doc.go
+ gofmt -w doc.go
++rm go.latest
+ 

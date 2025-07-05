@@ -17,8 +17,81 @@ Date:   Wed Feb 27 12:34:20 2019 -0500
     Change-Id: I55a6e43264d6952ab2fa5c638bebb89fdc410e2b
     Reviewed-on: https://go-review.googlesource.com/c/164118
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mgcmark.go              |  7 +++++++
  src/runtime/stack_test.go           |  8 ++++++++
  src/runtime/testdata/testprog/gc.go | 23 +++++++++++++++++++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 022cc8d7d7..cc4e7d06d3 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -713,6 +713,13 @@ func scanstack(gp *g, gcw *gcWork) {
+ 	// Find additional pointers that point into the stack from the heap.
+ 	// Currently this includes defers and panics. See also function copystack.
+ 	tracebackdefers(gp, scanframe, nil)
++	for d := gp._defer; d != nil; d = d.link {
++		// tracebackdefers above does not scan the func value, which could
++		// be a stack allocated closure. See issue 30453.
++		if d.fn != nil {
++			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
++		}
++	}
+ 	if gp._panic != nil {
+ 		state.putPtr(uintptr(unsafe.Pointer(gp._panic)))
+ 	}
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index f52381710d..7bc63967bb 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -787,3 +787,11 @@ func TestTracebackAncestors(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that defer closure is correctly scanned when the stack is scanned.
++func TestDeferLiveness(t *testing.T) {
++	output := runTestProg(t, "testprog", "DeferLiveness", "GODEBUG=clobberfree=1")
++	if output != "" {
++		t.Errorf("output:\n%s\n\nwant no output", output)
++	}
++}
+diff --git a/src/runtime/testdata/testprog/gc.go b/src/runtime/testdata/testprog/gc.go
+index fdf08be7e9..ea6604f132 100644
+--- a/src/runtime/testdata/testprog/gc.go
++++ b/src/runtime/testdata/testprog/gc.go
+@@ -18,6 +18,7 @@ func init() {
+ 	register("GCFairness2", GCFairness2)
+ 	register("GCSys", GCSys)
+ 	register("GCPhys", GCPhys)
++	register("DeferLiveness", DeferLiveness)
+ }
+ 
+ func GCSys() {
+@@ -207,3 +208,25 @@ func GCPhys() {
+ 	fmt.Println("OK")
+ 	runtime.KeepAlive(saved)
+ }
++
++// Test that defer closure is correctly scanned when the stack is scanned.
++func DeferLiveness() {
++	var x [10]int
++	escape(&x)
++	fn := func() {
++		if x[0] != 42 {
++			panic("FAIL")
++		}
++	}
++	defer fn()
++
++	x[0] = 42
++	runtime.GC()
++	runtime.GC()
++	runtime.GC()
++}
++
++//go:noinline
++func escape(x interface{}) { sink2 = x; sink2 = nil }
++
++var sink2 interface{}

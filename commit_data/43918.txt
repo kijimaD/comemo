@@ -18,7 +18,55 @@ Date:   Tue Apr 28 01:08:12 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf2.go     |  1 +
  src/cmd/link/internal/loader/loader.go | 10 ++++++++--
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf2.go b/src/cmd/link/internal/ld/dwarf2.go
+index 336122800b..79abccfdf3 100644
+--- a/src/cmd/link/internal/ld/dwarf2.go
++++ b/src/cmd/link/internal/ld/dwarf2.go
+@@ -149,6 +149,7 @@ func dwarfcompress(ctxt *Link) {
+ 			// compressed symbols are no longer needed.
+ 			for _, s := range z.syms {
+ 				ldr.SetAttrReachable(s, false)
++				ldr.FreeSym(s)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index a6d9417c00..e4b8098a8a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2054,7 +2054,6 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 	// be copied in a later loop).
+ 	toConvert := make([]Sym, 0, len(l.payloads))
+ 	for _, i := range l.extReader.syms {
+-		sname := l.RawSymName(i)
+ 		if !l.attrReachable.Has(i) {
+ 			continue
+ 		}
+@@ -2065,7 +2064,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 		// outer/sub processing below. Note that once we do this,
+ 		// we'll need to get at the payload for a symbol with direct
+ 		// reference to l.payloads[] as opposed to calling l.getPayload().
+-		s := l.allocSym(sname, 0)
++		s := l.allocSym(pp.name, 0)
+ 		l.installSym(i, s)
+ 		toConvert = append(toConvert, i)
+ 	}
+@@ -2655,6 +2654,13 @@ func (l *Loader) CreateStaticSym(name string) Sym {
+ 	return l.newExtSym(name, l.anonVersion)
+ }
+ 
++func (l *Loader) FreeSym(i Sym) {
++	if l.IsExternal(i) {
++		pp := l.getPayload(i)
++		*pp = extSymPayload{}
++	}
++}
++
+ func loadObjFull(l *Loader, r *oReader, needReloc bool) {
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+ 		// A symbol may be a dup or overwritten. In this case, its

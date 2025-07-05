@@ -7,6 +7,18 @@ Date:   Thu Jul 14 15:58:37 2011 -0700
     R=rsc, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/4738042
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9865238718..82c7ed419c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of June 17, 2011 -->
++<!-- subtitle Version of July 14, 2011 -->
+ 
+ <!--
+ TODO

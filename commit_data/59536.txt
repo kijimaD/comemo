@@ -17,7 +17,99 @@ Date:   Sat Dec 9 19:18:00 2023 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s |  8 ++---
  src/cmd/internal/obj/riscv/obj.go           | 49 +++++++++++++++++++----------
  2 files changed, 37 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index b96bc844c0..5c8d529029 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -462,12 +462,12 @@ start:
+ 	MOVW	X5, (X6)				// 23205300
+ 	MOVW	X5, 4(X6)				// 23225300
+ 
+-	MOVB	X5, X6					// 1393820313538343
+-	MOVH	X5, X6					// 1393020313530343
++	MOVB	X5, X6					// 1393820313538343 or 13934260
++	MOVH	X5, X6					// 1393020313530343 or 13935260
+ 	MOVW	X5, X6					// 1b830200
+ 	MOVBU	X5, X6					// 13f3f20f
+-	MOVHU	X5, X6					// 1393020313530303
+-	MOVWU	X5, X6					// 1393020213530302
++	MOVHU	X5, X6					// 1393020313530303 or 3bc30208
++	MOVWU	X5, X6					// 1393020213530302 or 3b830208
+ 
+ 	MOVF	4(X5), F0				// 07a04200
+ 	MOVF	F0, 4(X5)				// 27a20200
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 4c5417f754..5518b97c0a 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"internal/abi"
++	"internal/buildcfg"
+ 	"log"
+ 	"math/bits"
+ 	"strings"
+@@ -2157,25 +2158,41 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		case AMOVD: // MOVD Ra, Rb -> FSGNJD Ra, Ra, Rb
+ 			ins.as, ins.rs1 = AFSGNJD, uint32(p.From.Reg)
+ 		case AMOVB, AMOVH:
+-			// Use SLLI/SRAI to extend.
+-			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
+-			if p.As == AMOVB {
+-				ins.imm = 56
+-			} else if p.As == AMOVH {
+-				ins.imm = 48
++			if buildcfg.GORISCV64 >= 22 {
++				// Use SEXTB or SEXTH to extend.
++				ins.as, ins.rs1, ins.rs2 = ASEXTB, uint32(p.From.Reg), obj.REG_NONE
++				if p.As == AMOVH {
++					ins.as = ASEXTH
++				}
++			} else {
++				// Use SLLI/SRAI sequence to extend.
++				ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
++				if p.As == AMOVB {
++					ins.imm = 56
++				} else if p.As == AMOVH {
++					ins.imm = 48
++				}
++				ins2 := &instruction{as: ASRAI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
++				inss = append(inss, ins2)
+ 			}
+-			ins2 := &instruction{as: ASRAI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
+-			inss = append(inss, ins2)
+ 		case AMOVHU, AMOVWU:
+-			// Use SLLI/SRLI to extend.
+-			ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
+-			if p.As == AMOVHU {
+-				ins.imm = 48
+-			} else if p.As == AMOVWU {
+-				ins.imm = 32
++			if buildcfg.GORISCV64 >= 22 {
++				// Use ZEXTH or ADDUW to extend.
++				ins.as, ins.rs1, ins.rs2, ins.imm = AZEXTH, uint32(p.From.Reg), obj.REG_NONE, 0
++				if p.As == AMOVWU {
++					ins.as, ins.rs2 = AADDUW, REG_ZERO
++				}
++			} else {
++				// Use SLLI/SRLI sequence to extend.
++				ins.as, ins.rs1, ins.rs2 = ASLLI, uint32(p.From.Reg), obj.REG_NONE
++				if p.As == AMOVHU {
++					ins.imm = 48
++				} else if p.As == AMOVWU {
++					ins.imm = 32
++				}
++				ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
++				inss = append(inss, ins2)
+ 			}
+-			ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
+-			inss = append(inss, ins2)
+ 		}
+ 
+ 	case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:

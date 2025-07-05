@@ -15,8 +15,57 @@ Date:   Wed Aug 4 21:17:54 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go    | 2 +-
  src/cmd/compile/internal/syntax/positions.go | 4 ++--
  src/cmd/compile/internal/syntax/walk.go      | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 503dea7fae..acffd84885 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -604,7 +604,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 			} else {
+ 				// x is the array length expression
+ 				if debug && x == nil {
+-					panic("internal error: nil expression")
++					panic("length expression is nil")
+ 				}
+ 				d.Type = p.arrayType(pos, x)
+ 			}
+diff --git a/src/cmd/compile/internal/syntax/positions.go b/src/cmd/compile/internal/syntax/positions.go
+index b00f86c67c..93596559a0 100644
+--- a/src/cmd/compile/internal/syntax/positions.go
++++ b/src/cmd/compile/internal/syntax/positions.go
+@@ -12,7 +12,7 @@ func StartPos(n Node) Pos {
+ 	for m := n; ; {
+ 		switch n := m.(type) {
+ 		case nil:
+-			panic("internal error: nil")
++			panic("nil node")
+ 
+ 		// packages
+ 		case *File:
+@@ -124,7 +124,7 @@ func EndPos(n Node) Pos {
+ 	for m := n; ; {
+ 		switch n := m.(type) {
+ 		case nil:
+-			panic("internal error: nil")
++			panic("nil node")
+ 
+ 		// packages
+ 		case *File:
+diff --git a/src/cmd/compile/internal/syntax/walk.go b/src/cmd/compile/internal/syntax/walk.go
+index ef213daf7d..b025844204 100644
+--- a/src/cmd/compile/internal/syntax/walk.go
++++ b/src/cmd/compile/internal/syntax/walk.go
+@@ -70,7 +70,7 @@ type walker struct {
+ 
+ func (w walker) node(n Node) {
+ 	if n == nil {
+-		panic("invalid syntax tree: nil node")
++		panic("nil node")
+ 	}
+ 
+ 	w.v = w.v.Visit(n)

@@ -11,9 +11,101 @@ Date:   Thu Nov 12 15:16:06 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/request.go        | 20 ++++++++++++++++++++
  src/net/http/request_test.go   | 16 ++++++++++++++++
  src/net/http/transport.go      |  3 +++
  src/net/http/transport_test.go |  1 +
  4 files changed, 40 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 8467decc18..67976da103 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -547,6 +547,23 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ 	return major, minor, true
+ }
+ 
++func validMethod(method string) bool {
++	/*
++	     Method         = "OPTIONS"                ; Section 9.2
++	                    | "GET"                    ; Section 9.3
++	                    | "HEAD"                   ; Section 9.4
++	                    | "POST"                   ; Section 9.5
++	                    | "PUT"                    ; Section 9.6
++	                    | "DELETE"                 ; Section 9.7
++	                    | "TRACE"                  ; Section 9.8
++	                    | "CONNECT"                ; Section 9.9
++	                    | extension-method
++	   extension-method = token
++	     token          = 1*<any CHAR except CTLs or separators>
++	*/
++	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
++}
++
+ // NewRequest returns a new Request given a method, URL, and optional body.
+ //
+ // If the provided body is also an io.Closer, the returned
+@@ -560,6 +577,9 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ // type's documentation for the difference between inbound and outbound
+ // request fields.
+ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
++	if !validMethod(method) {
++		return nil, fmt.Errorf("net/http: invalid method %q", method)
++	}
+ 	u, err := url.Parse(urlStr)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 627620c0c4..0ed68ed66a 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -355,6 +355,22 @@ func TestNewRequestHost(t *testing.T) {
+ 	}
+ }
+ 
++func TestRequestInvalidMethod(t *testing.T) {
++	_, err := NewRequest("bad method", "http://foo.com/", nil)
++	if err == nil {
++		t.Error("expected error from NewRequest with invalid method")
++	}
++	req, err := NewRequest("GET", "http://foo.example/", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.Method = "bad method"
++	_, err = DefaultClient.Do(req)
++	if err == nil || !strings.Contains(err.Error(), "invalid method") {
++		t.Errorf("Transport error = %v; want invalid method", err)
++	}
++}
++
+ func TestNewRequestContentLength(t *testing.T) {
+ 	readByte := func(r io.Reader) io.Reader {
+ 		var b [1]byte
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 17a8d7b8a7..96096a6bef 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -237,6 +237,9 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		req.closeBody()
+ 		return nil, &badStringError{"unsupported protocol scheme", s}
+ 	}
++	if !validMethod(req.Method) {
++		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
++	}
+ 	if req.URL.Host == "" {
+ 		req.closeBody()
+ 		return nil, errors.New("http: no Host in request URL")
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index f721fd5558..a404eeb5cc 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1775,6 +1775,7 @@ func TestTransportNoHost(t *testing.T) {
+ 	defer afterTest(t)
+ 	tr := &Transport{}
+ 	_, err := tr.RoundTrip(&Request{
++		Method: "GET",
+ 		Header: make(Header),
+ 		URL: &url.URL{
+ 			Scheme: "http",

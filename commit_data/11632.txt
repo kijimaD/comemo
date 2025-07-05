@@ -7,6 +7,24 @@ Date:   Mon Feb 6 11:25:28 2012 +1100
     R=golang-dev, ality
     CC=golang-dev
     https://golang.org/cl/5636044
-
+---
  .hgignore | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index e6e7d7c517..c8752c1fa3 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -43,12 +43,8 @@ src/pkg/exp/norm/normregtest
+ src/pkg/exp/ebnflint/ebnflint
+ src/pkg/go/build/syslist.go
+ src/pkg/go/doc/headscan
+-src/pkg/runtime/arch_GOARCH.h
+-src/pkg/runtime/defs_GOOS_GOARCH.h
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion
+-src/pkg/runtime/os_GOOS.h
+-src/pkg/runtime/signals_GOOS.h
+ src/pkg/runtime/version.go
+ src/pkg/runtime/version_*.go
+ src/pkg/runtime/z*

@@ -13,9 +13,93 @@ Date:   Tue Jul 17 14:38:34 2018 -0400
     Change-Id: I5872aa3f059270c2a091016d235a1a732695e411
     Reviewed-on: https://go-review.googlesource.com/125477
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go   |  2 +-
  src/cmd/link/internal/ppc64/asm.go       |  2 +-
  src/cmd/link/internal/sym/sizeof_test.go |  2 +-
  src/cmd/link/internal/sym/symbol.go      | 19 ++++++++++++++++++-
  4 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 8e32e7dee6..d85d91948a 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -820,7 +820,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 		if elfobj.machine == ElfMachPower64 {
+ 			flag := int(elfsym.other) >> 5
+ 			if 2 <= flag && flag <= 6 {
+-				s.Localentry = 1 << uint(flag-2)
++				s.SetLocalentry(1 << uint(flag-2))
+ 			} else if flag == 7 {
+ 				return errorf("%v: invalid sym.other 0x%x", s, elfsym.other)
+ 			}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 825366c567..2baa9c1de1 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -280,7 +280,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		// callee. Hence, we need to go to the local entry
+ 		// point.  (If we don't do this, the callee will try
+ 		// to use r12 to compute r2.)
+-		r.Add += int64(r.Sym.Localentry) * 4
++		r.Add += int64(r.Sym.Localentry()) * 4
+ 
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			// Should have been handled in elfsetupplt
+diff --git a/src/cmd/link/internal/sym/sizeof_test.go b/src/cmd/link/internal/sym/sizeof_test.go
+index 5d501bda49..814ec42373 100644
+--- a/src/cmd/link/internal/sym/sizeof_test.go
++++ b/src/cmd/link/internal/sym/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Symbol{}, 124, 200},
++		{Symbol{}, 120, 192},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 245d62003b..7739737591 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -18,7 +18,6 @@ type Symbol struct {
+ 	Type        SymKind
+ 	Version     int16
+ 	Attr        Attribute
+-	Localentry  uint8
+ 	Dynid       int32
+ 	Plt         int32
+ 	Got         int32
+@@ -49,6 +48,7 @@ type AuxSymbol struct {
+ 	extname    string
+ 	dynimplib  string
+ 	dynimpvers string
++	localentry uint8
+ }
+ 
+ func (s *Symbol) String() string {
+@@ -327,6 +327,23 @@ func (s *Symbol) ResetDyninfo() {
+ 	}
+ }
+ 
++func (s *Symbol) Localentry() uint8 {
++	if s.auxinfo == nil {
++		return 0
++	}
++	return s.auxinfo.localentry
++}
++
++func (s *Symbol) SetLocalentry(val uint8) {
++	if s.auxinfo == nil {
++		if val != 0 {
++			return
++		}
++		s.makeAuxInfo()
++	}
++	s.auxinfo.localentry = val
++}
++
+ // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
+ // Used for sub-symbols when loading host objects (see e.g. ldelf.go).
+ func SortSub(l *Symbol) *Symbol {

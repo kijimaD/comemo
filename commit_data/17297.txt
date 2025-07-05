@@ -10,6 +10,25 @@ Date:   Fri Aug 16 13:03:40 2013 -0400
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/13042043
-
+---
  misc/emacs/go-mode.el | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 5a0048045e..88a66364fa 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -973,10 +973,10 @@ description at POINT."
+   "Describe the expression at POINT."
+   (interactive "d")
+   (condition-case nil
+-      (let ((description (nth 1 (godef--call point))))
+-        (if (string= "" description)
++      (let ((description (cdr (butlast (godef--call point) 1))))
++        (if (not description)
+             (message "No description found for expression at point")
+-          (message "%s" description)))
++          (message "%s" (mapconcat 'identity description "\n"))))
+     (file-error (message "Could not run godef binary"))))
+ 
+ (defun godef-jump (point &optional other-window)

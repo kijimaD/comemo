@@ -13,9 +13,111 @@ Date:   Fri Apr 21 19:05:38 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go      | 4 ++++
  src/cmd/link/internal/ld/decodesym.go | 6 +++---
  src/cmd/link/internal/ld/pcln.go      | 6 +++---
  src/cmd/link/internal/ld/symtab.go    | 6 +++---
  4 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 36528b0aa8..9670005bff 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -140,6 +140,10 @@ func setuint32(ctxt *Link, s *Symbol, r int64, v uint32) int64 {
+ 	return setuintxx(ctxt, s, r, uint64(v), 4)
+ }
+ 
++func setuint(ctxt *Link, s *Symbol, r int64, v uint64) int64 {
++	return setuintxx(ctxt, s, r, v, int64(SysArch.PtrSize))
++}
++
+ func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = objabi.SDATA
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 7a7b68b469..4d93188dc8 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -214,7 +214,7 @@ func decodetypeStructFieldCount(arch *sys.Arch, s *Symbol) int {
+ }
+ 
+ func decodetypeStructFieldArrayOff(s *Symbol, i int) int {
+-	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.PtrSize
++	off := commonsize() + 4*SysArch.PtrSize
+ 	if decodetypeHasUncommon(s) {
+ 		off += uncommonSize()
+ 	}
+@@ -342,7 +342,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
+ 	off := commonsize() // reflect.rtype
+ 	switch decodetypeKind(s) & kindMask {
+ 	case kindStruct: // reflect.structType
+-		off += 2*SysArch.PtrSize + 2*SysArch.PtrSize
++		off += 4 * SysArch.PtrSize
+ 	case kindPtr: // reflect.ptrType
+ 		off += SysArch.PtrSize
+ 	case kindFunc: // reflect.funcType
+@@ -356,7 +356,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
+ 	case kindMap: // reflect.mapType
+ 		off += 4*SysArch.PtrSize + 8
+ 	case kindInterface: // reflect.interfaceType
+-		off += SysArch.PtrSize + 2*SysArch.PtrSize
++		off += 3 * SysArch.PtrSize
+ 	default:
+ 		// just Sizeof(rtype)
+ 	}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 396114fa3a..3ef6f23b27 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -230,7 +230,7 @@ func (ctxt *Link) pclntab() {
+ 	setuint32(ctxt, ftab, 0, 0xfffffffb)
+ 	setuint8(ctxt, ftab, 6, uint8(SysArch.MinLC))
+ 	setuint8(ctxt, ftab, 7, uint8(SysArch.PtrSize))
+-	setuintxx(ctxt, ftab, 8, uint64(nfunc), int64(SysArch.PtrSize))
++	setuint(ctxt, ftab, 8, uint64(nfunc))
+ 	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
+ 
+ 	funcnameoff := make(map[string]int32)
+@@ -282,7 +282,7 @@ func (ctxt *Link) pclntab() {
+ 		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
+ 
+ 		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
+-		setuintxx(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
++		setuint(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart))
+ 
+ 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
+ 		// and package debug/gosym.
+@@ -375,7 +375,7 @@ func (ctxt *Link) pclntab() {
+ 			}
+ 			for i := 0; i < len(pcln.Funcdata); i++ {
+ 				if pcln.Funcdata[i] == nil {
+-					setuintxx(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(SysArch.PtrSize))
++					setuint(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
+ 				} else {
+ 					// TODO: Dedup.
+ 					funcdataBytes += pcln.Funcdata[i].Size
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 5fb5612f6f..797ed28db8 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -318,7 +318,7 @@ func textsectionmap(ctxt *Link) uint32 {
+ 			break
+ 		}
+ 	}
+-	Symgrow(t, nsections*(2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)))
++	Symgrow(t, 3*nsections*int64(SysArch.PtrSize))
+ 
+ 	off := int64(0)
+ 	n := 0
+@@ -337,8 +337,8 @@ func textsectionmap(ctxt *Link) uint32 {
+ 		if sect.Name != ".text" {
+ 			break
+ 		}
+-		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.PtrSize))
+-		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.PtrSize))
++		off = setuint(ctxt, t, off, sect.Vaddr-textbase)
++		off = setuint(ctxt, t, off, sect.Length)
+ 		if n == 0 {
+ 			s := ctxt.Syms.ROLookup("runtime.text", 0)
+ 			if s == nil {

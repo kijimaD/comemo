@@ -13,7 +13,7 @@ Date:   Fri Apr 14 14:44:22 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/internal/trace/parser.go                       |  21 +++++++++++++--------
  src/internal/trace/testdata/http_1_9_good          | Bin 2368 -> 2187 bytes
  src/internal/trace/testdata/stress_1_9_good        | Bin 594085 -> 365129 bytes
@@ -22,3 +22,156 @@ Date:   Fri Apr 14 14:44:22 2017 -0400
  src/runtime/runtime2.go                            |   9 ++++++---
  src/runtime/trace.go                               |  17 +++++++++++------
  7 files changed, 34 insertions(+), 18 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 9187102250..1dd3ef1509 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -849,16 +849,21 @@ func argNum(raw rawEvent, ver int) int {
+ 		if ver < 1007 {
+ 			narg++ // there was an unused arg before 1.7
+ 		}
++		return narg
++	}
++	narg++ // timestamp
++	if ver < 1007 {
++		narg++ // sequence
++	}
++	switch raw.typ {
++	case EvGCSweepDone:
++		if ver < 1009 {
++			narg -= 2 // 1.9 added two arguments
++		}
+ 	case EvGCStart, EvGoStart, EvGoUnblock:
+ 		if ver < 1007 {
+ 			narg-- // 1.7 added an additional seq arg
+ 		}
+-		fallthrough
+-	default:
+-		narg++ // timestamp
+-		if ver < 1007 {
+-			narg++ // sequence
+-		}
+ 	}
+ 	return narg
+ }
+@@ -881,7 +886,7 @@ const (
+ 	EvGCScanStart       = 9  // GC mark termination start [timestamp]
+ 	EvGCScanDone        = 10 // GC mark termination done [timestamp]
+ 	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+-	EvGCSweepDone       = 12 // GC sweep done [timestamp]
++	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+ 	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+ 	EvGoStart           = 14 // goroutine starts running [timestamp, goroutine id, seq]
+ 	EvGoEnd             = 15 // goroutine ends [timestamp]
+@@ -935,7 +940,7 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGCScanStart:       {"GCScanStart", 1005, false, []string{}},
+ 	EvGCScanDone:        {"GCScanDone", 1005, false, []string{}},
+ 	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}},
+-	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{}},
++	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}}, // before 1.9, format was {}
+ 	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}},
+ 	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
+ 	EvGoEnd:             {"GoEnd", 1005, false, []string{}},
+diff --git a/src/internal/trace/testdata/http_1_9_good b/src/internal/trace/testdata/http_1_9_good
+index f4544483de..ca89278838 100644
+Binary files a/src/internal/trace/testdata/http_1_9_good and b/src/internal/trace/testdata/http_1_9_good differ
+diff --git a/src/internal/trace/testdata/stress_1_9_good b/src/internal/trace/testdata/stress_1_9_good
+index 3667e311f8..dcf17f19e1 100644
+Binary files a/src/internal/trace/testdata/stress_1_9_good and b/src/internal/trace/testdata/stress_1_9_good differ
+diff --git a/src/internal/trace/testdata/stress_start_stop_1_9_good b/src/internal/trace/testdata/stress_start_stop_1_9_good
+index dd620239e4..f00f190f32 100644
+Binary files a/src/internal/trace/testdata/stress_start_stop_1_9_good and b/src/internal/trace/testdata/stress_start_stop_1_9_good differ
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 0c4a7ccc02..dd0682594a 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -190,7 +190,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	}
+ 
+ 	if trace.enabled {
+-		traceGCSweepSpan()
++		traceGCSweepSpan(s.npages * _PageSize)
+ 	}
+ 
+ 	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
+@@ -301,6 +301,9 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	s.allocCount = nalloc
+ 	wasempty := s.nextFreeIndex() == s.nelems
+ 	s.freeindex = 0 // reset allocation index to start of span.
++	if trace.enabled {
++		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
++	}
+ 
+ 	// gcmarkBits becomes the allocBits.
+ 	// get a fresh cleared gcmarkBits in preparation for next GC
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b16735ac46..f35391b9d1 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -490,10 +490,13 @@ type p struct {
+ 
+ 	tracebuf traceBufPtr
+ 
+-	// traceSweep indicates the next traceGCSweepSpan should emit
+-	// a sweep start event. This is used to defer the sweep start
+-	// event until a span has actually been swept.
++	// traceSweep indicates the sweep events should be traced.
++	// This is used to defer the sweep start event until a span
++	// has actually been swept.
+ 	traceSweep bool
++	// traceSwept and traceReclaimed track the number of bytes
++	// swept and reclaimed by sweeping in the current sweep loop.
++	traceSwept, traceReclaimed uintptr
+ 
+ 	palloc persistentAlloc // per-P to avoid mutex
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 375f0b76b7..826dc9a999 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -31,7 +31,7 @@ const (
+ 	traceEvGCScanStart       = 9  // GC mark termination start [timestamp]
+ 	traceEvGCScanDone        = 10 // GC mark termination done [timestamp]
+ 	traceEvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+-	traceEvGCSweepDone       = 12 // GC sweep done [timestamp]
++	traceEvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+ 	traceEvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+ 	traceEvGoStart           = 14 // goroutine starts running [timestamp, goroutine id, seq]
+ 	traceEvGoEnd             = 15 // goroutine ends [timestamp]
+@@ -944,25 +944,30 @@ func traceGCSweepStart() {
+ 	if _p_.traceSweep {
+ 		throw("double traceGCSweepStart")
+ 	}
+-	_p_.traceSweep = true
++	_p_.traceSweep, _p_.traceSwept, _p_.traceReclaimed = true, 0, 0
+ }
+ 
+ // traceGCSweepSpan traces the sweep of a single page.
+ //
+ // This may be called outside a traceGCSweepStart/traceGCSweepDone
+ // pair; however, it will not emit any trace events in this case.
+-func traceGCSweepSpan() {
++func traceGCSweepSpan(bytesSwept uintptr) {
+ 	_p_ := getg().m.p.ptr()
+ 	if _p_.traceSweep {
+-		traceEvent(traceEvGCSweepStart, 1)
+-		_p_.traceSweep = false
++		if _p_.traceSwept == 0 {
++			traceEvent(traceEvGCSweepStart, 1)
++		}
++		_p_.traceSwept += bytesSwept
+ 	}
+ }
+ 
+ func traceGCSweepDone() {
+ 	_p_ := getg().m.p.ptr()
+ 	if !_p_.traceSweep {
+-		traceEvent(traceEvGCSweepDone, -1)
++		throw("missing traceGCSweepStart")
++	}
++	if _p_.traceSwept != 0 {
++		traceEvent(traceEvGCSweepDone, -1, uint64(_p_.traceSwept), uint64(_p_.traceReclaimed))
+ 	}
+ 	_p_.traceSweep = false
+ }

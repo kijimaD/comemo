@@ -22,7 +22,65 @@ Date:   Mon Feb 3 05:56:31 2025 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/dir_plan9.go | 17 ++++++++++++-----
  src/os/dir_unix.go  | 16 ++++++++++++----
  2 files changed, 24 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/dir_plan9.go b/src/os/dir_plan9.go
+index ab5c1efce5..9d28bd7dda 100644
+--- a/src/os/dir_plan9.go
++++ b/src/os/dir_plan9.go
+@@ -11,12 +11,19 @@ import (
+ )
+ 
+ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+-	// If this file has no dirinfo, create one.
+-	d := file.dirinfo.Load()
+-	if d == nil {
+-		d = new(dirInfo)
+-		file.dirinfo.Store(d)
++	var d *dirInfo
++	for {
++		d = file.dirinfo.Load()
++		if d != nil {
++			break
++		}
++		newD := new(dirInfo)
++		if file.dirinfo.CompareAndSwap(nil, newD) {
++			d = newD
++			break
++		}
+ 	}
++
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index eadc1660c2..6a0135b70b 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -46,11 +46,19 @@ func (d *dirInfo) close() {
+ 
+ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	// If this file has no dirInfo, create one.
+-	d := f.dirinfo.Load()
+-	if d == nil {
+-		d = new(dirInfo)
+-		f.dirinfo.Store(d)
++	var d *dirInfo
++	for {
++		d = f.dirinfo.Load()
++		if d != nil {
++			break
++		}
++		newD := new(dirInfo)
++		if f.dirinfo.CompareAndSwap(nil, newD) {
++			d = newD
++			break
++		}
+ 	}
++
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 	if d.buf == nil {

@@ -5,6 +5,21 @@ Date:   Thu Mar 6 22:11:51 2008 -0800
     - fixed double-definition of StructType
     
     SVN=111689
-
+---
  doc/go_lang.txt | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index b0558f8f4f..3159b3f3f0 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -623,8 +623,7 @@ Struct literals represent struct constants.  They comprise a list of
+ expressions that represent the individual fields of a struct.  The
+ individual expressions must match those of the specified struct type.
+ 
+-  StructLit = StructType '(' [ ExpressionList ] ')' .
+-  StructType = TypeName .
++  StructLit = TypeName '(' [ ExpressionList ] ')' .
+ 
+ The type name must be that of a defined struct type.
+ 

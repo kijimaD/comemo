@@ -3,6 +3,15 @@ Author: Russ Cox <rsc@golang.org>
 Date:   Fri Nov 6 13:42:04 2009 -0800
 
     Added tag release, release.2009-11-06 for changeset 1f0a01c93d30
-
+---
  .hgtags | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/.hgtags b/.hgtags
+new file mode 100644
+index 0000000000..47cc35c464
+--- /dev/null
++++ b/.hgtags
+@@ -0,0 +1,2 @@
++1f0a01c93d305f1ab636c68b67346659c5b957f7 release
++1f0a01c93d305f1ab636c68b67346659c5b957f7 release.2009-11-06

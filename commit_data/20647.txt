@@ -14,8 +14,204 @@ Date:   Fri Sep 26 12:10:13 2014 -0400
     R=golang-codereviews, iant
     CC=adg, golang-codereviews, n13m3y3r, r
     https://golang.org/cl/147170043
-
+---
  src/cmd/go/get.go    | 12 ++++++++
  src/cmd/go/test.bash | 50 +++++++++++++++++++++++++++++++++
  src/cmd/go/vcs.go    | 79 ++++++++++++++++++++++++++++++++++++++++++++++++----
  3 files changed, 135 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index a34286f540..2640339414 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -266,6 +266,18 @@ func downloadPackage(p *Package) error {
+ 			return err
+ 		}
+ 		repo = "<local>" // should be unused; make distinctive
++
++		// Double-check where it came from.
++		if *getU && vcs.remoteRepo != nil {
++			dir := filepath.Join(p.build.SrcRoot, rootPath)
++			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
++				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
++					if remote != rr.repo {
++						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, rr.repo)
++					}
++				}
++			}
++		}
+ 	} else {
+ 		// Analyze the import path to determine the version control system,
+ 		// repository, and the import path for the root of the repository.
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 5e4e43722a..243467ba9d 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -126,6 +126,56 @@ if ! ./testgo build -v ./testdata/testinternal2; then
+ 	ok=false
+ fi
+ 
++# Test that 'go get -u' reports moved packages.
++testmove() {
++	vcs=$1
++	url=$2
++	base=$3
++	config=$4
++
++	TEST go get -u notices $vcs package that moved
++	d=$(mktemp -d -t testgoXXX)
++	mkdir -p $d/src
++	if ! GOPATH=$d ./testgo get -d $url; then
++		echo 'go get -d $url failed'
++		ok=false
++	elif ! GOPATH=$d ./testgo get -d -u $url; then
++		echo 'go get -d -u $url failed'
++		ok=false
++	else
++		set +e
++		case "$vcs" in
++		svn)
++			# SVN doesn't believe in text files so we can't just edit the config.
++			# Check out a different repo into the wrong place.
++			rm -rf $d/src/code.google.com/p/rsc-svn
++			GOPATH=$d ./testgo get -d -u code.google.com/p/rsc-svn2/trunk
++			mv $d/src/code.google.com/p/rsc-svn2 $d/src/code.google.com/p/rsc-svn
++			;;
++		*)
++			echo '1,$s;'"$base"';'"$base"'XXX;
++w
++q' | ed $d/src/$config >/dev/null 2>&1
++		esac
++		set -e
++
++		if GOPATH=$d ./testgo get -d -u $url 2>$d/err; then
++			echo "go get -d -u $url succeeded with wrong remote repo"
++			cat $d/err
++			ok=false
++		elif ! grep 'should be from' $d/err >/dev/null; then
++			echo "go get -d -u $url failed for wrong reason"
++			cat $d/err
++			ok=false
++		fi
++	fi
++	rm -rf $d
++}
++
++testmove hg rsc.io/x86/x86asm x86 rsc.io/x86/.hg/hgrc
++testmove git rsc.io/pdf pdf rsc.io/pdf/.git/config
++testmove svn code.google.com/p/rsc-svn/trunk - -
++
+ export GOPATH=$(pwd)/testdata/importcom
+ TEST 'import comment - match'
+ if ! ./testgo build ./testdata/importcom/works.go; then
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index c5d246835d..103b67b827 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -33,6 +33,8 @@ type vcsCmd struct {
+ 
+ 	scheme  []string
+ 	pingCmd string
++
++	remoteRepo func(v *vcsCmd, rootDir string) (remoteRepo string, err error)
+ }
+ 
+ // A tagCmd describes a command to list available tags
+@@ -81,8 +83,17 @@ var vcsHg = &vcsCmd{
+ 	tagSyncCmd:     "update -r {tag}",
+ 	tagSyncDefault: "update default",
+ 
+-	scheme:  []string{"https", "http", "ssh"},
+-	pingCmd: "identify {scheme}://{repo}",
++	scheme:     []string{"https", "http", "ssh"},
++	pingCmd:    "identify {scheme}://{repo}",
++	remoteRepo: hgRemoteRepo,
++}
++
++func hgRemoteRepo(vcsHg *vcsCmd, rootDir string) (remoteRepo string, err error) {
++	out, err := vcsHg.runOutput(rootDir, "paths default")
++	if err != nil {
++		return "", err
++	}
++	return strings.TrimSpace(string(out)), nil
+ }
+ 
+ // vcsGit describes how to use Git.
+@@ -104,8 +115,38 @@ var vcsGit = &vcsCmd{
+ 	tagSyncCmd:     "checkout {tag}",
+ 	tagSyncDefault: "checkout master",
+ 
+-	scheme:  []string{"git", "https", "http", "git+ssh"},
+-	pingCmd: "ls-remote {scheme}://{repo}",
++	scheme:     []string{"git", "https", "http", "git+ssh"},
++	pingCmd:    "ls-remote {scheme}://{repo}",
++	remoteRepo: gitRemoteRepo,
++}
++
++func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
++	outb, err := vcsGit.runOutput(rootDir, "remote -v")
++	if err != nil {
++		return "", err
++	}
++	out := string(outb)
++
++	// Expect:
++	// origin	https://github.com/rsc/pdf (fetch)
++	// origin	https://github.com/rsc/pdf (push)
++	// use first line only.
++
++	if !strings.HasPrefix(out, "origin\t") {
++		return "", fmt.Errorf("unable to parse output of git remote -v")
++	}
++	out = strings.TrimPrefix(out, "origin\t")
++	i := strings.Index(out, "\n")
++	if i < 0 {
++		return "", fmt.Errorf("unable to parse output of git remote -v")
++	}
++	out = out[:i]
++	i = strings.LastIndex(out, " ")
++	if i < 0 {
++		return "", fmt.Errorf("unable to parse output of git remote -v")
++	}
++	out = out[:i]
++	return strings.TrimSpace(string(out)), nil
+ }
+ 
+ // vcsBzr describes how to use Bazaar.
+@@ -138,8 +179,34 @@ var vcsSvn = &vcsCmd{
+ 	// There is no tag command in subversion.
+ 	// The branch information is all in the path names.
+ 
+-	scheme:  []string{"https", "http", "svn", "svn+ssh"},
+-	pingCmd: "info {scheme}://{repo}",
++	scheme:     []string{"https", "http", "svn", "svn+ssh"},
++	pingCmd:    "info {scheme}://{repo}",
++	remoteRepo: svnRemoteRepo,
++}
++
++func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error) {
++	outb, err := vcsSvn.runOutput(rootDir, "info")
++	if err != nil {
++		return "", err
++	}
++	out := string(outb)
++
++	// Expect:
++	// ...
++	// Repository Root: <URL>
++	// ...
++
++	i := strings.Index(out, "\nRepository Root: ")
++	if i < 0 {
++		return "", fmt.Errorf("unable to parse output of svn info")
++	}
++	out = out[i+len("\nRepository Root: "):]
++	i = strings.Index(out, "\n")
++	if i < 0 {
++		return "", fmt.Errorf("unable to parse output of svn info")
++	}
++	out = out[:i]
++	return strings.TrimSpace(string(out)), nil
+ }
+ 
+ func (v *vcsCmd) String() string {

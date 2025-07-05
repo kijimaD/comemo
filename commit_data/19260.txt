@@ -8,7 +8,34 @@ Date:   Wed Apr 30 23:26:07 2014 +0900
     R=golang-codereviews, aram
     CC=golang-codereviews
     https://golang.org/cl/99890045
-
+---
  src/pkg/net/dnsclient_unix_test.go | 2 +-
  src/pkg/net/dnsconfig_unix_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+index 47dcb563bc..a2fdda3565 100644
+--- a/src/pkg/net/dnsclient_unix_test.go
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 
+diff --git a/src/pkg/net/dnsconfig_unix_test.go b/src/pkg/net/dnsconfig_unix_test.go
+index 697c69f995..37ed4931db 100644
+--- a/src/pkg/net/dnsconfig_unix_test.go
++++ b/src/pkg/net/dnsconfig_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 

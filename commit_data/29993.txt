@@ -34,7 +34,7 @@ Date:   Fri Oct 14 14:53:59 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/errors/issue16591.go |  17 +++++
  misc/cgo/errors/test.bash     |   1 +
  misc/cgo/test/callback.go     |   1 +
@@ -42,3 +42,343 @@ Date:   Fri Oct 14 14:53:59 2016 -0700
  src/cmd/cgo/out.go            |  13 ++--
  src/runtime/cgocall.go        |  11 ++-
  6 files changed, 117 insertions(+), 90 deletions(-)
+
+diff --git a/misc/cgo/errors/issue16591.go b/misc/cgo/errors/issue16591.go
+new file mode 100644
+index 0000000000..10eb8403cf
+--- /dev/null
++++ b/misc/cgo/errors/issue16591.go
+@@ -0,0 +1,17 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 16591: Test that we detect an invalid call that was being
++// hidden by a type conversion inserted by cgo checking.
++
++package p
++
++// void f(int** p) { }
++import "C"
++
++type x *C.int
++
++func F(p *x) {
++	C.f(p) // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 84d44d8a33..cb442507a6 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -46,6 +46,7 @@ check issue13423.go
+ expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
+ check issue13830.go
+ check issue16116.go
++check issue16591.go
+ 
+ if ! go build issue14669.go; then
+ 	exit 1
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 21d1df59ed..b88bf134bc 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -186,6 +186,7 @@ func testCallbackCallers(t *testing.T) {
+ 		"runtime.asmcgocall",
+ 		"runtime.cgocall",
+ 		"test._Cfunc_callback",
++		"test.nestedCall.func1",
+ 		"test.nestedCall",
+ 		"test.testCallbackCallers",
+ 		"test.TestCallbackCallers",
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5df94ac54e..714d6360cc 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -639,34 +639,57 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 
+ 	// We need to rewrite this call.
+ 	//
+-	// We are going to rewrite C.f(p) to C.f(_cgoCheckPointer(p)).
+-	// If the call to C.f is deferred, that will check p at the
+-	// point of the defer statement, not when the function is called, so
+-	// rewrite to func(_cgo0 ptype) { C.f(_cgoCheckPointer(_cgo0)) }(p)
+-
++	// We are going to rewrite C.f(p) to
++	//    func (_cgo0 ptype) {
++	//            _cgoCheckPointer(_cgo0)
++	//            C.f(_cgo0)
++	//    }(p)
++	// Using a function literal like this lets us do correct
++	// argument type checking, and works correctly if the call is
++	// deferred.
+ 	needsUnsafe := false
+-	var dargs []ast.Expr
+-	if call.Deferred {
+-		dargs = make([]ast.Expr, len(name.FuncType.Params))
+-	}
++	params := make([]*ast.Field, len(name.FuncType.Params))
++	args := make([]ast.Expr, len(name.FuncType.Params))
++	var stmts []ast.Stmt
+ 	for i, param := range name.FuncType.Params {
++		// params is going to become the parameters of the
++		// function literal.
++		// args is going to become the list of arguments to the
++		// function literal.
++		// nparam is the parameter of the function literal that
++		// corresponds to param.
++
+ 		origArg := call.Call.Args[i]
+-		darg := origArg
++		args[i] = origArg
++		nparam := ast.NewIdent(fmt.Sprintf("_cgo%d", i))
++
++		// The Go version of the C type might use unsafe.Pointer,
++		// but the file might not import unsafe.
++		// Rewrite the Go type if necessary to use _cgo_unsafe.
++		ptype := p.rewriteUnsafe(param.Go)
++		if ptype != param.Go {
++			needsUnsafe = true
++		}
+ 
+-		if call.Deferred {
+-			dargs[i] = darg
+-			darg = ast.NewIdent(fmt.Sprintf("_cgo%d", i))
+-			call.Call.Args[i] = darg
++		params[i] = &ast.Field{
++			Names: []*ast.Ident{nparam},
++			Type:  ptype,
+ 		}
+ 
++		call.Call.Args[i] = nparam
++
+ 		if !p.needsPointerCheck(f, param.Go, origArg) {
+ 			continue
+ 		}
+ 
++		// Run the cgo pointer checks on nparam.
++
++		// Change the function literal to call the real function
++		// with the parameter passed through _cgoCheckPointer.
+ 		c := &ast.CallExpr{
+ 			Fun: ast.NewIdent("_cgoCheckPointer"),
+ 			Args: []ast.Expr{
+-				darg,
++				nparam,
+ 			},
+ 		}
+ 
+@@ -674,77 +697,64 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 		// expression.
+ 		c.Args = p.checkAddrArgs(f, c.Args, origArg)
+ 
+-		// The Go version of the C type might use unsafe.Pointer,
+-		// but the file might not import unsafe.
+-		// Rewrite the Go type if necessary to use _cgo_unsafe.
+-		ptype := p.rewriteUnsafe(param.Go)
+-		if ptype != param.Go {
+-			needsUnsafe = true
+-		}
+-
+-		// In order for the type assertion to succeed, we need
+-		// it to match the actual type of the argument. The
+-		// only type we have is the type of the function
+-		// parameter. We know that the argument type must be
+-		// assignable to the function parameter type, or the
+-		// code would not compile, but there is nothing
+-		// requiring that the types be exactly the same. Add a
+-		// type conversion to the argument so that the type
+-		// assertion will succeed.
+-		c.Args[0] = &ast.CallExpr{
+-			Fun: ptype,
+-			Args: []ast.Expr{
+-				c.Args[0],
+-			},
+-		}
+-
+-		call.Call.Args[i] = &ast.TypeAssertExpr{
+-			X:    c,
+-			Type: ptype,
++		stmt := &ast.ExprStmt{
++			X: c,
+ 		}
++		stmts = append(stmts, stmt)
+ 	}
+ 
+-	if call.Deferred {
+-		params := make([]*ast.Field, len(name.FuncType.Params))
+-		for i, param := range name.FuncType.Params {
+-			ptype := p.rewriteUnsafe(param.Go)
+-			if ptype != param.Go {
+-				needsUnsafe = true
+-			}
+-			params[i] = &ast.Field{
+-				Names: []*ast.Ident{
+-					ast.NewIdent(fmt.Sprintf("_cgo%d", i)),
+-				},
+-				Type: ptype,
+-			}
++	fcall := &ast.CallExpr{
++		Fun:  call.Call.Fun,
++		Args: call.Call.Args,
++	}
++	ftype := &ast.FuncType{
++		Params: &ast.FieldList{
++			List: params,
++		},
++	}
++	var fbody ast.Stmt
++	if name.FuncType.Result == nil {
++		fbody = &ast.ExprStmt{
++			X: fcall,
+ 		}
+-
+-		dbody := &ast.CallExpr{
+-			Fun:  call.Call.Fun,
+-			Args: call.Call.Args,
++	} else {
++		fbody = &ast.ReturnStmt{
++			Results: []ast.Expr{fcall},
+ 		}
+-		call.Call.Fun = &ast.FuncLit{
+-			Type: &ast.FuncType{
+-				Params: &ast.FieldList{
+-					List: params,
+-				},
+-			},
+-			Body: &ast.BlockStmt{
+-				List: []ast.Stmt{
+-					&ast.ExprStmt{
+-						X: dbody,
+-					},
++		rtype := p.rewriteUnsafe(name.FuncType.Result.Go)
++		if rtype != name.FuncType.Result.Go {
++			needsUnsafe = true
++		}
++		ftype.Results = &ast.FieldList{
++			List: []*ast.Field{
++				&ast.Field{
++					Type: rtype,
+ 				},
+ 			},
+ 		}
+-		call.Call.Args = dargs
+-		call.Call.Lparen = token.NoPos
+-		call.Call.Rparen = token.NoPos
++	}
++	call.Call.Fun = &ast.FuncLit{
++		Type: ftype,
++		Body: &ast.BlockStmt{
++			List: append(stmts, fbody),
++		},
++	}
++	call.Call.Args = args
++	call.Call.Lparen = token.NoPos
++	call.Call.Rparen = token.NoPos
+ 
+-		// There is a Ref pointing to the old call.Call.Fun.
+-		for _, ref := range f.Ref {
+-			if ref.Expr == &call.Call.Fun {
+-				ref.Expr = &dbody.Fun
++	// There is a Ref pointing to the old call.Call.Fun.
++	for _, ref := range f.Ref {
++		if ref.Expr == &call.Call.Fun {
++			ref.Expr = &fcall.Fun
++
++			// If this call expects two results, we have to
++			// adjust the results of the  function we generated.
++			if ref.Context == "call2" {
++				ftype.Results.List = append(ftype.Results.List,
++					&ast.Field{
++						Type: ast.NewIdent("error"),
++					})
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index e0b9cc46a8..25031c8d48 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1379,14 +1379,14 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
+ func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
+ 
+ //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+-func _cgoCheckPointer(interface{}, ...interface{}) interface{}
++func _cgoCheckPointer(interface{}, ...interface{})
+ 
+ //go:linkname _cgoCheckResult runtime.cgoCheckResult
+ func _cgoCheckResult(interface{})
+ `
+ 
+ const gccgoGoProlog = `
+-func _cgoCheckPointer(interface{}, ...interface{}) interface{}
++func _cgoCheckPointer(interface{}, ...interface{})
+ 
+ func _cgoCheckResult(interface{})
+ `
+@@ -1566,18 +1566,17 @@ typedef struct __go_empty_interface {
+ 	void *__object;
+ } Eface;
+ 
+-extern Eface runtimeCgoCheckPointer(Eface, Slice)
++extern void runtimeCgoCheckPointer(Eface, Slice)
+ 	__asm__("runtime.cgoCheckPointer")
+ 	__attribute__((weak));
+ 
+-extern Eface localCgoCheckPointer(Eface, Slice)
++extern void localCgoCheckPointer(Eface, Slice)
+ 	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
+ 
+-Eface localCgoCheckPointer(Eface ptr, Slice args) {
++void localCgoCheckPointer(Eface ptr, Slice args) {
+ 	if(runtimeCgoCheckPointer) {
+-		return runtimeCgoCheckPointer(ptr, args);
++		runtimeCgoCheckPointer(ptr, args);
+ 	}
+-	return ptr;
+ }
+ 
+ extern void runtimeCgoCheckResult(Eface)
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 7d358b3346..4542cb7b09 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -370,10 +370,10 @@ var racecgosync uint64 // represents possible synchronization in C code
+ // pointers.)
+ 
+ // cgoCheckPointer checks if the argument contains a Go pointer that
+-// points to a Go pointer, and panics if it does. It returns the pointer.
+-func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
++// points to a Go pointer, and panics if it does.
++func cgoCheckPointer(ptr interface{}, args ...interface{}) {
+ 	if debug.cgocheck == 0 {
+-		return ptr
++		return
+ 	}
+ 
+ 	ep := (*eface)(unsafe.Pointer(&ptr))
+@@ -386,7 +386,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+ 		if !cgoIsGoPointer(p) {
+-			return ptr
++			return
+ 		}
+ 		aep := (*eface)(unsafe.Pointer(&args[0]))
+ 		switch aep._type.kind & kindMask {
+@@ -397,7 +397,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
+ 			}
+ 			pt := (*ptrtype)(unsafe.Pointer(t))
+ 			cgoCheckArg(pt.elem, p, true, false, cgoCheckPointerFail)
+-			return ptr
++			return
+ 		case kindSlice:
+ 			// Check the slice rather than the pointer.
+ 			ep = aep
+@@ -415,7 +415,6 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
+ 	}
+ 
+ 	cgoCheckArg(t, ep.data, t.kind&kindDirectIface == 0, top, cgoCheckPointerFail)
+-	return ptr
+ }
+ 
+ const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"

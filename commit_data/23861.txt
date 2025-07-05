@@ -7,7 +7,34 @@ Date:   Thu Jun 18 09:38:04 2015 +0900
     Change-Id: Ib6d0b2947748dec98cad2e6abb6812cac46a9897
     Reviewed-on: https://go-review.googlesource.com/11220
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/cgo_resnew.go | 2 +-
  src/net/cgo_resold.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/cgo_resnew.go b/src/net/cgo_resnew.go
+index 3910b6fc19..3e3e77e17d 100644
+--- a/src/net/cgo_resnew.go
++++ b/src/net/cgo_resnew.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build cgo,!netgo
+-// +build darwin linux netbsd solaris
++// +build darwin linux,!android netbsd solaris
+ 
+ package net
+ 
+diff --git a/src/net/cgo_resold.go b/src/net/cgo_resold.go
+index 1756186aa0..abd04a814d 100644
+--- a/src/net/cgo_resold.go
++++ b/src/net/cgo_resold.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build cgo,!netgo
+-// +build freebsd dragonfly openbsd
++// +build android freebsd dragonfly openbsd
+ 
+ package net
+ 

@@ -19,8 +19,70 @@ Date:   Wed Nov 23 09:26:37 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5436048
-
+---
  src/pkg/html/parse_test.go |  2 +-
  src/pkg/html/token.go      |  6 +++++-
  src/pkg/html/token_test.go | 20 ++++++++++++++++++++
  3 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 3566f9f941..c1347c9dc1 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 57},
++		{"tests2.dat", 59},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 9400873e6b..a6fbcdfcfe 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -289,7 +289,11 @@ func (z *Tokenizer) readComment() {
+ 	for dashCount := 2; ; {
+ 		c := z.readByte()
+ 		if z.err != nil {
+-			z.data.end = z.raw.end
++			// Ignore up to two dashes at EOF.
++			if dashCount > 2 {
++				dashCount = 2
++			}
++			z.data.end = z.raw.end - dashCount
+ 			return
+ 		}
+ 		switch c {
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index 61d4e67c06..672d60c420 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -325,6 +325,26 @@ var tokenTests = []tokenTest{
+ 	},
+ 	{
+ 		"comment9",
++		"a<!--z-",
++		"a$<!--z-->",
++	},
++	{
++		"comment10",
++		"a<!--z--",
++		"a$<!--z-->",
++	},
++	{
++		"comment11",
++		"a<!--z---",
++		"a$<!--z--->",
++	},
++	{
++		"comment12",
++		"a<!--z----",
++		"a$<!--z---->",
++	},
++	{
++		"comment13",
+ 		"a<!--x--!>z",
+ 		"a$<!--x-->$z",
+ 	},

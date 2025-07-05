@@ -7,6 +7,19 @@ Date:   Thu Sep 15 12:41:00 2011 -0700
     R=iant, iant
     CC=golang-dev
     https://golang.org/cl/5016051
-
+---
  src/pkg/http/cgi/host.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index d36eaa19b4..bcd1477034 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -37,6 +37,7 @@ var osDefaultInheritEnv = map[string][]string{
+ 	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
+ 	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
+ 	"linux":   {"LD_LIBRARY_PATH"},
++	"openbsd": {"LD_LIBRARY_PATH"},
+ 	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
+ 	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
+ }

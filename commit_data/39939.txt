@@ -11,6 +11,19 @@ Date:   Wed Apr 3 17:56:44 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/type.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index 3a8fe4447f..a7292387c0 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -62,6 +62,7 @@ var builtinTypesLower = map[string]string{
+ 	".htm":  "text/html; charset=utf-8",
+ 	".html": "text/html; charset=utf-8",
+ 	".jpg":  "image/jpeg",
++	".jpeg": "image/jpeg",
+ 	".js":   "application/javascript",
+ 	".wasm": "application/wasm",
+ 	".pdf":  "application/pdf",

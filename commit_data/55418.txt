@@ -18,10 +18,329 @@ Date:   Wed Feb 1 13:47:48 2023 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/57436.txt        |   7 ++
  src/go/build/deps_test.go |   2 +-
  src/go/doc/comment/std.go |   1 +
  src/maps/maps.go          |  87 ++++++++++++++++++++++
  src/maps/maps_test.go     | 181 ++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 277 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/57436.txt b/api/next/57436.txt
+new file mode 100644
+index 0000000000..c05654f61b
+--- /dev/null
++++ b/api/next/57436.txt
+@@ -0,0 +1,7 @@
++pkg maps, func Clone[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) $0 #57436
++pkg maps, func Copy[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 comparable, $3 interface{}]($0, $1) #57436
++pkg maps, func DeleteFunc[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, func($1, $2) bool) #57436
++pkg maps, func EqualFunc[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$4 }, $2 comparable, $3 interface{}, $4 interface{}]($0, $1, func($3, $4) bool) bool #57436
++pkg maps, func Equal[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2 comparable, $3 comparable]($0, $1) bool #57436
++pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$1 #57436
++pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$2 #57436
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c269d6b6e4..ff9877b679 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -45,7 +45,7 @@ var depsRules = `
+ 	  internal/cpu, internal/goarch,
+ 	  internal/goexperiment, internal/goos,
+ 	  internal/goversion, internal/nettrace, internal/platform,
+-	  unicode/utf8, unicode/utf16, unicode,
++	  maps, unicode/utf8, unicode/utf16, unicode,
+ 	  unsafe;
+ 
+ 	# These packages depend only on internal/goarch and unsafe.
+diff --git a/src/go/doc/comment/std.go b/src/go/doc/comment/std.go
+index 71f15f47b1..3ef6f2c1f2 100644
+--- a/src/go/doc/comment/std.go
++++ b/src/go/doc/comment/std.go
+@@ -23,6 +23,7 @@ var stdPkgs = []string{
+ 	"image",
+ 	"io",
+ 	"log",
++	"maps",
+ 	"math",
+ 	"mime",
+ 	"net",
+diff --git a/src/maps/maps.go b/src/maps/maps.go
+new file mode 100644
+index 0000000000..25a0142eae
+--- /dev/null
++++ b/src/maps/maps.go
+@@ -0,0 +1,87 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package maps defines various functions useful with maps of any type.
++package maps
++
++// Keys returns the keys of the map m.
++// The keys will be in an indeterminate order.
++func Keys[M ~map[K]V, K comparable, V any](m M) []K {
++	r := make([]K, 0, len(m))
++	for k := range m {
++		r = append(r, k)
++	}
++	return r
++}
++
++// Values returns the values of the map m.
++// The values will be in an indeterminate order.
++func Values[M ~map[K]V, K comparable, V any](m M) []V {
++	r := make([]V, 0, len(m))
++	for _, v := range m {
++		r = append(r, v)
++	}
++	return r
++}
++
++// Equal reports whether two maps contain the same key/value pairs.
++// Values are compared using ==.
++func Equal[M1, M2 ~map[K]V, K, V comparable](m1 M1, m2 M2) bool {
++	if len(m1) != len(m2) {
++		return false
++	}
++	for k, v1 := range m1 {
++		if v2, ok := m2[k]; !ok || v1 != v2 {
++			return false
++		}
++	}
++	return true
++}
++
++// EqualFunc is like Equal, but compares values using eq.
++// Keys are still compared with ==.
++func EqualFunc[M1 ~map[K]V1, M2 ~map[K]V2, K comparable, V1, V2 any](m1 M1, m2 M2, eq func(V1, V2) bool) bool {
++	if len(m1) != len(m2) {
++		return false
++	}
++	for k, v1 := range m1 {
++		if v2, ok := m2[k]; !ok || !eq(v1, v2) {
++			return false
++		}
++	}
++	return true
++}
++
++// Clone returns a copy of m.  This is a shallow clone:
++// the new keys and values are set using ordinary assignment.
++func Clone[M ~map[K]V, K comparable, V any](m M) M {
++	// Preserve nil in case it matters.
++	if m == nil {
++		return nil
++	}
++	r := make(M, len(m))
++	for k, v := range m {
++		r[k] = v
++	}
++	return r
++}
++
++// Copy copies all key/value pairs in src adding them to dst.
++// When a key in src is already present in dst,
++// the value in dst will be overwritten by the value associated
++// with the key in src.
++func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) {
++	for k, v := range src {
++		dst[k] = v
++	}
++}
++
++// DeleteFunc deletes any key/value pairs from m for which del returns true.
++func DeleteFunc[M ~map[K]V, K comparable, V any](m M, del func(K, V) bool) {
++	for k, v := range m {
++		if del(k, v) {
++			delete(m, k)
++		}
++	}
++}
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+new file mode 100644
+index 0000000000..a7e03ad9b0
+--- /dev/null
++++ b/src/maps/maps_test.go
+@@ -0,0 +1,181 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package maps
++
++import (
++	"math"
++	"sort"
++	"strconv"
++	"testing"
++)
++
++// TODO: replace with slices.Equal when slices is in GOROOT.
++func slicesEqual[E comparable](s1, s2 []E) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i := range s1 {
++		if s1[i] != s2[i] {
++			return false
++		}
++	}
++	return true
++}
++
++var m1 = map[int]int{1: 2, 2: 4, 4: 8, 8: 16}
++var m2 = map[int]string{1: "2", 2: "4", 4: "8", 8: "16"}
++
++func TestKeys(t *testing.T) {
++	want := []int{1, 2, 4, 8}
++
++	got1 := Keys(m1)
++	sort.Ints(got1)
++	if !slicesEqual(got1, want) {
++		t.Errorf("Keys(%v) = %v, want %v", m1, got1, want)
++	}
++
++	got2 := Keys(m2)
++	sort.Ints(got2)
++	if !slicesEqual(got2, want) {
++		t.Errorf("Keys(%v) = %v, want %v", m2, got2, want)
++	}
++}
++
++func TestValues(t *testing.T) {
++	got1 := Values(m1)
++	want1 := []int{2, 4, 8, 16}
++	sort.Ints(got1)
++	if !slicesEqual(got1, want1) {
++		t.Errorf("Values(%v) = %v, want %v", m1, got1, want1)
++	}
++
++	got2 := Values(m2)
++	want2 := []string{"16", "2", "4", "8"}
++	sort.Strings(got2)
++	if !slicesEqual(got2, want2) {
++		t.Errorf("Values(%v) = %v, want %v", m2, got2, want2)
++	}
++}
++
++func TestEqual(t *testing.T) {
++	if !Equal(m1, m1) {
++		t.Errorf("Equal(%v, %v) = false, want true", m1, m1)
++	}
++	if Equal(m1, (map[int]int)(nil)) {
++		t.Errorf("Equal(%v, nil) = true, want false", m1)
++	}
++	if Equal((map[int]int)(nil), m1) {
++		t.Errorf("Equal(nil, %v) = true, want false", m1)
++	}
++	if !Equal[map[int]int, map[int]int](nil, nil) {
++		t.Error("Equal(nil, nil) = false, want true")
++	}
++	if ms := map[int]int{1: 2}; Equal(m1, ms) {
++		t.Errorf("Equal(%v, %v) = true, want false", m1, ms)
++	}
++
++	// Comparing NaN for equality is expected to fail.
++	mf := map[int]float64{1: 0, 2: math.NaN()}
++	if Equal(mf, mf) {
++		t.Errorf("Equal(%v, %v) = true, want false", mf, mf)
++	}
++}
++
++// equal is simply ==.
++func equal[T comparable](v1, v2 T) bool {
++	return v1 == v2
++}
++
++// equalNaN is like == except that all NaNs are equal.
++func equalNaN[T comparable](v1, v2 T) bool {
++	isNaN := func(f T) bool { return f != f }
++	return v1 == v2 || (isNaN(v1) && isNaN(v2))
++}
++
++// equalStr compares ints and strings.
++func equalIntStr(v1 int, v2 string) bool {
++	return strconv.Itoa(v1) == v2
++}
++
++func TestEqualFunc(t *testing.T) {
++	if !EqualFunc(m1, m1, equal[int]) {
++		t.Errorf("EqualFunc(%v, %v, equal) = false, want true", m1, m1)
++	}
++	if EqualFunc(m1, (map[int]int)(nil), equal[int]) {
++		t.Errorf("EqualFunc(%v, nil, equal) = true, want false", m1)
++	}
++	if EqualFunc((map[int]int)(nil), m1, equal[int]) {
++		t.Errorf("EqualFunc(nil, %v, equal) = true, want false", m1)
++	}
++	if !EqualFunc[map[int]int, map[int]int](nil, nil, equal[int]) {
++		t.Error("EqualFunc(nil, nil, equal) = false, want true")
++	}
++	if ms := map[int]int{1: 2}; EqualFunc(m1, ms, equal[int]) {
++		t.Errorf("EqualFunc(%v, %v, equal) = true, want false", m1, ms)
++	}
++
++	// Comparing NaN for equality is expected to fail.
++	mf := map[int]float64{1: 0, 2: math.NaN()}
++	if EqualFunc(mf, mf, equal[float64]) {
++		t.Errorf("EqualFunc(%v, %v, equal) = true, want false", mf, mf)
++	}
++	// But it should succeed using equalNaN.
++	if !EqualFunc(mf, mf, equalNaN[float64]) {
++		t.Errorf("EqualFunc(%v, %v, equalNaN) = false, want true", mf, mf)
++	}
++
++	if !EqualFunc(m1, m2, equalIntStr) {
++		t.Errorf("EqualFunc(%v, %v, equalIntStr) = false, want true", m1, m2)
++	}
++}
++
++func TestClone(t *testing.T) {
++	mc := Clone(m1)
++	if !Equal(mc, m1) {
++		t.Errorf("Clone(%v) = %v, want %v", m1, mc, m1)
++	}
++	mc[16] = 32
++	if Equal(mc, m1) {
++		t.Errorf("Equal(%v, %v) = true, want false", mc, m1)
++	}
++}
++
++func TestCloneNil(t *testing.T) {
++	var m1 map[string]int
++	mc := Clone(m1)
++	if mc != nil {
++		t.Errorf("Clone(%v) = %v, want %v", m1, mc, m1)
++	}
++}
++
++func TestCopy(t *testing.T) {
++	mc := Clone(m1)
++	Copy(mc, mc)
++	if !Equal(mc, m1) {
++		t.Errorf("Copy(%v, %v) = %v, want %v", m1, m1, mc, m1)
++	}
++	Copy(mc, map[int]int{16: 32})
++	want := map[int]int{1: 2, 2: 4, 4: 8, 8: 16, 16: 32}
++	if !Equal(mc, want) {
++		t.Errorf("Copy result = %v, want %v", mc, want)
++	}
++
++	type M1 map[int]bool
++	type M2 map[int]bool
++	Copy(make(M1), make(M2))
++}
++
++func TestDeleteFunc(t *testing.T) {
++	mc := Clone(m1)
++	DeleteFunc(mc, func(int, int) bool { return false })
++	if !Equal(mc, m1) {
++		t.Errorf("DeleteFunc(%v, true) = %v, want %v", m1, mc, m1)
++	}
++	DeleteFunc(mc, func(k, v int) bool { return k > 3 })
++	want := map[int]int{1: 2, 2: 4}
++	if !Equal(mc, want) {
++		t.Errorf("DeleteFunc result = %v, want %v", mc, want)
++	}
++}

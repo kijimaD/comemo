@@ -12,6 +12,21 @@ Date:   Wed Jan 18 15:08:29 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1b057070aa..169999460a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1449,9 +1449,6 @@ func gcMark(startTime int64) {
+ 		// Gs, so only do it if checkmark is also enabled.
+ 		gcMarkRootCheck()
+ 	}
+-	if work.full != 0 {
+-		throw("work.full != 0")
+-	}
+ 
+ 	// Drop allg snapshot. allgs may have grown, in which case
+ 	// this is the only reference to the old backing store and

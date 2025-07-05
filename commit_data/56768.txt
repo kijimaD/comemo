@@ -45,6 +45,22 @@ Date:   Mon May 22 17:00:40 2023 +0800
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mgc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2f0b063fbd..c119308441 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -282,8 +282,9 @@ var work workType
+ 
+ type workType struct {
+ 	full  lfstack          // lock-free list of full blocks workbuf
++	_     cpu.CacheLinePad // prevents false-sharing between full and empty
+ 	empty lfstack          // lock-free list of empty blocks workbuf
+-	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
++	_     cpu.CacheLinePad // prevents false-sharing between empty and nproc/nwait
+ 
+ 	wbufSpans struct {
+ 		lock mutex

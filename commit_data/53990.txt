@@ -17,7 +17,7 @@ Date:   Wed Sep 14 17:08:15 2022 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/compile/internal/base/mapfile_mmap.go |  4 ++--
  src/cmd/compile/internal/base/mapfile_read.go | 10 ++++++++--
  src/cmd/internal/bio/buf_mmap.go              |  4 ++--
@@ -26,3 +26,126 @@ Date:   Wed Sep 14 17:08:15 2022 +0200
  src/cmd/link/internal/ld/outbuf_nommap.go     | 12 ++++++++++--
  src/syscall/zerrors_solaris_amd64.go          |  1 +
  7 files changed, 33 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index 3a5f4cfe21..b01d0f4efc 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/base/mapfile_read.go b/src/cmd/compile/internal/base/mapfile_read.go
+index 01796a9bab..e84810ea34 100644
+--- a/src/cmd/compile/internal/base/mapfile_read.go
++++ b/src/cmd/compile/internal/base/mapfile_read.go
+@@ -2,8 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd
+-// +build !darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd
++//go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
++// +build !darwin
++// +build !dragonfly
++// +build !freebsd
++// +build !linux
++// +build !netbsd
++// +build !openbsd
++// +build !solaris !go1.20
+ 
+ package base
+ 
+diff --git a/src/cmd/internal/bio/buf_mmap.go b/src/cmd/internal/bio/buf_mmap.go
+index 89ae39f736..3543637154 100644
+--- a/src/cmd/internal/bio/buf_mmap.go
++++ b/src/cmd/internal/bio/buf_mmap.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+ 
+ package bio
+ 
+diff --git a/src/cmd/internal/bio/buf_nommap.go b/src/cmd/internal/bio/buf_nommap.go
+index 533a93180c..dab3435260 100644
+--- a/src/cmd/internal/bio/buf_nommap.go
++++ b/src/cmd/internal/bio/buf_nommap.go
+@@ -2,8 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd
+-// +build !darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd
++//go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
++// +build !darwin
++// +build !dragonfly
++// +build !freebsd
++// +build !linux
++// +build !netbsd
++// +build !openbsd
++// +build !solaris !go1.20
+ 
+ package bio
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index 40a3222788..d8f8a10db1 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_nommap.go b/src/cmd/link/internal/ld/outbuf_nommap.go
+index c870fa2c18..4154981b09 100644
+--- a/src/cmd/link/internal/ld/outbuf_nommap.go
++++ b/src/cmd/link/internal/ld/outbuf_nommap.go
+@@ -2,8 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !windows
+-// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!windows
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20) && !windows
++// +build !aix
++// +build !darwin
++// +build !dragonfly
++// +build !freebsd
++// +build !linux
++// +build !netbsd
++// +build !openbsd
++// +build !solaris !go1.20
++// +build !windows
+ 
+ package ld
+ 
+diff --git a/src/syscall/zerrors_solaris_amd64.go b/src/syscall/zerrors_solaris_amd64.go
+index fb25dacee4..8e77bf79c6 100644
+--- a/src/syscall/zerrors_solaris_amd64.go
++++ b/src/syscall/zerrors_solaris_amd64.go
+@@ -594,6 +594,7 @@ const (
+ 	MAP_ALIGN                     = 0x200
+ 	MAP_ANON                      = 0x100
+ 	MAP_ANONYMOUS                 = 0x100
++	MAP_FILE                      = 0x0
+ 	MAP_FIXED                     = 0x10
+ 	MAP_INITDATA                  = 0x800
+ 	MAP_NORESERVE                 = 0x40

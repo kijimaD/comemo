@@ -20,7 +20,7 @@ Date:   Sun Apr 1 00:58:48 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go  | 24 ++++++++++++------------
  src/cmd/link/internal/ld/dwarf.go | 14 +++++++-------
  src/cmd/link/internal/ld/elf.go   | 16 ++++++++--------
@@ -30,3 +30,306 @@ Date:   Sun Apr 1 00:58:48 2018 +0300
  src/cmd/link/internal/ld/pe.go    |  2 +-
  src/cmd/link/main.go              |  2 +-
  8 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ad801a240b..51ed4b7ab7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -61,9 +61,9 @@ func isRuntimeDepPkg(pkg string) bool {
+ // is used to determine when the section can be split if it becomes too large, to ensure that
+ // the trampolines are in the same section as the function that uses them.
+ func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
+-	// If Thearch.Trampoline is nil, then trampoline support is not available on this arch.
++	// If thearch.Trampoline is nil, then trampoline support is not available on this arch.
+ 	// A trampoline does not need any dependent trampolines.
+-	if Thearch.Trampoline == nil || isTramp {
++	if thearch.Trampoline == nil || isTramp {
+ 		return 0
+ 	}
+ 
+@@ -83,7 +83,7 @@ func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
+ // On PPC64 & PPC64LE the text sections might be split but will still insert trampolines
+ // where necessary.
+ func trampoline(ctxt *Link, s *sym.Symbol) {
+-	if Thearch.Trampoline == nil {
++	if thearch.Trampoline == nil {
+ 		return // no need or no support of trampolines on this arch
+ 	}
+ 
+@@ -103,7 +103,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
+ 			continue
+ 		}
+ 
+-		Thearch.Trampoline(ctxt, r, s)
++		thearch.Trampoline(ctxt, r, s)
+ 	}
+ 
+ }
+@@ -195,7 +195,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 			case 8:
+ 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
+ 			}
+-			if !Thearch.Archreloc(ctxt, r, s, &o) {
++			if !thearch.Archreloc(ctxt, r, s, &o) {
+ 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			}
+ 		case objabi.R_TLS_LE:
+@@ -250,10 +250,10 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 			if ctxt.BuildMode == BuildModePIE && ctxt.IsELF {
+ 				// We are linking the final executable, so we
+ 				// can optimize any TLS IE relocation to LE.
+-				if Thearch.TLSIEtoLE == nil {
++				if thearch.TLSIEtoLE == nil {
+ 					log.Fatalf("internal linking of TLS IE not supported on %v", ctxt.Arch.Family)
+ 				}
+-				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
++				thearch.TLSIEtoLE(s, int(off), int(r.Siz))
+ 				o = int64(ctxt.Tlsoffset)
+ 				// TODO: o += r.Add when ctxt.Arch.Family != sys.AMD64?
+ 				// Why do we treat r.Add differently on AMD64?
+@@ -445,7 +445,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 		}
+ 
+ 		if r.Variant != sym.RV_NONE {
+-			o = Thearch.Archrelocvariant(ctxt, r, s, o)
++			o = thearch.Archrelocvariant(ctxt, r, s, o)
+ 		}
+ 
+ 		if false {
+@@ -561,14 +561,14 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 			// It's expected that some relocations will be done
+ 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+ 			// don't worry if Adddynrel returns false.
+-			Thearch.Adddynrel(ctxt, s, r)
++			thearch.Adddynrel(ctxt, s, r)
+ 			continue
+ 		}
+ 		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= 256 {
+ 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+-			if !Thearch.Adddynrel(ctxt, s, r) {
++			if !thearch.Adddynrel(ctxt, s, r) {
+ 				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
+ 			}
+ 		}
+@@ -911,7 +911,7 @@ func dosymtype(ctxt *Link) {
+ 
+ // symalign returns the required alignment for the given symbol s.
+ func symalign(s *sym.Symbol) int32 {
+-	min := int32(Thearch.Minalign)
++	min := int32(thearch.Minalign)
+ 	if s.Align >= min {
+ 		return s.Align
+ 	} else if s.Align != 0 {
+@@ -922,7 +922,7 @@ func symalign(s *sym.Symbol) int32 {
+ 		// If we align it, we waste a lot of space to padding.
+ 		return min
+ 	}
+-	align := int32(Thearch.Maxalign)
++	align := int32(thearch.Maxalign)
+ 	for int64(align) > s.Size && align > min {
+ 		align >>= 1
+ 	}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 3a739fb3d5..cd71ed3515 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1372,24 +1372,24 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 	fs.AddUint8(0)                                             // augmentation ""
+ 	dwarf.Uleb128put(dwarfctxt, fs, 1)                         // code_alignment_factor
+ 	dwarf.Sleb128put(dwarfctxt, fs, dataAlignmentFactor)       // all CFI offset calculations include multiplication with this factor
+-	dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr)) // return_address_register
++	dwarf.Uleb128put(dwarfctxt, fs, int64(thearch.Dwarfreglr)) // return_address_register
+ 
+ 	fs.AddUint8(dwarf.DW_CFA_def_cfa)                          // Set the current frame address..
+-	dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfregsp)) // ...to use the value in the platform's SP register (defined in l.go)...
++	dwarf.Uleb128put(dwarfctxt, fs, int64(thearch.Dwarfregsp)) // ...to use the value in the platform's SP register (defined in l.go)...
+ 	if haslinkregister(ctxt) {
+ 		dwarf.Uleb128put(dwarfctxt, fs, int64(0)) // ...plus a 0 offset.
+ 
+ 		fs.AddUint8(dwarf.DW_CFA_same_value) // The platform's link register is unchanged during the prologue.
+-		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))
++		dwarf.Uleb128put(dwarfctxt, fs, int64(thearch.Dwarfreglr))
+ 
+ 		fs.AddUint8(dwarf.DW_CFA_val_offset)                       // The previous value...
+-		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfregsp)) // ...of the platform's SP register...
++		dwarf.Uleb128put(dwarfctxt, fs, int64(thearch.Dwarfregsp)) // ...of the platform's SP register...
+ 		dwarf.Uleb128put(dwarfctxt, fs, int64(0))                  // ...is CFA+0.
+ 	} else {
+ 		dwarf.Uleb128put(dwarfctxt, fs, int64(ctxt.Arch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
+ 
+ 		fs.AddUint8(dwarf.DW_CFA_offset_extended)                                      // The previous value...
+-		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))                     // ...of the return address...
++		dwarf.Uleb128put(dwarfctxt, fs, int64(thearch.Dwarfreglr))                     // ...of the return address...
+ 		dwarf.Uleb128put(dwarfctxt, fs, int64(-ctxt.Arch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
+ 	}
+ 
+@@ -1432,13 +1432,13 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 					// The return address is preserved at (CFA-frame_size)
+ 					// after a stack frame has been allocated.
+ 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
+-					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(Thearch.Dwarfreglr))
++					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+ 					deltaBuf = dwarf.AppendSleb128(deltaBuf, -int64(pcsp.value)/dataAlignmentFactor)
+ 				} else {
+ 					// The return address is restored into the link register
+ 					// when a stack frame has been de-allocated.
+ 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_same_value)
+-					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(Thearch.Dwarfreglr))
++					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+ 				}
+ 				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
+ 			} else {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index d56a2359d3..817ba4693b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1366,7 +1366,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 			if !r.Xsym.Attr.Reachable() {
+ 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+ 			}
+-			if !Thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
++			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+ 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+ 			}
+ 		}
+@@ -1599,7 +1599,7 @@ func (ctxt *Link) doelf() {
+ 			s.Type = sym.SELFRXSECT
+ 		}
+ 
+-		Thearch.Elfsetupplt(ctxt)
++		thearch.Elfsetupplt(ctxt)
+ 
+ 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
+ 		s.Attr |= sym.AttrReachable
+@@ -1845,22 +1845,22 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		if interpreter == "" {
+ 			switch ctxt.HeadType {
+ 			case objabi.Hlinux:
+-				interpreter = Thearch.Linuxdynld
++				interpreter = thearch.Linuxdynld
+ 
+ 			case objabi.Hfreebsd:
+-				interpreter = Thearch.Freebsddynld
++				interpreter = thearch.Freebsddynld
+ 
+ 			case objabi.Hnetbsd:
+-				interpreter = Thearch.Netbsddynld
++				interpreter = thearch.Netbsddynld
+ 
+ 			case objabi.Hopenbsd:
+-				interpreter = Thearch.Openbsddynld
++				interpreter = thearch.Openbsddynld
+ 
+ 			case objabi.Hdragonfly:
+-				interpreter = Thearch.Dragonflydynld
++				interpreter = thearch.Dragonflydynld
+ 
+ 			case objabi.Hsolaris:
+-				interpreter = Thearch.Solarisdynld
++				interpreter = thearch.Solarisdynld
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d3f5e7e640..7d93074614 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -124,7 +124,7 @@ type Arch struct {
+ }
+ 
+ var (
+-	Thearch Arch
++	thearch Arch
+ 	Lcsize  int32
+ 	rpath   Rpath
+ 	Spsize  int32
+@@ -212,7 +212,7 @@ func mayberemoveoutfile() {
+ }
+ 
+ func libinit(ctxt *Link) {
+-	Funcalign = Thearch.Funcalign
++	Funcalign = thearch.Funcalign
+ 
+ 	// add goroot to the end of the libdir list.
+ 	suffix := ""
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 2b38ec0000..12037069c8 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -927,7 +927,7 @@ func machorelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 			if !r.Xsym.Attr.Reachable() {
+ 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+ 			}
+-			if !Thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
++			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+ 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index f86abbc6a6..8a812c924a 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -97,7 +97,7 @@ var (
+ 
+ // Main is the main entry point for the linker code.
+ func Main(arch *sys.Arch, theArch Arch) {
+-	Thearch = theArch
++	thearch = theArch
+ 	ctxt := linknew(arch)
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+@@ -168,7 +168,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 
+ 	ctxt.computeTLSOffset()
+-	Thearch.Archinit(ctxt)
++	thearch.Archinit(ctxt)
+ 
+ 	if ctxt.linkShared && !ctxt.IsELF {
+ 		Exitf("-linkshared can only be used on elf systems")
+@@ -214,7 +214,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		ctxt.dope()
+ 	}
+ 	ctxt.addexport()
+-	Thearch.Gentext(ctxt) // trampolines, call stubs, etc.
++	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
+ 	ctxt.textbuildid()
+ 	ctxt.textaddress()
+ 	ctxt.pclntab()
+@@ -224,7 +224,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.dodata()
+ 	ctxt.address()
+ 	ctxt.reloc()
+-	Thearch.Asmb(ctxt)
++	thearch.Asmb(ctxt)
+ 	ctxt.undef()
+ 	ctxt.hostlink()
+ 	ctxt.archive()
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 8586c359ad..d07f201557 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -538,7 +538,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 				if r.Xsym.Dynid < 0 {
+ 					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+ 				}
+-				if !Thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
++				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+ 					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+ 				}
+ 				relocs++
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index 6bc9b5dcb6..b1a66f5454 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -32,7 +32,7 @@ import (
+ // Then control flow passes to ld.Main, which parses flags, makes
+ // some configuration decisions, and then gives the architecture
+ // packages a second chance to modify the linker's configuration
+-// via the ld.Thearch.Archinit function.
++// via the ld.Arch.Archinit function.
+ 
+ func main() {
+ 	var arch *sys.Arch

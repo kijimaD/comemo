@@ -16,7 +16,48 @@ Date:   Fri Aug 10 20:05:44 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/cmd/go/internal/imports/scan.go         | 7 +++++++
  src/cmd/go/testdata/script/mod_patterns.txt | 4 ++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index 095bb64a8d..bae6b934bc 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -37,6 +37,7 @@ func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]stri
+ 	imports := make(map[string]bool)
+ 	testImports := make(map[string]bool)
+ 	numFiles := 0
++Files:
+ 	for _, name := range files {
+ 		r, err := os.Open(name)
+ 		if err != nil {
+@@ -48,6 +49,12 @@ func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]stri
+ 		if err != nil {
+ 			return nil, nil, fmt.Errorf("reading %s: %v", name, err)
+ 		}
++		// import "C" is implicit requirement of cgo tag
++		for _, path := range list {
++			if path == `"C"` && !tags["cgo"] && !tags["*"] {
++				continue Files
++			}
++		}
+ 		if !explicitFiles && !ShouldBuild(data, tags) {
+ 			continue
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index 36d738a867..a43fe82489 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -43,6 +43,10 @@ stdout example.com/m/useunsafe
+ [cgo] stdout example.com/m/useC
+ [!cgo] ! stdout example.com/m/useC
+ 
++env CGO_ENABLED=0
++go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
++! stdout example.com/m/useC
++
+ -- m/go.mod --
+ module example.com/m
+ 

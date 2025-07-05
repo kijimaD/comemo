@@ -12,9 +12,69 @@ Date:   Wed Oct 6 09:33:55 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/354349
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/decl.go                           |  1 +
  src/go/types/testdata/fixedbugs/issue41124.go2 |  2 +-
  src/go/types/testdata/fixedbugs/issue48819.src | 15 +++++++++++++++
  src/go/types/typeset.go                        |  2 +-
  4 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 3c68bbfb20..22202cc7c9 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -356,6 +356,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+ 					t.info = invalid
++					t.underlying = Typ[Invalid]
+ 					return t.info
+ 				}
+ 			}
+diff --git a/src/go/types/testdata/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+index ac336a2ece..7f55ba85a6 100644
+--- a/src/go/types/testdata/fixedbugs/issue41124.go2
++++ b/src/go/types/testdata/fixedbugs/issue41124.go2
+@@ -12,7 +12,7 @@ type Nat /* ERROR cycle */ interface {
+ 
+ type Zero struct{}
+ type Succ struct{
+-	Nat /* ERROR interface contains type constraints */
++	Nat // Nat contains type constraints but is invalid, so no error
+ }
+ 
+ // Struct tests.
+diff --git a/src/go/types/testdata/fixedbugs/issue48819.src b/src/go/types/testdata/fixedbugs/issue48819.src
+new file mode 100644
+index 0000000000..9262110ea0
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48819.src
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type T /* ERROR illegal cycle in declaration of T */ struct {
++	T
++}
++
++func _(t T) {
++	_ = unsafe.Sizeof(t) // should not go into infinite recursion here
++}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index b447799862..a1893d0588 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -292,7 +292,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			// Union parsing reports a (delayed) error, so we can ignore this entry.
+ 			continue
+ 		default:
+-			if typ == Typ[Invalid] {
++			if u == Typ[Invalid] {
+ 				continue
+ 			}
+ 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {

@@ -7,6 +7,26 @@ Date:   Wed Sep 25 16:17:54 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13877044
-
+---
  doc/go1.2.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 29e42bb12b..2fa80c72b6 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -735,6 +735,14 @@ The package also now exports the <a href="/pkg/flag/#CommandLine"><code>CommandL
+ flag set, which holds the flags from the command line.
+ </li>
+ 
++<li>
++The <a href="/pkg/go/ast/"><code>go/ast</code></a> package's
++<a href="/pkg/go/ast/#SliceExpr"><code>SliceExpr</code></a> struct
++has a new boolean field, <code>Slice3</code>, which is set to true
++when representing a slice expression with three indices (two colons).
++The default is false, representing the usual two-index form.
++</li>
++
+ <li>
+ The <a href="/pkg/go/build/"><code>go/build</code></a> package adds
+ the <a href="/pkg/go/build/#Package.AllTags"><code>AllTags</code></a> field

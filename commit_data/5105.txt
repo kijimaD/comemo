@@ -8,6 +8,24 @@ Date:   Tue Mar 23 13:00:02 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/700041
-
+---
  src/pkg/runtime/hashmap.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 281601fbc7..ccb5cfdb56 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -769,8 +769,10 @@ void
+ 	av = (byte*)&h + h->vo1;
+ 
+ 	mapaccess(h, ak, av, &pres);
+-	if(!pres)
+-		throw("runtime.mapaccess1: key not in map");
++
++// new spec -- all elements have "zero" value
++//	if(!pres)
++//		throw("runtime.mapaccess1: key not in map");
+ 
+ 	if(debug) {
+ 		prints("runtime.mapaccess1: map=");

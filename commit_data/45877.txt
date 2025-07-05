@@ -26,8 +26,121 @@ Date:   Tue Nov 24 21:56:47 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 45 +++++++++++++++++-------------------
  test/const2.go                       | 11 +++++++++
  test/fixedbugs/issue20232.go         |  5 ++--
  3 files changed, 35 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 84f0b11712..e72962124a 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -718,11 +718,14 @@ func square(x constant.Value) constant.Value {
+ }
+ 
+ // For matching historical "constant OP overflow" error messages.
++// TODO(mdempsky): Replace with error messages like go/types uses.
+ var overflowNames = [...]string{
+-	OADD: "addition",
+-	OSUB: "subtraction",
+-	OMUL: "multiplication",
+-	OLSH: "shift",
++	OADD:    "addition",
++	OSUB:    "subtraction",
++	OMUL:    "multiplication",
++	OLSH:    "shift",
++	OXOR:    "bitwise XOR",
++	OBITNOT: "bitwise complement",
+ }
+ 
+ // origConst returns an OLITERAL with orig n and value v.
+@@ -732,32 +735,24 @@ func origConst(n *Node, v constant.Value) *Node {
+ 	lineno = lno
+ 
+ 	switch v.Kind() {
++	case constant.Int:
++		if constant.BitLen(v) <= Mpprec {
++			break
++		}
++		fallthrough
+ 	case constant.Unknown:
+-		// If constant folding was attempted (we were called)
+-		// but it produced an invalid constant value,
+-		// mark n as broken and give up.
+-		if Errors() == 0 {
+-			Fatalf("should have reported an error")
++		what := overflowNames[n.Op]
++		if what == "" {
++			Fatalf("unexpected overflow: %v", n.Op)
+ 		}
++		yyerrorl(n.Pos, "constant %v overflow", what)
+ 		n.Type = nil
+ 		return n
+-
+-	case constant.Int:
+-		if constant.BitLen(v) > Mpprec {
+-			what := overflowNames[n.Op]
+-			if what == "" {
+-				Fatalf("unexpected overflow: %v", n.Op)
+-			}
+-			yyerror("constant %v overflow", what)
+-			n.Type = nil
+-			return n
+-		}
+ 	}
+ 
+ 	orig := n
+-	n = nod(OLITERAL, nil, nil)
++	n = nodl(orig.Pos, OLITERAL, nil, nil)
+ 	n.Orig = orig
+-	n.Pos = orig.Pos
+ 	n.Type = orig.Type
+ 	n.SetVal(v)
+ 	return n
+@@ -800,8 +795,10 @@ func origIntConst(n *Node, v int64) *Node {
+ // nodlit returns a new untyped constant with value v.
+ func nodlit(v constant.Value) *Node {
+ 	n := nod(OLITERAL, nil, nil)
+-	n.Type = idealType(v.Kind())
+-	n.SetVal(v)
++	if k := v.Kind(); k != constant.Unknown {
++		n.Type = idealType(k)
++		n.SetVal(v)
++	}
+ 	return n
+ }
+ 
+diff --git a/test/const2.go b/test/const2.go
+index 048d0cb9f3..d104a2fa71 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -19,3 +19,14 @@ const LargeB = LargeA * LargeA * LargeA
+ const LargeC = LargeB * LargeB * LargeB // GC_ERROR "constant multiplication overflow"
+ 
+ const AlsoLargeA = LargeA << 400 << 400 >> 400 >> 400 // GC_ERROR "constant shift overflow"
++
++// Issue #42732.
++
++const a = 1e+500000000
++const b = a * a // ERROR "constant multiplication overflow"
++const c = b * b
++
++const MaxInt512 = (1<<256 - 1) * (1<<256 + 1)
++const _ = MaxInt512 + 1  // ERROR "constant addition overflow"
++const _ = MaxInt512 ^ -1 // ERROR "constant bitwise XOR overflow"
++const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
+diff --git a/test/fixedbugs/issue20232.go b/test/fixedbugs/issue20232.go
+index fbe8cdebfb..7a0300a4c4 100644
+--- a/test/fixedbugs/issue20232.go
++++ b/test/fixedbugs/issue20232.go
+@@ -6,6 +6,7 @@
+ 
+ package main
+ 
+-const _ = 6e5518446744 // ERROR "malformed constant: 6e5518446744"
++const x = 6e5518446744 // ERROR "malformed constant: 6e5518446744"
++const _ = x * x
+ const _ = 1e-1000000000
+-const _ = 1e+1000000000
++const _ = 1e+1000000000 // ERROR "malformed constant: 1e\+1000000000"

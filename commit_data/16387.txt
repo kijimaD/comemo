@@ -7,6 +7,21 @@ Date:   Wed May 22 16:27:39 2013 -0700
     R=adg, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/9626045
-
+---
  lib/codereview/codereview.py | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index f839263c55..f8edbcde00 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1960,6 +1960,9 @@ def submit(ui, repo, *pats, **opts):
+ 				# Remote repository had changes we missed.
+ 				need_sync()
+ 			raise
++		except urllib2.HTTPError, e:
++			print >>sys.stderr, "pushing to remote server failed; do you have commit permissions?"
++			raise
+ 	except:
+ 		real_rollback()
+ 		raise

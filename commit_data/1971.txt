@@ -8,8 +8,50 @@ Date:   Tue Apr 7 00:40:36 2009 -0700
     DELTA=17  (17 added, 0 deleted, 0 changed)
     OCL=27146
     CL=27153
-
+---
  src/lib/os/file.go             | 6 ++++++
  src/lib/syscall/file_darwin.go | 6 ++++++
  src/lib/syscall/file_linux.go  | 5 +++++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 3010deeab7..48daf0bce4 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -261,3 +261,9 @@ func (file *File) Readdir(count int) (dirs []Dir, err *os.Error) {
+ 	return
+ }
+ 
++// Chdir changes the current working directory to the named directory.
++func Chdir(dir string) *os.Error {
++	r, e := syscall.Chdir(dir);
++	return ErrnoToError(e);
++}
++
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index 5d128f743c..b0777b5df4 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -98,3 +98,9 @@ func Getdirentries(fd int64, buf *byte, nbytes int64, basep *int64) (ret int64,
+ 	r1, r2, err := Syscall6(SYS_GETDIRENTRIES64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes, int64(uintptr(unsafe.Pointer(basep))), 0, 0);
+ 	return r1, err;
+ }
++
++func Chdir(dir string) (ret int64, errno int64) {
++	namebuf := StringBytePtr(dir);
++	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
++	return r1, err;
++}
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index ceb0a85d76..9bf4408846 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -100,3 +100,8 @@ func Getdents(fd int64, buf *Dirent, nbytes int64) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
++func Chdir(dir string) (ret int64, errno int64) {
++	namebuf := StringBytePtr(dir);
++	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
++	return r1, err;
++}

@@ -23,7 +23,7 @@ Date:   Wed Apr 17 11:23:53 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/internal/atomic/atomic_arm.go     | 2 +-
  src/runtime/internal/atomic/atomic_arm64.go   | 2 +-
  src/runtime/internal/atomic/atomic_mips64x.go | 2 +-
@@ -32,3 +32,99 @@ Date:   Wed Apr 17 11:23:53 2019 -0700
  test/escape_runtime_atomic.go                 | 4 ++--
  test/escape_sync_atomic.go                    | 4 ++--
  7 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 51b42ba238..abedee0e35 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -181,7 +181,7 @@ func armcas(ptr *uint32, old, new uint32) bool
+ //go:noescape
+ func Load(addr *uint32) uint32
+ 
+-//go:noescape
++// NO go:noescape annotation; *addr escapes if result escapes (#31525)
+ func Loadp(addr unsafe.Pointer) unsafe.Pointer
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/runtime/internal/atomic/atomic_arm64.go
+index a2da27e7ed..8e83cc6f53 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.go
++++ b/src/runtime/internal/atomic/atomic_arm64.go
+@@ -32,7 +32,7 @@ func Load(ptr *uint32) uint32
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
+-//go:noescape
++// NO go:noescape annotation; *ptr escapes if result escapes (#31525)
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.go b/src/runtime/internal/atomic/atomic_mips64x.go
+index 98a8fca929..ca2e509266 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.go
++++ b/src/runtime/internal/atomic/atomic_mips64x.go
+@@ -32,7 +32,7 @@ func Load(ptr *uint32) uint32
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
+-//go:noescape
++// NO go:noescape annotation; *ptr escapes if result escapes (#31525)
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 1cd6d9a9ce..79eb582232 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -116,7 +116,7 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func Load(ptr *uint32) uint32
+ 
+-//go:noescape
++// NO go:noescape annotation; *ptr escapes if result escapes (#31525)
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.go b/src/runtime/internal/atomic/atomic_ppc64x.go
+index 4f1a95c5bd..0e9a51f6a1 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.go
++++ b/src/runtime/internal/atomic/atomic_ppc64x.go
+@@ -32,7 +32,7 @@ func Load(ptr *uint32) uint32
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
+-//go:noescape
++// NO go:noescape annotation; *ptr escapes if result escapes (#31525)
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
+ //go:noescape
+diff --git a/test/escape_runtime_atomic.go b/test/escape_runtime_atomic.go
+index 6dfd4aa211..efe2013fb9 100644
+--- a/test/escape_runtime_atomic.go
++++ b/test/escape_runtime_atomic.go
+@@ -13,8 +13,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-// BAD: should be "leaking param content".
+-func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr"
++// BAD: should always be "leaking param: addr to result ~r1 level=1$".
++func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r1 level=1)?$"
+ 	return atomic.Loadp(addr)
+ }
+ 
+diff --git a/test/escape_sync_atomic.go b/test/escape_sync_atomic.go
+index 8da71a0ccf..e509b37511 100644
+--- a/test/escape_sync_atomic.go
++++ b/test/escape_sync_atomic.go
+@@ -13,8 +13,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-// BAD: should be "leaking param content".
+-func LoadPointer(addr *unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr"
++// BAD: should be "leaking param: addr to result ~r1 level=1$".
++func LoadPointer(addr *unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr$"
+ 	return atomic.LoadPointer(addr)
+ }
+ 

@@ -11,7 +11,7 @@ Date:   Fri Feb 26 14:27:59 2021 -0500
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 80 ++++++++++++--------------
  src/cmd/compile/internal/ssa/op.go           |  9 ++-
  src/cmd/compile/internal/ssagen/ssa.go       | 85 ++++++++++++++++++----------
@@ -20,3 +20,509 @@ Date:   Fri Feb 26 14:27:59 2021 -0500
  test/abi/too_big_to_ssa.go                   | 47 +++++++++++++++
  test/abi/too_big_to_ssa.out                  |  2 +
  7 files changed, 264 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 03b2a98fce..df135853fe 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -248,7 +248,7 @@ func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *t
+ }
+ 
+ // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
+-func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
++func (x *expandState) prAssignForArg(v *Value) *abi.ABIParamAssignment {
+ 	if v.Op != OpArg {
+ 		panic(badVal("Wanted OpArg, instead saw", v))
+ 	}
+@@ -256,13 +256,12 @@ func (x *expandState) prAssignForArg(v *Value) abi.ABIParamAssignment {
+ }
+ 
+ // ParamAssignmentForArgName returns the ABIParamAssignment for f's arg with matching name.
+-func ParamAssignmentForArgName(f *Func, name *ir.Name) abi.ABIParamAssignment {
++func ParamAssignmentForArgName(f *Func, name *ir.Name) *abi.ABIParamAssignment {
+ 	abiInfo := f.OwnAux.abiInfo
+-	// This is unfortunate, but apparently the only way.
+-	// TODO after register args stabilize, find a better way
+-	for _, a := range abiInfo.InParams() {
++	ip := abiInfo.InParams()
++	for i, a := range ip {
+ 		if a.Name == name {
+-			return a
++			return &ip[i]
+ 		}
+ 	}
+ 	panic(fmt.Errorf("Did not match param %v in prInfo %+v", name, abiInfo.InParams()))
+@@ -646,6 +645,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 		fmt.Printf("\tstoreArgOrLoad(%s;  %s;  %s; %d; %s)\n", source.LongString(), mem.String(), t.String(), offset, storeRc.String())
+ 	}
+ 
++	// Start with Opcodes that can be disassembled
+ 	switch source.Op {
+ 	case OpCopy:
+ 		return x.storeArgOrLoad(pos, b, source.Args[0], mem, t, offset, loadRegOffset, storeRc)
+@@ -1025,14 +1025,9 @@ func expandCalls(f *Func) {
+ 						t = tSrc
+ 					}
+ 				}
+-				if iAEATt {
+-					if x.debug {
+-						fmt.Printf("Splitting store %s\n", v.LongString())
+-					}
+-					dst, mem := v.Args[0], v.Args[2]
+-					mem = x.storeArgOrLoad(v.Pos, b, source, mem, t, 0, 0, registerCursor{storeDest: dst})
+-					v.copyOf(mem)
+-				}
++				dst, mem := v.Args[0], v.Args[2]
++				mem = x.storeArgOrLoad(v.Pos, b, source, mem, t, 0, 0, registerCursor{storeDest: dst})
++				v.copyOf(mem)
+ 			}
+ 		}
+ 	}
+@@ -1322,14 +1317,12 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 	}
+ 
+ 	pa := x.prAssignForArg(baseArg)
+-	switch len(pa.Registers) {
+-	case 0:
++	if len(pa.Registers) == 0 { // Arg is on stack
+ 		frameOff := baseArg.Aux.(*ir.Name).FrameOffset()
+ 		if pa.Offset() != int32(frameOff+x.f.ABISelf.LocalsOffset()) {
+ 			panic(fmt.Errorf("Parameter assignment %d and OpArg.Aux frameOffset %d disagree, op=%s",
+ 				pa.Offset(), frameOff, baseArg.LongString()))
+ 		}
+-
+ 		aux := baseArg.Aux
+ 		auxInt := baseArg.AuxInt + offset
+ 		if toReplace != nil && toReplace.Block == baseArg.Block {
+@@ -1350,35 +1343,34 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 			}
+ 			return w
+ 		}
+-
+-	default:
+-		r := pa.Registers[regOffset]
+-		auxInt := x.f.ABISelf.FloatIndexFor(r)
+-		op := OpArgFloatReg
+-		// TODO seems like this has implications for debugging. How does this affect the location?
+-		if auxInt < 0 { // int (not float) parameter register
+-			op = OpArgIntReg
+-			auxInt = int64(r)
++	}
++	// Arg is in registers
++	r := pa.Registers[regOffset]
++	auxInt := x.f.ABISelf.FloatIndexFor(r)
++	op := OpArgFloatReg
++	// TODO seems like this has implications for debugging. How does this affect the location?
++	if auxInt < 0 { // int (not float) parameter register
++		op = OpArgIntReg
++		auxInt = int64(r)
++	}
++	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
++	if toReplace != nil && toReplace.Block == baseArg.Block {
++		toReplace.reset(op)
++		toReplace.Aux = aux
++		toReplace.AuxInt = auxInt
++		toReplace.Type = t
++		x.commonArgs[key] = toReplace
++		return toReplace
++	} else {
++		w := baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
++		if x.debug {
++			fmt.Printf("\tnew %s\n", w.LongString())
+ 		}
+-		aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
+-		if toReplace != nil && toReplace.Block == baseArg.Block {
+-			toReplace.reset(op)
+-			toReplace.Aux = aux
+-			toReplace.AuxInt = auxInt
+-			toReplace.Type = t
+-			x.commonArgs[key] = toReplace
+-			return toReplace
+-		} else {
+-			w := baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
+-			if x.debug {
+-				fmt.Printf("\tnew %s\n", w.LongString())
+-			}
+-			x.commonArgs[key] = w
+-			if toReplace != nil {
+-				toReplace.copyOf(w)
+-			}
+-			return w
++		x.commonArgs[key] = w
++		if toReplace != nil {
++			toReplace.copyOf(w)
+ 		}
++		return w
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 0577ec7bed..574377a33d 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -133,7 +133,9 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
+ 	a.reg.clobbers = i.clobbers
+ 	return a.reg
+ }
+-
++func (a *AuxCall) ABI() *abi.ABIConfig {
++	return a.abiInfo.Config()
++}
+ func (a *AuxCall) ResultReg(c *Config) *regInfo {
+ 	if a.abiInfo.OutRegistersUsed() == 0 {
+ 		return a.reg
+@@ -162,6 +164,11 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
+ 	return uint8(m)
+ }
+ 
++// OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
++func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
++	return a.abiInfo.OutParam(int(which))
++}
++
+ // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+ func (a *AuxCall) OffsetOfResult(which int64) int64 {
+ 	n := int64(a.abiInfo.OutParam(int(which)).Offset())
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 881fdcc8f4..b590bd4f2f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -563,16 +563,9 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 					} else { // Too big for SSA.
+ 						// Brute force, and early, do a bunch of stores from registers
+ 						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
+-						typs, offs := paramAssignment.RegisterTypesAndOffsets()
+-						for i, t := range typs {
+-							o := offs[i]
+-							r := paramAssignment.Registers[i]
+-							op, reg := ssa.ArgOpAndRegisterFor(r, s.f.ABISelf)
+-							v := s.newValue0I(op, t, reg)
+-							v.Aux = &ssa.AuxNameOffset{Name: n, Offset: o}
+-							p := s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), o, s.decladdrs[n])
+-							s.store(t, p, v)
+-						}
++						abi := s.f.ABISelf
++						addr := s.decladdrs[n]
++						s.storeParameterRegsToStack(abi, paramAssignment, n, addr)
+ 					}
+ 				}
+ 			}
+@@ -648,6 +641,20 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	return s.f
+ }
+ 
++func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *abi.ABIParamAssignment, n *ir.Name, addr *ssa.Value) {
++	typs, offs := paramAssignment.RegisterTypesAndOffsets()
++	for i, t := range typs {
++		r := paramAssignment.Registers[i]
++		o := offs[i]
++		op, reg := ssa.ArgOpAndRegisterFor(r, abi)
++		aux := &ssa.AuxNameOffset{Name: n, Offset: o}
++		v := s.newValue0I(op, t, reg)
++		v.Aux = aux
++		p := s.newValue1I(ssa.OpOffPtr, types.NewPtr(t), o, addr)
++		s.store(t, p, v)
++	}
++}
++
+ // zeroResults zeros the return values at the start of the function.
+ // We need to do this very early in the function.  Defer might stop a
+ // panic and show the return values as they exist at the time of
+@@ -2968,12 +2975,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		if which == -1 {
+ 			panic(fmt.Errorf("ORESULT %v does not match call %s", n, s.prevCall))
+ 		}
+-		if TypeOK(n.Type()) {
+-			return s.newValue1I(ssa.OpSelectN, n.Type(), which, s.prevCall)
+-		} else {
+-			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(n.Type()), which, s.prevCall)
+-			return s.rawLoad(n.Type(), addr)
+-		}
++		return s.resultOfCall(s.prevCall, which, n.Type())
+ 
+ 	case ir.ODEREF:
+ 		n := n.(*ir.StarExpr)
+@@ -3174,6 +3176,30 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 	}
+ }
+ 
++func (s *state) resultOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.Value {
++	aux := c.Aux.(*ssa.AuxCall)
++	pa := aux.ParamAssignmentForResult(which)
++	// TODO(register args) determine if in-memory TypeOK is better loaded early from SelectNAddr or later when SelectN is expanded.
++	// SelectN is better for pattern-matching and possible call-aware analysis we might want to do in the future.
++	if len(pa.Registers) == 0 && !TypeOK(t) {
++		addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), which, c)
++		return s.rawLoad(t, addr)
++	}
++	return s.newValue1I(ssa.OpSelectN, t, which, c)
++}
++
++func (s *state) resultAddrOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.Value {
++	aux := c.Aux.(*ssa.AuxCall)
++	pa := aux.ParamAssignmentForResult(which)
++	if len(pa.Registers) == 0 {
++		return s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), which, c)
++	}
++	_, addr := s.temp(c.Pos, t)
++	rval := s.newValue1I(ssa.OpSelectN, t, which, c)
++	s.vars[memVar] = s.newValue3Apos(ssa.OpStore, types.TypeMem, t, addr, rval, s.mem(), false)
++	return addr
++}
++
+ // append converts an OAPPEND node to SSA.
+ // If inplace is false, it converts the OAPPEND expression n to an ssa.Value,
+ // adds it to s, and returns the Value.
+@@ -5068,10 +5094,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	}
+ 	fp := res.Field(0)
+ 	if returnResultAddr {
+-		pt := types.NewPtr(fp.Type)
+-		return s.newValue1I(ssa.OpSelectNAddr, pt, 0, call)
++		return s.resultAddrOfCall(call, 0, fp.Type)
+ 	}
+-
+ 	return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+ }
+ 
+@@ -5169,9 +5193,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	case ir.ORESULT:
+ 		// load return from callee
+ 		n := n.(*ir.ResultExpr)
+-		x := s.newValue1I(ssa.OpSelectNAddr, t, n.Index, s.prevCall)
+-		return x
+-
++		return s.resultAddrOfCall(s.prevCall, n.Index, n.Type())
+ 	case ir.OINDEX:
+ 		n := n.(*ir.IndexExpr)
+ 		if n.X.Type().IsSlice() {
+@@ -5528,12 +5550,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	res := make([]*ssa.Value, len(results))
+ 	for i, t := range results {
+ 		off = types.Rnd(off, t.Alignment())
+-		if TypeOK(t) {
+-			res[i] = s.newValue1I(ssa.OpSelectN, t, int64(i), call)
+-		} else {
+-			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(t), int64(i), call)
+-			res[i] = s.rawLoad(t, addr)
+-		}
++		res[i] = s.resultOfCall(call, int64(i), t)
+ 		off += t.Size()
+ 	}
+ 	off = types.Rnd(off, int64(types.PtrSize))
+@@ -6233,9 +6250,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	if commaok && !TypeOK(n.Type()) {
+ 		// unSSAable type, use temporary.
+ 		// TODO: get rid of some of these temporaries.
+-		tmp = typecheck.TempAt(n.Pos(), s.curfn, n.Type())
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp.(*ir.Name), s.mem())
+-		addr = s.addr(tmp)
++		tmp, addr = s.temp(n.Pos(), n.Type())
+ 	}
+ 
+ 	cond := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], itab, targetITab)
+@@ -6317,6 +6332,14 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	return res, resok
+ }
+ 
++// temp allocates a temp of type t at position pos
++func (s *state) temp(pos src.XPos, t *types.Type) (*ir.Name, *ssa.Value) {
++	tmp := typecheck.TempAt(pos, s.curfn, t)
++	s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
++	addr := s.addr(tmp)
++	return tmp, addr
++}
++
+ // variable returns the value of a variable at the current location.
+ func (s *state) variable(n ir.Node, t *types.Type) *ssa.Value {
+ 	v := s.vars[n]
+diff --git a/test/abi/double_nested_addressed_struct.go b/test/abi/double_nested_addressed_struct.go
+new file mode 100644
+index 0000000000..be7c88aaaf
+--- /dev/null
++++ b/test/abi/double_nested_addressed_struct.go
+@@ -0,0 +1,62 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// wasm is excluded because the compiler chatter about register abi pragma ends up
++// on stdout, and causes the expected output to not match.
++
++package main
++
++import (
++	"fmt"
++)
++
++var sink *string
++
++type stringPair struct {
++	a, b string
++}
++
++type stringPairPair struct {
++	x, y stringPair
++}
++
++// The goal of this test is to be sure that the call arg/result expander works correctly
++// for a corner case of passing a 2-nested struct that fits in registers to/from calls.
++// AND, the struct has its address taken.
++
++//go:registerparams
++//go:noinline
++func H(spp stringPairPair) string {
++	F(&spp)
++	return spp.x.a + " " + spp.x.b + " " + spp.y.a + " " + spp.y.b
++}
++
++//go:registerparams
++//go:noinline
++func G(d, c, b, a string) stringPairPair {
++	return stringPairPair{stringPair{a, b}, stringPair{c, d}}
++}
++
++//go:registerparams
++//go:noinline
++func F(spp *stringPairPair) {
++	spp.x.a, spp.x.b, spp.y.a, spp.y.b = spp.y.b, spp.y.a, spp.x.b, spp.x.a
++}
++
++func main() {
++	spp := G("this", "is", "a", "test")
++	s := H(spp)
++	gotVsWant(s, "this is a test")
++}
++
++func gotVsWant(got, want string) {
++	if got != want {
++		fmt.Printf("FAIL, got %s, wanted %s\n", got, want)
++	}
++}
+diff --git a/test/abi/double_nested_struct.go b/test/abi/double_nested_struct.go
+new file mode 100644
+index 0000000000..70d8ea4bce
+--- /dev/null
++++ b/test/abi/double_nested_struct.go
+@@ -0,0 +1,55 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// wasm is excluded because the compiler chatter about register abi pragma ends up
++// on stdout, and causes the expected output to not match. 
++
++package main
++
++import (
++	"fmt"
++)
++
++var sink *string
++
++type stringPair struct {
++	a, b string
++}
++
++type stringPairPair struct {
++	x, y stringPair
++}
++
++// The goal of this test is to be sure that the call arg/result expander works correctly
++// for a corner case of passing a 2-nested struct that fits in registers to/from calls.
++
++//go:registerparams
++//go:noinline
++func H(spp stringPairPair) string {
++	return spp.x.a + " " + spp.x.b + " " + spp.y.a + " " + spp.y.b
++}
++
++//go:registerparams
++//go:noinline
++func G(a,b,c,d string) stringPairPair {
++	return stringPairPair{stringPair{a,b},stringPair{c,d}}
++}
++
++
++func main() {
++	spp := G("this","is","a","test")
++	s := H(spp)
++	gotVsWant(s, "this is a test")
++}
++
++func gotVsWant(got, want string) {
++	if got != want {
++		fmt.Printf("FAIL, got %s, wanted %s\n", got, want)
++	}
++}
+diff --git a/test/abi/too_big_to_ssa.go b/test/abi/too_big_to_ssa.go
+new file mode 100644
+index 0000000000..a5c6abb0e4
+--- /dev/null
++++ b/test/abi/too_big_to_ssa.go
+@@ -0,0 +1,47 @@
++// run
++
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++var sink *string
++
++type toobig struct {
++	// 6 words will not SSA but will fit in registers
++	a,b,c string
++}
++
++//go:registerparams
++//go:noinline
++func H(x toobig) string {
++	return x.a + " " + x.b + " " + x.c
++}
++
++//go:registerparams
++//go:noinline
++func I(a,b,c string) toobig {
++	return toobig{a,b,c}
++}
++
++func main() {
++	s := H(toobig{"Hello", "there,", "World"})
++	gotVsWant(s, "Hello there, World")
++	fmt.Println(s)
++	t := H(I("Ahoy", "there,", "Matey"))
++	gotVsWant(t, "Ahoy there, Matey")
++	fmt.Println(t)
++}
++
++func gotVsWant(got, want string) {
++	if got != want {
++		fmt.Printf("FAIL, got %s, wanted %s\n", got, want)
++	}
++}
+diff --git a/test/abi/too_big_to_ssa.out b/test/abi/too_big_to_ssa.out
+new file mode 100644
+index 0000000000..eeece34d47
+--- /dev/null
++++ b/test/abi/too_big_to_ssa.out
+@@ -0,0 +1,2 @@
++Hello there, World
++Ahoy there, Matey

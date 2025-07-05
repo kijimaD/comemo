@@ -16,7 +16,71 @@ Date:   Fri Jan 4 10:21:43 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7036050
-
+---
  src/pkg/log/syslog/syslog.go      |  4 ++--
  src/pkg/log/syslog/syslog_test.go | 16 ++++++++--------
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index c4ad12ffcd..98b9c5f6e8 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -202,14 +202,14 @@ func (w *Writer) writeString(p Priority, s string) (int, error) {
+ }
+ 
+ // writeString: generates and writes a syslog formatted string. The
+-// format is as follows: <PRI>1 TIMESTAMP HOSTNAME TAG[PID]: MSG
++// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
+ func (n netConn) writeString(p Priority, hostname, tag, msg string) (int, error) {
+ 	nl := ""
+ 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
+ 		nl = "\n"
+ 	}
+ 	timestamp := time.Now().Format(time.RFC3339)
+-	if _, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s[%d]: %s%s", p, timestamp, hostname,
++	if _, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s", p, timestamp, hostname,
+ 		tag, os.Getpid(), msg, nl); err != nil {
+ 		return 0, err
+ 	}
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index 67d7103ee4..d1fb1b2383 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -104,16 +104,15 @@ func TestUDPDial(t *testing.T) {
+ 	}
+ 	msg := "udp test"
+ 	l.Info(msg)
+-	expected := fmt.Sprintf("<%d>1 ", LOG_USER+LOG_INFO) + "%s %s syslog_test[%d]: udp test\n"
++	expected := fmt.Sprintf("<%d>", LOG_USER+LOG_INFO) + "%s %s syslog_test[%d]: udp test\n"
+ 	rcvd := <-done
+ 	var parsedHostname, timestamp string
+ 	var pid int
+ 	if hostname, err := os.Hostname(); err != nil {
+ 		t.Fatalf("Error retrieving hostname")
+ 	} else {
+-		if n, err := fmt.Sscanf(rcvd, expected, &timestamp, &parsedHostname, &pid); n != 3 ||
+-			err != nil || hostname != parsedHostname {
+-			t.Fatalf("s.Info() = '%q', didn't match '%q'", rcvd, expected)
++		if n, err := fmt.Sscanf(rcvd, expected, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
++			t.Fatalf("'%q', didn't match '%q' (%d, %s)", rcvd, expected, n, err)
+ 		}
+ 	}
+ }
+@@ -146,12 +145,13 @@ func TestWrite(t *testing.T) {
+ 				t.Fatalf("WriteString() failed: %s", err)
+ 			}
+ 			rcvd := <-done
+-			test.exp = fmt.Sprintf("<%d>1 ", test.pri) + test.exp
++			test.exp = fmt.Sprintf("<%d>", test.pri) + test.exp
+ 			var parsedHostname, timestamp string
+ 			var pid int
+-			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &pid); n != 3 ||
+-				err != nil || hostname != parsedHostname {
+-				t.Fatalf("s.Info() = '%q', didn't match '%q'", rcvd, test.exp)
++			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname,
++				&pid); n != 3 || err != nil || hostname != parsedHostname {
++				t.Fatalf("'%q', didn't match '%q' (%d %s)", rcvd, test.exp,
++					n, err)
+ 			}
+ 		}
+ 	}

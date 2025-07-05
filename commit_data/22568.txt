@@ -12,7 +12,95 @@ Date:   Mon Mar 16 15:46:22 2015 +1100
     Change-Id: Ia77bc36d12ed0c3c4a8b1214cade8be181c9ad55
     Reviewed-on: https://go-review.googlesource.com/7618
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 52 +++++++++++++++++++++++++++++++++++++++++++
  src/runtime/crash_test.go     |  9 +++++++-
  2 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index f3b69efe75..01ffed93db 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -82,6 +82,18 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoDLLImports(t *testing.T) {
++	// test issue 9356
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows specific test")
++	}
++	got := executeTest(t, cgoDLLImportsMainSource, nil, "a/a.go", cgoDLLImportsPkgSource)
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %v", want, got)
++	}
++}
++
+ const cgoSignalDeadlockSource = `
+ package main
+ 
+@@ -269,3 +281,43 @@ func main() {
+ 	println("OK")
+ }
+ `
++
++const cgoDLLImportsMainSource = `
++package main
++
++/*
++#include <windows.h>
++
++DWORD getthread() {
++	return GetCurrentThreadId();
++}
++*/
++import "C"
++
++import "./a"
++
++func main() {
++	C.getthread()
++	a.GetThread()
++	println("OK")
++}
++`
++
++const cgoDLLImportsPkgSource = `
++package a
++
++/*
++#cgo CFLAGS: -mnop-fun-dllimport
++
++#include <windows.h>
++
++DWORD agetthread() {
++	return GetCurrentThreadId();
++}
++*/
++import "C"
++
++func GetThread() uint32 {
++	return uint32(C.agetthread())
++}
++`
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 5e26de36ac..7bb3d28871 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -72,7 +72,14 @@ func executeTest(t *testing.T, templ string, data interface{}, extra ...string)
+ 	}
+ 
+ 	for i := 0; i < len(extra); i += 2 {
+-		if err := ioutil.WriteFile(filepath.Join(dir, extra[i]), []byte(extra[i+1]), 0666); err != nil {
++		fname := extra[i]
++		contents := extra[i+1]
++		if d, _ := filepath.Split(fname); d != "" {
++			if err := os.Mkdir(filepath.Join(dir, d), 0755); err != nil {
++				t.Fatal(err)
++			}
++		}
++		if err := ioutil.WriteFile(filepath.Join(dir, fname), []byte(contents), 0666); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}

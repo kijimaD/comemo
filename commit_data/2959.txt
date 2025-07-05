@@ -10,7 +10,7 @@ Date:   Wed Aug 12 16:14:53 2009 -0700
     DELTA=77  (11 added, 34 deleted, 32 changed)
     OCL=33122
     CL=33124
-
+---
  include/mach_amd64.h     |  2 +-
  src/cmd/6l/l.h           |  2 +-
  src/cmd/6l/span.c        | 15 ++++++---------
@@ -21,3 +21,285 @@ Date:   Wed Aug 12 16:14:53 2009 -0700
  src/libmach_amd64/sym.c  | 38 ++++++++++++--------------------------
  src/pkg/runtime/symtab.c |  8 ++------
  9 files changed, 40 insertions(+), 63 deletions(-)
+
+diff --git a/include/mach_amd64.h b/include/mach_amd64.h
+index 30cd4dcd0e..f99924bbc5 100644
+--- a/include/mach_amd64.h
++++ b/include/mach_amd64.h
+@@ -84,7 +84,7 @@ struct	Sym
+ 	uint	sig;
+ 	char	type;
+ 	char	*name;
+-	char *gotype;
++	vlong	gotype;
+ 	int	sequence;	// order in file
+ };
+ /*
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index ea6f2c9b5c..5d0d2a3216 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -402,7 +402,7 @@ void	follow(void);
+ void	addstachmark(void);
+ void	gethunk(void);
+ void	gotypestrings(void);
+-char*	gotypefor(char*);
++vlong	gotypefor(char*);
+ void	histtoauto(void);
+ double	ieeedtod(Ieee*);
+ int32	ieeedtof(Ieee*);
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index c0901dd429..82a28de084 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -150,9 +150,9 @@ xdefine(char *p, int t, vlong v)
+ }
+ 
+ void
+-putsymb(char *s, int t, vlong v, int ver, char *go)
++putsymb(char *s, int t, vlong v, int ver, vlong go)
+ {
+-	int i, j, f, l;
++	int i, f, l;
+ 
+ 	if(t == 'f')
+ 		s++;
+@@ -181,13 +181,10 @@ putsymb(char *s, int t, vlong v, int ver, char *go)
+ 			cput(s[i]);
+ 		cput(0);
+ 	}
+-	j = 0;
+-	if(go) {
+-		for(j=0; go[j]; j++)
+-			cput(go[j]);
+-	}
+-	cput(0);
+-	symsize += l + 1 + i + 1 + j + 1;
++	if(l == 8)
++		lputb(go>>32);
++	lputb(go);
++	symsize += l + 1 + i + 1 + l;
+ 
+ 	if(debug['n']) {
+ 		if(t == 'z' || t == 'Z') {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index a1fcd2232a..baf484e02f 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -391,7 +391,7 @@ void	whatsys(void);
+  *	go.c
+  */
+ void	deadcode(void);
+-char*	gotypefor(char *name);
++vlong	gotypefor(char *name);
+ void	ldpkg(Biobuf *f, int64 len, char *filename);
+ 
+ 
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 50b5bc0f8b..a14335b702 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -146,9 +146,9 @@ xdefine(char *p, int t, int32 v)
+ }
+ 
+ void
+-putsymb(char *s, int t, int32 v, int ver, char *go)
++putsymb(char *s, int t, int32 v, int ver, vlong go)
+ {
+-	int i, j, f;
++	int i, f;
+ 
+ 	if(t == 'f')
+ 		s++;
+@@ -172,14 +172,9 @@ putsymb(char *s, int t, int32 v, int ver, char *go)
+ 			cput(s[i]);
+ 		cput(0);
+ 	}
+-	j = 0;
+-	if(go) {
+-		for(j=0; go[j]; j++)
+-			cput(go[j]);
+-	}
+-	cput(0);
++	lput(go);
+ 
+-	symsize += 4 + 1 + i + 1 + j + 1;
++	symsize += 4 + 1 + i + 1 + 4;
+ 
+ 	if(debug['n']) {
+ 		if(t == 'z' || t == 'Z') {
+@@ -208,7 +203,7 @@ asmsym(void)
+ 
+ 	s = lookup("etext", 0);
+ 	if(s->type == STEXT)
+-		putsymb(s->name, 'T', s->value, s->version, nil);
++		putsymb(s->name, 'T', s->value, s->version, 0);
+ 
+ 	for(h=0; h<NHASH; h++)
+ 		for(s=hash[h]; s!=S; s=s->link)
+@@ -226,7 +221,7 @@ asmsym(void)
+ 				continue;
+ 
+ 			case SFILE:
+-				putsymb(s->name, 'f', s->value, s->version, nil);
++				putsymb(s->name, 'f', s->value, s->version, 0);
+ 				continue;
+ 			}
+ 
+@@ -238,22 +233,22 @@ asmsym(void)
+ 		/* filenames first */
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_FILE)
+-				putsymb(a->asym->name, 'z', a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
+ 			else
+ 			if(a->type == D_FILE1)
+-				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
+ 
+ 		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
+ 
+ 		/* frame, auto and param after */
+-		putsymb(".frame", 'm', p->to.offset+4, 0, nil);
++		putsymb(".frame", 'm', p->to.offset+4, 0, 0);
+ 
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_AUTO)
+-				putsymb(a->asym->name, 'a', -a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'a', -a->aoffset, 0, 0);
+ 			else
+ 			if(a->type == D_PARAM)
+-				putsymb(a->asym->name, 'p', a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'p', a->aoffset, 0, 0);
+ 	}
+ 	if(debug['v'] || debug['n'])
+ 		Bprint(&bso, "symsize = %lud\n", symsize);
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 5a55384708..fef39c891d 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -62,9 +62,10 @@ ilookup(char *name)
+ 	return x;
+ }
+ 
+-char*
++vlong
+ gotypefor(char *name)
+ {
++/*
+ 	Import *x;
+ 	char *s, *p;
+ 
+@@ -81,6 +82,8 @@ gotypefor(char *name)
+ 	if(strcmp(x->prefix, "var") != 0 && strcmp(x->prefix, "func") != 0)
+ 		return nil;
+ 	return x->def;
++*/
++	return 0;
+ }
+ 
+ static void loadpkgdata(char*, char*, int);
+diff --git a/src/cmd/nm/nm.c b/src/cmd/nm/nm.c
+index 66748eef7c..57e6636a32 100644
+--- a/src/cmd/nm/nm.c
++++ b/src/cmd/nm/nm.c
+@@ -326,8 +326,8 @@ printsyms(Sym **symptr, long nsym)
+ 		else
+ 			Bprint(&bout, "%*s ", wid, "");
+ 		Bprint(&bout, "%c %s", s->type, cp);
+-		if(tflag && s->gotype && s->gotype[0])
+-			Bprint(&bout, " %s", s->gotype);
++		if(tflag && s->gotype)
++			Bprint(&bout, " %*llux", wid, s->gotype);
+ 		Bprint(&bout, "\n");
+ 	}
+ }
+diff --git a/src/libmach_amd64/sym.c b/src/libmach_amd64/sym.c
+index 0e545a1f32..13bc608fc4 100644
+--- a/src/libmach_amd64/sym.c
++++ b/src/libmach_amd64/sym.c
+@@ -87,7 +87,6 @@ static	uvlong	firstinstr;		/* as found from symtab; needed for amd64 */
+ 
+ static void	cleansyms(void);
+ static int32	decodename(Biobuf*, Sym*);
+-static int32	decodegotype(Biobuf*, Sym*);
+ static short	*encfname(char*);
+ static int 	fline(char*, int, int32, Hist*, Hist**);
+ static void	fillsym(Sym*, Symbol*);
+@@ -152,10 +151,18 @@ syminit(int fd, Fhdr *fp)
+ 		if(i < 0)
+ 			return -1;
+ 		size += i+svalsz+sizeof(p->type);
+-		i = decodegotype(&b, p);
+-		if(i < 0)
+-			return -1;
+-		size += i;
++
++		if(svalsz == 8){
++			if(Bread(&b, &vl, 8) != 8)
++				return symerrmsg(8, "symbol");
++			p->gotype = beswav(vl);
++		}
++		else{
++			if(Bread(&b, &l, 4) != 4)
++				return symerrmsg(4, "symbol");
++			p->gotype = (u32int)beswal(l);
++		}
++		size += svalsz;
+ 
+ 		/* count global & auto vars, text symbols, and file names */
+ 		switch (p->type) {
+@@ -298,27 +305,6 @@ decodename(Biobuf *bp, Sym *p)
+ 	return n;
+ }
+ 
+-static int32
+-decodegotype(Biobuf *bp, Sym *p)
+-{
+-	char *cp;
+-	int32 n;
+-
+-	cp = Brdline(bp, '\0');
+-	if(cp == 0) {
+-		werrstr("can't read go type");
+-		return -1;
+-	}
+-	n = Blinelen(bp);
+-	p->gotype = malloc(n);
+-	if(p->gotype == 0) {
+-		werrstr("can't malloc %ld bytes", n);
+-		return -1;
+-	}
+-	strcpy(p->gotype, cp);
+-	return n;
+-}
+-
+ /*
+  *	free any previously loaded symbol tables
+  */
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index b4802715e1..7d7cc53126 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -55,7 +55,7 @@ struct Sym
+ 	uintptr value;
+ 	byte symtype;
+ 	byte *name;
+-	byte *gotype;
++//	byte *gotype;
+ };
+ 
+ // Walk over symtab, calling fn(&s) for each symbol.
+@@ -96,11 +96,7 @@ walksymtab(void (*fn)(Sym*))
+ 				break;
+ 			p = q+1;
+ 		}
+-		q = mchr(p, '\0', ep);
+-		if(q == nil)
+-			break;
+-		s.gotype = p;
+-		p = q+1;
++		p += 4;	// go type
+ 		fn(&s);
+ 	}
+ }

@@ -49,7 +49,138 @@ Date:   Mon May 6 10:15:16 2013 -0700
     R=adg
     CC=gobot, golang-dev, gri
     https://golang.org/cl/8569045
-
+---
  src/pkg/go/doc/example.go      |  7 ++++
  src/pkg/go/doc/example_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 87 insertions(+)
+
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 693ad5b948..2761083c7e 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -166,6 +166,13 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 			ast.Inspect(e.X, inspectFunc)
+ 			return false
+ 		}
++		// For key value expressions, only inspect the value
++		// as the key should be resolved by the type of the
++		// composite literal.
++		if e, ok := n.(*ast.KeyValueExpr); ok {
++			ast.Inspect(e.Value, inspectFunc)
++			return false
++		}
+ 		if id, ok := n.(*ast.Ident); ok {
+ 			if id.Obj == nil {
+ 				unresolved[id.Name] = true
+diff --git a/src/pkg/go/doc/example_test.go b/src/pkg/go/doc/example_test.go
+index b70efd93d4..e0477e3f69 100644
+--- a/src/pkg/go/doc/example_test.go
++++ b/src/pkg/go/doc/example_test.go
+@@ -18,6 +18,7 @@ const exampleTestFile = `
+ package foo_test
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"log"
+ 	"os/exec"
+@@ -35,6 +36,38 @@ func ExampleImport() {
+ 	}
+ 	fmt.Printf("The date is %s\n", out)
+ }
++
++func ExampleKeyValue() {
++	v := struct {
++		a string
++		b int
++	}{
++		a: "A",
++		b: 1,
++	}
++	fmt.Print(v)
++	// Output: a: "A", b: 1
++}
++
++func ExampleKeyValueImport() {
++	f := flag.Flag{
++		Name: "play",
++	}
++	fmt.Print(f)
++	// Output: Name: "play"
++}
++
++var keyValueTopDecl = struct {
++	a string
++	b int
++}{
++	a: "B",
++	b: 2,
++}
++
++func ExampleKeyValueTopDecl() {
++	fmt.Print(keyValueTopDecl)
++}
+ `
+ 
+ var exampleTestCases = []struct {
+@@ -49,6 +82,20 @@ var exampleTestCases = []struct {
+ 		Name: "Import",
+ 		Play: exampleImportPlay,
+ 	},
++	{
++		Name:   "KeyValue",
++		Play:   exampleKeyValuePlay,
++		Output: "a: \"A\", b: 1\n",
++	},
++	{
++		Name:   "KeyValueImport",
++		Play:   exampleKeyValueImportPlay,
++		Output: "Name: \"play\"\n",
++	},
++	{
++		Name: "KeyValueTopDecl",
++		Play: "<nil>",
++	},
+ }
+ 
+ const exampleHelloPlay = `package main
+@@ -78,6 +125,39 @@ func main() {
+ }
+ `
+ 
++const exampleKeyValuePlay = `package main
++
++import (
++	"fmt"
++)
++
++func main() {
++	v := struct {
++		a string
++		b int
++	}{
++		a: "A",
++		b: 1,
++	}
++	fmt.Print(v)
++}
++`
++
++const exampleKeyValueImportPlay = `package main
++
++import (
++	"flag"
++	"fmt"
++)
++
++func main() {
++	f := flag.Flag{
++		Name: "play",
++	}
++	fmt.Print(f)
++}
++`
++
+ func TestExamples(t *testing.T) {
+ 	fs := token.NewFileSet()
+ 	file, err := parser.ParseFile(fs, "test.go", strings.NewReader(exampleTestFile), parser.ParseComments)

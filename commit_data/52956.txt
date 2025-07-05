@@ -17,7 +17,7 @@ Date:   Fri Jun 17 19:56:27 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/go/build/deps_test.go       |   5 +-
  src/internal/testenv/testenv.go |  65 ------------
  src/internal/testmath/bench.go  |  38 -------
@@ -25,3 +25,491 @@ Date:   Fri Jun 17 19:56:27 2022 +0000
  src/runtime/sema.go             |   4 +-
  src/runtime/sema_test.go        |  87 ++++++++++------
  6 files changed, 58 insertions(+), 354 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 1ddf8f69be..5b971b93e2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -543,10 +543,7 @@ var depsRules = `
+ 	internal/fuzz, internal/testlog, runtime/pprof, regexp
+ 	< testing/internal/testdeps;
+ 
+-	MATH, errors, testing
+-	< internal/testmath;
+-
+-	OS, flag, testing, internal/cfg, internal/testmath
++	OS, flag, testing, internal/cfg
+ 	< internal/testenv;
+ 
+ 	OS, encoding/base64
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index b7cb95063b..1feb630cf5 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -16,7 +16,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/cfg"
+-	"internal/testmath"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -464,67 +463,3 @@ func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
+ 
+ 	return b.Bytes(), err
+ }
+-
+-// CheckLinear checks if the function produced by f scales linearly.
+-//
+-// f must accept a scale factor which causes the input to the function it
+-// produces to scale by that factor.
+-func CheckLinear(t *testing.T, f func(scale float64) func(*testing.B)) {
+-	MustHaveExec(t)
+-
+-	if os.Getenv("GO_PERF_UNIT_TEST") == "" {
+-		// Invoke the same test as a subprocess with the GO_PERF_UNIT_TEST environment variable set.
+-		// We create a subprocess for two reasons:
+-		//
+-		//   1. There's no other way to set the benchmarking parameters of testing.Benchmark.
+-		//   2. Since we're effectively running a performance test, running in a subprocess grants
+-		//      us a little bit more isolation than using the same process.
+-		//
+-		// As an alternative, we could fairly easily reimplement the timing code in testing.Benchmark,
+-		// but a subprocess is just as easy to create.
+-
+-		selfCmd := CleanCmdEnv(exec.Command(os.Args[0], "-test.v", fmt.Sprintf("-test.run=^%s$", t.Name()), "-test.benchtime=1x"))
+-		selfCmd.Env = append(selfCmd.Env, "GO_PERF_UNIT_TEST=1")
+-		output, err := RunWithTimeout(t, selfCmd)
+-		if err != nil {
+-			t.Error(err)
+-			t.Logf("--- subprocess output ---\n%s", string(output))
+-		}
+-		if bytes.Contains(output, []byte("insignificant result")) {
+-			t.Skip("insignificant result")
+-		}
+-		return
+-	}
+-
+-	// Pick a reasonable sample count.
+-	const count = 10
+-
+-	// Collect samples for scale factor 1.
+-	x1 := make([]testing.BenchmarkResult, 0, count)
+-	for i := 0; i < count; i++ {
+-		x1 = append(x1, testing.Benchmark(f(1.0)))
+-	}
+-
+-	// Collect samples for scale factor 2.
+-	x2 := make([]testing.BenchmarkResult, 0, count)
+-	for i := 0; i < count; i++ {
+-		x2 = append(x2, testing.Benchmark(f(2.0)))
+-	}
+-
+-	// Run a t-test on the results.
+-	r1 := testmath.BenchmarkResults(x1)
+-	r2 := testmath.BenchmarkResults(x2)
+-	result, err := testmath.TwoSampleWelchTTest(r1, r2, testmath.LocationDiffers)
+-	if err != nil {
+-		t.Fatalf("failed to run t-test: %v", err)
+-	}
+-	if result.P > 0.005 {
+-		// Insignificant result.
+-		t.Skip("insignificant result")
+-	}
+-
+-	// Let ourselves be within 3x; 2x is too strict.
+-	if m1, m2 := r1.Mean(), r2.Mean(); 3.0*m1 < m2 {
+-		t.Fatalf("failure to scale linearly: µ_1=%s µ_2=%s p=%f", time.Duration(m1), time.Duration(m2), result.P)
+-	}
+-}
+diff --git a/src/internal/testmath/bench.go b/src/internal/testmath/bench.go
+deleted file mode 100644
+index 6f034b4685..0000000000
+--- a/src/internal/testmath/bench.go
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package testmath
+-
+-import (
+-	"math"
+-	"testing"
+-	"time"
+-)
+-
+-type BenchmarkResults []testing.BenchmarkResult
+-
+-func (b BenchmarkResults) Weight() float64 {
+-	var weight int
+-	for _, r := range b {
+-		weight += r.N
+-	}
+-	return float64(weight)
+-}
+-
+-func (b BenchmarkResults) Mean() float64 {
+-	var dur time.Duration
+-	for _, r := range b {
+-		dur += r.T * time.Duration(r.N)
+-	}
+-	return float64(dur) / b.Weight()
+-}
+-
+-func (b BenchmarkResults) Variance() float64 {
+-	var num float64
+-	mean := b.Mean()
+-	for _, r := range b {
+-		num += math.Pow(float64(r.T)-mean, 2) * float64(r.N)
+-	}
+-	return float64(num) / b.Weight()
+-}
+diff --git a/src/internal/testmath/ttest.go b/src/internal/testmath/ttest.go
+deleted file mode 100644
+index d15d2deebb..0000000000
+--- a/src/internal/testmath/ttest.go
++++ /dev/null
+@@ -1,213 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package testmath
+-
+-import (
+-	"errors"
+-	"math"
+-)
+-
+-// A TTestSample is a sample that can be used for a one or two sample
+-// t-test.
+-type TTestSample interface {
+-	Weight() float64
+-	Mean() float64
+-	Variance() float64
+-}
+-
+-var (
+-	ErrSampleSize        = errors.New("sample is too small")
+-	ErrZeroVariance      = errors.New("sample has zero variance")
+-	ErrMismatchedSamples = errors.New("samples have different lengths")
+-)
+-
+-// TwoSampleWelchTTest performs a two-sample (unpaired) Welch's t-test
+-// on samples x1 and x2. This t-test does not assume the distributions
+-// have equal variance.
+-func TwoSampleWelchTTest(x1, x2 TTestSample, alt LocationHypothesis) (*TTestResult, error) {
+-	n1, n2 := x1.Weight(), x2.Weight()
+-	if n1 <= 1 || n2 <= 1 {
+-		// TODO: Can we still do this with n == 1?
+-		return nil, ErrSampleSize
+-	}
+-	v1, v2 := x1.Variance(), x2.Variance()
+-	if v1 == 0 && v2 == 0 {
+-		return nil, ErrZeroVariance
+-	}
+-
+-	dof := math.Pow(v1/n1+v2/n2, 2) /
+-		(math.Pow(v1/n1, 2)/(n1-1) + math.Pow(v2/n2, 2)/(n2-1))
+-	s := math.Sqrt(v1/n1 + v2/n2)
+-	t := (x1.Mean() - x2.Mean()) / s
+-	return newTTestResult(int(n1), int(n2), t, dof, alt), nil
+-}
+-
+-// A TTestResult is the result of a t-test.
+-type TTestResult struct {
+-	// N1 and N2 are the sizes of the input samples. For a
+-	// one-sample t-test, N2 is 0.
+-	N1, N2 int
+-
+-	// T is the value of the t-statistic for this t-test.
+-	T float64
+-
+-	// DoF is the degrees of freedom for this t-test.
+-	DoF float64
+-
+-	// AltHypothesis specifies the alternative hypothesis tested
+-	// by this test against the null hypothesis that there is no
+-	// difference in the means of the samples.
+-	AltHypothesis LocationHypothesis
+-
+-	// P is p-value for this t-test for the given null hypothesis.
+-	P float64
+-}
+-
+-func newTTestResult(n1, n2 int, t, dof float64, alt LocationHypothesis) *TTestResult {
+-	dist := TDist{dof}
+-	var p float64
+-	switch alt {
+-	case LocationDiffers:
+-		p = 2 * (1 - dist.CDF(math.Abs(t)))
+-	case LocationLess:
+-		p = dist.CDF(t)
+-	case LocationGreater:
+-		p = 1 - dist.CDF(t)
+-	}
+-	return &TTestResult{N1: n1, N2: n2, T: t, DoF: dof, AltHypothesis: alt, P: p}
+-}
+-
+-// A LocationHypothesis specifies the alternative hypothesis of a
+-// location test such as a t-test or a Mann-Whitney U-test. The
+-// default (zero) value is to test against the alternative hypothesis
+-// that they differ.
+-type LocationHypothesis int
+-
+-const (
+-	// LocationLess specifies the alternative hypothesis that the
+-	// location of the first sample is less than the second. This
+-	// is a one-tailed test.
+-	LocationLess LocationHypothesis = -1
+-
+-	// LocationDiffers specifies the alternative hypothesis that
+-	// the locations of the two samples are not equal. This is a
+-	// two-tailed test.
+-	LocationDiffers LocationHypothesis = 0
+-
+-	// LocationGreater specifies the alternative hypothesis that
+-	// the location of the first sample is greater than the
+-	// second. This is a one-tailed test.
+-	LocationGreater LocationHypothesis = 1
+-)
+-
+-// A TDist is a Student's t-distribution with V degrees of freedom.
+-type TDist struct {
+-	V float64
+-}
+-
+-// PDF returns the value at x of the probability distribution function for the
+-// distribution.
+-func (t TDist) PDF(x float64) float64 {
+-	return math.Exp(lgamma((t.V+1)/2)-lgamma(t.V/2)) /
+-		math.Sqrt(t.V*math.Pi) * math.Pow(1+(x*x)/t.V, -(t.V+1)/2)
+-}
+-
+-// CDF returns the value at x of the cumulative distribution function for the
+-// distribution.
+-func (t TDist) CDF(x float64) float64 {
+-	if x == 0 {
+-		return 0.5
+-	} else if x > 0 {
+-		return 1 - 0.5*betaInc(t.V/(t.V+x*x), t.V/2, 0.5)
+-	} else if x < 0 {
+-		return 1 - t.CDF(-x)
+-	} else {
+-		return math.NaN()
+-	}
+-}
+-
+-func (t TDist) Bounds() (float64, float64) {
+-	return -4, 4
+-}
+-
+-func lgamma(x float64) float64 {
+-	y, _ := math.Lgamma(x)
+-	return y
+-}
+-
+-// betaInc returns the value of the regularized incomplete beta
+-// function Iₓ(a, b) = 1 / B(a, b) * ∫₀ˣ tᵃ⁻¹ (1-t)ᵇ⁻¹ dt.
+-//
+-// This is not to be confused with the "incomplete beta function",
+-// which can be computed as BetaInc(x, a, b)*Beta(a, b).
+-//
+-// If x < 0 or x > 1, returns NaN.
+-func betaInc(x, a, b float64) float64 {
+-	// Based on Numerical Recipes in C, section 6.4. This uses the
+-	// continued fraction definition of I:
+-	//
+-	//  (xᵃ*(1-x)ᵇ)/(a*B(a,b)) * (1/(1+(d₁/(1+(d₂/(1+...))))))
+-	//
+-	// where B(a,b) is the beta function and
+-	//
+-	//  d_{2m+1} = -(a+m)(a+b+m)x/((a+2m)(a+2m+1))
+-	//  d_{2m}   = m(b-m)x/((a+2m-1)(a+2m))
+-	if x < 0 || x > 1 {
+-		return math.NaN()
+-	}
+-	bt := 0.0
+-	if 0 < x && x < 1 {
+-		// Compute the coefficient before the continued
+-		// fraction.
+-		bt = math.Exp(lgamma(a+b) - lgamma(a) - lgamma(b) +
+-			a*math.Log(x) + b*math.Log(1-x))
+-	}
+-	if x < (a+1)/(a+b+2) {
+-		// Compute continued fraction directly.
+-		return bt * betacf(x, a, b) / a
+-	} else {
+-		// Compute continued fraction after symmetry transform.
+-		return 1 - bt*betacf(1-x, b, a)/b
+-	}
+-}
+-
+-// betacf is the continued fraction component of the regularized
+-// incomplete beta function Iₓ(a, b).
+-func betacf(x, a, b float64) float64 {
+-	const maxIterations = 200
+-	const epsilon = 3e-14
+-
+-	raiseZero := func(z float64) float64 {
+-		if math.Abs(z) < math.SmallestNonzeroFloat64 {
+-			return math.SmallestNonzeroFloat64
+-		}
+-		return z
+-	}
+-
+-	c := 1.0
+-	d := 1 / raiseZero(1-(a+b)*x/(a+1))
+-	h := d
+-	for m := 1; m <= maxIterations; m++ {
+-		mf := float64(m)
+-
+-		// Even step of the recurrence.
+-		numer := mf * (b - mf) * x / ((a + 2*mf - 1) * (a + 2*mf))
+-		d = 1 / raiseZero(1+numer*d)
+-		c = raiseZero(1 + numer/c)
+-		h *= d * c
+-
+-		// Odd step of the recurrence.
+-		numer = -(a + mf) * (a + b + mf) * x / ((a + 2*mf) * (a + 2*mf + 1))
+-		d = 1 / raiseZero(1+numer*d)
+-		c = raiseZero(1 + numer/c)
+-		hfac := d * c
+-		h *= hfac
+-
+-		if math.Abs(hfac-1) < epsilon {
+-			return h
+-		}
+-	}
+-	panic("betainc: a or b too big; failed to converge")
+-}
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index c7a1a76e28..39935f70a9 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -35,8 +35,8 @@ import (
+ // where n is the number of distinct addresses with goroutines blocked
+ // on them that hash to the given semaRoot.
+ // See golang.org/issue/17953 for a program that worked badly
+-// before we introduced the second level of list, and TestSemTableOneAddrCollisionLinear
+-// for a test that exercises this.
++// before we introduced the second level of list, and
++// BenchmarkSemTable/OneAddrCollision/* for a benchmark that exercises this.
+ type semaRoot struct {
+ 	lock  mutex
+ 	treap *sudog // root of balanced tree of unique waiters.
+diff --git a/src/runtime/sema_test.go b/src/runtime/sema_test.go
+index f3e95d10be..9943d2ed39 100644
+--- a/src/runtime/sema_test.go
++++ b/src/runtime/sema_test.go
+@@ -5,7 +5,7 @@
+ package runtime_test
+ 
+ import (
+-	"internal/testenv"
++	"fmt"
+ 	. "runtime"
+ 	"sync"
+ 	"sync/atomic"
+@@ -103,45 +103,68 @@ func testSemaHandoff() bool {
+ 	return res == 1 // did the waiter run first?
+ }
+ 
+-func TestSemTableOneAddrCollisionLinear(t *testing.T) {
+-	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+-		n := int(1000 * scale)
+-		return func(b *testing.B) {
++func BenchmarkSemTable(b *testing.B) {
++	for _, n := range []int{1000, 2000, 4000, 8000} {
++		b.Run(fmt.Sprintf("OneAddrCollision/n=%d", n), func(b *testing.B) {
+ 			tab := Escape(new(SemTable))
+ 			u := make([]uint32, SemTableSize+1)
+ 
+ 			b.ResetTimer()
+ 
+-			// Simulate two locks colliding on the same semaRoot.
+-			//
+-			// Specifically enqueue all the waiters for the first lock,
+-			// then all the waiters for the second lock.
+-			//
+-			// Then, dequeue all the waiters from the first lock, then
+-			// the second.
+-			//
+-			// Each enqueue/dequeue operation should be O(1), because
+-			// there are exactly 2 locks. This could be O(n) if all
+-			// the waiters for both locks are on the same list, as it
+-			// once was.
+-			for i := 0; i < n; i++ {
+-				if i < n/2 {
+-					tab.Enqueue(&u[0])
+-				} else {
+-					tab.Enqueue(&u[SemTableSize])
++			for j := 0; j < b.N; j++ {
++				// Simulate two locks colliding on the same semaRoot.
++				//
++				// Specifically enqueue all the waiters for the first lock,
++				// then all the waiters for the second lock.
++				//
++				// Then, dequeue all the waiters from the first lock, then
++				// the second.
++				//
++				// Each enqueue/dequeue operation should be O(1), because
++				// there are exactly 2 locks. This could be O(n) if all
++				// the waiters for both locks are on the same list, as it
++				// once was.
++				for i := 0; i < n; i++ {
++					if i < n/2 {
++						tab.Enqueue(&u[0])
++					} else {
++						tab.Enqueue(&u[SemTableSize])
++					}
++				}
++				for i := 0; i < n; i++ {
++					var ok bool
++					if i < n/2 {
++						ok = tab.Dequeue(&u[0])
++					} else {
++						ok = tab.Dequeue(&u[SemTableSize])
++					}
++					if !ok {
++						b.Fatal("failed to dequeue")
++					}
+ 				}
+ 			}
+-			for i := 0; i < n; i++ {
+-				var ok bool
+-				if i < n/2 {
+-					ok = tab.Dequeue(&u[0])
+-				} else {
+-					ok = tab.Dequeue(&u[SemTableSize])
++		})
++		b.Run(fmt.Sprintf("ManyAddrCollision/n=%d", n), func(b *testing.B) {
++			tab := Escape(new(SemTable))
++			u := make([]uint32, n*SemTableSize)
++
++			b.ResetTimer()
++
++			for j := 0; j < b.N; j++ {
++				// Simulate n locks colliding on the same semaRoot.
++				//
++				// Each enqueue/dequeue operation should be O(log n), because
++				// each semaRoot is a tree. This could be O(n) if it was
++				// some simpler data structure.
++				for i := 0; i < n; i++ {
++					tab.Enqueue(&u[i*SemTableSize])
+ 				}
+-				if !ok {
+-					b.Fatal("failed to dequeue")
++				for i := 0; i < n; i++ {
++					if !tab.Dequeue(&u[i*SemTableSize]) {
++						b.Fatal("failed to dequeue")
++					}
+ 				}
+ 			}
+-		}
+-	})
++		})
++	}
+ }

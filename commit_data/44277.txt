@@ -12,6 +12,19 @@ Date:   Thu Jun 4 11:16:43 2020 -0400
     Change-Id: Iba307f1cc3844689ec3c6d82c21d441852e35bca
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236561
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/dll_windows.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 75bc372c3d..819bc5eeb8 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -21,6 +21,7 @@ type DLLError struct {
+ func (e *DLLError) Error() string { return e.Msg }
+ 
+ // Implemented in ../runtime/syscall_windows.go.
++
+ func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

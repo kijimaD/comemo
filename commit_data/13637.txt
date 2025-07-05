@@ -9,7 +9,34 @@ Date:   Wed Aug 15 16:53:06 2012 -0700
     R=golang-dev, rsc, remyoudompheng, iant
     CC=golang-dev
     https://golang.org/cl/6448097
-
+---
  src/cmd/gc/subr.c          | 2 +-
  test/interface/explicit.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index dfb425efcf..0cd7e6c4b0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1219,7 +1219,7 @@ assignop(Type *src, Type *dst, char **why)
+ 		return 0;
+ 	}
+ 	if(src->etype == TINTER && dst->etype != TBLANK) {
+-		if(why != nil)
++		if(why != nil && implements(dst, src, &missing, &have, &ptr))
+ 			*why = ": need type assertion";
+ 		return 0;
+ 	}
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index d19480a685..7822b88d08 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -40,7 +40,7 @@ func main() {
+ 	// because i has an extra method
+ 	// that t does not, so i cannot contain a t.
+ 	i = t // ERROR "incompatible|missing M method"
+-	t = i // ERROR "incompatible|need type assertion"
++	t = i // ERROR "incompatible|assignment$"
+ 
+ 	i = i2 // ok
+ 	i2 = i // ERROR "incompatible|missing N method"

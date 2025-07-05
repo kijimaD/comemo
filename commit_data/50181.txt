@@ -8,6 +8,75 @@ Date:   Sat Oct 2 16:14:58 2021 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/353691
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/unicode/example_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 60 insertions(+)
+
+diff --git a/src/unicode/example_test.go b/src/unicode/example_test.go
+index 50c5b18a48..416ad1fe08 100644
+--- a/src/unicode/example_test.go
++++ b/src/unicode/example_test.go
+@@ -194,3 +194,63 @@ func ExampleSpecialCase() {
+ 	// U+0130 'İ'
+ 	// U+0130 'İ'
+ }
++
++func ExampleIsDigit() {
++	fmt.Printf("%t\n", unicode.IsDigit('৩'))
++	fmt.Printf("%t\n", unicode.IsDigit('A'))
++	// Output:
++	// true
++	// false
++}
++
++func ExampleIsNumber() {
++	fmt.Printf("%t\n", unicode.IsNumber('Ⅷ'))
++	fmt.Printf("%t\n", unicode.IsNumber('A'))
++	// Output:
++	// true
++	// false
++}
++
++func ExampleIsLetter() {
++	fmt.Printf("%t\n", unicode.IsLetter('A'))
++	fmt.Printf("%t\n", unicode.IsLetter('7'))
++	// Output:
++	// true
++	// false
++}
++
++func ExampleIsLower() {
++	fmt.Printf("%t\n", unicode.IsLower('a'))
++	fmt.Printf("%t\n", unicode.IsLower('A'))
++	// Output:
++	// true
++	// false
++}
++
++func ExampleIsUpper() {
++	fmt.Printf("%t\n", unicode.IsUpper('A'))
++	fmt.Printf("%t\n", unicode.IsUpper('a'))
++	// Output:
++	// true
++	// false
++}
++
++func ExampleIsTitle() {
++	fmt.Printf("%t\n", unicode.IsTitle('ǅ'))
++	fmt.Printf("%t\n", unicode.IsTitle('a'))
++	// Output:
++	// true
++	// false
++}
++
++func ExampleIsSpace() {
++	fmt.Printf("%t\n", unicode.IsSpace(' '))
++	fmt.Printf("%t\n", unicode.IsSpace('\n'))
++	fmt.Printf("%t\n", unicode.IsSpace('\t'))
++	fmt.Printf("%t\n", unicode.IsUpper('a'))
++	// Output:
++	// true
++	// true
++	// true
++	// false
++}

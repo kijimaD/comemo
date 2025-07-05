@@ -41,9 +41,383 @@ Date:   Fri Apr 2 15:54:24 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mcentral.go |  21 +++++--
  src/runtime/mgc.go      |  15 +++--
  src/runtime/mgcsweep.go | 153 +++++++++++++++++++++++++++++++++++-------------
  src/runtime/mheap.go    |   5 +-
  4 files changed, 140 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 8664ed48ab..4eeac3be88 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -81,8 +81,6 @@ func (c *mcentral) cacheSpan() *mspan {
+ 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
+ 	deductSweepCredit(spanBytes, 0)
+ 
+-	sg := mheap_.sweepgen
+-
+ 	traceDone := false
+ 	if trace.enabled {
+ 		traceGCSweepStart()
+@@ -104,6 +102,8 @@ func (c *mcentral) cacheSpan() *mspan {
+ 	spanBudget := 100
+ 
+ 	var s *mspan
++	sl := newSweepLocker()
++	sg := sl.sweepGen
+ 
+ 	// Try partial swept spans first.
+ 	if s = c.partialSwept(sg).pop(); s != nil {
+@@ -116,9 +116,10 @@ func (c *mcentral) cacheSpan() *mspan {
+ 		if s == nil {
+ 			break
+ 		}
+-		if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++		if s, ok := sl.tryAcquire(s); ok {
+ 			// We got ownership of the span, so let's sweep it and use it.
+ 			s.sweep(true)
++			sl.dispose()
+ 			goto havespan
+ 		}
+ 		// We failed to get ownership of the span, which means it's being or
+@@ -135,20 +136,22 @@ func (c *mcentral) cacheSpan() *mspan {
+ 		if s == nil {
+ 			break
+ 		}
+-		if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++		if s, ok := sl.tryAcquire(s); ok {
+ 			// We got ownership of the span, so let's sweep it.
+ 			s.sweep(true)
+ 			// Check if there's any free space.
+ 			freeIndex := s.nextFreeIndex()
+ 			if freeIndex != s.nelems {
+ 				s.freeindex = freeIndex
++				sl.dispose()
+ 				goto havespan
+ 			}
+ 			// Add it to the swept list, because sweeping didn't give us any free space.
+-			c.fullSwept(sg).push(s)
++			c.fullSwept(sg).push(s.mspan)
+ 		}
+ 		// See comment for partial unswept spans.
+ 	}
++	sl.dispose()
+ 	if trace.enabled {
+ 		traceGCSweepDone()
+ 		traceDone = true
+@@ -211,7 +214,13 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 	if stale {
+ 		// It's stale, so just sweep it. Sweeping will put it on
+ 		// the right list.
+-		s.sweep(false)
++		//
++		// We don't use a sweepLocker here. Stale cached spans
++		// aren't in the global sweep lists, so mark termination
++		// itself holds up sweep completion until all mcaches
++		// have been swept.
++		ss := sweepLocked{s}
++		ss.sweep(false)
+ 	} else {
+ 		if int(s.nelems)-int(s.allocCount) > 0 {
+ 			// Put it back on the partial swept list.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index ef3436d1f4..8c1ff20936 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1749,6 +1749,13 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	// so events don't leak into the wrong cycle.
+ 	mProf_NextCycle()
+ 
++	// There may be stale spans in mcaches that need to be swept.
++	// Those aren't tracked in any sweep lists, so we need to
++	// count them against sweep completion until we ensure all
++	// those spans have been forced out.
++	sl := newSweepLocker()
++	sl.blockCompletion()
++
+ 	systemstack(func() { startTheWorldWithSema(true) })
+ 
+ 	// Flush the heap profile so we can start a new cycle next GC.
+@@ -1772,6 +1779,9 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 			_p_.mcache.prepareForSweep()
+ 		})
+ 	})
++	// Now that we've swept stale spans in mcaches, they don't
++	// count against unswept spans.
++	sl.dispose()
+ 
+ 	// Print gctrace before dropping worldsema. As soon as we drop
+ 	// worldsema another cycle could start and smash the stats
+@@ -2391,11 +2401,6 @@ func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+ 	// Force a full GC and sweep.
+ 	GC()
+ 
+-	// TODO(austin): Work around issue #45315. One GC() can return
+-	// without finishing the sweep. Do a second to force the sweep
+-	// through.
+-	GC()
+-
+ 	// Process specials.
+ 	for i, s := range specials {
+ 		if !s.done {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 8d254702ed..ed2091bd2e 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -183,11 +183,76 @@ func bgsweep() {
+ 	}
+ }
+ 
++// sweepLocker acquires sweep ownership of spans and blocks sweep
++// completion.
++type sweepLocker struct {
++	// sweepGen is the sweep generation of the heap.
++	sweepGen uint32
++	// blocking indicates that this tracker is blocking sweep
++	// completion, usually as a result of acquiring sweep
++	// ownership of at least one span.
++	blocking bool
++}
++
++// sweepLocked represents sweep ownership of a span.
++type sweepLocked struct {
++	*mspan
++}
++
++func newSweepLocker() sweepLocker {
++	return sweepLocker{
++		sweepGen: mheap_.sweepgen,
++	}
++}
++
++// tryAcquire attempts to acquire sweep ownership of span s. If it
++// successfully acquires ownership, it blocks sweep completion.
++func (l *sweepLocker) tryAcquire(s *mspan) (sweepLocked, bool) {
++	// Check before attempting to CAS.
++	if atomic.Load(&s.sweepgen) != l.sweepGen-2 {
++		return sweepLocked{}, false
++	}
++	// Add ourselves to sweepers before potentially taking
++	// ownership.
++	l.blockCompletion()
++	// Attempt to acquire sweep ownership of s.
++	if !atomic.Cas(&s.sweepgen, l.sweepGen-2, l.sweepGen-1) {
++		return sweepLocked{}, false
++	}
++	return sweepLocked{s}, true
++}
++
++// blockCompletion blocks sweep completion without acquiring any
++// specific spans.
++func (l *sweepLocker) blockCompletion() {
++	if !l.blocking {
++		atomic.Xadd(&mheap_.sweepers, +1)
++		l.blocking = true
++	}
++}
++
++func (l *sweepLocker) dispose() {
++	if !l.blocking {
++		return
++	}
++	// Decrement the number of active sweepers and if this is the
++	// last one, mark sweep as complete.
++	l.blocking = false
++	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
++		l.sweepIsDone()
++	}
++}
++
++func (l *sweepLocker) sweepIsDone() {
++	if debug.gcpacertrace > 0 {
++		print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", (memstats.heap_live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
++	}
++}
++
+ // sweepone sweeps some unswept heap span and returns the number of pages returned
+ // to the heap, or ^uintptr(0) if there was nothing to sweep.
+ func sweepone() uintptr {
+ 	_g_ := getg()
+-	sweepRatio := mheap_.sweepPagesPerByte // For debugging
+ 
+ 	// increment locks to ensure that the goroutine is not preempted
+ 	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
+@@ -196,53 +261,55 @@ func sweepone() uintptr {
+ 		_g_.m.locks--
+ 		return ^uintptr(0)
+ 	}
+-	atomic.Xadd(&mheap_.sweepers, +1)
++	// TODO(austin): sweepone is almost always called in a loop;
++	// lift the sweepLocker into its callers.
++	sl := newSweepLocker()
+ 
+ 	// Find a span to sweep.
+-	var s *mspan
+-	sg := mheap_.sweepgen
++	npages := ^uintptr(0)
++	var noMoreWork bool
+ 	for {
+-		s = mheap_.nextSpanForSweep()
++		s := mheap_.nextSpanForSweep()
+ 		if s == nil {
+-			atomic.Store(&mheap_.sweepdone, 1)
++			noMoreWork = atomic.Cas(&mheap_.sweepdone, 0, 1)
+ 			break
+ 		}
+ 		if state := s.state.get(); state != mSpanInUse {
+ 			// This can happen if direct sweeping already
+ 			// swept this span, but in that case the sweep
+ 			// generation should always be up-to-date.
+-			if !(s.sweepgen == sg || s.sweepgen == sg+3) {
+-				print("runtime: bad span s.state=", state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
++			if !(s.sweepgen == sl.sweepGen || s.sweepgen == sl.sweepGen+3) {
++				print("runtime: bad span s.state=", state, " s.sweepgen=", s.sweepgen, " sweepgen=", sl.sweepGen, "\n")
+ 				throw("non in-use span in unswept list")
+ 			}
+ 			continue
+ 		}
+-		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++		if s, ok := sl.tryAcquire(s); ok {
++			// Sweep the span we found.
++			npages = s.npages
++			if s.sweep(false) {
++				// Whole span was freed. Count it toward the
++				// page reclaimer credit since these pages can
++				// now be used for span allocation.
++				atomic.Xadduintptr(&mheap_.reclaimCredit, npages)
++			} else {
++				// Span is still in-use, so this returned no
++				// pages to the heap and the span needs to
++				// move to the swept in-use list.
++				npages = 0
++			}
+ 			break
+ 		}
+ 	}
+ 
+-	// Sweep the span we found.
+-	npages := ^uintptr(0)
+-	if s != nil {
+-		npages = s.npages
+-		if s.sweep(false) {
+-			// Whole span was freed. Count it toward the
+-			// page reclaimer credit since these pages can
+-			// now be used for span allocation.
+-			atomic.Xadduintptr(&mheap_.reclaimCredit, npages)
+-		} else {
+-			// Span is still in-use, so this returned no
+-			// pages to the heap and the span needs to
+-			// move to the swept in-use list.
+-			npages = 0
+-		}
+-	}
++	sl.dispose()
+ 
+-	// Decrement the number of active sweepers and if this is the
+-	// last one print trace information.
+-	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
+-		// Since the sweeper is done, move the scavenge gen forward (signalling
++	if noMoreWork {
++		// The sweep list is empty. There may still be
++		// concurrent sweeps running, but we're at least very
++		// close to done sweeping.
++
++		// Move the scavenge gen forward (signalling
+ 		// that there's new work to do) and wake the scavenger.
+ 		//
+ 		// The scavenger is signaled by the last sweeper because once
+@@ -262,11 +329,8 @@ func sweepone() uintptr {
+ 		// for us to wake the scavenger directly via wakeScavenger, since
+ 		// it could allocate. Ask sysmon to do it for us instead.
+ 		readyForScavenger()
+-
+-		if debug.gcpacertrace > 0 {
+-			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", (memstats.heap_live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept, " pages at ", sweepRatio, " pages/byte\n")
+-		}
+ 	}
++
+ 	_g_.m.locks--
+ 	return npages
+ }
+@@ -292,20 +356,19 @@ func (s *mspan) ensureSwept() {
+ 		throw("mspan.ensureSwept: m is not locked")
+ 	}
+ 
+-	sg := mheap_.sweepgen
+-	spangen := atomic.Load(&s.sweepgen)
+-	if spangen == sg || spangen == sg+3 {
+-		return
+-	}
++	sl := newSweepLocker()
+ 	// The caller must be sure that the span is a mSpanInUse span.
+-	if atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++	if s, ok := sl.tryAcquire(s); ok {
+ 		s.sweep(false)
++		sl.dispose()
+ 		return
+ 	}
++	sl.dispose()
++
+ 	// unfortunate condition, and we don't have efficient means to wait
+ 	for {
+ 		spangen := atomic.Load(&s.sweepgen)
+-		if spangen == sg || spangen == sg+3 {
++		if spangen == sl.sweepGen || spangen == sl.sweepGen+3 {
+ 			break
+ 		}
+ 		osyield()
+@@ -317,13 +380,21 @@ func (s *mspan) ensureSwept() {
+ // Returns true if the span was returned to heap.
+ // If preserve=true, don't return it to heap nor relink in mcentral lists;
+ // caller takes care of it.
+-func (s *mspan) sweep(preserve bool) bool {
++func (sl *sweepLocked) sweep(preserve bool) bool {
+ 	// It's critical that we enter this function with preemption disabled,
+ 	// GC must not start while we are in the middle of this function.
+ 	_g_ := getg()
+ 	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+ 		throw("mspan.sweep: m is not locked")
+ 	}
++
++	s := sl.mspan
++	if !preserve {
++		// We'll release ownership of this span. Nil it out to
++		// prevent the caller from accidentally using it.
++		sl.mspan = nil
++	}
++
+ 	sweepgen := mheap_.sweepgen
+ 	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
+ 		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index da3772cdb6..f438e789c9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -817,7 +817,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+ 
+ 	n0 := n
+ 	var nFreed uintptr
+-	sg := h.sweepgen
++	sl := newSweepLocker()
+ 	for n > 0 {
+ 		ai := arenas[pageIdx/pagesPerArena]
+ 		ha := h.arenas[ai.l1()][ai.l2()]
+@@ -842,7 +842,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+ 			for j := uint(0); j < 8; j++ {
+ 				if inUseUnmarked&(1<<j) != 0 {
+ 					s := ha.spans[arenaPage+uint(i)*8+j]
+-					if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++					if s, ok := sl.tryAcquire(s); ok {
+ 						npages := s.npages
+ 						unlock(&h.lock)
+ 						if s.sweep(false) {
+@@ -863,6 +863,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+ 		pageIdx += uintptr(len(inUse) * 8)
+ 		n -= uintptr(len(inUse) * 8)
+ 	}
++	sl.dispose()
+ 	if trace.enabled {
+ 		unlock(&h.lock)
+ 		// Account for pages scanned but not reclaimed.

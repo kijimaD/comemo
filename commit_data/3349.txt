@@ -8,8 +8,90 @@ Date:   Wed Sep 23 12:31:57 2009 -0700
     DELTA=161  (57 added, 56 deleted, 48 changed)
     OCL=34926
     CL=34929
-
+---
  doc/go_tutorial.head |  8 ++++++++
  doc/go_tutorial.html | 18 +++++++++---------
  doc/go_tutorial.txt  | 10 ++--------
  3 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/doc/go_tutorial.head b/doc/go_tutorial.head
+new file mode 100644
+index 0000000000..c6977bd9cf
+--- /dev/null
++++ b/doc/go_tutorial.head
+@@ -0,0 +1,8 @@
++<div id="content">
++<h1 id="Lets_Go">Let's Go</h1> 
++
++  <!-- The Table of Contents is automatically inserted in this <div>.
++       Do not delete this <div>. -->
++  <div id="nav"></div>
++
++<h2>Introduction</h2>
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index b801f8e369..1029d744d8 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -1,10 +1,10 @@
+-<h1>Let's Go</h1>
+-<p>
+-Rob Pike
+-<p>
+-<hr>
+-(March 18, 2009)
+-<p>
++<h1 id="Lets_Go">Let's Go</h1> 
++
++  <!-- The Table of Contents is automatically inserted in this <div>.
++       Do not delete this <div>. -->
++  <div id="nav"></div>
++
++<h2>Introduction</h2>
+ <p>
+ This document is a tutorial introduction to the basics of the Go systems programming
+ language, intended for programmers familiar with C or C++. It is not a comprehensive
+@@ -12,13 +12,13 @@ guide to the language; at the moment the document closest to that is the draft
+ specification:
+ <p>
+ <pre>
+-    /doc/go_spec.html
++    http://go/go/doc/go_spec.html
+ 
+ </pre>
+ To check out the compiler and tools and be ready to run Go programs, see
+ <p>
+ <pre>
+-    /doc/go_setup.html
++    http://go/go/doc/go_setup.html
+ 
+ </pre>
+ The presentation proceeds through a series of modest programs to illustrate
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index dc49b0387b..201e945c48 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -1,22 +1,16 @@
+ Let's Go
+ ----
+ 
+-Rob Pike
+-
+-----
+-(March 18, 2009)
+-
+-
+ This document is a tutorial introduction to the basics of the Go systems programming
+ language, intended for programmers familiar with C or C++. It is not a comprehensive
+ guide to the language; at the moment the document closest to that is the draft
+ specification:
+ 
+-	/doc/go_spec.html
++	http://go/go/doc/go_spec.html
+ 
+ To check out the compiler and tools and be ready to run Go programs, see
+ 
+-	/doc/go_setup.html
++	http://go/go/doc/go_setup.html
+ 
+ The presentation proceeds through a series of modest programs to illustrate
+ key features of the language.  All the programs work (at time of writing) and are

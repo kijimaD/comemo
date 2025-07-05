@@ -10,8 +10,145 @@ Date:   Wed Apr 6 02:38:45 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/21564
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/os1_windows.go | 40 +++++++++++++++++++++++++++++++++++++++-
  src/runtime/os2_windows.go | 19 -------------------
  src/runtime/os_windows.go  | 32 --------------------------------
  3 files changed, 39 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index a36def0ffe..7244706b92 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -9,6 +9,11 @@ import (
+ 	"unsafe"
+ )
+ 
++// TODO(brainman): should not need those
++const (
++	_NSIG = 65
++)
++
+ //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
+@@ -49,6 +54,8 @@ import (
+ //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
+ 
++type stdFunction unsafe.Pointer
++
+ var (
+ 	// Following syscalls are available on every Windows PC.
+ 	// All these variables are set by the Windows executable
+@@ -102,6 +109,35 @@ var (
+ 	_ stdFunction
+ )
+ 
++// Function to be called by windows CreateThread
++// to start new os thread.
++func tstart_stdcall(newm *m) uint32
++
++func ctrlhandler(_type uint32) uint32
++
++type mOS struct {
++	waitsema uintptr // semaphore for parking on locks
++}
++
++//go:linkname os_sigpipe os.sigpipe
++func os_sigpipe() {
++	throw("too many writes on closed pipe")
++}
++
++// Stubs so tests can link correctly. These should never be called.
++func open(name *byte, mode, perm int32) int32 {
++	throw("unimplemented")
++	return -1
++}
++func closefd(fd int32) int32 {
++	throw("unimplemented")
++	return -1
++}
++func read(fd int32, p unsafe.Pointer, n int32) int32 {
++	throw("unimplemented")
++	return -1
++}
++
+ type sigset struct{}
+ 
+ // Call a Windows function with stdcall conventions,
+@@ -171,8 +207,10 @@ const (
+ 	currentThread  = ^uintptr(1) // -2 = current thread
+ )
+ 
+-// in sys_windows_386.s and sys_windows_amd64.s
++// in sys_windows_386.s and sys_windows_amd64.s:
+ func externalthreadhandler()
++func getlasterror() uint32
++func setlasterror(err uint32)
+ 
+ // When loading DLLs, we prefer to use LoadLibraryEx with
+ // LOAD_LIBRARY_SEARCH_* flags, if available. LoadLibraryEx is not
+diff --git a/src/runtime/os2_windows.go b/src/runtime/os2_windows.go
+deleted file mode 100644
+index a867dfeb64..0000000000
+--- a/src/runtime/os2_windows.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-func getlasterror() uint32
+-func setlasterror(err uint32)
+-
+-// Function to be called by windows CreateThread
+-// to start new os thread.
+-func tstart_stdcall(newm *m) uint32
+-
+-func ctrlhandler(_type uint32) uint32
+-
+-// TODO(brainman): should not need those
+-const (
+-	_NSIG = 65
+-)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+deleted file mode 100644
+index 24b3b8cf29..0000000000
+--- a/src/runtime/os_windows.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-import "unsafe"
+-
+-type mOS struct {
+-	waitsema uintptr // semaphore for parking on locks
+-}
+-
+-type stdFunction unsafe.Pointer
+-
+-//go:linkname os_sigpipe os.sigpipe
+-func os_sigpipe() {
+-	throw("too many writes on closed pipe")
+-}
+-
+-// Stubs so tests can link correctly. These should never be called.
+-func open(name *byte, mode, perm int32) int32 {
+-	throw("unimplemented")
+-	return -1
+-}
+-func closefd(fd int32) int32 {
+-	throw("unimplemented")
+-	return -1
+-}
+-func read(fd int32, p unsafe.Pointer, n int32) int32 {
+-	throw("unimplemented")
+-	return -1
+-}

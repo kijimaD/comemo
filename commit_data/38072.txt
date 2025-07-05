@@ -20,6 +20,29 @@ Date:   Sun Sep 30 16:07:27 2018 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/unixsock_windows_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/unixsock_windows_test.go b/src/net/unixsock_windows_test.go
+index a1da5d4062..d856e3fd81 100644
+--- a/src/net/unixsock_windows_test.go
++++ b/src/net/unixsock_windows_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"internal/syscall/windows/registry"
+ 	"os"
+ 	"reflect"
++	"runtime"
+ 	"strconv"
+ 	"testing"
+ )
+@@ -33,6 +34,9 @@ func isBuild17063() bool {
+ }
+ 
+ func TestUnixConnLocalWindows(t *testing.T) {
++	if runtime.GOARCH == "386" {
++		t.Skip("not supported on windows/386, see golang.org/issue/27943")
++	}
+ 	if !isBuild17063() {
+ 		t.Skip("unix test")
+ 	}

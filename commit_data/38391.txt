@@ -13,7 +13,42 @@ Date:   Wed Oct 24 21:31:18 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/handshake_client_test.go | 2 ++
  src/crypto/tls/handshake_server_test.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index dcd6914098..5a1e608536 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -384,10 +384,12 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 		}
+ 		for i, b := range flows {
+ 			if i%2 == 1 {
++				serverConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+ 				serverConn.Write(b)
+ 				continue
+ 			}
+ 			bb := make([]byte, len(b))
++			serverConn.SetReadDeadline(time.Now().Add(1 * time.Second))
+ 			_, err := io.ReadFull(serverConn, bb)
+ 			if err != nil {
+ 				t.Fatalf("%s #%d: %s", test.name, i, err)
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 44c67ed063..2a77584cdd 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -615,10 +615,12 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ 		}
+ 		for i, b := range flows {
+ 			if i%2 == 0 {
++				clientConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+ 				clientConn.Write(b)
+ 				continue
+ 			}
+ 			bb := make([]byte, len(b))
++			clientConn.SetReadDeadline(time.Now().Add(1 * time.Second))
+ 			n, err := io.ReadFull(clientConn, bb)
+ 			if err != nil {
+ 				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)

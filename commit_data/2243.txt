@@ -7,6 +7,20 @@ Date:   Mon May 18 16:48:38 2009 -0700
     TBR=rsc
     OCL=29010
     CL=29010
-
+---
  usr/gri/pretty/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 9590d6a42d..3c6c84cf26 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -587,7 +587,7 @@ func loggingHandler(h http.Handler) http.Handler {
+ 
+ func restartGodoc(c *http.Conn, r *http.Request) {
+ 	binary := os.Args[0];
+-	if len(binary) > 0 || binary[0] != '/' {
++	if len(binary) > 0 && binary[0] != '/' {
+ 		binary = pathutil.Join(launchdir, binary);
+ 	}
+ 	pid, err := os.ForkExec(binary, os.Args, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});

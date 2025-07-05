@@ -19,10 +19,122 @@ Date:   Wed Apr 3 13:16:58 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 19 +++++++++++--------
  src/cmd/internal/obj/x86/obj6.go        |  8 +++++++-
  test/codegen/race.go                    | 20 ++++++++++++++++++++
  test/codegen/stack.go                   | 11 +++++++++++
  test/run.go                             |  3 +++
  5 files changed, 52 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 8165852263..6fc504e020 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1129,17 +1129,20 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
+ 		for _, v := range b.Values {
+ 			switch v.Op {
+ 			case OpStaticCall:
+-				switch v.Aux.(fmt.Stringer).String() {
+-				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
+-					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap",
+-					"runtime.panicshift":
+ 				// Check for racefuncenter will encounter racefuncexit and vice versa.
+ 				// Allow calls to panic*
+-				default:
+-					// If we encountered any call, we need to keep racefunc*,
+-					// for accurate stacktraces.
+-					return false
++				s := v.Aux.(fmt.Stringer).String()
++				switch s {
++				case "runtime.racefuncenter", "runtime.racefuncexit",
++					"runtime.panicdivide", "runtime.panicwrap",
++					"runtime.panicshift":
++					continue
+ 				}
++				// If we encountered any call, we need to keep racefunc*,
++				// for accurate stacktraces.
++				return false
++			case OpPanicBounds, OpPanicExtend:
++				// Note: these are panic generators that are ok (like the static calls above).
+ 			case OpClosureCall, OpInterCall:
+ 				// We must keep the race functions if there are any other call types.
+ 				return false
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index eb0e88b494..2fba397a87 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -975,7 +975,13 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
+ 		return false
+ 	}
+ 	switch s.Name {
+-	case "runtime.panicindex", "runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift":
++	case "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift":
++		return true
++	}
++	if strings.HasPrefix(s.Name, "runtime.panicIndex") || strings.HasPrefix(s.Name, "runtime.panicSlice") {
++		// These functions do take arguments (in registers),
++		// but use no stack before they do a stack check. We
++		// should include them. See issue 31219.
+ 		return true
+ 	}
+ 	return false
+diff --git a/test/codegen/race.go b/test/codegen/race.go
+new file mode 100644
+index 0000000000..ed6706f880
+--- /dev/null
++++ b/test/codegen/race.go
+@@ -0,0 +1,20 @@
++// asmcheck -race
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// Check that we elide racefuncenter/racefuncexit for
++// functions with no calls (but which might panic
++// in various ways). See issue 31219.
++// amd64:-"CALL.*racefuncenter.*"
++func RaceMightPanic(a []int, i, j, k, s int) {
++	var b [4]int
++	_ = b[i]     // panicIndex
++	_ = a[i:j]   // panicSlice
++	_ = a[i:j:k] // also panicSlice
++	_ = i << s   // panicShift
++	_ = i / j    // panicDivide
++}
+diff --git a/test/codegen/stack.go b/test/codegen/stack.go
+index ed2c1ed959..ca37622286 100644
+--- a/test/codegen/stack.go
++++ b/test/codegen/stack.go
+@@ -98,3 +98,14 @@ func check_asmout(a, b int) int {
+ 	// arm:`.*b\+4\(FP\)`
+ 	return b
+ }
++
++// Check that simple functions get promoted to nosplit, even when
++// they might panic in various ways. See issue 31219.
++// amd64:"TEXT\t.*NOSPLIT.*"
++func MightPanic(a []int, i, j, k, s int) {
++	_ = a[i]     // panicIndex
++	_ = a[i:j]   // panicSlice
++	_ = a[i:j:k] // also panicSlice
++	_ = i << s   // panicShift
++	_ = i / j    // panicDivide
++}
+diff --git a/test/run.go b/test/run.go
+index 292903f932..460d4f2d8c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -660,6 +660,9 @@ func (t *test) run() {
+ 			cmdline = append(cmdline, long)
+ 			cmd := exec.Command(goTool(), cmdline...)
+ 			cmd.Env = append(os.Environ(), env.Environ()...)
++			if len(flags) > 0 && flags[0] == "-race" {
++				cmd.Env = append(cmd.Env, "CGO_ENABLED=1")
++			}
+ 
+ 			var buf bytes.Buffer
+ 			cmd.Stdout, cmd.Stderr = &buf, &buf

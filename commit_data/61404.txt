@@ -15,6 +15,19 @@ Date:   Mon Nov 4 14:31:30 2024 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/transport_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 9892fcaae5..2fc18c5903 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3278,6 +3278,7 @@ func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
+ 	for _, want := range []string{
+ 		"response headers exceeded",
+ 		"too many 1xx",
++		"header list too large",
+ 	} {
+ 		if strings.Contains(err.Error(), want) {
+ 			return

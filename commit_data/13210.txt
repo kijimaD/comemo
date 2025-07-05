@@ -20,8 +20,213 @@ Date:   Wed May 30 21:38:46 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6243061
-
+---
  src/pkg/image/png/paeth.go      | 70 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/image/png/paeth_test.go | 40 +++++++++++++++++++++++
  src/pkg/image/png/reader.go     | 41 ++----------------------
  3 files changed, 113 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/image/png/paeth.go b/src/pkg/image/png/paeth.go
+new file mode 100644
+index 0000000000..37978aa662
+--- /dev/null
++++ b/src/pkg/image/png/paeth.go
+@@ -0,0 +1,70 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package png
++
++// paeth implements the Paeth filter function, as per the PNG specification.
++func paeth(a, b, c uint8) uint8 {
++	// This is an optimized version of the sample code in the PNG spec.
++	// For example, the sample code starts with:
++	//	p := int(a) + int(b) - int(c)
++	//	pa := abs(p - int(a))
++	// but the optimized form uses fewer arithmetic operations:
++	//	pa := int(b) - int(c)
++	//	pa = abs(pa)
++	pc := int(c)
++	pa := int(b) - pc
++	pb := int(a) - pc
++	pc = pa + pb
++	if pa < 0 {
++		pa = -pa
++	}
++	if pb < 0 {
++		pb = -pb
++	}
++	if pc < 0 {
++		pc = -pc
++	}
++	if pa <= pb && pa <= pc {
++		return a
++	} else if pb <= pc {
++		return b
++	}
++	return c
++}
++
++// filterPaeth applies the Paeth filter to the cdat slice.
++// cdat is the current row's data, pdat is the previous row's data.
++func filterPaeth(cdat, pdat []byte, bytesPerPixel int) {
++	var a, b, c, pa, pb, pc int
++	for i := 0; i < bytesPerPixel; i++ {
++		a, c = 0, 0
++		for j := i; j < len(cdat); j += bytesPerPixel {
++			b = int(pdat[j])
++			pa = b - c
++			pb = a - c
++			pc = pa + pb
++			if pa < 0 {
++				pa = -pa
++			}
++			if pb < 0 {
++				pb = -pb
++			}
++			if pc < 0 {
++				pc = -pc
++			}
++			if pa <= pb && pa <= pc {
++				// No-op.
++			} else if pb <= pc {
++				a = b
++			} else {
++				a = c
++			}
++			a += int(cdat[j])
++			a &= 0xff
++			cdat[j] = uint8(a)
++			c = b
++		}
++	}
++}
+diff --git a/src/pkg/image/png/paeth_test.go b/src/pkg/image/png/paeth_test.go
+index b0cec1c8f6..bb084861ae 100644
+--- a/src/pkg/image/png/paeth_test.go
++++ b/src/pkg/image/png/paeth_test.go
+@@ -5,6 +5,8 @@
+ package png
+ 
+ import (
++	"bytes"
++	"math/rand"
+ 	"testing"
+ )
+ 
+@@ -30,6 +32,16 @@ func slowPaeth(a, b, c uint8) uint8 {
+ 	return c
+ }
+ 
++// slowFilterPaeth is a slow but simple implementation of func filterPaeth.
++func slowFilterPaeth(cdat, pdat []byte, bytesPerPixel int) {
++	for i := 0; i < bytesPerPixel; i++ {
++		cdat[i] += paeth(0, pdat[i], 0)
++	}
++	for i := bytesPerPixel; i < len(cdat); i++ {
++		cdat[i] += paeth(cdat[i-bytesPerPixel], pdat[i], pdat[i-bytesPerPixel])
++	}
++}
++
+ func TestPaeth(t *testing.T) {
+ 	for a := 0; a < 256; a += 15 {
+ 		for b := 0; b < 256; b += 15 {
+@@ -49,3 +61,31 @@ func BenchmarkPaeth(b *testing.B) {
+ 		paeth(uint8(i>>16), uint8(i>>8), uint8(i))
+ 	}
+ }
++
++func TestPaethDecode(t *testing.T) {
++	pdat0 := make([]byte, 32)
++	pdat1 := make([]byte, 32)
++	pdat2 := make([]byte, 32)
++	cdat0 := make([]byte, 32)
++	cdat1 := make([]byte, 32)
++	cdat2 := make([]byte, 32)
++	r := rand.New(rand.NewSource(1))
++	for bytesPerPixel := 1; bytesPerPixel <= 8; bytesPerPixel++ {
++		for i := 0; i < 100; i++ {
++			for j := range pdat0 {
++				pdat0[j] = uint8(r.Uint32())
++				cdat0[j] = uint8(r.Uint32())
++			}
++			copy(pdat1, pdat0)
++			copy(pdat2, pdat0)
++			copy(cdat1, cdat0)
++			copy(cdat2, cdat0)
++			filterPaeth(cdat1, pdat1, bytesPerPixel)
++			slowFilterPaeth(cdat2, pdat2, bytesPerPixel)
++			if !bytes.Equal(cdat1, cdat2) {
++				t.Errorf("bytesPerPixel: %d\npdat0: % x\ncdat0: % x\ngot:   % x\nwant:  % x", bytesPerPixel, pdat0, cdat0, cdat1, cdat2)
++				break
++			}
++		}
++	}
++}
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 6b2100badd..6962926c8a 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -234,36 +234,6 @@ func (d *decoder) parsetRNS(length uint32) error {
+ 	return d.verifyChecksum()
+ }
+ 
+-// paeth implements the Paeth filter function, as per the PNG specification.
+-func paeth(a, b, c uint8) uint8 {
+-	// This is an optimized version of the sample code in the PNG spec.
+-	// For example, the sample code starts with:
+-	//	p := int(a) + int(b) - int(c)
+-	//	pa := abs(p - int(a))
+-	// but the optimized form uses fewer arithmetic operations:
+-	//	pa := int(b) - int(c)
+-	//	pa = abs(pa)
+-	pc := int(c)
+-	pa := int(b) - pc
+-	pb := int(a) - pc
+-	pc = pa + pb
+-	if pa < 0 {
+-		pa = -pa
+-	}
+-	if pb < 0 {
+-		pb = -pb
+-	}
+-	if pc < 0 {
+-		pc = -pc
+-	}
+-	if pa <= pb && pa <= pc {
+-		return a
+-	} else if pb <= pc {
+-		return b
+-	}
+-	return c
+-}
+-
+ // Read presents one or more IDAT chunks as one continuous stream (minus the
+ // intermediate chunk headers and footers). If the PNG data looked like:
+ //   ... len0 IDAT xxx crc0 len1 IDAT yy crc1 len2 IEND crc2
+@@ -385,8 +355,8 @@ func (d *decoder) decode() (image.Image, error) {
+ 				cdat[i] += cdat[i-bytesPerPixel]
+ 			}
+ 		case ftUp:
+-			for i := 0; i < len(cdat); i++ {
+-				cdat[i] += pdat[i]
++			for i, p := range pdat {
++				cdat[i] += p
+ 			}
+ 		case ftAverage:
+ 			for i := 0; i < bytesPerPixel; i++ {
+@@ -396,12 +366,7 @@ func (d *decoder) decode() (image.Image, error) {
+ 				cdat[i] += uint8((int(cdat[i-bytesPerPixel]) + int(pdat[i])) / 2)
+ 			}
+ 		case ftPaeth:
+-			for i := 0; i < bytesPerPixel; i++ {
+-				cdat[i] += paeth(0, pdat[i], 0)
+-			}
+-			for i := bytesPerPixel; i < len(cdat); i++ {
+-				cdat[i] += paeth(cdat[i-bytesPerPixel], pdat[i], pdat[i-bytesPerPixel])
+-			}
++			filterPaeth(cdat, pdat, bytesPerPixel)
+ 		default:
+ 			return nil, FormatError("bad filter type")
+ 		}

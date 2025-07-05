@@ -14,7 +14,56 @@ Date:   Tue Aug 6 20:16:42 2024 +0300
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/bytes/example_test.go   | 4 ++--
  src/strings/example_test.go | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 1cc0089e41..c9086d3918 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -502,10 +502,10 @@ func ExampleTitle() {
+ 
+ func ExampleToTitle() {
+ 	fmt.Printf("%s\n", bytes.ToTitle([]byte("loud noises")))
+-	fmt.Printf("%s\n", bytes.ToTitle([]byte("хлеб")))
++	fmt.Printf("%s\n", bytes.ToTitle([]byte("брат")))
+ 	// Output:
+ 	// LOUD NOISES
+-	// ХЛЕБ
++	// БРАТ
+ }
+ 
+ func ExampleToTitleSpecial() {
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index bdab7ae8de..413d1bf997 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -328,22 +328,22 @@ func ExampleTitle() {
+ 	// Compare this example to the ToTitle example.
+ 	fmt.Println(strings.Title("her royal highness"))
+ 	fmt.Println(strings.Title("loud noises"))
+-	fmt.Println(strings.Title("хлеб"))
++	fmt.Println(strings.Title("брат"))
+ 	// Output:
+ 	// Her Royal Highness
+ 	// Loud Noises
+-	// Хлеб
++	// Брат
+ }
+ 
+ func ExampleToTitle() {
+ 	// Compare this example to the Title example.
+ 	fmt.Println(strings.ToTitle("her royal highness"))
+ 	fmt.Println(strings.ToTitle("loud noises"))
+-	fmt.Println(strings.ToTitle("хлеб"))
++	fmt.Println(strings.ToTitle("брат"))
+ 	// Output:
+ 	// HER ROYAL HIGHNESS
+ 	// LOUD NOISES
+-	// ХЛЕБ
++	// БРАТ
+ }
+ 
+ func ExampleToTitleSpecial() {

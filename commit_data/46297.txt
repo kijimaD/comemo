@@ -16,8 +16,368 @@ Date:   Fri Dec 18 19:38:13 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go    | 110 ++++++++-----------------------
  src/cmd/compile/internal/gc/iimport.go   |  62 +++++++++--------
  src/cmd/compile/internal/gc/typecheck.go |  13 +---
  3 files changed, 58 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index d26dd9af5d..6ed4327a8f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -77,126 +77,70 @@ func dumpexport(bout *bio.Writer) {
+ 	}
+ }
+ 
+-func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) *ir.Name {
+-	n := ir.AsNode(s.PkgDef())
+-	if n == nil {
+-		// iimport should have created a stub ONONAME
+-		// declaration for all imported symbols. The exception
+-		// is declarations for Runtimepkg, which are populated
+-		// by loadsys instead.
+-		if s.Pkg != Runtimepkg {
+-			base.Fatalf("missing ONONAME for %v\n", s)
+-		}
+-
+-		n = ir.NewDeclNameAt(src.NoXPos, s)
+-		s.SetPkgDef(n)
+-		s.Importdef = ipkg
+-	}
+-	if n.Op() != ir.ONONAME && n.Op() != op {
+-		redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
++func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class) *ir.Name {
++	if n := s.PkgDef(); n != nil {
++		base.Fatalf("importsym of symbol that already exists: %v", n)
+ 	}
+-	return n.(*ir.Name)
++
++	n := ir.NewDeclNameAt(pos, s)
++	n.SetOp(op) // TODO(mdempsky): Add as argument to NewDeclNameAt.
++	n.SetClass(ctxt)
++	s.SetPkgDef(n)
++	s.Importdef = ipkg
++	return n
+ }
+ 
+ // importtype returns the named type declared by symbol s.
+ // If no such type has been declared yet, a forward declaration is returned.
+ // ipkg is the package being imported
+-func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+-	n := importsym(ipkg, s, ir.OTYPE)
+-	if n.Op() != ir.OTYPE {
+-		t := types.NewNamed(n)
+-		n.SetOp(ir.OTYPE)
+-		n.SetPos(pos)
+-		n.SetType(t)
+-		n.SetClass(ir.PEXTERN)
+-	}
+-
+-	t := n.Type()
+-	if t == nil {
+-		base.Fatalf("importtype %v", s)
+-	}
+-	return t
++func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *ir.Name {
++	n := importsym(ipkg, pos, s, ir.OTYPE, ir.PEXTERN)
++	n.SetType(types.NewNamed(n))
++	return n
+ }
+ 
+ // importobj declares symbol s as an imported object representable by op.
+ // ipkg is the package being imported
+-func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) ir.Node {
+-	n := importsym(ipkg, s, op)
+-	if n.Op() != ir.ONONAME {
+-		if n.Op() == op && (op == ir.ONAME && n.Class() != ctxt || !types.Identical(n.Type(), t)) {
+-			redeclare(base.Pos, s, fmt.Sprintf("during import %q", ipkg.Path))
+-		}
+-		return nil
+-	}
+-
+-	n.SetOp(op)
+-	n.SetPos(pos)
+-	n.SetClass(ctxt)
++func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) *ir.Name {
++	n := importsym(ipkg, pos, s, op, ctxt)
++	n.SetType(t)
+ 	if ctxt == ir.PFUNC {
+ 		n.Sym().SetFunc(true)
+ 	}
+-	n.SetType(t)
+ 	return n
+ }
+ 
+ // importconst declares symbol s as an imported constant with type t and value val.
+ // ipkg is the package being imported
+-func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) {
++func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) *ir.Name {
+ 	n := importobj(ipkg, pos, s, ir.OLITERAL, ir.PEXTERN, t)
+-	if n == nil { // TODO: Check that value matches.
+-		return
+-	}
+-
+ 	n.SetVal(val)
+-
+-	if base.Flag.E != 0 {
+-		fmt.Printf("import const %v %L = %v\n", s, t, val)
+-	}
++	return n
+ }
+ 
+ // importfunc declares symbol s as an imported function with type t.
+ // ipkg is the package being imported
+-func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
++func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+ 	n := importobj(ipkg, pos, s, ir.ONAME, ir.PFUNC, t)
+-	if n == nil {
+-		return
+-	}
+-	name := n.(*ir.Name)
+ 
+ 	fn := ir.NewFunc(pos)
+ 	fn.SetType(t)
+-	name.SetFunc(fn)
+-	fn.Nname = name
++	n.SetFunc(fn)
++	fn.Nname = n
+ 
+-	if base.Flag.E != 0 {
+-		fmt.Printf("import func %v%S\n", s, t)
+-	}
++	return n
+ }
+ 
+ // importvar declares symbol s as an imported variable with type t.
+ // ipkg is the package being imported
+-func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+-	n := importobj(ipkg, pos, s, ir.ONAME, ir.PEXTERN, t)
+-	if n == nil {
+-		return
+-	}
+-
+-	if base.Flag.E != 0 {
+-		fmt.Printf("import var %v %L\n", s, t)
+-	}
++func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
++	return importobj(ipkg, pos, s, ir.ONAME, ir.PEXTERN, t)
+ }
+ 
+ // importalias declares symbol s as an imported type alias with type t.
+ // ipkg is the package being imported
+-func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+-	n := importobj(ipkg, pos, s, ir.OTYPE, ir.PEXTERN, t)
+-	if n == nil {
+-		return
+-	}
+-
+-	if base.Flag.E != 0 {
+-		fmt.Printf("import type %v = %L\n", s, t)
+-	}
++func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
++	return importobj(ipkg, pos, s, ir.OTYPE, ir.PEXTERN, t)
+ }
+ 
+ func dumpasmhdr() {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 549751335e..76f55a44e5 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -41,18 +41,23 @@ var (
+ 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
+ )
+ 
+-func expandDecl(n *ir.Name) {
+-	if n.Op() != ir.ONONAME {
+-		return
++func expandDecl(n ir.Node) ir.Node {
++	if n, ok := n.(*ir.Name); ok {
++		return n
++	}
++
++	id := n.(*ir.Ident)
++	if n := id.Sym().PkgDef(); n != nil {
++		return n.(*ir.Name)
+ 	}
+ 
+-	r := importReaderFor(n, declImporter)
++	r := importReaderFor(id.Sym(), declImporter)
+ 	if r == nil {
+ 		// Can happen if user tries to reference an undeclared name.
+-		return
++		return n
+ 	}
+ 
+-	r.doDecl(n)
++	return r.doDecl(n.Sym())
+ }
+ 
+ func expandInline(fn *ir.Func) {
+@@ -60,7 +65,7 @@ func expandInline(fn *ir.Func) {
+ 		return
+ 	}
+ 
+-	r := importReaderFor(fn.Nname, inlineImporter)
++	r := importReaderFor(fn.Nname.Sym(), inlineImporter)
+ 	if r == nil {
+ 		base.Fatalf("missing import reader for %v", fn)
+ 	}
+@@ -68,13 +73,13 @@ func expandInline(fn *ir.Func) {
+ 	r.doInline(fn)
+ }
+ 
+-func importReaderFor(n *ir.Name, importers map[*types.Sym]iimporterAndOffset) *importReader {
+-	x, ok := importers[n.Sym()]
++func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {
++	x, ok := importers[sym]
+ 	if !ok {
+ 		return nil
+ 	}
+ 
+-	return x.p.newReader(x.off, n.Sym().Pkg)
++	return x.p.newReader(x.off, sym.Pkg)
+ }
+ 
+ type intReader struct {
+@@ -272,11 +277,7 @@ func (r *importReader) setPkg() {
+ 	r.currPkg = r.pkg()
+ }
+ 
+-func (r *importReader) doDecl(n ir.Node) {
+-	if n.Op() != ir.ONONAME {
+-		base.Fatalf("doDecl: unexpected Op for %v: %v", n.Sym(), n.Op())
+-	}
+-
++func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 	tag := r.byte()
+ 	pos := r.pos()
+ 
+@@ -284,24 +285,26 @@ func (r *importReader) doDecl(n ir.Node) {
+ 	case 'A':
+ 		typ := r.typ()
+ 
+-		importalias(r.p.ipkg, pos, n.Sym(), typ)
++		return importalias(r.p.ipkg, pos, sym, typ)
+ 
+ 	case 'C':
+ 		typ := r.typ()
+ 		val := r.value(typ)
+ 
+-		importconst(r.p.ipkg, pos, n.Sym(), typ, val)
++		return importconst(r.p.ipkg, pos, sym, typ, val)
+ 
+ 	case 'F':
+ 		typ := r.signature(nil)
+ 
+-		importfunc(r.p.ipkg, pos, n.Sym(), typ)
++		n := importfunc(r.p.ipkg, pos, sym, typ)
+ 		r.funcExt(n)
++		return n
+ 
+ 	case 'T':
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+-		t := importtype(r.p.ipkg, pos, n.Sym())
++		n := importtype(r.p.ipkg, pos, sym)
++		t := n.Type()
+ 
+ 		// We also need to defer width calculations until
+ 		// after the underlying type has been assigned.
+@@ -312,7 +315,7 @@ func (r *importReader) doDecl(n ir.Node) {
+ 
+ 		if underlying.IsInterface() {
+ 			r.typeExt(t)
+-			break
++			return n
+ 		}
+ 
+ 		ms := make([]*types.Field, r.uint64())
+@@ -339,15 +342,18 @@ func (r *importReader) doDecl(n ir.Node) {
+ 		for _, m := range ms {
+ 			r.methExt(m)
+ 		}
++		return n
+ 
+ 	case 'V':
+ 		typ := r.typ()
+ 
+-		importvar(r.p.ipkg, pos, n.Sym(), typ)
++		n := importvar(r.p.ipkg, pos, sym, typ)
+ 		r.varExt(n)
++		return n
+ 
+ 	default:
+ 		base.Fatalf("unexpected tag: %v", tag)
++		panic("unreachable")
+ 	}
+ }
+ 
+@@ -433,16 +439,11 @@ func (r *importReader) ident() *types.Sym {
+ 	return pkg.Lookup(name)
+ }
+ 
+-func (r *importReader) qualifiedIdent() *ir.Name {
++func (r *importReader) qualifiedIdent() *ir.Ident {
+ 	name := r.string()
+ 	pkg := r.pkg()
+ 	sym := pkg.Lookup(name)
+-	n := sym.PkgDef()
+-	if n == nil {
+-		n = ir.NewDeclNameAt(src.NoXPos, sym)
+-		sym.SetPkgDef(n)
+-	}
+-	return n.(*ir.Name)
++	return ir.NewIdent(src.NoXPos, sym)
+ }
+ 
+ func (r *importReader) pos() src.XPos {
+@@ -498,10 +499,7 @@ func (r *importReader) typ1() *types.Type {
+ 		// support inlining functions with local defined
+ 		// types. Therefore, this must be a package-scope
+ 		// type.
+-		n := r.qualifiedIdent()
+-		if n.Op() == ir.ONONAME {
+-			expandDecl(n)
+-		}
++		n := expandDecl(r.qualifiedIdent())
+ 		if n.Op() != ir.OTYPE {
+ 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 83939fd6bf..4fae4a0819 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -8,7 +8,6 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+@@ -97,23 +96,13 @@ func resolve(n ir.Node) (res ir.Node) {
+ 			if pkgName := dotImportRefs[id]; pkgName != nil {
+ 				pkgName.Used = true
+ 			}
+-
+-			if sym.Def == nil {
+-				if _, ok := declImporter[sym]; !ok {
+-					return n // undeclared name
+-				}
+-				sym.Def = ir.NewDeclNameAt(src.NoXPos, sym)
+-			}
+-			n = ir.AsNode(sym.Def)
+ 		}
+ 
+-		// Stub ir.Name left for us by iimport.
+-		n := n.(*ir.Name)
+ 		if inimport {
+ 			base.Fatalf("recursive inimport")
+ 		}
+ 		inimport = true
+-		expandDecl(n)
++		n = expandDecl(n)
+ 		inimport = false
+ 		return n
+ 	}

@@ -7,6 +7,37 @@ Date:   Thu Feb 16 13:08:35 2012 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5673061
-
+---
  src/pkg/go/ast/example.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/go/ast/example.go b/src/pkg/go/ast/example.go
+index 33a836894a..dec496b6f4 100644
+--- a/src/pkg/go/ast/example.go
++++ b/src/pkg/go/ast/example.go
+@@ -9,6 +9,7 @@ package ast
+ import (
+ 	"go/token"
+ 	"regexp"
++	"sort"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -66,6 +67,7 @@ func Examples(files ...*File) []*Example {
+ 		}
+ 		list = append(list, flist...)
+ 	}
++	sort.Sort(exampleByName(list))
+ 	return list
+ }
+ 
+@@ -106,3 +108,9 @@ func isTest(name, prefix string) bool {
+ 	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
+ 	return !unicode.IsLower(rune)
+ }
++
++type exampleByName []*Example
++
++func (s exampleByName) Len() int           { return len(s) }
++func (s exampleByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s exampleByName) Less(i, j int) bool { return s[i].Name < s[j].Name }

@@ -18,6 +18,19 @@ Date:   Mon Nov 16 13:25:48 2015 -0800
     Change-Id: I590fe8f358042aab73acf16c2ed9567872b174f4
     Reviewed-on: https://go-review.googlesource.com/16975
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 1d24b271e0..4eb4339a26 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -307,6 +307,7 @@ func (p *parser) package_() {
+ 		mkpackage(p.sym().Name)
+ 		p.want(';')
+ 	} else {
++		prevlineno = lineno // see issue #13267
+ 		p.syntax_error("package statement must be first")
+ 		errorexit()
+ 	}

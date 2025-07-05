@@ -14,7 +14,34 @@ Date:   Fri Sep 28 15:32:52 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/sys_unix.go      | 2 +-
  src/time/zoneinfo_unix.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index e064e0046c..f4756b18a6 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package time
+ 
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index 682e24b566..fca8e5497b 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin,386 darwin,amd64 dragonfly freebsd js,wasm linux,!android nacl netbsd openbsd solaris
++// +build aix darwin,386 darwin,amd64 dragonfly freebsd js,wasm linux,!android nacl netbsd openbsd solaris
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

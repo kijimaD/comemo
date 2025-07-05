@@ -27,7 +27,7 @@ Date:   Mon Aug 15 13:51:00 2016 -0700
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testshared/shared_test.go           | 18 ++++++
  src/cmd/compile/internal/gc/ssa.go           |  2 +-
  src/cmd/compile/internal/ppc64/ssa.go        | 89 +++++++++++++++++++++-------
@@ -46,3 +46,557 @@ Date:   Mon Aug 15 13:51:00 2016 -0700
  test/nosplit.go                              |  4 +-
  test/sliceopt.go                             |  2 +-
  17 files changed, 121 insertions(+), 128 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 34d97de526..e91af9d8c5 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -97,6 +97,9 @@ func testMain(m *testing.M) (int, error) {
+ 	if gorootInstallDir == "" {
+ 		return 0, errors.New("could not create temporary directory after 10000 tries")
+ 	}
++	if testing.Verbose() {
++		fmt.Printf("+ mkdir -p %s\n", gorootInstallDir)
++	}
+ 	defer os.RemoveAll(gorootInstallDir)
+ 
+ 	// Some tests need to edit the source in GOPATH, so copy this directory to a
+@@ -105,6 +108,9 @@ func testMain(m *testing.M) (int, error) {
+ 	if err != nil {
+ 		return 0, fmt.Errorf("TempDir failed: %v", err)
+ 	}
++	if testing.Verbose() {
++		fmt.Printf("+ mkdir -p %s\n", scratchDir)
++	}
+ 	defer os.RemoveAll(scratchDir)
+ 	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+ 		scratchPath := filepath.Join(scratchDir, path)
+@@ -112,12 +118,18 @@ func testMain(m *testing.M) (int, error) {
+ 			if path == "." {
+ 				return nil
+ 			}
++			if testing.Verbose() {
++				fmt.Printf("+ mkdir -p %s\n", scratchPath)
++			}
+ 			return os.Mkdir(scratchPath, info.Mode())
+ 		} else {
+ 			fromBytes, err := ioutil.ReadFile(path)
+ 			if err != nil {
+ 				return err
+ 			}
++			if testing.Verbose() {
++				fmt.Printf("+ cp %s %s\n", path, scratchPath)
++			}
+ 			return ioutil.WriteFile(scratchPath, fromBytes, info.Mode())
+ 		}
+ 	})
+@@ -125,7 +137,13 @@ func testMain(m *testing.M) (int, error) {
+ 		return 0, fmt.Errorf("walk failed: %v", err)
+ 	}
+ 	os.Setenv("GOPATH", scratchDir)
++	if testing.Verbose() {
++		fmt.Printf("+ export GOPATH=%s\n", scratchDir)
++	}
+ 	myContext.GOPATH = scratchDir
++	if testing.Verbose() {
++		fmt.Printf("+ cd %s\n", scratchDir)
++	}
+ 	os.Chdir(scratchDir)
+ 
+ 	// All tests depend on runtime being built into a shared library. Because
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1c482b0aef..781fe1b2d5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -40,7 +40,7 @@ func shouldssa(fn *Node) bool {
+ 		if os.Getenv("SSATEST") == "" {
+ 			return false
+ 		}
+-	case "amd64", "amd64p32", "arm", "386", "arm64":
++	case "amd64", "amd64p32", "arm", "386", "arm64", "ppc64le":
+ 		// Generally available.
+ 	}
+ 	if !ssaEnabled {
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index b6d06f88e1..1d81d39b30 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -747,9 +747,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			// This is different from obj.ANOP, which is a virtual no-op
+ 			// that doesn't make it into the instruction stream.
+ 			// PPC64 is unusual because TWO nops are required
+-			// (see gc/cgen.go, gc/plive.go)
+-			ginsnop()
++			// (see gc/cgen.go, gc/plive.go -- copy of comment below)
++			//
++			// On ppc64, when compiling Go into position
++			// independent code on ppc64le we insert an
++			// instruction to reload the TOC pointer from the
++			// stack as well. See the long comment near
++			// jmpdefer in runtime/asm_ppc64.s for why.
++			// If the MOVD is not needed, insert a hardware NOP
++			// so that the same number of instructions are used
++			// on ppc64 in both shared and non-shared modes.
+ 			ginsnop()
++			if gc.Ctxt.Flag_shared {
++				p := gc.Prog(ppc64.AMOVD)
++				p.From.Type = obj.TYPE_MEM
++				p.From.Offset = 24
++				p.From.Reg = ppc64.REGSP
++				p.To.Type = obj.TYPE_REG
++				p.To.Reg = ppc64.REG_R2
++			} else {
++				ginsnop()
++			}
+ 		}
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+@@ -758,13 +776,48 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpPPC64CALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = gc.SSARegNum(v.Args[0])
++
++	case ssa.OpPPC64CALLclosure, ssa.OpPPC64CALLinter:
++		p := gc.Prog(ppc64.AMOVD)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REG_CTR
++
++		if gc.Ctxt.Flag_shared && p.From.Reg != ppc64.REG_R12 {
++			// Make sure function pointer is in R12 as well when
++			// compiling Go into PIC.
++			// TODO(mwhudson): it would obviously be better to
++			// change the register allocation to put the value in
++			// R12 already, but I don't know how to do that.
++			// TODO: We have the technology now to implement TODO above.
++			q := gc.Prog(ppc64.AMOVD)
++			q.From = p.From
++			q.To.Type = obj.TYPE_REG
++			q.To.Reg = ppc64.REG_R12
++		}
++
++		pp := gc.Prog(obj.ACALL)
++		pp.To.Type = obj.TYPE_REG
++		pp.To.Reg = ppc64.REG_CTR
++
++		if gc.Ctxt.Flag_shared {
++			// When compiling Go into PIC, the function we just
++			// called via pointer might have been implemented in
++			// a separate module and so overwritten the TOC
++			// pointer in R2; reload it.
++			q := gc.Prog(ppc64.AMOVD)
++			q.From.Type = obj.TYPE_MEM
++			q.From.Offset = 24
++			q.From.Reg = ppc64.REGSP
++			q.To.Type = obj.TYPE_REG
++			q.To.Reg = ppc64.REG_R2
++		}
++
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
++
+ 	case ssa.OpPPC64CALLdefer:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+@@ -781,14 +834,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpPPC64CALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = gc.SSARegNum(v.Args[0])
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-
+ 	case ssa.OpVarDef:
+ 		gc.Gvardef(v.Aux.(*gc.Node))
+ 	case ssa.OpVarKill:
+@@ -902,7 +947,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ var blockJump = [...]struct {
+ 	asm, invasm     obj.As
+-	asmeq, invasmeq bool
++	asmeq, invasmun bool
+ }{
+ 	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
+ 	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
+@@ -913,10 +958,10 @@ var blockJump = [...]struct {
+ 	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
+ 
+ 	// TODO: need to work FP comparisons into block jumps
+-	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGT, false, true},
+-	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, false},
+-	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, false},
+-	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLT, false, true},
++	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGE, false, false},
++	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, true}, // GE = GT or EQ; !GE = LT or UN
++	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, true}, // LE = LT or EQ; !LE = GT or UN
++	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+@@ -973,9 +1018,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+-			if jmp.invasmeq {
+-				// TODO: The second branch is probably predict-not-taken since it is for FP equality
+-				q := gc.Prog(ppc64.ABEQ)
++			if jmp.invasmun {
++				// TODO: The second branch is probably predict-not-taken since it is for FP unordered
++				q := gc.Prog(ppc64.ABVS)
+ 				q.To.Type = obj.TYPE_BRANCH
+ 				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 72122a7b44..f41b5e8d79 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -254,6 +254,7 @@ func (c *Config) Set387(b bool) {
+ 
+ func (c *Config) Frontend() Frontend      { return c.fe }
+ func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
++func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+ 
+ // NewFunc returns a new, empty function object.
+ // Caller must call f.Free() before calling NewFunc again.
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 2e746e32d4..4e95e7251b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -380,10 +380,11 @@
+ (GreaterThan (InvertFlags x)) -> (LessThan x)
+ (LessEqual (InvertFlags x)) -> (GreaterEqual x)
+ (GreaterEqual (InvertFlags x)) -> (LessEqual x)
+-(FLessThan (InvertFlags x)) -> (FGreaterThan x)
+-(FGreaterThan (InvertFlags x)) -> (FLessThan x)
+-(FLessEqual (InvertFlags x)) -> (FGreaterEqual x)
+-(FGreaterEqual (InvertFlags x)) -> (FLessEqual x)
++
++// (FLessThan (InvertFlags x)) -> (FGreaterThan x)
++// (FGreaterThan (InvertFlags x)) -> (FLessThan x)
++// (FLessEqual (InvertFlags x)) -> (FGreaterEqual x)
++// (FGreaterEqual (InvertFlags x)) -> (FLessEqual x)
+ 
+ 
+ // Lowering loads
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 9f4416a383..cbc13db5a7 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -124,7 +124,7 @@ func init() {
+ 		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
+ 		sp = buildReg("SP")
+ 		sb = buildReg("SB")
+-		// gr  = buildReg("g")
++		gr = buildReg("g")
+ 		// cr  = buildReg("CR")
+ 		// ctr = buildReg("CTR")
+ 		// lr  = buildReg("LR")
+@@ -148,7 +148,7 @@ func init() {
+ 		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
+ 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
+-		callerSave  = regMask(gp | fp)
++		callerSave  = regMask(gp | fp | gr)
+ 	)
+ 	ops := []opData{
+ 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 08206ebad7..f5fd0dd4fd 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -13247,7 +13247,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		reg: regInfo{
+-			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			clobbers: 288230372930482172, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13260,7 +13260,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 1024},      // R11
+ 				{0, 536866813}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			clobbers: 288230372930482172, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13269,7 +13269,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		reg: regInfo{
+-			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			clobbers: 288230372930482172, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13278,7 +13278,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		reg: regInfo{
+-			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			clobbers: 288230372930482172, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+@@ -13290,7 +13290,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			clobbers: 288230372393611260, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			clobbers: 288230372930482172, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index e2c7fe1067..5aba193ade 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -480,12 +480,20 @@ func (s *regAllocState) init(f *Func) {
+ 	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+ 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
+ 	}
++	if s.f.Config.ctxt.Flag_shared {
++		switch s.f.Config.arch {
++		case "ppc64le": // R2 already reserved.
++			s.allocatable &^= 1 << 11 // R12 -- R0 is skipped in PPC64Ops.go
++		}
++	}
+ 	if s.f.Config.ctxt.Flag_dynlink {
+ 		switch s.f.Config.arch {
+ 		case "amd64":
+ 			s.allocatable &^= 1 << 15 // R15
+ 		case "arm":
+ 			s.allocatable &^= 1 << 9 // R9
++		case "ppc64le": // R2 already reserved.
++			s.allocatable &^= 1 << 11 // R12 -- R0 is skipped in PPC64Ops.go
+ 		case "arm64":
+ 			// nothing to do?
+ 		case "386":
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 9675d2f731..311b5532ab 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -350,14 +350,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpPPC64CMPconst(v, config)
+ 	case OpPPC64Equal:
+ 		return rewriteValuePPC64_OpPPC64Equal(v, config)
+-	case OpPPC64FGreaterEqual:
+-		return rewriteValuePPC64_OpPPC64FGreaterEqual(v, config)
+-	case OpPPC64FGreaterThan:
+-		return rewriteValuePPC64_OpPPC64FGreaterThan(v, config)
+-	case OpPPC64FLessEqual:
+-		return rewriteValuePPC64_OpPPC64FLessEqual(v, config)
+-	case OpPPC64FLessThan:
+-		return rewriteValuePPC64_OpPPC64FLessThan(v, config)
+ 	case OpPPC64GreaterEqual:
+ 		return rewriteValuePPC64_OpPPC64GreaterEqual(v, config)
+ 	case OpPPC64GreaterThan:
+@@ -4178,78 +4170,6 @@ func rewriteValuePPC64_OpPPC64Equal(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValuePPC64_OpPPC64FGreaterEqual(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (FGreaterEqual (InvertFlags x))
+-	// cond:
+-	// result: (FLessEqual x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpPPC64InvertFlags {
+-			break
+-		}
+-		x := v_0.Args[0]
+-		v.reset(OpPPC64FLessEqual)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValuePPC64_OpPPC64FGreaterThan(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (FGreaterThan (InvertFlags x))
+-	// cond:
+-	// result: (FLessThan x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpPPC64InvertFlags {
+-			break
+-		}
+-		x := v_0.Args[0]
+-		v.reset(OpPPC64FLessThan)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValuePPC64_OpPPC64FLessEqual(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (FLessEqual (InvertFlags x))
+-	// cond:
+-	// result: (FGreaterEqual x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpPPC64InvertFlags {
+-			break
+-		}
+-		x := v_0.Args[0]
+-		v.reset(OpPPC64FGreaterEqual)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValuePPC64_OpPPC64FLessThan(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (FLessThan (InvertFlags x))
+-	// cond:
+-	// result: (FGreaterThan x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpPPC64InvertFlags {
+-			break
+-		}
+-		x := v_0.Args[0]
+-		v.reset(OpPPC64FGreaterThan)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValuePPC64_OpPPC64GreaterEqual(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index eb0baaf6df..e79271042a 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -266,13 +266,13 @@ const (
+ 	ABC
+ 	ABCL
+ 	ABEQ
+-	ABGE
++	ABGE // not LT = G/E/U
+ 	ABGT
+-	ABLE
++	ABLE // not GT = L/E/U
+ 	ABLT
+-	ABNE
+-	ABVC
+-	ABVS
++	ABNE // not EQ = L/G/U
++	ABVC // apparently Unordered-clear
++	ABVS // apparently Unordered-set
+ 	ACMP
+ 	ACMPU
+ 	ACNTLZW
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 968bc95e10..18a34e410a 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -3092,9 +3092,9 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
+ 	case ABNE:
+ 		return AOP_RRR(16<<26, 4, 2, 0)
+ 	case ABVC:
+-		return AOP_RRR(16<<26, 4, 3, 0)
++		return AOP_RRR(16<<26, 4, 3, 0) // apparently unordered-clear
+ 	case ABVS:
+-		return AOP_RRR(16<<26, 12, 3, 0)
++		return AOP_RRR(16<<26, 12, 3, 0) // apparently unordered-set
+ 
+ 	case ACMP:
+ 		return OPVCC(11, 0, 0, 0) | 1<<21 /* L=1 */
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index 712a10f2ef..687adf20f3 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -11,7 +11,7 @@ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+ 	StackBig    = 4096
+-	StackGuard  = 720*stackGuardMultiplier + StackSystem
++	StackGuard  = 880*stackGuardMultiplier + StackSystem
+ 	StackSmall  = 128
+ 	StackLimit  = StackGuard - StackSystem - StackSmall
+ )
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 8398a101fd..9528405c96 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -90,7 +90,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 720*sys.StackGuardMultiplier + _StackSystem
++	_StackGuard = 880*sys.StackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard. This saves an instruction
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index 34ec719f12..8b2dc1b5d5 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -22,7 +22,7 @@ func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: q xx" "liv
+ 	// xx was live for the first two prints but then it switched to &xx
+ 	// being live. We should not see plain xx again.
+ 	if b {
+-		global = &xx // ERROR "live at call to writebarrierptr: q &xx$"
++		global = &xx // ERROR "live at call to writebarrierptr: q &xx[^x]*$"
+ 	}
+ 	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject: q( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: q (e|err.data err.type)$"
+ 	if err != nil {
+diff --git a/test/live.go b/test/live.go
+index 8675840d0e..054c40eca6 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -1,4 +1,4 @@
+-// +build !amd64,!arm,!amd64p32,!386,!arm64
++// +build !amd64,!arm,!amd64p32,!386,!arm64,!ppc64le
+ // errorcheck -0 -l -live -wb=0
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/nosplit.go b/test/nosplit.go
+index a58a645872..5f4e62f5b1 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -305,13 +305,13 @@ TestCases:
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first stack frame to use up the extra bytes.
+ 				if i == 0 {
+-					size += (720 - 128) - 128
++					size += (880 - 128) - 128
+ 					// Noopt builds have a larger stackguard.
+ 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
+ 					// This increase is included in obj.StackGuard
+ 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+ 						if s == "-N" {
+-							size += 720
++							size += 880
+ 						}
+ 					}
+ 				}
+diff --git a/test/sliceopt.go b/test/sliceopt.go
+index 9dc8a4444c..33b4818f18 100644
+--- a/test/sliceopt.go
++++ b/test/sliceopt.go
+@@ -1,4 +1,4 @@
+-// +build !amd64,!arm,!amd64p32,!386,!arm64
++// +build !amd64,!arm,!amd64p32,!386,!arm64,!ppc64le
+ // errorcheck -0 -d=append,slice
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.

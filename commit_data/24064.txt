@@ -9,6 +9,22 @@ Date:   Thu Jul 2 12:42:55 2015 +1000
     Change-Id: I2e32c2b34d5a5659ead6d6082b06e1b039bf1147
     Reviewed-on: https://go-review.googlesource.com/11852
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/crypto.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/crypto.go b/src/crypto/crypto.go
+index 183a4bd313..07082c41e7 100644
+--- a/src/crypto/crypto.go
++++ b/src/crypto/crypto.go
+@@ -126,8 +126,8 @@ type SignerOpts interface {
+ }
+ 
+ // Decrypter is an interface for an opaque private key that can be used for
+-// asymmetric decryption operations. For example, an RSA key kept in a hardware
+-// module.
++// asymmetric decryption operations. An example would be an RSA key
++// kept in a hardware module.
+ type Decrypter interface {
+ 	// Public returns the public key corresponding to the opaque,
+ 	// private key.

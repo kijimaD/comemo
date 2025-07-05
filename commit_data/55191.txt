@@ -26,7 +26,7 @@ Date:   Sat May 14 22:45:05 2022 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/README.md                  |  4 ++--
  src/cmd/compile/internal/ssa/_gen/README                | 10 +++++++---
  src/cmd/compile/internal/ssa/_gen/allocators.go         |  2 +-
@@ -56,3 +56,332 @@ Date:   Sat May 14 22:45:05 2022 -0400
  src/cmd/compile/internal/ssa/rewritedec64.go            |  3 +--
  src/cmd/compile/internal/ssa/rewritegeneric.go          |  3 +--
  28 files changed, 43 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/README.md b/src/cmd/compile/internal/ssa/README.md
+index 27ac02b4a2..5dc4fbee6f 100644
+--- a/src/cmd/compile/internal/ssa/README.md
++++ b/src/cmd/compile/internal/ssa/README.md
+@@ -214,8 +214,8 @@ To read more on rewrite rules, have a look at the top comments in
+ 
+ Similarly, the code to manage operators is also code generated from
+ `_gen/*Ops.go`, as it is easier to maintain a few tables than a lot of code.
+-After changing the rules or operators, see [_gen/README](_gen/README) for
+-instructions on how to generate the Go code again.
++After changing the rules or operators, run `go generate cmd/compile/internal/ssa`
++to generate the Go code again.
+ 
+ <!---
+ TODO: more tips and info could likely go here
+diff --git a/src/cmd/compile/internal/ssa/_gen/README b/src/cmd/compile/internal/ssa/_gen/README
+index 0c7ceba7eb..74b81c2814 100644
+--- a/src/cmd/compile/internal/ssa/_gen/README
++++ b/src/cmd/compile/internal/ssa/_gen/README
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-This package generates opcode tables, rewrite rules, etc. for the ssa compiler.
+-Run it with go-1.13 (or above):
+-   go run .
++This command generates Go code (in the parent directory) for all
++the architecture-specific opcodes, blocks, and rewrites. See the
++"Hacking on SSA" section in the parent directory's README.md for
++more information.
++
++To regenerate everything, run "go generate" on the ssa package
++in the parent directory.
+diff --git a/src/cmd/compile/internal/ssa/_gen/allocators.go b/src/cmd/compile/internal/ssa/_gen/allocators.go
+index 0f3968c485..48a2598d05 100644
+--- a/src/cmd/compile/internal/ssa/_gen/allocators.go
++++ b/src/cmd/compile/internal/ssa/_gen/allocators.go
+@@ -128,7 +128,7 @@ func genAllocators() {
+ 	}
+ 
+ 	w := new(bytes.Buffer)
+-	fmt.Fprintf(w, "// Code generated from _gen/allocators.go; DO NOT EDIT.\n")
++	fmt.Fprintf(w, "// Code generated from _gen/allocators.go using 'go generate'; DO NOT EDIT.\n")
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintln(w, "package ssa")
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+index 9251ba5d2d..086418c7cb 100644
+--- a/src/cmd/compile/internal/ssa/_gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -191,7 +191,7 @@ func main() {
+ 
+ func genOp() {
+ 	w := new(bytes.Buffer)
+-	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go; DO NOT EDIT.\n")
++	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintln(w, "package ssa")
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+index 80fa37a86b..2840e8f458 100644
+--- a/src/cmd/compile/internal/ssa/_gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -576,8 +576,7 @@ func fprint(w io.Writer, n Node) {
+ 	case *File:
+ 		file := n
+ 		seenRewrite := make(map[[3]string]string)
+-		fmt.Fprintf(w, "// Code generated from _gen/%s%s.rules; DO NOT EDIT.\n", n.Arch.name, n.Suffix)
+-		fmt.Fprintf(w, "// generated with: cd _gen; go run .\n")
++		fmt.Fprintf(w, "// Code generated from _gen/%s%s.rules using 'go generate'; DO NOT EDIT.\n", n.Arch.name, n.Suffix)
+ 		fmt.Fprintf(w, "\npackage ssa\n")
+ 		for _, path := range append([]string{
+ 			"fmt",
+diff --git a/src/cmd/compile/internal/ssa/allocators.go b/src/cmd/compile/internal/ssa/allocators.go
+index 7cd7cad1e9..d782464c02 100644
+--- a/src/cmd/compile/internal/ssa/allocators.go
++++ b/src/cmd/compile/internal/ssa/allocators.go
+@@ -1,4 +1,4 @@
+-// Code generated from _gen/allocators.go; DO NOT EDIT.
++// Code generated from _gen/allocators.go using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/generate.go b/src/cmd/compile/internal/ssa/generate.go
+new file mode 100644
+index 0000000000..74c5b31829
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/generate.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build generate
++
++package ssa
++
++//go:generate go run -C=_gen .
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 407ecbb250..9ff0ad353e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1,4 +1,4 @@
+-// Code generated from _gen/*Ops.go; DO NOT EDIT.
++// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 0cacfe3834..a7671e9190 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/386.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/386.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386splitload.go b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+index ef3bf262b9..a8bd6aaff4 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386splitload.go
++++ b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/386splitload.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/386splitload.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index cad37d4039..395b2b1e6e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/AMD64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/AMD64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go b/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+index 792cddd09e..a6ba7d9e33 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/AMD64latelower.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/AMD64latelower.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+index b443f1687e..0dcb1b460f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/AMD64splitload.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/AMD64splitload.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 8fa2a6af1d..c31d89c1fd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/ARM.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/ARM.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index e82a49c331..88c690be1f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/ARM64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/ARM64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64latelower.go b/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
+index 49e154821d..0998757185 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/ARM64latelower.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/ARM64latelower.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index f6da0b7ff0..451b8313eb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/LOONG64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/LOONG64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 1c8d90a07e..f1e4970af8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/MIPS.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/MIPS.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index c0d42b55f5..14d39babf2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/MIPS64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/MIPS64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index bc593128da..192ec49d82 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/PPC64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/PPC64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+index d687f59c3e..a9a14459e2 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/PPC64latelower.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/PPC64latelower.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 961230d8bb..5107b9a96f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/RISCV64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/RISCV64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go b/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go
+index 04a9691b02..6dd97d65bd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/RISCV64latelower.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/RISCV64latelower.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 8f40ecdc81..597941c26d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/S390X.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/S390X.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index a5be7922a0..818003c4a7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/Wasm.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/Wasm.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index 1b92fb8127..5c04708b27 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/dec.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/dec.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 26036b2f0a..901dc758c3 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/dec64.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/dec64.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f8c64e6e06..e1c65fc286 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1,5 +1,4 @@
+-// Code generated from _gen/generic.rules; DO NOT EDIT.
+-// generated with: cd _gen; go run .
++// Code generated from _gen/generic.rules using 'go generate'; DO NOT EDIT.
+ 
+ package ssa
+ 

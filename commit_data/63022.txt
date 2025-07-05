@@ -20,6 +20,26 @@ Date:   Tue May 13 14:28:01 2025 +0200
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Commit-Queue: Alan Donovan <adonovan@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/net_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index bca6c99074..7269db8f2b 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -98,12 +98,12 @@ func TestCloseWrite(t *testing.T) {
+ 				}
+ 
+ 				// Workaround for https://go.dev/issue/49352.
+-				// On arm64 macOS (current as of macOS 12.4),
++				// On Windows and arm64 macOS (current as of macOS 12.4),
+ 				// reading from a socket at the same time as the client
+ 				// is closing it occasionally hangs for 60 seconds before
+ 				// returning ECONNRESET. Sleep for a bit to give the
+ 				// socket time to close before trying to read from it.
+-				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++				if runtime.GOOS == "windows" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
+ 					time.Sleep(10 * time.Millisecond)
+ 				}
+ 

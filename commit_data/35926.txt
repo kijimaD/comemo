@@ -17,9 +17,134 @@ Date:   Tue Dec 12 08:59:01 2017 +0900
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/srcimporter/srcimporter.go         | 28 ++++---------------
  src/go/internal/srcimporter/srcimporter_test.go    | 32 ++++++++++++++++++++++
  .../srcimporter/testdata/issue23092/issue23092.go  |  5 ++++
  .../srcimporter/testdata/issue24392/issue24392.go  |  5 ++++
  4 files changed, 47 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index e00fbbd835..2a6c274424 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -46,9 +46,9 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
+ // for a package that is in the process of being imported.
+ var importing types.Package
+ 
+-// Import(path) is a shortcut for ImportFrom(path, "", 0).
++// Import(path) is a shortcut for ImportFrom(path, ".", 0).
+ func (p *Importer) Import(path string) (*types.Package, error) {
+-	return p.ImportFrom(path, "", 0)
++	return p.ImportFrom(path, ".", 0) // use "." rather than "" (see issue #24441)
+ }
+ 
+ // ImportFrom imports the package with the given import path resolved from the given srcDir,
+@@ -62,23 +62,10 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 		panic("non-zero import mode")
+ 	}
+ 
+-	// determine package path (do vendor resolution)
+-	var bp *build.Package
+-	var err error
+-	switch {
+-	default:
+-		if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
+-			srcDir = abs
+-		}
+-		bp, err = p.ctxt.Import(path, srcDir, build.FindOnly)
+-
+-	case build.IsLocalImport(path):
+-		// "./x" -> "srcDir/x"
+-		bp, err = p.ctxt.ImportDir(filepath.Join(srcDir, path), build.FindOnly)
+-
+-	case p.isAbsPath(path):
+-		return nil, fmt.Errorf("invalid absolute import path %q", path)
++	if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
++		srcDir = abs
+ 	}
++	bp, err := p.ctxt.Import(path, srcDir, 0)
+ 	if err != nil {
+ 		return nil, err // err may be *build.NoGoError - return as is
+ 	}
+@@ -115,11 +102,6 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 		}
+ 	}()
+ 
+-	// collect package files
+-	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
+-	if err != nil {
+-		return nil, err // err may be *build.NoGoError - return as is
+-	}
+ 	var filenames []string
+ 	filenames = append(filenames, bp.GoFiles...)
+ 	filenames = append(filenames, bp.CgoFiles...)
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 7310aa7d3f..b9caa90fc5 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"go/types"
+ 	"internal/testenv"
+ 	"io/ioutil"
++	"path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -200,3 +201,34 @@ func TestIssue20855(t *testing.T) {
+ 		t.Error("got no package despite no hard errors")
+ 	}
+ }
++
++func testImportPath(t *testing.T, pkgPath string) {
++	if !testenv.HasSrc() {
++		t.Skip("no source code available")
++	}
++
++	pkgName := path.Base(pkgPath)
++
++	pkg, err := importer.Import(pkgPath)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if pkg.Name() != pkgName {
++		t.Errorf("got %q; want %q", pkg.Name(), pkgName)
++	}
++
++	if pkg.Path() != pkgPath {
++		t.Errorf("got %q; want %q", pkg.Path(), pkgPath)
++	}
++}
++
++// TestIssue23092 tests relative imports.
++func TestIssue23092(t *testing.T) {
++	testImportPath(t, "./testdata/issue23092")
++}
++
++// TestIssue24392 tests imports against a path containing 'testdata'.
++func TestIssue24392(t *testing.T) {
++	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
++}
+diff --git a/src/go/internal/srcimporter/testdata/issue23092/issue23092.go b/src/go/internal/srcimporter/testdata/issue23092/issue23092.go
+new file mode 100644
+index 0000000000..608698bfc5
+--- /dev/null
++++ b/src/go/internal/srcimporter/testdata/issue23092/issue23092.go
+@@ -0,0 +1,5 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue23092
+diff --git a/src/go/internal/srcimporter/testdata/issue24392/issue24392.go b/src/go/internal/srcimporter/testdata/issue24392/issue24392.go
+new file mode 100644
+index 0000000000..8ad52218fc
+--- /dev/null
++++ b/src/go/internal/srcimporter/testdata/issue24392/issue24392.go
+@@ -0,0 +1,5 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue24392

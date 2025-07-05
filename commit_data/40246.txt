@@ -9,7 +9,82 @@ Date:   Mon Apr 29 16:36:21 2019 +0000
     Change-Id: If27b61776154dae9b9b67bf4e4f5faa785d98105
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174318
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec.go      | 25 ++++++++++++++++++++++++-
  src/os/exec/exec_test.go | 19 +++++++++++++++++++
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index d481cf7798..9a9265b667 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -71,6 +71,8 @@ type Cmd struct {
+ 	// environment.
+ 	// If Env contains duplicate environment keys, only the last
+ 	// value in the slice for each duplicate key is used.
++	// As a special case on Windows, SYSTEMROOT is always added if
++	// missing and not explicitly set to the empty string.
+ 	Env []string
+ 
+ 	// Dir specifies the working directory of the command.
+@@ -412,7 +414,7 @@ func (c *Cmd) Start() error {
+ 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+ 		Dir:   c.Dir,
+ 		Files: c.childFiles,
+-		Env:   dedupEnv(c.envv()),
++		Env:   addCriticalEnv(dedupEnv(c.envv())),
+ 		Sys:   c.SysProcAttr,
+ 	})
+ 	if err != nil {
+@@ -756,3 +758,24 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
+ 	}
+ 	return out
+ }
++
++// addCriticalEnv adds any critical environment variables that are required
++// (or at least almost always required) on the operating system.
++// Currently this is only used for Windows.
++func addCriticalEnv(env []string) []string {
++	if runtime.GOOS != "windows" {
++		return env
++	}
++	for _, kv := range env {
++		eq := strings.Index(kv, "=")
++		if eq < 0 {
++			continue
++		}
++		k := kv[:eq]
++		if strings.EqualFold(k, "SYSTEMROOT") {
++			// We already have it.
++			return env
++		}
++	}
++	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
++}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 26be62dd92..a157810eed 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1184,3 +1184,22 @@ func TestStringPathNotResolved(t *testing.T) {
+ 		t.Errorf("String(%q, %q) = %q, want %q", "makemeasandwich", "-lettuce", got, want)
+ 	}
+ }
++
++// start a child process without the user code explicitly starting
++// with a copy of the parent's. (The Windows SYSTEMROOT issue: Issue
++// 25210)
++func TestChildCriticalEnv(t *testing.T) {
++	testenv.MustHaveExec(t)
++	if runtime.GOOS != "windows" {
++		t.Skip("only testing on Windows")
++	}
++	cmd := helperCommand(t, "echoenv", "SYSTEMROOT")
++	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if strings.TrimSpace(string(out)) == "" {
++		t.Error("no SYSTEMROOT found")
++	}
++}

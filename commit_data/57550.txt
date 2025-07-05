@@ -18,7 +18,89 @@ Date:   Fri Jun 30 16:18:44 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 21 ++++++++++++++-------
  src/runtime/runtime2.go                | 15 ++++++++++-----
  2 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 171f99522d..74fa6b7fdd 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5264,15 +5264,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 		addr := s.addr(d)
+ 
+-		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
+-		// 0: heap, set in deferprocStack
+-		// 1: sp, set in deferprocStack
+-		// 2: pc, set in deferprocStack
+-		// 3: fn
+ 		s.store(closure.Type,
+-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(3), addr),
++			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(deferStructFnField), addr),
+ 			closure)
+-		// 4: link, set in deferprocStack
+ 
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
+@@ -8101,6 +8095,8 @@ func max8(a, b int8) int8 {
+ 	return b
+ }
+ 
++var deferStructFnField = -1
++
+ // deferstruct makes a runtime._defer structure.
+ func deferstruct() *types.Type {
+ 	makefield := func(name string, typ *types.Type) *types.Field {
+@@ -8114,6 +8110,7 @@ func deferstruct() *types.Type {
+ 	// (*state).call above.
+ 	fields := []*types.Field{
+ 		makefield("heap", types.Types[types.TBOOL]),
++		makefield("rangefunc", types.Types[types.TBOOL]),
+ 		makefield("sp", types.Types[types.TUINTPTR]),
+ 		makefield("pc", types.Types[types.TUINTPTR]),
+ 		// Note: the types here don't really matter. Defer structures
+@@ -8121,6 +8118,16 @@ func deferstruct() *types.Type {
+ 		// so we make them uintptr type even though they are real pointers.
+ 		makefield("fn", types.Types[types.TUINTPTR]),
+ 		makefield("link", types.Types[types.TUINTPTR]),
++		makefield("head", types.Types[types.TUINTPTR]),
++	}
++	for i, f := range fields {
++		if f.Sym.Name == "fn" {
++			deferStructFnField = i
++			break
++		}
++	}
++	if deferStructFnField < 0 {
++		base.Fatalf("deferstruct has no fn field")
+ 	}
+ 
+ 	// build struct holding the above fields
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 54fab050ea..5017a7a80a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1001,11 +1001,16 @@ func extendRandom(r []byte, n int) {
+ // initialize them are not required. All defers must be manually scanned,
+ // and for heap defers, marked.
+ type _defer struct {
+-	heap bool
+-	sp   uintptr // sp at time of defer
+-	pc   uintptr // pc at time of defer
+-	fn   func()  // can be nil for open-coded defers
+-	link *_defer // next defer on G; can point to either heap or stack!
++	heap      bool
++	rangefunc bool    // true for rangefunc list
++	sp        uintptr // sp at time of defer
++	pc        uintptr // pc at time of defer
++	fn        func()  // can be nil for open-coded defers
++	link      *_defer // next defer on G; can point to either heap or stack!
++
++	// If rangefunc is true, *head is the head of the atomic linked list
++	// during a range-over-func execution.
++	head *atomic.Pointer[_defer]
+ }
+ 
+ // A _panic holds information about an active panic.

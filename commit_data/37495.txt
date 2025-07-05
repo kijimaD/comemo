@@ -7,7 +7,35 @@ Date:   Mon Aug 6 15:42:26 2018 -0400
     Change-Id: I09532546c96b3758f76528fb5010dafc638139b8
     Reviewed-on: https://go-review.googlesource.com/128135
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go | 2 +-
  src/cmd/go/internal/modload/load.go   | 3 ---
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index f0e7d86607..fc845c2974 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -42,7 +42,7 @@ func (e *ImportMissingError) Error() string {
+ // If the package cannot be found in the current build list,
+ // Import returns an ImportMissingError as the error.
+ // If Import can identify a module that could be added to supply the package,
+-// the ImportMissingErr records that module.
++// the ImportMissingError records that module.
+ func Import(path string) (m module.Version, dir string, err error) {
+ 	if strings.Contains(path, "@") {
+ 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 9c550445ee..b151963087 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -504,9 +504,6 @@ func (ld *loader) load(roots func() []string) {
+ 			}
+ 		}
+ 	}
+-
+-	// Check for visibility violations.
+-	// TODO!
+ }
+ 
+ // pkg returns the *loadPkg for path, creating and queuing it if needed.

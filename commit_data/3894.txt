@@ -6,9 +6,26 @@ Date:   Sun Nov 8 00:16:25 2009 -0800
     
     R=r
     http://go/go-review/1026023
-
+---
  doc/gordon/bumper192x108.png | Bin 0 -> 10781 bytes
  doc/gordon/bumper320x180.png | Bin 0 -> 20193 bytes
  doc/gordon/bumper480x270.png | Bin 0 -> 36347 bytes
  doc/gordon/bumper640x360.png | Bin 0 -> 57726 bytes
  4 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gordon/bumper192x108.png b/doc/gordon/bumper192x108.png
+new file mode 100644
+index 0000000000..470a74df5e
+Binary files /dev/null and b/doc/gordon/bumper192x108.png differ
+diff --git a/doc/gordon/bumper320x180.png b/doc/gordon/bumper320x180.png
+new file mode 100644
+index 0000000000..5b31b5d315
+Binary files /dev/null and b/doc/gordon/bumper320x180.png differ
+diff --git a/doc/gordon/bumper480x270.png b/doc/gordon/bumper480x270.png
+new file mode 100644
+index 0000000000..621f51b65b
+Binary files /dev/null and b/doc/gordon/bumper480x270.png differ
+diff --git a/doc/gordon/bumper640x360.png b/doc/gordon/bumper640x360.png
+new file mode 100644
+index 0000000000..9c898d0c79
+Binary files /dev/null and b/doc/gordon/bumper640x360.png differ

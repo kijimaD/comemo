@@ -8,7 +8,109 @@ Date:   Thu Sep 10 10:01:15 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/14466
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 | 23 ++++++------
  src/cmd/compile/internal/gc/testdata/string_ssa.go | 41 ++++++++++++++++++++++
  2 files changed, 54 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 70350e0e2c..0551ddbf08 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1693,19 +1693,22 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			var elemtype *Type
+-			var len *ssa.Value
+ 			if n.Left.Type.IsString() {
+-				len = s.newValue1(ssa.OpStringLen, Types[TINT], a)
+-				elemtype = Types[TUINT8]
++				if !n.Bounded {
++					len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
++					s.boundsCheck(i, len)
++				}
++				ptrtyp := Ptrto(Types[TUINT8])
++				ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
++				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
++				return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
+ 			} else {
+-				len = s.constInt(Types[TINT], n.Left.Type.Bound)
+-				elemtype = n.Left.Type.Type
+-			}
+-			if !n.Bounded {
+-				s.boundsCheck(i, len)
++				if !n.Bounded {
++					len := s.constInt(Types[TINT], n.Left.Type.Bound)
++					s.boundsCheck(i, len)
++				}
++				return s.newValue2(ssa.OpArrayIndex, n.Left.Type.Type, a, i)
+ 			}
+-			return s.newValue2(ssa.OpArrayIndex, elemtype, a, i)
+ 		} else { // slice
+ 			p := s.addr(n)
+ 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+diff --git a/src/cmd/compile/internal/gc/testdata/string_ssa.go b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+index 448433acd3..0ff6ce1a12 100644
+--- a/src/cmd/compile/internal/gc/testdata/string_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+@@ -70,6 +70,7 @@ func testStructSlice() {
+ 	p.slice_ssa()
+ 	if "pre" != p.prefix {
+ 		println("wrong field slice: wanted %s got %s", "pre", p.prefix)
++		failed = true
+ 	}
+ }
+ 
+@@ -114,11 +115,51 @@ func testSmallIndexType() {
+ 	}
+ }
+ 
++func testStringElem_ssa(s string, i int) byte {
++	switch { // prevent inlining
++	}
++	return s[i]
++}
++
++func testStringElem() {
++	tests := []struct {
++		s string
++		i int
++		n byte
++	}{
++		{"foobar", 3, 98},
++		{"foobar", 0, 102},
++		{"foobar", 5, 114},
++	}
++	for _, t := range tests {
++		if got := testStringElem_ssa(t.s, t.i); got != t.n {
++			print("testStringElem \"", t.s, "\"[", t.i, "]=", got, ", wanted ", t.n, "\n")
++			failed = true
++		}
++	}
++}
++
++func testStringElemConst_ssa(i int) byte {
++	switch { // prevent inlining
++	}
++	s := "foobar"
++	return s[i]
++}
++
++func testStringElemConst() {
++	if got := testStringElemConst_ssa(3); got != 98 {
++		println("testStringElemConst=", got, ", wanted 98")
++		failed = true
++	}
++}
++
+ func main() {
+ 	testStringSlice()
+ 	testStringSlicePanic()
+ 	testStructSlice()
+ 	testSmallIndexType()
++	testStringElem()
++	testStringElemConst()
+ 
+ 	if failed {
+ 		panic("failed")

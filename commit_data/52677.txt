@@ -28,7 +28,41 @@ Date:   Mon Nov 15 20:59:24 2021 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/at_sysnum_fstatat_linux.go | 2 +-
  src/internal/syscall/unix/sysnum_linux_generic.go    | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_sysnum_fstatat_linux.go b/src/internal/syscall/unix/at_sysnum_fstatat_linux.go
+index 73a3da5bff..90a932b740 100644
+--- a/src/internal/syscall/unix/at_sysnum_fstatat_linux.go
++++ b/src/internal/syscall/unix/at_sysnum_fstatat_linux.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build arm64 || riscv64
++//go:build arm64 || loong64 || riscv64
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/sysnum_linux_generic.go b/src/internal/syscall/unix/sysnum_linux_generic.go
+index 3c5394a96b..8c132c6bf5 100644
+--- a/src/internal/syscall/unix/sysnum_linux_generic.go
++++ b/src/internal/syscall/unix/sysnum_linux_generic.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && (arm64 || riscv64)
++//go:build linux && (arm64 || loong64 || riscv64)
+ 
+ package unix
+ 
+ // This file is named "generic" because at a certain point Linux started
+ // standardizing on system call numbers across architectures. So far this
+-// means only arm64 and riscv64 use the standard numbers.
++// means only arm64 loong64 and riscv64 use the standard numbers.
+ 
+ const (
+ 	getrandomTrap     uintptr = 278

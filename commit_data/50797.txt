@@ -15,7 +15,75 @@ Date:   Wed Nov 10 13:36:23 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 21 ++++++++++++++++++++-
  src/cmd/compile/internal/types2/type.go     | 24 ------------------------
  2 files changed, 20 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index fa0fc1e5e6..2bc084038f 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -334,7 +334,26 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src, _ := structuralString(y.typ).(*Slice)
++		// src, _ := structuralType(y.typ).(*Slice); but also accepts strings
++		var src *Slice
++		var elem Type // == src.elem if valid
++		if underIs(y.typ, func(u Type) bool {
++			switch u := u.(type) {
++			case *Basic:
++				if isString(u) && (elem == nil || Identical(elem, universeByte)) {
++					elem = universeByte
++					return true
++				}
++			case *Slice:
++				if elem == nil || Identical(elem, u.elem) {
++					elem = u.elem
++					return true
++				}
++			}
++			return false
++		}) {
++			src = NewSlice(elem)
++		}
+ 
+ 		if dst == nil || src == nil {
+ 			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 316e834a77..c8c0f36e5c 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -80,30 +80,6 @@ func structuralType(typ Type) Type {
+ 	return nil
+ }
+ 
+-// structuralString is like structuralType but also considers []byte
+-// and string as "identical". In this case, if successful, the result
+-// is always []byte.
+-func structuralString(typ Type) Type {
+-	var su Type
+-	if underIs(typ, func(u Type) bool {
+-		if isString(u) {
+-			u = NewSlice(universeByte)
+-		}
+-		if su != nil {
+-			u = match(su, u)
+-			if u == nil {
+-				return false
+-			}
+-		}
+-		// su == nil || match(su, u) != nil
+-		su = u
+-		return true
+-	}) {
+-		return su
+-	}
+-	return nil
+-}
+-
+ // If t is a defined type, asNamed returns that type (possibly after resolving it), otherwise it returns nil.
+ func asNamed(t Type) *Named {
+ 	e, _ := t.(*Named)

@@ -15,6 +15,20 @@ Date:   Mon Mar 22 13:35:49 2021 +0900
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/os/exec/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 57591a38ab..05cf807583 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1099,7 +1099,7 @@ func TestContextCancel(t *testing.T) {
+ 		if _, err := io.WriteString(w, "echo"); err != nil {
+ 			break
+ 		}
+-		if time.Since(start) > time.Second {
++		if time.Since(start) > time.Minute {
+ 			t.Fatal("canceling context did not stop program")
+ 		}
+ 		time.Sleep(time.Millisecond)

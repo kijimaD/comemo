@@ -35,7 +35,7 @@ Date:   Mon Mar 29 17:38:20 2021 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/objabi/util.go | 10 +++++++---
  src/runtime/asm_amd64.s         | 29 +++++++++++++++++++++++++++++
  src/runtime/cgocall.go          |  2 +-
@@ -48,3 +48,230 @@ Date:   Mon Mar 29 17:38:20 2021 -0400
  src/runtime/sys_netbsd_arm64.s  |  4 ++++
  src/runtime/sys_windows_amd64.s |  2 +-
  11 files changed, 64 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index e066311cd1..ae03aac31a 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -166,8 +166,8 @@ func init() {
+ 	if Experiment.RegabiG && !Experiment.RegabiWrappers {
+ 		panic("GOEXPERIMENT regabig requires regabiwrappers")
+ 	}
+-	if Experiment.RegabiArgs && !(Experiment.RegabiWrappers && Experiment.RegabiReflect && Experiment.RegabiDefer) {
+-		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect,regabidefer")
++	if Experiment.RegabiArgs && !(Experiment.RegabiWrappers && Experiment.RegabiG && Experiment.RegabiReflect && Experiment.RegabiDefer) {
++		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+ 	}
+ 
+ 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
+@@ -242,7 +242,11 @@ type ExpFlags struct {
+ 	// RegabiArgs enables register arguments/results in all
+ 	// compiled Go functions.
+ 	//
+-	// Requires wrappers, reflect, defer.
++	// Requires wrappers (to do ABI translation), g (because
++	// runtime assembly that's been ported to ABIInternal uses the
++	// G register), reflect (so reflection calls use registers),
++	// and defer (because the runtime doesn't support passing
++	// register arguments to defer/go).
+ 	RegabiArgs bool
+ }
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index b9efad0681..193d8f00bb 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -285,6 +285,34 @@ TEXT gogo<>(SB), NOSPLIT, $0
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return. It should gogo(&g->sched)
+ // to keep running g.
++#ifdef GOEXPERIMENT_REGABI_ARGS
++TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
++	MOVQ	AX, DX	// DX = fn
++
++	// save state in g->sched
++	MOVQ	0(SP), BX	// caller's PC
++	MOVQ	BX, (g_sched+gobuf_pc)(R14)
++	LEAQ	fn+0(FP), BX	// caller's SP
++	MOVQ	BX, (g_sched+gobuf_sp)(R14)
++	MOVQ	BP, (g_sched+gobuf_bp)(R14)
++
++	// switch to m->g0 & its stack, call fn
++	MOVQ	g_m(R14), BX
++	MOVQ	m_g0(BX), SI	// SI = g.m.g0
++	CMPQ	SI, R14	// if g == m->g0 call badmcall
++	JNE	goodm
++	JMP	runtime·badmcall(SB)
++goodm:
++	MOVQ	R14, AX		// AX (and arg 0) = g
++	MOVQ	SI, R14		// g = g.m.g0
++	get_tls(CX)		// Set G in TLS
++	MOVQ	R14, g(CX)
++	MOVQ	(g_sched+gobuf_sp)(R14), SP	// sp = g0.sched.sp
++	MOVQ	0(DX), R12
++	CALL	R12		// fn(g)
++	JMP	runtime·badmcall2(SB)
++	RET
++#else
+ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	fn+0(FP), DI
+ 
+@@ -315,6 +343,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	$runtime·badmcall2(SB), AX
+ 	JMP	AX
+ 	RET
++#endif
+ 
+ // systemstack_switch is a dummy routine that systemstack leaves at the bottom
+ // of the G stack. We need to distinguish the routine that
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 534a2c4295..0e287d0b8e 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -195,7 +195,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	return errno
+ }
+ 
+-// Call from C back to Go.
++// Call from C back to Go. fn must point to an ABIInternal Go entry-point.
+ //go:nosplit
+ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	gp := getg()
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 0328fa57ae..6fbb3aa694 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -228,7 +228,11 @@ func newosproc(mp *m) {
+ 	}
+ }
+ 
+-// netbsdMStart is the function call that starts executing a newly
++// mstart is the entry-point for new Ms.
++// It is written in assembly, uses ABI0, is marked TOPFRAME, and calls netbsdMstart0.
++func netbsdMstart()
++
++// netbsdMStart0 is the function call that starts executing a newly
+ // created thread. On NetBSD, a new thread inherits the signal stack
+ // of the creating thread. That confuses minit, so we remove that
+ // signal stack here before calling the regular mstart. It's a bit
+@@ -236,10 +240,10 @@ func newosproc(mp *m) {
+ // it's a simple change that keeps NetBSD working like other OS's.
+ // At this point all signals are blocked, so there is no race.
+ //go:nosplit
+-func netbsdMstart() {
++func netbsdMstart0() {
+ 	st := stackt{ss_flags: _SS_DISABLE}
+ 	sigaltstack(&st, nil)
+-	mstart()
++	mstart0()
+ }
+ 
+ func osinit() {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2a7a766b25..a256b6e04a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1258,7 +1258,7 @@ func mStackIsSystemAllocated() bool {
+ }
+ 
+ // mstart is the entry-point for new Ms.
+-// It is written in assembly, marked TOPFRAME, and calls mstart0.
++// It is written in assembly, uses ABI0, is marked TOPFRAME, and calls mstart0.
+ func mstart()
+ 
+ // mstart0 is the Go entry-point for new Ms.
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 584f2c5b1e..7b538c3e2f 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -652,7 +652,7 @@ nog1:
+ 	CALL	runtime·stackcheck(SB)
+ 
+ nog2:
+-	// Call fn
++	// Call fn. This is the PC of an ABI0 function.
+ 	CALL	R12
+ 
+ 	// It shouldn't return. If it does, exit that thread.
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index d0c470c457..d3f22454a4 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -376,6 +376,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	MOVL	$0x1234, 0x1005
+ 	RET
+ 
++TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	·netbsdMstart0(SB)
++	RET // not reached
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$SYS___sigaltstack14, AX
+ 	MOVL	new+0(FP), BX
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index dc9bd127d2..addd98cd27 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -70,7 +70,7 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	MOVQ	R9, g(CX)
+ 	CALL	runtime·stackcheck(SB)
+ 
+-	// Call fn
++	// Call fn. This is an ABI0 PC.
+ 	CALL	R12
+ 
+ 	// It shouldn't return. If it does, exit.
+@@ -78,6 +78,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JMP	-3(PC)			// keep exiting
+ 
++TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	·netbsdMstart0(SB)
++	RET // not reached
++
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVL	$SYS_sched_yield, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 678dea57c6..82f9d2161e 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -177,6 +177,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	MOVW R8, (R8)
+ 	RET
+ 
++TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
++	BL ·netbsdMstart0(SB)
++	RET // not reached
++
+ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVW usec+0(FP), R0
+ 	CALL runtime·usplitR0(SB)
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 4d9b05478f..1446a27f4c 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -76,6 +76,10 @@ nog:
+ 	MOVD	$0, R0  // crash (not reached)
+ 	MOVD	R0, (R8)
+ 
++TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
++	CALL	·netbsdMstart0(SB)
++	RET // not reached
++
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	SVC	$SYS_sched_yield
+ 	RET
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 8a91741619..099894efe7 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -320,7 +320,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	// Call cgocallback, which will call callbackWrap(frame).
+ 	MOVQ	$0, 16(SP)	// context
+ 	MOVQ	AX, 8(SP)	// frame (address of callbackArgs)
+-	LEAQ	·callbackWrap(SB), BX
++	LEAQ	·callbackWrap<ABIInternal>(SB), BX	// cgocallback takes an ABIInternal entry-point
+ 	MOVQ	BX, 0(SP)	// PC of function value to call (callbackWrap)
+ 	CALL	·cgocallback(SB)
+ 	// Get callback result.

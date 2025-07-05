@@ -19,8 +19,222 @@ Date:   Mon Mar 21 11:58:08 2022 -0700
     Reviewed-by: Jordan Liggitt <liggitt@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/verify.go    |  3 ++
  src/crypto/x509/x509.go      | 22 +++++------
  src/crypto/x509/x509_test.go | 94 +++++++++++++++++++++++++++++++++-----------
  3 files changed, 85 insertions(+), 34 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index e8c7707f3f..4be4eb6095 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -724,6 +724,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ // list. (While this is not specified, it is common practice in order to limit
+ // the types of certificates a CA can issue.)
+ //
++// Certificates that use SHA1WithRSA and ECDSAWithSHA1 signatures are not supported,
++// and will not be used to build chains.
++//
+ // WARNING: this function doesn't do any revocation checking.
+ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+ 	// Platform-specific verification needs the ASN.1 contents so
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 584456c343..cb43079a9c 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -184,13 +184,13 @@ const (
+ 
+ 	MD2WithRSA  // Unsupported.
+ 	MD5WithRSA  // Only supported for signing, not verification.
+-	SHA1WithRSA // Only supported for signing, not verification.
++	SHA1WithRSA // Only supported for signing, and verification of CRLs, CSRs, and OCSP responses.
+ 	SHA256WithRSA
+ 	SHA384WithRSA
+ 	SHA512WithRSA
+ 	DSAWithSHA1   // Unsupported.
+ 	DSAWithSHA256 // Unsupported.
+-	ECDSAWithSHA1 // Only supported for signing, not verification.
++	ECDSAWithSHA1 // Only supported for signing, and verification of CRLs, CSRs, and OCSP responses.
+ 	ECDSAWithSHA256
+ 	ECDSAWithSHA384
+ 	ECDSAWithSHA512
+@@ -767,7 +767,7 @@ func (c *Certificate) hasSANExtension() bool {
+ }
+ 
+ // CheckSignatureFrom verifies that the signature on c is a valid signature
+-// from parent.
++// from parent. SHA1WithRSA and ECDSAWithSHA1 signatures are not supported.
+ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
+ 	// RFC 5280, 4.2.1.9:
+ 	// "If the basic constraints extension is not present in a version 3
+@@ -789,13 +789,13 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
+ 
+ 	// TODO(agl): don't ignore the path length constraint.
+ 
+-	return parent.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature)
++	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, debugAllowSHA1)
+ }
+ 
+ // CheckSignature verifies that signature is a valid signature over signed from
+ // c's public key.
+ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) error {
+-	return checkSignature(algo, signed, signature, c.PublicKey)
++	return checkSignature(algo, signed, signature, c.PublicKey, true)
+ }
+ 
+ func (c *Certificate) hasNameConstraints() bool {
+@@ -815,9 +815,9 @@ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm,
+ 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
+ }
+ 
+-// CheckSignature verifies that signature is a valid signature over signed from
++// checkSignature verifies that signature is a valid signature over signed from
+ // a crypto.PublicKey.
+-func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
++func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool) (err error) {
+ 	var hashType crypto.Hash
+ 	var pubKeyAlgo PublicKeyAlgorithm
+ 
+@@ -836,7 +836,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 	case crypto.MD5:
+ 		return InsecureAlgorithmError(algo)
+ 	case crypto.SHA1:
+-		if !debugAllowSHA1 {
++		if !allowSHA1 {
+ 			return InsecureAlgorithmError(algo)
+ 		}
+ 		fallthrough
+@@ -1584,11 +1584,11 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 	// Check the signature to ensure the crypto.Signer behaved correctly.
+ 	sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm)
+ 	switch sigAlg {
+-	case MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1:
++	case MD5WithRSA:
+ 		// We skip the check if the signature algorithm is only supported for
+ 		// signing, not verification.
+ 	default:
+-		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
++		if err := checkSignature(sigAlg, c.Raw, signature, key.Public(), true); err != nil {
+ 			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+ 		}
+ 	}
+@@ -2067,7 +2067,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 
+ // CheckSignature reports whether the signature on c is valid.
+ func (c *CertificateRequest) CheckSignature() error {
+-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
++	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey, true)
+ }
+ 
+ // RevocationList contains the fields used to create an X.509 v2 Certificate
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index fd9840a486..d2889fc1d7 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2924,30 +2924,15 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
+ }
+ 
+ func TestCreateCertificateLegacy(t *testing.T) {
+-	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+-	if err != nil {
+-		t.Fatalf("Failed to generate ECDSA key: %s", err)
++	sigAlg := MD5WithRSA
++	template := &Certificate{
++		SerialNumber:       big.NewInt(10),
++		DNSNames:           []string{"example.com"},
++		SignatureAlgorithm: sigAlg,
+ 	}
+-
+-	for _, sigAlg := range []SignatureAlgorithm{
+-		MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1,
+-	} {
+-		template := &Certificate{
+-			SerialNumber:       big.NewInt(10),
+-			DNSNames:           []string{"example.com"},
+-			SignatureAlgorithm: sigAlg,
+-		}
+-		var k crypto.Signer
+-		switch sigAlg {
+-		case MD5WithRSA, SHA1WithRSA:
+-			k = testPrivateKey
+-		case ECDSAWithSHA1:
+-			k = ecdsaPriv
+-		}
+-		_, err := CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
+-		if err != nil {
+-			t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
+-		}
++	_, err := CreateCertificate(rand.Reader, template, template, testPrivateKey.Public(), &brokenSigner{testPrivateKey.Public()})
++	if err != nil {
++		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
+ 	}
+ }
+ 
+@@ -3396,3 +3381,66 @@ func TestParseUniqueID(t *testing.T) {
+ 		t.Fatalf("unexpected number of extensions (probably because the extension section was not parsed): got %d, want 7", len(cert.Extensions))
+ 	}
+ }
++
++func TestDisableSHA1ForCertOnly(t *testing.T) {
++	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
++	debugAllowSHA1 = false
++
++	tmpl := &Certificate{
++		SerialNumber:          big.NewInt(1),
++		NotBefore:             time.Now().Add(-time.Hour),
++		NotAfter:              time.Now().Add(time.Hour),
++		SignatureAlgorithm:    SHA1WithRSA,
++		BasicConstraintsValid: true,
++		IsCA:                  true,
++		KeyUsage:              KeyUsageCertSign | KeyUsageCRLSign,
++	}
++	certDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, rsaPrivateKey.Public(), rsaPrivateKey)
++	if err != nil {
++		t.Fatalf("failed to generate test cert: %s", err)
++	}
++	cert, err := ParseCertificate(certDER)
++	if err != nil {
++		t.Fatalf("failed to parse test cert: %s", err)
++	}
++
++	err = cert.CheckSignatureFrom(cert)
++	if err == nil {
++		t.Error("expected CheckSignatureFrom to fail")
++	} else if _, ok := err.(InsecureAlgorithmError); !ok {
++		t.Errorf("expected InsecureAlgorithmError error, got %T", err)
++	}
++
++	crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{
++		SignatureAlgorithm: SHA1WithRSA,
++		Number:             big.NewInt(1),
++		ThisUpdate:         time.Now().Add(-time.Hour),
++		NextUpdate:         time.Now().Add(time.Hour),
++	}, cert, rsaPrivateKey)
++	if err != nil {
++		t.Fatalf("failed to generate test CRL: %s", err)
++	}
++	// TODO(rolandshoemaker): this should be ParseRevocationList once it lands
++	crl, err := ParseCRL(crlDER)
++	if err != nil {
++		t.Fatalf("failed to parse test CRL: %s", err)
++	}
++
++	if err = cert.CheckCRLSignature(crl); err != nil {
++		t.Errorf("unexpected error: %s", err)
++	}
++
++	// This is an unrelated OCSP response, which will fail signature verification
++	// but shouldn't return a InsecureAlgorithmError, since SHA1 should be allowed
++	// for OCSP.
++	ocspTBSHex := "30819fa2160414884451ff502a695e2d88f421bad90cf2cecbea7c180f32303133303631383037323434335a30743072304a300906052b0e03021a0500041448b60d38238df8456e4ee5843ea394111802979f0414884451ff502a695e2d88f421bad90cf2cecbea7c021100f78b13b946fc9635d8ab49de9d2148218000180f32303133303631383037323434335aa011180f32303133303632323037323434335a"
++	ocspTBS, err := hex.DecodeString(ocspTBSHex)
++	if err != nil {
++		t.Fatalf("failed to decode OCSP response TBS hex: %s", err)
++	}
++
++	err = cert.CheckSignature(SHA1WithRSA, ocspTBS, nil)
++	if err != rsa.ErrVerification {
++		t.Errorf("unexpected error: %s", err)
++	}
++}

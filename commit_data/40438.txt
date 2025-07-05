@@ -10,6 +10,29 @@ Date:   Mon May 13 13:15:10 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176903
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 8d73c016c6..b24371ddea 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"crypto/md5"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+@@ -101,7 +102,8 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
+ 		goarch = f[1]
+ 	}
+ 
+-	hello := filepath.Join(tmp, "hello.exe")
++	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v", flags, printCode)))
++	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
+ 	args := []string{"build", "-o", hello}
+ 	args = append(args, flags...)
+ 	args = append(args, "testdata/fmthello.go")

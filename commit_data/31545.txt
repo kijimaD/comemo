@@ -7,6 +7,20 @@ Date:   Tue Feb 28 15:24:18 2017 -0800
     Change-Id: Iab1e84624c0288ebdd33fbe83bd60948b5d91fc4
     Reviewed-on: https://go-review.googlesource.com/37612
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 302041580a..7011111659 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -221,7 +221,7 @@ func (p platform) vet(ncpus int) {
+ 	w := make(whitelist)
+ 	w.load(p.os, p.arch)
+ 
+-	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch)
++	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
+ 
+ 	// Do 'go install std' before running vet.
+ 	// It is cheap when already installed.

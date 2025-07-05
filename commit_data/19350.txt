@@ -30,6 +30,20 @@ Date:   Wed May 14 19:24:00 2014 +0400
     R=golang-codereviews, dave, iant
     CC=golang-codereviews
     https://golang.org/cl/93370043
-
+---
  src/cmd/gc/pgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 2c986bb94c..40620c3dad 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -174,7 +174,7 @@ compile(Node *fn)
+ 	lno = setlineno(fn);
+ 
+ 	if(fn->nbody == nil) {
+-		if(pure_go || memcmp(fn->nname->sym->name, "init·", 6) == 0)
++		if(pure_go || strncmp(fn->nname->sym->name, "init·", 6) == 0)
+ 			yyerror("missing function body", fn);
+ 		goto ret;
+ 	}

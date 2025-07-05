@@ -13,7 +13,45 @@ Date:   Tue Jul 22 01:56:19 2014 +0400
     R=golang-codereviews, dave, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/116940043
-
+---
  src/pkg/runtime/panic.c   | 2 +-
  src/pkg/runtime/slice.goc | 6 +++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index ce05725037..47e9566278 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -41,7 +41,7 @@ newdefer(int32 siz)
+ 	}
+ 	if(d == nil) {
+ 		// deferpool is empty or just a big defer
+-		total = TOTALSIZE(siz);
++		total = runtime·roundupsize(TOTALSIZE(siz));
+ 		d = runtime·malloc(total);
+ 	}
+ 	d->siz = siz;
+diff --git a/src/pkg/runtime/slice.goc b/src/pkg/runtime/slice.goc
+index 2a14dafab5..5f12a09620 100644
+--- a/src/pkg/runtime/slice.goc
++++ b/src/pkg/runtime/slice.goc
+@@ -117,14 +117,18 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
+ 
+ 	if(newcap1 > MaxMem/typ->size)
+ 		runtime·panicstring("growslice: cap out of range");
++	// Try to use all memory that malloc will give us...
+ 	capmem = runtime·roundupsize(newcap1*typ->size);
++	// ...but don't ask for fractional number of elements (that can confuse GC).
++	newcap1 = capmem/typ->size;
++	capmem = newcap1*typ->size;
+ 	flag = 0;
+ 	// Can't use FlagNoZero w/o FlagNoScan, because otherwise GC can scan unitialized memory.
+ 	if(typ->kind&KindNoPointers)
+ 		flag = FlagNoScan|FlagNoZero;
+ 	ret->array = runtime·mallocgc(capmem, (uintptr)typ|TypeInfo_Array, flag);
+ 	ret->len = x.len;
+-	ret->cap = capmem/typ->size;
++	ret->cap = newcap1;
+ 	lenmem = x.len*typ->size;
+ 	runtime·memmove(ret->array, x.array, lenmem);
+ 	if(typ->kind&KindNoPointers)

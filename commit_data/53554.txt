@@ -15,8 +15,116 @@ Date:   Mon Jul 11 16:12:41 2022 +0300
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/pe.go | 45 ++++++++++++++++++++----------------------
  src/cmd/pprof/pprof.go         |  3 +--
  src/cmd/pprof/pprof_test.go    |  3 ---
  3 files changed, 22 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index 9088866fcf..4c4be1e6b7 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -31,13 +31,7 @@ func (f *peFile) symbols() ([]Sym, error) {
+ 	// We infer the size of a symbol by looking at where the next symbol begins.
+ 	var addrs []uint64
+ 
+-	var imageBase uint64
+-	switch oh := f.pe.OptionalHeader.(type) {
+-	case *pe.OptionalHeader32:
+-		imageBase = uint64(oh.ImageBase)
+-	case *pe.OptionalHeader64:
+-		imageBase = oh.ImageBase
+-	}
++	imageBase, _ := f.imageBase()
+ 
+ 	var syms []Sym
+ 	for _, s := range f.pe.Symbols {
+@@ -96,15 +90,11 @@ func (f *peFile) symbols() ([]Sym, error) {
+ }
+ 
+ func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+-	var imageBase uint64
+-	switch oh := f.pe.OptionalHeader.(type) {
+-	case *pe.OptionalHeader32:
+-		imageBase = uint64(oh.ImageBase)
+-	case *pe.OptionalHeader64:
+-		imageBase = oh.ImageBase
+-	default:
+-		return 0, nil, nil, fmt.Errorf("pe file format not recognized")
++	imageBase, err := f.imageBase()
++	if err != nil {
++		return 0, nil, nil, err
+ 	}
++
+ 	if sect := f.pe.Section(".text"); sect != nil {
+ 		textStart = imageBase + uint64(sect.VirtualAddress)
+ 	}
+@@ -127,15 +117,11 @@ func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+ }
+ 
+ func (f *peFile) text() (textStart uint64, text []byte, err error) {
+-	var imageBase uint64
+-	switch oh := f.pe.OptionalHeader.(type) {
+-	case *pe.OptionalHeader32:
+-		imageBase = uint64(oh.ImageBase)
+-	case *pe.OptionalHeader64:
+-		imageBase = oh.ImageBase
+-	default:
+-		return 0, nil, fmt.Errorf("pe file format not recognized")
++	imageBase, err := f.imageBase()
++	if err != nil {
++		return 0, nil, err
+ 	}
++
+ 	sect := f.pe.Section(".text")
+ 	if sect == nil {
+ 		return 0, nil, fmt.Errorf("text section not found")
+@@ -197,7 +183,18 @@ func (f *peFile) goarch() string {
+ }
+ 
+ func (f *peFile) loadAddress() (uint64, error) {
+-	return 0, fmt.Errorf("unknown load address")
++	return f.imageBase()
++}
++
++func (f *peFile) imageBase() (uint64, error) {
++	switch oh := f.pe.OptionalHeader.(type) {
++	case *pe.OptionalHeader32:
++		return uint64(oh.ImageBase), nil
++	case *pe.OptionalHeader64:
++		return oh.ImageBase, nil
++	default:
++		return 0, fmt.Errorf("pe file format not recognized")
++	}
+ }
+ 
+ func (f *peFile) dwarf() (*dwarf.Data, error) {
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index c073c964b4..147b3ad418 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -233,8 +233,7 @@ func (f *file) Name() string {
+ }
+ 
+ func (f *file) ObjAddr(addr uint64) (uint64, error) {
+-	// No support for shared libraries, so translation is a no-op.
+-	return addr, nil
++	return addr - f.offset, nil
+ }
+ 
+ func (f *file) BuildID() string {
+diff --git a/src/cmd/pprof/pprof_test.go b/src/cmd/pprof/pprof_test.go
+index 9a37b97286..e001975f83 100644
+--- a/src/cmd/pprof/pprof_test.go
++++ b/src/cmd/pprof/pprof_test.go
+@@ -83,9 +83,6 @@ func mustHaveDisasm(t *testing.T) {
+ 	}
+ 
+ 	// Skip PIE platforms, pprof can't disassemble PIE.
+-	if runtime.GOOS == "windows" {
+-		t.Skipf("skipping on %s, issue 46639", runtime.GOOS)
+-	}
+ 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+ 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
+ 	}

@@ -9,7 +9,50 @@ Date:   Mon Jan 31 17:42:10 2011 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/3973050
-
+---
  doc/go_spec.html             | 4 ++--
  src/cmd/ebnflint/ebnflint.go | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2d7f7768a5..8707591f66 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4078,11 +4078,11 @@ SelectStmt = "select" "{" { CommClause } "}" .
+ CommClause = CommCase ":" { Statement ";" } .
+ CommCase = "case" ( SendExpr | RecvExpr) | "default" .
+ SendExpr =  Expression "&lt;-" Expression .
++RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
++</pre>
+ <!-- TODO(rsc):
+ RecvExpr =  [ Expression [ "," Expression ] ( "=" | ":=" ) ] "&lt;-" Expression .
+ -->
+-RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
+-</pre>
+ 
+ <p>
+ For all the send and receive expressions in the "select"
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index 10cb5b387a..5eb3987354 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -88,6 +88,7 @@ func main() {
+ 	src, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+ 		scanner.PrintError(os.Stderr, err)
++		os.Exit(1)
+ 	}
+ 
+ 	if path.Ext(filename) == ".html" {
+@@ -97,9 +98,11 @@ func main() {
+ 	grammar, err := ebnf.Parse(fset, filename, src)
+ 	if err != nil {
+ 		scanner.PrintError(os.Stderr, err)
++		os.Exit(1)
+ 	}
+ 
+ 	if err = ebnf.Verify(fset, grammar, *start); err != nil {
+ 		scanner.PrintError(os.Stderr, err)
++		os.Exit(1)
+ 	}
+ }

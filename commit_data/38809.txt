@@ -17,6 +17,23 @@ Date:   Wed Nov 28 19:57:13 2018 +1100
     Reviewed-on: https://go-review.googlesource.com/c/151480
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/debug/pe/file_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 5b9fe521d2..9613af3a3c 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -603,9 +603,9 @@ func TestImportTableInUnknownSection(t *testing.T) {
+ 		t.Skip("skipping Windows-only test")
+ 	}
+ 
+-	// kernel32.dll import table is located in ".rdata" section,
++	// ws2_32.dll import table is located in ".rdata" section,
+ 	// so it is good enough to test issue #16103.
+-	const filename = "kernel32.dll"
++	const filename = "ws2_32.dll"
+ 	path, err := exec.LookPath(filename)
+ 	if err != nil {
+ 		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)

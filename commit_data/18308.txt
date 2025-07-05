@@ -10,6 +10,24 @@ Date:   Tue Jan 21 13:46:14 2014 -0500
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/55170043
-
+---
  src/cmd/gc/plive.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 96437488ad..fb0d7687ab 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -720,9 +720,9 @@ Next:
+ 				if(pos == -1)
+ 					goto Next1;
+ 				if(to->node->addrtaken) {
+-					if(prog->as == AKILL)
+-						bvset(varkill, pos);
+-					else
++					//if(prog->as == AKILL)
++					//	bvset(varkill, pos);
++					//else
+ 						bvset(avarinit, pos);
+ 				} else {
+ 					if(info.flags & (RightRead | RightAddr))

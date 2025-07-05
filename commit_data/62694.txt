@@ -14,7 +14,7 @@ Date:   Thu Feb 6 22:28:30 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/647196
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  api/go1.25.txt                                     |  1 +
  doc/next/6-stdlib/99-minor/go/types/70737.md       |  3 ++
  .../compile/internal/types2/instantiate_test.go    | 17 +++++----
@@ -23,3 +23,260 @@ Date:   Thu Feb 6 22:28:30 2025 -0500
  src/go/types/instantiate_test.go                   | 17 +++++----
  src/go/types/lookup.go                             | 41 ++++++++++++++++++++++
  7 files changed, 109 insertions(+), 25 deletions(-)
+
+diff --git a/api/go1.25.txt b/api/go1.25.txt
+index 8cd7b1d8fc..faad356cef 100644
+--- a/api/go1.25.txt
++++ b/api/go1.25.txt
+@@ -10,6 +10,7 @@ pkg go/types, const RecvVar = 3 #70250
+ pkg go/types, const RecvVar VarKind #70250
+ pkg go/types, const ResultVar = 5 #70250
+ pkg go/types, const ResultVar VarKind #70250
++pkg go/types, func LookupSelection(Type, bool, *Package, string) (Selection, bool) #70737
+ pkg go/types, method (*Var) Kind() VarKind #70250
+ pkg go/types, method (*Var) SetKind(VarKind) #70250
+ pkg go/types, method (VarKind) String() string #70250
+diff --git a/doc/next/6-stdlib/99-minor/go/types/70737.md b/doc/next/6-stdlib/99-minor/go/types/70737.md
+new file mode 100644
+index 0000000000..6d1b4136bf
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/70737.md
+@@ -0,0 +1,3 @@
++The new [LookupSelection] function looks up the field or method of a
++given name and receiver type, like the existing [LookupFieldOrMethod]
++function, but returns the result in the form of a [Selection].
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index af772b993c..da36ffd267 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -181,12 +181,11 @@ var X T[int]
+ 		src := prefix + test.decl
+ 		pkg := mustTypecheck(src, nil, nil)
+ 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
+-		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+-		m, _ := obj.(*Func)
+-		if m == nil {
+-			t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++		sel, ok := LookupSelection(typ, false, pkg, "m")
++		if !ok {
++			t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
+ 		}
+-		if got := ObjectString(m, RelativeTo(pkg)); got != test.want {
++		if got := ObjectString(sel.Obj(), RelativeTo(pkg)); got != test.want {
+ 			t.Errorf("instantiated %q, want %q", got, test.want)
+ 		}
+ 	}
+@@ -203,15 +202,15 @@ var _ T[int]
+ `
+ 	pkg := mustTypecheck(src, nil, nil)
+ 	typ := pkg.Scope().Lookup("T").Type().(*Named)
+-	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+-	if obj == nil {
+-		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++	sel, ok := LookupSelection(typ, false, pkg, "m")
++	if !ok {
++		t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
+ 	}
+ 
+ 	// Verify that the original method is not mutated by instantiating T (this
+ 	// bug manifested when subst did not return a new signature).
+ 	want := "func (T[P]).m()"
+-	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
++	if got := stripAnnotations(ObjectString(sel.Obj(), RelativeTo(pkg))); got != want {
+ 		t.Errorf("instantiated %q, want %q", got, want)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 0a47ec08df..624b510dc8 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -8,6 +8,45 @@ package types2
+ 
+ import "bytes"
+ 
++// LookupSelection selects the field or method whose ID is Id(pkg,
++// name), on a value of type T. If addressable is set, T is the type
++// of an addressable variable (this matters only for method lookups).
++// T must not be nil.
++//
++// If the selection is valid:
++//
++//   - [Selection.Obj] returns the field ([Var]) or method ([Func]);
++//   - [Selection.Indirect] reports whether there were any pointer
++//     indirections on the path to the field or method.
++//   - [Selection.Index] returns the index sequence, defined below.
++//
++// The last index entry is the field or method index in the (possibly
++// embedded) type where the entry was found, either:
++//
++//  1. the list of declared methods of a named type; or
++//  2. the list of all methods (method set) of an interface type; or
++//  3. the list of fields of a struct type.
++//
++// The earlier index entries are the indices of the embedded struct
++// fields traversed to get to the found entry, starting at depth 0.
++//
++// See also [LookupFieldOrMethod], which returns the components separately.
++func LookupSelection(T Type, addressable bool, pkg *Package, name string) (Selection, bool) {
++	obj, index, indirect := LookupFieldOrMethod(T, addressable, pkg, name)
++	var kind SelectionKind
++	switch obj.(type) {
++	case nil:
++		return Selection{}, false
++	case *Func:
++		kind = MethodVal
++	case *Var:
++		kind = FieldVal
++	default:
++		panic(obj) // can't happen
++	}
++	return Selection{kind, T, obj, index, indirect}, true
++}
++
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+ // associated with a concrete (non-interface) type, the method's signature
+ // may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+@@ -38,6 +77,8 @@ import "bytes"
+ //   - If indirect is set, a method with a pointer receiver type was found
+ //     but there was no pointer on the path from the actual receiver type to
+ //     the method's formal receiver base type, nor was the receiver addressable.
++//
++// See also [LookupSelection], which returns the result as a [Selection].
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	if T == nil {
+ 		panic("LookupFieldOrMethod on nil type")
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index caf2d6f8e3..c4861c7067 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -632,14 +632,14 @@ func TestIssue13898(t *testing.T) {
+ 	}
+ 
+ 	// lookup go/types.Object.Pkg method
+-	m, index, indirect := types.LookupFieldOrMethod(typ, false, nil, "Pkg")
+-	if m == nil {
+-		t.Fatalf("go/types.Object.Pkg not found (index = %v, indirect = %v)", index, indirect)
++	sel, ok := types.LookupSelection(typ, false, nil, "Pkg")
++	if !ok {
++		t.Fatalf("go/types.Object.Pkg not found")
+ 	}
+ 
+ 	// the method must belong to go/types
+-	if m.Pkg().Path() != "go/types" {
+-		t.Fatalf("found %v; want go/types", m.Pkg())
++	if sel.Obj().Pkg().Path() != "go/types" {
++		t.Fatalf("found %v; want go/types", sel.Obj().Pkg())
+ 	}
+ }
+ 
+@@ -699,8 +699,8 @@ func TestIssue20046(t *testing.T) {
+ 	// "./issue20046".V.M must exist
+ 	pkg := compileAndImportPkg(t, "issue20046")
+ 	obj := lookupObj(t, pkg.Scope(), "V")
+-	if m, index, indirect := types.LookupFieldOrMethod(obj.Type(), false, nil, "M"); m == nil {
+-		t.Fatalf("V.M not found (index = %v, indirect = %v)", index, indirect)
++	if _, ok := types.LookupSelection(obj.Type(), false, nil, "M"); !ok {
++		t.Fatalf("V.M not found")
+ 	}
+ }
+ func TestIssue25301(t *testing.T) {
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 67a2eea928..dd1e9ea1a3 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -184,12 +184,11 @@ var X T[int]
+ 		src := prefix + test.decl
+ 		pkg := mustTypecheck(src, nil, nil)
+ 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
+-		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+-		m, _ := obj.(*Func)
+-		if m == nil {
+-			t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++		sel, ok := LookupSelection(typ, false, pkg, "m")
++		if !ok {
++			t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
+ 		}
+-		if got := ObjectString(m, RelativeTo(pkg)); got != test.want {
++		if got := ObjectString(sel.Obj(), RelativeTo(pkg)); got != test.want {
+ 			t.Errorf("instantiated %q, want %q", got, test.want)
+ 		}
+ 	}
+@@ -206,15 +205,15 @@ var _ T[int]
+ `
+ 	pkg := mustTypecheck(src, nil, nil)
+ 	typ := pkg.Scope().Lookup("T").Type().(*Named)
+-	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+-	if obj == nil {
+-		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++	sel, ok := LookupSelection(typ, false, pkg, "m")
++	if !ok {
++		t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
+ 	}
+ 
+ 	// Verify that the original method is not mutated by instantiating T (this
+ 	// bug manifested when subst did not return a new signature).
+ 	want := "func (T[P]).m()"
+-	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
++	if got := stripAnnotations(ObjectString(sel.Obj(), RelativeTo(pkg))); got != want {
+ 		t.Errorf("instantiated %q, want %q", got, want)
+ 	}
+ }
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 755abc7dbd..16d63ae0f1 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -11,6 +11,45 @@ package types
+ 
+ import "bytes"
+ 
++// LookupSelection selects the field or method whose ID is Id(pkg,
++// name), on a value of type T. If addressable is set, T is the type
++// of an addressable variable (this matters only for method lookups).
++// T must not be nil.
++//
++// If the selection is valid:
++//
++//   - [Selection.Obj] returns the field ([Var]) or method ([Func]);
++//   - [Selection.Indirect] reports whether there were any pointer
++//     indirections on the path to the field or method.
++//   - [Selection.Index] returns the index sequence, defined below.
++//
++// The last index entry is the field or method index in the (possibly
++// embedded) type where the entry was found, either:
++//
++//  1. the list of declared methods of a named type; or
++//  2. the list of all methods (method set) of an interface type; or
++//  3. the list of fields of a struct type.
++//
++// The earlier index entries are the indices of the embedded struct
++// fields traversed to get to the found entry, starting at depth 0.
++//
++// See also [LookupFieldOrMethod], which returns the components separately.
++func LookupSelection(T Type, addressable bool, pkg *Package, name string) (Selection, bool) {
++	obj, index, indirect := LookupFieldOrMethod(T, addressable, pkg, name)
++	var kind SelectionKind
++	switch obj.(type) {
++	case nil:
++		return Selection{}, false
++	case *Func:
++		kind = MethodVal
++	case *Var:
++		kind = FieldVal
++	default:
++		panic(obj) // can't happen
++	}
++	return Selection{kind, T, obj, index, indirect}, true
++}
++
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+ // associated with a concrete (non-interface) type, the method's signature
+ // may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+@@ -41,6 +80,8 @@ import "bytes"
+ //   - If indirect is set, a method with a pointer receiver type was found
+ //     but there was no pointer on the path from the actual receiver type to
+ //     the method's formal receiver base type, nor was the receiver addressable.
++//
++// See also [LookupSelection], which returns the result as a [Selection].
+ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	if T == nil {
+ 		panic("LookupFieldOrMethod on nil type")

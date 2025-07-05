@@ -9,6 +9,20 @@ Date:   Tue Jul 14 19:22:24 2015 -0400
     Change-Id: I5d378d8707e6735e0e590527db4196b517fefd72
     Reviewed-on: https://go-review.googlesource.com/12198
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index aede24747d..a7ff7e57e4 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -876,7 +876,7 @@ described above.
+ </li>
+ 
+ <li>
+-Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
++In the <a href="/pkg/fmt/"><code>fmt</code></a> package,
+ a value of type <a href="/pkg/reflect/#Value"><code>Value</code></a> now
+ prints what it holds, rather than use the <code>reflect.Value</code>'s <code>Stringer</code>
+ method, which produces things like <code>&lt;int Value&gt;</code>.

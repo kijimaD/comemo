@@ -8,7 +8,7 @@ Date:   Wed Apr 15 18:53:43 2009 -0700
     DELTA=1341  (668 added, 282 deleted, 391 changed)
     OCL=27485
     CL=27526
-
+---
  src/lib/go/ast.go            |  32 +-
  src/run.bash                 |   2 +
  usr/gri/pretty/Makefile      |   4 +-
@@ -16,3 +16,2036 @@ Date:   Wed Apr 15 18:53:43 2009 -0700
  usr/gri/pretty/docprinter.go | 558 ++++++++++++++++++----------------
  usr/gri/pretty/godoc.go      | 698 ++++++++++++++++++++++++-------------------
  6 files changed, 948 insertions(+), 561 deletions(-)
+
+diff --git a/src/lib/go/ast.go b/src/lib/go/ast.go
+index 9ee88c3696..beaa743ac4 100644
+--- a/src/lib/go/ast.go
++++ b/src/lib/go/ast.go
+@@ -7,7 +7,11 @@
+ //
+ package ast
+ 
+-import "token"
++import (
++	"token";
++	"unicode";
++	"utf8";
++)
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -45,7 +49,7 @@ type Expr interface {
+ 	// visitor v invokes the node-specific DoX function of the visitor.
+ 	//
+ 	Visit(v ExprVisitor);
+-	
++
+ 	// Pos returns the (beginning) position of the expression.
+ 	Pos() token.Position;
+ }
+@@ -57,7 +61,7 @@ type Stmt interface {
+ 	// visitor v invokes the node-specific DoX function of the visitor.
+ 	//
+ 	Visit(v StmtVisitor);
+-	
++
+ 	// Pos returns the (beginning) position of the statement.
+ 	Pos() token.Position;
+ }
+@@ -69,7 +73,7 @@ type Decl interface {
+ 	// visitor v invokes the node-specific DoX function of the visitor.
+ 	//
+ 	Visit(v DeclVisitor);
+-	
++
+ 	// Pos returns the (beginning) position of the declaration.
+ 	Pos() token.Position;
+ }
+@@ -419,6 +423,24 @@ func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
+ func (x *ChanType) Visit(v ExprVisitor) { v.DoChanType(x); }
+ 
+ 
++// IsExported returns whether name is an exported Go symbol
++// (i.e., whether it begins with an uppercase letter).
++func IsExported(name string) bool {
++	ch, len := utf8.DecodeRuneInString(name, 0);
++	return unicode.IsUpper(ch);
++}
++
++// IsExported returns whether name is an exported Go symbol
++// (i.e., whether it begins with an uppercase letter).
++func (name *ast.Ident) IsExported() bool {
++	return IsExported(name.Value);
++}
++
++func (name *ast.Ident) String() string {
++	return name.Value;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+@@ -688,7 +710,7 @@ type (
+ 
+ // A declaration is represented by one of the following declaration nodes.
+ //
+-type (	
++type (
+ 	// A BadDecl node is a placeholder for declarations containing
+ 	// syntax errors for which no correct declaration nodes can be
+ 	// created.
+diff --git a/src/run.bash b/src/run.bash
+index 3053e7dc67..de2bd7e654 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -56,6 +56,8 @@ GOMAXPROCS=10 make test
+ make clean
+ time make
+ make smoketest
++# TODO: this belongs elsewhere
++cp godoc $HOME/bin
+ ) || exit $?
+ 
+ (xcd ../doc/progs
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 836f0890ff..3546aaa212 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -30,7 +30,7 @@ install: pretty godoc untab
+ clean:
+ 	rm -f pretty untab godoc *.6 *.a 6.out *~
+ 
+-godoc.6:	docprinter.6 compilation.6
++godoc.6:	docprinter.6 compilation.6 comment.6
+ 
+ pretty.6:	 platform.6 astprinter.6 compilation.6
+ 
+@@ -44,5 +44,7 @@ astprinter.6:	 utils.6 symboltable.6
+ 
+ docprinter.6:	astprinter.6
+ 
++comment.6:
++
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/comment.go b/usr/gri/pretty/comment.go
+new file mode 100644
+index 0000000000..1025856c4b
+--- /dev/null
++++ b/usr/gri/pretty/comment.go
+@@ -0,0 +1,215 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Godoc comment -> HTML formatting
++
++package comment
++
++import (
++	"fmt";
++	"io";
++	"template";
++)
++
++// Split bytes into lines.
++func split(text []byte) [][]byte {
++	// count lines
++	n := 0;
++	last := 0;
++	for i, c := range text {
++		if c == '\n' {
++			last = i+1;
++			n++;
++		}
++	}
++	if last < len(text) {
++		n++;
++	}
++
++	// split
++	out := make([][]byte, n);
++	last = 0;
++	n = 0;
++	for i, c := range text {
++		if c == '\n' {
++			out[n] = text[last : i+1];
++			last = i+1;
++			n++;
++		}
++	}
++	if last < len(text) {
++		out[n] = text[last : len(text)];
++	}
++
++	return out;
++}
++
++
++var (
++	ldquo = io.StringBytes("&ldquo;");
++	rdquo = io.StringBytes("&rdquo;");
++)
++
++// Escape comment text for HTML.
++// Also, turn `` into &ldquo; and '' into &rdquo;.
++func commentEscape(w io.Write, s []byte) {
++	last := 0;
++	for i := 0; i < len(s)-1; i++ {
++		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
++			template.HtmlEscape(w, s[last : i]);
++			last = i+2;
++			switch s[i] {
++			case '`':
++				w.Write(ldquo);
++			case '\'':
++				w.Write(rdquo);
++			}
++			i++;	// loop will add one more
++		}
++	}
++	template.HtmlEscape(w, s[last : len(s)]);
++}
++
++
++var (
++	html_p = io.StringBytes("<p>\n");
++	html_endp = io.StringBytes("</p>\n");
++	html_pre = io.StringBytes("<pre>");
++	html_endpre = io.StringBytes("</pre>\n");
++)
++
++
++func indentLen(s []byte) int {
++	i := 0;
++	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
++		i++;
++	}
++	return i;
++}
++
++
++func isBlank(s []byte) bool {
++	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
++}
++
++
++func commonPrefix(a, b []byte) []byte {
++	i := 0;
++	for i < len(a) && i < len(b) && a[i] == b[i] {
++		i++;
++	}
++	return a[0 : i];
++}
++
++
++func unindent(block [][]byte) {
++	if len(block) == 0 {
++		return;
++	}
++
++	// compute maximum common white prefix
++	prefix := block[0][0 : indentLen(block[0])];
++	for i, line := range block {
++		if !isBlank(line) {
++			prefix = commonPrefix(prefix, line[0 : indentLen(line)]);
++		}
++	}
++	n := len(prefix);
++
++	// remove
++	for i, line := range block {
++		if !isBlank(line) {
++			block[i] = line[n : len(line)];
++		}
++	}
++}
++
++
++// Convert comment text to formatted HTML.
++// The comment was prepared by DocReader,
++// so it is known not to have leading, trailing blank lines
++// nor to have trailing spaces at the end of lines.
++// The comment markers have already been removed.
++//
++// Turn each run of multiple \n into </p><p>
++// Turn each run of indented lines into <pre> without indent.
++//
++// TODO(rsc): I'd like to pass in an array of variable names []string
++// and then italicize those strings when they appear as words.
++func ToHtml(w io.Write, s []byte) {
++	inpara := false;
++
++	/* TODO(rsc): 6g cant generate code for these
++	close := func() {
++		if inpara {
++			w.Write(html_endp);
++			inpara = false;
++		}
++	};
++	open := func() {
++		if !inpara {
++			w.Write(html_p);
++			inpara = true;
++		}
++	};
++	*/
++
++	lines := split(s);
++	unindent(lines);
++	for i := 0; i < len(lines);  {
++		line := lines[i];
++		if isBlank(line) {
++			// close paragraph
++			if inpara {
++				w.Write(html_endp);
++				inpara = false;
++			}
++			i++;
++			continue;
++		}
++		if indentLen(line) > 0 {
++			// close paragraph
++			if inpara {
++				w.Write(html_endp);
++				inpara = false;
++			}
++
++			// count indented or blank lines
++			j := i+1;
++			for j < len(lines) && (isBlank(lines[j]) || indentLen(lines[j]) > 0) {
++				j++;
++			}
++			// but not trailing blank lines
++			for j > i && isBlank(lines[j-1]) {
++				j--;
++			}
++			block := lines[i : j];
++			i = j;
++
++			unindent(block);
++
++			// put those lines in a pre block.
++			// they don't get the nice text formatting,
++			// just html escaping
++			w.Write(html_pre);
++			for k, line := range block {
++				template.HtmlEscape(w, line);
++			}
++			w.Write(html_endpre);
++			continue;
++		}
++		// open paragraph
++		if !inpara {
++			w.Write(html_p);
++			inpara = true;
++		}
++		commentEscape(w, lines[i]);
++		i++;
++	}
++	if inpara {
++		w.Write(html_endp);
++		inpara = false;
++	}
++}
++
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+index 623c51614c..9672eb02fe 100644
+--- a/usr/gri/pretty/docprinter.go
++++ b/usr/gri/pretty/docprinter.go
+@@ -2,12 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package docPrinter
++// TODO: printing is gone; install as "go/doc"
++
++package doc
+ 
+ import (
+ 	"ast";
+ 	"fmt";
+ 	"io";
++	"once";
++	"regexp";
++	"sort";
++	"strings";
+ 	"token";
+ 	"unicode";
+ 	"utf8";
+@@ -20,16 +26,9 @@ import (
+ // ----------------------------------------------------------------------------
+ // Elementary support
+ 
+-// TODO this should be an AST method
+-func isExported(name *ast.Ident) bool {
+-	ch, len := utf8.DecodeRuneInString(name.Value, 0);
+-	return unicode.IsUpper(ch);
+-}
+-
+-
+ func hasExportedNames(names []*ast.Ident) bool {
+ 	for i, name := range names {
+-		if isExported(name) {
++		if name.IsExported() {
+ 			return true;
+ 		}
+ 	}
+@@ -48,48 +47,34 @@ func hasExportedSpecs(specs []ast.Spec) bool {
+ 
+ // ----------------------------------------------------------------------------
+ 
+-type valueDoc struct {
+-	decl *ast.GenDecl;  // len(decl.Specs) >= 1, and the element type is *ast.ValueSpec
+-}
+-
+-
+-type funcDoc struct {
+-	decl *ast.FuncDecl;
+-}
+-
+-
+ type typeDoc struct {
+ 	decl *ast.GenDecl;  // len(decl.Specs) == 1, and the element type is *ast.TypeSpec
+-	factories map[string] *funcDoc;
+-	methods map[string] *funcDoc;
++	factories map[string] *ast.FuncDecl;
++	methods map[string] *ast.FuncDecl;
+ }
+ 
+ 
+-type PackageDoc struct {
++// DocReader accumulates documentation for a single package.
++type DocReader struct {
+ 	name string;  // package name
++	path string;  // import path
+ 	doc ast.Comments;  // package documentation, if any
+-	consts *vector.Vector;  // list of *valueDoc
++	consts *vector.Vector;  // list of *ast.GenDecl
+ 	types map[string] *typeDoc;
+-	vars *vector.Vector;  // list of *valueDoc
+-	funcs map[string] *funcDoc;
++	vars *vector.Vector;  // list of *ast.GenDecl
++	funcs map[string] *ast.FuncDecl;
+ }
+ 
+ 
+-func (doc *PackageDoc) PackageName() string {
+-	return doc.name;
+-}
+-
+-
+-// PackageDoc initializes a document to collect package documentation.
+-// The package name is provided as initial argument. Use AddPackage to
+-// add the AST for each source file belonging to the same package.
+-//
+-func (doc *PackageDoc) Init(name string) {
+-	doc.name = name;
++// Init initializes a DocReader to collect package documentation
++// for the package with the given package name and import path.
++func (doc *DocReader) Init(pkg, imp string) {
++	doc.name = pkg;
++	doc.path = imp;
+ 	doc.consts = vector.New(0);
+ 	doc.types = make(map[string] *typeDoc);
+ 	doc.vars = vector.New(0);
+-	doc.funcs = make(map[string] *funcDoc);
++	doc.funcs = make(map[string] *ast.FuncDecl);
+ }
+ 
+ 
+@@ -104,7 +89,7 @@ func baseTypeName(typ ast.Expr) string {
+ }
+ 
+ 
+-func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
++func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ 	tdoc, found := doc.types[baseTypeName(typ)];
+ 	if found {
+ 		return tdoc;
+@@ -113,18 +98,17 @@ func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ }
+ 
+ 
+-func (doc *PackageDoc) addType(decl *ast.GenDecl) {
++func (doc *DocReader) addType(decl *ast.GenDecl) {
+ 	typ := decl.Specs[0].(*ast.TypeSpec);
+ 	name := typ.Name.Value;
+-	tdoc := &typeDoc{decl, make(map[string] *funcDoc), make(map[string] *funcDoc)};
++	tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+ 	doc.types[name] = tdoc;
+ }
+ 
+ 
+-func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
++func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
+ 	name := fun.Name.Value;
+-	fdoc := &funcDoc{fun};
+-	
++
+ 	// determine if it should be associated with a type
+ 	var typ *typeDoc;
+ 	if fun.Recv != nil {
+@@ -133,7 +117,7 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
+ 		typ = doc.lookupTypeDoc(fun.Recv.Type);
+ 		if typ != nil {
+ 			// type found (i.e., exported)
+-			typ.methods[name] = fdoc;
++			typ.methods[name] = fun;
+ 		}
+ 		// if the type wasn't found, it wasn't exported
+ 		// TODO: a non-exported type may still have exported functions
+@@ -149,18 +133,18 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
+ 			// exactly one (named or anonymous) result type
+ 			typ = doc.lookupTypeDoc(res.Type);
+ 			if typ != nil {
+-				typ.factories[name] = fdoc;
++				typ.factories[name] = fun;
+ 				return;
+ 			}
+ 		}
+ 	}
+ 
+ 	// ordinary function
+-	doc.funcs[name] = fdoc;
++	doc.funcs[name] = fun;
+ }
+ 
+ 
+-func (doc *PackageDoc) addDecl(decl ast.Decl) {
++func (doc *DocReader) addDecl(decl ast.Decl) {
+ 	switch d := decl.(type) {
+ 	case *ast.GenDecl:
+ 		if len(d.Specs) > 0 {
+@@ -170,13 +154,13 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
+ 			case token.CONST:
+ 				// constants are always handled as a group
+ 				if hasExportedSpecs(d.Specs) {
+-					doc.consts.Push(&valueDoc{d});
++					doc.consts.Push(d);
+ 				}
+ 			case token.TYPE:
+ 				// types are handled individually
+ 				for i, spec := range d.Specs {
+ 					s := spec.(*ast.TypeSpec);
+-					if isExported(s.Name) {
++					if s.Name.IsExported() {
+ 						// make a (fake) GenDecl node for this TypeSpec
+ 						// (we need to do this here - as opposed to just
+ 						// for printing - so we don't loose the GenDecl
+@@ -188,23 +172,22 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
+ 			case token.VAR:
+ 				// variables are always handled as a group
+ 				if hasExportedSpecs(d.Specs) {
+-					doc.vars.Push(&valueDoc{d});
++					doc.vars.Push(d);
+ 				}
+ 			}
+ 		}
+ 	case *ast.FuncDecl:
+-		if isExported(d.Name) {
++		if d.Name.IsExported() {
+ 			doc.addFunc(d);
+ 		}
+ 	}
+ }
+ 
+ 
+-// AddProgram adds the AST of a source file belonging to the same
+-// package. The package names must match. If the source was added
+-// before, AddProgram is a no-op.
++// AddProgram adds the AST for a source file to the DocReader.
++// Adding the same AST multiple times is a no-op.
+ //
+-func (doc *PackageDoc) AddProgram(prog *ast.Program) {
++func (doc *DocReader) AddProgram(prog *ast.Program) {
+ 	if doc.name != prog.Name.Value {
+ 		panic("package names don't match");
+ 	}
+@@ -221,254 +204,327 @@ func (doc *PackageDoc) AddProgram(prog *ast.Program) {
+ 	}
+ }
+ 
+-
+ // ----------------------------------------------------------------------------
+-// Printing
+-
+-func htmlEscape(s []byte) []byte {
+-	var buf io.ByteBuffer;
+-	
+-	i0 := 0;
+-	for i := 0; i < len(s); i++ {
+-		var esc string;
+-		switch s[i] {
+-		case '<': esc = "&lt;";
+-		case '&': esc = "&amp;";
+-		default: continue;
+-		}
+-		fmt.Fprintf(&buf, "%s%s", s[i0 : i], esc);
+-		i0 := i+1;  // skip escaped char
+-	}
++// Conversion to external representation
+ 
+-	// write the rest
+-	if i0 > 0 {
+-		buf.Write(s[i0 : len(s)]);
+-		s = buf.Data();
++func Regexp(s string) *regexp.Regexp {
++	re, err := regexp.Compile(s);
++	if err != nil {
++		panic("MakeRegexp ", s, " ", err.String());
+ 	}
+-	return s;
++	return re;
+ }
+ 
+ 
+-// Reduce contiguous sequences of '\t' in a string to a single '\t'.
+-// This will produce better results when the string is printed via
+-// a tabwriter.
+-// TODO make this functionality optional.
+-//
+-func untabify(s []byte) []byte {
+-	var buf io.ByteBuffer;
+-
+-	i0 := 0;
+-	for i := 0; i < len(s); i++ {
+-		if s[i] == '\t' {
+-			i++;  // include '\t'
+-			buf.Write(s[i0 : i]);
+-			// skip additional tabs
+-			for i < len(s) && s[i] == '\t' {
+-				i++;
+-			}
+-			i0 := i;
+-		} else {
+-			i++;
+-		}
+-	}
++var (
++	comment_markers *regexp.Regexp;
++	trailing_whitespace *regexp.Regexp;
++	comment_junk *regexp.Regexp;
++)
+ 
+-	// write the rest
+-	if i0 > 0 {
+-		buf.Write(s[i0 : len(s)]);
+-		s = buf.Data();
+-	}
+-	return s;
++// TODO(rsc): Cannot use var initialization for regexps,
++// because Regexp constructor needs threads.
++func SetupRegexps() {
++	comment_markers = Regexp("^[ \t]*(// ?| ?\\* ?)");
++	trailing_whitespace = Regexp("[ \t\r]+$");
++	comment_junk = Regexp("^[ \t]*(/\\*|\\*/)[ \t]*$");
+ }
+ 
+ 
+-func stripCommentDelimiters(s []byte) []byte {
+-	switch s[1] {
+-	case '/': return s[2 : len(s)-1];
+-	case '*': return s[2 : len(s)-2];
+-	}
+-	panic();
+-	return nil;
+-}
++// Aggregate comment text, without comment markers.
++func comment(comments ast.Comments) string {
++	once.Do(SetupRegexps);
++	lines := make([]string, 0, 20);
++	for i, c := range comments {
++		// split on newlines
++		cl := strings.Split(string(c.Text), "\n");
++
++		// walk lines, stripping comment markers
++		w := 0;
++		for j, l := range cl {
++			// remove /* and */ lines
++			if comment_junk.Match(l) {
++				continue;
++			}
+ 
++			// strip trailing white space
++			m := trailing_whitespace.Execute(l);
++			if len(m) > 0 {
++				l = l[0 : m[1]];
++			}
+ 
+-const /* formatting mode */ (
+-	in_gap = iota;
+-	in_paragraph;
+-	in_preformatted;
+-)
++			// strip leading comment markers
++			m = comment_markers.Execute(l);
++			if len(m) > 0 {
++				l = l[m[1] : len(l)];
++			}
+ 
+-func printLine(p *astPrinter.Printer, line []byte, mode int) int {
+-	// If a line starts with " *" (as a result of a vertical /****/ comment),
+-	// strip it away. For an example of such a comment, see src/lib/flag.go.
+-	if len(line) >= 2 && line[0] == ' ' && line[1] == '*' {
+-		line = line[2 : len(line)];
+-	}
++			// throw away leading blank lines
++			if w == 0 && l == "" {
++				continue;
++			}
+ 
+-	// The line is indented if it starts with a tab.
+-	// In either case strip away a leading space or tab.
+-	indented := false;
+-	if len(line) > 0 {
+-		switch line[0] {
+-		case '\t':
+-			indented = true;
+-			fallthrough;
+-		case ' ':
+-			line = line[1 : len(line)];
++			cl[w] = l;
++			w++;
+ 		}
+-	}
+ 
+-	if len(line) == 0 {
+-		// empty line
+-		switch mode {
+-		case in_paragraph:
+-			p.Printf("</p>\n");
+-			mode = in_gap;
+-		case in_preformatted:
+-			p.Printf("\n");
+-			// remain in preformatted
++		// throw away trailing blank lines
++		for w > 0 && cl[w-1] == "" {
++			w--;
+ 		}
+-	} else {
+-		// non-empty line
+-		if indented {
+-			switch mode {
+-			case in_gap:
+-				p.Printf("<pre>\n");
+-			case in_paragraph:
+-				p.Printf("</p>\n");
+-				p.Printf("<pre>\n");
+-			}
+-			mode = in_preformatted;
+-		} else {
+-			switch mode {
+-			case in_gap:
+-				p.Printf("<p>\n");
+-			case in_preformatted:
+-				p.Printf("</pre>\n");
+-				p.Printf("<p>\n");
++		cl = cl[0 : w];
++
++		// add this comment to total list
++		// TODO: maybe separate with a single blank line
++		// if there is already a comment and len(cl) > 0?
++		for j, l := range cl {
++			n := len(lines);
++			if n+1 >= cap(lines) {
++				newlines := make([]string, n, 2*cap(lines));
++				for k := range newlines {
++					newlines[k] = lines[k];
++				}
++				lines = newlines;
+ 			}
+-			mode = in_paragraph;
++			lines = lines[0 : n+1];
++			lines[n] = l;
+ 		}
+-		// print line
+-		p.Printf("%s\n", untabify(htmlEscape(line)));
+ 	}
+-	return mode;
+-}
+ 
++	// add final "" entry to get trailing newline.
++	// loop always leaves room for one more.
++	n := len(lines);
++	lines = lines[0 : n+1];
+ 
+-func closeMode(p *astPrinter.Printer, mode int) {
+-	switch mode {
+-	case in_paragraph:
+-		p.Printf("</p>\n");
+-	case in_preformatted:
+-		p.Printf("</pre>\n");
+-	}
++	return strings.Join(lines, "\n");
+ }
+ 
++// ValueDoc is the documentation for a group of declared
++// values, either vars or consts.
++type ValueDoc struct {
++	Doc string;
++	Decl *ast.GenDecl;
++	order int;
++}
+ 
+-func printComments(p *astPrinter.Printer, comment ast.Comments) {
+-	mode := in_gap;
+-	for i, c := range comment {
+-		s := stripCommentDelimiters(c.Text);
++type sortValueDoc []*ValueDoc
++func (p sortValueDoc) Len() int            { return len(p); }
++func (p sortValueDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+-		// split comment into lines and print the lines
+- 		i0 := 0;  // beginning of current line
+-		for i := 0; i < len(s); i++ {
+-			if s[i] == '\n' {
+-				// reached line end - print current line
+-				mode = printLine(p, s[i0 : i], mode);
+-				i0 = i + 1;  // beginning of next line; skip '\n'
+-			}
+-		}
++func declName(d *ast.GenDecl) string {
++	if len(d.Specs) != 1 {
++		return ""
++	}
+ 
+-		// print last line
+-		mode = printLine(p, s[i0 : len(s)], mode);
++	switch v := d.Specs[0].(type) {
++	case *ast.ValueSpec:
++		return v.Names[0].Value;
++	case *ast.TypeSpec:
++		return v.Name.Value;
+ 	}
+-	closeMode(p, mode);
++
++	return "";
+ }
+ 
++func (p sortValueDoc) Less(i, j int) bool {
++	// sort by name
++	// pull blocks (name = "") up to top
++	// in original order
++	if ni, nj := declName(p[i].Decl), declName(p[j].Decl); ni != nj {
++		return ni < nj;
++	}
++	return p[i].order < p[j].order;
++}
+ 
+-func (c *valueDoc) print(p *astPrinter.Printer) {
+-	printComments(p, c.decl.Doc);
+-	p.Printf("<pre>");
+-	p.DoGenDecl(c.decl);
+-	p.Printf("</pre>\n");
++func makeValueDocs(v *vector.Vector) []*ValueDoc {
++	d := make([]*ValueDoc, v.Len());
++	for i := range d {
++		decl := v.At(i).(*ast.GenDecl);
++		d[i] = &ValueDoc{comment(decl.Doc), decl, i};
++	}
++	sort.Sort(sortValueDoc(d));
++	return d;
+ }
+ 
+ 
+-func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
+-	d := f.decl;
+-	if d.Recv != nil {
+-		p.Printf("<h%d>func (", hsize);
+-		p.Expr(d.Recv.Type);
+-		p.Printf(") %s</h%d>\n", d.Name.Value, hsize);
+-	} else {
+-		p.Printf("<h%d>func %s</h%d>\n", hsize, d.Name.Value, hsize);
++// FuncDoc is the documentation for a func declaration,
++// either a top-level function or a method function.
++type FuncDoc struct {
++	Doc string;
++	Recv ast.Expr;	// TODO(rsc): Would like string here
++	Name string;
++	Decl *ast.FuncDecl;
++}
++
++type sortFuncDoc []*FuncDoc
++func (p sortFuncDoc) Len() int            { return len(p); }
++func (p sortFuncDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++func (p sortFuncDoc) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
++
++func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
++	d := make([]*FuncDoc, len(m));
++	i := 0;
++	for name, f := range m {
++		doc := new(FuncDoc);
++		doc.Doc = comment(f.Doc);
++		if f.Recv != nil {
++			doc.Recv = f.Recv.Type;
++		}
++		doc.Name = f.Name.Value;
++		doc.Decl = f;
++		d[i] = doc;
++		i++;
+ 	}
+-	p.Printf("<p><code>");
+-	p.DoFuncDecl(d);
+-	p.Printf("</code></p>\n");
+-	printComments(p, d.Doc);
++	sort.Sort(sortFuncDoc(d));
++	return d;
+ }
+ 
+ 
+-func (t *typeDoc) print(p *astPrinter.Printer) {
+-	d := t.decl;
+-	s := d.Specs[0].(*ast.TypeSpec);
+-	p.Printf("<h2>type %s</h2>\n", s.Name.Value);
+-	p.Printf("<p><pre>");
+-	p.DoGenDecl(d);
+-	p.Printf("</pre></p>\n");
+-	printComments(p, s.Doc);
+-	
+-	// print associated methods, if any
+-	for name, m := range t.factories {
+-		m.print(p, 3);
++// TypeDoc is the documentation for a declared type.
++// Factories is a sorted list of factory functions that return that type.
++// Methods is a sorted list of method functions on that type.
++type TypeDoc struct {
++	Doc string;
++	Type *ast.TypeSpec;
++	Factories []*FuncDoc;
++	Methods []*FuncDoc;
++	Decl *ast.GenDecl;
++	order int;
++}
++
++type sortTypeDoc []*TypeDoc
++func (p sortTypeDoc) Len() int            { return len(p); }
++func (p sortTypeDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++func (p sortTypeDoc) Less(i, j int) bool {
++	// sort by name
++	// pull blocks (name = "") up to top
++	// in original order
++	if ni, nj := p[i].Type.Name.Value, p[j].Type.Name.Value; ni != nj {
++		return ni < nj;
+ 	}
++	return p[i].order < p[j].order;
++}
+ 
+-	for name, m := range t.methods {
+-		m.print(p, 3);
++// NOTE(rsc): This would appear not to be correct for type ( )
++// blocks, but the doc extractor above has split them into
++// individual statements.
++func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
++	d := make([]*TypeDoc, len(m));
++	i := 0;
++	for name, old := range m {
++		typespec := old.decl.Specs[0].(*ast.TypeSpec);
++		t := new(TypeDoc);
++		t.Doc = comment(typespec.Doc);
++		t.Type = typespec;
++		t.Factories = makeFuncDocs(old.factories);
++		t.Methods = makeFuncDocs(old.methods);
++		t.Decl = old.decl;
++		t.order = i;
++		d[i] = t;
++		i++;
+ 	}
++	sort.Sort(sortTypeDoc(d));
++	return d;
++}
++
++
++// PackageDoc is the documentation for an entire package.
++type PackageDoc struct {
++	PackageName string;
++	ImportPath string;
++	Doc string;
++	Consts []*ValueDoc;
++	Types []*TypeDoc;
++	Vars []*ValueDoc;
++	Funcs []*FuncDoc;
++}
++
++
++// Doc returns the accumulated documentation for the package.
++func (doc *DocReader) Doc() *PackageDoc {
++	p := new(PackageDoc);
++	p.PackageName = doc.name;
++	p.ImportPath = doc.path;
++	p.Doc = comment(doc.doc);
++	p.Consts = makeValueDocs(doc.consts);
++	p.Vars = makeValueDocs(doc.vars);
++	p.Types = makeTypeDocs(doc.types);
++	p.Funcs = makeFuncDocs(doc.funcs);
++	return p;
+ }
+ 
+ 
+-func (doc *PackageDoc) Print(writer io.Write) {
+-	var p astPrinter.Printer;
+-	p.Init(writer, nil, nil, true);
+-	
+-	// program header
+-	fmt.Fprintf(writer, "<h1>package %s</h1>\n", doc.name);
+-	fmt.Fprintf(writer, "<p><code>import \"%s\"</code></p>\n", doc.name);
+-	printComments(&p, doc.doc);
+-
+-	// constants
+-	if doc.consts.Len() > 0 {
+-		fmt.Fprintln(writer, "<hr />");
+-		fmt.Fprintln(writer, "<h2>Constants</h2>");
+-		for i := 0; i < doc.consts.Len(); i++ {
+-			doc.consts.At(i).(*valueDoc).print(&p);
++// ----------------------------------------------------------------------------
++// Filtering by name
++
++func match(s string, a []string) bool {
++	for i, t := range a {
++		if s == t {
++			return true;
++		}
++	}
++	return false;
++}
++
++func matchDecl(d *ast.GenDecl, names []string) bool {
++	for i, d := range d.Specs {
++		switch v := d.(type) {
++		case *ast.ValueSpec:
++			for j, name := range v.Names {
++				if match(name.Value, names) {
++					return true;
++				}
++			}
++		case *ast.TypeSpec:
++			if match(v.Name.Value, names) {
++				return true;
++			}
+ 		}
+ 	}
++	return false;
++}
+ 
+-	// variables
+-	if doc.vars.Len() > 0 {
+-		fmt.Fprintln(writer, "<hr />");
+-		fmt.Fprintln(writer, "<h2>Variables</h2>");
+-		for i := 0; i < doc.vars.Len(); i++ {
+-			doc.vars.At(i).(*valueDoc).print(&p);
++func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
++	w := 0;
++	for i, vd := range a {
++		if matchDecl(vd.Decl, names) {
++			a[w] = vd;
++			w++;
+ 		}
+ 	}
++	return a[0 : w];
++}
+ 
+-	// functions
+-	if len(doc.funcs) > 0 {
+-		fmt.Fprintln(writer, "<hr />");
+-		for name, f := range doc.funcs {
+-			f.print(&p, 2);
++func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
++	w := 0;
++	for i, td := range a {
++		if matchDecl(td.Decl, names) {
++			a[w] = td;
++			w++;
+ 		}
+ 	}
++	return a[0 : w];
++}
+ 
+-	// types
+-	for name, t := range doc.types {
+-		fmt.Fprintln(writer, "<hr />");
+-		t.print(&p);
++func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
++	w := 0;
++	for i, fd := range a {
++		if match(fd.Name, names) {
++			a[w] = fd;
++			w++;
++		}
+ 	}
++	return a[0 : w];
+ }
++
++// Filter eliminates information from d that is not
++// about one of the given names.
++// TODO: Recognize "Type.Method" as a name.
++func (p *PackageDoc) Filter(names []string) {
++	p.Consts = filterValueDocs(p.Consts, names);
++	p.Vars = filterValueDocs(p.Vars, names);
++	p.Types = filterTypeDocs(p.Types, names);
++	p.Funcs = filterFuncDocs(p.Funcs, names);
++	p.Doc = "";	// don't show top-level package doc
++}
++
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 699d820ae1..54e0e1d611 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -6,8 +6,8 @@
+ 
+ // Web server tree:
+ //
+-//	http://godoc/	main landing page (TODO)
+-//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc. (TODO)
++//	http://godoc/	main landing page
++//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc.
+ //	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
+ //	http://godoc/cmd/	serve documentation about commands (TODO)
+ //	http://godoc/pkg/	serve documentation about packages
+@@ -48,7 +48,8 @@ import (
+ 	"vector";
+ 
+ 	"astprinter";
+-	"docprinter";
++	"comment";
++	"docprinter";	// TODO: "doc"
+ )
+ 
+ 
+@@ -57,18 +58,11 @@ import (
+ // - fix weirdness with double-/'s in paths
+ // - split http service into its own source file
+ 
+-
++// TODO: tell flag package about usage string
+ const usageString =
+ 	"usage: godoc package [name ...]\n"
+ 	"	godoc -http=:6060\n"
+ 
+-
+-const (
+-	docPrefix = "/doc/";
+-	filePrefix = "/file/";
+-)
+-
+-
+ var (
+ 	goroot string;
+ 
+@@ -80,8 +74,15 @@ var (
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width");
+ 	usetabs = flag.Bool("tabs", false, "align with tabs instead of spaces");
++
++	html = flag.Bool("html", false, "print HTML in command-line mode");
++
++	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
+ )
+ 
++const (
++	Pkg = "/pkg/"	// name for auto-generated package documentation tree
++)
+ 
+ func init() {
+ 	var err *os.Error;
+@@ -101,28 +102,12 @@ func isGoFile(dir *os.Dir) bool {
+ }
+ 
+ 
+-func isHTMLFile(dir *os.Dir) bool {
+-	return dir.IsRegular() && strings.HasSuffix(dir.Name, ".html");
+-}
+-
+-
+ func isDir(name string) bool {
+ 	d, err := os.Stat(name);
+ 	return err == nil && d.IsDirectory();
+ }
+ 
+ 
+-func isFile(name string) bool {
+-	d, err := os.Stat(name);
+-	return err == nil && d.IsRegular();
+-}
+-
+-
+-func printLink(c io.Write, dir, name string) {
+-	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", pathutil.Clean(filePrefix + dir + "/" + name), name);
+-}
+-
+-
+ func makeTabwriter(writer io.Write) *tabwriter.Writer {
+ 	padchar := byte(' ');
+ 	if *usetabs {
+@@ -132,63 +117,97 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
+ }
+ 
+ 
++// TODO(rsc): this belongs in a library somewhere, maybe os
++func ReadFile(name string) ([]byte, *os.Error) {
++	f, err := os.Open(name, os.O_RDONLY, 0);
++	if err != nil {
++		return nil, err;
++	}
++	defer f.Close();
++	var b io.ByteBuffer;
++	if n, err := io.Copy(f, &b); err != nil {
++		return nil, err;
++	}
++	return b.Data(), nil;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Parsing
+ 
+-type parseError struct {
++type rawError struct {
+ 	pos token.Position;
+ 	msg string;
+ }
+ 
+-
+-type errorList []parseError
+-func (list errorList) Len() int { return len(list); }
+-func (list errorList) Less(i, j int) bool { return list[i].pos.Offset < list[j].pos.Offset; }
+-func (list errorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
+-
+-
+-type errorHandler struct {
+-	lastLine int;
+-	errors *vector.Vector;
++type rawErrorVector struct {
++	vector.Vector;
+ }
+ 
++func (v *rawErrorVector) At(i int) rawError { return v.Vector.At(i).(rawError) }
++func (v *rawErrorVector) Less(i, j int) bool { return v.At(i).pos.Offset < v.At(j).pos.Offset; }
+ 
+-func (h *errorHandler) Error(pos token.Position, msg string) {
++func (v *rawErrorVector) Error(pos token.Position, msg string) {
+ 	// only collect errors that are on a new line
+ 	// in the hope to avoid most follow-up errors
+-	if pos.Line != h.lastLine {
+-		h.lastLine = pos.Line;
+-		if h.errors == nil {
+-			// lazy initialize - most of the time there are no errors
+-			h.errors = vector.New(0);
+-		}
+-		h.errors.Push(parseError{pos, msg});
++	lastLine := 0;
++	if n := v.Len(); n > 0 {
++		lastLine = v.At(n - 1).pos.Line;
++	}
++	if lastLine != pos.Line {
++		v.Push(rawError{pos, msg});
+ 	}
+ }
+ 
+ 
++// A single error in the parsed file.
++type parseError struct {
++	src []byte;	// source before error
++	line int;	// line number of error
++	msg string;	// error message
++}
++
++// All the errors in the parsed file, plus surrounding source code.
++// Each error has a slice giving the source text preceding it
++// (starting where the last error occurred).  The final element in list[]
++// has msg = "", to give the remainder of the source code.
++// This data structure is handed to the templates parseerror.txt and parseerror.html.
++type parseErrors struct {
++	filename string;	// path to file
++	list []parseError;	// the errors
++	src []byte;	// the file's entire source code
++}
++
+ // Parses a file (path) and returns the corresponding AST and
+ // a sorted list (by file position) of errors, if any.
+ //
+-func parse(path string, mode uint) (*ast.Program, errorList) {
+-	src, err := os.Open(path, os.O_RDONLY, 0);
+-	defer src.Close();
++func parse(filename string, mode uint) (*ast.Program, *parseErrors) {
++	src, err := ReadFile(filename);
+ 	if err != nil {
+-		log.Stderrf("open %s: %v", path, err);
+-		var noPos token.Position;
+-		return nil, errorList{parseError{noPos, err.String()}};
++		log.Stderrf("ReadFile %s: %v", filename, err);
++		errs := []parseError{parseError{nil, 0, err.String()}};
++		return nil, &parseErrors{filename, errs, nil};
+ 	}
+ 
+-	var handler errorHandler;
+-	prog, ok := parser.Parse(src, &handler, mode);
++	var raw rawErrorVector;
++	prog, ok := parser.Parse(src, &raw, mode);
+ 	if !ok {
+-		// convert error list and sort it
+-		errors := make(errorList, handler.errors.Len());
+-		for i := 0; i < handler.errors.Len(); i++ {
+-			errors[i] = handler.errors.At(i).(parseError);
++		// sort and convert error list
++		sort.Sort(&raw);
++		errs := make([]parseError, raw.Len() + 1);	// +1 for final fragment of source
++		offs := 0;
++		for i := 0; i < raw.Len(); i++ {
++			r := raw.At(i);
++			// Should always be true, but check for robustness.
++			if 0 <= r.pos.Offset && r.pos.Offset <= len(src) {
++				errs[i].src = src[offs : r.pos.Offset];
++				offs = r.pos.Offset;
++			}
++			errs[i].line = r.pos.Line;
++			errs[i].msg = r.msg;
+ 		}
+-		sort.Sort(errors);
+-		return nil, errors;
++		errs[raw.Len()].src = src[offs : len(src)];
++		return nil, &parseErrors{filename, errs, src};
+ 	}
+ 
+ 	return prog, nil;
+@@ -198,179 +217,185 @@ func parse(path string, mode uint) (*ast.Program, errorList) {
+ // ----------------------------------------------------------------------------
+ // Templates
+ 
+-// html template
+-var godoc_html string
+-
+-func readTemplate() {
+-	name := "usr/gri/pretty/godoc.html";
+-	f, err := os.Open(name, os.O_RDONLY, 0);
+-	if err != nil {
+-		log.Exitf("open %s: %v", name, err);
+-	}
++// Return text for decl.
++func DeclText(d ast.Decl) []byte {
+ 	var b io.ByteBuffer;
+-	if n, err := io.Copy(f, &b); err != nil {
+-		log.Exitf("copy %s: %v", name, err);
+-	}
+-	f.Close();
+-	godoc_html = string(b.Data());
++	var p astPrinter.Printer;
++	p.Init(&b, nil, nil, false);
++	d.Visit(&p);
++	return b.Data();
+ }
+ 
+ 
+-func servePage(c *http.Conn, title, content interface{}) {
+-	once.Do(readTemplate);
++// Return text for expr.
++func ExprText(d ast.Expr) []byte {
++	var b io.ByteBuffer;
++	var p astPrinter.Printer;
++	p.Init(&b, nil, nil, false);
++	d.Visit(&p);
++	return b.Data();
++}
+ 
+-	c.SetHeader("content-type", "text/html; charset=utf-8");
+ 
+-	type Data struct {
+-		title string;
+-		header string;
+-		timestamp string;
+-		content string;
+-	}
+-	
+-	// TODO(rsc): Once template system can handle []byte,
+-	// remove this conversion.
+-	if x, ok := title.([]byte); ok {
+-		title = string(x);
+-	}
+-	if x, ok := content.([]byte); ok {
+-		content = string(x);
++// Convert x, whatever it is, to text form.
++func toText(x interface{}) []byte {
++	type String interface { String() string }
++
++	switch v := x.(type) {
++	case []byte:
++		return v;
++	case string:
++		return io.StringBytes(v);
++	case String:
++		return io.StringBytes(v.String());
++	case ast.Decl:
++		return DeclText(v);
++	case ast.Expr:
++		return ExprText(v);
+ 	}
++	var b io.ByteBuffer;
++	fmt.Fprint(&b, x);
++	return b.Data();
++}
+ 
+-	var d Data;
+-	d.title = title.(string);
+-	d.header = title.(string);
+-	d.timestamp = time.UTC().String();
+-	d.content = content.(string);
+-	templ, err, line := template.Parse(godoc_html, nil);
+-	if err != nil {
+-		log.Stderrf("template error %s:%d: %s\n", title, line, err);
+-	} else {
+-		templ.Execute(&d, c);
++
++// Template formatter for "html" format.
++func htmlFmt(w io.Write, x interface{}, format string) {
++	// Can do better than text in some cases.
++	switch v := x.(type) {
++	case ast.Decl:
++		var p astPrinter.Printer;
++		tw := makeTabwriter(w);
++		p.Init(tw, nil, nil, true);
++		v.Visit(&p);
++		tw.Flush();
++	case ast.Expr:
++		var p astPrinter.Printer;
++		tw := makeTabwriter(w);
++		p.Init(tw, nil, nil, true);
++		v.Visit(&p);
++		tw.Flush();
++	default:
++		template.HtmlEscape(w, toText(x));
+ 	}
+ }
+ 
+ 
+-func serveError(c *http.Conn, err, arg string) {
+-	servePage(c, "Error", fmt.Sprintf("%v (%s)\n", err, arg));
++// Template formatter for "html-comment" format.
++func htmlCommentFmt(w io.Write, x interface{}, format string) {
++	comment.ToHtml(w, toText(x));
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Directories
++// Template formatter for "" (default) format.
++func textFmt(w io.Write, x interface{}, format string) {
++	w.Write(toText(x));
++}
+ 
+-type dirArray []os.Dir
+-func (p dirArray) Len() int            { return len(p); }
+-func (p dirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
+-func (p dirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
++// Template formatter for "dir/" format.
++// Writes out "/" if the os.Dir argument is a directory.
++var slash = io.StringBytes("/");
+ 
+-func serveDir(c *http.Conn, dirname string) {
+-	fd, err1 := os.Open(dirname, os.O_RDONLY, 0);
+-	if err1 != nil {
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: %v (%s)\n", err1, dirname);
+-		return;
++func dirSlashFmt(w io.Write, x interface{}, format string) {
++	d := x.(os.Dir);	// TODO(rsc): want *os.Dir
++	if d.IsDirectory() {
++		w.Write(slash);
+ 	}
++}
+ 
+-	list, err2 := fd.Readdir(-1);
+-	if err2 != nil {
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
+-		return;
+-	}
+ 
+-	sort.Sort(dirArray(list));
++var fmap = template.FormatterMap{
++	"": textFmt,
++	"html": htmlFmt,
++	"html-comment": htmlCommentFmt,
++	"dir/": dirSlashFmt,
++}
+ 
+-	path := dirname + "/";
+ 
+-	// Print contents in 3 sections: directories, go files, everything else
+-	var b io.ByteBuffer;
+-	fmt.Fprintln(&b, "<h2>Directories</h2>");
+-	for i, entry := range list {
+-		if entry.IsDirectory() {
+-			printLink(&b, path, entry.Name);
+-		}
+-	}
++// TODO: const templateDir = "lib/godoc"
++const templateDir = "usr/gri/pretty"
+ 
+-	fmt.Fprintln(&b, "<h2>Go files</h2>");
+-	for i, entry := range list {
+-		if isGoFile(&entry) {
+-			printLink(&b, path, entry.Name);
+-		}
++func ReadTemplate(name string) *template.Template {
++	data, err := ReadFile(templateDir + "/" + name);
++	if err != nil {
++		log.Exitf("ReadFile %s: %v", name, err);
+ 	}
+-
+-	fmt.Fprintln(&b, "<h2>Other files</h2>");
+-	for i, entry := range list {
+-		if !entry.IsDirectory() && !isGoFile(&entry) {
+-			fmt.Fprintf(&b, "%s<br />\n", entry.Name);
+-		}
++	t, err1, line := template.Parse(string(data), fmap);
++	if err1 != nil {
++		log.Exitf("%s:%d: %v", name, line, err);
+ 	}
++	return t;
++}
++
+ 
+-	servePage(c, dirname + " - Contents", b.Data());
++var godocHtml *template.Template
++var packageHtml *template.Template
++var packageText *template.Template
++var packagelistHtml *template.Template;
++var packagelistText *template.Template;
++var parseerrorHtml *template.Template;
++var parseerrorText *template.Template;
++
++func ReadTemplates() {
++	// have to delay until after flags processing,
++	// so that main has chdir'ed to goroot.
++	godocHtml = ReadTemplate("godoc.html");
++	packageHtml = ReadTemplate("package.html");
++	packageText = ReadTemplate("package.txt");
++	packagelistHtml = ReadTemplate("packagelist.html");
++	packagelistText = ReadTemplate("packagelist.txt");
++	parseerrorHtml = ReadTemplate("parseerror.html");
++	parseerrorText = ReadTemplate("parseerror.txt");
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Files
++// Generic HTML wrapper
+ 
+-func serveParseErrors(c *http.Conn, filename string, errors errorList) {
+-	// open file
+-	path := filename;
+-	fd, err1 := os.Open(path, os.O_RDONLY, 0);
+-	defer fd.Close();
+-	if err1 != nil {
+-		serveError(c, err1.String(), path);
+-		return;
++func servePage(c *http.Conn, title, content interface{}) {
++	type Data struct {
++		title interface{};
++		header interface{};
++		timestamp string;
++		content interface{};
+ 	}
+ 
+-	// read source
+-	var buf io.ByteBuffer;
+-	n, err2 := io.Copy(fd, &buf);
+-	if err2 != nil {
+-		serveError(c, err2.String(), path);
+-		return;
+-	}
+-	src := buf.Data();
++	var d Data;
++	d.title = title;
++	d.header = title;
++	d.timestamp = time.UTC().String();
++	d.content = content;
++	godocHtml.Execute(&d, c);
++}
+ 
+-	// generate body
+-	var b io.ByteBuffer;
+-	// section title
+-	fmt.Fprintf(&b, "<h1>Parse errors in %s</h1>\n", filename);
+ 
+-	// handle read errors
+-	if err1 != nil || err2 != nil {
+-		fmt.Fprintf(&b, "could not read file %s\n", filename);
+-		return;
+-	}
++func serveText(c *http.Conn, text []byte) {
++	c.SetHeader("content-type", "text/plain; charset=utf-8");
++	c.Write(text);
++}
+ 
+-	// write source with error messages interspersed
+-	fmt.Fprintln(&b, "<pre>");
+-	offs := 0;
+-	for i, e := range errors {
+-		if 0 <= e.pos.Offset && e.pos.Offset <= len(src) {
+-			// TODO handle Write errors
+-			b.Write(src[offs : e.pos.Offset]);
+-			// TODO this should be done using a .css file
+-			fmt.Fprintf(&b, "<b><font color=red>%s >>></font></b>", e.msg);
+-			offs = e.pos.Offset;
+-		} else {
+-			log.Stderrf("error position %d out of bounds (len = %d)", e.pos.Offset, len(src));
+-		}
+-	}
+-	// TODO handle Write errors
+-	b.Write(src[offs : len(src)]);
+-	fmt.Fprintln(&b, "</pre>");
+ 
+-	servePage(c, filename, b.Data());
++func serveError(c *http.Conn, err, arg string) {
++	servePage(c, "Error", fmt.Sprintf("%v (%s)\n", err, arg));
+ }
+ 
+ 
+-func serveGoSource(c *http.Conn, dirname string, filename string) {
+-	path := dirname + "/" + filename;
+-	prog, errors := parse(path, parser.ParseComments);
+-	if len(errors) > 0 {
+-		serveParseErrors(c, filename, errors);
++// ----------------------------------------------------------------------------
++// Files
++
++func serveParseErrors(c *http.Conn, errors *parseErrors) {
++	// format errors
++	var b io.ByteBuffer;
++	parseerrorHtml.Execute(errors, &b);
++	servePage(c, errors.filename + " - Parse Errors", b.Data());
++}
++
++
++func serveGoSource(c *http.Conn, name string) {
++	prog, errors := parse(name, parser.ParseComments);
++	if errors != nil {
++		serveParseErrors(c, errors);
+ 		return;
+ 	}
+ 
+@@ -383,40 +408,30 @@ func serveGoSource(c *http.Conn, dirname string, filename string) {
+ 	writer.Flush();  // ignore errors
+ 	fmt.Fprintln(&b, "</pre>");
+ 
+-	servePage(c, path + " - Go source", b.Data());
++	servePage(c, name + " - Go source", b.Data());
+ }
+ 
+ 
+-func serveHTMLFile(c *http.Conn, filename string) {
+-	src, err1 := os.Open(filename, os.O_RDONLY, 0);
+-	defer src.Close();
+-	if err1 != nil {
+-		serveError(c, err1.String(), filename);
+-		return
+-	}
+-	if written, err2 := io.Copy(src, c); err2 != nil {
+-		serveError(c, err2.String(), filename);
+-		return
+-	}
+-}
++var fileServer = http.FileServer(".", "");
+ 
++func serveFile(c *http.Conn, req *http.Request) {
++	// pick off special cases and hand the rest to the standard file server
++	switch {
++	case req.Url.Path == "/":
++		// serve landing page.
++		// TODO: hide page from ordinary file serving.
++		// writing doc/index.html will take care of that.
++		http.ServeFile(c, req, "doc/root.html");
+ 
+-func serveFile(c *http.Conn, path string) {
+-	dir, err := os.Stat(path);
+-	if err != nil {
+-		serveError(c, err.String(), path);
+-		return;
+-	}
++	case req.Url.Path == "/doc/root.html":
++		// hide landing page from its real name
++		http.NotFound(c, req);
++
++	case pathutil.Ext(req.Url.Path) == ".go":
++		serveGoSource(c, req.Url.Path[1:len(req.Url.Path)]);
+ 
+-	switch {
+-	case dir.IsDirectory():
+-		serveDir(c, path);
+-	case isGoFile(dir):
+-		serveGoSource(c, ".", path);
+-	case isHTMLFile(dir):
+-		serveHTMLFile(c, path);
+ 	default:
+-		serveError(c, "Not a directory or .go file", path);
++		fileServer.ServeHTTP(c, req);
+ 	}
+ }
+ 
+@@ -427,6 +442,7 @@ func serveFile(c *http.Conn, path string) {
+ type pakDesc struct {
+ 	dirname string;  // relative to goroot
+ 	pakname string;  // relative to directory
++	importpath string;	// import "___"
+ 	filenames map[string] bool;  // set of file (names) belonging to this package
+ }
+ 
+@@ -437,7 +453,7 @@ func (p pakArray) Less(i, j int) bool  { return p[i].pakname < p[j].pakname; }
+ func (p pakArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+-func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
++func addFile(pmap map[string]*pakDesc, dirname, filename, importprefix string) {
+ 	if strings.HasSuffix(filename, "_test.go") {
+ 		// ignore package tests
+ 		return;
+@@ -452,14 +468,21 @@ func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
+ 		// ignore main packages for now
+ 		return;
+ 	}
+-	pakname := pathutil.Clean(dirname + "/" + prog.Name.Value);
++
++	var importpath string;
++	dir, name := pathutil.Split(importprefix);
++	if name == prog.Name.Value {	// package math in directory "math"
++		importpath = importprefix;
++	} else {
++		importpath = pathutil.Clean(importprefix + "/" + prog.Name.Value);
++	}
+ 
+ 	// find package descriptor
+-	pakdesc, found := pmap[pakname];
++	pakdesc, found := pmap[importpath];
+ 	if !found {
+ 		// add a new descriptor
+-		pakdesc = &pakDesc{dirname, prog.Name.Value, make(map[string]bool)};
+-		pmap[pakname] = pakdesc;
++		pakdesc = &pakDesc{dirname, prog.Name.Value, importpath, make(map[string]bool)};
++		pmap[importpath] = pakdesc;
+ 	}
+ 
+ 	//fmt.Printf("pak = %s, file = %s\n", pakname, filename);
+@@ -472,7 +495,7 @@ func addFile(pmap map[string]*pakDesc, dirname string, filename string) {
+ }
+ 
+ 
+-func addDirectory(pmap map[string]*pakDesc, dirname string) {
++func addDirectory(pmap map[string]*pakDesc, dirname, importprefix string, subdirs *[]os.Dir) {
+ 	path := dirname;
+ 	fd, err1 := os.Open(path, os.O_RDONLY, 0);
+ 	if err1 != nil {
+@@ -486,11 +509,24 @@ func addDirectory(pmap map[string]*pakDesc, dirname string) {
+ 		return;
+ 	}
+ 
++	nsub := 0;
+ 	for i, entry := range list {
+ 		switch {
+ 		case isGoFile(&entry):
+-			//fmt.Printf("found %s/%s\n", dirname, entry.Name);
+-			addFile(pmap, dirname, entry.Name);
++			addFile(pmap, dirname, entry.Name, importprefix);
++		case entry.IsDirectory():
++			nsub++;
++		}
++	}
++
++	if subdirs != nil && nsub > 0 {
++		*subdirs = make([]os.Dir, nsub);
++		nsub = 0;
++		for i, entry := range list {
++			if entry.IsDirectory() {
++				subdirs[nsub] = entry;
++				nsub++;
++			}
+ 		}
+ 	}
+ }
+@@ -509,53 +545,67 @@ func mapValues(pmap map[string]*pakDesc) pakArray {
+ }
+ 
+ 
+-func servePackage(c *http.Conn, p *pakDesc) {
+-	// make a filename list
+-	filenames := make([]string, len(p.filenames));
+-	i := 0;
+-	for filename, tmp := range p.filenames {
+-		filenames[i] = filename;
+-		i++;
+-	}
+-
++func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
+ 	// compute documentation
+-	var doc docPrinter.PackageDoc;
+-	for i, filename := range filenames {
++	var r doc.DocReader;
++	i := 0;
++	for filename := range p.filenames {
+ 		path := p.dirname + "/" + filename;
+-		prog, errors := parse(path, parser.ParseComments);
+-		if len(errors) > 0 {
+-			serveParseErrors(c, filename, errors);
+-			return;
++		prog, err := parse(path, parser.ParseComments);
++		if err != nil {
++			return nil, err;
+ 		}
+ 
+ 		if i == 0 {
+-			// first package - initialize docPrinter
+-			doc.Init(prog.Name.Value);
++			// first file - initialize doc
++			r.Init(prog.Name.Value, p.importpath);
+ 		}
+-		doc.AddProgram(prog);
++		i++;
++		r.AddProgram(prog);
++	}
++	return r.Doc(), nil;
++}
++
++
++func servePackage(c *http.Conn, p *pakDesc) {
++	doc, errors := p.Doc();
++	if errors != nil {
++		serveParseErrors(c, errors);
++		return;
+ 	}
+ 
+ 	var b io.ByteBuffer;
+-	writer := makeTabwriter(&b);  // for nicely formatted output
+-	doc.Print(writer);
+-	writer.Flush();	// ignore errors
++	if false {	// TODO req.Params["format"] == "text"
++		err := packageText.Execute(doc, &b);
++		if err != nil {
++			log.Stderrf("packageText.Execute: %s", err);
++		}
++		serveText(c, b.Data());
++		return;
++	}
++	err := packageHtml.Execute(doc, &b);
++	if err != nil {
++		log.Stderrf("packageHtml.Execute: %s", err);
++	}
++	servePage(c, doc.ImportPath + " - Go package documentation", b.Data());
++}
+ 
+-	servePage(c, doc.PackageName() + " - Go package documentation", b.Data());
++
++type pakInfo struct {
++	Path string;
++	Package *pakDesc;
++	Packages pakArray;
++	Subdirs []os.Dir;	// TODO(rsc): []*os.Dir
+ }
+ 
+ 
+-func servePackageList(c *http.Conn, list pakArray) {
++func servePackageList(c *http.Conn, info *pakInfo) {
+ 	var b io.ByteBuffer;
+-	for i := 0; i < len(list); i++ {
+-		p := list[i];
+-		link := pathutil.Clean(p.dirname + "/" + p.pakname);
+-		fmt.Fprintf(&b, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n",
+-			p.pakname, p.pakname, link);
++	err := packagelistHtml.Execute(info, &b);
++	if err != nil {
++		log.Stderrf("packagelistHtml.Execute: %s", err);
+ 	}
+-
+-	servePage(c, "Packages", b.Data());
+-
+-	// TODO: show subdirectories
++	servePage(c, info.Path + " - Go packages", b.Data());
+ }
+ 
+ 
+@@ -568,50 +618,73 @@ func servePackageList(c *http.Conn, list pakArray) {
+ //	"math"	- single package made up of directory
+ //	"container"	- directory listing
+ //	"container/vector"	- single package in container directory
+-func findPackages(name string) (*pakDesc, pakArray) {
++func findPackages(name string) *pakInfo {
++	info := new(pakInfo);
++
+ 	// Build list of packages.
+ 	// If the path names a directory, scan that directory
+ 	// for a package with the name matching the directory name.
+ 	// Otherwise assume it is a package name inside
+ 	// a directory, so scan the parent.
+ 	pmap := make(map[string]*pakDesc);
+-	dir := pathutil.Clean("src/lib/" + name);
++	cname := pathutil.Clean(name);
++	if cname == "" {
++		cname = "."
++	}
++	dir := pathutil.Join(*pkgroot, cname);
++	url := pathutil.Join(Pkg, cname);
+ 	if isDir(dir) {
+ 		parent, pak := pathutil.Split(dir);
+-		addDirectory(pmap, dir);
++		addDirectory(pmap, dir, cname, &info.Subdirs);
+ 		paks := mapValues(pmap);
+ 		if len(paks) == 1 {
+ 			p := paks[0];
+ 			if p.dirname == dir && p.pakname == pak {
+-				return p, nil;
++				info.Package = p;
++				info.Path = cname;
++				return info;
+ 			}
+ 		}
+-		return nil, paks;
++		info.Packages = paks;
++		if cname == "." {
++			info.Path = "";
++		} else {
++			info.Path = cname + "/";
++		}
++		return info;
+ 	}
+ 
+ 	// Otherwise, have parentdir/pak.  Look for package pak in dir.
+ 	parentdir, pak := pathutil.Split(dir);
+-	addDirectory(pmap, parentdir);
+-	if p, ok := pmap[dir]; ok {
+-		return p, nil;
++	parentname, nam := pathutil.Split(cname);
++	if parentname == "" {
++		parentname = "."
++	}
++	addDirectory(pmap, parentdir, parentname, nil);
++	if p, ok := pmap[cname]; ok {
++		info.Package = p;
++		info.Path = cname;
++		return info;
+ 	}
+ 
+-	return nil, nil;
++	info.Path = name;	// original, uncleaned name
++	return info;
+ }
+ 
+ 
+-func servePkg(c *http.Conn, path string) {
+-	pak, paks := findPackages(path);
+-
+-	// TODO: canonicalize path and redirect if needed.
++func servePkg(c *http.Conn, r *http.Request) {
++	path := r.Url.Path;
++	path = path[len(Pkg) : len(path)];
++	info := findPackages(path);
++	if r.Url.Path != Pkg + info.Path {
++		http.Redirect(c, info.Path);
++		return;
++	}
+ 
+-	switch {
+-	case pak != nil:
+-		servePackage(c, pak);
+-	case len(paks) > 0:
+-		servePackageList(c, paks);
+-	default:
+-		serveError(c, "No packages found", path);
++	if info.Package != nil {
++		servePackage(c, info.Package);
++	} else {
++		servePackageList(c, info);
+ 	}
+ }
+ 
+@@ -619,25 +692,11 @@ func servePkg(c *http.Conn, path string) {
+ // ----------------------------------------------------------------------------
+ // Server
+ 
+-func makeFixedFileServer(filename string) (func(c *http.Conn, path string)) {
+-	return func(c *http.Conn, path string) {
+-		serveFile(c, filename);
+-	};
+-}
+-
+-
+-func installHandler(prefix string, handler func(c *http.Conn, path string)) {
+-	// create a handler customized with prefix
+-	f := func(c *http.Conn, req *http.Request) {
+-		path := req.Url.Path;
+-		if *verbose {
+-			log.Stderrf("%s\t%s", req.Host, path);
+-		}
+-		handler(c, path[len(prefix) : len(path)]);
+-	};
+-
+-	// install the customized handler
+-	http.Handle(prefix, http.HandlerFunc(f));
++func LoggingHandler(h http.Handler) http.Handler {
++	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
++		log.Stderrf("%s\t%s", req.Host, req.Url.Path);
++		h.ServeHTTP(c, req);
++	})
+ }
+ 
+ 
+@@ -666,23 +725,54 @@ func main() {
+ 		log.Exitf("chdir %s: %v", goroot, err);
+ 	}
+ 
++	ReadTemplates();
++
+ 	if *httpaddr != "" {
++		var handler http.Handler = http.DefaultServeMux;
+ 		if *verbose {
+ 			log.Stderrf("Go Documentation Server\n");
+ 			log.Stderrf("address = %s\n", *httpaddr);
+ 			log.Stderrf("goroot = %s\n", goroot);
++			handler = LoggingHandler(handler);
+ 		}
+ 
+-		installHandler("/mem", makeFixedFileServer("doc/go_mem.html"));
+-		installHandler("/spec", makeFixedFileServer("doc/go_spec.html"));
+-		installHandler("/pkg/", servePkg);
+-		installHandler(filePrefix, serveFile);
++		http.Handle(Pkg, http.HandlerFunc(servePkg));
++		http.Handle("/", http.HandlerFunc(serveFile));
+ 
+-		if err := http.ListenAndServe(*httpaddr, nil); err != nil {
++		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
+ 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
+ 		}
+ 		return;
+ 	}
+ 
+-	log.Exitf("godoc command-line not implemented");
++	if *html {
++		packageText = packageHtml;
++		packagelistText = packagelistHtml;
++		parseerrorText = parseerrorHtml;
++	}
++
++	info := findPackages(flag.Arg(0));
++	if info.Package == nil {
++		err := packagelistText.Execute(info, os.Stderr);
++		if err != nil {
++			log.Stderrf("packagelistText.Execute: %s", err);
++		}
++		sys.Exit(1);
++	}
++
++	doc, errors := info.Package.Doc();
++	if errors != nil {
++		err := parseerrorText.Execute(errors, os.Stderr);
++		if err != nil {
++			log.Stderrf("parseerrorText.Execute: %s", err);
++		}
++		sys.Exit(1);
++	}
++
++	if flag.NArg() > 1 {
++		args := flag.Args();
++		doc.Filter(args[1:len(args)]);
++	}
++
++	packageText.Execute(doc, os.Stdout);
+ }

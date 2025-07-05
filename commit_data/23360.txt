@@ -17,6 +17,20 @@ Date:   Fri May 8 14:57:30 2015 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/registry/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+index 1c1771d30e..b2b28aadf8 100644
+--- a/src/internal/syscall/windows/registry/value.go
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -130,7 +130,7 @@ func ExpandString(value string) (string, error) {
+ 			return "", err
+ 		}
+ 		if n <= uint32(len(r)) {
+-			u := (*[1 << 10]uint16)(unsafe.Pointer(&r[0]))[:]
++			u := (*[1 << 15]uint16)(unsafe.Pointer(&r[0]))[:]
+ 			return syscall.UTF16ToString(u), nil
+ 		}
+ 		r = make([]uint16, n)

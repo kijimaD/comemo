@@ -10,6 +10,25 @@ Date:   Wed Oct 1 16:09:55 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/153820044
-
+---
  src/encoding/binary/binary.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index a5694876ac..b5a377430f 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -10,9 +10,10 @@
+ // type (int8, uint8, int16, float32, complex64, ...)
+ // or an array or struct containing only fixed-size values.
+ //
+-// Varints are a method of encoding integers using one or more bytes;
+-// numbers with smaller absolute value take a smaller number of bytes.
+-// For a specification, see http://code.google.com/apis/protocolbuffers/docs/encoding.html.
++// The varint functions encode and decode single integer values using
++// a variable-length encoding; smaller values require fewer bytes.
++// For a specification, see
++// http://code.google.com/apis/protocolbuffers/docs/encoding.html.
+ //
+ // This package favors simplicity over efficiency. Clients that require
+ // high-performance serialization, especially for large data structures,

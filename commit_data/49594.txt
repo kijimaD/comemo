@@ -10,9 +10,68 @@ Date:   Mon Aug 30 18:07:54 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/346293
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../compile/internal/types2/testdata/fixedbugs/issue48083.go2    | 9 +++++++++
  src/cmd/compile/internal/types2/union.go                         | 2 +-
  src/go/types/testdata/fixedbugs/issue48083.go2                   | 9 +++++++++
  src/go/types/union.go                                            | 2 +-
  4 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48083.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48083.go2
+new file mode 100644
+index 0000000000..3dae51415d
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48083.go2
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++type _ interface{ int | T /* ERROR cannot use generic type */ }
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 933e5a2951..d4c749a89b 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -122,7 +122,7 @@ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
+ 		x = op.X
+ 		tilde = true
+ 	}
+-	typ = check.anyType(x)
++	typ = check.typ(x)
+ 	// embedding stand-alone type parameters is not permitted (issue #47127).
+ 	if _, ok := under(typ).(*TypeParam); ok {
+ 		check.error(x, "cannot embed a type parameter")
+diff --git a/src/go/types/testdata/fixedbugs/issue48083.go2 b/src/go/types/testdata/fixedbugs/issue48083.go2
+new file mode 100644
+index 0000000000..3dae51415d
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48083.go2
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++type _ interface{ int | T /* ERROR cannot use generic type */ }
+\ No newline at end of file
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 1ba99adaca..f6b32b9e5d 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -125,7 +125,7 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+ 		x = op.X
+ 		tilde = true
+ 	}
+-	typ = check.anyType(x)
++	typ = check.typ(x)
+ 	// embedding stand-alone type parameters is not permitted (issue #47127).
+ 	if _, ok := under(typ).(*TypeParam); ok {
+ 		check.error(x, _Todo, "cannot embed a type parameter")

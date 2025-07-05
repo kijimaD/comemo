@@ -13,6 +13,35 @@ Date:   Tue Jul 13 23:12:18 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_linux_riscv64.s | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index 2389f1cc18..54b7a3f61c 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -25,7 +25,6 @@
+ #define SYS_fcntl		25
+ #define SYS_futex		98
+ #define SYS_getpid		172
+-#define SYS_getrlimit		163
+ #define SYS_gettid		178
+ #define SYS_gettimeofday	169
+ #define SYS_kill		129
+@@ -132,15 +131,6 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	A0, errno+16(FP)
+ 	RET
+ 
+-// func getrlimit(kind int32, limit unsafe.Pointer) int32
+-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW	kind+0(FP), A0
+-	MOV	limit+8(FP), A1
+-	MOV	$SYS_getrlimit, A7
+-	ECALL
+-	MOVW	A0, ret+16(FP)
+-	RET
+-
+ // func usleep(usec uint32)
+ TEXT runtime·usleep(SB),NOSPLIT,$24-4
+ 	MOVWU	usec+0(FP), A0

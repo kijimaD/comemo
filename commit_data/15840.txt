@@ -7,9 +7,255 @@ Date:   Tue Mar 19 13:59:37 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7662045
-
+---
  src/pkg/debug/dwarf/buf.go   | 48 ++++++++++++++++++++++++++++++++---------
  src/pkg/debug/dwarf/entry.go | 26 ++++++++++++++++------
  src/pkg/debug/dwarf/type.go  |  4 +++-
  src/pkg/debug/dwarf/unit.go  | 51 +++++++++++++++++++++++++++++++++++---------
  4 files changed, 102 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/buf.go b/src/pkg/debug/dwarf/buf.go
+index 6dc28d2568..53c46eb4b8 100644
+--- a/src/pkg/debug/dwarf/buf.go
++++ b/src/pkg/debug/dwarf/buf.go
+@@ -13,17 +13,45 @@ import (
+ 
+ // Data buffer being decoded.
+ type buf struct {
+-	dwarf    *Data
+-	order    binary.ByteOrder
+-	name     string
+-	off      Offset
+-	data     []byte
+-	addrsize int
+-	err      error
++	dwarf  *Data
++	order  binary.ByteOrder
++	format dataFormat
++	name   string
++	off    Offset
++	data   []byte
++	err    error
+ }
+ 
+-func makeBuf(d *Data, name string, off Offset, data []byte, addrsize int) buf {
+-	return buf{d, d.order, name, off, data, addrsize, nil}
++// Data format, other than byte order.  This affects the handling of
++// certain field formats.
++type dataFormat interface {
++	// DWARF version number.  Zero means unknown.
++	version() int
++
++	// 64-bit DWARF format?
++	dwarf64() (dwarf64 bool, isKnown bool)
++
++	// Size of an address, in bytes.  Zero means unknown.
++	addrsize() int
++}
++
++// Some parts of DWARF have no data format, e.g., abbrevs.
++type unknownFormat struct{}
++
++func (u unknownFormat) version() int {
++	return 0
++}
++
++func (u unknownFormat) dwarf64() (bool, bool) {
++	return false, false
++}
++
++func (u unknownFormat) addrsize() int {
++	return 0
++}
++
++func makeBuf(d *Data, format dataFormat, name string, off Offset, data []byte) buf {
++	return buf{d, d.order, format, name, off, data, nil}
+ }
+ 
+ func (b *buf) uint8() uint8 {
+@@ -121,7 +149,7 @@ func (b *buf) int() int64 {
+ 
+ // Address-sized uint.
+ func (b *buf) addr() uint64 {
+-	switch b.addrsize {
++	switch b.format.addrsize() {
+ 	case 1:
+ 		return uint64(b.uint8())
+ 	case 2:
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index f376e40880..13d8d5ecf9 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -40,7 +40,7 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, error) {
+ 	} else {
+ 		data = data[off:]
+ 	}
+-	b := makeBuf(d, "abbrev", 0, data, 0)
++	b := makeBuf(d, unknownFormat{}, "abbrev", 0, data)
+ 
+ 	// Error handling is simplified by the buf getters
+ 	// returning an endless stream of 0s after an error.
+@@ -192,7 +192,21 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 
+ 		// reference to other entry
+ 		case formRefAddr:
+-			val = Offset(b.addr())
++			vers := b.format.version()
++			if vers == 0 {
++				b.error("unknown version for DW_FORM_ref_addr")
++			} else if vers == 2 {
++				val = Offset(b.addr())
++			} else {
++				is64, known := b.format.dwarf64()
++				if !known {
++					b.error("unknown size for DW_FORM_ref_addr")
++				} else if is64 {
++					val = Offset(b.uint64())
++				} else {
++					val = Offset(b.uint32())
++				}
++			}
+ 		case formRef1:
+ 			val = Offset(b.uint8()) + ubase
+ 		case formRef2:
+@@ -212,7 +226,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 			if b.err != nil {
+ 				return nil
+ 			}
+-			b1 := makeBuf(b.dwarf, "str", 0, b.dwarf.str, 0)
++			b1 := makeBuf(b.dwarf, unknownFormat{}, "str", 0, b.dwarf.str)
+ 			b1.skip(int(off))
+ 			val = b1.string()
+ 			if b1.err != nil {
+@@ -262,7 +276,7 @@ func (r *Reader) Seek(off Offset) {
+ 		}
+ 		u := &d.unit[0]
+ 		r.unit = 0
+-		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize)
++		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+ 		return
+ 	}
+ 
+@@ -273,7 +287,7 @@ func (r *Reader) Seek(off Offset) {
+ 		u = &d.unit[i]
+ 		if u.off <= off && off < u.off+Offset(len(u.data)) {
+ 			r.unit = i
+-			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:], u.addrsize)
++			r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+ 			return
+ 		}
+ 	}
+@@ -285,7 +299,7 @@ func (r *Reader) maybeNextUnit() {
+ 	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
+ 		r.unit++
+ 		u := &r.d.unit[r.unit]
+-		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize)
++		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+ 	}
+ }
+ 
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 4502355022..54000fbd75 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -435,7 +435,9 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 					goto Error
+ 				}
+ 				if loc, ok := kid.Val(AttrDataMemberLoc).([]byte); ok {
+-					b := makeBuf(d, "location", 0, loc, d.addrsize)
++					// TODO: Should have original compilation
++					// unit here, not unknownFormat.
++					b := makeBuf(d, unknownFormat{}, "location", 0, loc)
+ 					if b.uint8() != opPlusUconst {
+ 						err = DecodeError{"info", kid.Offset, "unexpected opcode"}
+ 						goto Error
+diff --git a/src/pkg/debug/dwarf/unit.go b/src/pkg/debug/dwarf/unit.go
+index c10d75dbdc..270cd2e331 100644
+--- a/src/pkg/debug/dwarf/unit.go
++++ b/src/pkg/debug/dwarf/unit.go
+@@ -10,19 +10,44 @@ import "strconv"
+ // Each unit has its own abbreviation table and address size.
+ 
+ type unit struct {
+-	base     Offset // byte offset of header within the aggregate info
+-	off      Offset // byte offset of data within the aggregate info
+-	data     []byte
+-	atable   abbrevTable
+-	addrsize int
++	base   Offset // byte offset of header within the aggregate info
++	off    Offset // byte offset of data within the aggregate info
++	data   []byte
++	atable abbrevTable
++	asize  int
++	vers   int
++	is64   bool // True for 64-bit DWARF format
++}
++
++// Implement the dataFormat interface.
++
++func (u *unit) version() int {
++	return u.vers
++}
++
++func (u *unit) dwarf64() (bool, bool) {
++	return u.is64, true
++}
++
++func (u *unit) addrsize() int {
++	return u.asize
+ }
+ 
+ func (d *Data) parseUnits() ([]unit, error) {
+ 	// Count units.
+ 	nunit := 0
+-	b := makeBuf(d, "info", 0, d.info, 0)
++	b := makeBuf(d, unknownFormat{}, "info", 0, d.info)
+ 	for len(b.data) > 0 {
+-		b.skip(int(b.uint32()))
++		len := b.uint32()
++		if len == 0xffffffff {
++			len64 := b.uint64()
++			if len64 != uint64(uint32(len64)) {
++				b.error("unit length overflow")
++				break
++			}
++			len = uint32(len64)
++		}
++		b.skip(int(len))
+ 		nunit++
+ 	}
+ 	if b.err != nil {
+@@ -30,16 +55,22 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 	}
+ 
+ 	// Again, this time writing them down.
+-	b = makeBuf(d, "info", 0, d.info, 0)
++	b = makeBuf(d, unknownFormat{}, "info", 0, d.info)
+ 	units := make([]unit, nunit)
+ 	for i := range units {
+ 		u := &units[i]
+ 		u.base = b.off
+ 		n := b.uint32()
+-		if vers := b.uint16(); vers != 2 {
++		if n == 0xffffffff {
++			u.is64 = true
++			n = uint32(b.uint64())
++		}
++		vers := b.uint16()
++		if vers != 2 && vers != 3 {
+ 			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
+ 			break
+ 		}
++		u.vers = int(vers)
+ 		atable, err := d.parseAbbrev(b.uint32())
+ 		if err != nil {
+ 			if b.err == nil {
+@@ -48,7 +79,7 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 			break
+ 		}
+ 		u.atable = atable
+-		u.addrsize = int(b.uint8())
++		u.asize = int(b.uint8())
+ 		u.off = b.off
+ 		u.data = b.bytes(int(n - (2 + 4 + 1)))
+ 	}

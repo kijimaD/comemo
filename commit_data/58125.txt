@@ -13,7 +13,7 @@ Date:   Sun Sep 18 02:35:00 2022 +1000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Aaron Bieber <deftly@gmail.com>
-
+---
  src/runtime/asm_riscv64.s             |   9 +
  src/runtime/defs_openbsd_riscv64.go   | 176 ++++++++
  src/runtime/rt0_openbsd_riscv64.s     |  14 +
@@ -23,3 +23,1101 @@ Date:   Sun Sep 18 02:35:00 2022 +1000
  src/runtime/sys_openbsd_riscv64.s     | 742 ++++++++++++++++++++++++++++++++++
  src/runtime/tls_riscv64.s             |   3 +-
  8 files changed, 1021 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index eb53cbbf47..c2142f1dbb 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -309,6 +309,15 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	CALL	runtime·abort(SB)
+ 	RET
+ 
++// func asmcgocall_no_g(fn, arg unsafe.Pointer)
++// Call fn(arg) aligned appropriately for the gcc ABI.
++// Called on a system stack, and there may be no g yet (during needm).
++TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
++	MOV	fn+0(FP), X5
++	MOV	arg+8(FP), X10
++	JALR	RA, (X5)
++	RET
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+diff --git a/src/runtime/defs_openbsd_riscv64.go b/src/runtime/defs_openbsd_riscv64.go
+new file mode 100644
+index 0000000000..8ec86577be
+--- /dev/null
++++ b/src/runtime/defs_openbsd_riscv64.go
+@@ -0,0 +1,176 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++	_EAGAIN = 0x23
++
++	_O_WRONLY   = 0x1
++	_O_NONBLOCK = 0x4
++	_O_CREAT    = 0x200
++	_O_TRUNC    = 0x400
++	_O_CLOEXEC  = 0x10000
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++	_MAP_STACK   = 0x4000
++
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_PTHREAD_CREATE_DETACHED = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type tforkt struct {
++	tf_tcb   unsafe.Pointer
++	tf_tid   *int32
++	tf_stack uintptr
++}
++
++type sigcontext struct {
++	__sc_unused int32
++	sc_mask     int32
++	sc_ra       uintptr
++	sc_sp       uintptr
++	sc_gp       uintptr
++	sc_tp       uintptr
++	sc_t        [7]uintptr
++	sc_s        [12]uintptr
++	sc_a        [8]uintptr
++	sc_sepc     uintptr
++	sc_f        [32]uintptr
++	sc_fcsr     uintptr
++	sc_cookie   int64
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_code   int32
++	si_errno  int32
++	pad_cgo_0 [4]byte
++	_data     [120]byte
++}
++
++type stackt struct {
++	ss_sp     uintptr
++	ss_size   uintptr
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++//go:nosplit
++func (ts *timespec) setNsec(ns int64) {
++	ts.tv_sec = ns / 1e9
++	ts.tv_nsec = ns % 1e9
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
++
++type pthread uintptr
++type pthreadattr uintptr
++type pthreadcond uintptr
++type pthreadcondattr uintptr
++type pthreadmutex uintptr
++type pthreadmutexattr uintptr
+diff --git a/src/runtime/rt0_openbsd_riscv64.s b/src/runtime/rt0_openbsd_riscv64.s
+new file mode 100644
+index 0000000000..e57423ec13
+--- /dev/null
++++ b/src/runtime/rt0_openbsd_riscv64.s
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT _rt0_riscv64_openbsd(SB),NOSPLIT|NOFRAME,$0
++	MOV	0(X2), A0	// argc
++	ADD	$8, X2, A1	// argv
++	JMP	main(SB)
++
++TEXT main(SB),NOSPLIT|NOFRAME,$0
++	MOV	$runtime·rt0_go(SB), T0
++	JALR	ZERO, T0
+diff --git a/src/runtime/signal_openbsd_riscv64.go b/src/runtime/signal_openbsd_riscv64.go
+new file mode 100644
+index 0000000000..25643a0df2
+--- /dev/null
++++ b/src/runtime/signal_openbsd_riscv64.go
+@@ -0,0 +1,72 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"internal/goarch"
++	"unsafe"
++)
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) regs() *sigcontext {
++	return (*sigcontext)(c.ctxt)
++}
++
++func (c *sigctxt) ra() uint64  { return uint64(c.regs().sc_ra) }
++func (c *sigctxt) sp() uint64  { return uint64(c.regs().sc_sp) }
++func (c *sigctxt) gp() uint64  { return uint64(c.regs().sc_gp) }
++func (c *sigctxt) tp() uint64  { return uint64(c.regs().sc_tp) }
++func (c *sigctxt) t0() uint64  { return uint64(c.regs().sc_t[0]) }
++func (c *sigctxt) t1() uint64  { return uint64(c.regs().sc_t[1]) }
++func (c *sigctxt) t2() uint64  { return uint64(c.regs().sc_t[2]) }
++func (c *sigctxt) s0() uint64  { return uint64(c.regs().sc_s[0]) }
++func (c *sigctxt) s1() uint64  { return uint64(c.regs().sc_s[1]) }
++func (c *sigctxt) a0() uint64  { return uint64(c.regs().sc_a[0]) }
++func (c *sigctxt) a1() uint64  { return uint64(c.regs().sc_a[1]) }
++func (c *sigctxt) a2() uint64  { return uint64(c.regs().sc_a[2]) }
++func (c *sigctxt) a3() uint64  { return uint64(c.regs().sc_a[3]) }
++func (c *sigctxt) a4() uint64  { return uint64(c.regs().sc_a[4]) }
++func (c *sigctxt) a5() uint64  { return uint64(c.regs().sc_a[5]) }
++func (c *sigctxt) a6() uint64  { return uint64(c.regs().sc_a[6]) }
++func (c *sigctxt) a7() uint64  { return uint64(c.regs().sc_a[7]) }
++func (c *sigctxt) s2() uint64  { return uint64(c.regs().sc_s[2]) }
++func (c *sigctxt) s3() uint64  { return uint64(c.regs().sc_s[3]) }
++func (c *sigctxt) s4() uint64  { return uint64(c.regs().sc_s[4]) }
++func (c *sigctxt) s5() uint64  { return uint64(c.regs().sc_s[5]) }
++func (c *sigctxt) s6() uint64  { return uint64(c.regs().sc_s[6]) }
++func (c *sigctxt) s7() uint64  { return uint64(c.regs().sc_s[7]) }
++func (c *sigctxt) s8() uint64  { return uint64(c.regs().sc_s[8]) }
++func (c *sigctxt) s9() uint64  { return uint64(c.regs().sc_s[9]) }
++func (c *sigctxt) s10() uint64 { return uint64(c.regs().sc_s[10]) }
++func (c *sigctxt) s11() uint64 { return uint64(c.regs().sc_s[11]) }
++func (c *sigctxt) t3() uint64  { return uint64(c.regs().sc_t[3]) }
++func (c *sigctxt) t4() uint64  { return uint64(c.regs().sc_t[4]) }
++func (c *sigctxt) t5() uint64  { return uint64(c.regs().sc_t[5]) }
++func (c *sigctxt) t6() uint64  { return uint64(c.regs().sc_t[6]) }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return uint64(c.regs().sc_sepc) }
++
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 {
++	return *(*uint64)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize))
++}
++
++func (c *sigctxt) set_pc(x uint64) { c.regs().sc_sepc = uintptr(x) }
++func (c *sigctxt) set_ra(x uint64) { c.regs().sc_ra = uintptr(x) }
++func (c *sigctxt) set_sp(x uint64) { c.regs().sc_sp = uintptr(x) }
++func (c *sigctxt) set_gp(x uint64) { c.regs().sc_gp = uintptr(x) }
++
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) {
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
++}
+diff --git a/src/runtime/signal_riscv64.go b/src/runtime/signal_riscv64.go
+index b8d7b970d9..8acd34ce2a 100644
+--- a/src/runtime/signal_riscv64.go
++++ b/src/runtime/signal_riscv64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux || freebsd) && riscv64
++//go:build (linux || freebsd || openbsd) && riscv64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/stubs_riscv64.go b/src/runtime/stubs_riscv64.go
+index b07d7f8746..61a6e33bd4 100644
+--- a/src/runtime/stubs_riscv64.go
++++ b/src/runtime/stubs_riscv64.go
+@@ -4,10 +4,15 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Called from assembly only; declared for go vet.
+ func load_g()
+ func save_g()
+ 
++//go:noescape
++func asmcgocall_no_g(fn, arg unsafe.Pointer)
++
+ // Used by reflectcall and the reflect package.
+ //
+ // Spills/loads arguments in registers to/from an internal/abi.RegArgs
+diff --git a/src/runtime/sys_openbsd_riscv64.s b/src/runtime/sys_openbsd_riscv64.s
+new file mode 100644
+index 0000000000..3262b41052
+--- /dev/null
++++ b/src/runtime/sys_openbsd_riscv64.s
+@@ -0,0 +1,742 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// System calls and other sys.stuff for riscv64, OpenBSD
++// System calls are implemented in libc/libpthread, this file
++// contains trampolines that convert from Go to C calling convention.
++//
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++#define CLOCK_REALTIME	$0
++#define	CLOCK_MONOTONIC	$3
++
++// mstart_stub is the first function executed on a new thread started by pthread_create.
++// It just does some low-level setup and then calls mstart.
++// Note: called with the C calling convention.
++TEXT runtime·mstart_stub(SB),NOSPLIT,$200
++	// X10 points to the m.
++	// We are already on m's g0 stack.
++
++	// Save callee-save registers (X8, X9, X18..X27, F8, F9, F18..F27)
++	MOV	X8, (1*8)(X2)
++	MOV	X9, (2*8)(X2)
++	MOV	X18, (3*8)(X2)
++	MOV	X19, (4*8)(X2)
++	MOV	X20, (5*8)(X2)
++	MOV	X21, (6*8)(X2)
++	MOV	X22, (7*8)(X2)
++	MOV	X23, (8*8)(X2)
++	MOV	X24, (9*8)(X2)
++	MOV	X25, (10*8)(X2)
++	MOV	X26, (11*8)(X2)
++	MOV	g, (12*8)(X2)
++	MOVF	F8, (13*8)(X2)
++	MOVF	F9, (14*8)(X2)
++	MOVF	F18, (15*8)(X2)
++	MOVF	F19, (16*8)(X2)
++	MOVF	F20, (17*8)(X2)
++	MOVF	F21, (18*8)(X2)
++	MOVF	F22, (19*8)(X2)
++	MOVF	F23, (20*8)(X2)
++	MOVF	F24, (21*8)(X2)
++	MOVF	F25, (22*8)(X2)
++	MOVF	F26, (23*8)(X2)
++	MOVF	F27, (24*8)(X2)
++
++	MOV	m_g0(X10), g
++	CALL	runtime·save_g(SB)
++
++	CALL	runtime·mstart(SB)
++
++	// Restore callee-save registers.
++	MOV	(1*8)(X2), X8
++	MOV	(2*8)(X2), X9
++	MOV	(3*8)(X2), X18
++	MOV	(4*8)(X2), X19
++	MOV	(5*8)(X2), X20
++	MOV	(6*8)(X2), X21
++	MOV	(7*8)(X2), X22
++	MOV	(8*8)(X2), X23
++	MOV	(9*8)(X2), X24
++	MOV	(10*8)(X2), X25
++	MOV	(11*8)(X2), X26
++	MOV	(12*8)(X2), g
++	MOVF	(13*8)(X2), F8
++	MOVF	(14*8)(X2), F9
++	MOVF	(15*8)(X2), F18
++	MOVF	(16*8)(X2), F19
++	MOVF	(17*8)(X2), F20
++	MOVF	(18*8)(X2), F21
++	MOVF	(19*8)(X2), F22
++	MOVF	(20*8)(X2), F23
++	MOVF	(21*8)(X2), F24
++	MOVF	(22*8)(X2), F25
++	MOVF	(23*8)(X2), F26
++	MOVF	(24*8)(X2), F27
++
++	// Go is all done with this OS thread.
++	// Tell pthread everything is ok (we never join with this thread, so
++	// the value here doesn't really matter).
++	MOV	$0, X10
++
++	RET
++
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVW	sig+8(FP), X10
++	MOV	info+16(FP), X11
++	MOV	ctx+24(FP), X12
++	MOV	fn+0(FP), X5
++	JALR	X1, X5
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$224
++	// Save callee-save registers (X8, X9, X18..X27, F8, F9, F18..F27)
++	MOV	X8, (4*8)(X2)
++	MOV	X9, (5*8)(X2)
++	MOV	X18, (6*8)(X2)
++	MOV	X19, (7*8)(X2)
++	MOV	X20, (8*8)(X2)
++	MOV	X21, (9*8)(X2)
++	MOV	X22, (10*8)(X2)
++	MOV	X23, (11*8)(X2)
++	MOV	X24, (12*8)(X2)
++	MOV	X25, (13*8)(X2)
++	MOV	X26, (14*8)(X2)
++	MOV	g, (15*8)(X2)
++	MOVF	F8, (16*8)(X2)
++	MOVF	F9, (17*8)(X2)
++	MOVF	F18, (18*8)(X2)
++	MOVF	F19, (19*8)(X2)
++	MOVF	F20, (20*8)(X2)
++	MOVF	F21, (21*8)(X2)
++	MOVF	F22, (22*8)(X2)
++	MOVF	F23, (23*8)(X2)
++	MOVF	F24, (24*8)(X2)
++	MOVF	F25, (25*8)(X2)
++	MOVF	F26, (26*8)(X2)
++	MOVF	F27, (27*8)(X2)
++
++	// this might be called in external code context,
++	// where g is not set.
++	CALL	runtime·load_g(SB)
++
++	MOVW	X10, 8(X2)
++	MOV	X11, 16(X2)
++	MOV	X12, 24(X2)
++	MOV	$runtime·sigtrampgo(SB), X5
++	JALR	X1, X5
++
++	// Restore callee-save registers.
++	MOV	(4*8)(X2), X8
++	MOV	(5*8)(X2), X9
++	MOV	(6*8)(X2), X18
++	MOV	(7*8)(X2), X19
++	MOV	(8*8)(X2), X20
++	MOV	(9*8)(X2), X21
++	MOV	(10*8)(X2), X22
++	MOV	(11*8)(X2), X23
++	MOV	(12*8)(X2), X24
++	MOV	(13*8)(X2), X25
++	MOV	(14*8)(X2), X26
++	MOV	(15*8)(X2), g
++	MOVF	(16*8)(X2), F8
++	MOVF	(17*8)(X2), F9
++	MOVF	(18*8)(X2), F18
++	MOVF	(19*8)(X2), F19
++	MOVF	(20*8)(X2), F20
++	MOVF	(21*8)(X2), F21
++	MOVF	(22*8)(X2), F22
++	MOVF	(23*8)(X2), F23
++	MOVF	(24*8)(X2), F24
++	MOVF	(25*8)(X2), F25
++	MOVF	(26*8)(X2), F26
++	MOVF	(27*8)(X2), F27
++
++	RET
++
++//
++// These trampolines help convert from Go calling convention to C calling convention.
++// They should be called with asmcgocall.
++// A pointer to the arguments is passed in R0.
++// A single int32 result is returned in R0.
++// (For more results, make an args/results structure.)
++TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$8
++	MOV	0(X10), X10		// arg 1 - attr
++	CALL	libc_pthread_attr_init(SB)
++	RET
++
++TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$8
++	MOV	0(X10), X10		// arg 1 - attr
++	CALL	libc_pthread_attr_destroy(SB)
++	RET
++
++TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - size
++	MOV	0(X10), X10		// arg 1 - attr
++	CALL	libc_pthread_attr_getstacksize(SB)
++	RET
++
++TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - state
++	MOV	0(X10), X10		// arg 1 - attr
++	CALL	libc_pthread_attr_setdetachstate(SB)
++	RET
++
++TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$8
++	MOV	0(X10), X11		// arg 2 - attr
++	MOV	8(X10), X12		// arg 3 - start
++	MOV	16(X10), X13		// arg 4 - arg
++	ADD	$-16, X2
++	MOV	X2, X10			// arg 1 - &threadid (discard)
++	CALL	libc_pthread_create(SB)
++	ADD	$16, X2
++	RET
++
++TEXT runtime·thrkill_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - signal
++	MOV	$0, X12			// arg 3 - tcb
++	MOVW	0(X10), X10		// arg 1 - tid
++	CALL	libc_thrkill(SB)
++	RET
++
++TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$8
++	MOVW	8(X10), X11		// arg 2 - clock_id
++	MOV	16(X10), X12		// arg 3 - abstime
++	MOV	24(X10), X13		// arg 4 - lock
++	MOV	32(X10), X14		// arg 5 - abort
++	MOV	0(X10), X10		// arg 1 - id
++	CALL	libc_thrsleep(SB)
++	RET
++
++TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$8
++	MOVW	8(X10), X11		// arg 2 - count
++	MOV	0(X10), X10		// arg 1 - id
++	CALL	libc_thrwakeup(SB)
++	RET
++
++TEXT runtime·exit_trampoline(SB),NOSPLIT,$8
++	MOVW	0(X10), X10		// arg 1 - status
++	CALL	libc_exit(SB)
++	MOV	$0, X5			// crash on failure
++	MOV	X5, (X5)
++	RET
++
++TEXT runtime·getthrid_trampoline(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++	CALL	libc_getthrid(SB)
++	MOVW	X10, 0(X9)		// return value
++	RET
++
++TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++	CALL	libc_getpid(SB)		// arg 1 - pid (result in X10)
++	MOVW	0(X9), X11		// arg 2 - signal
++	CALL	libc_kill(SB)
++	RET
++
++TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$8
++	CALL	libc_sched_yield(SB)
++	RET
++
++TEXT runtime·mmap_trampoline(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++	MOV	0(X9), X10		// arg 1 - addr
++	MOV	8(X9), X11		// arg 2 - len
++	MOVW	16(X9), X12		// arg 3 - prot
++	MOVW	20(X9), X13		// arg 4 - flags
++	MOVW	24(X9), X14		// arg 5 - fid
++	MOVW	28(X9), X15		// arg 6 - offset
++	CALL	libc_mmap(SB)
++	MOV	$0, X5
++	MOV	$-1, X6
++	BNE	X6, X10, noerr
++	CALL	libc_errno(SB)
++	MOVW	(X10), X5		// errno
++	MOV	$0, X10
++noerr:
++	MOV	X10, 32(X9)
++	MOV	X5, 40(X9)
++	RET
++
++TEXT runtime·munmap_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - len
++	MOV	0(X10), X10		// arg 1 - addr
++	CALL	libc_munmap(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, 3(PC)
++	MOV	$0, X5			// crash on failure
++	MOV	X5, (X5)
++	RET
++
++TEXT runtime·madvise_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - len
++	MOVW	16(X10), X12		// arg 3 - advice
++	MOV	0(X10), X10		// arg 1 - addr
++	CALL	libc_madvise(SB)
++	// ignore failure - maybe pages are locked
++	RET
++
++TEXT runtime·open_trampoline(SB),NOSPLIT,$8
++	MOVW	8(X10), X11		// arg 2 - flags
++	MOVW	12(X10), X12		// arg 3 - mode
++	MOV	0(X10), X10		// arg 1 - path
++	MOV	$0, X13			// varargs
++	CALL	libc_open(SB)
++	RET
++
++TEXT runtime·close_trampoline(SB),NOSPLIT,$8
++	MOVW	0(X10), X10		// arg 1 - fd
++	CALL	libc_close(SB)
++	RET
++
++TEXT runtime·read_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - buf
++	MOVW	16(X10), X12		// arg 3 - count
++	MOVW	0(X10), X10		// arg 1 - fd (int32 from read)
++	CALL	libc_read(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, noerr
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10		// errno
++	NEG	X10			// caller expects negative errno
++noerr:
++	RET
++
++TEXT runtime·write_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - buf
++	MOVW	16(X10), X12		// arg 3 - count
++	MOV	0(X10), X10		// arg 1 - fd (uintptr from write1)
++	CALL	libc_write(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, noerr
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10		// errno
++	NEG	X10			// caller expects negative errno
++noerr:
++	RET
++
++TEXT runtime·pipe2_trampoline(SB),NOSPLIT,$8
++	MOVW	8(X10), X11		// arg 2 - flags
++	MOV	0(X10), X10		// arg 1 - filedes
++	CALL	libc_pipe2(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, noerr
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10		// errno
++	NEG	X10			// caller expects negative errno
++noerr:
++	RET
++
++TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - new
++	MOV	16(X10), X12		// arg 3 - old
++	MOVW	0(X10), X10		// arg 1 - which
++	CALL	libc_setitimer(SB)
++	RET
++
++TEXT runtime·usleep_trampoline(SB),NOSPLIT,$8
++	MOVW	0(X10), X10		// arg 1 - usec
++	CALL	libc_usleep(SB)
++	RET
++
++TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$8
++	MOVW	8(X10), X11		// arg 2 - miblen
++	MOV	16(X10), X12		// arg 3 - out
++	MOV	24(X10), X13		// arg 4 - size
++	MOV	32(X10), X14		// arg 5 - dst
++	MOV	40(X10), X15		// arg 6 - ndst
++	MOV	0(X10), X10		// arg 1 - mib
++	CALL	libc_sysctl(SB)
++	RET
++
++TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$8
++	CALL	libc_kqueue(SB)
++	RET
++
++TEXT runtime·kevent_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - keventt
++	MOVW	16(X10), X12		// arg 3 - nch
++	MOV	24(X10), X13		// arg 4 - ev
++	MOVW	32(X10), X14		// arg 5 - nev
++	MOV	40(X10), X15		// arg 6 - ts
++	MOVW	0(X10), X10		// arg 1 - kq
++	CALL	libc_kevent(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, noerr
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10		// errno
++	NEG	X10			// caller expects negative errno
++noerr:
++	RET
++
++TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - tp
++	MOVW	0(X10), X10		// arg 1 - clock_id
++	CALL	libc_clock_gettime(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, 3(PC)
++	MOV	$0, X5			// crash on failure
++	MOV	X5, (X5)
++	RET
++
++TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++	MOVW	0(X9), X10		// arg 1 - fd
++	MOVW	4(X9), X11		// arg 2 - cmd
++	MOVW	8(X9), X12		// arg 3 - arg
++	MOV	$0, X13			// vararg
++	CALL	libc_fcntl(SB)
++	MOV	$-1, X5
++	MOV	$0, X11
++	BNE	X5, X10, noerr
++	CALL	libc_errno(SB)
++	MOVW	(X10), X11		// errno
++	MOV	$-1, X10
++noerr:
++	MOVW	X10, 12(X9)
++	MOVW	X11, 16(X9)
++	RET
++
++TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - new
++	MOV	16(X10), X12		// arg 3 - old
++	MOVW	0(X10), X10		// arg 1 - sig
++	CALL	libc_sigaction(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, 3(PC)
++	MOV	$0, X5			// crash on failure
++	MOV	X5, (X5)
++	RET
++
++TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - new
++	MOV	16(X10), X12		// arg 3 - old
++	MOVW	0(X10), X10		// arg 1 - how
++	CALL	libc_pthread_sigmask(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, 3(PC)
++	MOV	$0, X5			// crash on failure
++	MOV	X5, (X5)
++	RET
++
++TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$8
++	MOV	8(X10), X11		// arg 2 - old
++	MOV	0(X10), X10		// arg 1 - new
++	CALL	libc_sigaltstack(SB)
++	MOV	$-1, X5
++	BNE	X5, X10, 3(PC)
++	MOV	$0, X5			// crash on failure
++	MOV	X5, (X5)
++	RET
++
++TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
++	MOV	X10, X9			// pointer to args
++	CALL	libc_issetugid(SB)
++	MOVW	X10, 0(X9)		// return value
++	RET
++
++// syscall calls a function in libc on behalf of the syscall package.
++// syscall takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// syscall expects a 32-bit result and tests for 32-bit -1
++// to decide there was an error.
++TEXT runtime·syscall(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++
++	MOV	(0*8)(X9), X5		// fn
++	MOV	(1*8)(X9), X10		// a1
++	MOV	(2*8)(X9), X11		// a2
++	MOV	(3*8)(X9), X12		// a3
++	MOV	$0, X13			// vararg
++
++	JALR	X1, X5
++
++	MOV	X10, (4*8)(X9)		// r1
++	MOV	X11, (5*8)(X9)		// r2
++
++	// Standard libc functions return -1 on error
++	// and set errno.
++	MOV	$-1, X5
++	MOVW	X10, X11
++	BNE	X5, X11, ok
++
++	// Get error code from libc.
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10
++	MOV	X10, (6*8)(X9)		// err
++
++ok:
++	RET
++
++// syscallX calls a function in libc on behalf of the syscall package.
++// syscallX takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscallX must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// syscallX is like syscall but expects a 64-bit result
++// and tests for 64-bit -1 to decide there was an error.
++TEXT runtime·syscallX(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++
++	MOV	(0*8)(X9), X5		// fn
++	MOV	(1*8)(X9), X10		// a1
++	MOV	(2*8)(X9), X11		// a2
++	MOV	(3*8)(X9), X12		// a3
++	MOV	$0, X13			// vararg
++
++	JALR	X1, X5
++
++	MOV	X10, (4*8)(X9)		// r1
++	MOV	X11, (5*8)(X9)		// r2
++
++	// Standard libc functions return -1 on error
++	// and set errno.
++	MOV	$-1, X5
++	BNE	X5, X10, ok
++
++	// Get error code from libc.
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10
++	MOV	X10, (6*8)(X9)		// err
++
++ok:
++	RET
++
++// syscall6 calls a function in libc on behalf of the syscall package.
++// syscall6 takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	a4    uintptr
++//	a5    uintptr
++//	a6    uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall6 must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// syscall6 expects a 32-bit result and tests for 32-bit -1
++// to decide there was an error.
++TEXT runtime·syscall6(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++
++	MOV	(0*8)(X9), X5		// fn
++	MOV	(1*8)(X9), X10		// a1
++	MOV	(2*8)(X9), X11		// a2
++	MOV	(3*8)(X9), X12		// a3
++	MOV	(4*8)(X9), X13		// a4
++	MOV	(5*8)(X9), X14		// a5
++	MOV	(6*8)(X9), X15		// a6
++	MOV	$0, X16			// vararg
++
++	JALR	X1, X5
++
++	MOV	X10, (7*8)(X9)		// r1
++	MOV	X11, (8*8)(X9)		// r2
++
++	// Standard libc functions return -1 on error
++	// and set errno.
++	MOV	$-1, X5
++	MOVW	X10, X11
++	BNE	X5, X11, ok
++
++	// Get error code from libc.
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10
++	MOV	X10, (9*8)(X9)		// err
++
++ok:
++	RET
++
++// syscall6X calls a function in libc on behalf of the syscall package.
++// syscall6X takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	a4    uintptr
++//	a5    uintptr
++//	a6    uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall6X must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// syscall6X is like syscall6 but expects a 64-bit result
++// and tests for 64-bit -1 to decide there was an error.
++TEXT runtime·syscall6X(SB),NOSPLIT,$8
++	MOV	X10, X9			// pointer to args
++
++	MOV	(0*8)(X9), X5		// fn
++	MOV	(1*8)(X9), X10		// a1
++	MOV	(2*8)(X9), X11		// a2
++	MOV	(3*8)(X9), X12		// a3
++	MOV	(4*8)(X9), X13		// a4
++	MOV	(5*8)(X9), X14		// a5
++	MOV	(6*8)(X9), X15		// a6
++	MOV	$0, X16			// vararg
++
++	JALR	X1, X5
++
++	MOV	X10, (7*8)(X9)		// r1
++	MOV	X11, (8*8)(X9)		// r2
++
++	// Standard libc functions return -1 on error
++	// and set errno.
++	MOV	$-1, X5
++	BNE	X5, X10, ok
++
++	// Get error code from libc.
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10
++	MOV	X10, (9*8)(X9)		// err
++
++ok:
++	RET
++
++// syscall10 calls a function in libc on behalf of the syscall package.
++// syscall10 takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	a4    uintptr
++//	a5    uintptr
++//	a6    uintptr
++//	a7    uintptr
++//	a8    uintptr
++//	a9    uintptr
++//	a10   uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall10 must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// The openbsd/riscv64 kernel only accepts eight syscall arguments.
++TEXT runtime·syscall10(SB),NOSPLIT,$0
++	MOV	X10, X9			// pointer to args
++
++	ADD	$-16, X2
++
++	MOV	(0*8)(X9), X5		// fn
++	MOV	(1*8)(X9), X10		// a1
++	MOV	(2*8)(X9), X11		// a2
++	MOV	(3*8)(X9), X12		// a3
++	MOV	(4*8)(X9), X13		// a4
++	MOV	(5*8)(X9), X14		// a5
++	MOV	(6*8)(X9), X15		// a6
++	MOV	(7*8)(X9), X16		// a7
++	MOV	(8*8)(X9), X17		// a8
++
++	JALR	X1, X5
++
++	MOV	X10, (11*8)(X9)		// r1
++	MOV	X11, (12*8)(X9)		// r2
++
++	// Standard libc functions return -1 on error
++	// and set errno.
++	MOV	$-1, X5
++	MOVW	X10, X11
++	BNE	X5, X11, ok
++
++	// Get error code from libc.
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10
++	MOV	X10, (13*8)(X9)		// err
++
++ok:
++	ADD	$16, X2
++	RET
++
++// syscall10X calls a function in libc on behalf of the syscall package.
++// syscall10X takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	a4    uintptr
++//	a5    uintptr
++//	a6    uintptr
++//	a7    uintptr
++//	a8    uintptr
++//	a9    uintptr
++//	a10   uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall10X must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// syscall10X is like syscall10 but expects a 64-bit result
++// and tests for 64-bit -1 to decide there was an error.
++//
++// The openbsd/riscv64 kernel only accepts eight syscall arguments.
++TEXT runtime·syscall10X(SB),NOSPLIT,$0
++	MOV	X10, X9			// pointer to args
++
++	ADD	$-16, X2
++
++	MOV	(0*8)(X9), X5		// fn
++	MOV	(1*8)(X9), X10		// a1
++	MOV	(2*8)(X9), X11		// a2
++	MOV	(3*8)(X9), X12		// a3
++	MOV	(4*8)(X9), X13		// a4
++	MOV	(5*8)(X9), X14		// a5
++	MOV	(6*8)(X9), X15		// a6
++	MOV	(7*8)(X9), X16		// a7
++	MOV	(8*8)(X9), X17		// a8
++
++	JALR	X1, X5
++
++	MOV	X10, (11*8)(X9)		// r1
++	MOV	X11, (12*8)(X9)		// r2
++
++	// Standard libc functions return -1 on error
++	// and set errno.
++	MOV	$-1, X5
++	BNE	X5, X10, ok
++
++	// Get error code from libc.
++	CALL	libc_errno(SB)
++	MOVW	(X10), X10
++	MOV	X10, (13*8)(X9)		// err
++
++ok:
++	ADD	$16, X2
++	RET
+diff --git a/src/runtime/tls_riscv64.s b/src/runtime/tls_riscv64.s
+index a0a58ea4a0..2aeb89aa27 100644
+--- a/src/runtime/tls_riscv64.s
++++ b/src/runtime/tls_riscv64.s
+@@ -11,9 +11,10 @@
+ //
+ // NOTE: mcall() assumes this clobbers only X31 (REG_TMP).
+ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
++#ifndef GOOS_openbsd
+ 	MOVB	runtime·iscgo(SB), X31
+ 	BEQZ	X31, nocgo
+-
++#endif
+ 	MOV	g, runtime·tls_g(SB)
+ nocgo:
+ 	RET

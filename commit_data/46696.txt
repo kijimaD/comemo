@@ -10,6 +10,28 @@ Date:   Wed Jan 20 20:09:18 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285212
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 3645e018b2..6e912f61fa 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -616,6 +616,16 @@ func TestFoo(t *testing.T) {
+   </dd>
+ </dl><!-- crypto/x509 -->
+ 
++<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
++  <dd>
++    <p><!-- CL 255138 -->
++      More <a href="/pkg/debug/elf/#DT_NULL"><code>DT</code></a>
++      and <a href="/pkg/debug/elf/#PT_NULL"><code>PT</code></a>
++      constants have been added.
++    </p>
++  </dd>
++</dl><!-- debug/elf -->
++
+ <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1">encoding/asn1</a></dt>
+   <dd>
+     <p><!-- CL 255881 -->

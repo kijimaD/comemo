@@ -11,7 +11,150 @@ Date:   Wed Apr 10 13:39:20 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8609043
-
+---
  src/pkg/go/ast/filter.go      | 25 ++++++++++++-
  src/pkg/go/ast/filter_test.go | 86 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 109 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 4db5814cb8..71c9ed7766 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -284,6 +284,27 @@ const (
+ 	FilterImportDuplicates
+ )
+ 
++// nameOf returns the function (foo) or method name (foo.bar) for
++// the given function declaration. If the AST is incorrect for the
++// receiver, it assumes a function instead.
++//
++func nameOf(f *FuncDecl) string {
++	if r := f.Recv; r != nil && len(r.List) == 1 {
++		// looks like a correct receiver declaration
++		t := r.List[0].Type
++		// dereference pointer receiver types
++		if p, _ := t.(*StarExpr); p != nil {
++			t = p.X
++		}
++		// the receiver type must be a type name
++		if p, _ := t.(*Ident); p != nil {
++			return p.Name + "." + f.Name.Name
++		}
++		// otherwise assume a function instead
++	}
++	return f.Name.Name
++}
++
+ // separator is an empty //-style comment that is interspersed between
+ // different comment groups when they are concatenated into a single group
+ //
+@@ -348,7 +369,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	var decls []Decl
+ 	if ndecls > 0 {
+ 		decls = make([]Decl, ndecls)
+-		funcs := make(map[string]int) // map of global function name -> decls index
++		funcs := make(map[string]int) // map of func name -> decls index
+ 		i := 0                        // current index
+ 		n := 0                        // number of filtered entries
+ 		for _, filename := range filenames {
+@@ -365,7 +386,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 					//            entities (const, type, vars) if
+ 					//            multiple declarations are common.
+ 					if f, isFun := d.(*FuncDecl); isFun {
+-						name := f.Name.Name
++						name := nameOf(f)
+ 						if j, exists := funcs[name]; exists {
+ 							// function declared already
+ 							if decls[j] != nil && decls[j].(*FuncDecl).Doc == nil {
+diff --git a/src/pkg/go/ast/filter_test.go b/src/pkg/go/ast/filter_test.go
+new file mode 100644
+index 0000000000..9fd86cb467
+--- /dev/null
++++ b/src/pkg/go/ast/filter_test.go
+@@ -0,0 +1,86 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// To avoid a cyclic dependency with go/parser, this file is in a separate package.
++
++package ast_test
++
++import (
++	"bytes"
++	"go/ast"
++	"go/format"
++	"go/parser"
++	"go/token"
++	"testing"
++)
++
++const input = `package p
++
++type t1 struct{}
++type t2 struct{}
++
++func f1() {}
++func f1() {}
++func f2() {}
++
++func (*t1) f1() {}
++func (t1) f1() {}
++func (t1) f2() {}
++
++func (t2) f1() {}
++func (t2) f2() {}
++func (x *t2) f2() {}
++`
++
++// Calling ast.MergePackageFiles with ast.FilterFuncDuplicates
++// keeps a duplicate entry with attached documentation in favor
++// of one without, and it favors duplicate entries appearing
++// later in the source over ones appearing earlier. This is why
++// (*t2).f2 is kept and t2.f2 is eliminated in this test case.
++//
++const golden = `package p
++
++type t1 struct{}
++type t2 struct{}
++
++func f1() {}
++func f2() {}
++
++func (t1) f1() {}
++func (t1) f2() {}
++
++func (t2) f1() {}
++
++func (x *t2) f2() {}
++`
++
++func TestFilterDuplicates(t *testing.T) {
++	// parse input
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, "", input, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// create package
++	files := map[string]*ast.File{"": file}
++	pkg, err := ast.NewPackage(fset, files, nil, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// filter
++	merged := ast.MergePackageFiles(pkg, ast.FilterFuncDuplicates)
++
++	// pretty-print
++	var buf bytes.Buffer
++	if err := format.Node(&buf, fset, merged); err != nil {
++		t.Fatal(err)
++	}
++	output := buf.String()
++
++	if output != golden {
++		t.Errorf("incorrect output:\n%s", output)
++	}
++}

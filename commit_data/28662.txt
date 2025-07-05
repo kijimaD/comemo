@@ -24,9 +24,143 @@ Date:   Thu Jun 23 10:59:38 2016 -0400
     Change-Id: If7cb7f3e745d44678f3f5cf3a5338c59847529d2
     Reviewed-on: https://go-review.googlesource.com/24400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 18 +++++++++---------
  src/reflect/all_test.go                |  7 +++++++
  src/reflect/type.go                    | 10 +++++++++-
  src/runtime/type.go                    |  6 +++---
  4 files changed, 28 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index c4268f646f..f1a7d3bc86 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -820,14 +820,10 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 		algsym = dalgsym(t)
+ 	}
+ 
++	var sptr *Sym
+ 	tptr := Ptrto(t)
+ 	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
+-		sptr := dtypesym(tptr)
+-		r := obj.Addrel(Linksym(s))
+-		r.Off = 0
+-		r.Siz = 0
+-		r.Sym = sptr.Lsym
+-		r.Type = obj.R_USETYPE
++		sptr = dtypesym(tptr)
+ 	}
+ 
+ 	gcsym, useGCProg, ptrdata := dgcsym(t)
+@@ -845,7 +841,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	//		alg           *typeAlg
+ 	//		gcdata        *byte
+ 	//		str           nameOff
+-	//		_             int32
++	//		ptrToThis     typeOff
+ 	//	}
+ 	ot = duintptr(s, ot, uint64(t.Width))
+ 	ot = duintptr(s, ot, uint64(ptrdata))
+@@ -909,8 +905,12 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
+ 
+ 	nsym := dname(p, "", nil, exported)
+-	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0)
+-	ot = duint32(s, ot, 0)
++	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0) // str
++	if sptr == nil {
++		ot = duint32(s, ot, 0)
++	} else {
++		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0) // ptrToThis
++	}
+ 
+ 	return ot
+ }
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 97086b1852..adde5829dc 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5741,3 +5741,10 @@ func TestOffsetLock(t *testing.T) {
+ 	}
+ 	wg.Wait()
+ }
++
++func BenchmarkNew(b *testing.B) {
++	v := TypeOf(XM{})
++	for i := 0; i < b.N; i++ {
++		New(v)
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 7996ae284b..b37fb9f0a5 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -285,7 +285,7 @@ type rtype struct {
+ 	alg        *typeAlg // algorithm table
+ 	gcdata     *byte    // garbage collection data
+ 	str        nameOff  // string form
+-	_          int32    // unused; keeps rtype always a multiple of ptrSize
++	ptrToThis  typeOff  // type for pointer to this type, may be zero
+ }
+ 
+ // a copy of runtime.typeAlg
+@@ -1430,6 +1430,10 @@ func PtrTo(t Type) Type {
+ }
+ 
+ func (t *rtype) ptrTo() *rtype {
++	if t.ptrToThis != 0 {
++		return t.typeOff(t.ptrToThis)
++	}
++
+ 	// Check the cache.
+ 	ptrMap.RLock()
+ 	if m := ptrMap.m; m != nil {
+@@ -1927,6 +1931,7 @@ func MapOf(key, elem Type) Type {
+ 	mt.bucketsize = uint16(mt.bucket.size)
+ 	mt.reflexivekey = isReflexive(ktyp)
+ 	mt.needkeyupdate = needKeyUpdate(ktyp)
++	mt.ptrToThis = 0
+ 
+ 	return cachePut(ckey, &mt.rtype)
+ }
+@@ -2065,6 +2070,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 
+ 	// Populate the remaining fields of ft and store in cache.
+ 	ft.str = resolveReflectName(newName(str, "", "", false))
++	ft.ptrToThis = 0
+ 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+ 
+ 	return &ft.rtype
+@@ -2295,6 +2301,7 @@ func SliceOf(t Type) Type {
+ 	slice.str = resolveReflectName(newName(s, "", "", false))
+ 	slice.hash = fnv1(typ.hash, '[')
+ 	slice.elem = typ
++	slice.ptrToThis = 0
+ 
+ 	return cachePut(ckey, &slice.rtype)
+ }
+@@ -2842,6 +2849,7 @@ func ArrayOf(count int, elem Type) Type {
+ 	}
+ 	array.hash = fnv1(array.hash, ']')
+ 	array.elem = typ
++	array.ptrToThis = 0
+ 	max := ^uintptr(0) / typ.size
+ 	if uintptr(count) > max {
+ 		panic("reflect.ArrayOf: array size would exceed virtual address space")
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 786f2b96f6..5ae5c73a22 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -36,9 +36,9 @@ type _type struct {
+ 	// gcdata stores the GC type data for the garbage collector.
+ 	// If the KindGCProg bit is set in kind, gcdata is a GC program.
+ 	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
+-	gcdata *byte
+-	str    nameOff
+-	_      int32
++	gcdata    *byte
++	str       nameOff
++	ptrToThis typeOff
+ }
+ 
+ func (t *_type) string() string {

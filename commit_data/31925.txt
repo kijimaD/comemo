@@ -32,8 +32,258 @@ Date:   Sat Apr 23 20:37:12 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec_windows.go        |  80 ++++++++++++++++++++++---
  src/os/export_windows_test.go |   5 +-
  src/os/os_windows_test.go     | 134 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 208 insertions(+), 11 deletions(-)
+
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index d89db2022c..d5d553a2f6 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -97,17 +97,79 @@ func findProcess(pid int) (p *Process, err error) {
+ }
+ 
+ func init() {
+-	var argc int32
+-	cmd := syscall.GetCommandLine()
+-	argv, e := syscall.CommandLineToArgv(cmd, &argc)
+-	if e != nil {
+-		return
++	p := syscall.GetCommandLine()
++	cmd := syscall.UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(p))[:])
++	if len(cmd) == 0 {
++		arg0, _ := Executable()
++		Args = []string{arg0}
++	} else {
++		Args = commandLineToArgv(cmd)
+ 	}
+-	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
+-	Args = make([]string, argc)
+-	for i, v := range (*argv)[:argc] {
+-		Args[i] = syscall.UTF16ToString((*v)[:])
++}
++
++// appendBSBytes appends n '\\' bytes to b and returns the resulting slice.
++func appendBSBytes(b []byte, n int) []byte {
++	for ; n > 0; n-- {
++		b = append(b, '\\')
++	}
++	return b
++}
++
++// readNextArg splits command line string cmd into next
++// argument and command line remainder.
++func readNextArg(cmd string) (arg []byte, rest string) {
++	var b []byte
++	var inquote bool
++	var nslash int
++	for ; len(cmd) > 0; cmd = cmd[1:] {
++		c := cmd[0]
++		switch c {
++		case ' ', '\t':
++			if !inquote {
++				return appendBSBytes(b, nslash), cmd[1:]
++			}
++		case '"':
++			b = appendBSBytes(b, nslash/2)
++			if nslash%2 == 0 {
++				// use "Prior to 2008" rule from
++				// http://daviddeley.com/autohotkey/parameters/parameters.htm
++				// section 5.2 to deal with double double quotes
++				if inquote && len(cmd) > 1 && cmd[1] == '"' {
++					b = append(b, c)
++					cmd = cmd[1:]
++				}
++				inquote = !inquote
++			} else {
++				b = append(b, c)
++			}
++			nslash = 0
++			continue
++		case '\\':
++			nslash++
++			continue
++		}
++		b = appendBSBytes(b, nslash)
++		nslash = 0
++		b = append(b, c)
++	}
++	return appendBSBytes(b, nslash), ""
++}
++
++// commandLineToArgv splits a command line into individual argument
++// strings, following the Windows conventions documented
++// at http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV
++func commandLineToArgv(cmd string) []string {
++	var args []string
++	for len(cmd) > 0 {
++		if cmd[0] == ' ' || cmd[0] == '\t' {
++			cmd = cmd[1:]
++			continue
++		}
++		var arg []byte
++		arg, cmd = readNextArg(cmd)
++		args = append(args, string(arg))
+ 	}
++	return args
+ }
+ 
+ func ftToDuration(ft *syscall.Filetime) time.Duration {
+diff --git a/src/os/export_windows_test.go b/src/os/export_windows_test.go
+index d08bd747ce..f36fadb58b 100644
+--- a/src/os/export_windows_test.go
++++ b/src/os/export_windows_test.go
+@@ -7,6 +7,7 @@ package os
+ // Export for testing.
+ 
+ var (
+-	FixLongPath    = fixLongPath
+-	NewConsoleFile = newConsoleFile
++	FixLongPath       = fixLongPath
++	NewConsoleFile    = newConsoleFile
++	CommandLineToArgv = commandLineToArgv
+ )
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 761931e9e9..61ca0c91bf 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -723,3 +723,137 @@ func TestStatPagefile(t *testing.T) {
+ 	}
+ 	t.Fatal(err)
+ }
++
++// syscallCommandLineToArgv calls syscall.CommandLineToArgv
++// and converts returned result into []string.
++func syscallCommandLineToArgv(cmd string) ([]string, error) {
++	var argc int32
++	argv, err := syscall.CommandLineToArgv(&syscall.StringToUTF16(cmd)[0], &argc)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
++
++	var args []string
++	for _, v := range (*argv)[:argc] {
++		args = append(args, syscall.UTF16ToString((*v)[:]))
++	}
++	return args, nil
++}
++
++// compareCommandLineToArgvWithSyscall ensures that
++// os.CommandLineToArgv(cmd) and syscall.CommandLineToArgv(cmd)
++// return the same result.
++func compareCommandLineToArgvWithSyscall(t *testing.T, cmd string) {
++	syscallArgs, err := syscallCommandLineToArgv(cmd)
++	if err != nil {
++		t.Fatal(err)
++	}
++	args := os.CommandLineToArgv(cmd)
++	if want, have := fmt.Sprintf("%q", syscallArgs), fmt.Sprintf("%q", args); want != have {
++		t.Errorf("testing os.commandLineToArgv(%q) failed: have %q want %q", cmd, args, syscallArgs)
++		return
++	}
++}
++
++func TestCmdArgs(t *testing.T) {
++	tmpdir, err := ioutil.TempDir("", "TestCmdArgs")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	const prog = `
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	fmt.Printf("%q", os.Args)
++}
++`
++	src := filepath.Join(tmpdir, "main.go")
++	err = ioutil.WriteFile(src, []byte(prog), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	exe := filepath.Join(tmpdir, "main.exe")
++	cmd := osexec.Command("go", "build", "-o", exe, src)
++	cmd.Dir = tmpdir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("building main.exe failed: %v\n%s", err, out)
++	}
++
++	var cmds = []string{
++		``,
++		` a b c`,
++		` "`,
++		` ""`,
++		` """`,
++		` "" a`,
++		` "123"`,
++		` \"123\"`,
++		` \"123 456\"`,
++		` \\"`,
++		` \\\"`,
++		` \\\\\"`,
++		` \\\"x`,
++		` """"\""\\\"`,
++		` abc`,
++		` \\\\\""x"""y z`,
++		"\tb\t\"x\ty\"",
++		` "Брад" d e`,
++		// examples from https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
++		` "abc" d e`,
++		` a\\b d"e f"g h`,
++		` a\\\"b c d`,
++		` a\\\\"b c" d e`,
++		// http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV
++		// from 5.4  Examples
++		` CallMeIshmael`,
++		` "Call Me Ishmael"`,
++		` Cal"l Me I"shmael`,
++		` CallMe\"Ishmael`,
++		` "CallMe\"Ishmael"`,
++		` "Call Me Ishmael\\"`,
++		` "CallMe\\\"Ishmael"`,
++		` a\\\b`,
++		` "a\\\b"`,
++		// from 5.5  Some Common Tasks
++		` "\"Call Me Ishmael\""`,
++		` "C:\TEST A\\"`,
++		` "\"C:\TEST A\\\""`,
++		// from 5.6  The Microsoft Examples Explained
++		` "a b c"  d  e`,
++		` "ab\"c"  "\\"  d`,
++		` a\\\b d"e f"g h`,
++		` a\\\"b c d`,
++		` a\\\\"b c" d e`,
++		// from 5.7  Double Double Quote Examples (pre 2008)
++		` "a b c""`,
++		` """CallMeIshmael"""  b  c`,
++		` """Call Me Ishmael"""`,
++		` """"Call Me Ishmael"" b c`,
++	}
++	for _, cmd := range cmds {
++		compareCommandLineToArgvWithSyscall(t, "test"+cmd)
++		compareCommandLineToArgvWithSyscall(t, `"cmd line"`+cmd)
++		compareCommandLineToArgvWithSyscall(t, exe+cmd)
++
++		// test both syscall.EscapeArg and os.commandLineToArgv
++		args := os.CommandLineToArgv(exe + cmd)
++		out, err := osexec.Command(args[0], args[1:]...).CombinedOutput()
++		if err != nil {
++			t.Fatalf("runing %q failed: %v\n%v", args, err, string(out))
++		}
++		if want, have := fmt.Sprintf("%q", args), string(out); want != have {
++			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)
++			continue
++		}
++	}
++}

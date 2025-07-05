@@ -7,6 +7,21 @@ Date:   Fri Feb 11 14:32:34 2011 -0500
     R=iant, iant2
     CC=golang-dev
     https://golang.org/cl/4180043
-
+---
  src/pkg/runtime/malloc.goc | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 18652d71a6..70b85d68d7 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -297,6 +297,9 @@ runtime·mallocinit(void)
+ 		if(p == nil)
+ 			runtime·throw("runtime: cannot reserve arena virtual address space");
+ 	}
++	if((uintptr)p & (((uintptr)1<<PageShift)-1))
++		runtime·throw("runtime: SysReserve returned unaligned address");
++
+ 	runtime·mheap.bitmap = p;
+ 	runtime·mheap.arena_start = p + bitmap_size;
+ 	runtime·mheap.arena_used = runtime·mheap.arena_start;

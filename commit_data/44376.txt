@@ -13,6 +13,19 @@ Date:   Fri Jun 19 11:19:22 2020 +0800
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index d055f468e9..9502dac4eb 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -115,6 +115,7 @@ var ignorePrefixes = []string{
+ // These must not be copied into the bootstrap build directory.
+ var ignoreSuffixes = []string{
+ 	"_arm64.s",
++	"_arm64_test.s",
+ 	"_arm64.go",
+ 	"_riscv64.s",
+ 	"_riscv64.go",

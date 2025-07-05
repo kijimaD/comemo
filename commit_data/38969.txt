@@ -13,6 +13,19 @@ Date:   Wed Dec 12 22:08:50 2018 -0800
     Change-Id: I03657dafc572959d46a03f86bbeb280825bc969d
     Reviewed-on: https://go-review.googlesource.com/c/153845
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/export_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/export_test.go b/src/math/export_test.go
+index 5f15bdb025..53d9205b9d 100644
+--- a/src/math/export_test.go
++++ b/src/math/export_test.go
+@@ -9,5 +9,6 @@ var ExpGo = exp
+ var Exp2Go = exp2
+ var HypotGo = hypot
+ var SqrtGo = sqrt
+-var ReduceThreshold = reduceThreshold
+ var TrigReduce = trigReduce
++
++const ReduceThreshold = reduceThreshold

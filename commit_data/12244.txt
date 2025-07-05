@@ -9,6 +9,20 @@ Date:   Tue Feb 28 11:26:01 2012 +1100
     R=golang-dev, m4dh4tt3r, r
     CC=golang-dev
     https://golang.org/cl/5696074
-
+---
  src/pkg/os/stat_netbsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/stat_netbsd.go b/src/pkg/os/stat_netbsd.go
+index c58a2874c7..00506b2b60 100644
+--- a/src/pkg/os/stat_netbsd.go
++++ b/src/pkg/os/stat_netbsd.go
+@@ -20,7 +20,7 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 		name:    basename(name),
+ 		size:    int64(st.Size),
+ 		modTime: timespecToTime(st.Mtim),
+-		Sys:     st,
++		sys:     st,
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {

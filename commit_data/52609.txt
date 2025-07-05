@@ -24,7 +24,7 @@ Date:   Sat Aug 28 15:50:52 2021 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/export_test.go         |  2 +-
  src/runtime/metrics.go             |  6 +++++
  src/runtime/metrics/description.go |  6 +++++
@@ -38,3 +38,456 @@ Date:   Sat Aug 28 15:50:52 2021 -0700
  src/runtime/stack.go               | 46 ++++++++++++++++++++++++++++++++++++
  src/runtime/stack_test.go          | 33 ++++++++++++++++++++++++++
  12 files changed, 167 insertions(+), 41 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 380bf9cb13..230ed76c81 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1294,7 +1294,7 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
+ 	if c.heapMarked > trigger {
+ 		trigger = c.heapMarked
+ 	}
+-	c.scannableStackSize = stackSize
++	c.maxStackScan = stackSize
+ 	c.globalsScan = globalsSize
+ 	c.heapLive = trigger
+ 	c.heapScan += uint64(float64(trigger-c.heapMarked) * scannableFrac)
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 1b29f82b64..8ef495faed 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -171,6 +171,12 @@ func initMetrics() {
+ 				}
+ 			},
+ 		},
++		"/gc/stack/starting-size:bytes": {
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(startingStackSize)
++			},
++		},
+ 		"/memory/classes/heap/free:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index c147cada89..80aa930fd0 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -140,6 +140,12 @@ var allDesc = []Description{
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name:        "/gc/stack/starting-size:bytes",
++		Description: "The stack size of new goroutines.",
++		Kind:        KindUint64,
++		Cumulative:  false,
++	},
+ 	{
+ 		Name: "/memory/classes/heap/free:bytes",
+ 		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 63bea8c448..fcc9d1a3a4 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -102,6 +102,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/pauses:seconds
+ 		Distribution individual GC-related stop-the-world pause latencies.
+ 
++	/gc/stack/starting-size:bytes
++		The stack size of new goroutines.
++
+ 	/memory/classes/heap/free:bytes
+ 		Memory that is completely free and eligible to be returned to
+ 		the underlying system, but has not been. This metric is the
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4578e41115..b0c6b1928e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -885,6 +885,8 @@ top:
+ 		goto top
+ 	}
+ 
++	gcComputeStartingStackSize()
++
+ 	// Disable assists and background workers. We must do
+ 	// this before waking blocked assists.
+ 	atomic.Store(&gcBlackenEnabled, 0)
+@@ -1111,7 +1113,7 @@ func gcMarkTermination() {
+ 		print(" ms cpu, ",
+ 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
+ 			gcController.heapGoal()>>20, " MB goal, ",
+-			gcController.stackScan>>20, " MB stacks, ",
++			atomic.Load64(&gcController.maxStackScan)>>20, " MB stacks, ",
+ 			gcController.globalsScan>>20, " MB globals, ",
+ 			work.maxprocs, " P")
+ 		if work.userForced {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 8e5b940941..a6dc43d8d3 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -746,14 +746,22 @@ func scanstack(gp *g, gcw *gcWork) int64 {
+ 		throw("can't scan our own stack")
+ 	}
+ 
+-	// stackSize is the amount of work we'll be reporting.
++	// scannedSize is the amount of work we'll be reporting.
+ 	//
+-	// We report the total stack size, more than we scan,
+-	// because this number needs to line up with gcControllerState's
+-	// stackScan and scannableStackSize fields.
+-	//
+-	// See the documentation on those fields for more information.
+-	stackSize := gp.stack.hi - gp.stack.lo
++	// It is less than the allocated size (which is hi-lo).
++	var sp uintptr
++	if gp.syscallsp != 0 {
++		sp = gp.syscallsp // If in a system call this is the stack pointer (gp.sched.sp can be 0 in this case on Windows).
++	} else {
++		sp = gp.sched.sp
++	}
++	scannedSize := gp.stack.hi - sp
++
++	// Keep statistics for initial stack size calculation.
++	// Note that this accumulates the scanned size, not the allocated size.
++	p := getg().m.p.ptr()
++	p.scannedStackSize += uint64(scannedSize)
++	p.scannedStacks++
+ 
+ 	if isShrinkStackSafe(gp) {
+ 		// Shrink the stack if not much of it is being used.
+@@ -894,7 +902,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
+ 	if state.buf != nil || state.cbuf != nil || state.freeBuf != nil {
+ 		throw("remaining pointer buffers")
+ 	}
+-	return int64(stackSize)
++	return int64(scannedSize)
+ }
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 24a5695b6d..9e7e9b12aa 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -63,9 +63,9 @@ const (
+ 	defaultHeapMinimum = (goexperiment.HeapMinimum512KiBInt)*(512<<10) +
+ 		(1-goexperiment.HeapMinimum512KiBInt)*(4<<20)
+ 
+-	// scannableStackSizeSlack is the bytes of stack space allocated or freed
++	// maxStackScanSlack is the bytes of stack space allocated or freed
+ 	// that can accumulate on a P before updating gcController.stackSize.
+-	scannableStackSizeSlack = 8 << 10
++	maxStackScanSlack = 8 << 10
+ 
+ 	// memoryLimitHeapGoalHeadroom is the amount of headroom the pacer gives to
+ 	// the heap goal when operating in the memory-limited regime. That is,
+@@ -227,13 +227,11 @@ type gcControllerState struct {
+ 	// Updated when the world is stopped.
+ 	lastHeapScan uint64
+ 
+-	// stackScan is a snapshot of scannableStackSize taken at each GC
+-	// STW pause and is used in pacing decisions.
+-	//
+-	// Updated only while the world is stopped.
+-	stackScan uint64
++	// lastStackScan is the number of bytes of stack that were scanned
++	// last GC cycle.
++	lastStackScan uint64
+ 
+-	// scannableStackSize is the amount of allocated goroutine stack space in
++	// maxStackScan is the amount of allocated goroutine stack space in
+ 	// use by goroutines.
+ 	//
+ 	// This number tracks allocated goroutine stack space rather than used
+@@ -243,7 +241,7 @@ type gcControllerState struct {
+ 	// to conservatively overcount than undercount.
+ 	//
+ 	// Read and updated atomically.
+-	scannableStackSize uint64
++	maxStackScan uint64
+ 
+ 	// globalsScan is the total amount of global variable space
+ 	// that is scannable.
+@@ -269,8 +267,8 @@ type gcControllerState struct {
+ 	// Currently these are measured in bytes. For most uses, this is an
+ 	// opaque unit of work, but for estimation the definition is important.
+ 	//
+-	// Note that stackScanWork includes all allocated space, not just the
+-	// size of the stack itself, mirroring stackSize.
++	// Note that stackScanWork includes only stack space scanned, not all
++	// of the allocated stack.
+ 	heapScanWork    atomic.Int64
+ 	stackScanWork   atomic.Int64
+ 	globalsScanWork atomic.Int64
+@@ -441,7 +439,6 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
+ 	c.fractionalMarkTime = 0
+ 	c.idleMarkTime = 0
+ 	c.markStartTime = markStartTime
+-	c.stackScan = atomic.Load64(&c.scannableStackSize)
+ 	c.triggered = c.heapLive
+ 
+ 	// Compute the background mark utilization goal. In general,
+@@ -553,13 +550,15 @@ func (c *gcControllerState) revise() {
+ 	heapGoal := int64(c.heapGoal())
+ 
+ 	// The expected scan work is computed as the amount of bytes scanned last
+-	// GC cycle, plus our estimate of stacks and globals work for this cycle.
+-	scanWorkExpected := int64(c.lastHeapScan + c.stackScan + c.globalsScan)
++	// GC cycle (both heap and stack), plus our estimate of globals work for this cycle.
++	scanWorkExpected := int64(c.lastHeapScan + c.lastStackScan + c.globalsScan)
+ 
+ 	// maxScanWork is a worst-case estimate of the amount of scan work that
+ 	// needs to be performed in this GC cycle. Specifically, it represents
+-	// the case where *all* scannable memory turns out to be live.
+-	maxScanWork := int64(scan + c.stackScan + c.globalsScan)
++	// the case where *all* scannable memory turns out to be live, and
++	// *all* allocated stack space is scannable.
++	maxStackScan := atomic.Load64(&c.maxStackScan)
++	maxScanWork := int64(scan + maxStackScan + c.globalsScan)
+ 	if work > scanWorkExpected {
+ 		// We've already done more scan work than expected. Because our expectation
+ 		// is based on a steady-state scannable heap size, we assume this means our
+@@ -736,7 +735,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+ 		printlock()
+ 		goal := gcGoalUtilization * 100
+ 		print("pacer: ", int(utilization*100), "% CPU (", int(goal), " exp.) for ")
+-		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.stackScan+c.globalsScan, " B exp.) ")
++		print(c.heapScanWork.Load(), "+", c.stackScanWork.Load(), "+", c.globalsScanWork.Load(), " B work (", c.lastHeapScan+c.lastStackScan+c.globalsScan, " B exp.) ")
+ 		print("in ", c.triggered, " B -> ", c.heapLive, " B (∆goal ", int64(c.heapLive)-int64(heapGoal), ", cons/mark ", oldConsMark, ")")
+ 		if !ok {
+ 			print("[controller reset]")
+@@ -884,6 +883,7 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
+ 	c.heapLive = bytesMarked
+ 	c.heapScan = uint64(c.heapScanWork.Load())
+ 	c.lastHeapScan = uint64(c.heapScanWork.Load())
++	c.lastStackScan = uint64(c.stackScanWork.Load())
+ 	c.triggered = ^uint64(0) // Reset triggered.
+ 
+ 	// heapLive was updated, so emit a trace event.
+@@ -935,13 +935,13 @@ func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
+ 
+ func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
+ 	if pp == nil {
+-		atomic.Xadd64(&c.scannableStackSize, amount)
++		atomic.Xadd64(&c.maxStackScan, amount)
+ 		return
+ 	}
+-	pp.scannableStackSizeDelta += amount
+-	if pp.scannableStackSizeDelta >= scannableStackSizeSlack || pp.scannableStackSizeDelta <= -scannableStackSizeSlack {
+-		atomic.Xadd64(&c.scannableStackSize, pp.scannableStackSizeDelta)
+-		pp.scannableStackSizeDelta = 0
++	pp.maxStackScanDelta += amount
++	if pp.maxStackScanDelta >= maxStackScanSlack || pp.maxStackScanDelta <= -maxStackScanSlack {
++		atomic.Xadd64(&c.maxStackScan, pp.maxStackScanDelta)
++		pp.maxStackScanDelta = 0
+ 	}
+ }
+ 
+@@ -1248,7 +1248,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
+ 	// plus additional runway for non-heap sources of GC work.
+ 	gcPercentHeapGoal := ^uint64(0)
+ 	if gcPercent := c.gcPercent.Load(); gcPercent >= 0 {
+-		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
++		gcPercentHeapGoal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.lastStackScan)+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
+ 	}
+ 	// Apply the minimum heap size here. It's defined in terms of gcPercent
+ 	// and is only updated by functions that call commit.
+@@ -1280,7 +1280,7 @@ func (c *gcControllerState) commit(isSweepDone bool) {
+ 	// Furthermore, by setting the runway so that CPU resources are divided
+ 	// this way, assuming that the cons/mark ratio is correct, we make that
+ 	// division a reality.
+-	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.stackScan+c.globalsScan)))
++	c.runway.Store(uint64((c.consMark * (1 - gcGoalUtilization) / (gcGoalUtilization)) * float64(c.lastHeapScan+c.lastStackScan+c.globalsScan)))
+ }
+ 
+ // setGCPercent updates gcPercent. commit must be called after.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 06e5538964..f5e528e8e9 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4237,7 +4237,7 @@ func gfput(_p_ *p, gp *g) {
+ 
+ 	stksize := gp.stack.hi - gp.stack.lo
+ 
+-	if stksize != _FixedStack {
++	if stksize != uintptr(startingStackSize) {
+ 		// non-standard stack size - free it.
+ 		stackfree(gp.stack)
+ 		gp.stack.lo = 0
+@@ -4299,10 +4299,21 @@ retry:
+ 		return nil
+ 	}
+ 	_p_.gFree.n--
++	if gp.stack.lo != 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
++		// Deallocate old stack. We kept it in gfput because it was the
++		// right size when the goroutine was put on the free list, but
++		// the right size has changed since then.
++		systemstack(func() {
++			stackfree(gp.stack)
++			gp.stack.lo = 0
++			gp.stack.hi = 0
++			gp.stackguard0 = 0
++		})
++	}
+ 	if gp.stack.lo == 0 {
+-		// Stack was deallocated in gfput. Allocate a new one.
++		// Stack was deallocated in gfput or just above. Allocate a new one.
+ 		systemstack(func() {
+-			gp.stack = stackalloc(_FixedStack)
++			gp.stack = stackalloc(startingStackSize)
+ 		})
+ 		gp.stackguard0 = gp.stack.lo + _StackGuard
+ 	} else {
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 62ecbdf59b..e307901fc2 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -321,6 +321,7 @@ var debug struct {
+ 	tracebackancestors int32
+ 	asyncpreemptoff    int32
+ 	harddecommit       int32
++	adaptivestackstart int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -351,12 +352,14 @@ var dbgvars = []dbgVar{
+ 	{"asyncpreemptoff", &debug.asyncpreemptoff},
+ 	{"inittrace", &debug.inittrace},
+ 	{"harddecommit", &debug.harddecommit},
++	{"adaptivestackstart", &debug.adaptivestackstart},
+ }
+ 
+ func parsedebugvars() {
+ 	// defaults
+ 	debug.cgocheck = 1
+ 	debug.invalidptr = 1
++	debug.adaptivestackstart = 1 // go119 - set this to 0 to turn larger initial goroutine stacks off
+ 	if GOOS == "linux" {
+ 		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
+ 		// but doesn't affect many of the statistics that
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 63d8449358..1e4f872726 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -732,11 +732,19 @@ type p struct {
+ 	// Race context used while executing timer functions.
+ 	timerRaceCtx uintptr
+ 
+-	// scannableStackSizeDelta accumulates the amount of stack space held by
++	// maxStackScanDelta accumulates the amount of stack space held by
+ 	// live goroutines (i.e. those eligible for stack scanning).
+-	// Flushed to gcController.scannableStackSize once scannableStackSizeSlack
+-	// or -scannableStackSizeSlack is reached.
+-	scannableStackSizeDelta int64
++	// Flushed to gcController.maxStackScan once maxStackScanSlack
++	// or -maxStackScanSlack is reached.
++	maxStackScanDelta int64
++
++	// gc-time statistics about current goroutines
++	// Note that this differs from maxStackScan in that this
++	// accumulates the actual stack observed to be used at GC time (hi - sp),
++	// not an instantaneous measure of the total stack size that might need
++	// to be scanned (hi - lo).
++	scannedStackSize uint64 // stack size of goroutines scanned by this P
++	scannedStacks    uint64 // number of goroutines scanned by this P
+ 
+ 	// preempt is set to indicate that this P should be enter the
+ 	// scheduler ASAP (regardless of what G is running on it).
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 3a22dcd552..2a7f0bd1c3 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1436,3 +1436,49 @@ func (r *stackObjectRecord) gcdata() *byte {
+ func morestackc() {
+ 	throw("attempt to execute system stack code on user stack")
+ }
++
++// startingStackSize is the amount of stack that new goroutines start with.
++// It is a power of 2, and between _FixedStack and maxstacksize, inclusive.
++// startingStackSize is updated every GC by tracking the average size of
++// stacks scanned during the GC.
++var startingStackSize uint32 = _FixedStack
++
++func gcComputeStartingStackSize() {
++	if debug.adaptivestackstart == 0 {
++		return
++	}
++	// For details, see the design doc at
++	// https://docs.google.com/document/d/1YDlGIdVTPnmUiTAavlZxBI1d9pwGQgZT7IKFKlIXohQ/edit?usp=sharing
++	// The basic algorithm is to track the average size of stacks
++	// and start goroutines with stack equal to that average size.
++	// Starting at the average size uses at most 2x the space that
++	// an ideal algorithm would have used.
++	// This is just a heuristic to avoid excessive stack growth work
++	// early in a goroutine's lifetime. See issue 18138. Stacks that
++	// are allocated too small can still grow, and stacks allocated
++	// too large can still shrink.
++	var scannedStackSize uint64
++	var scannedStacks uint64
++	for _, p := range allp {
++		scannedStackSize += p.scannedStackSize
++		scannedStacks += p.scannedStacks
++		// Reset for next time
++		p.scannedStackSize = 0
++		p.scannedStacks = 0
++	}
++	if scannedStacks == 0 {
++		startingStackSize = _FixedStack
++		return
++	}
++	avg := scannedStackSize/scannedStacks + _StackGuard
++	// Note: we add _StackGuard to ensure that a goroutine that
++	// uses the average space will not trigger a growth.
++	if avg > uint64(maxstacksize) {
++		avg = uint64(maxstacksize)
++	}
++	if avg < _FixedStack {
++		avg = _FixedStack
++	}
++	// Note: maxstacksize fits in 30 bits, so avg also does.
++	startingStackSize = uint32(round2(int32(avg)))
++}
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 1a59086901..dfb29a99bc 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -597,6 +597,39 @@ func BenchmarkStackCopyWithStkobj(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkIssue18138(b *testing.B) {
++	// Channel with N "can run a goroutine" tokens
++	const N = 10
++	c := make(chan []byte, N)
++	for i := 0; i < N; i++ {
++		c <- make([]byte, 1)
++	}
++
++	for i := 0; i < b.N; i++ {
++		<-c // get token
++		go func() {
++			useStackPtrs(1000, false) // uses ~1MB max
++			m := make([]byte, 8192)   // make GC trigger occasionally
++			c <- m                    // return token
++		}()
++	}
++}
++
++func useStackPtrs(n int, b bool) {
++	if b {
++		// This code contributes to the stack frame size, and hence to the
++		// stack copying cost. But since b is always false, it costs no
++		// execution time (not even the zeroing of a).
++		var a [128]*int // 1KB of pointers
++		a[n] = &n
++		n = *a[0]
++	}
++	if n == 0 {
++		return
++	}
++	useStackPtrs(n-1, b)
++}
++
+ type structWithMethod struct{}
+ 
+ func (s structWithMethod) caller() string {

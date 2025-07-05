@@ -13,7 +13,105 @@ Date:   Fri Dec 13 11:51:15 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go      | 24 ++++++++++++++++++++++--
  src/cmd/link/internal/loader/loader_test.go | 15 ++++++++++++++-
  2 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 0a6887ca8a..f238df7f5a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -157,6 +157,7 @@ type Loader struct {
+ 	overwrite     map[Sym]Sym       // overwrite[i]=j if symbol j overwrites symbol i
+ 
+ 	payloads []extSymPayload // contents of linker-materialized external syms
++	values   []int64         // symbol values, indexed by global sym index
+ 
+ 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+ 
+@@ -197,11 +198,10 @@ type Loader struct {
+ }
+ 
+ // extSymPayload holds the payload (data + relocations) for linker-synthesized
+-// external symbols.
++// external symbols (note that symbol value is stored in a separate slice).
+ type extSymPayload struct {
+ 	name   string // TODO: would this be better as offset into str table?
+ 	size   int64
+-	value  int64
+ 	ver    int
+ 	kind   sym.SymKind
+ 	relocs []Reloc
+@@ -247,6 +247,7 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
+ 	l.start[r] = i
+ 	l.objs = append(l.objs, objIdx{r, i, i + Sym(n) - 1})
+ 	l.max += Sym(n)
++	l.growValues(int(l.max))
+ 	return i
+ }
+ 
+@@ -373,6 +374,7 @@ func (l *Loader) growSyms(i int) {
+ 	}
+ 	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
+ 	l.payloads = append(l.payloads, make([]extSymPayload, i+1-n)...)
++	l.growValues(int(i) + 1)
+ 	l.growAttrBitmaps(int(i) + 1)
+ }
+ 
+@@ -832,6 +834,24 @@ func (l *Loader) IsItabLink(i Sym) bool {
+ 	return false
+ }
+ 
++// growValues grows the slice used to store symbol values.
++func (l *Loader) growValues(reqLen int) {
++	curLen := len(l.values)
++	if reqLen > curLen {
++		l.values = append(l.values, make([]int64, reqLen+1-curLen)...)
++	}
++}
++
++// SymValue returns the value of the i-th symbol. i is global index.
++func (l *Loader) SymValue(i Sym) int64 {
++	return l.values[i]
++}
++
++// SetSymValue sets the value of the i-th symbol. i is global index.
++func (l *Loader) SetSymValue(i Sym, val int64) {
++	l.values[i] = val
++}
++
+ // Returns the symbol content of the i-th symbol. i is global index.
+ func (l *Loader) Data(i Sym) []byte {
+ 	if l.IsExternal(i) {
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 4dde9e04e8..ec3090bd5a 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -32,7 +32,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 
+ 	// Create some syms from a dummy object file symbol to get things going.
+ 	addDummyObjSym(t, ldr, or, "type.uint8")
+-	addDummyObjSym(t, ldr, or, "mumble")
++	ts2 := addDummyObjSym(t, ldr, or, "mumble")
+ 	addDummyObjSym(t, ldr, or, "type.string")
+ 
+ 	// Create some external symbols.
+@@ -96,4 +96,17 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	if !ldr.AttrVisibilityHidden(es3) {
+ 		t.Errorf("expected hidden after update")
+ 	}
++
++	// Test get/set symbol value.
++	toTest := []Sym{ts2, es3}
++	for i, s := range toTest {
++		if v := ldr.SymValue(s); v != 0 {
++			t.Errorf("ldr.Value(%d): expected 0 got %d\n", s, v)
++		}
++		nv := int64(i + 101)
++		ldr.SetSymValue(s, nv)
++		if v := ldr.SymValue(s); v != nv {
++			t.Errorf("ldr.SetValue(%d,%d): expected %d got %d\n", s, nv, nv, v)
++		}
++	}
+ }

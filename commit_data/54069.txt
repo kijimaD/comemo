@@ -15,6 +15,20 @@ Date:   Wed Sep 14 04:25:55 2022 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 764dcd2f78..ff75190bb7 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4265,7 +4265,7 @@ to be inferred. Loosely speaking, type arguments may be omitted from "right to l
+ </p>
+ 
+ <pre>
+-func apply[S ~[]E, E any](s S, f(E) E) S { … }
++func apply[S ~[]E, E any](s S, f func(E) E) S { … }
+ 
+ f0 := apply[]                  // illegal: type argument list cannot be empty
+ f1 := apply[[]int]             // type argument for S explicitly provided, type argument for E inferred

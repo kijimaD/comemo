@@ -7,9 +7,80 @@ Date:   Sun Jan 22 10:34:17 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5532118
-
+---
  src/pkg/runtime/asm_arm.s         | 2 +-
  src/pkg/runtime/cgocall.c         | 4 ++--
  src/pkg/runtime/sys_freebsd_386.s | 2 +-
  src/pkg/runtime/thread_darwin.c   | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index b36bbe3047..42c7677e1e 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -277,7 +277,7 @@ TEXT runtime·abort(SB),7,$-4
+ //	}else
+ //		return 0;
+ //
+-// To implement runtime·cas in ../$GOOS/arm/sys.s
++// To implement runtime·cas in sys_$GOOS_arm.s
+ // using the native instructions, use:
+ //
+ //	TEXT runtime·cas(SB),7,$0
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index b6f23302e4..756eff38f7 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -17,7 +17,7 @@
+ // so as not to block other goroutines or the garbage collector,
+ // and then calls runtime.asmcgocall(_cgo_Cfunc_f, frame). 
+ //
+-// runtime.asmcgocall (in $GOARCH/asm.s) switches to the m->g0 stack
++// runtime.asmcgocall (in asm_$GOARCH.s) switches to the m->g0 stack
+ // (assumed to be an operating system-allocated stack, so safe to run
+ // gcc-compiled code on) and calls _cgo_Cfunc_f(frame).
+ //
+@@ -55,7 +55,7 @@
+ // with 6c instead of gcc, can refer to dotted names like
+ // runtime.cgocallback and p.GoF.)
+ //
+-// runtime.cgocallback (in $GOOS/asm.s) switches from m->g0's
++// runtime.cgocallback (in asm_$GOARCH.s) switches from m->g0's
+ // stack to the original g (m->curg)'s stack, on which it calls
+ // runtime.cgocallbackg(p.GoF, frame, framesize).
+ // As part of the stack switch, runtime.cgocallback saves the current
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 6e26f4c8b3..d8dc40d8f3 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -238,7 +238,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),7,$32
+ 	MOVL	address+4(FP), BX	// aka base
+-	// see comment in linux/386/sys.s; freebsd is similar
++	// see comment in sys_linux_386.s; freebsd is similar
+ 	ADDL	$0x8, BX
+ 
+ 	// set up data_desc
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 22800e2e89..832c74beaf 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -39,7 +39,7 @@ runtime·semacreate(void)
+ void
+ runtime·osinit(void)
+ {
+-	// Register our thread-creation callback (see {amd64,386}/sys.s)
++	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
+ 	// but only if we're not using cgo.  If we are using cgo we need
+ 	// to let the C pthread libary install its own thread-creation callback.
+ 	if(!runtime·iscgo)
+@@ -338,7 +338,7 @@ runtime·mach_semdestroy(uint32 sem)
+ 	}
+ }
+ 
+-// The other calls have simple system call traps in sys.s
++// The other calls have simple system call traps in sys_darwin_{amd64,386}.s
+ int32 runtime·mach_semaphore_wait(uint32 sema);
+ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
+ int32 runtime·mach_semaphore_signal(uint32 sema);

@@ -15,6 +15,17 @@ Date:   Fri Jan 8 20:44:53 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/go/testdata/script/vendor_test_issue14613.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue14613.txt b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+index 7801e6944d..cfd7e58f4f 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue14613.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+@@ -19,4 +19,4 @@ go test github.com/clsung/go-vendor-issue-14613/vendor_test.go
+ # test with imported and not used
+ go test -i github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+ ! go test github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+-stderr 'imported and not used:'
++stderr 'imported and not used'

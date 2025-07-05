@@ -20,8 +20,93 @@ Date:   Tue Jan 30 16:03:51 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                | 21 +++++++++++++++++++++
  src/runtime/testdata/testprogcgo/sigpanic.go | 28 ++++++++++++++++++++++++++++
  src/runtime/traceback.go                     | 10 +++++++++-
  3 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 8993a75ad3..3b9fedc7a4 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -481,3 +481,24 @@ func TestSigStackSwapping(t *testing.T) {
+ 		t.Errorf("expected %q got %v", want, got)
+ 	}
+ }
++
++func TestCgoTracebackSigpanic(t *testing.T) {
++	// Test unwinding over a sigpanic in C code without a C
++	// symbolizer. See issue #23576.
++	if runtime.GOOS == "windows" {
++		// On Windows if we get an exception in C code, we let
++		// the Windows exception handler unwind it, rather
++		// than injecting a sigpanic.
++		t.Skip("no sigpanic in C on windows")
++	}
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
++	want := "runtime.sigpanic"
++	if !strings.Contains(got, want) {
++		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
++	}
++	nowant := "unexpected return pc"
++	if strings.Contains(got, nowant) {
++		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
++	}
++}
+diff --git a/src/runtime/testdata/testprogcgo/sigpanic.go b/src/runtime/testdata/testprogcgo/sigpanic.go
+new file mode 100644
+index 0000000000..cb46030980
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/sigpanic.go
+@@ -0,0 +1,28 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// This program will crash.
++// We want to test unwinding from sigpanic into C code (without a C symbolizer).
++
++/*
++#cgo CFLAGS: -O0
++
++char *pnil;
++
++static int f1(void) {
++	*pnil = 0;
++	return 0;
++}
++*/
++import "C"
++
++func init() {
++	register("TracebackSigpanic", TracebackSigpanic)
++}
++
++func TracebackSigpanic() {
++	C.f1()
++}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0d5b06a1f0..2261942ab4 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -286,7 +286,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				// In that context it is okay to stop early.
+ 				// But if callback is set, we're doing a garbage collection and must
+ 				// get everything, so crash loudly.
+-				if callback != nil || printing {
++				doPrint := printing
++				if doPrint && gp.m.incgo && f.entry == sigpanicPC {
++					// We can inject sigpanic
++					// calls directly into C code,
++					// in which case we'll see a C
++					// return PC. Don't complain.
++					doPrint = false
++				}
++				if callback != nil || doPrint {
+ 					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+ 					tracebackHexdump(gp.stack, &frame, lrPtr)
+ 				}

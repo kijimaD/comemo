@@ -19,9 +19,362 @@ Date:   Wed Aug 7 12:47:01 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12328044
-
+---
  src/cmd/cc/pgen.c          | 26 ++++++++++---
  src/cmd/gc/pgen.c          | 97 +++++++++++++++++++++++++++++++---------------
  src/pkg/runtime/funcdata.h |  3 +-
  src/pkg/runtime/mgc0.c     | 88 ++++++++++++++++++++++++-----------------
  4 files changed, 140 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index a6b0f947e1..29ab49c42e 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -78,9 +78,9 @@ void
+ codgen(Node *n, Node *nn)
+ {
+ 	Prog *sp;
+-	Node *n1, nod, nod1;
+-	Sym *gcsym;
+-	static int ngcsym;
++	Node *n1, nod, nod1, nod2;
++	Sym *gcsym, *gclocalssym;
++	static int ngcsym, ngclocalssym;
+ 	static char namebuf[40];
+ 	int32 off;
+ 
+@@ -116,7 +116,17 @@ codgen(Node *n, Node *nn)
+ 	nod.op = ONAME;
+ 	nod.sym = gcsym;
+ 	nod.class = CSTATIC;
+-	gins(AFUNCDATA, nodconst(FUNCDATA_GC), &nod);
++	gins(AFUNCDATA, nodconst(FUNCDATA_GCArgs), &nod);
++
++	snprint(namebuf, sizeof(namebuf), "gclocalssym·%d", ngclocalssym++);
++	gclocalssym = slookup(namebuf);
++	gclocalssym->class = CSTATIC;
++
++	memset(&nod2, 0, sizeof(nod2));
++	nod2.op = ONAME;
++	nod2.sym = gclocalssym;
++	nod2.class = CSTATIC;
++	gins(AFUNCDATA, nodconst(FUNCDATA_GCLocals), &nod2);
+ 
+ 	/*
+ 	 * isolate first argument
+@@ -165,11 +175,15 @@ codgen(Node *n, Node *nn)
+ 	// That said, we've been using stkoff for months
+ 	// and nothing too terrible has happened.
+ 	off = 0;
+-	gextern(gcsym, nodconst(stkoff), off, 4); // locals
+-	off += 4;
+ 	off = pointermap(gcsym, off); // nptrs and ptrs[...]
+ 	gcsym->type = typ(0, T);
+ 	gcsym->type->width = off;
++
++	off = 0;
++	gextern(gclocalssym, nodconst(-stkoff), off, 4); // locals
++	off += 4;
++	gclocalssym->type = typ(0, T);
++	gclocalssym->type->width = off;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 6b8fe4676d..8b268a218a 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -9,22 +9,22 @@
+ #include	"../../pkg/runtime/funcdata.h"
+ 
+ static void allocauto(Prog* p);
+-static int pointermap(Sym*, int, Node*);
+-static void gcsymbol(Sym*, Node*);
++static void dumpgcargs(Node*, Sym*);
++static void dumpgclocals(Node*, Sym*);
+ 
+ void
+ compile(Node *fn)
+ {
+ 	Plist *pl;
+-	Node nod1, *n, *gcnod;
++	Node nod1, *n, *gcargsnod, *gclocalsnod;
+ 	Prog *ptxt, *p, *p1;
+ 	int32 lno;
+ 	Type *t;
+ 	Iter save;
+ 	vlong oldstksize;
+ 	NodeList *l;
+-	Sym *gcsym;
+-	static int ngcsym;
++	Sym *gcargssym, *gclocalssym;
++	static int ngcargs, ngclocals;
+ 
+ 	if(newproc == N) {
+ 		newproc = sysfunc("newproc");
+@@ -93,13 +93,21 @@ compile(Node *fn)
+ 
+ 	ginit();
+ 
+-	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
+-	gcsym = lookup(namebuf);
+-	gcnod = newname(gcsym);
+-	gcnod->class = PEXTERN;
++	snprint(namebuf, sizeof namebuf, "gcargs·%d", ngcargs++);
++	gcargssym = lookup(namebuf);
++	gcargsnod = newname(gcargssym);
++	gcargsnod->class = PEXTERN;
+ 
+-	nodconst(&nod1, types[TINT32], FUNCDATA_GC);
+-	gins(AFUNCDATA, &nod1, gcnod);
++	nodconst(&nod1, types[TINT32], FUNCDATA_GCArgs);
++	gins(AFUNCDATA, &nod1, gcargsnod);
++
++	snprint(namebuf, sizeof(namebuf), "gclocals·%d", ngclocals++);
++	gclocalssym = lookup(namebuf);
++	gclocalsnod = newname(gclocalssym);
++	gclocalsnod->class = PEXTERN;
++
++	nodconst(&nod1, types[TINT32], FUNCDATA_GCLocals);
++	gins(AFUNCDATA, &nod1, gclocalsnod);
+ 
+ 	for(t=curfn->paramfld; t; t=t->down)
+ 		gtrack(tracksym(t->type));
+@@ -159,37 +167,29 @@ compile(Node *fn)
+ 
+ 	oldstksize = stksize;
+ 	allocauto(ptxt);
+-	
+-	// Emit garbage collection symbol.
+-	gcsymbol(gcsym, fn);
+ 
+ 	if(0)
+ 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
+ 
+ 	setlineno(curfn);
+-	if((int64)stksize+maxarg > (1ULL<<31))
++	if((int64)stksize+maxarg > (1ULL<<31)) {
+ 		yyerror("stack frame too large (>2GB)");
++		goto ret;
++	}
+ 
+ 	defframe(ptxt);
+ 
+ 	if(0)
+ 		frame(0);
+ 
++	// Emit garbage collection symbols.
++	dumpgcargs(fn, gcargssym);
++	dumpgclocals(curfn, gclocalssym);
++
+ ret:
+ 	lineno = lno;
+ }
+ 
+-static void
+-gcsymbol(Sym *gcsym, Node *fn)
+-{
+-	int off;
+-
+-	off = 0;
+-	off = duint32(gcsym, off, stksize); // size of local block
+-	off = pointermap(gcsym, off, fn); // pointer bitmap for args (must be last)
+-	ggloblsym(gcsym, off, 0, 1);
+-}
+-
+ static void
+ walktype1(Type *t, vlong *xoffset, Bvec *bv)
+ {
+@@ -296,13 +296,15 @@ walktype(Type *type, Bvec *bv)
+ }
+ 
+ // Compute a bit vector to describes the pointer containing locations
+-// in the argument list.
+-static int
+-pointermap(Sym *gcsym, int off, Node *fn)
++// in the in and out argument list and dump the bitvector length and
++// data to the provided symbol.
++static void
++dumpgcargs(Node *fn, Sym *sym)
+ {
+ 	Type *thistype, *inargtype, *outargtype;
+ 	Bvec *bv;
+ 	int32 i;
++	int off;
+ 
+ 	thistype = getthisx(fn->type);
+ 	inargtype = getinargx(fn->type);
+@@ -314,11 +316,42 @@ pointermap(Sym *gcsym, int off, Node *fn)
+ 		walktype(inargtype, bv);
+ 	if(outargtype != nil)
+ 		walktype(outargtype, bv);
+-	off = duint32(gcsym, off, bv->n);
++	off = duint32(sym, 0, bv->n);
+ 	for(i = 0; i < bv->n; i += 32)
+-		off = duint32(gcsym, off, bv->b[i/32]);
++		off = duint32(sym, off, bv->b[i/32]);
++	free(bv);
++	ggloblsym(sym, off, 0, 1);
++}
++
++// Compute a bit vector to describes the pointer containing locations
++// in local variables and dumps the bitvector length and data out to
++// the provided symbol.
++static void
++dumpgclocals(Node* fn, Sym *sym)
++{
++	Bvec *bv;
++	NodeList *ll;
++	Node *node;
++	vlong xoffset;
++	int32 i;
++	int off;
++
++	bv = bvalloc(rnd(stksize, widthptr) / widthptr);
++	for(ll = fn->dcl; ll != nil; ll = ll->next) {
++		node = ll->n;
++		if(node->class == PAUTO && node->op == ONAME) {
++			if(haspointers(node->type)) {
++				xoffset = node->xoffset + rnd(stksize,widthptr);
++				walktype1(node->type, &xoffset, bv);
++			}
++		}
++	}
++	off = duint32(sym, 0, bv->n);
++	for(i = 0; i < bv->n; i += 32) {
++		off = duint32(sym, off, bv->b[i/32]);
++	}
+ 	free(bv);
+-	return off;
++	ggloblsym(sym, off, 0, 1);
+ }
+ 
+ // Sort the list of stack variables.  autos after anything else,
+diff --git a/src/pkg/runtime/funcdata.h b/src/pkg/runtime/funcdata.h
+index f12bf49fb1..166263ef90 100644
+--- a/src/pkg/runtime/funcdata.h
++++ b/src/pkg/runtime/funcdata.h
+@@ -9,7 +9,8 @@
+ 
+ #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
+ 
+-#define FUNCDATA_GC 0 /* garbage collector block */
++#define FUNCDATA_GCArgs 0 /* garbage collector blocks */
++#define FUNCDATA_GCLocals 1
+ 
+ // To be used in assembly.
+ #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index be0f81879e..abf5df10c1 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1387,56 +1387,74 @@ addroot(Obj obj)
+ 
+ extern byte pclntab[]; // base for f->ptrsoff
+ 
+-typedef struct GCFunc GCFunc;
+-struct GCFunc
++typedef struct BitVector BitVector;
++struct BitVector
+ {
+-	uint32	locals; // size of local variables in bytes
+-	uint32	nptrs; // number of words that follow
+-	uint32	ptrs[1]; // bitmap of pointers in arguments
++	int32 n;
++	uint32 data[];
+ };
+ 
++// Starting from scanp, scans words corresponding to set bits.
++static void
++scanbitvector(byte *scanp, BitVector *bv)
++{
++	uint32 *wp;
++	uint32 w;
++	int32 i, remptrs;
++
++	wp = bv->data;
++	for(remptrs = bv->n; remptrs > 0; remptrs -= 32) {
++		w = *wp++;
++		if(remptrs < 32)
++			i = remptrs;
++		else
++			i = 32;
++		for(; i > 0; i--) {
++			if(w & 1)
++				addroot((Obj){scanp, PtrSize, 0});
++			w >>= 1;
++			scanp += PtrSize;
++		}
++	}
++}
++
+ // Scan a stack frame: local variables and function arguments/results.
+ static void
+ addframeroots(Stkframe *frame, void*)
+ {
+ 	Func *f;
+-	byte *ap;
+-	int32 i, j, nuintptr;
+-	uint32 w, b;
+-	GCFunc *gcf;
++	BitVector *args, *locals;
++	uintptr size;
+ 
+ 	f = frame->fn;
+-	gcf = runtime·funcdata(f, FUNCDATA_GC);
+-	
++
+ 	// Scan local variables if stack frame has been allocated.
+-	i = frame->varp - (byte*)frame->sp;
+-	if(i > 0) {
+-		if(gcf == nil)
+-			addroot((Obj){frame->varp - i, i, 0});
+-		else if(i >= gcf->locals)
+-			addroot((Obj){frame->varp - gcf->locals, gcf->locals, 0});
++	// Use pointer information if known.
++	if(frame->varp > (byte*)frame->sp) {
++		locals = runtime·funcdata(f, FUNCDATA_GCLocals);
++		if(locals == nil) {
++			// No locals information, scan everything.
++			size = frame->varp - (byte*)frame->sp;
++			addroot((Obj){frame->varp - size, size, 0});
++		} else if(locals->n < 0) {
++			// Locals size information, scan just the
++			// locals.
++			size = -locals->n;
++			addroot((Obj){frame->varp - size, size, 0});
++		} else if(locals->n > 0) {
++			// Locals bitmap information, scan just the
++			// pointers in locals.
++			size = locals->n*PtrSize;
++			scanbitvector(frame->varp - size, locals);
++		}
+ 	}
+ 
+ 	// Scan arguments.
+ 	// Use pointer information if known.
+-	if(f->args > 0 && gcf != nil && gcf->nptrs > 0) {
+-		ap = frame->argp;
+-		nuintptr = f->args / sizeof(uintptr);
+-		for(i = 0; i < gcf->nptrs; i++) {
+-			w = gcf->ptrs[i];
+-			b = 1;
+-			j = nuintptr;
+-			if(j > 32)
+-				j = 32;
+-			for(; j > 0; j--) {
+-				if(w & b)
+-					addroot((Obj){ap, sizeof(uintptr), 0});
+-				b <<= 1;
+-				ap += sizeof(uintptr);
+-			}
+-			nuintptr -= 32;
+-		}
+-	} else
++	args = runtime·funcdata(f, FUNCDATA_GCArgs);
++	if(args != nil && args->n > 0)
++		scanbitvector(frame->argp, args);
++	else
+ 		addroot((Obj){frame->argp, frame->arglen, 0});
+ }
+ 

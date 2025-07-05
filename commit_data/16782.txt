@@ -10,7 +10,7 @@ Date:   Tue Jul 16 16:23:11 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11363043
-
+---
  src/cmd/5l/noop.c  |  8 +++++++-
  src/cmd/5l/optab.c |  2 ++
  src/cmd/5l/span.c  |  6 ++++--
@@ -19,3 +19,185 @@ Date:   Tue Jul 16 16:23:11 2013 -0400
  src/cmd/8l/optab.c | 14 ++++++++++++--
  src/cmd/8l/pass.c  |  9 +++++++--
  7 files changed, 48 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 88bff318d1..e8d09160e6 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -58,6 +58,7 @@ noops(void)
+ {
+ 	Prog *p, *q, *q1, *q2;
+ 	int o;
++	int32 arg;
+ 	Prog *pmorestack;
+ 	Sym *symmorestack;
+ 
+@@ -272,7 +273,12 @@ noops(void)
+ 					p->as = AMOVW;
+ 					p->scond = C_SCOND_LS;
+ 					p->from.type = D_CONST;
+-					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
++					arg = cursym->text->to.offset2;
++					if(arg == 1) // special marker for known 0
++						arg = 0;
++					if(arg&3)
++						diag("misaligned argument size in stack split");
++					p->from.offset = arg;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 2;
+ 	
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 46982ad727..91cadbdf45 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -246,6 +246,8 @@ Optab	optab[] =
+ 	{ AMULAWT,	C_REG,	C_REG,	C_REGREG2,		99, 4, 0 },
+ 
+ 	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, 	 0, 0, 0 },
++	{ APCDATA,	C_LCON,	C_NONE,	C_LCON,		0, 0, 0 },
++	{ AFUNCDATA,	C_LCON,	C_NONE,	C_ADDR,	0, 0, 0 },
+ 
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index a5afa02e79..96138b2663 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -141,7 +141,7 @@ span(void)
+ 				if(checkpool(op, p->as == ACASE ? casesz(p) : m))
+ 					c = p->pc = scan(op, p, c);
+ 			}
+-			if(m == 0) {
++			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
+ 				diag("zero-width instruction\n%P", p);
+ 				continue;
+ 			}
+@@ -211,7 +211,7 @@ span(void)
+ 				}
+  */
+ 				m = o->size;
+-				if(m == 0) {
++				if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA)) {
+ 					if(p->as == ATEXT) {
+ 						autosize = p->to.offset + 4;
+ 						if(p->from.sym != S)
+@@ -890,6 +890,8 @@ buildop(void)
+ 		case APLD:
+ 		case AUNDEF:
+ 		case ACLZ:
++		case AFUNCDATA:
++		case APCDATA:
+ 			break;
+ 		}
+ 	}
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 3aa177b270..c354967b98 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -53,6 +53,16 @@ uchar	ynop[] =
+ 	Yxr,	Ynone,	Zpseudo,1,
+ 	0
+ };
++uchar	yfuncdata[] =
++{
++	Yi32,	Ym,	Zpseudo,	0,
++	0
++};
++uchar	ypcdata[] = 
++{
++	Yi32,	Yi32,	Zpseudo,	0,
++	0
++};
+ uchar	yxorb[] =
+ {
+ 	Yi32,	Yal,	Zib_,	1,
+@@ -1342,8 +1352,8 @@ Optab optab[] =
+ 	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
+ 
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+-	{ AFUNCDATA,	ynop,	Px, 0,0 },
+-	{ APCDATA,	ynop,	Px, 0,0 },
++	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
++	{ APCDATA,	ypcdata,	Px, 0,0 },
+ 
+ 	{ AEND },
+ 	0
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 77defed394..644d898b9c 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -589,7 +589,10 @@ dostkoff(void)
+ 			if(StackTop + textarg + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
+ 				moreconst1 = autoffset;
+ 			moreconst2 = textarg;
+-
++			if(moreconst2 == 1) // special marker
++				moreconst2 = 0;
++			if((moreconst2&7) != 0)
++				diag("misaligned argument size in stack split");
+ 			// 4 varieties varieties (const1==0 cross const2==0)
+ 			// and 6 subvarieties of (const1==0 and const2!=0)
+ 			p = appendp(p);
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index c08e1524a6..78fe45238e 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -49,6 +49,16 @@ uchar	ynop[] =
+ 	Yrf,	Ynone,	Zpseudo,1,
+ 	0
+ };
++uchar	yfuncdata[] =
++{
++	Yi32,	Ym,	Zpseudo,	0,
++	0
++};
++uchar	ypcdata[] =
++{
++	Yi32,	Yi32,	Zpseudo,	0,
++	0,
++};
+ uchar	yxorb[] =
+ {
+ 	Yi32,	Yal,	Zib_,	1,
+@@ -1002,8 +1012,8 @@ Optab optab[] =
+ 
+ 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+ 	{ ATYPE },
+-	{ AFUNCDATA,	ynop,	Px, 0,0 },
+-	{ APCDATA,	ynop,	Px, 0,0 },
++	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
++	{ APCDATA,	ypcdata,	Px, 0,0 },
+ 
+ 	0
+ };
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 2f6b96c61d..41e40b05b4 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -410,7 +410,7 @@ dostkoff(void)
+ {
+ 	Prog *p, *q, *q1;
+ 	int32 autoffset, deltasp;
+-	int a;
++	int a, arg;
+ 	Prog *pmorestack;
+ 	Sym *symmorestack;
+ 	Sym *plan9_tos;
+@@ -623,11 +623,16 @@ dostkoff(void)
+ 			if(StackTop + cursym->text->to.offset2 + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
+ 				p->from.offset = (autoffset+7) & ~7LL;
+ 
++			arg = cursym->text->to.offset2;
++			if(arg == 1) // special marker for known 0
++				arg = 0;
++			if(arg&3)
++				diag("misaligned argument size in stack split");
+ 			p = appendp(p);	// save arg size in AX
+ 			p->as = AMOVL;
+ 			p->to.type = D_AX;
+ 			p->from.type = D_CONST;
+-			p->from.offset = cursym->text->to.offset2;
++			p->from.offset = arg;
+ 
+ 			p = appendp(p);
+ 			p->as = ACALL;

@@ -14,8 +14,84 @@ Date:   Fri Nov 2 14:38:33 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |  7 +++++++
  src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
  src/cmd/compile/internal/gc/walk.go      | 17 ++++++++++-------
  3 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 0f4b6c9936..16b81e6a88 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1114,6 +1114,7 @@ var opprec = []int{
+ 	OSLICEARR:     8,
+ 	OSLICE3:       8,
+ 	OSLICE3ARR:    8,
++	OSLICEHEADER:  8,
+ 	ODOTINTER:     8,
+ 	ODOTMETH:      8,
+ 	ODOTPTR:       8,
+@@ -1393,6 +1394,12 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		}
+ 		fmt.Fprint(s, "]")
+ 
++	case OSLICEHEADER:
++		if n.List.Len() != 2 {
++			Fatalf("bad OSLICEHEADER list length %d", n.List.Len())
++		}
++		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
++
+ 	case OCOPY, OCOMPLEX:
+ 		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8ec60cbbba..e6a8ed4bda 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1160,11 +1160,15 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		ok |= Erv
+ 
+ 		t := n.Type
++		if t == nil {
++			Fatalf("no type specified for OSLICEHEADER")
++		}
++
+ 		if !t.IsSlice() {
+ 			Fatalf("invalid type %v for OSLICEHEADER", n.Type)
+ 		}
+ 
+-		if !n.Left.Type.IsUnsafePtr() {
++		if n.Left == nil || n.Left.Type == nil || !n.Left.Type.IsUnsafePtr() {
+ 			Fatalf("need unsafe.Pointer for OSLICEHEADER")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f459cb3dec..fa0dcab5eb 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1351,14 +1351,17 @@ opswitch:
+ 				argtype = types.Types[TINT]
+ 			}
+ 
++			m := nod(OSLICEHEADER, nil, nil)
++			m.Type = t
++
+ 			fn := syslook(fnname)
+-			n.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
+-			n.Left.SetNonNil(true)
+-			n.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
+-			n.Op = OSLICEHEADER
+-			n.Type = t
+-			n = typecheck(n, Erv)
+-			n = walkexpr(n, init)
++			m.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
++			m.Left.SetNonNil(true)
++			m.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
++
++			m = typecheck(m, Erv)
++			m = walkexpr(m, init)
++			n = m
+ 		}
+ 
+ 	case ORUNESTR:

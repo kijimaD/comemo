@@ -23,6 +23,20 @@ Date:   Mon Feb 15 17:02:30 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/292229
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f7c1349bc6..d7571953a9 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -279,7 +279,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 
+ 	broken := false
+ 	switch runtime.GOOS {
+-	case "darwin", "ios", "dragonfly", "netbsd", "illumos", "solaris":
++	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+ 		broken = true
+ 	case "openbsd":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {

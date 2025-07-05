@@ -12,7 +12,50 @@ Date:   Mon Sep 11 17:23:55 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/node.go        |  5 -----
  src/cmd/compile/internal/typecheck/stmt.go | 11 ++++-------
  2 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index f3d1f21eeb..300084aea6 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -482,11 +482,6 @@ func IsMethod(n Node) bool {
+ 	return n.Type().Recv() != nil
+ }
+ 
+-func HasNamedResults(fn *Func) bool {
+-	typ := fn.Type()
+-	return typ.NumResults() > 0 && types.OrigSym(typ.Result(0).Sym) != nil
+-}
+-
+ // HasUniquePos reports whether n has a unique position that can be
+ // used for reporting error messages.
+ //
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 93a147c335..9bb3f79392 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -423,17 +423,14 @@ func tcRange(n *ir.RangeStmt) {
+ 
+ // tcReturn typechecks an ORETURN node.
+ func tcReturn(n *ir.ReturnStmt) ir.Node {
+-	typecheckargs(n)
+ 	if ir.CurFunc == nil {
+-		base.Errorf("return outside function")
+-		n.SetType(nil)
+-		return n
++		base.FatalfAt(n.Pos(), "return outside function")
+ 	}
+ 
+-	if ir.HasNamedResults(ir.CurFunc) && len(n.Results) == 0 {
+-		return n
++	typecheckargs(n)
++	if len(n.Results) != 0 {
++		typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
+ 	}
+-	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
+ 	return n
+ }
+ 

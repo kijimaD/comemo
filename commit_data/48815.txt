@@ -18,7 +18,7 @@ Date:   Thu Jun 17 19:01:08 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/alg.go                         | 5 ++---
  src/runtime/export_test.go                 | 2 +-
  src/runtime/iface.go                       | 5 ++---
@@ -26,3 +26,136 @@ Date:   Thu Jun 17 19:01:08 2021 +0000
  src/runtime/string.go                      | 4 ++--
  src/runtime/traceback.go                   | 2 +-
  6 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index fe6258cadd..978a3b85dc 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -7,7 +7,6 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -338,7 +337,7 @@ func initAlgAES() {
+ // Note: These routines perform the read with a native endianness.
+ func readUnaligned32(p unsafe.Pointer) uint32 {
+ 	q := (*[4]byte)(p)
+-	if sys.BigEndian {
++	if goarch.BigEndian {
+ 		return uint32(q[3]) | uint32(q[2])<<8 | uint32(q[1])<<16 | uint32(q[0])<<24
+ 	}
+ 	return uint32(q[0]) | uint32(q[1])<<8 | uint32(q[2])<<16 | uint32(q[3])<<24
+@@ -346,7 +345,7 @@ func readUnaligned32(p unsafe.Pointer) uint32 {
+ 
+ func readUnaligned64(p unsafe.Pointer) uint64 {
+ 	q := (*[8]byte)(p)
+-	if sys.BigEndian {
++	if goarch.BigEndian {
+ 		return uint64(q[7]) | uint64(q[6])<<8 | uint64(q[5])<<16 | uint64(q[4])<<24 |
+ 			uint64(q[3])<<32 | uint64(q[2])<<40 | uint64(q[1])<<48 | uint64(q[0])<<56
+ 	}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 9a471bd9d6..de3d5b709d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -215,7 +215,7 @@ var Write = write
+ func Envs() []string     { return envs }
+ func SetEnvs(e []string) { envs = e }
+ 
+-var BigEndian = sys.BigEndian
++var BigEndian = goarch.BigEndian
+ 
+ // For benchmarking.
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 9d10deee9c..79a49c0dff 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -8,7 +8,6 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -336,7 +335,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+ func convT16(val uint16) (x unsafe.Pointer) {
+ 	if val < uint16(len(staticuint64s)) {
+ 		x = unsafe.Pointer(&staticuint64s[val])
+-		if sys.BigEndian {
++		if goarch.BigEndian {
+ 			x = add(x, 6)
+ 		}
+ 	} else {
+@@ -349,7 +348,7 @@ func convT16(val uint16) (x unsafe.Pointer) {
+ func convT32(val uint32) (x unsafe.Pointer) {
+ 	if val < uint32(len(staticuint64s)) {
+ 		x = unsafe.Pointer(&staticuint64s[val])
+-		if sys.BigEndian {
++		if goarch.BigEndian {
+ 			x = add(x, 4)
+ 		}
+ 	} else {
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index c9c2eba248..2ae60b8507 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -5,9 +5,9 @@
+ package atomic_test
+ 
+ import (
++	"internal/goarch"
+ 	"runtime"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -56,7 +56,7 @@ func TestXadduintptr(t *testing.T) {
+ // Tests that xadduintptr correctly updates 64-bit values. The place where
+ // we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
+ func TestXadduintptrOnUint64(t *testing.T) {
+-	if sys.BigEndian {
++	if goarch.BigEndian {
+ 		// On big endian architectures, we never use xadduintptr to update
+ 		// 64-bit values and hence we skip the test.  (Note that functions
+ 		// mSysStat{Inc,Dec} in mstats.go have explicit checks for
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 3c215d3754..d6990dab9a 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/bytealg"
+-	"runtime/internal/sys"
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -96,7 +96,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+ 	}
+ 	if n == 1 {
+ 		p := unsafe.Pointer(&staticuint64s[*ptr])
+-		if sys.BigEndian {
++		if goarch.BigEndian {
+ 			p = add(p, 7)
+ 		}
+ 		stringStructOf(&str).str = p
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0bea20bf4d..addfa6faac 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -569,7 +569,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
+ 		// mask out irrelavant bits
+ 		if sz < 8 {
+ 			shift := 64 - sz*8
+-			if sys.BigEndian {
++			if goarch.BigEndian {
+ 				x = x >> shift
+ 			} else {
+ 				x = x << shift >> shift

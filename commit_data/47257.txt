@@ -15,10 +15,288 @@ Date:   Sun Nov 8 11:50:10 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/objabi/reloctype.go        |  13 ++--
  src/cmd/internal/objabi/reloctype_string.go | 113 ++++++++++++++--------------
  src/cmd/link/internal/ld/data.go            |  29 +++----
  src/cmd/link/internal/ld/deadcode.go        |   5 +-
  src/cmd/link/internal/loader/loader.go      |   3 +-
  5 files changed, 85 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 649f690194..217d8565f2 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -50,11 +50,6 @@ const (
+ 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
+ 	// holding the data being relocated to the referenced symbol.
+ 	R_ADDROFF
+-	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
+-	// A weak relocation does not make the symbol it refers to reachable,
+-	// and is only honored by the linker if the symbol is in some other way
+-	// reachable.
+-	R_WEAKADDROFF
+ 	R_SIZE
+ 	R_CALL
+ 	R_CALLARM
+@@ -256,6 +251,14 @@ const (
+ 	// of a symbol. This isn't a real relocation, it can be placed in anywhere
+ 	// in a symbol and target any symbols.
+ 	R_XCOFFREF
++
++	// R_WEAK marks the relocation as a weak reference.
++	// A weak relocation does not make the symbol it refers to reachable,
++	// and is only honored by the linker if the symbol is in some other way
++	// reachable.
++	R_WEAK = -1 << 15
++
++	R_WEAKADDROFF = R_WEAK | R_ADDROFF
+ )
+ 
+ // IsDirectCall reports whether r is a relocation for a direct call.
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index 658a44f8b8..8882d19f88 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -13,66 +13,65 @@ func _() {
+ 	_ = x[R_ADDRARM64-3]
+ 	_ = x[R_ADDRMIPS-4]
+ 	_ = x[R_ADDROFF-5]
+-	_ = x[R_WEAKADDROFF-6]
+-	_ = x[R_SIZE-7]
+-	_ = x[R_CALL-8]
+-	_ = x[R_CALLARM-9]
+-	_ = x[R_CALLARM64-10]
+-	_ = x[R_CALLIND-11]
+-	_ = x[R_CALLPOWER-12]
+-	_ = x[R_CALLMIPS-13]
+-	_ = x[R_CALLRISCV-14]
+-	_ = x[R_CONST-15]
+-	_ = x[R_PCREL-16]
+-	_ = x[R_TLS_LE-17]
+-	_ = x[R_TLS_IE-18]
+-	_ = x[R_GOTOFF-19]
+-	_ = x[R_PLT0-20]
+-	_ = x[R_PLT1-21]
+-	_ = x[R_PLT2-22]
+-	_ = x[R_USEFIELD-23]
+-	_ = x[R_USETYPE-24]
+-	_ = x[R_USEIFACE-25]
+-	_ = x[R_USEIFACEMETHOD-26]
+-	_ = x[R_METHODOFF-27]
+-	_ = x[R_POWER_TOC-28]
+-	_ = x[R_GOTPCREL-29]
+-	_ = x[R_JMPMIPS-30]
+-	_ = x[R_DWARFSECREF-31]
+-	_ = x[R_DWARFFILEREF-32]
+-	_ = x[R_ARM64_TLS_LE-33]
+-	_ = x[R_ARM64_TLS_IE-34]
+-	_ = x[R_ARM64_GOTPCREL-35]
+-	_ = x[R_ARM64_GOT-36]
+-	_ = x[R_ARM64_PCREL-37]
+-	_ = x[R_ARM64_LDST8-38]
+-	_ = x[R_ARM64_LDST16-39]
+-	_ = x[R_ARM64_LDST32-40]
+-	_ = x[R_ARM64_LDST64-41]
+-	_ = x[R_ARM64_LDST128-42]
+-	_ = x[R_POWER_TLS_LE-43]
+-	_ = x[R_POWER_TLS_IE-44]
+-	_ = x[R_POWER_TLS-45]
+-	_ = x[R_ADDRPOWER_DS-46]
+-	_ = x[R_ADDRPOWER_GOT-47]
+-	_ = x[R_ADDRPOWER_PCREL-48]
+-	_ = x[R_ADDRPOWER_TOCREL-49]
+-	_ = x[R_ADDRPOWER_TOCREL_DS-50]
+-	_ = x[R_RISCV_PCREL_ITYPE-51]
+-	_ = x[R_RISCV_PCREL_STYPE-52]
+-	_ = x[R_RISCV_TLS_IE_ITYPE-53]
+-	_ = x[R_RISCV_TLS_IE_STYPE-54]
+-	_ = x[R_PCRELDBL-55]
+-	_ = x[R_ADDRMIPSU-56]
+-	_ = x[R_ADDRMIPSTLS-57]
+-	_ = x[R_ADDRCUOFF-58]
+-	_ = x[R_WASMIMPORT-59]
+-	_ = x[R_XCOFFREF-60]
++	_ = x[R_SIZE-6]
++	_ = x[R_CALL-7]
++	_ = x[R_CALLARM-8]
++	_ = x[R_CALLARM64-9]
++	_ = x[R_CALLIND-10]
++	_ = x[R_CALLPOWER-11]
++	_ = x[R_CALLMIPS-12]
++	_ = x[R_CALLRISCV-13]
++	_ = x[R_CONST-14]
++	_ = x[R_PCREL-15]
++	_ = x[R_TLS_LE-16]
++	_ = x[R_TLS_IE-17]
++	_ = x[R_GOTOFF-18]
++	_ = x[R_PLT0-19]
++	_ = x[R_PLT1-20]
++	_ = x[R_PLT2-21]
++	_ = x[R_USEFIELD-22]
++	_ = x[R_USETYPE-23]
++	_ = x[R_USEIFACE-24]
++	_ = x[R_USEIFACEMETHOD-25]
++	_ = x[R_METHODOFF-26]
++	_ = x[R_POWER_TOC-27]
++	_ = x[R_GOTPCREL-28]
++	_ = x[R_JMPMIPS-29]
++	_ = x[R_DWARFSECREF-30]
++	_ = x[R_DWARFFILEREF-31]
++	_ = x[R_ARM64_TLS_LE-32]
++	_ = x[R_ARM64_TLS_IE-33]
++	_ = x[R_ARM64_GOTPCREL-34]
++	_ = x[R_ARM64_GOT-35]
++	_ = x[R_ARM64_PCREL-36]
++	_ = x[R_ARM64_LDST8-37]
++	_ = x[R_ARM64_LDST16-38]
++	_ = x[R_ARM64_LDST32-39]
++	_ = x[R_ARM64_LDST64-40]
++	_ = x[R_ARM64_LDST128-41]
++	_ = x[R_POWER_TLS_LE-42]
++	_ = x[R_POWER_TLS_IE-43]
++	_ = x[R_POWER_TLS-44]
++	_ = x[R_ADDRPOWER_DS-45]
++	_ = x[R_ADDRPOWER_GOT-46]
++	_ = x[R_ADDRPOWER_PCREL-47]
++	_ = x[R_ADDRPOWER_TOCREL-48]
++	_ = x[R_ADDRPOWER_TOCREL_DS-49]
++	_ = x[R_RISCV_PCREL_ITYPE-50]
++	_ = x[R_RISCV_PCREL_STYPE-51]
++	_ = x[R_RISCV_TLS_IE_ITYPE-52]
++	_ = x[R_RISCV_TLS_IE_STYPE-53]
++	_ = x[R_PCRELDBL-54]
++	_ = x[R_ADDRMIPSU-55]
++	_ = x[R_ADDRMIPSTLS-56]
++	_ = x[R_ADDRCUOFF-57]
++	_ = x[R_WASMIMPORT-58]
++	_ = x[R_XCOFFREF-59]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_WEAKADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CALLRISCVR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CALLRISCVR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 60, 66, 72, 81, 92, 101, 112, 122, 133, 140, 147, 155, 163, 171, 177, 183, 189, 199, 208, 218, 234, 245, 256, 266, 275, 288, 302, 316, 330, 346, 357, 370, 383, 397, 411, 425, 440, 454, 468, 479, 493, 508, 525, 543, 564, 583, 602, 622, 642, 652, 663, 676, 687, 699, 709}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 120, 127, 134, 142, 150, 158, 164, 170, 176, 186, 195, 205, 221, 232, 243, 253, 262, 275, 289, 303, 317, 333, 344, 357, 370, 384, 398, 412, 427, 441, 455, 466, 480, 495, 512, 530, 551, 570, 589, 609, 629, 639, 650, 663, 674, 686, 696}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 92d38bb63e..a9d17c806e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -165,6 +165,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		rs := r.Sym()
+ 		rs = ldr.ResolveABIAlias(rs)
+ 		rt := r.Type()
++		weak := r.Weak()
+ 		if off < 0 || off+siz > int32(len(P)) {
+ 			rname := ""
+ 			if rs != 0 {
+@@ -211,7 +212,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
+ 			}
+ 		}
+-		if rs != 0 && rst != sym.STLSBSS && rt != objabi.R_WEAKADDROFF && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
++		if rs != 0 && rst != sym.STLSBSS && !weak && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
+ 			st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
+ 		}
+ 
+@@ -387,18 +388,18 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				break
+ 			}
+ 			o = ldr.SymValue(rs) + r.Add() - int64(ldr.SymSect(rs).Vaddr)
+-		case objabi.R_WEAKADDROFF, objabi.R_METHODOFF:
++		case objabi.R_METHODOFF:
+ 			if !ldr.AttrReachable(rs) {
+-				if rt == objabi.R_METHODOFF {
+-					// Set it to a sentinel value. The runtime knows this is not pointing to
+-					// anything valid.
+-					o = -1
+-					break
+-				}
+-				continue
++				// Set it to a sentinel value. The runtime knows this is not pointing to
++				// anything valid.
++				o = -1
++				break
+ 			}
+ 			fallthrough
+ 		case objabi.R_ADDROFF:
++			if weak && !ldr.AttrReachable(rs) {
++				continue
++			}
+ 			// The method offset tables using this relocation expect the offset to be relative
+ 			// to the start of the first text section, even if there are multiple.
+ 			if ldr.SymSect(rs).Name == ".text" {
+@@ -635,7 +636,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
+ 		return ExtrelocSimple(ldr, r), true
+ 
+ 	// These reloc types don't need external relocations.
+-	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
++	case objabi.R_ADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
+ 		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF:
+ 		return rr, false
+ 	}
+@@ -710,9 +711,8 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 		if targ == 0 {
+ 			continue
+ 		}
+-		rt := r.Type()
+ 		if !ctxt.loader.AttrReachable(targ) {
+-			if rt == objabi.R_WEAKADDROFF {
++			if r.Weak() {
+ 				continue
+ 			}
+ 			ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s",
+@@ -786,6 +786,10 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
+ 		if r.IsMarker() {
+ 			continue // skip marker relocations
+ 		}
++		rSym := r.Sym()
++		if r.Weak() && !ldr.AttrReachable(rSym) {
++			continue
++		}
+ 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
+ 			// It's expected that some relocations will be done
+ 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+@@ -794,7 +798,6 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
+ 			continue
+ 		}
+ 
+-		rSym := r.Sym()
+ 		if rSym != 0 && ldr.SymType(rSym) == sym.SDYNIMPORT || r.Type() >= objabi.ElfRelocOffset {
+ 			if rSym != 0 && !ldr.AttrReachable(rSym) {
+ 				ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s", ldr.SymName(rSym))
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index ebde41499e..ed276b5a99 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -128,10 +128,11 @@ func (d *deadcodePass) flood() {
+ 		methods = methods[:0]
+ 		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At(i)
++			if r.Weak() {
++				continue
++			}
+ 			t := r.Type()
+ 			switch t {
+-			case objabi.R_WEAKADDROFF:
+-				continue
+ 			case objabi.R_METHODOFF:
+ 				if i+2 >= relocs.Count() {
+ 					panic("expect three consecutive R_METHODOFF relocs")
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 6d2e7dcabc..5df4348a36 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -53,7 +53,8 @@ type Reloc struct {
+ 	l *Loader
+ }
+ 
+-func (rel Reloc) Type() objabi.RelocType     { return objabi.RelocType(rel.Reloc.Type()) }
++func (rel Reloc) Type() objabi.RelocType     { return objabi.RelocType(rel.Reloc.Type()) &^ objabi.R_WEAK }
++func (rel Reloc) Weak() bool                 { return objabi.RelocType(rel.Reloc.Type())&objabi.R_WEAK != 0 }
+ func (rel Reloc) SetType(t objabi.RelocType) { rel.Reloc.SetType(uint16(t)) }
+ func (rel Reloc) Sym() Sym                   { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+ func (rel Reloc) SetSym(s Sym)               { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }

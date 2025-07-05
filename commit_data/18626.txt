@@ -15,6 +15,32 @@ Date:   Mon Feb 24 19:48:06 2014 +0100
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/66600043
-
+---
  src/cmd/go/env.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 05774c2cf5..26d37df4f9 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -91,7 +91,19 @@ func runEnv(cmd *Command, args []string) {
+ 			default:
+ 				fmt.Printf("%s=\"%s\"\n", e.name, e.value)
+ 			case "plan9":
+-				fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
++				if strings.IndexByte(e.value, '\x00') < 0 {
++					fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
++				} else {
++					v := strings.Split(e.value, "\x00")
++					fmt.Printf("%s=(", e.name)
++					for x, s := range v {
++						if x > 0 {
++							fmt.Printf(" ")
++						}
++						fmt.Printf("%s", s)
++					}
++					fmt.Printf(")\n")
++				}
+ 			case "windows":
+ 				fmt.Printf("set %s=%s\n", e.name, e.value)
+ 			}

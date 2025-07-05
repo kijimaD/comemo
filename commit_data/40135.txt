@@ -18,9 +18,98 @@ Date:   Mon Apr 15 21:27:04 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go |  9 +++++----
  test/run.go                        |  2 +-
  test/runtime/README                |  7 +++++++
  test/runtime/inlinegcpc.go         | 29 +++++++++++++++++++++++++++++
  4 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 38be394bfb..35cbadafd7 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -289,10 +289,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	switch n.Op {
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case OCALLFUNC:
+-		if isIntrinsicCall(n) {
+-			v.budget--
+-			break
+-		}
+ 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
+ 		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
+ 		//
+@@ -309,6 +305,11 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 			}
+ 		}
+ 
++		if isIntrinsicCall(n) {
++			v.budget--
++			break
++		}
++
+ 		if fn := n.Left.Func; fn != nil && fn.Inl != nil {
+ 			v.budget -= fn.Inl.Cost
+ 			break
+diff --git a/test/run.go b/test/run.go
+index 460d4f2d8c..f66db630c5 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -49,7 +49,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
+ 
+ 	// ratec controls the max number of tests running at a time.
+ 	ratec chan bool
+diff --git a/test/runtime/README b/test/runtime/README
+new file mode 100644
+index 0000000000..249031afc1
+--- /dev/null
++++ b/test/runtime/README
+@@ -0,0 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++The runtime directory contains tests that specifically need
++to be compiled as-if in the runtime package.  For error-check
++tests, these require the additional flags -+ and -p=runtime.
+diff --git a/test/runtime/inlinegcpc.go b/test/runtime/inlinegcpc.go
+new file mode 100644
+index 0000000000..0943205ffd
+--- /dev/null
++++ b/test/runtime/inlinegcpc.go
+@@ -0,0 +1,29 @@
++// errorcheck -0 -+ -p=runtime -m -newescape=true
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// A function that calls runtime.getcallerpc or runtime.getcallersp()
++// cannot be inlined, no matter how small it is.
++
++func getcallerpc() uintptr
++func getcallersp() uintptr
++
++func pc() uintptr {
++	return getcallerpc() + 1
++}
++
++func cpc() uintptr { // ERROR "can inline cpc"
++	return pc() + 2
++}
++
++func sp() uintptr {
++	return getcallersp() + 3
++}
++
++func csp() uintptr { // ERROR "can inline csp"
++	return sp() + 4
++}

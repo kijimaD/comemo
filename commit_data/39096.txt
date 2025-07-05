@@ -13,6 +13,27 @@ Date:   Mon Dec 31 18:43:38 2018 -1000
     Change-Id: I55961b15a7eda35d84fdd9250afdbe19f0bf8412
     Reviewed-on: https://go-review.googlesource.com/c/155928
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 53088c99c6..68b2387d35 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -922,13 +922,13 @@ New files that you contribute should use the standard copyright header:
+ </p>
+ 
+ <pre>
+-// Copyright 2018 The Go Authors. All rights reserved.
++// Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ </pre>
+ 
+ <p>
+-(Use the current year if you're reading this in 2019 or beyond.)
++(Use the current year if you're reading this in 2020 or beyond.)
+ Files in the repository are copyrighted the year they are added.
+ Do not update the copyright year on files that you change.
+ </p>

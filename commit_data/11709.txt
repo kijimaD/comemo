@@ -9,6 +9,21 @@ Date:   Wed Feb 8 13:48:03 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5643058
-
+---
  src/pkg/encoding/json/stream.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index f247639502..7d1cc5f119 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -19,6 +19,9 @@ type Decoder struct {
+ }
+ 
+ // NewDecoder returns a new decoder that reads from r.
++//
++// The decoder introduces its own buffering and may
++// read data from r beyond the JSON values requested.
+ func NewDecoder(r io.Reader) *Decoder {
+ 	return &Decoder{r: r}
+ }

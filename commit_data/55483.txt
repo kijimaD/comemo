@@ -19,7 +19,123 @@ Date:   Thu Feb 9 14:24:46 2023 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/io/io.go           | 30 ++++++++++++++++++------------
  src/net/http/server.go | 17 ++++++++++++++---
  2 files changed, 32 insertions(+), 15 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 374e20bf8c..630ab73b56 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -400,13 +400,6 @@ func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 	return copyBuffer(dst, src, buf)
+ }
+ 
+-var bufPool = sync.Pool{
+-	New: func() any {
+-		b := make([]byte, 32*1024)
+-		return &b
+-	},
+-}
+-
+ // copyBuffer is the actual implementation of Copy and CopyBuffer.
+ // if buf is nil, one is allocated.
+ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+@@ -420,9 +413,15 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 		return rt.ReadFrom(src)
+ 	}
+ 	if buf == nil {
+-		bufp := bufPool.Get().(*[]byte)
+-		defer bufPool.Put(bufp)
+-		buf = *bufp
++		size := 32 * 1024
++		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
++			if l.N < 1 {
++				size = 1
++			} else {
++				size = int(l.N)
++			}
++		}
++		buf = make([]byte, size)
+ 	}
+ 	for {
+ 		nr, er := src.Read(buf)
+@@ -638,14 +637,21 @@ func (discard) WriteString(s string) (int, error) {
+ 	return len(s), nil
+ }
+ 
++var blackHolePool = sync.Pool{
++	New: func() any {
++		b := make([]byte, 8192)
++		return &b
++	},
++}
++
+ func (discard) ReadFrom(r Reader) (n int64, err error) {
+-	bufp := bufPool.Get().(*[]byte)
++	bufp := blackHolePool.Get().(*[]byte)
+ 	readSize := 0
+ 	for {
+ 		readSize, err = r.Read(*bufp)
+ 		n += int64(readSize)
+ 		if err != nil {
+-			bufPool.Put(bufp)
++			blackHolePool.Put(bufp)
+ 			if err == EOF {
+ 				return n, nil
+ 			}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bb31761ade..c15f0f58cb 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -567,12 +567,16 @@ type writerOnly struct {
+ // to a *net.TCPConn with sendfile, or from a supported src type such
+ // as a *net.TCPConn on Linux with splice.
+ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
++	bufp := copyBufPool.Get().(*[]byte)
++	buf := *bufp
++	defer copyBufPool.Put(bufp)
++
+ 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
+ 	// own ReadFrom method). If not, just fall back to the normal
+ 	// copy method.
+ 	rf, ok := w.conn.rwc.(io.ReaderFrom)
+ 	if !ok {
+-		return io.Copy(writerOnly{w}, src)
++		return io.CopyBuffer(writerOnly{w}, src, buf)
+ 	}
+ 
+ 	// Copy the first sniffLen bytes before switching to ReadFrom.
+@@ -580,7 +584,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+ 	// source is available (see golang.org/issue/5660) and provides
+ 	// enough bytes to perform Content-Type sniffing when required.
+ 	if !w.cw.wroteHeader {
+-		n0, err := io.Copy(writerOnly{w}, io.LimitReader(src, sniffLen))
++		n0, err := io.CopyBuffer(writerOnly{w}, io.LimitReader(src, sniffLen), buf)
+ 		n += n0
+ 		if err != nil || n0 < sniffLen {
+ 			return n, err
+@@ -598,7 +602,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+ 		return n, err
+ 	}
+ 
+-	n0, err := io.Copy(writerOnly{w}, src)
++	n0, err := io.CopyBuffer(writerOnly{w}, src, buf)
+ 	n += n0
+ 	return n, err
+ }
+@@ -795,6 +799,13 @@ var (
+ 	bufioWriter4kPool sync.Pool
+ )
+ 
++var copyBufPool = sync.Pool{
++	New: func() any {
++		b := make([]byte, 32*1024)
++		return &b
++	},
++}
++
+ func bufioWriterPool(size int) *sync.Pool {
+ 	switch size {
+ 	case 2 << 10:

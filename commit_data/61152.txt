@@ -10,6 +10,37 @@ Date:   Tue Oct 8 13:12:12 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/encoding/asn1/asn1.go | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 56e007d3a6..488fb9b1e0 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -25,6 +25,7 @@ import (
+ 	"math"
+ 	"math/big"
+ 	"reflect"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -224,16 +225,7 @@ type ObjectIdentifier []int
+ 
+ // Equal reports whether oi and other represent the same identifier.
+ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
+-	if len(oi) != len(other) {
+-		return false
+-	}
+-	for i := 0; i < len(oi); i++ {
+-		if oi[i] != other[i] {
+-			return false
+-		}
+-	}
+-
+-	return true
++	return slices.Equal(oi, other)
+ }
+ 
+ func (oi ObjectIdentifier) String() string {

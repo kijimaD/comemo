@@ -7,6 +7,20 @@ Date:   Mon Sep 9 09:37:05 2013 +1000
     R=golang-dev, adg
     CC=bradfitz, golang-dev, remyoudompheng
     https://golang.org/cl/13568045
-
+---
  src/pkg/compress/flate/deflate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index b3e079150a..8c79df0c60 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -553,7 +553,7 @@ func (w *Writer) Close() error {
+ }
+ 
+ // Reset discards the writer's state and makes it equivalent to
+-// the result of NewWriter or NewWriterDict called with w
++// the result of NewWriter or NewWriterDict called with dst
+ // and w's level and dictionary.
+ func (w *Writer) Reset(dst io.Writer) {
+ 	if dw, ok := w.d.w.w.(*dictWriter); ok {

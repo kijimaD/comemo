@@ -20,7 +20,89 @@ Date:   Thu Apr 14 17:57:22 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/x509.go      |  6 +++++-
  src/crypto/x509/x509_test.go | 43 ++++++++++++++++++++++++++++++++++++++-----
  2 files changed, 43 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 6d99191fef..8823ff8a26 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1478,13 +1478,17 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		return nil, errors.New("x509: no SerialNumber given")
+ 	}
+ 
+-	// RFC 5280 Section 4.1.2.2: serial number must not be longer than 20 octets
++	// RFC 5280 Section 4.1.2.2: serial number must positive and should not be longer
++	// than 20 octets.
+ 	//
+ 	// We cannot simply check for len(serialBytes) > 20, because encoding/asn1 may
+ 	// pad the slice in order to prevent the integer being mistaken for a negative
+ 	// number (DER uses the high bit of the left-most byte to indicate the sign.),
+ 	// so we need to double check the composition of the serial if it is exactly
+ 	// 20 bytes.
++	if template.SerialNumber.Sign() == -1 {
++		return nil, errors.New("x509: serial number must be positive")
++	}
+ 	serialBytes := template.SerialNumber.Bytes()
+ 	if len(serialBytes) > 20 || (len(serialBytes) == 20 && serialBytes[0]&0x80 != 0) {
+ 		return nil, errors.New("x509: serial number exceeds 20 octets")
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index c294f91ed6..4806ef3493 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -602,11 +602,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 	for _, test := range tests {
+ 		commonName := "test.example.com"
+ 		template := Certificate{
+-			// SerialNumber is negative to ensure that negative
+-			// values are parsed. This is due to the prevalence of
+-			// buggy code that produces certificates with negative
+-			// serial numbers.
+-			SerialNumber: big.NewInt(-1),
++			SerialNumber: big.NewInt(1),
+ 			Subject: pkix.Name{
+ 				CommonName:   commonName,
+ 				Organization: []string{"Σ Acme Co"},
+@@ -3628,3 +3624,40 @@ func TestCreateCertificateLongSerial(t *testing.T) {
+ 		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+ 	}
+ }
++
++var negativeSerialCert = `-----BEGIN CERTIFICATE-----
++MIIBBTCBraADAgECAgH/MAoGCCqGSM49BAMCMA0xCzAJBgNVBAMTAjopMB4XDTIy
++MDQxNDIzNTYwNFoXDTIyMDQxNTAxNTYwNFowDTELMAkGA1UEAxMCOikwWTATBgcq
++hkjOPQIBBggqhkjOPQMBBwNCAAQ9ezsIsj+q17K87z/PXE/rfGRN72P/Wyn5d6oo
++5M0ZbSatuntMvfKdX79CQxXAxN4oXk3Aov4jVSG12AcDI8ShMAoGCCqGSM49BAMC
++A0cAMEQCIBzfBU5eMPT6m5lsR6cXaJILpAaiD9YxOl4v6dT3rzEjAiBHmjnHmAss
++RqUAyJKFzqZxOlK2q4j2IYnuj5+LrLGbQA==
++-----END CERTIFICATE-----`
++
++func TestParseNegativeSerial(t *testing.T) {
++	pemBlock, _ := pem.Decode([]byte(negativeSerialCert))
++	_, err := ParseCertificate(pemBlock.Bytes)
++	if err != nil {
++		t.Fatalf("failed to parse certificate: %s", err)
++	}
++}
++
++func TestCreateNegativeSerial(t *testing.T) {
++	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	tmpl := &Certificate{
++		SerialNumber: big.NewInt(-1),
++		Subject: pkix.Name{
++			CommonName: ":)",
++		},
++		NotAfter:  time.Now().Add(time.Hour),
++		NotBefore: time.Now().Add(-time.Hour),
++	}
++	expectedErr := "x509: serial number must be positive"
++	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
++	if err == nil || err.Error() != expectedErr {
++		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
++	}
++}

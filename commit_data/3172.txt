@@ -14,10 +14,468 @@ Date:   Tue Sep 1 13:01:37 2009 -0700
     DELTA=322  (310 added, 3 deleted, 9 changed)
     OCL=34136
     CL=34201
-
+---
  usr/austin/ogle/arch.go     |  21 +++++
  usr/austin/ogle/frame.go    | 201 ++++++++++++++++++++++++++++++++++++++++++++
  usr/austin/ogle/process.go  |  74 ++++++++++++++--
  usr/austin/ogle/rruntime.go |  29 ++++++-
  usr/austin/ogle/rvalue.go   |   6 +-
  5 files changed, 321 insertions(+), 10 deletions(-)
+
+diff --git a/usr/austin/ogle/arch.go b/usr/austin/ogle/arch.go
+index 2a6a7307bc..5c23c4ea6f 100644
+--- a/usr/austin/ogle/arch.go
++++ b/usr/austin/ogle/arch.go
+@@ -28,6 +28,7 @@ type Arch interface {
+ 	ToFloat64(bits uint64) float64;
+ 	// FromFloat64 is to float64 as FromFloat32 is to float32.
+ 	FromFloat64(f float64) uint64;
++
+ 	// IntSize returns the number of bytes in an 'int'.
+ 	IntSize() int;
+ 	// PtrSize returns the number of bytes in a 'uintptr'.
+@@ -37,8 +38,17 @@ type Arch interface {
+ 	// Align rounds offset up to the appropriate offset for a
+ 	// basic type with the given width.
+ 	Align(offset, width int) int;
++
+ 	// G returns the current G pointer.
+ 	G(regs ptrace.Regs) ptrace.Word;
++
++	// ClosureSize returns the number of bytes expected by
++	// ParseClosure.
++	ClosureSize() int;
++	// ParseClosure takes ClosureSize bytes read from a return PC
++	// in a remote process, determines if the code is a closure,
++	// and returns the frame size of the closure if it is.
++	ParseClosure(data []byte) (frame int, ok bool);
+ }
+ 
+ type ArchLSB struct {}
+@@ -115,4 +125,15 @@ func (a *amd64) G(regs ptrace.Regs) ptrace.Word {
+ 	return regs.Get(a.gReg);
+ }
+ 
++func (a *amd64) ClosureSize() int {
++	return 8;
++}
++
++func (a *amd64) ParseClosure(data []byte) (int, bool) {
++	if data[0] == 0x48 && data[1] == 0x81 && data[2] == 0xc4 && data[7] == 0xc3 {
++		return int(a.ToWord(data[3:7]) + 8), true;
++	}
++	return 0, false;
++}
++
+ var Amd64 = &amd64{gReg: -1};
+diff --git a/usr/austin/ogle/frame.go b/usr/austin/ogle/frame.go
+new file mode 100644
+index 0000000000..4a4fd9a43b
+--- /dev/null
++++ b/usr/austin/ogle/frame.go
+@@ -0,0 +1,201 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ogle
++
++import (
++	"fmt";
++	"ptrace";
++	"sym";
++)
++
++// A Frame represents a single frame on a remote call stack.
++type Frame struct {
++	// pc is the PC of the next instruction that will execute in
++	// this frame.  For lower frames, this is the instruction
++	// following the CALL instruction.
++	pc, sp, fp ptrace.Word;
++	// The runtime.Stktop of the active stack segment
++	stk remoteStruct;
++	// The function this stack frame is in
++	fn *sym.TextSym;
++	// The path and line of the CALL or current instruction.  Note
++	// that this differs slightly from the meaning of Frame.pc.
++	path string;
++	line int;
++	// The inner and outer frames of this frame.  outer is filled
++	// in lazily.
++	inner, outer *Frame;
++}
++
++// NewFrame returns the top-most Frame of the given g's thread.
++// This function can abort.
++func NewFrame(g remoteStruct) *Frame {
++	p := g.r.p;
++	var pc, sp ptrace.Word;
++
++	// Is this G alive?
++	switch g.Field(p.f.G.Status).(remoteInt).Get() {
++	case p.runtime.Gidle, p.runtime.Gmoribund, p.runtime.Gdead:
++		return nil;
++	}
++
++	// Find the OS thread for this G
++
++	// TODO(austin) Ideally, we could look at the G's state and
++	// figure out if it's on an OS thread or not.  However, this
++	// is difficult because the state isn't updated atomically
++	// with scheduling changes.
++	for _, t := range p.Threads() {
++		regs, err := t.Regs();
++		if err != nil {
++			// TODO(austin) What to do?
++			continue;
++		}
++		thisg := p.G(regs);
++		if thisg == g.addr().base {
++			// Found this G's OS thread
++			pc = regs.PC();
++			sp = regs.SP();
++
++			// If this thread crashed, try to recover it
++			if pc == 0 {
++				pc = p.peekUintptr(pc);
++				sp += 8;
++			}
++
++			break;
++		}
++	}
++
++	if pc == 0 && sp == 0 {
++		// G is not mapped to an OS thread.  Use the
++		// scheduler's stored PC and SP.
++		sched := g.Field(p.f.G.Sched).(remoteStruct);
++		pc = ptrace.Word(sched.Field(p.f.Gobuf.Pc).(remoteUint).Get());
++		sp = ptrace.Word(sched.Field(p.f.Gobuf.Sp).(remoteUint).Get());
++	}
++
++	// Get Stktop
++	stk := g.Field(p.f.G.Stackbase).(remotePtr).Get().(remoteStruct);
++
++	return prepareFrame(pc, sp, stk, nil);
++}
++
++// prepareFrame creates a Frame from the PC and SP within that frame,
++// as well as the active stack segment.  This function takes care of
++// traversing stack breaks and unwinding closures.  This function can
++// abort.
++func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
++	// Based on src/pkg/runtime/amd64/traceback.c:traceback
++	p := stk.r.p;
++	top := inner == nil;
++
++	// Get function
++	var path string;
++	var line int;
++	var fn *sym.TextSym;
++
++	for i := 0; i < 100; i++ {
++		// Traverse segmented stack breaks
++		if p.sys.lessstack != nil && pc == ptrace.Word(p.sys.lessstack.Value) {
++			// Get stk->gobuf.pc
++			pc = ptrace.Word(stk.Field(p.f.Stktop.Gobuf).(remoteStruct).Field(p.f.Gobuf.Pc).(remoteUint).Get());
++			// Get stk->gobuf.sp
++			sp = ptrace.Word(stk.Field(p.f.Stktop.Gobuf).(remoteStruct).Field(p.f.Gobuf.Sp).(remoteUint).Get());
++			// Get stk->stackbase
++			stk = stk.Field(p.f.Stktop.Stackbase).(remotePtr).Get().(remoteStruct);
++			continue;
++		}
++
++		// Get the PC of the call instruction
++		callpc := pc;
++		if !top && (p.sys.goexit == nil || pc != ptrace.Word(p.sys.goexit.Value)) {
++			callpc--;
++		}
++
++		// Look up function
++		path, line, fn = p.syms.LineFromPC(uint64(callpc));
++		if fn != nil {
++			break;
++		}
++
++		// Closure?
++		var buf = make([]byte, p.ClosureSize());
++		if _, err := p.Peek(pc, buf); err != nil {
++			break;
++		}
++		spdelta, ok := p.ParseClosure(buf);
++		if ok {
++			sp += ptrace.Word(spdelta);
++			pc = p.peekUintptr(sp - ptrace.Word(p.PtrSize()));
++		}
++	}
++	if fn == nil {
++		return nil;
++	}
++
++	// Compute frame pointer
++	var fp ptrace.Word;
++	if fn.FrameSize < p.PtrSize() {
++		fp = sp + ptrace.Word(p.PtrSize());
++	} else {
++		fp = sp + ptrace.Word(fn.FrameSize);
++	}
++	// TODO(austin) To really figure out if we're in the prologue,
++	// we need to disassemble the function and look for the call
++	// to morestack.  For now, just special case the entry point.
++	//
++	// TODO(austin) What if we're in the call to morestack in the
++	// prologue?  Then top == false.
++	if top && pc == ptrace.Word(fn.Entry()) {
++		// We're in the function prologue, before SP
++		// has been adjusted for the frame.
++		fp -= ptrace.Word(fn.FrameSize - p.PtrSize());
++	}
++
++	return &Frame{pc, sp, fp, stk, fn, path, line, inner, nil};
++}
++
++// Outer returns the Frame that called this Frame, or nil if this is
++// the outermost frame.  This function can abort.
++func (f *Frame) Outer() *Frame {
++	// Is there a cached outer frame
++	if f.outer != nil {
++		return f.outer;
++	}
++
++	p := f.stk.r.p;
++
++	sp := f.fp;
++	if f.fn == p.sys.newproc && f.fn == p.sys.deferproc {
++		// TODO(rsc) The compiler inserts two push/pop's
++		// around calls to go and defer.  Russ says this
++		// should get fixed in the compiler, but we account
++		// for it for now.
++		sp += ptrace.Word(2 * p.PtrSize());
++	}
++
++	pc := p.peekUintptr(f.fp - ptrace.Word(p.PtrSize()));
++	if pc < 0x1000 {
++		return nil;
++	}
++
++	f.outer = prepareFrame(pc, sp, f.stk, f);
++	return f.outer;
++}
++
++// Inner returns the Frame called by this Frame, or nil if this is the
++// innermost frame.
++func (f *Frame) Inner() *Frame {
++	return f.inner;
++}
++
++func (f *Frame) String() string {
++	res := f.fn.Name;
++	if f.pc > ptrace.Word(f.fn.Value) {
++		res += fmt.Sprintf("+%#x", f.pc - ptrace.Word(f.fn.Entry()));
++	}
++	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
++}
+diff --git a/usr/austin/ogle/process.go b/usr/austin/ogle/process.go
+index 0ca8940729..9dc5bc9090 100644
+--- a/usr/austin/ogle/process.go
++++ b/usr/austin/ogle/process.go
+@@ -29,6 +29,14 @@ func (e UnknownArchitecture) String() string {
+ 	return "unknown architecture: " + sym.ElfMachine(e).String();
+ }
+ 
++// A ProcessNotStopped error occurs when attempting to read or write
++// memory or registers of a process that is not stopped.
++type ProcessNotStopped struct {}
++
++func (e ProcessNotStopped) String() string {
++	return "process not stopped";
++}
++
+ // A Process represents a remote attached process.
+ type Process struct {
+ 	Arch;
+@@ -37,10 +45,11 @@ type Process struct {
+ 	// The symbol table of this process
+ 	syms *sym.GoSymTable;
+ 
+-	// Current thread
+-	thread ptrace.Thread;
+ 	// Current frame, or nil if the current thread is not stopped
+-	frame *frame;
++	frame *Frame;
++
++	// A possibly-stopped OS thread, or nil
++	threadCache ptrace.Thread;
+ 
+ 	// Types parsed from the remote process
+ 	types map[ptrace.Word] *remoteType;
+@@ -50,6 +59,11 @@ type Process struct {
+ 
+ 	// Runtime field indexes
+ 	f runtimeIndexes;
++
++	// Globals from the sys package (or from no package)
++	sys struct {
++		lessstack, goexit, newproc, deferproc *sym.TextSym;
++	};
+ }
+ 
+ // NewProcess constructs a new remote process around a ptrace'd
+@@ -59,7 +73,6 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) *Process {
+ 		Arch: arch,
+ 		Process: proc,
+ 		syms: syms,
+-		thread: proc.Threads()[0],
+ 		types: make(map[ptrace.Word] *remoteType),
+ 	};
+ 
+@@ -124,6 +137,57 @@ func (p *Process) bootstrap() {
+ 		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Common().Value);
+ 	}
+ 
+-	// Get field indexes
++	// Get runtime field indexes
+ 	fillRuntimeIndexes(&p.runtime, &p.f);
++
++	// Fill G status
++	p.runtime.runtimeGStatus = rt1GStatus;
++
++	// Get globals
++	globalFn := func(name string) *sym.TextSym {
++		if sym, ok := p.syms.SymFromName(name).(*sym.TextSym); ok {
++			return sym;
++		}
++		return nil;
++	};
++	p.sys.lessstack = globalFn("sys·lessstack");
++	p.sys.goexit = globalFn("goexit");
++	p.sys.newproc = globalFn("sys·newproc");
++	p.sys.deferproc = globalFn("sys·deferproc");
++}
++
++func (p *Process) someStoppedThread() ptrace.Thread {
++	if p.threadCache != nil {
++		if _, err := p.threadCache.Stopped(); err == nil {
++			return p.threadCache;
++		}
++	}
++
++	for _, t := range p.Threads() {
++		if _, err := t.Stopped(); err == nil {
++			p.threadCache = t;
++			return t;
++		}
++	}
++	return nil;
++}
++
++func (p *Process) Peek(addr ptrace.Word, out []byte) (int, os.Error) {
++	thr := p.someStoppedThread();
++	if thr == nil {
++		return 0, ProcessNotStopped{};
++	}
++	return thr.Peek(addr, out);
++}
++
++func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
++	thr := p.someStoppedThread();
++	if thr == nil {
++		return 0, ProcessNotStopped{};
++	}
++	return thr.Poke(addr, b);
++}
++
++func (p *Process) peekUintptr(addr ptrace.Word) ptrace.Word {
++	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).Get());
+ }
+diff --git a/usr/austin/ogle/rruntime.go b/usr/austin/ogle/rruntime.go
+index 685cc95a79..e0a6546912 100644
+--- a/usr/austin/ogle/rruntime.go
++++ b/usr/austin/ogle/rruntime.go
+@@ -123,10 +123,28 @@ type rt1Gobuf struct {
+ }
+ 
+ type rt1G struct {
+-	stackguard uintptr;
++	// Fields beginning with _ are only for padding
++	_stackguard uintptr;
+ 	stackbase *rt1Stktop;
++	_defer uintptr;
++	sched rt1Gobuf;
++	_stack0 uintptr;
++	_entry uintptr;
++	alllink *rt1G;
++	_param uintptr;
++	status int16;
+ }
+ 
++var rt1GStatus = runtimeGStatus{
++	Gidle: 0,
++	Grunnable: 1,
++	Grunning: 2,
++	Gsyscall: 3,
++	Gwaiting: 4,
++	Gmoribund: 5,
++	Gdead: 6,
++};
++
+ // runtimeIndexes stores the indexes of fields in the runtime
+ // structures.  It is filled in using reflection, so the name of the
+ // fields must match the names of the remoteType's in runtimeValues
+@@ -175,10 +193,15 @@ type runtimeIndexes struct {
+ 		Sp, Pc, G int;
+ 	};
+ 	G struct {
+-		Stackguard, Stackbase int;
++		Stackbase, Sched, Status int;
+ 	};
+ }
+ 
++// Values of G status codes
++type runtimeGStatus struct {
++	Gidle, Grunnable, Grunning, Gsyscall, Gwaiting, Gmoribund, Gdead int64;
++}
++
+ // runtimeValues stores the types and values that correspond to those
+ // in the remote runtime package.
+ type runtimeValues struct {
+@@ -200,6 +223,8 @@ type runtimeValues struct {
+ 	PArrayType, PStringType, PStructType, PPtrType, PFuncType,
+ 	PInterfaceType, PSliceType, PMapType, PChanType,
+ 	PDotDotDotType, PUnsafePointerType ptrace.Word;
++	// G status values
++	runtimeGStatus;
+ }
+ 
+ // fillRuntimeIndexes fills a runtimeIndexes structure will the field
+diff --git a/usr/austin/ogle/rvalue.go b/usr/austin/ogle/rvalue.go
+index db99b63b90..9e5a6ab552 100644
+--- a/usr/austin/ogle/rvalue.go
++++ b/usr/austin/ogle/rvalue.go
+@@ -53,7 +53,7 @@ func (v remote) Get(size int) uint64 {
+ 	// collector from collecting objects out from under us.
+ 	var arr [8]byte;
+ 	buf := arr[0:size];
+-	_, err := v.p.thread.Peek(v.base, buf);
++	_, err := v.p.Peek(v.base, buf);
+ 	if err != nil {
+ 		eval.Abort(err);
+ 	}
+@@ -64,7 +64,7 @@ func (v remote) Set(size int, x uint64) {
+ 	var arr [8]byte;
+ 	buf := arr[0:size];
+ 	v.p.FromWord(ptrace.Word(x), buf);
+-	_, err := v.p.thread.Poke(v.base, buf);
++	_, err := v.p.Poke(v.base, buf);
+ 	if err != nil {
+ 		eval.Abort(err);
+ 	}
+@@ -291,7 +291,7 @@ func (v remoteString) Get() string {
+ 	len := rs.Field(v.r.p.f.String.Len).(remoteInt).Get();
+ 	
+ 	bytes := make([]uint8, len);
+-	_, err := v.r.p.thread.Peek(str, bytes);
++	_, err := v.r.p.Peek(str, bytes);
+ 	if err != nil {
+ 		eval.Abort(err);
+ 	}

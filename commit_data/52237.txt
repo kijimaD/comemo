@@ -20,7 +20,7 @@ Date:   Fri Dec 10 17:23:08 2021 +0100
     Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/rand/rand_batched_test.go               | 50 ++++++++++++++++---
  src/crypto/rand/rand_dragonfly.go                  |  9 ----
  src/crypto/rand/rand_freebsd.go                    |  9 ----
@@ -30,3 +30,345 @@ Date:   Fri Dec 10 17:23:08 2021 +0100
  src/crypto/rand/rand_solaris.go                    | 10 ----
  src/crypto/rand/rand_unix.go                       | 57 ++++++++++++++++++++--
  8 files changed, 120 insertions(+), 89 deletions(-)
+
+diff --git a/src/crypto/rand/rand_batched_test.go b/src/crypto/rand/rand_batched_test.go
+index 28e45aa689..7a981e7892 100644
+--- a/src/crypto/rand/rand_batched_test.go
++++ b/src/crypto/rand/rand_batched_test.go
+@@ -2,21 +2,24 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || freebsd || dragonfly || solaris
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package rand
+ 
+ import (
+ 	"bytes"
++	"encoding/binary"
++	"errors"
++	prand "math/rand"
+ 	"testing"
+ )
+ 
+ func TestBatched(t *testing.T) {
+-	fillBatched := batched(func(p []byte) bool {
++	fillBatched := batched(func(p []byte) error {
+ 		for i := range p {
+ 			p[i] = byte(i)
+ 		}
+-		return true
++		return nil
+ 	}, 5)
+ 
+ 	p := make([]byte, 13)
+@@ -29,16 +32,49 @@ func TestBatched(t *testing.T) {
+ 	}
+ }
+ 
++func TestBatchedBuffering(t *testing.T) {
++	var prandSeed [8]byte
++	Read(prandSeed[:])
++	prand.Seed(int64(binary.LittleEndian.Uint64(prandSeed[:])))
++
++	backingStore := make([]byte, 1<<23)
++	prand.Read(backingStore)
++	backingMarker := backingStore[:]
++	output := make([]byte, len(backingStore))
++	outputMarker := output[:]
++
++	fillBatched := batched(func(p []byte) error {
++		n := copy(p, backingMarker)
++		backingMarker = backingMarker[n:]
++		return nil
++	}, 731)
++
++	for len(outputMarker) > 0 {
++		max := 9200
++		if max > len(outputMarker) {
++			max = len(outputMarker)
++		}
++		howMuch := prand.Intn(max + 1)
++		if !fillBatched(outputMarker[:howMuch]) {
++			t.Fatal("batched function returned false")
++		}
++		outputMarker = outputMarker[howMuch:]
++	}
++	if !bytes.Equal(backingStore, output) {
++		t.Error("incorrect batch result")
++	}
++}
++
+ func TestBatchedError(t *testing.T) {
+-	b := batched(func(p []byte) bool { return false }, 5)
++	b := batched(func(p []byte) error { return errors.New("failure") }, 5)
+ 	if b(make([]byte, 13)) {
+-		t.Fatal("batched function should have returned false")
++		t.Fatal("batched function should have returned an error")
+ 	}
+ }
+ 
+ func TestBatchedEmpty(t *testing.T) {
+-	b := batched(func(p []byte) bool { return false }, 5)
++	b := batched(func(p []byte) error { return errors.New("failure") }, 5)
+ 	if !b(make([]byte, 0)) {
+-		t.Fatal("empty slice should always return true")
++		t.Fatal("empty slice should always return successful")
+ 	}
+ }
+diff --git a/src/crypto/rand/rand_dragonfly.go b/src/crypto/rand/rand_dragonfly.go
+deleted file mode 100644
+index 8a36fea6cd..0000000000
+--- a/src/crypto/rand/rand_dragonfly.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package rand
+-
+-// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+-// getrandom() syscall. In DragonFlyBSD at most 256 bytes will be returned per call.
+-const maxGetRandomRead = 1 << 8
+diff --git a/src/crypto/rand/rand_freebsd.go b/src/crypto/rand/rand_freebsd.go
+deleted file mode 100644
+index 75f683c386..0000000000
+--- a/src/crypto/rand/rand_freebsd.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package rand
+-
+-// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+-// getrandom() syscall. In FreeBSD at most 256 bytes will be returned per call.
+-const maxGetRandomRead = 1 << 8
+diff --git a/src/crypto/rand/rand_getentropy.go b/src/crypto/rand/rand_getentropy.go
+index 2bf2f52032..68f921b0fc 100644
+--- a/src/crypto/rand/rand_getentropy.go
++++ b/src/crypto/rand/rand_getentropy.go
+@@ -6,25 +6,9 @@
+ 
+ package rand
+ 
+-import (
+-	"internal/syscall/unix"
+-)
++import "internal/syscall/unix"
+ 
+ func init() {
+-	altGetRandom = getEntropy
+-}
+-
+-func getEntropy(p []byte) (ok bool) {
+ 	// getentropy(2) returns a maximum of 256 bytes per call
+-	for i := 0; i < len(p); i += 256 {
+-		end := i + 256
+-		if len(p) < end {
+-			end = len(p)
+-		}
+-		err := unix.GetEntropy(p[i:end])
+-		if err != nil {
+-			return false
+-		}
+-	}
+-	return true
++	altGetRandom = batched(unix.GetEntropy, 256)
+ }
+diff --git a/src/crypto/rand/rand_batched.go b/src/crypto/rand/rand_getrandom.go
+similarity index 56%
+rename from src/crypto/rand/rand_batched.go
+rename to src/crypto/rand/rand_getrandom.go
+index 3e8e620382..cb31a5687a 100644
+--- a/src/crypto/rand/rand_batched.go
++++ b/src/crypto/rand/rand_getrandom.go
+@@ -8,25 +8,25 @@ package rand
+ 
+ import (
+ 	"internal/syscall/unix"
++	"runtime"
++	"syscall"
+ )
+ 
+-// maxGetRandomRead is platform dependent.
+ func init() {
+-	altGetRandom = batched(getRandomBatch, maxGetRandomRead)
+-}
+-
+-// batched returns a function that calls f to populate a []byte by chunking it
+-// into subslices of, at most, readMax bytes.
+-func batched(f func([]byte) bool, readMax int) func([]byte) bool {
+-	return func(buf []byte) bool {
+-		for len(buf) > readMax {
+-			if !f(buf[:readMax]) {
+-				return false
+-			}
+-			buf = buf[readMax:]
+-		}
+-		return len(buf) == 0 || f(buf)
++	var maxGetRandomRead int
++	switch runtime.GOOS {
++	case "linux", "android":
++		// Per the manpage:
++		//     When reading from the urandom source, a maximum of 33554431 bytes
++		//     is returned by a single call to getrandom() on systems where int
++		//     has a size of 32 bits.
++		maxGetRandomRead = (1 << 25) - 1
++	case "freebsd", "dragonfly", "solaris":
++		maxGetRandomRead = 1 << 8
++	default:
++		panic("no maximum specified for GetRandom")
+ 	}
++	altGetRandom = batched(getRandom, maxGetRandomRead)
+ }
+ 
+ // If the kernel is too old to support the getrandom syscall(),
+@@ -36,7 +36,13 @@ func batched(f func([]byte) bool, readMax int) func([]byte) bool {
+ // If the kernel supports the getrandom() syscall, unix.GetRandom will block
+ // until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
+ // In this case, unix.GetRandom will not return an error.
+-func getRandomBatch(p []byte) (ok bool) {
++func getRandom(p []byte) error {
+ 	n, err := unix.GetRandom(p, 0)
+-	return n == len(p) && err == nil
++	if err != nil {
++		return err
++	}
++	if n != len(p) {
++		return syscall.EIO
++	}
++	return nil
+ }
+diff --git a/src/crypto/rand/rand_linux.go b/src/crypto/rand/rand_linux.go
+deleted file mode 100644
+index 29809f62c8..0000000000
+--- a/src/crypto/rand/rand_linux.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package rand
+-
+-// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+-// getrandom() syscall. In linux at most 2^25-1 bytes will be returned per call.
+-// From the manpage
+-//
+-//   - When reading from the urandom source, a maximum of 33554431 bytes
+-//     is returned by a single call to getrandom() on systems where int
+-//     has a size of 32 bits.
+-const maxGetRandomRead = (1 << 25) - 1
+diff --git a/src/crypto/rand/rand_solaris.go b/src/crypto/rand/rand_solaris.go
+deleted file mode 100644
+index bbad0fe557..0000000000
+--- a/src/crypto/rand/rand_solaris.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package rand
+-
+-// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+-// getrandom() syscall. Across all the Solaris platforms, 256 bytes is the
+-// lowest number of bytes returned atomically per call.
+-const maxGetRandomRead = 1 << 8
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 58c97649c4..2dd4158888 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -15,7 +15,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"sync"
+-	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ )
+@@ -30,19 +29,69 @@ func init() {
+ type reader struct {
+ 	f    io.Reader
+ 	mu   sync.Mutex
+-	used int32 // atomic; whether this reader has been used
++	used bool // whether this reader has been used
+ }
+ 
+ // altGetRandom if non-nil specifies an OS-specific function to get
+ // urandom-style randomness.
+ var altGetRandom func([]byte) (ok bool)
+ 
++// batched returns a function that calls f to populate a []byte by chunking it
++// into subslices of, at most, readMax bytes, buffering min(readMax, 4096)
++// bytes at a time.
++func batched(f func([]byte) error, readMax int) func([]byte) bool {
++	bufferSize := 4096
++	if bufferSize > readMax {
++		bufferSize = readMax
++	}
++	fullBuffer := make([]byte, bufferSize)
++	var buf []byte
++	return func(out []byte) bool {
++		// First we copy any amount remaining in the buffer.
++		n := copy(out, buf)
++		out, buf = out[n:], buf[n:]
++
++		// Then, if we're requesting more than the buffer size,
++		// generate directly into the output, chunked by readMax.
++		for len(out) >= len(fullBuffer) {
++			read := len(out) - (len(out) % len(fullBuffer))
++			if read > readMax {
++				read = readMax
++			}
++			if f(out[:read]) != nil {
++				return false
++			}
++			out = out[read:]
++		}
++
++		// If there's a partial block left over, fill the buffer,
++		// and copy in the remainder.
++		if len(out) > 0 {
++			if f(fullBuffer[:]) != nil {
++				return false
++			}
++			buf = fullBuffer[:]
++			n = copy(out, buf)
++			out, buf = out[n:], buf[n:]
++		}
++
++		if len(out) > 0 {
++			panic("crypto/rand batching failed to fill buffer")
++		}
++
++		return true
++	}
++}
++
+ func warnBlocked() {
+ 	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+ }
+ 
+ func (r *reader) Read(b []byte) (n int, err error) {
+-	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if !r.used {
++		r.used = true
+ 		// First use of randomness. Start timer to warn about
+ 		// being blocked on entropy not being available.
+ 		t := time.AfterFunc(time.Minute, warnBlocked)
+@@ -51,8 +100,6 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 	if altGetRandom != nil && altGetRandom(b) {
+ 		return len(b), nil
+ 	}
+-	r.mu.Lock()
+-	defer r.mu.Unlock()
+ 	if r.f == nil {
+ 		f, err := os.Open(urandomDevice)
+ 		if err != nil {

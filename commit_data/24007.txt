@@ -23,9 +23,108 @@ Date:   Wed Jun 24 14:34:28 2015 -0700
     Change-Id: I0bdbfcf613ca6bc2ec987eb19b6b1217b51f3008
     Reviewed-on: https://go-review.googlesource.com/11451
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/type.go  |  8 ++++++++
  src/cmd/compile/internal/ssa/TODO    |  1 -
  src/cmd/compile/internal/ssa/cse.go  | 13 ++++---------
  src/cmd/compile/internal/ssa/type.go |  9 +++++++++
  4 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 1417bfc196..11635d8929 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -23,6 +23,14 @@ func (t *Type) Alignment() int64 {
+ 	return int64(t.Align)
+ }
+ 
++func (t *Type) Equal(u ssa.Type) bool {
++	x, ok := u.(*Type)
++	if !ok {
++		return false
++	}
++	return Eqtype(t, x)
++}
++
+ func (t *Type) IsBoolean() bool {
+ 	return t.Etype == TBOOL
+ }
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 30d49044e1..e2e3fb8a57 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -47,7 +47,6 @@ Rewrites
+    and which need code generated, and do the code generation.
+ 
+ Common-Subexpression Elimination
+- - Canonicalize types.
+  - Make better decision about which value in an equivalence class we should
+    choose to replace other values in that class.
+  - Can we move control values out of their basic block?
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 7a1cf53ccb..a64e993e2a 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -24,15 +24,10 @@ func cse(f *Func) {
+ 	// It starts with a coarse partition and iteratively refines it
+ 	// until it reaches a fixed point.
+ 
+-	// Make initial partition based on opcode/type/aux/auxint/nargs
+-	// TODO(khr): types are not canonical, so we split unnecessarily.
+-	// For example, all pointer types are distinct. Fix this.
+-	// As a data point, using v.Type.String() instead of
+-	// v.Type here (which is unsound) allows removal of
+-	// about 50% more nil checks in the nilcheck elim pass.
++	// Make initial partition based on opcode/type-name/aux/auxint/nargs
+ 	type key struct {
+ 		op     Op
+-		typ    Type
++		typ    string
+ 		aux    interface{}
+ 		auxint int64
+ 		nargs  int
+@@ -40,7 +35,7 @@ func cse(f *Func) {
+ 	m := map[key]eqclass{}
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			k := key{v.Op, v.Type, v.Aux, v.AuxInt, len(v.Args)}
++			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args)}
+ 			m[k] = append(m[k], v)
+ 		}
+ 	}
+@@ -74,7 +69,7 @@ func cse(f *Func) {
+ 			for j := 1; j < len(e); {
+ 				w := e[j]
+ 				for i := 0; i < len(v.Args); i++ {
+-					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] {
++					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] || !v.Type.Equal(w.Type) {
+ 						// w is not equivalent to v.
+ 						// remove w from e
+ 						e, e[j] = e[:len(e)-1], e[len(e)-1]
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index e271131a40..370137da71 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -26,6 +26,7 @@ type Type interface {
+ 	PtrTo() Type // given T, return *T
+ 
+ 	String() string
++	Equal(Type) bool
+ }
+ 
+ // Stub implementation for now, until we are completely using ../gc:Type
+@@ -59,6 +60,14 @@ func (t *TypeImpl) String() string   { return t.Name }
+ func (t *TypeImpl) Elem() Type       { panic("not implemented"); return nil }
+ func (t *TypeImpl) PtrTo() Type      { panic("not implemented"); return nil }
+ 
++func (t *TypeImpl) Equal(u Type) bool {
++	x, ok := u.(*TypeImpl)
++	if !ok {
++		return false
++	}
++	return x == t
++}
++
+ var (
+ 	// shortcuts for commonly used basic types
+ 	TypeInt8   = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}

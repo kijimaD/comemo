@@ -15,7 +15,58 @@ Date:   Thu Apr 14 11:14:36 2022 -0400
     Auto-Submit: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/dwarf/line.go      |  2 +-
  src/debug/dwarf/line_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index c4937ca7dd..bb281fbdd9 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -152,7 +152,7 @@ func (d *Data) LineReader(cu *Entry) (*LineReader, error) {
+ 		// cu has no line table.
+ 		return nil, nil
+ 	}
+-	if off > int64(len(d.line)) {
++	if off < 0 || off > int64(len(d.line)) {
+ 		return nil, errors.New("AttrStmtList value out of range")
+ 	}
+ 	// AttrCompDir is optional if all file names are absolute. Use
+diff --git a/src/debug/dwarf/line_test.go b/src/debug/dwarf/line_test.go
+index 9c6b6ff5b0..163fc3bbb9 100644
+--- a/src/debug/dwarf/line_test.go
++++ b/src/debug/dwarf/line_test.go
+@@ -389,3 +389,32 @@ func TestPathJoin(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestPathLineReaderMalformed(t *testing.T) {
++	// This test case drawn from issue #52354. What's happening
++	// here is that the stmtList attribute in the compilation
++	// unit is malformed (negative).
++	var aranges, frame, pubnames, ranges, str []byte
++	abbrev := []byte{0x10, 0x20, 0x20, 0x20, 0x21, 0x20, 0x10, 0x21, 0x61,
++		0x0, 0x0, 0xff, 0x20, 0xff, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
++		0x20, 0x20, 0x20, 0x20, 0x20, 0x20}
++	info := []byte{0x0, 0x0, 0x0, 0x9, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0,
++		0x20, 0x10, 0x10}
++	line := []byte{0x20}
++	Data0, err := New(abbrev, aranges, frame, info, line, pubnames, ranges, str)
++	if err != nil {
++		t.Fatalf("error unexpected: %v", err)
++	}
++	Reader0 := Data0.Reader()
++	Entry0, err := Reader0.Next()
++	if err != nil {
++		t.Fatalf("error unexpected: %v", err)
++	}
++	LineReader0, err := Data0.LineReader(Entry0)
++	if err == nil {
++		t.Fatalf("expected error")
++	}
++	if LineReader0 != nil {
++		t.Fatalf("expected nil line reader")
++	}
++}

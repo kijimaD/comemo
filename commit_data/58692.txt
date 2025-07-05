@@ -17,8 +17,84 @@ Date:   Fri Dec 1 14:04:35 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/546615
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/doc.go               | 12 ++----------
  src/cmd/link/internal/ld/main.go  |  2 +-
  src/cmd/link/internal/ld/xcoff.go |  2 +-
  3 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index c5f43a2954..b0f2700ac1 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -43,10 +43,10 @@ Flags:
+ 		or initialized to a constant string expression. -X will not work if the initializer makes
+ 		a function call or refers to other variables.
+ 		Note that before Go 1.5 this option took two separate arguments.
+-	-a
+-		Disassemble output.
+ 	-asan
+ 		Link with C/C++ address sanitizer support.
++	-aslr
++		Enable ASLR for buildmode=c-shared on windows (default true).
+ 	-buildid id
+ 		Record id as Go toolchain build id.
+ 	-buildmode mode
+@@ -64,8 +64,6 @@ Flags:
+ 		The dynamic header is on by default, even without any
+ 		references to dynamic libraries, because many common
+ 		system tools now assume the presence of the header.
+-	-debugtramp int
+-		Debug trampolines.
+ 	-dumpdep
+ 		Dump symbol dependency graph.
+ 	-extar ar
+@@ -104,8 +102,6 @@ Flags:
+ 		Set runtime.MemProfileRate to rate.
+ 	-msan
+ 		Link with C/C++ memory sanitizer support.
+-	-n
+-		Dump symbol table.
+ 	-o file
+ 		Write output to file (default a.out, or a.out.exe on Windows).
+ 	-pluginpath path
+@@ -116,13 +112,9 @@ Flags:
+ 		Link with race detection libraries.
+ 	-s
+ 		Omit the symbol table and debug information.
+-	-shared
+-		Generated shared object (implies -linkmode external; experimental).
+ 	-tmpdir dir
+ 		Write temporary files to dir.
+ 		Temporary files are only used in external linking mode.
+-	-u
+-		Reject unsafe packages.
+ 	-v
+ 		Print trace of linker operations.
+ 	-w
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index e120f90a22..feb4ba5c17 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -90,7 +90,7 @@ var (
+ 	flagF             = flag.Bool("f", false, "ignore version mismatch")
+ 	flagG             = flag.Bool("g", false, "disable go package data checks")
+ 	flagH             = flag.Bool("h", false, "halt on error")
+-	flagN             = flag.Bool("n", false, "dump symbol table")
++	flagN             = flag.Bool("n", false, "no-op (deprecated)")
+ 	FlagS             = flag.Bool("s", false, "disable symbol table")
+ 	flag8             bool // use 64-bit addresses in symbol table
+ 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 2f887366b7..d915ab393b 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1140,7 +1140,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
+ 		putaixsym(ctxt, s, TextSym)
+ 	}
+ 
+-	if ctxt.Debugvlog != 0 || *flagN {
++	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("symsize = %d\n", uint32(symSize))
+ 	}
+ 	xfile.updatePreviousFile(ctxt, true)

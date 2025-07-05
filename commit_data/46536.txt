@@ -18,9 +18,263 @@ Date:   Thu Jan 7 12:57:15 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/dumper.go       |  8 +--
  src/cmd/compile/internal/syntax/parser_test.go  |  4 +-
  src/cmd/compile/internal/syntax/printer.go      | 80 ++++++++++++++++++-------
  src/cmd/compile/internal/syntax/printer_test.go | 29 ++++++++-
  4 files changed, 94 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/dumper.go b/src/cmd/compile/internal/syntax/dumper.go
+index 01453d5a7a..d5247886da 100644
+--- a/src/cmd/compile/internal/syntax/dumper.go
++++ b/src/cmd/compile/internal/syntax/dumper.go
+@@ -26,7 +26,7 @@ func Fdump(w io.Writer, n Node) (err error) {
+ 
+ 	defer func() {
+ 		if e := recover(); e != nil {
+-			err = e.(localError).err // re-panics if it's not a localError
++			err = e.(writeError).err // re-panics if it's not a writeError
+ 		}
+ 	}()
+ 
+@@ -82,16 +82,16 @@ func (p *dumper) Write(data []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// localError wraps locally caught errors so we can distinguish
++// writeError wraps locally caught write errors so we can distinguish
+ // them from genuine panics which we don't want to return as errors.
+-type localError struct {
++type writeError struct {
+ 	err error
+ }
+ 
+ // printf is a convenience wrapper that takes care of print errors.
+ func (p *dumper) printf(format string, args ...interface{}) {
+ 	if _, err := fmt.Fprintf(p, format, args...); err != nil {
+-		panic(localError{err})
++		panic(writeError{err})
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index ea9e9acc83..340ca6bb6f 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -169,7 +169,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
+ 
+ func verifyPrint(t *testing.T, filename string, ast1 *File) {
+ 	var buf1 bytes.Buffer
+-	_, err := Fprint(&buf1, ast1, true)
++	_, err := Fprint(&buf1, ast1, LineForm)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -181,7 +181,7 @@ func verifyPrint(t *testing.T, filename string, ast1 *File) {
+ 	}
+ 
+ 	var buf2 bytes.Buffer
+-	_, err = Fprint(&buf2, ast2, true)
++	_, err = Fprint(&buf2, ast2, LineForm)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index c8bf59675a..0a60e1753d 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -13,19 +13,28 @@ import (
+ 	"strings"
+ )
+ 
+-// TODO(gri) Consider removing the linebreaks flag from this signature.
+-// Its likely rarely used in common cases.
++// Form controls print formatting.
++type Form uint
+ 
+-func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
++const (
++	_         Form = iota // default
++	LineForm              // use spaces instead of linebreaks where possible
++	ShortForm             // like LineForm but print "…" for non-empty function or composite literal bodies
++)
++
++// Fprint prints node x to w in the specified form.
++// It returns the number of bytes written, and whether there was an error.
++func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
+ 	p := printer{
+ 		output:     w,
+-		linebreaks: linebreaks,
++		form:       form,
++		linebreaks: form == 0,
+ 	}
+ 
+ 	defer func() {
+ 		n = p.written
+ 		if e := recover(); e != nil {
+-			err = e.(localError).err // re-panics if it's not a localError
++			err = e.(writeError).err // re-panics if it's not a writeError
+ 		}
+ 	}()
+ 
+@@ -35,15 +44,20 @@ func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
+ 	return
+ }
+ 
+-func String(n Node) string {
++func asString(n Node, form Form) string {
+ 	var buf bytes.Buffer
+-	_, err := Fprint(&buf, n, false)
++	_, err := Fprint(&buf, n, form)
+ 	if err != nil {
+-		panic(err) // TODO(gri) print something sensible into buf instead
++		fmt.Fprintf(&buf, "<<< ERROR: %s", err)
+ 	}
+ 	return buf.String()
+ }
+ 
++// String and ShortString are convenience functions that print n in
++// LineForm or ShortForm respectively, and return the printed string.
++func String(n Node) string      { return asString(n, LineForm) }
++func ShortString(n Node) string { return asString(n, ShortForm) }
++
+ type ctrlSymbol int
+ 
+ const (
+@@ -65,7 +79,8 @@ type whitespace struct {
+ 
+ type printer struct {
+ 	output     io.Writer
+-	written    int  // number of bytes written
++	written    int // number of bytes written
++	form       Form
+ 	linebreaks bool // print linebreaks instead of semis
+ 
+ 	indent  int // current indentation level
+@@ -81,7 +96,7 @@ func (p *printer) write(data []byte) {
+ 	n, err := p.output.Write(data)
+ 	p.written += n
+ 	if err != nil {
+-		panic(localError{err})
++		panic(writeError{err})
+ 	}
+ }
+ 
+@@ -355,17 +370,34 @@ func (p *printer) printRawNode(n Node) {
+ 		p.print(_Name, n.Value) // _Name requires actual value following immediately
+ 
+ 	case *FuncLit:
+-		p.print(n.Type, blank, n.Body)
++		p.print(n.Type, blank)
++		if n.Body != nil {
++			if p.form == ShortForm {
++				p.print(_Lbrace)
++				if len(n.Body.List) > 0 {
++					p.print(_Name, "…")
++				}
++				p.print(_Rbrace)
++			} else {
++				p.print(n.Body)
++			}
++		}
+ 
+ 	case *CompositeLit:
+ 		if n.Type != nil {
+ 			p.print(n.Type)
+ 		}
+ 		p.print(_Lbrace)
+-		if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
+-			p.printExprLines(n.ElemList)
++		if p.form == ShortForm {
++			if len(n.ElemList) > 0 {
++				p.print(_Name, "…")
++			}
+ 		} else {
+-			p.printExprList(n.ElemList)
++			if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
++				p.printExprLines(n.ElemList)
++			} else {
++				p.printExprList(n.ElemList)
++			}
+ 		}
+ 		p.print(_Rbrace)
+ 
+@@ -450,9 +482,13 @@ func (p *printer) printRawNode(n Node) {
+ 		}
+ 		p.print(_Lbrace)
+ 		if len(n.FieldList) > 0 {
+-			p.print(newline, indent)
+-			p.printFieldList(n.FieldList, n.TagList)
+-			p.print(outdent, newline)
++			if p.linebreaks {
++				p.print(newline, indent)
++				p.printFieldList(n.FieldList, n.TagList)
++				p.print(outdent, newline)
++			} else {
++				p.printFieldList(n.FieldList, n.TagList)
++			}
+ 		}
+ 		p.print(_Rbrace)
+ 
+@@ -467,9 +503,13 @@ func (p *printer) printRawNode(n Node) {
+ 		}
+ 		p.print(_Lbrace)
+ 		if len(n.MethodList) > 0 {
+-			p.print(newline, indent)
+-			p.printMethodList(n.MethodList)
+-			p.print(outdent, newline)
++			if p.linebreaks {
++				p.print(newline, indent)
++				p.printMethodList(n.MethodList)
++				p.print(outdent, newline)
++			} else {
++				p.printMethodList(n.MethodList)
++			}
+ 		}
+ 		p.print(_Rbrace)
+ 
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 9f1f7e18cb..6c07fe0a26 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -25,11 +25,38 @@ func TestPrint(t *testing.T) {
+ 	}
+ 
+ 	if ast != nil {
+-		Fprint(testOut(), ast, true)
++		Fprint(testOut(), ast, LineForm)
+ 		fmt.Println()
+ 	}
+ }
+ 
++type shortBuffer struct {
++	buf []byte
++}
++
++func (w *shortBuffer) Write(data []byte) (n int, err error) {
++	w.buf = append(w.buf, data...)
++	n = len(data)
++	if len(w.buf) > 10 {
++		err = io.ErrShortBuffer
++	}
++	return
++}
++
++func TestPrintError(t *testing.T) {
++	const src = "package p; var x int"
++	ast, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var buf shortBuffer
++	_, err = Fprint(&buf, ast, 0)
++	if err == nil || err != io.ErrShortBuffer {
++		t.Errorf("got err = %s, want %s", err, io.ErrShortBuffer)
++	}
++}
++
+ var stringTests = []string{
+ 	"package p",
+ 	"package p; type _ int; type T1 = struct{}; type ( _ *struct{}; T2 = float32 )",

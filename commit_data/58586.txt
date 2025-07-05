@@ -27,7 +27,307 @@ Date:   Wed Jun 28 15:04:24 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/testing/helper_test.go      | 151 +++++++++++++++++++++-------------------
  src/testing/helperfuncs_test.go |  40 ++++++-----
  2 files changed, 101 insertions(+), 90 deletions(-)
+
+diff --git a/src/testing/helper_test.go b/src/testing/helper_test.go
+index 6e8986a2ab..da5622f85f 100644
+--- a/src/testing/helper_test.go
++++ b/src/testing/helper_test.go
+@@ -2,98 +2,107 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package testing
++package testing_test
+ 
+ import (
++	"internal/testenv"
++	"os"
+ 	"regexp"
+ 	"strings"
++	"testing"
+ )
+ 
+-func TestTBHelper(t *T) {
+-	var buf strings.Builder
+-	ctx := newTestContext(1, allMatcher())
+-	t1 := &T{
+-		common: common{
+-			signal: make(chan bool),
+-			w:      &buf,
+-		},
+-		context: ctx,
++func TestTBHelper(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		testTestHelper(t)
++
++		// Check that calling Helper from inside a top-level test function
++		// has no effect.
++		t.Helper()
++		t.Error("8")
++		return
+ 	}
+-	t1.Run("Test", testHelper)
+-
+-	want := `--- FAIL: Test (?s)
+-helperfuncs_test.go:12: 0
+-helperfuncs_test.go:40: 1
+-helperfuncs_test.go:21: 2
+-helperfuncs_test.go:42: 3
+-helperfuncs_test.go:49: 4
+---- FAIL: Test/sub (?s)
+-helperfuncs_test.go:52: 5
+-helperfuncs_test.go:21: 6
+-helperfuncs_test.go:51: 7
+-helperfuncs_test.go:63: 8
+---- FAIL: Test/sub2 (?s)
+-helperfuncs_test.go:78: 11
+-helperfuncs_test.go:82: recover 12
+-helperfuncs_test.go:84: GenericFloat64
+-helperfuncs_test.go:85: GenericInt
+-helperfuncs_test.go:71: 9
+-helperfuncs_test.go:67: 10
+-`
+-	lines := strings.Split(buf.String(), "\n")
+-	durationRE := regexp.MustCompile(`\(.*\)$`)
+-	for i, line := range lines {
+-		line = strings.TrimSpace(line)
+-		line = durationRE.ReplaceAllString(line, "(?s)")
+-		lines[i] = line
++
++	testenv.MustHaveExec(t)
++	t.Parallel()
++
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-	got := strings.Join(lines, "\n")
+-	if got != want {
+-		t.Errorf("got output:\n\n%s\nwant:\n\n%s", got, want)
++
++	cmd := testenv.Command(t, exe, "-test.run=^TestTBHelper$")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
++	out, _ := cmd.CombinedOutput()
++
++	want := `--- FAIL: TestTBHelper \([^)]+\)
++    helperfuncs_test.go:15: 0
++    helperfuncs_test.go:47: 1
++    helperfuncs_test.go:24: 2
++    helperfuncs_test.go:49: 3
++    helperfuncs_test.go:56: 4
++    --- FAIL: TestTBHelper/sub \([^)]+\)
++        helperfuncs_test.go:59: 5
++        helperfuncs_test.go:24: 6
++        helperfuncs_test.go:58: 7
++    --- FAIL: TestTBHelper/sub2 \([^)]+\)
++        helperfuncs_test.go:80: 11
++    helperfuncs_test.go:84: recover 12
++    helperfuncs_test.go:86: GenericFloat64
++    helperfuncs_test.go:87: GenericInt
++    helper_test.go:22: 8
++    helperfuncs_test.go:73: 9
++    helperfuncs_test.go:69: 10
++`
++	if !regexp.MustCompile(want).Match(out) {
++		t.Errorf("got output:\n\n%s\nwant matching:\n\n%s", out, want)
+ 	}
+ }
+ 
+-func TestTBHelperParallel(t *T) {
+-	var buf strings.Builder
+-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", "", ""))
+-	t1 := &T{
+-		common: common{
+-			signal: make(chan bool),
+-			w:      &buf,
+-		},
+-		context: ctx,
++func TestTBHelperParallel(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		parallelTestHelper(t)
++		return
+ 	}
+-	t1.Run("Test", parallelTestHelper)
+ 
+-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+-	if len(lines) != 6 {
+-		t.Fatalf("parallelTestHelper gave %d lines of output; want 6", len(lines))
+-	}
+-	want := "helperfuncs_test.go:21: parallel"
+-	if got := strings.TrimSpace(lines[1]); got != want {
+-		t.Errorf("got output line %q; want %q", got, want)
++	testenv.MustHaveExec(t)
++	t.Parallel()
++
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-}
+ 
+-type noopWriter int
++	cmd := testenv.Command(t, exe, "-test.run=^TestTBHelperParallel$")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
++	out, _ := cmd.CombinedOutput()
++
++	t.Logf("output:\n%s", out)
++
++	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+ 
+-func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }
++	// We expect to see one "--- FAIL" line at the start
++	// of the log, five lines of "parallel" logging,
++	// and a final "FAIL" line at the end of the test.
++	const wantLines = 7
+ 
+-func BenchmarkTBHelper(b *B) {
+-	w := noopWriter(0)
+-	ctx := newTestContext(1, allMatcher())
+-	t1 := &T{
+-		common: common{
+-			signal: make(chan bool),
+-			w:      &w,
+-		},
+-		context: ctx,
++	if len(lines) != wantLines {
++		t.Fatalf("parallelTestHelper gave %d lines of output; want %d", len(lines), wantLines)
+ 	}
++	want := "helperfuncs_test.go:24: parallel"
++	if got := strings.TrimSpace(lines[1]); got != want {
++		t.Errorf("got second output line %q; want %q", got, want)
++	}
++}
++
++func BenchmarkTBHelper(b *testing.B) {
+ 	f1 := func() {
+-		t1.Helper()
++		b.Helper()
+ 	}
+ 	f2 := func() {
+-		t1.Helper()
++		b.Helper()
+ 	}
+ 	b.ResetTimer()
+ 	b.ReportAllocs()
+diff --git a/src/testing/helperfuncs_test.go b/src/testing/helperfuncs_test.go
+index b63bc91ac2..f0295f35df 100644
+--- a/src/testing/helperfuncs_test.go
++++ b/src/testing/helperfuncs_test.go
+@@ -2,38 +2,45 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package testing
++package testing_test
+ 
+-import "sync"
++import (
++	"sync"
++	"testing"
++)
+ 
+ // The line numbering of this file is important for TestTBHelper.
+ 
+-func notHelper(t *T, msg string) {
++func notHelper(t *testing.T, msg string) {
+ 	t.Error(msg)
+ }
+ 
+-func helper(t *T, msg string) {
++func helper(t *testing.T, msg string) {
+ 	t.Helper()
+ 	t.Error(msg)
+ }
+ 
+-func notHelperCallingHelper(t *T, msg string) {
++func notHelperCallingHelper(t *testing.T, msg string) {
+ 	helper(t, msg)
+ }
+ 
+-func helperCallingHelper(t *T, msg string) {
++func helperCallingHelper(t *testing.T, msg string) {
+ 	t.Helper()
+ 	helper(t, msg)
+ }
+ 
+-func genericHelper[G any](t *T, msg string) {
++func genericHelper[G any](t *testing.T, msg string) {
+ 	t.Helper()
+ 	t.Error(msg)
+ }
+ 
+ var genericIntHelper = genericHelper[int]
+ 
+-func testHelper(t *T) {
++func testTestHelper(t *testing.T) {
++	testHelper(t)
++}
++
++func testHelper(t *testing.T) {
+ 	// Check combinations of directly and indirectly
+ 	// calling helper functions.
+ 	notHelper(t, "0")
+@@ -48,7 +55,7 @@ func testHelper(t *T) {
+ 	}
+ 	fn("4")
+ 
+-	t.Run("sub", func(t *T) {
++	t.Run("sub", func(t *testing.T) {
+ 		helper(t, "5")
+ 		notHelperCallingHelper(t, "6")
+ 		// Check that calling Helper from inside a subtest entry function
+@@ -57,11 +64,6 @@ func testHelper(t *T) {
+ 		t.Error("7")
+ 	})
+ 
+-	// Check that calling Helper from inside a top-level test function
+-	// has no effect.
+-	t.Helper()
+-	t.Error("8")
+-
+ 	// Check that right caller is reported for func passed to Cleanup when
+ 	// multiple cleanup functions have been registered.
+ 	t.Cleanup(func() {
+@@ -85,7 +87,7 @@ func testHelper(t *T) {
+ 	genericIntHelper(t, "GenericInt")
+ }
+ 
+-func parallelTestHelper(t *T) {
++func parallelTestHelper(t *testing.T) {
+ 	var wg sync.WaitGroup
+ 	for i := 0; i < 5; i++ {
+ 		wg.Add(1)
+@@ -97,15 +99,15 @@ func parallelTestHelper(t *T) {
+ 	wg.Wait()
+ }
+ 
+-func helperSubCallingHelper(t *T, msg string) {
++func helperSubCallingHelper(t *testing.T, msg string) {
+ 	t.Helper()
+-	t.Run("sub2", func(t *T) {
++	t.Run("sub2", func(t *testing.T) {
+ 		t.Helper()
+ 		t.Fatal(msg)
+ 	})
+ }
+ 
+-func recoverHelper(t *T, msg string) {
++func recoverHelper(t *testing.T, msg string) {
+ 	t.Helper()
+ 	defer func() {
+ 		t.Helper()
+@@ -116,7 +118,7 @@ func recoverHelper(t *T, msg string) {
+ 	doPanic(t, msg)
+ }
+ 
+-func doPanic(t *T, msg string) {
++func doPanic(t *testing.T, msg string) {
+ 	t.Helper()
+ 	panic(msg)
+ }

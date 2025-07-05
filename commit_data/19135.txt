@@ -10,6 +10,22 @@ Date:   Mon Apr 14 22:01:27 2014 +0200
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/87300043
-
+---
  src/cmd/go/get.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index e61da7e2ad..fb9a4ae235 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -143,6 +143,10 @@ var downloadRootCache = map[string]bool{}
+ // for the package named by the argument.
+ func download(arg string, stk *importStack, getTestDeps bool) {
+ 	p := loadPackage(arg, stk)
++	if p.Error != nil {
++		errorf("%s", p.Error)
++		return
++	}
+ 
+ 	// There's nothing to do if this is a package in the standard library.
+ 	if p.Standard {

@@ -29,7 +29,7 @@ Date:   Mon Dec 7 19:15:15 2020 +0800
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |   4 +-
  src/cmd/compile/internal/arm/ssa.go            |   1 +
  src/cmd/compile/internal/arm64/ssa.go          |   1 +
@@ -72,3 +72,925 @@ Date:   Mon Dec 7 19:15:15 2020 +0800
  src/math/all_test.go                           |  34 +++++++
  test/codegen/math.go                           |  11 ++
  41 files changed, 255 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 32cb0a9368..d83d78f080 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1053,7 +1053,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+ 
+-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD:
++	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+@@ -1061,7 +1061,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		switch v.Op {
+ 		case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ:
+ 			p.To.Reg = v.Reg0()
+-		case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD:
++		case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
+ 			p.To.Reg = v.Reg()
+ 		}
+ 	case ssa.OpAMD64ROUNDSD:
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index c4d8cbf149..7b2fec3765 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -654,6 +654,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpARMREV,
+ 		ssa.OpARMREV16,
+ 		ssa.OpARMRBIT,
++		ssa.OpARMSQRTF,
+ 		ssa.OpARMSQRTD,
+ 		ssa.OpARMNEGF,
+ 		ssa.OpARMNEGD,
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 5067d92dfe..056a6eb62d 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -893,6 +893,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpARM64FMOVSgpfp,
+ 		ssa.OpARM64FNEGS,
+ 		ssa.OpARM64FNEGD,
++		ssa.OpARM64FSQRTS,
+ 		ssa.OpARM64FSQRTD,
+ 		ssa.OpARM64FCVTZSSW,
+ 		ssa.OpARM64FCVTZSDW,
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 115e3cb8e2..13736d12b4 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -363,6 +363,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpMIPSMOVDF,
+ 		ssa.OpMIPSNEGF,
+ 		ssa.OpMIPSNEGD,
++		ssa.OpMIPSSQRTF,
+ 		ssa.OpMIPSSQRTD,
+ 		ssa.OpMIPSCLZ:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index d9c47751e1..c5a3ca305a 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -355,6 +355,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpMIPS64MOVDF,
+ 		ssa.OpMIPS64NEGF,
+ 		ssa.OpMIPS64NEGD,
++		ssa.OpMIPS64SQRTF,
+ 		ssa.OpMIPS64SQRTD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 4830d902c2..ca6720bb33 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -586,7 +586,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpS390XFSQRT:
++	case ssa.OpS390XFSQRTS, ssa.OpS390XFSQRT:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index df03cb71a6..d6d122dc78 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -54,6 +54,7 @@
+ (Bswap32 ...) => (BSWAPL ...)
+ 
+ (Sqrt ...) => (SQRTSD ...)
++(Sqrt32 ...) => (SQRTSS ...)
+ 
+ (Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [0x10000] x))
+ (Ctz16NonZero ...) => (BSFL ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 2b7185e537..c4b49fbb23 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -308,6 +308,7 @@ func init() {
+ 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+ 
+ 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
++		{name: "SQRTSS", argLength: 1, reg: fp11, asm: "SQRTSS"}, // sqrt(arg0), float32
+ 
+ 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+ 		// Note: SBBW and SBBB are subsumed by SBBL
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f2bcbd2dfc..bab9cee88c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -104,6 +104,7 @@
+ (PopCount8 x) => (POPCNTL (MOVBQZX <typ.UInt32> x))
+ 
+ (Sqrt ...) => (SQRTSD ...)
++(Sqrt32 ...) => (SQRTSS ...)
+ 
+ (RoundToEven x) => (ROUNDSD [0] x)
+ (Floor x)       => (ROUNDSD [1] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 96475672a8..fd2c2023e6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -594,6 +594,7 @@ func init() {
+ 		{name: "POPCNTL", argLength: 1, reg: gp11, asm: "POPCNTL", clobberFlags: true}, // count number of set bits in arg0
+ 
+ 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
++		{name: "SQRTSS", argLength: 1, reg: fp11, asm: "SQRTSS"}, // sqrt(arg0), float32
+ 
+ 		// ROUNDSD instruction isn't guaranteed to be on the target platform (it is SSE4.1)
+ 		// Any use must be preceded by a successful check of runtime.x86HasSSE41.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index cbafd12a4f..f46f4238f7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -56,6 +56,7 @@
+ (Com(32|16|8) ...) => (MVN ...)
+ 
+ (Sqrt ...) => (SQRTD ...)
++(Sqrt32 ...) => (SQRTF ...)
+ (Abs ...) => (ABSD ...)
+ 
+ // TODO: optimize this for ARMv5 and ARMv6
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 98503748db..ea912f9f97 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -60,6 +60,8 @@
+ (Trunc ...) => (FRINTZD ...)
+ (FMA x y z) => (FMADDD z x y)
+ 
++(Sqrt32 ...) => (FSQRTS ...)
++
+ // lowering rotates
+ (RotateLeft8 <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+ (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index e826e75252..0a4fd14b2b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -236,6 +236,7 @@ func init() {
+ 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
+ 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
+ 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
++		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
+ 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
+ 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
+ 		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 70c789937a..253ff573ec 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -217,6 +217,7 @@ func init() {
+ 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
++		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
+ 
+ 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},     // count leading zero
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index bc1ce82940..6b59555cbe 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -121,6 +121,7 @@
+ (Com(32|16|8) x) => (NORconst [0] x)
+ 
+ (Sqrt ...) => (SQRTD ...)
++(Sqrt32 ...) => (SQRTF ...)
+ 
+ // TODO: optimize this case?
+ (Ctz32NonZero ...) => (Ctz32 ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index e3f7633274..bc51a0d53d 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -121,6 +121,7 @@
+ (Com(64|32|16|8) x) => (NOR (MOVVconst [0]) x)
+ 
+ (Sqrt ...) => (SQRTD ...)
++(Sqrt32 ...) => (SQRTF ...)
+ 
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB ...) => (AND ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index e1e3933502..77f251c0d3 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -199,6 +199,7 @@ func init() {
+ 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
++		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 
+ 		// shifts
+ 		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                    // arg0 << arg1, shift amount is mod 64
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 75ab99ea26..b92e8cb9f1 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -182,6 +182,7 @@ func init() {
+ 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
++		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                    // arg0 << arg1, shift amount is mod 32
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index a762be65d4..85ce9a5b54 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -71,6 +71,7 @@
+ (Round(32|64)F ...) => (LoweredRound(32|64)F ...)
+ 
+ (Sqrt ...) => (FSQRT ...)
++(Sqrt32 ...) => (FSQRTS ...)
+ (Floor ...) => (FFLOOR ...)
+ (Ceil ...) => (FCEIL ...)
+ (Trunc ...) => (FTRUNC ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 9119ebc0e8..a11d1e6624 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -92,6 +92,7 @@
+ (Com8  ...) => (NOT ...)
+ 
+ (Sqrt ...) => (FSQRTD ...)
++(Sqrt32 ...) => (FSQRTS ...)
+ 
+ // Sign and zero extension.
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 7111d5e11a..e4a1cd6981 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -142,6 +142,8 @@
+ (Round       x) => (FIDBR [1] x)
+ (FMA     x y z) => (FMADD z x y)
+ 
++(Sqrt32    ...) => (FSQRTS ...)
++
+ // Atomic loads and stores.
+ // The SYNC instruction (fast-BCR-serialization) prevents store-load
+ // reordering. Other sequences of memory operations (load-load,
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index b24fd61942..1ddad1febd 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -382,6 +382,7 @@ func init() {
+ 		{name: "NOTW", argLength: 1, reg: gp11, resultInArg0: true, clobberFlags: true}, // ^arg0
+ 
+ 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"}, // sqrt(arg0)
++		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"}, // sqrt(arg0), float32
+ 
+ 		// Conditional register-register moves.
+ 		// The aux for these values is an s390x.CCMask value representing the condition code mask.
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index fc45cd3ed5..7cda16b4b5 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -332,6 +332,8 @@
+ (Abs ...) => (F64Abs ...)
+ (Copysign ...) => (F64Copysign ...)
+ 
++(Sqrt32 ...) => (F32Sqrt ...)
++
+ (Ctz64 ...) => (I64Ctz ...)
+ (Ctz32 x) => (I64Ctz (I64Or x (I64Const [0x100000000])))
+ (Ctz16 x) => (I64Ctz (I64Or x (I64Const [0x10000])))
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index 36c53bc78c..c92878ca73 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -238,13 +238,13 @@ func init() {
+ 		{name: "I64Extend16S", asm: "I64Extend16S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 16 to 64 bit
+ 		{name: "I64Extend32S", asm: "I64Extend32S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 32 to 64 bit
+ 
+-		{name: "F32Sqrt", asm: "F32Sqrt", argLength: 1, reg: fp64_11, typ: "Float32"},         // sqrt(arg0)
+-		{name: "F32Trunc", asm: "F32Trunc", argLength: 1, reg: fp64_11, typ: "Float32"},       // trunc(arg0)
+-		{name: "F32Ceil", asm: "F32Ceil", argLength: 1, reg: fp64_11, typ: "Float32"},         // ceil(arg0)
+-		{name: "F32Floor", asm: "F32Floor", argLength: 1, reg: fp64_11, typ: "Float32"},       // floor(arg0)
+-		{name: "F32Nearest", asm: "F32Nearest", argLength: 1, reg: fp64_11, typ: "Float32"},   // round(arg0)
+-		{name: "F32Abs", asm: "F32Abs", argLength: 1, reg: fp64_11, typ: "Float32"},           // abs(arg0)
+-		{name: "F32Copysign", asm: "F32Copysign", argLength: 2, reg: fp64_21, typ: "Float32"}, // copysign(arg0, arg1)
++		{name: "F32Sqrt", asm: "F32Sqrt", argLength: 1, reg: fp32_11, typ: "Float32"},         // sqrt(arg0)
++		{name: "F32Trunc", asm: "F32Trunc", argLength: 1, reg: fp32_11, typ: "Float32"},       // trunc(arg0)
++		{name: "F32Ceil", asm: "F32Ceil", argLength: 1, reg: fp32_11, typ: "Float32"},         // ceil(arg0)
++		{name: "F32Floor", asm: "F32Floor", argLength: 1, reg: fp32_11, typ: "Float32"},       // floor(arg0)
++		{name: "F32Nearest", asm: "F32Nearest", argLength: 1, reg: fp32_11, typ: "Float32"},   // round(arg0)
++		{name: "F32Abs", asm: "F32Abs", argLength: 1, reg: fp32_11, typ: "Float32"},           // abs(arg0)
++		{name: "F32Copysign", asm: "F32Copysign", argLength: 2, reg: fp32_21, typ: "Float32"}, // copysign(arg0, arg1)
+ 
+ 		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp64_11, typ: "Float64"},         // sqrt(arg0)
+ 		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp64_11, typ: "Float64"},       // trunc(arg0)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index fab45243ed..9dd20a7cfa 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1968,6 +1968,9 @@
+ (Div32F x (Const32F <t> [c])) && reciprocalExact32(c) => (Mul32F x (Const32F <t> [1/c]))
+ (Div64F x (Const64F <t> [c])) && reciprocalExact64(c) => (Mul64F x (Const64F <t> [1/c]))
+ 
++// rewrite single-precision sqrt expression "float32(math.Sqrt(float64(x)))"
++(Cvt64Fto32F sqrt0:(Sqrt (Cvt32Fto64F x))) && sqrt0.Uses==1 => (Sqrt32 x)
++
+ (Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(c)) => (Const64F [math.Sqrt(c)])
+ 
+ // for rewriting results of some late-expanded rewrites (below)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 043f445c16..b730c436cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -258,13 +258,14 @@ var genericOps = []opData{
+ 	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+ 	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
+ 
+-	// Square root, float64 only.
++	// Square root.
+ 	// Special cases:
+ 	//   +∞  → +∞
+ 	//   ±0  → ±0 (sign preserved)
+ 	//   x<0 → NaN
+ 	//   NaN → NaN
+-	{name: "Sqrt", argLength: 1}, // √arg0
++	{name: "Sqrt", argLength: 1}, // √arg0   (floating point, double precision)
++	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
+ 
+ 	// Round to integer, float64 only.
+ 	// Special cases:
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2d37ae4357..bd9741fe3e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -432,6 +432,7 @@ const (
+ 	Op386BSRW
+ 	Op386BSWAPL
+ 	Op386SQRTSD
++	Op386SQRTSS
+ 	Op386SBBLcarrymask
+ 	Op386SETEQ
+ 	Op386SETNE
+@@ -888,6 +889,7 @@ const (
+ 	OpAMD64POPCNTQ
+ 	OpAMD64POPCNTL
+ 	OpAMD64SQRTSD
++	OpAMD64SQRTSS
+ 	OpAMD64ROUNDSD
+ 	OpAMD64VFMADD231SD
+ 	OpAMD64SBBQcarrymask
+@@ -1090,6 +1092,7 @@ const (
+ 	OpARMNEGF
+ 	OpARMNEGD
+ 	OpARMSQRTD
++	OpARMSQRTF
+ 	OpARMABSD
+ 	OpARMCLZ
+ 	OpARMREV
+@@ -1358,6 +1361,7 @@ const (
+ 	OpARM64FNEGS
+ 	OpARM64FNEGD
+ 	OpARM64FSQRTD
++	OpARM64FSQRTS
+ 	OpARM64REV
+ 	OpARM64REVW
+ 	OpARM64REV16W
+@@ -1641,6 +1645,7 @@ const (
+ 	OpMIPSNEGF
+ 	OpMIPSNEGD
+ 	OpMIPSSQRTD
++	OpMIPSSQRTF
+ 	OpMIPSSLL
+ 	OpMIPSSLLconst
+ 	OpMIPSSRL
+@@ -1751,6 +1756,7 @@ const (
+ 	OpMIPS64NEGF
+ 	OpMIPS64NEGD
+ 	OpMIPS64SQRTD
++	OpMIPS64SQRTF
+ 	OpMIPS64SLLV
+ 	OpMIPS64SLLVconst
+ 	OpMIPS64SRLV
+@@ -2301,6 +2307,7 @@ const (
+ 	OpS390XNOT
+ 	OpS390XNOTW
+ 	OpS390XFSQRT
++	OpS390XFSQRTS
+ 	OpS390XLOCGR
+ 	OpS390XMOVBreg
+ 	OpS390XMOVBZreg
+@@ -2727,6 +2734,7 @@ const (
+ 	OpRotateLeft32
+ 	OpRotateLeft64
+ 	OpSqrt
++	OpSqrt32
+ 	OpFloor
+ 	OpCeil
+ 	OpTrunc
+@@ -4778,6 +4786,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SQRTSS",
++		argLen: 1,
++		asm:    x86.ASQRTSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
++			},
++			outputs: []outputInfo{
++				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
++			},
++		},
++	},
+ 	{
+ 		name:   "SBBLcarrymask",
+ 		argLen: 1,
+@@ -11630,6 +11651,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SQRTSS",
++		argLen: 1,
++		asm:    x86.ASQRTSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:    "ROUNDSD",
+ 		auxType: auxInt8,
+@@ -14424,6 +14458,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SQRTF",
++		argLen: 1,
++		asm:    arm.ASQRTF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "ABSD",
+ 		argLen: 1,
+@@ -18086,6 +18133,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FSQRTS",
++		argLen: 1,
++		asm:    arm64.AFSQRTS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "REV",
+ 		argLen: 1,
+@@ -21879,6 +21939,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SQRTF",
++		argLen: 1,
++		asm:    mips.ASQRTF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
++			},
++			outputs: []outputInfo{
++				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+@@ -23358,6 +23431,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SQRTF",
++		argLen: 1,
++		asm:    mips.ASQRTF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "SLLV",
+ 		argLen: 2,
+@@ -30942,6 +31028,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FSQRTS",
++		argLen: 1,
++		asm:    s390x.AFSQRTS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:         "LOCGR",
+ 		auxType:      auxS390XCCMask,
+@@ -33876,10 +33975,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Sqrt,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -33889,10 +33988,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Trunc,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -33902,10 +34001,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Ceil,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -33915,10 +34014,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Floor,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -33928,10 +34027,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Nearest,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -33941,10 +34040,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Abs,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -33954,11 +34053,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF32Copysign,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
+@@ -35176,6 +35275,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Sqrt32",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Floor",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 4e7fdb9e63..726d68e243 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -620,6 +620,9 @@ func rewriteValue386(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = Op386SQRTSD
+ 		return true
++	case OpSqrt32:
++		v.Op = Op386SQRTSS
++		return true
+ 	case OpStaticCall:
+ 		v.Op = Op386CALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 599137c806..52d0fd095d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1089,6 +1089,9 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpAMD64SQRTSD
+ 		return true
++	case OpSqrt32:
++		v.Op = OpAMD64SQRTSS
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpAMD64CALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 1adbceb0ad..ed1f85e340 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -823,6 +823,9 @@ func rewriteValueARM(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpARMSQRTD
+ 		return true
++	case OpSqrt32:
++		v.Op = OpARMSQRTF
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpARMCALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index ece834f996..55bb486600 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -999,6 +999,9 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpARM64FSQRTD
+ 		return true
++	case OpSqrt32:
++		v.Op = OpARM64FSQRTS
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpARM64CALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 0c074364df..fdf329cbd0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -516,6 +516,9 @@ func rewriteValueMIPS(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpMIPSSQRTD
+ 		return true
++	case OpSqrt32:
++		v.Op = OpMIPSSQRTF
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpMIPSCALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 073cf8726c..541bdd694a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -596,6 +596,9 @@ func rewriteValueMIPS64(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpMIPS64SQRTD
+ 		return true
++	case OpSqrt32:
++		v.Op = OpMIPS64SQRTF
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpMIPS64CALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 98f748e5fa..3357864291 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -743,6 +743,9 @@ func rewriteValuePPC64(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpPPC64FSQRT
+ 		return true
++	case OpSqrt32:
++		v.Op = OpPPC64FSQRTS
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpPPC64CALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index bc47d76e87..36e152bd99 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -582,6 +582,9 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpRISCV64FSQRTD
+ 		return true
++	case OpSqrt32:
++		v.Op = OpRISCV64FSQRTS
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpRISCV64CALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 6adae3ff35..e0a5ff4cbb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -792,6 +792,9 @@ func rewriteValueS390X(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpS390XFSQRT
+ 		return true
++	case OpSqrt32:
++		v.Op = OpS390XFSQRTS
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpS390XCALLstatic
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index c8ecefc736..7258bc4f8e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -527,6 +527,9 @@ func rewriteValueWasm(v *Value) bool {
+ 	case OpSqrt:
+ 		v.Op = OpWasmF64Sqrt
+ 		return true
++	case OpSqrt32:
++		v.Op = OpWasmF32Sqrt
++		return true
+ 	case OpStaticCall:
+ 		v.Op = OpWasmLoweredStaticCall
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index e5a27199a7..7e7cf458ff 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -4085,6 +4085,26 @@ func rewriteValuegeneric_OpCvt64Fto32F(v *Value) bool {
+ 		v.AuxInt = float32ToAuxInt(float32(c))
+ 		return true
+ 	}
++	// match: (Cvt64Fto32F sqrt0:(Sqrt (Cvt32Fto64F x)))
++	// cond: sqrt0.Uses==1
++	// result: (Sqrt32 x)
++	for {
++		sqrt0 := v_0
++		if sqrt0.Op != OpSqrt {
++			break
++		}
++		sqrt0_0 := sqrt0.Args[0]
++		if sqrt0_0.Op != OpCvt32Fto64F {
++			break
++		}
++		x := sqrt0_0.Args[0]
++		if !(sqrt0.Uses == 1) {
++			break
++		}
++		v.reset(OpSqrt32)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpCvt64Fto64(v *Value) bool {
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 4d134c6926..62982f4c6d 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -760,7 +760,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 	case ssa.Op386BSFL, ssa.Op386BSFW,
+ 		ssa.Op386BSRL, ssa.Op386BSRW,
+-		ssa.Op386SQRTSD:
++		ssa.Op386SQRTSS, ssa.Op386SQRTSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 3aae0373c7..d154457999 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2067,6 +2067,21 @@ var fmaC = []struct{ x, y, z, want float64 }{
+ 	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
+ }
+ 
++var sqrt32 = []float32{
++	0,
++	float32(Copysign(0, -1)),
++	float32(NaN()),
++	float32(Inf(1)),
++	float32(Inf(-1)),
++	1,
++	2,
++	-2,
++	4.9790119248836735e+00,
++	7.7388724745781045e+00,
++	-2.7688005719200159e-01,
++	-5.0106036182710749e+00,
++}
++
+ func tolerance(a, b, e float64) bool {
+ 	// Multiplying by e here can underflow denormal values to zero.
+ 	// Check a==b so that at least if a and b are small and identical
+@@ -3181,6 +3196,25 @@ func TestFloatMinMax(t *testing.T) {
+ 	}
+ }
+ 
++var indirectSqrt = Sqrt
++
++// TestFloat32Sqrt checks the correctness of the float32 square root optimization result.
++func TestFloat32Sqrt(t *testing.T) {
++	for _, v := range sqrt32 {
++		want := float32(indirectSqrt(float64(v)))
++		got := float32(Sqrt(float64(v)))
++		if IsNaN(float64(want)) {
++			if !IsNaN(float64(got)) {
++				t.Errorf("got=%#v want=NaN, v=%#v", got, v)
++			}
++			continue
++		}
++		if got != want {
++			t.Errorf("got=%#v want=%#v, v=%#v", got, want, v)
++		}
++	}
++}
++
+ // Benchmarks
+ 
+ // Global exported variables are used to store the
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index ac8071400e..243ddb0494 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -55,6 +55,17 @@ func sqrt(x float64) float64 {
+ 	return math.Sqrt(x)
+ }
+ 
++func sqrt32(x float32) float32 {
++	// amd64:"SQRTSS"
++	// 386/sse2:"SQRTSS" 386/softfloat:-"SQRTS"
++	// arm64:"FSQRTS"
++	// arm/7:"SQRTF"
++	// mips/hardfloat:"SQRTF" mips/softfloat:-"SQRTF"
++	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
++	// wasm:"F32Sqrt"
++	return float32(math.Sqrt(float64(x)))
++}
++
+ // Check that it's using integer registers
+ func abs(x, y float64) {
+ 	// amd64:"BTRQ\t[$]63"

@@ -14,7 +14,55 @@ Date:   Mon Oct 20 15:59:10 2014 +0100
     R=golang-codereviews, rsc
     CC=bradfitz, golang-codereviews
     https://golang.org/cl/154540044
-
+---
  src/cmd/gc/gen.c            | 10 +++-------
  test/fixedbugs/issue8961.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index a7db833a1a..c7c9fcdaff 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -732,13 +732,9 @@ cgen_as(Node *nl, Node *nr)
+ 	}
+ 
+ 	if(nr == N || iszero(nr)) {
+-		// externals and heaps should already be clear
+-		if(nr == N) {
+-			if(nl->class == PEXTERN)
+-				return;
+-			if(nl->class & PHEAP)
+-				return;
+-		}
++		// heaps should already be clear
++		if(nr == N && (nl->class & PHEAP))
++			return;
+ 
+ 		tl = nl->type;
+ 		if(tl == T)
+diff --git a/test/fixedbugs/issue8961.go b/test/fixedbugs/issue8961.go
+new file mode 100644
+index 0000000000..fbfb7e67f9
+--- /dev/null
++++ b/test/fixedbugs/issue8961.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8961. Empty composite literals to small globals were not filled in
++package main
++
++type small struct { a int }
++var foo small
++
++func main() {
++	foo.a = 1
++	foo = small{}
++	if foo.a != 0 {
++		println("expected foo.a to be 0, was", foo.a)
++		panic("composite literal not filled in")
++	}
++}

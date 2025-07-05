@@ -53,7 +53,93 @@ Date:   Fri Oct 24 10:27:39 2014 -0400
     R=r, dave
     CC=golang-codereviews
     https://golang.org/cl/162130043
-
+---
  src/cmd/gc/walk.c           |  8 +------
  test/fixedbugs/issue8947.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 7649728d37..b761662d14 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -614,7 +614,7 @@ walkexpr(Node **np, NodeList **init)
+ 		if(oaslit(n, init))
+ 			goto ret;
+ 
+-		if(n->right == N)
++		if(n->right == N || iszero(n->right) && !flag_race)
+ 			goto ret;
+ 
+ 		switch(n->right->op) {
+@@ -1390,12 +1390,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
+ 	case OPTRLIT:
+-		// NOTE(rsc): Race detector cannot handle seeing
+-		// a STRUCTLIT or ARRAYLIT representing a zero value,
+-		// so make a temporary for those always in race mode.
+-		// Otherwise, leave zero values in place.
+-		if(iszero(n) && !flag_race)
+-			goto ret;
+ 		var = temp(n->type);
+ 		anylit(0, n, var, init);
+ 		n = var;
+diff --git a/test/fixedbugs/issue8947.go b/test/fixedbugs/issue8947.go
+new file mode 100644
+index 0000000000..f40c02e998
+--- /dev/null
++++ b/test/fixedbugs/issue8947.go
+@@ -0,0 +1,53 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Some uses of zeroed constants in non-assignment
++// expressions broke with our more aggressive zeroing
++// of assignments (internal compiler errors).
++
++package main
++
++func f1() {
++	type T [2]int
++	p := T{0, 1}
++	switch p {
++	case T{0, 0}:
++		panic("wrong1")
++	case T{0, 1}:
++		// ok
++	default:
++		panic("wrong2")
++	}
++
++	if p == (T{0, 0}) {
++		panic("wrong3")
++	} else if p == (T{0, 1}) {
++		// ok
++	} else {
++		panic("wrong4")
++	}
++}
++
++type T struct {
++	V int
++}
++
++var X = T{}.V
++
++func f2() {
++	var x = T{}.V
++	if x != 0 {
++		panic("wrongx")
++	}
++	if X != 0 {
++		panic("wrongX")
++	}
++}
++
++func main() {
++	f1()
++	f2()
++}

@@ -7,7 +7,7 @@ Date:   Mon Nov 26 22:34:01 2012 +1100
     R=golang-dev, bradfitz, minux.ma, dave
     CC=golang-dev
     https://golang.org/cl/6842081
-
+---
  src/pkg/runtime/defs_netbsd.go      |  2 ++
  src/pkg/runtime/defs_netbsd_386.h   |  2 ++
  src/pkg/runtime/defs_netbsd_amd64.h |  2 ++
@@ -15,3 +15,115 @@ Date:   Mon Nov 26 22:34:01 2012 +1100
  src/pkg/runtime/sys_netbsd_386.s    |  9 ++++++++-
  src/pkg/runtime/sys_netbsd_amd64.s  | 12 +++++++++++-
  6 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_netbsd.go b/src/pkg/runtime/defs_netbsd.go
+index 6c46bb2f29..53e061041e 100644
+--- a/src/pkg/runtime/defs_netbsd.go
++++ b/src/pkg/runtime/defs_netbsd.go
+@@ -37,6 +37,8 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
++	MADV_FREE = C.MADV_FREE
++
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+diff --git a/src/pkg/runtime/defs_netbsd_386.h b/src/pkg/runtime/defs_netbsd_386.h
+index 89b3ab4899..04c380e3f0 100644
+--- a/src/pkg/runtime/defs_netbsd_386.h
++++ b/src/pkg/runtime/defs_netbsd_386.h
+@@ -12,6 +12,8 @@ enum {
+ 	MAP_PRIVATE	= 0x2,
+ 	MAP_FIXED	= 0x10,
+ 
++	MADV_FREE	= 0x6,
++
+ 	SA_SIGINFO	= 0x40,
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.h b/src/pkg/runtime/defs_netbsd_amd64.h
+index c6ee7d8c26..3d3f576d31 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.h
++++ b/src/pkg/runtime/defs_netbsd_amd64.h
+@@ -12,6 +12,8 @@ enum {
+ 	MAP_PRIVATE	= 0x2,
+ 	MAP_FIXED	= 0x10,
+ 
++	MADV_FREE	= 0x6,
++
+ 	SA_SIGINFO	= 0x40,
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index 34ff31d908..43fef40ba4 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -28,9 +28,7 @@ runtime·SysAlloc(uintptr n)
+ void
+ runtime·SysUnused(void *v, uintptr n)
+ {
+-	USED(v);
+-	USED(n);
+-	// TODO(rsc): call madvise MADV_DONTNEED
++	runtime·madvise(v, n, MADV_FREE);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index c4bc80933a..9c88b14487 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -83,6 +83,13 @@ TEXT runtime·munmap(SB),7,$-4
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·madvise(SB),7,$-4
++	MOVL	$75, AX			// sys_madvise
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
+ TEXT runtime·setitimer(SB),7,$-4
+ 	MOVL	$425, AX		// sys_setitimer
+ 	INT	$0x80
+@@ -180,7 +187,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	CMPL	BX, $0
+ 	JNE	5(PC)
+ 	MOVL	signo+0(FP), BX
+-	MOVL	BX, 0(SP)      
++	MOVL	BX, 0(SP)
+ 	CALL	runtime·badsignal(SB)
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 9fe1ebbc49..e00c727ccb 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -10,7 +10,6 @@
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+ TEXT runtime·lwp_create(SB),7,$0
+-
+ 	MOVQ	context+0(FP), DI
+ 	MOVQ	flags+8(FP), SI
+ 	MOVQ	lwpid+16(FP), DX
+@@ -248,6 +247,17 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++
++TEXT runtime·madvise(SB),7,$0
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	len+8(FP), SI		// arg 2 - len
++	MOVQ	behav+16(FP), DX	// arg 3 - behav
++	MOVQ	$75, AX			// sys_madvise
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
+ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVQ	new+8(SP), DI		// arg 1 - nss
+ 	MOVQ	old+16(SP), SI		// arg 2 - oss

@@ -7,6 +7,20 @@ Date:   Wed May 4 15:13:36 2016 -0700
     Change-Id: Ic3415f3ee643636eab4ff7d2351b8ad0dae62895
     Reviewed-on: https://go-review.googlesource.com/22792
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7eb97355aa..167a36b2c0 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1103,7 +1103,7 @@ func (p *importer) int64() int64 {
+ }
+ 
+ func (p *importer) string() string {
+-	if debugFormat {
++	if p.debugFormat {
+ 		p.marker('s')
+ 	}
+ 	// if the string was seen before, i is its index (>= 0)

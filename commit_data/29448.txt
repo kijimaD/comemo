@@ -9,6 +9,25 @@ Date:   Thu Sep 15 08:46:08 2016 -0700
     Change-Id: Ib9aca6cf86d595d20f22dbf730afa8dea4b44672
     Reviewed-on: https://go-review.googlesource.com/29221
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2c873b8163..f734c67bce 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1419,10 +1419,10 @@ opswitch:
+ 					ncs = safeexpr(ncs, init)
+ 				}
+ 				// TODO(marvin): Fix Node.EType type union.
+-				r := Nod(cmp, Nod(OLEN, ncs, nil), Nodintconst(int64(len(s))))
++				r := Nod(cmp, Nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
+ 				for i := 0; i < len(s); i++ {
+-					cb := Nodintconst(int64(s[i]))
+-					ncb := Nod(OINDEX, ncs, Nodintconst(int64(i)))
++					cb := nodintconst(int64(s[i]))
++					ncb := Nod(OINDEX, ncs, nodintconst(int64(i)))
+ 					r = Nod(and, r, Nod(cmp, ncb, cb))
+ 				}
+ 				r = typecheck(r, Erv)

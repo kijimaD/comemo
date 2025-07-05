@@ -14,10 +14,203 @@ Date:   Mon May 23 15:15:32 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm64.go        | 15 ++++++++++++
  src/cmd/asm/internal/asm/asm.go           | 40 ++++++++++++++++++-------------
  src/cmd/asm/internal/asm/parse.go         |  2 +-
  src/cmd/asm/internal/asm/testdata/arm64.s |  6 ++++-
  src/cmd/internal/obj/arm64/asm7.go        |  7 +++++-
  5 files changed, 51 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 591c4d35db..936b894a22 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -47,6 +47,11 @@ var arm64Jump = map[string]bool{
+ 	"JMP":   true,
+ 	"TBNZ":  true,
+ 	"TBZ":   true,
++
++	// ADR isn't really a jump, but it takes a PC or label reference,
++	// which needs to patched like a jump.
++	"ADR":  true,
++	"ADRP": true,
+ }
+ 
+ func jumpArm64(word string) bool {
+@@ -81,6 +86,16 @@ func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
+ 	return arm64.SPOP_END
+ }
+ 
++// IsARM64ADR reports whether the op (as defined by an arm64.A* constant) is
++// one of the comparison instructions that require special handling.
++func IsARM64ADR(op obj.As) bool {
++	switch op {
++	case arm64.AADR, arm64.AADRP:
++		return true
++	}
++	return false
++}
++
+ // IsARM64CMP reports whether the op (as defined by an arm64.A* constant) is
+ // one of the comparison instructions that require special handling.
+ func IsARM64CMP(op obj.As) bool {
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 3babd4b677..cfd1f4c707 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -394,6 +394,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 		Pos:  p.pos(),
+ 		As:   op,
+ 	}
++	targetAddr := &prog.To
+ 	switch len(a) {
+ 	case 0:
+ 		if p.arch.Family == sys.Wasm {
+@@ -406,8 +407,15 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 		target = &a[0]
+ 	case 2:
+ 		// Special 2-operand jumps.
+-		target = &a[1]
+-		prog.From = a[0]
++		if p.arch.Family == sys.ARM64 && arch.IsARM64ADR(op) {
++			// ADR label, R. Label is in From.
++			target = &a[0]
++			prog.To = a[1]
++			targetAddr = &prog.From
++		} else {
++			target = &a[1]
++			prog.From = a[0]
++		}
+ 	case 3:
+ 		if p.arch.Family == sys.PPC64 {
+ 			// Special 3-operand jumps.
+@@ -513,20 +521,20 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 	switch {
+ 	case target.Type == obj.TYPE_BRANCH:
+ 		// JMP 4(PC)
+-		prog.To = obj.Addr{
++		*targetAddr = obj.Addr{
+ 			Type:   obj.TYPE_BRANCH,
+ 			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in append, below.
+ 		}
+ 	case target.Type == obj.TYPE_REG:
+ 		// JMP R1
+-		prog.To = *target
++		*targetAddr = *target
+ 	case target.Type == obj.TYPE_MEM && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
+ 		// JMP main·morestack(SB)
+-		prog.To = *target
++		*targetAddr = *target
+ 	case target.Type == obj.TYPE_INDIR && (target.Name == obj.NAME_EXTERN || target.Name == obj.NAME_STATIC):
+ 		// JMP *main·morestack(SB)
+-		prog.To = *target
+-		prog.To.Type = obj.TYPE_INDIR
++		*targetAddr = *target
++		targetAddr.Type = obj.TYPE_INDIR
+ 	case target.Type == obj.TYPE_MEM && target.Reg == 0 && target.Offset == 0:
+ 		// JMP exit
+ 		if target.Sym == nil {
+@@ -535,20 +543,20 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 		}
+ 		targetProg := p.labels[target.Sym.Name]
+ 		if targetProg == nil {
+-			p.toPatch = append(p.toPatch, Patch{prog, target.Sym.Name})
++			p.toPatch = append(p.toPatch, Patch{targetAddr, target.Sym.Name})
+ 		} else {
+-			p.branch(prog, targetProg)
++			p.branch(targetAddr, targetProg)
+ 		}
+ 	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
+ 		// JMP 4(R0)
+-		prog.To = *target
++		*targetAddr = *target
+ 		// On the ppc64, 9a encodes BR (CTR) as BR CTR. We do the same.
+ 		if p.arch.Family == sys.PPC64 && target.Offset == 0 {
+-			prog.To.Type = obj.TYPE_REG
++			targetAddr.Type = obj.TYPE_REG
+ 		}
+ 	case target.Type == obj.TYPE_CONST:
+ 		// JMP $4
+-		prog.To = a[0]
++		*targetAddr = a[0]
+ 	case target.Type == obj.TYPE_NONE:
+ 		// JMP
+ 	default:
+@@ -566,17 +574,17 @@ func (p *Parser) patch() {
+ 			p.errorf("undefined label %s", patch.label)
+ 			return
+ 		}
+-		p.branch(patch.prog, targetProg)
++		p.branch(patch.addr, targetProg)
+ 	}
+ 	p.toPatch = p.toPatch[:0]
+ }
+ 
+-func (p *Parser) branch(jmp, target *obj.Prog) {
+-	jmp.To = obj.Addr{
++func (p *Parser) branch(addr *obj.Addr, target *obj.Prog) {
++	*addr = obj.Addr{
+ 		Type:  obj.TYPE_BRANCH,
+ 		Index: 0,
+ 	}
+-	jmp.To.Val = target
++	addr.Val = target
+ }
+ 
+ // asmInstruction assembles an instruction.
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index acd03e1399..6445e01bde 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -49,7 +49,7 @@ type Parser struct {
+ }
+ 
+ type Patch struct {
+-	prog  *obj.Prog
++	addr  *obj.Addr
+ 	label string
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 0e5799a022..4451338d51 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -10,7 +10,6 @@
+ 
+ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 
+-
+ // arithmetic operations
+ 	ADDW	$1, R2, R3
+ 	ADDW	R1, R2, R3
+@@ -851,6 +850,11 @@ again:
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
++// ADR
++	ADR	next, R11     // ADR R11 // 2b000010
++next:
++	NOP
++
+ // LDP/STP
+ 	LDP	(R0), (R0, R1)      // 000440a9
+ 	LDP	(R0), (R1, R2)      // 010840a9
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 98933464bb..8732bf7935 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -6683,7 +6683,12 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
+ func (c *ctxt7) brdist(p *obj.Prog, preshift int, flen int, shift int) int64 {
+ 	v := int64(0)
+ 	t := int64(0)
+-	q := p.To.Target()
++	var q *obj.Prog
++	if p.To.Type == obj.TYPE_BRANCH {
++		q = p.To.Target()
++	} else if p.From.Type == obj.TYPE_BRANCH { // adr, adrp
++		q = p.From.Target()
++	}
+ 	if q == nil {
+ 		// TODO: don't use brdist for this case, as it isn't a branch.
+ 		// (Calls from omovlit, and maybe adr/adrp opcodes as well.)

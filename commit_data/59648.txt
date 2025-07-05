@@ -16,6 +16,22 @@ Date:   Thu Apr 4 16:52:06 2024 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/tcpsock.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 68329fdc9a..701048896c 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -241,8 +241,8 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ // SetKeepAlivePeriod sets the duration the connection needs to
+ // remain idle before TCP starts sending keepalive probes.
+ //
+-// Note that calling this method on Windows will reset the KeepAliveInterval
+-// to the default system value, which is normally 1 second.
++// Note that calling this method on Windows prior to Windows 10 version 1709
++// will reset the KeepAliveInterval to the default system value, which is normally 1 second.
+ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL

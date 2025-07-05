@@ -21,8 +21,290 @@ Date:   Wed Nov 23 15:34:08 2016 -0500
     Change-Id: Ic469fcab5f1d9d853e76225f89bde01ee1d36e7a
     Reviewed-on: https://go-review.googlesource.com/33572
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/all_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/value.go    | 106 +++++++++++++++++++++++++++++++++++-------
  src/runtime/map.go      |   5 ++
  3 files changed, 215 insertions(+), 17 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index cf7fe3cf7a..33bd75fda5 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6576,3 +6576,124 @@ func TestIssue22073(t *testing.T) {
+ 	// Shouldn't panic.
+ 	m.Call(nil)
+ }
++
++func TestMapIterNonEmptyMap(t *testing.T) {
++	m := map[string]int{"one": 1, "two": 2, "three": 3}
++	iter := ValueOf(m).MapRange()
++	if got, want := iterateToString(iter), `[one: 1, three: 3, two: 2]`; got != want {
++		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
++	}
++}
++
++func TestMapIterNilMap(t *testing.T) {
++	var m map[string]int
++	iter := ValueOf(m).MapRange()
++	if got, want := iterateToString(iter), `[]`; got != want {
++		t.Errorf("non-empty result iteratoring nil map: %s", got)
++	}
++}
++
++func TestMapIterSafety(t *testing.T) {
++	// Using a zero MapIter causes a panic, but not a crash.
++	func() {
++		defer func() { recover() }()
++		new(MapIter).Key()
++		t.Fatal("Key did not panic")
++	}()
++	func() {
++		defer func() { recover() }()
++		new(MapIter).Value()
++		t.Fatal("Value did not panic")
++	}()
++	func() {
++		defer func() { recover() }()
++		new(MapIter).Next()
++		t.Fatal("Next did not panic")
++	}()
++
++	// Calling Key/Value on a MapIter before Next
++	// causes a panic, but not a crash.
++	var m map[string]int
++	iter := ValueOf(m).MapRange()
++
++	func() {
++		defer func() { recover() }()
++		iter.Key()
++		t.Fatal("Key did not panic")
++	}()
++	func() {
++		defer func() { recover() }()
++		iter.Value()
++		t.Fatal("Value did not panic")
++	}()
++
++	// Calling Next, Key, or Value on an exhausted iterator
++	// causes a panic, but not a crash.
++	iter.Next() // -> false
++	func() {
++		defer func() { recover() }()
++		iter.Key()
++		t.Fatal("Key did not panic")
++	}()
++	func() {
++		defer func() { recover() }()
++		iter.Value()
++		t.Fatal("Value did not panic")
++	}()
++	func() {
++		defer func() { recover() }()
++		iter.Next()
++		t.Fatal("Next did not panic")
++	}()
++}
++
++func TestMapIterNext(t *testing.T) {
++	// The first call to Next should reflect any
++	// insertions to the map since the iterator was created.
++	m := map[string]int{}
++	iter := ValueOf(m).MapRange()
++	m["one"] = 1
++	if got, want := iterateToString(iter), `[one: 1]`; got != want {
++		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
++	}
++}
++
++func TestMapIterDelete0(t *testing.T) {
++	// Delete all elements before first iteration.
++	m := map[string]int{"one": 1, "two": 2, "three": 3}
++	iter := ValueOf(m).MapRange()
++	delete(m, "one")
++	delete(m, "two")
++	delete(m, "three")
++	if got, want := iterateToString(iter), `[]`; got != want {
++		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
++	}
++}
++
++func TestMapIterDelete1(t *testing.T) {
++	// Delete all elements after first iteration.
++	m := map[string]int{"one": 1, "two": 2, "three": 3}
++	iter := ValueOf(m).MapRange()
++	var got []string
++	for iter.Next() {
++		got = append(got, fmt.Sprint(iter.Key(), iter.Value()))
++		delete(m, "one")
++		delete(m, "two")
++		delete(m, "three")
++	}
++	if len(got) != 1 {
++		t.Errorf("iterator returned wrong number of elements: got %d, want 1", len(got))
++	}
++}
++
++// iterateToString returns the set of elements
++// returned by an iterator in readable form.
++func iterateToString(it *MapIter) string {
++	var got []string
++	for it.Next() {
++		line := fmt.Sprintf("%v: %v", it.Key(), it.Value())
++		got = append(got, line)
++	}
++	sort.Strings(got)
++	return "[" + strings.Join(got, ", ") + "]"
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 4e7b1d74db..1c3e590377 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1085,14 +1085,7 @@ func (v Value) MapIndex(key Value) Value {
+ 	typ := tt.elem
+ 	fl := (v.flag | key.flag).ro()
+ 	fl |= flag(typ.Kind())
+-	if !ifaceIndir(typ) {
+-		return Value{typ, *(*unsafe.Pointer)(e), fl}
+-	}
+-	// Copy result so future changes to the map
+-	// won't change the underlying value.
+-	c := unsafe_New(typ)
+-	typedmemmove(typ, c, e)
+-	return Value{typ, c, fl | flagIndir}
++	return copyVal(typ, fl, e)
+ }
+ 
+ // MapKeys returns a slice containing all the keys present in the map,
+@@ -1122,20 +1115,96 @@ func (v Value) MapKeys() []Value {
+ 			// we can do about it.
+ 			break
+ 		}
+-		if ifaceIndir(keyType) {
+-			// Copy result so future changes to the map
+-			// won't change the underlying value.
+-			c := unsafe_New(keyType)
+-			typedmemmove(keyType, c, key)
+-			a[i] = Value{keyType, c, fl | flagIndir}
+-		} else {
+-			a[i] = Value{keyType, *(*unsafe.Pointer)(key), fl}
+-		}
++		a[i] = copyVal(keyType, fl, key)
+ 		mapiternext(it)
+ 	}
+ 	return a[:i]
+ }
+ 
++// A MapIter is an iterator for ranging over a map.
++// See Value.MapRange.
++type MapIter struct {
++	m  Value
++	it unsafe.Pointer
++}
++
++// Key returns the key of the iterator's current map entry.
++func (it *MapIter) Key() Value {
++	if it.it == nil {
++		panic("MapIter.Key called before Next")
++	}
++	if mapiterkey(it.it) == nil {
++		panic("MapIter.Key called on exhausted iterator")
++	}
++
++	t := (*mapType)(unsafe.Pointer(it.m.typ))
++	ktype := t.key
++	return copyVal(ktype, it.m.flag.ro()|flag(ktype.Kind()), mapiterkey(it.it))
++}
++
++// Value returns the value of the iterator's current map entry.
++func (it *MapIter) Value() Value {
++	if it.it == nil {
++		panic("MapIter.Value called before Next")
++	}
++	if mapiterkey(it.it) == nil {
++		panic("MapIter.Value called on exhausted iterator")
++	}
++
++	t := (*mapType)(unsafe.Pointer(it.m.typ))
++	vtype := t.elem
++	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapitervalue(it.it))
++}
++
++// Next advances the map iterator and reports whether there is another
++// entry. It returns false when the iterator is exhausted; subsequent
++// calls to Key, Value, or Next will panic.
++func (it *MapIter) Next() bool {
++	if it.it == nil {
++		it.it = mapiterinit(it.m.typ, it.m.pointer())
++	} else {
++		if mapiterkey(it.it) == nil {
++			panic("MapIter.Next called on exhausted iterator")
++		}
++		mapiternext(it.it)
++	}
++	return mapiterkey(it.it) != nil
++}
++
++// MapRange returns a range iterator for a map.
++// It panics if v's Kind is not Map.
++//
++// Call Next to advance the iterator, and Key/Value to access each entry.
++// Next returns false when the iterator is exhausted.
++// MapRange follows the same iteration semantics as a range statement.
++//
++// Example:
++//
++//	iter := reflect.ValueOf(m).MapRange()
++// 	for iter.Next() {
++//		k := iter.Key()
++//		v := iter.Value()
++//		...
++//	}
++//
++func (v Value) MapRange() *MapIter {
++	v.mustBe(Map)
++	return &MapIter{m: v}
++}
++
++// copyVal returns a Value containing the map key or value at ptr,
++// allocating a new variable as needed.
++func copyVal(typ *rtype, fl flag, ptr unsafe.Pointer) Value {
++	if ifaceIndir(typ) {
++		// Copy result so future changes to the map
++		// won't change the underlying value.
++		c := unsafe_New(typ)
++		typedmemmove(typ, c, ptr)
++		return Value{typ, c, fl | flagIndir}
++	}
++	return Value{typ, *(*unsafe.Pointer)(ptr), fl}
++}
++
+ // Method returns a function value corresponding to v's i'th method.
+ // The arguments to a Call on the returned function should not include
+ // a receiver; the returned function will always use v as the receiver.
+@@ -2554,6 +2623,9 @@ func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+ 
++//go:noescape
++func mapitervalue(it unsafe.Pointer) (value unsafe.Pointer)
++
+ //go:noescape
+ func mapiternext(it unsafe.Pointer)
+ 
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 208c92cb0d..c03e745dc5 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1282,6 +1282,11 @@ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
+ 	return it.key
+ }
+ 
++//go:linkname reflect_mapitervalue reflect.mapitervalue
++func reflect_mapitervalue(it *hiter) unsafe.Pointer {
++	return it.value
++}
++
+ //go:linkname reflect_maplen reflect.maplen
+ func reflect_maplen(h *hmap) int {
+ 	if h == nil {

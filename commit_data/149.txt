@@ -5,7 +5,37 @@ Date:   Wed Jun 11 13:34:08 2008 -0700
     add a setup document, and tweak the scripts that it mentions
     
     SVN=122175
-
+---
  src/cmd/clean.bash |  1 -
  src/make.bash      | 11 +++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index c42f88394f..73a704c43b 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-
+ for i in 6l 6a 6c 6g gc cc
+ do
+ 	cd $i
+diff --git a/src/make.bash b/src/make.bash
+new file mode 100755
+index 0000000000..9a21cfe2da
+--- /dev/null
++++ b/src/make.bash
+@@ -0,0 +1,11 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++for i in cmd runtime
++do
++	cd $i
++	bash make.bash
++	cd ..
++done

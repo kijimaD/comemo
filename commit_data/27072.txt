@@ -13,7 +13,7 @@ Date:   Wed Mar 9 20:45:18 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20498
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/cgen.go      |  8 +++---
  src/cmd/compile/internal/gc/dcl.go       |  4 +--
  src/cmd/compile/internal/gc/esc.go       |  4 +--
@@ -26,3 +26,320 @@ Date:   Wed Mar 9 20:45:18 2016 -0800
  src/cmd/compile/internal/gc/type.go      | 47 +++++++++++++++++---------------
  src/cmd/compile/internal/gc/typecheck.go |  8 +++---
  11 files changed, 48 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 4915796b9d..b85262b5b4 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1677,7 +1677,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 			cgen_callinter(n, nil, 0)
+ 		}
+ 
+-		fp, _ := IterFields(n.Left.Type.Results())
++		fp := n.Left.Type.Results().Field(0)
+ 		*a = Node{}
+ 		a.Op = OINDREG
+ 		a.Reg = int16(Thearch.REGSP)
+@@ -2225,7 +2225,7 @@ func stkof(n *Node) int64 {
+ 			t = t.Type
+ 		}
+ 
+-		t, _ = IterFields(t.Results())
++		t = t.Results().Field(0)
+ 		if t != nil {
+ 			return t.Width + Ctxt.FixedFrameSize()
+ 		}
+@@ -2561,7 +2561,7 @@ func cgen_callret(n *Node, res *Node) {
+ 		t = t.Type
+ 	}
+ 
+-	fp, _ := IterFields(t.Results())
++	fp := t.Results().Field(0)
+ 	if fp == nil {
+ 		Fatalf("cgen_callret: nil")
+ 	}
+@@ -2585,7 +2585,7 @@ func cgen_aret(n *Node, res *Node) {
+ 		t = t.Type
+ 	}
+ 
+-	fp, _ := IterFields(t.Results())
++	fp := t.Results().Field(0)
+ 	if fp == nil {
+ 		Fatalf("cgen_aret: nil")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6d1559613a..ba2b01d2b9 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1134,7 +1134,7 @@ func fakethis() *Node {
+ // Those methods have an anonymous *struct{} as the receiver.
+ // (See fakethis above.)
+ func isifacemethod(f *Type) bool {
+-	rcvr := f.Recv().Type
++	rcvr := f.Recv0()
+ 	if rcvr.Sym != nil {
+ 		return false
+ 	}
+@@ -1306,7 +1306,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	}
+ 
+ 	// get parent type sym
+-	pa := t.Recv().Type // ptr to this structure
++	pa := t.Recv0() // ptr to this structure
+ 	if pa == nil {
+ 		Yyerror("missing receiver")
+ 		return
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index f9108fcdfe..47de597575 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1384,7 +1384,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		initEscretval(e, n, fntype)
+ 		// If there is a receiver, it also leaks to heap.
+ 		if n.Op != OCALLFUNC {
+-			t := fntype.Recv().Type
++			t := fntype.Recv0()
+ 			src := n.Left.Left
+ 			if haspointers(t.Type) {
+ 				escassign(e, &e.theSink, src)
+@@ -1468,7 +1468,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	// Receiver.
+ 	if n.Op != OCALLFUNC {
+-		t := fntype.Recv().Type
++		t := fntype.Recv0()
+ 		src := n.Left.Left
+ 		if haspointers(t.Type) {
+ 			escassignfromtag(e, t.Note, nE.Escretval, src)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index e46dcd1903..700f353ae2 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -314,10 +314,10 @@ func dumpexporttype(t *Type) {
+ 			if Debug['l'] < 2 {
+ 				typecheckinl(f.Type.Nname)
+ 			}
+-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv().Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
++			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv0(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
+ 			reexportdeplist(f.Type.Nname.Func.Inl)
+ 		} else {
+-			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv().Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
++			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv0(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index d7f6232b96..2d1e75d614 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -548,7 +548,7 @@ func nodarg(t *Type, fp int) *Node {
+ 		n = Nod(ONAME, nil, nil)
+ 		n.Sym = Lookup(".args")
+ 		n.Type = t
+-		first, _ := IterFields(t)
++		first := t.Field(0)
+ 		if first == nil {
+ 			Fatalf("nodarg: bad struct")
+ 		}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 88ac1c9a91..e2377468b6 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -48,7 +48,7 @@ var inlretvars *NodeList // temp out variables
+ func fnpkg(fn *Node) *Pkg {
+ 	if fn.Type.Thistuple != 0 {
+ 		// method
+-		rcvr := fn.Type.Recv().Type.Type
++		rcvr := fn.Type.Recv0().Type
+ 
+ 		if Isptr[rcvr.Etype] {
+ 			rcvr = rcvr.Type
+@@ -614,7 +614,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	var as *Node
+ 	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
+ 		// method call with a receiver.
+-		t := fn.Type.Recv().Type
++		t := fn.Type.Recv0()
+ 
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+@@ -683,7 +683,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		}
+ 
+ 		// append receiver inlvar to LHS.
+-		t := fn.Type.Recv().Type
++		t := fn.Type.Recv0()
+ 
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 131ee266b2..34e7c77f23 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
+ 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
+ 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+-		if f.Type.Recv().Type == nil {
++		if f.Type.Recv0() == nil {
+ 			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+ 		if f.Nointerface {
+@@ -322,7 +322,7 @@ func methods(t *Type) []*Sig {
+ 		// if pointer receiver but non-pointer t and
+ 		// this is not an embedded pointer inside a struct,
+ 		// method does not apply.
+-		this := f.Type.Recv().Type.Type
++		this := f.Type.Recv0().Type
+ 
+ 		if Isptr[this.Etype] && this.Type == t {
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 40e12d5b9b..b86391826a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2405,7 +2405,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 
+ 	// Start exit block, find address of result.
+ 	s.startBlock(bNext)
+-	fp, _ := IterFields(n.Left.Type.Results())
++	fp := n.Left.Type.Results().Field(0)
+ 	if fp == nil || k != callNormal {
+ 		// call has no return value. Continue with the next statement.
+ 		return nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6ed757cbc6..892e2ae141 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1959,7 +1959,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		isddd = n.Left.Isddd
+ 	}
+ 
+-	methodrcvr := method.Type.Recv().Type.Type
++	methodrcvr := method.Type.Recv0().Type
+ 
+ 	// generate nil pointer check for better error
+ 	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
+@@ -2148,7 +2148,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 
+ 		// if pointer receiver in method,
+ 		// the method does not exist for value types.
+-		rcvr = tm.Type.Recv().Type.Type
++		rcvr = tm.Type.Recv0().Type
+ 
+ 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
+ 			if false && Debug['r'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 7b4beb06cc..5c7e993d67 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -243,6 +243,9 @@ func (t *Type) Recv() *Type    { return *t.RecvP() }
+ func (t *Type) Params() *Type  { return *t.ParamsP() }
+ func (t *Type) Results() *Type { return *t.ResultsP() }
+ 
++// TODO(mdempsky): Rename Recv to Recvs, so Recv0 can become just Recv.
++func (t *Type) Recv0() *Type { return t.Recv().Field(0) }
++
+ // recvParamsResults stores the accessor functions for a function Type's
+ // receiver, parameters, and result parameters, in that order.
+ // It can be used to iterate over all of a function's parameter lists.
+@@ -250,6 +253,26 @@ var recvParamsResults = [3]func(*Type) *Type{
+ 	(*Type).Recv, (*Type).Params, (*Type).Results,
+ }
+ 
++// Field returns the i'th field/method of struct/interface type t.
++func (t *Type) Field(i int) *Type {
++	// TODO: store fields in a slice so we can
++	// look them up by index in constant time.
++	for f, it := IterFields(t); f != nil; f = it.Next() {
++		if i == 0 {
++			return f
++		}
++		i--
++	}
++	if i == 0 {
++		// To simplify automated rewrites of existing code, if the
++		// caller asks for the n'th member of an n-element type,
++		// return nil instead of panicking.
++		// TODO(mdempsky): Make callers responsible for bounds checking.
++		return nil
++	}
++	panic("not enough fields")
++}
++
+ func (t *Type) Size() int64 {
+ 	dowidth(t)
+ 	return t.Width
+@@ -551,30 +574,10 @@ func (t *Type) NumFields() int64 {
+ 	return int64(countfield(t))
+ }
+ func (t *Type) FieldType(i int64) ssa.Type {
+-	// TODO: store fields in a slice so we can
+-	// look them up by index in constant time.
+-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+-		if t1.Etype != TFIELD {
+-			panic("non-TFIELD in a TSTRUCT")
+-		}
+-		if i == 0 {
+-			return t1.Type
+-		}
+-		i--
+-	}
+-	panic("not enough fields")
++	return t.Field(int(i)).Type
+ }
+ func (t *Type) FieldOff(i int64) int64 {
+-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+-		if t1.Etype != TFIELD {
+-			panic("non-TFIELD in a TSTRUCT")
+-		}
+-		if i == 0 {
+-			return t1.Width
+-		}
+-		i--
+-	}
+-	panic("not enough fields")
++	return t.Field(int(i)).Width
+ }
+ 
+ func (t *Type) NumElem() int64 {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1f0a83c803..ca71e9f23f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1311,7 +1311,7 @@ OpSwitch:
+ 			// information further down the call chain to know if we
+ 			// were testing a method receiver for unexported fields.
+ 			// It isn't necessary, so just do a sanity check.
+-			tp := t.Recv().Type.Type
++			tp := t.Recv0().Type
+ 
+ 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
+ 				Fatalf("method receiver")
+@@ -2430,7 +2430,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 	}
+ 
+ 	// disallow T.m if m requires *T receiver
+-	if Isptr[f2.Type.Recv().Type.Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
++	if Isptr[f2.Type.Recv0().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+ 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, obj.FmtShort))
+ 		return false
+ 	}
+@@ -2513,7 +2513,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 		}
+ 		tt := n.Left.Type
+ 		dowidth(tt)
+-		rcvr := f2.Type.Recv().Type.Type
++		rcvr := f2.Type.Recv0().Type
+ 		if !Eqtype(rcvr, tt) {
+ 			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
+ 				checklvalue(n.Left, "call pointer method on")
+@@ -3436,7 +3436,7 @@ func typecheckfunc(n *Node) {
+ 	}
+ 	n.Type = t
+ 	t.Nname = n.Func.Nname
+-	rcvr := t.Recv().Type
++	rcvr := t.Recv0()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+ 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
+ 	}

@@ -16,7 +16,56 @@ Date:   Thu May 30 10:23:23 2019 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modconv/dep.go   | 4 ++--
  src/cmd/go/internal/sumweb/server.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/dep.go b/src/cmd/go/internal/modconv/dep.go
+index f433300171..ccd1fc7b75 100644
+--- a/src/cmd/go/internal/modconv/dep.go
++++ b/src/cmd/go/internal/modconv/dep.go
+@@ -6,9 +6,9 @@ package modconv
+ 
+ import (
+ 	"fmt"
++	"internal/lazyregexp"
+ 	"net/url"
+ 	"path"
+-	"regexp"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -96,7 +96,7 @@ func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {
+ 	return mf, nil
+ }
+ 
+-var scpSyntaxReg = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
++var scpSyntaxReg = lazyregexp.New(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
+ 
+ func decodeSource(source string) (string, error) {
+ 	var u *url.URL
+diff --git a/src/cmd/go/internal/sumweb/server.go b/src/cmd/go/internal/sumweb/server.go
+index 4619e9719b..5050805f87 100644
+--- a/src/cmd/go/internal/sumweb/server.go
++++ b/src/cmd/go/internal/sumweb/server.go
+@@ -7,9 +7,9 @@ package sumweb
+ 
+ import (
+ 	"context"
++	"internal/lazyregexp"
+ 	"net/http"
+ 	"os"
+-	"regexp"
+ 	"strings"
+ 
+ 	"cmd/go/internal/tlog"
+@@ -59,7 +59,7 @@ var Paths = []string{
+ 	"/tile/",
+ }
+ 
+-var modVerRE = regexp.MustCompile(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?(\+incompatible)?$`)
++var modVerRE = lazyregexp.New(`^[^@]+@v[0-9]+\.[0-9]+\.[0-9]+(-[^@]*)?(\+incompatible)?$`)
+ 
+ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	ctx, err := h.Server.NewContext(r)

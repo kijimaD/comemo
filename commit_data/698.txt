@@ -16,7 +16,7 @@ Date:   Mon Sep 22 12:45:01 2008 -0700
     R=ken
     OCL=15617
     CL=15630
-
+---
  src/cmd/gc/export.c                         | 33 ++++++++++++++++-------------
  src/cmd/gc/go.h                             |  1 +
  src/cmd/gc/go.y                             |  7 +++++-
@@ -25,3 +25,115 @@ Date:   Mon Sep 22 12:45:01 2008 -0700
  test/{bugs => fixedbugs}/bug088.dir/bug1.go |  0
  test/{bugs => fixedbugs}/bug088.go          |  0
  7 files changed, 27 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 427644e2e8..0fef1144e9 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -143,7 +143,10 @@ dumpexporttype(Sym *s)
+ 		if(et < 0 || et >= nelem(types) || types[et] == T)
+ 			fatal("dumpexporttype: basic type: %S %E", s, et);
+ 		/* type 5 */
+-		Bprint(bout, "\ttype %lS %d\n", s, et);
++		Bprint(bout, "\ttype ");
++		if(s->export != 0)
++			Bprint(bout, "!");
++		Bprint(bout, "%lS %d\n", s, et);
+ 		break;
+ 
+ 	case TARRAY:
+@@ -298,11 +301,6 @@ renamepkg(Node *n)
+ 	if(n->psym == pkgimportname)
+ 		if(pkgmyname != S)
+ 			n->psym = pkgmyname;
+-
+-	if(n->psym->lexical != LPACK) {
+-		warn("%S is becoming a package behind your back", n->psym);
+-		n->psym->lexical = LPACK;
+-	}
+ }
+ 
+ Sym*
+@@ -425,16 +423,21 @@ importaddtyp(Node *ss, Type *t)
+ 	Sym *s;
+ 
+ 	s = getimportsym(ss);
+-	if(s->otype == T) {
+-		addtyp(newtype(s), t, PEXTERN);
+-		return;
+-	}
+-	if(!eqtype(t, s->otype, 0)) {
+-		print("redeclaring %S %lT => %lT\n", s, s->otype, t);
+-		addtyp(newtype(s), t, PEXTERN);
+-		return;
++	if(ss->etype){	// exported
++		if(s->otype == T || !eqtype(t, s->otype, 0)) {
++			if(s->otype != T)
++				print("redeclaring %S %lT => %lT\n", s, s->otype, t);
++			addtyp(newtype(s), t, PEXTERN);
++			/*
++			 * mark as export to avoid conflicting export bits
++			 * in multi-file package.
++			 */
++			s->export = 1;
++		}
++	}else{
++		s->otype = t;
++		t->sym = s;
+ 	}
+-//	print("sametype %S %lT => %lT\n", s, s->otype, t);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 303c8cc52d..d80f6e7751 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -729,3 +729,4 @@ void	dowidth(Type*);
+ void	argspace(int32);
+ Node*	nodarg(Type*, int);
+ void	nodconst(Node*, Type*, vlong);
++Type*	deep(Type*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 071d51b648..d17f1fc6cb 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1693,7 +1693,12 @@ latype:
+ 	}
+ |	LNAME
+ 	{
+-		yyerror("%s is var, not type", $1->name);
++		yyerror("no type %s", $1->name);
++		YYERROR;
++	}
++|	lpack '.' LNAME
++	{
++		yyerror("no type %s.%s", context, $3->name);
+ 		YYERROR;
+ 	}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3856539ab3..006d287e88 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2691,6 +2691,8 @@ multi:
+ 	case OCALL:
+ 		walktype(nr->left, Erv);
+ 		t = nr->left->type;
++		if(t != T && t->etype == tptr)
++			t = t->type;
+ 		if(t == T || t->etype != TFUNC)
+ 			goto badt;
+ 		if(t->outtuple != cl)
+diff --git a/test/bugs/bug088.dir/bug0.go b/test/fixedbugs/bug088.dir/bug0.go
+similarity index 100%
+rename from test/bugs/bug088.dir/bug0.go
+rename to test/fixedbugs/bug088.dir/bug0.go
+diff --git a/test/bugs/bug088.dir/bug1.go b/test/fixedbugs/bug088.dir/bug1.go
+similarity index 100%
+rename from test/bugs/bug088.dir/bug1.go
+rename to test/fixedbugs/bug088.dir/bug1.go
+diff --git a/test/bugs/bug088.go b/test/fixedbugs/bug088.go
+similarity index 100%
+rename from test/bugs/bug088.go
+rename to test/fixedbugs/bug088.go

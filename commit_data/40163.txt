@@ -11,7 +11,43 @@ Date:   Mon Apr 22 16:08:43 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go  | 9 ++++++---
  src/cmd/compile/internal/gc/subr.go | 2 +-
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index ceefde74a1..ded9439a14 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -46,11 +46,14 @@ import (
+ var newescape bool
+ 
+ func escapes(all []*Node) {
+-	esc := escAnalyze
++	visitBottomUp(all, escapeImpl())
++}
++
++func escapeImpl() func([]*Node, bool) {
+ 	if newescape {
+-		esc = escapeFuncs
++		return escapeFuncs
+ 	}
+-	visitBottomUp(all, esc)
++	return escAnalyze
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 04dd2f7c2d..fc60eeb043 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1574,7 +1574,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
+ 		inlcalls(fn)
+ 	}
+-	escAnalyze([]*Node{fn}, false)
++	escapeImpl()([]*Node{fn}, false)
+ 
+ 	Curfn = nil
+ 	funccompile(fn)

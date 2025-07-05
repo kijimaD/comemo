@@ -9,6 +9,20 @@ Date:   Tue Nov 29 14:39:06 2016 -0800
     Change-Id: I5e3a44422794b7bae7741523fb7cacb6ba147af7
     Reviewed-on: https://go-review.googlesource.com/33669
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/ast/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index b6dc2a6c16..a197b5a5bf 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -902,7 +902,7 @@ type (
+ 
+ 	// A GenDecl node (generic declaration node) represents an import,
+ 	// constant, type or variable declaration. A valid Lparen position
+-	// (Lparen.Line > 0) indicates a parenthesized declaration.
++	// (Lparen.IsValid()) indicates a parenthesized declaration.
+ 	//
+ 	// Relationship between Tok value and Specs element type:
+ 	//

@@ -12,7 +12,110 @@ Date:   Wed Oct 12 23:28:36 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 24 ------------------------
  src/cmd/compile/internal/gc/walk.go | 14 +++++++-------
  2 files changed, 7 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 449a5a62cb..8fb5be41f7 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -475,30 +475,6 @@ func nodbool(b bool) *Node {
+ 	return c
+ }
+ 
+-func aindex(b *Node, t *Type) *Type {
+-	hasbound := false
+-	var bound int64
+-	b = typecheck(b, Erv)
+-	if b != nil {
+-		switch consttype(b) {
+-		default:
+-			yyerror("array bound must be an integer expression")
+-
+-		case CTINT, CTRUNE:
+-			hasbound = true
+-			bound = b.Int64()
+-			if bound < 0 {
+-				yyerror("array bound must be non negative")
+-			}
+-		}
+-	}
+-
+-	if !hasbound {
+-		return typSlice(t)
+-	}
+-	return typArray(t, bound)
+-}
+-
+ // treecopy recursively copies n, with the exception of
+ // ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
+ // Copies of iota ONONAME nodes are assigned the current
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index dcb80f72c9..fe2f4c3dad 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1547,7 +1547,7 @@ opswitch:
+ 			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+-			t = aindex(r, t.Elem()) // [r]T
++			t = typArray(t.Elem(), nonnegintconst(r)) // [r]T
+ 			var_ := temp(t)
+ 			a := nod(OAS, var_, nil) // zero temp
+ 			a = typecheck(a, Etop)
+@@ -1585,7 +1585,7 @@ opswitch:
+ 	case ORUNESTR:
+ 		a := nodnil()
+ 		if n.Esc == EscNone {
+-			t := aindex(nodintconst(4), Types[TUINT8])
++			t := typArray(Types[TUINT8], 4)
+ 			var_ := temp(t)
+ 			a = nod(OADDR, var_, nil)
+ 		}
+@@ -1597,7 +1597,7 @@ opswitch:
+ 		a := nodnil()
+ 		if n.Esc == EscNone {
+ 			// Create temporary buffer for string on stack.
+-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
++			t := typArray(Types[TUINT8], tmpstringbufsize)
+ 
+ 			a = nod(OADDR, temp(t), nil)
+ 		}
+@@ -1623,7 +1623,7 @@ opswitch:
+ 
+ 		if n.Esc == EscNone {
+ 			// Create temporary buffer for string on stack.
+-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
++			t := typArray(Types[TUINT8], tmpstringbufsize)
+ 
+ 			a = nod(OADDR, temp(t), nil)
+ 		}
+@@ -1636,7 +1636,7 @@ opswitch:
+ 
+ 		if n.Esc == EscNone {
+ 			// Create temporary buffer for slice on stack.
+-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
++			t := typArray(Types[TUINT8], tmpstringbufsize)
+ 
+ 			a = nod(OADDR, temp(t), nil)
+ 		}
+@@ -1653,7 +1653,7 @@ opswitch:
+ 
+ 		if n.Esc == EscNone {
+ 			// Create temporary buffer for slice on stack.
+-			t := aindex(nodintconst(tmpstringbufsize), Types[TINT32])
++			t := typArray(Types[TINT32], tmpstringbufsize)
+ 
+ 			a = nod(OADDR, temp(t), nil)
+ 		}
+@@ -2840,7 +2840,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ 		// Don't allocate the buffer if the result won't fit.
+ 		if sz < tmpstringbufsize {
+ 			// Create temporary buffer for result string on stack.
+-			t := aindex(nodintconst(tmpstringbufsize), Types[TUINT8])
++			t := typArray(Types[TUINT8], tmpstringbufsize)
+ 
+ 			buf = nod(OADDR, temp(t), nil)
+ 		}

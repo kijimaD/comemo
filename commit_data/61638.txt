@@ -20,8 +20,131 @@ Date:   Mon Nov 18 16:37:59 2024 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/runtime/maps/runtime_fast32_swiss.go  | 12 ++++++++----
  src/internal/runtime/maps/runtime_fast64_swiss.go  | 12 ++++++++----
  src/internal/runtime/maps/runtime_faststr_swiss.go |  9 ++++++---
  3 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index ff5815abdd..15facbfe8a 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -48,7 +48,8 @@ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+@@ -116,7 +117,8 @@ func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsaf
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+@@ -203,7 +205,8 @@ func runtime_mapassign_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe.
+ 		fatal("concurrent map writes")
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Set writing after calling Hasher, since Hasher may panic, in which
+ 	// case we have not actually done a write.
+@@ -336,7 +339,8 @@ func runtime_mapassign_fast32ptr(typ *abi.SwissMapType, m *Map, key unsafe.Point
+ 		fatal("concurrent map writes")
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Set writing after calling Hasher, since Hasher may panic, in which
+ 	// case we have not actually done a write.
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index 90e84f83d2..f08e7ef869 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -48,7 +48,8 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+@@ -116,7 +117,8 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+@@ -203,7 +205,8 @@ func runtime_mapassign_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.
+ 		fatal("concurrent map writes")
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Set writing after calling Hasher, since Hasher may panic, in which
+ 	// case we have not actually done a write.
+@@ -374,7 +377,8 @@ func runtime_mapassign_fast64ptr(typ *abi.SwissMapType, m *Map, key unsafe.Point
+ 		fatal("concurrent map writes")
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Set writing after calling Hasher, since Hasher may panic, in which
+ 	// case we have not actually done a write.
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index a104945501..077c05ae8b 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -124,7 +124,8 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
+ 		return elem
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+@@ -182,7 +183,8 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
+ 		return elem, true
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+@@ -271,7 +273,8 @@ func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe
+ 		fatal("concurrent map writes")
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	k := key
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+ 
+ 	// Set writing after calling Hasher, since Hasher may panic, in which
+ 	// case we have not actually done a write.

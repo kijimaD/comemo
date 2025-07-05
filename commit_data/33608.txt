@@ -11,7 +11,42 @@ Date:   Thu Aug 24 11:31:58 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 6 +++++-
  src/cmd/compile/internal/x86/ssa.go   | 6 +++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 4bc9dae831..fbd0a9e46c 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -731,7 +731,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+-	case ssa.OpCopy, ssa.OpAMD64MOVQconvert, ssa.OpAMD64MOVLconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
++	case ssa.OpAMD64MOVQconvert, ssa.OpAMD64MOVLconvert:
++		if v.Args[0].Reg() != v.Reg() {
++			v.Fatalf("MOVXconvert should be a no-op")
++		}
++	case ssa.OpCopy: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 54a76bda2f..a491599c58 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -604,7 +604,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+-	case ssa.OpCopy, ssa.Op386MOVLconvert: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?
++	case ssa.Op386MOVLconvert:
++		if v.Args[0].Reg() != v.Reg() {
++			v.Fatalf("MOVLconvert should be a no-op")
++		}
++	case ssa.OpCopy: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}

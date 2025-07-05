@@ -16,8 +16,71 @@ Date:   Wed May 13 14:59:29 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/dir_darwin.go | 10 +++++-----
  src/os/dir_unix.go   |  2 +-
  src/os/os_test.go    |  4 ++++
  3 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/dir_darwin.go b/src/os/dir_darwin.go
+index 87797e2dda..476af6862e 100644
+--- a/src/os/dir_darwin.go
++++ b/src/os/dir_darwin.go
+@@ -28,7 +28,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 	if f.dirinfo == nil {
+ 		dir, call, errno := f.pfd.OpenDir()
+ 		if errno != nil {
+-			return nil, wrapSyscallError(call, errno)
++			return nil, &PathError{call, f.name, errno}
+ 		}
+ 		f.dirinfo = &dirInfo{
+ 			dir: dir,
+@@ -46,11 +46,11 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 	var dirent syscall.Dirent
+ 	var entptr *syscall.Dirent
+ 	for len(names) < size || n == -1 {
+-		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
+-			if syscall.Errno(res) == syscall.EINTR {
++		if errno := readdir_r(d.dir, &dirent, &entptr); errno != 0 {
++			if errno == syscall.EINTR {
+ 				continue
+ 			}
+-			return names, wrapSyscallError("readdir", syscall.Errno(res))
++			return names, &PathError{"readdir", f.name, errno}
+ 		}
+ 		if entptr == nil { // EOF
+ 			break
+@@ -84,4 +84,4 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ func closedir(dir uintptr) (err error)
+ 
+ //go:linkname readdir_r syscall.readdir_r
+-func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res int)
++func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res syscall.Errno)
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index e0c4989756..58ec406ab8 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -50,7 +50,7 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
+ 			runtime.KeepAlive(f)
+ 			if errno != nil {
+-				return names, wrapSyscallError("readdirent", errno)
++				return names, &PathError{"readdirent", f.name, errno}
+ 			}
+ 			if d.nbuf <= 0 {
+ 				break // EOF
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index e8c64510f5..520916d880 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -688,6 +688,10 @@ func TestReaddirOfFile(t *testing.T) {
+ 	if err == nil {
+ 		t.Error("Readdirnames succeeded; want non-nil error")
+ 	}
++	var pe *PathError
++	if !errors.As(err, &pe) || pe.Path != f.Name() {
++		t.Errorf("Readdirnames returned %q; want a PathError with path %q", err, f.Name())
++	}
+ 	if len(names) > 0 {
+ 		t.Errorf("unexpected dir names in regular file: %q", names)
+ 	}

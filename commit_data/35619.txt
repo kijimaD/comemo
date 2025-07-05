@@ -11,7 +11,34 @@ Date:   Sat Dec 16 10:04:03 2017 +1100
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
-
+---
  src/os/os_test.go       | 2 +-
  src/os/types_windows.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 5739dc207f..65a2d7e23a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1881,7 +1881,7 @@ func TestStatStdin(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	switch mode := fi.Mode(); {
+-	case mode&ModeCharDevice != 0:
++	case mode&ModeCharDevice != 0 && mode&ModeDevice != 0:
+ 	case mode&ModeNamedPipe != 0:
+ 	default:
+ 		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 01d6b62a16..9fcc043284 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -48,7 +48,7 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 	case syscall.FILE_TYPE_PIPE:
+ 		m |= ModeNamedPipe
+ 	case syscall.FILE_TYPE_CHAR:
+-		m |= ModeCharDevice
++		m |= ModeDevice | ModeCharDevice
+ 	}
+ 	return m
+ }

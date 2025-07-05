@@ -13,6 +13,20 @@ Date:   Sun Feb 14 15:09:21 2016 -0500
     Change-Id: Ic034b1c904c39dd1d966ee7fa96ca8bbb3614e53
     Reviewed-on: https://go-review.googlesource.com/19504
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.6.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 4a1e4c1f9a..0b9dc8a9f3 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -248,7 +248,7 @@ Some programs may run faster, some slower.
+ On average the programs in the Go 1 benchmark suite run a few percent faster in Go 1.6
+ than they did in Go 1.5.
+ The garbage collector's pauses are even lower than in Go 1.5,
+-although the effect is likely only noticeable for programs using
++especially for programs using
+ a large amount of memory.
+ </p>
+ 

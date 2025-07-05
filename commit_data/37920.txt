@@ -14,7 +14,52 @@ Date:   Mon Sep 10 02:22:48 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64error.s | 2 ++
  src/cmd/internal/obj/arm64/asm7.go             | 8 ++++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index bbdce479c5..357db80222 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -110,4 +110,6 @@ TEXT errors(SB),$0
+ 	FLDPD	(R1), (F2, F2)                                   // ERROR "constrained unpredictable behavior"
+ 	FLDPS	(R2), (F3, F3)                                   // ERROR "constrained unpredictable behavior"
+ 	FSTPD	(R1, R2), (R0)                                   // ERROR "invalid register pair"
++	FMOVS	(F2), F0                                         // ERROR "illegal combination"
++	FMOVD	F0, (F1)                                         // ERROR "illegal combination"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 09ffc5dccf..46fdcdcf7d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1426,6 +1426,10 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 		return C_LIST
+ 
+ 	case obj.TYPE_MEM:
++		// The base register should be an integer register.
++		if int16(REG_F0) <= a.Reg && a.Reg <= int16(REG_V31) {
++			break
++		}
+ 		switch a.Name {
+ 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 			if a.Sym == nil {
+@@ -2968,7 +2972,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 	case 22: /* movT (R)O!,R; movT O(R)!, R -> ldrT */
+-		if p.As != AFMOVS && p.As != AFMOVD && p.From.Reg != REGSP && p.From.Reg == p.To.Reg {
++		if p.From.Reg != REGSP && p.From.Reg == p.To.Reg {
+ 			c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+ 		}
+ 
+@@ -2986,7 +2990,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= ((uint32(v) & 0x1FF) << 12) | (uint32(p.From.Reg&31) << 5) | uint32(p.To.Reg&31)
+ 
+ 	case 23: /* movT R,(R)O!; movT O(R)!, R -> strT */
+-		if p.As != AFMOVS && p.As != AFMOVD && p.To.Reg != REGSP && p.From.Reg == p.To.Reg {
++		if p.To.Reg != REGSP && p.From.Reg == p.To.Reg {
+ 			c.ctxt.Diag("constrained unpredictable behavior: %v", p)
+ 		}
+ 

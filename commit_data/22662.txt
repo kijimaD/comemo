@@ -10,7 +10,66 @@ Date:   Mon Mar 23 18:23:53 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/7950
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go      | 16 ++++++++++++++++
  src/database/sql/sql_test.go | 20 ++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 1ce679d8a6..b0e8894673 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -572,6 +572,22 @@ func (db *DB) SetMaxOpenConns(n int) {
+ 	}
+ }
+ 
++// DBStats contains database statistics.
++type DBStats struct {
++	// OpenConnections is the number of open connections to the database.
++	OpenConnections int
++}
++
++// Stats returns database statistics.
++func (db *DB) Stats() DBStats {
++	db.mu.Lock()
++	stats := DBStats{
++		OpenConnections: db.numOpen,
++	}
++	db.mu.Unlock()
++	return stats
++}
++
+ // Assumes db.mu is locked.
+ // If there are connRequests and the connection limit hasn't been reached,
+ // then tell the connectionOpener to open new connections.
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 60bdefa076..e225ffe6fa 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1093,6 +1093,26 @@ func TestSingleOpenConn(t *testing.T) {
+ 	}
+ }
+ 
++func TestStats(t *testing.T) {
++	db := newTestDB(t, "people")
++	stats := db.Stats()
++	if got := stats.OpenConnections; got != 1 {
++		t.Errorf("stats.OpenConnections = %d; want 1", got)
++	}
++
++	tx, err := db.Begin()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tx.Commit()
++
++	closeDB(t, db)
++	stats = db.Stats()
++	if got := stats.OpenConnections; got != 0 {
++		t.Errorf("stats.OpenConnections = %d; want 0", got)
++	}
++}
++
+ // golang.org/issue/5323
+ func TestStmtCloseDeps(t *testing.T) {
+ 	if testing.Short() {

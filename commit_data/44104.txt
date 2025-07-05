@@ -21,6 +21,27 @@ Date:   Fri May 8 14:14:15 2020 +0100
     Change-Id: I85f7a9dce637a23c5cb9abc485d47415c1a1ca27
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232806
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 90c15a2cff..216e46ee81 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -219,9 +219,12 @@
+ // directly. TestMain runs in the main goroutine and can do whatever setup
+ // and teardown is necessary around a call to m.Run. m.Run will return an exit
+ // code that may be passed to os.Exit. If TestMain returns, the test wrapper
+-// will pass the result of m.Run to os.Exit itself. When TestMain is called,
+-// flag.Parse has not been run. If TestMain depends on command-line flags,
+-// including those of the testing package, it should call flag.Parse explicitly.
++// will pass the result of m.Run to os.Exit itself.
++//
++// When TestMain is called, flag.Parse has not been run. If TestMain depends on
++// command-line flags, including those of the testing package, it should call
++// flag.Parse explicitly. Command line flags are always parsed by the time test
++// or benchmark functions run.
+ //
+ // A simple implementation of TestMain is:
+ //

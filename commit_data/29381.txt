@@ -13,7 +13,7 @@ Date:   Fri Sep 9 21:08:46 2016 -0700
     Change-Id: I8f0704286aba5704600ad0c4a4484005b79b905d
     Reviewed-on: https://go-review.googlesource.com/28954
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go              | 33 ++++++++-----------
  src/cmd/compile/internal/amd64/ggen.go   |  2 +-
  src/cmd/compile/internal/amd64/gsubr.go  |  4 +--
@@ -55,3 +55,1785 @@ Date:   Fri Sep 9 21:08:46 2016 -0700
  src/cmd/compile/internal/x86/ggen.go     |  2 +-
  src/cmd/compile/internal/x86/gsubr.go    |  2 +-
  40 files changed, 206 insertions(+), 209 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index abec817f7c..89a5a68465 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -15,7 +15,8 @@
+ // A new knownFormats table based on the found formats is printed
+ // when the test is run in verbose mode (-v flag). The table
+ // needs to be updated whenever a new (type, format) combination
+-// is found and the format verb is not 'v' (as in "%v").
++// is found and the format verb is not 'v' or 'T' (as in "%v" or
++// "%T").
+ //
+ // Run as: go test -run Formats [-u][-v]
+ //
+@@ -120,8 +121,8 @@ func TestFormats(t *testing.T) {
+ 			}
+ 
+ 			// report an error if the format is unknown and this is the first
+-			// time we see it; ignore "%v" which is always considered valid
+-			if !known && !found && in != "%v" {
++			// time we see it; ignore "%v" and "%T" which are always valid
++			if !known && !found && in != "%v" && in != "%T" {
+ 				t.Errorf("%s: unknown format %q for %s argument", posString(p.arg), in, typ)
+ 			}
+ 
+@@ -543,34 +544,31 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/gc.Mpflt %v":               "",
+ 	"*cmd/compile/internal/gc.Mpint %v":               "",
+ 	"*cmd/compile/internal/gc.Node %#v":               "",
+-	"*cmd/compile/internal/gc.Node %+1v":              "",
++	"*cmd/compile/internal/gc.Node %+S":               "",
+ 	"*cmd/compile/internal/gc.Node %+v":               "",
+ 	"*cmd/compile/internal/gc.Node %0j":               "",
+-	"*cmd/compile/internal/gc.Node %1v":               "",
+-	"*cmd/compile/internal/gc.Node %2v":               "",
++	"*cmd/compile/internal/gc.Node %L":                "",
++	"*cmd/compile/internal/gc.Node %S":                "",
+ 	"*cmd/compile/internal/gc.Node %j":                "",
+ 	"*cmd/compile/internal/gc.Node %p":                "",
+-	"*cmd/compile/internal/gc.Node %s":                "",
+ 	"*cmd/compile/internal/gc.Node %v":                "",
+ 	"*cmd/compile/internal/gc.Sym % v":                "",
+ 	"*cmd/compile/internal/gc.Sym %+v":                "",
+ 	"*cmd/compile/internal/gc.Sym %-v":                "",
+-	"*cmd/compile/internal/gc.Sym %01v":               "",
+-	"*cmd/compile/internal/gc.Sym %1v":                "",
++	"*cmd/compile/internal/gc.Sym %0S":                "",
++	"*cmd/compile/internal/gc.Sym %S":                 "",
+ 	"*cmd/compile/internal/gc.Sym %p":                 "",
+-	"*cmd/compile/internal/gc.Sym %s":                 "",
+ 	"*cmd/compile/internal/gc.Sym %v":                 "",
+ 	"*cmd/compile/internal/gc.Type % -v":              "",
+ 	"*cmd/compile/internal/gc.Type %#v":               "",
+ 	"*cmd/compile/internal/gc.Type %+v":               "",
+ 	"*cmd/compile/internal/gc.Type %- v":              "",
+-	"*cmd/compile/internal/gc.Type %-1v":              "",
++	"*cmd/compile/internal/gc.Type %-S":               "",
+ 	"*cmd/compile/internal/gc.Type %-v":               "",
+-	"*cmd/compile/internal/gc.Type %01v":              "",
+-	"*cmd/compile/internal/gc.Type %1v":               "",
+-	"*cmd/compile/internal/gc.Type %2v":               "",
++	"*cmd/compile/internal/gc.Type %0S":               "",
++	"*cmd/compile/internal/gc.Type %L":                "",
++	"*cmd/compile/internal/gc.Type %S":                "",
+ 	"*cmd/compile/internal/gc.Type %p":                "",
+-	"*cmd/compile/internal/gc.Type %s":                "",
+ 	"*cmd/compile/internal/gc.Type %v":                "",
+ 	"*cmd/compile/internal/ssa.Block %s":              "",
+ 	"*cmd/compile/internal/ssa.Block %v":              "",
+@@ -607,17 +605,14 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/gc.Level %d":                "",
+ 	"cmd/compile/internal/gc.Level %v":                "",
+ 	"cmd/compile/internal/gc.Node %#v":                "",
+-	"cmd/compile/internal/gc.Nodes %#s":               "",
+ 	"cmd/compile/internal/gc.Nodes %#v":               "",
+ 	"cmd/compile/internal/gc.Nodes %+v":               "",
+ 	"cmd/compile/internal/gc.Nodes %.v":               "",
+ 	"cmd/compile/internal/gc.Nodes %v":                "",
+ 	"cmd/compile/internal/gc.Op %#v":                  "",
+-	"cmd/compile/internal/gc.Op %d":                   "",
+-	"cmd/compile/internal/gc.Op %s":                   "",
+ 	"cmd/compile/internal/gc.Op %v":                   "",
+ 	"cmd/compile/internal/gc.Val %#v":                 "",
+-	"cmd/compile/internal/gc.Val %s":                  "",
++	"cmd/compile/internal/gc.Val %T":                  "",
+ 	"cmd/compile/internal/gc.Val %v":                  "",
+ 	"cmd/compile/internal/gc.initKind %d":             "",
+ 	"cmd/compile/internal/ssa.BlockKind %s":           "",
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 3a8e21f8ee..e8390f2f95 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -40,7 +40,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index bad21e3ef0..09bead2df9 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -178,7 +178,7 @@ func bignodes() {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %2v -> %2v\n", f, t)
++		fmt.Printf("gmove %L -> %L\n", f, t)
+ 	}
+ 
+ 	ft := gc.Simsimtype(f.Type)
+@@ -231,7 +231,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 	default:
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
++		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 587471d334..15d13ed5a0 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -34,7 +34,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
+ 			// merge with range we already have
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index e7a0b8aeca..aebd3d023a 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -43,7 +43,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index ce0a5f1ab8..8bff5788f6 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -133,7 +133,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %2v -> %2v\n", f, t)
++		fmt.Printf("gmove %L -> %L\n", f, t)
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -210,7 +210,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
++		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index afdf983ce7..2bfaea99cc 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -75,7 +75,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		}
+ 		o += w
+ 		if o >= Thearch.MAXWIDTH {
+-			Yyerror("type %2v too large", errtype)
++			Yyerror("type %L too large", errtype)
+ 			o = 8 // small but nonzero
+ 		}
+ 	}
+@@ -253,7 +253,7 @@ func dowidth(t *Type) {
+ 		if t.Elem().Width != 0 {
+ 			cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+ 			if uint64(t.NumElem()) > cap {
+-				Yyerror("type %2v larger than address space", t)
++				Yyerror("type %L larger than address space", t)
+ 			}
+ 		}
+ 		w = t.NumElem() * t.Elem().Width
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3c8fb9a576..1076512fb5 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -396,7 +396,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 			// function has inlineable body:
+ 			// write index and body
+ 			if p.trace {
+-				p.tracef("\n----\nfunc { %#s }\n", f.Inl)
++				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
+ 			}
+ 			p.int(i)
+ 			p.stmtList(f.Inl)
+@@ -807,7 +807,7 @@ func (p *exporter) typ(t *Type) {
+ 		p.typ(t.Elem())
+ 
+ 	default:
+-		Fatalf("exporter: unexpected type: %s (Etype = %d)", t, t.Etype)
++		Fatalf("exporter: unexpected type: %v (Etype = %d)", t, t.Etype)
+ 	}
+ }
+ 
+@@ -1387,8 +1387,8 @@ func (p *exporter) expr(n *Node) {
+ 		p.op(ODCLCONST)
+ 
+ 	default:
+-		Fatalf("cannot export %s (%d) node\n"+
+-			"==> please file an issue and assign to gri@\n", n.Op, n.Op)
++		Fatalf("cannot export %v (%d) node\n"+
++			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
+ 	}
+ }
+ 
+@@ -1503,7 +1503,7 @@ func (p *exporter) stmt(n *Node) {
+ 		p.expr(n.Left)
+ 
+ 	default:
+-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
++		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
+ 	}
+ }
+ 
+@@ -1595,7 +1595,7 @@ func (p *exporter) bool(b bool) bool {
+ func (p *exporter) op(op Op) {
+ 	if p.trace {
+ 		p.tracef("[")
+-		defer p.tracef("= %s] ", op)
++		defer p.tracef("= %v] ", op)
+ 	}
+ 
+ 	p.int(int(op))
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 2a99199636..88db78d2ff 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -235,7 +235,7 @@ func (p *importer) verifyTypes() {
+ 		pt := pair.pt
+ 		t := pair.t
+ 		if !Eqtype(pt.Orig, t) {
+-			formatErrorf("inconsistent definition for type %v during import\n\t%2v (in %q)\n\t%2v (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
++			formatErrorf("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+ 		}
+ 	}
+ }
+@@ -416,7 +416,7 @@ func (p *importer) importtype(pt, t *Type) {
+ 	}
+ 
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("import type %v %2v\n", pt, t)
++		fmt.Printf("import type %v %L\n", pt, t)
+ 	}
+ }
+ 
+@@ -1133,8 +1133,8 @@ func (p *importer) node() *Node {
+ 		return nil
+ 
+ 	default:
+-		Fatalf("cannot import %s (%d) node\n"+
+-			"==> please file an issue and assign to gri@\n", op, op)
++		Fatalf("cannot import %v (%d) node\n"+
++			"==> please file an issue and assign to gri@\n", op, int(op))
+ 		panic("unreachable") // satisfy compiler
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 094a8e7b30..eca8f929db 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -361,7 +361,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	default:
+ 		Dump("cgen", n)
+ 		Dump("cgen-res", res)
+-		Fatalf("cgen: unknown op %+1v", n)
++		Fatalf("cgen: unknown op %+S", n)
+ 
+ 	case OOROR, OANDAND,
+ 		OEQ, ONE,
+@@ -599,7 +599,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		Fatalf("cgen: OLEN: unknown type %2v", nl.Type)
++		Fatalf("cgen: OLEN: unknown type %L", nl.Type)
+ 
+ 	case OCAP:
+ 		if nl.Type.IsChan() {
+@@ -637,7 +637,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		Fatalf("cgen: OCAP: unknown type %2v", nl.Type)
++		Fatalf("cgen: OCAP: unknown type %L", nl.Type)
+ 
+ 	case OADDR:
+ 		if n.Bounded { // let race detector avoid nil checks
+@@ -1553,7 +1553,7 @@ func Agen(n *Node, res *Node) {
+ 	switch n.Op {
+ 	default:
+ 		Dump("bad agen", n)
+-		Fatalf("agen: unknown op %+1v", n)
++		Fatalf("agen: unknown op %+S", n)
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+@@ -1864,7 +1864,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	case OLITERAL:
+ 		// n is a constant.
+ 		if !Isconst(n, CTBOOL) {
+-			Fatalf("bgen: non-bool const %2v\n", n)
++			Fatalf("bgen: non-bool const %L\n", n)
+ 		}
+ 		if genval {
+ 			Cgen(Nodbool(wantTrue == n.Val().U.(bool)), res)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index c8aea9ec53..898bdad4cd 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -107,7 +107,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 		if !n.Name.Captured {
+ 			n.Name.Captured = true
+ 			if n.Name.Decldepth == 0 {
+-				Fatalf("typecheckclosure: var %1v does not have decldepth assigned", n)
++				Fatalf("typecheckclosure: var %S does not have decldepth assigned", n)
+ 			}
+ 
+ 			// Ignore assignments to the variable in straightline code
+@@ -193,7 +193,7 @@ func closurename(n *Node) *Sym {
+ 		n.Func.Outerfunc.Func.Closgen++
+ 		gen = n.Func.Outerfunc.Func.Closgen
+ 	default:
+-		Fatalf("closurename called for %1v", n)
++		Fatalf("closurename called for %S", n)
+ 	}
+ 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
+ 	return n.Sym
+@@ -540,9 +540,9 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 
+ 	rcvrtype := fn.Left.Type
+ 	if exportname(meth.Name) {
+-		p = fmt.Sprintf("(%-1v).%s-fm", rcvrtype, meth.Name)
++		p = fmt.Sprintf("(%-S).%s-fm", rcvrtype, meth.Name)
+ 	} else {
+-		p = fmt.Sprintf("(%-1v).(%-v)-fm", rcvrtype, meth)
++		p = fmt.Sprintf("(%-S).(%-v)-fm", rcvrtype, meth)
+ 	}
+ 	basetype := rcvrtype
+ 	if rcvrtype.IsPtr() {
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index fc04581825..8214bc3cf6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -556,7 +556,7 @@ func overflow(v Val, t *Type) {
+ 	}
+ 
+ 	if doesoverflow(v, t) {
+-		Yyerror("constant %s overflows %v", v, t)
++		Yyerror("constant %v overflows %v", v, t)
+ 	}
+ }
+ 
+@@ -1595,7 +1595,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		var i int64
+ 		switch n.Val().Ctype() {
+ 		default:
+-			Fatalf("convconst ctype=%d %2v", n.Val().Ctype(), t)
++			Fatalf("convconst ctype=%d %L", n.Val().Ctype(), t)
+ 
+ 		case CTINT, CTRUNE:
+ 			i = n.Int64()
+@@ -1632,7 +1632,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	Fatalf("convconst %2v constant", t)
++	Fatalf("convconst %L constant", t)
+ }
+ 
+ // complex multiply v *= rv
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index bb55192c22..bd91c34f0f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -121,7 +121,8 @@ func redeclare(s *Sym, where string) {
+ 			tmp = s.Pkg.Path
+ 		}
+ 		pkgstr := tmp
+-		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", s, where, pkgstr)
++		Yyerror("%v redeclared %s\n"+
++			"\tprevious declaration during import %q", s, where, pkgstr)
+ 	} else {
+ 		line1 := lineno
+ 		line2 := s.Lastlineno
+@@ -135,7 +136,8 @@ func redeclare(s *Sym, where string) {
+ 			line1 = s.Lastlineno
+ 		}
+ 
+-		yyerrorl(line1, "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, linestr(line2))
++		yyerrorl(line1, "%v redeclared %s\n"+
++			"\tprevious declaration at %v", s, where, linestr(line2))
+ 	}
+ }
+ 
+@@ -1095,15 +1097,15 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 
+ 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
+ 		if t0.Sym == nil && t0.IsPtr() {
+-			p = fmt.Sprintf("(%-1v).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
++			p = fmt.Sprintf("(%-S).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
+ 		} else {
+-			p = fmt.Sprintf("%-1v.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
++			p = fmt.Sprintf("%-S.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
+ 		}
+ 	} else {
+ 		if t0.Sym == nil && t0.IsPtr() {
+-			p = fmt.Sprintf("(%-1v).%s%s", t0, nsym.Name, suffix)
++			p = fmt.Sprintf("(%-S).%s%s", t0, nsym.Name, suffix)
+ 		} else {
+-			p = fmt.Sprintf("%-1v.%s%s", t0, nsym.Name, suffix)
++			p = fmt.Sprintf("%-S.%s%s", t0, nsym.Name, suffix)
+ 		}
+ 	}
+ 
+@@ -1190,7 +1192,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+ 		default:
+ 			// Should have picked off all the reasons above,
+ 			// but just in case, fall back to generic error.
+-			Yyerror("invalid receiver type %v (%2v / %2v)", pa, pa, t)
++			Yyerror("invalid receiver type %v (%L / %L)", pa, pa, t)
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 9c5ff59033..74e63dee4c 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -486,7 +486,7 @@ func escAnalyze(all []*Node, recursive bool) {
+ 	if Debug['m'] != 0 {
+ 		for _, n := range e.noesc {
+ 			if n.Esc == EscNone {
+-				Warnl(n.Lineno, "%v %1v does not escape", e.curfnSym(n), n)
++				Warnl(n.Lineno, "%v %S does not escape", e.curfnSym(n), n)
+ 			}
+ 		}
+ 	}
+@@ -743,7 +743,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+ 			// that b does not escape when b contents do.
+ 			if Debug['m'] != 0 {
+-				Warnl(n.Lineno, "%v ignoring self-assignment to %1v", e.curfnSym(n), n.Left)
++				Warnl(n.Lineno, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
+ 			}
+ 
+ 			break
+@@ -847,7 +847,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			slice2 := n.List.Second()
+ 			escassignDereference(e, &e.theSink, slice2, e.stepAssign(nil, n, slice2, "appended slice...")) // lose track of assign of dereference
+ 			if Debug['m'] > 3 {
+-				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %1v", e.curfnSym(n), n)
++				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %S", e.curfnSym(n), n)
+ 			}
+ 		}
+ 		escassignDereference(e, &e.theSink, n.List.First(), e.stepAssign(nil, n, n.List.First(), "appendee slice")) // The original elements are now leaked, too
+@@ -998,7 +998,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("%v:[%d] %v escassign: %1v(%0j)[%v] = %1v(%0j)[%v]\n",
++		fmt.Printf("%v:[%d] %v escassign: %S(%0j)[%v] = %S(%0j)[%v]\n",
+ 			linestr(lineno), e.loopdepth, funcSym(Curfn),
+ 			dst, dst, dst.Op,
+ 			src, src, src.Op)
+@@ -1278,7 +1278,7 @@ func escassignfromtag(e *EscState, note string, dsts Nodes, src *Node) uint16 {
+ 	}
+ 
+ 	if Debug['m'] > 3 {
+-		fmt.Printf("%v::assignfromtag:: src=%1v, em=%s\n",
++		fmt.Printf("%v::assignfromtag:: src=%S, em=%s\n",
+ 			linestr(lineno), src, describeEscape(em))
+ 	}
+ 
+@@ -1449,7 +1449,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		for _, n1 := range ll.Slice() {
+ 			escassignSinkNilWhy(e, n, n1, "parameter to indirect call")
+ 			if Debug['m'] > 3 {
+-				fmt.Printf("%v::esccall:: indirect call <- %1v, untracked\n", linestr(lineno), n1)
++				fmt.Printf("%v::esccall:: indirect call <- %S, untracked\n", linestr(lineno), n1)
+ 			}
+ 		}
+ 		// Set up bogus outputs
+@@ -1474,7 +1474,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+ 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+ 		if Debug['m'] > 3 {
+-			fmt.Printf("%v::esccall:: %1v in recursive group\n", linestr(lineno), n)
++			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), n)
+ 		}
+ 
+ 		// function in same mutually recursive group. Incorporate into flow graph.
+@@ -1512,7 +1512,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 					// "..." arguments are untracked
+ 					for _, n2 := range lls {
+ 						if Debug['m'] > 3 {
+-							fmt.Printf("%v::esccall:: ... <- %1v, untracked\n", linestr(lineno), n2)
++							fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), n2)
+ 						}
+ 						escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
+ 					}
+@@ -1537,7 +1537,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 3 {
+-		fmt.Printf("%v::esccall:: %1v not recursive\n", linestr(lineno), n)
++		fmt.Printf("%v::esccall:: %S not recursive\n", linestr(lineno), n)
+ 	}
+ 
+ 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
+@@ -1614,7 +1614,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	// Store arguments into slice for ... arg.
+ 	for ; i < len(lls); i++ {
+ 		if Debug['m'] > 3 {
+-			fmt.Printf("%v::esccall:: ... <- %1v\n", linestr(lineno), lls[i])
++			fmt.Printf("%v::esccall:: ... <- %S\n", linestr(lineno), lls[i])
+ 		}
+ 		if note == uintptrEscapesTag {
+ 			escassignSinkNilWhy(e, src, lls[i], "arg to uintptrescapes ...")
+@@ -1637,7 +1637,7 @@ func escflows(e *EscState, dst, src *Node, why *EscStep) {
+ 	}
+ 
+ 	if Debug['m'] > 3 {
+-		fmt.Printf("%v::flows:: %1v <- %1v\n", linestr(lineno), dst, src)
++		fmt.Printf("%v::flows:: %S <- %S\n", linestr(lineno), dst, src)
+ 	}
+ 
+ 	dstE := e.nodeEscState(dst)
+@@ -1677,7 +1677,7 @@ func escflood(e *EscState, dst *Node) {
+ 
+ 	dstE := e.nodeEscState(dst)
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("\nescflood:%d: dst %1v scope:%v[%d]\n", e.walkgen, dst, e.curfnSym(dst), dstE.Escloopdepth)
++		fmt.Printf("\nescflood:%d: dst %S scope:%v[%d]\n", e.walkgen, dst, e.curfnSym(dst), dstE.Escloopdepth)
+ 	}
+ 
+ 	for i, l := range dstE.Escflowsrc {
+@@ -1711,7 +1711,7 @@ func (es *EscStep) describe(src *Node) {
+ 		if nextDest != nil {
+ 			dst = nextDest.src
+ 		}
+-		Warnl(src.Lineno, "\tfrom %s (%s) at %s", dst, step.why, dst.Line())
++		Warnl(src.Lineno, "\tfrom %v (%s) at %s", dst, step.why, dst.Line())
+ 	}
+ 	for step := step0; step != nil && step.busy; step = step.parent {
+ 		step.busy = false
+@@ -1756,7 +1756,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %1v(%0j) scope:%v[%d] extraloopdepth=%v\n",
++		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %S(%0j) scope:%v[%d] extraloopdepth=%v\n",
+ 			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", src.Op, src, src, e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
+ 	}
+ 
+@@ -1775,10 +1775,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		// 4. return *in
+ 		if Debug['m'] != 0 {
+ 			if Debug['m'] <= 2 {
+-				Warnl(src.Lineno, "leaking param: %1v to result %v level=%v", src, dst.Sym, level.int())
++				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level.int())
+ 				step.describe(src)
+ 			} else {
+-				Warnl(src.Lineno, "leaking param: %1v to result %v level=%v", src, dst.Sym, level)
++				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level)
+ 			}
+ 		}
+ 		if src.Esc&EscMask != EscReturn {
+@@ -1795,7 +1795,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		level.int() > 0 {
+ 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 		if Debug['m'] != 0 {
+-			Warnl(src.Lineno, "mark escaped content: %1v", src)
++			Warnl(src.Lineno, "mark escaped content: %S", src)
+ 			step.describe(src)
+ 		}
+ 	}
+@@ -1811,11 +1811,11 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] <= 2 {
+ 						if osrcesc != src.Esc {
+-							Warnl(src.Lineno, "leaking param content: %1v", src)
++							Warnl(src.Lineno, "leaking param content: %S", src)
+ 							step.describe(src)
+ 						}
+ 					} else {
+-						Warnl(src.Lineno, "leaking param content: %1v level=%v dst.eld=%v src.eld=%v dst=%1v",
++						Warnl(src.Lineno, "leaking param content: %S level=%v dst.eld=%v src.eld=%v dst=%S",
+ 							src, level, dstE.Escloopdepth, modSrcLoopdepth, dst)
+ 					}
+ 				}
+@@ -1824,10 +1824,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 				if Debug['m'] != 0 {
+ 
+ 					if Debug['m'] <= 2 {
+-						Warnl(src.Lineno, "leaking param: %1v", src)
++						Warnl(src.Lineno, "leaking param: %S", src)
+ 						step.describe(src)
+ 					} else {
+-						Warnl(src.Lineno, "leaking param: %1v level=%v dst.eld=%v src.eld=%v dst=%1v",
++						Warnl(src.Lineno, "leaking param: %S level=%v dst.eld=%v src.eld=%v dst=%S",
+ 							src, level, dstE.Escloopdepth, modSrcLoopdepth, dst)
+ 					}
+ 				}
+@@ -1838,7 +1838,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		// original variable.
+ 		if src.isClosureVar() {
+ 			if leaks && Debug['m'] != 0 {
+-				Warnl(src.Lineno, "leaking closure reference %1v", src)
++				Warnl(src.Lineno, "leaking closure reference %S", src)
+ 				step.describe(src)
+ 			}
+ 			escwalk(e, level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
+@@ -1857,10 +1857,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 					p = p.Left // merely to satisfy error messages in tests
+ 				}
+ 				if Debug['m'] > 2 {
+-					Warnl(src.Lineno, "%1v escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
++					Warnl(src.Lineno, "%S escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
+ 						p, level, dst, dstE.Escloopdepth, modSrcLoopdepth)
+ 				} else {
+-					Warnl(src.Lineno, "%1v escapes to heap", p)
++					Warnl(src.Lineno, "%S escapes to heap", p)
+ 					step.describe(src)
+ 				}
+ 			}
+@@ -1878,7 +1878,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 && osrcesc != src.Esc {
+-				Warnl(src.Lineno, "%1v escapes to heap", src)
++				Warnl(src.Lineno, "%S escapes to heap", src)
+ 				step.describe(src)
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+@@ -1910,7 +1910,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 && osrcesc != src.Esc {
+-				Warnl(src.Lineno, "%1v escapes to heap", src)
++				Warnl(src.Lineno, "%S escapes to heap", src)
+ 				step.describe(src)
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+@@ -1950,7 +1950,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+ 		if srcE.Escretval.Len() != 0 {
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("%v:[%d] dst %1v escwalk replace src: %1v with %1v\n",
++				fmt.Printf("%v:[%d] dst %S escwalk replace src: %S with %S\n",
+ 					linestr(lineno), e.loopdepth,
+ 					dst, src, srcE.Escretval.First())
+ 			}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index fa8eef4184..90d093d6fe 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -340,7 +340,7 @@ func importvar(s *Sym, t *Type) {
+ 	declare(n, PEXTERN)
+ 
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("import var %v %2v\n", s, t)
++		fmt.Printf("import var %v %L\n", s, t)
+ 	}
+ }
+ 
+@@ -362,11 +362,11 @@ func importtype(pt *Type, t *Type) {
+ 		declare(n, PEXTERN)
+ 		checkwidth(pt)
+ 	} else if !Eqtype(pt.Orig, t) {
+-		Yyerror("inconsistent definition for type %v during import\n\t%2v (in %q)\n\t%2v (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
++		Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+ 	}
+ 
+ 	if Debug['E'] != 0 {
+-		fmt.Printf("import type %v %2v\n", pt, t)
++		fmt.Printf("import type %v %L\n", pt, t)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index de3939d8b8..b0444fc509 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -12,18 +12,20 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// TODO(gri) update documentation thoroughly
++
+ // A FmtFlag value is a set of flags (or 0).
+ // They control how the Xconv functions format their values.
+ // See the respective function's documentation for details.
+ type FmtFlag int
+ 
+-const ( //                                          fmt.Format flag/width/prec
++const ( //                                          fmt.Format flag/prec or verb
+ 	FmtLeft     FmtFlag = 1 << iota // "-"	=>  '-'
+ 	FmtSharp                        // "#"  =>  '#'
+ 	FmtSign                         // "+"  =>  '+'
+ 	FmtUnsigned                     // "u"  =>  ' '
+-	FmtShort                        // "h"  =>  hasWidth && width == 1; or verb == 'S' (Short)
+-	FmtLong                         // "l"  =>  hasWidth && width == 2; or verb == 'L' (Long)
++	FmtShort                        // "h"  =>  verb == 'S' (Short)
++	FmtLong                         // "l"  =>  verb == 'L' (Long)
+ 	FmtComma                        // ","  =>  '.' (== hasPrec)
+ 	FmtByte                         // "hh" =>  '0'
+ )
+@@ -42,14 +44,6 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
+ 	if s.Flag(' ') {
+ 		flag |= FmtUnsigned
+ 	}
+-	if w, ok := s.Width(); ok {
+-		switch w {
+-		case 1:
+-			flag |= FmtShort
+-		case 2:
+-			flag |= FmtLong
+-		}
+-	}
+ 	if _, ok := s.Precision(); ok {
+ 		flag |= FmtComma
+ 	}
+@@ -228,7 +222,7 @@ func (o Op) GoString() string {
+ 
+ func (o Op) Format(s fmt.State, verb rune) {
+ 	switch verb {
+-	case 's', 'v':
++	case 'v':
+ 		o.oconv(s, fmtFlag(s, verb))
+ 
+ 	default:
+@@ -264,7 +258,7 @@ var classnames = []string{
+ 
+ func (n *Node) Format(s fmt.State, verb rune) {
+ 	switch verb {
+-	case 's', 'v':
++	case 'v', 'S', 'L':
+ 		n.Nconv(s, fmtFlag(s, verb))
+ 
+ 	case 'j':
+@@ -385,11 +379,11 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 
+ func (v Val) Format(s fmt.State, verb rune) {
+ 	switch verb {
+-	case 's', 'v':
++	case 'v':
+ 		v.vconv(s, fmtFlag(s, verb))
+ 
+ 	default:
+-		fmt.Fprintf(s, "%%!%c(Val)", verb)
++		fmt.Fprintf(s, "%%!%c(Val=%T)", verb, v)
+ 	}
+ }
+ 
+@@ -605,7 +599,7 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
+ 	if t == bytetype || t == runetype {
+ 		// in %-T mode collapse rune and byte with their originals.
+ 		if fmtmode != FTypeId {
+-			fmt.Fprintf(s, "%1v", t.Sym)
++			fmt.Fprintf(s, "%S", t.Sym)
+ 			return
+ 		}
+ 		t = Types[t.Etype]
+@@ -622,10 +616,10 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
+ 		case FTypeId:
+ 			if flag&FmtShort != 0 {
+ 				if t.Vargen != 0 {
+-					fmt.Fprintf(s, "%1v·%d", t.Sym, t.Vargen)
++					fmt.Fprintf(s, "%S·%d", t.Sym, t.Vargen)
+ 					return
+ 				}
+-				fmt.Fprintf(s, "%1v", t.Sym)
++				fmt.Fprintf(s, "%S", t.Sym)
+ 				return
+ 			}
+ 
+@@ -663,7 +657,7 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
+ 	switch t.Etype {
+ 	case TPTR32, TPTR64:
+ 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
+-			fmt.Fprintf(s, "*%1v", t.Elem())
++			fmt.Fprintf(s, "*%S", t.Elem())
+ 			return
+ 		}
+ 		fmt.Fprint(s, "*"+t.Elem().String())
+@@ -711,11 +705,11 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
+ 				// Wrong interface definitions may have types lacking a symbol.
+ 				break
+ 			case exportname(f.Sym.Name):
+-				fmt.Fprintf(s, "%1v", f.Sym)
++				fmt.Fprintf(s, "%S", f.Sym)
+ 			default:
+ 				fmt.Fprintf(s, "% v", f.Sym)
+ 			}
+-			fmt.Fprintf(s, "%1v", f.Type)
++			fmt.Fprintf(s, "%S", f.Type)
+ 		}
+ 		if t.NumFields() != 0 {
+ 			fmt.Fprint(s, " ")
+@@ -1188,7 +1182,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 			}
+ 		}
+ 
+-		fmt.Fprintf(s, "%s", n.Val())
++		fmt.Fprintf(s, "%v", n.Val())
+ 
+ 	// Special case: name used as local variable in export.
+ 	// _ becomes ~b%d internally; print as _ for export
+@@ -1304,7 +1298,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		fmt.Fprintf(s, ".%01v", n.Right.Sym)
++		fmt.Fprintf(s, ".%0S", n.Right.Sym)
+ 
+ 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 		n.Left.exprfmt(s, nprec)
+@@ -1312,7 +1306,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		fmt.Fprintf(s, ".%01v", n.Sym)
++		fmt.Fprintf(s, ".%0S", n.Sym)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		n.Left.exprfmt(s, nprec)
+@@ -1587,7 +1581,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
+ 
+ func (s *Sym) Format(f fmt.State, verb rune) {
+ 	switch verb {
+-	case 's', 'v':
++	case 'v', 'S':
+ 		s.sconv(f, fmtFlag(f, verb))
+ 
+ 	default:
+@@ -1667,7 +1661,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 			if f.Funarg != FunargNone {
+ 				name = f.Nname.String()
+ 			} else if flag&FmtLong != 0 {
+-				name = fmt.Sprintf("%01v", s)
++				name = fmt.Sprintf("%0S", s)
+ 				if !exportname(name) && flag&FmtUnsigned == 0 {
+ 					name = s.String() // qualify non-exported names (used on structs, not on funarg)
+ 				}
+@@ -1704,7 +1698,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 
+ func (t *Type) Format(s fmt.State, verb rune) {
+ 	switch verb {
+-	case 's', 'v':
++	case 'v', 'S', 'L':
+ 		t.tconv(s, fmtFlag(s, verb))
+ 
+ 	default:
+@@ -1784,7 +1778,7 @@ func (n *Node) Nconv(s fmt.State, flag FmtFlag) {
+ 
+ func (l Nodes) Format(s fmt.State, verb rune) {
+ 	switch verb {
+-	case 's', 'v':
++	case 'v':
+ 		l.hconv(s, fmtFlag(s, verb))
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 5facbd6ca8..21594c6504 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -716,7 +716,7 @@ func gen(n *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatalf("gen: unknown op %+1v", n)
++		Fatalf("gen: unknown op %+S", n)
+ 
+ 	case OCASE,
+ 		OFALL,
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index bfacfe2ac8..02d09df5a3 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -420,7 +420,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		}
+ 		switch u := n.Val().U.(type) {
+ 		default:
+-			Fatalf("naddr: const %2v", n.Type)
++			Fatalf("naddr: const %L", n.Type)
+ 
+ 		case *Mpflt:
+ 			a.Type = obj.TYPE_FCONST
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 7c172e6489..18a294214d 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -40,7 +40,7 @@ func fnpkg(fn *Node) *Pkg {
+ 			rcvr = rcvr.Elem()
+ 		}
+ 		if rcvr.Sym == nil {
+-			Fatalf("receiver with no sym: [%v] %2v  (%v)", fn.Sym, fn, rcvr)
++			Fatalf("receiver with no sym: [%v] %L  (%v)", fn.Sym, fn, rcvr)
+ 		}
+ 		return rcvr.Sym.Pkg
+ 	}
+@@ -65,7 +65,7 @@ func typecheckinl(fn *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 2 || Debug_export != 0 {
+-		fmt.Printf("typecheck import [%v] %2v { %#v }\n", fn.Sym, fn, fn.Func.Inl)
++		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, fn.Func.Inl)
+ 	}
+ 
+ 	save_safemode := safemode
+@@ -485,7 +485,7 @@ func inlnode(n *Node) *Node {
+ 
+ 	case OCALLMETH:
+ 		if Debug['m'] > 3 {
+-			fmt.Printf("%v:call to meth %2v\n", n.Line(), n.Left.Right)
++			fmt.Printf("%v:call to meth %L\n", n.Line(), n.Left.Right)
+ 		}
+ 
+ 		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 5d3da58010..0d49b239fd 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -616,7 +616,7 @@ func (l *lexer) ident(c rune) {
+ 
+ 	s := LookupBytes(name)
+ 	if Debug['x'] != 0 {
+-		fmt.Printf("lex: ident %s\n", s)
++		fmt.Printf("lex: ident %v\n", s)
+ 	}
+ 	l.sym_ = s
+ 	l.nlsemi = true
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a945038c7a..a42d92a86d 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -449,7 +449,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		if expr.Lhs != nil {
+ 			n.Left = p.declName(expr.Lhs)
+ 			if isblank(n.Left) {
+-				Yyerror("invalid variable name %s in type switch", n.Left)
++				Yyerror("invalid variable name %v in type switch", n.Left)
+ 			}
+ 		}
+ 		return n
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e74fa7c577..89644d8bae 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -433,7 +433,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 
+ 	case OADDR:
+ 		if nr.Left.Op != ONAME {
+-			Fatalf("gdata ADDR left op %s", nr.Left.Op)
++			Fatalf("gdata ADDR left op %v", nr.Left.Op)
+ 		}
+ 		to := nr.Left
+ 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index d910be0644..c1bd6ca401 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -612,7 +612,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 			if len(lhs) > 1 {
+ 				Yyerror("argument count mismatch: %d = %d", len(lhs), 1)
+ 			} else if (lhs[0].Op != ONAME && lhs[0].Op != OTYPE && lhs[0].Op != ONONAME && (lhs[0].Op != OLITERAL || lhs[0].Name == nil)) || isblank(lhs[0]) {
+-				Yyerror("invalid variable name %s in type switch", lhs[0])
++				Yyerror("invalid variable name %v in type switch", lhs[0])
+ 			} else {
+ 				ts.Left = dclname(lhs[0].Sym)
+ 			} // it's a colas, so must not re-use an oldname
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 5a2814fb32..0b4fbe0949 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1233,7 +1233,7 @@ func livenessepilogue(lv *Liveness) {
+ 						if !n.Name.Needzero {
+ 							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+-								Warnl(p.Lineno, "%v: %2v is ambiguously live", Curfn.Func.Nname, n)
++								Warnl(p.Lineno, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
+ 							}
+ 
+ 							// Record in 'ambiguous' bitmap.
+@@ -1329,7 +1329,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n := lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(p.Lineno, "internal error: %v %2v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
++							yyerrorl(p.Lineno, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index cf1f0cc918..fd74dd9e33 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -48,7 +48,7 @@ func typecheckrange(n *Node) {
+ 	toomany = 0
+ 	switch t.Etype {
+ 	default:
+-		Yyerror("cannot range over %2v", n.Right)
++		Yyerror("cannot range over %L", n.Right)
+ 		goto out
+ 
+ 	case TARRAY, TSLICE:
+@@ -104,7 +104,7 @@ func typecheckrange(n *Node) {
+ 		if v1.Name != nil && v1.Name.Defn == n {
+ 			v1.Type = t1
+ 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
+-			Yyerror("cannot assign type %v to %2v in range%s", t1, v1, why)
++			Yyerror("cannot assign type %v to %L in range%s", t1, v1, why)
+ 		}
+ 		checkassign(n, v1)
+ 	}
+@@ -113,7 +113,7 @@ func typecheckrange(n *Node) {
+ 		if v2.Name != nil && v2.Name.Defn == n {
+ 			v2.Type = t2
+ 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
+-			Yyerror("cannot assign type %v to %2v in range%s", t2, v2, why)
++			Yyerror("cannot assign type %v to %L in range%s", t2, v2, why)
+ 		}
+ 		checkassign(n, v2)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 337f8ccbe7..58edd32766 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -601,7 +601,7 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
+ 	}
+ 	noff := int(Rnd(int64(ot), int64(Widthptr)))
+ 	if noff != ot {
+-		Fatalf("unexpected alignment in dextratype for %s", t)
++		Fatalf("unexpected alignment in dextratype for %v", t)
+ 	}
+ 
+ 	for _, a := range m {
+@@ -613,10 +613,10 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
+ 	dataAdd += uncommonSize(t)
+ 	mcount := len(m)
+ 	if mcount != int(uint16(mcount)) {
+-		Fatalf("too many methods on %s: %d", t, mcount)
++		Fatalf("too many methods on %v: %d", t, mcount)
+ 	}
+ 	if dataAdd != int(uint32(dataAdd)) {
+-		Fatalf("methods are too far away on %s: %d", t, dataAdd)
++		Fatalf("methods are too far away on %v: %d", t, dataAdd)
+ 	}
+ 
+ 	ot = duint16(s, ot, uint16(mcount))
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0faedf0e27..f797044fd8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -971,7 +971,7 @@ func (s *state) stmt(n *Node) {
+ 	case OVARLIVE:
+ 		// Insert a varlive op to record that a variable is still live.
+ 		if !n.Left.Addrtaken {
+-			s.Fatalf("VARLIVE variable %s must have Addrtaken set", n.Left)
++			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
+ 		}
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, ssa.TypeMem, n.Left, s.mem())
+ 
+@@ -983,7 +983,7 @@ func (s *state) stmt(n *Node) {
+ 		s.expr(n.Left)
+ 
+ 	default:
+-		s.Unimplementedf("unhandled stmt %s", n.Op)
++		s.Unimplementedf("unhandled stmt %v", n.Op)
+ 	}
+ }
+ 
+@@ -1272,7 +1272,7 @@ func (s *state) ssaOp(op Op, t *Type) ssa.Op {
+ 	etype := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled binary op %s %s", op, etype)
++		s.Unimplementedf("unhandled binary op %v %s", op, etype)
+ 	}
+ 	return x
+ }
+@@ -1447,7 +1447,7 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
+ 	etype2 := s.concreteEtype(u)
+ 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled shift op %s etype=%s/%s", op, etype1, etype2)
++		s.Unimplementedf("unhandled shift op %v etype=%s/%s", op, etype1, etype2)
+ 	}
+ 	return x
+ }
+@@ -1456,7 +1456,7 @@ func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
+ 	etype1 := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype1}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled rotate op %s etype=%s", op, etype1)
++		s.Unimplementedf("unhandled rotate op %v etype=%s", op, etype1)
+ 	}
+ 	return x
+ }
+@@ -1640,7 +1640,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				case 84:
+ 					op = ssa.OpTrunc64to32
+ 				default:
+-					s.Fatalf("weird integer truncation %s -> %s", ft, tt)
++					s.Fatalf("weird integer truncation %v -> %v", ft, tt)
+ 				}
+ 			} else if ft.IsSigned() {
+ 				// sign extension
+@@ -1658,7 +1658,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				case 48:
+ 					op = ssa.OpSignExt32to64
+ 				default:
+-					s.Fatalf("bad integer sign extension %s -> %s", ft, tt)
++					s.Fatalf("bad integer sign extension %v -> %v", ft, tt)
+ 				}
+ 			} else {
+ 				// zero extension
+@@ -1676,7 +1676,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				case 48:
+ 					op = ssa.OpZeroExt32to64
+ 				default:
+-					s.Fatalf("weird integer sign extension %s -> %s", ft, tt)
++					s.Fatalf("weird integer sign extension %v -> %v", ft, tt)
+ 				}
+ 			}
+ 			return s.newValue1(op, n.Type, x)
+@@ -1695,7 +1695,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				}
+ 			}
+ 			if !ok {
+-				s.Fatalf("weird float conversion %s -> %s", ft, tt)
++				s.Fatalf("weird float conversion %v -> %v", ft, tt)
+ 			}
+ 			op1, op2, it := conv.op1, conv.op2, conv.intermediateType
+ 
+@@ -1721,7 +1721,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				if tt.Size() == 8 {
+ 					return s.uint64Tofloat64(n, x, ft, tt)
+ 				}
+-				s.Fatalf("weird unsigned integer to float conversion %s -> %s", ft, tt)
++				s.Fatalf("weird unsigned integer to float conversion %v -> %v", ft, tt)
+ 			}
+ 			// therefore ft is float32 or float64, and tt is unsigned integer
+ 			if ft.Size() == 4 {
+@@ -1730,7 +1730,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			if ft.Size() == 8 {
+ 				return s.float64ToUint64(n, x, ft, tt)
+ 			}
+-			s.Fatalf("weird float to unsigned integer conversion %s -> %s", ft, tt)
++			s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
+ 			return nil
+ 		}
+ 
+@@ -1743,7 +1743,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			} else if ft.Size() == 16 && tt.Size() == 8 {
+ 				op = ssa.OpCvt64Fto32F
+ 			} else {
+-				s.Fatalf("weird complex conversion %s -> %s", ft, tt)
++				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+ 			}
+ 			ftp := floatForComplex(ft)
+ 			ttp := floatForComplex(tt)
+@@ -1775,7 +1775,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			case ONE:
+ 				return s.newValue1(ssa.OpNot, Types[TBOOL], c)
+ 			default:
+-				s.Fatalf("ordered complex compare %s", n.Op)
++				s.Fatalf("ordered complex compare %v", n.Op)
+ 			}
+ 		}
+ 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
+@@ -2129,7 +2129,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.append(n, false)
+ 
+ 	default:
+-		s.Unimplementedf("unhandled expr %s", n.Op)
++		s.Unimplementedf("unhandled expr %v", n.Op)
+ 		return nil
+ 	}
+ }
+@@ -2374,7 +2374,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
+ 	dowidth(t)
+ 	if s.canSSA(left) {
+ 		if deref {
+-			s.Fatalf("can SSA LHS %s but not RHS %s", left, right)
++			s.Fatalf("can SSA LHS %v but not RHS %s", left, right)
+ 		}
+ 		if left.Op == ODOT {
+ 			// We're assigning to a field of an ssa-able value.
+@@ -2469,7 +2469,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 		case 8:
+ 			return s.constInt64(t, 0)
+ 		default:
+-			s.Fatalf("bad sized integer type %s", t)
++			s.Fatalf("bad sized integer type %v", t)
+ 		}
+ 	case t.IsFloat():
+ 		switch t.Size() {
+@@ -2478,7 +2478,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 		case 8:
+ 			return s.constFloat64(t, 0)
+ 		default:
+-			s.Fatalf("bad sized float type %s", t)
++			s.Fatalf("bad sized float type %v", t)
+ 		}
+ 	case t.IsComplex():
+ 		switch t.Size() {
+@@ -2489,7 +2489,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 			z := s.constFloat64(Types[TFLOAT64], 0)
+ 			return s.entryNewValue2(ssa.OpComplexMake, t, z, z)
+ 		default:
+-			s.Fatalf("bad sized complex type %s", t)
++			s.Fatalf("bad sized complex type %v", t)
+ 		}
+ 
+ 	case t.IsString():
+@@ -2909,7 +2909,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	case sym != nil:
+ 		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym, s.mem())
+ 	default:
+-		Fatalf("bad call type %s %v", n.Op, n)
++		Fatalf("bad call type %v %v", n.Op, n)
+ 	}
+ 	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
+ 
+@@ -3470,7 +3470,7 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
+ 			s.storeTypeScalars(ft.(*Type), addr, val, 0)
+ 		}
+ 	default:
+-		s.Fatalf("bad write barrier type %s", t)
++		s.Fatalf("bad write barrier type %v", t)
+ 	}
+ }
+ 
+@@ -3502,7 +3502,7 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ 			s.storeTypePtrs(ft.(*Type), addr, val)
+ 		}
+ 	default:
+-		s.Fatalf("bad write barrier type %s", t)
++		s.Fatalf("bad write barrier type %v", t)
+ 	}
+ }
+ 
+@@ -3533,7 +3533,7 @@ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 			s.storeTypePtrsWB(ft.(*Type), addr, val)
+ 		}
+ 	default:
+-		s.Fatalf("bad write barrier type %s", t)
++		s.Fatalf("bad write barrier type %v", t)
+ 	}
+ }
+ 
+@@ -3917,7 +3917,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	target := s.expr(typename(n.Type)) // target type
+ 	if !isdirectiface(n.Type) {
+ 		// walk rewrites ODOTTYPE/OAS2DOTTYPE into runtime calls except for this case.
+-		Fatalf("dottype needs a direct iface type %s", n.Type)
++		Fatalf("dottype needs a direct iface type %v", n.Type)
+ 	}
+ 
+ 	if Debug_typeassert > 0 {
+@@ -4092,10 +4092,10 @@ func (s *state) resolveFwdRef(v *ssa.Value, dm *sparseDefState) {
+ 		addr := s.decladdrs[name]
+ 		if addr == nil {
+ 			// TODO: closure args reach here.
+-			s.Unimplementedf("unhandled closure arg %s at entry to function %s", name, b.Func.Name)
++			s.Unimplementedf("unhandled closure arg %v at entry to function %s", name, b.Func.Name)
+ 		}
+ 		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
+-			s.Fatalf("variable live at start of function %s is not an argument %s", b.Func.Name, name)
++			s.Fatalf("variable live at start of function %s is not an argument %v", b.Func.Name, name)
+ 		}
+ 		v.Op = ssa.OpLoad
+ 		v.AddArgs(addr, s.startmem)
+@@ -4179,7 +4179,7 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
+ 		return
+ 	}
+ 	if n.Class == PAUTO && n.Xoffset != 0 {
+-		s.Fatalf("AUTO var with offset %s %d", n, n.Xoffset)
++		s.Fatalf("AUTO var with offset %v %d", n, n.Xoffset)
+ 	}
+ 	loc := ssa.LocalSlot{N: n, Type: n.Type, Off: 0}
+ 	values, ok := s.f.NamedValues[loc]
+@@ -4598,7 +4598,7 @@ func KeepAlive(v *ssa.Value) {
+ 		v.Fatalf("KeepAlive with non-spilled value %s %s", v, v.Args[0])
+ 	}
+ 	if off != 0 {
+-		v.Fatalf("KeepAlive with non-zero offset spill location %s:%d", n, off)
++		v.Fatalf("KeepAlive with non-zero offset spill location %v:%d", n, off)
+ 	}
+ 	Gvarlive(n)
+ }
+@@ -4632,7 +4632,7 @@ func fieldIdx(n *Node) int {
+ 		}
+ 		return i
+ 	}
+-	panic(fmt.Sprintf("can't find field in expr %s\n", n))
++	panic(fmt.Sprintf("can't find field in expr %v\n", n))
+ 
+ 	// TODO: keep the result of this function somewhere in the ODOT Node
+ 	// so we don't have to recompute it each time we need it.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7e30efcf75..409ea3da0b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -810,11 +810,13 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
+ 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
+ 			} else if have != nil && have.Sym == missing.Sym {
+-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
++					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 			} else if ptr != 0 {
+ 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
+ 			} else if have != nil {
+-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
++					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 			} else {
+ 				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
+ 			}
+@@ -1013,7 +1015,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ 	var why string
+ 	op := assignop(n.Type, t, &why)
+ 	if op == 0 {
+-		Yyerror("cannot use %2v as type %v in %s%s", n, t, context(), why)
++		Yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
+ 		op = OCONV
+ 	}
+ 
+@@ -1062,7 +1064,7 @@ func (n *Node) SliceBounds() (low, high, max *Node) {
+ 		}
+ 		return n.Right.Left, n.Right.Right.Left, n.Right.Right.Right
+ 	}
+-	Fatalf("SliceBounds op %s: %v", n.Op, n)
++	Fatalf("SliceBounds op %v: %v", n.Op, n)
+ 	return nil, nil, nil
+ }
+ 
+@@ -1072,7 +1074,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
+ 	switch n.Op {
+ 	case OSLICE, OSLICEARR, OSLICESTR:
+ 		if max != nil {
+-			Fatalf("SetSliceBounds %s given three bounds", n.Op)
++			Fatalf("SetSliceBounds %v given three bounds", n.Op)
+ 		}
+ 		if n.Right == nil {
+ 			n.Right = Nod(OKEY, low, high)
+@@ -1090,7 +1092,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
+ 		n.Right.Right.Right = max
+ 		return
+ 	}
+-	Fatalf("SetSliceBounds op %s: %v", n.Op, n)
++	Fatalf("SetSliceBounds op %v: %v", n.Op, n)
+ }
+ 
+ // IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index f8c6dc2ac0..a5dda73225 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -71,7 +71,7 @@ func typecheckswitch(n *Node) {
+ 		n.Left.Right = typecheck(n.Left.Right, Erv)
+ 		t = n.Left.Right.Type
+ 		if t != nil && !t.IsInterface() {
+-			Yyerror("cannot type switch on non-interface value %2v", n.Left.Right)
++			Yyerror("cannot type switch on non-interface value %L", n.Left.Right)
+ 		}
+ 	} else {
+ 		// expression switch
+@@ -86,14 +86,14 @@ func typecheckswitch(n *Node) {
+ 		if t != nil {
+ 			switch {
+ 			case !okforeq[t.Etype]:
+-				Yyerror("cannot switch on %2v", n.Left)
++				Yyerror("cannot switch on %L", n.Left)
+ 			case t.IsSlice():
+ 				nilonly = "slice"
+ 			case t.IsArray() && !t.IsComparable():
+-				Yyerror("cannot switch on %2v", n.Left)
++				Yyerror("cannot switch on %L", n.Left)
+ 			case t.IsStruct():
+ 				if f := t.IncomparableField(); f != nil {
+-					Yyerror("cannot switch on %2v (struct containing %v cannot be compared)", n.Left, f.Type)
++					Yyerror("cannot switch on %L (struct containing %v cannot be compared)", n.Left, f.Type)
+ 				}
+ 			case t.Etype == TFUNC:
+ 				nilonly = "func"
+@@ -143,7 +143,7 @@ func typecheckswitch(n *Node) {
+ 					case nilonly != "" && !isnil(n1):
+ 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+ 					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
+-						Yyerror("invalid case %2v in switch (incomparable type)", n1)
++						Yyerror("invalid case %L in switch (incomparable type)", n1)
+ 					}
+ 
+ 				// type switch
+@@ -159,15 +159,17 @@ func typecheckswitch(n *Node) {
+ 							niltype = ncase
+ 						}
+ 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
+-						Yyerror("%2v is not a type", n1)
++						Yyerror("%L is not a type", n1)
+ 						// reset to original type
+ 						n1 = n.Left.Right
+ 						ls[i1] = n1
+ 					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
+ 						if have != nil && !missing.Broke && !have.Broke {
+-							Yyerror("impossible type switch case: %2v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%1v\n\twant %v%1v", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++							Yyerror("impossible type switch case: %L cannot have dynamic type %v"+
++								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 						} else if !missing.Broke {
+-							Yyerror("impossible type switch case: %2v cannot have dynamic type %v"+" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
++							Yyerror("impossible type switch case: %L cannot have dynamic type %v"+
++								" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index a90864fdab..06f48fb1e6 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -1029,7 +1029,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		}
+ 
+ 	default:
+-		e := fmt.Sprintf("Do not know how to compare %s with %s", t, x)
++		e := fmt.Sprintf("Do not know how to compare %v with %v", t, x)
+ 		panic(e)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8a4431205a..49685cf13c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -490,7 +490,7 @@ OpSwitch:
+ 
+ 		if !t.IsPtr() {
+ 			if top&(Erv|Etop) != 0 {
+-				Yyerror("invalid indirect of %2v", n.Left)
++				Yyerror("invalid indirect of %L", n.Left)
+ 				n.Type = nil
+ 				return n
+ 			}
+@@ -861,7 +861,7 @@ OpSwitch:
+ 			}
+ 
+ 			if n.Type.Etype != TFUNC || !n.IsMethod() {
+-				Yyerror("type %v has no method %1v", n.Left.Type, n.Right.Sym)
++				Yyerror("type %v has no method %S", n.Left.Type, n.Right.Sym)
+ 				n.Type = nil
+ 				return n
+ 			}
+@@ -964,11 +964,13 @@ OpSwitch:
+ 			var ptr int
+ 			if !implements(n.Type, t, &missing, &have, &ptr) {
+ 				if have != nil && have.Sym == missing.Sym {
+-					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
++						"\t\thave %v%0S\n\t\twant %v%0S", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 				} else if ptr != 0 {
+ 					Yyerror("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type, t, missing.Sym)
+ 				} else if have != nil {
+-					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
++						"\t\thave %v%0S\n\t\twant %v%0S", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 				} else {
+ 					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type, t, missing.Sym)
+ 				}
+@@ -1380,7 +1382,7 @@ OpSwitch:
+ 		break OpSwitch
+ 
+ 	badcall1:
+-		Yyerror("invalid argument %2v for %v", n.Left, n.Op)
++		Yyerror("invalid argument %L for %v", n.Left, n.Op)
+ 		n.Type = nil
+ 		return n
+ 
+@@ -1519,7 +1521,7 @@ OpSwitch:
+ 		l := args.First()
+ 		r := args.Second()
+ 		if l.Type != nil && !l.Type.IsMap() {
+-			Yyerror("first argument to delete must be map; have %2v", l.Type)
++			Yyerror("first argument to delete must be map; have %L", l.Type)
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -1563,7 +1565,7 @@ OpSwitch:
+ 				return n
+ 			}
+ 
+-			Yyerror("first argument to append must be slice; have %2v", t)
++			Yyerror("first argument to append must be slice; have %L", t)
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -1646,25 +1648,25 @@ OpSwitch:
+ 			if Eqtype(n.Left.Type.Elem(), bytetype) {
+ 				break OpSwitch
+ 			}
+-			Yyerror("arguments to copy have different element types: %2v and string", n.Left.Type)
++			Yyerror("arguments to copy have different element types: %L and string", n.Left.Type)
+ 			n.Type = nil
+ 			return n
+ 		}
+ 
+ 		if !n.Left.Type.IsSlice() || !n.Right.Type.IsSlice() {
+ 			if !n.Left.Type.IsSlice() && !n.Right.Type.IsSlice() {
+-				Yyerror("arguments to copy must be slices; have %2v, %2v", n.Left.Type, n.Right.Type)
++				Yyerror("arguments to copy must be slices; have %L, %L", n.Left.Type, n.Right.Type)
+ 			} else if !n.Left.Type.IsSlice() {
+-				Yyerror("first argument to copy should be slice; have %2v", n.Left.Type)
++				Yyerror("first argument to copy should be slice; have %L", n.Left.Type)
+ 			} else {
+-				Yyerror("second argument to copy should be slice or string; have %2v", n.Right.Type)
++				Yyerror("second argument to copy should be slice or string; have %L", n.Right.Type)
+ 			}
+ 			n.Type = nil
+ 			return n
+ 		}
+ 
+ 		if !Eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
+-			Yyerror("arguments to copy have different element types: %2v and %2v", n.Left.Type, n.Right.Type)
++			Yyerror("arguments to copy have different element types: %L and %L", n.Left.Type, n.Right.Type)
+ 			n.Type = nil
+ 			return n
+ 		}
+@@ -1685,7 +1687,7 @@ OpSwitch:
+ 		n.Op = convertop(t, n.Type, &why)
+ 		if n.Op == 0 {
+ 			if n.Diag == 0 && !n.Type.Broke {
+-				Yyerror("cannot convert %2v to type %v%s", n.Left, n.Type, why)
++				Yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
+ 				n.Diag = 1
+ 			}
+ 
+@@ -2010,7 +2012,7 @@ OpSwitch:
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+ 			if t != nil && !t.IsBoolean() {
+-				Yyerror("non-bool %2v used as for condition", n.Left)
++				Yyerror("non-bool %L used as for condition", n.Left)
+ 			}
+ 		}
+ 		n.Right = typecheck(n.Right, Etop)
+@@ -2025,7 +2027,7 @@ OpSwitch:
+ 		if n.Left != nil {
+ 			t := n.Left.Type
+ 			if t != nil && !t.IsBoolean() {
+-				Yyerror("non-bool %2v used as if condition", n.Left)
++				Yyerror("non-bool %L used as if condition", n.Left)
+ 			}
+ 		}
+ 		typecheckslice(n.Nbody.Slice(), Etop)
+@@ -2376,7 +2378,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 
+ 	// disallow T.m if m requires *T receiver
+ 	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+-		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%1v)", n, t, f2.Sym)
++		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, f2.Sym)
+ 		return false
+ 	}
+ 
+@@ -2470,7 +2472,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 				n.Left.Implicit = true
+ 				n.Left = typecheck(n.Left, Etype|Erv)
+ 			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+-				Yyerror("calling method %v with receiver %2v requires explicit dereference", n.Sym, n.Left)
++				Yyerror("calling method %v with receiver %L requires explicit dereference", n.Sym, n.Left)
+ 				for tt.Etype == Tptr {
+ 					// Stop one level early for method with pointer receiver.
+ 					if rcvr.Etype == Tptr && tt.Elem().Etype != Tptr {
+@@ -3254,7 +3256,7 @@ func checkassignto(src *Type, dst *Node) {
+ 	var why string
+ 
+ 	if assignop(src, dst.Type, &why) == 0 {
+-		Yyerror("cannot assign %v to %2v in multiple assignment%s", src, dst, why)
++		Yyerror("cannot assign %v to %L in multiple assignment%s", src, dst, why)
+ 		return
+ 	}
+ }
+@@ -3673,7 +3675,7 @@ func typecheckdef(n *Node) *Node {
+ 			}
+ 
+ 			if !e.Type.IsUntyped() && !Eqtype(t, e.Type) {
+-				Yyerror("cannot use %2v as type %v in const initializer", e, t)
++				Yyerror("cannot use %L as type %v in const initializer", e, t)
+ 				goto ret
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9a6b426525..cb60115662 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -515,7 +515,7 @@ opswitch:
+ 	switch n.Op {
+ 	default:
+ 		Dump("walk", n)
+-		Fatalf("walkexpr: switch 1 unknown op %+1v", n)
++		Fatalf("walkexpr: switch 1 unknown op %+S", n)
+ 
+ 	case OTYPE,
+ 		ONONAME,
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index cc18074b9b..599ca06d36 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index 7bc00e8d86..fd0efc36ba 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -145,7 +145,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	case gc.TFLOAT32:
+ 		switch op {
+ 		default:
+-			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
++			gc.Fatalf("ginscmp: no entry for op=%v type=%v", op, t)
+ 
+ 		case gc.OEQ,
+ 			gc.ONE:
+@@ -162,7 +162,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	case gc.TFLOAT64:
+ 		switch op {
+ 		default:
+-			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
++			gc.Fatalf("ginscmp: no entry for op=%v type=%v", op, t)
+ 
+ 		case gc.OEQ,
+ 			gc.ONE:
+@@ -215,7 +215,7 @@ func bignodes() {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %2v -> %2v\n", f, t)
++		fmt.Printf("gmove %L -> %L\n", f, t)
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -293,7 +293,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
++		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
+ 
+ 		/*
+ 		 * integer copy and truncate
+@@ -718,7 +718,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatalf("optoas: no entry for op=%s type=%v", op, t)
++		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
+ 
+ 	case OEQ_ | gc.TBOOL,
+ 		OEQ_ | gc.TINT8,
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 8f9ceec408..eeda4a2f2c 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 3bcd4d4d46..86dc241c36 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -170,7 +170,7 @@ func bignodes() {
+  */
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %2v -> %2v\n", f, t)
++		fmt.Printf("gmove %L -> %L\n", f, t)
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -256,7 +256,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
++		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
+ 
+ 		/*
+ 		 * integer copy and truncate
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 6e1dc9b36f..505d676c77 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -42,7 +42,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index 8fbc845735..66b6588480 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -182,7 +182,7 @@ func gmvc(f, t *gc.Node) bool {
+ // hard part is conversions.
+ func gmove(f *gc.Node, t *gc.Node) {
+ 	if gc.Debug['M'] != 0 {
+-		fmt.Printf("gmove %2v -> %2v\n", f, t)
++		fmt.Printf("gmove %L -> %L\n", f, t)
+ 	}
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+@@ -253,7 +253,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 	// otherwise handle and return.
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
++		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
+ 
+ 	// integer copy and truncate
+ 	case gc.TINT8<<16 | gc.TINT8,
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 160ab82c06..71dbd74078 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -34,7 +34,7 @@ func defframe(ptxt *obj.Prog) {
+ 			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %2v has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
+ 			// merge with range we already have
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index a904070374..9ad63052ca 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -1594,7 +1594,7 @@ hardmem:
+ 
+ 	// should not happen
+ fatal:
+-	gc.Fatalf("gmove %2v -> %2v", f, t)
++	gc.Fatalf("gmove %L -> %L", f, t)
+ 
+ 	return
+ }

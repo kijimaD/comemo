@@ -12,7 +12,151 @@ Date:   Thu Oct 6 13:49:57 2016 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/S390X.rules |  8 +++
  src/cmd/compile/internal/ssa/rewriteS390X.go | 78 ++++++++++++++++++++++++++++
  2 files changed, 86 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 3f1f5f86ef..c09f5b38ef 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -568,6 +568,14 @@
+ (MOVWZreg x:(MOVHZreg _)) -> x
+ (MOVWZreg x:(MOVWZreg _)) -> x
+ 
++// fold extensions into constants
++(MOVBreg (MOVDconst [c])) -> (MOVDconst [int64(int8(c))])
++(MOVBZreg (MOVDconst [c])) -> (MOVDconst [int64(uint8(c))])
++(MOVHreg (MOVDconst [c])) -> (MOVDconst [int64(int16(c))])
++(MOVHZreg (MOVDconst [c])) -> (MOVDconst [int64(uint16(c))])
++(MOVWreg (MOVDconst [c])) -> (MOVDconst [int64(int32(c))])
++(MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
++
+ // sign extended loads
+ // Note: The combined instruction must end up in the same block
+ // as the original load. If not, we end up making a value with
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 703939a398..2c2cef1f17 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -7364,6 +7364,19 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBZreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [int64(uint8(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64(uint8(c))
++		return true
++	}
+ 	// match: (MOVBZreg x:(MOVBZload [off] {sym} ptr mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBZload <v.Type> [off] {sym} ptr mem)
+@@ -7523,6 +7536,19 @@ func rewriteValueS390X_OpS390XMOVBreg(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [int64(int8(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64(int8(c))
++		return true
++	}
+ 	// match: (MOVBreg x:(MOVBZload [off] {sym} ptr mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+@@ -10424,6 +10450,19 @@ func rewriteValueS390X_OpS390XMOVHZreg(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHZreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [int64(uint16(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64(uint16(c))
++		return true
++	}
+ 	// match: (MOVHZreg x:(MOVHZload [off] {sym} ptr mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVHZload <v.Type> [off] {sym} ptr mem)
+@@ -10635,6 +10674,19 @@ func rewriteValueS390X_OpS390XMOVHreg(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [int64(int16(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64(int16(c))
++		return true
++	}
+ 	// match: (MOVHreg x:(MOVHZload [off] {sym} ptr mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVHload <v.Type> [off] {sym} ptr mem)
+@@ -11865,6 +11917,19 @@ func rewriteValueS390X_OpS390XMOVWZreg(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWZreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [int64(uint32(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64(uint32(c))
++		return true
++	}
+ 	// match: (MOVWZreg x:(MOVWZload [off] {sym} ptr mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWZload <v.Type> [off] {sym} ptr mem)
+@@ -12128,6 +12193,19 @@ func rewriteValueS390X_OpS390XMOVWreg(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [int64(int32(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = int64(int32(c))
++		return true
++	}
+ 	// match: (MOVWreg x:(MOVWZload [off] {sym} ptr mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)

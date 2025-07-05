@@ -19,7 +19,7 @@ Date:   Fri Apr 10 17:50:06 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8767
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/api/goapi.go                          | 21 ++++-----
  src/cmd/api/goapi_test.go                     |  6 ++-
  src/go/importer/importer.go                   | 46 +++++++++++++++++++
@@ -47,3 +47,908 @@ Date:   Fri Apr 10 17:50:06 2015 -0700
  src/go/types/typexpr.go                       |  3 +-
  src/go/types/universe.go                      |  3 +-
  26 files changed, 169 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7b2c643e11..01b6defb5f 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -152,7 +152,8 @@ func main() {
+ 					// w.Import(name) will return nil
+ 					continue
+ 				}
+-				w.export(w.Import(name))
++				pkg, _ := w.Import(name)
++				w.export(pkg)
+ 			}
+ 		}
+ 
+@@ -417,13 +418,13 @@ func tagKey(dir string, context *build.Context, tags []string) string {
+ // for a package that is in the process of being imported.
+ var importing types.Package
+ 
+-func (w *Walker) Import(name string) (pkg *types.Package) {
+-	pkg = w.imported[name]
++func (w *Walker) Import(name string) (*types.Package, error) {
++	pkg := w.imported[name]
+ 	if pkg != nil {
+ 		if pkg == &importing {
+ 			log.Fatalf("cycle importing package %q", name)
+ 		}
+-		return pkg
++		return pkg, nil
+ 	}
+ 	w.imported[name] = &importing
+ 
+@@ -447,7 +448,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
+ 			key = tagKey(dir, context, tags)
+ 			if pkg := pkgCache[key]; pkg != nil {
+ 				w.imported[name] = pkg
+-				return pkg
++				return pkg, nil
+ 			}
+ 		}
+ 	}
+@@ -455,7 +456,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
+ 	info, err := context.ImportDir(dir, 0)
+ 	if err != nil {
+ 		if _, nogo := err.(*build.NoGoError); nogo {
+-			return
++			return nil, nil
+ 		}
+ 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
+ 	}
+@@ -484,11 +485,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
+ 	conf := types.Config{
+ 		IgnoreFuncBodies: true,
+ 		FakeImportC:      true,
+-		Import: func(imports map[string]*types.Package, name string) (*types.Package, error) {
+-			pkg := w.Import(name)
+-			imports[name] = pkg
+-			return pkg, nil
+-		},
++		Importer:         w,
+ 	}
+ 	pkg, err = conf.Check(name, fset, files, nil)
+ 	if err != nil {
+@@ -504,7 +501,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
+ 	}
+ 
+ 	w.imported[name] = pkg
+-	return
++	return pkg, nil
+ }
+ 
+ // pushScope enters a new scope (walking a package, type, node, etc)
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 00c45c3bcd..6184e14477 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -39,7 +39,8 @@ func TestGolden(t *testing.T) {
+ 		// TODO(gri) remove extra pkg directory eventually
+ 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
+ 		w := NewWalker(nil, "testdata/src/pkg")
+-		w.export(w.Import(fi.Name()))
++		pkg, _ := w.Import(fi.Name())
++		w.export(pkg)
+ 
+ 		if *updateGolden {
+ 			os.Remove(goldenFile)
+@@ -178,7 +179,8 @@ func BenchmarkAll(b *testing.B) {
+ 			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
+ 			for _, name := range pkgNames {
+ 				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
+-					w.export(w.Import(name))
++					pkg, _ := w.Import(name)
++					w.export(pkg)
+ 				}
+ 			}
+ 			w.Features()
+diff --git a/src/go/importer/importer.go b/src/go/importer/importer.go
+new file mode 100644
+index 0000000000..1ac44c7302
+--- /dev/null
++++ b/src/go/importer/importer.go
+@@ -0,0 +1,46 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package importer provides access to export data importers.
++package importer
++
++import (
++	"go/internal/gcimporter"
++	"go/types"
++	"io"
++	"runtime"
++)
++
++// A Lookup function returns a reader to access package data for
++// a given import path, or an error if no matching package is found.
++type Lookup func(path string) (io.ReadCloser, error)
++
++// For returns an Importer for the given compiler and lookup interface,
++// or nil. Supported compilers are "gc", and "gccgo". If lookup is nil,
++// the default package lookup mechanism for the given compiler is used.
++func For(compiler string, lookup Lookup) types.Importer {
++	switch compiler {
++	case "gc":
++		if lookup == nil {
++			return make(gcimports)
++		}
++		panic("gc importer for custom import path lookup not yet implemented")
++	case "gccgo":
++		// TODO(gri) We have the code. Plug it in.
++		panic("gccgo importer unimplemented")
++	}
++	// compiler not supported
++	return nil
++}
++
++// Default returns an Importer for the compiler that built the running binary.
++func Default() types.Importer {
++	return For(runtime.Compiler, nil)
++}
++
++type gcimports map[string]*types.Package
++
++func (m gcimports) Import(path string) (*types.Package, error) {
++	return gcimporter.Import(m, path)
++}
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index ac5180a7a1..b7e2babb60 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package gcimporter implements Import for gc-generated object files.
+-// Importing this package installs Import as go/types.DefaultImport.
+ package gcimporter // import "go/internal/gcimporter"
+ 
+ import (
+@@ -26,10 +25,6 @@ import (
+ // debugging/development support
+ const debug = false
+ 
+-func init() {
+-	types.DefaultImport = Import
+-}
+-
+ var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
+ 
+ // FindPkg returns the filename and unique package id for an import
+@@ -116,8 +111,9 @@ func ImportData(imports map[string]*types.Package, filename, id string, data io.
+ // The imports map must contains all packages already imported.
+ //
+ func Import(imports map[string]*types.Package, path string) (pkg *types.Package, err error) {
++	// package "unsafe" is handled by the type checker
+ 	if path == "unsafe" {
+-		return types.Unsafe, nil
++		panic(`gcimporter.Import called for package "unsafe"`)
+ 	}
+ 
+ 	srcDir := "."
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 318e32b98a..edd33bf844 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -129,7 +129,6 @@ var importedObjectTests = []struct {
+ 	name string
+ 	want string
+ }{
+-	{"unsafe.Pointer", "type Pointer unsafe.Pointer"},
+ 	{"math.Pi", "const Pi untyped float"},
+ 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
+ 	{"io.ReadWriter", "type ReadWriter interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index a2c304c6f6..85160c4838 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -3,8 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package types declares the data types and implements
+-// the algorithms for type-checking of Go packages.
+-// Use Check and Config.Check to invoke the type-checker.
++// the algorithms for type-checking of Go packages. Use
++// Config.Check to invoke the type checker for a package.
++// Alternatively, create a new type checked with NewChecker
++// and invoke it incrementally by calling Checker.Files.
+ //
+ // Type-checking consists of several interdependent phases:
+ //
+@@ -26,26 +28,10 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+-// Check type-checks a package and returns the resulting complete package
+-// object, or a nil package and the first error. The package is specified
+-// by a list of *ast.Files and corresponding file set, and the import path
+-// the package is identified with. The clean path must not be empty or dot (".").
+-//
+-// For more control over type-checking and results, use Config.Check.
+-func Check(path string, fset *token.FileSet, files []*ast.File) (*Package, error) {
+-	var conf Config
+-	pkg, err := conf.Check(path, fset, files, nil)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return pkg, nil
+-}
+-
+ // An Error describes a type-checking error; it implements the error interface.
+ // A "soft" error is an error that still permits a valid interpretation of a
+ // package (such as "unused variable"); "hard" errors may lead to unpredictable
+@@ -64,17 +50,14 @@ func (err Error) Error() string {
+ }
+ 
+ // An importer resolves import paths to Packages.
+-// The imports map records packages already known,
+-// indexed by package path. The type-checker
+-// will invoke Import with Config.Packages.
+-// An importer must determine the canonical package path and
+-// check imports to see if it is already present in the map.
+-// If so, the Importer can return the map entry.  Otherwise,
+-// the importer must load the package data for the given path
+-// into a new *Package, record it in imports map, and return
+-// the package.
+-// TODO(gri) Need to be clearer about requirements of completeness.
+-type Importer func(map[string]*Package, string) (*Package, error)
++// See go/importer for existing implementations.
++type Importer interface {
++	// Import returns the imported package for the given import
++	// path, or an error if the package couldn't be imported.
++	// Import is responsible for returning the same package for
++	// matching import paths.
++	Import(path string) (*Package, error)
++}
+ 
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+@@ -92,11 +75,6 @@ type Config struct {
+ 	//          Do not use casually!
+ 	FakeImportC bool
+ 
+-	// Packages is used to look up (and thus canonicalize) packages by
+-	// package path. If Packages is nil, it is set to a new empty map.
+-	// During type-checking, imported packages are added to the map.
+-	Packages map[string]*Package
+-
+ 	// If Error != nil, it is called with each error found
+ 	// during type checking; err has dynamic type Error.
+ 	// Secondary errors (for instance, to enumerate all types
+@@ -106,9 +84,10 @@ type Config struct {
+ 	// error found.
+ 	Error func(err error)
+ 
+-	// If Import != nil, it is called for each imported package.
+-	// Otherwise, DefaultImport is called.
+-	Import Importer
++	// Importer is called for each import declaration except when
++	// importing package "unsafe". An error is reported if an
++	// importer is needed but none was installed.
++	Importer Importer
+ 
+ 	// If Sizes != nil, it provides the sizing functions for package unsafe.
+ 	// Otherwise &StdSizes{WordSize: 8, MaxAlign: 8} is used instead.
+@@ -119,14 +98,6 @@ type Config struct {
+ 	DisableUnusedImportCheck bool
+ }
+ 
+-// DefaultImport is the default importer invoked if Config.Import == nil.
+-// The declaration:
+-//
+-//	import _ "go/internal/gcimporter"
+-//
+-// in a client of go/types will initialize DefaultImport to gcimporter.Import.
+-var DefaultImport Importer
+-
+ // Info holds result type information for a type-checked package.
+ // Only the information for which a map is provided is collected.
+ // If the package has type errors, the collected information may
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 1be7c6af32..48fe3c2da0 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -8,13 +8,13 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+@@ -38,7 +38,7 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
+ 		return nil, err
+ 	}
+ 
+-	var conf Config
++	conf := Config{Importer: importer.Default()}
+ 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+ }
+ 
+@@ -676,16 +676,21 @@ func TestFiles(t *testing.T) {
+ 	}
+ }
+ 
++type testImporter map[string]*Package
++
++func (m testImporter) Import(path string) (*Package, error) {
++	if pkg := m[path]; pkg != nil {
++		return pkg, nil
++	}
++	return nil, fmt.Errorf("package %q not found", path)
++}
++
+ func TestSelection(t *testing.T) {
+ 	selections := make(map[*ast.SelectorExpr]*Selection)
+ 
+ 	fset := token.NewFileSet()
+-	conf := Config{
+-		Packages: make(map[string]*Package),
+-		Import: func(imports map[string]*Package, path string) (*Package, error) {
+-			return imports[path], nil
+-		},
+-	}
++	imports := make(testImporter)
++	conf := Config{Importer: imports}
+ 	makePkg := func(path, src string) {
+ 		f, err := parser.ParseFile(fset, path+".go", src, 0)
+ 		if err != nil {
+@@ -695,7 +700,7 @@ func TestSelection(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		conf.Packages[path] = pkg
++		imports[path] = pkg
+ 	}
+ 
+ 	const libSrc = `
+@@ -845,12 +850,10 @@ func main() {
+ 
+ func TestIssue8518(t *testing.T) {
+ 	fset := token.NewFileSet()
++	imports := make(testImporter)
+ 	conf := Config{
+-		Packages: make(map[string]*Package),
+ 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
+-		Import: func(imports map[string]*Package, path string) (*Package, error) {
+-			return imports[path], nil
+-		},
++		Importer: imports,
+ 	}
+ 	makePkg := func(path, src string) {
+ 		f, err := parser.ParseFile(fset, path, src, 0)
+@@ -858,7 +861,7 @@ func TestIssue8518(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
+-		conf.Packages[path] = pkg
++		imports[path] = pkg
+ 	}
+ 
+ 	const libSrc = `
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index ac8647eb4a..55dcb7a6e4 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -8,9 +8,8 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+ // builtin type-checks a call to the built-in specified by id and
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index 2e939213a4..9835a48267 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -7,10 +7,10 @@ package types_test
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+@@ -133,7 +133,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+ 		return
+ 	}
+ 
+-	var conf Config
++	conf := Config{Importer: importer.Default()}
+ 	uses := make(map[*ast.Ident]Object)
+ 	types := make(map[ast.Expr]TypeAndValue)
+ 	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Uses: uses, Types: types})
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 04a6e2ced6..7a33c3cbcb 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -8,9 +8,8 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+ // debugging/development support
+@@ -151,11 +150,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		conf = new(Config)
+ 	}
+ 
+-	// make sure we have a package canonicalization map
+-	if conf.Packages == nil {
+-		conf.Packages = make(map[string]*Package)
+-	}
+-
+ 	// make sure we have an info struct
+ 	if info == nil {
+ 		info = new(Info)
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 3c5f36b8fb..25843927d0 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -28,6 +28,7 @@ package types_test
+ import (
+ 	"flag"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
+@@ -36,7 +37,6 @@ import (
+ 	"strings"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+@@ -244,6 +244,7 @@ func checkFiles(t *testing.T, testfiles []string) {
+ 
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
++	conf.Importer = importer.Default()
+ 	conf.Error = func(err error) {
+ 		if *listErrors {
+ 			t.Error(err)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 132de3afd4..968ec06ecb 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -6,9 +6,8 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+ func (check *Checker) reportAltDecl(obj Object) {
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 82c011c17e..bc27a8bb23 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -8,6 +8,7 @@ package types_test
+ 
+ import (
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"strings"
+@@ -106,7 +107,8 @@ func f(a int, s string) float64 {
+ 		t.Fatal(err)
+ 	}
+ 
+-	pkg, err := Check("p", fset, []*ast.File{file})
++	conf := Config{Importer: importer.Default()}
++	pkg, err := conf.Check("p", fset, []*ast.File{file}, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 8acdd78b5a..2b60a1b305 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -9,10 +9,9 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/exact"
+ 	"go/token"
+ 	"math"
+-
+-	"go/exact"
+ )
+ 
+ /*
+diff --git a/src/go/types/hilbert_test.go b/src/go/types/hilbert_test.go
+index 99dcedd373..cfd51b1d64 100644
+--- a/src/go/types/hilbert_test.go
++++ b/src/go/types/hilbert_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
+@@ -39,7 +40,8 @@ func TestHilbert(t *testing.T) {
+ 
+ 	// type-check file
+ 	DefPredeclaredTestFuncs() // define assert built-in
+-	_, err = Check(f.Name.Name, fset, []*ast.File{f})
++	conf := Config{Importer: importer.Default()}
++	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index d8d27b8a5b..672c78dfc2 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -9,12 +9,12 @@ package types_test
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+@@ -25,7 +25,8 @@ func TestIssue5770(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	_, err = Check(f.Name.Name, fset, []*ast.File{f}) // do not crash
++	conf := Config{Importer: importer.Default()}
++	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+ 	want := "undeclared name: T"
+ 	if err == nil || !strings.Contains(err.Error(), want) {
+ 		t.Errorf("got: %v; want: %s", err, want)
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 38ddaa4f90..79f30157bf 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -8,9 +8,8 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+ // TODO(gri) Document factory, accessor methods, and fields. General clean-up.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 1fb8017de3..6df72befa7 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -9,9 +9,8 @@ package types
+ import (
+ 	"bytes"
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+ // An operandMode specifies the (addressing) mode of an operand.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 1780c584ab..fcf8c851b2 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -5,16 +5,14 @@
+ package types
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"go/ast"
++	"go/exact"
+ 	"go/token"
+ 	pathLib "path"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+-
+-	"go/exact"
+ )
+ 
+ // A declInfo describes a package-level const, type, var, or func declaration.
+@@ -128,18 +126,6 @@ func (check *Checker) filename(fileNo int) string {
+ func (check *Checker) collectObjects() {
+ 	pkg := check.pkg
+ 
+-	importer := check.conf.Import
+-	if importer == nil {
+-		if DefaultImport != nil {
+-			importer = DefaultImport
+-		} else {
+-			// Panic if we encounter an import.
+-			importer = func(map[string]*Package, string) (*Package, error) {
+-				panic(`no Config.Import or DefaultImport (missing import _ "go/internal/gcimporter"?)`)
+-			}
+-		}
+-	}
+-
+ 	// pkgImports is the set of packages already imported by any package file seen
+ 	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
+ 	// it (pkg.imports may not be empty if we are checking test files incrementally).
+@@ -177,11 +163,17 @@ func (check *Checker) collectObjects() {
+ 							// TODO(gri) shouldn't create a new one each time
+ 							imp = NewPackage("C", "C")
+ 							imp.fake = true
++						} else if path == "unsafe" {
++							// package "unsafe" is known to the language
++							imp = Unsafe
+ 						} else {
+-							var err error
+-							imp, err = importer(check.conf.Packages, path)
+-							if imp == nil && err == nil {
+-								err = errors.New("Config.Import returned nil but no error")
++							if importer := check.conf.Importer; importer != nil {
++								imp, err = importer.Import(path)
++								if imp == nil && err == nil {
++									err = fmt.Errorf("Config.Importer.Import(%s) returned nil but no error", path)
++								}
++							} else {
++								err = fmt.Errorf("Config.Importer not installed")
+ 							}
+ 							if err != nil {
+ 								check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index 52708ae028..5713065354 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -7,12 +7,12 @@ package types_test
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"sort"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+@@ -88,6 +88,24 @@ var pkgnames = []string{
+ 	"math",
+ }
+ 
++type resolveTestImporter struct {
++	importer Importer
++	imported map[string]bool
++}
++
++func (imp *resolveTestImporter) Import(path string) (*Package, error) {
++	if imp.importer == nil {
++		imp.importer = importer.Default()
++		imp.imported = make(map[string]bool)
++	}
++	pkg, err := imp.importer.Import(path)
++	if err != nil {
++		return nil, err
++	}
++	imp.imported[path] = true
++	return pkg, nil
++}
++
+ func TestResolveIdents(t *testing.T) {
+ 	skipSpecialPlatforms(t)
+ 
+@@ -103,7 +121,8 @@ func TestResolveIdents(t *testing.T) {
+ 	}
+ 
+ 	// resolve and type-check package AST
+-	var conf Config
++	importer := new(resolveTestImporter)
++	conf := Config{Importer: importer}
+ 	uses := make(map[*ast.Ident]Object)
+ 	defs := make(map[*ast.Ident]Object)
+ 	_, err := conf.Check("testResolveIdents", fset, files, &Info{Defs: defs, Uses: uses})
+@@ -113,7 +132,7 @@ func TestResolveIdents(t *testing.T) {
+ 
+ 	// check that all packages were imported
+ 	for _, name := range pkgnames {
+-		if conf.Packages[name] == nil {
++		if !importer.imported[name] {
+ 			t.Errorf("package %s not imported", name)
+ 		}
+ 	}
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index e98af304ed..d17eabbae5 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"path/filepath"
+@@ -27,7 +28,8 @@ func TestSelf(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	_, err = Check("go/types", fset, files)
++	conf := Config{Importer: importer.Default()}
++	_, err = conf.Check("go/types", fset, files, nil)
+ 	if err != nil {
+ 		// Importing go.tools/go/exact doensn't work in the
+ 		// build dashboard environment. Don't report an error
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 468b419a38..d04dd71e4f 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
++	"go/importer"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
+@@ -22,18 +23,22 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+ var (
+ 	pkgCount int // number of packages processed
+-	start    = time.Now()
++	start    time.Time
++
++	// Use the same importer for all std lib tests to
++	// avoid repeated importing of the same packages.
++	stdLibImporter = importer.Default()
+ )
+ 
+ func TestStdlib(t *testing.T) {
+ 	skipSpecialPlatforms(t)
+ 
++	start = time.Now()
+ 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
+ 	if testing.Verbose() {
+ 		fmt.Println(pkgCount, "packages typechecked in", time.Since(start))
+@@ -102,7 +107,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		// parse and type-check file
+ 		file, err := parser.ParseFile(fset, filename, nil, 0)
+ 		if err == nil {
+-			_, err = Check(filename, fset, []*ast.File{file})
++			conf := Config{Importer: stdLibImporter}
++			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+ 		}
+ 
+ 		if expectErrors {
+@@ -185,8 +191,10 @@ func typecheck(t *testing.T, path string, filenames []string) {
+ 	}
+ 
+ 	// typecheck package files
+-	var conf Config
+-	conf.Error = func(err error) { t.Error(err) }
++	conf := Config{
++		Error:    func(err error) { t.Error(err) },
++		Importer: stdLibImporter,
++	}
+ 	info := Info{Uses: make(map[*ast.Ident]Object)}
+ 	conf.Check(path, fset, files, &info)
+ 	pkgCount++
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 2b399e7e90..53a99be5ad 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -9,9 +9,8 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/token"
+-
+ 	"go/exact"
++	"go/token"
+ )
+ 
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 254867382f..ecc4ba83c0 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -6,11 +6,11 @@ package types_test
+ 
+ import (
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"testing"
+ 
+-	_ "go/internal/gcimporter"
+ 	. "go/types"
+ )
+ 
+@@ -23,7 +23,8 @@ func makePkg(t *testing.T, src string) (*Package, error) {
+ 		return nil, err
+ 	}
+ 	// use the package name as package path
+-	return Check(file.Name.Name, fset, []*ast.File{file})
++	conf := Config{Importer: importer.Default()}
++	return conf.Check(file.Name.Name, fset, []*ast.File{file}, nil)
+ }
+ 
+ type testEntry struct {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 1577ccef22..36bf12b4e5 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -8,11 +8,10 @@ package types
+ 
+ import (
+ 	"go/ast"
++	"go/exact"
+ 	"go/token"
+ 	"sort"
+ 	"strconv"
+-
+-	"go/exact"
+ )
+ 
+ // ident type-checks identifier e and initializes x with the value or type of e.
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 139592c113..3c5a46d08a 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -7,10 +7,9 @@
+ package types
+ 
+ import (
++	"go/exact"
+ 	"go/token"
+ 	"strings"
+-
+-	"go/exact"
+ )
+ 
+ var (

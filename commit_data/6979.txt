@@ -7,6 +7,20 @@ Date:   Thu Dec 16 12:51:01 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/3707041
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 94de636216..6225305b88 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -79,7 +79,7 @@ If necessary, the NaCl code can be recovered from the repository history.
+ * os: fix test of RemoveAll.
+ * os/inotify: new package (thanks Balazs Lecz).
+ * os: make MkdirAll work with symlinks (thanks Ryan Hitchman).
+-* regexp: simplify code for brackets, speed up by about 30%.
++* regexp: speed up by about 30%; also simplify code for brackets.
+ * runtime/linux/386: set FPU to 64-bit precision.
+ * runtime: remove paranoid mapping at 0.
+ * suffixarray: add Bytes function.

@@ -5,6 +5,20 @@ Date:   Tue Jul 1 17:18:28 2008 -0700
     - more minor fixes
     
     SVN=125574
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 4d295e4381..032715aea0 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1734,7 +1734,7 @@ will proceed.  It looks similar to a switch statement but with the
+ cases all referring to communication operations.
+ 
+   SelectStat = "select" "{" { CommClause } "}" .
+-  CommClause = CommCase { Statement } .
++  CommClause = CommCase [ StatementList [ ";" ] ] .
+   CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
+   SendCase = Send .
+   RecvCase = [ identifier "=" ] RecvExpr .

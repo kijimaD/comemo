@@ -26,7 +26,7 @@ Date:   Mon Mar 14 12:17:48 2016 -0400
     Change-Id: If4d04b2021c092ec39a4caef5937a8182c64dfef
     Reviewed-on: https://go-review.googlesource.com/20705
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/cgocall.go  |   2 +-
  src/runtime/malloc.go   |   2 +-
  src/runtime/mbitmap.go  |  86 +++++++++++++-------------
@@ -34,3 +34,502 @@ Date:   Mon Mar 14 12:17:48 2016 -0400
  src/runtime/mgcsweep.go |  16 ++---
  src/runtime/mheap.go    | 159 ++++++++++++++++++++++++++++++++++++++++++------
  6 files changed, 204 insertions(+), 82 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index c6000bf98f..be234345d1 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -529,7 +529,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 			return
+ 		}
+ 
+-		b, hbits, span := heapBitsForObject(uintptr(p), 0, 0)
++		b, hbits, span, _ := heapBitsForObject(uintptr(p), 0, 0)
+ 		base = b
+ 		if base == 0 {
+ 			return
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 6fe4656603..86fdb3fdbb 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -491,7 +491,7 @@ var zerobase uintptr
+ // Otherwise it returns 0.
+ func (c *mcache) nextFreeFast(sizeclass int8) gclinkptr {
+ 	s := c.alloc[sizeclass]
+-	ctzIndex := uint8(s.allocCache & 0xff)
++	ctzIndex := uint8(s.allocCache)
+ 	if ctzIndex != 0 {
+ 		theBit := uint64(ctzVals[ctzIndex])
+ 		freeidx := s.freeindex // help the pre ssa compiler out here with cse.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index af89577703..387fb8535d 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -186,7 +186,8 @@ type markBits struct {
+ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
+ 	whichByte := allocBitIndex / 8
+ 	whichBit := allocBitIndex % 8
+-	return markBits{&s.allocBits[whichByte], uint8(1 << whichBit), allocBitIndex}
++	bytePtr := addb(s.allocBits, whichByte)
++	return markBits{bytePtr, uint8(1 << whichBit), allocBitIndex}
+ }
+ 
+ // ctzVals contains the count of trailing zeros for the
+@@ -249,7 +250,7 @@ func ctz64(markBits uint64) uint64 {
+ // can be used. It then places these 8 bytes into the cached 64 bit
+ // s.allocCache.
+ func (s *mspan) refillAllocCache(whichByte uintptr) {
+-	bytes := s.allocBits[whichByte : whichByte+8]
++	bytes := (*[8]uint8)(unsafe.Pointer(addb(s.allocBits, whichByte)))
+ 	aCache := uint64(0)
+ 	aCache |= uint64(bytes[0])
+ 	aCache |= uint64(bytes[1]) << (1 * 8)
+@@ -317,28 +318,37 @@ func (s *mspan) nextFreeIndex() uintptr {
+ func (s *mspan) isFree(index uintptr) bool {
+ 	whichByte := index / 8
+ 	whichBit := index % 8
+-	return s.allocBits[whichByte]&uint8(1<<whichBit) == 0
++	byteVal := *addb(s.allocBits, whichByte)
++	return byteVal&uint8(1<<whichBit) == 0
++}
++
++func (s *mspan) objIndex(p uintptr) uintptr {
++	byteOffset := p - s.base()
++	if byteOffset == 0 {
++		return 0
++	}
++	if s.baseMask != 0 {
++		// s.baseMask is 0, elemsize is a power of two, so shift by s.divShift
++		return byteOffset >> s.divShift
++	}
++	return uintptr(((uint64(byteOffset) >> s.divShift) * uint64(s.divMul)) >> s.divShift2)
+ }
+ 
+ func markBitsForAddr(p uintptr) markBits {
+ 	s := spanOf(p)
+-	return s.markBitsForAddr(p)
++	objIndex := s.objIndex(p)
++	return s.markBitsForIndex(objIndex)
+ }
+ 
+-func (s *mspan) markBitsForAddr(p uintptr) markBits {
+-	byteOffset := p - s.base()
+-	markBitIndex := uintptr(0)
+-	if byteOffset != 0 {
+-		// markBitIndex := (p - s.base()) / s.elemsize, using division by multiplication
+-		markBitIndex = uintptr(uint64(byteOffset) >> s.divShift * uint64(s.divMul) >> s.divShift2)
+-	}
+-	whichByte := markBitIndex / 8
+-	whichBit := markBitIndex % 8
+-	return markBits{&s.gcmarkBits[whichByte], uint8(1 << whichBit), markBitIndex}
++func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
++	whichByte := objIndex / 8
++	bitMask := uint8(1 << (objIndex % 8)) // low 3 bits hold the bit index
++	bytePtr := addb(s.gcmarkBits, whichByte)
++	return markBits{bytePtr, bitMask, objIndex}
+ }
+ 
+ func (s *mspan) markBitsForBase() markBits {
+-	return markBits{&s.gcmarkBits[0], uint8(1), 0}
++	return markBits{s.gcmarkBits, uint8(1), 0}
+ }
+ 
+ // isMarked reports whether mark bit m is set.
+@@ -346,7 +356,9 @@ func (m markBits) isMarked() bool {
+ 	return *m.bytep&m.mask != 0
+ }
+ 
+-// setMarked sets the marked bit in the markbits, atomically.
++// setMarked sets the marked bit in the markbits, atomically. Some compilers
++// are not able to inline atomic.Or8 function so if it appears as a hot spot consider
++// inlining it manually.
+ func (m markBits) setMarked() {
+ 	// Might be racing with other updates, so use atomic update always.
+ 	// We used to be clever here and use a non-atomic update in certain
+@@ -415,7 +427,8 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
+ }
+ 
+ // heapBitsForObject returns the base address for the heap object
+-// containing the address p, along with the heapBits for base.
++// containing the address p, the heapBits for base,
++// the object's span, and of the index of the object in s.
+ // If p does not point into a heap object,
+ // return base == 0
+ // otherwise return the base of the object.
+@@ -423,7 +436,7 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
+ // refBase and refOff optionally give the base address of the object
+ // in which the pointer p was found and the byte offset at which it
+ // was found. These are used for error reporting.
+-func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits, s *mspan) {
++func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits, s *mspan, objIndex uintptr) {
+ 	arenaStart := mheap_.arena_start
+ 	if p < arenaStart || p >= mheap_.arena_used {
+ 		return
+@@ -475,6 +488,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
+ 		// optimize for power of 2 sized objects.
+ 		base = s.base()
+ 		base = base + (p-base)&s.baseMask
++		objIndex = (base - s.base()) >> s.divShift
+ 		// base = p & s.baseMask is faster for small spans,
+ 		// but doesn't work for large spans.
+ 		// Overall, it's faster to use the more general computation above.
+@@ -482,8 +496,8 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
+ 		base = s.base()
+ 		if p-base >= s.elemsize {
+ 			// n := (p - base) / s.elemsize, using division by multiplication
+-			n := uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
+-			base += n * s.elemsize
++			objIndex = uintptr(uint64(p-base) >> s.divShift * uint64(s.divMul) >> s.divShift2)
++			base += objIndex * s.elemsize
+ 		}
+ 	}
+ 	// Now that we know the actual base, compute heapBits to return to caller.
+@@ -751,22 +765,6 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
+ 	}
+ }
+ 
+-func (s *mspan) clearGCMarkBits() {
+-	bytesInMarkBits := (s.nelems + 7) / 8
+-	bits := s.gcmarkBits[:bytesInMarkBits]
+-	for i := range bits {
+-		bits[i] = 0
+-	}
+-}
+-
+-func (s *mspan) clearAllocBits() {
+-	bytesInMarkBits := (s.nelems + 7) / 8
+-	bits := s.allocBits[:bytesInMarkBits]
+-	for i := range bits {
+-		bits[i] = 0
+-	}
+-}
+-
+ // The methods operating on spans all require that h has been returned
+ // by heapBitsForSpan and that size, n, total are the span layout description
+ // returned by the mspan's layout method.
+@@ -784,13 +782,13 @@ func (h heapBits) initSpan(s *mspan) {
+ 	size, n, total := s.layout()
+ 
+ 	// Init the markbit structures
+-	s.allocBits = &s.markbits1
+-	s.gcmarkBits = &s.markbits2
+ 	s.freeindex = 0
+ 	s.allocCache = ^uint64(0) // all 1s indicating all free.
+ 	s.nelems = n
+-	s.clearAllocBits()
+-	s.clearGCMarkBits()
++	s.allocBits = nil
++	s.gcmarkBits = nil
++	s.gcmarkBits = newMarkBits(s.nelems)
++	s.allocBits = newAllocBits(s.nelems)
+ 
+ 	// Clear bits corresponding to objects.
+ 	if total%heapBitmapScale != 0 {
+@@ -897,13 +895,13 @@ func (s *mspan) countFree() int {
+ 	count := 0
+ 	maxIndex := s.nelems / 8
+ 	for i := uintptr(0); i < maxIndex; i++ {
+-		count += int(oneBitCount[s.gcmarkBits[i]])
++		mrkBits := *addb(s.gcmarkBits, i)
++		count += int(oneBitCount[mrkBits])
+ 	}
+-
+ 	if bitsInLastByte := s.nelems % 8; bitsInLastByte != 0 {
+-		markBits := uint8(s.gcmarkBits[maxIndex])
++		mrkBits := *addb(s.gcmarkBits, maxIndex)
+ 		mask := uint8((1 << bitsInLastByte) - 1)
+-		bits := markBits & mask
++		bits := mrkBits & mask
+ 		count += int(oneBitCount[bits])
+ 	}
+ 	return int(s.nelems) - count
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 3704164527..18f930f89a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1082,8 +1082,8 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 				// Same work as in scanobject; see comments there.
+ 				obj := *(*uintptr)(unsafe.Pointer(b + i))
+ 				if obj != 0 && arena_start <= obj && obj < arena_used {
+-					if obj, hbits, span := heapBitsForObject(obj, b, i); obj != 0 {
+-						greyobject(obj, b, i, hbits, span, gcw)
++					if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
++						greyobject(obj, b, i, hbits, span, gcw, objIndex)
+ 					}
+ 				}
+ 			}
+@@ -1148,8 +1148,8 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 		// Check if it points into heap and not back at the current object.
+ 		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
+ 			// Mark the object.
+-			if obj, hbits, span := heapBitsForObject(obj, b, i); obj != 0 {
+-				greyobject(obj, b, i, hbits, span, gcw)
++			if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
++				greyobject(obj, b, i, hbits, span, gcw, objIndex)
+ 			}
+ 		}
+ 	}
+@@ -1162,9 +1162,9 @@ func scanobject(b uintptr, gcw *gcWork) {
+ // Preemption must be disabled.
+ //go:nowritebarrier
+ func shade(b uintptr) {
+-	if obj, hbits, span := heapBitsForObject(b, 0, 0); obj != 0 {
++	if obj, hbits, span, objIndex := heapBitsForObject(b, 0, 0); obj != 0 {
+ 		gcw := &getg().m.p.ptr().gcw
+-		greyobject(obj, 0, 0, hbits, span, gcw)
++		greyobject(obj, 0, 0, hbits, span, gcw, objIndex)
+ 		if gcphase == _GCmarktermination || gcBlackenPromptly {
+ 			// Ps aren't allowed to cache work during mark
+ 			// termination.
+@@ -1177,12 +1177,13 @@ func shade(b uintptr) {
+ // If it isn't already marked, mark it and enqueue into gcw.
+ // base and off are for debugging only and could be removed.
+ //go:nowritebarrierrec
+-func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
++func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork, objIndex uintptr) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+ 	if obj&(sys.PtrSize-1) != 0 {
+ 		throw("greyobject: obj not pointer-aligned")
+ 	}
+-	mbits := span.markBitsForAddr(obj)
++	mbits := span.markBitsForIndex(objIndex)
++
+ 	if useCheckmark {
+ 		if !mbits.isMarked() {
+ 			printlock()
+@@ -1209,8 +1210,8 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 		if mbits.isMarked() {
+ 			return
+ 		}
+-		mbits.setMarked()
+-
++		// mbits.setMarked() // Avoid extra call overhead with manual inlining.
++		atomic.Or8(mbits.bytep, mbits.mask)
+ 		// If this is a noscan object, fast-track it to black
+ 		// instead of greying it.
+ 		if !hbits.hasPointers(span.elemsize) {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 9316cc6f49..b1d6234af4 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -51,6 +51,7 @@ func finishsweep_m(stw bool) {
+ 			}
+ 		}
+ 	}
++	nextMarkBitArenaEpoch()
+ }
+ 
+ func bgsweep(c chan int) {
+@@ -211,8 +212,9 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	special := *specialp
+ 	for special != nil {
+ 		// A finalizer can be set for an inner byte of an object, find object beginning.
+-		p := s.base() + uintptr(special.offset)/size*size
+-		mbits := s.markBitsForAddr(p)
++		objIndex := uintptr(special.offset) / size
++		p := s.base() + objIndex*size
++		mbits := s.markBitsForIndex(objIndex)
+ 		if !mbits.isMarked() {
+ 			// This object is not marked and has at least one special record.
+ 			// Pass 1: see if it has at least one finalizer.
+@@ -260,13 +262,13 @@ func (s *mspan) sweep(preserve bool) bool {
+ 
+ 	s.allocCount = uint16(s.nelems) - uint16(nfree)
+ 	wasempty := s.nextFreeIndex() == s.nelems
+-
+ 	s.freeindex = 0 // reset allocation index to start of span.
+ 
+-	// Swap role of allocBits with gcmarkBits
+-	// Clear gcmarkBits in preparation for next GC
+-	s.allocBits, s.gcmarkBits = s.gcmarkBits, s.allocBits
+-	s.clearGCMarkBits() // prepare for next GC
++	// gcmarkBits becomes the allocBits.
++	// get a fresh cleared gcmarkBits in preparation for next GC
++	s.allocBits = s.gcmarkBits
++	s.gcmarkBits = newMarkBits(s.nelems)
++
+ 	// Initialize alloc bits cache.
+ 	s.refillAllocCache(0)
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1333dd696b..7d85891617 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -149,16 +149,31 @@ type mspan struct {
+ 	// allocCache may contain bits beyond s.nelems; the caller must ignore
+ 	// these.
+ 	allocCache uint64
+-	allocBits  *[maxObjsPerSpan / 8]uint8
+-	gcmarkBits *[maxObjsPerSpan / 8]uint8
+ 
+-	// allocBits and gcmarkBits currently point to either markbits1
+-	// or markbits2. At the end of a GC cycle allocBits and
+-	// gcmarkBits swap roles simply by swapping pointers.
+-	// This level of indirection also facilitates an implementation
+-	// where markbits1 and markbits2 are not inlined in mspan.
+-	markbits1 [maxObjsPerSpan / 8]uint8 // A bit for each obj.
+-	markbits2 [maxObjsPerSpan / 8]uint8 // A bit for each obj.
++	// allocBits and gcmarkBits hold pointers to a span's mark and
++	// allocation bits. The pointers are 8 byte aligned.
++	// There are three arenas where this data is held.
++	// free: Dirty arenas that are no longer accessed
++	//       and can be reused.
++	// next: Holds information to be used in the next GC cycle.
++	// current: Information being used during this GC cycle.
++	// previous: Information being used during the last GC cycle.
++	// A new GC cycle starts with the call to finishsweep_m.
++	// finishsweep_m moves the previous arena to the free arena,
++	// the current arena to the previous arena, and
++	// the next arena to the current arena.
++	// The next arena is populated as the spans request
++	// memory to hold gcmarkBits for the next GC cycle as well
++	// as allocBits for newly allocated spans.
++	//
++	// The pointer arithmetic is done "by hand" instead of using
++	// arrays to avoid bounds checks along critical performance
++	// paths.
++	// The sweep will free the old allocBits and set allocBits to the
++	// gcmarkBits. The gcmarkBits are replaced with a fresh zeroed
++	// out memory.
++	allocBits  *uint8
++	gcmarkBits *uint8
+ 
+ 	// sweep generation:
+ 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
+@@ -950,16 +965,8 @@ func (span *mspan) init(start pageID, npages uintptr) {
+ 	span.specials = nil
+ 	span.needzero = 0
+ 	span.freeindex = 0
+-	span.allocBits = &span.markbits1
+-	span.gcmarkBits = &span.markbits2
+-	// determine if this is actually needed. It is once / span so it
+-	// isn't expensive. This is to be replaced by an arena
+-	// based system where things can be cleared all at once so
+-	// don't worry about optimizing this.
+-	for i := 0; i < len(span.markbits1); i++ {
+-		span.allocBits[i] = 0
+-		span.gcmarkBits[i] = 0
+-	}
++	span.allocBits = nil
++	span.gcmarkBits = nil
+ }
+ 
+ func (span *mspan) inList() bool {
+@@ -1226,3 +1233,117 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr) {
+ 		panic("not reached")
+ 	}
+ }
++
++const gcBitsChunkBytes = uintptr(1 << 16)
++const gcBitsHeaderBytes = unsafe.Sizeof(gcBitsHeader{})
++
++type gcBitsHeader struct {
++	free uintptr // free is the index into bits of the next free byte.
++	next uintptr // *gcBits triggers recursive type bug. (issue 14620)
++}
++
++type gcBits struct {
++	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
++	free uintptr // free is the index into bits of the next free byte.
++	next *gcBits
++	bits [gcBitsChunkBytes - gcBitsHeaderBytes]uint8
++}
++
++var gcBitsArenas struct {
++	lock     mutex
++	free     *gcBits
++	next     *gcBits
++	current  *gcBits
++	previous *gcBits
++}
++
++// newMarkBits returns a pointer to 8 byte aligned bytes
++// to be used for a span's mark bits.
++func newMarkBits(nelems uintptr) *uint8 {
++	lock(&gcBitsArenas.lock)
++	blocksNeeded := uintptr((nelems + 63) / 64)
++	bytesNeeded := blocksNeeded * 8
++	if gcBitsArenas.next == nil ||
++		gcBitsArenas.next.free+bytesNeeded > uintptr(len(gcBits{}.bits)) {
++		// Allocate a new arena.
++		fresh := newArena()
++		fresh.next = gcBitsArenas.next
++		gcBitsArenas.next = fresh
++	}
++	if gcBitsArenas.next.free >= gcBitsChunkBytes {
++		println("runtime: gcBitsArenas.next.free=", gcBitsArenas.next.free, gcBitsChunkBytes)
++		throw("markBits overflow")
++	}
++	result := &gcBitsArenas.next.bits[gcBitsArenas.next.free]
++	gcBitsArenas.next.free += bytesNeeded
++	unlock(&gcBitsArenas.lock)
++	return result
++}
++
++// newAllocBits returns a pointer to 8 byte aligned bytes
++// to be used for this span's alloc bits.
++// newAllocBits is used to provide newly initialized spans
++// allocation bits. For spans not being initialized the
++// the mark bits are repurposed as allocation bits when
++// the span is swept.
++func newAllocBits(nelems uintptr) *uint8 {
++	return newMarkBits(nelems)
++}
++
++// nextMarkBitArenaEpoch establishes a new epoch for the arenas
++// holding the mark bits. The arenas are named relative to the
++// current GC cycle which is demarcated by the call to finishweep_m.
++//
++// All current spans have been swept.
++// During that sweep each span allocated room for its gcmarkBits in
++// gcBitsArenas.next block. gcBitsArenas.next becomes the gcBitsArenas.current
++// where the GC will mark objects and after each span is swept these bits
++// will be used to allocate objects.
++// gcBitsArenas.current becomes gcBitsArenas.previous where the span's
++// gcAllocBits live until all the spans have been swept during this GC cycle.
++// The span's sweep extinguishes all the references to gcBitsArenas.previous
++// by pointing gcAllocBits into the gcBitsArenas.current.
++// The gcBitsArenas.previous is released to the gcBitsArenas.free list.
++func nextMarkBitArenaEpoch() {
++	lock(&gcBitsArenas.lock)
++	if gcBitsArenas.previous != nil {
++		if gcBitsArenas.free == nil {
++			gcBitsArenas.free = gcBitsArenas.previous
++		} else {
++			// Find end of previous arenas.
++			last := gcBitsArenas.previous
++			for last = gcBitsArenas.previous; last.next != nil; last = last.next {
++			}
++			last.next = gcBitsArenas.free
++			gcBitsArenas.free = gcBitsArenas.previous
++		}
++	}
++	gcBitsArenas.previous = gcBitsArenas.current
++	gcBitsArenas.current = gcBitsArenas.next
++	gcBitsArenas.next = nil // newMarkBits calls newArena when needed
++	unlock(&gcBitsArenas.lock)
++}
++
++// newArena allocates and zeroes a gcBits arena.
++func newArena() *gcBits {
++	var result *gcBits
++	if gcBitsArenas.free == nil {
++		result = (*gcBits)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
++		if result == nil {
++			throw("runtime: cannot allocate memory")
++		}
++	} else {
++		result = gcBitsArenas.free
++		gcBitsArenas.free = gcBitsArenas.free.next
++		memclr(unsafe.Pointer(result), gcBitsChunkBytes)
++	}
++	result.next = nil
++	// If result.bits is not 8 byte aligned adjust index so
++	// that &result.bits[result.free] is 8 byte aligned.
++	if uintptr(unsafe.Offsetof(gcBits{}.bits))&7 == 0 {
++		result.free = 0
++	} else {
++		result.free = 8 - (uintptr(unsafe.Pointer(&result.bits[0])) & 7)
++	}
++	return result
++}

@@ -20,9 +20,324 @@ Date:   Fri Jun 9 22:59:48 2023 +0800
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/alg.go                |  68 ++++++++++++++++
  src/runtime/map.go                |  12 +--
  src/runtime/map_benchmark_test.go |   9 +++
  src/runtime/map_test.go           | 163 ++++++++++++++++++++++++++++++++++++++
  4 files changed, 246 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index a1f683f68a..336058d159 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -193,6 +193,74 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 	}
+ }
+ 
++func mapKeyError(t *maptype, p unsafe.Pointer) error {
++	if !t.HashMightPanic() {
++		return nil
++	}
++	return mapKeyError2(t.Key, p)
++}
++
++func mapKeyError2(t *_type, p unsafe.Pointer) error {
++	if t.TFlag&abi.TFlagRegularMemory != 0 {
++		return nil
++	}
++	switch t.Kind_ & kindMask {
++	case kindFloat32, kindFloat64, kindComplex64, kindComplex128, kindString:
++		return nil
++	case kindInterface:
++		i := (*interfacetype)(unsafe.Pointer(t))
++		var t *_type
++		var pdata *unsafe.Pointer
++		if len(i.Methods) == 0 {
++			a := (*eface)(p)
++			t = a._type
++			if t == nil {
++				return nil
++			}
++			pdata = &a.data
++		} else {
++			a := (*iface)(p)
++			if a.tab == nil {
++				return nil
++			}
++			t = a.tab._type
++			pdata = &a.data
++		}
++
++		if t.Equal == nil {
++			return errorString("hash of unhashable type " + toRType(t).string())
++		}
++
++		if isDirectIface(t) {
++			return mapKeyError2(t, unsafe.Pointer(pdata))
++		} else {
++			return mapKeyError2(t, *pdata)
++		}
++	case kindArray:
++		a := (*arraytype)(unsafe.Pointer(t))
++		for i := uintptr(0); i < a.Len; i++ {
++			if err := mapKeyError2(a.Elem, add(p, i*a.Elem.Size_)); err != nil {
++				return err
++			}
++		}
++		return nil
++	case kindStruct:
++		s := (*structtype)(unsafe.Pointer(t))
++		for _, f := range s.Fields {
++			if f.Name.IsBlank() {
++				continue
++			}
++			if err := mapKeyError2(f.Typ, add(p, f.Offset)); err != nil {
++				return err
++			}
++		}
++		return nil
++	default:
++		// Should never happen, keep this case for robustness.
++		return errorString("hash of unhashable type " + toRType(t).string())
++	}
++}
++
+ //go:linkname reflect_typehash reflect.typehash
+ func reflect_typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 	return typehash(t, p, h)
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 7b954759f1..5d4e470b9e 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -407,8 +407,8 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		if t.HashMightPanic() {
+-			t.Hasher(key, 0) // see issue 23734
++		if err := mapKeyError(t, key); err != nil {
++			panic(err) // see issue 23734
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+@@ -468,8 +468,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		if t.HashMightPanic() {
+-			t.Hasher(key, 0) // see issue 23734
++		if err := mapKeyError(t, key); err != nil {
++			panic(err) // see issue 23734
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+@@ -707,8 +707,8 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		if t.HashMightPanic() {
+-			t.Hasher(key, 0) // see issue 23734
++		if err := mapKeyError(t, key); err != nil {
++			panic(err) // see issue 23734
+ 		}
+ 		return
+ 	}
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index ef0747fcd8..43d1accbb9 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -168,6 +168,15 @@ func BenchmarkMegEmptyMap(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMegEmptyMapWithInterfaceKey(b *testing.B) {
++	m := make(map[any]bool)
++	key := strings.Repeat("X", 1<<20)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[key]
++	}
++}
++
+ func BenchmarkSmallStrMap(b *testing.B) {
+ 	m := make(map[string]bool)
+ 	for suffix := 'A'; suffix <= 'G'; suffix++ {
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 3675106d9c..300e996de3 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ func TestHmapSize(t *testing.T) {
+@@ -1256,3 +1257,165 @@ func TestMapInterfaceKey(t *testing.T) {
+ 		panic("array not found")
+ 	}
+ }
++
++type panicStructKey struct {
++	sli []int
++}
++
++func (p panicStructKey) String() string {
++	return "panic"
++}
++
++type structKey struct {
++}
++
++func (structKey) String() string {
++	return "structKey"
++}
++
++func TestEmptyMapWithInterfaceKey(t *testing.T) {
++	var (
++		b    bool
++		i    int
++		i8   int8
++		i16  int16
++		i32  int32
++		i64  int64
++		ui   uint
++		ui8  uint8
++		ui16 uint16
++		ui32 uint32
++		ui64 uint64
++		uipt uintptr
++		f32  float32
++		f64  float64
++		c64  complex64
++		c128 complex128
++		a    [4]string
++		s    string
++		p    *int
++		up   unsafe.Pointer
++		ch   chan int
++		i0   any
++		i1   interface {
++			String() string
++		}
++		structKey structKey
++		i0Panic   any = []int{}
++		i1Panic   interface {
++			String() string
++		} = panicStructKey{}
++		panicStructKey = panicStructKey{}
++		sli            []int
++		me             = map[any]struct{}{}
++		mi             = map[interface {
++			String() string
++		}]struct{}{}
++	)
++	mustNotPanic := func(f func()) {
++		f()
++	}
++	mustPanic := func(f func()) {
++		defer func() {
++			r := recover()
++			if r == nil {
++				t.Errorf("didn't panic")
++			}
++		}()
++		f()
++	}
++	mustNotPanic(func() {
++		_ = me[b]
++	})
++	mustNotPanic(func() {
++		_ = me[i]
++	})
++	mustNotPanic(func() {
++		_ = me[i8]
++	})
++	mustNotPanic(func() {
++		_ = me[i16]
++	})
++	mustNotPanic(func() {
++		_ = me[i32]
++	})
++	mustNotPanic(func() {
++		_ = me[i64]
++	})
++	mustNotPanic(func() {
++		_ = me[ui]
++	})
++	mustNotPanic(func() {
++		_ = me[ui8]
++	})
++	mustNotPanic(func() {
++		_ = me[ui16]
++	})
++	mustNotPanic(func() {
++		_ = me[ui32]
++	})
++	mustNotPanic(func() {
++		_ = me[ui64]
++	})
++	mustNotPanic(func() {
++		_ = me[uipt]
++	})
++	mustNotPanic(func() {
++		_ = me[f32]
++	})
++	mustNotPanic(func() {
++		_ = me[f64]
++	})
++	mustNotPanic(func() {
++		_ = me[c64]
++	})
++	mustNotPanic(func() {
++		_ = me[c128]
++	})
++	mustNotPanic(func() {
++		_ = me[a]
++	})
++	mustNotPanic(func() {
++		_ = me[s]
++	})
++	mustNotPanic(func() {
++		_ = me[p]
++	})
++	mustNotPanic(func() {
++		_ = me[up]
++	})
++	mustNotPanic(func() {
++		_ = me[ch]
++	})
++	mustNotPanic(func() {
++		_ = me[i0]
++	})
++	mustNotPanic(func() {
++		_ = me[i1]
++	})
++	mustNotPanic(func() {
++		_ = me[structKey]
++	})
++	mustPanic(func() {
++		_ = me[i0Panic]
++	})
++	mustPanic(func() {
++		_ = me[i1Panic]
++	})
++	mustPanic(func() {
++		_ = me[panicStructKey]
++	})
++	mustPanic(func() {
++		_ = me[sli]
++	})
++	mustPanic(func() {
++		_ = me[me]
++	})
++
++	mustNotPanic(func() {
++		_ = mi[structKey]
++	})
++	mustPanic(func() {
++		_ = mi[panicStructKey]
++	})
++}

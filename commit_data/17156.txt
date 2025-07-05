@@ -9,6 +9,26 @@ Date:   Mon Aug 12 13:03:50 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12504044
-
+---
  src/pkg/bufio/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/bufio/example_test.go b/src/pkg/bufio/example_test.go
+index 08a39441e6..3da9141421 100644
+--- a/src/pkg/bufio/example_test.go
++++ b/src/pkg/bufio/example_test.go
+@@ -12,6 +12,14 @@ import (
+ 	"strings"
+ )
+ 
++func ExampleWriter() {
++	w := bufio.NewWriter(os.Stdout)
++	fmt.Fprint(w, "Hello, ")
++	fmt.Fprint(w, "world!")
++	w.Flush() // Don't forget to flush!
++	// Output: Hello, world!
++}
++
+ // The simplest use of a Scanner, to read standard input as a set of lines.
+ func ExampleScanner_lines() {
+ 	scanner := bufio.NewScanner(os.Stdin)

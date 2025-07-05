@@ -20,7 +20,7 @@ Date:   Wed May 25 09:49:28 2016 -0400
     Change-Id: I269e88b67f641c25e7a813d910c96d356d236bff
     Reviewed-on: https://go-review.googlesource.com/23542
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go                |  24 +-
  src/cmd/compile/internal/gc/ssa.go                 |  39 +--
  src/cmd/compile/internal/gc/testdata/string_ssa.go |  64 +++++
@@ -30,3 +30,836 @@ Date:   Wed May 25 09:49:28 2016 -0400
  src/cmd/compile/internal/ssa/rewriteARM.go         | 266 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/schedule.go           |   2 +-
  8 files changed, 502 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index f6617ca135..f4edbeae3b 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -84,7 +84,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// input args need no code
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+-	case ssa.OpCopy:
++	case ssa.OpCopy, ssa.OpARMMOVWconvert:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+@@ -148,6 +148,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		} else {
+ 			p.To.Name = obj.NAME_AUTO
+ 		}
++	case ssa.OpARMDIV,
++		ssa.OpARMDIVU,
++		ssa.OpARMMOD,
++		ssa.OpARMMODU:
++		// Note: for software division the assembler rewrite these
++		// instructions to sequence of instructions:
++		// - it puts numerator in R11 and denominator in g.m.divmod
++		//	and call (say) _udiv
++		// - _udiv saves R0-R3 on stack and call udiv, restores R0-R3
++		//	before return
++		// - udiv does the actual work
++		//TODO: set approperiate regmasks and call udiv directly?
++		// need to be careful for negative case
++		// Or, as soft div is already expensive, we don't care?
++		fallthrough
+ 	case ssa.OpARMADD,
+ 		ssa.OpARMADC,
+ 		ssa.OpARMSUB,
+@@ -552,6 +567,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMLoweredSelect0,
+ 		ssa.OpARMLoweredSelect1:
+ 		// nothing to do
++	case ssa.OpARMLoweredGetClosurePtr:
++		// Output is hardwired to R7 (arm.REGCTXT) only,
++		// and R7 contains the closure pointer on
++		// closure entry, and this "instruction"
++		// is scheduled to the very beginning
++		// of the entry block.
++		// nothing to do here.
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 70899cb1cd..a2ed15dd4d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1945,7 +1945,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		case n.Left.Type.IsString():
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+-			i = s.extendIndex(i)
++			i = s.extendIndex(i, Panicindex)
+ 			if !n.Bounded {
+ 				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
+ 				s.boundsCheck(i, len)
+@@ -2034,13 +2034,13 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		var i, j, k *ssa.Value
+ 		low, high, max := n.SliceBounds()
+ 		if low != nil {
+-			i = s.extendIndex(s.expr(low))
++			i = s.extendIndex(s.expr(low), panicslice)
+ 		}
+ 		if high != nil {
+-			j = s.extendIndex(s.expr(high))
++			j = s.extendIndex(s.expr(high), panicslice)
+ 		}
+ 		if max != nil {
+-			k = s.extendIndex(s.expr(max))
++			k = s.extendIndex(s.expr(max), panicslice)
+ 		}
+ 		p, l, c := s.slice(n.Left.Type, v, i, j, k)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
+@@ -2050,10 +2050,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		var i, j *ssa.Value
+ 		low, high, _ := n.SliceBounds()
+ 		if low != nil {
+-			i = s.extendIndex(s.expr(low))
++			i = s.extendIndex(s.expr(low), panicslice)
+ 		}
+ 		if high != nil {
+-			j = s.extendIndex(s.expr(high))
++			j = s.extendIndex(s.expr(high), panicslice)
+ 		}
+ 		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
+ 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
+@@ -2743,7 +2743,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		if n.Left.Type.IsSlice() {
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+-			i = s.extendIndex(i)
++			i = s.extendIndex(i, Panicindex)
+ 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+@@ -2753,7 +2753,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		} else { // array
+ 			a := s.addr(n.Left, bounded)
+ 			i := s.expr(n.Right)
+-			i = s.extendIndex(i)
++			i = s.extendIndex(i, Panicindex)
+ 			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+@@ -2894,12 +2894,11 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ 
+ // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
+ // Starts a new block on return.
++// idx is already converted to full int width.
+ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 	if Debug['B'] != 0 {
+ 		return
+ 	}
+-	// TODO: convert index to full width?
+-	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
+ 
+ 	// bounds check
+ 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
+@@ -2908,19 +2907,18 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 
+ // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
+ // Starts a new block on return.
++// idx and len are already converted to full int width.
+ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
+ 	if Debug['B'] != 0 {
+ 		return
+ 	}
+-	// TODO: convert index to full width?
+-	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
+ 
+ 	// bounds check
+ 	cmp := s.newValue2(ssa.OpIsSliceInBounds, Types[TBOOL], idx, len)
+ 	s.check(cmp, panicslice)
+ }
+ 
+-// If cmp (a bool) is true, panic using the given function.
++// If cmp (a bool) is false, panic using the given function.
+ func (s *state) check(cmp *ssa.Value, fn *Node) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+@@ -4134,16 +4132,21 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ }
+ 
+ // extendIndex extends v to a full int width.
+-func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
++// panic using the given function if v does not fit in an int (only on 32-bit archs).
++func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
+ 	size := v.Type.Size()
+ 	if size == s.config.IntSize {
+ 		return v
+ 	}
+ 	if size > s.config.IntSize {
+-		// TODO: truncate 64-bit indexes on 32-bit pointer archs. We'd need to test
+-		// the high word and branch to out-of-bounds failure if it is not 0.
+-		s.Unimplementedf("64->32 index truncation not implemented")
+-		return v
++		// truncate 64-bit indexes on 32-bit pointer archs. Test the
++		// high word and branch to out-of-bounds failure if it is not 0.
++		if Debug['B'] == 0 {
++			hi := s.newValue1(ssa.OpInt64Hi, Types[TUINT32], v)
++			cmp := s.newValue2(ssa.OpEq32, Types[TBOOL], hi, s.constInt32(Types[TUINT32], 0))
++			s.check(cmp, panicfn)
++		}
++		return s.newValue1(ssa.OpTrunc64to32, Types[TINT], v)
+ 	}
+ 
+ 	// Extend value to the required size
+diff --git a/src/cmd/compile/internal/gc/testdata/string_ssa.go b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+index b47c2f1d07..897e874ee5 100644
+--- a/src/cmd/compile/internal/gc/testdata/string_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+@@ -110,6 +110,67 @@ func testSmallIndexType() {
+ 	}
+ }
+ 
++//go:noinline
++func testInt64Index_ssa(s string, i int64) byte {
++	return s[i]
++}
++
++//go:noinline
++func testInt64Slice_ssa(s string, i, j int64) string {
++	return s[i:j]
++}
++
++func testInt64Index() {
++	tests := []struct {
++		i int64
++		j int64
++		b byte
++		s string
++	}{
++		{0, 5, 'B', "Below"},
++		{5, 10, 'E', "Exact"},
++		{10, 15, 'A', "Above"},
++	}
++
++	str := "BelowExactAbove"
++	for i, t := range tests {
++		if got := testInt64Index_ssa(str, t.i); got != t.b {
++			println("#", i, "got ", got, ", wanted", t.b)
++			failed = true
++		}
++		if got := testInt64Slice_ssa(str, t.i, t.j); got != t.s {
++			println("#", i, "got ", got, ", wanted", t.s)
++			failed = true
++		}
++	}
++}
++
++func testInt64IndexPanic() {
++	defer func() {
++		if r := recover(); r != nil {
++			println("paniced as expected")
++		}
++	}()
++
++	str := "foobar"
++	println("got ", testInt64Index_ssa(str, 1<<32+1))
++	println("expected to panic, but didn't")
++	failed = true
++}
++
++func testInt64SlicePanic() {
++	defer func() {
++		if r := recover(); r != nil {
++			println("paniced as expected")
++		}
++	}()
++
++	str := "foobar"
++	println("got ", testInt64Slice_ssa(str, 1<<32, 1<<32+1))
++	println("expected to panic, but didn't")
++	failed = true
++}
++
+ //go:noinline
+ func testStringElem_ssa(s string, i int) byte {
+ 	return s[i]
+@@ -153,6 +214,9 @@ func main() {
+ 	testSmallIndexType()
+ 	testStringElem()
+ 	testStringElemConst()
++	testInt64Index()
++	testInt64IndexPanic()
++	testInt64SlicePanic()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index d7633e92ff..f36cf6abaa 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -31,6 +31,20 @@
+ 
+ (Mul32uhilo x y) -> (MULLU x y)
+ 
++(Div32 x y) -> (DIV x y)
++(Div32u x y) -> (DIVU x y)
++(Div16 x y) -> (DIV (SignExt16to32 x) (SignExt16to32 y))
++(Div16u x y) -> (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
++(Div8 x y) -> (DIV (SignExt8to32 x) (SignExt8to32 y))
++(Div8u x y) -> (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
++
++(Mod32 x y) -> (MOD x y)
++(Mod32u x y) -> (MODU x y)
++(Mod16 x y) -> (MOD (SignExt16to32 x) (SignExt16to32 y))
++(Mod16u x y) -> (MODU (ZeroExt16to32 x) (ZeroExt16to32 y))
++(Mod8 x y) -> (MOD (SignExt8to32 x) (SignExt8to32 y))
++(Mod8u x y) -> (MODU (ZeroExt8to32 x) (ZeroExt8to32 y))
++
+ (And32 x y) -> (AND x y)
+ (And16 x y) -> (AND x y)
+ (And8 x y) -> (AND x y)
+@@ -278,6 +292,9 @@
+ (Select0 <t> x) && !t.IsFlags() -> (LoweredSelect0 x)
+ (Select1 x) -> (LoweredSelect1 x)
+ 
++(GetClosurePtr) -> (LoweredGetClosurePtr)
++(Convert x mem) -> (MOVWconvert x mem)
++
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+ (If (NotEqual cc) yes no) -> (NE cc yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 991765771b..4fc723897c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -73,7 +73,7 @@ func init() {
+ 		gpsp       = gp | buildReg("SP")
+ 		gpspsb     = gpsp | buildReg("SB")
+ 		flags      = buildReg("FLAGS")
+-		callerSave = gp
++		callerSave = gp | flags
+ 	)
+ 	// Common regInfo
+ 	var (
+@@ -101,6 +101,10 @@ func init() {
+ 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
+ 		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
+ 		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
++		{name: "DIV", argLength: 2, reg: gp21cf, asm: "DIV"},                      // arg0 / arg1, signed, soft div clobbers flags
++		{name: "DIVU", argLength: 2, reg: gp21cf, asm: "DIVU"},                    // arg0 / arg1, unsighed
++		{name: "MOD", argLength: 2, reg: gp21cf, asm: "MOD"},                      // arg0 % arg1, signed
++		{name: "MODU", argLength: 2, reg: gp21cf, asm: "MODU"},                    // arg0 % arg1, unsigned
+ 
+ 		{name: "ADDS", argLength: 2, reg: gp21cf, asm: "ADD", commutative: true},   // arg0 + arg1, set carry flag
+ 		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true}, // arg0 + arg1 + carry, arg2=flags
+@@ -251,6 +255,18 @@ func init() {
+ 				clobbers: buildReg("R1 R2 FLAGS"),
+ 			},
+ 		},
++
++		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
++		// and sorts it to the very beginning of the block to prevent other
++		// use of R7 (arm.REGCTXT, the closure pointer)
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}},
++
++		// MOVWconvert converts between pointers and integers.
++		// We have a special op for this so as to not confuse GC
++		// (particularly stack maps).  It takes a memory arg so it
++		// gets correctly ordered with respect to GC safepoints.
++		// arg0=ptr/int arg1=mem, output=int/ptr
++		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 73d884d5c0..33f700c005 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -332,6 +332,10 @@ const (
+ 	OpARMMUL
+ 	OpARMHMUL
+ 	OpARMHMULU
++	OpARMDIV
++	OpARMDIVU
++	OpARMMOD
++	OpARMMODU
+ 	OpARMADDS
+ 	OpARMADC
+ 	OpARMSUBS
+@@ -399,6 +403,8 @@ const (
+ 	OpARMDUFFCOPY
+ 	OpARMLoweredZero
+ 	OpARMLoweredMove
++	OpARMLoweredGetClosurePtr
++	OpARMMOVWconvert
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -4008,6 +4014,66 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "DIV",
++		argLen: 2,
++		asm:    arm.ADIV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "DIVU",
++		argLen: 2,
++		asm:    arm.ADIVU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MOD",
++		argLen: 2,
++		asm:    arm.AMOD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MODU",
++		argLen: 2,
++		asm:    arm.AMODU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:        "ADDS",
+ 		argLen:      2,
+@@ -4618,7 +4684,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType: auxSymOff,
+ 		argLen:  1,
+ 		reg: regInfo{
+-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4630,7 +4696,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 128},   // R7
+ 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+ 			},
+-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4638,7 +4704,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType: auxInt64,
+ 		argLen:  1,
+ 		reg: regInfo{
+-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4646,7 +4712,7 @@ var opcodeTable = [...]opInfo{
+ 		auxType: auxInt64,
+ 		argLen:  1,
+ 		reg: regInfo{
+-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4657,7 +4723,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+ 		},
+ 	},
+ 	{
+@@ -4881,6 +4947,28 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 65542, // R1 R2 FLAGS
+ 		},
+ 	},
++	{
++		name:   "LoweredGetClosurePtr",
++		argLen: 0,
++		reg: regInfo{
++			outputs: []regMask{
++				128, // R7
++			},
++		},
++	},
++	{
++		name:   "MOVWconvert",
++		argLen: 2,
++		asm:    arm.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "Add8",
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 8e22064c1e..d1a191e629 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -50,8 +50,22 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpConstBool(v, config)
+ 	case OpConstNil:
+ 		return rewriteValueARM_OpConstNil(v, config)
++	case OpConvert:
++		return rewriteValueARM_OpConvert(v, config)
+ 	case OpDeferCall:
+ 		return rewriteValueARM_OpDeferCall(v, config)
++	case OpDiv16:
++		return rewriteValueARM_OpDiv16(v, config)
++	case OpDiv16u:
++		return rewriteValueARM_OpDiv16u(v, config)
++	case OpDiv32:
++		return rewriteValueARM_OpDiv32(v, config)
++	case OpDiv32u:
++		return rewriteValueARM_OpDiv32u(v, config)
++	case OpDiv8:
++		return rewriteValueARM_OpDiv8(v, config)
++	case OpDiv8u:
++		return rewriteValueARM_OpDiv8u(v, config)
+ 	case OpEq16:
+ 		return rewriteValueARM_OpEq16(v, config)
+ 	case OpEq32:
+@@ -74,6 +88,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGeq8(v, config)
+ 	case OpGeq8U:
+ 		return rewriteValueARM_OpGeq8U(v, config)
++	case OpGetClosurePtr:
++		return rewriteValueARM_OpGetClosurePtr(v, config)
+ 	case OpGoCall:
+ 		return rewriteValueARM_OpGoCall(v, config)
+ 	case OpGreater16:
+@@ -180,6 +196,18 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMMOVWload(v, config)
+ 	case OpARMMOVWstore:
+ 		return rewriteValueARM_OpARMMOVWstore(v, config)
++	case OpMod16:
++		return rewriteValueARM_OpMod16(v, config)
++	case OpMod16u:
++		return rewriteValueARM_OpMod16u(v, config)
++	case OpMod32:
++		return rewriteValueARM_OpMod32(v, config)
++	case OpMod32u:
++		return rewriteValueARM_OpMod32u(v, config)
++	case OpMod8:
++		return rewriteValueARM_OpMod8(v, config)
++	case OpMod8u:
++		return rewriteValueARM_OpMod8u(v, config)
+ 	case OpMove:
+ 		return rewriteValueARM_OpMove(v, config)
+ 	case OpMul16:
+@@ -679,6 +707,21 @@ func rewriteValueARM_OpConstNil(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpConvert(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Convert x mem)
++	// cond:
++	// result: (MOVWconvert x mem)
++	for {
++		x := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVWconvert)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM_OpDeferCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -694,6 +737,112 @@ func rewriteValueARM_OpDeferCall(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpDiv16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div16 x y)
++	// cond:
++	// result: (DIV (SignExt16to32 x) (SignExt16to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIV)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueARM_OpDiv16u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div16u x y)
++	// cond:
++	// result: (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIVU)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueARM_OpDiv32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div32 x y)
++	// cond:
++	// result: (DIV x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIV)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpDiv32u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div32u x y)
++	// cond:
++	// result: (DIVU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIVU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpDiv8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div8 x y)
++	// cond:
++	// result: (DIV (SignExt8to32 x) (SignExt8to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIV)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueARM_OpDiv8u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div8u x y)
++	// cond:
++	// result: (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMDIVU)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
+ func rewriteValueARM_OpEq16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -906,6 +1055,17 @@ func rewriteValueARM_OpGeq8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpGetClosurePtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (GetClosurePtr)
++	// cond:
++	// result: (LoweredGetClosurePtr)
++	for {
++		v.reset(OpARMLoweredGetClosurePtr)
++		return true
++	}
++}
+ func rewriteValueARM_OpGoCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2116,6 +2276,112 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpMod16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod16 x y)
++	// cond:
++	// result: (MOD (SignExt16to32 x) (SignExt16to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMOD)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueARM_OpMod16u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod16u x y)
++	// cond:
++	// result: (MODU (ZeroExt16to32 x) (ZeroExt16to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMODU)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueARM_OpMod32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod32 x y)
++	// cond:
++	// result: (MOD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMOD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpMod32u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod32u x y)
++	// cond:
++	// result: (MODU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMODU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpMod8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod8 x y)
++	// cond:
++	// result: (MOD (SignExt8to32 x) (SignExt8to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMOD)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueARM_OpMod8u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod8u x y)
++	// cond:
++	// result: (MODU (ZeroExt8to32 x) (ZeroExt8to32 y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMODU)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(y)
++		v.AddArg(v1)
++		return true
++	}
++}
+ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index bcdc52ae3e..67efd089e3 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -99,7 +99,7 @@ func schedule(f *Func) {
+ 		// Compute score. Larger numbers are scheduled closer to the end of the block.
+ 		for _, v := range b.Values {
+ 			switch {
+-			case v.Op == OpAMD64LoweredGetClosurePtr:
++			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr:
+ 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
+ 				// context register is not stomped. GetLoweredClosurePtr should only appear
+ 				// in the entry block where there are no phi functions, so there is no

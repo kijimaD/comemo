@@ -9,6 +9,19 @@ Date:   Thu Jan 29 14:18:52 2015 -0800
     Change-Id: I2caec1f7aec991a9500d2c3504c29e4ab718c138
     Reviewed-on: https://go-review.googlesource.com/3541
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  test/closure2.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/closure2.go b/test/closure2.go
+index 785e3ae275..8947450561 100644
+--- a/test/closure2.go
++++ b/test/closure2.go
+@@ -54,6 +54,7 @@ func main() {
+ 	}
+ 	func() {
+ 		tmp = w // force capture of w, but do not write to it yet
++		_ = tmp
+ 		func() {
+ 			func() {
+ 				w++ // write in a nested closure

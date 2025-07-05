@@ -13,6 +13,20 @@ Date:   Thu Jul 30 14:35:51 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 05ed022a74..ef49c2e0a2 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -658,7 +658,7 @@ func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc, s loader.Sym) loade
+ 	rs, off := FoldSubSymbolOffset(ldr, rs)
+ 	rr.Xadd = r.Add() + off
+ 	rst := ldr.SymType(rs)
+-	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
++	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+ 		ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+ 	}
+ 	rr.Xsym = rs

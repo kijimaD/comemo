@@ -13,6 +13,17 @@ Date:   Thu Jan 6 16:50:49 2022 -0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/typeparam/issue50417.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/typeparam/issue50417.go b/test/typeparam/issue50417.go
+index bf6ac424c5..f6cf73b18f 100644
+--- a/test/typeparam/issue50417.go
++++ b/test/typeparam/issue50417.go
+@@ -1,4 +1,4 @@
+-// run
++// run -gcflags=-G=3
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

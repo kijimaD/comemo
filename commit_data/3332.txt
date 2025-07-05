@@ -8,6 +8,29 @@ Date:   Mon Sep 21 15:44:10 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=34860
     CL=34864
-
+---
  src/pkg/image/png/reader.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index d715f0c4a2..4be7e130c9 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -62,7 +62,7 @@ type decoder struct {
+ type FormatError string
+ 
+ func (e FormatError) String() string {
+-	return "invalid PNG format: " + e;
++	return "invalid PNG format: " + string(e);
+ }
+ 
+ var chunkOrderError = FormatError("chunk out of order")
+@@ -80,7 +80,7 @@ func (e IDATDecodingError) String() string {
+ type UnsupportedError string
+ 
+ func (e UnsupportedError) String() string {
+-	return "unsupported PNG feature: " + e;
++	return "unsupported PNG feature: " + string(e);
+ }
+ 
+ // Big-endian.

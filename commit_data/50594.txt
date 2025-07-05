@@ -12,7 +12,7 @@ Date:   Tue Nov 2 11:34:11 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go                     | 26 +++++++++++++-------------
  src/go/types/call.go                         |  2 +-
  src/go/types/expr.go                         |  2 +-
@@ -25,3 +25,271 @@ Date:   Tue Nov 2 11:34:11 2021 -0400
  src/go/types/typeparam.go                    |  6 +++---
  src/go/types/typeset.go                      |  4 ++--
  11 files changed, 59 insertions(+), 31 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index ceb2adcaae..aefac786ca 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -83,7 +83,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// of S and the respective parameter passing rules apply."
+ 		S := x.typ
+ 		var T Type
+-		if s, _ := singleUnder(S).(*Slice); s != nil {
++		if s, _ := structure(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+ 			check.invalidArg(x, _InvalidAppend, "%s is not a slice", x)
+@@ -332,14 +332,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := singleUnder(x.typ).(*Slice)
++		dst, _ := structure(x.typ).(*Slice)
+ 
+ 		var y operand
+ 		arg(&y, 1)
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src, _ := singleUnderString(y.typ).(*Slice)
++		src, _ := structureString(y.typ).(*Slice)
+ 
+ 		if dst == nil || src == nil {
+ 			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
+@@ -473,7 +473,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 
+ 		var min int // minimum number of arguments
+-		switch singleUnder(T).(type) {
++		switch structure(T).(type) {
+ 		case *Slice:
+ 			min = 2
+ 		case *Map, *Chan:
+@@ -776,11 +776,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	return true
+ }
+ 
+-// If typ is a type parameter, single under returns the single underlying
+-// type of all types in the corresponding type constraint if it exists, or
+-// nil if it doesn't exist. If typ is not a type parameter, singleUnder
+-// just returns the underlying type.
+-func singleUnder(typ Type) Type {
++// If typ is a type parameter, structure returns the single underlying
++// type of all types in the corresponding type constraint if it exists,
++// or nil otherwise. If typ is not a type parameter, structure returns
++// the underlying type.
++func structure(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+ 		if su != nil && !Identical(su, u) {
+@@ -795,10 +795,10 @@ func singleUnder(typ Type) Type {
+ 	return nil
+ }
+ 
+-// singleUnderString is like singleUnder but also considers []byte and
+-// string as "identical". In this case, if successful, the result is always
+-// []byte.
+-func singleUnderString(typ Type) Type {
++// structureString is like structure but also considers []byte and
++// string as "identical". In this case, if successful, the result
++// is always []byte.
++func structureString(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+ 		if isString(u) {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 64c7658a60..a7024f5f9c 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -175,7 +175,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// a type parameter may be "called" if all types have the same signature
+-	sig, _ := singleUnder(x.typ).(*Signature)
++	sig, _ := structure(x.typ).(*Signature)
+ 	if sig == nil {
+ 		check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
+ 		x.mode = invalid
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 103053e6b7..612f0da210 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1227,7 +1227,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			goto Error
+ 		}
+ 
+-		switch utyp := singleUnder(base).(type) {
++		switch utyp := structure(base).(type) {
+ 		case *Struct:
+ 			if len(e.Elts) == 0 {
+ 				break
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 24c1812039..807cf58980 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -207,7 +207,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := singleUnder(x.typ).(type) {
++	switch u := structure(x.typ).(type) {
+ 	case nil:
+ 		check.errorf(x, _NonSliceableOperand, "cannot slice %s: type set has no single underlying type", x)
+ 		x.mode = invalid
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index cea0780721..61f7eaf91e 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -358,7 +358,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
+ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
+ 	assert(len(tparams) >= len(targs) && len(targs) > 0)
+ 
+-	// Setup bidirectional unification between those structural bounds
++	// Setup bidirectional unification between constraints
+ 	// and the corresponding type arguments (which may be nil!).
+ 	u := newUnifier(false)
+ 	u.x.init(tparams)
+@@ -371,11 +371,16 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 		}
+ 	}
+ 
+-	// Unify type parameters with their structural constraints, if any.
++	// If a constraint has a structural type, unify the corresponding type parameter with it.
+ 	for _, tpar := range tparams {
+ 		typ := tpar
+-		sbound := typ.structuralType()
++		sbound := structure(tpar)
+ 		if sbound != nil {
++			// If the structural type is the underlying type of a single
++			// defined type in the constraint, use that defined type instead.
++			if named, _ := tpar.singleType().(*Named); named != nil {
++				sbound = named
++			}
+ 			if !u.unify(typ, sbound) {
+ 				check.errorf(tpar.obj, _Todo, "%s does not match %s", tpar.obj, sbound)
+ 				return nil, 0
+@@ -384,7 +389,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 	}
+ 
+ 	// u.x.types() now contains the incoming type arguments plus any additional type
+-	// arguments for which there were structural constraints. The newly inferred non-
++	// arguments which were inferred from structural types. The newly inferred non-
+ 	// nil entries may still contain references to other type parameters.
+ 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
+ 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 7197310bd9..cc4eceae5d 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -834,7 +834,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if x.mode != invalid {
+ 			// Ranging over a type parameter is permitted if it has a single underlying type.
+ 			var cause string
+-			u := singleUnder(x.typ)
++			u := structure(x.typ)
+ 			switch t := u.(type) {
+ 			case nil:
+ 				cause = "type set has no single underlying type"
+diff --git a/src/go/types/termlist.go b/src/go/types/termlist.go
+index 99114cbf4c..c4ab0e037e 100644
+--- a/src/go/types/termlist.go
++++ b/src/go/types/termlist.go
+@@ -93,8 +93,8 @@ func (xl termlist) norm() termlist {
+ }
+ 
+ // If the type set represented by xl is specified by a single (non-𝓤) term,
+-// structuralType returns that type. Otherwise it returns nil.
+-func (xl termlist) structuralType() Type {
++// singleType returns that type. Otherwise it returns nil.
++func (xl termlist) singleType() Type {
+ 	if nl := xl.norm(); len(nl) == 1 {
+ 		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
+ 	}
+diff --git a/src/go/types/termlist_test.go b/src/go/types/termlist_test.go
+index d1fe28f728..dddca7a682 100644
+--- a/src/go/types/termlist_test.go
++++ b/src/go/types/termlist_test.go
+@@ -106,7 +106,7 @@ func TestTermlistNorm(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTermlistStructuralType(t *testing.T) {
++func TestTermlistSingleType(t *testing.T) {
+ 	// helper to deal with nil types
+ 	tstring := func(typ Type) string {
+ 		if typ == nil {
+@@ -128,9 +128,9 @@ func TestTermlistStructuralType(t *testing.T) {
+ 		"∅ ∪ ~int ∪ string": "nil",
+ 	} {
+ 		xl := maketl(test)
+-		got := tstring(xl.structuralType())
++		got := tstring(xl.singleType())
+ 		if got != want {
+-			t.Errorf("(%v).structuralType() == %v; want %v", test, got, want)
++			t.Errorf("(%v).singleType() == %v; want %v", test, got, want)
+ 		}
+ 	}
+ }
+diff --git a/src/go/types/testdata/examples/inference.go2 b/src/go/types/testdata/examples/inference.go2
+index 9a2dcc47f2..73246b0137 100644
+--- a/src/go/types/testdata/examples/inference.go2
++++ b/src/go/types/testdata/examples/inference.go2
+@@ -99,3 +99,26 @@ func _() {
+ 	related2(1.0, []int{})
+ 	related2 /* ERROR does not satisfy */ (float64(1.0), []int{})
+ }
++
++type List[P any] []P
++
++func related3[Elem any, Slice []Elem | List[Elem]]() Slice { return nil }
++
++func _() {
++	// related3 can be instantiated explicitly
++	related3[int, []int]()
++	related3[byte, List[byte]]()
++
++	// Alternatively, the 2nd type argument can be inferred
++	// from the first one through constraint type inference.
++	related3[int]()
++
++	// The inferred type is the structural type of the Slice
++	// type parameter.
++	var _ []int = related3[int]()
++
++	// It is not the defined parameterized type List.
++	type anotherList []float32
++	var _ anotherList = related3[float32]() // valid
++	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
++}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 791e9db8f8..731b746d05 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -118,9 +118,9 @@ func (t *TypeParam) iface() *Interface {
+ 	return ityp
+ }
+ 
+-// structuralType returns the structural type of the type parameter's constraint; or nil.
+-func (t *TypeParam) structuralType() Type {
+-	return t.iface().typeSet().structuralType()
++// singleType returns the single type of the type parameter constraint; or nil.
++func (t *TypeParam) singleType() Type {
++	return t.iface().typeSet().singleType()
+ }
+ 
+ // hasTerms reports whether the type parameter constraint has specific type terms.
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 215b48488f..f8e76ed400 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -102,8 +102,8 @@ func (s *_TypeSet) String() string {
+ // hasTerms reports whether the type set has specific type terms.
+ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
+ 
+-// structuralType returns the single type in s if there is exactly one; otherwise the result is nil.
+-func (s *_TypeSet) structuralType() Type { return s.terms.structuralType() }
++// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
++func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
+ 
+ // includes reports whether t ∈ s.
+ func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }

@@ -13,6 +13,28 @@ Date:   Thu Sep 29 09:33:07 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/os/exec/exec_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 07ac0cf3d4..822f606d66 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1108,9 +1108,16 @@ func TestDoubleStartLeavesPipesOpen(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatal(err)
+ 	}
++	t.Cleanup(func() {
++		if err := cmd.Wait(); err != nil {
++			t.Error(err)
++		}
++	})
++
+ 	if err := cmd.Start(); err == nil || !strings.HasSuffix(err.Error(), "already started") {
+ 		t.Fatalf("second call to Start returned a nil; want an 'already started' error")
+ 	}

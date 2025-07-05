@@ -17,7 +17,79 @@ Date:   Thu Jul 5 14:17:46 2018 +0100
     Change-Id: Ic511c44b2b86f82a41f2b78dd7e7482d694b6c62
     Reviewed-on: https://go-review.googlesource.com/122295
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html         | 22 ++++++++++++++++++++--
  src/go/format/format.go | 13 +++++++++----
  2 files changed, 29 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 0100c32707..da722fb31a 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -266,8 +266,6 @@ func f(v interface{}) {
+   This is currently only supported by Delve.
+ </p>
+ 
+-<h2 id="tools">Tools</h2>
+-
+ <h3 id="test">Test</h3>
+ 
+ <p>
+@@ -312,6 +310,26 @@ func f(v interface{}) {
+   user task/region analysis page.
+ </p>
+ 
++<h3 id="gofmt">Gofmt</h3>
++
++<p>
++  One minor detail of the default formatting of Go source code has changed.
++  When formatting expression lists with inline comments, the comments were
++  aligned according to a heuristic.
++  However, in some cases the alignment would be split up too easily, or
++  introduce too much whitespace.
++  The heuristic has been changed to behave better for human-written code.
++</p>
++
++<p>
++  Note that these kinds of minor updates to gofmt are expected from time to
++  time.
++  In general, systems that need consistent formatting of Go source code should
++  use a specific version of the <code>gofmt</code> binary.
++  See the <a href="/pkg/go/format/">go/format</a> package godoc for more
++  information.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p><!-- CL 85887 -->
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index cad5958e5c..9aa28fc63b 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -3,6 +3,15 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package format implements standard formatting of Go source.
++//
++// Note that formatting of Go source code changes over time, so tools relying on
++// consistent formatting should execute a specific version of the gofmt binary
++// instead of using this package. That way, the formatting will be stable, and
++// the tools won't need to be recompiled each time gofmt changes.
++//
++// For example, pre-submit checks that use this package directly would behave
++// differently depending on what Go version each developer uses, causing the
++// check to be inherently fragile.
+ package format
+ 
+ import (
+@@ -79,10 +88,6 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+ // space as src), and the result is indented by the same amount as the first
+ // line of src containing code. Imports are not sorted for partial source files.
+ //
+-// Caution: Tools relying on consistent formatting based on the installed
+-// version of gofmt (for instance, such as for presubmit checks) should
+-// execute that gofmt binary instead of calling Source.
+-//
+ func Source(src []byte) ([]byte, error) {
+ 	fset := token.NewFileSet()
+ 	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)

@@ -7,6 +7,20 @@ Date:   Thu Apr 15 18:06:22 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/846050
-
+---
  src/pkg/go/ast/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 34d20ed059..2fc8b215fd 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -155,7 +155,7 @@ type (
+ 	// A BasicLit node represents a literal of basic type.
+ 	BasicLit struct {
+ 		token.Position             // literal position
+-		Kind           token.Token //  token.INT, token.FLOAT, token.CHAR, or token.STRING
++		Kind           token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
+ 		Value          []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
+ 	}
+ 

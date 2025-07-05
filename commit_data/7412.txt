@@ -15,8 +15,94 @@ Date:   Wed Feb 9 14:38:33 2011 -0500
     R=r, niemeyer
     CC=golang-dev
     https://golang.org/cl/4148045
-
+---
  src/pkg/runtime/freebsd/mem.c | 17 +++++++++++++++++
  src/pkg/runtime/linux/mem.c   | 17 +++++++++++++++++
  test/run                      |  4 +---
  3 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index cbae187180..f5bbfa6fab 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -33,6 +33,12 @@ runtime·SysFree(void *v, uintptr n)
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
++	// On 64-bit, people with ulimit -v set complain if we reserve too
++	// much address space.  Instead, assume that the reservation is okay
++	// and check the assumption in SysMap.
++	if(sizeof(void*) == 8)
++		return v;
++	
+ 	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
+@@ -42,6 +48,17 @@ runtime·SysMap(void *v, uintptr n)
+ 	void *p;
+ 	
+ 	mstats.sys += n;
++
++	// On 64-bit, we don't actually have v reserved, so tread carefully.
++	if(sizeof(void*) == 8) {
++		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++		if(p != v) {
++			runtime·printf("runtime: address space conflict: map(%v) = %v\n", v, p);
++			runtime·throw("runtime: address space conflict");
++		}
++		return;
++	}
++
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 3a83e7394b..633ad0c62e 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -39,6 +39,12 @@ runtime·SysFree(void *v, uintptr n)
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
++	// On 64-bit, people with ulimit -v set complain if we reserve too
++	// much address space.  Instead, assume that the reservation is okay
++	// and check the assumption in SysMap.
++	if(sizeof(void*) == 8)
++		return v;
++	
+ 	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
+@@ -48,6 +54,17 @@ runtime·SysMap(void *v, uintptr n)
+ 	void *p;
+ 	
+ 	mstats.sys += n;
++
++	// On 64-bit, we don't actually have v reserved, so tread carefully.
++	if(sizeof(void*) == 8) {
++		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++		if(p != v) {
++			runtime·printf("runtime: address space conflict: map(%v) = %v\n", v, p);
++			runtime·throw("runtime: address space conflict");
++		}
++		return;
++	}
++
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+diff --git a/test/run b/test/run
+index ec01952535..28d0caa0f6 100755
+--- a/test/run
++++ b/test/run
+@@ -42,9 +42,7 @@ TMP2FILE=/tmp/gotest2-$$-$USER
+ 
+ # don't run the machine out of memory: limit individual processes to 4GB.
+ # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+-# Linux charges reserved but not mapped addresses to ulimit -v
+-# so we have to use ulimit -m.
+-ulimit -m 4000000
++ulimit -v 4000000
+ 
+ # no core files please
+ ulimit -c 0

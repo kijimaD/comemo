@@ -15,6 +15,20 @@ Date:   Tue Jan 30 18:28:50 2018 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/fix/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index c5900d8dcd..eafb626c74 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -166,7 +166,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
+ 			if err != nil {
+ 				return err
+ 			}
+-			defer os.Remove(dir)
++			defer os.RemoveAll(dir)
+ 			err = ioutil.WriteFile(filepath.Join(dir, "in.go"), txt, 0600)
+ 			if err != nil {
+ 				return err

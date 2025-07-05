@@ -11,6 +11,51 @@ Date:   Wed Aug 10 16:24:11 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/example_test.go | 26 +++++++++++++++++++++++++-
  1 file changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 555eff93c0..e4dffd942d 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -174,7 +174,7 @@ func ExampleDecoder_Decode_stream() {
+ }
+ 
+ // This example uses RawMessage to delay parsing part of a JSON message.
+-func ExampleRawMessage() {
++func ExampleRawMessage_unmarshal() {
+ 	type Color struct {
+ 		Space string
+ 		Point json.RawMessage // delay parsing until we know the color space
+@@ -219,6 +219,30 @@ func ExampleRawMessage() {
+ 	// RGB &{98 218 255}
+ }
+ 
++// This example uses RawMessage to use a precomputed JSON during marshal.
++func ExampleRawMessage_marshal() {
++	h := json.RawMessage(`{"precomputed": true}`)
++
++	c := struct {
++		Header *json.RawMessage `json:"header"`
++		Body   string           `json:"body"`
++	}{Header: &h, Body: "Hello Gophers!"}
++
++	b, err := json.MarshalIndent(&c, "", "\t")
++	if err != nil {
++		fmt.Println("error:", err)
++	}
++	os.Stdout.Write(b)
++
++	// Output:
++	// {
++	// 	"header": {
++	// 		"precomputed": true
++	// 	},
++	// 	"body": "Hello Gophers!"
++	// }
++}
++
+ func ExampleIndent() {
+ 	type Road struct {
+ 		Name   string

@@ -37,7 +37,41 @@ Date:   Mon Jul 8 01:27:10 2019 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/ptr_test.go | 9 +++++++++
  src/cmd/cgo/gcc.go          | 2 ++
  2 files changed, 11 insertions(+)
+
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index 522ef2adfd..4a46b6023b 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -423,6 +423,15 @@ var ptrTests = []ptrTest{
+ 		body:    `t := reflect.StructOf([]reflect.StructField{{Name: "MyInt38", Type: reflect.TypeOf(MyInt38(0)), Anonymous: true}}); v := reflect.New(t).Elem(); v.Interface().(Getter38).Get()`,
+ 		fail:    false,
+ 	},
++	{
++		// Test that a converted address of a struct field results
++		// in a check for just that field and not the whole struct.
++		name:    "structfieldcast",
++		c:       `struct S40i { int i; int* p; }; void f40(struct S40i* p) {}`,
++		support: `type S40 struct { p *int; a C.struct_S40i }`,
++		body:    `s := &S40{p: new(int)}; C.f40((*C.struct_S40i)(&s.a))`,
++		fail:    false,
++	},
+ }
+ 
+ func TestPointerChecks(t *testing.T) {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d4e8186cab..1bd3e2417c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1239,6 +1239,8 @@ func (p *Package) isType(t ast.Expr) bool {
+ 		if strings.HasPrefix(t.Name, "_Ctype_") {
+ 			return true
+ 		}
++	case *ast.ParenExpr:
++		return p.isType(t.X)
+ 	case *ast.StarExpr:
+ 		return p.isType(t.X)
+ 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType,

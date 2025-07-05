@@ -24,6 +24,30 @@ Date:   Tue Oct 29 21:13:41 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/memmove_linux_amd64_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/memmove_linux_amd64_test.go b/src/runtime/memmove_linux_amd64_test.go
+index 5f900623be..c558811599 100644
+--- a/src/runtime/memmove_linux_amd64_test.go
++++ b/src/runtime/memmove_linux_amd64_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/asan"
+ 	"os"
+ 	"syscall"
+ 	"testing"
+@@ -14,6 +15,10 @@ import (
+ // TestMemmoveOverflow maps 3GB of memory and calls memmove on
+ // the corresponding slice.
+ func TestMemmoveOverflow(t *testing.T) {
++	if asan.Enabled {
++		t.Skip("appears to break asan and causes spurious failures")
++	}
++
+ 	t.Parallel()
+ 	// Create a temporary file.
+ 	tmp, err := os.CreateTemp("", "go-memmovetest")

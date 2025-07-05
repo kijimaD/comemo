@@ -8,6 +8,20 @@ Date:   Sun Mar 7 20:32:38 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299669
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index ed276b5a99..ea98fea4e5 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -19,7 +19,7 @@ var _ = fmt.Print
+ type deadcodePass struct {
+ 	ctxt *Link
+ 	ldr  *loader.Loader
+-	wq   heap // work queue, using min-heap for beter locality
++	wq   heap // work queue, using min-heap for better locality
+ 
+ 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+ 	markableMethods []methodref        // methods of reached types

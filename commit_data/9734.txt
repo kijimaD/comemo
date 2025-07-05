@@ -7,6 +7,20 @@ Date:   Mon Sep 19 10:32:11 2011 -0400
     R=agl
     CC=golang-dev
     https://golang.org/cl/5030054
-
+---
  src/pkg/exp/ssh/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/ssh/doc.go b/src/pkg/exp/ssh/doc.go
+index 8dbdb0777c..54a7ba9fda 100644
+--- a/src/pkg/exp/ssh/doc.go
++++ b/src/pkg/exp/ssh/doc.go
+@@ -58,7 +58,7 @@ the case of a shell, the type is "session" and ServerShell may be used to
+ present a simple terminal interface.
+ 
+ 	if channel.ChannelType() != "session" {
+-		c.Reject(RejectUnknownChannelType, "unknown channel type")
++		c.Reject(UnknownChannelType, "unknown channel type")
+ 		return
+ 	}
+ 	channel.Accept()

@@ -14,7 +14,7 @@ Date:   Fri May 6 08:51:16 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_bsd.go     |  1 -
  src/net/interface_linux.go   |  3 ---
  src/net/interface_test.go    |  6 +-----
@@ -22,3 +22,147 @@ Date:   Fri May 6 08:51:16 2016 +0900
  src/net/ip.go                | 14 ++++----------
  src/net/ip_test.go           |  8 --------
  6 files changed, 5 insertions(+), 30 deletions(-)
+
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 98d19f2d33..17c6dd3dcd 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -166,7 +166,6 @@ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
+ 		// link-local address as the kernel-internal form.
+ 		if ifa.IP.IsLinkLocalUnicast() {
+ 			ifa.IP[2], ifa.IP[3] = 0, 0
+-			ifa.Zone = ifi.Name
+ 		}
+ 	}
+ 	if ifa.IP == nil || ifa.Mask == nil {
+diff --git a/src/net/interface_linux.go b/src/net/interface_linux.go
+index b8f57fd7db..5e391b28b0 100644
+--- a/src/net/interface_linux.go
++++ b/src/net/interface_linux.go
+@@ -193,9 +193,6 @@ func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRou
+ 		case syscall.AF_INET6:
+ 			ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
+ 			copy(ifa.IP, a.Value[:])
+-			if ifa.IP.IsLinkLocalUnicast() {
+-				ifa.Zone = ifi.Name
+-			}
+ 			return ifa
+ 		}
+ 	}
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index c3e1ee231f..e158013493 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -221,10 +221,6 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+ 					t.Errorf("unexpected prefix length for IPv6 loopback: %d/%d", prefixLen, maxPrefixLen)
+ 					continue
+ 				}
+-				if ifa.IP.IsLinkLocalUnicast() && ifa.Zone == "" {
+-					t.Errorf("no IPv6 zone identifier found: %#v", ifa)
+-					continue
+-				}
+ 				naf6++
+ 			}
+ 			t.Logf("interface address %q", ifa.String())
+@@ -243,7 +239,7 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+ 			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+ 				naf6++
+ 			}
+-			t.Logf("interface address %q", ifa.String())
++			t.Logf("interface address %s", ifa.String())
+ 		default:
+ 			t.Errorf("unexpected type: %T", ifa)
+ 		}
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 69de095e66..8b976e585f 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -159,9 +159,6 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 					}
+ 					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(l, 8*IPv6len)}
+ 					copy(ifa.IP, sa.Addr[:])
+-					if ifa.IP.IsLinkLocalUnicast() {
+-						ifa.Zone = syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:])
+-					}
+ 					ifat = append(ifat, ifa)
+ 				}
+ 			}
+diff --git a/src/net/ip.go b/src/net/ip.go
+index e8b0fd990b..a2361bbdbf 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -36,7 +36,6 @@ type IPMask []byte
+ type IPNet struct {
+ 	IP   IP     // network number
+ 	Mask IPMask // network mask
+-	Zone string // IPv6 scoped addressing zone
+ }
+ 
+ // IPv4 returns the IP address (in 16-byte form) of the
+@@ -495,15 +494,11 @@ func (n *IPNet) String() string {
+ 	if nn == nil || m == nil {
+ 		return "<nil>"
+ 	}
+-	ip := nn.String()
+-	if n.Zone != "" {
+-		ip = ip + "%" + n.Zone
+-	}
+ 	l := simpleMaskLength(m)
+ 	if l == -1 {
+-		return ip + "/" + m.String()
++		return nn.String() + "/" + m.String()
+ 	}
+-	return ip + "/" + uitoa(uint(l))
++	return nn.String() + "/" + uitoa(uint(l))
+ }
+ 
+ // Parse IPv4 address (d.d.d.d).
+@@ -675,18 +670,17 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	if i < 0 {
+ 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+-	var zone string
+ 	addr, mask := s[:i], s[i+1:]
+ 	iplen := IPv4len
+ 	ip := parseIPv4(addr)
+ 	if ip == nil {
+ 		iplen = IPv6len
+-		ip, zone = parseIPv6(addr, true)
++		ip, _ = parseIPv6(addr, false)
+ 	}
+ 	n, i, ok := dtoi(mask, 0)
+ 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
+ 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+ 	m := CIDRMask(n, 8*iplen)
+-	return ip, &IPNet{IP: ip.Mask(m), Mask: m, Zone: zone}, nil
++	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+ }
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 1d67057d6a..87c12133c3 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -327,9 +327,6 @@ var parseCIDRTests = []struct {
+ 	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
+ 	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+ 	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+-	{"fe80::%en0/64", ParseIP("fe80::"), &IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, nil},
+-	{"fe80::1%en0/64", ParseIP("fe80::1"), &IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, nil},
+-
+ 	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
+ 	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
+ 	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
+@@ -376,13 +373,8 @@ var ipNetStringTests = []struct {
+ 	out string
+ }{
+ 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: CIDRMask(26, 32)}, "192.168.1.0/26"},
+-	{&IPNet{IP: IPv4(192, 168, 1, 1), Mask: CIDRMask(26, 32)}, "192.168.1.1/26"},
+ 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
+-	{&IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, "fe80::%en0/64"},
+-	{&IPNet{IP: ParseIP("fe80::1"), Mask: CIDRMask(64, 128), Zone: "en0"}, "fe80::1%en0/64"},
+-	{&IPNet{IP: ParseIP("fe80::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::")), Zone: "en0"}, "fe80::%en0/8000f1230000cafe0000000000000000"},
+ 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
+-	{&IPNet{IP: ParseIP("2001:db8::1"), Mask: CIDRMask(55, 128)}, "2001:db8::1/55"},
+ 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
+ }
+ 

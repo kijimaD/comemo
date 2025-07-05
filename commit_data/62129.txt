@@ -16,8 +16,48 @@ Date:   Wed Feb 5 12:19:12 2025 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/testing/slogtest/example_test.go | 2 +-
  src/testing/testing.go               | 2 +-
  src/testing/testing_test.go          | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/slogtest/example_test.go b/src/testing/slogtest/example_test.go
+index 0517a4b857..88fd2427b2 100644
+--- a/src/testing/slogtest/example_test.go
++++ b/src/testing/slogtest/example_test.go
+@@ -23,7 +23,7 @@ func Example_parsing() {
+ 
+ 	results := func() []map[string]any {
+ 		var ms []map[string]any
+-		for _, line := range bytes.Split(buf.Bytes(), []byte{'\n'}) {
++		for line := range bytes.SplitSeq(buf.Bytes(), []byte{'\n'}) {
+ 			if len(line) == 0 {
+ 				continue
+ 			}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2bfa4b6db0..aefcb84fc8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -2501,7 +2501,7 @@ func (m *M) stopAlarm() {
+ }
+ 
+ func parseCpuList() {
+-	for _, val := range strings.Split(*cpuListStr, ",") {
++	for val := range strings.SplitSeq(*cpuListStr, ",") {
+ 		val = strings.TrimSpace(val)
+ 		if val == "" {
+ 			continue
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 797728c7a8..addf6cad91 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -894,7 +894,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
+ 
+ func parseRunningTests(out []byte) (runningTests []string, ok bool) {
+ 	inRunningTests := false
+-	for _, line := range strings.Split(string(out), "\n") {
++	for line := range strings.SplitSeq(string(out), "\n") {
+ 		if inRunningTests {
+ 			// Package testing adds one tab, the panic printer adds another.
+ 			if trimmed, ok := strings.CutPrefix(line, "\t\t"); ok {

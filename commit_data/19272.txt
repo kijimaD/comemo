@@ -9,7 +9,32 @@ Date:   Fri May 2 10:54:50 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/90970048
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 81f9d543e2..cccbadfeda 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -109,6 +109,7 @@ Daniel Theophanes <kardianos@gmail.com>
+ Darren Elwood <darren@textnode.com>
+ Dave Cheney <dave@cheney.net>
+ David Bürgin <676c7473@gmail.com>
++David Calavera <david.calavera@gmail.com>
+ David du Colombier <0intro@gmail.com>
+ David Forsythe <dforsythe@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0cd641594a..5f5ed51422 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -168,6 +168,7 @@ Dave Grijalva <dgrijalva@ngmoco.com>
+ David Anderson <danderson@google.com>
+ David Barnett <dbarnett@google.com>
+ David Bürgin <676c7473@gmail.com>
++David Calavera <david.calavera@gmail.com>
+ David Covert <davidhcovert@gmail.com>
+ David Crawshaw <david.crawshaw@zentus.com> <crawshaw@google.com>
+ David du Colombier <0intro@gmail.com>

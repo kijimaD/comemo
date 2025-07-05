@@ -15,8 +15,111 @@ Date:   Mon Feb 22 19:45:21 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 13 +++++++------
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 +++--
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 4938e4b0e3..6944ba7ce7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
++	"cmd/internal/objabi"
+ )
+ 
+ // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+@@ -845,7 +846,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		if s.ABI != obj.ABIInternal {
+ 			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
+ 		}
+-		if !base.Flag.ABIWrap {
++		if !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) {
+ 			// zeroing X15 manually if wrappers are not used
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -945,7 +946,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		if s.ABI != obj.ABIInternal {
+ 			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
+ 		}
+-		if !base.Flag.ABIWrap {
++		if !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) {
+ 			// zeroing X15 manually if wrappers are not used
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -1017,20 +1018,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+ 	case ssa.OpAMD64LoweredGetG:
+-		if base.Flag.ABIWrap {
++		if objabi.Regabi_enabled == 1 && base.Flag.ABIWrap {
+ 			v.Fatalf("LoweredGetG should not appear in new ABI")
+ 		}
+ 		r := v.Reg()
+ 		getgFromTLS(s, r)
+ 	case ssa.OpAMD64CALLstatic:
+-		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
++		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+ 			getgFromTLS(s, x86.REG_R14)
+ 		}
+ 		s.Call(v)
+-		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
++		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+@@ -1333,7 +1334,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+-		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
++		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3c75bcfa05..acd2170ea7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -459,7 +459,7 @@
+ (IsInBounds idx len) => (SETB (CMPQ idx len))
+ (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
+ (NilCheck ...) => (LoweredNilCheck ...)
+-(GetG mem) && !base.Flag.ABIWrap => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
++(GetG mem) && !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+ (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 03498c719c..4074d37d35 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4,6 +4,7 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/objabi"
+ import "cmd/compile/internal/base"
+ import "cmd/compile/internal/types"
+ 
+@@ -30129,11 +30130,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
+ func rewriteValueAMD64_OpGetG(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (GetG mem)
+-	// cond: !base.Flag.ABIWrap
++	// cond: !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap)
+ 	// result: (LoweredGetG mem)
+ 	for {
+ 		mem := v_0
+-		if !(!base.Flag.ABIWrap) {
++		if !(!(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64LoweredGetG)

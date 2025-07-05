@@ -18,6 +18,21 @@ Date:   Tue Nov 23 22:05:40 2021 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/signal/signal_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 3e85d936f8..e6fb24c6a8 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -136,6 +136,9 @@ func TestSignal(t *testing.T) {
+ 	// Using 10 is arbitrary.
+ 	c1 := make(chan os.Signal, 10)
+ 	Notify(c1)
++	// Stop relaying the SIGURG signals. See #49724
++	Reset(syscall.SIGURG)
++	defer Stop(c1)
+ 
+ 	// Send this process a SIGWINCH
+ 	t.Logf("sigwinch...")

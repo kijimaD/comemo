@@ -17,9 +17,164 @@ Date:   Sun Feb 21 20:43:14 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  2 -
  src/cmd/compile/internal/gc/builtin/runtime.go |  2 -
  src/cmd/compile/internal/gc/swt.go             | 76 ++++++++++++++++++--------
  src/runtime/iface.go                           | 16 ------
  4 files changed, 53 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 7583e8fa13..4a6e56fe47 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -66,8 +66,6 @@ const runtimeimport = "" +
+ 	"func @\"\".panicdottype (@\"\".have·1 *byte, @\"\".want·2 *byte, @\"\".iface·3 *byte)\n" +
+ 	"func @\"\".ifaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
+ 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
+-	"func @\"\".ifacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n" +
+-	"func @\"\".efacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n" +
+ 	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64, @\"\".mapbuf·4 *any, @\"\".bucketbuf·5 *any) (@\"\".hmap·1 map[any]any)\n" +
+ 	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any) (@\"\".val·1 *any)\n" +
+ 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 08f925f41c..0fe6242e74 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -83,8 +83,6 @@ func panicdottype(have, want, iface *byte)
+ 
+ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+-func ifacethash(i1 any) (ret uint32)
+-func efacethash(i1 any) (ret uint32)
+ 
+ // *byte is really *runtime.Type
+ func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index f0433f3df7..661b3ee5a9 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -549,20 +549,6 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	// set up labels and jumps
+ 	casebody(sw, s.facename)
+ 
+-	// calculate type hash
+-	t := cond.Right.Type
+-	if isnilinter(t) {
+-		a = syslook("efacethash", 1)
+-	} else {
+-		a = syslook("ifacethash", 1)
+-	}
+-	substArgTypes(a, t)
+-	a = Nod(OCALL, a, nil)
+-	a.List = list1(s.facename)
+-	a = Nod(OAS, s.hashname, a)
+-	typecheck(&a, Etop)
+-	cas = list(cas, a)
+-
+ 	cc := caseClauses(sw, switchKindType)
+ 	sw.List = nil
+ 	var def *Node
+@@ -572,22 +558,66 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	} else {
+ 		def = Nod(OBREAK, nil, nil)
+ 	}
++	var typenil *Node
++	if len(cc) > 0 && cc[0].typ == caseKindTypeNil {
++		typenil = cc[0].node.Right
++		cc = cc[1:]
++	}
++
++	// For empty interfaces, do:
++	//     if e._type == nil {
++	//         do nil case if it exists, otherwise default
++	//     }
++	//     h := e._type.hash
++	// Use a similar strategy for non-empty interfaces.
++
++	// Get interface descriptor word.
++	typ := Nod(OITAB, s.facename, nil)
++
++	// Check for nil first.
++	i := Nod(OIF, nil, nil)
++	i.Left = Nod(OEQ, typ, nodnil())
++	if typenil != nil {
++		// Do explicit nil case right here.
++		i.Nbody = list1(typenil)
++	} else {
++		// Jump to default case.
++		lbl := newCaseLabel()
++		i.Nbody = list1(Nod(OGOTO, lbl, nil))
++		// Wrap default case with label.
++		blk := Nod(OBLOCK, nil, nil)
++		blk.List = list(list1(Nod(OLABEL, lbl, nil)), def)
++		def = blk
++	}
++	typecheck(&i.Left, Erv)
++	cas = list(cas, i)
++
++	if !isnilinter(cond.Right.Type) {
++		// Load type from itab.
++		typ = Nod(ODOTPTR, typ, nil)
++		typ.Type = Ptrto(Types[TUINT8])
++		typ.Typecheck = 1
++		typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
++		typ.Bounded = true            // guaranteed not to fault
++	}
++	// Load hash from type.
++	h := Nod(ODOTPTR, typ, nil)
++	h.Type = Types[TUINT32]
++	h.Typecheck = 1
++	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
++	h.Bounded = true                // guaranteed not to fault
++	a = Nod(OAS, s.hashname, h)
++	typecheck(&a, Etop)
++	cas = list(cas, a)
+ 
+ 	// insert type equality check into each case block
+ 	for _, c := range cc {
+ 		n := c.node
+ 		switch c.typ {
+-		case caseKindTypeNil:
+-			var v Val
+-			v.U = new(NilVal)
+-			a = Nod(OIF, nil, nil)
+-			a.Left = Nod(OEQ, s.facename, nodlit(v))
+-			typecheck(&a.Left, Erv)
+-			a.Nbody = list1(n.Right) // if i==nil { goto l }
+-			n.Right = a
+-
+ 		case caseKindTypeVar, caseKindTypeConst:
+ 			n.Right = s.typeone(n)
++		default:
++			Fatalf("typeSwitch with bad kind: %d", c.typ)
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 71dc865e07..50dff77e42 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -398,22 +398,6 @@ func assertE2E2(inter *interfacetype, e eface, r *eface) bool {
+ 	return true
+ }
+ 
+-func ifacethash(i iface) uint32 {
+-	tab := i.tab
+-	if tab == nil {
+-		return 0
+-	}
+-	return tab._type.hash
+-}
+-
+-func efacethash(e eface) uint32 {
+-	t := e._type
+-	if t == nil {
+-		return 0
+-	}
+-	return t.hash
+-}
+-
+ func iterate_itabs(fn func(*itab)) {
+ 	for _, h := range &hash {
+ 		for ; h != nil; h = h.link {

@@ -15,7 +15,82 @@ Date:   Fri Apr 15 14:22:27 2016 -0700
     Change-Id: I4bb12454e462410115ec4f5565facf76c5c2f255
     Reviewed-on: https://go-review.googlesource.com/22121
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go  | 22 ----------------------
  src/cmd/compile/internal/gc/main.go |  2 --
  2 files changed, 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e1028f681c..0e4b5f6051 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -13,19 +13,6 @@ import (
+ 
+ // Declaration stack & operations
+ 
+-func dflag() bool {
+-	if Debug['d'] == 0 {
+-		return false
+-	}
+-	if Debug['y'] != 0 {
+-		return true
+-	}
+-	if incannedimport != 0 {
+-		return false
+-	}
+-	return true
+-}
+-
+ var externdcl []*Node
+ 
+ var blockgen int32 // max block number
+@@ -67,9 +54,6 @@ func push() *Sym {
+ func pushdcl(s *Sym) *Sym {
+ 	d := push()
+ 	dcopy(d, s)
+-	if dflag() {
+-		fmt.Printf("\t%v push %v %p\n", linestr(lineno), s, s.Def)
+-	}
+ 	return d
+ }
+ 
+@@ -82,9 +66,6 @@ func popdcl() {
+ 		lno := s.Lastlineno
+ 		dcopy(s, d)
+ 		d.Lastlineno = lno
+-		if dflag() {
+-			fmt.Printf("\t%v pop %v %p\n", linestr(lineno), s, s.Def)
+-		}
+ 	}
+ 
+ 	if d == nil {
+@@ -194,9 +175,6 @@ func declare(n *Node, ctxt Class) {
+ 	gen := 0
+ 	if ctxt == PEXTERN {
+ 		externdcl = append(externdcl, n)
+-		if dflag() {
+-			fmt.Printf("\t%v global decl %v %p\n", linestr(lineno), s, n)
+-		}
+ 	} else {
+ 		if Curfn == nil && ctxt == PAUTO {
+ 			Fatalf("automatic outside function")
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2baf9f6585..37e8a17886 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -153,7 +153,6 @@ func Main() {
+ 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
+ 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
+ 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
+-	obj.Flagcount("L", "use full (long) path in error messages", &Debug['L'])
+ 	obj.Flagcount("M", "debug move generation", &Debug['M'])
+ 	obj.Flagcount("N", "disable optimizations", &Debug['N'])
+ 	obj.Flagcount("P", "debug peephole optimizer", &Debug['P'])
+@@ -191,7 +190,6 @@ func Main() {
+ 	obj.Flagcount("w", "debug type checking", &Debug['w'])
+ 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+ 	obj.Flagcount("x", "debug lexer", &Debug['x'])
+-	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
+ 	var flag_shared bool
+ 	var flag_dynlink bool
+ 	if supportsDynlink(Thearch.LinkArch.Arch) {

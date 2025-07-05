@@ -7,6 +7,60 @@ Date:   Mon Mar 5 11:09:50 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5726062
-
+---
  src/pkg/expvar/expvar.go | 22 +++++++++++++++-------
  1 file changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 1919296ea8..af5ce61aba 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -44,7 +44,11 @@ type Int struct {
+ 	mu sync.Mutex
+ }
+ 
+-func (v *Int) String() string { return strconv.FormatInt(v.i, 10) }
++func (v *Int) String() string {
++	v.mu.Lock()
++	defer v.mu.Unlock()
++	return strconv.FormatInt(v.i, 10)
++}
+ 
+ func (v *Int) Add(delta int64) {
+ 	v.mu.Lock()
+@@ -64,7 +68,11 @@ type Float struct {
+ 	mu sync.Mutex
+ }
+ 
+-func (v *Float) String() string { return strconv.FormatFloat(v.f, 'g', -1, 64) }
++func (v *Float) String() string {
++	v.mu.Lock()
++	defer v.mu.Unlock()
++	return strconv.FormatFloat(v.f, 'g', -1, 64)
++}
+ 
+ // Add adds delta to v.
+ func (v *Float) Add(delta float64) {
+@@ -95,17 +103,17 @@ type KeyValue struct {
+ func (v *Map) String() string {
+ 	v.mu.RLock()
+ 	defer v.mu.RUnlock()
+-	b := new(bytes.Buffer)
+-	fmt.Fprintf(b, "{")
++	var b bytes.Buffer
++	fmt.Fprintf(&b, "{")
+ 	first := true
+ 	for key, val := range v.m {
+ 		if !first {
+-			fmt.Fprintf(b, ", ")
++			fmt.Fprintf(&b, ", ")
+ 		}
+-		fmt.Fprintf(b, "\"%s\": %v", key, val)
++		fmt.Fprintf(&b, "\"%s\": %v", key, val)
+ 		first = false
+ 	}
+-	fmt.Fprintf(b, "}")
++	fmt.Fprintf(&b, "}")
+ 	return b.String()
+ }
+ 

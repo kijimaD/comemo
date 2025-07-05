@@ -11,7 +11,7 @@ Date:   Fri Aug 12 15:43:10 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4887041
-
+---
  lib/godoc/godoc.html     |   2 +-
  lib/godoc/package.html   |  50 +++++------
  lib/godoc/package.txt    |  20 ++---
@@ -20,3 +20,663 @@ Date:   Fri Aug 12 15:43:10 2011 -0700
  src/cmd/godoc/godoc.go   | 228 ++++++++++++++++++-----------------------------
  src/cmd/godoc/snippet.go |   9 +-
  7 files changed, 152 insertions(+), 204 deletions(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 91e521258d..e978b309c6 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -25,7 +25,7 @@
+         <form method="GET" action="/search">
+         {{with .PkgRoots}}
+         {{range .PkgRoots}}
+-        <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
++        <a href="/pkg/{{url .}}">{{html .}}</a> <span class="sep">|</span>
+         {{end}}
+         {{else}}
+         References:
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index b2b8356b04..968f69a7c3 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -4,21 +4,21 @@
+ 	license that can be found in the LICENSE file.
+ -->
+ {{with .PAst}}
+-	<pre>{{html_node . $.FSet}}</pre>
++	<pre>{{node_html . $.FSet}}</pre>
+ {{end}}
+ {{with .PDoc}}
+ 	<!-- PackageName is printed as title by the top-level template -->
+ 	{{if $.IsPkg}}
+ 		<p><code>import "{{html .ImportPath}}"</code></p>
+ 	{{end}}
+-	{{html_comment .Doc}}
++	{{comment_html .Doc}}
+ 	{{if $.IsPkg}}
+ 		{{with .Filenames}}
+ 			<p>
+ 			<h4>Package files</h4>
+ 			<span style="font-size:90%">
+ 			{{range .}}
+-				<a href="/{{url_src .}}">{{.|localname|html}}</a>
++				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
+ 			{{end}}
+ 			</span>
+ 			</p>
+@@ -27,58 +27,58 @@
+ 	{{with .Consts}}
+ 		<h2 id="Constants">Constants</h2>
+ 		{{range .}}
+-			{{html_comment .Doc}}
+-			<pre>{{html_node .Decl $.FSet}}</pre>
++			{{comment_html .Doc}}
++			<pre>{{node_html .Decl $.FSet}}</pre>
+ 		{{end}}
+ 	{{end}}
+ 	{{with .Vars}}
+ 		<h2 id="Variables">Variables</h2>
+ 		{{range .}}
+-			{{html_comment .Doc}}
+-			<pre>{{html_node .Decl $.FSet}}</pre>
++			{{comment_html .Doc}}
++			<pre>{{node_html .Decl $.FSet}}</pre>
+ 		{{end}}
+ 	{{end}}
+ 	{{with .Funcs}}
+ 		{{range .}}
+ 			{{/* Name is a string - no need for FSet */}}
+ 			{{$name := html .Name}}
+-			<h2 id="{{$name}}">func <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h2>
+-			<p><code>{{html_node .Decl $.FSet}}</code></p>
+-			{{html_comment .Doc}}
++			<h2 id="{{$name}}">func <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h2>
++			<p><code>{{node_html .Decl $.FSet}}</code></p>
++			{{comment_html .Doc}}
+ 		{{end}}
+ 	{{end}}
+ 	{{with .Types}}
+ 		{{range .}}
+-			{{$tname := html_node .Type.Name $.FSet}}
+-			<h2 id="{{$tname}}">type <a href="/{{url_pos .Decl $.FSet}}">{{$tname}}</a></h2>
+-			{{html_comment .Doc}}
+-			<p><pre>{{html_node .Decl $.FSet}}</pre></p>
++			{{$tname := node_html .Type.Name $.FSet}}
++			<h2 id="{{$tname}}">type <a href="/{{posLink .Decl $.FSet}}">{{$tname}}</a></h2>
++			{{comment_html .Doc}}
++			<p><pre>{{node_html .Decl $.FSet}}</pre></p>
+ 			{{range .Consts}}
+-				{{html_comment .Doc}}
+-				<pre>{{html_node .Decl $.FSet}}</pre>
++				{{comment_html .Doc}}
++				<pre>{{node_html .Decl $.FSet}}</pre>
+ 			{{end}}
+ 			{{range .Vars}}
+-				{{html_comment .Doc}}
+-				<pre>{{html_node .Decl $.FSet}}</pre>
++				{{comment_html .Doc}}
++				<pre>{{node_html .Decl $.FSet}}</pre>
+ 			{{end}}
+ 			{{range .Factories}}
+ 				{{$name := html .Name}}
+-				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h3>
+-				<p><code>{{html_node .Decl $.FSet}}</code></p>
+-				{{html_comment .Doc}}
++				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h3>
++				<p><code>{{node_html .Decl $.FSet}}</code></p>
++				{{comment_html .Doc}}
+ 			{{end}}
+ 			{{range .Methods}}
+ 				{{$name := html .Name}}
+-				<h3 id="{{$tname}}.{{$name}}">func ({{html_node .Recv $.FSet}}) <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h3>
+-				<p><code>{{html_node .Decl $.FSet}}</code></p>
+-				{{html_comment .Doc}}
++				<h3 id="{{$tname}}.{{$name}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h3>
++				<p><code>{{node_html .Decl $.FSet}}</code></p>
++				{{comment_html .Doc}}
+ 			{{end}}
+ 		{{end}}
+ 	{{end}}
+ 	{{with .Bugs}}
+ 		<h2 id="Bugs">Bugs</h2>
+ 		{{range .}}
+-		{{html_comment .}}
++		{{comment_html .}}
+ 		{{end}}
+ 	{{end}}
+ {{end}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index af1a630693..45c5566e8c 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -2,7 +2,7 @@
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .PAst}}{{text_node . $FSet}}{{end}}{{/*
++*/}}{{with .PAst}}{{node . $FSet}}{{end}}{{/*
+ 
+ ---------------------------------------
+ 
+@@ -16,7 +16,7 @@ import "{{.ImportPath}}"
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .Doc}}{{text_node . $FSet}}
++*/}}{{with .Doc}}{{node . $FSet}}
+ {{end}}{{/*
+ 
+ ---------------------------------------
+@@ -24,7 +24,7 @@ import "{{.ImportPath}}"
+ */}}{{with .Consts}}
+ CONSTANTS
+ 
+-{{range .}}{{text_node .Decl $FSet}}
++{{range .}}{{node .Decl $FSet}}
+ {{.Doc}}{{end}}
+ {{end}}{{/*
+ 
+@@ -33,7 +33,7 @@ CONSTANTS
+ */}}{{with .Vars}}
+ VARIABLES
+ 
+-{{range .}}{{text_node .Decl $FSet}}
++{{range .}}{{node .Decl $FSet}}
+ {{.Doc}}{{end}}
+ {{end}}{{/*
+ 
+@@ -42,7 +42,7 @@ VARIABLES
+ */}}{{with .Funcs}}
+ FUNCTIONS
+ 
+-{{range .}}{{text_node .Decl $FSet}}
++{{range .}}{{node .Decl $FSet}}
+ {{.Doc}}
+ {{end}}{{end}}{{/*
+ 
+@@ -51,15 +51,15 @@ FUNCTIONS
+ */}}{{with .Types}}
+ TYPES
+ 
+-{{range .}}{{text_node .Decl $FSet}}
++{{range .}}{{node .Decl $FSet}}
+ {{.Doc}}
+-{{range .Consts}}{{text_node .Decl $FSet}}
++{{range .Consts}}{{node .Decl $FSet}}
+ {{.Doc}}
+-{{end}}{{range .Vars}}{{text_node .Decl $FSet}}
++{{end}}{{range .Vars}}{{node .Decl $FSet}}
+ {{.Doc}}
+-{{end}}{{range .Factories}}{{text_node .Decl $FSet}}
++{{end}}{{range .Factories}}{{node .Decl $FSet}}
+ {{.Doc}}
+-{{end}}{{range .Methods}}{{text_node .Decl $FSet}}
++{{end}}{{range .Methods}}{{node .Decl $FSet}}
+ {{.Doc}}
+ {{end}}{{end}}{{end}}{{/*
+ 
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 4c956721f8..39eec9b498 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -3,10 +3,9 @@
+ 	Use of this source code is governed by a BSD-style
+ 	license that can be found in the LICENSE file.
+ -->
+-{{$SearchResult := .}}
+ {{with .Alert}}
+ 	<p>
+-	<span class="alert" style="font-size:120%">{{.}}</span>
++	<span class="alert" style="font-size:120%">{{html .}}</span>
+ 	</p>
+ {{end}}
+ {{with .Alt}}
+@@ -21,13 +20,14 @@
+ 	{{with .Decls}}
+ 		<h2 id="Global">Package-level declarations</h2>
+ 		{{range .}}
+-			<h3 id="Global_{{url_pkg .Pak.Path}}">package <a href="/{{url_pkg .Pak.Path}}">{{html .Pak.Name}}</a></h3>
++			{{$pkg := pkgLink .Pak.Path}}
++			<h3 id="Global_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
+ 			{{range .Files}}
+-				{{$path := url_src .File.Path}}
++				{{$src := srcLink .File.Path}}
+ 				{{range .Groups}}
+ 					{{range .Infos}}
+-						<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{infoLine .}}">{{$path}}:{{infoLine .}}</a>
+-						{{infoSnippet .}}
++						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{html $src}}:{{infoLine .}}</a>
++						{{infoSnippet_html .}}
+ 					{{end}}
+ 				{{end}}
+ 			{{end}}
+@@ -36,19 +36,20 @@
+ 	{{with .Others}}
+ 		<h2 id="Local">Local declarations and uses</h2>
+ 		{{range .}}
+-			<h3 id="Local_{{url_pkg .Pak.Path}}">package <a href="/{{url_pkg .Pak.Path}}">{{html .Pak.Name}}</a></h3>
++			{{$pkg := pkgLink .Pak.Path}}
++			<h3 id="Local_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
+ 			{{range .Files}}
+-				{{$path := url_src .File.Path}}
+-				<a href="/{{$path}}?h={{url $SearchResult.Query}}">{{$path}}</a>
++				{{$src := srcLink .File.Path}}
++				<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>
+ 				<table class="layout">
+ 				{{range .Groups}}
+ 					<tr>
+ 					<td width="25"></td>
+-					<th align="left" valign="top">{{infoKind .Kind}}</th>
++					<th align="left" valign="top">{{infoKind_html .Kind}}</th>
+ 					<td align="left" width="4"></td>
+ 					<td>
+ 					{{range .Infos}}
+-						<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
++						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
+ 					{{end}}
+ 					</td>
+ 					</tr>
+@@ -59,36 +60,36 @@
+ 	{{end}}
+ {{end}}
+ {{with .Textual}}
+-	{{if $SearchResult.Complete}}
+-		<h2 id="Textual">{{html $SearchResult.Found}} textual occurrences</h2>
++	{{if $.Complete}}
++		<h2 id="Textual">{{html $.Found}} textual occurrences</h2>
+ 	{{else}}
+-		<h2 id="Textual">More than {{html $SearchResult.Found}} textual occurrences</h2>
++		<h2 id="Textual">More than {{html $.Found}} textual occurrences</h2>
+ 		<p>
+-		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $SearchResult.Query}}" are shown.</span>
++		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $.Query}}" are shown.</span>
+ 		</p>
+ 	{{end}}
+ 	<p>
+ 	<table class="layout">
+ 	{{range .}}
+-		{{$path := url_src .Filename}}
++		{{$src := srcLink .Filename}}
+ 		<tr>
+ 		<td align="left" valign="top">
+-		<a href="/{{$path}}?h={{url $SearchResult.Query}}">{{$path}}</a>:
++		<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>:
+ 		</td>
+ 		<td align="left" width="4"></td>
+ 		<th align="left" valign="top">{{len .Lines}}</th>
+ 		<td align="left" width="4"></td>
+ 		<td align="left">
+ 		{{range .Lines}}
+-			<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{url .}}">{{html .}}</a>
++			<a href="/{{url $src}}?h={{url $.Query}}#L{{url .}}">{{html .}}</a>
+ 		{{end}}
+-		{{if not $SearchResult.Complete}}
++		{{if not $.Complete}}
+ 			...
+ 		{{end}}
+ 		</td>
+ 		</tr>
+ 	{{end}}
+-	{{if not $SearchResult.Complete}}
++	{{if not $.Complete}}
+ 		<tr><td align="left">...</td></tr>
+ 	{{end}}
+ 	</table>
+diff --git a/lib/godoc/search.txt b/lib/godoc/search.txt
+index 423712155a..71343984c7 100644
+--- a/lib/godoc/search.txt
++++ b/lib/godoc/search.txt
+@@ -17,7 +17,7 @@ DID YOU MEAN
+ PACKAGE-LEVEL DECLARATIONS
+ 
+ {{range .}}package {{.Pak.Name}}
+-{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{url_src $File.File.Path}}:{{infoLine .}}{{end}}
++{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $File.File.Path}}:{{infoLine .}}{{end}}
+ {{end}}{{end}}{{/* .Files */}}
+ {{end}}{{end}}{{/* .Decls */}}{{/*
+ 
+@@ -27,7 +27,7 @@ PACKAGE-LEVEL DECLARATIONS
+ LOCAL DECLARATIONS AND USES
+ 
+ {{range .}}package {{.Pak.Name}}
+-{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{url_src $File.File.Path}}:{{infoLine .}}
++{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $File.File.Path}}:{{infoLine .}}
+ {{end}}{{end}}{{end}}{{/* .Files */}}
+ {{end}}{{end}}{{/* .Others */}}{{end}}{{/* .Hit */}}{{/*
+ 
+@@ -35,6 +35,6 @@ LOCAL DECLARATIONS AND USES
+ 
+ */}}{{if .Textual}}{{if .Complete}}{{.Found}} TEXTUAL OCCURRENCES{{else}}MORE THAN {{.Found}} TEXTUAL OCCURRENCES{{end}}
+ 
+-{{range .Textual}}{{len .Lines}}	{{url_src .Filename}}
++{{range .Textual}}{{len .Lines}}	{{srcLink .Filename}}
+ {{end}}{{if not .Complete}}...	...
+ {{end}}{{end}}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c70a03de82..15b60c72b0 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -371,85 +371,24 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
+ 	(&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
+ }
+ 
+-func fileset(x []interface{}) *token.FileSet {
+-	if len(x) > 1 {
+-		if fset, ok := x[1].(*token.FileSet); ok {
+-			return fset
+-		}
+-	}
+-	return nil
++func filenameFunc(path string) string {
++	_, localname := filepath.Split(path)
++	return localname
+ }
+ 
+-// Template formatter for the various "url-xxx" formats excluding url-esc.
+-func urlFmt(w io.Writer, format string, x ...interface{}) {
+-	var path string
+-	var line int
+-	var low, high int // selection
+-
+-	// determine path and position info, if any
+-	type positioner interface {
+-		Pos() token.Pos
+-		End() token.Pos
+-	}
+-	switch t := x[0].(type) {
+-	case string:
+-		path = t
+-	case positioner:
+-		fset := fileset(x)
+-		if p := t.Pos(); p.IsValid() {
+-			pos := fset.Position(p)
+-			path = pos.Filename
+-			line = pos.Line
+-			low = pos.Offset
+-		}
+-		if p := t.End(); p.IsValid() {
+-			high = fset.Position(p).Offset
+-		}
+-	default:
+-		// we should never reach here, but be resilient
+-		// and assume the position is invalid (empty path,
+-		// and line 0)
+-		log.Printf("INTERNAL ERROR: urlFmt(%s) without a string or positioner", format)
++func fileInfoNameFunc(fi FileInfo) string {
++	name := fi.Name()
++	if fi.IsDirectory() {
++		name += "/"
+ 	}
++	return name
++}
+ 
+-	// map path
+-	relpath := relativeURL(path)
+-
+-	// convert to relative URLs so that they can also
+-	// be used as relative file names in .txt templates
+-	switch format {
+-	default:
+-		// we should never reach here, but be resilient
+-		// and assume the url-pkg format instead
+-		log.Printf("INTERNAL ERROR: urlFmt(%s)", format)
+-		fallthrough
+-	case "url_pkg":
+-		// because of the irregular mapping under goroot
+-		// we need to correct certain relative paths
+-		if strings.HasPrefix(relpath, "src/pkg/") {
+-			relpath = relpath[len("src/pkg/"):]
+-		}
+-		template.HTMLEscape(w, []byte(pkgHandler.pattern[1:]+relpath)) // remove trailing '/' for relative URL
+-	case "url_src":
+-		template.HTMLEscape(w, []byte(relpath))
+-	case "url_pos":
+-		template.HTMLEscape(w, []byte(relpath))
+-		// selection ranges are of form "s=low:high"
+-		if low < high {
+-			fmt.Fprintf(w, "?s=%d:%d", low, high)
+-			// if we have a selection, position the page
+-			// such that the selection is a bit below the top
+-			line -= 10
+-			if line < 1 {
+-				line = 1
+-			}
+-		}
+-		// line id's in html-printed source are of the
+-		// form "L%d" where %d stands for the line number
+-		if line > 0 {
+-			fmt.Fprintf(w, "#L%d", line)
+-		}
++func fileInfoTimeFunc(fi FileInfo) string {
++	if t := fi.Mtime_ns(); t != 0 {
++		return time.SecondsToLocalTime(t / 1e9).String()
+ 	}
++	return "" // don't return epoch if time is obviously not set
+ }
+ 
+ // The strings in infoKinds must be properly html-escaped.
+@@ -464,14 +403,11 @@ var infoKinds = [nKinds]string{
+ 	Use:           "use",
+ }
+ 
+-// Template formatter for "infoKind" format.
+-func infoKindFmt(w io.Writer, format string, x ...interface{}) {
+-	fmt.Fprintf(w, infoKinds[x[0].(SpotKind)]) // infoKind entries are html-escaped
++func infoKind_htmlFunc(kind SpotKind) string {
++	return infoKinds[kind] // infoKind entries are html-escaped
+ }
+ 
+-// Template formatter for "infoLine" format.
+-func infoLineFmt(w io.Writer, format string, x ...interface{}) {
+-	info := x[0].(SpotInfo)
++func infoLineFunc(info SpotInfo) int {
+ 	line := info.Lori()
+ 	if info.IsIndex() {
+ 		index, _ := searchIndex.get()
+@@ -485,49 +421,25 @@ func infoLineFmt(w io.Writer, format string, x ...interface{}) {
+ 			line = 0
+ 		}
+ 	}
+-	fmt.Fprintf(w, "%d", line)
++	return line
+ }
+ 
+-// Template formatter for "infoSnippet" format.
+-func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
+-	info := x[0].(SpotInfo)
+-	text := []byte(`<span class="alert">no snippet text available</span>`)
++func infoSnippet_htmlFunc(info SpotInfo) string {
+ 	if info.IsIndex() {
+ 		index, _ := searchIndex.get()
+-		// no escaping of snippet text needed;
+-		// snippet text is escaped when generated
+-		text = index.(*Index).Snippet(info.Lori()).Text
+-	}
+-	w.Write(text)
+-}
+-
+-// TODO(gri): Remove this type once fmtMap2funcMap is gone.
+-type FormatterMap map[string]func(io.Writer, string, ...interface{})
+-
+-// TODO(gri): Remove the need for this conversion function by rewriting
+-//            the old template formatters into new template functions.
+-func append2funcMap(funcMap template.FuncMap, fmtMap FormatterMap) template.FuncMap {
+-	for n, f := range fmtMap {
+-		name, fmt := n, f // separate instance of name, fmt for each closure!
+-		if _, ok := funcMap[name]; ok {
+-			panic("function already in map: " + name)
+-		}
+-		funcMap[name] = func(args ...interface{}) string {
+-			var buf bytes.Buffer
+-			fmt(&buf, name, args...)
+-			return buf.String()
+-		}
++		// Snippet.Text was HTML-escaped when it was generated
++		return index.(*Index).Snippet(info.Lori()).Text
+ 	}
+-	return funcMap
++	return `<span class="alert">no snippet text available</span>`
+ }
+ 
+-func textNodeFunc(node interface{}, fset *token.FileSet) string {
++func nodeFunc(node interface{}, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	writeNode(&buf, fset, node)
+ 	return buf.String()
+ }
+ 
+-func htmlNodeFunc(node interface{}, fset *token.FileSet) string {
++func node_htmlFunc(node interface{}, fset *token.FileSet) string {
+ 	var buf1 bytes.Buffer
+ 	writeNode(&buf1, fset, node)
+ 	var buf2 bytes.Buffer
+@@ -535,7 +447,7 @@ func htmlNodeFunc(node interface{}, fset *token.FileSet) string {
+ 	return buf2.String()
+ }
+ 
+-func htmlCommentFunc(comment string) string {
++func comment_htmlFunc(comment string) string {
+ 	var buf bytes.Buffer
+ 	// TODO(gri) Provide list of words (e.g. function parameters)
+ 	//           to be emphasized by ToHTML.
+@@ -543,42 +455,80 @@ func htmlCommentFunc(comment string) string {
+ 	return buf.String()
+ }
+ 
+-func fileInfoNameFunc(fi FileInfo) string {
+-	name := fi.Name()
+-	if fi.IsDirectory() {
+-		name += "/"
++func pkgLinkFunc(path string) string {
++	relpath := relativeURL(path)
++	// because of the irregular mapping under goroot
++	// we need to correct certain relative paths
++	if strings.HasPrefix(relpath, "src/pkg/") {
++		relpath = relpath[len("src/pkg/"):]
+ 	}
+-	return name
++	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
+ }
+ 
+-func fileInfoTimeFunc(fi FileInfo) string {
+-	if t := fi.Mtime_ns(); t != 0 {
+-		return time.SecondsToLocalTime(t / 1e9).String()
++func posLinkFunc(node ast.Node, fset *token.FileSet) string {
++	var relpath string
++	var line int
++	var low, high int // selection
++
++	if p := node.Pos(); p.IsValid() {
++		pos := fset.Position(p)
++		relpath = relativeURL(pos.Filename)
++		line = pos.Line
++		low = pos.Offset
++	}
++	if p := node.End(); p.IsValid() {
++		high = fset.Position(p).Offset
+ 	}
+-	return "" // don't return epoch if time is obviously not set
+-}
+ 
+-func localnameFunc(path string) string {
+-	_, localname := filepath.Split(path)
+-	return localname
++	var buf bytes.Buffer
++	buf.WriteString(relpath)
++	// selection ranges are of form "s=low:high"
++	if low < high {
++		fmt.Fprintf(&buf, "?s=%d:%d", low, high)
++		// if we have a selection, position the page
++		// such that the selection is a bit below the top
++		line -= 10
++		if line < 1 {
++			line = 1
++		}
++	}
++	// line id's in html-printed source are of the
++	// form "L%d" where %d stands for the line number
++	if line > 0 {
++		fmt.Fprintf(&buf, "#L%d", line)
++	}
++
++	return buf.String()
+ }
+ 
+-var fmap = append2funcMap(template.FuncMap{
+-	"text_node":    textNodeFunc,
+-	"html_node":    htmlNodeFunc,
+-	"html_comment": htmlCommentFunc,
++// fmap describes the template functions installed with all godoc templates.
++// Convention: template function names ending in "_html" produce an HTML-
++//             escaped string; all other function results may require HTML
++//             or URL escaping in the template.
++var fmap = template.FuncMap{
++	// various helpers
++	"filename": filenameFunc,
++	"repeat":   strings.Repeat,
++
++	// accss to FileInfos (directory listings)
+ 	"fileInfoName": fileInfoNameFunc,
+ 	"fileInfoTime": fileInfoTimeFunc,
+-	"localname":    localnameFunc,
+-	"repeat":       strings.Repeat,
+-}, FormatterMap{
+-	"url_pkg":     urlFmt,
+-	"url_src":     urlFmt,
+-	"url_pos":     urlFmt,
+-	"infoKind":    infoKindFmt,
+-	"infoLine":    infoLineFmt,
+-	"infoSnippet": infoSnippetFmt,
+-})
++
++	// access to search result information
++	"infoKind_html":    infoKind_htmlFunc,
++	"infoLine":         infoLineFunc,
++	"infoSnippet_html": infoSnippet_htmlFunc,
++
++	// formatting of AST nodes
++	"node":         nodeFunc,
++	"node_html":    node_htmlFunc,
++	"comment_html": comment_htmlFunc,
++
++	// support for URL attributes
++	"pkgLink": pkgLinkFunc,
++	"srcLink": relativeURL,
++	"posLink": posLinkFunc,
++}
+ 
+ func readTemplate(name string) *template.Template {
+ 	path := filepath.Join(*goroot, "lib", "godoc", name)
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index 626b01455d..68e27d9a0c 100755
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -18,7 +18,7 @@ import (
+ 
+ type Snippet struct {
+ 	Line int
+-	Text []byte
++	Text string // HTML-escaped
+ }
+ 
+ func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+@@ -30,7 +30,7 @@ func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+ 	buf2.WriteString("<pre>")
+ 	FormatText(&buf2, buf1.Bytes(), -1, true, id.Name, nil)
+ 	buf2.WriteString("</pre>")
+-	return &Snippet{fset.Position(id.Pos()).Line, buf2.Bytes()}
++	return &Snippet{fset.Position(id.Pos()).Line, buf2.String()}
+ }
+ 
+ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
+@@ -94,10 +94,7 @@ func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) (s *Snippet)
+ 	if s == nil {
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, `<span class="alert">could not generate a snippet for <span class="highlight">%s</span></span>`, id.Name)
+-		s = &Snippet{
+-			fset.Position(id.Pos()).Line,
+-			buf.Bytes(),
+-		}
++		s = &Snippet{fset.Position(id.Pos()).Line, buf.String()}
+ 	}
+ 	return
+ }

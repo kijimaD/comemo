@@ -14,7 +14,43 @@ Date:   Wed Oct 30 18:07:55 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go  | 2 ++
  src/cmd/link/internal/ld/util.go | 7 +++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 4017ea1c79..1cbfc10ab0 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -58,6 +58,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"sync"
+ )
+@@ -540,6 +541,7 @@ func setupdynexp(ctxt *Link) {
+ 		s := ctxt.Syms.Lookup(exp, 0)
+ 		dynexp = append(dynexp, s)
+ 	}
++	sort.Sort(byName(dynexp))
+ 
+ 	// Resolve ABI aliases in the list of cgo-exported functions.
+ 	// This is necessary because we load the ABI0 symbol for all
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index b5b02296a1..488386fec2 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -99,3 +99,10 @@ func contains(s []string, v string) bool {
+ 	}
+ 	return false
+ }
++
++// implements sort.Interface, for sorting symbols by name.
++type byName []*sym.Symbol
++
++func (s byName) Len() int           { return len(s) }
++func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s byName) Less(i, j int) bool { return s[i].Name < s[j].Name }

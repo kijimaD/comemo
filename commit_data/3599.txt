@@ -7,6 +7,42 @@ Date:   Tue Oct 20 06:44:50 2009 -0700
     R=ken
     OCL=35917
     CL=35917
-
+---
  test/interface/embed0.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/interface/embed0.go b/test/interface/embed0.go
+new file mode 100644
+index 0000000000..fd16e2733a
+--- /dev/null
++++ b/test/interface/embed0.go
+@@ -0,0 +1,29 @@
++// true	# used by embed1.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that embedded interface types can have local methods.
++
++package p
++
++type T int
++func (t T) m() {}
++
++type I interface { m() }
++type J interface { I; }
++
++func main() {
++	var i I;
++	var j J;
++	var t T;
++	i = t;
++	j = t;
++	_ = i;
++	_ = j;
++	i = j;
++	_ = i;
++	j = i;
++	_ = j;
++}

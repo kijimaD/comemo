@@ -7,6 +7,25 @@ Date:   Fri Feb 3 08:33:29 2012 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/5615055
-
+---
  src/cmd/godoc/godoc.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index a4a0d8333c..34e058ab5c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -114,7 +114,12 @@ func registerPublicHandlers(mux *http.ServeMux) {
+ }
+ 
+ func initFSTree() {
+-	fsTree.set(newDirectory(filepath.Join(*goroot, *testDir), nil, -1))
++	dir := newDirectory(filepath.Join(*goroot, *testDir), nil, -1)
++	if dir == nil {
++		log.Println("Warning: FSTree is nil")
++		return
++	}
++	fsTree.set(dir)
+ 	invalidateIndex()
+ }
+ 

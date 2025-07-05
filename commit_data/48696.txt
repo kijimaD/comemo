@@ -13,6 +13,37 @@ Date:   Mon Jun 7 13:43:55 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go1.17.html | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 8b0fcea29d..ac315d4727 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -277,10 +277,6 @@ Do not send CLs removing the interior tags from such phrases.
+   <code>mod</code> <code>download</code> <code>all</code>.
+ </p>
+ 
+-<p><!-- CL 249759 -->
+-  TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
+-</p>
+-
+ <h3 id="vet">Vet</h3>
+ 
+ <p><!-- CL 299532 -->
+@@ -291,6 +287,14 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete the Vet section
+ </p>
+ 
++<h3 id="cover">Cover</h3>
++
++<p><!-- CL 249759 -->
++  The <code>cover</code> tool now uses an optimized parser
++  from <code>golang.org/x/tools/cover</code>, which may be noticeably faster
++  when parsing large coverage profiles.
++</p>
++
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p><!-- golang.org/issue/40724 -->

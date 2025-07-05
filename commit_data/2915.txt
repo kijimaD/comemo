@@ -7,8 +7,150 @@ Date:   Fri Aug 7 14:00:18 2009 -0700
     R=ken
     OCL=32890
     CL=32894
-
+---
  src/cmd/gc/typecheck.c   |  2 ++
  src/cmd/gc/walk.c        | 45 +++++++++++++++++++++++++++---------------
  test/fixedbugs/bug184.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 82 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 3488faf48f..b041cf26f9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1309,6 +1309,8 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
+ 				yyerror("not enough arguments to %#O", op);
+ 				goto out;
+ 			}
++			if(isddd(tl->type))
++				goto out;
+ 			if(checkconv(tn->type, tl->type, 0, &xx, &yy) < 0)
+ 				yyerror("cannot use type %T as type %T", tn->type, tl->type);
+ 			tn = tn->down;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 2298c659cb..90196ad7d6 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1314,7 +1314,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ {
+ 	Type *l, *ll;
+ 	Node *r, *a;
+-	NodeList *nn, *lr0;
++	NodeList *nn, *lr0, *alist;
+ 	Iter savel, peekl;
+ 
+ 	lr0 = lr;
+@@ -1326,19 +1326,32 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ 
+ 	// 1 to many
+ 	peekl = savel;
+-	if(l != T && r != N
+-	&& structnext(&peekl) != T
+-	&& lr->next == nil
+-	&& eqtypenoname(r->type, *nl)) {
+-		// clumsy check for differently aligned structs.
+-		// now that output structs are aligned separately
+-		// from the input structs, should never happen.
+-		if(r->type->width != (*nl)->width)
+-			fatal("misaligned multiple return\n\t%T\n\t%T", r->type, *nl);
+-		a = nodarg(*nl, fp);
+-		a->type = r->type;
+-		nn = list1(convas(nod(OAS, a, r), init));
+-		goto ret;
++	if(l != T && r != N && structnext(&peekl) != T && lr->next == nil
++	&& r->type->etype == TSTRUCT && r->type->funarg) {
++		// optimization - can do block copy
++		if(eqtypenoname(r->type, *nl)) {
++			a = nodarg(*nl, fp);
++			a->type = r->type;
++			nn = list1(convas(nod(OAS, a, r), init));
++			goto ret;
++		}
++		// conversions involved.
++		// copy into temporaries.
++		alist = nil;
++		for(l=structfirst(&savel, &r->type); l; l=structnext(&savel)) {
++			a = nod(OXXX, N, N);
++			tempname(a, l->type);
++			alist = list(alist, a);
++		}
++		a = nod(OAS2, N, N);
++		a->list = alist;
++		a->rlist = lr;
++		typecheck(&a, Etop);
++		walkstmt(&a);
++		*init = list(*init, a);
++		lr = alist;
++		r = lr->n;
++		l = structfirst(&savel, nl);
+ 	}
+ 
+ loop:
+@@ -1369,9 +1382,9 @@ loop:
+ 	if(l == T || r == N) {
+ 		if(l != T || r != N) {
+ 			if(l != T)
+-				yyerror("not enough arguments to %O", op);
++				yyerror("xxx not enough arguments to %O", op);
+ 			else
+-				yyerror("too many arguments to %O", op);
++				yyerror("xxx too many arguments to %O", op);
+ 			dumptypes(nl, "expected");
+ 			dumpnodetypes(lr0, "given");
+ 		}
+diff --git a/test/fixedbugs/bug184.go b/test/fixedbugs/bug184.go
+new file mode 100644
+index 0000000000..95a76d081c
+--- /dev/null
++++ b/test/fixedbugs/bug184.go
+@@ -0,0 +1,51 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++type Buffer int
++func (*Buffer) Read() {
++}
++
++type Reader interface { Read() }
++
++func f() *Buffer {
++	return nil
++}
++
++func g() Reader {
++	// implicit interface conversion in assignment during return
++	return f()
++}
++
++func h() (b *Buffer, ok bool) {
++	return
++}
++
++func i() (r Reader, ok bool) {
++	// implicit interface conversion in multi-assignment during return
++	return h();
++}
++
++func fmter() (s string, i int, t string) {
++	return "%#x %q", 100, "hello"
++}
++
++func main() {
++	b := g();
++	bb, ok := b.(*Buffer);
++
++	b, ok = i();
++	bb, ok = b.(*Buffer);
++
++	s := fmt.Sprintf(fmter());
++	if s != "0x64 \"hello\"" {
++		panicln(s);
++	}
++}
++

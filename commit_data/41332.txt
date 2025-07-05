@@ -13,8 +13,62 @@ Date:   Wed Sep 25 09:13:31 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue34503.dir/a.go | 15 +++++++++++++++
  test/fixedbugs/issue34503.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue34503.go       |  9 +++++++++
  3 files changed, 35 insertions(+)
+
+diff --git a/test/fixedbugs/issue34503.dir/a.go b/test/fixedbugs/issue34503.dir/a.go
+new file mode 100644
+index 0000000000..2c149135ad
+--- /dev/null
++++ b/test/fixedbugs/issue34503.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "unsafe"
++
++type HookFunc func(x uint64)
++
++var HookV unsafe.Pointer
++
++func Hook(x uint64) {
++	(*(*HookFunc)(HookV))(x)
++}
+diff --git a/test/fixedbugs/issue34503.dir/b.go b/test/fixedbugs/issue34503.dir/b.go
+new file mode 100644
+index 0000000000..21bdfcc1b5
+--- /dev/null
++++ b/test/fixedbugs/issue34503.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++func Bfunc() {
++	a.Hook(101)
++}
+diff --git a/test/fixedbugs/issue34503.go b/test/fixedbugs/issue34503.go
+new file mode 100644
+index 0000000000..d843df7062
+--- /dev/null
++++ b/test/fixedbugs/issue34503.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 34503: gccgo compiler error importing inlinable function
++
++package ignored

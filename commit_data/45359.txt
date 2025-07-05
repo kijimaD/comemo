@@ -17,6 +17,52 @@ Date:   Sun Oct 11 10:23:45 2020 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/wasm/wasm_exec.js | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 06b6062a2e..3ea03c45b7 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -102,7 +102,7 @@
+ 		}
+ 	}
+ 
+-	if (!global.crypto) {
++	if (!global.crypto && global.require) {
+ 		const nodeCrypto = require("crypto");
+ 		global.crypto = {
+ 			getRandomValues(b) {
+@@ -110,6 +110,9 @@
+ 			},
+ 		};
+ 	}
++	if (!global.crypto) {
++		throw new Error("global.crypto is not available, polyfill required (getRandomValues only)");
++	}
+ 
+ 	if (!global.performance) {
+ 		global.performance = {
+@@ -120,13 +123,19 @@
+ 		};
+ 	}
+ 
+-	if (!global.TextEncoder) {
++	if (!global.TextEncoder && global.require) {
+ 		global.TextEncoder = require("util").TextEncoder;
+ 	}
++	if (!global.TextEncoder) {
++		throw new Error("global.TextEncoder is not available, polyfill required");
++	}
+ 
+-	if (!global.TextDecoder) {
++	if (!global.TextDecoder && global.require) {
+ 		global.TextDecoder = require("util").TextDecoder;
+ 	}
++	if (!global.TextDecoder) {
++		throw new Error("global.TextDecoder is not available, polyfill required");
++	}
+ 
+ 	// End of polyfills for common API.
+ 

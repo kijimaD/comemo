@@ -8,8 +8,109 @@ Date:   Mon Sep 10 13:03:07 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6497098
-
+---
  src/cmd/gc/lex.c | 12 +++++++++++-
  test/bom.go      | 26 ++++++++++++++++++++++++++
  test/bombad.go   | 18 ++++++++++++++++++
  3 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f07a23c150..0788a61514 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -30,6 +30,8 @@ static void	addidir(char*);
+ static int	getlinepragma(void);
+ static char *goos, *goarch, *goroot;
+ 
++#define	BOM	0xFEFF
++
+ // Compiler experiments.
+ // These are controlled by the GOEXPERIMENT environment
+ // variable recorded when the compiler is built.
+@@ -319,6 +321,10 @@ main(int argc, char *argv[])
+ 		curio.peekc1 = 0;
+ 		curio.nlsemi = 0;
+ 
++		// Skip initial BOM if present.
++		if(Bgetrune(curio.bin) != BOM)
++			Bungetrune(curio.bin);
++
+ 		block = 1;
+ 		iota = -1000000;
+ 
+@@ -1200,7 +1206,7 @@ talph:
+ 			rune = getr();
+ 			// 0xb7 · is used for internal names
+ 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
+-				yyerror("invalid identifier character 0x%ux", rune);
++				yyerror("invalid identifier character U+%04x", rune);
+ 			cp += runetochar(cp, &rune);
+ 		} else if(!yy_isalnum(c) && c != '_')
+ 			break;
+@@ -1583,6 +1589,10 @@ loop:
+ 	if(!fullrune(str, i))
+ 		goto loop;
+ 	c = chartorune(&rune, str);
++	if(rune == BOM) {
++		lineno = lexlineno;
++		yyerror("Unicode (UTF-8) BOM in middle of file");
++	}
+ 	if(rune == Runeerror && c == 1) {
+ 		lineno = lexlineno;
+ 		yyerror("illegal UTF-8 sequence");
+diff --git a/test/bom.go b/test/bom.go
+new file mode 100644
+index 0000000000..37f73bc5d2
+--- /dev/null
++++ b/test/bom.go
+@@ -0,0 +1,26 @@
++// runoutput
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test source file beginning with a byte order mark.
++
++package main
++
++import (
++	"fmt"
++	"strings"
++)
++
++func main() {
++	prog = strings.Replace(prog, "BOM", "\uFEFF", -1)
++	fmt.Print(prog)
++}
++
++var prog = `BOM
++package main
++
++func main() {
++}
++`
+diff --git a/test/bombad.go b/test/bombad.go
+new file mode 100644
+index 0000000000..b894d9ba9f
+--- /dev/null
++++ b/test/bombad.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Here for reference, but hard to test automatically
++// because the BOM muddles the
++// processing done by ../run.
++
++package main
++
++func main() {
++	﻿// There's a bom here.	// ERROR "BOM"
++	//﻿ And here.	// ERROR "BOM"
++	/*﻿ And here.*/	// ERROR "BOM"
++	println("hi﻿ there") // and here	// ERROR "BOM"
++}

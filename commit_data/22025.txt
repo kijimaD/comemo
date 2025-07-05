@@ -7,6 +7,25 @@ Date:   Wed Feb 18 21:34:44 2015 -0500
     Change-Id: I73450aeb59571f3285ff59ae214739e1866c9aa0
     Reviewed-on: https://go-review.googlesource.com/5270
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  README.md | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index 4b79b5b902..4e6d7bde1f 100644
+--- a/README.md
++++ b/README.md
+@@ -10,7 +10,7 @@ visit https://golang.org/ or load doc/install-source.html
+ in your web browser.
+ 
+ Our canonical Git repository is located at https://go.googlesource.com/go.
+-(There is a mirror of the repository at https://github.com/golang/go.)
++There is a mirror of the repository at https://github.com/golang/go.
+ 
+ Please report issues here: https://golang.org/issue/new
+ 
+@@ -43,4 +43,3 @@ put the following in your .profile:
+ 	export PATH=$PATH:$GOROOT/bin
+ 
+ See https://golang.org/doc/install or doc/install.html for more details.
+-

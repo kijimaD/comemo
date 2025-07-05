@@ -24,7 +24,7 @@ Date:   Fri Oct 9 16:48:30 2015 -0400
     Change-Id: Ife021654ee4065b3ffac62326d09b4b317b9f2e0
     Reviewed-on: https://go-review.googlesource.com/15710
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  1 +
  src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
  src/cmd/compile/internal/gc/racewalk.go        | 14 ++------
@@ -33,3 +33,280 @@ Date:   Fri Oct 9 16:48:30 2015 -0400
  src/cmd/compile/internal/ssa/tighten.go        |  3 +-
  src/runtime/race_amd64.s                       | 16 ++++++++-
  7 files changed, 53 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 0e5fe2ab60..66f66a7690 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -151,6 +151,7 @@ const runtimeimport = "" +
+ 	"func @\"\".uint64tofloat64 (? uint64) (? float64)\n" +
+ 	"func @\"\".complex128div (@\"\".num·2 complex128, @\"\".den·3 complex128) (@\"\".quo·1 complex128)\n" +
+ 	"func @\"\".racefuncenter (? uintptr)\n" +
++	"func @\"\".racefuncenterfp (? *int32)\n" +
+ 	"func @\"\".racefuncexit ()\n" +
+ 	"func @\"\".raceread (? uintptr)\n" +
+ 	"func @\"\".racewrite (? uintptr)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index f8487de45b..43c35ca850 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -189,6 +189,7 @@ func complex128div(num complex128, den complex128) (quo complex128)
+ 
+ // race detection
+ func racefuncenter(uintptr)
++func racefuncenterfp(*int32)
+ func racefuncexit()
+ func raceread(uintptr)
+ func racewrite(uintptr)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 9301d87d2e..852ae98ec1 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // The racewalk pass modifies the code tree for the function as follows:
+ //
+-// 1. It inserts a call to racefuncenter at the beginning of each function.
++// 1. It inserts a call to racefuncenterfp at the beginning of each function.
+ // 2. It inserts a call to racefuncexit at the end of each function.
+ // 3. It inserts a call to raceread before each memory read.
+ // 4. It inserts a call to racewrite before each memory write.
+@@ -26,7 +26,7 @@ import (
+ // at best instrumentation would cause infinite recursion.
+ var omit_pkgs = []string{"runtime", "runtime/race"}
+ 
+-// Only insert racefuncenter/racefuncexit into the following packages.
++// Only insert racefuncenterfp/racefuncexit into the following packages.
+ // Memory accesses in the packages are either uninteresting or will cause false positives.
+ var noinst_pkgs = []string{"sync", "sync/atomic"}
+ 
+@@ -64,15 +64,7 @@ func racewalk(fn *Node) {
+ 		racewalklist(fn.Func.Exit, nil)
+ 	}
+ 
+-	// nodpc is the PC of the caller as extracted by
+-	// getcallerpc. We use -widthptr(FP) for x86.
+-	// BUG: this will not work on arm.
+-	nodpc := Nod(OXXX, nil, nil)
+-
+-	*nodpc = *nodfp
+-	nodpc.Type = Types[TUINTPTR]
+-	nodpc.Xoffset = int64(-Widthptr)
+-	nd := mkcall("racefuncenter", nil, nil, nodpc)
++	nd := mkcall("racefuncenterfp", nil, nil, Nod(OADDR, nodfp, nil))
+ 	fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
+ 	nd = mkcall("racefuncexit", nil, nil)
+ 	fn.Func.Exit = list(fn.Func.Exit, nd)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b568c58fba..312d494f5d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1250,7 +1250,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+ 	case OPARAM:
+-		addr := s.addr(n)
++		addr := s.addr(n, false)
+ 		return s.newValue2(ssa.OpLoad, n.Left.Type, addr, s.mem())
+ 	case ONAME:
+ 		if n.Class == PFUNC {
+@@ -1262,10 +1262,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		if canSSA(n) {
+ 			return s.variable(n, n.Type)
+ 		}
+-		addr := s.addr(n)
++		addr := s.addr(n, false)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 	case OCLOSUREVAR:
+-		addr := s.addr(n)
++		addr := s.addr(n, false)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 	case OLITERAL:
+ 		switch n.Val().Ctype() {
+@@ -1376,8 +1376,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 
+ 		if flag_race != 0 {
+-			s.Unimplementedf("questionable CONVNOP from race detector %v -> %v\n", from, to)
+-			return nil
++			// These appear to be fine, but they fail the
++			// integer constraint below, so okay them here.
++			// Sample non-integer conversion: map[string]string -> *uint8
++			return v
+ 		}
+ 
+ 		if etypesign(from.Etype) == 0 {
+@@ -1716,7 +1718,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.expr(n.Left)
+ 
+ 	case OADDR:
+-		return s.addr(n.Left)
++		return s.addr(n.Left, n.Bounded)
+ 
+ 	case OINDREG:
+ 		if int(n.Reg) != Thearch.REGSP {
+@@ -1733,7 +1735,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 	case ODOT:
+ 		// TODO: fix when we can SSA struct types.
+-		p := s.addr(n)
++		p := s.addr(n, false)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case ODOTPTR:
+@@ -1757,11 +1759,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+ 			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
+ 		case n.Left.Type.IsSlice():
+-			p := s.addr(n)
++			p := s.addr(n, false)
+ 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+ 		case n.Left.Type.IsArray():
+ 			// TODO: fix when we can SSA arrays of length 1.
+-			p := s.addr(n)
++			p := s.addr(n, false)
+ 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+ 		default:
+ 			s.Fatalf("bad type for index %v", n.Left.Type)
+@@ -1927,7 +1929,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				args = append(args, s.expr(l.N))
+ 				store = append(store, true)
+ 			} else {
+-				args = append(args, s.addr(l.N))
++				args = append(args, s.addr(l.N, false))
+ 				store = append(store, false)
+ 			}
+ 		}
+@@ -1970,7 +1972,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
+ 		// right == nil means use the zero value of the assigned type.
+ 		if !canSSA(left) {
+ 			// if we can't ssa this memory, treat it as just zeroing out the backing memory
+-			addr := s.addr(left)
++			addr := s.addr(left, false)
+ 			if left.Op == ONAME {
+ 				s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+ 			}
+@@ -1985,7 +1987,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
+ 		return
+ 	}
+ 	// not ssa-able.  Treat as a store.
+-	addr := s.addr(left)
++	addr := s.addr(left, false)
+ 	if left.Op == ONAME {
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+ 	}
+@@ -2187,7 +2189,9 @@ func etypesign(e uint8) int8 {
+ 
+ // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
+ // The value that the returned Value represents is guaranteed to be non-nil.
+-func (s *state) addr(n *Node) *ssa.Value {
++// If bounded is true then this address does not require a nil check for its operand
++// even if that would otherwise be implied.
++func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 	switch n.Op {
+ 	case ONAME:
+ 		switch n.Class {
+@@ -2250,7 +2254,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
+ 		} else { // array
+-			a := s.addr(n.Left)
++			a := s.addr(n.Left, bounded)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+ 			len := s.constInt(Types[TINT], n.Left.Type.Bound)
+@@ -2261,14 +2265,18 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		}
+ 	case OIND:
+ 		p := s.expr(n.Left)
+-		s.nilCheck(p)
++		if !bounded {
++			s.nilCheck(p)
++		}
+ 		return p
+ 	case ODOT:
+-		p := s.addr(n.Left)
++		p := s.addr(n.Left, bounded)
+ 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+-		s.nilCheck(p)
++		if !bounded {
++			s.nilCheck(p)
++		}
+ 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case OCLOSUREVAR:
+ 		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
+@@ -2285,6 +2293,11 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		original_p.Xoffset = n.Xoffset
+ 		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
+ 		return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++	case OCONVNOP:
++		addr := s.addr(n.Left, bounded)
++		to := Ptrto(n.Type)
++		return s.newValue1(ssa.OpCopy, to, addr) // ensure that addr has the right type
++
+ 	default:
+ 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
+ 		return nil
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 949de31afc..dd0a42a5dd 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -86,7 +86,7 @@ func schedule(f *Func) {
+ 				// in the entry block where there are no phi functions, so there is no
+ 				// conflict or ambiguity here.
+ 				if b != f.Entry {
+-					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block.")
++					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
+ 				}
+ 				score[v.ID] = ScorePhi
+ 			case v.Op == OpPhi:
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index a43218095e..05c349cc17 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -54,7 +54,8 @@ func tighten(f *Func) {
+ 		for _, b := range f.Blocks {
+ 			for i := 0; i < len(b.Values); i++ {
+ 				v := b.Values[i]
+-				if v.Op == OpPhi {
++				if v.Op == OpPhi || v.Op == OpGetClosurePtr {
++					// GetClosurePtr must stay in entry block
+ 					continue
+ 				}
+ 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index d9e674b61f..80c4d79a7d 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -159,14 +159,28 @@ call:
+ ret:
+ 	RET
+ 
++// func runtime·racefuncenterfp(fp uintptr)
++// Called from instrumented code.
++// Like racefuncenter but passes FP, not PC
++TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
++	MOVQ	fp+0(FP), R11
++	MOVQ	-8(R11), R11
++	JMP	racefuncenter<>(SB)
++
+ // func runtime·racefuncenter(pc uintptr)
+ // Called from instrumented code.
+ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
++	MOVQ	callpc+0(FP), R11
++	JMP	racefuncenter<>(SB)
++
++// Common code for racefuncenter/racefuncenterfp
++// R11 = caller's return address
++TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVQ	DX, R15		// save function entry context (for closures)
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+-	MOVQ	callpc+0(FP), RARG1
++	MOVQ	R11, RARG1
+ 	// void __tsan_func_enter(ThreadState *thr, void *pc);
+ 	MOVQ	$__tsan_func_enter(SB), AX
+ 	// racecall<> preserves R15

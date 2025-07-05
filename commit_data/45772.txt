@@ -17,7 +17,66 @@ Date:   Mon Oct 12 12:03:43 2020 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go              | 17 +++++++++++------
  src/cmd/go/internal/modcmd/init.go | 19 ++++++++++++-------
  2 files changed, 23 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 47076570a6..81f404c0ef 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1230,12 +1230,17 @@
+ //
+ // 	go mod init [module]
+ //
+-// Init initializes and writes a new go.mod to the current directory,
+-// in effect creating a new module rooted at the current directory.
+-// The file go.mod must not already exist.
+-// If possible, init will guess the module path from import comments
+-// (see 'go help importpath') or from version control configuration.
+-// To override this guess, supply the module path as an argument.
++// Init initializes and writes a new go.mod file in the current directory, in
++// effect creating a new module rooted at the current directory. The go.mod file
++// must not already exist.
++//
++// Init accepts one optional argument, the module path for the new module. If the
++// module path argument is omitted, init will attempt to infer the module path
++// using import comments in .go files, vendoring tool configuration files (like
++// Gopkg.lock), and the current directory (if in GOPATH).
++//
++// If a configuration file for a vendoring tool is present, init will attempt to
++// import module requirements from it.
+ //
+ //
+ // Add missing and remove unused modules
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index 7384f3f293..c081bb547d 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -16,13 +16,18 @@ var cmdInit = &base.Command{
+ 	UsageLine: "go mod init [module]",
+ 	Short:     "initialize new module in current directory",
+ 	Long: `
+-Init initializes and writes a new go.mod to the current directory,
+-in effect creating a new module rooted at the current directory.
+-The file go.mod must not already exist.
+-If possible, init will guess the module path from import comments
+-(see 'go help importpath') or from version control configuration.
+-To override this guess, supply the module path as an argument.
+-	`,
++Init initializes and writes a new go.mod file in the current directory, in
++effect creating a new module rooted at the current directory. The go.mod file
++must not already exist.
++
++Init accepts one optional argument, the module path for the new module. If the
++module path argument is omitted, init will attempt to infer the module path
++using import comments in .go files, vendoring tool configuration files (like
++Gopkg.lock), and the current directory (if in GOPATH).
++
++If a configuration file for a vendoring tool is present, init will attempt to
++import module requirements from it.
++`,
+ 	Run: runInit,
+ }
+ 

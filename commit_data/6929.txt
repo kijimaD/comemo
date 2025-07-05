@@ -8,8 +8,58 @@ Date:   Mon Dec 13 10:05:07 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3576043
-
+---
  src/cmd/ld/dwarf.c   | 2 ++
  src/cmd/ld/ldelf.c   | 2 +-
  src/cmd/ld/ldmacho.c | 5 ++---
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 7063078406..21e079a65c 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1834,6 +1834,8 @@ writelines(void)
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		s = cursym;
++		if(s->text == P)
++			continue;
+ 
+ 		// Look for history stack.  If we find one,
+ 		// we're entering a new compilation unit
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index feda761394..f3dd8636b6 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -484,7 +484,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	// load string table for symbols into memory.
+ 	obj->symtab = section(obj, ".symtab");
+ 	if(obj->symtab == nil) {
+-		diag("%s: elf object has no symbol table", pn);
++		// our work is done here - no symbols means nothing can refer to this file
+ 		return;
+ 	}
+ 	if(obj->symtab->link <= 0 || obj->symtab->link >= obj->nsect) {
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 78c868e340..ba243245bf 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -541,8 +541,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		goto bad;
+ 	}
+ 	if(symtab == nil) {
+-		werrstr("no symbol table");
+-		goto bad;
++		// our work is done here - no symbols means nothing can refer to this file
++		return;
+ 	}
+ 
+ 	if(c->seg.fileoff+c->seg.filesz >= len) {
+@@ -651,7 +651,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		}
+ 		sym->sym = s;
+ 	}
+-	
+ 
+ 	// load relocations
+ 	for(i=0; i<c->seg.nsect; i++) {

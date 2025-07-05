@@ -15,7 +15,7 @@ Date:   Wed May 19 18:45:53 2021 -0700
     Trust: Tim King <taking@google.com>
     Run-TryBot: Tim King <taking@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                          |  2 +-
  src/cmd/go.sum                                          |  4 ++--
  .../x/tools/go/analysis/passes/printf/printf.go         |  2 +-
@@ -23,3 +23,132 @@ Date:   Wed May 19 18:45:53 2021 -0700
  .../x/tools/go/analysis/passes/stdmethods/stdmethods.go | 17 +++++++++++++++++
  src/cmd/vendor/modules.txt                              |  2 +-
  6 files changed, 31 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 88f5f2883a..1aa0320d07 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -10,6 +10,6 @@ require (
+ 	golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd
+ 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+-	golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5
++	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
+ 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 73750802bc..9af4978d66 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,7 +16,7 @@ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mU
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56 h1:b8jxX3zqjpqb2LklXPzKSGJhzyxCOZSz8ncv8Nv+y7w=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56/go.mod h1:tfny5GFUkzUvx4ps4ajbZsCe5lw1metzhBm9T3x7oIY=
+-golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5 h1:ImcI7RFHWLu2QWpFDXaReu0j+sQAHIy65vUFZImXiqY=
+-golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5/go.mod h1:sH/Eidr0EddymY8HZSakBo32zU3fG5ovDq874hJLjVg=
++golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9 h1:2XlR/j4I4xz5GQZI7zBjqTfezYyRIE2jD5IMousB2rg=
++golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index ddad4c796c..822820f06e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -590,7 +590,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 		}
+ 		if state.verb == 'w' {
+ 			if kind != KindErrorf {
+-				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w", state.name)
++				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported by Errorf", state.name)
+ 				return
+ 			}
+ 			if anyW {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+index b00aa7e144..0d6c8ebf16 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+@@ -59,12 +59,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if chanDecl == nil || len(chanDecl.Args) != 1 {
+ 			return
+ 		}
+-		chanDecl.Args = append(chanDecl.Args, &ast.BasicLit{
++
++		// Make a copy of the channel's declaration to avoid
++		// mutating the AST. See https://golang.org/issue/46129.
++		chanDeclCopy := &ast.CallExpr{}
++		*chanDeclCopy = *chanDecl
++		chanDeclCopy.Args = append([]ast.Expr(nil), chanDecl.Args...)
++		chanDeclCopy.Args = append(chanDeclCopy.Args, &ast.BasicLit{
+ 			Kind:  token.INT,
+ 			Value: "1",
+ 		})
++
+ 		var buf bytes.Buffer
+-		if err := format.Node(&buf, token.NewFileSet(), chanDecl); err != nil {
++		if err := format.Node(&buf, token.NewFileSet(), chanDeclCopy); err != nil {
+ 			return
+ 		}
+ 		pass.Report(analysis.Diagnostic{
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index 856c6ae0d8..64a28ac0b9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -61,10 +61,12 @@ var Analyzer = &analysis.Analyzer{
+ // we let it go. But if it does have a fmt.ScanState, then the
+ // rest has to match.
+ var canonicalMethods = map[string]struct{ args, results []string }{
++	"As": {[]string{"interface{}"}, []string{"bool"}}, // errors.As
+ 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
+ 	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
+ 	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
+ 	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},                         // gob.GobEncoder
++	"Is":            {[]string{"error"}, []string{"bool"}},                             // errors.Is
+ 	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},                         // json.Marshaler
+ 	"MarshalXML":    {[]string{"*xml.Encoder", "xml.StartElement"}, []string{"error"}}, // xml.Marshaler
+ 	"ReadByte":      {[]string{}, []string{"byte", "error"}},                           // io.ByteReader
+@@ -76,6 +78,7 @@ var canonicalMethods = map[string]struct{ args, results []string }{
+ 	"UnmarshalXML":  {[]string{"*xml.Decoder", "xml.StartElement"}, []string{"error"}}, // xml.Unmarshaler
+ 	"UnreadByte":    {[]string{}, []string{"error"}},
+ 	"UnreadRune":    {[]string{}, []string{"error"}},
++	"Unwrap":        {[]string{}, []string{"error"}},                      // errors.Unwrap
+ 	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
+ 	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
+ }
+@@ -123,6 +126,14 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 		return
+ 	}
+ 
++	// Special case: Is, As and Unwrap only apply when type
++	// implements error.
++	if id.Name == "Is" || id.Name == "As" || id.Name == "Unwrap" {
++		if recv := sign.Recv(); recv == nil || !implementsError(recv.Type()) {
++			return
++		}
++	}
++
+ 	// Do the =s (if any) all match?
+ 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
+ 		return
+@@ -185,3 +196,9 @@ func matchParamType(expect string, actual types.Type) bool {
+ 	// Overkill but easy.
+ 	return typeString(actual) == expect
+ }
++
++var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
++
++func implementsError(actual types.Type) bool {
++	return types.Implements(actual, errorType)
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 016ec011a9..9a1723d32c 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -48,7 +48,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5
++# golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

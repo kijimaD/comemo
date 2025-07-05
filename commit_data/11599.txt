@@ -7,6 +7,28 @@ Date:   Fri Feb 3 11:17:55 2012 -0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5629043
-
+---
  src/pkg/strings/example_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+new file mode 100644
+index 0000000000..16e53678b2
+--- /dev/null
++++ b/src/pkg/strings/example_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings_test
++
++import (
++	"fmt"
++	"strings"
++)
++
++// Fields are: ["foo" "bar" "baz"]
++func ExampleFields() {
++	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
++}

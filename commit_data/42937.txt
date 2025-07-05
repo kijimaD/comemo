@@ -14,6 +14,27 @@ Date:   Wed Feb 26 03:17:01 2020 +1100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/defererrcheck.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/test/defererrcheck.go b/test/defererrcheck.go
+index e0b8ab895f..95b91da54d 100644
+--- a/test/defererrcheck.go
++++ b/test/defererrcheck.go
+@@ -1,5 +1,4 @@
+ // errorcheck -0 -l -d=defer
+-// +build !riscv64
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,9 +6,6 @@
+ 
+ // check that open-coded defers are used in expected situations
+ 
+-// TODO(jsing): Re-enable on riscv64 once open-coded defers are turned
+-// back on - see golang.org/issue/36786
+-
+ package main
+ 
+ import "fmt"

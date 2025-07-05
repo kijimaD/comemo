@@ -10,6 +10,62 @@ Date:   Thu Sep 7 12:16:04 2017 -0400
     Change-Id: I63546f3b2d66222683a4f268a4eaff835fd836fe
     Reviewed-on: https://go-review.googlesource.com/63911
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/hmac/hmac_test.go | 37 +++++++++++++++++++++++++++++++++++++
  1 file changed, 37 insertions(+)
+
+diff --git a/src/crypto/hmac/hmac_test.go b/src/crypto/hmac/hmac_test.go
+index 444978001c..cb5ea98d72 100644
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@ -5,6 +5,7 @@
+ package hmac
+ 
+ import (
++	"bytes"
+ 	"crypto/md5"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -594,6 +595,42 @@ func TestEqual(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteAfterSum(t *testing.T) {
++	h := New(sha1.New, nil)
++	h.Write([]byte("hello"))
++	sumHello := h.Sum(nil)
++
++	h = New(sha1.New, nil)
++	h.Write([]byte("hello world"))
++	sumHelloWorld := h.Sum(nil)
++
++	// Test that Sum has no effect on future Sum or Write operations.
++	// This is a bit unusual as far as usage, but it's allowed
++	// by the definition of Go hash.Hash, and some clients expect it to work.
++	h = New(sha1.New, nil)
++	h.Write([]byte("hello"))
++	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
++		t.Fatalf("1st Sum after hello = %x, want %x", sum, sumHello)
++	}
++	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
++		t.Fatalf("2nd Sum after hello = %x, want %x", sum, sumHello)
++	}
++
++	h.Write([]byte(" world"))
++	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
++		t.Fatalf("1st Sum after hello world = %x, want %x", sum, sumHelloWorld)
++	}
++	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
++		t.Fatalf("2nd Sum after hello world = %x, want %x", sum, sumHelloWorld)
++	}
++
++	h.Reset()
++	h.Write([]byte("hello"))
++	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
++		t.Fatalf("Sum after Reset + hello = %x, want %x", sum, sumHello)
++	}
++}
++
+ func BenchmarkHMACSHA256_1K(b *testing.B) {
+ 	key := make([]byte, 32)
+ 	buf := make([]byte, 1024)

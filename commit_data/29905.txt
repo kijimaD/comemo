@@ -45,8 +45,190 @@ Date:   Tue Oct 11 08:34:58 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/convert.go      | 26 ++++++++++++-
  src/database/sql/convert_test.go | 83 ++++++++++++++++++++++++++++++++++++++++
  src/database/sql/driver/types.go | 26 ++++++++++++-
  3 files changed, 131 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index cee96319da..594a816966 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -57,8 +57,8 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 		// First, see if the value itself knows how to convert
+ 		// itself to a driver type. For example, a NullString
+ 		// struct changing into a string or nil.
+-		if svi, ok := arg.(driver.Valuer); ok {
+-			sv, err := svi.Value()
++		if vr, ok := arg.(driver.Valuer); ok {
++			sv, err := callValuerValue(vr)
+ 			if err != nil {
+ 				return nil, fmt.Errorf("sql: argument index %d from Value: %v", n, err)
+ 			}
+@@ -341,3 +341,25 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
+ 	}
+ 	return
+ }
++
++var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
++
++// callValuerValue returns vr.Value(), with one exception:
++// If vr.Value is an auto-generated method on a pointer type and the
++// pointer is nil, it would panic at runtime in the panicwrap
++// method. Treat it like nil instead.
++// Issue 8415.
++//
++// This is so people can implement driver.Value on value types and
++// still use nil pointers to those types to mean nil/NULL, just like
++// string/*string.
++//
++// This function is mirrored in the database/sql/driver package.
++func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
++	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
++		rv.IsNil() &&
++		rv.Type().Elem().Implements(valuerReflectType) {
++		return nil, nil
++	}
++	return vr.Value()
++}
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index ab81f2f65a..4dfab1f6be 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -389,3 +390,85 @@ func TestUserDefinedBytes(t *testing.T) {
+ 		t.Fatal("userDefinedBytes got potentially dirty driver memory")
+ 	}
+ }
++
++type Valuer_V string
++
++func (v Valuer_V) Value() (driver.Value, error) {
++	return strings.ToUpper(string(v)), nil
++}
++
++type Valuer_P string
++
++func (p *Valuer_P) Value() (driver.Value, error) {
++	if p == nil {
++		return "nil-to-str", nil
++	}
++	return strings.ToUpper(string(*p)), nil
++}
++
++func TestDriverArgs(t *testing.T) {
++	var nilValuerVPtr *Valuer_V
++	var nilValuerPPtr *Valuer_P
++	var nilStrPtr *string
++	tests := []struct {
++		args []interface{}
++		want []driver.NamedValue
++	}{
++		0: {
++			args: []interface{}{Valuer_V("foo")},
++			want: []driver.NamedValue{
++				driver.NamedValue{
++					Ordinal: 1,
++					Value:   "FOO",
++				},
++			},
++		},
++		1: {
++			args: []interface{}{nilValuerVPtr},
++			want: []driver.NamedValue{
++				driver.NamedValue{
++					Ordinal: 1,
++					Value:   nil,
++				},
++			},
++		},
++		2: {
++			args: []interface{}{nilValuerPPtr},
++			want: []driver.NamedValue{
++				driver.NamedValue{
++					Ordinal: 1,
++					Value:   "nil-to-str",
++				},
++			},
++		},
++		3: {
++			args: []interface{}{"plain-str"},
++			want: []driver.NamedValue{
++				driver.NamedValue{
++					Ordinal: 1,
++					Value:   "plain-str",
++				},
++			},
++		},
++		4: {
++			args: []interface{}{nilStrPtr},
++			want: []driver.NamedValue{
++				driver.NamedValue{
++					Ordinal: 1,
++					Value:   nil,
++				},
++			},
++		},
++	}
++	for i, tt := range tests {
++		ds := new(driverStmt)
++		got, err := driverArgs(ds, tt.args)
++		if err != nil {
++			t.Errorf("test[%d]: %v", i, err)
++			continue
++		}
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("test[%d]: got %v, want %v", i, got, tt.want)
++		}
++	}
++}
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index e480e701a4..c93c97a392 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -208,13 +208,35 @@ type defaultConverter struct{}
+ 
+ var _ ValueConverter = defaultConverter{}
+ 
++var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
++
++// callValuerValue returns vr.Value(), with one exception:
++// If vr.Value is an auto-generated method on a pointer type and the
++// pointer is nil, it would panic at runtime in the panicwrap
++// method. Treat it like nil instead.
++// Issue 8415.
++//
++// This is so people can implement driver.Value on value types and
++// still use nil pointers to those types to mean nil/NULL, just like
++// string/*string.
++//
++// This function is mirrored in the database/sql package.
++func callValuerValue(vr Valuer) (v Value, err error) {
++	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
++		rv.IsNil() &&
++		rv.Type().Elem().Implements(valuerReflectType) {
++		return nil, nil
++	}
++	return vr.Value()
++}
++
+ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+ 	if IsValue(v) {
+ 		return v, nil
+ 	}
+ 
+-	if svi, ok := v.(Valuer); ok {
+-		sv, err := svi.Value()
++	if vr, ok := v.(Valuer); ok {
++		sv, err := callValuerValue(vr)
+ 		if err != nil {
+ 			return nil, err
+ 		}

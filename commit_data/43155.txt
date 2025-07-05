@@ -15,7 +15,62 @@ Date:   Wed Mar 11 21:05:21 2020 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/checkptr.go      | 8 ++++----
  src/runtime/checkptr_test.go | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+index ddbc8168af..8e401e8763 100644
+--- a/src/runtime/checkptr.go
++++ b/src/runtime/checkptr.go
+@@ -10,18 +10,18 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+ 	// Check that (*[n]elem)(p) is appropriately aligned.
+ 	// TODO(mdempsky): What about fieldAlign?
+ 	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
+-		throw("checkptr: unsafe pointer conversion")
++		throw("checkptr: misaligned pointer conversion")
+ 	}
+ 
+ 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
+ 	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
+-		throw("checkptr: unsafe pointer conversion")
++		throw("checkptr: converted pointer straddles multiple allocations")
+ 	}
+ }
+ 
+ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
+ 	if 0 < uintptr(p) && uintptr(p) < minLegalPointer {
+-		throw("checkptr: unsafe pointer arithmetic")
++		throw("checkptr: pointer arithmetic computed bad pointer value")
+ 	}
+ 
+ 	// Check that if the computed pointer p points into a heap
+@@ -38,7 +38,7 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
+ 		}
+ 	}
+ 
+-	throw("checkptr: unsafe pointer arithmetic")
++	throw("checkptr: pointer arithmetic result points to invalid allocation")
+ }
+ 
+ // checkptrBase returns the base address for the allocation containing
+diff --git a/src/runtime/checkptr_test.go b/src/runtime/checkptr_test.go
+index c5f22cc101..1a7c253733 100644
+--- a/src/runtime/checkptr_test.go
++++ b/src/runtime/checkptr_test.go
+@@ -24,10 +24,10 @@ func TestCheckPtr(t *testing.T) {
+ 		cmd  string
+ 		want string
+ 	}{
+-		{"CheckPtrAlignment", "fatal error: checkptr: unsafe pointer conversion\n"},
+-		{"CheckPtrArithmetic", "fatal error: checkptr: unsafe pointer arithmetic\n"},
+-		{"CheckPtrSize", "fatal error: checkptr: unsafe pointer conversion\n"},
+-		{"CheckPtrSmall", "fatal error: checkptr: unsafe pointer arithmetic\n"},
++		{"CheckPtrAlignment", "fatal error: checkptr: misaligned pointer conversion\n"},
++		{"CheckPtrArithmetic", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
++		{"CheckPtrSize", "fatal error: checkptr: converted pointer straddles multiple allocations\n"},
++		{"CheckPtrSmall", "fatal error: checkptr: pointer arithmetic computed bad pointer value\n"},
+ 	}
+ 
+ 	for _, tc := range testCases {

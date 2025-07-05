@@ -10,6 +10,30 @@ Date:   Wed Sep 22 07:59:11 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351336
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sort/sort.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index cbaa8c3aac..749310764a 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -223,7 +223,7 @@ func quickSort(data Interface, a, b, maxDepth int) {
+ 	}
+ }
+ 
+-// Sort sorts data.
++// Sort sorts data in ascending order as determined by the Less method.
+ // It makes one call to data.Len to determine n and O(n*log(n)) calls to
+ // data.Less and data.Swap. The sort is not guaranteed to be stable.
+ func Sort(data Interface) {
+@@ -370,7 +370,8 @@ func StringsAreSorted(x []string) bool { return IsSorted(StringSlice(x)) }
+ //  - Often "optimal" algorithms are optimal in the number of assignments
+ //    but Interface has only Swap as operation.
+ 
+-// Stable sorts data while keeping the original order of equal elements.
++// Stable sorts data in ascending order as determined by the Less method,
++// while keeping the original order of equal elements.
+ //
+ // It makes one call to data.Len to determine n, O(n*log(n)) calls to
+ // data.Less and O(n*log(n)*log(n)) calls to data.Swap.

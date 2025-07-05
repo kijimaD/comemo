@@ -9,7 +9,7 @@ Date:   Mon Aug 24 17:27:55 2009 -0700
     DELTA=222  (71 added, 99 deleted, 52 changed)
     OCL=33801
     CL=33808
-
+---
  src/cmd/5l/l.h     |   5 +-
  src/cmd/6c/swt.c   |  18 ++++----
  src/cmd/6l/asm.c   |  19 +++-----
@@ -22,3 +22,522 @@ Date:   Mon Aug 24 17:27:55 2009 -0700
  src/cmd/cc/macbody |   8 +---
  src/cmd/ld/go.c    | 132 ++++++++++++++++++++++++++++++++---------------------
  11 files changed, 120 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 1ba95e0a2e..4f7ef58297 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -119,7 +119,6 @@ struct	Sym
+ 	short	frame;
+ 	uchar	subtype;
+ 	uchar	reachable;
+-	uchar	ffitype;
+ 	ushort	file;
+ 	int32	value;
+ 	int32	sig;
+@@ -132,8 +131,8 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
+-	char*	ffiname;
+-	char*	ffilib;
++	char*	dynldname;
++	char*	dynldlib;
+ };
+ 
+ #define SIGNINTERN	(1729*325*1729)
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 9b2381ae93..15c2a5c2c1 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -232,18 +232,16 @@ outcode(void)
+ 	Binit(&b, f, OWRITE);
+ 
+ 	Bprint(&b, "%s\n", thestring);
+-	if(nffi > 0) {
++	if(ndynld > 0) {
+ 		int i;
+ 
+-		if(package == nil) {
+-			yyerror("#pragma ffi without #pragma package");
+-			package = "_ffi_";
+-		}
+-		Bprint(&b, "\n$$  // ffi\n", thestring);
+-		Bprint(&b, "package %s\n", package);
+-		for(i=0; i<nffi; i++)
+-			Bprint(&b, "//ffi %c %s %s %s\n", ffi[i].type, ffi[i].local, ffi[i].remote, ffi[i].path);
+-		Bprint(&b, "$$\n\n$$\n\n");
++		Bprint(&b, "\n");
++		Bprint(&b, "$$  // exports\n\n");
++		Bprint(&b, "$$  // local types\n\n");
++		Bprint(&b, "$$  // dynld\n", thestring);
++		for(i=0; i<ndynld; i++)
++			Bprint(&b, "dynld %s %s %s\n", dynld[i].local, dynld[i].remote, dynld[i].path);
++		Bprint(&b, "$$\n\n");
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 6232a5a902..87d3b19b47 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -353,12 +353,12 @@ doelf(void)
+ 		dynamic = s;
+ 
+ 		/*
+-		 * relocation entries for extern ffi symbols
++		 * relocation entries for dynld symbols
+ 		 */
+ 		nsym = 1;	// sym 0 is reserved
+ 		for(h=0; h<NHASH; h++) {
+ 			for(s=hash[h]; s!=S; s=s->link) {
+-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->ffiname == nil)
++				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
+ 					continue;
+ 
+ 				d = lookup(".rela", 0);
+@@ -368,24 +368,17 @@ doelf(void)
+ 				nsym++;
+ 
+ 				d = lookup(".dynsym", 0);
+-				adduint32(d, addstring(lookup(".dynstr", 0), s->ffiname));
++				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
+ 				t = STB_GLOBAL << 4;
+-				switch(s->ffitype) {
+-				case 'T':
+-					t |= STT_FUNC;
+-					break;
+-				case 'D':
+-					t |= STT_OBJECT;
+-					break;
+-				}
++				t |= STT_OBJECT;	// works for func too, empirically
+ 				adduint8(d, t);
+ 				adduint8(d, 0);	/* reserved */
+ 				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+ 				adduint64(d, 0);	/* value */
+ 				adduint64(d, 0);	/* size of object */
+ 
+-				if(needlib(s->ffilib))
+-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->ffilib));
++				if(needlib(s->dynldlib))
++					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index a0794a6227..a1c2ec5272 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -119,7 +119,6 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
+-	uchar	ffitype;
+ 	vlong	value;
+ 	vlong	size;
+ 	int32	sig;
+@@ -127,8 +126,8 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
+-	char*	ffiname;
+-	char*	ffilib;
++	char*	dynldname;
++	char*	dynldlib;
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index e58c279694..3fb79fb1a9 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -116,7 +116,6 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
+-	uchar	ffitype;
+ 	ushort	file;
+ 	int32	value;
+ 	int32	sig;
+@@ -124,9 +123,8 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
+-	char*	ffiname;
+-	char*	ffilib;
+-
++	char*	dynldname;
++	char*	dynldlib;
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 83ab51c2e3..bd8d5f9da2 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -715,7 +715,9 @@ bad:
+ 	return;
+ 
+ foundend:
+-	if (start == 0 || end == 0)
++	if (start == 0)
++		return;
++	if (end == 0)
+ 		goto bad;
+ 	if (pkgstmt == nil) {
+ 		/* this is the first package */
+@@ -1550,7 +1552,6 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ 
+ 	// skip white space
+ 	p = *pp;
+-again:
+ 	while(p < ep && (*p == ' ' || *p == '\t'))
+ 		p++;
+ 	if(p == ep)
+@@ -1570,13 +1571,7 @@ again:
+ 		p += 5;
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
+-	else if(strncmp(p, "//", 2) == 0) {
+-		p = memchr(p, '\n', ep - p);
+-		if(p == nil)
+-			return 0;
+-		p++;
+-		goto again;
+-	} else {
++	else {
+ 		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
+ 		errors++;
+ 		return -1;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 9964681f11..a1168fc8b5 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -49,7 +49,7 @@ typedef	struct	Hist	Hist;
+ typedef	struct	Term	Term;
+ typedef	struct	Init	Init;
+ typedef	struct	Bits	Bits;
+-typedef	struct	Ffi Ffi;
++typedef	struct	Dynld	Dynld;
+ 
+ #define	NHUNK		50000L
+ #define	BUFSIZ		8192
+@@ -437,17 +437,15 @@ struct	Funct
+ 	Sym*	castfr[NTYPE];
+ };
+ 
+-struct	Ffi
++struct	Dynld
+ {
+-	char	type;
+ 	char*	local;
+ 	char*	remote;
+ 	char*	path;
+ };
+ 
+-EXTERN	Ffi	*ffi;
+-EXTERN	int	nffi;
+-EXTERN	char*	package;
++EXTERN	Dynld	*dynld;
++EXTERN	int	ndynld;
+ 
+ EXTERN struct
+ {
+@@ -753,8 +751,7 @@ void	pragpack(void);
+ void	pragfpround(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
+-void	pragffi(void);
+-void	pragpackage(void);
++void	pragdynld(void);
+ 
+ /*
+  * calls to machine depend part
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index b1e988b87a..59702f0633 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -529,15 +529,11 @@ out:
+ }
+ 
+ void
+-pragffi(void)
++pragdynld(void)
+ {
+-	Sym *local, *remote, *type;
++	Sym *local, *remote;
+ 	char *path;
+-	Ffi *f;
+-
+-	type = getsym();
+-	if(type == nil)
+-		goto err;
++	Dynld *f;
+ 
+ 	local = getsym();
+ 	if(local == nil)
+@@ -551,40 +547,18 @@ pragffi(void)
+ 	if(path == nil)
+ 		goto err;
+ 
+-	if(nffi%32 == 0)
+-		ffi = realloc(ffi, (nffi+32)*sizeof ffi[0]);
+-	f = &ffi[nffi++];
+-	f->type = type->name[0];
++	if(ndynld%32 == 0)
++		dynld = realloc(dynld, (ndynld+32)*sizeof dynld[0]);
++	f = &dynld[ndynld++];
+ 	f->local = local->name;
+ 	f->remote = remote->name;
+ 	f->path = path;
+ 	goto out;
+ 
+ err:
+-	yyerror("usage: #pragma ffi typechar local remote \"path\"");
+-
+-out:
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+-void
+-pragpackage(void)
+-{
+-	Sym *s;
+-
+-	s = getsym();
+-	if(s == nil)
+-		goto err;
+-
+-	package = s->name;
+-	goto out;
+-
+-err:
+-	yyerror("malformed #pragma package");
++	yyerror("usage: #pragma dynld local remote \"path\"");
+ 
+ out:
+ 	while(getnsc() != '\n')
+ 		;
+ }
+-
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 1c979a0f1a..f5a250fcf7 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -47,14 +47,7 @@ pragvararg(void)
+ }
+ 
+ void
+-pragffi(void)
+-{
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+-void
+-pragpackage(void)
++pragdynld(void)
+ {
+ 	while(getnsc() != '\n')
+ 		;
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 09ecccf5d2..7b45841d48 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -737,12 +737,8 @@ macprag(void)
+ 		pragincomplete();
+ 		return;
+ 	}
+-	if(s && strcmp(s->name, "ffi") == 0) {
+-		pragffi();
+-		return;
+-	}
+-	if(s && strcmp(s->name, "package") == 0) {
+-		pragpackage();
++	if(s && strcmp(s->name, "dynld") == 0) {
++		pragdynld();
+ 		return;
+ 	}
+ 	while(getnsc() != '\n')
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index b4b75b19b0..30d8348c7d 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -63,6 +63,7 @@ ilookup(char *name)
+ }
+ 
+ static void loadpkgdata(char*, char*, int);
++static void loaddynld(char*, char*, int);
+ static int parsemethod(char**, char*, char**);
+ static int parsepkgdata(char*, char**, char*, char**, char**, char**);
+ 
+@@ -99,19 +100,21 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 		fprint(2, "%s: cannot find end of exports in %s\n", argv0, filename);
+ 		return;
+ 	}
+-	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+-		p0++;
+-	if(strncmp(p0, "package ", 8) != 0) {
+-		fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
+-		return;
+-	}
+-	p0 += 8;
+-	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+-		p0++;
+-	while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
++	while(p0 < p1 && (*p0 == ' ' || *p0 == '\t' || *p0 == '\n'))
+ 		p0++;
++	if(p0 < p1) {
++		if(strncmp(p0, "package ", 8) != 0) {
++			fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
++			return;
++		}
++		p0 += 8;
++		while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
++			p0++;
++		while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
++			p0++;
+ 
+-	loadpkgdata(filename, p0, p1 - p0);
++		loadpkgdata(filename, p0, p1 - p0);
++	}
+ 
+ 	// local types begin where exports end.
+ 	// skip rest of line after $$ we found above
+@@ -127,6 +130,24 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 	}
+ 
+ 	loadpkgdata(filename, p0, p1 - p0);
++
++	// look for dynld section
++	p0 = strstr(p1, "\n$$  // dynld");
++	if(p0 != nil) {
++		p0 = strchr(p0+1, '\n');
++		if(p0 == nil) {
++			fprint(2, "%s: found $$ // dynld but no newline in %s\n", argv0, filename);
++			return;
++		}
++		p1 = strstr(p0, "\n$$");
++		if(p1 == nil)
++			p1 = strstr(p0, "\n!\n");
++		if(p1 == nil) {
++			fprint(2, "%s: cannot find end of // dynld section in %s\n", argv0, filename);
++			return;
++		}
++		loaddynld(filename, p0 + 1, p1 - p0);
++	}
+ }
+ 
+ /*
+@@ -190,7 +211,6 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+ 
+-again:
+ 	// skip white space
+ 	p = *pp;
+ 	while(p < ep && (*p == ' ' || *p == '\t' || *p == '\n'))
+@@ -210,45 +230,7 @@ again:
+ 		p += 5;
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
+-	else if(strncmp(p, "//ffi ", 6) == 0) {
+-		Sym *s;
+-		char type, *lib;
+-
+-		p += 6;
+-		if(*p == 0 || *(p+1) != ' ')
+-			goto err;
+-		type = *p;
+-		p += 2;
+-		name = p;
+-		p = strchr(name, ' ');
+-		if(p == nil)
+-			goto err;
+-		while(*p == ' ')
+-			p++;
+-		def = p;
+-		p = strchr(def, ' ');
+-		if(p == nil)
+-			goto err;
+-		while(*p == ' ')
+-			p++;
+-		lib = p;
+-		p = strchr(lib, '\n');
+-		if(p == nil)
+-			goto err;
+-
+-		// successful parse: now can edit the line
+-		*strchr(name, ' ') = 0;
+-		*strchr(def, ' ') = 0;
+-		*strchr(lib, '\n') = 0;
+-		*pp = p+1;
+-
+-		s = lookup(name, 0);
+-		s->ffitype = type;
+-		s->ffilib = lib;
+-		s->ffiname = def;
+-		goto again;
+-	} else {
+-	err:
++	else {
+ 		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
+ 		nerrors++;
+ 		return -1;
+@@ -331,6 +313,54 @@ parsemethod(char **pp, char *ep, char **methp)
+ 	return 1;
+ }
+ 
++static void
++loaddynld(char *file, char *p, int n)
++{
++	char *next, *name, *def, *p0, *lib;
++	Sym *s;
++
++	p[n] = '\0';
++
++	p0 = p;
++	for(; *p; p=next) {
++		next = strchr(p, '\n');
++		if(next == nil)
++			next = "";
++		else
++			*next++ = '\0';
++		p0 = p;
++		if(strncmp(p, "dynld ", 6) != 0)
++			goto err;
++		p += 6;
++		name = p;
++		p = strchr(name, ' ');
++		if(p == nil)
++			goto err;
++		while(*p == ' ')
++			p++;
++		def = p;
++		p = strchr(def, ' ');
++		if(p == nil)
++			goto err;
++		while(*p == ' ')
++			p++;
++		lib = p;
++
++		// successful parse: now can edit the line
++		*strchr(name, ' ') = 0;
++		*strchr(def, ' ') = 0;
++
++		s = lookup(name, 0);
++		s->dynldlib = lib;
++		s->dynldname = def;
++	}
++	return;
++
++err:
++	fprint(2, "%s: invalid dynld line: %s\n", argv0, p0);
++	nerrors++;
++}
++
+ static void mark(Sym*);
+ static int markdepth;
+ 

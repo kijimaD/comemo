@@ -7,7 +7,7 @@ Date:   Thu Oct 16 15:59:31 2008 -0700
     R=ken
     OCL=17320
     CL=17320
-
+---
  src/cmd/gc/const.c | 28 +++++++++++++---------------
  src/cmd/gc/dcl.c   |  7 +++++++
  src/cmd/gc/go.h    |  2 ++
@@ -20,3 +20,427 @@ Date:   Thu Oct 16 15:59:31 2008 -0700
  test/errchk        |  2 +-
  test/golden.out    | 44 +++++++++++++++++++++++++++++++++++---------
  11 files changed, 164 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index b624e2aba0..9ee33ad11d 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -8,7 +8,7 @@
+ void
+ convlit(Node *n, Type *t)
+ {
+-	int et;
++	int et, wt;
+ 
+ 	if(n == N || t == T)
+ 		return;
+@@ -25,18 +25,10 @@ convlit(Node *n, Type *t)
+ 	}
+ 
+ 	et = t->etype;
+-	switch(et) {
+-	case TARRAY:
+-	case TFUNC:
+-	case TCHAN:
+-	case TMAP:
+-	case TSTRUCT:
+-//	case TPTR32:
+-//	case TPTR64:
+-		return;
+-	}
+ 
+-	switch(whatis(n)) {
++	wt = whatis(n);
++
++	switch(wt) {
+ 	default:
+ 		goto bad1;
+ 
+@@ -125,6 +117,8 @@ convlit(Node *n, Type *t)
+ 				goto bad2;
+ 			if(mpcmpfltfix(fv, maxintval[et]) > 0)
+ 				goto bad2;
++			if(floor(mpgetflt(fv)) != mpgetflt(fv))
++				goto bad3;
+ 			n->val.u.xval = mal(sizeof(*n->val.u.xval));
+ 			mpmovefltfix(n->val.u.xval, fv);
+ 			n->val.ctype = CTINT;
+@@ -144,12 +138,16 @@ convlit(Node *n, Type *t)
+ 	return;
+ 
+ bad1:
+-	yyerror("illegal conversion of constant to %T", t);
++	yyerror("illegal conversion of %W to %T", wt, t);
+ 	return;
+ 
+ bad2:
+ 	yyerror("overflow converting constant to %T", t);
+ 	return;
++
++bad3:
++	yyerror("cannot convert non-integer constant to %T", t);
++	return;
+ }
+ 
+ void
+@@ -212,7 +210,7 @@ evconst(Node *n)
+ 			nl->val.ctype = CTFLT;
+ 			wl = whatis(nl);
+ 		} else {
+-			yyerror("illegal combination of literals %E %E", nl->etype, nr->etype);
++			yyerror("illegal combination of literals %O %E, %E", n->op, wl, wr);
+ 			return;
+ 		}
+ 	}
+@@ -230,7 +228,7 @@ evconst(Node *n)
+ 
+ 	switch(TUP(n->op, wl)) {
+ 	default:
+-		yyerror("illegal combination of literals %O %E", n->op, nl->etype);
++		yyerror("illegal literal %O %E", n->op, wl);
+ 		return;
+ 
+ 	case TUP(OADD, Wlitint):
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 725bfd2ae0..6368fa4bd5 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -27,6 +27,13 @@ dodclvar(Node *n, Type *t)
+ 		dodclvar(n->left, t);
+ 
+ 	dowidth(t);
++
++	// in case of type checking error,
++	// use "undefined" type for variable type,
++	// to avoid fatal in addvar.
++	if(t == T)
++		t = typ(TFORW);
++
+ 	addvar(n, t, dclcontext);
+ 	if(exportadj)
+ 		exportsym(n->sym);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 92dc1260c9..42b068c8d0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -598,6 +598,7 @@ Node*	syslook(char*, int);
+ Node*	treecopy(Node*);
+ int	isselect(Node*);
+ void	tempname(Node*, Type*);
++int	iscomposite(Type*);
+ 
+ Type**	getthis(Type*);
+ Type**	getoutarg(Type*);
+@@ -621,6 +622,7 @@ int	Oconv(Fmt*);
+ int	Sconv(Fmt*);
+ int	Tconv(Fmt*);
+ int	Nconv(Fmt*);
++int	Wconv(Fmt*);
+ int	Zconv(Fmt*);
+ 
+ /*
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 3e69c305e7..4afc1c6e84 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -872,6 +872,8 @@ pexpr:
+ 	{
+ 		$$ = nod(OCONV, $3, N);
+ 		$$->type = oldtype($1);
++		if(iscomposite($$->type))
++			yyerror("illegal conversion type %T", $$->type);
+ 	}
+ |	convtype '{' braced_keyexpr_list '}'
+ 	{
+@@ -879,6 +881,8 @@ pexpr:
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
++		if(!iscomposite($1))
++			yyerror("illegal composite literal type %T", $1);
+ 		$$ = nod(OCONV, $$, N);
+ 		$$->type = $1;
+ 	}
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 41bc1c74b2..d0bff27419 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -53,6 +53,7 @@ mainlex(int argc, char *argv[])
+ 	fmtinstall('Z', Zconv);		// escaped string
+ 	fmtinstall('L', Lconv);		// line number
+ 	fmtinstall('B', Bconv);		// big numbers
++	fmtinstall('W', Wconv);		// whatis numbers (Wlitint)
+ 
+ 	lexinit();
+ 	lineno = 1;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 76c585d678..c086aeb854 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -822,6 +822,8 @@ etnames[] =
+ 	[TSTRING]	= "STRING",
+ 	[TCHAN]		= "CHAN",
+ 	[TANY]		= "ANY",
++	[TFORWINTER]	= "FORWINTER",
++	[TFORWSTRUCT]	= "FORWSTRUCT",
+ };
+ 
+ int
+@@ -1327,6 +1329,36 @@ out:
+ 	return fmtstrcpy(fp, buf);
+ }
+ 
++
++static char*
++wnames[] =
++{
++	[Wnil] =	"Wnil",
++	[Wtnil] =	"Wtnil",
++
++	[Wtfloat] =	"Wtfloat",
++	[Wtint] =	"Wtint",
++	[Wtbool] =	"Wtbool",
++	[Wtstr] =	"Wtstr",
++
++	[Wlitfloat] =	"float constant",
++	[Wlitint] =	"int constant",
++	[Wlitbool] =	"bool",
++	[Wlitstr] =	"string",
++	[Wlitnil] =	"nil",
++};
++
++int
++Wconv(Fmt *fp)
++{
++	char buf[500];
++	int w;
++
++	w = va_arg(fp->args, int);
++	if(w < 0 || w >= nelem(wnames) || wnames[w] == nil)
++		return fmtprint(fp, "W-%d", w);
++	return fmtstrcpy(fp, wnames[w]);
++}
+ int
+ isnil(Node *n)
+ {
+@@ -1466,6 +1498,20 @@ out:
+ 	return t;
+ }
+ 
++int
++iscomposite(Type *t)
++{
++	if(t == T)
++		return 0;
++	switch(t->etype) {
++	case TMAP:
++	case TARRAY:
++	case TSTRUCT:
++		return 1;
++	}
++	return 0;
++}
++
+ Sym*
+ globalsig(Type *t)
+ {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 761a723dc8..610051a50b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -521,13 +521,15 @@ loop:
+ 		l = n->left;
+ 		if(l == N)
+ 			goto ret;
++
+ 		walktype(l, Erv);
+ 
+ 		t = n->type;
+ 		if(t == T)
+ 			goto ret;
+ 
+-		convlit(l, t);
++		if(!iscomposite(t))
++			convlit(l, t);
+ 
+ 		// nil conversion
+ 		if(eqtype(t, l->type, 0)) {
+@@ -589,7 +591,8 @@ loop:
+ 			goto ret;
+ 		}
+ 
+-		badtype(n->op, l->type, t);
++		if(l->type != T)
++			yyerror("cannot convert %T to %T", l->type, t);
+ 		goto ret;
+ 
+ 	case ORETURN:
+diff --git a/test/convlit.go b/test/convlit.go
+new file mode 100644
+index 0000000000..b6f3134c6b
+--- /dev/null
++++ b/test/convlit.go
+@@ -0,0 +1,35 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// explicit conversions are okay, even if they overflow
++var x1 = string(1);
++var x2 string = string(1);
++var x3 = int(1.5);
++var x4 int = int(1.5);
++var x5 = "a" + string(1);
++var x6 = int(1e100);
++var x7 = float(1e1000);
++
++// implicit conversions merit scrutiny
++var s string;
++var bad1 string = 1;	// ERROR "conver"
++var bad2 = s + 1;		// ERROR "conver"
++var bad3 = s + 'a';	// ERROR "conver"
++var bad4 = "a" + 1;	// ERROR "literals"
++var bad5 = "a" + 'a';	// ERROR "literals"
++
++var bad6 int = 1.5;	// ERROR "convert"
++var bad7 int = 1e100;	// ERROR "overflow"
++var bad8 float = 1e1000;	// ERROR "overflow"
++
++// but these implicit conversions are okay
++var good1 string = "a";
++var good2 int = 1.0;
++var good3 int = 1e9;
++var good4 float = 1e20;
++
+diff --git a/test/convlit1.go b/test/convlit1.go
+new file mode 100644
+index 0000000000..c15bfcb4bc
+--- /dev/null
++++ b/test/convlit1.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a = []int { "a" };	// ERROR "conver"
++var b = int { 1 };	// ERROR "compos"
++
++
++func main() {
++	if sys.argc < 1 { }	// ERROR "conver"
++}
+diff --git a/test/errchk b/test/errchk
+index 2b27b851cd..61b77e39d2 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -41,7 +41,7 @@ if $* >$TMPOUT 2>$TMPERR; then
+   exit 1
+ fi
+ 
+-cat $TMPOUT $TMPERR > $TMPALL
++cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
+ 
+ header=0
+ echo 0 > $TMPSTAT
+diff --git a/test/golden.out b/test/golden.out
+index 08479d408b..230a451fd5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,4 +1,23 @@
+ 
++=========== ./convlit.go
++BUG: convlit.go fails
++BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver'
++BUG: errchk: ./convlit.go: missing expected error message on line 17: 'conver'
++BUG: errchk: ./convlit.go: missing expected error message on line 18: 'conver'
++BUG: errchk: ./convlit.go: missing expected error message on line 22: 'convert'
++BUG: errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
++BUG: errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
++BUG: errchk: ./convlit.go: unmatched error messages:
++==================================================
++./convlit.go:8: cannot convert non-integer constant to int32
++./convlit.go:11: overflow converting constant to int32
++./convlit.go:12: overflow converting constant to float32
++./convlit.go:8: cannot convert non-integer constant to int32
++./convlit.go:9: cannot convert non-integer constant to int32
++./convlit.go:11: overflow converting constant to int32
++./convlit.go:12: overflow converting constant to float32
++==================================================
++
+ =========== ./helloworld.go
+ hello, world
+ 
+@@ -106,7 +125,16 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
+ BUG: fails incorrectly
+ 
+ =========== bugs/bug090.go
+-BUG: compilation succeeds incorrectly
++bugs/bug090.go:32: cannot convert non-integer constant to int32
++bugs/bug090.go:32: illegal types for operand: AS
++	int32
++bugs/bug090.go:34: cannot convert non-integer constant to int32
++bugs/bug090.go:34: illegal types for operand: CALL
++	bool
++bugs/bug090.go:40: cannot convert non-integer constant to int32
++bugs/bug090.go:40: illegal types for operand: AS
++	int32
++	float64
+ 
+ =========== bugs/bug093.go
+ M
+@@ -181,14 +209,15 @@ fixedbugs/bug035.go:7: var f redeclared in this block
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
+-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(77) t=<T> nil
++fixedbugs/bug037.go:6: illegal types for operand: AS
++	undefined
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: var x redeclared in this block
+      previous declaration at fixedbugs/bug039.go:5
+ 
+ =========== fixedbugs/bug049.go
+-fixedbugs/bug049.go:6: illegal conversion of constant to string
++fixedbugs/bug049.go:6: illegal conversion of nil to string
+ 
+ =========== fixedbugs/bug050.go
+ fixedbugs/bug050.go:3: package statement must be first
+@@ -198,7 +227,7 @@ sys.6:1 fixedbugs/bug050.go:3: syntax error near package
+ fixedbugs/bug051.go:10: expression must be a constant
+ 
+ =========== fixedbugs/bug062.go
+-fixedbugs/bug062.go:6: illegal conversion of constant to string
++fixedbugs/bug062.go:6: illegal conversion of nil to string
+ fixedbugs/bug062.go:6: illegal types for operand: AS
+ 	string
+ 
+@@ -216,10 +245,6 @@ broke
+ 
+ =========== fixedbugs/bug072.go
+ fixedbugs/bug072.go:6: bug: undefined
+-fixedbugs/bug072.go:6: illegal types for operand: CONV
+-	string
+-fixedbugs/bug072.go:6: illegal types for operand: CONV
+-	string
+ 
+ =========== fixedbugs/bug073.go
+ fixedbugs/bug073.go:8: illegal types for operand: LSH
+@@ -237,7 +262,8 @@ fixedbugs/bug086.go:5: function ends without a return statement
+ 
+ =========== fixedbugs/bug091.go
+ fixedbugs/bug091.go:15: c: undefined
+-fixedbugs/bug091.go:15: fatal error: addvar: n=NAME-i G0 a(1) l(86) t=<T> nil
++fixedbugs/bug091.go:15: illegal types for operand: AS
++	undefined
+ 
+ =========== fixedbugs/bug103.go
+ fixedbugs/bug103.go:8: function requires a return type

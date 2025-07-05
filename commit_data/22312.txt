@@ -12,7 +12,112 @@ Date:   Tue Mar 3 22:29:03 2015 -0500
     Change-Id: I6a1a80e278ae2c2a44bd1537015ea7b4e7a4d6ca
     Reviewed-on: https://go-review.googlesource.com/6793
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/link.go |  8 -------
  src/cmd/internal/obj/obj.go  | 54 ++++++++++++++++++++++++++++++--------------
  2 files changed, 37 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 95c9886ab2..11bebea924 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -154,14 +154,6 @@ type Auto struct {
+ 	Gotype  *LSym
+ }
+ 
+-type Hist struct {
+-	Link    *Hist
+-	Name    string
+-	Line    int32
+-	Offset  int32
+-	Printed uint8
+-}
+-
+ type Link struct {
+ 	Thechar            int32
+ 	Thestring          string
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index 980a0e4a38..ac22fd3f57 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -15,6 +15,15 @@ const (
+ 	NSYM   = 50
+ )
+ 
++type Hist struct {
++	Link    *Hist
++	Name    string
++	Sym     *LSym
++	Line    int32
++	Offset  int32
++	Printed uint8
++}
++
+ func Linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
+ 	var a [HISTSZ]struct {
+ 		incl *Hist
+@@ -174,36 +183,47 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
+ 	n--
+ 	var dlno int32
+ 	var file string
++	var sym *LSym
+ 	if a[n].line != nil {
+ 		file = a[n].line.Name
++		sym = a[n].line.Sym
+ 		dlno = a[n].ldel - 1
+ 	} else {
+ 		file = a[n].incl.Name
++		sym = a[n].incl.Sym
+ 		dlno = a[n].idel - 1
+ 	}
+-	var buf string
+-	if filepath.IsAbs(file) || strings.HasPrefix(file, "<") {
+-		buf = file
+-	} else {
+-		buf = ctxt.Pathname + "/" + file
+-	}
+-	// Remove leading ctxt->trimpath, or else rewrite $GOROOT to $GOROOT_FINAL.
+-	if ctxt.Trimpath != "" && haspathprefix(buf, ctxt.Trimpath) {
+-		if len(buf) == len(ctxt.Trimpath) {
+-			buf = "??"
++	if sym == nil {
++		var buf string
++		if filepath.IsAbs(file) || strings.HasPrefix(file, "<") {
++			buf = file
+ 		} else {
+-			buf1 := buf[len(ctxt.Trimpath)+1:]
+-			if buf1[0] == '\x00' {
+-				buf1 = "??"
++			buf = ctxt.Pathname + "/" + file
++		}
++		// Remove leading ctxt->trimpath, or else rewrite $GOROOT to $GOROOT_FINAL.
++		if ctxt.Trimpath != "" && haspathprefix(buf, ctxt.Trimpath) {
++			if len(buf) == len(ctxt.Trimpath) {
++				buf = "??"
++			} else {
++				buf1 := buf[len(ctxt.Trimpath)+1:]
++				if buf1[0] == '\x00' {
++					buf1 = "??"
++				}
++				buf = buf1
+ 			}
++		} else if ctxt.Goroot_final != "" && haspathprefix(buf, ctxt.Goroot) {
++			buf1 := fmt.Sprintf("%s%s", ctxt.Goroot_final, buf[len(ctxt.Goroot):])
+ 			buf = buf1
+ 		}
+-	} else if ctxt.Goroot_final != "" && haspathprefix(buf, ctxt.Goroot) {
+-		buf1 := fmt.Sprintf("%s%s", ctxt.Goroot_final, buf[len(ctxt.Goroot):])
+-		buf = buf1
++		sym = Linklookup(ctxt, buf, HistVersion)
++		if a[n].line != nil {
++			a[n].line.Sym = sym
++		} else {
++			a[n].incl.Sym = sym
++		}
+ 	}
+ 	lno -= dlno
+-	*f = Linklookup(ctxt, buf, HistVersion)
++	*f = sym
+ 	*l = lno
+ }
+ 

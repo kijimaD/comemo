@@ -16,9 +16,69 @@ Date:   Wed Apr 22 18:03:18 2015 -0400
     Change-Id: Id631cb2f02ec6fbd765508377a79f3f96c6a2ed6
     Reviewed-on: https://go-review.googlesource.com/9246
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/sys_linux_amd64.s  | 2 +-
  src/runtime/sys_linux_arm.s    | 2 +-
  src/runtime/sys_linux_arm64.s  | 4 ++--
  src/runtime/sys_linux_ppc64x.s | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 3a0c47fb63..fa7fa164b5 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -350,7 +350,7 @@ nog:
+ 	// Call fn
+ 	CALL	R12
+ 
+-	// It shouldn't return.  If it does, exit
++	// It shouldn't return.  If it does, exit that thread.
+ 	MOVL	$111, DI
+ 	MOVL	$60, AX
+ 	SYSCALL
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 9d21eaebcb..d0c6d22f31 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -307,7 +307,7 @@ nog:
+ 	MOVW	$16(R13), R13
+ 	BL	(R0)
+ 
+-	// It shouldn't return
++	// It shouldn't return.  If it does, exit that thread.
+ 	MOVW	$0, R0
+ 	MOVW	R0, 4(R13)
+ 	BL	runtime·exit1(SB)
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index ea8520c51d..389fea0dde 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -361,10 +361,10 @@ nog:
+ 	MOVD	R12, R0
+ 	BL	(R0)
+ 
+-	// It shouldn't return.	 If it does, exit
++	// It shouldn't return.	 If it does, exit that thread.
+ 	MOVW	$111, R0
+ again:
+-	MOVD	$SYS_exit_group, R8
++	MOVD	$SYS_exit, R8
+ 	SVC
+ 	B	again	// keep exiting
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index ff397f003b..44a22c9c77 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -346,9 +346,9 @@ nog:
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+ 
+-	// It shouldn't return.  If it does, exit
++	// It shouldn't return.	 If it does, exit that thread.
+ 	MOVW	$111, R3
+-	SYSCALL $SYS_exit_group
++	SYSCALL	$SYS_exit
+ 	BR	-2(PC)	// keep exiting
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8

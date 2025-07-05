@@ -10,10 +10,187 @@ Date:   Fri Jul 9 18:26:57 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 22 +++++----
  .../internal/types2/testdata/check/builtins.go2    | 55 ++++++++++++++++++----
  .../internal/types2/testdata/check/builtins.src    |  2 +-
  src/cmd/compile/internal/types2/type.go            |  7 ---
  test/chan/perm.go                                  |  2 +-
  5 files changed, 62 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 83d1743ee2..e1795aedac 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -212,19 +212,23 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Close:
+ 		// close(c)
+-		c := asChan(x.typ)
+-		if c == nil {
+-			check.errorf(x, invalidArg+"%s is not a channel", x)
+-			return
+-		}
+-		if c.dir == RecvOnly {
+-			check.errorf(x, invalidArg+"%s must not be a receive-only channel", x)
++		if !underIs(x.typ, func(u Type) bool {
++			uch, _ := u.(*Chan)
++			if uch == nil {
++				check.errorf(x, invalidOp+"cannot close non-channel %s", x)
++				return false
++			}
++			if uch.dir == RecvOnly {
++				check.errorf(x, invalidOp+"cannot close receive-only channel %s", x)
++				return false
++			}
++			return true
++		}) {
+ 			return
+ 		}
+-
+ 		x.mode = novalue
+ 		if check.Types != nil {
+-			check.recordBuiltinType(call.Fun, makeSig(nil, c))
++			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
+ 		}
+ 
+ 	case _Complex:
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.go2 b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+index 5bb67efec9..71295bf434 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+@@ -6,6 +6,45 @@
+ 
+ package builtins
+ 
++// close
++
++type C0 interface{ int }
++type C1 interface{ chan int }
++type C2 interface{ chan int | <-chan int }
++type C3 interface{ chan int | chan float32 }
++type C4 interface{ chan int | chan<- int }
++type C5[T any] interface{ ~chan T | chan<- T }
++
++func _[T any](ch T) {
++	close(ch /* ERROR cannot close non-channel */)
++}
++
++func _[T C0](ch T) {
++	close(ch /* ERROR cannot close non-channel */)
++}
++
++func _[T C1](ch T) {
++	close(ch)
++}
++
++func _[T C2](ch T) {
++	close(ch /* ERROR cannot close receive-only channel */)
++}
++
++func _[T C3](ch T) {
++	close(ch)
++}
++
++func _[T C4](ch T) {
++	close(ch)
++}
++
++func _[T C5[X], X any](ch T) {
++	close(ch)
++}
++
++// make
++
+ type Bmc interface {
+ 	~map[rune]string | ~chan int
+ }
+@@ -22,31 +61,31 @@ type Bss interface {
+ 	~[]int | ~[]string
+ }
+ 
+-func _[T any] () {
+-	_ = make(T /* ERROR invalid argument */ )
+-	_ = make(T /* ERROR invalid argument */ , 10)
+-	_ = make(T /* ERROR invalid argument */ , 10, 20)
++func _[T any]() {
++	_ = make(T /* ERROR invalid argument */)
++	_ = make(T /* ERROR invalid argument */, 10)
++	_ = make(T /* ERROR invalid argument */, 10, 20)
+ }
+ 
+-func _[T Bmc] () {
++func _[T Bmc]() {
+ 	_ = make(T)
+ 	_ = make(T, 10)
+ 	_ = make /* ERROR expects 1 or 2 arguments */ (T, 10, 20)
+ }
+ 
+-func _[T Bms] () {
++func _[T Bms]() {
+ 	_ = make /* ERROR expects 2 arguments */ (T)
+ 	_ = make(T, 10)
+ 	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
+ }
+ 
+-func _[T Bcs] () {
++func _[T Bcs]() {
+ 	_ = make /* ERROR expects 2 arguments */ (T)
+ 	_ = make(T, 10)
+ 	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
+ }
+ 
+-func _[T Bss] () {
++func _[T Bss]() {
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (T)
+ 	_ = make(T, 10)
+ 	_ = make(T, 10, 20)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.src b/src/cmd/compile/internal/types2/testdata/check/builtins.src
+index 6d1f47129b..17e4068d65 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.src
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.src
+@@ -144,7 +144,7 @@ func close1() {
+ 	var r <-chan int
+ 	close() // ERROR not enough arguments
+ 	close(1, 2) // ERROR too many arguments
+-	close(42 /* ERROR not a channel */)
++	close(42 /* ERROR cannot close non-channel */)
+ 	close(r /* ERROR receive-only channel */)
+ 	close(c)
+ 	_ = close /* ERROR used as value */ (c)
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index c2da97605b..84cf36de2c 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -105,8 +105,6 @@ func asPointer(t Type) *Pointer {
+ 	return op
+ }
+ 
+-// asTuple is not needed - not provided
+-
+ func asSignature(t Type) *Signature {
+ 	op, _ := optype(t).(*Signature)
+ 	return op
+@@ -117,11 +115,6 @@ func asMap(t Type) *Map {
+ 	return op
+ }
+ 
+-func asChan(t Type) *Chan {
+-	op, _ := optype(t).(*Chan)
+-	return op
+-}
+-
+ // If the argument to asInterface, asNamed, or asTypeParam is of the respective type
+ // (possibly after expanding an instance type), these methods return that type.
+ // Otherwise the result is nil.
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 4c94ab7ffa..04046723a4 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -66,5 +66,5 @@ func main() {
+ 	close(c)
+ 	close(cs)
+ 	close(cr) // ERROR "receive"
+-	close(n)  // ERROR "invalid operation.*non-chan type|must be channel|not a channel"
++	close(n)  // ERROR "invalid operation.*non-chan type|must be channel|non-channel"
+ }

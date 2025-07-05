@@ -19,7 +19,50 @@ Date:   Thu Dec 5 22:25:14 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go           | 9 ++++++---
  src/cmd/go/testdata/script/mod_tool_70582.txt | 9 +++++++++
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e8f8e7fa5c..12dd9425f6 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1852,6 +1852,12 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+ 
+ 	var modroot string
+ 	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
++	if MainModules.Tools()[pkg.path] {
++		// Tools declared by main modules are always in "all".
++		// We apply the package flags before returning so that missing
++		// tool dependencies report an error https://go.dev/issue/70582
++		ld.applyPkgFlags(ctx, pkg, pkgInAll)
++	}
+ 	if pkg.dir == "" {
+ 		return
+ 	}
+@@ -1866,9 +1872,6 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+ 		// essentially nothing (these atomic flag ops are essentially free compared
+ 		// to scanning source code for imports).
+ 		ld.applyPkgFlags(ctx, pkg, pkgInAll)
+-	} else if MainModules.Tools()[pkg.path] {
+-		// Tools declared by main modules are always in "all".
+-		ld.applyPkgFlags(ctx, pkg, pkgInAll)
+ 	}
+ 	if ld.AllowPackage != nil {
+ 		if err := ld.AllowPackage(ctx, pkg.path, pkg.mod); err != nil {
+diff --git a/src/cmd/go/testdata/script/mod_tool_70582.txt b/src/cmd/go/testdata/script/mod_tool_70582.txt
+new file mode 100644
+index 0000000000..7e2831783a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tool_70582.txt
+@@ -0,0 +1,9 @@
++! go list all
++stderr 'no required module provides package example.com/tools/cmd/hello'
++
++-- go.mod --
++go 1.24
++
++module example.com/foo
++
++tool example.com/tools/cmd/hello

@@ -9,6 +9,20 @@ Date:   Wed Feb 8 08:59:59 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5639062
-
+---
  src/pkg/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 28c903e7b3..d12ff02759 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -738,7 +738,7 @@ func (re *Regexp) Expand(dst []byte, template []byte, src []byte, match []int) [
+ 
+ // ExpandString is like Expand but the template and source are strings.
+ // It appends to and returns a byte slice in order to give the calling
+-// code control ovr allocation.
++// code control over allocation.
+ func (re *Regexp) ExpandString(dst []byte, template string, src string, match []int) []byte {
+ 	return re.expand(dst, template, nil, src, match)
+ }

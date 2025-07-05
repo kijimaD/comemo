@@ -11,6 +11,17 @@ Date:   Wed Dec 21 15:50:26 2016 +0900
     Change-Id: Icc97e09424780c610a8fe173d0cf461d76b06da4
     Reviewed-on: https://go-review.googlesource.com/34673
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/clangwrap.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ios/clangwrap.sh b/misc/ios/clangwrap.sh
+index 9cad49fe7d..9141c8c447 100755
+--- a/misc/ios/clangwrap.sh
++++ b/misc/ios/clangwrap.sh
+@@ -17,4 +17,4 @@ else
+ 	exit 1
+ fi
+ 
+-exec $CLANG -arch $CLANGARCH -isysroot $SDK_PATH "$@"
++exec $CLANG -arch $CLANGARCH -isysroot $SDK_PATH -mios-version-min=6.0 "$@"

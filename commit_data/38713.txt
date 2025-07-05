@@ -13,10 +13,98 @@ Date:   Tue Nov 13 09:28:33 2018 -0500
     Change-Id: I03c21380fce481060c443b0cc820f3617497fdd9
     Reviewed-on: https://go-review.googlesource.com/c/149317
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/fetch.go            |  4 ++--
  src/cmd/go/internal/modget/get.go                |  2 ++
  src/cmd/go/proxy_test.go                         |  8 +++++++-
  src/cmd/go/testdata/mod/rsc.io_badzip_v1.0.0.txt | 11 +++++++++++
  src/cmd/go/testdata/script/mod_load_badzip.txt   | 11 +++++++++++
  5 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 8485932b42..9984595c05 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -119,11 +119,11 @@ func downloadZip(mod module.Version, target string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	prefix := mod.Path + "@" + mod.Version
++	prefix := mod.Path + "@" + mod.Version + "/"
+ 	for _, f := range z.File {
+ 		if !strings.HasPrefix(f.Name, prefix) {
+ 			z.Close()
+-			return fmt.Errorf("zip for %s has unexpected file %s", prefix, f.Name)
++			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], f.Name)
+ 		}
+ 	}
+ 	z.Close()
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index ffc9a12f95..c2e134c2d6 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -534,9 +534,11 @@ func runGet(cmd *base.Command, args []string) {
+ 					// module root.
+ 					continue
+ 				}
++				base.Errorf("%s", p.Error)
+ 			}
+ 			todo = append(todo, p)
+ 		}
++		base.ExitIfErrors()
+ 
+ 		// If -d was specified, we're done after the download: no build.
+ 		// (The load.PackagesAndErrors is what did the download
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 97fc4b0e80..830cea029b 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -197,7 +197,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 				if strings.HasPrefix(f.Name, ".") {
+ 					continue
+ 				}
+-				zf, err := z.Create(path + "@" + vers + "/" + f.Name)
++				var zipName string
++				if strings.HasPrefix(f.Name, "/") {
++					zipName = f.Name[1:]
++				} else {
++					zipName = path + "@" + vers + "/" + f.Name
++				}
++				zf, err := z.Create(zipName)
+ 				if err != nil {
+ 					return cached{nil, err}
+ 				}
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badzip_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badzip_v1.0.0.txt
+new file mode 100644
+index 0000000000..07a38fa6d7
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_badzip_v1.0.0.txt
+@@ -0,0 +1,11 @@
++rsc.io/badzip v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/badzip
++-- .info --
++{"Version":"v1.0.0"}
++-- x.go --
++package x
++-- /rsc.io/badzip@v1.0.0.txt --
++This file should not be here.
+diff --git a/src/cmd/go/testdata/script/mod_load_badzip.txt b/src/cmd/go/testdata/script/mod_load_badzip.txt
+new file mode 100644
+index 0000000000..95513de4a6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_load_badzip.txt
+@@ -0,0 +1,11 @@
++# Zip files with unexpected file names inside should be rejected.
++env GO111MODULE=on
++
++! go get -d rsc.io/badzip
++stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
++
++! go build rsc.io/badzip
++stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
++
++-- go.mod --
++module m

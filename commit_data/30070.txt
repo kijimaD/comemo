@@ -11,7 +11,35 @@ Date:   Mon Oct 24 11:00:19 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/cgo.go          | 5 +++++
  src/cmd/vet/testdata/cgo.go | 2 ++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/vet/cgo.go b/src/cmd/vet/cgo.go
+index b896862c8f..d233e9a960 100644
+--- a/src/cmd/vet/cgo.go
++++ b/src/cmd/vet/cgo.go
+@@ -38,6 +38,11 @@ func checkCgoCall(f *File, node ast.Node) {
+ 		return
+ 	}
+ 
++	// A call to C.CBytes passes a pointer but is always safe.
++	if sel.Sel.Name == "CBytes" {
++		return
++	}
++
+ 	for _, arg := range x.Args {
+ 		if !typeOKForCgoCall(cgoBaseType(f, arg)) {
+ 			f.Badf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
+diff --git a/src/cmd/vet/testdata/cgo.go b/src/cmd/vet/testdata/cgo.go
+index 5ce6007fcb..25d395b1ea 100644
+--- a/src/cmd/vet/testdata/cgo.go
++++ b/src/cmd/vet/testdata/cgo.go
+@@ -51,4 +51,6 @@ func CgoTests() {
+ 	var st2 struct{ i int }
+ 	C.f(*(*unsafe.Pointer)(unsafe.Pointer(&st2)))
+ 	C.f(unsafe.Pointer(&st2))
++
++	C.CBytes([]byte("hello"))
+ }

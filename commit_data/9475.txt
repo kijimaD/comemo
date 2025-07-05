@@ -7,6 +7,30 @@ Date:   Wed Aug 24 13:59:17 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4941048
-
+---
  src/cmd/cov/tree.c | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/cov/tree.c b/src/cmd/cov/tree.c
+index 116772e42f..905bb7d978 100644
+--- a/src/cmd/cov/tree.c
++++ b/src/cmd/cov/tree.c
+@@ -2,7 +2,7 @@
+ 
+ /*
+ Copyright (c) 2003-2007 Russ Cox, Tom Bergan, Austin Clements,
+-                        Massachusetts Institute of Technology
++	Massachusetts Institute of Technology
+ Portions Copyright (c) 2009 The Go Authors. All rights reserved.
+ 
+ Permission is hereby granted, free of charge, to any person obtaining
+@@ -35,9 +35,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ #include <libc.h>
+ #include "tree.h"
+ 
+-#define TreeNode TreeNode
+-#define Tree Tree
+-
+ enum
+ {
+ 	Red = 0,

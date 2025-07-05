@@ -30,9 +30,251 @@ Date:   Tue Oct 1 18:12:55 2019 +0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/test.go  | 82 +++++++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/cgo/gcc.go     |  6 ++--
  src/cmd/cgo/out.go     | 12 ++++----
  src/runtime/cgocall.go | 18 +++++++----
  4 files changed, 98 insertions(+), 20 deletions(-)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 0aa80ebc82..68bfa90825 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -115,6 +115,44 @@ int add(int x, int y) {
+ 	return x+y;
+ };
+ 
++// Following mimicks vulkan complex definitions for benchmarking cgocheck overhead.
++
++typedef uint32_t VkFlags;
++typedef VkFlags  VkDeviceQueueCreateFlags;
++typedef uint32_t VkStructureType;
++
++typedef struct VkDeviceQueueCreateInfo {
++    VkStructureType             sType;
++    const void*                 pNext;
++    VkDeviceQueueCreateFlags    flags;
++    uint32_t                    queueFamilyIndex;
++    uint32_t                    queueCount;
++    const float*                pQueuePriorities;
++} VkDeviceQueueCreateInfo;
++
++typedef struct VkPhysicalDeviceFeatures {
++    uint32_t bools[56];
++} VkPhysicalDeviceFeatures;
++
++typedef struct VkDeviceCreateInfo {
++    VkStructureType                    sType;
++    const void*                        pNext;
++    VkFlags                            flags;
++    uint32_t                           queueCreateInfoCount;
++    const VkDeviceQueueCreateInfo*     pQueueCreateInfos;
++    uint32_t                           enabledLayerCount;
++    const char* const*                 ppEnabledLayerNames;
++    uint32_t                           enabledExtensionCount;
++    const char* const*                 ppEnabledExtensionNames;
++    const VkPhysicalDeviceFeatures*    pEnabledFeatures;
++} VkDeviceCreateInfo;
++
++void handleComplexPointer(VkDeviceCreateInfo *a0) {}
++void handleComplexPointer8(
++	VkDeviceCreateInfo *a0, VkDeviceCreateInfo *a1, VkDeviceCreateInfo *a2, VkDeviceCreateInfo *a3,
++	VkDeviceCreateInfo *a4, VkDeviceCreateInfo *a5, VkDeviceCreateInfo *a6, VkDeviceCreateInfo *a7
++) {}
++
+ // complex alignment
+ 
+ struct {
+@@ -993,11 +1031,45 @@ type Context struct {
+ }
+ 
+ func benchCgoCall(b *testing.B) {
+-	const x = C.int(2)
+-	const y = C.int(3)
+-	for i := 0; i < b.N; i++ {
+-		C.add(x, y)
+-	}
++	b.Run("add-int", func(b *testing.B) {
++		const x = C.int(2)
++		const y = C.int(3)
++
++		for i := 0; i < b.N; i++ {
++			C.add(x, y)
++		}
++	})
++
++	b.Run("one-pointer", func(b *testing.B) {
++		var a0 C.VkDeviceCreateInfo
++		for i := 0; i < b.N; i++ {
++			C.handleComplexPointer(&a0)
++		}
++	})
++	b.Run("eight-pointers", func(b *testing.B) {
++		var a0, a1, a2, a3, a4, a5, a6, a7 C.VkDeviceCreateInfo
++		for i := 0; i < b.N; i++ {
++			C.handleComplexPointer8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7)
++		}
++	})
++	b.Run("eight-pointers-nil", func(b *testing.B) {
++		var a0, a1, a2, a3, a4, a5, a6, a7 *C.VkDeviceCreateInfo
++		for i := 0; i < b.N; i++ {
++			C.handleComplexPointer8(a0, a1, a2, a3, a4, a5, a6, a7)
++		}
++	})
++	b.Run("eight-pointers-array", func(b *testing.B) {
++		var a [8]C.VkDeviceCreateInfo
++		for i := 0; i < b.N; i++ {
++			C.handleComplexPointer8(&a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7])
++		}
++	})
++	b.Run("eight-pointers-slice", func(b *testing.B) {
++		a := make([]C.VkDeviceCreateInfo, 8)
++		for i := 0; i < b.N; i++ {
++			C.handleComplexPointer8(&a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7])
++		}
++	})
+ }
+ 
+ // Benchmark measuring overhead from Go to C and back to Go (via a callback)
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 01b86adadb..12d4749677 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -816,7 +816,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 	// Rewrite C.f(p) to
+ 	//    func() {
+ 	//            _cgo0 := p
+-	//            _cgoCheckPointer(_cgo0)
++	//            _cgoCheckPointer(_cgo0, nil)
+ 	//            C.f(_cgo0)
+ 	//    }()
+ 	// Using a function literal like this lets us evaluate the
+@@ -834,7 +834,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 	//    defer func() func() {
+ 	//            _cgo0 := p
+ 	//            return func() {
+-	//                    _cgoCheckPointer(_cgo0)
++	//                    _cgoCheckPointer(_cgo0, nil)
+ 	//                    C.f(_cgo0)
+ 	//            }
+ 	//    }()()
+@@ -921,7 +921,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 		}
+ 
+ 		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
+-		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d); ", i)
++		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d, nil); ", i)
+ 	}
+ 
+ 	if call.Deferred {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 1fddbb6b54..6bee9b1909 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1631,14 +1631,14 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
+ func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
+ 
+ //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+-func _cgoCheckPointer(interface{}, ...interface{})
++func _cgoCheckPointer(interface{}, interface{})
+ 
+ //go:linkname _cgoCheckResult runtime.cgoCheckResult
+ func _cgoCheckResult(interface{})
+ `
+ 
+ const gccgoGoProlog = `
+-func _cgoCheckPointer(interface{}, ...interface{})
++func _cgoCheckPointer(interface{}, interface{})
+ 
+ func _cgoCheckResult(interface{})
+ `
+@@ -1825,16 +1825,16 @@ typedef struct __go_empty_interface {
+ 	void *__object;
+ } Eface;
+ 
+-extern void runtimeCgoCheckPointer(Eface, Slice)
++extern void runtimeCgoCheckPointer(Eface, Eface)
+ 	__asm__("runtime.cgoCheckPointer")
+ 	__attribute__((weak));
+ 
+-extern void localCgoCheckPointer(Eface, Slice)
++extern void localCgoCheckPointer(Eface, Eface)
+ 	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
+ 
+-void localCgoCheckPointer(Eface ptr, Slice args) {
++void localCgoCheckPointer(Eface ptr, Eface arg) {
+ 	if(runtimeCgoCheckPointer) {
+-		runtimeCgoCheckPointer(ptr, args);
++		runtimeCgoCheckPointer(ptr, arg);
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index a881ae1489..3595e49ed5 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -406,7 +406,7 @@ var racecgosync uint64 // represents possible synchronization in C code
+ 
+ // cgoCheckPointer checks if the argument contains a Go pointer that
+ // points to a Go pointer, and panics if it does.
+-func cgoCheckPointer(ptr interface{}, args ...interface{}) {
++func cgoCheckPointer(ptr interface{}, arg interface{}) {
+ 	if debug.cgocheck == 0 {
+ 		return
+ 	}
+@@ -415,15 +415,15 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) {
+ 	t := ep._type
+ 
+ 	top := true
+-	if len(args) > 0 && (t.kind&kindMask == kindPtr || t.kind&kindMask == kindUnsafePointer) {
++	if arg != nil && (t.kind&kindMask == kindPtr || t.kind&kindMask == kindUnsafePointer) {
+ 		p := ep.data
+ 		if t.kind&kindDirectIface == 0 {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+-		if !cgoIsGoPointer(p) {
++		if p == nil || !cgoIsGoPointer(p) {
+ 			return
+ 		}
+-		aep := (*eface)(unsafe.Pointer(&args[0]))
++		aep := (*eface)(unsafe.Pointer(&arg))
+ 		switch aep._type.kind & kindMask {
+ 		case kindBool:
+ 			if t.kind&kindMask == kindUnsafePointer {
+@@ -460,7 +460,7 @@ const cgoResultFail = "cgo result has Go pointer"
+ // depending on indir. The top parameter is whether we are at the top
+ // level, where Go pointers are allowed.
+ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+-	if t.ptrdata == 0 {
++	if t.ptrdata == 0 || p == nil {
+ 		// If the type has no pointers there is nothing to do.
+ 		return
+ 	}
+@@ -517,7 +517,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		st := (*slicetype)(unsafe.Pointer(t))
+ 		s := (*slice)(p)
+ 		p = s.array
+-		if !cgoIsGoPointer(p) {
++		if p == nil || !cgoIsGoPointer(p) {
+ 			return
+ 		}
+ 		if !top {
+@@ -548,11 +548,17 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			return
+ 		}
+ 		for _, f := range st.fields {
++			if f.typ.ptrdata == 0 {
++				continue
++			}
+ 			cgoCheckArg(f.typ, add(p, f.offset()), true, top, msg)
+ 		}
+ 	case kindPtr, kindUnsafePointer:
+ 		if indir {
+ 			p = *(*unsafe.Pointer)(p)
++			if p == nil {
++				return
++			}
+ 		}
+ 
+ 		if !cgoIsGoPointer(p) {

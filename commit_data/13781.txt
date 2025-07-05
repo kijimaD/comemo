@@ -10,6 +10,19 @@ Date:   Mon Sep 10 11:24:34 2012 +1000
     R=remy, r
     CC=golang-dev, rsc
     https://golang.org/cl/6498101
-
+---
  src/cmd/6g/cgen.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 4905a011c7..05e7ac7a26 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -669,7 +669,6 @@ agen(Node *n, Node *res)
+ 
+ 		if(!debug['B'] && !n->bounded) {
+ 			// check bounds
+-			n5.op = OXXX;
+ 			t = types[TUINT32];
+ 			if(is64(nr->type))
+ 				t = types[TUINT64];

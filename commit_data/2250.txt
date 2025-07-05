@@ -8,6 +8,20 @@ Date:   Tue May 19 15:22:42 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=29048
     CL=29053
-
+---
  src/lib/deps.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/deps.bash b/src/lib/deps.bash
+index 6b5b615f1b..8495bb28eb 100755
+--- a/src/lib/deps.bash
++++ b/src/lib/deps.bash
+@@ -13,7 +13,7 @@ dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
+ for dir in $dirs; do (
+ 	cd $dir || exit 1
+ 
+-	sources=$(sed -n 's/\.\$O\\/.go/p' Makefile | sort | uniq)
++	sources=$(sed -n 's/\.\$O\\/.go/p' Makefile)
+ 	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.
+ 
+ 	deps=$(

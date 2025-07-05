@@ -14,7 +14,7 @@ Date:   Tue Oct 19 18:40:27 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go       |  2 +-
  src/cmd/compile/internal/noder/stencil.go      |  2 +-
  src/cmd/compile/internal/noder/types.go        |  2 +-
@@ -26,3 +26,198 @@ Date:   Tue Oct 19 18:40:27 2021 -0400
  src/cmd/compile/internal/types/type.go         | 13 +++++++++++--
  src/cmd/compile/internal/types/universe.go     |  8 ++++----
  10 files changed, 24 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 48f4368113..0bc9135999 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -466,7 +466,7 @@ func (r *reader) interfaceType() *types.Type {
+ 	if len(fields) == 0 {
+ 		return types.Types[types.TINTER] // empty interface
+ 	}
+-	return types.NewInterface(tpkg, fields)
++	return types.NewInterface(tpkg, fields, false)
+ }
+ 
+ func (r *reader) structType() *types.Type {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 592de7017f..474a05973a 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -881,7 +881,7 @@ func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code
+ 		cond := ir.NewBinaryExpr(pos, ir.ONE, want, got)
+ 		typed(types.Types[types.TBOOL], cond)
+ 		panicArg := ir.NewNilExpr(pos)
+-		typed(types.NewInterface(types.LocalPkg, nil), panicArg)
++		typed(types.NewInterface(types.LocalPkg, nil, false), panicArg)
+ 		then := ir.NewUnaryExpr(pos, ir.OPANIC, panicArg)
+ 		then.SetTypecheck(1)
+ 		x := ir.NewIfStmt(pos, cond, []ir.Node{then}, nil)
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 1a7cef4aa3..f035e0da97 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -213,7 +213,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			methods[i] = types.NewField(g.pos(m), g.selector(m), mtyp)
+ 		}
+ 
+-		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
++		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...), typ.IsImplicit())
+ 
+ 	case *types2.TypeParam:
+ 		// Save the name of the type parameter in the sym of the type.
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index f26cb89c6d..12b4a0c361 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -313,7 +313,7 @@ func TestABIUtilsInterfaces(t *testing.T) {
+ 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
+ 		[]*types.Type{types.Types[types.TSTRING]})
+ 	field := types.NewField(src.NoXPos, typecheck.Lookup("F"), fldt)
+-	nei := types.NewInterface(types.LocalPkg, []*types.Field{field})
++	nei := types.NewInterface(types.LocalPkg, []*types.Field{field}, false)
+ 	i16 := types.Types[types.TINT16]
+ 	tb := types.Types[types.TBOOL]
+ 	s1 := mkstruct([]*types.Type{i16, i16, tb})
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index cb1e56bf51..fcfadc146c 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -815,7 +815,7 @@ func (r *importReader) typ1() *types.Type {
+ 			return types.Types[types.TINTER]
+ 		}
+ 
+-		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
++		t := types.NewInterface(r.currPkg, append(embeddeds, methods...), false)
+ 
+ 		// Ensure we expand the interface in the frontend (#25055).
+ 		types.CheckSize(t)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index b4d5302525..9ebd8f1423 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1369,7 +1369,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
+ 			// For an empty interface, we need to return a new type,
+ 			// since it may now be fully instantiated (HasTParam
+ 			// becomes false).
+-			return types.NewInterface(t.Pkg(), nil)
++			return types.NewInterface(t.Pkg(), nil, false)
+ 		}
+ 		return t
+ 	}
+@@ -1390,7 +1390,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
+ 		}
+ 	}
+ 	if newfields != nil {
+-		return types.NewInterface(t.Pkg(), newfields)
++		return types.NewInterface(t.Pkg(), newfields, false)
+ 	}
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/typecheck/type.go b/src/cmd/compile/internal/typecheck/type.go
+index af694c2d94..c4c1ef58ca 100644
+--- a/src/cmd/compile/internal/typecheck/type.go
++++ b/src/cmd/compile/internal/typecheck/type.go
+@@ -108,7 +108,7 @@ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
+ 	methods := tcFields(n.Methods, nil)
+ 	base.Pos = lno
+ 
+-	n.SetOTYPE(types.NewInterface(types.LocalPkg, methods))
++	n.SetOTYPE(types.NewInterface(types.LocalPkg, methods, false))
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 7349e52a73..d37c173058 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
+ 		{Forward{}, 20, 32},
+ 		{Func{}, 28, 48},
+ 		{Struct{}, 16, 32},
+-		{Interface{}, 4, 8},
++		{Interface{}, 8, 16},
+ 		{Chan{}, 8, 16},
+ 		{Array{}, 12, 16},
+ 		{FuncArgs{}, 4, 8},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 392c54ba79..ec17fe8704 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -417,7 +417,8 @@ func (t *Type) StructType() *Struct {
+ 
+ // Interface contains Type fields specific to interface types.
+ type Interface struct {
+-	pkg *Pkg
++	pkg      *Pkg
++	implicit bool
+ }
+ 
+ // Typeparam contains Type fields specific to typeparam types.
+@@ -1820,7 +1821,7 @@ func newBasic(kind Kind, obj Object) *Type {
+ 
+ // NewInterface returns a new interface for the given methods and
+ // embedded types. Embedded types are specified as fields with no Sym.
+-func NewInterface(pkg *Pkg, methods []*Field) *Type {
++func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
+ 	t := newType(TINTER)
+ 	t.SetInterface(methods)
+ 	for _, f := range methods {
+@@ -1838,6 +1839,7 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
+ 		t.SetBroke(true)
+ 	}
+ 	t.extra.(*Interface).pkg = pkg
++	t.extra.(*Interface).implicit = implicit
+ 	return t
+ }
+ 
+@@ -1875,6 +1877,13 @@ func (t *Type) Bound() *Type {
+ 	return t.extra.(*Typeparam).bound
+ }
+ 
++// IsImplicit reports whether an interface is implicit (i.e. elided from a type
++// parameter constraint).
++func (t *Type) IsImplicit() bool {
++	t.wantEtype(TINTER)
++	return t.extra.(*Interface).implicit
++}
++
+ // NewUnion returns a new union with the specified set of terms (types). If
+ // tildes[i] is true, then terms[i] represents ~T, rather than just T.
+ func NewUnion(terms []*Type, tildes []bool) *Type {
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 8fa4b7cd20..d5239eb10c 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -58,7 +58,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	}
+ 
+ 	Types[TANY] = newType(TANY)
+-	Types[TINTER] = NewInterface(LocalPkg, nil)
++	Types[TINTER] = NewInterface(LocalPkg, nil, false)
+ 
+ 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
+ 		typ := newType(kind)
+@@ -111,7 +111,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	if base.Flag.G > 0 {
+ 		DeferCheckSize()
+ 		AnyType = defBasic(TFORW, BuiltinPkg, "any")
+-		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}))
++		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
+ 		ResumeCheckSize()
+ 	}
+ 
+@@ -145,11 +145,11 @@ func makeErrorInterface() *Type {
+ 		NewField(src.NoXPos, nil, Types[TSTRING]),
+ 	})
+ 	method := NewField(src.NoXPos, LocalPkg.Lookup("Error"), sig)
+-	return NewInterface(NoPkg, []*Field{method})
++	return NewInterface(NoPkg, []*Field{method}, false)
+ }
+ 
+ func makeComparableInterface() *Type {
+ 	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, nil)
+ 	method := NewField(src.NoXPos, LocalPkg.Lookup("=="), sig)
+-	return NewInterface(NoPkg, []*Field{method})
++	return NewInterface(NoPkg, []*Field{method}, false)
+ }

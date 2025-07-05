@@ -24,7 +24,7 @@ Date:   Thu Nov 10 19:08:04 2011 -0500
     R=golang-dev, bradfitz, r, dave, iant
     CC=golang-dev
     https://golang.org/cl/5367043
-
+---
  src/cmd/Makefile                            |   1 -
  src/cmd/cgo/Makefile                        |   1 +
  src/cmd/cgo/ast.go                          |   1 +
@@ -44,3 +44,2386 @@ Date:   Thu Nov 10 19:08:04 2011 -0500
  src/cmd/godefs/testdata_linux_arm.golden    |  38 --
  src/cmd/godefs/util.c                       |  36 --
  18 files changed, 513 insertions(+), 1589 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 8761a0bf86..0b83e48312 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -16,7 +16,6 @@ DIRS=\
+ 	cc\
+ 	cov\
+ 	gc\
+-	godefs\
+ 	gopack\
+ 	nm\
+ 	prof\
+diff --git a/src/cmd/cgo/Makefile b/src/cmd/cgo/Makefile
+index 5458c3e4f4..a3f034f7c8 100644
+--- a/src/cmd/cgo/Makefile
++++ b/src/cmd/cgo/Makefile
+@@ -8,6 +8,7 @@ TARG=cgo
+ GOFILES=\
+ 	ast.go\
+ 	gcc.go\
++	godefs.go\
+ 	main.go\
+ 	out.go\
+ 	util.go\
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index d2336ef6d5..07d2ec3166 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -128,6 +128,7 @@ func (f *File) ReadGo(name string) {
+ 	f.walk(ast1, "prog", (*File).saveExport)
+ 	f.walk(ast2, "prog", (*File).saveExport2)
+ 
++	f.Comments = ast1.Comments
+ 	f.AST = ast2
+ }
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index fdc69f5a3e..f5a27a5ce0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -24,6 +24,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
++	"unicode/utf8"
+ )
+ 
+ var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
+@@ -59,6 +60,9 @@ func cname(s string) string {
+ 	if strings.HasPrefix(s, "enum_") {
+ 		return "enum " + s[len("enum_"):]
+ 	}
++	if strings.HasPrefix(s, "sizeof_") {
++		return "sizeof(" + cname(s[len("sizeof_"):]) + ")"
++	}
+ 	return s
+ }
+ 
+@@ -347,7 +351,16 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			}
+ 			if ok {
+ 				n.Kind = "const"
+-				n.Const = n.Define
++				// Turn decimal into hex, just for consistency
++				// with enum-derived constants.  Otherwise
++				// in the cgo -godefs output half the constants
++				// are in hex and half are in whatever the #define used.
++				i, err := strconv.Btoi64(n.Define, 0)
++				if err == nil {
++					n.Const = fmt.Sprintf("%#x", i)
++				} else {
++					n.Const = n.Define
++				}
+ 				continue
+ 			}
+ 
+@@ -589,12 +602,12 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 			if enums[i] != 0 && n.Type.EnumValues != nil {
+ 				k := fmt.Sprintf("__cgo_enum__%d", i)
+ 				n.Kind = "const"
+-				n.Const = strconv.Itoa64(n.Type.EnumValues[k])
++				n.Const = fmt.Sprintf("%#x", n.Type.EnumValues[k])
+ 				// Remove injected enum to ensure the value will deep-compare
+ 				// equally in future loads of the same constant.
+ 				delete(n.Type.EnumValues, k)
+ 			} else if n.Kind == "const" && i < len(enumVal) {
+-				n.Const = strconv.Itoa64(enumVal[i])
++				n.Const = fmt.Sprintf("%#x", enumVal[i])
+ 			}
+ 		}
+ 	}
+@@ -603,7 +616,8 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 
+ // rewriteRef rewrites all the C.xxx references in f.AST to refer to the
+ // Go equivalents, now that we have figured out the meaning of all
+-// the xxx.
++// the xxx.  In *godefs or *cdefs mode, rewriteRef replaces the names
++// with full definitions instead of mangled names.
+ func (p *Package) rewriteRef(f *File) {
+ 	// Assign mangled names.
+ 	for _, n := range f.Name {
+@@ -679,6 +693,17 @@ func (p *Package) rewriteRef(f *File) {
+ 				error_(r.Pos(), "must call C.%s", r.Name.Go)
+ 			}
+ 		}
++		if *godefs || *cdefs {
++			// Substitute definition for mangled type name.
++			if id, ok := expr.(*ast.Ident); ok {
++				if t := typedef[id.Name]; t != nil {
++					expr = t
++				}
++				if id.Name == r.Name.Mangle && r.Name.Const != "" {
++					expr = ast.NewIdent(r.Name.Const)
++				}
++			}
++		}
+ 		*r.Expr = expr
+ 	}
+ }
+@@ -856,6 +881,7 @@ type typeConv struct {
+ 
+ var tagGen int
+ var typedef = make(map[string]ast.Expr)
++var goIdent = make(map[string]*ast.Ident)
+ 
+ func (c *typeConv) Init(ptrSize int64) {
+ 	c.ptrSize = ptrSize
+@@ -1121,6 +1147,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		}
+ 		name := c.Ident("_Ctype_" + dt.Kind + "_" + tag)
+ 		t.Go = name // publish before recursive calls
++		goIdent[name.Name] = name
+ 		switch dt.Kind {
+ 		case "union", "class":
+ 			typedef[name.Name] = c.Opaque(t.Size)
+@@ -1155,7 +1182,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			t.Align = c.ptrSize
+ 			break
+ 		}
+-		name := c.Ident("_Ctypedef_" + dt.Name)
++		name := c.Ident("_Ctype_" + dt.Name)
++		goIdent[name.Name] = name
+ 		t.Go = name // publish before recursive call
+ 		sub := c.Type(dt.Type)
+ 		t.Size = sub.Size
+@@ -1163,6 +1191,9 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		if _, ok := typedef[name.Name]; !ok {
+ 			typedef[name.Name] = sub.Go
+ 		}
++		if *godefs || *cdefs {
++			t.Go = sub.Go
++		}
+ 
+ 	case *dwarf.UcharType:
+ 		if t.Size != 1 {
+@@ -1206,7 +1237,9 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			s = strings.Join(strings.Split(s, " "), "") // strip spaces
+ 			name := c.Ident("_Ctype_" + s)
+ 			typedef[name.Name] = t.Go
+-			t.Go = name
++			if !*godefs && !*cdefs {
++				t.Go = name
++			}
+ 		}
+ 	}
+ 
+@@ -1331,38 +1364,61 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 		ident[f.Name] = f.Name
+ 		used[f.Name] = true
+ 	}
+-	for cid, goid := range ident {
+-		if token.Lookup([]byte(goid)).IsKeyword() {
+-			// Avoid keyword
+-			goid = "_" + goid
+ 
+-			// Also avoid existing fields
+-			for _, exist := used[goid]; exist; _, exist = used[goid] {
++	if !*godefs && !*cdefs {
++		for cid, goid := range ident {
++			if token.Lookup([]byte(goid)).IsKeyword() {
++				// Avoid keyword
+ 				goid = "_" + goid
+-			}
+ 
+-			used[goid] = true
+-			ident[cid] = goid
++				// Also avoid existing fields
++				for _, exist := used[goid]; exist; _, exist = used[goid] {
++					goid = "_" + goid
++				}
++
++				used[goid] = true
++				ident[cid] = goid
++			}
+ 		}
+ 	}
+ 
++	anon := 0
+ 	for _, f := range dt.Field {
+-		if f.BitSize > 0 && f.BitSize != f.ByteSize*8 {
+-			continue
+-		}
+ 		if f.ByteOffset > off {
+ 			fld = c.pad(fld, f.ByteOffset-off)
+ 			off = f.ByteOffset
+ 		}
+ 		t := c.Type(f.Type)
++		tgo := t.Go
++		size := t.Size
++
++		if f.BitSize > 0 {
++			if f.BitSize%8 != 0 {
++				continue
++			}
++			size = f.BitSize / 8
++			name := tgo.(*ast.Ident).String()
++			if strings.HasPrefix(name, "int") {
++				name = "int"
++			} else {
++				name = "uint"
++			}
++			tgo = ast.NewIdent(name + fmt.Sprint(f.BitSize))
++		}
++
+ 		n := len(fld)
+ 		fld = fld[0 : n+1]
+-
+-		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[f.Name])}, Type: t.Go}
+-		off += t.Size
++		name := f.Name
++		if name == "" {
++			name = fmt.Sprintf("anon%d", anon)
++			anon++
++			ident[name] = name
++		}
++		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[name])}, Type: tgo}
++		off += size
+ 		buf.WriteString(t.C.String())
+ 		buf.WriteString(" ")
+-		buf.WriteString(f.Name)
++		buf.WriteString(name)
+ 		buf.WriteString("; ")
+ 		if t.Align > align {
+ 			align = t.Align
+@@ -1377,6 +1433,96 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 	}
+ 	buf.WriteString("}")
+ 	csyntax = buf.String()
++
++	if *godefs || *cdefs {
++		godefsFields(fld)
++	}
+ 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
+ 	return
+ }
++
++func upper(s string) string {
++	if s == "" {
++		return ""
++	}
++	r, size := utf8.DecodeRuneInString(s)
++	if r == '_' {
++		return "X" + s
++	}
++	return string(unicode.ToUpper(r)) + s[size:]
++}
++
++// godefsFields rewrites field names for use in Go or C definitions.
++// It strips leading common prefixes (like tv_ in tv_sec, tv_usec)
++// converts names to upper case, and rewrites _ into Pad_godefs_n,
++// so that all fields are exported.
++func godefsFields(fld []*ast.Field) {
++	prefix := fieldPrefix(fld)
++	npad := 0
++	for _, f := range fld {
++		for _, n := range f.Names {
++			if strings.HasPrefix(n.Name, prefix) && n.Name != prefix {
++				n.Name = n.Name[len(prefix):]
++			}
++			if n.Name == "_" {
++				// Use exported name instead.
++				n.Name = "Pad_cgo_" + strconv.Itoa(npad)
++				npad++
++			}
++			if !*cdefs {
++				n.Name = upper(n.Name)
++			}
++		}
++		p := &f.Type
++		t := *p
++		if star, ok := t.(*ast.StarExpr); ok {
++			star = &ast.StarExpr{X: star.X}
++			*p = star
++			p = &star.X
++			t = *p
++		}
++		if id, ok := t.(*ast.Ident); ok {
++			if id.Name == "unsafe.Pointer" {
++				*p = ast.NewIdent("*byte")
++			}
++		}
++	}
++}
++
++// fieldPrefix returns the prefix that should be removed from all the
++// field names when generating the C or Go code.  For generated 
++// C, we leave the names as is (tv_sec, tv_usec), since that's what
++// people are used to seeing in C.  For generated Go code, such as
++// package syscall's data structures, we drop a common prefix
++// (so sec, usec, which will get turned into Sec, Usec for exporting).
++func fieldPrefix(fld []*ast.Field) string {
++	if *cdefs {
++		return ""
++	}
++	prefix := ""
++	for _, f := range fld {
++		for _, n := range f.Names {
++			// Ignore field names that don't have the prefix we're
++			// looking for.  It is common in C headers to have fields
++			// named, say, _pad in an otherwise prefixed header.
++			// If the struct has 3 fields tv_sec, tv_usec, _pad1, then we
++			// still want to remove the tv_ prefix.
++			// The check for "orig_" here handles orig_eax in the 
++			// x86 ptrace register sets, which otherwise have all fields
++			// with reg_ prefixes.
++			if strings.HasPrefix(n.Name, "orig_") || strings.HasPrefix(n.Name, "_") {
++				continue
++			}
++			i := strings.Index(n.Name, "_")
++			if i < 0 {
++				continue
++			}
++			if prefix == "" {
++				prefix = n.Name[:i+1]
++			} else if prefix != n.Name[:i+1] {
++				return ""
++			}
++		}
++	}
++	return prefix
++}
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+new file mode 100644
+index 0000000000..e41812fdec
+--- /dev/null
++++ b/src/cmd/cgo/godefs.go
+@@ -0,0 +1,285 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/printer"
++	"go/token"
++	"os"
++	"strings"
++)
++
++// godefs returns the output for -godefs mode.
++func (p *Package) godefs(f *File, srcfile string) string {
++	var buf bytes.Buffer
++
++	fmt.Fprintf(&buf, "// Created by cgo -godefs - DO NOT EDIT\n")
++	fmt.Fprintf(&buf, "// %s\n", strings.Join(os.Args, " "))
++	fmt.Fprintf(&buf, "\n")
++
++	override := make(map[string]string)
++
++	// Allow source file to specify override mappings.
++	// For example, the socket data structures refer
++	// to in_addr and in_addr6 structs but we want to be
++	// able to treat them as byte arrays, so the godefs
++	// inputs in package syscall say
++	//
++	//	// +godefs map struct_in_addr [4]byte
++	//	// +godefs map struct_in_addr6 [16]byte
++	//
++	for _, g := range f.Comments {
++		for _, c := range g.List {
++			i := strings.Index(c.Text, "+godefs map")
++			if i < 0 {
++				continue
++			}
++			s := strings.TrimSpace(c.Text[i+len("+godefs map"):])
++			i = strings.Index(s, " ")
++			if i < 0 {
++				fmt.Fprintf(os.Stderr, "invalid +godefs map comment: %s\n", c.Text)
++				continue
++			}
++			override["_Ctype_"+strings.TrimSpace(s[:i])] = strings.TrimSpace(s[i:])
++		}
++	}
++	for _, n := range f.Name {
++		if s := override[n.Go]; s != "" {
++			override[n.Mangle] = s
++		}
++	}
++
++	// Otherwise, if the source file says type T C.whatever,
++	// use "T" as the mangling of C.whatever,
++	// except in the definition (handled at end of function).
++	refName := make(map[*ast.Expr]*Name)
++	for _, r := range f.Ref {
++		refName[r.Expr] = r.Name
++	}
++	for _, d := range f.AST.Decls {
++		d, ok := d.(*ast.GenDecl)
++		if !ok || d.Tok != token.TYPE {
++			continue
++		}
++		for _, s := range d.Specs {
++			s := s.(*ast.TypeSpec)
++			n := refName[&s.Type]
++			if n != nil && n.Mangle != "" {
++				override[n.Mangle] = s.Name.Name
++			}
++		}
++	}
++
++	// Extend overrides using typedefs:
++	// If we know that C.xxx should format as T
++	// and xxx is a typedef for yyy, make C.yyy format as T.
++	for typ, def := range typedef {
++		if new := override[typ]; new != "" {
++			if id, ok := def.(*ast.Ident); ok {
++				override[id.Name] = new
++			}
++		}
++	}
++
++	// Apply overrides.
++	for old, new := range override {
++		if id := goIdent[old]; id != nil {
++			id.Name = new
++		}
++	}
++
++	// Any names still using the _C syntax are not going to compile,
++	// although in general we don't know whether they all made it
++	// into the file, so we can't warn here.
++	//
++	// The most common case is union types, which begin with
++	// _Ctype_union and for which typedef[name] is a Go byte
++	// array of the appropriate size (such as [4]byte).
++	// Substitute those union types with byte arrays.
++	for name, id := range goIdent {
++		if id.Name == name && strings.Contains(name, "_Ctype_union") {
++			if def := typedef[name]; def != nil {
++				id.Name = gofmt(def)
++			}
++		}
++	}
++
++	printer.Fprint(&buf, fset, f.AST)
++
++	return buf.String()
++}
++
++// cdefs returns the output for -cdefs mode.
++// The easiest way to do this is to translate the godefs Go to C.
++func (p *Package) cdefs(f *File, srcfile string) string {
++	godefsOutput := p.godefs(f, srcfile)
++
++	lines := strings.Split(godefsOutput, "\n")
++	lines[0] = "// Created by cgo -cdefs - DO NOT EDIT"
++
++	for i, line := range lines {
++		lines[i] = strings.TrimSpace(line)
++	}
++
++	var out bytes.Buffer
++	printf := func(format string, args ...interface{}) { fmt.Fprintf(&out, format, args...) }
++
++	didTypedef := false
++	for i := 0; i < len(lines); i++ {
++		line := lines[i]
++
++		// Delete
++		//	package x
++		if strings.HasPrefix(line, "package ") {
++			continue
++		}
++
++		// Convert
++		//	const (
++		//		A = 1
++		//		B = 2
++		//	)
++		//
++		// to
++		//
++		//	enum {
++		//		A = 1,
++		//		B = 2,
++		//	};
++		if line == "const (" {
++			printf("enum {\n")
++			for i++; i < len(lines) && lines[i] != ")"; i++ {
++				line = lines[i]
++				if line != "" {
++					printf("\t%s,", line)
++				}
++				printf("\n")
++			}
++			printf("};\n")
++			continue
++		}
++
++		// Convert
++		//	const A = 1
++		// to
++		//	enum { A = 1 };
++		if strings.HasPrefix(line, "const ") {
++			printf("enum { %s };\n", line[len("const "):])
++			continue
++		}
++
++		// On first type definition, typedef all the structs
++		// in case there are dependencies between them.
++		if !didTypedef && strings.HasPrefix(line, "type ") {
++			didTypedef = true
++			for _, line := range lines {
++				line = strings.TrimSpace(line)
++				if strings.HasPrefix(line, "type ") && strings.HasSuffix(line, " struct {") {
++					s := line[len("type ") : len(line)-len(" struct {")]
++					printf("typedef struct %s %s;\n", s, s)
++				}
++			}
++			printf("\n")
++			printf("#pragma pack on\n")
++			printf("\n")
++		}
++
++		// Convert
++		//	type T struct {
++		//		X int64
++		//		Y *int32
++		//		Z [4]byte
++		//	}
++		//
++		// to
++		//
++		//	struct T {
++		//		int64 X;
++		//		int32 *Y;
++		//		byte Z[4];
++		//	}
++		if strings.HasPrefix(line, "type ") && strings.HasSuffix(line, " struct {") {
++			s := line[len("type ") : len(line)-len(" struct {")]
++			printf("struct %s {\n", s)
++			for i++; i < len(lines) && lines[i] != "}"; i++ {
++				line := lines[i]
++				if line != "" {
++					f := strings.Fields(line)
++					if len(f) != 2 {
++						fmt.Fprintf(os.Stderr, "cgo: cannot parse struct field: %s\n", line)
++						nerrors++
++						continue
++					}
++					printf("\t%s;", cdecl(f[0], f[1]))
++				}
++				printf("\n")
++			}
++			printf("};\n")
++			continue
++		}
++
++		// Convert
++		//	type T int
++		// to
++		//	typedef int T;
++		if strings.HasPrefix(line, "type ") {
++			f := strings.Fields(line[len("type "):])
++			if len(f) != 2 {
++				fmt.Fprintf(os.Stderr, "cgo: cannot parse type definition: %s\n", line)
++				nerrors++
++				continue
++			}
++			printf("typedef\t%s;\n", cdecl(f[0], f[1]))
++			continue
++		}
++
++		printf("%s\n", line)
++	}
++
++	if didTypedef {
++		printf("\n")
++		printf("#pragma pack off\n")
++	}
++
++	return out.String()
++}
++
++// cdecl returns the C declaration for the given Go name and type.
++// It only handles the specific cases necessary for converting godefs output.
++func cdecl(name, typ string) string {
++	// X *[0]byte -> X *void
++	if strings.HasPrefix(typ, "*[0]") {
++		typ = "*void"
++	}
++	// X *byte -> *X byte
++	if strings.HasPrefix(typ, "*") {
++		name = "*" + name
++		typ = typ[1:]
++	}
++	// X [4]byte -> X[4] byte
++	if strings.HasPrefix(typ, "[") {
++		i := strings.Index(typ, "]") + 1
++		name = name + typ[:i]
++		typ = typ[i:]
++	}
++	// X T -> T X
++	return typ + "\t" + name
++}
++
++var gofmtBuf bytes.Buffer
++
++// gofmt returns the gofmt-formatted string for an AST node.
++func gofmt(n interface{}) string {
++	gofmtBuf.Reset()
++	err := printer.Fprint(&gofmtBuf, fset, n)
++	if err != nil {
++		return "<" + err.Error() + ">"
++	}
++	return gofmtBuf.String()
++}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 7cc0795b03..338fef391d 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -43,6 +43,7 @@ type Package struct {
+ // A File collects information about a single Go input file.
+ type File struct {
+ 	AST      *ast.File           // parsed AST
++	Comments []*ast.CommentGroup // comments from file
+ 	Package  string              // Package name
+ 	Preamble string              // C preamble (doc comment on import "C")
+ 	Ref      []*Ref              // all references to C.xxx in AST
+@@ -123,6 +124,12 @@ var fset = token.NewFileSet()
+ 
+ var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+ 
++// These flags are for bootstrapping a new Go implementation,
++// to generate Go and C headers that match the data layout and
++// constant values used in the host's C libraries and system calls.
++var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
++var cdefs = flag.Bool("cdefs", false, "for bootstrap: write C definitions for C file to standard output")
++
+ var goarch, goos string
+ 
+ func main() {
+@@ -142,6 +149,11 @@ func main() {
+ 		return
+ 	}
+ 
++	if *godefs && *cdefs {
++		fmt.Fprintf(os.Stderr, "cgo: cannot use -cdefs and -godefs together\n")
++		os.Exit(2)
++	}
++
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+ 		usage()
+@@ -159,36 +171,9 @@ func main() {
+ 		usage()
+ 	}
+ 
+-	// Copy it to a new slice so it can grow.
+-	gccOptions := make([]string, i)
+-	copy(gccOptions, args[0:i])
+-
+ 	goFiles := args[i:]
+ 
+-	goarch = runtime.GOARCH
+-	if s := os.Getenv("GOARCH"); s != "" {
+-		goarch = s
+-	}
+-	goos = runtime.GOOS
+-	if s := os.Getenv("GOOS"); s != "" {
+-		goos = s
+-	}
+-	ptrSize := ptrSizeMap[goarch]
+-	if ptrSize == 0 {
+-		fatalf("unknown $GOARCH %q", goarch)
+-	}
+-
+-	// Clear locale variables so gcc emits English errors [sic].
+-	os.Setenv("LANG", "en_US.UTF-8")
+-	os.Setenv("LC_ALL", "C")
+-	os.Setenv("LC_CTYPE", "C")
+-
+-	p := &Package{
+-		PtrSize:    ptrSize,
+-		GccOptions: gccOptions,
+-		CgoFlags:   make(map[string]string),
+-		Written:    make(map[string]bool),
+-	}
++	p := newPackage(args[:i])
+ 
+ 	// Need a unique prefix for the global C symbols that
+ 	// we use to coordinate between gcc and ourselves.
+@@ -239,17 +224,58 @@ func main() {
+ 			pkg = filepath.Join(dir, pkg)
+ 		}
+ 		p.PackagePath = pkg
+-		p.writeOutput(f, input)
+-
+ 		p.Record(f)
++		if *godefs {
++			os.Stdout.WriteString(p.godefs(f, input))
++		} else if *cdefs {
++			os.Stdout.WriteString(p.cdefs(f, input))
++		} else {
++			p.writeOutput(f, input)
++		}
+ 	}
+ 
+-	p.writeDefs()
++	if !*godefs && !*cdefs {
++		p.writeDefs()
++	}
+ 	if nerrors > 0 {
+ 		os.Exit(2)
+ 	}
+ }
+ 
++// newPackage returns a new Package that will invoke
++// gcc with the additional arguments specified in args.
++func newPackage(args []string) *Package {
++	// Copy the gcc options to a new slice so the list
++	// can grow without overwriting the slice that args is in.
++	gccOptions := make([]string, len(args))
++	copy(gccOptions, args)
++
++	goarch = runtime.GOARCH
++	if s := os.Getenv("GOARCH"); s != "" {
++		goarch = s
++	}
++	goos = runtime.GOOS
++	if s := os.Getenv("GOOS"); s != "" {
++		goos = s
++	}
++	ptrSize := ptrSizeMap[goarch]
++	if ptrSize == 0 {
++		fatalf("unknown $GOARCH %q", goarch)
++	}
++
++	// Reset locale variables so gcc emits English errors [sic].
++	os.Setenv("LANG", "en_US.UTF-8")
++	os.Setenv("LC_ALL", "C")
++
++	p := &Package{
++		PtrSize:    ptrSize,
++		GccOptions: gccOptions,
++		CgoFlags:   make(map[string]string),
++		Written:    make(map[string]bool),
++	}
++	return p
++}
++
+ // Record what needs to be recorded about f.
+ func (p *Package) Record(f *File) {
+ 	if p.PackageName == "" {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 86e4d3282d..cca3f6f708 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -53,7 +53,7 @@ func (p *Package) writeDefs() {
+ 	for name, def := range typedef {
+ 		fmt.Fprintf(fgo2, "type %s ", name)
+ 		printer.Fprint(fgo2, fset, def)
+-		fmt.Fprintf(fgo2, "\n")
++		fmt.Fprintf(fgo2, "\n\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+ 
+diff --git a/src/cmd/godefs/Makefile b/src/cmd/godefs/Makefile
+deleted file mode 100644
+index 77cd26c04b..0000000000
+--- a/src/cmd/godefs/Makefile
++++ /dev/null
+@@ -1,19 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-O:=$(HOST_O)
+-
+-TARG=godefs
+-OFILES=\
+-	main.$O\
+-	stabs.$O\
+-	util.$O\
+-
+-HFILES=a.h
+-
+-include ../../Make.ccmd
+-
+-test: $(TARG)
+-	./test.sh
+diff --git a/src/cmd/godefs/a.h b/src/cmd/godefs/a.h
+deleted file mode 100644
+index 9b49574671..0000000000
+--- a/src/cmd/godefs/a.h
++++ /dev/null
+@@ -1,104 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-
+-enum
+-{
+-	Void = 1,
+-	Int8,
+-	Uint8,
+-	Int16,
+-	Uint16,
+-	Int32,
+-	Uint32,
+-	Int64,
+-	Uint64,
+-	Float32,
+-	Float64,
+-	Ptr,
+-	Struct,
+-	Array,
+-	Union,
+-	Typedef,
+-};
+-
+-typedef struct Field Field;
+-typedef struct Type Type;
+-
+-struct Type
+-{
+-	Type *next;	// next in hash table
+-
+-	// stabs name and two-integer id
+-	char *name;
+-	int n1;
+-	int n2;
+-
+-	// int kind
+-	int kind;
+-
+-	// sub-type for ptr, array
+-	Type *type;
+-
+-	// struct fields
+-	Field *f;
+-	int nf;
+-	int size;
+-
+-	int saved;	// recorded in typ array
+-	int warned;	// warned about needing type
+-	int printed;	// has the definition been printed yet?
+-};
+-
+-struct Field
+-{
+-	char *name;
+-	Type *type;
+-	int offset;
+-	int size;
+-};
+-
+-// Constants
+-typedef struct Const Const;
+-struct Const
+-{
+-	char *name;
+-	vlong value;
+-};
+-
+-// Recorded constants and types, to be printed.
+-extern Const *con;
+-extern int ncon;
+-extern Type **typ;
+-extern int ntyp;
+-extern int kindsize[];
+-
+-// Language output
+-typedef struct Lang Lang;
+-struct Lang
+-{
+-	char *constbegin;
+-	char *constfmt;
+-	char *constend;
+-
+-	char *typdef;
+-	char *typdefend;
+-
+-	char *structbegin;
+-	char *unionbegin;
+-	char *structpadfmt;
+-	char *structend;
+-
+-	int (*typefmt)(Fmt*);
+-};
+-
+-extern Lang go, c;
+-
+-void*	emalloc(int);
+-char*	estrdup(char*);
+-void*	erealloc(void*, int);
+-void		parsestabtype(char*);
+diff --git a/src/cmd/godefs/doc.go b/src/cmd/godefs/doc.go
+deleted file mode 100644
+index 365c7cf6e4..0000000000
+--- a/src/cmd/godefs/doc.go
++++ /dev/null
+@@ -1,99 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-
+-Godefs is a bootstrapping tool for porting the Go runtime to new systems.
+-It translates C type declarations into C or Go type declarations
+-with the same memory layout.
+-
+-Usage: godefs [-g package] [-c cc] [-f cc-arg]... [defs.c ...]
+-
+-Godefs takes as input a host-compilable C file that includes
+-standard system headers.  From that input file, it generates
+-a standalone (no #includes) C or Go file containing equivalent
+-definitions.
+-
+-The input to godefs is a C input file that can be compiled by
+-the host system's standard C compiler (typically gcc).
+-This file is expected to define new types and enumerated constants
+-whose names begin with $ (a legal identifier character in gcc).
+-Godefs compile the given input file with the host compiler and
+-then parses the debug info embedded in the assembly output.
+-This is far easier than reading system headers on most machines.
+-
+-The output from godefs is either C output intended for the
+-Plan 9 C compiler tool chain (6c, 8c, or 5c) or Go output.
+-
+-The options are:
+-
+-	-g package
+-		generate Go output using the given package name.
+-		In the Go output, struct fields have leading xx_ prefixes
+-		removed and the first character capitalized (exported).
+-
+-	-c cc
+-		set the name of the host system's C compiler (default "gcc")
+-
+-	-f cc-arg
+-		add cc-arg to the command line when invoking the system C compiler
+-		(for example, -f -m64 to invoke gcc -m64).
+-		Repeating this option adds multiple flags to the command line.
+-
+-For example, if this is x.c:
+-
+-	#include <sys/stat.h>
+-
+-	typedef struct timespec $Timespec;
+-	enum {
+-		$S_IFMT = S_IFMT,
+-		$S_IFIFO = S_IFIFO,
+-		$S_IFCHR = S_IFCHR,
+-	};
+-
+-then "godefs x.c" generates:
+-
+-	// godefs x.c
+-	// MACHINE GENERATED - DO NOT EDIT.
+-
+-	// Constants
+-	enum {
+-		S_IFMT = 0xf000,
+-		S_IFIFO = 0x1000,
+-		S_IFCHR = 0x2000,
+-	};
+-
+-	// Types
+-	#pragma pack on
+-
+-	typedef struct Timespec Timespec;
+-	struct Timespec {
+-		int64 tv_sec;
+-		int64 tv_nsec;
+-	};
+-	#pragma pack off
+-
+-and "godefs -g MyPackage x.c" generates:
+-
+-	// godefs -g MyPackage x.c
+-	// MACHINE GENERATED - DO NOT EDIT.
+-
+-	package MyPackage
+-
+-	// Constants
+-	const (
+-		S_IFMT = 0xf000;
+-		S_IFIFO = 0x1000;
+-		S_IFCHR = 0x2000;
+-	)
+-
+-	// Types
+-
+-	type Timespec struct {
+-		Sec int64;
+-		Nsec int64;
+-	}
+-
+-*/
+-package documentation
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+deleted file mode 100644
+index 38b2962fac..0000000000
+--- a/src/cmd/godefs/main.c
++++ /dev/null
+@@ -1,609 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Godefs takes as input a host-compilable C file that includes
+-// standard system headers.  From that input file, it generates
+-// a standalone (no #includes) C or Go file containing equivalent
+-// definitions.
+-//
+-// The input C file is expected to define new types and enumerated
+-// constants whose names begin with $ (a legal identifier character
+-// in gcc).  The output is the standalone definitions of those names,
+-// with the $ removed.
+-//
+-// For example, if this is x.c:
+-//
+-//	#include <sys/stat.h>
+-//
+-//	typedef struct timespec $Timespec;
+-//	typedef struct stat $Stat;
+-//	enum {
+-//		$S_IFMT = S_IFMT,
+-//		$S_IFIFO = S_IFIFO,
+-//		$S_IFCHR = S_IFCHR,
+-//	};
+-//
+-// then "godefs x.c" generates:
+-//
+-//	// godefs x.c
+-//
+-//	// MACHINE GENERATED - DO NOT EDIT.
+-//
+-//	// Constants
+-//	enum {
+-//		S_IFMT = 0xf000,
+-//		S_IFIFO = 0x1000,
+-//		S_IFCHR = 0x2000,
+-//	};
+-//
+-//	// Types
+-//	#pragma pack on
+-//
+-//	typedef struct Timespec Timespec;
+-//	struct Timespec {
+-//		int32 tv_sec;
+-//		int32 tv_nsec;
+-//	};
+-//
+-//	typedef struct Stat Stat;
+-//	struct Stat {
+-//		int32 st_dev;
+-//		uint32 st_ino;
+-//		uint16 st_mode;
+-//		uint16 st_nlink;
+-//		uint32 st_uid;
+-//		uint32 st_gid;
+-//		int32 st_rdev;
+-//		Timespec st_atimespec;
+-//		Timespec st_mtimespec;
+-//		Timespec st_ctimespec;
+-//		int64 st_size;
+-//		int64 st_blocks;
+-//		int32 st_blksize;
+-//		uint32 st_flags;
+-//		uint32 st_gen;
+-//		int32 st_lspare;
+-//		int64 st_qspare[2];
+-//	};
+-//	#pragma pack off
+-//
+-// The -g flag to godefs causes it to generate Go output, not C.
+-// In the Go output, struct fields have leading xx_ prefixes removed
+-// and the first character capitalized (exported).
+-//
+-// Godefs works by invoking gcc to compile the given input file
+-// and then parses the debug info embedded in the assembly output.
+-// This is far easier than reading system headers on most machines.
+-//
+-// The -c flag sets the compiler (default "gcc").
+-//
+-// The -f flag adds a flag to pass to the compiler (e.g., -f -m64).
+-
+-#include "a.h"
+-
+-#ifdef _WIN32
+-int
+-spawn(char *prog, char **argv)
+-{
+-	return _spawnvp(P_NOWAIT, prog, (const char**)argv);
+-}
+-#undef waitfor
+-void
+-waitfor(int pid)
+-{
+-	_cwait(0, pid, 0);
+-}
+-#else
+-int
+-spawn(char *prog, char **argv)
+-{
+-	int pid;
+-	
+-	USED(prog);
+-	pid = fork();
+-	if(pid < 0)
+-		sysfatal("fork: %r");
+-	if(pid == 0) {
+-		exec(argv[0], argv);
+-		fprint(2, "exec gcc: %r\n");
+-		exit(1);
+-	}
+-	return pid;
+-}
+-#endif
+-
+-void
+-usage(void)
+-{
+-	fprint(2, "usage: godefs [-g package] [-c cc] [-f cc-arg] [defs.c ...]\n");
+-	exit(1);
+-}
+-
+-int gotypefmt(Fmt*);
+-int ctypefmt(Fmt*);
+-int prefixlen(Type*);
+-int cutprefix(char*);
+-
+-Lang go =
+-{
+-	"const (\n",
+-	"\t%s = %#llx;\n",
+-	")\n",
+-
+-	"type",
+-	"\n",
+-
+-	"type %s struct {\n",
+-	"type %s struct {\n",
+-	"\tPad_godefs_%d [%d]byte;\n",
+-	"}\n",
+-
+-	gotypefmt,
+-};
+-
+-Lang c =
+-{
+-	"enum {\n",
+-	"\t%s = %#llx,\n",
+-	"};\n",
+-
+-	"typedef",
+-	";\n",
+-
+-	"typedef struct %s %s;\nstruct %s {\n",
+-	"typedef union %s %s;\nunion %s {\n",
+-	"\tbyte pad_godefs_%d[%d];\n",
+-	"};\n",
+-
+-	ctypefmt,
+-};
+-
+-char *pkg;
+-
+-int oargc;
+-char **oargv;
+-Lang *lang = &c;
+-
+-Const *con;
+-int ncon;
+-
+-Type **typ;
+-int ntyp;
+-
+-void
+-waitforgcc(void)
+-{
+-	waitpid();
+-}
+-
+-void
+-main(int argc, char **argv)
+-{
+-	int p[2], pid, i, j, n, off, npad, prefix;
+-	char **av, *q, *r, *tofree, *name;
+-	char nambuf[100];
+-	Biobuf *bin, *bout;
+-	Type *t, *tt;
+-	Field *f;
+-	int orig_output_fd;
+-
+-	quotefmtinstall();
+-
+-	oargc = argc;
+-	oargv = argv;
+-	av = emalloc((30+argc)*sizeof av[0]);
+-	atexit(waitforgcc);
+-
+-	n = 0;
+-	av[n++] = "gcc";
+-	av[n++] = "-fdollars-in-identifiers";
+-	av[n++] = "-S";	// write assembly
+-	av[n++] = "-gstabs+";	// include stabs info
+-	av[n++] = "-o";	// to ...
+-	av[n++] = "-";	// ... stdout
+-	av[n++] = "-xc";	// read C
+-
+-	ARGBEGIN{
+-	case 'g':
+-		lang = &go;
+-		pkg = EARGF(usage());
+-		break;
+-	case 'c':
+-		av[0] = EARGF(usage());
+-		break;
+-	case 'f':
+-		av[n++] = EARGF(usage());
+-		break;
+-	default:
+-		usage();
+-	}ARGEND
+-
+-	if(argc == 0)
+-		av[n++] = "-";
+-	else
+-		av[n++] = argv[0];
+-	av[n] = nil;
+-
+-	orig_output_fd = dup(1, -1);
+-	for(i=0; i==0 || i < argc; i++) {
+-		// Some versions of gcc do not accept -S with multiple files.
+-		// Run gcc once for each file.
+-		// Write assembly and stabs debugging to p[1].
+-		if(pipe(p) < 0)
+-			sysfatal("pipe: %r");
+-		dup(p[1], 1);
+-		close(p[1]);
+-		if (argc)
+-			av[n-1] = argv[i];
+-		pid = spawn(av[0], av);
+-		dup(orig_output_fd, 1);
+-
+-		// Read assembly, pulling out .stabs lines.
+-		bin = Bfdopen(p[0], OREAD);
+-		while((q = Brdstr(bin, '\n', 1)) != nil) {
+-			//	.stabs	"float:t(0,12)=r(0,1);4;0;",128,0,0,0
+-			tofree = q;
+-			while(*q == ' ' || *q == '\t')
+-				q++;
+-			if(strncmp(q, ".stabs", 6) != 0)
+-				goto Continue;
+-			q += 6;
+-			while(*q == ' ' || *q == '\t')
+-				q++;
+-			if(*q++ != '\"') {
+-Bad:
+-				sysfatal("cannot parse .stabs line:\n%s", tofree);
+-			}
+-
+-			r = strchr(q, '\"');
+-			if(r == nil)
+-				goto Bad;
+-			*r++ = '\0';
+-			if(*r++ != ',')
+-				goto Bad;
+-			if(*r < '0' || *r > '9')
+-				goto Bad;
+-			if(atoi(r) != 128)	// stabs kind = local symbol
+-				goto Continue;
+-
+-			parsestabtype(q);
+-
+-Continue:
+-			free(tofree);
+-		}
+-		Bterm(bin);
+-		waitfor(pid);
+-	}
+-	close(orig_output_fd);
+-
+-	// Write defs to standard output.
+-	bout = Bfdopen(1, OWRITE);
+-	fmtinstall('T', lang->typefmt);
+-
+-	// Echo original command line in header.
+-	Bprint(bout, "//");
+-	for(i=0; i<oargc; i++)
+-		Bprint(bout, " %q", oargv[i]);
+-	Bprint(bout, "\n");
+-	Bprint(bout, "\n");
+-	Bprint(bout, "// MACHINE GENERATED - DO NOT EDIT.\n");
+-	Bprint(bout, "\n");
+-
+-	if(pkg)
+-		Bprint(bout, "package %s\n\n", pkg);
+-
+-	// Constants.
+-	Bprint(bout, "// Constants\n");
+-	if(ncon > 0) {
+-		Bprint(bout, lang->constbegin);
+-		for(i=0; i<ncon; i++) {
+-			// Go can handle negative constants,
+-			// but C enums may not be able to.
+-			if(lang == &go)
+-				Bprint(bout, lang->constfmt, con[i].name, con[i].value);
+-			else
+-				Bprint(bout, lang->constfmt, con[i].name, con[i].value & 0xFFFFFFFF);
+-		}
+-		Bprint(bout, lang->constend);
+-	}
+-	Bprint(bout, "\n");
+-
+-	// Types
+-
+-	// push our names down
+-	for(i=0; i<ntyp; i++) {
+-		t = typ[i];
+-		name = t->name;
+-		while(t && t->kind == Typedef)
+-			t = t->type;
+-		if(t)
+-			t->name = name;
+-	}
+-
+-	Bprint(bout, "// Types\n");
+-
+-	// Have to turn off structure padding in Plan 9 compiler,
+-	// mainly because it is more aggressive than gcc tends to be.
+-	if(lang == &c)
+-		Bprint(bout, "#pragma pack on\n");
+-
+-	for(i=0; i<ntyp; i++) {
+-		Bprint(bout, "\n");
+-		t = typ[i];
+-		name = t->name;
+-		while(t && t->kind == Typedef) {
+-			if(name == nil && t->name != nil) {
+-				name = t->name;
+-				if(t->printed)
+-					break;
+-			}
+-			t = t->type;
+-		}
+-		if(name == nil && t->name != nil) {
+-			name = t->name;
+-			if(t->printed)
+-				continue;
+-			t->printed = 1;
+-		}
+-		if(name == nil) {
+-			fprint(2, "unknown name for %T", typ[i]);
+-			continue;
+-		}
+-		if(name[0] == '$')
+-			name++;
+-		npad = 0;
+-		off = 0;
+-		switch(t->kind) {
+-		case 0:
+-			fprint(2, "unknown type definition for %s\n", name);
+-			break;
+-		default:	// numeric, array, or pointer
+-		case Array:
+-		case Ptr:
+-			Bprint(bout, "%s %lT%s", lang->typdef, name, t, lang->typdefend);
+-			break;
+-		case Union:
+-			// In Go, print union as struct with only first element,
+-			// padded the rest of the way.
+-			Bprint(bout, lang->unionbegin, name, name, name);
+-			goto StructBody;
+-		case Struct:
+-			Bprint(bout, lang->structbegin, name, name, name);
+-		StructBody:
+-			prefix = 0;
+-			if(lang == &go)
+-				prefix = prefixlen(t);
+-			for(j=0; j<t->nf; j++) {
+-				f = &t->f[j];
+-				if(f->type->kind == 0 && f->size <= 64 && (f->size&(f->size-1)) == 0) {
+-					// unknown type but <= 64 bits and bit size is a power of two.
+-					// could be enum - make Uint64 and then let it reduce
+-					tt = emalloc(sizeof *tt);
+-					*tt = *f->type;
+-					f->type = tt;
+-					tt->kind = Uint64;
+-					while(tt->kind > Uint8 && kindsize[tt->kind] > f->size)
+-						tt->kind -= 2;
+-				}
+-				// padding
+-				if(t->kind == Struct || lang == &go) {
+-					if(f->offset%8 != 0 || f->size%8 != 0) {
+-						fprint(2, "ignoring bitfield %s.%s\n", t->name, f->name);
+-						continue;
+-					}
+-					if(f->offset < off)
+-						sysfatal("%s: struct fields went backward", t->name);
+-					if(off < f->offset) {
+-						Bprint(bout, lang->structpadfmt, npad++, (f->offset - off) / 8);
+-						off = f->offset;
+-					}
+-					off += f->size;
+-				}
+-				name = f->name;
+-				if(cutprefix(name))
+-					name += prefix;
+-				if(strcmp(name, "") == 0) {
+-					snprint(nambuf, sizeof nambuf, "Pad_godefs_%d", npad++);
+-					name = nambuf;
+-				}
+-				Bprint(bout, "\t%#lT;\n", name, f->type);
+-				if(t->kind == Union && lang == &go)
+-					break;
+-			}
+-			// final padding
+-			if(t->kind == Struct || lang == &go) {
+-				if(off/8 < t->size)
+-					Bprint(bout, lang->structpadfmt, npad++, t->size - off/8);
+-			}
+-			Bprint(bout, lang->structend);
+-		}
+-	}
+-	if(lang == &c)
+-		Bprint(bout, "#pragma pack off\n");
+-	Bterm(bout);
+-	exit(0);
+-}
+-
+-char *kindnames[] = {
+-	"void",	// actually unknown, but byte is good for pointers
+-	"void",
+-	"int8",
+-	"uint8",
+-	"int16",
+-	"uint16",
+-	"int32",
+-	"uint32",
+-	"int64",
+-	"uint64",
+-	"float32",
+-	"float64",
+-	"ptr",
+-	"struct",
+-	"array",
+-	"union",
+-	"typedef",
+-};
+-
+-int
+-ctypefmt(Fmt *f)
+-{
+-	char *name, *s;
+-	Type *t;
+-
+-	name = nil;
+-	if(f->flags & FmtLong) {
+-		name = va_arg(f->args, char*);
+-		if(name == nil || name[0] == '\0')
+-			name = "_anon_";
+-	}
+-	t = va_arg(f->args, Type*);
+-	while(t && t->kind == Typedef)
+-		t = t->type;
+-	switch(t->kind) {
+-	case Struct:
+-	case Union:
+-		// must be named
+-		s = t->name;
+-		if(s == nil) {
+-			fprint(2, "need name for anonymous struct\n");
+-			goto bad;
+-		}
+-		else if(s[0] != '$')
+-			fprint(2, "need name for struct %s\n", s);
+-		else
+-			s++;
+-		fmtprint(f, "%s", s);
+-		if(name)
+-			fmtprint(f, " %s", name);
+-		break;
+-
+-	case Array:
+-		if(name)
+-			fmtprint(f, "%T %s[%d]", t->type, name, t->size);
+-		else
+-			fmtprint(f, "%T[%d]", t->type, t->size);
+-		break;
+-
+-	case Ptr:
+-		if(name)
+-			fmtprint(f, "%T *%s", t->type, name);
+-		else
+-			fmtprint(f, "%T*", t->type);
+-		break;
+-
+-	default:
+-		fmtprint(f, "%s", kindnames[t->kind]);
+-		if(name)
+-			fmtprint(f, " %s", name);
+-		break;
+-
+-	bad:
+-		if(name)
+-			fmtprint(f, "byte %s[%d]", name, t->size);
+-		else
+-			fmtprint(f, "byte[%d]", t->size);
+-		break;
+-	}
+-
+-	return 0;
+-}
+-
+-int
+-gotypefmt(Fmt *f)
+-{
+-	char *name, *s;
+-	Type *t;
+-
+-	if(f->flags & FmtLong) {
+-		name = va_arg(f->args, char*);
+-		if('a' <= name[0] && name[0] <= 'z')
+-			name[0] += 'A' - 'a';
+-		if(name[0] == '_' && (f->flags & FmtSharp))
+-			fmtprint(f, "X");
+-		fmtprint(f, "%s ", name);
+-	}
+-	t = va_arg(f->args, Type*);
+-	while(t && t->kind == Typedef)
+-		t = t->type;
+-
+-	switch(t->kind) {
+-	case Struct:
+-	case Union:
+-		// must be named
+-		s = t->name;
+-		if(s == nil) {
+-			fprint(2, "need name for anonymous struct\n");
+-			fmtprint(f, "STRUCT");
+-		}
+-		else if(s[0] != '$') {
+-			fprint(2, "warning: missing name for struct %s\n", s);
+-			fmtprint(f, "[%d]byte /* %s */", t->size, s);
+-		} else
+-			fmtprint(f, "%s", s+1);
+-		break;
+-
+-	case Array:
+-		fmtprint(f, "[%d]%T", t->size, t->type);
+-		break;
+-
+-	case Ptr:
+-		fmtprint(f, "*%T", t->type);
+-		break;
+-
+-	default:
+-		s = kindnames[t->kind];
+-		if(strcmp(s, "void") == 0)
+-			s = "byte";
+-		fmtprint(f, "%s", s);
+-	}
+-
+-	return 0;
+-}
+-
+-// Is this the kind of name we should cut a prefix from?
+-// The rule is that the name cannot begin with underscore
+-// and must have an underscore eventually.
+-int
+-cutprefix(char *name)
+-{
+-	char *p;
+-
+-	// special case: orig_ in register struct
+-	if(strncmp(name, "orig_", 5) == 0)
+-		return 0;
+-
+-	for(p=name; *p; p++) {
+-		if(*p == '_')
+-			return p-name > 0;
+-	}
+-	return 0;
+-}
+-
+-// Figure out common struct prefix len
+-int
+-prefixlen(Type *t)
+-{
+-	int i;
+-	int len;
+-	char *p, *name;
+-	Field *f;
+-
+-	len = 0;
+-	name = nil;
+-	for(i=0; i<t->nf; i++) {
+-		f = &t->f[i];
+-		if(!cutprefix(f->name))
+-			continue;
+-		p = strchr(f->name, '_');
+-		if(p == nil)
+-			return 0;
+-		if(name == nil) {
+-			name = f->name;
+-			len = p+1 - name;
+-		}
+-		else if(strncmp(f->name, name, len) != 0)
+-			return 0;
+-	}
+-	return len;
+-}
+diff --git a/src/cmd/godefs/stabs.c b/src/cmd/godefs/stabs.c
+deleted file mode 100644
+index 2c3d431b8a..0000000000
+--- a/src/cmd/godefs/stabs.c
++++ /dev/null
+@@ -1,456 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parse stabs debug info.
+-
+-#include "a.h"
+-
+-int stabsdebug = 1;
+-
+-// Hash table for type lookup by number.
+-Type *hash[1024];
+-
+-// Look up type by number pair.
+-// TODO(rsc): Iant points out that n1 and n2 are always small and dense,
+-// so an array of arrays would be a better representation.
+-Type*
+-typebynum(uint n1, uint n2)
+-{
+-	uint h;
+-	Type *t;
+-
+-	h = (n1*53+n2) % nelem(hash);
+-	for(t=hash[h]; t; t=t->next)
+-		if(t->n1 == n1 && t->n2 == n2)
+-			return t;
+-	t = emalloc(sizeof *t);
+-	t->next = hash[h];
+-	hash[h] = t;
+-	t->n1 = n1;
+-	t->n2 = n2;
+-	return t;
+-}
+-
+-// Parse name and colon from *pp, leaving copy in *sp.
+-static int
+-parsename(char **pp, char **sp)
+-{
+-	char *p;
+-	char *s;
+-
+-	p = *pp;
+-	while(*p != '\0' && *p != ':')
+-		p++;
+-	if(*p == '\0') {
+-		fprint(2, "parsename expected colon\n");
+-		return -1;
+-	}
+-	s = emalloc(p - *pp + 1);
+-	memmove(s, *pp, p - *pp);
+-	*sp = s;
+-	*pp = p+1;
+-	return 0;
+-}
+-
+-// Parse single number from *pp.
+-static int
+-parsenum1(char **pp, vlong *np)
+-{
+-	char *p;
+-
+-	p = *pp;
+-	if(*p != '-' && (*p < '0' || *p > '9')) {
+-		fprint(2, "parsenum expected minus or digit\n");
+-		return -1;
+-	}
+-	*np = strtoll(p, pp, 10);
+-	return 0;
+-}
+-
+-// Parse type number - either single number or (n1, n2).
+-static int
+-parsetypenum(char **pp, vlong *n1p, vlong *n2p)
+-{
+-	char *p;
+-
+-	p = *pp;
+-	if(*p == '(') {
+-		p++;
+-		if(parsenum1(&p, n1p) < 0)
+-			return -1;
+-		if(*p++ != ',') {
+-			if(stabsdebug)
+-				fprint(2, "parsetypenum expected comma\n");
+-			return -1;
+-		}
+-		if(parsenum1(&p, n2p) < 0)
+-			return -1;
+-		if(*p++ != ')') {
+-			if(stabsdebug)
+-				fprint(2, "parsetypenum expected right paren\n");
+-			return -1;
+-		}
+-		*pp = p;
+-		return 0;
+-	}
+-
+-	if(parsenum1(&p, n1p) < 0)
+-		return -1;
+-	*n2p = 0;
+-	*pp = p;
+-	return 0;
+-}
+-
+-// Written to parse max/min of vlong correctly.
+-static vlong
+-parseoctal(char **pp)
+-{
+-	char *p;
+-	vlong n;
+-
+-	p = *pp;
+-	if(*p++ != '0')
+-		return 0;
+-	n = 0;
+-	while(*p >= '0' && *p <= '9')
+-		n = n << 3 | *p++ - '0';
+-	*pp = p;
+-	return n;
+-}
+-
+-// Integer types are represented in stabs as a "range"
+-// type with a lo and a hi value.  The lo and hi used to
+-// be lo and hi for the type, but there are now odd
+-// extensions for floating point and 64-bit numbers.
+-//
+-// Have to keep signs separate from values because
+-// Int64's lo is -0.
+-typedef struct Intrange Intrange;
+-struct Intrange
+-{
+-	vlong lo;
+-	vlong hi;
+-	int kind;
+-};
+-
+-Intrange intranges[] = {
+-	0, 127, Int8,		// char
+-	-128, 127, Int8,	// signed char
+-	0, 255, Uint8,
+-	-32768, 32767, Int16,
+-	0, 65535, Uint16,
+-	-2147483648LL, 2147483647LL, Int32,
+-	0, 4294967295LL, Uint32,
+-	1LL << 63, ~(1LL << 63), Int64,
+-	0, -1, Uint64,
+-	4, 0, Float32,
+-	8, 0, Float64,
+-	16, 0, Void,
+-};
+-
+-int kindsize[] = {
+-	0,
+-	0,
+-	8,
+-	8,
+-	16,
+-	16,
+-	32,
+-	32,
+-	64,
+-	64,
+-};
+-
+-// Parse a single type definition from *pp.
+-static Type*
+-parsedef(char **pp, char *name)
+-{
+-	char *p;
+-	Type *t, *tt;
+-	int i;
+-	vlong n1, n2, lo, hi;
+-	Field *f;
+-	Intrange *r;
+-
+-	p = *pp;
+-
+-	// reference to another type?
+-	if(isdigit(*p) || *p == '(') {
+-		if(parsetypenum(&p, &n1, &n2) < 0)
+-			return nil;
+-		t = typebynum(n1, n2);
+-		if(name && t->name == nil) {
+-			t->name = name;
+-			// save definitions of names beginning with $
+-			if(name[0] == '$' && !t->saved) {
+-				typ = erealloc(typ, (ntyp+1)*sizeof typ[0]);
+-				typ[ntyp] = t;
+-				ntyp++;
+-			}
+-		}
+-
+-		// is there an =def suffix?
+-		if(*p == '=') {
+-			p++;
+-			tt = parsedef(&p, name);
+-			if(tt == nil)
+-				return nil;
+-
+-			if(tt == t) {
+-				tt->kind = Void;
+-			} else {
+-				t->type = tt;
+-				t->kind = Typedef;
+-			}
+-
+-			// assign given name, but do not record in typ.
+-			// assume the name came from a typedef
+-			// which will be recorded.
+-			if(name)
+-				tt->name = name;
+-		}
+-
+-		*pp = p;
+-		return t;
+-	}
+-
+-	// otherwise a type literal.  first letter identifies kind
+-	t = emalloc(sizeof *t);
+-	switch(*p) {
+-	default:
+-		fprint(2, "unknown type char %c in %s\n", *p, p);
+-		*pp = "";
+-		return t;
+-
+-	case '@':	// type attribute
+-		while (*++p != ';');
+-		*pp = ++p;
+-		return parsedef(pp, nil);
+-
+-	case '*':	// pointer
+-		p++;
+-		t->kind = Ptr;
+-		tt = parsedef(&p, nil);
+-		if(tt == nil)
+-			return nil;
+-		t->type = tt;
+-		break;
+-
+-	case 'a':	// array
+-		p++;
+-		t->kind = Array;
+-		// index type
+-		tt = parsedef(&p, nil);
+-		if(tt == nil)
+-			return nil;
+-		t->size = tt->size;
+-		// element type
+-		tt = parsedef(&p, nil);
+-		if(tt == nil)
+-			return nil;
+-		t->type = tt;
+-		break;
+-
+-	case 'e':	// enum type - record $names in con array.
+-		p++;
+-		for(;;) {
+-			if(*p == '\0')
+-				return nil;
+-			if(*p == ';') {
+-				p++;
+-				break;
+-			}
+-			if(parsename(&p, &name) < 0)
+-				return nil;
+-			if(parsenum1(&p, &n1) < 0)
+-				return nil;
+-			if(name[0] == '$') {
+-				con = erealloc(con, (ncon+1)*sizeof con[0]);
+-				name++;
+-				con[ncon].name = name;
+-				con[ncon].value = n1;
+-				ncon++;
+-			}
+-			if(*p != ',')
+-				return nil;
+-			p++;
+-		}
+-		break;
+-
+-	case 'f':	// function
+-		p++;
+-		if(parsedef(&p, nil) == nil)
+-			return nil;
+-		break;
+-
+-	case 'B':	// volatile
+-	case 'k':	// const
+-		++*pp;
+-		return parsedef(pp, nil);
+-
+-	case 'r':	// sub-range (used for integers)
+-		p++;
+-		if(parsedef(&p, nil) == nil)
+-			return nil;
+-		// usually, the return from parsedef == t, but not always.
+-
+-		if(*p != ';' || *++p == ';') {
+-			if(stabsdebug)
+-				fprint(2, "range expected number: %s\n", p);
+-			return nil;
+-		}
+-		if(*p == '0')
+-			lo = parseoctal(&p);
+-		else
+-			lo = strtoll(p, &p, 10);
+-		if(*p != ';' || *++p == ';') {
+-			if(stabsdebug)
+-				fprint(2, "range expected number: %s\n", p);
+-			return nil;
+-		}
+-		if(*p == '0')
+-			hi = parseoctal(&p);
+-		else
+-			hi = strtoll(p, &p, 10);
+-		if(*p != ';') {
+-			if(stabsdebug)
+-				fprint(2, "range expected trailing semi: %s\n", p);
+-			return nil;
+-		}
+-		p++;
+-		t->size = hi+1;	// might be array size
+-		for(i=0; i<nelem(intranges); i++) {
+-			r = &intranges[i];
+-			if(r->lo == lo && r->hi == hi) {
+-				t->kind = r->kind;
+-				break;
+-			}
+-		}
+-		break;
+-
+-	case 's':	// struct
+-	case 'u':	// union
+-		t->kind = Struct;
+-		if(*p == 'u')
+-			t->kind = Union;
+-
+-		// assign given name, but do not record in typ.
+-		// assume the name came from a typedef
+-		// which will be recorded.
+-		if(name)
+-			t->name = name;
+-		p++;
+-		if(parsenum1(&p, &n1) < 0)
+-			return nil;
+-		t->size = n1;
+-		for(;;) {
+-			if(*p == '\0')
+-				return nil;
+-			if(*p == ';') {
+-				p++;
+-				break;
+-			}
+-			t->f = erealloc(t->f, (t->nf+1)*sizeof t->f[0]);
+-			f = &t->f[t->nf];
+-			if(parsename(&p, &f->name) < 0)
+-				return nil;
+-			f->type = parsedef(&p, nil);
+-			if(f->type == nil)
+-				return nil;
+-			if(*p != ',') {
+-				fprint(2, "expected comma after def of %s:\n%s\n", f->name, p);
+-				return nil;
+-			}
+-			p++;
+-			if(parsenum1(&p, &n1) < 0)
+-				return nil;
+-			f->offset = n1;
+-			if(*p != ',') {
+-				fprint(2, "expected comma after offset of %s:\n%s\n", f->name, p);
+-				return nil;
+-			}
+-			p++;
+-			if(parsenum1(&p, &n1) < 0)
+-				return nil;
+-			f->size = n1;
+-			if(*p != ';') {
+-				fprint(2, "expected semi after size of %s:\n%s\n", f->name, p);
+-				return nil;
+-			}
+-
+-			while(f->type->kind == Typedef)
+-				f->type = f->type->type;
+-
+-			// rewrite
+-			//	uint32 x : 8;
+-			// into
+-			//	uint8 x;
+-			// hooray for bitfields.
+-			while(Int16 <= f->type->kind && f->type->kind <= Uint64 && kindsize[f->type->kind] > f->size) {
+-				tt = emalloc(sizeof *tt);
+-				*tt = *f->type;
+-				f->type = tt;
+-				f->type->kind -= 2;
+-			}
+-			p++;
+-			t->nf++;
+-		}
+-		break;
+-
+-	case 'x':
+-		// reference to struct, union not yet defined.
+-		p++;
+-		switch(*p) {
+-		case 's':
+-			t->kind = Struct;
+-			break;
+-		case 'u':
+-			t->kind = Union;
+-			break;
+-		default:
+-			fprint(2, "unknown x type char x%c", *p);
+-			*pp = "";
+-			return t;
+-		}
+-		if(parsename(&p, &t->name) < 0)
+-			return nil;
+-		break;
+-	}
+-	*pp = p;
+-	return t;
+-}
+-
+-
+-// Parse a stab type in p, saving info in the type hash table
+-// and also in the list of recorded types if appropriate.
+-void
+-parsestabtype(char *p)
+-{
+-	char *p0, *name;
+-
+-	p0 = p;
+-
+-	// p is the quoted string output from gcc -gstabs on a .stabs line.
+-	//	name:t(1,2)
+-	//	name:t(1,2)=def
+-	if(parsename(&p, &name) < 0) {
+-	Bad:
+-		// Use fprint instead of sysfatal to avoid
+-		// sysfatal's internal buffer size limit.
+-		fprint(2, "cannot parse stabs type:\n%s\n(at %s)\n", p0, p);
+-		sysfatal("stabs parse");
+-	}
+-	if(*p != 't' && *p != 'T')
+-		goto Bad;
+-	p++;
+-
+-	// parse the definition.
+-	if(name[0] == '\0')
+-		name = nil;
+-	if(parsedef(&p, name) == nil)
+-		goto Bad;
+-	if(*p != '\0')
+-		goto Bad;
+-}
+-
+diff --git a/src/cmd/godefs/test.sh b/src/cmd/godefs/test.sh
+deleted file mode 100755
+index c035af8f4f..0000000000
+--- a/src/cmd/godefs/test.sh
++++ /dev/null
+@@ -1,45 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-eval $(gomake --no-print-directory -f ../../Make.inc go-env)
+-
+-TMP="testdata_tmp.go"
+-TEST="testdata.c"
+-GOLDEN="testdata_${GOOS}_${GOARCH}.golden"
+-
+-case ${GOARCH} in
+-"amd64") CCARG="-f-m64";;
+-"386") CCARG="-f-m32";;
+-*) CCARG="";;
+-esac
+-
+-cleanup() {
+-	rm ${TMP}
+-}
+-
+-error() {
+-	cleanup
+-	echo $1
+-	exit 1
+-}
+-
+-if [ ! -e ${GOLDEN} ]; then
+-	echo "skipping - no golden defined for this platform"
+-	exit
+-fi
+-
+-./godefs -g test ${CCARG} ${TEST} > ${TMP}
+-if [ $? != 0 ]; then
+-	error "Error: Could not run godefs for ${TEST}"
+-fi
+-
+-diff ${TMP} ${GOLDEN}
+-if [ $? != 0 ]; then
+-	error "FAIL: godefs for ${TEST} did not match ${GOLDEN}"
+-fi
+-
+-cleanup
+-
+-echo "PASS"
+diff --git a/src/cmd/godefs/testdata.c b/src/cmd/godefs/testdata.c
+deleted file mode 100644
+index f12589bf47..0000000000
+--- a/src/cmd/godefs/testdata.c
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <stdint.h>
+-
+-// Issue 432 - enum fields in struct can cause misaligned struct fields
+-typedef enum {
+-	a
+-} T1;
+-
+-struct T2 {
+-	uint8_t a;
+-	T1 b;
+-	T1 c;
+-	uint16_t d;
+-};
+-
+-typedef struct T2 T2;
+-typedef T2 $T2;
+-
+-// Issue 1162 - structs with fields named Pad[0-9]+ conflict with field
+-// names used by godefs for padding
+-struct T3 {
+-	uint8_t a;
+-	int Pad0;
+-};
+-
+-typedef struct T3 $T3;
+-
+-// Issue 1466 - forward references to types in stabs debug info were
+-// always treated as enums
+-struct T4 {};
+-
+-struct T5 {
+-	struct T4 *a;
+-};
+-
+-typedef struct T5 T5;
+-typedef struct T4 $T4;
+-typedef T5 $T5;
+-
+-// Test constants and enumerations are printed correctly. clang/2.9 with 
+-// -O2 and above causes Bprint to print %#llx values incorrectly.
+-enum {
+-	$sizeofPtr = sizeof(void*),
+-	$sizeofShort = sizeof(short),
+-	$sizeofInt = sizeof(int),
+-	$sizeofLong = sizeof(long),
+-	$sizeofLongLong = sizeof(long long),
+-};
+-
+diff --git a/src/cmd/godefs/testdata_darwin_386.golden b/src/cmd/godefs/testdata_darwin_386.golden
+deleted file mode 100644
+index 0b269cc8c4..0000000000
+--- a/src/cmd/godefs/testdata_darwin_386.golden
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// ./godefs -g test -f-m32 testdata.c
+-
+-// MACHINE GENERATED - DO NOT EDIT.
+-
+-package test
+-
+-// Constants
+-const (
+-	sizeofPtr = 0x4;
+-	sizeofShort = 0x2;
+-	sizeofInt = 0x4;
+-	sizeofLong = 0x4;
+-	sizeofLongLong = 0x8;
+-)
+-
+-// Types
+-
+-type T2 struct {
+-	A uint8;
+-	Pad_godefs_0 [3]byte;
+-	B uint32;
+-	C uint32;
+-	D uint16;
+-	Pad_godefs_1 [2]byte;
+-}
+-
+-type T3 struct {
+-	A uint8;
+-	Pad_godefs_0 [3]byte;
+-	Pad0 int32;
+-}
+-
+-type T4 struct {
+-}
+-
+-type T5 struct {
+-	A *T4;
+-}
+diff --git a/src/cmd/godefs/testdata_darwin_amd64.golden b/src/cmd/godefs/testdata_darwin_amd64.golden
+deleted file mode 100644
+index c9e18a9b0b..0000000000
+--- a/src/cmd/godefs/testdata_darwin_amd64.golden
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// ./godefs -g test -f-m64 testdata.c
+-
+-// MACHINE GENERATED - DO NOT EDIT.
+-
+-package test
+-
+-// Constants
+-const (
+-	sizeofPtr = 0x8;
+-	sizeofShort = 0x2;
+-	sizeofInt = 0x4;
+-	sizeofLong = 0x8;
+-	sizeofLongLong = 0x8;
+-)
+-
+-// Types
+-
+-type T2 struct {
+-	A uint8;
+-	Pad_godefs_0 [3]byte;
+-	B uint32;
+-	C uint32;
+-	D uint16;
+-	Pad_godefs_1 [2]byte;
+-}
+-
+-type T3 struct {
+-	A uint8;
+-	Pad_godefs_0 [3]byte;
+-	Pad0 int32;
+-}
+-
+-type T4 struct {
+-}
+-
+-type T5 struct {
+-	A *T4;
+-}
+diff --git a/src/cmd/godefs/testdata_linux_arm.golden b/src/cmd/godefs/testdata_linux_arm.golden
+deleted file mode 100644
+index 9fd4818a30..0000000000
+--- a/src/cmd/godefs/testdata_linux_arm.golden
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// ./godefs -g test testdata.c
+-
+-// MACHINE GENERATED - DO NOT EDIT.
+-
+-package test
+-
+-// Constants
+-const (
+-	sizeofPtr = 0x4;
+-	sizeofShort = 0x2;
+-	sizeofInt = 0x4;
+-	sizeofLong = 0x4;
+-	sizeofLongLong = 0x8;
+-)
+-
+-// Types
+-
+-type T2 struct {
+-	A uint8;
+-	Pad_godefs_0 [3]byte;
+-	B uint32;
+-	C uint32;
+-	D uint16;
+-	Pad_godefs_1 [2]byte;
+-}
+-
+-type T3 struct {
+-	A uint8;
+-	Pad_godefs_0 [3]byte;
+-	Pad0 int32;
+-}
+-
+-type T4 struct {
+-}
+-
+-type T5 struct {
+-	A *T4;
+-}
+diff --git a/src/cmd/godefs/util.c b/src/cmd/godefs/util.c
+deleted file mode 100644
+index 18be004532..0000000000
+--- a/src/cmd/godefs/util.c
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "a.h"
+-
+-void*
+-emalloc(int n)
+-{
+-	void *p;
+-
+-	p = malloc(n);
+-	if(p == nil)
+-		sysfatal("out of memory");
+-	memset(p, 0, n);
+-	return p;
+-}
+-
+-char*
+-estrdup(char *s)
+-{
+-	s = strdup(s);
+-	if(s == nil)
+-		sysfatal("out of memory");
+-	return s;
+-}
+-
+-void*
+-erealloc(void *v, int n)
+-{
+-	v = realloc(v, n);
+-	if(v == nil)
+-		sysfatal("out of memory");
+-	return v;
+-}
+-

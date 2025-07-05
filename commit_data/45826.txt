@@ -22,9 +22,118 @@ Date:   Fri Nov 20 17:03:42 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go     |  4 ++--
  src/cmd/go/internal/modload/load.go     |  4 ++--
  src/cmd/go/internal/modload/mvs.go      | 11 -----------
  src/cmd/go/internal/modload/mvs_test.go |  8 +++-----
  4 files changed, 7 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index b9345acbce..a9b77c82b3 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -853,7 +853,7 @@ func MinReqs() mvs.Reqs {
+ 			retain = append(retain, m.Path)
+ 		}
+ 	}
+-	min, err := mvs.Req(Target, retain, Reqs())
++	min, err := mvs.Req(Target, retain, &mvsReqs{buildList: buildList})
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -985,7 +985,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
+ 	keep := make(map[module.Version]bool)
+ 	var mu sync.Mutex
+ 	reqs := &keepSumReqs{
+-		Reqs: Reqs(),
++		Reqs: &mvsReqs{buildList: buildList},
+ 		visit: func(m module.Version) {
+ 			// If we build using a replacement module, keep the sum for the replacement,
+ 			// since that's the code we'll actually use during a build.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 302330278e..732c4af92b 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -800,7 +800,7 @@ func loadFromRoots(params loaderParams) *loader {
+ 	}
+ 
+ 	var err error
+-	reqs := Reqs()
++	reqs := &mvsReqs{buildList: buildList}
+ 	buildList, err = mvs.BuildList(Target, reqs)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+@@ -842,7 +842,7 @@ func loadFromRoots(params loaderParams) *loader {
+ 		}
+ 
+ 		// Recompute buildList with all our additions.
+-		reqs = Reqs()
++		reqs = &mvsReqs{buildList: buildList}
+ 		buildList, err = mvs.BuildList(Target, reqs)
+ 		if err != nil {
+ 			// If an error was found in a newly added module, report the package
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index db57b3ec5f..167d6819b0 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -11,7 +11,6 @@ import (
+ 	"sort"
+ 
+ 	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/mvs"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -23,16 +22,6 @@ type mvsReqs struct {
+ 	buildList []module.Version
+ }
+ 
+-// Reqs returns the current module requirement graph.
+-// Future calls to EditBuildList do not affect the operation
+-// of the returned Reqs.
+-func Reqs() mvs.Reqs {
+-	r := &mvsReqs{
+-		buildList: buildList,
+-	}
+-	return r
+-}
+-
+ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+ 	if mod == Target {
+ 		// Use the build list as it existed when r was constructed, not the current
+diff --git a/src/cmd/go/internal/modload/mvs_test.go b/src/cmd/go/internal/modload/mvs_test.go
+index 0cb376ec3c..50e93c381f 100644
+--- a/src/cmd/go/internal/modload/mvs_test.go
++++ b/src/cmd/go/internal/modload/mvs_test.go
+@@ -2,19 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package modload_test
++package modload
+ 
+ import (
+ 	"testing"
+-
+-	"cmd/go/internal/modload"
+ )
+ 
+ func TestReqsMax(t *testing.T) {
+ 	type testCase struct {
+ 		a, b, want string
+ 	}
+-	reqs := modload.Reqs()
++	reqs := new(mvsReqs)
+ 	for _, tc := range []testCase{
+ 		{a: "v0.1.0", b: "v0.2.0", want: "v0.2.0"},
+ 		{a: "v0.2.0", b: "v0.1.0", want: "v0.2.0"},
+@@ -27,7 +25,7 @@ func TestReqsMax(t *testing.T) {
+ 	} {
+ 		max := reqs.Max(tc.a, tc.b)
+ 		if max != tc.want {
+-			t.Errorf("Reqs().Max(%q, %q) = %q; want %q", tc.a, tc.b, max, tc.want)
++			t.Errorf("(%T).Max(%q, %q) = %q; want %q", reqs, tc.a, tc.b, max, tc.want)
+ 		}
+ 	}
+ }

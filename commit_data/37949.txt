@@ -14,6 +14,26 @@ Date:   Fri Sep 14 15:11:51 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
-
+---
  src/time/zoneinfo_android.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo_android.go b/src/time/zoneinfo_android.go
+index 65e0975ab0..237ff202f9 100644
+--- a/src/time/zoneinfo_android.go
++++ b/src/time/zoneinfo_android.go
+@@ -11,6 +11,7 @@ package time
+ import (
+ 	"errors"
+ 	"runtime"
++	"syscall"
+ )
+ 
+ var zoneSources = []string{
+@@ -75,5 +76,5 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
+ 		}
+ 		return buf, nil
+ 	}
+-	return nil, errors.New("cannot find " + name + " in tzdata file " + file)
++	return nil, syscall.ENOENT
+ }

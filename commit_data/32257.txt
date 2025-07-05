@@ -19,6 +19,20 @@ Date:   Sun Apr 16 14:48:16 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/objfile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 518aab18da..8f54a9c728 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -318,7 +318,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 		fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
+ 	}
+ 	if s.Type != 0 {
+-		fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
++		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
+ 	}
+ 	if s.DuplicateOK() {
+ 		fmt.Fprintf(ctxt.Bso, "dupok ")

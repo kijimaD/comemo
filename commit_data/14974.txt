@@ -17,7 +17,7 @@ Date:   Wed Jan 23 14:15:51 2013 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7058051
-
+---
  src/pkg/exp/locale/collate/build/builder.go |   6 +-
  src/pkg/exp/locale/collate/build/table.go   |  20 +--
  src/pkg/exp/locale/collate/colelem.go       | 125 +++++++++-----
@@ -30,3 +30,1328 @@ Date:   Wed Jan 23 14:15:51 2013 +0100
  src/pkg/exp/locale/collate/tables.go        |  11 +-
  src/pkg/exp/locale/collate/trie.go          |  12 +-
  11 files changed, 395 insertions(+), 264 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/build/builder.go b/src/pkg/exp/locale/collate/build/builder.go
+index 5869b4f6f5..4c28bd6b86 100644
+--- a/src/pkg/exp/locale/collate/build/builder.go
++++ b/src/pkg/exp/locale/collate/build/builder.go
+@@ -467,11 +467,11 @@ func (b *Builder) Build() (*collate.Collator, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	c := collate.Init(t)
+-	if c == nil {
++	table := collate.Init(t)
++	if table == nil {
+ 		panic("generated table of incompatible type")
+ 	}
+-	return c, nil
++	return collate.NewFromTable(table), nil
+ }
+ 
+ // Build builds a Collator for Tailoring t.
+diff --git a/src/pkg/exp/locale/collate/build/table.go b/src/pkg/exp/locale/collate/build/table.go
+index 0a290cd00b..1b6c3da4c0 100644
+--- a/src/pkg/exp/locale/collate/build/table.go
++++ b/src/pkg/exp/locale/collate/build/table.go
+@@ -69,30 +69,14 @@ func (t *table) fprint(w io.Writer, name string) (n, size int, err error) {
+ 		}
+ 		size += sz
+ 	}
+-	p := func(f string, a ...interface{}) {
+-		nn, e := fmt.Fprintf(w, f, a...)
+-		update(nn, 0, e)
+-	}
+-	// Write main table.
+-	size += int(reflect.TypeOf(*t).Size())
+-	p("var %sTable = table{\n", name)
+-	update(t.index.printStruct(w, t.root, name))
+-	p(",\n")
+-	p("%sExpandElem[:],\n", name)
+-	update(t.contractTries.printStruct(w, name))
+-	p(",\n")
+-	p("%sContractElem[:],\n", name)
+-	p("%d,\n", t.maxContractLen)
+-	p("0x%X,\n", t.variableTop)
+-	p("}\n\n")
+-
+ 	// Write arrays needed for the structure.
+ 	update(printColElems(w, t.expandElem, name+"ExpandElem"))
+ 	update(printColElems(w, t.contractElem, name+"ContractElem"))
+ 	update(t.index.printArrays(w, name))
+ 	update(t.contractTries.printArray(w, name))
+ 
+-	p("// Total size of %sTable is %d bytes\n", name, size)
++	nn, e := fmt.Fprintf(w, "// Total size of %sTable is %d bytes\n", name, size)
++	update(nn, 0, e)
+ 	return
+ }
+ 
+diff --git a/src/pkg/exp/locale/collate/colelem.go b/src/pkg/exp/locale/collate/colelem.go
+index a1a6514aa2..7633ddc0e7 100644
+--- a/src/pkg/exp/locale/collate/colelem.go
++++ b/src/pkg/exp/locale/collate/colelem.go
+@@ -8,27 +8,43 @@ import (
+ 	"unicode"
+ )
+ 
++// Level identifies the collation comparison level.
++// The primary level corresponds to the basic sorting of text.
++// The secondary level corresponds to accents and related linguistic elements.
++// The tertiary level corresponds to casing and related concepts.
++// The quaternary level is derived from the other levels by the
++// various algorithms for handling variable elements.
++type Level int
++
++const (
++	Primary Level = iota
++	Secondary
++	Tertiary
++	Quaternary
++	Identity
++)
++
+ const (
+ 	defaultSecondary = 0x20
+ 	defaultTertiary  = 0x2
+ 	maxTertiary      = 0x1F
+-	maxQuaternary    = 0x1FFFFF // 21 bits.
++	MaxQuaternary    = 0x1FFFFF // 21 bits.
+ )
+ 
+-// colElem is a representation of a collation element.
+-// In the typical case, a rune maps to a single collation element. If a rune
+-// can be the start of a contraction or expands into multiple collation elements,
+-// then the colElem that is associated with a rune will have a special form to represent
+-// such m to n mappings.  Such special colElems have a value >= 0x80000000.
+-type colElem uint32
++// Elem is a representation of a collation element. This API provides ways to encode
++// and decode Elems. Implementations of collation tables may use values greater
++// or equal to PrivateUse for their own purposes.  However, these should never be
++// returned by AppendNext.
++type Elem uint32
+ 
+ const (
+-	maxCE       colElem = 0xAFFFFFFF
+-	minContract         = 0xC0000000
+-	maxContract         = 0xDFFFFFFF
+-	minExpand           = 0xE0000000
+-	maxExpand           = 0xEFFFFFFF
+-	minDecomp           = 0xF0000000
++	maxCE       Elem = 0xAFFFFFFF
++	PrivateUse       = minContract
++	minContract      = 0xC0000000
++	maxContract      = 0xDFFFFFFF
++	minExpand        = 0xE0000000
++	maxExpand        = 0xEFFFFFFF
++	minDecomp        = 0xF0000000
+ )
+ 
+ type ceType int
+@@ -40,7 +56,7 @@ const (
+ 	ceDecompose                      // rune expands using NFKC decomposition
+ )
+ 
+-func (ce colElem) ctype() ceType {
++func (ce Elem) ctype() ceType {
+ 	if ce <= maxCE {
+ 		return ceNormal
+ 	}
+@@ -97,15 +113,32 @@ const (
+ 	minCompactSecondary   = defaultSecondary - 4
+ )
+ 
+-func makeImplicitCE(primary int) colElem {
+-	return ceType1 | colElem(primary<<primaryShift) | defaultSecondary
++func makeImplicitCE(primary int) Elem {
++	return ceType1 | Elem(primary<<primaryShift) | defaultSecondary
++}
++
++// MakeElem returns an Elem for the given values.  It will return an error
++// if the given combination of values is invalid.
++func MakeElem(primary, secondary, tertiary int, ccc uint8) (Elem, error) {
++	// TODO: implement
++	return 0, nil
+ }
+ 
+-func makeQuaternary(primary int) colElem {
+-	return ceTypeQ | colElem(primary<<primaryShift)
++// MakeQuaternary returns an Elem with the given quaternary value.
++func MakeQuaternary(v int) Elem {
++	return ceTypeQ | Elem(v<<primaryShift)
+ }
+ 
+-func (ce colElem) ccc() uint8 {
++// Mask sets weights for any level smaller than l to 0.
++// The resulting Elem can be used to test for equality with
++// other Elems to which the same mask has been applied.
++func (ce Elem) Mask(l Level) uint32 {
++	return 0
++}
++
++// CCC returns the canoncial combining class associated with the underlying character,
++// if applicable, or 0 otherwise.
++func (ce Elem) CCC() uint8 {
+ 	if ce&ceType3or4 != 0 {
+ 		if ce&ceType4 == ceType3or4 {
+ 			return uint8(ce >> 16)
+@@ -115,7 +148,8 @@ func (ce colElem) ccc() uint8 {
+ 	return 0
+ }
+ 
+-func (ce colElem) primary() int {
++// Primary returns the primary collation weight for ce.
++func (ce Elem) Primary() int {
+ 	if ce >= firstNonPrimary {
+ 		if ce > lastSpecialPrimary {
+ 			return 0
+@@ -125,7 +159,8 @@ func (ce colElem) primary() int {
+ 	return int(ce&primaryValueMask) >> primaryShift
+ }
+ 
+-func (ce colElem) secondary() int {
++// Secondary returns the secondary collation weight for ce.
++func (ce Elem) Secondary() int {
+ 	switch ce & ceTypeMask {
+ 	case ceType1:
+ 		return int(uint8(ce))
+@@ -142,7 +177,8 @@ func (ce colElem) secondary() int {
+ 	panic("should not reach here")
+ }
+ 
+-func (ce colElem) tertiary() uint8 {
++// Tertiary returns the tertiary collation weight for ce.
++func (ce Elem) Tertiary() uint8 {
+ 	if ce&hasTertiaryMask == 0 {
+ 		if ce&ceType3or4 == 0 {
+ 			return uint8(ce & 0x1F)
+@@ -158,32 +194,47 @@ func (ce colElem) tertiary() uint8 {
+ 	return 0
+ }
+ 
+-func (ce colElem) updateTertiary(t uint8) colElem {
++func (ce Elem) updateTertiary(t uint8) Elem {
+ 	if ce&ceTypeMask == ceType1 {
+ 		// convert to type 4
+ 		nce := ce & primaryValueMask
+-		nce |= colElem(uint8(ce)-minCompactSecondary) << compactSecondaryShift
++		nce |= Elem(uint8(ce)-minCompactSecondary) << compactSecondaryShift
+ 		ce = nce
+ 	} else if ce&ceTypeMaskExt == ceType3or4 {
+-		ce &= ^colElem(maxTertiary << 24)
+-		return ce | (colElem(t) << 24)
++		ce &= ^Elem(maxTertiary << 24)
++		return ce | (Elem(t) << 24)
+ 	} else {
+ 		// type 2 or 4
+-		ce &= ^colElem(maxTertiary)
++		ce &= ^Elem(maxTertiary)
+ 	}
+-	return ce | colElem(t)
++	return ce | Elem(t)
+ }
+ 
+-// quaternary returns the quaternary value if explicitly specified,
+-// 0 if ce == ceIgnore, or maxQuaternary otherwise.
++// Quaternary returns the quaternary value if explicitly specified,
++// 0 if ce == ceIgnore, or MaxQuaternary otherwise.
+ // Quaternary values are used only for shifted variants.
+-func (ce colElem) quaternary() int {
++func (ce Elem) Quaternary() int {
+ 	if ce&ceTypeMask == ceTypeQ {
+ 		return int(ce&primaryValueMask) >> primaryShift
+ 	} else if ce == ceIgnore {
+ 		return 0
+ 	}
+-	return maxQuaternary
++	return MaxQuaternary
++}
++
++// Weight returns the collation weight for the given level.
++func (ce Elem) Weight(l Level) int {
++	switch l {
++	case Primary:
++		return ce.Primary()
++	case Secondary:
++		return ce.Secondary()
++	case Tertiary:
++		return int(ce.Tertiary())
++	case Quaternary:
++		return ce.Quaternary()
++	}
++	return 0 // return 0 (ignore) for undefined levels.
+ }
+ 
+ // For contractions, collation elements are of the form
+@@ -198,7 +249,7 @@ const (
+ 	maxContractOffsetBits = 13
+ )
+ 
+-func splitContractIndex(ce colElem) (index, n, offset int) {
++func splitContractIndex(ce Elem) (index, n, offset int) {
+ 	n = int(ce & (1<<maxNBits - 1))
+ 	ce >>= maxNBits
+ 	index = int(ce & (1<<maxTrieIndexBits - 1))
+@@ -207,23 +258,23 @@ func splitContractIndex(ce colElem) (index, n, offset int) {
+ 	return
+ }
+ 
+-// For expansions, colElems are of the form 11100000 00000000 bbbbbbbb bbbbbbbb,
++// For expansions, Elems are of the form 11100000 00000000 bbbbbbbb bbbbbbbb,
+ // where b* is the index into the expansion sequence table.
+ const maxExpandIndexBits = 16
+ 
+-func splitExpandIndex(ce colElem) (index int) {
++func splitExpandIndex(ce Elem) (index int) {
+ 	return int(uint16(ce))
+ }
+ 
+ // Some runes can be expanded using NFKD decomposition. Instead of storing the full
+ // sequence of collation elements, we decompose the rune and lookup the collation
+ // elements for each rune in the decomposition and modify the tertiary weights.
+-// The colElem, in this case, is of the form 11110000 00000000 wwwwwwww vvvvvvvv, where
++// The Elem, in this case, is of the form 11110000 00000000 wwwwwwww vvvvvvvv, where
+ //   - v* is the replacement tertiary weight for the first rune,
+ //   - w* is the replacement tertiary weight for the second rune,
+ // Tertiary weights of subsequent runes should be replaced with maxTertiary.
+ // See http://www.unicode.org/reports/tr10/#Compatibility_Decompositions for more details.
+-func splitDecompose(ce colElem) (t1, t2 uint8) {
++func splitDecompose(ce Elem) (t1, t2 uint8) {
+ 	return uint8(ce), uint8(ce >> 8)
+ }
+ 
+diff --git a/src/pkg/exp/locale/collate/colelem_test.go b/src/pkg/exp/locale/collate/colelem_test.go
+index 94740a11e6..374c448797 100644
+--- a/src/pkg/exp/locale/collate/colelem_test.go
++++ b/src/pkg/exp/locale/collate/colelem_test.go
+@@ -10,12 +10,12 @@ import (
+ )
+ 
+ type ceTest struct {
+-	f   func(inout []int) (colElem, ceType)
++	f   func(inout []int) (Elem, ceType)
+ 	arg []int
+ }
+ 
+ // The make* funcs are simplified versions of the functions in build/colelem.go
+-func makeCE(weights []int) colElem {
++func makeCE(weights []int) Elem {
+ 	const (
+ 		maxPrimaryBits          = 21
+ 		maxSecondaryBits        = 12
+@@ -27,77 +27,77 @@ func makeCE(weights []int) colElem {
+ 		isPrimaryCCC            = 0x80000000
+ 		isSecondary             = 0xA0000000
+ 	)
+-	var ce colElem
++	var ce Elem
+ 	ccc := weights[3]
+ 	if weights[0] != 0 {
+ 		if ccc != 0 {
+-			ce = colElem(weights[2] << 24)
+-			ce |= colElem(ccc) << 16
+-			ce |= colElem(weights[0])
++			ce = Elem(weights[2] << 24)
++			ce |= Elem(ccc) << 16
++			ce |= Elem(weights[0])
+ 			ce |= isPrimaryCCC
+ 		} else if weights[2] == defaultTertiary {
+-			ce = colElem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
++			ce = Elem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
+ 			ce |= isPrimary
+ 		} else {
+ 			d := weights[1] - defaultSecondary + 4
+-			ce = colElem(weights[0]<<maxSecondaryDiffBits + d)
+-			ce = ce<<maxTertiaryCompactBits + colElem(weights[2])
++			ce = Elem(weights[0]<<maxSecondaryDiffBits + d)
++			ce = ce<<maxTertiaryCompactBits + Elem(weights[2])
+ 		}
+ 	} else {
+-		ce = colElem(weights[1]<<maxTertiaryBits + weights[2])
+-		ce += colElem(ccc) << 20
++		ce = Elem(weights[1]<<maxTertiaryBits + weights[2])
++		ce += Elem(ccc) << 20
+ 		ce |= isSecondary
+ 	}
+ 	return ce
+ }
+ 
+-func makeContractIndex(index, n, offset int) colElem {
++func makeContractIndex(index, n, offset int) Elem {
+ 	const (
+ 		contractID            = 0xC0000000
+ 		maxNBits              = 4
+ 		maxTrieIndexBits      = 12
+ 		maxContractOffsetBits = 13
+ 	)
+-	ce := colElem(contractID)
+-	ce += colElem(offset << (maxNBits + maxTrieIndexBits))
+-	ce += colElem(index << maxNBits)
+-	ce += colElem(n)
++	ce := Elem(contractID)
++	ce += Elem(offset << (maxNBits + maxTrieIndexBits))
++	ce += Elem(index << maxNBits)
++	ce += Elem(n)
+ 	return ce
+ }
+ 
+-func makeExpandIndex(index int) colElem {
++func makeExpandIndex(index int) Elem {
+ 	const expandID = 0xE0000000
+-	return expandID + colElem(index)
++	return expandID + Elem(index)
+ }
+ 
+-func makeDecompose(t1, t2 int) colElem {
++func makeDecompose(t1, t2 int) Elem {
+ 	const decompID = 0xF0000000
+-	return colElem(t2<<8+t1) + decompID
++	return Elem(t2<<8+t1) + decompID
+ }
+ 
+-func normalCE(inout []int) (ce colElem, t ceType) {
++func normalCE(inout []int) (ce Elem, t ceType) {
+ 	ce = makeCE(inout)
+-	inout[0] = ce.primary()
+-	inout[1] = ce.secondary()
+-	inout[2] = int(ce.tertiary())
+-	inout[3] = int(ce.ccc())
++	inout[0] = ce.Primary()
++	inout[1] = ce.Secondary()
++	inout[2] = int(ce.Tertiary())
++	inout[3] = int(ce.CCC())
+ 	return ce, ceNormal
+ }
+ 
+-func expandCE(inout []int) (ce colElem, t ceType) {
++func expandCE(inout []int) (ce Elem, t ceType) {
+ 	ce = makeExpandIndex(inout[0])
+ 	inout[0] = splitExpandIndex(ce)
+ 	return ce, ceExpansionIndex
+ }
+ 
+-func contractCE(inout []int) (ce colElem, t ceType) {
++func contractCE(inout []int) (ce Elem, t ceType) {
+ 	ce = makeContractIndex(inout[0], inout[1], inout[2])
+ 	i, n, o := splitContractIndex(ce)
+ 	inout[0], inout[1], inout[2] = i, n, o
+ 	return ce, ceContractionIndex
+ }
+ 
+-func decompCE(inout []int) (ce colElem, t ceType) {
++func decompCE(inout []int) (ce Elem, t ceType) {
+ 	ce = makeDecompose(inout[0], inout[1])
+ 	t1, t2 := splitDecompose(ce)
+ 	inout[0], inout[1] = int(t1), int(t2)
+@@ -183,7 +183,7 @@ func TestImplicit(t *testing.T) {
+ 
+ func TestUpdateTertiary(t *testing.T) {
+ 	tests := []struct {
+-		in, out colElem
++		in, out Elem
+ 		t       uint8
+ 	}{
+ 		{0x4000FE20, 0x0000FE8A, 0x0A},
+@@ -238,17 +238,17 @@ func TestDoNorm(t *testing.T) {
+ 			}
+ 			i.ce = append(i.ce, makeCE([]int{w, 20, 2, cc}))
+ 		}
+-		i.prevCCC = i.ce[p-1].ccc()
+-		i.doNorm(p, i.ce[p].ccc())
++		i.prevCCC = i.ce[p-1].CCC()
++		i.doNorm(p, i.ce[p].CCC())
+ 		if len(i.ce) != len(tt.out) {
+ 			t.Errorf("%d: length was %d; want %d", j, len(i.ce), len(tt.out))
+ 		}
+ 		prevCCC := uint8(0)
+ 		for k, ce := range i.ce {
+-			if int(ce.ccc()) != tt.out[k] {
+-				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.ccc(), tt.out[k])
++			if int(ce.CCC()) != tt.out[k] {
++				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.CCC(), tt.out[k])
+ 			}
+-			if k > 0 && ce.ccc() == prevCCC && i.ce[k-1].primary() > ce.primary() {
++			if k > 0 && ce.CCC() == prevCCC && i.ce[k-1].Primary() > ce.Primary() {
+ 				t.Errorf("%d:%d: normalization crossed across CCC boundary.", j, k)
+ 			}
+ 		}
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+index daf3b9e1fe..2cb29f24b7 100644
+--- a/src/pkg/exp/locale/collate/collate.go
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -10,23 +10,6 @@ package collate
+ import (
+ 	"bytes"
+ 	"exp/norm"
+-	"unicode/utf8"
+-)
+-
+-// Level identifies the collation comparison level.
+-// The primary level corresponds to the basic sorting of text.
+-// The secondary level corresponds to accents and related linguistic elements.
+-// The tertiary level corresponds to casing and related concepts.
+-// The quaternary level is derived from the other levels by the
+-// various algorithms for handling variable elements.
+-type Level int
+-
+-const (
+-	Primary Level = iota
+-	Secondary
+-	Tertiary
+-	Quaternary
+-	Identity
+ )
+ 
+ // AlternateHandling identifies the various ways in which variables are handled.
+@@ -56,6 +39,12 @@ const (
+ // Collator provides functionality for comparing strings for a given
+ // collation order.
+ type Collator struct {
++	// TODO: hide most of these options. Low-level options are set through the locale
++	// identifier (as defined by LDML) while high-level options are set through SetOptions.
++	// Using high-level options allows us to be more flexible (such as not ignoring
++	// Thai vowels for IgnoreDiacriticals) and more user-friendly (such as allowing
++	// diacritical marks to be ignored but not case without having to fiddle with levels).
++
+ 	// Strength sets the maximum level to use in comparison.
+ 	Strength Level
+ 
+@@ -81,13 +70,39 @@ type Collator struct {
+ 	// at a primary level with its numeric value.  For example, "A-21" < "A-123".
+ 	Numeric bool
+ 
++	// The largest primary value that is considered to be variable.
++	variableTop uint32
++
+ 	f norm.Form
+ 
+-	t *table
++	t Weigher
++
++	sorter sorter
+ 
+ 	_iter [2]iter
+ }
+ 
++// An Option is used to change the behavior of Collator.  They override the
++// settings passed through the locale identifier.
++type Option int
++
++const (
++	Numeric          Option = 1 << iota // Sort numbers numerically ("2" < "12").
++	IgnoreCase                          // Case-insensitive search.
++	IgnoreDiacritics                    // Ignore diacritical marks. ("o" == "ö").
++	IgnoreWidth                         // Ignore full versus normal width.
++	UpperFirst                          // Sort upper case before lower case.
++	LowerFirst                          // Sort lower case before upper case.
++	Force                               // Force ordering if strings are equivalent but not equal.
++
++	Loose = IgnoreDiacritics | IgnoreWidth | IgnoreCase
++)
++
++// SetOptions accepts a Options or-ed together.  All previous calls to SetOptions are ignored.
++func (c *Collator) SetOptions(o Option) {
++	// TODO: implement
++}
++
+ func (c *Collator) iter(i int) *iter {
+ 	// TODO: evaluate performance for making the second iterator optional.
+ 	return &c._iter[i]
+@@ -102,16 +117,18 @@ func Locales() []string {
+ // New returns a new Collator initialized for the given locale.
+ func New(loc string) *Collator {
+ 	// TODO: handle locale selection according to spec.
+-	t := &mainTable
++	var t tableIndex
+ 	if loc != "" {
+ 		if idx, ok := locales[loc]; ok {
+-			t = mainTable.indexedTable(idx)
++			t = idx
++		} else {
++			t = locales["root"]
+ 		}
+ 	}
+-	return newCollator(t)
++	return NewFromTable(Init(t))
+ }
+ 
+-func newCollator(t *table) *Collator {
++func NewFromTable(t Weigher) *Collator {
+ 	c := &Collator{
+ 		Strength: Tertiary,
+ 		f:        norm.NFD,
+@@ -122,12 +139,6 @@ func newCollator(t *table) *Collator {
+ 	return c
+ }
+ 
+-// SetVariableTop sets all runes with primary strength less than the primary
+-// strength of r to be variable and thus affected by alternate handling.
+-func (c *Collator) SetVariableTop(r rune) {
+-	// TODO: implement
+-}
+-
+ // Buffer holds keys generated by Key and KeyString.
+ type Buffer struct {
+ 	buf [4096]byte
+@@ -150,8 +161,8 @@ func (b *Buffer) Reset() {
+ func (c *Collator) Compare(a, b []byte) int {
+ 	// TODO: skip identical prefixes once we have a fast way to detect if a rune is
+ 	// part of a contraction. This would lead to roughly a 10% speedup for the colcmp regtest.
+-	c.iter(0).setInput(c, a)
+-	c.iter(1).setInput(c, b)
++	c.iter(0).setInput(a)
++	c.iter(1).setInput(b)
+ 	if res := c.compare(); res != 0 {
+ 		return res
+ 	}
+@@ -166,8 +177,8 @@ func (c *Collator) Compare(a, b []byte) int {
+ func (c *Collator) CompareString(a, b string) int {
+ 	// TODO: skip identical prefixes once we have a fast way to detect if a rune is
+ 	// part of a contraction. This would lead to roughly a 10% speedup for the colcmp regtest.
+-	c.iter(0).setInputString(c, a)
+-	c.iter(1).setInputString(c, b)
++	c.iter(0).setInputString(a)
++	c.iter(1).setInputString(b)
+ 	if res := c.compare(); res != 0 {
+ 		return res
+ 	}
+@@ -235,11 +246,6 @@ func (c *Collator) compare() int {
+ 	return 0
+ }
+ 
+-func (c *Collator) Prefix(s, prefix []byte) int {
+-	// iterate over s, track bytes consumed.
+-	return 0
+-}
+-
+ // Key returns the collation key for str.
+ // Passing the buffer buf may avoid memory allocations.
+ // The returned slice will point to an allocation in Buffer and will remain
+@@ -260,88 +266,42 @@ func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
+ 	return c.key(buf, c.getColElemsString(str))
+ }
+ 
+-func (c *Collator) key(buf *Buffer, w []colElem) []byte {
+-	processWeights(c.Alternate, c.t.variableTop, w)
++func (c *Collator) key(buf *Buffer, w []Elem) []byte {
++	processWeights(c.Alternate, c.variableTop, w)
+ 	kn := len(buf.key)
+ 	c.keyFromElems(buf, w)
+ 	return buf.key[kn:]
+ }
+ 
+-func (c *Collator) getColElems(str []byte) []colElem {
++func (c *Collator) getColElems(str []byte) []Elem {
+ 	i := c.iter(0)
+-	i.setInput(c, str)
++	i.setInput(str)
+ 	for i.next() {
+ 	}
+ 	return i.ce
+ }
+ 
+-func (c *Collator) getColElemsString(str string) []colElem {
++func (c *Collator) getColElemsString(str string) []Elem {
+ 	i := c.iter(0)
+-	i.setInputString(c, str)
++	i.setInputString(str)
+ 	for i.next() {
+ 	}
+ 	return i.ce
+ }
+ 
+-type source struct {
+-	str   string
+-	bytes []byte
+-	buf   [16]byte // Used for decomposing Hangul.
+-}
+-
+-func (src *source) done() bool {
+-	return len(src.str) == 0 && len(src.bytes) == 0
+-}
+-
+-func (src *source) tail(n int) (res source) {
+-	if src.bytes == nil {
+-		res.str = src.str[n:]
+-	} else {
+-		res.bytes = src.bytes[n:]
+-	}
+-	return res
+-}
+-
+-func (src *source) nfd(end int) []byte {
+-	if src.bytes == nil {
+-		return norm.NFD.AppendString(src.buf[:0], src.str[:end])
+-	}
+-	return norm.NFD.Append(src.buf[:0], src.bytes[:end]...)
+-}
+-
+-func (src *source) properties(f norm.Form) norm.Properties {
+-	if src.bytes == nil {
+-		return f.PropertiesString(src.str)
+-	}
+-	return f.Properties(src.bytes)
+-}
+-
+-func (src *source) lookup(t *table) (ce colElem, sz int) {
+-	if src.bytes == nil {
+-		return t.index.lookupString(src.str)
+-	}
+-	return t.index.lookup(src.bytes)
+-}
+-
+-func (src *source) rune() (r rune, sz int) {
+-	if src.bytes == nil {
+-		return utf8.DecodeRuneInString(src.str)
+-	}
+-	return utf8.DecodeRune(src.bytes)
+-}
+-
+ type iter struct {
+-	src source
++	bytes []byte
++	str   string
+ 
+-	wa  [512]colElem
+-	ce  []colElem
++	wa  [512]Elem
++	ce  []Elem
+ 	pce int
+ 	nce int // nce <= len(nce)
+ 
+ 	prevCCC  uint8
+ 	pStarter int
+ 
+-	t *table
++	t Weigher
+ }
+ 
+ func (i *iter) init(c *Collator) {
+@@ -356,40 +316,61 @@ func (i *iter) reset() {
+ 	i.pStarter = 0
+ }
+ 
+-func (i *iter) setInput(c *Collator, s []byte) *iter {
+-	i.src.bytes = s
+-	i.src.str = ""
++func (i *iter) setInput(s []byte) *iter {
++	i.bytes = s
++	i.str = ""
+ 	i.reset()
+ 	return i
+ }
+ 
+-func (i *iter) setInputString(c *Collator, s string) *iter {
+-	i.src.str = s
+-	i.src.bytes = nil
++func (i *iter) setInputString(s string) *iter {
++	i.str = s
++	i.bytes = nil
+ 	i.reset()
+ 	return i
+ }
+ 
+-// next appends colElems to the internal array until it adds an element with CCC=0.
+-// In the majority of cases, a colElem with a primary value > 0 will have
++func (i *iter) done() bool {
++	return len(i.str) == 0 && len(i.bytes) == 0
++}
++
++func (i *iter) tail(n int) {
++	if i.bytes == nil {
++		i.str = i.str[n:]
++	} else {
++		i.bytes = i.bytes[n:]
++	}
++}
++
++func (i *iter) appendNext() int {
++	var sz int
++	if i.bytes == nil {
++		i.ce, sz = i.t.AppendNextString(i.ce, i.str)
++	} else {
++		i.ce, sz = i.t.AppendNext(i.ce, i.bytes)
++	}
++	return sz
++}
++
++// next appends Elems to the internal array until it adds an element with CCC=0.
++// In the majority of cases, a Elem with a primary value > 0 will have
+ // a CCC of 0. The CCC values of colation elements are also used to detect if the
+ // input string was not normalized and to adjust the result accordingly.
+ func (i *iter) next() bool {
+-	sz := 0
+-	for !i.src.done() {
++	for !i.done() {
+ 		p0 := len(i.ce)
+-		i.ce, sz = i.t.appendNext(i.ce, i.src)
+-		i.src = i.src.tail(sz)
++		sz := i.appendNext()
++		i.tail(sz)
+ 		last := len(i.ce) - 1
+-		if ccc := i.ce[last].ccc(); ccc == 0 {
++		if ccc := i.ce[last].CCC(); ccc == 0 {
+ 			i.nce = len(i.ce)
+ 			i.pStarter = last
+ 			i.prevCCC = 0
+ 			return true
+-		} else if p0 < last && i.ce[p0].ccc() == 0 {
++		} else if p0 < last && i.ce[p0].CCC() == 0 {
+ 			// set i.nce to only cover part of i.ce for which ccc == 0 and
+ 			// use rest the next call to next.
+-			for p0++; p0 < last && i.ce[p0].ccc() == 0; p0++ {
++			for p0++; p0 < last && i.ce[p0].CCC() == 0; p0++ {
+ 			}
+ 			i.nce = p0
+ 			i.pStarter = p0 - 1
+@@ -414,12 +395,11 @@ func (i *iter) next() bool {
+ // to improve performance in any significant way. We retain this until
+ // later for evaluation purposes.
+ func (i *iter) nextPlain() bool {
+-	if i.src.done() {
++	if i.done() {
+ 		return false
+ 	}
+-	sz := 0
+-	i.ce, sz = i.t.appendNext(i.ce, i.src)
+-	i.src = i.src.tail(sz)
++	sz := i.appendNext()
++	i.tail(sz)
+ 	i.nce = len(i.ce)
+ 	return true
+ }
+@@ -433,13 +413,13 @@ const maxCombiningCharacters = 30
+ // The correctness of this assumption is verified in builder.go.
+ func (i *iter) doNorm(p int, ccc uint8) {
+ 	if p-i.pStarter > maxCombiningCharacters {
+-		i.prevCCC = i.ce[len(i.ce)-1].ccc()
++		i.prevCCC = i.ce[len(i.ce)-1].CCC()
+ 		i.pStarter = len(i.ce) - 1
+ 		return
+ 	}
+ 	n := len(i.ce)
+ 	k := p
+-	for p--; p > i.pStarter && ccc < i.ce[p-1].ccc(); p-- {
++	for p--; p > i.pStarter && ccc < i.ce[p-1].CCC(); p-- {
+ 	}
+ 	i.ce = append(i.ce, i.ce[p:k]...)
+ 	copy(i.ce[p:], i.ce[k:])
+@@ -449,7 +429,7 @@ func (i *iter) doNorm(p int, ccc uint8) {
+ func (i *iter) nextPrimary() int {
+ 	for {
+ 		for ; i.pce < i.nce; i.pce++ {
+-			if v := i.ce[i.pce].primary(); v != 0 {
++			if v := i.ce[i.pce].Primary(); v != 0 {
+ 				i.pce++
+ 				return v
+ 			}
+@@ -463,7 +443,7 @@ func (i *iter) nextPrimary() int {
+ 
+ func (i *iter) nextSecondary() int {
+ 	for ; i.pce < len(i.ce); i.pce++ {
+-		if v := i.ce[i.pce].secondary(); v != 0 {
++		if v := i.ce[i.pce].Secondary(); v != 0 {
+ 			i.pce++
+ 			return v
+ 		}
+@@ -473,7 +453,7 @@ func (i *iter) nextSecondary() int {
+ 
+ func (i *iter) prevSecondary() int {
+ 	for ; i.pce < len(i.ce); i.pce++ {
+-		if v := i.ce[len(i.ce)-i.pce-1].secondary(); v != 0 {
++		if v := i.ce[len(i.ce)-i.pce-1].Secondary(); v != 0 {
+ 			i.pce++
+ 			return v
+ 		}
+@@ -483,7 +463,7 @@ func (i *iter) prevSecondary() int {
+ 
+ func (i *iter) nextTertiary() int {
+ 	for ; i.pce < len(i.ce); i.pce++ {
+-		if v := i.ce[i.pce].tertiary(); v != 0 {
++		if v := i.ce[i.pce].Tertiary(); v != 0 {
+ 			i.pce++
+ 			return int(v)
+ 		}
+@@ -493,7 +473,7 @@ func (i *iter) nextTertiary() int {
+ 
+ func (i *iter) nextQuaternary() int {
+ 	for ; i.pce < len(i.ce); i.pce++ {
+-		if v := i.ce[i.pce].quaternary(); v != 0 {
++		if v := i.ce[i.pce].Quaternary(); v != 0 {
+ 			i.pce++
+ 			return v
+ 		}
+@@ -513,9 +493,9 @@ func appendPrimary(key []byte, p int) []byte {
+ 
+ // keyFromElems converts the weights ws to a compact sequence of bytes.
+ // The result will be appended to the byte buffer in buf.
+-func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
++func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
+ 	for _, v := range ws {
+-		if w := v.primary(); w > 0 {
++		if w := v.Primary(); w > 0 {
+ 			buf.key = appendPrimary(buf.key, w)
+ 		}
+ 	}
+@@ -524,13 +504,13 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 		// TODO: we can use one 0 if we can guarantee that all non-zero weights are > 0xFF.
+ 		if !c.Backwards {
+ 			for _, v := range ws {
+-				if w := v.secondary(); w > 0 {
++				if w := v.Secondary(); w > 0 {
+ 					buf.key = append(buf.key, uint8(w>>8), uint8(w))
+ 				}
+ 			}
+ 		} else {
+ 			for i := len(ws) - 1; i >= 0; i-- {
+-				if w := ws[i].secondary(); w > 0 {
++				if w := ws[i].Secondary(); w > 0 {
+ 					buf.key = append(buf.key, uint8(w>>8), uint8(w))
+ 				}
+ 			}
+@@ -541,12 +521,12 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 	if Tertiary <= c.Strength || c.CaseLevel {
+ 		buf.key = append(buf.key, 0, 0)
+ 		for _, v := range ws {
+-			if w := v.tertiary(); w > 0 {
++			if w := v.Tertiary(); w > 0 {
+ 				buf.key = append(buf.key, uint8(w))
+ 			}
+ 		}
+ 		// Derive the quaternary weights from the options and other levels.
+-		// Note that we represent maxQuaternary as 0xFF. The first byte of the
++		// Note that we represent MaxQuaternary as 0xFF. The first byte of the
+ 		// representation of a primary weight is always smaller than 0xFF,
+ 		// so using this single byte value will compare correctly.
+ 		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
+@@ -554,7 +534,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 				lastNonFFFF := len(buf.key)
+ 				buf.key = append(buf.key, 0)
+ 				for _, v := range ws {
+-					if w := v.quaternary(); w == maxQuaternary {
++					if w := v.Quaternary(); w == MaxQuaternary {
+ 						buf.key = append(buf.key, 0xFF)
+ 					} else if w > 0 {
+ 						buf.key = appendPrimary(buf.key, w)
+@@ -565,7 +545,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 			} else {
+ 				buf.key = append(buf.key, 0)
+ 				for _, v := range ws {
+-					if w := v.quaternary(); w == maxQuaternary {
++					if w := v.Quaternary(); w == MaxQuaternary {
+ 						buf.key = append(buf.key, 0xFF)
+ 					} else if w > 0 {
+ 						buf.key = appendPrimary(buf.key, w)
+@@ -576,14 +556,14 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 	}
+ }
+ 
+-func processWeights(vw AlternateHandling, top uint32, wa []colElem) {
++func processWeights(vw AlternateHandling, top uint32, wa []Elem) {
+ 	ignore := false
+ 	vtop := int(top)
+ 	switch vw {
+ 	case AltShifted, AltShiftTrimmed:
+ 		for i := range wa {
+-			if p := wa[i].primary(); p <= vtop && p != 0 {
+-				wa[i] = makeQuaternary(p)
++			if p := wa[i].Primary(); p <= vtop && p != 0 {
++				wa[i] = MakeQuaternary(p)
+ 				ignore = true
+ 			} else if p == 0 {
+ 				if ignore {
+@@ -595,7 +575,7 @@ func processWeights(vw AlternateHandling, top uint32, wa []colElem) {
+ 		}
+ 	case AltBlanked:
+ 		for i := range wa {
+-			if p := wa[i].primary(); p <= vtop && (ignore || p != 0) {
++			if p := wa[i].Primary(); p <= vtop && (ignore || p != 0) {
+ 				wa[i] = ceIgnore
+ 				ignore = true
+ 			} else {
+diff --git a/src/pkg/exp/locale/collate/colltab.go b/src/pkg/exp/locale/collate/colltab.go
+new file mode 100644
+index 0000000000..cdb213ffe4
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/colltab.go
+@@ -0,0 +1,28 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package collate
++
++// A Weigher can be used as a source for Collator and Searcher.
++type Weigher interface {
++	// Start finds the start of the segment that includes position p.
++	Start(p int, b []byte) int
++
++	// StartString finds the start of the segment that includes position p.
++	StartString(p int, s string) int
++
++	// AppendNext appends Elems to buf corresponding to the longest match
++	// of a single character or contraction from the start of s.
++	// It returns the new buf and the number of bytes consumed.
++	AppendNext(buf []Elem, s []byte) (ce []Elem, n int)
++
++	// AppendNextString appends Elems to buf corresponding to the longest match
++	// of a single character or contraction from the start of s.
++	// It returns the new buf and the number of bytes consumed.
++	AppendNextString(buf []Elem, s string) (ce []Elem, n int)
++
++	// Domain returns a slice of all single characters and contractions for which
++	// collation elements are defined in this table.
++	Domain() []string
++}
+diff --git a/src/pkg/exp/locale/collate/export.go b/src/pkg/exp/locale/collate/export.go
+index 1915c93963..8145dee25a 100644
+--- a/src/pkg/exp/locale/collate/export.go
++++ b/src/pkg/exp/locale/collate/export.go
+@@ -4,9 +4,8 @@
+ 
+ package collate
+ 
+-// Init is used by type Builder in exp/locale/collate/build/
+-// to create Collator instances.  It is for internal use only.
+-func Init(data interface{}) *Collator {
++// Init is for internal use only.
++func Init(data interface{}) Weigher {
+ 	init, ok := data.(tableInitializer)
+ 	if !ok {
+ 		return nil
+@@ -14,15 +13,15 @@ func Init(data interface{}) *Collator {
+ 	t := &table{}
+ 	loff, voff := init.FirstBlockOffsets()
+ 	t.index.index = init.TrieIndex()
+-	t.index.index0 = t.index.index[blockSize*loff:]
++	t.index.index0 = t.index.index[blockSize*int(loff):]
+ 	t.index.values = init.TrieValues()
+-	t.index.values0 = t.index.values[blockSize*voff:]
++	t.index.values0 = t.index.values[blockSize*int(voff):]
+ 	t.expandElem = init.ExpandElems()
+ 	t.contractTries = init.ContractTries()
+ 	t.contractElem = init.ContractElems()
+ 	t.maxContractLen = init.MaxContractLen()
+ 	t.variableTop = init.VariableTop()
+-	return newCollator(t)
++	return t
+ }
+ 
+ type tableInitializer interface {
+diff --git a/src/pkg/exp/locale/collate/export_test.go b/src/pkg/exp/locale/collate/export_test.go
+index c56611f0e3..3782144d83 100644
+--- a/src/pkg/exp/locale/collate/export_test.go
++++ b/src/pkg/exp/locale/collate/export_test.go
+@@ -25,7 +25,7 @@ func W(ce ...int) Weights {
+ 	if len(ce) > 3 {
+ 		w.Quaternary = ce[3]
+ 	} else if w.Tertiary != 0 {
+-		w.Quaternary = maxQuaternary
++		w.Quaternary = MaxQuaternary
+ 	}
+ 	return w
+ }
+@@ -34,34 +34,34 @@ func (w Weights) String() string {
+ }
+ 
+ type Table struct {
+-	t *table
++	t Weigher
+ }
+ 
+ func GetTable(c *Collator) *Table {
+ 	return &Table{c.t}
+ }
+ 
+-func convertToWeights(ws []colElem) []Weights {
++func convertToWeights(ws []Elem) []Weights {
+ 	out := make([]Weights, len(ws))
+ 	for i, w := range ws {
+-		out[i] = Weights{int(w.primary()), int(w.secondary()), int(w.tertiary()), int(w.quaternary())}
++		out[i] = Weights{int(w.Primary()), int(w.Secondary()), int(w.Tertiary()), int(w.Quaternary())}
+ 	}
+ 	return out
+ }
+ 
+-func convertFromWeights(ws []Weights) []colElem {
+-	out := make([]colElem, len(ws))
++func convertFromWeights(ws []Weights) []Elem {
++	out := make([]Elem, len(ws))
+ 	for i, w := range ws {
+ 		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary, 0})
+ 		if out[i] == ceIgnore && w.Quaternary > 0 {
+-			out[i] = makeQuaternary(w.Quaternary)
++			out[i] = MakeQuaternary(w.Quaternary)
+ 		}
+ 	}
+ 	return out
+ }
+ 
+ func (t *Table) AppendNext(s []byte) ([]Weights, int) {
+-	w, n := t.t.appendNext(nil, source{bytes: s})
++	w, n := t.t.AppendNext(nil, s)
+ 	return convertToWeights(w), n
+ }
+ 
+@@ -69,7 +69,7 @@ func SetTop(c *Collator, top int) {
+ 	if c.t == nil {
+ 		c.t = &table{}
+ 	}
+-	c.t.variableTop = uint32(top)
++	c.variableTop = uint32(top)
+ }
+ 
+ func GetColElems(c *Collator, str []byte) []Weights {
+diff --git a/src/pkg/exp/locale/collate/table.go b/src/pkg/exp/locale/collate/table.go
+index 070ffbcc9f..a03e9e2158 100644
+--- a/src/pkg/exp/locale/collate/table.go
++++ b/src/pkg/exp/locale/collate/table.go
+@@ -37,12 +37,76 @@ func (t *table) indexedTable(idx tableIndex) *table {
+ 	return &nt
+ }
+ 
++func (t *table) AppendNext(w []Elem, b []byte) (res []Elem, n int) {
++	return t.appendNext(w, source{bytes: b})
++}
++
++func (t *table) AppendNextString(w []Elem, s string) (res []Elem, n int) {
++	return t.appendNext(w, source{str: s})
++}
++
++func (t *table) Start(p int, b []byte) int {
++	// TODO: implement
++	panic("not implemented")
++}
++
++func (t *table) StartString(p int, s string) int {
++	// TODO: implement
++	panic("not implemented")
++}
++
++func (t *table) Domain() []string {
++	// TODO: implement
++	panic("not implemented")
++}
++
++type source struct {
++	str   string
++	bytes []byte
++}
++
++func (src *source) lookup(t *table) (ce Elem, sz int) {
++	if src.bytes == nil {
++		return t.index.lookupString(src.str)
++	}
++	return t.index.lookup(src.bytes)
++}
++
++func (src *source) tail(sz int) {
++	if src.bytes == nil {
++		src.str = src.str[sz:]
++	} else {
++		src.bytes = src.bytes[sz:]
++	}
++}
++
++func (src *source) nfd(buf []byte, end int) []byte {
++	if src.bytes == nil {
++		return norm.NFD.AppendString(buf[:0], src.str[:end])
++	}
++	return norm.NFD.Append(buf[:0], src.bytes[:end]...)
++}
++
++func (src *source) rune() (r rune, sz int) {
++	if src.bytes == nil {
++		return utf8.DecodeRuneInString(src.str)
++	}
++	return utf8.DecodeRune(src.bytes)
++}
++
++func (src *source) properties(f norm.Form) norm.Properties {
++	if src.bytes == nil {
++		return f.PropertiesString(src.str)
++	}
++	return f.Properties(src.bytes)
++}
++
+ // appendNext appends the weights corresponding to the next rune or
+ // contraction in s.  If a contraction is matched to a discontinuous
+ // sequence of runes, the weights for the interstitial runes are
+ // appended as well.  It returns a new slice that includes the appended
+ // weights and the number of bytes consumed from s.
+-func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
++func (t *table) appendNext(w []Elem, src source) (res []Elem, n int) {
+ 	ce, sz := src.lookup(t)
+ 	tp := ce.ctype()
+ 	if tp == ceNormal {
+@@ -56,7 +120,8 @@ func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
+ 			if r >= firstHangul && r <= lastHangul {
+ 				// TODO: performance can be considerably improved here.
+ 				n = sz
+-				for b := src.nfd(hangulSize); len(b) > 0; b = b[sz:] {
++				var buf [16]byte // Used for decomposing Hangul.
++				for b := src.nfd(buf[:0], hangulSize); len(b) > 0; b = b[sz:] {
+ 					ce, sz = t.index.lookup(b)
+ 					w = append(w, ce)
+ 				}
+@@ -69,7 +134,7 @@ func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
+ 		w = t.appendExpansion(w, ce)
+ 	} else if tp == ceContractionIndex {
+ 		n := 0
+-		src = src.tail(sz)
++		src.tail(sz)
+ 		if src.bytes == nil {
+ 			w, n = t.matchContractionString(w, ce, src.str)
+ 		} else {
+@@ -95,17 +160,17 @@ func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
+ 	return w, sz
+ }
+ 
+-func (t *table) appendExpansion(w []colElem, ce colElem) []colElem {
++func (t *table) appendExpansion(w []Elem, ce Elem) []Elem {
+ 	i := splitExpandIndex(ce)
+ 	n := int(t.expandElem[i])
+ 	i++
+ 	for _, ce := range t.expandElem[i : i+n] {
+-		w = append(w, colElem(ce))
++		w = append(w, Elem(ce))
+ 	}
+ 	return w
+ }
+ 
+-func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colElem, int) {
++func (t *table) matchContraction(w []Elem, ce Elem, suffix []byte) ([]Elem, int) {
+ 	index, n, offset := splitContractIndex(ce)
+ 
+ 	scan := t.contractTries.scanner(index, n, suffix)
+@@ -147,7 +212,7 @@ func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colE
+ 	}
+ 	// Append weights for the matched contraction, which may be an expansion.
+ 	i, n := scan.result()
+-	ce = colElem(t.contractElem[i+offset])
++	ce = Elem(t.contractElem[i+offset])
+ 	if ce.ctype() == ceNormal {
+ 		w = append(w, ce)
+ 	} else {
+@@ -163,7 +228,7 @@ func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colE
+ // TODO: unify the two implementations. This is best done after first simplifying
+ // the algorithm taking into account the inclusion of both NFC and NFD forms
+ // in the table.
+-func (t *table) matchContractionString(w []colElem, ce colElem, suffix string) ([]colElem, int) {
++func (t *table) matchContractionString(w []Elem, ce Elem, suffix string) ([]Elem, int) {
+ 	index, n, offset := splitContractIndex(ce)
+ 
+ 	scan := t.contractTries.scannerString(index, n, suffix)
+@@ -205,7 +270,7 @@ func (t *table) matchContractionString(w []colElem, ce colElem, suffix string) (
+ 	}
+ 	// Append weights for the matched contraction, which may be an expansion.
+ 	i, n := scan.result()
+-	ce = colElem(t.contractElem[i+offset])
++	ce = Elem(t.contractElem[i+offset])
+ 	if ce.ctype() == ceNormal {
+ 		w = append(w, ce)
+ 	} else {
+@@ -217,3 +282,36 @@ func (t *table) matchContractionString(w []colElem, ce colElem, suffix string) (
+ 	}
+ 	return w, n
+ }
++
++// TODO: this should stay after the rest of this file is moved to colltab
++func (t tableIndex) TrieIndex() []uint16 {
++	return mainLookup[:]
++}
++
++func (t tableIndex) TrieValues() []uint32 {
++	return mainValues[:]
++}
++
++func (t tableIndex) FirstBlockOffsets() (lookup, value uint16) {
++	return uint16(t.lookupOffset), uint16(t.valuesOffset)
++}
++
++func (t tableIndex) ExpandElems() []uint32 {
++	return mainExpandElem[:]
++}
++
++func (t tableIndex) ContractTries() []struct{ l, h, n, i uint8 } {
++	return mainCTEntries[:]
++}
++
++func (t tableIndex) ContractElems() []uint32 {
++	return mainContractElem[:]
++}
++
++func (t tableIndex) MaxContractLen() int {
++	return 18
++}
++
++func (t tableIndex) VariableTop() uint32 {
++	return 0x30E
++}
+diff --git a/src/pkg/exp/locale/collate/tables.go b/src/pkg/exp/locale/collate/tables.go
+index e21f4787e6..464514cf4b 100644
+--- a/src/pkg/exp/locale/collate/tables.go
++++ b/src/pkg/exp/locale/collate/tables.go
+@@ -326,15 +326,6 @@ var locales = map[string]tableIndex{
+ 	},
+ }
+ 
+-var mainTable = table{
+-	trie{mainLookup[1344:], mainValues[0:], mainLookup[:], mainValues[:]},
+-	mainExpandElem[:],
+-	contractTrieSet(mainCTEntries[:]),
+-	mainContractElem[:],
+-	18,
+-	0x30E,
+-}
+-
+ // mainExpandElem: 45432 entries, 181728 bytes
+ var mainExpandElem = [45432]uint32{
+ 	// Block 0, offset 0x0
+@@ -51902,4 +51893,4 @@ var mainCTEntries = [2490]struct{ l, h, n, i uint8 }{
+ 	{0x80, 0x81, 0, 1},
+ }
+ 
+-// Total size of mainTable is 921204 bytes
++// Total size of mainTable is 920988 bytes
+diff --git a/src/pkg/exp/locale/collate/trie.go b/src/pkg/exp/locale/collate/trie.go
+index 705bfa38c9..616dc09236 100644
+--- a/src/pkg/exp/locale/collate/trie.go
++++ b/src/pkg/exp/locale/collate/trie.go
+@@ -31,18 +31,18 @@ const (
+ 	te = 0xFE // 1111 1110
+ )
+ 
+-func (t *trie) lookupValue(n uint16, b byte) colElem {
+-	return colElem(t.values[int(n)<<6+int(b)])
++func (t *trie) lookupValue(n uint16, b byte) Elem {
++	return Elem(t.values[int(n)<<6+int(b)])
+ }
+ 
+ // lookup returns the trie value for the first UTF-8 encoding in s and
+ // the width in bytes of this encoding. The size will be 0 if s does not
+ // hold enough bytes to complete the encoding. len(s) must be greater than 0.
+-func (t *trie) lookup(s []byte) (v colElem, sz int) {
++func (t *trie) lookup(s []byte) (v Elem, sz int) {
+ 	c0 := s[0]
+ 	switch {
+ 	case c0 < tx:
+-		return colElem(t.values0[c0]), 1
++		return Elem(t.values0[c0]), 1
+ 	case c0 < t2:
+ 		return 0, 1
+ 	case c0 < t3:
+@@ -99,11 +99,11 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
+ }
+ 
+ // The body of lookupString is a verbatim copy of that of lookup.
+-func (t *trie) lookupString(s string) (v colElem, sz int) {
++func (t *trie) lookupString(s string) (v Elem, sz int) {
+ 	c0 := s[0]
+ 	switch {
+ 	case c0 < tx:
+-		return colElem(t.values0[c0]), 1
++		return Elem(t.values0[c0]), 1
+ 	case c0 < t2:
+ 		return 0, 1
+ 	case c0 < t3:

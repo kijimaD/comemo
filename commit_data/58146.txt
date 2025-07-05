@@ -17,7 +17,7 @@ Date:   Mon Sep 18 10:13:18 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go                |  3 +
  src/cmd/compile/internal/ir/symtab.go              |  1 +
  src/cmd/compile/internal/objw/objw.go              |  8 +++
@@ -28,3 +28,317 @@ Date:   Mon Sep 18 10:13:18 2023 -0700
  src/internal/abi/switch.go                         |  5 ++
  src/runtime/iface.go                               | 28 ++++----
  9 files changed, 119 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index e20c342bfb..7704a23d5f 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -673,6 +673,9 @@ type TypeAssertExpr struct {
+ 	// Runtime type information provided by walkDotType for
+ 	// assertions from non-empty interface to concrete type.
+ 	ITab Node `mknode:"-"` // *runtime.itab for Type implementing X's type
++
++	// An internal/abi.TypeAssert descriptor to pass to the runtime.
++	Descriptor *obj.LSym
+ }
+ 
+ func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 2c366ec7bd..202c4942de 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -50,6 +50,7 @@ type symsStruct struct {
+ 	Racereadrange     *obj.LSym
+ 	Racewrite         *obj.LSym
+ 	Racewriterange    *obj.LSym
++	TypeAssert        *obj.LSym
+ 	WBZero            *obj.LSym
+ 	WBMove            *obj.LSym
+ 	// Wasm
+diff --git a/src/cmd/compile/internal/objw/objw.go b/src/cmd/compile/internal/objw/objw.go
+index 4189337b8f..ec1be325f7 100644
+--- a/src/cmd/compile/internal/objw/objw.go
++++ b/src/cmd/compile/internal/objw/objw.go
+@@ -29,6 +29,14 @@ func Uintptr(s *obj.LSym, off int, v uint64) int {
+ 	return UintN(s, off, v, types.PtrSize)
+ }
+ 
++func Bool(s *obj.LSym, off int, v bool) int {
++	w := 0
++	if v {
++		w = 1
++	}
++	return UintN(s, off, uint64(w), 1)
++}
++
+ // UintN writes an unsigned integer v of size wid bytes into s at offset off,
+ // and returns the next unused offset.
+ func UintN(s *obj.LSym, off int, v uint64, wid int) int {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 56acd05fc2..a438cc7793 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -139,6 +139,7 @@ func InitConfig() {
+ 	ir.Syms.Racereadrange = typecheck.LookupRuntimeFunc("racereadrange")
+ 	ir.Syms.Racewrite = typecheck.LookupRuntimeFunc("racewrite")
+ 	ir.Syms.Racewriterange = typecheck.LookupRuntimeFunc("racewriterange")
++	ir.Syms.TypeAssert = typecheck.LookupRuntimeFunc("typeAssert")
+ 	ir.Syms.WBZero = typecheck.LookupRuntimeFunc("wbZero")
+ 	ir.Syms.WBMove = typecheck.LookupRuntimeFunc("wbMove")
+ 	ir.Syms.X86HasPOPCNT = typecheck.LookupRuntimeVar("x86HasPOPCNT")       // bool
+@@ -6528,7 +6529,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	if n.ITab != nil {
+ 		targetItab = s.expr(n.ITab)
+ 	}
+-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok)
++	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok, n.Descriptor)
+ }
+ 
+ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
+@@ -6546,7 +6547,7 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res,
+ 	} else {
+ 		target = s.expr(n.RType)
+ 	}
+-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok)
++	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok, nil)
+ }
+ 
+ // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
+@@ -6555,7 +6556,9 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res,
+ // target is the *runtime._type of dst.
+ // If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
+ // commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
+-func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
++// descriptor is a compiler-allocated internal/abi.TypeAssert whose address is passed to runtime.typeAssert when
++// the target type is a compile-time-known non-empty interface. It may be nil.
++func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool, descriptor *obj.LSym) (res, resok *ssa.Value) {
+ 	byteptr := s.f.Config.Types.BytePtr
+ 	if dst.IsInterface() {
+ 		if dst.IsEmptyInterface() {
+@@ -6631,26 +6634,66 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
+ 		if base.Debug.TypeAssert > 0 {
+ 			base.WarnfAt(pos, "type assertion not inlined")
+ 		}
+-		var fn *obj.LSym
++
++		itab := s.newValue1(ssa.OpITab, byteptr, iface)
++		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
++
+ 		if commaok {
+-			fn = ir.Syms.AssertI2I2
+-			if src.IsEmptyInterface() {
+-				fn = ir.Syms.AssertE2I2
+-			}
++			// Use a variable to hold the resulting itab. This allows us
++			// to merge a value from the nil and non-nil branches.
++			// (This assignment will be the nil result.)
++			s.vars[typVar] = itab
++		}
++
++		// First, check for nil.
++		bNil := s.f.NewBlock(ssa.BlockPlain)
++		bNonNil := s.f.NewBlock(ssa.BlockPlain)
++		cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.SetControl(cond)
++		b.Likely = ssa.BranchLikely
++		b.AddEdgeTo(bNonNil)
++		b.AddEdgeTo(bNil)
++
++		if !commaok {
++			// Panic if input is nil.
++			s.startBlock(bNil)
++			s.rtcall(ir.Syms.Panicnildottype, false, nil, target)
++		}
++
++		// Get typ, possibly by loading out of itab.
++		s.startBlock(bNonNil)
++		typ := itab
++		if !src.IsEmptyInterface() {
++			typ = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab))
++		}
++
++		// Call into runtime to get itab for result.
++		if descriptor != nil {
++			d := s.newValue1A(ssa.OpAddr, byteptr, descriptor, s.sb)
++			itab = s.rtcall(ir.Syms.TypeAssert, true, []*types.Type{byteptr}, d, typ)[0]
+ 		} else {
+-			fn = ir.Syms.AssertI2I
+-			if src.IsEmptyInterface() {
++			var fn *obj.LSym
++			if commaok {
++				fn = ir.Syms.AssertE2I2
++			} else {
+ 				fn = ir.Syms.AssertE2I
+ 			}
++			itab = s.rtcall(fn, true, []*types.Type{byteptr}, target, typ)[0]
+ 		}
+-		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
+-		tab := s.newValue1(ssa.OpITab, byteptr, iface)
+-		tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
+-		var ok *ssa.Value
++		// Build result.
+ 		if commaok {
+-			ok = s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], tab, s.constNil(byteptr))
++			// Merge the nil result and the runtime call result.
++			s.vars[typVar] = itab
++			b := s.endBlock()
++			b.AddEdgeTo(bNil)
++			s.startBlock(bNil)
++			itab = s.variable(typVar, byteptr)
++			ok := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
++			return s.newValue2(ssa.OpIMake, dst, itab, data), ok
+ 		}
+-		return s.newValue2(ssa.OpIMake, dst, tab, data), ok
++		return s.newValue2(ssa.OpIMake, dst, itab, data), nil
+ 	}
+ 
+ 	if base.Debug.TypeAssert > 0 {
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index ead4a8d219..9f6f0665fc 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -106,11 +106,10 @@ func convTslice(val []uint8) unsafe.Pointer
+ // interface type assertions x.(T)
+ func assertE2I(inter *byte, typ *byte) *byte
+ func assertE2I2(inter *byte, typ *byte) *byte
+-func assertI2I(inter *byte, tab *byte) *byte
+-func assertI2I2(inter *byte, tab *byte) *byte
+ func panicdottypeE(have, want, iface *byte)
+ func panicdottypeI(have, want, iface *byte)
+ func panicnildottype(want *byte)
++func typeAssert(s *byte, typ *byte) *byte
+ 
+ // interface switches
+ func interfaceSwitch(s *byte, t *byte) (int, *byte)
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index d9efa128df..b141f4b0a9 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -96,11 +96,10 @@ var runtimeDecls = [...]struct {
+ 	{"convTslice", funcTag, 68},
+ 	{"assertE2I", funcTag, 69},
+ 	{"assertE2I2", funcTag, 69},
+-	{"assertI2I", funcTag, 69},
+-	{"assertI2I2", funcTag, 69},
+ 	{"panicdottypeE", funcTag, 70},
+ 	{"panicdottypeI", funcTag, 70},
+ 	{"panicnildottype", funcTag, 71},
++	{"typeAssert", funcTag, 69},
+ 	{"interfaceSwitch", funcTag, 72},
+ 	{"ifaceeq", funcTag, 73},
+ 	{"efaceeq", funcTag, 73},
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 45a6e43527..a3caa4db36 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -12,6 +12,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+@@ -724,14 +725,41 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
+ 		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
+ 	}
++	if n.X.Type().IsInterface() && n.Type().IsInterface() && !n.Type().IsEmptyInterface() {
++		// Converting an interface to a non-empty interface. Needs a runtime call.
++		// Allocate an internal/abi.TypeAssert descriptor for that call.
++		lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
++		typeAssertGen++
++		off := 0
++		off = objw.SymPtr(lsym, off, reflectdata.TypeSym(n.Type()).Linksym(), 0)
++		off = objw.Bool(lsym, off, n.Op() == ir.ODOTTYPE2) // CanFail
++		off += types.PtrSize - 1
++		objw.Global(lsym, int32(off), obj.LOCAL|obj.NOPTR)
++		n.Descriptor = lsym
++	}
+ 	return n
+ }
+ 
++var typeAssertGen int
++
+ // walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+ func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+ 	n.RType = walkExpr(n.RType, init)
+ 	n.ITab = walkExpr(n.ITab, init)
++	// Convert to non-dynamic if we can.
++	if n.RType != nil && n.RType.Op() == ir.OADDR {
++		addr := n.RType.(*ir.AddrExpr)
++		if addr.X.Op() == ir.OLINKSYMOFFSET {
++			r := ir.NewTypeAssertExpr(n.Pos(), n.X, n.Type())
++			if n.Op() == ir.ODYNAMICDOTTYPE2 {
++				r.SetOp(ir.ODOTTYPE2)
++			}
++			r.SetType(n.Type())
++			r.SetTypecheck(1)
++			return walkExpr(r, init)
++		}
++	}
+ 	return n
+ }
+ 
+diff --git a/src/internal/abi/switch.go b/src/internal/abi/switch.go
+index 5c1171c2f4..495580f9df 100644
+--- a/src/internal/abi/switch.go
++++ b/src/internal/abi/switch.go
+@@ -42,3 +42,8 @@ func UseInterfaceSwitchCache(goarch string) bool {
+ 		return false
+ 	}
+ }
++
++type TypeAssert struct {
++	Inter   *InterfaceType
++	CanFail bool
++}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 911b86cd37..7a2c257b13 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -417,21 +417,6 @@ func convI2I(dst *interfacetype, src *itab) *itab {
+ 	return getitab(dst, src._type, false)
+ }
+ 
+-func assertI2I(inter *interfacetype, tab *itab) *itab {
+-	if tab == nil {
+-		// explicit conversions require non-nil interface value.
+-		panic(&TypeAssertionError{nil, nil, &inter.Type, ""})
+-	}
+-	return getitab(inter, tab._type, false)
+-}
+-
+-func assertI2I2(inter *interfacetype, tab *itab) *itab {
+-	if tab == nil {
+-		return nil
+-	}
+-	return getitab(inter, tab._type, true)
+-}
+-
+ func assertE2I(inter *interfacetype, t *_type) *itab {
+ 	if t == nil {
+ 		// explicit conversions require non-nil interface value.
+@@ -447,6 +432,19 @@ func assertE2I2(inter *interfacetype, t *_type) *itab {
+ 	return getitab(inter, t, true)
+ }
+ 
++// typeAssert builds an itab for the concrete type t and the
++// interface type s.Inter. If the conversion is not possible it
++// panics if s.CanFail is false and returns nil if s.CanFail is true.
++func typeAssert(s *abi.TypeAssert, t *_type) *itab {
++	if t == nil {
++		if s.CanFail {
++			return nil
++		}
++		panic(&TypeAssertionError{nil, nil, &s.Inter.Type, ""})
++	}
++	return getitab(s.Inter, t, s.CanFail)
++}
++
+ // interfaceSwitch compares t against the list of cases in s.
+ // If t matches case i, interfaceSwitch returns the case index i and
+ // an itab for the pair <t, s.Cases[i]>.

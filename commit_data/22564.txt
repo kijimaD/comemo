@@ -8,9 +8,165 @@ Date:   Fri Mar 13 22:10:48 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/7534
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6l/asm.go           | 53 +++++++++++++++++++++++++++++++++++++++++----
  src/cmd/6l/obj.go           |  4 +++-
  src/cmd/internal/ld/data.go |  9 ++++++--
  src/cmd/internal/ld/pe.go   | 10 ++++++---
  4 files changed, 66 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 3617a95bf5..1df166f100 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -204,10 +204,16 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 	switch r.Type {
+ 	case ld.R_CALL,
+ 		ld.R_PCREL:
+-		addpltsym(targ)
+-		r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
+-		r.Add = int64(targ.Plt)
+-		return
++		if ld.HEADTYPE == ld.Hwindows {
++			// nothing to do, the relocation will be laid out in pereloc1
++			return
++		} else {
++			// for both ELF and Mach-O
++			addpltsym(targ)
++			r.Sym = ld.Linklookup(ld.Ctxt, ".plt", 0)
++			r.Add = int64(targ.Plt)
++			return
++		}
+ 
+ 	case ld.R_ADDR:
+ 		if s.Type == ld.STEXT && ld.Iself {
+@@ -262,6 +268,11 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			r.Type = 256 // ignore during relocsym
+ 			return
+ 		}
++
++		if ld.HEADTYPE == ld.Hwindows {
++			// nothing to do, the relocation will be laid out in pereloc1
++			return
++		}
+ 	}
+ 
+ 	ld.Ctxt.Cursym = s
+@@ -393,6 +404,40 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 	return 0
+ }
+ 
++func pereloc1(r *ld.Reloc, sectoff int64) bool {
++	var v uint32
++
++	rs := r.Xsym
++
++	if rs.Dynid < 0 {
++		ld.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
++		return false
++	}
++
++	ld.Thearch.Lput(uint32(sectoff))
++	ld.Thearch.Lput(uint32(rs.Dynid))
++
++	switch r.Type {
++	default:
++		return false
++
++	case ld.R_ADDR:
++		if r.Siz == 8 {
++			v = ld.IMAGE_REL_AMD64_ADDR64
++		} else {
++			v = ld.IMAGE_REL_AMD64_ADDR32
++		}
++
++	case ld.R_CALL,
++		ld.R_PCREL:
++		v = ld.IMAGE_REL_AMD64_REL32
++	}
++
++	ld.Thearch.Wput(uint16(v))
++
++	return true
++}
++
+ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 	return -1
+ }
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index e8c93c90fb..f7165ab05e 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -71,6 +71,7 @@ func linkarchinit() {
+ 	ld.Thearch.Elfsetupplt = elfsetupplt
+ 	ld.Thearch.Gentext = gentext
+ 	ld.Thearch.Machoreloc1 = machoreloc1
++	ld.Thearch.PEreloc1 = pereloc1
+ 	ld.Thearch.Lput = ld.Lputl
+ 	ld.Thearch.Wput = ld.Wputl
+ 	ld.Thearch.Vput = ld.Vputl
+@@ -110,7 +111,8 @@ func archinit() {
+ 		ld.Hnacl,
+ 		ld.Hnetbsd,
+ 		ld.Hopenbsd,
+-		ld.Hsolaris:
++		ld.Hsolaris,
++		ld.Hwindows:
+ 		break
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 196b13efb4..b7de5af9fb 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -499,8 +499,13 @@ func relocsym(s *LSym) {
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+-				} else if HEADTYPE == Hwindows {
+-					// nothing to do
++				} else if HEADTYPE == Hwindows && Thearch.Thechar == '6' { // only amd64 needs PCREL
++					// PE/COFF's PC32 relocation uses the address after the relocated
++					// bytes as the base. Compensate by skewing the addend.
++					o += int64(r.Siz)
++					// GNU ld always add VirtualAddress of the .text section to the
++					// relocated address, compensate that.
++					o -= int64(s.Sect.(*Section).Vaddr - PEBASE)
+ 				} else {
+ 					Diag("unhandled pcrel relocation for %s", headstring)
+ 				}
+diff --git a/src/cmd/internal/ld/pe.go b/src/cmd/internal/ld/pe.go
+index 4116f358b9..8df5ca44cd 100644
+--- a/src/cmd/internal/ld/pe.go
++++ b/src/cmd/internal/ld/pe.go
+@@ -532,7 +532,8 @@ func initdynimport() *Dll {
+ 				m.s.Type = SDATA
+ 				Symgrow(Ctxt, m.s, int64(Thearch.Ptrsize))
+ 				dynName := m.s.Extname
+-				if m.argsize >= 0 {
++				// only windows/386 requires stdcall decoration
++				if Thearch.Thechar == '8' && m.argsize >= 0 {
+ 					dynName += fmt.Sprintf("@%d", m.argsize)
+ 				}
+ 				dynSym := Linklookup(Ctxt, dynName, 0)
+@@ -955,7 +956,8 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int,
+ 	}
+ 
+ 	if coffsym != nil {
+-		if Linkmode == LinkExternal && (s.Type == SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
++		// only windows/386 requires underscore prefix on external symbols
++		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
+ 			s.Name = "_" + s.Name
+ 		}
+ 		cs := &coffsym[ncoffsym]
+@@ -963,7 +965,9 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int,
+ 		if len(s.Name) > 8 {
+ 			cs.strtbloff = strtbladd(s.Name)
+ 		}
+-		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && Linkmode == LinkExternal {
++		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
++		// it still belongs to the .data section, not the .bss section.
++		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != SDATA && Linkmode == LinkExternal {
+ 			cs.value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
+ 			cs.sect = bsssect
+ 		} else if uint64(s.Value) >= Segdata.Vaddr {

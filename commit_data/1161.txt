@@ -8,10 +8,412 @@ Date:   Tue Nov 18 16:13:25 2008 -0800
     DELTA=145  (27 added, 27 deleted, 91 changed)
     OCL=19423
     CL=19502
-
+---
  src/lib/strconv/test.bash   |  13 +----
  src/lib/strconv/testatof.go | 137 +++++++++++++++++++++-----------------------
  src/lib/strconv/testfp.go   |  42 ++++++--------
  src/lib/strconv/testftoa.go |  22 ++++---
  src/lib/strconv/testing.go  |  26 +++++++++
  5 files changed, 122 insertions(+), 118 deletions(-)
+
+diff --git a/src/lib/strconv/test.bash b/src/lib/strconv/test.bash
+index 5da7772498..ad5576a9df 100755
+--- a/src/lib/strconv/test.bash
++++ b/src/lib/strconv/test.bash
+@@ -8,13 +8,6 @@ set -x
+ 
+ make clean
+ make
+-6g testatof.go
+-6l testatof.6
+-6.out
+-6g testftoa.go
+-6l testftoa.6
+-6.out
+-6g testfp.go
+-6l testfp.6
+-6.out
+-rm -f *.6 6.out
++# make test
++# ./test
++# rm -f *.6 6.out test
+diff --git a/src/lib/strconv/testatof.go b/src/lib/strconv/testatof.go
+index f17e6307d5..30bc8e953e 100644
+--- a/src/lib/strconv/testatof.go
++++ b/src/lib/strconv/testatof.go
+@@ -2,109 +2,100 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
+-
+-import "strconv"
++package strconv
++import (
++	"fmt";
++	"os";
++	"strconv"
++)
+ 
+ type Test struct {
+ 	in string;
+ 	out string;
++	err *os.Error;
+ }
+ 
+ var tests = []Test {
+-	Test{ "1", "1" },
+-	Test{ "1e23", "1e+23" },
+-	Test{ "100000000000000000000000", "1e+23" },
+-	Test{ "1e-100", "1e-100" },
+-	Test{ "123456700", "1.234567e+08" },
+-	Test{ "99999999999999974834176", "9.999999999999997e+22" },
+-	Test{ "100000000000000000000001", "1.0000000000000001e+23" },
+-	Test{ "100000000000000008388608", "1.0000000000000001e+23" },
+-	Test{ "100000000000000016777215", "1.0000000000000001e+23" },
+-	Test{ "100000000000000016777216", "1.0000000000000003e+23" },
+-	Test{ "-1", "-1" },
+-	Test{ "-0", "0" },
+-	Test{ "1e-20", "1e-20" },
++	Test{ "1", "1", nil },
++	Test{ "1e23", "1e+23", nil },
++	Test{ "100000000000000000000000", "1e+23", nil },
++	Test{ "1e-100", "1e-100", nil },
++	Test{ "123456700", "1.234567e+08", nil },
++	Test{ "99999999999999974834176", "9.999999999999997e+22", nil },
++	Test{ "100000000000000000000001", "1.0000000000000001e+23", nil },
++	Test{ "100000000000000008388608", "1.0000000000000001e+23", nil },
++	Test{ "100000000000000016777215", "1.0000000000000001e+23", nil },
++	Test{ "100000000000000016777216", "1.0000000000000003e+23", nil },
++	Test{ "-1", "-1", nil },
++	Test{ "-0", "0", nil },
++	Test{ "1e-20", "1e-20", nil },
+ 
+ 	// largest float64
+-	Test{ "1.7976931348623157e308", "1.7976931348623157e+308" },
+-	Test{ "-1.7976931348623157e308", "-1.7976931348623157e+308" },
++	Test{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
++	Test{ "-1.7976931348623157e308", "-1.7976931348623157e+308", nil },
+ 	// next float64 - too large
+-	Test{ "1.7976931348623159e308", "+Inf" },
+-	Test{ "-1.7976931348623159e308", "-Inf" },
++	Test{ "1.7976931348623159e308", "+Inf", os.ERANGE },
++	Test{ "-1.7976931348623159e308", "-Inf", os.ERANGE },
+ 	// the border is ...158079
+ 	// borderline - okay
+-	Test{ "1.7976931348623158e308", "1.7976931348623157e+308" },
+-	Test{ "-1.7976931348623158e308", "-1.7976931348623157e+308" },
++	Test{ "1.7976931348623158e308", "1.7976931348623157e+308", nil },
++	Test{ "-1.7976931348623158e308", "-1.7976931348623157e+308", nil },
+ 	// borderline - too large
+-	Test{ "1.797693134862315808e308", "+Inf" },
+-	Test{ "-1.797693134862315808e308", "-Inf" },
++	Test{ "1.797693134862315808e308", "+Inf", os.ERANGE },
++	Test{ "-1.797693134862315808e308", "-Inf", os.ERANGE },
+ 
+ 	// a little too large
+-	Test{ "1e308", "1e+308" },
+-	Test{ "2e308", "+Inf" },
+-	Test{ "1e309", "+Inf" },
++	Test{ "1e308", "1e+308", nil },
++	Test{ "2e308", "+Inf", os.ERANGE },
++	Test{ "1e309", "+Inf", os.ERANGE },
+ 
+ 	// way too large
+-	Test{ "1e310", "+Inf" },
+-	Test{ "-1e310", "-Inf" },
+-	Test{ "1e400", "+Inf" },
+-	Test{ "-1e400", "-Inf" },
+-	Test{ "1e400000", "+Inf" },
+-	Test{ "-1e400000", "-Inf" },
++	Test{ "1e310", "+Inf", os.ERANGE },
++	Test{ "-1e310", "-Inf", os.ERANGE },
++	Test{ "1e400", "+Inf", os.ERANGE },
++	Test{ "-1e400", "-Inf", os.ERANGE },
++	Test{ "1e400000", "+Inf", os.ERANGE },
++	Test{ "-1e400000", "-Inf", os.ERANGE },
+ 
+ 	// denormalized
+-	Test{ "1e-305", "1e-305" },
+-	Test{ "1e-306", "1e-306" },
+-	Test{ "1e-307", "1e-307" },
+-	Test{ "1e-308", "1e-308" },
+-	Test{ "1e-309", "1e-309" },
+-	Test{ "1e-310", "1e-310" },
+-	Test{ "1e-322", "1e-322" },
++	Test{ "1e-305", "1e-305", nil },
++	Test{ "1e-306", "1e-306", nil },
++	Test{ "1e-307", "1e-307", nil },
++	Test{ "1e-308", "1e-308", nil },
++	Test{ "1e-309", "1e-309", nil },
++	Test{ "1e-310", "1e-310", nil },
++	Test{ "1e-322", "1e-322", nil },
+ 	// smallest denormal
+-	Test{ "5e-324", "5e-324" },
++	Test{ "5e-324", "5e-324", nil },
+ 	// too small
+-	Test{ "4e-324", "0" },
++	Test{ "4e-324", "0", nil },
+ 	// way too small
+-	Test{ "1e-350", "0" },
+-	Test{ "1e-400000", "0" },
++	Test{ "1e-350", "0", nil },
++	Test{ "1e-400000", "0", nil },
+ 
+ 	// try to overflow exponent
+-	Test{ "1e-4294967296", "0" },
+-	Test{ "1e+4294967296", "+Inf" },
+-	Test{ "1e-18446744073709551616", "0" },
+-	Test{ "1e+18446744073709551616", "+Inf" },
++	Test{ "1e-4294967296", "0", nil },
++	Test{ "1e+4294967296", "+Inf", os.ERANGE },
++	Test{ "1e-18446744073709551616", "0", nil },
++	Test{ "1e+18446744073709551616", "+Inf", os.ERANGE },
+ 
+ 	// Parse errors
+-	Test{ "1e", "error" },
+-	Test{ "1e-", "error" },
+-	Test{ ".e-1", "error" },
++	Test{ "1e", "0", os.EINVAL },
++	Test{ "1e-", "0", os.EINVAL },
++	Test{ ".e-1", "0", os.EINVAL },
+ }
+ 
+-func main() {
+-	bad := 0;
++export func TestAtof() bool {
++	ok := true;
+ 	for i := 0; i < len(tests); i++ {
+ 		t := &tests[i];
+-		f, overflow, ok := strconv.atof64(t.in);
+-		if !ok && t.out == "error" {
+-			continue;
+-		}
+-		if !ok {
+-			panicln("test:", t.in, "failed to parse");
+-		}
+-		if overflow && !sys.isInf(f, 0) {
+-			panicln("overflow but not inf:", t.in, f);
++		out, err := strconv.atof64(t.in);
++		outs := strconv.ftoa64(out, 'g', -1);
++		if outs != t.out || err != t.err {
++			fmt.printf("strconv.atof64(%v) = %v, %v want %v, %v\n",
++				t.in, out, err, t.out, t.err);
++			ok = false;
+ 		}
+-		if sys.isInf(f, 0) && !overflow {
+-			panicln("inf but not overflow:", t.in, f);
+-		}
+-		s := strconv.ftoa64(f, 'g', -1);
+-		if s != t.out {
+-			println("test", t.in, "want", t.out, "got", s);
+-			bad++;
+-		}
+-	}
+-	if bad != 0 {
+-		panic("failed");
+ 	}
++	return ok;
+ }
+diff --git a/src/lib/strconv/testfp.go b/src/lib/strconv/testfp.go
+index 65428b9777..0518c528a8 100644
+--- a/src/lib/strconv/testfp.go
++++ b/src/lib/strconv/testfp.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
+-
++package strconv
+ import (
+ 	"bufio";
+ 	"fmt";
+@@ -26,15 +25,15 @@ func pow2(i int) float64 {
+ 
+ // Wrapper around strconv.atof64.  Handles dddddp+ddd (binary exponent)
+ // itself, passes the rest on to strconv.atof64.
+-func atof64(s string) (f float64, ok bool) {
++func myatof64(s string) (f float64, ok bool) {
+ 	a := strings.split(s, "p");
+ 	if len(a) == 2 {
+-		n, ok := strconv.atoi64(a[0]);
+-		if !ok {
++		n, err := strconv.atoi64(a[0]);
++		if err != nil {
+ 			return 0, false;
+ 		}
+-		e, ok1 := strconv.atoi(a[1]);
+-		if !ok1 {
++		e, err1 := strconv.atoi(a[1]);
++		if err1 != nil {
+ 			println("bad e", a[1]);
+ 			return 0, false;
+ 		}
+@@ -61,8 +60,8 @@ func atof64(s string) (f float64, ok bool) {
+ 		}
+ 		return v*pow2(e), true;
+ 	}
+-	f1, overflow, ok1 := strconv.atof64(s);
+-	if !ok1 {
++	f1, err := strconv.atof64(s);
++	if err != nil {
+ 		return 0, false;
+ 	}
+ 	return f1, true;
+@@ -70,30 +69,29 @@ func atof64(s string) (f float64, ok bool) {
+ 
+ // Wrapper around strconv.atof32.  Handles dddddp+ddd (binary exponent)
+ // itself, passes the rest on to strconv.atof32.
+-func atof32(s string) (f float32, ok bool) {
++func myatof32(s string) (f float32, ok bool) {
+ 	a := strings.split(s, "p");
+ 	if len(a) == 2 {
+-		n, ok := strconv.atoi(a[0]);
+-		if !ok {
++		n, err := strconv.atoi(a[0]);
++		if err != nil {
+ 			println("bad n", a[0]);
+ 			return 0, false;
+ 		}
+-		e, ok1 := strconv.atoi(a[1]);
+-		if !ok1 {
++		e, err1 := strconv.atoi(a[1]);
++		if err1 != nil {
+ 			println("bad p", a[1]);
+ 			return 0, false;
+ 		}
+ 		return float32(float64(n)*pow2(e)), true;
+ 	}
+-	f1, overflow, ok1 := strconv.atof32(s);
+-	if !ok1 {
++	f1, err1 := strconv.atof32(s);
++	if err1 != nil {
+ 		return 0, false;
+ 	}
+ 	return f1, true;
+ }
+ 
+-func main()
+-{
++export func TestFp() bool {
+ 	fd, err := os.Open("testfp.txt", os.O_RDONLY, 0);
+ 	if err != nil {
+ 		panicln("testfp: open testfp.txt:", err.String());
+@@ -128,14 +126,14 @@ func main()
+ 		switch a[0] {
+ 		case "float64":
+ 			var ok bool;
+-			v, ok = atof64(a[2]);
++			v, ok = myatof64(a[2]);
+ 			if !ok {
+ 				print("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
+ 				continue;
+ 			}
+ 			s = fmt.sprintf(a[1], v);
+ 		case "float32":
+-			v1, ok := atof32(a[2]);
++			v1, ok := myatof32(a[2]);
+ 			if !ok {
+ 				print("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
+ 				continue;
+@@ -150,7 +148,5 @@ func main()
+ 		}
+ //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
+ 	}
+-	if !ok {
+-		panicln("testfp failed");
+-	}
++	return ok;
+ }
+diff --git a/src/lib/strconv/testftoa.go b/src/lib/strconv/testftoa.go
+index 2d72bf42e2..dc4da7ae0d 100644
+--- a/src/lib/strconv/testftoa.go
++++ b/src/lib/strconv/testftoa.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
+-
++package strconv
+ import "strconv"
+ 
+ type Test struct {
+@@ -13,7 +12,8 @@ type Test struct {
+ 	s string;
+ }
+ 
+-var tests = []Test {
++// TODO: Should be able to call this tests but it conflicts with testatof.go
++var ftests = []Test {
+ 	Test{ 1, 'e', 5, "1.00000e+00" },
+ 	Test{ 1, 'f', 5, "1.00000" },
+ 	Test{ 1, 'g', 5, "1" },
+@@ -70,27 +70,25 @@ var tests = []Test {
+ 	Test{ 32, 'g', -1, "32" },
+ }
+ 
+-func main() {
+-	bad := 0;
++export func TestFtoa() bool {
++	ok := true;
+ 	if strconv.floatsize != 32 {
+ 		panic("floatsize: ", strconv.floatsize);
+ 	}
+-	for i := 0; i < len(tests); i++ {
+-		t := &tests[i];
++	for i := 0; i < len(ftests); i++ {
++		t := &ftests[i];
+ 		s := strconv.ftoa64(t.f, t.fmt, t.prec);
+ 		if s != t.s {
+ 			println("test", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
+-			bad++;
++			ok = false;
+ 		}
+ 		if float64(float32(t.f)) == t.f {
+ 			s := strconv.ftoa32(float32(t.f), t.fmt, t.prec);
+ 			if s != t.s {
+ 				println("test32", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
+-				bad++;
++				ok = false;
+ 			}
+ 		}	
+ 	}
+-	if bad != 0 {
+-		panic("failed");
+-	}
++	return ok;
+ }
+diff --git a/src/lib/strconv/testing.go b/src/lib/strconv/testing.go
+new file mode 100644
+index 0000000000..121baca888
+--- /dev/null
++++ b/src/lib/strconv/testing.go
+@@ -0,0 +1,26 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++export type Test struct {
++	name string;
++	f *() bool;
++}
++
++export func Main(tests *[]Test) {
++	ok := true;
++	for i := 0; i < len(tests); i++ {
++		ok1 := tests[i].f();
++		status := "FAIL";
++		if ok1 {
++			status = "PASS"
++		}
++		ok = ok && ok1;
++		println(status, tests[i].name);
++	}
++	if !ok {
++		sys.exit(1);
++	}
++}

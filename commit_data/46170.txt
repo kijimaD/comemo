@@ -21,7 +21,7 @@ Date:   Fri Dec 11 16:45:28 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/fix/fix.go    | 14 +++++++++-
  src/cmd/go/internal/get/get.go    |  7 +++--
  src/cmd/go/internal/list/list.go  | 17 ++++++++----
@@ -31,3 +31,265 @@ Date:   Fri Dec 11 16:45:28 2020 -0500
  src/cmd/go/internal/vet/vet.go    |  3 +-
  src/cmd/go/internal/work/build.go | 11 +++++---
  8 files changed, 65 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 825624fcbb..c7588c66d3 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -33,8 +33,20 @@ See also: go fmt, go vet.
+ }
+ 
+ func runFix(ctx context.Context, cmd *base.Command, args []string) {
++	pkgs := load.PackagesAndErrors(ctx, args)
++	w := 0
++	for _, pkg := range pkgs {
++		if pkg.Error != nil {
++			base.Errorf("%v", pkg.Error)
++			continue
++		}
++		pkgs[w] = pkg
++		w++
++	}
++	pkgs = pkgs[:w]
++
+ 	printed := false
+-	for _, pkg := range load.Packages(ctx, args) {
++	for _, pkg := range pkgs {
+ 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not fixing packages in dependency modules\n")
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 268962eca8..94a42c4f73 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -180,13 +180,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// everything.
+ 	load.ClearPackageCache()
+ 
+-	pkgs := load.PackagesForBuild(ctx, args)
++	pkgs := load.PackagesAndErrors(ctx, args)
++	load.CheckPackageErrors(pkgs)
+ 
+ 	// Phase 3. Install.
+ 	if *getD {
+ 		// Download only.
+-		// Check delayed until now so that importPaths
+-		// and packagesForBuild have a chance to print errors.
++		// Check delayed until now so that downloadPaths
++		// and CheckPackageErrors have a chance to print errors.
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 9af9dbb856..ce6f579c05 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -471,11 +471,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	load.IgnoreImports = *listFind
+-	var pkgs []*load.Package
+-	if *listE {
+-		pkgs = load.PackagesAndErrors(ctx, args)
+-	} else {
+-		pkgs = load.Packages(ctx, args)
++	pkgs := load.PackagesAndErrors(ctx, args)
++	if !*listE {
++		w := 0
++		for _, pkg := range pkgs {
++			if pkg.Error != nil {
++				base.Errorf("%v", pkg.Error)
++				continue
++			}
++			pkgs[w] = pkg
++			w++
++		}
++		pkgs = pkgs[:w]
+ 		base.ExitIfErrors()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 6f95af4f7e..855f9698a2 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2314,30 +2314,14 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
+ // argument where needed.
+ var ModResolveTests bool
+ 
+-// Packages returns the packages named by the
+-// command line arguments 'args'. If a named package
+-// cannot be loaded at all (for example, if the directory does not exist),
+-// then packages prints an error and does not include that
+-// package in the results. However, if errors occur trying
+-// to load dependencies of a named package, the named
+-// package is still returned, with p.Incomplete = true
+-// and details in p.DepsErrors.
+-func Packages(ctx context.Context, args []string) []*Package {
+-	var pkgs []*Package
+-	for _, pkg := range PackagesAndErrors(ctx, args) {
+-		if pkg.Error != nil {
+-			base.Errorf("%v", pkg.Error)
+-			continue
+-		}
+-		pkgs = append(pkgs, pkg)
+-	}
+-	return pkgs
+-}
+-
+-// PackagesAndErrors is like 'packages' but returns a
+-// *Package for every argument, even the ones that
+-// cannot be loaded at all.
+-// The packages that fail to load will have p.Error != nil.
++// PackagesAndErrors returns the packages named by the command line arguments
++// 'patterns'. If a named package cannot be loaded, PackagesAndErrors returns
++// a *Package with the Error field describing the failure. If errors are found
++// loading imported packages, the DepsErrors field is set. The Incomplete field
++// may be set as well.
++//
++// To obtain a flat list of packages, use PackageList.
++// To report errors loading packages, use ReportPackageErrors.
+ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+ 	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
+ 	defer span.Done()
+@@ -2427,20 +2411,9 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+ 	return pkgs
+ }
+ 
+-func setToolFlags(pkgs ...*Package) {
+-	for _, p := range PackageList(pkgs) {
+-		p.Internal.Asmflags = BuildAsmflags.For(p)
+-		p.Internal.Gcflags = BuildGcflags.For(p)
+-		p.Internal.Ldflags = BuildLdflags.For(p)
+-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+-	}
+-}
+-
+-// PackagesForBuild is like Packages but exits
+-// if any of the packages or their dependencies have errors
+-// (cannot be built).
+-func PackagesForBuild(ctx context.Context, args []string) []*Package {
+-	pkgs := PackagesAndErrors(ctx, args)
++// CheckPackageErrors prints errors encountered loading pkgs and their
++// dependencies, then exits with a non-zero status if any errors were found.
++func CheckPackageErrors(pkgs []*Package) {
+ 	printed := map[*PackageError]bool{}
+ 	for _, pkg := range pkgs {
+ 		if pkg.Error != nil {
+@@ -2475,8 +2448,15 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
+ 		seen[pkg.ImportPath] = true
+ 	}
+ 	base.ExitIfErrors()
++}
+ 
+-	return pkgs
++func setToolFlags(pkgs ...*Package) {
++	for _, p := range PackageList(pkgs) {
++		p.Internal.Asmflags = BuildAsmflags.For(p)
++		p.Internal.Gcflags = BuildGcflags.For(p)
++		p.Internal.Ldflags = BuildLdflags.For(p)
++		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
++	}
+ }
+ 
+ // GoFilesPackage creates a package for building a collection of Go files
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index e5f55879ee..8463ec4e9c 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -434,11 +434,13 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// directory.
+ 	if !*getD && len(pkgPatterns) > 0 {
+ 		work.BuildInit()
+-		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
++		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
++		load.CheckPackageErrors(pkgs)
+ 		work.InstallPackages(ctx, pkgPatterns, pkgs)
+ 		// TODO(#40276): After Go 1.16, print a deprecation notice when building
+ 		// and installing main packages. 'go install pkg' or
+ 		// 'go install pkg@version' should be used instead.
++		// Give the specific argument to use if possible.
+ 	}
+ 
+ 	if !modload.HasModRoot() {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index e8a7aacb85..50fe2dbf39 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -595,7 +595,8 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	work.VetFlags = testVet.flags
+ 	work.VetExplicit = testVet.explicit
+ 
+-	pkgs = load.PackagesForBuild(ctx, pkgArgs)
++	pkgs = load.PackagesAndErrors(ctx, pkgArgs)
++	load.CheckPackageErrors(pkgs)
+ 	if len(pkgs) == 0 {
+ 		base.Fatalf("no packages to test")
+ 	}
+@@ -678,7 +679,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		sort.Strings(all)
+ 
+ 		a := &work.Action{Mode: "go test -i"}
+-		for _, p := range load.PackagesForBuild(ctx, all) {
++		pkgs := load.PackagesAndErrors(ctx, all)
++		load.CheckPackageErrors(pkgs)
++		for _, p := range pkgs {
+ 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
+ 				// gccgo's standard library packages
+ 				// can not be reinstalled.
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index b1bf806e46..4257c90c97 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -87,7 +87,8 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	pkgs := load.PackagesForBuild(ctx, pkgArgs)
++	pkgs := load.PackagesAndErrors(ctx, pkgArgs)
++	load.CheckPackageErrors(pkgs)
+ 	if len(pkgs) == 0 {
+ 		base.Fatalf("no packages to vet")
+ 	}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index be5532d7aa..1f99ed6e07 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -369,7 +369,8 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	var b Builder
+ 	b.Init()
+ 
+-	pkgs := load.PackagesForBuild(ctx, args)
++	pkgs := load.PackagesAndErrors(ctx, args)
++	load.CheckPackageErrors(pkgs)
+ 
+ 	explicitO := len(cfg.BuildO) > 0
+ 
+@@ -399,7 +400,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
+ 	}
+ 
+-	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
++	pkgs = omitTestOnly(pkgsFilter(pkgs))
+ 
+ 	// Special case -o /dev/null by not writing at all.
+ 	if cfg.BuildO == os.DevNull {
+@@ -583,7 +584,8 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 	BuildInit()
+-	pkgs := load.PackagesForBuild(ctx, args)
++	pkgs := load.PackagesAndErrors(ctx, args)
++	load.CheckPackageErrors(pkgs)
+ 	if cfg.BuildI {
+ 		allGoroot := true
+ 		for _, pkg := range pkgs {
+@@ -824,7 +826,8 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 
+ 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
+ 	// matched by a pattern.
+-	pkgs := load.PackagesForBuild(ctx, patterns)
++	pkgs := load.PackagesAndErrors(ctx, patterns)
++	load.CheckPackageErrors(pkgs)
+ 	mainPkgs := make([]*load.Package, 0, len(pkgs))
+ 	mainCount := make([]int, len(patterns))
+ 	nonMainCount := make([]int, len(patterns))

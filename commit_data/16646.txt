@@ -7,7 +7,51 @@ Date:   Wed Jun 26 18:05:02 2013 +0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10468043
-
+---
  test/const6.go               | 12 ++++++------
  test/fixedbugs/issue4085a.go | 10 +++++-----
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/test/const6.go b/test/const6.go
+index c04435db63..c005ac3696 100644
+--- a/test/const6.go
++++ b/test/const6.go
+@@ -19,12 +19,12 @@ var (
+ 	c4 mybool = c2 == (1 < 2)
+ 	c5 mybool = 1 < 2
+ 	c6 mybool1 = x < y
+-	c7 = c1 == c2 // ERROR "mismatched types"
+-	c8 = c2 == c6 // ERROR "mismatched types"
+-	c9 = c1 == c6 // ERROR "mismatched types"
++	c7 = c1 == c2 // ERROR "mismatched types|incompatible types"
++	c8 = c2 == c6 // ERROR "mismatched types|incompatible types"
++	c9 = c1 == c6 // ERROR "mismatched types|incompatible types"
+ 	_ = c2 && (x < y)
+ 	_ = c2 && (1 < 2)
+-	_ = c1 && c2 // ERROR "mismatched types"
+-	_ = c2 && c6 // ERROR "mismatched types"
+-	_ = c1 && c6 // ERROR "mismatched types"
++	_ = c1 && c2 // ERROR "mismatched types|incompatible types"
++	_ = c2 && c6 // ERROR "mismatched types|incompatible types"
++	_ = c1 && c6 // ERROR "mismatched types|incompatible types"
+ )
+diff --git a/test/fixedbugs/issue4085a.go b/test/fixedbugs/issue4085a.go
+index 8a52b268ff..089637d86b 100644
+--- a/test/fixedbugs/issue4085a.go
++++ b/test/fixedbugs/issue4085a.go
+@@ -9,10 +9,10 @@ package main
+ type T []int
+ 
+ func main() {
+-	_ = make(T, -1)       // ERROR "negative"
+-	_ = make(T, 0.5)       // ERROR "constant 0.5 truncated to integer"
+-	_ = make(T, 1.0)       // ok
+-	_ = make(T, 1<<63)  // ERROR "len argument too large"
+-	_ = make(T, 0, -1)    // ERROR "negative cap"
++	_ = make(T, -1)    // ERROR "negative"
++	_ = make(T, 0.5)   // ERROR "constant 0.5 truncated to integer|non-integer len argument"
++	_ = make(T, 1.0)   // ok
++	_ = make(T, 1<<63) // ERROR "len argument too large"
++	_ = make(T, 0, -1) // ERROR "negative cap"
+ 	_ = make(T, 10, 0) // ERROR "len larger than cap"
+ }

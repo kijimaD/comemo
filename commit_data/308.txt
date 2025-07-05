@@ -5,6 +5,28 @@ Date:   Tue Jul 8 14:52:48 2008 -0700
     add a disclaimer
     
     SVN=126379
-
+---
  doc/go_lang.txt | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index eccb673517..73acfb76bc 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -4,13 +4,15 @@ The Go Programming Language (DRAFT)
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+ ----
+-(July 7, 2008)
++(July 8, 2008)
+ 
+ This document is a semi-formal specification/proposal for a new
+ systems programming language.  The document is under active
+ development; any piece may change substantially as design progresses;
+ also there remain a number of unresolved issues.
+ 
++This draft document is unpublished and under active development.
++It is not ready for external review.
+ 
+ Guiding principles
+ ----

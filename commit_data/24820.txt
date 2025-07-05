@@ -9,9 +9,89 @@ Date:   Sun Aug 30 23:56:40 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go       | 2 +-
  src/cmd/compile/internal/gc/go.go        | 2 +-
  src/cmd/compile/internal/gc/lex.go       | 8 ++++----
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 99f29f4830..157f525b19 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -182,7 +182,7 @@ func declare(n *Node, ctxt uint8) {
+ 	s := n.Sym
+ 
+ 	// kludgy: typecheckok means we're past parsing.  Eg genwrapper may declare out of package names later.
+-	if importpkg == nil && typecheckok == 0 && s.Pkg != localpkg {
++	if importpkg == nil && !typecheckok && s.Pkg != localpkg {
+ 		Yyerror("cannot declare name %v", s)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index b692fc826c..8c7328fa4b 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -638,7 +638,7 @@ var thunk int32
+ 
+ var Funcdepth int32
+ 
+-var typecheckok int
++var typecheckok bool
+ 
+ var compiling_runtime int
+ 
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 863fa8860b..3fab3582ed 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -360,7 +360,7 @@ func Main() {
+ 	mkpackage(localpkg.Name) // final import not used checks
+ 	lexfini()
+ 
+-	typecheckok = 1
++	typecheckok = true
+ 	if Debug['f'] != 0 {
+ 		frame(1)
+ 	}
+@@ -799,7 +799,7 @@ func importfile(f *Val, line int) {
+ 	curio.peekc1 = 0
+ 	curio.infile = file
+ 	curio.nlsemi = 0
+-	typecheckok = 1
++	typecheckok = true
+ 
+ 	var c int32
+ 	for {
+@@ -836,7 +836,7 @@ func unimportfile() {
+ 
+ 	pushedio.bin = nil
+ 	incannedimport = 0
+-	typecheckok = 0
++	typecheckok = false
+ }
+ 
+ func cannedimports(file string, cp string) {
+@@ -852,7 +852,7 @@ func cannedimports(file string, cp string) {
+ 	curio.nlsemi = 0
+ 	curio.importsafe = false
+ 
+-	typecheckok = 1
++	typecheckok = true
+ 	incannedimport = 1
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 502c62c252..ff394f4f5e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -118,7 +118,7 @@ var typecheck_tcfree *NodeList
+ 
+ func typecheck(np **Node, top int) *Node {
+ 	// cannot type check until all the source has been parsed
+-	if typecheckok == 0 {
++	if !typecheckok {
+ 		Fatalf("early typecheck")
+ 	}
+ 

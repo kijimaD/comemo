@@ -12,6 +12,20 @@ Date:   Fri Aug 2 14:50:23 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/mime/encodedword.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 856433f8f3..c4afad043a 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -226,7 +226,7 @@ func (d *WordDecoder) Decode(word string) (string, error) {
+ }
+ 
+ // DecodeHeader decodes all encoded-words of the given string. It returns an
+-// error if and only if WordDecoder.CharsetReader of d returns an error.
++// error if and only if [WordDecoder.CharsetReader] of d returns an error.
+ func (d *WordDecoder) DecodeHeader(header string) (string, error) {
+ 	// If there is no encoded-word, returns before creating a buffer.
+ 	i := strings.Index(header, "=?")

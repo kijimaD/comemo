@@ -12,6 +12,19 @@ Date:   Sun Oct 29 22:57:22 2023 +0800
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/cookiejar/jar.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 273b54c84c..46d1193951 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -440,7 +440,6 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
+ var (
+ 	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
+ 	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
+-	errNoHostname      = errors.New("cookiejar: no host name available (IP only)")
+ )
+ 
+ // endOfTime is the time when session (non-persistent) cookies expire.

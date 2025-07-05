@@ -18,7 +18,42 @@ Date:   Mon Jul 18 17:33:05 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/testdata/unsafeptr.go | 4 +++-
  src/cmd/vet/unsafeptr.go          | 2 +-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/unsafeptr.go b/src/cmd/vet/testdata/unsafeptr.go
+index e04856e234..ce852009ea 100644
+--- a/src/cmd/vet/testdata/unsafeptr.go
++++ b/src/cmd/vet/testdata/unsafeptr.go
+@@ -15,13 +15,15 @@ func f() {
+ 	x = unsafe.Pointer(y) // ERROR "possible misuse of unsafe.Pointer"
+ 	y = uintptr(x)
+ 
+-	// only allowed pointer arithmetic is ptr +/- num.
++	// only allowed pointer arithmetic is ptr +/-/&^ num.
+ 	// num+ptr is technically okay but still flagged: write ptr+num instead.
+ 	x = unsafe.Pointer(uintptr(x) + 1)
+ 	x = unsafe.Pointer(1 + uintptr(x))          // ERROR "possible misuse of unsafe.Pointer"
+ 	x = unsafe.Pointer(uintptr(x) + uintptr(x)) // ERROR "possible misuse of unsafe.Pointer"
+ 	x = unsafe.Pointer(uintptr(x) - 1)
+ 	x = unsafe.Pointer(1 - uintptr(x)) // ERROR "possible misuse of unsafe.Pointer"
++	x = unsafe.Pointer(uintptr(x) &^ 3)
++	x = unsafe.Pointer(1 &^ uintptr(x)) // ERROR "possible misuse of unsafe.Pointer"
+ 
+ 	// certain uses of reflect are okay
+ 	var v reflect.Value
+diff --git a/src/cmd/vet/unsafeptr.go b/src/cmd/vet/unsafeptr.go
+index a143e4d81c..cb2cc81889 100644
+--- a/src/cmd/vet/unsafeptr.go
++++ b/src/cmd/vet/unsafeptr.go
+@@ -89,7 +89,7 @@ func (f *File) isSafeUintptr(x ast.Expr) bool {
+ 
+ 	case *ast.BinaryExpr:
+ 		switch x.Op {
+-		case token.ADD, token.SUB:
++		case token.ADD, token.SUB, token.AND_NOT:
+ 			return f.isSafeUintptr(x.X) && !f.isSafeUintptr(x.Y)
+ 		}
+ 	}

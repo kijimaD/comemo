@@ -17,6 +17,28 @@ Date:   Mon Oct 21 15:04:54 2019 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/fakedb_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index c0371f3e78..a0028be0e5 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"log"
+ 	"reflect"
+ 	"sort"
+ 	"strconv"
+@@ -20,8 +19,6 @@ import (
+ 	"time"
+ )
+ 
+-var _ = log.Printf
+-
+ // fakeDriver is a fake database that implements Go's driver.Driver
+ // interface, just for testing.
+ //

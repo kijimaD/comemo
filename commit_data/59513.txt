@@ -17,6 +17,14 @@ Date:   Wed Mar 20 12:42:11 2024 -0400
     Commit-Queue: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/next/6-stdlib/99-minor/net/http/61472.md | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/net/http/61472.md b/doc/next/6-stdlib/99-minor/net/http/61472.md
+new file mode 100644
+index 0000000000..b3c2fd5409
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/http/61472.md
+@@ -0,0 +1 @@
++The new [Request.CookiesNamed] method retrieves all cookies that match the given name.

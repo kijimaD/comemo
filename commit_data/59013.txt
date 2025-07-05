@@ -19,7 +19,47 @@ Date:   Thu Feb 1 13:53:46 2024 -0500
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_deadline.txt | 10 ++++++++++
  src/cmd/go/testdata/script/test_fuzz_fuzztime.txt |  7 +++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_deadline.txt b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+index 46d3521558..a51df345e9 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_deadline.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+@@ -2,6 +2,16 @@
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
++# Warm up the build cache with GOMAXPROCS unrestricted.
++go test -c -o $devnull
++
++# For the fuzzing phase, we reduce GOMAXPROCS to avoid consuming too many
++# resources during the test. Ideally this would just free up resources to run
++# other parallel tests more quickly, but unfortunately it is actually necessary
++# in some 32-bit environments to prevent the fuzzing engine from running out of
++# address space (see https://go.dev/issue/65434).
++env GOMAXPROCS=2
++
+ # The fuzz function should be able to detect whether -timeout
+ # was set with T.Deadline. Note there is no F.Deadline, and
+ # there is no timeout while fuzzing, even if -fuzztime is set.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index 28ef3bf7de..027c434a32 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -5,6 +5,13 @@ env GOCACHE=$WORK/cache
+ # There are no seed values, so 'go test' should finish quickly.
+ go test
+ 
++# For the fuzzing phase, we reduce GOMAXPROCS to avoid consuming too many
++# resources during the test. Ideally this would just free up resources to run
++# other parallel tests more quickly, but unfortunately it is actually necessary
++# in some 32-bit environments to prevent the fuzzing engine from running out of
++# address space (see https://go.dev/issue/65434).
++env GOMAXPROCS=2
++
+ # Fuzzing should exit 0 after fuzztime, even if timeout is short.
+ go test -timeout=3s -fuzz=FuzzFast -fuzztime=5s
+ 

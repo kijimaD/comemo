@@ -7,7 +7,32 @@ Date:   Tue Sep 14 17:24:29 2010 +1000
     R=adg
     CC=binet, golang-dev
     https://golang.org/cl/2188041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5135345dcd..4781d4225a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -83,6 +83,7 @@ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
++Sebastien Binet	<seb.binet@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 3a50a1c99e..0f28e4dd64 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -135,6 +135,7 @@ Russ Cox <rsc@golang.org>
+ Sam Thorogood <thorogood@google.com>
+ Scott Schwartz <scotts@golang.org>
+ Scott Lawrence <bytbox@gmail.com>
++Sebastien Binet	<seb.binet@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>

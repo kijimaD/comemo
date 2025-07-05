@@ -19,7 +19,59 @@ Date:   Sat Jul 9 19:08:59 2022 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: hopehook <hopehook@golangcn.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/file.go    | 12 ++++++++++++
  src/os/os_test.go | 17 +++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index ea81a8ba63..fc5ba3e484 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -652,6 +652,18 @@ func (dir dirFS) Open(name string) (fs.File, error) {
+ 	return f, nil
+ }
+ 
++// The ReadFile method calls the [ReadFile] function for the file
++// with the given name in the directory. The function provides
++// robust handling for small files and special file systems.
++// Through this method, dirFS implements [io/fs.ReadFileFS].
++func (dir dirFS) ReadFile(name string) ([]byte, error) {
++	fullname, err := dir.join(name)
++	if err != nil {
++		return nil, &PathError{Op: "readfile", Path: name, Err: err}
++	}
++	return ReadFile(fullname)
++}
++
+ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
+ 	fullname, err := dir.join(name)
+ 	if err != nil {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index ad30756cbd..2ffbc5b29e 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3114,6 +3114,23 @@ func TestReadFileProc(t *testing.T) {
+ 	}
+ }
+ 
++func TestDirFSReadFileProc(t *testing.T) {
++	t.Parallel()
++
++	fsys := DirFS("/")
++	name := "proc/sys/fs/pipe-max-size"
++	if _, err := fs.Stat(fsys, name); err != nil {
++		t.Skip()
++	}
++	data, err := fs.ReadFile(fsys, name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(data) == 0 || data[len(data)-1] != '\n' {
++		t.Fatalf("read %s: not newline-terminated: %q", name, data)
++	}
++}
++
+ func TestWriteStringAlloc(t *testing.T) {
+ 	if runtime.GOOS == "js" {
+ 		t.Skip("js allocates a lot during File.WriteString")

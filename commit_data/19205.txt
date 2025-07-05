@@ -8,6 +8,20 @@ Date:   Fri Apr 18 08:11:31 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/89270043
-
+---
  src/pkg/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 39cc91991f..2cbda3983c 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -2297,7 +2297,7 @@ func Zero(typ Type) Value {
+ }
+ 
+ // New returns a Value representing a pointer to a new zero value
+-// for the specified type.  That is, the returned Value's Type is PtrTo(t).
++// for the specified type.  That is, the returned Value's Type is PtrTo(typ).
+ func New(typ Type) Value {
+ 	if typ == nil {
+ 		panic("reflect: New(nil)")

@@ -20,6 +20,24 @@ Date:   Wed Apr 28 11:47:49 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 1d321bb24b..4e62e61bb0 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -303,7 +303,11 @@ func importFromModules(ctx context.Context, path string, rs *Requirements) (m mo
+ 	} else {
+ 		mg, err = rs.Graph(ctx)
+ 		if err != nil {
+-			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: err}
++			// We might be missing one or more transitive (implicit) dependencies from
++			// the module graph, so we can't return an ImportMissingError here — one
++			// of the missing modules might actually contain the package in question,
++			// in which case we shouldn't go looking for it in some new dependency.
++			return module.Version{}, "", err
+ 		}
+ 	}
+ 

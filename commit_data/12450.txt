@@ -11,7 +11,46 @@ Date:   Tue Mar 6 23:38:54 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5758063
-
+---
  misc/cgo/test/backdoor/backdoor.go     | 7 +++++++
  misc/cgo/test/{ => backdoor}/runtime.c | 4 +++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/backdoor/backdoor.go b/misc/cgo/test/backdoor/backdoor.go
+new file mode 100644
+index 0000000000..3428e9e43f
+--- /dev/null
++++ b/misc/cgo/test/backdoor/backdoor.go
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package backdoor
++
++func LockedOSThread() bool  // in runtime.c
+diff --git a/misc/cgo/test/runtime.c b/misc/cgo/test/backdoor/runtime.c
+similarity index 73%
+rename from misc/cgo/test/runtime.c
+rename to misc/cgo/test/backdoor/runtime.c
+index e087c76220..54e6a1ef8b 100644
+--- a/misc/cgo/test/runtime.c
++++ b/misc/cgo/test/backdoor/runtime.c
+@@ -3,6 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Expose some runtime functions for testing.
++// Must be in a non-cgo-using package so that
++// the go command compiles this file with 6c, not gcc.
+ 
+ typedef char bool;
+ 
+@@ -14,7 +16,7 @@ FLUSH(void*)
+ }
+ 
+ void
+-·lockedOSThread(bool b)
++·LockedOSThread(bool b)
+ {
+ 	b = runtime·lockedOSThread();
+ 	FLUSH(&b);

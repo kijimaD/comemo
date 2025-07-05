@@ -12,7 +12,106 @@ Date:   Fri Jul 9 17:43:25 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go            | 36 +++++++++++--------
  .../types2/testdata/fixedbugs/issue47115.go2       | 40 ++++++++++++++++++++++
  2 files changed, 62 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index b41b23fedb..9b8295c4f4 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -352,25 +352,33 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.errorf(&x, "%s %s", &x, msg)
+ 
+ 	case *syntax.SendStmt:
+-		var ch, x operand
++		var ch, val operand
+ 		check.expr(&ch, s.Chan)
+-		check.expr(&x, s.Value)
+-		if ch.mode == invalid || x.mode == invalid {
++		check.expr(&val, s.Value)
++		if ch.mode == invalid || val.mode == invalid {
+ 			return
+ 		}
+-
+-		tch := asChan(ch.typ)
+-		if tch == nil {
+-			check.errorf(s, invalidOp+"cannot send to non-chan type %s", ch.typ)
+-			return
+-		}
+-
+-		if tch.dir == RecvOnly {
+-			check.errorf(s, invalidOp+"cannot send to receive-only type %s", tch)
++		var elem Type
++		if !underIs(ch.typ, func(u Type) bool {
++			uch, _ := u.(*Chan)
++			if uch == nil {
++				check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
++				return false
++			}
++			if uch.dir == RecvOnly {
++				check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
++				return false
++			}
++			if elem != nil && !Identical(uch.elem, elem) {
++				check.errorf(s, invalidOp+"channels of %s must have the same element type", &ch)
++				return false
++			}
++			elem = uch.elem
++			return true
++		}) {
+ 			return
+ 		}
+-
+-		check.assignment(&x, tch.elem, "send")
++		check.assignment(&val, elem, "send")
+ 
+ 	case *syntax.AssignStmt:
+ 		lhs := unpackExpr(s.Lhs)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2
+new file mode 100644
+index 0000000000..00828eb997
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go2
+@@ -0,0 +1,40 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type C0 interface{ int }
++type C1 interface{ chan int }
++type C2 interface{ chan int | <-chan int }
++type C3 interface{ chan int | chan float32 }
++type C4 interface{ chan int | chan<- int }
++type C5[T any] interface{ ~chan T | chan<- T }
++
++func _[T any](ch T) {
++	ch /* ERROR cannot send to non-channel */ <- 0
++}
++
++func _[T C0](ch T) {
++	ch /* ERROR cannot send to non-channel */ <- 0
++}
++
++func _[T C1](ch T) {
++	ch <- 0
++}
++
++func _[T C2](ch T) {
++	ch /* ERROR cannot send to receive-only channel */ <- 0
++}
++
++func _[T C3](ch T) {
++	ch /* ERROR channels of ch .* must have the same element type */ <- 0
++}
++
++func _[T C4](ch T) {
++	ch <- 0
++}
++
++func _[T C5[X], X any](ch T, x X) {
++	ch <- x
++}

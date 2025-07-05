@@ -9,6 +9,21 @@ Date:   Wed Aug 19 19:19:57 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=33534
     CL=33567
-
+---
  src/all-arm.bash | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/all-arm.bash b/src/all-arm.bash
+index de062a48ec..fc194dcb8c 100755
+--- a/src/all-arm.bash
++++ b/src/all-arm.bash
+@@ -8,6 +8,6 @@ bash make-arm.bash
+ 
+ # TODO(kaib): add in proper tests
+ #bash run.bash
+-5g -o /tmp/hello.5 /home/kaib/work/go/hello.go
+-5l -o /tmp/5.out /tmp/hello.5
+-qemu-arm -cpu cortex-a8 /tmp/5.out|grep -q "Hello World"
++5g -o hello.5 /home/kaib/work/go/hello.go
++5l -o 5.out hello.5
++qemu-arm -cpu cortex-a8 5.out|grep -q "Hello World"

@@ -9,7 +9,40 @@ Date:   Mon Mar 9 11:14:35 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/go.go     | 2 --
  src/cmd/internal/gc/syntax.go | 1 -
  2 files changed, 3 deletions(-)
+
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index e9412d1ff2..69dd4af15a 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -112,7 +112,6 @@ type Pkg struct {
+ type Sym struct {
+ 	Lexical   uint16
+ 	Flags     uint8
+-	Sym       uint8 // huffman encoding in object file
+ 	Link      *Sym
+ 	Uniqgen   uint32
+ 	Importdef *Pkg   // where imported definition was found
+@@ -399,7 +398,6 @@ type Sig struct {
+ type Io struct {
+ 	infile     string
+ 	bin        *obj.Biobuf
+-	ilineno    int32
+ 	nlsemi     int
+ 	eofnl      int
+ 	last       int
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 442cc5cbd8..ac7c28578b 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -27,7 +27,6 @@ type Node struct {
+ 	Nointerface    bool
+ 	Ullman         uint8 // sethi/ullman number
+ 	Addable        uint8 // type of addressability - 0 is not addressable
+-	Trecur         uint8 // to detect loops
+ 	Etype          uint8 // op for OASOP, etype for OTYPE, exclam for export
+ 	Bounded        bool  // bounds check unnecessary
+ 	Class          uint8 // PPARAM, PAUTO, PEXTERN, etc

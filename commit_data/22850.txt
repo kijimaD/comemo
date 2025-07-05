@@ -7,6 +7,27 @@ Date:   Sat Apr 11 19:44:18 2015 -0400
     Change-Id: Ia49ab729747acb07bf392d90aea9e752471e152e
     Reviewed-on: https://go-review.googlesource.com/8789
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  misc/ios/clangwrap.sh | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ios/clangwrap.sh b/misc/ios/clangwrap.sh
+index 228f483ceb..9cad49fe7d 100755
+--- a/misc/ios/clangwrap.sh
++++ b/misc/ios/clangwrap.sh
+@@ -7,4 +7,14 @@ SDK_PATH=`xcrun --sdk $SDK --show-sdk-path`
+ export IPHONEOS_DEPLOYMENT_TARGET=5.1
+ # cmd/cgo doesn't support llvm-gcc-4.2, so we have to use clang.
+ CLANG=`xcrun --sdk $SDK --find clang`
+-exec $CLANG -arch armv7 -isysroot $SDK_PATH "$@"
++
++if [ "$GOARCH" == "arm" ]; then
++	CLANGARCH="armv7"
++elif [ "$GOARCH" == "arm64" ]; then
++	CLANGARCH="arm64"
++else
++	echo "unknown GOARCH=$GOARCH" >&2
++	exit 1
++fi
++
++exec $CLANG -arch $CLANGARCH -isysroot $SDK_PATH "$@"

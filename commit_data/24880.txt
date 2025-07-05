@@ -9,6 +9,32 @@ Date:   Sun Sep 6 19:24:59 2015 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f92238b4a6..098a1e15f6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -823,6 +823,11 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OCOM, TINT64}:  ssa.OpCom64,
+ 	opAndType{OCOM, TUINT64}: ssa.OpCom64,
+ 
++	opAndType{OIMAG, TCOMPLEX64}:  ssa.OpComplexImag,
++	opAndType{OIMAG, TCOMPLEX128}: ssa.OpComplexImag,
++	opAndType{OREAL, TCOMPLEX64}:  ssa.OpComplexReal,
++	opAndType{OREAL, TCOMPLEX128}: ssa.OpComplexReal,
++
+ 	opAndType{OMUL, TINT8}:    ssa.OpMul8,
+ 	opAndType{OMUL, TUINT8}:   ssa.OpMul8,
+ 	opAndType{OMUL, TINT16}:   ssa.OpMul16,
+@@ -1612,7 +1617,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
+ 		}
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+-	case ONOT, OCOM:
++	case ONOT, OCOM, OIMAG, OREAL:
+ 		a := s.expr(n.Left)
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+ 	case OPLUS:

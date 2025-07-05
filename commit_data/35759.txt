@@ -14,7 +14,82 @@ Date:   Sun Mar 4 06:14:42 2018 +0900
     Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go | 27 +++++++++++++++++++++++----
  test/fixedbugs/issue24159.go       | 20 ++++++++++++++++++++
  2 files changed, 43 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index f4be8a7f26..725268ba5c 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -621,10 +621,23 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
+ 		}
+ 		return
+ 	}
+-	// s's expression is an interface. This is fairly rare, so keep this simple.
+-	// Duplicates are only duplicates if they have the same type and the same value.
++
++	// s's expression is an interface. This is fairly rare, so
++	// keep this simple. Case expressions are only duplicates if
++	// they have the same value and identical types.
++	//
++	// In general, we have to use eqtype to test type identity,
++	// because == gives false negatives for anonymous types and
++	// the byte/uint8 and rune/int32 builtin type aliases.
++	// However, this is not a problem here, because constant
++	// expressions are always untyped or have a named type, and we
++	// explicitly handle the builtin type aliases below.
++	//
++	// This approach may need to be revisited though if we fix
++	// #21866 by treating all type aliases like byte/uint8 and
++	// rune/int32.
+ 	type typeVal struct {
+-		typ string
++		typ *types.Type
+ 		val interface{}
+ 	}
+ 	seen := make(map[typeVal]*Node)
+@@ -634,9 +647,15 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
+ 				continue
+ 			}
+ 			tv := typeVal{
+-				typ: n.Type.LongString(),
++				typ: n.Type,
+ 				val: n.Val().Interface(),
+ 			}
++			switch tv.typ {
++			case types.Bytetype:
++				tv.typ = types.Types[TUINT8]
++			case types.Runetype:
++				tv.typ = types.Types[TINT32]
++			}
+ 			prev, dup := seen[tv]
+ 			if !dup {
+ 				seen[tv] = n
+diff --git a/test/fixedbugs/issue24159.go b/test/fixedbugs/issue24159.go
+new file mode 100644
+index 0000000000..9397bdc84c
+--- /dev/null
++++ b/test/fixedbugs/issue24159.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type intAlias = int
++
++func f() {
++	switch interface{}(nil) {
++	case uint8(0):
++	case byte(0): // ERROR "duplicate case"
++	case int32(0):
++	case rune(0): // ERROR "duplicate case"
++	case int(0):
++	case intAlias(0): // ERROR "duplicate case"
++	}
++}

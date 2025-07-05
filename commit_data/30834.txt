@@ -26,9 +26,497 @@ Date:   Thu Dec 1 22:04:49 2016 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go       | 60 ++++++++++++++++--
  src/cmd/compile/internal/syntax/scanner.go      | 82 ++++++++++---------------
  src/cmd/compile/internal/syntax/scanner_test.go | 38 ++++++------
  src/cmd/compile/internal/syntax/source.go       | 50 +++++++--------
  4 files changed, 128 insertions(+), 102 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 22799d429b..50503d2ad8 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -7,6 +7,7 @@ package syntax
+ import (
+ 	"fmt"
+ 	"io"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -19,21 +20,53 @@ const trace = false
+ const gcCompat = true
+ 
+ type parser struct {
++	base *PosBase
++	errh ErrorHandler
+ 	scanner
+ 
++	first  error  // first error encountered
++	pragma Pragma // pragma flags
++
+ 	fnest  int    // function nesting level (for error handling)
+ 	xnest  int    // expression nesting level (for complit ambiguity resolution)
+ 	indent []byte // tracing support
+ }
+ 
+ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+-	p.scanner.init(filename, src, errh, pragh)
++	p.base = NewFileBase(filename)
++	p.errh = errh
++	p.scanner.init(src, p.error_at, func(line, col uint, text string) {
++		if strings.HasPrefix(text, "line ") {
++			p.updateBase(line, col, text[5:])
++		}
++		if pragh != nil {
++			p.pragma |= pragh(line, text)
++		}
++	}, gcCompat)
++
++	p.first = nil
++	p.pragma = 0
+ 
+ 	p.fnest = 0
+ 	p.xnest = 0
+ 	p.indent = nil
+ }
+ 
++func (p *parser) updateBase(line, col uint, text string) {
++	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
++	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
++	if i < 0 {
++		return
++	}
++	nstr := text[i+1:]
++	n, err := strconv.Atoi(nstr)
++	if err != nil || n <= 0 || n > lineMax {
++		p.error_at(line, col+uint(i+1), "invalid line number: "+nstr)
++		return
++	}
++	p.base = NewLinePragmaBase(MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
++}
++
+ func (p *parser) got(tok token) bool {
+ 	if p.tok == tok {
+ 		p.next()
+@@ -52,12 +85,24 @@ func (p *parser) want(tok token) {
+ // ----------------------------------------------------------------------------
+ // Error handling
+ 
+-// syntax_error reports a syntax error at the current line.
+-func (p *parser) syntax_error(msg string) {
+-	p.syntax_error_at(p.line, p.col, msg)
++// error reports an error at the given position.
++func (p *parser) error_at(line, col uint, msg string) {
++	err := Error{line, col, msg}
++	if p.first == nil {
++		p.first = err
++	}
++	if p.errh == nil {
++		panic(p.first)
++	}
++	p.errh(err)
++}
++
++// error reports a (non-syntax) error at the current token position.
++func (p *parser) error(msg string) {
++	p.error_at(p.line, p.col, msg)
+ }
+ 
+-// Like syntax_error, but reports error at given line rather than current lexer line.
++// syntax_error_at reports a syntax error at the given position.
+ func (p *parser) syntax_error_at(line, col uint, msg string) {
+ 	if trace {
+ 		defer p.trace("syntax_error (" + msg + ")")()
+@@ -102,6 +147,11 @@ func (p *parser) syntax_error_at(line, col uint, msg string) {
+ 	p.error_at(line, col, "syntax error: unexpected "+tok+msg)
+ }
+ 
++// syntax_error reports a syntax error at the current token position.
++func (p *parser) syntax_error(msg string) {
++	p.syntax_error_at(p.line, p.col, msg)
++}
++
+ // The stopset contains keywords that start a statement.
+ // They are good synchronization points in case of syntax
+ // errors and (usually) shouldn't be skipped over.
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 77d7a1beef..c31611a96d 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -2,39 +2,43 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file implements scanner, a lexical tokenizer for
++// Go source. After initialization, consecutive calls of
++// next advance the scanner one token at a time.
++//
++// This file, source.go, and tokens.go are self-contained
++// (go tool compile scanner.go source.go tokens.go compiles)
++// and thus could be made into its own package.
++
+ package syntax
+ 
+ import (
+ 	"fmt"
+ 	"io"
+-	"strconv"
+-	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+ type scanner struct {
+ 	source
+-	nlsemi bool // if set '\n' and EOF translate to ';'
+-	pragma Pragma
++	pragh    func(line, col uint, msg string)
++	gcCompat bool // TODO(gri) remove this eventually (only here so we can build w/o parser)
++	nlsemi   bool // if set '\n' and EOF translate to ';'
+ 
+ 	// current token, valid after calling next()
+-	base      *PosBase
+ 	line, col uint
+ 	tok       token
+ 	lit       string   // valid if tok is _Name or _Literal
+ 	kind      LitKind  // valid if tok is _Literal
+ 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
+ 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
+-
+-	pragh PragmaHandler
+ }
+ 
+-func (s *scanner) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
++func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg string), gcCompat bool) {
+ 	s.source.init(src, errh)
+-	s.nlsemi = false
+-	s.base = NewFileBase(filename)
+ 	s.pragh = pragh
++	s.gcCompat = gcCompat
++	s.nlsemi = false
+ }
+ 
+ func (s *scanner) next() {
+@@ -331,7 +335,7 @@ func (s *scanner) ident() {
+ }
+ 
+ func (s *scanner) isCompatRune(c rune, start bool) bool {
+-	if !gcCompat || c < utf8.RuneSelf {
++	if !s.gcCompat || c < utf8.RuneSelf {
+ 		return false
+ 	}
+ 	if start && unicode.IsNumber(c) {
+@@ -461,7 +465,7 @@ func (s *scanner) stdString() {
+ 			break
+ 		}
+ 		if r < 0 {
+-			s.error_at(s.line, s.col, "string not terminated")
++			s.errh(s.line, s.col, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -481,7 +485,7 @@ func (s *scanner) rawString() {
+ 			break
+ 		}
+ 		if r < 0 {
+-			s.error_at(s.line, s.col, "string not terminated")
++			s.errh(s.line, s.col, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -538,23 +542,18 @@ func (s *scanner) skipLine(r rune) {
+ }
+ 
+ func (s *scanner) lineComment() {
+-	// recognize pragmas
+-	prefix := ""
+ 	r := s.getr()
+-	switch r {
+-	case 'g':
+-		if s.pragh == nil {
+-			s.skipLine(r)
+-			return
+-		}
+-		prefix = "go:"
+-	case 'l':
+-		prefix = "line "
+-	default:
++	if s.pragh == nil || (r != 'g' && r != 'l') {
+ 		s.skipLine(r)
+ 		return
+ 	}
++	// s.pragh != nil && (r == 'g' || r == 'l')
+ 
++	// recognize pragmas
++	prefix := "go:"
++	if r == 'l' {
++		prefix = "line "
++	}
+ 	for _, m := range prefix {
+ 		if r != m {
+ 			s.skipLine(r)
+@@ -563,34 +562,15 @@ func (s *scanner) lineComment() {
+ 		r = s.getr()
+ 	}
+ 
+-	// pragma text without prefix and line ending (which may be "\r\n" if Windows)
++	// pragma text without line ending (which may be "\r\n" if Windows),
+ 	s.startLit()
+ 	s.skipLine(r)
+-	text := strings.TrimSuffix(string(s.stopLit()), "\r")
+-
+-	// process //line filename:line pragma
+-	if prefix[0] == 'l' {
+-		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+-		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+-		if i < 0 {
+-			return
+-		}
+-		nstr := text[i+1:]
+-		n, err := strconv.Atoi(nstr)
+-		if err != nil || n <= 0 || n > lineMax {
+-			s.error_at(s.line0, s.col0-uint(len(nstr)), "invalid line number: "+nstr)
+-			return
+-		}
+-		s.base = NewLinePragmaBase(MakePos(s.base.Pos().Base(), s.line, s.col), text[:i], uint(n))
+-		// TODO(gri) Return here once we rely exclusively
+-		// on node positions for line number information,
+-		// and remove //line pragma handling elsewhere.
+-		if s.pragh == nil {
+-			return
+-		}
++	text := s.stopLit()
++	if i := len(text) - 1; i >= 0 && text[i] == '\r' {
++		text = text[:i]
+ 	}
+ 
+-	s.pragma |= s.pragh(s.line, prefix+text)
++	s.pragh(s.line, s.col+2, prefix+string(text)) // +2 since pragma text starts after //
+ }
+ 
+ func (s *scanner) fullComment() {
+@@ -603,7 +583,7 @@ func (s *scanner) fullComment() {
+ 			}
+ 		}
+ 		if r < 0 {
+-			s.error_at(s.line, s.col, "comment not terminated")
++			s.errh(s.line, s.col, "comment not terminated")
+ 			return
+ 		}
+ 	}
+@@ -651,7 +631,7 @@ func (s *scanner) escape(quote rune) bool {
+ 			if c < 0 {
+ 				return true // complain in caller about EOF
+ 			}
+-			if gcCompat {
++			if s.gcCompat {
+ 				name := "hex"
+ 				if base == 8 {
+ 					name = "octal"
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index b8ec811c18..988a74c287 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
+ 	defer src.Close()
+ 
+ 	var s scanner
+-	s.init("parser.go", src, nil, nil)
++	s.init(src, nil, nil, false)
+ 	for {
+ 		s.next()
+ 		if s.tok == _EOF {
+@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
+ 
+ 	// scan source
+ 	var got scanner
+-	got.init("", &bytesReader{buf}, nil, nil)
++	got.init(&bytesReader{buf}, nil, nil, false)
+ 	got.next()
+ 	for i, want := range sampleTokens {
+ 		nlsemi := false
+@@ -317,38 +317,38 @@ func TestScanErrors(t *testing.T) {
+ 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 19},
+ 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 19},
+ 
+-		{`//line :`, "invalid line number: ", 1, 9},
+-		{`//line :x`, "invalid line number: x", 1, 9},
+-		{`//line foo :`, "invalid line number: ", 1, 13},
+-		{`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
+-		{`/**///line foo:x`, "invalid line number: x", 1, 16},
+-		{`//line foo:0`, "invalid line number: 0", 1, 12},
+-		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 12},
++		// TODO(gri) move these test cases into an appropriate parser test
++		// {`//line :`, "invalid line number: ", 1, 9},
++		// {`//line :x`, "invalid line number: x", 1, 9},
++		// {`//line foo :`, "invalid line number: ", 1, 13},
++		// {`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
++		// {`/**///line foo:x`, "invalid line number: x", 1, 16},
++		// {`//line foo:0`, "invalid line number: 0", 1, 12},
++		// {fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 12},
+ 
+ 		// former problem cases
+ 		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},
+ 	} {
+ 		var s scanner
+ 		nerrors := 0
+-		s.init("", &bytesReader{[]byte(test.src)}, func(err error) {
++		s.init(&bytesReader{[]byte(test.src)}, func(line, col uint, msg string) {
+ 			nerrors++
+ 			// only check the first error
+-			e := err.(Error) // we know it's an Error
+ 			if nerrors == 1 {
+-				if e.Msg != test.msg {
+-					t.Errorf("%q: got msg = %q; want %q", test.src, e.Msg, test.msg)
++				if msg != test.msg {
++					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
+ 				}
+-				if e.Line != test.line {
+-					t.Errorf("%q: got line = %d; want %d", test.src, e.Line, test.line)
++				if line != test.line {
++					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
+ 				}
+-				if e.Col != test.col {
+-					t.Errorf("%q: got col = %d; want %d", test.src, e.Col, test.col)
++				if col != test.col {
++					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col)
+ 				}
+ 			} else if nerrors > 1 {
+ 				// TODO(gri) make this use position info
+-				t.Errorf("%q: got unexpected %q at line = %d", test.src, e.Msg, e.Line)
++				t.Errorf("%q: got unexpected %q at line = %d", test.src, msg, line)
+ 			}
+-		}, nil)
++		}, nil, true)
+ 
+ 		for {
+ 			s.next()
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index db161166ed..78a1e81771 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -7,6 +7,9 @@
+ // Contiguous sequences of runes (literals) are extracted
+ // directly as []byte without the need to re-encode the
+ // runes in UTF-8 (as would be necessary with bufio.Reader).
++//
++// This file is self-contained (go tool compile source.go
++// compiles) and thus could be made into its own package.
+ 
+ package syntax
+ 
+@@ -21,9 +24,8 @@ import (
+ //        suf     r0  r            w
+ 
+ type source struct {
+-	src   io.Reader
+-	errh  ErrorHandler
+-	first error // first error encountered
++	src  io.Reader
++	errh func(line, pos uint, msg string)
+ 
+ 	// source buffer
+ 	buf         [4 << 10]byte
+@@ -31,44 +33,30 @@ type source struct {
+ 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
+ 	line0, line uint  // previous/current line
+ 	col0, col   uint  // previous/current column
+-	err         error // pending io error
++	ioerr       error // pending io error
+ 
+ 	// literal buffer
+ 	lit []byte // literal prefix
+ 	suf int    // literal suffix; suf >= 0 means we are scanning a literal
+ }
+ 
+-func (s *source) init(src io.Reader, errh ErrorHandler) {
++// init initializes source to read from src and to report errors via errh.
++// errh must not be nil.
++func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
+ 	s.src = src
+ 	s.errh = errh
+-	s.first = nil
+ 
+ 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
+ 	s.offs = 0
+ 	s.r0, s.r, s.w = 0, 0, 0
+ 	s.line0, s.line = 1, 1
+ 	s.col0, s.col = 1, 1
+-	s.err = nil
++	s.ioerr = nil
+ 
+ 	s.lit = s.lit[:0]
+ 	s.suf = -1
+ }
+ 
+-func (s *source) error(msg string) {
+-	s.error_at(s.line0, s.col0, msg)
+-}
+-
+-func (s *source) error_at(line, col uint, msg string) {
+-	err := Error{line, col, msg}
+-	if s.first == nil {
+-		s.first = err
+-	}
+-	if s.errh == nil {
+-		panic(s.first)
+-	}
+-	s.errh(err)
+-}
+-
+ // ungetr ungets the most recently read rune.
+ func (s *source) ungetr() {
+ 	s.r, s.line, s.col = s.r0, s.line0, s.col0
+@@ -84,6 +72,14 @@ func (s *source) ungetr2() {
+ 	s.col0--
+ }
+ 
++func (s *source) error(msg string) {
++	s.errh(s.line0, s.col0, msg)
++}
++
++// getr reads and returns the next rune.
++// If an error occurs, the error handler provided to init
++// is called with position (line and column) information
++// and error message before getr returns.
+ func (s *source) getr() rune {
+ redo:
+ 	s.r0, s.line0, s.col0 = s.r, s.line, s.col
+@@ -94,7 +90,7 @@ redo:
+ 	// in the buffer. Measure and optimize if necessary.
+ 
+ 	// make sure we have at least one rune in buffer, or we are at EOF
+-	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.err == nil && s.w-s.r < len(s.buf) {
++	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.ioerr == nil && s.w-s.r < len(s.buf) {
+ 		s.fill() // s.w-s.r < len(s.buf) => buffer is not full
+ 	}
+ 
+@@ -116,8 +112,8 @@ redo:
+ 
+ 	// EOF
+ 	if s.r == s.w {
+-		if s.err != io.EOF {
+-			s.error(s.err.Error())
++		if s.ioerr != io.EOF {
++			s.error(s.ioerr.Error())
+ 		}
+ 		return -1
+ 	}
+@@ -174,13 +170,13 @@ func (s *source) fill() {
+ 		if n > 0 || err != nil {
+ 			s.buf[s.w] = utf8.RuneSelf // sentinel
+ 			if err != nil {
+-				s.err = err
++				s.ioerr = err
+ 			}
+ 			return
+ 		}
+ 	}
+ 
+-	s.err = io.ErrNoProgress
++	s.ioerr = io.ErrNoProgress
+ }
+ 
+ func (s *source) startLit() {

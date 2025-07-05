@@ -9,6 +9,20 @@ Date:   Thu Nov 12 15:27:51 2015 -0500
     Change-Id: I31211cd711c035151785c3083571594d15c7d93e
     Reviewed-on: https://go-review.googlesource.com/16873
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/os/error.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/error.go b/src/os/error.go
+index 8810e69306..e26ce27970 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -10,7 +10,7 @@ import (
+ 
+ // Portable analogs of some common system call errors.
+ var (
+-	ErrInvalid    = errors.New("invalid argument")
++	ErrInvalid    = errors.New("invalid argument") // methods on File will return this error when the receiver is nil
+ 	ErrPermission = errors.New("permission denied")
+ 	ErrExist      = errors.New("file already exists")
+ 	ErrNotExist   = errors.New("file does not exist")

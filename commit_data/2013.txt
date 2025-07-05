@@ -8,8 +8,61 @@ Date:   Tue Apr 14 19:03:57 2009 -0700
     DELTA=16  (14 added, 0 deleted, 2 changed)
     OCL=27464
     CL=27466
-
+---
  src/lib/reflect/all_test.go | 6 ++++++
  src/lib/reflect/value.go    | 7 +++++--
  src/runtime/iface.c         | 5 +++++
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index ed1e9639be..514fe7038c 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -310,6 +310,12 @@ func TestInterfaceValue(t *testing.T) {
+ 	assert(v2.Type().String(), "interface { }");
+ 	v3 := v2.(reflect.InterfaceValue).Value();
+ 	assert(v3.Type().String(), "float");
++	
++	i3 := v2.Interface();
++	if f, ok := i3.(float); !ok {
++		a, typ, c := sys.Reflect(i3);
++		t.Error("v2.Interface() did not return float, got ", typ);
++	}
+ }
+ 
+ func TestFunctionValue(t *testing.T) {
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 3548803472..ac7ed2f84a 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -58,9 +58,12 @@ func (c *commonValue) Addr() Addr {
+ 
+ func (c *commonValue) Interface() interface {} {
+ 	var i interface {};
+-	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
++	switch {
++	case c.typ.Kind() == InterfaceKind:
++		i = *(*interface{})(c.addr);
++	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
+ 		i = sys.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
+-	} else {
++	default:
+ 		if uintptr(c.addr) == 0 {
+ 			panicln("reflect: address 0 for", c.typ.String());
+ 		}
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 07a57ec1f2..e5de5d16d7 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -766,6 +766,11 @@ sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
+ 	if(cmpstring(type, emptystring) == 0)
+ 		goto out;
+ 
++	if(type.len > 10 && mcmp(type.str, (byte*)"interface ", 10) == 0) {
++		printf("sys.Unreflect: cannot put %S in interface\n", type);
++		throw("sys.Unreflect");
++	}
++
+ 	// if we think the type should be indirect
+ 	// and caller does not, play it safe, return nil.
+ 	sigt = findtype(type, indir);

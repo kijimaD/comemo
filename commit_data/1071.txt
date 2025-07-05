@@ -7,7 +7,7 @@ Date:   Wed Nov 5 21:50:28 2008 -0800
     R=r
     OCL=18646
     CL=18646
-
+---
  src/cmd/gc/subr.c      |  3 +++
  src/cmd/gc/sys.go      |  1 +
  src/cmd/gc/sysimport.c |  1 +
@@ -16,3 +16,199 @@ Date:   Wed Nov 5 21:50:28 2008 -0800
  src/runtime/runtime.c  |  5 ++++-
  src/runtime/runtime.h  |  1 +
  7 files changed, 42 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index fbeef81f07..d5ef43c28e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1445,6 +1445,9 @@ isselect(Node *n)
+ 	if(s == n->sym)
+ 		return 1;
+ 	s = pkglookup("selectrecv", "sys");
++	if(s == n->sym)
++		return 1;
++	s = pkglookup("selectdefault", "sys");
+ 	if(s == n->sym)
+ 		return 1;
+ 	return 0;
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index d68d0283d7..0ee9deb51b 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -68,6 +68,7 @@ export func	chansend2(hchan *chan any, elem any) (pres bool);
+ export func	newselect(size int) (sel *byte);
+ export func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+ export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++export func	selectdefault(sel *byte) (selected bool);
+ export func	selectgo(sel *byte);
+ 
+ export func	newarray(nel int, cap int, width int) (ary *[]any);
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 750192ef37..02b5a86e81 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -53,6 +53,7 @@ char *sysimport =
+ 	"export func sys.newselect (size int) (sel *uint8)\n"
+ 	"export func sys.selectsend (sel *uint8, hchan *chan any, elem any) (selected bool)\n"
+ 	"export func sys.selectrecv (sel *uint8, hchan *chan any, elem *any) (selected bool)\n"
++	"export func sys.selectdefault (sel *uint8) (selected bool)\n"
+ 	"export func sys.selectgo (sel *uint8)\n"
+ 	"export func sys.newarray (nel int, cap int, width int) (ary *[]any)\n"
+ 	"export func sys.arraysliced (old *[]any, lb int, hb int, width int) (ary *[]any)\n"
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index cdc675a915..130a5ece27 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1246,6 +1246,8 @@ selcase(Node *n, Node *var)
+ 	Node *a, *r, *on, *c;
+ 	Type *t;
+ 
++	if(n->left == N)
++		goto dflt;
+ 	c = n->left;
+ 	if(c->op == ORECV)
+ 		goto recv;
+@@ -1329,6 +1331,14 @@ recv2:
+ 	r = list(a, r);
+ 	a = var;			// sel-var
+ 	r = list(a, r);
++	goto out;
++
++dflt:
++	// selectdefault(sel *byte);
++	on = syslook("selectdefault", 0);
++	a = var;
++	r = a;				// sel-var
++	goto out;
+ 
+ out:
+ 	a = nod(OCALL, on, r);
+@@ -1367,8 +1377,8 @@ walkselect(Node *sel)
+ {
+ 	Iter iter;
+ 	Node *n, *oc, *on, *r;
+-	Node *var, *bod, *res;
+-	int count;
++	Node *var, *bod, *res, *def;
++	int count, op;
+ 	int32 lno;
+ 
+ 	lno = setlineno(sel);
+@@ -1385,6 +1395,7 @@ walkselect(Node *sel)
+ 	res = N;	// entire select body
+ 	bod = N;	// body of each case
+ 	oc = N;		// last case
++	def = N;	// default case
+ 
+ 	for(count=0; n!=N; n=listnext(&iter)) {
+ 		setlineno(n);
+@@ -1395,15 +1406,22 @@ walkselect(Node *sel)
+ 			break;
+ 
+ 		case OXCASE:
+-			switch(n->left->op) {
++			if(n->left == N) {
++				op = ORECV;	// actual value not used
++				if(def != N)
++					yyerror("only one default select allowed");
++				def = n;
++			} else
++				op = n->left->op;
++			switch(op) {
+ 			default:
+-				yyerror("select cases must be send or recv");
++				yyerror("select cases must be send, recv or default");
+ 				break;
+ 
+ 			case OAS:
+ 				// convert new syntax (a=recv(chan)) to (recv(a,chan))
+ 				if(n->left->right == N || n->left->right->op != ORECV) {
+-					yyerror("select cases must be send or recv");
++					yyerror("select cases must be send, recv or default");
+ 					break;
+ 				}
+ 				n->left->right->right = n->left->right->left;
+@@ -1419,6 +1437,8 @@ walkselect(Node *sel)
+ 				oc = selcase(n, var);
+ 				res = list(res, oc);
+ 				break;
++
++				
+ 			}
+ 			bod = N;
+ 			count++;
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 3777190e29..c30cb07004 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -497,14 +497,14 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
+ 	}
+ }
+ 
++
++// selectrecv(sel *byte) (selected bool);
+ void
+-sys·selectdefault(Select *sel)
++sys·selectdefault(Select *sel, ...)
+ {
+-	int32 i, eo;
++	int32 i;
+ 	Scase *cas;
+-	Hchan *c;
+ 	
+-	c = nil;
+ 	i = sel->ncase;
+ 	if(i >= sel->tcase)
+ 		throw("selectdefault: too many cases");
+@@ -512,13 +512,11 @@ sys·selectdefault(Select *sel)
+ 	cas = &sel->scase[i];
+ 
+ 	cas->pc = sys·getcallerpc(&sel);
+-	cas->chan = c;
++	cas->chan = nil;
+ 
+-	eo = rnd(sizeof(sel), sizeof(c));
+-	eo = rnd(eo+sizeof(c), sizeof(byte*));
+-	cas->so = rnd(eo+sizeof(byte*), 1);
++	cas->so = rnd(sizeof(sel), 1);
+ 	cas->send = 2;
+-	cas->u.elemp = *(byte**)((byte*)&sel + eo);
++	cas->u.elemp = nil;
+ 
+ 	if(debug) {
+ 		prints("newselect s=");
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 5fde296700..db31b77df3 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -4,7 +4,8 @@
+ 
+ #include "runtime.h"
+ 
+-int32	panicking = 0;
++int32	panicking	= 0;
++int32	maxround	= 8;
+ 
+ int32
+ gotraceback(void)
+@@ -91,6 +92,8 @@ rnd(uint32 n, uint32 m)
+ {
+ 	uint32 r;
+ 
++	if(m > maxround)
++		m = maxround;
+ 	r = n % m;
+ 	if(r)
+ 		n += m-r;
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index f182aebae7..30fa915b48 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -190,6 +190,7 @@ G*	allg;
+ int32	goidgen;
+ extern	int32	gomaxprocs;
+ extern	int32	panicking;
++extern	int32	maxround;
+ 
+ /*
+  * common functions and data

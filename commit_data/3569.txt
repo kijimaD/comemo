@@ -9,6 +9,22 @@ Date:   Thu Oct 15 22:30:57 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=35820
     CL=35820
-
+---
  src/cmd/5g/gsubr.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 3f8fd3f689..ae85798b65 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -791,8 +791,8 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT32, TFLOAT64):
+ 		fa = AMOVW;
+ 		a = AMOVWD;
+-		ta = AMOVW;
+-		goto fltconv;;
++		ta = AMOVD;
++		goto fltconv;
+ 
+ 	case CASE(TUINT64, TFLOAT32):
+ 	case CASE(TUINT64, TFLOAT64):

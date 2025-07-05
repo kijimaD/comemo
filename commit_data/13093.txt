@@ -7,7 +7,32 @@ Date:   Fri May 18 11:04:32 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6220050
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 43397ec81b..0a028d5b70 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -31,6 +31,7 @@ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
++Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <berengar.lehr@gmx.de>
+ Brian Dellisanti <briandellisanti@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f099efbfd6..ac3e570a19 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -64,6 +64,7 @@ Ben Eitzen <eitzenb@golang.org>
+ Ben Fried <ben.fried@gmail.com>
+ Ben Lynn <benlynn@gmail.com>
+ Ben Olive <sionide21@gmail.com>
++Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>

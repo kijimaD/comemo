@@ -9,6 +9,20 @@ Date:   Sun Sep 7 08:59:20 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/132700043
-
+---
  src/liblink/obj5.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index e8b81ec5ca..0b6b8deb5f 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -492,7 +492,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				p = appendp(ctxt, p);
+ 				p->as = ACMP;
+ 				p->from.type = D_REG;
+-				p->from.offset = 2;
++				p->from.reg = 2;
+ 				p->reg = 3;
+ 
+ 				p = appendp(ctxt, p);

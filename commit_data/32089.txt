@@ -86,6 +86,32 @@ Date:   Mon Apr 3 11:27:06 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 363566536b..da0dbeef6b 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -942,7 +942,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
+ 	}
+ 
+ 	// Add static entries.
+-	if len(stat) > 0 {
++	if len(stat) > 25 {
++		// For a large number of static entries, put them in an array and loop.
++
+ 		// build types [count]Tindex and [count]Tvalue
+ 		tk := typArray(n.Type.Key(), int64(len(stat)))
+ 		tv := typArray(n.Type.Val(), int64(len(stat)))
+@@ -1000,6 +1002,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
+ 		loop = typecheck(loop, Etop)
+ 		loop = walkstmt(loop)
+ 		init.Append(loop)
++	} else {
++		// For a small number of static entries, just add them directly.
++		addMapEntries(m, stat, init)
+ 	}
+ 
+ 	// Add dynamic entries.

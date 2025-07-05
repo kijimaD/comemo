@@ -7,8 +7,330 @@ Date:   Mon Aug 1 20:02:52 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4835046
-
+---
  src/pkg/exp/template/helper.go   | 51 ++++++++++++++++++++--------------------
  src/pkg/exp/template/set.go      |  2 +-
  src/pkg/exp/template/set_test.go | 41 +++++++++++++++++---------------
  3 files changed, 49 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index 440f878745..89ec0e363f 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -44,10 +44,11 @@ func parseFileInSet(filename string, set *Set) (*Template, os.Error) {
+ 
+ // ParseFile reads the template definition from a file and parses it to
+ // construct an internal representation of the template for execution.
++// The returned template will be nil if an error occurs.
+ func (t *Template) ParseFile(filename string) (*Template, os.Error) {
+ 	b, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+-		return t, err
++		return nil, err
+ 	}
+ 	return t.Parse(string(b))
+ }
+@@ -55,10 +56,11 @@ func (t *Template) ParseFile(filename string) (*Template, os.Error) {
+ // parseFileInSet is the same as ParseFile except that function bindings
+ // are checked against those in the set and the template is added
+ // to the set.
++// The returned template will be nil if an error occurs.
+ func (t *Template) parseFileInSet(filename string, set *Set) (*Template, os.Error) {
+ 	b, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+-		return t, err
++		return nil, err
+ 	}
+ 	return t.ParseInSet(string(b), set)
+ }
+@@ -77,17 +79,17 @@ func SetMust(s *Set, err os.Error) *Set {
+ }
+ 
+ // ParseFile parses the named files into a set of named templates.
+-// Each file must be parseable by itself. Parsing stops if an error is
+-// encountered.
++// Each file must be parseable by itself.
++// If an error occurs, parsing stops and the returned set is nil.
+ func (s *Set) ParseFile(filenames ...string) (*Set, os.Error) {
+ 	for _, filename := range filenames {
+ 		b, err := ioutil.ReadFile(filename)
+ 		if err != nil {
+-			return s, err
++			return nil, err
+ 		}
+ 		_, err = s.Parse(string(b))
+ 		if err != nil {
+-			return s, err
++			return nil, err
+ 		}
+ 	}
+ 	return s, nil
+@@ -97,15 +99,14 @@ func (s *Set) ParseFile(filenames ...string) (*Set, os.Error) {
+ // named files. Each file must be individually parseable.
+ func ParseSetFile(filenames ...string) (*Set, os.Error) {
+ 	s := new(Set)
+-	s.init()
+ 	for _, filename := range filenames {
+ 		b, err := ioutil.ReadFile(filename)
+ 		if err != nil {
+-			return s, err
++			return nil, err
+ 		}
+ 		_, err = s.Parse(string(b))
+ 		if err != nil {
+-			return s, err
++			return nil, err
+ 		}
+ 	}
+ 	return s, nil
+@@ -114,13 +115,14 @@ func ParseSetFile(filenames ...string) (*Set, os.Error) {
+ // ParseFiles parses the set definition from the files identified by the
+ // pattern.  The pattern is processed by filepath.Glob and must match at
+ // least one file.
++// If an error occurs, parsing stops and the returned set is nil.
+ func (s *Set) ParseFiles(pattern string) (*Set, os.Error) {
+ 	filenames, err := filepath.Glob(pattern)
+ 	if err != nil {
+-		return s, err
++		return nil, err
+ 	}
+ 	if len(filenames) == 0 {
+-		return s, fmt.Errorf("pattern matches no files: %#q", pattern)
++		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
+ 	}
+ 	return s.ParseFile(filenames...)
+ }
+@@ -131,7 +133,7 @@ func (s *Set) ParseFiles(pattern string) (*Set, os.Error) {
+ func ParseSetFiles(pattern string) (*Set, os.Error) {
+ 	set, err := new(Set).ParseFiles(pattern)
+ 	if err != nil {
+-		return set, err
++		return nil, err
+ 	}
+ 	return set, nil
+ }
+@@ -146,13 +148,13 @@ func ParseSetFiles(pattern string) (*Set, os.Error) {
+ // file does not contain {{define}} clauses. ParseTemplateFile is
+ // therefore equivalent to calling the ParseFile function to create
+ // individual templates, which are then added to the set.
+-// Each file must be parseable by itself. Parsing stops if an error is
+-// encountered.
++// Each file must be parseable by itself.
++// If an error occurs, parsing stops and the returned set is nil.
+ func (s *Set) ParseTemplateFile(filenames ...string) (*Set, os.Error) {
+ 	for _, filename := range filenames {
+ 		_, err := parseFileInSet(filename, s)
+ 		if err != nil {
+-			return s, err
++			return nil, err
+ 		}
+ 	}
+ 	return s, nil
+@@ -166,17 +168,17 @@ func (s *Set) ParseTemplateFile(filenames ...string) (*Set, os.Error) {
+ // file does not contain {{define}} clauses. ParseTemplateFiles is
+ // therefore equivalent to calling the ParseFile function to create
+ // individual templates, which are then added to the set.
+-// Each file must be parseable by itself. Parsing stops if an error is
+-// encountered.
++// Each file must be parseable by itself.
++// If an error occurs, parsing stops and the returned set is nil.
+ func (s *Set) ParseTemplateFiles(pattern string) (*Set, os.Error) {
+ 	filenames, err := filepath.Glob(pattern)
+ 	if err != nil {
+-		return s, err
++		return nil, err
+ 	}
+ 	for _, filename := range filenames {
+ 		_, err := parseFileInSet(filename, s)
+ 		if err != nil {
+-			return s, err
++			return nil, err
+ 		}
+ 	}
+ 	return s, nil
+@@ -198,10 +200,10 @@ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
+ 	for _, filename := range filenames {
+ 		t, err := ParseFile(filename)
+ 		if err != nil {
+-			return set, err
++			return nil, err
+ 		}
+ 		if err := set.add(t); err != nil {
+-			return set, err
++			return nil, err
+ 		}
+ 	}
+ 	return set, nil
+@@ -219,18 +221,17 @@ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
+ // encountered.
+ func ParseTemplateFiles(pattern string) (*Set, os.Error) {
+ 	set := new(Set)
+-	set.init()
+ 	filenames, err := filepath.Glob(pattern)
+ 	if err != nil {
+-		return set, err
++		return nil, err
+ 	}
+ 	for _, filename := range filenames {
+ 		t, err := ParseFile(filename)
+ 		if err != nil {
+-			return set, err
++			return nil, err
+ 		}
+ 		if err := set.add(t); err != nil {
+-			return set, err
++			return nil, err
+ 		}
+ 	}
+ 	return set, nil
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index a685e996de..3e3197dee6 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -110,7 +110,7 @@ func (s *Set) Parse(text string) (set *Set, err os.Error) {
+ 		t.startParse(s, lex)
+ 		// Expect EOF or "{{ define name }}".
+ 		if t.atEOF() {
+-			return
++			return nil, err
+ 		}
+ 		t.expect(itemLeftDelim, context)
+ 		t.expect(itemDefine, context)
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index 4f2d76e207..eef9342f68 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -103,7 +103,8 @@ const setText2 = `
+ 
+ func TestSetExecute(t *testing.T) {
+ 	// Declare a set with a couple of templates first.
+-	set, err := new(Set).Parse(setText1)
++	set := new(Set)
++	_, err := set.Parse(setText1)
+ 	if err != nil {
+ 		t.Fatalf("error parsing set: %s", err)
+ 	}
+@@ -115,7 +116,8 @@ func TestSetExecute(t *testing.T) {
+ }
+ 
+ func TestSetParseFile(t *testing.T) {
+-	set, err := new(Set).ParseFile("DOES NOT EXIST")
++	set := new(Set)
++	_, err := set.ParseFile("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+@@ -127,7 +129,8 @@ func TestSetParseFile(t *testing.T) {
+ }
+ 
+ func TestParseSetFile(t *testing.T) {
+-	set, err := ParseSetFile("DOES NOT EXIST")
++	set := new(Set)
++	_, err := ParseSetFile("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+@@ -139,15 +142,15 @@ func TestParseSetFile(t *testing.T) {
+ }
+ 
+ func TestSetParseFiles(t *testing.T) {
+-	set, err := new(Set).ParseFiles("DOES NOT EXIST")
++	_, err := new(Set).ParseFiles("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+-	_, err = set.ParseFiles("[x")
++	_, err = new(Set).ParseFiles("[x")
+ 	if err == nil {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+-	_, err = set.ParseFiles("testdata/file*.tmpl")
++	set, err := new(Set).ParseFiles("testdata/file*.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}
+@@ -155,15 +158,15 @@ func TestSetParseFiles(t *testing.T) {
+ }
+ 
+ func TestParseSetFiles(t *testing.T) {
+-	set, err := ParseSetFiles("DOES NOT EXIST")
++	_, err := ParseSetFiles("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+-	set, err = ParseSetFiles("[x")
++	_, err = ParseSetFiles("[x")
+ 	if err == nil {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+-	set, err = ParseSetFiles("testdata/file*.tmpl")
++	set, err := ParseSetFiles("testdata/file*.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}
+@@ -175,11 +178,11 @@ var templateFileExecTests = []execTest{
+ }
+ 
+ func TestSetParseTemplateFile(t *testing.T) {
+-	set, err := ParseTemplateFile("DOES NOT EXIST")
++	_, err := ParseTemplateFile("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+-	_, err = set.ParseTemplateFile("testdata/tmpl1.tmpl", "testdata/tmpl2.tmpl")
++	set, err := new(Set).ParseTemplateFile("testdata/tmpl1.tmpl", "testdata/tmpl2.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}
+@@ -187,11 +190,11 @@ func TestSetParseTemplateFile(t *testing.T) {
+ }
+ 
+ func TestParseTemplateFile(t *testing.T) {
+-	set, err := ParseTemplateFile("DOES NOT EXIST")
++	_, err := ParseTemplateFile("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+-	set, err = ParseTemplateFile("testdata/tmpl1.tmpl", "testdata/tmpl2.tmpl")
++	set, err := new(Set).ParseTemplateFile("testdata/tmpl1.tmpl", "testdata/tmpl2.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}
+@@ -199,15 +202,15 @@ func TestParseTemplateFile(t *testing.T) {
+ }
+ 
+ func TestSetParseTemplateFiles(t *testing.T) {
+-	set, err := ParseTemplateFiles("DOES NOT EXIST")
++	_, err := ParseTemplateFiles("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+-	_, err = set.ParseTemplateFiles("[x")
++	_, err = new(Set).ParseTemplateFiles("[x")
+ 	if err == nil {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+-	_, err = set.ParseTemplateFiles("testdata/tmpl*.tmpl")
++	set, err := new(Set).ParseTemplateFiles("testdata/tmpl*.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}
+@@ -215,15 +218,15 @@ func TestSetParseTemplateFiles(t *testing.T) {
+ }
+ 
+ func TestParseTemplateFiles(t *testing.T) {
+-	set, err := ParseTemplateFiles("DOES NOT EXIST")
++	_, err := ParseTemplateFiles("DOES NOT EXIST")
+ 	if err == nil {
+ 		t.Error("expected error for non-existent file; got none")
+ 	}
+-	set, err = ParseTemplateFiles("[x")
++	_, err = ParseTemplateFiles("[x")
+ 	if err == nil {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+-	set, err = ParseTemplateFiles("testdata/tmpl*.tmpl")
++	set, err := ParseTemplateFiles("testdata/tmpl*.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}

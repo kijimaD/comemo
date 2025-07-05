@@ -25,6 +25,24 @@ Date:   Mon Oct 18 18:34:24 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 6fb1a71d43..2ad2266e2d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1785,6 +1785,12 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 			if shouldFailFast() {
+ 				break
+ 			}
++			if i > 0 && !ran {
++				// There were no tests to run on the first
++				// iteration. This won't change, so no reason
++				// to keep trying.
++				break
++			}
+ 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+ 			ctx.deadline = deadline
+ 			t := &T{

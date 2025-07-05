@@ -15,6 +15,28 @@ Date:   Tue Sep 8 16:23:50 2015 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/deferNoReturn_ssa.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/deferNoReturn_ssa.go b/src/cmd/compile/internal/gc/testdata/deferNoReturn_ssa.go
+index 171f5837bc..7578dd56f2 100644
+--- a/src/cmd/compile/internal/gc/testdata/deferNoReturn_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/deferNoReturn_ssa.go
+@@ -7,7 +7,7 @@
+ // Test that a defer in a function with no return
+ // statement will compile correctly.
+ 
+-package main
++package foo
+ 
+ func deferNoReturn_ssa() {
+ 	defer func() { println("returned") }()
+@@ -15,7 +15,3 @@ func deferNoReturn_ssa() {
+ 		println("loop")
+ 	}
+ }
+-
+-func main() {
+-	deferNoReturn_ssa()
+-}

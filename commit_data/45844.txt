@@ -12,10 +12,277 @@ Date:   Mon Nov 16 12:18:09 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272251
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go    | 35 ++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/fmt.go       | 42 +++++++++++---------------------
  src/cmd/compile/internal/gc/iimport.go   | 32 ++++++++++++------------
  src/cmd/compile/internal/gc/subr.go      |  9 -------
  src/cmd/compile/internal/gc/typecheck.go | 14 +++++------
  5 files changed, 72 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 1fc51745f4..757b4652ca 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -140,6 +140,41 @@ type EscEdge struct {
+ 	notes  *EscNote
+ }
+ 
++func init() {
++	EscFmt = escFmt
++}
++
++// escFmt is called from node printing to print information about escape analysis results.
++func escFmt(n *Node, short bool) string {
++	text := ""
++	switch n.Esc {
++	case EscUnknown:
++		break
++
++	case EscHeap:
++		text = "esc(h)"
++
++	case EscNone:
++		text = "esc(no)"
++
++	case EscNever:
++		if !short {
++			text = "esc(N)"
++		}
++
++	default:
++		text = fmt.Sprintf("esc(%d)", n.Esc)
++	}
++
++	if e, ok := n.Opt().(*EscLocation); ok && e.loopDepth != 0 {
++		if text != "" {
++			text += " "
++		}
++		text += fmt.Sprintf("ld(%d)", e.loopDepth)
++	}
++	return text
++}
++
+ // escapeFuncs performs escape analysis on a minimal batch of
+ // functions.
+ func escapeFuncs(fns []*Node, recursive bool) {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index f92f5d0e88..f61ea8aaac 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -415,19 +415,22 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
+ 	}
+ }
+ 
++// EscFmt is set by the escape analysis code to add escape analysis details to the node print.
++var EscFmt func(n *Node, short bool) string
++
+ // *Node details
+ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+-	c := flag & FmtShort
++	short := flag&FmtShort != 0
+ 
+-	// Useful to see which nodes in a Node Dump/dumplist are actually identical
++	// Useful to see which nodes in an AST printout are actually identical
+ 	if Debug_dumpptrs != 0 {
+ 		fmt.Fprintf(s, " p(%p)", n)
+ 	}
+-	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
++	if !short && n.Name != nil && n.Name.Vargen != 0 {
+ 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+ 	}
+ 
+-	if Debug_dumpptrs != 0 && c == 0 && n.Name != nil && n.Name.Defn != nil {
++	if Debug_dumpptrs != 0 && !short && n.Name != nil && n.Name.Defn != nil {
+ 		// Useful to see where Defn is set and what node it points to
+ 		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
+ 	}
+@@ -443,7 +446,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos.Line())
+ 	}
+ 
+-	if c == 0 && n.Xoffset != BADWIDTH {
++	if !short && n.Xoffset != BADWIDTH {
+ 		fmt.Fprintf(s, " x(%d)", n.Xoffset)
+ 	}
+ 
+@@ -455,30 +458,13 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " colas(%v)", n.Colas())
+ 	}
+ 
+-	switch n.Esc {
+-	case EscUnknown:
+-		break
+-
+-	case EscHeap:
+-		fmt.Fprint(s, " esc(h)")
+-
+-	case EscNone:
+-		fmt.Fprint(s, " esc(no)")
+-
+-	case EscNever:
+-		if c == 0 {
+-			fmt.Fprint(s, " esc(N)")
++	if EscFmt != nil {
++		if esc := EscFmt(n, short); esc != "" {
++			fmt.Fprintf(s, " %s", esc)
+ 		}
+-
+-	default:
+-		fmt.Fprintf(s, " esc(%d)", n.Esc)
+-	}
+-
+-	if e, ok := n.Opt().(*EscLocation); ok && e.loopDepth != 0 {
+-		fmt.Fprintf(s, " ld(%d)", e.loopDepth)
+ 	}
+ 
+-	if c == 0 && n.Typecheck() != 0 {
++	if !short && n.Typecheck() != 0 {
+ 		fmt.Fprintf(s, " tc(%d)", n.Typecheck())
+ 	}
+ 
+@@ -518,11 +504,11 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprint(s, " nonnil")
+ 	}
+ 
+-	if c == 0 && n.HasCall() {
++	if !short && n.HasCall() {
+ 		fmt.Fprint(s, " hascall")
+ 	}
+ 
+-	if c == 0 && n.Name != nil && n.Name.Used() {
++	if !short && n.Name != nil && n.Name.Used() {
+ 		fmt.Fprint(s, " used")
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index a37730343a..df193cd8e1 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -98,16 +98,16 @@ func (r *intReader) uint64() uint64 {
+ }
+ 
+ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
+-	ir := &intReader{in, pkg}
++	ird := &intReader{in, pkg}
+ 
+-	version := ir.uint64()
++	version := ird.uint64()
+ 	if version != iexportVersion {
+ 		yyerror("import %q: unknown export format version %d", pkg.Path, version)
+ 		errorexit()
+ 	}
+ 
+-	sLen := ir.uint64()
+-	dLen := ir.uint64()
++	sLen := ird.uint64()
++	dLen := ird.uint64()
+ 
+ 	// Map string (and data) section into memory as a single large
+ 	// string. This reduces heap fragmentation and allows
+@@ -138,10 +138,10 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 	}
+ 
+ 	// Declaration index.
+-	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
+-		pkg := p.pkgAt(ir.uint64())
+-		pkgName := p.stringAt(ir.uint64())
+-		pkgHeight := int(ir.uint64())
++	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
++		pkg := p.pkgAt(ird.uint64())
++		pkgName := p.stringAt(ird.uint64())
++		pkgHeight := int(ird.uint64())
+ 		if pkg.Name == "" {
+ 			pkg.Name = pkgName
+ 			pkg.Height = pkgHeight
+@@ -158,9 +158,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 			}
+ 		}
+ 
+-		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
+-			s := pkg.Lookup(p.stringAt(ir.uint64()))
+-			off := ir.uint64()
++		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
++			s := pkg.Lookup(p.stringAt(ird.uint64()))
++			off := ird.uint64()
+ 
+ 			if _, ok := declImporter[s]; ok {
+ 				continue
+@@ -177,12 +177,12 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 	}
+ 
+ 	// Inline body index.
+-	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
+-		pkg := p.pkgAt(ir.uint64())
++	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
++		pkg := p.pkgAt(ird.uint64())
+ 
+-		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
+-			s := pkg.Lookup(p.stringAt(ir.uint64()))
+-			off := ir.uint64()
++		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
++			s := pkg.Lookup(p.stringAt(ird.uint64()))
++			off := ird.uint64()
+ 
+ 			if _, ok := inlineImporter[s]; ok {
+ 				continue
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9760823e96..849043bfe2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1585,15 +1585,6 @@ func liststmt(l []*Node) *Node {
+ 	return n
+ }
+ 
+-func (l Nodes) asblock() *Node {
+-	n := nod(OBLOCK, nil, nil)
+-	n.List = l
+-	if l.Len() != 0 {
+-		n.Pos = l.First().Pos
+-	}
+-	return n
+-}
+-
+ func ngotype(n *Node) *types.Sym {
+ 	if n.Type != nil {
+ 		return typenamesym(n.Type)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 41f0c3f2a5..f13d9a3e26 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3867,7 +3867,7 @@ func checkreturn(fn *Node) {
+ }
+ 
+ func deadcode(fn *Node) {
+-	deadcodeslice(fn.Nbody)
++	deadcodeslice(&fn.Nbody)
+ 	deadcodefn(fn)
+ }
+ 
+@@ -3897,7 +3897,7 @@ func deadcodefn(fn *Node) {
+ 	fn.Nbody.Set([]*Node{nod(OEMPTY, nil, nil)})
+ }
+ 
+-func deadcodeslice(nn Nodes) {
++func deadcodeslice(nn *Nodes) {
+ 	var lastLabel = -1
+ 	for i, n := range nn.Slice() {
+ 		if n != nil && n.Op == OLABEL {
+@@ -3939,12 +3939,12 @@ func deadcodeslice(nn Nodes) {
+ 			}
+ 		}
+ 
+-		deadcodeslice(n.Ninit)
+-		deadcodeslice(n.Nbody)
+-		deadcodeslice(n.List)
+-		deadcodeslice(n.Rlist)
++		deadcodeslice(&n.Ninit)
++		deadcodeslice(&n.Nbody)
++		deadcodeslice(&n.List)
++		deadcodeslice(&n.Rlist)
+ 		if cut {
+-			*nn.slice = nn.Slice()[:i+1]
++			nn.Set(nn.Slice()[:i+1])
+ 			break
+ 		}
+ 	}

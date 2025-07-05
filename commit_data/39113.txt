@@ -16,6 +16,25 @@ Date:   Mon Dec 31 15:03:33 2018 -0800
     Change-Id: I95310dfdd831932e26f5d5b6608324687f4c3162
     Reviewed-on: https://go-review.googlesource.com/c/155926
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/compile/internal/s390x/ggen.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index ba5f2dfc2b..6a72b27ac5 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -105,10 +105,8 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ }
+ 
+ func ginsnop(pp *gc.Progs) *obj.Prog {
+-	p := pp.Prog(s390x.AOR)
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = int16(s390x.REG_R0)
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = int16(s390x.REG_R0)
++	p := pp.Prog(s390x.AWORD)
++	p.From.Type = obj.TYPE_CONST
++	p.From.Offset = 0x47000000 // nop 0
+ 	return p
+ }

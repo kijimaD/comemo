@@ -17,7 +17,7 @@ Date:   Fri Sep 2 10:24:53 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        | 30 +++++++++++-----------
  src/cmd/compile/internal/types2/termlist.go        |  5 +++-
  src/cmd/compile/internal/types2/typestring.go      |  2 +-
@@ -33,3 +33,304 @@ Date:   Fri Sep 2 10:24:53 2022 -0700
  .../types/testdata/fixedbugs/issue51472.go         |  2 +-
  src/internal/types/testdata/spec/conversions.go    |  6 ++---
  14 files changed, 56 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index f5526bb25a..9367e5f3f2 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -358,27 +358,27 @@ func TestTypesInfo(t *testing.T) {
+ 		// issue 50093
+ 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+ 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+-		{`package u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
+-		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
+-		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string`, `int|string`},
+-		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `~bool`, `~bool`},
+-		{`package u3a; func _[_ interface{int|string|~float64|~bool}]() {}`, `int | string | ~float64`, `int|string|~float64`},
++		{`package u2a; func _[_ interface{int | string}]() {}`, `int | string`, `int | string`},
++		{`package u3a; func _[_ interface{int | string | ~bool}]() {}`, `int | string | ~bool`, `int | string | ~bool`},
++		{`package u3a; func _[_ interface{int | string | ~bool}]() {}`, `int | string`, `int | string`},
++		{`package u3a; func _[_ interface{int | string | ~bool}]() {}`, `~bool`, `~bool`},
++		{`package u3a; func _[_ interface{int | string | ~float64|~bool}]() {}`, `int | string | ~float64`, `int | string | ~float64`},
+ 
+ 		{`package u0b; func _[_ int]() {}`, `int`, `int`},
+ 		{`package u1b; func _[_ ~int]() {}`, `~int`, `~int`},
+-		{`package u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
+-		{`package u3b; func _[_ int|string|~bool]() {}`, `int | string | ~bool`, `int|string|~bool`},
+-		{`package u3b; func _[_ int|string|~bool]() {}`, `int | string`, `int|string`},
+-		{`package u3b; func _[_ int|string|~bool]() {}`, `~bool`, `~bool`},
+-		{`package u3b; func _[_ int|string|~float64|~bool]() {}`, `int | string | ~float64`, `int|string|~float64`},
++		{`package u2b; func _[_ int | string]() {}`, `int | string`, `int | string`},
++		{`package u3b; func _[_ int | string | ~bool]() {}`, `int | string | ~bool`, `int | string | ~bool`},
++		{`package u3b; func _[_ int | string | ~bool]() {}`, `int | string`, `int | string`},
++		{`package u3b; func _[_ int | string | ~bool]() {}`, `~bool`, `~bool`},
++		{`package u3b; func _[_ int | string | ~float64|~bool]() {}`, `int | string | ~float64`, `int | string | ~float64`},
+ 
+ 		{`package u0c; type _ interface{int}`, `int`, `int`},
+ 		{`package u1c; type _ interface{~int}`, `~int`, `~int`},
+-		{`package u2c; type _ interface{int|string}`, `int | string`, `int|string`},
+-		{`package u3c; type _ interface{int|string|~bool}`, `int | string | ~bool`, `int|string|~bool`},
+-		{`package u3c; type _ interface{int|string|~bool}`, `int | string`, `int|string`},
+-		{`package u3c; type _ interface{int|string|~bool}`, `~bool`, `~bool`},
+-		{`package u3c; type _ interface{int|string|~float64|~bool}`, `int | string | ~float64`, `int|string|~float64`},
++		{`package u2c; type _ interface{int | string}`, `int | string`, `int | string`},
++		{`package u3c; type _ interface{int | string | ~bool}`, `int | string | ~bool`, `int | string | ~bool`},
++		{`package u3c; type _ interface{int | string | ~bool}`, `int | string`, `int | string`},
++		{`package u3c; type _ interface{int | string | ~bool}`, `~bool`, `~bool`},
++		{`package u3c; type _ interface{int | string | ~float64|~bool}`, `int | string | ~float64`, `int | string | ~float64`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/cmd/compile/internal/types2/termlist.go b/src/cmd/compile/internal/types2/termlist.go
+index 43e43ce87c..8e1f290b2b 100644
+--- a/src/cmd/compile/internal/types2/termlist.go
++++ b/src/cmd/compile/internal/types2/termlist.go
+@@ -17,6 +17,9 @@ type termlist []*term
+ // It is in normal form.
+ var allTermlist = termlist{new(term)}
+ 
++// termSep is the separator used between individual terms.
++const termSep = " | "
++
+ // String prints the termlist exactly (without normalization).
+ func (xl termlist) String() string {
+ 	if len(xl) == 0 {
+@@ -25,7 +28,7 @@ func (xl termlist) String() string {
+ 	var buf bytes.Buffer
+ 	for i, x := range xl {
+ 		if i > 0 {
+-			buf.WriteString(" | ")
++			buf.WriteString(termSep)
+ 		}
+ 		buf.WriteString(x.String())
+ 	}
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index c10c2d8973..dbee4bf6bc 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -191,7 +191,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 		for i, t := range t.terms {
+ 			if i > 0 {
+-				w.byte('|')
++				w.string(termSep)
+ 			}
+ 			if t.tilde {
+ 				w.byte('~')
+diff --git a/src/cmd/compile/internal/types2/typestring_test.go b/src/cmd/compile/internal/types2/typestring_test.go
+index c0689e866c..42b1f126f5 100644
+--- a/src/cmd/compile/internal/types2/typestring_test.go
++++ b/src/cmd/compile/internal/types2/typestring_test.go
+@@ -91,8 +91,8 @@ var independentTestTypes = []testEntry{
+ 	dup("interface{}"),
+ 	dup("interface{m()}"),
+ 	dup(`interface{String() string; m(int) float32}`),
+-	dup("interface{int|float32|complex128}"),
+-	dup("interface{int|~float32|~complex128}"),
++	dup("interface{int | float32 | complex128}"),
++	dup("interface{int | ~float32 | ~complex128}"),
+ 	dup("any"),
+ 	dup("interface{comparable}"),
+ 	{"comparable", "interface{comparable}"},
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 742ae3d67f..8dd30a6ed5 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -358,27 +358,27 @@ func TestTypesInfo(t *testing.T) {
+ 		// issue 50093
+ 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+ 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+-		{`package u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
+-		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
+-		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string`, `int|string`},
+-		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `~bool`, `~bool`},
+-		{`package u3a; func _[_ interface{int|string|~float64|~bool}]() {}`, `int | string | ~float64`, `int|string|~float64`},
++		{`package u2a; func _[_ interface{int | string}]() {}`, `int | string`, `int | string`},
++		{`package u3a; func _[_ interface{int | string | ~bool}]() {}`, `int | string | ~bool`, `int | string | ~bool`},
++		{`package u3a; func _[_ interface{int | string | ~bool}]() {}`, `int | string`, `int | string`},
++		{`package u3a; func _[_ interface{int | string | ~bool}]() {}`, `~bool`, `~bool`},
++		{`package u3a; func _[_ interface{int | string | ~float64|~bool}]() {}`, `int | string | ~float64`, `int | string | ~float64`},
+ 
+ 		{`package u0b; func _[_ int]() {}`, `int`, `int`},
+ 		{`package u1b; func _[_ ~int]() {}`, `~int`, `~int`},
+-		{`package u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
+-		{`package u3b; func _[_ int|string|~bool]() {}`, `int | string | ~bool`, `int|string|~bool`},
+-		{`package u3b; func _[_ int|string|~bool]() {}`, `int | string`, `int|string`},
+-		{`package u3b; func _[_ int|string|~bool]() {}`, `~bool`, `~bool`},
+-		{`package u3b; func _[_ int|string|~float64|~bool]() {}`, `int | string | ~float64`, `int|string|~float64`},
++		{`package u2b; func _[_ int | string]() {}`, `int | string`, `int | string`},
++		{`package u3b; func _[_ int | string | ~bool]() {}`, `int | string | ~bool`, `int | string | ~bool`},
++		{`package u3b; func _[_ int | string | ~bool]() {}`, `int | string`, `int | string`},
++		{`package u3b; func _[_ int | string | ~bool]() {}`, `~bool`, `~bool`},
++		{`package u3b; func _[_ int | string | ~float64|~bool]() {}`, `int | string | ~float64`, `int | string | ~float64`},
+ 
+ 		{`package u0c; type _ interface{int}`, `int`, `int`},
+ 		{`package u1c; type _ interface{~int}`, `~int`, `~int`},
+-		{`package u2c; type _ interface{int|string}`, `int | string`, `int|string`},
+-		{`package u3c; type _ interface{int|string|~bool}`, `int | string | ~bool`, `int|string|~bool`},
+-		{`package u3c; type _ interface{int|string|~bool}`, `int | string`, `int|string`},
+-		{`package u3c; type _ interface{int|string|~bool}`, `~bool`, `~bool`},
+-		{`package u3c; type _ interface{int|string|~float64|~bool}`, `int | string | ~float64`, `int|string|~float64`},
++		{`package u2c; type _ interface{int | string}`, `int | string`, `int | string`},
++		{`package u3c; type _ interface{int | string | ~bool}`, `int | string | ~bool`, `int | string | ~bool`},
++		{`package u3c; type _ interface{int | string | ~bool}`, `int | string`, `int | string`},
++		{`package u3c; type _ interface{int | string | ~bool}`, `~bool`, `~bool`},
++		{`package u3c; type _ interface{int | string | ~float64|~bool}`, `int | string | ~float64`, `int | string | ~float64`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/termlist.go b/src/go/types/termlist.go
+index 6d08ddb397..d65c172ba1 100644
+--- a/src/go/types/termlist.go
++++ b/src/go/types/termlist.go
+@@ -17,6 +17,9 @@ type termlist []*term
+ // It is in normal form.
+ var allTermlist = termlist{new(term)}
+ 
++// termSep is the separator used between individual terms.
++const termSep = " | "
++
+ // String prints the termlist exactly (without normalization).
+ func (xl termlist) String() string {
+ 	if len(xl) == 0 {
+@@ -25,7 +28,7 @@ func (xl termlist) String() string {
+ 	var buf bytes.Buffer
+ 	for i, x := range xl {
+ 		if i > 0 {
+-			buf.WriteString(" | ")
++			buf.WriteString(termSep)
+ 		}
+ 		buf.WriteString(x.String())
+ 	}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 5a2e2c171a..080fe2d1f9 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -192,7 +192,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 		for i, t := range t.terms {
+ 			if i > 0 {
+-				w.byte('|')
++				w.string(termSep)
+ 			}
+ 			if t.tilde {
+ 				w.byte('~')
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index b7b843516e..d8f81ecf5a 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -95,8 +95,8 @@ var independentTestTypes = []testEntry{
+ 	dup("interface{}"),
+ 	dup("interface{m()}"),
+ 	dup(`interface{String() string; m(int) float32}`),
+-	dup("interface{int|float32|complex128}"),
+-	dup("interface{int|~float32|~complex128}"),
++	dup("interface{int | float32 | complex128}"),
++	dup("interface{int | ~float32 | ~complex128}"),
+ 	dup("any"),
+ 	dup("interface{comparable}"),
+ 	// TODO(gri) adjust test for EvalCompositeTest
+diff --git a/src/internal/types/testdata/fixedbugs/issue45920.go b/src/internal/types/testdata/fixedbugs/issue45920.go
+index a0e2d0c970..d67dfc0f9d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45920.go
++++ b/src/internal/types/testdata/fixedbugs/issue45920.go
+@@ -8,10 +8,10 @@ func f1[T any, C chan T | <-chan T](ch C) {}
+ 
+ func _(ch chan int)   { f1(ch) }
+ func _(ch <-chan int) { f1(ch) }
+-func _(ch chan<- int) { f1 /* ERROR chan<- int does not implement chan int\|<-chan int */ (ch) }
++func _(ch chan<- int) { f1 /* ERROR chan<- int does not implement chan int \| <-chan int */ (ch) }
+ 
+ func f2[T any, C chan T | chan<- T](ch C) {}
+ 
+ func _(ch chan int)   { f2(ch) }
+-func _(ch <-chan int) { f2 /* ERROR <-chan int does not implement chan int\|chan<- int */ (ch) }
++func _(ch <-chan int) { f2 /* ERROR <-chan int does not implement chan int \| chan<- int */ (ch) }
+ func _(ch chan<- int) { f2(ch) }
+diff --git a/src/internal/types/testdata/fixedbugs/issue47411.go b/src/internal/types/testdata/fixedbugs/issue47411.go
+index db5fb32483..12303072ed 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47411.go
++++ b/src/internal/types/testdata/fixedbugs/issue47411.go
+@@ -19,8 +19,8 @@ func _[P comparable,
+         _ = f[R /* ERROR R does not implement comparable */ ]
+ 
+         _ = g[int]
+-        _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
++        _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int \| ~string} */ ]
+         _ = g[Q]
+-        _ = g[func /* ERROR func\(\) does not implement interface{interface{comparable; ~int\|~string}} */ ()]
+-        _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int\|~string} */ ]
++        _ = g[func /* ERROR func\(\) does not implement interface{interface{comparable; ~int \| ~string}} */ ()]
++        _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int \| ~string} */ ]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue47818.go b/src/internal/types/testdata/fixedbugs/issue47818.go
+index 5aa3b82a8d..e9b0adbce9 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47818.go
++++ b/src/internal/types/testdata/fixedbugs/issue47818.go
+@@ -39,7 +39,7 @@ type C2 interface {
+ 	comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	int        // ERROR embedding non-interface type int requires go1\.18 or later
+ 	~ /* ERROR embedding interface element ~int requires go1\.18 or later */ int
+-	int /* ERROR embedding interface element int\|~string requires go1\.18 or later */ | ~string
++	int /* ERROR embedding interface element int \| ~string requires go1\.18 or later */ | ~string
+ }
+ 
+ type _ interface {
+diff --git a/src/internal/types/testdata/fixedbugs/issue49179.go b/src/internal/types/testdata/fixedbugs/issue49179.go
+index d4c8a897c6..8890e92f51 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49179.go
++++ b/src/internal/types/testdata/fixedbugs/issue49179.go
+@@ -13,9 +13,9 @@ type myFloat float64
+ 
+ func _() {
+ 	_ = f1[int]
+-	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int\|string */]
++	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int \| string */]
+ 	_ = f2[myInt]
+-	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint int\|string|float64 */]
++	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint ~int \| string \| float64 */]
+ 	var x myInt
+ 	f3 /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ (x)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51472.go b/src/internal/types/testdata/fixedbugs/issue51472.go
+index 3126770829..ecdc9547fe 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51472.go
++++ b/src/internal/types/testdata/fixedbugs/issue51472.go
+@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
+ }
+ 
+ func _(s []byte) {
+-	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ (s)
++	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte \| string} */ (s)
+         _ = f[[ /* ERROR does not implement */ ]byte]
+ }
+diff --git a/src/internal/types/testdata/spec/conversions.go b/src/internal/types/testdata/spec/conversions.go
+index 8613242899..f20705c4b2 100644
+--- a/src/internal/types/testdata/spec/conversions.go
++++ b/src/internal/types/testdata/spec/conversions.go
+@@ -109,14 +109,14 @@ func _[X Float, T Float](x X) T    { return T(x) }
+ 
+ func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
+ func _[X, T Integer | ~string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
+ }
+ 
+ // "x's type and T are both complex types"
+ 
+ func _[X, T Complex](x X) T { return T(x) }
+ func _[X, T Float | Complex](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float\|Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
+ }
+ 
+ // "x is an integer or a slice of bytes or runes and T is a string type"
+@@ -138,7 +138,7 @@ func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
+ func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~\[\]byte\|~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
+ }
+ 
+ // "x is a string and T is a slice of bytes or runes"

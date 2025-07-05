@@ -16,7 +16,48 @@ Date:   Tue Jun 13 11:14:43 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/proc.go     | 4 ++--
  src/runtime/runtime2.go | 7 ++++---
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index afedf19aed..9e53716992 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3837,7 +3837,7 @@ func sysmon() {
+ 	}
+ }
+ 
+-var pdesc [_MaxGomaxprocs]struct {
++type sysmontick struct {
+ 	schedtick   uint32
+ 	schedwhen   int64
+ 	syscalltick uint32
+@@ -3855,7 +3855,7 @@ func retake(now int64) uint32 {
+ 		if _p_ == nil {
+ 			continue
+ 		}
+-		pd := &pdesc[i]
++		pd := &_p_.sysmontick
+ 		s := _p_.status
+ 		if s == _Psyscall {
+ 			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2df1fefe7c..6871d9c68c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -453,9 +453,10 @@ type p struct {
+ 	id          int32
+ 	status      uint32 // one of pidle/prunning/...
+ 	link        puintptr
+-	schedtick   uint32   // incremented on every scheduler call
+-	syscalltick uint32   // incremented on every system call
+-	m           muintptr // back-link to associated m (nil if idle)
++	schedtick   uint32     // incremented on every scheduler call
++	syscalltick uint32     // incremented on every system call
++	sysmontick  sysmontick // last tick observed by sysmon
++	m           muintptr   // back-link to associated m (nil if idle)
+ 	mcache      *mcache
+ 	racectx     uintptr
+ 

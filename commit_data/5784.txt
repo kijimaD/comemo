@@ -7,6 +7,30 @@ Date:   Mon Jul 12 14:53:28 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1815042
-
+---
  test/fixedbugs/bug243.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+index 690e0a1bc2..357f22eb27 100644
+--- a/test/fixedbugs/bug243.go
++++ b/test/fixedbugs/bug243.go
+@@ -8,7 +8,6 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"net"
+ )
+ 
+@@ -18,8 +17,10 @@ func main() {
+ 	go func() {
+ 		for {
+ 			var conn, _ = listen.Accept()
++			_ = conn
+ 		}
+ 	}()
+ 
+ 	var conn, _ = net.Dial("tcp", "", listen.Addr().String())
++	_ = conn
+ }

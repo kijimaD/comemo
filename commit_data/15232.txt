@@ -10,7 +10,43 @@ Date:   Wed Feb 13 18:47:25 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7322075
-
+---
  src/pkg/database/sql/doc.txt          | 2 +-
  src/pkg/database/sql/driver/driver.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/database/sql/doc.txt b/src/pkg/database/sql/doc.txt
+index fb16595487..405c5ed2a6 100644
+--- a/src/pkg/database/sql/doc.txt
++++ b/src/pkg/database/sql/doc.txt
+@@ -21,7 +21,7 @@ Goals of the sql and sql/driver packages:
+   Database Driver -> sql (to register) + sql/driver (implement interfaces)
+ 
+ * Make type casting/conversions consistent between all drivers. To
+-  achieve this, most of the conversions are done in the db package,
++  achieve this, most of the conversions are done in the sql package,
+   not in each driver. The drivers then only have to deal with a
+   smaller set of types.
+ 
+diff --git a/src/pkg/database/sql/driver/driver.go b/src/pkg/database/sql/driver/driver.go
+index 7b235b9fbc..88c87eeea0 100644
+--- a/src/pkg/database/sql/driver/driver.go
++++ b/src/pkg/database/sql/driver/driver.go
+@@ -56,7 +56,7 @@ var ErrBadConn = errors.New("driver: bad connection")
+ 
+ // Execer is an optional interface that may be implemented by a Conn.
+ //
+-// If a Conn does not implement Execer, the db package's DB.Exec will
++// If a Conn does not implement Execer, the sql package's DB.Exec will
+ // first prepare a query, execute the statement, and then close the
+ // statement.
+ //
+@@ -67,7 +67,7 @@ type Execer interface {
+ 
+ // Queryer is an optional interface that may be implemented by a Conn.
+ //
+-// If a Conn does not implement Queryer, the db package's DB.Query will
++// If a Conn does not implement Queryer, the sql package's DB.Query will
+ // first prepare a query, execute the statement, and then close the
+ // statement.
+ //

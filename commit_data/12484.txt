@@ -11,6 +11,20 @@ Date:   Wed Mar 7 11:16:58 2012 -0800
     R=golang-dev, gri, rsc
     CC=golang-dev
     https://golang.org/cl/5771043
-
+---
  test/testlib | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/testlib b/test/testlib
+index d3178ccebd..4c7d9578b5 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -28,7 +28,7 @@ run() {
+ 		esac
+ 	done
+ 
+-	$G $D/$F.go "$gofiles" && $L $F.$A && ./$A.out "$@"
++	$G $D/$F.go $gofiles && $L $F.$A && ./$A.out "$@"
+ }
+ 
+ cmpout() {

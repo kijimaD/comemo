@@ -8,6 +8,21 @@ Date:   Wed Apr 29 23:33:48 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=28066
     CL=28070
-
+---
  src/lib/time/zoneinfo.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 124ae0df49..15de5a7d1f 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -28,7 +28,8 @@ type TimeZoneError struct {
+ }
+ 
+ func error(bytes []byte) os.Error {
+-	return TimeZoneError{ `time: malformed zoneinfo: "` + string(bytes) + `"` };
++	// TODO(rsc): provide better diagnostics
++	return TimeZoneError{ "time: malformed zoneinfo"};
+ }
+ 
+ // Simple I/O interface to binary blob of data.

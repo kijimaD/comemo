@@ -15,6 +15,19 @@ Date:   Fri Jun 5 17:36:00 2015 -0400
     Change-Id: I1f06882bb8b20257120a4b8e7f95bb3ffc263895
     Reviewed-on: https://go-review.googlesource.com/10794
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 71b083b29c..baad5b6693 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -937,6 +937,7 @@ func gc(mode int) {
+ 			// Run a full stop-the-world mark using checkmark bits,
+ 			// to check that we didn't forget to mark anything during
+ 			// the concurrent mark process.
++			gcResetGState() // Rescan stacks
+ 			initCheckmarks()
+ 			gcMark(startTime)
+ 			clearCheckmarks()

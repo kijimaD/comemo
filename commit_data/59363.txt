@@ -16,10 +16,113 @@ Date:   Thu Mar 7 21:36:47 2024 +0800
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/44940.txt                                |  1 +
  doc/next/6-stdlib/99-minor/unicode/utf16/44940.md |  3 +++
  src/unicode/utf16/export_test.go                  |  3 +++
  src/unicode/utf16/utf16.go                        | 21 ++++++++++++++++-----
  src/unicode/utf16/utf16_test.go                   | 20 ++++++++++++++++++++
  5 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/api/next/44940.txt b/api/next/44940.txt
+new file mode 100644
+index 0000000000..4efb7c5782
+--- /dev/null
++++ b/api/next/44940.txt
+@@ -0,0 +1 @@
++pkg unicode/utf16, func RuneLen(int32) int #44940
+diff --git a/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md b/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md
+new file mode 100644
+index 0000000000..79a36cd611
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md
+@@ -0,0 +1,3 @@
++The [`unicode/utf16.RuneLen`](/pkg/unicode/utf16#RuneLen) function returns
++the number of 16-bit words in the UTF-16 encoding of the rune. It returns -1
++if the rune is not a valid value to encode in UTF-16.
+diff --git a/src/unicode/utf16/export_test.go b/src/unicode/utf16/export_test.go
+index e0c57f52ae..74a89bf39a 100644
+--- a/src/unicode/utf16/export_test.go
++++ b/src/unicode/utf16/export_test.go
+@@ -6,6 +6,9 @@ package utf16
+ 
+ // Extra names for constants so we can validate them during testing.
+ const (
++	Surr1           = surr1
++	Surr3           = surr3
++	SurrSelf        = surrSelf
+ 	MaxRune         = maxRune
+ 	ReplacementChar = replacementChar
+ )
+diff --git a/src/unicode/utf16/utf16.go b/src/unicode/utf16/utf16.go
+index 1c6d2c66c3..0293bbf639 100644
+--- a/src/unicode/utf16/utf16.go
++++ b/src/unicode/utf16/utf16.go
+@@ -52,6 +52,19 @@ func EncodeRune(r rune) (r1, r2 rune) {
+ 	return surr1 + (r>>10)&0x3ff, surr2 + r&0x3ff
+ }
+ 
++// RuneLen returns the number of 16-bit words in the UTF-16 encoding of the rune.
++// It returns -1 if the rune is not a valid value to encode in UTF-16.
++func RuneLen(r rune) int {
++	switch {
++	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
++		return 1
++	case surrSelf <= r && r <= maxRune:
++		return 2
++	default:
++		return -1
++	}
++}
++
+ // Encode returns the UTF-16 encoding of the Unicode code point sequence s.
+ func Encode(s []rune) []uint16 {
+ 	n := len(s)
+@@ -64,13 +77,11 @@ func Encode(s []rune) []uint16 {
+ 	a := make([]uint16, n)
+ 	n = 0
+ 	for _, v := range s {
+-		switch {
+-		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
+-			// normal rune
++		switch RuneLen(v) {
++		case 1: // normal rune
+ 			a[n] = uint16(v)
+ 			n++
+-		case surrSelf <= v && v <= maxRune:
+-			// needs surrogate sequence
++		case 2: // needs surrogate sequence
+ 			r1, r2 := EncodeRune(v)
+ 			a[n] = uint16(r1)
+ 			a[n+1] = uint16(r2)
+diff --git a/src/unicode/utf16/utf16_test.go b/src/unicode/utf16/utf16_test.go
+index a5a503d387..74a4a6746b 100644
+--- a/src/unicode/utf16/utf16_test.go
++++ b/src/unicode/utf16/utf16_test.go
+@@ -22,6 +22,26 @@ func TestConstants(t *testing.T) {
+ 	}
+ }
+ 
++func TestRuneLen(t *testing.T) {
++	for _, tt := range []struct {
++		r      rune
++		length int
++	}{
++		{0, 1},
++		{Surr1 - 1, 1},
++		{Surr3, 1},
++		{SurrSelf - 1, 1},
++		{SurrSelf, 2},
++		{MaxRune, 2},
++		{MaxRune + 1, -1},
++		{-1, -1},
++	} {
++		if length := RuneLen(tt.r); length != tt.length {
++			t.Errorf("RuneLen(%#U) = %d, want %d", tt.r, length, tt.length)
++		}
++	}
++}
++
+ type encodeTest struct {
+ 	in  []rune
+ 	out []uint16

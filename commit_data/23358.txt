@@ -7,6 +7,17 @@ Date:   Fri May 8 12:18:52 2015 -0700
     Change-Id: I72df4d979212d8af74a4d2763423346eb6ba14f2
     Reviewed-on: https://go-review.googlesource.com/9892
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 6fc864dc0e..f35ec78982 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -35,4 +35,4 @@ if ulimit -T &> /dev/null; then
+ 	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+ fi
+ 
+-exec go tool dist test $@
++exec go tool dist test "$@"

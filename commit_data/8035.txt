@@ -7,8 +7,125 @@ Date:   Fri Apr 8 13:45:56 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4271080
-
+---
  src/pkg/io/io.go      | 20 ++++++++++----------
  src/pkg/io/io_test.go | 33 ++++++++++++++++++++++++++++-----
  src/pkg/io/multi.go   |  6 ++----
  3 files changed, 40 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 3b87918979..c0bc54d0d4 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -182,16 +182,16 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 	if len(buf) < min {
+ 		return 0, ErrShortBuffer
+ 	}
+-	for n < min {
+-		nn, e := r.Read(buf[n:])
+-		if nn > 0 {
+-			n += nn
+-		}
+-		if e != nil {
+-			if e == os.EOF && n > 0 {
+-				e = ErrUnexpectedEOF
+-			}
+-			return n, e
++	for n < min && err == nil {
++		var nn int
++		nn, err = r.Read(buf[n:])
++		n += nn
++	}
++	if err == os.EOF {
++		if n >= min {
++			err = nil
++		} else if n > 0 {
++			err = ErrUnexpectedEOF
+ 		}
+ 	}
+ 	return
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index 4fcd85e693..bc4f354af4 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -118,27 +118,50 @@ func TestCopynEOF(t *testing.T) {
+ 
+ func TestReadAtLeast(t *testing.T) {
+ 	var rb bytes.Buffer
++	testReadAtLeast(t, &rb)
++}
++
++// A version of bytes.Buffer that returns n > 0, os.EOF on Read
++// when the input is exhausted.
++type dataAndEOFBuffer struct {
++	bytes.Buffer
++}
++
++func (r *dataAndEOFBuffer) Read(p []byte) (n int, err os.Error) {
++	n, err = r.Buffer.Read(p)
++	if n > 0 && r.Buffer.Len() == 0 && err == nil {
++		err = os.EOF
++	}
++	return
++}
++
++func TestReadAtLeastWithDataAndEOF(t *testing.T) {
++	var rb dataAndEOFBuffer
++	testReadAtLeast(t, &rb)
++}
++
++func testReadAtLeast(t *testing.T, rb ReadWriter) {
+ 	rb.Write([]byte("0123"))
+ 	buf := make([]byte, 2)
+-	n, err := ReadAtLeast(&rb, buf, 2)
++	n, err := ReadAtLeast(rb, buf, 2)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+-	n, err = ReadAtLeast(&rb, buf, 4)
++	n, err = ReadAtLeast(rb, buf, 4)
+ 	if err != ErrShortBuffer {
+ 		t.Errorf("expected ErrShortBuffer got %v", err)
+ 	}
+ 	if n != 0 {
+ 		t.Errorf("expected to have read 0 bytes, got %v", n)
+ 	}
+-	n, err = ReadAtLeast(&rb, buf, 1)
++	n, err = ReadAtLeast(rb, buf, 1)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+ 	if n != 2 {
+ 		t.Errorf("expected to have read 2 bytes, got %v", n)
+ 	}
+-	n, err = ReadAtLeast(&rb, buf, 2)
++	n, err = ReadAtLeast(rb, buf, 2)
+ 	if err != os.EOF {
+ 		t.Errorf("expected EOF, got %v", err)
+ 	}
+@@ -146,7 +169,7 @@ func TestReadAtLeast(t *testing.T) {
+ 		t.Errorf("expected to have read 0 bytes, got %v", n)
+ 	}
+ 	rb.Write([]byte("4"))
+-	n, err = ReadAtLeast(&rb, buf, 2)
++	n, err = ReadAtLeast(rb, buf, 2)
+ 	if err != ErrUnexpectedEOF {
+ 		t.Errorf("expected ErrUnexpectedEOF, got %v", err)
+ 	}
+diff --git a/src/pkg/io/multi.go b/src/pkg/io/multi.go
+index 88e4f1b769..d702d46c72 100644
+--- a/src/pkg/io/multi.go
++++ b/src/pkg/io/multi.go
+@@ -15,10 +15,8 @@ func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
+ 		n, err = mr.readers[0].Read(p)
+ 		if n > 0 || err != os.EOF {
+ 			if err == os.EOF {
+-				// This shouldn't happen.
+-				// Well-behaved Readers should never
+-				// return non-zero bytes read with an
+-				// EOF.  But if so, we clean it.
++				// Don't return EOF yet. There may be more bytes
++				// in the remaining readers.
+ 				err = nil
+ 			}
+ 			return

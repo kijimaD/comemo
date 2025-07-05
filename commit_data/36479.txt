@@ -27,7 +27,7 @@ Date:   Tue Mar 7 14:26:27 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 110 ++++++++++++-------------
  src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
  src/cmd/compile/internal/gc/select.go          |  85 ++++++++++++++-----
@@ -35,3 +35,470 @@ Date:   Tue Mar 7 14:26:27 2017 -0800
  src/runtime/select.go                          |  65 +++++----------
  test/live.go                                   |  20 ++---
  6 files changed, 151 insertions(+), 135 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index fa8ed0aaf0..47f0c38a00 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -111,48 +111,46 @@ var runtimeDecls = [...]struct {
+ 	{"selectnbsend", funcTag, 87},
+ 	{"selectnbrecv", funcTag, 88},
+ 	{"selectnbrecv2", funcTag, 90},
+-	{"selectsend", funcTag, 91},
+-	{"selectrecv", funcTag, 92},
+-	{"selectdefault", funcTag, 55},
+-	{"selectgo", funcTag, 93},
++	{"selectsetpc", funcTag, 55},
++	{"selectgo", funcTag, 91},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 95},
+-	{"makeslice64", funcTag, 96},
+-	{"growslice", funcTag, 97},
+-	{"memmove", funcTag, 98},
+-	{"memclrNoHeapPointers", funcTag, 99},
+-	{"memclrHasPointers", funcTag, 99},
+-	{"memequal", funcTag, 100},
+-	{"memequal8", funcTag, 101},
+-	{"memequal16", funcTag, 101},
+-	{"memequal32", funcTag, 101},
+-	{"memequal64", funcTag, 101},
+-	{"memequal128", funcTag, 101},
+-	{"int64div", funcTag, 102},
+-	{"uint64div", funcTag, 103},
+-	{"int64mod", funcTag, 102},
+-	{"uint64mod", funcTag, 103},
+-	{"float64toint64", funcTag, 104},
+-	{"float64touint64", funcTag, 105},
+-	{"float64touint32", funcTag, 106},
+-	{"int64tofloat64", funcTag, 107},
+-	{"uint64tofloat64", funcTag, 108},
+-	{"uint32tofloat64", funcTag, 109},
+-	{"complex128div", funcTag, 110},
+-	{"racefuncenter", funcTag, 111},
++	{"makeslice", funcTag, 93},
++	{"makeslice64", funcTag, 94},
++	{"growslice", funcTag, 95},
++	{"memmove", funcTag, 96},
++	{"memclrNoHeapPointers", funcTag, 97},
++	{"memclrHasPointers", funcTag, 97},
++	{"memequal", funcTag, 98},
++	{"memequal8", funcTag, 99},
++	{"memequal16", funcTag, 99},
++	{"memequal32", funcTag, 99},
++	{"memequal64", funcTag, 99},
++	{"memequal128", funcTag, 99},
++	{"int64div", funcTag, 100},
++	{"uint64div", funcTag, 101},
++	{"int64mod", funcTag, 100},
++	{"uint64mod", funcTag, 101},
++	{"float64toint64", funcTag, 102},
++	{"float64touint64", funcTag, 103},
++	{"float64touint32", funcTag, 104},
++	{"int64tofloat64", funcTag, 105},
++	{"uint64tofloat64", funcTag, 106},
++	{"uint32tofloat64", funcTag, 107},
++	{"complex128div", funcTag, 108},
++	{"racefuncenter", funcTag, 109},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 111},
+-	{"racewrite", funcTag, 111},
+-	{"racereadrange", funcTag, 112},
+-	{"racewriterange", funcTag, 112},
+-	{"msanread", funcTag, 112},
+-	{"msanwrite", funcTag, 112},
++	{"raceread", funcTag, 109},
++	{"racewrite", funcTag, 109},
++	{"racereadrange", funcTag, 110},
++	{"racewriterange", funcTag, 110},
++	{"msanread", funcTag, 110},
++	{"msanwrite", funcTag, 110},
+ 	{"support_popcnt", varTag, 11},
+ 	{"support_sse41", varTag, 11},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [113]*types.Type
++	var typs [111]*types.Type
+ 	typs[0] = types.Bytetype
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[TANY]
+@@ -244,27 +242,25 @@ func runtimeTypes() []*types.Type {
+ 	typs[88] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
+ 	typs[89] = types.NewPtr(typs[11])
+ 	typs[90] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[89]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[80]), anonfield(typs[3])}, nil)
+-	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[77]), anonfield(typs[3]), anonfield(typs[89])}, nil)
+-	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32])})
+-	typs[94] = types.NewSlice(typs[2])
+-	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[94])})
+-	typs[96] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[94])})
+-	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[94]), anonfield(typs[32])}, []*Node{anonfield(typs[94])})
+-	typs[98] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, nil)
+-	typs[99] = functype(nil, []*Node{anonfield(typs[57]), anonfield(typs[48])}, nil)
+-	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, []*Node{anonfield(typs[11])})
+-	typs[101] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[102] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
+-	typs[103] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[104] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
+-	typs[105] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
+-	typs[106] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[59])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
+-	typs[108] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
+-	typs[109] = functype(nil, []*Node{anonfield(typs[59])}, []*Node{anonfield(typs[13])})
+-	typs[110] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[111] = functype(nil, []*Node{anonfield(typs[48])}, nil)
+-	typs[112] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[48])}, nil)
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32])})
++	typs[92] = types.NewSlice(typs[2])
++	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[92])})
++	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[92])})
++	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[92]), anonfield(typs[32])}, []*Node{anonfield(typs[92])})
++	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, nil)
++	typs[97] = functype(nil, []*Node{anonfield(typs[57]), anonfield(typs[48])}, nil)
++	typs[98] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, []*Node{anonfield(typs[11])})
++	typs[99] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[100] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
++	typs[101] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[102] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
++	typs[103] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
++	typs[104] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[59])})
++	typs[105] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
++	typs[106] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
++	typs[107] = functype(nil, []*Node{anonfield(typs[59])}, []*Node{anonfield(typs[13])})
++	typs[108] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[109] = functype(nil, []*Node{anonfield(typs[48])}, nil)
++	typs[110] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[48])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index a4c8ce7ff9..dc0a8b2222 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -145,9 +145,7 @@ func selectnbsend(hchan chan<- any, elem *any) bool
+ func selectnbrecv(elem *any, hchan <-chan any) bool
+ func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+ 
+-func selectsend(cas *byte, hchan chan<- any, elem *any)
+-func selectrecv(cas *byte, hchan <-chan any, elem *any, received *bool)
+-func selectdefault(cas *byte)
++func selectsetpc(cas *byte)
+ func selectgo(cas0 *byte, order0 *byte, ncases int) int
+ func block()
+ 
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 0cc286eebd..6663ff6862 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -192,9 +192,7 @@ func walkselectcases(cases *Nodes) []*Node {
+ 				n.List.SetFirst(typecheck(n.List.First(), Erv))
+ 			}
+ 
+-			if n.Left == nil {
+-				n.Left = nodnil()
+-			} else {
++			if n.Left != nil {
+ 				n.Left = nod(OADDR, n.Left, nil)
+ 				n.Left = typecheck(n.Left, Erv)
+ 			}
+@@ -231,14 +229,22 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			r = nod(OIF, nil, nil)
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+-			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, n.Left, ch)
++			elem := n.Left
++			if elem == nil {
++				elem = nodnil()
++			}
++			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, ch)
+ 
+ 		case OSELRECV2:
+ 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, n.Left, n.List.First(), ch)
++			elem := n.Left
++			if elem == nil {
++				elem = nodnil()
++			}
++			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), types.Types[TBOOL], &r.Ninit, elem, n.List.First(), ch)
+ 		}
+ 
+ 		r.Left = typecheck(r.Left, Erv)
+@@ -268,9 +274,17 @@ func walkselectcases(cases *Nodes) []*Node {
+ 		init = append(init, cas.Ninit.Slice()...)
+ 		cas.Ninit.Set(nil)
+ 
+-		s := bytePtrToIndex(selv, int64(i))
++		// Keep in sync with runtime/select.go.
++		const (
++			caseNil = iota
++			caseRecv
++			caseSend
++			caseDefault
++		)
++
++		var c, elem, receivedp *Node
++		var kind int64 = caseDefault
+ 
+-		var x *Node
+ 		if n := cas.Left; n != nil {
+ 			init = append(init, n.Ninit.Slice()...)
+ 
+@@ -278,21 +292,50 @@ func walkselectcases(cases *Nodes) []*Node {
+ 			default:
+ 				Fatalf("select %v", n.Op)
+ 			case OSEND:
+-				// selectsend(cas *byte, hchan *chan any, elem *any)
+-				x = mkcall1(chanfn("selectsend", 2, n.Left.Type), nil, nil, s, n.Left, n.Right)
++				kind = caseSend
++				c = n.Left
++				elem = n.Right
+ 			case OSELRECV:
+-				// selectrecv(cas *byte, hchan *chan any, elem *any, received *bool)
+-				x = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), nil, nil, s, n.Right.Left, n.Left, nodnil())
++				kind = caseRecv
++				c = n.Right.Left
++				elem = n.Left
+ 			case OSELRECV2:
+-				// selectrecv(cas *byte, hchan *chan any, elem *any, received *bool)
+-				x = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), nil, nil, s, n.Right.Left, n.Left, n.List.First())
++				kind = caseRecv
++				c = n.Right.Left
++				elem = n.Left
++				receivedp = n.List.First()
+ 			}
+-		} else {
+-			// selectdefault(cas *byte)
+-			x = mkcall("selectdefault", nil, nil, s)
+ 		}
+ 
+-		init = append(init, x)
++		setField := func(f string, val *Node) {
++			r := nod(OAS, nodSym(ODOT, nod(OINDEX, selv, nodintconst(int64(i))), lookup(f)), val)
++			r = typecheck(r, Etop)
++			init = append(init, r)
++		}
++
++		setField("kind", nodintconst(kind))
++		if c != nil {
++			c = nod(OCONVNOP, c, nil)
++			c.Type = types.Types[TUNSAFEPTR]
++			setField("c", c)
++		}
++		if elem != nil {
++			elem = nod(OCONVNOP, elem, nil)
++			elem.Type = types.Types[TUNSAFEPTR]
++			setField("elem", elem)
++		}
++		if receivedp != nil {
++			receivedp = nod(OCONVNOP, receivedp, nil)
++			receivedp.Type = types.NewPtr(types.Types[TBOOL])
++			setField("receivedp", receivedp)
++		}
++
++		// TODO(mdempsky): There should be a cleaner way to
++		// handle this.
++		if instrumenting {
++			r = mkcall("selectsetpc", nil, nil, bytePtrToIndex(selv, int64(i)))
++			init = append(init, r)
++		}
+ 	}
+ 
+ 	// run the select
+@@ -337,11 +380,11 @@ var scase *types.Type
+ func scasetype() *types.Type {
+ 	if scase == nil {
+ 		scase = tostruct([]*Node{
+-			namedfield("elem", types.NewPtr(types.Types[TUINT8])),
+-			namedfield("chan", types.NewPtr(types.Types[TUINT8])),
+-			namedfield("pc", types.Types[TUINTPTR]),
++			namedfield("c", types.Types[TUNSAFEPTR]),
++			namedfield("elem", types.Types[TUNSAFEPTR]),
++			namedfield("receivedp", types.NewPtr(types.Types[TBOOL])),
+ 			namedfield("kind", types.Types[TUINT16]),
+-			namedfield("receivedp", types.NewPtr(types.Types[TUINT8])),
++			namedfield("pc", types.Types[TUINTPTR]),
+ 			namedfield("releasetime", types.Types[TUINT64]),
+ 		})
+ 		scase.SetNoalg(true)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f473fa8218..7d2cd7e847 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1681,7 +1681,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 
+ 		// unsafe.Pointer <--> *T
+-		if to.Etype == TUNSAFEPTR && from.IsPtr() || from.Etype == TUNSAFEPTR && to.IsPtr() {
++		if to.Etype == TUNSAFEPTR && from.IsPtrShaped() || from.Etype == TUNSAFEPTR && to.IsPtrShaped() {
+ 			return v
+ 		}
+ 
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 265f70ed9e..6e6849c7d3 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -12,8 +12,10 @@ import (
+ 
+ const debugSelect = false
+ 
++// scase.kind values.
++// Known to compiler.
++// Changes here must also be made in src/cmd/compile/internal/gc/select.go's walkselect.
+ const (
+-	// scase.kind
+ 	caseNil = iota
+ 	caseRecv
+ 	caseSend
+@@ -24,11 +26,11 @@ const (
+ // Known to compiler.
+ // Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
+ type scase struct {
+-	elem        unsafe.Pointer // data element
+ 	c           *hchan         // chan
+-	pc          uintptr        // return pc (for race detector / msan)
++	elem        unsafe.Pointer // data element
++	receivedp   *bool          // pointer to received bool, if any
+ 	kind        uint16
+-	receivedp   *bool // pointer to received bool, if any
++	pc          uintptr // race pc (for race detector / msan)
+ 	releasetime int64
+ }
+ 
+@@ -37,43 +39,8 @@ var (
+ 	chanrecvpc = funcPC(chanrecv)
+ )
+ 
+-func selectsend(cas *scase, c *hchan, elem unsafe.Pointer) {
+-	if c == nil {
+-		return
+-	}
+-	cas.pc = getcallerpc()
+-	cas.c = c
+-	cas.kind = caseSend
+-	cas.elem = elem
+-
+-	if debugSelect {
+-		print("selectsend cas=", cas, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
+-	}
+-}
+-
+-func selectrecv(cas *scase, c *hchan, elem unsafe.Pointer, received *bool) {
+-	if c == nil {
+-		return
+-	}
+-	cas.pc = getcallerpc()
+-	cas.c = c
+-	cas.kind = caseRecv
+-	cas.elem = elem
+-	cas.receivedp = received
+-
+-	if debugSelect {
+-		print("selectrecv cas=", cas, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
+-	}
+-}
+-
+-func selectdefault(cas *scase) {
++func selectsetpc(cas *scase) {
+ 	cas.pc = getcallerpc()
+-	cas.c = nil
+-	cas.kind = caseDefault
+-
+-	if debugSelect {
+-		print("selectdefault cas=", cas, " pc=", hex(cas.pc), "\n")
+-	}
+ }
+ 
+ func sellock(scases []scase, lockorder []uint16) {
+@@ -156,6 +123,15 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) int {
+ 	pollorder := order1[:ncases:ncases]
+ 	lockorder := order1[ncases:][:ncases:ncases]
+ 
++	// Replace send/receive cases involving nil channels with
++	// caseNil so logic below can assume non-nil channel.
++	for i := range scases {
++		cas := &scases[i]
++		if cas.c == nil && cas.kind != caseDefault {
++			*cas = scase{}
++		}
++	}
++
+ 	var t0 int64
+ 	if blockprofilerate > 0 {
+ 		t0 = cputicks()
+@@ -556,11 +532,14 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 		rc := &cases[i]
+ 		switch rc.dir {
+ 		case selectDefault:
+-			selectdefault(&sel[i])
++			sel[i] = scase{kind: caseDefault}
+ 		case selectSend:
+-			selectsend(&sel[i], rc.ch, rc.val)
++			sel[i] = scase{kind: caseSend, c: rc.ch, elem: rc.val}
+ 		case selectRecv:
+-			selectrecv(&sel[i], rc.ch, rc.val, r)
++			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val, receivedp: r}
++		}
++		if raceenabled || msanenabled {
++			selectsetpc(&sel[i])
+ 		}
+ 	}
+ 
+diff --git a/test/live.go b/test/live.go
+index 43ef9bdad2..8de3cf7e86 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -164,9 +164,9 @@ var b bool
+ // this used to have a spurious "live at entry to f11a: ~r0"
+ func f11a() *int {
+ 	select { // ERROR "live at call to selectgo: .autotmp_[0-9]+$"
+-	case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
++	case <-c:
+ 		return nil
+-	case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
++	case <-c:
+ 		return nil
+ 	}
+ }
+@@ -179,9 +179,9 @@ func f11b() *int {
+ 		// This used to have a spurious "live at call to printint: p".
+ 		printint(1) // nothing live here!
+ 		select {    // ERROR "live at call to selectgo: .autotmp_[0-9]+$"
+-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
++		case <-c:
+ 			return nil
+-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+$"
++		case <-c:
+ 			return nil
+ 		}
+ 	}
+@@ -199,8 +199,8 @@ func f11c() *int {
+ 		// so we can get to the println, so p is not dead.
+ 		printint(1) // ERROR "live at call to printint: p$"
+ 		select {    // ERROR "live at call to selectgo: .autotmp_[0-9]+ p$"
+-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+ p$"
+-		case <-c: // ERROR "live at call to selectrecv: .autotmp_[0-9]+ p$"
++		case <-c:
++		case <-c:
+ 		}
+ 	}
+ 	println(*p)
+@@ -590,13 +590,13 @@ func f38(b bool) {
+ 	// and therefore no output.
+ 	if b {
+ 		select { // ERROR "live at call to selectgo:( .autotmp_[0-9]+)+$"
+-		case <-fc38(): // ERROR "live at call to selectrecv:( .autotmp_[0-9]+)+$"
++		case <-fc38():
+ 			printnl()
+-		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectsend:( .autotmp_[0-9]+)+$"
++		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
+ 			printnl()
+-		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
++		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
+ 			printnl()
+-		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38:( .autotmp_[0-9]+)+$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
++		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38:( .autotmp_[0-9]+)+$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
+ 			printnl()
+ 		}
+ 		printnl()

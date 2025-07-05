@@ -13,6 +13,21 @@ Date:   Thu May 18 21:24:07 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/api/api_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index 8b1b7c3ce8..53ae6fd2c8 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -210,6 +210,9 @@ func BenchmarkAll(b *testing.B) {
+ }
+ 
+ func TestIssue21181(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping with -short")
++	}
+ 	if *flagCheck {
+ 		// slow, not worth repeating in -check
+ 		t.Skip("skipping with -check set")

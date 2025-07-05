@@ -20,8 +20,135 @@ Date:   Tue Aug 27 10:19:17 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go                    | 23 ++++++++++++++++-------
  src/cmd/cgo/internal/test/cgo_test.go |  1 +
  src/cmd/cgo/internal/test/test.go     | 34 ++++++++++++++++++++++++++++++++++
  3 files changed, 51 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 504a565063..0f90761e14 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2577,6 +2577,11 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		if dt.BitSize > 0 {
+ 			fatalf("%s: unexpected: %d-bit int type - %s", lineno(pos), dt.BitSize, dtype)
+ 		}
++
++		if t.Align = t.Size; t.Align >= c.ptrSize {
++			t.Align = c.ptrSize
++		}
++
+ 		switch t.Size {
+ 		default:
+ 			fatalf("%s: unexpected: %d-byte int type - %s", lineno(pos), t.Size, dtype)
+@@ -2593,9 +2598,8 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 				Len: c.intExpr(t.Size),
+ 				Elt: c.uint8,
+ 			}
+-		}
+-		if t.Align = t.Size; t.Align >= c.ptrSize {
+-			t.Align = c.ptrSize
++			// t.Align is the alignment of the Go type.
++			t.Align = 1
+ 		}
+ 
+ 	case *dwarf.PtrType:
+@@ -2824,6 +2828,11 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		if dt.BitSize > 0 {
+ 			fatalf("%s: unexpected: %d-bit uint type - %s", lineno(pos), dt.BitSize, dtype)
+ 		}
++
++		if t.Align = t.Size; t.Align >= c.ptrSize {
++			t.Align = c.ptrSize
++		}
++
+ 		switch t.Size {
+ 		default:
+ 			fatalf("%s: unexpected: %d-byte uint type - %s", lineno(pos), t.Size, dtype)
+@@ -2840,9 +2849,8 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 				Len: c.intExpr(t.Size),
+ 				Elt: c.uint8,
+ 			}
+-		}
+-		if t.Align = t.Size; t.Align >= c.ptrSize {
+-			t.Align = c.ptrSize
++			// t.Align is the alignment of the Go type.
++			t.Align = 1
+ 		}
+ 
+ 	case *dwarf.VoidType:
+@@ -3108,10 +3116,11 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 		}
+ 
+ 		// Round off up to talign, assumed to be a power of 2.
++		origOff := off
+ 		off = (off + talign - 1) &^ (talign - 1)
+ 
+ 		if f.ByteOffset > off {
+-			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
++			fld, sizes = c.pad(fld, sizes, f.ByteOffset-origOff)
+ 			off = f.ByteOffset
+ 		}
+ 		if f.ByteOffset < off {
+diff --git a/src/cmd/cgo/internal/test/cgo_test.go b/src/cmd/cgo/internal/test/cgo_test.go
+index 5e02888b3d..5393552e07 100644
+--- a/src/cmd/cgo/internal/test/cgo_test.go
++++ b/src/cmd/cgo/internal/test/cgo_test.go
+@@ -70,6 +70,7 @@ func Test31891(t *testing.T)                 { test31891(t) }
+ func Test42018(t *testing.T)                 { test42018(t) }
+ func Test45451(t *testing.T)                 { test45451(t) }
+ func Test49633(t *testing.T)                 { test49633(t) }
++func Test69086(t *testing.T)                 { test69086(t) }
+ func TestAlign(t *testing.T)                 { testAlign(t) }
+ func TestAtol(t *testing.T)                  { testAtol(t) }
+ func TestBlocking(t *testing.T)              { testBlocking(t) }
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 34a812ed22..c1375c2691 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -940,6 +940,19 @@ typedef struct {
+ } issue67517struct;
+ static void issue67517(issue67517struct* p) {}
+ 
++// Issue 69086.
++// GCC added the __int128 type in GCC 4.6, released in 2011.
++typedef struct {
++	int a;
++#ifdef __SIZEOF_INT128__
++	unsigned __int128 b;
++#else
++	uint64_t b;
++#endif
++	unsigned char c;
++} issue69086struct;
++static int issue690861(issue69086struct* p) { p->b = 1234; return p->c; }
++static int issue690862(unsigned long ul1, unsigned long ul2, unsigned int u, issue69086struct s) { return (int)(s.b); }
+ */
+ import "C"
+ 
+@@ -2349,3 +2362,24 @@ func issue67517() {
+ 		b: nil,
+ 	})
+ }
++
++// Issue 69086.
++func test69086(t *testing.T) {
++	var s C.issue69086struct
++
++	typ := reflect.TypeOf(s)
++	for i := 0; i < typ.NumField(); i++ {
++		f := typ.Field(i)
++		t.Logf("field %d: name %s size %d align %d offset %d", i, f.Name, f.Type.Size(), f.Type.Align(), f.Offset)
++	}
++
++	s.c = 1
++	got := C.issue690861(&s)
++	if got != 1 {
++		t.Errorf("field: got %d, want 1", got)
++	}
++	got = C.issue690862(1, 2, 3, s)
++	if got != 1234 {
++		t.Errorf("call: got %d, want 1234", got)
++	}
++}

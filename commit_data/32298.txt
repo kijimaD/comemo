@@ -34,7 +34,7 @@ Date:   Fri Apr 7 15:41:45 2017 -0700
     Change-Id: I53b6e1bda189748e1e1fb5b765a8a64337c27d40
     Reviewed-on: https://go-review.googlesource.com/39998
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/checkcfg.go     | 310 ----------------------------
  src/cmd/compile/internal/gc/noder.go        |   2 +-
  src/cmd/compile/internal/gc/pgen.go         |   4 -
@@ -45,3 +45,1098 @@ Date:   Fri Apr 7 15:41:45 2017 -0700
  test/fixedbugs/issue8042.go                 |  66 ++++++
  test/goto.go                                |  64 +++---
  9 files changed, 420 insertions(+), 351 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/checkcfg.go b/src/cmd/compile/internal/gc/checkcfg.go
+deleted file mode 100644
+index d55d91ffd2..0000000000
+--- a/src/cmd/compile/internal/gc/checkcfg.go
++++ /dev/null
+@@ -1,310 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package gc
+-
+-import (
+-	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+-)
+-
+-// checkcontrolflow checks fn's control flow structures for correctness.
+-// It catches:
+-//   * misplaced breaks and continues
+-//   * bad labeled break and continues
+-//   * invalid, unused, duplicate, and missing labels
+-//   * gotos jumping over declarations and into blocks
+-func checkcontrolflow(fn *Node) {
+-	c := controlflow{
+-		labels:       make(map[string]*cfLabel),
+-		labeledNodes: make(map[*Node]*cfLabel),
+-	}
+-	c.pushPos(fn.Pos)
+-	c.stmtList(fn.Nbody)
+-
+-	// Check that we used all labels.
+-	for name, lab := range c.labels {
+-		if !lab.used() && !lab.reported && !lab.defNode.Used() {
+-			yyerrorl(lab.defNode.Pos, "label %v defined and not used", name)
+-			lab.reported = true
+-		}
+-		if lab.used() && !lab.defined() && !lab.reported {
+-			yyerrorl(lab.useNode.Pos, "label %v not defined", name)
+-			lab.reported = true
+-		}
+-	}
+-
+-	// Check any forward gotos. Non-forward gotos have already been checked.
+-	for _, n := range c.fwdGotos {
+-		lab := c.labels[n.Left.Sym.Name]
+-		// If the label is undefined, we have already have printed an error.
+-		if lab.defined() {
+-			c.checkgoto(n, lab.defNode)
+-		}
+-	}
+-}
+-
+-type controlflow struct {
+-	// Labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f.
+-	labels       map[string]*cfLabel
+-	labeledNodes map[*Node]*cfLabel
+-
+-	// Gotos that jump forward; required for deferred checkgoto calls.
+-	fwdGotos []*Node
+-
+-	// Breaks are allowed in loops, switches, and selects.
+-	allowBreak bool
+-	// Continues are allowed only in loops.
+-	allowContinue bool
+-
+-	// Position stack. The current position is top of stack.
+-	pos []src.XPos
+-}
+-
+-// cfLabel is a label tracked by a controlflow.
+-type cfLabel struct {
+-	ctlNode *Node // associated labeled control flow node
+-	defNode *Node // label definition Node (OLABEL)
+-	// Label use Node (OGOTO, OBREAK, OCONTINUE).
+-	// There might be multiple uses, but we only need to track one.
+-	useNode  *Node
+-	reported bool // reported indicates whether an error has already been reported for this label
+-}
+-
+-// defined reports whether the label has a definition (OLABEL node).
+-func (l *cfLabel) defined() bool { return l.defNode != nil }
+-
+-// used reports whether the label has a use (OGOTO, OBREAK, or OCONTINUE node).
+-func (l *cfLabel) used() bool { return l.useNode != nil }
+-
+-// label returns the label associated with sym, creating it if necessary.
+-func (c *controlflow) label(sym *types.Sym) *cfLabel {
+-	lab := c.labels[sym.Name]
+-	if lab == nil {
+-		lab = new(cfLabel)
+-		c.labels[sym.Name] = lab
+-	}
+-	return lab
+-}
+-
+-// stmtList checks l.
+-func (c *controlflow) stmtList(l Nodes) {
+-	for _, n := range l.Slice() {
+-		c.stmt(n)
+-	}
+-}
+-
+-// stmt checks n.
+-func (c *controlflow) stmt(n *Node) {
+-	c.pushPos(n.Pos)
+-	defer c.popPos()
+-	c.stmtList(n.Ninit)
+-
+-	checkedNbody := false
+-
+-	switch n.Op {
+-	case OLABEL:
+-		sym := n.Left.Sym
+-		lab := c.label(sym)
+-		// Associate label with its control flow node, if any
+-		if ctl := n.labeledControl(); ctl != nil {
+-			c.labeledNodes[ctl] = lab
+-		}
+-
+-		if !lab.defined() {
+-			lab.defNode = n
+-		} else {
+-			c.err("label %v already defined at %v", sym, linestr(lab.defNode.Pos))
+-			lab.reported = true
+-		}
+-
+-	case OGOTO:
+-		lab := c.label(n.Left.Sym)
+-		if !lab.used() {
+-			lab.useNode = n
+-		}
+-		if lab.defined() {
+-			c.checkgoto(n, lab.defNode)
+-		} else {
+-			c.fwdGotos = append(c.fwdGotos, n)
+-		}
+-
+-	case OCONTINUE, OBREAK:
+-		if n.Left == nil {
+-			// plain break/continue
+-			if n.Op == OCONTINUE && !c.allowContinue {
+-				c.err("%v is not in a loop", n.Op)
+-			} else if !c.allowBreak {
+-				c.err("%v is not in a loop, switch, or select", n.Op)
+-			}
+-			break
+-		}
+-
+-		// labeled break/continue; look up the target
+-		sym := n.Left.Sym
+-		lab := c.label(sym)
+-		if !lab.used() {
+-			lab.useNode = n.Left
+-		}
+-		if !lab.defined() {
+-			c.err("%v label not defined: %v", n.Op, sym)
+-			lab.reported = true
+-			break
+-		}
+-		ctl := lab.ctlNode
+-		if n.Op == OCONTINUE && ctl != nil && (ctl.Op == OSWITCH || ctl.Op == OSELECT) {
+-			// Cannot continue in a switch or select.
+-			ctl = nil
+-		}
+-		if ctl == nil {
+-			// Valid label but not usable with a break/continue here, e.g.:
+-			// for {
+-			// 	continue abc
+-			// }
+-			// abc:
+-			// for {}
+-			c.err("invalid %v label %v", n.Op, sym)
+-			lab.reported = true
+-		}
+-
+-	case OFOR, OFORUNTIL, OSWITCH, OSELECT:
+-		// set up for continue/break in body
+-		allowBreak := c.allowBreak
+-		allowContinue := c.allowContinue
+-		c.allowBreak = true
+-		switch n.Op {
+-		case OFOR, OFORUNTIL:
+-			c.allowContinue = true
+-		}
+-		lab := c.labeledNodes[n]
+-		if lab != nil {
+-			// labeled for loop
+-			lab.ctlNode = n
+-		}
+-
+-		// check body
+-		c.stmtList(n.Nbody)
+-		checkedNbody = true
+-
+-		// tear down continue/break
+-		c.allowBreak = allowBreak
+-		c.allowContinue = allowContinue
+-		if lab != nil {
+-			lab.ctlNode = nil
+-		}
+-	}
+-
+-	if !checkedNbody {
+-		c.stmtList(n.Nbody)
+-	}
+-	c.stmtList(n.List)
+-	c.stmtList(n.Rlist)
+-}
+-
+-// pushPos pushes a position onto the position stack.
+-func (c *controlflow) pushPos(pos src.XPos) {
+-	if !pos.IsKnown() {
+-		pos = c.peekPos()
+-		if Debug['K'] != 0 {
+-			Warn("controlflow: unknown position")
+-		}
+-	}
+-	c.pos = append(c.pos, pos)
+-}
+-
+-// popLine pops the top of the position stack.
+-func (c *controlflow) popPos() { c.pos = c.pos[:len(c.pos)-1] }
+-
+-// peekPos peeks at the top of the position stack.
+-func (c *controlflow) peekPos() src.XPos { return c.pos[len(c.pos)-1] }
+-
+-// err reports a control flow error at the current position.
+-func (c *controlflow) err(msg string, args ...interface{}) {
+-	yyerrorl(c.peekPos(), msg, args...)
+-}
+-
+-// checkgoto checks that a goto from from to to does not
+-// jump into a block or jump over variable declarations.
+-func (c *controlflow) checkgoto(from *Node, to *Node) {
+-	if from.Op != OGOTO || to.Op != OLABEL {
+-		Fatalf("bad from/to in checkgoto: %v -> %v", from, to)
+-	}
+-
+-	// from and to's Sym fields record dclstack's value at their
+-	// position, which implicitly encodes their block nesting
+-	// level and variable declaration position within that block.
+-	//
+-	// For valid gotos, to.Sym will be a tail of from.Sym.
+-	// Otherwise, any link in to.Sym not also in from.Sym
+-	// indicates a block/declaration being jumped into/over.
+-	//
+-	// TODO(mdempsky): We should only complain about jumping over
+-	// variable declarations, but currently we reject type and
+-	// constant declarations too (#8042).
+-
+-	if from.Sym == to.Sym {
+-		return
+-	}
+-
+-	nf := dcldepth(from.Sym)
+-	nt := dcldepth(to.Sym)
+-
+-	// Unwind from.Sym so it's no longer than to.Sym. It's okay to
+-	// jump out of blocks or backwards past variable declarations.
+-	fs := from.Sym
+-	for ; nf > nt; nf-- {
+-		fs = fs.Link
+-	}
+-
+-	if fs == to.Sym {
+-		return
+-	}
+-
+-	// Decide what to complain about. Unwind to.Sym until where it
+-	// forked from from.Sym, and keep track of the innermost block
+-	// and declaration we jumped into/over.
+-	var block *types.Sym
+-	var dcl *types.Sym
+-
+-	// If to.Sym is longer, unwind until it's the same length.
+-	ts := to.Sym
+-	for ; nt > nf; nt-- {
+-		if ts.Pkg == nil {
+-			block = ts
+-		} else {
+-			dcl = ts
+-		}
+-		ts = ts.Link
+-	}
+-
+-	// Same length; unwind until we find their common ancestor.
+-	for ts != fs {
+-		if ts.Pkg == nil {
+-			block = ts
+-		} else {
+-			dcl = ts
+-		}
+-		ts = ts.Link
+-		fs = fs.Link
+-	}
+-
+-	// Prefer to complain about 'into block' over declarations.
+-	pos := from.Left.Pos
+-	if block != nil {
+-		yyerrorl(pos, "goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
+-	} else {
+-		yyerrorl(pos, "goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
+-	}
+-}
+-
+-// dcldepth returns the declaration depth for a dclstack Sym; that is,
+-// the sum of the block nesting level and the number of declarations
+-// in scope.
+-func dcldepth(s *types.Sym) int {
+-	n := 0
+-	for ; s != nil; s = s.Link {
+-		n++
+-	}
+-	return n
+-}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index cc93766fe2..27c842150b 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -36,7 +36,7 @@ func parseFiles(filenames []string) uint {
+ 			}
+ 			defer f.Close()
+ 
+-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, 0) // errors are tracked via p.error
++			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+ 		}(filename)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6e182f9dd2..c657d75461 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -197,10 +197,6 @@ func compile(fn *Node) {
+ 	if nerrors != 0 {
+ 		return
+ 	}
+-	checkcontrolflow(fn)
+-	if nerrors != 0 {
+-		return
+-	}
+ 	if instrumenting {
+ 		instrument(fn)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/branches.go b/src/cmd/compile/internal/syntax/branches.go
+new file mode 100644
+index 0000000000..b54a2c7567
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/branches.go
+@@ -0,0 +1,304 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"cmd/internal/src"
++	"fmt"
++)
++
++// TODO(gri) do this while parsing instead of in a separate pass?
++
++// checkBranches checks correct use of labels and branch
++// statements (break, continue, goto) in a function body.
++// It catches:
++//    - misplaced breaks and continues
++//    - bad labeled breaks and continues
++//    - invalid, unused, duplicate, and missing labels
++//    - gotos jumping over variable declarations and into blocks
++func checkBranches(body *BlockStmt, errh ErrorHandler) {
++	if body == nil {
++		return
++	}
++
++	// scope of all labels in this body
++	ls := &labelScope{errh: errh}
++	fwdGo2s := ls.blockBranches(nil, 0, nil, body.List)
++
++	// If there are any forward gotos left, no matching label was
++	// found for them. Either those labels were never defined, or
++	// they are inside blocks and not reachable from the gotos.
++	for _, go2 := range fwdGo2s {
++		var msg string
++		name := go2.Label.Value
++		if alt, found := ls.labels[name]; found {
++			msg = "goto %s jumps into block"
++			alt.used = true // avoid "defined and not used" error
++		} else {
++			msg = "label %s not defined"
++		}
++		ls.err(go2.Label.Pos(), msg, name)
++	}
++
++	// spec: "It is illegal to define a label that is never used."
++	for _, l := range ls.labels {
++		if !l.used {
++			l := l.lstmt.Label
++			ls.err(l.Pos(), "label %s defined and not used", l.Value)
++		}
++	}
++}
++
++type labelScope struct {
++	errh   ErrorHandler
++	labels map[string]*label // all label declarations inside the function; allocated lazily
++}
++
++type label struct {
++	parent *block       // block containing this label declaration
++	lstmt  *LabeledStmt // statement declaring the label
++	used   bool         // whether the label is used or not
++}
++
++type block struct {
++	parent *block       // immediately enclosing block, or nil
++	lstmt  *LabeledStmt // labeled statement to which this block belongs, or nil
++}
++
++func (ls *labelScope) err(pos src.Pos, format string, args ...interface{}) {
++	ls.errh(Error{pos, fmt.Sprintf(format, args...)})
++}
++
++// declare declares the label introduced by s in block b and returns
++// the new label. If the label was already declared, declare reports
++// and error and the existing label is returned instead.
++func (ls *labelScope) declare(b *block, s *LabeledStmt) *label {
++	name := s.Label.Value
++	labels := ls.labels
++	if labels == nil {
++		labels = make(map[string]*label)
++		ls.labels = labels
++	} else if alt := labels[name]; alt != nil {
++		ls.err(s.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
++		return alt
++	}
++	l := &label{b, s, false}
++	labels[name] = l
++	return l
++}
++
++// gotoTarget returns the labeled statement matching the given name and
++// declared in block b or any of its enclosing blocks. The result is nil
++// if the label is not defined, or doesn't match a valid labeled statement.
++func (ls *labelScope) gotoTarget(b *block, name string) *label {
++	if l := ls.labels[name]; l != nil {
++		l.used = true // even if it's not a valid target
++		for ; b != nil; b = b.parent {
++			if l.parent == b {
++				return l
++			}
++		}
++	}
++	return nil
++}
++
++var invalid = new(LabeledStmt) // singleton to signal invalid enclosing target
++
++// enclosingTarget returns the innermost enclosing labeled statement matching
++// the given name. The result is nil if the label is not defined, and invalid
++// if the label is defined but doesn't label a valid labeled statement.
++func (ls *labelScope) enclosingTarget(b *block, name string) *LabeledStmt {
++	if l := ls.labels[name]; l != nil {
++		l.used = true // even if it's not a valid target (see e.g., test/fixedbugs/bug136.go)
++		for ; b != nil; b = b.parent {
++			if l.lstmt == b.lstmt {
++				return l.lstmt
++			}
++		}
++		return invalid
++	}
++	return nil
++}
++
++// context flags
++const (
++	breakOk = 1 << iota
++	continueOk
++)
++
++// blockBranches processes a block's body and returns the list of unresolved (forward) gotos.
++// parent is the immediately enclosing block (or nil), context provides information about the
++// enclosing statements, and lstmt is the labeled statement this body belongs to, or nil.
++func (ls *labelScope) blockBranches(parent *block, context uint, lstmt *LabeledStmt, body []Stmt) []*BranchStmt {
++	b := &block{parent: parent, lstmt: lstmt}
++
++	var varPos src.Pos
++	var varName Expr
++	var fwdGo2s, badGo2s []*BranchStmt
++
++	recordVarDecl := func(pos src.Pos, name Expr) {
++		varPos = pos
++		varName = name
++		// Any existing forward goto jumping over the variable
++		// declaration is invalid. The goto may still jump out
++		// of the block and be ok, but we don't know that yet.
++		// Remember all forward gotos as potential bad gotos.
++		badGo2s = append(badGo2s[:0], fwdGo2s...)
++	}
++
++	jumpsOverVarDecl := func(go2 *BranchStmt) bool {
++		if varPos.IsKnown() {
++			for _, bad := range badGo2s {
++				if go2 == bad {
++					return true
++				}
++			}
++		}
++		return false
++	}
++
++	innerBlock := func(flags uint, body []Stmt) {
++		fwdGo2s = append(fwdGo2s, ls.blockBranches(b, context|flags, lstmt, body)...)
++	}
++
++	for _, stmt := range body {
++		lstmt = nil
++	L:
++		switch s := stmt.(type) {
++		case *DeclStmt:
++			for _, d := range s.DeclList {
++				if v, ok := d.(*VarDecl); ok {
++					recordVarDecl(v.Pos(), v.NameList[0])
++					break // the first VarDecl will do
++				}
++			}
++
++		case *LabeledStmt:
++			// declare non-blank label
++			if name := s.Label.Value; name != "_" {
++				l := ls.declare(b, s)
++				// resolve matching forward gotos
++				i := 0
++				for _, go2 := range fwdGo2s {
++					if go2.Label.Value == name {
++						l.used = true
++						if jumpsOverVarDecl(go2) {
++							ls.err(
++								go2.Label.Pos(),
++								"goto %s jumps over declaration of %s at %s",
++								name, String(varName), varPos,
++							)
++						}
++					} else {
++						// no match - keep forward goto
++						fwdGo2s[i] = go2
++						i++
++					}
++				}
++				fwdGo2s = fwdGo2s[:i]
++				lstmt = s
++			}
++			// process labeled statement
++			stmt = s.Stmt
++			goto L
++
++		case *BranchStmt:
++			// unlabeled branch statement
++			if s.Label == nil {
++				switch s.Tok {
++				case _Break:
++					if context&breakOk == 0 {
++						ls.err(s.Pos(), "break is not in a loop, switch, or select")
++					}
++				case _Continue:
++					if context&continueOk == 0 {
++						ls.err(s.Pos(), "continue is not in a loop")
++					}
++				case _Fallthrough:
++					// nothing to do
++				case _Goto:
++					fallthrough // should always have a label
++				default:
++					panic("invalid BranchStmt")
++				}
++				break
++			}
++
++			// labeled branch statement
++			name := s.Label.Value
++			switch s.Tok {
++			case _Break:
++				// spec: "If there is a label, it must be that of an enclosing
++				// "for", "switch", or "select" statement, and that is the one
++				// whose execution terminates."
++				if t := ls.enclosingTarget(b, name); t != nil {
++					valid := false
++					switch t.Stmt.(type) {
++					case *SwitchStmt, *SelectStmt, *ForStmt:
++						valid = true
++					}
++					if !valid {
++						ls.err(s.Label.Pos(), "invalid break label %s", name)
++					}
++				} else {
++					ls.err(s.Label.Pos(), "break label not defined: %s", name)
++				}
++
++			case _Continue:
++				// spec: "If there is a label, it must be that of an enclosing
++				// "for" statement, and that is the one whose execution advances."
++				if t := ls.enclosingTarget(b, name); t != nil {
++					if _, ok := t.Stmt.(*ForStmt); !ok {
++						ls.err(s.Label.Pos(), "invalid continue label %s", name)
++					}
++				} else {
++					ls.err(s.Label.Pos(), "continue label not defined: %s", name)
++				}
++
++			case _Goto:
++				if ls.gotoTarget(b, name) == nil {
++					// label may be declared later - add goto to forward gotos
++					fwdGo2s = append(fwdGo2s, s)
++				}
++
++			case _Fallthrough:
++				fallthrough // should never have a label
++			default:
++				panic("invalid BranchStmt")
++			}
++
++		case *AssignStmt:
++			if s.Op == Def {
++				recordVarDecl(s.Pos(), s.Lhs)
++			}
++
++		case *BlockStmt:
++			// Unresolved forward gotos from the nested block
++			// become forward gotos for the current block.
++			innerBlock(0, s.List)
++
++		case *IfStmt:
++			innerBlock(0, s.Then.List)
++			if s.Else != nil {
++				innerBlock(0, []Stmt{s.Else})
++			}
++
++		case *ForStmt:
++			innerBlock(breakOk|continueOk, s.Body.List)
++
++		case *SwitchStmt:
++			for _, cc := range s.Body {
++				innerBlock(breakOk, cc.Body)
++			}
++
++		case *SelectStmt:
++			for _, cc := range s.Body {
++				innerBlock(breakOk, cc.Body)
++			}
++		}
++	}
++
++	return fwdGo2s
++}
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e55a2219d6..fee52c8c36 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -18,6 +18,7 @@ const trace = false
+ type parser struct {
+ 	base *src.PosBase
+ 	errh ErrorHandler
++	mode Mode
+ 	scanner
+ 
+ 	first  error  // first error encountered
+@@ -28,9 +29,10 @@ type parser struct {
+ 	indent []byte // tracing support
+ }
+ 
+-func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler) {
++func (p *parser) init(base *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
+ 	p.base = base
+ 	p.errh = errh
++	p.mode = mode
+ 	p.scanner.init(
+ 		r,
+ 		// Error and pragma handlers for scanner.
+@@ -494,6 +496,9 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 	f.Type = p.funcType()
+ 	if p.tok == _Lbrace {
+ 		f.Body = p.blockStmt("")
++		if p.mode&CheckBranches != 0 {
++			checkBranches(f.Body, p.errh)
++		}
+ 	}
+ 
+ 	f.Pragma = p.pragma
+@@ -722,6 +727,9 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 			f.pos = pos
+ 			f.Type = t
+ 			f.Body = p.blockStmt("")
++			if p.mode&CheckBranches != 0 {
++				checkBranches(f.Body, p.errh)
++			}
+ 
+ 			p.xnest--
+ 			return f
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 587a435e85..ed5e254724 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -14,6 +14,11 @@ import (
+ // Mode describes the parser mode.
+ type Mode uint
+ 
++// Modes supported by the parser.
++const (
++	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
++)
++
+ // Error describes a syntax error. Error implements the error interface.
+ type Error struct {
+ 	Pos src.Pos
+@@ -63,7 +68,7 @@ func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHand
+ 	}()
+ 
+ 	var p parser
+-	p.init(base, src, errh, pragh)
++	p.init(base, src, errh, pragh, mode)
+ 	p.next()
+ 	return p.fileOrNil(), p.first
+ }
+diff --git a/test/fixedbugs/issue14006.go b/test/fixedbugs/issue14006.go
+index c3c56b11a2..d69bdd4892 100644
+--- a/test/fixedbugs/issue14006.go
++++ b/test/fixedbugs/issue14006.go
+@@ -53,12 +53,12 @@ func f() {
+ 
+ 	switch {
+ 	case z:
+-		labelname:
++		labelname:	// ERROR "label labelname defined and not used"
+ 	}
+ 
+ 	switch {
+ 	case z:
+-		labelname: ;
++		labelname: ;	// ERROR "label labelname already defined at LINE-5"
+ 	case false:
+ 	}
+ }
+\ No newline at end of file
+diff --git a/test/fixedbugs/issue8042.go b/test/fixedbugs/issue8042.go
+new file mode 100644
+index 0000000000..5639f97bb8
+--- /dev/null
++++ b/test/fixedbugs/issue8042.go
+@@ -0,0 +1,66 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that gotos across non-variable declarations
++// are accepted.
++
++package p
++
++func _() {
++	goto L1
++	const x = 0
++L1:
++	goto L2
++	type T int
++L2:
++}
++
++func _() {
++	{
++		goto L1
++	}
++	const x = 0
++L1:
++	{
++		goto L2
++	}
++	type T int
++L2:
++}
++
++func _(d int) {
++	if d > 0 {
++		goto L1
++	} else {
++		goto L2
++	}
++	const x = 0
++L1:
++	switch d {
++	case 1:
++		goto L3
++	case 2:
++	default:
++		goto L4
++	}
++	type T1 int
++L2:
++	const y = 1
++L3:
++	for d > 0 {
++		if d < 10 {
++			goto L4
++		}
++	}
++	type T2 int
++L4:
++	select {
++	default:
++		goto L5
++	}
++	type T3 int
++L5:
++}
+diff --git a/test/goto.go b/test/goto.go
+index f456901a90..6630fb7e34 100644
+--- a/test/goto.go
++++ b/test/goto.go
+@@ -77,7 +77,7 @@ L:
+ 
+ // error shows first offending variable
+ func _() {
+-	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto jumps over declaration"
++	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto L jumps over declaration of y at LINE+3|goto jumps over declaration"
+ 	x := 1 // GCCGO_ERROR "defined here"
+ 	_ = x
+ 	y := 1
+@@ -87,7 +87,7 @@ L:
+ 
+ // goto not okay even if code path is dead
+ func _() {
+-	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto jumps over declaration"
++	goto L // ERROR "goto L jumps over declaration of x at LINE+1|goto L jumps over declaration of y at LINE+3|goto jumps over declaration"
+ 	x := 1 // GCCGO_ERROR "defined here"
+ 	_ = x
+ 	y := 1
+@@ -114,7 +114,7 @@ L:
+ 
+ // goto into inner block not okay
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	{      // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+@@ -125,12 +125,12 @@ func _() {
+ 	{ // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ // error shows first (outermost) offending block
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	{
+ 		{
+ 			{ // GCCGO_ERROR "block starts here"
+@@ -142,7 +142,7 @@ func _() {
+ 
+ // error prefers block diagnostic over declaration diagnostic
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+3|goto L jumps into block|goto jumps into block"
+ 	x := 1
+ 	_ = x
+ 	{ // GCCGO_ERROR "block starts here"
+@@ -179,14 +179,14 @@ L:
+ }
+ 
+ func _() {
+-	goto L    // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L    // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	if true { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+ }
+ 
+ func _() {
+-	goto L    // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L    // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	if true { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	} else {
+@@ -194,7 +194,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	if true {
+ 	} else { // GCCGO_ERROR "block starts here"
+ 	L:
+@@ -205,13 +205,13 @@ func _() {
+ 	if false { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	} else {
+-		goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ 	}
+ }
+ 
+ func _() {
+ 	if true {
+-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	} else { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+@@ -219,7 +219,7 @@ func _() {
+ 
+ func _() {
+ 	if true {
+-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	} else if false { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+@@ -227,7 +227,7 @@ func _() {
+ 
+ func _() {
+ 	if true {
+-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	} else if false { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	} else {
+@@ -241,7 +241,7 @@ func _() {
+ 	// really is LINE+1 (like in the previous test),
+ 	// even though it looks like it might be LINE+3 instead.
+ 	if true {
+-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	} else if false {
+ 	} else { // GCCGO_ERROR "block starts here"
+ 	L:
+@@ -290,7 +290,7 @@ func _() {
+ 	for { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+@@ -299,49 +299,49 @@ func _() {
+ 	L1:
+ 	}
+ L:
+-	goto L1 // ERROR "goto L1 jumps into block starting at LINE-5|goto jumps into block"
++	goto L1 // ERROR "goto L1 jumps into block starting at LINE-5|goto L1 jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+ 	for i < n { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+ 	for i = 0; i < n; i++ { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+ 	for i = range x { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+ 	for i = range c { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+ 	for i = range m { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ func _() {
+ 	for i = range s { // GCCGO_ERROR "block starts here"
+ 	L:
+ 	}
+-	goto L // ERROR "goto L jumps into block starting at LINE-3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE-3|goto L jumps into block|goto jumps into block"
+ }
+ 
+ // switch
+@@ -395,7 +395,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	switch i {
+ 	case 0:
+ 	L: // GCCGO_ERROR "block starts here"
+@@ -403,7 +403,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	switch i {
+ 	case 0:
+ 	L: // GCCGO_ERROR "block starts here"
+@@ -413,7 +413,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	switch i {
+ 	case 0:
+ 	default:
+@@ -424,7 +424,7 @@ func _() {
+ func _() {
+ 	switch i {
+ 	default:
+-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	case 0:
+ 	L: // GCCGO_ERROR "block starts here"
+ 	}
+@@ -436,7 +436,7 @@ func _() {
+ 	L: // GCCGO_ERROR "block starts here"
+ 		;
+ 	default:
+-		goto L // ERROR "goto L jumps into block starting at LINE-4|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE-4|goto L jumps into block|goto jumps into block"
+ 	}
+ }
+ 
+@@ -492,7 +492,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+2|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+2|goto L jumps into block|goto jumps into block"
+ 	select {
+ 	case c <- 1:
+ 	L: // GCCGO_ERROR "block starts here"
+@@ -500,7 +500,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+2|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+2|goto L jumps into block|goto jumps into block"
+ 	select {
+ 	case c <- 1:
+ 	L: // GCCGO_ERROR "block starts here"
+@@ -510,7 +510,7 @@ func _() {
+ }
+ 
+ func _() {
+-	goto L // ERROR "goto L jumps into block starting at LINE+3|goto jumps into block"
++	goto L // ERROR "goto L jumps into block starting at LINE+3|goto L jumps into block|goto jumps into block"
+ 	select {
+ 	case <-c:
+ 	default:
+@@ -521,7 +521,7 @@ func _() {
+ func _() {
+ 	select {
+ 	default:
+-		goto L // ERROR "goto L jumps into block starting at LINE+1|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE+1|goto L jumps into block|goto jumps into block"
+ 	case <-c:
+ 	L: // GCCGO_ERROR "block starts here"
+ 	}
+@@ -533,6 +533,6 @@ func _() {
+ 	L: // GCCGO_ERROR "block starts here"
+ 		;
+ 	default:
+-		goto L // ERROR "goto L jumps into block starting at LINE-4|goto jumps into block"
++		goto L // ERROR "goto L jumps into block starting at LINE-4|goto L jumps into block|goto jumps into block"
+ 	}
+ }

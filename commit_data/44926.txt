@@ -12,7 +12,7 @@ Date:   Thu Aug 27 14:05:52 2020 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/escape.go    |  2 +-
  src/cmd/compile/internal/gc/subr.go      |  4 ++--
  src/cmd/compile/internal/gc/typecheck.go |  6 +++---
@@ -20,3 +20,169 @@ Date:   Thu Aug 27 14:05:52 2020 -0700
  test/notinheap.go                        | 14 +++++++-------
  test/notinheap2.go                       | 14 +++++++-------
  6 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 75da439bb7..f435d8ff6a 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1030,7 +1030,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
+ 		Fatalf("e.curfn isn't set")
+ 	}
+ 	if n != nil && n.Type != nil && n.Type.NotInHeap() {
+-		yyerrorl(n.Pos, "%v is go:notinheap; stack allocation disallowed", n.Type)
++		yyerrorl(n.Pos, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type)
+ 	}
+ 
+ 	n = canonicalNode(n)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8883e75c49..b5527e2f83 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -689,14 +689,14 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
+ 	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
+ 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
+ 		if why != nil {
+-			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
++			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
+ 		}
+ 		return OXXX
+ 	}
+ 	// (b) Disallow string to []T where T is go:notinheap.
+ 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
+ 		if why != nil {
+-			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
++			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
+ 		}
+ 		return OXXX
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9bb3c69cd0..8d777c399e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -471,10 +471,10 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 		}
+ 		if l.Type.NotInHeap() {
+-			yyerror("go:notinheap map key not allowed")
++			yyerror("incomplete (or unallocatable) map key not allowed")
+ 		}
+ 		if r.Type.NotInHeap() {
+-			yyerror("go:notinheap map value not allowed")
++			yyerror("incomplete (or unallocatable) map value not allowed")
+ 		}
+ 
+ 		setTypeNode(n, types.NewMap(l.Type, r.Type))
+@@ -491,7 +491,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 		}
+ 		if l.Type.NotInHeap() {
+-			yyerror("chan of go:notinheap type not allowed")
++			yyerror("chan of incomplete (or unallocatable) type not allowed")
+ 		}
+ 
+ 		setTypeNode(n, types.NewChan(l.Type, n.TChanDir()))
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c3a740d4cc..2db352c8d5 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -648,7 +648,7 @@ opswitch:
+ 			// x = append(...)
+ 			r := n.Right
+ 			if r.Type.Elem().NotInHeap() {
+-				yyerror("%v is go:notinheap; heap allocation disallowed", r.Type.Elem())
++				yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", r.Type.Elem())
+ 			}
+ 			switch {
+ 			case isAppendOfMake(r):
+@@ -1164,7 +1164,7 @@ opswitch:
+ 
+ 	case ONEW:
+ 		if n.Type.Elem().NotInHeap() {
+-			yyerror("%v is go:notinheap; heap allocation disallowed", n.Type.Elem())
++			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type.Elem())
+ 		}
+ 		if n.Esc == EscNone {
+ 			if n.Type.Elem().Width >= maxImplicitStackVarSize {
+@@ -1335,7 +1335,7 @@ opswitch:
+ 		}
+ 		t := n.Type
+ 		if t.Elem().NotInHeap() {
+-			yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
++			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
+ 		}
+ 		if n.Esc == EscNone {
+ 			if !isSmallMakeSlice(n) {
+@@ -1412,7 +1412,7 @@ opswitch:
+ 
+ 		t := n.Type
+ 		if t.Elem().NotInHeap() {
+-			yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
++			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
+ 		}
+ 
+ 		length := conv(n.Left, types.Types[TINT])
+diff --git a/test/notinheap.go b/test/notinheap.go
+index a2284a5068..5dd4997a65 100644
+--- a/test/notinheap.go
++++ b/test/notinheap.go
+@@ -23,11 +23,11 @@ type embed3 struct { // ERROR "must be go:notinheap"
+ 	x [1]nih
+ }
+ 
+-type embed4 map[nih]int // ERROR "go:notinheap map key not allowed"
++type embed4 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
+ 
+-type embed5 map[int]nih // ERROR "go:notinheap map value not allowed"
++type embed5 map[int]nih // ERROR "incomplete \(or unallocatable\) map value not allowed"
+ 
+-type emebd6 chan nih // ERROR "chan of go:notinheap type not allowed"
++type emebd6 chan nih // ERROR "chan of incomplete \(or unallocatable\) type not allowed"
+ 
+ type okay1 *nih
+ 
+@@ -64,8 +64,8 @@ var sink interface{}
+ 
+ func i() {
+ 	sink = new(t1)                     // no error
+-	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
+-	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is go:notinheap"
+-	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is go:notinheap"
+-	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is go:notinheap"
++	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is incomplete \(or unallocatable\)"
++	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is incomplete \(or unallocatable\)"
++	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is incomplete \(or unallocatable\)"
++	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is incomplete \(or unallocatable\)"
+ }
+diff --git a/test/notinheap2.go b/test/notinheap2.go
+index 09d0fc0b7b..23d4b0ae77 100644
+--- a/test/notinheap2.go
++++ b/test/notinheap2.go
+@@ -20,7 +20,7 @@ var x nih
+ // Stack variables are not okay.
+ 
+ func f() {
+-	var y nih // ERROR "nih is go:notinheap; stack allocation disallowed"
++	var y nih // ERROR "nih is incomplete \(or unallocatable\); stack allocation disallowed"
+ 	x = y
+ }
+ 
+@@ -34,13 +34,13 @@ var w []nih
+ var n int
+ 
+ func g() {
+-	y = new(nih)              // ERROR "heap allocation disallowed"
+-	y2 = new(struct{ x nih }) // ERROR "heap allocation disallowed"
+-	y3 = new([1]nih)          // ERROR "heap allocation disallowed"
+-	z = make([]nih, 1)        // ERROR "heap allocation disallowed"
+-	z = append(z, x)          // ERROR "heap allocation disallowed"
++	y = new(nih)              // ERROR "can't be allocated in Go"
++	y2 = new(struct{ x nih }) // ERROR "can't be allocated in Go"
++	y3 = new([1]nih)          // ERROR "can't be allocated in Go"
++	z = make([]nih, 1)        // ERROR "can't be allocated in Go"
++	z = append(z, x)          // ERROR "can't be allocated in Go"
+ 	// Test for special case of OMAKESLICECOPY
+-	x := make([]nih, n) // ERROR "heap allocation disallowed"
++	x := make([]nih, n) // ERROR "can't be allocated in Go"
+ 	copy(x, z)
+ 	z = x
+ }

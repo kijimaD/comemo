@@ -18,6 +18,34 @@ Date:   Tue May 1 12:42:11 2018 -0700
     Change-Id: I02dbac45062e9dd85a1a647ee46bfa0efbb67e9d
     Reviewed-on: https://go-review.googlesource.com/110715
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 809910d7b2..203903d10e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1115,10 +1115,21 @@ func importfile(f *Val) *types.Pkg {
+ 			errorexit()
+ 		}
+ 
++		// New indexed format is distinguished by an 'i' byte,
++		// whereas old export format always starts with 'c', 'd', or 'v'.
+ 		if c == 'i' {
++			if !flagiexport {
++				yyerror("import %s: cannot import package compiled with -iexport=true", file)
++				errorexit()
++			}
++
+ 			iimport(importpkg, imp)
+ 		} else {
+-			// Old export format always starts with 'c', 'd', or 'v'.
++			if flagiexport {
++				yyerror("import %s: cannot import package compiled with -iexport=false", file)
++				errorexit()
++			}
++
+ 			imp.UnreadByte()
+ 			Import(importpkg, imp.Reader)
+ 		}

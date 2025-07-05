@@ -15,7 +15,102 @@ Date:   Wed Apr 21 00:12:02 2021 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go_spec.html     | 32 +++++++++++++++++++++++++++++++-
  src/unsafe/unsafe.go | 23 +++++++++++++++++++++++
  2 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 13b8beb06c..bbcdd54b02 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Apr 20, 2021",
++	"Subtitle": "Version of Apr 21, 2021",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -6711,6 +6711,10 @@ type Pointer *ArbitraryType
+ func Alignof(variable ArbitraryType) uintptr
+ func Offsetof(selector ArbitraryType) uintptr
+ func Sizeof(variable ArbitraryType) uintptr
++
++type IntegerType int  // shorthand for an integer type; it is not a real type
++func Add(ptr Pointer, len IntegerType) Pointer
++func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+ </pre>
+ 
+ <p>
+@@ -6767,6 +6771,32 @@ Calls to <code>Alignof</code>, <code>Offsetof</code>, and
+ <code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
+ </p>
+ 
++<p>
++The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
++and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
++The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
++A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
++if it is an untyped constant it is given type <code>int</code>.
++The rules for <a href="/pkg/unsafe#Pointer">valid uses</a> of <code>Pointer</code> still apply.
++</p>
++
++<p>
++The function <code>Slice</code> returns a slice whose underlying array starts at <code>ptr</code>
++and whose length and capacity are <code>len</code>:
++</p>
++
++<pre>
++(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
++</pre>
++
++<p>
++The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
++A constant <code>len</code> argument must be non-negative and <a href="#Representability">representable</a> by a value of type <code>int</code>;
++if it is an untyped constant it is given type <code>int</code>.
++If <code>ptr</code> is <code>nil</code> or <code>len</code> is negative at run time,
++a <a href="#Run_time_panics">run-time panic</a> occurs.
++</p>
++
+ <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
+ 
+ <p>
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 272761d936..ecbd28c523 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -14,6 +14,10 @@ package unsafe
+ // part of the unsafe package. It represents the type of an arbitrary Go expression.
+ type ArbitraryType int
+ 
++// IntegerType is here for the purposes of documentation only and is not actually
++// part of the unsafe package. It represents any arbitrary integer type.
++type IntegerType int
++
+ // Pointer represents a pointer to an arbitrary type. There are four special operations
+ // available for type Pointer that are not available for other types:
+ //	- A pointer value of any type can be converted to a Pointer.
+@@ -203,3 +207,22 @@ func Offsetof(x ArbitraryType) uintptr
+ // value returned by reflect.TypeOf(s.f).FieldAlign().
+ // The return value of Alignof is a Go constant.
+ func Alignof(x ArbitraryType) uintptr
++
++// The function Add adds len to ptr and returns the updated pointer
++// Pointer(uintptr(ptr) + uintptr(len)).
++// The len argument must be of integer type or an untyped constant.
++// A constant len argument must be representable by a value of type int;
++// if it is an untyped constant it is given type int.
++// The rules for valid uses of Pointer still apply.
++func Add(ptr Pointer, len IntegerType) Pointer
++
++// The function Slice returns a slice whose underlying array starts at ptr
++// and whose length and capacity are len:
++//
++//	(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
++//
++// The len argument must be of integer type or an untyped constant.
++// A constant len argument must be non-negative and representable by a value of type int;
++// if it is an untyped constant it is given type int.
++// If ptr is nil or len is negative at run time, a run-time panic occurs.
++func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType

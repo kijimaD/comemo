@@ -19,10 +19,209 @@ Date:   Mon Mar 7 08:54:28 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go    |  6 --
  src/cmd/compile/internal/typecheck/const.go | 89 -----------------------------
  src/cmd/compile/internal/typecheck/expr.go  |  2 -
  src/cmd/compile/internal/typecheck/stmt.go  | 11 ----
  test/typeparam/issue42758.go                | 19 ++++++
  5 files changed, 19 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 2b8134a02c..004630236d 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -26,12 +26,6 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// TODO(mdempsky): Suppress duplicate type/const errors that can arise
+-// during typecheck due to naive type substitution (e.g., see #42758).
+-// I anticipate these will be handled as a consequence of adding
+-// dictionaries support, so it's probably not important to focus on
+-// this until after that's done.
+-
+ type pkgReader struct {
+ 	pkgbits.PkgDecoder
+ 
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index fbe7c02c49..3be3b8059f 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -16,7 +16,6 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ )
+ 
+ func roundFloat(v constant.Value, sz int64) constant.Value {
+@@ -773,94 +772,6 @@ func anyCallOrChan(n ir.Node) bool {
+ 	})
+ }
+ 
+-// A constSet represents a set of Go constant expressions.
+-type constSet struct {
+-	m map[constSetKey]src.XPos
+-}
+-
+-type constSetKey struct {
+-	typ *types.Type
+-	val interface{}
+-}
+-
+-// add adds constant expression n to s. If a constant expression of
+-// equal value and identical type has already been added, then add
+-// reports an error about the duplicate value.
+-//
+-// pos provides position information for where expression n occurred
+-// (in case n does not have its own position information). what and
+-// where are used in the error message.
+-//
+-// n must not be an untyped constant.
+-func (s *constSet) add(pos src.XPos, n ir.Node, what, where string) {
+-	if conv := n; conv.Op() == ir.OCONVIFACE {
+-		conv := conv.(*ir.ConvExpr)
+-		if conv.Implicit() {
+-			n = conv.X
+-		}
+-	}
+-
+-	if !ir.IsConstNode(n) || n.Type() == nil {
+-		return
+-	}
+-	if n.Type().IsUntyped() {
+-		base.Fatalf("%v is untyped", n)
+-	}
+-
+-	// Consts are only duplicates if they have the same value and
+-	// identical types.
+-	//
+-	// In general, we have to use types.Identical to test type
+-	// identity, because == gives false negatives for anonymous
+-	// types and the byte/uint8 and rune/int32 builtin type
+-	// aliases.  However, this is not a problem here, because
+-	// constant expressions are always untyped or have a named
+-	// type, and we explicitly handle the builtin type aliases
+-	// below.
+-	//
+-	// This approach may need to be revisited though if we fix
+-	// #21866 by treating all type aliases like byte/uint8 and
+-	// rune/int32.
+-
+-	typ := n.Type()
+-	switch typ {
+-	case types.ByteType:
+-		typ = types.Types[types.TUINT8]
+-	case types.RuneType:
+-		typ = types.Types[types.TINT32]
+-	}
+-	k := constSetKey{typ, ir.ConstValue(n)}
+-
+-	if ir.HasUniquePos(n) {
+-		pos = n.Pos()
+-	}
+-
+-	if s.m == nil {
+-		s.m = make(map[constSetKey]src.XPos)
+-	}
+-
+-	if prevPos, isDup := s.m[k]; isDup {
+-		base.ErrorfAt(pos, "duplicate %s %s in %s\n\tprevious %s at %v",
+-			what, nodeAndVal(n), where,
+-			what, base.FmtPos(prevPos))
+-	} else {
+-		s.m[k] = pos
+-	}
+-}
+-
+-// nodeAndVal reports both an expression and its constant value, if
+-// the latter is non-obvious.
+-//
+-// TODO(mdempsky): This could probably be a fmt.go flag.
+-func nodeAndVal(n ir.Node) string {
+-	show := fmt.Sprint(n)
+-	val := ir.ConstValue(n)
+-	if s := fmt.Sprintf("%#v", val); show != s {
+-		show += " (value " + s + ")"
+-	}
+-	return show
+-}
+-
+ // evalunsafe evaluates a package unsafe operation and returns the result.
+ func evalunsafe(n ir.Node) int64 {
+ 	switch n.Op() {
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 0fe8f91696..e2b95b27c6 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -245,7 +245,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 		n.Len = length
+ 
+ 	case types.TMAP:
+-		var cs constSet
+ 		for i3, l := range n.List {
+ 			ir.SetPos(l)
+ 			if l.Op() != ir.OKEY {
+@@ -259,7 +258,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 			r = pushtype(r, t.Key())
+ 			r = Expr(r)
+ 			l.Key = AssignConv(r, t.Key(), "map key")
+-			cs.add(base.Pos, l.Key, "key", "map literal")
+ 
+ 			r = l.Value
+ 			r = pushtype(r, t.Elem())
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index f266007507..b2fba315e7 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -519,7 +519,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
+ 	}
+ 
+ 	var defCase ir.Node
+-	var cs constSet
+ 	for _, ncase := range n.Cases {
+ 		ls := ncase.List
+ 		if len(ls) == 0 { // default:
+@@ -554,16 +553,6 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
+ 					}
+ 				}
+ 			}
+-
+-			// Don't check for duplicate bools. Although the spec allows it,
+-			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
+-			// (2) it would disallow useful things like
+-			//       case GOARCH == "arm" && GOARM == "5":
+-			//       case GOARCH == "arm":
+-			//     which would both evaluate to false for non-ARM compiles.
+-			if !n1.Type().IsBoolean() {
+-				cs.add(ncase.Pos(), n1, "case", "switch")
+-			}
+ 		}
+ 
+ 		Stmts(ncase.Body)
+diff --git a/test/typeparam/issue42758.go b/test/typeparam/issue42758.go
+new file mode 100644
+index 0000000000..25fb85ffb6
+--- /dev/null
++++ b/test/typeparam/issue42758.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func F[T, U int]() interface{} {
++	switch interface{}(nil) {
++	case int(0), T(0), U(0):
++	}
++
++	return map[interface{}]int{int(0): 0, T(0): 0, U(0): 0}
++}
++
++func main() {
++	F[int, int]()
++}

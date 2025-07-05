@@ -7,9 +7,479 @@ Date:   Fri Aug 29 20:30:19 2008 -0700
     R=r
     OCL=14675
     CL=14675
-
+---
  src/cmd/6g/gen.c | 202 ++++++++++++++++++++++++++++++++++++++++---------------
  src/cmd/6g/gg.h  |  17 ++++-
  src/cmd/gc/go.h  |   1 -
  src/cmd/gc/go.y  |  28 +++++---
  4 files changed, 180 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 93035dec2d..7c64f4ddce 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -36,6 +36,10 @@ if(newproc == N) {
+ 
+ 	if(fn->nbody == N)
+ 		return;
++
++	// set up domain for labels
++	labellist = L;
++
+ 	lno = setlineno(fn);
+ 
+ 	curfn = fn;
+@@ -60,8 +64,9 @@ if(newproc == N) {
+ //	inarggen();
+ 
+ 	ginit();
+-	gen(curfn->nbody);
++	gen(curfn->nbody, L);
+ 	gclean();
++	checklabels();
+ 
+ //	if(curfn->type->outtuple != 0)
+ //		gins(AGOK, N, N);
+@@ -118,12 +123,14 @@ allocparams(void)
+  * compile statements
+  */
+ void
+-gen(Node *n)
++gen(Node *n, Label *labloop)
+ {
+ 	int32 lno;
+ 	Prog *scontin, *sbreak;
+ 	Prog *p1, *p2, *p3;
+ 	Sym *s;
++	Node *l;
++	Label *lab;
+ 
+ 	lno = setlineno(n);
+ 
+@@ -138,8 +145,24 @@ loop:
+ 		break;
+ 
+ 	case OLIST:
+-		gen(n->left);
++		l = n->left;
++		gen(l, L);
++		if(l != N && l->op == OLABEL) {
++			// call the next statement with a label
++			l = n->right;
++			if(l != N) {
++				if(l->op != OLIST) {
++					gen(l, labellist);
++					break;
++				}
++				gen(l->left, labellist);
++				n = l->right;
++				labloop = L;
++				goto loop;
++			}
++		}
+ 		n = n->right;
++		labloop = L;
+ 		goto loop;
+ 
+ 	case OPANIC:
+@@ -154,59 +177,55 @@ loop:
+ 		break;
+ 
+ 	case OLABEL:
+-		// before declaration, s->label points at
+-		// a link list of PXGOTO instructions.
+-		// after declaration, s->label points
+-		// at a AJMP to .+1
+-
+-		s = n->left->sym;
+-		p1 = (Prog*)s->label;
+-
+-		if(p1 != P) {
+-			if(p1->as == AJMP) {
+-				yyerror("label redeclared: %S", s);
+-				break;
+-			}
+-			while(p1 != P) {
+-				if(p1->as != AJMPX)
+-					fatal("bad label pointer: %S", s);
+-				p1->as = AJMP;
+-				p2 = p1->to.branch;
+-				patch(p1, pc);
+-				p1 = p2;
+-			}
+-		}
++		lab = mal(sizeof(*lab));
++		lab->link = labellist;
++		labellist = lab;
++		lab->sym = n->left->sym;
+ 
+-		s->label = pc;
+-		p1 = gbranch(AJMP, T);
+-		patch(p1, pc);
++		lab->op = OLABEL;
++		lab->label = pc;
+ 		break;
+ 
+ 	case OGOTO:
+-		s = n->left->sym;
+-		p1 = (Prog*)s->label;
+-		if(p1 != P && p1->as == AJMP) {
+-			// already declared
+-			p2 = gbranch(AJMP, T);
+-			patch(p2, p1->to.branch);
+-			break;
+-		}
+-
+-		// link thru to.branch
+-		p2 = gbranch(AJMPX, T);
+-		p2->to.branch = p1;
+-		s->label = p2;
++		lab = mal(sizeof(*lab));
++		lab->link = labellist;
++		labellist = lab;
++		lab->sym = n->left->sym;
++
++		lab->op = OGOTO;
++		lab->label = pc;
++		gbranch(AJMP, T);
+ 		break;
+ 
+ 	case OBREAK:
++		if(n->left != N) {
++			lab = findlab(n->left->sym);
++			if(lab == L || lab->breakpc == P) {
++				yyerror("break label is not defined: %S", n->left->sym);
++				break;
++			}
++			patch(gbranch(AJMP, T), lab->breakpc);
++			break;
++		}
++
+ 		if(breakpc == P) {
+-			yyerror("gen: break is not in a loop");
++			yyerror("break is not in a loop");
+ 			break;
+ 		}
+ 		patch(gbranch(AJMP, T), breakpc);
+ 		break;
+ 
+ 	case OCONTINUE:
++		if(n->left != N) {
++			lab = findlab(n->left->sym);
++			if(lab == L || lab->continpc == P) {
++				yyerror("continue label is not defined: %S", n->left->sym);
++				break;
++			}
++			patch(gbranch(AJMP, T), lab->continpc);
++			break;
++		}
++
+ 		if(continpc == P) {
+ 			yyerror("gen: continue is not in a loop");
+ 			break;
+@@ -215,16 +234,21 @@ loop:
+ 		break;
+ 
+ 	case OFOR:
+-		gen(n->ninit);				// 		init
++		gen(n->ninit, L);			// 		init
+ 		p1 = gbranch(AJMP, T);			// 		goto test
+ 		sbreak = breakpc;
+ 		breakpc = gbranch(AJMP, T);		// break:	goto done
+ 		scontin = continpc;
+ 		continpc = pc;
+-		gen(n->nincr);				// contin:	incr
++		gen(n->nincr, L);				// contin:	incr
+ 		patch(p1, pc);				// test:
+ 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
+-		gen(n->nbody);				//		body
++		if(labloop != L) {
++			labloop->op = OFOR;
++			labloop->continpc = continpc;
++			labloop->breakpc = breakpc;
++		}
++		gen(n->nbody, L);			//		body
+ 		patch(gbranch(AJMP, T), continpc);	//		goto contin
+ 		patch(breakpc, pc);			// done:
+ 		continpc = scontin;
+@@ -232,36 +256,44 @@ loop:
+ 		break;
+ 
+ 	case OIF:
+-		gen(n->ninit);				//		init
++		gen(n->ninit, L);			//		init
+ 		p1 = gbranch(AJMP, T);			//		goto test
+ 		p2 = gbranch(AJMP, T);			// p2:		goto else
+ 		patch(p1, pc);				// test:
+ 		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
+-		gen(n->nbody);				//		then
++		gen(n->nbody, L);			//		then
+ 		p3 = gbranch(AJMP, T);			//		goto done
+ 		patch(p2, pc);				// else:
+-		gen(n->nelse);				//		else
++		gen(n->nelse, L);			//		else
+ 		patch(p3, pc);				// done:
+ 		break;
+ 
+ 	case OSWITCH:
+-		gen(n->ninit);				// 		init
++		gen(n->ninit, L);			// 		init
+ 		p1 = gbranch(AJMP, T);			// 		goto test
+ 		sbreak = breakpc;
+ 		breakpc = gbranch(AJMP, T);		// break:	goto done
+ 		patch(p1, pc);				// test:
++		if(labloop != L) {
++			labloop->op = OFOR;
++			labloop->breakpc = breakpc;
++		}
+ 		swgen(n);				//		switch(test) body
+ 		patch(breakpc, pc);			// done:
+ 		breakpc = sbreak;
+ 		break;
+ 
+ 	case OSELECT:
+-		gen(n->ninit);
++		gen(n->ninit, L);
+ 		sbreak = breakpc;
+ 		p1 = gbranch(AJMP, T);			// 		goto test
+ 		breakpc = gbranch(AJMP, T);		// break:	goto done
+ 		patch(p1, pc);				// test:
+-		gen(n->nbody);				//		select() body
++		if(labloop != L) {
++			labloop->op = OFOR;
++			labloop->breakpc = breakpc;
++		}
++		gen(n->nbody, L);			//		select() body
+ 		patch(breakpc, pc);			// done:
+ 		breakpc = sbreak;
+ 		break;
+@@ -448,7 +480,7 @@ swgen(Node *n)
+ 		if(c1->op != OCASE) {
+ 			if(s0 == C && dflt == P)
+ 				yyerror("unreachable statements in a switch");
+-			gen(c1);
++			gen(c1, L);
+ 
+ 			any = 1;
+ 			if(c1->op == OFALL)
+@@ -606,7 +638,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 		i = &tmpi;
+ 	}
+ 
+-	gen(n->right);		// args
++	gen(n->right, L);		// args
+ 
+ 	regalloc(&nodr, types[tptr], res);
+ 	regalloc(&nodo, types[tptr], &nodr);
+@@ -673,7 +705,7 @@ cgen_call(Node *n, int proc)
+ 			agen(n->left, &afun);
+ 	}
+ 
+-	gen(n->right);	// assign the args
++	gen(n->right, L);	// assign the args
+ 	t = n->left->type;
+ 	if(isptr[t->etype])
+ 		t = t->type;
+@@ -784,7 +816,7 @@ cgen_aret(Node *n, Node *res)
+ void
+ cgen_ret(Node *n)
+ {
+-	gen(n->left);	// copy out args
++	gen(n->left, L);	// copy out args
+ 	gins(ARET, N, N);
+ }
+ 
+@@ -1143,3 +1175,63 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ ret:
+ 	;
+ }
++
++void
++checklabels(void)
++{
++	Label *l, *m;
++	Sym *s;
++
++//	// print the label list
++//	for(l=labellist; l!=L; l=l->link) {
++//		print("lab %O %S\n", l->op, l->sym);
++//	}
++
++	for(l=labellist; l!=L; l=l->link) {
++	switch(l->op) {
++		case OFOR:
++		case OLABEL:
++			// these are definitions -
++			s = l->sym;
++			for(m=labellist; m!=L; m=m->link) {
++				if(m->sym != s)
++					continue;
++				switch(m->op) {
++				case OFOR:
++				case OLABEL:
++					// these are definitions -
++					// look for redefinitions
++					if(l != m)
++						yyerror("label %S redefined", s);
++					break;
++				case OGOTO:
++					// these are references -
++					// patch to definition
++					patch(m->label, l->label);
++					m->sym = S;	// mark done
++					break;
++				}
++			}
++		}
++	}
++
++	// diagnostic for all undefined references
++	for(l=labellist; l!=L; l=l->link)
++		if(l->op == OGOTO && l->sym != S)
++			yyerror("label %S not defined", l->sym);
++}
++
++Label*
++findlab(Sym *s)
++{
++	Label *l;
++
++	for(l=labellist; l!=L; l=l->link) {
++		if(l->sym != s)
++			continue;
++		if(l->op != OFOR)
++			continue;
++		return l;
++	}
++	return L;
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index bf6a66b90e..c6c68ae74d 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -78,6 +78,18 @@ struct	Pool
+ 	Pool*	link;
+ };
+ 
++typedef	struct	Label Label;
++struct	Label
++{
++	uchar	op;		// OFOR/OGOTO/OLABEL
++	Sym*	sym;
++	Prog*	label;		// pointer to code
++	Prog*	breakpc;	// pointer to code
++	Prog*	continpc;	// pointer to code
++	Label*	link;
++};
++#define	L	((Label*)0)
++
+ EXTERN	Prog*	continpc;
+ EXTERN	Prog*	breakpc;
+ EXTERN	Prog*	pc;
+@@ -99,13 +111,15 @@ EXTERN	String	emptystring;
+ extern	char*	anames[];
+ EXTERN	Hist*	hist;
+ EXTERN	Prog	zprog;
++EXTERN	Label*	labellist;
++EXTERN	Label*	findlab(Sym*);
+ 
+ /*
+  * gen.c
+  */
+ void	compile(Node*);
+ void	proglist(void);
+-void	gen(Node*);
++void	gen(Node*, Label*);
+ void	swgen(Node*);
+ void	selgen(Node*);
+ Node*	lookdot(Node*, Node*, int);
+@@ -125,6 +139,7 @@ void	genpanic(void);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+ void	allocparams(void);
++void	checklabels();
+ 
+ /*
+  * cgen
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4237278f92..c2d46e23f5 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -205,7 +205,6 @@ struct	Sym
+ 	Type*	otype;		// TYPE node if a type
+ 	Node*	oconst;		// OLITERAL node if a const
+ 	Type*	forwtype;	// TPTR iff forward declared
+-	void*	label;		// pointer to Prog* of label
+ 	vlong	offset;		// stack location if automatic
+ 	int32	lexical;
+ 	int32	vargen;		// unique variable number
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ab197df511..a59ab80116 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -42,7 +42,7 @@
+ %type	<node>		range_header range_body range_stmt select_stmt
+ %type	<node>		simple_stmt osimple_stmt semi_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+-%type	<node>		name name_name new_name new_name_list_r conexpr
++%type	<node>		name name_name onew_name new_name new_name_list_r conexpr
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+@@ -326,6 +326,14 @@ noninc_stmt:
+ 	{
+ 		$$ = nod(OAS, colas($1, $3), $3);
+ 	}
++|	LPRINT '(' oexpr_list ')'
++	{
++		$$ = nod(OPRINT, $3, N);
++	}
++|	LPANIC '(' oexpr_list ')'
++	{
++		$$ = nod(OPANIC, $3, N);
++	}
+ 
+ inc_stmt:
+ 	expr LINC
+@@ -398,11 +406,11 @@ semi_stmt:
+ 		// will be converted to OFALL
+ 		$$ = nod(OXFALL, N, N);
+ 	}
+-|	LBREAK oexpr
++|	LBREAK onew_name
+ 	{
+ 		$$ = nod(OBREAK, $2, N);
+ 	}
+-|	LCONTINUE oexpr
++|	LCONTINUE onew_name
+ 	{
+ 		$$ = nod(OCONTINUE, $2, N);
+ 	}
+@@ -411,14 +419,6 @@ semi_stmt:
+ 		$$ = nod(OCALL, $2, $4);
+ 		$$ = nod(OPROC, $$, N);
+ 	}
+-|	LPRINT '(' oexpr_list ')'
+-	{
+-		$$ = nod(OPRINT, $3, N);
+-	}
+-|	LPANIC '(' oexpr_list ')'
+-	{
+-		$$ = nod(OPANIC, $3, N);
+-	}
+ |	LGOTO new_name
+ 	{
+ 		$$ = nod(OGOTO, $2, N);
+@@ -832,6 +832,12 @@ new_type:
+ 		$$ = newtype($1);
+ 	}
+ 
++onew_name:
++	{
++		$$ = N;
++	}
++|	new_name
++
+ sym:
+ 	LATYPE
+ |	LNAME

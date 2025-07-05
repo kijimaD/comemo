@@ -14,6 +14,20 @@ Date:   Mon Nov 26 16:11:18 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/nilptr5_aix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/nilptr5_aix.go b/test/nilptr5_aix.go
+index ff6900593b..142780718b 100644
+--- a/test/nilptr5_aix.go
++++ b/test/nilptr5_aix.go
+@@ -23,7 +23,7 @@ type T [29]byte
+ 
+ func f6(p, q *T) {
+ 	x := *p // ERROR "generated nil check"
+-	*q = x  // ERROR "generated nil check"
++	*q = x  // ERROR "removed nil check"
+ }
+ 
+ // make sure to remove nil check for memory move (issue #18003)

@@ -11,6 +11,32 @@ Date:   Fri Mar 18 11:49:40 2022 +0100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_unix.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index c35df430aa..61ae09de4e 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"internal/bytealg"
+ 	"internal/itoa"
+ 	"internal/oserror"
+ 	"internal/race"
+@@ -34,10 +35,8 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errn
+ 
+ // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
+ func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i
+-		}
++	if i := bytealg.IndexByte(n, 0); i != -1 {
++		return i
+ 	}
+ 	return len(n)
+ }

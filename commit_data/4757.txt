@@ -13,6 +13,24 @@ Date:   Mon Feb 1 16:35:23 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194165
-
+---
  test/import1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/import1.go b/test/import1.go
+index baed207cc0..351462a265 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -8,10 +8,10 @@
+ 
+ package main
+ 
+-import "bufio"	// GCCGO_ERROR "previous"
++import "bufio"	// GCCGO_ERROR "previous|not used"
+ import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
+ 
+ import (
+-	"fmt";	// GCCGO_ERROR "previous"
++	"fmt";	// GCCGO_ERROR "previous|not used"
+ 	fmt "math";	// ERROR "redeclared|redefinition|incompatible"
+ )

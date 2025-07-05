@@ -10,6 +10,28 @@ Date:   Tue Oct 25 23:10:39 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/x509_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index b1cdabba28..79bfe66d11 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1200,13 +1200,13 @@ Data:
+ 	X509v3 extensions:
+ 		X509v3 Key Usage: critical
+ 			Digital Signature, Certificate Sign, CRL Sign
+-		X509v3 Extended Key Usage: 
++		X509v3 Extended Key Usage:
+ 			TLS Web Client Authentication, TLS Web Server Authentication, OCSP Signing
+ 		X509v3 Basic Constraints: critical
+ 			CA:TRUE
+-		X509v3 Subject Key Identifier: 
++		X509v3 Subject Key Identifier:
+ 			B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
+-		X509v3 Authority Key Identifier: 
++		X509v3 Authority Key Identifier:
+ 			keyid:B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
+ 
+ Signature Algorithm: ED25519

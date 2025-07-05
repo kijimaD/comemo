@@ -7,9 +7,149 @@ Date:   Thu Oct 13 12:17:18 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5257057
-
+---
  src/pkg/crypto/openpgp/s2k/s2k.go |  4 ++--
  src/pkg/exp/gui/x11/auth.go       | 12 +++++++-----
  src/pkg/exp/gui/x11/conn.go       | 25 ++++++++++++++-----------
  src/pkg/net/textproto/reader.go   |  2 +-
  4 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index da926a76ed..013b15c149 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -100,7 +100,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
+ 		}
+ 		return f, nil
+ 	case 2:
+-		_, err := io.ReadFull(r, buf[:8])
++		_, err = io.ReadFull(r, buf[:8])
+ 		if err != nil {
+ 			return
+ 		}
+@@ -109,7 +109,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
+ 		}
+ 		return f, nil
+ 	case 3:
+-		_, err := io.ReadFull(r, buf[:9])
++		_, err = io.ReadFull(r, buf[:9])
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/pkg/exp/gui/x11/auth.go b/src/pkg/exp/gui/x11/auth.go
+index d48936ac17..732f103d66 100644
+--- a/src/pkg/exp/gui/x11/auth.go
++++ b/src/pkg/exp/gui/x11/auth.go
+@@ -65,23 +65,25 @@ func readAuth(displayStr string) (name, data string, err os.Error) {
+ 		return
+ 	}
+ 	for {
+-		family, err := readU16BE(br, b[0:2])
++		var family uint16
++		var addr, disp, name0, data0 string
++		family, err = readU16BE(br, b[0:2])
+ 		if err != nil {
+ 			return
+ 		}
+-		addr, err := readStr(br, b[0:])
++		addr, err = readStr(br, b[0:])
+ 		if err != nil {
+ 			return
+ 		}
+-		disp, err := readStr(br, b[0:])
++		disp, err = readStr(br, b[0:])
+ 		if err != nil {
+ 			return
+ 		}
+-		name0, err := readStr(br, b[0:])
++		name0, err = readStr(br, b[0:])
+ 		if err != nil {
+ 			return
+ 		}
+-		data0, err := readStr(br, b[0:])
++		data0, err = readStr(br, b[0:])
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/pkg/exp/gui/x11/conn.go b/src/pkg/exp/gui/x11/conn.go
+index 4645073c48..bf94bcaabb 100644
+--- a/src/pkg/exp/gui/x11/conn.go
++++ b/src/pkg/exp/gui/x11/conn.go
+@@ -391,12 +391,13 @@ func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error)
+ // checkDepths checks that we have an agreeable X Depth (i.e. one that has an agreeable X VisualType).
+ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err os.Error) {
+ 	for i := 0; i < n; i++ {
+-		depth, err := readU16LE(r, b)
++		var depth, visualsLen uint16
++		depth, err = readU16LE(r, b)
+ 		if err != nil {
+ 			return
+ 		}
+ 		depth &= 0xff
+-		visualsLen, err := readU16LE(r, b)
++		visualsLen, err = readU16LE(r, b)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -408,11 +409,11 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
+ 		for j := 0; j < int(visualsLen); j++ {
+ 			// Read 24 bytes: visual(4), class(1), bits per rgb value(1), colormap entries(2),
+ 			// red mask(4), green mask(4), blue mask(4), padding(4).
+-			v, err := readU32LE(r, b)
+-			_, err = readU32LE(r, b)
+-			rm, err := readU32LE(r, b)
+-			gm, err := readU32LE(r, b)
+-			bm, err := readU32LE(r, b)
++			v, _ := readU32LE(r, b)
++			_, _ = readU32LE(r, b)
++			rm, _ := readU32LE(r, b)
++			gm, _ := readU32LE(r, b)
++			bm, _ := readU32LE(r, b)
+ 			_, err = readU32LE(r, b)
+ 			if err != nil {
+ 				return
+@@ -428,7 +429,8 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
+ // checkScreens checks that we have an agreeable X Screen.
+ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Error) {
+ 	for i := 0; i < n; i++ {
+-		root0, err := readU32LE(r, b)
++		var root0, visual0, x uint32
++		root0, err = readU32LE(r, b)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -438,17 +440,18 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
+ 		if err != nil {
+ 			return
+ 		}
+-		visual0, err := readU32LE(r, b)
++		visual0, err = readU32LE(r, b)
+ 		if err != nil {
+ 			return
+ 		}
+ 		// Next 4 bytes: backing stores, save unders, root depth, allowed depths length.
+-		x, err := readU32LE(r, b)
++		x, err = readU32LE(r, b)
+ 		if err != nil {
+ 			return
+ 		}
+ 		nDepths := int(x >> 24)
+-		agree, err := checkDepths(r, b, nDepths, visual0)
++		var agree bool
++		agree, err = checkDepths(r, b, nDepths, visual0)
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index a404f4758a..ece9a99ffb 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -256,7 +256,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.
+ 	for err == nil && continued {
+ 		line, err := r.ReadLine()
+ 		if err != nil {
+-			return
++			return 0, "", err
+ 		}
+ 
+ 		var code2 int

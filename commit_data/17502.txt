@@ -7,7 +7,41 @@ Date:   Sun Sep 8 13:21:03 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13426046
-
+---
  src/pkg/sort/example_interface_test.go |  3 ++-
  src/pkg/sort/example_multi_test.go     | 10 +++++-----
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/sort/example_interface_test.go b/src/pkg/sort/example_interface_test.go
+index c2feafe26c..2b55ebfc53 100644
+--- a/src/pkg/sort/example_interface_test.go
++++ b/src/pkg/sort/example_interface_test.go
+@@ -38,6 +38,7 @@ func ExampleInterface() {
+ 	sort.Sort(ByAge(people))
+ 	fmt.Println(people)
+ 
+-	// Output: [Bob: 31 John: 42 Michael: 17 Jenny: 26]
++	// Output:
++	// [Bob: 31 John: 42 Michael: 17 Jenny: 26]
+ 	// [Michael: 17 Jenny: 26 Bob: 31 John: 42]
+ }
+diff --git a/src/pkg/sort/example_multi_test.go b/src/pkg/sort/example_multi_test.go
+index b2ebc4c610..ac316540fd 100644
+--- a/src/pkg/sort/example_multi_test.go
++++ b/src/pkg/sort/example_multi_test.go
+@@ -122,10 +122,10 @@ func Example_sortMultiKeys() {
+ 	fmt.Println("By language,<lines,user:", changes)
+ 
+ 	// Output:
+-	//By user: [{dmr C 100} {glenda Go 200} {gri Smalltalk 80} {gri Go 100} {ken Go 200} {ken C 150} {r Go 100} {r C 150} {rsc Go 200}]
+-	//By user,<lines: [{dmr C 100} {glenda Go 200} {gri Smalltalk 80} {gri Go 100} {ken C 150} {ken Go 200} {r Go 100} {r C 150} {rsc Go 200}]
+-	//By user,>lines: [{dmr C 100} {glenda Go 200} {gri Go 100} {gri Smalltalk 80} {ken Go 200} {ken C 150} {r C 150} {r Go 100} {rsc Go 200}]
+-	//By language,<lines: [{dmr C 100} {ken C 150} {r C 150} {gri Go 100} {r Go 100} {ken Go 200} {glenda Go 200} {rsc Go 200} {gri Smalltalk 80}]
+-	//By language,<lines,user: [{dmr C 100} {ken C 150} {r C 150} {gri Go 100} {r Go 100} {glenda Go 200} {ken Go 200} {rsc Go 200} {gri Smalltalk 80}]
++	// By user: [{dmr C 100} {glenda Go 200} {gri Smalltalk 80} {gri Go 100} {ken Go 200} {ken C 150} {r Go 100} {r C 150} {rsc Go 200}]
++	// By user,<lines: [{dmr C 100} {glenda Go 200} {gri Smalltalk 80} {gri Go 100} {ken C 150} {ken Go 200} {r Go 100} {r C 150} {rsc Go 200}]
++	// By user,>lines: [{dmr C 100} {glenda Go 200} {gri Go 100} {gri Smalltalk 80} {ken Go 200} {ken C 150} {r C 150} {r Go 100} {rsc Go 200}]
++	// By language,<lines: [{dmr C 100} {ken C 150} {r C 150} {gri Go 100} {r Go 100} {ken Go 200} {glenda Go 200} {rsc Go 200} {gri Smalltalk 80}]
++	// By language,<lines,user: [{dmr C 100} {ken C 150} {r C 150} {gri Go 100} {r Go 100} {glenda Go 200} {ken Go 200} {rsc Go 200} {gri Smalltalk 80}]
+ 
+ }

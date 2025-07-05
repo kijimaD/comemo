@@ -54,8 +54,92 @@ Date:   Tue Jan 7 07:00:24 2025 +0100
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go  | 32 +++++++++++++++++++++++++++
  test/codegen/bool.go                          |  2 ++
  3 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index ce9a6e9914..716f4f1c32 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -629,6 +629,8 @@
+ // x & 1 != 0 -> x & 1
+ (SETNE (TEST(B|W)const [1] x)) => (AND(L|L)const [1] x)
+ (SETB (BT(L|Q)const [0] x)) => (AND(L|Q)const [1] x)
++// x & 1 == 0 -> (x & 1) ^ 1
++(SETAE (BT(L|Q)const [0] x)) => (XORLconst [1] (ANDLconst <typ.Bool> [1] x))
+ 
+ // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
+ // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f17c4be516..d62f38f0e2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -16503,6 +16503,8 @@ func rewriteValueAMD64_OpAMD64SETA(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpAMD64SETAE(v *Value) bool {
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (SETAE (TESTQ x x))
+ 	// result: (ConstBool [true])
+ 	for {
+@@ -16559,6 +16561,36 @@ func rewriteValueAMD64_OpAMD64SETAE(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(true)
+ 		return true
+ 	}
++	// match: (SETAE (BTLconst [0] x))
++	// result: (XORLconst [1] (ANDLconst <typ.Bool> [1] x))
++	for {
++		if v_0.Op != OpAMD64BTLconst || auxIntToInt8(v_0.AuxInt) != 0 {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64XORLconst)
++		v.AuxInt = int32ToAuxInt(1)
++		v0 := b.NewValue0(v.Pos, OpAMD64ANDLconst, typ.Bool)
++		v0.AuxInt = int32ToAuxInt(1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (SETAE (BTQconst [0] x))
++	// result: (XORLconst [1] (ANDLconst <typ.Bool> [1] x))
++	for {
++		if v_0.Op != OpAMD64BTQconst || auxIntToInt8(v_0.AuxInt) != 0 {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64XORLconst)
++		v.AuxInt = int32ToAuxInt(1)
++		v0 := b.NewValue0(v.Pos, OpAMD64ANDLconst, typ.Bool)
++		v0.AuxInt = int32ToAuxInt(1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (SETAE (InvertFlags x))
+ 	// result: (SETBE x)
+ 	for {
+diff --git a/test/codegen/bool.go b/test/codegen/bool.go
+index 164ca1b224..2024759a5c 100644
+--- a/test/codegen/bool.go
++++ b/test/codegen/bool.go
+@@ -47,6 +47,7 @@ func convertNeqBool32(x uint32) bool {
+ 
+ func convertEqBool32(x uint32) bool {
+ 	// ppc64x:"RLDICL",-"CMPW","XOR",-"ISEL"
++	// amd64:"ANDL","XORL",-"BTL",-"SETCC"
+ 	return x&1 == 0
+ }
+ 
+@@ -57,6 +58,7 @@ func convertNeqBool64(x uint64) bool {
+ 
+ func convertEqBool64(x uint64) bool {
+ 	// ppc64x:"RLDICL","XOR",-"CMP",-"ISEL"
++	// amd64:"ANDL","XORL",-"BTL",-"SETCC"
+ 	return x&1 == 0
+ }
+ 

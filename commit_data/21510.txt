@@ -10,7 +10,45 @@ Date:   Tue Dec 23 17:14:04 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2115
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/align.c          |  5 +++++
  test/fixedbugs/issue9432.go | 15 +++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 29accd3538..57daaa9745 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -137,6 +137,11 @@ dowidth(Type *t)
+ 		return;
+ 	}
+ 
++	// break infinite recursion if the broken recursive type
++	// is referenced again
++	if(t->broke && t->width == 0)
++		return;
++
+ 	// defer checkwidth calls until after we're done
+ 	defercalc++;
+ 
+diff --git a/test/fixedbugs/issue9432.go b/test/fixedbugs/issue9432.go
+new file mode 100644
+index 0000000000..0d0bc960f9
+--- /dev/null
++++ b/test/fixedbugs/issue9432.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gc used to recurse infinitely when dowidth is applied
++// to a broken recursive type again.
++// See golang.org/issue/9432.
++package p
++
++type foo struct { // GCCGO_ERROR "invalid recursive type"
++	bar  foo
++	blah foo
++} // ERROR "invalid recursive type foo"

@@ -7,6 +7,24 @@ Date:   Tue Dec 17 12:25:32 2013 -0800
     R=golang-dev, crawshaw
     CC=golang-dev
     https://golang.org/cl/37690045
-
+---
  src/pkg/os/file_unix.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index d49c70c546..37677e2174 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -160,11 +160,10 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 	if dirname == "" {
+ 		dirname = "."
+ 	}
+-	dirname += "/"
+ 	names, err := f.Readdirnames(n)
+ 	fi = make([]FileInfo, 0, len(names))
+ 	for _, filename := range names {
+-		fip, lerr := lstat(dirname + filename)
++		fip, lerr := lstat(dirname + "/" + filename)
+ 		if IsNotExist(lerr) {
+ 			// File disappeared between readdir + stat.
+ 			// Just treat it as if it didn't exist.

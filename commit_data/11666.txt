@@ -7,6 +7,33 @@ Date:   Tue Feb 7 12:05:59 2012 +1100
     R=golang-dev, rsc
     CC=bradfitz, golang-dev, mikioh.mikioh
     https://golang.org/cl/5616066
-
+---
  src/pkg/net/dial_test.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 16b7263115..de35ec9f94 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -43,18 +43,17 @@ func TestDialTimeout(t *testing.T) {
+ 				errc <- err
+ 			}()
+ 		}
+-	case "darwin":
++	case "darwin", "windows":
+ 		// At least OS X 10.7 seems to accept any number of
+ 		// connections, ignoring listen's backlog, so resort
+ 		// to connecting to a hopefully-dead 127/8 address.
++		// Same for windows.
+ 		go func() {
+ 			_, err := DialTimeout("tcp", "127.0.71.111:80", 200*time.Millisecond)
+ 			errc <- err
+ 		}()
+ 	default:
+-		// TODO(bradfitz): this probably doesn't work on
+-		// Windows? SOMAXCONN is huge there.  I'm not sure how
+-		// listen works there.
++		// TODO(bradfitz):
+ 		// OpenBSD may have a reject route to 10/8.
+ 		// FreeBSD likely works, but is untested.
+ 		t.Logf("skipping test on %q; untested.", runtime.GOOS)

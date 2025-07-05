@@ -25,7 +25,65 @@ Date:   Tue Nov 23 10:27:30 2021 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/server_test.go | 10 +++++++++-
  src/net/sock_posix.go  | 16 +++++++++++-----
  2 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 33d33b0337..b69cd29289 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -200,9 +200,17 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
+ 				if c == nil {
+ 					panic("Dial returned a nil Conn")
+ 				}
+-				if rc := reflect.ValueOf(c); rc.Kind() == reflect.Pointer && rc.IsNil() {
++				rc := reflect.ValueOf(c)
++				if rc.IsNil() {
+ 					panic(fmt.Sprintf("Dial returned a nil %T", c))
+ 				}
++				fd := rc.Elem().FieldByName("fd")
++				if fd.IsNil() {
++					panic(fmt.Sprintf("Dial returned a %T with a nil fd", c))
++				}
++				if addr := fd.Elem().FieldByName("laddr"); addr.IsNil() {
++					panic(fmt.Sprintf("Dial returned a %T whose fd has a nil laddr", c))
++				}
+ 				addr := c.LocalAddr()
+ 				if addr == nil {
+ 					panic(fmt.Sprintf("(%T).LocalAddr returned a nil Addr", c))
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 98a48229c7..603fb2bb64 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -156,18 +156,24 @@ func (fd *netFD) dial(ctx context.Context, laddr, raddr sockaddr, ctrlFn func(st
+ 		}
+ 	}
+ 	// Record the local and remote addresses from the actual socket.
+-	// Get the local address by calling Getsockname.
++	// For the local address, use
++	// 1) the one returned by Getsockname, if that succeeds; or
++	// 2) the one passed to us as the laddr parameter; or
++	// 3) nil.
+ 	// For the remote address, use
+ 	// 1) the one returned by the connect method, if any; or
+ 	// 2) the one from Getpeername, if it succeeds; or
+ 	// 3) the one passed to us as the raddr parameter.
+-	lsa, _ = syscall.Getsockname(fd.pfd.Sysfd)
++	var laddrName Addr = laddr
++	if lsa, err := syscall.Getsockname(fd.pfd.Sysfd); err == nil {
++		laddrName = fd.addrFunc()(lsa)
++	}
+ 	if crsa != nil {
+-		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(crsa))
++		fd.setAddr(laddrName, fd.addrFunc()(crsa))
+ 	} else if rsa, _ = syscall.Getpeername(fd.pfd.Sysfd); rsa != nil {
+-		fd.setAddr(fd.addrFunc()(lsa), fd.addrFunc()(rsa))
++		fd.setAddr(laddrName, fd.addrFunc()(rsa))
+ 	} else {
+-		fd.setAddr(fd.addrFunc()(lsa), raddr)
++		fd.setAddr(laddrName, raddr)
+ 	}
+ 	return nil
+ }

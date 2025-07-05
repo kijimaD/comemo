@@ -7,9 +7,66 @@ Date:   Thu Oct 13 11:06:55 2011 +0300
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5151043
-
+---
  src/cmd/gc/builtin.c.boot  | 2 +-
  src/cmd/gc/runtime.go      | 2 +-
  src/cmd/gc/walk.c          | 2 +-
  src/pkg/runtime/malloc.goc | 6 ++++--
  4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index fdfe3dce9a..745791eb03 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,7 +1,7 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"import runtime \"runtime\"\n"
+-	"func @\"\".new (? int32) *any\n"
++	"func @\"\".new (typ *uint8) *any\n"
+ 	"func @\"\".panicindex ()\n"
+ 	"func @\"\".panicslice ()\n"
+ 	"func @\"\".throwreturn ()\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 2461af2fc1..d45542b729 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -10,7 +10,7 @@ package PACKAGE
+ 
+ // emitted by compiler, not referred to by go programs
+ 
+-func new(int32) *any
++func new(typ *byte) *any
+ func panicindex()
+ func panicslice()
+ func throwreturn()
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f551e3dbc0..8dec4956bc 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1686,7 +1686,7 @@ callnew(Type *t)
+ 	dowidth(t);
+ 	fn = syslook("new", 1);
+ 	argtype(fn, t);
+-	return mkcall1(fn, ptrto(t), nil, nodintconst(t->width));
++	return mkcall1(fn, ptrto(t), nil, typename(t));
+ }
+ 
+ static Node*
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index a22b0e737d..b7991d03a5 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -393,8 +393,10 @@ runtime·mal(uintptr n)
+ 	return runtime·mallocgc(n, 0, 1, 1);
+ }
+ 
+-func new(n uint32) (ret *uint8) {
+-	ret = runtime·mal(n);
++func new(typ *Type) (ret *uint8) {
++	uint32 flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
++	ret = runtime·mallocgc(typ->size, flag, 1, 1);
++	FLUSH(&ret);
+ }
+ 
+ void*

@@ -14,6 +14,22 @@ Date:   Sun Apr 12 13:41:46 2020 +0000
     GitHub-Pull-Request: golang/go#38390
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228000
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 18f122e953..8816cf5266 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -465,8 +465,8 @@ func (x *Int) TrailingZeroBits() uint {
+ }
+ 
+ // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+-// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
+-// and x and n are not relatively prime, z is unchanged and nil is returned.
++// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m != 0, y < 0,
++// and x and m are not relatively prime, z is unchanged and nil is returned.
+ //
+ // Modular exponentiation of inputs of a particular size is not a
+ // cryptographically constant-time operation.

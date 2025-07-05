@@ -9,7 +9,7 @@ Date:   Sun Oct 7 22:05:32 2012 +0400
     R=rsc
     CC=gobot, golang-dev
     https://golang.org/cl/6535050
-
+---
  src/pkg/runtime/cgocall.c                   |  24 +++
  src/pkg/runtime/chan.c                      |  53 +++++-
  src/pkg/runtime/hashmap.c                   |  25 ++-
@@ -27,3 +27,1288 @@ Date:   Sun Oct 7 22:05:32 2012 +0400
  src/pkg/runtime/slice.c                     |  56 +++++-
  src/pkg/runtime/time.goc                    |   5 +
  16 files changed, 714 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index d9090ba67f..b96c286f10 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -6,6 +6,7 @@
+ #include "arch_GOARCH.h"
+ #include "stack.h"
+ #include "cgocall.h"
++#include "race.h"
+ 
+ // Cgo call and callback support.
+ //
+@@ -83,6 +84,7 @@
+ // callee-save registers for gcc and returns to GoF, which returns to f.
+ 
+ void *initcgo;	/* filled in by dynamic linker when Cgo is available */
++static int64 cgosync;  /* represents possible synchronization in C code */
+ 
+ // These two are only used by the architecture where TLS based storage isn't
+ // the default for g and m (e.g., ARM)
+@@ -99,12 +101,20 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+ 	Defer d;
+ 
++	if(m->racecall) {
++		runtime·asmcgocall(fn, arg);
++		return;
++	}
++
+ 	if(!runtime·iscgo && !Windows)
+ 		runtime·throw("cgocall unavailable");
+ 
+ 	if(fn == 0)
+ 		runtime·throw("cgocall nil");
+ 
++	if(raceenabled)
++		runtime·racereleasemerge(&cgosync);
++
+ 	m->ncgocall++;
+ 
+ 	/*
+@@ -146,6 +156,9 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		g->defer = d.link;
+ 		unlockm();
+ 	}
++
++	if(raceenabled)
++		runtime·raceacquire(&cgosync);
+ }
+ 
+ static void
+@@ -198,6 +211,11 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ {
+ 	Defer d;
+ 
++	if(m->racecall) {
++		reflect·call((byte*)fn, arg, argsize);
++		return;
++	}
++
+ 	if(g != m->curg)
+ 		runtime·throw("runtime: bad g in cgocallback");
+ 
+@@ -211,9 +229,15 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	d.nofree = true;
+ 	g->defer = &d;
+ 
++	if(raceenabled)
++		runtime·raceacquire(&cgosync);
++
+ 	// Invoke callback.
+ 	reflect·call((byte*)fn, arg, argsize);
+ 
++	if(raceenabled)
++		runtime·racereleasemerge(&cgosync);
++
+ 	// Pop defer.
+ 	// Do not unwind m->g0->sched.sp.
+ 	// Our caller, cgocallback, will do that.
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 05543a3dc9..0aa0b43c56 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "type.h"
++#include "race.h"
+ #include "malloc.h"
+ 
+ #define	MAXALIGN	7
+@@ -82,6 +83,7 @@ static	void	dequeueg(WaitQ*);
+ static	SudoG*	dequeue(WaitQ*);
+ static	void	enqueue(WaitQ*, SudoG*);
+ static	void	destroychan(Hchan*);
++static	void	racesync(Hchan*, SudoG*);
+ 
+ Hchan*
+ runtime·makechan_c(ChanType *t, int64 hint)
+@@ -150,7 +152,7 @@ runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
+  * the operation; we'll see that it's now closed.
+  */
+ void
+-runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
++runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ {
+ 	SudoG *sg;
+ 	SudoG mysg;
+@@ -184,6 +186,9 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 	}
+ 
+ 	runtime·lock(c);
++	// TODO(dvyukov): add similar instrumentation to select.
++	if(raceenabled)
++		runtime·racereadpc(c, pc);
+ 	if(c->closed)
+ 		goto closed;
+ 
+@@ -192,6 +197,8 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 
+ 	sg = dequeue(&c->recvq);
+ 	if(sg != nil) {
++		if(raceenabled)
++			racesync(c, sg);
+ 		runtime·unlock(c);
+ 
+ 		gp = sg->g;
+@@ -251,6 +258,10 @@ asynch:
+ 		runtime·lock(c);
+ 		goto asynch;
+ 	}
++
++	if(raceenabled)
++		runtime·racerelease(chanbuf(c, c->sendx));
++
+ 	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+ 	if(++c->sendx == c->dataqsiz)
+ 		c->sendx = 0;
+@@ -317,6 +328,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 
+ 	sg = dequeue(&c->sendq);
+ 	if(sg != nil) {
++		if(raceenabled)
++			racesync(c, sg);
+ 		runtime·unlock(c);
+ 
+ 		if(ep != nil)
+@@ -381,6 +394,10 @@ asynch:
+ 		runtime·lock(c);
+ 		goto asynch;
+ 	}
++
++	if(raceenabled)
++		runtime·raceacquire(chanbuf(c, c->recvx));
++
+ 	if(ep != nil)
+ 		c->elemalg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
+ 	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+@@ -413,6 +430,8 @@ closed:
+ 		*selected = true;
+ 	if(received != nil)
+ 		*received = false;
++	if(raceenabled)
++		runtime·raceacquire(c);
+ 	runtime·unlock(c);
+ 	if(mysg.releasetime > 0)
+ 		runtime·blockevent(mysg.releasetime - t0, 2);
+@@ -423,7 +442,7 @@ closed:
+ void
+ runtime·chansend1(ChanType *t, Hchan* c, ...)
+ {
+-	runtime·chansend(t, c, (byte*)(&c+1), nil);
++	runtime·chansend(t, c, (byte*)(&c+1), nil, runtime·getcallerpc(&t));
+ }
+ 
+ // chanrecv1(hchan *chan any) (elem any);
+@@ -473,7 +492,7 @@ runtime·selectnbsend(ChanType *t, Hchan *c, ...)
+ 
+ 	ae = (byte*)(&c + 1);
+ 	ap = ae + ROUND(t->elem->size, Structrnd);
+-	runtime·chansend(t, c, ae, ap);
++	runtime·chansend(t, c, ae, ap, runtime·getcallerpc(&t));
+ }
+ 
+ // func selectnbrecv(elem *any, c chan any) bool
+@@ -535,6 +554,7 @@ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool sele
+ //
+ // The "uintptr selected" is really "bool selected" but saying
+ // uintptr gets us the right alignment for the output parameter block.
++#pragma textflag 7
+ void
+ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
+ {
+@@ -553,7 +573,7 @@ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
+ 		vp = (byte*)&val;
+ 	else
+ 		vp = (byte*)val;
+-	runtime·chansend(t, c, vp, sp);
++	runtime·chansend(t, c, vp, sp, runtime·getcallerpc(&t));
+ }
+ 
+ // For reflect:
+@@ -972,6 +992,8 @@ loop:
+ 
+ asyncrecv:
+ 	// can receive from buffer
++	if(raceenabled)
++		runtime·raceacquire(chanbuf(c, c->recvx));
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = true;
+ 	if(cas->sg.elem != nil)
+@@ -992,6 +1014,8 @@ asyncrecv:
+ 
+ asyncsend:
+ 	// can send to buffer
++	if(raceenabled)
++		runtime·racerelease(chanbuf(c, c->sendx));
+ 	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
+ 	if(++c->sendx == c->dataqsiz)
+ 		c->sendx = 0;
+@@ -1008,6 +1032,8 @@ asyncsend:
+ 
+ syncrecv:
+ 	// can receive from sleeping sender (sg)
++	if(raceenabled)
++		racesync(c, sg);
+ 	selunlock(sel);
+ 	if(debug)
+ 		runtime·printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
+@@ -1027,10 +1053,14 @@ rclose:
+ 		*cas->receivedp = false;
+ 	if(cas->sg.elem != nil)
+ 		c->elemalg->copy(c->elemsize, cas->sg.elem, nil);
++	if(raceenabled)
++		runtime·raceacquire(c);
+ 	goto retc;
+ 
+ syncsend:
+ 	// can send to sleeping receiver (sg)
++	if(raceenabled)
++		racesync(c, sg);
+ 	selunlock(sel);
+ 	if(debug)
+ 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
+@@ -1143,6 +1173,7 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
+ }
+ 
+ // closechan(sel *byte);
++#pragma textflag 7
+ void
+ runtime·closechan(Hchan *c)
+ {
+@@ -1161,6 +1192,11 @@ runtime·closechan(Hchan *c)
+ 		runtime·panicstring("close of closed channel");
+ 	}
+ 
++	if(raceenabled) {
++		runtime·racewritepc(c, runtime·getcallerpc(&c));
++		runtime·racerelease(c);
++	}
++
+ 	c->closed = true;
+ 
+ 	// release all readers
+@@ -1268,3 +1304,12 @@ enqueue(WaitQ *q, SudoG *sgp)
+ 	q->last->link = sgp;
+ 	q->last = sgp;
+ }
++
++static void
++racesync(Hchan *c, SudoG *sg)
++{
++	runtime·racerelease(chanbuf(c, 0));
++	runtime·raceacquireg(sg->g, chanbuf(c, 0));
++	runtime·racereleaseg(sg->g, chanbuf(c, 0));
++	runtime·raceacquire(chanbuf(c, 0));
++}
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index dbb944c3fe..fec407b67a 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "hashmap.h"
+ #include "type.h"
++#include "race.h"
+ 
+ /* Hmap flag values */
+ #define IndirectVal  (1<<0)	/* storing pointers to values */
+@@ -831,6 +832,9 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ 	byte *ak, *av;
+ 	bool pres;
+ 
++	if(raceenabled && h != nil)
++		runtime·racereadpc(h, runtime·getcallerpc(&t));
++
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, Structrnd);
+ 
+@@ -856,6 +860,9 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
+ {
+ 	byte *ak, *av, *ap;
+ 
++	if(raceenabled && h != nil)
++		runtime·racereadpc(h, runtime·getcallerpc(&t));
++
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, Structrnd);
+ 	ap = av + t->elem->size;
+@@ -884,6 +891,9 @@ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ {
+ 	byte *ak, *av;
+ 
++	if(raceenabled && h != nil)
++		runtime·racereadpc(h, runtime·getcallerpc(&t));
++
+ 	if(t->key->size <= sizeof(key))
+ 		ak = (byte*)&key;
+ 	else
+@@ -954,6 +964,8 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
++	if(raceenabled)
++		runtime·racewritepc(h, runtime·getcallerpc(&t));
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, t->elem->align);
+ 
+@@ -970,6 +982,8 @@ runtime·mapdelete(MapType *t, Hmap *h, ...)
+ 	if(h == nil)
+ 		runtime·panicstring("deletion of entry in nil map");
+ 
++	if(raceenabled)
++		runtime·racewritepc(h, runtime·getcallerpc(&t));
+ 	ak = (byte*)(&h + 1);
+ 	runtime·mapassign(t, h, ak, nil);
+ 
+@@ -993,6 +1007,8 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ 
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
++	if(raceenabled)
++		runtime·racewritepc(h, runtime·getcallerpc(&t));
+ 	if(t->key->size <= sizeof(key))
+ 		ak = (byte*)&key;
+ 	else
+@@ -1014,6 +1030,8 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ 		it->data = nil;
+ 		return;
+ 	}
++	if(raceenabled)
++		runtime·racereadpc(h, runtime·getcallerpc(&t));
+ 	hash_iter_init(t, h, it);
+ 	it->data = hash_next(it);
+ 	if(debug) {
+@@ -1057,6 +1075,8 @@ reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ void
+ runtime·mapiternext(struct hash_iter *it)
+ {
++	if(raceenabled)
++		runtime·racereadpc(it->h, runtime·getcallerpc(&it));
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+@@ -1158,8 +1178,11 @@ reflect·maplen(Hmap *h, intgo len)
+ {
+ 	if(h == nil)
+ 		len = 0;
+-	else
++	else {
+ 		len = h->count;
++		if(raceenabled)
++			runtime·racereadpc(h, runtime·getcallerpc(&h));
++	}
+ 	FLUSH(&len);
+ }
+ 
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 7253db8f42..92bc4aa234 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -14,6 +14,7 @@ package runtime
+ #include "defs_GOOS_GOARCH.h"
+ #include "type.h"
+ #include "typekind.h"
++#include "race.h"
+ 
+ #pragma dataflag 16 /* mark mheap as 'no pointers', hiding from garbage collector */
+ MHeap runtime·mheap;
+@@ -111,6 +112,11 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 
+ 	if(dogc && mstats.heap_alloc >= mstats.next_gc)
+ 		runtime·gc(0);
++
++	if(raceenabled) {
++		runtime·racemalloc(v, size, m->racepc);
++		m->racepc = nil;
++	}
+ 	return v;
+ }
+ 
+@@ -146,6 +152,9 @@ runtime·free(void *v)
+ 	}
+ 	prof = runtime·blockspecial(v);
+ 
++	if(raceenabled)
++		runtime·racefree(v);
++
+ 	// Find size class for v.
+ 	sizeclass = s->sizeclass;
+ 	c = m->mcache;
+@@ -678,8 +687,14 @@ runtime·mal(uintptr n)
+ 	return runtime·mallocgc(n, 0, 1, 1);
+ }
+ 
+-func new(typ *Type) (ret *uint8) {
+-	uint32 flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
++#pragma textflag 7
++void
++runtime·new(Type *typ, uint8 *ret)
++{
++	uint32 flag;
++
++	m->racepc = runtime·getcallerpc(&typ);
++	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+ 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+ 
+ 	if(UseSpanType && !flag) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 4ee0bfda49..6c2ce00953 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -8,6 +8,7 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "stack.h"
++#include "race.h"
+ 
+ enum {
+ 	Debug = 0,
+@@ -1055,6 +1056,9 @@ runfinq(void)
+ 	byte *frame;
+ 	uint32 framesz, framecap, i;
+ 
++	if(raceenabled)
++		runtime·racefingo();
++
+ 	frame = nil;
+ 	framecap = 0;
+ 	for(;;) {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 36a362e7e2..1cb8bf5864 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -8,6 +8,7 @@
+ #include "malloc.h"
+ #include "os_GOOS.h"
+ #include "stack.h"
++#include "race.h"
+ 
+ bool	runtime·iscgo;
+ 
+@@ -210,6 +211,9 @@ runtime·schedinit(void)
+ 
+ 	mstats.enablegc = 1;
+ 	m->nomemprof--;
++
++	if(raceenabled)
++		runtime·raceinit();
+ }
+ 
+ extern void main·init(void);
+@@ -241,6 +245,8 @@ runtime·main(void)
+ 	runtime·gosched();
+ 
+ 	main·main();
++	if(raceenabled)
++		runtime·racefini();
+ 	runtime·exit(0);
+ 	for(;;)
+ 		*(int32*)runtime·main = 0;
+@@ -885,6 +891,8 @@ schedule(G *gp)
+ 			gput(gp);
+ 			break;
+ 		case Gmoribund:
++			if(raceenabled)
++				runtime·racegoend(gp->goid);
+ 			gp->status = Gdead;
+ 			if(gp->lockedm) {
+ 				gp->lockedm = nil;
+@@ -1278,6 +1286,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	byte *sp;
+ 	G *newg;
+ 	int32 siz;
++	int32 goid;
+ 
+ //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
+ 	siz = narg + nret;
+@@ -1290,6 +1299,10 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	if(siz > StackMin - 1024)
+ 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
+ 
++	goid = runtime·xadd((uint32*)&runtime·sched.goidgen, 1);
++	if(raceenabled)
++		runtime·racegostart(goid, callerpc);
++
+ 	schedlock();
+ 
+ 	if((newg = gfget()) != nil) {
+@@ -1322,8 +1335,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	newg->gopc = (uintptr)callerpc;
+ 
+ 	runtime·sched.gcount++;
+-	runtime·sched.goidgen++;
+-	newg->goid = runtime·sched.goidgen;
++	newg->goid = goid;
+ 
+ 	newprocreadylocked(newg);
+ 	schedunlock();
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+new file mode 100644
+index 0000000000..a94298f055
+--- /dev/null
++++ b/src/pkg/runtime/race.c
+@@ -0,0 +1,255 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Implementation of the race detector API.
++// +build race
++
++#include "runtime.h"
++#include "arch_GOARCH.h"
++#include "malloc.h"
++#include "race.h"
++
++void runtime∕race·Initialize(void);
++void runtime∕race·Finalize(void);
++void runtime∕race·FinalizerGoroutine(int32);
++void runtime∕race·Read(int32 goid, void *addr, void *pc);
++void runtime∕race·Write(int32 goid, void *addr, void *pc);
++void runtime∕race·FuncEnter(int32 goid, void *pc);
++void runtime∕race·FuncExit(int32 goid);
++void runtime∕race·Malloc(int32 goid, void *p, uintptr sz, void *pc);
++void runtime∕race·Free(void *p);
++void runtime∕race·GoStart(int32 pgoid, int32 chgoid, void *pc);
++void runtime∕race·GoEnd(int32 goid);
++void runtime∕race·Acquire(int32 goid, void *addr);
++void runtime∕race·Release(int32 goid, void *addr);
++void runtime∕race·ReleaseMerge(int32 goid, void *addr);
++
++extern byte noptrdata[];
++extern byte enoptrbss[];
++
++static bool onstack(uintptr argp);
++
++void
++runtime·raceinit(void)
++{
++	m->racecall = true;
++	runtime∕race·Initialize();
++	m->racecall = false;
++}
++
++void
++runtime·racefini(void)
++{
++	m->racecall = true;
++	runtime∕race·Finalize();
++	m->racecall = false;
++}
++
++// Called from instrumented code.
++void
++runtime·racewrite(uintptr addr)
++{
++	if(!onstack(addr)) {
++		m->racecall = true;
++		runtime∕race·Write(g->goid-1, (void*)addr, runtime·getcallerpc(&addr));
++		m->racecall = false;
++	}
++}
++
++// Called from instrumented code.
++void
++runtime·raceread(uintptr addr)
++{
++	if(!onstack(addr)) {
++		m->racecall = true;
++		runtime∕race·Read(g->goid-1, (void*)addr, runtime·getcallerpc(&addr));
++		m->racecall = false;
++	}
++}
++
++// Called from instrumented code.
++void
++runtime·racefuncenter(void)
++{
++	uintptr pc;
++
++	runtime·callers(2, &pc, 1);
++	m->racecall = true;
++	runtime∕race·FuncEnter(g->goid-1, (void*)pc);
++	m->racecall = false;
++}
++
++// Called from instrumented code.
++void
++runtime·racefuncexit(void)
++{
++	m->racecall = true;
++	runtime∕race·FuncExit(g->goid-1);
++	m->racecall = false;
++}
++
++void
++runtime·racemalloc(void *p, uintptr sz, void *pc)
++{
++	m->racecall = true;
++	runtime∕race·Malloc(g->goid-1, p, sz, pc);
++	m->racecall = false;
++}
++
++void
++runtime·racefree(void *p)
++{
++	m->racecall = true;
++	runtime∕race·Free(p);
++	m->racecall = false;
++}
++
++void
++runtime·racegostart(int32 goid, void *pc)
++{
++	m->racecall = true;
++	runtime∕race·GoStart(g->goid-1, goid-1, pc);
++	m->racecall = false;
++}
++
++void
++runtime·racegoend(int32 goid)
++{
++	m->racecall = true;
++	runtime∕race·GoEnd(goid-1);
++	m->racecall = false;
++}
++
++void
++runtime·racewritepc(void *addr, void *pc)
++{
++	if(!onstack((uintptr)addr)) {
++		m->racecall = true;
++		runtime∕race·Write(g->goid-1, addr, pc);
++		m->racecall = false;
++	}
++}
++
++void
++runtime·racereadpc(void *addr, void *pc)
++{
++	if(!onstack((uintptr)addr)) {
++		m->racecall = true;
++		runtime∕race·Read(g->goid-1, addr, pc);
++		m->racecall = false;
++	}
++}
++
++void
++runtime·raceacquire(void *addr)
++{
++	runtime·raceacquireg(g, addr);
++}
++
++void
++runtime·raceacquireg(G *gp, void *addr)
++{
++	if(g->raceignore)
++		return;
++	m->racecall = true;
++	runtime∕race·Acquire(gp->goid-1, addr);
++	m->racecall = false;
++}
++
++void
++runtime·racerelease(void *addr)
++{
++	runtime·racereleaseg(g, addr);
++}
++
++void
++runtime·racereleaseg(G *gp, void *addr)
++{
++	if(g->raceignore)
++		return;
++	m->racecall = true;
++	runtime∕race·Release(gp->goid-1, addr);
++	m->racecall = false;
++}
++
++void
++runtime·racereleasemerge(void *addr)
++{
++	runtime·racereleasemergeg(g, addr);
++}
++
++void
++runtime·racereleasemergeg(G *gp, void *addr)
++{
++	if(g->raceignore)
++		return;
++	m->racecall = true;
++	runtime∕race·ReleaseMerge(gp->goid-1, addr);
++	m->racecall = false;
++}
++
++void
++runtime·racefingo(void)
++{
++	m->racecall = true;
++	runtime∕race·FinalizerGoroutine(g->goid - 1);
++	m->racecall = false;
++}
++
++// func RaceAcquire(addr unsafe.Pointer)
++void
++runtime·RaceAcquire(void *addr)
++{
++	runtime·raceacquire(addr);
++}
++
++// func RaceRelease(addr unsafe.Pointer)
++void
++runtime·RaceRelease(void *addr)
++{
++	runtime·racerelease(addr);
++}
++
++// func RaceReleaseMerge(addr unsafe.Pointer)
++void
++runtime·RaceReleaseMerge(void *addr)
++{
++	runtime·racereleasemerge(addr);
++}
++
++// func RaceSemacquire(s *uint32)
++void runtime·RaceSemacquire(uint32 *s)
++{
++	runtime·semacquire(s);
++}
++
++// func RaceSemrelease(s *uint32)
++void runtime·RaceSemrelease(uint32 *s)
++{
++	runtime·semrelease(s);
++}
++
++// func RaceDisable()
++void runtime·RaceDisable(void)
++{
++	g->raceignore++;
++}
++
++// func RaceEnable()
++void runtime·RaceEnable(void)
++{
++	g->raceignore--;
++}
++
++static bool
++onstack(uintptr argp)
++{
++	// noptrdata, data, bss, noptrbss
++	// the layout is in ../../cmd/ld/data.c
++	if((byte*)argp >= noptrdata && (byte*)argp < enoptrbss)
++		return false;
++	if((byte*)argp >= runtime·mheap.arena_start && (byte*)argp < runtime·mheap.arena_used)
++		return false;
++	return true;
++}
+diff --git a/src/pkg/runtime/race.go b/src/pkg/runtime/race.go
+new file mode 100644
+index 0000000000..5f995762c8
+--- /dev/null
++++ b/src/pkg/runtime/race.go
+@@ -0,0 +1,26 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++// Public race detection API, present iff build with -race.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// RaceDisable disables handling of race events in the current goroutine. 
++func RaceDisable()
++
++// RaceEnable re-enables handling of race events in the current goroutine. 
++func RaceEnable()
++
++func RaceAcquire(addr unsafe.Pointer)
++func RaceRelease(addr unsafe.Pointer)
++func RaceReleaseMerge(addr unsafe.Pointer)
++
++func RaceSemacquire(s *uint32)
++func RaceSemrelease(s *uint32)
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+new file mode 100644
+index 0000000000..eea1f9465e
+--- /dev/null
++++ b/src/pkg/runtime/race.h
+@@ -0,0 +1,30 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Definitions related to data race detection.
++
++#ifdef RACE
++enum { raceenabled = 1 };
++#else
++enum { raceenabled = 0 };
++#endif
++
++// Initialize race detection subsystem.
++void	runtime·raceinit(void);
++// Finalize race detection subsystem, does not return.
++void	runtime·racefini(void);
++
++void	runtime·racemalloc(void *p, uintptr sz, void *pc);
++void	runtime·racefree(void *p);
++void	runtime·racegostart(int32 goid, void *pc);
++void	runtime·racegoend(int32 goid);
++void	runtime·racewritepc(void *addr, void *pc);
++void	runtime·racereadpc(void *addr, void *pc);
++void	runtime·racefingo(void);
++void	runtime·raceacquire(void *addr);
++void	runtime·raceacquireg(G *gp, void *addr);
++void	runtime·racerelease(void *addr);
++void	runtime·racereleaseg(G *gp, void *addr);
++void	runtime·racereleasemerge(void *addr);
++void	runtime·racereleasemergeg(G *gp, void *addr);
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+new file mode 100644
+index 0000000000..ddeff5de76
+--- /dev/null
++++ b/src/pkg/runtime/race/race.go
+@@ -0,0 +1,105 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race,linux,amd64 race,darwin,amd64
++
++// Data race detection.
++package race
++
++/*
++void __tsan_init(void);
++void __tsan_fini(void);
++void __tsan_go_start(int pgoid, int chgoid, void *pc);
++void __tsan_go_end(int goid);
++void __tsan_read(int goid, void *addr, void *pc);
++void __tsan_write(int goid, void *addr, void *pc);
++void __tsan_func_enter(int goid, void *pc);
++void __tsan_func_exit(int goid);
++void __tsan_malloc(int goid, void *p, long sz, void *pc);
++void __tsan_free(void *p);
++void __tsan_acquire(int goid, void *addr);
++void __tsan_release(int goid, void *addr);
++void __tsan_release_merge(int goid, void *addr);
++void __tsan_finalizer_goroutine(int tid);
++*/
++import "C"
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++func Initialize() {
++	C.__tsan_init()
++}
++
++func Finalize() {
++	C.__tsan_fini()
++}
++
++func FinalizerGoroutine(goid int32) {
++	C.__tsan_finalizer_goroutine(C.int(goid))
++}
++
++func Read(goid int32, addr, pc uintptr) {
++	C.__tsan_read(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
++}
++
++func Write(goid int32, addr, pc uintptr) {
++	C.__tsan_write(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
++}
++
++func FuncEnter(goid int32, pc uintptr) {
++	C.__tsan_func_enter(C.int(goid), unsafe.Pointer(pc))
++}
++
++func FuncExit(goid int32) {
++	C.__tsan_func_exit(C.int(goid))
++}
++
++func Malloc(goid int32, p, sz, pc uintptr) {
++	C.__tsan_malloc(C.int(goid), unsafe.Pointer(p), C.long(sz), unsafe.Pointer(pc))
++}
++
++func Free(p uintptr) {
++	C.__tsan_free(unsafe.Pointer(p))
++}
++
++func GoStart(pgoid, chgoid int32, pc uintptr) {
++	C.__tsan_go_start(C.int(pgoid), C.int(chgoid), unsafe.Pointer(pc))
++}
++
++func GoEnd(goid int32) {
++	C.__tsan_go_end(C.int(goid))
++}
++
++func Acquire(goid int32, addr uintptr) {
++	C.__tsan_acquire(C.int(goid), unsafe.Pointer(addr))
++}
++
++func Release(goid int32, addr uintptr) {
++	C.__tsan_release(C.int(goid), unsafe.Pointer(addr))
++}
++
++func ReleaseMerge(goid int32, addr uintptr) {
++	C.__tsan_release_merge(C.int(goid), unsafe.Pointer(addr))
++}
++
++//export __tsan_symbolize
++func __tsan_symbolize(pc uintptr, fun, file **C.char, line, off *C.int) C.int {
++	f := runtime.FuncForPC(pc)
++	if f == nil {
++		*fun = C.CString("??")
++		*file = C.CString("-")
++		*line = 0
++		*off = C.int(pc)
++		return 1
++	}
++	fi, l := f.FileLine(pc)
++	*fun = C.CString(f.Name())
++	*file = C.CString(fi)
++	*line = C.int(l)
++	*off = C.int(pc - f.Entry())
++	return 1
++}
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+new file mode 100644
+index 0000000000..b291e8e078
+Binary files /dev/null and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+new file mode 100644
+index 0000000000..c8e331f716
+Binary files /dev/null and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+new file mode 100644
+index 0000000000..b650a14712
+--- /dev/null
++++ b/src/pkg/runtime/race0.c
+@@ -0,0 +1,103 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Stub implementation of the race detector API.
++// +build !race
++
++#include "runtime.h"
++
++void
++runtime·raceinit(void)
++{
++}
++
++void
++runtime·racefini(void)
++{
++}
++
++void
++runtime·racewritepc(void *addr, void *pc)
++{
++	USED(addr);
++	USED(pc);
++}
++
++void
++runtime·racereadpc(void *addr, void *pc)
++{
++	USED(addr);
++	USED(pc);
++}
++
++void
++runtime·raceacquire(void *addr)
++{
++	USED(addr);
++}
++
++void
++runtime·raceacquireg(G *gp, void *addr)
++{
++	USED(gp);
++	USED(addr);
++}
++
++void
++runtime·racerelease(void *addr)
++{
++	USED(addr);
++}
++
++void
++runtime·racereleaseg(G *gp, void *addr)
++{
++	USED(gp);
++	USED(addr);
++}
++
++void
++runtime·racereleasemerge(void *addr)
++{
++	USED(addr);
++}
++
++void
++runtime·racereleasemergeg(G *gp, void *addr)
++{
++	USED(gp);
++	USED(addr);
++}
++
++void
++runtime·racefingo(void)
++{
++}
++
++void
++runtime·racemalloc(void *p, uintptr sz, void *pc)
++{
++	USED(p);
++	USED(sz);
++	USED(pc);
++}
++
++void
++runtime·racefree(void *p)
++{
++	USED(p);
++}
++
++void
++runtime·racegostart(int32 goid, void *pc)
++{
++	USED(goid);
++	USED(pc);
++}
++
++void
++runtime·racegoend(int32 goid)
++{
++	USED(goid);
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f808b590ed..0b0931fe93 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -210,6 +210,7 @@ struct	G
+ 	G*	schedlink;
+ 	bool	readyonstop;
+ 	bool	ispanic;
++	int8	raceignore; // ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+ 	M*	idlem;
+@@ -267,6 +268,8 @@ struct	M
+ 	uint32	waitsemacount;
+ 	uint32	waitsemalock;
+ 	GCStats	gcstats;
++	bool	racecall;
++	void*	racepc;
+ 
+ 	uintptr	settype_buf[1024];
+ 	uintptr	settype_bufsize;
+@@ -816,7 +819,7 @@ void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
+ Hmap*	runtime·makemap_c(MapType*, int64);
+ 
+ Hchan*	runtime·makechan_c(ChanType*, int64);
+-void	runtime·chansend(ChanType*, Hchan*, byte*, bool*);
++void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
+ void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+ bool	runtime·showframe(Func*);
+ 
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index b977f45824..d24f6a88ae 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -7,6 +7,7 @@
+ #include "type.h"
+ #include "typekind.h"
+ #include "malloc.h"
++#include "race.h"
+ 
+ static	bool	debug	= 0;
+ 
+@@ -58,17 +59,27 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+ }
+ 
+ // appendslice(type *Type, x, y, []T) []T
++#pragma textflag 7
+ void
+ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ {
+-	intgo m;
++	intgo m, i;
+ 	uintptr w;
++	void *pc;
+ 
+ 	m = x.len+y.len;
+ 
+ 	if(m < x.len)
+ 		runtime·throw("append: slice overflow");
+ 
++	if(raceenabled) {
++		pc = runtime·getcallerpc(&t);
++		for(i=0; i<x.len; i++)
++			runtime·racereadpc(x.array + i*t->elem->size, pc);
++		for(i=x.len; i<x.cap; i++)
++			runtime·racewritepc(x.array + i*t->elem->size, pc);
++	}
++
+ 	if(m > x.cap)
+ 		growslice1(t, x, m, &ret);
+ 	else
+@@ -82,16 +93,26 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ 
+ 
+ // appendstr([]byte, string) []byte
++#pragma textflag 7
+ void
+ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ {
+-	intgo m;
++	intgo m, i;
++	void *pc;
+ 
+ 	m = x.len+y.len;
+ 
+ 	if(m < x.len)
+ 		runtime·throw("append: slice overflow");
+ 
++	if(raceenabled) {
++		pc = runtime·getcallerpc(&t);
++		for(i=0; i<x.len; i++)
++			runtime·racereadpc(x.array + i*t->elem->size, pc);
++		for(i=x.len; i<x.cap; i++)
++			runtime·racewritepc(x.array + i*t->elem->size, pc);
++	}
++
+ 	if(m > x.cap)
+ 		growslice1(t, x, m, &ret);
+ 	else
+@@ -108,6 +129,8 @@ void
+ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ {
+ 	int64 cap;
++	void *pc;
++	int32 i;
+ 
+ 	if(n < 1)
+ 		runtime·panicstring("growslice: invalid n");
+@@ -117,6 +140,12 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ 	if((intgo)cap != cap || cap < old.cap || (t->elem->size > 0 && cap > MaxMem/t->elem->size))
+ 		runtime·panicstring("growslice: cap out of range");
+ 
++	if(raceenabled) {
++		pc = runtime·getcallerpc(&t);
++		for(i=0; i<old.len; i++)
++			runtime·racewritepc(old.array + i*t->elem->size, pc);
++	}
++
+ 	growslice1(t, old, cap, &ret);
+ 
+ 	FLUSH(&ret);
+@@ -155,9 +184,13 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
+ }
+ 
+ // copy(to any, fr any, wid uintptr) int
++#pragma textflag 7
+ void
+ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+ {
++	void *pc;
++	int32 i;
++
+ 	if(fm.len == 0 || to.len == 0 || width == 0) {
+ 		ret = 0;
+ 		goto out;
+@@ -167,6 +200,14 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+ 	if(to.len < ret)
+ 		ret = to.len;
+ 
++	if(raceenabled) {
++		pc = runtime·getcallerpc(&to);
++		for(i=0; i<ret; i++) {
++			runtime·racewritepc(to.array + i*width, pc);
++			runtime·racereadpc(fm.array + i*width, pc);
++		}
++	}
++
+ 	if(ret == 1 && width == 1) {	// common case worth about 2x to do here
+ 		*to.array = *fm.array;	// known to be a byte pointer
+ 	} else {
+@@ -189,9 +230,13 @@ out:
+ 	}
+ }
+ 
++#pragma textflag 7
+ void
+ runtime·slicestringcopy(Slice to, String fm, intgo ret)
+ {
++	void *pc;
++	int32 i;
++
+ 	if(fm.len == 0 || to.len == 0) {
+ 		ret = 0;
+ 		goto out;
+@@ -201,6 +246,13 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
+ 	if(to.len < ret)
+ 		ret = to.len;
+ 
++	if(raceenabled) {
++		pc = runtime·getcallerpc(&to);
++		for(i=0; i<ret; i++) {
++			runtime·racewritepc(to.array + i, pc);
++		}
++	}
++
+ 	runtime·memmove(to.array, fm.str, ret);
+ 
+ out:
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 18c24d1956..57a49ee58c 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -11,6 +11,7 @@ package time
+ #include "os_GOOS.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
++#include "race.h"
+ 
+ static Timers timers;
+ static void addtimer(Timer*);
+@@ -28,6 +29,8 @@ func Sleep(ns int64) {
+ 
+ // startTimer adds t to the timer heap.
+ func startTimer(t *Timer) {
++	if(raceenabled)
++		runtime·racerelease(t);
+ 	runtime·lock(&timers);
+ 	addtimer(t);
+ 	runtime·unlock(&timers);
+@@ -180,6 +183,8 @@ timerproc(void)
+ 			f = t->f;
+ 			arg = t->arg;
+ 			runtime·unlock(&timers);
++			if(raceenabled)
++				runtime·raceacquire(t);
+ 			f(now, arg);
+ 			runtime·lock(&timers);
+ 		}

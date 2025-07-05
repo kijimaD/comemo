@@ -11,7 +11,7 @@ Date:   Mon Feb 6 13:34:35 2012 -0500
     R=golang-dev, bradfitz, gri
     CC=golang-dev
     https://golang.org/cl/5637048
-
+---
  doc/articles/error_handling.html      | 2 +-
  doc/articles/error_handling.tmpl      | 2 +-
  doc/devel/weekly.html                 | 2 +-
@@ -22,3 +22,139 @@ Date:   Mon Feb 6 13:34:35 2012 -0500
  src/pkg/expvar/expvar.go              | 2 +-
  src/pkg/text/tabwriter/tabwriter.go   | 4 ++--
  9 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/doc/articles/error_handling.html b/doc/articles/error_handling.html
+index b9393a2cba..ac33f1dabc 100644
+--- a/doc/articles/error_handling.html
++++ b/doc/articles/error_handling.html
+@@ -415,7 +415,7 @@ the user is an administrator,
+ <li>write a constructor function for <code>appError</code> that stores the
+ stack trace for easier debugging, 
+ <li>recover from panics inside the <code>appHandler</code>, logging the error
+-to the console as "Critical," while simply telling the user "a serious error
++to the console as "Critical," while telling the user "a serious error
+ has occurred." This is a nice touch to avoid exposing the user to inscrutable
+ error messages caused by programming errors.
+ See the <a href="defer_panic_recover.html">Defer, Panic, and Recover</a>
+diff --git a/doc/articles/error_handling.tmpl b/doc/articles/error_handling.tmpl
+index 141b4a54dd..56b7fb309d 100644
+--- a/doc/articles/error_handling.tmpl
++++ b/doc/articles/error_handling.tmpl
+@@ -296,7 +296,7 @@ the user is an administrator,
+ <li>write a constructor function for <code>appError</code> that stores the
+ stack trace for easier debugging, 
+ <li>recover from panics inside the <code>appHandler</code>, logging the error
+-to the console as "Critical," while simply telling the user "a serious error
++to the console as "Critical," while telling the user "a serious error
+ has occurred." This is a nice touch to avoid exposing the user to inscrutable
+ error messages caused by programming errors.
+ See the <a href="defer_panic_recover.html">Defer, Panic, and Recover</a>
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 34c0a71280..16dd6a3294 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -916,7 +916,7 @@ The Dump* and NewChunked* functions and ClientConn, ServerConn, and
+ ReverseProxy types have been moved from http to httputil.
+ 
+ The API for html/template is now a direct copy of the template API, instead of
+-exposing a single Escape function. For HTML templates, simply use the
++exposing a single Escape function. For HTML templates, use the
+ html/template package as you would the template package.
+ 
+ Other changes:
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 1aaf64e54e..085a305432 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -360,7 +360,7 @@ The name of Go functions accessed from C is subject to change. At present
+ the name of a Go function that does not have a receiver is
+ <code>prefix.package.Functionname</code>. The prefix is set by
+ the <code>-fgo-prefix</code> option used when the package is compiled;
+-if the option is not used, the default is simply <code>go</code>.
++if the option is not used, the default is <code>go</code>.
+ To call the function from C you must set the name using
+ a <code>gcc</code> extension similar to the <code>gccgo</code>
+ extension.
+diff --git a/src/pkg/crypto/cipher/io.go b/src/pkg/crypto/cipher/io.go
+index 9888c9806f..76048fbf33 100644
+--- a/src/pkg/crypto/cipher/io.go
++++ b/src/pkg/crypto/cipher/io.go
+@@ -9,7 +9,7 @@ import "io"
+ // The Stream* objects are so simple that all their members are public. Users
+ // can create them themselves.
+ 
+-// StreamReader wraps a Stream into an io.Reader. It simply calls XORKeyStream
++// StreamReader wraps a Stream into an io.Reader. It calls XORKeyStream
+ // to process each slice of data which passes through.
+ type StreamReader struct {
+ 	S Stream
+@@ -22,7 +22,7 @@ func (r StreamReader) Read(dst []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// StreamWriter wraps a Stream into an io.Writer. It simply calls XORKeyStream
++// StreamWriter wraps a Stream into an io.Writer. It calls XORKeyStream
+ // to process each slice of data which passes through. If any Write call
+ // returns short then the StreamWriter is out of sync and must be discarded.
+ type StreamWriter struct {
+diff --git a/src/pkg/database/sql/driver/driver.go b/src/pkg/database/sql/driver/driver.go
+index 0cd2562d68..b930077605 100644
+--- a/src/pkg/database/sql/driver/driver.go
++++ b/src/pkg/database/sql/driver/driver.go
+@@ -5,7 +5,7 @@
+ // Package driver defines interfaces to be implemented by database
+ // drivers as used by package sql.
+ //
+-// Code simply using databases should use package sql.
++// Most code should use package sql.
+ //
+ // Drivers only need to be aware of a subset of Go's types.  The sql package
+ // will convert all types into one of the following:
+diff --git a/src/pkg/encoding/gob/decoder.go b/src/pkg/encoding/gob/decoder.go
+index fb28c8caf5..c5c7d3fdb1 100644
+--- a/src/pkg/encoding/gob/decoder.go
++++ b/src/pkg/encoding/gob/decoder.go
+@@ -135,7 +135,7 @@ func (dec *Decoder) nextUint() uint64 {
+ // and returns the type id of the next value.  It returns -1 at
+ // EOF.  Upon return, the remainder of dec.buf is the value to be
+ // decoded.  If this is an interface value, it can be ignored by
+-// simply resetting that buffer.
++// resetting that buffer.
+ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ 	for dec.err == nil {
+ 		if dec.buf.Len() == 0 {
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 0ccfb34328..1919296ea8 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -16,7 +16,7 @@
+ //
+ // The package is sometimes only imported for the side effect of
+ // registering its HTTP handler and the above variables.  To use it
+-// this way, simply link this package into your program:
++// this way, link this package into your program:
+ //	import _ "expvar"
+ //
+ package expvar
+diff --git a/src/pkg/text/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+index 201a685c63..ea7c400811 100644
+--- a/src/pkg/text/tabwriter/tabwriter.go
++++ b/src/pkg/text/tabwriter/tabwriter.go
+@@ -52,7 +52,7 @@ type cell struct {
+ // this flag.
+ //
+ // If a Writer is configured to filter HTML, HTML tags and entities
+-// are simply passed through. The widths of tags and entities are
++// are passed through. The widths of tags and entities are
+ // assumed to be zero (tags) and one (entities) for formatting purposes.
+ //
+ // A segment of text may be escaped by bracketing it with Escape
+@@ -448,7 +448,7 @@ func handlePanic(err *error) {
+ 
+ // Flush should be called after the last call to Write to ensure
+ // that any data buffered in the Writer is written to output. Any
+-// incomplete escape sequence at the end is simply considered
++// incomplete escape sequence at the end is considered
+ // complete for formatting purposes.
+ //
+ func (b *Writer) Flush() (err error) {

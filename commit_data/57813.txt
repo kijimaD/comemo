@@ -17,6 +17,60 @@ Date:   Fri Sep 1 14:59:27 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_linux_test.go | 28 +++++++++++++---------------
  1 file changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 33fa79a81d..4a6c34e6e6 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -433,6 +433,18 @@ func prepareCgroupFD(t *testing.T) (int, string) {
+ 
+ func TestUseCgroupFD(t *testing.T) {
+ 	testenv.MustHaveExec(t)
++
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		// Read and print own cgroup path.
++		selfCg, err := os.ReadFile("/proc/self/cgroup")
++		if err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			os.Exit(2)
++		}
++		fmt.Print(string(selfCg))
++		os.Exit(0)
++	}
++
+ 	exe, err := os.Executable()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -440,7 +452,7 @@ func TestUseCgroupFD(t *testing.T) {
+ 
+ 	fd, suffix := prepareCgroupFD(t)
+ 
+-	cmd := testenv.Command(t, exe, "-test.run=TestUseCgroupFDHelper")
++	cmd := testenv.Command(t, exe, "-test.run=TestUseCgroupFD")
+ 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		UseCgroupFD: true,
+@@ -463,20 +475,6 @@ func TestUseCgroupFD(t *testing.T) {
+ 	}
+ }
+ 
+-func TestUseCgroupFDHelper(*testing.T) {
+-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+-		return
+-	}
+-	defer os.Exit(0)
+-	// Read and print own cgroup path.
+-	selfCg, err := os.ReadFile("/proc/self/cgroup")
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		os.Exit(2)
+-	}
+-	fmt.Print(string(selfCg))
+-}
+-
+ func TestCloneTimeNamespace(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 

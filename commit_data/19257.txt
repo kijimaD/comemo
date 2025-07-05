@@ -12,6 +12,32 @@ Date:   Tue Apr 29 14:43:10 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/99870043
-
+---
  src/run.bash | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 0f3e4e0f36..876b5d757d 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -6,6 +6,7 @@
+ set -e
+ 
+ eval $(go env)
++export GOROOT   # the api test requires GOROOT to be set.
+ 
+ unset CDPATH	# in case user has it set
+ unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
+@@ -140,7 +141,11 @@ dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | li
+ 	                # static linking on FreeBSD/ARM with clang. (cgo depends on
+ 			# -fPIC fundamentally.)
+ 	*)
+-		go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
++		if ! $CC -xc -o /dev/null -static - 2>/dev/null <<<'int main() {}' ; then
++			echo "No support for static linking found (lacks libc.a?), skip cgo static linking test."
++		else
++			go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
++		fi
+ 		;;
+ 	esac
+ 	;;

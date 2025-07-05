@@ -24,7 +24,96 @@ Date:   Wed Jan 11 16:40:24 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 18 ++++++++++---
  test/fixedbugs/issue18595.go        | 53 +++++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 2210c0c762..b4b758e07c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -743,9 +743,21 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	// and either src or dst is not a named type or
+ 	// both are empty interface types.
+ 	// For assignable but different non-empty interface types,
+-	// we want to recompute the itab.
+-	if eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || src.IsEmptyInterface()) {
+-		return OCONVNOP
++	// we want to recompute the itab. Recomputing the itab ensures
++	// that itabs are unique (thus an interface with a compile-time
++	// type I has an itab with interface type I).
++	if eqtype(src.Orig, dst.Orig) {
++		if src.IsEmptyInterface() {
++			// Conversion between two empty interfaces
++			// requires no code.
++			return OCONVNOP
++		}
++		if (src.Sym == nil || dst.Sym == nil) && !src.IsInterface() {
++			// Conversion between two types, at least one unnamed,
++			// needs no conversion. The exception is nonempty interfaces
++			// which need to have their itab updated.
++			return OCONVNOP
++		}
+ 	}
+ 
+ 	// 3. dst is an interface type and src implements dst.
+diff --git a/test/fixedbugs/issue18595.go b/test/fixedbugs/issue18595.go
+new file mode 100644
+index 0000000000..d6f07b30e2
+--- /dev/null
++++ b/test/fixedbugs/issue18595.go
+@@ -0,0 +1,53 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test makes sure that itabs are unique.
++// More explicitly, we require that only one itab structure exists for the pair of
++// a given compile-time interface type and underlying concrete type.
++// Ensuring this invariant enables fixes for 18492 (improve type switch code).
++
++package main
++
++type I interface {
++	M()
++}
++type J interface {
++	M()
++}
++
++type T struct{}
++
++func (*T) M() {}
++
++func main() {
++	test1()
++	test2()
++}
++
++func test1() {
++	t := new(T)
++	var i1, i2 I
++	var j interface {
++		M()
++	}
++	i1 = t
++	j = t
++	i2 = j
++	if i1 != i2 {
++		panic("interfaces not equal")
++	}
++}
++
++func test2() {
++	t := new(T)
++	i1 := (I)(t)
++	i2 := (I)((interface {
++		M()
++	})((J)(t)))
++	if i1 != i2 {
++		panic("interfaces not equal")
++	}
++}

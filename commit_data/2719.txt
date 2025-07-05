@@ -12,7 +12,7 @@ Date:   Wed Jul 15 11:59:13 2009 -0700
     DELTA=1751  (1751 added, 0 deleted, 0 changed)
     OCL=31309
     CL=31691
-
+---
  usr/austin/eval/decls.go | 138 ++++++++++
  usr/austin/eval/expr.go  | 695 +++++++++++++++++++++++++++++++++++++++++++++++
  usr/austin/eval/scope.go |  54 ++++
@@ -20,3 +20,1815 @@ Date:   Wed Jul 15 11:59:13 2009 -0700
  usr/austin/eval/util.go  |  50 ++++
  usr/austin/eval/value.go | 467 +++++++++++++++++++++++++++++++
  6 files changed, 1775 insertions(+)
+
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+new file mode 100644
+index 0000000000..2881a334b5
+--- /dev/null
++++ b/usr/austin/eval/decls.go
+@@ -0,0 +1,138 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++)
++
++/*
++ * Types
++ */
++
++type Type interface {
++	// literal returns this type with all names recursively
++	// stripped.
++	// TODO(austin) Eliminate the need for this
++	literal() Type;
++	// compatible returns true if this type is compatible with o.
++	// XXX Assignment versus comparison compatibility?
++	compatible(o Type) bool;
++	// isInteger returns true if this is an integer type.
++	isInteger() bool;
++	// isFloat returns true if this is a floating type.
++	isFloat() bool;
++	// isIdeal returns true if this is an ideal int or float.
++	isIdeal() bool;
++	// String returns the string representation of this type.
++	String() string;
++}
++
++type BoundedType interface {
++	Type;
++	// minVal returns the smallest value of this type.
++	minVal() *bignum.Rational;
++	// maxVal returns the largest value of this type.
++	maxVal() *bignum.Rational;
++}
++
++/*
++ * Values
++ */
++
++type Value interface {
++	// TODO(austin) Is Type even necessary?
++	Type() Type;
++	String() string;
++}
++
++type BoolValue interface {
++	Value;
++	Get() bool;
++	Set(bool);
++}
++
++type UintValue interface {
++	Value;
++	Get() uint64;
++	Set(uint64);
++}
++
++type IntValue interface {
++	Value;
++	Get() int64;
++	Set(int64);
++}
++
++type IdealIntValue interface {
++	Value;
++	Get() *bignum.Integer;
++}
++
++type FloatValue interface {
++	Value;
++	Get() float64;
++	Set(float64);
++}
++
++type IdealFloatValue interface {
++	Value;
++	Get() *bignum.Rational;
++}
++
++type StringValue interface {
++	Value;
++	Get() string;
++	Set(string);
++}
++
++type PtrValue interface {
++	Value;
++	Get() Value;
++	Set(Value);
++}
++
++/*
++ * Scopes
++ */
++
++type Variable struct {
++	// Index of this variable in the Frame structure
++	Index int;
++	// Static type of this variable
++	Type Type;
++}
++
++type Constant struct {
++	// TODO(austin) Need Type?
++	Type Type;
++	Value Value;
++}
++
++// A definition can be a *Variable, *Constant, or Type.
++type Def interface {}
++
++type Scope struct {
++	outer *Scope;
++	defs map[string] Def;
++	numVars int;
++}
++
++func NewRootScope() *Scope
++func (s *Scope) Fork() *Scope
++func (s *Scope) DefineVar(name string, t Type) *Variable
++func (s *Scope) DefineConst(name string, v Value) *Constant
++func (s *Scope) DefineType(name string, t Type) bool
++func (s *Scope) Lookup(name string) (Def, *Scope)
++
++/*
++ * Frames
++ */
++
++type Frame struct {
++	Outer *Frame;
++	Scope *Scope;
++	Vars []Value;
++}
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+new file mode 100644
+index 0000000000..a96e293d01
+--- /dev/null
++++ b/usr/austin/eval/expr.go
+@@ -0,0 +1,695 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++	"eval";
++	"go/ast";
++	"go/token";
++	"log";
++	"strconv";
++	"strings";
++)
++
++// An exprContext stores information used throughout the compilation
++// of an entire expression.
++type exprContext struct {
++	scope *Scope;
++	constant bool;
++	// TODO(austin) Error list
++}
++
++// An exprCompiler compiles a single node in an expression.  It stores
++// the whole expression's context plus information specific to this node.
++// After compilation, it stores the type of the expression and its
++// evaluator function.
++type exprCompiler struct {
++	*exprContext;
++	pos token.Position;
++	t Type;
++	// TODO(austin) Should there be separate f's for each specific
++	// Value interface?  We spend a lot of time calling f's and
++	// just blindly casting the result since we already know its type.
++	f func (f *Frame) Value;
++	// A short string describing this expression for error
++	// messages.  Only necessary if t != nil.
++	desc string;
++	// True if the address-of operator can be applied to this
++	// result.
++	addressable bool;
++}
++
++func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
++	return &exprCompiler{c, pos, nil, nil, "<missing description>", false};
++}
++
++func (a *exprCompiler) fork(x ast.Expr) *exprCompiler {
++	ec := newExprCompiler(a.exprContext, x.Pos());
++	x.Visit(ec);
++	return ec;
++}
++
++func (a *exprCompiler) diag(format string, args ...) {
++	diag(a.pos, format, args);
++}
++
++func (a *exprCompiler) diagOpType(op token.Token, vt Type) {
++	a.diag("illegal operand type for '%v' operator\n\t%v", op, vt);
++}
++
++func (a *exprCompiler) diagOpTypes(op token.Token, lt Type, rt Type) {
++	a.diag("illegal operand types for '%v' operator\n\t%v\n\t%v", op, lt, rt);
++}
++
++func (a *exprCompiler) DoBadExpr(x *ast.BadExpr) {
++	// Do nothing.  Already reported by parser.
++}
++
++func (a *exprCompiler) DoIdent(x *ast.Ident) {
++	def, dscope := a.scope.Lookup(x.Value);
++	if def == nil {
++		a.diag("%s: undefined", x.Value);
++		return;
++	}
++	switch def := def.(type) {
++	case *Constant:
++		a.t = def.Type;
++		a.f = func (*Frame) Value { return def.Value };
++		a.desc = "constant";
++	case *Variable:
++		if a.constant {
++			a.diag("expression must be a constant");
++			return;
++		}
++		a.t = def.Type;
++		defidx := def.Index;
++		a.f = func (f *Frame) Value {
++			// TODO(austin) Make Frame do this?
++			for f.Scope != dscope {
++				f = f.Outer;
++			}
++			return f.Vars[defidx];
++		};
++		a.desc = "variable";
++		a.addressable = true;
++	case Type:
++		a.diag("type %v used as expression", x.Value);
++	default:
++		log.Crashf("name %s has unknown type %T", x.Value, def);
++	}
++}
++
++func (a *exprCompiler) doIdealInt(i *bignum.Integer) {
++	a.t = IdealIntType;
++	val := &idealIntV{i};
++	a.f = func (*Frame) Value { return val };
++}
++
++func (a *exprCompiler) DoIntLit(x *ast.IntLit) {
++	i, _, _2 := bignum.IntFromString(string(x.Value), 0);
++	a.doIdealInt(i);
++	a.desc = "integer literal";
++}
++
++func (a *exprCompiler) DoCharLit(x *ast.CharLit) {
++	if x.Value[0] != '\'' {
++		// Shouldn't get past the parser
++		log.Crashf("unexpected character literal %s at %v", x.Value, x.Pos());
++	}
++	v, mb, tail, err := strconv.UnquoteChar(string(x.Value[1:len(x.Value)]), '\'');
++	if err != nil {
++		a.diag("illegal character literal, %v", err);
++		return;
++	}
++	if tail != "'" {
++		a.diag("character literal must contain only one character");
++		return;
++	}
++	a.doIdealInt(bignum.Int(int64(v)));
++	a.desc = "character literal";
++}
++
++func (a *exprCompiler) DoFloatLit(x *ast.FloatLit) {
++	a.t = IdealFloatType;
++	i, _, _2 := bignum.RatFromString(string(x.Value), 0);
++	val := &idealFloatV{i};
++	a.f = func (*Frame) Value { return val };
++	a.desc = "float literal";
++}
++
++func (a *exprCompiler) doString(s string) {
++	a.t = StringType;
++	val := stringV(s);
++	a.f = func (*Frame) Value { return &val };
++}
++
++func (a *exprCompiler) DoStringLit(x *ast.StringLit) {
++	s, err := strconv.Unquote(string(x.Value));
++	if err != nil {
++		a.diag("illegal string literal, %v", err);
++		return;
++	}
++	a.doString(s);
++	a.desc = "string literal";
++}
++
++func (a *exprCompiler) DoStringList(x *ast.StringList) {
++	ss := make([]string, len(x.Strings));
++	for i := 0; i < len(x.Strings); i++ {
++		s, err := strconv.Unquote(string(x.Strings[i].Value));
++		if err != nil {
++			a.diag("illegal string literal, %v", err);
++			return;
++		}
++		ss[i] = s;
++	}
++	a.doString(strings.Join(ss, ""));
++	a.desc = "string literal";
++}
++
++func (a *exprCompiler) DoFuncLit(x *ast.FuncLit) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoCompositeLit(x *ast.CompositeLit) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoParenExpr(x *ast.ParenExpr) {
++	x.X.Visit(a);
++}
++
++func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoTypeAssertExpr(x *ast.TypeAssertExpr) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
++	v := a.fork(x.X);
++	if v.t == nil {
++		return;
++	}
++
++	switch vt := v.t.(type) {
++	case *PtrType:
++		a.t = vt.Elem();
++		vf := v.f;
++		a.f = func (f *Frame) Value { return vf(f).(PtrValue).Get() };
++		a.desc = "* expression";
++		a.addressable = true;
++
++	default:
++		a.diagOpType(token.MUL, v.t);
++	}
++}
++
++func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
++	switch x.Op {
++	case token.SUB:
++		// Negation
++		v := a.fork(x.X);
++		if v.t == nil {
++			return;
++		}
++
++		a.t = v.t;
++		vf := v.f;
++		switch vt := v.t.literal().(type) {
++		case *uintType:
++			a.f = func (f *Frame) Value {
++				return vt.value(-vf(f).(UintValue).Get());
++			};
++		case *intType:
++			a.f = func (f *Frame) Value {
++				return vt.value(-vf(f).(IntValue).Get());
++			};
++		case *idealIntType:
++			val := vt.value(vf(nil).(IdealIntValue).Get().Neg());
++			a.f = func (f *Frame) Value { return val };
++		case *floatType:
++			a.f = func (f *Frame) Value {
++				return vt.value(-vf(f).(FloatValue).Get());
++			};
++		case *idealFloatType:
++			val := vt.value(vf(nil).(IdealFloatValue).Get().Neg());
++			a.f = func (f *Frame) Value { return val };
++		default:
++			a.t = nil;
++			a.diagOpType(x.Op, v.t);
++			return;
++		}
++
++	case token.AND:
++		// Address-of
++		v := a.fork(x.X);
++		if v.t == nil {
++			return;
++		}
++
++		// The unary prefix address-of operator & generates
++		// the address of its operand, which must be a
++		// variable, pointer indirection, field selector, or
++		// array or slice indexing operation.
++		if !v.addressable {
++			a.diag("cannot take the address of %s", v.desc);
++			return;
++		}
++
++		// TODO(austin) Implement "It is illegal to take the
++		// address of a function result variable" once I have
++		// function result variables.
++
++		at := NewPtrType(v.t);
++		a.t = at;
++
++		vf := v.f;
++		a.f = func (f *Frame) Value { return at.value(vf(f)) };
++		a.desc = "& expression";
++
++	default:
++		log.Crashf("Unary op %v not implemented", x.Op);
++	}
++}
++
++// a.convertTo(t) converts the value of the analyzed expression a,
++// which must be a constant, ideal number, to a new analyzed
++// expression with a constant value of type t.
++func (a *exprCompiler) convertTo(t Type) *exprCompiler {
++	if !a.t.isIdeal() {
++		log.Crashf("attempted to convert from %v, expected ideal", a.t);
++	}
++
++	val := a.f(nil);
++	var rat *bignum.Rational;
++
++	// It is erroneous to assign a value with a non-zero
++	// fractional part to an integer, or if the assignment would
++	// overflow or underflow, or in general if the value cannot be
++	// represented by the type of the variable.
++	switch a.t {
++	case IdealFloatType:
++		rat = val.(IdealFloatValue).Get();
++		if t.isInteger() && !rat.IsInt() {
++			a.diag("constant %v truncated to integer", ratToString(rat));
++			return nil;
++		}
++	case IdealIntType:
++		rat = bignum.MakeRat(val.(IdealIntValue).Get(), bignum.Nat(1));
++	default:
++		log.Crashf("unexpected ideal type %v", a.t);
++	}
++
++	// Check bounds
++	if t, ok := t.(BoundedType); ok {
++		if rat.Cmp(t.minVal()) < 0 {
++			a.diag("constant %v underflows %v", ratToString(rat), t);
++			return nil;
++		}
++		if rat.Cmp(t.maxVal()) > 0 {
++			a.diag("constant %v overflows %v", ratToString(rat), t);
++			return nil;
++		}
++	}
++
++	// Convert rat to type t.
++	switch t := t.(type) {
++	case *uintType:
++		n, d := rat.Value();
++		f := n.Quo(bignum.MakeInt(false, d));
++		v := f.Abs().Value();
++		val = t.value(v);
++	case *intType:
++		n, d := rat.Value();
++		f := n.Quo(bignum.MakeInt(false, d));
++		v := f.Value();
++		val = t.value(v);
++	case *idealIntType:
++		n, d := rat.Value();
++		f := n.Quo(bignum.MakeInt(false, d));
++		val = t.value(f);
++	case *floatType:
++		n, d := rat.Value();
++		v := float64(n.Value())/float64(d.Value());
++		val = t.value(v);
++	case *idealFloatType:
++		val = t.value(rat);
++	default:
++		log.Crashf("cannot convert to type %T", t);
++	}
++
++	res := newExprCompiler(a.exprContext, a.pos);
++	res.t = t;
++	res.f = func (*Frame) Value { return val };
++	res.desc = a.desc;
++	return res;
++}
++
++var opDescs = make(map[token.Token] string)
++
++func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
++	l, r := a.fork(x.X), a.fork(x.Y);
++	if l.t == nil || r.t == nil {
++		return;
++	}
++
++	// Save the original types of l.t and r.t for error messages.
++	origlt := l.t;
++	origrt := r.t;
++
++	// XXX(Spec) What is the exact definition of a "named type"?
++
++	// XXX(Spec) Arithmetic operators: "Integer types" apparently
++	// means all types compatible with basic integer types, though
++	// this is never explained.  Likewise for float types, etc.
++	// This relates to the missing explanation of named types.
++
++	// XXX(Spec) Operators: "If both operands are ideal numbers,
++	// the conversion is to ideal floats if one of the operands is
++	// an ideal float (relevant for / and %)."  How is that
++	// relevant only for / and %?  If I add an ideal int and an
++	// ideal float, I get an ideal float.
++
++	// Except in shift expressions, if one operand has numeric
++	// type and the other operand is an ideal number, the ideal
++	// number is converted to match the type of the other operand.
++	if x.Op != token.SHL && x.Op != token.SHR {
++		if l.t.isInteger() && !l.t.isIdeal() && r.t.isIdeal() {
++			r = r.convertTo(l.t);
++		} else if r.t.isInteger() && !r.t.isIdeal() && l.t.isIdeal() {
++			l = l.convertTo(r.t);
++		}
++		if l == nil || r == nil {
++			return;
++		}
++
++		// Except in shift expressions, if both operands are
++		// ideal numbers and one is an ideal float, the other
++		// is converted to ideal float.
++		if l.t.isIdeal() && r.t.isIdeal() {
++			if l.t.isInteger() && r.t.isFloat() {
++				l = l.convertTo(r.t);
++			} else if l.t.isFloat() && r.t.isInteger() {
++				r = r.convertTo(l.t);
++			}
++			if l == nil || r == nil {
++				return;
++			}
++		}
++	}
++
++	// Useful type predicates
++	compat := func() bool {
++		return l.t.compatible(r.t);
++	};
++	integers := func() bool {
++		return l.t.isInteger() && r.t.isInteger();
++	};
++	floats := func() bool {
++		return l.t.isFloat() && r.t.isFloat();
++	};
++	strings := func() bool {
++		// TODO(austin) Deal with named types
++		return l.t == StringType && r.t == StringType;
++	};
++	booleans := func() bool {
++		// TODO(austin) Deal with named types
++		return l.t == BoolType && r.t == BoolType;
++	};
++
++	// Type check
++	switch x.Op {
++	case token.ADD:
++		if !compat() || (!integers() && !floats() && !strings()) {
++			a.diagOpTypes(x.Op, origlt, origrt);
++			return;
++		}
++		a.t = l.t;
++
++	case token.SUB, token.MUL, token.QUO:
++		if !compat() || (!integers() && !floats()) {
++			a.diagOpTypes(x.Op, origlt, origrt);
++			return;
++		}
++		a.t = l.t;
++
++	case token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
++		if !compat() || !integers() {
++			a.diagOpTypes(x.Op, origlt, origrt);
++			return;
++		}
++		a.t = l.t;
++
++	case token.SHL, token.SHR:
++		// The right operand in a shift operation must be
++		// always be of unsigned integer type or an ideal
++		// number that can be safely converted into an
++		// unsigned integer type.
++		if r.t.isIdeal() {
++			r = r.convertTo(UintType);
++			if r == nil {
++				return;
++			}
++		}
++
++		if !integers() {
++			a.diagOpTypes(x.Op, origlt, origrt);
++			return;
++		}
++		if _, ok := r.t.literal().(*uintType); !ok {
++			a.diag("right operand of shift must be unsigned");
++			return;
++		}
++		a.t = l.t;
++
++	case token.LOR, token.LAND:
++		if !booleans() {
++			return;
++		}
++		// XXX(Spec) There's no mention of *which* boolean
++		// type the logical operators return.  From poking at
++		// 6g, it appears to be the named boolean type, NOT
++		// the type of the left operand, and NOT an unnamed
++		// boolean type.
++
++		// TODO(austin) Named bool type
++		a.t = BoolType;
++
++	case token.ARROW:
++		// The operands in channel sends differ in type: one
++		// is always a channel and the other is a variable or
++		// value of the channel's element type.
++		log.Crash("Binary op <- not implemented");
++		a.t = BoolType;
++
++	case token.LSS, token.GTR, token.LEQ, token.GEQ:
++		// ... booleans may be compared only for equality or
++		// inequality.
++		if l.t.literal() == BoolType || r.t.literal() == BoolType {
++			a.diagOpTypes(x.Op, origlt, origrt);
++			return;
++		}
++
++		fallthrough;
++	case token.EQL, token.NEQ:
++		// When comparing two operands of channel type, the
++		// channel value types must be compatible but the
++		// channel direction is ignored.
++
++		// XXX(Spec) Operators: "When comparing two operands
++		// of channel type, the channel value types must be
++		// compatible but the channel direction is ignored."
++		// By "compatible" this really means "comparison
++		// compatible".  Really, the rules for type checking
++		// comparison operators are entirely different from
++		// other binary operators, but this just barely hints
++		// at that.
++
++		// XXX(Spec) Comparison operators: "All comparison
++		// operators apply to basic types except bools."
++		// "except bools" is really weird here, since this is
++		// actually explained in the Comparison compatibility
++		// section.
++		log.Crashf("Binary op %v not implemented", x.Op);
++		// TODO(austin) Unnamed bool?  Named bool?
++		a.t = BoolType;
++
++	default:
++		log.Crashf("unknown binary operator %v", x.Op);
++	}
++
++	var ok bool;
++	a.desc, ok = opDescs[x.Op];
++	if !ok {
++		a.desc = x.Op.String() + " expression";
++		opDescs[x.Op] = a.desc;
++	}
++
++	// Compile
++	// TODO(austin) There has got to be a better way to do this.
++	lf := l.f;
++	rf := r.f;
++	switch x.Op {
++	case token.ADD:
++		switch lt := l.t.literal().(type) {
++		case *uintType:
++			// TODO(austin) lt.value allocates.  It would
++			// be awesome if we could avoid that for
++			// intermediate values.  That might be
++			// possible if we pass the closure a place to
++			// store its result.
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(UintValue).Get() + rf(f).(UintValue).Get());
++			};
++		case *intType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(IntValue).Get() + rf(f).(IntValue).Get());
++			};
++		case *idealIntType:
++			val := lt.value(lf(nil).(IdealIntValue).Get().Add(rf(nil).(IdealIntValue).Get()));
++			a.f = func (f *Frame) Value { return val };
++		case *floatType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(FloatValue).Get() + rf(f).(FloatValue).Get());
++			};
++		case *idealFloatType:
++			val := lt.value(lf(nil).(IdealFloatValue).Get().Add(rf(nil).(IdealFloatValue).Get()));
++			a.f = func (f *Frame) Value { return val };
++		case *stringType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(StringValue).Get() + rf(f).(StringValue).Get());
++			};
++		default:
++			// Shouldn't have passed type checking
++			log.Crashf("unexpected left operand type %v at %v", l.t.literal(), x.Pos());
++		}
++
++	case token.SUB:
++		switch lt := l.t.literal().(type) {
++		case *uintType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(UintValue).Get() - rf(f).(UintValue).Get());
++			};
++		case *intType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(IntValue).Get() - rf(f).(IntValue).Get());
++			};
++		case *idealIntType:
++			val := lt.value(lf(nil).(IdealIntValue).Get().Sub(rf(nil).(IdealIntValue).Get()));
++			a.f = func (f *Frame) Value { return val };
++		case *floatType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(FloatValue).Get() - rf(f).(FloatValue).Get());
++			};
++		case *idealFloatType:
++			val := lt.value(lf(nil).(IdealFloatValue).Get().Sub(rf(nil).(IdealFloatValue).Get()));
++			a.f = func (f *Frame) Value { return val };
++		default:
++			// Shouldn't have passed type checking
++			log.Crashf("unexpected left operand type %v at %v", l.t.literal(), x.Pos());
++		}
++
++	case token.QUO:
++		// TODO(austin) What if divisor is zero?
++		switch lt := l.t.literal().(type) {
++		case *uintType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(UintValue).Get() / rf(f).(UintValue).Get());
++			};
++		case *intType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(IntValue).Get() / rf(f).(IntValue).Get());
++			};
++		case *idealIntType:
++			val := lt.value(lf(nil).(IdealIntValue).Get().Quo(rf(nil).(IdealIntValue).Get()));
++			a.f = func (f *Frame) Value { return val };
++		case *floatType:
++			a.f = func (f *Frame) Value {
++				return lt.value(lf(f).(FloatValue).Get() / rf(f).(FloatValue).Get());
++			};
++		case *idealFloatType:
++			val := lt.value(lf(nil).(IdealFloatValue).Get().Quo(rf(nil).(IdealFloatValue).Get()));
++			a.f = func (f *Frame) Value { return val };
++		default:
++			// Shouldn't have passed type checking
++			log.Crashf("unexpected left operand type %v at %v", l.t.literal(), x.Pos());
++		}
++
++	default:
++		log.Crashf("Compilation of binary op %v not implemented", x.Op);
++	}
++}
++
++func (a *exprCompiler) DoKeyValueExpr(x *ast.KeyValueExpr) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoEllipsis(x *ast.Ellipsis) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoArrayType(x *ast.ArrayType) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoStructType(x *ast.StructType) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoFuncType(x *ast.FuncType) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoInterfaceType(x *ast.InterfaceType) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoMapType(x *ast.MapType) {
++	log.Crash("Not implemented");
++}
++
++func (a *exprCompiler) DoChanType(x *ast.ChanType) {
++	log.Crash("Not implemented");
++}
++
++func compileExpr(expr ast.Expr, scope *Scope) *exprCompiler {
++	ec := newExprCompiler(&exprContext{scope, false}, expr.Pos());
++	expr.Visit(ec);
++	if ec.t == nil {
++		return nil;
++	}
++	return ec;
++}
++
++/*
++ * Public interface
++ */
++
++type Expr struct {
++	f func (f *Frame) Value;
++}
++
++func (expr *Expr) Eval(f *Frame) Value {
++	return expr.f(f);
++}
++
++func CompileExpr(expr ast.Expr, scope *Scope) *Expr {
++	ec := compileExpr(expr, scope);
++	if ec == nil {
++		return nil;
++	}
++	return &Expr{ec.f};
++}
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+new file mode 100644
+index 0000000000..e4e54c45ab
+--- /dev/null
++++ b/usr/austin/eval/scope.go
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"eval";
++)
++
++func NewRootScope() *Scope {
++	return &Scope{nil, make(map[string] Def), 0};
++}
++
++func (s *Scope) Fork() *Scope {
++	return &Scope{s, make(map[string] Def), 0};
++}
++
++func (s *Scope) DefineVar(name string, t Type) *Variable {
++	if _, ok := s.defs[name]; ok {
++		return nil;
++	}
++	v := &Variable{s.numVars, t};
++	s.numVars++;
++	s.defs[name] = v;
++	return v;
++}
++
++func (s *Scope) DefineConst(name string, v Value) *Constant {
++	if _, ok := s.defs[name]; ok {
++		return nil;
++	}
++	c := &Constant{v.Type(), v};
++	s.defs[name] = c;
++	return c;
++}
++
++func (s *Scope) DefineType(name string, t Type) bool {
++	if _, ok := s.defs[name]; ok {
++		return false;
++	}
++	s.defs[name] = t;
++	return true;
++}
++
++func (s *Scope) Lookup(name string) (Def, *Scope) {
++	for s != nil {
++		if d, ok := s.defs[name]; ok {
++			return d, s;
++		}
++		s = s.outer;
++	}
++	return nil, nil;
++}
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+new file mode 100644
+index 0000000000..398d75197f
+--- /dev/null
++++ b/usr/austin/eval/type.go
+@@ -0,0 +1,371 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++	"eval";
++)
++
++
++// XXX(Spec) The type compatibility section is very confusing because
++// it makes it seem like there are three distinct types of
++// compatibility: plain compatibility, assignment compatibility, and
++// comparison compatibility.  As I understand it, there's really only
++// assignment compatibility and comparison and conversion have some
++// restrictions and have special meaning in some cases where the types
++// are not otherwise assignment compatible.  The comparison
++// compatibility section is almost all about the semantics of
++// comparison, not the type checking of it, so it would make much more
++// sense in the comparison operators section.  The compatibility and
++// assignment compatibility sections should be rolled into one.
++
++// XXX(Spec) Comparison compatibility: "Values of any type may be
++// compared to other values of compatible static type."  That should
++// be *identical* type.
++
++type commonType struct {
++}
++
++func (commonType) isInteger() bool {
++	return false;
++}
++
++func (commonType) isFloat() bool {
++	return false;
++}
++
++func (commonType) isIdeal() bool {
++	return false;
++}
++
++type boolType struct {
++	commonType;
++}
++
++var BoolType Type = &boolType{};
++
++func (t *boolType) literal() Type {
++	return t;
++}
++
++func (t *boolType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (boolType) String() string {
++	return "bool";
++}
++
++type uintType struct {
++	commonType;
++
++	Bits uint;
++	// true for uintptr, false for all others
++	Ptr bool;
++
++	name string;
++}
++
++// TODO(austin) These are all technically *named types*, which matters
++// for some things.  Perhaps these should be the underlying unnamed
++// types and the named types should be created when they are put in
++// the universal scope.
++var (
++	Uint8Type   Type = &uintType{commonType{}, 8,  false, "uint8"};
++	Uint16Type  Type = &uintType{commonType{}, 16, false, "uint16"};
++	Uint32Type  Type = &uintType{commonType{}, 32, false, "uint32"};
++	Uint64Type  Type = &uintType{commonType{}, 64, false, "uint64"};
++
++	UintType    Type = &uintType{commonType{}, 64, false, "uint"};
++	UintptrType Type = &uintType{commonType{}, 64, true,  "uintptr"};
++)
++
++func (t *uintType) literal() Type {
++	return t;
++}
++
++func (t *uintType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (t *uintType) isInteger() bool {
++	return true;
++}
++
++func (t *uintType) String() string {
++	return t.name;
++}
++
++func (t *uintType) value(v uint64) UintValue
++
++func (t *uintType) minVal() *bignum.Rational {
++	return bignum.Rat(0, 1);
++}
++
++func (t *uintType) maxVal() *bignum.Rational {
++	return bignum.MakeRat(bignum.Int(1).Shl(t.Bits).Add(bignum.Int(-1)), bignum.Nat(1));
++}
++
++type intType struct {
++	commonType;
++
++	// XXX(Spec) Numeric types: "There is also a set of
++	// architecture-independent basic numeric types whose size
++	// depends on the architecture."  Should that be
++	// architecture-dependent?
++
++	Bits uint;
++
++	name string;
++}
++
++var (
++	Int8Type  Type = &intType{commonType{}, 8,  "int8"};
++	Int16Type Type = &intType{commonType{}, 16, "int16"};
++	Int32Type Type = &intType{commonType{}, 32, "int32"};
++	Int64Type Type = &intType{commonType{}, 64, "int64"};
++
++	IntType   Type = &intType{commonType{}, 64, "int"};
++)
++
++func (t *intType) literal() Type {
++	return t;
++}
++
++func (t *intType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (t *intType) isInteger() bool {
++	return true;
++}
++
++func (t *intType) String() string {
++	return t.name;
++}
++
++func (t *intType) value(v int64) IntValue
++
++func (t *intType) minVal() *bignum.Rational {
++	return bignum.MakeRat(bignum.Int(-1).Shl(t.Bits - 1), bignum.Nat(1));
++}
++
++func (t *intType) maxVal() *bignum.Rational {
++	return bignum.MakeRat(bignum.Int(1).Shl(t.Bits - 1).Add(bignum.Int(-1)), bignum.Nat(1));
++}
++
++type idealIntType struct {
++	commonType;
++}
++
++var IdealIntType Type = &idealIntType{}
++
++func (t *idealIntType) literal() Type {
++	return t;
++}
++
++func (t *idealIntType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (t *idealIntType) isInteger() bool {
++	return true;
++}
++
++func (t *idealIntType) isIdeal() bool {
++	return true;
++}
++
++func (t *idealIntType) String() string {
++	return "ideal integer";
++}
++
++func (t *idealIntType) value(v *bignum.Integer) IdealIntValue
++
++type floatType struct {
++	commonType;
++	Bits uint;
++}
++
++var (
++	Float32Type Type = &floatType{commonType{}, 32};
++	Float64Type Type = &floatType{commonType{}, 64};
++	FloatType   Type = &floatType{commonType{}, 64};
++)
++
++func (t *floatType) literal() Type {
++	return t;
++}
++
++func (t *floatType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (t *floatType) isFloat() bool {
++	return true;
++}
++
++func (t *floatType) String() string {
++	return "float";
++}
++
++func (t *floatType) value(v float64) FloatValue
++
++func (t *floatType) minVal() *bignum.Rational {
++	panic("Not implemented");
++}
++
++func (t *floatType) maxVal() *bignum.Rational {
++	panic("Not implemented");
++}
++
++type idealFloatType struct {
++	commonType;
++}
++
++var IdealFloatType Type = &idealFloatType{};
++
++func (t *idealFloatType) literal() Type {
++	return t;
++}
++
++func (t *idealFloatType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (t *idealFloatType) isFloat() bool {
++	return true;
++}
++
++func (t *idealFloatType) isIdeal() bool {
++	return true;
++}
++
++func (t *idealFloatType) String() string {
++	return "ideal float";
++}
++
++func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue
++
++type stringType struct {
++	commonType;
++}
++
++var StringType Type = &stringType{};
++
++func (t *stringType) literal() Type {
++	return t;
++}
++
++func (t *stringType) compatible(o Type) bool {
++	return Type(t) == o;
++}
++
++func (t *stringType) String() string {
++	return "string";
++}
++
++func (t *stringType) value(v string) StringValue
++
++/*
++type ArrayType struct {
++	commonType;
++	elem Type;
++}
++
++func (t *ArrayType) literal() Type {
++	// TODO(austin)
++}
++
++type StructType struct {
++	commonType;
++	Names map[string] Name;
++}
++*/
++
++type PtrType struct {
++	commonType;
++	elem Type;
++	lit Type;
++}
++
++var ptrTypes = make(map[Type] *PtrType)
++
++func NewPtrType(elem Type) *PtrType {
++	t, ok := ptrTypes[elem];
++	if !ok {
++		t = &PtrType{commonType{}, elem, nil};
++		ptrTypes[elem] = t;
++	}
++	return t;
++}
++
++func (t *PtrType) Elem() Type {
++	return t.elem;
++}
++
++func (t *PtrType) literal() Type {
++	if t.lit == nil {
++		t.lit = NewPtrType(t.elem.literal());
++	}
++	return t.lit;
++}
++
++func (t *PtrType) compatible(o Type) bool {
++	return t.literal() == o.literal();
++}
++
++func (t *PtrType) String() string {
++	return "*" + t.elem.String();
++}
++
++func (t *PtrType) value(v Value) PtrValue
++
++/*
++type FuncType struct {
++	commonType;
++	// TODO(austin)
++}
++
++func (t *FuncType) literal() Type {
++	// TODO(austin)
++}
++
++type InterfaceType struct {
++	// TODO(austin)
++}
++
++type SliceType struct {
++	// TODO(austin)
++}
++
++type MapType struct {
++	// TODO(austin)
++}
++
++type ChanType struct {
++	// TODO(austin)
++}
++
++type NamedType struct {
++	// Declaration scope
++	scope *Scope;
++	name string;
++	// Underlying type
++	def Type;
++	// TODO(austin) Methods can be on NamedType or *NamedType
++	methods map[string] XXX;
++}
++
++func (t *NamedType) literal() Type {
++	return t.def.literal();
++}
++
++func (t *NamedType) isInteger() bool {
++	return t.isInteger();
++}
++
++*/
+diff --git a/usr/austin/eval/util.go b/usr/austin/eval/util.go
+new file mode 100644
+index 0000000000..0e97d4d240
+--- /dev/null
++++ b/usr/austin/eval/util.go
+@@ -0,0 +1,50 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++	"eval";
++	"fmt";
++	"go/token";
++)
++
++// TODO(austin): Maybe add to bignum in more general form
++func ratToString(rat *bignum.Rational) string {
++	n, dnat := rat.Value();
++	d := bignum.MakeInt(false, dnat);
++	w, frac := n.QuoRem(d);
++	out := w.String();
++	if frac.IsZero() {
++		return out;
++	}
++
++	r := frac.Abs();
++	r = r.Mul(bignum.Nat(1e6));
++	dec, tail := r.DivMod(dnat);
++	// Round last digit
++	if tail.Cmp(dnat.Div(bignum.Nat(2))) >= 0 {
++		dec = dec.Add(bignum.Nat(1));
++	}
++	// Strip zeros
++	ten := bignum.Nat(10);
++	for !dec.IsZero() {
++		dec2, r2 := dec.DivMod(ten);
++		if !r2.IsZero() {
++			break;
++		}
++		dec = dec2;
++	}
++	out += "." + dec.String();
++	return out;
++}
++
++func diag(p token.Position, format string, args ...) {
++	if p.IsValid() {
++		fmt.Printf("%s:%d.%d: ", p.Filename, p.Line, p.Column);
++	}
++	fmt.Printf(format, args);
++	fmt.Print("\n");
++}
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+new file mode 100644
+index 0000000000..9ca09cd358
+--- /dev/null
++++ b/usr/austin/eval/value.go
+@@ -0,0 +1,467 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"bignum";
++	"eval";
++	"fmt";
++)
++
++/*
++ * Bool
++ */
++
++type boolV bool
++
++func (*boolV) Type() Type {
++	return BoolType;
++}
++
++func (v *boolV) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *boolV) Get() bool {
++	return bool(*v);
++}
++
++func (v *boolV) Set(x bool) {
++	*v = boolV(x);
++}
++
++/*
++ * Uint
++ */
++
++type uint8V uint8
++
++func (*uint8V) Type() Type {
++	return Uint8Type;
++}
++
++func (v *uint8V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *uint8V) Get() uint64 {
++	return uint64(*v);
++}
++
++func (v *uint8V) Set(x uint64) {
++	*v = uint8V(x);
++}
++
++type uint16V uint16
++
++func (*uint16V) Type() Type {
++	return Uint16Type;
++}
++
++func (v *uint16V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *uint16V) Get() uint64 {
++	return uint64(*v);
++}
++
++func (v *uint16V) Set(x uint64) {
++	*v = uint16V(x);
++}
++
++type uint32V uint32
++
++func (*uint32V) Type() Type {
++	return Uint32Type;
++}
++
++func (v *uint32V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *uint32V) Get() uint64 {
++	return uint64(*v);
++}
++
++func (v *uint32V) Set(x uint64) {
++	*v = uint32V(x);
++}
++
++type uint64V uint64
++
++func (*uint64V) Type() Type {
++	return Uint64Type;
++}
++
++func (v *uint64V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *uint64V) Get() uint64 {
++	return uint64(*v);
++}
++
++func (v *uint64V) Set(x uint64) {
++	*v = uint64V(x);
++}
++
++type uintV uint
++
++func (*uintV) Type() Type {
++	return UintType;
++}
++
++func (v *uintV) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *uintV) Get() uint64 {
++	return uint64(*v);
++}
++
++func (v *uintV) Set(x uint64) {
++	*v = uintV(x);
++}
++
++type uintptrV uintptr
++
++func (*uintptrV) Type() Type {
++	return UintptrType;
++}
++
++func (v *uintptrV) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *uintptrV) Get() uint64 {
++	return uint64(*v);
++}
++
++func (v *uintptrV) Set(x uint64) {
++	*v = uintptrV(x);
++}
++
++func (t *uintType) value(v uint64) UintValue {
++	// TODO(austin) This executes are run-time, even though
++	// virtually all of the logic can be done at type-check time.
++	// TODO(austin) Deal with named types
++	switch Type(t) {
++	case Uint8Type:
++		res := uint8V(v);
++		return &res;
++	case Uint16Type:
++		res := uint16V(v);
++		return &res;
++	case Uint32Type:
++		res := uint32V(v);
++		return &res;
++	case Uint64Type:
++		res := uint64V(v);
++		return &res;
++
++	case UintType:
++		res := uintV(v);
++		return &res;
++	case UintptrType:
++		res := uintptrV(v);
++		return &res;
++	}
++	panic("unknown uint type ", t.String());
++}
++
++/*
++ * Int
++ */
++
++type int8V int8
++
++func (*int8V) Type() Type {
++	return Int8Type;
++}
++
++func (v *int8V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *int8V) Get() int64 {
++	return int64(*v);
++}
++
++func (v *int8V) Set(x int64) {
++	*v = int8V(x);
++}
++
++type int16V int16
++
++func (*int16V) Type() Type {
++	return Int16Type;
++}
++
++func (v *int16V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *int16V) Get() int64 {
++	return int64(*v);
++}
++
++func (v *int16V) Set(x int64) {
++	*v = int16V(x);
++}
++
++type int32V int32
++
++func (*int32V) Type() Type {
++	return Int32Type;
++}
++
++func (v *int32V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *int32V) Get() int64 {
++	return int64(*v);
++}
++
++func (v *int32V) Set(x int64) {
++	*v = int32V(x);
++}
++
++type int64V int64
++
++func (*int64V) Type() Type {
++	return Int64Type;
++}
++
++func (v *int64V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *int64V) Get() int64 {
++	return int64(*v);
++}
++
++func (v *int64V) Set(x int64) {
++	*v = int64V(x);
++}
++
++type intV int
++
++func (*intV) Type() Type {
++	return IntType;
++}
++
++func (v *intV) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *intV) Get() int64 {
++	return int64(*v);
++}
++
++func (v *intV) Set(x int64) {
++	*v = intV(x);
++}
++
++func (t *intType) value(v int64) IntValue {
++	switch Type(t) {
++	case Int8Type:
++		res := int8V(v);
++		return &res;
++	case Int16Type:
++		res := int16V(v);
++		return &res;
++	case Int32Type:
++		res := int32V(v);
++		return &res;
++	case Int64Type:
++		res := int64V(v);
++		return &res;
++
++	case IntType:
++		res := intV(v);
++		return &res;
++	}
++	panic("unknown int type ", t.String());
++}
++
++/*
++ * Ideal int
++ */
++
++type idealIntV struct {
++	V *bignum.Integer;
++}
++
++func (*idealIntV) Type() Type {
++	return IdealIntType;
++}
++
++func (v *idealIntV) String() string {
++	return v.V.String();
++}
++
++func (v *idealIntV) Get() *bignum.Integer {
++	return v.V;
++}
++
++func (t *idealIntType) value(v *bignum.Integer) IdealIntValue {
++	return &idealIntV{v};
++}
++
++/*
++ * Float
++ */
++
++type float32V float32
++
++func (*float32V) Type() Type {
++	return Float32Type;
++}
++
++func (v *float32V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *float32V) Get() float64 {
++	return float64(*v);
++}
++
++func (v *float32V) Set(x float64) {
++	*v = float32V(x);
++}
++
++type float64V float64
++
++func (*float64V) Type() Type {
++	return Float64Type;
++}
++
++func (v *float64V) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *float64V) Get() float64 {
++	return float64(*v);
++}
++
++func (v *float64V) Set(x float64) {
++	*v = float64V(x);
++}
++
++type floatV float
++
++func (*floatV) Type() Type {
++	return FloatType;
++}
++
++func (v *floatV) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *floatV) Get() float64 {
++	return float64(*v);
++}
++
++func (v *floatV) Set(x float64) {
++	*v = floatV(x);
++}
++
++func (t *floatType) value(v float64) FloatValue {
++	switch Type(t) {
++	case Float32Type:
++		res := float32V(v);
++		return &res;
++	case Float64Type:
++		res := float64V(v);
++		return &res;
++	case FloatType:
++		res := floatV(v);
++		return &res;
++	}
++	panic("unknown float type ", t.String());
++}
++
++/*
++ * Ideal float
++ */
++
++type idealFloatV struct {
++	V *bignum.Rational;
++}
++
++func (*idealFloatV) Type() Type {
++	return IdealFloatType;
++}
++
++func (v *idealFloatV) String() string {
++	return ratToString(v.V);
++}
++
++func (v *idealFloatV) Get() *bignum.Rational {
++	return v.V;
++}
++
++func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue {
++	return &idealFloatV{v};
++}
++
++/*
++ * String
++ */
++
++type stringV string
++
++func (*stringV) Type() Type {
++	return StringType;
++}
++
++func (v *stringV) String() string {
++	return fmt.Sprint(*v);
++}
++
++func (v *stringV) Get() string {
++	return string(*v);
++}
++
++func (v *stringV) Set(x string) {
++	*v = stringV(x);
++}
++
++func (t *stringType) value(v string) StringValue {
++	res := stringV(v);
++	return &res;
++}
++
++/*
++ * Pointer
++ */
++
++type ptrV struct {
++	// nil if the pointer is nil
++	target Value;
++}
++
++func (v *ptrV) Type() Type {
++	return NewPtrType(v.target.Type());
++}
++
++func (v *ptrV) String() string {
++	return "&" + v.target.String();
++}
++
++func (v *ptrV) Get() Value {
++	return v.target;
++}
++
++func (v *ptrV) Set(x Value) {
++	v.target = x;
++}
++
++func (t *PtrType) value(v Value) PtrValue {
++	res := ptrV{v};
++	return &res;
++}

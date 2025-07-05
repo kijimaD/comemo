@@ -13,6 +13,24 @@ Date:   Thu Mar 1 12:30:19 2018 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/floor_asm.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/math/floor_asm.go b/src/math/floor_asm.go
+deleted file mode 100644
+index fdec112cef..0000000000
+--- a/src/math/floor_asm.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64 amd64p32
+-
+-package math
+-
+-import "internal/cpu"
+-
+-var useSSE41 = cpu.X86.HasSSE41

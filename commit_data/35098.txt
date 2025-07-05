@@ -27,7 +27,46 @@ Date:   Wed Dec 13 19:47:32 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go            | 10 ++++++----
  src/cmd/go/internal/test/test.go |  5 +++++
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 76e3e84232..11bd044545 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5343,11 +5343,13 @@ func TestGcflagsPatterns(t *testing.T) {
+ 	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
+ 	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
+ 
+-	tg.run("test", "-c", "-n", "-gcflags=-N", "strings")
+-	tg.grepStderr("compile.* -N .*compare_test.go", "did not build strings_test package with -N flag")
++	tg.run("test", "-c", "-n", "-gcflags=-N", "-ldflags=-X=x.y=z", "strings")
++	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
++	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
+ 
+-	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "strings")
+-	tg.grepStderr("compile.* -N .*compare_test.go", "did not build strings_test package with -N flag")
++	tg.run("test", "-c", "-n", "-gcflags=strings=-N", "-ldflags=strings=-X=x.y=z", "strings")
++	tg.grepStderr("compile.* -N .*compare_test.go", "did not compile strings_test package with -N flag")
++	tg.grepStderr("link.* -X=x.y=z", "did not link strings.test binary with -X flag")
+ }
+ 
+ func TestGoTestMinusN(t *testing.T) {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 1cf1ba7351..5b4408ccd1 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -929,6 +929,11 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		Internal: load.PackageInternal{
+ 			Build:     &build.Package{Name: "main"},
+ 			OmitDebug: !testC && !testNeedBinary,
++
++			Asmflags:   p.Internal.Asmflags,
++			Gcflags:    p.Internal.Gcflags,
++			Ldflags:    p.Internal.Ldflags,
++			Gccgoflags: p.Internal.Gccgoflags,
+ 		},
+ 	}
+ 

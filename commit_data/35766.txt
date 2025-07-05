@@ -31,7 +31,7 @@ Date:   Sat Feb 24 15:03:58 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/build.go               |  3 ++-
  src/go/build/build_test.go          | 16 ++++++++++++++++
  src/go/build/testdata/doc/a_test.go |  2 ++
@@ -41,3 +41,87 @@ Date:   Sat Feb 24 15:03:58 2018 -0800
  src/go/build/testdata/doc/e.go      |  1 +
  src/go/build/testdata/doc/f.go      |  2 ++
  8 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 6991e585c3..30b5283400 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -813,7 +813,8 @@ Found:
+ 			})
+ 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
+ 		}
+-		if pf.Doc != nil && p.Doc == "" {
++		// Grab the first package comment as docs, provided it is not from a test file.
++		if pf.Doc != nil && p.Doc == "" && !isTest && !isXTest {
+ 			p.Doc = doc.Synopsis(pf.Doc.Text())
+ 		}
+ 
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index ac5d2c3bb9..cb2ae3c775 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -395,3 +395,19 @@ func TestImportDirTarget(t *testing.T) {
+ 		t.Errorf("p.PkgTargetRoot == %q, p.PkgObj == %q, want non-empty", p.PkgTargetRoot, p.PkgObj)
+ 	}
+ }
++
++// TestIssue23594 prevents go/build from regressing and populating Package.Doc
++// from comments in test files.
++func TestIssue23594(t *testing.T) {
++	// Package testdata/doc contains regular and external test files
++	// with comments attached to their package declarations. The names of the files
++	// ensure that we see the comments from the test files first.
++	p, err := ImportDir("testdata/doc", 0)
++	if err != nil {
++		t.Fatalf("could not import testdata: %v", err)
++	}
++
++	if p.Doc != "Correct" {
++		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
++	}
++}
+diff --git a/src/go/build/testdata/doc/a_test.go b/src/go/build/testdata/doc/a_test.go
+new file mode 100644
+index 0000000000..1c07b56360
+--- /dev/null
++++ b/src/go/build/testdata/doc/a_test.go
+@@ -0,0 +1,2 @@
++// Doc from xtests
++package doc_test
+diff --git a/src/go/build/testdata/doc/b_test.go b/src/go/build/testdata/doc/b_test.go
+new file mode 100644
+index 0000000000..0cf1605ef3
+--- /dev/null
++++ b/src/go/build/testdata/doc/b_test.go
+@@ -0,0 +1 @@
++package doc_test
+diff --git a/src/go/build/testdata/doc/c_test.go b/src/go/build/testdata/doc/c_test.go
+new file mode 100644
+index 0000000000..1025707079
+--- /dev/null
++++ b/src/go/build/testdata/doc/c_test.go
+@@ -0,0 +1 @@
++package doc
+diff --git a/src/go/build/testdata/doc/d_test.go b/src/go/build/testdata/doc/d_test.go
+new file mode 100644
+index 0000000000..ec19564eb3
+--- /dev/null
++++ b/src/go/build/testdata/doc/d_test.go
+@@ -0,0 +1,2 @@
++// Doc from regular tests.
++package doc
+diff --git a/src/go/build/testdata/doc/e.go b/src/go/build/testdata/doc/e.go
+new file mode 100644
+index 0000000000..1025707079
+--- /dev/null
++++ b/src/go/build/testdata/doc/e.go
+@@ -0,0 +1 @@
++package doc
+diff --git a/src/go/build/testdata/doc/f.go b/src/go/build/testdata/doc/f.go
+new file mode 100644
+index 0000000000..ab1d0bc935
+--- /dev/null
++++ b/src/go/build/testdata/doc/f.go
+@@ -0,0 +1,2 @@
++// Correct
++package doc

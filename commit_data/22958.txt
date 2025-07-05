@@ -7,6 +7,29 @@ Date:   Thu Apr 16 13:39:16 2015 -0400
     Change-Id: I8e912ff9327a4163b63b8c628aa3546e86ddcc02
     Reviewed-on: https://go-review.googlesource.com/8983
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/cgo/gcc_darwin_arm64.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index daf3d34922..b64a063b98 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -86,6 +86,8 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
++	darwin_arm_init_thread_exception_port();
++
+ 	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+@@ -148,5 +150,8 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	// yes, tlsbase from mrs might not be correctly aligned.
+ 	inittls(tlsg, (void**)((uintptr)tlsbase & ~7));
+ 
++	darwin_arm_init_mach_exception_handler();
++	darwin_arm_init_thread_exception_port();
++
+ 	init_working_dir();
+ }

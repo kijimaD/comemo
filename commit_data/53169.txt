@@ -12,8 +12,215 @@ Date:   Sat Jul 23 23:54:15 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 24 ++++++----
  src/cmd/compile/internal/noder/writer.go | 76 +++++++++++++++++++++++++++++---
  src/internal/pkgbits/encoder.go          |  8 +++-
  3 files changed, 93 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index fbbce7e80f..6b7ac5494f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -154,6 +154,8 @@ type readerDict struct {
+ 	funcsObj []ir.Node
+ 
+ 	itabs []itabInfo2
++
++	methodExprs []ir.Node
+ }
+ 
+ type itabInfo2 struct {
+@@ -776,6 +778,14 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
+ 		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
+ 	}
+ 
++	dict.methodExprs = make([]ir.Node, r.Len())
++	for i := range dict.methodExprs {
++		recv := pr.typIdx(typeInfo{idx: pkgbits.Index(r.Len()), derived: true}, &dict, true)
++		_, sym := r.selector()
++
++		dict.methodExprs[i] = typecheck.Expr(ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, ir.TypeNode(recv), sym))
++	}
++
+ 	return &dict
+ }
+ 
+@@ -1696,15 +1706,13 @@ func (r *reader) expr() (res ir.Node) {
+ 	case exprSelector:
+ 		var x ir.Node
+ 		if r.Bool() { // MethodExpr
+-			x = r.exprType(false)
+-
+-			// Method expression with derived receiver type.
+-			if x.Op() == ir.ODYNAMICTYPE {
+-				// TODO(mdempsky): Handle with runtime dictionary lookup.
+-				n := ir.TypeNode(x.Type())
+-				n.SetTypecheck(1)
+-				x = n
++			if r.Bool() {
++				return r.dict.methodExprs[r.Len()]
+ 			}
++
++			n := ir.TypeNode(r.typ())
++			n.SetTypecheck(1)
++			x = n
+ 		} else { // FieldVal, MethodVal
+ 			x = r.expr()
+ 		}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ac08022c34..93e81bdc82 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -177,6 +177,10 @@ type writerDict struct {
+ 	// itabs lists itabs that are needed for dynamic type assertions
+ 	// (including type switches).
+ 	itabs []itabInfo
++
++	// methodsExprs lists method expressions with derived-type receiver
++	// parameters.
++	methodExprs []methodExprInfo
+ }
+ 
+ // A derivedInfo represents a reference to an encoded generic Go type.
+@@ -208,13 +212,26 @@ type objInfo struct {
+ // An itabInfo represents a reference to an encoded itab entry (i.e.,
+ // a non-empty interface type along with a concrete type that
+ // implements that interface).
+-//
+-// itabInfo is only used for
+ type itabInfo struct {
+ 	typIdx pkgbits.Index // always a derived type index
+ 	iface  typeInfo      // always a non-empty interface type
+ }
+ 
++// A methodExprInfo represents a reference to an encoded method
++// expression, whose receiver parameter is a derived type.
++type methodExprInfo struct {
++	recvIdx    pkgbits.Index // always a derived type index
++	methodInfo selectorInfo
++}
++
++// A selectorInfo represents a reference to an encoded field or method
++// name (i.e., objects that can only be accessed using selector
++// expressions).
++type selectorInfo struct {
++	pkgIdx  pkgbits.Index
++	nameIdx pkgbits.Index
++}
++
+ // anyDerived reports whether any of info's explicit type arguments
+ // are derived types.
+ func (info objInfo) anyDerived() bool {
+@@ -296,8 +313,12 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
+ 
+ // pkg writes a use of the given Package into the element bitstream.
+ func (w *writer) pkg(pkg *types2.Package) {
++	w.pkgRef(w.p.pkgIdx(pkg))
++}
++
++func (w *writer) pkgRef(idx pkgbits.Index) {
+ 	w.Sync(pkgbits.SyncPkg)
+-	w.Reloc(pkgbits.RelocPkg, w.p.pkgIdx(pkg))
++	w.Reloc(pkgbits.RelocPkg, idx)
+ }
+ 
+ // pkgIdx returns the index for the given package, adding it to the
+@@ -793,6 +814,12 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 		w.typInfo(itab.iface)
+ 	}
+ 
++	w.Len(len(dict.methodExprs))
++	for _, methodExpr := range dict.methodExprs {
++		w.Len(int(methodExpr.recvIdx))
++		w.selectorInfo(methodExpr.methodInfo)
++	}
++
+ 	assert(len(dict.derived) == nderived)
+ 	assert(len(dict.funcs) == nfuncs)
+ }
+@@ -862,9 +889,19 @@ func (w *writer) localIdent(obj types2.Object) {
+ // selector writes the name of a field or method (i.e., objects that
+ // can only be accessed using selector expressions).
+ func (w *writer) selector(obj types2.Object) {
++	w.selectorInfo(w.p.selectorIdx(obj))
++}
++
++func (w *writer) selectorInfo(info selectorInfo) {
+ 	w.Sync(pkgbits.SyncSelector)
+-	w.pkg(obj.Pkg())
+-	w.String(obj.Name())
++	w.pkgRef(info.pkgIdx)
++	w.StringRef(info.nameIdx)
++}
++
++func (pw *pkgWriter) selectorIdx(obj types2.Object) selectorInfo {
++	pkgIdx := pw.pkgIdx(obj.Pkg())
++	nameIdx := pw.StringIdx(obj.Name())
++	return selectorInfo{pkgIdx: pkgIdx, nameIdx: nameIdx}
+ }
+ 
+ // @@@ Compiler extensions
+@@ -1490,7 +1527,19 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 		w.Code(exprSelector)
+ 		if w.Bool(sel.Kind() == types2.MethodExpr) {
+-			w.exprType(nil, expr.X, false)
++			tv, ok := w.p.info.Types[expr.X]
++			assert(ok)
++			assert(tv.IsType())
++
++			typInfo := w.p.typIdx(tv.Type, w.dict)
++			if w.Bool(typInfo.derived) {
++				methodInfo := w.p.selectorIdx(sel.Obj())
++				idx := w.dict.methodExprIdx(typInfo, methodInfo)
++				w.Len(idx)
++				break
++			}
++
++			w.typInfo(typInfo)
+ 		} else {
+ 			w.expr(expr.X)
+ 		}
+@@ -1821,6 +1870,21 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+ 	w.typInfo(info)
+ }
+ 
++func (dict *writerDict) methodExprIdx(recvInfo typeInfo, methodInfo selectorInfo) int {
++	assert(recvInfo.derived)
++	newInfo := methodExprInfo{recvIdx: recvInfo.idx, methodInfo: methodInfo}
++
++	for idx, oldInfo := range dict.methodExprs {
++		if oldInfo == newInfo {
++			return idx
++		}
++	}
++
++	idx := len(dict.methodExprs)
++	dict.methodExprs = append(dict.methodExprs, newInfo)
++	return idx
++}
++
+ // isInterface reports whether typ is known to be an interface type.
+ // If typ is a type parameter, then isInterface reports an internal
+ // compiler error instead.
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index c50c838caa..c0f2252909 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -316,8 +316,14 @@ func (w *Encoder) Code(c Code) {
+ // section (if not already present), and then writing a relocation
+ // into the element bitstream.
+ func (w *Encoder) String(s string) {
++	w.StringRef(w.p.StringIdx(s))
++}
++
++// StringRef writes a reference to the given index, which must be a
++// previously encoded string value.
++func (w *Encoder) StringRef(idx Index) {
+ 	w.Sync(SyncString)
+-	w.Reloc(RelocString, w.p.StringIdx(s))
++	w.Reloc(RelocString, idx)
+ }
+ 
+ // Strings encodes and writes a variable-length slice of strings into

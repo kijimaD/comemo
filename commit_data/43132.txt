@@ -17,6 +17,37 @@ Date:   Mon Mar 9 15:47:53 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/internal/moddeps/moddeps_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index d544a4d8df..b6fd92438e 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -47,6 +47,7 @@ func findGorootModules(t *testing.T) []gorootModule {
+ 			// Use 'go list' to describe the module contained in this directory (but
+ 			// not its dependencies).
+ 			cmd := exec.Command(goBin, "list", "-json", "-m")
++			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+ 			cmd.Dir = dir
+ 			cmd.Stderr = new(strings.Builder)
+ 			out, err := cmd.Output()
+@@ -103,6 +104,7 @@ func TestAllDependenciesVendored(t *testing.T) {
+ 				// dependencies are vendored. If any imported package is missing,
+ 				// 'go list -deps' will fail when attempting to load it.
+ 				cmd := exec.Command(goBin, "list", "-mod=vendor", "-deps", "./...")
++				cmd.Env = append(os.Environ(), "GO111MODULE=on")
+ 				cmd.Dir = m.Dir
+ 				cmd.Stderr = new(strings.Builder)
+ 				_, err := cmd.Output()
+@@ -115,7 +117,8 @@ func TestAllDependenciesVendored(t *testing.T) {
+ 
+ 			// There is no vendor directory, so the module must have no dependencies.
+ 			// Check that the list of active modules contains only the main module.
+-			cmd := exec.Command(goBin, "list", "-m", "all")
++			cmd := exec.Command(goBin, "list", "-mod=mod", "-m", "all")
++			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+ 			cmd.Dir = m.Dir
+ 			cmd.Stderr = new(strings.Builder)
+ 			out, err := cmd.Output()

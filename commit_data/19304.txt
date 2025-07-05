@@ -16,9 +16,153 @@ Date:   Fri May 9 09:55:17 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/94810044
-
+---
  src/cmd/5g/reg.c            | 24 +++++++++++++-----------
  src/cmd/6g/reg.c            | 11 +++++------
  src/cmd/8g/reg.c            | 25 +++++++++++++------------
  test/fixedbugs/issue7867.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 74 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index b4032fff8d..80a14db3c4 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1097,18 +1097,20 @@ paint1(Reg *r, int bn)
+ 		r->act.b[z] |= bb;
+ 		p = r->f.prog;
+ 
+-		if(r->use1.b[z] & bb) {
+-			change += CREF * r->f.loop;
+-			if(debug['R'] > 1)
+-				print("%d%P\tu1 %Q $%d\n", r->f.loop,
+-					p, blsh(bn), change);
+-		}
+ 
+-		if((r->use2.b[z]|r->set.b[z]) & bb) {
+-			change += CREF * r->f.loop;
+-			if(debug['R'] > 1)
+-				print("%d%P\tu2 %Q $%d\n", r->f.loop,
+-					p, blsh(bn), change);
++		if(r->f.prog->as != ANOP) { // don't give credit for NOPs
++			if(r->use1.b[z] & bb) {
++				change += CREF * r->f.loop;
++				if(debug['R'] > 1)
++					print("%d%P\tu1 %Q $%d\n", r->f.loop,
++						p, blsh(bn), change);
++			}
++			if((r->use2.b[z]|r->set.b[z]) & bb) {
++				change += CREF * r->f.loop;
++				if(debug['R'] > 1)
++					print("%d%P\tu2 %Q $%d\n", r->f.loop,
++						p, blsh(bn), change);
++			}
+ 		}
+ 
+ 		if(STORE(r) & r->regdiff.b[z] & bb) {
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 0c72d6c95c..484c1c0cde 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -942,12 +942,11 @@ paint1(Reg *r, int bn)
+ 	for(;;) {
+ 		r->act.b[z] |= bb;
+ 
+-		if(r->use1.b[z] & bb) {
+-			change += CREF * r->f.loop;
+-		}
+-
+-		if((r->use2.b[z]|r->set.b[z]) & bb) {
+-			change += CREF * r->f.loop;
++		if(r->f.prog->as != ANOP) { // don't give credit for NOPs
++			if(r->use1.b[z] & bb)
++				change += CREF * r->f.loop;
++			if((r->use2.b[z]|r->set.b[z]) & bb)
++				change += CREF * r->f.loop;
+ 		}
+ 
+ 		if(STORE(r) & r->regdiff.b[z] & bb) {
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 1e8a31dd62..d17e18b227 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -909,18 +909,19 @@ paint1(Reg *r, int bn)
+ 		r->act.b[z] |= bb;
+ 		p = r->f.prog;
+ 
+-		if(r->use1.b[z] & bb) {
+-			change += CREF * r->f.loop;
+-			if(p->as == AFMOVL || p->as == AFMOVW)
+-				if(BtoR(bb) != D_F0)
+-					change = -CINF;
+-		}
+-
+-		if((r->use2.b[z]|r->set.b[z]) & bb) {
+-			change += CREF * r->f.loop;
+-			if(p->as == AFMOVL || p->as == AFMOVW)
+-				if(BtoR(bb) != D_F0)
+-					change = -CINF;
++		if(r->f.prog->as != ANOP) { // don't give credit for NOPs
++			if(r->use1.b[z] & bb) {
++				change += CREF * r->f.loop;
++				if(p->as == AFMOVL || p->as == AFMOVW)
++					if(BtoR(bb) != D_F0)
++						change = -CINF;
++			}
++			if((r->use2.b[z]|r->set.b[z]) & bb) {
++				change += CREF * r->f.loop;
++				if(p->as == AFMOVL || p->as == AFMOVW)
++					if(BtoR(bb) != D_F0)
++						change = -CINF;
++			}
+ 		}
+ 
+ 		if(STORE(r) & r->regdiff.b[z] & bb) {
+diff --git a/test/fixedbugs/issue7867.go b/test/fixedbugs/issue7867.go
+new file mode 100644
+index 0000000000..9f28a7144a
+--- /dev/null
++++ b/test/fixedbugs/issue7867.go
+@@ -0,0 +1,43 @@
++// runoutput
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7867.
++
++package main
++
++import "fmt"
++
++const tpl = `
++func Test%d(t %s) {
++	_ = t
++	_ = t
++}
++`
++
++func main() {
++	fmt.Println("package main")
++	types := []string{
++		// These types always passed
++		"bool", "int", "rune",
++		"*int", "uintptr",
++		"float32", "float64",
++		"chan struct{}",
++		"map[string]struct{}",
++		"func()", "func(string)error",
++
++		// These types caused compilation failures
++		"complex64", "complex128",
++		"struct{}", "struct{n int}", "struct{e error}", "struct{m map[string]string}",
++		"string",
++		"[4]byte",
++		"[]byte",
++		"interface{}", "error",
++	}
++	for i, typ := range types {
++		fmt.Printf(tpl, i, typ)
++	}
++	fmt.Println("func main() {}")
++}

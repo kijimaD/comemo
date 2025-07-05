@@ -20,6 +20,56 @@ Date:   Thu Mar 13 00:39:27 2025 +1100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@golang.org>
-
+---
  src/cmd/link/elf_test.go | 29 +++++++++++------------------
  1 file changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index db6ef1bb51..59a19a20d2 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -357,16 +357,14 @@ func TestPIESize(t *testing.T) {
+ 		}
+ 	}
+ 
+-	for _, external := range []bool{false, true} {
+-		external := external
+-
+-		name := "TestPieSize-"
+-		if external {
+-			name += "external"
+-		} else {
+-			name += "internal"
+-		}
+-		t.Run(name, func(t *testing.T) {
++	var linkmodes []string
++	if platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
++		linkmodes = append(linkmodes, "internal")
++	}
++	linkmodes = append(linkmodes, "external")
++
++	for _, linkmode := range linkmodes {
++		t.Run(fmt.Sprintf("TestPieSize-%v", linkmode), func(t *testing.T) {
+ 			t.Parallel()
+ 
+ 			dir := t.TempDir()
+@@ -375,16 +373,11 @@ func TestPIESize(t *testing.T) {
+ 
+ 			binexe := filepath.Join(dir, "exe")
+ 			binpie := filepath.Join(dir, "pie")
+-			if external {
+-				binexe += "external"
+-				binpie += "external"
+-			}
++			binexe += linkmode
++			binpie += linkmode
+ 
+ 			build := func(bin, mode string) error {
+-				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
+-				if external {
+-					cmd.Args = append(cmd.Args, "-ldflags=-linkmode=external")
+-				}
++				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode, "-ldflags=-linkmode="+linkmode)
+ 				cmd.Args = append(cmd.Args, "pie.go")
+ 				cmd.Dir = dir
+ 				t.Logf("%v", cmd.Args)

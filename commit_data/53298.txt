@@ -15,7 +15,46 @@ Date:   Tue Aug 9 10:17:54 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/mmap_unix_test.go  |  2 +-
  src/syscall/syscall_solaris.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/mmap_unix_test.go b/src/syscall/mmap_unix_test.go
+index 3e9c08d67d..5e08b20679 100644
+--- a/src/syscall/mmap_unix_test.go
++++ b/src/syscall/mmap_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package syscall_test
+ 
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 0363597c9e..f6d7e46cd3 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -536,6 +536,20 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	return
+ }
+ 
++var mapper = &mmapper{
++	active: make(map[*byte][]byte),
++	mmap:   mmap,
++	munmap: munmap,
++}
++
++func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
++	return mapper.Mmap(fd, offset, length, prot, flags)
++}
++
++func Munmap(b []byte) (err error) {
++	return mapper.Munmap(b)
++}
++
+ func Utimes(path string, tv []Timeval) error {
+ 	if len(tv) != 2 {
+ 		return EINVAL

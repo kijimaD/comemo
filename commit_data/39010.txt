@@ -41,7 +41,146 @@ Date:   Fri Dec 14 11:55:44 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/154112
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/debug_test.go        | 20 ++++++++++++-----
  src/runtime/export_debug_test.go | 46 ++++++++++++++++++++++++++++------------
  2 files changed, 48 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index 37dcafd145..f77a373d13 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -33,11 +33,17 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
+ 	skipUnderDebugger(t)
+ 
+ 	// This can deadlock if there aren't enough threads or if a GC
+-	// tries to interrupt an atomic loop (see issue #10958).
+-	ogomaxprocs := runtime.GOMAXPROCS(2)
++	// tries to interrupt an atomic loop (see issue #10958). We
++	// use 8 Ps so there's room for the debug call worker,
++	// something that's trying to preempt the call worker, and the
++	// goroutine that's trying to stop the call worker.
++	ogomaxprocs := runtime.GOMAXPROCS(8)
+ 	ogcpercent := debug.SetGCPercent(-1)
+ 
+-	ready := make(chan *runtime.G)
++	// ready is a buffered channel so debugCallWorker won't block
++	// on sending to it. This makes it less likely we'll catch
++	// debugCallWorker while it's in the runtime.
++	ready := make(chan *runtime.G, 1)
+ 	var stop uint32
+ 	done := make(chan error)
+ 	go debugCallWorker(ready, &stop, done)
+@@ -67,6 +73,10 @@ func debugCallWorker(ready chan<- *runtime.G, stop *uint32, done chan<- error) {
+ 	close(done)
+ }
+ 
++// Don't inline this function, since we want to test adjusting
++// pointers in the arguments.
++//
++//go:noinline
+ func debugCallWorker2(stop *uint32, x *int) {
+ 	for atomic.LoadUint32(stop) == 0 {
+ 		// Strongly encourage x to live in a register so we
+@@ -193,7 +203,7 @@ func TestDebugCallUnsafePoint(t *testing.T) {
+ 
+ 	// This can deadlock if there aren't enough threads or if a GC
+ 	// tries to interrupt an atomic loop (see issue #10958).
+-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+ 
+ 	// Test that the runtime refuses call injection at unsafe points.
+@@ -215,7 +225,7 @@ func TestDebugCallPanic(t *testing.T) {
+ 	skipUnderDebugger(t)
+ 
+ 	// This can deadlock if there aren't enough threads.
+-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 
+ 	ready := make(chan *runtime.G)
+ 	var stop uint32
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 74f8855de6..e97dd52f20 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -50,19 +50,31 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (in
+ 	h.gp = gp
+ 	h.fv, h.argp, h.argSize = fv, argp, argSize
+ 	h.handleF = h.handle // Avoid allocating closure during signal
+-	noteclear(&h.done)
+ 
+ 	defer func() { testSigtrap = nil }()
+-	testSigtrap = h.inject
+-	if err := tkill(tid); err != nil {
+-		return nil, err
+-	}
+-	// Wait for completion.
+-	notetsleepg(&h.done, -1)
+-	if len(h.err) != 0 {
+-		return nil, h.err
++	for i := 0; ; i++ {
++		testSigtrap = h.inject
++		noteclear(&h.done)
++		h.err = ""
++
++		if err := tkill(tid); err != nil {
++			return nil, err
++		}
++		// Wait for completion.
++		notetsleepg(&h.done, -1)
++		if h.err != "" {
++			switch h.err {
++			case "retry _Grunnable", "executing on Go runtime stack":
++				// These are transient states. Try to get out of them.
++				if i < 100 {
++					Gosched()
++					continue
++				}
++			}
++			return nil, h.err
++		}
++		return h.panic, nil
+ 	}
+-	return h.panic, nil
+ }
+ 
+ type debugCallHandler struct {
+@@ -99,12 +111,18 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		h.savedRegs.fpstate = nil
+ 		// Set PC to debugCallV1.
+ 		ctxt.set_rip(uint64(funcPC(debugCallV1)))
++		// Call injected. Switch to the debugCall protocol.
++		testSigtrap = h.handleF
++	case _Grunnable:
++		// Ask InjectDebugCall to pause for a bit and then try
++		// again to interrupt this goroutine.
++		h.err = plainError("retry _Grunnable")
++		notewakeup(&h.done)
+ 	default:
+ 		h.err = plainError("goroutine in unexpected state at call inject")
+-		return true
++		notewakeup(&h.done)
+ 	}
+-	// Switch to the debugCall protocol and resume execution.
+-	testSigtrap = h.handleF
++	// Resume execution.
+ 	return true
+ }
+ 
+@@ -149,6 +167,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		sp := ctxt.rsp()
+ 		reason := *(*string)(unsafe.Pointer(uintptr(sp)))
+ 		h.err = plainError(reason)
++		// Don't wake h.done. We need to transition to status 16 first.
+ 	case 16:
+ 		// Restore all registers except RIP and RSP.
+ 		rip, rsp := ctxt.rip(), ctxt.rsp()
+@@ -162,6 +181,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		notewakeup(&h.done)
+ 	default:
+ 		h.err = plainError("unexpected debugCallV1 status")
++		notewakeup(&h.done)
+ 	}
+ 	// Resume execution.
+ 	return true

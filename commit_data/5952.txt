@@ -7,7 +7,34 @@ Date:   Wed Aug 4 17:14:51 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1856052
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 57ac099ab4..e894c2c151 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -24,7 +24,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+-Christian Himpel <chressie@gmail.com>
++Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Daniel Fleischman <danielfleischman@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 3a0f21fd52..513a06d6e3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -55,7 +55,7 @@ Brendan O'Dea <bod@golang.org>
+ Cary Hull <chull@google.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+-Christian Himpel <chressie@gmail.com>
++Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Daniel Fleischman <danielfleischman@gmail.com>

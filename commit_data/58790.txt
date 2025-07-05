@@ -13,6 +13,25 @@ Date:   Sun Dec 10 18:38:08 2023 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.22.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index daae19fdbc..8bcaeedc00 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -203,6 +203,13 @@ defer func() {
+   workaround will be removed in a future release.
+ </p>
+ 
++<p><!-- CL 525475 -->
++  On the <code>windows/amd64 port</code>, programs linking or loading Go libraries built with
++  <code>-buildmode=c-archive</code> or <code>-buildmode=c-shared</code> can now use
++  the <code>SetUnhandledExceptionFilter</code> Win32 function to catch exceptions not handled
++  by the Go runtime. Note that this was already supported on the <code>windows/386</code> port.
++</p>
++
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p><!-- https://go.dev/issue/61577 -->

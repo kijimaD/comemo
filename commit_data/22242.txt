@@ -8,6 +8,20 @@ Date:   Mon Mar 2 12:41:23 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6470
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/go/build/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 75a827bb91..78e17b220a 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -111,7 +111,7 @@
+ // (example: source_windows_amd64.go) where GOOS and GOARCH represent
+ // any known operating system and architecture values respectively, then
+ // the file is considered to have an implicit build constraint requiring
+-// those terms.
++// those terms (in addition to any explicit constraints in the file).
+ //
+ // To keep a file from being considered for the build:
+ //

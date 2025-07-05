@@ -12,7 +12,7 @@ Date:   Wed Feb 12 17:20:00 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go              | 52 ++++++++++++---------------
  src/cmd/link/internal/ld/go.go                | 37 +++++++++----------
  src/cmd/link/internal/ld/lib.go               | 20 ++---------
@@ -22,3 +22,334 @@ Date:   Wed Feb 12 17:20:00 2020 -0500
  src/cmd/link/internal/loader/symbolbuilder.go |  6 ++++
  src/cmd/link/internal/sym/symbols.go          |  8 +----
  8 files changed, 67 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7ca01c8c25..13e7e77ea3 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -37,6 +37,7 @@ import (
+ 	"cmd/internal/gcprog"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"compress/zlib"
+ 	"encoding/binary"
+@@ -927,48 +928,39 @@ func addstrdata1(ctxt *Link, arg string) {
+ }
+ 
+ // addstrdata sets the initial value of the string variable name to value.
+-func addstrdata(ctxt *Link, name, value string) {
+-	s := ctxt.Syms.ROLookup(name, 0)
+-	if s == nil || s.Gotype == nil {
+-		// Not defined in the loaded packages.
++func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
++	s := l.Lookup(name, 0)
++	if s == 0 {
+ 		return
+ 	}
+-	if s.Gotype.Name != "type.string" {
+-		Errorf(s, "cannot set with -X: not a var of type string (%s)", s.Gotype.Name)
++	if goType := l.SymGoType(s); goType == 0 {
++		return
++	} else if typeName := l.SymName(goType); typeName != "type.string" {
++		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
+ 		return
+ 	}
+-	if s.Type == sym.SBSS {
+-		s.Type = sym.SDATA
++	bld, s := l.MakeSymbolUpdater(s)
++	if bld.Type() == sym.SBSS {
++		bld.SetType(sym.SDATA)
+ 	}
+ 
+-	p := fmt.Sprintf("%s.str", s.Name)
+-	sp := ctxt.Syms.Lookup(p, 0)
+-
+-	Addstring(sp, value)
+-	sp.Type = sym.SRODATA
+-
+-	s.Size = 0
+-	s.P = s.P[:0]
+-	if s.Attr.ReadOnly() {
+-		s.P = make([]byte, 0, ctxt.Arch.PtrSize*2)
+-		s.Attr.Set(sym.AttrReadOnly, false)
+-	}
+-	s.R = s.R[:0]
+-	reachable := s.Attr.Reachable()
+-	s.AddAddr(ctxt.Arch, sp)
+-	s.AddUint(ctxt.Arch, uint64(len(value)))
++	p := fmt.Sprintf("%s.str", name)
++	sbld, sp := l.MakeSymbolUpdater(l.LookupOrCreateSym(p, 0))
+ 
+-	// addstring, addaddr, etc., mark the symbols as reachable.
+-	// In this case that is not necessarily true, so stick to what
+-	// we know before entering this function.
+-	s.Attr.Set(sym.AttrReachable, reachable)
++	sbld.Addstring(value)
++	sbld.SetType(sym.SRODATA)
+ 
+-	sp.Attr.Set(sym.AttrReachable, reachable)
++	bld.SetSize(0)
++	bld.SetData(make([]byte, 0, arch.PtrSize*2))
++	bld.SetReadOnly(false)
++	bld.SetRelocs(nil)
++	bld.AddAddrPlus(arch, sp, 0)
++	bld.AddUint(arch, uint64(len(value)))
+ }
+ 
+ func (ctxt *Link) dostrdata() {
+ 	for _, name := range strnames {
+-		addstrdata(ctxt, name, strdata[name])
++		addstrdata(ctxt.Arch, ctxt.loader, name, strdata[name])
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index db82ea2934..e05a57c4a7 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"encoding/json"
+@@ -345,36 +346,36 @@ func Adddynsym(ctxt *Link, s *sym.Symbol) {
+ 	}
+ }
+ 
+-func fieldtrack(ctxt *Link) {
+-	// record field tracking references
++func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ 	var buf bytes.Buffer
+-	for _, s := range ctxt.Syms.Allsym {
+-		if strings.HasPrefix(s.Name, "go.track.") {
+-			s.Attr |= sym.AttrSpecial // do not lay out in data segment
+-			s.Attr |= sym.AttrNotInSymbolTable
+-			if s.Attr.Reachable() {
+-				buf.WriteString(s.Name[9:])
+-				for p := ctxt.Reachparent[s]; p != nil; p = ctxt.Reachparent[p] {
++	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
++		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
++			bld, s := l.MakeSymbolUpdater(i)
++			bld.SetSpecial(true)
++			bld.SetNotInSymbolTable(true)
++			if bld.Reachable() {
++				buf.WriteString(name[9:])
++				for p := l.Reachparent[s]; p != 0; p = l.Reachparent[p] {
+ 					buf.WriteString("\t")
+-					buf.WriteString(p.Name)
++					buf.WriteString(l.SymName(p))
+ 				}
+ 				buf.WriteString("\n")
+-			}
+ 
+-			s.Type = sym.SCONST
+-			s.Value = 0
++				bld.SetType(sym.SCONST)
++				bld.SetValue(0)
++			}
+ 		}
+ 	}
+-
+ 	if *flagFieldTrack == "" {
+ 		return
+ 	}
+-	s := ctxt.Syms.ROLookup(*flagFieldTrack, 0)
+-	if s == nil || !s.Attr.Reachable() {
++	s := l.Lookup(*flagFieldTrack, 0)
++	if s == 0 || !l.AttrReachable(s) {
+ 		return
+ 	}
+-	s.Type = sym.SDATA
+-	addstrdata(ctxt, *flagFieldTrack, buf.String())
++	bld, _ := l.MakeSymbolUpdater(s)
++	bld.SetType(sym.SDATA)
++	addstrdata(arch, l, *flagFieldTrack, buf.String())
+ }
+ 
+ func (ctxt *Link) addexport() {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 36a5a3e86d..29c4a0cbbd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -733,7 +733,7 @@ func (ctxt *Link) mangleTypeSym() {
+ 	for _, s := range ctxt.Syms.Allsym {
+ 		newName := typeSymbolMangle(s.Name)
+ 		if newName != s.Name {
+-			ctxt.Syms.Rename(s.Name, newName, int(s.Version), ctxt.Reachparent)
++			ctxt.Syms.Rename(s.Name, newName, int(s.Version))
+ 		}
+ 	}
+ }
+@@ -2618,26 +2618,10 @@ func (ctxt *Link) loadlibfull() {
+ 	}
+ 
+ 	// Pull the symbols out.
+-	ctxt.loader.ExtractSymbols(ctxt.Syms)
++	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
+ 
+ 	setupdynexp(ctxt)
+ 
+-	// Populate ctxt.Reachparent if appropriate.
+-	if ctxt.Reachparent != nil {
+-		for i := 0; i < len(ctxt.loader.Reachparent); i++ {
+-			p := ctxt.loader.Reachparent[i]
+-			if p == 0 {
+-				continue
+-			}
+-			if p == loader.Sym(i) {
+-				panic("self-cycle in reachparent")
+-			}
+-			sym := ctxt.loader.Syms[i]
+-			psym := ctxt.loader.Syms[p]
+-			ctxt.Reachparent[sym] = psym
+-		}
+-	}
+-
+ 	// Drop the cgodata reference.
+ 	ctxt.cgodata = nil
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index d3d903cef5..6b29bcb314 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -234,18 +234,19 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("linksetup")
+ 	ctxt.linksetup()
+ 
++	bench.Start("dostrdata")
++	ctxt.dostrdata()
++	if objabi.Fieldtrack_enabled != 0 {
++		bench.Start("fieldtrack")
++		fieldtrack(ctxt.Arch, ctxt.loader)
++	}
++
+ 	bench.Start("loadlibfull")
+ 	ctxt.loadlibfull() // XXX do it here for now
+ 
+-	bench.Start("dostrdata")
+-	ctxt.dostrdata()
+ 	bench.Start("dwarfGenerateDebugInfo")
+ 	dwarfGenerateDebugInfo(ctxt)
+ 
+-	if objabi.Fieldtrack_enabled != 0 {
+-		bench.Start("fieldtrack")
+-		fieldtrack(ctxt)
+-	}
+ 	bench.Start("mangleTypeSym")
+ 	ctxt.mangleTypeSym()
+ 	bench.Start("callgraph")
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 8814bad4ae..5b48e3c650 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1186,7 +1186,7 @@ func (ctxt *Link) doxcoff() {
+ 	if ctxt.LinkMode == LinkExternal {
+ 		// Change rt0_go name to match name in runtime/cgo:main().
+ 		rt0 := ctxt.Syms.ROLookup("runtime.rt0_go", 0)
+-		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0, ctxt.Reachparent)
++		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0)
+ 
+ 		for _, s := range ctxt.Syms.Allsym {
+ 			if !s.Attr.CgoExport() {
+@@ -1198,7 +1198,7 @@ func (ctxt *Link) doxcoff() {
+ 				// On AIX, a exported function must have two symbols:
+ 				// - a .text symbol which must start with a ".".
+ 				// - a .data symbol which is a function descriptor.
+-				ctxt.Syms.Rename(s.Name, "."+name, 0, ctxt.Reachparent)
++				ctxt.Syms.Rename(s.Name, "."+name, 0)
+ 
+ 				desc := ctxt.Syms.Lookup(name, 0)
+ 				desc.Type = sym.SNOPTRDATA
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 1dcbf503c9..04bd2e8a94 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -423,7 +423,6 @@ func (l *Loader) IsExternal(i Sym) bool {
+ 	return l.isExtReader(r)
+ }
+ 
+-
+ func (l *Loader) isExtReader(r *oReader) bool {
+ 	return r == l.extReader
+ }
+@@ -1708,7 +1707,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 
+ // ExtractSymbols grabs the symbols out of the loader for work that hasn't been
+ // ported to the new symbol type.
+-func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
++func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbol) {
+ 	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
+ 	// created via loader.Create (marked with versions less than zero), since
+ 	// if we tried to add these we'd wind up with collisions. We do, however,
+@@ -1731,6 +1730,13 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 			s.Version = int16(anonVerReplacement)
+ 		}
+ 	}
++
++	for i, s := range l.Reachparent {
++		if i == 0 {
++			continue
++		}
++		rp[l.Syms[i]] = l.Syms[s]
++	}
+ }
+ 
+ // allocSym allocates a new symbol backing.
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 6437046bac..cc148945aa 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -73,6 +73,7 @@ func (sb *SymbolBuilder) CgoExportDynamic() bool { return sb.l.AttrCgoExportDyna
+ func (sb *SymbolBuilder) Dynimplib() string      { return sb.l.SymDynimplib(sb.symIdx) }
+ func (sb *SymbolBuilder) Dynimpvers() string     { return sb.l.SymDynimpvers(sb.symIdx) }
+ func (sb *SymbolBuilder) SubSym() Sym            { return sb.l.SubSym(sb.symIdx) }
++func (sb *SymbolBuilder) GoType() Sym            { return sb.l.SymGoType(sb.symIdx) }
+ 
+ // Setters for symbol properties.
+ 
+@@ -89,6 +90,11 @@ func (sb *SymbolBuilder) SetDynimplib(value string)  { sb.l.SetSymDynimplib(sb.s
+ func (sb *SymbolBuilder) SetDynimpvers(value string) { sb.l.SetSymDynimpvers(sb.symIdx, value) }
+ func (sb *SymbolBuilder) SetPlt(value int32)         { sb.l.SetPlt(sb.symIdx, value) }
+ func (sb *SymbolBuilder) SetGot(value int32)         { sb.l.SetGot(sb.symIdx, value) }
++func (sb *SymbolBuilder) SetSpecial(value bool)      { sb.l.SetAttrSpecial(sb.symIdx, value) }
++
++func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
++	sb.l.SetAttrNotInSymbolTable(sb.symIdx, value)
++}
+ 
+ func (sb *SymbolBuilder) AddBytes(data []byte) {
+ 	sb.setReachable()
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index 566f2506a7..d52211ed2b 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -105,7 +105,7 @@ func (syms *Symbols) IncVersion() int {
+ }
+ 
+ // Rename renames a symbol.
+-func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Symbol) {
++func (syms *Symbols) Rename(old, new string, v int) {
+ 	s := syms.hash[v][old]
+ 	oldExtName := s.Extname()
+ 	s.Name = new
+@@ -120,15 +120,9 @@ func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Sym
+ 	} else {
+ 		if s.Type == 0 {
+ 			dup.Attr |= s.Attr
+-			if s.Attr.Reachable() && reachparent != nil {
+-				reachparent[dup] = reachparent[s]
+-			}
+ 			*s = *dup
+ 		} else if dup.Type == 0 {
+ 			s.Attr |= dup.Attr
+-			if dup.Attr.Reachable() && reachparent != nil {
+-				reachparent[s] = reachparent[dup]
+-			}
+ 			*dup = *s
+ 			syms.hash[v][new] = s
+ 		}

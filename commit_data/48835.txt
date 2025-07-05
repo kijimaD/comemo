@@ -10,6 +10,19 @@ Date:   Sun Jun 13 11:05:45 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 79b2402fe7..fb6d660db5 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1220,6 +1220,7 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ 			// names of embedded types (which should keep the name of
+ 			// the type param, not the instantiated type).
+ 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
++			newfields[i].Embedded = f.Embedded
+ 			if f.Nname != nil && ts.Vars != nil {
+ 				v := ts.Vars[f.Nname.(*ir.Name)]
+ 				if v != nil {

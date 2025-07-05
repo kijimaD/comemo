@@ -21,8 +21,107 @@ Date:   Sat Apr 20 11:09:34 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 54 ++++++++++++++++++++++++++
  test/codegen/mathbits.go                       |  5 +++
  3 files changed, 61 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index aac7438e0a..510cec0f4b 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -146,6 +146,8 @@
+ (Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
+ (Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
+ (Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
++(Select0 (Div128u (Const64 [0]) lo y)) -> (Div64u lo y)
++(Select1 (Div128u (Const64 [0]) lo y)) -> (Mod64u lo y)
+ 
+ (Not (ConstBool [c])) -> (ConstBool [1-c])
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7bb446cf35..fe2fbb82c0 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -389,6 +389,10 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpRsh8x64_0(v)
+ 	case OpRsh8x8:
+ 		return rewriteValuegeneric_OpRsh8x8_0(v)
++	case OpSelect0:
++		return rewriteValuegeneric_OpSelect0_0(v)
++	case OpSelect1:
++		return rewriteValuegeneric_OpSelect1_0(v)
+ 	case OpSignExt16to32:
+ 		return rewriteValuegeneric_OpSignExt16to32_0(v)
+ 	case OpSignExt16to64:
+@@ -26587,6 +26591,56 @@ func rewriteValuegeneric_OpRsh8x8_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpSelect0_0(v *Value) bool {
++	// match: (Select0 (Div128u (Const64 [0]) lo y))
++	// cond:
++	// result: (Div64u lo y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpDiv128u {
++			break
++		}
++		y := v_0.Args[2]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst64 {
++			break
++		}
++		if v_0_0.AuxInt != 0 {
++			break
++		}
++		lo := v_0.Args[1]
++		v.reset(OpDiv64u)
++		v.AddArg(lo)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpSelect1_0(v *Value) bool {
++	// match: (Select1 (Div128u (Const64 [0]) lo y))
++	// cond:
++	// result: (Mod64u lo y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpDiv128u {
++			break
++		}
++		y := v_0.Args[2]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst64 {
++			break
++		}
++		if v_0_0.AuxInt != 0 {
++			break
++		}
++		lo := v_0.Args[1]
++		v.reset(OpMod64u)
++		v.AddArg(lo)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpSignExt16to32_0(v *Value) bool {
+ 	// match: (SignExt16to32 (Const16 [c]))
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index b6992c6bb4..6676c69188 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -538,3 +538,8 @@ func Div64(hi, lo, x uint64) (q, r uint64) {
+ 	// amd64:"DIVQ"
+ 	return bits.Div64(hi, lo, x)
+ }
++
++func Div64degenerate(x uint64) (q, r uint64) {
++	// amd64:-"DIVQ"
++	return bits.Div64(0, x, 5)
++}

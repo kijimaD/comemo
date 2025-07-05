@@ -8,7 +8,7 @@ Date:   Wed Sep 16 15:15:00 2009 -0700
     DELTA=152  (6 added, 0 deleted, 146 changed)
     OCL=34695
     CL=34701
-
+---
  src/cmd/ebnflint/ebnflint.go         |  2 +-
  src/cmd/godoc/godoc.go               | 20 +++++------
  src/pkg/archive/tar/writer_test.go   |  2 +-
@@ -40,3 +40,888 @@ Date:   Wed Sep 16 15:15:00 2009 -0700
  src/pkg/template/format.go           |  2 +-
  src/pkg/template/template_test.go    | 16 ++++-----
  30 files changed, 111 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index f6374214bd..7628159727 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -68,7 +68,7 @@ func extractEBNF(src []byte) []byte {
+ 		src = src[j : len(src)];
+ 	}
+ 
+-	return buf.Data();
++	return buf.Bytes();
+ }
+ 
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index d3a4bc342c..36e66a2110 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -264,7 +264,7 @@ func writeAny(w io.Writer, x interface{}, html bool) {
+ 		if html {
+ 			var buf bytes.Buffer;
+ 			fmt.Fprint(&buf, x);
+-			writeText(w, buf.Data(), true);
++			writeText(w, buf.Bytes(), true);
+ 		} else {
+ 			fmt.Fprint(w, x);
+ 		}
+@@ -282,7 +282,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
+ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+ 	var buf bytes.Buffer;
+ 	writeAny(&buf, x, false);
+-	doc.ToHtml(w, buf.Data());
++	doc.ToHtml(w, buf.Bytes());
+ }
+ 
+ 
+@@ -382,7 +382,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
+ 	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
+ 		log.Stderrf("parseerrorHtml.Execute: %s", err);
+ 	}
+-	servePage(c, errors.filename + " - Parse Errors", buf.Data());
++	servePage(c, errors.filename + " - Parse Errors", buf.Bytes());
+ }
+ 
+ 
+@@ -398,7 +398,7 @@ func serveGoSource(c *http.Conn, name string) {
+ 	writeNode(&buf, prog, true);
+ 	fmt.Fprintln(&buf, "</pre>");
+ 
+-	servePage(c, name + " - Go source", buf.Data());
++	servePage(c, name + " - Go source", buf.Bytes());
+ }
+ 
+ 
+@@ -539,7 +539,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 		if err := packageText.Execute(info, &buf); err != nil {
+ 			log.Stderrf("packageText.Execute: %s", err);
+ 		}
+-		serveText(c, buf.Data());
++		serveText(c, buf.Bytes());
+ 		return;
+ 	}
+ 
+@@ -550,7 +550,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 	if path == "" {
+ 		path = ".";  // don't display an empty path
+ 	}
+-	servePage(c, path + " - Go package documentation", buf.Data());
++	servePage(c, path + " - Go package documentation", buf.Bytes());
+ }
+ 
+ 
+@@ -589,22 +589,22 @@ func exec(c *http.Conn, args []string) bool {
+ 	io.Copy(r, &buf);
+ 	wait, err := os.Wait(pid, 0);
+ 	if err != nil {
+-		os.Stderr.Write(buf.Data());
++		os.Stderr.Write(buf.Bytes());
+ 		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err);
+ 		return false;
+ 	}
+ 	if !wait.Exited() || wait.ExitStatus() != 0 {
+-		os.Stderr.Write(buf.Data());
++		os.Stderr.Write(buf.Bytes());
+ 		log.Stderrf("executing %v failed (exit status = %d)", args, wait.ExitStatus());
+ 		return false;
+ 	}
+ 
+ 	if *verbose {
+-		os.Stderr.Write(buf.Data());
++		os.Stderr.Write(buf.Bytes());
+ 	}
+ 	if c != nil {
+ 		c.SetHeader("content-type", "text/plain; charset=utf-8");
+-		c.Write(buf.Data());
++		c.Write(buf.Bytes());
+ 	}
+ 
+ 	return true;
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 56697290fe..40b78bb322 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -121,7 +121,7 @@ testLoop:
+ 		}
+ 		tw.Close();
+ 
+-		actual := buf.Data();
++		actual := buf.Bytes();
+ 		if !bytes.Equal(expected, actual) {
+ 			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
+ 			         i, bytediff(expected, actual));
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index 69da2dfa7f..0537abab7c 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -73,7 +73,7 @@ func TestEncoder(t *testing.T) {
+ 		encoder := NewEncoder(StdEncoding, bb);
+ 		encoder.Write(strings.Bytes(p.decoded));
+ 		encoder.Close();
+-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Data()), p.encoded);
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Bytes()), p.encoded);
+ 	}
+ }
+ 
+@@ -93,7 +93,7 @@ func TestEncoderBuffering(t *testing.T) {
+ 		}
+ 		err := encoder.Close();
+ 		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil));
+-		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, string(bb.Data()), bigtest.encoded);
++		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, string(bb.Bytes()), bigtest.encoded);
+ 	}
+ }
+ 
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 58e4456a64..78920eb408 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -256,7 +256,7 @@ func TestWriter(t *testing.T) {
+ 				t.Errorf("%s: buf.Flush = %v", context, e);
+ 			}
+ 
+-			written := w.Data();
++			written := w.Bytes();
+ 			if len(written) != nwrite {
+ 				t.Errorf("%s: %d bytes written", context, len(written));
+ 			}
+@@ -372,7 +372,7 @@ func TestWriteString(t *testing.T) {
+ 		t.Error("WriteString", b.err);
+ 	}
+ 	s := "01234567890abcdefghijklmnopqrstuvwxyz";
+-	if string(buf.Data()) != s {
+-		t.Errorf("WriteString wants %q gets %q", s, string(buf.Data()))
++	if string(buf.Bytes()) != s {
++		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
+ 	}
+ }
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 6c857069b0..fbaa93757a 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -26,14 +26,20 @@ type Buffer struct {
+ 	off	int;	// read at &buf[off], write at &buf[len(buf)]
+ }
+ 
+-// Data returns the contents of the unread portion of the buffer;
+-// len(b.Data()) == b.Len().
+-func (b *Buffer) Data() []byte {
++// Bytes returns the contents of the unread portion of the buffer;
++// len(b.Bytes()) == b.Len().
++func (b *Buffer) Bytes() []byte {
+ 	return b.buf[b.off : len(b.buf)]
+ }
+ 
++// String returns the contents of the unread portion of the buffer
++// as a string.
++func (b *Buffer) String() string {
++	return string(b.buf[b.off : len(b.buf)])
++}
++
+ // Len returns the number of bytes of the unread portion of the buffer;
+-// b.Len() == len(b.Data()).
++// b.Len() == len(b.Bytes()).
+ func (b *Buffer) Len() int {
+ 	return len(b.buf) - b.off
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index bb6593774a..79b5909bf6 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -25,16 +25,16 @@ func init() {
+ 
+ // Verify that contents of buf match the string s.
+ func check(t *testing.T, testname string, buf *Buffer, s string) {
+-	if buf.Len() != len(buf.Data()) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.Data()) == %d\n", testname, buf.Len(), len(buf.Data()))
++	if buf.Len() != len(buf.Bytes()) {
++		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(buf.Bytes()))
+ 	}
+ 
+ 	if buf.Len() != len(s) {
+ 		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
+ 	}
+ 
+-	if string(buf.Data()) != s {
+-		t.Errorf("%s: string(buf.Data()) == %q, s == %q\n", testname, string(buf.Data()), s)
++	if string(buf.Bytes()) != s {
++		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(buf.Bytes()), s)
+ 	}
+ }
+ 
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 67b25791c9..aef79244dc 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -298,7 +298,7 @@ func TestInflater(t *testing.T) {
+ 		if err != tt.err {
+ 			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
+ 		}
+-		s := string(b.Data());
++		s := string(b.Bytes());
+ 		if s != tt.raw {
+ 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw);
+ 		}
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index 9d250a1139..e1ebf6236e 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -95,7 +95,7 @@ func TestInflater(t *testing.T) {
+ 			}
+ 			continue;
+ 		}
+-		s := string(b.Data());
++		s := string(b.Bytes());
+ 		if s != tt.raw {
+ 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw);
+ 		}
+diff --git a/src/pkg/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+index 8a84feadd5..8f7d5b4421 100644
+--- a/src/pkg/crypto/block/cbc_aes_test.go
++++ b/src/pkg/crypto/block/cbc_aes_test.go
+@@ -82,7 +82,7 @@ func TestCBC_AES(t *testing.T) {
+ 		n, err := io.Copy(r, w);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: CBCEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+-		} else if d := crypt.Data(); !same(tt.out, d) {
++		} else if d := crypt.Bytes(); !same(tt.out, d) {
+ 			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test, d, tt.out);
+ 		}
+ 
+@@ -92,7 +92,7 @@ func TestCBC_AES(t *testing.T) {
+ 		n, err = io.Copy(r, w);
+ 		if n != int64(len(tt.out)) || err != nil {
+ 			t.Errorf("%s: CBCDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+-		} else if d := plain.Data(); !same(tt.in, d) {
++		} else if d := plain.Bytes(); !same(tt.in, d) {
+ 			t.Errorf("%s: CBCDecrypter\nhave %x\nwant %x", test, d, tt.in);
+ 		}
+ 
+diff --git a/src/pkg/crypto/block/cfb_aes_test.go b/src/pkg/crypto/block/cfb_aes_test.go
+index bf719ad39b..ce8627ed02 100644
+--- a/src/pkg/crypto/block/cfb_aes_test.go
++++ b/src/pkg/crypto/block/cfb_aes_test.go
+@@ -291,7 +291,7 @@ func TestCFB_AES(t *testing.T) {
+ 		n, err := io.Copy(r, w);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+-		} else if d := crypt.Data(); !same(tt.out, d) {
++		} else if d := crypt.Bytes(); !same(tt.out, d) {
+ 			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out);
+ 		}
+ 
+@@ -301,7 +301,7 @@ func TestCFB_AES(t *testing.T) {
+ 		n, err = io.Copy(r, w);
+ 		if n != int64(len(tt.out)) || err != nil {
+ 			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+-		} else if d := plain.Data(); !same(tt.in, d) {
++		} else if d := plain.Bytes(); !same(tt.in, d) {
+ 			t.Errorf("%s: CFBDecrypter\nhave %x\nwant %x", test, d, tt.in);
+ 		}
+ 
+diff --git a/src/pkg/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+index 97ae1ebf78..d9c9c4b2ff 100644
+--- a/src/pkg/crypto/block/ctr_aes_test.go
++++ b/src/pkg/crypto/block/ctr_aes_test.go
+@@ -88,7 +88,7 @@ func TestCTR_AES(t *testing.T) {
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(in)) || err != nil {
+ 				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+-			} else if d, out := crypt.Data(), tt.out[0:len(in)]; !same(out, d) {
++			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
+ 				t.Errorf("%s/%d: CTRWriter\ninpt %x\nhave %x\nwant %x", test, len(in), in, d, out);
+ 			}
+ 		}
+@@ -101,7 +101,7 @@ func TestCTR_AES(t *testing.T) {
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(out)) || err != nil {
+ 				t.Errorf("%s/%d: CTRReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
+-			} else if d, in := plain.Data(), tt.in[0:len(out)]; !same(in, d) {
++			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
+ 				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), d, in);
+ 			}
+ 		}
+diff --git a/src/pkg/crypto/block/eax_aes_test.go b/src/pkg/crypto/block/eax_aes_test.go
+index f90d54173a..2105c5accf 100644
+--- a/src/pkg/crypto/block/eax_aes_test.go
++++ b/src/pkg/crypto/block/eax_aes_test.go
+@@ -212,7 +212,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("%s: enc.Close: %s", test, err);
+ 		}
+-		if d := b.Data(); !same(d, tt.cipher) {
++		if d := b.Bytes(); !same(d, tt.cipher) {
+ 			t.Fatalf("%s: got %x want %x", test, d, tt.cipher);
+ 		}
+ 	}
+@@ -232,7 +232,7 @@ func TestEAXDecrypt_AES(t *testing.T) {
+ 		if n != int64(len(tt.msg)) || err != nil {
+ 			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);
+ 		}
+-		if d := b.Data(); !same(d, tt.msg) {
++		if d := b.Bytes(); !same(d, tt.msg) {
+ 			t.Fatalf("%s: got %x want %x", test, d, tt.msg);
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/block/ecb_aes_test.go b/src/pkg/crypto/block/ecb_aes_test.go
+index c9ce73f76d..65f093d84b 100644
+--- a/src/pkg/crypto/block/ecb_aes_test.go
++++ b/src/pkg/crypto/block/ecb_aes_test.go
+@@ -115,7 +115,7 @@ func TestECB_AES(t *testing.T) {
+ 		n, err := io.Copy(r, w);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+-		} else if d := crypt.Data(); !same(tt.out, d) {
++		} else if d := crypt.Bytes(); !same(tt.out, d) {
+ 			t.Errorf("%s: ECBReader\nhave %x\nwant %x", test, d, tt.out);
+ 		}
+ 
+@@ -125,7 +125,7 @@ func TestECB_AES(t *testing.T) {
+ 		n, err = io.Copy(r, w);
+ 		if n != int64(len(tt.out)) || err != nil {
+ 			t.Errorf("%s: ECBWriter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+-		} else if d := plain.Data(); !same(tt.in, d) {
++		} else if d := plain.Bytes(); !same(tt.in, d) {
+ 			t.Errorf("%s: ECBWriter\nhave %x\nwant %x", test, d, tt.in);
+ 		}
+ 
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index 5160e11274..b06cd3e2d8 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -96,7 +96,7 @@ func TestECBEncrypter(t *testing.T) {
+ 			}
+ 
+ 			// check output
+-			data := b.Data();
++			data := b.Bytes();
+ 			if len(data) != len(crypt) {
+ 				t.Errorf("block=%d frag=%d: want %d bytes, got %d", block, frag, len(crypt), len(data));
+ 				continue;
+@@ -161,7 +161,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
+ 				}
+ 
+ 				// check output
+-				data := b.Data();
++				data := b.Bytes();
+ 				if len(data) != maxio {
+ 					t.Errorf("%s: want %d bytes, got %d", test, maxio, len(data));
+ 					continue;
+diff --git a/src/pkg/crypto/block/ofb_aes_test.go b/src/pkg/crypto/block/ofb_aes_test.go
+index 9b9f3679df..d9a1092795 100644
+--- a/src/pkg/crypto/block/ofb_aes_test.go
++++ b/src/pkg/crypto/block/ofb_aes_test.go
+@@ -84,7 +84,7 @@ func TestOFB_AES(t *testing.T) {
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(in)) || err != nil {
+ 				t.Errorf("%s/%d: OFBWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+-			} else if d, out := crypt.Data(), tt.out[0:len(in)]; !same(out, d) {
++			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
+ 				t.Errorf("%s/%d: OFBWriter\ninpt %x\nhave %x\nwant %x", test, len(in), in, d, out);
+ 			}
+ 		}
+@@ -97,7 +97,7 @@ func TestOFB_AES(t *testing.T) {
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(out)) || err != nil {
+ 				t.Errorf("%s/%d: OFBReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
+-			} else if d, in := plain.Data(), tt.in[0:len(out)]; !same(in, d) {
++			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
+ 				t.Errorf("%s/%d: OFBReader\nhave %x\nwant %x", test, len(out), d, in);
+ 			}
+ 		}
+diff --git a/src/pkg/crypto/block/xor_test.go b/src/pkg/crypto/block/xor_test.go
+index c2818f01c6..571ef4eb9d 100644
+--- a/src/pkg/crypto/block/xor_test.go
++++ b/src/pkg/crypto/block/xor_test.go
+@@ -75,7 +75,7 @@ func testXorWriter(t *testing.T, maxio int) {
+ 
+ 			// check output
+ 			crypt := crypt[0:len(crypt) - frag];
+-			data := b.Data();
++			data := b.Bytes();
+ 			if len(data) != len(crypt) {
+ 				t.Errorf("%s: want %d bytes, got %d", test, len(crypt), len(data));
+ 				continue;
+@@ -142,7 +142,7 @@ func testXorReader(t *testing.T, maxio int) {
+ 				}
+ 
+ 				// check output
+-				data := b.Data();
++				data := b.Bytes();
+ 				crypt := crypt[0:maxio - frag];
+ 				plain := plain[0:maxio - frag];
+ 				if len(data) != len(plain) {
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index c3ac311410..8918d5e97f 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -367,7 +367,7 @@ func (s *State) Write(data []byte) (int, os.Error) {
+ 		if ch == '\n' || ch == '\f' {
+ 			// write text segment and indentation
+ 			n1, _ := s.output.Write(data[i0 : i+1]);
+-			n2, _ := s.output.Write(s.indent.Data());
++			n2, _ := s.output.Write(s.indent.Bytes());
+ 			n += n1 + n2;
+ 			i0 = i + 1;
+ 			s.linePos.Offset = s.output.Len();
+@@ -604,7 +604,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		// if the indentation evaluates to nil, the state's output buffer
+ 		// didn't change - either way it's ok to append the difference to
+ 		// the current identation
+-		s.indent.Write(s.output.Data()[mark.outputLen : s.output.Len()]);
++		s.indent.Write(s.output.Bytes()[mark.outputLen : s.output.Len()]);
+ 		s.restore(mark);
+ 
+ 		// format group body
+@@ -691,7 +691,7 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
+ 	}();
+ 
+ 	err := <- errors;
+-	return s.output.Data(), err;
++	return s.output.Bytes(), err;
+ }
+ 
+ 
+@@ -732,5 +732,5 @@ func (f Format) Sprint(args ...) string {
+ 	if err != nil {
+ 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err);
+ 	}
+-	return string(buf.Data());
++	return string(buf.Bytes());
+ }
+diff --git a/src/pkg/exvar/exvar.go b/src/pkg/exvar/exvar.go
+index 7849714978..abeeea7258 100644
+--- a/src/pkg/exvar/exvar.go
++++ b/src/pkg/exvar/exvar.go
+@@ -64,7 +64,7 @@ func (v *Map) String() string {
+ 		first = false;
+ 	}
+ 	fmt.Fprintf(b, "}");
+-	return string(b.Data())
++	return string(b.Bytes())
+ }
+ 
+ func (v *Map) Init() *Map {
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index bc13e2e516..3ec75637b8 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -34,7 +34,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 		case *bytes.Buffer:
+ 			// is io.Reader, but src is already available in []byte form
+ 			if s != nil {
+-				return s.Data(), nil;
++				return s.Bytes(), nil;
+ 			}
+ 		case io.Reader:
+ 			var buf bytes.Buffer;
+@@ -42,7 +42,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 			if err != nil {
+ 				return nil, err;
+ 			}
+-			return buf.Data(), nil;
++			return buf.Bytes(), nil;
+ 		default:
+ 			return nil, os.ErrorString("invalid source");
+ 		}
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 65827de8e1..f9019fdacf 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -53,7 +53,7 @@ func check(t *testing.T, source, golden string, exports bool) {
+ 	if _, err := Fprint(&buf, prog, 0, tabwidth); err != nil {
+ 		t.Error(err);
+ 	}
+-	res := buf.Data();
++	res := buf.Bytes();
+ 
+ 	// update golden files if necessary
+ 	if *update {
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 8eff37e0a4..3c75e4f855 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -48,8 +48,8 @@ func TestUintCodec(t *testing.T) {
+ 		if encState.err != nil {
+ 			t.Error("encodeUint:", tt.x, encState.err)
+ 		}
+-		if !bytes.Equal(tt.b, b.Data()) {
+-			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Data())
++		if !bytes.Equal(tt.b, b.Bytes()) {
++			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
+ 		}
+ 	}
+ 	decState := newDecodeState(b);
+@@ -134,8 +134,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encBool, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(boolResult, b.Data()) {
+-			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Data())
++		if !bytes.Equal(boolResult, b.Bytes()) {
++			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -146,8 +146,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encInt, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(signedResult, b.Data()) {
+-			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Data())
++		if !bytes.Equal(signedResult, b.Bytes()) {
++			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -158,8 +158,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encUint, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(unsignedResult, b.Data()) {
+-			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Data())
++		if !bytes.Equal(unsignedResult, b.Bytes()) {
++			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -170,8 +170,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encInt8, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(signedResult, b.Data()) {
+-			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Data())
++		if !bytes.Equal(signedResult, b.Bytes()) {
++			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -182,8 +182,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encUint8, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(unsignedResult, b.Data()) {
+-			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		if !bytes.Equal(unsignedResult, b.Bytes()) {
++			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -194,8 +194,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encInt16, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(signedResult, b.Data()) {
+-			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Data())
++		if !bytes.Equal(signedResult, b.Bytes()) {
++			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -206,8 +206,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encUint16, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(unsignedResult, b.Data()) {
+-			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		if !bytes.Equal(unsignedResult, b.Bytes()) {
++			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -218,8 +218,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encInt32, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(signedResult, b.Data()) {
+-			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Data())
++		if !bytes.Equal(signedResult, b.Bytes()) {
++			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -230,8 +230,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encUint32, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(unsignedResult, b.Data()) {
+-			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		if !bytes.Equal(unsignedResult, b.Bytes()) {
++			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -242,8 +242,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encInt64, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(signedResult, b.Data()) {
+-			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Data())
++		if !bytes.Equal(signedResult, b.Bytes()) {
++			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -254,8 +254,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encUint64, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(unsignedResult, b.Data()) {
+-			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Data())
++		if !bytes.Equal(unsignedResult, b.Bytes()) {
++			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -266,8 +266,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encFloat, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(floatResult, b.Data()) {
+-			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Data())
++		if !bytes.Equal(floatResult, b.Bytes()) {
++			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -278,8 +278,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encFloat32, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(floatResult, b.Data()) {
+-			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Data())
++		if !bytes.Equal(floatResult, b.Bytes()) {
++			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -290,8 +290,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encFloat64, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(floatResult, b.Data()) {
+-			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Data())
++		if !bytes.Equal(floatResult, b.Bytes()) {
++			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -302,8 +302,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encUint8Array, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(bytesResult, b.Data()) {
+-			t.Errorf("bytes enc instructions: expected % x got % x", bytesResult, b.Data())
++		if !bytes.Equal(bytesResult, b.Bytes()) {
++			t.Errorf("bytes enc instructions: expected % x got % x", bytesResult, b.Bytes())
+ 		}
+ 	}
+ 
+@@ -314,8 +314,8 @@ func TestScalarEncInstructions(t *testing.T) {
+ 		instr := &encInstr{ encString, 6, 0, 0 };
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+-		if !bytes.Equal(bytesResult, b.Data()) {
+-			t.Errorf("string enc instructions: expected % x got % x", bytesResult, b.Data())
++		if !bytes.Equal(bytesResult, b.Bytes()) {
++			t.Errorf("string enc instructions: expected % x got % x", bytesResult, b.Bytes())
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 7b7484d3b1..23ec9849f1 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -43,7 +43,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	case "POST":
+ 		buf := new(bytes.Buffer);
+ 		io.Copy(req.Body, buf);
+-		body := string(buf.Data());
++		body := string(buf.Bytes());
+ 		if n, err := strconv.Atoi(body); err != nil {
+ 			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
+ 		} else {
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index 4230b031c3..78b8320eca 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -15,7 +15,7 @@ import (
+ func ReadAll(r Reader) ([]byte, os.Error) {
+ 	var buf bytes.Buffer;
+ 	_, err := Copy(r, &buf);
+-	return buf.Data(), err;
++	return buf.Bytes(), err;
+ }
+ 
+ // ReadFile reads the file named by filename and returns the contents.
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index a95d7d215c..9ebf1a3919 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -169,7 +169,7 @@ func Quote(s string) string {
+ 	}
+ 	chr[0] = '"';
+ 	b.Write(chr0);
+-	return string(b.Data());
++	return string(b.Bytes());
+ }
+ 
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index c9131607aa..45e101d88d 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -326,7 +326,7 @@ func TestForkExec(t *testing.T) {
+ 
+ 	var b bytes.Buffer;
+ 	io.Copy(r, &b);
+-	output := string(b.Data());
++	output := string(b.Bytes());
+ 	expect := "/\n";
+ 	if output != expect {
+ 		t.Errorf("exec /bin/pwd returned %q wanted %q", output, expect);
+@@ -605,7 +605,7 @@ func run(t *testing.T, cmd []string) string {
+ 	var b bytes.Buffer;
+ 	io.Copy(r, &b);
+ 	Wait(pid, 0);
+-	output := string(b.Data());
++	output := string(b.Bytes());
+ 	if n := len(output); n > 0 && output[n-1] == '\n' {
+ 		output = output[0:n-1];
+ 	}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index b1baf67c79..1559da23e6 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -883,7 +883,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	// Copy the unmatched characters after the last match.
+ 	io.WriteString(buf, src[lastMatchEnd:len(src)]);
+ 
+-	return string(buf.Data());
++	return string(buf.Bytes());
+ }
+ 
+ // ReplaceAll returns a copy of src in which all matches for the Regexp
+@@ -927,7 +927,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+ 	// Copy the unmatched characters after the last match.
+ 	buf.Write(src[lastMatchEnd:len(src)]);
+ 
+-	return buf.Data();
++	return buf.Bytes();
+ }
+ 
+ // QuoteMeta returns a string that quotes all regular expression metacharacters
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index d57a1b1938..ea98a9e87b 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -241,7 +241,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
+ 			switch {
+ 			default: // align left
+ 
+-				if err := b.write0(b.buf.Data()[pos : pos + c.size]); err != nil {
++				if err := b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
+ 					return pos, err;
+ 				}
+ 				pos += c.size;
+@@ -258,7 +258,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
+ 						return pos, err;
+ 					}
+ 				}
+-				if err := b.write0(b.buf.Data()[pos : pos + c.size]); err != nil {
++				if err := b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
+ 					return pos, err;
+ 				}
+ 				pos += c.size;
+@@ -268,7 +268,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
+ 		if i+1 == b.lines.Len() {
+ 			// last buffered line - we don't have a newline, so just write
+ 			// any outstanding buffered data
+-			if err := b.write0(b.buf.Data()[pos : pos + b.cell.size]); err != nil {
++			if err := b.write0(b.buf.Bytes()[pos : pos + b.cell.size]); err != nil {
+ 				return pos, err;
+ 			}
+ 			pos += b.cell.size;
+@@ -339,7 +339,7 @@ func (b *Writer) append(text []byte, updateWidth bool) {
+ 	b.buf.Write(text);
+ 	b.cell.size += len(text);
+ 	if updateWidth {
+-		b.cell.width += utf8.RuneCount(b.buf.Data()[b.pos : b.buf.Len()]);
++		b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos : b.buf.Len()]);
+ 		b.pos = b.buf.Len();
+ 	}
+ }
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index 997de4e4a0..130a26427f 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -52,5 +52,5 @@ func HtmlEscape(w io.Writer, s []byte) {
+ func HtmlFormatter(w io.Writer, value interface{}, format string) {
+ 	var b bytes.Buffer;
+ 	fmt.Fprint(&b, value);
+-	HtmlEscape(w, b.Data());
++	HtmlEscape(w, b.Bytes());
+ }
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index b96a682c3e..d3ce37863a 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -314,8 +314,8 @@ func TestAll(t *testing.T) {
+ 				t.Errorf("expected execute error %q, got %q", test.err, err.String());
+ 			}
+ 		}
+-		if string(buf.Data()) != test.out {
+-			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Data()));
++		if string(buf.Bytes()) != test.out {
++			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Bytes()));
+ 		}
+ 	}
+ }
+@@ -330,7 +330,7 @@ func TestStringDriverType(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected execute error:", err)
+ 	}
+-	s := string(b.Data());
++	s := string(b.Bytes());
+ 	if s != "template: hello" {
+ 		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
+ 	}
+@@ -346,7 +346,7 @@ func TestTwice(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+-	s := string(b.Data());
++	s := string(b.Bytes());
+ 	text := "template: hello";
+ 	if s != text {
+ 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
+@@ -355,7 +355,7 @@ func TestTwice(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+-	s = string(b.Data());
++	s = string(b.Bytes());
+ 	text += text;
+ 	if s != text {
+ 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
+@@ -388,7 +388,7 @@ func TestCustomDelims(t *testing.T) {
+ 			}
+ 			var b bytes.Buffer;
+ 			err = tmpl.Execute("hello", &b);
+-			s := string(b.Data());
++			s := string(b.Bytes());
+ 			if s != "template: hello" + ldelim + rdelim {
+ 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+ 			}
+@@ -413,7 +413,7 @@ func TestVarIndirection(t *testing.T) {
+ 		t.Fatal("unexpected execute error:", err)
+ 	}
+ 	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
+-	if string(buf.Data()) != expect {
+-		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Data()));
++	if string(buf.Bytes()) != expect {
++		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Bytes()));
+ 	}
+ }

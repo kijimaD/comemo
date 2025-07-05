@@ -18,6 +18,28 @@ Date:   Wed Jun 23 01:02:33 2021 +0900
     Trust: Carlos Amedee <carlos@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modcmd/vendor.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 8e1c0432f7..713d5f9f3f 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -13,6 +13,7 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"os"
++	"path"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -299,7 +300,7 @@ func copyMetadata(modPath, pkg, dst, src string, copiedFiles map[string]bool) {
+ 		if modPath == pkg {
+ 			break
+ 		}
+-		pkg = filepath.Dir(pkg)
++		pkg = path.Dir(pkg)
+ 		dst = filepath.Dir(dst)
+ 		src = filepath.Dir(src)
+ 	}

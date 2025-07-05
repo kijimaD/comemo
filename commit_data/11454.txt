@@ -12,7 +12,7 @@ Date:   Sun Jan 29 11:07:25 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5595044
-
+---
  src/cmd/Makefile                                   |  3 +-
  src/cmd/{gofix => fix}/Makefile                    |  2 +-
  src/cmd/fix/doc.go                                 | 36 ++++++++++++++++++++++
@@ -131,3 +131,790 @@ Date:   Sun Jan 29 11:07:25 2012 -0800
  src/cmd/{govet => vet}/structtag.go                |  0
  src/pkg/Makefile                                   |  4 +--
  117 files changed, 77 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 089739d05a..ab51c09ceb 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -38,10 +38,11 @@ CLEANDIRS=\
+ 	8l\
+ 	cgo\
+ 	godoc\
+-	gofix\
++	fix\
+ 	gofmt\
+ 	goinstall\
+ 	gotest\
++	vet\
+ 	yacc\
+ 
+ install: $(patsubst %,%.install,$(DIRS))
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/fix/Makefile
+similarity index 96%
+rename from src/cmd/gofix/Makefile
+rename to src/cmd/fix/Makefile
+index 553f4f78e3..a03c7e4bc1 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/fix/Makefile
+@@ -44,7 +44,7 @@ GOFILES=\
+ 	url.go\
+ 	xmlapi.go\
+ 
+-include ../../Make.cmd
++include ../../Make.tool
+ 
+ test:
+ 	gotest
+diff --git a/src/cmd/fix/doc.go b/src/cmd/fix/doc.go
+new file mode 100644
+index 0000000000..a92e0fc06f
+--- /dev/null
++++ b/src/cmd/fix/doc.go
+@@ -0,0 +1,36 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Fix finds Go programs that use old APIs and rewrites them to use
++newer ones.  After you update to a new Go release, fix helps make
++the necessary changes to your programs.
++
++Usage:
++	go tool fix [-r name,...] [path ...]
++
++Without an explicit path, fix reads standard input and writes the
++result to standard output.
++
++If the named path is a file, fix rewrites the named files in place.
++If the named path is a directory, fix rewrites all .go files in that
++directory tree.  When fix rewrites a file, it prints a line to standard
++error giving the name of the file and the rewrite applied.
++
++If the -diff flag is set, no files are rewritten. Instead fix prints
++the differences a rewrite would introduce.
++
++The -r flag restricts the set of rewrites considered to those in the
++named list.  By default fix considers all known rewrites.  Fix's
++rewrites are idempotent, so that it is safe to apply fix to updated
++or partially updated code even without using the -r flag.
++
++Fix prints the full list of fixes it can apply in its help output;
++to see them, run go tool fix -?.
++
++Fix does not make backup copies of the files that it edits.
++Instead, use a version control system's ``diff'' functionality to inspect
++the changes that fix makes before committing them.
++*/
++package documentation
+diff --git a/src/cmd/gofix/error.go b/src/cmd/fix/error.go
+similarity index 100%
+rename from src/cmd/gofix/error.go
+rename to src/cmd/fix/error.go
+diff --git a/src/cmd/gofix/error_test.go b/src/cmd/fix/error_test.go
+similarity index 100%
+rename from src/cmd/gofix/error_test.go
+rename to src/cmd/fix/error_test.go
+diff --git a/src/cmd/gofix/filepath.go b/src/cmd/fix/filepath.go
+similarity index 100%
+rename from src/cmd/gofix/filepath.go
+rename to src/cmd/fix/filepath.go
+diff --git a/src/cmd/gofix/filepath_test.go b/src/cmd/fix/filepath_test.go
+similarity index 100%
+rename from src/cmd/gofix/filepath_test.go
+rename to src/cmd/fix/filepath_test.go
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/fix/fix.go
+similarity index 100%
+rename from src/cmd/gofix/fix.go
+rename to src/cmd/fix/fix.go
+diff --git a/src/cmd/gofix/go1pkgrename.go b/src/cmd/fix/go1pkgrename.go
+similarity index 100%
+rename from src/cmd/gofix/go1pkgrename.go
+rename to src/cmd/fix/go1pkgrename.go
+diff --git a/src/cmd/gofix/go1pkgrename_test.go b/src/cmd/fix/go1pkgrename_test.go
+similarity index 100%
+rename from src/cmd/gofix/go1pkgrename_test.go
+rename to src/cmd/fix/go1pkgrename_test.go
+diff --git a/src/cmd/gofix/googlecode.go b/src/cmd/fix/googlecode.go
+similarity index 100%
+rename from src/cmd/gofix/googlecode.go
+rename to src/cmd/fix/googlecode.go
+diff --git a/src/cmd/gofix/googlecode_test.go b/src/cmd/fix/googlecode_test.go
+similarity index 100%
+rename from src/cmd/gofix/googlecode_test.go
+rename to src/cmd/fix/googlecode_test.go
+diff --git a/src/cmd/gofix/hashsum.go b/src/cmd/fix/hashsum.go
+similarity index 100%
+rename from src/cmd/gofix/hashsum.go
+rename to src/cmd/fix/hashsum.go
+diff --git a/src/cmd/gofix/hashsum_test.go b/src/cmd/fix/hashsum_test.go
+similarity index 100%
+rename from src/cmd/gofix/hashsum_test.go
+rename to src/cmd/fix/hashsum_test.go
+diff --git a/src/cmd/gofix/hmacnew.go b/src/cmd/fix/hmacnew.go
+similarity index 100%
+rename from src/cmd/gofix/hmacnew.go
+rename to src/cmd/fix/hmacnew.go
+diff --git a/src/cmd/gofix/hmacnew_test.go b/src/cmd/fix/hmacnew_test.go
+similarity index 100%
+rename from src/cmd/gofix/hmacnew_test.go
+rename to src/cmd/fix/hmacnew_test.go
+diff --git a/src/cmd/gofix/htmlerr.go b/src/cmd/fix/htmlerr.go
+similarity index 100%
+rename from src/cmd/gofix/htmlerr.go
+rename to src/cmd/fix/htmlerr.go
+diff --git a/src/cmd/gofix/htmlerr_test.go b/src/cmd/fix/htmlerr_test.go
+similarity index 100%
+rename from src/cmd/gofix/htmlerr_test.go
+rename to src/cmd/fix/htmlerr_test.go
+diff --git a/src/cmd/gofix/httpfinalurl.go b/src/cmd/fix/httpfinalurl.go
+similarity index 100%
+rename from src/cmd/gofix/httpfinalurl.go
+rename to src/cmd/fix/httpfinalurl.go
+diff --git a/src/cmd/gofix/httpfinalurl_test.go b/src/cmd/fix/httpfinalurl_test.go
+similarity index 100%
+rename from src/cmd/gofix/httpfinalurl_test.go
+rename to src/cmd/fix/httpfinalurl_test.go
+diff --git a/src/cmd/gofix/httpfs.go b/src/cmd/fix/httpfs.go
+similarity index 100%
+rename from src/cmd/gofix/httpfs.go
+rename to src/cmd/fix/httpfs.go
+diff --git a/src/cmd/gofix/httpfs_test.go b/src/cmd/fix/httpfs_test.go
+similarity index 100%
+rename from src/cmd/gofix/httpfs_test.go
+rename to src/cmd/fix/httpfs_test.go
+diff --git a/src/cmd/gofix/httpheaders.go b/src/cmd/fix/httpheaders.go
+similarity index 100%
+rename from src/cmd/gofix/httpheaders.go
+rename to src/cmd/fix/httpheaders.go
+diff --git a/src/cmd/gofix/httpheaders_test.go b/src/cmd/fix/httpheaders_test.go
+similarity index 100%
+rename from src/cmd/gofix/httpheaders_test.go
+rename to src/cmd/fix/httpheaders_test.go
+diff --git a/src/cmd/gofix/httpserver.go b/src/cmd/fix/httpserver.go
+similarity index 100%
+rename from src/cmd/gofix/httpserver.go
+rename to src/cmd/fix/httpserver.go
+diff --git a/src/cmd/gofix/httpserver_test.go b/src/cmd/fix/httpserver_test.go
+similarity index 100%
+rename from src/cmd/gofix/httpserver_test.go
+rename to src/cmd/fix/httpserver_test.go
+diff --git a/src/cmd/gofix/httputil.go b/src/cmd/fix/httputil.go
+similarity index 100%
+rename from src/cmd/gofix/httputil.go
+rename to src/cmd/fix/httputil.go
+diff --git a/src/cmd/gofix/httputil_test.go b/src/cmd/fix/httputil_test.go
+similarity index 100%
+rename from src/cmd/gofix/httputil_test.go
+rename to src/cmd/fix/httputil_test.go
+diff --git a/src/cmd/gofix/imagecolor.go b/src/cmd/fix/imagecolor.go
+similarity index 100%
+rename from src/cmd/gofix/imagecolor.go
+rename to src/cmd/fix/imagecolor.go
+diff --git a/src/cmd/gofix/imagecolor_test.go b/src/cmd/fix/imagecolor_test.go
+similarity index 100%
+rename from src/cmd/gofix/imagecolor_test.go
+rename to src/cmd/fix/imagecolor_test.go
+diff --git a/src/cmd/gofix/imagenew.go b/src/cmd/fix/imagenew.go
+similarity index 100%
+rename from src/cmd/gofix/imagenew.go
+rename to src/cmd/fix/imagenew.go
+diff --git a/src/cmd/gofix/imagenew_test.go b/src/cmd/fix/imagenew_test.go
+similarity index 100%
+rename from src/cmd/gofix/imagenew_test.go
+rename to src/cmd/fix/imagenew_test.go
+diff --git a/src/cmd/gofix/imagetiled.go b/src/cmd/fix/imagetiled.go
+similarity index 100%
+rename from src/cmd/gofix/imagetiled.go
+rename to src/cmd/fix/imagetiled.go
+diff --git a/src/cmd/gofix/imagetiled_test.go b/src/cmd/fix/imagetiled_test.go
+similarity index 100%
+rename from src/cmd/gofix/imagetiled_test.go
+rename to src/cmd/fix/imagetiled_test.go
+diff --git a/src/cmd/gofix/imageycbcr.go b/src/cmd/fix/imageycbcr.go
+similarity index 100%
+rename from src/cmd/gofix/imageycbcr.go
+rename to src/cmd/fix/imageycbcr.go
+diff --git a/src/cmd/gofix/imageycbcr_test.go b/src/cmd/fix/imageycbcr_test.go
+similarity index 100%
+rename from src/cmd/gofix/imageycbcr_test.go
+rename to src/cmd/fix/imageycbcr_test.go
+diff --git a/src/cmd/gofix/import_test.go b/src/cmd/fix/import_test.go
+similarity index 100%
+rename from src/cmd/gofix/import_test.go
+rename to src/cmd/fix/import_test.go
+diff --git a/src/cmd/gofix/iocopyn.go b/src/cmd/fix/iocopyn.go
+similarity index 100%
+rename from src/cmd/gofix/iocopyn.go
+rename to src/cmd/fix/iocopyn.go
+diff --git a/src/cmd/gofix/iocopyn_test.go b/src/cmd/fix/iocopyn_test.go
+similarity index 100%
+rename from src/cmd/gofix/iocopyn_test.go
+rename to src/cmd/fix/iocopyn_test.go
+diff --git a/src/cmd/gofix/main.go b/src/cmd/fix/main.go
+similarity index 95%
+rename from src/cmd/gofix/main.go
+rename to src/cmd/fix/main.go
+index ca7e1a0f32..23af42ee20 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/fix/main.go
+@@ -36,11 +36,11 @@ var allowed, force map[string]bool
+ 
+ var doDiff = flag.Bool("diff", false, "display diffs instead of rewriting files")
+ 
+-// enable for debugging gofix failures
++// enable for debugging fix failures
+ const debug = false // display incorrectly reformatted source and exit
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
++	fmt.Fprintf(os.Stderr, "usage: go tool fix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
+ 	flag.PrintDefaults()
+ 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
+ 	sort.Sort(byName(fixes))
+@@ -244,14 +244,14 @@ func isGoFile(f os.FileInfo) bool {
+ }
+ 
+ func diff(b1, b2 []byte) (data []byte, err error) {
+-	f1, err := ioutil.TempFile("", "gofix")
++	f1, err := ioutil.TempFile("", "go-fix")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	defer os.Remove(f1.Name())
+ 	defer f1.Close()
+ 
+-	f2, err := ioutil.TempFile("", "gofix")
++	f2, err := ioutil.TempFile("", "go-fix")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/gofix/main_test.go b/src/cmd/fix/main_test.go
+similarity index 100%
+rename from src/cmd/gofix/main_test.go
+rename to src/cmd/fix/main_test.go
+diff --git a/src/cmd/gofix/mapdelete.go b/src/cmd/fix/mapdelete.go
+similarity index 100%
+rename from src/cmd/gofix/mapdelete.go
+rename to src/cmd/fix/mapdelete.go
+diff --git a/src/cmd/gofix/mapdelete_test.go b/src/cmd/fix/mapdelete_test.go
+similarity index 100%
+rename from src/cmd/gofix/mapdelete_test.go
+rename to src/cmd/fix/mapdelete_test.go
+diff --git a/src/cmd/gofix/math.go b/src/cmd/fix/math.go
+similarity index 100%
+rename from src/cmd/gofix/math.go
+rename to src/cmd/fix/math.go
+diff --git a/src/cmd/gofix/math_test.go b/src/cmd/fix/math_test.go
+similarity index 100%
+rename from src/cmd/gofix/math_test.go
+rename to src/cmd/fix/math_test.go
+diff --git a/src/cmd/gofix/netdial.go b/src/cmd/fix/netdial.go
+similarity index 100%
+rename from src/cmd/gofix/netdial.go
+rename to src/cmd/fix/netdial.go
+diff --git a/src/cmd/gofix/netdial_test.go b/src/cmd/fix/netdial_test.go
+similarity index 100%
+rename from src/cmd/gofix/netdial_test.go
+rename to src/cmd/fix/netdial_test.go
+diff --git a/src/cmd/gofix/netudpgroup.go b/src/cmd/fix/netudpgroup.go
+similarity index 100%
+rename from src/cmd/gofix/netudpgroup.go
+rename to src/cmd/fix/netudpgroup.go
+diff --git a/src/cmd/gofix/netudpgroup_test.go b/src/cmd/fix/netudpgroup_test.go
+similarity index 100%
+rename from src/cmd/gofix/netudpgroup_test.go
+rename to src/cmd/fix/netudpgroup_test.go
+diff --git a/src/cmd/gofix/oserrorstring.go b/src/cmd/fix/oserrorstring.go
+similarity index 100%
+rename from src/cmd/gofix/oserrorstring.go
+rename to src/cmd/fix/oserrorstring.go
+diff --git a/src/cmd/gofix/oserrorstring_test.go b/src/cmd/fix/oserrorstring_test.go
+similarity index 100%
+rename from src/cmd/gofix/oserrorstring_test.go
+rename to src/cmd/fix/oserrorstring_test.go
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/fix/osopen.go
+similarity index 100%
+rename from src/cmd/gofix/osopen.go
+rename to src/cmd/fix/osopen.go
+diff --git a/src/cmd/gofix/osopen_test.go b/src/cmd/fix/osopen_test.go
+similarity index 100%
+rename from src/cmd/gofix/osopen_test.go
+rename to src/cmd/fix/osopen_test.go
+diff --git a/src/cmd/gofix/procattr.go b/src/cmd/fix/procattr.go
+similarity index 100%
+rename from src/cmd/gofix/procattr.go
+rename to src/cmd/fix/procattr.go
+diff --git a/src/cmd/gofix/procattr_test.go b/src/cmd/fix/procattr_test.go
+similarity index 100%
+rename from src/cmd/gofix/procattr_test.go
+rename to src/cmd/fix/procattr_test.go
+diff --git a/src/cmd/gofix/reflect.go b/src/cmd/fix/reflect.go
+similarity index 99%
+rename from src/cmd/gofix/reflect.go
+rename to src/cmd/fix/reflect.go
+index 4665d1527c..187d6c0a2d 100644
+--- a/src/cmd/gofix/reflect.go
++++ b/src/cmd/fix/reflect.go
+@@ -87,8 +87,8 @@ http://codereview.appspot.com/4433066
+ // x.(*reflect.MapValue).Elem(v) becomes x.MapIndex(v).
+ // In general, reflectFn needs to know the type of the receiver expression.
+ // In most cases (and in all the cases in the Go source tree), the toy
+-// type checker in typecheck.go provides enough information for gofix
+-// to make the rewrite.  If gofix misses a rewrite, the code that is left over
++// type checker in typecheck.go provides enough information for fix
++// to make the rewrite.  If fix misses a rewrite, the code that is left over
+ // will not compile, so it will be noticed immediately.
+ 
+ func reflectFn(f *ast.File) bool {
+diff --git a/src/cmd/gofix/reflect_test.go b/src/cmd/fix/reflect_test.go
+similarity index 100%
+rename from src/cmd/gofix/reflect_test.go
+rename to src/cmd/fix/reflect_test.go
+diff --git a/src/cmd/gofix/signal.go b/src/cmd/fix/signal.go
+similarity index 100%
+rename from src/cmd/gofix/signal.go
+rename to src/cmd/fix/signal.go
+diff --git a/src/cmd/gofix/signal_test.go b/src/cmd/fix/signal_test.go
+similarity index 100%
+rename from src/cmd/gofix/signal_test.go
+rename to src/cmd/fix/signal_test.go
+diff --git a/src/cmd/gofix/sorthelpers.go b/src/cmd/fix/sorthelpers.go
+similarity index 100%
+rename from src/cmd/gofix/sorthelpers.go
+rename to src/cmd/fix/sorthelpers.go
+diff --git a/src/cmd/gofix/sorthelpers_test.go b/src/cmd/fix/sorthelpers_test.go
+similarity index 100%
+rename from src/cmd/gofix/sorthelpers_test.go
+rename to src/cmd/fix/sorthelpers_test.go
+diff --git a/src/cmd/gofix/sortslice.go b/src/cmd/fix/sortslice.go
+similarity index 100%
+rename from src/cmd/gofix/sortslice.go
+rename to src/cmd/fix/sortslice.go
+diff --git a/src/cmd/gofix/sortslice_test.go b/src/cmd/fix/sortslice_test.go
+similarity index 100%
+rename from src/cmd/gofix/sortslice_test.go
+rename to src/cmd/fix/sortslice_test.go
+diff --git a/src/cmd/gofix/strconv.go b/src/cmd/fix/strconv.go
+similarity index 100%
+rename from src/cmd/gofix/strconv.go
+rename to src/cmd/fix/strconv.go
+diff --git a/src/cmd/gofix/strconv_test.go b/src/cmd/fix/strconv_test.go
+similarity index 100%
+rename from src/cmd/gofix/strconv_test.go
+rename to src/cmd/fix/strconv_test.go
+diff --git a/src/cmd/gofix/stringssplit.go b/src/cmd/fix/stringssplit.go
+similarity index 100%
+rename from src/cmd/gofix/stringssplit.go
+rename to src/cmd/fix/stringssplit.go
+diff --git a/src/cmd/gofix/stringssplit_test.go b/src/cmd/fix/stringssplit_test.go
+similarity index 100%
+rename from src/cmd/gofix/stringssplit_test.go
+rename to src/cmd/fix/stringssplit_test.go
+diff --git a/src/cmd/gofix/template.go b/src/cmd/fix/template.go
+similarity index 100%
+rename from src/cmd/gofix/template.go
+rename to src/cmd/fix/template.go
+diff --git a/src/cmd/gofix/template_test.go b/src/cmd/fix/template_test.go
+similarity index 100%
+rename from src/cmd/gofix/template_test.go
+rename to src/cmd/fix/template_test.go
+diff --git a/src/cmd/gofix/testdata/reflect.asn1.go.in b/src/cmd/fix/testdata/reflect.asn1.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.asn1.go.in
+rename to src/cmd/fix/testdata/reflect.asn1.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.asn1.go.out b/src/cmd/fix/testdata/reflect.asn1.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.asn1.go.out
+rename to src/cmd/fix/testdata/reflect.asn1.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.datafmt.go.in b/src/cmd/fix/testdata/reflect.datafmt.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.datafmt.go.in
+rename to src/cmd/fix/testdata/reflect.datafmt.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.datafmt.go.out b/src/cmd/fix/testdata/reflect.datafmt.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.datafmt.go.out
+rename to src/cmd/fix/testdata/reflect.datafmt.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.decode.go.in b/src/cmd/fix/testdata/reflect.decode.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.decode.go.in
+rename to src/cmd/fix/testdata/reflect.decode.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.decode.go.out b/src/cmd/fix/testdata/reflect.decode.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.decode.go.out
+rename to src/cmd/fix/testdata/reflect.decode.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.decoder.go.in b/src/cmd/fix/testdata/reflect.decoder.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.decoder.go.in
+rename to src/cmd/fix/testdata/reflect.decoder.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.decoder.go.out b/src/cmd/fix/testdata/reflect.decoder.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.decoder.go.out
+rename to src/cmd/fix/testdata/reflect.decoder.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.dnsmsg.go.in b/src/cmd/fix/testdata/reflect.dnsmsg.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.dnsmsg.go.in
+rename to src/cmd/fix/testdata/reflect.dnsmsg.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.dnsmsg.go.out b/src/cmd/fix/testdata/reflect.dnsmsg.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.dnsmsg.go.out
+rename to src/cmd/fix/testdata/reflect.dnsmsg.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.encode.go.in b/src/cmd/fix/testdata/reflect.encode.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.encode.go.in
+rename to src/cmd/fix/testdata/reflect.encode.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.encode.go.out b/src/cmd/fix/testdata/reflect.encode.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.encode.go.out
+rename to src/cmd/fix/testdata/reflect.encode.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.encoder.go.in b/src/cmd/fix/testdata/reflect.encoder.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.encoder.go.in
+rename to src/cmd/fix/testdata/reflect.encoder.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.encoder.go.out b/src/cmd/fix/testdata/reflect.encoder.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.encoder.go.out
+rename to src/cmd/fix/testdata/reflect.encoder.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.export.go.in b/src/cmd/fix/testdata/reflect.export.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.export.go.in
+rename to src/cmd/fix/testdata/reflect.export.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.export.go.out b/src/cmd/fix/testdata/reflect.export.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.export.go.out
+rename to src/cmd/fix/testdata/reflect.export.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.print.go.in b/src/cmd/fix/testdata/reflect.print.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.print.go.in
+rename to src/cmd/fix/testdata/reflect.print.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.print.go.out b/src/cmd/fix/testdata/reflect.print.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.print.go.out
+rename to src/cmd/fix/testdata/reflect.print.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.quick.go.in b/src/cmd/fix/testdata/reflect.quick.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.quick.go.in
+rename to src/cmd/fix/testdata/reflect.quick.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.quick.go.out b/src/cmd/fix/testdata/reflect.quick.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.quick.go.out
+rename to src/cmd/fix/testdata/reflect.quick.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.read.go.in b/src/cmd/fix/testdata/reflect.read.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.read.go.in
+rename to src/cmd/fix/testdata/reflect.read.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.read.go.out b/src/cmd/fix/testdata/reflect.read.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.read.go.out
+rename to src/cmd/fix/testdata/reflect.read.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.scan.go.in b/src/cmd/fix/testdata/reflect.scan.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.scan.go.in
+rename to src/cmd/fix/testdata/reflect.scan.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.scan.go.out b/src/cmd/fix/testdata/reflect.scan.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.scan.go.out
+rename to src/cmd/fix/testdata/reflect.scan.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.script.go.in b/src/cmd/fix/testdata/reflect.script.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.script.go.in
+rename to src/cmd/fix/testdata/reflect.script.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.script.go.out b/src/cmd/fix/testdata/reflect.script.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.script.go.out
+rename to src/cmd/fix/testdata/reflect.script.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.template.go.in b/src/cmd/fix/testdata/reflect.template.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.template.go.in
+rename to src/cmd/fix/testdata/reflect.template.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.template.go.out b/src/cmd/fix/testdata/reflect.template.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.template.go.out
+rename to src/cmd/fix/testdata/reflect.template.go.out
+diff --git a/src/cmd/gofix/testdata/reflect.type.go.in b/src/cmd/fix/testdata/reflect.type.go.in
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.type.go.in
+rename to src/cmd/fix/testdata/reflect.type.go.in
+diff --git a/src/cmd/gofix/testdata/reflect.type.go.out b/src/cmd/fix/testdata/reflect.type.go.out
+similarity index 100%
+rename from src/cmd/gofix/testdata/reflect.type.go.out
+rename to src/cmd/fix/testdata/reflect.type.go.out
+diff --git a/src/cmd/gofix/timefileinfo.go b/src/cmd/fix/timefileinfo.go
+similarity index 100%
+rename from src/cmd/gofix/timefileinfo.go
+rename to src/cmd/fix/timefileinfo.go
+diff --git a/src/cmd/gofix/timefileinfo_test.go b/src/cmd/fix/timefileinfo_test.go
+similarity index 100%
+rename from src/cmd/gofix/timefileinfo_test.go
+rename to src/cmd/fix/timefileinfo_test.go
+diff --git a/src/cmd/gofix/typecheck.go b/src/cmd/fix/typecheck.go
+similarity index 100%
+rename from src/cmd/gofix/typecheck.go
+rename to src/cmd/fix/typecheck.go
+diff --git a/src/cmd/gofix/url.go b/src/cmd/fix/url.go
+similarity index 100%
+rename from src/cmd/gofix/url.go
+rename to src/cmd/fix/url.go
+diff --git a/src/cmd/gofix/url_test.go b/src/cmd/fix/url_test.go
+similarity index 100%
+rename from src/cmd/gofix/url_test.go
+rename to src/cmd/fix/url_test.go
+diff --git a/src/cmd/gofix/xmlapi.go b/src/cmd/fix/xmlapi.go
+similarity index 100%
+rename from src/cmd/gofix/xmlapi.go
+rename to src/cmd/fix/xmlapi.go
+diff --git a/src/cmd/gofix/xmlapi_test.go b/src/cmd/fix/xmlapi_test.go
+similarity index 100%
+rename from src/cmd/gofix/xmlapi_test.go
+rename to src/cmd/fix/xmlapi_test.go
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index bae9f5c982..fb4c07e4a2 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -9,12 +9,12 @@ var cmdFix = &Command{
+ 	UsageLine: "fix [importpath...]",
+ 	Short:     "run gofix on packages",
+ 	Long: `
+-Fix runs the gofix command on the packages named by the import paths.
++Fix runs the Go fix command on the packages named by the import paths.
+ 
+-For more about gofix, see 'godoc gofix'.
++For more about fix, see 'godoc fix'.
+ For more about import paths, see 'go help importpath'.
+ 
+-To run gofix with specific options, run gofix itself.
++To run fix with specific options, run 'go tool fix'.
+ 
+ See also: go fmt, go vet.
+ 	`,
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 21fbb273db..2ca0bf7d47 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -224,6 +224,14 @@ Loop:
+ 	return string(b)
+ }
+ 
++// isGoTool is the list of directories for Go programs that are installed in
++// $GOROOT/bin/go-tool.
++var isGoTool = map[string]bool{
++	"cmd/fix":  true,
++	"cmd/vet":  true,
++	"cmd/yacc": true,
++}
++
+ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
+ 	// Read the files in the directory to learn the structure
+ 	// of the package.
+@@ -262,7 +270,11 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 
+ 	if info.Package == "main" {
+ 		_, elem := filepath.Split(importPath)
+-		p.target = filepath.Join(t.BinDir(), elem)
++		if t.Goroot && isGoTool[p.ImportPath] {
++			p.target = filepath.Join(t.Path, "bin/go-tool", elem)
++		} else {
++			p.target = filepath.Join(t.BinDir(), elem)
++		}
+ 		if ctxt.GOOS == "windows" {
+ 			p.target += ".exe"
+ 		}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 52c3200325..83e5233ecc 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -9,12 +9,12 @@ var cmdVet = &Command{
+ 	UsageLine: "vet [importpath...]",
+ 	Short:     "run govet on packages",
+ 	Long: `
+-Vet runs the govet command on the packages named by the import paths.
++Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about govet, see 'godoc govet'.
++For more about vet, see 'godoc vet'.
+ For more about import paths, see 'go help importpath'.
+ 
+-To run govet with specific options, run govet itself.
++To run govet with specific options, run 'go tool vet'.
+ 
+ See also: go fmt, go fix.
+ 	`,
+diff --git a/src/cmd/gofix/doc.go b/src/cmd/gofix/doc.go
+deleted file mode 100644
+index a9790e6854..0000000000
+--- a/src/cmd/gofix/doc.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-Gofix finds Go programs that use old APIs and rewrites them to use
+-newer ones.  After you update to a new Go release, gofix helps make
+-the necessary changes to your programs.
+-
+-Usage:
+-	gofix [-r name,...] [path ...]
+-
+-Without an explicit path, gofix reads standard input and writes the
+-result to standard output.
+-
+-If the named path is a file, gofix rewrites the named files in place.
+-If the named path is a directory, gofix rewrites all .go files in that
+-directory tree.  When gofix rewrites a file, it prints a line to standard
+-error giving the name of the file and the rewrite applied.
+-
+-If the -diff flag is set, no files are rewritten. Instead gofix prints
+-the differences a rewrite would introduce.
+-
+-The -r flag restricts the set of rewrites considered to those in the
+-named list.  By default gofix considers all known rewrites.  Gofix's
+-rewrites are idempotent, so that it is safe to apply gofix to updated
+-or partially updated code even without using the -r flag.
+-
+-Gofix prints the full list of fixes it can apply in its help output;
+-to see them, run gofix -?.
+-
+-Gofix does not make backup copies of the files that it edits.
+-Instead, use a version control system's ``diff'' functionality to inspect
+-the changes that gofix makes before committing them.
+-*/
+-package documentation
+diff --git a/src/cmd/govet/Makefile b/src/cmd/vet/Makefile
+similarity index 87%
+rename from src/cmd/govet/Makefile
+rename to src/cmd/vet/Makefile
+index dae3ae51d5..a69f0e3bea 100644
+--- a/src/cmd/govet/Makefile
++++ b/src/cmd/vet/Makefile
+@@ -4,14 +4,14 @@
+ 
+ include ../../Make.inc
+ 
+-TARG=govet
++TARG=vet
+ GOFILES=\
+-	govet.go\
++	main.go\
+ 	method.go\
+ 	print.go\
+ 	structtag.go\
+ 
+-include ../../Make.cmd
++include ../../Make.tool
+ 
+ test testshort: $(TARG)
+ 	../../../test/errchk $(TARG) -printfuncs='Warn:1,Warnf:1' print.go
+diff --git a/src/cmd/govet/doc.go b/src/cmd/vet/doc.go
+similarity index 86%
+rename from src/cmd/govet/doc.go
+rename to src/cmd/vet/doc.go
+index 5a2489fca7..2495e8027b 100644
+--- a/src/cmd/govet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -4,7 +4,7 @@
+ 
+ /*
+ 
+-Govet does simple checking of Go source code.
++Vet does simple checking of Go source code.
+ 
+ It checks for simple errors in calls to functions named
+ 	Print Printf Println
+@@ -13,13 +13,13 @@ It checks for simple errors in calls to functions named
+ 	Error Errorf
+ 	Fatal Fatalf
+ If the function name ends with an 'f', the function is assumed to take
+-a format descriptor string in the manner of fmt.Printf. If not, govet
++a format descriptor string in the manner of fmt.Printf. If not, vet
+ complains about arguments that look like format descriptor strings.
+ 
+ Usage:
+ 
+-	govet [flag] [file.go ...]
+-	govet [flag] [directory ...] # Scan all .go files under directory, recursively
++	go tool vet [flag] [file.go ...]
++	go tool vet [flag] [directory ...] # Scan all .go files under directory, recursively
+ 
+ The flags are:
+ 	-v
+diff --git a/src/cmd/govet/govet.go b/src/cmd/vet/main.go
+similarity index 97%
+rename from src/cmd/govet/govet.go
+rename to src/cmd/vet/main.go
+index 283f1613f3..5f9d594668 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/vet/main.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Govet is a simple checker for static errors in Go source code.
++// Vet is a simple checker for static errors in Go source code.
+ // See doc.go for more information.
+ package main
+ 
+@@ -120,7 +120,7 @@ func walkDir(root string) {
+ // error formats the error to standard error, adding program
+ // identification and a newline
+ func errorf(format string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, "govet: "+format+"\n", args...)
++	fmt.Fprintf(os.Stderr, "vet: "+format+"\n", args...)
+ 	setExit(2)
+ }
+ 
+diff --git a/src/cmd/govet/method.go b/src/cmd/vet/method.go
+similarity index 98%
+rename from src/cmd/govet/method.go
+rename to src/cmd/vet/method.go
+index 55bf11d167..6bf5e2a18f 100644
+--- a/src/cmd/govet/method.go
++++ b/src/cmd/vet/method.go
+@@ -23,7 +23,7 @@ type MethodSig struct {
+ // checks are dynamic, such methods would not cause a compile error
+ // if they have the wrong signature: instead the dynamic check would
+ // fail, sometimes mysteriously.  If a method is found with a name listed
+-// here but not the input/output types listed here, govet complains.
++// here but not the input/output types listed here, vet complains.
+ //
+ // A few of the canonical methods have very common names.
+ // For example, a type might implement a Scan method that
+diff --git a/src/cmd/govet/print.go b/src/cmd/vet/print.go
+similarity index 99%
+rename from src/cmd/govet/print.go
+rename to src/cmd/vet/print.go
+index 861a337c6f..fe94137a7e 100644
+--- a/src/cmd/govet/print.go
++++ b/src/cmd/vet/print.go
+@@ -156,7 +156,7 @@ const (
+ )
+ 
+ // printVerbs identifies which flags are known to printf for each verb.
+-// TODO: A type that implements Formatter may do what it wants, and govet
++// TODO: A type that implements Formatter may do what it wants, and vet
+ // will complain incorrectly.
+ var printVerbs = []printVerb{
+ 	// '-' is a width modifier, always valid.
+diff --git a/src/cmd/govet/structtag.go b/src/cmd/vet/structtag.go
+similarity index 100%
+rename from src/cmd/govet/structtag.go
+rename to src/cmd/vet/structtag.go
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6ffa527da2..c272fa947c 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -156,11 +156,11 @@ DIRS=\
+ 	unicode/utf8\
+ 	../cmd/cgo\
+ 	../cmd/godoc\
+-	../cmd/gofix\
++	../cmd/fix\
+ 	../cmd/gofmt\
+ 	../cmd/goinstall\
+ 	../cmd/gotest\
+-	../cmd/govet\
++	../cmd/vet\
+ 	../cmd/yacc\
+ 
+ ifeq ($(GOOS),linux)

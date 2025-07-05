@@ -26,8 +26,62 @@ Date:   Thu Mar 30 11:46:45 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 3 +++
  src/cmd/compile/internal/gc/pgen.go | 8 ++++----
  src/cmd/compile/internal/gc/subr.go | 2 ++
  3 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f59d3cd41d..a0d5170a46 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -523,6 +523,9 @@ func Main(archInit func(*Arch)) {
+ 		if compiling_runtime {
+ 			checknowritebarrierrec()
+ 		}
++		for _, largePos := range largeStackFrames {
++			yyerrorl(largePos, "stack frame too large (>2GB)")
++		}
+ 	}
+ 
+ 	// Phase 9: Check external declarations.
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 283a8e6160..02cabc4a02 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -235,10 +235,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+ 			s.stksize = Rnd(s.stksize, int64(Widthptr))
+ 		}
+-		if s.stksize >= 1<<31 {
+-			yyerrorl(s.curfn.Pos, "stack frame too large (>2GB)")
+-		}
+-
+ 		n.Xoffset = -s.stksize
+ 	}
+ 
+@@ -289,6 +285,10 @@ func compile(fn *Node) {
+ 	pp := newProgs(fn)
+ 	genssa(ssafn, pp)
+ 	fieldtrack(pp.Text.From.Sym, fn.Func.FieldTrack)
++	if pp.Text.To.Offset >= 1<<31 {
++		largeStackFrames = append(largeStackFrames, fn.Pos)
++		return
++	}
+ 	pp.Flush()
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7e6a2a287f..fb56d4eb3a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -27,6 +27,8 @@ type Error struct {
+ 
+ var errors []Error
+ 
++var largeStackFrames []src.XPos // positions of functions whose stack frames are too large (rare)
++
+ func errorexit() {
+ 	flusherrors()
+ 	if outfile != "" {

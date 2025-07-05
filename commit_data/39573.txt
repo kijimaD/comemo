@@ -19,7 +19,7 @@ Date:   Fri Mar 1 23:12:19 2019 +0100
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/testdata/issue30527.go   | 14 ++++++++
  misc/cgo/test/testdata/issue30527/a.go | 19 +++++++++++
  misc/cgo/test/testdata/issue30527/b.go | 11 +++++++
@@ -27,3 +27,184 @@ Date:   Fri Mar 1 23:12:19 2019 +0100
  src/cmd/cgo/gcc.go                     | 60 ++++------------------------------
  src/cmd/cgo/main.go                    |  3 --
  6 files changed, 51 insertions(+), 68 deletions(-)
+
+diff --git a/misc/cgo/test/testdata/issue30527.go b/misc/cgo/test/testdata/issue30527.go
+new file mode 100644
+index 0000000000..4ea7d3177a
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue30527.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 30527: function call rewriting casts untyped
++// constants to int because of ":=" usage.
++
++package cgotest
++
++import "cgotest/issue30527"
++
++func issue30527G() {
++	issue30527.G(nil)
++}
+diff --git a/misc/cgo/test/testdata/issue30527/a.go b/misc/cgo/test/testdata/issue30527/a.go
+new file mode 100644
+index 0000000000..eb50147b39
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue30527/a.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue30527
++
++import "math"
++
++/*
++#include <inttypes.h>
++
++static void issue30527F(char **p, uint64_t mod, uint32_t unused) {}
++*/
++import "C"
++
++func G(p **C.char) {
++	C.issue30527F(p, math.MaxUint64, 1)
++	C.issue30527F(p, 1<<64-1, Z)
++}
+diff --git a/misc/cgo/test/testdata/issue30527/b.go b/misc/cgo/test/testdata/issue30527/b.go
+new file mode 100644
+index 0000000000..87e8255bd8
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue30527/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue30527
++
++const (
++	X = 1 << iota
++	Y
++	Z
++)
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 83d727a8a5..54d6bc2559 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -200,18 +200,6 @@ func (f *File) saveExprs(x interface{}, context astContext) {
+ 		}
+ 	case *ast.CallExpr:
+ 		f.saveCall(x, context)
+-	case *ast.GenDecl:
+-		if x.Tok == token.CONST {
+-			for _, spec := range x.Specs {
+-				vs := spec.(*ast.ValueSpec)
+-				if vs.Type == nil {
+-					for _, name := range spec.(*ast.ValueSpec).Names {
+-						consts[name.Name] = true
+-					}
+-				}
+-			}
+-		}
+-
+ 	}
+ }
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b5cf04cf4c..11a5472786 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -897,21 +897,16 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 			needsUnsafe = true
+ 		}
+ 
+-		// Explicitly convert untyped constants to the
+-		// parameter type, to avoid a type mismatch.
+-		if p.isConst(f, arg) {
+-			ptype := p.rewriteUnsafe(param.Go)
++		// Use "var x T = ..." syntax to explicitly convert untyped
++		// constants to the parameter type, to avoid a type mismatch.
++		ptype := p.rewriteUnsafe(param.Go)
++
++		if !p.needsPointerCheck(f, param.Go, args[i]) {
+ 			if ptype != param.Go {
+ 				needsUnsafe = true
+ 			}
+-			arg = &ast.CallExpr{
+-				Fun:  ptype,
+-				Args: []ast.Expr{arg},
+-			}
+-		}
+-
+-		if !p.needsPointerCheck(f, param.Go, args[i]) {
+-			fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
++			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
++				gofmtLine(ptype), gofmtPos(arg, origArg.Pos()))
+ 			continue
+ 		}
+ 
+@@ -1254,47 +1249,6 @@ func (p *Package) isType(t ast.Expr) bool {
+ 	return false
+ }
+ 
+-// isConst reports whether x is an untyped constant expression.
+-func (p *Package) isConst(f *File, x ast.Expr) bool {
+-	switch x := x.(type) {
+-	case *ast.BasicLit:
+-		return true
+-	case *ast.SelectorExpr:
+-		id, ok := x.X.(*ast.Ident)
+-		if !ok || id.Name != "C" {
+-			return false
+-		}
+-		name := f.Name[x.Sel.Name]
+-		if name != nil {
+-			return name.IsConst()
+-		}
+-	case *ast.Ident:
+-		return x.Name == "nil" ||
+-			strings.HasPrefix(x.Name, "_Ciconst_") ||
+-			strings.HasPrefix(x.Name, "_Cfconst_") ||
+-			strings.HasPrefix(x.Name, "_Csconst_") ||
+-			consts[x.Name]
+-	case *ast.UnaryExpr:
+-		return p.isConst(f, x.X)
+-	case *ast.BinaryExpr:
+-		return p.isConst(f, x.X) && p.isConst(f, x.Y)
+-	case *ast.ParenExpr:
+-		return p.isConst(f, x.X)
+-	case *ast.CallExpr:
+-		// Calling the builtin function complex on two untyped
+-		// constants returns an untyped constant.
+-		// TODO: It's possible to construct a case that will
+-		// erroneously succeed if there is a local function
+-		// named "complex", shadowing the builtin, that returns
+-		// a numeric type. I can't think of any cases that will
+-		// erroneously fail.
+-		if id, ok := x.Fun.(*ast.Ident); ok && id.Name == "complex" && len(x.Args) == 2 {
+-			return p.isConst(f, x.Args[0]) && p.isConst(f, x.Args[1])
+-		}
+-	}
+-	return false
+-}
+-
+ // isVariable reports whether x is a variable, possibly with field references.
+ func (p *Package) isVariable(x ast.Expr) bool {
+ 	switch x := x.(type) {
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 80435b0634..11aeee4aab 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -71,9 +71,6 @@ type File struct {
+ 	Edit     *edit.Buffer
+ }
+ 
+-// Untyped constants in the current package.
+-var consts = make(map[string]bool)
+-
+ func (f *File) offset(p token.Pos) int {
+ 	return fset.Position(p).Offset
+ }

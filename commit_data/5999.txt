@@ -7,7 +7,109 @@ Date:   Thu Aug 12 09:45:34 2010 +1000
     R=nigeltao_golang
     CC=golang-dev
     https://golang.org/cl/1941042
-
+---
  src/pkg/html/escape.go | 42 +++++++++++++++++++++++++++++++++++-------
  src/pkg/html/token.go  | 16 ++++++++++++----
  2 files changed, 47 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index f9fdf8c4d9..f30086f367 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -5,6 +5,7 @@
+ package html
+ 
+ import (
++	"bytes"
+ 	"strings"
+ 	"utf8"
+ )
+@@ -60,18 +61,45 @@ func unescape(b []byte) []byte {
+ 	return b
+ }
+ 
++const escapedChars = `&'<>"`
++
++func escape(buf *bytes.Buffer, s string) {
++	i := strings.IndexAny(s, escapedChars)
++	for i != -1 {
++		buf.WriteString(s[0:i])
++		var esc string
++		switch s[i] {
++		case '&':
++			esc = "&amp;"
++		case '\'':
++			esc = "&apos;"
++		case '<':
++			esc = "&lt;"
++		case '>':
++			esc = "&gt;"
++		case '"':
++			esc = "&quot;"
++		default:
++			panic("unrecognized escape character")
++		}
++		s = s[i+1:]
++		buf.WriteString(esc)
++		i = strings.IndexAny(s, escapedChars)
++	}
++	buf.WriteString(s)
++}
++
+ // EscapeString escapes special characters like "<" to become "&lt;". It
+ // escapes only five such characters: amp, apos, lt, gt and quot.
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func EscapeString(s string) string {
+-	// TODO(nigeltao): Do this much more efficiently.
+-	s = strings.Replace(s, `&`, `&amp;`, -1)
+-	s = strings.Replace(s, `'`, `&apos;`, -1)
+-	s = strings.Replace(s, `<`, `&lt;`, -1)
+-	s = strings.Replace(s, `>`, `&gt;`, -1)
+-	s = strings.Replace(s, `"`, `&quot;`, -1)
+-	return s
++	if strings.IndexAny(s, escapedChars) == -1 {
++		return s
++	}
++	buf := bytes.NewBuffer(nil)
++	escape(buf, s)
++	return buf.String()
+ }
+ 
+ // UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 0681af44a4..39f6700321 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -5,6 +5,7 @@
+ package html
+ 
+ import (
++	"bytes"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -68,12 +69,19 @@ type Token struct {
+ 
+ // tagString returns a string representation of a tag Token's Data and Attr.
+ func (t Token) tagString() string {
+-	// TODO(nigeltao): Don't use string concatenation; it is inefficient.
+-	s := string(t.Data)
++	if len(t.Attr) == 0 {
++		return t.Data
++	}
++	buf := bytes.NewBuffer(nil)
++	buf.WriteString(t.Data)
+ 	for _, a := range t.Attr {
+-		s += ` ` + a.Key + `="` + EscapeString(a.Val) + `"`
++		buf.WriteByte(' ')
++		buf.WriteString(a.Key)
++		buf.WriteString(`="`)
++		escape(buf, a.Val)
++		buf.WriteByte('"')
+ 	}
+-	return s
++	return buf.String()
+ }
+ 
+ // String returns a string representation of the Token.

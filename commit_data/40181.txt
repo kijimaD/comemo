@@ -14,6 +14,24 @@ Date:   Wed Apr 24 23:04:23 2019 +1000
     Change-Id: I7b2da93495d808e704caf032b3fadc984077769e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173598
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index ed116e22f6..55d5be3e43 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -103,10 +103,10 @@ func main() {
+ 			gohostarch = "amd64"
+ 		case strings.Contains(out, "86"):
+ 			gohostarch = "386"
++		case strings.Contains(out, "aarch64"), strings.Contains(out, "arm64"):
++			gohostarch = "arm64"
+ 		case strings.Contains(out, "arm"):
+ 			gohostarch = "arm"
+-		case strings.Contains(out, "aarch64"):
+-			gohostarch = "arm64"
+ 		case strings.Contains(out, "ppc64le"):
+ 			gohostarch = "ppc64le"
+ 		case strings.Contains(out, "ppc64"):

@@ -30,6 +30,20 @@ Date:   Sun Mar 1 21:29:25 2015 -0500
     Change-Id: I2d2c580d5c0252cc8471e828980aeedcab76858d
     Reviewed-on: https://go-review.googlesource.com/6430
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/traceback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 92dddfdb03..c7e3b0b474 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -361,7 +361,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.fn = f
+ 			if f == nil {
+ 				frame.pc = x
+-			} else if f.frame == 0 {
++			} else if funcspdelta(f, frame.pc) == 0 {
+ 				frame.lr = x
+ 			}
+ 		}

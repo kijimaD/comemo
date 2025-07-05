@@ -24,6 +24,20 @@ Date:   Tue Oct 18 14:00:30 2016 +0530
     Change-Id: Idac36e19192b440475aec0796faa2d2c7f8abe0b
     Reviewed-on: https://go-review.googlesource.com/31370
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/gamma.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/math/gamma.go b/src/math/gamma.go
+index 514260be05..cc9e869496 100644
+--- a/src/math/gamma.go
++++ b/src/math/gamma.go
+@@ -133,6 +133,8 @@ func Gamma(x float64) float64 {
+ 	switch {
+ 	case isNegInt(x) || IsInf(x, -1) || IsNaN(x):
+ 		return NaN()
++	case IsInf(x, 1):
++		return Inf(1)
+ 	case x == 0:
+ 		if Signbit(x) {
+ 			return Inf(-1)

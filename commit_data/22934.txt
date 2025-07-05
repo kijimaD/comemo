@@ -10,9 +10,269 @@ Date:   Tue Dec 23 15:19:30 2014 +1100
     Change-Id: I054a79b6498a634cbccce17579f52c299733c2cf
     Reviewed-on: https://go-review.googlesource.com/1996
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/reflect.go |  11 ++--
  src/reflect/all_test.go        |  61 +++++++++++++++++++++
  src/reflect/export_test.go     |  10 ++++
  src/reflect/type.go            | 122 +++++++++++++++++++++++++++++++++++++++++
  4 files changed, 199 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 77504fae2a..dd751d4017 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -852,10 +852,11 @@ func typelinksym(t *Type) *Sym {
+ 	// %-T is the complete, unambiguous type name.
+ 	// We want the types to end up sorted by string field,
+ 	// so use that first in the name, and then add :%-T to
+-	// disambiguate. The names are a little long but they are
+-	// discarded by the linker and do not end up in the symbol
+-	// table of the final binary.
+-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "/" + Tconv(t, obj.FmtLeft)
++	// disambiguate. We use a tab character as the separator to
++	// ensure the types appear sorted by their string field. The
++	// names are a little long but they are discarded by the linker
++	// and do not end up in the symbol table of the final binary.
++	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "\t" + Tconv(t, obj.FmtLeft)
+ 
+ 	s := Pkglookup(p, typelinkpkg)
+ 
+@@ -1212,7 +1213,7 @@ ok:
+ 	// we want be able to find.
+ 	if t.Sym == nil {
+ 		switch t.Etype {
+-		case TARRAY, TCHAN, TMAP:
++		case TARRAY, TCHAN, TFUNC, TMAP:
+ 			slink := typelinksym(t)
+ 			dsymptr(slink, 0, s, 0)
+ 			ggloblsym(slink, int32(Widthptr), int8(dupok|obj.RODATA))
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 2be32f31b4..8abce526d9 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3663,6 +3663,67 @@ func TestMapOfGCValues(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypelinksSorted(t *testing.T) {
++	var last string
++	for i, n := range TypeLinks() {
++		if n < last {
++			t.Errorf("typelinks not sorted: %q [%d] > %q [%d]", last, i-1, n, i)
++		}
++		last = n
++	}
++}
++
++func TestFuncOf(t *testing.T) {
++	// check construction and use of type not in binary
++	type K string
++	type V float64
++
++	fn := func(args []Value) []Value {
++		if len(args) != 1 {
++			t.Errorf("args == %v, want exactly one arg", args)
++		} else if args[0].Type() != TypeOf(K("")) {
++			t.Errorf("args[0] is type %v, want %v", args[0].Type, TypeOf(K("")))
++		} else if args[0].String() != "gopher" {
++			t.Errorf("args[0] = %q, want %q", args[0].String(), "gopher")
++		}
++		return []Value{ValueOf(V(3.14))}
++	}
++	v := MakeFunc(FuncOf([]Type{TypeOf(K(""))}, []Type{TypeOf(V(0))}, false), fn)
++
++	outs := v.Call([]Value{ValueOf(K("gopher"))})
++	if len(outs) != 1 {
++		t.Fatalf("v.Call returned %v, want exactly one result", outs)
++	} else if outs[0].Type() != TypeOf(V(0)) {
++		t.Fatalf("c.Call[0] is type %v, want %v", outs[0].Type, TypeOf(V(0)))
++	}
++	f := outs[0].Float()
++	if f != 3.14 {
++		t.Errorf("constructed func returned %f, want %f", f, 3.14)
++	}
++
++	// check that types already in binary are found
++	type T1 int
++	testCases := []struct {
++		in, out  []Type
++		variadic bool
++		want     interface{}
++	}{
++		{in: []Type{TypeOf(T1(0))}, want: (func(T1))(nil)},
++		{in: []Type{TypeOf(int(0))}, want: (func(int))(nil)},
++		{in: []Type{SliceOf(TypeOf(int(0)))}, variadic: true, want: (func(...int))(nil)},
++		{in: []Type{TypeOf(int(0))}, out: []Type{TypeOf(false)}, want: (func(int) bool)(nil)},
++		{in: []Type{TypeOf(int(0))}, out: []Type{TypeOf(false), TypeOf("")}, want: (func(int) (bool, string))(nil)},
++	}
++	for _, tt := range testCases {
++		checkSameType(t, Zero(FuncOf(tt.in, tt.out, tt.variadic)).Interface(), tt.want)
++	}
++
++	// check that variadic requires last element be a slice.
++	FuncOf([]Type{TypeOf(1), TypeOf(""), SliceOf(TypeOf(false))}, nil, true)
++	shouldPanic(func() { FuncOf([]Type{TypeOf(0), TypeOf(""), TypeOf(false)}, nil, true) })
++	shouldPanic(func() { FuncOf(nil, nil, true) })
++}
++
+ type B1 struct {
+ 	X int
+ 	Y int
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 9f06324bf8..879c2b2abe 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -44,3 +44,13 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 	ptrs = ft.kind&kindNoPointers == 0
+ 	return
+ }
++
++func TypeLinks() []string {
++	var r []string
++	for _, m := range typelinks() {
++		for _, t := range m {
++			r = append(r, *t.string)
++		}
++	}
++	return r
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 3e46ce0aaa..e51b2e7bc7 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1396,6 +1396,14 @@ func cachePut(k cacheKey, t *rtype) Type {
+ 	return t
+ }
+ 
++// The funcLookupCache caches FuncOf lookups.
++// FuncOf does not share the common lookupCache since cacheKey is not
++// sufficient to represent functions unambiguously.
++var funcLookupCache struct {
++	sync.RWMutex
++	m map[uint32][]*rtype // keyed by hash calculated in FuncOf
++}
++
+ // ChanOf returns the channel type with the given direction and element type.
+ // For example, if t represents int, ChanOf(RecvDir, t) represents <-chan int.
+ //
+@@ -1516,6 +1524,120 @@ func MapOf(key, elem Type) Type {
+ 	return cachePut(ckey, &mt.rtype)
+ }
+ 
++// FuncOf returns the function type with the given argument and result types.
++// For example if k represents int and e represents string,
++// FuncOf([]Type{k}, []Type{e}, false) represents func(int) string.
++//
++// The variadic argument controls whether the function is variadic. FuncOf
++// panics if the in[len(in)-1] does not represent a slice and variadic is
++// true.
++func FuncOf(in, out []Type, variadic bool) Type {
++	if variadic && (len(in) == 0 || in[len(in)-1].Kind() != Slice) {
++		panic("reflect.FuncOf: last arg of variadic func must be slice")
++	}
++
++	// Make a func type.
++	var ifunc interface{} = (func())(nil)
++	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
++	ft := new(funcType)
++	*ft = *prototype
++
++	// Build a hash and minimally populate ft.
++	var hash uint32
++	var fin, fout []*rtype
++	for _, in := range in {
++		t := in.(*rtype)
++		fin = append(fin, t)
++		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
++	}
++	if variadic {
++		hash = fnv1(hash, 'v')
++	}
++	hash = fnv1(hash, '.')
++	for _, out := range out {
++		t := out.(*rtype)
++		fout = append(fout, t)
++		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
++	}
++	ft.hash = hash
++	ft.in = fin
++	ft.out = fout
++	ft.dotdotdot = variadic
++
++	// Look in cache.
++	funcLookupCache.RLock()
++	for _, t := range funcLookupCache.m[hash] {
++		if haveIdenticalUnderlyingType(&ft.rtype, t) {
++			funcLookupCache.RUnlock()
++			return t
++		}
++	}
++	funcLookupCache.RUnlock()
++
++	// Not in cache, lock and retry.
++	funcLookupCache.Lock()
++	defer funcLookupCache.Unlock()
++	if funcLookupCache.m == nil {
++		funcLookupCache.m = make(map[uint32][]*rtype)
++	}
++	for _, t := range funcLookupCache.m[hash] {
++		if haveIdenticalUnderlyingType(&ft.rtype, t) {
++			return t
++		}
++	}
++
++	// Look in known types for the same string representation.
++	str := funcStr(ft)
++	for _, tt := range typesByString(str) {
++		if haveIdenticalUnderlyingType(&ft.rtype, tt) {
++			funcLookupCache.m[hash] = append(funcLookupCache.m[hash], tt)
++			return tt
++		}
++	}
++
++	// Populate the remaining fields of ft and store in cache.
++	ft.string = &str
++	ft.uncommonType = nil
++	ft.ptrToThis = nil
++	ft.zero = unsafe.Pointer(&make([]byte, ft.size)[0])
++	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
++
++	return ft
++}
++
++// funcStr builds a string representation of a funcType.
++func funcStr(ft *funcType) string {
++	repr := make([]byte, 0, 64)
++	repr = append(repr, "func("...)
++	for i, t := range ft.in {
++		if i > 0 {
++			repr = append(repr, ", "...)
++		}
++		if ft.dotdotdot && i == len(ft.in)-1 {
++			repr = append(repr, "..."...)
++			repr = append(repr, *(*sliceType)(unsafe.Pointer(t)).elem.string...)
++		} else {
++			repr = append(repr, *t.string...)
++		}
++	}
++	repr = append(repr, ')')
++	if l := len(ft.out); l == 1 {
++		repr = append(repr, ' ')
++	} else if l > 1 {
++		repr = append(repr, " ("...)
++	}
++	for i, t := range ft.out {
++		if i > 0 {
++			repr = append(repr, ", "...)
++		}
++		repr = append(repr, *t.string...)
++	}
++	if len(ft.out) > 1 {
++		repr = append(repr, ')')
++	}
++	return string(repr)
++}
++
+ // isReflexive reports whether the == operation on the type is reflexive.
+ // That is, x == x for all values x of type t.
+ func isReflexive(t *rtype) bool {

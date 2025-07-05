@@ -17,7 +17,7 @@ Date:   Tue Aug 23 10:43:47 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  25 +-
  src/cmd/compile/internal/gc/ssa.go             |   4 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  31 +--
@@ -31,3 +31,1014 @@ Date:   Tue Aug 23 10:43:47 2016 -0700
  src/runtime/internal/sys/intrinsics_test.go    |  16 --
  test/intrinsic.dir/main.go                     |  15 --
  12 files changed, 71 insertions(+), 650 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 688025753c..472b86b38a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -415,23 +415,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+-	case ssa.OpAMD64CMOVQEQconst, ssa.OpAMD64CMOVLEQconst, ssa.OpAMD64CMOVWEQconst,
+-		ssa.OpAMD64CMOVQNEconst, ssa.OpAMD64CMOVLNEconst, ssa.OpAMD64CMOVWNEconst:
++	case ssa.OpAMD64CMOVQEQ, ssa.OpAMD64CMOVLEQ:
+ 		r := gc.SSARegNum(v)
+ 		if r != gc.SSARegNum(v.Args[0]) {
+ 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+ 		}
+-
+-		// Constant into AX
+-		p := gc.Prog(moveByType(v.Type))
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
+-
+-		p = gc.Prog(v.Op.Asm())
++		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_AX
++		p.From.Reg = gc.SSARegNum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+@@ -846,9 +837,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSFW,
+-		ssa.OpAMD64BSRQ, ssa.OpAMD64BSRL, ssa.OpAMD64BSRW,
+-		ssa.OpAMD64SQRTSD:
++	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum0(v)
++	case ssa.OpAMD64SQRTSD:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[0])
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e801f2ce28..646f2e1833 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2536,7 +2536,7 @@ func isSSAIntrinsic1(s *Sym) bool {
+ 	if s != nil && s.Pkg != nil && s.Pkg.Path == "runtime/internal/sys" {
+ 		switch s.Name {
+ 		case
+-			"Ctz64", "Ctz32", "Ctz16",
++			"Ctz64", "Ctz32",
+ 			"Bswap64", "Bswap32":
+ 			return true
+ 		}
+@@ -2569,8 +2569,6 @@ func (s *state) intrinsicCall1(n *Node) *ssa.Value {
+ 		result = s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
+ 	case "Ctz32":
+ 		result = s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+-	case "Ctz16":
+-		result = s.newValue1(ssa.OpCtz16, Types[TUINT16], s.intrinsicFirstArg(n))
+ 	case "Bswap64":
+ 		result = s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
+ 	case "Bswap32":
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f676608c27..ea37f07cc3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -98,10 +98,8 @@
+ (OffPtr [off] ptr) && config.PtrSize == 4 -> (ADDLconst [off] ptr)
+ 
+ // Lowering other arithmetic
+-// TODO: CMPQconst 0 below is redundant because BSF sets Z but how to remove?
+-(Ctz64 <t> x) -> (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
+-(Ctz32 <t> x) -> (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
+-(Ctz16 <t> x) -> (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
++(Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
++(Ctz32 <t> x) -> (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
+ 
+ (Bswap64 x) -> (BSWAPQ x)
+ (Bswap32 x) -> (BSWAPL x)
+@@ -1282,31 +1280,6 @@
+ (CMPWconst x [0]) -> (TESTW x x)
+ (CMPBconst x [0]) -> (TESTB x x)
+ 
+-// Optimizing conditional moves
+-(CMOVQEQconst x (InvertFlags y) [c]) -> (CMOVQNEconst x y [c])
+-(CMOVLEQconst x (InvertFlags y) [c]) -> (CMOVLNEconst x y [c])
+-(CMOVWEQconst x (InvertFlags y) [c]) -> (CMOVWNEconst x y [c])
+-
+-(CMOVQEQconst _ (FlagEQ) [c]) -> (Const64 [c])
+-(CMOVLEQconst _ (FlagEQ) [c]) -> (Const32 [c])
+-(CMOVWEQconst _ (FlagEQ) [c]) -> (Const16 [c])
+-
+-(CMOVQEQconst x (FlagLT_ULT)) -> x
+-(CMOVLEQconst x (FlagLT_ULT)) -> x
+-(CMOVWEQconst x (FlagLT_ULT)) -> x
+-
+-(CMOVQEQconst x (FlagLT_UGT)) -> x
+-(CMOVLEQconst x (FlagLT_UGT)) -> x
+-(CMOVWEQconst x (FlagLT_UGT)) -> x
+-
+-(CMOVQEQconst x (FlagGT_ULT)) -> x
+-(CMOVLEQconst x (FlagGT_ULT)) -> x
+-(CMOVWEQconst x (FlagGT_ULT)) -> x
+-
+-(CMOVQEQconst x (FlagGT_UGT)) -> x
+-(CMOVLEQconst x (FlagGT_UGT)) -> x
+-(CMOVWEQconst x (FlagGT_UGT)) -> x
+-
+ // Combining byte loads into larger (unaligned) loads.
+ // There are many ways these combinations could occur.  This is
+ // designed to match the way encoding/binary.LittleEndian does it.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 0265963252..9359e6d027 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -122,8 +122,7 @@ func init() {
+ 		gp1flags = regInfo{inputs: []regMask{gpsp}}
+ 		flagsgp  = regInfo{inputs: nil, outputs: gponly}
+ 
+-		// for CMOVconst -- uses AX to hold constant temporary.
+-		gp1flagsgp = regInfo{inputs: []regMask{gp &^ ax}, clobbers: ax, outputs: []regMask{gp &^ ax}}
++		gp11flags = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
+ 
+ 		readflags = regInfo{inputs: nil, outputs: gponly}
+ 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
+@@ -285,21 +284,16 @@ func init() {
+ 		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true, clobberFlags: true}, // ^arg0
+ 		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, clobberFlags: true}, // ^arg0
+ 
+-		{name: "BSFQ", argLength: 1, reg: gp11, asm: "BSFQ", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
+-		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
+-		{name: "BSFW", argLength: 1, reg: gp11, asm: "BSFW", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
+-
+-		{name: "BSRQ", argLength: 1, reg: gp11, asm: "BSRQ", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+-		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+-		{name: "BSRW", argLength: 1, reg: gp11, asm: "BSRW", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
++		// BSF{L,Q} returns a tuple [result, flags]
++		// result is undefined if the input is zero.
++		// flags are set to "equal" if the input is zero, "not equal" otherwise.
++		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"}, // # of low-order zeroes in 64-bit arg
++		{name: "BSFL", argLength: 1, reg: gp11flags, asm: "BSFL", typ: "(UInt32,Flags)"}, // # of low-order zeroes in 32-bit arg
+ 
+ 		// Note ASM for ops moves whole register
+-		{name: "CMOVQEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVQEQ", typ: "UInt64", aux: "Int64", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z set
+-		{name: "CMOVLEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLEQ", typ: "UInt32", aux: "Int32", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z set
+-		{name: "CMOVWEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLEQ", typ: "UInt16", aux: "Int16", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z set
+-		{name: "CMOVQNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVQNE", typ: "UInt64", aux: "Int64", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z not set
+-		{name: "CMOVLNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLNE", typ: "UInt32", aux: "Int32", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z not set
+-		{name: "CMOVWNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLNE", typ: "UInt16", aux: "Int16", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z not set
++		//
++		{name: "CMOVQEQ", argLength: 3, reg: gp21, asm: "CMOVQEQ", resultInArg0: true}, // if arg2 encodes "equal" return arg1 else arg0
++		{name: "CMOVLEQ", argLength: 3, reg: gp21, asm: "CMOVLEQ", resultInArg0: true}, // if arg2 encodes "equal" return arg1 else arg0
+ 
+ 		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+ 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 3c4d230150..1668f6a390 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -257,14 +257,9 @@ var genericOps = []opData{
+ 	{name: "Com32", argLength: 1},
+ 	{name: "Com64", argLength: 1},
+ 
+-	{name: "Ctz16", argLength: 1}, // Count trailing (low  order) zeroes (returns 0-16)
+-	{name: "Ctz32", argLength: 1}, // Count trailing zeroes (returns 0-32)
++	{name: "Ctz32", argLength: 1}, // Count trailing (low  order) zeroes (returns 0-32)
+ 	{name: "Ctz64", argLength: 1}, // Count trailing zeroes (returns 0-64)
+ 
+-	{name: "Clz16", argLength: 1}, // Count leading (high order) zeroes (returns 0-16)
+-	{name: "Clz32", argLength: 1}, // Count leading zeroes (returns 0-32)
+-	{name: "Clz64", argLength: 1}, // Count leading zeroes (returns 0-64)
+-
+ 	{name: "Bswap32", argLength: 1}, // Swap bytes
+ 	{name: "Bswap64", argLength: 1}, // Swap bytes
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a5d41abb4f..80b5d72dce 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -479,16 +479,8 @@ const (
+ 	OpAMD64NOTL
+ 	OpAMD64BSFQ
+ 	OpAMD64BSFL
+-	OpAMD64BSFW
+-	OpAMD64BSRQ
+-	OpAMD64BSRL
+-	OpAMD64BSRW
+-	OpAMD64CMOVQEQconst
+-	OpAMD64CMOVLEQconst
+-	OpAMD64CMOVWEQconst
+-	OpAMD64CMOVQNEconst
+-	OpAMD64CMOVLNEconst
+-	OpAMD64CMOVWNEconst
++	OpAMD64CMOVQEQ
++	OpAMD64CMOVLEQ
+ 	OpAMD64BSWAPQ
+ 	OpAMD64BSWAPL
+ 	OpAMD64SQRTSD
+@@ -1378,12 +1370,8 @@ const (
+ 	OpCom16
+ 	OpCom32
+ 	OpCom64
+-	OpCtz16
+ 	OpCtz32
+ 	OpCtz64
+-	OpClz16
+-	OpClz32
+-	OpClz64
+ 	OpBswap32
+ 	OpBswap64
+ 	OpSqrt
+@@ -5487,188 +5475,60 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "BSFQ",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABSFQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			outputs: []outputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "BSFL",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABSFL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			outputs: []outputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "BSFW",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABSFW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			outputs: []outputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "BSRQ",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABSRQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			outputs: []outputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "BSRL",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABSRL,
++		name:   "BSFQ",
++		argLen: 1,
++		asm:    x86.ABSFQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
++				{1, 0},
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:         "BSRW",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABSRW,
++		name:   "BSFL",
++		argLen: 1,
++		asm:    x86.ABSFL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
++				{1, 0},
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:         "CMOVQEQconst",
+-		auxType:      auxInt64,
+-		argLen:       2,
++		name:         "CMOVQEQ",
++		argLen:       3,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ACMOVQEQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "CMOVLEQconst",
+-		auxType:      auxInt32,
+-		argLen:       2,
+-		resultInArg0: true,
+-		clobberFlags: true,
+-		asm:          x86.ACMOVLEQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:         "CMOVWEQconst",
+-		auxType:      auxInt16,
+-		argLen:       2,
++		name:         "CMOVLEQ",
++		argLen:       3,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ACMOVLEQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "CMOVQNEconst",
+-		auxType:      auxInt64,
+-		argLen:       2,
+-		resultInArg0: true,
+-		clobberFlags: true,
+-		asm:          x86.ACMOVQNE,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "CMOVLNEconst",
+-		auxType:      auxInt32,
+-		argLen:       2,
+-		resultInArg0: true,
+-		clobberFlags: true,
+-		asm:          x86.ACMOVLNE,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 1, // AX
+ 			outputs: []outputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "CMOVWNEconst",
+-		auxType:      auxInt16,
+-		argLen:       2,
+-		resultInArg0: true,
+-		clobberFlags: true,
+-		asm:          x86.ACMOVLNE,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 1, // AX
+-			outputs: []outputInfo{
+-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+ 	},
+@@ -15637,11 +15497,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+-	{
+-		name:    "Ctz16",
+-		argLen:  1,
+-		generic: true,
+-	},
+ 	{
+ 		name:    "Ctz32",
+ 		argLen:  1,
+@@ -15652,21 +15507,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+-	{
+-		name:    "Clz16",
+-		argLen:  1,
+-		generic: true,
+-	},
+-	{
+-		name:    "Clz32",
+-		argLen:  1,
+-		generic: true,
+-	},
+-	{
+-		name:    "Clz64",
+-		argLen:  1,
+-		generic: true,
+-	},
+ 	{
+ 		name:    "Bswap32",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ace66bcda4..6c479bf91f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -24,12 +24,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64ANDQ(v, config)
+ 	case OpAMD64ANDQconst:
+ 		return rewriteValueAMD64_OpAMD64ANDQconst(v, config)
+-	case OpAMD64CMOVLEQconst:
+-		return rewriteValueAMD64_OpAMD64CMOVLEQconst(v, config)
+-	case OpAMD64CMOVQEQconst:
+-		return rewriteValueAMD64_OpAMD64CMOVQEQconst(v, config)
+-	case OpAMD64CMOVWEQconst:
+-		return rewriteValueAMD64_OpAMD64CMOVWEQconst(v, config)
+ 	case OpAMD64CMPB:
+ 		return rewriteValueAMD64_OpAMD64CMPB(v, config)
+ 	case OpAMD64CMPBconst:
+@@ -330,8 +324,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpConstNil(v, config)
+ 	case OpConvert:
+ 		return rewriteValueAMD64_OpConvert(v, config)
+-	case OpCtz16:
+-		return rewriteValueAMD64_OpCtz16(v, config)
+ 	case OpCtz32:
+ 		return rewriteValueAMD64_OpCtz32(v, config)
+ 	case OpCtz64:
+@@ -1556,279 +1548,6 @@ func rewriteValueAMD64_OpAMD64ANDQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueAMD64_OpAMD64CMOVLEQconst(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (CMOVLEQconst x (InvertFlags y) [c])
+-	// cond:
+-	// result: (CMOVLNEconst x y [c])
+-	for {
+-		c := v.AuxInt
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64InvertFlags {
+-			break
+-		}
+-		y := v_1.Args[0]
+-		v.reset(OpAMD64CMOVLNEconst)
+-		v.AuxInt = c
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-	// match: (CMOVLEQconst _ (FlagEQ) [c])
+-	// cond:
+-	// result: (Const32 [c])
+-	for {
+-		c := v.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagEQ {
+-			break
+-		}
+-		v.reset(OpConst32)
+-		v.AuxInt = c
+-		return true
+-	}
+-	// match: (CMOVLEQconst x (FlagLT_ULT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVLEQconst x (FlagLT_UGT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVLEQconst x (FlagGT_ULT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVLEQconst x (FlagGT_UGT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64CMOVQEQconst(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (CMOVQEQconst x (InvertFlags y) [c])
+-	// cond:
+-	// result: (CMOVQNEconst x y [c])
+-	for {
+-		c := v.AuxInt
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64InvertFlags {
+-			break
+-		}
+-		y := v_1.Args[0]
+-		v.reset(OpAMD64CMOVQNEconst)
+-		v.AuxInt = c
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-	// match: (CMOVQEQconst _ (FlagEQ) [c])
+-	// cond:
+-	// result: (Const64 [c])
+-	for {
+-		c := v.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagEQ {
+-			break
+-		}
+-		v.reset(OpConst64)
+-		v.AuxInt = c
+-		return true
+-	}
+-	// match: (CMOVQEQconst x (FlagLT_ULT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVQEQconst x (FlagLT_UGT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVQEQconst x (FlagGT_ULT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVQEQconst x (FlagGT_UGT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64CMOVWEQconst(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (CMOVWEQconst x (InvertFlags y) [c])
+-	// cond:
+-	// result: (CMOVWNEconst x y [c])
+-	for {
+-		c := v.AuxInt
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64InvertFlags {
+-			break
+-		}
+-		y := v_1.Args[0]
+-		v.reset(OpAMD64CMOVWNEconst)
+-		v.AuxInt = c
+-		v.AddArg(x)
+-		v.AddArg(y)
+-		return true
+-	}
+-	// match: (CMOVWEQconst _ (FlagEQ) [c])
+-	// cond:
+-	// result: (Const16 [c])
+-	for {
+-		c := v.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagEQ {
+-			break
+-		}
+-		v.reset(OpConst16)
+-		v.AuxInt = c
+-		return true
+-	}
+-	// match: (CMOVWEQconst x (FlagLT_ULT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagLT_ULT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVWEQconst x (FlagLT_UGT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagLT_UGT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVWEQconst x (FlagGT_ULT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagGT_ULT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (CMOVWEQconst x (FlagGT_UGT))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64FlagGT_UGT {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueAMD64_OpAMD64CMPB(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13633,45 +13352,29 @@ func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueAMD64_OpCtz16(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (Ctz16 <t> x)
+-	// cond:
+-	// result: (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
+-	for {
+-		t := v.Type
+-		x := v.Args[0]
+-		v.reset(OpAMD64CMOVWEQconst)
+-		v.AuxInt = 16
+-		v0 := b.NewValue0(v.Line, OpAMD64BSFW, t)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeFlags)
+-		v1.AuxInt = 0
+-		v1.AddArg(x)
+-		v.AddArg(v1)
+-		return true
+-	}
+-}
+ func rewriteValueAMD64_OpCtz32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Ctz32 <t> x)
+ 	// cond:
+-	// result: (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
++	// result: (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpAMD64CMOVLEQconst)
+-		v.AuxInt = 32
+-		v0 := b.NewValue0(v.Line, OpAMD64BSFL, t)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeFlags)
+-		v1.AuxInt = 0
++		v.reset(OpAMD64CMOVLEQ)
++		v0 := b.NewValue0(v.Line, OpSelect0, t)
++		v1 := b.NewValue0(v.Line, OpAMD64BSFL, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
+ 		v1.AddArg(x)
+-		v.AddArg(v1)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpAMD64MOVLconst, t)
++		v2.AuxInt = 32
++		v.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSelect1, TypeFlags)
++		v4 := b.NewValue0(v.Line, OpAMD64BSFL, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v.AddArg(v3)
+ 		return true
+ 	}
+ }
+@@ -13680,19 +13383,24 @@ func rewriteValueAMD64_OpCtz64(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Ctz64 <t> x)
+ 	// cond:
+-	// result: (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
++	// result: (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpAMD64CMOVQEQconst)
+-		v.AuxInt = 64
+-		v0 := b.NewValue0(v.Line, OpAMD64BSFQ, t)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeFlags)
+-		v1.AuxInt = 0
++		v.reset(OpAMD64CMOVQEQ)
++		v0 := b.NewValue0(v.Line, OpSelect0, t)
++		v1 := b.NewValue0(v.Line, OpAMD64BSFQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
+ 		v1.AddArg(x)
+-		v.AddArg(v1)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpAMD64MOVQconst, t)
++		v2.AuxInt = 64
++		v.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSelect1, TypeFlags)
++		v4 := b.NewValue0(v.Line, OpAMD64BSFQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v.AddArg(v3)
+ 		return true
+ 	}
+ }
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/runtime/internal/sys/intrinsics.go
+index 08a062f85a..db2cbecc0e 100644
+--- a/src/runtime/internal/sys/intrinsics.go
++++ b/src/runtime/internal/sys/intrinsics.go
+@@ -30,19 +30,6 @@ var deBruijnIdx32 = [32]byte{
+ 	30, 9, 19, 24, 29, 18, 28, 27,
+ }
+ 
+-const deBruijn16 = 0x09af
+-
+-var deBruijnIdx16 = [16]byte{
+-	0, 1, 2, 5, 3, 9, 6, 11,
+-	15, 4, 8, 10, 14, 7, 13, 12,
+-}
+-
+-const deBruijn8 = 0x17
+-
+-var deBruijnIdx8 = [8]byte{
+-	0, 1, 2, 4, 7, 3, 6, 5,
+-}
+-
+ // Ctz64 counts trailing (low-order) zeroes,
+ // and if all are zero, then 64.
+ func Ctz64(x uint64) uint64 {
+@@ -63,26 +50,6 @@ func Ctz32(x uint32) uint32 {
+ 	return y + z
+ }
+ 
+-// Ctz16 counts trailing (low-order) zeroes,
+-// and if all are zero, then 16.
+-func Ctz16(x uint16) uint16 {
+-	x &= -x                      // isolate low-order bit
+-	y := x * deBruijn16 >> 12    // extract part of deBruijn sequence
+-	y = uint16(deBruijnIdx16[y]) // convert to bit index
+-	z := (x - 1) >> 11 & 16      // adjustment if zero
+-	return y + z
+-}
+-
+-// Ctz8 counts trailing (low-order) zeroes,
+-// and if all are zero, then 8.
+-func Ctz8(x uint8) uint8 {
+-	x &= -x                    // isolate low-order bit
+-	y := x * deBruijn8 >> 5    // extract part of deBruijn sequence
+-	y = uint8(deBruijnIdx8[y]) // convert to bit index
+-	z := (x - 1) >> 4 & 8      // adjustment if zero
+-	return y + z
+-}
+-
+ // Bswap64 returns its input with byte order reversed
+ // 0x0102030405060708 -> 0x0807060504030201
+ func Bswap64(x uint64) uint64 {
+diff --git a/src/runtime/internal/sys/intrinsics_386.s b/src/runtime/internal/sys/intrinsics_386.s
+index 1f48e26492..bc63e5ebdf 100644
+--- a/src/runtime/internal/sys/intrinsics_386.s
++++ b/src/runtime/internal/sys/intrinsics_386.s
+@@ -36,22 +36,6 @@ TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕sys·Ctz16(SB), NOSPLIT, $0-6
+-	MOVW	x+0(FP), AX
+-	BSFW	AX, AX
+-	JNZ	2(PC)
+-	MOVW	$16, AX
+-	MOVW	AX, ret+4(FP)
+-	RET
+-
+-TEXT runtime∕internal∕sys·Ctz8(SB), NOSPLIT, $0-5
+-	MOVBLZX	x+0(FP), AX
+-	BSFL	AX, AX
+-	JNZ	2(PC)
+-	MOVB	$8, AX
+-	MOVB	AX, ret+4(FP)
+-	RET
+-
+ TEXT runtime∕internal∕sys·Bswap64(SB), NOSPLIT, $0-16
+ 	MOVL	x_lo+0(FP), AX
+ 	MOVL	x_hi+4(FP), BX
+diff --git a/src/runtime/internal/sys/intrinsics_stubs.go b/src/runtime/internal/sys/intrinsics_stubs.go
+index 079844fda4..d351048f86 100644
+--- a/src/runtime/internal/sys/intrinsics_stubs.go
++++ b/src/runtime/internal/sys/intrinsics_stubs.go
+@@ -8,7 +8,5 @@ package sys
+ 
+ func Ctz64(x uint64) uint64
+ func Ctz32(x uint32) uint32
+-func Ctz16(x uint16) uint16
+-func Ctz8(x uint8) uint8
+ func Bswap64(x uint64) uint64
+ func Bswap32(x uint32) uint32
+diff --git a/src/runtime/internal/sys/intrinsics_test.go b/src/runtime/internal/sys/intrinsics_test.go
+index 097631bc1e..1f2c8daa96 100644
+--- a/src/runtime/internal/sys/intrinsics_test.go
++++ b/src/runtime/internal/sys/intrinsics_test.go
+@@ -21,22 +21,6 @@ func TestCtz32(t *testing.T) {
+ 		}
+ 	}
+ }
+-func TestCtz16(t *testing.T) {
+-	for i := uint(0); i <= 16; i++ {
+-		x := uint16(5) << i
+-		if got := sys.Ctz16(x); got != uint16(i) {
+-			t.Errorf("Ctz16(%d)=%d, want %d", x, got, i)
+-		}
+-	}
+-}
+-func TestCtz8(t *testing.T) {
+-	for i := uint(0); i <= 8; i++ {
+-		x := uint8(5) << i
+-		if got := sys.Ctz8(x); got != uint8(i) {
+-			t.Errorf("Ctz8(%d)=%d, want %d", x, got, i)
+-		}
+-	}
+-}
+ 
+ func TestBswap64(t *testing.T) {
+ 	x := uint64(0x1122334455667788)
+diff --git a/test/intrinsic.dir/main.go b/test/intrinsic.dir/main.go
+index 46e6cb3283..e0c11d0907 100644
+--- a/test/intrinsic.dir/main.go
++++ b/test/intrinsic.dir/main.go
+@@ -45,18 +45,6 @@ func test(i, x uint64) {
+ 			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
+ 		}
+ 	}
+-	if i <= 16 {
+-		x16 := uint16(x)
+-		t16 := T.Ctz16(x16) // ERROR "intrinsic substitution for Ctz16"
+-		if uint16(i) != t16 {
+-			logf("Ctz16(0x%x) expected %d but got %d\n", x16, i, t16)
+-		}
+-		x16 = -x16
+-		t16 = T.Ctz16(x16) // ERROR "intrinsic substitution for Ctz16"
+-		if uint16(i) != t16 {
+-			logf("Ctz16(0x%x) expected %d but got %d\n", x16, i, t16)
+-		}
+-	}
+ }
+ 
+ func main() {
+@@ -88,9 +76,6 @@ func main() {
+ 	}
+ 
+ 	// Zero is a special case, be sure it is done right.
+-	if T.Ctz16(0) != 16 { // ERROR "intrinsic substitution for Ctz16"
+-		logf("ctz16(0) != 16")
+-	}
+ 	if T.Ctz32(0) != 32 { // ERROR "intrinsic substitution for Ctz32"
+ 		logf("ctz32(0) != 32")
+ 	}

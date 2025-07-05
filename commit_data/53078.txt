@@ -13,7 +13,45 @@ Date:   Wed Jun 29 02:05:21 2022 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 14 ++++++++------
  test/run.go                               |  1 -
  2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index cf2f0b38db..796a740528 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1654,12 +1654,14 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
+ 				se := call.X.(*ir.SelectorExpr)
+ 				if se.X.Type().IsShape() {
+ 					// This is a method call enabled by a type bound.
+-
+-					// We need this extra check for method expressions,
+-					// which don't add in the implicit XDOTs.
+-					tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
+-					tmpse = typecheck.AddImplicitDots(tmpse)
+-					tparam := tmpse.X.Type()
++					tparam := se.X.Type()
++					if call.X.Op() == ir.ODOTMETH {
++						// We need this extra check for method expressions,
++						// which don't add in the implicit XDOTs.
++						tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
++						tmpse = typecheck.AddImplicitDots(tmpse)
++						tparam = tmpse.X.Type()
++					}
+ 					if !tparam.IsShape() {
+ 						// The method expression is not
+ 						// really on a typeparam.
+diff --git a/test/run.go b/test/run.go
+index 8934e23b38..cb1622ccc9 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1966,7 +1966,6 @@ var types2Failures32Bit = setOf(
+ var go118Failures = setOf(
+ 	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
+ 	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
+-	"typeparam/issue53419.go", // 1.18 compiler mishandles generic selector resolution
+ )
+ 
+ // In all of these cases, the 1.17 compiler reports reasonable errors, but either the

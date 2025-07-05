@@ -27,8 +27,164 @@ Date:   Thu Apr 30 21:24:25 2020 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/verify.go      | 24 ++++++++++++++----------
  src/crypto/x509/verify_test.go | 39 ++++++++++++++++++++++-----------------
  src/crypto/x509/x509_test.go   |  8 ++++----
  3 files changed, 40 insertions(+), 31 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index e8886c14c7..a9516fc375 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -110,11 +110,11 @@ func (h HostnameError) Error() string {
+ 	c := h.Certificate
+ 
+ 	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+-		if !ignoreCN && !validHostname(c.Subject.CommonName) {
++		if !ignoreCN && !validHostnamePattern(c.Subject.CommonName) {
+ 			// This would have validated, if it weren't for the validHostname check on Common Name.
+ 			return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
+ 		}
+-		if ignoreCN && validHostname(c.Subject.CommonName) {
++		if ignoreCN && validHostnamePattern(c.Subject.CommonName) {
+ 			// This would have validated if x509ignoreCN=0 were set.
+ 			return "x509: certificate relies on legacy Common Name field, " +
+ 				"use SANs or temporarily enable Common Name matching with GODEBUG=x509ignoreCN=0"
+@@ -902,12 +902,16 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
+ 	return
+ }
+ 
++func validHostnamePattern(host string) bool { return validHostname(host, true) }
++func validHostnameInput(host string) bool   { return validHostname(host, false) }
++
+ // validHostname reports whether host is a valid hostname that can be matched or
+ // matched against according to RFC 6125 2.2, with some leniency to accommodate
+ // legacy values.
+-func validHostname(host string) bool {
+-	host = strings.TrimSuffix(host, ".")
+-
++func validHostname(host string, isPattern bool) bool {
++	if !isPattern {
++		host = strings.TrimSuffix(host, ".")
++	}
+ 	if len(host) == 0 {
+ 		return false
+ 	}
+@@ -917,7 +921,7 @@ func validHostname(host string) bool {
+ 			// Empty label.
+ 			return false
+ 		}
+-		if i == 0 && part == "*" {
++		if isPattern && i == 0 && part == "*" {
+ 			// Only allow full left-most wildcards, as those are the only ones
+ 			// we match, and matching literal '*' characters is probably never
+ 			// the expected behavior.
+@@ -957,7 +961,7 @@ func validHostname(host string) bool {
+ // constraints if there is no risk the CN would be matched as a hostname.
+ // See NameConstraintsWithoutSANs and issue 24151.
+ func (c *Certificate) commonNameAsHostname() bool {
+-	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
++	return !ignoreCN && !c.hasSANExtension() && validHostnamePattern(c.Subject.CommonName)
+ }
+ 
+ func matchExactly(hostA, hostB string) bool {
+@@ -968,7 +972,7 @@ func matchExactly(hostA, hostB string) bool {
+ }
+ 
+ func matchHostnames(pattern, host string) bool {
+-	pattern = toLowerCaseASCII(strings.TrimSuffix(pattern, "."))
++	pattern = toLowerCaseASCII(pattern)
+ 	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
+ 
+ 	if len(pattern) == 0 || len(host) == 0 {
+@@ -1061,7 +1065,7 @@ func (c *Certificate) VerifyHostname(h string) error {
+ 	}
+ 
+ 	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
+-	validCandidateName := validHostname(candidateName)
++	validCandidateName := validHostnameInput(candidateName)
+ 
+ 	for _, match := range names {
+ 		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+@@ -1069,7 +1073,7 @@ func (c *Certificate) VerifyHostname(h string) error {
+ 		// array of contexts and can't even assume DNS resolution. Instead,
+ 		// always allow perfect matches, and only apply wildcard and trailing
+ 		// dot processing to valid hostnames.
+-		if validCandidateName && validHostname(match) {
++		if validCandidateName && validHostnamePattern(match) {
+ 			if matchHostnames(match, candidateName) {
+ 				return nil
+ 			}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 8a9036a3d0..18271540c7 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -1987,26 +1987,31 @@ CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
+ 
+ func TestValidHostname(t *testing.T) {
+ 	tests := []struct {
+-		host string
+-		want bool
++		host                     string
++		validInput, validPattern bool
+ 	}{
+-		{"example.com", true},
+-		{"eXample123-.com", true},
+-		{"-eXample123-.com", false},
+-		{"", false},
+-		{".", false},
+-		{"example..com", false},
+-		{".example.com", false},
+-		{"*.example.com", true},
+-		{"*foo.example.com", false},
+-		{"foo.*.example.com", false},
+-		{"exa_mple.com", true},
+-		{"foo,bar", false},
+-		{"project-dev:us-central1:main", true},
++		{host: "example.com", validInput: true, validPattern: true},
++		{host: "eXample123-.com", validInput: true, validPattern: true},
++		{host: "-eXample123-.com"},
++		{host: ""},
++		{host: "."},
++		{host: "example..com"},
++		{host: ".example.com"},
++		{host: "example.com.", validInput: true},
++		{host: "*.example.com."},
++		{host: "*.example.com", validPattern: true},
++		{host: "*foo.example.com"},
++		{host: "foo.*.example.com"},
++		{host: "exa_mple.com", validInput: true, validPattern: true},
++		{host: "foo,bar"},
++		{host: "project-dev:us-central1:main", validInput: true, validPattern: true},
+ 	}
+ 	for _, tt := range tests {
+-		if got := validHostname(tt.host); got != tt.want {
+-			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
++		if got := validHostnamePattern(tt.host); got != tt.validPattern {
++			t.Errorf("validHostnamePattern(%q) = %v, want %v", tt.host, got, tt.validPattern)
++		}
++		if got := validHostnameInput(tt.host); got != tt.validInput {
++			t.Errorf("validHostnameInput(%q) = %v, want %v", tt.host, got, tt.validInput)
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index f29e322bb4..d69c8ba72e 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -369,10 +369,10 @@ var matchHostnamesTests = []matchHostnamesTest{
+ 	{".", "", false},
+ 	{".", ".", false},
+ 	{"example.com", "example.com.", true},
+-	{"example.com.", "example.com", true},
+-	{"example.com.", "example.com.", true},
+-	{"*.com.", "example.com.", true},
+-	{"*.com.", "example.com", true},
++	{"example.com.", "example.com", false},
++	{"example.com.", "example.com.", true}, // perfect matches allow trailing dots in patterns
++	{"*.com.", "example.com.", false},
++	{"*.com.", "example.com", false},
+ 	{"*.com", "example.com", true},
+ 	{"*.com", "example.com.", true},
+ 	{"foo:bar", "foo:bar", true},

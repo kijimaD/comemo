@@ -15,7 +15,7 @@ Date:   Sat Sep 2 12:05:35 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/host/host.go | 17 +++++++++++++++++
  misc/cgo/testplugin/test.bash        |  1 +
  src/plugin/plugin.go                 |  1 +
@@ -23,3 +23,219 @@ Date:   Sat Sep 2 12:05:35 2017 -0400
  src/runtime/plugin.go                | 24 ++++++++++++++++--------
  src/runtime/symtab.go                |  9 +++++++--
  6 files changed, 58 insertions(+), 20 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/src/host/host.go
+index bba9a62166..0ca17da3de 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/src/host/host.go
+@@ -136,6 +136,14 @@ func main() {
+ 		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
+ 	}
+ 
++	_, err = plugin.Open("plugin2-dup.so")
++	if err == nil {
++		log.Fatal(`plugin.Open("plugin2-dup.so"): duplicate open should have failed`)
++	}
++	if s := err.Error(); !strings.Contains(s, "already loaded") {
++		log.Fatal(`plugin.Open("plugin2.so"): error does not mention "already loaded"`)
++	}
++
+ 	_, err = plugin.Open("plugin-mismatch.so")
+ 	if err == nil {
+ 		log.Fatal(`plugin.Open("plugin-mismatch.so"): should have failed`)
+@@ -144,6 +152,15 @@ func main() {
+ 		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
+ 	}
+ 
++	_, err = plugin.Open("plugin2-dup.so")
++	if err == nil {
++		log.Fatal(`plugin.Open("plugin2-dup.so"): duplicate open after bad plugin should have failed`)
++	}
++	_, err = plugin.Open("plugin2.so")
++	if err != nil {
++		log.Fatalf(`plugin.Open("plugin2.so"): second open with same name failed: %v`, err)
++	}
++
+ 	// Test that unexported types with the same names in
+ 	// different plugins do not interfere with each other.
+ 	//
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 7e982c8961..f64be9b0ff 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -25,6 +25,7 @@ mkdir sub
+ 
+ GOPATH=$(pwd) go build -buildmode=plugin plugin1
+ GOPATH=$(pwd) go build -buildmode=plugin plugin2
++cp plugin2.so plugin2-dup.so
+ GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
+ GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+ GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed1.so unnamed1/main.go
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index c774465812..c37b65fd82 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -20,6 +20,7 @@ package plugin
+ // Plugin is a loaded Go plugin.
+ type Plugin struct {
+ 	pluginpath string
++	err        string        // set if plugin failed to load
+ 	loaded     chan struct{} // closed when loaded
+ 	syms       map[string]interface{}
+ }
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index ce66c036c9..37380989d7 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -87,7 +87,7 @@ func open(name string) (*Plugin, error) {
+ 	if C.realpath(
+ 		(*C.char)(unsafe.Pointer(&cRelName[0])),
+ 		(*C.char)(unsafe.Pointer(&cPath[0]))) == nil {
+-		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
++		return nil, errors.New(`plugin.Open("` + name + `"): realpath failed`)
+ 	}
+ 
+ 	filepath := C.GoString((*C.char)(unsafe.Pointer(&cPath[0])))
+@@ -95,6 +95,9 @@ func open(name string) (*Plugin, error) {
+ 	pluginsMu.Lock()
+ 	if p := plugins[filepath]; p != nil {
+ 		pluginsMu.Unlock()
++		if p.err != "" {
++			return nil, errors.New(`plugin.Open("` + name + `"): ` + p.err + ` (previous failure)`)
++		}
+ 		<-p.loaded
+ 		return p, nil
+ 	}
+@@ -102,22 +105,25 @@ func open(name string) (*Plugin, error) {
+ 	h := C.pluginOpen((*C.char)(unsafe.Pointer(&cPath[0])), &cErr)
+ 	if h == 0 {
+ 		pluginsMu.Unlock()
+-		return nil, errors.New("plugin.Open: " + C.GoString(cErr))
++		return nil, errors.New(`plugin.Open("` + name + `"): ` + C.GoString(cErr))
+ 	}
+ 	// TODO(crawshaw): look for plugin note, confirm it is a Go plugin
+ 	// and it was built with the correct toolchain.
+ 	if len(name) > 3 && name[len(name)-3:] == ".so" {
+ 		name = name[:len(name)-3]
+ 	}
+-
+-	pluginpath, syms, mismatchpkg := lastmoduleinit()
+-	if mismatchpkg != "" {
+-		pluginsMu.Unlock()
+-		return nil, errors.New("plugin.Open: plugin was built with a different version of package " + mismatchpkg)
+-	}
+ 	if plugins == nil {
+ 		plugins = make(map[string]*Plugin)
+ 	}
++	pluginpath, syms, errstr := lastmoduleinit()
++	if errstr != "" {
++		plugins[filepath] = &Plugin{
++			pluginpath: pluginpath,
++			err:        errstr,
++		}
++		pluginsMu.Unlock()
++		return nil, errors.New(`plugin.Open("` + name + `"): ` + errstr)
++	}
+ 	// This function can be called from the init function of a plugin.
+ 	// Drop a placeholder in the map so subsequent opens can wait on it.
+ 	p := &Plugin{
+@@ -153,7 +159,7 @@ func open(name string) (*Plugin, error) {
+ 
+ 		p := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&cname[0])), &cErr)
+ 		if p == nil {
+-			return nil, errors.New("plugin.Open: could not find symbol " + symName + ": " + C.GoString(cErr))
++			return nil, errors.New(`plugin.Open("` + name + `"): could not find symbol ` + symName + `: ` + C.GoString(cErr))
+ 		}
+ 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&sym))
+ 		if isFunc {
+@@ -184,4 +190,4 @@ var (
+ )
+ 
+ // lastmoduleinit is defined in package runtime
+-func lastmoduleinit() (pluginpath string, syms map[string]interface{}, mismatchpkg string)
++func lastmoduleinit() (pluginpath string, syms map[string]interface{}, errstr string)
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index caecba67f8..5e05be71ec 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -7,22 +7,29 @@ package runtime
+ import "unsafe"
+ 
+ //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
+-func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatchpkg string) {
+-	md := firstmoduledata.next
++func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr string) {
++	var md *moduledata
++	for pmd := firstmoduledata.next; pmd != nil; pmd = pmd.next {
++		if pmd.bad {
++			md = nil // we only want the last module
++			continue
++		}
++		md = pmd
++	}
+ 	if md == nil {
+ 		throw("runtime: no plugin module data")
+ 	}
+-	for md.next != nil {
+-		md = md.next
++	if md.pluginpath == "" {
++		throw("runtime: plugin has empty pluginpath")
+ 	}
+ 	if md.typemap != nil {
+-		throw("runtime: plugin already initialized")
++		return "", nil, "plugin already loaded"
+ 	}
+ 
+ 	for _, pmd := range activeModules() {
+ 		if pmd.pluginpath == md.pluginpath {
+-			println("plugin: plugin", md.pluginpath, "already loaded")
+-			throw("plugin: plugin already loaded")
++			md.bad = true
++			return "", nil, "plugin already loaded"
+ 		}
+ 
+ 		if inRange(pmd.text, pmd.etext, md.text, md.etext) ||
+@@ -43,7 +50,8 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
+ 	}
+ 	for _, pkghash := range md.pkghashes {
+ 		if pkghash.linktimehash != *pkghash.runtimehash {
+-			return "", nil, pkghash.modulename
++			md.bad = true
++			return "", nil, "plugin was built with a different version of package " + pkghash.modulename
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index e1b41ca4ff..4a68f4eaa0 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -338,8 +338,8 @@ const (
+ // moduledata records information about the layout of the executable
+ // image. It is written by the linker. Any changes here must be
+ // matched changes to the code in cmd/internal/ld/symtab.go:symtab.
+-// moduledata is stored in read-only memory; none of the pointers here
+-// are visible to the garbage collector.
++// moduledata is stored in statically allocated non-pointer memory;
++// none of the pointers here are visible to the garbage collector.
+ type moduledata struct {
+ 	pclntable    []byte
+ 	ftab         []functab
+@@ -371,6 +371,8 @@ type moduledata struct {
+ 
+ 	typemap map[typeOff]*_type // offset to *_rtype in previous module
+ 
++	bad bool // module failed to load and should be ignored
++
+ 	next *moduledata
+ }
+ 
+@@ -443,6 +445,9 @@ func activeModules() []*moduledata {
+ func modulesinit() {
+ 	modules := new([]*moduledata)
+ 	for md := &firstmoduledata; md != nil; md = md.next {
++		if md.bad {
++			continue
++		}
+ 		*modules = append(*modules, md)
+ 		if md.gcdatamask == (bitvector{}) {
+ 			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)

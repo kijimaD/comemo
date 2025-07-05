@@ -11,6 +11,20 @@ Date:   Thu Jul 9 15:06:15 2015 +1000
     Change-Id: I85d1b46744a9a4524e7949e452cdebb53afe0740
     Reviewed-on: https://go-review.googlesource.com/11959
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 14b1938994..782e839565 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -360,7 +360,7 @@ Perhaps more important is that on machines where
+ for a numbered register,
+ such as <code>R13</code> for the stack pointer and
+ <code>R15</code> for the hardware program counter
+-on x86,
++on ARM,
+ a reference to such a register that does not include a symbol
+ is now illegal.
+ For example, <code>SP</code> and <code>4(SP)</code> are

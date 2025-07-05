@@ -12,6 +12,17 @@ Date:   Fri Jul 23 20:14:14 2021 +0200
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Ian Lance Taylor <iant@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  .github/SUPPORT.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/SUPPORT.md b/.github/SUPPORT.md
+index 23fec84fb6..2ec957a52b 100644
+--- a/.github/SUPPORT.md
++++ b/.github/SUPPORT.md
+@@ -11,4 +11,4 @@ For asking questions, see:
+ 
+ * [Stack Overflow](https://stackoverflow.com/questions/tagged/go) with questions tagged "go"
+ 
+-* **IRC** channel #go-nuts on Freenode
++* **IRC** channel #go-nuts on Libera

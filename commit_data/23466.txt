@@ -9,7 +9,87 @@ Date:   Thu May 14 16:47:53 2015 -0700
     Change-Id: Ie9e5149983518ba8d56ddd82ac8f4cde6b644167
     Reviewed-on: https://go-review.googlesource.com/10089
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/parser/parser.go     | 21 ++++++++++++---------
  src/go/parser/short_test.go |  5 +++--
  2 files changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 0095d7facf..fb6ca76a77 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -412,14 +412,17 @@ func (p *parser) expectSemi() {
+ 	}
+ }
+ 
+-func (p *parser) atComma(context string) bool {
++func (p *parser) atComma(context string, follow token.Token) bool {
+ 	if p.tok == token.COMMA {
+ 		return true
+ 	}
+-	if p.tok == token.SEMICOLON && p.lit == "\n" {
+-		p.error(p.pos, "missing ',' before newline in "+context)
+-		return true // "insert" the comma and continue
+-
++	if p.tok != follow {
++		msg := "missing ','"
++		if p.tok == token.SEMICOLON && p.lit == "\n" {
++			msg += " before newline"
++		}
++		p.error(p.pos, msg+" in "+context)
++		return true // "insert" comma and continue
+ 	}
+ 	return false
+ }
+@@ -825,7 +828,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 		// parameter or result variable is the function body.
+ 		p.declare(field, nil, scope, ast.Var, idents...)
+ 		p.resolve(typ)
+-		if !p.atComma("parameter list") {
++		if !p.atComma("parameter list", token.RPAREN) {
+ 			return
+ 		}
+ 		p.next()
+@@ -838,7 +841,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 			// parameter or result variable is the function body.
+ 			p.declare(field, nil, scope, ast.Var, idents...)
+ 			p.resolve(typ)
+-			if !p.atComma("parameter list") {
++			if !p.atComma("parameter list", token.RPAREN) {
+ 				break
+ 			}
+ 			p.next()
+@@ -1248,7 +1251,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 			ellipsis = p.pos
+ 			p.next()
+ 		}
+-		if !p.atComma("argument list") {
++		if !p.atComma("argument list", token.RPAREN) {
+ 			break
+ 		}
+ 		p.next()
+@@ -1323,7 +1326,7 @@ func (p *parser) parseElementList() (list []ast.Expr) {
+ 
+ 	for p.tok != token.RBRACE && p.tok != token.EOF {
+ 		list = append(list, p.parseElement())
+-		if !p.atComma("composite literal") {
++		if !p.atComma("composite literal", token.RBRACE) {
+ 			break
+ 		}
+ 		p.next()
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 970ef2d3fa..ef2ffadbd9 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -99,8 +99,9 @@ var invalids = []string{
+ 	`package p; func f() { for i /* ERROR "boolean or range expression" */ , x := []string {} }`,
+ 	`package p; func f() { go f /* ERROR HERE "function must be invoked" */ }`,
+ 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
+-	`package p; func f() { go func() { func() { f(x func /* ERROR "expected '\)'" */ (){}) } } }`,
+-	`package p; func f() (a b string /* ERROR "expected '\)'" */ , ok bool)`,         // issue 8656
++	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
++	`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
++	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,           // issue 8656
+ 	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`, // issue 9639
+ 	`package p; const x /* ERROR "missing constant value" */ ;`,                      // issue 9639
+ 	`package p; const x /* ERROR "missing constant value" */ int;`,                   // issue 9639

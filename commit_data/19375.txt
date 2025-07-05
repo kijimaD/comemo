@@ -30,9 +30,184 @@ Date:   Thu May 15 19:16:18 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/100480043
-
+---
  src/cmd/gc/order.c          | 36 ++++++++++++++++++++++++++++++
  src/cmd/gc/walk.c           |  5 ++++-
  test/fixedbugs/issue7997.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue7998.go | 23 ++++++++++++++++++++
  4 files changed, 116 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 08d7b5d08d..1311c6e5e2 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -781,8 +781,30 @@ orderstmt(Node *n, Order *order)
+ 				fatal("order select ninit");
+ 			if(r != nil) {
+ 				switch(r->op) {
++				default:
++					yyerror("unknown op in select %O", r->op);
++					dump("select case", r);
++					break;
++
+ 				case OSELRECV:
+ 				case OSELRECV2:
++					// If this is case x := <-ch or case x, y := <-ch, the case has
++					// the ODCL nodes to declare x and y. We want to delay that
++					// declaration (and possible allocation) until inside the case body.
++					// Delete the ODCL nodes here and recreate them inside the body below.
++					if(r->colas) {
++						t = r->ninit;
++						if(t != nil && t->n->op == ODCL && t->n->left == r->left)
++							t = t->next;
++						if(t != nil && t->n->op == ODCL && t->n->left == r->ntest)
++							t = t->next;
++						if(t == nil)
++							r->ninit = nil;
++					}
++					if(r->ninit != nil) {
++						yyerror("ninit on select recv");
++						dumplist("ninit", r->ninit);
++					}
+ 					// case x = <-c
+ 					// case x, ok = <-c
+ 					// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
+@@ -803,6 +825,11 @@ orderstmt(Node *n, Order *order)
+ 						// such as in case interfacevalue = <-intchan.
+ 						// the conversion happens in the OAS instead.
+ 						tmp1 = r->left;
++						if(r->colas) {
++							tmp2 = nod(ODCL, tmp1, N);
++							typecheck(&tmp2, Etop);
++							l->n->ninit = list(l->n->ninit, tmp2);
++						}
+ 						r->left = ordertemp(r->right->left->type->type, order, haspointers(r->right->left->type->type));
+ 						tmp2 = nod(OAS, tmp1, r->left);
+ 						typecheck(&tmp2, Etop);
+@@ -812,6 +839,11 @@ orderstmt(Node *n, Order *order)
+ 						r->ntest = N;
+ 					if(r->ntest != N) {
+ 						tmp1 = r->ntest;
++						if(r->colas) {
++							tmp2 = nod(ODCL, tmp1, N);
++							typecheck(&tmp2, Etop);
++							l->n->ninit = list(l->n->ninit, tmp2);
++						}
+ 						r->ntest = ordertemp(tmp1->type, order, 0);
+ 						tmp2 = nod(OAS, tmp1, r->ntest);
+ 						typecheck(&tmp2, Etop);
+@@ -821,6 +853,10 @@ orderstmt(Node *n, Order *order)
+ 					break;
+ 
+ 				case OSEND:
++					if(r->ninit != nil) {
++						yyerror("ninit on select send");
++						dumplist("ninit", r->ninit);
++					}
+ 					// case c <- x
+ 					// r->left is c, r->right is x, both are always evaluated.
+ 					orderexpr(&r->left, order);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3bb48fdbbf..2d402d04f5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -666,7 +666,10 @@ walkexpr(Node **np, NodeList **init)
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+-		n1 = nod(OADDR, n->list->n, N);
++		if(isblank(n->list->n))
++			n1 = nodnil();
++		else
++			n1 = nod(OADDR, n->list->n, N);
+ 		n1->etype = 1; // addr does not escape
+ 		fn = chanfn("chanrecv2", 2, r->left->type);
+ 		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
+diff --git a/test/fixedbugs/issue7997.go b/test/fixedbugs/issue7997.go
+new file mode 100644
+index 0000000000..10c526273d
+--- /dev/null
++++ b/test/fixedbugs/issue7997.go
+@@ -0,0 +1,53 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// /tmp/x.go:3: internal error: f &p (type *int) recorded as live on entry
++
++package p
++
++func f(ch chan int) *int {
++	select {
++	case p1x := <-ch:
++		return &p1x
++	default:
++		// ok
++	}
++	select {
++	case p1 := <-ch:
++		return &p1
++	default:
++		// ok
++	}
++	select {
++	case p2 := <-ch:
++		return &p2
++	case p3 := <-ch:
++		return &p3
++	default:
++		// ok
++	}
++	select {
++	case p4, ok := <-ch:
++		if ok {
++			return &p4
++		}
++	default:
++		// ok
++	}
++	select {
++	case p5, ok := <-ch:
++		if ok {
++			return &p5
++		}
++	case p6, ok := <-ch:
++		if !ok {
++			return &p6
++		}
++	default:
++		// ok
++	}
++	return nil
++}
+diff --git a/test/fixedbugs/issue7998.go b/test/fixedbugs/issue7998.go
+new file mode 100644
+index 0000000000..245035eded
+--- /dev/null
++++ b/test/fixedbugs/issue7998.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// /tmp/x.go:5: cannot use _ as value
++
++package p
++
++func f(ch chan int) bool {
++	select {
++	case _, ok := <-ch:
++		return ok
++	}
++	_, ok := <-ch
++	_ = ok
++	select {
++	case _, _ = <-ch:
++		return true
++	}
++	return false
++}

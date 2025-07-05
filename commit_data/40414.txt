@@ -13,9 +13,72 @@ Date:   Fri May 10 20:29:24 2019 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                                         | 2 +-
  src/cmd/go.sum                                                         | 2 ++
  .../golang.org/x/tools/go/analysis/internal/analysisflags/help.go      | 3 +++
  src/cmd/vendor/modules.txt                                             | 2 +-
  4 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index f641125f4a..db43541d89 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190509153222-73554e0f7805
++	golang.org/x/tools v0.0.0-20190510144052-35884eef200b
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index e88f437b1d..f6a34ea1f0 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -15,3 +15,5 @@ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7w
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20190509153222-73554e0f7805 h1:1ufBXAsTpUhSmmPXEEs5PrGQSfnBhsjAd2SmVhp9xrY=
+ golang.org/x/tools v0.0.0-20190509153222-73554e0f7805/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/tools v0.0.0-20190510144052-35884eef200b h1:4muk7BhMes67ZgDeK3n4Jvi+FvNDRZzh6ZRqIXZNYwQ=
++golang.org/x/tools v0.0.0-20190510144052-35884eef200b/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+index 043b97896d..c5a70f3b7d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+@@ -4,6 +4,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"log"
++	"os"
+ 	"sort"
+ 	"strings"
+ 
+@@ -47,6 +48,7 @@ func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
+ 				fs.Var(f.Value, f.Name, f.Usage)
+ 			}
+ 		})
++		fs.SetOutput(os.Stdout)
+ 		fs.PrintDefaults()
+ 
+ 		fmt.Printf("\nTo see details and flags of a specific analyzer, run '%s help name'.\n", progname)
+@@ -75,6 +77,7 @@ outer:
+ 					}
+ 					fs.Var(f.Value, a.Name+"."+f.Name, f.Usage)
+ 				})
++				fs.SetOutput(os.Stdout)
+ 				fs.PrintDefaults()
+ 
+ 				if len(paras) > 1 {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index abea1654f6..53cf548512 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190509153222-73554e0f7805
++# golang.org/x/tools v0.0.0-20190510144052-35884eef200b
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts

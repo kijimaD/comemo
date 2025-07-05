@@ -14,6 +14,20 @@ Date:   Tue Feb 25 14:16:07 2020 +0000
     Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/action.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index e3cb87fbb9..6b5f9e4807 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -41,7 +41,7 @@ type Builder struct {
+ 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
+ 	NeedError           bool // list needs p.Error
+ 	NeedExport          bool // list needs p.Export
+-	NeedCompiledGoFiles bool // list needs p.CompiledGoFIles
++	NeedCompiledGoFiles bool // list needs p.CompiledGoFiles
+ 
+ 	objdirSeq int // counter for NewObjdir
+ 	pkgSeq    int

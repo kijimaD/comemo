@@ -7,6 +7,29 @@ Date:   Thu Sep 27 14:48:33 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6566064
-
+---
  doc/install.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 5414b94fb8..cc02f12924 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -115,7 +115,7 @@ rm -r /usr/local/go
+ </pre>
+ 
+ <p>
+-Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+AND+Type-Archive">the archive</a>
++Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+Type-Archive">the archive</a>
+ into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>:
+ </p>
+ 
+@@ -140,7 +140,7 @@ export PATH=$PATH:/usr/local/go/bin
+ <h3 id="osx">Mac OS X package installer</h3>
+ 
+ <p>
+-Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Darwin+AND+Type-Installer">package file</a>
++Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-OSX+Type-Installer">package file</a>
+ and follow the prompts to install the Go tools.
+ The package installs the Go distribution to <code>/usr/local/go</code>.
+ </p>

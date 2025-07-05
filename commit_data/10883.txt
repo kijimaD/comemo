@@ -15,7 +15,39 @@ Date:   Tue Dec 20 10:57:06 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5494055
-
+---
  src/pkg/html/parse.go      | 7 +++++++
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index a69262115c..6892d8fefa 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -1206,6 +1206,13 @@ func inTableBodyIM(p *parser) bool {
+ 			add = true
+ 			data = "tr"
+ 			consumed = false
++		case "caption", "col", "colgroup", "tbody", "tfoot", "thead":
++			if !p.popUntil(tableScopeStopTags, "tbody", "thead", "tfoot") {
++				// Ignore the token.
++				return true
++			}
++			p.im = inTableIM
++			return false
+ 		default:
+ 			// TODO.
+ 		}
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index b938ca7185..7ca2922cc3 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -172,7 +172,7 @@ func TestParser(t *testing.T) {
+ 		{"tests3.dat", -1},
+ 		{"tests4.dat", -1},
+ 		{"tests5.dat", -1},
+-		{"tests6.dat", 36},
++		{"tests6.dat", 45},
+ 		{"tests10.dat", 13},
+ 	}
+ 	for _, tf := range testFiles {

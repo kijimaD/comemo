@@ -11,7 +11,216 @@ Date:   Tue Jul 14 21:41:12 2020 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go  |  62 +++++++++++++++++++++++++-
  src/runtime/mranges_test.go | 103 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 163 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 605bcb2294..e65b7b8ea7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -785,22 +785,64 @@ func (a AddrRange) Equals(b AddrRange) bool {
+ 	return a == b
+ }
+ 
++// Size returns the size in bytes of the address range.
++func (a AddrRange) Size() uintptr {
++	return a.addrRange.size()
++}
++
+ // AddrRanges is a wrapper around addrRanges for testing.
+ type AddrRanges struct {
+ 	addrRanges
++	mutable bool
++}
++
++// NewAddrRanges creates a new empty addrRanges.
++//
++// Note that this initializes addrRanges just like in the
++// runtime, so its memory is persistentalloc'd. Call this
++// function sparingly since the memory it allocates is
++// leaked.
++//
++// This AddrRanges is mutable, so we can test methods like
++// Add.
++func NewAddrRanges() AddrRanges {
++	r := addrRanges{}
++	r.init(new(uint64))
++	return AddrRanges{r, true}
+ }
+ 
+ // MakeAddrRanges creates a new addrRanges populated with
+ // the ranges in a.
++//
++// The returned AddrRanges is immutable, so methods like
++// Add will fail.
+ func MakeAddrRanges(a ...AddrRange) AddrRanges {
+ 	// Methods that manipulate the backing store of addrRanges.ranges should
+ 	// not be used on the result from this function (e.g. add) since they may
+-	// trigger reallocation.
++	// trigger reallocation. That would normally be fine, except the new
++	// backing store won't come from the heap, but from persistentalloc, so
++	// we'll leak some memory implicitly.
+ 	ranges := make([]addrRange, 0, len(a))
++	total := uintptr(0)
+ 	for _, r := range a {
+ 		ranges = append(ranges, r.addrRange)
++		total += r.Size()
++	}
++	return AddrRanges{addrRanges{
++		ranges:     ranges,
++		totalBytes: total,
++		sysStat:    new(uint64),
++	}, false}
++}
++
++// Ranges returns a copy of the ranges described by the
++// addrRanges.
++func (a *AddrRanges) Ranges() []AddrRange {
++	result := make([]AddrRange, 0, len(a.addrRanges.ranges))
++	for _, r := range a.addrRanges.ranges {
++		result = append(result, AddrRange{r})
+ 	}
+-	return AddrRanges{addrRanges{ranges: ranges, sysStat: new(uint64)}}
++	return result
+ }
+ 
+ // FindSucc returns the successor to base. See addrRanges.findSucc
+@@ -809,6 +851,22 @@ func (a *AddrRanges) FindSucc(base uintptr) int {
+ 	return a.findSucc(base)
+ }
+ 
++// Add adds a new AddrRange to the AddrRanges.
++//
++// The AddrRange must be mutable (i.e. created by NewAddrRanges),
++// otherwise this method will throw.
++func (a *AddrRanges) Add(r AddrRange) {
++	if !a.mutable {
++		throw("attempt to mutate immutable AddrRanges")
++	}
++	a.add(r.addrRange)
++}
++
++// TotalBytes returns the totalBytes field of the addrRanges.
++func (a *AddrRanges) TotalBytes() uintptr {
++	return a.addrRanges.totalBytes
++}
++
+ // BitRange represents a range over a bitmap.
+ type BitRange struct {
+ 	I, N uint // bit index and length in bits
+diff --git a/src/runtime/mranges_test.go b/src/runtime/mranges_test.go
+index 3a9023adfa..ed439c56c2 100644
+--- a/src/runtime/mranges_test.go
++++ b/src/runtime/mranges_test.go
+@@ -9,6 +9,109 @@ import (
+ 	"testing"
+ )
+ 
++func validateAddrRanges(t *testing.T, a *AddrRanges, want ...AddrRange) {
++	ranges := a.Ranges()
++	if len(ranges) != len(want) {
++		t.Errorf("want %v, got %v", want, ranges)
++		t.Fatal("different lengths")
++	}
++	gotTotalBytes := uintptr(0)
++	wantTotalBytes := uintptr(0)
++	for i := range ranges {
++		gotTotalBytes += ranges[i].Size()
++		wantTotalBytes += want[i].Size()
++		if ranges[i].Base() >= ranges[i].Limit() {
++			t.Error("empty range found")
++		}
++		// Ensure this is equivalent to what we want.
++		if !ranges[i].Equals(want[i]) {
++			t.Errorf("range %d: got [0x%x, 0x%x), want [0x%x, 0x%x)", i,
++				ranges[i].Base(), ranges[i].Limit(),
++				want[i].Base(), want[i].Limit(),
++			)
++		}
++		if i != 0 {
++			// Ensure the ranges are sorted.
++			if ranges[i-1].Base() >= ranges[i].Base() {
++				t.Errorf("ranges %d and %d are out of sorted order", i-1, i)
++			}
++			// Check for a failure to coalesce.
++			if ranges[i-1].Limit() == ranges[i].Base() {
++				t.Errorf("ranges %d and %d should have coalesced", i-1, i)
++			}
++			// Check if any ranges overlap. Because the ranges are sorted
++			// by base, it's sufficient to just check neighbors.
++			if ranges[i-1].Limit() > ranges[i].Base() {
++				t.Errorf("ranges %d and %d overlap", i-1, i)
++			}
++		}
++	}
++	if wantTotalBytes != gotTotalBytes {
++		t.Errorf("expected %d total bytes, got %d", wantTotalBytes, gotTotalBytes)
++	}
++	if b := a.TotalBytes(); b != gotTotalBytes {
++		t.Errorf("inconsistent total bytes: want %d, got %d", gotTotalBytes, b)
++	}
++	if t.Failed() {
++		t.Errorf("addrRanges: %v", ranges)
++		t.Fatal("detected bad addrRanges")
++	}
++}
++
++func TestAddrRangesAdd(t *testing.T) {
++	a := NewAddrRanges()
++
++	// First range.
++	a.Add(MakeAddrRange(512, 1024))
++	validateAddrRanges(t, &a,
++		MakeAddrRange(512, 1024),
++	)
++
++	// Coalesce up.
++	a.Add(MakeAddrRange(1024, 2048))
++	validateAddrRanges(t, &a,
++		MakeAddrRange(512, 2048),
++	)
++
++	// Add new independent range.
++	a.Add(MakeAddrRange(4096, 8192))
++	validateAddrRanges(t, &a,
++		MakeAddrRange(512, 2048),
++		MakeAddrRange(4096, 8192),
++	)
++
++	// Coalesce down.
++	a.Add(MakeAddrRange(3776, 4096))
++	validateAddrRanges(t, &a,
++		MakeAddrRange(512, 2048),
++		MakeAddrRange(3776, 8192),
++	)
++
++	// Coalesce up and down.
++	a.Add(MakeAddrRange(2048, 3776))
++	validateAddrRanges(t, &a,
++		MakeAddrRange(512, 8192),
++	)
++
++	// Push a bunch of independent ranges to the end to try and force growth.
++	expectedRanges := []AddrRange{MakeAddrRange(512, 8192)}
++	for i := uintptr(0); i < 64; i++ {
++		dRange := MakeAddrRange(8192+(i+1)*2048, 8192+(i+1)*2048+10)
++		a.Add(dRange)
++		expectedRanges = append(expectedRanges, dRange)
++		validateAddrRanges(t, &a, expectedRanges...)
++	}
++
++	// Push a bunch of independent ranges to the beginning to try and force growth.
++	var bottomRanges []AddrRange
++	for i := uintptr(0); i < 63; i++ {
++		dRange := MakeAddrRange(8+i*8, 8+i*8+4)
++		a.Add(dRange)
++		bottomRanges = append(bottomRanges, dRange)
++		validateAddrRanges(t, &a, append(bottomRanges, expectedRanges...)...)
++	}
++}
++
+ func TestAddrRangesFindSucc(t *testing.T) {
+ 	var large []AddrRange
+ 	for i := 0; i < 100; i++ {

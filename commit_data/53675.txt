@@ -11,7 +11,58 @@ Date:   Sat Aug 27 10:24:49 2022 +0800
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/testing/fuzz.go    | 3 +--
  src/testing/testing.go | 6 +++---
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index b9f3a3d159..e60ecadf25 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -14,7 +14,6 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+-	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -615,7 +614,7 @@ func fRunner(f *F, fn func(*F)) {
+ 		// the original panic should still be
+ 		// clear.
+ 		if f.Failed() {
+-			atomic.AddUint32(&numFailed, 1)
++			numFailed.Add(1)
+ 		}
+ 		err := recover()
+ 		if err == nil {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index ec2d864822..a38b40e38d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -443,7 +443,7 @@ var (
+ 	cpuList     []int
+ 	testlogFile *os.File
+ 
+-	numFailed uint32 // number of test failures
++	numFailed atomic.Uint32 // number of test failures
+ )
+ 
+ type chattyPrinter struct {
+@@ -1312,7 +1312,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 	// a signal saying that the test is done.
+ 	defer func() {
+ 		if t.Failed() {
+-			atomic.AddUint32(&numFailed, 1)
++			numFailed.Add(1)
+ 		}
+ 
+ 		if t.raceErrors+race.Errors() > 0 {
+@@ -2064,5 +2064,5 @@ func parseCpuList() {
+ }
+ 
+ func shouldFailFast() bool {
+-	return *failFast && atomic.LoadUint32(&numFailed) > 0
++	return *failFast && numFailed.Load() > 0
+ }

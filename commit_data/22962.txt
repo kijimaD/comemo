@@ -8,8 +8,80 @@ Date:   Wed Apr 1 15:53:52 2015 +1300
     Reviewed-on: https://go-review.googlesource.com/8805
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 8 ++++----
  src/cmd/go/list.go  | 1 +
  src/cmd/go/run.go   | 1 +
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index a9ba7f3a71..05c68fc4ec 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -159,6 +159,7 @@ var buildLinkshared bool     // -linkshared flag
+ 
+ var buildContext = build.Default
+ var buildToolchain toolchain = noToolchain{}
++var ldBuildmode string
+ 
+ // buildCompiler implements flag.Var.
+ // It implements Set by updating both
+@@ -307,7 +308,7 @@ func pkgsNotMain(pkgs []*Package) (res []*Package) {
+ var pkgsFilter = func(pkgs []*Package) []*Package { return pkgs }
+ 
+ func buildModeInit() {
+-	var codegenArg, ldBuildmode string
++	var codegenArg string
+ 	platform := goos + "/" + goarch
+ 	switch buildBuildmode {
+ 	case "archive":
+@@ -362,9 +363,6 @@ func buildModeInit() {
+ 		// TODO(mwhudson): remove -w when that gets fixed in linker.
+ 		buildLdflags = append(buildLdflags, "-linkshared", "-w")
+ 	}
+-	if ldBuildmode != "" {
+-		buildLdflags = append(buildLdflags, "-buildmode="+ldBuildmode)
+-	}
+ 	if codegenArg != "" {
+ 		buildAsmflags = append(buildAsmflags, codegenArg)
+ 		buildGcflags = append(buildGcflags, codegenArg)
+@@ -1286,6 +1284,7 @@ func (b *builder) linkShared(a *action) (err error) {
+ 	importArgs := b.includeArgs("-L", allactions[:len(allactions)-1])
+ 	// TODO(mwhudson): this does not check for cxx-ness, extldflags etc
+ 	ldflags := []string{"-installsuffix", buildContext.InstallSuffix}
++	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
+ 	ldflags = append(ldflags, buildLdflags...)
+ 	for _, d := range a.deps {
+ 		if d.target != "" { // omit unsafe etc
+@@ -2082,6 +2081,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 			}
+ 		}
+ 	}
++	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
+ 	ldflags = append(ldflags, buildLdflags...)
+ 	return b.run(".", p.ImportPath, nil, buildToolExec, tool(archChar()+"l"), "-o", out, importArgs, ldflags, mainpkg)
+ }
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index fbf96167fe..6015220068 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -126,6 +126,7 @@ var listJson = cmdList.Flag.Bool("json", false, "")
+ var nl = []byte{'\n'}
+ 
+ func runList(cmd *Command, args []string) {
++	buildModeInit()
+ 	out := newTrackingWriter(os.Stdout)
+ 	defer out.w.Flush()
+ 
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index ef8aa95a35..f815cb982b 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -64,6 +64,7 @@ func printStderr(args ...interface{}) (int, error) {
+ 
+ func runRun(cmd *Command, args []string) {
+ 	raceInit()
++	buildModeInit()
+ 	var b builder
+ 	b.init()
+ 	b.print = printStderr

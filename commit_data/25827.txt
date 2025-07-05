@@ -9,7 +9,34 @@ Date:   Tue Nov 24 10:17:59 2015 -0800
     Change-Id: I4bdb79aa9931e835e297f3ea2c46a001cd123d56
     Reviewed-on: https://go-review.googlesource.com/17200
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/template.go | 2 +-
  src/text/template/exec.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 22d103026b..96ab268a7f 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -144,7 +144,7 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
+ }
+ 
+ // DefinedTemplates returns a string listing the defined templates,
+-// prefixed by the string "defined templates are: ". If there are none,
++// prefixed by the string "; defined templates are: ". If there are none,
+ // it returns the empty string. Used to generate an error message.
+ func (t *Template) DefinedTemplates() string {
+ 	return t.text.DefinedTemplates()
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index f45cbb212f..efe1817173 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -180,7 +180,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ }
+ 
+ // DefinedTemplates returns a string listing the defined templates,
+-// prefixed by the string "defined templates are: ". If there are none,
++// prefixed by the string "; defined templates are: ". If there are none,
+ // it returns the empty string. For generating an error message here
+ // and in html/template.
+ func (t *Template) DefinedTemplates() string {

@@ -18,6 +18,21 @@ Date:   Wed Apr 20 12:46:17 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/chan_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index a8627e9898..256f97676e 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -629,6 +629,9 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
+ 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+ 		testenv.SkipFlaky(t, 49382)
+ 	}
++	if runtime.GOOS == "openbsd" {
++		testenv.SkipFlaky(t, 51482)
++	}
+ 
+ 	// The goal of this test is to trigger a "racy sudog adjustment"
+ 	// throw. Basically, there's a window between when a goroutine

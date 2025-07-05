@@ -17,9 +17,139 @@ Date:   Tue Dec 5 22:53:48 2017 -0800
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/decode.go      | 15 ++++++++++-----
  src/encoding/json/decode_test.go | 14 ++++++++++++++
  src/encoding/json/encode.go      | 12 +++++-------
  src/encoding/json/encode_test.go | 14 ++++++++++++++
  4 files changed, 43 insertions(+), 12 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 536f25dc7c..f08b0a1c58 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -14,7 +14,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"reflect"
+-	"runtime"
+ 	"strconv"
+ 	"unicode"
+ 	"unicode/utf16"
+@@ -168,13 +167,19 @@ func (e *InvalidUnmarshalError) Error() string {
+ 	return "json: Unmarshal(nil " + e.Type.String() + ")"
+ }
+ 
++// jsonError is an error wrapper type for internal use only.
++// Panics with errors are wrapped in jsonError so that the top-level recover
++// can distinguish intentional panics from this package.
++type jsonError struct{ error }
++
+ func (d *decodeState) unmarshal(v interface{}) (err error) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			if _, ok := r.(runtime.Error); ok {
++			if je, ok := r.(jsonError); ok {
++				err = je.error
++			} else {
+ 				panic(r)
+ 			}
+-			err = r.(error)
+ 		}
+ 	}()
+ 
+@@ -295,9 +300,9 @@ func (d *decodeState) init(data []byte) *decodeState {
+ 	return d
+ }
+ 
+-// error aborts the decoding by panicking with err.
++// error aborts the decoding by panicking with err wrapped in jsonError.
+ func (d *decodeState) error(err error) {
+-	panic(d.addErrorContext(err))
++	panic(jsonError{d.addErrorContext(err)})
+ }
+ 
+ // saveError saves the first err it is called with,
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 34b7ec6d97..90fdf93dbd 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -2166,3 +2166,17 @@ func TestUnmarshalEmbeddedPointerUnexported(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type unmarshalPanic struct{}
++
++func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
++
++func TestUnmarshalPanic(t *testing.T) {
++	defer func() {
++		if got := recover(); !reflect.DeepEqual(got, 0xdead) {
++			t.Errorf("panic() = (%T)(%v), want 0xdead", got, got)
++		}
++	}()
++	Unmarshal([]byte("{}"), &unmarshalPanic{})
++	t.Fatalf("Unmarshal should have panicked")
++}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 1e45e445d9..68512d0225 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -17,7 +17,6 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"reflect"
+-	"runtime"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -286,21 +285,20 @@ func newEncodeState() *encodeState {
+ func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			if _, ok := r.(runtime.Error); ok {
++			if je, ok := r.(jsonError); ok {
++				err = je.error
++			} else {
+ 				panic(r)
+ 			}
+-			if s, ok := r.(string); ok {
+-				panic(s)
+-			}
+-			err = r.(error)
+ 		}
+ 	}()
+ 	e.reflectValue(reflect.ValueOf(v), opts)
+ 	return nil
+ }
+ 
++// error aborts the encoding by panicking with err wrapped in jsonError.
+ func (e *encodeState) error(err error) {
+-	panic(err)
++	panic(jsonError{err})
+ }
+ 
+ func isEmptyValue(v reflect.Value) bool {
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 0f194e13d2..b90483cf35 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -981,3 +981,17 @@ func TestMarshalRawMessageValue(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type marshalPanic struct{}
++
++func (marshalPanic) MarshalJSON() ([]byte, error) { panic(0xdead) }
++
++func TestMarshalPanic(t *testing.T) {
++	defer func() {
++		if got := recover(); !reflect.DeepEqual(got, 0xdead) {
++			t.Errorf("panic() = (%T)(%v), want 0xdead", got, got)
++		}
++	}()
++	Marshal(&marshalPanic{})
++	t.Error("Marshal should have panicked")
++}

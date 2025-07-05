@@ -6,7 +6,49 @@ Date:   Mon Nov 16 17:53:39 2009 -0800
     
     R=rsc
     https://golang.org/cl/154172
-
+---
  test/bugs/bug218.go | 23 +++++++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 27 insertions(+)
+
+diff --git a/test/bugs/bug218.go b/test/bugs/bug218.go
+new file mode 100644
+index 0000000000..b2c9ede750
+--- /dev/null
++++ b/test/bugs/bug218.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go || echo BUG: bug218
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Crashes 6g, 8g
++// http://code.google.com/p/go/issues/detail?id=238
++
++package main
++
++func main() {
++	bar := make(chan bool);
++	select {
++	case _ = <-bar:
++		return
++	}
++}
++
++/*
++6g bug218.go 
++<epoch>: fatal error: dowidth: unknown type: blank
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 7a752e0a5a..8a1c3af59b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -141,3 +141,7 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
++
++=========== bugs/bug218.go
++<epoch>: fatal error: dowidth: unknown type: blank
++BUG: bug218

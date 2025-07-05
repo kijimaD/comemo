@@ -8,7 +8,7 @@ Date:   Tue Jul 29 19:02:49 2008 -0700
     R=r
     OCL=13627
     CL=13627
-
+---
  usr/gri/gosrc/base.go        |  14 +++
  usr/gri/gosrc/compilation.go |  32 +------
  usr/gri/gosrc/decls.go       | 123 ++++++++++++++++++++++++
@@ -18,3 +18,859 @@ Date:   Tue Jul 29 19:02:49 2008 -0700
  usr/gri/gosrc/parser.go      | 216 +++++++++++++++++++++++++++++++------------
  usr/gri/gosrc/utils.go       |  29 ++++++
  8 files changed, 362 insertions(+), 114 deletions(-)
+
+diff --git a/usr/gri/gosrc/base.go b/usr/gri/gosrc/base.go
+new file mode 100755
+index 0000000000..44ea1cd542
+--- /dev/null
++++ b/usr/gri/gosrc/base.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Base for the decls.go tests.
++
++package base
++
++type Node struct {
++  left, right *Node;
++  val bool
++}
++
++export Node
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index aa8d135497..14aebba498 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -4,6 +4,7 @@
+ 
+ package Compilation
+ 
++import Utils "utils"
+ import Globals "globals"
+ import Object "object"
+ import Type "type"
+@@ -14,28 +15,6 @@ import Parser "parser"
+ import Export "export"
+ 
+ 
+-func BaseName(s string) string {
+-	// TODO this is not correct for non-ASCII strings!
+-	i := len(s) - 1;
+-	for i >= 0 && s[i] != '/' {
+-		if s[i] > 128 {
+-			panic "non-ASCII string"
+-		}
+-		i--;
+-	}
+-	return s[i + 1 : len(s)];
+-}
+-
+-
+-func FixExt(s string) string {
+-	i := len(s) - 3;  // 3 == len(".go");
+-	if s[i : len(s)] == ".go" {
+-		s = s[0 : i];
+-	}
+-	return s + ".7";
+-}
+-
+-
+ export Compile
+ func Compile(file_name string, verbose int) {
+ 	src, ok := sys.readfile(file_name);
+@@ -47,11 +26,6 @@ func Compile(file_name string, verbose int) {
+ 	Universe.Init();  // TODO eventually this should be only needed once
+ 	
+ 	comp := Globals.NewCompilation();
+-	pkg := Globals.NewPackage(file_name);
+-	comp.Insert(pkg);
+-	if comp.npkgs != 1 {
+-		panic "should have exactly one package now";
+-	}
+ 
+ 	scanner := new(Scanner.Scanner);
+ 	scanner.Open(file_name, src);
+@@ -66,8 +40,6 @@ func Compile(file_name string, verbose int) {
+ 	}
+ 	
+ 	// export
+-	/*
+ 	exp := new(Export.Exporter);
+-	exp.Export(comp, FixExt(BaseName(file_name)));
+-	*/
++	exp.Export(comp, Utils.FixExt(Utils.BaseName(file_name)));
+ }
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+new file mode 100755
+index 0000000000..1910d2544d
+--- /dev/null
++++ b/usr/gri/gosrc/decls.go
+@@ -0,0 +1,123 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests.
++
++package decls
++
++// import "base"  // this fails
++import base "base"
++import base2 "base"
++
++const c0 int = 0
++const c1 float = 1.
++const (
++  c2 byte = 2;
++  c3 int = 3;
++  c4 float = 4.;
++)
++
++
++type Node0 base.Node
++type Node1 *base2.Node
++
++type T0 byte
++type T1 T0
++type (
++  T2 [10]T0;
++  T3 map [string] int;
++  T4 struct {
++    f1, f2, f3 int;
++    f4 [] float;
++  };
++  T5 *T4;
++)
++
++type F0 func ()
++type F1 func (a int)
++type F2 func (a, b int, c float)
++type F3 func () bool
++type F4 func (a int) (z T5, ok bool)
++type F5 func (a, b int, c float) (z T5, ok bool)
++type F6 func (a int, b float) bool
++type F7 func (a int, b float, c, d *bool) bool
++
++type (
++  M0 func (p T5) . ();
++  M1 func (p T5) . (a int);
++  M2 func (p T5) . (a, b int, c float);
++  M3 func (p T5) . () bool;
++  M4 func (p T5) . (a int) (z T5, ok bool);
++  M5 func (p T5) . (a, b int, c float) (z T5, ok bool);
++)
++
++type T6 chan int
++type T7 chan<- T6
++type T8 chan-< T6
++
++type T9 struct {
++  p *T9;
++  q [] map [int] *T9;
++  f *func(x, y *T9) *T9;
++}
++
++type T10;
++type T11 struct {
++  p *T10;
++}
++
++type T10 struct {
++  p *T11;
++}
++
++type T12 struct {
++  p *T12
++}
++
++
++type I0 interface {}
++type I1 interface {
++  Do0(q *I0);
++  Do1(p *I1) bool;
++}
++type I2 interface {
++  M0();
++  M1(a int);
++  M2(a, b int, c float);
++  M3() bool;
++  M4(a int) (z T5, ok bool);
++  M5(a, b int, c float) (z T5, ok bool);
++}
++
++
++var v0 int
++var v1 float = c1
++
++var (
++  v2 T2;
++  v3 struct {
++    f1, f2, f3 M0;
++  }
++)
++
++
++func f0() {}
++func f1(a int) {}
++func f2(a, b int, c float) {}
++func f3() bool {}
++func f4(a int) (z T5, ok bool) {}
++func f5(a, b int, c float) (z T5, ok bool) {}
++
++
++func (p *T4) m0() {}
++func (p *T4) m1(a int) {}
++func (p *T4) m2(a, b int, c float) {}
++func (p *T4) m3() bool {}
++func (p *T4) m4(a int) (z T5, ok bool) {}
++func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
++  L: var x = a;
++}
++
++export c0, c1, v2, v3
++export T0, T1, T4, T4, T4, M0, M5, I2, f0, f1, Node0, Node1
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 0ab3b0792c..de7f39537d 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -38,29 +38,30 @@ func (E *Exporter) WriteByte(x byte) {
+ 
+ 
+ func (E *Exporter) WriteInt(x int) {
+-	/*
+-	if E.debug {
+-		print " #", x;
+-	}
+-	*/
++	x0 := x;
+ 	for x < -64 || x >= 64 {
+ 		E.WriteByte(byte(x & 127));
+ 		x = int(uint(x >> 7));  // arithmetic shift
+ 	}
+ 	// -64 <= x && x < 64
+ 	E.WriteByte(byte(x + 192));
++	/*
++	if E.debug {
++		print " #", x0;
++	}
++	*/
+ }
+ 
+ 
+ func (E *Exporter) WriteString(s string) {
+-	if E.debug {
+-		print ` "`, s, `"`;
+-	}
+ 	n := len(s);
+ 	E.WriteInt(n);
+ 	for i := 0; i < n; i++ {
+ 		E.WriteByte(s[i]);
+ 	}
++	if E.debug {
++		print ` "`, s, `"`;
++	}
+ }
+ 
+ 
+@@ -68,14 +69,15 @@ func (E *Exporter) WriteObjTag(tag int) {
+ 	if tag < 0 {
+ 		panic "tag < 0";
+ 	}
++	E.WriteInt(tag);
+ 	if E.debug {
+ 		print "\nObj: ", tag;  // obj kind
+ 	}
+-	E.WriteInt(tag);
+ }
+ 
+ 
+ func (E *Exporter) WriteTypeTag(tag int) {
++	E.WriteInt(tag);
+ 	if E.debug {
+ 		if tag > 0 {
+ 			print "\nTyp ", E.type_ref, ": ", tag;  // type form
+@@ -83,11 +85,11 @@ func (E *Exporter) WriteTypeTag(tag int) {
+ 			print " [Typ ", -tag, "]";  // type ref
+ 		}
+ 	}
+-	E.WriteInt(tag);
+ }
+ 
+ 
+ func (E *Exporter) WritePackageTag(tag int) {
++	E.WriteInt(tag);
+ 	if E.debug {
+ 		if tag > 0 {
+ 			print "\nPkg ", E.pkg_ref, ": ", tag;  // package no
+@@ -95,7 +97,6 @@ func (E *Exporter) WritePackageTag(tag int) {
+ 			print " [Pkg ", -tag, "]";  // package ref
+ 		}
+ 	}
+-	E.WriteInt(tag);
+ }
+ 
+ 
+@@ -119,6 +120,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 			n++;
+ 		}			
+ 	}
++	E.WriteInt(n);
+ 	
+ 	// export the objects, if any
+ 	if n > 0 {
+@@ -149,7 +151,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 		E.WriteObjTag(obj.kind);
+ 		E.WriteString(obj.ident);
+ 		E.WriteType(obj.typ);
+-		//E.WritePackage(E.comp.pkgs[obj.pnolev]);
++		E.WritePackage(E.comp.pkgs[obj.pnolev]);
+ 
+ 		switch obj.kind {
+ 		case Object.CONST:
+@@ -249,16 +251,16 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 
+ 
+ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+-	if E.debug {
+-		print "exporting to ", file_name;
+-	}
+-
+ 	E.comp = comp;
+-	E.debug = true;
++	E.debug = false;
+ 	E.pos = 0;
+ 	E.pkg_ref = 0;
+ 	E.type_ref = 0;
+ 	
++	if E.debug {
++		print "exporting to ", file_name, "\n";
++	}
++
+ 	// Predeclared types are "pre-exported".
+ 	// TODO run the loop below only in debug mode
+ 	{	i := 0;
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index c98624124d..7b25e94d9d 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -280,6 +280,7 @@ func (C *Compilation) Insert(pkg *Package) {
+ 	if C.Lookup(pkg.file_name) != nil {
+ 		panic "package already inserted";
+ 	}
++	pkg.obj.pnolev = C.npkgs;
+ 	C.pkgs[C.npkgs] = pkg;
+ 	C.npkgs++;
+ }
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index c835939ac3..114d0bc9cf 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -10,6 +10,7 @@ import Type "type"
+ import Universe "universe"
+ 
+ 
++export Importer  // really only want to export Import()
+ type Importer struct {
+ 	comp *Globals.Compilation;
+ 	debug bool;
+@@ -257,6 +258,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ 	if pkg == nil {
+ 		// new package
+ 		pkg = Globals.NewPackage(file_name);
++		pkg.obj = Globals.NewObject(-1, Object.PACKAGE, ident);
+ 		pkg.scope = Globals.NewScope(nil);
+ 		pkg = I.comp.InsertImport(pkg);
+ 
+@@ -271,24 +273,25 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ }
+ 
+ 
+-func (I *Importer) Import(comp* Globals.Compilation, file_name string) {
++func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.Package {
++	I.comp = comp;
++	I.debug = false;
++	I.buf = "";
++	I.pos = 0;
++	I.npkgs = 0;
++	I.ntypes = 0;
++	
+ 	if I.debug {
+-		print "importing from ", file_name;
++		print "importing from ", file_name, "\n";
+ 	}
+ 	
+ 	buf, ok := sys.readfile(file_name);
+ 	if !ok {
+-		panic "import failed";
++		return nil;
+ 	}
+-	
+-	I.comp = comp;
+-	I.debug = true;
+ 	I.buf = buf;
+-	I.pos = 0;
+-	I.npkgs = 0;
+-	I.ntypes = 0;
+ 	
+-	// Predeclared types are "pre-exported".
++	// Predeclared types are "pre-imported".
+ 	for p := Universe.types.first; p != nil; p = p.next {
+ 		if p.typ.ref != I.ntypes {
+ 			panic "incorrect ref for predeclared type";
+@@ -311,4 +314,6 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) {
+ 	if I.debug {
+ 		print "\n(", I.pos, " bytes)\n";
+ 	}
++	
++	return pkg;
+ }
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 7d474275e4..67caa6a972 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -4,11 +4,13 @@
+ 
+ package Parser
+ 
++import Utils "utils"
+ import Scanner "scanner"
+ import Globals "globals"
+ import Object "object"
+ import Type "type"
+ import Universe "universe"
++import Import "import"
+ import AST "ast"
+ 
+ 
+@@ -28,6 +30,7 @@ type Parser struct {
+ 	val string;  // token value (for IDENT, NUMBER, STRING only)
+ 
+ 	// Semantic analysis
++	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
+ 	top_scope *Globals.Scope;
+ 	undef_types *Globals.List;
+ 	exports *Globals.List;
+@@ -77,6 +80,7 @@ func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int
+ 	P.indent = 0;
+ 	P.S = S;
+ 	P.Next();
++	P.level = 0;
+ 	P.top_scope = Universe.scope;
+ 	P.undef_types = Globals.NewList();
+ 	P.exports = Globals.NewList();
+@@ -128,7 +132,11 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
+ 
+ 
+ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+-	if EnableSemanticTests && scope.Lookup(obj.ident) != nil {
++	if !EnableSemanticTests {
++		return;
++	}
++	obj.pnolev = P.level;
++	if scope.Lookup(obj.ident) != nil {
+ 		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
+ 		return;  // don't insert it into the scope
+ 	}
+@@ -141,6 +149,77 @@ func (P *Parser) Declare(obj *Globals.Object) {
+ }
+ 
+ 
++func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
++  // Determine if we have a receiver or not.
++  if p0 > 0 && check_recv {
++    // method
++	if p0 != 1 {
++		panic "p0 != 1";
++	}
++  }
++  typ := Globals.NewType(Type.FUNCTION);
++  if p0 == 0 {
++	typ.flags = 0;
++  } else {
++	typ.flags = Type.RECV;
++  }
++  typ.len_ = r0 - p0;
++  typ.scope = sig;
++  return typ;
++}
++
++
++func (P *Parser) DeclareFunc(exported bool, ident string, typ *Globals.Type) *Globals.Object {
++  // Determine scope.
++  scope := P.top_scope;
++  if typ.flags & Type.RECV != 0 {
++    // method - declare in corresponding struct
++	if typ.scope.entries.len_ < 1 {
++		panic "no recv in signature?";
++	}
++    trecv := typ.scope.entries.first.typ;
++    if trecv.form == Type.POINTER {
++      trecv = trecv.elt;
++    }
++    scope = trecv.scope;
++  }
++  
++  // Declare the function.
++  fun := scope.Lookup(ident);
++  if fun == nil {
++    fun = Globals.NewObject(-1, Object.FUNC, ident);
++	fun.typ = typ;
++	// TODO do we need to set the prymary type? probably...
++    P.DeclareInScope(scope, fun);
++    return fun;
++  }
++  
++  // fun != NULL: possibly a forward declaration.
++  if (fun.kind != Object.FUNC) {
++    P.Error(-1, `"` + ident + `" is declared already`);
++    // Continue but do not insert this function into the scope.
++    fun = Globals.NewObject(-1, Object.FUNC, ident);
++	fun.typ = typ;
++	// TODO do we need to set the prymary type? probably...
++    return fun;
++  }
++  
++  // We have a function with the same name.
++  /*
++  if (!EqualTypes(type, fun->type())) {
++    this->Error("type of \"%s\" does not match its forward declaration", name.cstr());
++    // Continue but do not insert this function into the scope.
++    NewObject(Object::FUNC, name);
++    fun->set_type(type);
++    return fun;    
++  }
++  */
++  
++  // We have a matching forward declaration. Use it.
++  return fun;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+@@ -225,10 +304,23 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 		}
+ 
+ 		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
+-			panic "Qualified ident not complete yet";
+-			P.Next();
+-			P.ParseIdent();
++			if obj.pnolev < 0 {
++				panic "obj.pnolev < 0";
++			}
++			pkg := P.comp.pkgs[obj.pnolev];
++			//if pkg.obj.ident != ident {
++			//	panic "pkg.obj.ident != ident";
++			//}
++			P.Next();  // consume "."
++			pos = P.pos;
++			ident = P.ParseIdent();
++			obj = pkg.scope.Lookup(ident);
++			if obj == nil {
++				P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
++				obj = Globals.NewObject(pos, Object.BAD, ident);
++			}
+ 		}
++		
+ 		P.Ecart();
+ 		return obj;
+ 		
+@@ -383,26 +475,6 @@ func (P *Parser) TryResult() bool {
+ }
+ 
+ 
+-func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
+-  // Determine if we have a receiver or not.
+-  if p0 > 0 && check_recv {
+-    // method
+-	if p0 != 1 {
+-		panic "p0 != 1";
+-	}
+-  }
+-  typ := Globals.NewType(Type.FUNCTION);
+-  if p0 == 0 {
+-	typ.flags = 0;
+-  } else {
+-	typ.flags = Type.RECV;
+-  }
+-  typ.len_ = r0 - p0;
+-  typ.scope = sig;
+-  return typ;
+-}
+-
+-
+ // Anonymous signatures
+ //
+ //          (params)
+@@ -424,9 +496,9 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	
+ 	if P.tok == Scanner.PERIOD {
+ 		p0 = sig.entries.len_;
+-		if (p0 != 1) {
++		if (EnableSemanticTests && p0 != 1) {
+ 			P.Error(recv_pos, "must have exactly one receiver")
+-			panic "UNIMPLEMENTED";
++			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
+ 			// TODO do something useful here
+ 		}
+ 		P.Next();
+@@ -462,10 +534,10 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+ 		recv_pos := P.pos;
+ 		P.ParseParameters();
+ 		p0 = sig.entries.len_;
+-		if (p0 != 1) {
++		if (EnableSemanticTests && p0 != 1) {
+ 			print "p0 = ", p0, "\n";
+ 			P.Error(recv_pos, "must have exactly one receiver")
+-			panic "UNIMPLEMENTED";
++			panic "UNIMPLEMENTED (ParseNamedSignature)";
+ 			// TODO do something useful here
+ 		}
+ 	}
+@@ -498,8 +570,13 @@ func (P *Parser) ParseMethodDecl() {
+ 	P.Trace("MethodDecl");
+ 	
+ 	P.ParseIdent();
++	P.OpenScope();
++	sig := P.top_scope;
++	p0 := 0;
+ 	P.ParseParameters();
++	r0 := sig.entries.len_;
+ 	P.TryResult();
++	P.CloseScope();
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+ 	P.Ecart();
+@@ -662,15 +739,26 @@ func (P *Parser) ParseStatementList() {
+ }
+ 
+ 
+-func (P *Parser) ParseBlock() {
++func (P *Parser) ParseBlock(sig *Globals.Scope) {
+ 	P.Trace("Block");
+ 	
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
++	if sig != nil {
++		P.level--;
++		// add function parameters to scope
++		scope := P.top_scope;
++		for p := sig.entries.first; p != nil; p = p.next {
++			scope.Insert(p.obj)
++		}
++	}
+ 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
+ 		P.ParseStatementList();
+ 	}
+ 	P.Optional(Scanner.SEMICOLON);
++	if sig != nil {
++		P.level++;
++	}
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+ 	
+@@ -717,8 +805,8 @@ func (P *Parser) ParseNew() {
+ func (P *Parser) ParseFunctionLit() {
+ 	P.Trace("FunctionLit");
+ 	
+-	P.ParseFunctionType();
+-	P.ParseBlock();
++	typ := P.ParseFunctionType();
++	P.ParseBlock(typ.scope);
+ 	
+ 	P.Ecart();
+ }
+@@ -1226,7 +1314,7 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
+ 			}
+ 		}
+ 	}
+-	P.ParseBlock();
++	P.ParseBlock(nil);
+ 	if P.tok == Scanner.ELSE {
+ 		P.Next();
+ 		if P.tok == Scanner.IF {
+@@ -1262,7 +1350,7 @@ func (P *Parser) ParseForStat() {
+ 			}
+ 		}
+ 	}
+-	P.ParseBlock();
++	P.ParseBlock(nil);
+ 	P.CloseScope();
+ 	
+ 	P.Ecart();
+@@ -1389,7 +1477,7 @@ func (P *Parser) ParseRangeStat() bool {
+ 	P.ParseIdentList();
+ 	P.Expect(Scanner.DEFINE);
+ 	P.ParseExpression();
+-	P.ParseBlock();
++	P.ParseBlock(nil);
+ 	
+ 	P.Ecart();
+ }
+@@ -1431,7 +1519,7 @@ func (P *Parser) TryStatement() bool {
+ 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+ 		P.ParseControlFlowStat(P.tok);
+ 	case Scanner.LBRACE:
+-		P.ParseBlock();
++		P.ParseBlock(nil);
+ 	case Scanner.IF:
+ 		P.ParseIfStat();
+ 	case Scanner.FOR:
+@@ -1461,30 +1549,32 @@ func (P *Parser) TryStatement() bool {
+ func (P *Parser) ParseImportSpec() {
+ 	P.Trace("ImportSpec");
+ 	
++	var obj *Globals.Object = nil;
+ 	if P.tok == Scanner.PERIOD {
++		P.Error(P.pos, `"import ." not yet handled properly`);
+ 		P.Next();
+ 	} else if P.tok == Scanner.IDENT {
+-		P.Next();
++		obj = P.ParseIdentDecl(Object.PACKAGE);
+ 	}
+-	P.Expect(Scanner.STRING);
+-	
+-	P.Ecart();
+-}
+-
+-
+-func (P *Parser) ParseImportDecl() {
+-	P.Trace("ImportDecl");
+ 	
+-	P.Expect(Scanner.IMPORT);
+-	if P.tok == Scanner.LPAREN {
+-		P.Next();
+-		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
+-			P.ParseImportSpec();
+-			P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong
++	if (EnableSemanticTests && P.tok == Scanner.STRING) {
++		// TODO eventually the scanner should strip the quotes
++		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
++		imp := new(Import.Importer);
++		pkg := imp.Import(P.comp, Utils.FixExt(Utils.BaseName(pkg_name)));
++		if pkg != nil {
++			if obj == nil {
++				// use original package name
++				obj = pkg.obj;
++				P.Declare(obj);
++			}
++			obj.pnolev = pkg.obj.pnolev;
++		} else {
++			P.Error(P.pos, `import of "` + pkg_name + `" failed`);
+ 		}
+ 		P.Next();
+ 	} else {
+-		P.ParseImportSpec();
++		P.Expect(Scanner.STRING);  // use Expect() error handling
+ 	}
+ 	
+ 	P.Ecart();
+@@ -1569,6 +1659,7 @@ func (P *Parser) ParseVarSpec(exported bool) {
+ // TODO With method variables, we wouldn't need this dispatch function.
+ func (P *Parser) ParseSpec(exported bool, keyword int) {
+ 	switch keyword {
++	case Scanner.IMPORT: P.ParseImportSpec();
+ 	case Scanner.CONST: P.ParseConstSpec(exported);
+ 	case Scanner.TYPE: P.ParseTypeSpec(exported);
+ 	case Scanner.VAR: P.ParseVarSpec(exported);
+@@ -1586,7 +1677,8 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
+ 		for P.tok == Scanner.IDENT {
+ 			P.ParseSpec(exported, keyword);
+ 			if P.tok != Scanner.RPAREN {
+-				P.Expect(Scanner.SEMICOLON);
++				// P.Expect(Scanner.SEMICOLON);
++				P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong! (needed for math.go)
+ 			}
+ 		}
+ 		P.Next();
+@@ -1602,12 +1694,13 @@ func (P *Parser) ParseFuncDecl(exported bool) {
+ 	P.Trace("FuncDecl");
+ 	
+ 	P.Expect(Scanner.FUNC);
+-	P.ParseNamedSignature();
++	ident, typ := P.ParseNamedSignature();
++	obj := P.DeclareFunc(exported, ident, typ);  // need obj later for statements
+ 	if P.tok == Scanner.SEMICOLON {
+ 		// forward declaration
+ 		P.Next();
+ 	} else {
+-		P.ParseBlock();
++		P.ParseBlock(typ.scope);
+ 	}
+ 	
+ 	P.Ecart();
+@@ -1643,9 +1736,14 @@ func (P *Parser) ParseDeclaration() {
+ 	
+ 	exported := false;
+ 	if P.tok == Scanner.EXPORT {
++		if P.level == 0 {
++			exported = true;
++		} else {
++			P.Error(P.pos, "local declarations cannot be exported");
++		}
+ 		P.Next();
+-		exported = true;
+ 	}
++	
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+ 		P.ParseDecl(exported, P.tok);
+@@ -1732,14 +1830,18 @@ func (P *Parser) ParseProgram() {
+ 	
+ 	P.OpenScope();
+ 	P.Expect(Scanner.PACKAGE);
+-	pkg := P.comp.pkgs[0];
++	pkg := Globals.NewPackage(P.S.filename);
+ 	pkg.obj = P.ParseIdentDecl(Object.PACKAGE);
++	P.comp.Insert(pkg);
++	if P.comp.npkgs != 1 {
++		panic "should have exactly one package now";
++	}
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+ 	{	P.OpenScope();
+ 		pkg.scope = P.top_scope;
+ 		for P.tok == Scanner.IMPORT {
+-			P.ParseImportDecl();
++			P.ParseDecl(false, Scanner.IMPORT);
+ 			P.Optional(Scanner.SEMICOLON);
+ 		}
+ 		
+diff --git a/usr/gri/gosrc/utils.go b/usr/gri/gosrc/utils.go
+new file mode 100644
+index 0000000000..d9359eb67d
+--- /dev/null
++++ b/usr/gri/gosrc/utils.go
+@@ -0,0 +1,29 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package Utils
++
++
++export BaseName
++func BaseName(s string) string {
++	// TODO this is not correct for non-ASCII strings!
++	i := len(s) - 1;
++	for i >= 0 && s[i] != '/' {
++		if s[i] > 128 {
++			panic "non-ASCII string"
++		}
++		i--;
++	}
++	return s[i + 1 : len(s)];
++}
++
++
++export FixExt
++func FixExt(s string) string {
++	i := len(s) - 3;  // 3 == len(".go");
++	if s[i : len(s)] == ".go" {
++		s = s[0 : i];
++	}
++	return s + ".7";
++}

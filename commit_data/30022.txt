@@ -12,6 +12,23 @@ Date:   Fri Oct 21 12:14:36 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/31735
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/httptrace/trace.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 5b042c097f..807bc4ed69 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -68,9 +68,8 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
+ 
+ // ClientTrace is a set of hooks to run at various stages of an outgoing
+ // HTTP request. Any particular hook may be nil. Functions may be
+-// called concurrently from different goroutines, starting after the
+-// call to Transport.RoundTrip and ending either when RoundTrip
+-// returns an error, or when the Response.Body is closed.
++// called concurrently from different goroutines and some may be called
++// after the request has completed or failed.
+ type ClientTrace struct {
+ 	// GetConn is called before a connection is created or
+ 	// retrieved from an idle pool. The hostPort is the

@@ -21,8 +21,76 @@ Date:   Wed Jan 24 11:22:14 2024 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/serve_test.go       |  4 ++++
  src/net/textproto/reader.go      | 11 ++++-------
  src/net/textproto/reader_test.go |  5 +++--
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 0c76f1bcc4..2185869414 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4799,6 +4799,10 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		{"Foo : bar\r\n", 400},
+ 		{"Foo\t: bar\r\n", 400},
+ 
++		// Empty header keys are invalid.
++		// See RFC 7230, Section 3.2.
++		{": empty key\r\n", 400},
++
+ 		{"foo: foo foo\r\n", 200},    // LWS space is okay
+ 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
+ 		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index a603564fb8..ee7eb0200b 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -535,13 +535,6 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error)
+ 			}
+ 		}
+ 
+-		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
+-		// We could return a ProtocolError here, but better to be liberal in what we
+-		// accept, so if we get an empty key, skip it.
+-		if key == "" {
+-			continue
+-		}
+-
+ 		maxHeaders--
+ 		if maxHeaders < 0 {
+ 			return nil, errors.New("message too large")
+@@ -725,6 +718,10 @@ func validHeaderValueByte(c byte) bool {
+ // ReadMIMEHeader accepts header keys containing spaces, but does not
+ // canonicalize them.
+ func canonicalMIMEHeaderKey(a []byte) (_ string, ok bool) {
++	if len(a) == 0 {
++		return "", false
++	}
++
+ 	// See if a looks like a header key. If not, return it unchanged.
+ 	noCanon := false
+ 	for _, c := range a {
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index 696ae406f3..c9c0a98ea4 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -169,8 +169,8 @@ func TestReaderUpcomingHeaderKeys(t *testing.T) {
+ func TestReadMIMEHeaderNoKey(t *testing.T) {
+ 	r := reader(": bar\ntest-1: 1\n\n")
+ 	m, err := r.ReadMIMEHeader()
+-	want := MIMEHeader{"Test-1": {"1"}}
+-	if !reflect.DeepEqual(m, want) || err != nil {
++	want := MIMEHeader{}
++	if !reflect.DeepEqual(m, want) || err == nil {
+ 		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)
+ 	}
+ }
+@@ -227,6 +227,7 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
+ 		"Foo\r\n\t: foo\r\n\r\n",
+ 		"Foo-\n\tBar",
+ 		"Foo \tBar: foo\r\n\r\n",
++		": empty key\r\n\r\n",
+ 	}
+ 	for _, input := range inputs {
+ 		r := reader(input)

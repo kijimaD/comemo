@@ -14,7 +14,7 @@ Date:   Mon Jan 12 15:17:10 2015 -0500
     Change-Id: I68579cfea679438a27a80416727a9af932b088ae
     Reviewed-on: https://go-review.googlesource.com/2658
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/9l/9.out.h   |  11 +-
  src/liblink/asm5.c   | 115 ++++---
  src/liblink/asm9.c   | 230 +++++++++-----
@@ -29,3 +29,1936 @@ Date:   Mon Jan 12 15:17:10 2015 -0500
  src/liblink/sym.c    |   5 +-
  src/runtime/stack.h  |  10 +-
  13 files changed, 279 insertions(+), 1093 deletions(-)
+
+diff --git a/src/cmd/9l/9.out.h b/src/cmd/9l/9.out.h
+index 520ee9a81a..dbb2e0a768 100644
+--- a/src/cmd/9l/9.out.h
++++ b/src/cmd/9l/9.out.h
+@@ -30,10 +30,13 @@
+ /*
+  * powerpc 64
+  */
+-#define	NSNAME	8
+-#define	NSYM	50
+-#define	NREG	32	/* number of general registers */
+-#define	NFREG	32	/* number of floating point registers */
++enum
++{
++	NSNAME = 8,
++	NSYM = 50,
++	NREG = 32,	/* number of general registers */
++	NFREG = 32,	/* number of floating point registers */
++};
+ 
+ #include "../ld/textflag.h"
+ 
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 96df9f7919..9d4fe40424 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -329,25 +329,25 @@ static struct {
+ static int	checkpool(Link*, Prog*, int);
+ static int 	flushpool(Link*, Prog*, int, int);
+ static void	addpool(Link*, Prog*, Addr*);
+-static void	asmout(Link*, Prog*, Optab*, int32*);
+-static int	asmoutnacl(Link*, int32, Prog*, Optab*, int32 *);
++static void	asmout(Link*, Prog*, Optab*, uint32*);
++static int	asmoutnacl(Link*, int32, Prog*, Optab*, uint32*);
+ static Optab*	oplook(Link*, Prog*);
+-static int32	oprrr(Link*, int, int);
+-static int32	olr(Link*, int32, int, int, int);
+-static int32	olhr(Link*, int32, int, int, int);
+-static int32	olrr(Link*, int, int, int, int);
+-static int32	olhrr(Link*, int, int, int, int);
+-static int32	osr(Link*, int, int, int32, int, int);
+-static int32	oshr(Link*, int, int32, int, int);
+-static int32	ofsr(Link*, int, int, int32, int, int, Prog*);
+-static int32	osrr(Link*, int, int, int, int);
+-static int32	oshrr(Link*, int, int, int, int);
+-static int32	omvl(Link*, Prog*, Addr*, int);
++static uint32	oprrr(Link*, int, int);
++static uint32	olr(Link*, int32, int, int, int);
++static uint32	olhr(Link*, int32, int, int, int);
++static uint32	olrr(Link*, int, int, int, int);
++static uint32	olhrr(Link*, int, int, int, int);
++static uint32	osr(Link*, int, int, int32, int, int);
++static uint32	oshr(Link*, int, int32, int, int);
++static uint32	ofsr(Link*, int, int, int32, int, int, Prog*);
++static uint32	osrr(Link*, int, int, int, int);
++static uint32	oshrr(Link*, int, int, int, int);
++static uint32	omvl(Link*, Prog*, Addr*, int);
+ static int32	immaddr(int32);
+ static int	aclass(Link*, Addr*);
+ static int32	immrot(uint32);
+ static int32	immaddr(int32);
+-static int32	opbra(Link*, int, int);
++static uint32	opbra(Link*, int, int);
+ 
+ static	Oprang	oprange[ALAST];
+ static	uchar	xcmp[C_GOK+1][C_GOK+1];
+@@ -405,7 +405,7 @@ static void buildop(Link*);
+ // In rare cases, asmoutnacl might split p into two instructions.
+ // origPC is the PC for this Prog (no padding is taken into account).
+ static int
+-asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, int32 *out)
++asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
+ {
+ 	int size, reg;
+ 	Prog *q;
+@@ -642,7 +642,8 @@ span5(Link *ctxt, LSym *cursym)
+ 	Prog *p, *op;
+ 	Optab *o;
+ 	int m, bflag, i, v, times;
+-	int32 c, opc, out[6+3];
++	int32 c, opc;
++	uint32 out[6+3];
+ 	uchar *bp;
+ 
+ 	p = cursym->text;
+@@ -682,7 +683,10 @@ span5(Link *ctxt, LSym *cursym)
+ 		}
+ 		// must check literal pool here in case p generates many instructions
+ 		if(ctxt->blitrl){
+-			if(checkpool(ctxt, op, p->as == ACASE ? casesz(ctxt, p) : m)) {
++			i = m;
++			if(p->as == ACASE)
++				i = casesz(ctxt, p);
++			if(checkpool(ctxt, op, i)) {
+ 				p = op;
+ 				continue;
+ 			}
+@@ -1070,8 +1074,11 @@ aclass(Link *ctxt, Addr *a)
+ 			ctxt->instoffset = ctxt->autosize + a->offset;
+ 			t = immaddr(ctxt->instoffset);
+ 			if(t){
+-				if(immhalf(ctxt->instoffset))
+-					return immfloat(t) ? C_HFAUTO : C_HAUTO;
++				if(immhalf(ctxt->instoffset)) {
++					if(immfloat(t))
++						return C_HFAUTO;
++					return C_HAUTO;
++				}
+ 				if(immfloat(t))
+ 					return C_FAUTO;
+ 				return C_SAUTO;
+@@ -1082,8 +1089,11 @@ aclass(Link *ctxt, Addr *a)
+ 			ctxt->instoffset = ctxt->autosize + a->offset + 4L;
+ 			t = immaddr(ctxt->instoffset);
+ 			if(t){
+-				if(immhalf(ctxt->instoffset))
+-					return immfloat(t) ? C_HFAUTO : C_HAUTO;
++				if(immhalf(ctxt->instoffset)) {
++					if(immfloat(t))
++						return C_HFAUTO;
++					return C_HAUTO;
++				}
+ 				if(immfloat(t))
+ 					return C_FAUTO;
+ 				return C_SAUTO;
+@@ -1093,8 +1103,11 @@ aclass(Link *ctxt, Addr *a)
+ 			ctxt->instoffset = a->offset;
+ 			t = immaddr(ctxt->instoffset);
+ 			if(t) {
+-				if(immhalf(ctxt->instoffset))		 /* n.b. that it will also satisfy immrot */
+-					return immfloat(t) ? C_HFOREG : C_HOREG;
++				if(immhalf(ctxt->instoffset)) {		 /* n.b. that it will also satisfy immrot */
++					if(immfloat(t))
++						return C_HFOREG;
++					return C_HOREG;
++				}
+ 				if(immfloat(t))
+ 					return C_FOREG; /* n.b. that it will also satisfy immrot */
+ 				t = immrot(ctxt->instoffset);
+@@ -1488,12 +1501,13 @@ buildop(Link *ctxt)
+ 	}
+ }
+ 
+-static int32 mov(Link*, Prog*);
++static uint32 mov(Link*, Prog*);
+ 
+ static void
+-asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
++asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
+ {
+-	int32 o1, o2, o3, o4, o5, o6, v;
++	uint32 o1, o2, o3, o4, o5, o6;
++	int32 v;
+ 	int r, rf, rt, rt2;
+ 	Reloc *rel;
+ 
+@@ -2315,10 +2329,10 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 	return;
+ }
+ 
+-static int32
++static uint32
+ mov(Link *ctxt, Prog *p)
+ {
+-	int32 o1;
++	uint32 o1;
+ 	int rt, r;
+ 
+ 	aclass(ctxt, &p->from);
+@@ -2336,10 +2350,10 @@ mov(Link *ctxt, Prog *p)
+ 	return o1;
+ }
+ 
+-static int32
++static uint32
+ oprrr(Link *ctxt, int a, int sc)
+ {
+-	int32 o;
++	uint32 o;
+ 
+ 	o = (sc & C_SCOND) << 28;
+ 	if(sc & C_SBIT)
+@@ -2450,7 +2464,7 @@ oprrr(Link *ctxt, int a, int sc)
+ 	return 0;
+ }
+ 
+-static int32
++static uint32
+ opbra(Link *ctxt, int a, int sc)
+ {
+ 
+@@ -2485,10 +2499,10 @@ opbra(Link *ctxt, int a, int sc)
+ 	return 0;
+ }
+ 
+-static int32
++static uint32
+ olr(Link *ctxt, int32 v, int b, int r, int sc)
+ {
+-	int32 o;
++	uint32 o;
+ 
+ 	if(sc & C_SBIT)
+ 		ctxt->diag(".nil on LDR/STR instruction");
+@@ -2514,10 +2528,10 @@ olr(Link *ctxt, int32 v, int b, int r, int sc)
+ 	return o;
+ }
+ 
+-static int32
++static uint32
+ olhr(Link *ctxt, int32 v, int b, int r, int sc)
+ {
+-	int32 o;
++	uint32 o;
+ 
+ 	if(sc & C_SBIT)
+ 		ctxt->diag(".nil on LDRH/STRH instruction");
+@@ -2539,10 +2553,10 @@ olhr(Link *ctxt, int32 v, int b, int r, int sc)
+ 	return o;
+ }
+ 
+-static int32
++static uint32
+ osr(Link *ctxt, int a, int r, int32 v, int b, int sc)
+ {
+-	int32 o;
++	uint32 o;
+ 
+ 	o = olr(ctxt, v, b, r, sc) ^ (1<<20);
+ 	if(a != AMOVW)
+@@ -2550,46 +2564,46 @@ osr(Link *ctxt, int a, int r, int32 v, int b, int sc)
+ 	return o;
+ }
+ 
+-static int32
++static uint32
+ oshr(Link *ctxt, int r, int32 v, int b, int sc)
+ {
+-	int32 o;
++	uint32 o;
+ 
+ 	o = olhr(ctxt, v, b, r, sc) ^ (1<<20);
+ 	return o;
+ }
+ 
+ 
+-static int32
++static uint32
+ osrr(Link *ctxt, int r, int i, int b, int sc)
+ {
+ 
+ 	return olr(ctxt, i, b, r, sc) ^ ((1<<25) | (1<<20));
+ }
+ 
+-static int32
++static uint32
+ oshrr(Link *ctxt, int r, int i, int b, int sc)
+ {
+ 	return olhr(ctxt, i, b, r, sc) ^ ((1<<22) | (1<<20));
+ }
+ 
+-static int32
++static uint32
+ olrr(Link *ctxt, int i, int b, int r, int sc)
+ {
+ 
+ 	return olr(ctxt, i, b, r, sc) ^ (1<<25);
+ }
+ 
+-static int32
++static uint32
+ olhrr(Link *ctxt, int i, int b, int r, int sc)
+ {
+ 	return olhr(ctxt, i, b, r, sc) ^ (1<<22);
+ }
+ 
+-static int32
++static uint32
+ ofsr(Link *ctxt, int a, int r, int32 v, int b, int sc, Prog *p)
+ {
+-	int32 o;
++	uint32 o;
+ 
+ 	if(sc & C_SBIT)
+ 		ctxt->diag(".nil on FLDR/FSTR instruction");
+@@ -2623,10 +2637,11 @@ ofsr(Link *ctxt, int a, int r, int32 v, int b, int sc, Prog *p)
+ 	return o;
+ }
+ 
+-static int32
++static uint32
+ omvl(Link *ctxt, Prog *p, Addr *a, int dr)
+ {
+-	int32 v, o1;
++	int32 v;
++	uint32 o1;
+ 	if(!p->pcond) {
+ 		aclass(ctxt, a);
+ 		v = immrot(~ctxt->instoffset);
+@@ -2659,7 +2674,7 @@ chipfloat5(Link *ctxt, float64 e)
+ {
+ 	int n;
+ 	ulong h1;
+-	int32 l, h;
++	uint32 l, h;
+ 	uint64 ei;
+ 
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+@@ -2667,8 +2682,8 @@ chipfloat5(Link *ctxt, float64 e)
+ 		goto no;
+ 
+ 	memmove(&ei, &e, 8);
+-	l = (int32)ei;
+-	h = (int32)(ei>>32);
++	l = (uint32)ei;
++	h = (uint32)(ei>>32);
+ 
+ 	if(l != 0 || (h&0xffff) != 0)
+ 		goto no;
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index 64fc651207..f604395a7a 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -454,7 +454,7 @@ static int isint32(vlong);
+ static int isuint32(uvlong);
+ static int aclass(Link*, Addr*);
+ static Optab* oplook(Link*, Prog*);
+-static void asmout(Link*, Prog*, Optab*, int32*);
++static void asmout(Link*, Prog*, Optab*, uint32*);
+ static vlong vregoff(Link*, Addr*);
+ static int32 regoff(Link*, Addr*);
+ static int32 oprrr(Link*, int);
+@@ -468,13 +468,16 @@ static void maskgen(Link*, Prog*, uchar*, uint32);
+ static int getmask64(uchar*, uvlong);
+ static void maskgen64(Link*, Prog*, uchar*, uvlong);
+ static uint32 loadu32(int, vlong);
+-static void addaddrreloc(Link*, LSym*, int*, int*);
++static void addaddrreloc(Link*, LSym*, uint32*, uint32*);
+ 
+-static struct
++typedef struct Oprang Oprang;
++struct Oprang
+ {
+ 	Optab*	start;
+ 	Optab*	stop;
+-} oprange[ALAST];
++};
++
++static Oprang oprange[ALAST];
+ 
+ static uchar	xcmp[C_NCLASS][C_NCLASS];
+ 
+@@ -486,7 +489,8 @@ span9(Link *ctxt, LSym *cursym)
+ 	Optab *o;
+ 	int m, bflag;
+ 	vlong c, otxt;
+-	int32 out[6], i, j;
++	uint32 out[6];
++	int32 i, j;
+ 	uchar *bp, *cast;
+ 
+ 	p = cursym->text;
+@@ -687,27 +691,7 @@ aclass(Link *ctxt, Addr *a)
+ 					return C_LACON;
+ 				return C_DACON;
+ 			}
+-		consize:
+-			if(ctxt->instoffset >= 0) {
+-				if(ctxt->instoffset == 0)
+-					return C_ZCON;
+-				if(ctxt->instoffset <= 0x7fff)
+-					return C_SCON;
+-				if(ctxt->instoffset <= 0xffff)
+-					return C_ANDCON;
+-				if((ctxt->instoffset & 0xffff) == 0 && isuint32(ctxt->instoffset))	/* && (instoffset & (1<<31)) == 0) */
+-					return C_UCON;
+-				if(isint32(ctxt->instoffset) || isuint32(ctxt->instoffset))
+-					return C_LCON;
+-				return C_DCON;
+-			}
+-			if(ctxt->instoffset >= -0x8000)
+-				return C_ADDCON;
+-			if((ctxt->instoffset & 0xffff) == 0 && isint32(ctxt->instoffset))
+-				return C_UCON;
+-			if(isint32(ctxt->instoffset))
+-				return C_LCON;
+-			return C_DCON;
++			goto consize;
+ 
+ 		case D_EXTERN:
+ 		case D_STATIC:
+@@ -736,6 +720,28 @@ aclass(Link *ctxt, Addr *a)
+ 		}
+ 		return C_GOK;
+ 
++	consize:
++		if(ctxt->instoffset >= 0) {
++			if(ctxt->instoffset == 0)
++				return C_ZCON;
++			if(ctxt->instoffset <= 0x7fff)
++				return C_SCON;
++			if(ctxt->instoffset <= 0xffff)
++				return C_ANDCON;
++			if((ctxt->instoffset & 0xffff) == 0 && isuint32(ctxt->instoffset))	/* && (instoffset & (1<<31)) == 0) */
++				return C_UCON;
++			if(isint32(ctxt->instoffset) || isuint32(ctxt->instoffset))
++				return C_LCON;
++			return C_DCON;
++		}
++		if(ctxt->instoffset >= -0x8000)
++			return C_ADDCON;
++		if((ctxt->instoffset & 0xffff) == 0 && isint32(ctxt->instoffset))
++			return C_UCON;
++		if(isint32(ctxt->instoffset))
++			return C_LCON;
++		return C_DCON;
++
+ 	case D_BRANCH:
+ 		return C_SBRA;
+ 	}
+@@ -1271,61 +1277,120 @@ buildop(Link *ctxt)
+ 	}
+ }
+ 
+-#define	OPVCC(o,xo,oe,rc) (((o)<<26)|((xo)<<1)|((oe)<<10)|((rc)&1))
+-#define	OPCC(o,xo,rc) OPVCC((o),(xo),0,(rc))
+-#define	OP(o,xo) OPVCC((o),(xo),0,0)
++uint32
++OPVCC(uint32 o, uint32 xo, uint32 oe, uint32 rc)
++{
++	return o<<26 | xo<<1 | oe<<10 | rc&1;
++}
++
++uint32
++OPCC(uint32 o, uint32 xo, uint32 rc)
++{
++	return OPVCC(o, xo, 0, rc);
++}
++
++uint32
++OP(uint32 o, uint32 xo)
++{
++	return OPVCC(o, xo, 0, 0);
++}
+ 
+ /* the order is dest, a/s, b/imm for both arithmetic and logical operations */
+-#define	AOP_RRR(op,d,a,b) ((op)|(((d)&31L)<<21)|(((a)&31L)<<16)|(((b)&31L)<<11))
+-#define	AOP_IRR(op,d,a,simm) ((op)|(((d)&31L)<<21)|(((a)&31L)<<16)|((simm)&0xFFFF))
+-#define	LOP_RRR(op,a,s,b) ((op)|(((s)&31L)<<21)|(((a)&31L)<<16)|(((b)&31L)<<11))
+-#define	LOP_IRR(op,a,s,uimm) ((op)|(((s)&31L)<<21)|(((a)&31L)<<16)|((uimm)&0xFFFF))
+-#define	OP_BR(op,li,aa) ((op)|((li)&0x03FFFFFC)|((aa)<<1))
+-#define	OP_BC(op,bo,bi,bd,aa) ((op)|(((bo)&0x1F)<<21)|(((bi)&0x1F)<<16)|((bd)&0xFFFC)|((aa)<<1))
+-#define	OP_BCR(op,bo,bi) ((op)|(((bo)&0x1F)<<21)|(((bi)&0x1F)<<16))
+-#define	OP_RLW(op,a,s,sh,mb,me) ((op)|(((s)&31L)<<21)|(((a)&31L)<<16)|(((sh)&31L)<<11)|\
+-					(((mb)&31L)<<6)|(((me)&31L)<<1))
+-
+-#define	OP_ADD	OPVCC(31,266,0,0)
+-#define	OP_ADDI	OPVCC(14,0,0,0)
+-#define	OP_ADDIS OPVCC(15,0,0,0)
+-#define	OP_ANDI	OPVCC(28,0,0,0)
+-#define	OP_EXTSB	OPVCC(31,954,0,0)
+-#define	OP_EXTSH OPVCC(31,922,0,0)
+-#define	OP_EXTSW OPVCC(31,986,0,0)
+-#define	OP_MCRF	OPVCC(19,0,0,0)
+-#define	OP_MCRFS OPVCC(63,64,0,0)
+-#define	OP_MCRXR OPVCC(31,512,0,0)
+-#define	OP_MFCR	OPVCC(31,19,0,0)
+-#define	OP_MFFS	OPVCC(63,583,0,0)
+-#define	OP_MFMSR OPVCC(31,83,0,0)
+-#define	OP_MFSPR OPVCC(31,339,0,0)
+-#define	OP_MFSR	OPVCC(31,595,0,0)
+-#define	OP_MFSRIN	OPVCC(31,659,0,0)
+-#define	OP_MTCRF OPVCC(31,144,0,0)
+-#define	OP_MTFSF OPVCC(63,711,0,0)
+-#define	OP_MTFSFI OPVCC(63,134,0,0)
+-#define	OP_MTMSR OPVCC(31,146,0,0)
+-#define	OP_MTMSRD OPVCC(31,178,0,0)
+-#define	OP_MTSPR OPVCC(31,467,0,0)
+-#define	OP_MTSR	OPVCC(31,210,0,0)
+-#define	OP_MTSRIN	OPVCC(31,242,0,0)
+-#define	OP_MULLW OPVCC(31,235,0,0)
+-#define	OP_MULLD OPVCC(31,233,0,0)
+-#define	OP_OR	OPVCC(31,444,0,0)
+-#define	OP_ORI	OPVCC(24,0,0,0)
+-#define	OP_ORIS	OPVCC(25,0,0,0)
+-#define	OP_RLWINM	OPVCC(21,0,0,0)
+-#define	OP_SUBF	OPVCC(31,40,0,0)
+-#define	OP_RLDIC	OPVCC(30,4,0,0)
+-#define	OP_RLDICR	OPVCC(30,2,0,0)
+-#define	OP_RLDICL	OPVCC(30,0,0,0)
+-
+-#define	oclass(v)	((v).class-1)
++uint32
++AOP_RRR(uint32 op, uint32 d, uint32 a, uint32 b)
++{
++	return op | (d&31)<<21 | (a&31)<<16 | (b&31)<<11;
++}
++
++uint32
++AOP_IRR(uint32 op, uint32 d, uint32 a, uint32 simm)
++{
++	return op | (d&31)<<21 | (a&31)<<16 | (simm&0xFFFF);
++}
++
++uint32
++LOP_RRR(uint32 op, uint32 a, uint32 s, uint32 b)
++{
++	return op | (s&31)<<21 | (a&31)<<16 | (b&31)<<11;
++}
++
++uint32
++LOP_IRR(uint32 op, uint32 a, uint32 s, uint32 uimm)
++{
++	return op | (s&31)<<21 | (a&31)<<16 | (uimm&0xFFFF);
++}
++
++uint32
++OP_BR(uint32 op, uint32 li, uint32 aa)
++{
++	return op | li&0x03FFFFFC | aa<<1;
++}
++
++uint32
++OP_BC(uint32 op, uint32 bo, uint32 bi, uint32 bd, uint32 aa)
++{
++	return op | (bo&0x1F)<<21 | (bi&0x1F)<<16 | bd&0xFFFC | aa<<1;
++}
++
++uint32
++OP_BCR(uint32 op, uint32 bo, uint32 bi)
++{
++	return op | (bo&0x1F)<<21 | (bi&0x1F)<<16;
++}
++
++uint32
++OP_RLW(uint32 op, uint32 a, uint32 s, uint32 sh, uint32 mb, uint32 me)
++{
++	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | (mb&31)<<6 | (me&31)<<1;
++}
++
++enum {
++	/* each rhs is OPVCC(_, _, _, _) */
++	OP_ADD =	31<<26 | 266<<1 | 0<<10 | 0,
++	OP_ADDI =	14<<26 | 0<<1 | 0<<10 | 0,
++	OP_ADDIS = 15<<26 | 0<<1 | 0<<10 | 0,
++	OP_ANDI =	28<<26 | 0<<1 | 0<<10 | 0,
++	OP_EXTSB =	31<<26 | 954<<1 | 0<<10 | 0,
++	OP_EXTSH = 31<<26 | 922<<1 | 0<<10 | 0,
++	OP_EXTSW = 31<<26 | 986<<1 | 0<<10 | 0,
++	OP_MCRF =	19<<26 | 0<<1 | 0<<10 | 0,
++	OP_MCRFS = 63<<26 | 64<<1 | 0<<10 | 0,
++	OP_MCRXR = 31<<26 | 512<<1 | 0<<10 | 0,
++	OP_MFCR =	31<<26 | 19<<1 | 0<<10 | 0,
++	OP_MFFS =	63<<26 | 583<<1 | 0<<10 | 0,
++	OP_MFMSR = 31<<26 | 83<<1 | 0<<10 | 0,
++	OP_MFSPR = 31<<26 | 339<<1 | 0<<10 | 0,
++	OP_MFSR =	31<<26 | 595<<1 | 0<<10 | 0,
++	OP_MFSRIN =	31<<26 | 659<<1 | 0<<10 | 0,
++	OP_MTCRF = 31<<26 | 144<<1 | 0<<10 | 0,
++	OP_MTFSF = 63<<26 | 711<<1 | 0<<10 | 0,
++	OP_MTFSFI = 63<<26 | 134<<1 | 0<<10 | 0,
++	OP_MTMSR = 31<<26 | 146<<1 | 0<<10 | 0,
++	OP_MTMSRD = 31<<26 | 178<<1 | 0<<10 | 0,
++	OP_MTSPR = 31<<26 | 467<<1 | 0<<10 | 0,
++	OP_MTSR =	31<<26 | 210<<1 | 0<<10 | 0,
++	OP_MTSRIN =	31<<26 | 242<<1 | 0<<10 | 0,
++	OP_MULLW = 31<<26 | 235<<1 | 0<<10 | 0,
++	OP_MULLD = 31<<26 | 233<<1 | 0<<10 | 0,
++	OP_OR =	31<<26 | 444<<1 | 0<<10 | 0,
++	OP_ORI =	24<<26 | 0<<1 | 0<<10 | 0,
++	OP_ORIS =	25<<26 | 0<<1 | 0<<10 | 0,
++	OP_RLWINM =	21<<26 | 0<<1 | 0<<10 | 0,
++	OP_SUBF =	31<<26 | 40<<1 | 0<<10 | 0,
++	OP_RLDIC =	30<<26 | 4<<1 | 0<<10 | 0,
++	OP_RLDICR =	30<<26 | 2<<1 | 0<<10 | 0,
++	OP_RLDICL =	30<<26 | 0<<1 | 0<<10 | 0,
++};
++
++int
++oclass(Addr *a)
++{
++	return a->class - 1;
++}
+ 
+ // add R_ADDRPOWER relocation to symbol s for the two instructions o1 and o2.
+ static void
+-addaddrreloc(Link *ctxt, LSym *s, int *o1, int *o2)
++addaddrreloc(Link *ctxt, LSym *s, uint32 *o1, uint32 *o2)
+ {
+ 	Reloc *rel;
+ 
+@@ -1346,7 +1411,7 @@ getmask(uchar *m, uint32 v)
+ 	int i;
+ 
+ 	m[0] = m[1] = 0;
+-	if(v != ~0U && v & (1<<31) && v & 1){	/* MB > ME */
++	if(v != ~(uint32)0 && v & (1<<31) && v & 1){	/* MB > ME */
+ 		if(getmask(m, ~v)){
+ 			i = m[0]; m[0] = m[1]+1; m[1] = i-1;
+ 			return 1;
+@@ -1424,9 +1489,10 @@ high16adjusted(int32 d)
+ }
+ 
+ static void
+-asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
++asmout(Link *ctxt, Prog *p, Optab *o, uint32 *out)
+ {
+-	int32 o1, o2, o3, o4, o5, v, t;
++	uint32 o1, o2, o3, o4, o5;
++	int32 v, t;
+ 	vlong d;
+ 	int r, a;
+ 	uchar mask[2];
+@@ -1694,7 +1760,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = 0;
+-		switch(oclass(p->to)) {
++		switch(oclass(&p->to)) {
+ 		case C_CTR:
+ 			o1 = OPVCC(19, 528, 0, 0);
+ 			break;
+@@ -1902,7 +1968,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 
+ 	case 33:	/* fabs [frb,]frd; fmr. frb,frd */
+ 		r = p->from.reg;
+-		if(oclass(p->from) == C_NONE)
++		if(oclass(&p->from) == C_NONE)
+ 			r = p->to.reg;
+ 		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, 0, r);
+ 		break;
+@@ -2034,7 +2100,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 		break;
+ 
+ 	case 54:	/* mov msr,r1; mov r1, msr*/
+-		if(oclass(p->from) == C_REG){
++		if(oclass(&p->from) == C_REG){
+ 			if(p->as == AMOVD)
+ 				o1 = AOP_RRR(OP_MTMSRD, p->from.reg, 0, 0);
+ 			else
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index a9eace4cdc..dc685158d2 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -83,18 +83,6 @@ Pconv(Fmt *fp)
+ 	p = va_arg(fp->args, Prog*);
+ 	bigP = p;
+ 
+-	if(fp->flags & FmtSharp) {
+-		char *s = str;
+-		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, p->as);
+-		if(p->from.type != D_NONE)
+-			s += sprint(s, " from={%#D}", &p->from);
+-		if(p->reg)
+-			s += sprint(s, " reg=%d", p->reg);
+-		if(p->to.type != D_NONE)
+-			sprint(s, " to={%#D}", &p->to);
+-		return fmtstrcpy(fp, str);
+-	}
+-
+ 	switch(p->as) {
+ 	case ADATA:
+ 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
+@@ -139,29 +127,6 @@ Dconv(Fmt *fp)
+ 	a = va_arg(fp->args, Addr*);
+ 	i = a->type;
+ 
+-	if(fp->flags & FmtSharp) {
+-		char *s = str;
+-		s += sprint(s, "type=");
+-		if(i == D_NONE) {
+-			sprint(s, "NONE");
+-			goto brk;
+-		}
+-		if(i >= D_INDIR) {
+-			i -= D_INDIR;
+-			s += sprint(s, "INDIR+");
+-		}
+-		if(i >= 0 && i < D_LAST && dnames6[i] != nil)
+-			s += sprint(s, "%s ", dnames6[i]);
+-		else
+-			s += sprint(s, "%d ", i);
+-		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
+-		if(a->sym != nil)
+-			s += sprint(s, " sym=%s", a->sym->name);
+-		if(a->type == D_BRANCH && a->u.branch != nil)
+-			sprint(s, " branch=%.5lld", a->u.branch->pc);
+-		goto brk;
+-	}
+-
+ 	if(fp->flags & FmtLong) {
+ 		if(i == D_CONST)
+ 			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 32fcf8f87b..b63099a5ab 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -84,28 +84,14 @@ static Prog*	bigP;
+ static int
+ Pconv(Fmt *fp)
+ {
+-	char str[STRINGSZ], *s;
++	char str[STRINGSZ];
+ 	Prog *p;
+-	int a;
++	int a, ch;
+ 
+ 	p = va_arg(fp->args, Prog*);
+ 	bigP = p;
+ 	a = p->as;
+ 
+-	if(fp->flags & FmtSharp) {
+-		s = str;
+-		s += sprint(s, "%.5lld (%L) %A", p->pc, p->lineno, a);
+-		if(p->from.type != D_NONE)
+-			s += sprint(s, " from={%#D}", &p->from);
+-		if(p->reg)
+-			s += sprint(s, " reg=%d", p->reg);
+-		if(p->from3.type != D_NONE)
+-			s += sprint(s, " from3={%#D}", &p->from3);
+-		if(p->to.type != D_NONE)
+-			sprint(s, " to={%#D}", &p->to);
+-		return fmtstrcpy(fp, str);
+-	}
+-
+ 	if(a == ADATA || a == AINIT || a == ADYNT)
+ 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 	else if(a == ATEXT) {
+@@ -119,26 +105,29 @@ Pconv(Fmt *fp)
+ 		else
+ 			sprint(str, "%.5lld (%L)        %A      %D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+ 	} else {
+-		s = str;
+ 		if(p->mark & NOSCHED)
+-			s += sprint(s, "*");
++			sprint(strchr(str, 0), "*");
+ 		if(p->reg == NREG && p->from3.type == D_NONE)
+-			sprint(s, "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
++			sprint(strchr(str, 0), "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+ 		else
+ 		if(a != ATEXT && p->from.type == D_OREG) {
+-			sprint(s, "%.5lld (%L)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
++			sprint(strchr(str, 0), "%.5lld (%L)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
+ 				p->from.offset, p->from.reg, p->reg, &p->to);
+ 		} else
+ 		if(p->to.type == D_OREG) {
+-			sprint(s, "%.5lld (%L)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
++			sprint(strchr(str, 0), "%.5lld (%L)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
+ 					&p->from, p->to.offset, p->to.reg, p->reg);
+ 		} else {
+-			s += sprint(s, "%.5lld (%L)	%A	%D", p->pc, p->lineno, a, &p->from);
+-			if(p->reg != NREG)
+-				s += sprint(s, ",%c%d", p->from.type==D_FREG?'F':'R', p->reg);
++			sprint(strchr(str, 0), "%.5lld (%L)	%A	%D", p->pc, p->lineno, a, &p->from);
++			if(p->reg != NREG) {
++				ch = 'R';
++				if(p->from.type == D_FREG)
++					ch = 'F';
++				sprint(strchr(str, 0), ",%c%d", ch, p->reg);
++			}
+ 			if(p->from3.type != D_NONE)
+-				s += sprint(s, ",%D", &p->from3);
+-			sprint(s, ",%D", &p->to);
++				sprint(strchr(str, 0), ",%D", &p->from3);
++			sprint(strchr(str, 0), ",%D", &p->to);
+ 		}
+ 		if(p->spadj != 0)
+ 			return fmtprint(fp, "%s # spadj=%d", str, p->spadj);
+@@ -168,32 +157,6 @@ Dconv(Fmt *fp)
+ 
+ 	a = va_arg(fp->args, Addr*);
+ 
+-	if(fp->flags & FmtSharp) {
+-		char *s = str;
+-		if(a->type == D_NONE) {
+-			sprint(s, "type=NONE");
+-			goto ret;
+-		}
+-		if(a->type >= 0 && a->type < D_LAST && dnames9[a->type] != nil)
+-			s += sprint(s, "type=%s ", dnames9[a->type]);
+-		else
+-			s += sprint(s, "type=%d ", a->type);
+-		if(a->name >= 0 && a->name < D_LAST && dnames9[(int)a->name] != nil)
+-			s += sprint(s, "name=%s ", dnames9[(int)a->name]);
+-		else
+-			s += sprint(s, "name=%d ", a->name);
+-		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
+-		if(a->class != 0)
+-			s += sprint(s, " class=%s", cnames9[(int)a->class]);
+-		if(a->reg != NREG)
+-			s += sprint(s, " reg=%d", a->reg);
+-		if(a->sym != nil)
+-			s += sprint(s, " sym=%s", a->sym->name);
+-		if(a->type == D_BRANCH && a->u.branch != nil)
+-			sprint(s, " branch=%.5lld", a->u.branch->pc);
+-		goto ret;
+-	}
+-
+ 	if(fp->flags & FmtLong) {
+ 		if(a->type == D_CONST)
+ 			sprint(str, "$%d-%d", (int32)a->offset, (int32)(a->offset>>32));
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index d7f2714ed8..86cb902f9c 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -35,7 +35,7 @@
+ #include "../cmd/5l/5.out.h"
+ #include "../runtime/stack.h"
+ 
+-static Prog zprg = {
++static Prog zprg5 = {
+ 	.as = AGOK,
+ 	.scond = C_SCOND_NONE,
+ 	.reg = NREG,
+@@ -156,11 +156,11 @@ progedit(Link *ctxt, Prog *p)
+ 	case AMOVF:
+ 		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
+ 		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
+-			int32 i32;
++			uint32 i32;
+ 			float32 f32;
+ 			f32 = p->from.u.dval;
+ 			memmove(&i32, &f32, 4);
+-			sprint(literal, "$f32.%08ux", (uint32)i32);
++			sprint(literal, "$f32.%08ux", i32);
+ 			s = linklookup(ctxt, literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SRODATA;
+@@ -177,9 +177,9 @@ progedit(Link *ctxt, Prog *p)
+ 	case AMOVD:
+ 		if(p->from.type == D_FCONST && chipfloat5(ctxt, p->from.u.dval) < 0 &&
+ 		   (chipzero5(ctxt, p->from.u.dval) < 0 || (p->scond & C_SCOND) != C_SCOND_NONE)) {
+-			int64 i64;
++			uint64 i64;
+ 			memmove(&i64, &p->from.u.dval, 8);
+-			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			sprint(literal, "$f64.%016llux", i64);
+ 			s = linklookup(ctxt, literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SRODATA;
+@@ -216,7 +216,7 @@ prg(void)
+ 	Prog *p;
+ 
+ 	p = emallocz(sizeof(*p));
+-	*p = zprg;
++	*p = zprg5;
+ 	return p;
+ }
+ 
+@@ -247,7 +247,7 @@ linkcase(Prog *casep)
+ }
+ 
+ static void
+-nocache(Prog *p)
++nocache5(Prog *p)
+ {
+ 	p->optab = 0;
+ 	p->from.class = 0;
+@@ -540,11 +540,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			break;
+ 
+ 		case ARET:
+-			nocache(p);
++			nocache5(p);
+ 			if(cursym->text->mark & LEAF) {
+ 				if(!autosize) {
+ 					p->as = AB;
+-					p->from = zprg.from;
++					p->from = zprg5.from;
+ 					if(p->to.sym) { // retjmp
+ 						p->to.type = D_BRANCH;
+ 					} else {
+@@ -758,7 +758,7 @@ softfloat(Link *ctxt, LSym *cursym)
+ 			*next = *p;
+ 
+ 			// BL _sfloat(SB)
+-			*p = zprg;
++			*p = zprg5;
+ 			p->link = next;
+ 			p->as = ABL;
+  				p->to.type = D_BRANCH;
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index a8a84f72ce..700800978c 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -270,11 +270,11 @@ progedit(Link *ctxt, Prog *p)
+ 	case ACOMISS:
+ 	case AUCOMISS:
+ 		if(p->from.type == D_FCONST) {
+-			int32 i32;
++			uint32 i32;
+ 			float32 f32;
+ 			f32 = p->from.u.dval;
+ 			memmove(&i32, &f32, 4);
+-			sprint(literal, "$f32.%08ux", (uint32)i32);
++			sprint(literal, "$f32.%08ux", i32);
+ 			s = linklookup(ctxt, literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SRODATA;
+@@ -316,9 +316,9 @@ progedit(Link *ctxt, Prog *p)
+ 	case ACOMISD:
+ 	case AUCOMISD:
+ 		if(p->from.type == D_FCONST) {
+-			int64 i64;
++			uint64 i64;
+ 			memmove(&i64, &p->from.u.dval, 8);
+-			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			sprint(literal, "$f64.%016llux", i64);
+ 			s = linklookup(ctxt, literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SRODATA;
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 02ef72753f..4e28709b81 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -206,11 +206,11 @@ progedit(Link *ctxt, Prog *p)
+ 	case ACOMISS:
+ 	case AUCOMISS:
+ 		if(p->from.type == D_FCONST) {
+-			int32 i32;
++			uint32 i32;
+ 			float32 f32;
+ 			f32 = p->from.u.dval;
+ 			memmove(&i32, &f32, 4);
+-			sprint(literal, "$f32.%08ux", (uint32)i32);
++			sprint(literal, "$f32.%08ux", i32);
+ 			s = linklookup(ctxt, literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SRODATA;
+@@ -252,9 +252,9 @@ progedit(Link *ctxt, Prog *p)
+ 	case ACOMISD:
+ 	case AUCOMISD:
+ 		if(p->from.type == D_FCONST) {
+-			int64 i64;
++			uint64 i64;
+ 			memmove(&i64, &p->from.u.dval, 8);
+-			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			sprint(literal, "$f64.%016llux", i64);
+ 			s = linklookup(ctxt, literal, 0);
+ 			if(s->type == 0) {
+ 				s->type = SRODATA;
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 2b6456d423..5ac575593d 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -118,11 +118,11 @@ progedit(Link *ctxt, Prog *p)
+ 	switch(p->as) {
+ 	case AFMOVS:
+ 		if(p->from.type == D_FCONST) {
+-			int32 i32;
++			uint32 i32;
+ 			float32 f32;
+ 			f32 = p->from.u.dval;
+ 			memmove(&i32, &f32, 4);
+-			sprint(literal, "$f32.%08ux", (uint32)i32);
++			sprint(literal, "$f32.%08ux", i32);
+ 			s = linklookup(ctxt, literal, 0);
+ 			s->size = 4;
+ 			p->from.type = D_OREG;
+@@ -133,9 +133,9 @@ progedit(Link *ctxt, Prog *p)
+ 		break;
+ 	case AFMOVD:
+ 		if(p->from.type == D_FCONST) {
+-			int64 i64;
++			uint64 i64;
+ 			memmove(&i64, &p->from.u.dval, 8);
+-			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			sprint(literal, "$f64.%016llux", i64);
+ 			s = linklookup(ctxt, literal, 0);
+ 			s->size = 8;
+ 			p->from.type = D_OREG;
+@@ -414,7 +414,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			else
+ 				if(autosize & 4)
+ 					autosize += 4;
+-			p->to.offset = (p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
++			p->to.offset = ((uint64)p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
+ 
+ 			if(!(p->reg & NOSPLIT))
+ 				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+@@ -668,14 +668,15 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		}
+ 	}
+ 
+-#if 0 // instruction scheduling
++/*
++// instruction scheduling
+ 	if(debug['Q'] == 0)
+ 		return;
+ 
+ 	curtext = nil;
+-	q = nil;	/* p - 1 */
+-	q1 = firstp;	/* top of block */
+-	o = 0;		/* count of instructions */
++	q = nil;	// p - 1
++	q1 = firstp;	// top of block
++	o = 0;		// count of instructions
+ 	for(p = firstp; p != nil; p = p1) {
+ 		p1 = p->link;
+ 		o++;
+@@ -711,7 +712,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		}
+ 		q = p;
+ 	}
+-#endif
++*/
+ }
+ 
+ static Prog*
+diff --git a/src/liblink/pass.c b/src/liblink/pass.c
+index 8721a6a796..6d4db2757a 100644
+--- a/src/liblink/pass.c
++++ b/src/liblink/pass.c
+@@ -69,6 +69,7 @@ void
+ linkpatch(Link *ctxt, LSym *sym)
+ {
+ 	int32 c;
++	char *name;
+ 	Prog *p, *q;
+ 
+ 	ctxt->cursym = sym;
+@@ -95,8 +96,10 @@ linkpatch(Link *ctxt, LSym *sym)
+ 				q = q->link;
+ 		}
+ 		if(q == nil) {
+-			ctxt->diag("branch out of range (%#ux)\n%P [%s]",
+-				c, p, p->to.sym ? p->to.sym->name : "<nil>");
++			name = "<nil>";
++			if(p->to.sym)
++				name = p->to.sym->name;
++			ctxt->diag("branch out of range (%#ux)\n%P [%s]", c, p, name);
+ 			p->to.type = ctxt->arch->D_NONE;
+ 		}
+ 		p->to.u.branch = q;
+diff --git a/src/liblink/sched9.c b/src/liblink/sched9.c
+deleted file mode 100644
+index a9083df9b4..0000000000
+--- a/src/liblink/sched9.c
++++ /dev/null
+@@ -1,835 +0,0 @@
+-// cmd/9l/sched.c from Vita Nuova.
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2008 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-// +build ignore
+-
+-#include	"l.h"
+-
+-enum
+-{
+-	E_ICC	= 1<<0,
+-	E_FCC	= 1<<1,
+-	E_MEM	= 1<<2,
+-	E_MEMSP	= 1<<3,	/* uses offset and size */
+-	E_MEMSB	= 1<<4,	/* uses offset and size */
+-	E_LR	= 1<<5,
+-	E_CR = 1<<6,
+-	E_CTR = 1<<7,
+-	E_XER = 1<<8,
+-
+-	E_CR0 = 0xF<<0,
+-	E_CR1 = 0xF<<4,
+-
+-	ANYMEM	= E_MEM|E_MEMSP|E_MEMSB,
+-	ALL	= ~0,
+-};
+-
+-typedef	struct	Sch	Sch;
+-typedef	struct	Dep	Dep;
+-
+-struct	Dep
+-{
+-	ulong	ireg;
+-	ulong	freg;
+-	ulong	cc;
+-	ulong	cr;
+-};
+-struct	Sch
+-{
+-	Prog	p;
+-	Dep	set;
+-	Dep	used;
+-	long	soffset;
+-	char	size;
+-	char	comp;
+-};
+-
+-void	regused(Sch*, Prog*);
+-int	depend(Sch*, Sch*);
+-int	conflict(Sch*, Sch*);
+-int	offoverlap(Sch*, Sch*);
+-void	dumpbits(Sch*, Dep*);
+-
+-void
+-sched(Prog *p0, Prog *pe)
+-{
+-	Prog *p, *q;
+-	Sch sch[NSCHED], *s, *t, *u, *se, stmp;
+-
+-	if(!debug['Q'])
+-		return;
+-	/*
+-	 * build side structure
+-	 */
+-	s = sch;
+-	for(p=p0;; p=p->link) {
+-		memset(s, 0, sizeof(*s));
+-		s->p = *p;
+-		regused(s, p);
+-		if(debug['X']) {
+-			Bprint(&bso, "%P\tset", &s->p);
+-			dumpbits(s, &s->set);
+-			Bprint(&bso, "; used");
+-			dumpbits(s, &s->used);
+-			if(s->comp)
+-				Bprint(&bso, "; compound");
+-			if(s->p.mark & LOAD)
+-				Bprint(&bso, "; load");
+-			if(s->p.mark & BRANCH)
+-				Bprint(&bso, "; branch");
+-			if(s->p.mark & FCMP)
+-				Bprint(&bso, "; fcmp");
+-			Bprint(&bso, "\n");
+-		}
+-		s++;
+-		if(p == pe)
+-			break;
+-	}
+-	se = s;
+-
+-	for(s=se-1; s>=sch; s--) {
+-
+-		/*
+-		 * load delay. interlocked.
+-		 */
+-		if(s->p.mark & LOAD) {
+-			if(s >= se-1)
+-				continue;
+-			if(!conflict(s, (s+1)))
+-				continue;
+-			/*
+-			 * s is load, s+1 is immediate use of result
+-			 * t is the trial instruction to insert between s and s+1
+-			 */
+-			for(t=s-1; t>=sch; t--) {
+-				if(t->p.mark & BRANCH)
+-					goto no2;
+-				if(t->p.mark & FCMP)
+-					if((s+1)->p.mark & BRANCH)
+-						goto no2;
+-				if(t->p.mark & LOAD)
+-					if(conflict(t, (s+1)))
+-						goto no2;
+-				for(u=t+1; u<=s; u++)
+-					if(depend(u, t))
+-						goto no2;
+-				goto out2;
+-			no2:;
+-			}
+-			if(debug['X'])
+-				Bprint(&bso, "?l%P\n", &s->p);
+-			continue;
+-		out2:
+-			if(debug['X']) {
+-				Bprint(&bso, "!l%P\n", &t->p);
+-				Bprint(&bso, "%P\n", &s->p);
+-			}
+-			stmp = *t;
+-			memmove(t, t+1, (uchar*)s - (uchar*)t);
+-			*s = stmp;
+-			s--;
+-			continue;
+-		}
+-
+-		/*
+-		 * fop2 delay.
+-		 */
+-		if(s->p.mark & FCMP) {
+-			if(s >= se-1)
+-				continue;
+-			if(!((s+1)->p.mark & BRANCH))
+-				continue;
+-			/* t is the trial instruction to use */
+-			for(t=s-1; t>=sch; t--) {
+-				for(u=t+1; u<=s; u++)
+-					if(depend(u, t))
+-						goto no3;
+-				goto out3;
+-			no3:;
+-			}
+-			if(debug['X'])
+-				Bprint(&bso, "?f%P\n", &s->p);
+-			continue;
+-		out3:
+-			if(debug['X']) {
+-				Bprint(&bso, "!f%P\n", &t->p);
+-				Bprint(&bso, "%P\n", &s->p);
+-			}
+-			stmp = *t;
+-			memmove(t, t+1, (uchar*)s - (uchar*)t);
+-			*s = stmp;
+-			s--;
+-			continue;
+-		}
+-	}
+-
+-	/*
+-	 * put it all back
+-	 */
+-	for(s=sch, p=p0; s<se; s++, p=q) {
+-		q = p->link;
+-		if(q != s->p.link) {
+-			*p = s->p;
+-			p->link = q;
+-		}
+-	}
+-	if(debug['X'])
+-		Bprint(&bso, "\n");
+-}
+-
+-void
+-regused(Sch *s, Prog *realp)
+-{
+-	int c, ar, ad, ld, sz, nr, upd;
+-	ulong m;
+-	Prog *p;
+-
+-	p = &s->p;
+-	s->comp = compound(p);
+-	if(s->comp) {
+-		s->set.ireg |= 1<<REGTMP;
+-		s->used.ireg |= 1<<REGTMP;
+-	}
+-	ar = 0;		/* dest is really reference */
+-	ad = 0;		/* source/dest is really address */
+-	ld = 0;		/* opcode is load instruction */
+-	sz = 32*4;		/* size of load/store for overlap computation */
+-	nr = 0;	/* source/dest is not really reg */
+-	upd = 0;	/* move with update; changes reg */
+-
+-/*
+- * flags based on opcode
+- */
+-	switch(p->as) {
+-	case ATEXT:
+-		curtext = realp;
+-		autosize = p->to.offset + 8;
+-		ad = 1;
+-		break;
+-	case ABL:
+-		s->set.cc |= E_LR;
+-		ar = 1;
+-		ad = 1;
+-		break;
+-	case ABR:
+-		ar = 1;
+-		ad = 1;
+-		break;
+-	case ACMP:
+-	case ACMPU:
+-	case ACMPW:
+-	case ACMPWU:
+-		s->set.cc |= E_ICC;
+-		if(p->reg == 0)
+-			s->set.cr |= E_CR0;
+-		else
+-			s->set.cr |= (0xF<<((p->reg&7)*4));
+-		ar = 1;
+-		break;
+-	case AFCMPO:
+-	case AFCMPU:
+-		s->set.cc |= E_FCC;
+-		if(p->reg == 0)
+-			s->set.cr |= E_CR0;
+-		else
+-			s->set.cr |= (0xF<<((p->reg&7)*4));
+-		ar = 1;
+-		break;
+-	case ACRAND:
+-	case ACRANDN:
+-	case ACREQV:
+-	case ACRNAND:
+-	case ACRNOR:
+-	case ACROR:
+-	case ACRORN:
+-	case ACRXOR:
+-		s->used.cr |= 1<<p->from.reg;
+-		s->set.cr |= 1<<p->to.reg;
+-		nr = 1;
+-		break;
+-	case ABCL:	/* tricky */
+-		s->used.cc |= E_FCC|E_ICC;
+-		s->used.cr = ALL;
+-		s->set.cc |= E_LR;
+-		ar = 1;
+-		break;
+-	case ABC:		/* tricky */
+-		s->used.cc |= E_FCC|E_ICC;
+-		s->used.cr = ALL;
+-		ar = 1;
+-		break;
+-	case ABEQ:
+-	case ABGE:
+-	case ABGT:
+-	case ABLE:
+-	case ABLT:
+-	case ABNE:
+-	case ABVC:
+-	case ABVS:
+-		s->used.cc |= E_ICC;
+-		s->used.cr |= E_CR0;
+-		ar = 1;
+-		break;
+-	case ALSW:
+-	case AMOVMW:
+-		/* could do better */
+-		sz = 32*4;
+-		ld = 1;
+-		break;
+-	case AMOVBU:
+-	case AMOVBZU:
+-		upd = 1;
+-		sz = 1;
+-		ld = 1;
+-		break;
+-	case AMOVB:
+-	case AMOVBZ:
+-		sz = 1;
+-		ld = 1;
+-		break;
+-	case AMOVHU:
+-	case AMOVHZU:
+-		upd = 1;
+-		sz = 2;
+-		ld = 1;
+-		break;
+-	case AMOVH:
+-	case AMOVHBR:
+-	case AMOVHZ:
+-		sz = 2;
+-		ld = 1;
+-		break;
+-	case AFMOVSU:
+-	case AMOVWU:
+-	case AMOVWZU:
+-		upd = 1;
+-		sz = 4;
+-		ld = 1;
+-		break;
+-	case AFMOVS:
+-	case AMOVW:
+-	case AMOVWZ:
+-	case AMOVWBR:
+-	case ALWAR:
+-		sz = 4;
+-		ld = 1;
+-		break;
+-	case AFMOVDU:
+-		upd = 1;
+-		sz = 8;
+-		ld = 1;
+-		break;
+-	case AFMOVD:
+-		sz = 8;
+-		ld = 1;
+-		break;
+-	case AFMOVDCC:
+-		sz = 8;
+-		ld = 1;
+-		s->set.cc |= E_FCC;
+-		s->set.cr |= E_CR1;
+-		break;
+-	case AMOVFL:
+-	case AMOVCRFS:
+-	case AMTFSB0:
+-	case AMTFSB0CC:
+-	case AMTFSB1:
+-	case AMTFSB1CC:
+-		s->set.ireg = ALL;
+-		s->set.freg = ALL;
+-		s->set.cc = ALL;
+-		s->set.cr = ALL;
+-		break;
+-	case AADDCC:
+-	case AADDVCC:
+-	case AADDCCC:
+-	case AADDCVCC:
+-	case AADDMECC:
+-	case AADDMEVCC:
+-	case AADDECC:
+-	case AADDEVCC:
+-	case AADDZECC:
+-	case AADDZEVCC:
+-	case AANDCC:
+-	case AANDNCC:
+-	case ACNTLZWCC:
+-	case ADIVWCC:
+-	case ADIVWVCC:
+-	case ADIVWUCC:
+-	case ADIVWUVCC:
+-	case AEQVCC:
+-	case AEXTSBCC:
+-	case AEXTSHCC:
+-	case AMULHWCC:
+-	case AMULHWUCC:
+-	case AMULLWCC:
+-	case AMULLWVCC:
+-	case ANANDCC:
+-	case ANEGCC:
+-	case ANEGVCC:
+-	case ANORCC:
+-	case AORCC:
+-	case AORNCC:
+-	case AREMCC:
+-	case AREMVCC:
+-	case AREMUCC:
+-	case AREMUVCC:
+-	case ARLWMICC:
+-	case ARLWNMCC:
+-	case ASLWCC:
+-	case ASRAWCC:
+-	case ASRWCC:
+-	case ASTWCCC:
+-	case ASUBCC:
+-	case ASUBVCC:
+-	case ASUBCCC:
+-	case ASUBCVCC:
+-	case ASUBMECC:
+-	case ASUBMEVCC:
+-	case ASUBECC:
+-	case ASUBEVCC:
+-	case ASUBZECC:
+-	case ASUBZEVCC:
+-	case AXORCC:
+-		s->set.cc |= E_ICC;
+-		s->set.cr |= E_CR0;
+-		break;
+-	case AFABSCC:
+-	case AFADDCC:
+-	case AFADDSCC:
+-	case AFCTIWCC:
+-	case AFCTIWZCC:
+-	case AFDIVCC:
+-	case AFDIVSCC:
+-	case AFMADDCC:
+-	case AFMADDSCC:
+-	case AFMSUBCC:
+-	case AFMSUBSCC:
+-	case AFMULCC:
+-	case AFMULSCC:
+-	case AFNABSCC:
+-	case AFNEGCC:
+-	case AFNMADDCC:
+-	case AFNMADDSCC:
+-	case AFNMSUBCC:
+-	case AFNMSUBSCC:
+-	case AFRSPCC:
+-	case AFSUBCC:
+-	case AFSUBSCC:
+-		s->set.cc |= E_FCC;
+-		s->set.cr |= E_CR1;
+-		break;
+-	}
+-
+-/*
+- * flags based on 'to' field
+- */
+-	c = p->to.class;
+-	if(c == 0) {
+-		c = aclass(&p->to) + 1;
+-		p->to.class = c;
+-	}
+-	c--;
+-	switch(c) {
+-	default:
+-		print("unknown class %d %D\n", c, &p->to);
+-
+-	case C_NONE:
+-	case C_ZCON:
+-	case C_SCON:
+-	case C_UCON:
+-	case C_LCON:
+-	case C_ADDCON:
+-	case C_ANDCON:
+-	case C_SBRA:
+-	case C_LBRA:
+-		break;
+-	case C_CREG:
+-		c = p->to.reg;
+-		if(c == NREG)
+-			s->set.cr = ALL;
+-		else
+-			s->set.cr |= (0xF << ((p->from.reg&7)*4));
+-		s->set.cc = ALL;
+-		break;
+-	case C_SPR:
+-	case C_FPSCR:
+-	case C_MSR:
+-	case C_XER:
+-		s->set.ireg = ALL;
+-		s->set.freg = ALL;
+-		s->set.cc = ALL;
+-		s->set.cr = ALL;
+-		break;
+-	case C_LR:
+-		s->set.cc |= E_LR;
+-		break;
+-	case C_CTR:
+-		s->set.cc |= E_CTR;
+-		break;
+-	case C_ZOREG:
+-	case C_SOREG:
+-	case C_LOREG:
+-		c = p->to.reg;
+-		s->used.ireg |= 1<<c;
+-		if(upd)
+-			s->set.ireg |= 1<<c;
+-		if(ad)
+-			break;
+-		s->size = sz;
+-		s->soffset = regoff(&p->to);
+-
+-		m = ANYMEM;
+-		if(c == REGSB)
+-			m = E_MEMSB;
+-		if(c == REGSP)
+-			m = E_MEMSP;
+-
+-		if(ar)
+-			s->used.cc |= m;
+-		else
+-			s->set.cc |= m;
+-		break;
+-	case C_SACON:
+-	case C_LACON:
+-		s->used.ireg |= 1<<REGSP;
+-		if(upd)
+-			s->set.ireg |= 1<<c;
+-		break;
+-	case C_SECON:
+-	case C_LECON:
+-		s->used.ireg |= 1<<REGSB;
+-		if(upd)
+-			s->set.ireg |= 1<<c;
+-		break;
+-	case C_REG:
+-		if(nr)
+-			break;
+-		if(ar)
+-			s->used.ireg |= 1<<p->to.reg;
+-		else
+-			s->set.ireg |= 1<<p->to.reg;
+-		break;
+-	case C_FREG:
+-		if(ar)
+-			s->used.freg |= 1<<p->to.reg;
+-		else
+-			s->set.freg |= 1<<p->to.reg;
+-		break;
+-	case C_SAUTO:
+-	case C_LAUTO:
+-		s->used.ireg |= 1<<REGSP;
+-		if(upd)
+-			s->set.ireg |= 1<<c;
+-		if(ad)
+-			break;
+-		s->size = sz;
+-		s->soffset = regoff(&p->to);
+-
+-		if(ar)
+-			s->used.cc |= E_MEMSP;
+-		else
+-			s->set.cc |= E_MEMSP;
+-		break;
+-	case C_SEXT:
+-	case C_LEXT:
+-		s->used.ireg |= 1<<REGSB;
+-		if(upd)
+-			s->set.ireg |= 1<<c;
+-		if(ad)
+-			break;
+-		s->size = sz;
+-		s->soffset = regoff(&p->to);
+-
+-		if(ar)
+-			s->used.cc |= E_MEMSB;
+-		else
+-			s->set.cc |= E_MEMSB;
+-		break;
+-	}
+-
+-/*
+- * flags based on 'from' field
+- */
+-	c = p->from.class;
+-	if(c == 0) {
+-		c = aclass(&p->from) + 1;
+-		p->from.class = c;
+-	}
+-	c--;
+-	switch(c) {
+-	default:
+-		print("unknown class %d %D\n", c, &p->from);
+-
+-	case C_NONE:
+-	case C_ZCON:
+-	case C_SCON:
+-	case C_UCON:
+-	case C_LCON:
+-	case C_ADDCON:
+-	case C_ANDCON:
+-	case C_SBRA:
+-	case C_LBRA:
+-		c = p->from.reg;
+-		if(c != NREG)
+-			s->used.ireg |= 1<<c;
+-		break;
+-	case C_CREG:
+-		c = p->from.reg;
+-		if(c == NREG)
+-			s->used.cr = ALL;
+-		else
+-			s->used.cr |= (0xF << ((p->from.reg&7)*4));
+-		s->used.cc = ALL;
+-		break;
+-	case C_SPR:
+-	case C_FPSCR:
+-	case C_MSR:
+-	case C_XER:
+-		s->set.ireg = ALL;
+-		s->set.freg = ALL;
+-		s->set.cc = ALL;
+-		s->set.cr = ALL;
+-		break;
+-	case C_LR:
+-		s->used.cc |= E_LR;
+-		break;
+-	case C_CTR:
+-		s->used.cc |= E_CTR;
+-		break;
+-	case C_ZOREG:
+-	case C_SOREG:
+-	case C_LOREG:
+-		c = p->from.reg;
+-		s->used.ireg |= 1<<c;
+-		if(ld)
+-			p->mark |= LOAD;
+-		if(ad)
+-			break;
+-		s->size = sz;
+-		s->soffset = regoff(&p->from);
+-
+-		m = ANYMEM;
+-		if(c == REGSB)
+-			m = E_MEMSB;
+-		if(c == REGSP)
+-			m = E_MEMSP;
+-
+-		s->used.cc |= m;
+-		break;
+-	case C_SACON:
+-	case C_LACON:
+-		s->used.ireg |= 1<<REGSP;
+-		break;
+-	case C_SECON:
+-	case C_LECON:
+-		s->used.ireg |= 1<<REGSB;
+-		break;
+-	case C_REG:
+-		if(nr)
+-			break;
+-		s->used.ireg |= 1<<p->from.reg;
+-		break;
+-	case C_FREG:
+-		s->used.freg |= 1<<p->from.reg;
+-		break;
+-	case C_SAUTO:
+-	case C_LAUTO:
+-		s->used.ireg |= 1<<REGSP;
+-		if(ld)
+-			p->mark |= LOAD;
+-		if(ad)
+-			break;
+-		s->size = sz;
+-		s->soffset = regoff(&p->from);
+-
+-		s->used.cc |= E_MEMSP;
+-		break;
+-	case C_SEXT:
+-	case C_LEXT:
+-		s->used.ireg |= 1<<REGSB;
+-		if(ld)
+-			p->mark |= LOAD;
+-		if(ad)
+-			break;
+-		s->size = sz;
+-		s->soffset = regoff(&p->from);
+-
+-		s->used.cc |= E_MEMSB;
+-		break;
+-	}
+-	
+-	c = p->reg;
+-	if(c != NREG) {
+-		if(p->from.type == D_FREG || p->to.type == D_FREG)
+-			s->used.freg |= 1<<c;
+-		else
+-			s->used.ireg |= 1<<c;
+-	}
+-}
+-
+-/*
+- * test to see if 2 instrictions can be
+- * interchanged without changing semantics
+- */
+-int
+-depend(Sch *sa, Sch *sb)
+-{
+-	ulong x;
+-
+-	if(sa->set.ireg & (sb->set.ireg|sb->used.ireg))
+-		return 1;
+-	if(sb->set.ireg & sa->used.ireg)
+-		return 1;
+-
+-	if(sa->set.freg & (sb->set.freg|sb->used.freg))
+-		return 1;
+-	if(sb->set.freg & sa->used.freg)
+-		return 1;
+-
+-	if(sa->set.cr & (sb->set.cr|sb->used.cr))
+-		return 1;
+-	if(sb->set.cr & sa->used.cr)
+-		return 1;
+-
+-
+-	x = (sa->set.cc & (sb->set.cc|sb->used.cc)) |
+-		(sb->set.cc & sa->used.cc);
+-	if(x) {
+-		/*
+-		 * allow SB and SP to pass each other.
+-		 * allow SB to pass SB iff doffsets are ok
+-		 * anything else conflicts
+-		 */
+-		if(x != E_MEMSP && x != E_MEMSB)
+-			return 1;
+-		x = sa->set.cc | sb->set.cc |
+-			sa->used.cc | sb->used.cc;
+-		if(x & E_MEM)
+-			return 1;
+-		if(offoverlap(sa, sb))
+-			return 1;
+-	}
+-
+-	return 0; 
+-}
+-
+-int
+-offoverlap(Sch *sa, Sch *sb)
+-{
+-
+-	if(sa->soffset < sb->soffset) {
+-		if(sa->soffset+sa->size > sb->soffset)
+-			return 1;
+-		return 0;
+-	}
+-	if(sb->soffset+sb->size > sa->soffset)
+-		return 1;
+-	return 0;
+-}
+-
+-/*
+- * test 2 adjacent instructions
+- * and find out if inserted instructions
+- * are desired to prevent stalls.
+- * first instruction is a load instruction.
+- */
+-int
+-conflict(Sch *sa, Sch *sb)
+-{
+-
+-	if(sa->set.ireg & sb->used.ireg)
+-		return 1;
+-	if(sa->set.freg & sb->used.freg)
+-		return 1;
+-	if(sa->set.cr & sb->used.cr)
+-		return 1;
+-	return 0;
+-}
+-
+-int
+-compound(Prog *p)
+-{
+-	Optab *o;
+-
+-	o = oplook(p);
+-	if(o->size != 4)
+-		return 1;
+-	if(p->to.type == D_REG && p->to.reg == REGSB)
+-		return 1;
+-	return 0;
+-}
+-
+-void
+-dumpbits(Sch *s, Dep *d)
+-{
+-	int i;
+-
+-	for(i=0; i<32; i++)
+-		if(d->ireg & (1<<i))
+-			Bprint(&bso, " R%d", i);
+-	for(i=0; i<32; i++)
+-		if(d->freg & (1<<i))
+-			Bprint(&bso, " F%d", i);
+-	for(i=0; i<32; i++)
+-		if(d->cr & (1<<i))
+-			Bprint(&bso, " C%d", i);
+-	for(i=0; i<32; i++)
+-		switch(d->cc & (1<<i)) {
+-		default:
+-			break;
+-		case E_ICC:
+-			Bprint(&bso, " ICC");
+-			break;
+-		case E_FCC:
+-			Bprint(&bso, " FCC");
+-			break;
+-		case E_LR:
+-			Bprint(&bso, " LR");
+-			break;
+-		case E_CR:
+-			Bprint(&bso, " CR");
+-			break;
+-		case E_CTR:
+-			Bprint(&bso, " CTR");
+-			break;
+-		case E_XER:
+-			Bprint(&bso, " XER");
+-			break;
+-		case E_MEM:
+-			Bprint(&bso, " MEM%d", s->size);
+-			break;
+-		case E_MEMSB:
+-			Bprint(&bso, " SB%d", s->size);
+-			break;
+-		case E_MEMSP:
+-			Bprint(&bso, " SP%d", s->size);
+-			break;
+-		}
+-}
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index bd85518467..e06837118a 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -57,7 +57,6 @@ static struct {
+ 	{"solaris",	Hsolaris},
+ 	{"windows",	Hwindows},
+ 	{"windowsgui",	Hwindows},
+-	{0, 0},
+ };
+ 
+ int
+@@ -65,7 +64,7 @@ headtype(char *name)
+ {
+ 	int i;
+ 
+-	for(i=0; headers[i].name; i++)
++	for(i=0; i < nelem(headers); i++)
+ 		if(strcmp(name, headers[i].name) == 0)
+ 			return headers[i].val;
+ 	return -1;
+@@ -77,7 +76,7 @@ headstr(int v)
+ 	static char buf[20];
+ 	int i;
+ 
+-	for(i=0; headers[i].name; i++)
++	for(i=0; i < nelem(headers); i++)
+ 		if(v == headers[i].val)
+ 			return headers[i].name;
+ 	snprint(buf, sizeof buf, "%d", v);
+diff --git a/src/runtime/stack.h b/src/runtime/stack.h
+index 0b2cd56a92..b790e70103 100644
+--- a/src/runtime/stack.h
++++ b/src/runtime/stack.h
+@@ -7,10 +7,10 @@
+ 
+ enum {
+ #ifdef GOOS_windows
+-	StackSystem = 512 * sizeof(uintptr),
++#define StackSystem (512*sizeof(uintptr))
+ #else
+ #ifdef GOOS_plan9
+-	StackSystem = 512,
++#define StackSystem (512)
+ #else
+ 	StackSystem = 0,
+ #endif	// Plan 9
+@@ -23,3 +23,9 @@ enum {
+ };
+ 
+ #define StackPreempt ((uint64)-1314)
++/*c2go
++enum
++{
++	StackPreempt = 1, // TODO: Change to (uint64)-1314 in Go translation
++};
++*/

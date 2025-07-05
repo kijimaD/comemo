@@ -5,6 +5,20 @@ Date:   Wed Jul 9 17:08:20 2008 -0700
     - minor bug fix
     
     SVN=126585
-
+---
  usr/gri/src/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/src/scanner.go b/usr/gri/src/scanner.go
+index 62798295d0..37778033e4 100644
+--- a/usr/gri/src/scanner.go
++++ b/usr/gri/src/scanner.go
+@@ -387,7 +387,7 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 	}
+ 
+ 	for i := 0; i < pos; i++ {
+-		if src[i] != '\n' {
++		if src[i] == '\n' {
+ 			line++;
+ 			lpos = i;
+ 		}

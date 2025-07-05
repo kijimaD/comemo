@@ -10,8 +10,61 @@ Date:   Wed Jan 28 15:41:12 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/3453
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go     | 5 ++++-
  src/cmd/asm/internal/flags/flags.go | 5 +++--
  src/cmd/asm/main.go                 | 2 +-
  3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index dfb7ad19cc..63adef271b 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -11,6 +11,7 @@ import (
+ 
+ 	"cmd/asm/internal/addr"
+ 	"cmd/asm/internal/arch"
++	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+ )
+@@ -140,7 +141,9 @@ func (p *Parser) append(prog *obj.Prog, doLabel bool) {
+ 		p.pendingLabels = p.pendingLabels[0:0]
+ 	}
+ 	prog.Pc = int64(p.pc)
+-	fmt.Println(p.histLineNum, prog)
++	if *flags.Debug {
++		fmt.Println(p.histLineNum, prog)
++	}
+ }
+ 
+ // asmText assembles a TEXT pseudo-op.
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 61cd860cd1..9640f994d7 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -14,8 +14,9 @@ import (
+ )
+ 
+ var (
+-	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on arm64 (unused TODO)")
+-	PrintOut   = flag.Bool("S", true, "print assembly and machine code") // TODO: set to false
++	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
++	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on amd64")
++	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
+ 	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths (unused TODO)")
+ )
+ 
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 3c02d4eebd..937b192178 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -54,7 +54,7 @@ func main() {
+ 	var ok bool
+ 	pList.Firstpc, ok = parser.Parse()
+ 	if !ok {
+-		log.Print("FAIL TODO")
++		log.Fatalf("asm: assembly of %s failed", flag.Arg(0))
+ 		os.Exit(1)
+ 	}
+ 	obj.Writeobjdirect(ctxt, output)

@@ -19,6 +19,25 @@ Date:   Thu Sep 30 11:35:30 2021 -0400
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/fuzz/fuzz.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index a38036b9d2..87f5459afd 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -685,7 +685,12 @@ func (c *coordinator) logStats() {
+ 		}
+ 	} else {
+ 		rate := float64(c.count) / time.Since(c.startTime).Seconds() // be more precise here
+-		fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), interesting: %d\n", c.elapsed(), c.count, rate, c.interestingCount)
++		if coverageEnabled {
++			interestingTotalCount := len(c.corpus.entries) - len(c.opts.Seed)
++			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, interestingTotalCount)
++		} else {
++			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)", c.elapsed(), c.count, rate)
++		}
+ 	}
+ }
+ 

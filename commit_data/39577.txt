@@ -13,8 +13,154 @@ Date:   Wed Feb 27 14:10:07 2019 -0500
     Change-Id: I4fc3f5221408e24af42ffecd21ce4099ee75b47a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/164538
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/constant/example_test.go | 22 +++++++++++++++
  src/go/constant/value.go        | 62 +++++++++++++++++++++++++++++++++++++++++
  src/go/constant/value_test.go   | 17 +++++++++++
  3 files changed, 101 insertions(+)
+
+diff --git a/src/go/constant/example_test.go b/src/go/constant/example_test.go
+index ed20d6bf09..6443ee6db8 100644
+--- a/src/go/constant/example_test.go
++++ b/src/go/constant/example_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"math"
+ 	"sort"
+ )
+ 
+@@ -156,3 +157,24 @@ func ExampleSign() {
+ 	//  1 (0 + 1i)
+ 	//  1 (1 + 1i)
+ }
++
++func ExampleVal() {
++	maxint := constant.MakeInt64(math.MaxInt64)
++	fmt.Printf("%v\n", constant.Val(maxint))
++
++	e := constant.MakeFloat64(math.E)
++	fmt.Printf("%v\n", constant.Val(e))
++
++	b := constant.MakeBool(true)
++	fmt.Printf("%v\n", constant.Val(b))
++
++	b = constant.Make(false)
++	fmt.Printf("%v\n", constant.Val(b))
++
++	// Output:
++	//
++	// 9223372036854775807
++	// 6121026514868073/2251799813685248
++	// true
++	// false
++}
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index f7efa95404..cd77b376d1 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -562,6 +562,68 @@ func Float64Val(x Value) (float64, bool) {
+ 	}
+ }
+ 
++// Val returns the underlying value for a given constant. Since it returns an
++// interface, it is up to the caller to type assert the result to the expected
++// type. The possible dynamic return types are:
++//
++//    x Kind             type of result
++//    -----------------------------------------
++//    Bool               bool
++//    String             string
++//    Int                int64 or *big.Int
++//    Float              *big.Float or *big.Rat
++//    everything else    nil
++//
++func Val(x Value) interface{} {
++	switch x := x.(type) {
++	case boolVal:
++		return bool(x)
++	case *stringVal:
++		return x.string()
++	case int64Val:
++		return int64(x)
++	case intVal:
++		return x.val
++	case ratVal:
++		return x.val
++	case floatVal:
++		return x.val
++	default:
++		return nil
++	}
++}
++
++// Make returns the Value for x.
++//
++//    type of x        result Kind
++//    ----------------------------
++//    bool             Bool
++//    string           String
++//    int64            Int
++//    *big.Int         Int
++//    *big.Float       Float
++//    *big.Rat         Float
++//    anything else    Unknown
++//
++func Make(x interface{}) Value {
++	switch x := x.(type) {
++	case bool:
++		return boolVal(x)
++	case string:
++		return &stringVal{s: x}
++	case int64:
++		return int64Val(x)
++	case *big.Int:
++		return intVal{x}
++	case *big.Rat:
++		return ratVal{x}
++	case *big.Float:
++		return floatVal{x}
++	default:
++		return unknownVal{}
++	}
++}
++
+ // BitLen returns the number of bits required to represent
+ // the absolute value x in binary representation; x must be an Int or an Unknown.
+ // If x is Unknown, the result is 0.
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index 560712a8f5..a319039fc6 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -7,6 +7,7 @@ package constant
+ import (
+ 	"fmt"
+ 	"go/token"
++	"math/big"
+ 	"strings"
+ 	"testing"
+ )
+@@ -596,6 +597,22 @@ func TestUnknown(t *testing.T) {
+ 	}
+ }
+ 
++func TestMake(t *testing.T) {
++	for _, want := range []interface{}{
++		false,
++		"hello",
++		int64(1),
++		big.NewInt(10),
++		big.NewFloat(2.0),
++		big.NewRat(1, 3),
++	} {
++		got := Val(Make(want))
++		if got != want {
++			t.Errorf("got %v; want %v", got, want)
++		}
++	}
++}
++
+ func BenchmarkStringAdd(b *testing.B) {
+ 	for size := 1; size <= 65536; size *= 4 {
+ 		b.Run(fmt.Sprint(size), func(b *testing.B) {

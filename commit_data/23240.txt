@@ -61,6 +61,50 @@ Date:   Fri May 1 11:52:56 2015 -0400
     Change-Id: I839bd7356630d18377989a0748763414e15ed057
     Reviewed-on: https://go-review.googlesource.com/9602
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 401507545f..6ff85b59f6 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -161,10 +161,6 @@ func markroot(desc *parfor, i uint32) {
+ 		}
+ 	}
+ 
+-	// Root aren't part of the heap, so don't count them toward
+-	// marked heap bytes.
+-	gcw.bytesMarked = 0
+-	gcw.scanWork = 0
+ 	gcw.dispose()
+ }
+ 
+@@ -314,8 +310,6 @@ func scanstack(gp *g) {
+ 	}
+ 
+ 	gcw := &getg().m.p.ptr().gcw
+-	origBytesMarked := gcw.bytesMarked
+-	origScanWork := gcw.scanWork
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+ 		// Pick up gcw as free variable so gentraceback and friends can
+ 		// keep the same signature.
+@@ -324,10 +318,6 @@ func scanstack(gp *g) {
+ 	}
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 	tracebackdefers(gp, scanframe, nil)
+-	// Stacks aren't part of the heap, so don't count them toward
+-	// marked heap bytes.
+-	gcw.bytesMarked = origBytesMarked
+-	gcw.scanWork = origScanWork
+ 	if gcphase == _GCmarktermination {
+ 		gcw.dispose()
+ 	}
+@@ -578,7 +568,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 		}
+ 	}
+ 
+-	gcw.bytesMarked += uint64(n)
+ 	gcw.scanWork += scanWork
+ }
+ 

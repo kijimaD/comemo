@@ -11,7 +11,7 @@ Date:   Fri Aug 29 16:00:31 2014 -0400
     R=golang-codereviews, r, iant, aram.h
     CC=dvyukov, golang-codereviews, khr
     https://golang.org/cl/140740043
-
+---
  src/cmd/cc/godefs.c                    |  4 ++--
  src/cmd/dist/buildruntime.c            | 21 ++++++++++++++++++---
  src/pkg/runtime/defs.c                 |  1 +
@@ -44,3 +44,750 @@ Date:   Fri Aug 29 16:00:31 2014 -0400
  src/pkg/runtime/os_solaris.c           |  6 +++---
  src/pkg/runtime/os_solaris.h           |  2 +-
  31 files changed, 91 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/cc/godefs.c b/src/cmd/cc/godefs.c
+index 1f2a9d7e04..d3ab52fde4 100644
+--- a/src/cmd/cc/godefs.c
++++ b/src/cmd/cc/godefs.c
+@@ -317,9 +317,9 @@ godefvar(Sym *s)
+ 	switch(t->etype) {
+ 	case TENUM:
+ 		if(!typefd[t->etype])
+-			Bprint(&outbuf, "const %U = %lld\n", s->name, s->vconst);
++			Bprint(&outbuf, "const %s = %lld\n", s->name, s->vconst);
+ 		else
+-			Bprint(&outbuf, "const %U = %f\n;", s->name, s->fconst);
++			Bprint(&outbuf, "const %s = %f\n;", s->name, s->fconst);
+ 		break;
+ 
+ 	case TFUNC:
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 5daa31494b..2396e20c56 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -346,6 +346,10 @@ mkzruntimedefs(char *dir, char *file)
+ 		"\n"
+ 	);
+ 
++	// Do not emit constant definitions for these.
++	vadd(&seen, "true");
++	vadd(&seen, "false");
++	vadd(&seen, "raceenabled");
+ 	
+ 	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -q -n -o workdir/runtimedefs
+ 	// on each of the runtimedefs C files.
+@@ -375,15 +379,15 @@ mkzruntimedefs(char *dir, char *file)
+ 	splitlines(&lines, bstr(&in));
+ 	for(i=0; i<lines.len; i++) {
+ 		p = lines.p[i];
+-		// Drop comment, func, and const lines.
+-		if(hasprefix(p, "//") || hasprefix(p, "const") || hasprefix(p, "func"))
++		// Drop comment and func lines.
++		if(hasprefix(p, "//") || hasprefix(p, "func"))
+ 			continue;
+ 		
+ 		// Note beginning of type or var decl, which can be multiline.
+ 		// Remove duplicates.  The linear check of seen here makes the
+ 		// whole processing quadratic in aggregate, but there are only
+ 		// about 100 declarations, so this is okay (and simple).
+-		if(hasprefix(p, "type ") || hasprefix(p, "var ")) {
++		if(hasprefix(p, "type ") || hasprefix(p, "var ") || hasprefix(p, "const ")) {
+ 			splitfields(&fields, p);
+ 			if(fields.len < 2)
+ 				continue;
+@@ -394,6 +398,17 @@ mkzruntimedefs(char *dir, char *file)
+ 			}
+ 			vadd(&seen, fields.p[1]);
+ 		}
++
++		// Const lines are printed in original case (usually upper). Add a leading _ as needed.
++		if(hasprefix(p, "const ")) {
++			if('A' <= p[6] && p[6] <= 'Z')
++				bwritestr(&out, "const _");
++			else
++				bwritestr(&out, "const ");
++			bwritestr(&out, p+6);
++			continue;
++		}
++
+ 		if(skip) {
+ 			if(hasprefix(p, "}"))
+ 				skip = 0;
+diff --git a/src/pkg/runtime/defs.c b/src/pkg/runtime/defs.c
+index 7563344578..b6ed9c8115 100644
+--- a/src/pkg/runtime/defs.c
++++ b/src/pkg/runtime/defs.c
+@@ -12,3 +12,4 @@
+ #include "race.h"
+ #include "chan.h"
+ #include "mprof.h"
++#include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/defs_darwin_386.h b/src/pkg/runtime/defs_darwin_386.h
+index 7b210eebf8..0e0b4fbf79 100644
+--- a/src/pkg/runtime/defs_darwin_386.h
++++ b/src/pkg/runtime/defs_darwin_386.h
+@@ -124,7 +124,7 @@ typedef struct MachHeader MachHeader;
+ typedef struct MachNDR MachNDR;
+ typedef struct MachPort MachPort;
+ typedef struct StackT StackT;
+-typedef struct Sigaction Sigaction;
++typedef struct SigactionT SigactionT;
+ typedef struct Siginfo Siginfo;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+@@ -142,7 +142,7 @@ typedef struct FloatState32 FloatState32;
+ typedef struct ExceptionState32 ExceptionState32;
+ typedef struct Mcontext32 Mcontext32;
+ typedef struct Ucontext Ucontext;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -182,7 +182,7 @@ struct StackT {
+ };
+ typedef	byte	Sighandler[4];
+ 
+-struct Sigaction {
++struct SigactionT {
+ 	byte	__sigaction_u[4];
+ 	void	*sa_tramp;
+ 	uint32	sa_mask;
+@@ -379,7 +379,7 @@ struct Ucontext {
+ 	Mcontext32	*uc_mcontext;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_darwin_amd64.h b/src/pkg/runtime/defs_darwin_amd64.h
+index 2d464a9e50..4bf83c1cb9 100644
+--- a/src/pkg/runtime/defs_darwin_amd64.h
++++ b/src/pkg/runtime/defs_darwin_amd64.h
+@@ -124,7 +124,7 @@ typedef struct MachHeader MachHeader;
+ typedef struct MachNDR MachNDR;
+ typedef struct MachPort MachPort;
+ typedef struct StackT StackT;
+-typedef struct Sigaction Sigaction;
++typedef struct SigactionT SigactionT;
+ typedef struct Siginfo Siginfo;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+@@ -142,7 +142,7 @@ typedef struct FloatState32 FloatState32;
+ typedef struct ExceptionState32 ExceptionState32;
+ typedef struct Mcontext32 Mcontext32;
+ typedef struct Ucontext Ucontext;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -183,7 +183,7 @@ struct StackT {
+ };
+ typedef	byte	Sighandler[8];
+ 
+-struct Sigaction {
++struct SigactionT {
+ 	byte	__sigaction_u[8];
+ 	void	*sa_tramp;
+ 	uint32	sa_mask;
+@@ -382,7 +382,7 @@ struct Ucontext {
+ 	Mcontext64	*uc_mcontext;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint64	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_dragonfly_386.h b/src/pkg/runtime/defs_dragonfly_386.h
+index 696dcd887d..032b23574e 100644
+--- a/src/pkg/runtime/defs_dragonfly_386.h
++++ b/src/pkg/runtime/defs_dragonfly_386.h
+@@ -94,7 +94,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -185,7 +185,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_dragonfly_amd64.h b/src/pkg/runtime/defs_dragonfly_amd64.h
+index 74581cc94c..c37a72e729 100644
+--- a/src/pkg/runtime/defs_dragonfly_amd64.h
++++ b/src/pkg/runtime/defs_dragonfly_amd64.h
+@@ -94,7 +94,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -195,7 +195,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint64	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_freebsd_386.h b/src/pkg/runtime/defs_freebsd_386.h
+index fab9385269..e625079bc7 100644
+--- a/src/pkg/runtime/defs_freebsd_386.h
++++ b/src/pkg/runtime/defs_freebsd_386.h
+@@ -98,7 +98,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -200,7 +200,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_freebsd_amd64.h b/src/pkg/runtime/defs_freebsd_amd64.h
+index c1db91803e..40476f9e4f 100644
+--- a/src/pkg/runtime/defs_freebsd_amd64.h
++++ b/src/pkg/runtime/defs_freebsd_amd64.h
+@@ -98,7 +98,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -211,7 +211,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint64	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_freebsd_arm.h b/src/pkg/runtime/defs_freebsd_arm.h
+index 4fc452e457..927d3a48b5 100644
+--- a/src/pkg/runtime/defs_freebsd_arm.h
++++ b/src/pkg/runtime/defs_freebsd_arm.h
+@@ -98,7 +98,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -173,7 +173,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_linux_386.h b/src/pkg/runtime/defs_linux_386.h
+index 27dae9e82b..2df3f66d80 100644
+--- a/src/pkg/runtime/defs_linux_386.h
++++ b/src/pkg/runtime/defs_linux_386.h
+@@ -95,7 +95,7 @@ typedef struct Xmmreg Xmmreg;
+ typedef struct Fpstate Fpstate;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+-typedef struct Sigaction Sigaction;
++typedef struct SigactionT SigactionT;
+ typedef struct Siginfo Siginfo;
+ typedef struct Sigaltstack Sigaltstack;
+ typedef struct Sigcontext Sigcontext;
+@@ -144,7 +144,7 @@ struct Timeval {
+ 	int32	tv_sec;
+ 	int32	tv_usec;
+ };
+-struct Sigaction {
++struct SigactionT {
+ 	void	*k_sa_handler;
+ 	uint32	sa_flags;
+ 	void	*sa_restorer;
+diff --git a/src/pkg/runtime/defs_linux_amd64.h b/src/pkg/runtime/defs_linux_amd64.h
+index 3e87df68a1..42826c39ee 100644
+--- a/src/pkg/runtime/defs_linux_amd64.h
++++ b/src/pkg/runtime/defs_linux_amd64.h
+@@ -88,7 +88,7 @@ enum {
+ 
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+-typedef struct Sigaction Sigaction;
++typedef struct SigactionT SigactionT;
+ typedef struct Siginfo Siginfo;
+ typedef struct Itimerval Itimerval;
+ typedef struct EpollEvent EpollEvent;
+@@ -103,7 +103,7 @@ struct Timeval {
+ 	int64	tv_sec;
+ 	int64	tv_usec;
+ };
+-struct Sigaction {
++struct SigactionT {
+ 	void	*sa_handler;
+ 	uint64	sa_flags;
+ 	void	*sa_restorer;
+diff --git a/src/pkg/runtime/defs_linux_arm.h b/src/pkg/runtime/defs_linux_arm.h
+index 05a17af64b..8c17e3805b 100644
+--- a/src/pkg/runtime/defs_linux_arm.h
++++ b/src/pkg/runtime/defs_linux_arm.h
+@@ -151,8 +151,8 @@ struct Siginfo {
+ 	uint8 _sifields[4];
+ };
+ 
+-typedef struct Sigaction Sigaction;
+-struct Sigaction {
++typedef struct SigactionT SigactionT;
++struct SigactionT {
+ 	void *sa_handler;
+ 	uint32 sa_flags;
+ 	void *sa_restorer;
+diff --git a/src/pkg/runtime/defs_netbsd_386.h b/src/pkg/runtime/defs_netbsd_386.h
+index 7fd66959f3..fb23611990 100644
+--- a/src/pkg/runtime/defs_netbsd_386.h
++++ b/src/pkg/runtime/defs_netbsd_386.h
+@@ -91,7 +91,7 @@ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+ typedef struct McontextT McontextT;
+ typedef struct UcontextT UcontextT;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -143,7 +143,7 @@ struct UcontextT {
+ 	int32	__uc_pad[4];
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	uint32	filter;
+ 	uint32	flags;
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.h b/src/pkg/runtime/defs_netbsd_amd64.h
+index 972af165b7..f6ba3db189 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.h
++++ b/src/pkg/runtime/defs_netbsd_amd64.h
+@@ -91,7 +91,7 @@ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+ typedef struct McontextT McontextT;
+ typedef struct UcontextT UcontextT;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -147,7 +147,7 @@ struct UcontextT {
+ 	McontextT	uc_mcontext;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint64	ident;
+ 	uint32	filter;
+ 	uint32	flags;
+diff --git a/src/pkg/runtime/defs_netbsd_arm.h b/src/pkg/runtime/defs_netbsd_arm.h
+index c6f5b1c47c..815d54749b 100644
+--- a/src/pkg/runtime/defs_netbsd_arm.h
++++ b/src/pkg/runtime/defs_netbsd_arm.h
+@@ -91,7 +91,7 @@ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+ typedef struct McontextT McontextT;
+ typedef struct UcontextT UcontextT;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -147,7 +147,7 @@ struct UcontextT {
+ 	int32	__uc_pad[2];
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	uint32	filter;
+ 	uint32	flags;
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index b8f993e2b8..a63b182a04 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -89,7 +89,7 @@ typedef struct StackT StackT;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -155,7 +155,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint32	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index a1ae2ef65c..818ac35207 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -89,7 +89,7 @@ typedef struct StackT StackT;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+-typedef struct Kevent Kevent;
++typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+@@ -166,7 +166,7 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
+-struct Kevent {
++struct KeventT {
+ 	uint64	ident;
+ 	int16	filter;
+ 	uint16	flags;
+diff --git a/src/pkg/runtime/defs_solaris_amd64.h b/src/pkg/runtime/defs_solaris_amd64.h
+index 799724fadc..08727b017e 100644
+--- a/src/pkg/runtime/defs_solaris_amd64.h
++++ b/src/pkg/runtime/defs_solaris_amd64.h
+@@ -105,7 +105,7 @@ typedef struct Sigaltstack Sigaltstack;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+-typedef struct Sigaction Sigaction;
++typedef struct SigactionT SigactionT;
+ typedef struct Fpregset Fpregset;
+ typedef struct Mcontext Mcontext;
+ typedef struct Ucontext Ucontext;
+@@ -149,7 +149,7 @@ struct Siginfo {
+ 	int32	si_pad;
+ 	byte	__data[240];
+ };
+-struct Sigaction {
++struct SigactionT {
+ 	int32	sa_flags;
+ 	byte	Pad_cgo_0[4];
+ 	byte	_funcptr[8];
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index e95bdbbf97..49afc67364 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -22,15 +22,13 @@ const (
+ 	pageSize  = 1 << pageShift
+ 	pageMask  = pageSize - 1
+ 
+-	gcBits             = 4
+-	wordsPerBitmapByte = 8 / gcBits
+-	bitsPerPointer     = 2
+-	bitsMask           = 1<<bitsPerPointer - 1
+-	pointersPerByte    = 8 / bitsPerPointer
+-	bitPtrMask         = bitsMask << 2
+-	maxGCMask          = 64
+-	bitsDead           = 0
+-	bitsPointer        = 2
++	bitsPerPointer  = 2
++	bitsMask        = 1<<bitsPerPointer - 1
++	pointersPerByte = 8 / bitsPerPointer
++	bitPtrMask      = bitsMask << 2
++	maxGCMask       = 64
++	bitsDead        = 0
++	bitsPointer     = 2
+ 
+ 	bitBoundary = 1
+ 	bitMarked   = 2
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index 171346cce2..6b7fc869d3 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -11,7 +11,7 @@
+ // Integrated network poller (kqueue-based implementation).
+ 
+ int32	runtime·kqueue(void);
+-int32	runtime·kevent(int32, Kevent*, int32, Kevent*, int32, Timespec*);
++int32	runtime·kevent(int32, KeventT*, int32, KeventT*, int32, Timespec*);
+ void	runtime·closeonexec(int32);
+ 
+ static int32 kq = -1;
+@@ -30,7 +30,7 @@ runtime·netpollinit(void)
+ int32
+ runtime·netpollopen(uintptr fd, PollDesc *pd)
+ {
+-	Kevent ev[2];
++	KeventT ev[2];
+ 	int32 n;
+ 
+ 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
+@@ -72,7 +72,7 @@ G*
+ runtime·netpoll(bool block)
+ {
+ 	static int32 lasterr;
+-	Kevent events[64], *ev;
++	KeventT events[64], *ev;
+ 	Timespec ts, *tp;
+ 	int32 n, i, mode;
+ 	G *gp;
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index c660fb8c10..bf13cdbafe 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -488,7 +488,7 @@ runtime·memlimit(void)
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 		
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+@@ -503,7 +503,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	runtime·sigaction(i, nil, &sa);
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index 91a405f214..af9052e9c2 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -25,8 +25,8 @@ typedef uint32 Sigset;
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ void	runtime·unblocksignals(void);
+ 
+-struct Sigaction;
+-void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
++struct SigactionT;
++void	runtime·sigaction(uintptr, struct SigactionT*, struct SigactionT*);
+ 
+ struct StackT;
+ void	runtime·sigaltstack(struct StackT*, struct StackT*);
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index 65121d3273..a2a88e4c80 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -240,12 +240,12 @@ typedef struct sigaction {
+ 	} __sigaction_u;		/* signal handler */
+ 	int32	sa_flags;		/* see signal options below */
+ 	Sigset	sa_mask;		/* signal mask to apply */
+-} Sigaction;
++} SigactionT;
+ 
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+@@ -264,7 +264,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	runtime·sigaction(i, nil, &sa);
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index d360f6712d..ae959d90bb 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -248,12 +248,12 @@ typedef struct sigaction {
+ 	} __sigaction_u;		/* signal handler */
+ 	int32	sa_flags;		/* see signal options below */
+ 	Sigset	sa_mask;		/* signal mask to apply */
+-} Sigaction;
++} SigactionT;
+ 
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+@@ -272,7 +272,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	runtime·sigaction(i, nil, &sa);
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 33c7563743..d3677f2e6c 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -293,7 +293,7 @@ extern void runtime·sigreturn(void);	// calls rt_sigreturn, only used with SA_R
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+@@ -319,7 +319,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index d4b1902c3a..84f516d50c 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -8,8 +8,8 @@
+ int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
+ int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
+ 
+-struct Sigaction;
+-int32	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
++struct SigactionT;
++int32	runtime·rt_sigaction(uintptr, struct SigactionT*, void*, uintptr);
+ 
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigpanic(void);
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 0889181a81..8567146ed4 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -286,12 +286,12 @@ typedef struct sigaction {
+ 	} _sa_u;			/* signal handler */
+ 	uint32	sa_mask[4];		/* signal mask to apply */
+ 	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
++} SigactionT;
+ 
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+@@ -310,7 +310,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	runtime·sigaction(i, nil, &sa);
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 60db7efdd9..a746385314 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -263,12 +263,12 @@ typedef struct sigaction {
+ 	} __sigaction_u;		/* signal handler */
+ 	uint32	sa_mask;		/* signal mask to apply */
+ 	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
++} SigactionT;
+ 
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+@@ -284,7 +284,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	runtime·sigaction(i, nil, &sa);
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 0cdfd52c9b..42295aa754 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -267,7 +267,7 @@ extern void runtime·sigtramp(void);
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+@@ -286,7 +286,7 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ GoSighandler*
+ runtime·getsig(int32 i)
+ {
+-	Sigaction sa;
++	SigactionT sa;
+ 
+ 	runtime·memclr((byte*)&sa, sizeof sa);
+ 	runtime·sigaction(i, nil, &sa);
+@@ -530,7 +530,7 @@ runtime·setitimer(int32 which, Itimerval* value, Itimerval* ovalue)
+ }
+ 
+ /* int32 */ void
+-runtime·sigaction(int32 sig, struct Sigaction* act, struct Sigaction* oact)
++runtime·sigaction(int32 sig, struct SigactionT* act, struct SigactionT* oact)
+ {
+ 	runtime·sysvicall3(libc·sigaction, (uintptr)sig, (uintptr)act, (uintptr)oact);
+ }
+diff --git a/src/pkg/runtime/os_solaris.h b/src/pkg/runtime/os_solaris.h
+index 355cdf5589..20a0027205 100644
+--- a/src/pkg/runtime/os_solaris.h
++++ b/src/pkg/runtime/os_solaris.h
+@@ -15,7 +15,7 @@ struct sigaction;
+ void	runtime·sigpanic(void);
+ 
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+-void	runtime·sigaction(int32, struct Sigaction*, struct Sigaction*);
++void	runtime·sigaction(int32, struct SigactionT*, struct SigactionT*);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ void	runtime·unblocksignals(void);

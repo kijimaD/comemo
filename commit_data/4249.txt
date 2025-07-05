@@ -6,7 +6,32 @@ Date:   Mon Nov 30 14:27:37 2009 -0800
     
     R=rsc
     https://golang.org/cl/157153
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2ed0ee7bba..e1c279b0df 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -9,6 +9,7 @@
+ # Please keep the list sorted.
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
++Adrian O'Grady <elpollouk@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 268e6c4970..d17403d974 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -28,6 +28,7 @@
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
++Adrian O'Grady <elpollouk@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Austin Clements <aclements@csail.mit.edu>

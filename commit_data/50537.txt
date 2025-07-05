@@ -42,7 +42,237 @@ Date:   Tue Oct 5 10:35:31 2021 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/testing/match.go      |  78 ++++++++++++++++++++++++++++-------
  src/testing/match_test.go | 101 +++++++++++++++++++++++++++++++---------------
  2 files changed, 131 insertions(+), 48 deletions(-)
+
+diff --git a/src/testing/match.go b/src/testing/match.go
+index c6ff429fe4..d530f70c26 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -17,8 +17,13 @@ type matcher struct {
+ 	filter    filterMatch
+ 	matchFunc func(pat, str string) (bool, error)
+ 
+-	mu       sync.Mutex
+-	subNames map[string]int64
++	mu sync.Mutex
++
++	// subNames is used to deduplicate subtest names.
++	// Each key is the subtest name joined to the deduplicated name of the parent test.
++	// Each value is the count of the number of occurrences of the given subtest name
++	// already seen.
++	subNames map[string]int32
+ }
+ 
+ type filterMatch interface {
+@@ -54,7 +59,7 @@ func newMatcher(matchString func(pat, str string) (bool, error), patterns, name
+ 	return &matcher{
+ 		filter:    impl,
+ 		matchFunc: matchString,
+-		subNames:  map[string]int64{},
++		subNames:  map[string]int32{},
+ 	}
+ }
+ 
+@@ -189,22 +194,65 @@ func splitRegexp(s string) filterMatch {
+ // unique creates a unique name for the given parent and subname by affixing it
+ // with one or more counts, if necessary.
+ func (m *matcher) unique(parent, subname string) string {
+-	name := fmt.Sprintf("%s/%s", parent, subname)
+-	empty := subname == ""
++	base := parent + "/" + subname
++
+ 	for {
+-		next, exists := m.subNames[name]
+-		if !empty && !exists {
+-			m.subNames[name] = 1 // next count is 1
+-			return name
++		n := m.subNames[base]
++		if n < 0 {
++			panic("subtest count overflow")
+ 		}
+-		// Name was already used. We increment with the count and append a
+-		// string with the count.
+-		m.subNames[name] = next + 1
++		m.subNames[base] = n + 1
++
++		if n == 0 && subname != "" {
++			prefix, nn := parseSubtestNumber(base)
++			if len(prefix) < len(base) && nn < m.subNames[prefix] {
++				// This test is explicitly named like "parent/subname#NN",
++				// and #NN was already used for the NNth occurrence of "parent/subname".
++				// Loop to add a disambiguating suffix.
++				continue
++			}
++			return base
++		}
++
++		name := fmt.Sprintf("%s#%02d", base, n)
++		if m.subNames[name] != 0 {
++			// This is the nth occurrence of base, but the name "parent/subname#NN"
++			// collides with the first occurrence of a subtest *explicitly* named
++			// "parent/subname#NN". Try the next number.
++			continue
++		}
++
++		return name
++	}
++}
++
++// parseSubtestNumber splits a subtest name into a "#%02d"-formatted int32
++// suffix (if present), and a prefix preceding that suffix (always).
++func parseSubtestNumber(s string) (prefix string, nn int32) {
++	i := strings.LastIndex(s, "#")
++	if i < 0 {
++		return s, 0
++	}
++
++	prefix, suffix := s[:i], s[i+1:]
++	if len(suffix) < 2 || (len(suffix) > 2 && suffix[0] == '0') {
++		// Even if suffix is numeric, it is not a possible output of a "%02" format
++		// string: it has either too few digits or too many leading zeroes.
++		return s, 0
++	}
++	if suffix == "00" {
++		if !strings.HasSuffix(prefix, "/") {
++			// We only use "#00" as a suffix for subtests named with the empty
++			// string — it isn't a valid suffix if the subtest name is non-empty.
++			return s, 0
++		}
++	}
+ 
+-		// Add a count to guarantee uniqueness.
+-		name = fmt.Sprintf("%s#%02d", name, next)
+-		empty = false
++	n, err := strconv.ParseInt(suffix, 10, 32)
++	if err != nil || n < 0 {
++		return s, 0
+ 	}
++	return prefix, int32(n)
+ }
+ 
+ // rewrite rewrites a subname to having only printable characters and no white
+diff --git a/src/testing/match_test.go b/src/testing/match_test.go
+index 9ceadbb31d..206ac0b651 100644
+--- a/src/testing/match_test.go
++++ b/src/testing/match_test.go
+@@ -149,49 +149,84 @@ func TestMatcher(t *T) {
+ 	}
+ }
+ 
++var namingTestCases = []struct{ name, want string }{
++	// Uniqueness
++	{"", "x/#00"},
++	{"", "x/#01"},
++	{"#0", "x/#0"},      // Doesn't conflict with #00 because the number of digits differs.
++	{"#00", "x/#00#01"}, // Conflicts with implicit #00 (used above), so add a suffix.
++	{"#", "x/#"},
++	{"#", "x/##01"},
++
++	{"t", "x/t"},
++	{"t", "x/t#01"},
++	{"t", "x/t#02"},
++	{"t#00", "x/t#00"}, // Explicit "#00" doesn't conflict with the unsuffixed first subtest.
++
++	{"a#01", "x/a#01"},    // user has subtest with this name.
++	{"a", "x/a"},          // doesn't conflict with this name.
++	{"a", "x/a#02"},       // This string is claimed now, so resume
++	{"a", "x/a#03"},       // with counting.
++	{"a#02", "x/a#02#01"}, // We already used a#02 once, so add a suffix.
++
++	{"b#00", "x/b#00"},
++	{"b", "x/b"}, // Implicit 0 doesn't conflict with explicit "#00".
++	{"b", "x/b#01"},
++	{"b#9223372036854775807", "x/b#9223372036854775807"}, // MaxInt64
++	{"b", "x/b#02"},
++	{"b", "x/b#03"},
++
++	// Sanitizing
++	{"A:1 B:2", "x/A:1_B:2"},
++	{"s\t\r\u00a0", "x/s___"},
++	{"\x01", `x/\x01`},
++	{"\U0010ffff", `x/\U0010ffff`},
++}
++
+ func TestNaming(t *T) {
+ 	m := newMatcher(regexp.MatchString, "", "")
+-
+ 	parent := &common{name: "x", level: 1} // top-level test.
+ 
+-	// Rig the matcher with some preloaded values.
+-	m.subNames["x/b"] = 1000
+-
+-	testCases := []struct {
+-		name, want string
+-	}{
+-		// Uniqueness
+-		{"", "x/#00"},
+-		{"", "x/#01"},
+-
+-		{"t", "x/t"},
+-		{"t", "x/t#01"},
+-		{"t", "x/t#02"},
+-
+-		{"a#01", "x/a#01"}, // user has subtest with this name.
+-		{"a", "x/a"},       // doesn't conflict with this name.
+-		{"a", "x/a#01#01"}, // conflict, add disambiguating string.
+-		{"a", "x/a#02"},    // This string is claimed now, so resume
+-		{"a", "x/a#03"},    // with counting.
+-		{"a#02", "x/a#02#01"},
+-
+-		{"b", "x/b#1000"}, // rigged, see above
+-		{"b", "x/b#1001"},
+-
+-		// // Sanitizing
+-		{"A:1 B:2", "x/A:1_B:2"},
+-		{"s\t\r\u00a0", "x/s___"},
+-		{"\x01", `x/\x01`},
+-		{"\U0010ffff", `x/\U0010ffff`},
+-	}
+-
+-	for i, tc := range testCases {
++	for i, tc := range namingTestCases {
+ 		if got, _, _ := m.fullName(parent, tc.name); got != tc.want {
+ 			t.Errorf("%d:%s: got %q; want %q", i, tc.name, got, tc.want)
+ 		}
+ 	}
+ }
+ 
++func FuzzNaming(f *F) {
++	for _, tc := range namingTestCases {
++		f.Add(tc.name)
++	}
++	parent := &common{name: "x", level: 1}
++	var m *matcher
++	var seen map[string]string
++	reset := func() {
++		m = newMatcher(regexp.MatchString, "", "")
++		seen = make(map[string]string)
++	}
++	reset()
++
++	f.Fuzz(func(t *T, subname string) {
++		if len(subname) > 10 {
++			// Long names attract the OOM killer.
++			t.Skip()
++		}
++		name := m.unique(parent.name, subname)
++		if !strings.Contains(name, "/"+subname) {
++			t.Errorf("name %q does not contain subname %q", name, subname)
++		}
++		if prev, ok := seen[name]; ok {
++			t.Errorf("name %q generated by both %q and %q", name, prev, subname)
++		}
++		if len(seen) > 1e6 {
++			// Free up memory.
++			reset()
++		}
++		seen[name] = subname
++	})
++}
++
+ // GoString returns a string that is more readable than the default, which makes
+ // it easier to read test errors.
+ func (m alternationMatch) GoString() string {

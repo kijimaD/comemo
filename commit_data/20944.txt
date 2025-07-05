@@ -10,7 +10,59 @@ Date:   Tue Oct 28 23:25:55 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/169720043
-
+---
  src/cmd/objdump/main.go         |  2 +-
  src/cmd/objdump/objdump_test.go | 19 +++++++++++++++++--
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index aafc501110..0f66f20a40 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -159,7 +159,7 @@ func dump(tab *gosym.Table, lookup lookupFunc, disasm disasmFunc, goarch string,
+ 
+ 	printed := false
+ 	for _, sym := range syms {
+-		if sym.Code != 'T' || sym.Size == 0 || sym.Name == "_text" || sym.Name == "text" || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
++		if (sym.Code != 'T' && sym.Code != 't') || sym.Size == 0 || sym.Name == "_text" || sym.Name == "text" || sym.Addr < textStart || symRE != nil && !symRE.MatchString(sym.Name) {
+ 			continue
+ 		}
+ 		if sym.Addr >= textStart+uint64(len(textData)) || sym.Addr+uint64(sym.Size) > textStart+uint64(len(textData)) {
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 5410856262..a9eeea1e06 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -157,12 +157,15 @@ var armNeed = []string{
+ // binary for the current system (only) and test that objdump
+ // can handle that one.
+ 
+-func TestDisasm(t *testing.T) {
++func testDisasm(t *testing.T, flags ...string) {
+ 	tmp, exe := buildObjdump(t)
+ 	defer os.RemoveAll(tmp)
+ 
+ 	hello := filepath.Join(tmp, "hello.exe")
+-	out, err := exec.Command("go", "build", "-o", hello, "testdata/fmthello.go").CombinedOutput()
++	args := []string{"build", "-o", hello}
++	args = append(args, flags...)
++	args = append(args, "testdata/fmthello.go")
++	out, err := exec.Command("go", args...).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
+ 	}
+@@ -194,3 +197,15 @@ func TestDisasm(t *testing.T) {
+ 		t.Logf("full disassembly:\n%s", text)
+ 	}
+ }
++
++func TestDisasm(t *testing.T) {
++	testDisasm(t)
++}
++
++func TestDisasmExtld(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skipf("skipping on %s", runtime.GOOS)
++	}
++	testDisasm(t, "-ldflags=-linkmode=external")
++}

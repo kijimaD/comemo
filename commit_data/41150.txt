@@ -9,7 +9,7 @@ Date:   Mon Sep 9 09:00:53 2019 +0300
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objfile/goobj.go        |  2 +-
  src/cmd/internal/objfile/objfile.go      |  2 +-
  src/crypto/x509/name_constraints_test.go |  4 +-
@@ -22,3 +22,264 @@ Date:   Mon Sep 9 09:00:53 2019 +0300
  src/os/os_windows_test.go                |  2 +-
  src/runtime/map_test.go                  | 10 ++--
  11 files changed, 67 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 473e773ec2..7c04b6d5ce 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -29,7 +29,7 @@ func openGoFile(r *os.File) (*File, error) {
+ 	}
+ 	rf := &goobjFile{goobj: f, f: r}
+ 	if len(f.Native) == 0 {
+-		return &File{r, []*Entry{&Entry{raw: rf}}}, nil
++		return &File{r, []*Entry{{raw: rf}}}, nil
+ 	}
+ 	entries := make([]*Entry, len(f.Native)+1)
+ 	entries[0] = &Entry{
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index 41c5d9b9f5..a58e0e159c 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -76,7 +76,7 @@ func Open(name string) (*File, error) {
+ 	}
+ 	for _, try := range openers {
+ 		if raw, err := try(r); err == nil {
+-			return &File{r, []*Entry{&Entry{raw: raw}}}, nil
++			return &File{r, []*Entry{{raw: raw}}}, nil
+ 		}
+ 	}
+ 	r.Close()
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 8344240927..5469e28de2 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -1631,7 +1631,7 @@ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.
+ 		NotAfter:              time.Unix(2000, 0),
+ 		KeyUsage:              KeyUsageCertSign,
+ 		BasicConstraintsValid: true,
+-		IsCA: true,
++		IsCA:                  true,
+ 	}
+ 
+ 	if err := addConstraintsToTemplate(constraints, template); err != nil {
+@@ -1668,7 +1668,7 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
+ 		NotAfter:              time.Unix(2000, 0),
+ 		KeyUsage:              KeyUsageDigitalSignature,
+ 		BasicConstraintsValid: true,
+-		IsCA: false,
++		IsCA:                  false,
+ 	}
+ 
+ 	for _, name := range leaf.sans {
+diff --git a/src/debug/dwarf/type_test.go b/src/debug/dwarf/type_test.go
+index aa2fbeca0b..fda03fdbb0 100644
+--- a/src/debug/dwarf/type_test.go
++++ b/src/debug/dwarf/type_test.go
+@@ -223,7 +223,7 @@ func TestUnsupportedTypes(t *testing.T) {
+ 		}
+ 	}
+ 	if dumpseen {
+-		for k, _ := range seen {
++		for k := range seen {
+ 			fmt.Printf("seen: %s\n", k)
+ 		}
+ 	}
+diff --git a/src/encoding/csv/fuzz.go b/src/encoding/csv/fuzz.go
+index dc33893dd7..8be21d5d28 100644
+--- a/src/encoding/csv/fuzz.go
++++ b/src/encoding/csv/fuzz.go
+@@ -17,13 +17,13 @@ func Fuzz(data []byte) int {
+ 	buf := new(bytes.Buffer)
+ 
+ 	for _, tt := range []Reader{
+-		Reader{},
+-		Reader{Comma: ';'},
+-		Reader{Comma: '\t'},
+-		Reader{LazyQuotes: true},
+-		Reader{TrimLeadingSpace: true},
+-		Reader{Comment: '#'},
+-		Reader{Comment: ';'},
++		{},
++		{Comma: ';'},
++		{Comma: '\t'},
++		{LazyQuotes: true},
++		{TrimLeadingSpace: true},
++		{Comment: '#'},
++		{Comment: ';'},
+ 	} {
+ 		r := NewReader(bytes.NewReader(data))
+ 		r.Comma = tt.Comma
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 494abc9b91..f38e88b638 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -591,7 +591,7 @@ func TestEndToEnd(t *testing.T) {
+ 		B:        18,
+ 		C:        -5,
+ 		M:        map[string]*float64{"pi": &pi, "e": &e},
+-		M2:       map[int]T3{4: T3{X: pi, Z: &meaning}, 10: T3{X: e, Z: &fingers}},
++		M2:       map[int]T3{4: {X: pi, Z: &meaning}, 10: {X: e, Z: &fingers}},
+ 		Mstring:  map[string]string{"pi": "3.14", "e": "2.71"},
+ 		Mintptr:  map[int]*int{meaning: &fingers, fingers: &meaning},
+ 		Mcomp:    map[complex128]complex128{comp1: comp2, comp2: comp1},
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 642f397fb9..daab713766 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -796,8 +796,8 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
+ // https://golang.org/issue/33675
+ func TestNilMarshalerTextMapKey(t *testing.T) {
+ 	b, err := Marshal(map[*unmarshalerText]int{
+-		(*unmarshalerText)(nil):    1,
+-		&unmarshalerText{"A", "B"}: 2,
++		(*unmarshalerText)(nil): 1,
++		{"A", "B"}:              2,
+ 	})
+ 	if err != nil {
+ 		t.Fatalf("Failed to Marshal *text.Marshaler: %v", err)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6b5772226e..c914d66b4d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -244,51 +244,51 @@ var pkgDeps = map[string][]string{
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+-	"archive/tar":              {"L4", "OS", "syscall", "os/user"},
+-	"archive/zip":              {"L4", "OS", "compress/flate"},
+-	"container/heap":           {"sort"},
+-	"compress/bzip2":           {"L4"},
+-	"compress/flate":           {"L4"},
+-	"compress/gzip":            {"L4", "compress/flate"},
+-	"compress/lzw":             {"L4"},
+-	"compress/zlib":            {"L4", "compress/flate"},
+-	"context":                  {"errors", "internal/reflectlite", "sync", "time"},
+-	"database/sql":             {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+-	"database/sql/driver":      {"L4", "context", "time", "database/sql/internal"},
+-	"debug/dwarf":              {"L4"},
+-	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/gosym":              {"L4"},
+-	"debug/macho":              {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/pe":                 {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/plan9obj":           {"L4", "OS"},
+-	"encoding":                 {"L4"},
+-	"encoding/ascii85":         {"L4"},
+-	"encoding/asn1":            {"L4", "math/big"},
+-	"encoding/csv":             {"L4"},
+-	"encoding/gob":             {"L4", "OS", "encoding"},
+-	"encoding/hex":             {"L4"},
+-	"encoding/json":            {"L4", "encoding"},
+-	"encoding/pem":             {"L4"},
+-	"encoding/xml":             {"L4", "encoding"},
+-	"flag":                     {"L4", "OS"},
+-	"go/build":                 {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
+-	"html":                     {"L4"},
+-	"image/draw":               {"L4", "image/internal/imageutil"},
+-	"image/gif":                {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+-	"image/internal/imageutil": {"L4"},
+-	"image/jpeg":               {"L4", "image/internal/imageutil"},
+-	"image/png":                {"L4", "compress/zlib"},
+-	"index/suffixarray":        {"L4", "regexp"},
+-	"internal/goroot":          {"L4", "OS"},
+-	"internal/singleflight":    {"sync"},
+-	"internal/trace":           {"L4", "OS", "container/heap"},
+-	"internal/xcoff":           {"L4", "OS", "debug/dwarf"},
+-	"math/big":                 {"L4"},
+-	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+-	"mime/quotedprintable":     {"L4"},
+-	"net/internal/socktest":    {"L4", "OS", "syscall", "internal/syscall/windows"},
+-	"net/url":                  {"L4"},
+-	"plugin":                   {"L0", "OS", "CGO"},
++	"archive/tar":                    {"L4", "OS", "syscall", "os/user"},
++	"archive/zip":                    {"L4", "OS", "compress/flate"},
++	"container/heap":                 {"sort"},
++	"compress/bzip2":                 {"L4"},
++	"compress/flate":                 {"L4"},
++	"compress/gzip":                  {"L4", "compress/flate"},
++	"compress/lzw":                   {"L4"},
++	"compress/zlib":                  {"L4", "compress/flate"},
++	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
++	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
++	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
++	"debug/dwarf":                    {"L4"},
++	"debug/elf":                      {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/gosym":                    {"L4"},
++	"debug/macho":                    {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/pe":                       {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/plan9obj":                 {"L4", "OS"},
++	"encoding":                       {"L4"},
++	"encoding/ascii85":               {"L4"},
++	"encoding/asn1":                  {"L4", "math/big"},
++	"encoding/csv":                   {"L4"},
++	"encoding/gob":                   {"L4", "OS", "encoding"},
++	"encoding/hex":                   {"L4"},
++	"encoding/json":                  {"L4", "encoding"},
++	"encoding/pem":                   {"L4"},
++	"encoding/xml":                   {"L4", "encoding"},
++	"flag":                           {"L4", "OS"},
++	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
++	"html":                           {"L4"},
++	"image/draw":                     {"L4", "image/internal/imageutil"},
++	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
++	"image/internal/imageutil":       {"L4"},
++	"image/jpeg":                     {"L4", "image/internal/imageutil"},
++	"image/png":                      {"L4", "compress/zlib"},
++	"index/suffixarray":              {"L4", "regexp"},
++	"internal/goroot":                {"L4", "OS"},
++	"internal/singleflight":          {"sync"},
++	"internal/trace":                 {"L4", "OS", "container/heap"},
++	"internal/xcoff":                 {"L4", "OS", "debug/dwarf"},
++	"math/big":                       {"L4"},
++	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
++	"mime/quotedprintable":           {"L4"},
++	"net/internal/socktest":          {"L4", "OS", "syscall", "internal/syscall/windows"},
++	"net/url":                        {"L4"},
++	"plugin":                         {"L0", "OS", "CGO"},
+ 	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
+ 	"testing/internal/testdeps":      {"L4", "internal/testlog", "runtime/pprof", "regexp"},
+ 	"text/scanner":                   {"L4", "OS"},
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index e060d4bf51..aaa0004666 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -119,7 +119,7 @@ var sortTests = []sortTest{
+ 		"PTR0:0 PTR1:1 PTR2:2",
+ 	},
+ 	{
+-		map[toy]string{toy{7, 2}: "72", toy{7, 1}: "71", toy{3, 4}: "34"},
++		map[toy]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
+ 		"{3 4}:34 {7 1}:71 {7 2}:72",
+ 	},
+ 	{
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 2693904e56..651fe63b3f 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1183,4 +1183,4 @@ func TestMkdirDevNull(t *testing.T) {
+ 	if errno != syscall.ENOTDIR {
+ 		t.Fatalf("error %d is not syscall.ENOTDIR", errno)
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 593e32267d..1b7ccad6ed 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
+ // ("quick keys") as well as long keys.
+ func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
+ 	testMapLookups(t, map[string]string{
+-		"x":    "x1val",
+-		"xx":   "x2val",
+-		"foo":  "fooval",
+-		"bar":  "barval", // same key length as "foo"
+-		"xxxx": "x4val",
++		"x":                      "x1val",
++		"xx":                     "x2val",
++		"foo":                    "fooval",
++		"bar":                    "barval", // same key length as "foo"
++		"xxxx":                   "x4val",
+ 		strings.Repeat("x", 128): "longval1",
+ 		strings.Repeat("y", 128): "longval2",
+ 	})

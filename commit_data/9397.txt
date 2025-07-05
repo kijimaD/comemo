@@ -12,8 +12,148 @@ Date:   Wed Aug 17 10:27:32 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4904048
-
+---
  src/cmd/gofmt/test.sh            |  2 +-
  src/pkg/go/parser/parser.go      | 34 +++++++++++++++++++---------------
  src/pkg/go/parser/parser_test.go | 13 +++++++++++++
  3 files changed, 33 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 3e63d0c26b..063a0727f5 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -43,7 +43,7 @@ apply1() {
+ 	bug226.go | bug228.go | bug248.go | bug274.go | bug280.go | \
+ 	bug282.go | bug287.go | bug298.go | bug299.go | bug300.go | \
+ 	bug302.go | bug306.go | bug322.go | bug324.go | bug335.go | \
+-	bug340.go | bug349.go | bug351.go ) return ;;
++	bug340.go | bug349.go | bug351.go | bug358.go ) return ;;
+ 	esac
+ 	# the following directories are skipped because they contain test
+ 	# cases for syntax errors and thus won't parse in the first place:
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 3224ffe559..c9e6f90963 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -420,10 +420,10 @@ func (p *parser) parseExprList(lhs bool) (list []ast.Expr) {
+ 		defer un(trace(p, "ExpressionList"))
+ 	}
+ 
+-	list = append(list, p.parseExpr(lhs))
++	list = append(list, p.checkExpr(p.parseExpr(lhs)))
+ 	for p.tok == token.COMMA {
+ 		p.next()
+-		list = append(list, p.parseExpr(lhs))
++		list = append(list, p.checkExpr(p.parseExpr(lhs)))
+ 	}
+ 
+ 	return
+@@ -973,7 +973,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
+ 		lparen := p.pos
+ 		p.next()
+ 		p.exprLev++
+-		x := p.parseRhs()
++		x := p.parseRhsOrType() // types may be parenthesized: (some type)
+ 		p.exprLev--
+ 		rparen := p.expect(token.RPAREN)
+ 		return &ast.ParenExpr{lparen, x, rparen}
+@@ -1062,7 +1062,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 	var list []ast.Expr
+ 	var ellipsis token.Pos
+ 	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
+-		list = append(list, p.parseRhs())
++		list = append(list, p.parseRhsOrType()) // builtins may expect a type: make(some type, ...)
+ 		if p.tok == token.ELLIPSIS {
+ 			ellipsis = p.pos
+ 			p.next()
+@@ -1087,7 +1087,7 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
+ 		return p.parseLiteralValue(nil)
+ 	}
+ 
+-	x := p.parseExpr(keyOk) // don't resolve if map key
++	x := p.checkExpr(p.parseExpr(keyOk)) // don't resolve if map key
+ 	if keyOk {
+ 		if p.tok == token.COLON {
+ 			colon := p.pos
+@@ -1146,11 +1146,11 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	case *ast.IndexExpr:
+ 	case *ast.SliceExpr:
+ 	case *ast.TypeAssertExpr:
+-		if t.Type == nil {
+-			// the form X.(type) is only allowed in type switch expressions
+-			p.errorExpected(x.Pos(), "expression")
+-			x = &ast.BadExpr{x.Pos(), x.End()}
+-		}
++		// If t.Type == nil we have a type assertion of the form
++		// y.(type), which is only allowed in type switch expressions.
++		// It's hard to exclude those but for the case where we are in
++		// a type switch. Instead be lenient and test this in the type
++		// checker.
+ 	case *ast.CallExpr:
+ 	case *ast.StarExpr:
+ 	case *ast.UnaryExpr:
+@@ -1344,8 +1344,9 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
+ }
+ 
+ // If lhs is set and the result is an identifier, it is not resolved.
+-// TODO(gri): parseExpr may return a type or even a raw type ([..]int) -
+-//            should reject when a type/raw type is obviously not allowed
++// The result may be a type or even a raw type ([...]int). Callers must
++// check the result (using checkExpr or checkExprOrType), depending on
++// context.
+ func (p *parser) parseExpr(lhs bool) ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Expression"))
+@@ -1355,7 +1356,11 @@ func (p *parser) parseExpr(lhs bool) ast.Expr {
+ }
+ 
+ func (p *parser) parseRhs() ast.Expr {
+-	return p.parseExpr(false)
++	return p.checkExpr(p.parseExpr(false))
++}
++
++func (p *parser) parseRhsOrType() ast.Expr {
++	return p.checkExprOrType(p.parseExpr(false))
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -1434,7 +1439,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ }
+ 
+ func (p *parser) parseCallExpr() *ast.CallExpr {
+-	x := p.parseRhs()
++	x := p.parseRhsOrType() // could be a conversion: (some type)(x)
+ 	if call, isCall := x.(*ast.CallExpr); isCall {
+ 		return call
+ 	}
+@@ -2150,6 +2155,5 @@ func (p *parser) parseFile() *ast.File {
+ 		}
+ 	}
+ 
+-	// TODO(gri): store p.imports in AST
+ 	return &ast.File{doc, pos, ident, decls, p.pkgScope, p.imports, p.unresolved[0:i], p.comments}
+ }
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 72c82c3794..58156a38aa 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -21,6 +21,19 @@ var illegalInputs = []interface{}{
+ 	`package p; func f() { if ; /* should have condition */ {} };`,
+ 	`package p; func f() { if f(); /* should have condition */ {} };`,
+ 	`package p; const c; /* should have constant value */`,
++	`package p; var a = [1]int; /* illegal expression */`,
++	`package p; var a = [...]int; /* illegal expression */`,
++	`package p; var a = struct{} /* illegal expression */`,
++	`package p; var a = func(); /* illegal expression */`,
++	`package p; var a = interface{} /* illegal expression */`,
++	`package p; var a = []int /* illegal expression */`,
++	`package p; var a = map[int]int /* illegal expression */`,
++	`package p; var a = chan int; /* illegal expression */`,
++	`package p; var a = []int{[]int}; /* illegal expression */`,
++	`package p; var a = ([]int); /* illegal expression */`,
++	`package p; var a = a[[]int:[]int]; /* illegal expression */`,
++	`package p; var a = <- chan int; /* illegal expression */`,
++	`package p; func f() { select { case _ <- chan int: } };`,
+ }
+ 
+ func TestParseIllegalInputs(t *testing.T) {

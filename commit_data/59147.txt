@@ -15,6 +15,20 @@ Date:   Tue Feb 20 08:53:57 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/platform_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/crypto/x509/platform_test.go b/src/crypto/x509/platform_test.go
+index c35f0b448e..b425e02f3b 100644
+--- a/src/crypto/x509/platform_test.go
++++ b/src/crypto/x509/platform_test.go
+@@ -4,8 +4,6 @@
+ 
+ package x509
+ 
+-//go:generate go run gen_testing_root.go
+-
+ import (
+ 	"crypto/ecdsa"
+ 	"crypto/elliptic"

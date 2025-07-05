@@ -28,7 +28,7 @@ Date:   Mon Oct 18 12:32:55 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2273041
-
+---
  src/Make.inc                       |   3 +-
  src/cmd/8l/asm.c                   |   1 +
  src/cmd/8l/obj.c                   |   3 +
@@ -46,3 +46,536 @@ Date:   Mon Oct 18 12:32:55 2010 -0400
  src/pkg/runtime/runtime.c          |  11 ++-
  src/pkg/runtime/runtime.h          |   2 +-
  16 files changed, 370 insertions(+), 7 deletions(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 3334c2cf15..f9a3ee2873 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -34,9 +34,10 @@ else ifeq ($(GOOS),freebsd)
+ else ifeq ($(GOOS),linux)
+ else ifeq ($(GOOS),nacl)
+ else ifeq ($(GOOS),tiny)
++else ifeq ($(GOOS),plan9)
+ else ifeq ($(GOOS),windows)
+ else
+-$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, or windows)
++$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, plan9, or windows)
+ endif
+ 
+ ifeq ($(GOHOSTARCH),)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 74b4e9b763..b9998b1fbe 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -441,6 +441,7 @@ asmb(void)
+ 			break;
+ 		case 2:
+ 			seek(cout, HEADR+textsize+segdata.filelen, 0);
++			symo = HEADR+textsize+segdata.filelen;
+ 			break;
+ 		case 3:
+ 		case 4:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 722857e9be..b1574fc2b5 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -144,6 +144,9 @@ main(int argc, char *argv[])
+ 		else
+ 		if(strcmp(goos, "tiny") == 0)
+ 			HEADTYPE = 11;
++		else
++		if(strcmp(goos, "plan9") == 0)
++			HEADTYPE = 2;
+ 		else
+ 			print("goos is not known: %s\n", goos);
+ 	}
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 329a87094b..264771f570 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -293,6 +293,14 @@ patch(void)
+ 					p->from.offset = 0;
+ 				}
+ 			}
++			if(HEADTYPE == 2) {	// Plan 9
++				if(p->from.type == D_INDIR+D_GS
++				&& p->to.type >= D_AX && p->to.type <= D_DI) {
++					p->as = AMOVL;
++					p->from.type = D_ADDR+D_STATIC;
++					p->from.offset += 0xdfffefc0;
++				}
++			}
+ 			if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+ 				s = p->to.sym;
+ 				if(s) {
+@@ -418,7 +426,14 @@ dostkoff(void)
+ 				p->from.offset = tlsoffset + 0;
+ 				p->to.type = D_CX;
+ 				break;
+-
++			
++			case 2:	// Plan 9
++				p->as = AMOVL;
++				p->from.type = D_ADDR+D_STATIC;
++				p->from.offset = 0xdfffefc0;
++				p->to.type = D_CX;
++				break;
++			
+ 			default:
+ 				p->as = AMOVL;
+ 				p->from.type = D_INDIR+D_GS;
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 614c026eaf..5f0d0ed468 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -26,6 +26,8 @@ TEXT _rt0_386(SB),7,$0
+ 	CALL	ldt0setup(SB)
+ 
+ 	// store through it, to make sure it works
++	CMPL	isplan9(SB), $1
++	JEQ	ok
+ 	get_tls(BX)
+ 	MOVL	$0x123, g(BX)
+ 	MOVL	tls0(SB), AX
+@@ -414,4 +416,4 @@ GLOBL m0(SB), $1024
+ GLOBL g0(SB), $1024
+ GLOBL tls0(SB), $32
+ GLOBL initcgo(SB), $4
+-
++GLOBL isplan9(SB), $4
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 8544d15d84..3ed5f74c90 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -24,6 +24,11 @@ case "$GOARCH" in
+ 		echo '#define	g(r)	0(r)'
+ 		echo '#define	m(r)	4(r)'
+ 		;;
++	plan9)
++		echo '#define	get_tls(r)'
++		echo '#define	g(r)	0xdfffefc0'
++		echo '#define	m(r)	0xdfffefc4'
++		;;
+ 	linux)
+ 		# On Linux systems, what we call 0(GS) and 4(GS) for g and m
+ 		# turn into %gs:-8 and %gs:-4 (using gcc syntax to denote
+diff --git a/src/pkg/runtime/plan9/386/defs.h b/src/pkg/runtime/plan9/386/defs.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/plan9/386/defs.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/plan9/386/rt0.s b/src/pkg/runtime/plan9/386/rt0.s
+new file mode 100644
+index 0000000000..e8d65d367b
+--- /dev/null
++++ b/src/pkg/runtime/plan9/386/rt0.s
+@@ -0,0 +1,32 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT	_rt0_386_plan9(SB),7, $0
++	MOVL	AX, _tos(SB)
++	
++	// move arguments down to make room for
++	// m and g at top of stack, right before Tos.
++	MOVL	SP, SI
++	SUBL	$8, SP
++	MOVL	SP, DI
++		
++	MOVL	AX, CX
++	SUBL	SI, CX
++	CLD
++	REP; MOVSB
++	
++	// adjust argv
++	SUBL	SI, DI
++	MOVL	newargc+0(SP), CX
++	LEAL	newargv+4(SP), BP
++argv_fix:
++	ADDL	DI, 0(BP)
++	ADDL	$4, BP
++	LOOP	argv_fix
++	
++	JMP	_rt0_386(SB)
++
++DATA  isplan9+0(SB)/4, $1
++GLOBL isplan9(SB), $4
++GLOBL _tos(SB), $4
+diff --git a/src/pkg/runtime/plan9/386/signal.c b/src/pkg/runtime/plan9/386/signal.c
+new file mode 100644
+index 0000000000..e7c98441e4
+--- /dev/null
++++ b/src/pkg/runtime/plan9/386/signal.c
+@@ -0,0 +1,10 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file. 
++
++#include "runtime.h"
++
++void
++gettime(int64*, int32*) 
++{
++}
+diff --git a/src/pkg/runtime/plan9/386/sys.s b/src/pkg/runtime/plan9/386/sys.s
+new file mode 100644
+index 0000000000..8dbacc0623
+--- /dev/null
++++ b/src/pkg/runtime/plan9/386/sys.s
+@@ -0,0 +1,76 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "defs.h"
++#include "386/asm.h"
++
++// setldt(int entry, int address, int limit)
++TEXT setldt(SB),7,$0
++	RET
++
++TEXT write(SB),7,$0
++	MOVL    $20, AX
++	INT     $64
++	RET
++
++TEXT exits(SB),7,$0
++	MOVL    $8, AX
++	INT     $64
++	RET
++
++TEXT brk_(SB),7,$0
++	MOVL    $24, AX
++	INT     $64
++	RET
++
++TEXT plan9_semacquire(SB),7,$0
++	MOVL	$37, AX
++	INT	$64
++	RET
++	
++TEXT plan9_semrelease(SB),7,$0
++	MOVL	$38, AX
++	INT	$64
++	RET
++	
++TEXT rfork(SB),7,$0
++	MOVL    $19, AX // rfork
++	INT     $64
++
++	// In parent, return.
++	CMPL	AX, $0
++	JEQ	2(PC)
++	RET
++
++	// In child on old stack.
++	MOVL	mm+12(SP), BX	// m
++	MOVL	gg+16(SP), DX	// g
++	MOVL	fn+20(SP), SI	// fn
++
++	// set SP to be on the new child stack
++	MOVL	stack+8(SP), CX
++	MOVL	CX, SP
++
++	// Initialize m, g.
++	get_tls(AX)
++	MOVL	DX, g(AX)
++	MOVL	BX, m(AX)
++
++	// Initialize AX from _tos->pid
++	MOVL	0xdfffeff8, AX
++	MOVL	AX, m_procid(BX)	// save pid as m->procid
++
++	CALL	stackcheck(SB)	// smashes AX, CX
++	
++	MOVL	0(DX), DX	// paranoia; check they are not nil
++	MOVL	0(BX), BX
++	
++	// more paranoia; check that stack splitting code works
++	PUSHAL
++	CALL	emptyfunc(SB)
++	POPAL
++	
++	CALL	SI	// fn()
++	CALL	exit(SB)
++	RET
+diff --git a/src/pkg/runtime/plan9/mem.c b/src/pkg/runtime/plan9/mem.c
+new file mode 100644
+index 0000000000..7d214c3529
+--- /dev/null
++++ b/src/pkg/runtime/plan9/mem.c
+@@ -0,0 +1,49 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "malloc.h"
++
++extern byte end[];
++static byte *bloc = { end };
++
++enum
++{
++	Round = 7
++};
++
++void*
++SysAlloc(uintptr ask)
++{
++	uintptr bl;
++	
++	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
++	bl = ((uintptr)bloc + Round) & ~Round;
++	if(brk_((void*)(bl + ask)) < 0)
++		return (void*)-1;
++	bloc = (byte*)bl + ask;
++	return (void*)bl;
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	// from tiny/mem.c
++	// Push pointer back if this is a free
++	// of the most recent SysAlloc.
++	n += (n + Round) & ~Round;
++	if(bloc == (byte*)v+n)
++		bloc -= n;	
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v, n);
++}
++
++void
++SysMemInit(void)
++{
++}
+diff --git a/src/pkg/runtime/plan9/os.h b/src/pkg/runtime/plan9/os.h
+new file mode 100644
+index 0000000000..748cf7a388
+--- /dev/null
++++ b/src/pkg/runtime/plan9/os.h
+@@ -0,0 +1,27 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern int32 write(int32 fd, void* buffer, int32 nbytes);
++extern void exits(int8* msg);
++extern int32 brk_(void*);
++
++/* rfork */
++enum
++{
++	RFNAMEG         = (1<<0),
++	RFENVG          = (1<<1),
++	RFFDG           = (1<<2),
++	RFNOTEG         = (1<<3),
++	RFPROC          = (1<<4),
++	RFMEM           = (1<<5),
++	RFNOWAIT        = (1<<6),
++	RFCNAMEG        = (1<<10),
++	RFCENVG         = (1<<11),
++	RFCFDG          = (1<<12),
++	RFREND          = (1<<13),
++	RFNOMNT         = (1<<14)
++};
++extern int32 rfork(int32 flags, void *stk, M *m, G *g, void (*fn)(void));
++extern int32 plan9_semacquire(uint32 *addr, int32 block);
++extern int32 plan9_semrelease(uint32 *addr, int32 count);
+diff --git a/src/pkg/runtime/plan9/signals.h b/src/pkg/runtime/plan9/signals.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/plan9/signals.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+new file mode 100644
+index 0000000000..96e83fc2b5
+--- /dev/null
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -0,0 +1,135 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "os.h"
++
++int8 *goos = "plan9";
++
++void
++minit(void)
++{
++}
++
++void
++osinit(void)
++{
++}
++
++void
++initsig(int32 queue)
++{
++}
++
++void
++exit(int32)
++{
++	exits(nil);
++}
++
++void
++newosproc(M *m, G *g, void *stk, void (*fn)(void))
++{
++	USED(m, g, stk, fn);
++	
++	m->tls[0] = m->id;	// so 386 asm can find it
++	if(0){
++		printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
++			stk, m, g, fn, rfork, m->id, m->tls[0], &m);
++	}        
++	
++	if (rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
++		throw("newosproc: rfork failed");
++}
++
++// Blocking locks.
++
++// Implement Locks, using semaphores.
++// l->key is the number of threads who want the lock.
++// In a race, one thread increments l->key from 0 to 1
++// and the others increment it from >0 to >1.  The thread
++// who does the 0->1 increment gets the lock, and the
++// others wait on the semaphore.  When the 0->1 thread
++// releases the lock by decrementing l->key, l->key will
++// be >0, so it will increment the semaphore to wake up
++// one of the others.  This is the same algorithm used
++// in Plan 9's user-level locks.
++
++void
++lock(Lock *l)
++{
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++	
++	if(xadd(&l->key, 1) == 1)
++		return; // changed from 0 -> 1; we hold lock
++	// otherwise wait in kernel
++	while(plan9_semacquire(&l->sema, 1) < 0) {
++		/* interrupted; try again */
++	}
++}
++
++void
++unlock(Lock *l)
++{
++	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++
++	if(xadd(&l->key, -1) == 0)
++		return; // changed from 1 -> 0: no contention
++	
++	plan9_semrelease(&l->sema, 1);
++}
++
++
++void 
++destroylock(Lock *l)
++{
++	// nothing
++}
++
++// User-level semaphore implementation:
++// try to do the operations in user space on u,
++// but when it's time to block, fall back on the kernel semaphore k.
++// This is the same algorithm used in Plan 9.
++void
++usemacquire(Usema *s)
++{
++	if((int32)xadd(&s->u, -1) < 0)
++		while(plan9_semacquire(&s->k, 1) < 0) {
++			/* interrupted; try again */
++		}
++}
++
++void
++usemrelease(Usema *s)
++{
++	if((int32)xadd(&s->u, 1) <= 0)
++		plan9_semrelease(&s->k, 1);
++}
++
++
++// Event notifications.
++void
++noteclear(Note *n)
++{
++	n->wakeup = 0;
++}
++
++void
++notesleep(Note *n)
++{
++	while(!n->wakeup)
++		usemacquire(&n->sema);
++}
++
++void
++notewakeup(Note *n)
++{
++	n->wakeup = 1;
++	usemrelease(&n->sema);
++}
++
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 4b09f7bcf7..a8f8177331 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -147,15 +147,20 @@ args(int32 c, uint8 **v)
+ 	argv = v;
+ }
+ 
++extern int32 isplan9;
++
+ void
+ goargs(void)
+ {
+ 	String *gargv;
+ 	String *genvv;
+ 	int32 i, envc;
+-
+-	for(envc=0; argv[argc+1+envc] != 0; envc++)
+-		;
++	
++	if(isplan9)
++		envc=0;
++	else
++		for(envc=0; argv[argc+1+envc] != 0; envc++)
++			;
+ 
+ 	gargv = malloc(argc*sizeof gargv[0]);
+ 	genvv = malloc(envc*sizeof genvv[0]);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 88f53e2a2e..92da669d7f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -76,7 +76,7 @@ typedef	struct	Complex128	Complex128;
+  * segment register.
+  *
+  * amd64: allocated downwards from R15
+- * x86: allocated upwards from 0(FS)
++ * x86: allocated upwards from 0(GS)
+  * arm: allocated downwards from R10
+  *
+  * every C file linked into a Go program must include runtime.h

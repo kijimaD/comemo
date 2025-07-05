@@ -15,6 +15,34 @@ Date:   Sat Jul 1 14:01:23 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/goobj/objfile.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index c9d7ca434c..a8d68d873d 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -23,7 +23,6 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+-	"internal/unsafeheader"
+ 	"unsafe"
+ )
+ 
+@@ -662,13 +661,7 @@ func toString(b []byte) string {
+ 	if len(b) == 0 {
+ 		return ""
+ 	}
+-
+-	var s string
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(&b[0])
+-	hdr.Len = len(b)
+-
+-	return s
++	return unsafe.String(&b[0], len(b))
+ }
+ 
+ func (r *Reader) StringRef(off uint32) string {

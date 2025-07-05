@@ -21,7 +21,7 @@ Date:   Thu Nov 2 08:15:44 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.22.html                                    | 19 +----------------
  src/cmd/cgo/doc.go                                 | 24 ----------------------
  src/cmd/cgo/gcc.go                                 |  2 ++
@@ -31,3 +31,159 @@ Date:   Thu Nov 2 08:15:44 2023 -0400
  src/runtime/testdata/testprogcgo/cgonocallback.go  |  3 +--
  src/runtime/testdata/testprogcgo/cgonoescape.go    |  2 +-
  8 files changed, 11 insertions(+), 47 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 8652951274..287ee77bb5 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -39,24 +39,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="cgo">Cgo</h3>
+ 
+-<p><!-- CL 497837 --> The special comment that precedes
+-  <code>import</code> <code>"C"</code> may now include two
+-  new <code>#cgo</code> directives.
+-  <ul>
+-    <li>
+-      <code>#cgo</code> <code>noescape</code> <code>cFunctionName</code>
+-      tells cgo that Go pointers passed to the C function
+-      <code>cFunctionName</code> do not escape.
+-    </li>
+-    <li>
+-      <code>#cgo</code> <code>nocallback</code> <code>cFunctionName</code>
+-      tells cgo that the C function <code>cFunctionName</code> does
+-      not call any Go functions.
+-    </li>
+-  </ul>
+-  See <a href="/cmd/cgo#hdr-Optimizing_calls_of_C_code">the <code>cgo</code>
+-  documentation</a> for more details.
+-</p>
++<!-- CL 497837 reverted -->
+ 
+ <h2 id="runtime">Runtime</h2>
+ 
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 1f635d7c09..c2e375165c 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -420,30 +420,6 @@ passing uninitialized C memory to Go code if the Go code is going to
+ store pointer values in it. Zero out the memory in C before passing it
+ to Go.
+ 
+-# Optimizing calls of C code
+-
+-When passing a Go pointer to a C function the compiler normally ensures
+-that the Go object lives on the heap. If the C function does not keep
+-a copy of the Go pointer, and never passes the Go pointer back to Go code,
+-then this is unnecessary. The #cgo noescape directive may be used to tell
+-the compiler that no Go pointers escape via the named C function.
+-If the noescape directive is used and the C function does not handle the
+-pointer safely, the program may crash or see memory corruption.
+-
+-For example:
+-
+-	// #cgo noescape cFunctionName
+-
+-When a Go function calls a C function, it prepares for the C function to
+-call back to a Go function. the #cgo nocallback directive may be used to
+-tell the compiler that these preparations are not necessary.
+-If the nocallback directive is used and the C function does call back into
+-Go code, the program will panic.
+-
+-For example:
+-
+-	// #cgo nocallback cFunctionName
+-
+ # Special cases
+ 
+ A few special C types which would normally be represented by a pointer
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d30056ec84..6e7556de96 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -94,8 +94,10 @@ func (f *File) ProcessCgoDirectives() {
+ 				directive := fields[1]
+ 				funcName := fields[2]
+ 				if directive == "nocallback" {
++					fatalf("#cgo nocallback disabled until Go 1.23")
+ 					f.NoCallbacks[funcName] = true
+ 				} else if directive == "noescape" {
++					fatalf("#cgo noescape disabled until Go 1.23")
+ 					f.NoEscapes[funcName] = true
+ 				}
+ 			}
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 9a6c6d82ce..9b3790eb11 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -117,7 +117,8 @@ int add(int x, int y) {
+ 
+ // escape vs noescape
+ 
+-#cgo noescape handleGoStringPointerNoescape
++// TODO(#56378): enable in Go 1.23:
++// #cgo noescape handleGoStringPointerNoescape
+ void handleGoStringPointerNoescape(void *s) {}
+ 
+ void handleGoStringPointerEscape(void *s) {}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go b/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go
+index 46afeefcc0..5ec9ec5d4a 100644
+--- a/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go
++++ b/src/cmd/cgo/internal/testerrors/testdata/notmatchedcfunction.go
+@@ -5,7 +5,8 @@
+ package main
+ 
+ /*
+-// ERROR MESSAGE: #cgo noescape noMatchedCFunction: no matched C function
++// TODO(#56378): change back to "#cgo noescape noMatchedCFunction: no matched C function" in Go 1.23
++// ERROR MESSAGE: #cgo noescape disabled until Go 1.23
+ #cgo noescape noMatchedCFunction
+ */
+ import "C"
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 20e3b75d79..5d0750e8f4 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -754,6 +754,7 @@ func TestNeedmDeadlock(t *testing.T) {
+ }
+ 
+ func TestCgoNoCallback(t *testing.T) {
++	t.Skip("TODO(#56378): enable in Go 1.23")
+ 	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
+ 	want := "function marked with #cgo nocallback called back into Go"
+ 	if !strings.Contains(got, want) {
+@@ -762,6 +763,7 @@ func TestCgoNoCallback(t *testing.T) {
+ }
+ 
+ func TestCgoNoEscape(t *testing.T) {
++	t.Skip("TODO(#56378): enable in Go 1.23")
+ 	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
+ 	want := "OK\n"
+ 	if got != want {
+diff --git a/src/runtime/testdata/testprogcgo/cgonocallback.go b/src/runtime/testdata/testprogcgo/cgonocallback.go
+index 8cbbfd1957..c13bf271a4 100644
+--- a/src/runtime/testdata/testprogcgo/cgonocallback.go
++++ b/src/runtime/testdata/testprogcgo/cgonocallback.go
+@@ -8,8 +8,7 @@ package main
+ // But it do callback to go in this test, Go should crash here.
+ 
+ /*
+-#cgo nocallback runCShouldNotCallback
+-
++// TODO(#56378): #cgo nocallback runCShouldNotCallback
+ extern void runCShouldNotCallback();
+ */
+ import "C"
+diff --git a/src/runtime/testdata/testprogcgo/cgonoescape.go b/src/runtime/testdata/testprogcgo/cgonoescape.go
+index 056be44889..f5eebac677 100644
+--- a/src/runtime/testdata/testprogcgo/cgonoescape.go
++++ b/src/runtime/testdata/testprogcgo/cgonoescape.go
+@@ -13,7 +13,7 @@ package main
+ // 2. less than 100 new allocated heap objects after invoking withoutNoEscape 100 times.
+ 
+ /*
+-#cgo noescape runCWithNoEscape
++// TODO(#56378): #cgo noescape runCWithNoEscape
+ 
+ void runCWithNoEscape(void *p) {
+ }

@@ -7,7 +7,32 @@ Date:   Thu Aug 23 19:29:15 2012 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6459050
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f8c859ee50..eeb51ec336 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -129,6 +129,7 @@ Jose Luis Vázquez González <josvazg@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>
++Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9bc06d2312..1c9d736828 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -192,6 +192,7 @@ Jose Luis Vázquez González <josvazg@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>
++Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>

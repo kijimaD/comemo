@@ -8,6 +8,38 @@ Date:   Thu Oct 1 16:58:17 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35242
     CL=35258
-
+---
  doc/go_tutorial.txt | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 201e945c48..e14736079f 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -281,7 +281,7 @@ An Interlude about Constants
+ 
+ Although integers come in lots of sizes in Go, integer constants do not.
+ There are no constants like "0ll" or "0x0UL".   Instead, integer
+-constants are evaluated as ideal, large-precision values that
++constants are evaluated as large-precision values that
+ can overflow only when they are assigned to an integer variable with
+ too little precision to represent the value.
+ 
+@@ -416,7 +416,7 @@ Finally we can run the program:
+ 	% helloworld3
+ 	hello, world
+ 	can't open file; err=No such file or directory
+-	% 
++	%
+ 
+ Rotting cats
+ ----
+@@ -490,7 +490,7 @@ Here it is in action:
+ 	abcdefghijklmnopqrstuvwxyz
+ 	% echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+ 	nopqrstuvwxyzabcdefghijklm
+-	% 
++	%
+ </pre>
+ 
+ Fans of dependency injection may take cheer from how easily interfaces

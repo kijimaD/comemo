@@ -7,6 +7,35 @@ Date:   Wed Aug 12 17:58:53 2009 -0700
     R=ken
     OCL=33134
     CL=33141
-
+---
  src/cmd/gc/subr.c | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 771e9c293d..8a4cd80d51 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -60,9 +60,12 @@ fatal(char *fmt, ...)
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
+ 	print("\n");
+-	if(debug['h'])
++	if(debug['h']) {
++		if(outfile)
++			unlink(outfile);
+ 		*(int*)0 = 0;
+-	exit(1);
++	}
++	errorexit();
+ }
+ 
+ void
+@@ -87,7 +90,7 @@ linehist(char *file, int32 off, int relative)
+ 		file = cp;
+ 	}
+ 
+-	h = alloc(sizeof(Hist));
++	h = mal(sizeof(Hist));
+ 	h->name = file;
+ 	h->line = lineno;
+ 	h->offset = off;

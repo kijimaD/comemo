@@ -9,7 +9,217 @@ Date:   Sat Aug 22 10:40:01 2015 +0100
     Change-Id: I3f75db47b0f8e877d81e3c2dcea01ff747b47685
     Reviewed-on: https://go-review.googlesource.com/13779
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/encodedword_test.go | 87 ---------------------------------------
  src/mime/example_test.go     | 98 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 98 insertions(+), 87 deletions(-)
+
+diff --git a/src/mime/encodedword_test.go b/src/mime/encodedword_test.go
+index 2beff5d341..b30ecba3b9 100644
+--- a/src/mime/encodedword_test.go
++++ b/src/mime/encodedword_test.go
+@@ -5,100 +5,13 @@
+ package mime
+ 
+ import (
+-	"bytes"
+ 	"errors"
+-	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func ExampleWordEncoder_Encode() {
+-	fmt.Println(QEncoding.Encode("utf-8", "¡Hola, señor!"))
+-	fmt.Println(QEncoding.Encode("utf-8", "Hello!"))
+-	fmt.Println(BEncoding.Encode("UTF-8", "¡Hola, señor!"))
+-	fmt.Println(QEncoding.Encode("ISO-8859-1", "Caf\xE9"))
+-	// Output:
+-	// =?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=
+-	// Hello!
+-	// =?UTF-8?b?wqFIb2xhLCBzZcOxb3Ih?=
+-	// =?ISO-8859-1?q?Caf=E9?=
+-}
+-
+-func ExampleWordDecoder_Decode() {
+-	dec := new(WordDecoder)
+-	header, err := dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
+-	if err != nil {
+-		panic(err)
+-	}
+-	fmt.Println(header)
+-
+-	dec.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+-		switch charset {
+-		case "x-case":
+-			// Fake character set for example.
+-			// Real use would integrate with packages such
+-			// as code.google.com/p/go-charset
+-			content, err := ioutil.ReadAll(input)
+-			if err != nil {
+-				return nil, err
+-			}
+-			return bytes.NewReader(bytes.ToUpper(content)), nil
+-		default:
+-			return nil, fmt.Errorf("unhandled charset %q", charset)
+-		}
+-	}
+-	header, err = dec.Decode("=?x-case?q?hello!?=")
+-	if err != nil {
+-		panic(err)
+-	}
+-	fmt.Println(header)
+-	// Output:
+-	// ¡Hola, señor!
+-	// HELLO!
+-}
+-
+-func ExampleWordDecoder_DecodeHeader() {
+-	dec := new(WordDecoder)
+-	header, err := dec.DecodeHeader("=?utf-8?q?=C3=89ric?= <eric@example.org>, =?utf-8?q?Ana=C3=AFs?= <anais@example.org>")
+-	if err != nil {
+-		panic(err)
+-	}
+-	fmt.Println(header)
+-
+-	header, err = dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,?= =?utf-8?q?_se=C3=B1or!?=")
+-	if err != nil {
+-		panic(err)
+-	}
+-	fmt.Println(header)
+-
+-	dec.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+-		switch charset {
+-		case "x-case":
+-			// Fake character set for example.
+-			// Real use would integrate with packages such
+-			// as code.google.com/p/go-charset
+-			content, err := ioutil.ReadAll(input)
+-			if err != nil {
+-				return nil, err
+-			}
+-			return bytes.NewReader(bytes.ToUpper(content)), nil
+-		default:
+-			return nil, fmt.Errorf("unhandled charset %q", charset)
+-		}
+-	}
+-	header, err = dec.DecodeHeader("=?x-case?q?hello_?= =?x-case?q?world!?=")
+-	if err != nil {
+-		panic(err)
+-	}
+-	fmt.Println(header)
+-	// Output:
+-	// Éric <eric@example.org>, Anaïs <anais@example.org>
+-	// ¡Hola, señor!
+-	// HELLO WORLD!
+-}
+-
+ func TestEncodeWord(t *testing.T) {
+ 	utf8, iso88591 := "utf-8", "iso-8859-1"
+ 	tests := []struct {
+diff --git a/src/mime/example_test.go b/src/mime/example_test.go
+new file mode 100644
+index 0000000000..c7d13cdcdb
+--- /dev/null
++++ b/src/mime/example_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime_test
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"mime"
++)
++
++func ExampleWordEncoder_Encode() {
++	fmt.Println(mime.QEncoding.Encode("utf-8", "¡Hola, señor!"))
++	fmt.Println(mime.QEncoding.Encode("utf-8", "Hello!"))
++	fmt.Println(mime.BEncoding.Encode("UTF-8", "¡Hola, señor!"))
++	fmt.Println(mime.QEncoding.Encode("ISO-8859-1", "Caf\xE9"))
++	// Output:
++	// =?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=
++	// Hello!
++	// =?UTF-8?b?wqFIb2xhLCBzZcOxb3Ih?=
++	// =?ISO-8859-1?q?Caf=E9?=
++}
++
++func ExampleWordDecoder_Decode() {
++	dec := new(mime.WordDecoder)
++	header, err := dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++
++	dec.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
++		switch charset {
++		case "x-case":
++			// Fake character set for example.
++			// Real use would integrate with packages such
++			// as code.google.com/p/go-charset
++			content, err := ioutil.ReadAll(input)
++			if err != nil {
++				return nil, err
++			}
++			return bytes.NewReader(bytes.ToUpper(content)), nil
++		default:
++			return nil, fmt.Errorf("unhandled charset %q", charset)
++		}
++	}
++	header, err = dec.Decode("=?x-case?q?hello!?=")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++	// Output:
++	// ¡Hola, señor!
++	// HELLO!
++}
++
++func ExampleWordDecoder_DecodeHeader() {
++	dec := new(mime.WordDecoder)
++	header, err := dec.DecodeHeader("=?utf-8?q?=C3=89ric?= <eric@example.org>, =?utf-8?q?Ana=C3=AFs?= <anais@example.org>")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++
++	header, err = dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,?= =?utf-8?q?_se=C3=B1or!?=")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++
++	dec.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
++		switch charset {
++		case "x-case":
++			// Fake character set for example.
++			// Real use would integrate with packages such
++			// as code.google.com/p/go-charset
++			content, err := ioutil.ReadAll(input)
++			if err != nil {
++				return nil, err
++			}
++			return bytes.NewReader(bytes.ToUpper(content)), nil
++		default:
++			return nil, fmt.Errorf("unhandled charset %q", charset)
++		}
++	}
++	header, err = dec.DecodeHeader("=?x-case?q?hello_?= =?x-case?q?world!?=")
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(header)
++	// Output:
++	// Éric <eric@example.org>, Anaïs <anais@example.org>
++	// ¡Hola, señor!
++	// HELLO WORLD!
++}

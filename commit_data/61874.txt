@@ -16,7 +16,88 @@ Date:   Fri Dec 6 20:43:16 2024 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/runtime/mcleanup.go | 37 ++++++++++++++++++++++++++++++-------
  src/runtime/mfinal.go   |  3 +++
  2 files changed, 33 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+index 04d8ff59aa..22d40a5e84 100644
+--- a/src/runtime/mcleanup.go
++++ b/src/runtime/mcleanup.go
+@@ -12,17 +12,23 @@ import (
+ // AddCleanup attaches a cleanup function to ptr. Some time after ptr is no longer
+ // reachable, the runtime will call cleanup(arg) in a separate goroutine.
+ //
+-// If ptr is reachable from cleanup or arg, ptr will never be collected
+-// and the cleanup will never run. AddCleanup panics if arg is equal to ptr.
++// A typical use is that ptr is an object wrapping an underlying resource (e.g.,
++// a File object wrapping an OS file descriptor), arg is the underlying resource
++// (e.g., the OS file descriptor), and the cleanup function releases the underlying
++// resource (e.g., by calling the close system call).
+ //
+-// The cleanup(arg) call is not always guaranteed to run; in particular it is not
+-// guaranteed to run before program exit.
++// There are few constraints on ptr. In particular, multiple cleanups may be
++// attached to the same pointer, or to different pointers within the same
++// allocation.
+ //
+-// Cleanups are not guaranteed to run if the size of T is zero bytes, because
+-// it may share same address with other zero-size objects in memory. See
+-// https://go.dev/ref/spec#Size_and_alignment_guarantees.
++// If ptr is reachable from cleanup or arg, ptr will never be collected
++// and the cleanup will never run. As a protection against simple cases of this,
++// AddCleanup panics if arg is equal to ptr.
+ //
+ // There is no specified order in which cleanups will run.
++// In particular, if several objects point to each other and all become
++// unreachable at the same time, their cleanups all become eligible to run
++// and can run in any order. This is true even if the objects form a cycle.
+ //
+ // A single goroutine runs all cleanup calls for a program, sequentially. If a
+ // cleanup function must run for a long time, it should create a new goroutine.
+@@ -30,6 +36,13 @@ import (
+ // If ptr has both a cleanup and a finalizer, the cleanup will only run once
+ // it has been finalized and becomes unreachable without an associated finalizer.
+ //
++// The cleanup(arg) call is not always guaranteed to run; in particular it is not
++// guaranteed to run before program exit.
++//
++// Cleanups are not guaranteed to run if the size of T is zero bytes, because
++// it may share same address with other zero-size objects in memory. See
++// https://go.dev/ref/spec#Size_and_alignment_guarantees.
++//
+ // It is not guaranteed that a cleanup will run for objects allocated
+ // in initializers for package-level variables. Such objects may be
+ // linker-allocated, not heap-allocated.
+@@ -41,6 +54,16 @@ import (
+ // allocation may never run if it always exists in the same batch as a
+ // referenced object. Typically, this batching only happens for tiny
+ // (on the order of 16 bytes or less) and pointer-free objects.
++//
++// A cleanup may run as soon as an object becomes unreachable.
++// In order to use cleanups correctly, the program must ensure that
++// the object is reachable until it is safe to run its cleanup.
++// Objects stored in global variables, or that can be found by tracing
++// pointers from a global variable, are reachable. A function argument or
++// receiver may become unreachable at the last point where the function
++// mentions it. To ensure a cleanup does not get called prematurely,
++// pass the object to the [KeepAlive] function after the last point
++// where the object must remain reachable.
+ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+ 	// Explicitly force ptr to escape to the heap.
+ 	ptr = abi.Escape(ptr)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 89a9c84170..4962a63a41 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -350,6 +350,9 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
+ //
+ // SetFinalizer(obj, nil) clears any finalizer associated with obj.
+ //
++// New Go code should consider using [AddCleanup] instead, which is much
++// less error-prone than SetFinalizer.
++//
+ // The argument obj must be a pointer to an object allocated by calling
+ // new, by taking the address of a composite literal, or by taking the
+ // address of a local variable.

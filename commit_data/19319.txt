@@ -18,6 +18,20 @@ Date:   Sat May 10 18:06:58 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/97280043
-
+---
  src/cmd/go/list.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 63cd4f4f6f..0ead435023 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -161,7 +161,7 @@ func runList(cmd *Command, args []string) {
+ 				fatalf("%s", err)
+ 			}
+ 			if out.NeedNL() {
+-				out.Write([]byte{'\n'})
++				out.Write(nl)
+ 			}
+ 		}
+ 	}

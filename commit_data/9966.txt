@@ -15,7 +15,7 @@ Date:   Thu Oct 13 18:45:38 2011 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5283042
-
+---
  src/cmd/gofix/filepath.go                    | 10 ++++-----
  src/cmd/gofix/filepath_test.go               |  2 +-
  src/cmd/gofix/fix.go                         | 31 ++++++++++++++++++++++++----
@@ -66,3 +66,877 @@ Date:   Thu Oct 13 18:45:38 2011 -0400
  src/cmd/gofix/url.go                         |  4 ----
  src/cmd/gofix/url_test.go                    |  2 +-
  49 files changed, 98 insertions(+), 137 deletions(-)
+
+diff --git a/src/cmd/gofix/filepath.go b/src/cmd/gofix/filepath.go
+index 1d0ad68794..3edccabfa6 100644
+--- a/src/cmd/gofix/filepath.go
++++ b/src/cmd/gofix/filepath.go
+@@ -8,15 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
+-func init() {
+-	register(fix{
+-		"filepath",
+-		filepathFunc,
+-		`Adapt code from filepath.[List]SeparatorString to string(filepath.[List]Separator).
++var filepathFix = fix{
++	"filepath",
++	filepathFunc,
++	`Adapt code from filepath.[List]SeparatorString to string(filepath.[List]Separator).
+ 
+ http://codereview.appspot.com/4527090
+ `,
+-	})
+ }
+ 
+ func filepathFunc(f *ast.File) (fixed bool) {
+diff --git a/src/cmd/gofix/filepath_test.go b/src/cmd/gofix/filepath_test.go
+index d170c3ae3c..37a2f5d9f0 100644
+--- a/src/cmd/gofix/filepath_test.go
++++ b/src/cmd/gofix/filepath_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(filepathTests)
++	addTestCases(filepathTests, filepathFunc)
+ }
+ 
+ var filepathTests = []testCase{
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index cc85ceafa3..6d15cc8dc7 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -26,10 +26,33 @@ func (f fixlist) Len() int           { return len(f) }
+ func (f fixlist) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ func (f fixlist) Less(i, j int) bool { return f[i].name < f[j].name }
+ 
+-var fixes fixlist
+-
+-func register(f fix) {
+-	fixes = append(fixes, f)
++var fixes = fixlist{
++	// NOTE: This list must be in chronological order,
++	// so that code using APIs that changed multiple times
++	// can be updated in the correct order.
++	// Add new fixes to bottom of list.  Do not sort.
++	httpserverFix,
++	procattrFix,
++	netdialFix,
++	netlookupFix,
++	tlsdialFix,
++	osopenFix,
++	reflectFix,
++	httpFinalURLFix,
++	httpHeadersFix,
++	oserrorstringFix,
++	sortsliceFix,
++	filepathFix,
++	httpFileSystemFix,
++	stringssplitFix,
++	signalFix,
++	sorthelpersFix,
++	urlFix,
++	netudpgroupFix,
++	imagenewFix,
++	mathFix,
++	ioCopyNFix,
++	imagecolorFix,
+ }
+ 
+ // walk traverses the AST x, calling visit(y) for each node y in the tree but
+diff --git a/src/cmd/gofix/httpfinalurl.go b/src/cmd/gofix/httpfinalurl.go
+index 9e6cbf6bc5..6051a2f3f9 100644
+--- a/src/cmd/gofix/httpfinalurl.go
++++ b/src/cmd/gofix/httpfinalurl.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/4535056/
+ `,
+ }
+ 
+-func init() {
+-	register(httpFinalURLFix)
+-}
+-
+ func httpfinalurl(f *ast.File) bool {
+ 	if !imports(f, "http") {
+ 		return false
+diff --git a/src/cmd/gofix/httpfinalurl_test.go b/src/cmd/gofix/httpfinalurl_test.go
+index 9e7d6242d6..9249f7e185 100644
+--- a/src/cmd/gofix/httpfinalurl_test.go
++++ b/src/cmd/gofix/httpfinalurl_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(httpfinalurlTests)
++	addTestCases(httpfinalurlTests, httpfinalurl)
+ }
+ 
+ var httpfinalurlTests = []testCase{
+diff --git a/src/cmd/gofix/httpfs.go b/src/cmd/gofix/httpfs.go
+index 7f27656809..317330619e 100644
+--- a/src/cmd/gofix/httpfs.go
++++ b/src/cmd/gofix/httpfs.go
+@@ -18,10 +18,6 @@ http://codereview.appspot.com/4629047  http FileSystem interface
+ `,
+ }
+ 
+-func init() {
+-	register(httpFileSystemFix)
+-}
+-
+ func httpfs(f *ast.File) bool {
+ 	if !imports(f, "http") {
+ 		return false
+diff --git a/src/cmd/gofix/httpfs_test.go b/src/cmd/gofix/httpfs_test.go
+index d1804e93bf..dd8ef2cfd6 100644
+--- a/src/cmd/gofix/httpfs_test.go
++++ b/src/cmd/gofix/httpfs_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(httpFileSystemTests)
++	addTestCases(httpFileSystemTests, httpfs)
+ }
+ 
+ var httpFileSystemTests = []testCase{
+diff --git a/src/cmd/gofix/httpheaders.go b/src/cmd/gofix/httpheaders.go
+index 8a9080e8e3..2e906d859c 100644
+--- a/src/cmd/gofix/httpheaders.go
++++ b/src/cmd/gofix/httpheaders.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/4620049/
+ `,
+ }
+ 
+-func init() {
+-	register(httpHeadersFix)
+-}
+-
+ func httpheaders(f *ast.File) bool {
+ 	if !imports(f, "http") {
+ 		return false
+diff --git a/src/cmd/gofix/httpheaders_test.go b/src/cmd/gofix/httpheaders_test.go
+index cc82b58936..37506b82da 100644
+--- a/src/cmd/gofix/httpheaders_test.go
++++ b/src/cmd/gofix/httpheaders_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(httpHeadersTests)
++	addTestCases(httpHeadersTests, httpheaders)
+ }
+ 
+ var httpHeadersTests = []testCase{
+diff --git a/src/cmd/gofix/httpserver.go b/src/cmd/gofix/httpserver.go
+index 37866e88b1..cf8d16a978 100644
+--- a/src/cmd/gofix/httpserver.go
++++ b/src/cmd/gofix/httpserver.go
+@@ -22,10 +22,6 @@ http://codereview.appspot.com/4248075  RemoteAddr, UsingTLS
+ `,
+ }
+ 
+-func init() {
+-	register(httpserverFix)
+-}
+-
+ func httpserver(f *ast.File) bool {
+ 	if !imports(f, "http") {
+ 		return false
+diff --git a/src/cmd/gofix/httpserver_test.go b/src/cmd/gofix/httpserver_test.go
+index 89bb4fa710..b6ddff27e2 100644
+--- a/src/cmd/gofix/httpserver_test.go
++++ b/src/cmd/gofix/httpserver_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(httpserverTests)
++	addTestCases(httpserverTests, httpserver)
+ }
+ 
+ var httpserverTests = []testCase{
+diff --git a/src/cmd/gofix/imagecolor.go b/src/cmd/gofix/imagecolor.go
+index d1cda33566..d6171196d9 100644
+--- a/src/cmd/gofix/imagecolor.go
++++ b/src/cmd/gofix/imagecolor.go
+@@ -8,15 +8,13 @@ import (
+ 	"go/ast"
+ )
+ 
+-func init() {
+-	register(fix{
+-		"color",
+-		color,
+-		`Adapt code to types moved from image to color.
++var imagecolorFix = fix{
++	"imagecolor",
++	imagecolor,
++	`Adapt code to types moved from image to color.
+ 
+ http://codereview.appspot.com/5132048
+ `,
+-	})
+ }
+ 
+ var colorRenames = []struct{ in, out string }{
+@@ -44,7 +42,7 @@ var colorRenames = []struct{ in, out string }{
+ 	{"Gray16ColorModel", "Gray16Model"},
+ }
+ 
+-func color(f *ast.File) (fixed bool) {
++func imagecolor(f *ast.File) (fixed bool) {
+ 	if !imports(f, "image") {
+ 		return
+ 	}
+diff --git a/src/cmd/gofix/imagecolor_test.go b/src/cmd/gofix/imagecolor_test.go
+index 3a3d4c6bf4..c623654817 100644
+--- a/src/cmd/gofix/imagecolor_test.go
++++ b/src/cmd/gofix/imagecolor_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(colorTests)
++	addTestCases(colorTests, imagecolor)
+ }
+ 
+ var colorTests = []testCase{
+diff --git a/src/cmd/gofix/imagenew.go b/src/cmd/gofix/imagenew.go
+index 0b3c0a3078..07cbef5697 100644
+--- a/src/cmd/gofix/imagenew.go
++++ b/src/cmd/gofix/imagenew.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/4964073
+ `,
+ }
+ 
+-func init() {
+-	register(imagenewFix)
+-}
+-
+ var imagenewFuncs = map[string]bool{
+ 	"NewRGBA":    true,
+ 	"NewRGBA64":  true,
+diff --git a/src/cmd/gofix/imagenew_test.go b/src/cmd/gofix/imagenew_test.go
+index c45fc480de..30abed23c2 100644
+--- a/src/cmd/gofix/imagenew_test.go
++++ b/src/cmd/gofix/imagenew_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(imagenewTests)
++	addTestCases(imagenewTests, imagenew)
+ }
+ 
+ var imagenewTests = []testCase{
+diff --git a/src/cmd/gofix/iocopyn.go b/src/cmd/gofix/iocopyn.go
+index f4044605a7..f911dd7403 100644
+--- a/src/cmd/gofix/iocopyn.go
++++ b/src/cmd/gofix/iocopyn.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/5157045
+ `,
+ }
+ 
+-func init() {
+-	register(ioCopyNFix)
+-}
+-
+ func ioCopyN(f *ast.File) bool {
+ 	if !imports(f, "io") {
+ 		return false
+diff --git a/src/cmd/gofix/iocopyn_test.go b/src/cmd/gofix/iocopyn_test.go
+index 27347766d9..f86fad7637 100644
+--- a/src/cmd/gofix/iocopyn_test.go
++++ b/src/cmd/gofix/iocopyn_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(ioCopyNTests)
++	addTestCases(ioCopyNTests, ioCopyN)
+ }
+ 
+ var ioCopyNTests = []testCase{
+diff --git a/src/cmd/gofix/main_test.go b/src/cmd/gofix/main_test.go
+index 275778e5be..077a15e52a 100644
+--- a/src/cmd/gofix/main_test.go
++++ b/src/cmd/gofix/main_test.go
+@@ -22,7 +22,15 @@ type testCase struct {
+ 
+ var testCases []testCase
+ 
+-func addTestCases(t []testCase) {
++func addTestCases(t []testCase, fn func(*ast.File) bool) {
++	// Fill in fn to avoid repetition in definitions.
++	if fn != nil {
++		for i := range t {
++			if t[i].Fn == nil {
++				t[i].Fn = fn
++			}
++		}
++	}
+ 	testCases = append(testCases, t...)
+ }
+ 
+diff --git a/src/cmd/gofix/math.go b/src/cmd/gofix/math.go
+index 7d725bcd5b..8af4e87c7d 100644
+--- a/src/cmd/gofix/math.go
++++ b/src/cmd/gofix/math.go
+@@ -22,10 +22,6 @@ http://codereview.appspot.com/5158043
+ `,
+ }
+ 
+-func init() {
+-	register(mathFix)
+-}
+-
+ var mathRenames = []struct{ in, out string }{
+ 	{"Fabs", "Abs"},
+ 	{"Fdim", "Dim"},
+diff --git a/src/cmd/gofix/math_test.go b/src/cmd/gofix/math_test.go
+index d7d5f56538..b8d69d2f2f 100644
+--- a/src/cmd/gofix/math_test.go
++++ b/src/cmd/gofix/math_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(mathTests)
++	addTestCases(mathTests, math)
+ }
+ 
+ var mathTests = []testCase{
+diff --git a/src/cmd/gofix/netdial.go b/src/cmd/gofix/netdial.go
+index afa98953b9..6984cdc372 100644
+--- a/src/cmd/gofix/netdial.go
++++ b/src/cmd/gofix/netdial.go
+@@ -35,12 +35,6 @@ http://codereview.appspot.com/4244055
+ `,
+ }
+ 
+-func init() {
+-	register(netdialFix)
+-	register(tlsdialFix)
+-	register(netlookupFix)
+-}
+-
+ func netdial(f *ast.File) bool {
+ 	if !imports(f, "net") {
+ 		return false
+diff --git a/src/cmd/gofix/netdial_test.go b/src/cmd/gofix/netdial_test.go
+index 272aa526a5..43ca387475 100644
+--- a/src/cmd/gofix/netdial_test.go
++++ b/src/cmd/gofix/netdial_test.go
+@@ -1,12 +1,13 @@
+ package main
+ 
+ func init() {
+-	addTestCases(netdialTests)
++	addTestCases(netdialTests, nil)
+ }
+ 
+ var netdialTests = []testCase{
+ 	{
+ 		Name: "netdial.0",
++		Fn:   netdial,
+ 		In: `package main
+ 
+ import "net"
+@@ -29,6 +30,7 @@ func f() {
+ 
+ 	{
+ 		Name: "netlookup.0",
++		Fn:   netlookup,
+ 		In: `package main
+ 
+ import "net"
+diff --git a/src/cmd/gofix/netudpgroup.go b/src/cmd/gofix/netudpgroup.go
+index 347452d43f..9bbb2d7919 100644
+--- a/src/cmd/gofix/netudpgroup.go
++++ b/src/cmd/gofix/netudpgroup.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/4815074
+ `,
+ }
+ 
+-func init() {
+-	register(netudpgroupFix)
+-}
+-
+ func netudpgroup(f *ast.File) bool {
+ 	if !imports(f, "net") {
+ 		return false
+diff --git a/src/cmd/gofix/netudpgroup_test.go b/src/cmd/gofix/netudpgroup_test.go
+index b3b5816da9..24f4abc167 100644
+--- a/src/cmd/gofix/netudpgroup_test.go
++++ b/src/cmd/gofix/netudpgroup_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(netudpgroupTests)
++	addTestCases(netudpgroupTests, netudpgroup)
+ }
+ 
+ var netudpgroupTests = []testCase{
+diff --git a/src/cmd/gofix/oserrorstring.go b/src/cmd/gofix/oserrorstring.go
+index db39ee9dc6..416333fc12 100644
+--- a/src/cmd/gofix/oserrorstring.go
++++ b/src/cmd/gofix/oserrorstring.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/4607052
+ `,
+ }
+ 
+-func init() {
+-	register(oserrorstringFix)
+-}
+-
+ func oserrorstring(f *ast.File) bool {
+ 	if !imports(f, "os") {
+ 		return false
+diff --git a/src/cmd/gofix/oserrorstring_test.go b/src/cmd/gofix/oserrorstring_test.go
+index 070d9222ba..75551480c5 100644
+--- a/src/cmd/gofix/oserrorstring_test.go
++++ b/src/cmd/gofix/oserrorstring_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(oserrorstringTests)
++	addTestCases(oserrorstringTests, oserrorstring)
+ }
+ 
+ var oserrorstringTests = []testCase{
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+index 19c19b5b63..7e7fbbb037 100644
+--- a/src/cmd/gofix/osopen.go
++++ b/src/cmd/gofix/osopen.go
+@@ -17,10 +17,6 @@ http://codereview.appspot.com/4357052
+ `,
+ }
+ 
+-func init() {
+-	register(osopenFix)
+-}
+-
+ func osopen(f *ast.File) bool {
+ 	if !imports(f, "os") {
+ 		return false
+diff --git a/src/cmd/gofix/osopen_test.go b/src/cmd/gofix/osopen_test.go
+index a33bcd4fb4..5797adb7b2 100644
+--- a/src/cmd/gofix/osopen_test.go
++++ b/src/cmd/gofix/osopen_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(osopenTests)
++	addTestCases(osopenTests, osopen)
+ }
+ 
+ var osopenTests = []testCase{
+diff --git a/src/cmd/gofix/procattr.go b/src/cmd/gofix/procattr.go
+index 0e2190b1f4..86a8fd1035 100644
+--- a/src/cmd/gofix/procattr.go
++++ b/src/cmd/gofix/procattr.go
+@@ -18,10 +18,6 @@ http://codereview.appspot.com/4253052
+ `,
+ }
+ 
+-func init() {
+-	register(procattrFix)
+-}
+-
+ func procattr(f *ast.File) bool {
+ 	if !imports(f, "os") && !imports(f, "syscall") {
+ 		return false
+diff --git a/src/cmd/gofix/procattr_test.go b/src/cmd/gofix/procattr_test.go
+index b973b9684d..9e2b86e744 100644
+--- a/src/cmd/gofix/procattr_test.go
++++ b/src/cmd/gofix/procattr_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(procattrTests)
++	addTestCases(procattrTests, procattr)
+ }
+ 
+ var procattrTests = []testCase{
+diff --git a/src/cmd/gofix/reflect.go b/src/cmd/gofix/reflect.go
+index 3c8becaef3..c292543ab8 100644
+--- a/src/cmd/gofix/reflect.go
++++ b/src/cmd/gofix/reflect.go
+@@ -25,10 +25,6 @@ http://codereview.appspot.com/4433066
+ `,
+ }
+ 
+-func init() {
+-	register(reflectFix)
+-}
+-
+ // The reflect API change dropped the concrete types *reflect.ArrayType etc.
+ // Any type assertions prior to method calls can be deleted:
+ //	x.(*reflect.ArrayType).Len() -> x.Len()
+diff --git a/src/cmd/gofix/reflect_test.go b/src/cmd/gofix/reflect_test.go
+index 00edf30e9e..b0e2fc20c3 100644
+--- a/src/cmd/gofix/reflect_test.go
++++ b/src/cmd/gofix/reflect_test.go
+@@ -7,7 +7,7 @@ import (
+ )
+ 
+ func init() {
+-	addTestCases(reflectTests())
++	addTestCases(reflectTests(), reflectFn)
+ }
+ 
+ func reflectTests() []testCase {
+diff --git a/src/cmd/gofix/signal.go b/src/cmd/gofix/signal.go
+index 53c338851c..aaad348259 100644
+--- a/src/cmd/gofix/signal.go
++++ b/src/cmd/gofix/signal.go
+@@ -9,15 +9,13 @@ import (
+ 	"strings"
+ )
+ 
+-func init() {
+-	register(fix{
+-		"signal",
+-		signal,
+-		`Adapt code to types moved from os/signal to signal.
++var signalFix = fix{
++	"signal",
++	signal,
++	`Adapt code to types moved from os/signal to signal.
+ 
+ http://codereview.appspot.com/4437091
+ `,
+-	})
+ }
+ 
+ func signal(f *ast.File) (fixed bool) {
+diff --git a/src/cmd/gofix/signal_test.go b/src/cmd/gofix/signal_test.go
+index 4abba35349..7bca7d5c4d 100644
+--- a/src/cmd/gofix/signal_test.go
++++ b/src/cmd/gofix/signal_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(signalTests)
++	addTestCases(signalTests, signal)
+ }
+ 
+ var signalTests = []testCase{
+diff --git a/src/cmd/gofix/sorthelpers.go b/src/cmd/gofix/sorthelpers.go
+index 4e89fa88f1..74d0daa3a9 100644
+--- a/src/cmd/gofix/sorthelpers.go
++++ b/src/cmd/gofix/sorthelpers.go
+@@ -8,13 +8,11 @@ import (
+ 	"go/ast"
+ )
+ 
+-func init() {
+-	register(fix{
+-		"sorthelpers",
+-		sorthelpers,
+-		`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
++var sorthelpersFix = fix{
++	"sorthelpers",
++	sorthelpers,
++	`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
+ `,
+-	})
+ }
+ 
+ func sorthelpers(f *ast.File) (fixed bool) {
+diff --git a/src/cmd/gofix/sorthelpers_test.go b/src/cmd/gofix/sorthelpers_test.go
+index 6c37858fd4..dd6b58e033 100644
+--- a/src/cmd/gofix/sorthelpers_test.go
++++ b/src/cmd/gofix/sorthelpers_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(sorthelpersTests)
++	addTestCases(sorthelpersTests, sorthelpers)
+ }
+ 
+ var sorthelpersTests = []testCase{
+diff --git a/src/cmd/gofix/sortslice.go b/src/cmd/gofix/sortslice.go
+index 7cfa1696be..847f0d57fb 100644
+--- a/src/cmd/gofix/sortslice.go
++++ b/src/cmd/gofix/sortslice.go
+@@ -8,16 +8,14 @@ import (
+ 	"go/ast"
+ )
+ 
+-func init() {
+-	register(fix{
+-		"sortslice",
+-		sortslice,
+-		`Adapt code from sort.[Float64|Int|String]Array to  sort.[Float64|Int|String]Slice.
++var sortsliceFix = fix{
++	"sortslice",
++	sortslice,
++	`Adapt code from sort.[Float64|Int|String]Array to  sort.[Float64|Int|String]Slice.
+ 		
+ http://codereview.appspot.com/4602054
+ http://codereview.appspot.com/4639041
+ `,
+-	})
+ }
+ 
+ func sortslice(f *ast.File) (fixed bool) {
+diff --git a/src/cmd/gofix/sortslice_test.go b/src/cmd/gofix/sortslice_test.go
+index 404feb26fa..7b745a2320 100644
+--- a/src/cmd/gofix/sortslice_test.go
++++ b/src/cmd/gofix/sortslice_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(sortsliceTests)
++	addTestCases(sortsliceTests, sortslice)
+ }
+ 
+ var sortsliceTests = []testCase{
+diff --git a/src/cmd/gofix/stringssplit.go b/src/cmd/gofix/stringssplit.go
+index 4a1fe93d39..e3886dd729 100644
+--- a/src/cmd/gofix/stringssplit.go
++++ b/src/cmd/gofix/stringssplit.go
+@@ -18,10 +18,6 @@ http://codereview.appspot.com/4661051
+ `,
+ }
+ 
+-func init() {
+-	register(stringssplitFix)
+-}
+-
+ func stringssplit(f *ast.File) bool {
+ 	if !imports(f, "bytes") && !imports(f, "strings") {
+ 		return false
+diff --git a/src/cmd/gofix/stringssplit_test.go b/src/cmd/gofix/stringssplit_test.go
+index b925722af7..fa42b1bea9 100644
+--- a/src/cmd/gofix/stringssplit_test.go
++++ b/src/cmd/gofix/stringssplit_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(stringssplitTests)
++	addTestCases(stringssplitTests, stringssplit)
+ }
+ 
+ var stringssplitTests = []testCase{
+diff --git a/src/cmd/gofix/testdata/reflect.decoder.go.in b/src/cmd/gofix/testdata/reflect.decoder.go.in
+index 34364161aa..0ce9b06fdd 100644
+--- a/src/cmd/gofix/testdata/reflect.decoder.go.in
++++ b/src/cmd/gofix/testdata/reflect.decoder.go.in
+@@ -44,7 +44,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ func (dec *Decoder) recvType(id typeId) {
+ 	// Have we already seen this type?  That's an error
+ 	if id < firstUserId || dec.wireType[id] != nil {
+-		dec.err = os.ErrorString("gob: duplicate type received")
++		dec.err = os.NewError("gob: duplicate type received")
+ 		return
+ 	}
+ 
+@@ -143,7 +143,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ 		// will be absorbed by recvMessage.)
+ 		if dec.buf.Len() > 0 {
+ 			if !isInterface {
+-				dec.err = os.ErrorString("extra data in buffer")
++				dec.err = os.NewError("extra data in buffer")
+ 				break
+ 			}
+ 			dec.nextUint()
+@@ -165,7 +165,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	// If e represents a value as opposed to a pointer, the answer won't
+ 	// get back to the caller.  Make sure it's a pointer.
+ 	if value.Type().Kind() != reflect.Ptr {
+-		dec.err = os.ErrorString("gob: attempt to decode into a non-pointer")
++		dec.err = os.NewError("gob: attempt to decode into a non-pointer")
+ 		return dec.err
+ 	}
+ 	return dec.DecodeValue(value)
+diff --git a/src/cmd/gofix/testdata/reflect.encoder.go.in b/src/cmd/gofix/testdata/reflect.encoder.go.in
+index e52a4de29f..0202d79ac9 100644
+--- a/src/cmd/gofix/testdata/reflect.encoder.go.in
++++ b/src/cmd/gofix/testdata/reflect.encoder.go.in
+@@ -50,7 +50,7 @@ func (enc *Encoder) popWriter() {
+ }
+ 
+ func (enc *Encoder) badType(rt reflect.Type) {
+-	enc.setError(os.ErrorString("gob: can't encode type " + rt.String()))
++	enc.setError(os.NewError("gob: can't encode type " + rt.String()))
+ }
+ 
+ func (enc *Encoder) setError(err os.Error) {
+diff --git a/src/cmd/gofix/testdata/reflect.export.go.in b/src/cmd/gofix/testdata/reflect.export.go.in
+index e91e777e30..495fc46b6a 100644
+--- a/src/cmd/gofix/testdata/reflect.export.go.in
++++ b/src/cmd/gofix/testdata/reflect.export.go.in
+@@ -343,20 +343,20 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
+ func checkChan(chT interface{}, dir Dir) (*reflect.ChanValue, os.Error) {
+ 	chanType, ok := reflect.Typeof(chT).(*reflect.ChanType)
+ 	if !ok {
+-		return nil, os.ErrorString("not a channel")
++		return nil, os.NewError("not a channel")
+ 	}
+ 	if dir != Send && dir != Recv {
+-		return nil, os.ErrorString("unknown channel direction")
++		return nil, os.NewError("unknown channel direction")
+ 	}
+ 	switch chanType.Dir() {
+ 	case reflect.BothDir:
+ 	case reflect.SendDir:
+ 		if dir != Recv {
+-			return nil, os.ErrorString("to import/export with Send, must provide <-chan")
++			return nil, os.NewError("to import/export with Send, must provide <-chan")
+ 		}
+ 	case reflect.RecvDir:
+ 		if dir != Send {
+-			return nil, os.ErrorString("to import/export with Recv, must provide chan<-")
++			return nil, os.NewError("to import/export with Recv, must provide chan<-")
+ 		}
+ 	}
+ 	return reflect.NewValue(chT).(*reflect.ChanValue), nil
+@@ -376,7 +376,7 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
+ 	defer exp.mu.Unlock()
+ 	_, present := exp.names[name]
+ 	if present {
+-		return os.ErrorString("channel name already being exported:" + name)
++		return os.NewError("channel name already being exported:" + name)
+ 	}
+ 	exp.names[name] = &chanDir{ch, dir}
+ 	return nil
+@@ -393,7 +393,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
+ 	// TODO drop all instances of channel from client sets
+ 	exp.mu.Unlock()
+ 	if !ok {
+-		return os.ErrorString("netchan export: hangup: no such channel: " + name)
++		return os.NewError("netchan export: hangup: no such channel: " + name)
+ 	}
+ 	chDir.ch.Close()
+ 	return nil
+diff --git a/src/cmd/gofix/testdata/reflect.print.go.in b/src/cmd/gofix/testdata/reflect.print.go.in
+index cba1df2967..6c9b8e4f9a 100644
+--- a/src/cmd/gofix/testdata/reflect.print.go.in
++++ b/src/cmd/gofix/testdata/reflect.print.go.in
+@@ -185,7 +185,7 @@ func Sprintf(format string, a ...interface{}) string {
+ // Errorf formats according to a format specifier and returns the string 
+ // converted to an os.ErrorString, which satisfies the os.Error interface.
+ func Errorf(format string, a ...interface{}) os.Error {
+-	return os.ErrorString(Sprintf(format, a...))
++	return os.NewError(Sprintf(format, a...))
+ }
+ 
+ // These routines do not take a format string
+diff --git a/src/cmd/gofix/testdata/reflect.read.go.in b/src/cmd/gofix/testdata/reflect.read.go.in
+index 9ae3bb8eee..487994ac6e 100644
+--- a/src/cmd/gofix/testdata/reflect.read.go.in
++++ b/src/cmd/gofix/testdata/reflect.read.go.in
+@@ -244,7 +244,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 
+ 	switch v := val.(type) {
+ 	default:
+-		return os.ErrorString("unknown type " + v.Type().String())
++		return os.NewError("unknown type " + v.Type().String())
+ 
+ 	case *reflect.SliceValue:
+ 		typ := v.Type().(*reflect.SliceType)
+@@ -483,7 +483,7 @@ Loop:
+ 	case nil:
+ 		// Probably a comment, handled below
+ 	default:
+-		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
++		return os.NewError("cannot happen: unknown type " + t.Type().String())
+ 	case *reflect.IntValue:
+ 		if !getInt64() {
+ 			return err
+diff --git a/src/cmd/gofix/testdata/reflect.scan.go.in b/src/cmd/gofix/testdata/reflect.scan.go.in
+index 83650e605d..51898181f9 100644
+--- a/src/cmd/gofix/testdata/reflect.scan.go.in
++++ b/src/cmd/gofix/testdata/reflect.scan.go.in
+@@ -167,7 +167,7 @@ type ssave struct {
+ // satisfies io.Reader. It will never be called when used as
+ // intended, so there is no need to make it actually work.
+ func (s *ss) Read(buf []byte) (n int, err os.Error) {
+-	return 0, os.ErrorString("ScanState's Read should not be called. Use ReadRune")
++	return 0, os.NewError("ScanState's Read should not be called. Use ReadRune")
+ }
+ 
+ func (s *ss) ReadRune() (rune int, size int, err os.Error) {
+@@ -240,7 +240,7 @@ func (s *ss) error(err os.Error) {
+ }
+ 
+ func (s *ss) errorString(err string) {
+-	panic(scanError{os.ErrorString(err)})
++	panic(scanError{os.NewError(err)})
+ }
+ 
+ func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) {
+@@ -424,8 +424,8 @@ func (s *ss) typeError(field interface{}, expected string) {
+ 	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.Typeof(field).String())
+ }
+ 
+-var complexError = os.ErrorString("syntax error scanning complex number")
+-var boolError = os.ErrorString("syntax error scanning boolean")
++var complexError = os.NewError("syntax error scanning complex number")
++var boolError = os.NewError("syntax error scanning boolean")
+ 
+ // consume reads the next rune in the input and reports whether it is in the ok string.
+ // If accept is true, it puts the character into the input token.
+diff --git a/src/cmd/gofix/testdata/reflect.type.go.in b/src/cmd/gofix/testdata/reflect.type.go.in
+index 305d41980a..7ed7002abf 100644
+--- a/src/cmd/gofix/testdata/reflect.type.go.in
++++ b/src/cmd/gofix/testdata/reflect.type.go.in
+@@ -67,7 +67,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 		ut.base = pt.Elem()
+ 		if ut.base == slowpoke { // ut.base lapped slowpoke
+ 			// recursive pointer type.
+-			return nil, os.ErrorString("can't represent recursive pointer type " + ut.base.String())
++			return nil, os.NewError("can't represent recursive pointer type " + ut.base.String())
+ 		}
+ 		if ut.indir%2 == 0 {
+ 			slowpoke = slowpoke.(*reflect.PtrType).Elem()
+@@ -524,7 +524,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		return st, nil
+ 
+ 	default:
+-		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
++		return nil, os.NewError("gob NewTypeObject can't handle type: " + rt.String())
+ 	}
+ 	return nil, nil
+ }
+diff --git a/src/cmd/gofix/url.go b/src/cmd/gofix/url.go
+index 7135d8edf1..455b544b63 100644
+--- a/src/cmd/gofix/url.go
++++ b/src/cmd/gofix/url.go
+@@ -22,10 +22,6 @@ http://codereview.appspot.com/4893043
+ `,
+ }
+ 
+-func init() {
+-	register(urlFix)
+-}
+-
+ var urlRenames = []struct{ in, out string }{
+ 	{"URL", "URL"},
+ 	{"ParseURL", "Parse"},
+diff --git a/src/cmd/gofix/url_test.go b/src/cmd/gofix/url_test.go
+index 8d9542cbca..ca886e983e 100644
+--- a/src/cmd/gofix/url_test.go
++++ b/src/cmd/gofix/url_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ func init() {
+-	addTestCases(urlTests)
++	addTestCases(urlTests, url)
+ }
+ 
+ var urlTests = []testCase{

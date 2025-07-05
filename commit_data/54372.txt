@@ -13,7 +13,7 @@ Date:   Mon Oct 10 13:13:14 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/builtins.go        | 12 +++++-----
  src/go/types/check.go           |  2 +-
  src/go/types/decl.go            |  2 +-
@@ -28,3 +28,475 @@ Date:   Mon Oct 10 13:13:14 2022 -0700
  src/go/types/typexpr.go         |  2 +-
  src/go/types/version.go         |  8 +++----
  13 files changed, 95 insertions(+), 42 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 6fde9300d3..a923ef557f 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -522,7 +522,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 		}
+ 		if len(sizes) == 2 && sizes[0] > sizes[1] {
+-			check.errorf(call.Args[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
++			check.error(call.Args[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
+ 			// safe to continue
+ 		}
+ 		x.mode = value
+@@ -605,7 +605,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Add:
+ 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
+ 		if !check.allowVersion(check.pkg, 1, 17) {
+-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.Add requires go1.17 or later")
++			check.error(call.Fun, UnsupportedFeature, "unsafe.Add requires go1.17 or later")
+ 			return
+ 		}
+ 
+@@ -731,7 +731,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+ 		if !check.allowVersion(check.pkg, 1, 17) {
+-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
++			check.error(call.Fun, UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
+ 			return
+ 		}
+ 
+@@ -756,7 +756,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _SliceData:
+ 		// unsafe.SliceData(slice []T) *T
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
++			check.error(call.Fun, UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
+ 			return
+ 		}
+ 
+@@ -775,7 +775,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _String:
+ 		// unsafe.String(ptr *byte, len IntegerType) string
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.String requires go1.20 or later")
++			check.error(call.Fun, UnsupportedFeature, "unsafe.String requires go1.20 or later")
+ 			return
+ 		}
+ 
+@@ -799,7 +799,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _StringData:
+ 		// unsafe.StringData(str string) *byte
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+-			check.errorf(call.Fun, UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
++			check.error(call.Fun, UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
+ 			return
+ 		}
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 73dbcca6cf..50d8afe4e3 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -272,7 +272,7 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 			if name != "_" {
+ 				pkg.name = name
+ 			} else {
+-				check.errorf(file.Name, BlankPkgName, "invalid package name _")
++				check.error(file.Name, BlankPkgName, "invalid package name _")
+ 			}
+ 			fallthrough
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index b9ac49e209..467cb7ef70 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -581,7 +581,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	// alias declaration
+ 	if alias {
+ 		if !check.allowVersion(check.pkg, 1, 9) {
+-			check.errorf(atPos(tdecl.Assign), UnsupportedFeature, "type aliases requires go1.9 or later")
++			check.error(atPos(tdecl.Assign), UnsupportedFeature, "type aliases requires go1.9 or later")
+ 		}
+ 
+ 		check.brokenAlias(obj)
+diff --git a/src/go/types/errorcalls_test.go b/src/go/types/errorcalls_test.go
+new file mode 100644
+index 0000000000..e4164d4bea
+--- /dev/null
++++ b/src/go/types/errorcalls_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE ast.
++
++package types_test
++
++import (
++	"go/ast"
++	"go/token"
++	"testing"
++)
++
++const errorfMinArgCount = 4
++
++// TestErrorCalls makes sure that check.errorf calls have at least
++// errorfMinArgCount arguments (otherwise we should use check.error).
++func TestErrorCalls(t *testing.T) {
++	fset := token.NewFileSet()
++	files, err := pkgFiles(fset, ".", 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, file := range files {
++		ast.Inspect(file, func(n ast.Node) bool {
++			call, _ := n.(*ast.CallExpr)
++			if call == nil {
++				return true
++			}
++			selx, _ := call.Fun.(*ast.SelectorExpr)
++			if selx == nil {
++				return true
++			}
++			if !(isName(selx.X, "check") && isName(selx.Sel, "errorf")) {
++				return true
++			}
++			// check.errorf calls should have at least errorfMinArgCount arguments:
++			// position, code, format string, and arguments to format
++			if n := len(call.Args); n < errorfMinArgCount {
++				t.Errorf("%s: got %d arguments, want at least %d", fset.Position(call.Pos()), n, errorfMinArgCount)
++				return false
++			}
++			return true
++		})
++	}
++}
++
++func isName(n ast.Node, name string) bool {
++	if n, ok := n.(*ast.Ident); ok {
++		return n.Name == name
++	}
++	return false
++}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e7d9658a6e..f7bf5d2b16 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -95,7 +95,7 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
+ 		// TODO(gri) We should report exactly what went wrong. At the
+ 		//           moment we don't have the (go/constant) API for that.
+ 		//           See also TODO in go/constant/value.go.
+-		check.errorf(atPos(opPos), InvalidConstVal, "constant result is not representable")
++		check.error(atPos(opPos), InvalidConstVal, "constant result is not representable")
+ 		return
+ 	}
+ 
+@@ -1145,7 +1145,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 	if op == token.QUO || op == token.REM {
+ 		// check for zero divisor
+ 		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+-			check.errorf(&y, DivByZero, invalidOp+"division by zero")
++			check.error(&y, DivByZero, invalidOp+"division by zero")
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1155,7 +1155,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 			re, im := constant.Real(y.val), constant.Imag(y.val)
+ 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+ 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
+-				check.errorf(&y, DivByZero, invalidOp+"division by zero")
++				check.error(&y, DivByZero, invalidOp+"division by zero")
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -1639,7 +1639,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 
+ 	case *ast.KeyValueExpr:
+ 		// key:value expressions are handled in composite literals
+-		check.errorf(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
++		check.error(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
+ 		goto Error
+ 
+ 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 2f87dcba31..e1ce74ff9f 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -229,7 +229,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 				if at == nil {
+ 					at = e // e.Index[2] should be present but be careful
+ 				}
+-				check.errorf(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
++				check.error(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -276,7 +276,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 
+ 	// spec: "Only the first index may be omitted; it defaults to 0."
+ 	if e.Slice3 && (e.High == nil || e.Max == nil) {
+-		check.errorf(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
++		check.error(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -336,7 +336,7 @@ func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
+ 	}
+ 	if len(expr.Indices) > 1 {
+ 		// TODO(rFindley) should this get a distinct error code?
+-		check.errorf(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
++		check.error(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
+ 	}
+ 	return expr.Indices[0]
+ }
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 28c8325c71..2fb8e40119 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -174,7 +174,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		// We have a method with name f.Names[0].
+ 		name := f.Names[0]
+ 		if name.Name == "_" {
+-			check.errorf(name, BlankIfaceMethod, "methods must have a unique non-blank name")
++			check.error(name, BlankIfaceMethod, "methods must have a unique non-blank name")
+ 			continue // ignore
+ 		}
+ 
+@@ -195,7 +195,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
+ 				at = ftyp.TypeParams
+ 			}
+-			check.errorf(at, InvalidMethodTypeParams, "methods cannot have type parameters")
++			check.error(at, InvalidMethodTypeParams, "methods cannot have type parameters")
+ 		}
+ 
+ 		// use named receiver type if available (for better error messages)
+diff --git a/src/go/types/mono.go b/src/go/types/mono.go
+index f95d200b93..cf3f5a8bdc 100644
+--- a/src/go/types/mono.go
++++ b/src/go/types/mono.go
+@@ -139,7 +139,7 @@ func (check *Checker) reportInstanceLoop(v int) {
+ 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
+ 
+ 	obj0 := check.mono.vertices[v].obj
+-	check.errorf(obj0, InvalidInstanceCycle, "instantiation cycle:")
++	check.error(obj0, InvalidInstanceCycle, "instantiation cycle:")
+ 
+ 	qf := RelativeTo(check.pkg)
+ 	for _, v := range stack {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 7c7a68b01c..c8ccaf4e6e 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -63,7 +63,7 @@ func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
+ 	case init == nil && r == 0:
+ 		// var decl w/o init expr
+ 		if s.Type == nil {
+-			check.errorf(s, code, "missing type or init expr")
++			check.error(s, code, "missing type or init expr")
+ 		}
+ 	case l < r:
+ 		if l < len(s.Values) {
+@@ -107,14 +107,14 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
+ 	// spec: "A package-scope or file-scope identifier with name init
+ 	// may only be declared to be a function with this (func()) signature."
+ 	if ident.Name == "init" {
+-		check.errorf(ident, InvalidInitDecl, "cannot declare init - must be func")
++		check.error(ident, InvalidInitDecl, "cannot declare init - must be func")
+ 		return
+ 	}
+ 
+ 	// spec: "The main package must have package name main and declare
+ 	// a function main that takes no arguments and returns no value."
+ 	if ident.Name == "main" && check.pkg.name == "main" {
+-		check.errorf(ident, InvalidMainDecl, "cannot declare main - must be func")
++		check.error(ident, InvalidMainDecl, "cannot declare main - must be func")
+ 		return
+ 	}
+ 
+@@ -275,13 +275,13 @@ func (check *Checker) collectObjects() {
+ 					name = d.spec.Name.Name
+ 					if path == "C" {
+ 						// match 1.17 cmd/compile (not prescribed by spec)
+-						check.errorf(d.spec.Name, ImportCRenamed, `cannot rename import "C"`)
++						check.error(d.spec.Name, ImportCRenamed, `cannot rename import "C"`)
+ 						return
+ 					}
+ 				}
+ 
+ 				if name == "init" {
+-					check.errorf(d.spec, InvalidInitDecl, "cannot import package as init - init must be a func")
++					check.error(d.spec, InvalidInitDecl, "cannot import package as init - init must be a func")
+ 					return
+ 				}
+ 
+@@ -530,7 +530,7 @@ L: // unpack receiver type
+ 				case *ast.BadExpr:
+ 					// ignore - error already reported by parser
+ 				case nil:
+-					check.errorf(ix.Orig, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
++					check.error(ix.Orig, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
+ 				default:
+ 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
+ 				}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index cf184ed0d7..d9c32b2287 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -173,7 +173,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		// (A separate check is needed when type-checking interface method signatures because
+ 		// they don't have a receiver specification.)
+ 		if recvPar != nil {
+-			check.errorf(ftyp.TypeParams, InvalidMethodTypeParams, "methods cannot have type parameters")
++			check.error(ftyp.TypeParams, InvalidMethodTypeParams, "methods cannot have type parameters")
+ 		}
+ 	}
+ 
+@@ -286,7 +286,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 			// named parameter
+ 			for _, name := range field.Names {
+ 				if name.Name == "" {
+-					check.errorf(name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
++					check.error(name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
+ 					// ok to continue
+ 				}
+ 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
+@@ -304,7 +304,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 	}
+ 
+ 	if named && anonymous {
+-		check.errorf(list, InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
++		check.error(list, InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
+ 		// ok to continue
+ 	}
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index ccc9ffbd68..025844affa 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -139,7 +139,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
+ 				d = s
+ 			}
+ 		default:
+-			check.errorf(s, InvalidSyntaxTree, invalidAST+"case/communication clause expected")
++			check.error(s, InvalidSyntaxTree, invalidAST+"case/communication clause expected")
+ 		}
+ 		if d != nil {
+ 			if first != nil {
+@@ -469,7 +469,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		switch s.Tok {
+ 		case token.ASSIGN, token.DEFINE:
+ 			if len(s.Lhs) == 0 {
+-				check.errorf(s, InvalidSyntaxTree, invalidAST+"missing lhs in assignment")
++				check.error(s, InvalidSyntaxTree, invalidAST+"missing lhs in assignment")
+ 				return
+ 			}
+ 			if s.Tok == token.DEFINE {
+@@ -583,7 +583,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		case *ast.IfStmt, *ast.BlockStmt:
+ 			check.stmt(inner, s.Else)
+ 		default:
+-			check.errorf(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
++			check.error(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
+ 		}
+ 
+ 	case *ast.SwitchStmt:
+@@ -617,7 +617,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		for i, c := range s.Body.List {
+ 			clause, _ := c.(*ast.CaseClause)
+ 			if clause == nil {
+-				check.errorf(c, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
++				check.error(c, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
+ 				continue
+ 			}
+ 			check.caseValues(&x, clause.List, seen)
+@@ -654,13 +654,13 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			rhs = guard.X
+ 		case *ast.AssignStmt:
+ 			if len(guard.Lhs) != 1 || guard.Tok != token.DEFINE || len(guard.Rhs) != 1 {
+-				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
++				check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 				return
+ 			}
+ 
+ 			lhs, _ = guard.Lhs[0].(*ast.Ident)
+ 			if lhs == nil {
+-				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
++				check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 				return
+ 			}
+ 
+@@ -675,14 +675,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			rhs = guard.Rhs[0]
+ 
+ 		default:
+-			check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
++			check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 			return
+ 		}
+ 
+ 		// rhs must be of the form: expr.(type) and expr must be an ordinary interface
+ 		expr, _ := rhs.(*ast.TypeAssertExpr)
+ 		if expr == nil || expr.Type != nil {
+-			check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
++			check.error(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 			return
+ 		}
+ 		var x operand
+@@ -709,7 +709,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		for _, s := range s.Body.List {
+ 			clause, _ := s.(*ast.CaseClause)
+ 			if clause == nil {
+-				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
++				check.error(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
+ 				continue
+ 			}
+ 			// Check each type in this type switch case.
+@@ -936,7 +936,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		check.stmt(inner, s.Body)
+ 
+ 	default:
+-		check.errorf(s, InvalidSyntaxTree, invalidAST+"invalid statement")
++		check.error(s, InvalidSyntaxTree, invalidAST+"invalid statement")
+ 	}
+ }
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 3d7c765560..ea8f58c42c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -85,7 +85,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		}
+ 		if obj == universeIota {
+ 			if check.iota == nil {
+-				check.errorf(e, InvalidIota, "cannot use iota outside constant declaration")
++				check.error(e, InvalidIota, "cannot use iota outside constant declaration")
+ 				return
+ 			}
+ 			x.val = check.iota
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 5c453ea8f1..3958ec922c 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -23,7 +23,7 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ 	// len(s) > 2
+ 	if strings.Contains(s, "_") {
+-		check.errorf(lit, UnsupportedFeature, "underscores in numeric literals requires go1.13 or later")
++		check.error(lit, UnsupportedFeature, "underscores in numeric literals requires go1.13 or later")
+ 		return
+ 	}
+ 	if s[0] != '0' {
+@@ -31,15 +31,15 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ 	radix := s[1]
+ 	if radix == 'b' || radix == 'B' {
+-		check.errorf(lit, UnsupportedFeature, "binary literals requires go1.13 or later")
++		check.error(lit, UnsupportedFeature, "binary literals requires go1.13 or later")
+ 		return
+ 	}
+ 	if radix == 'o' || radix == 'O' {
+-		check.errorf(lit, UnsupportedFeature, "0o/0O-style octal literals requires go1.13 or later")
++		check.error(lit, UnsupportedFeature, "0o/0O-style octal literals requires go1.13 or later")
+ 		return
+ 	}
+ 	if lit.Kind != token.INT && (radix == 'x' || radix == 'X') {
+-		check.errorf(lit, UnsupportedFeature, "hexadecimal floating-point literals requires go1.13 or later")
++		check.error(lit, UnsupportedFeature, "hexadecimal floating-point literals requires go1.13 or later")
+ 	}
+ }
+ 

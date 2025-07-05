@@ -11,6 +11,20 @@ Date:   Tue Feb 7 17:35:51 2017 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/write_err_android.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/write_err_android.go b/src/runtime/write_err_android.go
+index 748dec644c..bf99b5f6c5 100644
+--- a/src/runtime/write_err_android.go
++++ b/src/runtime/write_err_android.go
+@@ -144,7 +144,7 @@ func writeLogdHeader() int {
+ 	//      hdr[3:7] sec unsigned uint32, little endian.
+ 	//      hdr[7:11] nsec unsigned uint32, little endian.
+ 	hdr[0] = 0 // LOG_ID_MAIN
+-	sec, nsec := time_now()
++	sec, nsec := walltime()
+ 	packUint32(hdr[3:7], uint32(sec))
+ 	packUint32(hdr[7:11], uint32(nsec))
+ 

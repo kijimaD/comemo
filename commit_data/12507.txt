@@ -9,7 +9,70 @@ Date:   Thu Mar 8 16:09:49 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5783048
-
+---
  doc/go1.html | 20 +++++++++++++++++++-
  doc/go1.tmpl | 20 +++++++++++++++++++-
  2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index d09b1d398f..8d61363745 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -2087,7 +2087,25 @@ The semantic changes make it difficult for the fix tool to update automatically.
+ <h2 id="cmd_go">The go command</h2>
+ 
+ <p>
+-TODO: Write this.
++Go 1 introduces the <a href="/cmd/go/">go command</a>, a tool for fetching,
++building, and installing Go packages and commands. The <code>go</code> command
++does away with makefiles, instead using Go source code to find dependencies and
++determine build conditions. Most existing Go programs will no longer require
++makefiles to be built.
++</p>
++
++<p>
++See <a href="/doc/code.html">How to Write Go Code</a> for a primer on the
++<code>go</code> command and the <a href="/cmd/go/">go command documentation</a>
++for the full details.
++</p>
++
++<p>
++<em>Updating</em>:
++Projects that depend on the Go project's old makefile-based build
++infrastructure (<code>Make.pkg</code>, <code>Make.cmd</code>, and so on) should
++switch to using the <code>go</code> command for building Go code and, if
++necessary, rewrite their makefiles to perform any auxiliary build tasks.
+ </p>
+ 
+ <h2 id="cmd_cgo">The cgo command</h2>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 0f89e9d5ba..dd72404c33 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1959,7 +1959,25 @@ The semantic changes make it difficult for the fix tool to update automatically.
+ <h2 id="cmd_go">The go command</h2>
+ 
+ <p>
+-TODO: Write this.
++Go 1 introduces the <a href="/cmd/go/">go command</a>, a tool for fetching,
++building, and installing Go packages and commands. The <code>go</code> command
++does away with makefiles, instead using Go source code to find dependencies and
++determine build conditions. Most existing Go programs will no longer require
++makefiles to be built.
++</p>
++
++<p>
++See <a href="/doc/code.html">How to Write Go Code</a> for a primer on the
++<code>go</code> command and the <a href="/cmd/go/">go command documentation</a>
++for the full details.
++</p>
++
++<p>
++<em>Updating</em>:
++Projects that depend on the Go project's old makefile-based build
++infrastructure (<code>Make.pkg</code>, <code>Make.cmd</code>, and so on) should
++switch to using the <code>go</code> command for building Go code and, if
++necessary, rewrite their makefiles to perform any auxiliary build tasks.
+ </p>
+ 
+ <h2 id="cmd_cgo">The cgo command</h2>

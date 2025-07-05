@@ -14,9 +14,277 @@ Date:   Tue May 2 16:43:27 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  12 ++
  src/cmd/compile/internal/ssa/gen/generic.rules |   1 +
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 165 ++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/rewritegeneric.go |  38 ++++++
  4 files changed, 215 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 011bf683ff..f1cc31ad0b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -544,6 +544,18 @@
+ (SETNE (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETB  (BTQconst [log2(c)] x))
+ (SETEQ (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(c) && log2(c) < 64 && !config.nacl -> (SETAE (BTQconst [log2(c)] x))
+ 
++// Fold boolean negation into SETcc.
++(XORLconst [1] (SETNE x)) -> (SETEQ x)
++(XORLconst [1] (SETEQ x)) -> (SETNE x)
++(XORLconst [1] (SETL  x)) -> (SETGE x)
++(XORLconst [1] (SETGE x)) -> (SETL  x)
++(XORLconst [1] (SETLE x)) -> (SETG  x)
++(XORLconst [1] (SETG  x)) -> (SETLE x)
++(XORLconst [1] (SETB  x)) -> (SETAE x)
++(XORLconst [1] (SETAE x)) -> (SETB  x)
++(XORLconst [1] (SETBE x)) -> (SETA  x)
++(XORLconst [1] (SETA  x)) -> (SETBE x)
++
+ // Convert BTQconst to BTLconst if possible. It has a shorter encoding.
+ (BTQconst [c] x) && c < 32 -> (BTLconst [c] x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 321a52d718..d3a871731a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -233,6 +233,7 @@
+ (NeqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
+ (NeqB (ConstBool [0]) x) -> x
+ (NeqB (ConstBool [1]) x) -> (Not x)
++(NeqB (Not x) (Not y)) -> (NeqB x y)
+ 
+ (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
+ (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [int64(int32(c-d))]) x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4bd2a795fa..1937af2b8f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -334,7 +334,7 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpAMD64XORL:
+ 		return rewriteValueAMD64_OpAMD64XORL_0(v) || rewriteValueAMD64_OpAMD64XORL_10(v)
+ 	case OpAMD64XORLconst:
+-		return rewriteValueAMD64_OpAMD64XORLconst_0(v)
++		return rewriteValueAMD64_OpAMD64XORLconst_0(v) || rewriteValueAMD64_OpAMD64XORLconst_10(v)
+ 	case OpAMD64XORQ:
+ 		return rewriteValueAMD64_OpAMD64XORQ_0(v)
+ 	case OpAMD64XORQconst:
+@@ -35274,6 +35274,169 @@ func rewriteValueAMD64_OpAMD64XORL_10(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64XORLconst_0(v *Value) bool {
++	// match: (XORLconst [1] (SETNE x))
++	// cond:
++	// result: (SETEQ x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETNE {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETEQ)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETEQ x))
++	// cond:
++	// result: (SETNE x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETEQ {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETNE)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETL x))
++	// cond:
++	// result: (SETGE x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETL {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETGE)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETGE x))
++	// cond:
++	// result: (SETL  x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETGE {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETL)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETLE x))
++	// cond:
++	// result: (SETG  x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETLE {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETG)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETG x))
++	// cond:
++	// result: (SETLE x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETG {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETLE)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETB x))
++	// cond:
++	// result: (SETAE x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETB {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETAE)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETAE x))
++	// cond:
++	// result: (SETB  x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETAE {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETB)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETBE x))
++	// cond:
++	// result: (SETA  x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETBE {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETA)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORLconst [1] (SETA x))
++	// cond:
++	// result: (SETBE x)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SETA {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64SETBE)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64XORLconst_10(v *Value) bool {
+ 	// match: (XORLconst [c] (XORLconst [d] x))
+ 	// cond:
+ 	// result: (XORLconst [c ^ d] x)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 88cc39a65d..43a15212cd 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -14573,6 +14573,44 @@ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (NeqB (Not x) (Not y))
++	// cond:
++	// result: (NeqB x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpNot {
++			break
++		}
++		x := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpNot {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpNeqB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (NeqB (Not y) (Not x))
++	// cond:
++	// result: (NeqB x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpNot {
++			break
++		}
++		y := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpNot {
++			break
++		}
++		x := v_1.Args[0]
++		v.reset(OpNeqB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {

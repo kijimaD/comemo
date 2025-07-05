@@ -7,6 +7,29 @@ Date:   Thu Sep 24 11:45:08 2009 -0700
     R=ken
     OCL=34975
     CL=34975
-
+---
  src/cmd/cc/macbody | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 7b45841d48..21d69bcc78 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -55,7 +55,7 @@ getsym(void)
+ 	char *cp;
+ 
+ 	c = getnsc();
+-	if(!isalpha(c) && c != '_') {
++	if(!isalpha(c) && c != '_' && c < 0x80) {
+ 		unget(c);
+ 		return S;
+ 	}
+@@ -63,7 +63,7 @@ getsym(void)
+ 		if(cp <= symb+NSYMB-4)
+ 			*cp++ = c;
+ 		c = getc();
+-		if(isalnum(c) || c == '_')
++		if(isalnum(c) || c == '_' || c >= 0x80)
+ 			continue;
+ 		unget(c);
+ 		break;

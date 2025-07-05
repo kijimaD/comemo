@@ -9,7 +9,7 @@ Date:   Wed Oct 12 15:59:23 2011 +0200
     R=rsc, gri, dsymonds, bradfitz, lvd
     CC=golang-dev
     https://golang.org/cl/5149045
-
+---
  doc/go_spec.html          | 11 +++++--
  src/cmd/gc/builtin.c.boot |  1 +
  src/cmd/gc/runtime.go     |  1 +
@@ -18,3 +18,462 @@ Date:   Wed Oct 12 15:59:23 2011 +0200
  src/pkg/runtime/slice.c   | 49 +++++++++++++++++++++----------
  test/append.go            |  5 ++++
  7 files changed, 94 insertions(+), 55 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 1ead370ea0..310efe3a85 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of August 31, 2011 -->
++<!-- subtitle Version of September 29, 2011 -->
+ 
+ <!--
+ TODO
+@@ -4658,6 +4658,10 @@ The values <code>x</code> are passed to a parameter of type <code>...T</code>
+ where <code>T</code> is the <a href="#Slice_types">element type</a> of
+ <code>S</code> and the respective
+ <a href="#Passing_arguments_to_..._parameters">parameter passing rules</a> apply.
++As a special case, <code>append</code> also accepts a first argument
++assignable to type <code>[]byte</code> with a second argument of
++string type followed by <code>...</code>. This form appends the
++bytes of the string.
+ </p>
+ 
+ <pre class="grammar">
+@@ -4668,7 +4672,7 @@ append(s S, x ...T) S  // T is the element type of S
+ If the capacity of <code>s</code> is not large enough to fit the additional
+ values, <code>append</code> allocates a new, sufficiently large slice that fits
+ both the existing slice elements and the additional values. Thus, the returned
+-slice may refer to a different underlying array. 
++slice may refer to a different underlying array.
+ </p>
+ 
+ <pre>
+@@ -4679,6 +4683,9 @@ s3 := append(s2, s0...)    // append a slice              s3 == []int{0, 0, 2, 3
+ 
+ var t []interface{}
+ t = append(t, 42, 3.1415, "foo")                          t == []interface{}{42, 3.1415, "foo"}
++
++var b []byte
++b = append(b, "bar"...)    // append string contents      b == []byte{'b', 'a', 'r' }
+ </pre>
+ 
+ <p>
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 6737981340..fdfe3dce9a 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -25,6 +25,7 @@ char *runtimeimport =
+ 	"func @\"\".concatstring ()\n"
+ 	"func @\"\".append ()\n"
+ 	"func @\"\".appendslice (typ *uint8, x any, y []any) any\n"
++	"func @\"\".appendstr (typ *uint8, x []uint8, y string) []uint8\n"
+ 	"func @\"\".cmpstring (? string, ? string) int\n"
+ 	"func @\"\".slicestring (? string, ? int, ? int) string\n"
+ 	"func @\"\".slicestring1 (? string, ? int) string\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 549f7abe38..2461af2fc1 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -40,6 +40,7 @@ func concatstring()
+ // filled in by compiler: Type*, int n, Slice, ...
+ func append()
+ func appendslice(typ *byte, x any, y []any) any
++func appendstr(typ *byte, x []byte, y string) []byte
+ 
+ func cmpstring(string, string) int
+ func slicestring(string, int, int) string
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b9c302ce8e..9e9e9f9a81 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1008,6 +1008,10 @@ reswitch:
+ 				yyerror("too many arguments to append");
+ 				goto error;
+ 			}
++			if(istype(t->type, TUINT8) &&  istype(args->next->n->type, TSTRING)) {
++				defaultlit(&args->next->n, types[TSTRING]);
++				goto ret;
++			}
+ 			args->next->n = assignconv(args->next->n, t->orig, "append");
+ 			goto ret;
+ 		}
+@@ -1039,7 +1043,7 @@ reswitch:
+ 			goto error;
+ 		defaultlit(&n->left, T);
+ 		defaultlit(&n->right, T);
+-		
++
+ 		// copy([]byte, string)
+ 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
+ 			if(n->left->type->type == types[TUINT8])
+@@ -1047,7 +1051,7 @@ reswitch:
+ 			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
+ 			goto error;
+ 		}
+-			       
++
+ 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
+ 			if(!isslice(n->left->type) && !isslice(n->right->type))
+ 				yyerror("arguments to copy must be slices; have %lT, %lT", n->left->type, n->right->type);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8a84956a67..f551e3dbc0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -121,7 +121,7 @@ static int
+ paramoutheap(Node *fn)
+ {
+ 	NodeList *l;
+-	
++
+ 	for(l=fn->dcl; l; l=l->next) {
+ 		switch(l->n->class) {
+ 		case PPARAMOUT|PHEAP:
+@@ -409,7 +409,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OLEN:
+ 	case OCAP:
+ 		walkexpr(&n->left, init);
+-		
++
+ 		// replace len(*[10]int) with 10.
+ 		// delayed until now to preserve side effects.
+ 		t = n->left->type;
+@@ -421,7 +421,7 @@ walkexpr(Node **np, NodeList **init)
+ 			n->typecheck = 1;
+ 		}
+ 		goto ret;
+-	
++
+ 	case OLSH:
+ 	case ORSH:
+ 	case OAND:
+@@ -440,7 +440,7 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+ 		goto ret;
+-	
++
+ 	case OANDAND:
+ 	case OOROR:
+ 		walkexpr(&n->left, init);
+@@ -553,7 +553,7 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r, init);
+ 		l = n->list->n;
+-		
++
+ 		// all the really hard stuff - explicit function calls and so on -
+ 		// is gone, but map assignments remain.
+ 		// if there are map assignments here, assign via
+@@ -648,7 +648,7 @@ walkexpr(Node **np, NodeList **init)
+ 		if(n->op == ODOTTYPE2)
+ 			*p++ = '2';
+ 		*p = '\0';
+-	
++
+ 		fn = syslook(buf, 1);
+ 		ll = list1(typename(n->type));
+ 		ll = list(ll, n->left);
+@@ -679,7 +679,7 @@ walkexpr(Node **np, NodeList **init)
+ 		else
+ 			*p++ = 'I';
+ 		*p = '\0';
+-		
++
+ 		fn = syslook(buf, 1);
+ 		ll = nil;
+ 		if(!isinter(n->left->type))
+@@ -894,7 +894,7 @@ walkexpr(Node **np, NodeList **init)
+ 		}
+ 		if(v1 >= 0 && v2 >= 0 && v1 > v2)
+ 			yyerror("inverted slice range");
+-		
++
+ 		if(n->op == OSLICEARR)
+ 			goto slicearray;
+ 
+@@ -925,7 +925,7 @@ walkexpr(Node **np, NodeList **init)
+ 				l,
+ 				nodintconst(t->type->width));
+ 		}
+-		n->etype = et;  // preserve no-typecheck flag from OSLICE to the slice* call.
++		n->etype = et;	// preserve no-typecheck flag from OSLICE to the slice* call.
+ 		goto ret;
+ 
+ 	slicearray:
+@@ -1054,10 +1054,14 @@ walkexpr(Node **np, NodeList **init)
+ 				l);
+ 		}
+ 		goto ret;
+-	
++
+ 	case OAPPEND:
+-		if(n->isddd)
+-			n = appendslice(n, init);
++		if(n->isddd) {
++			if(istype(n->type->type, TUINT8) && istype(n->list->next->n->type, TSTRING))
++				n = mkcall("appendstr", n->type, init, typename(n->type), n->list->n, n->list->next->n);
++			else
++				n = appendslice(n, init);
++		}
+ 		else
+ 			n = append(n, init);
+ 		goto ret;
+@@ -1319,7 +1323,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, int
+ {
+ 	Node *a, *n;
+ 	Type *tslice;
+-	
++
+ 	tslice = typ(TARRAY);
+ 	tslice->type = l->type->type;
+ 	tslice->bound = -1;
+@@ -1413,7 +1417,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
+ 	if(lr)
+ 		r = lr->n;
+ 	nn = nil;
+-	
++
+ 	// f(g()) where g has multiple return values
+ 	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
+ 		// optimization - can do block copy
+@@ -1423,7 +1427,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
+ 			nn = list1(convas(nod(OAS, a, r), init));
+ 			goto ret;
+ 		}
+-		
++
+ 		// conversions involved.
+ 		// copy into temporaries.
+ 		alist = nil;
+@@ -1714,10 +1718,10 @@ convas(Node *n, NodeList **init)
+ 			n->left->left, n->left->right, n->right);
+ 		goto out;
+ 	}
+-	
++
+ 	if(eqtype(lt, rt))
+ 		goto out;
+-	
++
+ 	n->right = assignconv(n->right, lt, "assignment");
+ 	walkexpr(&n->right, init);
+ 
+@@ -1952,7 +1956,7 @@ heapmoves(void)
+ {
+ 	NodeList *nn;
+ 	int32 lno;
+-	
++
+ 	lno = lineno;
+ 	lineno = curfn->lineno;
+ 	nn = paramstoheap(getthis(curfn->type), 0);
+@@ -2060,7 +2064,7 @@ addstr(Node *n, NodeList **init)
+ 	Node *r, *cat, *typstr;
+ 	NodeList *in, *args;
+ 	int i, count;
+-	
++
+ 	count = 0;
+ 	for(r=n; r->op == OADDSTR; r=r->left)
+ 		count++;	// r->right
+@@ -2089,7 +2093,7 @@ addstr(Node *n, NodeList **init)
+ 	typecheck(&r, Erv);
+ 	walkexpr(&r, init);
+ 	r->type = n->type;
+-	
++
+ 	return r;
+ }
+ 
+@@ -2097,7 +2101,7 @@ static Node*
+ appendslice(Node *n, NodeList **init)
+ {
+ 	Node *f;
+-	
++
+ 	f = syslook("appendslice", 1);
+ 	argtype(f, n->type);
+ 	argtype(f, n->type->type);
+@@ -2111,7 +2115,7 @@ appendslice(Node *n, NodeList **init)
+ //     s := src
+ //     const argc = len(args) - 1
+ //     if cap(s) - len(s) < argc {
+-//          s = growslice(s, argc) 
++//	    s = growslice(s, argc)
+ //     }
+ //     n := len(s)
+ //     s = s[:n+argc]
+@@ -2140,13 +2144,13 @@ append(Node *n, NodeList **init)
+ 	ns = temp(nsrc->type);
+ 	l = list(l, nod(OAS, ns, nsrc));  // s = src
+ 
+-	na = nodintconst(argc);         // const argc
+-	nx = nod(OIF, N, N);            // if cap(s) - len(s) < argc
++	na = nodintconst(argc);		// const argc
++	nx = nod(OIF, N, N);		// if cap(s) - len(s) < argc
+ 	nx->ntest = nod(OLT, nod(OSUB, nod(OCAP, ns, N), nod(OLEN, ns, N)), na);
+ 
+-	fn = syslook("growslice", 1);   //   growslice(<type>, old []T, n int64) (ret []T)
+-	argtype(fn, ns->type->type);    // 1 old []any 
+-	argtype(fn, ns->type->type);    // 2 ret []any
++	fn = syslook("growslice", 1);	//   growslice(<type>, old []T, n int64) (ret []T)
++	argtype(fn, ns->type->type);	// 1 old []any
++	argtype(fn, ns->type->type);	// 2 ret []any
+ 
+ 	nx->nbody = list1(nod(OAS, ns, mkcall1(fn,  ns->type, &nx->ninit,
+ 					       typename(ns->type),
+@@ -2155,16 +2159,16 @@ append(Node *n, NodeList **init)
+ 	l = list(l, nx);
+ 
+ 	nn = temp(types[TINT]);
+-	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));     // n = len(s)
++	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));	 // n = len(s)
+ 
+-	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));   // ...s[:n+argc]
+-	nx->etype = 1;  // disable bounds check
+-	l = list(l, nod(OAS, ns, nx));                  // s = s[:n+argc]
++	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));	 // ...s[:n+argc]
++	nx->etype = 1;	// disable bounds check
++	l = list(l, nod(OAS, ns, nx));			// s = s[:n+argc]
+ 
+-	for (a = n->list->next;  a != nil; a = a->next) {
+-		nx = nod(OINDEX, ns, nn);               // s[n] ...
+-		nx->etype = 1;  // disable bounds check
+-		l = list(l, nod(OAS, nx, a->n));        // s[n] = arg
++	for (a = n->list->next;	 a != nil; a = a->next) {
++		nx = nod(OINDEX, ns, nn);		// s[n] ...
++		nx->etype = 1;	// disable bounds check
++		l = list(l, nod(OAS, nx, a->n));	// s[n] = arg
+ 		if (a->next != nil)
+ 			l = list(l, nod(OAS, nn, nod(OADD, nn, nodintconst(1))));  // n = n + 1
+ 	}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 6e7af9d938..20edf24d94 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -11,7 +11,6 @@ static	int32	debug	= 0;
+ 
+ static	void	makeslice1(SliceType*, int32, int32, Slice*);
+ static	void	growslice1(SliceType*, Slice, int32, Slice *);
+-static	void	appendslice1(SliceType*, Slice, Slice, Slice*);
+ 	void	runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret);
+ 
+ // see also unsafe·NewArray
+@@ -29,13 +28,13 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ 	if(debug) {
+ 		runtime·printf("makeslice(%S, %D, %D); ret=",
+ 			*t->string, len, cap);
+- 		runtime·printslice(ret);
++		runtime·printslice(ret);
+ 	}
+ }
+ 
+ static void
+ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
+-{	
++{
+ 	uintptr size;
+ 
+ 	size = cap*t->elem->size;
+@@ -53,14 +52,31 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
+ void
+ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ {
+-	appendslice1(t, x, y, &ret);
++	int32 m;
++	uintptr w;
++
++	m = x.len+y.len;
++
++	if(m < x.len)
++		runtime·throw("append: slice overflow");
++
++	if(m > x.cap)
++		growslice1(t, x, m, &ret);
++	else
++		ret = x;
++
++	w = t->elem->size;
++	runtime·memmove(ret.array + ret.len*w, y.array, y.len*w);
++	ret.len += y.len;
++	FLUSH(&ret);
+ }
+ 
+-static void
+-appendslice1(SliceType *t, Slice x, Slice y, Slice *ret)
++
++// appendstr([]byte, string) []byte
++void
++runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ {
+ 	int32 m;
+-	uintptr w;
+ 
+ 	m = x.len+y.len;
+ 
+@@ -68,15 +84,16 @@ appendslice1(SliceType *t, Slice x, Slice y, Slice *ret)
+ 		runtime·throw("append: slice overflow");
+ 
+ 	if(m > x.cap)
+-		growslice1(t, x, m, ret);
++		growslice1(t, x, m, &ret);
+ 	else
+-		*ret = x;
++		ret = x;
+ 
+-	w = t->elem->size;
+-	runtime·memmove(ret->array + ret->len*w, y.array, y.len*w);
+-	ret->len += y.len;
++	runtime·memmove(ret.array + ret.len, y.str, y.len);
++	ret.len += y.len;
++	FLUSH(&ret);
+ }
+ 
++
+ // growslice(type *Type, x, []T, n int64) []T
+ void
+ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+@@ -97,9 +114,9 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ 
+ 	if(debug) {
+ 		runtime·printf("growslice(%S,", *t->string);
+- 		runtime·printslice(old);
++		runtime·printslice(old);
+ 		runtime·printf(", new cap=%D) =", cap);
+- 		runtime·printslice(ret);
++		runtime·printslice(ret);
+ 	}
+ }
+ 
+@@ -308,11 +325,11 @@ runtime·slicestringcopy(Slice to, String fm, int32 ret)
+ 		ret = 0;
+ 		goto out;
+ 	}
+-	
++
+ 	ret = fm.len;
+ 	if(to.len < ret)
+ 		ret = to.len;
+-	
++
+ 	runtime·memmove(to.array, fm.str, ret);
+ 
+ out:
+diff --git a/test/append.go b/test/append.go
+index 96421c36b8..e178f46990 100644
+--- a/test/append.go
++++ b/test/append.go
+@@ -63,6 +63,11 @@ var tests = []struct {
+ 	{"byte i", append([]byte{0, 1, 2}, []byte{3}...), []byte{0, 1, 2, 3}},
+ 	{"byte j", append([]byte{0, 1, 2}, []byte{3, 4, 5}...), []byte{0, 1, 2, 3, 4, 5}},
+ 
++	{"bytestr a", append([]byte{}, "0"...), []byte("0")},
++	{"bytestr b", append([]byte{}, "0123"...), []byte("0123")},
++
++	{"bytestr c", append([]byte("012"), "3"...), []byte("0123")},
++	{"bytestr d", append([]byte("012"), "345"...), []byte("012345")},
+ 
+ 	{"int16 a", append([]int16{}), []int16{}},
+ 	{"int16 b", append([]int16{}, 0), []int16{0}},

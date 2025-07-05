@@ -18,9 +18,138 @@ Date:   Mon Dec 16 10:53:00 2024 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 ++++++++++
  src/cmd/internal/obj/loong64/a.out.go           | 14 ++++++++++
  src/cmd/internal/obj/loong64/anames.go          | 12 +++++++++
  src/cmd/internal/obj/loong64/asm.go             | 36 +++++++++++++++++++++++++
  4 files changed, 76 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index f85939afbc..60e253cec3 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -835,3 +835,17 @@ lable2:
+ 	XVMODHU		X3, X2, X1	// 418ce674
+ 	XVMODWU		X3, X2, X1	// 410ce774
+ 	XVMODVU		X3, X2, X1	// 418ce774
++
++	// [X]VF{SQRT/RECIP/RSQRT}{F/D} instructions
++	VFSQRTF		V1, V2		// 22e49c72
++	VFSQRTD		V1, V2		// 22e89c72
++	VFRECIPF	V1, V2		// 22f49c72
++	VFRECIPD	V1, V2		// 22f89c72
++	VFRSQRTF	V1, V2		// 22049d72
++	VFRSQRTD	V1, V2		// 22089d72
++	XVFSQRTF	X2, X1		// 41e49c76
++	XVFSQRTD	X2, X1		// 41e89c76
++	XVFRECIPF	X2, X1		// 41f49c76
++	XVFRECIPD	X2, X1		// 41f89c76
++	XVFRSQRTF	X2, X1		// 41049d76
++	XVFRSQRTD	X2, X1		// 41089d76
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 55ca273455..9df63de388 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -936,6 +936,20 @@ const (
+ 	AXVMUHWU
+ 	AXVMUHVU
+ 
++	// LSX and LASX floating point instructions
++	AVFSQRTF
++	AVFSQRTD
++	AVFRECIPF
++	AVFRECIPD
++	AVFRSQRTF
++	AVFRSQRTD
++	AXVFSQRTF
++	AXVFSQRTD
++	AXVFRECIPF
++	AXVFRECIPD
++	AXVFRSQRTF
++	AXVFRSQRTD
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index b91bb93d0a..bc7948eb00 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -437,5 +437,17 @@ var Anames = []string{
+ 	"XVMUHHU",
+ 	"XVMUHWU",
+ 	"XVMUHVU",
++	"VFSQRTF",
++	"VFSQRTD",
++	"VFRECIPF",
++	"VFRECIPD",
++	"VFRSQRTF",
++	"VFRSQRTD",
++	"XVFSQRTF",
++	"XVFSQRTD",
++	"XVFRECIPF",
++	"XVFRECIPD",
++	"XVFRSQRTF",
++	"XVFRSQRTD",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 306a309cac..3186791791 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1653,11 +1653,23 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVPCNTH, r0)
+ 			opset(AVPCNTW, r0)
+ 			opset(AVPCNTV, r0)
++			opset(AVFSQRTF, r0)
++			opset(AVFSQRTD, r0)
++			opset(AVFRECIPF, r0)
++			opset(AVFRECIPD, r0)
++			opset(AVFRSQRTF, r0)
++			opset(AVFRSQRTD, r0)
+ 
+ 		case AXVPCNTB:
+ 			opset(AXVPCNTH, r0)
+ 			opset(AXVPCNTW, r0)
+ 			opset(AXVPCNTV, r0)
++			opset(AXVFSQRTF, r0)
++			opset(AXVFSQRTD, r0)
++			opset(AXVFRECIPF, r0)
++			opset(AXVFRECIPD, r0)
++			opset(AXVFRSQRTF, r0)
++			opset(AXVFRSQRTD, r0)
+ 
+ 		case AVADDB:
+ 			opset(AVADDH, r0)
+@@ -3330,6 +3342,30 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x1da70a << 10 // xvpcnt.w
+ 	case AXVPCNTV:
+ 		return 0x1da70b << 10 // xvpcnt.v
++	case AVFSQRTF:
++		return 0x1ca739 << 10 // vfsqrt.s
++	case AVFSQRTD:
++		return 0x1ca73a << 10 // vfsqrt.d
++	case AVFRECIPF:
++		return 0x1ca73d << 10 // vfrecip.s
++	case AVFRECIPD:
++		return 0x1ca73e << 10 // vfrecip.d
++	case AVFRSQRTF:
++		return 0x1ca741 << 10 // vfrsqrt.s
++	case AVFRSQRTD:
++		return 0x1ca742 << 10 // vfrsqrt.d
++	case AXVFSQRTF:
++		return 0x1da739 << 10 // xvfsqrt.s
++	case AXVFSQRTD:
++		return 0x1da73a << 10 // xvfsqrt.d
++	case AXVFRECIPF:
++		return 0x1da73d << 10 // xvfrecip.s
++	case AXVFRECIPD:
++		return 0x1da73e << 10 // xvfrecip.d
++	case AXVFRSQRTF:
++		return 0x1da741 << 10 // xvfrsqrt.s
++	case AXVFRSQRTD:
++		return 0x1da742 << 10 // xvfrsqrt.d
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

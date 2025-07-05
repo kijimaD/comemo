@@ -9,8 +9,166 @@ Date:   Tue Oct 25 22:23:34 2011 -0700
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/5314043
-
+---
  src/pkg/bufio/bufio.go      | 20 ++++++++++----------
  src/pkg/bufio/bufio_test.go | 32 ++++++++++++++++----------------
  src/pkg/io/io.go            |  2 +-
  3 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 2ea7af3e25..3a4e0ed8b0 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -208,7 +208,7 @@ func (b *Reader) UnreadByte() os.Error {
+ 
+ // ReadRune reads a single UTF-8 encoded Unicode character and returns the
+ // rune and its size in bytes.
+-func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
++func (b *Reader) ReadRune() (r rune, size int, err os.Error) {
+ 	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
+ 		b.fill()
+ 	}
+@@ -216,14 +216,14 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ 	if b.r == b.w {
+ 		return 0, 0, b.readErr()
+ 	}
+-	rune, size = int(b.buf[b.r]), 1
+-	if rune >= 0x80 {
+-		rune, size = utf8.DecodeRune(b.buf[b.r:b.w])
++	r, size = rune(b.buf[b.r]), 1
++	if r >= 0x80 {
++		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
+ 	}
+ 	b.r += size
+ 	b.lastByte = int(b.buf[b.r-1])
+ 	b.lastRuneSize = size
+-	return rune, size, nil
++	return r, size, nil
+ }
+ 
+ // UnreadRune unreads the last rune.  If the most recent read operation on
+@@ -497,9 +497,9 @@ func (b *Writer) WriteByte(c byte) os.Error {
+ 
+ // WriteRune writes a single Unicode code point, returning
+ // the number of bytes written and any error.
+-func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
+-	if rune < utf8.RuneSelf {
+-		err = b.WriteByte(byte(rune))
++func (b *Writer) WriteRune(r rune) (size int, err os.Error) {
++	if r < utf8.RuneSelf {
++		err = b.WriteByte(byte(r))
+ 		if err != nil {
+ 			return 0, err
+ 		}
+@@ -516,10 +516,10 @@ func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
+ 		n = b.Available()
+ 		if n < utf8.UTFMax {
+ 			// Can only happen if buffer is silly small.
+-			return b.WriteString(string(rune))
++			return b.WriteString(string(r))
+ 		}
+ 	}
+-	size = utf8.EncodeRune(b.buf[b.n:], rune)
++	size = utf8.EncodeRune(b.buf[b.n:], r)
+ 	b.n += size
+ 	return size, nil
+ }
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 38213ffe78..4fd5f90b8e 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -195,14 +195,14 @@ func readRuneSegments(t *testing.T, segments []string) {
+ 	want := strings.Join(segments, "")
+ 	r := NewReader(&StringReader{data: segments})
+ 	for {
+-		rune, _, err := r.ReadRune()
++		r, _, err := r.ReadRune()
+ 		if err != nil {
+ 			if err != os.EOF {
+ 				return
+ 			}
+ 			break
+ 		}
+-		got += string(rune)
++		got += string(r)
+ 	}
+ 	if got != want {
+ 		t.Errorf("segments=%v got=%s want=%s", segments, got, want)
+@@ -233,24 +233,24 @@ func TestUnreadRune(t *testing.T) {
+ 	r := NewReader(&StringReader{data: segments})
+ 	// Normal execution.
+ 	for {
+-		rune, _, err := r.ReadRune()
++		r1, _, err := r.ReadRune()
+ 		if err != nil {
+ 			if err != os.EOF {
+ 				t.Error("unexpected EOF")
+ 			}
+ 			break
+ 		}
+-		got += string(rune)
++		got += string(r1)
+ 		// Put it back and read it again
+ 		if err = r.UnreadRune(); err != nil {
+ 			t.Error("unexpected error on UnreadRune:", err)
+ 		}
+-		rune1, _, err := r.ReadRune()
++		r2, _, err := r.ReadRune()
+ 		if err != nil {
+ 			t.Error("unexpected error reading after unreading:", err)
+ 		}
+-		if rune != rune1 {
+-			t.Errorf("incorrect rune after unread: got %c wanted %c", rune1, rune)
++		if r1 != r2 {
++			t.Errorf("incorrect rune after unread: got %c wanted %c", r1, r2)
+ 		}
+ 	}
+ 	if got != data {
+@@ -339,25 +339,25 @@ func TestReadWriteRune(t *testing.T) {
+ 	w := NewWriter(byteBuf)
+ 	// Write the runes out using WriteRune
+ 	buf := make([]byte, utf8.UTFMax)
+-	for rune := 0; rune < NRune; rune++ {
+-		size := utf8.EncodeRune(buf, rune)
+-		nbytes, err := w.WriteRune(rune)
++	for r := rune(0); r < NRune; r++ {
++		size := utf8.EncodeRune(buf, r)
++		nbytes, err := w.WriteRune(r)
+ 		if err != nil {
+-			t.Fatalf("WriteRune(0x%x) error: %s", rune, err)
++			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
+ 		}
+ 		if nbytes != size {
+-			t.Fatalf("WriteRune(0x%x) expected %d, got %d", rune, size, nbytes)
++			t.Fatalf("WriteRune(0x%x) expected %d, got %d", r, size, nbytes)
+ 		}
+ 	}
+ 	w.Flush()
+ 
+ 	r := NewReader(byteBuf)
+ 	// Read them back with ReadRune
+-	for rune := 0; rune < NRune; rune++ {
+-		size := utf8.EncodeRune(buf, rune)
++	for r1 := rune(0); r1 < NRune; r1++ {
++		size := utf8.EncodeRune(buf, r1)
+ 		nr, nbytes, err := r.ReadRune()
+-		if nr != rune || nbytes != size || err != nil {
+-			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
++		if nr != r1 || nbytes != size || err != nil {
++			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r1, nr, nbytes, r1, size, err)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 55206348e4..07e2bce76a 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -194,7 +194,7 @@ type ByteScanner interface {
+ // and returns the rune and its size in bytes. If no character is
+ // available, err will be set.
+ type RuneReader interface {
+-	ReadRune() (rune int, size int, err os.Error)
++	ReadRune() (r rune, size int, err os.Error)
+ }
+ 
+ // RuneScanner is the interface that adds the UnreadRune method to the

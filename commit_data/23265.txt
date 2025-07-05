@@ -17,9 +17,215 @@ Date:   Mon May 4 14:37:45 2015 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/reflect.go   | 54 ++++++++++++++++++++++++++++++++++++++++
  src/cmd/internal/ld/decodesym.go | 16 ++++++------
  src/reflect/type.go              |  7 ++++++
  src/runtime/type.go              |  5 +++-
  4 files changed, 74 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 804f888fd3..346c8246bb 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -676,12 +676,64 @@ func haspointers(t *Type) bool {
+ 		fallthrough
+ 	default:
+ 		ret = true
++
++	case TFIELD:
++		Fatal("haspointers: unexpected type, %v", t)
+ 	}
+ 
+ 	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
+ 	return ret
+ }
+ 
++// typeptrsize returns the length in bytes of the prefix of t
++// containing pointer data. Anything after this offset is scalar data.
++func typeptrsize(t *Type) uint64 {
++	if !haspointers(t) {
++		return 0
++	}
++
++	switch t.Etype {
++	case TPTR32,
++		TPTR64,
++		TUNSAFEPTR,
++		TFUNC,
++		TCHAN,
++		TMAP:
++		return uint64(Widthptr)
++
++	case TSTRING:
++		// struct { byte *str; intgo len; }
++		return uint64(Widthptr)
++
++	case TINTER:
++		// struct { Itab *tab;	void *data; } or
++		// struct { Type *type; void *data; }
++		return 2 * uint64(Widthptr)
++
++	case TARRAY:
++		if Isslice(t) {
++			// struct { byte *array; uintgo len; uintgo cap; }
++			return uint64(Widthptr)
++		}
++		// haspointers already eliminated t.Bound == 0.
++		return uint64(t.Bound-1)*uint64(t.Type.Width) + typeptrsize(t.Type)
++
++	case TSTRUCT:
++		// Find the last field that has pointers.
++		var lastPtrField *Type
++		for t1 := t.Type; t1 != nil; t1 = t1.Down {
++			if haspointers(t1.Type) {
++				lastPtrField = t1
++			}
++		}
++		return uint64(lastPtrField.Width) + typeptrsize(lastPtrField.Type)
++
++	default:
++		Fatal("typeptrsize: unexpected type, %v", t)
++		return 0
++	}
++}
++
+ /*
+  * commonType
+  * ../../runtime/type.go:/commonType
+@@ -728,6 +780,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	// actual type structure
+ 	//	type commonType struct {
+ 	//		size          uintptr
++	//		ptrsize       uintptr
+ 	//		hash          uint32
+ 	//		_             uint8
+ 	//		align         uint8
+@@ -741,6 +794,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	//		zero          unsafe.Pointer
+ 	//	}
+ 	ot = duintptr(s, ot, uint64(t.Width))
++	ot = duintptr(s, ot, typeptrsize(t))
+ 
+ 	ot = duint32(s, ot, typehash(t))
+ 	ot = duint8(s, ot, 0) // unused
+diff --git a/src/cmd/internal/ld/decodesym.go b/src/cmd/internal/ld/decodesym.go
+index 7dbe4b164e..754c89f12b 100644
+--- a/src/cmd/internal/ld/decodesym.go
++++ b/src/cmd/internal/ld/decodesym.go
+@@ -41,23 +41,25 @@ func decode_inuxi(p []byte, sz int) uint64 {
+ 	}
+ }
+ 
++// commonsize returns the size of the common prefix for all type
++// structures (runtime._type).
+ func commonsize() int {
+-	return 8*Thearch.Ptrsize + 8
++	return 9*Thearch.Ptrsize + 8
+ }
+ 
+ // Type.commonType.kind
+ func decodetype_kind(s *LSym) uint8 {
+-	return uint8(s.P[1*Thearch.Ptrsize+7] & obj.KindMask) //  0x13 / 0x1f
++	return uint8(s.P[2*Thearch.Ptrsize+7] & obj.KindMask) //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+ func decodetype_noptr(s *LSym) uint8 {
+-	return uint8(s.P[1*Thearch.Ptrsize+7] & obj.KindNoPointers) //  0x13 / 0x1f
++	return uint8(s.P[2*Thearch.Ptrsize+7] & obj.KindNoPointers) //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+ func decodetype_usegcprog(s *LSym) uint8 {
+-	return uint8(s.P[1*Thearch.Ptrsize+7] & obj.KindGCProg) //  0x13 / 0x1f
++	return uint8(s.P[2*Thearch.Ptrsize+7] & obj.KindGCProg) //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+@@ -72,11 +74,11 @@ func decodetype_gcprog(s *LSym) *LSym {
+ 		x := "type..gcprog." + s.Name[5:]
+ 		return Linklookup(Ctxt, x, 0)
+ 	}
+-	return decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
++	return decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+2*int32(Thearch.Ptrsize))
+ }
+ 
+ func decodetype_gcprog_shlib(s *LSym) uint64 {
+-	return decode_inuxi(s.P[1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
++	return decode_inuxi(s.P[2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
+ }
+ 
+ func decodetype_gcmask(s *LSym) []byte {
+@@ -85,7 +87,7 @@ func decodetype_gcmask(s *LSym) []byte {
+ 		// of gcmask for types defined in that shared library.
+ 		return s.gcmask
+ 	}
+-	mask := decode_reloc_sym(s, 1*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
++	mask := decode_reloc_sym(s, 2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize))
+ 	return mask.P
+ }
+ 
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 04485235aa..c0a5616166 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -246,6 +246,7 @@ const (
+ // so that code cannot convert from, say, *arrayType to *ptrType.
+ type rtype struct {
+ 	size          uintptr
++	ptrsize       uintptr
+ 	hash          uint32            // hash of type; avoids computation in hash tables
+ 	_             uint8             // unused/padding
+ 	align         uint8             // alignment of variable with this type
+@@ -1825,12 +1826,14 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	}
+ 	// overflow
+ 	gc.append(bitsPointer)
++	tptrsize := gc.size
+ 	if runtime.GOARCH == "amd64p32" {
+ 		gc.append(bitsScalar)
+ 	}
+ 
+ 	b := new(rtype)
+ 	b.size = gc.size
++	b.ptrsize = tptrsize
+ 	b.kind = kind
+ 	b.gc[0], _ = gc.finalize()
+ 	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
+@@ -1917,6 +1920,9 @@ func ArrayOf(count int, elem Type) Type {
+ 		panic("reflect.ArrayOf: array size would exceed virtual address space")
+ 	}
+ 	array.size = typ.size * uintptr(count)
++	if count > 0 && typ.ptrsize != 0 {
++		array.ptrsize = typ.size*uintptr(count-1) + typ.ptrsize
++	}
+ 	array.align = typ.align
+ 	array.fieldAlign = typ.fieldAlign
+ 	array.uncommonType = nil
+@@ -2084,6 +2090,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 	// build dummy rtype holding gc program
+ 	x := new(rtype)
+ 	x.size = gc.size
++	x.ptrsize = gc.size // over-approximation
+ 	var hasPtr bool
+ 	x.gc[0], hasPtr = gc.finalize()
+ 	if !hasPtr {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 70ed24cd87..9d61c47dda 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -8,9 +8,12 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// Needs to be in sync with ../../cmd/internal/ld/decodesym.go:/^commonsize and pkg/reflect/type.go:/type.
++// Needs to be in sync with ../cmd/internal/ld/decodesym.go:/^func.commonsize,
++// ../cmd/internal/gc/reflect.go:/^func.dcommontype and
++// ../reflect/type.go:/^type.rtype.
+ type _type struct {
+ 	size       uintptr
++	ptrsize    uintptr // Bytes of prefix containing pointer slots.
+ 	hash       uint32
+ 	_unused    uint8
+ 	align      uint8

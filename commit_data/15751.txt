@@ -13,7 +13,50 @@ Date:   Wed Mar 13 14:53:03 2013 -0400
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/7490046
-
+---
  src/pkg/encoding/json/decode.go      | 10 ++++++++++
  src/pkg/encoding/json/decode_test.go | 13 +++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index d34e10f838..722037c309 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -261,6 +261,16 @@ func (d *decodeState) value(v reflect.Value) {
+ 		}
+ 		d.scan.step(&d.scan, '"')
+ 		d.scan.step(&d.scan, '"')
++
++		n := len(d.scan.parseState)
++		if n > 0 && d.scan.parseState[n-1] == parseObjectKey {
++			// d.scan thinks we just read an object key; finish the object
++			d.scan.step(&d.scan, ':')
++			d.scan.step(&d.scan, '"')
++			d.scan.step(&d.scan, '"')
++			d.scan.step(&d.scan, '}')
++		}
++
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index e1bd918dda..037c5b2368 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1178,3 +1178,16 @@ func TestUnmarshalJSONLiteralError(t *testing.T) {
+ 		t.Errorf("got err = %v; want out of range error", err)
+ 	}
+ }
++
++// Test that extra object elements in an array do not result in a
++// "data changing underfoot" error.
++// Issue 3717
++func TestSkipArrayObjects(t *testing.T) {
++	json := `[{}]`
++	var dest [0]interface{}
++
++	err := Unmarshal([]byte(json), &dest)
++	if err != nil {
++		t.Errorf("got error %q, want nil", err)
++	}
++}

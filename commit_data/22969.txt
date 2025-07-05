@@ -16,7 +16,7 @@ Date:   Mon Apr 13 23:45:00 2015 +0900
     Change-Id: Ie10c151ae06759085f352c7db2ca45107a81914f
     Reviewed-on: https://go-review.googlesource.com/8903
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_test.go        | 104 -----------------------
  src/net/error_plan9_test.go |  14 ++++
  src/net/error_posix_test.go |  16 ++++
@@ -26,3 +26,693 @@ Date:   Mon Apr 13 23:45:00 2015 +0900
  src/net/timeout_test.go     |  47 +++++------
  src/net/udp_test.go         |   2 +-
  8 files changed, 282 insertions(+), 155 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 7b36f811a9..854dcdc90a 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -7,8 +7,6 @@ package net
+ import (
+ 	"fmt"
+ 	"net/internal/socktest"
+-	"reflect"
+-	"regexp"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+@@ -61,108 +59,6 @@ func TestSelfConnect(t *testing.T) {
+ 	}
+ }
+ 
+-type DialErrorTest struct {
+-	Net     string
+-	Raddr   string
+-	Pattern string
+-}
+-
+-var dialErrorTests = []DialErrorTest{
+-	{
+-		"datakit", "mh/astro/r70",
+-		"dial datakit mh/astro/r70: unknown network datakit",
+-	},
+-	{
+-		"tcp", "127.0.0.1:☺",
+-		"dial tcp 127.0.0.1:☺: unknown port tcp/☺",
+-	},
+-	{
+-		"tcp", "no-such-name.google.com.:80",
+-		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
+-	},
+-	{
+-		"tcp", "no-such-name.no-such-top-level-domain.:80",
+-		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no (.*)",
+-	},
+-	{
+-		"tcp", "no-such-name:80",
+-		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
+-	},
+-	{
+-		"tcp", "mh/astro/r70:http",
+-		"dial tcp mh/astro/r70:http: lookup mh/astro/r70: invalid domain name",
+-	},
+-	{
+-		"unix", "/etc/file-not-found",
+-		"dial unix /etc/file-not-found: no such file or directory",
+-	},
+-	{
+-		"unix", "/etc/",
+-		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
+-	},
+-	{
+-		"unixpacket", "/etc/file-not-found",
+-		"dial unixpacket /etc/file-not-found: no such file or directory",
+-	},
+-	{
+-		"unixpacket", "/etc/",
+-		"dial unixpacket /etc/: (permission denied|socket operation on non-socket|connection refused)",
+-	},
+-}
+-
+-var duplicateErrorPattern = `dial (.*) dial (.*)`
+-
+-func TestDialError(t *testing.T) {
+-	if !*runErrorTest {
+-		t.Logf("test disabled; use -run_error_test to enable")
+-		return
+-	}
+-	for i, tt := range dialErrorTests {
+-		c, err := Dial(tt.Net, tt.Raddr)
+-		if c != nil {
+-			c.Close()
+-		}
+-		if err == nil {
+-			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern)
+-			continue
+-		}
+-		s := err.Error()
+-		match, _ := regexp.MatchString(tt.Pattern, s)
+-		if !match {
+-			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
+-		}
+-		match, _ = regexp.MatchString(duplicateErrorPattern, s)
+-		if match {
+-			t.Errorf("#%d: %q, duplicate error return from Dial", i, s)
+-		}
+-	}
+-}
+-
+-var invalidDialAndListenArgTests = []struct {
+-	net  string
+-	addr string
+-	err  error
+-}{
+-	{"foo", "bar", &OpError{Op: "dial", Net: "foo", Addr: nil, Err: UnknownNetworkError("foo")}},
+-	{"baz", "", &OpError{Op: "listen", Net: "baz", Addr: nil, Err: UnknownNetworkError("baz")}},
+-	{"tcp", "", &OpError{Op: "dial", Net: "tcp", Addr: nil, Err: errMissingAddress}},
+-}
+-
+-func TestInvalidDialAndListenArgs(t *testing.T) {
+-	for _, tt := range invalidDialAndListenArgTests {
+-		var err error
+-		switch tt.err.(*OpError).Op {
+-		case "dial":
+-			_, err = Dial(tt.net, tt.addr)
+-		case "listen":
+-			_, err = Listen(tt.net, tt.addr)
+-		}
+-		if !reflect.DeepEqual(tt.err, err) {
+-			t.Fatalf("got %#v; expected %#v", err, tt.err)
+-		}
+-	}
+-}
+-
+ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+diff --git a/src/net/error_plan9_test.go b/src/net/error_plan9_test.go
+new file mode 100644
+index 0000000000..349d07d2d2
+--- /dev/null
++++ b/src/net/error_plan9_test.go
+@@ -0,0 +1,14 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "syscall"
++
++var errOpNotSupported = syscall.EPLAN9
++
++func isPlatformError(err error) bool {
++	_, ok := err.(syscall.ErrorString)
++	return ok
++}
+diff --git a/src/net/error_posix_test.go b/src/net/error_posix_test.go
+new file mode 100644
+index 0000000000..4f97e07a79
+--- /dev/null
++++ b/src/net/error_posix_test.go
+@@ -0,0 +1,16 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package net
++
++import "syscall"
++
++var errOpNotSupported = syscall.EOPNOTSUPP
++
++func isPlatformError(err error) bool {
++	_, ok := err.(syscall.Errno)
++	return ok
++}
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+new file mode 100644
+index 0000000000..642790e68b
+--- /dev/null
++++ b/src/net/error_test.go
+@@ -0,0 +1,199 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"fmt"
++	"net/internal/socktest"
++	"os"
++	"runtime"
++	"testing"
++)
++
++func isTimeoutError(err error) bool {
++	nerr, ok := err.(Error)
++	return ok && nerr.Timeout()
++}
++
++func isTemporaryError(err error) bool {
++	nerr, ok := err.(Error)
++	return ok && nerr.Temporary()
++}
++
++func (e *OpError) isValid() error {
++	if e.Op == "" {
++		return fmt.Errorf("OpError.Op is empty: %v", e)
++	}
++	if e.Net == "" {
++		return fmt.Errorf("OpError.Net is empty: %v", e)
++	}
++	switch addr := e.Addr.(type) {
++	case *TCPAddr:
++		if addr == nil {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
++	case *UDPAddr:
++		if addr == nil {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
++	case *IPAddr:
++		if addr == nil {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
++	case *IPNet:
++		if addr == nil {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
++	case *UnixAddr:
++		if addr == nil {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
++	case *pipeAddr:
++		if addr == nil {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
++	}
++	if e.Err == nil {
++		return fmt.Errorf("OpError.Err is empty: %v", e)
++	}
++	return nil
++}
++
++// parseDialError parses nestedErr and reports whether it is a valid
++// error value from Dial, Listen functions.
++// It returns nil when nestedErr is valid.
++func parseDialError(nestedErr error) error {
++	if nestedErr == nil {
++		return nil
++	}
++
++	switch err := nestedErr.(type) {
++	case *OpError:
++		if err := err.isValid(); err != nil {
++			return err
++		}
++		nestedErr = err.Err
++		goto second
++	}
++	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
++
++second:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	switch err := nestedErr.(type) {
++	case *AddrError, *DNSError, InvalidAddrError, *ParseError, UnknownNetworkError, *timeoutError:
++		return nil
++	case *DNSConfigError:
++		nestedErr = err.Err
++		goto third
++	case *os.SyscallError:
++		nestedErr = err.Err
++		goto third
++	}
++	switch nestedErr {
++	case errClosing, errMissingAddress:
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
++
++third:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
++}
++
++var dialErrorTests = []struct {
++	network, address string
++}{
++	{"foo", ""},
++	{"bar", "baz"},
++	{"datakit", "mh/astro/r70"},
++	{"tcp", ""},
++	{"tcp", "127.0.0.1:☺"},
++	{"tcp", "no-such-name:80"},
++	{"tcp", "mh/astro/r70:http"},
++
++	{"tcp", "127.0.0.1:0"},
++	{"udp", "127.0.0.1:0"},
++	{"ip:icmp", "127.0.0.1"},
++
++	{"unix", "/path/to/somewhere"},
++	{"unixgram", "/path/to/somewhere"},
++	{"unixpacket", "/path/to/somewhere"},
++}
++
++func TestDialError(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	}
++
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
++		return nil, &DNSError{Err: "dial error test", Name: "name", Server: "server", IsTimeout: true}
++	}
++	sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
++		return nil, errOpNotSupported
++	})
++	defer sw.Set(socktest.FilterConnect, nil)
++
++	d := Dialer{Timeout: someTimeout}
++	for i, tt := range dialErrorTests {
++		c, err := d.Dial(tt.network, tt.address)
++		if err == nil {
++			t.Errorf("#%d: should fail; %s:%s->%s", i, tt.network, c.LocalAddr(), c.RemoteAddr())
++			c.Close()
++			continue
++		}
++		if err = parseDialError(err); err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++	}
++}
++
++var listenErrorTests = []struct {
++	network, address string
++}{
++	{"foo", ""},
++	{"bar", "baz"},
++	{"datakit", "mh/astro/r70"},
++	{"tcp", "127.0.0.1:☺"},
++	{"tcp", "no-such-name:80"},
++	{"tcp", "mh/astro/r70:http"},
++}
++
++func TestListenError(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	}
++
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
++		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
++	}
++	sw.Set(socktest.FilterListen, func(so *socktest.Status) (socktest.AfterFilter, error) {
++		return nil, errOpNotSupported
++	})
++	defer sw.Set(socktest.FilterListen, nil)
++
++	for i, tt := range listenErrorTests {
++		ln, err := Listen(tt.network, tt.address)
++		if err == nil {
++			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, ln.Addr())
++			ln.Close()
++			continue
++		}
++		if err = parseDialError(err); err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++	}
++}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index d685883716..3b771aacbc 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -5,7 +5,7 @@
+ package net
+ 
+ import (
+-	"errors"
++	"io"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -154,7 +154,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 	// Notify runtime netpoll about starting IO.
+ 	err := fd.pd.Prepare(int(o.mode))
+ 	if err != nil {
+-		return 0, &OpError{name, fd.net, fd.laddr, err}
++		return 0, err
+ 	}
+ 	// Start IO.
+ 	if canCancelIO {
+@@ -177,7 +177,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 		// IO started, and we have to wait for its completion.
+ 		err = nil
+ 	default:
+-		return 0, &OpError{name, fd.net, fd.laddr, err}
++		return 0, err
+ 	}
+ 	// Wait for our request to complete.
+ 	err = fd.pd.Wait(int(o.mode))
+@@ -185,7 +185,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 		// All is good. Extract our IO results and return.
+ 		if o.errno != 0 {
+ 			err = syscall.Errno(o.errno)
+-			return 0, &OpError{name, fd.net, fd.laddr, err}
++			return 0, err
+ 		}
+ 		return int(o.qty), nil
+ 	}
+@@ -216,7 +216,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
+ 			err = netpollErr
+ 		}
+-		return 0, &OpError{name, fd.net, fd.laddr, err}
++		return 0, err
+ 	}
+ 	// We issued cancellation request. But, it seems, IO operation succeeded
+ 	// before cancellation request run. We need to treat IO operation as
+@@ -455,7 +455,7 @@ func (fd *netFD) closeWrite() error {
+ 
+ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if err := fd.readLock(); err != nil {
+-		return 0, err
++		return 0, &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
+ 	}
+ 	defer fd.readUnlock()
+ 	o := &fd.rop
+@@ -467,20 +467,23 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 		raceAcquire(unsafe.Pointer(&ioSync))
+ 	}
+ 	err = fd.eofError(n, err)
++	if err != nil && err != io.EOF {
++		err = &OpError{Op: "read", Net: fd.net, Addr: fd.raddr, Err: err}
++	}
+ 	return n, err
+ }
+ 
+-func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
++func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil, nil
+ 	}
+ 	if err := fd.readLock(); err != nil {
+-		return 0, nil, err
++		return 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
+ 	}
+ 	defer fd.readUnlock()
+ 	o := &fd.rop
+ 	o.InitBuf(buf)
+-	n, err = rsrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
++	n, err := rsrv.ExecIO(o, "WSARecvFrom", func(o *operation) error {
+ 		if o.rsa == nil {
+ 			o.rsa = new(syscall.RawSockaddrAny)
+ 		}
+@@ -488,16 +491,16 @@ func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+ 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+ 	})
+ 	err = fd.eofError(n, err)
+-	if err != nil {
+-		return 0, nil, err
++	if err != nil && err != io.EOF {
++		err = &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: err}
+ 	}
+-	sa, _ = o.rsa.Sockaddr()
+-	return
++	sa, _ := o.rsa.Sockaddr()
++	return n, sa, err
+ }
+ 
+ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+-		return 0, err
++		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
+ 	}
+ 	defer fd.writeUnlock()
+ 	if raceenabled {
+@@ -505,9 +508,13 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	}
+ 	o := &fd.wop
+ 	o.InitBuf(buf)
+-	return wsrv.ExecIO(o, "WSASend", func(o *operation) error {
++	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
+ 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
+ 	})
++	if err != nil {
++		err = &OpError{Op: "write", Net: fd.net, Addr: fd.raddr, Err: err}
++	}
++	return n, err
+ }
+ 
+ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+@@ -515,15 +522,19 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 		return 0, nil
+ 	}
+ 	if err := fd.writeLock(); err != nil {
+-		return 0, err
++		return 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
+ 	}
+ 	defer fd.writeUnlock()
+ 	o := &fd.wop
+ 	o.InitBuf(buf)
+ 	o.sa = sa
+-	return wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
++	n, err := wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
+ 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
+ 	})
++	if err != nil {
++		err = &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: err}
++	}
++	return n, err
+ }
+ 
+ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD, error) {
+@@ -620,12 +631,10 @@ func (fd *netFD) dup() (*os.File, error) {
+ 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
+ }
+ 
+-var errNoSupport = errors.New("address family not supported")
+-
+ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+-	return 0, 0, 0, nil, errNoSupport
++	return 0, 0, 0, nil, &OpError{Op: "read", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
+ }
+ 
+ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+-	return 0, 0, errNoSupport
++	return 0, 0, &OpError{Op: "write", Net: fd.net, Addr: fd.laddr, Err: syscall.EWINDOWS}
+ }
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 1cafd2e85c..08cf62561d 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -41,10 +41,6 @@ var (
+ 	// If external IPv6 connectivity exists, we can try dialing
+ 	// non-node/interface local scope IPv6 addresses.
+ 	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
+-
+-	// BUG: TestDialError has been broken, and so this flag
+-	// exists. We should fix the test and remove this flag soon.
+-	runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for DNS errors")
+ )
+ 
+ func TestMain(m *testing.M) {
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 6c98a96afb..7e102c74d5 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -51,21 +51,15 @@ func TestDialTimeout(t *testing.T) {
+ 	case <-tmo.C:
+ 		t.Fatal("dial has not returned")
+ 	case err := <-ch:
+-		nerr, ok := err.(Error)
+-		if !ok {
+-			t.Fatalf("got %v; want error implements Error interface", err)
++		if perr := parseDialError(err); perr != nil {
++			t.Error(perr)
+ 		}
+-		if !nerr.Timeout() {
+-			t.Fatalf("got %v; want timeout error", err)
++		if !isTimeoutError(err) {
++			t.Fatalf("got %v; want timeout", err)
+ 		}
+ 	}
+ }
+ 
+-func isTimeout(err error) bool {
+-	e, ok := err.(Error)
+-	return ok && e.Timeout()
+-}
+-
+ type copyRes struct {
+ 	n   int64
+ 	err error
+@@ -84,17 +78,17 @@ func TestAcceptTimeout(t *testing.T) {
+ 	}
+ 	defer ln.Close()
+ 	ln.(*TCPListener).SetDeadline(time.Now().Add(-1 * time.Second))
+-	if _, err := ln.Accept(); !isTimeout(err) {
++	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+-	if _, err := ln.Accept(); !isTimeout(err) {
++	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+ 	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	if _, err := ln.Accept(); !isTimeout(err) {
++	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+-	if _, err := ln.Accept(); !isTimeout(err) {
++	if _, err := ln.Accept(); !isTimeoutError(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+ 	ln.(*TCPListener).SetDeadline(noDeadline)
+@@ -141,17 +135,17 @@ func TestReadTimeout(t *testing.T) {
+ 	c.SetDeadline(time.Now().Add(time.Hour))
+ 	c.SetReadDeadline(time.Now().Add(-1 * time.Second))
+ 	buf := make([]byte, 1)
+-	if _, err = c.Read(buf); !isTimeout(err) {
++	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
+-	if _, err = c.Read(buf); !isTimeout(err) {
++	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
+ 	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	if _, err = c.Read(buf); !isTimeout(err) {
++	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
+-	if _, err = c.Read(buf); !isTimeout(err) {
++	if _, err = c.Read(buf); !isTimeoutError(err) {
+ 		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+ 	}
+ 	c.SetReadDeadline(noDeadline)
+@@ -206,7 +200,7 @@ func TestWriteTimeout(t *testing.T) {
+ 		for {
+ 			_, err := c.Write(buf)
+ 			if err != nil {
+-				if isTimeout(err) {
++				if isTimeoutError(err) {
+ 					return
+ 				}
+ 				t.Fatalf("Write: expected err %v, got %v", errTimeout, err)
+@@ -563,7 +557,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 			tooLong := 5 * time.Second
+ 			select {
+ 			case res := <-clientc:
+-				if isTimeout(res.err) {
++				if isTimeoutError(res.err) {
+ 					t.Logf("for %v, good client timeout after %v, reading %d bytes", name, res.d, res.n)
+ 				} else {
+ 					t.Fatalf("for %v: client Copy = %d, %v (want timeout)", name, res.n, res.err)
+@@ -624,7 +618,7 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
+ 	c.SetReadDeadline(time.Now().Add(-5 * time.Second)) // in the psat.
+ 	buf := make([]byte, len(msg)/2)
+ 	n, err := c.Read(buf)
+-	if n > 0 || !isTimeout(err) {
++	if n > 0 || !isTimeoutError(err) {
+ 		t.Fatalf("client read = %d (%q) err=%v; want 0, timeout", n, buf[:n], err)
+ 	}
+ }
+@@ -667,7 +661,7 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
+ 	if res.n != 0 {
+ 		t.Errorf("Write = %d; want 0", res.n)
+ 	}
+-	if !isTimeout(res.err) {
++	if !isTimeoutError(res.err) {
+ 		t.Errorf("Write error = %v; want timeout", res.err)
+ 	}
+ }
+@@ -702,7 +696,7 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+ 	if err == nil {
+ 		defer c.Close()
+ 	}
+-	if !isTimeout(err) {
++	if !isTimeoutError(err) {
+ 		t.Fatalf("Accept: got %v; want timeout", err)
+ 	}
+ }
+@@ -727,8 +721,11 @@ func TestConnectDeadlineInThePast(t *testing.T) {
+ 	if err == nil {
+ 		defer c.Close()
+ 	}
+-	if !isTimeout(err) {
+-		t.Fatalf("DialTimeout: got %v; want timeout", err)
++	if perr := parseDialError(err); perr != nil {
++		t.Error(perr)
++	}
++	if !isTimeoutError(err) {
++		t.Fatalf("got %v; want timeout", err)
+ 	}
+ }
+ 
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index 6f689b67f3..371d4e6884 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -95,7 +95,7 @@ func TestReadFromUDP(t *testing.T) {
+ 	_, _, err = c.ReadFromUDP(b)
+ 	if err == nil {
+ 		t.Fatal("ReadFromUDP should fail")
+-	} else if !isTimeout(err) {
++	} else if !isTimeoutError(err) {
+ 		t.Fatal(err)
+ 	}
+ }

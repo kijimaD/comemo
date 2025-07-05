@@ -9,6 +9,25 @@ Date:   Wed Feb 23 07:47:53 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4172063
-
+---
  misc/dashboard/builder/hg.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/hg.go b/misc/dashboard/builder/hg.go
+index 5d2f63a17b..8dd33e4897 100644
+--- a/misc/dashboard/builder/hg.go
++++ b/misc/dashboard/builder/hg.go
+@@ -46,7 +46,12 @@ func getCommit(rev string) (c Commit, err os.Error) {
+ func getCommitParts(rev string) (parts []string, err os.Error) {
+ 	const format = "{rev}>{node}>{author|escape}>{date}>{desc}"
+ 	s, _, err := runLog(nil, "", goroot,
+-		"hg", "log", "-r", rev, "-l", "1", "--template", format)
++		"hg", "log",
++		"--encoding", "utf-8",
++		"--rev", rev,
++		"--limit", "1",
++		"--template", format,
++	)
+ 	if err != nil {
+ 		return
+ 	}

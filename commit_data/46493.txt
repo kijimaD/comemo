@@ -12,6 +12,31 @@ Date:   Tue Jan 5 15:04:34 2021 +0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/dcl.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 6c3aa3781e..ffbf474a58 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -266,7 +266,7 @@ func autoexport(n *ir.Name, ctxt ir.Class) {
+ 		return
+ 	}
+ 
+-	if types.IsExported(n.Sym().Name) || initname(n.Sym().Name) {
++	if types.IsExported(n.Sym().Name) || n.Sym().Name == "init" {
+ 		Export(n)
+ 	}
+ 	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
+@@ -422,10 +422,6 @@ func funcargs2(t *types.Type) {
+ 	}
+ }
+ 
+-func initname(s string) bool {
+-	return s == "init"
+-}
+-
+ var vargen int
+ 
+ func Temp(t *types.Type) *ir.Name {

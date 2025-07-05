@@ -11,6 +11,36 @@ Date:   Sat Oct 6 18:38:37 2018 +0300
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/dial_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 00a84d17d6..3a45c0d2ec 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -318,9 +318,9 @@ func TestDialParallel(t *testing.T) {
+ 
+ 		expectElapsedMin := tt.expectElapsed - 95*time.Millisecond
+ 		expectElapsedMax := tt.expectElapsed + 95*time.Millisecond
+-		if !(elapsed >= expectElapsedMin) {
++		if elapsed < expectElapsedMin {
+ 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectElapsedMin)
+-		} else if !(elapsed <= expectElapsedMax) {
++		} else if elapsed > expectElapsedMax {
+ 			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectElapsedMax)
+ 		}
+ 
+@@ -418,10 +418,10 @@ func TestDialerFallbackDelay(t *testing.T) {
+ 		}
+ 		expectMin := tt.expectElapsed - 1*time.Millisecond
+ 		expectMax := tt.expectElapsed + 95*time.Millisecond
+-		if !(elapsed >= expectMin) {
++		if elapsed < expectMin {
+ 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectMin)
+ 		}
+-		if !(elapsed <= expectMax) {
++		if elapsed > expectMax {
+ 			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectMax)
+ 		}
+ 	}

@@ -9,7 +9,7 @@ Date:   Wed Jul 27 17:39:30 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4810057
-
+---
  src/cmd/gc/dcl.c         |  6 ++++--
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/go.y          | 12 ++++++++++++
@@ -17,3 +17,134 @@ Date:   Wed Jul 27 17:39:30 2011 -0400
  src/cmd/gc/typecheck.c   |  7 +++++++
  test/fixedbugs/bug351.go | 11 +++++++++++
  6 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7290f9d3bb..827cd99d9c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -457,17 +457,19 @@ colasname(Node *n)
+ void
+ colasdefn(NodeList *left, Node *defn)
+ {
+-	int nnew;
++	int nnew, nerr;
+ 	NodeList *l;
+ 	Node *n;
+ 
+ 	nnew = 0;
++	nerr = 0;
+ 	for(l=left; l; l=l->next) {
+ 		n = l->n;
+ 		if(isblank(n))
+ 			continue;
+ 		if(!colasname(n)) {
+ 			yyerror("non-name %#N on left side of :=", n);
++			nerr++;
+ 			continue;
+ 		}
+ 		if(n->sym->block == block)
+@@ -480,7 +482,7 @@ colasdefn(NodeList *left, Node *defn)
+ 		defn->ninit = list(defn->ninit, nod(ODCL, n, N));
+ 		l->n = n;
+ 	}
+-	if(nnew == 0)
++	if(nnew == 0 && nerr == 0)
+ 		yyerror("no new variables on left side of :=");
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 604a1261b8..4491272926 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -393,6 +393,7 @@ enum
+ 	ONOT, OCOM, OPLUS, OMINUS,
+ 	OOROR,
+ 	OPANIC, OPRINT, OPRINTN,
++	OPAREN,
+ 	OSEND,
+ 	OSLICE, OSLICEARR, OSLICESTR,
+ 	ORECOVER,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ce1d4f5f58..36b549ddea 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -916,6 +916,18 @@ pexpr:
+ |	'(' expr_or_type ')'
+ 	{
+ 		$$ = $2;
++		
++		// Need to know on lhs of := whether there are ( ).
++		// Don't bother with the OPAREN in other cases:
++		// it's just a waste of memory and time.
++		switch($$->op) {
++		case ONAME:
++		case ONONAME:
++		case OPACK:
++		case OTYPE:
++		case OLITERAL:
++			$$ = nod(OPAREN, $$, N);
++		}
+ 	}
+ 
+ expr_or_type:
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 4858af5ce7..5913e848a2 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -78,6 +78,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OTPAREN:
+ 	case OINDEX:
+ 	case OINDEXMAP:
++	case OPAREN:
+ 		nprec = 7;
+ 		break;
+ 
+@@ -134,6 +135,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "(node %O)", n->op);
+ 		break;
+ 
++	case OPAREN:
++		fmtprint(f, "(%#N)", n->left);
++		break;
++
+ 	case OREGISTER:
+ 		fmtprint(f, "%R", n->val.u.reg);
+ 		break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 80af8201d8..81b9dd2c86 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -124,9 +124,16 @@ typecheck(Node **np, int top)
+ 	n = *np;
+ 	if(n == N)
+ 		return N;
++	
++	lno = setlineno(n);
++
++	// Skip over parens.
++	while(n->op == OPAREN)
++		n = n->left;
+ 
+ 	// Resolve definition of name and value of iota lazily.
+ 	n = resolve(n);
++
+ 	*np = n;
+ 
+ 	// Skip typecheck if already done.
+diff --git a/test/fixedbugs/bug351.go b/test/fixedbugs/bug351.go
+new file mode 100644
+index 0000000000..c33e28271e
+--- /dev/null
++++ b/test/fixedbugs/bug351.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	(x) := 0  // ERROR "non-name [(]x[)]"
++}

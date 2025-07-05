@@ -31,6 +31,23 @@ Date:   Thu Apr 21 14:00:26 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/gofmt/gofmt.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 5fa883fb56..9b639bd996 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -76,6 +76,11 @@ func initParserMode() {
+ 	if *allErrors {
+ 		parserMode |= parser.AllErrors
+ 	}
++	// Both -r and -s make use of go/ast's object resolution.
++	// If neither is being used, avoid that unnecessary work.
++	if *rewriteRule == "" && !*simplifyAST {
++		parserMode |= parser.SkipObjectResolution
++	}
+ }
+ 
+ func isGoFile(f fs.DirEntry) bool {

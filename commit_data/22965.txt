@@ -8,6 +8,19 @@ Date:   Sat Apr 11 06:01:54 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8787
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 2ecbef5d98..640f17083c 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -10,6 +10,7 @@ Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993
+ 
+ New Ports:
+ darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
++darwin/arm64
+ linux/arm64 (cgo is supported, but only with external linking)
+ 
+ Removed Ports:

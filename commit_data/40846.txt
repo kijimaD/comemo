@@ -16,6 +16,22 @@ Date:   Wed Jun 12 08:19:31 2019 -0700
     Change-Id: I7d305d4aaba5b2dbc6f1ab8c447117fde5e31a66
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181841
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/file.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 96df3fb5e9..c13babe5f7 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -34,6 +34,10 @@
+ //	}
+ //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
+ //
++// Note: The maximum number of concurrent operations on a File may be limited by
++// the OS or the system. The number should be high, but exceeding it may degrade
++// performance or cause other issues.
++//
+ package os
+ 
+ import (

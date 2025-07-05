@@ -10,9 +10,85 @@ Date:   Wed Sep 23 21:02:50 2015 +1200
     Change-Id: I9cdd553bab022601c9cb5bb43c9dc0c368c6fb0a
     Reviewed-on: https://go-review.googlesource.com/15961
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go       |  4 +++-
  src/cmd/compile/internal/ppc64/galign.go |  5 +++++
  src/cmd/compile/internal/ppc64/gsubr.go  | 12 ++++++++++++
  src/cmd/compile/internal/ppc64/reg.go    |  6 ++++++
  4 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 340e37fc6b..81198f37bf 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -217,11 +217,13 @@ func Main() {
+ 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
+ 	var flag_shared int
+ 	var flag_dynlink bool
+-	if Thearch.Thechar == '6' || Thearch.Thechar == '5' {
++	if Thearch.Thechar == '5' || Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+ 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+ 	}
+ 	if Thearch.Thechar == '6' {
+ 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
++	}
++	if Thearch.Thechar == '6' || Thearch.Thechar == '9' {
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	}
+ 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 16509da8fe..2bd49fd375 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -43,6 +43,11 @@ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+ 	gc.Widthreg = 8
++
++	if gc.Ctxt.Flag_shared != 0 {
++		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R2)
++		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R12)
++	}
+ }
+ 
+ func Main() {
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index dde05c4a51..9e99a31220 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -580,6 +580,18 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	case obj.ACALL:
+ 		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
+ 			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
++			if gc.Ctxt.Flag_dynlink {
++				// Make sure function pointer is in R12 as well when
++				// dynamically linking Go.
++				// TODO(mwhudson): it would obviously be better to
++				// change the register allocation to put the value in
++				// R12 already, but I don't know how to do that.
++				q := gc.Prog(as)
++				q.As = ppc64.AMOVD
++				q.From = p.To
++				q.To.Type = obj.TYPE_REG
++				q.To.Reg = ppc64.REG_R12
++			}
+ 			pp := gc.Prog(as)
+ 			pp.From = p.From
+ 			pp.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ppc64/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+index a3018362f6..e231079347 100644
+--- a/src/cmd/compile/internal/ppc64/reg.go
++++ b/src/cmd/compile/internal/ppc64/reg.go
+@@ -113,6 +113,12 @@ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+ 	regbits := uint64(1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS) | RtoB(ppc64.REGTMP))
+ 
++	if gc.Ctxt.Flag_dynlink {
++		// When dynamically linking Go, R2 is reserved to be the TOC pointer
++		// and R12 so that calls via function pointer can stomp on it.
++		regbits |= RtoB(ppc64.REG_R2)
++		regbits |= RtoB(ppc64.REG_R12)
++	}
+ 	// Also exclude floating point registers with fixed constants
+ 	regbits |= RtoB(ppc64.REG_F27) | RtoB(ppc64.REG_F28) | RtoB(ppc64.REG_F29) | RtoB(ppc64.REG_F30) | RtoB(ppc64.REG_F31)
+ 

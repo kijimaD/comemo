@@ -13,6 +13,25 @@ Date:   Sat Jan 28 02:01:50 2017 -0500
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/jn.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/jn.go b/src/math/jn.go
+index 342278257a..4a8ddfad9b 100644
+--- a/src/math/jn.go
++++ b/src/math/jn.go
+@@ -226,10 +226,10 @@ func Jn(n int, x float64) float64 {
+ //
+ // Special cases are:
+ //	Yn(n, +Inf) = 0
+-//	Yn(n > 0, 0) = -Inf
++//	Yn(n ≥ 0, 0) = -Inf
+ //	Yn(n < 0, 0) = +Inf if n is odd, -Inf if n is even
+-//	Y1(n, x < 0) = NaN
+-//	Y1(n, NaN) = NaN
++//	Yn(n, x < 0) = NaN
++//	Yn(n, NaN) = NaN
+ func Yn(n int, x float64) float64 {
+ 	const Two302 = 1 << 302 // 2**302 0x52D0000000000000
+ 	// special cases

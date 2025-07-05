@@ -8,6 +8,20 @@ Date:   Thu Aug 20 09:49:05 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=33586
     CL=33590
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 34b03aaae9..5c01f55fba 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -120,7 +120,7 @@ func isGoFile(dir *os.Dir) bool {
+ 
+ 
+ func isPkgDir(dir *os.Dir) bool {
+-	return dir.IsDirectory() && dir.Name != "_obj";
++	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_';
+ }
+ 
+ 

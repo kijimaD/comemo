@@ -19,8 +19,74 @@ Date:   Tue Sep 14 12:40:10 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/mutator.go      |  7 +------
  src/internal/fuzz/mutator_test.go | 16 ++++++++++++++++
  src/testing/fuzz.go               |  5 ++++-
  3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index 9aa56782b0..da7200dcbe 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -106,12 +106,7 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 			copy(m.scratch, v)
+ 		}
+ 		m.mutateBytes(&m.scratch)
+-		var s string
+-		shdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
+-		bhdr := (*reflect.SliceHeader)(unsafe.Pointer(&m.scratch))
+-		shdr.Data = bhdr.Data
+-		shdr.Len = bhdr.Len
+-		vals[i] = s
++		vals[i] = string(m.scratch)
+ 	case []byte:
+ 		if len(v) > maxPerVal {
+ 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+diff --git a/src/internal/fuzz/mutator_test.go b/src/internal/fuzz/mutator_test.go
+index ee2912dfd2..d8015ce213 100644
+--- a/src/internal/fuzz/mutator_test.go
++++ b/src/internal/fuzz/mutator_test.go
+@@ -5,6 +5,7 @@
+ package fuzz
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"os"
+ 	"strconv"
+@@ -99,3 +100,18 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestStringImmutability(t *testing.T) {
++	v := []interface{}{"hello"}
++	m := newMutator()
++	m.mutate(v, 1024)
++	original := v[0].(string)
++	originalCopy := make([]byte, len(original))
++	copy(originalCopy, []byte(original))
++	for i := 0; i < 25; i++ {
++		m.mutate(v, 1024)
++	}
++	if !bytes.Equal([]byte(original), originalCopy) {
++		t.Fatalf("string was mutated: got %x, want %x", []byte(original), originalCopy)
++	}
++}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 57ea418039..ddce065783 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -293,7 +293,10 @@ var supportedTypes = map[reflect.Type]bool{
+ // f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
+ //
+ // This function should be fast, deterministic, and stateless.
+-// None of the pointers to any input data should be retained between executions.
++//
++// No mutatable input arguments, or pointers to them, should be retained between
++// executions of the fuzz function, as the memory backing them may be mutated
++// during a subsequent invocation.
+ //
+ // This is a terminal function which will terminate the currently running fuzz
+ // target by calling runtime.Goexit.

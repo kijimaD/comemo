@@ -18,6 +18,20 @@ Date:   Fri Mar 31 10:28:54 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index fb6570cec1..0426b7e474 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -575,7 +575,7 @@ var statuniqgen int // name generator for static temps
+ // Callers should call n.Name.SetReadonly(true) on the
+ // returned node for readonly nodes.
+ func staticname(t *Type) *Node {
+-	n := newname(lookupN("statictmp_", statuniqgen))
++	n := newname(lookup(fmt.Sprintf("statictmp_%d", statuniqgen)))
+ 	statuniqgen++
+ 	addvar(n, t, PEXTERN)
+ 	return n

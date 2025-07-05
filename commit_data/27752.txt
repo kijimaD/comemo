@@ -48,8 +48,136 @@ Date:   Thu Mar 31 02:01:48 2016 -0700
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/get.go      |  8 ++++----
  src/cmd/go/vcs.go      | 13 ++++++-------
  src/cmd/go/vcs_test.go | 35 +++++++++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 7e0045fb1d..b52991a5fc 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -45,7 +45,7 @@ missing packages but does not use it to look for updates to existing packages.
+ 
+ Get also accepts build flags to control the installation. See 'go help build'.
+ 
+-When checking out a new package, get creates the target directory 
++When checking out a new package, get creates the target directory
+ GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+ get uses the first one. See 'go help gopath'.
+ 
+@@ -346,7 +346,7 @@ func downloadPackage(p *Package) error {
+ 
+ 	if p.build.SrcRoot != "" {
+ 		// Directory exists. Look for checkout along path to src.
+-		vcs, rootPath, err = vcsForDir(p)
++		vcs, rootPath, err = vcsFromDir(p.Dir, p.build.SrcRoot)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -354,7 +354,7 @@ func downloadPackage(p *Package) error {
+ 
+ 		// Double-check where it came from.
+ 		if *getU && vcs.remoteRepo != nil {
+-			dir := filepath.Join(p.build.SrcRoot, rootPath)
++			dir := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+ 			remote, err := vcs.remoteRepo(vcs, dir)
+ 			if err != nil {
+ 				return err
+@@ -401,7 +401,7 @@ func downloadPackage(p *Package) error {
+ 		p.build.SrcRoot = filepath.Join(list[0], "src")
+ 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
+ 	}
+-	root := filepath.Join(p.build.SrcRoot, rootPath)
++	root := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+ 	// If we've considered this repository already, don't do it again.
+ 	if downloadRootCache[root] {
+ 		return nil
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index a9663b2185..e3342999fa 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -479,15 +479,14 @@ type vcsPath struct {
+ 	regexp *regexp.Regexp // cached compiled form of re
+ }
+ 
+-// vcsForDir inspects dir and its parents to determine the
++// vcsFromDir inspects dir and its parents to determine the
+ // version control system and code repository to use.
+ // On return, root is the import path
+-// corresponding to the root of the repository
+-// (thus root is a prefix of importPath).
+-func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
++// corresponding to the root of the repository.
++func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
+ 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
+-	dir := filepath.Clean(p.Dir)
+-	srcRoot := filepath.Clean(p.build.SrcRoot)
++	dir = filepath.Clean(dir)
++	srcRoot = filepath.Clean(srcRoot)
+ 	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
+ 		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+ 	}
+@@ -496,7 +495,7 @@ func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
+ 	for len(dir) > len(srcRoot) {
+ 		for _, vcs := range vcsList {
+ 			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
+-				return vcs, dir[len(srcRoot)+1:], nil
++				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index 52a534a3a3..d951189459 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -6,6 +6,10 @@ package main
+ 
+ import (
+ 	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"path"
++	"path/filepath"
+ 	"testing"
+ )
+ 
+@@ -128,6 +132,37 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 	}
+ }
+ 
++// Test that vcsFromDir correctly inspects a given directory and returns the right VCS and root.
++func TestFromDir(t *testing.T) {
++	tempDir, err := ioutil.TempDir("", "vcstest")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tempDir)
++
++	for _, vcs := range vcsList {
++		dir := filepath.Join(tempDir, "example.com", vcs.name, "."+vcs.cmd)
++		err := os.MkdirAll(dir, 0755)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		want := repoRoot{
++			vcs:  vcs,
++			root: path.Join("example.com", vcs.name),
++		}
++		var got repoRoot
++		got.vcs, got.root, err = vcsFromDir(dir, tempDir)
++		if err != nil {
++			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
++			continue
++		}
++		if got.vcs.name != want.vcs.name || got.root != want.root {
++			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.vcs, got.root, want.vcs, want.root)
++		}
++	}
++}
++
+ func TestIsSecure(t *testing.T) {
+ 	tests := []struct {
+ 		vcs    *vcsCmd

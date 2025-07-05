@@ -11,7 +11,119 @@ Date:   Wed Mar 15 21:28:29 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 64 +++++++++++++++++++++++++++++++--
  src/cmd/compile/internal/gc/ssa.go      |  4 +++
  2 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 15b8fecdc4..6d56cf6066 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -183,9 +183,10 @@ var allAsmTests = []*asmTests{
+ 		tests: linuxARMTests,
+ 	},
+ 	{
+-		arch:  "arm64",
+-		os:    "linux",
+-		tests: linuxARM64Tests,
++		arch:    "arm64",
++		os:      "linux",
++		imports: []string{"math/bits"},
++		tests:   linuxARM64Tests,
+ 	},
+ }
+ 
+@@ -576,6 +577,30 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tBSFQ\t", "\tORQ\t\\$256,"},
+ 	},
++	{
++		`
++		func f45(a uint64) uint64 {
++			return bits.ReverseBytes64(a)
++		}
++		`,
++		[]string{"\tBSWAPQ\t"},
++	},
++	{
++		`
++		func f46(a uint32) uint32 {
++			return bits.ReverseBytes32(a)
++		}
++		`,
++		[]string{"\tBSWAPL\t"},
++	},
++	{
++		`
++		func f47(a uint16) uint16 {
++			return bits.ReverseBytes16(a)
++		}
++		`,
++		[]string{"\tROLW\t\\$8,"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+@@ -776,6 +801,23 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		[]string{"\tFLOGR\t", "\tOR\t\\$256,"},
+ 	},
++	// Intrinsic tests for math/bits
++	{
++		`
++		func f22(a uint64) uint64 {
++			return bits.ReverseBytes64(a)
++		}
++		`,
++		[]string{"\tMOVDBR\t"},
++	},
++	{
++		`
++		func f23(a uint32) uint32 {
++			return bits.ReverseBytes32(a)
++		}
++		`,
++		[]string{"\tMOVWBR\t"},
++	},
+ }
+ 
+ var linuxARMTests = []*asmTest{
+@@ -854,6 +896,22 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tRORW\t[$]25,"},
+ 	},
++	{
++		`
++		func f22(a uint64) uint64 {
++			return bits.ReverseBytes64(a)
++		}
++		`,
++		[]string{"\tREV\t"},
++	},
++	{
++		`
++		func f23(a uint32) uint32 {
++			return bits.ReverseBytes32(a)
++		}
++		`,
++		[]string{"\tREVW\t"},
++	},
+ }
+ 
+ // TestLineNumber checks to make sure the generated assembly has line numbers
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1791e65bf1..bd766a5870 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2702,6 +2702,10 @@ func init() {
+ 			return s.newValue1(ssa.OpCtz64, Types[TINT], y)
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.S390X)
++	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
++	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
++	// ReverseBytes inlines correctly, no need to intrinsify it.
++	// ReverseBytes16 lowers to a rotate, no need for anything special here.
+ 
+ 	/******** sync/atomic ********/
+ 

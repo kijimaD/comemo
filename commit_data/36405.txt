@@ -42,8 +42,70 @@ Date:   Thu Apr 19 11:09:05 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/108155
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go  | 8 ++++++++
  src/cmd/go/internal/work/exec.go | 6 +++---
  src/cmd/go/internal/work/gc.go   | 2 +-
  3 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ff9243a320..af5ffcd103 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -122,6 +122,14 @@ func (p *Package) AllFiles() []string {
+ 	)
+ }
+ 
++// Desc returns the package "description", for use in b.showOutput.
++func (p *Package) Desc() string {
++	if p.ForTest != "" {
++		return p.ImportPath + " [" + p.ForTest + ".test]"
++	}
++	return p.ImportPath
++}
++
+ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build        *build.Package
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8c451aae52..7014159cee 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -573,7 +573,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 	objpkg := objdir + "_pkg_.a"
+ 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
+ 	if len(out) > 0 {
+-		b.showOutput(a, a.Package.Dir, a.Package.ImportPath, b.processOutput(out))
++		b.showOutput(a, a.Package.Dir, a.Package.Desc(), b.processOutput(out))
+ 		if err != nil {
+ 			return errPrintedOutput
+ 		}
+@@ -2411,13 +2411,13 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
+ 			if bytes.Contains(out, []byte("-intgosize")) || bytes.Contains(out, []byte("-cgo")) {
+ 				return "", "", errors.New("must have SWIG version >= 3.0.6")
+ 			}
+-			b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig error
++			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig error
+ 			return "", "", errPrintedOutput
+ 		}
+ 		return "", "", err
+ 	}
+ 	if len(out) > 0 {
+-		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
++		b.showOutput(a, p.Dir, p.Desc(), b.processOutput(out)) // swig warning
+ 	}
+ 
+ 	// If the input was x.swig, the output is x.go in the objdir.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 2d61e54333..4827cea9ef 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -295,7 +295,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
+ 		return nil
+ 	}
+ 	if err := packInternal(absAfile, absOfiles); err != nil {
+-		b.showOutput(a, p.Dir, p.ImportPath, err.Error()+"\n")
++		b.showOutput(a, p.Dir, p.Desc(), err.Error()+"\n")
+ 		return errPrintedOutput
+ 	}
+ 	return nil

@@ -8,7 +8,38 @@ Date:   Thu Jul 19 11:55:03 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6428053
-
+---
  src/pkg/sync/waitgroup.go      | 3 ++-
  src/pkg/sync/waitgroup_test.go | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/sync/waitgroup.go b/src/pkg/sync/waitgroup.go
+index 0165b1ffb2..bc9e738e78 100644
+--- a/src/pkg/sync/waitgroup.go
++++ b/src/pkg/sync/waitgroup.go
+@@ -32,10 +32,11 @@ type WaitGroup struct {
+ 
+ // Add adds delta, which may be negative, to the WaitGroup counter.
+ // If the counter becomes zero, all goroutines blocked on Wait() are released.
++// If the counter goes negative, Add panics.
+ func (wg *WaitGroup) Add(delta int) {
+ 	v := atomic.AddInt32(&wg.counter, int32(delta))
+ 	if v < 0 {
+-		panic("sync: negative WaitGroup count")
++		panic("sync: negative WaitGroup counter")
+ 	}
+ 	if v > 0 || atomic.LoadInt32(&wg.waiters) == 0 {
+ 		return
+diff --git a/src/pkg/sync/waitgroup_test.go b/src/pkg/sync/waitgroup_test.go
+index 34430fc215..84c4cfc37a 100644
+--- a/src/pkg/sync/waitgroup_test.go
++++ b/src/pkg/sync/waitgroup_test.go
+@@ -50,7 +50,7 @@ func TestWaitGroup(t *testing.T) {
+ func TestWaitGroupMisuse(t *testing.T) {
+ 	defer func() {
+ 		err := recover()
+-		if err != "sync: negative WaitGroup count" {
++		if err != "sync: negative WaitGroup counter" {
+ 			t.Fatalf("Unexpected panic: %#v", err)
+ 		}
+ 	}()

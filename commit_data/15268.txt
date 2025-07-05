@@ -7,6 +7,20 @@ Date:   Fri Feb 15 17:04:02 2013 +0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7312101
-
+---
  src/pkg/runtime/stack.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index a299fbf409..ac00e53765 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -90,7 +90,7 @@ runtime·stackalloc(uint32 n)
+ 	// will be a single size, the minimum (right now, 5k).
+ 	if(n == FixedStack || m->mallocing || m->gcing) {
+ 		if(n != FixedStack) {
+-			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
++			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
+ 			runtime·throw("stackalloc");
+ 		}
+ 		if(m->stackcachecnt == 0)

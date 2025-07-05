@@ -13,7 +13,34 @@ Date:   Tue Sep 13 09:39:19 2022 +0200
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/types2/errorcodes.go | 2 +-
  src/go/types/errorcodes.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errorcodes.go b/src/cmd/compile/internal/types2/errorcodes.go
+index a1138b7b0d..6b3e6d6f24 100644
+--- a/src/cmd/compile/internal/types2/errorcodes.go
++++ b/src/cmd/compile/internal/types2/errorcodes.go
+@@ -867,7 +867,7 @@ const (
+ 	//  var _ = string(x)
+ 	_InvalidConversion
+ 
+-	// _InvalidUntypedConversion occurs when an there is no valid implicit
++	// _InvalidUntypedConversion occurs when there is no valid implicit
+ 	// conversion from an untyped value satisfying the type constraints of the
+ 	// context in which it is used.
+ 	//
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index b82300f8ad..3c224a1366 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -867,7 +867,7 @@ const (
+ 	//  var _ = string(x)
+ 	_InvalidConversion
+ 
+-	// _InvalidUntypedConversion occurs when an there is no valid implicit
++	// _InvalidUntypedConversion occurs when there is no valid implicit
+ 	// conversion from an untyped value satisfying the type constraints of the
+ 	// context in which it is used.
+ 	//

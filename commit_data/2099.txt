@@ -9,7 +9,73 @@ Date:   Tue Apr 28 04:26:07 2009 -0700
     DELTA=20  (11 added, 6 deleted, 3 changed)
     OCL=27782
     CL=27950
-
+---
  src/lib/exvar.go     | 11 +++++++++++
  src/lib/http/triv.go | 12 +++---------
  2 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/lib/exvar.go b/src/lib/exvar.go
+index a5d91f334b..6f69614ebd 100644
+--- a/src/lib/exvar.go
++++ b/src/lib/exvar.go
+@@ -8,6 +8,8 @@ package exvar
+ 
+ import (
+ 	"fmt";
++	"http";
++	"io";
+ )
+ 
+ // If mismatched names are used (e.g. calling IncrementInt on a mapVar), the
+@@ -220,3 +222,12 @@ func String() string {
+ 	});
+ 	return s
+ }
++
++// ExvarHandler is a HTTP handler that displays exported variables.
++// Use it like this:
++//   http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
++func ExvarHandler(c *http.Conn, req *http.Request) {
++	// TODO(dsymonds): Support different output= args.
++	c.SetHeader("content-type", "text/plain; charset=utf-8");
++	io.WriteString(c, String());
++}
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index 48e345e5e8..7678b3fff8 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -18,23 +18,17 @@ import (
+ 
+ // hello world, the web server
+ func HelloServer(c *http.Conn, req *http.Request) {
+-	exvar.Increment("hello-requests", 1);
++	exvar.IncrementInt("hello-requests", 1);
+ 	io.WriteString(c, "hello, world!\n");
+ }
+ 
+-// Handler for /exvar requests.
+-func ExvarServer(c *http.Conn, req *http.Request) {
+-	c.SetHeader("content-type", "text/plain; charset=utf-8");
+-	io.WriteString(c, exvar.String());
+-}
+-
+ // simple counter server
+ type Counter struct {
+ 	n int;
+ }
+ 
+ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+-	exvar.Increment("counter-requests", 1);
++	exvar.IncrementInt("counter-requests", 1);
+ 	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+ 	ctr.n++;
+ }
+@@ -101,7 +95,7 @@ func main() {
+ 	http.Handle("/args", http.HandlerFunc(ArgServer));
+ 	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
+ 	http.Handle("/chan", ChanCreate());
+-	http.Handle("/exvar", http.HandlerFunc(ExvarServer));
++	http.Handle("/exvar", http.HandlerFunc(exvar.ExvarHandler));
+ 	err := http.ListenAndServe(":12345", nil);
+ 	if err != nil {
+ 		panic("ListenAndServe: ", err.String())

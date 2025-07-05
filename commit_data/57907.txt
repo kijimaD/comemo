@@ -13,10 +13,156 @@ Date:   Fri Sep 8 15:44:57 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/const.go      | 32 ++++++++++++++++++++++++++++---
  src/cmd/compile/internal/ir/expr.go       | 14 +++++---------
  src/cmd/compile/internal/noder/helpers.go |  2 --
  src/cmd/compile/internal/noder/reader.go  |  6 +++---
  src/cmd/compile/internal/walk/switch.go   |  2 +-
  5 files changed, 38 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/const.go b/src/cmd/compile/internal/ir/const.go
+index 751620f26a..74e55511e4 100644
+--- a/src/cmd/compile/internal/ir/const.go
++++ b/src/cmd/compile/internal/ir/const.go
+@@ -14,18 +14,44 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++// NewBool returns an OLITERAL representing b as an untyped boolean.
+ func NewBool(pos src.XPos, b bool) Node {
+-	return NewBasicLit(pos, constant.MakeBool(b))
++	return NewBasicLit(pos, types.UntypedBool, constant.MakeBool(b))
+ }
+ 
++// NewInt returns an OLITERAL representing v as an untyped integer.
+ func NewInt(pos src.XPos, v int64) Node {
+-	return NewBasicLit(pos, constant.MakeInt64(v))
++	return NewBasicLit(pos, types.UntypedInt, constant.MakeInt64(v))
+ }
+ 
++// NewString returns an OLITERAL representing s as an untyped string.
+ func NewString(pos src.XPos, s string) Node {
+-	return NewBasicLit(pos, constant.MakeString(s))
++	return NewBasicLit(pos, types.UntypedString, constant.MakeString(s))
+ }
+ 
++// NewOne returns an OLITERAL representing 1 with the given type.
++func NewOne(pos src.XPos, typ *types.Type) Node {
++	var val constant.Value
++	switch {
++	case typ.IsInteger():
++		val = intOne
++	case typ.IsFloat():
++		val = floatOne
++	case typ.IsComplex():
++		val = complexOne
++	default:
++		base.FatalfAt(pos, "%v cannot represent 1", typ)
++	}
++
++	return NewBasicLit(pos, typ, val)
++}
++
++var (
++	intOne     = constant.MakeInt64(1)
++	floatOne   = constant.ToFloat(intOne)
++	complexOne = constant.ToComplex(intOne)
++)
++
+ const (
+ 	// Maximum size in bits for big.Ints before signaling
+ 	// overflow and also mantissa precision for big.Floats.
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index abea185dd3..676045d27a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -132,15 +132,14 @@ type BasicLit struct {
+ 	val constant.Value
+ }
+ 
+-func NewBasicLit(pos src.XPos, val constant.Value) Node {
+-	if val == nil || val.Kind() == constant.Unknown {
+-		base.FatalfAt(pos, "bad value: %v", val)
+-	}
++// NewBasicLit returns an OLITERAL representing val with the given type.
++func NewBasicLit(pos src.XPos, typ *types.Type, val constant.Value) Node {
++	AssertValidTypeForConst(typ, val)
+ 
+ 	n := &BasicLit{val: val}
+ 	n.op = OLITERAL
+ 	n.pos = pos
+-	n.SetType(types.UntypedTypes[val.Kind()])
++	n.SetType(typ)
+ 	n.SetTypecheck(1)
+ 	return n
+ }
+@@ -151,10 +150,7 @@ func (n *BasicLit) SetVal(val constant.Value) { n.val = val }
+ // NewConstExpr returns an OLITERAL representing val, copying the
+ // position and type from orig.
+ func NewConstExpr(val constant.Value, orig Node) Node {
+-	n := NewBasicLit(orig.Pos(), val)
+-	n.SetType(orig.Type())
+-	n.SetTypecheck(orig.Typecheck())
+-	return n
++	return NewBasicLit(orig.Pos(), orig.Type(), val)
+ }
+ 
+ // A BinaryExpr is a binary expression X Op Y,
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index ae31f86006..05a57d07f0 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -79,8 +79,6 @@ func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
+ 
+ // Statements
+ 
+-var one = constant.MakeInt64(1)
+-
+ func idealType(tv syntax.TypeAndValue) types2.Type {
+ 	// The gc backend expects all expressions to have a concrete type, and
+ 	// types2 mostly satisfies this expectation already. But there are a few
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 35dfe3d674..4b26eb4668 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1760,7 +1760,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 		op := r.op()
+ 		lhs := r.expr()
+ 		pos := r.pos()
+-		n := ir.NewAssignOpStmt(pos, op, lhs, ir.NewBasicLit(pos, one))
++		n := ir.NewAssignOpStmt(pos, op, lhs, ir.NewOne(pos, lhs.Type()))
+ 		n.IncDec = true
+ 		return n
+ 
+@@ -2176,7 +2176,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		pos := r.pos()
+ 		typ := r.typ()
+ 		val := FixValue(typ, r.Value())
+-		return typed(typ, ir.NewBasicLit(pos, val))
++		return ir.NewBasicLit(pos, typ, val)
+ 
+ 	case exprNil:
+ 		pos := r.pos()
+@@ -3152,7 +3152,7 @@ func (r *reader) exprs() []ir.Node {
+ // uintptr-typed word from the dictionary parameter.
+ func (r *reader) dictWord(pos src.XPos, idx int) ir.Node {
+ 	base.AssertfAt(r.dictParam != nil, pos, "expected dictParam in %v", r.curfn)
+-	return typecheck.Expr(ir.NewIndexExpr(pos, r.dictParam, ir.NewBasicLit(pos, constant.MakeInt64(int64(idx)))))
++	return typecheck.Expr(ir.NewIndexExpr(pos, r.dictParam, ir.NewInt(pos, int64(idx))))
+ }
+ 
+ // rttiWord is like dictWord, but converts it to *byte (the type used
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 67ccb2e5d1..2fc8aefe5f 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -233,7 +233,7 @@ func (s *exprSwitch) flush() {
+ 			s.done.Append(ir.NewBranchStmt(pos, ir.OGOTO, endLabel))
+ 
+ 			// Add length case to outer switch.
+-			cas := ir.NewBasicLit(pos, constant.MakeInt64(runLen(run)))
++			cas := ir.NewInt(pos, runLen(run))
+ 			jmp := ir.NewBranchStmt(pos, ir.OGOTO, label)
+ 			outer.Add(pos, cas, nil, jmp)
+ 		}

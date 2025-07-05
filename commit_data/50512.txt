@@ -28,9 +28,145 @@ Date:   Mon Apr 12 22:33:54 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcpacer.go | 29 +++++++++++++++++++++++++++++
  src/runtime/proc.go     |  7 +++++--
  src/runtime/runtime2.go |  6 ++++++
  src/runtime/stack.go    |  5 +++++
  4 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 094dcc701a..9cc7cf99db 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -47,6 +47,10 @@ const (
+ 
+ 	// defaultHeapMinimum is the value of heapMinimum for GOGC==100.
+ 	defaultHeapMinimum = 4 << 20
++
++	// scannableStackSizeSlack is the bytes of stack space allocated or freed
++	// that can accumulate on a P before updating gcController.stackSize.
++	scannableStackSizeSlack = 8 << 10
+ )
+ 
+ func init() {
+@@ -166,6 +170,18 @@ type gcControllerState struct {
+ 	// Read and written atomically or with the world stopped.
+ 	heapScan uint64
+ 
++	// stackScan is a snapshot of scannableStackSize taken at each GC
++	// STW pause and is used in pacing decisions.
++	//
++	// Updated only while the world is stopped.
++	stackScan uint64
++
++	// scannableStackSize is the amount of allocated goroutine stack space in
++	// use by goroutines.
++	//
++	// Read and updated atomically.
++	scannableStackSize uint64
++
+ 	// heapMarked is the number of bytes marked by the previous
+ 	// GC. After mark termination, heapLive == heapMarked, but
+ 	// unlike heapLive, heapMarked does not change until the
+@@ -276,6 +292,7 @@ func (c *gcControllerState) startCycle(markStartTime int64) {
+ 	c.fractionalMarkTime = 0
+ 	c.idleMarkTime = 0
+ 	c.markStartTime = markStartTime
++	c.stackScan = atomic.Load64(&c.scannableStackSize)
+ 
+ 	// Ensure that the heap goal is at least a little larger than
+ 	// the current live heap size. This may not be the case if GC
+@@ -686,6 +703,18 @@ func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
+ 	}
+ }
+ 
++func (c *gcControllerState) addScannableStack(pp *p, amount int64) {
++	if pp == nil {
++		atomic.Xadd64(&c.scannableStackSize, amount)
++		return
++	}
++	pp.scannableStackSizeDelta += amount
++	if pp.scannableStackSizeDelta >= scannableStackSizeSlack || pp.scannableStackSizeDelta <= -scannableStackSizeSlack {
++		atomic.Xadd64(&c.scannableStackSize, pp.scannableStackSizeDelta)
++		pp.scannableStackSizeDelta = 0
++	}
++}
++
+ // commit sets the trigger ratio and updates everything
+ // derived from it: the absolute trigger, the heap goal, mark pacing,
+ // and sweep pacing.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index bd7dacd440..615f53d31f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3623,8 +3623,10 @@ func goexit1() {
+ // goexit continuation on g0.
+ func goexit0(gp *g) {
+ 	_g_ := getg()
++	_p_ := _g_.m.p.ptr()
+ 
+ 	casgstatus(gp, _Grunning, _Gdead)
++	gcController.addScannableStack(_p_, -int64(gp.stack.hi-gp.stack.lo))
+ 	if isSystemGoroutine(gp, false) {
+ 		atomic.Xadd(&sched.ngsys, -1)
+ 	}
+@@ -3655,7 +3657,7 @@ func goexit0(gp *g) {
+ 	dropg()
+ 
+ 	if GOARCH == "wasm" { // no threads yet on wasm
+-		gfput(_g_.m.p.ptr(), gp)
++		gfput(_p_, gp)
+ 		schedule() // never returns
+ 	}
+ 
+@@ -3663,7 +3665,7 @@ func goexit0(gp *g) {
+ 		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
+ 		throw("internal lockOSThread error")
+ 	}
+-	gfput(_g_.m.p.ptr(), gp)
++	gfput(_p_, gp)
+ 	if locked {
+ 		// The goroutine may have locked this thread because
+ 		// it put it in an unusual kernel state. Kill it
+@@ -4292,6 +4294,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 		newg.tracking = true
+ 	}
+ 	casgstatus(newg, _Gdead, _Grunnable)
++	gcController.addScannableStack(_p_, int64(newg.stack.hi-newg.stack.lo))
+ 
+ 	if _p_.goidcache == _p_.goidcacheend {
+ 		// Sched.goidgen is the last allocated id,
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index db1c6e307b..bfd857e8d5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -734,6 +734,12 @@ type p struct {
+ 	// Race context used while executing timer functions.
+ 	timerRaceCtx uintptr
+ 
++	// scannableStackSizeDelta accumulates the amount of stack space held by
++	// live goroutines (i.e. those eligible for stack scanning).
++	// Flushed to gcController.scannableStackSize once scannableStackSizeSlack
++	// or -scannableStackSizeSlack is reached.
++	scannableStackSizeDelta int64
++
+ 	// preempt is set to indicate that this P should be enter the
+ 	// scheduler ASAP (regardless of what G is running on it).
+ 	preempt bool
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 284c6b3b84..8ae9c1e698 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -852,6 +852,11 @@ func copystack(gp *g, newsize uintptr) {
+ 		throw("nil stackbase")
+ 	}
+ 	used := old.hi - gp.sched.sp
++	// Add just the difference to gcController.addScannableStack.
++	// g0 stacks never move, so this will never account for them.
++	// It's also fine if we have no P, addScannableStack can deal with
++	// that case.
++	gcController.addScannableStack(getg().m.p.ptr(), int64(newsize)-int64(old.hi-old.lo))
+ 
+ 	// allocate new stack
+ 	new := stackalloc(uint32(newsize))

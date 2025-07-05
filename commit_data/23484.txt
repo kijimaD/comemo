@@ -23,7 +23,7 @@ Date:   Fri May 15 16:00:50 2015 -0400
     Change-Id: I5dc97f87b44fb98963c49c777d7053653974c911
     Reviewed-on: https://go-review.googlesource.com/10154
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/debug.go    | 11 ++-----
  src/runtime/heapdump.go | 13 +++------
  src/runtime/mgc.go      | 10 +++----
@@ -33,3 +33,440 @@ Date:   Fri May 15 16:00:50 2015 -0400
  src/runtime/proc1.go    | 76 +++++++++++++++++++++++++++++++++++--------------
  src/runtime/trace.go    | 34 +++++++---------------
  8 files changed, 86 insertions(+), 95 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 3ecaac10bc..9aec3b03e0 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -22,17 +22,12 @@ func GOMAXPROCS(n int) int {
+ 		return ret
+ 	}
+ 
+-	semacquire(&worldsema, false)
+-	gp := getg()
+-	gp.m.preemptoff = "GOMAXPROCS"
+-	systemstack(stoptheworld)
++	stopTheWorld("GOMAXPROCS")
+ 
+-	// newprocs will be processed by starttheworld
++	// newprocs will be processed by startTheWorld
+ 	newprocs = int32(n)
+ 
+-	gp.m.preemptoff = ""
+-	semrelease(&worldsema)
+-	systemstack(starttheworld)
++	startTheWorld()
+ 	return ret
+ }
+ 
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 0add63acb4..196cb3fcb5 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -15,20 +15,15 @@ import "unsafe"
+ 
+ //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
+ func runtime_debug_WriteHeapDump(fd uintptr) {
+-	semacquire(&worldsema, false)
+-	gp := getg()
+-	gp.m.preemptoff = "write heap dump"
+-	systemstack(stoptheworld)
++	stopTheWorld("write heap dump")
+ 
+ 	systemstack(func() {
+ 		writeheapdump_m(fd)
+ 	})
+ 
+-	gp.m.preemptoff = ""
+-	gp.m.locks++
+-	semrelease(&worldsema)
+-	systemstack(starttheworld)
+-	gp.m.locks--
++	getg().m.locks++ // TODO: Is this necessary?
++	startTheWorld()
++	getg().m.locks--
+ }
+ 
+ const (
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 848b46804c..68636740a6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -699,7 +699,7 @@ const (
+ func startGC(mode int) {
+ 	// The gc is turned off (via enablegc) until the bootstrap has completed.
+ 	// Also, malloc gets called in the guts of a number of libraries that might be
+-	// holding locks. To avoid deadlocks during stoptheworld, don't bother
++	// holding locks. To avoid deadlocks during stop-the-world, don't bother
+ 	// trying to run gc while holding a lock. The next mallocgc without a lock
+ 	// will do the gc instead.
+ 	mp := acquirem()
+@@ -797,7 +797,7 @@ func gc(mode int) {
+ 		traceGCStart()
+ 	}
+ 
+-	systemstack(stoptheworld)
++	systemstack(stopTheWorldWithSema)
+ 	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+ 	// clearpools before we start the GC. If we wait they memory will not be
+ 	// reclaimed until the next GC cycle.
+@@ -814,7 +814,7 @@ func gc(mode int) {
+ 			setGCPhase(_GCscan)
+ 
+ 			// Concurrent scan.
+-			starttheworld()
++			startTheWorldWithSema()
+ 			if debug.gctrace > 0 {
+ 				tScan = nanotime()
+ 			}
+@@ -858,7 +858,7 @@ func gc(mode int) {
+ 		if debug.gctrace > 0 {
+ 			tMarkTerm = nanotime()
+ 		}
+-		systemstack(stoptheworld)
++		systemstack(stopTheWorldWithSema)
+ 		// The gcphase is _GCmark, it will transition to _GCmarktermination
+ 		// below. The important thing is that the wb remains active until
+ 		// all marking is complete. This includes writes made by the GC.
+@@ -958,7 +958,7 @@ func gc(mode int) {
+ 		throw("gc done but gcphase != _GCoff")
+ 	}
+ 
+-	systemstack(starttheworld)
++	systemstack(startTheWorldWithSema)
+ 
+ 	releasem(mp)
+ 	mp = nil
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 4544344780..a618bd5e81 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -521,9 +521,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 	n = NumGoroutine()
+ 	if n <= len(p) {
+ 		gp := getg()
+-		semacquire(&worldsema, false)
+-		gp.m.preemptoff = "profile"
+-		systemstack(stoptheworld)
++		stopTheWorld("profile")
+ 
+ 		n = NumGoroutine()
+ 		if n <= len(p) {
+@@ -544,9 +542,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 			}
+ 		}
+ 
+-		gp.m.preemptoff = ""
+-		semrelease(&worldsema)
+-		systemstack(starttheworld)
++		startTheWorld()
+ 	}
+ 
+ 	return n, ok
+@@ -565,10 +561,7 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+ // into buf after the trace for the current goroutine.
+ func Stack(buf []byte, all bool) int {
+ 	if all {
+-		semacquire(&worldsema, false)
+-		gp := getg()
+-		gp.m.preemptoff = "stack trace"
+-		systemstack(stoptheworld)
++		stopTheWorld("stack trace")
+ 	}
+ 
+ 	n := 0
+@@ -590,10 +583,7 @@ func Stack(buf []byte, all bool) int {
+ 	}
+ 
+ 	if all {
+-		gp := getg()
+-		gp.m.preemptoff = ""
+-		semrelease(&worldsema)
+-		systemstack(starttheworld)
++		startTheWorld()
+ 	}
+ 	return n
+ }
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index c8e5249156..bd6ac1a4d5 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -153,24 +153,15 @@ func init() {
+ 
+ // ReadMemStats populates m with memory allocator statistics.
+ func ReadMemStats(m *MemStats) {
+-	// Have to acquire worldsema to stop the world,
+-	// because stoptheworld can only be used by
+-	// one goroutine at a time, and there might be
+-	// a pending garbage collection already calling it.
+-	semacquire(&worldsema, false)
+-	gp := getg()
+-	gp.m.preemptoff = "read mem stats"
+-	systemstack(stoptheworld)
++	stopTheWorld("read mem stats")
+ 
+ 	systemstack(func() {
+ 		readmemstats_m(m)
+ 	})
+ 
+-	gp.m.preemptoff = ""
+-	gp.m.locks++
+-	semrelease(&worldsema)
+-	systemstack(starttheworld)
+-	gp.m.locks--
++	getg().m.locks++ // TODO: Is this necessary?
++	startTheWorld()
++	getg().m.locks--
+ }
+ 
+ func readmemstats_m(stats *MemStats) {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f725fc890b..805b96e627 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -203,7 +203,7 @@ func acquireSudog() *sudog {
+ 	// acquireSudog, acquireSudog calls new(sudog),
+ 	// new calls malloc, malloc can call the garbage collector,
+ 	// and the garbage collector calls the semaphore implementation
+-	// in stoptheworld.
++	// in stopTheWorld.
+ 	// Break the cycle by doing acquirem/releasem around new(sudog).
+ 	// The acquirem/releasem increments m.locks during new(sudog),
+ 	// which keeps the garbage collector from being invoked.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 4ce756b692..3d86d40654 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -211,7 +211,7 @@ func helpgc(nproc int32) {
+ // sched.stopwait to in order to request that all Gs permanently stop.
+ const freezeStopWait = 0x7fffffff
+ 
+-// Similar to stoptheworld but best-effort and can be called several times.
++// Similar to stopTheWorld but best-effort and can be called several times.
+ // There is no reverse operation, used during crashing.
+ // This function must not lock any mutexes.
+ func freezetheworld() {
+@@ -528,31 +528,65 @@ func quiesce(mastergp *g) {
+ 	mcall(mquiesce)
+ }
+ 
++// stopTheWorld stops all P's from executing goroutines, interrupting
++// all goroutines at GC safe points and records reason as the reason
++// for the stop. On return, only the current goroutine's P is running.
++// stopTheWorld must not be called from a system stack and the caller
++// must not hold worldsema. The caller must call startTheWorld when
++// other P's should resume execution.
++//
++// stopTheWorld is safe for multiple goroutines to call at the
++// same time. Each will execute its own stop, and the stops will
++// be serialized.
++//
++// This is also used by routines that do stack dumps. If the system is
++// in panic or being exited, this may not reliably stop all
++// goroutines.
++func stopTheWorld(reason string) {
++	semacquire(&worldsema, false)
++	getg().m.preemptoff = reason
++	systemstack(stopTheWorldWithSema)
++}
++
++// startTheWorld undoes the effects of stopTheWorld.
++func startTheWorld() {
++	getg().m.preemptoff = ""
++	semrelease(&worldsema)
++	systemstack(startTheWorldWithSema)
++}
++
+ // Holding worldsema grants an M the right to try to stop the world.
+-// The procedure is:
++var worldsema uint32 = 1
++
++// stopTheWorldWithSema is the core implementation of stopTheWorld.
++// The caller is responsible for acquiring worldsema and disabling
++// preemption first and then should stopTheWorldWithSema on the system
++// stack:
+ //
+-//	semacquire(&worldsema);
+-//	m.preemptoff = "reason";
+-//	stoptheworld();
++//	semacquire(&worldsema, false)
++//	m.preemptoff = "reason"
++//	systemstack(stopTheWorldWithSema)
+ //
+-//	... do stuff ...
++// When finished, the caller must either call startTheWorld or undo
++// these three operations separately:
+ //
+-//	m.preemptoff = "";
+-//	semrelease(&worldsema);
+-//	starttheworld();
++//	m.preemptoff = ""
++//	semrelease(&worldsema)
++//	systemstack(startTheWorldWithSema)
+ //
+-var worldsema uint32 = 1
+-
+-// This is used by the GC as well as the routines that do stack dumps. In the case
+-// of GC all the routines can be reliably stopped. This is not always the case
+-// when the system is in panic or being exited.
+-func stoptheworld() {
++// It is allowed to acquire worldsema once and then execute multiple
++// startTheWorldWithSema/stopTheWorldWithSema pairs.
++// Other P's are able to execute between successive calls to
++// startTheWorldWithSema and stopTheWorldWithSema.
++// Holding worldsema causes any other goroutines invoking
++// stopTheWorld to block.
++func stopTheWorldWithSema() {
+ 	_g_ := getg()
+ 
+ 	// If we hold a lock, then we won't be able to stop another M
+ 	// that is blocked trying to acquire the lock.
+ 	if _g_.m.locks > 0 {
+-		throw("stoptheworld: holding locks")
++		throw("stopTheWorld: holding locks")
+ 	}
+ 
+ 	lock(&sched.lock)
+@@ -599,12 +633,12 @@ func stoptheworld() {
+ 		}
+ 	}
+ 	if sched.stopwait != 0 {
+-		throw("stoptheworld: not stopped")
++		throw("stopTheWorld: not stopped")
+ 	}
+ 	for i := 0; i < int(gomaxprocs); i++ {
+ 		p := allp[i]
+ 		if p.status != _Pgcstop {
+-			throw("stoptheworld: not stopped")
++			throw("stopTheWorld: not stopped")
+ 		}
+ 	}
+ }
+@@ -614,7 +648,7 @@ func mhelpgc() {
+ 	_g_.m.helpgc = -1
+ }
+ 
+-func starttheworld() {
++func startTheWorldWithSema() {
+ 	_g_ := getg()
+ 
+ 	_g_.m.locks++        // disable preemption because it can be holding p in a local var
+@@ -643,7 +677,7 @@ func starttheworld() {
+ 			mp := p.m.ptr()
+ 			p.m = 0
+ 			if mp.nextp != 0 {
+-				throw("starttheworld: inconsistent mp->nextp")
++				throw("startTheWorld: inconsistent mp->nextp")
+ 			}
+ 			mp.nextp.set(p)
+ 			notewakeup(&mp.park)
+@@ -1304,7 +1338,7 @@ func startlockedm(gp *g) {
+ 	stopm()
+ }
+ 
+-// Stops the current m for stoptheworld.
++// Stops the current m for stopTheWorld.
+ // Returns when the world is restarted.
+ func gcstopm() {
+ 	_g_ := getg()
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 3b7501b9b4..6da7baddc5 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -132,10 +132,7 @@ type traceBuf struct {
+ func StartTrace() error {
+ 	// Stop the world, so that we can take a consistent snapshot
+ 	// of all goroutines at the beginning of the trace.
+-	semacquire(&worldsema, false)
+-	_g_ := getg()
+-	_g_.m.preemptoff = "start tracing"
+-	systemstack(stoptheworld)
++	stopTheWorld("start tracing")
+ 
+ 	// We are in stop-the-world, but syscalls can finish and write to trace concurrently.
+ 	// Exitsyscall could check trace.enabled long before and then suddenly wake up
+@@ -146,9 +143,7 @@ func StartTrace() error {
+ 
+ 	if trace.enabled || trace.shutdown {
+ 		unlock(&trace.bufLock)
+-		_g_.m.preemptoff = ""
+-		semrelease(&worldsema)
+-		systemstack(starttheworld)
++		startTheWorld()
+ 		return errorString("tracing is already enabled")
+ 	}
+ 
+@@ -175,9 +170,7 @@ func StartTrace() error {
+ 
+ 	unlock(&trace.bufLock)
+ 
+-	_g_.m.preemptoff = ""
+-	semrelease(&worldsema)
+-	systemstack(starttheworld)
++	startTheWorld()
+ 	return nil
+ }
+ 
+@@ -186,19 +179,14 @@ func StartTrace() error {
+ func StopTrace() {
+ 	// Stop the world so that we can collect the trace buffers from all p's below,
+ 	// and also to avoid races with traceEvent.
+-	semacquire(&worldsema, false)
+-	_g_ := getg()
+-	_g_.m.preemptoff = "stop tracing"
+-	systemstack(stoptheworld)
++	stopTheWorld("stop tracing")
+ 
+ 	// See the comment in StartTrace.
+ 	lock(&trace.bufLock)
+ 
+ 	if !trace.enabled {
+ 		unlock(&trace.bufLock)
+-		_g_.m.preemptoff = ""
+-		semrelease(&worldsema)
+-		systemstack(starttheworld)
++		startTheWorld()
+ 		return
+ 	}
+ 
+@@ -236,9 +224,7 @@ func StopTrace() {
+ 
+ 	unlock(&trace.bufLock)
+ 
+-	_g_.m.preemptoff = ""
+-	semrelease(&worldsema)
+-	systemstack(starttheworld)
++	startTheWorld()
+ 
+ 	// The world is started but we've set trace.shutdown, so new tracing can't start.
+ 	// Wait for the trace reader to flush pending buffers and stop.
+@@ -428,9 +414,9 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 
+ 	// The caller checked that trace.enabled == true, but trace.enabled might have been
+ 	// turned off between the check and now. Check again. traceLockBuffer did mp.locks++,
+-	// StopTrace does stoptheworld, and stoptheworld waits for mp.locks to go back to zero,
++	// StopTrace does stopTheWorld, and stopTheWorld waits for mp.locks to go back to zero,
+ 	// so if we see trace.enabled == true now, we know it's true for the rest of the function.
+-	// Exitsyscall can run even during stoptheworld. The race with StartTrace/StopTrace
++	// Exitsyscall can run even during stopTheWorld. The race with StartTrace/StopTrace
+ 	// during tracing in exitsyscall is resolved by locking trace.bufLock in traceLockBuffer.
+ 	if !trace.enabled {
+ 		traceReleaseBuffer(pid)
+@@ -733,7 +719,7 @@ func traceProcStart() {
+ }
+ 
+ func traceProcStop(pp *p) {
+-	// Sysmon and stoptheworld can stop Ps blocked in syscalls,
++	// Sysmon and stopTheWorld can stop Ps blocked in syscalls,
+ 	// to handle this we temporary employ the P.
+ 	mp := acquirem()
+ 	oldp := mp.p
+@@ -807,7 +793,7 @@ func traceGoSysExit(ts int64) {
+ }
+ 
+ func traceGoSysBlock(pp *p) {
+-	// Sysmon and stoptheworld can declare syscalls running on remote Ps as blocked,
++	// Sysmon and stopTheWorld can declare syscalls running on remote Ps as blocked,
+ 	// to handle this we temporary employ the P.
+ 	mp := acquirem()
+ 	oldp := mp.p

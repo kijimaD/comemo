@@ -12,6 +12,20 @@ Date:   Sun Oct 31 17:50:38 2021 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/testing/benchmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 1ce637e137..d8ec217f66 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -45,7 +45,7 @@ func (f *durationOrCountFlag) String() string {
+ 	if f.n > 0 {
+ 		return fmt.Sprintf("%dx", f.n)
+ 	}
+-	return time.Duration(f.d).String()
++	return f.d.String()
+ }
+ 
+ func (f *durationOrCountFlag) Set(s string) error {

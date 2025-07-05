@@ -9,7 +9,59 @@ Date:   Sun Jun 28 23:12:21 2015 -0400
     Change-Id: Idda9f4a987e03b3bdf5e8fdb984fe56d6f84aa59
     Reviewed-on: https://go-review.googlesource.com/11672
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go |  8 +++++++-
  test/fixedbugs/issue8836.go         | 24 ++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index beb3c3c386..058ae5ecdd 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -231,9 +231,15 @@ func setlineno(n *Node) int32 {
+ 	lno := lineno
+ 	if n != nil {
+ 		switch n.Op {
+-		case ONAME, OTYPE, OPACK, OLITERAL:
++		case ONAME, OTYPE, OPACK:
+ 			break
+ 
++		case OLITERAL:
++			if n.Sym != nil {
++				break
++			}
++			fallthrough
++
+ 		default:
+ 			lineno = n.Lineno
+ 			if lineno == 0 {
+diff --git a/test/fixedbugs/issue8836.go b/test/fixedbugs/issue8836.go
+new file mode 100644
+index 0000000000..92c18f61c0
+--- /dev/null
++++ b/test/fixedbugs/issue8836.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Checking that line number is correct in error message.
++
++package main
++
++type Cint int
++
++func foobar(*Cint, Cint, Cint, *Cint)
++
++func main() {
++	a := Cint(1)
++
++	foobar(
++		&a,
++		0,
++		0,
++		42, // ERROR ".*"
++	)
++}

@@ -11,6 +11,18 @@ Date:   Thu Apr 22 15:26:20 2021 +0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_convert.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_convert.txt b/src/cmd/go/testdata/script/mod_convert.txt
+index 6e9b136356..f60fe87637 100644
+--- a/src/cmd/go/testdata/script/mod_convert.txt
++++ b/src/cmd/go/testdata/script/mod_convert.txt
+@@ -1,4 +1,6 @@
+ [short] skip
++[!net] skip
++[!exec:git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=

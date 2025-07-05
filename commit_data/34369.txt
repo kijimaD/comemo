@@ -11,7 +11,61 @@ Date:   Sat Oct 21 18:12:40 2017 +1100
     Change-Id: Iaca26d916fe4b894d460448c416b1e0b9fd68e44
     Reviewed-on: https://go-review.googlesource.com/72350
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/png/reader.go      |  6 ++++++
  src/image/png/reader_test.go | 18 ++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 4f043a0e42..4fbcef84b7 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -157,6 +157,7 @@ func (d *decoder) parseIHDR(length uint32) error {
+ 		return FormatError("invalid interlace method")
+ 	}
+ 	d.interlace = int(d.tmp[12])
++
+ 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
+ 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
+ 	if w <= 0 || h <= 0 {
+@@ -166,6 +167,11 @@ func (d *decoder) parseIHDR(length uint32) error {
+ 	if nPixels != int64(int(nPixels)) {
+ 		return UnsupportedError("dimension overflow")
+ 	}
++	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
++	if nPixels != (nPixels*8)/8 {
++		return UnsupportedError("dimension overflow")
++	}
++
+ 	d.cb = cbInvalid
+ 	d.depth = int(d.tmp[8])
+ 	switch d.depth {
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index da498fe207..eb792ea806 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -649,6 +649,24 @@ func TestGray8Transparent(t *testing.T) {
+ 	}
+ }
+ 
++func TestDimensionOverflow(t *testing.T) {
++	// These bytes come from https://github.com/golang/go/issues/22304
++	//
++	// It encodes a 2147483646 × 2147483646 (i.e. 0x7ffffffe × 0x7ffffffe)
++	// NRGBA image. The (width × height) per se doesn't overflow an int64, but
++	// (width × height × bytesPerPixel) will.
++	_, err := Decode(bytes.NewReader([]byte{
++		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
++		0x7f, 0xff, 0xff, 0xfe, 0x7f, 0xff, 0xff, 0xfe, 0x08, 0x06, 0x00, 0x00, 0x00, 0x30, 0x57, 0xb3,
++		0xfd, 0x00, 0x00, 0x00, 0x15, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x62, 0x62, 0x20, 0x12, 0x8c,
++		0x2a, 0xa4, 0xb3, 0x42, 0x40, 0x00, 0x00, 0x00, 0xff, 0xff, 0x13, 0x38, 0x00, 0x15, 0x2d, 0xef,
++		0x5f, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
++	}))
++	if _, ok := err.(UnsupportedError); !ok {
++		t.Fatalf("Decode: got %v (of type %T), want non-nil error (of type png.UnsupportedError)", err, err)
++	}
++}
++
+ func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
+ 	data, err := ioutil.ReadFile(filename)
+ 	if err != nil {

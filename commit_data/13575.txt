@@ -25,8 +25,204 @@ Date:   Sun Aug 5 20:30:13 2012 +0200
     R=r, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6346081
-
+---
  src/pkg/strconv/atof_test.go |  8 ++++++++
  src/pkg/strconv/extfloat.go  | 25 ++++++++++++++++++++---
  src/pkg/strconv/ftoa.go      | 48 +++++++++++++++++++++++++++-----------------
  3 files changed, 60 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index c05ae8306b..b4f3a6f08f 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -172,6 +172,14 @@ var atof32tests = []atofTest{
+ 	// Smallest denormal
+ 	{"1e-45", "1e-45", nil}, // 1p-149 = 1.4e-45
+ 	{"2e-45", "1e-45", nil},
++
++	// 2^92 = 8388608p+69 = 4951760157141521099596496896 (4.9517602e27)
++	// is an exact power of two that needs 8 decimal digits to be correctly
++	// parsed back.
++	// The float32 before is 16777215p+68 = 4.95175986e+27
++	// The halfway is 4.951760009. A bad algorithm that thinks the previous
++	// float32 is 8388607p+69 will shorten incorrectly to 4.95176e+27.
++	{"4951760157141521099596496896", "4.9517602e+27", nil},
+ }
+ 
+ type atofSimpleTest struct {
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index 3b54d7b9f8..78bb2ba943 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -396,7 +396,7 @@ func frexp10Many(expMin, expMax int, a, b, c *extFloat) (exp10 int) {
+ // which belongs to the open interval (lower, upper), where f is supposed
+ // to lie. It returns false whenever the result is unsure. The implementation
+ // uses the Grisu3 algorithm.
+-func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
++func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool {
+ 	if f.mant == 0 {
+ 		d.d[0] = '0'
+ 		d.nd = 1
+@@ -405,7 +405,26 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+ 	}
+ 	if f.exp == 0 && *lower == *f && *lower == *upper {
+ 		// an exact integer.
+-		d.Assign(f.mant)
++		var buf [24]byte
++		n := len(buf) - 1
++		for v := f.mant; v > 0; {
++			v1 := v / 10
++			v -= 10 * v1
++			buf[n] = byte(v + '0')
++			n--
++			v = v1
++		}
++		nd := len(buf) - n - 1
++		for i := 0; i < nd; i++ {
++			d.d[i] = buf[n+1+i]
++		}
++		d.nd, d.dp = nd, nd
++		for d.nd > 0 && d.d[d.nd-1] == '0' {
++			d.nd--
++		}
++		if d.nd == 0 {
++			d.dp = 0
++		}
+ 		d.neg = f.neg
+ 		return true
+ 	}
+@@ -491,7 +510,7 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+ // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
+ // It assumes that a decimal digit is worth ulpDecimal*ε, and that
+ // all data is known with a error estimate of ulpBinary*ε.
+-func adjustLastDigit(d *decimal, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
++func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
+ 	if ulpDecimal < 2*ulpBinary {
+ 		// Approximation is too wide.
+ 		return false
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 7ee5d07e01..f6eb539164 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -101,37 +101,42 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
+ 	// Negative precision means "only as much as needed to be exact."
+ 	shortest := prec < 0
+ 
+-	d := new(decimal)
++	var digs decimalSlice
+ 	if shortest {
+ 		ok := false
+ 		if optimize {
+ 			// Try Grisu3 algorithm.
+ 			f := new(extFloat)
+ 			lower, upper := f.AssignComputeBounds(mant, exp, neg, flt)
+-			ok = f.ShortestDecimal(d, &lower, &upper)
++			var buf [32]byte
++			digs.d = buf[:]
++			ok = f.ShortestDecimal(&digs, &lower, &upper)
+ 		}
+ 		if !ok {
+ 			// Create exact decimal representation.
+ 			// The shift is exp - flt.mantbits because mant is a 1-bit integer
+ 			// followed by a flt.mantbits fraction, and we are treating it as
+ 			// a 1+flt.mantbits-bit integer.
++			d := new(decimal)
+ 			d.Assign(mant)
+ 			d.Shift(exp - int(flt.mantbits))
+ 			roundShortest(d, mant, exp, flt)
++			digs = decimalSlice{d: d.d[:], nd: d.nd, dp: d.dp}
+ 		}
+ 		// Precision for shortest representation mode.
+ 		if prec < 0 {
+ 			switch fmt {
+ 			case 'e', 'E':
+-				prec = d.nd - 1
++				prec = digs.nd - 1
+ 			case 'f':
+-				prec = max(d.nd-d.dp, 0)
++				prec = max(digs.nd-digs.dp, 0)
+ 			case 'g', 'G':
+-				prec = d.nd
++				prec = digs.nd
+ 			}
+ 		}
+ 	} else {
+ 		// Create exact decimal representation.
++		d := new(decimal)
+ 		d.Assign(mant)
+ 		d.Shift(exp - int(flt.mantbits))
+ 		// Round appropriately.
+@@ -146,18 +151,19 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
+ 			}
+ 			d.Round(prec)
+ 		}
++		digs = decimalSlice{d: d.d[:], nd: d.nd, dp: d.dp}
+ 	}
+ 
+ 	switch fmt {
+ 	case 'e', 'E':
+-		return fmtE(dst, neg, d, prec, fmt)
++		return fmtE(dst, neg, digs, prec, fmt)
+ 	case 'f':
+-		return fmtF(dst, neg, d, prec)
++		return fmtF(dst, neg, digs, prec)
+ 	case 'g', 'G':
+ 		// trailing fractional zeros in 'e' form will be trimmed.
+ 		eprec := prec
+-		if eprec > d.nd && d.nd >= d.dp {
+-			eprec = d.nd
++		if eprec > digs.nd && digs.nd >= digs.dp {
++			eprec = digs.nd
+ 		}
+ 		// %e is used if the exponent from the conversion
+ 		// is less than -4 or greater than or equal to the precision.
+@@ -165,17 +171,17 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
+ 		if shortest {
+ 			eprec = 6
+ 		}
+-		exp := d.dp - 1
++		exp := digs.dp - 1
+ 		if exp < -4 || exp >= eprec {
+-			if prec > d.nd {
+-				prec = d.nd
++			if prec > digs.nd {
++				prec = digs.nd
+ 			}
+-			return fmtE(dst, neg, d, prec-1, fmt+'e'-'g')
++			return fmtE(dst, neg, digs, prec-1, fmt+'e'-'g')
+ 		}
+-		if prec > d.dp {
+-			prec = d.nd
++		if prec > digs.dp {
++			prec = digs.nd
+ 		}
+-		return fmtF(dst, neg, d, max(prec-d.dp, 0))
++		return fmtF(dst, neg, digs, max(prec-digs.dp, 0))
+ 	}
+ 
+ 	// unknown format
+@@ -283,8 +289,14 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	}
+ }
+ 
++type decimalSlice struct {
++	d      []byte
++	nd, dp int
++	neg    bool
++}
++
+ // %e: -d.ddddde±dd
+-func fmtE(dst []byte, neg bool, d *decimal, prec int, fmt byte) []byte {
++func fmtE(dst []byte, neg bool, d decimalSlice, prec int, fmt byte) []byte {
+ 	// sign
+ 	if neg {
+ 		dst = append(dst, '-')
+@@ -345,7 +357,7 @@ func fmtE(dst []byte, neg bool, d *decimal, prec int, fmt byte) []byte {
+ }
+ 
+ // %f: -ddddddd.ddddd
+-func fmtF(dst []byte, neg bool, d *decimal, prec int) []byte {
++func fmtF(dst []byte, neg bool, d decimalSlice, prec int) []byte {
+ 	// sign
+ 	if neg {
+ 		dst = append(dst, '-')

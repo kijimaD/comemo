@@ -10,8 +10,85 @@ Date:   Mon May 12 11:04:28 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/96210044
-
+---
  src/cmd/go/build.go                    | 26 ++++++++++++++------------
  src/cmd/go/test.bash                   | 11 +++++++++++
  src/cmd/go/testdata/testonly/p_test.go |  1 +
  3 files changed, 26 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 9cbe089956..78ff9ade38 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -882,6 +882,10 @@ func (b *builder) build(a *action) (err error) {
+ 		gofiles = append(gofiles, outGo...)
+ 	}
+ 
++	if len(gofiles) == 0 {
++		return &build.NoGoError{a.p.Dir}
++	}
++
+ 	// If we're doing coverage, preprocess the .go files and put them in the work directory
+ 	if a.p.coverMode != "" {
+ 		for i, file := range gofiles {
+@@ -915,21 +919,19 @@ func (b *builder) build(a *action) (err error) {
+ 	inc := b.includeArgs("-I", a.deps)
+ 
+ 	// Compile Go.
+-	if len(gofiles) > 0 {
+-		ofile, out, err := buildToolchain.gc(b, a.p, a.objpkg, obj, inc, gofiles)
+-		if len(out) > 0 {
+-			b.showOutput(a.p.Dir, a.p.ImportPath, b.processOutput(out))
+-			if err != nil {
+-				return errPrintedOutput
+-			}
+-		}
++	ofile, out, err := buildToolchain.gc(b, a.p, a.objpkg, obj, inc, gofiles)
++	if len(out) > 0 {
++		b.showOutput(a.p.Dir, a.p.ImportPath, b.processOutput(out))
+ 		if err != nil {
+-			return err
+-		}
+-		if ofile != a.objpkg {
+-			objects = append(objects, ofile)
++			return errPrintedOutput
+ 		}
+ 	}
++	if err != nil {
++		return err
++	}
++	if ofile != a.objpkg {
++		objects = append(objects, ofile)
++	}
+ 
+ 	// Copy .h files named for goos or goarch or goos_goarch
+ 	// to names using GOOS and GOARCH.
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 7aff40cc75..bc6c36683a 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -759,6 +759,17 @@ fi
+ rm -rf $d
+ unset GOPATH
+ 
++TEST 'go build in test-only directory fails with a good error'
++if ./testgo build ./testdata/testonly 2>testdata/err.out; then
++	echo "go build ./testdata/testonly succeeded, should have failed"
++	ok=false
++elif ! grep 'no buildable Go' testdata/err.out >/dev/null; then
++	echo "go build ./testdata/testonly produced unexpected error:"
++	cat testdata/err.out
++	ok=false
++fi
++rm -f testdata/err.out
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1
+diff --git a/src/cmd/go/testdata/testonly/p_test.go b/src/cmd/go/testdata/testonly/p_test.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/testonly/p_test.go
+@@ -0,0 +1 @@
++package p

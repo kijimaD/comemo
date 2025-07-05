@@ -98,3 +98,34 @@ Date:   Mon Nov 8 14:46:41 2021 -0500
  src/unicode/utf8/utf8_test.go                      |    2 +-
  test/fixedbugs/issue49378.go                       |   25 +
  90 files changed, 12919 insertions(+), 3317 deletions(-)
+
+diff --cc src/crypto/tls/common.go
+index 0da93677b5,bb5bec3c4d..d17cac30eb
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@@ -967,12 -974,21 +977,24 @@@ var supportedVersions = []uint16
+  	VersionTLS10,
+  }
+  
+- func (c *Config) supportedVersions() []uint16 {
++ // debugEnableTLS10 enables TLS 1.0. See issue 45428.
++ var debugEnableTLS10 = godebug.Get("tls10default") == "1"
++ 
++ // roleClient and roleServer are meant to call supportedVersions and parents
++ // with more readability at the callsite.
++ const roleClient = true
++ const roleServer = false
++ 
++ func (c *Config) supportedVersions(isClient bool) []uint16 {
+  	versions := make([]uint16, 0, len(supportedVersions))
+  	for _, v := range supportedVersions {
+ +		if needFIPS() && (v < fipsMinVersion(c) || v > fipsMaxVersion(c)) {
+ +			continue
+ +		}
++ 		if (c == nil || c.MinVersion == 0) && !debugEnableTLS10 &&
++ 			isClient && v < VersionTLS12 {
++ 			continue
++ 		}
+  		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
+  			continue
+  		}

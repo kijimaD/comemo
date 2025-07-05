@@ -11,7 +11,7 @@ Date:   Wed Sep 24 19:04:06 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/142630043
-
+---
  src/runtime/mem_plan9.c         | 1 +
  src/runtime/rt0_linux_386.s     | 2 +-
  src/runtime/rt0_linux_arm.s     | 2 +-
@@ -27,3 +27,174 @@ Date:   Wed Sep 24 19:04:06 2014 -0400
  src/sync/atomic/asm_arm.s       | 2 +-
  src/sync/atomic/asm_linux_arm.s | 2 +-
  14 files changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/mem_plan9.c b/src/runtime/mem_plan9.c
+index 402869f393..d673d6f830 100644
+--- a/src/runtime/mem_plan9.c
++++ b/src/runtime/mem_plan9.c
+@@ -10,6 +10,7 @@
+ #include "textflag.h"
+ 
+ extern byte runtime·end[];
++#pragma dataflag NOPTR
+ static byte *bloc = { runtime·end };
+ static Mutex memlock;
+ 
+diff --git a/src/runtime/rt0_linux_386.s b/src/runtime/rt0_linux_386.s
+index 74ddc94da9..352e594d53 100644
+--- a/src/runtime/rt0_linux_386.s
++++ b/src/runtime/rt0_linux_386.s
+@@ -21,5 +21,5 @@ TEXT _fallback_vdso(SB),NOSPLIT,$0
+ 	RET
+ 
+ DATA	runtime·_vdso(SB)/4, $_fallback_vdso(SB)
+-GLOBL	runtime·_vdso(SB), $4
++GLOBL	runtime·_vdso(SB), NOPTR, $4
+ 
+diff --git a/src/runtime/rt0_linux_arm.s b/src/runtime/rt0_linux_arm.s
+index 8af3d3505e..5f521d24ba 100644
+--- a/src/runtime/rt0_linux_arm.s
++++ b/src/runtime/rt0_linux_arm.s
+@@ -77,7 +77,7 @@ DATA bad_abi_msg+0x18(SB)/8, $" run on "
+ DATA bad_abi_msg+0x20(SB)/8, $"EABI ker"
+ DATA bad_abi_msg+0x28(SB)/4, $"nels"
+ DATA bad_abi_msg+0x2c(SB)/1, $0xa
+-GLOBL bad_abi_msg(SB), $45
++GLOBL bad_abi_msg(SB), RODATA, $45
+ 
+ TEXT oabi_syscall<>(SB),NOSPLIT,$-4
+ 	ADD $1, PC, R4
+diff --git a/src/runtime/rt0_plan9_386.s b/src/runtime/rt0_plan9_386.s
+index 7e2887b857..c451299eec 100644
+--- a/src/runtime/rt0_plan9_386.s
++++ b/src/runtime/rt0_plan9_386.s
+@@ -17,7 +17,7 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
+ 	CALL	runtime·rt0_go(SB)
+ 
+ DATA  runtime·isplan9(SB)/4, $1
+-GLOBL runtime·isplan9(SB), $4
+-GLOBL _tos(SB), $4
+-GLOBL _privates(SB), $4
+-GLOBL _nprivates(SB), $4
++GLOBL runtime·isplan9(SB), NOPTR, $4
++GLOBL _tos(SB), NOPTR, $4
++GLOBL _privates(SB), NOPTR, $4
++GLOBL _nprivates(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_plan9_amd64.s b/src/runtime/rt0_plan9_amd64.s
+index a372a0ba8b..ec2d9ec827 100644
+--- a/src/runtime/rt0_plan9_amd64.s
++++ b/src/runtime/rt0_plan9_amd64.s
+@@ -15,7 +15,7 @@ TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
+ 	JMP	AX
+ 
+ DATA runtime·isplan9(SB)/4, $1
+-GLOBL runtime·isplan9(SB), $4
+-GLOBL _tos(SB), $8
+-GLOBL _privates(SB), $8
+-GLOBL _nprivates(SB), $4
++GLOBL runtime·isplan9(SB), NOPTR, $4
++GLOBL _tos(SB), NOPTR, $8
++GLOBL _privates(SB), NOPTR, $8
++GLOBL _nprivates(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_solaris_amd64.s b/src/runtime/rt0_solaris_amd64.s
+index 92a9fc2952..5997cbf8e3 100644
+--- a/src/runtime/rt0_solaris_amd64.s
++++ b/src/runtime/rt0_solaris_amd64.s
+@@ -15,4 +15,4 @@ TEXT main(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ DATA runtime·issolaris(SB)/4, $1
+-GLOBL runtime·issolaris(SB), $4
++GLOBL runtime·issolaris(SB), NOPTR, $4
+diff --git a/src/runtime/sys_dragonfly_386.s b/src/runtime/sys_dragonfly_386.s
+index dd0e27e26a..161eaec19d 100644
+--- a/src/runtime/sys_dragonfly_386.s
++++ b/src/runtime/sys_dragonfly_386.s
+@@ -378,4 +378,4 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	NEGL	AX
+ 	RET
+ 
+-GLOBL runtime·tlsoffset(SB),$4
++GLOBL runtime·tlsoffset(SB),NOPTR,$4
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index ffc28560ec..2c40fc433b 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -388,4 +388,4 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	NEGL	AX
+ 	RET
+ 
+-GLOBL runtime·tlsoffset(SB),$4
++GLOBL runtime·tlsoffset(SB),NOPTR,$4
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 83a76cb343..23f2f6bd14 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -350,7 +350,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	MOVL	$0, AX
+ 	RET
+ 
+-GLOBL runtime·tlsoffset(SB),$4
++GLOBL runtime·tlsoffset(SB),NOPTR,$4
+ 
+ // int32 runtime·kqueue(void)
+ TEXT runtime·kqueue(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 12d9c5c6b4..5cda7768ae 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -395,4 +395,4 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	NEGL	AX
+ 	RET
+ 
+-GLOBL runtime·tlsoffset(SB),$4
++GLOBL runtime·tlsoffset(SB),NOPTR,$4
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 9b1fc7a205..1bf4d062ac 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -212,7 +212,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	POPL	BP
+ 	RET
+ 
+-GLOBL runtime·cbctxts(SB), $4
++GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+ TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+   	MOVL	0(SP), AX	// will use to find our callback context
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index f701d157ed..05750398ea 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -249,7 +249,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-GLOBL runtime·cbctxts(SB), $8
++GLOBL runtime·cbctxts(SB), NOPTR, $8
+ 
+ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	// Construct args vector for cgocallback().
+diff --git a/src/sync/atomic/asm_arm.s b/src/sync/atomic/asm_arm.s
+index 47639a80ea..8a85273da2 100644
+--- a/src/sync/atomic/asm_arm.s
++++ b/src/sync/atomic/asm_arm.s
+@@ -194,4 +194,4 @@ TEXT slowCheck64<>(SB),NOSPLIT,$0-0
+ 	MOVW	R0, ok64<>(SB)
+ 	RET
+ 
+-GLOBL ok64<>(SB), $4
++GLOBL ok64<>(SB), NOPTR, $4
+diff --git a/src/sync/atomic/asm_linux_arm.s b/src/sync/atomic/asm_linux_arm.s
+index 63f1f9e38e..944758441a 100644
+--- a/src/sync/atomic/asm_linux_arm.s
++++ b/src/sync/atomic/asm_linux_arm.s
+@@ -124,7 +124,7 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
+ TEXT ·generalCAS64(SB),NOSPLIT,$0-21
+ 	B  	runtime·cas64(SB)
+ 
+-GLOBL armCAS64(SB), $4
++GLOBL armCAS64(SB), NOPTR, $4
+ 
+ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
+ 	MOVW	$0xffff0ffc, R0 // __kuser_helper_version

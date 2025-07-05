@@ -8,7 +8,29 @@ Date:   Tue Apr 21 18:11:34 2009 -0700
     DELTA=58  (26 added, 32 deleted, 0 changed)
     OCL=27698
     CL=27698
-
+---
  test/{bugs => fixedbugs}/bug143.go | 0
  test/golden.out                    | 6 ------
  2 files changed, 6 deletions(-)
+
+diff --git a/test/bugs/bug143.go b/test/fixedbugs/bug143.go
+similarity index 100%
+rename from test/bugs/bug143.go
+rename to test/fixedbugs/bug143.go
+diff --git a/test/golden.out b/test/golden.out
+index f032651c13..b3cc4fb543 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -121,12 +121,6 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
+-=========== bugs/bug143.go
+-bugs/bug143.go:19: assignment count mismatch: 2 = 1
+-bugs/bug143.go:18: x: undefined
+-bugs/bug143.go:18: ok: undefined
+-BUG should compile
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

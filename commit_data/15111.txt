@@ -7,8 +7,135 @@ Date:   Mon Feb 4 00:40:11 2013 +0800
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7261043
-
+---
  src/cmd/5l/asm.c |  5 +----
  src/cmd/5l/obj.c | 15 ++++-----------
  src/cmd/ld/elf.c | 25 +++++++++++++++----------
  3 files changed, 20 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index e1377defe1..11a5f0cbec 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -40,7 +40,7 @@ static Prog *PP;
+ char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
+ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "XXX";
+-char netbsddynld[] = "XXX";
++char netbsddynld[] = "/libexec/ld.elf_so";
+ 
+ int32
+ entryvalue(void)
+@@ -581,9 +581,6 @@ asmb(void)
+ 		case Hplan9x32:
+ 			symo = HEADR+segtext.len+segdata.filelen;
+ 			break;
+-		case Hnetbsd:
+-			symo = rnd(segdata.filelen, 4096);
+-			break;
+ 		ElfSym:
+ 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 1f961748d5..10c33f25d6 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -48,21 +48,22 @@ Header headers[] = {
+    "noheader", Hnoheader,
+    "risc", Hrisc,
+    "plan9", Hplan9x32,
+-   "netbsd", Hnetbsd,
+    "ixp1200", Hixp1200,
+    "ipaq", Hipaq,
+    "linux", Hlinux,
+    "freebsd", Hfreebsd,
++   "netbsd", Hnetbsd,
+    0, 0
+ };
+ 
+ /*
+  *	-Hrisc -T0x10005000 -R4		is aif for risc os
+  *	-Hplan9 -T4128 -R4096		is plan9 format
+- *	-Hnetbsd -T0xF0000020 -R4	is NetBSD format
+  *	-Hixp1200			is IXP1200 (raw)
+  *	-Hipaq -T0xC0008010 -R1024	is ipaq
+  *	-Hlinux -Tx -Rx			is linux elf
++ *	-Hfreebsd			is freebsd elf
++ *	-Hnetbsd			is netbsd elf
+  */
+ 
+ void
+@@ -166,15 +167,6 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case Hnetbsd:	/* boot for NetBSD */
+-		HEADR = 32L;
+-		if(INITTEXT == -1)
+-			INITTEXT = 0xF0000020L;
+-		if(INITDAT == -1)
+-			INITDAT = 0;
+-		if(INITRND == -1)
+-			INITRND = 4096;
+-		break;
+ 	case Hixp1200: /* boot for IXP1200 */
+ 		HEADR = 0L;
+ 		if(INITTEXT == -1)
+@@ -195,6 +187,7 @@ main(int argc, char *argv[])
+ 		break;
+ 	case Hlinux:	/* arm elf */
+ 	case Hfreebsd:
++	case Hnetbsd:
+ 		debug['d'] = 0;	// with dynamic linking
+ 		tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
+ 		                // this number is known to ../../pkg/runtime/cgo/gcc_linux_arm.c
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 9793feea03..c771d10ec3 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -55,7 +55,9 @@ elfinit(void)
+ 
+ 	// 32-bit architectures
+ 	case '5':
+-		hdr.flags = 0x5000002; // has entry point, Version5 EABI
++		// we only use EABI on linux/arm
++		if(HEADTYPE == Hlinux)
++			hdr.flags = 0x5000002; // has entry point, Version5 EABI
+ 		// fallthrough
+ 	default:
+ 		hdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
+@@ -1303,6 +1305,7 @@ asmbelf(vlong symo)
+ 			sh->type = SHT_REL;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->entsize = ELF32RELSIZE;
++			sh->link = elfshname(".dynsym")->shnum;
+ 			shsym(sh, lookup(".rel.plt", 0));
+ 
+ 			sh = elfshname(".rel");
+@@ -1375,15 +1378,17 @@ asmbelf(vlong symo)
+ 		}
+ 	}
+ 
+-	ph = newElfPhdr();
+-	ph->type = PT_GNU_STACK;
+-	ph->flags = PF_W+PF_R;
+-	ph->align = PtrSize;
+-	
+-	ph = newElfPhdr();
+-	ph->type = PT_PAX_FLAGS;
+-	ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+-	ph->align = PtrSize;
++	if(HEADTYPE == Hlinux) {
++		ph = newElfPhdr();
++		ph->type = PT_GNU_STACK;
++		ph->flags = PF_W+PF_R;
++		ph->align = PtrSize;
++		
++		ph = newElfPhdr();
++		ph->type = PT_PAX_FLAGS;
++		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
++		ph->align = PtrSize;
++	}
+ 
+ elfobj:
+ 	sh = elfshname(".shstrtab");

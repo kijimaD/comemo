@@ -16,10 +16,201 @@ Date:   Sun Sep 19 09:09:55 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules   |  3 ++-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
  src/cmd/compile/internal/ssa/rewriteARM.go   | 33 ++++++++++++++---------
  src/cmd/compile/internal/ssa/rewriteARM64.go | 40 ++++++++++++++++++++++++++++
  test/codegen/rotate.go                       | 19 +++++++++++--
  5 files changed, 82 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index bfb97e5271..8a755b404b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -508,6 +508,8 @@
+ (TST x (MOVWconst [c])) => (TSTconst [c] x)
+ (TEQ x (MOVWconst [c])) => (TEQconst [c] x)
+ 
++(SRR x (MOVWconst [c])) => (SRRconst x [c&31])
++
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+ (CMP x y) && canonLessThan(x,y) => (InvertFlags (CMP y x))
+ 
+@@ -1136,7 +1138,6 @@
+ ( ORshiftRL [c] (SLLconst x [32-c]) x) => (SRRconst [   c] x)
+ (XORshiftRL [c] (SLLconst x [32-c]) x) => (SRRconst [   c] x)
+ 
+-(RotateLeft32 x (MOVWconst [c])) => (SRRconst [-c&31] x)
+ (RotateLeft16 <t> x (MOVWconst [c])) => (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
+ (RotateLeft8 <t> x (MOVWconst [c])) => (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
+ (RotateLeft32 x y) => (SRR x (RSBconst [0] <y.Type> y))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 7f9d5ec2bd..f63b2557c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1175,6 +1175,9 @@
+ (CMPW x (MOVDconst [c])) => (CMPWconst [int32(c)] x)
+ (CMPW (MOVDconst [c]) x) => (InvertFlags (CMPWconst [int32(c)] x))
+ 
++(ROR x (MOVDconst [c])) => (RORconst x [c&63])
++(RORW x (MOVDconst [c])) => (RORWconst x [c&31])
++
+ // Canonicalize the order of arguments to comparisons - helps with CSE.
+ ((CMP|CMPW) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 3d2f862705..6807507218 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -338,6 +338,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMSRL(v)
+ 	case OpARMSRLconst:
+ 		return rewriteValueARM_OpARMSRLconst(v)
++	case OpARMSRR:
++		return rewriteValueARM_OpARMSRR(v)
+ 	case OpARMSUB:
+ 		return rewriteValueARM_OpARMSUB(v)
+ 	case OpARMSUBD:
+@@ -10523,6 +10525,24 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMSRR(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SRR x (MOVWconst [c]))
++	// result: (SRRconst x [c&31])
++	for {
++		x := v_0
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := auxIntToInt32(v_1.AuxInt)
++		v.reset(OpARMSRRconst)
++		v.AuxInt = int32ToAuxInt(c & 31)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMSUB(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -14904,19 +14924,6 @@ func rewriteValueARM_OpRotateLeft32(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	// match: (RotateLeft32 x (MOVWconst [c]))
+-	// result: (SRRconst [-c&31] x)
+-	for {
+-		x := v_0
+-		if v_1.Op != OpARMMOVWconst {
+-			break
+-		}
+-		c := auxIntToInt32(v_1.AuxInt)
+-		v.reset(OpARMSRRconst)
+-		v.AuxInt = int32ToAuxInt(-c & 31)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (RotateLeft32 x y)
+ 	// result: (SRR x (RSBconst [0] <y.Type> y))
+ 	for {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 3df84e161a..2bce96f0b2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -323,6 +323,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64ORshiftRA(v)
+ 	case OpARM64ORshiftRL:
+ 		return rewriteValueARM64_OpARM64ORshiftRL(v)
++	case OpARM64ROR:
++		return rewriteValueARM64_OpARM64ROR(v)
++	case OpARM64RORW:
++		return rewriteValueARM64_OpARM64RORW(v)
+ 	case OpARM64RORWconst:
+ 		return rewriteValueARM64_OpARM64RORWconst(v)
+ 	case OpARM64RORconst:
+@@ -19956,6 +19960,42 @@ func rewriteValueARM64_OpARM64ORshiftRL(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64ROR(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (ROR x (MOVDconst [c]))
++	// result: (RORconst x [c&63])
++	for {
++		x := v_0
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_1.AuxInt)
++		v.reset(OpARM64RORconst)
++		v.AuxInt = int64ToAuxInt(c & 63)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64RORW(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (RORW x (MOVDconst [c]))
++	// result: (RORWconst x [c&31])
++	for {
++		x := v_0
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_1.AuxInt)
++		v.reset(OpARM64RORWconst)
++		v.AuxInt = int64ToAuxInt(c & 31)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64RORWconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (RORWconst [c] (RORWconst [d] x))
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index 519cc83263..70489a2adc 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -34,8 +34,15 @@ func rot64(x uint64) uint64 {
+ 	// ppc64le:"ROTL\t[$]9"
+ 	a += x<<9 ^ x>>55
+ 
+-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
++	// amd64:"ROLQ\t[$]10"
++	// arm64:"ROR\t[$]54"
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
++	// ppc64:"ROTL\t[$]10"
++	// ppc64le:"ROTL\t[$]10"
+ 	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
++	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, " // TODO ditto
++	a += bits.RotateLeft64(x, 10)
++
+ 	return a
+ }
+ 
+@@ -64,8 +71,16 @@ func rot32(x uint32) uint32 {
+ 	// ppc64le:"ROTLW\t[$]9"
+ 	a += x<<9 ^ x>>23
+ 
+-	// s390x:"RLL\t[$]7"
++	// amd64:"ROLL\t[$]10"
++	// arm:"MOVW\tR\\d+@>22"
++	// arm64:"RORW\t[$]22"
++	// s390x:"RLL\t[$]10"
++	// ppc64:"ROTLW\t[$]10"
++	// ppc64le:"ROTLW\t[$]10"
+ 	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
++	// s390x:"RLL\t[$]7" // TODO ditto
++	a += bits.RotateLeft32(x, 10)
++
+ 	return a
+ }
+ 

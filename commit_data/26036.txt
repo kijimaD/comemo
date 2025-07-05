@@ -10,6 +10,23 @@ Date:   Tue Dec 8 16:49:17 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/17532
     Reviewed-by: Tim Cooijmans <timcooijmans@gmail.com>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/tls.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 2554af6c22..c1d1331bde 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -5,6 +5,11 @@
+ // Package tls partially implements TLS 1.2, as specified in RFC 5246.
+ package tls
+ 
++// BUG(agl): The crypto/tls package does not implement countermeasures
++// against Lucky13 attacks on CBC-mode encryption. See
++// http://www.isg.rhul.ac.uk/tls/TLStiming.pdf and
++// https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
++
+ import (
+ 	"crypto"
+ 	"crypto/ecdsa"

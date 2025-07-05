@@ -25,6 +25,32 @@ Date:   Tue May 16 16:03:38 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/netpoll.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index b1b3766e11..a2b0be2261 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -287,12 +287,20 @@ func poll_runtime_pollClose(pd *pollDesc) {
+ }
+ 
+ func (c *pollCache) free(pd *pollDesc) {
++	// pd can't be shared here, but lock anyhow because
++	// that's what publishInfo documents.
++	lock(&pd.lock)
++
+ 	// Increment the fdseq field, so that any currently
+ 	// running netpoll calls will not mark pd as ready.
+ 	fdseq := pd.fdseq.Load()
+ 	fdseq = (fdseq + 1) & (1<<taggedPointerBits - 1)
+ 	pd.fdseq.Store(fdseq)
+ 
++	pd.publishInfo()
++
++	unlock(&pd.lock)
++
+ 	lock(&c.lock)
+ 	pd.link = c.first
+ 	c.first = pd

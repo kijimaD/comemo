@@ -11,6 +11,20 @@ Date:   Tue May 18 06:09:20 2021 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  doc/go1.17.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index cf856a1e73..4b2f4bce79 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -60,7 +60,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <p><!-- golang.org/issue/36460 -->
+   If a module specifies <code>go</code> <code>1.17</code> or higher in its
+   <code>go.mod</code> file, its transitive requirements are now loaded lazily,
+-  avoding the need to download or read <code>go.mod</code> files for
++  avoiding the need to download or read <code>go.mod</code> files for
+   otherwise-irrelevant dependencies. To support lazy loading, in Go 1.17 modules
+   the <code>go</code> command maintains <em>explicit</em> requirements in
+   the <code>go.mod</code> file for every dependency that provides any package

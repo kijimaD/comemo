@@ -34,6 +34,23 @@ Date:   Tue Mar 19 22:36:42 2024 +1100
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 5518b97c0a..9f24f746f6 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2291,6 +2291,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 
+ // instructionsForRotate returns the machine instructions for a bitwise rotation.
+ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
++	if buildcfg.GORISCV64 >= 22 {
++		// Rotation instructions are supported natively.
++		return []*instruction{ins}
++	}
++
+ 	switch ins.as {
+ 	case AROL, AROLW, AROR, ARORW:
+ 		// ROL -> OR (SLL x y) (SRL x (NEG y))

@@ -13,6 +13,27 @@ Date:   Wed Nov 5 11:25:30 2008 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=18527
     CL=18541
-
+---
  test/chan/powser1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 4b0aa6128e..6c57894a9b 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -19,13 +19,13 @@ type rat struct  {
+ 
+ type item *rat;
+ 
+-func (u item) pr(){
++func (u *rat) pr(){
+ 	if u.den==1 { print(u.num) }
+ 	else { print(u.num, "/", u.den) }
+ 	print(" ")
+ }
+ 
+-func (u item) eq(c item) bool {
++func (u *rat) eq(c item) bool {
+ 	return u.num == c.num && u.den == c.den
+ }
+ 

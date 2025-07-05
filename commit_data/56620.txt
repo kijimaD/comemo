@@ -20,7 +20,97 @@ Date:   Wed Apr 19 15:59:19 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/gotoolchain.go                  |  4 ---
  src/cmd/go/testdata/script/gotoolchain.txt | 46 ++++++++++++------------------
  2 files changed, 18 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index 1552d08ef3..ef1b531313 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -189,10 +189,6 @@ func execGoToolchain(gotoolchain, dir, exe string) {
+ 	// to allow testing this code even when not on Windows.
+ 	if godebug.New("#gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
+ 		cmd := exec.Command(exe, os.Args[1:]...)
+-		if runtime.GOOS == "windows" && strings.Contains(exe, "go1.999test") {
+-			// See testdata/script/gotoolchain.txt.
+-			cmd = exec.Command("cmd", "/c", "echo pretend we ran "+exe)
+-		}
+ 		cmd.Stdin = os.Stdin
+ 		cmd.Stdout = os.Stdout
+ 		cmd.Stderr = os.Stderr
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+index 0e763e5caa..4df56887b6 100644
+--- a/src/cmd/go/testdata/script/gotoolchain.txt
++++ b/src/cmd/go/testdata/script/gotoolchain.txt
+@@ -1,8 +1,9 @@
+-[!GOOS:windows] [!exec:/bin/sh] skip
+-[!GOOS:windows] chmod 0755 $WORK/bin/go1.999testpath
++[short] skip
++
++mkdir $WORK/bin
+ [!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
+ [GOOS:plan9] env path=$WORK/bin${:}$path
+-[GOOS:plan9] replace /bin/sh /bin/rc $WORK/bin/go1.999testpath
++go build -o $WORK/bin/ ./go1.999testpath.go  # adds .exe extension implicitly on Windows
+ 
+ # Plain go version
+ go version
+@@ -11,42 +12,31 @@ go version
+ # GOTOOLCHAIN from PATH
+ env GOTOOLCHAIN=go1.999testpath
+ go version
+-[!GOOS:windows] stdout 'go1.999testpath here!'
+-[GOOS:windows] stdout 'pretend we ran .*go1.999testpath'
++stdout 'go1.999testpath here!'
+ 
+ # GOTOOLCHAIN from PATH, with forced subprocess
+ env GOTOOLCHAIN=go1.999testpath
+ env GODEBUG=gotoolchainexec=0
+ go version
+-[!GOOS:windows] stdout 'go1.999testpath here!'
+-[GOOS:windows] stdout 'pretend we ran .*go1.999testpath'
++stdout 'go1.999testpath here!'
+ env GODEBUG=
+ 
++# GOTOOLCHAIN from network, does not exist
++env GOTOOLCHAIN=go1.9999x
++! go version
++stderr 'go: download go1.9999x for .*: toolchain not available'
++
+ # GOTOOLCHAIN from network
++[!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'
+ env GOTOOLCHAIN=go1.999testmod
+ go version
+ stderr 'go: downloading go1.999testmod \(.*/.*\)'
+-[!GOOS:windows] stdout 'go1.999testmod here!'
+-[GOOS:windows] stdout 'pretend we ran .*go1.999testmod.*\\bin\\go'
+ 
+-# GOTOOLCHAIN from network, does not exist
+-env GOTOOLCHAIN=go1.9999x
+-! go version
+-stderr 'go: download go1.9999x for .*: toolchain not available'
++-- go1.999testpath.go --
++package main
+ 
+--- $WORK/bin/go1.999testpath --
+-#!/bin/sh
+-echo go1.999testpath here!
+--- $WORK/bin/go1.999testpath.bat --
+-This should say:
+-	@echo go1.999testpath here!
+-but exec.Command does not directly support batch files.
+-execGoToolchain in cmd/go/toolchain.go picks off versions
+-named go1.999test and instead of running them just runs
+-cmd /c "echo pretend we ran <file>".
+-
+-Since the real toolchain will have an exe file and cmd is an
+-exe file, this seems like a good enough test.
+-Changing execGoToolchain to use cmd /c to run the batch file
+-hangs for unknown reasons.
++import "os"
+ 
++func main() {
++	os.Stdout.WriteString("go1.999testpath here!")
++}

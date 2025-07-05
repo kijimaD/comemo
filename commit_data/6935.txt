@@ -9,8 +9,68 @@ Date:   Mon Dec 13 15:34:45 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3621041
-
+---
  src/cmd/gc/const.c    | 8 +++-----
  src/cmd/gc/mparith1.c | 2 ++
  test/cmplx.go         | 1 +
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 5a7c548942..72e67a6340 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -202,8 +202,6 @@ convlit1(Node **np, Type *t, int explicit)
+ 				goto bad;
+ 			case CTFLT:
+ 			case CTINT:
+-				if(explicit)
+-					goto bad;
+ 				n->val = tocplx(n->val);
+ 				break;
+ 			case CTCPLX:
+@@ -300,7 +298,7 @@ toflt(Val v)
+ 		f = mal(sizeof(*f));
+ 		mpmovefltflt(f, &v.u.cval->real);
+ 		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
+-			yyerror("constant %#F truncated to real", v.u.fval);
++			yyerror("constant %#F%+#Fi truncated to real", &v.u.cval->real, &v.u.cval->imag);
+ 		v.ctype = CTFLT;
+ 		v.u.fval = f;
+ 		break;
+@@ -324,9 +322,9 @@ toint(Val v)
+ 	case CTCPLX:
+ 		i = mal(sizeof(*i));
+ 		if(mpmovefltfix(i, &v.u.cval->real) < 0)
+-			yyerror("constant %#F truncated to integer", v.u.fval);
++			yyerror("constant %#F%+#Fi truncated to integer", &v.u.cval->real, &v.u.cval->imag);
+ 		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
+-			yyerror("constant %#F truncated to real", v.u.fval);
++			yyerror("constant %#F%+#Fi truncated to real", &v.u.cval->real, &v.u.cval->imag);
+ 		v.ctype = CTINT;
+ 		v.u.xval = i;
+ 		break;
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index fa0103ea0c..6cd4e25000 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -475,6 +475,8 @@ Fconv(Fmt *fp)
+ 		// for well in range, convert to double and use print's %g
+ 		if(-900 < fvp->exp && fvp->exp < 900) {
+ 			d = mpgetflt(fvp);
++			if(d >= 0 && (fp->flags & FmtSign))
++				fmtprint(fp, "+");
+ 			return fmtprint(fp, "%g", d);
+ 		}
+ 		// TODO(rsc): for well out of range, print
+diff --git a/test/cmplx.go b/test/cmplx.go
+index 6262c682d0..fad96c6058 100644
+--- a/test/cmplx.go
++++ b/test/cmplx.go
+@@ -22,6 +22,7 @@ func main() {
+ 	c64 = cmplx(f32, f32)
+ 	c128 = cmplx(f64, f64)
+ 
++	_ = complex(0) // ok
+ 	_ = cmplx(f, f32)	// ERROR "cmplx"
+ 	_ = cmplx(f, f64)	// ERROR "cmplx"
+ 	_ = cmplx(f32, f)	// ERROR "cmplx"

@@ -7,7 +7,59 @@ Date:   Wed Apr 27 13:47:41 2016 -0400
     Change-Id: Ib29cf7abbbdaed81e918e5e41bca4e9b8da24621
     Reviewed-on: https://go-review.googlesource.com/22503
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/internal/atomic/asm_mips64x.s    |  2 +-
  src/runtime/internal/atomic/atomic_mips64x.s | 12 ++++++------
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/asm_mips64x.s b/src/runtime/internal/atomic/asm_mips64x.s
+index d0f5c7bdd3..80b178dbac 100644
+--- a/src/runtime/internal/atomic/asm_mips64x.s
++++ b/src/runtime/internal/atomic/asm_mips64x.s
+@@ -83,7 +83,7 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+ TEXT ·Loadint64(SB), NOSPLIT, $0-16
+ 	JMP	·Load64(SB)
+ 
+-TEXT ·Xaddint64(SB), NOSPLIT, $0-16
++TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	JMP	·Xadd64(SB)
+ 
+ // bool casp(void **val, void *old, void *new)
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index ae8500e090..71d3f7fab6 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -8,27 +8,27 @@
+ 
+ #define SYNC	WORD $0xf
+ 
+-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* addr)
++// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT,$-8-12
+-	MOVV	addr+0(FP), R1
++	MOVV	ptr+0(FP), R1
+ 	SYNC
+ 	MOVWU	0(R1), R1
+ 	SYNC
+ 	MOVW	R1, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* addr)
++// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT,$-8-16
+-	MOVV	addr+0(FP), R1
++	MOVV	ptr+0(FP), R1
+ 	SYNC
+ 	MOVV	0(R1), R1
+ 	SYNC
+ 	MOVV	R1, ret+8(FP)
+ 	RET
+ 
+-// void *runtime∕internal∕atomic·Loadp(void *volatile *addr)
++// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
+ TEXT ·Loadp(SB),NOSPLIT,$-8-16
+-	MOVV	addr+0(FP), R1
++	MOVV	ptr+0(FP), R1
+ 	SYNC
+ 	MOVV	0(R1), R1
+ 	SYNC

@@ -19,7 +19,44 @@ Date:   Wed Nov 9 09:43:55 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5339052
-
+---
  src/pkg/html/parse.go      | 3 +++
  src/pkg/html/parse_test.go | 5 +++--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index c6c96e50e0..f47d4ea147 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -651,6 +651,9 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 			}
+ 		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
+ 			return useTheRulesFor(p, inBodyIM, inHeadIM)
++		case "image":
++			p.tok.Data = "img"
++			return inBodyIM, false
+ 		default:
+ 			// TODO.
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 1f4ffa9564..27979225b3 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+-		{"tests1.dat", 89},
++		{"tests1.dat", 92},
+ 		{"tests2.dat", 0},
+ 		{"tests3.dat", 0},
+ 	}
+@@ -210,6 +210,7 @@ var renderTestBlacklist = map[string]bool{
+ 	// The second <a> will be reparented to the first <table>'s parent. This
+ 	// results in an <a> whose parent is an <a>, which is not 'well-formed'.
+ 	`<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y`: true,
+-	// The second <a> will be reparented, similar to the case above.
++	// More cases of <a> being reparented:
+ 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
++	`<a><table><a></table><p><a><div><a>`:                                     true,
+ }

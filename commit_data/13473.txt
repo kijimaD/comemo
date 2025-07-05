@@ -13,6 +13,23 @@ Date:   Sat Jul 14 15:46:53 2012 +0400
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/6346070
-
+---
  src/run.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index ca84b7034d..8e373ed6b1 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -39,6 +39,11 @@ echo
+ 
+ echo '# sync -cpu=10'
+ go test sync -short -timeout=120s -cpu=10
++echo
++
++echo '# GOMAXPROCS=32 go test runtime net/http crypto/tls encoding/base64'
++GOMAXPROCS=32 go test runtime net/http crypto/tls encoding/base64
++echo
+ 
+ xcd() {
+ 	echo

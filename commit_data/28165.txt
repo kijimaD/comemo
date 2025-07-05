@@ -12,8 +12,104 @@ Date:   Mon May 2 17:32:14 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/read.go      | 4 ++--
  src/cmd/internal/obj/objfile.go     | 8 ++++----
  src/cmd/link/internal/ld/objfile.go | 8 ++++----
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 698d58efe0..69fa496110 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -580,7 +580,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	}
+ 
+ 	r.readFull(r.tmp[:8])
+-	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go13ld")) {
++	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go17ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+ 
+@@ -687,7 +687,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	}
+ 
+ 	r.readFull(r.tmp[:7])
+-	if !bytes.Equal(r.tmp[:7], []byte("\xffgo13ld")) {
++	if !bytes.Equal(r.tmp[:7], []byte("\xffgo17ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 17175ebf06..a1fdee6070 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -15,7 +15,7 @@
+ //
+ // The file format is:
+ //
+-//	- magic header: "\x00\x00go13ld"
++//	- magic header: "\x00\x00go17ld"
+ //	- byte 1 - version number
+ //	- sequence of strings giving dependencies (imported packages)
+ //	- empty string (marks end of sequence)
+@@ -31,7 +31,7 @@
+ //	- data, the content of the defined symbols
+ //	- sequence of defined symbols
+ //	- byte 0xff (marks end of sequence)
+-//	- magic footer: "\xff\xffgo13ld"
++//	- magic footer: "\xff\xffgo17ld"
+ //
+ // All integers are stored in a zigzag varint format.
+ // See golang.org/s/go12symtab for a definition.
+@@ -199,7 +199,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 	w := newObjWriter(ctxt, b)
+ 
+ 	// Magic header
+-	w.wr.WriteString("\x00\x00go13ld")
++	w.wr.WriteString("\x00\x00go17ld")
+ 
+ 	// Version
+ 	w.wr.WriteByte(1)
+@@ -249,7 +249,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 	}
+ 
+ 	// Magic footer
+-	w.wr.WriteString("\xff\xffgo13ld")
++	w.wr.WriteString("\xff\xffgo17ld")
+ }
+ 
+ // Symbols are prefixed so their content doesn't get confused with the magic footer.
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index bcfe52585f..d16431ddaa 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -17,7 +17,7 @@ package ld
+ //
+ // The file format is:
+ //
+-//	- magic header: "\x00\x00go13ld"
++//	- magic header: "\x00\x00go17ld"
+ //	- byte 1 - version number
+ //	- sequence of strings giving dependencies (imported packages)
+ //	- empty string (marks end of sequence)
+@@ -33,7 +33,7 @@ package ld
+ //	- data, the content of the defined symbols
+ //	- sequence of defined symbols
+ //	- byte 0xff (marks end of sequence)
+-//	- magic footer: "\xff\xffgo13ld"
++//	- magic footer: "\xff\xffgo17ld"
+ //
+ // All integers are stored in a zigzag varint format.
+ // See golang.org/s/go12symtab for a definition.
+@@ -121,8 +121,8 @@ import (
+ )
+ 
+ const (
+-	startmagic = "\x00\x00go13ld"
+-	endmagic   = "\xff\xffgo13ld"
++	startmagic = "\x00\x00go17ld"
++	endmagic   = "\xff\xffgo17ld"
+ )
+ 
+ var emptyPkg = []byte(`"".`)

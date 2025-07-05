@@ -15,6 +15,21 @@ Date:   Tue Jul 18 13:38:21 2023 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/interface_unix_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/interface_unix_test.go b/src/net/interface_unix_test.go
+index 92ec13a909..b0a9bcf253 100644
+--- a/src/net/interface_unix_test.go
++++ b/src/net/interface_unix_test.go
+@@ -193,6 +193,9 @@ func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
+ 		t.Skipf("test requires external command: %v", err)
+ 	}
+ 	if err := ti.setup(); err != nil {
++		if e := err.Error(); strings.Contains(e, "Permission denied") {
++			t.Skipf("permission denied, skipping test: %v", e)
++		}
+ 		t.Fatal(err)
+ 	}
+ 	defer ti.teardown()

@@ -12,7 +12,54 @@ Date:   Tue Oct 29 13:45:40 2019 +0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/bufio.go      |  4 +++-
  src/bufio/bufio_test.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index c29f233f08..d1d542a484 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -708,7 +708,9 @@ func (b *Writer) WriteString(s string) (int, error) {
+ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+ 	if b.Buffered() == 0 {
+ 		if w, ok := b.wr.(io.ReaderFrom); ok {
+-			return w.ReadFrom(r)
++			n, err = w.ReadFrom(r)
++			b.err = err
++			return n, err
+ 		}
+ 	}
+ 	var m int
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 782ca2149a..3e085fd5d0 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -1535,6 +1535,26 @@ func TestPartialReadEOF(t *testing.T) {
+ 	}
+ }
+ 
++type writerWithReadFromError struct{}
++
++func (w writerWithReadFromError) ReadFrom(r io.Reader) (int64, error) {
++	return 0, errors.New("writerWithReadFromError error")
++}
++
++func (w writerWithReadFromError) Write(b []byte) (n int, err error) {
++	return 10, nil
++}
++
++func TestWriterReadFromMustSetUnderlyingError(t *testing.T) {
++	var wr = NewWriter(writerWithReadFromError{})
++	if _, err := wr.ReadFrom(strings.NewReader("test2")); err == nil {
++		t.Fatal("expected ReadFrom returns error, got nil")
++	}
++	if _, err := wr.Write([]byte("123")); err == nil {
++		t.Fatal("expected Write returns error, got nil")
++	}
++}
++
+ func BenchmarkReaderCopyOptimal(b *testing.B) {
+ 	// Optimal case is where the underlying reader implements io.WriterTo
+ 	srcBuf := bytes.NewBuffer(make([]byte, 8192))

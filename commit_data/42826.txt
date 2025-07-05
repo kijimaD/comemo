@@ -11,6 +11,41 @@ Date:   Wed Nov 13 00:47:41 2019 -0600
     Change-Id: I17b85fd8350738815c320a83945525b60c2f04c5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207037
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/container/list/list.go | 14 ++++++--------
  1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/container/list/list.go b/src/container/list/list.go
+index b8b599aabb..cc9ff0988c 100644
+--- a/src/container/list/list.go
++++ b/src/container/list/list.go
+@@ -90,11 +90,10 @@ func (l *List) lazyInit() {
+ 
+ // insert inserts e after at, increments l.len, and returns e.
+ func (l *List) insert(e, at *Element) *Element {
+-	n := at.next
+-	at.next = e
+ 	e.prev = at
+-	e.next = n
+-	n.prev = e
++	e.next = at.next
++	e.prev.next = e
++	e.next.prev = e
+ 	e.list = l
+ 	l.len++
+ 	return e
+@@ -124,11 +123,10 @@ func (l *List) move(e, at *Element) *Element {
+ 	e.prev.next = e.next
+ 	e.next.prev = e.prev
+ 
+-	n := at.next
+-	at.next = e
+ 	e.prev = at
+-	e.next = n
+-	n.prev = e
++	e.next = at.next
++	e.prev.next = e
++	e.next.prev = e
+ 
+ 	return e
+ }

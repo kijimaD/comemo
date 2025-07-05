@@ -14,7 +14,73 @@ Date:   Fri Jun 3 03:54:56 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4524092
-
+---
  src/cmd/gc/go.y                | 19 ++++---------------
  src/pkg/go/types/gcimporter.go |  7 ++++++-
  2 files changed, 10 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index fdaab4fa46..1278c25863 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1792,24 +1792,12 @@ hidden_opt_sym:
+ 	}
+ 
+ hidden_dcl:
+-	hidden_opt_sym hidden_type
++	hidden_opt_sym hidden_type hidden_tag
+ 	{
+ 		$$ = nod(ODCLFIELD, $1, typenod($2));
++		$$->val = $3;
+ 	}
+-|	hidden_opt_sym LDDD
+-	{
+-		Type *t;
+-
+-		yyerror("invalid variadic function type in import - recompile import");
+-		
+-		t = typ(TARRAY);
+-		t->bound = -1;
+-		t->type = typ(TINTER);
+-		$$ = nod(ODCLFIELD, $1, typenod(t));
+-		$$->isddd = 1;
+-	}
+-
+-|	hidden_opt_sym LDDD hidden_type
++|	hidden_opt_sym LDDD hidden_type hidden_tag
+ 	{
+ 		Type *t;
+ 		
+@@ -1818,6 +1806,7 @@ hidden_dcl:
+ 		t->type = $3;
+ 		$$ = nod(ODCLFIELD, $1, typenod(t));
+ 		$$->isddd = 1;
++		$$->val = $4;
+ 	}
+ 
+ hidden_structdcl:
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 377c45ad65..2cfed7726a 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -403,7 +403,7 @@ func (p *gcParser) parseStructType() Type {
+ }
+ 
+ 
+-// Parameter = ( identifier | "?" ) [ "..." ] Type .
++// Parameter = ( identifier | "?" ) [ "..." ] Type [ ":" string_lit ] .
+ //
+ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
+ 	name := p.parseName()
+@@ -415,6 +415,11 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
+ 		isVariadic = true
+ 	}
+ 	ptyp := p.parseType()
++	// ignore argument tag
++	if p.tok == ':' {
++		p.next()
++		p.expect(scanner.String)
++	}
+ 	par = ast.NewObj(ast.Var, name)
+ 	par.Type = ptyp
+ 	return

@@ -9,6 +9,22 @@ Date:   Tue Feb 13 09:06:59 2018 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/example_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 8c64506027..e64b0eced1 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -598,3 +598,10 @@ func ExampleTime_AppendFormat() {
+ 	// Output:
+ 	// Time: 11:00AM
+ }
++
++func ExampleFixedZone() {
++	loc := time.FixedZone("UTC-8", -8*60*60)
++	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, loc)
++	fmt.Println("The time is:", t.Format(time.RFC822))
++	// Output: The time is: 10 Nov 09 23:00 UTC-8
++}

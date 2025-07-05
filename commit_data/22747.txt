@@ -7,6 +7,20 @@ Date:   Tue Apr 7 20:19:45 2015 +0930
     Change-Id: I6859bd9c9dba30fc5eeb9bbc1de90af67984944c
     Reviewed-on: https://go-review.googlesource.com/8526
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index e227b221aa..855a43f1a0 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -1120,7 +1120,7 @@ type emptyStruct struct{}
+ 
+ var emptyStructType = reflect.TypeOf(emptyStruct{})
+ 
+-// getDecEnginePtr returns the engine for the specified type when the value is to be discarded.
++// getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
+ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {
+ 	var ok bool
+ 	if enginePtr, ok = dec.ignorerCache[wireId]; !ok {

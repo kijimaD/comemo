@@ -9,7 +9,44 @@ Date:   Sun Nov 29 18:14:49 2009 -0800
     
     R=rsc
     https://golang.org/cl/162055
-
+---
  src/pkg/crypto/md4/Makefile   | 4 ++--
  src/pkg/exp/draw/x11/Makefile | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/md4/Makefile b/src/pkg/crypto/md4/Makefile
+index 087d898663..5fff2dd8fd 100644
+--- a/src/pkg/crypto/md4/Makefile
++++ b/src/pkg/crypto/md4/Makefile
+@@ -2,11 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.$(GOARCH)
++include ../../../Make.$(GOARCH)
+ 
+ TARG=crypto/md4
+ GOFILES=\
+ 	md4.go\
+ 	md4block.go\
+ 
+-include $(GOROOT)/src/Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/exp/draw/x11/Makefile b/src/pkg/exp/draw/x11/Makefile
+index 808d5f0b25..d4e65ca730 100644
+--- a/src/pkg/exp/draw/x11/Makefile
++++ b/src/pkg/exp/draw/x11/Makefile
+@@ -2,11 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.$(GOARCH)
++include ../../../../Make.$(GOARCH)
+ 
+ TARG=exp/draw/x11
+ GOFILES=\
+ 	auth.go\
+ 	conn.go\
+ 
+-include $(GOROOT)/src/Make.pkg
++include ../../../../Make.pkg

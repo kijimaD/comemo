@@ -26,7 +26,91 @@ Date:   Wed Apr 17 20:04:58 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8536045
-
+---
  src/pkg/mime/multipart/quotedprintable.go      | 20 ++++----------------
  src/pkg/mime/multipart/quotedprintable_test.go |  9 +++++++--
  2 files changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/mime/multipart/quotedprintable.go b/src/pkg/mime/multipart/quotedprintable.go
+index 9e18e1ea12..9ff4ee703e 100644
+--- a/src/pkg/mime/multipart/quotedprintable.go
++++ b/src/pkg/mime/multipart/quotedprintable.go
+@@ -18,16 +18,14 @@ import (
+ )
+ 
+ type qpReader struct {
+-	br        *bufio.Reader
+-	skipWhite bool
+-	rerr      error  // last read error
+-	line      []byte // to be consumed before more of br
++	br   *bufio.Reader
++	rerr error  // last read error
++	line []byte // to be consumed before more of br
+ }
+ 
+ func newQuotedPrintableReader(r io.Reader) io.Reader {
+ 	return &qpReader{
+-		br:        bufio.NewReader(r),
+-		skipWhite: true,
++		br: bufio.NewReader(r),
+ 	}
+ }
+ 
+@@ -55,10 +53,6 @@ func (q *qpReader) readHexByte(v []byte) (b byte, err error) {
+ 	return hb<<4 | lb, nil
+ }
+ 
+-func isQPSkipWhiteByte(b byte) bool {
+-	return b == ' ' || b == '\t'
+-}
+-
+ func isQPDiscardWhitespace(r rune) bool {
+ 	switch r {
+ 	case '\n', '\r', ' ', '\t':
+@@ -79,7 +73,6 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
+ 			if q.rerr != nil {
+ 				return n, q.rerr
+ 			}
+-			q.skipWhite = true
+ 			q.line, q.rerr = q.br.ReadSlice('\n')
+ 
+ 			// Does the line end in CRLF instead of just LF?
+@@ -103,11 +96,6 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
+ 			continue
+ 		}
+ 		b := q.line[0]
+-		if q.skipWhite && isQPSkipWhiteByte(b) {
+-			q.line = q.line[1:]
+-			continue
+-		}
+-		q.skipWhite = false
+ 
+ 		switch {
+ 		case b == '=':
+diff --git a/src/pkg/mime/multipart/quotedprintable_test.go b/src/pkg/mime/multipart/quotedprintable_test.go
+index 7bcf5767be..8a95f7f037 100644
+--- a/src/pkg/mime/multipart/quotedprintable_test.go
++++ b/src/pkg/mime/multipart/quotedprintable_test.go
+@@ -32,8 +32,9 @@ func TestQuotedPrintable(t *testing.T) {
+ 		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
+ 		{in: "foo bar=ab", want: "foo bar", err: "multipart: invalid quoted-printable hex byte 0x61"},
+ 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
+-		{in: " A B =\r\n C ", want: "A B C"},
+-		{in: " A B =\n C ", want: "A B C"}, // lax. treating LF as CRLF
++		{in: " A B        \r\n C ", want: " A B\r\n C"},
++		{in: " A B =\r\n C ", want: " A B  C"},
++		{in: " A B =\n C ", want: " A B  C"}, // lax. treating LF as CRLF
+ 		{in: "foo=\nbar", want: "foobar"},
+ 		{in: "foo\x00bar", want: "foo", err: "multipart: invalid unescaped byte 0x00 in quoted-printable body"},
+ 		{in: "foo bar\xff", want: "foo bar", err: "multipart: invalid unescaped byte 0xff in quoted-printable body"},
+@@ -57,6 +58,10 @@ func TestQuotedPrintable(t *testing.T) {
+ 		{in: "foo=\nbar", want: "foobar"},
+ 		{in: "foo=\rbar", want: "foo", err: "multipart: invalid quoted-printable hex byte 0x0d"},
+ 		{in: "foo=\r\r\r \nbar", want: "foo", err: `multipart: invalid bytes after =: "\r\r\r \n"`},
++
++		// Example from RFC 2045:
++		{in: "Now's the time =\n" + "for all folk to come=\n" + " to the aid of their country.",
++			want: "Now's the time for all folk to come to the aid of their country."},
+ 	}
+ 	for _, tt := range tests {
+ 		var buf bytes.Buffer

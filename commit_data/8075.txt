@@ -17,7 +17,154 @@ Date:   Wed Apr 13 14:09:04 2011 -0700
     R=rsc, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4399044
-
+---
  src/pkg/http/serve_test.go | 82 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/server.go     | 38 +++++++++++++++++----
  2 files changed, 114 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 1f91a24043..0142dead9f 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -534,3 +534,85 @@ func TestTLSServer(t *testing.T) {
+ 		t.Errorf("expected body %q; got %q", e, g)
+ 	}
+ }
++
++type serverExpectTest struct {
++	contentLength    int    // of request body
++	expectation      string // e.g. "100-continue"
++	readBody         bool   // whether handler should read the body (if false, sends StatusUnauthorized)
++	expectedResponse string // expected substring in first line of http response
++}
++
++var serverExpectTests = []serverExpectTest{
++	// Normal 100-continues, case-insensitive.
++	{100, "100-continue", true, "100 Continue"},
++	{100, "100-cOntInUE", true, "100 Continue"},
++
++	// No 100-continue.
++	{100, "", true, "200 OK"},
++
++	// 100-continue but requesting client to deny us,
++	// so it never eads the body.
++	{100, "100-continue", false, "401 Unauthorized"},
++	// Likewise without 100-continue:
++	{100, "", false, "401 Unauthorized"},
++
++	// Non-standard expectations are failures
++	{0, "a-pony", false, "417 Expectation Failed"},
++
++	// Expect-100 requested but no body
++	{0, "100-continue", true, "400 Bad Request"},
++}
++
++// Tests that the server responds to the "Expect" request header
++// correctly.
++func TestServerExpect(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		// Note using r.FormValue("readbody") because for POST
++		// requests that would read from r.Body, which we only
++		// conditionally want to do.
++		if strings.Contains(r.URL.RawPath, "readbody=true") {
++			ioutil.ReadAll(r.Body)
++			w.Write([]byte("Hi"))
++		} else {
++			w.WriteHeader(StatusUnauthorized)
++		}
++	}))
++	defer ts.Close()
++
++	runTest := func(test serverExpectTest) {
++		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++		if err != nil {
++			t.Fatalf("Dial: %v", err)
++		}
++		defer conn.Close()
++		sendf := func(format string, args ...interface{}) {
++			_, err := fmt.Fprintf(conn, format, args...)
++			if err != nil {
++				t.Fatalf("Error writing %q: %v", format, err)
++			}
++		}
++		go func() {
++			sendf("POST /?readbody=%v HTTP/1.1\r\n"+
++				"Connection: close\r\n"+
++				"Content-Length: %d\r\n"+
++				"Expect: %s\r\nHost: foo\r\n\r\n",
++				test.readBody, test.contentLength, test.expectation)
++			if test.contentLength > 0 && strings.ToLower(test.expectation) != "100-continue" {
++				body := strings.Repeat("A", test.contentLength)
++				sendf(body)
++			}
++		}()
++		bufr := bufio.NewReader(conn)
++		line, err := bufr.ReadString('\n')
++		if err != nil {
++			t.Fatalf("ReadString: %v", err)
++		}
++		if !strings.Contains(line, test.expectedResponse) {
++			t.Errorf("for test %#v got first line=%q", test, line)
++		}
++	}
++
++	for _, test := range serverExpectTests {
++		runTest(test)
++	}
++}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 8e7039371a..3291de1017 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -180,12 +180,6 @@ func (c *conn) readRequest() (w *response, err os.Error) {
+ 	w.req = req
+ 	w.header = make(Header)
+ 	w.contentLength = -1
+-
+-	// Expect 100 Continue support
+-	if req.expectsContinue() && req.ProtoAtLeast(1, 1) {
+-		// Wrap the Body reader with one that replies on the connection
+-		req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
+-	}
+ 	return w, nil
+ }
+ 
+@@ -446,6 +440,38 @@ func (c *conn) serve() {
+ 		if err != nil {
+ 			break
+ 		}
++
++		// Expect 100 Continue support
++		req := w.req
++		if req.expectsContinue() {
++			if req.ProtoAtLeast(1, 1) {
++				// Wrap the Body reader with one that replies on the connection
++				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
++			}
++			if req.ContentLength == 0 {
++				w.Header().Set("Connection", "close")
++				w.WriteHeader(StatusBadRequest)
++				break
++			}
++			req.Header.Del("Expect")
++		} else if req.Header.Get("Expect") != "" {
++			// TODO(bradfitz): let ServeHTTP handlers handle
++			// requests with non-standard expectation[s]? Seems
++			// theoretical at best, and doesn't fit into the
++			// current ServeHTTP model anyway.  We'd need to
++			// make the ResponseWriter an optional
++			// "ExpectReplier" interface or something.
++			//
++			// For now we'll just obey RFC 2616 14.20 which says
++			// "If a server receives a request containing an
++			// Expect field that includes an expectation-
++			// extension that it does not support, it MUST
++			// respond with a 417 (Expectation Failed) status."
++			w.Header().Set("Connection", "close")
++			w.WriteHeader(StatusExpectationFailed)
++			break
++		}
++
+ 		// HTTP cannot have multiple simultaneous active requests.[*]
+ 		// Until the server replies to this request, it can't read another,
+ 		// so we might as well run the handler in this goroutine.

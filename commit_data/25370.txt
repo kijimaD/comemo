@@ -33,6 +33,40 @@ Date:   Sun Jul 12 20:54:00 2015 +0530
     Change-Id: I5d451c669bd05e19a2afc33ed2ec59b280c2c2d9
     Reviewed-on: https://go-review.googlesource.com/12065
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/strings/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 7243e16b12..3f9d63b5a4 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -60,6 +60,28 @@ func ExampleEqualFold() {
+ 	// Output: true
+ }
+ 
++func ExampleHasPrefix() {
++	fmt.Println(strings.HasPrefix("Gopher", "Go"))
++	fmt.Println(strings.HasPrefix("Gopher", "C"))
++	fmt.Println(strings.HasPrefix("Gopher", ""))
++	// Output:
++	// true
++	// false
++	// true
++}
++
++func ExampleHasSuffix() {
++	fmt.Println(strings.HasSuffix("Amigo", "go"))
++	fmt.Println(strings.HasSuffix("Amigo", "O"))
++	fmt.Println(strings.HasSuffix("Amigo", "Ami"))
++	fmt.Println(strings.HasSuffix("Amigo", ""))
++	// Output:
++	// true
++	// false
++	// false
++	// true
++}
++
+ func ExampleIndex() {
+ 	fmt.Println(strings.Index("chicken", "ken"))
+ 	fmt.Println(strings.Index("chicken", "dmr"))

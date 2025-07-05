@@ -9,6 +9,21 @@ Date:   Wed Dec 10 11:43:04 2014 +1100
     Change-Id: Ifed6cd37e885415d9a298b63d472d63f44e72321
     Reviewed-on: https://go-review.googlesource.com/1290
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  .gitignore | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index d859e34386..7b63aaf3d4 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,7 +37,8 @@ src/cmd/gc/y.output
+ src/cmd/go/zdefaultcc.go
+ src/go/doc/headscan
+ src/runtime/mkversion
+-src/runtime/z*
++src/runtime/zaexperiment.h
++src/runtime/zversion.go
+ src/unicode/maketables
+ src/*.*/
+ test/pass.out

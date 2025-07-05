@@ -9,9 +9,117 @@ Date:   Sat Feb 11 12:09:11 2012 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5651060
-
+---
  doc/go1.html                                 | 13 +++++++++----
  doc/go1.tmpl                                 | 13 +++++++++----
  src/pkg/compress/flate/deflate.go            |  3 ++-
  src/pkg/compress/flate/huffman_bit_writer.go | 13 -------------
  4 files changed, 20 insertions(+), 22 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index fce1c079e7..0dc73234f6 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -881,10 +881,15 @@ What little code is affected will be caught by the compiler and must be updated
+ <h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+ 
+ <p>
+-In Go 1, the NewWriterXxx functions in compress/flate, compress/gzip and
+-compress/zlib all return (*Writer, error) if they take a compression level,
+-and *Writer otherwise. Package gzip's Compressor and Decompressor types have
+-been renamed to Writer and Reader.
++In Go 1, the <code>NewWriterXxx</code> functions in
++<a href="/pkg/compress/flate"><code>compress/flate</code></a>,
++<a href="/pkg/compress/gzip"><code>compress/gzip</code></a> and
++<a href="/pkg/compress/zlib"><code>compress/zlib</code></a>
++all return <code>(*Writer, error)</code> if they take a compression level,
++and <code>*Writer</code> otherwise. Package <code>gzip</code>'s
++<code>Compressor</code> and <code>Decompressor</code> types have been renamed
++to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
++<code>WrongValueError</code> type has been removed.
+ </p>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 985cf97e17..c75f2fe746 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -785,10 +785,15 @@ What little code is affected will be caught by the compiler and must be updated
+ <h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+ 
+ <p>
+-In Go 1, the NewWriterXxx functions in compress/flate, compress/gzip and
+-compress/zlib all return (*Writer, error) if they take a compression level,
+-and *Writer otherwise. Package gzip's Compressor and Decompressor types have
+-been renamed to Writer and Reader.
++In Go 1, the <code>NewWriterXxx</code> functions in
++<a href="/pkg/compress/flate"><code>compress/flate</code></a>,
++<a href="/pkg/compress/gzip"><code>compress/gzip</code></a> and
++<a href="/pkg/compress/zlib"><code>compress/zlib</code></a>
++all return <code>(*Writer, error)</code> if they take a compression level,
++and <code>*Writer</code> otherwise. Package <code>gzip</code>'s
++<code>Compressor</code> and <code>Decompressor</code> types have been renamed
++to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
++<code>WrongValueError</code> type has been removed.
+ </p>
+ 
+ <p>
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index 69033cab64..20408409c8 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -5,6 +5,7 @@
+ package flate
+ 
+ import (
++	"fmt"
+ 	"io"
+ 	"math"
+ )
+@@ -390,7 +391,7 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
+ 		d.fill = (*compressor).fillDeflate
+ 		d.step = (*compressor).deflate
+ 	default:
+-		return WrongValueError{"level", 0, 9, int32(level)}
++		return fmt.Errorf("flate: invalid compression level %d: want value in range [-1, 9]", level)
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/compress/flate/huffman_bit_writer.go b/src/pkg/compress/flate/huffman_bit_writer.go
+index 57b56b5c96..25e1da336a 100644
+--- a/src/pkg/compress/flate/huffman_bit_writer.go
++++ b/src/pkg/compress/flate/huffman_bit_writer.go
+@@ -7,7 +7,6 @@ package flate
+ import (
+ 	"io"
+ 	"math"
+-	"strconv"
+ )
+ 
+ const (
+@@ -85,13 +84,6 @@ type huffmanBitWriter struct {
+ 	err             error
+ }
+ 
+-type WrongValueError struct {
+-	name  string
+-	from  int32
+-	to    int32
+-	value int32
+-}
+-
+ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
+ 	return &huffmanBitWriter{
+ 		w:               w,
+@@ -105,11 +97,6 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
+ 	}
+ }
+ 
+-func (err WrongValueError) Error() string {
+-	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.FormatInt(int64(err.from), 10) + ";" +
+-		strconv.FormatInt(int64(err.to), 10) + "] but actual value is " + strconv.FormatInt(int64(err.value), 10)
+-}
+-
+ func (w *huffmanBitWriter) flushBits() {
+ 	if w.err != nil {
+ 		w.nbits = 0

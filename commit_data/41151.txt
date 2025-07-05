@@ -22,7 +22,7 @@ Date:   Fri Sep 6 16:05:36 2019 -0700
     Change-Id: Ibfea88c05704bc3c0a502a455d018a375589754d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/194019
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go     | 10 -------
  src/cmd/compile/internal/gc/const.go       | 36 ++++++++++++++---------
  src/cmd/compile/internal/gc/fmt.go         | 20 +++++++++----
@@ -35,3 +35,347 @@ Date:   Fri Sep 6 16:05:36 2019 -0700
  test/fixedbugs/issue21979.go               | 46 ++++++++++++++++++++++++++++++
  test/fixedbugs/issue7310.go                |  2 +-
  11 files changed, 109 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7aabae764e..911ac4c0dc 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -15,15 +14,6 @@ import (
+ // the same name appears in an error message.
+ var numImport = make(map[string]int)
+ 
+-func idealType(typ *types.Type) *types.Type {
+-	switch typ {
+-	case types.Idealint, types.Idealrune, types.Idealfloat, types.Idealcomplex:
+-		// canonicalize ideal types
+-		typ = types.Types[TIDEAL]
+-	}
+-	return typ
+-}
+-
+ func npos(pos src.XPos, n *Node) *Node {
+ 	n.Pos = pos
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 1cd8488ea1..e40c23b8ef 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -998,6 +998,11 @@ func setconst(n *Node, v Val) {
+ 		Xoffset: BADWIDTH,
+ 	}
+ 	n.SetVal(v)
++	if n.Type.IsUntyped() {
++		// TODO(mdempsky): Make typecheck responsible for setting
++		// the correct untyped type.
++		n.Type = idealType(v.Ctype())
++	}
+ 
+ 	// Check range.
+ 	lno := setlineno(n)
+@@ -1030,24 +1035,29 @@ func setintconst(n *Node, v int64) {
+ func nodlit(v Val) *Node {
+ 	n := nod(OLITERAL, nil, nil)
+ 	n.SetVal(v)
+-	switch v.Ctype() {
+-	default:
+-		Fatalf("nodlit ctype %d", v.Ctype())
++	n.Type = idealType(v.Ctype())
++	return n
++}
+ 
++func idealType(ct Ctype) *types.Type {
++	switch ct {
+ 	case CTSTR:
+-		n.Type = types.Idealstring
+-
++		return types.Idealstring
+ 	case CTBOOL:
+-		n.Type = types.Idealbool
+-
+-	case CTINT, CTRUNE, CTFLT, CTCPLX:
+-		n.Type = types.Types[TIDEAL]
+-
++		return types.Idealbool
++	case CTINT:
++		return types.Idealint
++	case CTRUNE:
++		return types.Idealrune
++	case CTFLT:
++		return types.Idealfloat
++	case CTCPLX:
++		return types.Idealcomplex
+ 	case CTNIL:
+-		n.Type = types.Types[TNIL]
++		return types.Types[TNIL]
+ 	}
+-
+-	return n
++	Fatalf("unexpected Ctype: %v", ct)
++	return nil
+ }
+ 
+ // idealkind returns a constant kind like consttype
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 782e4cb840..30b4ebd315 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -686,11 +686,21 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 	}
+ 
+ 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
+-		name := basicnames[t.Etype]
+-		if t == types.Idealbool || t == types.Idealstring {
+-			name = "untyped " + name
+-		}
+-		return name
++		switch t {
++		case types.Idealbool:
++			return "untyped bool"
++		case types.Idealstring:
++			return "untyped string"
++		case types.Idealint:
++			return "untyped int"
++		case types.Idealrune:
++			return "untyped rune"
++		case types.Idealfloat:
++			return "untyped float"
++		case types.Idealcomplex:
++			return "untyped complex"
++		}
++		return basicnames[t.Etype]
+ 	}
+ 
+ 	if mode == FDbg {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 1d4329b4b1..7d134f3a5f 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -374,8 +374,6 @@ func (p *importReader) value() (typ *types.Type, v Val) {
+ 		p.float(&x.Imag, typ)
+ 		v.U = x
+ 	}
+-
+-	typ = idealType(typ)
+ 	return
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e4d1cedd74..8518efe73a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1407,20 +1407,18 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		}
+ 
+ 		// Determine result type.
+-		et := t.Etype
+-		switch et {
++		switch t.Etype {
+ 		case TIDEAL:
+-			// result is ideal
++			n.Type = types.Idealfloat
+ 		case TCOMPLEX64:
+-			et = TFLOAT32
++			n.Type = types.Types[TFLOAT32]
+ 		case TCOMPLEX128:
+-			et = TFLOAT64
++			n.Type = types.Types[TFLOAT64]
+ 		default:
+ 			yyerror("invalid argument %L for %v", l, n.Op)
+ 			n.Type = nil
+ 			return n
+ 		}
+-		n.Type = types.Types[et]
+ 
+ 	case OCOMPLEX:
+ 		ok |= ctxExpr
+@@ -1457,7 +1455,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			return n
+ 
+ 		case TIDEAL:
+-			t = types.Types[TIDEAL]
++			t = types.Idealcomplex
+ 
+ 		case TFLOAT32:
+ 			t = types.Types[TCOMPLEX64]
+@@ -2683,20 +2681,20 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
+ // e.g in error messages about wrong arguments to return.
+ func sigrepr(t *types.Type) string {
+ 	switch t {
+-	default:
+-		return t.String()
+-
+-	case types.Types[TIDEAL]:
+-		// "untyped number" is not commonly used
+-		// outside of the compiler, so let's use "number".
+-		return "number"
+-
+ 	case types.Idealstring:
+ 		return "string"
+-
+ 	case types.Idealbool:
+ 		return "bool"
+ 	}
++
++	if t.Etype == TIDEAL {
++		// "untyped number" is not commonly used
++		// outside of the compiler, so let's use "number".
++		// TODO(mdempsky): Revisit this.
++		return "number"
++	}
++
++	return t.String()
+ }
+ 
+ // retsigerr returns the signature of the types
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index b8260d6525..2077c5639e 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -334,14 +334,7 @@ func typeinit() {
+ 	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
+ 	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
+ 
+-	// for walk to use in error messages
+-	types.Types[TFUNC] = functype(nil, nil, nil)
+-
+-	// types used in front end
+-	// types.Types[TNIL] got set early in lexinit
+-	types.Types[TIDEAL] = types.New(TIDEAL)
+-
+-	types.Types[TINTER] = types.New(TINTER)
++	types.Types[TINTER] = types.New(TINTER) // empty interface
+ 
+ 	// simple aliases
+ 	simtype[TMAP] = TPTR
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index 7c14a03ba1..a77f514df9 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -53,6 +53,13 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
+ 	assumedEqual[typePair{t1, t2}] = struct{}{}
+ 
+ 	switch t1.Etype {
++	case TIDEAL:
++		// Historically, cmd/compile used a single "untyped
++		// number" type, so all untyped number types were
++		// identical. Match this behavior.
++		// TODO(mdempsky): Revisit this.
++		return true
++
+ 	case TINTER:
+ 		if t1.NumFields() != t2.NumFields() {
+ 			return false
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 2fcd6057f3..7b2b79c561 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -57,7 +57,7 @@ const (
+ 	TUNSAFEPTR
+ 
+ 	// pseudo-types for literals
+-	TIDEAL
++	TIDEAL // untyped numeric constants
+ 	TNIL
+ 	TBLANK
+ 
+@@ -94,7 +94,6 @@ const (
+ // It also stores pointers to several special types:
+ //   - Types[TANY] is the placeholder "any" type recognized by substArgTypes.
+ //   - Types[TBLANK] represents the blank variable's type.
+-//   - Types[TIDEAL] represents untyped numeric constants.
+ //   - Types[TNIL] represents the predeclared "nil" value's type.
+ //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
+ var Types [NTYPE]*Type
+@@ -112,8 +111,6 @@ var (
+ 	Idealbool   *Type
+ 
+ 	// Types to represent untyped numeric constants.
+-	// Note: Currently these are only used within the binary export
+-	// data format. The rest of the compiler only uses Types[TIDEAL].
+ 	Idealint     = New(TIDEAL)
+ 	Idealrune    = New(TIDEAL)
+ 	Idealfloat   = New(TIDEAL)
+diff --git a/test/fixedbugs/issue20185.go b/test/fixedbugs/issue20185.go
+index 00c23f6407..2cbb143ed0 100644
+--- a/test/fixedbugs/issue20185.go
++++ b/test/fixedbugs/issue20185.go
+@@ -19,7 +19,7 @@ func F() {
+ const x = 1
+ 
+ func G() {
+-	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped number\)"
++	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped int\)"
+ 	default:
+ 	}
+ }
+diff --git a/test/fixedbugs/issue21979.go b/test/fixedbugs/issue21979.go
+new file mode 100644
+index 0000000000..1c02f574c3
+--- /dev/null
++++ b/test/fixedbugs/issue21979.go
+@@ -0,0 +1,46 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	_ = bool("")      // ERROR "cannot convert .. \(type untyped string\) to type bool"
++	_ = bool(1)       // ERROR "cannot convert 1 \(type untyped int\) to type bool"
++	_ = bool(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type bool"
++	_ = bool(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type bool"
++
++	_ = string(true) // ERROR "cannot convert true \(type untyped bool\) to type string"
++	_ = string(-1)
++	_ = string(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type string"
++	_ = string(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type string"
++
++	_ = int("")   // ERROR "cannot convert .. \(type untyped string\) to type int"
++	_ = int(true) // ERROR "cannot convert true \(type untyped bool\) to type int"
++	_ = int(-1)
++	_ = int(1)
++	_ = int(1.0)
++	_ = int(-4 + 2i) // ERROR "truncated to integer"
++
++	_ = uint("")   // ERROR "cannot convert .. \(type untyped string\) to type uint"
++	_ = uint(true) // ERROR "cannot convert true \(type untyped bool\) to type uint"
++	_ = uint(-1)   // ERROR "constant -1 overflows uint"
++	_ = uint(1)
++	_ = uint(1.0)
++	_ = uint(-4 + 2i) // ERROR "constant -4 overflows uint" "truncated to integer"
++
++	_ = float64("")   // ERROR "cannot convert .. \(type untyped string\) to type float64"
++	_ = float64(true) // ERROR "cannot convert true \(type untyped bool\) to type float64"
++	_ = float64(-1)
++	_ = float64(1)
++	_ = float64(1.0)
++	_ = float64(-4 + 2i) // ERROR "truncated to real"
++
++	_ = complex128("")   // ERROR "cannot convert .. \(type untyped string\) to type complex128"
++	_ = complex128(true) // ERROR "cannot convert true \(type untyped bool\) to type complex128"
++	_ = complex128(-1)
++	_ = complex128(1)
++	_ = complex128(1.0)
++}
+diff --git a/test/fixedbugs/issue7310.go b/test/fixedbugs/issue7310.go
+index 5ae0f1f528..6829d5e126 100644
+--- a/test/fixedbugs/issue7310.go
++++ b/test/fixedbugs/issue7310.go
+@@ -11,5 +11,5 @@ package main
+ func main() {
+ 	_ = copy(nil, []int{}) // ERROR "use of untyped nil"
+ 	_ = copy([]int{}, nil) // ERROR "use of untyped nil"
+-	_ = 1 + true           // ERROR "mismatched types untyped number and untyped bool"
++	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool"
+ }

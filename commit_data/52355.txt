@@ -14,7 +14,7 @@ Date:   Wed Apr 27 21:53:00 2022 +0800
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/math/big/arith.go           |  2 +-
  src/math/big/arith_386.s        |  9 ---------
  src/math/big/arith_amd64.s      | 10 ----------
@@ -30,3 +30,244 @@ Date:   Wed Apr 27 21:53:00 2022 +0800
  src/math/big/arith_test.go      |  2 +-
  src/math/big/arith_wasm.s       |  3 ---
  14 files changed, 2 insertions(+), 87 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 8f55c195d4..06e63e2574 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -41,7 +41,7 @@ const (
+ // These operations are used by the vector operations below.
+ 
+ // z1<<_W + z0 = x*y
+-func mulWW_g(x, y Word) (z1, z0 Word) {
++func mulWW(x, y Word) (z1, z0 Word) {
+ 	hi, lo := bits.Mul(uint(x), uint(y))
+ 	return Word(hi), Word(lo)
+ }
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index acf2b06665..8cf4665f29 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -10,15 +10,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-// func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	MOVL x+0(FP), AX
+-	MULL y+4(FP)
+-	MOVL DX, z1+8(FP)
+-	MOVL AX, z0+12(FP)
+-	RET
+-
+-
+ // func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 5c72a27d8d..b1e914c2bd 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -10,16 +10,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-// func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	MOVQ x+0(FP), AX
+-	MULQ y+8(FP)
+-	MOVQ DX, z1+16(FP)
+-	MOVQ AX, z0+24(FP)
+-	RET
+-
+-
+-
+ // The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
+ // It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
+ // This is faster than using rotate instructions.
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index f2872d80a1..10054bde47 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -271,14 +271,3 @@ E9:
+ 
+ 	MOVW	R4, c+28(FP)
+ 	RET
+-
+-
+-
+-// func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	MOVW	x+0(FP), R1
+-	MOVW	y+4(FP), R2
+-	MULLU	R1, R2, (R4, R3)
+-	MOVW	R4, z1+8(FP)
+-	MOVW	R3, z0+12(FP)
+-	RET
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index 7bfe08e7b7..addf2d64a1 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -13,17 +13,6 @@
+ // TODO: Consider re-implementing using Advanced SIMD
+ // once the assembler supports those instructions.
+ 
+-// func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	MOVD	x+0(FP), R0
+-	MOVD	y+8(FP), R1
+-	MUL	R0, R1, R2
+-	UMULH	R0, R1, R3
+-	MOVD	R3, z1+16(FP)
+-	MOVD	R2, z0+24(FP)
+-	RET
+-
+-
+ // func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVD	z_len+8(FP), R0
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index eea3d6b325..301aa55f1a 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -8,7 +8,6 @@
+ package big
+ 
+ // implemented in arith_$GOARCH.s
+-func mulWW(x, y Word) (z1, z0 Word)
+ func addVV(z, x, y []Word) (c Word)
+ func subVV(z, x, y []Word) (c Word)
+ func addVW(z, x []Word, y Word) (c Word)
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 059f6f1325..75f3ed2948 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -7,10 +7,6 @@
+ 
+ package big
+ 
+-func mulWW(x, y Word) (z1, z0 Word) {
+-	return mulWW_g(x, y)
+-}
+-
+ func addVV(z, x, y []Word) (c Word) {
+ 	return addVV_g(z, x, y)
+ }
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 4b5c502440..3ee6e27c82 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -11,9 +11,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	JMP ·mulWW_g(SB)
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+ 
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index e72e6d6377..b1d32821af 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -11,9 +11,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	JMP	·mulWW_g(SB)
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP	·addVV_g(SB)
+ 
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 601cafe6bb..a83696a0cb 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -11,16 +11,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-// func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB), NOSPLIT, $0
+-	MOVD   x+0(FP), R4
+-	MOVD   y+8(FP), R5
+-	MULHDU R4, R5, R6
+-	MULLD  R4, R5, R7
+-	MOVD   R6, z1+16(FP)
+-	MOVD   R7, z0+24(FP)
+-	RET
+-
+ // func addVV(z, y, y []Word) (c Word)
+ // z[i] = x[i] + y[i] for all i, carrying
+ TEXT ·addVV(SB), NOSPLIT, $0
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index 2e950ddd0f..cb9ac18292 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -10,17 +10,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-// func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	MOV	x+0(FP), X5
+-	MOV	y+8(FP), X6
+-	MULHU	X5, X6, X7
+-	MUL	X5, X6, X8
+-	MOV	X7, z1+16(FP)
+-	MOV	X8, z0+24(FP)
+-	RET
+-
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+ 
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index ad822f76b3..aa6590e20a 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -10,15 +10,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-TEXT ·mulWW(SB), NOSPLIT, $0
+-	MOVD   x+0(FP), R3
+-	MOVD   y+8(FP), R4
+-	MULHDU R3, R4
+-	MOVD   R10, z1+16(FP)
+-	MOVD   R11, z0+24(FP)
+-	RET
+-
+-
+ // DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func addVV(z, x, y []Word) (c Word)
+ 
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index 789b96bf35..e530dd9750 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -558,7 +558,7 @@ var mulWWTests = []struct {
+ 
+ func TestMulWW(t *testing.T) {
+ 	for i, test := range mulWWTests {
+-		q, r := mulWW_g(test.x, test.y)
++		q, r := mulWW(test.x, test.y)
+ 		if q != test.q || r != test.r {
+ 			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
+ 		}
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index e8605f1e15..93eb16d21d 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -7,9 +7,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·mulWW(SB),NOSPLIT,$0
+-	JMP ·mulWW_g(SB)
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+ 

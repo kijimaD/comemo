@@ -8,7 +8,75 @@ Date:   Wed Aug 25 17:53:24 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1959044
-
+---
  src/libcgo/Makefile       | 16 ++++++----------
  src/libcgo/darwin_amd64.c |  4 ++--
  2 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index ff928f14cd..380bc596e9 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -2,10 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# ugly hack to deal with whitespaces in $GOROOT
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
++include ../Make.inc
+ 
+ all: libcgo.so
+ 
+@@ -16,9 +13,8 @@ OFILES=\
+ 	$(GOARCH).o\
+ 	util.o\
+ 
+-CFLAGS_386=-m32
+-CFLAGS_amd64=-m64
+-
++HOST_CFLAGS_386=-m32
++HOST_CFLAGS_amd64=-m64
+ 
+ LDFLAGS_linux=-shared -lpthread -lm
+ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
+@@ -26,13 +22,13 @@ LDFLAGS_freebsd=-pthread -shared -lm
+ LDFLAGS_windows=-shared -lm -mthreads
+ 
+ %.o: %.c
+-	$(CC) $(CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.c
++	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.c
+ 
+ %.o: %.S
+-	$(CC) $(CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.S
++	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.S
+ 
+ libcgo.so: $(OFILES)
+-	$(CC) $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
++	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+ 
+ $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+ 	cp libcgo.so $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+diff --git a/src/libcgo/darwin_amd64.c b/src/libcgo/darwin_amd64.c
+index 9d7255fbd5..59fff059ae 100644
+--- a/src/libcgo/darwin_amd64.c
++++ b/src/libcgo/darwin_amd64.c
+@@ -56,7 +56,7 @@ inittls(void)
+ 			fprintf(stderr, "\twanted 0x108 and 0x109\n");
+ 			fprintf(stderr, "\tgot");
+ 			for(i=0; i<ntofree; i++)
+-				fprintf(stderr, " %#x", tofree[i]);
++				fprintf(stderr, " %#x", (unsigned)tofree[i]);
+ 			fprintf(stderr, "\n");
+ 			abort();
+ 		}
+@@ -78,7 +78,7 @@ inittls(void)
+ 	asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
+ 
+ 	if(x != 0x123456789abcdef0ULL || y != 0x0fedcba987654321) {
+-		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", k1, x, y);
++		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", (unsigned)k1, x, y);
+ 		abort();
+ 	}
+ }

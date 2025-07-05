@@ -11,6 +11,23 @@ Date:   Thu Feb 23 22:46:04 2012 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/5699052
-
+---
  doc/go_spec.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 797e4038f0..abb1735e85 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5101,8 +5101,9 @@ Implementation restriction: A compiler may restrict ImportPaths to
+ non-empty strings using only characters belonging to
+ <a href="http://www.unicode.org/versions/Unicode6.0.0/">Unicode's</a>
+ L, M, N, P, and S general categories (the Graphic characters without
+-spaces) and may also exclude the ASCII characters
+-<code>!"#$%&amp;'()*,:;&lt;=&gt;?[\]^`{|}</code>.
++spaces) and may also exclude the characters
++<code>!"#$%&amp;'()*,:;&lt;=&gt;?[\]^`{|}</code>
++and the Unicode replacement character U+FFFD.
+ </p>
+ 
+ <p>

@@ -13,7 +13,44 @@ Date:   Mon Jul 11 07:25:45 2011 -0700
     R=golang-dev, gri, r, r, rsc
     CC=golang-dev
     https://golang.org/cl/4650077
-
+---
  src/pkg/strconv/atof.go      | 10 ++++++----
  src/pkg/strconv/atof_test.go |  3 +++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index a91e8bfa4a..38b38053ce 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -43,11 +43,13 @@ func special(s string) (f float64, ok bool) {
+ 	switch {
+ 	case equalIgnoreCase(s, "nan"):
+ 		return math.NaN(), true
+-	case equalIgnoreCase(s, "-inf"):
++	case equalIgnoreCase(s, "-inf"),
++		equalIgnoreCase(s, "-infinity"):
+ 		return math.Inf(-1), true
+-	case equalIgnoreCase(s, "+inf"):
+-		return math.Inf(1), true
+-	case equalIgnoreCase(s, "inf"):
++	case equalIgnoreCase(s, "+inf"),
++		equalIgnoreCase(s, "+infinity"),
++		equalIgnoreCase(s, "inf"),
++		equalIgnoreCase(s, "infinity"):
+ 		return math.Inf(1), true
+ 	}
+ 	return
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 6d8396ee73..0fdd0ea982 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -47,6 +47,9 @@ var atoftests = []atofTest{
+ 	{"inf", "+Inf", nil},
+ 	{"-Inf", "-Inf", nil},
+ 	{"+INF", "+Inf", nil},
++	{"-Infinity", "-Inf", nil},
++	{"+INFINITY", "+Inf", nil},
++	{"Infinity", "+Inf", nil},
+ 
+ 	// largest float64
+ 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},

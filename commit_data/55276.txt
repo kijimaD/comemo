@@ -17,9 +17,87 @@ Date:   Thu Dec 1 17:32:47 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go | 16 ++--------------
  src/cmd/compile/internal/typecheck/stmt.go |  4 ++--
  src/cmd/compile/internal/typecheck/subr.go |  3 ++-
  src/cmd/compile/internal/types/type.go     |  3 +++
  4 files changed, 9 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 0cd69abb80..96f368363a 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -516,18 +516,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 	return n
+ }
+ 
+-func wrongTypeFor(haveSym *types.Sym, haveType *types.Type, wantSym *types.Sym, wantType *types.Type) string {
+-	haveT := fmt.Sprintf("%S", haveType)
+-	wantT := fmt.Sprintf("%S", wantType)
+-	if haveT == wantT {
+-		// Add packages instead of reporting "got Foo but wanted Foo", see #54258.
+-		haveT = haveType.Pkg().Path + "." + haveT
+-		wantT = wantType.Pkg().Path + "." + wantT
+-	}
+-	return fmt.Sprintf("(wrong type for %v method)\n"+
+-		"\t\thave %v%s\n\t\twant %v%s", wantSym, haveSym, haveT, wantSym, wantT)
+-}
+-
+ // tcDotType typechecks an ODOTTYPE node.
+ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
+ 	n.X = Expr(n.X)
+@@ -551,8 +539,8 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
+ 		var ptr int
+ 		if !implements(n.Type(), t, &missing, &have, &ptr) {
+ 			if have != nil && have.Sym == missing.Sym {
+-				base.Errorf("impossible type assertion:\n\t%v does not implement %v %s", n.Type(), t,
+-					wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
++				base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
++					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 			} else if ptr != 0 {
+ 				base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
+ 			} else if have != nil {
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 9d57edb39f..5eeab4115e 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -604,8 +604,8 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			}
+ 			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
+ 				if have != nil {
+-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v %s", guard.X, n1.Type(),
+-						wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
++					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
++						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 				} else if ptr != 0 {
+ 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
+ 						" (%v method has pointer receiver)", guard.X, n1.Type(), missing.Sym)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 29d992f324..bfe27cb60d 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -397,7 +397,8 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
+ 		} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
+ 		} else if have != nil && have.Sym == missing.Sym {
+-			why = fmt.Sprintf(":\n\t%v does not implement %v %s", src, dst, wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
++			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
++				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 		} else if ptr != 0 {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
+ 		} else if have != nil {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index d426c2cb8e..c717d6d86d 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -319,6 +319,9 @@ var NoPkg *Pkg = nil
+ // (i.e., types with named elements). This information isn't used by
+ // cmd/compile itself, but we need to track it because it's exposed by
+ // the go/types API.
++//
++// Deprecated: Pkg exists only for iexport, which will go away after
++// Go 1.20. It should not be used by other code.
+ func (t *Type) Pkg() *Pkg {
+ 	switch t.kind {
+ 	case TFUNC:

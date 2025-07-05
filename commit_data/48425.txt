@@ -13,7 +13,72 @@ Date:   Wed May 19 10:04:44 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 17 +++++++++--------
  src/cmd/compile/internal/noder/types.go   |  4 ++--
  2 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 87c61b2cf1..e6498e5ef8 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -217,7 +217,7 @@ type subster struct {
+ 	g        *irgen
+ 	isMethod bool     // If a method is being instantiated
+ 	newf     *ir.Func // Func node for the new stenciled function
+-	tparams  []*types.Field
++	tparams  []*types.Type
+ 	targs    []*types.Type
+ 	// The substitution map from name nodes in the generic function to the
+ 	// name nodes in the new stenciled function.
+@@ -231,18 +231,19 @@ type subster struct {
+ // instantiated method would still need to be transformed by later compiler
+ // phases.
+ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*types.Type, isMethod bool) *ir.Func {
+-	var tparams []*types.Field
++	var tparams []*types.Type
+ 	if isMethod {
+ 		// Get the type params from the method receiver (after skipping
+ 		// over any pointer)
+ 		recvType := nameNode.Type().Recv().Type
+ 		recvType = deref(recvType)
+-		tparams = make([]*types.Field, len(recvType.RParams()))
+-		for i, rparam := range recvType.RParams() {
+-			tparams[i] = types.NewField(src.NoXPos, nil, rparam)
+-		}
++		tparams = recvType.RParams()
+ 	} else {
+-		tparams = nameNode.Type().TParams().Fields().Slice()
++		fields := nameNode.Type().TParams().Fields().Slice()
++		tparams = make([]*types.Type, len(fields))
++		for i, f := range fields {
++			tparams[i] = f.Type
++		}
+ 	}
+ 	gf := nameNode.Func
+ 	// Pos of the instantiated function is same as the generic function
+@@ -660,7 +661,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
+ 
+ 	if t.Kind() == types.TTYPEPARAM {
+ 		for i, tp := range subst.tparams {
+-			if tp.Type == t {
++			if tp == t {
+ 				return subst.targs[i]
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 107488e650..35ba1cd238 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -273,9 +273,9 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 				} else {
+ 					meth2 = ir.NewNameAt(meth.Pos(), newsym)
+ 					rparams := types2.AsSignature(m.Type()).RParams()
+-					tparams := make([]*types.Field, len(rparams))
++					tparams := make([]*types.Type, len(rparams))
+ 					for i, rparam := range rparams {
+-						tparams[i] = types.NewField(src.NoXPos, nil, g.typ1(rparam.Type()))
++						tparams[i] = g.typ1(rparam.Type())
+ 					}
+ 					assert(len(tparams) == len(targs))
+ 					subst := &subster{

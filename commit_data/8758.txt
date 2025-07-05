@@ -9,6 +9,33 @@ Date:   Thu Jun 16 15:02:47 2011 -0700
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/4633045
-
+---
  src/pkg/http/client.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 9478cfae1d..2883b0493d 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -16,6 +16,11 @@ import (
+ 
+ // A Client is an HTTP client. Its zero value (DefaultClient) is a usable client
+ // that uses DefaultTransport.
++//
++// The Client's Transport typically has internal state (cached
++// TCP connections), so Clients should be reused instead of created as
++// needed. Clients are safe for concurrent use by multiple goroutines.
++//
+ // Client is not yet very configurable.
+ type Client struct {
+ 	Transport RoundTripper // if nil, DefaultTransport is used
+@@ -36,6 +41,9 @@ var DefaultClient = &Client{}
+ 
+ // RoundTripper is an interface representing the ability to execute a
+ // single HTTP transaction, obtaining the Response for a given Request.
++//
++// A RoundTripper must be safe for concurrent use by multiple
++// goroutines.
+ type RoundTripper interface {
+ 	// RoundTrip executes a single HTTP transaction, returning
+ 	// the Response for the request req.  RoundTrip should not

@@ -13,6 +13,21 @@ Date:   Tue Jul 1 11:51:37 2025 +0200
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/hash/hash.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/hash/hash.go b/src/hash/hash.go
+index d4b9a91663..24ee9929c9 100644
+--- a/src/hash/hash.go
++++ b/src/hash/hash.go
+@@ -64,7 +64,8 @@ type Hash64 interface {
+ // unless GOFIPS140=v1.0.0 is set.
+ //
+ // If a hash can only determine at runtime if it can be cloned (e.g. if it wraps
+-// another hash), it may return an error wrapping [errors.ErrUnsupported].
++// another hash), Clone may return an error wrapping [errors.ErrUnsupported].
++// Otherwise, Clone must always return a nil error.
+ type Cloner interface {
+ 	Hash
+ 	Clone() (Cloner, error)

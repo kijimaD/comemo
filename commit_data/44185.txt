@@ -12,10 +12,193 @@ Date:   Thu May 21 16:35:24 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go        | 15 +++++-----
  src/cmd/link/internal/ld/link.go       | 13 ++++++++-
  src/cmd/link/internal/ld/sym.go        |  2 +-
  src/cmd/link/internal/loader/loader.go |  3 +-
  src/cmd/link/internal/sym/symbols.go   | 53 ----------------------------------
  5 files changed, 22 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 33cb9788c4..d8621c7db1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -151,8 +151,9 @@ func (ctxt *Link) setArchSyms() {
+ 		// *sym.Symbol symbols. Symbols that are assigned this final
+ 		// version are not going to have TOC references, so it should
+ 		// be ok for them to inherit an invalid .TOC. symbol.
+-		ctxt.DotTOC = make([]loader.Sym, ctxt.Syms.MaxVersion()+2)
+-		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
++		// TODO: revisit the +2, now that loadlibfull is gone.
++		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+2)
++		for i := 0; i <= ctxt.MaxVersion(); i++ {
+ 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
+ 				continue
+ 			}
+@@ -1809,7 +1810,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+ 	if magic == 0x7f454c46 { // \x7F E L F
+ 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
++			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.flags)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1822,7 +1823,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
+ 		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
++			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1834,7 +1835,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+ 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
++			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1849,7 +1850,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
+ 		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
++			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1941,7 +1942,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
+ 	f.MustSeek(import1, 0)
+ 
+-	fingerprint := ctxt.loader.Preload(ctxt.Syms, f, lib, unit, eof-f.Offset())
++	fingerprint := ctxt.loader.Preload(ctxt.IncVersion(), f, lib, unit, eof-f.Offset())
+ 	if !fingerprint.IsZero() { // Assembly objects don't have fingerprints. Ignore them.
+ 		// Check fingerprint, to ensure the importing and imported packages
+ 		// have consistent view of symbol indices.
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index bca87e1c1b..babef8ce17 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -57,7 +57,7 @@ type Link struct {
+ 	outSem chan int // limits the number of output writers
+ 	Out    *OutBuf
+ 
+-	Syms *sym.Symbols
++	version int // current version number for static/file-local symbols
+ 
+ 	Debugvlog int
+ 	Bso       *bufio.Writer
+@@ -133,3 +133,14 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
+ 	}
+ 	l.Autolib = nil
+ }
++
++// Allocate a new version (i.e. symbol namespace).
++func (ctxt *Link) IncVersion() int {
++	ctxt.version++
++	return ctxt.version - 1
++}
++
++// returns the maximum version number
++func (ctxt *Link) MaxVersion() int {
++	return ctxt.version
++}
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 7a6c4e43e9..7cf3a50992 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -44,7 +44,7 @@ func linknew(arch *sys.Arch) *Link {
+ 	ler := loader.ErrorReporter{AfterErrorAction: afterErrorAction}
+ 	ctxt := &Link{
+ 		Target:        Target{Arch: arch},
+-		Syms:          sym.NewSymbols(),
++		version:       sym.SymVerStatic,
+ 		outSem:        make(chan int, 2*runtime.GOMAXPROCS(0)),
+ 		Out:           NewOutBuf(arch),
+ 		LibraryByPkg:  make(map[string]*sym.Library),
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index e340506978..38c4e6ecef 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1911,7 +1911,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
+ // Does not read symbol data.
+ // Returns the fingerprint of the object.
+-func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
++func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+ 	roObject, readonly, err := f.Slice(uint64(length))
+ 	if err != nil {
+ 		log.Fatal("cannot read object file:", err)
+@@ -1923,7 +1923,6 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
+ 		}
+ 		panic("cannot read object file")
+ 	}
+-	localSymVersion := syms.IncVersion()
+ 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+ 	ndef := r.NSym()
+ 	nnonpkgdef := r.NNonpkgdef()
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+deleted file mode 100644
+index fbf32b0bca..0000000000
+--- a/src/cmd/link/internal/sym/symbols.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Derived from Inferno utils/6l/l.h and related files.
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package sym
+-
+-type Symbols struct {
+-	// Symbol lookup based on name and indexed by version.
+-	versions int
+-}
+-
+-func NewSymbols() *Symbols {
+-	return &Symbols{
+-		versions: SymVerStatic,
+-	}
+-}
+-
+-// Allocate a new version (i.e. symbol namespace).
+-func (syms *Symbols) IncVersion() int {
+-	syms.versions++
+-	return syms.versions - 1
+-}
+-
+-// returns the maximum version number
+-func (syms *Symbols) MaxVersion() int {
+-	return syms.versions
+-}

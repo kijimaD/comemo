@@ -19,6 +19,23 @@ Date:   Wed Jul 9 18:50:38 2014 +1000
     R=dave, dsymonds, crawshaw
     CC=bradfitz, dsymonds, golang-codereviews
     https://golang.org/cl/110920043
-
+---
  src/pkg/syscall/netlink_linux.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/netlink_linux.go b/src/pkg/syscall/netlink_linux.go
+index 49550ea2f0..1b73dce827 100644
+--- a/src/pkg/syscall/netlink_linux.go
++++ b/src/pkg/syscall/netlink_linux.go
+@@ -64,9 +64,10 @@ func NetlinkRIB(proto, family int) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	var tab []byte
++	rbNew := make([]byte, Getpagesize())
+ done:
+ 	for {
+-		rb := make([]byte, Getpagesize())
++		rb := rbNew
+ 		nr, _, err := Recvfrom(s, rb, 0)
+ 		if err != nil {
+ 			return nil, err

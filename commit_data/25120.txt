@@ -19,7 +19,7 @@ Date:   Fri Aug 28 15:31:51 2015 +1000
     Change-Id: I733cb5332c1c201c235f759cc64333462e70dc27
     Reviewed-on: https://go-review.googlesource.com/14005
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/clone_test.go       | 12 ++++-
  src/html/template/example_test.go     | 36 +++++++++++++++
  src/html/template/template.go         |  4 +-
@@ -33,3 +33,649 @@ Date:   Fri Aug 28 15:31:51 2015 +1000
  src/text/template/parse/parse_test.go | 27 ++++++++++++
  src/text/template/template.go         | 32 ++++----------
  12 files changed, 239 insertions(+), 72 deletions(-)
+
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index c89d22a6f9..a0f1d6a048 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -78,9 +78,17 @@ func TestClone(t *testing.T) {
+ 	Must(t0.Parse(`{{define "lhs"}} ( {{end}}`))
+ 	Must(t0.Parse(`{{define "rhs"}} ) {{end}}`))
+ 
+-	// Clone t0 as t4. Redefining the "lhs" template should fail.
++	// Clone t0 as t4. Redefining the "lhs" template should not fail.
+ 	t4 := Must(t0.Clone())
+-	if _, err := t4.Parse(`{{define "lhs"}} FAIL {{end}}`); err == nil {
++	if _, err := t4.Parse(`{{define "lhs"}} OK {{end}}`); err != nil {
++		t.Error(`redefine "lhs": got err %v want non-nil`, err)
++	}
++	// Cloning t1 should fail as it has been executed.
++	if _, err := t1.Clone(); err == nil {
++		t.Error("cloning t1: got nil err want non-nil")
++	}
++	// Redefining the "lhs" template in t1 should fail as it has been executed.
++	if _, err := t1.Parse(`{{define "lhs"}} OK {{end}}`); err == nil {
+ 		t.Error(`redefine "lhs": got nil err want non-nil`)
+ 	}
+ 
+diff --git a/src/html/template/example_test.go b/src/html/template/example_test.go
+index a75ceec480..a7c2905098 100644
+--- a/src/html/template/example_test.go
++++ b/src/html/template/example_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"html/template"
+ 	"log"
+ 	"os"
++	"strings"
+ )
+ 
+ func Example() {
+@@ -120,3 +121,38 @@ func Example_escape() {
+ 	// %22Fran+%26+Freddie%27s+Diner%2232%3Ctasty%40example.com%3E
+ 
+ }
++
++// The following example is duplicated in text/template; keep them in sync.
++
++func ExampleBlock() {
++	const (
++		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
++		overlay = `{{define "list"}} {{join . ", "}}{{end}} `
++	)
++	var (
++		funcs     = template.FuncMap{"join": strings.Join}
++		guardians = []string{"Gamora", "Groot", "Nebula", "Rocket", "Star-Lord"}
++	)
++	masterTmpl, err := template.New("master").Funcs(funcs).Parse(master)
++	if err != nil {
++		log.Fatal(err)
++	}
++	overlayTmpl, err := template.Must(masterTmpl.Clone()).Parse(overlay)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := masterTmpl.Execute(os.Stdout, guardians); err != nil {
++		log.Fatal(err)
++	}
++	if err := overlayTmpl.Execute(os.Stdout, guardians); err != nil {
++		log.Fatal(err)
++	}
++	// Output:
++	// Names:
++	// - Gamora
++	// - Groot
++	// - Nebula
++	// - Rocket
++	// - Star-Lord
++	// Names: Gamora, Groot, Nebula, Rocket, Star-Lord
++}
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index f9e6e43588..4c38f36e67 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -18,7 +18,7 @@ import (
+ // Template is a specialized Template from "text/template" that produces a safe
+ // HTML document fragment.
+ type Template struct {
+-	// Sticky error if escaping fails.
++	// Sticky error if escaping fails, or escapeOK if succeeded.
+ 	escapeErr error
+ 	// We could embed the text/template field, but it's safer not to because
+ 	// we need to keep our version of the name space and the underlying
+@@ -170,6 +170,8 @@ func (t *Template) Parse(src string) (*Template, error) {
+ 		tmpl := t.set[name]
+ 		if tmpl == nil {
+ 			tmpl = t.new(name)
++		} else if tmpl.escapeErr != nil {
++			return nil, fmt.Errorf("html/template: cannot redefine %q after it has executed", name)
+ 		}
+ 		// Restore our record of this text/template to its unescaped original state.
+ 		tmpl.escapeErr = nil
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index cd36f44da7..6c60091bc5 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -115,6 +115,14 @@ data, defined in detail below.
+ 		The template with the specified name is executed with dot set
+ 		to the value of the pipeline.
+ 
++	{{block "name" pipeline}} T1 {{end}}
++		A block is shorthand for defining a template
++			{{define "name"}} T1 {{end}}
++		and then executing it in place
++			{{template "name" .}}
++		The typical use is to define a set of root templates that are
++		then customized by redefining the block templates within.
++
+ 	{{with pipeline}} T1 {{end}}
+ 		If the value of the pipeline is empty, no output is generated;
+ 		otherwise, dot is set to the value of the pipeline and T1 is
+diff --git a/src/text/template/example_test.go b/src/text/template/example_test.go
+index cae8ff48d7..58341c1092 100644
+--- a/src/text/template/example_test.go
++++ b/src/text/template/example_test.go
+@@ -7,6 +7,7 @@ package template_test
+ import (
+ 	"log"
+ 	"os"
++	"strings"
+ 	"text/template"
+ )
+ 
+@@ -72,3 +73,38 @@ Josie
+ 	// Best wishes,
+ 	// Josie
+ }
++
++// The following example is duplicated in html/template; keep them in sync.
++
++func ExampleBlock() {
++	const (
++		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
++		overlay = `{{define "list"}} {{join . ", "}}{{end}} `
++	)
++	var (
++		funcs     = template.FuncMap{"join": strings.Join}
++		guardians = []string{"Gamora", "Groot", "Nebula", "Rocket", "Star-Lord"}
++	)
++	masterTmpl, err := template.New("master").Funcs(funcs).Parse(master)
++	if err != nil {
++		log.Fatal(err)
++	}
++	overlayTmpl, err := template.Must(masterTmpl.Clone()).Parse(overlay)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := masterTmpl.Execute(os.Stdout, guardians); err != nil {
++		log.Fatal(err)
++	}
++	if err := overlayTmpl.Execute(os.Stdout, guardians); err != nil {
++		log.Fatal(err)
++	}
++	// Output:
++	// Names:
++	// - Gamora
++	// - Groot
++	// - Nebula
++	// - Rocket
++	// - Star-Lord
++	// Names: Gamora, Groot, Nebula, Rocket, Star-Lord
++}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 139fc5320d..f9cb03eead 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1232,3 +1232,36 @@ func testBadFuncName(name string, t *testing.T) {
+ 	// reports an error.
+ 	t.Errorf("%q succeeded incorrectly as function name", name)
+ }
++
++func TestBlock(t *testing.T) {
++	const (
++		input   = `a({{block "inner" .}}bar({{.}})baz{{end}})b`
++		want    = `a(bar(hello)baz)b`
++		overlay = `{{define "inner"}}foo({{.}})bar{{end}}`
++		want2   = `a(foo(goodbye)bar)b`
++	)
++	tmpl, err := New("outer").Parse(input)
++	if err != nil {
++		t.Fatal(err)
++	}
++	tmpl2, err := Must(tmpl.Clone()).Parse(overlay)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var buf bytes.Buffer
++	if err := tmpl.Execute(&buf, "hello"); err != nil {
++		t.Fatal(err)
++	}
++	if got := buf.String(); got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++
++	buf.Reset()
++	if err := tmpl2.Execute(&buf, "goodbye"); err != nil {
++		t.Fatal(err)
++	}
++	if got := buf.String(); got != want2 {
++		t.Errorf("got %q, want %q", got, want2)
++	}
++}
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index ea01875e9c..e170ff74b1 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -9,7 +9,6 @@ package template
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"strings"
+ 	"testing"
+ 	"text/template/parse"
+ )
+@@ -277,17 +276,11 @@ func TestRedefinition(t *testing.T) {
+ 	if tmpl, err = New("tmpl1").Parse(`{{define "test"}}foo{{end}}`); err != nil {
+ 		t.Fatalf("parse 1: %v", err)
+ 	}
+-	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err == nil {
+-		t.Fatal("expected error")
++	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err != nil {
++		t.Fatal("got error %v, expected nil", err)
+ 	}
+-	if !strings.Contains(err.Error(), "redefinition") {
+-		t.Fatalf("expected redefinition error; got %v", err)
+-	}
+-	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err == nil {
+-		t.Fatal("expected error")
+-	}
+-	if !strings.Contains(err.Error(), "redefinition") {
+-		t.Fatalf("expected redefinition error; got %v", err)
++	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err != nil {
++		t.Fatal("got error %v, expected nil", err)
+ 	}
+ }
+ 
+@@ -345,7 +338,6 @@ func TestNew(t *testing.T) {
+ func TestParse(t *testing.T) {
+ 	// In multiple calls to Parse with the same receiver template, only one call
+ 	// can contain text other than space, comments, and template definitions
+-	var err error
+ 	t1 := New("test")
+ 	if _, err := t1.Parse(`{{define "test"}}{{end}}`); err != nil {
+ 		t.Fatalf("parsing test: %s", err)
+@@ -356,10 +348,4 @@ func TestParse(t *testing.T) {
+ 	if _, err := t1.Parse(`{{define "test"}}foo{{end}}`); err != nil {
+ 		t.Fatalf("parsing test: %s", err)
+ 	}
+-	if _, err = t1.Parse(`{{define "test"}}foo{{end}}`); err == nil {
+-		t.Fatal("no error from redefining a template")
+-	}
+-	if !strings.Contains(err.Error(), "redefinition") {
+-		t.Fatalf("expected redefinition error; got %v", err)
+-	}
+ }
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 9061731b2b..ea93e05142 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -58,6 +58,7 @@ const (
+ 	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'
+ 	// Keywords appear after all the rest.
+ 	itemKeyword  // used only to delimit the keywords
++	itemBlock    // block keyword
+ 	itemDot      // the cursor, spelled '.'
+ 	itemDefine   // define keyword
+ 	itemElse     // else keyword
+@@ -71,6 +72,7 @@ const (
+ 
+ var key = map[string]itemType{
+ 	".":        itemDot,
++	"block":    itemBlock,
+ 	"define":   itemDefine,
+ 	"else":     itemElse,
+ 	"end":      itemEnd,
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index 17dbe28a9f..e35ebf1a85 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -33,6 +33,7 @@ var itemName = map[itemType]string{
+ 
+ 	// keywords
+ 	itemDot:      ".",
++	itemBlock:    "block",
+ 	itemDefine:   "define",
+ 	itemElse:     "else",
+ 	itemIf:       "if",
+@@ -58,6 +59,8 @@ type lexTest struct {
+ }
+ 
+ var (
++	tDot        = item{itemDot, 0, "."}
++	tBlock      = item{itemBlock, 0, "block"}
+ 	tEOF        = item{itemEOF, 0, ""}
+ 	tFor        = item{itemIdentifier, 0, "for"}
+ 	tLeft       = item{itemLeftDelim, 0, "{{"}
+@@ -104,6 +107,9 @@ var lexTests = []lexTest{
+ 	}},
+ 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
+ 	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
++	{"block", `{{block "foo" .}}`, []item{
++		tLeft, tBlock, tSpace, {itemString, 0, `"foo"`}, tSpace, tDot, tRight, tEOF,
++	}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+ 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
+ 	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
+@@ -155,7 +161,7 @@ var lexTests = []lexTest{
+ 	}},
+ 	{"dot", "{{.}}", []item{
+ 		tLeft,
+-		{itemDot, 0, "."},
++		tDot,
+ 		tRight,
+ 		tEOF,
+ 	}},
+@@ -169,7 +175,7 @@ var lexTests = []lexTest{
+ 		tLeft,
+ 		{itemField, 0, ".x"},
+ 		tSpace,
+-		{itemDot, 0, "."},
++		tDot,
+ 		tSpace,
+ 		{itemNumber, 0, ".2"},
+ 		tSpace,
+@@ -501,9 +507,9 @@ func TestShutdown(t *testing.T) {
+ func (t *Tree) parseLexer(lex *lexer, text string) (tree *Tree, err error) {
+ 	defer t.recover(&err)
+ 	t.ParseName = t.Name
+-	t.startParse(nil, lex)
+-	t.parse(nil)
+-	t.add(nil)
++	t.startParse(nil, lex, map[string]*Tree{})
++	t.parse()
++	t.add()
+ 	t.stopParse()
+ 	return t, nil
+ }
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 88aacd1b72..dc56cf7aa0 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -28,6 +28,7 @@ type Tree struct {
+ 	token     [3]item // three-token lookahead for parser.
+ 	peekCount int
+ 	vars      []string // variables defined at the moment.
++	treeSet   map[string]*Tree
+ }
+ 
+ // Copy returns a copy of the Tree. Any parsing state is discarded.
+@@ -205,11 +206,12 @@ func (t *Tree) recover(errp *error) {
+ }
+ 
+ // startParse initializes the parser, using the lexer.
+-func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer) {
++func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer, treeSet map[string]*Tree) {
+ 	t.Root = nil
+ 	t.lex = lex
+ 	t.vars = []string{"$"}
+ 	t.funcs = funcs
++	t.treeSet = treeSet
+ }
+ 
+ // stopParse terminates parsing.
+@@ -217,6 +219,7 @@ func (t *Tree) stopParse() {
+ 	t.lex = nil
+ 	t.vars = nil
+ 	t.funcs = nil
++	t.treeSet = nil
+ }
+ 
+ // Parse parses the template definition string to construct a representation of
+@@ -226,19 +229,19 @@ func (t *Tree) stopParse() {
+ func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
+ 	defer t.recover(&err)
+ 	t.ParseName = t.Name
+-	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim))
++	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim), treeSet)
+ 	t.text = text
+-	t.parse(treeSet)
+-	t.add(treeSet)
++	t.parse()
++	t.add()
+ 	t.stopParse()
+ 	return t, nil
+ }
+ 
+-// add adds tree to the treeSet.
+-func (t *Tree) add(treeSet map[string]*Tree) {
+-	tree := treeSet[t.Name]
++// add adds tree to t.treeSet.
++func (t *Tree) add() {
++	tree := t.treeSet[t.Name]
+ 	if tree == nil || IsEmptyTree(tree.Root) {
+-		treeSet[t.Name] = t
++		t.treeSet[t.Name] = t
+ 		return
+ 	}
+ 	if !IsEmptyTree(t.Root) {
+@@ -274,7 +277,7 @@ func IsEmptyTree(n Node) bool {
+ // parse is the top-level parser for a template, essentially the same
+ // as itemList except it also parses {{define}} actions.
+ // It runs to EOF.
+-func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
++func (t *Tree) parse() (next Node) {
+ 	t.Root = t.newList(t.peek().pos)
+ 	for t.peek().typ != itemEOF {
+ 		if t.peek().typ == itemLeftDelim {
+@@ -283,8 +286,8 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+ 				newT := New("definition") // name will be updated once we know it.
+ 				newT.text = t.text
+ 				newT.ParseName = t.ParseName
+-				newT.startParse(t.funcs, t.lex)
+-				newT.parseDefinition(treeSet)
++				newT.startParse(t.funcs, t.lex, t.treeSet)
++				newT.parseDefinition()
+ 				continue
+ 			}
+ 			t.backup2(delim)
+@@ -300,9 +303,9 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+ }
+ 
+ // parseDefinition parses a {{define}} ...  {{end}} template definition and
+-// installs the definition in the treeSet map.  The "define" keyword has already
++// installs the definition in t.treeSet. The "define" keyword has already
+ // been scanned.
+-func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
++func (t *Tree) parseDefinition() {
+ 	const context = "define clause"
+ 	name := t.expectOneOf(itemString, itemRawString, context)
+ 	var err error
+@@ -316,7 +319,7 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
+ 	if end.Type() != nodeEnd {
+ 		t.errorf("unexpected %s in %s", end, context)
+ 	}
+-	t.add(treeSet)
++	t.add()
+ 	t.stopParse()
+ }
+ 
+@@ -358,6 +361,8 @@ func (t *Tree) textOrAction() Node {
+ // First word could be a keyword such as range.
+ func (t *Tree) action() (n Node) {
+ 	switch token := t.nextNonSpace(); token.typ {
++	case itemBlock:
++		return t.blockControl()
+ 	case itemElse:
+ 		return t.elseControl()
+ 	case itemEnd:
+@@ -522,13 +527,51 @@ func (t *Tree) elseControl() Node {
+ 	return t.newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
+ }
+ 
++// Block:
++//	{{block stringValue pipeline}}
++// Block keyword is past.
++// The name must be something that can evaluate to a string.
++// The pipeline is mandatory.
++func (t *Tree) blockControl() Node {
++	const context = "block clause"
++
++	token := t.nextNonSpace()
++	name := t.parseTemplateName(token, context)
++	pipe := t.pipeline(context)
++
++	block := New(name) // name will be updated once we know it.
++	block.text = t.text
++	block.ParseName = t.ParseName
++	block.startParse(t.funcs, t.lex, t.treeSet)
++	var end Node
++	block.Root, end = block.itemList()
++	if end.Type() != nodeEnd {
++		t.errorf("unexpected %s in %s", end, context)
++	}
++	block.add()
++	block.stopParse()
++
++	return t.newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
++}
++
+ // Template:
+ //	{{template stringValue pipeline}}
+ // Template keyword is past.  The name must be something that can evaluate
+ // to a string.
+ func (t *Tree) templateControl() Node {
+-	var name string
++	const context = "template clause"
+ 	token := t.nextNonSpace()
++	name := t.parseTemplateName(token, context)
++	var pipe *PipeNode
++	if t.nextNonSpace().typ != itemRightDelim {
++		t.backup()
++		// Do not pop variables; they persist until "end".
++		pipe = t.pipeline(context)
++	}
++	return t.newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
++}
++
++func (t *Tree) parseTemplateName(token item, context string) (name string) {
+ 	switch token.typ {
+ 	case itemString, itemRawString:
+ 		s, err := strconv.Unquote(token.val)
+@@ -537,15 +580,9 @@ func (t *Tree) templateControl() Node {
+ 		}
+ 		name = s
+ 	default:
+-		t.unexpected(token, "template invocation")
+-	}
+-	var pipe *PipeNode
+-	if t.nextNonSpace().typ != itemRightDelim {
+-		t.backup()
+-		// Do not pop variables; they persist until "end".
+-		pipe = t.pipeline("template")
++		t.unexpected(token, context)
+ 	}
+-	return t.newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
++	return
+ }
+ 
+ // command:
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 28b5f7cb90..b4512d3160 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -235,6 +235,8 @@ var parseTests = []parseTest{
+ 	{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"`},
+ 	{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `"y"`},
+ 	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
++	{"block definition", `{{block "foo" .}}hello{{end}}`, noError,
++		`{{template "foo" .}}`},
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
+ 	{"unmatched end", "{{end}}", hasError, ""},
+@@ -284,6 +286,8 @@ var parseTests = []parseTest{
+ 	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
+ 	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
+ 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
++	// Missing pipeline in block
++	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
+ }
+ 
+ var builtins = map[string]interface{}{
+@@ -457,3 +461,26 @@ func TestErrors(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestBlock(t *testing.T) {
++	const (
++		input = `a{{block "inner" .}}bar{{.}}baz{{end}}b`
++		outer = `a{{template "inner" .}}b`
++		inner = `bar{{.}}baz`
++	)
++	treeSet := make(map[string]*Tree)
++	tmpl, err := New("outer").Parse(input, "", "", treeSet, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if g, w := tmpl.Root.String(), outer; g != w {
++		t.Errorf("outer template = %q, want %q", g, w)
++	}
++	inTmpl := treeSet["inner"]
++	if inTmpl == nil {
++		t.Fatal("block did not define template")
++	}
++	if g, w := inTmpl.Root.String(), inner; g != w {
++		t.Errorf("inner template = %q, want %q", g, w)
++	}
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 69300d8867..7a7f42a715 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -5,7 +5,6 @@
+ package template
+ 
+ import (
+-	"fmt"
+ 	"reflect"
+ 	"sync"
+ 	"text/template/parse"
+@@ -117,11 +116,10 @@ func (t *Template) copy(c *common) *Template {
+ 
+ // AddParseTree adds parse tree for template with given name and associates it with t.
+ // If the template does not already exist, it will create a new one.
+-// It is an error to reuse a name except to overwrite an empty template.
++// If the template does exist, it will be replaced.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
+ 	t.init()
+ 	// If the name is the name of this template, overwrite this template.
+-	// The associate method checks it's not a redefinition.
+ 	nt := t
+ 	if name != t.name {
+ 		nt = t.New(name)
+@@ -185,11 +183,7 @@ func (t *Template) Lookup(name string) *Template {
+ 
+ // Parse defines the template by parsing the text. Nested template definitions will be
+ // associated with the top-level template t. Parse may be called multiple times
+-// to parse definitions of templates to associate with t. It is an error if a
+-// resulting template is non-empty (contains content other than template
+-// definitions) and would replace a non-empty template with the same name.
+-// (In multiple calls to Parse with the same receiver template, only one call
+-// can contain text other than space, comments, and template definitions.)
++// to parse definitions of templates to associate with t.
+ func (t *Template) Parse(text string) (*Template, error) {
+ 	t.init()
+ 	t.muFuncs.RLock()
+@@ -208,25 +202,17 @@ func (t *Template) Parse(text string) (*Template, error) {
+ }
+ 
+ // associate installs the new template into the group of templates associated
+-// with t. It is an error to reuse a name except to overwrite an empty
+-// template. The two are already known to share the common structure.
+-// The boolean return value reports wither to store this tree as t.Tree.
++// with t. The two are already known to share the common structure.
++// The boolean return value reports whether to store this tree as t.Tree.
+ func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
+ 	if new.common != t.common {
+ 		panic("internal error: associate not common")
+ 	}
+-	name := new.name
+-	if old := t.tmpl[name]; old != nil {
+-		oldIsEmpty := parse.IsEmptyTree(old.Root)
+-		newIsEmpty := parse.IsEmptyTree(tree.Root)
+-		if newIsEmpty {
+-			// Whether old is empty or not, new is empty; no reason to replace old.
+-			return false, nil
+-		}
+-		if !oldIsEmpty {
+-			return false, fmt.Errorf("template: redefinition of template %q", name)
+-		}
++	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) {
++		// If a template by that name exists,
++		// don't replace it with an empty template.
++		return false, nil
+ 	}
+-	t.tmpl[name] = new
++	t.tmpl[new.name] = new
+ 	return true, nil
+ }

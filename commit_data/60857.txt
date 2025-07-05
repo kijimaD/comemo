@@ -20,9 +20,65 @@ Date:   Wed Sep 4 18:45:17 2024 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/main.go                   | 4 ++--
  src/cmd/compile/internal/types/fmt.go | 4 ++--
  src/cmd/internal/obj/sym.go           | 2 +-
  src/cmd/objdump/objdump_test.go       | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 946245bbe7..7a78cd270d 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -388,8 +388,8 @@ func main() {
+ 	// we use to coordinate between gcc and ourselves.
+ 	// We already put _cgo_ at the beginning, so the main
+ 	// concern is other cgo wrappers for the same functions.
+-	// Use the beginning of the 32 bytes hash of the input to disambiguate.
+-	h := hash.New32()
++	// Use the beginning of the 16 bytes hash of the input to disambiguate.
++	h := hash.New16()
+ 	io.WriteString(h, *importPath)
+ 	var once sync.Once
+ 	var wg sync.WaitGroup
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index f316a23b90..96c63528ec 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -644,7 +644,7 @@ func SplitVargenSuffix(name string) (base, suffix string) {
+ func TypeHash(t *Type) uint32 {
+ 	p := t.LinkString()
+ 
+-	// Using 32 bytes hash is overkill, but reduces accidental collisions.
+-	h := hash.Sum32([]byte(p))
++	// Using 16 bytes hash is overkill, but reduces accidental collisions.
++	h := hash.Sum16([]byte(p))
+ 	return binary.LittleEndian.Uint32(h[:4])
+ }
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 0fd0eb7f0f..ac43a812b9 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -207,7 +207,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
+ 
+ // GCLocalsSym generates a content-addressable sym containing data.
+ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
+-	sum := hash.Sum32(data)
++	sum := hash.Sum16(data)
+ 	str := base64.StdEncoding.EncodeToString(sum[:16])
+ 	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
+ 		lsym.P = data
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 103517641e..e78f2d3f96 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -126,7 +126,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
+ 		goarch = f[1]
+ 	}
+ 
+-	hash := hash.Sum32([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
++	hash := hash.Sum16([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
+ 	tmp := t.TempDir()
+ 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
+ 	args := []string{"build", "-o", hello}

@@ -9,8 +9,52 @@ Date:   Wed May 6 10:41:01 2015 +0900
     Change-Id: Ia644b0898022e05d2f5232af38f51d55e40c6fb5
     Reviewed-on: https://go-review.googlesource.com/9772
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 2 +-
  src/net/error_test.go          | 3 ++-
  src/net/mockserver_test.go     | 2 +-
  3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index d046fc415e..1b88e7762b 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -101,7 +101,7 @@ type resolvConfTest struct {
+ }
+ 
+ func newResolvConfTest(t *testing.T) *resolvConfTest {
+-	dir, err := ioutil.TempDir("", "resolvConfTest")
++	dir, err := ioutil.TempDir("", "go-resolvconftest")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 9776a2a3b0..c65d3f9d8a 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -524,10 +524,11 @@ func TestFileError(t *testing.T) {
+ 		t.Skip("not supported on %s", runtime.GOOS)
+ 	}
+ 
+-	f, err := ioutil.TempFile("", "nettest")
++	f, err := ioutil.TempFile("", "go-nettest")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer os.Remove(f.Name())
+ 	defer f.Close()
+ 
+ 	c, err := FileConn(f)
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 75085a5535..62bcfa4022 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -18,7 +18,7 @@ import (
+ // It also uses /tmp directory in case it is prohibited to create UNIX
+ // sockets in TMPDIR.
+ func testUnixAddr() string {
+-	f, err := ioutil.TempFile("", "nettest")
++	f, err := ioutil.TempFile("", "go-nettest")
+ 	if err != nil {
+ 		panic(err)
+ 	}

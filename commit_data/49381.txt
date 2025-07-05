@@ -21,9 +21,120 @@ Date:   Mon Aug 16 02:15:28 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/deadcode/deadcode.go | 13 +++++++++++++
  src/cmd/compile/internal/gc/main.go           |  4 ++++
  src/cmd/compile/internal/ir/func.go           |  3 +++
  test/fixedbugs/issue47712.go                  | 23 +++++++++++++++++++++++
  4 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/compile/internal/deadcode/deadcode.go b/src/cmd/compile/internal/deadcode/deadcode.go
+index 520203787f..3658c89912 100644
+--- a/src/cmd/compile/internal/deadcode/deadcode.go
++++ b/src/cmd/compile/internal/deadcode/deadcode.go
+@@ -38,6 +38,7 @@ func Func(fn *ir.Func) {
+ 		}
+ 	}
+ 
++	ir.VisitList(fn.Body, markHiddenClosureDead)
+ 	fn.Body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
+ }
+ 
+@@ -62,9 +63,11 @@ func stmts(nn *ir.Nodes) {
+ 			if ir.IsConst(n.Cond, constant.Bool) {
+ 				var body ir.Nodes
+ 				if ir.BoolVal(n.Cond) {
++					ir.VisitList(n.Else, markHiddenClosureDead)
+ 					n.Else = ir.Nodes{}
+ 					body = n.Body
+ 				} else {
++					ir.VisitList(n.Body, markHiddenClosureDead)
+ 					n.Body = ir.Nodes{}
+ 					body = n.Else
+ 				}
+@@ -150,3 +153,13 @@ func expr(n ir.Node) ir.Node {
+ 	}
+ 	return n
+ }
++
++func markHiddenClosureDead(n ir.Node) {
++	if n.Op() != ir.OCLOSURE {
++		return
++	}
++	clo := n.(*ir.ClosureExpr)
++	if clo.Func.IsHiddenClosure() {
++		clo.Func.SetIsDeadcodeClosure(true)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6a373ce33d..9660ef9dd5 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -289,6 +289,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	fcount := int64(0)
+ 	for i := 0; i < len(typecheck.Target.Decls); i++ {
+ 		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
++			// Don't try compiling dead hidden closure.
++			if fn.IsDeadcodeClosure() {
++				continue
++			}
+ 			enqueueFunc(fn)
+ 			fcount++
+ 		}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 269b6f14ec..18d0b023ad 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -196,6 +196,7 @@ const (
+ 	// true if closure inside a function; false if a simple function or a
+ 	// closure in a global variable initialization
+ 	funcIsHiddenClosure
++	funcIsDeadcodeClosure        // true if closure is deadcode
+ 	funcHasDefer                 // contains a defer statement
+ 	funcNilCheckDisabled         // disable nil checks when compiling this function
+ 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
+@@ -216,6 +217,7 @@ func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper !
+ func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
+ func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
+ func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
++func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeClosure != 0 }
+ func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
+ func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
+ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
+@@ -230,6 +232,7 @@ func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper,
+ func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
+ func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
+ func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
++func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeClosure, b) }
+ func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
+ func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
+ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
+diff --git a/test/fixedbugs/issue47712.go b/test/fixedbugs/issue47712.go
+new file mode 100644
+index 0000000000..81a2681592
+--- /dev/null
++++ b/test/fixedbugs/issue47712.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	if false {
++		defer func() {
++			_ = recover()
++		}()
++	}
++}
++
++func g() {
++	for false {
++		defer func() {
++			_ = recover()
++		}()
++	}
++}

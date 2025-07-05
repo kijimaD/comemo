@@ -7,7 +7,7 @@ Date:   Wed Mar 20 16:32:37 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7936043
-
+---
  src/pkg/go/build/build.go           | 2 +-
  src/pkg/mime/multipart/multipart.go | 2 +-
  src/pkg/net/http/server.go          | 2 +-
@@ -20,3 +20,147 @@ Date:   Wed Mar 20 16:32:37 2013 -0700
  src/pkg/os/file_windows.go          | 2 +-
  src/pkg/reflect/type.go             | 2 +-
  11 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index d5f181d7c1..f4a84b8a7f 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -485,7 +485,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
+ 		}
+ 
+-		// tried records the location of unsucsessful package lookups
++		// tried records the location of unsuccessful package lookups
+ 		var tried struct {
+ 			goroot string
+ 			gopath []string
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 0592f69779..a6204d7bdb 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -268,7 +268,7 @@ func (r *Reader) NextPart() (*Part, error) {
+ }
+ 
+ // isFinalBoundary returns whether line is the final boundary line
+-// indiciating that all parts are over.
++// indicating that all parts are over.
+ // It matches `^--boundary--[ \t]*(\r\n)?$`
+ func (mr *Reader) isFinalBoundary(line []byte) bool {
+ 	if !bytes.HasPrefix(line, mr.dashBoundaryDash) {
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 5086ad0a79..d7433d3f91 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -655,7 +655,7 @@ func (w *response) bodyAllowed() bool {
+ //
+ // Handler starts. No header has been sent. The handler can either
+ // write a header, or just start writing.  Writing before sending a header
+-// sends an implicity empty 200 OK header.
++// sends an implicitly empty 200 OK header.
+ //
+ // If the handler didn't declare a Content-Length up front, we either
+ // go into chunking mode or, if the handler finishes running before
+diff --git a/src/pkg/net/interface_darwin.go b/src/pkg/net/interface_darwin.go
+index a50a7988ee..ad0937db04 100644
+--- a/src/pkg/net/interface_darwin.go
++++ b/src/pkg/net/interface_darwin.go
+@@ -50,7 +50,7 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage)
+ 		case *syscall.SockaddrInet6:
+ 			ifma := &IPAddr{IP: make(IP, IPv6len)}
+ 			copy(ifma.IP, sa.Addr[:])
+-			// NOTE: KAME based IPv6 protcol stack usually embeds
++			// NOTE: KAME based IPv6 protocol stack usually embeds
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+ 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+diff --git a/src/pkg/net/interface_freebsd.go b/src/pkg/net/interface_freebsd.go
+index d547d50b6d..5df767910e 100644
+--- a/src/pkg/net/interface_freebsd.go
++++ b/src/pkg/net/interface_freebsd.go
+@@ -50,7 +50,7 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage)
+ 		case *syscall.SockaddrInet6:
+ 			ifma := &IPAddr{IP: make(IP, IPv6len)}
+ 			copy(ifma.IP, sa.Addr[:])
+-			// NOTE: KAME based IPv6 protcol stack usually embeds
++			// NOTE: KAME based IPv6 protocol stack usually embeds
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+ 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+index 88e3b2c60b..43a5eab414 100644
+--- a/src/pkg/net/iprawsock_plan9.go
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -34,7 +34,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ }
+ 
+ // ReadMsgIP reads a packet from c, copying the payload into b and the
+-// associdated out-of-band data into oob.  It returns the number of
++// associated out-of-band data into oob.  It returns the number of
+ // bytes copied into b, the number of bytes copied into oob, the flags
+ // that were set on the packet and the source address of the packet.
+ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 2ef4db19c6..1bcaef9f2c 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -98,7 +98,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ }
+ 
+ // ReadMsgIP reads a packet from c, copying the payload into b and the
+-// associdated out-of-band data into oob.  It returns the number of
++// associated out-of-band data into oob.  It returns the number of
+ // bytes copied into b, the number of bytes copied into oob, the flags
+ // that were set on the packet and the source address of the packet.
+ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 2a7e3d19c6..66dcbab7c5 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -58,7 +58,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ }
+ 
+ // ReadMsgUDP reads a packet from c, copying the payload into b and
+-// the associdated out-of-band data into oob.  It returns the number
++// the associated out-of-band data into oob.  It returns the number
+ // of bytes copied into b, the number of bytes copied into oob, the
+ // flags that were set on the packet and the source address of the
+ // packet.
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 385cd902eb..9aafb7083a 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -89,7 +89,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ }
+ 
+ // ReadMsgUDP reads a packet from c, copying the payload into b and
+-// the associdated out-of-band data into oob.  It returns the number
++// the associated out-of-band data into oob.  It returns the number
+ // of bytes copied into b, the number of bytes copied into oob, the
+ // flags that were set on the packet and the source address of the
+ // packet.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 2eba7a4752..82af756d89 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -243,7 +243,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	return fi, nil
+ }
+ 
+-// readConsole reads utf16 charcters from console File,
++// readConsole reads utf16 characters from console File,
+ // encodes them into utf8 and stores them in buffer b.
+ // It returns the number of utf8 bytes read and an error, if any.
+ func (f *File) readConsole(b []byte) (n int, err error) {
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 94a7521a7c..5ec94f576d 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -1246,7 +1246,7 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
+ }
+ 
+ // typelinks is implemented in package runtime.
+-// It retuns a slice of all the 'typelink' information in the binary,
++// It returns a slice of all the 'typelink' information in the binary,
+ // which is to say a slice of known types, sorted by string.
+ // Note that strings are not unique identifiers for types:
+ // there can be more than one with a given string.

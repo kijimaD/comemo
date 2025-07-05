@@ -9,7 +9,31 @@ Date:   Tue May 31 15:41:47 2011 -0400
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4548073
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  test/ddd1.go           | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0cf11684da..66fc77a973 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -794,7 +794,7 @@ reswitch:
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+ 		if(l->op == OTYPE) {
+-			if(n->isddd)
++			if(n->isddd || l->type->bound == -100)
+ 				yyerror("invalid use of ... in type conversion", l);
+ 			// pick off before type-checking arguments
+ 			ok |= Erv;
+diff --git a/test/ddd1.go b/test/ddd1.go
+index a0bc73814f..96a358e1c0 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -43,4 +43,5 @@ func bad(args ...int) {
+ 	var x int
+ 	_ = unsafe.Pointer(&x...)	// ERROR "[.][.][.]"
+ 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
++	_ = [...]byte("foo") // ERROR "[.][.][.]"
+ }

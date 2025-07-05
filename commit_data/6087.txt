@@ -7,7 +7,32 @@ Date:   Wed Aug 25 12:51:36 2010 -0400
     R=adg, madari
     CC=golang-dev
     https://golang.org/cl/2025042
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3a358e57e7..662b0e5f70 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -53,6 +53,7 @@ Jan Mercl <befelemepeseveze@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
++Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Kevin Ballard <kevin@sb.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 92e2be173a..ba4d70cbc6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -90,6 +90,7 @@ Jan Mercl <befelemepeseveze@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
++Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
+ Ken Friedenbach <kenliz@cruzio.com>

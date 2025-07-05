@@ -10,6 +10,19 @@ Date:   Mon Feb 24 21:12:44 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/67820047
-
+---
  src/pkg/testing/benchmark_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/testing/benchmark_test.go b/src/pkg/testing/benchmark_test.go
+index 9997b99204..f7ea64e7f1 100644
+--- a/src/pkg/testing/benchmark_test.go
++++ b/src/pkg/testing/benchmark_test.go
+@@ -88,7 +88,6 @@ func TestRunParallelFail(t *testing.T) {
+ 			// w/o crashing/deadlocking the whole benchmark.
+ 			b.Log("log")
+ 			b.Error("error")
+-			b.Fatal("fatal")
+ 		})
+ 	})
+ }

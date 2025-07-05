@@ -15,10 +15,112 @@ Date:   Thu Nov 19 07:18:41 2020 +0000
     Reviewed-by: fannie zhang <Fannie.Zhang@arm.com>
     Reviewed-by: eric fang <eric.fang@arm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s      | 12 ++++++++++++
  src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
  src/cmd/internal/obj/arm64/a.out.go            |  2 ++
  src/cmd/internal/obj/arm64/anames.go           |  2 ++
  src/cmd/internal/obj/arm64/asm7.go             | 12 ++++++++++++
  5 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 1e6cde7a46..c1385a13ab 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -207,6 +207,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VUADDW2	V9.B16, V12.H8, V14.H8          // 8e11296e
+ 	VUADDW2	V13.H8, V20.S4, V30.S4          // 9e126d6e
+ 	VUADDW2	V21.S4, V24.D2, V29.D2          // 1d13b56e
++	VUMAX	V3.B8, V2.B8, V1.B8             // 4164232e
++	VUMAX	V3.B16, V2.B16, V1.B16          // 4164236e
++	VUMAX	V3.H4, V2.H4, V1.H4             // 4164632e
++	VUMAX	V3.H8, V2.H8, V1.H8             // 4164636e
++	VUMAX	V3.S2, V2.S2, V1.S2             // 4164a32e
++	VUMAX	V3.S4, V2.S4, V1.S4             // 4164a36e
++	VUMIN	V3.B8, V2.B8, V1.B8             // 416c232e
++	VUMIN	V3.B16, V2.B16, V1.B16          // 416c236e
++	VUMIN	V3.H4, V2.H4, V1.H4             // 416c632e
++	VUMIN	V3.H8, V2.H8, V1.H8             // 416c636e
++	VUMIN	V3.S2, V2.S2, V1.S2             // 416ca32e
++	VUMIN	V3.S4, V2.S4, V1.S4             // 416ca36e
+ 	FCCMPS	LT, F1, F2, $1	                // 41b4211e
+ 	FMADDS	F1, F3, F2, F4                  // 440c011f
+ 	FMADDD	F4, F5, F4, F4                  // 8414441f
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 9b4f42a8ff..1c8eaa1752 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -358,6 +358,10 @@ TEXT errors(SB),$0
+ 	VBIF	V0.D2, V1.D2, V2.D2                              // ERROR "invalid arrangement"
+ 	VUADDW	V9.B8, V12.H8, V14.B8                            // ERROR "invalid arrangement"
+ 	VUADDW2	V9.B8, V12.S4, V14.S4                            // ERROR "operand mismatch"
++	VUMAX   V1.D2, V2.D2, V3.D2                              // ERROR "invalid arrangement"
++	VUMIN   V1.D2, V2.D2, V3.D2                              // ERROR "invalid arrangement"
++	VUMAX	V1.B8, V2.B8, V3.B16                             // ERROR "operand mismatch"
++	VUMIN	V1.H4, V2.S4, V3.H4                              // ERROR "operand mismatch"
+ 	VSLI	$64, V7.D2, V8.D2                                // ERROR "shift out of range"
+ 	VUSRA   $0, V7.D2, V8.D2                                 // ERROR "shift out of range"
+ 	CASPD	(R3, R4), (R2), (R8, R9)                         // ERROR "source register pair must start from even register"
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index ed07f18691..bf75bb4a89 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -1031,6 +1031,8 @@ const (
+ 	AVEXT
+ 	AVRBIT
+ 	AVRAX1
++	AVUMAX
++	AVUMIN
+ 	AVUSHR
+ 	AVUSHLL
+ 	AVUSHLL2
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 0fb28536c4..9cc5871648 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -515,6 +515,8 @@ var Anames = []string{
+ 	"VEXT",
+ 	"VRBIT",
+ 	"VRAX1",
++	"VUMAX",
++	"VUMIN",
+ 	"VUSHR",
+ 	"VUSHLL",
+ 	"VUSHLL2",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 5937ebd732..f7c0a48214 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3017,6 +3017,8 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AVBSL, t)
+ 			oprangeset(AVBIT, t)
+ 			oprangeset(AVCMTST, t)
++			oprangeset(AVUMAX, t)
++			oprangeset(AVUMIN, t)
+ 			oprangeset(AVUZP1, t)
+ 			oprangeset(AVUZP2, t)
+ 			oprangeset(AVBIF, t)
+@@ -4529,6 +4531,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			if af != ARNG_2D && af != ARNG_2S && af != ARNG_4S {
+ 				c.ctxt.Diag("invalid arrangement: %v", p)
+ 			}
++		case AVUMAX, AVUMIN:
++			if af == ARNG_2D {
++				c.ctxt.Diag("invalid arrangement: %v", p)
++			}
+ 		}
+ 		switch p.As {
+ 		case AVAND, AVEOR:
+@@ -6205,6 +6211,12 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 	case AVCMTST:
+ 		return 0xE<<24 | 1<<21 | 0x23<<10
+ 
++	case AVUMAX:
++		return 1<<29 | 7<<25 | 1<<21 | 0x19<<10
++
++	case AVUMIN:
++		return 1<<29 | 7<<25 | 1<<21 | 0x1b<<10
++
+ 	case AVUZP1:
+ 		return 7<<25 | 3<<11
+ 

@@ -13,9 +13,107 @@ Date:   Fri Apr 11 22:19:49 2025 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/poll/copy_file_range_unix.go |  5 +----
  src/os/root_unix.go                       |  4 +---
  src/runtime/debug/garbage_test.go         | 16 ++++++++--------
  src/time/sleep_test.go                    |  8 +++-----
  4 files changed, 13 insertions(+), 20 deletions(-)
+
+diff --git a/src/internal/poll/copy_file_range_unix.go b/src/internal/poll/copy_file_range_unix.go
+index d3d3aaeed1..d39c5a339d 100644
+--- a/src/internal/poll/copy_file_range_unix.go
++++ b/src/internal/poll/copy_file_range_unix.go
+@@ -16,10 +16,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
+ 	}
+ 
+ 	for remain > 0 {
+-		max := remain
+-		if max > maxCopyFileRangeRound {
+-			max = maxCopyFileRangeRound
+-		}
++		max := min(remain, maxCopyFileRangeRound)
+ 		n, e := copyFileRange(dst, src, int(max))
+ 		if n > 0 {
+ 			remain -= n
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 19a84c4da0..74320451d5 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -272,9 +272,7 @@ func readlinkat(fd int, name string) (string, error) {
+ 		if e != nil {
+ 			return "", e
+ 		}
+-		if n < 0 {
+-			n = 0
+-		}
++		n = max(n, 0)
+ 		if n < len {
+ 			return string(b[0:n]), nil
+ 		}
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index cd91782d27..506f698ad7 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -18,7 +18,7 @@ func TestReadGCStats(t *testing.T) {
+ 
+ 	var stats GCStats
+ 	var mstats runtime.MemStats
+-	var min, max time.Duration
++	var minimum, maximum time.Duration
+ 
+ 	// First ReadGCStats will allocate, second should not,
+ 	// especially if we follow up with an explicit garbage collection.
+@@ -52,11 +52,11 @@ func TestReadGCStats(t *testing.T) {
+ 			if dt != time.Duration(mstats.PauseNs[off]) {
+ 				t.Errorf("stats.Pause[%d] = %d, want %d", i, dt, mstats.PauseNs[off])
+ 			}
+-			if max < dt {
+-				max = dt
+-			}
+-			if min > dt || i == 0 {
+-				min = dt
++			maximum = max(maximum, dt)
++			if i == 0 {
++				minimum = dt
++			} else {
++				minimum = min(minimum, dt)
+ 			}
+ 			off = (off + len(mstats.PauseNs) - 1) % len(mstats.PauseNs)
+ 		}
+@@ -64,8 +64,8 @@ func TestReadGCStats(t *testing.T) {
+ 
+ 	q := stats.PauseQuantiles
+ 	nq := len(q)
+-	if q[0] != min || q[nq-1] != max {
+-		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], min, max)
++	if q[0] != minimum || q[nq-1] != maximum {
++		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], minimum, maximum)
+ 	}
+ 
+ 	for i := 0; i < nq-1; i++ {
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 285a2e748c..b9e81b98fe 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -968,17 +968,15 @@ func BenchmarkParallelTimerLatency(b *testing.B) {
+ 	}
+ 	var total float64
+ 	var samples float64
+-	max := Duration(0)
++	maximum := Duration(0)
+ 	for _, s := range stats {
+-		if s.max > max {
+-			max = s.max
+-		}
++		maximum = max(maximum, s.max)
+ 		total += s.sum
+ 		samples += float64(s.count)
+ 	}
+ 	b.ReportMetric(0, "ns/op")
+ 	b.ReportMetric(total/samples, "avg-late-ns")
+-	b.ReportMetric(float64(max.Nanoseconds()), "max-late-ns")
++	b.ReportMetric(float64(maximum.Nanoseconds()), "max-late-ns")
+ }
+ 
+ // Benchmark timer latency with staggered wakeup times and varying CPU bound

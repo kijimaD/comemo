@@ -26,7 +26,7 @@ Date:   Thu Oct 22 12:11:29 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264397
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/fs/glob.go               |  4 +++
  src/io/fs/glob_test.go          | 10 +++++--
  src/path/filepath/match.go      | 61 +++++++++++++++++++++++++----------------
@@ -35,3 +35,355 @@ Date:   Thu Oct 22 12:11:29 2020 -0400
  src/path/match_test.go          |  4 ++-
  src/testing/fstest/testfs.go    |  6 ++++
  7 files changed, 106 insertions(+), 51 deletions(-)
+
+diff --git a/src/io/fs/glob.go b/src/io/fs/glob.go
+index 77f6ebbaaf..cde6c49f3d 100644
+--- a/src/io/fs/glob.go
++++ b/src/io/fs/glob.go
+@@ -36,6 +36,10 @@ func Glob(fsys FS, pattern string) (matches []string, err error) {
+ 		return fsys.Glob(pattern)
+ 	}
+ 
++	// Check pattern is well-formed.
++	if _, err := path.Match(pattern, ""); err != nil {
++		return nil, err
++	}
+ 	if !hasMeta(pattern) {
+ 		if _, err = Stat(fsys, pattern); err != nil {
+ 			return nil, nil
+diff --git a/src/io/fs/glob_test.go b/src/io/fs/glob_test.go
+index 0183a49b6c..5c8ac3fbf3 100644
+--- a/src/io/fs/glob_test.go
++++ b/src/io/fs/glob_test.go
+@@ -7,6 +7,7 @@ package fs_test
+ import (
+ 	. "io/fs"
+ 	"os"
++	"path"
+ 	"testing"
+ )
+ 
+@@ -44,9 +45,12 @@ func TestGlob(t *testing.T) {
+ }
+ 
+ func TestGlobError(t *testing.T) {
+-	_, err := Glob(os.DirFS("."), "[]")
+-	if err == nil {
+-		t.Error("expected error for bad pattern; got none")
++	bad := []string{`[]`, `nonexist/[]`}
++	for _, pattern := range bad {
++		_, err := Glob(os.DirFS("."), pattern)
++		if err != path.ErrBadPattern {
++			t.Errorf("Glob(fs, %#q) returned err=%v, want path.ErrBadPattern", pattern, err)
++		}
+ 	}
+ }
+ 
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index 20a334805b..c77a26952a 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -122,25 +122,28 @@ Scan:
+ // If so, it returns the remainder of s (after the match).
+ // Chunk is all single-character operators: literals, char classes, and ?.
+ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
++	// failed records whether the match has failed.
++	// After the match fails, the loop continues on processing chunk,
++	// checking that the pattern is well-formed but no longer reading s.
++	failed := false
+ 	for len(chunk) > 0 {
+-		if len(s) == 0 {
+-			return
++		if !failed && len(s) == 0 {
++			failed = true
+ 		}
+ 		switch chunk[0] {
+ 		case '[':
+ 			// character class
+-			r, n := utf8.DecodeRuneInString(s)
+-			s = s[n:]
+-			chunk = chunk[1:]
+-			// We can't end right after '[', we're expecting at least
+-			// a closing bracket and possibly a caret.
+-			if len(chunk) == 0 {
+-				err = ErrBadPattern
+-				return
++			var r rune
++			if !failed {
++				var n int
++				r, n = utf8.DecodeRuneInString(s)
++				s = s[n:]
+ 			}
++			chunk = chunk[1:]
+ 			// possibly negated
+-			negated := chunk[0] == '^'
+-			if negated {
++			negated := false
++			if len(chunk) > 0 && chunk[0] == '^' {
++				negated = true
+ 				chunk = chunk[1:]
+ 			}
+ 			// parse all ranges
+@@ -153,12 +156,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+ 				}
+ 				var lo, hi rune
+ 				if lo, chunk, err = getEsc(chunk); err != nil {
+-					return
++					return "", false, err
+ 				}
+ 				hi = lo
+ 				if chunk[0] == '-' {
+ 					if hi, chunk, err = getEsc(chunk[1:]); err != nil {
+-						return
++						return "", false, err
+ 					}
+ 				}
+ 				if lo <= r && r <= hi {
+@@ -167,35 +170,41 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+ 				nrange++
+ 			}
+ 			if match == negated {
+-				return
++				failed = true
+ 			}
+ 
+ 		case '?':
+-			if s[0] == Separator {
+-				return
++			if !failed {
++				if s[0] == Separator {
++					failed = true
++				}
++				_, n := utf8.DecodeRuneInString(s)
++				s = s[n:]
+ 			}
+-			_, n := utf8.DecodeRuneInString(s)
+-			s = s[n:]
+ 			chunk = chunk[1:]
+ 
+ 		case '\\':
+ 			if runtime.GOOS != "windows" {
+ 				chunk = chunk[1:]
+ 				if len(chunk) == 0 {
+-					err = ErrBadPattern
+-					return
++					return "", false, ErrBadPattern
+ 				}
+ 			}
+ 			fallthrough
+ 
+ 		default:
+-			if chunk[0] != s[0] {
+-				return
++			if !failed {
++				if chunk[0] != s[0] {
++					failed = true
++				}
++				s = s[1:]
+ 			}
+-			s = s[1:]
+ 			chunk = chunk[1:]
+ 		}
+ 	}
++	if failed {
++		return "", false, nil
++	}
+ 	return s, true, nil
+ }
+ 
+@@ -232,6 +241,10 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
+ // The only possible returned error is ErrBadPattern, when pattern
+ // is malformed.
+ func Glob(pattern string) (matches []string, err error) {
++	// Check pattern is well-formed.
++	if _, err := Match(pattern, ""); err != nil {
++		return nil, err
++	}
+ 	if !hasMeta(pattern) {
+ 		if _, err = os.Lstat(pattern); err != nil {
+ 			return nil, nil
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index b8657626bc..1c3b567fa3 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -75,8 +75,10 @@ var matchTests = []MatchTest{
+ 	{"[", "a", false, ErrBadPattern},
+ 	{"[^", "a", false, ErrBadPattern},
+ 	{"[^bc", "a", false, ErrBadPattern},
+-	{"a[", "a", false, nil},
++	{"a[", "a", false, ErrBadPattern},
+ 	{"a[", "ab", false, ErrBadPattern},
++	{"a[", "x", false, ErrBadPattern},
++	{"a/b[", "x", false, ErrBadPattern},
+ 	{"*x", "xxx", true, nil},
+ }
+ 
+@@ -155,9 +157,11 @@ func TestGlob(t *testing.T) {
+ }
+ 
+ func TestGlobError(t *testing.T) {
+-	_, err := Glob("[]")
+-	if err == nil {
+-		t.Error("expected error for bad pattern; got none")
++	bad := []string{`[]`, `nonexist/[]`}
++	for _, pattern := range bad {
++		if _, err := Glob(pattern); err != ErrBadPattern {
++			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
++		}
+ 	}
+ }
+ 
+diff --git a/src/path/match.go b/src/path/match.go
+index 837eb8bb8b..918624c60e 100644
+--- a/src/path/match.go
++++ b/src/path/match.go
+@@ -75,6 +75,14 @@ Pattern:
+ 				}
+ 			}
+ 		}
++		// Before returning false with no error,
++		// check that the remainder of the pattern is syntactically valid.
++		for len(pattern) > 0 {
++			_, chunk, pattern = scanChunk(pattern)
++			if _, _, err := matchChunk(chunk, ""); err != nil {
++				return false, err
++			}
++		}
+ 		return false, nil
+ 	}
+ 	return len(name) == 0, nil
+@@ -114,20 +122,28 @@ Scan:
+ // If so, it returns the remainder of s (after the match).
+ // Chunk is all single-character operators: literals, char classes, and ?.
+ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
++	// failed records whether the match has failed.
++	// After the match fails, the loop continues on processing chunk,
++	// checking that the pattern is well-formed but no longer reading s.
++	failed := false
+ 	for len(chunk) > 0 {
+-		if len(s) == 0 {
+-			return
++		if !failed && len(s) == 0 {
++			failed = true
+ 		}
+ 		switch chunk[0] {
+ 		case '[':
+ 			// character class
+-			r, n := utf8.DecodeRuneInString(s)
+-			s = s[n:]
++			var r rune
++			if !failed {
++				var n int
++				r, n = utf8.DecodeRuneInString(s)
++				s = s[n:]
++			}
+ 			chunk = chunk[1:]
+ 			// possibly negated
+-			notNegated := true
++			negated := false
+ 			if len(chunk) > 0 && chunk[0] == '^' {
+-				notNegated = false
++				negated = true
+ 				chunk = chunk[1:]
+ 			}
+ 			// parse all ranges
+@@ -140,12 +156,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+ 				}
+ 				var lo, hi rune
+ 				if lo, chunk, err = getEsc(chunk); err != nil {
+-					return
++					return "", false, err
+ 				}
+ 				hi = lo
+ 				if chunk[0] == '-' {
+ 					if hi, chunk, err = getEsc(chunk[1:]); err != nil {
+-						return
++						return "", false, err
+ 					}
+ 				}
+ 				if lo <= r && r <= hi {
+@@ -153,34 +169,40 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+ 				}
+ 				nrange++
+ 			}
+-			if match != notNegated {
+-				return
++			if match == negated {
++				failed = true
+ 			}
+ 
+ 		case '?':
+-			if s[0] == '/' {
+-				return
++			if !failed {
++				if s[0] == '/' {
++					failed = true
++				}
++				_, n := utf8.DecodeRuneInString(s)
++				s = s[n:]
+ 			}
+-			_, n := utf8.DecodeRuneInString(s)
+-			s = s[n:]
+ 			chunk = chunk[1:]
+ 
+ 		case '\\':
+ 			chunk = chunk[1:]
+ 			if len(chunk) == 0 {
+-				err = ErrBadPattern
+-				return
++				return "", false, ErrBadPattern
+ 			}
+ 			fallthrough
+ 
+ 		default:
+-			if chunk[0] != s[0] {
+-				return
++			if !failed {
++				if chunk[0] != s[0] {
++					failed = true
++				}
++				s = s[1:]
+ 			}
+-			s = s[1:]
+ 			chunk = chunk[1:]
+ 		}
+ 	}
++	if failed {
++		return "", false, nil
++	}
+ 	return s, true, nil
+ }
+ 
+diff --git a/src/path/match_test.go b/src/path/match_test.go
+index 3e027e1f68..996bd691eb 100644
+--- a/src/path/match_test.go
++++ b/src/path/match_test.go
+@@ -67,8 +67,10 @@ var matchTests = []MatchTest{
+ 	{"[", "a", false, ErrBadPattern},
+ 	{"[^", "a", false, ErrBadPattern},
+ 	{"[^bc", "a", false, ErrBadPattern},
+-	{"a[", "a", false, nil},
++	{"a[", "a", false, ErrBadPattern},
+ 	{"a[", "ab", false, ErrBadPattern},
++	{"a[", "x", false, ErrBadPattern},
++	{"a/b[", "x", false, ErrBadPattern},
+ 	{"*x", "xxx", true, nil},
+ }
+ 
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 21cd00e5b6..4912a271b2 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -282,6 +282,12 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
+ 		glob = strings.Join(elem, "/") + "/"
+ 	}
+ 
++	// Test that malformed patterns are detected.
++	// The error is likely path.ErrBadPattern but need not be.
++	if _, err := t.fsys.(fs.GlobFS).Glob(glob + "nonexist/[]"); err == nil {
++		t.errorf("%s: Glob(%#q): bad pattern not detected", dir, glob+"nonexist/[]")
++	}
++
+ 	// Try to find a letter that appears in only some of the final names.
+ 	c := rune('a')
+ 	for ; c <= 'z'; c++ {

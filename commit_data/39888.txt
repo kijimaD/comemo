@@ -15,9 +15,78 @@ Date:   Tue Mar 19 03:53:04 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go  |  4 ++--
  src/cmd/go/internal/modload/search.go  |  2 +-
  src/cmd/go/internal/search/search.go   |  2 +-
  src/cmd/go/testdata/script/mod_dir.txt | 20 ++++++++++++++++++++
  4 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index db3e1a9e5b..83ef0e0b4f 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -233,8 +233,8 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	if isLocal {
+ 		for d := dir; d != mdir && len(d) > len(mdir); {
+ 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
+-				_, err := os.Stat(filepath.Join(d, "go.mod"))
+-				return err == nil
++				fi, err := os.Stat(filepath.Join(d, "go.mod"))
++				return err == nil && !fi.IsDir()
+ 			}).(bool)
+ 
+ 			if haveGoMod {
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 753b3be6de..3af39747c6 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -76,7 +76,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 			}
+ 			// Stop at module boundaries.
+ 			if path != root {
+-				if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
++				if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+ 					return filepath.SkipDir
+ 				}
+ 			}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 0ca60e7349..20e8f0ad1e 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -190,7 +190,7 @@ func MatchPackagesInFS(pattern string) *Match {
+ 
+ 		if !top && cfg.ModulesEnabled {
+ 			// Ignore other modules found in subdirectories.
+-			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
++			if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+ 				return filepath.SkipDir
+ 			}
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_dir.txt b/src/cmd/go/testdata/script/mod_dir.txt
+new file mode 100644
+index 0000000000..05548f6366
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_dir.txt
+@@ -0,0 +1,20 @@
++# The directory named go.mod should be ignored
++
++env GO111MODULE=on
++
++cd $WORK/sub
++
++go list .
++stdout 'x/sub'
++
++mkdir go.mod
++exists go.mod
++
++go list .
++stdout 'x/sub'
++
++-- $WORK/go.mod --
++module x
++
++-- $WORK/sub/x.go --
++package x
+\ No newline at end of file

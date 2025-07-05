@@ -17,6 +17,19 @@ Date:   Fri Jun 3 02:22:50 2022 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/tls/handshake_server_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 2c75b78eb1..9a2a378dce 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -236,7 +236,6 @@ func TestRenegotiationExtension(t *testing.T) {
+ 		n, err := c.Read(buf)
+ 		if err != nil {
+ 			t.Errorf("Server read returned error: %s", err)
+-			return
+ 		}
+ 		c.Close()
+ 		bufChan <- buf[:n]

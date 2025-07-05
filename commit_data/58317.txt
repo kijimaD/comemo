@@ -15,10 +15,451 @@ Date:   Tue Jun 6 08:53:54 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/61716.txt               |   3 -
  src/math/rand/v2/race_test.go    |   1 -
  src/math/rand/v2/rand.go         |  86 +---------------------------
  src/math/rand/v2/rand_test.go    | 118 ---------------------------------------
  src/math/rand/v2/regress_test.go | 100 +++++++++++++--------------------
  5 files changed, 43 insertions(+), 265 deletions(-)
+
+diff --git a/api/next/61716.txt b/api/next/61716.txt
+index 36252ab50d..341c2e45c4 100644
+--- a/api/next/61716.txt
++++ b/api/next/61716.txt
+@@ -12,8 +12,6 @@ pkg math/rand/v2, func NewSource(int64) Source #61716
+ pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
+ pkg math/rand/v2, func NormFloat64() float64 #61716
+ pkg math/rand/v2, func Perm(int) []int #61716
+-pkg math/rand/v2, func Read //deprecated #61716
+-pkg math/rand/v2, func Read([]uint8) (int, error) #61716
+ pkg math/rand/v2, func Seed //deprecated #61716
+ pkg math/rand/v2, func Seed(int64) #61716
+ pkg math/rand/v2, func Shuffle(int, func(int, int)) #61716
+@@ -30,7 +28,6 @@ pkg math/rand/v2, method (*Rand) Int64N(int64) int64 #61716
+ pkg math/rand/v2, method (*Rand) IntN(int) int #61716
+ pkg math/rand/v2, method (*Rand) NormFloat64() float64 #61716
+ pkg math/rand/v2, method (*Rand) Perm(int) []int #61716
+-pkg math/rand/v2, method (*Rand) Read([]uint8) (int, error) #61716
+ pkg math/rand/v2, method (*Rand) Seed(int64) #61716
+ pkg math/rand/v2, method (*Rand) Shuffle(int, func(int, int)) #61716
+ pkg math/rand/v2, method (*Rand) Uint32() uint32 #61716
+diff --git a/src/math/rand/v2/race_test.go b/src/math/rand/v2/race_test.go
+index d164f5024b..963b37e91d 100644
+--- a/src/math/rand/v2/race_test.go
++++ b/src/math/rand/v2/race_test.go
+@@ -38,7 +38,6 @@ func TestConcurrent(t *testing.T) {
+ 				for _, p := range Perm(10) {
+ 					seed += int64(p)
+ 				}
+-				Read(buf)
+ 				for _, b := range buf {
+ 					seed += int64(b)
+ 				}
+diff --git a/src/math/rand/v2/rand.go b/src/math/rand/v2/rand.go
+index ed3bfe2e18..dd2213ff83 100644
+--- a/src/math/rand/v2/rand.go
++++ b/src/math/rand/v2/rand.go
+@@ -62,15 +62,6 @@ func newSource(seed int64) *rngSource {
+ type Rand struct {
+ 	src Source
+ 	s64 Source64 // non-nil if src is source64
+-
+-	// readVal contains remainder of 63-bit integer used for bytes
+-	// generation during most recent Read call.
+-	// It is saved so next Read call can start where the previous
+-	// one finished.
+-	readVal int64
+-	// readPos indicates the number of low-order bytes of readVal
+-	// that are still valid.
+-	readPos int8
+ }
+ 
+ // New returns a new Rand that uses random values from src
+@@ -84,12 +75,10 @@ func New(src Source) *Rand {
+ // Seed should not be called concurrently with any other Rand method.
+ func (r *Rand) Seed(seed int64) {
+ 	if lk, ok := r.src.(*lockedSource); ok {
+-		lk.seedPos(seed, &r.readPos)
++		lk.Seed(seed)
+ 		return
+ 	}
+-
+ 	r.src.Seed(seed)
+-	r.readPos = 0
+ }
+ 
+ // Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
+@@ -266,41 +255,6 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
+ 	}
+ }
+ 
+-// Read generates len(p) random bytes and writes them into p. It
+-// always returns len(p) and a nil error.
+-// Read should not be called concurrently with any other Rand method.
+-func (r *Rand) Read(p []byte) (n int, err error) {
+-	switch src := r.src.(type) {
+-	case *lockedSource:
+-		return src.read(p, &r.readVal, &r.readPos)
+-	case *fastSource:
+-		return src.read(p, &r.readVal, &r.readPos)
+-	}
+-	return read(p, r.src, &r.readVal, &r.readPos)
+-}
+-
+-func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error) {
+-	pos := *readPos
+-	val := *readVal
+-	rng, _ := src.(*rngSource)
+-	for n = 0; n < len(p); n++ {
+-		if pos == 0 {
+-			if rng != nil {
+-				val = rng.Int64()
+-			} else {
+-				val = src.Int64()
+-			}
+-			pos = 7
+-		}
+-		p[n] = byte(val)
+-		val >>= 8
+-		pos--
+-	}
+-	*readPos = pos
+-	*readVal = val
+-	return
+-}
+-
+ /*
+  * Top-level convenience functions
+  */
+@@ -349,12 +303,8 @@ func globalRand() *Rand {
+ //go:linkname fastrand64
+ func fastrand64() uint64
+ 
+-// fastSource is an implementation of Source64 that uses the runtime
+-// fastrand functions.
+-type fastSource struct {
+-	// The mutex is used to avoid race conditions in Read.
+-	mu sync.Mutex
+-}
++// fastSource is a Source that uses the runtime fastrand functions.
++type fastSource struct{}
+ 
+ func (*fastSource) Int64() int64 {
+ 	return int64(fastrand64() & rngMask)
+@@ -368,13 +318,6 @@ func (*fastSource) Uint64() uint64 {
+ 	return fastrand64()
+ }
+ 
+-func (fs *fastSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+-	fs.mu.Lock()
+-	n, err = read(p, fs, readVal, readPos)
+-	fs.mu.Unlock()
+-	return
+-}
+-
+ // Seed uses the provided seed value to initialize the default Source to a
+ // deterministic state. Seed values that have the same remainder when
+ // divided by 2³¹-1 generate the same pseudo-random sequence.
+@@ -469,13 +412,6 @@ func Perm(n int) []int { return globalRand().Perm(n) }
+ // swap swaps the elements with indexes i and j.
+ func Shuffle(n int, swap func(i, j int)) { globalRand().Shuffle(n, swap) }
+ 
+-// Read generates len(p) random bytes from the default Source and
+-// writes them into p. It always returns len(p) and a nil error.
+-// Read, unlike the Rand.Read method, is safe for concurrent use.
+-//
+-// Deprecated: For almost all use cases, crypto/rand.Read is more appropriate.
+-func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
+-
+ // NormFloat64 returns a normally distributed float64 in the range
+ // [-math.MaxFloat64, +math.MaxFloat64] with
+ // standard normal distribution (mean = 0, stddev = 1)
+@@ -520,14 +456,6 @@ func (r *lockedSource) Seed(seed int64) {
+ 	r.lk.Unlock()
+ }
+ 
+-// seedPos implements Seed for a lockedSource without a race condition.
+-func (r *lockedSource) seedPos(seed int64, readPos *int8) {
+-	r.lk.Lock()
+-	r.seed(seed)
+-	*readPos = 0
+-	r.lk.Unlock()
+-}
+-
+ // seed seeds the underlying source.
+ // The caller must have locked r.lk.
+ func (r *lockedSource) seed(seed int64) {
+@@ -537,11 +465,3 @@ func (r *lockedSource) seed(seed int64) {
+ 		r.s.Seed(seed)
+ 	}
+ }
+-
+-// read implements Read for a lockedSource without a race condition.
+-func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+-	r.lk.Lock()
+-	n, err = read(p, r.s, readVal, readPos)
+-	r.lk.Unlock()
+-	return
+-}
+diff --git a/src/math/rand/v2/rand_test.go b/src/math/rand/v2/rand_test.go
+index c1da833e07..ddb4418935 100644
+--- a/src/math/rand/v2/rand_test.go
++++ b/src/math/rand/v2/rand_test.go
+@@ -5,18 +5,15 @@
+ package rand_test
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io"
+ 	"math"
+ 	. "math/rand/v2"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+-	"testing/iotest"
+ )
+ 
+ const (
+@@ -367,94 +364,6 @@ func TestFloat32(t *testing.T) {
+ 	}
+ }
+ 
+-func testReadUniformity(t *testing.T, n int, seed int64) {
+-	r := New(NewSource(seed))
+-	buf := make([]byte, n)
+-	nRead, err := r.Read(buf)
+-	if err != nil {
+-		t.Errorf("Read err %v", err)
+-	}
+-	if nRead != n {
+-		t.Errorf("Read returned unexpected n; %d != %d", nRead, n)
+-	}
+-
+-	// Expect a uniform distribution of byte values, which lie in [0, 255].
+-	var (
+-		mean       = 255.0 / 2
+-		stddev     = 256.0 / math.Sqrt(12.0)
+-		errorScale = stddev / math.Sqrt(float64(n))
+-	)
+-
+-	expected := &statsResults{mean, stddev, 0.10 * errorScale, 0.08 * errorScale}
+-
+-	// Cast bytes as floats to use the common distribution-validity checks.
+-	samples := make([]float64, n)
+-	for i, val := range buf {
+-		samples[i] = float64(val)
+-	}
+-	// Make sure that the entire set matches the expected distribution.
+-	checkSampleDistribution(t, samples, expected)
+-}
+-
+-func TestReadUniformity(t *testing.T) {
+-	testBufferSizes := []int{
+-		2, 4, 7, 64, 1024, 1 << 16, 1 << 20,
+-	}
+-	for _, seed := range testSeeds {
+-		for _, n := range testBufferSizes {
+-			testReadUniformity(t, n, seed)
+-		}
+-	}
+-}
+-
+-func TestReadEmpty(t *testing.T) {
+-	r := New(NewSource(1))
+-	buf := make([]byte, 0)
+-	n, err := r.Read(buf)
+-	if err != nil {
+-		t.Errorf("Read err into empty buffer; %v", err)
+-	}
+-	if n != 0 {
+-		t.Errorf("Read into empty buffer returned unexpected n of %d", n)
+-	}
+-}
+-
+-func TestReadByOneByte(t *testing.T) {
+-	r := New(NewSource(1))
+-	b1 := make([]byte, 100)
+-	_, err := io.ReadFull(iotest.OneByteReader(r), b1)
+-	if err != nil {
+-		t.Errorf("read by one byte: %v", err)
+-	}
+-	r = New(NewSource(1))
+-	b2 := make([]byte, 100)
+-	_, err = r.Read(b2)
+-	if err != nil {
+-		t.Errorf("read: %v", err)
+-	}
+-	if !bytes.Equal(b1, b2) {
+-		t.Errorf("read by one byte vs single read:\n%x\n%x", b1, b2)
+-	}
+-}
+-
+-func TestReadSeedReset(t *testing.T) {
+-	r := New(NewSource(42))
+-	b1 := make([]byte, 128)
+-	_, err := r.Read(b1)
+-	if err != nil {
+-		t.Errorf("read: %v", err)
+-	}
+-	r.Seed(42)
+-	b2 := make([]byte, 128)
+-	_, err = r.Read(b2)
+-	if err != nil {
+-		t.Errorf("read: %v", err)
+-	}
+-	if !bytes.Equal(b1, b2) {
+-		t.Errorf("mismatch after re-seed:\n%x\n%x", b1, b2)
+-	}
+-}
+-
+ func TestShuffleSmall(t *testing.T) {
+ 	// Check that Shuffle allows n=0 and n=1, but that swap is never called for them.
+ 	r := New(NewSource(1))
+@@ -658,33 +567,6 @@ func BenchmarkShuffleOverhead(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkRead3(b *testing.B) {
+-	r := New(NewSource(1))
+-	buf := make([]byte, 3)
+-	b.ResetTimer()
+-	for n := b.N; n > 0; n-- {
+-		r.Read(buf)
+-	}
+-}
+-
+-func BenchmarkRead64(b *testing.B) {
+-	r := New(NewSource(1))
+-	buf := make([]byte, 64)
+-	b.ResetTimer()
+-	for n := b.N; n > 0; n-- {
+-		r.Read(buf)
+-	}
+-}
+-
+-func BenchmarkRead1000(b *testing.B) {
+-	r := New(NewSource(1))
+-	buf := make([]byte, 1000)
+-	b.ResetTimer()
+-	for n := b.N; n > 0; n-- {
+-		r.Read(buf)
+-	}
+-}
+-
+ func BenchmarkConcurrent(b *testing.B) {
+ 	const goroutines = 4
+ 	var wg sync.WaitGroup
+diff --git a/src/math/rand/v2/regress_test.go b/src/math/rand/v2/regress_test.go
+index ee0c8da586..6dccdaf28f 100644
+--- a/src/math/rand/v2/regress_test.go
++++ b/src/math/rand/v2/regress_test.go
+@@ -344,64 +344,44 @@ var regressGolden = []any{
+ 	[]int{2, 1, 7, 0, 6, 3, 4, 5},       // Perm(8)
+ 	[]int{8, 7, 5, 3, 4, 6, 0, 1, 2},    // Perm(9)
+ 	[]int{1, 0, 2, 5, 7, 6, 9, 8, 3, 4}, // Perm(10)
+-	[]byte{0x1},                         // Read([0])
+-	[]byte{0x94, 0xfd, 0xc2, 0xfa, 0x2f, 0xfc, 0xc0},                 // Read([0 0 0 0 0 0 0])
+-	[]byte{0x41, 0xd3, 0xff, 0x12, 0x4, 0x5b, 0x73, 0xc8},            // Read([0 0 0 0 0 0 0 0])
+-	[]byte{0x6e, 0x4f, 0xf9, 0x5f, 0xf6, 0x62, 0xa5, 0xee, 0xe8},     // Read([0 0 0 0 0 0 0 0 0])
+-	[]byte{0x2a, 0xbd, 0xf4, 0x4a, 0x2d, 0xb, 0x75, 0xfb, 0x18, 0xd}, // Read([0 0 0 0 0 0 0 0 0 0])
+-	[]byte{0xaf}, // Read([0])
+-	[]byte{0x48, 0xa7, 0x9e, 0xe0, 0xb1, 0xd, 0x39},                   // Read([0 0 0 0 0 0 0])
+-	[]byte{0x46, 0x51, 0x85, 0xf, 0xd4, 0xa1, 0x78, 0x89},             // Read([0 0 0 0 0 0 0 0])
+-	[]byte{0x2e, 0xe2, 0x85, 0xec, 0xe1, 0x51, 0x14, 0x55, 0x78},      // Read([0 0 0 0 0 0 0 0 0])
+-	[]byte{0x8, 0x75, 0xd6, 0x4e, 0xe2, 0xd3, 0xd0, 0xd0, 0xde, 0x6b}, // Read([0 0 0 0 0 0 0 0 0 0])
+-	[]byte{0xf8}, // Read([0])
+-	[]byte{0xf9, 0xb4, 0x4c, 0xe8, 0x5f, 0xf0, 0x44},                   // Read([0 0 0 0 0 0 0])
+-	[]byte{0xc6, 0xb1, 0xf8, 0x3b, 0x8e, 0x88, 0x3b, 0xbf},             // Read([0 0 0 0 0 0 0 0])
+-	[]byte{0x85, 0x7a, 0xab, 0x99, 0xc5, 0xb2, 0x52, 0xc7, 0x42},       // Read([0 0 0 0 0 0 0 0 0])
+-	[]byte{0x9c, 0x32, 0xf3, 0xa8, 0xae, 0xb7, 0x9e, 0xf8, 0x56, 0xf6}, // Read([0 0 0 0 0 0 0 0 0 0])
+-	[]byte{0x59}, // Read([0])
+-	[]byte{0xc1, 0x8f, 0xd, 0xce, 0xcc, 0x77, 0xc7},                    // Read([0 0 0 0 0 0 0])
+-	[]byte{0x5e, 0x7a, 0x81, 0xbf, 0xde, 0x27, 0x5f, 0x67},             // Read([0 0 0 0 0 0 0 0])
+-	[]byte{0xcf, 0xe2, 0x42, 0xcf, 0x3c, 0xc3, 0x54, 0xf3, 0xed},       // Read([0 0 0 0 0 0 0 0 0])
+-	[]byte{0xe2, 0xd6, 0xbe, 0xcc, 0x4e, 0xa3, 0xae, 0x5e, 0x88, 0x52}, // Read([0 0 0 0 0 0 0 0 0 0])
+-	uint32(4059586549),           // Uint32()
+-	uint32(1052117029),           // Uint32()
+-	uint32(2817310706),           // Uint32()
+-	uint32(233405013),            // Uint32()
+-	uint32(1578775030),           // Uint32()
+-	uint32(1243308993),           // Uint32()
+-	uint32(826517535),            // Uint32()
+-	uint32(2814630155),           // Uint32()
+-	uint32(3853314576),           // Uint32()
+-	uint32(718781857),            // Uint32()
+-	uint32(1239465936),           // Uint32()
+-	uint32(3876658295),           // Uint32()
+-	uint32(3649778518),           // Uint32()
+-	uint32(1172727096),           // Uint32()
+-	uint32(2615979505),           // Uint32()
+-	uint32(1089444252),           // Uint32()
+-	uint32(3327114623),           // Uint32()
+-	uint32(75079301),             // Uint32()
+-	uint32(3380456901),           // Uint32()
+-	uint32(3433369789),           // Uint32()
+-	uint64(8717895732742165505),  // Uint64()
+-	uint64(2259404117704393152),  // Uint64()
+-	uint64(6050128673802995827),  // Uint64()
+-	uint64(9724605487393973602),  // Uint64()
+-	uint64(12613765599614152010), // Uint64()
+-	uint64(11893357769247901871), // Uint64()
+-	uint64(1774932891286980153),  // Uint64()
+-	uint64(15267744271532198264), // Uint64()
+-	uint64(17498302081433670737), // Uint64()
+-	uint64(1543572285742637646),  // Uint64()
+-	uint64(11885104867954719224), // Uint64()
+-	uint64(17548432336275752516), // Uint64()
+-	uint64(7837839688282259259),  // Uint64()
+-	uint64(2518412263346885298),  // Uint64()
+-	uint64(5617773211005988520),  // Uint64()
+-	uint64(11562935753659892057), // Uint64()
+-	uint64(16368296284793757383), // Uint64()
+-	uint64(161231572858529631),   // Uint64()
+-	uint64(16482847956365694147), // Uint64()
+-	uint64(16596477517051940556), // Uint64()
++	uint32(4059586549),                  // Uint32()
++	uint32(1052117029),                  // Uint32()
++	uint32(2817310706),                  // Uint32()
++	uint32(233405013),                   // Uint32()
++	uint32(1578775030),                  // Uint32()
++	uint32(1243308993),                  // Uint32()
++	uint32(826517535),                   // Uint32()
++	uint32(2814630155),                  // Uint32()
++	uint32(3853314576),                  // Uint32()
++	uint32(718781857),                   // Uint32()
++	uint32(1239465936),                  // Uint32()
++	uint32(3876658295),                  // Uint32()
++	uint32(3649778518),                  // Uint32()
++	uint32(1172727096),                  // Uint32()
++	uint32(2615979505),                  // Uint32()
++	uint32(1089444252),                  // Uint32()
++	uint32(3327114623),                  // Uint32()
++	uint32(75079301),                    // Uint32()
++	uint32(3380456901),                  // Uint32()
++	uint32(3433369789),                  // Uint32()
++	uint64(8717895732742165505),         // Uint64()
++	uint64(2259404117704393152),         // Uint64()
++	uint64(6050128673802995827),         // Uint64()
++	uint64(9724605487393973602),         // Uint64()
++	uint64(12613765599614152010),        // Uint64()
++	uint64(11893357769247901871),        // Uint64()
++	uint64(1774932891286980153),         // Uint64()
++	uint64(15267744271532198264),        // Uint64()
++	uint64(17498302081433670737),        // Uint64()
++	uint64(1543572285742637646),         // Uint64()
++	uint64(11885104867954719224),        // Uint64()
++	uint64(17548432336275752516),        // Uint64()
++	uint64(7837839688282259259),         // Uint64()
++	uint64(2518412263346885298),         // Uint64()
++	uint64(5617773211005988520),         // Uint64()
++	uint64(11562935753659892057),        // Uint64()
++	uint64(16368296284793757383),        // Uint64()
++	uint64(161231572858529631),          // Uint64()
++	uint64(16482847956365694147),        // Uint64()
++	uint64(16596477517051940556),        // Uint64()
+ }

@@ -19,8 +19,156 @@ Date:   Wed Dec 13 21:18:07 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/runtime/msan_amd64.s   | 10 +++++-----
  src/runtime/msan_arm64.s   | 10 +++++-----
  src/runtime/msan_loong64.s | 10 +++++-----
  3 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/msan_amd64.s b/src/runtime/msan_amd64.s
+index 89ed3048d0..a1dc388063 100644
+--- a/src/runtime/msan_amd64.s
++++ b/src/runtime/msan_amd64.s
+@@ -28,7 +28,7 @@
+ // Called from msanread.
+ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ 	MOVQ	addr+0(FP), RARG0
+-	MOVQ	size+8(FP), RARG1
++	MOVQ	sz+8(FP), RARG1
+ 	// void __msan_read_go(void *addr, uintptr_t sz);
+ 	MOVQ	$__msan_read_go(SB), AX
+ 	JMP	msancall<>(SB)
+@@ -37,7 +37,7 @@ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ // Called from instrumented code.
+ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
+ 	MOVQ	addr+0(FP), RARG0
+-	MOVQ	size+8(FP), RARG1
++	MOVQ	sz+8(FP), RARG1
+ 	// void __msan_write_go(void *addr, uintptr_t sz);
+ 	MOVQ	$__msan_write_go(SB), AX
+ 	JMP	msancall<>(SB)
+@@ -45,7 +45,7 @@ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
+ // func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
+ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
+ 	MOVQ	addr+0(FP), RARG0
+-	MOVQ	size+8(FP), RARG1
++	MOVQ	sz+8(FP), RARG1
+ 	// void __msan_malloc_go(void *addr, uintptr_t sz);
+ 	MOVQ	$__msan_malloc_go(SB), AX
+ 	JMP	msancall<>(SB)
+@@ -53,7 +53,7 @@ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
+ // func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
+ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
+ 	MOVQ	addr+0(FP), RARG0
+-	MOVQ	size+8(FP), RARG1
++	MOVQ	sz+8(FP), RARG1
+ 	// void __msan_free_go(void *addr, uintptr_t sz);
+ 	MOVQ	$__msan_free_go(SB), AX
+ 	JMP	msancall<>(SB)
+@@ -62,7 +62,7 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
+ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ 	MOVQ	dst+0(FP), RARG0
+ 	MOVQ	src+8(FP), RARG1
+-	MOVQ	size+16(FP), RARG2
++	MOVQ	sz+16(FP), RARG2
+ 	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+ 	MOVQ	$__msan_memmove(SB), AX
+ 	JMP	msancall<>(SB)
+diff --git a/src/runtime/msan_arm64.s b/src/runtime/msan_arm64.s
+index b9eff34ab6..ce475cf44a 100644
+--- a/src/runtime/msan_arm64.s
++++ b/src/runtime/msan_arm64.s
+@@ -16,7 +16,7 @@
+ // Called from msanread.
+ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ 	MOVD	addr+0(FP), RARG0
+-	MOVD	size+8(FP), RARG1
++	MOVD	sz+8(FP), RARG1
+ 	// void __msan_read_go(void *addr, uintptr_t sz);
+ 	MOVD	$__msan_read_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -25,7 +25,7 @@ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ // Called from instrumented code.
+ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
+ 	MOVD	addr+0(FP), RARG0
+-	MOVD	size+8(FP), RARG1
++	MOVD	sz+8(FP), RARG1
+ 	// void __msan_write_go(void *addr, uintptr_t sz);
+ 	MOVD	$__msan_write_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -33,7 +33,7 @@ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
+ // func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
+ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
+ 	MOVD	addr+0(FP), RARG0
+-	MOVD	size+8(FP), RARG1
++	MOVD	sz+8(FP), RARG1
+ 	// void __msan_malloc_go(void *addr, uintptr_t sz);
+ 	MOVD	$__msan_malloc_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -41,7 +41,7 @@ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
+ // func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
+ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
+ 	MOVD	addr+0(FP), RARG0
+-	MOVD	size+8(FP), RARG1
++	MOVD	sz+8(FP), RARG1
+ 	// void __msan_free_go(void *addr, uintptr_t sz);
+ 	MOVD	$__msan_free_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -50,7 +50,7 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
+ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ 	MOVD	dst+0(FP), RARG0
+ 	MOVD	src+8(FP), RARG1
+-	MOVD	size+16(FP), RARG2
++	MOVD	sz+16(FP), RARG2
+ 	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+ 	MOVD	$__msan_memmove(SB), FARG
+ 	JMP	msancall<>(SB)
+diff --git a/src/runtime/msan_loong64.s b/src/runtime/msan_loong64.s
+index f69fb45454..b9fa5fd120 100644
+--- a/src/runtime/msan_loong64.s
++++ b/src/runtime/msan_loong64.s
+@@ -16,7 +16,7 @@
+ // Called from msanread.
+ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ 	MOVV	addr+0(FP), RARG0
+-	MOVV	size+8(FP), RARG1
++	MOVV	sz+8(FP), RARG1
+ 	// void __msan_read_go(void *addr, uintptr_t sz);
+ 	MOVV	$__msan_read_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -25,7 +25,7 @@ TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ // Called from instrumented code.
+ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
+ 	MOVV	addr+0(FP), RARG0
+-	MOVV	size+8(FP), RARG1
++	MOVV	sz+8(FP), RARG1
+ 	// void __msan_write_go(void *addr, uintptr_t sz);
+ 	MOVV	$__msan_write_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -33,7 +33,7 @@ TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
+ // func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
+ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
+ 	MOVV	addr+0(FP), RARG0
+-	MOVV	size+8(FP), RARG1
++	MOVV	sz+8(FP), RARG1
+ 	// void __msan_malloc_go(void *addr, uintptr_t sz);
+ 	MOVV	$__msan_malloc_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -41,7 +41,7 @@ TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
+ // func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
+ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
+ 	MOVV	addr+0(FP), RARG0
+-	MOVV	size+8(FP), RARG1
++	MOVV	sz+8(FP), RARG1
+ 	// void __msan_free_go(void *addr, uintptr_t sz);
+ 	MOVV	$__msan_free_go(SB), FARG
+ 	JMP	msancall<>(SB)
+@@ -50,7 +50,7 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
+ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ 	MOVV	dst+0(FP), RARG0
+ 	MOVV	src+8(FP), RARG1
+-	MOVV	size+16(FP), RARG2
++	MOVV	sz+16(FP), RARG2
+ 	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+ 	MOVV	$__msan_memmove(SB), FARG
+ 	JMP	msancall<>(SB)

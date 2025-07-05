@@ -16,7 +16,64 @@ Date:   Sun Oct 30 12:47:53 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
  test/fixedbugs/issue17588.go             | 20 ++++++++++++++++++++
  2 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 09c4a543c7..6f0f4f58e3 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3415,6 +3415,12 @@ out:
+ 
+ // type check function definition
+ func typecheckfunc(n *Node) {
++	for _, ln := range n.Func.Dcl {
++		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
++			ln.Name.Decldepth = 1
++		}
++	}
++
+ 	n.Func.Nname = typecheck(n.Func.Nname, Erv|Easgn)
+ 	t := n.Func.Nname.Type
+ 	if t == nil {
+@@ -3426,12 +3432,6 @@ func typecheckfunc(n *Node) {
+ 	if rcvr != nil && n.Func.Shortname != nil {
+ 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Pragma&Nointerface != 0)
+ 	}
+-
+-	for _, ln := range n.Func.Dcl {
+-		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
+-			ln.Name.Decldepth = 1
+-		}
+-	}
+ }
+ 
+ // The result of stringtoarraylit MUST be assigned back to n, e.g.
+diff --git a/test/fixedbugs/issue17588.go b/test/fixedbugs/issue17588.go
+new file mode 100644
+index 0000000000..1be57c6292
+--- /dev/null
++++ b/test/fixedbugs/issue17588.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 17588: internal compiler error in typecheckclosure()
++// because in case of Func.Nname.Type == nil, Decldepth
++// is not initialized in typecheckfunc(). This test
++// produces that case.
++
++package p
++
++type F func(b T)  // ERROR "T is not a type"
++
++func T(fn F) {
++    func() {
++        fn(nil)  // If Decldepth is not initialized properly, typecheckclosure() Fatals here.
++    }()
++}

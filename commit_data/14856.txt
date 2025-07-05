@@ -23,6 +23,27 @@ Date:   Fri Jan 11 12:29:14 2013 +0800
     R=dave, rsc
     CC=golang-dev
     https://golang.org/cl/7030047
-
+---
  src/cmd/5g/peep.c | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 10551e3c61..4e35cf75a7 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1160,12 +1160,9 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 
+ 	case ARET:	/* funny */
+-		if(v->type == D_REG)
+-		if(v->reg == REGRET)
+-			return 2;
+-		if(v->type == D_FREG)
+-		if(v->reg == FREGRET)
+-			return 2;
++		if(s != A)
++			return 1;
++		return 3;
+ 
+ 	case ABL:	/* funny */
+ 		if(v->type == D_REG) {

@@ -35,7 +35,100 @@ Date:   Tue Sep 19 07:22:26 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/modfetch/fetch.go              | 10 +++--
  .../testdata/script/malformed_gosum_issue62345.txt | 51 ++++++++++++++++++++++
  2 files changed, 58 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 42796866ad..eeab6da62a 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -504,7 +504,7 @@ const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
+ 
+ // readGoSum parses data, which is the content of file,
+ // and adds it to goSum.m. The goSum lock must be held.
+-func readGoSum(dst map[module.Version][]string, file string, data []byte) error {
++func readGoSum(dst map[module.Version][]string, file string, data []byte) {
+ 	lineno := 0
+ 	for len(data) > 0 {
+ 		var line []byte
+@@ -521,7 +521,12 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error
+ 			continue
+ 		}
+ 		if len(f) != 3 {
+-			return fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
++			if cfg.CmdName == "mod tidy" {
++				// ignore malformed line so that go mod tidy can fix go.sum
++				continue
++			} else {
++				base.Fatalf("malformed go.sum:\n%s:%d: wrong number of fields %v\n", file, lineno, len(f))
++			}
+ 		}
+ 		if f[2] == emptyGoModHash {
+ 			// Old bug; drop it.
+@@ -530,7 +535,6 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error
+ 		mod := module.Version{Path: f[0], Version: f[1]}
+ 		dst[mod] = append(dst[mod], f[2])
+ 	}
+-	return nil
+ }
+ 
+ // HaveSum returns true if the go.sum file contains an entry for mod.
+diff --git a/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt b/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt
+new file mode 100644
+index 0000000000..23c41beae9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt
+@@ -0,0 +1,51 @@
++! go mod download
++stderr '^malformed go.sum:\n.*go.sum:3: wrong number of fields 5\n$'
++
++go mod tidy
++cmp go.sum go.sum.after-tidy
++
++-- go.mod --
++module m
++
++go 1.20
++
++require rsc.io/quote v1.5.2
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/sampler v1.3.0 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
++
++-- go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2 # invalid line
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=
++
++-- main.go --
++package main
++
++import (
++	"fmt"
++
++	"rsc.io/quote"
++)
++
++func main() {
++	fmt.Println(quote.Hello())
++}
++
++-- go.sum.after-tidy --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=

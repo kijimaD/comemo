@@ -9,8 +9,508 @@ Date:   Thu Jan 8 12:04:00 2009 -0800
     R=r
     OCL=22301
     CL=22301
-
+---
  usr/gri/pretty/parser.go      | 153 +++++++++++++++++++++++++++++++++++++-----
  usr/gri/pretty/selftest2.go   |  11 +++
  usr/gri/pretty/typechecker.go | 112 +------------------------------
  3 files changed, 149 insertions(+), 127 deletions(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index b77de1493e..fa5925675d 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -32,11 +32,34 @@ export type Parser struct {
+ 	// Nesting levels
+ 	expr_lev int;  // 0 = control clause level, 1 = expr inside ()'s
+ 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
++	
++	// Scopes
++	top_scope *Globals.Scope;
+ };
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Support functions
++// Elementary support
++
++func unimplemented() {
++	panic("unimplemented");
++}
++
++
++func unreachable() {
++	panic("unreachable");
++}
++
++
++func assert(pred bool) {
++	if !pred {
++		panic("assertion failed");
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Parsing support
+ 
+ func (P *Parser) PrintIndent() {
+ 	for i := P.indent; i > 0; i-- {
+@@ -127,6 +150,56 @@ func (P *Parser) OptSemicolon() {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Scopes
++
++func (P *Parser) OpenScope() {
++	P.top_scope = Globals.NewScope(P.top_scope);
++}
++
++
++func (P *Parser) CloseScope() {
++	P.top_scope = P.top_scope.parent;
++}
++
++
++func (P *Parser) Lookup(ident string) *Globals.Object {
++	for scope := P.top_scope; scope != nil; scope = scope.parent {
++		obj := scope.Lookup(ident);
++		if obj != nil {
++			return obj;
++		}
++	}
++	return nil;
++}
++
++
++func (P *Parser) DeclareInScope(scope *Globals.Scope, x *AST.Expr, kind int) {
++	if P.scope_lev < 0 {
++		panic("cannot declare objects in other packages");
++	}
++	obj := x.obj;
++	assert(x.tok == Scanner.IDENT && obj.kind == Object.NONE);
++	obj.kind = kind;
++	obj.pnolev = P.scope_lev;
++	if scope.Lookup(obj.ident) != nil {
++		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
++		return;  // don't insert it into the scope
++	}
++	scope.Insert(obj);
++}
++
++
++// Declare a comma-separated list of idents or a single ident.
++func (P *Parser) Declare(p *AST.Expr, kind int) {
++	for p.tok == Scanner.COMMA {
++		P.DeclareInScope(P.top_scope, p.x, kind);
++		p = p.y;
++	}
++	P.DeclareInScope(P.top_scope, p, kind);
++}
++
++
+ // ----------------------------------------------------------------------------
+ // AST support
+ 
+@@ -195,16 +268,18 @@ func (P *Parser) ParseIdent() *AST.Expr {
+ func (P *Parser) ParseIdentList() *AST.Expr {
+ 	P.Trace("IdentList");
+ 
++	var last *AST.Expr;
+ 	x := P.ParseIdent();
+-	for first := true; P.tok == Scanner.COMMA; {
++	for P.tok == Scanner.COMMA {
+ 		pos := P.pos;
+ 		P.Next();
+ 		y := P.ParseIdent();
+-		if first {
++		if last == nil {
+ 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+-			first = false;
++			last = x;
+ 		} else {
+-			x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
++			last.y = P.NewExpr(pos, Scanner.COMMA, last.y, y);
++			last = last.y;
+ 		}
+ 	}
+ 
+@@ -460,11 +535,17 @@ func (P *Parser) ParseResult() *AST.Type {
+ func (P *Parser) ParseFunctionType() *AST.Type {
+ 	P.Trace("FunctionType");
+ 
++	P.OpenScope();
++	P.scope_lev++;
++
+ 	t := AST.NewType(P.pos, Scanner.LPAREN);
+ 	t.list = P.ParseParameters(true).list;  // TODO find better solution
+ 	t.end = P.pos;
+ 	t.elt = P.ParseResult();
+ 
++	P.scope_lev--;
++	P.CloseScope();
++
+ 	P.Ecart();
+ 	return t;
+ }
+@@ -493,6 +574,9 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
+ 	P.Expect(Scanner.INTERFACE);
+ 	if P.tok == Scanner.LBRACE {
+ 		P.Next();
++		P.OpenScope();
++		P.scope_lev++;
++
+ 		t.list = array.New(0);
+ 		for P.tok == Scanner.IDENT {
+ 			P.ParseMethodSpec(t.list);
+@@ -501,6 +585,9 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
+ 			}
+ 		}
+ 		t.end = P.pos;
++
++		P.scope_lev--;
++		P.CloseScope();
+ 		P.Expect(Scanner.RBRACE);
+ 	}
+ 
+@@ -533,6 +620,9 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 	P.Expect(Scanner.STRUCT);
+ 	if P.tok == Scanner.LBRACE {
+ 		P.Next();
++		P.OpenScope();
++		P.scope_lev++;
++
+ 		t.list = array.New(0);
+ 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 			P.ParseVarDeclList(t.list, false);
+@@ -548,6 +638,9 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 		}
+ 		P.OptSemicolon();
+ 		t.end = P.pos;
++
++		P.scope_lev--;
++		P.CloseScope();
+ 		P.Expect(Scanner.RBRACE);
+ 	}
+ 
+@@ -625,8 +718,12 @@ func (P *Parser) ParseBlock() (slist *array.Array, end int) {
+ 	P.Trace("Block");
+ 
+ 	P.Expect(Scanner.LBRACE);
++	P.OpenScope();
++
+ 	slist = P.ParseStatementList();
+ 	end = P.pos;
++
++	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+ 
+@@ -832,7 +929,8 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 			singles = false;
+ 		}
+ 
+-		for first := true; P.tok != Scanner.RBRACE && P.tok != Scanner.EOF; {
++		var last *AST.Expr;
++		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 			y := P.ParseExpression(0);
+ 
+ 			if singles {
+@@ -845,10 +943,12 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 				}
+ 			}
+ 
+-			if first {
++			if last == nil {
+ 				x = P.NewExpr(pos, Scanner.COMMA, x, y);
++				last = x;
+ 			} else {
+-				x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
++				last.y = P.NewExpr(pos, Scanner.COMMA, last.y, y);
++				last = last.y;
+ 			}
+ 
+ 			if P.tok == Scanner.COMMA {
+@@ -1143,6 +1243,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+ func (P *Parser) ParseIfStat() *AST.Stat {
+ 	P.Trace("IfStat");
+ 
++	P.OpenScope();
+ 	s := P.ParseControlClause(Scanner.IF);
+ 	s.block, s.end = P.ParseBlock();
+ 	if P.tok == Scanner.ELSE {
+@@ -1169,6 +1270,7 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ 		}
+ 		s.post = s1;
+ 	}
++	P.CloseScope();
+ 
+ 	P.Ecart();
+ 	return s;
+@@ -1178,8 +1280,10 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ func (P *Parser) ParseForStat() *AST.Stat {
+ 	P.Trace("ForStat");
+ 
++	P.OpenScope();
+ 	s := P.ParseControlClause(Scanner.FOR);
+ 	s.block, s.end = P.ParseBlock();
++	P.CloseScope();
+ 
+ 	P.Ecart();
+ 	return s;
+@@ -1219,6 +1323,7 @@ func (P *Parser) ParseCaseClause() *AST.Stat {
+ func (P *Parser) ParseSwitchStat() *AST.Stat {
+ 	P.Trace("SwitchStat");
+ 
++	P.OpenScope();
+ 	s := P.ParseControlClause(Scanner.SWITCH);
+ 	s.block = array.New(0);
+ 	P.Expect(Scanner.LBRACE);
+@@ -1228,6 +1333,7 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
+ 	s.end = P.pos;
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
++	P.CloseScope();
+ 
+ 	P.Ecart();
+ 	return s;
+@@ -1382,6 +1488,10 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 		P.Expect(Scanner.STRING);  // use Expect() error handling
+ 	}
+ 
++	if d.ident != nil {
++		P.Declare(d.ident, Object.PACKAGE);
++	}
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1397,6 +1507,8 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 		P.Next();
+ 		d.val = P.ParseExpressionList();
+ 	}
++	
++	P.Declare(d.ident, Object.CONST);
+ 
+ 	P.Ecart();
+ 	return d;
+@@ -1432,6 +1544,8 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 		}
+ 	}
+ 
++	P.Declare(d.ident, Object.VAR);
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1581,24 +1695,29 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
+ func (P *Parser) ParseProgram() *AST.Program {
+ 	P.Trace("Program");
+ 
++	P.OpenScope();
+ 	p := AST.NewProgram(P.pos);
+ 	P.Expect(Scanner.PACKAGE);
+ 	p.ident = P.ParseIdent();
+ 
+-	p.decls = array.New(0);
+-	for P.tok == Scanner.IMPORT {
+-		p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
+-		P.OptSemicolon();
+-	}
+-
+-	if !P.deps {
+-		for P.tok != Scanner.EOF {
+-			p.decls.Push(P.ParseDeclaration());
++	// package body
++	{	P.OpenScope();
++		p.decls = array.New(0);
++		for P.tok == Scanner.IMPORT {
++			p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
+ 			P.OptSemicolon();
+ 		}
++		if !P.deps {
++			for P.tok != Scanner.EOF {
++				p.decls.Push(P.ParseDeclaration());
++				P.OptSemicolon();
++			}
++		}
++		P.CloseScope();
+ 	}
+ 
+ 	p.comments = P.comments;
++	P.CloseScope();
+ 
+ 	P.Ecart();
+ 	return p;
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 9b63fd5e9b..9f488f2dbd 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -52,6 +52,17 @@ var (
+ )
+ 
+ 
++func d0() {
++	var (
++		a string;
++		b, c string;
++		d, e, f string;
++		g, h, i, j string;
++		k, l, m, n, o string;
++	)
++}
++
++
+ func f0(a, b int) int {
+ 	if a < b {
+ 		a = a + 1;  // estimate
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index 1b27942dce..b2e6ae6f3d 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -17,10 +17,6 @@ import (
+ type State struct {
+ 	// setup
+ 	err Scanner.ErrorHandler;
+-
+-	// state
+-	level int;
+-	top_scope *Globals.Scope;
+ }
+ 
+ 
+@@ -54,66 +50,6 @@ func (s *State) Error(pos int, msg string) {
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Scopes
+-
+-func (s *State) OpenScope() {
+-	s.top_scope = Globals.NewScope(s.top_scope);
+-}
+-
+-
+-func (s *State) CloseScope() {
+-	s.top_scope = s.top_scope.parent;
+-}
+-
+-
+-func (s *State) Lookup(ident string) *Globals.Object {
+-	for scope := s.top_scope; scope != nil; scope = scope.parent {
+-		obj := scope.Lookup(ident);
+-		if obj != nil {
+-			return obj;
+-		}
+-	}
+-	return nil;
+-}
+-
+-
+-func (s *State) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+-	if s.level > 0 {
+-		panic("cannot declare objects in other packages");
+-	}
+-	obj.pnolev = s.level;
+-	if scope.Lookup(obj.ident) != nil {
+-		s.Error(obj.pos, `"` + obj.ident + `" is declared already`);
+-		return;  // don't insert it into the scope
+-	}
+-	scope.Insert(obj);
+-}
+-
+-
+-func (s *State) Declare(obj *Globals.Object) {
+-	s.DeclareInScope(s.top_scope, obj);
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-// Common productions
+-
+-func (s *State) DeclareIdent(ident *AST.Expr, kind int, typ *AST.Type) {
+-	// ident is either a comma-separated list or a single ident
+-	switch ident.tok {
+-	case Scanner.IDENT:
+-		obj := Globals.NewObject(ident.pos, kind, ident.obj.ident);
+-		s.Declare(obj);
+-	case Scanner.COMMA:
+-		s.DeclareIdent(ident.x, kind, typ);
+-		s.DeclareIdent(ident.y, kind, typ);		
+-	default:
+-		unreachable();
+-	}
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ 
+ func (s *State) CheckType() {
+@@ -131,48 +67,11 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
+ 		// single declaration
+ 		switch d.tok {
+ 		case Scanner.IMPORT:
+-			assert(d.ident == nil || d.ident.tok == Scanner.IDENT);
+-			if d.ident != nil {
+-				s.DeclareIdent(d.ident, d.tok, d.typ);
+-			} else {
+-			}
+-
+ 		case Scanner.EXPORT:
+-			// TODO
+-
+ 		case Scanner.CONST:
+-			s.DeclareIdent(d.ident, d.tok, d.typ);
+-
+ 		case Scanner.VAR:
+-			s.DeclareIdent(d.ident, d.tok, d.typ);
+-
+ 		case Scanner.TYPE:
+-			assert(d.ident.tok == Scanner.IDENT);
+-			// types may be forward-declared
+-			obj := s.Lookup(d.ident.obj.ident);
+-			if obj != nil {
+-				// TODO check if proper forward-declaration
+-
+-			} else {
+-				s.DeclareIdent(d.ident, d.tok, d.typ);
+-			}
+-
+ 		case Scanner.FUNC:
+-			assert(d.ident.tok == Scanner.IDENT);
+-			if d.typ.key != nil {
+-				// method
+-				// TODO
+-			} else {
+-				// functions may be forward-declared
+-				obj := s.Lookup(d.ident.obj.ident);
+-				if obj != nil {
+-				  // TODO check if proper forward-declaration
+-				  
+-				} else {
+-					s.DeclareIdent(d.ident, d.tok, d.typ);
+-				}
+-			}
+-
+ 		default:
+ 			unreachable();
+ 		}
+@@ -181,16 +80,9 @@ func (s *State) CheckDeclaration(d *AST.Decl) {
+ 
+ 
+ func (s *State) CheckProgram(p *AST.Program) {
+-	s.OpenScope();
+-	
+-	{	s.OpenScope();
+-		for i := 0; i < p.decls.Len(); i++ {
+-			s.CheckDeclaration(p.decls.At(i).(*AST.Decl));
+-		}
+-		s.CloseScope();
++	for i := 0; i < p.decls.Len(); i++ {
++		s.CheckDeclaration(p.decls.At(i).(*AST.Decl));
+ 	}
+-	
+-	s.CloseScope();
+ }
+ 
+ 

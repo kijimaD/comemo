@@ -18,7 +18,7 @@ Date:   Sun Apr 3 08:59:56 2022 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment/html.go            | 10 +++++
  src/go/doc/comment/markdown.go        | 10 +++++
  src/go/doc/comment/parse.go           | 75 ++++++++++++++++++++++++++++++++++-
@@ -31,3 +31,343 @@ Date:   Sun Apr 3 08:59:56 2022 -0400
  src/go/doc/comment/testdata_test.go   | 13 +++++-
  src/go/doc/comment/text.go            | 16 +++++++-
  11 files changed, 185 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/doc/comment/html.go b/src/go/doc/comment/html.go
+index d41e36cefe..a7c3ff2a55 100644
+--- a/src/go/doc/comment/html.go
++++ b/src/go/doc/comment/html.go
+@@ -44,6 +44,16 @@ func (p *htmlPrinter) text(out *bytes.Buffer, x []Text) {
+ 		switch t := t.(type) {
+ 		case Plain:
+ 			p.escape(out, string(t))
++		case Italic:
++			out.WriteString("<i>")
++			p.escape(out, string(t))
++			out.WriteString("</i>")
++		case *Link:
++			out.WriteString(`<a href="`)
++			p.escape(out, t.URL)
++			out.WriteString(`">`)
++			p.text(out, t.Text)
++			out.WriteString("</a>")
+ 		}
+ 	}
+ }
+diff --git a/src/go/doc/comment/markdown.go b/src/go/doc/comment/markdown.go
+index 888868e130..bdfdcdf565 100644
+--- a/src/go/doc/comment/markdown.go
++++ b/src/go/doc/comment/markdown.go
+@@ -77,6 +77,16 @@ func (p *mdPrinter) rawText(out *bytes.Buffer, x []Text) {
+ 		switch t := t.(type) {
+ 		case Plain:
+ 			p.escape(out, string(t))
++		case Italic:
++			out.WriteString("*")
++			p.escape(out, string(t))
++			out.WriteString("*")
++		case *Link:
++			out.WriteString("[")
++			p.rawText(out, t.Text)
++			out.WriteString("](")
++			out.WriteString(t.URL)
++			out.WriteString(")")
+ 		}
+ 	}
+ }
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index b12a0d84b9..7c7b69966d 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -261,7 +261,12 @@ func (p *Parser) Parse(text string) *Doc {
+ 	}
+ 
+ 	// Second pass: interpret all the Plain text now that we know the links.
+-	// TODO: Actually interpret the plain text.
++	for _, b := range d.Content {
++		switch b := b.(type) {
++		case *Paragraph:
++			b.Text = d.parseText(string(b.Text[0].(Plain)))
++		}
++	}
+ 
+ 	return d.Doc
+ }
+@@ -401,6 +406,74 @@ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
+ 	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
+ }
+ 
++// parseText parses s as text and returns the parsed Text elements.
++func (d *parseDoc) parseText(s string) []Text {
++	var out []Text
++	var w strings.Builder
++	wrote := 0
++	writeUntil := func(i int) {
++		w.WriteString(s[wrote:i])
++		wrote = i
++	}
++	flush := func(i int) {
++		writeUntil(i)
++		if w.Len() > 0 {
++			out = append(out, Plain(w.String()))
++			w.Reset()
++		}
++	}
++	for i := 0; i < len(s); {
++		t := s[i:]
++		const autoLink = true
++		if autoLink {
++			if url, ok := autoURL(t); ok {
++				flush(i)
++				// Note: The old comment parser would look up the URL in words
++				// and replace the target with words[URL] if it was non-empty.
++				// That would allow creating links that display as one URL but
++				// when clicked go to a different URL. Not sure what the point
++				// of that is, so we're not doing that lookup here.
++				out = append(out, &Link{Auto: true, Text: []Text{Plain(url)}, URL: url})
++				i += len(url)
++				wrote = i
++				continue
++			}
++			if id, ok := ident(t); ok {
++				url, italics := d.Words[id]
++				if !italics {
++					i += len(id)
++					continue
++				}
++				flush(i)
++				if url == "" {
++					out = append(out, Italic(id))
++				} else {
++					out = append(out, &Link{Auto: true, Text: []Text{Italic(id)}, URL: url})
++				}
++				i += len(id)
++				wrote = i
++				continue
++			}
++		}
++		switch {
++		case strings.HasPrefix(t, "``"):
++			writeUntil(i)
++			w.WriteRune('“')
++			i += 2
++			wrote = i
++		case strings.HasPrefix(t, "''"):
++			writeUntil(i)
++			w.WriteRune('”')
++			i += 2
++			wrote = i
++		default:
++			i++
++		}
++	}
++	flush(len(s))
++	return out
++}
++
+ // autoURL checks whether s begins with a URL that should be hyperlinked.
+ // If so, it returns the URL, which is a prefix of s, and ok == true.
+ // Otherwise it returns "", false.
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+index b1e509d1b6..6c8782c802 100644
+--- a/src/go/doc/comment/print.go
++++ b/src/go/doc/comment/print.go
+@@ -103,6 +103,10 @@ func (p *commentPrinter) text(out *bytes.Buffer, indent string, x []Text) {
+ 		switch t := t.(type) {
+ 		case Plain:
+ 			p.indent(out, indent, string(t))
++		case Italic:
++			p.indent(out, indent, string(t))
++		case *Link:
++			p.text(out, indent, t.Text)
+ 		}
+ 	}
+ }
+diff --git a/src/go/doc/comment/testdata/hello.txt b/src/go/doc/comment/testdata/hello.txt
+index b998c77fef..fb07f1eb75 100644
+--- a/src/go/doc/comment/testdata/hello.txt
++++ b/src/go/doc/comment/testdata/hello.txt
+@@ -30,8 +30,6 @@ Hello, world
+ 
+ This is a test.
+ -- text --
+-Hello,
+-world
++Hello, world
+ 
+-This is
+-a test.
++This is a test.
+diff --git a/src/go/doc/comment/testdata/link.txt b/src/go/doc/comment/testdata/link.txt
+new file mode 100644
+index 0000000000..551e3065ce
+--- /dev/null
++++ b/src/go/doc/comment/testdata/link.txt
+@@ -0,0 +1,17 @@
++-- input --
++The Go home page is https://go.dev/.
++It used to be https://golang.org.
++
++-- gofmt --
++The Go home page is https://go.dev/.
++It used to be https://golang.org.
++
++-- text --
++The Go home page is https://go.dev/. It used to be https://golang.org.
++
++-- markdown --
++The Go home page is [https://go.dev/](https://go.dev/). It used to be [https://golang.org](https://golang.org).
++
++-- html --
++<p>The Go home page is <a href="https://go.dev/">https://go.dev/</a>.
++It used to be <a href="https://golang.org">https://golang.org</a>.
+diff --git a/src/go/doc/comment/testdata/para.txt b/src/go/doc/comment/testdata/para.txt
+new file mode 100644
+index 0000000000..2355fa8172
+--- /dev/null
++++ b/src/go/doc/comment/testdata/para.txt
+@@ -0,0 +1,17 @@
++-- input --
++Hello, world.
++This is a paragraph.
++
++-- gofmt --
++Hello, world.
++This is a paragraph.
++
++-- text --
++Hello, world. This is a paragraph.
++
++-- markdown --
++Hello, world. This is a paragraph.
++
++-- html --
++<p>Hello, world.
++This is a paragraph.
+diff --git a/src/go/doc/comment/testdata/text2.txt b/src/go/doc/comment/testdata/text2.txt
+new file mode 100644
+index 0000000000..a099d0b8c6
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text2.txt
+@@ -0,0 +1,14 @@
++{"TextWidth": -1}
++-- input --
++Package gob manages streams of gobs - binary values exchanged between an
++Encoder (transmitter) and a Decoder (receiver). A typical use is
++transporting arguments and results of remote procedure calls (RPCs) such as
++those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream
++and is most efficient when a single Encoder is used to transmit a stream of
++values, amortizing the cost of compilation.
++-- text --
++Package gob manages streams of gobs - binary values exchanged between an Encoder (transmitter) and a Decoder (receiver). A typical use is transporting arguments and results of remote procedure calls (RPCs) such as those provided by package "net/rpc".
++
++The implementation compiles a custom codec for each data type in the stream and is most efficient when a single Encoder is used to transmit a stream of values, amortizing the cost of compilation.
+diff --git a/src/go/doc/comment/testdata/words.txt b/src/go/doc/comment/testdata/words.txt
+new file mode 100644
+index 0000000000..63c7e1a1b2
+--- /dev/null
++++ b/src/go/doc/comment/testdata/words.txt
+@@ -0,0 +1,10 @@
++-- input --
++This is an italicword and a linkedword and Unicöde.
++-- gofmt --
++This is an italicword and a linkedword and Unicöde.
++-- text --
++This is an italicword and a linkedword and Unicöde.
++-- markdown --
++This is an *italicword* and a [*linkedword*](https://example.com/linkedword) and Unicöde.
++-- html --
++<p>This is an <i>italicword</i> and a <a href="https://example.com/linkedword"><i>linkedword</i></a> and Unicöde.
+diff --git a/src/go/doc/comment/testdata_test.go b/src/go/doc/comment/testdata_test.go
+index d00b636442..43687c5d4e 100644
+--- a/src/go/doc/comment/testdata_test.go
++++ b/src/go/doc/comment/testdata_test.go
+@@ -6,6 +6,7 @@ package comment
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"fmt"
+ 	"internal/diff"
+ 	"internal/txtar"
+@@ -20,6 +21,10 @@ func TestTestdata(t *testing.T) {
+ 		t.Fatalf("no testdata")
+ 	}
+ 	var p Parser
++	p.Words = map[string]string{
++		"italicword": "",
++		"linkedword": "https://example.com/linkedword",
++	}
+ 
+ 	stripDollars := func(b []byte) []byte {
+ 		// Remove trailing $ on lines.
+@@ -30,10 +35,17 @@ func TestTestdata(t *testing.T) {
+ 	}
+ 	for _, file := range files {
+ 		t.Run(filepath.Base(file), func(t *testing.T) {
++			var pr Printer
+ 			a, err := txtar.ParseFile(file)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
++			if len(a.Comment) > 0 {
++				err := json.Unmarshal(a.Comment, &pr)
++				if err != nil {
++					t.Fatalf("unmarshalling top json: %v", err)
++				}
++			}
+ 			if len(a.Files) < 1 || a.Files[0].Name != "input" {
+ 				t.Fatalf("first file is not %q", "input")
+ 			}
+@@ -44,7 +56,6 @@ func TestTestdata(t *testing.T) {
+ 					want = want[:len(want)-1]
+ 				}
+ 				var out []byte
+-				var pr Printer
+ 				switch f.Name {
+ 				default:
+ 					t.Fatalf("unknown output file %q", f.Name)
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+index 2e75567464..768cef32fb 100644
+--- a/src/go/doc/comment/text.go
++++ b/src/go/doc/comment/text.go
+@@ -7,11 +7,13 @@ package comment
+ import (
+ 	"bytes"
+ 	"fmt"
++	"strings"
+ )
+ 
+ // A textPrinter holds the state needed for printing a Doc as plain text.
+ type textPrinter struct {
+ 	*Printer
++	long bytes.Buffer
+ }
+ 
+ // Text returns a textual formatting of the Doc.
+@@ -59,11 +61,23 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ // text prints the text sequence x to out.
+ // TODO: Wrap lines.
+ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
++	p.oneLongLine(&p.long, x)
++	out.WriteString(strings.ReplaceAll(p.long.String(), "\n", " "))
++	p.long.Reset()
++	writeNL(out)
++}
++
++// oneLongLine prints the text sequence x to out as one long line,
++// without worrying about line wrapping.
++func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
+ 	for _, t := range x {
+ 		switch t := t.(type) {
+ 		case Plain:
+ 			out.WriteString(string(t))
++		case Italic:
++			out.WriteString(string(t))
++		case *Link:
++			p.oneLongLine(out, t.Text)
+ 		}
+ 	}
+-	writeNL(out)
+ }

@@ -8,7 +8,79 @@ Date:   Mon Nov 24 12:35:07 2008 -0800
     DELTA=32  (29 added, 0 deleted, 3 changed)
     OCL=19809
     CL=19913
-
+---
  src/lib/bufio.go | 34 +++++++++++++++++++++++++++++++---
  src/lib/utf8.go  |  1 +
  2 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index f41c4cd3d2..11813d6c64 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -3,8 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ package bufio
+-import "os"
+-import "io"
++
++import (
++	"os";
++	"io";
++	"utf8";
++)
+ 
+ 
+ // TODO:
+@@ -65,7 +69,7 @@ func (b *BufRead) Fill() *os.Error {
+ 	}
+ 
+ 	// Slide existing data to beginning.
+-	if b.w >  b.r {
++	if b.w > b.r {
+ 		CopySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
+ 		b.w -= b.r;
+ 	} else {
+@@ -140,6 +144,30 @@ func (b *BufRead) UnreadByte() *os.Error {
+ 	return nil
+ }
+ 
++// Read a single Unicode character; returns the rune and its size.
++func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
++	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
++		n := b.w - b.r;
++		b.Fill();
++		if b.err != nil {
++			return 0, 0, b.err
++		}
++		if b.w - b.r == n {
++			// no bytes read
++			if b.r == b.w {
++				return 0, 0, EndOfFile
++			}
++			break;
++		}
++	}
++	rune, size = int(b.buf[b.r]), 1;
++	if rune >= 0x80 {
++		rune, size = utf8.DecodeRune(b.buf[b.r:b.w]);
++	}
++	b.r += size;
++	return rune, size, nil
++}
++
+ // Helper function: look for byte c in array p,
+ // returning its index or -1.
+ func FindByte(p *[]byte, c byte) int {
+diff --git a/src/lib/utf8.go b/src/lib/utf8.go
+index 7b0f15d8f7..1375e8e50c 100644
+--- a/src/lib/utf8.go
++++ b/src/lib/utf8.go
+@@ -7,6 +7,7 @@
+ package utf8
+ 
+ export const (
++	UTFMax = 4;
+ 	RuneError = 0xFFFD;
+ 	RuneSelf = 0x80;
+ 	RuneMax = 1<<21 - 1;

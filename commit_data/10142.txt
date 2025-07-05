@@ -7,7 +7,7 @@ Date:   Thu Oct 27 19:46:31 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5327052
-
+---
  src/pkg/exp/sql/convert_test.go |  2 +-
  src/pkg/strconv/atob.go         |  2 +-
  src/pkg/strconv/atob_test.go    |  4 +--
@@ -18,3 +18,630 @@ Date:   Thu Oct 27 19:46:31 2011 -0700
  src/pkg/strconv/quote.go        | 30 ++++++++++-----------
  src/pkg/strconv/quote_test.go   |  5 ++--
  9 files changed, 105 insertions(+), 99 deletions(-)
+
+diff --git a/src/pkg/exp/sql/convert_test.go b/src/pkg/exp/sql/convert_test.go
+index 7070709b09..849991868e 100644
+--- a/src/pkg/exp/sql/convert_test.go
++++ b/src/pkg/exp/sql/convert_test.go
+@@ -52,7 +52,7 @@ var conversionTests = []conversionTest{
+ 	{s: "256", d: &scanuint8, wanterr: `string "256" overflows uint8`},
+ 	{s: "256", d: &scanuint16, wantuint: 256},
+ 	{s: "-1", d: &scanint, wantint: -1},
+-	{s: "foo", d: &scanint, wanterr: `converting string "foo" to a int: parsing "foo": invalid argument`},
++	{s: "foo", d: &scanint, wanterr: `converting string "foo" to a int: parsing "foo": invalid syntax`},
+ }
+ 
+ func intValue(intptr interface{}) int64 {
+diff --git a/src/pkg/strconv/atob.go b/src/pkg/strconv/atob.go
+index 98ce750798..720819490c 100644
+--- a/src/pkg/strconv/atob.go
++++ b/src/pkg/strconv/atob.go
+@@ -16,7 +16,7 @@ func Atob(str string) (value bool, err os.Error) {
+ 	case "0", "f", "F", "false", "FALSE", "False":
+ 		return false, nil
+ 	}
+-	return false, &NumError{str, os.EINVAL}
++	return false, &NumError{str, ErrSyntax}
+ }
+ 
+ // Btoa returns "true" or "false" according to the value of the boolean argument
+diff --git a/src/pkg/strconv/atob_test.go b/src/pkg/strconv/atob_test.go
+index 541e60d1e9..d9db6c7c0a 100644
+--- a/src/pkg/strconv/atob_test.go
++++ b/src/pkg/strconv/atob_test.go
+@@ -17,8 +17,8 @@ type atobTest struct {
+ }
+ 
+ var atobtests = []atobTest{
+-	{"", false, os.EINVAL},
+-	{"asdf", false, os.EINVAL},
++	{"", false, ErrSyntax},
++	{"asdf", false, ErrSyntax},
+ 	{"0", false, nil},
+ 	{"f", false, nil},
+ 	{"F", false, nil},
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 86c56f7fd7..4a4b1b43ce 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -350,11 +350,11 @@ func (d *decimal) atof32() (f float32, ok bool) {
+ // The errors that Atof32 returns have concrete type *NumError
+ // and include err.Num = s.
+ //
+-// If s is not syntactically well-formed, Atof32 returns err.Error = os.EINVAL.
++// If s is not syntactically well-formed, Atof32 returns err.Error = ErrSyntax.
+ //
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+-// Atof32 returns f = ±Inf, err.Error = os.ERANGE.
++// Atof32 returns f = ±Inf, err.Error = ErrRange.
+ func Atof32(s string) (f float32, err os.Error) {
+ 	if val, ok := special(s); ok {
+ 		return float32(val), nil
+@@ -362,7 +362,7 @@ func Atof32(s string) (f float32, err os.Error) {
+ 
+ 	var d decimal
+ 	if !d.set(s) {
+-		return 0, &NumError{s, os.EINVAL}
++		return 0, &NumError{s, ErrSyntax}
+ 	}
+ 	if optimize {
+ 		if f, ok := d.atof32(); ok {
+@@ -372,7 +372,7 @@ func Atof32(s string) (f float32, err os.Error) {
+ 	b, ovf := d.floatBits(&float32info)
+ 	f = math.Float32frombits(uint32(b))
+ 	if ovf {
+-		err = &NumError{s, os.ERANGE}
++		err = &NumError{s, ErrRange}
+ 	}
+ 	return f, err
+ }
+@@ -387,7 +387,7 @@ func Atof64(s string) (f float64, err os.Error) {
+ 
+ 	var d decimal
+ 	if !d.set(s) {
+-		return 0, &NumError{s, os.EINVAL}
++		return 0, &NumError{s, ErrSyntax}
+ 	}
+ 	if optimize {
+ 		if f, ok := d.atof64(); ok {
+@@ -397,7 +397,7 @@ func Atof64(s string) (f float64, err os.Error) {
+ 	b, ovf := d.floatBits(&float64info)
+ 	f = math.Float64frombits(b)
+ 	if ovf {
+-		err = &NumError{s, os.ERANGE}
++		err = &NumError{s, ErrRange}
+ 	}
+ 	return f, err
+ }
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 23aafc1e5d..33f881c7fd 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -18,11 +18,11 @@ type atofTest struct {
+ }
+ 
+ var atoftests = []atofTest{
+-	{"", "0", os.EINVAL},
++	{"", "0", ErrSyntax},
+ 	{"1", "1", nil},
+ 	{"+1", "1", nil},
+-	{"1x", "0", os.EINVAL},
+-	{"1.1.", "0", os.EINVAL},
++	{"1x", "0", ErrSyntax},
++	{"1.1.", "0", ErrSyntax},
+ 	{"1e23", "1e+23", nil},
+ 	{"1E23", "1e+23", nil},
+ 	{"100000000000000000000000", "1e+23", nil},
+@@ -56,28 +56,28 @@ var atoftests = []atofTest{
+ 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},
+ 	{"-1.7976931348623157e308", "-1.7976931348623157e+308", nil},
+ 	// next float64 - too large
+-	{"1.7976931348623159e308", "+Inf", os.ERANGE},
+-	{"-1.7976931348623159e308", "-Inf", os.ERANGE},
++	{"1.7976931348623159e308", "+Inf", ErrRange},
++	{"-1.7976931348623159e308", "-Inf", ErrRange},
+ 	// the border is ...158079
+ 	// borderline - okay
+ 	{"1.7976931348623158e308", "1.7976931348623157e+308", nil},
+ 	{"-1.7976931348623158e308", "-1.7976931348623157e+308", nil},
+ 	// borderline - too large
+-	{"1.797693134862315808e308", "+Inf", os.ERANGE},
+-	{"-1.797693134862315808e308", "-Inf", os.ERANGE},
++	{"1.797693134862315808e308", "+Inf", ErrRange},
++	{"-1.797693134862315808e308", "-Inf", ErrRange},
+ 
+ 	// a little too large
+ 	{"1e308", "1e+308", nil},
+-	{"2e308", "+Inf", os.ERANGE},
+-	{"1e309", "+Inf", os.ERANGE},
++	{"2e308", "+Inf", ErrRange},
++	{"1e309", "+Inf", ErrRange},
+ 
+ 	// way too large
+-	{"1e310", "+Inf", os.ERANGE},
+-	{"-1e310", "-Inf", os.ERANGE},
+-	{"1e400", "+Inf", os.ERANGE},
+-	{"-1e400", "-Inf", os.ERANGE},
+-	{"1e400000", "+Inf", os.ERANGE},
+-	{"-1e400000", "-Inf", os.ERANGE},
++	{"1e310", "+Inf", ErrRange},
++	{"-1e310", "-Inf", ErrRange},
++	{"1e400", "+Inf", ErrRange},
++	{"-1e400", "-Inf", ErrRange},
++	{"1e400000", "+Inf", ErrRange},
++	{"-1e400000", "-Inf", ErrRange},
+ 
+ 	// denormalized
+ 	{"1e-305", "1e-305", nil},
+@@ -99,14 +99,14 @@ var atoftests = []atofTest{
+ 
+ 	// try to overflow exponent
+ 	{"1e-4294967296", "0", nil},
+-	{"1e+4294967296", "+Inf", os.ERANGE},
++	{"1e+4294967296", "+Inf", ErrRange},
+ 	{"1e-18446744073709551616", "0", nil},
+-	{"1e+18446744073709551616", "+Inf", os.ERANGE},
++	{"1e+18446744073709551616", "+Inf", ErrRange},
+ 
+ 	// Parse errors
+-	{"1e", "0", os.EINVAL},
+-	{"1e-", "0", os.EINVAL},
+-	{".e-1", "0", os.EINVAL},
++	{"1e", "0", ErrSyntax},
++	{"1e-", "0", ErrSyntax},
++	{".e-1", "0", ErrSyntax},
+ 
+ 	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 5845942162..92ba89daea 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -6,9 +6,16 @@ package strconv
+ 
+ import "os"
+ 
++// ErrRange indicates that a value is out of range for the target type.
++var ErrRange = os.NewError("value out of range")
++
++// ErrSyntax indicates that a value does not have the right syntax for the target type.
++var ErrSyntax = os.NewError("invalid syntax")
++
++// A NumError records a failed conversion.
+ type NumError struct {
+-	Num   string
+-	Error os.Error
++	Num   string   // the input
++	Error os.Error // the reason the conversion failed (ErrRange, ErrSyntax)
+ }
+ 
+ func (e *NumError) String() string { return `parsing "` + e.Num + `": ` + e.Error.String() }
+@@ -38,15 +45,15 @@ func cutoff64(base int) uint64 {
+ //
+ // The errors that Btoui64 returns have concrete type *NumError
+ // and include err.Num = s.  If s is empty or contains invalid
+-// digits, err.Error = os.EINVAL; if the value corresponding
+-// to s cannot be represented by a uint64, err.Error = os.ERANGE.
++// digits, err.Error = ErrSyntax; if the value corresponding
++// to s cannot be represented by a uint64, err.Error = ErrRange.
+ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 	var cutoff uint64
+ 
+ 	s0 := s
+ 	switch {
+ 	case len(s) < 1:
+-		err = os.EINVAL
++		err = ErrSyntax
+ 		goto Error
+ 
+ 	case 2 <= b && b <= 36:
+@@ -59,7 +66,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 			b = 16
+ 			s = s[2:]
+ 			if len(s) < 1 {
+-				err = os.EINVAL
++				err = ErrSyntax
+ 				goto Error
+ 			}
+ 		case s[0] == '0':
+@@ -88,19 +95,19 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 			v = d - 'A' + 10
+ 		default:
+ 			n = 0
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			goto Error
+ 		}
+ 		if int(v) >= b {
+ 			n = 0
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			goto Error
+ 		}
+ 
+ 		if n >= cutoff {
+ 			// n*b overflows
+ 			n = 1<<64 - 1
+-			err = os.ERANGE
++			err = ErrRange
+ 			goto Error
+ 		}
+ 		n *= uint64(b)
+@@ -109,7 +116,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 		if n1 < n {
+ 			// n+v overflows
+ 			n = 1<<64 - 1
+-			err = os.ERANGE
++			err = ErrRange
+ 			goto Error
+ 		}
+ 		n = n1
+@@ -124,8 +131,8 @@ Error:
+ // Atoui64 interprets a string s as a decimal number and
+ // returns the corresponding value n.
+ //
+-// Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
+-// It returns err == os.ERANGE if s cannot be represented by a uint64.
++// Atoui64 returns err.Error = ErrSyntax if s is empty or contains invalid digits.
++// It returns err.Error = ErrRange if s cannot be represented by a uint64.
+ func Atoui64(s string) (n uint64, err os.Error) {
+ 	return Btoui64(s, 10)
+ }
+@@ -135,7 +142,7 @@ func Atoui64(s string) (n uint64, err os.Error) {
+ func Btoi64(s string, base int) (i int64, err os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+-		return 0, &NumError{s, os.EINVAL}
++		return 0, &NumError{s, ErrSyntax}
+ 	}
+ 
+ 	// Pick off leading sign.
+@@ -151,15 +158,15 @@ func Btoi64(s string, base int) (i int64, err os.Error) {
+ 	// Convert unsigned and check range.
+ 	var un uint64
+ 	un, err = Btoui64(s, base)
+-	if err != nil && err.(*NumError).Error != os.ERANGE {
++	if err != nil && err.(*NumError).Error != ErrRange {
+ 		err.(*NumError).Num = s0
+ 		return 0, err
+ 	}
+ 	if !neg && un >= 1<<63 {
+-		return 1<<63 - 1, &NumError{s0, os.ERANGE}
++		return 1<<63 - 1, &NumError{s0, ErrRange}
+ 	}
+ 	if neg && un > 1<<63 {
+-		return -1 << 63, &NumError{s0, os.ERANGE}
++		return -1 << 63, &NumError{s0, ErrRange}
+ 	}
+ 	n := int64(un)
+ 	if neg {
+@@ -175,12 +182,12 @@ func Atoi64(s string) (i int64, err os.Error) { return Btoi64(s, 10) }
+ // Atoui is like Atoui64 but returns its result as a uint.
+ func Atoui(s string) (i uint, err os.Error) {
+ 	i1, e1 := Atoui64(s)
+-	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
++	if e1 != nil && e1.(*NumError).Error != ErrRange {
+ 		return 0, e1
+ 	}
+ 	i = uint(i1)
+ 	if uint64(i) != i1 {
+-		return ^uint(0), &NumError{s, os.ERANGE}
++		return ^uint(0), &NumError{s, ErrRange}
+ 	}
+ 	return i, nil
+ }
+@@ -188,15 +195,15 @@ func Atoui(s string) (i uint, err os.Error) {
+ // Atoi is like Atoi64 but returns its result as an int.
+ func Atoi(s string) (i int, err os.Error) {
+ 	i1, e1 := Atoi64(s)
+-	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
++	if e1 != nil && e1.(*NumError).Error != ErrRange {
+ 		return 0, e1
+ 	}
+ 	i = int(i1)
+ 	if int64(i) != i1 {
+ 		if i1 < 0 {
+-			return -1 << (IntSize - 1), &NumError{s, os.ERANGE}
++			return -1 << (IntSize - 1), &NumError{s, ErrRange}
+ 		}
+-		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE}
++		return 1<<(IntSize-1) - 1, &NumError{s, ErrRange}
+ 	}
+ 	return i, nil
+ }
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index 0b9f295537..0d2e38117a 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -18,36 +18,36 @@ type atoui64Test struct {
+ }
+ 
+ var atoui64tests = []atoui64Test{
+-	{"", 0, os.EINVAL},
++	{"", 0, ErrSyntax},
+ 	{"0", 0, nil},
+ 	{"1", 1, nil},
+ 	{"12345", 12345, nil},
+ 	{"012345", 12345, nil},
+-	{"12345x", 0, os.EINVAL},
++	{"12345x", 0, ErrSyntax},
+ 	{"98765432100", 98765432100, nil},
+ 	{"18446744073709551615", 1<<64 - 1, nil},
+-	{"18446744073709551616", 1<<64 - 1, os.ERANGE},
+-	{"18446744073709551620", 1<<64 - 1, os.ERANGE},
++	{"18446744073709551616", 1<<64 - 1, ErrRange},
++	{"18446744073709551620", 1<<64 - 1, ErrRange},
+ }
+ 
+ var btoui64tests = []atoui64Test{
+-	{"", 0, os.EINVAL},
++	{"", 0, ErrSyntax},
+ 	{"0", 0, nil},
+ 	{"1", 1, nil},
+ 	{"12345", 12345, nil},
+ 	{"012345", 012345, nil},
+ 	{"0x12345", 0x12345, nil},
+ 	{"0X12345", 0x12345, nil},
+-	{"12345x", 0, os.EINVAL},
++	{"12345x", 0, ErrSyntax},
+ 	{"98765432100", 98765432100, nil},
+ 	{"18446744073709551615", 1<<64 - 1, nil},
+-	{"18446744073709551616", 1<<64 - 1, os.ERANGE},
+-	{"18446744073709551620", 1<<64 - 1, os.ERANGE},
++	{"18446744073709551616", 1<<64 - 1, ErrRange},
++	{"18446744073709551620", 1<<64 - 1, ErrRange},
+ 	{"0xFFFFFFFFFFFFFFFF", 1<<64 - 1, nil},
+-	{"0x10000000000000000", 1<<64 - 1, os.ERANGE},
++	{"0x10000000000000000", 1<<64 - 1, ErrRange},
+ 	{"01777777777777777777777", 1<<64 - 1, nil},
+-	{"01777777777777777777778", 0, os.EINVAL},
+-	{"02000000000000000000000", 1<<64 - 1, os.ERANGE},
++	{"01777777777777777777778", 0, ErrSyntax},
++	{"02000000000000000000000", 1<<64 - 1, ErrRange},
+ 	{"0200000000000000000000", 1 << 61, nil},
+ }
+ 
+@@ -58,7 +58,7 @@ type atoi64Test struct {
+ }
+ 
+ var atoi64tests = []atoi64Test{
+-	{"", 0, os.EINVAL},
++	{"", 0, ErrSyntax},
+ 	{"0", 0, nil},
+ 	{"-0", 0, nil},
+ 	{"1", 1, nil},
+@@ -71,14 +71,14 @@ var atoi64tests = []atoi64Test{
+ 	{"-98765432100", -98765432100, nil},
+ 	{"9223372036854775807", 1<<63 - 1, nil},
+ 	{"-9223372036854775807", -(1<<63 - 1), nil},
+-	{"9223372036854775808", 1<<63 - 1, os.ERANGE},
++	{"9223372036854775808", 1<<63 - 1, ErrRange},
+ 	{"-9223372036854775808", -1 << 63, nil},
+-	{"9223372036854775809", 1<<63 - 1, os.ERANGE},
+-	{"-9223372036854775809", -1 << 63, os.ERANGE},
++	{"9223372036854775809", 1<<63 - 1, ErrRange},
++	{"-9223372036854775809", -1 << 63, ErrRange},
+ }
+ 
+ var btoi64tests = []atoi64Test{
+-	{"", 0, os.EINVAL},
++	{"", 0, ErrSyntax},
+ 	{"0", 0, nil},
+ 	{"-0", 0, nil},
+ 	{"1", 1, nil},
+@@ -89,16 +89,16 @@ var btoi64tests = []atoi64Test{
+ 	{"-012345", -012345, nil},
+ 	{"0x12345", 0x12345, nil},
+ 	{"-0X12345", -0x12345, nil},
+-	{"12345x", 0, os.EINVAL},
+-	{"-12345x", 0, os.EINVAL},
++	{"12345x", 0, ErrSyntax},
++	{"-12345x", 0, ErrSyntax},
+ 	{"98765432100", 98765432100, nil},
+ 	{"-98765432100", -98765432100, nil},
+ 	{"9223372036854775807", 1<<63 - 1, nil},
+ 	{"-9223372036854775807", -(1<<63 - 1), nil},
+-	{"9223372036854775808", 1<<63 - 1, os.ERANGE},
++	{"9223372036854775808", 1<<63 - 1, ErrRange},
+ 	{"-9223372036854775808", -1 << 63, nil},
+-	{"9223372036854775809", 1<<63 - 1, os.ERANGE},
+-	{"-9223372036854775809", -1 << 63, os.ERANGE},
++	{"9223372036854775809", 1<<63 - 1, ErrRange},
++	{"-9223372036854775809", -1 << 63, ErrRange},
+ }
+ 
+ type atoui32Test struct {
+@@ -108,15 +108,15 @@ type atoui32Test struct {
+ }
+ 
+ var atoui32tests = []atoui32Test{
+-	{"", 0, os.EINVAL},
++	{"", 0, ErrSyntax},
+ 	{"0", 0, nil},
+ 	{"1", 1, nil},
+ 	{"12345", 12345, nil},
+ 	{"012345", 12345, nil},
+-	{"12345x", 0, os.EINVAL},
++	{"12345x", 0, ErrSyntax},
+ 	{"987654321", 987654321, nil},
+ 	{"4294967295", 1<<32 - 1, nil},
+-	{"4294967296", 1<<32 - 1, os.ERANGE},
++	{"4294967296", 1<<32 - 1, ErrRange},
+ }
+ 
+ type atoi32Test struct {
+@@ -126,7 +126,7 @@ type atoi32Test struct {
+ }
+ 
+ var atoi32tests = []atoi32Test{
+-	{"", 0, os.EINVAL},
++	{"", 0, ErrSyntax},
+ 	{"0", 0, nil},
+ 	{"-0", 0, nil},
+ 	{"1", 1, nil},
+@@ -135,16 +135,16 @@ var atoi32tests = []atoi32Test{
+ 	{"-12345", -12345, nil},
+ 	{"012345", 12345, nil},
+ 	{"-012345", -12345, nil},
+-	{"12345x", 0, os.EINVAL},
+-	{"-12345x", 0, os.EINVAL},
++	{"12345x", 0, ErrSyntax},
++	{"-12345x", 0, ErrSyntax},
+ 	{"987654321", 987654321, nil},
+ 	{"-987654321", -987654321, nil},
+ 	{"2147483647", 1<<31 - 1, nil},
+ 	{"-2147483647", -(1<<31 - 1), nil},
+-	{"2147483648", 1<<31 - 1, os.ERANGE},
++	{"2147483648", 1<<31 - 1, ErrRange},
+ 	{"-2147483648", -1 << 31, nil},
+-	{"2147483649", 1<<31 - 1, os.ERANGE},
+-	{"-2147483649", -1 << 31, os.ERANGE},
++	{"2147483649", 1<<31 - 1, ErrRange},
++	{"-2147483649", -1 << 31, ErrRange},
+ }
+ 
+ func init() {
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 7f5bd72607..7efdcfedb2 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -161,7 +161,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 	// easy cases
+ 	switch c := s[0]; {
+ 	case c == quote && (quote == '\'' || quote == '"'):
+-		err = os.EINVAL
++		err = ErrSyntax
+ 		return
+ 	case c >= utf8.RuneSelf:
+ 		r, size := utf8.DecodeRuneInString(s)
+@@ -172,7 +172,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 
+ 	// hard case: c is backslash
+ 	if len(s) <= 1 {
+-		err = os.EINVAL
++		err = ErrSyntax
+ 		return
+ 	}
+ 	c := s[1]
+@@ -205,13 +205,13 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 		}
+ 		var v rune
+ 		if len(s) < n {
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			return
+ 		}
+ 		for j := 0; j < n; j++ {
+ 			x, ok := unhex(s[j])
+ 			if !ok {
+-				err = os.EINVAL
++				err = ErrSyntax
+ 				return
+ 			}
+ 			v = v<<4 | x
+@@ -223,7 +223,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 			break
+ 		}
+ 		if v > unicode.MaxRune {
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			return
+ 		}
+ 		value = v
+@@ -231,7 +231,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+ 		v := rune(c) - '0'
+ 		if len(s) < 2 {
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			return
+ 		}
+ 		for j := 0; j < 2; j++ { // one digit already; two more
+@@ -243,7 +243,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 		}
+ 		s = s[2:]
+ 		if v > 255 {
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			return
+ 		}
+ 		value = v
+@@ -251,12 +251,12 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 		value = '\\'
+ 	case '\'', '"':
+ 		if c != quote {
+-			err = os.EINVAL
++			err = ErrSyntax
+ 			return
+ 		}
+ 		value = rune(c)
+ 	default:
+-		err = os.EINVAL
++		err = ErrSyntax
+ 		return
+ 	}
+ 	tail = s
+@@ -271,25 +271,25 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ func Unquote(s string) (t string, err os.Error) {
+ 	n := len(s)
+ 	if n < 2 {
+-		return "", os.EINVAL
++		return "", ErrSyntax
+ 	}
+ 	quote := s[0]
+ 	if quote != s[n-1] {
+-		return "", os.EINVAL
++		return "", ErrSyntax
+ 	}
+ 	s = s[1 : n-1]
+ 
+ 	if quote == '`' {
+ 		if strings.Contains(s, "`") {
+-			return "", os.EINVAL
++			return "", ErrSyntax
+ 		}
+ 		return s, nil
+ 	}
+ 	if quote != '"' && quote != '\'' {
+-		return "", os.EINVAL
++		return "", ErrSyntax
+ 	}
+ 	if strings.Index(s, "\n") >= 0 {
+-		return "", os.EINVAL
++		return "", ErrSyntax
+ 	}
+ 
+ 	// Is it trivial?  Avoid allocation.
+@@ -319,7 +319,7 @@ func Unquote(s string) (t string, err os.Error) {
+ 		}
+ 		if quote == '\'' && len(s) != 0 {
+ 			// single-quoted must be single character
+-			return "", os.EINVAL
++			return "", ErrSyntax
+ 		}
+ 	}
+ 	return buf.String(), nil
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 0311f77a3a..9a597700d2 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -5,7 +5,6 @@
+ package strconv_test
+ 
+ import (
+-	"os"
+ 	. "strconv"
+ 	"testing"
+ )
+@@ -210,8 +209,8 @@ func TestUnquote(t *testing.T) {
+ 	}
+ 
+ 	for _, s := range misquoted {
+-		if out, err := Unquote(s); out != "" || err != os.EINVAL {
+-			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL)
++		if out, err := Unquote(s); out != "" || err != ErrSyntax {
++			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", ErrSyntax)
+ 		}
+ 	}
+ }

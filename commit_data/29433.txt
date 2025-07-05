@@ -27,7 +27,7 @@ Date:   Tue Sep 13 17:01:01 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |   60 +-
  src/cmd/compile/internal/arm/ssa.go            |   59 +-
  src/cmd/compile/internal/arm64/ssa.go          |   67 +-
@@ -56,3 +56,4863 @@ Date:   Tue Sep 13 17:01:01 2016 -0700
  src/cmd/compile/internal/x86/ssa.go            |   50 +-
  test/nilptr3_ssa.go                            |    2 +-
  27 files changed, 1347 insertions(+), 1532 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 20341db38e..06332ab95c 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -905,64 +905,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpKeepAlive:
+ 		gc.KeepAlive(v)
+ 	case ssa.OpAMD64LoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
+-				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore,
+-				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
+-				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
+-				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore,
+-				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload,
+-				ssa.OpAMD64CMPXCHGQlock, ssa.OpAMD64CMPXCHGLlock,
+-				ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ, ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
+-				if w.Args[1] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+-				off := ssa.ValAndOff(v.AuxInt).Off()
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			}
+-			if w.Type.IsMemory() || w.Type.IsTuple() && w.Type.FieldType(1).IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if the input is nil.
+ 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
+ 		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
+@@ -1065,7 +1007,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetLineno(b.Line)
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 55562e6335..6a30704681 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -771,63 +771,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARMLoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.OpARMMOVBload, ssa.OpARMMOVBUload, ssa.OpARMMOVHload, ssa.OpARMMOVHUload,
+-				ssa.OpARMMOVWload, ssa.OpARMMOVFload, ssa.OpARMMOVDload,
+-				ssa.OpARMMOVBstore, ssa.OpARMMOVHstore, ssa.OpARMMOVWstore,
+-				ssa.OpARMMOVFstore, ssa.OpARMMOVDstore:
+-				// arg0 is ptr, auxint is offset
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero:
+-				// arg0 is ptr
+-				if w.Args[0] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove:
+-				// arg0 is dst ptr, arg1 is src ptr
+-				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			default:
+-			}
+-			if w.Type.IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(arm.AMOVB)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -994,7 +937,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetLineno(b.Line)
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 84cb714db4..6da0f84dec 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -771,71 +771,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+ 	case ssa.OpARM64LoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.OpARM64MOVBload, ssa.OpARM64MOVBUload, ssa.OpARM64MOVHload, ssa.OpARM64MOVHUload,
+-				ssa.OpARM64MOVWload, ssa.OpARM64MOVWUload, ssa.OpARM64MOVDload,
+-				ssa.OpARM64FMOVSload, ssa.OpARM64FMOVDload,
+-				ssa.OpARM64LDAR, ssa.OpARM64LDARW,
+-				ssa.OpARM64MOVBstore, ssa.OpARM64MOVHstore, ssa.OpARM64MOVWstore, ssa.OpARM64MOVDstore,
+-				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore,
+-				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero,
+-				ssa.OpARM64STLR, ssa.OpARM64STLRW,
+-				ssa.OpARM64LoweredAtomicExchange64, ssa.OpARM64LoweredAtomicExchange32,
+-				ssa.OpARM64LoweredAtomicAdd64, ssa.OpARM64LoweredAtomicAdd32,
+-				ssa.OpARM64LoweredAtomicCas64, ssa.OpARM64LoweredAtomicCas32,
+-				ssa.OpARM64LoweredAtomicAnd8, ssa.OpARM64LoweredAtomicOr8:
+-				// arg0 is ptr, auxint is offset (atomic ops have auxint 0)
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpARM64DUFFZERO, ssa.OpARM64LoweredZero:
+-				// arg0 is ptr
+-				if w.Args[0] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpARM64LoweredMove:
+-				// arg0 is dst ptr, arg1 is src ptr
+-				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			default:
+-			}
+-			if w.Type.IsMemory() || w.Type.IsTuple() && w.Type.FieldType(1).IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(arm64.AMOVB)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -920,7 +855,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetLineno(b.Line)
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f722007667..f06c440d88 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3129,20 +3129,13 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno int32) *ssa.Value {
+ }
+ 
+ // nilCheck generates nil pointer checking code.
+-// Starts a new block on return, unless nil checks are disabled.
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+ 	if Disable_checknil != 0 {
+ 		return
+ 	}
+-	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+-	b := s.endBlock()
+-	b.Kind = ssa.BlockCheck
+-	b.SetControl(chk)
+-	bNext := s.f.NewBlock(ssa.BlockPlain)
+-	b.AddEdgeTo(bNext)
+-	s.startBlock(bNext)
++	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+ }
+ 
+ // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 3335e096a6..1f591db28d 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -638,65 +638,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+ 	case ssa.OpMIPS64LoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.OpMIPS64MOVBload, ssa.OpMIPS64MOVBUload, ssa.OpMIPS64MOVHload, ssa.OpMIPS64MOVHUload,
+-				ssa.OpMIPS64MOVWload, ssa.OpMIPS64MOVWUload, ssa.OpMIPS64MOVVload,
+-				ssa.OpMIPS64MOVFload, ssa.OpMIPS64MOVDload,
+-				ssa.OpMIPS64MOVBstore, ssa.OpMIPS64MOVHstore, ssa.OpMIPS64MOVWstore, ssa.OpMIPS64MOVVstore,
+-				ssa.OpMIPS64MOVFstore, ssa.OpMIPS64MOVDstore,
+-				ssa.OpMIPS64MOVBstorezero, ssa.OpMIPS64MOVHstorezero, ssa.OpMIPS64MOVWstorezero, ssa.OpMIPS64MOVVstorezero:
+-				// arg0 is ptr, auxint is offset
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpMIPS64DUFFZERO, ssa.OpMIPS64LoweredZero:
+-				// arg0 is ptr
+-				if w.Args[0] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpMIPS64LoweredMove:
+-				// arg0 is dst ptr, arg1 is src ptr
+-				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			default:
+-			}
+-			if w.Type.IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(mips.AMOVB)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -765,7 +706,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetLineno(b.Line)
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 8a2fb8dd15..d937ea0ccf 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -850,64 +850,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.CheckLoweredPhi(v)
+ 
+ 	case ssa.OpPPC64LoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.OpPPC64MOVBload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVHZload,
+-				ssa.OpPPC64MOVWload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVDload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload,
+-				ssa.OpPPC64MOVBstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVWstore,
+-				ssa.OpPPC64MOVDstore, ssa.OpPPC64FMOVSstore, ssa.OpPPC64FMOVDstore,
+-				ssa.OpPPC64MOVDstorezero, ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
+-				// arg0 is ptr, auxint is offset
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpPPC64LoweredZero: // ssa.OpPPC64DUFFZERO,
+-				// arg0 is ptr
+-				if w.Args[0] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpPPC64LoweredMove: // ssa.OpPPC64DUFFCOPY,
+-				// arg0 is dst ptr, arg1 is src ptr
+-				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			default:
+-			}
+-			if w.Type.IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(ppc64.AMOVB)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -972,7 +914,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 2d8fe66aec..f416ac80b8 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -611,67 +611,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT:
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+ 	case ssa.OpS390XLoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.OpS390XMOVDload,
+-				ssa.OpS390XMOVBload, ssa.OpS390XMOVHload, ssa.OpS390XMOVWload,
+-				ssa.OpS390XMOVBZload, ssa.OpS390XMOVHZload, ssa.OpS390XMOVWZload,
+-				ssa.OpS390XMOVHBRload, ssa.OpS390XMOVWBRload, ssa.OpS390XMOVDBRload,
+-				ssa.OpS390XMOVBstore, ssa.OpS390XMOVHstore, ssa.OpS390XMOVWstore, ssa.OpS390XMOVDstore,
+-				ssa.OpS390XFMOVSload, ssa.OpS390XFMOVDload,
+-				ssa.OpS390XFMOVSstore, ssa.OpS390XFMOVDstore,
+-				ssa.OpS390XSTMG2, ssa.OpS390XSTMG3, ssa.OpS390XSTMG4,
+-				ssa.OpS390XSTM2, ssa.OpS390XSTM3, ssa.OpS390XSTM4:
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpS390XMOVDstoreconst, ssa.OpS390XMOVWstoreconst, ssa.OpS390XMOVHstoreconst, ssa.OpS390XMOVBstoreconst,
+-				ssa.OpS390XCLEAR:
+-				off := ssa.ValAndOff(v.AuxInt).Off()
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.OpS390XMVC:
+-				off := ssa.ValAndOff(v.AuxInt).Off()
+-				if (w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0]) && w.Aux == nil && off >= 0 && off < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			}
+-			if w.Type.IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if the input is nil.
+ 		p := gc.Prog(s390x.AMOVBZ)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -821,7 +760,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetLineno(b.Line)
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(s390x.ABR)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index cb70531349..38cf581497 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -90,16 +90,6 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("defer block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+-		case BlockCheck:
+-			if len(b.Succs) != 1 {
+-				f.Fatalf("check block %s len(Succs)==%d, want 1", b, len(b.Succs))
+-			}
+-			if b.Control == nil {
+-				f.Fatalf("check block %s has no control value", b)
+-			}
+-			if !b.Control.Type.IsVoid() {
+-				f.Fatalf("check block %s has non-void control value %s", b, b.Control.LongString())
+-			}
+ 		case BlockFirst:
+ 			if len(b.Succs) != 2 {
+ 				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index d8b0b0a5c1..30d8eea1eb 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -274,8 +274,9 @@ var passes = [...]pass{
+ 	{name: "late deadcode", fn: deadcode},
+ 	{name: "critical", fn: critical, required: true}, // remove critical edges
+ 	{name: "likelyadjust", fn: likelyadjust},
+-	{name: "layout", fn: layout, required: true},       // schedule blocks
+-	{name: "schedule", fn: schedule, required: true},   // schedule values
++	{name: "layout", fn: layout, required: true},     // schedule blocks
++	{name: "schedule", fn: schedule, required: true}, // schedule values
++	{name: "late nilcheck", fn: nilcheckelim2},
+ 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
+ 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
+ 	{name: "trim", fn: trim},                           // remove empty blocks
+@@ -329,6 +330,8 @@ var passOrder = [...]constraint{
+ 	// checkLower must run after lowering & subsequent dead code elim
+ 	{"lower", "checkLower"},
+ 	{"lowered deadcode", "checkLower"},
++	// late nilcheck needs instructions to be scheduled.
++	{"schedule", "late nilcheck"},
+ 	// flagalloc needs instructions to be scheduled.
+ 	{"schedule", "flagalloc"},
+ 	// regalloc needs flags to be allocated first.
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 5a83e2342d..d75d2d5d41 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -68,6 +68,11 @@ func liveValues(f *Func, reachable []bool) []bool {
+ 				live[v.ID] = true
+ 				q = append(q, v)
+ 			}
++			if v.Type.IsVoid() && !live[v.ID] {
++				// The only Void ops are nil checks.  We must keep these.
++				live[v.ID] = true
++				q = append(q, v)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 12ac6b51e2..9ec7c861a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -157,21 +157,21 @@ func init() {
+ 		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true},                    // fp32 div
+ 		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                    // fp64 div
+ 
+-		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},            // fp32 load
+-		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},            // fp64 load
+-		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float32", rematerializeable: true}, // fp32 constant
+-		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float64", rematerializeable: true}, // fp64 constant
+-		{name: "MOVSSloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},     // fp32 load indexed by i
+-		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},     // fp32 load indexed by 4*i
+-		{name: "MOVSDloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},     // fp64 load indexed by i
+-		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},     // fp64 load indexed by 8*i
+-
+-		{name: "MOVSSstore", argLength: 3, reg: fpstore, asm: "MOVSS", aux: "SymOff"},        // fp32 store
+-		{name: "MOVSDstore", argLength: 3, reg: fpstore, asm: "MOVSD", aux: "SymOff"},        // fp64 store
+-		{name: "MOVSSstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"}, // fp32 indexed by i store
+-		{name: "MOVSSstoreidx4", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"}, // fp32 indexed by 4i store
+-		{name: "MOVSDstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by i store
+-		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by 8i store
++		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff", faultOnNilArg0: true}, // fp32 load
++		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff", faultOnNilArg0: true}, // fp64 load
++		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float32", rematerializeable: true},            // fp32 constant
++		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float64", rematerializeable: true},            // fp64 constant
++		{name: "MOVSSloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},                // fp32 load indexed by i
++		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},                // fp32 load indexed by 4*i
++		{name: "MOVSDloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},                // fp64 load indexed by i
++		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},                // fp64 load indexed by 8*i
++
++		{name: "MOVSSstore", argLength: 3, reg: fpstore, asm: "MOVSS", aux: "SymOff", faultOnNilArg0: true}, // fp32 store
++		{name: "MOVSDstore", argLength: 3, reg: fpstore, asm: "MOVSD", aux: "SymOff", faultOnNilArg0: true}, // fp64 store
++		{name: "MOVSSstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"},                // fp32 indexed by i store
++		{name: "MOVSSstoreidx4", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"},                // fp32 indexed by 4i store
++		{name: "MOVSDstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"},                // fp64 indexed by i store
++		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"},                // fp64 indexed by 8i store
+ 
+ 		// binary ops
+ 		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                // arg0 + arg1
+@@ -323,14 +323,14 @@ func init() {
+ 		// Note: LEAL{1,2,4,8} must not have OpSB as either argument.
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBLSXload", argLength: 2, reg: gpload, asm: "MOVBLSX", aux: "SymOff"},             // ditto, sign extend to int32
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVWLSXload", argLength: 2, reg: gpload, asm: "MOVWLSX", aux: "SymOff"},             // ditto, sign extend to int32
+-		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBLSXload", argLength: 2, reg: gpload, asm: "MOVBLSX", aux: "SymOff", faultOnNilArg0: true},             // ditto, sign extend to int32
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVWLSXload", argLength: 2, reg: gpload, asm: "MOVWLSX", aux: "SymOff", faultOnNilArg0: true},             // ditto, sign extend to int32
++		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, asm: "MOVBLZX", aux: "SymOff"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
+@@ -349,9 +349,9 @@ func init() {
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+ 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
+-		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+-		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
+-		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
++		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
++		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store low 2 bytes of ...
++		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store low 4 bytes of ...
+ 
+ 		{name: "MOVBstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
+ 		{name: "MOVWstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ... arg1 ...
+@@ -439,7 +439,7 @@ func init() {
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true},
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true},
+ 
+ 		// MOVLconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 6d15d82f06..122512205d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -161,21 +161,21 @@ func init() {
+ 		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true},                    // fp32 div
+ 		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                    // fp64 div
+ 
+-		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},            // fp32 load
+-		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},            // fp64 load
+-		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float32", rematerializeable: true}, // fp32 constant
+-		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float64", rematerializeable: true}, // fp64 constant
+-		{name: "MOVSSloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},     // fp32 load indexed by i
+-		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},     // fp32 load indexed by 4*i
+-		{name: "MOVSDloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},     // fp64 load indexed by i
+-		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},     // fp64 load indexed by 8*i
+-
+-		{name: "MOVSSstore", argLength: 3, reg: fpstore, asm: "MOVSS", aux: "SymOff"},        // fp32 store
+-		{name: "MOVSDstore", argLength: 3, reg: fpstore, asm: "MOVSD", aux: "SymOff"},        // fp64 store
+-		{name: "MOVSSstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"}, // fp32 indexed by i store
+-		{name: "MOVSSstoreidx4", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"}, // fp32 indexed by 4i store
+-		{name: "MOVSDstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by i store
+-		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by 8i store
++		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff", faultOnNilArg0: true}, // fp32 load
++		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff", faultOnNilArg0: true}, // fp64 load
++		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float32", rematerializeable: true},            // fp32 constant
++		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float64", rematerializeable: true},            // fp64 constant
++		{name: "MOVSSloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},                // fp32 load indexed by i
++		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},                // fp32 load indexed by 4*i
++		{name: "MOVSDloadidx1", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},                // fp64 load indexed by i
++		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},                // fp64 load indexed by 8*i
++
++		{name: "MOVSSstore", argLength: 3, reg: fpstore, asm: "MOVSS", aux: "SymOff", faultOnNilArg0: true}, // fp32 store
++		{name: "MOVSDstore", argLength: 3, reg: fpstore, asm: "MOVSD", aux: "SymOff", faultOnNilArg0: true}, // fp64 store
++		{name: "MOVSSstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"},                // fp32 indexed by i store
++		{name: "MOVSSstoreidx4", argLength: 4, reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"},                // fp32 indexed by 4i store
++		{name: "MOVSDstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"},                // fp64 indexed by i store
++		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"},                // fp64 indexed by 8i store
+ 
+ 		// binary ops
+ 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                // arg0 + arg1
+@@ -357,19 +357,19 @@ func init() {
+ 		{name: "LEAL", argLength: 1, reg: gp11sb, asm: "LEAL", aux: "SymOff", rematerializeable: true}, // arg0 + auxint + offset encoded in aux
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff"},             // ditto, sign extend to int64
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff"},             // ditto, sign extend to int64
+-		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff"},             // ditto, sign extend to int64
+-		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"},    // load 8 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem"},     // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128"},  // load 16 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem"},   // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true},             // ditto, sign extend to int64
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true},             // ditto, sign extend to int64
++		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true},             // ditto, sign extend to int64
++		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true},    // load 8 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},     // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true},  // load 16 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},   // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, asm: "MOVBLZX", aux: "SymOff"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
+@@ -392,10 +392,10 @@ func init() {
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+ 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
+-		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+-		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
+-		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
+-		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
++		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
++		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store low 2 bytes of ...
++		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store low 4 bytes of ...
++		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of ...
+ 
+ 		{name: "MOVBstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
+ 		{name: "MOVWstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ... arg1 ...
+@@ -486,7 +486,7 @@ func init() {
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true},
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true},
+ 
+ 		// MOVQconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+@@ -512,22 +512,22 @@ func init() {
+ 		// Atomic loads.  These are just normal loads but return <value,memory> tuples
+ 		// so they can be properly ordered with other loads.
+ 		// load from arg0+auxint+aux.  arg1=mem.
+-		{name: "MOVLatomicload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff"},
+-		{name: "MOVQatomicload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff"},
++		{name: "MOVLatomicload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", faultOnNilArg0: true},
++		{name: "MOVQatomicload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", faultOnNilArg0: true},
+ 
+ 		// Atomic stores and exchanges.  Stores use XCHG to get the right memory ordering semantics.
+ 		// store arg0 to arg1+auxint+aux, arg2=mem.
+ 		// These ops return a tuple of <old contents of *(arg1+auxint+aux), memory>.
+ 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
+-		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true},
+-		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true},
++		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true},
++		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true},
+ 
+ 		// Atomic adds.
+ 		// *(arg1+auxint+aux) += arg0.  arg2=mem.
+ 		// Returns a tuple of <old contents of *(arg1+auxint+aux), memory>.
+ 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
+-		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true},
+-		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true},
++		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true},
++		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true},
+ 		{name: "AddTupleFirst32", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
+ 		{name: "AddTupleFirst64", argLength: 2}, // arg0=tuple <x,y>.  Returns <x+arg1,y>.
+ 
+@@ -550,12 +550,12 @@ func init() {
+ 		//    JEQ ...
+ 		// but we can't do that because memory-using ops can't generate flags yet
+ 		// (flagalloc wants to move flag-generating instructions around).
+-		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff", clobberFlags: true},
+-		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff", clobberFlags: true},
++		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
++		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},
+ 
+ 		// Atomic memory updates.
+-		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true}, // *(arg0+auxint+aux) &= arg1
+-		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true},   // *(arg0+auxint+aux) |= arg1
++		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true}, // *(arg0+auxint+aux) &= arg1
++		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},   // *(arg0+auxint+aux) |= arg1
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 645761c626..3ccda45367 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -261,27 +261,27 @@ func init() {
+ 
+ 		{name: "MOVDaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVD", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
+ 
+-		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},      // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},     // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32"},     // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVDload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVD", typ: "UInt64"},    // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "FMOVSload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVS", typ: "Float32"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem"},   // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem"},   // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem"},   // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVDstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVD", typ: "Mem"},   // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "FMOVSstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVS", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-
+-		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVD", typ: "Mem"}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
++		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8", faultOnNilArg0: true},      // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8", faultOnNilArg0: true},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16", faultOnNilArg0: true},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32", faultOnNilArg0: true},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVD", typ: "UInt64", faultOnNilArg0: true},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "FMOVSload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVS", typ: "Float32", faultOnNilArg0: true}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true}, // load from arg0 + auxInt + aux.  arg1=mem.
++
++		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true},   // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true},   // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true},   // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVDstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true},   // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "FMOVSstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVS", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++
++		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
+ 
+ 		// conversions
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+@@ -325,7 +325,7 @@ func init() {
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true}, // panic if arg0 is nil.  arg1=mem.
+ 
+ 		{name: "Equal", argLength: 1, reg: readflags},         // bool, true flags encode x==y false otherwise.
+ 		{name: "NotEqual", argLength: 1, reg: readflags},      // bool, true flags encode x!=y false otherwise.
+@@ -352,6 +352,7 @@ func init() {
+ 				inputs:   []regMask{gp},
+ 				clobbers: buildReg("R16"),
+ 			},
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large zeroing
+@@ -371,7 +372,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("R16"), gp},
+ 				clobbers: buildReg("R16"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large move
+@@ -393,7 +395,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp},
+ 				clobbers: buildReg("R16 R17"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+@@ -428,21 +432,21 @@ func init() {
+ 		// atomic loads.
+ 		// load from arg0. arg1=mem. auxint must be zero.
+ 		// returns <value,memory> so they can be properly ordered with other loads.
+-		{name: "LDAR", argLength: 2, reg: gpload, asm: "LDAR"},
+-		{name: "LDARW", argLength: 2, reg: gpload, asm: "LDARW"},
++		{name: "LDAR", argLength: 2, reg: gpload, asm: "LDAR", faultOnNilArg0: true},
++		{name: "LDARW", argLength: 2, reg: gpload, asm: "LDARW", faultOnNilArg0: true},
+ 
+ 		// atomic stores.
+ 		// store arg1 to arg0. arg2=mem. returns memory. auxint must be zero.
+-		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR"},
+-		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW"},
++		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR", faultOnNilArg0: true},
++		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW", faultOnNilArg0: true},
+ 
+ 		// atomic exchange.
+ 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
+ 		// LDAXR	(Rarg0), Rout
+ 		// STLXR	Rarg1, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -2(PC)
+-		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true},
+-		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true},
++		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
++		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
+ 
+ 		// atomic add.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+@@ -450,8 +454,8 @@ func init() {
+ 		// ADD		Rarg1, Rout
+ 		// STLXR	Rout, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -3(PC)
+-		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true},
+-		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true},
++		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
++		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true},
+ 
+ 		// atomic compare and swap.
+ 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
+@@ -467,8 +471,8 @@ func init() {
+ 		// STLXR	Rarg2, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -4(PC)
+ 		// CSET		EQ, Rout
+-		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true},
+-		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true},
++		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true},
++		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true},
+ 
+ 		// atomic and/or.
+ 		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
+@@ -476,8 +480,8 @@ func init() {
+ 		// AND/OR	Rarg1, Rtmp
+ 		// STLXRB	Rtmp, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -3(PC)
+-		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND"},
+-		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR"},
++		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true},
++		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "ORR", faultOnNilArg0: true},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index d8824ef1e9..6c3497f7ce 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -314,19 +314,19 @@ func init() {
+ 
+ 		{name: "MOVWaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVW", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
+ 
+-		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},    // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "UInt32"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVFload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVF", typ: "Float32"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVD", typ: "Float64"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8", faultOnNilArg0: true},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16", faultOnNilArg0: true},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16", faultOnNilArg0: true}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "UInt32", faultOnNilArg0: true},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVFload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVF", typ: "Float32", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVD", typ: "Float64", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++
++		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 
+ 		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW"},                   // load from arg0 + arg1. arg2=mem
+ 		{name: "MOVWloadshiftLL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1<<auxInt. arg2=mem
+@@ -370,7 +370,7 @@ func init() {
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true}, // panic if arg0 is nil.  arg1=mem.
+ 
+ 		{name: "Equal", argLength: 1, reg: readflags},         // bool, true flags encode x==y false otherwise.
+ 		{name: "NotEqual", argLength: 1, reg: readflags},      // bool, true flags encode x!=y false otherwise.
+@@ -397,6 +397,7 @@ func init() {
+ 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
+ 				clobbers: buildReg("R1"),
+ 			},
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// duffcopy (must be 4-byte aligned)
+@@ -413,6 +414,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("R2"), buildReg("R1")},
+ 				clobbers: buildReg("R0 R1 R2"),
+ 			},
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// large or unaligned zeroing
+@@ -432,7 +435,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("R1"), gp, gp},
+ 				clobbers: buildReg("R1"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large or unaligned move
+@@ -453,7 +457,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
+ 				clobbers: buildReg("R1 R2"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index c9f735a1d6..a103529296 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -219,27 +219,27 @@ func init() {
+ 
+ 		{name: "MOVVaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVV", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
+ 
+-		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},    // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32"},    // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVVload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVV", typ: "UInt64"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVFload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVF", typ: "Float32"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVD", typ: "Float64"},  // load from arg0 + auxInt + aux.  arg1=mem.
+-
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVVstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVV", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-
+-		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVVstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVV", typ: "Mem"}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
++		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8", faultOnNilArg0: true},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16", faultOnNilArg0: true},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16", faultOnNilArg0: true}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "Int32", faultOnNilArg0: true},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVWU", typ: "UInt32", faultOnNilArg0: true}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVVload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVV", typ: "UInt64", faultOnNilArg0: true},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVFload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVF", typ: "Float32", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "MOVD", typ: "Float64", faultOnNilArg0: true},  // load from arg0 + auxInt + aux.  arg1=mem.
++
++		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVVstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVV", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++
++		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVVstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVV", typ: "Mem", faultOnNilArg0: true}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
+ 
+ 		// conversions
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+@@ -284,6 +284,7 @@ func init() {
+ 				inputs:   []regMask{gp},
+ 				clobbers: buildReg("R1"),
+ 			},
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large or unaligned zeroing
+@@ -304,7 +305,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("R1"), gp},
+ 				clobbers: buildReg("R1"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large or unaligned move
+@@ -328,11 +330,13 @@ func init() {
+ 				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
+ 				clobbers: buildReg("R1 R2"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// pseudo-ops
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true}, // panic if arg0 is nil.  arg1=mem.
+ 
+ 		{name: "FPFlagTrue", argLength: 1, reg: readflags},  // bool, true if FP flag is true
+ 		{name: "FPFlagFalse", argLength: 1, reg: readflags}, // bool, true if FP flag is false
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 597c5ef8e9..4ce4a744a0 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -227,33 +227,33 @@ func init() {
+ 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
+ 		{name: "ANDconst", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}, asm: "ANDCC", aux: "Int64", clobberFlags: true}, // arg0&aux // and-immediate sets CC on PPC, always.
+ 
+-		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", typ: "Int64"},                      // sign extend int8 to int64
+-		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ", typ: "Int64"},                    // zero extend uint8 to uint64
+-		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH", typ: "Int64"},                      // sign extend int16 to int64
+-		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ", typ: "Int64"},                    // zero extend uint16 to uint64
+-		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW", typ: "Int64"},                      // sign extend int32 to int64
+-		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ", typ: "Int64"},                    // zero extend uint32 to uint64
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", typ: "Int8"},     // sign extend int8 to int64
+-		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8"},  // zero extend uint8 to uint64
+-		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", typ: "Int16"},    // sign extend int16 to int64
+-		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16"}, // zero extend uint16 to uint64
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", typ: "Int32"},    // sign extend int32 to int64
+-		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32"}, // zero extend uint32 to uint64
+-		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "Int64"},
+-
+-		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", typ: "Float64"},
+-		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff", typ: "Float32"},
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem"},
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},
+-		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem"},
+-		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff", typ: "Mem"},
+-		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", typ: "Mem"},
+-
+-		{name: "MOVBstorezero", argLength: 2, reg: gpstorezero, asm: "MOVB", aux: "SymOff", typ: "Mem"}, // store zero byte to arg0+aux.  arg1=mem
+-		{name: "MOVHstorezero", argLength: 2, reg: gpstorezero, asm: "MOVH", aux: "SymOff", typ: "Mem"}, // store zero 2 bytes to ...
+-		{name: "MOVWstorezero", argLength: 2, reg: gpstorezero, asm: "MOVW", aux: "SymOff", typ: "Mem"}, // store zero 4 bytes to ...
+-		{name: "MOVDstorezero", argLength: 2, reg: gpstorezero, asm: "MOVD", aux: "SymOff", typ: "Mem"}, // store zero 8 bytes to ...
++		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", typ: "Int64"},                                            // sign extend int8 to int64
++		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ", typ: "Int64"},                                          // zero extend uint8 to uint64
++		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH", typ: "Int64"},                                            // sign extend int16 to int64
++		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ", typ: "Int64"},                                          // zero extend uint16 to uint64
++		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW", typ: "Int64"},                                            // sign extend int32 to int64
++		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ", typ: "Int64"},                                          // zero extend uint32 to uint64
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", typ: "Int8", faultOnNilArg0: true},     // sign extend int8 to int64
++		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true},  // zero extend uint8 to uint64
++		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", typ: "Int16", faultOnNilArg0: true},    // sign extend int16 to int64
++		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true}, // zero extend uint16 to uint64
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", typ: "Int32", faultOnNilArg0: true},    // sign extend int32 to int64
++		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true}, // zero extend uint32 to uint64
++		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "Int64", faultOnNilArg0: true},
++
++		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true},
++		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff", typ: "Float32", faultOnNilArg0: true},
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},
++		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},
++		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},
++		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},
++		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true},
++
++		{name: "MOVBstorezero", argLength: 2, reg: gpstorezero, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true}, // store zero byte to arg0+aux.  arg1=mem
++		{name: "MOVHstorezero", argLength: 2, reg: gpstorezero, asm: "MOVH", aux: "SymOff", typ: "Mem", faultOnNilArg0: true}, // store zero 2 bytes to ...
++		{name: "MOVWstorezero", argLength: 2, reg: gpstorezero, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true}, // store zero 4 bytes to ...
++		{name: "MOVDstorezero", argLength: 2, reg: gpstorezero, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true}, // store zero 8 bytes to ...
+ 
+ 		{name: "MOVDaddr", argLength: 1, reg: regInfo{inputs: []regMask{sp | sb}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVD", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
+ 
+@@ -290,7 +290,7 @@ func init() {
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}},
+ 
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true},
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true},
+ 
+ 		// Convert pointer to integer, takes a memory operand for ordering.
+ 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
+@@ -318,8 +318,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("R3"), gp},
+ 				clobbers: buildReg("R3"),
+ 			},
+-			clobberFlags: true,
+-			typ:          "Mem",
++			clobberFlags:   true,
++			typ:            "Mem",
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large or unaligned move
+@@ -342,8 +343,10 @@ func init() {
+ 				inputs:   []regMask{buildReg("R3"), buildReg("R4"), gp},
+ 				clobbers: buildReg("R3 R4"),
+ 			},
+-			clobberFlags: true,
+-			typ:          "Mem",
++			clobberFlags:   true,
++			typ:            "Mem",
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 7d4eff8375..69fcc4bf65 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -165,17 +165,17 @@ func init() {
+ 		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                        // fp32 neg
+ 		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                          // fp64 neg
+ 
+-		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff"},            // fp32 load
+-		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff"},            // fp64 load
+-		{name: "FMOVSconst", reg: fp01, asm: "FMOVS", aux: "Float32", rematerializeable: true}, // fp32 constant
+-		{name: "FMOVDconst", reg: fp01, asm: "FMOVD", aux: "Float64", rematerializeable: true}, // fp64 constant
+-		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", aux: "SymOff"},      // fp32 load indexed by i
+-		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", aux: "SymOff"},      // fp64 load indexed by i
+-
+-		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff"},       // fp32 store
+-		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff"},       // fp64 store
+-		{name: "FMOVSstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVS", aux: "SymOff"}, // fp32 indexed by i store
+-		{name: "FMOVDstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVD", aux: "SymOff"}, // fp64 indexed by i store
++		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", aux: "SymOff", faultOnNilArg0: true}, // fp32 load
++		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", faultOnNilArg0: true}, // fp64 load
++		{name: "FMOVSconst", reg: fp01, asm: "FMOVS", aux: "Float32", rematerializeable: true},            // fp32 constant
++		{name: "FMOVDconst", reg: fp01, asm: "FMOVD", aux: "Float64", rematerializeable: true},            // fp64 constant
++		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", aux: "SymOff"},                 // fp32 load indexed by i
++		{name: "FMOVDloadidx", argLength: 3, reg: fploadidx, asm: "FMOVD", aux: "SymOff"},                 // fp64 load indexed by i
++
++		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", faultOnNilArg0: true}, // fp32 store
++		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff", faultOnNilArg0: true}, // fp64 store
++		{name: "FMOVSstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVS", aux: "SymOff"},                 // fp32 indexed by i store
++		{name: "FMOVDstoreidx", argLength: 4, reg: fpstoreidx, asm: "FMOVD", aux: "SymOff"},                 // fp64 indexed by i store
+ 
+ 		// binary ops
+ 		{name: "ADD", argLength: 2, reg: gp21sp, asm: "ADD", commutative: true, clobberFlags: true},                // arg0 + arg1
+@@ -307,24 +307,24 @@ func init() {
+ 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", clobberFlags: true},                    // arg0 + arg1 + auxint + aux
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", clobberFlags: true},                  // ditto, sign extend to int64
+-		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", clobberFlags: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", clobberFlags: true},                  // ditto, sign extend to int64
+-		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", clobberFlags: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", clobberFlags: true},                  // ditto, sign extend to int64
+-		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true},   // load 8 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true, faultOnNilArg0: true},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},                  // ditto, sign extend to int64
++		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", clobberFlags: true, faultOnNilArg0: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},                  // ditto, sign extend to int64
++		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},                  // ditto, sign extend to int64
++		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true},   // load 8 bytes from arg0+auxint+aux. arg1=mem
+ 
+-		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "UInt16", clobberFlags: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+-		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", clobberFlags: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+-		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", clobberFlags: true}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
++		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "UInt16", clobberFlags: true, faultOnNilArg0: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
++		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
++		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+ 
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true}, // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", clobberFlags: true}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
+-		{name: "MVC", argLength: 3, reg: gpmvc, asm: "MVC", aux: "SymValAndOff", typ: "Mem", clobberFlags: true}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size,off
++		{name: "MVC", argLength: 3, reg: gpmvc, asm: "MVC", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, faultOnNilArg1: true}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size,off
+ 
+ 		// indexed loads/stores
+ 		// TODO(mundaym): add sign-extended indexed loads
+@@ -343,12 +343,12 @@ func init() {
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+ 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
+-		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", clobberFlags: true}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+-		{name: "MOVHstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVH", aux: "SymValAndOff", typ: "Mem", clobberFlags: true}, // store low 2 bytes of ...
+-		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", clobberFlags: true}, // store low 4 bytes of ...
+-		{name: "MOVDstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVD", aux: "SymValAndOff", typ: "Mem", clobberFlags: true}, // store 8 bytes of ...
++		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
++		{name: "MOVHstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVH", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store low 2 bytes of ...
++		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store low 4 bytes of ...
++		{name: "MOVDstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVD", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true}, // store 8 bytes of ...
+ 
+-		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, 0}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true},
++		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, 0}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true},
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                               // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+@@ -367,7 +367,7 @@ func init() {
+ 		// use of R12 (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R12")}}},
+ 		// arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{ptrsp}}, clobberFlags: true},
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{ptrsp}}, clobberFlags: true, nilCheck: true},
+ 
+ 		// MOVDconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+@@ -389,20 +389,22 @@ func init() {
+ 
+ 		// store multiple
+ 		{
+-			name:      "STMG2",
+-			argLength: 4,
+-			reg:       regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), 0}},
+-			aux:       "SymOff",
+-			typ:       "Mem",
+-			asm:       "STMG",
++			name:           "STMG2",
++			argLength:      4,
++			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), 0}},
++			aux:            "SymOff",
++			typ:            "Mem",
++			asm:            "STMG",
++			faultOnNilArg0: true,
+ 		},
+ 		{
+-			name:      "STMG3",
+-			argLength: 5,
+-			reg:       regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), 0}},
+-			aux:       "SymOff",
+-			typ:       "Mem",
+-			asm:       "STMG",
++			name:           "STMG3",
++			argLength:      5,
++			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), 0}},
++			aux:            "SymOff",
++			typ:            "Mem",
++			asm:            "STMG",
++			faultOnNilArg0: true,
+ 		},
+ 		{
+ 			name:      "STMG4",
+@@ -415,25 +417,28 @@ func init() {
+ 				buildReg("R4"),
+ 				0,
+ 			}},
+-			aux: "SymOff",
+-			typ: "Mem",
+-			asm: "STMG",
++			aux:            "SymOff",
++			typ:            "Mem",
++			asm:            "STMG",
++			faultOnNilArg0: true,
+ 		},
+ 		{
+-			name:      "STM2",
+-			argLength: 4,
+-			reg:       regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), 0}},
+-			aux:       "SymOff",
+-			typ:       "Mem",
+-			asm:       "STMY",
++			name:           "STM2",
++			argLength:      4,
++			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), 0}},
++			aux:            "SymOff",
++			typ:            "Mem",
++			asm:            "STMY",
++			faultOnNilArg0: true,
+ 		},
+ 		{
+-			name:      "STM3",
+-			argLength: 5,
+-			reg:       regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), 0}},
+-			aux:       "SymOff",
+-			typ:       "Mem",
+-			asm:       "STMY",
++			name:           "STM3",
++			argLength:      5,
++			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), 0}},
++			aux:            "SymOff",
++			typ:            "Mem",
++			asm:            "STMY",
++			faultOnNilArg0: true,
+ 		},
+ 		{
+ 			name:      "STM4",
+@@ -446,9 +451,10 @@ func init() {
+ 				buildReg("R4"),
+ 				0,
+ 			}},
+-			aux: "SymOff",
+-			typ: "Mem",
+-			asm: "STMY",
++			aux:            "SymOff",
++			typ:            "Mem",
++			asm:            "STMY",
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// large move
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 1a5869eba6..7539a36ab4 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -770,7 +770,7 @@
+     (ConstNil <config.fe.TypeBytePtr()>)
+     (ConstNil <config.fe.TypeBytePtr()>))
+ 
+-(Check (NilCheck (GetG _) _) next) -> (Plain nil next)
++(NilCheck (GetG mem) mem) -> mem
+ 
+ (If (Not cond) yes no) -> (If cond no yes)
+ (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
+@@ -951,16 +951,20 @@
+ (Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
+ 
+ // recognize runtime.newobject and don't Zero/Nilcheck it
+-(Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
++(Zero (Load (OffPtr [c] (SP)) mem) mem)
++        && mem.Op == OpStaticCall
++	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+-	&& mem2 == mem
+-	&& isSameSym(sym, "runtime.newobject")
+ 	-> mem
+-(Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
+-	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+-	&& isSameSym(sym, "runtime.newobject")
+-	-> (Plain nil succ)
+-(Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
+-	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+-	&& isSameSym(sym, "runtime.newobject")
+-	-> (Plain nil succ)
++// nil checks just need to rewrite to something useless.
++// they will be deadcode eliminated soon afterwards.
++        //(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
++        //        && mem.Op == OpStaticCall
++        //	&& isSameSym(mem.Aux, "runtime.newobject")
++        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
++        //	-> (Invalid)
++        //(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
++        //        && mem.Op == OpStaticCall
++        //	&& isSameSym(mem.Aux, "runtime.newobject")
++        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
++        //	-> (Invalid)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index def6a83d46..c1bc38c13f 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -303,6 +303,7 @@ var genericOps = []opData{
+ 	{name: "SP"},                 // stack pointer
+ 	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
+ 	{name: "Func", aux: "Sym"},   // entry address of a function
++	{name: "Invalid"},            // unused value
+ 
+ 	// Memory operations
+ 	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
+@@ -354,7 +355,7 @@ var genericOps = []opData{
+ 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
+ 	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.
+ 	{name: "IsSliceInBounds", argLength: 2, typ: "Bool"}, // 0 <= arg0 <= arg1. arg1 is guaranteed >= 0.
+-	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil, returns void.
++	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
+ 
+ 	// Pseudo-ops
+ 	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
+@@ -476,7 +477,6 @@ var genericBlocks = []blockData{
+ 	{name: "Plain"},  // a single successor
+ 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
+-	{name: "Check"},  // 1 successor, control is nilcheck op (of void type)
+ 	{name: "Ret"},    // no successors, control value is memory result
+ 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
+ 	{name: "Exit"},   // no successors, control value generates a panic
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 83a614e673..bfabf52696 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -47,6 +47,9 @@ type opData struct {
+ 	resultNotInArgs   bool  // outputs must not be allocated to the same registers as inputs
+ 	clobberFlags      bool  // this op clobbers flags register
+ 	call              bool  // is a function call
++	nilCheck          bool  // this op is a nil check on arg0
++	faultOnNilArg0    bool  // this op will fault if arg0 is nil (and aux encodes a small offset)
++	faultOnNilArg1    bool  // this op will fault if arg1 is nil (and aux encodes a small offset)
+ }
+ 
+ type blockData struct {
+@@ -126,10 +129,13 @@ func genOp() {
+ 
+ 	// generate Op* declarations
+ 	fmt.Fprintln(w, "const (")
+-	fmt.Fprintln(w, "OpInvalid Op = iota")
++	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
+ 	for _, a := range archs {
+ 		fmt.Fprintln(w)
+ 		for _, v := range a.ops {
++			if v.name == "Invalid" {
++				continue
++			}
+ 			fmt.Fprintf(w, "Op%s%s\n", a.Name(), v.name)
+ 		}
+ 	}
+@@ -143,6 +149,9 @@ func genOp() {
+ 
+ 		pkg := path.Base(a.pkg)
+ 		for _, v := range a.ops {
++			if v.name == "Invalid" {
++				continue
++			}
+ 			fmt.Fprintln(w, "{")
+ 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
+ 
+@@ -179,6 +188,21 @@ func genOp() {
+ 			if v.call {
+ 				fmt.Fprintln(w, "call: true,")
+ 			}
++			if v.nilCheck {
++				fmt.Fprintln(w, "nilCheck: true,")
++			}
++			if v.faultOnNilArg0 {
++				fmt.Fprintln(w, "faultOnNilArg0: true,")
++				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "" {
++					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
++				}
++			}
++			if v.faultOnNilArg1 {
++				fmt.Fprintln(w, "faultOnNilArg1: true,")
++				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "" {
++					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
++				}
++			}
+ 			if a.name == "generic" {
+ 				fmt.Fprintln(w, "generic:true,")
+ 				fmt.Fprintln(w, "},") // close op
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 00cb75e493..d893a9abb0 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ // nilcheckelim eliminates unnecessary nil checks.
++// runs on machine-independent code.
+ func nilcheckelim(f *Func) {
+ 	// A nil check is redundant if the same nil check was successful in a
+ 	// dominating block. The efficacy of this pass depends heavily on the
+@@ -26,14 +27,13 @@ func nilcheckelim(f *Func) {
+ 
+ 	type walkState int
+ 	const (
+-		Work   walkState = iota // clear nil check if we should and traverse to dominees regardless
+-		RecPtr                  // record the pointer as being nil checked
+-		ClearPtr
++		Work     walkState = iota // process nil checks and traverse to dominees
++		ClearPtr                  // forget the fact that ptr is nil
+ 	)
+ 
+ 	type bp struct {
+-		block *Block // block, or nil in RecPtr/ClearPtr state
+-		ptr   *Value // if non-nil, ptr that is to be set/cleared in RecPtr/ClearPtr state
++		block *Block // block, or nil in ClearPtr state
++		ptr   *Value // if non-nil, ptr that is to be cleared in ClearPtr state
+ 		op    walkState
+ 	}
+ 
+@@ -76,54 +76,62 @@ func nilcheckelim(f *Func) {
+ 
+ 		switch node.op {
+ 		case Work:
+-			checked := checkedptr(node.block) // ptr being checked for nil/non-nil
+-			nonnil := nonnilptr(node.block)   // ptr that is non-nil due to this blocks pred
+-
+-			if checked != nil {
+-				// already have a nilcheck in the dominator path, or this block is a success
+-				// block for the same value it is checking
+-				if nonNilValues[checked.ID] || checked == nonnil {
+-					// Eliminate the nil check.
+-					// The deadcode pass will remove vestigial values,
+-					// and the fuse pass will join this block with its successor.
+-
+-					// Logging in the style of the former compiler -- and omit line 1,
+-					// which is usually in generated code.
+-					if f.Config.Debug_checknil() && node.block.Control.Line > 1 {
+-						f.Config.Warnl(node.block.Control.Line, "removed nil check")
++			b := node.block
++
++			// First, see if we're dominated by an explicit nil check.
++			if len(b.Preds) == 1 {
++				p := b.Preds[0].b
++				if p.Kind == BlockIf && p.Control.Op == OpIsNonNil && p.Succs[0].b == b {
++					ptr := p.Control.Args[0]
++					if !nonNilValues[ptr.ID] {
++						nonNilValues[ptr.ID] = true
++						work = append(work, bp{op: ClearPtr, ptr: ptr})
+ 					}
++				}
++			}
+ 
+-					switch node.block.Kind {
+-					case BlockIf:
+-						node.block.Kind = BlockFirst
+-						node.block.SetControl(nil)
+-					case BlockCheck:
+-						node.block.Kind = BlockPlain
+-						node.block.SetControl(nil)
+-					default:
+-						f.Fatalf("bad block kind in nilcheck %s", node.block.Kind)
++			// Next, process values in the block.
++			i := 0
++			for _, v := range b.Values {
++				b.Values[i] = v
++				i++
++				switch v.Op {
++				case OpIsNonNil:
++					ptr := v.Args[0]
++					if nonNilValues[ptr.ID] {
++						// This is a redundant explicit nil check.
++						v.reset(OpConstBool)
++						v.AuxInt = 1 // true
+ 					}
++				case OpNilCheck:
++					ptr := v.Args[0]
++					if nonNilValues[ptr.ID] {
++						// This is a redundant implicit nil check.
++						// Logging in the style of the former compiler -- and omit line 1,
++						// which is usually in generated code.
++						if f.Config.Debug_checknil() && v.Line > 1 {
++							f.Config.Warnl(v.Line, "removed nil check")
++						}
++						v.reset(OpUnknown)
++						i--
++						continue
++					}
++					// Record the fact that we know ptr is non nil, and remember to
++					// undo that information when this dominator subtree is done.
++					nonNilValues[ptr.ID] = true
++					work = append(work, bp{op: ClearPtr, ptr: ptr})
+ 				}
+ 			}
+-
+-			if nonnil != nil && !nonNilValues[nonnil.ID] {
+-				// this is a new nilcheck so add a ClearPtr node to clear the
+-				// ptr from the map of nil checks once we traverse
+-				// back up the tree
+-				work = append(work, bp{op: ClearPtr, ptr: nonnil})
++			for j := i; j < len(b.Values); j++ {
++				b.Values[j] = nil
+ 			}
++			b.Values = b.Values[:i]
+ 
+-			// add all dominated blocks to the work list
++			// Add all dominated blocks to the work list.
+ 			for _, w := range domTree[node.block.ID] {
+-				work = append(work, bp{block: w})
++				work = append(work, bp{op: Work, block: w})
+ 			}
+ 
+-			if nonnil != nil && !nonNilValues[nonnil.ID] {
+-				work = append(work, bp{op: RecPtr, ptr: nonnil})
+-			}
+-		case RecPtr:
+-			nonNilValues[node.ptr.ID] = true
+-			continue
+ 		case ClearPtr:
+ 			nonNilValues[node.ptr.ID] = false
+ 			continue
+@@ -131,31 +139,86 @@ func nilcheckelim(f *Func) {
+ 	}
+ }
+ 
+-// checkedptr returns the Value, if any,
+-// that is used in a nil check in b's Control op.
+-func checkedptr(b *Block) *Value {
+-	if b.Kind == BlockCheck {
+-		return b.Control.Args[0]
+-	}
+-	if b.Kind == BlockIf && b.Control.Op == OpIsNonNil {
+-		return b.Control.Args[0]
+-	}
+-	return nil
+-}
++// All platforms are guaranteed to fault if we load/store to anything smaller than this address.
++const minZeroPage = 4096
+ 
+-// nonnilptr returns the Value, if any,
+-// that is non-nil due to b being the successor block
+-// of an OpIsNonNil or OpNilCheck block for the value and having a single
+-// predecessor.
+-func nonnilptr(b *Block) *Value {
+-	if len(b.Preds) == 1 {
+-		bp := b.Preds[0].b
+-		if bp.Kind == BlockCheck {
+-			return bp.Control.Args[0]
++// nilcheckelim2 eliminates unnecessary nil checks.
++// Runs after lowering and scheduling.
++func nilcheckelim2(f *Func) {
++	unnecessary := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(unnecessary)
++	for _, b := range f.Blocks {
++		// Walk the block backwards. Find instructions that will fault if their
++		// input pointer is nil. Remove nil checks on those pointers, as the
++		// faulting instruction effectively does the nil check for free.
++		unnecessary.clear()
++		for i := len(b.Values) - 1; i >= 0; i-- {
++			v := b.Values[i]
++			if opcodeTable[v.Op].nilCheck && unnecessary.contains(v.Args[0].ID) {
++				if f.Config.Debug_checknil() && int(v.Line) > 1 {
++					f.Config.Warnl(v.Line, "removed nil check")
++				}
++				v.reset(OpUnknown)
++				continue
++			}
++			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
++				if v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive {
++					// These ops don't really change memory.
++					continue
++				}
++				// This op changes memory.  Any faulting instruction after v that
++				// we've recorded in the unnecessary map is now obsolete.
++				unnecessary.clear()
++			}
++
++			// Find any pointers that this op is guaranteed to fault on if nil.
++			var ptrstore [2]*Value
++			ptrs := ptrstore[:0]
++			if opcodeTable[v.Op].faultOnNilArg0 {
++				ptrs = append(ptrs, v.Args[0])
++			}
++			if opcodeTable[v.Op].faultOnNilArg1 {
++				ptrs = append(ptrs, v.Args[1])
++			}
++			for _, ptr := range ptrs {
++				// Check to make sure the offset is small.
++				switch opcodeTable[v.Op].auxType {
++				case auxSymOff:
++					if v.Aux != nil || v.AuxInt < 0 || v.AuxInt >= minZeroPage {
++						continue
++					}
++				case auxSymValAndOff:
++					off := ValAndOff(v.AuxInt).Off()
++					if v.Aux != nil || off < 0 || off >= minZeroPage {
++						continue
++					}
++				case auxInt64:
++					// ARM uses this auxType for duffcopy/duffzero/alignment info.
++					// It does not affect the effective address.
++				case auxNone:
++					// offset is zero.
++				default:
++					v.Fatalf("can't handle aux %s (type %d) yet\n", v.auxString(), int(opcodeTable[v.Op].auxType))
++				}
++				// This instruction is guaranteed to fault if ptr is nil.
++				// Any previous nil check op is unnecessary.
++				unnecessary.add(ptr.ID)
++			}
++		}
++		// Remove values we've clobbered with OpUnknown.
++		i := 0
++		for _, v := range b.Values {
++			if v.Op != OpUnknown {
++				b.Values[i] = v
++				i++
++			}
+ 		}
+-		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0].b == b {
+-			return bp.Control.Args[0]
++		for j := i; j < len(b.Values); j++ {
++			b.Values[j] = nil
+ 		}
++		b.Values = b.Values[:i]
++
++		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
++		// more unnecessary nil checks.  Would fix test/nilptr3_ssa.go:157.
+ 	}
+-	return nil
+ }
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 6d201a5d02..a4af5dbabe 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -30,6 +30,9 @@ type opInfo struct {
+ 	resultNotInArgs   bool // outputs must not be allocated to the same registers as inputs
+ 	clobberFlags      bool // this op clobbers flags register
+ 	call              bool // is a function call
++	nilCheck          bool // this op is a nil check on arg0
++	faultOnNilArg0    bool // this op will fault if arg0 is nil (and aux encodes a small offset)
++	faultOnNilArg1    bool // this op will fault if arg1 is nil (and aux encodes a small offset)
+ }
+ 
+ type inputInfo struct {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b9d98b484f..6b2a3a3134 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -100,7 +100,6 @@ const (
+ 	BlockPlain
+ 	BlockIf
+ 	BlockDefer
+-	BlockCheck
+ 	BlockRet
+ 	BlockRetJmp
+ 	BlockExit
+@@ -194,7 +193,6 @@ var blockString = [...]string{
+ 	BlockPlain:  "Plain",
+ 	BlockIf:     "If",
+ 	BlockDefer:  "Defer",
+-	BlockCheck:  "Check",
+ 	BlockRet:    "Ret",
+ 	BlockRetJmp: "RetJmp",
+ 	BlockExit:   "Exit",
+@@ -1848,10 +1846,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSSload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVSS,
++		name:           "MOVSSload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -1862,10 +1861,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVSD,
++		name:           "MOVSDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -1960,10 +1960,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSSstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVSS,
++		name:           "MOVSSstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -1972,10 +1973,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVSD,
++		name:           "MOVSDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -3543,10 +3545,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVBLZX,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVBLZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3557,10 +3560,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBLSXload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVBLSX,
++		name:           "MOVBLSXload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVBLSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3571,10 +3575,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVWLZX,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVWLZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3585,10 +3590,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWLSXload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVWLSX,
++		name:           "MOVWLSXload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVWLSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3599,10 +3605,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVL,
++		name:           "MOVLload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3613,10 +3620,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -3625,10 +3633,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -3637,10 +3646,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVL,
++		name:           "MOVLstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 255},   // AX CX DX BX SP BP SI DI
+@@ -3789,10 +3799,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVB,
++		name:           "MOVBstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3800,10 +3811,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVW,
++		name:           "MOVWstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -3811,10 +3823,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVL,
++		name:           "MOVLstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
+@@ -4014,6 +4027,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredNilCheck",
+ 		argLen:       2,
+ 		clobberFlags: true,
++		nilCheck:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 255}, // AX CX DX BX SP BP SI DI
+@@ -4242,10 +4256,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSSload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVSS,
++		name:           "MOVSSload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -4256,10 +4271,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVSD,
++		name:           "MOVSDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -4354,10 +4370,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSSstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVSS,
++		name:           "MOVSSstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+@@ -4366,10 +4383,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVSDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVSD,
++		name:           "MOVSDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+@@ -6321,10 +6339,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVBLZX,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVBLZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6335,10 +6354,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBQSXload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVBQSX,
++		name:           "MOVBQSXload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVBQSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6349,10 +6369,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVWLZX,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVWLZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6363,10 +6384,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWQSXload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVWQSX,
++		name:           "MOVWQSXload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVWQSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6377,10 +6399,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVL,
++		name:           "MOVLload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6391,10 +6414,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLQSXload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVLQSX,
++		name:           "MOVLQSXload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVLQSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6405,10 +6429,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVQload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVQ,
++		name:           "MOVQload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6419,10 +6444,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -6431,10 +6457,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -6443,10 +6470,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVL,
++		name:           "MOVLstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -6455,10 +6483,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVQstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVQ,
++		name:           "MOVQstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -6467,10 +6496,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVOload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVUPS,
++		name:           "MOVOload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVUPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6481,10 +6511,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVOstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     x86.AMOVUPS,
++		name:           "MOVOstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVUPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+@@ -6689,10 +6720,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVB,
++		name:           "MOVBstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6700,10 +6732,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVW,
++		name:           "MOVWstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6711,10 +6744,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVLstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVL,
++		name:           "MOVLstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6722,10 +6756,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVQstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     x86.AMOVQ,
++		name:           "MOVQstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -6961,6 +6996,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredNilCheck",
+ 		argLen:       2,
+ 		clobberFlags: true,
++		nilCheck:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7019,10 +7055,11 @@ var opcodeTable = [...]opInfo{
+ 		reg:    regInfo{},
+ 	},
+ 	{
+-		name:    "MOVLatomicload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVL,
++		name:           "MOVLatomicload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -7033,10 +7070,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVQatomicload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     x86.AMOVQ,
++		name:           "MOVQatomicload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+@@ -7047,11 +7085,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "XCHGL",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		resultInArg0: true,
+-		asm:          x86.AXCHGL,
++		name:           "XCHGL",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AXCHGL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7063,11 +7102,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "XCHGQ",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		resultInArg0: true,
+-		asm:          x86.AXCHGQ,
++		name:           "XCHGQ",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AXCHGQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7079,12 +7119,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "XADDLlock",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		resultInArg0: true,
+-		clobberFlags: true,
+-		asm:          x86.AXADDL,
++		name:           "XADDLlock",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AXADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7096,12 +7137,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "XADDQlock",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		resultInArg0: true,
+-		clobberFlags: true,
+-		asm:          x86.AXADDQ,
++		name:           "XADDQlock",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AXADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7123,11 +7165,12 @@ var opcodeTable = [...]opInfo{
+ 		reg:    regInfo{},
+ 	},
+ 	{
+-		name:         "CMPXCHGLlock",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		clobberFlags: true,
+-		asm:          x86.ACMPXCHGL,
++		name:           "CMPXCHGLlock",
++		auxType:        auxSymOff,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            x86.ACMPXCHGL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1},     // AX
+@@ -7142,11 +7185,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "CMPXCHGQlock",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		clobberFlags: true,
+-		asm:          x86.ACMPXCHGQ,
++		name:           "CMPXCHGQlock",
++		auxType:        auxSymOff,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            x86.ACMPXCHGQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1},     // AX
+@@ -7161,11 +7205,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ANDBlock",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          x86.AANDB,
++		name:           "ANDBlock",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            x86.AANDB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7174,11 +7219,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ORBlock",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          x86.AORB,
++		name:           "ORBlock",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            x86.AORB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -9491,10 +9537,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVB,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9505,10 +9552,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVBU,
++		name:           "MOVBUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVBU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9519,10 +9567,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVH,
++		name:           "MOVHload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9533,10 +9582,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVHU,
++		name:           "MOVHUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVHU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9547,10 +9597,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVW,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9561,10 +9612,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVFload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVF,
++		name:           "MOVFload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9575,10 +9627,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm.AMOVD,
++		name:           "MOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9589,10 +9642,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+@@ -9601,10 +9655,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm.AMOVH,
++		name:           "MOVHstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+@@ -9613,10 +9668,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+@@ -9625,10 +9681,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVFstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm.AMOVF,
++		name:           "MOVFstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -9637,10 +9694,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm.AMOVD,
++		name:           "MOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+@@ -10068,8 +10126,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredNilCheck",
+-		argLen: 2,
++		name:     "LoweredNilCheck",
++		argLen:   2,
++		nilCheck: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+@@ -10167,9 +10226,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "DUFFZERO",
+-		auxType: auxInt64,
+-		argLen:  3,
++		name:           "DUFFZERO",
++		auxType:        auxInt64,
++		argLen:         3,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2}, // R1
+@@ -10179,9 +10239,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "DUFFCOPY",
+-		auxType: auxInt64,
+-		argLen:  3,
++		name:           "DUFFCOPY",
++		auxType:        auxInt64,
++		argLen:         3,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4}, // R2
+@@ -10191,10 +10253,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredZero",
+-		auxType:      auxInt64,
+-		argLen:       4,
+-		clobberFlags: true,
++		name:           "LoweredZero",
++		auxType:        auxInt64,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},    // R1
+@@ -10205,10 +10268,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredMove",
+-		auxType:      auxInt64,
+-		argLen:       4,
+-		clobberFlags: true,
++		name:           "LoweredMove",
++		auxType:        auxInt64,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4},    // R2
+@@ -11497,10 +11562,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVB,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11511,10 +11577,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVBU,
++		name:           "MOVBUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVBU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11525,10 +11592,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVH,
++		name:           "MOVHload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11539,10 +11607,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVHU,
++		name:           "MOVHUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVHU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11553,10 +11622,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVW,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11567,10 +11637,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVWU,
++		name:           "MOVWUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVWU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11581,10 +11652,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVD,
++		name:           "MOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11595,10 +11667,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVSload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AFMOVS,
++		name:           "FMOVSload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11609,10 +11682,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AFMOVD,
++		name:           "FMOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11623,10 +11697,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm64.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -11635,10 +11710,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm64.AMOVH,
++		name:           "MOVHstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -11647,10 +11723,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm64.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -11659,10 +11736,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm64.AMOVD,
++		name:           "MOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -11671,10 +11749,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVSstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm64.AFMOVS,
++		name:           "FMOVSstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11683,10 +11762,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     arm64.AFMOVD,
++		name:           "FMOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11695,10 +11775,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVB,
++		name:           "MOVBstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11706,10 +11787,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVH,
++		name:           "MOVHstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11717,10 +11799,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVW,
++		name:           "MOVWstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -11728,10 +11811,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     arm64.AMOVD,
++		name:           "MOVDstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -12161,8 +12245,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredNilCheck",
+-		argLen: 2,
++		name:     "LoweredNilCheck",
++		argLen:   2,
++		nilCheck: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12260,9 +12345,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "DUFFZERO",
+-		auxType: auxInt64,
+-		argLen:  2,
++		name:           "DUFFZERO",
++		auxType:        auxInt64,
++		argLen:         2,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+@@ -12271,9 +12357,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredZero",
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "LoweredZero",
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65536},     // R16
+@@ -12283,9 +12370,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredMove",
+-		argLen:       4,
+-		clobberFlags: true,
++		name:           "LoweredMove",
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 131072},    // R17
+@@ -12348,9 +12437,10 @@ var opcodeTable = [...]opInfo{
+ 		reg:    regInfo{},
+ 	},
+ 	{
+-		name:   "LDAR",
+-		argLen: 2,
+-		asm:    arm64.ALDAR,
++		name:           "LDAR",
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.ALDAR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -12361,9 +12451,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LDARW",
+-		argLen: 2,
+-		asm:    arm64.ALDARW,
++		name:           "LDARW",
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.ALDARW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+@@ -12374,9 +12465,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "STLR",
+-		argLen: 3,
+-		asm:    arm64.ASTLR,
++		name:           "STLR",
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.ASTLR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12385,9 +12477,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "STLRW",
+-		argLen: 3,
+-		asm:    arm64.ASTLRW,
++		name:           "STLRW",
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.ASTLRW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12399,6 +12492,7 @@ var opcodeTable = [...]opInfo{
+ 		name:            "LoweredAtomicExchange64",
+ 		argLen:          3,
+ 		resultNotInArgs: true,
++		faultOnNilArg0:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12413,6 +12507,7 @@ var opcodeTable = [...]opInfo{
+ 		name:            "LoweredAtomicExchange32",
+ 		argLen:          3,
+ 		resultNotInArgs: true,
++		faultOnNilArg0:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12427,6 +12522,7 @@ var opcodeTable = [...]opInfo{
+ 		name:            "LoweredAtomicAdd64",
+ 		argLen:          3,
+ 		resultNotInArgs: true,
++		faultOnNilArg0:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12441,6 +12537,7 @@ var opcodeTable = [...]opInfo{
+ 		name:            "LoweredAtomicAdd32",
+ 		argLen:          3,
+ 		resultNotInArgs: true,
++		faultOnNilArg0:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12456,6 +12553,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:          4,
+ 		resultNotInArgs: true,
+ 		clobberFlags:    true,
++		faultOnNilArg0:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12472,6 +12570,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:          4,
+ 		resultNotInArgs: true,
+ 		clobberFlags:    true,
++		faultOnNilArg0:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12484,9 +12583,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredAtomicAnd8",
+-		argLen: 3,
+-		asm:    arm64.AAND,
++		name:           "LoweredAtomicAnd8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -12495,9 +12595,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredAtomicOr8",
+-		argLen: 3,
+-		asm:    arm64.AORR,
++		name:           "LoweredAtomicOr8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            arm64.AORR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+@@ -13153,10 +13254,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVB,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13167,10 +13269,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVBU,
++		name:           "MOVBUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVBU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13181,10 +13284,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVH,
++		name:           "MOVHload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13195,10 +13299,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVHU,
++		name:           "MOVHUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVHU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13209,10 +13314,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVW,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13223,10 +13329,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWUload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVWU,
++		name:           "MOVWUload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVWU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13237,10 +13344,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVVload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVV,
++		name:           "MOVVload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13251,10 +13359,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVFload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVF,
++		name:           "MOVFload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13265,10 +13374,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVD,
++		name:           "MOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13279,10 +13389,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     mips.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+@@ -13291,10 +13402,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     mips.AMOVH,
++		name:           "MOVHstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+@@ -13303,10 +13415,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     mips.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+@@ -13315,10 +13428,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVVstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     mips.AMOVV,
++		name:           "MOVVstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 100663294},           // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+@@ -13327,10 +13441,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVFstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     mips.AMOVF,
++		name:           "MOVFstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVF,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13339,10 +13454,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     mips.AMOVD,
++		name:           "MOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13351,10 +13467,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVB,
++		name:           "MOVBstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13362,10 +13479,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVH,
++		name:           "MOVHstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13373,10 +13491,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVW,
++		name:           "MOVWstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13384,10 +13503,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVVstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     mips.AMOVV,
++		name:           "MOVVstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            mips.AMOVV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2305843009347911678}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g SB
+@@ -13686,9 +13806,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "DUFFZERO",
+-		auxType: auxInt64,
+-		argLen:  2,
++		name:           "DUFFZERO",
++		auxType:        auxInt64,
++		argLen:         2,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+@@ -13697,10 +13818,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredZero",
+-		auxType:      auxInt64,
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "LoweredZero",
++		auxType:        auxInt64,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},        // R1
+@@ -13710,10 +13832,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredMove",
+-		auxType:      auxInt64,
+-		argLen:       4,
+-		clobberFlags: true,
++		name:           "LoweredMove",
++		auxType:        auxInt64,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4},        // R2
+@@ -13724,8 +13848,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredNilCheck",
+-		argLen: 2,
++		name:     "LoweredNilCheck",
++		argLen:   2,
++		nilCheck: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 100663294}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g
+@@ -14606,10 +14731,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVB,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14620,10 +14746,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBZload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVBZ,
++		name:           "MOVBZload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVBZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14634,10 +14761,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVH,
++		name:           "MOVHload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14648,10 +14776,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHZload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVHZ,
++		name:           "MOVHZload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVHZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14662,10 +14791,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVW,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14676,10 +14806,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWZload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVWZ,
++		name:           "MOVWZload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVWZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14690,10 +14821,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVD,
++		name:           "MOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14704,10 +14836,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AFMOVD,
++		name:           "FMOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14718,10 +14851,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVSload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AFMOVS,
++		name:           "FMOVSload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14732,10 +14866,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14744,10 +14879,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVH,
++		name:           "MOVHstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14756,10 +14892,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14768,10 +14905,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVD,
++		name:           "MOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14780,10 +14918,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AFMOVD,
++		name:           "FMOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -14792,10 +14931,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVSstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AFMOVS,
++		name:           "FMOVSstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 288230371856744448}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -14804,10 +14944,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVBstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVB,
++		name:           "MOVBstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14815,10 +14956,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVHstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVH,
++		name:           "MOVHstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14826,10 +14968,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVWstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVW,
++		name:           "MOVWstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -14837,10 +14980,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MOVDstorezero",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVD,
++		name:           "MOVDstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -15112,6 +15256,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredNilCheck",
+ 		argLen:       2,
+ 		clobberFlags: true,
++		nilCheck:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -15190,10 +15335,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredZero",
+-		auxType:      auxInt64,
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "LoweredZero",
++		auxType:        auxInt64,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4},         // R3
+@@ -15203,10 +15349,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredMove",
+-		auxType:      auxInt64,
+-		argLen:       4,
+-		clobberFlags: true,
++		name:           "LoweredMove",
++		auxType:        auxInt64,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4},         // R3
+@@ -15394,10 +15542,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVSload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     s390x.AFMOVS,
++		name:           "FMOVSload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            s390x.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -15408,10 +15557,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVDload",
+-		auxType: auxSymOff,
+-		argLen:  2,
+-		asm:     s390x.AFMOVD,
++		name:           "FMOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            s390x.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -15476,10 +15626,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVSstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     s390x.AFMOVS,
++		name:           "FMOVSstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            s390x.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -15488,10 +15639,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "FMOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     s390x.AFMOVD,
++		name:           "FMOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		asm:            s390x.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16847,11 +16999,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBZload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVBZ,
++		name:           "MOVBZload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVBZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16862,11 +17015,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVB,
++		name:           "MOVBload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16877,11 +17031,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHZload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVHZ,
++		name:           "MOVHZload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVHZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16892,11 +17047,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVH,
++		name:           "MOVHload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16907,11 +17063,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWZload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVWZ,
++		name:           "MOVWZload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVWZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16922,11 +17079,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVW,
++		name:           "MOVWload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16937,11 +17095,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVD,
++		name:           "MOVDload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16952,11 +17111,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHBRload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVHBR,
++		name:           "MOVHBRload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVHBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16967,11 +17127,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWBRload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVWBR,
++		name:           "MOVWBRload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVWBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16982,11 +17143,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDBRload",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVDBR,
++		name:           "MOVDBRload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -16997,11 +17159,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBstore",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVB,
++		name:           "MOVBstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17010,11 +17173,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHstore",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVH,
++		name:           "MOVHstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17023,11 +17187,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWstore",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVW,
++		name:           "MOVWstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17036,11 +17201,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDstore",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVD,
++		name:           "MOVDstore",
++		auxType:        auxSymOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17049,11 +17215,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MVC",
+-		auxType:      auxSymValAndOff,
+-		argLen:       3,
+-		clobberFlags: true,
+-		asm:          s390x.AMVC,
++		name:           "MVC",
++		auxType:        auxSymValAndOff,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
++		asm:            s390x.AMVC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+@@ -17230,11 +17398,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBstoreconst",
+-		auxType:      auxSymValAndOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVB,
++		name:           "MOVBstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17242,11 +17411,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHstoreconst",
+-		auxType:      auxSymValAndOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVH,
++		name:           "MOVHstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17254,11 +17424,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWstoreconst",
+-		auxType:      auxSymValAndOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVW,
++		name:           "MOVWstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17266,11 +17437,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDstoreconst",
+-		auxType:      auxSymValAndOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.AMOVD,
++		name:           "MOVDstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295005182}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+@@ -17278,11 +17450,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "CLEAR",
+-		auxType:      auxSymValAndOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          s390x.ACLEAR,
++		name:           "CLEAR",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		asm:            s390x.ACLEAR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5118}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -17373,6 +17546,7 @@ var opcodeTable = [...]opInfo{
+ 		name:         "LoweredNilCheck",
+ 		argLen:       2,
+ 		clobberFlags: true,
++		nilCheck:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 37886}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
+@@ -17408,10 +17582,11 @@ var opcodeTable = [...]opInfo{
+ 		reg:    regInfo{},
+ 	},
+ 	{
+-		name:    "STMG2",
+-		auxType: auxSymOff,
+-		argLen:  4,
+-		asm:     s390x.ASTMG,
++		name:           "STMG2",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		asm:            s390x.ASTMG,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // R1
+@@ -17421,10 +17596,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "STMG3",
+-		auxType: auxSymOff,
+-		argLen:  5,
+-		asm:     s390x.ASTMG,
++		name:           "STMG3",
++		auxType:        auxSymOff,
++		argLen:         5,
++		faultOnNilArg0: true,
++		asm:            s390x.ASTMG,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // R1
+@@ -17435,10 +17611,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "STMG4",
+-		auxType: auxSymOff,
+-		argLen:  6,
+-		asm:     s390x.ASTMG,
++		name:           "STMG4",
++		auxType:        auxSymOff,
++		argLen:         6,
++		faultOnNilArg0: true,
++		asm:            s390x.ASTMG,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // R1
+@@ -17450,10 +17627,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "STM2",
+-		auxType: auxSymOff,
+-		argLen:  4,
+-		asm:     s390x.ASTMY,
++		name:           "STM2",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		asm:            s390x.ASTMY,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // R1
+@@ -17463,10 +17641,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "STM3",
+-		auxType: auxSymOff,
+-		argLen:  5,
+-		asm:     s390x.ASTMY,
++		name:           "STM3",
++		auxType:        auxSymOff,
++		argLen:         5,
++		faultOnNilArg0: true,
++		asm:            s390x.ASTMY,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // R1
+@@ -17477,10 +17656,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "STM4",
+-		auxType: auxSymOff,
+-		argLen:  6,
+-		asm:     s390x.ASTMY,
++		name:           "STM4",
++		auxType:        auxSymOff,
++		argLen:         6,
++		faultOnNilArg0: true,
++		asm:            s390x.ASTMY,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // R1
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d53bcc6de0..ecb2901fac 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -232,6 +232,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpNeqPtr(v, config)
+ 	case OpNeqSlice:
+ 		return rewriteValuegeneric_OpNeqSlice(v, config)
++	case OpNilCheck:
++		return rewriteValuegeneric_OpNilCheck(v, config)
+ 	case OpNot:
+ 		return rewriteValuegeneric_OpNot(v, config)
+ 	case OpOffPtr:
+@@ -6358,6 +6360,28 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NilCheck (GetG mem) mem)
++	// cond:
++	// result: mem
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpGetG {
++			break
++		}
++		mem := v_0.Args[0]
++		if mem != v.Args[1] {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpNot(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -11611,8 +11635,8 @@ func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
+-	// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& mem2 == mem 	&& isSameSym(sym, "runtime.newobject")
++	// match: (Zero (Load (OffPtr [c] (SP)) mem) mem)
++	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.PtrSize
+ 	// result: mem
+ 	for {
+ 		v_0 := v.Args[0]
+@@ -11629,12 +11653,10 @@ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		mem := v_0.Args[1]
+-		if mem.Op != OpStaticCall {
++		if mem != v.Args[1] {
+ 			break
+ 		}
+-		sym := mem.Aux
+-		mem2 := v.Args[1]
+-		if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && mem2 == mem && isSameSym(sym, "runtime.newobject")) {
++		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.PtrSize) {
+ 			break
+ 		}
+ 		v.reset(OpCopy)
+@@ -11646,99 +11668,6 @@ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
+ }
+ func rewriteBlockgeneric(b *Block, config *Config) bool {
+ 	switch b.Kind {
+-	case BlockCheck:
+-		// match: (Check (NilCheck (GetG _) _) next)
+-		// cond:
+-		// result: (Plain nil next)
+-		for {
+-			v := b.Control
+-			if v.Op != OpNilCheck {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpGetG {
+-				break
+-			}
+-			next := b.Succs[0]
+-			b.Kind = BlockPlain
+-			b.SetControl(nil)
+-			_ = next
+-			return true
+-		}
+-		// match: (Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
+-		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
+-		// result: (Plain nil succ)
+-		for {
+-			v := b.Control
+-			if v.Op != OpNilCheck {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpLoad {
+-				break
+-			}
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpOffPtr {
+-				break
+-			}
+-			c := v_0_0.AuxInt
+-			v_0_0_0 := v_0_0.Args[0]
+-			if v_0_0_0.Op != OpSP {
+-				break
+-			}
+-			mem := v_0.Args[1]
+-			if mem.Op != OpStaticCall {
+-				break
+-			}
+-			sym := mem.Aux
+-			succ := b.Succs[0]
+-			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
+-				break
+-			}
+-			b.Kind = BlockPlain
+-			b.SetControl(nil)
+-			_ = succ
+-			return true
+-		}
+-		// match: (Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
+-		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
+-		// result: (Plain nil succ)
+-		for {
+-			v := b.Control
+-			if v.Op != OpNilCheck {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpOffPtr {
+-				break
+-			}
+-			v_0_0 := v_0.Args[0]
+-			if v_0_0.Op != OpLoad {
+-				break
+-			}
+-			v_0_0_0 := v_0_0.Args[0]
+-			if v_0_0_0.Op != OpOffPtr {
+-				break
+-			}
+-			c := v_0_0_0.AuxInt
+-			v_0_0_0_0 := v_0_0_0.Args[0]
+-			if v_0_0_0_0.Op != OpSP {
+-				break
+-			}
+-			mem := v_0_0.Args[1]
+-			if mem.Op != OpStaticCall {
+-				break
+-			}
+-			sym := mem.Aux
+-			succ := b.Succs[0]
+-			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
+-				break
+-			}
+-			b.Kind = BlockPlain
+-			b.SetControl(nil)
+-			_ = succ
+-			return true
+-		}
+ 	case BlockIf:
+ 		// match: (If (Not cond) yes no)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 0cfd327446..135d908259 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -8,6 +8,7 @@ import "container/heap"
+ 
+ const (
+ 	ScorePhi = iota // towards top of block
++	ScoreNilCheck
+ 	ScoreReadTuple
+ 	ScoreVarDef
+ 	ScoreMemory
+@@ -96,6 +97,9 @@ func schedule(f *Func) {
+ 					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
+ 				}
+ 				score[v.ID] = ScorePhi
++			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck || v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck || v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck:
++				// Nil checks must come before loads from the same address.
++				score[v.ID] = ScoreNilCheck
+ 			case v.Op == OpPhi:
+ 				// We want all the phis first.
+ 				score[v.ID] = ScorePhi
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 699c738f92..c8d9226ac0 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -820,54 +820,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpKeepAlive:
+ 		gc.KeepAlive(v)
+ 	case ssa.Op386LoweredNilCheck:
+-		// Optimization - if the subsequent block has a load or store
+-		// at the same address, we don't need to issue this instruction.
+-		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Block().Values {
+-			if w.Op == ssa.OpPhi {
+-				if w.Type.IsMemory() {
+-					mem = w
+-				}
+-				continue
+-			}
+-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+-				// w doesn't use a store - can't be a memory op.
+-				continue
+-			}
+-			if w.Args[len(w.Args)-1] != mem {
+-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+-			}
+-			switch w.Op {
+-			case ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload,
+-				ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore,
+-				ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload,
+-				ssa.Op386MOVSSload, ssa.Op386MOVSDload,
+-				ssa.Op386MOVSSstore, ssa.Op386MOVSDstore:
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			case ssa.Op386MOVLstoreconst, ssa.Op386MOVWstoreconst, ssa.Op386MOVBstoreconst:
+-				off := ssa.ValAndOff(v.AuxInt).Off()
+-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+-						gc.Warnl(v.Line, "removed nil check")
+-					}
+-					return
+-				}
+-			}
+-			if w.Type.IsMemory() {
+-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+-					// these ops are OK
+-					mem = w
+-					continue
+-				}
+-				// We can't delay the nil check past the next store.
+-				break
+-			}
+-		}
+ 		// Issue a load which will fault if the input is nil.
+ 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
+ 		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
+@@ -925,7 +877,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	}
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCheck:
++	case ssa.BlockPlain:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/test/nilptr3_ssa.go b/test/nilptr3_ssa.go
+index bc98a94be9..a57418e4af 100644
+--- a/test/nilptr3_ssa.go
++++ b/test/nilptr3_ssa.go
+@@ -154,7 +154,7 @@ func f4(x *[10]int) {
+ 	// and the offset is small enough that if x is nil, the address will still be
+ 	// in the first unmapped page of memory.
+ 
+-	_ = x[9] // ERROR "removed nil check"
++	_ = x[9] // ERROR "generated nil check" // bug: would like to remove this check (but nilcheck and load are in different blocks)
+ 
+ 	for {
+ 		if x[9] != 0 { // ERROR "removed nil check"

@@ -15,7 +15,103 @@ Date:   Thu Dec 1 11:38:38 2022 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/hash/maphash/smhasher_test.go |  5 +++++
  src/runtime/hash_test.go          | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/hash/maphash/smhasher_test.go b/src/hash/maphash/smhasher_test.go
+index 6e6f2983a2..27cedc4ce1 100644
+--- a/src/hash/maphash/smhasher_test.go
++++ b/src/hash/maphash/smhasher_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !race
++
+ package maphash
+ 
+ import (
+@@ -18,6 +20,9 @@ import (
+ // https://code.google.com/p/smhasher/
+ // This code is a port of some of the Smhasher tests to Go.
+ 
++// Note: due to the long running time of these tests, they are
++// currently disabled in -race mode.
++
+ var fixedSeed = MakeSeed()
+ 
+ // Sanity checks.
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index e72600641f..d4a2b3f6bb 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/race"
+ 	"math"
+ 	"math/rand"
+ 	. "runtime"
+@@ -125,6 +126,9 @@ func TestSmhasherAppendedZeros(t *testing.T) {
+ 
+ // All 0-3 byte strings have distinct hashes.
+ func TestSmhasherSmallKeys(t *testing.T) {
++	if race.Enabled {
++		t.Skip("Too long for race mode")
++	}
+ 	h := newHashSet()
+ 	var b [3]byte
+ 	for i := 0; i < 256; i++ {
+@@ -166,6 +170,9 @@ func TestSmhasherTwoNonzero(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	if race.Enabled {
++		t.Skip("Too long for race mode")
++	}
+ 	h := newHashSet()
+ 	for n := 2; n <= 16; n++ {
+ 		twoNonZero(h, n)
+@@ -208,6 +215,9 @@ func TestSmhasherCyclic(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	if race.Enabled {
++		t.Skip("Too long for race mode")
++	}
+ 	r := rand.New(rand.NewSource(1234))
+ 	const REPEAT = 8
+ 	const N = 1000000
+@@ -275,6 +285,9 @@ func TestSmhasherPermutation(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	if race.Enabled {
++		t.Skip("Too long for race mode")
++	}
+ 	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
+ 	permutation(t, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
+ 	permutation(t, []uint32{0, 1}, 20)
+@@ -447,6 +460,9 @@ func TestSmhasherAvalanche(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	if race.Enabled {
++		t.Skip("Too long for race mode")
++	}
+ 	avalancheTest1(t, &BytesKey{make([]byte, 2)})
+ 	avalancheTest1(t, &BytesKey{make([]byte, 4)})
+ 	avalancheTest1(t, &BytesKey{make([]byte, 8)})
+@@ -514,6 +530,9 @@ func avalancheTest1(t *testing.T, k Key) {
+ 
+ // All bit rotations of a set of distinct keys
+ func TestSmhasherWindowed(t *testing.T) {
++	if race.Enabled {
++		t.Skip("Too long for race mode")
++	}
+ 	t.Logf("32 bit keys")
+ 	windowed(t, &Int32Key{})
+ 	t.Logf("64 bit keys")

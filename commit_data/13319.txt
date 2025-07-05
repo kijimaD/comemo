@@ -11,9 +11,87 @@ Date:   Fri Jun 8 02:56:23 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6198076
-
+---
  test/bench/shootout/binary-tree.c  | 1 -
  test/bench/shootout/k-nucleotide.c | 2 +-
  test/bench/shootout/threadring.c   | 5 +++--
  test/bench/shootout/timing.sh      | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/test/bench/shootout/binary-tree.c b/test/bench/shootout/binary-tree.c
+index 1b4070406f..9c35ac52a9 100644
+--- a/test/bench/shootout/binary-tree.c
++++ b/test/bench/shootout/binary-tree.c
+@@ -36,7 +36,6 @@ POSSIBILITY OF SUCH DAMAGE.
+        icc -O3 -ip -unroll -static binary-trees.c -lm
+ */
+ 
+-#include <malloc.h>
+ #include <math.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+diff --git a/test/bench/shootout/k-nucleotide.c b/test/bench/shootout/k-nucleotide.c
+index 3bace391c4..9c30620209 100644
+--- a/test/bench/shootout/k-nucleotide.c
++++ b/test/bench/shootout/k-nucleotide.c
+@@ -221,7 +221,7 @@ main ()
+ 
+    free(s);
+ 
+-   g_ptr_array_foreach(roots, free, NULL);
++   g_ptr_array_foreach(roots, (GFunc)free, NULL);
+    g_ptr_array_free(roots, TRUE);
+ 
+    return 0;
+diff --git a/test/bench/shootout/threadring.c b/test/bench/shootout/threadring.c
+index 2c4fb77515..a518134ba6 100644
+--- a/test/bench/shootout/threadring.c
++++ b/test/bench/shootout/threadring.c
+@@ -34,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
+ * contributed by Premysl Hruby
+ */
+ 
++#include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <pthread.h>
+@@ -57,7 +58,7 @@ static struct stack stacks[THREADS];
+ 
+ static void* thread(void *num)
+ {
+-   int l = (int)num;
++   int l = (int)(uintptr_t)num;
+    int r = (l+1) % THREADS;
+    int token;
+ 
+@@ -94,7 +95,7 @@ int main(int argc, char **argv)
+       pthread_mutex_lock(mutex + i);
+ 
+       pthread_attr_setstack(&stack_attr, &stacks[i], sizeof(struct stack));
+-      pthread_create(&cthread, &stack_attr, thread, (void*)i);
++      pthread_create(&cthread, &stack_attr, thread, (void*)(uintptr_t)i);
+    }
+ 
+    pthread_mutex_unlock(mutex + 0);
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index e1c5cf2925..8758549bde 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -97,7 +97,7 @@ revcomp() {
+ 
+ nbody() {
+ 	runonly echo 'nbody -n 50000000'
+-	run 'gcc -O2 -lm nbody.c' a.out 50000000
++	run 'gcc -O2 nbody.c -lm' a.out 50000000
+ 	run 'gccgo -O2 nbody.go' a.out -n 50000000
+ 	run 'gc nbody' $O.out -n 50000000
+ 	run 'gc_B nbody' $O.out -n 50000000
+@@ -147,7 +147,7 @@ knucleotide() {
+ 	runonly gcc -O2 fasta.c
+ 	runonly a.out 1000000 > x  # should be using 25000000
+ 	runonly echo 'k-nucleotide 1000000'
+-	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
++	run "gcc -O2 k-nucleotide.c $(pkg-config glib-2.0 --cflags --libs)" a.out <x
+ 	run 'gccgo -O2 k-nucleotide.go' a.out <x
+ 	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x
+ 	run 'gc k-nucleotide' $O.out <x

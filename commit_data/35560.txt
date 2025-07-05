@@ -20,10 +20,146 @@ Date:   Wed Feb 7 02:17:50 2018 +0100
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/internal/poll/fd_windows.go |  4 ++++
  src/net/net.go                  | 13 ++++++-----
  src/net/timeout_test.go         |  2 +-
  src/net/udpsock_test.go         | 49 ++++++++++++++++++++++++++++++++++++++++-
  src/syscall/types_windows.go    |  1 +
  5 files changed, 62 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 187908bc83..1114d66a7a 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -225,6 +225,10 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
+ 		// All is good. Extract our IO results and return.
+ 		if o.errno != 0 {
+ 			err = syscall.Errno(o.errno)
++			// More data available. Return back the size of received data.
++			if err == syscall.ERROR_MORE_DATA || err == syscall.WSAEMSGSIZE {
++				return int(o.qty), err
++			}
+ 			return 0, err
+ 		}
+ 		return int(o.qty), nil
+diff --git a/src/net/net.go b/src/net/net.go
+index 3ad91036e7..5182c0de95 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -303,20 +303,23 @@ func (c *conn) File() (f *os.File, err error) {
+ // Multiple goroutines may invoke methods on a PacketConn simultaneously.
+ type PacketConn interface {
+ 	// ReadFrom reads a packet from the connection,
+-	// copying the payload into b. It returns the number of
+-	// bytes copied into b and the return address that
++	// copying the payload into p. It returns the number of
++	// bytes copied into p and the return address that
+ 	// was on the packet.
++	// It returns the number of bytes read (0 <= n <= len(p))
++	// and any error encountered. Callers should always process
++	// the n > 0 bytes returned before considering the error err.
+ 	// ReadFrom can be made to time out and return
+ 	// an Error with Timeout() == true after a fixed time limit;
+ 	// see SetDeadline and SetReadDeadline.
+-	ReadFrom(b []byte) (n int, addr Addr, err error)
++	ReadFrom(p []byte) (n int, addr Addr, err error)
+ 
+-	// WriteTo writes a packet with payload b to addr.
++	// WriteTo writes a packet with payload p to addr.
+ 	// WriteTo can be made to time out and return
+ 	// an Error with Timeout() == true after a fixed time limit;
+ 	// see SetDeadline and SetWriteDeadline.
+ 	// On packet-oriented connections, write timeouts are rare.
+-	WriteTo(b []byte, addr Addr) (n int, err error)
++	WriteTo(p []byte, addr Addr) (n int, err error)
+ 
+ 	// Close closes the connection.
+ 	// Any blocked ReadFrom or WriteTo operations will be unblocked and return errors.
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 9de7801ad1..0ecf5a6d25 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -482,7 +482,7 @@ func TestReadFromTimeout(t *testing.T) {
+ 					time.Sleep(tt.timeout / 3)
+ 					continue
+ 				}
+-				if n != 0 {
++				if nerr, ok := err.(Error); ok && nerr.Timeout() && n != 0 {
+ 					t.Fatalf("#%d/%d: read %d; want 0", i, j, n)
+ 				}
+ 				break
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 4ae014c01d..d34c545096 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -398,9 +398,56 @@ func TestUDPZeroByteBuffer(t *testing.T) {
+ 		switch err {
+ 		case nil: // ReadFrom succeeds
+ 		default: // Read may timeout, it depends on the platform
+-			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZ
++			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
+ 				t.Fatal(err)
+ 			}
+ 		}
+ 	}
+ }
++
++func TestUDPReadSizeError(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl", "plan9":
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++
++	c1, err := newLocalPacketListener("udp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c1.Close()
++
++	c2, err := Dial("udp", c1.LocalAddr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c2.Close()
++
++	b1 := []byte("READ SIZE ERROR TEST")
++	for _, genericRead := range []bool{false, true} {
++		n, err := c2.Write(b1)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if n != len(b1) {
++			t.Errorf("got %d; want %d", n, len(b1))
++		}
++		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
++		b2 := make([]byte, len(b1)-1)
++		if genericRead {
++			n, err = c1.(Conn).Read(b2)
++		} else {
++			n, _, err = c1.ReadFrom(b2)
++		}
++		switch err {
++		case nil: // ReadFrom succeeds
++		default: // Read may timeout, it depends on the platform
++			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZE
++				t.Fatal(err)
++			}
++		}
++		if n != len(b1)-1 {
++			t.Fatalf("got %d; want %d", n, len(b1)-1)
++		}
++	}
++}
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index bc9bd4dbd8..59bfe5d642 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -27,6 +27,7 @@ const (
+ 	ERROR_NOT_FOUND           Errno = 1168
+ 	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
+ 	WSAEACCES                 Errno = 10013
++	WSAEMSGSIZE               Errno = 10040
+ 	WSAECONNABORTED           Errno = 10053
+ 	WSAECONNRESET             Errno = 10054
+ )

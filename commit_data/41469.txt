@@ -14,7 +14,33 @@ Date:   Thu Oct 3 13:44:33 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go          | 1 +
  src/cmd/compile/internal/ssa/numberlines.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 1381cdacba..2098228d75 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -513,6 +513,7 @@ func walkTypeSwitch(sw *Node) {
+ 	// Use a similar strategy for non-empty interfaces.
+ 	ifNil := nod(OIF, nil, nil)
+ 	ifNil.Left = nod(OEQ, itab, nodnil())
++	lineno = lineno.WithNotStmt() // disable statement marks after the first check.
+ 	ifNil.Left = typecheck(ifNil.Left, ctxExpr)
+ 	ifNil.Left = defaultlit(ifNil.Left, nil)
+ 	// ifNil.Nbody assigned at end.
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 68195e9b65..6321d61537 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -15,7 +15,7 @@ func isPoorStatementOp(op Op) bool {
+ 	switch op {
+ 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
+ 	// so that a debugger-user sees the stop before the panic, and can examine the value.
+-	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi,
++	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
+ 		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
+ 		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
+ 		return true

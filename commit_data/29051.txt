@@ -15,9 +15,185 @@ Date:   Wed Jul 6 15:30:33 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  misc/cgo/testsanitizers/msan5.go          | 57 +++++++++++++++++++++++++++++++
  misc/cgo/testsanitizers/test.bash         |  5 +++
  src/runtime/mbarrier.go                   | 26 +++++++++++++-
  src/runtime/race/testdata/reflect_test.go | 46 +++++++++++++++++++++++++
  4 files changed, 133 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/msan5.go b/misc/cgo/testsanitizers/msan5.go
+new file mode 100644
+index 0000000000..f1479eb8a0
+--- /dev/null
++++ b/misc/cgo/testsanitizers/msan5.go
+@@ -0,0 +1,57 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Using reflect to set a value was not seen by msan.
++
++/*
++#include <stdlib.h>
++
++extern void Go1(int*);
++extern void Go2(char*);
++
++// Use weak as a hack to permit defining a function even though we use export.
++void C1() __attribute__ ((weak));
++void C2() __attribute__ ((weak));
++
++void C1() {
++	int i;
++	Go1(&i);
++	if (i != 42) {
++		abort();
++	}
++}
++
++void C2() {
++	char a[2];
++	a[1] = 42;
++	Go2(a);
++	if (a[0] != 42) {
++		abort();
++	}
++}
++*/
++import "C"
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++//export Go1
++func Go1(p *C.int) {
++	reflect.ValueOf(p).Elem().Set(reflect.ValueOf(C.int(42)))
++}
++
++//export Go2
++func Go2(p *C.char) {
++	a := (*[2]byte)(unsafe.Pointer(p))
++	reflect.Copy(reflect.ValueOf(a[:1]), reflect.ValueOf(a[1:]))
++}
++
++func main() {
++	C.C1()
++	C.C2()
++}
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 78747d141a..6e6347ce29 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -88,6 +88,11 @@ if test "$msan" = "yes"; then
+ 	status=1
+     fi
+ 
++    if ! go run -msan msan5.go; then
++	echo "FAIL: msan5"
++	status=1
++    fi
++
+     if go run -msan msan_fail.go 2>/dev/null; then
+ 	echo "FAIL: msan_fail"
+ 	status=1
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 4a8f501dfe..ac00fc6a9e 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -185,6 +185,14 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
++	if raceenabled {
++		raceWriteObjectPC(typ, dst, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
++		raceReadObjectPC(typ, src, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
++	}
++	if msanenabled {
++		msanwrite(dst, typ.size)
++		msanread(src, typ.size)
++	}
+ 	typedmemmove(typ, dst, src)
+ }
+ 
+@@ -300,7 +308,23 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ 		if n > src.len {
+ 			n = src.len
+ 		}
+-		memmove(dst.array, src.array, uintptr(n)*elemType.size)
++		if n == 0 {
++			return 0
++		}
++
++		size := uintptr(n) * elemType.size
++		if raceenabled {
++			callerpc := getcallerpc(unsafe.Pointer(&elemType))
++			pc := funcPC(reflect_typedslicecopy)
++			racewriterangepc(dst.array, size, callerpc, pc)
++			racereadrangepc(src.array, size, callerpc, pc)
++		}
++		if msanenabled {
++			msanwrite(dst.array, size)
++			msanread(src.array, size)
++		}
++
++		memmove(dst.array, src.array, size)
+ 		return n
+ 	}
+ 	return typedslicecopy(elemType, dst, src)
+diff --git a/src/runtime/race/testdata/reflect_test.go b/src/runtime/race/testdata/reflect_test.go
+new file mode 100644
+index 0000000000..b567400156
+--- /dev/null
++++ b/src/runtime/race/testdata/reflect_test.go
+@@ -0,0 +1,46 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestRaceReflectRW(t *testing.T) {
++	ch := make(chan bool, 1)
++	i := 0
++	v := reflect.ValueOf(&i)
++	go func() {
++		v.Elem().Set(reflect.ValueOf(1))
++		ch <- true
++	}()
++	_ = v.Elem().Int()
++	<-ch
++}
++
++func TestRaceReflectWW(t *testing.T) {
++	ch := make(chan bool, 1)
++	i := 0
++	v := reflect.ValueOf(&i)
++	go func() {
++		v.Elem().Set(reflect.ValueOf(1))
++		ch <- true
++	}()
++	v.Elem().Set(reflect.ValueOf(2))
++	<-ch
++}
++
++func TestRaceReflectCopyWW(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]byte, 2)
++	v := reflect.ValueOf(a)
++	go func() {
++		reflect.Copy(v, v)
++		ch <- true
++	}()
++	reflect.Copy(v, v)
++	<-ch
++}

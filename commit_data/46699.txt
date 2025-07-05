@@ -20,9 +20,124 @@ Date:   Thu Jan 21 20:20:22 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go |  2 +-
  src/cmd/compile/internal/types2/api.go  |  7 +++----
  src/cmd/compile/internal/types2/stmt.go | 23 +++++++++++++----------
  test/run.go                             |  3 ---
  4 files changed, 17 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 5c779ab810..95b8946c95 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -35,7 +35,7 @@ func check2(noders []*noder) {
+ 	// typechecking
+ 	conf := types2.Config{
+ 		InferFromConstraints:  true,
+-		IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
++		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ 		Error: func(err error) {
+ 			terr := err.(types2.Error)
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 7f6653b825..b29c0802ed 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -119,10 +119,9 @@ type Config struct {
+ 	//          Do not use casually!
+ 	FakeImportC bool
+ 
+-	// If IgnoreBranches is set, errors related to incorrectly placed
+-	// labels, gotos, break, continue, and fallthrough statements are
+-	// ignored.
+-	IgnoreBranches bool
++	// If IgnoreLabels is set, correct label use is not checked.
++	// TODO(gri) Consolidate label checking and remove this flag.
++	IgnoreLabels bool
+ 
+ 	// If CompilerErrorMessages is set, errors are reported using
+ 	// cmd/compile error strings to match $GOROOT/test errors.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index cbfe97b03c..ca0abcd10c 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -41,8 +41,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 
+ 	check.stmtList(0, body.List)
+ 
+-	if check.hasLabel {
+-		assert(!check.conf.IgnoreBranches)
++	if check.hasLabel && !check.conf.IgnoreLabels {
+ 		check.labels(body)
+ 	}
+ 
+@@ -321,7 +320,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.declStmt(s.DeclList)
+ 
+ 	case *syntax.LabeledStmt:
+-		check.hasLabel = !check.conf.IgnoreBranches
++		check.hasLabel = true
+ 		check.stmt(ctxt, s.Stmt)
+ 
+ 	case *syntax.ExprStmt:
+@@ -446,22 +445,26 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		}
+ 
+ 	case *syntax.BranchStmt:
+-		if check.conf.IgnoreBranches {
+-			break
+-		}
+-
+ 		if s.Label != nil {
+ 			check.hasLabel = true
+-			return // checked in 2nd pass (check.labels)
++			break // checked in 2nd pass (check.labels)
+ 		}
+ 		switch s.Tok {
+ 		case syntax.Break:
+ 			if ctxt&breakOk == 0 {
+-				check.error(s, "break not in for, switch, or select statement")
++				if check.conf.CompilerErrorMessages {
++					check.error(s, "break is not in a loop, switch, or select statement")
++				} else {
++					check.error(s, "break not in for, switch, or select statement")
++				}
+ 			}
+ 		case syntax.Continue:
+ 			if ctxt&continueOk == 0 {
+-				check.error(s, "continue not in for statement")
++				if check.conf.CompilerErrorMessages {
++					check.error(s, "continue is not in a loop")
++				} else {
++					check.error(s, "continue not in for statement")
++				}
+ 			}
+ 		case syntax.Fallthrough:
+ 			if ctxt&fallthroughOk == 0 {
+diff --git a/test/run.go b/test/run.go
+index 5315f9867d..f2f17c4f20 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1937,13 +1937,11 @@ var excluded = map[string]bool{
+ 	"initializerr.go": true, // types2 reports extra errors
+ 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+ 	"shift1.go":       true, // issue #42989
+-	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
+ 	"typecheck.go":    true, // invalid function is not causing errors when called
+ 
+ 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+ 	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+ 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+-	"fixedbugs/bug213.go":    true, // error reported by noder (not running for types2 errorcheck test)
+ 	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+ 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+ 	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+@@ -1986,7 +1984,6 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+-	"fixedbugs/issue6500.go":   true, // error reported by noder (not running for types2 errorcheck test)
+ 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise

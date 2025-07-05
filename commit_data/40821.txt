@@ -15,9 +15,100 @@ Date:   Sat Jul 13 12:20:43 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/testshared/shared_test.go                 |  7 +++++++
  .../testdata/issue30768/issue30768lib/lib.go       | 11 +++++++++++
  misc/cgo/testshared/testdata/issue30768/x_test.go  | 22 ++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go                    | 12 ++++++++++--
  4 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index ac1a1c7f1a..9d16338c0f 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -941,3 +941,10 @@ func TestTestInstalledShared(t *testing.T) {
+ func TestGeneratedMethod(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue25065")
+ }
++
++// Test use of shared library struct with generated hash function.
++// Issue 30768.
++func TestGeneratedHash(t *testing.T) {
++	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
++	goCmd(nil, "test", "-linkshared", "./issue30768")
++}
+diff --git a/misc/cgo/testshared/testdata/issue30768/issue30768lib/lib.go b/misc/cgo/testshared/testdata/issue30768/issue30768lib/lib.go
+new file mode 100644
+index 0000000000..9e45ebe683
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue30768/issue30768lib/lib.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue30768lib
++
++// S is a struct that requires a generated hash function.
++type S struct {
++	A string
++	B int
++}
+diff --git a/misc/cgo/testshared/testdata/issue30768/x_test.go b/misc/cgo/testshared/testdata/issue30768/x_test.go
+new file mode 100644
+index 0000000000..1bbd139d3e
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue30768/x_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue30768_test
++
++import (
++	"testing"
++
++	"testshared/issue30768/issue30768lib"
++)
++
++type s struct {
++	s issue30768lib.S
++}
++
++func Test30768(t *testing.T) {
++	// Calling t.Log will convert S to an empty interface,
++	// which will force a reference to the generated hash function,
++	// defined in the shared library.
++	t.Log(s{})
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 49f3b3c0d7..9c71a4f51e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1902,7 +1902,15 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
+ 			continue
+ 		}
+-		lsym := ctxt.Syms.Lookup(elfsym.Name, 0)
++
++		// Symbols whose names start with "type." are compiler
++		// generated, so make functions with that prefix internal.
++		ver := 0
++		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
++			ver = sym.SymVerABIInternal
++		}
++
++		lsym := ctxt.Syms.Lookup(elfsym.Name, ver)
+ 		// Because loadlib above loads all .a files before loading any shared
+ 		// libraries, any non-dynimport symbols we find that duplicate symbols
+ 		// already loaded should be ignored (the symbols from the .a files
+@@ -1930,7 +1938,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		// the ABIs are actually different. We might have to
+ 		// mangle Go function names in the .so to include the
+ 		// ABI.
+-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
++		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+ 			alias := ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
+ 			if alias.Type != 0 {
+ 				continue

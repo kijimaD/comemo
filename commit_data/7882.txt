@@ -7,9 +7,511 @@ Date:   Sat Mar 26 11:56:34 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4275076
-
+---
  misc/dashboard/README          |  34 +----
  misc/dashboard/buildcontrol.py | 278 -----------------------------------------
  misc/dashboard/buildcron.sh    |  58 ---------
  misc/dashboard/builder.sh      |  95 --------------
  4 files changed, 5 insertions(+), 460 deletions(-)
+
+diff --git a/misc/dashboard/README b/misc/dashboard/README
+index 72d5546a4f..c00311ef76 100644
+--- a/misc/dashboard/README
++++ b/misc/dashboard/README
+@@ -4,28 +4,12 @@
+ 
+ The files in this directory constitute the continuous builder:
+ 
+-godashboard/: An AppEngine that acts as a server
+-builder.sh, buildcontrol.sh: used by the build slaves
+-buildcron.sh: a build loop that can be run regularly via cron
++godashboard/: an AppEngine server
++builder/:     gobuilder, a Go continuous build client
+ 
+ If you wish to run a Go builder, please email golang-dev@googlegroups.com
+ 
+-
+-To set up a Go builder automatically, run buildcron.sh
+-(you might want to read it first to see what it does).
+-
+-To set up a Go builder by hand:
+-
+-* (Optional) create a new user 'gobuild'
+-* Edit ~gobuild/.bash_profile and add the following:
+-
+-export GOROOT=/gobuild/go
+-export GOARCH=XXX
+-export GOOS=XXX
+-export GOBIN=/gobuild/bin
+-export PATH=$PATH:/gobuild/bin
+-export BUILDER=$GOOS-$GOARCH
+-export BUILDHOST=godashboard.appspot.com
++To run a builder:
+ 
+ * Write the key ~gobuild/.gobuildkey 
+   You need to get it from someone who knows the key.
+@@ -38,13 +22,5 @@ export BUILDHOST=godashboard.appspot.com
+   (This is for uploading tarballs to the project downloads section,
+    and is an optional step.)
+ 
+-* sudo apt-get install bison gcc libc6-dev ed make
+-* cd ~gobuild
+-* mkdir bin
+-* hg clone https://go.googlecode.com/hg/ $GOROOT
+-* copy builder.sh and buildcontrol.py to ~gobuild
+-* chmod a+x ./builder.sh ./buildcontrol.py
+-* cd go
+-* ../buildcontrol.py next $BUILDER  (just to check that things are ok)
+-* cd ..
+-* ./builder.sh (You probably want to run this in a screen long term.)
++* Build and run gobuilder (see its documentation for command-line options).
++
+diff --git a/misc/dashboard/buildcontrol.py b/misc/dashboard/buildcontrol.py
+deleted file mode 100644
+index ec503e7ffe..0000000000
+--- a/misc/dashboard/buildcontrol.py
++++ /dev/null
+@@ -1,278 +0,0 @@
+-#!/usr/bin/env python
+-
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This is a utility script for implementing a Go build slave.
+-
+-import binascii
+-import httplib
+-import os
+-import struct
+-import subprocess
+-import sys
+-import time
+-
+-buildhost = ''
+-buildport = -1
+-buildkey = ''
+-
+-upload_project = "go"
+-
+-def main(args):
+-    global buildport, buildhost, buildkey
+-
+-    if len(args) < 2:
+-        return usage(args[0])
+-
+-    if 'BUILDHOST' not in os.environ:
+-        print >>sys.stderr, "Please set $BUILDHOST"
+-        return
+-    buildhost = os.environ['BUILDHOST']
+-
+-    if 'BUILDPORT' not in os.environ:
+-        buildport = 80
+-    else:
+-        buildport = int(os.environ['BUILDPORT'])
+-
+-    try:
+-        buildkeyfile = file('%s/.gobuildkey-%s' % (os.environ['HOME'], os.environ['BUILDER']), 'r')
+-        buildkey = buildkeyfile.readline().strip()
+-    except IOError:
+-        try:
+-            buildkeyfile = file('%s/.gobuildkey' % os.environ['HOME'], 'r')
+-            buildkey = buildkeyfile.readline().strip()
+-        except IOError:
+-            print >>sys.stderr, "Need key in ~/.gobuildkey-%s or ~/.gobuildkey" % os.environ['BUILDER']
+-            return
+-
+-    # get upload credentials
+-    try:
+-        username = buildkeyfile.readline().strip()
+-        password = buildkeyfile.readline().strip()
+-    except:
+-        username, password = None, None
+-
+-    if args[1] == 'init':
+-        return doInit(args)
+-    elif args[1] == 'hwget':
+-        return doHWGet(args)
+-    elif args[1] == 'hwset':
+-        return doHWSet(args)
+-    elif args[1] == 'next':
+-        return doNext(args)
+-    elif args[1] == 'record':
+-        return doRecord(args)
+-    elif args[1] == 'benchmarks':
+-        return doBenchmarks(args)
+-    elif args[1] == 'upload':
+-        return doUpload(args, username, password)
+-    else:
+-        return usage(args[0])
+-
+-def usage(name):
+-    sys.stderr.write('''Usage: %s <command>
+-
+-Commands:
+-  init <rev>: init the build bot with the given commit as the first in history
+-  hwget <builder>: get the most recent revision built by the given builder
+-  hwset <builder> <rev>: get the most recent revision built by the given builder
+-  next <builder>: get the next revision number to by built by the given builder
+-  record <builder> <rev> <ok|log file>: record a build result
+-  benchmarks <builder> <rev> <log file>: record benchmark numbers
+-  upload <builder> <summary> <tar file>: upload tarball to googlecode
+-''' % name)
+-    return 1
+-
+-def doInit(args):
+-    if len(args) != 3:
+-        return usage(args[0])
+-    c = getCommit(args[2])
+-    if c is None:
+-        fatal('Cannot get commit %s' % args[2])
+-
+-    return command('init', {'node': c.node, 'date': c.date, 'user': c.user, 'desc': c.desc})
+-
+-def doHWGet(args, retries = 0):
+-    if len(args) != 3:
+-        return usage(args[0])
+-    conn = httplib.HTTPConnection(buildhost, buildport, True)
+-    conn.request('GET', '/hw-get?builder=%s' % args[2]);
+-    reply = conn.getresponse()
+-    if reply.status == 200:
+-        print reply.read()
+-    elif reply.status == 500 and retries < 3:
+-        time.sleep(3)
+-        return doHWGet(args, retries = retries + 1)
+-    else:
+-        raise Failed('get-hw returned %d' % reply.status)
+-    return 0
+-
+-def doHWSet(args):
+-    if len(args) != 4:
+-        return usage(args[0])
+-    c = getCommit(args[3])
+-    if c is None:
+-        fatal('Cannot get commit %s' % args[3])
+-
+-    return command('hw-set', {'builder': args[2], 'hw': c.node})
+-
+-def doNext(args):
+-    if len(args) != 3:
+-        return usage(args[0])
+-    conn = httplib.HTTPConnection(buildhost, buildport, True)
+-    conn.request('GET', '/hw-get?builder=%s' % args[2]);
+-    reply = conn.getresponse()
+-    if reply.status == 200:
+-        rev = reply.read()
+-    else:
+-        raise Failed('get-hw returned %d' % reply.status)
+-
+-    c = getCommit(rev)
+-    next = getCommit(str(c.num + 1))
+-    if next is not None and next.parent == c.node:
+-        print c.num + 1
+-    else:
+-        print "<none>"
+-    return 0
+-
+-def doRecord(args):
+-    if len(args) != 5:
+-        return usage(args[0])
+-    builder = args[2]
+-    rev = args[3]
+-    c = getCommit(rev)
+-    if c is None:
+-        print >>sys.stderr, "Bad revision:", rev
+-        return 1
+-    logfile = args[4]
+-    log = ''
+-    if logfile != 'ok':
+-        log = file(logfile, 'r').read()
+-    return command('build', {'node': c.node, 'parent': c.parent, 'date': c.date, 'user': c.user, 'desc': c.desc, 'log': log, 'builder': builder})
+-
+-def doBenchmarks(args):
+-    if len(args) != 5:
+-        return usage(args[0])
+-    builder = args[2]
+-    rev = args[3]
+-    c = getCommit(rev)
+-    if c is None:
+-        print >>sys.stderr, "Bad revision:", rev
+-        return 1
+-
+-    benchmarks = {}
+-    for line in file(args[4], 'r').readlines():
+-        if 'Benchmark' in line and 'ns/op' in line:
+-            parts = line.split()
+-            if parts[3] == 'ns/op':
+-                benchmarks[parts[0]] = (parts[1], parts[2])
+-
+-    e = []
+-    for (name, (a, b)) in benchmarks.items():
+-        e.append(struct.pack('>H', len(name)))
+-        e.append(name)
+-        e.append(struct.pack('>H', len(a)))
+-        e.append(a)
+-        e.append(struct.pack('>H', len(b)))
+-        e.append(b)
+-    return command('benchmarks', {'node': c.node, 'builder': builder, 'benchmarkdata': binascii.b2a_base64(''.join(e))})
+-
+-def doUpload(args, username, password):
+-    # fail gracefully if no username or password set
+-    if not username or not password:
+-        return
+-
+-    if len(args) != 5:
+-        return usage(args[0])
+-    builder = args[2]
+-    summary = args[3]
+-    filename = args[4]
+-
+-    from googlecode_upload import upload
+-    code, msg, url = upload(
+-        filename, # filename
+-        upload_project, # 'go'
+-        username,
+-        password,
+-        summary,
+-        builder.split('-'), # labels
+-    )
+-    if code != 201:
+-        raise Failed('Upload returned code %s msg "%s".' % (code, msg))
+-
+-def encodeMultipartFormdata(fields, files):
+-    """fields is a sequence of (name, value) elements for regular form fields.
+-    files is a sequence of (name, filename, value) elements for data to be uploaded as files"""
+-    BOUNDARY = '----------ThIs_Is_tHe_bouNdaRY_$'
+-    CRLF = '\r\n'
+-    L = []
+-    for (key, value) in fields.items():
+-        L.append('--' + BOUNDARY)
+-        L.append('Content-Disposition: form-data; name="%s"' % key)
+-        L.append('')
+-        L.append(value)
+-    for (key, filename, value) in files:
+-        L.append('--' + BOUNDARY)
+-        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
+-        L.append('Content-Type: %s' % get_content_type(filename))
+-        L.append('')
+-        L.append(value)
+-    L.append('--' + BOUNDARY + '--')
+-    L.append('')
+-    body = CRLF.join(L)
+-    content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
+-    return content_type, body
+-
+-def unescapeXML(s):
+-    return s.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+-
+-class Commit:
+-    pass
+-
+-def getCommit(rev):
+-    output, stderr = subprocess.Popen(['hg', 'log', '-r', rev, '-l', '1', '--template', '{rev}>{node|escape}>{author|escape}>{date}>{desc}'], stdout = subprocess.PIPE, stderr = subprocess.PIPE, close_fds = True).communicate()
+-    if len(stderr) > 0:
+-        return None
+-    [n, node, user, date, desc] = output.split('>', 4)
+-
+-    c = Commit()
+-    c.num = int(n)
+-    c.node = unescapeXML(node)
+-    c.user = unescapeXML(user)
+-    c.date = unescapeXML(date)
+-    c.desc = desc
+-    c.parent = ''
+-
+-    if c.num > 0:
+-        output, _ = subprocess.Popen(['hg', 'log', '-r', str(c.num - 1), '-l', '1', '--template', '{node}'], stdout = subprocess.PIPE, close_fds = True).communicate()
+-        c.parent = output
+-
+-    return c
+-
+-class Failed(Exception):
+-    def __init__(self, msg):
+-        self.msg = msg
+-    def __str__(self):
+-        return self.msg
+-
+-def command(cmd, args, retries = 0):
+-    args['key'] = buildkey
+-    contentType, body = encodeMultipartFormdata(args, [])
+-    print body
+-    conn = httplib.HTTPConnection(buildhost, buildport, True)
+-    conn.request('POST', '/' + cmd, body, {'Content-Type': contentType})
+-    reply = conn.getresponse()
+-    if reply.status != 200:
+-        print "Command failed. Output:"
+-        print reply.read()
+-    if reply.status == 500 and retries < 3:
+-        print "Was a 500. Waiting two seconds and trying again."
+-        time.sleep(2)
+-        return command(cmd, args, retries = retries + 1)
+-    if reply.status != 200:
+-        raise Failed('Command "%s" returned %d' % (cmd, reply.status))
+-
+-if __name__ == '__main__':
+-    sys.exit(main(sys.argv))
+diff --git a/misc/dashboard/buildcron.sh b/misc/dashboard/buildcron.sh
+deleted file mode 100644
+index 7aa70ce571..0000000000
+--- a/misc/dashboard/buildcron.sh
++++ /dev/null
+@@ -1,58 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This script can be run to create a new builder and then
+-# to keep it running via cron.  First, run it by hand until it
+-# starts up without errors and can run the loop.  Then, once
+-# you're confident that it works, add this to your crontab:
+-#
+-#   */5 * * * *  cd $HOME; path/to/buildcron.sh darwin 386 >/dev/null 2>/dev/null
+-
+-if [ $# != 2 ]; then
+-	echo 'usage: buildcron.sh goos goarch' 1>&2
+-	exit 2
+-fi
+-
+-export GOOS=$1
+-export GOARCH=$2
+-
+-# Check if we are already running.
+-# First command must not be pipeline, to avoid seeing extra processes in ps.
+-all=$(ps axwwu)
+-pid=$(echo "$all" | grep "buildcron.sh $1 $2" | grep -v "sh -c" | grep -v $$ | awk '{print $2}')
+-if [ "$pid" != "" ]; then
+-	#echo already running buildcron.sh $1 $2
+-	#echo "$all" | grep "buildcron.sh $1 $2" | grep -v "sh -c" | grep -v $$
+-	exit 0
+-fi
+-
+-export BUILDHOST=godashboard.appspot.com
+-export BUILDER=${GOOS}-${GOARCH}
+-export GOROOT=$HOME/go-$BUILDER/go
+-export GOBIN=$HOME/go-$BUILDER/bin
+-
+-if [ ! -f ~/.gobuildkey-$BUILDER ]; then
+-	echo "need gobuildkey for $BUILDER in ~/.gobuildkey-$BUILDER" 1>&2
+-	exit 2
+-fi
+-
+-if [ ! -d $GOROOT ]; then
+-	mkdir -p $GOROOT
+-	hg clone https://go.googlecode.com/hg/ $GOROOT
+-else
+-	cd $GOROOT
+-	hg pull -u || exit 1
+-fi
+-mkdir -p $GOROOT/bin
+-
+-cd $GOROOT/..
+-cp go/misc/dashboard/{builder.sh,buildcontrol.py,googlecode_upload.py} .
+-chmod a+x builder.sh buildcontrol.py
+-cd go
+-../buildcontrol.py next $BUILDER
+-cd ..
+-./builder.sh
+-
+-
+diff --git a/misc/dashboard/builder.sh b/misc/dashboard/builder.sh
+deleted file mode 100644
+index 4a8d117bfc..0000000000
+--- a/misc/dashboard/builder.sh
++++ /dev/null
+@@ -1,95 +0,0 @@
+-#!/usr/bin/env bash
+-
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-fatal() {
+-    echo $0: $1 1>&2
+-    exit 1
+-}
+-
+-if [ ! -d go ] ; then
+-    fatal "Please run in directory that contains a checked out repo in 'go'"
+-fi
+-
+-if [ ! -f buildcontrol.py ] ; then
+-    fatal 'Please include buildcontrol.py in this directory'
+-fi
+-
+-if [ "x$BUILDER" == "x" ] ; then
+-    fatal 'Please set $BUILDER to the name of this builder'
+-fi
+-
+-if [ "x$BUILDHOST" == "x" ] ; then
+-    fatal 'Please set $BUILDHOST to the hostname of the gobuild server'
+-fi
+-
+-if [ "x$GOARCH" == "x" -o "x$GOOS" == "x" ] ; then
+-    fatal 'Please set $GOARCH and $GOOS'
+-fi
+-
+-export PATH=$PATH:`pwd`/candidate/bin
+-export GOBIN=`pwd`/candidate/bin
+-export GOROOT_FINAL=/usr/local/go
+-
+-while true ; do (
+-    cd go || fatal "Cannot cd into 'go'"
+-    hg pull -u || fatal "hg sync failed"
+-    rev=`python ../buildcontrol.py next $BUILDER`
+-    if [ $? -ne 0 ] ; then
+-        fatal "Cannot get next revision"
+-    fi
+-    cd .. || fatal "Cannot cd up"
+-    if [ "x$rev" == "x<none>" ] ; then
+-        sleep 10
+-        continue
+-    fi
+-
+-    echo "Cloning for revision $rev"
+-    rm -Rf candidate
+-    hg clone -r $rev go candidate || fatal "hg clone failed"
+-    export GOROOT=`pwd`/candidate
+-    mkdir -p candidate/bin || fatal "Cannot create candidate/bin"
+-    cd candidate/src || fatal "Cannot cd into candidate/src"
+-    echo "Building revision $rev"
+-    ALL=all.bash
+-    if [ -f all-$GOOS.bash ]; then
+-        ALL=all-$GOOS.bash
+-    elif [ -f all-$GOARCH.bash ]; then
+-        ALL=all-$GOARCH.bash
+-    fi
+-    ./$ALL > ../log 2>&1
+-    if [ $? -ne 0 ] ; then
+-        echo "Recording failure for $rev"
+-        python ../../buildcontrol.py record $BUILDER $rev ../log || fatal "Cannot record result"
+-    else
+-        echo "Recording success for $rev"
+-        python ../../buildcontrol.py record $BUILDER $rev ok || fatal "Cannot record result"
+-        if [ "$ALL" = "all.bash" ]; then
+-            echo "Running benchmarks"
+-            cd pkg || fatal "failed to cd to pkg"
+-            make bench > ../../benchmarks 2>&1
+-            python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
+-            cd .. || fatal "failed to cd out of pkg"
+-        fi
+-        # check if we're at a release (via the hg summary)
+-        #  if so, package the tar.gz and upload to googlecode
+-        SUMMARY=$(hg log -l 1 | grep summary\: | awk '{print $2}')
+-        if [[ "x${SUMMARY:0:7}" == "xrelease" ]]; then
+-            echo "Uploading binary to googlecode"
+-            TARBALL="go.$SUMMARY.$BUILDER.tar.gz"
+-            ./clean.bash --nopkg
+-	    # move contents of candidate/ to candidate/go/ for archival
+-            cd ../..                     || fatal "Cannot cd up"
+-	    mv candidate go-candidate    || fatal "Cannot rename candidate"
+-	    mkdir candidate              || fatal "Cannot mkdir candidate"
+-	    mv go-candidate candidate/go || fatal "Cannot mv directory"
+-	    cd candidate                 || fatal "Cannot cd candidate"
+-	    # build tarball
+-            tar czf ../$TARBALL go       || fatal "Cannot create tarball"
+-            ../buildcontrol.py upload $BUILDER $SUMMARY ../$TARBALL || fatal "Cannot upload tarball"
+-        fi
+-    fi
+-    sleep 10
+-) done

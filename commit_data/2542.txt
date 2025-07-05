@@ -8,6 +8,37 @@ Date:   Mon Jun 29 11:19:38 2009 -0700
     DELTA=4  (3 added, 0 deleted, 1 changed)
     OCL=30845
     CL=30845
-
+---
  src/cmd/gobuild/util.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 99539f76de..fa8b382f20 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -63,7 +63,8 @@ func init() {
+ 
+ 	for i, v := range binaries {
+ 		var s string;
+-		if s, err := exec.LookPath(v); err != nil {
++		var err os.Error;
++		if s, err = exec.LookPath(v); err != nil {
+ 			fatal("cannot find binary %s", v);
+ 		}
+ 		bin[v] = s;
+@@ -101,6 +102,7 @@ func run(argv []string, flag int) (ok bool) {
+ 	defer r.Close();
+ 	w.Close();
+ 	if err != nil {
++		fmt.Fprintln(os.Stderr, err);
+ 		return false;
+ 	}
+ 
+@@ -123,6 +125,7 @@ func run(argv []string, flag int) (ok bool) {
+ 	}
+ 	waitmsg, err := os.Wait(pid, 0);
+ 	if err != nil {
++		fmt.Fprintln(os.Stderr, err);
+ 		return false;
+ 	}
+ 	return waitmsg.Exited() && waitmsg.ExitStatus() == 0;

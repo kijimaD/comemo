@@ -7,7 +7,32 @@ Date:   Wed Oct 17 14:21:58 2012 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6714053
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e18726cee3..827a4b2055 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -214,6 +214,7 @@ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@correia.cc>
++Shane Hansen <shanemhansen@gmail.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9073ae7849..175c8f59e0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -311,6 +311,7 @@ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@correia.cc>
++Shane Hansen <shanemhansen@gmail.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>

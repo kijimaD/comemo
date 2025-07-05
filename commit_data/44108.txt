@@ -10,6 +10,20 @@ Date:   Sat May 9 17:10:32 2020 +0200
     Change-Id: If0f8b645f2c746f9fc8bbd68f4d1fe41868493ba
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232809
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_android.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_android.c b/src/runtime/cgo/gcc_android.c
+index 321a5150b9..7ea213599d 100644
+--- a/src/runtime/cgo/gcc_android.c
++++ b/src/runtime/cgo/gcc_android.c
+@@ -35,7 +35,7 @@ fatalf(const char* format, ...)
+ // Truncated to a different magic value on 32-bit; that's ok.
+ #define magic1 (0x23581321345589ULL)
+ 
+-// From https://android.googlesource.com/platform/bionic/+/refs/heads/master/libc/private/bionic_asm_tls.h#69.
++// From https://android.googlesource.com/platform/bionic/+/refs/heads/android10-tests-release/libc/private/bionic_asm_tls.h#69.
+ #define TLS_SLOT_APP 2
+ 
+ // inittls allocates a thread-local storage slot for g.

@@ -9,6 +9,36 @@ Date:   Thu Sep 25 17:30:12 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/150100043
-
+---
  .hgignore | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index c89b2d9ad0..0071161139 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -23,16 +23,12 @@ _test
+ _testmain.go
+ build.out
+ test.out
+-doc/tmpltohtml
+ doc/articles/wiki/*.bin
+ include/plan9/libc_plan9.h
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+ misc/cgo/testso/main
+ misc/dashboard/builder/builder
+-misc/goplay/goplay
+-misc/osx/*.pkg
+-misc/osx/*.dmg
+ src/cmd/?a/y.output
+ src/liblink/anames?.c
+ src/cmd/cc/y.output
+@@ -43,7 +39,6 @@ src/cmd/gc/opnames.h
+ src/cmd/gc/y.output
+ src/cmd/go/zdefaultcc.go
+ src/go/doc/headscan
+-src/runtime/goc2c
+ src/runtime/mkversion
+ src/runtime/z*
+ src/unicode/maketables

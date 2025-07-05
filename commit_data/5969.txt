@@ -7,7 +7,32 @@ Date:   Fri Aug 6 16:31:12 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1893045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 7c7e2701f3..6fef72b840 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -17,6 +17,7 @@ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
++Anschel Schaffer-Cohen <anschelsc@gmail.com>
+ Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 200a740853..0ab84599db 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -42,6 +42,7 @@ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
++Anschel Schaffer-Cohen <anschelsc@gmail.com>
+ Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>

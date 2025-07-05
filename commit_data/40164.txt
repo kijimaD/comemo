@@ -19,9 +19,74 @@ Date:   Mon Apr 22 18:21:37 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173324
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go |  2 +-
  src/cmd/compile/internal/gc/ssa.go |  1 +
  src/cmd/internal/src/pos.go        |  2 +-
  test/codegen/issue31618.go         | 22 ++++++++++++++++++++++
  4 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 35cbadafd7..5013c55663 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1055,7 +1055,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 	// to put a breakpoint. Not sure if that's really necessary or not
+ 	// (in which case it could go at the end of the function instead).
+ 	inlMark := nod(OINLMARK, nil, nil)
+-	inlMark.Pos = n.Pos.WithDefaultStmt()
++	inlMark.Pos = n.Pos.WithIsStmt()
+ 	inlMark.Xoffset = int64(newIndex)
+ 	ninit.Append(inlMark)
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 930779045a..0f043d8b5e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5369,6 +5369,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				// We found an instruction with the same source position as
+ 				// some of the inline marks.
+ 				// Use this instruction instead.
++				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
+ 				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
+ 				// Make the inline mark a real nop, so it doesn't generate any code.
+ 				m.As = obj.ANOP
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 0e8973fe90..c9d3d347db 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -445,5 +445,5 @@ func (x lico) lineNumberHTML() string {
+ }
+ 
+ func (x lico) atColumn1() lico {
+-	return makeLico(x.Line(), 1) | (x & (isStmtMask | xlogueMask))
++	return makeLico(x.Line(), 1).withIsStmt()
+ }
+diff --git a/test/codegen/issue31618.go b/test/codegen/issue31618.go
+new file mode 100644
+index 0000000000..8effe2995b
+--- /dev/null
++++ b/test/codegen/issue31618.go
+@@ -0,0 +1,22 @@
++// asmcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// Make sure we remove both inline marks in the following code.
++// Both +5 and +6 should map to real instructions, which can
++// be used as inline marks instead of explicit nops.
++func f(x int) int {
++	// amd64:-"XCHGL"
++	x = g(x) + 5
++	// amd64:-"XCHGL"
++	x = g(x) + 6
++	return x
++}
++
++func g(x int) int {
++	return x >> 3
++}

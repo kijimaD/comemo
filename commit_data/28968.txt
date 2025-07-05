@@ -16,7 +16,36 @@ Date:   Mon Jul 18 17:05:54 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27155
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/vet/shift.go          | 6 ++++++
  src/cmd/vet/testdata/shift.go | 2 ++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/vet/shift.go b/src/cmd/vet/shift.go
+index 8c038b4bdd..55f3ea369f 100644
+--- a/src/cmd/vet/shift.go
++++ b/src/cmd/vet/shift.go
+@@ -41,6 +41,12 @@ func checkShift(f *File, node ast.Node) {
+ // checkLongShift checks if shift or shift-assign operations shift by more than
+ // the length of the underlying variable.
+ func checkLongShift(f *File, node ast.Node, x, y ast.Expr) {
++	if f.pkg.types[x].Value != nil {
++		// Ignore shifts of constants.
++		// These are frequently used for bit-twiddling tricks
++		// like ^uint(0) >> 63 for 32/64 bit detection and compatibility.
++		return
++	}
+ 	v := f.pkg.types[y].Value
+ 	if v == nil {
+ 		return
+diff --git a/src/cmd/vet/testdata/shift.go b/src/cmd/vet/testdata/shift.go
+index 6624f09cc1..99acaadf6d 100644
+--- a/src/cmd/vet/testdata/shift.go
++++ b/src/cmd/vet/testdata/shift.go
+@@ -75,4 +75,6 @@ func ShiftTest() {
+ 	_ = p >> 32 // ERROR "p might be too small for shift of 32"
+ 	p <<= 32    // ERROR "p might be too small for shift of 32"
+ 	p >>= 32    // ERROR "p might be too small for shift of 32"
++
++	const oneIf64Bit = ^uint(0) >> 63 // allow large shifts of constants; they are used for 32/64 bit compatibility tricks
+ }

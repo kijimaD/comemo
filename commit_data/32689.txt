@@ -18,6 +18,23 @@ Date:   Tue May 16 18:02:56 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 52c2085ef5..1a259a91bb 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1644,7 +1644,10 @@ func computeBuildID(p *Package) {
+ 	// different build ID in each Go release.
+ 	if p.Standard && p.ImportPath == "runtime/internal/sys" && cfg.BuildContext.Compiler != "gccgo" {
+ 		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+-		if err != nil {
++		if os.IsNotExist(err) {
++			p.Stale = true
++			p.StaleReason = fmt.Sprintf("missing zversion.go")
++		} else if err != nil {
+ 			base.Fatalf("go: %s", err)
+ 		}
+ 		fmt.Fprintf(h, "zversion %q\n", string(data))

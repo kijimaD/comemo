@@ -9,7 +9,7 @@ Date:   Tue Mar 15 18:08:22 2016 +1100
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 28 ++++++++++------------------
  src/cmd/compile/internal/arm/galign.go    |  4 ----
  src/cmd/compile/internal/arm64/galign.go  |  4 ----
@@ -19,3 +19,249 @@ Date:   Tue Mar 15 18:08:22 2016 +1100
  src/cmd/compile/internal/ppc64/galign.go  | 25 ++++++-------------------
  src/cmd/compile/internal/x86/galign.go    |  4 ----
  8 files changed, 22 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 5350608594..14721ea35b 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -11,23 +11,12 @@ import (
+ )
+ 
+ var (
+-	thestring   = "amd64"
+-	thelinkarch = &x86.Linkamd64
+-	addptr      = x86.AADDQ
+-	movptr      = x86.AMOVQ
+-	leaptr      = x86.ALEAQ
+-	cmpptr      = x86.ACMPQ
++	addptr = x86.AADDQ
++	movptr = x86.AMOVQ
++	leaptr = x86.ALEAQ
++	cmpptr = x86.ACMPQ
+ )
+ 
+-func linkarchinit() {
+-	if obj.Getgoarch() == "amd64p32" {
+-		thelinkarch = &x86.Linkamd64p32
+-		gc.Thearch.Thelinkarch = thelinkarch
+-		thestring = "amd64p32"
+-		gc.Thearch.Thestring = "amd64p32"
+-	}
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -54,8 +43,12 @@ func Main() {
+ 	}
+ 
+ 	gc.Thearch.Thechar = '6'
+-	gc.Thearch.Thestring = thestring
+-	gc.Thearch.Thelinkarch = thelinkarch
++	gc.Thearch.Thestring = "amd64"
++	gc.Thearch.Thelinkarch = &x86.Linkamd64
++	if obj.Getgoarch() == "amd64p32" {
++		gc.Thearch.Thestring = "amd64p32"
++		gc.Thearch.Thelinkarch = &x86.Linkamd64p32
++	}
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	gc.Thearch.REGCALLX = x86.REG_BX
+@@ -85,7 +78,6 @@ func Main() {
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+-	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.Regtyp = regtyp
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index b431dc40ab..d89b852d7f 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -9,9 +9,6 @@ import (
+ 	"cmd/internal/obj/arm"
+ )
+ 
+-func linkarchinit() {
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 4
+ 	gc.Widthint = 4
+@@ -50,7 +47,6 @@ func Main() {
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Cgenindex = cgenindex
+-	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.Regtyp = regtyp
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 1e7eadbdd4..7e1226fee1 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -9,9 +9,6 @@ import (
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+-func linkarchinit() {
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -49,7 +46,6 @@ func Main() {
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+-	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.Regtyp = regtyp
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 5317648ff5..4473ee6cdf 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -543,7 +543,6 @@ type Arch struct {
+ 	Ginsnop      func()
+ 	Gmove        func(*Node, *Node)
+ 	Igenindex    func(*Node, *Node, bool) *obj.Prog
+-	Linkarchinit func()
+ 	Peep         func(*obj.Prog)
+ 	Proginfo     func(*obj.Prog) // fills in Prog.Info
+ 	Regtyp       func(*obj.Addr) bool
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 5422879e07..f4396d13e2 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -98,7 +98,6 @@ func Main() {
+ 	}
+ 	goarch = p
+ 
+-	Thearch.Linkarchinit()
+ 	Ctxt = obj.Linknew(Thearch.Thelinkarch)
+ 	Ctxt.DiagFunc = Yyerror
+ 	Ctxt.Bso = &bstdout
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index e1ad0bfe1d..9d582f4b51 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -10,22 +10,6 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-var (
+-	thestring   = "mips64"
+-	thelinkarch *obj.LinkArch
+-)
+-
+-func linkarchinit() {
+-	thestring = obj.Getgoarch()
+-	gc.Thearch.Thestring = thestring
+-	if thestring == "mips64le" {
+-		thelinkarch = &mips.Linkmips64le
+-	} else {
+-		thelinkarch = &mips.Linkmips64
+-	}
+-	gc.Thearch.Thelinkarch = thelinkarch
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -34,8 +18,12 @@ func betypeinit() {
+ 
+ func Main() {
+ 	gc.Thearch.Thechar = '0'
+-	gc.Thearch.Thestring = thestring
+-	gc.Thearch.Thelinkarch = thelinkarch
++	gc.Thearch.Thestring = "mips64"
++	gc.Thearch.Thelinkarch = &mips.Linkmips64
++	if obj.Getgoarch() == "mips64le" {
++		gc.Thearch.Thestring = "mips64le"
++		gc.Thearch.Thelinkarch = &mips.Linkmips64le
++	}
+ 	gc.Thearch.REGSP = mips.REGSP
+ 	gc.Thearch.REGCTXT = mips.REGCTXT
+ 	gc.Thearch.REGCALLX = mips.REG_R1
+@@ -62,7 +50,6 @@ func Main() {
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+-	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.Regtyp = regtyp
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 03b93fd235..91bece6080 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -10,22 +10,6 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-var (
+-	thestring   = "ppc64"
+-	thelinkarch *obj.LinkArch
+-)
+-
+-func linkarchinit() {
+-	thestring = obj.Getgoarch()
+-	gc.Thearch.Thestring = thestring
+-	if thestring == "ppc64le" {
+-		thelinkarch = &ppc64.Linkppc64le
+-	} else {
+-		thelinkarch = &ppc64.Linkppc64
+-	}
+-	gc.Thearch.Thelinkarch = thelinkarch
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+@@ -39,8 +23,12 @@ func betypeinit() {
+ 
+ func Main() {
+ 	gc.Thearch.Thechar = '9'
+-	gc.Thearch.Thestring = thestring
+-	gc.Thearch.Thelinkarch = thelinkarch
++	gc.Thearch.Thestring = "ppc64"
++	gc.Thearch.Thelinkarch = &ppc64.Linkppc64
++	if obj.Getgoarch() == "ppc64le" {
++		gc.Thearch.Thestring = "ppc64le"
++		gc.Thearch.Thelinkarch = &ppc64.Linkppc64le
++	}
+ 	gc.Thearch.REGSP = ppc64.REGSP
+ 	gc.Thearch.REGCTXT = ppc64.REGCTXT
+ 	gc.Thearch.REGCALLX = ppc64.REG_R3
+@@ -67,7 +55,6 @@ func Main() {
+ 	gc.Thearch.Ginscon = ginscon
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+-	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.Regtyp = regtyp
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 9e30502ec4..4ab72b6da7 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -12,9 +12,6 @@ import (
+ 	"os"
+ )
+ 
+-func linkarchinit() {
+-}
+-
+ func betypeinit() {
+ 	gc.Widthptr = 4
+ 	gc.Widthint = 4
+@@ -67,7 +64,6 @@ func Main() {
+ 	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Igenindex = igenindex
+-	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.Regtyp = regtyp

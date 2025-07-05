@@ -19,7 +19,91 @@ Date:   Wed Oct 22 20:23:49 2014 +0400
     R=golang-codereviews, bradfitz, r, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/162980043
-
+---
  src/sync/pool.go      |  2 ++
  src/sync/pool_test.go | 54 +++++++++++++++++++++++++++++++--------------------
  2 files changed, 35 insertions(+), 21 deletions(-)
+
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 1f08707cd4..0cf0637024 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -200,6 +200,8 @@ func poolCleanup() {
+ 			}
+ 			l.shared = nil
+ 		}
++		p.local = nil
++		p.localSize = 0
+ 	}
+ 	allPools = []*Pool{}
+ }
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index cf5c8bd903..fa1a27beac 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -69,32 +69,44 @@ func TestPoolNew(t *testing.T) {
+ 	}
+ }
+ 
+-// Test that Pool does not hold pointers to previously cached
+-// resources
++// Test that Pool does not hold pointers to previously cached resources.
+ func TestPoolGC(t *testing.T) {
++	testPool(t, true)
++}
++
++// Test that Pool releases resources on GC.
++func TestPoolRelease(t *testing.T) {
++	testPool(t, false)
++}
++
++func testPool(t *testing.T, drain bool) {
+ 	var p Pool
+-	var fin uint32
+ 	const N = 100
+-	for i := 0; i < N; i++ {
+-		v := new(string)
+-		runtime.SetFinalizer(v, func(vv *string) {
+-			atomic.AddUint32(&fin, 1)
+-		})
+-		p.Put(v)
+-	}
+-	for i := 0; i < N; i++ {
+-		p.Get()
+-	}
+-	for i := 0; i < 5; i++ {
+-		runtime.GC()
+-		time.Sleep(time.Duration(i*100+10) * time.Millisecond)
+-		// 1 pointer can remain on stack or elsewhere
+-		if atomic.LoadUint32(&fin) >= N-1 {
+-			return
++loop:
++	for try := 0; try < 3; try++ {
++		var fin, fin1 uint32
++		for i := 0; i < N; i++ {
++			v := new(string)
++			runtime.SetFinalizer(v, func(vv *string) {
++				atomic.AddUint32(&fin, 1)
++			})
++			p.Put(v)
++		}
++		if drain {
++			for i := 0; i < N; i++ {
++				p.Get()
++			}
++		}
++		for i := 0; i < 5; i++ {
++			runtime.GC()
++			time.Sleep(time.Duration(i*100+10) * time.Millisecond)
++			// 1 pointer can remain on stack or elsewhere
++			if fin1 = atomic.LoadUint32(&fin); fin1 >= N-1 {
++				continue loop
++			}
+ 		}
++		t.Fatalf("only %v out of %v resources are finalized on try %v", fin1, N, try)
+ 	}
+-	t.Fatalf("only %v out of %v resources are finalized",
+-		atomic.LoadUint32(&fin), N)
+ }
+ 
+ func TestPoolStress(t *testing.T) {

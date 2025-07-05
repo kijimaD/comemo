@@ -7,6 +7,21 @@ Date:   Fri Oct 11 14:36:39 2019 -0400
     Change-Id: I67fe3db68dddcf216f7ba8f7fed67b01a114eff1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/200763
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  misc/boring/release.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/boring/release.sh b/misc/boring/release.sh
+index f3b8876821..1f7b483183 100755
+--- a/misc/boring/release.sh
++++ b/misc/boring/release.sh
+@@ -21,8 +21,8 @@ cd "$WORKTREE/src"
+ cd ../misc/boring
+ for branch in "$@"; do
+     ./build.release "origin/$branch"
++    ./build.docker
+ done
+-./build.docker
+ 
+ git add RELEASES
+ git commit -m "misc/boring: add new releases to RELEASES file"

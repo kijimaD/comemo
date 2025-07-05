@@ -17,7 +17,38 @@ Date:   Fri Feb 25 18:20:12 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/type.go | 4 +---
  src/go/types/type.go                    | 4 +---
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index ca8f155791..0fe39dbca4 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -7,9 +7,7 @@ package types2
+ // A Type represents a type of Go.
+ // All types implement the Type interface.
+ type Type interface {
+-	// Underlying returns the underlying type of a type
+-	// w/o following forwarding chains. Only used by
+-	// client packages.
++	// Underlying returns the underlying type of a type.
+ 	Underlying() Type
+ 
+ 	// String returns a string representation of a type.
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 323365aefe..130637530b 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -7,9 +7,7 @@ package types
+ // A Type represents a type of Go.
+ // All types implement the Type interface.
+ type Type interface {
+-	// Underlying returns the underlying type of a type
+-	// w/o following forwarding chains. Only used by
+-	// client packages.
++	// Underlying returns the underlying type of a type.
+ 	Underlying() Type
+ 
+ 	// String returns a string representation of a type.

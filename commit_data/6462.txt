@@ -9,6 +9,27 @@ Date:   Wed Oct 6 11:54:53 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2290044
-
+---
  src/pkg/net/dnsclient.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 18bd72c3f1..0343dd2f0a 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -192,14 +192,7 @@ var dnserr os.Error
+ func loadConfig() { cfg, dnserr = dnsReadConfig() }
+ 
+ func isDomainName(s string) bool {
+-	// Requirements on DNS name:
+-	//	* must not be empty.
+-	//	* must be alphanumeric plus - and .
+-	//	* each of the dot-separated elements must begin
+-	//	  and end with a letter or digit.
+-	//	  RFC 1035 required the element to begin with a letter,
+-	//	  but RFC 3696 says this has been relaxed to allow digits too.
+-	//	  still, there must be a letter somewhere in the entire name.
++	// See RFC 1035, RFC 3696.
+ 	if len(s) == 0 {
+ 		return false
+ 	}

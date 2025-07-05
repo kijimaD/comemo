@@ -55,7 +55,7 @@ Date:   Wed Jan 25 15:04:16 2012 -0800
     R=golang-dev, minux.ma, gri
     CC=golang-dev
     https://golang.org/cl/5574054
-
+---
  src/pkg/math/big/arith.go      |  2 +-
  src/pkg/math/big/arith_386.s   | 13 ++++++++++++-
  src/pkg/math/big/arith_amd64.s | 13 ++++++++++++-
@@ -63,3 +63,142 @@ Date:   Wed Jan 25 15:04:16 2012 -0800
  src/pkg/math/big/arith_decl.go |  1 +
  src/pkg/math/big/arith_test.go | 23 +++++++++++++++++++++++
  6 files changed, 59 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/math/big/arith.go b/src/pkg/math/big/arith.go
+index f30951ef0f..5a30d3cf3a 100644
+--- a/src/pkg/math/big/arith.go
++++ b/src/pkg/math/big/arith.go
+@@ -79,7 +79,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ // Length of x in bits.
+-func bitLen(x Word) (n int) {
++func bitLen_g(x Word) (n int) {
+ 	for ; x >= 0x8000; x >>= 16 {
+ 		n += 16
+ 	}
+diff --git a/src/pkg/math/big/arith_386.s b/src/pkg/math/big/arith_386.s
+index 07c07b02cc..f1262c6514 100644
+--- a/src/pkg/math/big/arith_386.s
++++ b/src/pkg/math/big/arith_386.s
+@@ -245,7 +245,7 @@ E6:	CMPL BX, $0		// i < 0
+ 	RET
+ 
+ 
+-// divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
++// func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL xn+12(FP), DX	// r = xn
+@@ -263,3 +263,14 @@ E7:	SUBL $1, BX		// i--
+ 
+ 	MOVL DX, r+32(FP)
+ 	RET
++
++// func bitLen(x Word) (n int)
++TEXT ·bitLen(SB),7,$0
++	BSRL x+0(FP), AX
++	JZ Z1
++	INCL AX
++	MOVL AX, n+4(FP)
++	RET
++
++Z1:	MOVL $0, n+4(FP)
++	RET
+diff --git a/src/pkg/math/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+index 89b65f38a1..088f724704 100644
+--- a/src/pkg/math/big/arith_amd64.s
++++ b/src/pkg/math/big/arith_amd64.s
+@@ -243,7 +243,7 @@ E6:	CMPQ BX, R11		// i < n
+ 	RET
+ 
+ 
+-// divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
++// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ xn+16(FP), DX	// r = xn
+@@ -261,3 +261,14 @@ E7:	SUBL $1, BX		// i--
+ 
+ 	MOVQ DX, r+48(FP)
+ 	RET
++
++// func bitLen(x Word) (n int)
++TEXT ·bitLen(SB),7,$0
++	BSRQ x+0(FP), AX
++	JZ Z1
++	INCQ AX
++	MOVQ AX, n+8(FP)
++	RET
++
++Z1:	MOVQ $0, n+8(FP)
++	RET
+diff --git a/src/pkg/math/big/arith_arm.s b/src/pkg/math/big/arith_arm.s
+index 60abe6eaa9..dbf3360b58 100644
+--- a/src/pkg/math/big/arith_arm.s
++++ b/src/pkg/math/big/arith_arm.s
+@@ -290,7 +290,7 @@ E9:
+ 	RET
+ 
+ 
+-// divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
++// func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	// ARM has no multiword division, so use portable code.
+ 	B ·divWVW_g(SB)
+@@ -310,3 +310,12 @@ TEXT ·mulWW(SB),7,$0
+ 	MOVW	R4, z1+8(FP)
+ 	MOVW	R3, z0+12(FP)
+ 	RET
++
++// func bitLen(x Word) (n int)
++TEXT ·bitLen(SB),7,$0
++	MOVW	x+0(FP), R0
++	WORD	$0xe16f0f10 // CLZ R0, R0  (count leading zeros)
++	MOVW	$32, R1
++	SUB.S	R0, R1
++	MOVW	R1, n+4(FP)
++	RET
+diff --git a/src/pkg/math/big/arith_decl.go b/src/pkg/math/big/arith_decl.go
+index 95fcd8b94b..068cc8d938 100644
+--- a/src/pkg/math/big/arith_decl.go
++++ b/src/pkg/math/big/arith_decl.go
+@@ -16,3 +16,4 @@ func shrVU(z, x []Word, s uint) (c Word)
+ func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ func addMulVVW(z, x []Word, y Word) (c Word)
+ func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
++func bitLen(x Word) (n int)
+diff --git a/src/pkg/math/big/arith_test.go b/src/pkg/math/big/arith_test.go
+index 106cd92d85..cd02ba3674 100644
+--- a/src/pkg/math/big/arith_test.go
++++ b/src/pkg/math/big/arith_test.go
+@@ -334,6 +334,29 @@ func TestMulAddWWW(t *testing.T) {
+ 	}
+ }
+ 
++func TestWordBitLen(t *testing.T) {
++	// Test every possible output of bitLen with the high bit set
++	// and then with all bits below max set
++	z := bitLen(0)
++	if z != 0 {
++		t.Errorf("0 got %d want 0", z)
++	}
++	x := Word(1) // Will be ...00010000...
++	y := Word(1) // Will be ...00011111...
++	for i := 1; i <= _W; i++ {
++		z = bitLen(x)
++		if z != i {
++			t.Errorf("%x got %d want %d", x, z, i)
++		}
++		z = bitLen(y)
++		if z != i {
++			t.Errorf("%x got %d want %d", y, z, i)
++		}
++		x <<= 1
++		y = (y << 1) | 0x1
++	}
++}
++
+ // runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
+ func benchmarkBitLenN(b *testing.B, nbits uint) {
+ 	testword := Word((uint64(1) << nbits) - 1)

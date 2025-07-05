@@ -11,6 +11,19 @@ Date:   Wed Dec 11 09:49:36 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/net/http/http.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 4da77889b1..32ff7e2008 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -17,6 +17,7 @@ import (
+ )
+ 
+ // Protocols is a set of HTTP protocols.
++// The zero value is an empty set of protocols.
+ //
+ // The supported protocols are:
+ //

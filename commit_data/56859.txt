@@ -16,7 +16,44 @@ Date:   Fri May 26 07:57:45 2023 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/tls/ticket.go      | 4 ----
  src/crypto/tls/ticket_test.go | 8 ++++++++
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/ticket.go b/src/crypto/tls/ticket.go
+index 1a94c04eee..1a3d0c7cfd 100644
+--- a/src/crypto/tls/ticket.go
++++ b/src/crypto/tls/ticket.go
+@@ -301,8 +301,6 @@ func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, er
+ 	return c.encryptTicket(stateBytes, ticketKeys)
+ }
+ 
+-var _ = &Config{WrapSession: (&Config{}).EncryptTicket}
+-
+ func (c *Config) encryptTicket(state []byte, ticketKeys []ticketKey) ([]byte, error) {
+ 	if len(ticketKeys) == 0 {
+ 		return nil, errors.New("tls: internal error: session ticket keys unavailable")
+@@ -348,8 +346,6 @@ func (c *Config) DecryptTicket(identity []byte, cs ConnectionState) (*SessionSta
+ 	return s, nil
+ }
+ 
+-var _ = &Config{UnwrapSession: (&Config{}).DecryptTicket}
+-
+ func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte {
+ 	if len(encrypted) < aes.BlockSize+sha256.Size {
+ 		return nil
+diff --git a/src/crypto/tls/ticket_test.go b/src/crypto/tls/ticket_test.go
+new file mode 100644
+index 0000000000..f925451cef
+--- /dev/null
++++ b/src/crypto/tls/ticket_test.go
+@@ -0,0 +1,8 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++var _ = &Config{WrapSession: (&Config{}).EncryptTicket}
++var _ = &Config{UnwrapSession: (&Config{}).DecryptTicket}

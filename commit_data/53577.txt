@@ -18,7 +18,35 @@ Date:   Sun Aug 21 02:21:49 2022 -0700
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go      | 3 +++
  src/time/format_test.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index ed2a0a8fc6..a278cd9e6b 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1135,6 +1135,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			}
+ 		case stdSecond, stdZeroSecond:
+ 			sec, value, err = getnum(value, std == stdZeroSecond)
++			if err != nil {
++				break
++			}
+ 			if sec < 0 || 60 <= sec {
+ 				rangeErrString = "second"
+ 				break
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 0e5b92440e..e8caa5e1a4 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -591,6 +591,8 @@ var parseErrorTests = []ParseErrorTest{
+ 	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: "_abc"`},
+ 	// invalid second followed by optional fractional seconds
+ 	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
++	// issue 54569
++	{RFC3339, "0000-01-01T00:00:.0+00:00", `parsing time "0000-01-01T00:00:.0+00:00" as "2006-01-02T15:04:05Z07:00": cannot parse ".0+00:00" as "05"`},
+ 	// issue 21113
+ 	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+ 	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},

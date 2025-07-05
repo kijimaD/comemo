@@ -29,6 +29,32 @@ Date:   Sat Apr 5 20:35:12 2025 +0200
     Reviewed-by: Richard Miller <millerresearch@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/os_plan9.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 6ff15c2236..a0ad9060c5 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -358,15 +358,13 @@ func crash() {
+ 	*(*int)(nil) = 0
+ }
+ 
++// Don't read from /dev/random, since this device can only
++// return a few hundred bits a second and would slow creation
++// of Go processes down significantly.
++//
+ //go:nosplit
+ func readRandom(r []byte) int {
+-	fd := open(&randomDev[0], _OREAD|_OCEXEC, 0)
+-	if fd < 0 {
+-		fatal("cannot open /dev/random")
+-	}
+-	n := int(read(fd, unsafe.Pointer(&r[0]), int32(len(r))))
+-	closefd(fd)
+-	return n
++	return 0
+ }
+ 
+ func initsig(preinit bool) {

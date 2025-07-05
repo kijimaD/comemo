@@ -13,7 +13,52 @@ Date:   Wed Jan 25 06:25:17 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 23 +++++++++++++++++++++++
  src/cmd/go/pkg.go     |  2 +-
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5727eb094e..f26c3660e4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3787,3 +3787,26 @@ GLOBL ·constants<>(SB),8,$8
+ 	tg.setenv("GOPATH", tg.path("go"))
+ 	tg.run("build", "p")
+ }
++
++// Issue 18778.
++func TestDotDotDotOutsideGOPATH(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.tempFile("pkgs/a.go", `package x`)
++	tg.tempFile("pkgs/a_test.go", `package x_test
++import "testing"
++func TestX(t *testing.T) {}`)
++
++	tg.tempFile("pkgs/a/a.go", `package a`)
++	tg.tempFile("pkgs/a/a_test.go", `package a_test
++import "testing"
++func TestA(t *testing.T) {}`)
++
++	tg.cd(tg.path("pkgs"))
++	tg.run("build", "./...")
++	tg.run("test", "./...")
++	tg.run("list", "./...")
++	tg.grepStdout("pkgs$", "expected package not listed")
++	tg.grepStdout("pkgs/a", "expected package not listed")
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index d69fa5118f..e40f9420c7 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -429,7 +429,7 @@ func setErrorPos(p *Package, importPos []token.Position) *Package {
+ func cleanImport(path string) string {
+ 	orig := path
+ 	path = pathpkg.Clean(path)
+-	if strings.HasPrefix(orig, "./") && path != ".." && path != "." && !strings.HasPrefix(path, "../") {
++	if strings.HasPrefix(orig, "./") && path != ".." && !strings.HasPrefix(path, "../") {
+ 		path = "./" + path
+ 	}
+ 	return path

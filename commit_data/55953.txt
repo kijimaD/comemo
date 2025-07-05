@@ -17,6 +17,37 @@ Date:   Mon Mar 27 11:44:05 2023 +0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: WANG Xuerui <git@xen0n.name>
-
+---
  src/runtime/internal/atomic/atomic_loong64.s | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_loong64.s b/src/runtime/internal/atomic/atomic_loong64.s
+index 3d802beaa7..34193add3e 100644
+--- a/src/runtime/internal/atomic/atomic_loong64.s
++++ b/src/runtime/internal/atomic/atomic_loong64.s
+@@ -89,7 +89,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ //	} else
+ //		return 0;
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+-	JMP runtime∕internal∕atomic·Cas64(SB)
++	JMP	·Cas64(SB)
+ 
+ // uint32 xadd(uint32 volatile *ptr, int32 delta)
+ // Atomically:
+@@ -294,13 +294,13 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ 
+ // uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+-	JMP	atomic·Load(SB)
++	JMP	·Load(SB)
+ 
+ // uint64 ·LoadAcq64(uint64 volatile* ptr)
+ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
+-	JMP	atomic·Load64(SB)
++	JMP	·Load64(SB)
+ 
+ // uintptr ·LoadAcquintptr(uintptr volatile* ptr)
+ TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
+-	JMP     atomic·Load64(SB)
++	JMP	·Load64(SB)
+ 

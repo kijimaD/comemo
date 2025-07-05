@@ -10,6 +10,21 @@ Date:   Wed May 7 11:58:25 2014 +1000
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/100180043
-
+---
  src/cmd/addr2line/addr2line_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index b969f0524f..c213db05dd 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -68,6 +68,9 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
+ }
+ 
+ func TestAddr2Line(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7947")
++	}
+ 	syms := loadSyms(t)
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")

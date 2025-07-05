@@ -10,7 +10,42 @@ Date:   Tue Oct 10 15:34:42 2023 -0400
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  src/cmd/compile/internal/types2/object.go | 6 ++++++
  src/go/types/object.go                    | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 5c0ea8ca16..075712dc9c 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -406,6 +406,12 @@ func (obj *Func) Origin() *Func {
+ 	return obj
+ }
+ 
++// Pkg returns the package to which the function belongs.
++//
++// The result is nil for methods of types in the Universe scope,
++// like [error.Error].
++func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
++
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+ func (obj *Func) hasPtrRecv() bool {
+ 	// If a method's receiver type is set, use that as the source of truth for the receiver.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index e47ef2ebec..17c15d48b4 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -408,6 +408,12 @@ func (obj *Func) Origin() *Func {
+ 	return obj
+ }
+ 
++// Pkg returns the package to which the function belongs.
++//
++// The result is nil for methods of types in the Universe scope,
++// like [error.Error].
++func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
++
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+ func (obj *Func) hasPtrRecv() bool {
+ 	// If a method's receiver type is set, use that as the source of truth for the receiver.

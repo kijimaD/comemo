@@ -7,6 +7,20 @@ Date:   Mon Jul 13 17:30:42 2015 -0600
     Change-Id: I02b8fb277b486eaf0916ddcd8f28c062d4022d4b
     Reviewed-on: https://go-review.googlesource.com/12150
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 589257bc23..b016bb1838 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -480,6 +480,8 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.constInt(n.Type, Mpgetfix(n.Val().U.(*Mpint)))
+ 		case CTSTR, CTBOOL:
+ 			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
++		case CTNIL:
++			return s.entryNewValue0(ssa.OpConst, n.Type)
+ 		default:
+ 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
+ 			return nil

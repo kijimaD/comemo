@@ -14,8 +14,204 @@ Date:   Wed May 4 18:08:36 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/404194
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/printer/nodes.go                 | 51 ++++++++++++++++++++++-----------
  src/go/printer/testdata/generics.golden | 43 ++++++++++++++++++---------
  src/go/printer/testdata/generics.input  | 43 ++++++++++++++++++---------
  3 files changed, 94 insertions(+), 43 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 0494f99d24..2cc84dc6a9 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -381,16 +381,12 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
+ 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
+ 			p.print(token.COMMA)
+ 			p.linebreak(closing, 0, ignore, true)
+-		} else if mode == typeTParam && fields.NumFields() == 1 {
+-			// Otherwise, if we are in a type parameter list that could be confused
+-			// with the constant array length expression [P*C], print a comma so that
+-			// parsing is unambiguous.
+-			//
+-			// Note that while ParenExprs can also be ambiguous (issue #49482), the
+-			// printed type is never parenthesized (stripParensAlways is used above).
+-			if t, _ := fields.List[0].Type.(*ast.StarExpr); t != nil && !isTypeLit(t.X) {
+-				p.print(token.COMMA)
+-			}
++		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(fields.List[0].Type) {
++			// A type parameter list [P T] where the name P and the type expression T syntactically
++			// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
++			// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
++			// is not parsed as an array length [P*T].
++			p.print(token.COMMA)
+ 		}
+ 
+ 		// unindent if we indented
+@@ -402,17 +398,38 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
+ 	p.print(fields.Closing, closeTok)
+ }
+ 
+-// isTypeLit reports whether x is a (possibly parenthesized) type literal.
+-func isTypeLit(x ast.Expr) bool {
++// combinesWithName reports whether a name followed by the expression x
++// syntactically combines to another valid (value) expression. For instance
++// using *T for x, "name *T" syntactically appears as the expression x*T.
++// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
++// cannot be combined into a valid (value) expression.
++func combinesWithName(x ast.Expr) bool {
++	switch x := x.(type) {
++	case *ast.StarExpr:
++		// name *x.X combines to name*x.X if x.X is not a type element
++		return !isTypeElem(x.X)
++	case *ast.BinaryExpr:
++		return combinesWithName(x.X) && !isTypeElem(x.Y)
++	case *ast.ParenExpr:
++		// name(x) combines but we are making sure at
++		// the call site that x is never parenthesized.
++		panic("unexpected parenthesized expression")
++	}
++	return false
++}
++
++// isTypeElem reports whether x is a (possibly parenthesized) type element expression.
++// The result is false if x could be a type element OR an ordinary (value) expression.
++func isTypeElem(x ast.Expr) bool {
+ 	switch x := x.(type) {
+ 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
+ 		return true
+-	case *ast.StarExpr:
+-		// *T may be a pointer dereferenciation.
+-		// Only consider *T as type literal if T is a type literal.
+-		return isTypeLit(x.X)
++	case *ast.UnaryExpr:
++		return x.Op == token.TILDE
++	case *ast.BinaryExpr:
++		return isTypeElem(x.X) || isTypeElem(x.Y)
+ 	case *ast.ParenExpr:
+-		return isTypeLit(x.X)
++		return isTypeElem(x.X)
+ 	}
+ 	return false
+ }
+diff --git a/src/go/printer/testdata/generics.golden b/src/go/printer/testdata/generics.golden
+index f19341680c..7ddf20b3d1 100644
+--- a/src/go/printer/testdata/generics.golden
++++ b/src/go/printer/testdata/generics.golden
+@@ -41,6 +41,8 @@ func _[P struct{ f int }, Q *P]()	{}
+ 
+ // various potentially ambiguous type parameter lists (issue #49482)
+ type _[P *T,] struct{}
++type _[P T | T] struct{}
++type _[P T | T | T | T] struct{}
+ type _[P *T, _ any] struct{}
+ type _[P *T,] struct{}
+ type _[P *T, _ any] struct{}
+@@ -51,19 +53,34 @@ type _[P *struct{}] struct{}
+ type _ [P(*struct{})]struct{}
+ type _[P []int] struct{}
+ 
+-// array type declarations
+-type _ [P(T)]struct{}
+-type _ [P((T))]struct{}
+-type _ [P * *T]struct{}
+-type _ [P * T]struct{}
+-type _ [P(*T)]struct{}
+-type _ [P(**T)]struct{}
+-type _ [P * T]struct{}
+-type _ [P*T - T]struct{}
+-
+-type _[
+-	P *T,
+-] struct{}
++// a type literal in an |-expression indicates a type parameter list (blank after type parameter list and type)
++type _[P *[]int] struct{}
++type _[P *T | T, Q T] struct{}
++type _[P *[]T | T] struct{}
++type _[P *T | T | T | T | ~T] struct{}
++type _[P *T | T | T | ~T | T] struct{}
++type _[P *T | T | struct{} | T] struct{}
++type _[P <-chan int] struct{}
++type _[P *T | struct{} | T] struct{}
++
++// a trailing comma always indicates a (possibly invalid) type parameter list (blank after type parameter list and type)
++type _[P *T,] struct{}
++type _[P *T | T,] struct{}
++type _[P *T | <-T | T,] struct{}
++
++// slice/array type declarations (no blank between array length and element type)
++type _ []byte
++type _ [n]byte
++type _ [P(T)]byte
++type _ [P((T))]byte
++type _ [P * *T]byte
++type _ [P * T]byte
++type _ [P(*T)]byte
++type _ [P(**T)]byte
++type _ [P*T - T]byte
++type _ [P*T - T]byte
++type _ [P*T | T]byte
++type _ [P*T | <-T | T]byte
+ 
+ // equivalent test cases for potentially ambiguous type parameter lists, except
+ // for function declarations there is no ambiguity (issue #51548)
+diff --git a/src/go/printer/testdata/generics.input b/src/go/printer/testdata/generics.input
+index 66e1554f7f..4940f9319a 100644
+--- a/src/go/printer/testdata/generics.input
++++ b/src/go/printer/testdata/generics.input
+@@ -38,6 +38,8 @@ func _[P struct{f int}, Q *P]() {}
+ 
+ // various potentially ambiguous type parameter lists (issue #49482)
+ type _[P *T,] struct{}
++type _[P T | T] struct{}
++type _[P T | T | T | T] struct{}
+ type _[P *T, _ any] struct{}
+ type _[P (*T),] struct{}
+ type _[P (*T), _ any] struct{}
+@@ -48,19 +50,34 @@ type _[P *struct{}] struct{}
+ type _[P (*struct{})] struct{}
+ type _[P ([]int)] struct{}
+ 
+-// array type declarations
+-type _ [P(T)]struct{}
+-type _ [P((T))]struct{}
+-type _ [P * *T]struct{}
+-type _ [P * T]struct{}
+-type _ [P(*T)]struct{}
+-type _ [P(**T)]struct{}
+-type _ [P * T]struct{}
+-type _ [P * T - T]struct{}
+-
+-type _[
+-	P *T,
+-] struct{}
++// a type literal in an |-expression indicates a type parameter list (blank after type parameter list and type)
++type _[P *[]int] struct{}
++type _[P *T | T, Q T] struct{}
++type _[P *[]T | T] struct{}
++type _[P *T | T | T | T | ~T] struct{}
++type _[P *T | T | T | ~T | T] struct{}
++type _[P *T | T | struct{} | T] struct{}
++type _[P <-chan int] struct{}
++type _[P *T | struct{} | T] struct{}
++
++// a trailing comma always indicates a (possibly invalid) type parameter list (blank after type parameter list and type)
++type _[P *T,] struct{}
++type _[P *T | T,] struct{}
++type _[P *T | <-T | T,] struct{}
++
++// slice/array type declarations (no blank between array length and element type)
++type _ []byte
++type _ [n]byte
++type _ [P(T)]byte
++type _ [P((T))]byte
++type _ [P * *T]byte
++type _ [P * T]byte
++type _ [P(*T)]byte
++type _ [P(**T)]byte
++type _ [P * T - T]byte
++type _ [P * T - T]byte
++type _ [P * T | T]byte
++type _ [P * T | <-T | T]byte
+ 
+ // equivalent test cases for potentially ambiguous type parameter lists, except
+ // for function declarations there is no ambiguity (issue #51548)

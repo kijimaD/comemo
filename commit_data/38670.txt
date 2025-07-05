@@ -11,7 +11,7 @@ Date:   Mon Oct 15 17:24:21 2018 -0700
     Change-Id: I8efeeddf4c9b9fc491c678f84220a5a5094c9c76
     Reviewed-on: https://go-review.googlesource.com/c/142438
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/export_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/runtime/map.go         | 34 +++++++++++++++++++++++++++++++++-
  src/runtime/map_fast32.go  | 32 +++++++++++++++++++++++++++++++-
@@ -19,3 +19,283 @@ Date:   Mon Oct 15 17:24:21 2018 -0700
  src/runtime/map_faststr.go | 32 +++++++++++++++++++++++++++++++-
  src/runtime/map_test.go    | 25 +++++++++++++++++++++++++
  6 files changed, 187 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 56dd95e469..ecb21935b9 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -477,3 +477,39 @@ func stackOverflow(x *byte) {
+ 	var buf [256]byte
+ 	stackOverflow(&buf[0])
+ }
++
++func MapTombstoneCheck(m map[int]int) {
++	// Make sure emptyOne and emptyRest are distributed correctly.
++	// We should have a series of filled and emptyOne cells, followed by
++	// a series of emptyRest cells.
++	h := *(**hmap)(unsafe.Pointer(&m))
++	i := interface{}(m)
++	t := *(**maptype)(unsafe.Pointer(&i))
++
++	for x := 0; x < 1<<h.B; x++ {
++		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.bucketsize)))
++		n := 0
++		for b := b0; b != nil; b = b.overflow(t) {
++			for i := 0; i < bucketCnt; i++ {
++				if b.tophash[i] != emptyRest {
++					n++
++				}
++			}
++		}
++		k := 0
++		for b := b0; b != nil; b = b.overflow(t) {
++			for i := 0; i < bucketCnt; i++ {
++				if k < n && b.tophash[i] == emptyRest {
++					panic("early emptyRest")
++				}
++				if k >= n && b.tophash[i] != emptyRest {
++					panic("late non-emptyRest")
++				}
++				if k == n-1 && b.tophash[i] == emptyOne {
++					panic("last non-emptyRest entry is emptyOne")
++				}
++				k++
++			}
++		}
++	}
++}
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 617e88faa4..d835cc831a 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -711,6 +711,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		growWork(t, h, bucket)
+ 	}
+ 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
++	bOrig := b
+ 	top := tophash(hash)
+ search:
+ 	for ; b != nil; b = b.overflow(t) {
+@@ -744,7 +745,38 @@ search:
+ 				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = emptyOne
+-			// TODO: set up emptyRest here.
++			// If the bucket now ends in a bunch of emptyOne states,
++			// change those to emptyRest states.
++			// It would be nice to make this a separate function, but
++			// for loops are not currently inlineable.
++			if i == bucketCnt-1 {
++				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
++					goto notLast
++				}
++			} else {
++				if b.tophash[i+1] != emptyRest {
++					goto notLast
++				}
++			}
++			for {
++				b.tophash[i] = emptyRest
++				if i == 0 {
++					if b == bOrig {
++						break // beginning of initial bucket, we're done.
++					}
++					// Find previous bucket, continue at its last entry.
++					c := b
++					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
++					}
++					i = bucketCnt - 1
++				} else {
++					i--
++				}
++				if b.tophash[i] != emptyOne {
++					break
++				}
++			}
++		notLast:
+ 			h.count--
+ 			break search
+ 		}
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 063a5cbe3a..20f55e17c6 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -291,6 +291,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 		growWork_fast32(t, h, bucket)
+ 	}
+ 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
++	bOrig := b
+ search:
+ 	for ; b != nil; b = b.overflow(t) {
+ 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 4) {
+@@ -308,7 +309,36 @@ search:
+ 				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = emptyOne
+-			// TODO: emptyRest?
++			// If the bucket now ends in a bunch of emptyOne states,
++			// change those to emptyRest states.
++			if i == bucketCnt-1 {
++				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
++					goto notLast
++				}
++			} else {
++				if b.tophash[i+1] != emptyRest {
++					goto notLast
++				}
++			}
++			for {
++				b.tophash[i] = emptyRest
++				if i == 0 {
++					if b == bOrig {
++						break // beginning of initial bucket, we're done.
++					}
++					// Find previous bucket, continue at its last entry.
++					c := b
++					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
++					}
++					i = bucketCnt - 1
++				} else {
++					i--
++				}
++				if b.tophash[i] != emptyOne {
++					break
++				}
++			}
++		notLast:
+ 			h.count--
+ 			break search
+ 		}
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 8270cf7b7d..e00a7569f9 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -291,6 +291,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 		growWork_fast64(t, h, bucket)
+ 	}
+ 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
++	bOrig := b
+ search:
+ 	for ; b != nil; b = b.overflow(t) {
+ 		for i, k := uintptr(0), b.keys(); i < bucketCnt; i, k = i+1, add(k, 8) {
+@@ -308,7 +309,36 @@ search:
+ 				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = emptyOne
+-			//TODO: emptyRest
++			// If the bucket now ends in a bunch of emptyOne states,
++			// change those to emptyRest states.
++			if i == bucketCnt-1 {
++				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
++					goto notLast
++				}
++			} else {
++				if b.tophash[i+1] != emptyRest {
++					goto notLast
++				}
++			}
++			for {
++				b.tophash[i] = emptyRest
++				if i == 0 {
++					if b == bOrig {
++						break // beginning of initial bucket, we're done.
++					}
++					// Find previous bucket, continue at its last entry.
++					c := b
++					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
++					}
++					i = bucketCnt - 1
++				} else {
++					i--
++				}
++				if b.tophash[i] != emptyOne {
++					break
++				}
++			}
++		notLast:
+ 			h.count--
+ 			break search
+ 		}
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 8f505f90a6..2eac2b5bb5 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -317,6 +317,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 		growWork_faststr(t, h, bucket)
+ 	}
+ 	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
++	bOrig := b
+ 	top := tophash(hash)
+ search:
+ 	for ; b != nil; b = b.overflow(t) {
+@@ -337,7 +338,36 @@ search:
+ 				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = emptyOne
+-			// TODO: emptyRest
++			// If the bucket now ends in a bunch of emptyOne states,
++			// change those to emptyRest states.
++			if i == bucketCnt-1 {
++				if b.overflow(t) != nil && b.overflow(t).tophash[0] != emptyRest {
++					goto notLast
++				}
++			} else {
++				if b.tophash[i+1] != emptyRest {
++					goto notLast
++				}
++			}
++			for {
++				b.tophash[i] = emptyRest
++				if i == 0 {
++					if b == bOrig {
++						break // beginning of initial bucket, we're done.
++					}
++					// Find previous bucket, continue at its last entry.
++					c := b
++					for b = bOrig; b.overflow(t) != c; b = b.overflow(t) {
++					}
++					i = bucketCnt - 1
++				} else {
++					i--
++				}
++				if b.tophash[i] != emptyOne {
++					break
++				}
++			}
++		notLast:
+ 			h.count--
+ 			break search
+ 		}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 93b20668fa..ee9468dd0e 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -1131,3 +1131,28 @@ func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
+ 		t.Errorf("incremented 0 to %d", n2)
+ 	}
+ }
++
++func TestMapTombstones(t *testing.T) {
++	m := map[int]int{}
++	const N = 10000
++	// Fill a map.
++	for i := 0; i < N; i++ {
++		m[i] = i
++	}
++	runtime.MapTombstoneCheck(m)
++	// Delete half of the entries.
++	for i := 0; i < N; i += 2 {
++		delete(m, i)
++	}
++	runtime.MapTombstoneCheck(m)
++	// Add new entries to fill in holes.
++	for i := N; i < 3*N/2; i++ {
++		m[i] = i
++	}
++	runtime.MapTombstoneCheck(m)
++	// Delete everything.
++	for i := 0; i < 3*N/2; i++ {
++		delete(m, i)
++	}
++	runtime.MapTombstoneCheck(m)
++}

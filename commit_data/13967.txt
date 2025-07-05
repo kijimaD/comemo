@@ -9,6 +9,23 @@ Date:   Wed Sep 26 21:10:29 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6564052
-
+---
  src/cmd/gc/range.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 459105ee88..741a9ac9a7 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -71,6 +71,11 @@ typecheckrange(Node *n)
+ 	v2 = N;
+ 	if(n->list->next)
+ 		v2 = n->list->next->n;
++	
++	if(isblank(v2)) {
++		n->list = list1(v1);
++		v2 = N;
++	}
+ 
+ 	if(v1->defn == n)
+ 		v1->type = t1;

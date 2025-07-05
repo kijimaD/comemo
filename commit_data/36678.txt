@@ -12,10 +12,133 @@ Date:   Wed May 2 05:54:12 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/110561
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/encoding/asn1/asn1.go         | 7 +++++++
  src/encoding/asn1/asn1_test.go    | 4 +++-
  src/encoding/asn1/common.go       | 6 ++++++
  src/encoding/asn1/marshal.go      | 2 ++
  src/encoding/asn1/marshal_test.go | 9 +++++++++
  5 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 26868a3bd7..ae382ee6bf 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -793,6 +793,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		matchAnyClassAndTag = false
+ 	}
+ 
++	if !params.explicit && params.private && params.tag != nil {
++		expectedClass = ClassPrivate
++		expectedTag = *params.tag
++		matchAnyClassAndTag = false
++	}
++
+ 	// We have unwrapped any explicit tagging at this point.
+ 	if !matchAnyClassAndTag && (t.class != expectedClass || t.tag != expectedTag) ||
+ 		(!matchAny && t.isCompound != compoundType) {
+@@ -1028,6 +1034,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ // The following tags on struct fields have special meaning to Unmarshal:
+ //
+ //	application specifies that an APPLICATION tag is used
++//	private     specifies that a PRIVATE tag is used
+ //	default:x   sets the default value for optional integer fields (only used if optional is also present)
+ //	explicit    specifies that an additional, explicit tag wraps the implicit one
+ //	optional    marks the field as ASN.1 OPTIONAL
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 5e67dc5ee4..185349773f 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -428,11 +428,12 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
+ 	{"optional", fieldParameters{optional: true}},
+ 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
+ 	{"application", fieldParameters{application: true, tag: new(int)}},
++	{"private", fieldParameters{private: true, tag: new(int)}},
+ 	{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
+ 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
+ 	{"tag:17", fieldParameters{tag: newInt(17)}},
+ 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
+-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false}},
++	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{optional: true, explicit: true, application: false, defaultValue: newInt64(42), tag: newInt(17), stringType: 0, timeType: 0, set: false, omitEmpty: false}},
+ 	{"set", fieldParameters{set: true}},
+ }
+ 
+@@ -1079,6 +1080,7 @@ func TestTaggedRawValue(t *testing.T) {
+ 		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag, 1, 1}},
+ 		{true, []byte{0x30, 3, (ClassContextSpecific << 6) | tag | isCompound, 1, 1}},
+ 		{false, []byte{0x30, 3, (ClassApplication << 6) | tag | isCompound, 1, 1}},
++		{false, []byte{0x30, 3, (ClassPrivate << 6) | tag | isCompound, 1, 1}},
+ 	}
+ 
+ 	for i, test := range tests {
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index a6589a521a..255d1ebfa8 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -75,6 +75,7 @@ type fieldParameters struct {
+ 	optional     bool   // true iff the field is OPTIONAL
+ 	explicit     bool   // true iff an EXPLICIT tag is in use.
+ 	application  bool   // true iff an APPLICATION tag is in use.
++	private      bool   // true iff a PRIVATE tag is in use.
+ 	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
+ 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
+ 	stringType   int    // the string tag to use when marshaling.
+@@ -130,6 +131,11 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			if ret.tag == nil {
+ 				ret.tag = new(int)
+ 			}
++		case part == "private":
++			ret.private = true
++			if ret.tag == nil {
++				ret.tag = new(int)
++			}
+ 		case part == "omitempty":
+ 			ret.omitEmpty = true
+ 		}
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 3e85651ffd..c9ae2ca33e 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -631,6 +631,8 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
+ 	if params.tag != nil {
+ 		if params.application {
+ 			class = ClassApplication
++		} else if params.private {
++			class = ClassPrivate
+ 		} else {
+ 			class = ClassContextSpecific
+ 		}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 4f755a1f39..f20ccdc8e9 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -80,6 +80,13 @@ type applicationTest struct {
+ 	B int `asn1:"application,tag:1,explicit"`
+ }
+ 
++type privateTest struct {
++	A int `asn1:"private,tag:0"`
++	B int `asn1:"private,tag:1,explicit"`
++	C int `asn1:"private,tag:31"`  // tag size should be 2 octet
++	D int `asn1:"private,tag:128"` // tag size should be 3 octet
++}
++
+ type numericStringTest struct {
+ 	A string `asn1:"numeric"`
+ }
+@@ -169,6 +176,7 @@ var marshalTests = []marshalTest{
+ 	{defaultTest{1}, "3000"},
+ 	{defaultTest{2}, "3003020102"},
+ 	{applicationTest{1, 2}, "30084001016103020102"},
++	{privateTest{1, 2, 3, 4}, "3011c00101e103020102df1f0103df81000104"},
+ 	{numericStringTest{"1 9"}, "30051203312039"},
+ }
+ 
+@@ -195,6 +203,7 @@ type marshalWithParamsTest struct {
+ var marshalWithParamsTests = []marshalWithParamsTest{
+ 	{intStruct{10}, "set", "310302010a"},
+ 	{intStruct{10}, "application", "600302010a"},
++	{intStruct{10}, "private", "e00302010a"},
+ }
+ 
+ func TestMarshalWithParams(t *testing.T) {

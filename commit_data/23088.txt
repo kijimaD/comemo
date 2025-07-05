@@ -9,7 +9,7 @@ Date:   Thu Apr 23 16:36:52 2015 -0700
     Change-Id: I22672e40373ef77d7a0bf69cfff8017e46353055
     Reviewed-on: https://go-review.googlesource.com/9265
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/9g/gsubr.go           | 3 +--
  src/cmd/internal/gc/dcl.go    | 1 -
  src/cmd/internal/gc/esc.go    | 2 --
@@ -21,3 +21,171 @@ Date:   Thu Apr 23 16:36:52 2015 -0700
  src/cmd/internal/ld/dwarf.go  | 1 -
  src/cmd/internal/ld/elf.go    | 1 -
  10 files changed, 1 insertion(+), 18 deletions(-)
+
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 86ea01a3d5..8223fe70b1 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -936,11 +936,10 @@ func optoas(op int, t *gc.Type) int {
+ 		gc.OMUL<<16 | gc.TUINT32,
+ 		gc.OMUL<<16 | gc.TPTR32,
+ 		// don't use word multiply, the high 32-bit are undefined.
+-		// fallthrough
+ 		gc.OMUL<<16 | gc.TUINT64,
+ 		gc.OMUL<<16 | gc.TPTR64:
+-		a = ppc64.AMULLD
+ 		// for 64-bit multiplies, signedness doesn't matter.
++		a = ppc64.AMULLD
+ 
+ 	case gc.OMUL<<16 | gc.TFLOAT32:
+ 		a = ppc64.AFMULS
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index a1f85543de..08d2469094 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -836,7 +836,6 @@ func structfield(n *Node) *Type {
+ 		Yyerror("field annotation must be string")
+ 		fallthrough
+ 
+-		// fallthrough
+ 	case CTxxx:
+ 		f.Note = nil
+ 	}
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index fe2cda3e95..8d195cdb41 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -729,7 +729,6 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	case OMAKECHAN,
+ 		OMAKEMAP,
+ 		OMAKESLICE,
+@@ -903,7 +902,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		fallthrough
+ 
+ 		// Conversions, field access, slice all preserve the input value.
+-	// fallthrough
+ 	case OCONV,
+ 		OCONVNOP,
+ 		ODOTMETH,
+diff --git a/src/cmd/internal/gc/export.go b/src/cmd/internal/gc/export.go
+index c9d11d5ced..1efc8150c5 100644
+--- a/src/cmd/internal/gc/export.go
++++ b/src/cmd/internal/gc/export.go
+@@ -119,7 +119,6 @@ func reexportdep(n *Node) {
+ 			}
+ 			fallthrough
+ 
+-			// fallthrough
+ 		case PEXTERN:
+ 			if n.Sym != nil && !exportedsym(n.Sym) {
+ 				if Debug['E'] != 0 {
+@@ -160,7 +159,6 @@ func reexportdep(n *Node) {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	case OTYPE:
+ 		if n.Sym != nil && !exportedsym(n.Sym) {
+ 			if Debug['E'] != 0 {
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index eaf591bebd..547b873a18 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -514,7 +514,6 @@ func typefmt(t *Type, flag int) string {
+ 			}
+ 			fallthrough
+ 
+-			// fallthrough
+ 		case FExp:
+ 			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
+ 				return fmt.Sprintf("%v·%d", t.Sym, t.Vargen)
+@@ -847,7 +846,6 @@ func stmtfmt(n *Node) string {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+ 		f += fmt.Sprintf("%v = %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
+ 
+@@ -1257,8 +1255,6 @@ func exprfmt(n *Node, prec int) string {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+-
+ 	case OARRAYLIT, OMAPLIT:
+ 		if fmtmode == FErr {
+ 			return fmt.Sprintf("%v literal", n.Type)
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 620ef3bc5d..dda33c9dd8 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -68,8 +68,6 @@ func addrescapes(n *Node) {
+ 			n.Stackparam.Xoffset = n.Xoffset
+ 			fallthrough
+ 
+-			// fallthrough
+-
+ 		case PAUTO:
+ 			n.Class |= PHEAP
+ 
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index 71e9594717..dd2087dec3 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -400,7 +400,6 @@ func inlnode(np **Node) {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	default:
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if l.N.Op == OINLCALL {
+@@ -421,7 +420,6 @@ func inlnode(np **Node) {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	default:
+ 		for l := n.Rlist; l != nil; l = l.Next {
+ 			if l.N.Op == OINLCALL {
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 0bdc4888ef..72fac03371 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1271,7 +1271,6 @@ func walkexpr(np **Node, init **NodeList) {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	case OSLICEARR, OSLICESTR:
+ 		if n.Right == nil { // already processed
+ 			goto ret
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index 6468f393cb..ec540fdd77 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -1435,7 +1435,6 @@ func defdwsymb(sym *LSym, s string, t int, v int64, size int64, ver int, gotype
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	case 'a', 'p':
+ 		dt = defgotype(gotype)
+ 	}
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index f2f269f78d..b56a8072eb 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -781,7 +781,6 @@ func Elfinit() {
+ 		}
+ 		fallthrough
+ 
+-		// fallthrough
+ 	default:
+ 		ehdr.phoff = ELF32HDRSIZE
+ 		/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */

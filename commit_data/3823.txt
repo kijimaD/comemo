@@ -6,7 +6,7 @@ Date:   Thu Nov 5 15:37:55 2009 -0800
     
     R=rsc
     http://go/go-review/1017056
-
+---
  src/pkg/encoding/ascii85/ascii85_test.go | 14 ++---
  src/pkg/encoding/git85/git_test.go       | 16 +++---
  src/pkg/io/pipe_test.go                  | 12 ++--
@@ -17,3 +17,413 @@ Date:   Thu Nov 5 15:37:55 2009 -0800
  src/pkg/runtime/extern.go                |  2 +-
  src/pkg/runtime/type.go                  | 97 ++++++++++++++++----------------
  9 files changed, 112 insertions(+), 104 deletions(-)
+
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index c30680ae53..fa31a89519 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -21,14 +21,14 @@ var pairs = []testpair{
+ 	// Wikipedia example
+ 	testpair{
+ 		"Man is distinguished, not only by his reason, but by this singular passion from "
+-		"other animals, which is a lust of the mind, that by a perseverance of delight in "
+-		"the continued and indefatigable generation of knowledge, exceeds the short "
+-		"vehemence of any carnal pleasure.",
++			"other animals, which is a lust of the mind, that by a perseverance of delight in "
++			"the continued and indefatigable generation of knowledge, exceeds the short "
++			"vehemence of any carnal pleasure.",
+ 		"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n"
+-		"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n"
+-		"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n"
+-		"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n"
+-		">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
++			"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n"
++			"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n"
++			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n"
++			">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
+ 	},
+ }
+ 
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index 51271c6002..fbe675e811 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -47,16 +47,16 @@ var gitPairs = []testpair{
+ 	// Wikipedia example, adapted.
+ 	testpair{
+ 		"Man is distinguished, not only by his reason, but by this singular passion from "
+-		"other animals, which is a lust of the mind, that by a perseverance of delight in "
+-		"the continued and indefatigable generation of knowledge, exceeds the short "
+-		"vehemence of any carnal pleasure.",
++			"other animals, which is a lust of the mind, that by a perseverance of delight in "
++			"the continued and indefatigable generation of knowledge, exceeds the short "
++			"vehemence of any carnal pleasure.",
+ 
+ 		"zO<`^zX>%ZCX>)XGZfA9Ab7*B`EFf-gbRchTY<VDJc_3(Mb0BhMVRLV8EFfZabRc4R\n"
+-		"zAarPHb0BkRZfA9DVR9gFVRLh7Z*CxFa&K)QZ**v7av))DX>DO_b1WctXlY|;AZc?T\n"
+-		"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
+-		"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
+-		"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
+-		"IaBO8^b9HiME&u=k\n",
++			"zAarPHb0BkRZfA9DVR9gFVRLh7Z*CxFa&K)QZ**v7av))DX>DO_b1WctXlY|;AZc?T\n"
++			"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
++			"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
++			"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
++			"IaBO8^b9HiME&u=k\n",
+ 	},
+ }
+ 
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index 4d593d145e..a7975714c5 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -5,12 +5,12 @@
+ package io_test
+ 
+ import (
+-		"fmt";
+-	.	"io";
+-		"os";
+-		"strings";
+-		"testing";
+-		"time";
++	"fmt";
++	. "io";
++	"os";
++	"strings";
++	"testing";
++	"time";
+ )
+ 
+ func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index d7057d3eca..4e3c0c42bd 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -48,9 +48,15 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
+ // A dirList implements sort.Interface.
+ type dirList []*os.Dir
+ 
+-func (d dirList) Len() int { return len(d); }
+-func (d dirList) Less(i, j int) bool { return d[i].Name < d[j].Name; }
+-func (d dirList) Swap(i, j int) { d[i], d[j] = d[j], d[i]; }
++func (d dirList) Len() int {
++	return len(d);
++}
++func (d dirList) Less(i, j int) bool {
++	return d[i].Name < d[j].Name;
++}
++func (d dirList) Swap(i, j int) {
++	d[i], d[j] = d[j], d[i];
++}
+ 
+ // ReadDir reads the directory named by dirname and returns
+ // a list of sorted directory entries.
+diff --git a/src/pkg/io/utils_test.go b/src/pkg/io/utils_test.go
+index 085e0167e6..9be9eeef80 100644
+--- a/src/pkg/io/utils_test.go
++++ b/src/pkg/io/utils_test.go
+@@ -5,10 +5,10 @@
+ package io_test
+ 
+ import (
+-	.	"io";
+-		"os";
+-		"strings";
+-		"testing";
++	. "io";
++	"os";
++	"strings";
++	"testing";
+ )
+ 
+ func checkSize(t *testing.T, path string, size uint64) {
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 03e2966c88..11cccdce9e 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -13,11 +13,11 @@ import (
+ )
+ 
+ type structBuilder struct {
+-	val reflect.Value;
++	val	reflect.Value;
+ 
+ 	// if map_ != nil, write val to map_[key] on each change
+-	map_ *reflect.MapValue;
+-	key reflect.Value;
++	map_	*reflect.MapValue;
++	key	reflect.Value;
+ }
+ 
+ var nobuilder *structBuilder
+@@ -113,7 +113,8 @@ func (b *structBuilder) Float64(f float64) {
+ 	}
+ }
+ 
+-func (b *structBuilder) Null() {}
++func (b *structBuilder) Null() {
++}
+ 
+ func (b *structBuilder) String(s string) {
+ 	if b == nil {
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index bdcc2fdddf..ad86d493f9 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -10,27 +10,27 @@ import (
+ )
+ 
+ type myStruct struct {
+-	T	bool;
+-	F	bool;
+-	S	string;
+-	I8	int8;
+-	I16	int16;
+-	I32	int32;
+-	I64	int64;
+-	U8	uint8;
+-	U16	uint16;
+-	U32	uint32;
+-	U64	uint64;
+-	I	int;
+-	U	uint;
+-	Fl	float;
+-	Fl32	float32;
+-	Fl64	float64;
+-	A	[]string;
+-	My	*myStruct;
+-	Map	map[string][]int;
+-	MapStruct map[string]myStruct;
+-	MapPtrStruct map[string]*myStruct;
++	T		bool;
++	F		bool;
++	S		string;
++	I8		int8;
++	I16		int16;
++	I32		int32;
++	I64		int64;
++	U8		uint8;
++	U16		uint16;
++	U32		uint32;
++	U64		uint64;
++	I		int;
++	U		uint;
++	Fl		float;
++	Fl32		float32;
++	Fl64		float64;
++	A		[]string;
++	My		*myStruct;
++	Map		map[string][]int;
++	MapStruct	map[string]myStruct;
++	MapPtrStruct	map[string]*myStruct;
+ }
+ 
+ const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
+@@ -43,9 +43,9 @@ const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
+ 	`"mapptrstruct":{"m1":{"u8":8}}}`
+ 
+ var decodedMap = map[string][]int{
+-	"k1": []int{1,2,3},
++	"k1": []int{1, 2, 3},
+ 	"k2": []int{},
+-	"k3": []int{3,4},
++	"k3": []int{3, 4},
+ }
+ 
+ var decodedMapStruct = map[string]myStruct{
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 70c6f434be..b4f4f2b319 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -5,7 +5,7 @@
+ /*
+ 	The runtime package contains operations that interact with Go's runtime system,
+ 	such as functions to control goroutines.
+- */
++*/
+ package runtime
+ 
+ // These functions are implemented in the base runtime library, ../../runtime/.
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index bd3d011a8f..f700e52963 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -21,28 +21,28 @@ import "unsafe"
+ // compile time; non-empty interface values get created
+ // during initialization.  Type is an empty interface
+ // so that the compiler can lay out references as data.
+-type Type interface { }
++type Type interface{}
+ 
+ // All types begin with a few common fields needed for
+ // the interface runtime.
+ type commonType struct {
+-	size uintptr;		// size in bytes
+-	hash uint32;		// hash of type; avoids computation in hash tables
+-	alg uint8;		// algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
+-	align uint8;		// alignment of variable with this type
+-	fieldAlign uint8;	// alignment of struct field with this type
+-	string *string;		// string form; unnecessary  but undeniably useful
+-	*uncommonType;		// (relatively) uncommon fields
++	size		uintptr;	// size in bytes
++	hash		uint32;		// hash of type; avoids computation in hash tables
++	alg		uint8;		// algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
++	align		uint8;		// alignment of variable with this type
++	fieldAlign	uint8;		// alignment of struct field with this type
++	string		*string;	// string form; unnecessary  but undeniably useful
++	*uncommonType;			// (relatively) uncommon fields
+ }
+ 
+ // Method on non-interface type
+ type method struct {
+-	hash uint32;		// hash of name + pkg + typ
+-	name *string;		// name of method
+-	pkgPath *string;	// nil for exported Names; otherwise import path
+-	typ *Type;		// .(*FuncType) underneath
+-	ifn unsafe.Pointer;	// fn used in interface call (one-word receiver)
+-	tfn unsafe.Pointer;	// fn used for normal method call
++	hash	uint32;		// hash of name + pkg + typ
++	name	*string;	// name of method
++	pkgPath	*string;	// nil for exported Names; otherwise import path
++	typ	*Type;		// .(*FuncType) underneath
++	ifn	unsafe.Pointer;	// fn used in interface call (one-word receiver)
++	tfn	unsafe.Pointer;	// fn used for normal method call
+ }
+ 
+ // uncommonType is present only for types with names or methods
+@@ -50,9 +50,9 @@ type method struct {
+ // Using a pointer to this struct reduces the overall size required
+ // to describe an unnamed type with no methods.
+ type uncommonType struct {
+-	name *string;		// name of type
+-	pkgPath *string;	// import path; nil for built-in types like int, string
+-	methods []method;	// methods associated with type
++	name	*string;	// name of type
++	pkgPath	*string;	// import path; nil for built-in types like int, string
++	methods	[]method;	// methods associated with type
+ }
+ 
+ // BoolType represents a boolean type.
+@@ -113,89 +113,90 @@ type UnsafePointerType commonType
+ // ArrayType represents a fixed array type.
+ type ArrayType struct {
+ 	commonType;
+-	elem *Type;	// array element type
+-	len uintptr;
++	elem	*Type;	// array element type
++	len	uintptr;
+ }
+ 
+ // SliceType represents a slice type.
+ type SliceType struct {
+ 	commonType;
+-	elem *Type;	// slice element type
++	elem	*Type;	// slice element type
+ }
+ 
+ // ChanDir represents a channel type's direction.
+ type ChanDir int
++
+ const (
+-	RecvDir ChanDir = 1<<iota;	// <-chan
+-	SendDir;				// chan<-
+-	BothDir = RecvDir | SendDir;	// chan
++	RecvDir		ChanDir	= 1<<iota;	// <-chan
++	SendDir;		// chan<-
++	BothDir			= RecvDir|SendDir;	// chan
+ )
+ 
+ // ChanType represents a channel type.
+ type ChanType struct {
+ 	commonType;
+-	elem *Type;		// channel element type
+-	dir uintptr;		// channel direction (ChanDir)
++	elem	*Type;		// channel element type
++	dir	uintptr;	// channel direction (ChanDir)
+ }
+ 
+ // FuncType represents a function type.
+ type FuncType struct {
+ 	commonType;
+-	in []*Type;		// input parameter types
+-	out []*Type;		// output parameter types
++	in	[]*Type;	// input parameter types
++	out	[]*Type;	// output parameter types
+ }
+ 
+ // Method on interface type
+ type imethod struct {
+-	hash uint32;		// hash of name + pkg + typ; same hash as method
+-	perm uint32;		// index of function pointer in interface map
+-	name *string;		// name of method
+-	pkgPath *string;	// nil for exported Names; otherwise import path
+-	typ *Type;		// .(*FuncType) underneath
++	hash	uint32;		// hash of name + pkg + typ; same hash as method
++	perm	uint32;		// index of function pointer in interface map
++	name	*string;	// name of method
++	pkgPath	*string;	// nil for exported Names; otherwise import path
++	typ	*Type;		// .(*FuncType) underneath
+ }
+ 
+ // InterfaceType represents an interface type.
+ type InterfaceType struct {
+ 	commonType;
+-	methods []imethod;	// sorted by hash
++	methods	[]imethod;	// sorted by hash
+ }
+ 
+ // MapType represents a map type.
+ type MapType struct {
+ 	commonType;
+-	key *Type;		// map key type
+-	elem *Type;		// map element (value) type
++	key	*Type;	// map key type
++	elem	*Type;	// map element (value) type
+ }
+ 
+ // PtrType represents a pointer type.
+ type PtrType struct {
+ 	commonType;
+-	elem *Type;		// pointer element (pointed at) type
++	elem	*Type;	// pointer element (pointed at) type
+ }
+ 
+ // Struct field
+ type structField struct {
+-	name *string;		// nil for embedded fields
+-	pkgPath *string;	// nil for exported Names; otherwise import path
+-	typ *Type;		// type of field
+-	tag *string;		// nil if no tag
+-	offset uintptr;		// byte offset of field within struct
++	name	*string;	// nil for embedded fields
++	pkgPath	*string;	// nil for exported Names; otherwise import path
++	typ	*Type;		// type of field
++	tag	*string;	// nil if no tag
++	offset	uintptr;	// byte offset of field within struct
+ }
+ 
+ // StructType represents a struct type.
+ type StructType struct {
+ 	commonType;
+-	fields []structField;	// sorted by offset
++	fields	[]structField;	// sorted by offset
+ }
+ 
+ /*
+  * Must match iface.c:/Itab and compilers.
+  */
+ type Itable struct {
+-	Itype *Type;	// (*tab.inter).(*InterfaceType) is the interface type
+-	Type *Type;
+-	link *Itable;
+-	bad int32;
+-	unused int32;
+-	Fn [100000]uintptr;	// bigger than we'll ever see
++	Itype	*Type;	// (*tab.inter).(*InterfaceType) is the interface type
++	Type	*Type;
++	link	*Itable;
++	bad	int32;
++	unused	int32;
++	Fn	[100000]uintptr;	// bigger than we'll ever see
+ }

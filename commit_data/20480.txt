@@ -10,6 +10,43 @@ Date:   Thu Sep 11 12:47:17 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/137510043
-
+---
  test/run.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/test/run.go b/test/run.go
+index 483775d841..28882cf54c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -626,6 +626,7 @@ func (t *test) run() {
+ 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+ 		if err != nil {
+ 			t.err = err
++			return
+ 		}
+ 		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+ 			t.err = fmt.Errorf("incorrect output\n%s", out)
+@@ -640,6 +641,7 @@ func (t *test) run() {
+ 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+ 		if err != nil {
+ 			t.err = err
++			return
+ 		}
+ 		tfile := filepath.Join(t.tempDir, "tmp__.go")
+ 		if err := ioutil.WriteFile(tfile, out, 0666); err != nil {
+@@ -649,6 +651,7 @@ func (t *test) run() {
+ 		out, err = runcmd("go", "run", tfile)
+ 		if err != nil {
+ 			t.err = err
++			return
+ 		}
+ 		if string(out) != t.expectedOutput() {
+ 			t.err = fmt.Errorf("incorrect output\n%s", out)
+@@ -659,6 +662,7 @@ func (t *test) run() {
+ 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+ 		if err != nil {
+ 			t.err = err
++			return
+ 		}
+ 		tfile := filepath.Join(t.tempDir, "tmp__.go")
+ 		err = ioutil.WriteFile(tfile, out, 0666)

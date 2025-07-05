@@ -16,7 +16,64 @@ Date:   Sat Feb 22 21:47:49 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 +++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 25b618d82e..0b8115249e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1482,6 +1482,9 @@
+ (XORQ x x) -> (MOVQconst [0])
+ (XORL x x) -> (MOVLconst [0])
+ 
++(SHLLconst [d] (MOVLconst [c])) -> (MOVLconst [int64(int32(c)) << uint64(d)])
++(SHLQconst [d] (MOVQconst [c])) -> (MOVQconst [c << uint64(d)])
++
+ // Fold NEG into ADDconst/MULconst. Take care to keep c in 32 bit range.
+ (NEGQ (ADDQconst [c] (NEGQ x))) && c != -(1<<31) -> (ADDQconst [-c] x)
+ (MULQconst [c] (NEGQ x)) && c != -(1<<31) -> (MULQconst [-c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 7cbac3cb1c..0a2669e124 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -31354,6 +31354,18 @@ func rewriteValueAMD64_OpAMD64SHLLconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SHLLconst [d] (MOVLconst [c]))
++	// result: (MOVLconst [int64(int32(c)) << uint64(d)])
++	for {
++		d := v.AuxInt
++		if v_0.Op != OpAMD64MOVLconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpAMD64MOVLconst)
++		v.AuxInt = int64(int32(c)) << uint64(d)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SHLQ(v *Value) bool {
+@@ -31586,6 +31598,18 @@ func rewriteValueAMD64_OpAMD64SHLQconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SHLQconst [d] (MOVQconst [c]))
++	// result: (MOVQconst [c << uint64(d)])
++	for {
++		d := v.AuxInt
++		if v_0.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpAMD64MOVQconst)
++		v.AuxInt = c << uint64(d)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SHRB(v *Value) bool {

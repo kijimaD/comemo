@@ -12,7 +12,7 @@ Date:   Mon Jan 14 15:19:32 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7101054
-
+---
  src/pkg/go/types/api.go           | 13 +++++--
  src/pkg/go/types/check.go         |  4 +-
  src/pkg/go/types/expr.go          | 10 ++---
@@ -21,3 +21,399 @@ Date:   Mon Jan 14 15:19:32 2013 -0800
  src/pkg/go/types/types.go         | 16 +-------
  src/pkg/go/types/universe.go      |  3 +-
  7 files changed, 121 insertions(+), 54 deletions(-)
+
+diff --git a/src/pkg/go/types/api.go b/src/pkg/go/types/api.go
+index 502958000e..e5b6aa12c0 100644
+--- a/src/pkg/go/types/api.go
++++ b/src/pkg/go/types/api.go
+@@ -5,7 +5,7 @@
+ // Package types declares the data structures for representing
+ // Go types and implements typechecking of package files.
+ //
+-// WARNING: THE TYPES API IS SUBJECT TO SIGNIFICANT CHANGE.
++// WARNING: THE TYPES API IS SUBJECT TO CHANGE.
+ //
+ package types
+ 
+@@ -25,9 +25,14 @@ type Context struct {
+ 	// filename:line:column: message.
+ 	Error func(err error)
+ 
+-	// If Ident is not nil, it is called for each identifier
+-	// id that is type-checked: obj is the object denoted by
+-	// the identifier.
++	// If Ident is not nil, it is called for each identifier id
++	// denoting an Object in the files provided to Check, and
++	// obj is the denoted object.
++	// Ident is not called for fields and methods in struct or
++	// interface types or composite literals, or for blank (_)
++	// or dot (.) identifiers in dot-imports.
++	// TODO(gri) Consider making Fields and Methods ordinary
++	// Objects - than we could lift this restriction.
+ 	Ident func(id *ast.Ident, obj Object)
+ 
+ 	// If Expr is not nil, it is called for each expression x that is
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index 3b13b0fcd3..fb9d7573d5 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -70,9 +70,9 @@ func (check *checker) lookup(ident *ast.Ident) Object {
+ 
+ 	if obj = check.objects[astObj]; obj == nil {
+ 		obj = newObj(astObj)
+-		check.register(ident, obj)
+ 		check.objects[astObj] = obj
+ 	}
++	check.register(ident, obj)
+ 
+ 	return obj
+ }
+@@ -256,7 +256,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
+ 				params, _ := check.collectParams(m.decl.Recv, false)
+ 				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+ 				m.Type = sig
+-				methods = append(methods, &Method{QualifiedName{nil, m.Name}, sig})
++				methods = append(methods, &Method{QualifiedName{check.pkg, m.Name}, sig})
+ 				check.later(m, sig, m.decl.Body)
+ 			}
+ 			typ.Methods = methods
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 9a4b6c6051..f475cacc5a 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -84,7 +84,7 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
+ 				continue
+ 			}
+ 			for _, name := range f.Names {
+-				methods = append(methods, &Method{QualifiedName{nil, name.Name}, sig})
++				methods = append(methods, &Method{QualifiedName{check.pkg, name.Name}, sig})
+ 			}
+ 		} else {
+ 			// embedded interface
+@@ -137,15 +137,15 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 		if len(f.Names) > 0 {
+ 			// named fields
+ 			for _, name := range f.Names {
+-				fields = append(fields, &Field{QualifiedName{nil, name.Name}, typ, tag, false})
++				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
+ 			}
+ 		} else {
+ 			// anonymous field
+ 			switch t := deref(typ).(type) {
+ 			case *Basic:
+-				fields = append(fields, &Field{QualifiedName{nil, t.Name}, typ, tag, true})
++				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
+ 			case *NamedType:
+-				fields = append(fields, &Field{QualifiedName{nil, t.Obj.GetName()}, typ, tag, true})
++				fields = append(fields, &Field{QualifiedName{check.pkg, t.Obj.GetName()}, typ, tag, true})
+ 			default:
+ 				if typ != Typ[Invalid] {
+ 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
+@@ -902,7 +902,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		mode, typ := lookupField(x.typ, QualifiedName{nil, sel})
++		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
+ 		if mode == invalid {
+ 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
+ 			goto Error
+diff --git a/src/pkg/go/types/resolve.go b/src/pkg/go/types/resolve.go
+index b314b7add4..112818f790 100644
+--- a/src/pkg/go/types/resolve.go
++++ b/src/pkg/go/types/resolve.go
+@@ -37,18 +37,17 @@ func (check *checker) resolveIdent(scope *Scope, ident *ast.Ident) bool {
+ }
+ 
+ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.FuncDecl) {
+-	// complete package scope
+-	pkgName := ""
+-	pkgScope := &Scope{Outer: Universe}
++	pkg = &Package{Scope: &Scope{Outer: Universe}, Imports: make(map[string]*Package)}
+ 
++	// complete package scope
+ 	i := 0
+ 	for _, file := range check.files {
+ 		// package names must match
+ 		switch name := file.Name.Name; {
+-		case pkgName == "":
+-			pkgName = name
+-		case name != pkgName:
+-			check.errorf(file.Package, "package %s; expected %s", name, pkgName)
++		case pkg.Name == "":
++			pkg.Name = name
++		case name != pkg.Name:
++			check.errorf(file.Package, "package %s; expected %s", name, pkg.Name)
+ 			continue // ignore this file
+ 		}
+ 
+@@ -56,6 +55,9 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 		check.files[i] = file
+ 		i++
+ 
++		// the package identifier denotes the current package
++		check.register(file.Name, pkg)
++
+ 		// insert top-level file objects in package scope
+ 		// (the parser took care of declaration errors)
+ 		for _, decl := range file.Decls {
+@@ -75,13 +77,13 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 							if name.Name == "_" {
+ 								continue
+ 							}
+-							pkgScope.Insert(check.lookup(name))
++							pkg.Scope.Insert(check.lookup(name))
+ 						}
+ 					case *ast.TypeSpec:
+ 						if s.Name.Name == "_" {
+ 							continue
+ 						}
+-						pkgScope.Insert(check.lookup(s.Name))
++						pkg.Scope.Insert(check.lookup(s.Name))
+ 					default:
+ 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
+ 					}
+@@ -95,7 +97,7 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 				if d.Name.Name == "_" || d.Name.Name == "init" {
+ 					continue // blank (_) and init functions are inaccessible
+ 				}
+-				pkgScope.Insert(check.lookup(d.Name))
++				pkg.Scope.Insert(check.lookup(d.Name))
+ 			default:
+ 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+ 			}
+@@ -103,21 +105,18 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 	}
+ 	check.files = check.files[0:i]
+ 
+-	// package global mapping of imported package ids to package objects
+-	imports := make(map[string]*Package)
+-
+ 	// complete file scopes with imports and resolve identifiers
+ 	for _, file := range check.files {
+ 		// build file scope by processing all imports
+ 		importErrors := false
+-		fileScope := &Scope{Outer: pkgScope}
++		fileScope := &Scope{Outer: pkg.Scope}
+ 		for _, spec := range file.Imports {
+ 			if importer == nil {
+ 				importErrors = true
+ 				continue
+ 			}
+ 			path, _ := strconv.Unquote(spec.Path.Value)
+-			pkg, err := importer(imports, path)
++			imp, err := importer(pkg.Imports, path)
+ 			if err != nil {
+ 				check.errorf(spec.Path.Pos(), "could not import %s (%s)", path, err)
+ 				importErrors = true
+@@ -128,7 +127,7 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 			// import failed. Consider adjusting the logic here a bit.
+ 
+ 			// local name overrides imported package name
+-			name := pkg.Name
++			name := imp.Name
+ 			if spec.Name != nil {
+ 				name = spec.Name.Name
+ 			}
+@@ -136,16 +135,20 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 			// add import to file scope
+ 			if name == "." {
+ 				// merge imported scope with file scope
+-				for _, obj := range pkg.Scope.Entries {
+-					check.declareObj(fileScope, pkgScope, obj)
++				for _, obj := range imp.Scope.Entries {
++					check.declareObj(fileScope, pkg.Scope, obj)
+ 				}
++				// TODO(gri) consider registering the "." identifier
++				// if we have Context.Ident callbacks for say blank
++				// (_) identifiers
++				// check.register(spec.Name, pkg)
+ 			} else if name != "_" {
+ 				// declare imported package object in file scope
+-				// (do not re-use pkg in the file scope but create
++				// (do not re-use imp in the file scope but create
+ 				// a new object instead; the Decl field is different
+ 				// for different files)
+-				obj := &Package{Name: name, Scope: pkg.Scope, spec: spec}
+-				check.declareObj(fileScope, pkgScope, obj)
++				obj := &Package{Name: name, Scope: imp.Scope, spec: spec}
++				check.declareObj(fileScope, pkg.Scope, obj)
+ 			}
+ 		}
+ 
+@@ -155,7 +158,7 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 			// (objects in the universe may be shadowed by imports;
+ 			// with missing imports, identifiers might get resolved
+ 			// incorrectly to universe objects)
+-			pkgScope.Outer = nil
++			pkg.Scope.Outer = nil
+ 		}
+ 		i := 0
+ 		for _, ident := range file.Unresolved {
+@@ -167,8 +170,8 @@ func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.F
+ 
+ 		}
+ 		file.Unresolved = file.Unresolved[0:i]
+-		pkgScope.Outer = Universe // reset outer scope
++		pkg.Scope.Outer = Universe // reset outer scope (is nil if there were importErrors)
+ 	}
+ 
+-	return &Package{Name: pkgName, Scope: pkgScope, Imports: imports}, methods
++	return
+ }
+diff --git a/src/pkg/go/types/resolver_test.go b/src/pkg/go/types/resolver_test.go
+index 40fe21fc4c..985d9a7c04 100644
+--- a/src/pkg/go/types/resolver_test.go
++++ b/src/pkg/go/types/resolver_test.go
+@@ -12,7 +12,8 @@ import (
+ )
+ 
+ var sources = []string{
+-	`package p
++	`
++	package p
+ 	import "fmt"
+ 	import "math"
+ 	const pi = math.Pi
+@@ -21,16 +22,27 @@ var sources = []string{
+ 	}
+ 	var Println = fmt.Println
+ 	`,
+-	`package p
++	`
++	package p
+ 	import "fmt"
+ 	func f() string {
++		_ = "foo"
+ 		return fmt.Sprintf("%d", g())
+ 	}
+ 	func g() (x int) { return }
+ 	`,
+-	`package p
++	`
++	package p
+ 	import . "go/parser"
+-	func g() Mode { return ImportsOnly }`,
++	import "sync"
++	func g() Mode { return ImportsOnly }
++	var _, x int = 1, 2
++	func init() {}
++	type T struct{ sync.Mutex; a, b, c int}
++	type I interface{ m() }
++	var _ = T{a: 1, b: 2, c: 3}
++	func (_ T) m() {}
++	`,
+ }
+ 
+ var pkgnames = []string{
+@@ -94,4 +106,62 @@ func TestResolveQualifiedIdents(t *testing.T) {
+ 			return true
+ 		})
+ 	}
++
++	// Currently, the Check API doesn't call Ident for fields, methods, and composite literal keys.
++	// Introduce them artifically so that we can run the check below.
++	for _, f := range files {
++		ast.Inspect(f, func(n ast.Node) bool {
++			switch x := n.(type) {
++			case *ast.StructType:
++				for _, list := range x.Fields.List {
++					for _, f := range list.Names {
++						assert(idents[f] == nil)
++						idents[f] = &Var{Name: f.Name}
++					}
++				}
++			case *ast.InterfaceType:
++				for _, list := range x.Methods.List {
++					for _, f := range list.Names {
++						assert(idents[f] == nil)
++						idents[f] = &Func{Name: f.Name}
++					}
++				}
++			case *ast.CompositeLit:
++				for _, e := range x.Elts {
++					if kv, ok := e.(*ast.KeyValueExpr); ok {
++						if k, ok := kv.Key.(*ast.Ident); ok {
++							assert(idents[k] == nil)
++							idents[k] = &Var{Name: k.Name}
++						}
++					}
++				}
++			}
++			return true
++		})
++	}
++
++	// check that each identifier in the source is enumerated by the Context.Ident callback
++	for _, f := range files {
++		ast.Inspect(f, func(n ast.Node) bool {
++			if x, ok := n.(*ast.Ident); ok && x.Name != "_" && x.Name != "." {
++				obj := idents[x]
++				if obj == nil {
++					t.Errorf("%s: unresolved identifier %s", fset.Position(x.Pos()), x.Name)
++				} else {
++					delete(idents, x)
++				}
++				return false
++			}
++			return true
++		})
++	}
++
++	// TODO(gri) enable code below
++	// At the moment, the type checker introduces artifical identifiers which are not
++	// present in the source. Once it doesn't do that anymore, enable the checks below.
++	/*
++		for x := range idents {
++			t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
++		}
++	*/
+ }
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 3894825b2b..65daad5cfa 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -90,7 +90,7 @@ type Slice struct {
+ 
+ // A QualifiedName is a name qualified with the package that declared the name.
+ type QualifiedName struct {
+-	Pkg  *Package // nil for current (non-imported) package
++	Pkg  *Package // nil only for predeclared error.Error
+ 	Name string   // unqualified type name for anonymous fields
+ }
+ 
+@@ -104,19 +104,7 @@ func (p QualifiedName) IsSame(q QualifiedName) bool {
+ 		return false
+ 	}
+ 	// p.Name == q.Name
+-	if !ast.IsExported(p.Name) {
+-		// TODO(gri) just compare packages once we guarantee that they are canonicalized
+-		pp := ""
+-		if p.Pkg != nil {
+-			pp = p.Pkg.Path
+-		}
+-		qp := ""
+-		if q.Pkg != nil {
+-			qp = q.Pkg.Path
+-		}
+-		return pp == qp
+-	}
+-	return true
++	return ast.IsExported(p.Name) || p.Pkg == q.Pkg
+ }
+ 
+ // A Field represents a field of a struct.
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index 9668aa8a34..8e9f6aaa09 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -97,7 +97,8 @@ func init() {
+ 
+ 	// error type
+ 	{
+-		err := &Method{QualifiedName{Name: "Error"}, &Signature{Results: []*Var{{Name: "", Type: Typ[String]}}}}
++		// Error has a nil package in its qualified name since it is in no package
++		err := &Method{QualifiedName{nil, "Error"}, &Signature{Results: []*Var{{Name: "", Type: Typ[String]}}}}
+ 		def(&TypeName{Name: "error", Type: &NamedType{Underlying: &Interface{Methods: []*Method{err}}}})
+ 	}
+ 

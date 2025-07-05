@@ -8,7 +8,7 @@ Date:   Fri Aug 8 17:13:31 2008 -0700
     DELTA=381  (142 added, 26 deleted, 213 changed)
     OCL=14011
     CL=14016
-
+---
  src/cmd/6g/cgen.c   |   3 +-
  src/cmd/6g/gen.c    |  19 +++---
  src/cmd/6g/gsubr.c  | 164 ++++++++++++++++++++++++++++------------------------
@@ -22,3 +22,1322 @@ Date:   Fri Aug 8 17:13:31 2008 -0700
  src/cmd/gc/subr.c   |  25 ++++----
  src/cmd/gc/walk.c   |   5 +-
  12 files changed, 343 insertions(+), 227 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 412d3fa09b..7b054dfb3f 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -454,7 +454,8 @@ bgen(Node *n, int true, Prog *to)
+ 		goto ret;
+ 
+ 	case OLITERAL:
+-		if(!true == !n->val.vval)
++// need to ask if it is bool?
++		if(!true == !n->val.u.bval)
+ 			patch(gbranch(AJMP, T), to);
+ 		goto ret;
+ 
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index c0d2b9df6c..e15a9e20ac 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -312,7 +312,7 @@ agen_inter(Node *n, Node *res)
+ 	// stack offset
+ 	memset(&nodo, 0, sizeof(nodo));
+ 	nodo.op = OINDREG;
+-	nodo.val.vval = D_SP;
++	nodo.val.u.reg = D_SP;
+ 	nodo.addable = 1;
+ 	nodo.type = types[tptr];
+ 
+@@ -745,7 +745,7 @@ cgen_callret(Node *n, Node *res)
+ 
+ 	memset(&nod, 0, sizeof(nod));
+ 	nod.op = OINDREG;
+-	nod.val.vval = D_SP;
++	nod.val.u.reg = D_SP;
+ 	nod.addable = 1;
+ 
+ 	nod.xoffset = fp->width;
+@@ -770,7 +770,7 @@ cgen_aret(Node *n, Node *res)
+ 
+ 	memset(&nod1, 0, sizeof(nod1));
+ 	nod1.op = OINDREG;
+-	nod1.val.vval = D_SP;
++	nod1.val.u.reg = D_SP;
+ 	nod1.addable = 1;
+ 
+ 	nod1.xoffset = fp->width;
+@@ -894,31 +894,32 @@ cgen_as(Node *nl, Node *nr, int op)
+ 		case TUINT32:
+ 		case TINT64:
+ 		case TUINT64:
++			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
++			mpmovecfix(nr->val.u.xval, 0);
+ 			nr->val.ctype = CTINT;
+-			nr->val.vval = 0;
+ 			break;
+ 
+ 		case TFLOAT32:
+ 		case TFLOAT64:
+ 		case TFLOAT80:
++			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
++			mpmovecflt(nr->val.u.fval, 0.0);
+ 			nr->val.ctype = CTFLT;
+-			nr->val.dval = 0.0;
+ 			break;
+ 
+ 		case TBOOL:
++			nr->val.u.bval = 0;
+ 			nr->val.ctype = CTBOOL;
+-			nr->val.vval = 0;
+ 			break;
+ 
+ 		case TPTR32:
+ 		case TPTR64:
+ 			if(isptrto(tl, TSTRING)) {
+-				nr->val.sval = mal(8);
++				nr->val.u.sval = mal(8);
+ 				nr->val.ctype = CTSTR;
+ 				break;
+ 			}
+ 			nr->val.ctype = CTNIL;
+-			nr->val.vval = 0;
+ 			break;
+ 
+ //		case TINTER:
+@@ -954,7 +955,7 @@ samereg(Node *a, Node *b)
+ 		return 0;
+ 	if(b->op != OREGISTER)
+ 		return 0;
+-	if(a->val.vval != b->val.vval)
++	if(a->val.u.reg != b->val.u.reg)
+ 		return 0;
+ 	return 1;
+ }
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 7a08556393..ba12c77515 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -151,7 +151,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 	case TPTR64:
+ 	case TBOOL:
+ 		if(o != N && o->op == OREGISTER) {
+-			i = o->val.vval;
++			i = o->val.u.reg;
+ 			if(i >= D_AX && i <= D_R15)
+ 				goto out;
+ 		}
+@@ -166,7 +166,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 	case TFLOAT64:
+ 	case TFLOAT80:
+ 		if(o != N && o->op == OREGISTER) {
+-			i = o->val.vval;
++			i = o->val.u.reg;
+ 			if(i >= D_X0 && i <= D_X7)
+ 				goto out;
+ 		}
+@@ -194,7 +194,7 @@ regfree(Node *n)
+ 
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+-	i = n->val.vval;
++	i = n->val.u.reg;
+ 	if(i < 0 || i >= sizeof(reg))
+ 		fatal("regfree: reg out of range");
+ 	if(reg[i] <= 0)
+@@ -220,7 +220,7 @@ nodreg(Node *n, Type *t, int r)
+ 	n->op = OREGISTER;
+ 	n->addable = 1;
+ 	ullmancalc(n);
+-	n->val.vval = r;
++	n->val.u.reg = r;
+ 	n->type = t;
+ }
+ 
+@@ -248,7 +248,7 @@ nodarg(Type *t, int fp)
+ 	switch(fp) {
+ 	case 0:		// output arg
+ 		n->op = OINDREG;
+-		n->val.vval = D_SP;
++		n->val.u.reg = D_SP;
+ 		break;
+ 
+ 	case 1:		// input arg
+@@ -258,7 +258,7 @@ nodarg(Type *t, int fp)
+ 	case 2:		// offset output arg
+ fatal("shpuldnt be used");
+ 		n->op = OINDREG;
+-		n->val.vval = D_SP;
++		n->val.u.reg = D_SP;
+ 		n->xoffset += types[tptr]->width;
+ 		break;
+ 	}
+@@ -272,7 +272,8 @@ nodconst(Node *n, Type *t, vlong v)
+ 	n->op = OLITERAL;
+ 	n->addable = 1;
+ 	ullmancalc(n);
+-	n->val.vval = v;
++	n->val.u.xval = mal(sizeof(*n->val.u.xval));
++	mpmovecfix(n->val.u.xval, v);
+ 	n->val.ctype = CTINT;
+ 	n->type = t;
+ 
+@@ -373,7 +374,7 @@ gmove(Node *f, Node *t)
+ 			f->op, ft, t->op, tt);
+ 	if(isfloat[ft] && f->op == OCONST) {
+ 		/* TO DO: pick up special constants, possibly preloaded */
+-		if(f->val.dval == 0.0){
++		if(mpgetflt(f->val.u.fval) == 0.0) {
+ 			regalloc(&nod, t->type, t);
+ 			gins(AXORPD, &nod, &nod);
+ 			gmove(&nod, t);
+@@ -582,22 +583,22 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT32, TINT64):
+ 	case CASE(TINT32, TPTR64):
+ 		a = AMOVLQSX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= (uvlong)0xffffffffU;
+-			if(f->val.vval & 0x80000000)
+-				f->val.vval |= (vlong)0xffffffff << 32;
+-			a = AMOVQ;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= (uvlong)0xffffffffU;
++//			if(f->val.vval & 0x80000000)
++//				f->val.vval |= (vlong)0xffffffff << 32;
++//			a = AMOVQ;
++//		}
+ 		break;
+ 
+ 	case CASE(TUINT32, TINT64):
+ 	case CASE(TUINT32, TUINT64):
+ 	case CASE(TUINT32, TPTR64):
+ 		a = AMOVL;	/* same effect as AMOVLQZX */
+-		if(f->op == OCONST) {
+-			f->val.vval &= (uvlong)0xffffffffU;
+-			a = AMOVQ;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= (uvlong)0xffffffffU;
++//			a = AMOVQ;
++//		}
+ 		break;
+ 
+ 	case CASE(TPTR64, TINT64):
+@@ -615,45 +616,45 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT16, TINT32):
+ 	case CASE(TINT16, TUINT32):
+ 		a = AMOVWLSX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xffff;
+-			if(f->val.vval & 0x8000)
+-				f->val.vval |= 0xffff0000;
+-			a = AMOVL;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xffff;
++//			if(f->val.vval & 0x8000)
++//				f->val.vval |= 0xffff0000;
++//			a = AMOVL;
++//		}
+ 		break;
+ 
+ 	case CASE(TINT16, TINT64):
+ 	case CASE(TINT16, TUINT64):
+ 	case CASE(TINT16, TPTR64):
+ 		a = AMOVWQSX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xffff;
+-			if(f->val.vval & 0x8000){
+-				f->val.vval |= 0xffff0000;
+-				f->val.vval |= (vlong)~0 << 32;
+-			}
+-			a = AMOVL;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xffff;
++//			if(f->val.vval & 0x8000){
++//				f->val.vval |= 0xffff0000;
++//				f->val.vval |= (vlong)~0 << 32;
++//			}
++//			a = AMOVL;
++//		}
+ 		break;
+ 
+ 	case CASE(TUINT16, TINT32):
+ 	case CASE(TUINT16, TUINT32):
+ 		a = AMOVWLZX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xffff;
+-			a = AMOVL;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xffff;
++//			a = AMOVL;
++//		}
+ 		break;
+ 
+ 	case CASE(TUINT16, TINT64):
+ 	case CASE(TUINT16, TUINT64):
+ 	case CASE(TUINT16, TPTR64):
+ 		a = AMOVWQZX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xffff;
+-			a = AMOVL;	/* MOVL also zero-extends to 64 bits */
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xffff;
++//			a = AMOVL;	/* MOVL also zero-extends to 64 bits */
++//		}
+ 		break;
+ 
+ 	case CASE(TINT8, TINT16):
+@@ -661,26 +662,26 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT8, TINT32):
+ 	case CASE(TINT8, TUINT32):
+ 		a = AMOVBLSX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xff;
+-			if(f->val.vval & 0x80)
+-				f->val.vval |= 0xffffff00;
+-			a = AMOVL;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xff;
++//			if(f->val.vval & 0x80)
++//				f->val.vval |= 0xffffff00;
++//			a = AMOVL;
++//		}
+ 		break;
+ 
+ 	case CASE(TINT8, TINT64):
+ 	case CASE(TINT8, TUINT64):
+ 	case CASE(TINT8, TPTR64):
+ 		a = AMOVBQSX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xff;
+-			if(f->val.vval & 0x80){
+-				f->val.vval |= 0xffffff00;
+-				f->val.vval |= (vlong)~0 << 32;
+-			}
+-			a = AMOVQ;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xff;
++//			if(f->val.vval & 0x80){
++//				f->val.vval |= 0xffffff00;
++//				f->val.vval |= (vlong)~0 << 32;
++//			}
++//			a = AMOVQ;
++//		}
+ 		break;
+ 
+ 	case CASE(TBOOL, TINT16):
+@@ -692,10 +693,10 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT8, TINT32):
+ 	case CASE(TUINT8, TUINT32):
+ 		a = AMOVBLZX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xff;
+-			a = AMOVL;
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xff;
++//			a = AMOVL;
++//		}
+ 		break;
+ 
+ 	case CASE(TBOOL, TINT64):
+@@ -705,10 +706,10 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT8, TUINT64):
+ 	case CASE(TUINT8, TPTR64):
+ 		a = AMOVBQZX;
+-		if(f->op == OCONST) {
+-			f->val.vval &= 0xff;
+-			a = AMOVL;	/* zero-extends to 64-bits */
+-		}
++//		if(f->op == OCONST) {
++//			f->val.vval &= 0xff;
++//			a = AMOVL;	/* zero-extends to 64-bits */
++//		}
+ 		break;
+ 
+ /*
+@@ -961,7 +962,7 @@ samaddr(Node *f, Node *t)
+ 
+ 	switch(f->op) {
+ 	case OREGISTER:
+-		if(f->val.vval != t->val.vval)
++		if(f->val.u.reg != t->val.u.reg)
+ 			break;
+ 		return 1;
+ 	}
+@@ -1016,7 +1017,7 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OREGISTER:
+-		a->type = n->val.vval;
++		a->type = n->val.u.reg;
+ 		a->sym = S;
+ 		break;
+ 
+@@ -1041,7 +1042,7 @@ naddr(Node *n, Addr *a)
+ //		break;
+ 
+ 	case OINDREG:
+-		a->type = n->val.vval+D_INDIR;
++		a->type = n->val.u.reg+D_INDIR;
+ 		a->sym = n->sym;
+ 		a->offset = n->xoffset;
+ 		break;
+@@ -1078,12 +1079,22 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OLITERAL:
+-		if(isfloat[n->type->etype]) {
++		switch(n->val.ctype) {
++		default:
++			fatal("naddr: const %lT", n->type);
++			break;
++		case CTFLT:
+ 			a->type = D_FCONST;
+-			a->dval = n->val.dval;
++			a->dval = mpgetflt(n->val.u.fval);
+ 			break;
+-		}
+-		if(isptrto(n->type, TSTRING)) {
++		case CTINT:
++		case CTSINT:
++		case CTUINT:
++			a->sym = S;
++			a->type = D_CONST;
++			a->offset = mpgetfix(n->val.u.xval);
++			break;
++		case CTSTR:
+ 			a->etype = n->etype;
+ 			a->sym = symstringo;
+ 			a->type = D_ADDR;
+@@ -1091,16 +1102,17 @@ naddr(Node *n, Addr *a)
+ 			a->offset = symstringo->offset;
+ 			stringpool(n);
+ 			break;
+-		}
+-		if(isint[n->type->etype] ||
+-		   isptr[n->type->etype] ||
+-		   n->type->etype == TBOOL) {
++		case CTBOOL:
++			a->sym = S;
++			a->type = D_CONST;
++			a->offset = n->val.u.bval;
++			break;
++		case CTNIL:
+ 			a->sym = S;
+ 			a->type = D_CONST;
+-			a->offset = n->val.vval;
++			a->offset = 0;
+ 			break;
+ 		}
+-		fatal("naddr: const %lT", n->type);
+ 		break;
+ 
+ 	case OADDR:
+@@ -1699,7 +1711,7 @@ stringpool(Node *n)
+ 
+ 	p = mal(sizeof(*p));
+ 
+-	p->sval = n->val.sval;
++	p->sval = n->val.u.sval;
+ 	p->link = nil;
+ 
+ 	if(poolist == nil)
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index a915f11326..709ece3c38 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -74,7 +74,7 @@ dumpobj(void)
+ 			continue;
+ 
+ 		dowidth(n->type);
+-		n1.val.vval = n->type->width;
++		mpmovecfix(n1.val.u.xval, n->type->width);
+ 
+ 		p = pc;
+ 		gins(AGLOBL, s->oname, &n1);
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index d5db24fe2f..e3adaef769 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -22,7 +22,7 @@ OFILES=\
+ 	export.$O\
+ 	walk.$O\
+ 	const.$O\
+-	mpatof.$O\
++	mparith.$O\
+ 	sysimport.$O\
+ 	compat.$O\
+ 
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 2ee03c98a5..fff0e0c4a3 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -23,7 +23,7 @@ convlit(Node *n, Type *t)
+ 		if(!isptr[et] && et != TINTER)
+ 			goto bad1;
+ 		if(isptrto(t, TSTRING)) {
+-			n->val.sval = mal(8);
++			n->val.u.sval = mal(8);
+ 			n->val.ctype = CTSTR;
+ 		}
+ 		break;
+@@ -44,29 +44,31 @@ convlit(Node *n, Type *t)
+ 			int l;
+ 			String *s;
+ 
+-			rune = n->val.vval;
++			rune = mpgetfix(n->val.u.xval);
+ 			l = runelen(rune);
+ 			s = mal(sizeof(*s)+l);
+ 			s->len = l;
+ 			runetochar((char*)(s->s), &rune);
+ 
+-			n->val.sval = s;
++			n->val.u.sval = s;
+ 			n->val.ctype = CTSTR;
+ 			break;
+ 		}
+ 		if(isint[et]) {
+-			if(n->val.vval < minintval[et])
++			// int to int
++			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
+ 				goto bad2;
+-			if(n->val.vval > maxintval[et])
++			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
+ 				goto bad2;
+ 			break;
+ 		}
+ 		if(isfloat[et]) {
+-			if(n->val.vval < minfloatval[et])
++			// int to float
++			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
+ 				goto bad2;
+-			if(n->val.vval > maxfloatval[et])
++			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
+ 				goto bad2;
+-			n->val.dval = n->val.vval;
++			mpmovefixflt(n->val.u.fval, n->val.u.xval);
+ 			n->val.ctype = CTFLT;
+ 			break;
+ 		}
+@@ -74,18 +76,20 @@ convlit(Node *n, Type *t)
+ 
+ 	case Wlitfloat:
+ 		if(isint[et]) {
+-			if(n->val.dval < minintval[et])
++			// float to int
++			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
+ 				goto bad2;
+-			if(n->val.dval > maxintval[et])
++			if(mpcmpfixfix(n->val.u.xval, maxintval[et]) > 0)
+ 				goto bad2;
+-			n->val.vval = n->val.dval;
++			mpmovefltfix(n->val.u.xval, n->val.u.fval);
+ 			n->val.ctype = CTINT;
+ 			break;
+ 		}
+ 		if(isfloat[et]) {
+-			if(n->val.dval < minfloatval[et])
++			// float to float
++			if(mpcmpfltflt(n->val.u.fval, minfltval[et]) < 0)
+ 				goto bad2;
+-			if(n->val.dval > maxfloatval[et])
++			if(mpcmpfltflt(n->val.u.fval, maxfltval[et]) > 0)
+ 				goto bad2;
+ 			break;
+ 		}
+@@ -110,6 +114,8 @@ evconst(Node *n)
+ 	int32 len;
+ 	String *str;
+ 	int wl, wr;
++	Mpint *xval;
++	Mpflt *fval;
+ 
+ 	nl = n->left;
+ 	if(nl == N)
+@@ -145,120 +151,135 @@ evconst(Node *n)
+ 
+ 	if(wl != wr) {
+ 		if(wl == Wlitfloat && wr == Wlitint) {
+-			nr->val.dval = nr->val.vval;
++			xval = nr->val.u.xval;
++			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
++			mpmovefixflt(nr->val.u.fval, xval);
+ 			nr->val.ctype = CTFLT;
+ 			wr = whatis(nr);
+ 		} else
+ 		if(wl == Wlitint && wr == Wlitfloat) {
+-			nl->val.dval = nl->val.vval;
++			xval = nl->val.u.xval;
++			nl->val.u.fval = mal(sizeof(*nl->val.u.fval));
++			mpmovefixflt(nl->val.u.fval, xval);
+ 			nl->val.ctype = CTFLT;
+ 			wl = whatis(nl);
+ 		} else {
+-			yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
++			yyerror("illegal combination of literals %E %E", nl->etype, nr->etype);
+ 			return;
+ 		}
+ 	}
+ 
++	// dance to not modify left side
++	// this is because iota will reuse it
++	if(wl == Wlitint) {
++		xval = mal(sizeof(*xval));
++		mpmovefixfix(xval, nl->val.u.xval);
++	} else
++	if(wl == Wlitfloat) {
++		fval = mal(sizeof(*fval));
++		mpmovefltflt(fval, nl->val.u.fval);
++	}
++
+ 	switch(TUP(n->op, wl)) {
+ 	default:
+-		yyerror("illegal combination of literals %O %d", n->op, wl);
++		yyerror("illegal combination of literals %O %E", n->op, nl->etype);
+ 		return;
+ 
+ 	case TUP(OADD, Wlitint):
+-		nl->val.vval += nr->val.vval;
++		mpaddfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(OSUB, Wlitint):
+-		nl->val.vval -= nr->val.vval;
++		mpsubfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(OMUL, Wlitint):
+-		nl->val.vval *= nr->val.vval;
++		mpmulfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(ODIV, Wlitint):
+-		nl->val.vval /= nr->val.vval;
++		mpdivfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(OMOD, Wlitint):
+-		nl->val.vval %= nr->val.vval;
++		mpmodfixfix(xval, nr->val.u.xval);
+ 		break;
++
+ 	case TUP(OLSH, Wlitint):
+-		nl->val.vval <<= nr->val.vval;
++		mplshfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(ORSH, Wlitint):
+-		nl->val.vval >>= nr->val.vval;
++		mprshfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(OOR, Wlitint):
+-		nl->val.vval |= nr->val.vval;
++		mporfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(OAND, Wlitint):
+-		nl->val.vval &= nr->val.vval;
++		mpandfixfix(xval, nr->val.u.xval);
+ 		break;
+ 	case TUP(OXOR, Wlitint):
+-		nl->val.vval ^= nr->val.vval;
++		mpxorfixfix(xval, nr->val.u.xval);
+ 		break;
+ 
+ 	case TUP(OADD, Wlitfloat):
+-		nl->val.dval += nr->val.dval;
++		mpaddfltflt(fval, nr->val.u.fval);
+ 		break;
+ 	case TUP(OSUB, Wlitfloat):
+-		nl->val.dval -= nr->val.dval;
++		mpsubfltflt(fval, nr->val.u.fval);
+ 		break;
+ 	case TUP(OMUL, Wlitfloat):
+-		nl->val.dval *= nr->val.dval;
++		mpmulfltflt(fval, nr->val.u.fval);
+ 		break;
+ 	case TUP(ODIV, Wlitfloat):
+-		nl->val.dval /= nr->val.dval;
++		mpdivfltflt(fval, nr->val.u.fval);
+ 		break;
+ 
+ 	case TUP(OEQ, Wlitint):
+-		if(nl->val.vval == nr->val.vval)
++		if(mpcmpfixfix(xval, nr->val.u.xval) == 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(ONE, Wlitint):
+-		if(nl->val.vval != nr->val.vval)
++		if(mpcmpfixfix(xval, nr->val.u.xval) != 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OLT, Wlitint):
+-		if(nl->val.vval < nr->val.vval)
++		if(mpcmpfixfix(xval, nr->val.u.xval) < 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OLE, Wlitint):
+-		if(nl->val.vval <= nr->val.vval)
++		if(mpcmpfixfix(xval, nr->val.u.xval) <= 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OGE, Wlitint):
+-		if(nl->val.vval >= nr->val.vval)
++		if(mpcmpfixfix(xval, nr->val.u.xval) >= 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OGT, Wlitint):
+-		if(nl->val.vval > nr->val.vval)
++		if(mpcmpfixfix(xval, nr->val.u.xval) > 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 
+ 	case TUP(OEQ, Wlitfloat):
+-		if(nl->val.dval == nr->val.dval)
++		if(mpcmpfltflt(fval, nr->val.u.fval) == 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(ONE, Wlitfloat):
+-		if(nl->val.dval != nr->val.dval)
++		if(mpcmpfltflt(fval, nr->val.u.fval) != 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OLT, Wlitfloat):
+-		if(nl->val.dval < nr->val.dval)
++		if(mpcmpfltflt(fval, nr->val.u.fval) < 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OLE, Wlitfloat):
+-		if(nl->val.dval <= nr->val.dval)
++		if(mpcmpfltflt(fval, nr->val.u.fval) <= 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OGE, Wlitfloat):
+-		if(nl->val.dval >= nr->val.dval)
++		if(mpcmpfltflt(fval, nr->val.u.fval) >= 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OGT, Wlitfloat):
+-		if(nl->val.dval > nr->val.dval)
++		if(mpcmpfltflt(fval, nr->val.u.fval) > 0)
+ 			goto settrue;
+ 		goto setfalse;
+ 
+-
+ 	case TUP(OEQ, Wlitstr):
+ 		if(cmpslit(nl, nr) == 0)
+ 			goto settrue;
+@@ -284,25 +305,33 @@ evconst(Node *n)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OADD, Wlitstr):
+-		len = nl->val.sval->len + nr->val.sval->len;
++		len = nl->val.u.sval->len + nr->val.u.sval->len;
+ 		str = mal(sizeof(*str) + len);
+ 		str->len = len;
+-		memcpy(str->s, nl->val.sval->s, nl->val.sval->len);
+-		memcpy(str->s+nl->val.sval->len, nr->val.sval->s, nr->val.sval->len);
++		memcpy(str->s, nl->val.u.sval->s, nl->val.u.sval->len);
++		memcpy(str->s+nl->val.u.sval->len, nr->val.u.sval->s, nr->val.u.sval->len);
+ 		str->len = len;
+-		nl->val.sval = str;
++		nl->val.u.sval = str;
+ 		break;
+ 
+ 	case TUP(OOROR, Wlitbool):
+-		if(nl->val.vval || nr->val.vval)
++		if(nl->val.u.bval || nr->val.u.bval)
+ 			goto settrue;
+ 		goto setfalse;
+ 	case TUP(OANDAND, Wlitbool):
+-		if(nl->val.vval && nr->val.vval)
++		if(nl->val.u.bval && nr->val.u.bval)
+ 			goto settrue;
+ 		goto setfalse;
+ 	}
+ 	*n = *nl;
++
++	// second half of dance
++	if(wl == Wlitint) {
++		n->val.u.xval = xval;
++	} else
++	if(wl == Wlitfloat) {
++		n->val.u.fval = fval;
++	}
+ 	return;
+ 
+ settrue:
+@@ -320,24 +349,22 @@ unary:
+ 		return;
+ 
+ 	case TUP(OPLUS, Wlitint):
+-		nl->val.vval = +nl->val.vval;
+ 		break;
+ 	case TUP(OMINUS, Wlitint):
+-		nl->val.vval = -nl->val.vval;
++		mpnegfix(nl->val.u.xval);
+ 		break;
+ 	case TUP(OCOM, Wlitint):
+-		nl->val.vval = ~nl->val.vval;
++		mpcomfix(nl->val.u.xval);
+ 		break;
+ 
+ 	case TUP(OPLUS, Wlitfloat):
+-		nl->val.dval = +nl->val.dval;
+ 		break;
+ 	case TUP(OMINUS, Wlitfloat):
+-		nl->val.dval = -nl->val.dval;
++		mpnegflt(nl->val.u.fval);
+ 		break;
+ 
+ 	case TUP(ONOT, Wlitbool):
+-		if(nl->val.vval)
++		if(nl->val.u.bval)
+ 			goto settrue;
+ 		goto setfalse;
+ 	}
+@@ -381,10 +408,10 @@ cmpslit(Node *l, Node *r)
+ 	int32 l1, l2, i, m;
+ 	char *s1, *s2;
+ 
+-	l1 = l->val.sval->len;
+-	l2 = r->val.sval->len;
+-	s1 = l->val.sval->s;
+-	s2 = r->val.sval->s;
++	l1 = l->val.u.sval->len;
++	l2 = r->val.u.sval->len;
++	s1 = l->val.u.sval->s;
++	s2 = r->val.u.sval->s;
+ 
+ 	m = l1;
+ 	if(l2 < m)
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 01ce962828..427f649f2c 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -78,14 +78,16 @@ dumpexportconst(Sym *s)
+ 	case CTINT:
+ 	case CTSINT:
+ 	case CTUINT:
++		Bprint(bout, "0x%llux\n", mpgetfix(n->val.u.xval));
++		break;
+ 	case CTBOOL:
+-		Bprint(bout, "0x%llux\n", n->val.vval);
++		Bprint(bout, "0x%llux\n", n->val.u.bval);
+ 		break;
+ 	case CTFLT:
+-		Bprint(bout, "%.17e\n", n->val.dval);
++		Bprint(bout, "%.17e\n", mpgetflt(n->val.u.fval));
+ 		break;
+ 	case CTSTR:
+-		Bprint(bout, "\"%Z\"\n", n->val.sval);
++		Bprint(bout, "\"%Z\"\n", n->val.u.sval);
+ 		break;
+ 	}
+ }
+@@ -516,7 +518,7 @@ doimport2(Node *ss, Val *b, Node *st)
+ 	Sym *s;
+ 
+ 	t = typ(TARRAY);
+-	t->bound = b->vval;
++	t->bound = mpgetfix(b->u.xval);
+ 	s = pkglookup(st->sym->name, st->psym->name);
+ 	t->type = s->otype;
+ 
+@@ -542,6 +544,7 @@ doimport3(Node *ss, Node *n)
+ 	t->outtuple = importcount(t->type->down);
+ 	t->intuple = importcount(t->type->down->down);
+ 
++	dowidth(t);
+ 	importfuncnam(t);
+ 
+ 	importaddtyp(ss, t);
+@@ -573,7 +576,7 @@ doimport5(Node *ss, Val *v)
+ 	int et;
+ 	Type *t;
+ 
+-	et = v->vval;
++	et = mpgetfix(v->u.xval);
+ 	if(et <= 0 || et >= nelem(types) || types[et] == T)
+ 		fatal("doimport5: bad type index: %E", et);
+ 
+@@ -631,7 +634,7 @@ doimport8(Node *ss, Val *v, Node *st)
+ 	int dir;
+ 
+ 	s = pkglookup(st->sym->name, st->psym->name);
+-	dir = v->vval;
++	dir = mpgetfix(v->u.xval);
+ 
+ 	t = typ(TCHAN);
+ 	s = pkglookup(st->sym->name, st->psym->name);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b775b32e18..636856e199 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -6,7 +6,6 @@
+ todo:
+ 	1. dyn arrays
+ 	2. multi
+-	3. block 0
+ tothinkabout:
+ 	2. argument in import
+ */
+@@ -56,13 +55,46 @@ struct	String
+ 	char	s[3];	// variable
+ };
+ 
++enum
++{
++	Mpscale	= 29,		/* safely smaller than bits in a long */
++	Mpprec	= 10,		/* Mpscale*Mpprec is max number of bits */
++	Mpbase	= 1L<<Mpscale,
++	Mpsign	= Mpbase >> 1,
++	Mpmask	= Mpbase -1,
++	Debug	= 1,
++};
++
++typedef	struct	Mpint	Mpint;
++struct	Mpint
++{
++	vlong	val;
++	long	a[Mpprec];
++	uchar	neg;
++	uchar	ovf;
++};
++
++typedef	struct	Mpflt	Mpflt;
++struct	Mpflt
++{
++	double	val;
++	long	a[Mpprec];
++	uchar	neg;
++	uchar	ovf;
++};
++
+ typedef	struct	Val	Val;
+ struct	Val
+ {
+-	int	ctype;
+-	double	dval;
+-	vlong	vval;
+-	String*	sval;
++	short	ctype;
++	union
++	{
++		short	reg;		// OREGISTER
++		short	bval;		// bool value CTBOOL
++		Mpint*	xval;		// int CTINT
++		Mpflt*	fval;		// float CTFLT
++		String*	sval;		// string CTSTR
++	} u;
+ };
+ 
+ typedef	struct	Sym	Sym;
+@@ -135,7 +167,7 @@ struct	Node
+ 	// func
+ 	Node*	nname;
+ 
+-	// OLITERAL
++	// OLITERAL/OREGISTER
+ 	Val	val;
+ 
+ 	Sym*	osym;		// import
+@@ -380,10 +412,11 @@ EXTERN	uchar	issimple[NTYPE];
+ EXTERN	uchar	okforeq[NTYPE];
+ EXTERN	uchar	okforadd[NTYPE];
+ EXTERN	uchar	okforand[NTYPE];
+-EXTERN	double	minfloatval[NTYPE];
+-EXTERN	double	maxfloatval[NTYPE];
+-EXTERN	vlong	minintval[NTYPE];
+-EXTERN	vlong	maxintval[NTYPE];
++
++EXTERN	Mpint*	minintval[NTYPE];
++EXTERN	Mpint*	maxintval[NTYPE];
++EXTERN	Mpflt*	minfltval[NTYPE];
++EXTERN	Mpflt*	maxfltval[NTYPE];
+ 
+ EXTERN	Dcl*	autodcl;
+ EXTERN	Dcl*	paramdcl;
+@@ -438,10 +471,46 @@ void	ungetc(int);
+ void	mkpackage(char*);
+ 
+ /*
+- *	mpatof.c
++ *	mparith.c
+  */
+-int	mpatof(char*, double*);
+-int	mpatov(char*, vlong*);
++void	mpmovefixfix(Mpint *a, Mpint *b);
++void	mpmovefixflt(Mpflt *a, Mpint *b);
++void	mpmovefltfix(Mpint *a, Mpflt *b);
++void	mpmovefltflt(Mpflt *a, Mpflt *b);
++void	mpmovecfix(Mpint *a, vlong v);
++void	mpmovecflt(Mpflt *a, double f);
++
++int	mpcmpfixfix(Mpint *a, Mpint *b);
++int	mpcmpfltflt(Mpflt *a, Mpflt *b);
++int	mpcmpfixc(Mpint *b, vlong c);
++int	mpcmpfltc(Mpint *b, double c);
++int	mptestfixfix(Mpint *a);
++int	mptestfltflt(Mpflt *a);
++
++void	mpaddfixfix(Mpint *a, Mpint *b);
++void	mpaddfltflt(Mpflt *a, Mpflt *b);
++void	mpsubfixfix(Mpint *a, Mpint *b);
++void	mpsubfltflt(Mpflt *a, Mpflt *b);
++void	mpmulfixfix(Mpint *a, Mpint *b);
++void	mpmulfltflt(Mpflt *a, Mpflt *b);
++void	mpdivfixfix(Mpint *a, Mpint *b);
++void	mpdivfltflt(Mpflt *a, Mpflt *b);
++void	mpnegfix(Mpint *a);
++void	mpnegflt(Mpflt *a);
++
++void	mpandfixfix(Mpint *a, Mpint *b);
++void	mplshfixfix(Mpint *a, Mpint *b);
++void	mpmodfixfix(Mpint *a, Mpint *b);
++void	mporfixfix(Mpint *a, Mpint *b);
++void	mprshfixfix(Mpint *a, Mpint *b);
++void	mpxorfixfix(Mpint *a, Mpint *b);
++void	mpcomfix(Mpint *a);
++
++double	mpgetflt(Mpflt *a);
++vlong	mpgetfix(Mpint *a);
++
++void	mpatofix(Mpint *a, char *s);
++void	mpatoflt(Mpflt *a, char *s);
+ 
+ /*
+  *	subr.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 3fd75b1b57..2fe3cc0832 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -13,7 +13,8 @@
+ 	int		lint;
+ }
+ %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
+-%token	<val>		LLITERAL LASOP
++%token	<val>		LLITERAL
++%token	<lint>		LASOP
+ %token			LPACKAGE LIMPORT LEXPORT
+ %token			LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+ %token			LCOLAS LFALL LRETURN
+@@ -269,8 +270,8 @@ conexpr:
+ 	}
+ |	'=' expr
+ 	{
+-		$$ = $2;
+-		lastconst = treecopy($$);
++		lastconst = $2;
++		$$ = treecopy(lastconst);
+ 		iota += 1;
+ 	}
+ 
+@@ -314,7 +315,7 @@ noninc_stmt:
+ |	expr LASOP expr
+ 	{
+ 		$$ = nod(OASOP, $1, $3);
+-		$$->etype = $2.vval;	// rathole to pass opcode
++		$$->etype = $2;			// rathole to pass opcode
+ 	}
+ |	expr_list '=' expr_list
+ 	{
+@@ -687,7 +688,6 @@ pexpr:
+ 	{
+ 		$$ = nod(OLITERAL, N, N);
+ 		$$->val.ctype = CTNIL;
+-		$$->val.vval = 0;
+ 	}
+ |	LTRUE
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 567e441620..deb61c36a9 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -207,11 +207,11 @@ importfile(Val *f)
+ 		return;
+ 	}
+ 
+-	if(!findpkg(f->sval))
+-		fatal("can't find import: %Z", f->sval);
++	if(!findpkg(f->u.sval))
++		fatal("can't find import: %Z", f->u.sval);
+ 	imp = Bopen(namebuf, OREAD);
+ 	if(imp == nil)
+-		fatal("can't open import: %Z", f->sval);
++		fatal("can't open import: %Z", f->u.sval);
+ 	file = strdup(namebuf);
+ 
+ 	len = strlen(namebuf);
+@@ -245,7 +245,7 @@ importfile(Val *f)
+ 			continue;
+ 		return;
+ 	}
+-	yyerror("no import in: %Z", f->sval);
++	yyerror("no import in: %Z", f->u.sval);
+ 	unimportfile();
+ }
+ 
+@@ -390,7 +390,7 @@ l0:
+ 			cp = remal(cp, c1, 1);
+ 			cp[c1++] = 0;
+ 		} while(c1 & MAXALIGN);
+-		yylval.val.sval = (String*)cp;
++		yylval.val.u.sval = (String*)cp;
+ 		yylval.val.ctype = CTSTR;
+ 		DBG("lex: string literal\n");
+ 		return LLITERAL;
+@@ -403,7 +403,8 @@ l0:
+ 			yyerror("missing '");
+ 			ungetc(v);
+ 		}
+-		yylval.val.vval = v;
++		yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
++		mpmovecfix(yylval.val.u.xval, v);
+ 		yylval.val.ctype = CTINT;
+ 		DBG("lex: codepoint literal\n");
+ 		return LLITERAL;
+@@ -594,7 +595,7 @@ lx:
+ 	return c;
+ 
+ asop:
+-	yylval.val.vval = c;	// rathole to hold which asop
++	yylval.lint = c;	// rathole to hold which asop
+ 	DBG("lex: TOKEN ASOP %c\n", c);
+ 	return LASOP;
+ 
+@@ -695,9 +696,12 @@ dc:
+ ncu:
+ 	*cp = 0;
+ 	ungetc(c);
+-	if(mpatov(namebuf, &yylval.val.vval)) {
++
++	yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
++	mpatofix(yylval.val.u.xval, namebuf);
++	if(yylval.val.u.xval->ovf) {
+ 		yyerror("overflow in constant");
+-		yylval.val.vval = 0;
++		mpmovecfix(yylval.val.u.xval, 0);
+ 	}
+ 	yylval.val.ctype = CTINT;
+ 	DBG("lex: integer literal\n");
+@@ -730,9 +734,12 @@ casee:
+ caseout:
+ 	*cp = 0;
+ 	ungetc(c);
+-	if(mpatof(namebuf, &yylval.val.dval)) {
++
++	yylval.val.u.fval = mal(sizeof(*yylval.val.u.fval));
++	mpatoflt(yylval.val.u.fval, namebuf);
++	if(yylval.val.u.fval->ovf) {
+ 		yyerror("overflow in float constant");
+-		yylval.val.dval = 0;
++		mpmovecflt(yylval.val.u.fval, 0.0);
+ 	}
+ 	yylval.val.ctype = CTFLT;
+ 	DBG("lex: floating literal\n");
+@@ -1040,11 +1047,15 @@ lexinit(void)
+ 			okforadd[i] = 1;
+ 			okforand[i] = 1;
+ 			issimple[i] = 1;
++			minintval[i] = mal(sizeof(*minintval[i]));
++			maxintval[i] = mal(sizeof(*maxintval[i]));
+ 		}
+ 		if(isfloat[i]) {
+ 			okforeq[i] = 1;
+ 			okforadd[i] = 1;
+ 			issimple[i] = 1;
++			minfltval[i] = mal(sizeof(*minfltval[i]));
++			maxfltval[i] = mal(sizeof(*maxfltval[i]));
+ 		}
+ 		switch(i) {
+ 		case TBOOL:
+@@ -1055,35 +1066,27 @@ lexinit(void)
+ 			okforeq[i] = 1;
+ 			break;
+ 		}
+-		minfloatval[i] = 0.0;
+-		maxfloatval[i] = 0.0;
+-		minintval[i] = 0;
+-		maxintval[i] = 0;
+ 	}
+ 
+-// this stuff smells - really need to do constants
+-// in multi precision arithmetic
+-
+-	maxintval[TINT8] = 0x7f;
+-	minintval[TINT8] = -maxintval[TINT8]-1;
+-	maxintval[TINT16] = 0x7fff;
+-	minintval[TINT16] = -maxintval[TINT16]-1;
+-	maxintval[TINT32] = 0x7fffffffL;
+-	minintval[TINT32] = -maxintval[TINT32]-1;
+-	maxintval[TINT64] = 0x7fffffffffffffffLL;
+-	minintval[TINT64] = -maxintval[TINT64]-1;
+-	maxintval[TUINT8] = 0xff;
+-	maxintval[TUINT16] = 0xffff;
+-	maxintval[TUINT32] = 0xffffffffL;
+-
+-	/* special case until we got to multiple precision */
+-	maxintval[TUINT64] = 0x7fffffffffffffffLL;
+-	minintval[TUINT64] = -maxintval[TUINT64]-1;
+-
+-	maxfloatval[TFLOAT32] = 3.40282347e+38;
+-	minfloatval[TFLOAT32] = -maxfloatval[TFLOAT32];
+-	maxfloatval[TFLOAT64] = 1.7976931348623157e+308;
+-	minfloatval[TFLOAT64] = -maxfloatval[TFLOAT64]-1;
++	mpatofix(maxintval[TINT8], "0x7f");
++	mpatofix(minintval[TINT8], "-0x80");
++	mpatofix(maxintval[TINT16], "0x7fff");
++	mpatofix(minintval[TINT16], "-0x8000");
++	mpatofix(maxintval[TINT32], "0x7fffffff");
++	mpatofix(minintval[TINT32], "-0x80000000");
++	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
++	mpatofix(minintval[TINT64], "-0x8000000000000000");
++	mpatofix(maxintval[TUINT8], "0xff");
++	mpatofix(maxintval[TUINT16], "0xffff");
++	mpatofix(maxintval[TUINT32], "0xffffffff");
++	mpatofix(maxintval[TUINT64], "0x7fffffffffffffff");
++	mpatofix(minintval[TUINT64], "-0x8000000000000000");
++
++	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
++	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
++	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
++	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
++
+ 
+ 	/*
+ 	 * initialize basic types array
+@@ -1126,14 +1129,14 @@ lexinit(void)
+ 	belexinit(LBASETYPE);
+ 
+ 	booltrue = nod(OLITERAL, N, N);
++	booltrue->val.u.bval = 1;
+ 	booltrue->val.ctype = CTBOOL;
+-	booltrue->val.vval = 1;
+ 	booltrue->type = types[TBOOL];
+ 	booltrue->addable = 1;
+ 
+ 	boolfalse = nod(OLITERAL, N, N);
++	boolfalse->val.u.bval = 0;
+ 	boolfalse->val.ctype = CTBOOL;
+-	boolfalse->val.vval = 0;
+ 	boolfalse->type = types[TBOOL];
+ 	boolfalse->addable = 1;
+ }
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 22e4a43151..1f9043a442 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -313,7 +313,8 @@ nodintconst(int32 v)
+ 
+ 	c = nod(OLITERAL, N, N);
+ 	c->addable = 1;
+-	c->val.vval = v;
++	c->val.u.xval = mal(sizeof(*c->val.u.xval));
++	mpmovecfix(c->val.u.xval, v);
+ 	c->val.ctype = CTINT;
+ 	c->type = types[TINT32];
+ 	ullmancalc(c);
+@@ -391,7 +392,7 @@ aindex(Node *b, Type *t)
+ 		break;
+ 
+ 	case Wlitint:	// fixed lb
+-		r->bound = b->val.vval;
++		r->bound = mpgetfix(b->val.u.xval);
+ 		break;
+ 	}
+ 	return r;
+@@ -1043,31 +1044,31 @@ Nconv(Fmt *fp)
+ 		goto ptyp;
+ 
+ 	case OREGISTER:
+-		snprint(buf, sizeof(buf), "%O-%R%J", n->op, (int)n->val.vval, n);
++		snprint(buf, sizeof(buf), "%O-%R%J", n->op, n->val.u.reg, n);
+ 		break;
+ 
+ 	case OLITERAL:
+ 		switch(n->val.ctype) {
+ 		default:
+-			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d%lld", n->val.ctype, n->val.vval);
++			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d", n->val.ctype);
+ 			break;
+ 		case CTINT:
+-			snprint(buf1, sizeof(buf1), "I%lld", n->val.vval);
++			snprint(buf1, sizeof(buf1), "I%lld", mpgetfix(n->val.u.xval));
+ 			break;
+ 		case CTSINT:
+-			snprint(buf1, sizeof(buf1), "S%lld", n->val.vval);
++			snprint(buf1, sizeof(buf1), "S%lld", mpgetfix(n->val.u.xval));
+ 			break;
+ 		case CTUINT:
+-			snprint(buf1, sizeof(buf1), "U%lld", n->val.vval);
++			snprint(buf1, sizeof(buf1), "U%lld", mpgetfix(n->val.u.xval));
+ 			break;
+ 		case CTFLT:
+-			snprint(buf1, sizeof(buf1), "F%g", n->val.dval);
++			snprint(buf1, sizeof(buf1), "F%g", mpgetflt(n->val.u.fval));
+ 			break;
+ 		case CTSTR:
+-			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.sval);
++			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.u.sval);
+ 			break;
+ 		case CTBOOL:
+-			snprint(buf1, sizeof(buf1), "B%lld", n->val.vval);
++			snprint(buf1, sizeof(buf1), "B%lld", n->val.u.bval);
+ 			break;
+ 		case CTNIL:
+ 			snprint(buf1, sizeof(buf1), "N");
+@@ -1118,7 +1119,6 @@ treecopy(Node *n)
+ 	case OLITERAL:
+ 		if(n->iota) {
+ 			m = literal(iota);
+-			m->iota = 1;	// flag to reevaluate on copy
+ 			break;
+ 		}
+ 		m = nod(OXXX, N, N);
+@@ -1528,8 +1528,9 @@ literal(int32 v)
+ 	Node *n;
+ 
+ 	n = nod(OLITERAL, N, N);
++	n->val.u.xval = mal(sizeof(*n->val.u.xval));
+ 	n->val.ctype = CTINT;
+-	n->val.vval = v;
++	mpmovecfix(n->val.u.xval, v);
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 329d10ceda..56d1b01b11 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -762,8 +762,9 @@ loop:
+ 			break;
+ 
+ 		l = nod(OLITERAL, N, N);
++		l->val.u.fval = mal(sizeof(*l->val.u.fval));
+ 		l->val.ctype = CTFLT;
+-		l->val.dval = 0;
++		mpmovecflt(l->val.u.fval, 0.0);
+ 
+ 		l = nod(OSUB, l, n->left);
+ 		*n = *l;
+@@ -991,7 +992,6 @@ recv:
+ 	a = c->left;			// nil elem
+ 	a = nod(OLITERAL, N, N);
+ 	a->val.ctype = CTNIL;
+-	a->val.vval = 0;
+ 
+ 	r = a;
+ 	a = c->left;			// chan
+@@ -1987,7 +1987,6 @@ chanop(Node *n, int top)
+ 		if(a == N) {
+ 			a = nod(OLITERAL, N, N);
+ 			a->val.ctype = CTNIL;
+-			a->val.vval = 0;
+ 		} else
+ 			a = nod(OADDR, a, N);
+ 

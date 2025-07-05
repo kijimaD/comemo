@@ -10,7 +10,46 @@ Date:   Tue Feb 3 12:13:31 2015 -0600
     Change-Id: Iaf6bd3b378b1fc45d36ecde32f3ad4e63ca1e86b
     Reviewed-on: https://go-review.googlesource.com/3800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/extern.go   | 2 +-
  src/runtime/runtime1.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 7141cd8a7a..cd90390b34 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -45,7 +45,7 @@ a comma-separated list of name=val pairs. Supported names are:
+ 	This should only be used as a temporary workaround to diagnose buggy code.
+ 	The real fix is to not store integers in pointer-typed locations.
+ 
+-	memprofrate: setting memprofrate=X will update the value of runtime.MemProfileRate.
++	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+ 	When set to 0 memory profiling is disabled.  Refer to the description of
+ 	MemProfileRate for the default value.
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 337a44f553..c056bfcdbf 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -309,7 +309,7 @@ type dbgVar struct {
+ // TODO(rsc): Make GC respect debug.invalidptr.
+ 
+ // Holds variables parsed from GODEBUG env var,
+-// except for "memprofrate" since there is an
++// except for "memprofilerate" since there is an
+ // existing int var for that value, which may
+ // already have an initial value.
+ var debug struct {
+@@ -357,9 +357,9 @@ func parsedebugvars() {
+ 		key, value := field[:i], field[i+1:]
+ 
+ 		// Update MemProfileRate directly here since it
+-		// int, not int32, and should only be updated
++		// is int, not int32, and should only be updated
+ 		// if specified in GODEBUG.
+-		if key == "memprofrate" {
++		if key == "memprofilerate" {
+ 			MemProfileRate = atoi(value)
+ 		} else {
+ 			for _, v := range dbgvars {

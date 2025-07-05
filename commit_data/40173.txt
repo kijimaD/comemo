@@ -13,7 +13,55 @@ Date:   Tue Apr 23 12:53:35 2019 +0300
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/edit.go      |  4 +++-
  src/cmd/go/testdata/script/mod_edit.txt | 16 +++++++++++++++-
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 5066e4ddf7..1be8b7cb2f 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -385,7 +385,9 @@ type replaceJSON struct {
+ // editPrintJSON prints the -json output.
+ func editPrintJSON(modFile *modfile.File) {
+ 	var f fileJSON
+-	f.Module = modFile.Module.Mod
++	if modFile.Module != nil {
++		f.Module = modFile.Module.Mod
++	}
+ 	if modFile.Go != nil {
+ 		f.Go = modFile.Go.Version
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index aa714e8b3c..42007b13d0 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -25,6 +25,10 @@ cmpenv go.mod $WORK/go.mod.edit2
+ go mod edit -json
+ cmpenv stdout $WORK/go.mod.json
+ 
++# go mod edit -json (empty mod file)
++go mod edit -json $WORK/go.mod.empty
++cmp stdout $WORK/go.mod.empty.json
++
+ # go mod edit -replace
+ go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
+ cmpenv go.mod $WORK/go.mod.edit3
+@@ -168,4 +172,14 @@ require x.3   v1.99.0
+ -- $WORK/m/go.mod.edit --
+ module x.x/y/z
+ 
+-go $goversion
+\ No newline at end of file
++go $goversion
++-- $WORK/go.mod.empty --
++-- $WORK/go.mod.empty.json --
++{
++	"Module": {
++		"Path": ""
++	},
++	"Require": null,
++	"Exclude": null,
++	"Replace": null
++}

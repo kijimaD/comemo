@@ -14,6 +14,51 @@ Date:   Fri Jan 19 16:51:24 2024 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/net_fake.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 6b6fdc728e..525ff32296 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -14,6 +14,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"os"
++	"runtime"
+ 	"sync"
+ 	"sync/atomic"
+ 	"syscall"
+@@ -513,6 +514,15 @@ func (pq *packetQueue) send(dt *deadlineTimer, b []byte, from sockaddr, block bo
+ 	if !block {
+ 		full = pq.full
+ 	}
++
++	// Before we check dt.expired, yield to other goroutines.
++	// This may help to prevent starvation of the goroutine that runs the
++	// deadlineTimer's time.After callback.
++	//
++	// TODO(#65178): Remove this when the runtime scheduler no longer starves
++	// runnable goroutines.
++	runtime.Gosched()
++
+ 	select {
+ 	case <-dt.expired:
+ 		return 0, os.ErrDeadlineExceeded
+@@ -563,6 +573,15 @@ func (pq *packetQueue) recvfrom(dt *deadlineTimer, b []byte, wholePacket bool, c
+ 		// (Without this, TestZeroByteRead deadlocks.)
+ 		empty = pq.empty
+ 	}
++
++	// Before we check dt.expired, yield to other goroutines.
++	// This may help to prevent starvation of the goroutine that runs the
++	// deadlineTimer's time.After callback.
++	//
++	// TODO(#65178): Remove this when the runtime scheduler no longer starves
++	// runnable goroutines.
++	runtime.Gosched()
++
+ 	select {
+ 	case <-dt.expired:
+ 		return 0, nil, os.ErrDeadlineExceeded

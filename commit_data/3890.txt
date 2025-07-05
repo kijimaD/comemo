@@ -8,8 +8,63 @@ Date:   Sat Nov 7 21:24:48 2009 -0800
     
     R=rsc
     http://go/go-review/1025020
-
+---
  lib/godoc/{listing.html => dirList.html} |  0
  lib/godoc/godoc.html                     |  1 +
  src/cmd/godoc/godoc.go                   | 10 +++++-----
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/lib/godoc/listing.html b/lib/godoc/dirList.html
+similarity index 100%
+rename from lib/godoc/listing.html
+rename to lib/godoc/dirList.html
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 35f71edee8..7686e5bf8b 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -97,6 +97,7 @@
+     <li class="navhead">Programming</li>
+     <li><a href="/cmd" class="noline">Command documentation</a></li>
+     <li><a href="/pkg" class="noline">Package documentation</a></li>
++    <li><a href="/src" class="noline">Sources</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Go code search</li>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 56fc5d5a11..48abcd53c0 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -552,9 +552,9 @@ func readTemplate(name string) *template.Template {
+ 
+ 
+ var (
+-	dirsHtml,
++	dirListHtml,
++		dirsHtml,
+ 		godocHtml,
+-		listingHtml,
+ 		packageHtml,
+ 		packageText,
+ 		parseerrorHtml,
+@@ -565,9 +565,9 @@ var (
+ func readTemplates() {
+ 	// have to delay until after flags processing,
+ 	// so that main has chdir'ed to goroot.
++	dirListHtml = readTemplate("dirList.html");
+ 	dirsHtml = readTemplate("dirs.html");
+ 	godocHtml = readTemplate("godoc.html");
+-	listingHtml = readTemplate("listing.html");
+ 	packageHtml = readTemplate("package.html");
+ 	packageText = readTemplate("package.txt");
+ 	parseerrorHtml = readTemplate("parseerror.html");
+@@ -697,8 +697,8 @@ func serveDirectory(c *http.Conn, r *http.Request) {
+ 	}
+ 
+ 	var buf bytes.Buffer;
+-	if err := listingHtml.Execute(list, &buf); err != nil {
+-		log.Stderrf("listingHtml.Execute: %s", err);
++	if err := dirListHtml.Execute(list, &buf); err != nil {
++		log.Stderrf("dirListHtml.Execute: %s", err);
+ 	}
+ 
+ 	servePage(c, "Directory " + path, "", buf.Bytes());

@@ -14,10 +14,172 @@ Date:   Mon Dec 21 01:44:49 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go   | 15 ++++++++++-----
  src/cmd/compile/internal/gc/main.go  |  3 +++
  src/cmd/compile/internal/gc/plive.go |  8 ++++----
  src/cmd/compile/internal/gc/ssa.go   | 14 ++++++++++----
  src/cmd/compile/internal/gc/walk.go  |  2 +-
  5 files changed, 28 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6c8f380d87..15df2584f0 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -39,6 +39,9 @@ import (
+ 	"strings"
+ )
+ 
++// IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.
++var IsIntrinsicCall = func(*ir.CallExpr) bool { return false }
++
+ // Inlining budget parameters, gathered in one place
+ const (
+ 	inlineMaxBudget       = 80
+@@ -339,7 +342,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 			}
+ 		}
+ 
+-		if isIntrinsicCall(n) {
++		if IsIntrinsicCall(n) {
+ 			// Treat like any other node.
+ 			break
+ 		}
+@@ -593,7 +596,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 		if base.Flag.LowerM > 3 {
+ 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.Left())
+ 		}
+-		if isIntrinsicCall(call) {
++		if IsIntrinsicCall(call) {
+ 			break
+ 		}
+ 		if fn := inlCallee(call.Left()); fn != nil && fn.Inl != nil {
+@@ -768,6 +771,10 @@ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node
+ 
+ var inlgen int
+ 
++// SSADumpInline gives the SSA back end a chance to dump the function
++// when producing output for debugging the compiler itself.
++var SSADumpInline = func(*ir.Func) {}
++
+ // If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
+ // function with an inlinable body, return an OINLCALL node that can replace n.
+ // The returned node's Ninit has the parameter assignments, the Nbody is the
+@@ -835,9 +842,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
+ 	}
+ 
+-	if ssaDump != "" && ssaDump == ir.FuncName(Curfn) {
+-		ssaDumpInlined = append(ssaDumpInlined, fn)
+-	}
++	SSADumpInline(fn)
+ 
+ 	ninit := n.Init()
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 45880c5cde..afb47cf15d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -191,6 +191,9 @@ func Main(archInit func(*Arch)) {
+ 		logopt.LogJsonOption(base.Flag.JSON)
+ 	}
+ 
++	IsIntrinsicCall = isIntrinsicCall
++	SSADumpInline = ssaDumpInline
++
+ 	ssaDump = os.Getenv("GOSSAFUNC")
+ 	ssaDir = os.Getenv("GOSSADIR")
+ 	if ssaDump != "" {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 8e266d6599..77cd9c5b19 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1233,10 +1233,10 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
+ // pointer variables in the function and emits a runtime data
+ // structure read by the garbage collector.
+ // Returns a map from GC safe points to their corresponding stack map index.
+-func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
++func liveness(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *Progs) LivenessMap {
+ 	// Construct the global liveness state.
+-	vars, idx := getvariables(e.curfn)
+-	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
++	vars, idx := getvariables(curfn)
++	lv := newliveness(curfn, f, vars, idx, stkptrsize)
+ 
+ 	// Run the dataflow framework.
+ 	lv.prologue()
+@@ -1271,7 +1271,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 	}
+ 
+ 	// Emit the live pointer map data structures
+-	ls := e.curfn.LSym
++	ls := curfn.LSym
+ 	fninfo := ls.Func()
+ 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fbfed0640d..4f4860869c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -42,6 +42,12 @@ const maxOpenDefers = 8
+ // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
+ var ssaDumpInlined []*ir.Func
+ 
++func ssaDumpInline(fn *ir.Func) {
++	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
++		ssaDumpInlined = append(ssaDumpInlined, fn)
++	}
++}
++
+ func initssaconfig() {
+ 	types_ := ssa.NewTypes()
+ 
+@@ -1135,7 +1141,7 @@ func (s *state) stmt(n ir.Node) {
+ 	// Expression statements
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+-		if isIntrinsicCall(n) {
++		if IsIntrinsicCall(n) {
+ 			s.intrinsicCall(n)
+ 			return
+ 		}
+@@ -1204,7 +1210,7 @@ func (s *state) stmt(n ir.Node) {
+ 	case ir.OAS2FUNC:
+ 		// We come here only when it is an intrinsic call returning two values.
+ 		call := n.Rlist().First().(*ir.CallExpr)
+-		if !isIntrinsicCall(call) {
++		if !IsIntrinsicCall(call) {
+ 			s.Fatalf("non-intrinsic AS2FUNC not expanded %v", call)
+ 		}
+ 		v := s.intrinsicCall(call)
+@@ -2826,7 +2832,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+-		if isIntrinsicCall(n) {
++		if IsIntrinsicCall(n) {
+ 			return s.intrinsicCall(n)
+ 		}
+ 		fallthrough
+@@ -6375,7 +6381,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 
+ 	e := f.Frontend().(*ssafn)
+ 
+-	s.livenessMap = liveness(e, f, pp)
++	s.livenessMap = liveness(e.curfn, f, e.stkptrsize, pp)
+ 	emitStackObjects(e, pp)
+ 
+ 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 657a744e68..7651bbca10 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -769,7 +769,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		walkexprlistsafe(n.List().Slice(), init)
+ 		r = walkexpr(r, init)
+ 
+-		if isIntrinsicCall(r.(*ir.CallExpr)) {
++		if IsIntrinsicCall(r.(*ir.CallExpr)) {
+ 			n.PtrRlist().Set1(r)
+ 			return n
+ 		}

@@ -18,6 +18,20 @@ Date:   Mon Feb 7 16:32:01 2022 -0500
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/windows/win.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/windows/win.go b/src/runtime/testdata/testprogcgo/windows/win.go
+index 12488aa658..9d9f86c9be 100644
+--- a/src/runtime/testdata/testprogcgo/windows/win.go
++++ b/src/runtime/testdata/testprogcgo/windows/win.go
+@@ -1,8 +1,6 @@
+ package windows
+ 
+ /*
+-#cgo amd64 386 CFLAGS: -mnop-fun-dllimport
+-
+ #include <windows.h>
+ 
+ DWORD agetthread() {

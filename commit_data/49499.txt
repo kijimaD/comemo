@@ -13,7 +13,72 @@ Date:   Mon Aug 23 17:38:55 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader2.go      |  2 +-
  src/cmd/compile/internal/types2/instantiate.go | 26 +++++++++++++++++++++++---
  2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 64c1612f70..e72a6737ed 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -228,7 +228,7 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		obj, targs := r.obj()
+ 		name := obj.(*types2.TypeName)
+ 		if len(targs) != 0 {
+-			t, _ := types2.Instantiate(r.p.check, name.Type(), targs, false)
++			t, _ := types2.Instantiate(types2.NewEnvironment(r.p.check), name.Type(), targs, false)
+ 			return t
+ 		}
+ 		return name.Type()
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index fdb8c40572..9d60021667 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -13,6 +13,21 @@ import (
+ 	"fmt"
+ )
+ 
++// An Environment is an opaque type checking environment. It may be used to
++// share identical type instances across type checked packages or calls to
++// Instantiate.
++type Environment struct {
++	// For now, Environment just hides a Checker.
++	// Eventually, we strive to remove the need for a checker.
++	check *Checker
++}
++
++// NewEnvironment returns a new Environment, initialized with the given
++// Checker, or nil.
++func NewEnvironment(check *Checker) *Environment {
++	return &Environment{check}
++}
++
+ // Instantiate instantiates the type typ with the given type arguments targs.
+ // typ must be a *Named or a *Signature type, and its number of type parameters
+ // must match the number of provided type arguments. The result is a new,
+@@ -20,8 +35,9 @@ import (
+ // *Signature). Any methods attached to a *Named are simply copied; they are
+ // not instantiated.
+ //
+-// If check is non-nil, it will be used to de-dupe the instance against
+-// previous instances with the same identity.
++// If env is non-nil, it may be used to de-dupe the instance against previous
++// instances with the same identity. This functionality is implemented for
++// environments with non-nil Checkers.
+ //
+ // If verify is set and constraint satisfaction fails, the returned error may
+ // be of dynamic type ArgumentError indicating which type argument did not
+@@ -29,7 +45,11 @@ import (
+ //
+ // TODO(rfindley): change this function to also return an error if lengths of
+ // tparams and targs do not match.
+-func Instantiate(check *Checker, typ Type, targs []Type, validate bool) (Type, error) {
++func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
++	var check *Checker
++	if env != nil {
++		check = env.check
++	}
+ 	inst := check.instance(nopos, typ, targs)
+ 
+ 	var err error

@@ -50,8 +50,172 @@ Date:   Thu Oct 10 19:46:13 2024 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 10 +++
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 90 +++++++++++++++++++++++++
  test/codegen/bitfield.go                        |  4 ++
  3 files changed, 104 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index a5fa2ae48f..c1067c8272 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -646,6 +646,16 @@
+ (ROTR x (MOVVconst [c]))  => (ROTRconst x [c&31])
+ (ROTRV x (MOVVconst [c])) => (ROTRVconst x [c&63])
+ 
++// If the shift amount is larger than the datasize(32, 16, 8), we can optimize to constant 0.
++(MOVWUreg (SLLVconst [lc] x)) && lc >= 32 => (MOVVconst [0])
++(MOVHUreg (SLLVconst [lc] x)) && lc >= 16 => (MOVVconst [0])
++(MOVBUreg (SLLVconst [lc] x)) && lc >= 8 => (MOVVconst [0])
++
++// After zero extension, the upper (64-datasize(32|16|8)) bits are zero, we can optimize to constant 0.
++(SRLVconst [rc] (MOVWUreg x)) && rc >= 32 => (MOVVconst [0])
++(SRLVconst [rc] (MOVHUreg x)) && rc >= 16 => (MOVVconst [0])
++(SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
++
+ // mul by constant
+ (MULV x (MOVVconst [-1])) => (NEGV x)
+ (MULV _ (MOVVconst [0])) => (MOVVconst [0])
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 9f22c99172..95fa7cd30e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1989,6 +1989,21 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg (SLLVconst [lc] x))
++	// cond: lc >= 8
++	// result: (MOVVconst [0])
++	for {
++		if v_0.Op != OpLOONG64SLLVconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		if !(lc >= 8) {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (MOVBUreg (MOVVconst [c]))
+ 	// result: (MOVVconst [int64(uint8(c))])
+ 	for {
+@@ -3223,6 +3238,21 @@ func rewriteValueLOONG64_OpLOONG64MOVHUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHUreg (SLLVconst [lc] x))
++	// cond: lc >= 16
++	// result: (MOVVconst [0])
++	for {
++		if v_0.Op != OpLOONG64SLLVconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		if !(lc >= 16) {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (MOVHUreg (MOVVconst [c]))
+ 	// result: (MOVVconst [int64(uint16(c))])
+ 	for {
+@@ -4415,6 +4445,21 @@ func rewriteValueLOONG64_OpLOONG64MOVWUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWUreg (SLLVconst [lc] x))
++	// cond: lc >= 32
++	// result: (MOVVconst [0])
++	for {
++		if v_0.Op != OpLOONG64SLLVconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		if !(lc >= 32) {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (MOVWUreg (MOVVconst [c]))
+ 	// result: (MOVVconst [int64(uint32(c))])
+ 	for {
+@@ -5839,6 +5884,51 @@ func rewriteValueLOONG64_OpLOONG64SRLVconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SRLVconst [rc] (MOVWUreg x))
++	// cond: rc >= 32
++	// result: (MOVVconst [0])
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64MOVWUreg {
++			break
++		}
++		if !(rc >= 32) {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SRLVconst [rc] (MOVHUreg x))
++	// cond: rc >= 16
++	// result: (MOVVconst [0])
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64MOVHUreg {
++			break
++		}
++		if !(rc >= 16) {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SRLVconst [rc] (MOVBUreg x))
++	// cond: rc >= 8
++	// result: (MOVVconst [0])
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64MOVBUreg {
++			break
++		}
++		if !(rc >= 8) {
++			break
++		}
++		v.reset(OpLOONG64MOVVconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (SRLVconst [c] (MOVVconst [d]))
+ 	// result: (MOVVconst [int64(uint64(d)>>uint64(c))])
+ 	for {
+diff --git a/test/codegen/bitfield.go b/test/codegen/bitfield.go
+index 3276af3de0..44cf09f86f 100644
+--- a/test/codegen/bitfield.go
++++ b/test/codegen/bitfield.go
+@@ -358,11 +358,15 @@ func rev16w(c uint32) (uint32, uint32, uint32) {
+ 
+ func shift(x uint32, y uint16, z uint8) uint64 {
+ 	// arm64:-`MOVWU`,-`LSR\t[$]32`
++	// loong64:-`MOVWU`,-`SRLV\t[$]32`
+ 	a := uint64(x) >> 32
+ 	// arm64:-`MOVHU
++	// loong64:-`MOVHU`,-`SRLV\t[$]16`
+ 	b := uint64(y) >> 16
+ 	// arm64:-`MOVBU`
++	// loong64:-`MOVBU`,-`SRLV\t[$]8`
+ 	c := uint64(z) >> 8
+ 	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
++	// loong64:`MOVV\t[$]0`,-`ADDVU`
+ 	return a + b + c
+ }

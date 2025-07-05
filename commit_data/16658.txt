@@ -171,7 +171,7 @@ Date:   Thu Jun 27 11:32:01 2013 -0400
     R=r, dvyukov, go.peter.90, dave, iant
     CC=golang-dev
     https://golang.org/cl/10360048
-
+---
  src/cmd/5g/gsubr.c               |   3 +-
  src/cmd/5l/noop.c                | 176 ++++++++++++++++-----------------------
  src/cmd/6g/gsubr.c               |   1 +
@@ -200,3 +200,1483 @@ Date:   Thu Jun 27 11:32:01 2013 -0400
  src/pkg/runtime/traceback_arm.c  |  75 ++++++++---------
  src/pkg/runtime/traceback_x86.c  |  83 ++++++++----------
  27 files changed, 426 insertions(+), 300 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f89124269c..56b27da136 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -32,8 +32,9 @@
+ #include <libc.h>
+ #include "gg.h"
+ 
+-// TODO(kaib): Can make this bigger if we move
++// TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 5l for all GOOS.
++// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
+ long unmappedzero = 4096;
+ 
+ void
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 63a0d9b833..ace03ffd6b 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -32,13 +32,7 @@
+ 
+ #include	"l.h"
+ #include	"../ld/lib.h"
+-
+-// see ../../runtime/proc.c:/StackGuard
+-enum
+-{
+-	StackBig = 4096,
+-	StackSmall = 128,
+-};
++#include	"../../pkg/runtime/stack.h"
+ 
+ static	Sym*	sym_div;
+ static	Sym*	sym_divu;
+@@ -180,33 +174,7 @@ noops(void)
+ 						break;
+ 				}
+ 	
+-				if(p->reg & NOSPLIT) {
+-					q1 = prg();
+-					q1->as = AMOVW;
+-					q1->scond |= C_WBIT;
+-					q1->line = p->line;
+-					q1->from.type = D_REG;
+-					q1->from.reg = REGLINK;
+-					q1->to.type = D_OREG;
+-					q1->to.offset = -autosize;
+-					q1->to.reg = REGSP;
+-					q1->spadj = autosize;
+-					q1->link = p->link;
+-					p->link = q1;
+-				} else if (autosize < StackBig) {
+-					// split stack check for small functions
+-					// MOVW			g_stackguard(g), R1
+-					// CMP			R1, $-autosize(SP)
+-					// MOVW.LO		$autosize, R1
+-					// MOVW.LO		$args, R2
+-					// MOVW.LO		R14, R3
+-					// BL.LO			runtime.morestack(SB) // modifies LR
+-					// MOVW.W		R14,$-autosize(SP)
+-	
+-					// TODO(kaib): add more trampolines
+-					// TODO(kaib): put stackguard in register
+-					// TODO(kaib): add support for -K and underflow detection
+-
++				if(!(p->reg & NOSPLIT)) {
+ 					// MOVW			g_stackguard(g), R1
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+@@ -215,16 +183,18 @@ noops(void)
+ 					p->to.type = D_REG;
+ 					p->to.reg = 1;
+ 					
+-					if(autosize < StackSmall) {	
+-						// CMP			R1, SP
++					if(autosize <= StackSmall) {
++						// small stack: SP < stackguard
++						//	CMP	stackguard, SP
+ 						p = appendp(p);
+ 						p->as = ACMP;
+ 						p->from.type = D_REG;
+ 						p->from.reg = 1;
+ 						p->reg = REGSP;
+-					} else {
+-						// MOVW		$-autosize(SP), R2
+-						// CMP	R1, R2
++					} else if(autosize <= StackBig) {
++						// large stack: SP-framesize < stackguard-StackSmall
++						//	MOVW $-autosize(SP), R2
++						//	CMP stackguard, R2
+ 						p = appendp(p);
+ 						p->as = AMOVW;
+ 						p->from.type = D_CONST;
+@@ -238,103 +208,97 @@ noops(void)
+ 						p->from.type = D_REG;
+ 						p->from.reg = 1;
+ 						p->reg = 2;
++					} else {
++						// such a large stack we need to protect against wraparound
++						// if SP is close to zero.
++						//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
++						// The +StackGuard on both sides is required to keep the left side positive:
++						// SP is allowed to be slightly below stackguard. See stack.h.
++						//	MOVW $StackGuard(SP), R2
++						//	SUB R1, R2
++						//	MOVW $(autosize+(StackGuard-StackSmall)), R3
++						//	CMP R3, R2
++						p = appendp(p);
++						p->as = AMOVW;
++						p->from.type = D_CONST;
++						p->from.reg = REGSP;
++						p->from.offset = StackGuard;
++						p->to.type = D_REG;
++						p->to.reg = 2;
++						
++						p = appendp(p);
++						p->as = ASUB;
++						p->from.type = D_REG;
++						p->from.reg = 1;
++						p->to.type = D_REG;
++						p->to.reg = 2;
++						
++						p = appendp(p);
++						p->as = AMOVW;
++						p->from.type = D_CONST;
++						p->from.offset = autosize + (StackGuard - StackSmall);
++						p->to.type = D_REG;
++						p->to.reg = 3;
++						
++						p = appendp(p);
++						p->as = ACMP;
++						p->from.type = D_REG;
++						p->from.reg = 3;
++						p->reg = 2;
+ 					}
+-
+-					// MOVW.LO		$autosize, R1
++					
++					// MOVW.LS		$autosize, R1
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+-					p->scond = C_SCOND_LO;
++					p->scond = C_SCOND_LS;
+ 					p->from.type = D_CONST;
+ 					p->from.offset = autosize;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 1;
+ 	
+-					// MOVW.LO		$args, R2
++					// MOVW.LS		$args, R2
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+-					p->scond = C_SCOND_LO;
++					p->scond = C_SCOND_LS;
+ 					p->from.type = D_CONST;
+ 					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 2;
+ 	
+-					// MOVW.LO	R14, R3
++					// MOVW.LS	R14, R3
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+-					p->scond = C_SCOND_LO;
++					p->scond = C_SCOND_LS;
+ 					p->from.type = D_REG;
+ 					p->from.reg = REGLINK;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 3;
+ 	
+-					// BL.LO		runtime.morestack(SB) // modifies LR
++					// BL.LS		runtime.morestack(SB) // modifies LR, returns with LO still asserted
+ 					p = appendp(p);
+ 					p->as = ABL;
+-					p->scond = C_SCOND_LO;
++					p->scond = C_SCOND_LS;
+ 					p->to.type = D_BRANCH;
+ 					p->to.sym = symmorestack;
+ 					p->cond = pmorestack;
+-	
+-					// MOVW.W		R14,$-autosize(SP)
+-					p = appendp(p);
+-					p->as = AMOVW;
+-					p->scond |= C_WBIT;
+-					p->from.type = D_REG;
+-					p->from.reg = REGLINK;
+-					p->to.type = D_OREG;
+-					p->to.offset = -autosize;
+-					p->to.reg = REGSP;
+-					p->spadj = autosize;
+-				} else { // > StackBig
+-					// MOVW		$autosize, R1
+-					// MOVW		$args, R2
+-					// MOVW		R14, R3
+-					// BL			runtime.morestack(SB) // modifies LR
+-					// MOVW.W		R14,$-autosize(SP)
+-	
+-					// MOVW		$autosize, R1
+-					p = appendp(p);
+-					p->as = AMOVW;
+-					p->from.type = D_CONST;
+-					p->from.offset = autosize;
+-					p->to.type = D_REG;
+-					p->to.reg = 1;
+-	
+-					// MOVW		$args, R2
+-					// also need to store the extra 4 bytes.
+-					p = appendp(p);
+-					p->as = AMOVW;
+-					p->from.type = D_CONST;
+-					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
+-					p->to.type = D_REG;
+-					p->to.reg = 2;
+-	
+-					// MOVW	R14, R3
+-					p = appendp(p);
+-					p->as = AMOVW;
+-					p->from.type = D_REG;
+-					p->from.reg = REGLINK;
+-					p->to.type = D_REG;
+-					p->to.reg = 3;
+-	
+-					// BL		runtime.morestack(SB) // modifies LR
++					
++					// BLS	start
+ 					p = appendp(p);
+-					p->as = ABL;
++					p->as = ABLS;
+ 					p->to.type = D_BRANCH;
+-					p->to.sym = symmorestack;
+-					p->cond = pmorestack;
+-	
+-					// MOVW.W		R14,$-autosize(SP)
+-					p = appendp(p);
+-					p->as = AMOVW;
+-					p->scond |= C_WBIT;
+-					p->from.type = D_REG;
+-					p->from.reg = REGLINK;
+-					p->to.type = D_OREG;
+-					p->to.offset = -autosize;
+-					p->to.reg = REGSP;
+-					p->spadj = autosize;
++					p->cond = cursym->text->link;
+ 				}
++				
++				// MOVW.W		R14,$-autosize(SP)
++				p = appendp(p);
++				p->as = AMOVW;
++				p->scond |= C_WBIT;
++				p->from.type = D_REG;
++				p->from.reg = REGLINK;
++				p->to.type = D_OREG;
++				p->to.offset = -autosize;
++				p->to.reg = REGSP;
++				p->spadj = autosize;
+ 				break;
+ 	
+ 			case ARET:
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 5408435fdd..c494215442 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -34,6 +34,7 @@
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 6l for all GOOS.
++// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
+ vlong unmappedzero = 4096;
+ 
+ void
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 7de0fddf29..31d42eee45 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -497,34 +497,61 @@ dostkoff(void)
+ 				q1->pcond = p;
+ 			}
+ 
+-			if(autoffset < StackBig) {  // do we need to call morestack?
+-				if(autoffset <= StackSmall) {
+-					// small stack
+-					p = appendp(p);
+-					p->as = ACMPQ;
+-					p->from.type = D_SP;
+-					p->to.type = D_INDIR+D_CX;
+-				} else {
+-					// large stack
+-					p = appendp(p);
+-					p->as = ALEAQ;
+-					p->from.type = D_INDIR+D_SP;
+-					p->from.offset = -(autoffset-StackSmall);
+-					p->to.type = D_AX;
+-
+-					p = appendp(p);
+-					p->as = ACMPQ;
+-					p->from.type = D_AX;
+-					p->to.type = D_INDIR+D_CX;
+-				}
++			if(autoffset <= StackSmall) {
++				// small stack: SP <= stackguard
++				//	CMPQ SP, stackguard
++				p = appendp(p);
++				p->as = ACMPQ;
++				p->from.type = D_SP;
++				p->to.type = D_INDIR+D_CX;
++			} else if(autoffset <= StackBig) {
++				// large stack: SP-framesize <= stackguard-StackSmall
++				//	LEAQ -xxx(SP), AX
++				//	CMPQ AX, stackguard
++				p = appendp(p);
++				p->as = ALEAQ;
++				p->from.type = D_INDIR+D_SP;
++				p->from.offset = -(autoffset-StackSmall);
++				p->to.type = D_AX;
+ 
+-				// common
+ 				p = appendp(p);
+-				p->as = AJHI;
+-				p->to.type = D_BRANCH;
+-				p->to.offset = 4;
+-				q = p;
+-			}
++				p->as = ACMPQ;
++				p->from.type = D_AX;
++				p->to.type = D_INDIR+D_CX;
++			} else {
++				// such a large stack we need to protect against wraparound
++				// if SP is close to zero:
++				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
++				// The +StackGuard on both sides is required to keep the left side positive:
++				// SP is allowed to be slightly below stackguard. See stack.h.
++				//	LEAQ	StackGuard(SP), AX
++				//	SUBQ	stackguard, AX
++				//	CMPQ	AX, $(autoffset+(StackGuard-StackSmall))
++				p = appendp(p);
++				p->as = ALEAQ;
++				p->from.type = D_INDIR+D_SP;
++				p->from.offset = StackGuard;
++				p->to.type = D_AX;
++				
++				p = appendp(p);
++				p->as = ASUBQ;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 0;
++				p->to.type = D_AX;
++				
++				p = appendp(p);
++				p->as = ACMPQ;
++				p->from.type = D_AX;
++				p->to.type = D_CONST;
++				p->to.offset = autoffset+(StackGuard-StackSmall);
++			}					
++
++			// common
++			p = appendp(p);
++			p->as = AJHI;
++			p->to.type = D_BRANCH;
++			p->to.offset = 4;
++			q = p;
+ 
+ 			// If we ask for more stack, we'll get a minimum of StackMin bytes.
+ 			// We need a stack frame large enough to hold the top-of-stack data,
+@@ -591,6 +618,11 @@ dostkoff(void)
+ 				p->pcond = pmorestack[3];
+ 				p->to.sym = symmorestack[3];
+ 			}
++			
++			p = appendp(p);
++			p->as = AJMP;
++			p->to.type = D_BRANCH;
++			p->pcond = cursym->text->link;
+ 		}
+ 
+ 		if(q != P)
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 756bdd2039..7ffc77a268 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -34,6 +34,7 @@
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 8l for all GOOS.
++// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
+ uint32 unmappedzero = 4096;
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index f668ca8cf1..d5bebe1684 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -526,34 +526,61 @@ dostkoff(void)
+ 				q1->pcond = p;
+ 			}
+ 
+-			if(autoffset < StackBig) {  // do we need to call morestack
+-				if(autoffset <= StackSmall) {
+-					// small stack
+-					p = appendp(p);
+-					p->as = ACMPL;
+-					p->from.type = D_SP;
+-					p->to.type = D_INDIR+D_CX;
+-				} else {
+-					// large stack
+-					p = appendp(p);
+-					p->as = ALEAL;
+-					p->from.type = D_INDIR+D_SP;
+-					p->from.offset = -(autoffset-StackSmall);
+-					p->to.type = D_AX;
+-
+-					p = appendp(p);
+-					p->as = ACMPL;
+-					p->from.type = D_AX;
+-					p->to.type = D_INDIR+D_CX;
+-				}
++			if(autoffset <= StackSmall) {
++				// small stack: SP <= stackguard
++				//	CMPL SP, stackguard
++				p = appendp(p);
++				p->as = ACMPL;
++				p->from.type = D_SP;
++				p->to.type = D_INDIR+D_CX;
++			} else if(autoffset <= StackBig) {
++				// large stack: SP-framesize <= stackguard-StackSmall
++				//	LEAL -(autoffset-StackSmall)(SP), AX
++				//	CMPL AX, stackguard
++				p = appendp(p);
++				p->as = ALEAL;
++				p->from.type = D_INDIR+D_SP;
++				p->from.offset = -(autoffset-StackSmall);
++				p->to.type = D_AX;
+ 
+-				// common
+ 				p = appendp(p);
+-				p->as = AJHI;
+-				p->to.type = D_BRANCH;
+-				p->to.offset = 4;
+-				q = p;
+-			}
++				p->as = ACMPL;
++				p->from.type = D_AX;
++				p->to.type = D_INDIR+D_CX;
++			} else {
++				// such a large stack we need to protect against wraparound
++				// if SP is close to zero.
++				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
++				// The +StackGuard on both sides is required to keep the left side positive:
++				// SP is allowed to be slightly below stackguard. See stack.h.
++				//	LEAL	StackGuard(SP), AX
++				//	SUBL	stackguard, AX
++				//	CMPL	AX, $(autoffset+(StackGuard-StackSmall))
++				p = appendp(p);
++				p->as = ALEAL;
++				p->from.type = D_INDIR+D_SP;
++				p->from.offset = StackGuard;
++				p->to.type = D_AX;
++				
++				p = appendp(p);
++				p->as = ASUBL;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 0;
++				p->to.type = D_AX;
++				
++				p = appendp(p);
++				p->as = ACMPL;
++				p->from.type = D_AX;
++				p->to.type = D_CONST;
++				p->to.offset = autoffset+(StackGuard-StackSmall);
++			}		
++					
++			// common
++			p = appendp(p);
++			p->as = AJHI;
++			p->to.type = D_BRANCH;
++			p->to.offset = 4;
++			q = p;
+ 
+ 			p = appendp(p);	// save frame size in DI
+ 			p->as = AMOVL;
+@@ -583,6 +610,10 @@ dostkoff(void)
+ 			p->pcond = pmorestack;
+ 			p->to.sym = symmorestack;
+ 
++			p = appendp(p);
++			p->as = AJMP;
++			p->to.type = D_BRANCH;
++			p->pcond = cursym->text->link;
+ 		}
+ 
+ 		if(q != P)
+diff --git a/src/libmach/8db.c b/src/libmach/8db.c
+index 9ef02c4289..824c9fb1a9 100644
+--- a/src/libmach/8db.c
++++ b/src/libmach/8db.c
+@@ -202,6 +202,11 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 			break;
+ 
+ 		if(s.value == morestack) {
++			// This code is old and won't work anymore.
++			// But no one uses it anyway.
++			// Leave it obviously broken until someone needs it.
++			werrstr("morestack not implemented correctly");
++			return -1;
+ 			// In the middle of morestack.
+ 			// Caller is m->morepc.
+ 			// Caller's caller is in m->morearg.
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 89db413704..cd1514e1e0 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -200,8 +200,6 @@ TEXT runtime·morestack(SB),7,$0
+ 	CMPL	g(CX), SI
+ 	JNE	2(PC)
+ 	INT	$3
+-	
+-	MOVL	DX, m_cret(BX)
+ 
+ 	// frame size in DI
+ 	// arg size in AX
+@@ -220,9 +218,13 @@ TEXT runtime·morestack(SB),7,$0
+ 	MOVL	g(CX), SI
+ 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
+ 
+-	// Set m->morepc to f's PC.
+-	MOVL	0(SP), AX
+-	MOVL	AX, m_morepc(BX)
++	// Set g->sched to context in f.
++	MOVL	0(SP), AX	// f's PC
++	MOVL	AX, (g_sched+gobuf_pc)(SI)
++	MOVL	SI, (g_sched+gobuf_g)(SI)
++	LEAL	4(SP), AX	// f's SP
++	MOVL	AX, (g_sched+gobuf_sp)(SI)
++	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BP
+@@ -262,7 +264,7 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	8(SP), DX	// arg frame
+ 	MOVL	12(SP), CX	// arg size
+ 
+-	MOVL	AX, m_morepc(BX)	// f's PC
++	MOVL	AX, m_cret(BX)	// f's PC
+ 	MOVL	DX, m_moreargp(BX)	// f's argument pointer
+ 	MOVL	CX, m_moreargsize(BX)	// f's argument size
+ 	MOVL	$1, m_moreframesize(BX)	// f's frame size
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index f6919c6d03..0b7c3ded06 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -186,8 +186,6 @@ TEXT runtime·morestack(SB),7,$0
+ 	CMPQ	g(CX), SI
+ 	JNE	2(PC)
+ 	INT	$3
+-	
+-	MOVQ	DX, m_cret(BX)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -200,9 +198,13 @@ TEXT runtime·morestack(SB),7,$0
+ 	MOVQ	g(CX), SI
+ 	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
+ 
+-	// Set m->morepc to f's PC.
+-	MOVQ	0(SP), AX
+-	MOVQ	AX, m_morepc(BX)
++	// Set g->sched to context in f.
++	MOVQ	0(SP), AX // f's PC
++	MOVQ	AX, (g_sched+gobuf_pc)(SI)
++	MOVQ	SI, (g_sched+gobuf_g)(SI)
++	LEAQ	8(SP), AX // f's SP
++	MOVQ	AX, (g_sched+gobuf_sp)(SI)
++	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BP
+@@ -240,7 +242,7 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVQ	16(SP), DX	// arg frame
+ 	MOVL	24(SP), CX	// arg size
+ 
+-	MOVQ	AX, m_morepc(BX)	// f's PC
++	MOVQ	AX, m_cret(BX)	// f's PC
+ 	MOVQ	DX, m_moreargp(BX)	// argument frame pointer
+ 	MOVL	CX, m_moreargsize(BX)	// f's argument size
+ 	MOVL	$1, m_moreframesize(BX)	// f's frame size
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 5442e69ad1..fd88b46b90 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -126,6 +126,7 @@ TEXT runtime·gogo(SB), 7, $-4
+ 	MOVW	R11, gobuf_ret(R1)
+ 	MOVW	R11, gobuf_lr(R1)
+ 	MOVW	R11, gobuf_ctxt(R1)
++	CMP	R11, R11 // set condition codes for == test, needed by stack split
+ 	MOVW	gobuf_pc(R1), PC
+ 
+ // void mcall(void (*fn)(G*))
+@@ -138,6 +139,8 @@ TEXT runtime·mcall(SB), 7, $-4
+ 	// Save caller state in g->sched.
+ 	MOVW	SP, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
++	MOVW	$0, R11
++	MOVW	R11, (g_sched+gobuf_lr)(g)
+ 	MOVW	g, (g_sched+gobuf_g)(g)
+ 
+ 	// Switch to m->g0 & its stack, call fn.
+@@ -169,11 +172,16 @@ TEXT runtime·morestack(SB),7,$-4
+ 	CMP	g, R4
+ 	BL.EQ	runtime·abort(SB)
+ 
+-	// Save in m.
+-	MOVW	R7, m_cret(m) // function context
+ 	MOVW	R1, m_moreframesize(m)
+ 	MOVW	R2, m_moreargsize(m)
+ 
++	// Called from f.
++	// Set g->sched to context in f.
++	MOVW	R7, (g_sched+gobuf_ctxt)(g)
++	MOVW	SP, (g_sched+gobuf_sp)(g)
++	MOVW	LR, (g_sched+gobuf_pc)(g)
++	MOVW	R3, (g_sched+gobuf_lr)(g)
++
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(m)	// f's caller's PC
+@@ -182,9 +190,6 @@ TEXT runtime·morestack(SB),7,$-4
+ 	MOVW	R3, m_moreargp(m)	
+ 	MOVW	g, (m_morebuf+gobuf_g)(m)
+ 
+-	// Set m->morepc to f's PC.
+-	MOVW	LR, m_morepc(m)
+-
+ 	// Call newstack on m->g0's stack.
+ 	MOVW	m_g0(m), g
+ 	MOVW	(g_sched+gobuf_sp)(g), SP
+@@ -212,7 +217,7 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	8(SP), R1			// arg frame
+ 	MOVW	12(SP), R2			// arg size
+ 
+-	MOVW	R0, m_morepc(m)			// f's PC
++	MOVW	R0, m_cret(m)			// f's PC
+ 	MOVW	R1, m_moreargp(m)		// f's argument pointer
+ 	MOVW	R2, m_moreargsize(m)		// f's argument size
+ 	MOVW	$1, R3
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 4be0eeb0db..c9ac557154 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1464,7 +1464,7 @@ addstackroots(G *gp)
+ 	if(ScanStackByFrames) {
+ 		USED(stk);
+ 		USED(guard);
+-		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil);
++		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil, false);
+ 	} else {
+ 		USED(pc);
+ 		n = 0;
+@@ -2011,6 +2011,8 @@ runtime·gc(int32 force)
+ 		} else {
+ 			// switch to g0, call gc(&a), then switch back
+ 			g->param = &a;
++			g->status = Gwaiting;
++			g->waitreason = "garbage collection";
+ 			runtime·mcall(mgc);
+ 		}
+ 		// record a new start time in case we're going around again
+@@ -2042,6 +2044,7 @@ mgc(G *gp)
+ {
+ 	gc(gp->param);
+ 	gp->param = nil;
++	gp->status = Grunning;
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 9a54002e4b..0d89a267b9 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -478,7 +478,7 @@ saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
+ {
+ 	int32 n;
+ 	
+-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil);
++	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil, false);
+ 	if(n < nelem(r->stk))
+ 		r->stk[n] = 0;
+ }
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index 84b6a1d37d..a174771db3 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -88,6 +88,8 @@ runtime·sighandler(void *v, int8 *s, G *gp)
+ 		return NDFLT;
+ 
+ Throw:
++	m->throwing = 1;
++	m->caughtsig = gp;
+ 	runtime·startpanic();
+ 
+ 	runtime·printf("%s\n", s);
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index de81b1264b..30f31e9969 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -96,6 +96,8 @@ runtime·sighandler(void *v, int8 *s, G *gp)
+ 		return NDFLT;
+ 
+ Throw:
++	m->throwing = 1;
++	m->caughtsig = gp;
+ 	runtime·startpanic();
+ 
+ 	runtime·printf("%s\n", s);
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index f6e9dba4e6..963063a8e8 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -277,6 +277,7 @@ recovery(G *gp)
+ 	else
+ 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
+ 	gp->sched.pc = pc;
++	gp->sched.lr = 0;
+ 	gp->sched.ret = 1;
+ 	runtime·gogo(&gp->sched);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c121466ce9..e6844032a6 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -234,14 +234,25 @@ runtime·tracebackothers(G *me)
+ 	int32 traceback;
+ 
+ 	traceback = runtime·gotraceback(nil);
++	
++	// Show the current goroutine first, if we haven't already.
++	if((gp = m->curg) != nil && gp != me) {
++		runtime·printf("\n");
++		runtime·goroutineheader(gp);
++		runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
++	}
++
+ 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+-		if(gp == me || gp->status == Gdead)
++		if(gp == me || gp == m->curg || gp->status == Gdead)
+ 			continue;
+ 		if(gp->issystem && traceback < 2)
+ 			continue;
+ 		runtime·printf("\n");
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(gp->sched.pc, gp->sched.sp, 0, gp);
++		if(gp->status == Grunning)
++			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
++		else
++			runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
+ 	}
+ }
+ 
+@@ -656,6 +667,7 @@ runtime·newextram(void)
+ 	gp = runtime·malg(4096);
+ 	gp->sched.pc = (uintptr)runtime·goexit;
+ 	gp->sched.sp = gp->stackbase;
++	gp->sched.lr = 0;
+ 	gp->sched.g = gp;
+ 	gp->status = Gsyscall;
+ 	mp->curg = gp;
+@@ -1830,7 +1842,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+ 		runtime·unlock(&prof);
+ 		return;
+ 	}
+-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil);
++	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+ 	if(n > 0)
+ 		prof.fn(prof.pcbuf, n);
+ 	runtime·unlock(&prof);
+@@ -2446,12 +2458,16 @@ runtime·testSchedLocalQueueSteal(void)
+ 	}
+ }
+ 
++extern void runtime·morestack(void);
++
+ bool
+ runtime·haszeroargs(uintptr pc)
+ {
+ 	return pc == (uintptr)runtime·goexit ||
+ 		pc == (uintptr)runtime·mcall ||
+ 		pc == (uintptr)runtime·mstart ||
++		pc == (uintptr)runtime·lessstack ||
++		pc == (uintptr)runtime·morestack ||
+ 		pc == (uintptr)_rt0_go;
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 5422258a69..4fb022c39c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -269,9 +269,7 @@ struct	G
+ };
+ struct	M
+ {
+-	// The offsets of these fields are known to (hard-coded in) libmach.
+ 	G*	g0;		// goroutine with scheduling stack
+-	void	(*morepc)(void);
+ 	void*	moreargp;	// argument pointer for more stack
+ 	Gobuf	morebuf;	// gobuf arg to morestack
+ 
+@@ -284,6 +282,7 @@ struct	M
+ 	uintptr	tls[4];		// thread-local storage (for x86 extern register)
+ 	void	(*mstartfn)(void);
+ 	G*	curg;		// current running goroutine
++	G*	caughtsig;	// goroutine running during fatal signal
+ 	P*	p;		// attached P for executing Go code (nil if not executing Go code)
+ 	P*	nextp;
+ 	int32	id;
+@@ -676,7 +675,7 @@ struct Stkframe
+ 	uintptr	varlen;	// number of bytes at varp
+ };
+ 
+-int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*);
++int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*, bool);
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
+@@ -803,6 +802,7 @@ int32	runtime·mcount(void);
+ int32	runtime·gcount(void);
+ void	runtime·mcall(void(*)(G*));
+ uint32	runtime·fastrand1(void);
++void	runtime·rewindmorestack(Gobuf*);
+ 
+ void runtime·setmg(M*, G*);
+ void runtime·newextram(void);
+@@ -1015,7 +1015,7 @@ Hmap*	runtime·makemap_c(MapType*, int64);
+ Hchan*	runtime·makechan_c(ChanType*, int64);
+ void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
+ void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+-bool	runtime·showframe(Func*, bool);
++bool	runtime·showframe(Func*, G*);
+ 
+ void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
+ 
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index e18f523b0c..0d8fc706f1 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -96,6 +96,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 		return;
+ 
+ Throw:
++	m->throwing = 1;
++	m->caughtsig = gp;
+ 	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+@@ -113,6 +115,7 @@ Throw:
+ 	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
+ 		runtime·tracebackothers(gp);
++		runtime·printf("\n");
+ 		runtime·dumpregs(info, ctxt);
+ 	}
+ 	
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+index b17510b1c7..f566fe16fd 100644
+--- a/src/pkg/runtime/signal_amd64.c
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -106,6 +106,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 		return;
+ 
+ Throw:
++	m->throwing = 1;
++	m->caughtsig = gp;
+ 	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+@@ -123,6 +125,7 @@ Throw:
+ 	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback(SIG_RIP(info, ctxt), SIG_RSP(info, ctxt), 0, gp);
+ 		runtime·tracebackothers(gp);
++		runtime·printf("\n");
+ 		runtime·dumpregs(info, ctxt);
+ 	}
+ 	
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 635daeb5d5..febd157891 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -94,6 +94,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 		return;
+ 
+ Throw:
++	m->throwing = 1;
++	m->caughtsig = gp;
+ 	if(runtime·panicking)	// traceback already printed
+ 		runtime·exit(2);
+ 	runtime·panicking = 1;
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index abfe0cfe43..9dba008b13 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -7,6 +7,11 @@
+ #include "malloc.h"
+ #include "stack.h"
+ 
++enum
++{
++	StackDebug = 0,
++};
++
+ typedef struct StackCacheNode StackCacheNode;
+ struct StackCacheNode
+ {
+@@ -128,20 +133,29 @@ void
+ runtime·oldstack(void)
+ {
+ 	Stktop *top;
+-	Gobuf label;
+ 	uint32 argsize;
+ 	byte *sp, *old;
+ 	uintptr *src, *dst, *dstend;
+ 	G *gp;
+ 	int64 goid;
+ 
+-//printf("oldstack m->cret=%p\n", m->cret);
+-
+ 	gp = m->curg;
+ 	top = (Stktop*)gp->stackbase;
+ 	old = (byte*)gp->stackguard - StackGuard;
+ 	sp = (byte*)top;
+ 	argsize = top->argsize;
++
++	if(StackDebug) {
++		runtime·printf("runtime: oldstack gobuf={pc:%p sp:%p lr:%p} cret=%p argsize=%p\n",
++			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, m->cret, (uintptr)argsize);
++	}
++	
++	gp->sched = top->gobuf;
++	gp->sched.ret = m->cret;
++	m->cret = 0; // drop reference
++	gp->status = Gwaiting;
++	gp->waitreason = "stack unsplit";
++
+ 	if(argsize > 0) {
+ 		sp -= argsize;
+ 		dst = (uintptr*)top->argp;
+@@ -153,16 +167,15 @@ runtime·oldstack(void)
+ 	goid = top->gobuf.g->goid;	// fault if g is bad, before gogo
+ 	USED(goid);
+ 
+-	label = top->gobuf;
+ 	gp->stackbase = top->stackbase;
+ 	gp->stackguard = top->stackguard;
+ 	gp->stackguard0 = gp->stackguard;
++
+ 	if(top->free != 0)
+ 		runtime·stackfree(old, top->free);
+ 
+-	label.ret = m->cret;
+-	m->cret = 0;  // drop reference
+-	runtime·gogo(&label);
++	gp->status = Grunning;
++	runtime·gogo(&gp->sched);
+ }
+ 
+ // Called from reflect·call or from runtime·morestack when a new
+@@ -186,11 +199,31 @@ runtime·newstack(void)
+ 	framesize = m->moreframesize;
+ 	argsize = m->moreargsize;
+ 	gp = m->curg;
++	gp->status = Gwaiting;
++	gp->waitreason = "stack split";
++	reflectcall = framesize==1;
++
++	if(!reflectcall)
++		runtime·rewindmorestack(&gp->sched);
+ 
+-	if(m->morebuf.sp < gp->stackguard - StackGuard) {
+-		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, gp->stackguard - StackGuard);
++	sp = m->morebuf.sp;
++	if(thechar == '6' || thechar == '8') {
++		// The call to morestack cost a word.
++		sp -= sizeof(uintptr);
++	}
++	if(StackDebug || sp < gp->stackguard - StackGuard) {
++		runtime·printf("runtime: newstack framesize=%p argsize=%p sp=%p stack=[%p, %p]\n"
++			"\tmorebuf={pc:%p sp:%p lr:%p}\n"
++			"\tsched={pc:%p sp:%p lr:%p ctxt:%p}\n",
++			(uintptr)framesize, (uintptr)argsize, sp, gp->stackguard - StackGuard, gp->stackbase,
++			m->morebuf.pc, m->morebuf.sp, m->morebuf.lr,
++			gp->sched.pc, gp->sched.sp, gp->sched.lr, gp->sched.ctxt);
++	}
++	if(sp < gp->stackguard - StackGuard) {
++		runtime·printf("runtime: split stack overflow: %p < %p\n", sp, gp->stackguard - StackGuard);
+ 		runtime·throw("runtime: split stack overflow");
+ 	}
++
+ 	if(argsize % sizeof(uintptr) != 0) {
+ 		runtime·printf("runtime: stack split with misaligned argsize %d\n", argsize);
+ 		runtime·throw("runtime: stack split argsize");
+@@ -221,9 +254,8 @@ runtime·newstack(void)
+ 		free = framesize;
+ 	}
+ 
+-	if(0) {
+-		runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
+-			framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, gp->stackbase);
++	if(StackDebug) {
++		runtime·printf("\t-> new stack [%p, %p]\n", stk, top);
+ 	}
+ 
+ 	top->stackbase = gp->stackbase;
+@@ -234,6 +266,7 @@ runtime·newstack(void)
+ 	top->free = free;
+ 	m->moreargp = nil;
+ 	m->morebuf.pc = (uintptr)nil;
++	m->morebuf.lr = (uintptr)nil;
+ 	m->morebuf.sp = (uintptr)nil;
+ 
+ 	// copy flag from panic
+@@ -266,12 +299,12 @@ runtime·newstack(void)
+ 	label.pc = (uintptr)runtime·lessstack;
+ 	label.g = m->curg;
+ 	if(reflectcall)
+-		runtime·gostartcallfn(&label, (FuncVal*)m->morepc);
++		runtime·gostartcallfn(&label, (FuncVal*)m->cret);
+ 	else {
+-		// The stack growth code saves ctxt (not ret) in m->cret.
+-		runtime·gostartcall(&label, m->morepc, (void*)m->cret);
+-		m->cret = 0;
++		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
++		gp->sched.ctxt = nil;
+ 	}
++	gp->status = Grunning;
+ 	runtime·gogo(&label);
+ 
+ 	*(int32*)345 = 123;	// never return
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index a349c1f1be..b6924c198e 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -79,13 +79,11 @@ enum {
+ 	StackMin = 4096,
+ 	FixedStack = StackMin + StackSystem,
+ 
+-	// Functions that need frames bigger than this call morestack
+-	// unconditionally.  That is, on entry to a function it is assumed
+-	// that the amount of space available in the current stack segment
+-	// couldn't possibly be bigger than StackBig.  If stack segments
+-	// do run with more space than StackBig, the space may not be
+-	// used efficiently.  As a result, StackBig should not be significantly
+-	// smaller than StackMin or StackExtra.
++	// Functions that need frames bigger than this use an extra
++	// instruction to do the stack split check, to avoid overflow
++	// in case SP - framesize wraps below zero.
++	// This value can be no bigger than the size of the unmapped
++	// space at zero.
+ 	StackBig = 4096,
+ 
+ 	// The stack guard is a pointer this many bytes above the
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 9fa2ac3db4..7fd700e36a 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -646,11 +646,11 @@ contains(String s, int8 *p)
+ }
+ 
+ bool
+-runtime·showframe(Func *f, bool current)
++runtime·showframe(Func *f, G *gp)
+ {
+ 	static int32 traceback = -1;
+ 
+-	if(current && m->throwing > 0)
++	if(m->throwing && gp != nil && (gp == m->curg || gp == m->caughtsig))
+ 		return 1;
+ 	if(traceback < 0)
+ 		traceback = runtime·gotraceback(nil);
+diff --git a/src/pkg/runtime/sys_arm.c b/src/pkg/runtime/sys_arm.c
+index 68ea49a557..a65560e5b5 100644
+--- a/src/pkg/runtime/sys_arm.c
++++ b/src/pkg/runtime/sys_arm.c
+@@ -15,3 +15,21 @@ runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
+ 	gobuf->pc = (uintptr)fn;
+ 	gobuf->ctxt = ctxt;
+ }
++
++// Called to rewind context saved during morestack back to beginning of function.
++// To help us, the linker emits a jmp back to the beginning right after the
++// call to morestack. We just have to decode and apply that jump.
++void
++runtime·rewindmorestack(Gobuf *gobuf)
++{
++	uint32 inst;
++
++	inst = *(uint32*)gobuf->pc;
++	if((gobuf->pc&3) == 0 && (inst>>24) == 0x9a) {
++		//runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>6) + 8);
++		gobuf->pc += ((int32)(inst<<8)>>6) + 8;
++		return;
++	}
++	runtime·printf("runtime: pc=%p %x\n", gobuf->pc, inst);
++	runtime·throw("runtime: misuse of rewindmorestack");
++}
+diff --git a/src/pkg/runtime/sys_x86.c b/src/pkg/runtime/sys_x86.c
+index c786a0c9f8..e68ff514a2 100644
+--- a/src/pkg/runtime/sys_x86.c
++++ b/src/pkg/runtime/sys_x86.c
+@@ -19,3 +19,24 @@ runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
+ 	gobuf->pc = (uintptr)fn;
+ 	gobuf->ctxt = ctxt;
+ }
++
++// Called to rewind context saved during morestack back to beginning of function.
++// To help us, the linker emits a jmp back to the beginning right after the
++// call to morestack. We just have to decode and apply that jump.
++void
++runtime·rewindmorestack(Gobuf *gobuf)
++{
++	byte *pc;
++	
++	pc = (byte*)gobuf->pc;
++	if(pc[0] == 0xe9) { // jmp 4-byte offset
++		gobuf->pc = gobuf->pc + 5 + *(int32*)(pc+1);
++		return;
++	}
++	if(pc[0] == 0xeb) { // jmp 1-byte offset
++		gobuf->pc = gobuf->pc + 2 + *(int8*)(pc+1);
++		return;
++	}
++	runtime·printf("runtime: pc=%p %x %x %x %x %x\n", pc, pc[0], pc[1], pc[2], pc[3], pc[4]);
++	runtime·throw("runtime: misuse of rewindmorestack");
++}
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 04914f0912..c4d78872bb 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -8,7 +8,6 @@
+ 
+ void runtime·deferproc(void);
+ void runtime·newproc(void);
+-void runtime·newstack(void);
+ void runtime·morestack(void);
+ void runtime·sigpanic(void);
+ void _div(void);
+@@ -17,9 +16,9 @@ void _divu(void);
+ void _modu(void);
+ 
+ int32
+-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v)
++runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+-	int32 i, n, skip0;
++	int32 i, n, nprint, skip0;
+ 	uintptr x, tracepc;
+ 	bool waspanic, printing;
+ 	Func *f, *f2;
+@@ -28,6 +27,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 
+ 	skip0 = skip;
+ 
++	nprint = 0;
+ 	runtime·memclr((byte*)&frame, sizeof frame);
+ 	frame.pc = pc0;
+ 	frame.lr = lr0;
+@@ -58,7 +58,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.sp = stk->gobuf.sp;
+ 			frame.lr = 0;
+ 			frame.fp = 0;
+-			if(printing && runtime·showframe(nil, gp == m->curg))
++			if(printing && runtime·showframe(nil, gp))
+ 				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+@@ -97,7 +97,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.arglen = f2->frame; // conservative overestimate
+ 		else {
+ 			runtime·printf("runtime: unknown argument frame size for %S\n", f->name);
+-			runtime·throw("invalid stack");
++			if(!printing)
++				runtime·throw("invalid stack");
+ 		}
+ 
+ 		// Derive location and size of local variables.
+@@ -130,15 +131,13 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		if(callback != nil)
+ 			callback(&frame, v);
+ 		if(printing) {
+-			if(runtime·showframe(f, gp == m->curg)) {
++			if(printall || runtime·showframe(f, gp)) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+ 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
+ 				if(n > 0 && frame.pc > f->entry && !waspanic)
+ 					tracepc -= sizeof(uintptr);
+-				if(m->throwing && gp == m->curg)
+-					runtime·printf("[fp=%p] ", frame.fp);
+ 				runtime·printf("%S(", f->name);
+ 				for(i = 0; i < f->args/sizeof(uintptr); i++) {
+ 					if(i != 0)
+@@ -153,7 +152,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+ 				if(frame.pc > f->entry)
+ 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
++				if(m->throwing && gp == m->curg)
++					runtime·printf(" fp=%p", frame.fp);
+ 				runtime·printf("\n");
++				nprint++;
+ 			}
+ 		}
+ 		n++;
+@@ -161,28 +163,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	skipped:
+ 		waspanic = f->entry == (uintptr)runtime·sigpanic;
+ 
+-		if(printing && f->entry == (uintptr)runtime·newstack && gp == m->g0) {
+-			runtime·printf("----- newstack called from goroutine %D -----\n", m->curg->goid);
+-			frame.pc = (uintptr)m->morepc;
+-			frame.sp = (uintptr)m->moreargp - sizeof(void*);
+-			frame.lr = m->morebuf.pc;
+-			frame.fp = m->morebuf.sp;
+-			gp = m->curg;
+-			stk = (Stktop*)gp->stackbase;
+-			continue;
+-		}
+-		
+-		if(printing && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
+-			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
+-			gp = m->curg;
+-			stk = (Stktop*)gp->stackbase;
+-			frame.sp = stk->gobuf.sp;
+-			frame.pc = stk->gobuf.pc;
+-			frame.fp = 0;
+-			frame.lr = 0;
+-			continue;
+-		}	
+-		
+ 		// Do not unwind past the bottom of the stack.
+ 		if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+ 			break;
+@@ -214,19 +194,29 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		}
+ 	}
+ 	
+-	if(printing && (frame.pc = gp->gopc) != 0 && (f = runtime·findfunc(frame.pc)) != nil
+-			&& runtime·showframe(f, gp == m->curg) && gp->goid != 1) {
++	if(pcbuf == nil && callback == nil)
++		n = nprint;
++
++	return n;		
++}
++
++static void
++printcreatedby(G *gp)
++{
++	uintptr pc, tracepc;
++	Func *f;
++
++	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
++		&& runtime·showframe(f, gp) && gp->goid != 1) {
+ 		runtime·printf("created by %S\n", f->name);
+-		tracepc = frame.pc;	// back up to CALL instruction for funcline.
+-		if(n > 0 && frame.pc > f->entry)
++		tracepc = pc;	// back up to CALL instruction for funcline.
++		if(pc > f->entry)
+ 			tracepc -= sizeof(uintptr);
+ 		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+-		if(frame.pc > f->entry)
+-			runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
++		if(pc > f->entry)
++			runtime·printf(" +%p", (uintptr)(pc - f->entry));
+ 		runtime·printf("\n");
+ 	}
+-
+-	return n;		
+ }
+ 
+ void
+@@ -238,7 +228,12 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 		sp = gp->sched.sp;
+ 		lr = 0;
+ 	}
+-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil);
++
++	// Print traceback. By default, omits runtime frames.
++	// If that means we print nothing at all, repeat forcing all frames printed.
++	if(runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, false) == 0)
++		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, true);
++	printcreatedby(gp);
+ }
+ 
+ // func caller(n int) (pc uintptr, file string, line int, ok bool)
+@@ -250,5 +245,5 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+ 	sp = runtime·getcallersp(&skip);
+ 	pc = (uintptr)runtime·getcallerpc(&skip);
+ 
+-	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil);
++	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil, false);
+ }
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index ec66647005..739d93aa8c 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -10,7 +10,6 @@
+ 
+ void runtime·deferproc(void);
+ void runtime·newproc(void);
+-void runtime·newstack(void);
+ void runtime·morestack(void);
+ void runtime·sigpanic(void);
+ 
+@@ -22,9 +21,9 @@ void runtime·sigpanic(void);
+ // collector (callback != nil).  A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
+ int32
+-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v)
++runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+-	int32 i, n, sawnewstack;
++	int32 i, n, nprint;
+ 	uintptr tracepc;
+ 	bool waspanic, printing;
+ 	Func *f, *f2;
+@@ -33,6 +32,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 
+ 	USED(lr0);
+ 
++	nprint = 0;
+ 	runtime·memclr((byte*)&frame, sizeof frame);
+ 	frame.pc = pc0;
+ 	frame.sp = sp0;
+@@ -47,7 +47,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	}
+ 
+ 	n = 0;
+-	sawnewstack = 0;
+ 	stk = (Stktop*)gp->stackbase;
+ 	while(n < max) {
+ 		// Typically:
+@@ -63,7 +62,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.sp = stk->gobuf.sp;
+ 			frame.lr = 0;
+ 			frame.fp = 0;
+-			if(printing && runtime·showframe(nil, gp == m->curg))
++			if(printing && runtime·showframe(nil, gp))
+ 				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+@@ -101,7 +100,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.arglen = f2->frame; // conservative overestimate
+ 		else {
+ 			runtime·printf("runtime: unknown argument frame size for %S\n", f->name);
+-			runtime·throw("invalid stack");
++			if(!printing)
++				runtime·throw("invalid stack");
+ 		}
+ 
+ 		// Derive location and size of local variables.
+@@ -133,7 +133,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		if(callback != nil)
+ 			callback(&frame, v);
+ 		if(printing) {
+-			if(runtime·showframe(f, gp == m->curg)) {
++			if(printall || runtime·showframe(f, gp)) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+@@ -141,8 +141,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
+ 				if(n > 0 && frame.pc > f->entry && !waspanic)
+ 					tracepc--;
+-				if(m->throwing && gp == m->curg)
+-					runtime·printf("[fp=%p] ", frame.fp);
+ 				runtime·printf("%S(", f->name);
+ 				for(i = 0; i < f->args/sizeof(uintptr); i++) {
+ 					if(i != 0)
+@@ -157,7 +155,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+ 				if(frame.pc > f->entry)
+ 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
++				if(m->throwing && gp == m->curg)
++					runtime·printf(" fp=%p", frame.fp);
+ 				runtime·printf("\n");
++				nprint++;
+ 			}
+ 		}
+ 		n++;
+@@ -168,36 +169,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+ 			frame.fp += 2*sizeof(uintptr);
+ 
+-		if(f->entry == (uintptr)runtime·newstack)
+-			sawnewstack = 1;
+-
+-		if(printing && f->entry == (uintptr)runtime·morestack && gp == m->g0 && sawnewstack) {
+-			// The fact that we saw newstack means that morestack
+-			// has managed to record its information in m, so we can
+-			// use it to keep unwinding the stack.
+-			runtime·printf("----- morestack called from goroutine %D -----\n", m->curg->goid);
+-			frame.pc = (uintptr)m->morepc;
+-			frame.sp = m->morebuf.sp - sizeof(void*);
+-			frame.lr = m->morebuf.pc;
+-			frame.fp = m->morebuf.sp;
+-			sawnewstack = 0;
+-			gp = m->curg;
+-			stk = (Stktop*)gp->stackbase;
+-			continue;
+-		}
+-
+-		if(printing && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
+-			// Lessstack is running on scheduler stack.  Switch to original goroutine.
+-			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
+-			gp = m->curg;
+-			stk = (Stktop*)gp->stackbase;
+-			frame.sp = stk->gobuf.sp;
+-			frame.pc = stk->gobuf.pc;
+-			frame.fp = 0;
+-			frame.lr = 0;
+-			continue;
+-		}
+-
+ 		// Do not unwind past the bottom of the stack.
+ 		if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
+ 			break;
+@@ -209,20 +180,29 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		frame.fp = 0;
+ 	}
+ 	
++	if(pcbuf == nil && callback == nil)
++		n = nprint;
++	
++	return n;
++}
++
++static void
++printcreatedby(G *gp)
++{
++	uintptr pc, tracepc;
++	Func *f;
++
+ 	// Show what created goroutine, except main goroutine (goid 1).
+-	if(printing && (frame.pc = gp->gopc) != 0 && (f = runtime·findfunc(frame.pc)) != nil
+-			&& runtime·showframe(f, gp == m->curg) && gp->goid != 1) {
++	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
+ 		runtime·printf("created by %S\n", f->name);
+-		tracepc = frame.pc;	// back up to CALL instruction for funcline.
+-		if(n > 0 && frame.pc > f->entry)
++		tracepc = pc;	// back up to CALL instruction for funcline.
++		if(pc > f->entry)
+ 			tracepc--;
+ 		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+-		if(frame.pc > f->entry)
+-			runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
++		if(pc > f->entry)
++			runtime·printf(" +%p", (uintptr)(pc - f->entry));
+ 		runtime·printf("\n");
+ 	}
+-	
+-	return n;
+ }
+ 
+ void
+@@ -235,7 +215,12 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 		pc = gp->sched.pc;
+ 		sp = gp->sched.sp;
+ 	}
+-	runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil);
++	
++	// Print traceback. By default, omits runtime frames.
++	// If that means we print nothing at all, repeat forcing all frames printed.
++	if(runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, false) == 0)
++		runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, true);
++	printcreatedby(gp);
+ }
+ 
+ int32
+@@ -246,5 +231,5 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+ 	sp = runtime·getcallersp(&skip);
+ 	pc = (uintptr)runtime·getcallerpc(&skip);
+ 
+-	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil);
++	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil, false);
+ }

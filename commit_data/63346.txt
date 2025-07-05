@@ -19,6 +19,35 @@ Date:   Fri Jun 27 19:45:22 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/testdata/testprogcgo/needmdeadlock.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/needmdeadlock.go b/src/runtime/testdata/testprogcgo/needmdeadlock.go
+index b95ec77468..f4710488c9 100644
+--- a/src/runtime/testdata/testprogcgo/needmdeadlock.go
++++ b/src/runtime/testdata/testprogcgo/needmdeadlock.go
+@@ -70,8 +70,6 @@ import "C"
+ 
+ import (
+ 	"fmt"
+-	"os"
+-	"time"
+ )
+ 
+ func init() {
+@@ -84,12 +82,8 @@ func GoNeedM() {
+ 
+ func NeedmDeadlock() {
+ 	// The failure symptom is that the program hangs because of a
+-	// deadlock in needm, so set an alarm.
+-	go func() {
+-		time.Sleep(5 * time.Second)
+-		fmt.Println("Hung for 5 seconds")
+-		os.Exit(1)
+-	}()
++	// deadlock in needm. Instead of using an arbitrary timeout,
++	// we let the test deadline expire if it deadlocks.
+ 
+ 	C.runNeedmSignalThread()
+ 	fmt.Println("OK")

@@ -11,6 +11,24 @@ Date:   Wed Mar 20 03:58:42 2019 +1100
     Change-Id: I8292cdfb51f418e011d6d97f47d10b4e631aa932
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169657
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/handshake_client.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 31bd069bbc..c07cc6d507 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -826,11 +826,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 			DNSName:       c.config.ServerName,
+ 			Intermediates: x509.NewCertPool(),
+ 		}
+-
+-		for i, cert := range certs {
+-			if i == 0 {
+-				continue
+-			}
++		for _, cert := range certs[1:] {
+ 			opts.Intermediates.AddCert(cert)
+ 		}
+ 		var err error

@@ -8,7 +8,7 @@ Date:   Tue Aug 10 22:05:11 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/1947042
-
+---
  src/pkg/exp/4s/data.go    |   2 +-
  src/pkg/exp/4s/xs.go      | 142 +++++++++++++++++++++---------------------
  src/pkg/exp/draw/Makefile |   2 -
@@ -18,3 +18,806 @@ Date:   Tue Aug 10 22:05:11 2010 +1000
  src/pkg/exp/draw/event.go |  10 ++-
  src/pkg/image/names.go    |   8 ++-
  8 files changed, 104 insertions(+), 354 deletions(-)
+
+diff --git a/src/pkg/exp/4s/data.go b/src/pkg/exp/4s/data.go
+index ac30fabf72..7ac27d81d1 100644
+--- a/src/pkg/exp/4s/data.go
++++ b/src/pkg/exp/4s/data.go
+@@ -10,7 +10,7 @@
+ 
+ package main
+ 
+-import . "exp/draw"
++import . "image"
+ 
+ var pieces4 = []Piece{
+ 	Piece{0, 0, Point{4, 1}, []Point{Point{0, 0}, Point{1, 0}, Point{1, 0}, Point{1, 0}}, nil, nil},
+diff --git a/src/pkg/exp/4s/xs.go b/src/pkg/exp/4s/xs.go
+index 8f6d62f953..0332a3a94b 100644
+--- a/src/pkg/exp/4s/xs.go
++++ b/src/pkg/exp/4s/xs.go
+@@ -53,17 +53,17 @@ var (
+ 	N                        int
+ 	display                  draw.Context
+ 	screen                   draw.Image
+-	screenr                  draw.Rectangle
++	screenr                  image.Rectangle
+ 	board                    [NY][NX]byte
+-	rboard                   draw.Rectangle
+-	pscore                   draw.Point
+-	scoresz                  draw.Point
++	rboard                   image.Rectangle
++	pscore                   image.Point
++	scoresz                  image.Point
+ 	pcsz                     = 32
+-	pos                      draw.Point
+-	bbr, bb2r                draw.Rectangle
++	pos                      image.Point
++	bbr, bb2r                image.Rectangle
+ 	bb, bbmask, bb2, bb2mask *image.RGBA
+ 	whitemask                image.Image
+-	br, br2                  draw.Rectangle
++	br, br2                  image.Rectangle
+ 	points                   int
+ 	dt                       int
+ 	DY                       int
+@@ -85,8 +85,8 @@ var (
+ type Piece struct {
+ 	rot   int
+ 	tx    int
+-	sz    draw.Point
+-	d     []draw.Point
++	sz    image.Point
++	d     []image.Point
+ 	left  *Piece
+ 	right *Piece
+ }
+@@ -144,26 +144,26 @@ var txbits = [NCOL][32]byte{
+ 	},
+ }
+ 
+-var txpix = [NCOL]draw.Color{
+-	draw.Yellow,            /* yellow */
+-	draw.Cyan,              /* cyan */
+-	draw.Green,             /* lime green */
+-	draw.GreyBlue,          /* slate */
+-	draw.Red,               /* red */
+-	draw.GreyGreen,         /* olive green */
+-	draw.Blue,              /* blue */
+-	draw.Color(0xFF55AAFF), /* pink */
+-	draw.Color(0xFFAAFFFF), /* lavender */
+-	draw.Color(0xBB005DFF), /* maroon */
++var txpix = [NCOL]image.ColorImage{
++	image.ColorImage{image.RGBAColor{0xFF, 0xFF, 0x00, 0xFF}}, /* yellow */
++	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0xFF, 0xFF}}, /* cyan */
++	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0x00, 0xFF}}, /* lime green */
++	image.ColorImage{image.RGBAColor{0x00, 0x5D, 0xBB, 0xFF}}, /* slate */
++	image.ColorImage{image.RGBAColor{0xFF, 0x00, 0x00, 0xFF}}, /* red */
++	image.ColorImage{image.RGBAColor{0x55, 0xAA, 0xAA, 0xFF}}, /* olive green */
++	image.ColorImage{image.RGBAColor{0x00, 0x00, 0xFF, 0xFF}}, /* blue */
++	image.ColorImage{image.RGBAColor{0xFF, 0x55, 0xAA, 0xFF}}, /* pink */
++	image.ColorImage{image.RGBAColor{0xFF, 0xAA, 0xFF, 0xFF}}, /* lavender */
++	image.ColorImage{image.RGBAColor{0xBB, 0x00, 0x5D, 0xFF}}, /* maroon */
+ }
+ 
+ func movemouse() int {
+-	//mouse.draw.Point = draw.Pt(rboard.Min.X + rboard.Dx()/2, rboard.Min.Y + rboard.Dy()/2);
++	//mouse.image.Point = image.Pt(rboard.Min.X + rboard.Dx()/2, rboard.Min.Y + rboard.Dy()/2);
+ 	//moveto(mousectl, mouse.Xy);
+ 	return mouse.X
+ }
+ 
+-func warp(p draw.Point, x int) int {
++func warp(p image.Point, x int) int {
+ 	if !suspended && piece != nil {
+ 		x = pos.X + piece.sz.X*pcsz/2
+ 		if p.Y < rboard.Min.Y {
+@@ -172,7 +172,7 @@ func warp(p draw.Point, x int) int {
+ 		if p.Y >= rboard.Max.Y {
+ 			p.Y = rboard.Max.Y - 1
+ 		}
+-		//moveto(mousectl, draw.Pt(x, p.Y));
++		//moveto(mousectl, image.Pt(x, p.Y));
+ 	}
+ 	return x
+ }
+@@ -193,7 +193,7 @@ func initPieces() {
+ 	}
+ }
+ 
+-func collide(pt draw.Point, p *Piece) bool {
++func collide(pt image.Point, p *Piece) bool {
+ 	pt.X = (pt.X - rboard.Min.X) / pcsz
+ 	pt.Y = (pt.Y - rboard.Min.Y) / pcsz
+ 	for _, q := range p.d {
+@@ -210,7 +210,7 @@ func collide(pt draw.Point, p *Piece) bool {
+ 	return false
+ }
+ 
+-func collider(pt, pmax draw.Point) bool {
++func collider(pt, pmax image.Point) bool {
+ 	pi := (pt.X - rboard.Min.X) / pcsz
+ 	pj := (pt.Y - rboard.Min.Y) / pcsz
+ 	n := pmax.X / pcsz
+@@ -226,16 +226,16 @@ func collider(pt, pmax draw.Point) bool {
+ }
+ 
+ func setpiece(p *Piece) {
+-	draw.Draw(bb, bbr, draw.White, draw.ZP)
+-	draw.Draw(bbmask, bbr, draw.Transparent, draw.ZP)
+-	br = draw.Rect(0, 0, 0, 0)
++	draw.Draw(bb, bbr, image.White, image.ZP)
++	draw.Draw(bbmask, bbr, image.Transparent, image.ZP)
++	br = image.Rect(0, 0, 0, 0)
+ 	br2 = br
+ 	piece = p
+ 	if p == nil {
+ 		return
+ 	}
+-	var op draw.Point
+-	var r draw.Rectangle
++	var op image.Point
++	var r image.Rectangle
+ 	r.Min = bbr.Min
+ 	for i, pt := range p.d {
+ 		r.Min.X += pt.X * pcsz
+@@ -243,9 +243,9 @@ func setpiece(p *Piece) {
+ 		r.Max.X = r.Min.X + pcsz
+ 		r.Max.Y = r.Min.Y + pcsz
+ 		if i == 0 {
+-			draw.Draw(bb, r, draw.Black, draw.ZP)
+-			draw.Draw(bb, r.Inset(1), txpix[piece.tx], draw.ZP)
+-			draw.Draw(bbmask, r, draw.Opaque, draw.ZP)
++			draw.Draw(bb, r, image.Black, image.ZP)
++			draw.Draw(bb, r.Inset(1), txpix[piece.tx], image.ZP)
++			draw.Draw(bbmask, r, image.Opaque, image.ZP)
+ 			op = r.Min
+ 		} else {
+ 			draw.Draw(bb, r, bb, op)
+@@ -259,21 +259,21 @@ func setpiece(p *Piece) {
+ 		}
+ 	}
+ 	br.Max = br.Max.Sub(bbr.Min)
+-	delta := draw.Pt(0, DY)
++	delta := image.Pt(0, DY)
+ 	br2.Max = br.Max.Add(delta)
+ 	r = br.Add(bb2r.Min)
+ 	r2 := br2.Add(bb2r.Min)
+-	draw.Draw(bb2, r2, draw.White, draw.ZP)
++	draw.Draw(bb2, r2, image.White, image.ZP)
+ 	draw.Draw(bb2, r.Add(delta), bb, bbr.Min)
+-	draw.Draw(bb2mask, r2, draw.Transparent, draw.ZP)
+-	draw.DrawMask(bb2mask, r, draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.Over)
+-	draw.DrawMask(bb2mask, r.Add(delta), draw.Opaque, bbr.Min, bbmask, draw.ZP, draw.Over)
++	draw.Draw(bb2mask, r2, image.Transparent, image.ZP)
++	draw.DrawMask(bb2mask, r, image.Opaque, bbr.Min, bbmask, image.ZP, draw.Over)
++	draw.DrawMask(bb2mask, r.Add(delta), image.Opaque, bbr.Min, bbmask, image.ZP, draw.Over)
+ }
+ 
+ func drawpiece() {
+-	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, draw.ZP, draw.Over)
++	draw.DrawMask(screen, br.Add(pos), bb, bbr.Min, bbmask, image.ZP, draw.Over)
+ 	if suspended {
+-		draw.DrawMask(screen, br.Add(pos), draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
++		draw.DrawMask(screen, br.Add(pos), image.White, image.ZP, whitemask, image.ZP, draw.Over)
+ 	}
+ }
+ 
+@@ -282,11 +282,13 @@ func undrawpiece() {
+ 	if collider(pos, br.Max) {
+ 		mask = bbmask
+ 	}
+-	draw.DrawMask(screen, br.Add(pos), draw.White, bbr.Min, mask, bbr.Min, draw.Over)
++	draw.DrawMask(screen, br.Add(pos), image.White, bbr.Min, mask, bbr.Min, draw.Over)
+ }
+ 
+ func rest() {
+-	pt := pos.Sub(rboard.Min).Div(pcsz)
++	pt := pos.Sub(rboard.Min)
++	pt.X /= pcsz
++	pt.Y /= pcsz
+ 	for _, p := range piece.d {
+ 		pt.X += p.X
+ 		pt.Y += p.Y
+@@ -305,7 +307,7 @@ func canfit(p *Piece) bool {
+ 		j = 2*j - 1
+ 	}
+ 	for i := 0; i < j; i++ {
+-		var z draw.Point
++		var z image.Point
+ 		z.X = pos.X + dx[i]*pcsz
+ 		z.Y = pos.Y
+ 		if !collide(z, p) {
+@@ -323,33 +325,33 @@ func canfit(p *Piece) bool {
+ func score(p int) {
+ 	points += p
+ 	//	snprint(buf, sizeof(buf), "%.6ld", points);
+-	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), draw.White, draw.ZP);
+-	//	string(screen, pscore, draw.Black, draw.ZP, font, buf);
++	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), image.White, image.ZP);
++	//	string(screen, pscore, image.Black, image.ZP, font, buf);
+ }
+ 
+-func drawsq(b draw.Image, p draw.Point, ptx int) {
+-	var r draw.Rectangle
++func drawsq(b draw.Image, p image.Point, ptx int) {
++	var r image.Rectangle
+ 	r.Min = p
+ 	r.Max.X = r.Min.X + pcsz
+ 	r.Max.Y = r.Min.Y + pcsz
+-	draw.Draw(b, r, draw.Black, draw.ZP)
+-	draw.Draw(b, r.Inset(1), txpix[ptx], draw.ZP)
++	draw.Draw(b, r, image.Black, image.ZP)
++	draw.Draw(b, r.Inset(1), txpix[ptx], image.ZP)
+ }
+ 
+ func drawboard() {
+-	draw.Border(screen, rboard.Inset(-2), 2, draw.Black, draw.ZP)
+-	draw.Draw(screen, draw.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
+-		draw.White, draw.ZP)
++	draw.Border(screen, rboard.Inset(-2), 2, image.Black, image.ZP)
++	draw.Draw(screen, image.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
++		image.White, image.ZP)
+ 	for i := 0; i < NY; i++ {
+ 		for j := 0; j < NX; j++ {
+ 			if board[i][j] != 0 {
+-				drawsq(screen, draw.Pt(rboard.Min.X+j*pcsz, rboard.Min.Y+i*pcsz), int(board[i][j]-16))
++				drawsq(screen, image.Pt(rboard.Min.X+j*pcsz, rboard.Min.Y+i*pcsz), int(board[i][j]-16))
+ 			}
+ 		}
+ 	}
+ 	score(0)
+ 	if suspended {
+-		draw.DrawMask(screen, screenr, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
++		draw.DrawMask(screen, screenr, image.White, image.ZP, whitemask, image.ZP, draw.Over)
+ 	}
+ }
+ 
+@@ -359,7 +361,7 @@ func choosepiece() {
+ 		setpiece(&pieces[i])
+ 		pos = rboard.Min
+ 		pos.X += rand.Intn(NX) * pcsz
+-		if !collide(draw.Pt(pos.X, pos.Y+pcsz-DY), piece) {
++		if !collide(image.Pt(pos.X, pos.Y+pcsz-DY), piece) {
+ 			break
+ 		}
+ 	}
+@@ -369,7 +371,7 @@ func choosepiece() {
+ 
+ func movepiece() bool {
+ 	var mask image.Image
+-	if collide(draw.Pt(pos.X, pos.Y+pcsz), piece) {
++	if collide(image.Pt(pos.X, pos.Y+pcsz), piece) {
+ 		return false
+ 	}
+ 	if collider(pos, br2.Max) {
+@@ -444,7 +446,7 @@ func horiz() bool {
+ 	for j := 0; j < h; j++ {
+ 		r.Min.Y = rboard.Min.Y + lev[j]*pcsz
+ 		r.Max.Y = r.Min.Y + pcsz
+-		draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
++		draw.DrawMask(screen, r, image.White, image.ZP, whitemask, image.ZP, draw.Over)
+ 		display.FlushImage()
+ 	}
+ 	PlaySound(whoosh)
+@@ -457,7 +459,7 @@ func horiz() bool {
+ 		for j := 0; j < h; j++ {
+ 			r.Min.Y = rboard.Min.Y + lev[j]*pcsz
+ 			r.Max.Y = r.Min.Y + pcsz
+-			draw.DrawMask(screen, r, draw.White, draw.ZP, whitemask, draw.ZP, draw.Over)
++			draw.DrawMask(screen, r, image.White, image.ZP, whitemask, image.ZP, draw.Over)
+ 		}
+ 		display.FlushImage()
+ 	}
+@@ -467,9 +469,9 @@ func horiz() bool {
+ 		score(250 + 10*i*i)
+ 		r.Min.Y = rboard.Min.Y
+ 		r.Max.Y = rboard.Min.Y + lev[j]*pcsz
+-		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, r.Min)
++		draw.Draw(screen, r.Add(image.Pt(0, pcsz)), screen, r.Min)
+ 		r.Max.Y = rboard.Min.Y + pcsz
+-		draw.Draw(screen, r, draw.White, draw.ZP)
++		draw.Draw(screen, r, image.White, image.ZP)
+ 		for k := lev[j] - 1; k >= 0; k-- {
+ 			board[k+1] = board[k]
+ 		}
+@@ -480,8 +482,8 @@ func horiz() bool {
+ }
+ 
+ func mright() {
+-	if !collide(draw.Pt(pos.X+pcsz, pos.Y), piece) &&
+-		!collide(draw.Pt(pos.X+pcsz, pos.Y+pcsz-DY), piece) {
++	if !collide(image.Pt(pos.X+pcsz, pos.Y), piece) &&
++		!collide(image.Pt(pos.X+pcsz, pos.Y+pcsz-DY), piece) {
+ 		undrawpiece()
+ 		pos.X += pcsz
+ 		drawpiece()
+@@ -490,8 +492,8 @@ func mright() {
+ }
+ 
+ func mleft() {
+-	if !collide(draw.Pt(pos.X-pcsz, pos.Y), piece) &&
+-		!collide(draw.Pt(pos.X-pcsz, pos.Y+pcsz-DY), piece) {
++	if !collide(image.Pt(pos.X-pcsz, pos.Y), piece) &&
++		!collide(image.Pt(pos.X-pcsz, pos.Y+pcsz-DY), piece) {
+ 		undrawpiece()
+ 		pos.X -= pcsz
+ 		drawpiece()
+@@ -669,7 +671,7 @@ func redraw(new bool) {
+ 	//	if new && getwindow(display, Refmesg) < 0 {
+ 	//		sysfatal("can't reattach to window");
+ 	//	}
+-	r := draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
++	r := screen.Bounds()
+ 	pos.X = (pos.X - rboard.Min.X) / pcsz
+ 	pos.Y = (pos.Y - rboard.Min.Y) / pcsz
+ 	dx := r.Max.X - r.Min.X
+@@ -697,13 +699,13 @@ func redraw(new bool) {
+ 	//	scoresz = stringsize(font, "000000");
+ 	pos.X = pos.X*pcsz + rboard.Min.X
+ 	pos.Y = pos.Y*pcsz + rboard.Min.Y
+-	bbr = draw.Rect(0, 0, N*pcsz, N*pcsz)
++	bbr = image.Rect(0, 0, N*pcsz, N*pcsz)
+ 	bb = image.NewRGBA(bbr.Max.X, bbr.Max.Y)
+ 	bbmask = image.NewRGBA(bbr.Max.X, bbr.Max.Y) // actually just a bitmap
+-	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz+DY)
++	bb2r = image.Rect(0, 0, N*pcsz, N*pcsz+DY)
+ 	bb2 = image.NewRGBA(bb2r.Dx(), bb2r.Dy())
+ 	bb2mask = image.NewRGBA(bb2r.Dx(), bb2r.Dy()) // actually just a bitmap
+-	draw.Draw(screen, screenr, draw.White, draw.ZP)
++	draw.Draw(screen, screenr, image.White, image.ZP)
+ 	drawboard()
+ 	setpiece(piece)
+ 	if piece != nil {
+@@ -722,12 +724,12 @@ func quitter(c <-chan bool) {
+ func Play(pp []Piece, ctxt draw.Context) {
+ 	display = ctxt
+ 	screen = ctxt.Screen()
+-	screenr = draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
++	screenr = screen.Bounds()
+ 	pieces = pp
+ 	N = len(pieces[0].d)
+ 	initPieces()
+ 	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)))
+-	whitemask = draw.White.SetAlpha(0x7F)
++	whitemask = image.ColorImage{image.AlphaColor{0x7F}}
+ 	tsleep = 50
+ 	timerc = time.Tick(int64(tsleep/2) * 1e6)
+ 	suspc = make(chan bool)
+diff --git a/src/pkg/exp/draw/Makefile b/src/pkg/exp/draw/Makefile
+index 7ab5744827..4389a294ce 100644
+--- a/src/pkg/exp/draw/Makefile
++++ b/src/pkg/exp/draw/Makefile
+@@ -6,8 +6,6 @@ include ../../../Make.$(GOARCH)
+ 
+ TARG=exp/draw
+ GOFILES=\
+-	arith.go\
+-	color.go\
+ 	draw.go\
+ 	event.go\
+ 
+diff --git a/src/pkg/exp/draw/arith.go b/src/pkg/exp/draw/arith.go
+deleted file mode 100644
+index b72242aaa6..0000000000
+--- a/src/pkg/exp/draw/arith.go
++++ /dev/null
+@@ -1,155 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package draw
+-
+-// A Point is an X, Y coordinate pair.
+-type Point struct {
+-	X, Y int
+-}
+-
+-// ZP is the zero Point.
+-var ZP Point
+-
+-// A Rectangle contains the Points with Min.X <= X < Max.X, Min.Y <= Y < Max.Y.
+-type Rectangle struct {
+-	Min, Max Point
+-}
+-
+-// ZR is the zero Rectangle.
+-var ZR Rectangle
+-
+-// Pt is shorthand for Point{X, Y}.
+-func Pt(X, Y int) Point { return Point{X, Y} }
+-
+-// Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}.
+-func Rect(x0, y0, x1, y1 int) Rectangle { return Rectangle{Point{x0, y0}, Point{x1, y1}} }
+-
+-// Rpt is shorthand for Rectangle{min, max}.
+-func Rpt(min, max Point) Rectangle { return Rectangle{min, max} }
+-
+-// Add returns the sum of p and q: Pt(p.X+q.X, p.Y+q.Y).
+-func (p Point) Add(q Point) Point { return Point{p.X + q.X, p.Y + q.Y} }
+-
+-// Sub returns the difference of p and q: Pt(p.X-q.X, p.Y-q.Y).
+-func (p Point) Sub(q Point) Point { return Point{p.X - q.X, p.Y - q.Y} }
+-
+-// Mul returns p scaled by k: Pt(p.X*k p.Y*k).
+-func (p Point) Mul(k int) Point { return Point{p.X * k, p.Y * k} }
+-
+-// Div returns p divided by k: Pt(p.X/k, p.Y/k).
+-func (p Point) Div(k int) Point { return Point{p.X / k, p.Y / k} }
+-
+-// Eq returns true if p and q are equal.
+-func (p Point) Eq(q Point) bool { return p.X == q.X && p.Y == q.Y }
+-
+-// In returns true if p is within r.
+-func (p Point) In(r Rectangle) bool {
+-	return p.X >= r.Min.X && p.X < r.Max.X &&
+-		p.Y >= r.Min.Y && p.Y < r.Max.Y
+-}
+-
+-// Inset returns the rectangle r inset by n: Rect(r.Min.X+n, r.Min.Y+n, r.Max.X-n, r.Max.Y-n).
+-func (r Rectangle) Inset(n int) Rectangle {
+-	return Rectangle{Point{r.Min.X + n, r.Min.Y + n}, Point{r.Max.X - n, r.Max.Y - n}}
+-}
+-
+-// Add returns the rectangle r translated by p: Rpt(r.Min.Add(p), r.Max.Add(p)).
+-func (r Rectangle) Add(p Point) Rectangle { return Rectangle{r.Min.Add(p), r.Max.Add(p)} }
+-
+-// Sub returns the rectangle r translated by -p: Rpt(r.Min.Sub(p), r.Max.Sub(p)).
+-func (r Rectangle) Sub(p Point) Rectangle { return Rectangle{r.Min.Sub(p), r.Max.Sub(p)} }
+-
+-// Canon returns a canonical version of r: the returned rectangle
+-// has Min.X <= Max.X and Min.Y <= Max.Y.
+-func (r Rectangle) Canon() Rectangle {
+-	if r.Max.X < r.Min.X {
+-		r.Min.X, r.Max.X = r.Max.X, r.Min.X
+-	}
+-	if r.Max.Y < r.Min.Y {
+-		r.Min.Y, r.Max.Y = r.Max.Y, r.Min.Y
+-	}
+-	return r
+-}
+-
+-// Overlaps returns true if r and r1 cross; that is, it returns true if they share any point.
+-func (r Rectangle) Overlaps(r1 Rectangle) bool {
+-	return r.Min.X < r1.Max.X && r1.Min.X < r.Max.X &&
+-		r.Min.Y < r1.Max.Y && r1.Min.Y < r.Max.Y
+-}
+-
+-// Empty retruns true if r contains no points.
+-func (r Rectangle) Empty() bool { return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y }
+-
+-// InRect returns true if all the points in r are also in r1.
+-func (r Rectangle) In(r1 Rectangle) bool {
+-	if r.Empty() {
+-		return true
+-	}
+-	if r1.Empty() {
+-		return false
+-	}
+-	return r1.Min.X <= r.Min.X && r.Max.X <= r1.Max.X &&
+-		r1.Min.Y <= r.Min.Y && r.Max.Y <= r1.Max.Y
+-}
+-
+-// Combine returns the smallest rectangle containing all points from r and from r1.
+-func (r Rectangle) Combine(r1 Rectangle) Rectangle {
+-	if r.Empty() {
+-		return r1
+-	}
+-	if r1.Empty() {
+-		return r
+-	}
+-	if r.Min.X > r1.Min.X {
+-		r.Min.X = r1.Min.X
+-	}
+-	if r.Min.Y > r1.Min.Y {
+-		r.Min.Y = r1.Min.Y
+-	}
+-	if r.Max.X < r1.Max.X {
+-		r.Max.X = r1.Max.X
+-	}
+-	if r.Max.Y < r1.Max.Y {
+-		r.Max.Y = r1.Max.Y
+-	}
+-	return r
+-}
+-
+-// Clip returns the largest rectangle containing only points shared by r and r1.
+-func (r Rectangle) Clip(r1 Rectangle) Rectangle {
+-	if r.Empty() {
+-		return r
+-	}
+-	if r1.Empty() {
+-		return r1
+-	}
+-	if !r.Overlaps(r1) {
+-		return Rectangle{r.Min, r.Min}
+-	}
+-	if r.Min.X < r1.Min.X {
+-		r.Min.X = r1.Min.X
+-	}
+-	if r.Min.Y < r1.Min.Y {
+-		r.Min.Y = r1.Min.Y
+-	}
+-	if r.Max.X > r1.Max.X {
+-		r.Max.X = r1.Max.X
+-	}
+-	if r.Max.Y > r1.Max.Y {
+-		r.Max.Y = r1.Max.Y
+-	}
+-	return r
+-}
+-
+-// Dx returns the width of the rectangle r: r.Max.X - r.Min.X.
+-func (r Rectangle) Dx() int { return r.Max.X - r.Min.X }
+-
+-// Dy returns the width of the rectangle r: r.Max.Y - r.Min.Y.
+-func (r Rectangle) Dy() int { return r.Max.Y - r.Min.Y }
+-
+-// Eq returns true if r and r1 are equal.
+-func (r Rectangle) Eq(r1 Rectangle) bool {
+-	return r.Min.Eq(r1.Min) && r.Max.Eq(r1.Max)
+-}
+diff --git a/src/pkg/exp/draw/color.go b/src/pkg/exp/draw/color.go
+deleted file mode 100644
+index 5fb543a2b0..0000000000
+--- a/src/pkg/exp/draw/color.go
++++ /dev/null
+@@ -1,103 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package draw
+-
+-import "image"
+-
+-// A Color represents a color with 8-bit R, G, B, and A values,
+-// packed into a uint32—0xRRGGBBAA—so that comparison
+-// is defined on colors.
+-// Color implements image.Color.
+-// Color also implements image.Image: it is a
+-// 10⁹x10⁹-pixel image of uniform color.
+-type Color uint32
+-
+-// Check that Color implements image.Color and image.Image
+-var _ image.Color = Black
+-var _ image.Image = Black
+-
+-var (
+-	Opaque        Color = 0xFFFFFFFF
+-	Transparent   Color = 0x00000000
+-	Black         Color = 0x000000FF
+-	White         Color = 0xFFFFFFFF
+-	Red           Color = 0xFF0000FF
+-	Green         Color = 0x00FF00FF
+-	Blue          Color = 0x0000FFFF
+-	Cyan          Color = 0x00FFFFFF
+-	Magenta       Color = 0xFF00FFFF
+-	Yellow        Color = 0xFFFF00FF
+-	PaleYellow    Color = 0xFFFFAAFF
+-	DarkYellow    Color = 0xEEEE9EFF
+-	DarkGreen     Color = 0x448844FF
+-	PaleGreen     Color = 0xAAFFAAFF
+-	MedGreen      Color = 0x88CC88FF
+-	DarkBlue      Color = 0x000055FF
+-	PaleBlueGreen Color = 0xAAFFFFFF
+-	PaleBlue      Color = 0x0000BBFF
+-	BlueGreen     Color = 0x008888FF
+-	GreyGreen     Color = 0x55AAAAFF
+-	PaleGreyGreen Color = 0x9EEEEEFF
+-	YellowGreen   Color = 0x99994CFF
+-	MedBlue       Color = 0x000099FF
+-	GreyBlue      Color = 0x005DBBFF
+-	PaleGreyBlue  Color = 0x4993DDFF
+-	PurpleBlue    Color = 0x8888CCFF
+-)
+-
+-func (c Color) RGBA() (r, g, b, a uint32) {
+-	x := uint32(c)
+-	r, g, b, a = x>>24, (x>>16)&0xFF, (x>>8)&0xFF, x&0xFF
+-	r |= r << 8
+-	g |= g << 8
+-	b |= b << 8
+-	a |= a << 8
+-	return
+-}
+-
+-// SetAlpha returns the color obtained by changing
+-// c's alpha value to a and scaling r, g, and b appropriately.
+-func (c Color) SetAlpha(a uint8) Color {
+-	r, g, b, oa := c>>24, (c>>16)&0xFF, (c>>8)&0xFF, c&0xFF
+-	if oa == 0 {
+-		return 0
+-	}
+-	r = r * Color(a) / oa
+-	if r < 0 {
+-		r = 0
+-	}
+-	if r > 0xFF {
+-		r = 0xFF
+-	}
+-	g = g * Color(a) / oa
+-	if g < 0 {
+-		g = 0
+-	}
+-	if g > 0xFF {
+-		g = 0xFF
+-	}
+-	b = b * Color(a) / oa
+-	if b < 0 {
+-		b = 0
+-	}
+-	if b > 0xFF {
+-		b = 0xFF
+-	}
+-	return r<<24 | g<<16 | b<<8 | Color(a)
+-}
+-
+-func (c Color) Bounds() image.Rectangle { return image.Rect(0, 0, 1e9, 1e9) }
+-
+-func (c Color) At(x, y int) image.Color { return c }
+-
+-func toColor(color image.Color) image.Color {
+-	if c, ok := color.(Color); ok {
+-		return c
+-	}
+-	r, g, b, a := color.RGBA()
+-	return Color(r>>8<<24 | g>>8<<16 | b>>8<<8 | a>>8)
+-}
+-
+-func (c Color) ColorModel() image.ColorModel { return image.ColorModelFunc(toColor) }
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/exp/draw/draw.go
+index 30dfccdd90..2c985a2d3e 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/exp/draw/draw.go
+@@ -34,15 +34,15 @@ type Image interface {
+ }
+ 
+ // Draw calls DrawMask with a nil mask and an Over op.
+-func Draw(dst Image, r Rectangle, src image.Image, sp Point) {
+-	DrawMask(dst, r, src, sp, nil, ZP, Over)
++func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
++	DrawMask(dst, r, src, sp, nil, image.ZP, Over)
+ }
+ 
+ // DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
+ // in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
+ // The implementation is simple and slow.
+ // TODO(nigeltao): Optimize this.
+-func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
++func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
+ 	sb := src.Bounds()
+ 	dx, dy := sb.Dx()-sp.X, sb.Dy()-sp.Y
+ 	if mask != nil {
+@@ -160,7 +160,7 @@ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Imag
+ 	}
+ }
+ 
+-func drawFillOver(dst *image.RGBA, r Rectangle, src image.ColorImage) {
++func drawFillOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage) {
+ 	cr, cg, cb, ca := src.RGBA()
+ 	// The 0x101 is here for the same reason as in drawRGBA.
+ 	a := (m - ca) * 0x101
+@@ -179,7 +179,7 @@ func drawFillOver(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+ 	}
+ }
+ 
+-func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
++func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
+ 	x0, x1 := r.Min.X, r.Max.X
+ 	y0, y1 := r.Min.Y, r.Max.Y
+ 	for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+@@ -207,7 +207,7 @@ func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+ 	}
+ }
+ 
+-func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *image.Alpha, mp Point) {
++func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src image.ColorImage, mask *image.Alpha, mp image.Point) {
+ 	x0, x1 := r.Min.X, r.Max.X
+ 	y0, y1 := r.Min.Y, r.Max.Y
+ 	cr, cg, cb, ca := src.RGBA()
+@@ -237,7 +237,7 @@ func drawGlyphOver(dst *image.RGBA, r Rectangle, src image.ColorImage, mask *ima
+ 	}
+ }
+ 
+-func drawFillSrc(dst *image.RGBA, r Rectangle, src image.ColorImage) {
++func drawFillSrc(dst *image.RGBA, r image.Rectangle, src image.ColorImage) {
+ 	if r.Dy() < 1 {
+ 		return
+ 	}
+@@ -261,7 +261,7 @@ func drawFillSrc(dst *image.RGBA, r Rectangle, src image.ColorImage) {
+ 	}
+ }
+ 
+-func drawCopySrc(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
++func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
+ 	dx0, dx1 := r.Min.X, r.Max.X
+ 	dy0, dy1 := r.Min.Y, r.Max.Y
+ 	sx0, sx1 := sp.X, sp.X+dx1-dx0
+@@ -278,7 +278,7 @@ func drawCopySrc(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+ 	}
+ }
+ 
+-func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
++func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
+ 	x0, x1, dx := r.Min.X, r.Max.X, 1
+ 	y0, y1, dy := r.Min.Y, r.Max.Y, 1
+ 	if image.Image(dst) == src && r.Overlaps(r.Add(sp.Sub(r.Min))) {
+@@ -334,21 +334,21 @@ func drawRGBA(dst *image.RGBA, r Rectangle, src image.Image, sp Point, mask imag
+ // in a w-pixel border around r in dst with the result of the Porter-Duff compositing
+ // operation ``src over dst.''  If w is positive, the border extends w pixels inside r.
+ // If w is negative, the border extends w pixels outside r.
+-func Border(dst Image, r Rectangle, w int, src image.Image, sp Point) {
++func Border(dst Image, r image.Rectangle, w int, src image.Image, sp image.Point) {
+ 	i := w
+ 	if i > 0 {
+ 		// inside r
+-		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, sp)                          // top
+-		Draw(dst, Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, sp.Add(Pt(0, i)))        // left
+-		Draw(dst, Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, sp.Add(Pt(r.Dx()-i, i))) // right
+-		Draw(dst, Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, sp.Add(Pt(0, r.Dy()-i)))     // bottom
++		Draw(dst, image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, sp)                                // top
++		Draw(dst, image.Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, sp.Add(image.Pt(0, i)))        // left
++		Draw(dst, image.Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, sp.Add(image.Pt(r.Dx()-i, i))) // right
++		Draw(dst, image.Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, sp.Add(image.Pt(0, r.Dy()-i)))     // bottom
+ 		return
+ 	}
+ 
+ 	// outside r;
+ 	i = -i
+-	Draw(dst, Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, sp.Add(Pt(-i, -i))) // top
+-	Draw(dst, Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, sp.Add(Pt(-i, 0)))      // left
+-	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, sp.Add(Pt(r.Dx(), 0)))  // right
+-	Draw(dst, Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, sp.Add(Pt(-i, 0)))  // bottom
++	Draw(dst, image.Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, sp.Add(image.Pt(-i, -i))) // top
++	Draw(dst, image.Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, sp.Add(image.Pt(-i, 0)))      // left
++	Draw(dst, image.Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, sp.Add(image.Pt(r.Dx(), 0)))  // right
++	Draw(dst, image.Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, sp.Add(image.Pt(-i, 0)))  // bottom
+ }
+diff --git a/src/pkg/exp/draw/event.go b/src/pkg/exp/draw/event.go
+index 155922d1c2..29cdb5f2fa 100644
+--- a/src/pkg/exp/draw/event.go
++++ b/src/pkg/exp/draw/event.go
+@@ -4,6 +4,10 @@
+ 
+ package draw
+ 
++import (
++	"image"
++)
++
+ // A Context represents a single graphics window.
+ type Context interface {
+ 	// Screen returns an editable Image of window.
+@@ -40,7 +44,7 @@ type Context interface {
+ 
+ // A Mouse represents the state of the mouse.
+ type Mouse struct {
+-	Buttons int   // bit mask of buttons: 1<<0 is left, 1<<1 middle, 1<<2 right
+-	Point         // location of cursor
+-	Nsec    int64 // time stamp
++	Buttons     int   // bit mask of buttons: 1<<0 is left, 1<<1 middle, 1<<2 right
++	image.Point       // location of cursor
++	Nsec        int64 // time stamp
+ }
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index 198ac93489..52bfa41cd2 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -6,9 +6,13 @@ package image
+ 
+ var (
+ 	// Black is an opaque black ColorImage.
+-	Black = ColorImage{RGBAColor{0x00, 0x00, 0x00, 0xff}}
++	Black = ColorImage{Gray16Color{0}}
+ 	// White is an opaque white ColorImage.
+-	White = ColorImage{RGBAColor{0xff, 0xff, 0xff, 0xff}}
++	White = ColorImage{Gray16Color{0xffff}}
++	// Transparent is a fully transparent ColorImage.
++	Transparent = ColorImage{Alpha16Color{0}}
++	// Opaque is a fully opaque ColorImage.
++	Opaque = ColorImage{Alpha16Color{0xffff}}
+ )
+ 
+ // A ColorImage is a practically infinite-sized Image of uniform Color.

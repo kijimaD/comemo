@@ -11,6 +11,28 @@ Date:   Mon May 31 12:15:12 2021 +0900
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e59b3554f2..7a2b3a80f0 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Apr 28, 2021",
++	"Subtitle": "Version of Jun 2, 2021",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5020,7 +5020,7 @@ floating point, or string constants in case expressions.
+ A type switch compares types rather than values. It is otherwise similar
+ to an expression switch. It is marked by a special switch expression that
+ has the form of a <a href="#Type_assertions">type assertion</a>
+-using the reserved word <code>type</code> rather than an actual type:
++using the keyword <code>type</code> rather than an actual type:
+ </p>
+ 
+ <pre>

@@ -17,8 +17,77 @@ Date:   Tue Mar 26 20:26:53 2019 -0400
     Change-Id: I46f1471582fd77daae47d00baab975109902052d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169517
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/boring/RELEASES      |  2 ++
  misc/boring/build.docker  |  8 ++++----
  misc/boring/build.release | 14 +++++++-------
  3 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/misc/boring/RELEASES b/misc/boring/RELEASES
+index 1ae8665f1b..f17f0185d0 100644
+--- a/misc/boring/RELEASES
++++ b/misc/boring/RELEASES
+@@ -29,3 +29,5 @@ go1.10.8b4 4b76b996cb0a linux-amd64 https://go-boringcrypto.storage.googleapis.c
+ go1.10.8b4 4b76b996cb0a src https://go-boringcrypto.storage.googleapis.com/go1.10.8b4.src.tar.gz c1f5df50a4be3d0cb3aed7b80728f2b23c18deff0383636274742a38c145f939
+ go1.11.5b4 3fb9dafacc45 linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.11.5b4.linux-amd64.tar.gz 9b5b2972b452da9ba6bba65bab18fb9e8fbda31b5c489275710e5429d76f568c
+ go1.11.5b4 3fb9dafacc45 src https://go-boringcrypto.storage.googleapis.com/go1.11.5b4.src.tar.gz 1c5801e2af25c9299d9fd94c64f9ec11fd35777c45d5d0f398c0a9884b1cfbbf
++go1.12.1b4 88e20e81a61f linux-amd64 https://go-boringcrypto.storage.googleapis.com/go1.12.1b4.linux-amd64.tar.gz b71886e0d65e5efea2e0a3cbd0c3cd0daf84c437078e755ecde25f4ac0bbed2f
++go1.12.1b4 88e20e81a61f src https://go-boringcrypto.storage.googleapis.com/go1.12.1b4.src.tar.gz d44be1396eb2854b5d9c4d8e8ed0cf9fea1e9dc5a02d8f53b41ba571951a329f
+diff --git a/misc/boring/build.docker b/misc/boring/build.docker
+index 2afcdee848..fb73edc88e 100755
+--- a/misc/boring/build.docker
++++ b/misc/boring/build.docker
+@@ -43,12 +43,12 @@ dversion=$(echo "$version" | sed 's/^go//')
+ docker build --pull -t goboring/golang:$dversion $dir
+ docker run goboring/golang:$dversion go version
+ docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
+-if ! grep crypto/sha1.boringNewSHA1 $dir/nm >/dev/null; then
+-	echo 'built docker image but did NOT find sha1.boringNewSHA1 in go command!' >&2
++if ! grep crypto/internal/boring/sig.BoringCrypto $dir/nm >/dev/null; then
++	echo 'built docker image but did NOT find sig.BoringCrypto in go command!' >&2
+ 	exit 2
+ fi
+-if egrep 'crypto/sha1\.\(\*digest\)' $dir/nm >/dev/null; then
+-	echo 'built docker image but DID find sha1.(*digest) in go command unexpectedly!' >&2
++if egrep 'crypto/sha256\.\(\*digest\)' $dir/nm >/dev/null; then
++	echo 'built docker image but DID find sha256.(*digest) in go command unexpectedly!' >&2
+ 	exit 2
+ fi
+ docker push goboring/golang:$dversion
+diff --git a/misc/boring/build.release b/misc/boring/build.release
+index 66da86b088..2256ff2e8f 100755
+--- a/misc/boring/build.release
++++ b/misc/boring/build.release
+@@ -56,12 +56,12 @@ echo >&2
+ git log -n1 "$commit" >&2
+ echo >&2
+ 
+-# Build the release tool in a temporary GOPATH.
++# Build the release tool in a temporary directory.
+ dir=$(mktemp -d)
+ trap "rm -rf $dir" EXIT
+-export GOPATH="$dir"
++export GO111MODULE=on
+ export GOBIN="$dir"
+-go get -u golang.org/x/build/cmd/release
++(cd "$dir"; go get golang.org/x/build/cmd/release)
+ 
+ # Build the release.
+ sha() {
+@@ -84,12 +84,12 @@ sha256src=$(sha "$outputsrc" | awk '{print $1}')
+ trap "rm -f /tmp/go.release.$$ /tmp/go.nm.$$" EXIT
+ tar -xzf "$output" -O go/bin/go >/tmp/go.release.$$
+ go tool nm /tmp/go.release.$$ >/tmp/go.nm.$$
+-if ! grep crypto/sha1.boringNewSHA1 /tmp/go.nm.$$ >/dev/null; then
+-	echo 'built release but did NOT find sha1.boringNewSHA1 in go command!' >&2
++if ! grep crypto/internal/boring/sig.BoringCrypto /tmp/go.nm.$$ >/dev/null; then
++	echo 'built release but did NOT find sig.BoringCrypto in go command!' >&2
+ 	exit 2
+ fi
+-if egrep 'crypto/sha1\.\(\*digest\)' /tmp/go.nm.$$ >/dev/null; then
+-	echo 'built release but DID find sha1.(*digest) in go command unexpectedly!' >&2
++if egrep 'crypto/sha256\.\(\*digest\)' /tmp/go.nm.$$ >/dev/null; then
++	echo 'built release but DID find sha256.(*digest) in go command unexpectedly!' >&2
+ 	exit 2
+ fi
+ 

@@ -10,6 +10,20 @@ Date:   Tue Mar 12 17:57:13 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7595044
-
+---
  src/cmd/ld/lib.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index cbd947dc82..450a83716e 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -528,7 +528,7 @@ ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64
+ 	}
+ 	h = &hostobj[nhostobj++];
+ 	h->ld = ld;
+-	h->pkg = pkg;
++	h->pkg = estrdup(pkg);
+ 	h->pn = estrdup(pn);
+ 	h->file = estrdup(file);
+ 	h->off = Boffset(f);

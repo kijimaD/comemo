@@ -22,8 +22,163 @@ Date:   Thu Nov 20 09:51:02 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/179030043
-
+---
  src/runtime/race.c                 | 13 ++++++------
  src/runtime/race/race_unix_test.go | 30 ++++++++++++++++++++++++++
  src/runtime/race_amd64.s           | 43 ++++++++++++++++++++++++++++++++------
  3 files changed, 73 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/race.c b/src/runtime/race.c
+index e400c8d102..5b0d116640 100644
+--- a/src/runtime/race.c
++++ b/src/runtime/race.c
+@@ -71,6 +71,9 @@ extern byte runtime·ebss[];
+ extern byte runtime·noptrbss[];
+ extern byte runtime·enoptrbss[];
+ 
++// start/end of global data (data+bss).
++uintptr runtime·racedatastart;
++uintptr runtime·racedataend;
+ // start/end of heap for race_amd64.s
+ uintptr runtime·racearenastart;
+ uintptr runtime·racearenaend;
+@@ -92,13 +95,7 @@ isvalidaddr(uintptr addr)
+ {
+ 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
+ 		return true;
+-	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrdata)
+-		return true;
+-	if(addr >= (uintptr)runtime·data && addr < (uintptr)runtime·edata)
+-		return true;
+-	if(addr >= (uintptr)runtime·bss && addr < (uintptr)runtime·ebss)
+-		return true;
+-	if(addr >= (uintptr)runtime·noptrbss && addr < (uintptr)runtime·enoptrbss)
++	if(addr >= runtime·racedatastart && addr < runtime·racedataend)
+ 		return true;
+ 	return false;
+ }
+@@ -139,6 +136,8 @@ runtime·raceinit(void)
+ 	start = start & ~(PageSize-1);
+ 	size = ROUND(end - start, PageSize);
+ 	runtime·racecall(__tsan_map_shadow, start, size);
++	runtime·racedatastart = start;
++	runtime·racedataend = start + size;
+ 	return racectx;
+ }
+ 
+diff --git a/src/runtime/race/race_unix_test.go b/src/runtime/race/race_unix_test.go
+new file mode 100644
+index 0000000000..84f0acece6
+--- /dev/null
++++ b/src/runtime/race/race_unix_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++// +build darwin freebsd linux
++
++package race_test
++
++import (
++	"sync/atomic"
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++// Test that race detector does not crash when accessing non-Go allocated memory (issue 9136).
++func TestNonGoMemory(t *testing.T) {
++	data, err := syscall.Mmap(-1, 0, 4096, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
++	if err != nil {
++		t.Fatalf("failed to mmap memory: %v", err)
++	}
++	p := (*uint32)(unsafe.Pointer(&data[0]))
++	atomic.AddUint32(p, 1)
++	(*p)++
++	if *p != 2 {
++		t.Fatalf("data[0] = %v, expect 2", *p)
++	}
++	syscall.Munmap(data)
++}
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index bdea28c7c0..a96d9de123 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -138,17 +138,15 @@ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+-	// Check that addr is within [arenastart, arenaend) or within [noptrdata, enoptrbss).
++	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	CMPQ	RARG1, runtime·racearenastart(SB)
+ 	JB	racecalladdr_data
+ 	CMPQ	RARG1, runtime·racearenaend(SB)
+ 	JB	racecalladdr_call
+ racecalladdr_data:
+-	MOVQ	$runtime·noptrdata(SB), R13
+-	CMPQ	RARG1, R13
++	CMPQ	RARG1, runtime·racedatastart(SB)
+ 	JB	racecalladdr_ret
+-	MOVQ	$runtime·enoptrbss(SB), R13
+-	CMPQ	RARG1, R13
++	CMPQ	RARG1, runtime·racedataend(SB)
+ 	JAE	racecalladdr_ret
+ racecalladdr_call:
+ 	MOVQ	AX, AX		// w/o this 6a miscompiles this function
+@@ -166,6 +164,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ 	MOVQ	callpc+0(FP), RARG1
+ 	// void __tsan_func_enter(ThreadState *thr, void *pc);
+ 	MOVQ	$__tsan_func_enter(SB), AX
++	// racecall<> preserves R15
+ 	CALL	racecall<>(SB)
+ 	MOVQ	R15, DX	// restore function entry context
+ 	RET
+@@ -306,13 +305,45 @@ TEXT	sync∕atomic·CompareAndSwapPointer(SB), NOSPLIT, $0-0
+ TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
+ 	// Trigger SIGSEGV early.
+ 	MOVQ	16(SP), R12
+-	MOVL	(R12), R12
++	MOVL	(R12), R13
++	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
++	CMPQ	R12, runtime·racearenastart(SB)
++	JB	racecallatomic_data
++	CMPQ	R12, runtime·racearenaend(SB)
++	JB	racecallatomic_ok
++racecallatomic_data:
++	CMPQ	R12, runtime·racedatastart(SB)
++	JB	racecallatomic_ignore
++	CMPQ	R12, runtime·racedataend(SB)
++	JAE	racecallatomic_ignore
++racecallatomic_ok:
++	// Addr is within the good range, call the atomic function.
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	MOVQ	8(SP), RARG1	// caller pc
+ 	MOVQ	(SP), RARG2	// pc
+ 	LEAQ	16(SP), RARG3	// arguments
++	JMP	racecall<>(SB)	// does not return
++racecallatomic_ignore:
++	// Addr is outside the good range.
++	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
++	// An attempt to synchronize on the address would cause crash.
++	MOVQ	AX, R15	// remember the original function
++	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
++	MOVQ	g(R12), R14
++	MOVQ	g_racectx(R14), RARG0	// goroutine context
++	CALL	racecall<>(SB)
++	MOVQ	R15, AX	// restore the original function
++	// Call the atomic function.
++	MOVQ	g_racectx(R14), RARG0	// goroutine context
++	MOVQ	8(SP), RARG1	// caller pc
++	MOVQ	(SP), RARG2	// pc
++	LEAQ	16(SP), RARG3	// arguments
++	CALL	racecall<>(SB)
++	// Call __tsan_go_ignore_sync_end.
++	MOVQ	$__tsan_go_ignore_sync_end(SB), AX
++	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	JMP	racecall<>(SB)
+ 
+ // void runtime·racecall(void(*f)(...), ...)

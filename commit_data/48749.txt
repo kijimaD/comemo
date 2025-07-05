@@ -20,9 +20,87 @@ Date:   Fri Jun 11 11:50:42 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/runtime/testdata/testprogcgo/aprof.go            |  4 ++--
  src/runtime/testdata/testprogcgo/aprof_c.c           |  9 +++++++++
  src/runtime/testdata/testprogcgo/bigstack1_windows.c | 12 ++++++++++++
  src/runtime/testdata/testprogcgo/bigstack_windows.go |  4 ++--
  4 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/aprof.go b/src/runtime/testdata/testprogcgo/aprof.go
+index aabca9e1eb..44a15b0865 100644
+--- a/src/runtime/testdata/testprogcgo/aprof.go
++++ b/src/runtime/testdata/testprogcgo/aprof.go
+@@ -10,7 +10,7 @@ package main
+ // The test fails when the function is the first C function.
+ // The exported functions are the first C functions, so we use that.
+ 
+-// extern void GoNop();
++// extern void CallGoNop();
+ import "C"
+ 
+ import (
+@@ -38,7 +38,7 @@ func CgoCCodeSIGPROF() {
+ 					break
+ 				}
+ 			}
+-			C.GoNop()
++			C.CallGoNop()
+ 		}
+ 		c <- true
+ 	}()
+diff --git a/src/runtime/testdata/testprogcgo/aprof_c.c b/src/runtime/testdata/testprogcgo/aprof_c.c
+new file mode 100644
+index 0000000000..d588e13045
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/aprof_c.c
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++void CallGoNop() {
++	GoNop();
++}
+diff --git a/src/runtime/testdata/testprogcgo/bigstack1_windows.c b/src/runtime/testdata/testprogcgo/bigstack1_windows.c
+new file mode 100644
+index 0000000000..551fb68309
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/bigstack1_windows.c
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is not in bigstack_windows.c because it needs to be part of
++// testprogcgo but is not part of the DLL built from bigstack_windows.c.
++
++#include "_cgo_export.h"
++
++void CallGoBigStack1(char* p) {
++	goBigStack1(p);
++}
+diff --git a/src/runtime/testdata/testprogcgo/bigstack_windows.go b/src/runtime/testdata/testprogcgo/bigstack_windows.go
+index f58fcf993f..135b5fcfe0 100644
+--- a/src/runtime/testdata/testprogcgo/bigstack_windows.go
++++ b/src/runtime/testdata/testprogcgo/bigstack_windows.go
+@@ -6,7 +6,7 @@ package main
+ 
+ /*
+ typedef void callback(char*);
+-extern void goBigStack1(char*);
++extern void CallGoBigStack1(char*);
+ extern void bigStack(callback*);
+ */
+ import "C"
+@@ -18,7 +18,7 @@ func init() {
+ func BigStack() {
+ 	// Create a large thread stack and call back into Go to test
+ 	// if Go correctly determines the stack bounds.
+-	C.bigStack((*C.callback)(C.goBigStack1))
++	C.bigStack((*C.callback)(C.CallGoBigStack1))
+ }
+ 
+ //export goBigStack1

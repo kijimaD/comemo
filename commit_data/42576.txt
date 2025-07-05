@@ -13,6 +13,19 @@ Date:   Thu Jul 25 20:44:06 2019 -0700
     Change-Id: If4fb2501e02dad110a095b73e18c47312ffa6015
     Reviewed-on: https://go-review.googlesource.com/c/go/+/187677
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/net/net.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index 38c6b99637..1d7e5e7f65 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -452,6 +452,7 @@ type OpError struct {
+ 	Addr Addr
+ 
+ 	// Err is the error that occurred during the operation.
++	// The Error method panics if the error is nil.
+ 	Err error
+ }
+ 

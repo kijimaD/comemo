@@ -14,8 +14,69 @@ Date:   Wed Aug 23 11:22:04 2023 +0200
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/dnsclient_unix.go |  3 ++-
  src/net/ipsock.go         |  4 ++--
  src/net/parse.go          | 11 -----------
  3 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 4c3da9a6c8..6f2bdbed2d 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -17,6 +17,7 @@ package net
+ import (
+ 	"context"
+ 	"errors"
++	"internal/bytealg"
+ 	"internal/itoa"
+ 	"io"
+ 	"os"
+@@ -513,7 +514,7 @@ func (conf *dnsConfig) nameList(name string) []string {
+ 		return []string{name}
+ 	}
+ 
+-	hasNdots := count(name, '.') >= conf.ndots
++	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
+ 	name += "."
+ 	l++
+ 
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 0f5da2577c..cdd097c2d3 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -83,10 +83,10 @@ func (addrs addrList) forResolve(network, addr string) Addr {
+ 	switch network {
+ 	case "ip":
+ 		// IPv6 literal (addr does NOT contain a port)
+-		want6 = count(addr, ':') > 0
++		want6 = bytealg.CountString(addr, ':') > 0
+ 	case "tcp", "udp":
+ 		// IPv6 literal. (addr contains a port, so look for '[')
+-		want6 = count(addr, '[') > 0
++		want6 = bytealg.CountString(addr, '[') > 0
+ 	}
+ 	if want6 {
+ 		return addrs.first(isNotIPv4)
+diff --git a/src/net/parse.go b/src/net/parse.go
+index 22c6123243..f2e790e48f 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -180,17 +180,6 @@ func xtoi2(s string, e byte) (byte, bool) {
+ 	return byte(n), ok && ei == 2
+ }
+ 
+-// Number of occurrences of b in s.
+-func count(s string, b byte) int {
+-	n := 0
+-	for i := 0; i < len(s); i++ {
+-		if s[i] == b {
+-			n++
+-		}
+-	}
+-	return n
+-}
+-
+ // Index of rightmost occurrence of b in s.
+ func last(s string, b byte) int {
+ 	i := len(s)

@@ -21,7 +21,7 @@ Date:   Fri Sep 2 11:13:43 2022 -0400
     Run-TryBot: Alan Donovan <adonovan@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  api/next/53202.txt           |  2 ++
  src/go/ast/ast.go            | 23 +++++++++++++++--------
  src/go/ast/example_test.go   | 20 +++++++++++---------
@@ -29,3 +29,176 @@ Date:   Fri Sep 2 11:13:43 2022 -0400
  src/go/parser/parser.go      | 14 ++++++++------
  src/go/parser/parser_test.go | 28 ++++++++++++++++++++++++++++
  6 files changed, 72 insertions(+), 24 deletions(-)
+
+diff --git a/api/next/53202.txt b/api/next/53202.txt
+new file mode 100644
+index 0000000000..8dadbfb4e5
+--- /dev/null
++++ b/api/next/53202.txt
+@@ -0,0 +1,2 @@
++pkg go/ast, type File struct, FileEnd token.Pos #53202
++pkg go/ast, type File struct, FileStart token.Pos #53202
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 8d138fc72a..9baf72f40f 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -1036,17 +1036,24 @@ func (*FuncDecl) declNode() {}
+ // and Comment comments directly associated with nodes, the remaining comments
+ // are "free-floating" (see also issues #18593, #20744).
+ type File struct {
+-	Doc        *CommentGroup   // associated documentation; or nil
+-	Package    token.Pos       // position of "package" keyword
+-	Name       *Ident          // package name
+-	Decls      []Decl          // top-level declarations; or nil
+-	Scope      *Scope          // package scope (this file only)
+-	Imports    []*ImportSpec   // imports in this file
+-	Unresolved []*Ident        // unresolved identifiers in this file
+-	Comments   []*CommentGroup // list of all comments in the source file
++	Doc     *CommentGroup // associated documentation; or nil
++	Package token.Pos     // position of "package" keyword
++	Name    *Ident        // package name
++	Decls   []Decl        // top-level declarations; or nil
++
++	FileStart, FileEnd token.Pos       // start and end of entire file
++	Scope              *Scope          // package scope (this file only)
++	Imports            []*ImportSpec   // imports in this file
++	Unresolved         []*Ident        // unresolved identifiers in this file
++	Comments           []*CommentGroup // list of all comments in the source file
+ }
+ 
++// Pos returns the position of the package declaration.
++// (Use FileStart for the start of the entire file.)
+ func (f *File) Pos() token.Pos { return f.Package }
++
++// End returns the end of the last declaration in the file.
++// (Use FileEnd for the end of the entire file.)
+ func (f *File) End() token.Pos {
+ 	if n := len(f.Decls); n > 0 {
+ 		return f.Decls[n-1].End()
+diff --git a/src/go/ast/example_test.go b/src/go/ast/example_test.go
+index 67860ce922..c6904be6e5 100644
+--- a/src/go/ast/example_test.go
++++ b/src/go/ast/example_test.go
+@@ -126,15 +126,17 @@ func main() {
+ 	//     47  .  .  .  }
+ 	//     48  .  .  }
+ 	//     49  .  }
+-	//     50  .  Scope: *ast.Scope {
+-	//     51  .  .  Objects: map[string]*ast.Object (len = 1) {
+-	//     52  .  .  .  "main": *(obj @ 11)
+-	//     53  .  .  }
+-	//     54  .  }
+-	//     55  .  Unresolved: []*ast.Ident (len = 1) {
+-	//     56  .  .  0: *(obj @ 29)
+-	//     57  .  }
+-	//     58  }
++	//     50  .  FileStart: 1:1
++	//     51  .  FileEnd: 5:3
++	//     52  .  Scope: *ast.Scope {
++	//     53  .  .  Objects: map[string]*ast.Object (len = 1) {
++	//     54  .  .  .  "main": *(obj @ 11)
++	//     55  .  .  }
++	//     56  .  }
++	//     57  .  Unresolved: []*ast.Ident (len = 1) {
++	//     58  .  .  0: *(obj @ 29)
++	//     59  .  }
++	//     60  }
+ }
+ 
+ // This example illustrates how to remove a variable declaration
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index 2fc73c4b99..7d2a11e475 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -340,6 +340,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	ncomments := 0
+ 	ndecls := 0
+ 	filenames := make([]string, len(pkg.Files))
++	var minPos, maxPos token.Pos
+ 	i := 0
+ 	for filename, f := range pkg.Files {
+ 		filenames[i] = filename
+@@ -349,6 +350,12 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 		}
+ 		ncomments += len(f.Comments)
+ 		ndecls += len(f.Decls)
++		if i == 0 || f.FileStart < minPos {
++			minPos = f.FileStart
++		}
++		if i == 0 || f.FileEnd > maxPos {
++			maxPos = f.FileEnd
++		}
+ 	}
+ 	sort.Strings(filenames)
+ 
+@@ -484,5 +491,5 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	}
+ 
+ 	// TODO(gri) need to compute unresolved identifiers!
+-	return &File{doc, pos, NewIdent(pkg.Name), decls, pkg.Scope, imports, nil, comments}
++	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments}
+ }
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 5ee53fc81e..89ed0e433f 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2836,12 +2836,14 @@ func (p *parser) parseFile() *ast.File {
+ 	}
+ 
+ 	f := &ast.File{
+-		Doc:      doc,
+-		Package:  pos,
+-		Name:     ident,
+-		Decls:    decls,
+-		Imports:  p.imports,
+-		Comments: p.comments,
++		Doc:       doc,
++		Package:   pos,
++		Name:      ident,
++		Decls:     decls,
++		FileStart: token.Pos(p.file.Base()),
++		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
++		Imports:   p.imports,
++		Comments:  p.comments,
+ 	}
+ 	var declErr func(token.Pos, string)
+ 	if p.mode&DeclarationErrors != 0 {
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 6d559e231c..153562df75 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -488,6 +488,34 @@ func TestIssue9979(t *testing.T) {
+ 	}
+ }
+ 
++func TestFileStartEndPos(t *testing.T) {
++	const src = `// Copyright
++
++//+build tag
++
++// Package p doc comment.
++package p
++
++var lastDecl int
++
++/* end of file */
++`
++	fset := token.NewFileSet()
++	f, err := ParseFile(fset, "file.go", src, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// File{Start,End} spans the entire file, not just the declarations.
++	if got, want := fset.Position(f.FileStart).String(), "file.go:1:1"; got != want {
++		t.Errorf("for File.FileStart, got %s, want %s", got, want)
++	}
++	// The end position is the newline at the end of the /* end of file */ line.
++	if got, want := fset.Position(f.FileEnd).String(), "file.go:10:19"; got != want {
++		t.Errorf("for File.FileEnd, got %s, want %s", got, want)
++	}
++}
++
+ // TestIncompleteSelection ensures that an incomplete selector
+ // expression is parsed as a (blank) *ast.SelectorExpr, not a
+ // *ast.BadExpr.

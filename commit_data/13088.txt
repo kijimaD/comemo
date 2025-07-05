@@ -9,8 +9,48 @@ Date:   Thu May 17 02:00:40 2012 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/6211055
-
+---
  src/cmd/go/doc.go  | 2 +-
  src/cmd/go/help.go | 2 +-
  src/cmd/go/main.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index a39534a996..5e7b10692d 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -546,7 +546,7 @@ in those files and ignoring any other files in the directory.
+ 
+ Remote import path syntax
+ 
+-An import path (see 'go help importpath') denotes a package
++An import path (see 'go help packages') denotes a package
+ stored in the local file system.  Certain import paths also
+ describe how to obtain the source code for the package using
+ a revision control system.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 0907c5afb4..7539753af0 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -138,7 +138,7 @@ The meta tag has the form:
+ 
+ 	<meta name="go-import" content="import-prefix vcs repo-root">
+ 
+-The import-prefix is the import path correponding to the repository
++The import-prefix is the import path corresponding to the repository
+ root. It must be a prefix or an exact match of the package being
+ fetched with "go get". If it's not an exact match, another http
+ request is made at the prefix to verify the <meta> tags match.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index a17082c2b4..20585d1bea 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -144,7 +144,7 @@ func main() {
+ 		}
+ 	}
+ 
+-	fmt.Fprintf(os.Stderr, "go: unknown subcommand %#q\nRun 'go help' for usage.\n", args[0])
++	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
+ 	setExitStatus(2)
+ 	exit()
+ }

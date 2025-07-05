@@ -29,7 +29,102 @@ Date:   Thu Apr 22 17:14:10 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 31 ++++++++++++++++++++++++++++++-
  test/fixedbugs/issue45606.go           | 17 +++++++++++++++++
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 3cbe932d55..54fcb2b830 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1002,6 +1002,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		retvars:      retvars,
+ 		delayretvars: delayretvars,
+ 		inlvars:      inlvars,
++		defnMarker:   ir.NilExpr{},
+ 		bases:        make(map[*src.PosBase]*src.PosBase),
+ 		newInlIndex:  newIndex,
+ 		fn:           fn,
+@@ -1103,6 +1104,10 @@ type inlsubst struct {
+ 	delayretvars bool
+ 
+ 	inlvars map[*ir.Name]*ir.Name
++	// defnMarker is used to mark a Node for reassignment.
++	// inlsubst.clovar set this during creating new ONAME.
++	// inlsubst.node will set the correct Defn for inlvar.
++	defnMarker ir.NilExpr
+ 
+ 	// bases maps from original PosBase to PosBase with an extra
+ 	// inlined call frame.
+@@ -1160,7 +1165,11 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
+ 	m := &ir.Name{}
+ 	*m = *n
+ 	m.Curfn = subst.newclofn
+-	if n.Defn != nil && n.Defn.Op() == ir.ONAME {
++
++	switch defn := n.Defn.(type) {
++	case nil:
++		// ok
++	case *ir.Name:
+ 		if !n.IsClosureVar() {
+ 			base.FatalfAt(n.Pos(), "want closure variable, got: %+v", n)
+ 		}
+@@ -1182,7 +1191,13 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
+ 		if subst.inlvars[n.Defn.(*ir.Name)] != nil {
+ 			m.Defn = subst.node(n.Defn)
+ 		}
++	case *ir.AssignStmt, *ir.AssignListStmt:
++		// Mark node for reassignment at the end of inlsubst.node.
++		m.Defn = &subst.defnMarker
++	default:
++		base.FatalfAt(n.Pos(), "unexpected Defn: %+v", defn)
+ 	}
++
+ 	if n.Outer != nil {
+ 		// Either the outer variable is defined in function being inlined,
+ 		// and we will replace it with the substituted variable, or it is
+@@ -1406,6 +1421,20 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 	m := ir.Copy(n)
+ 	m.SetPos(subst.updatedPos(m.Pos()))
+ 	ir.EditChildren(m, subst.edit)
++
++	switch m := m.(type) {
++	case *ir.AssignStmt:
++		if lhs, ok := m.X.(*ir.Name); ok && lhs.Defn == &subst.defnMarker {
++			lhs.Defn = m
++		}
++	case *ir.AssignListStmt:
++		for _, lhs := range m.Lhs {
++			if lhs, ok := lhs.(*ir.Name); ok && lhs.Defn == &subst.defnMarker {
++				lhs.Defn = m
++			}
++		}
++	}
++
+ 	return m
+ }
+ 
+diff --git a/test/fixedbugs/issue45606.go b/test/fixedbugs/issue45606.go
+new file mode 100644
+index 0000000000..1b52b4e7d5
+--- /dev/null
++++ b/test/fixedbugs/issue45606.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func x() {
++	func() func() {
++		return func() {
++			f := func() {}
++			g, _ := f, 0
++			g()
++		}
++	}()()
++}

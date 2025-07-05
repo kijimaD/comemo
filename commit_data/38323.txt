@@ -161,7 +161,7 @@ Date:   Sun May 6 12:58:53 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 122 ++++-----
  src/cmd/compile/internal/gc/syntax.go          |  44 ++--
  src/cmd/compile/internal/gc/walk.go            | 350 ++++++-------------------
@@ -170,3 +170,784 @@ Date:   Sun May 6 12:58:53 2018 -0700
  src/cmd/compile/internal/ssa/gen/generic.rules |  14 +
  src/cmd/compile/internal/ssa/rewritegeneric.go |  45 ++++
  7 files changed, 236 insertions(+), 344 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3818aaf6b0..cecba59b0a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3558,59 +3558,34 @@ func (s *state) intrinsicCall(n *Node) *ssa.Value {
+ 	return v
+ }
+ 
+-type callArg struct {
+-	offset int64
+-	v      *ssa.Value
+-}
+-type byOffset []callArg
+-
+-func (x byOffset) Len() int      { return len(x) }
+-func (x byOffset) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-func (x byOffset) Less(i, j int) bool {
+-	return x[i].offset < x[j].offset
+-}
+-
+ // intrinsicArgs extracts args from n, evaluates them to SSA values, and returns them.
+ func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
+-	// This code is complicated because of how walk transforms calls. For a call node,
+-	// each entry in n.List is either an assignment to OINDREGSP which actually
+-	// stores an arg, or an assignment to a temporary which computes an arg
+-	// which is later assigned.
+-	// The args can also be out of order.
+-	// TODO: when walk goes away someday, this code can go away also.
+-	var args []callArg
++	// Construct map of temps; see comments in s.call about the structure of n.
+ 	temps := map[*Node]*ssa.Value{}
+ 	for _, a := range n.List.Slice() {
+ 		if a.Op != OAS {
+-			s.Fatalf("non-assignment as a function argument %v", a.Op)
++			s.Fatalf("non-assignment as a temp function argument %v", a.Op)
+ 		}
+ 		l, r := a.Left, a.Right
+-		switch l.Op {
+-		case ONAME:
+-			// Evaluate and store to "temporary".
+-			// Walk ensures these temporaries are dead outside of n.
+-			temps[l] = s.expr(r)
+-		case OINDREGSP:
+-			// Store a value to an argument slot.
+-			var v *ssa.Value
+-			if x, ok := temps[r]; ok {
+-				// This is a previously computed temporary.
+-				v = x
+-			} else {
+-				// This is an explicit value; evaluate it.
+-				v = s.expr(r)
+-			}
+-			args = append(args, callArg{l.Xoffset, v})
+-		default:
+-			s.Fatalf("function argument assignment target not allowed: %v", l.Op)
++		if l.Op != ONAME {
++			s.Fatalf("non-ONAME temp function argument %v", a.Op)
++		}
++		// Evaluate and store to "temporary".
++		// Walk ensures these temporaries are dead outside of n.
++		temps[l] = s.expr(r)
++	}
++	args := make([]*ssa.Value, n.Rlist.Len())
++	for i, n := range n.Rlist.Slice() {
++		// Store a value to an argument slot.
++		if x, ok := temps[n]; ok {
++			// This is a previously computed temporary.
++			args[i] = x
++			continue
+ 		}
++		// This is an explicit value; evaluate it.
++		args[i] = s.expr(n)
+ 	}
+-	sort.Sort(byOffset(args))
+-	res := make([]*ssa.Value, len(args))
+-	for i, a := range args {
+-		res[i] = a.v
+-	}
+-	return res
++	return args
+ }
+ 
+ // Calls the function n using the specified call type.
+@@ -3651,7 +3626,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		n2.Pos = fn.Pos
+ 		n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
+ 		closure = s.expr(n2)
+-		// Note: receiver is already assigned in n.List, so we don't
++		// Note: receiver is already present in n.Rlist, so we don't
+ 		// want to set it here.
+ 	case OCALLINTER:
+ 		if fn.Op != ODOTINTER {
+@@ -3672,32 +3647,43 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	dowidth(fn.Type)
+ 	stksize := fn.Type.ArgWidth() // includes receiver
+ 
+-	// Run all argument assignments. The arg slots have already
+-	// been offset by the appropriate amount (+2*widthptr for go/defer,
+-	// +widthptr for interface calls).
+-	// For OCALLMETH, the receiver is set in these statements.
++	// Run all assignments of temps.
++	// The temps are introduced to avoid overwriting argument
++	// slots when arguments themselves require function calls.
+ 	s.stmtList(n.List)
+ 
+-	// Set receiver (for interface calls)
+-	if rcvr != nil {
+-		argStart := Ctxt.FixedFrameSize()
+-		if k != callNormal {
+-			argStart += int64(2 * Widthptr)
+-		}
+-		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+-		s.store(types.Types[TUINTPTR], addr, rcvr)
+-	}
+-
+-	// Defer/go args
++	// Store arguments to stack, including defer/go arguments and receiver for method calls.
++	// These are written in SP-offset order.
++	argStart := Ctxt.FixedFrameSize()
++	// Defer/go args.
+ 	if k != callNormal {
+ 		// Write argsize and closure (args to newproc/deferproc).
+-		argStart := Ctxt.FixedFrameSize()
+ 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
+ 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
+ 		s.store(types.Types[TUINT32], addr, argsize)
+ 		addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
+ 		s.store(types.Types[TUINTPTR], addr, closure)
+ 		stksize += 2 * int64(Widthptr)
++		argStart += 2 * int64(Widthptr)
++	}
++
++	// Set receiver (for interface calls).
++	if rcvr != nil {
++		addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
++		s.store(types.Types[TUINTPTR], addr, rcvr)
++	}
++
++	// Write args.
++	t := n.Left.Type
++	args := n.Rlist.Slice()
++	if n.Op == OCALLMETH {
++		f := t.Recv()
++		s.storeArg(args[0], f.Type, argStart+f.Offset)
++		args = args[1:]
++	}
++	for i, n := range args {
++		f := t.Params().Field(i)
++		s.storeArg(n, f.Type, argStart+f.Offset)
+ 	}
+ 
+ 	// call target
+@@ -4182,6 +4168,20 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
+ 	}
+ }
+ 
++func (s *state) storeArg(n *Node, t *types.Type, off int64) {
++	pt := types.NewPtr(t)
++	sp := s.constOffPtrSP(pt, off)
++
++	if !canSSAType(t) {
++		a := s.addr(n, false)
++		s.move(t, sp, a)
++		return
++	}
++
++	a := s.expr(n)
++	s.storeType(t, sp, a, 0, false)
++}
++
+ // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
+ // i,j,k may be nil, in which case they are set to their default value.
+ // t is a slice, ptr to array, or string type.
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 3ae3976d96..9ea727fa64 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -603,24 +603,32 @@ const (
+ 	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
+ 	OASOP            // Left Etype= Right (x += y)
+ 	OCALL            // Left(List) (function call, method call or type conversion)
+-	OCALLFUNC        // Left(List) (function call f(args))
+-	OCALLMETH        // Left(List) (direct method call x.Method(args))
+-	OCALLINTER       // Left(List) (interface method call x.Method(args))
+-	OCALLPART        // Left.Right (method expression x.Method, not called)
+-	OCAP             // cap(Left)
+-	OCLOSE           // close(Left)
+-	OCLOSURE         // func Type { Body } (func literal)
+-	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
+-	OMAPLIT          // Type{List} (composite literal, Type is map)
+-	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
+-	OARRAYLIT        // Type{List} (composite literal, Type is array)
+-	OSLICELIT        // Type{List} (composite literal, Type is slice)
+-	OPTRLIT          // &Left (left is composite literal)
+-	OCONV            // Type(Left) (type conversion)
+-	OCONVIFACE       // Type(Left) (type conversion, to interface)
+-	OCONVNOP         // Type(Left) (type conversion, no effect)
+-	OCOPY            // copy(Left, Right)
+-	ODCL             // var Left (declares Left of type Left.Type)
++
++	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
++	// Prior to walk, they are: Left(List), where List is all regular arguments.
++	// If present, Right is an ODDDARG that holds the
++	// generated slice used in a call to a variadic function.
++	// After walk, List is a series of assignments to temporaries,
++	// and Rlist is an updated set of arguments, including any ODDDARG slice.
++	// TODO(josharian/khr): Use Ninit instead of List for the assignments to temporaries. See CL 114797.
++	OCALLFUNC  // Left(List/Rlist) (function call f(args))
++	OCALLMETH  // Left(List/Rlist) (direct method call x.Method(args))
++	OCALLINTER // Left(List/Rlist) (interface method call x.Method(args))
++	OCALLPART  // Left.Right (method expression x.Method, not called)
++	OCAP       // cap(Left)
++	OCLOSE     // close(Left)
++	OCLOSURE   // func Type { Body } (func literal)
++	OCOMPLIT   // Right{List} (composite literal, not yet lowered to specific form)
++	OMAPLIT    // Type{List} (composite literal, Type is map)
++	OSTRUCTLIT // Type{List} (composite literal, Type is struct)
++	OARRAYLIT  // Type{List} (composite literal, Type is array)
++	OSLICELIT  // Type{List} (composite literal, Type is slice)
++	OPTRLIT    // &Left (left is composite literal)
++	OCONV      // Type(Left) (type conversion)
++	OCONVIFACE // Type(Left) (type conversion, to interface)
++	OCONVNOP   // Type(Left) (type conversion, no effect)
++	OCOPY      // copy(Left, Right)
++	ODCL       // var Left (declares Left of type Left.Type)
+ 
+ 	// Used during parsing but don't last.
+ 	ODCLFUNC  // func f() or func (r) f()
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index cc4b9ec2d3..41e2ad3589 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -109,32 +109,6 @@ func paramoutheap(fn *Node) bool {
+ 	return false
+ }
+ 
+-// adds "adjust" to all the argument locations for the call n.
+-// n must be a defer or go node that has already been walked.
+-func adjustargs(n *Node, adjust int) {
+-	callfunc := n.Left
+-	for _, arg := range callfunc.List.Slice() {
+-		if arg.Op != OAS {
+-			Fatalf("call arg not assignment")
+-		}
+-		lhs := arg.Left
+-		if lhs.Op == ONAME {
+-			// This is a temporary introduced by reorder1.
+-			// The real store to the stack appears later in the arg list.
+-			continue
+-		}
+-
+-		if lhs.Op != OINDREGSP {
+-			Fatalf("call argument store does not use OINDREGSP")
+-		}
+-
+-		// can't really check this in machine-indep code.
+-		//if(lhs->val.u.reg != D_SP)
+-		//      Fatalf("call arg assign not indreg(SP)")
+-		lhs.Xoffset += int64(adjust)
+-	}
+-}
+-
+ // The result of walkstmt MUST be assigned back to n, e.g.
+ // 	n.Left = walkstmt(n.Left)
+ func walkstmt(n *Node) *Node {
+@@ -264,9 +238,6 @@ func walkstmt(n *Node) *Node {
+ 			n.Left = walkexpr(n.Left, &n.Ninit)
+ 		}
+ 
+-		// make room for size & fn arguments.
+-		adjustargs(n, 2*Widthptr)
+-
+ 	case OFOR, OFORUNTIL:
+ 		if n.Left != nil {
+ 			walkstmtlist(n.Left.Ninit.Slice())
+@@ -334,8 +305,19 @@ func walkstmt(n *Node) *Node {
+ 		}
+ 		walkexprlist(n.List.Slice(), &n.Ninit)
+ 
+-		ll := ascompatte(nil, false, Curfn.Type.Results(), n.List.Slice(), 1, &n.Ninit)
+-		n.List.Set(ll)
++		// For each return parameter (lhs), assign the corresponding result (rhs).
++		lhs := Curfn.Type.Results()
++		rhs := n.List.Slice()
++		res := make([]*Node, lhs.NumFields())
++		for i, nl := range lhs.FieldSlice() {
++			nname := asNode(nl.Nname)
++			if nname.isParamHeapCopy() {
++				nname = nname.Name.Param.Stackcopy
++			}
++			a := nod(OAS, nname, rhs[i])
++			res[i] = convas(a, &n.Ninit)
++		}
++		n.List.Set(res)
+ 
+ 	case ORETJMP:
+ 		break
+@@ -612,19 +594,12 @@ opswitch:
+ 	case OCLOSUREVAR, OCFUNC:
+ 		n.SetAddable(true)
+ 
+-	case OCALLINTER:
+-		usemethod(n)
+-		t := n.Left.Type
+-		if n.List.Len() != 0 && n.List.First().Op == OAS {
+-			break
++	case OCALLINTER, OCALLFUNC, OCALLMETH:
++		if n.Op == OCALLINTER {
++			usemethod(n)
+ 		}
+-		n.Left = walkexpr(n.Left, init)
+-		walkexprlist(n.List.Slice(), init)
+-		ll := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
+-		n.List.Set(reorder1(ll))
+ 
+-	case OCALLFUNC:
+-		if n.Left.Op == OCLOSURE {
++		if n.Op == OCALLFUNC && n.Left.Op == OCLOSURE {
+ 			// Transform direct call of a closure to call of a normal function.
+ 			// transformclosure already did all preparation work.
+ 
+@@ -645,30 +620,7 @@ opswitch:
+ 			}
+ 		}
+ 
+-		t := n.Left.Type
+-		if n.List.Len() != 0 && n.List.First().Op == OAS {
+-			break
+-		}
+-
+-		n.Left = walkexpr(n.Left, init)
+-		walkexprlist(n.List.Slice(), init)
+-
+-		ll := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
+-		n.List.Set(reorder1(ll))
+-
+-	case OCALLMETH:
+-		t := n.Left.Type
+-		if n.List.Len() != 0 && n.List.First().Op == OAS {
+-			break
+-		}
+-		n.Left = walkexpr(n.Left, init)
+-		walkexprlist(n.List.Slice(), init)
+-		ll := ascompatte(n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
+-		lr := ascompatte(n, n.Isddd(), t.Params(), n.List.Slice(), 0, init)
+-		ll = append(ll, lr...)
+-		n.Left.Left = nil
+-		updateHasCall(n.Left)
+-		n.List.Set(reorder1(ll))
++		walkCall(n, init)
+ 
+ 	case OAS, OASOP:
+ 		init.AppendNodes(&n.Ninit)
+@@ -1714,7 +1666,7 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 			l = tmp
+ 		}
+ 
+-		a := nod(OAS, l, nodarg(r, 0))
++		a := nod(OAS, l, nodarg(r))
+ 		a = convas(a, &nn)
+ 		updateHasCall(a)
+ 		if a.HasCall() {
+@@ -1727,99 +1679,23 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 	return append(nn.Slice(), mm.Slice()...)
+ }
+ 
+-// nodarg returns a Node for the function argument denoted by t,
+-// which is either the entire function argument or result struct (t is a  struct *types.Type)
+-// or a specific argument (t is a *types.Field within a struct *types.Type).
++// nodarg returns a Node for the function argument f.
++// f is a *types.Field within a struct *types.Type.
+ //
+-// If fp is 0, the node is for use by a caller invoking the given
++// The node is for use by a caller invoking the given
+ // function, preparing the arguments before the call
+ // or retrieving the results after the call.
+ // In this case, the node will correspond to an outgoing argument
+ // slot like 8(SP).
+-//
+-// If fp is 1, the node is for use by the function itself
+-// (the callee), to retrieve its arguments or write its results.
+-// In this case the node will be an ONAME with an appropriate
+-// type and offset.
+-func nodarg(t interface{}, fp int) *Node {
+-	var n *Node
+-
+-	switch t := t.(type) {
+-	default:
+-		Fatalf("bad nodarg %T(%v)", t, t)
+-
+-	case *types.Type:
+-		// Entire argument struct, not just one arg
+-		if !t.IsFuncArgStruct() {
+-			Fatalf("nodarg: bad type %v", t)
+-		}
+-
+-		// Build fake variable name for whole arg struct.
+-		n = newname(lookup(".args"))
+-		n.Type = t
+-		first := t.Field(0)
+-		if first == nil {
+-			Fatalf("nodarg: bad struct")
+-		}
+-		if first.Offset == BADWIDTH {
+-			Fatalf("nodarg: offset not computed for %v", t)
+-		}
+-		n.Xoffset = first.Offset
+-
+-	case *types.Field:
+-		if fp == 1 {
+-			// NOTE(rsc): This should be using t.Nname directly,
+-			// except in the case where t.Nname.Sym is the blank symbol and
+-			// so the assignment would be discarded during code generation.
+-			// In that case we need to make a new node, and there is no harm
+-			// in optimization passes to doing so. But otherwise we should
+-			// definitely be using the actual declaration and not a newly built node.
+-			// The extra Fatalf checks here are verifying that this is the case,
+-			// without changing the actual logic (at time of writing, it's getting
+-			// toward time for the Go 1.7 beta).
+-			// At some quieter time (assuming we've never seen these Fatalfs happen)
+-			// we could change this code to use "expect" directly.
+-			expect := asNode(t.Nname)
+-			if expect.isParamHeapCopy() {
+-				expect = expect.Name.Param.Stackcopy
+-			}
+-
+-			for _, n := range Curfn.Func.Dcl {
+-				if (n.Class() == PPARAM || n.Class() == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
+-					if n != expect {
+-						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, asNode(t.Nname), asNode(t.Nname), asNode(t.Nname).Op)
+-					}
+-					return n
+-				}
+-			}
+-
+-			if !expect.Sym.IsBlank() {
+-				Fatalf("nodarg: did not find node in dcl list: %v", expect)
+-			}
+-		}
+-
+-		// Build fake name for individual variable.
+-		// This is safe because if there was a real declared name
+-		// we'd have used it above.
+-		n = newname(lookup("__"))
+-		n.Type = t.Type
+-		if t.Offset == BADWIDTH {
+-			Fatalf("nodarg: offset not computed for %v", t)
+-		}
+-		n.Xoffset = t.Offset
+-		n.Orig = asNode(t.Nname)
+-	}
+-
+-	// Rewrite argument named _ to __,
+-	// or else the assignment to _ will be
+-	// discarded during code generation.
+-	if n.isBlank() {
+-		n.Sym = lookup("__")
+-	}
+-
+-	if fp != 0 {
+-		Fatalf("bad fp: %v", fp)
++func nodarg(f *types.Field) *Node {
++	// Build fake name for individual variable.
++	n := newname(lookup("__"))
++	n.Type = f.Type
++	if f.Offset == BADWIDTH {
++		Fatalf("nodarg: offset not computed for %v", f)
+ 	}
++	n.Xoffset = f.Offset
++	n.Orig = asNode(f.Nname)
+ 
+ 	// preparing arguments for call
+ 	n.Op = OINDREGSP
+@@ -1856,59 +1732,58 @@ func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node
+ 	return n
+ }
+ 
+-// check assign expression list to
+-// a type list. called in
+-//	return expr-list
+-//	func(expr-list)
+-func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, init *Nodes) []*Node {
+-	// f(g()) where g has multiple return values
+-	if len(rhs) == 1 && rhs[0].Type.IsFuncArgStruct() {
+-		// optimization - can do block copy
+-		if eqtypenoname(rhs[0].Type, lhs) {
+-			nl := nodarg(lhs, fp)
+-			nr := convnop(rhs[0], nl.Type)
+-			n := convas(nod(OAS, nl, nr), init)
+-			n.SetTypecheck(1)
+-			return []*Node{n}
+-		}
+-
+-		// conversions involved.
+-		// copy into temporaries.
+-		var tmps []*Node
+-		for _, nr := range rhs[0].Type.FieldSlice() {
+-			tmps = append(tmps, temp(nr.Type))
+-		}
+-
+-		a := nod(OAS2, nil, nil)
+-		a.List.Set(tmps)
+-		a.Rlist.Set(rhs)
+-		a = typecheck(a, Etop)
+-		a = walkstmt(a)
+-		init.Append(a)
+-
+-		rhs = tmps
++func walkCall(n *Node, init *Nodes) {
++	if n.Rlist.Len() != 0 {
++		return // already walked
+ 	}
++	n.Left = walkexpr(n.Left, init)
++	walkexprlist(n.List.Slice(), init)
+ 
+-	// For each parameter (LHS), assign its corresponding argument (RHS).
++	params := n.Left.Type.Params()
++	args := n.List.Slice()
+ 	// If there's a ... parameter (which is only valid as the final
+ 	// parameter) and this is not a ... call expression,
+ 	// then assign the remaining arguments as a slice.
+-	var nn []*Node
+-	for i, nl := range lhs.FieldSlice() {
+-		var nr *Node
+-		if nl.Isddd() && !isddd {
+-			nr = mkdotargslice(nl.Type, rhs[i:], init, call.Right)
+-		} else {
+-			nr = rhs[i]
++	if nf := params.NumFields(); nf > 0 {
++		if last := params.Field(nf - 1); last.Isddd() && !n.Isddd() {
++			tail := args[nf-1:]
++			slice := mkdotargslice(last.Type, tail, init, n.Right)
++			// Allow immediate GC.
++			for i := range tail {
++				tail[i] = nil
++			}
++			args = append(args[:nf-1], slice)
+ 		}
++	}
++
++	// If this is a method call, add the receiver at the beginning of the args.
++	if n.Op == OCALLMETH {
++		withRecv := make([]*Node, len(args)+1)
++		withRecv[0] = n.Left.Left
++		n.Left.Left = nil
++		copy(withRecv[1:], args)
++		args = withRecv
++	}
+ 
+-		a := nod(OAS, nodarg(nl, fp), nr)
+-		a = convas(a, init)
+-		a.SetTypecheck(1)
+-		nn = append(nn, a)
++	// For any argument whose evaluation might require a function call,
++	// store that argument into a temporary variable,
++	// to prevent that calls from clobbering arguments already on the stack.
++	// When instrumenting, all arguments might require function calls.
++	var tempAssigns []*Node
++	for i, arg := range args {
++		updateHasCall(arg)
++		if instrumenting || arg.HasCall() {
++			// make assignment of fncall to tempname
++			tmp := temp(arg.Type)
++			a := nod(OAS, tmp, arg)
++			tempAssigns = append(tempAssigns, a)
++			// replace arg with temp
++			args[i] = tmp
++		}
+ 	}
+ 
+-	return nn
++	n.List.Set(tempAssigns)
++	n.Rlist.Set(args)
+ }
+ 
+ // generate code for print
+@@ -2111,71 +1986,6 @@ func convas(n *Node, init *Nodes) *Node {
+ 	return n
+ }
+ 
+-// from ascompat[te]
+-// evaluating actual function arguments.
+-//	f(a,b)
+-// if there is exactly one function expr,
+-// then it is done first. otherwise must
+-// make temp variables
+-func reorder1(all []*Node) []*Node {
+-	// When instrumenting, force all arguments into temporary
+-	// variables to prevent instrumentation calls from clobbering
+-	// arguments already on the stack.
+-
+-	funcCalls := 0
+-	if !instrumenting {
+-		if len(all) == 1 {
+-			return all
+-		}
+-
+-		for _, n := range all {
+-			updateHasCall(n)
+-			if n.HasCall() {
+-				funcCalls++
+-			}
+-		}
+-		if funcCalls == 0 {
+-			return all
+-		}
+-	}
+-
+-	var g []*Node // fncalls assigned to tempnames
+-	var f *Node   // last fncall assigned to stack
+-	var r []*Node // non fncalls and tempnames assigned to stack
+-	d := 0
+-	for _, n := range all {
+-		if !instrumenting {
+-			if !n.HasCall() {
+-				r = append(r, n)
+-				continue
+-			}
+-
+-			d++
+-			if d == funcCalls {
+-				f = n
+-				continue
+-			}
+-		}
+-
+-		// make assignment of fncall to tempname
+-		a := temp(n.Right.Type)
+-
+-		a = nod(OAS, a, n.Right)
+-		g = append(g, a)
+-
+-		// put normal arg assignment on list
+-		// with fncall replaced by tempname
+-		n.Right = a.Left
+-
+-		r = append(r, n)
+-	}
+-
+-	if f != nil {
+-		g = append(g, f)
+-	}
+-	return append(g, r...)
+-}
+-
+ // from ascompat[ee]
+ //	a,b = c,d
+ // simultaneous assignment. there cannot
+@@ -2501,14 +2311,24 @@ func paramstoheap(params *types.Type) []*Node {
+ // The generated code is added to Curfn's Enter list.
+ func zeroResults() {
+ 	for _, f := range Curfn.Type.Results().Fields().Slice() {
+-		if v := asNode(f.Nname); v != nil && v.Name.Param.Heapaddr != nil {
++		v := asNode(f.Nname)
++		if v != nil && v.Name.Param.Heapaddr != nil {
+ 			// The local which points to the return value is the
+ 			// thing that needs zeroing. This is already handled
+ 			// by a Needzero annotation in plive.go:livenessepilogue.
+ 			continue
+ 		}
++		if v.isParamHeapCopy() {
++			// TODO(josharian/khr): Investigate whether we can switch to "continue" here,
++			// and document more in either case.
++			// In the review of CL 114797, Keith wrote (roughly):
++			// I don't think the zeroing below matters.
++			// The stack return value will never be marked as live anywhere in the function.
++			// It is not written to until deferreturn returns.
++			v = v.Name.Param.Stackcopy
++		}
+ 		// Zero the stack location containing f.
+-		Curfn.Func.Enter.Append(nodl(Curfn.Pos, OAS, nodarg(f, 1), nil))
++		Curfn.Func.Enter.Append(nodl(Curfn.Pos, OAS, v, nil))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 40008bcf87..e79629695a 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -178,6 +178,7 @@ type GCNode interface {
+ 	Typ() *types.Type
+ 	String() string
+ 	IsSynthetic() bool
++	IsAutoTmp() bool
+ 	StorageClass() StorageClass
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 9c776d4b16..b76410d597 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -86,6 +86,10 @@ func (d *DummyAuto) IsSynthetic() bool {
+ 	return false
+ }
+ 
++func (d *DummyAuto) IsAutoTmp() bool {
++	return true
++}
++
+ func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8d2691d29c..14a67846dc 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1799,3 +1799,17 @@
+ 					(Zero {t1} [n] dst mem)))))
+ 
+ (StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
++
++// Collapse moving A -> B -> C into just A -> C.
++// Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
++// This happens most commonly when B is an autotmp inserted earlier
++// during compilation to ensure correctness.
++(Move {t1} [s1] dst tmp1 midmem:(Move {t2} [s2] tmp2 src _))
++	&& s1 == s2
++	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
++	&& isSamePtr(tmp1, tmp2)
++	-> (Move {t1} [s1] dst src midmem)
++
++// Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
++// However, this rule is needed to prevent the previous rule from looping forever in such cases.
++(Move dst src mem) && isSamePtr(dst, src) -> mem
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 26341a9217..f0a1346acf 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -17353,6 +17353,51 @@ func rewriteValuegeneric_OpMove_20(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
++	// match: (Move {t1} [s1] dst tmp1 midmem:(Move {t2} [s2] tmp2 src _))
++	// cond: s1 == s2 && t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2)
++	// result: (Move {t1} [s1] dst src midmem)
++	for {
++		s1 := v.AuxInt
++		t1 := v.Aux
++		_ = v.Args[2]
++		dst := v.Args[0]
++		tmp1 := v.Args[1]
++		midmem := v.Args[2]
++		if midmem.Op != OpMove {
++			break
++		}
++		s2 := midmem.AuxInt
++		t2 := midmem.Aux
++		_ = midmem.Args[2]
++		tmp2 := midmem.Args[0]
++		src := midmem.Args[1]
++		if !(s1 == s2 && t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = s1
++		v.Aux = t1
++		v.AddArg(dst)
++		v.AddArg(src)
++		v.AddArg(midmem)
++		return true
++	}
++	// match: (Move dst src mem)
++	// cond: isSamePtr(dst, src)
++	// result: mem
++	for {
++		_ = v.Args[2]
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(isSamePtr(dst, src)) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul16_0(v *Value) bool {

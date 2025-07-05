@@ -7,7 +7,40 @@ Date:   Tue Jan 31 12:29:00 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5598052
-
+---
  doc/go1.html | 5 +++++
  doc/go1.tmpl | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index d839b7a278..0f53efa9f5 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -673,6 +673,11 @@ This table lists the old and new import paths:
+ <tr>
+ <td colspan="2"><hr></td>
+ </tr>
++<tr><td>image/bmp</td> <td>code.google.com/p/go.image/bmp</tr>
++<tr><td>image/tiff</td> <td>code.google.com/p/go.image/tiff</tr>
++<tr>
++<td colspan="2"><hr></td>
++</tr>
+ <tr><td>net/dict</td> <td>code.google.com/p/go.net/dict</tr>
+ <tr><td>net/websocket</td> <td>code.google.com/p/go.net/websocket</tr>
+ <tr><td>exp/spdy</td> <td>code.google.com/p/go.net/spdy</tr>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index f1203f1907..0e5b1ed534 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -597,6 +597,11 @@ This table lists the old and new import paths:
+ <tr>
+ <td colspan="2"><hr></td>
+ </tr>
++<tr><td>image/bmp</td> <td>code.google.com/p/go.image/bmp</tr>
++<tr><td>image/tiff</td> <td>code.google.com/p/go.image/tiff</tr>
++<tr>
++<td colspan="2"><hr></td>
++</tr>
+ <tr><td>net/dict</td> <td>code.google.com/p/go.net/dict</tr>
+ <tr><td>net/websocket</td> <td>code.google.com/p/go.net/websocket</tr>
+ <tr><td>exp/spdy</td> <td>code.google.com/p/go.net/spdy</tr>

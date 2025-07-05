@@ -10,7 +10,42 @@ Date:   Sun Aug 23 13:00:01 2015 +0000
     Change-Id: I639cfb02b1f57dea4087863df3995889c9371529
     Reviewed-on: https://go-review.googlesource.com/13837
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/base64/base64_test.go | 10 +++++-----
  src/encoding/xml/marshal_test.go   |  2 +-
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index d144b96821..4bbb2dd9bf 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -80,11 +80,11 @@ type encodingTest struct {
+ }
+ 
+ var encodingTests = []encodingTest{
+-	encodingTest{StdEncoding, stdRef},
+-	encodingTest{URLEncoding, urlRef},
+-	encodingTest{RawStdEncoding, rawRef},
+-	encodingTest{RawURLEncoding, rawUrlRef},
+-	encodingTest{funnyEncoding, funnyRef},
++	{StdEncoding, stdRef},
++	{URLEncoding, urlRef},
++	{RawStdEncoding, rawRef},
++	{RawURLEncoding, rawUrlRef},
++	{funnyEncoding, funnyRef},
+ }
+ 
+ var bigtest = testpair{
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 66675d7abc..330fbee1af 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -1695,7 +1695,7 @@ func TestRace9796(t *testing.T) {
+ 	for i := 0; i < 2; i++ {
+ 		wg.Add(1)
+ 		go func() {
+-			Marshal(B{[]A{A{}}})
++			Marshal(B{[]A{{}}})
+ 			wg.Done()
+ 		}()
+ 	}

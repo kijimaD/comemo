@@ -9,7 +9,7 @@ Date:   Fri May 24 11:01:01 2019 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     | 10 ++----
  .../vendor/github.com/google/pprof/CONTRIBUTORS    |  1 +
@@ -28,3 +28,391 @@ Date:   Fri May 24 11:01:01 2019 -0400
  .../github.com/google/pprof/profile/profile.go     |  2 +-
  src/cmd/vendor/modules.txt                         |  2 +-
  17 files changed, 56 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 407f12b3e0..34daa0b77f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.12
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57
++	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 92886bba7b..7357dc5a2e 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,5 +1,5 @@
+-github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57 h1:eqyIo2HjKhKe/mJzTG8n4VqvLXIOEG+SLdDqX7xGtkY=
+-github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
++github.com/google/pprof v0.0.0-20190515194954-54271f7e092f h1:Jnx61latede7zDD3DiiP4gmNz33uK0U5HDUaF0a/HVQ=
++github.com/google/pprof v0.0.0-20190515194954-54271f7e092f/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 h1:pKqc8lAAA6rcwpvsephnRuZp4VHbfszZRClvqAE6Sq8=
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045 h1:Pn8fQdvx+z1avAi7fdM2kRYWQNxGlavNDSyzrQg2SsU=
+@@ -13,11 +13,5 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190509153222-73554e0f7805 h1:1ufBXAsTpUhSmmPXEEs5PrGQSfnBhsjAd2SmVhp9xrY=
+-golang.org/x/tools v0.0.0-20190509153222-73554e0f7805/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+-golang.org/x/tools v0.0.0-20190510144052-35884eef200b h1:4muk7BhMes67ZgDeK3n4Jvi+FvNDRZzh6ZRqIXZNYwQ=
+-golang.org/x/tools v0.0.0-20190510144052-35884eef200b/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+-golang.org/x/tools v0.0.0-20190513233021-7d589f28aaf4 h1:sIGsLZaMtLBc5sLK7s2xtr7VaKk8h31mrJyHwEZq2WQ=
+-golang.org/x/tools v0.0.0-20190513233021-7d589f28aaf4/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+ golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0 h1:0Bz67IMuNMofIoO/F+rX8oPltlfrAC5HU68DEyynMQg=
+ golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+diff --git a/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS b/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS
+index 0ef5e2f240..8c8c37d2c8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS
++++ b/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS
+@@ -13,3 +13,4 @@ Tipp Moseley <tipp@google.com>
+ Hyoun Kyu Cho <netforce@google.com>
+ Martin Spier <spiermar@gmail.com>
+ Taco de Wolff <tacodewolff@gmail.com>
++Andrew Hunter <andrewhhunter@gmail.com>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 309561112c..967726d1fa 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -322,7 +322,7 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
+ 		// someone passes a kernel path that doesn't contain "vmlinux" AND
+ 		// (2) _stext is page-aligned AND (3) _stext is not at Vaddr
+ 		symbols, err := ef.Symbols()
+-		if err != nil {
++		if err != nil && err != elf.ErrNoSymbols {
+ 			return nil, err
+ 		}
+ 		for _, s := range symbols {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+index dfedf9d849..9fc1eea1f0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+@@ -32,14 +32,15 @@ type source struct {
+ 	DiffBase  bool
+ 	Normalize bool
+ 
+-	Seconds      int
+-	Timeout      int
+-	Symbolize    string
+-	HTTPHostport string
+-	Comment      string
++	Seconds            int
++	Timeout            int
++	Symbolize          string
++	HTTPHostport       string
++	HTTPDisableBrowser bool
++	Comment            string
+ }
+ 
+-// Parse parses the command lines through the specified flags package
++// parseFlags parses the command lines through the specified flags package
+ // and returns the source of the profile and optionally the command
+ // for the kind of report to generate (nil for interactive use).
+ func parseFlags(o *plugin.Options) (*source, []string, error) {
+@@ -65,7 +66,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	flagMeanDelay := flag.Bool("mean_delay", false, "Display mean delay at each region")
+ 	flagTools := flag.String("tools", os.Getenv("PPROF_TOOLS"), "Path for object tool pathnames")
+ 
+-	flagHTTP := flag.String("http", "", "Present interactive web based UI at the specified http host:port")
++	flagHTTP := flag.String("http", "", "Present interactive web UI at the specified http host:port")
++	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browswer for the interactive web UI")
+ 
+ 	// Flags used during command processing
+ 	installedFlags := installFlags(flag)
+@@ -118,6 +120,10 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 		return nil, nil, errors.New("-http is not compatible with an output format on the command line")
+ 	}
+ 
++	if *flagNoBrowser && *flagHTTP == "" {
++		return nil, nil, errors.New("-no_browser only makes sense with -http")
++	}
++
+ 	si := pprofVariables["sample_index"].value
+ 	si = sampleIndex(flagTotalDelay, si, "delay", "-total_delay", o.UI)
+ 	si = sampleIndex(flagMeanDelay, si, "delay", "-mean_delay", o.UI)
+@@ -133,14 +139,15 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	}
+ 
+ 	source := &source{
+-		Sources:      args,
+-		ExecName:     execName,
+-		BuildID:      *flagBuildID,
+-		Seconds:      *flagSeconds,
+-		Timeout:      *flagTimeout,
+-		Symbolize:    *flagSymbolize,
+-		HTTPHostport: *flagHTTP,
+-		Comment:      *flagAddComment,
++		Sources:            args,
++		ExecName:           execName,
++		BuildID:            *flagBuildID,
++		Seconds:            *flagSeconds,
++		Timeout:            *flagTimeout,
++		Symbolize:          *flagSymbolize,
++		HTTPHostport:       *flagHTTP,
++		HTTPDisableBrowser: *flagNoBrowser,
++		Comment:            *flagAddComment,
+ 	}
+ 
+ 	if err := source.addBaseProfiles(*flagBase, *flagDiffBase); err != nil {
+@@ -327,9 +334,10 @@ var usageMsgSrc = "\n\n" +
+ 
+ var usageMsgVars = "\n\n" +
+ 	"  Misc options:\n" +
+-	"   -http              Provide web based interface at host:port.\n" +
++	"   -http              Provide web interface at host:port.\n" +
+ 	"                      Host is optional and 'localhost' by default.\n" +
+ 	"                      Port is optional and a randomly available port by default.\n" +
++	"   -no_browser        Skip opening a browser for the interactive web UI.\n" +
+ 	"   -tools             Search path for object tools\n" +
+ 	"\n" +
+ 	"  Legacy convenience options:\n" +
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+index ab073d878d..f52471490a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+@@ -385,7 +385,7 @@ func invokeDot(format string) PostProcessor {
+ 		cmd := exec.Command("dot", "-T"+format)
+ 		cmd.Stdin, cmd.Stdout, cmd.Stderr = input, output, os.Stderr
+ 		if err := cmd.Run(); err != nil {
+-			return fmt.Errorf("Failed to execute dot. Is Graphviz installed? Error: %v", err)
++			return fmt.Errorf("failed to execute dot. Is Graphviz installed? Error: %v", err)
+ 		}
+ 		return nil
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 45f1846749..1be749aa32 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -54,7 +54,7 @@ func PProf(eo *plugin.Options) error {
+ 	}
+ 
+ 	if src.HTTPHostport != "" {
+-		return serveWebInterface(src.HTTPHostport, p, o)
++		return serveWebInterface(src.HTTPHostport, p, o, src.HTTPDisableBrowser)
+ 	}
+ 	return interactive(p, o)
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+index bea9cfaf98..551965e776 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+@@ -173,7 +173,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
+ 	}
+ 	v, err := strconv.ParseInt(ranges[0][1], 10, 64)
+ 	if err != nil {
+-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[0][1], err))
++		panic(fmt.Errorf("failed to parse int %s: %v", ranges[0][1], err))
+ 	}
+ 	scaledValue, unit := measurement.Scale(v, ranges[0][2], ranges[0][2])
+ 	if len(ranges) == 1 {
+@@ -200,7 +200,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
+ 		return nil
+ 	}
+ 	if v, err = strconv.ParseInt(ranges[1][1], 10, 64); err != nil {
+-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[1][1], err))
++		panic(fmt.Errorf("failed to parse int %s: %v", ranges[1][1], err))
+ 	}
+ 	scaledValue2, unit2 := measurement.Scale(v, ranges[1][2], unit)
+ 	if unit != unit2 {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+index bebfbbec1e..3a458b0b77 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+@@ -91,7 +91,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 					}
+ 					continue
+ 				} else if okValues := groups[name]; okValues != nil {
+-					o.UI.PrintErr(fmt.Errorf("Unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
++					o.UI.PrintErr(fmt.Errorf("unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
+ 					continue
+ 				}
+ 			}
+@@ -267,7 +267,7 @@ func parseCommandLine(input []string) ([]string, variables, error) {
+ 		}
+ 	}
+ 	if c == nil {
+-		return nil, nil, fmt.Errorf("Unrecognized command: %q", name)
++		return nil, nil, fmt.Errorf("unrecognized command: %q", name)
+ 	}
+ 
+ 	if c.hasParam {
+@@ -294,7 +294,7 @@ func parseCommandLine(input []string) ([]string, variables, error) {
+ 			if outputFile == "" {
+ 				i++
+ 				if i >= len(args) {
+-					return nil, nil, fmt.Errorf("Unexpected end of line after >")
++					return nil, nil, fmt.Errorf("unexpected end of line after >")
+ 				}
+ 				outputFile = args[i]
+ 			}
+@@ -407,7 +407,7 @@ func newCompleter(fns []string) func(string) string {
+ 	}
+ }
+ 
+-// matchCommand attempts to match a string token to the prefix of a Command.
++// matchVariableOrCommand attempts to match a string token to the prefix of a Command.
+ func matchVariableOrCommand(v variables, token string) string {
+ 	token = strings.ToLower(token)
+ 	found := ""
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index 74104899ca..f1077dd044 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -853,7 +853,7 @@ function viewer(baseUrl, nodes) {
+     toptable.addEventListener('touchstart', handleTopClick);
+   }
+ 
+-  const ids = ['topbtn', 'graphbtn', 'peek', 'list', 'disasm',
++  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'peek', 'list', 'disasm',
+                'focus', 'ignore', 'hide', 'show', 'show-from'];
+   ids.forEach(makeSearchLinkDynamic);
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 9bf1d70f16..5c7f449e4b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -82,7 +82,7 @@ type webArgs struct {
+ 	FlameGraph  template.JS
+ }
+ 
+-func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) error {
++func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, disableBrowser bool) error {
+ 	host, port, err := getHostAndPort(hostport)
+ 	if err != nil {
+ 		return err
+@@ -117,8 +117,12 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) e
+ 		},
+ 	}
+ 
+-	if o.UI.WantBrowser() {
+-		go openBrowser("http://"+args.Hostport, o)
++	url := "http://" + args.Hostport
++
++	o.UI.Print("Serving web UI on ", url)
++
++	if o.UI.WantBrowser() && !disableBrowser {
++		go openBrowser(url, o)
+ 	}
+ 	return server(args)
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 03083baf12..d520765cc9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -241,10 +241,10 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 			return start - *stextOffset, nil
+ 		}
+ 
+-		return 0, fmt.Errorf("Don't know how to handle EXEC segment: %v start=0x%x limit=0x%x offset=0x%x", *loadSegment, start, limit, offset)
++		return 0, fmt.Errorf("don't know how to handle EXEC segment: %v start=0x%x limit=0x%x offset=0x%x", *loadSegment, start, limit, offset)
+ 	case elf.ET_REL:
+ 		if offset != 0 {
+-			return 0, fmt.Errorf("Don't know how to handle mapping.Offset")
++			return 0, fmt.Errorf("don't know how to handle mapping.Offset")
+ 		}
+ 		return start, nil
+ 	case elf.ET_DYN:
+@@ -265,7 +265,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 		// sx = x - start + offset - loadSegment.Off + loadSegment.Vaddr.
+ 		return start - offset + loadSegment.Off - loadSegment.Vaddr, nil
+ 	}
+-	return 0, fmt.Errorf("Don't know how to handle FileHeader.Type %v", fh.Type)
++	return 0, fmt.Errorf("don't know how to handle FileHeader.Type %v", fh.Type)
+ }
+ 
+ // FindTextProgHeader finds the program segment header containing the .text
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+index 3e3bcb8c25..e95b261bc2 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+@@ -321,8 +321,7 @@ func timeLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok bo
+ 	case "year", "yr":
+ 		output, toUnit = dd/float64(365*24*time.Hour), "yrs"
+ 	default:
+-		fallthrough
+-	case "sec", "second", "s":
++		// "sec", "second", "s" handled by default case.
+ 		output, toUnit = dd/float64(time.Second), "s"
+ 	}
+ 	return output, toUnit, true
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index 835badfcae..ab8b64cbab 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -59,7 +59,7 @@ func printSource(w io.Writer, rpt *Report) error {
+ 	if sourcePath == "" {
+ 		wd, err := os.Getwd()
+ 		if err != nil {
+-			return fmt.Errorf("Could not stat current dir: %v", err)
++			return fmt.Errorf("could not stat current dir: %v", err)
+ 		}
+ 		sourcePath = wd
+ 	}
+@@ -142,7 +142,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
+ 	if sourcePath == "" {
+ 		wd, err := os.Getwd()
+ 		if err != nil {
+-			return fmt.Errorf("Could not stat current dir: %v", err)
++			return fmt.Errorf("could not stat current dir: %v", err)
+ 		}
+ 		sourcePath = wd
+ 	}
+@@ -180,7 +180,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
+ 	}
+ 
+ 	if len(fileNodes) == 0 {
+-		return fmt.Errorf("No source information for %s", o.Symbol.String())
++		return fmt.Errorf("no source information for %s", o.Symbol.String())
+ 	}
+ 
+ 	sourceFiles := make(graph.Nodes, 0, len(fileNodes))
+@@ -598,7 +598,7 @@ func openSourceFile(path, searchPath, trim string) (*os.File, error) {
+ 		}
+ 	}
+ 
+-	return nil, fmt.Errorf("Could not find file %s on path %s", path, searchPath)
++	return nil, fmt.Errorf("could not find file %s on path %s", path, searchPath)
+ }
+ 
+ // trimPath cleans up a path by removing prefixes that are commonly
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go
+index 711d1d5303..7be304866f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go
+@@ -68,7 +68,7 @@ func Symbolize(p *profile.Profile, force bool, sources plugin.MappingSources, sy
+ 	return nil
+ }
+ 
+-// Check whether path ends with one of the suffixes listed in
++// hasGperftoolsSuffix checks whether path ends with one of the suffixes listed in
+ // pprof_remote_servers.html from the gperftools distribution
+ func hasGperftoolsSuffix(path string) bool {
+ 	suffixes := []string{
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index 5eb1cc1614..c950d8dc7f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -652,7 +652,7 @@ func labelsToString(labels map[string][]string) string {
+ 	return strings.Join(ls, " ")
+ }
+ 
+-// numLablesToString returns a string representation of a map
++// numLabelsToString returns a string representation of a map
+ // representing numeric labels.
+ func numLabelsToString(numLabels map[string][]int64, numUnits map[string][]string) string {
+ 	ls := []string{}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index ef8408cd51..ae1a960127 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57
++# github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+ github.com/google/pprof/internal/driver

@@ -11,8 +11,93 @@ Date:   Mon Mar 31 11:50:47 2008 -0700
     chan/map to a basic type.
     
     SVN=114350
-
+---
  src/c/gen.c |  2 +-
  src/c/go.h  |  2 +-
  src/c/go.y  | 20 ++++++++------------
  3 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/c/gen.c b/src/c/gen.c
+index 57dbd84fd4..0644d17651 100644
+--- a/src/c/gen.c
++++ b/src/c/gen.c
+@@ -967,7 +967,7 @@ cgen_ret(Node *n)
+ 			genconv(f->type, arg->type);
+ 			gopcode(PLOAD, PTADDR, a->nname);
+ 			gopcode(PADDO, PTADDR, f->nname);
+-			gopcodet(PSTOREI, arg->type, N);
++			gopcodet(PSTOREI, f->type, N);
+ 		}
+ 		arg = listnext(&save);
+ 		f = f->down;
+diff --git a/src/c/go.h b/src/c/go.h
+index a0fd35e1aa..73cc8da1c9 100644
+--- a/src/c/go.h
++++ b/src/c/go.h
+@@ -227,7 +227,7 @@ enum
+ 	TINTER,
+ 	TFORW,
+ 	TFIELD,
+-	TPOLY,
++	TANY,
+ 	TSTRING,
+ 
+ 	NTYPE,
+diff --git a/src/c/go.y b/src/c/go.y
+index eb122474f2..9d4433cf9d 100644
+--- a/src/c/go.y
++++ b/src/c/go.y
+@@ -37,8 +37,7 @@
+ %type	<node>		simple_stmt osimple_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+ %type	<node>		name name_name new_name new_name_list_r
+-%type	<node>		type polytype
+-%type	<node>		new_type
++%type	<node>		type new_type
+ %type	<node>		vardcl_list_r vardcl
+ %type	<node>		constdcl_list_r constdcl
+ %type	<node>		typedcl_list_r typedcl
+@@ -750,14 +749,14 @@ type:
+ 	{
+ 		$$ = aindex($2, $4);
+ 	}
+-|	LCHAN chantype polytype
++|	LCHAN chantype type
+ 	{
+ 		$$ = nod(OTYPE, N, N);
+ 		$$->etype = TCHAN;
+ 		$$->type = $3;
+ 		$$->chan = $2;
+ 	}
+-|	LMAP '[' type ']' polytype
++|	LMAP '[' type ']' type
+ 	{
+ 		$$ = nod(OTYPE, N, N);
+ 		$$->etype = TMAP;
+@@ -781,6 +780,11 @@ type:
+ 	{
+ 		$$ = dostruct(N, TINTER);
+ 	}
++|	LANY
++	{
++		$$ = nod(OTYPE, N, N);
++		$$->etype = TANY;
++	}
+ |	fntypeh
+ |	'*' type
+ 	{
+@@ -794,14 +798,6 @@ type:
+ 		$$ = forwdcl($2);
+ 	}
+ 
+-polytype:
+-	type
+-|	LANY
+-	{
+-		$$ = nod(OTYPE, N, N);
+-		$$->etype = TPOLY;
+-	}
+-
+ chantype:
+ 	{
+ 		$$ = Cboth;

@@ -7,8 +7,75 @@ Date:   Tue Jan 24 16:49:03 2012 -0800
     R=r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5574059
-
+---
  src/pkg/go/parser/parser.go        |  2 +-
  src/pkg/go/scanner/scanner.go      | 12 +++++++-----
  src/pkg/go/scanner/scanner_test.go |  2 +-
  3 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index ab8953f4fb..6bee8de9f6 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -54,7 +54,7 @@ type parser struct {
+ 
+ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
+ 	p.file = fset.AddFile(filename, fset.Base(), len(src))
+-	var m uint
++	var m scanner.Mode
+ 	if mode&ParseComments != 0 {
+ 		m = scanner.ScanComments
+ 	}
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 05665b2548..7c72c0a46b 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -40,7 +40,7 @@ type Scanner struct {
+ 	dir  string       // directory portion of file.Name()
+ 	src  []byte       // source
+ 	err  ErrorHandler // error reporting; or nil
+-	mode uint         // scanning mode
++	mode Mode         // scanning mode
+ 
+ 	// scanning state
+ 	ch         rune // current character
+@@ -86,12 +86,14 @@ func (S *Scanner) next() {
+ 	}
+ }
+ 
+-// The mode parameter to the Init function is a set of flags (or 0).
++// A mode value is set of flags (or 0).
+ // They control scanner behavior.
+ //
++type Mode uint
++
+ const (
+-	ScanComments    = 1 << iota // return comments as COMMENT tokens
+-	dontInsertSemis             // do not automatically insert semicolons - for testing only
++	ScanComments    Mode = 1 << iota // return comments as COMMENT tokens
++	dontInsertSemis                  // do not automatically insert semicolons - for testing only
+ )
+ 
+ // Init prepares the scanner S to tokenize the text src by setting the
+@@ -109,7 +111,7 @@ const (
+ // Note that Init may call err if there is an error in the first character
+ // of the file.
+ //
+-func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint) {
++func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
+ 	// Explicitly initialize all fields since a scanner may be reused.
+ 	if file.Size() != len(src) {
+ 		panic("file size does not match src len")
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 2e4dd4fff6..af45bc5b1c 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -281,7 +281,7 @@ func TestScan(t *testing.T) {
+ 	}
+ }
+ 
+-func checkSemi(t *testing.T, line string, mode uint) {
++func checkSemi(t *testing.T, line string, mode Mode) {
+ 	var S Scanner
+ 	file := fset.AddFile("TestSemis", fset.Base(), len(line))
+ 	S.Init(file, []byte(line), nil, mode)

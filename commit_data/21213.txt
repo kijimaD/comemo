@@ -13,6 +13,28 @@ Date:   Mon Dec 8 22:05:57 2014 +1100
     Change-Id: I41c5aadf284a0a24c485f96b7fe2caa338ad1e4f
     Reviewed-on: https://go-review.googlesource.com/1178
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  CONTRIBUTING.md | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+new file mode 100644
+index 0000000000..6fbfd0da9f
+--- /dev/null
++++ b/CONTRIBUTING.md
+@@ -0,0 +1,15 @@
++The Go project is an open source project.
++For information, see: https://golang.org/
++
++Its canonical Git repository is located at https://go.googlecode.com/go.
++(There is a mirror of the repository at https://github.com/golang/go.)
++
++Report issues here: https://github.com/golang/go/issues
++
++Go is the work of hundreds of contributors. We appreciate your help!
++
++To contribute, please read the contribution guidelines:
++	http://golang.org/doc/contribute.html
++
++## We DO NOT accept pull requests.
++

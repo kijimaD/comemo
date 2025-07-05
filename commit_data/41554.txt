@@ -12,7 +12,68 @@ Date:   Fri Oct 11 08:50:12 2019 -0700
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/gen/main.go |  8 +++++---
  src/cmd/compile/internal/ssa/opGen.go    | 20 ++++++++++++--------
  2 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 93ddbf5477..55ba338efa 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -221,17 +221,19 @@ func genOp() {
+ 	fmt.Fprintln(w, "func (k BlockKind) String() string {return blockString[k]}")
+ 
+ 	// generate block kind auxint method
+-	fmt.Fprintln(w, "var blockAuxIntType = [...]string{")
++	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {")
++	fmt.Fprintln(w, "switch k {")
+ 	for _, a := range archs {
+ 		for _, b := range a.blocks {
+ 			if b.auxint == "" {
+ 				continue
+ 			}
+-			fmt.Fprintf(w, "Block%s%s:\"%s\",\n", a.Name(), b.name, b.auxint)
++			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxint)
+ 		}
+ 	}
+ 	fmt.Fprintln(w, "}")
+-	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {return blockAuxIntType[k]}")
++	fmt.Fprintln(w, "return \"\"")
++	fmt.Fprintln(w, "}")
+ 
+ 	// generate Op* declarations
+ 	fmt.Fprintln(w, "const (")
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c30654dda7..6ac86bbb9e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -248,16 +248,20 @@ var blockString = [...]string{
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }
+-
+-var blockAuxIntType = [...]string{
+-	BlockS390XCIJ:   "Int8",
+-	BlockS390XCGIJ:  "Int8",
+-	BlockS390XCLIJ:  "UInt8",
+-	BlockS390XCLGIJ: "UInt8",
++func (k BlockKind) AuxIntType() string {
++	switch k {
++	case BlockS390XCIJ:
++		return "Int8"
++	case BlockS390XCGIJ:
++		return "Int8"
++	case BlockS390XCLIJ:
++		return "UInt8"
++	case BlockS390XCLGIJ:
++		return "UInt8"
++	}
++	return ""
+ }
+ 
+-func (k BlockKind) AuxIntType() string { return blockAuxIntType[k] }
+-
+ const (
+ 	OpInvalid Op = iota
+ 

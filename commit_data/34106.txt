@@ -11,9 +11,88 @@ Date:   Sun Oct 1 20:28:53 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/issue19418/main.go   | 29 ++++++++++++++++++++++++++++
  misc/cgo/testplugin/src/issue19418/plugin.go |  7 +++++++
  misc/cgo/testplugin/test.bash                |  5 +++++
  src/cmd/link/internal/ld/data.go             |  6 +++++-
  4 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/src/issue19418/main.go b/misc/cgo/testplugin/src/issue19418/main.go
+new file mode 100644
+index 0000000000..2ec9f9aaaa
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue19418/main.go
+@@ -0,0 +1,29 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"plugin"
++)
++
++func main() {
++	p, err := plugin.Open("plugin.so")
++	if err != nil {
++		panic(err)
++	}
++
++	val, err := p.Lookup("Val")
++	if err != nil {
++		panic(err)
++	}
++	got := *val.(*string)
++	const want = "linkstr"
++	if got != want {
++		fmt.Fprintf(os.Stderr, "issue19418 value is %q, want %q\n", got, want)
++		os.Exit(2)
++	}
++}
+diff --git a/misc/cgo/testplugin/src/issue19418/plugin.go b/misc/cgo/testplugin/src/issue19418/plugin.go
+new file mode 100644
+index 0000000000..fe93b16143
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue19418/plugin.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var Val = "val-unset"
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index a52aa46037..ae3368b45f 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -66,3 +66,8 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19534 src/issue19534/main.
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue18584/plugin.go
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue18584 src/issue18584/main.go
+ ./issue18584
++
++# Test for issue 19418
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin "-ldflags=-X main.Val=linkstr" -o plugin.so src/issue19418/plugin.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19418 src/issue19418/main.go
++./issue19418
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c4ffa20a57..36b97a3dea 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1045,7 +1045,11 @@ func addstrdata1(ctxt *Link, arg string) {
+ 	if eq < 0 || dot < 0 {
+ 		Exitf("-X flag requires argument of the form importpath.name=value")
+ 	}
+-	addstrdata(ctxt, objabi.PathToPrefix(arg[:dot])+arg[dot:eq], arg[eq+1:])
++	pkg := objabi.PathToPrefix(arg[:dot])
++	if Buildmode == BuildmodePlugin && pkg == "main" {
++		pkg = *flagPluginPath
++	}
++	addstrdata(ctxt, pkg+arg[dot:eq], arg[eq+1:])
+ }
+ 
+ func addstrdata(ctxt *Link, name string, value string) {

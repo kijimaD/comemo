@@ -6,8 +6,564 @@ Date:   Thu Nov 5 15:12:37 2009 -0800
     
     R=r
     http://go/go-review/1018064
-
+---
  src/pkg/strings/strings.go        |  74 ++++++++++----------
  src/pkg/strings/strings_test.go   |  42 +++++------
  src/pkg/template/template_test.go | 144 +++++++++++++++++++-------------------
  3 files changed, 128 insertions(+), 132 deletions(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index ecfb088cd9..5f3dcfcdc4 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -23,67 +23,67 @@ func explode(s string, n int) []string {
+ 		if na+1 >= n {
+ 			a[na] = s;
+ 			na++;
+-			break
++			break;
+ 		}
+ 		rune, size = utf8.DecodeRuneInString(s);
+ 		s = s[size:len(s)];
+ 		a[na] = string(rune);
+ 		na++;
+ 	}
+-	return a[0:na]
++	return a[0:na];
+ }
+ 
+ // Count counts the number of non-overlapping instances of sep in s.
+ func Count(s, sep string) int {
+ 	if sep == "" {
+-		return utf8.RuneCountInString(s)+1
++		return utf8.RuneCountInString(s) + 1;
+ 	}
+ 	c := sep[0];
+ 	n := 0;
+ 	for i := 0; i+len(sep) <= len(s); i++ {
+-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
++		if s[i] == c && (len(sep) == 1 || s[i : i+len(sep)] == sep) {
+ 			n++;
+-			i += len(sep)-1
++			i += len(sep)-1;
+ 		}
+ 	}
+-	return n
++	return n;
+ }
+ 
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep string) int {
+ 	n := len(sep);
+ 	if n == 0 {
+-		return 0
++		return 0;
+ 	}
+ 	c := sep[0];
+ 	for i := 0; i+n <= len(s); i++ {
+-		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+-			return i
++		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
++			return i;
+ 		}
+ 	}
+-	return -1
++	return -1;
+ }
+ 
+ // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+ func LastIndex(s, sep string) int {
+ 	n := len(sep);
+ 	if n == 0 {
+-		return len(s)
++		return len(s);
+ 	}
+ 	c := sep[0];
+ 	for i := len(s)-n; i >= 0; i-- {
+-		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
+-			return i
++		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
++			return i;
+ 		}
+ 	}
+-	return -1
++	return -1;
+ }
+ 
+ // Generic split: splits after each instance of sep,
+ // including sepSave bytes of sep in the subarrays.
+ func genSplit(s, sep string, sepSave, n int) []string {
+ 	if sep == "" {
+-		return explode(s, n)
++		return explode(s, n);
+ 	}
+ 	if n <= 0 {
+ 		n = Count(s, sep) + 1;
+@@ -93,15 +93,15 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 	a := make([]string, n);
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+-			a[na] = s[start:i+sepSave];
++		if s[i] == c && (len(sep) == 1 || s[i : i+len(sep)] == sep) {
++			a[na] = s[start : i+sepSave];
+ 			na++;
+ 			start = i+len(sep);
+ 			i += len(sep)-1;
+ 		}
+ 	}
+ 	a[na] = s[start:len(s)];
+-	return a[0:na+1]
++	return a[0 : na+1];
+ }
+ 
+ // Split splits the string s around each instance of sep, returning an array of substrings of s.
+@@ -122,14 +122,14 @@ func SplitAfter(s, sep string, n int) []string {
+ // sep is placed between elements in the resulting string.
+ func Join(a []string, sep string) string {
+ 	if len(a) == 0 {
+-		return ""
++		return "";
+ 	}
+ 	if len(a) == 1 {
+-		return a[0]
++		return a[0];
+ 	}
+-	n := len(sep) * (len(a)-1);
++	n := len(sep)*(len(a)-1);
+ 	for i := 0; i < len(a); i++ {
+-		n += len(a[i])
++		n += len(a[i]);
+ 	}
+ 
+ 	b := make([]byte, n);
+@@ -138,27 +138,27 @@ func Join(a []string, sep string) string {
+ 		s := a[i];
+ 		for j := 0; j < len(s); j++ {
+ 			b[bp] = s[j];
+-			bp++
++			bp++;
+ 		}
+-		if i + 1 < len(a) {
++		if i+1 < len(a) {
+ 			s = sep;
+ 			for j := 0; j < len(s); j++ {
+ 				b[bp] = s[j];
+-				bp++
++				bp++;
+ 			}
+ 		}
+ 	}
+-	return string(b)
++	return string(b);
+ }
+ 
+ // HasPrefix tests whether the string s begins with prefix.
+ func HasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
++	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix;
+ }
+ 
+ // HasSuffix tests whether the string s ends with suffix.
+ func HasSuffix(s, suffix string) bool {
+-	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
++	return len(s) >= len(suffix) && s[len(s)-len(suffix) : len(s)] == suffix;
+ }
+ 
+ // Map returns a copy of the string s with all its characters modified
+@@ -168,7 +168,7 @@ func Map(mapping func(rune int) int, s string) string {
+ 	// things unpleasant.  But it's so rare we barge in assuming it's
+ 	// fine.  It could also shrink but that falls out naturally.
+ 	maxbytes := len(s);	// length of b
+-	nbytes := 0;	// number of bytes encoded in b
++	nbytes := 0;		// number of bytes encoded in b
+ 	b := make([]byte, maxbytes);
+ 	for _, c := range s {
+ 		rune := mapping(c);
+@@ -176,12 +176,12 @@ func Map(mapping func(rune int) int, s string) string {
+ 		if rune >= utf8.RuneSelf {
+ 			wid = utf8.RuneLen(rune);
+ 		}
+-		if nbytes + wid > maxbytes {
++		if nbytes+wid > maxbytes {
+ 			// Grow the buffer.
+ 			maxbytes = maxbytes*2 + utf8.UTFMax;
+ 			nb := make([]byte, maxbytes);
+ 			for i, c := range b[0:nbytes] {
+-				nb[i] = c
++				nb[i] = c;
+ 			}
+ 			b = nb;
+ 		}
+@@ -192,17 +192,17 @@ func Map(mapping func(rune int) int, s string) string {
+ 
+ // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+ func ToUpper(s string) string {
+-	return Map(unicode.ToUpper, s)
++	return Map(unicode.ToUpper, s);
+ }
+ 
+ // ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
+ func ToLower(s string) string {
+-	return Map(unicode.ToLower, s)
++	return Map(unicode.ToLower, s);
+ }
+ 
+ // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
+ func ToTitle(s string) string {
+-	return Map(unicode.ToTitle, s)
++	return Map(unicode.ToTitle, s);
+ }
+ 
+ // Trim returns a slice of the string s, with all leading and trailing white space
+@@ -213,7 +213,7 @@ func TrimSpace(s string) string {
+ 		wid := 1;
+ 		rune := int(s[start]);
+ 		if rune >= utf8.RuneSelf {
+-			rune, wid = utf8.DecodeRuneInString(s[start:end])
++			rune, wid = utf8.DecodeRuneInString(s[start:end]);
+ 		}
+ 		if !unicode.IsSpace(rune) {
+ 			break;
+@@ -228,9 +228,9 @@ func TrimSpace(s string) string {
+ 			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
+ 			}
+ 			if start > end-wid {	// invalid UTF-8 sequence; stop processing
+-				return s[start:end]
++				return s[start:end];
+ 			}
+-			rune, wid = utf8.DecodeRuneInString(s[end-wid:end]);
++			rune, wid = utf8.DecodeRuneInString(s[end-wid : end]);
+ 		}
+ 		if !unicode.IsSpace(rune) {
+ 			break;
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 0db3c97416..cdf3437c3d 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -5,10 +5,10 @@
+ package strings_test
+ 
+ import (
+-	.	"strings";
+-		"testing";
+-		"unicode";
+-		"utf8";
++	. "strings";
++	"testing";
++	"unicode";
++	"utf8";
+ )
+ 
+ func eq(a, b []string) bool {
+@@ -234,18 +234,14 @@ func TestMap(t *testing.T) {
+ 	// Run a couple of awful growth/shrinkage tests
+ 	a := tenRunes('a');
+ 	// 1.  Grow.  This triggers two reallocations in Map.
+-	maxRune := func(rune int) int {
+-		return unicode.MaxRune;
+-	};
++	maxRune := func(rune int) int { return unicode.MaxRune };
+ 	m := Map(maxRune, a);
+ 	expect := tenRunes(unicode.MaxRune);
+ 	if m != expect {
+ 		t.Errorf("growing: expected %q got %q", expect, m);
+ 	}
+ 	// 2. Shrink
+-	minRune := func(rune int) int {
+-		return 'a';
+-	};
++	minRune := func(rune int) int { return 'a' };
+ 	m = Map(minRune, tenRunes(unicode.MaxRune));
+ 	expect = a;
+ 	if m != expect {
+@@ -308,18 +304,18 @@ func TestCaseConsistency(t *testing.T) {
+ 	if !equal("ToLower(lower)", ToLower(lower), lower, t) {
+ 		t.Error("ToLower(lower) consistency fail");
+ 	}
+-/*
+-	  These fail because of non-one-to-oneness of the data, such as multiple
+-	  upper case 'I' mapping to 'i'.  We comment them out but keep them for
+-	  interest.
+-	  For instance: CAPITAL LETTER I WITH DOT ABOVE:
+-		unicode.ToUpper(unicode.ToLower('\u0130')) != '\u0130'
+-
+-	if !equal("ToUpper(lower)", ToUpper(lower), upper, t) {
+-		t.Error("ToUpper(lower) consistency fail");
+-	}
+-	if !equal("ToLower(upper)", ToLower(upper), lower, t) {
+-		t.Error("ToLower(upper) consistency fail");
+-	}
++	/*
++		  These fail because of non-one-to-oneness of the data, such as multiple
++		  upper case 'I' mapping to 'i'.  We comment them out but keep them for
++		  interest.
++		  For instance: CAPITAL LETTER I WITH DOT ABOVE:
++			unicode.ToUpper(unicode.ToLower('\u0130')) != '\u0130'
++
++		if !equal("ToUpper(lower)", ToUpper(lower), upper, t) {
++			t.Error("ToUpper(lower) consistency fail");
++		}
++		if !equal("ToLower(upper)", ToLower(upper), lower, t) {
++			t.Error("ToLower(upper) consistency fail");
++		}
+ 	*/
+ }
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 5743a608c5..becfa0f0b5 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -88,62 +88,62 @@ var tests = []*Test{
+ 	// Section
+ 	&Test{
+ 		in: "{.section data }\n"
+-		"some text for the section\n"
+-		"{.end}\n",
++			"some text for the section\n"
++			"{.end}\n",
+ 
+ 		out: "some text for the section\n",
+ 	},
+ 	&Test{
+ 		in: "{.section data }\n"
+-		"{header}={integer}\n"
+-		"{.end}\n",
++			"{header}={integer}\n"
++			"{.end}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"{header}={integer}\n"
+-		"{.end}\n",
++			"{header}={integer}\n"
++			"{.end}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"data present\n"
+-		"{.or}\n"
+-		"data not present\n"
+-		"{.end}\n",
++			"data present\n"
++			"{.or}\n"
++			"data not present\n"
++			"{.end}\n",
+ 
+ 		out: "data present\n",
+ 	},
+ 	&Test{
+ 		in: "{.section empty }\n"
+-		"data present\n"
+-		"{.or}\n"
+-		"data not present\n"
+-		"{.end}\n",
++			"data present\n"
++			"{.or}\n"
++			"data not present\n"
++			"{.end}\n",
+ 
+ 		out: "data not present\n",
+ 	},
+ 	&Test{
+ 		in: "{.section null }\n"
+-		"data present\n"
+-		"{.or}\n"
+-		"data not present\n"
+-		"{.end}\n",
++			"data present\n"
++			"{.or}\n"
++			"data not present\n"
++			"{.end}\n",
+ 
+ 		out: "data not present\n",
+ 	},
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"{header}={integer}\n"
+-		"{.section @ }\n"
+-		"{header}={integer}\n"
+-		"{.end}\n"
+-		"{.end}\n",
++			"{header}={integer}\n"
++			"{.section @ }\n"
++			"{header}={integer}\n"
++			"{.end}\n"
++			"{.end}\n",
+ 
+ 		out: "Header=77\n"
+-		"Header=77\n",
++			"Header=77\n",
+ 	},
+ 	&Test{
+ 		in: "{.section data}{.end} {header}\n",
+@@ -154,69 +154,69 @@ var tests = []*Test{
+ 	// Repeated
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"{.repeated section @ }\n"
+-		"{item}={value}\n"
+-		"{.end}\n"
+-		"{.end}\n",
++			"{.repeated section @ }\n"
++			"{item}={value}\n"
++			"{.end}\n"
++			"{.end}\n",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n"
+-		"ItemNumber2=ValueNumber2\n",
++			"ItemNumber2=ValueNumber2\n",
+ 	},
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"{.repeated section @ }\n"
+-		"{item}={value}\n"
+-		"{.or}\n"
+-		"this should not appear\n"
+-		"{.end}\n"
+-		"{.end}\n",
++			"{.repeated section @ }\n"
++			"{item}={value}\n"
++			"{.or}\n"
++			"this should not appear\n"
++			"{.end}\n"
++			"{.end}\n",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n"
+-		"ItemNumber2=ValueNumber2\n",
++			"ItemNumber2=ValueNumber2\n",
+ 	},
+ 	&Test{
+ 		in: "{.section @ }\n"
+-		"{.repeated section empty }\n"
+-		"{item}={value}\n"
+-		"{.or}\n"
+-		"this should appear: empty field\n"
+-		"{.end}\n"
+-		"{.end}\n",
++			"{.repeated section empty }\n"
++			"{item}={value}\n"
++			"{.or}\n"
++			"this should appear: empty field\n"
++			"{.end}\n"
++			"{.end}\n",
+ 
+ 		out: "this should appear: empty field\n",
+ 	},
+ 	&Test{
+ 		in: "{.repeated section pdata }\n"
+-		"{item}\n"
+-		"{.alternates with}\n"
+-		"is\nover\nmultiple\nlines\n"
+-		"{.end}\n",
++			"{item}\n"
++			"{.alternates with}\n"
++			"is\nover\nmultiple\nlines\n"
++			"{.end}\n",
+ 
+ 		out: "ItemNumber1\n"
+-		"is\nover\nmultiple\nlines\n"
+-		"ItemNumber2\n",
++			"is\nover\nmultiple\nlines\n"
++			"ItemNumber2\n",
+ 	},
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"{.repeated section @ }\n"
+-		"{item}={value}\n"
+-		"{.alternates with}DIVIDER\n"
+-		"{.or}\n"
+-		"this should not appear\n"
+-		"{.end}\n"
+-		"{.end}\n",
++			"{.repeated section @ }\n"
++			"{item}={value}\n"
++			"{.alternates with}DIVIDER\n"
++			"{.or}\n"
++			"this should not appear\n"
++			"{.end}\n"
++			"{.end}\n",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n"
+-		"DIVIDER\n"
+-		"ItemNumber2=ValueNumber2\n",
++			"DIVIDER\n"
++			"ItemNumber2=ValueNumber2\n",
+ 	},
+ 	&Test{
+ 		in: "{.repeated section vec }\n"
+-		"{@}\n"
+-		"{.end}\n",
++			"{@}\n"
++			"{.end}\n",
+ 
+ 		out: "elt1\n"
+-		"elt2\n",
++			"elt2\n",
+ 	},
+ 	&Test{
+ 		in: "{.repeated section integer}{.end}",
+@@ -227,15 +227,15 @@ var tests = []*Test{
+ 	// Nested names
+ 	&Test{
+ 		in: "{.section @ }\n"
+-		"{innerT.item}={innerT.value}\n"
+-		"{.end}",
++			"{innerT.item}={innerT.value}\n"
++			"{.end}",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n",
+ 	},
+ 	&Test{
+ 		in: "{.section @ }\n"
+-		"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
+-		"{.end}",
++			"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
++			"{.end}",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n",
+ 	},
+@@ -244,32 +244,32 @@ var tests = []*Test{
+ 	// Formatters
+ 	&Test{
+ 		in: "{.section pdata }\n"
+-		"{header|uppercase}={integer|+1}\n"
+-		"{header|html}={integer|str}\n"
+-		"{.end}\n",
++			"{header|uppercase}={integer|+1}\n"
++			"{header|html}={integer|str}\n"
++			"{.end}\n",
+ 
+ 		out: "HEADER=78\n"
+-		"Header=77\n",
++			"Header=77\n",
+ 	},
+ 
+ 	&Test{
+ 		in: "{raw}\n"
+-		"{raw|html}\n",
++			"{raw|html}\n",
+ 
+ 		out: "&<>!@ #$%^\n"
+-		"&amp;&lt;&gt;!@ #$%^\n",
++			"&amp;&lt;&gt;!@ #$%^\n",
+ 	},
+ 
+ 	&Test{
+ 		in: "{.section emptystring}emptystring{.end}\n"
+-		"{.section header}header{.end}\n",
++			"{.section header}header{.end}\n",
+ 
+ 		out: "\nheader\n",
+ 	},
+ 
+ 	&Test{
+ 		in: "{.section true}1{.or}2{.end}\n"
+-		"{.section false}3{.or}4{.end}\n",
++			"{.section false}3{.or}4{.end}\n",
+ 
+ 		out: "1\n4\n",
+ 	},

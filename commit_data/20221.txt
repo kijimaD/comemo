@@ -9,7 +9,33 @@ Date:   Mon Aug 25 13:47:38 2014 -0700
     R=golang-codereviews, nightlyone, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/126660043
-
+---
  src/cmd/go/generate.go      | 2 +-
  src/cmd/go/generate_test.go | 1 -
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 5859e9eefd..167758207e 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -161,7 +161,7 @@ type Generator struct {
+ // run runs the generators in the current file.
+ func (g *Generator) run() (ok bool) {
+ 	// Processing below here calls g.errorf on failure, which does panic(stop).
+-	// If we encouter an error, we abort the package.
++	// If we encounter an error, we abort the package.
+ 	defer func() {
+ 		e := recover()
+ 		if e != nil {
+diff --git a/src/cmd/go/generate_test.go b/src/cmd/go/generate_test.go
+index 881a8fe9b6..93c0ae66e9 100644
+--- a/src/cmd/go/generate_test.go
++++ b/src/cmd/go/generate_test.go
+@@ -26,7 +26,6 @@ var splitTests = []splitTest{
+ 	{"$GOPACKAGE", []string{"sys"}},
+ 	{"a $XXNOTDEFINEDXX b", []string{"a", "", "b"}},
+ 	{"/$XXNOTDEFINED/", []string{"//"}},
+-	{"$GOARCH", []string{runtime.GOARCH}},
+ 	{"yacc -o $GOARCH/yacc_$GOFILE", []string{"go", "tool", "yacc", "-o", runtime.GOARCH + "/yacc_proc.go"}},
+ }
+ 

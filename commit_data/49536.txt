@@ -10,9 +10,87 @@ Date:   Thu Aug 26 11:29:44 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/node.go            | 10 ++++++++++
  src/cmd/compile/internal/noder/stencil.go      |  2 +-
  src/cmd/compile/internal/typecheck/expr.go     |  6 +-----
  src/cmd/compile/internal/typecheck/universe.go |  8 --------
  4 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index f071cb78ce..8784f9ef99 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -334,6 +334,16 @@ const (
+ 	OEND
+ )
+ 
++// IsCmp reports whether op is a comparison operation (==, !=, <, <=,
++// >, or >=).
++func (op Op) IsCmp() bool {
++	switch op {
++	case OEQ, ONE, OLT, OLE, OGT, OGE:
++		return true
++	}
++	return false
++}
++
+ // Nodes is a pointer to a slice of *Node.
+ // For fields that are not used in most nodes, this is used instead of
+ // a slice to save space.
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index b3ff4b8855..0c6bb5100c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -903,7 +903,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 		ir.EditChildren(m, edit)
+ 
+ 		m.SetTypecheck(1)
+-		if typecheck.IsCmp(x.Op()) {
++		if x.Op().IsCmp() {
+ 			transformCompare(m.(*ir.BinaryExpr))
+ 		} else {
+ 			switch x.Op() {
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 7e974dfda8..d83bc65bed 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -77,10 +77,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
+ 	return l, r, t
+ }
+ 
+-func IsCmp(op ir.Op) bool {
+-	return iscmp[op]
+-}
+-
+ // tcArith typechecks operands of a binary arithmetic expression.
+ // The result of tcArith MUST be assigned back to original operands,
+ // t is the type of the expression, and should be set by the caller. e.g:
+@@ -96,7 +92,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type)
+ 		t = r.Type()
+ 	}
+ 	aop := ir.OXXX
+-	if iscmp[n.Op()] && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
++	if n.Op().IsCmp() && t.Kind() != types.TIDEAL && !types.Identical(l.Type(), r.Type()) {
+ 		// comparison is okay as long as one side is
+ 		// assignable to the other.  convert so they have
+ 		// the same type.
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 54f3c89c24..a7c84dc8d8 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -329,14 +329,6 @@ func InitUniverse() {
+ 	// special
+ 	okfor[ir.OCAP] = okforcap[:]
+ 	okfor[ir.OLEN] = okforlen[:]
+-
+-	// comparison
+-	iscmp[ir.OLT] = true
+-	iscmp[ir.OGT] = true
+-	iscmp[ir.OGE] = true
+-	iscmp[ir.OLE] = true
+-	iscmp[ir.OEQ] = true
+-	iscmp[ir.ONE] = true
+ }
+ 
+ func makeErrorInterface() *types.Type {

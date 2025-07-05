@@ -10,6 +10,101 @@ Date:   Fri Dec 3 09:04:26 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/368696
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  doc/go1.18.html | 48 +++++++++++++++++++++++++-----------------------
  1 file changed, 25 insertions(+), 23 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 2ea8e08423..3e7de64121 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -76,15 +76,6 @@ proposal</a>.
+ 
+ <h2 id="ports">Ports</h2>
+ 
+-<h3 id="freebsd">FreeBSD</h3>
+-
+-<p>
+-  Go 1.18 is the last release that is supported on FreeBSD 11.x, which has
+-  already reached end-of-life. Go 1.19 will require FreeBSD 12.2+ or FreeBSD
+-  13.0+.
+-  FreeBSD 13.0+ will require a kernel with the COMPAT_FREEBSD12 option set (this is the default).
+-</p>
+-
+ <h3 id="amd64">AMD64</h3>
+ 
+ <p><!-- CL 349595 -->
+@@ -105,6 +96,15 @@ proposal</a>.
+   now supports the <code>c-archive</code> and <code>c-shared</code> build modes.
+ </p>
+ 
++<h3 id="windows">Windows</h3>
++
++<p><!-- https://golang.org/issue/49759 -->
++  The <code>windows/arm</code> and <code>windows/arm64</code> ports now support
++  non-cooperative preemption, bringing that capability to all four Windows
++  ports, which should hopefully address subtle bugs encountered when calling
++  into Win32 functions that block for extended periods of time.
++</p>
++
+ <h3 id="ios">iOS</h3>
+ 
+ <p><!-- golang.org/issue/48076, golang.org/issue/49616 -->
+@@ -113,6 +113,15 @@ proposal</a>.
+   Go 1.18 now requires iOS 12 or later; support for previous versions has been discontinued.
+ </p>
+ 
++<h3 id="freebsd">FreeBSD</h3>
++
++<p>
++  Go 1.18 is the last release that is supported on FreeBSD 11.x, which has
++  already reached end-of-life. Go 1.19 will require FreeBSD 12.2+ or FreeBSD
++  13.0+.
++  FreeBSD 13.0+ will require a kernel with the COMPAT_FREEBSD12 option set (this is the default).
++</p>
++
+ <h2 id="tools">Tools</h2>
+ 
+ <h3 id="go-command">Go command</h3>
+@@ -200,13 +209,6 @@ proposal</a>.
+ 
+ <h2 id="runtime">Runtime</h2>
+ 
+-<p><!-- https://golang.org/issue/49759 -->
+-  The <code>windows/arm</code> and <code>windows/arm64</code> ports now support
+-  non-cooperative preemption, bringing that capability to all four Windows
+-  ports, which should hopefully address subtle bugs encountered when calling
+-  into Win32 functions that block for extended periods of time.
+-</p>
+-
+ <p><!-- https://github.com/golang/go/issues/44167-->
+   The garbage collector now includes non-heap sources of garbage collector work
+   (e.g., stack scanning) when determining how frequently to run. As a result,
+@@ -222,6 +224,13 @@ proposal</a>.
+   been tuned to work more aggressively as a result.
+ </p>
+ 
++<p><!-- CL 352057, https://golang.org/issue/45728 -->
++  Go 1.17 generally improved the formatting of arguments in stack traces,
++  but could print inaccurate values for arguments passed in registers.
++  This is improved in Go 1.18 by printing a question mark (<code>?</code>)
++  after each value that may be inaccurate.
++</p>
++
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p><!-- https://golang.org/issue/40724 -->
+@@ -243,13 +252,6 @@ proposal</a>.
+   <a href=go1.17#compiler>Go 1.17 release notes</a> for more details.
+ </p>
+ 
+-<p><!-- CL 352057, https://golang.org/issue/45728 -->
+-  Go 1.17 generally improved the formatting of arguments in stack traces,
+-  but could print inaccurate values for arguments passed in registers.
+-  This is improved in Go 1.18 by printing a question mark (<code>?</code>)
+-  after each value that may be inaccurate.
+-</p>
+-
+ <p><!-- CL 298611 -->
+   The new compiler <code>-asan</code> option supports the
+   new <code>go</code> command <code>-asan</code> option.

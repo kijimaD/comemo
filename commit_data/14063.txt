@@ -8,8 +8,66 @@ Date:   Sun Oct 7 22:08:06 2012 +0400
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6624059
-
+---
  src/pkg/io/ioutil/blackhole.go      | 13 +++++++++++++
  src/pkg/io/ioutil/blackhole_race.go | 13 +++++++++++++
  src/pkg/io/ioutil/ioutil.go         |  5 ++---
  3 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/io/ioutil/blackhole.go b/src/pkg/io/ioutil/blackhole.go
+new file mode 100644
+index 0000000000..c127bdb71c
+--- /dev/null
++++ b/src/pkg/io/ioutil/blackhole.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++package ioutil
++
++var blackHoleBuf = make([]byte, 8192)
++
++func blackHole() []byte {
++	return blackHoleBuf
++}
+diff --git a/src/pkg/io/ioutil/blackhole_race.go b/src/pkg/io/ioutil/blackhole_race.go
+new file mode 100644
+index 0000000000..eb640e05cf
+--- /dev/null
++++ b/src/pkg/io/ioutil/blackhole_race.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package ioutil
++
++// Replaces the normal fast implementation with slower but formally correct one.
++
++func blackHole() []byte {
++	return make([]byte, 8192)
++}
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index f072b8c754..31c77299ee 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -130,12 +130,11 @@ func (devNull) Write(p []byte) (int, error) {
+ 	return len(p), nil
+ }
+ 
+-var blackHole = make([]byte, 8192)
+-
+ func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
++	buf := blackHole()
+ 	readSize := 0
+ 	for {
+-		readSize, err = r.Read(blackHole)
++		readSize, err = r.Read(buf)
+ 		n += int64(readSize)
+ 		if err != nil {
+ 			if err == io.EOF {

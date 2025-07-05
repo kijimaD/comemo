@@ -17,7 +17,62 @@ Date:   Sun Mar 20 00:07:37 2022 +0800
     Auto-Submit: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/debug/heapdump_test.go | 26 ++++++++++++++++++++++++++
  src/runtime/type.go                |  9 ++++++++-
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug/heapdump_test.go b/src/runtime/debug/heapdump_test.go
+index 768934d05d..ee6b054b11 100644
+--- a/src/runtime/debug/heapdump_test.go
++++ b/src/runtime/debug/heapdump_test.go
+@@ -67,3 +67,29 @@ func TestWriteHeapDumpFinalizers(t *testing.T) {
+ 	WriteHeapDump(f.Fd())
+ 	println("done dump")
+ }
++
++type G[T any] struct{}
++type I interface {
++	M()
++}
++
++//go:noinline
++func (g G[T]) M() {}
++
++var dummy I = G[int]{}
++var dummy2 I = G[G[int]]{}
++
++func TestWriteHeapDumpTypeName(t *testing.T) {
++	if runtime.GOOS == "js" {
++		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
++	}
++	f, err := os.CreateTemp("", "heapdumptest")
++	if err != nil {
++		t.Fatalf("TempFile failed: %v", err)
++	}
++	defer os.Remove(f.Name())
++	defer f.Close()
++	WriteHeapDump(f.Fd())
++	dummy.M()
++	dummy2.M()
++}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 44f36a85ca..b650d6d795 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -127,7 +127,14 @@ func (t *_type) name() string {
+ 	}
+ 	s := t.string()
+ 	i := len(s) - 1
+-	for i >= 0 && s[i] != '.' {
++	sqBrackets := 0
++	for i >= 0 && (s[i] != '.' || sqBrackets != 0) {
++		switch s[i] {
++		case ']':
++			sqBrackets++
++		case '[':
++			sqBrackets--
++		}
+ 		i--
+ 	}
+ 	return s[i+1:]

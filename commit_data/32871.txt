@@ -8,6 +8,90 @@ Date:   Thu Jun 8 10:17:48 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/45132
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  doc/go1.9.html | 51 +++++++++++++++++++++++++++++----------------------
  1 file changed, 29 insertions(+), 22 deletions(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 34c0ea2bc8..85e0c3e1fa 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -152,8 +152,35 @@ type T1 = T2
+ 
+ <h3 id="gc">Garbage Collector</h3>
+ 
+-<p>
+-  TODO(austin): give update.
++<p> <!-- CL 37520 -->
++  Library functions that used to trigger stop-the-world garbage
++  collection now trigger concurrent garbage collection.
++
++  Specifically, <a href="/pkg/runtime/#GC"><code>runtime.GC</code></a>,
++  <a href="/pkg/runtime/debug/#SetGCPercent"><code>debug.SetGCPercent</code></a>,
++  and
++  <a href="/pkg/runtime/debug/#FreeOSMemory"><code>debug.FreeOSMemory</code></a>,
++  now trigger concurrent garbage collection, blocking only the calling
++  goroutine until the garbage collection is done.
++</p>
++
++<p> <!-- CL 34103, CL 39835 -->
++  The
++  <a href="/pkg/runtime/debug/#SetGCPercent"><code>debug.SetGCPercent</code></a>
++  function only triggers a garbage collection if one is immediately
++  necessary because of the new GOGC value.
++  This makes it possible to adjust GOGC on-the-fly.
++</p>
++
++<p> <!-- CL 38732 -->
++  Large object allocation performance is significantly improved in
++  applications using large (&gt;50GB) heaps containing many large
++  objects.
++</p>
++
++<p> <!-- CL 34937 -->
++  The <a href="/pkg/runtime/#ReadMemStats"><code>runtime.ReadMemStats</code></a>
++  function now takes less than 100µs even for very large heaps.
+ </p>
+ 
+ <h2 id="library">Core library</h2>
+@@ -482,10 +509,6 @@ type T1 = T2
+       TODO: <a href="https://golang.org/cl/29341">https://golang.org/cl/29341</a>: use cpuset_getaffinity for runtime.NumCPU() on FreeBSD
+     </p>
+ 
+-    <p><!-- CL 34937 -->
+-      TODO: <a href="https://golang.org/cl/34937">https://golang.org/cl/34937</a>: make ReadMemStats STW for &lt; 25µs
+-    </p>
+-
+     <p><!-- CL 35710 -->
+       TODO: <a href="https://golang.org/cl/35710">https://golang.org/cl/35710</a>: make time correctly update on Wine
+     </p>
+@@ -498,10 +521,6 @@ type T1 = T2
+       TODO: <a href="https://golang.org/cl/37441">https://golang.org/cl/37441</a>: make complex division c99 compatible
+     </p>
+ 
+-    <p><!-- CL 37520 -->
+-      TODO: <a href="https://golang.org/cl/37520">https://golang.org/cl/37520</a>: make runtime.GC() trigger a concurrent GC
+-    </p>
+-
+     <p><!-- CL 37726 -->
+       TODO: <a href="https://golang.org/cl/37726">https://golang.org/cl/37726</a>: strongly encourage CallersFrames with the result of Callers
+     </p>
+@@ -520,18 +539,6 @@ type T1 = T2
+ 
+ </dl><!-- runtime -->
+ 
+-<dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+-  <dd>
+-    <p><!-- CL 34013 -->
+-      TODO: <a href="https://golang.org/cl/34013">https://golang.org/cl/34013</a>: don&#39;t run a GC when setting SetGCPercent negative
+-    </p>
+-
+-    <p><!-- CL 39835 -->
+-      TODO: <a href="https://golang.org/cl/39835">https://golang.org/cl/39835</a>: don&#39;t trigger a GC on SetGCPercent
+-    </p>
+-
+-</dl><!-- runtime/debug -->
+-
+ <dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+   <dd>
+     <p><!-- CL 34198 -->

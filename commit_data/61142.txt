@@ -13,6 +13,19 @@ Date:   Sun Oct 6 11:20:50 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/io/fs/fs.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+index 6891d75a0e..6583bcd7b9 100644
+--- a/src/io/fs/fs.go
++++ b/src/io/fs/fs.go
+@@ -26,6 +26,7 @@ import (
+ // correctness.
+ type FS interface {
+ 	// Open opens the named file.
++	// [File.Close] must be called to release any associated resources.
+ 	//
+ 	// When Open returns an error, it should be of type *PathError
+ 	// with the Op field set to "open", the Path field set to name,

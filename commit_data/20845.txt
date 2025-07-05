@@ -27,9 +27,306 @@ Date:   Fri Oct 17 20:51:15 2014 -0700
     R=golang-codereviews, ruiu
     CC=golang-codereviews
     https://golang.org/cl/160990043
-
+---
  src/encoding/gob/codec_test.go | 12 +++----
  src/encoding/gob/decoder.go    |  2 +-
  src/encoding/gob/encode.go     | 73 ++++++++++++++++++++++++++++--------------
  src/encoding/gob/encoder.go    |  7 ++--
  4 files changed, 59 insertions(+), 35 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 4f17a28931..b3749e3528 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -53,7 +53,7 @@ func testError(t *testing.T) {
+ // Test basic encode/decode routines for unsigned integers
+ func TestUintCodec(t *testing.T) {
+ 	defer testError(t)
+-	b := new(bytes.Buffer)
++	b := new(encBuffer)
+ 	encState := newEncoderState(b)
+ 	for _, tt := range encodeT {
+ 		b.Reset()
+@@ -62,10 +62,10 @@ func TestUintCodec(t *testing.T) {
+ 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
+ 		}
+ 	}
+-	decState := newDecodeState(b)
+ 	for u := uint64(0); ; u = (u + 1) * 7 {
+ 		b.Reset()
+ 		encState.encodeUint(u)
++		decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
+ 		v := decState.decodeUint()
+ 		if u != v {
+ 			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
+@@ -78,10 +78,10 @@ func TestUintCodec(t *testing.T) {
+ 
+ func verifyInt(i int64, t *testing.T) {
+ 	defer testError(t)
+-	var b = new(bytes.Buffer)
++	var b = new(encBuffer)
+ 	encState := newEncoderState(b)
+ 	encState.encodeInt(i)
+-	decState := newDecodeState(b)
++	decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
+ 	decState.buf = make([]byte, 8)
+ 	j := decState.decodeInt()
+ 	if i != j {
+@@ -125,7 +125,7 @@ func newDecodeState(buf *bytes.Buffer) *decoderState {
+ 	return d
+ }
+ 
+-func newEncoderState(b *bytes.Buffer) *encoderState {
++func newEncoderState(b *encBuffer) *encoderState {
+ 	b.Reset()
+ 	state := &encoderState{enc: nil, b: b}
+ 	state.fieldnum = -1
+@@ -135,7 +135,7 @@ func newEncoderState(b *bytes.Buffer) *encoderState {
+ // Test instruction execution for encoding.
+ // Do not run the machine yet; instead do individual instructions crafted by hand.
+ func TestScalarEncInstructions(t *testing.T) {
+-	var b = new(bytes.Buffer)
++	var b = new(encBuffer)
+ 
+ 	// bool
+ 	{
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index dcad7a0e48..fe1494100a 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -212,7 +212,7 @@ func (dec *Decoder) Decode(e interface{}) error {
+ // Otherwise, it stores the value into v.  In that case, v must represent
+ // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
+ // If the input is at EOF, DecodeValue returns io.EOF and
+-// does not modify e.
++// does not modify v.
+ func (dec *Decoder) DecodeValue(v reflect.Value) error {
+ 	if v.IsValid() {
+ 		if v.Kind() == reflect.Ptr && !v.IsNil() {
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 3da848c851..f66279f141 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -7,7 +7,6 @@
+ package gob
+ 
+ import (
+-	"bytes"
+ 	"encoding"
+ 	"math"
+ 	"reflect"
+@@ -23,14 +22,46 @@ type encHelper func(state *encoderState, v reflect.Value) bool
+ // 0 terminates the structure.
+ type encoderState struct {
+ 	enc      *Encoder
+-	b        *bytes.Buffer
++	b        *encBuffer
+ 	sendZero bool                 // encoding an array element or map key/value pair; send zero values
+ 	fieldnum int                  // the last field number written.
+ 	buf      [1 + uint64Size]byte // buffer used by the encoder; here to avoid allocation.
+ 	next     *encoderState        // for free list
+ }
+ 
+-func (enc *Encoder) newEncoderState(b *bytes.Buffer) *encoderState {
++// encBuffer is an extremely simple, fast implementation of a write-only byte buffer.
++// It never returns a non-nil error, but Write returns an error value so it matches io.Writer.
++type encBuffer struct {
++	data    []byte
++	scratch [64]byte
++}
++
++func (e *encBuffer) WriteByte(c byte) {
++	e.data = append(e.data, c)
++}
++
++func (e *encBuffer) Write(p []byte) (int, error) {
++	e.data = append(e.data, p...)
++	return len(p), nil
++}
++
++func (e *encBuffer) WriteString(s string) {
++	e.data = append(e.data, s...)
++}
++
++func (e *encBuffer) Len() int {
++	return len(e.data)
++}
++
++func (e *encBuffer) Bytes() []byte {
++	return e.data
++}
++
++func (e *encBuffer) Reset() {
++	e.data = e.data[0:0]
++}
++
++func (enc *Encoder) newEncoderState(b *encBuffer) *encoderState {
+ 	e := enc.freeList
+ 	if e == nil {
+ 		e = new(encoderState)
+@@ -41,6 +72,9 @@ func (enc *Encoder) newEncoderState(b *bytes.Buffer) *encoderState {
+ 	e.sendZero = false
+ 	e.fieldnum = 0
+ 	e.b = b
++	if len(b.data) == 0 {
++		b.data = b.scratch[0:0]
++	}
+ 	return e
+ }
+ 
+@@ -57,10 +91,7 @@ func (enc *Encoder) freeEncoderState(e *encoderState) {
+ // encodeUint writes an encoded unsigned integer to state.b.
+ func (state *encoderState) encodeUint(x uint64) {
+ 	if x <= 0x7F {
+-		err := state.b.WriteByte(uint8(x))
+-		if err != nil {
+-			error_(err)
+-		}
++		state.b.WriteByte(uint8(x))
+ 		return
+ 	}
+ 	i := uint64Size
+@@ -70,10 +101,7 @@ func (state *encoderState) encodeUint(x uint64) {
+ 		i--
+ 	}
+ 	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
+-	_, err := state.b.Write(state.buf[i : uint64Size+1])
+-	if err != nil {
+-		error_(err)
+-	}
++	state.b.Write(state.buf[i : uint64Size+1])
+ }
+ 
+ // encodeInt writes an encoded signed integer to state.w.
+@@ -251,7 +279,7 @@ func valid(v reflect.Value) bool {
+ }
+ 
+ // encodeSingle encodes a single top-level non-struct value.
+-func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, value reflect.Value) {
++func (enc *Encoder) encodeSingle(b *encBuffer, engine *encEngine, value reflect.Value) {
+ 	state := enc.newEncoderState(b)
+ 	defer enc.freeEncoderState(state)
+ 	state.fieldnum = singletonField
+@@ -268,7 +296,7 @@ func (enc *Encoder) encodeSingle(b *bytes.Buffer, engine *encEngine, value refle
+ }
+ 
+ // encodeStruct encodes a single struct value.
+-func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value reflect.Value) {
++func (enc *Encoder) encodeStruct(b *encBuffer, engine *encEngine, value reflect.Value) {
+ 	if !valid(value) {
+ 		return
+ 	}
+@@ -295,7 +323,7 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value refle
+ }
+ 
+ // encodeArray encodes an array.
+-func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int, helper encHelper) {
++func (enc *Encoder) encodeArray(b *encBuffer, value reflect.Value, op encOp, elemIndir int, length int, helper encHelper) {
+ 	state := enc.newEncoderState(b)
+ 	defer enc.freeEncoderState(state)
+ 	state.fieldnum = -1
+@@ -329,7 +357,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
+ }
+ 
+ // encodeMap encodes a map as unsigned count followed by key:value pairs.
+-func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp encOp, keyIndir, elemIndir int) {
++func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encOp, keyIndir, elemIndir int) {
+ 	state := enc.newEncoderState(b)
+ 	state.fieldnum = -1
+ 	state.sendZero = true
+@@ -347,7 +375,7 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp e
+ // by the type identifier (which might require defining that type right now), followed
+ // by the concrete value.  A nil value gets sent as the empty string for the name,
+ // followed by no value.
+-func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
++func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
+ 	// Gobs can encode nil interface values but not typed interface
+ 	// values holding nil pointers, since nil pointers point to no value.
+ 	elem := iv.Elem()
+@@ -371,10 +399,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	}
+ 	// Send the name.
+ 	state.encodeUint(uint64(len(name)))
+-	_, err := state.b.WriteString(name)
+-	if err != nil {
+-		error_(err)
+-	}
++	state.b.WriteString(name)
+ 	// Define the type id if necessary.
+ 	enc.sendTypeDescriptor(enc.writer(), state, ut)
+ 	// Send the type id.
+@@ -382,7 +407,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	// Encode the value into a new buffer.  Any nested type definitions
+ 	// should be written to b, before the encoded value.
+ 	enc.pushWriter(b)
+-	data := new(bytes.Buffer)
++	data := new(encBuffer)
+ 	data.Write(spaceForLength)
+ 	enc.encode(data, elem, ut)
+ 	if enc.err != nil {
+@@ -391,7 +416,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	enc.popWriter()
+ 	enc.writeMessage(b, data)
+ 	if enc.err != nil {
+-		error_(err)
++		error_(enc.err)
+ 	}
+ 	enc.freeEncoderState(state)
+ }
+@@ -433,7 +458,7 @@ func isZero(val reflect.Value) bool {
+ 
+ // encGobEncoder encodes a value that implements the GobEncoder interface.
+ // The data is sent as a byte array.
+-func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, ut *userTypeInfo, v reflect.Value) {
++func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.Value) {
+ 	// TODO: should we catch panics from the called method?
+ 
+ 	var data []byte
+@@ -653,7 +678,7 @@ func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]boo
+ 	return enc
+ }
+ 
+-func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) {
++func (enc *Encoder) encode(b *encBuffer, value reflect.Value, ut *userTypeInfo) {
+ 	defer catchError(&enc.err)
+ 	engine := getEncEngine(ut, nil)
+ 	indir := ut.indir
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index 4b5dc16c79..a340e47b5e 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -5,7 +5,6 @@
+ package gob
+ 
+ import (
+-	"bytes"
+ 	"io"
+ 	"reflect"
+ 	"sync"
+@@ -19,7 +18,7 @@ type Encoder struct {
+ 	sent       map[reflect.Type]typeId // which types we've already sent
+ 	countState *encoderState           // stage for writing counts
+ 	freeList   *encoderState           // list of free encoderStates; avoids reallocation
+-	byteBuf    bytes.Buffer            // buffer for top-level encoderState
++	byteBuf    encBuffer               // buffer for top-level encoderState
+ 	err        error
+ }
+ 
+@@ -34,7 +33,7 @@ func NewEncoder(w io.Writer) *Encoder {
+ 	enc := new(Encoder)
+ 	enc.w = []io.Writer{w}
+ 	enc.sent = make(map[reflect.Type]typeId)
+-	enc.countState = enc.newEncoderState(new(bytes.Buffer))
++	enc.countState = enc.newEncoderState(new(encBuffer))
+ 	return enc
+ }
+ 
+@@ -60,7 +59,7 @@ func (enc *Encoder) setError(err error) {
+ }
+ 
+ // writeMessage sends the data item preceded by a unsigned count of its length.
+-func (enc *Encoder) writeMessage(w io.Writer, b *bytes.Buffer) {
++func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
+ 	// Space has been reserved for the length at the head of the message.
+ 	// This is a little dirty: we grab the slice from the bytes.Buffer and massage
+ 	// it by hand.

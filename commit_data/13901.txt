@@ -9,8 +9,173 @@ Date:   Sat Sep 22 17:56:49 2012 +1000
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/6551045
-
+---
  src/pkg/debug/pe/file.go      | 48 ++++++++++++++++++++++++++++++++++++++++---
  src/pkg/debug/pe/file_test.go | 30 ++++++++++++++++++++++++++-
  src/pkg/debug/pe/pe.go        | 11 ++++++++++
  3 files changed, 85 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/debug/pe/file.go b/src/pkg/debug/pe/file.go
+index 6b98a5f45b..c857eca7ce 100644
+--- a/src/pkg/debug/pe/file.go
++++ b/src/pkg/debug/pe/file.go
+@@ -19,6 +19,7 @@ import (
+ type File struct {
+ 	FileHeader
+ 	Sections []*Section
++	Symbols  []*Symbol
+ 
+ 	closer io.Closer
+ }
+@@ -49,6 +50,14 @@ type Section struct {
+ 	sr *io.SectionReader
+ }
+ 
++type Symbol struct {
++	Name          string
++	Value         uint32
++	SectionNumber int16
++	Type          uint16
++	StorageClass  uint8
++}
++
+ type ImportDirectory struct {
+ 	OriginalFirstThunk uint32
+ 	TimeDateStamp      uint32
+@@ -138,16 +147,49 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	if f.FileHeader.Machine != IMAGE_FILE_MACHINE_UNKNOWN && f.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 && f.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 {
+ 		return nil, errors.New("Invalid PE File Format.")
+ 	}
+-	// get symbol string table
+-	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
++
++	// Get COFF string table, which is located at the end of the COFF symbol table.
++	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
+ 	var l uint32
+ 	if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
+ 		return nil, err
+ 	}
+ 	ss := make([]byte, l)
+-	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols)); err != nil {
++	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols)); err != nil {
+ 		return nil, err
+ 	}
++
++	// Process COFF symbol table.
++	sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
++	aux := uint8(0)
++	for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
++		cs := new(COFFSymbol)
++		if err := binary.Read(sr, binary.LittleEndian, cs); err != nil {
++			return nil, err
++		}
++		if aux > 0 {
++			aux--
++			continue
++		}
++		var name string
++		if cs.Name[0] == 0 && cs.Name[1] == 0 && cs.Name[2] == 0 && cs.Name[3] == 0 {
++			si := int(binary.LittleEndian.Uint32(cs.Name[4:]))
++			name, _ = getString(ss, si)
++		} else {
++			name = cstring(cs.Name[:])
++		}
++		aux = cs.NumberOfAuxSymbols
++		s := &Symbol{
++			Name:          name,
++			Value:         cs.Value,
++			SectionNumber: cs.SectionNumber,
++			Type:          cs.Type,
++			StorageClass:  cs.StorageClass,
++		}
++		f.Symbols = append(f.Symbols, s)
++	}
++
++	// Process sections.
+ 	sr.Seek(base, os.SEEK_SET)
+ 	binary.Read(sr, binary.LittleEndian, &f.FileHeader)
+ 	sr.Seek(int64(f.FileHeader.SizeOfOptionalHeader), os.SEEK_CUR) //Skip OptionalHeader
+diff --git a/src/pkg/debug/pe/file_test.go b/src/pkg/debug/pe/file_test.go
+index 2815d720bb..c0f9fcb95d 100644
+--- a/src/pkg/debug/pe/file_test.go
++++ b/src/pkg/debug/pe/file_test.go
+@@ -13,6 +13,7 @@ type fileTest struct {
+ 	file     string
+ 	hdr      FileHeader
+ 	sections []*SectionHeader
++	symbols  []*Symbol
+ }
+ 
+ var fileTests = []fileTest{
+@@ -33,6 +34,24 @@ var fileTests = []fileTest{
+ 			{".debug_pubtypes", 0, 0, 38, 1370, 1580, 0, 1, 0, 1108344832},
+ 			{".debug_aranges", 0, 0, 32, 1408, 1590, 0, 2, 0, 1108344832},
+ 		},
++		[]*Symbol{
++			{".file", 0x0, -2, 0x0, 0x67},
++			{"_main", 0x0, 1, 0x20, 0x2},
++			{".text", 0x0, 1, 0x0, 0x3},
++			{".data", 0x0, 2, 0x0, 0x3},
++			{".bss", 0x0, 3, 0x0, 0x3},
++			{".debug_abbrev", 0x0, 4, 0x0, 0x3},
++			{".debug_info", 0x0, 5, 0x0, 0x3},
++			{".debug_line", 0x0, 6, 0x0, 0x3},
++			{".rdata", 0x0, 7, 0x0, 0x3},
++			{".debug_frame", 0x0, 8, 0x0, 0x3},
++			{".debug_loc", 0x0, 9, 0x0, 0x3},
++			{".debug_pubnames", 0x0, 10, 0x0, 0x3},
++			{".debug_pubtypes", 0x0, 11, 0x0, 0x3},
++			{".debug_aranges", 0x0, 12, 0x0, 0x3},
++			{"___main", 0x0, 0, 0x20, 0x2},
++			{"_puts", 0x0, 0, 0x20, 0x2},
++		},
+ 	},
+ 	{
+ 		"testdata/gcc-386-mingw-exec",
+@@ -54,6 +73,7 @@ var fileTests = []fileTest{
+ 			{Name: ".debug_frame", VirtualSize: 0x34, VirtualAddress: 0xe000, Size: 0x200, Offset: 0x3800, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42300000},
+ 			{Name: ".debug_loc", VirtualSize: 0x38, VirtualAddress: 0xf000, Size: 0x200, Offset: 0x3a00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
+ 		},
++		[]*Symbol{},
+ 	},
+ }
+ 
+@@ -86,7 +106,15 @@ func TestOpen(t *testing.T) {
+ 		if tn != fn {
+ 			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
+ 		}
+-
++		for i, have := range f.Symbols {
++			if i >= len(tt.symbols) {
++				break
++			}
++			want := tt.symbols[i]
++			if !reflect.DeepEqual(have, want) {
++				t.Errorf("open %s, symbol %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/debug/pe/pe.go b/src/pkg/debug/pe/pe.go
+index b3dab739ae..0606217b3b 100644
+--- a/src/pkg/debug/pe/pe.go
++++ b/src/pkg/debug/pe/pe.go
+@@ -27,6 +27,17 @@ type SectionHeader32 struct {
+ 	Characteristics      uint32
+ }
+ 
++const COFFSymbolSize = 18
++
++type COFFSymbol struct {
++	Name               [8]uint8
++	Value              uint32
++	SectionNumber      int16
++	Type               uint16
++	StorageClass       uint8
++	NumberOfAuxSymbols uint8
++}
++
+ const (
+ 	IMAGE_FILE_MACHINE_UNKNOWN   = 0x0
+ 	IMAGE_FILE_MACHINE_AM33      = 0x1d3

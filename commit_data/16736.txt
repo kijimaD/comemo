@@ -8,7 +8,7 @@ Date:   Fri Jul 12 04:39:39 2013 +0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/10757044
-
+---
  misc/cgo/test/cgo_test.go           |  1 +
  misc/cgo/test/issue3250.go          | 94 +++++++++++++++++++++++++++++++++++++
  misc/cgo/test/issue3250w.go         | 11 +++++
@@ -35,3 +35,669 @@ Date:   Fri Jul 12 04:39:39 2013 +0800
  src/pkg/runtime/sys_plan9_386.s     |  2 +-
  src/pkg/runtime/sys_plan9_amd64.s   |  2 +-
  25 files changed, 172 insertions(+), 159 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f0b31c589d..92c5da4627 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -42,5 +42,6 @@ func TestCflags(t *testing.T)              { testCflags(t) }
+ func Test5337(t *testing.T)                { test5337(t) }
+ func Test5548(t *testing.T)                { test5548(t) }
+ func Test5603(t *testing.T)                { test5603(t) }
++func Test3250(t *testing.T)                { test3250(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue3250.go b/misc/cgo/test/issue3250.go
+new file mode 100644
+index 0000000000..89a455c061
+--- /dev/null
++++ b/misc/cgo/test/issue3250.go
+@@ -0,0 +1,94 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package cgotest
++
++/*
++#include <signal.h>
++#include <pthread.h>
++#include <unistd.h>
++#include <stdlib.h>
++
++static void *thread(void *p) {
++	(void)p;
++	const int M = 100;
++	int i;
++	for (i = 0; i < M; i++) {
++		pthread_kill(pthread_self(), SIGCHLD);
++		usleep(rand() % 20 + 5);
++	}
++	return NULL;
++}
++void testSendSIG() {
++	const int N = 20;
++	int i;
++	pthread_t tid[N];
++	for (i = 0; i < N; i++) {
++		usleep(rand() % 200 + 100);
++		pthread_create(&tid[i], 0, thread, NULL);
++	}
++	for (i = 0; i < N; i++)
++		pthread_join(tid[i], 0);
++}
++*/
++import "C"
++
++import (
++	"os"
++	"os/signal"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func test3250(t *testing.T) {
++	const (
++		thres = 5
++		sig   = syscall.SIGCHLD
++	)
++	type result struct {
++		n   int
++		sig os.Signal
++	}
++	var (
++		sigCh     = make(chan os.Signal, 10)
++		waitStart = make(chan struct{})
++		waitDone  = make(chan result)
++	)
++
++	signal.Notify(sigCh, sig)
++
++	go func() {
++		n := 0
++		alarm := time.After(time.Second * 3)
++		for {
++			select {
++			case <-waitStart:
++				waitStart = nil
++			case v := <-sigCh:
++				n++
++				if v != sig || n > thres {
++					waitDone <- result{n, v}
++					return
++				}
++			case <-alarm:
++				waitDone <- result{n, sig}
++				return
++			}
++		}
++	}()
++
++	waitStart <- struct{}{}
++	C.testSendSIG()
++	r := <-waitDone
++	if r.sig != sig {
++		t.Fatalf("received signal %v, but want %v", r.sig, sig)
++	}
++	t.Logf("got %d signals\n", r.n)
++	if r.n <= thres {
++		t.Fatalf("expected more than %d", thres)
++	}
++}
+diff --git a/misc/cgo/test/issue3250w.go b/misc/cgo/test/issue3250w.go
+new file mode 100644
+index 0000000000..e3cb161db0
+--- /dev/null
++++ b/misc/cgo/test/issue3250w.go
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package cgotest
++
++import "testing"
++
++func test3250(t *testing.T) {}
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index b28e805a82..2a34f20a5d 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -523,30 +523,6 @@ runtime·setprof(bool on)
+ 		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badsignal(int32 sig)
+-{
+-	int32 len;
+-
+-	if (sig == SIGPROF) {
+-		return;  // Ignore SIGPROFs intended for a non-Go thread.
+-	}
+-	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	if (0 <= sig && sig < NSIG) {
+-		// Can't call findnull() because it will split stack.
+-		for(len = 0; runtime·sigtab[sig].name[len]; len++)
+-			;
+-		runtime·write(2, runtime·sigtab[sig].name, len);
+-	}
+-	runtime·write(2, "\n", 1);
+-	runtime·exit(1);
+-}
+-
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index efe82ca072..c513c0a1f8 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -235,30 +235,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badsignal(int32 sig)
+-{
+-	int32 len;
+-
+-	if (sig == SIGPROF) {
+-		return;  // Ignore SIGPROFs intended for a non-Go thread.
+-	}
+-	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	if (0 <= sig && sig < NSIG) {
+-		// Can't call findnull() because it will split stack.
+-		for(len = 0; runtime·sigtab[sig].name[len]; len++)
+-			;
+-		runtime·write(2, runtime·sigtab[sig].name, len);
+-	}
+-	runtime·write(2, "\n", 1);
+-	runtime·exit(1);
+-}
+-
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 2ae33af2d9..b27239d46f 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -284,30 +284,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16  // no pointers
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badsignal(int32 sig)
+-{
+-	int32 len;
+-
+-	if (sig == SIGPROF) {
+-		return;  // Ignore SIGPROFs intended for a non-Go thread.
+-	}
+-	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	if (0 <= sig && sig < NSIG) {
+-		// Can't call findnull() because it will split stack.
+-		for(len = 0; runtime·sigtab[sig].name[len]; len++)
+-			;
+-		runtime·write(2, runtime·sigtab[sig].name, len);
+-	}
+-	runtime·write(2, "\n", 1);
+-	runtime·exit(1);
+-}
+-
+ #ifdef GOARCH_386
+ #define sa_handler k_sa_handler
+ #endif
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 56ff188a63..f53855c255 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -275,30 +275,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badsignal(int32 sig)
+-{
+-	int32 len;
+-
+-	if (sig == SIGPROF) {
+-		return;  // Ignore SIGPROFs intended for a non-Go thread.
+-	}
+-	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	if (0 <= sig && sig < NSIG) {
+-		// Can't call findnull() because it will split stack.
+-		for(len = 0; runtime·sigtab[sig].name[len]; len++)
+-			;
+-		runtime·write(2, runtime·sigtab[sig].name, len);
+-	}
+-	runtime·write(2, "\n", 1);
+-	runtime·exit(1);
+-}
+-
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 8c62886e9b..4c196e80b0 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -257,30 +257,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badsignal(int32 sig)
+-{
+-	int32 len;
+-
+-	if (sig == SIGPROF) {
+-		return;  // Ignore SIGPROFs intended for a non-Go thread.
+-	}
+-	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	if (0 <= sig && sig < NSIG) {
+-		// Can't call findnull() because it will split stack.
+-		for(len = 0; runtime·sigtab[sig].name[len]; len++)
+-			;
+-		runtime·write(2, runtime·sigtab[sig].name, len);
+-	}
+-	runtime·write(2, "\n", 1);
+-	runtime·exit(1);
+-}
+-
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 0991f81753..d64c463994 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -336,7 +336,7 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal2(void)
+ {
+ 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
+ 	runtime·exits(badsignal);
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index 7e083685d0..9bfab3bfae 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -28,6 +28,7 @@ package runtime
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "cgocall.h"
+ 
+ static struct {
+ 	Note;
+@@ -155,3 +156,11 @@ func signal_disable(s uint32) {
+ 	sig.wanted[s/32] &= ~(1U<<(s&31));
+ 	runtime·sigdisable(s);
+ }
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++#pragma textflag 7
++void
++runtime·badsignal(uintptr sig)
++{
++	runtime·cgocallback((void (*)(void))runtime·sigsend, &sig, sizeof(sig));
++}
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 59bb9d80d8..a1a7aaf8bc 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -238,11 +238,12 @@ TEXT runtime·sigtramp(SB),7,$40
+ 	// check that m exists
+ 	MOVL	m(CX), BP
+ 	CMPL	BP, $0
+-	JNE	5(PC)
++	JNE	6(PC)
+ 	MOVL	sig+8(FP), BX
+ 	MOVL	BX, 0(SP)
+-	CALL	runtime·badsignal(SB)
+-	RET
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
++	JMP 	sigtramp_ret
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+@@ -269,6 +270,7 @@ TEXT runtime·sigtramp(SB),7,$40
+ 	MOVL	20(SP), DI
+ 	MOVL	DI, g(CX)
+ 
++sigtramp_ret:
+ 	// call sigreturn
+ 	MOVL	context+16(FP), CX
+ 	MOVL	style+4(FP), BX
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index b324a04240..a11cc33f38 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -192,13 +192,17 @@ TEXT runtime·sigaction(SB),7,$0
+ TEXT runtime·sigtramp(SB),7,$64
+ 	get_tls(BX)
+ 
++	MOVQ	R8, 32(SP)	// save ucontext
++	MOVQ	SI, 40(SP)	// save infostyle
++
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	4(PC)
++	JNE	5(PC)
+ 	MOVL	DX, 0(SP)
+-	CALL	runtime·badsignal(SB)
+-	RET
++	MOVQ	$runtime·badsignal(SB), AX
++	CALL	AX
++	JMP 	sigtramp_ret
+ 
+ 	// save g
+ 	MOVQ	g(BX), R10
+@@ -213,8 +217,6 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	R8, 16(SP)
+ 	MOVQ	R10, 24(SP)
+ 
+-	MOVQ	R8, 32(SP)	// save ucontext
+-	MOVQ	SI, 40(SP)	// save infostyle
+ 	CALL	DI
+ 
+ 	// restore g
+@@ -222,6 +224,7 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	48(SP), R10
+ 	MOVQ	R10, g(BX)
+ 
++sigtramp_ret:
+ 	// call sigreturn
+ 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
+ 	MOVQ	32(SP), DI	// saved ucontext
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index bbfb3e37a2..2a57cb4be0 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -183,11 +183,12 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	5(PC)
++	JNE	6(PC)
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+-	CALL	runtime·badsignal(SB)
+-	RET
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
++	JMP 	sigtramp_ret
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+@@ -212,7 +213,8 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	get_tls(CX)
+ 	MOVL	20(SP), BX
+ 	MOVL	BX, g(CX)
+-	
++
++sigtramp_ret:
+ 	// call sigreturn
+ 	MOVL	context+8(FP), AX
+ 	MOVL	$0, 0(SP)	// syscall gap
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 9638acb695..50d91c3287 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -155,13 +155,14 @@ TEXT runtime·sigaction(SB),7,$-8
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+ 	get_tls(BX)
+-	
++
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	4(PC)
++	JNE	5(PC)
+ 	MOVQ	DI, 0(SP)
+-	CALL	runtime·badsignal(SB)
++	MOVQ	$runtime·badsignal(SB), AX
++	CALL	AX
+ 	RET
+ 
+ 	// save g
+@@ -176,7 +177,7 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+ 	MOVQ	R10, 24(SP)
+-	
++
+ 	CALL	runtime·sighandler(SB)
+ 
+ 	// restore g
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 7aba498fcd..8260940c74 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -158,9 +158,10 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	BL.NE	(R0)
+ 
+ 	CMP $0, m
+-	BNE 3(PC)
++	BNE 4(PC)
+ 	// signal number is already prepared in 4(R13)
+-	BL runtime·badsignal(SB)
++	MOVW $runtime·badsignal(SB), R11
++	BL (R11)
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 76ebe3dcf7..7d677acf8b 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -168,10 +168,11 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	5(PC)
++	JNE	6(PC)
+ 	MOVL	sig+0(FP), BX
+ 	MOVL	BX, 0(SP)
+-	CALL	runtime·badsignal(SB)
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 2d802abb61..649f205195 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -186,9 +186,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	4(PC)
++	JNE	5(PC)
+ 	MOVQ	DI, 0(SP)
+-	CALL	runtime·badsignal(SB)
++	MOVQ	$runtime·badsignal(SB), AX
++	CALL	AX
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 6826bea961..4927332ba5 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -292,9 +292,10 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	BL.NE	(R0)
+ 
+ 	CMP 	$0, m
+-	BNE 	3(PC)
++	BNE 	4(PC)
+ 	// signal number is already prepared in 4(R13)
+-	BL  	runtime·badsignal(SB)
++	MOVW  	$runtime·badsignal(SB), R11
++	BL	(R11)
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 992eba77da..19b3a526ad 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -196,10 +196,11 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	5(PC)
++	JNE	6(PC)
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+-	CALL	runtime·badsignal(SB)
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 574d8a91b5..10b06c8d21 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -215,9 +215,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	4(PC)
++	JNE	5(PC)
+ 	MOVQ	DI, 0(SP)
+-	CALL	runtime·badsignal(SB)
++	MOVQ	$runtime·badsignal(SB), AX
++	CALL	AX
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index 0109ad8ca9..d39b6481eb 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -207,9 +207,10 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	BL.NE	(R0)
+ 
+ 	CMP $0, m
+-	BNE 3(PC)
++	BNE 4(PC)
+ 	// signal number is already prepared in 4(R13)
+-	BL runtime·badsignal(SB)
++	MOVW $runtime·badsignal(SB), R11
++	BL (R11)
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index f154464dc6..3ca4511806 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -170,11 +170,12 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	5(PC)
++	JNE	6(PC)
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+-	CALL	runtime·badsignal(SB)
+-	RET
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
++	JMP 	sigtramp_ret
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+@@ -199,7 +200,8 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	get_tls(CX)
+ 	MOVL	20(SP), BX
+ 	MOVL	BX, g(CX)
+-	
++
++sigtramp_ret:
+ 	// call sigreturn
+ 	MOVL	context+8(FP), AX
+ 	MOVL	$0, 0(SP)		// syscall gap
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 04c5719aaa..3cbf0d9343 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -204,9 +204,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	4(PC)
++	JNE	5(PC)
+ 	MOVQ	DI, 0(SP)
+-	CALL	runtime·badsignal(SB)
++	MOVQ	$runtime·badsignal(SB), AX
++	CALL	AX
+ 	RET
+ 
+ 	// save g
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 1f860a9619..e8fd836169 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -127,7 +127,7 @@ TEXT runtime·sigtramp(SB),7,$0
+ 	MOVL	m(AX), BX
+ 	CMPL	BX, $0
+ 	JNE	3(PC)
+-	CALL	runtime·badsignal(SB) // will exit
++	CALL	runtime·badsignal2(SB) // will exit
+ 	RET
+ 
+ 	// save args
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index c0c896ebc9..140c5e42b3 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -159,7 +159,7 @@ TEXT runtime·sigtramp(SB),7,$0
+ 	MOVQ	m(AX), BX
+ 	CMPQ	BX, $0
+ 	JNE	3(PC)
+-	CALL	runtime·badsignal(SB) // will exit
++	CALL	runtime·badsignal2(SB) // will exit
+ 	RET
+ 
+ 	// save args

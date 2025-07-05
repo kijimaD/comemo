@@ -7,6 +7,22 @@ Date:   Wed Dec 7 18:42:37 2016 -0500
     Change-Id: Ia19e4d2f319002b5b26e50258436f5c4bd281cc7
     Reviewed-on: https://go-review.googlesource.com/34113
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index c090103bb9..1987b297ac 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -86,6 +86,10 @@ have firmware that doesn't enable kernel FPU emulation; Go won't run on such mac
+ On DragonFly BSD, Go now requires DragonFly 4.4.4 or later. <!-- CL 29491, CL 29971 -->
+ </p>
+ 
++<p>
++On OpenBSD, Go now requires OpenBSD 5.9 or later. <!-- CL 34093 -->
++</p>
++
+ <p>
+ The Plan 9 port's networking support is now much more complete
+ and matches the behavior of Unix and Windows with respect to deadlines

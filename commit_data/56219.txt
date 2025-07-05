@@ -20,10 +20,209 @@ Date:   Mon Apr 17 14:41:10 2023 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_ppc64x.h       | 20 ++++++++++++++++++--
  src/runtime/asm_ppc64x.s       | 21 +++------------------
  src/runtime/rt0_aix_ppc64.s    | 17 ++++-------------
  src/runtime/rt0_linux_ppc64.s  | 13 +++----------
  src/runtime/sys_linux_ppc64x.s | 23 ++++++-----------------
  5 files changed, 34 insertions(+), 60 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.h b/src/runtime/asm_ppc64x.h
+index cce5537a9c..65870fe020 100644
+--- a/src/runtime/asm_ppc64x.h
++++ b/src/runtime/asm_ppc64x.h
+@@ -24,16 +24,32 @@
+ 
+ #define FIXED_FRAME 32
+ 
+-// aix/ppc64 uses XCOFF which has function descriptors.
++// aix/ppc64 uses XCOFF which uses function descriptors.
++// AIX cannot perform the TOC relocation in a text section.
++// Therefore, these descriptors must live in a data section.
+ #ifdef GOOS_aix
+ #ifdef GOARCH_ppc64
+ #define GO_PPC64X_HAS_FUNCDESC
++#define DEFINE_PPC64X_FUNCDESC(funcname, localfuncname)	\
++	DATA	funcname+0(SB)/8, $localfuncname(SB) 	\
++	DATA	funcname+8(SB)/8, $TOC(SB)		\
++	DATA	funcname+16(SB)/8, $0			\
++	GLOBL	funcname(SB), NOPTR, $24
+ #endif
+ #endif
+ 
+-// linux/ppc64 uses ELFv1 which has function descriptors.
++// linux/ppc64 uses ELFv1 which uses function descriptors.
++// These must also look like ABI0 functions on linux/ppc64
++// to work with abi.FuncPCABI0(sigtramp) in os_linux.go.
++// Only static codegen is supported on linux/ppc64, so TOC
++// is not needed.
+ #ifdef GOOS_linux
+ #ifdef GOARCH_ppc64
+ #define GO_PPC64X_HAS_FUNCDESC
++#define DEFINE_PPC64X_FUNCDESC(funcname, localfuncname)	\
++	TEXT	funcname(SB),NOSPLIT|NOFRAME,$0		\
++		DWORD	$localfuncname(SB)		\
++		DWORD	$0				\
++		DWORD	$0
+ #endif
+ #endif
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 96a25f4047..67b0eba87a 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -744,26 +744,11 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
+ 	BL	runtime·save_g(SB)
+ 	RET
+ 
+-#ifdef GOARCH_ppc64
+-#ifdef GOOS_aix
+-DATA    setg_gcc<>+0(SB)/8, $_setg_gcc<>(SB)
+-DATA    setg_gcc<>+8(SB)/8, $TOC(SB)
+-DATA    setg_gcc<>+16(SB)/8, $0
+-GLOBL   setg_gcc<>(SB), NOPTR, $24
++#ifdef GO_PPC64X_HAS_FUNCDESC
++DEFINE_PPC64X_FUNCDESC(setg_gcc<>, _setg_gcc<>)
++TEXT _setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+ #else
+ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+-	DWORD	$_setg_gcc<>(SB)
+-	DWORD	$0
+-	DWORD	$0
+-#endif
+-#endif
+-
+-// void setg_gcc(G*); set g in C TLS.
+-// Must obey the gcc calling convention.
+-#ifdef GOARCH_ppc64le
+-TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+-#else
+-TEXT _setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+ #endif
+ 	// The standard prologue clobbers R31, which is callee-save in
+ 	// the C ABI, so we have to use $-8-0 and save LR ourselves.
+diff --git a/src/runtime/rt0_aix_ppc64.s b/src/runtime/rt0_aix_ppc64.s
+index 86fda56899..1670a80986 100644
+--- a/src/runtime/rt0_aix_ppc64.s
++++ b/src/runtime/rt0_aix_ppc64.s
+@@ -3,13 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "asm_ppc64x.h"
+ 
+ // _rt0_ppc64_aix is a function descriptor of the entrypoint function
+ // __start. This name is needed by cmd/link.
+-DATA	_rt0_ppc64_aix+0(SB)/8, $__start<>(SB)
+-DATA	_rt0_ppc64_aix+8(SB)/8, $TOC(SB)
+-GLOBL	_rt0_ppc64_aix(SB), NOPTR, $16
+-
++DEFINE_PPC64X_FUNCDESC(_rt0_ppc64_aix, __start<>)
+ 
+ // The starting function must return in the loader to
+ // initialise some libraries, especially libthread which
+@@ -37,11 +35,7 @@ TEXT __start<>(SB),NOSPLIT,$-8
+ 	BL _main(SB)
+ 
+ 
+-DATA	main+0(SB)/8, $_main(SB)
+-DATA	main+8(SB)/8, $TOC(SB)
+-DATA	main+16(SB)/8, $0
+-GLOBL	main(SB), NOPTR, $24
+-
++DEFINE_PPC64X_FUNCDESC(main, _main)
+ TEXT _main(SB),NOSPLIT,$-8
+ 	MOVD $runtime·rt0_go(SB), R12
+ 	MOVD R12, CTR
+@@ -181,10 +175,7 @@ done:
+ 	MOVD	R0, LR
+ 	RET
+ 
+-DATA	_rt0_ppc64_aix_lib_go+0(SB)/8, $__rt0_ppc64_aix_lib_go(SB)
+-DATA	_rt0_ppc64_aix_lib_go+8(SB)/8, $TOC(SB)
+-DATA	_rt0_ppc64_aix_lib_go+16(SB)/8, $0
+-GLOBL	_rt0_ppc64_aix_lib_go(SB), NOPTR, $24
++DEFINE_PPC64X_FUNCDESC(_rt0_ppc64_aix_lib_go, __rt0_ppc64_aix_lib_go)
+ 
+ TEXT __rt0_ppc64_aix_lib_go(SB),NOSPLIT,$0
+ 	MOVD	_rt0_ppc64_aix_lib_argc<>(SB), R3
+diff --git a/src/runtime/rt0_linux_ppc64.s b/src/runtime/rt0_linux_ppc64.s
+index c9300a9caf..f527170ed2 100644
+--- a/src/runtime/rt0_linux_ppc64.s
++++ b/src/runtime/rt0_linux_ppc64.s
+@@ -3,17 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "asm_ppc64x.h"
+ 
+-// actually a function descriptor for _main<>(SB)
+-TEXT _rt0_ppc64_linux(SB),NOSPLIT,$0
+-	DWORD $_main<>(SB)
+-	DWORD $0
+-	DWORD $0
+-
+-TEXT main(SB),NOSPLIT,$0
+-	DWORD $_main<>(SB)
+-	DWORD $0
+-	DWORD $0
++DEFINE_PPC64X_FUNCDESC(_rt0_ppc64_linux, _main<>)
++DEFINE_PPC64X_FUNCDESC(main, _main<>)
+ 
+ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// In a statically linked binary, the stack contains argc,
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 32db3c6b50..d105585b7e 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -447,7 +447,12 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVD	24(R1), R2
+ 	RET
+ 
+-#ifdef GOARCH_ppc64le
++#ifdef GO_PPC64X_HAS_FUNCDESC
++DEFINE_PPC64X_FUNCDESC(runtime·sigtramp, sigtramp<>)
++// cgo isn't supported on ppc64, but we need to supply a cgoSigTramp function.
++DEFINE_PPC64X_FUNCDESC(runtime·cgoSigtramp, sigtramp<>)
++TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
++#else
+ // ppc64le doesn't need function descriptors
+ // Save callee-save registers in the case of signal forwarding.
+ // Same as on ARM64 https://golang.org/issue/31827 .
+@@ -456,13 +461,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ // a function pointer) as R2 may not be preserved when calling this
+ // function. In those cases, the caller preserves their R2.
+ TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
+-#else
+-// function descriptor for the real sigtramp
+-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
+-	DWORD	$sigtramp<>(SB)
+-	DWORD	$0
+-	DWORD	$0
+-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ #endif
+ 	// This is called with ELF calling conventions. Convert to Go.
+ 	// Allocate space for argument storage to call runtime.sigtrampgo.
+@@ -491,7 +489,6 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	RET
+ 
+ #ifdef GOARCH_ppc64le
+-// ppc64le doesn't need function descriptors
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+ 	// The stack unwinder, presumably written in C, may not be able to
+ 	// handle Go frame correctly. So, this function is NOFRAME, and we
+@@ -586,14 +583,6 @@ sigtrampnog:
+ 	MOVD	R12, CTR
+ 	MOVD	R10, LR // restore LR
+ 	JMP	(CTR)
+-#else
+-// function descriptor for the real sigtramp
+-TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+-	DWORD	$cgoSigtramp<>(SB)
+-	DWORD	$0
+-	DWORD	$0
+-TEXT cgoSigtramp<>(SB),NOSPLIT,$0
+-	JMP	sigtramp<>(SB)
+ #endif
+ 
+ // Used by cgoSigtramp to inspect without clobbering R30/R31 via runtime.load_g.

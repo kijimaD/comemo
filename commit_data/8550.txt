@@ -19,7 +19,58 @@ Date:   Tue May 31 11:40:11 2011 -0400
     R=rsc, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/4557058
-
+---
  src/pkg/net/iprawsock.go |  2 +-
  src/pkg/net/ipsock.go    | 19 +------------------
  2 files changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index a811027b1c..357bc91cfe 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -253,7 +253,7 @@ func hostToIP(net, host string) (ip IP, err os.Error) {
+ 			err = err1
+ 			goto Error
+ 		}
+-		addr = firstFavoriteAddr(filter, addrs)
++		addr = firstSupportedAddr(filter, addrs)
+ 		if addr == nil {
+ 			// should not happen
+ 			err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 0b8c388f15..d44a88c965 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -98,23 +98,6 @@ func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
+ 	return syscall.AF_INET6
+ }
+ 
+-func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
+-	if filter == anyaddr {
+-		// We'll take any IP address, but since the dialing code
+-		// does not yet try multiple addresses, prefer to use
+-		// an IPv4 address if possible.  This is especially relevant
+-		// if localhost resolves to [ipv6-localhost, ipv4-localhost].
+-		// Too much code assumes localhost == ipv4-localhost.
+-		addr = firstSupportedAddr(ipv4only, addrs)
+-		if addr == nil {
+-			addr = firstSupportedAddr(anyaddr, addrs)
+-		}
+-	} else {
+-		addr = firstSupportedAddr(filter, addrs)
+-	}
+-	return
+-}
+-
+ func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
+ 	for _, s := range addrs {
+ 		if addr := filter(ParseIP(s)); addr != nil {
+@@ -293,7 +276,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 				err = err1
+ 				goto Error
+ 			}
+-			addr = firstFavoriteAddr(filter, addrs)
++			addr = firstSupportedAddr(filter, addrs)
+ 			if addr == nil {
+ 				// should not happen
+ 				err = &AddrError{"LookupHost returned no suitable address", addrs[0]}

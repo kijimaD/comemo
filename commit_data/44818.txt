@@ -11,6 +11,22 @@ Date:   Wed Sep 2 22:10:15 2020 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 590c1a16de..5dce533e4b 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1641,10 +1641,3 @@ func mkname(sym *types.Sym) *Node {
+ 	}
+ 	return n
+ }
+-
+-func unparen(x *Node) *Node {
+-	for x.Op == OPAREN {
+-		x = x.Left
+-	}
+-	return x
+-}

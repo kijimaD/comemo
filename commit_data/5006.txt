@@ -7,7 +7,138 @@ Date:   Sun Mar 7 12:41:49 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/247041
-
+---
  src/pkg/regexp/all_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/regexp/regexp.go   | 20 ++++++++++++++++++--
  2 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 5b4d0ec126..c847bcd23b 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -5,9 +5,12 @@
+ package regexp
+ 
+ import (
++	"bytes"
++	"io"
+ 	"os"
+ 	"strings"
+ 	"testing"
++	"utf8"
+ )
+ 
+ var good_re = []string{
+@@ -302,6 +305,18 @@ var replaceTests = []ReplaceTest{
+ 	ReplaceTest{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
+ }
+ 
++type ReplaceFuncTest struct {
++	pattern       string
++	replacement   func(string) string
++	input, output string
++}
++
++var replaceFuncTests = []ReplaceFuncTest{
++	ReplaceFuncTest{"[a-c]", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxayxbyxcydef"},
++	ReplaceFuncTest{"[a-c]+", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxabcydef"},
++	ReplaceFuncTest{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
++}
++
+ func TestReplaceAll(t *testing.T) {
+ 	for _, tc := range replaceTests {
+ 		re, err := Compile(tc.pattern)
+@@ -323,6 +338,27 @@ func TestReplaceAll(t *testing.T) {
+ 	}
+ }
+ 
++func TestReplaceAllFunc(t *testing.T) {
++	for _, tc := range replaceFuncTests {
++		re, err := Compile(tc.pattern)
++		if err != nil {
++			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
++			continue
++		}
++		actual := re.ReplaceAllStringFunc(tc.input, tc.replacement)
++		if actual != tc.output {
++			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
++				tc.pattern, tc.input, tc.replacement, actual, tc.output)
++		}
++		// now try bytes
++		actual = string(re.ReplaceAllFunc([]byte(tc.input), func(s []byte) []byte { return []byte(tc.replacement(string(s))) }))
++		if actual != tc.output {
++			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
++				tc.pattern, tc.input, tc.replacement, actual, tc.output)
++		}
++	}
++}
++
+ type QuoteMetaTest struct {
+ 	pattern, output string
+ }
+@@ -510,3 +546,13 @@ func BenchmarkNotLiteral(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkReplaceAll(b *testing.B) {
++	x := "abcdefghijklmnopqrstuvwxyz"
++	b.StopTimer()
++	re, _ := Compile("[cjrw]")
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		re.ReplaceAllString(x, "")
++	}
++}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index b3525396c9..216e80516c 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -1006,6 +1006,14 @@ func Match(pattern string, b []byte) (matched bool, error os.Error) {
+ // have been replaced by repl.  No support is provided for expressions
+ // (e.g. \1 or $1) in the replacement string.
+ func (re *Regexp) ReplaceAllString(src, repl string) string {
++	return re.ReplaceAllStringFunc(src, func(string) string { return repl })
++}
++
++// ReplaceAllStringFunc returns a copy of src in which all matches for the
++// Regexp have been replaced by the return value of of function repl (whose
++// first argument is the matched string).  No support is provided for
++// expressions (e.g. \1 or $1) in the replacement string.
++func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
+ 	lastMatchEnd := 0 // end position of the most recent match
+ 	searchPos := 0    // position where we next look for a match
+ 	buf := new(bytes.Buffer)
+@@ -1023,7 +1031,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 		// (Otherwise, we get double replacement for patterns that
+ 		// match both empty and nonempty strings.)
+ 		if a[1] > lastMatchEnd || a[0] == 0 {
+-			io.WriteString(buf, repl)
++			io.WriteString(buf, repl(src[a[0]:a[1]]))
+ 		}
+ 		lastMatchEnd = a[1]
+ 
+@@ -1050,6 +1058,14 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ // have been replaced by repl.  No support is provided for expressions
+ // (e.g. \1 or $1) in the replacement text.
+ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
++	return re.ReplaceAllFunc(src, func([]byte) []byte { return repl })
++}
++
++// ReplaceAllFunc returns a copy of src in which all matches for the
++// Regexp have been replaced by the return value of of function repl (whose
++// first argument is the matched []byte).  No support is provided for
++// expressions (e.g. \1 or $1) in the replacement string.
++func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
+ 	lastMatchEnd := 0 // end position of the most recent match
+ 	searchPos := 0    // position where we next look for a match
+ 	buf := new(bytes.Buffer)
+@@ -1067,7 +1083,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+ 		// (Otherwise, we get double replacement for patterns that
+ 		// match both empty and nonempty strings.)
+ 		if a[1] > lastMatchEnd || a[0] == 0 {
+-			buf.Write(repl)
++			buf.Write(repl(src[a[0]:a[1]]))
+ 		}
+ 		lastMatchEnd = a[1]
+ 

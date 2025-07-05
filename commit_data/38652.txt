@@ -18,7 +18,61 @@ Date:   Mon Nov 12 16:04:07 2018 -0500
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/common.go   |  8 ++++----
  src/crypto/tls/tls_test.go | 22 ++++++++++++++++++++++
  2 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 25e4a7d886..3ba3aac86b 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -871,14 +871,14 @@ func (c *Config) BuildNameToCertificate() {
+ 	c.NameToCertificate = make(map[string]*Certificate)
+ 	for i := range c.Certificates {
+ 		cert := &c.Certificates[i]
+-		if cert.Leaf == nil {
+-			x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
++		x509Cert := cert.Leaf
++		if x509Cert == nil {
++			var err error
++			x509Cert, err = x509.ParseCertificate(cert.Certificate[0])
+ 			if err != nil {
+ 				continue
+ 			}
+-			cert.Leaf = x509Cert
+ 		}
+-		x509Cert := cert.Leaf
+ 		if len(x509Cert.Subject.CommonName) > 0 {
+ 			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
+ 		}
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index e23068ce43..00bb6e4ef3 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1087,3 +1087,25 @@ func TestEscapeRoute(t *testing.T) {
+ 		t.Errorf("Client negotiated version %x, expected %x", cs.Version, VersionTLS12)
+ 	}
+ }
++
++// Issue 28744: Ensure that we don't modify memory
++// that Config doesn't own such as Certificates.
++func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
++	c0 := Certificate{
++		Certificate: [][]byte{testRSACertificate},
++		PrivateKey:  testRSAPrivateKey,
++	}
++	c1 := Certificate{
++		Certificate: [][]byte{testSNICertificate},
++		PrivateKey:  testRSAPrivateKey,
++	}
++	config := testConfig.Clone()
++	config.Certificates = []Certificate{c0, c1}
++
++	config.BuildNameToCertificate()
++	got := config.Certificates
++	want := []Certificate{c0, c1}
++	if !reflect.DeepEqual(got, want) {
++		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
++	}
++}

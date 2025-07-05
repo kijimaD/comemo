@@ -14,9 +14,156 @@ Date:   Tue Oct 29 20:42:00 2019 -0400
     Change-Id: I78adbc5fd70ca245da390f6266623385b45c9dfc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204106
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  2 ++
  src/runtime/mkpreempt.go                     | 35 ++++++++++++++++++++-
  src/runtime/preempt_s390x.s                  | 47 ++++++++++++++++++++++++++--
  src/runtime/signal_linux_s390x.go            | 14 +++++++--
  4 files changed, 93 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 4adaeae242..dc9d328641 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -83,6 +83,8 @@ var regNamesS390X = []string{
+ 	"F14",
+ 	"F15",
+ 
++	// If you add registers, update asyncPreempt in runtime.
++
+ 	//pseudo-registers
+ 	"SB",
+ }
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 76637e8a01..2f022971fd 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -83,7 +83,7 @@ var arches = map[string]func(){
+ 	"mips64x": notImplemented,
+ 	"mipsx":   notImplemented,
+ 	"ppc64x":  notImplemented,
+-	"s390x":   notImplemented,
++	"s390x":   genS390X,
+ 	"wasm":    genWasm,
+ }
+ var beLe = map[string]bool{"mips64x": true, "mipsx": true, "ppc64x": true}
+@@ -356,6 +356,39 @@ func genARM64() {
+ 	p("JMP (R27)")
+ }
+ 
++func genS390X() {
++	// Add integer registers R0-R12
++	// R13 (g), R14 (LR), R15 (SP) are special, and not saved here.
++	// Saving R10 (REGTMP) is not necessary, but it is saved anyway.
++	var l = layout{sp: "R15", stack: 16} // add slot to save PC of interrupted instruction and flags
++	l.addSpecial(
++		"STMG R0, R12, %d(R15)",
++		"LMG %d(R15), R0, R12",
++		13*8)
++	// Add floating point registers F0-F31.
++	for i := 0; i <= 15; i++ {
++		reg := fmt.Sprintf("F%d", i)
++		l.add("FMOVD", reg, 8)
++	}
++
++	// allocate frame, save PC of interrupted instruction (in LR) and flags (condition code)
++	p("IPM R10") // save flags upfront, as ADD will clobber flags
++	p("MOVD R14, -%d(R15)", l.stack)
++	p("ADD $-%d, R15", l.stack)
++	p("MOVW R10, 8(R15)") // save flags
++
++	l.save()
++	p("CALL ·asyncPreempt2(SB)")
++	l.restore()
++
++	p("MOVD %d(R15), R14", l.stack)    // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
++	p("ADD $%d, R15", l.stack+8)       // pop frame (including the space pushed by sigctxt.pushCall)
++	p("MOVWZ -%d(R15), R10", l.stack)  // load flags to REGTMP
++	p("TMLH R10, $(3<<12)")            // restore flags
++	p("MOVD -%d(R15), R10", l.stack+8) // load PC to REGTMP
++	p("JMP (R10)")
++}
++
+ func genWasm() {
+ 	p("// No async preemption on wasm")
+ 	p("UNDEF")
+diff --git a/src/runtime/preempt_s390x.s b/src/runtime/preempt_s390x.s
+index 5697268ce1..ca9e47cde1 100644
+--- a/src/runtime/preempt_s390x.s
++++ b/src/runtime/preempt_s390x.s
+@@ -4,5 +4,48 @@
+ #include "textflag.h"
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+-	// Not implemented yet
+-	JMP ·abort(SB)
++	IPM R10
++	MOVD R14, -248(R15)
++	ADD $-248, R15
++	MOVW R10, 8(R15)
++	STMG R0, R12, 16(R15)
++	FMOVD F0, 120(R15)
++	FMOVD F1, 128(R15)
++	FMOVD F2, 136(R15)
++	FMOVD F3, 144(R15)
++	FMOVD F4, 152(R15)
++	FMOVD F5, 160(R15)
++	FMOVD F6, 168(R15)
++	FMOVD F7, 176(R15)
++	FMOVD F8, 184(R15)
++	FMOVD F9, 192(R15)
++	FMOVD F10, 200(R15)
++	FMOVD F11, 208(R15)
++	FMOVD F12, 216(R15)
++	FMOVD F13, 224(R15)
++	FMOVD F14, 232(R15)
++	FMOVD F15, 240(R15)
++	CALL ·asyncPreempt2(SB)
++	FMOVD 240(R15), F15
++	FMOVD 232(R15), F14
++	FMOVD 224(R15), F13
++	FMOVD 216(R15), F12
++	FMOVD 208(R15), F11
++	FMOVD 200(R15), F10
++	FMOVD 192(R15), F9
++	FMOVD 184(R15), F8
++	FMOVD 176(R15), F7
++	FMOVD 168(R15), F6
++	FMOVD 160(R15), F5
++	FMOVD 152(R15), F4
++	FMOVD 144(R15), F3
++	FMOVD 136(R15), F2
++	FMOVD 128(R15), F1
++	FMOVD 120(R15), F0
++	LMG 16(R15), R0, R12
++	MOVD 248(R15), R14
++	ADD $256, R15
++	MOVWZ -248(R15), R10
++	TMLH R10, $(3<<12)
++	MOVD -256(R15), R10
++	JMP (R10)
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 390ff5db48..424dc59c9e 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -110,8 +110,18 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = false
++const pushCallSupported = true
+ 
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+-	throw("not implemented")
++	// Push the LR to stack, as we'll clobber it in order to
++	// push the call. The function being pushed is responsible
++	// for restoring the LR and setting the SP back.
++	// This extra slot is known to gentraceback.
++	sp := c.sp() - 8
++	c.set_sp(sp)
++	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
++	// Set up PC and LR to pretend the function being signaled
++	// calls targetPC at the faulting PC.
++	c.set_link(c.pc())
++	c.set_pc(uint64(targetPC))
+ }

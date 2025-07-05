@@ -19,6 +19,33 @@ Date:   Tue Nov 21 23:57:36 2023 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e760572906..7a2283e360 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2428,8 +2428,20 @@ func dropm() {
+ 	// Flush all the M's buffers. This is necessary because the M might
+ 	// be used on a different thread with a different procid, so we have
+ 	// to make sure we don't write into the same buffer.
+-	if traceEnabled() || traceShuttingDown() {
++	//
++	// N.B. traceThreadDestroy is a no-op in the old tracer, so avoid the
++	// unnecessary acquire/release of the lock.
++	if goexperiment.ExecTracer2 && (traceEnabled() || traceShuttingDown()) {
++		// Acquire sched.lock across thread destruction. One of the invariants of the tracer
++		// is that a thread cannot disappear from the tracer's view (allm or freem) without
++		// it noticing, so it requires that sched.lock be held over traceThreadDestroy.
++		//
++		// This isn't strictly necessary in this case, because this thread never leaves allm,
++		// but the critical section is short and dropm is rare on pthread platforms, so just
++		// take the lock and play it safe. traceThreadDestroy also asserts that the lock is held.
++		lock(&sched.lock)
+ 		traceThreadDestroy(mp)
++		unlock(&sched.lock)
+ 	}
+ 	mp.isExtraInSig = false
+ 

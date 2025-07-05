@@ -12,6 +12,20 @@ Date:   Tue Mar 2 06:10:58 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297769
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: eric fang <eric.fang@arm.com>
-
+---
  src/cmd/compile/internal/ssagen/pgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 9b81d14f7e..b675d1c876 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -138,7 +138,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		} else {
+ 			lastHasPtr = false
+ 		}
+-		if Arch.LinkArch.InFamily(sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
++		if Arch.LinkArch.InFamily(sys.ARM, sys.ARM64, sys.PPC64) {
+ 			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
+ 		}
+ 		n.SetFrameOffset(-s.stksize)

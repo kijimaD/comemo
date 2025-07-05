@@ -20,8 +20,97 @@ Date:   Thu Nov 9 20:14:47 2017 -0800
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/decode_test.go | 19 +++++++++++++++++++
  src/encoding/json/encode.go      | 13 ++++++++++---
  src/encoding/json/encode_test.go |  7 ++++---
  3 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index fc546bf2a7..27ceee471a 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -195,6 +195,11 @@ type embed struct {
+ 	Q int
+ }
+ 
++type Issue21357 struct {
++	*embed
++	R int
++}
++
+ type Loop struct {
+ 	Loop1 int `json:",omitempty"`
+ 	Loop2 int `json:",omitempty"`
+@@ -866,6 +871,20 @@ var unmarshalTests = []unmarshalTest{
+ 		err: fmt.Errorf("json: unknown field \"extra\""),
+ 		disallowUnknownFields: true,
+ 	},
++
++	// Issue 21357.
++	// Ignore any embedded fields that are pointers to unexported structs.
++	{
++		in:  `{"Q":1,"R":2}`,
++		ptr: new(Issue21357),
++		out: Issue21357{R: 2},
++	},
++	{
++		in:  `{"Q":1,"R":2}`,
++		ptr: new(Issue21357),
++		err: fmt.Errorf("json: unknown field \"Q\""),
++		disallowUnknownFields: true,
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 317a5a940d..66d1a183b0 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1094,11 +1094,18 @@ func typeFields(t reflect.Type) []field {
+ 				isUnexported := sf.PkgPath != ""
+ 				if sf.Anonymous {
+ 					t := sf.Type
+-					if t.Kind() == reflect.Ptr {
++					isPointer := t.Kind() == reflect.Ptr
++					if isPointer {
+ 						t = t.Elem()
+ 					}
+-					if isUnexported && t.Kind() != reflect.Struct {
+-						// Ignore embedded fields of unexported non-struct types.
++					isStruct := t.Kind() == reflect.Struct
++					if isUnexported && (!isStruct || isPointer) {
++						// Ignore embedded fields of unexported non-struct types
++						// or pointers to unexported struct types.
++						//
++						// The latter is forbidden because unmarshal is unable
++						// to assign a new struct to the unexported field.
++						// See https://golang.org/issue/21357
+ 						continue
+ 					}
+ 					// Do not ignore embedded fields of unexported struct types
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 0f194e13d2..df7338c98d 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -364,8 +364,9 @@ func TestAnonymousFields(t *testing.T) {
+ 		want: `{"X":2,"Y":4}`,
+ 	}, {
+ 		// Exported fields of pointers to embedded structs should have their
+-		// exported fields be serialized regardless of whether the struct types
+-		// themselves are exported.
++		// exported fields be serialized only for exported struct types.
++		// Pointers to unexported structs are not allowed since the decoder
++		// is unable to allocate a struct for that field
+ 		label: "EmbeddedStructPointer",
+ 		makeInput: func() interface{} {
+ 			type (
+@@ -378,7 +379,7 @@ func TestAnonymousFields(t *testing.T) {
+ 			)
+ 			return S{&s1{1, 2}, &S2{3, 4}}
+ 		},
+-		want: `{"X":2,"Y":4}`,
++		want: `{"Y":4}`,
+ 	}, {
+ 		// Exported fields on embedded unexported structs at multiple levels
+ 		// of nesting should still be serialized.

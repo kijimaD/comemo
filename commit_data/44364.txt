@@ -15,7 +15,52 @@ Date:   Thu Jun 11 13:30:23 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/transport.go      | 2 ++
  src/net/http/transport_test.go | 6 +++++-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index da86b26106..a41e732d98 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -511,6 +511,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
+ 		}
+ 	}
+ 
++	origReq := req
+ 	req = setupRewindBody(req)
+ 
+ 	if altRT := t.alternateRoundTripper(req); altRT != nil {
+@@ -572,6 +573,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
+ 			resp, err = pconn.roundTrip(treq)
+ 		}
+ 		if err == nil {
++			resp.Request = origReq
+ 			return resp, nil
+ 		}
+ 
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 99056a42d9..31a41f5351 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3511,7 +3511,8 @@ func TestRetryRequestsOnError(t *testing.T) {
+ 
+ 			for i := 0; i < 3; i++ {
+ 				t0 := time.Now()
+-				res, err := c.Do(tc.req())
++				req := tc.req()
++				res, err := c.Do(req)
+ 				if err != nil {
+ 					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
+ 						mu.Lock()
+@@ -3522,6 +3523,9 @@ func TestRetryRequestsOnError(t *testing.T) {
+ 					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
+ 				}
+ 				res.Body.Close()
++				if res.Request != req {
++					t.Errorf("Response.Request != original request; want identical Request")
++				}
+ 			}
+ 
+ 			mu.Lock()

@@ -8,9 +8,117 @@ Date:   Tue Sep 29 16:05:44 2009 -0700
     R=ken
     OCL=35108
     CL=35108
-
+---
  src/cmd/gc/go.y             | 19 +++++++++++++++++--
  src/pkg/reflect/all_test.go | 10 +++++-----
  test/fixedbugs/bug207.go    | 12 ++++++++++++
  test/parentype.go           |  2 --
  4 files changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 9aa2f1ab08..572481309d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -70,7 +70,7 @@
+ %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
+ %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
+ 
+-%type	<node>	convtype dotdotdot
++%type	<node>	convtype dotdotdot littype
+ %type	<node>	indcl interfacetype structtype ptrtype
+ %type	<node>	chantype non_chan_type othertype non_fn_type fntype
+ 
+@@ -862,7 +862,7 @@ pexpr:
+ 		if($2 == LBODY)
+ 			loophack = 1;
+ 	}
+-|	pexpr '{' braced_keyval_list '}'
++|	littype '{' braced_keyval_list '}'
+ 	{
+ 		// composite expression
+ 		$$ = nod(OCOMPLIT, N, $1);
+@@ -870,6 +870,20 @@ pexpr:
+ 	}
+ |	fnliteral
+ 
++littype:
++	name
++|	pexpr '.' sym
++	{
++		if($1->op == OPACK) {
++			Sym *s;
++			s = restrictlookup($3->name, $1->sym->name);
++			$1->used = 1;
++			$$ = oldname(s);
++			break;
++		}
++		$$ = nod(OXDOT, $1, newname($3));
++	}
++
+ expr_or_type:
+ 	expr
+ |	non_expr_type	%prec PreferToRightParen
+@@ -942,6 +956,7 @@ convtype:
+ 	}
+ |	structtype
+ 
++
+ /*
+  * to avoid parsing conflicts, type is split into
+  *	channel types
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 17a526c6fc..9fad3947aa 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -84,15 +84,15 @@ var valueTests = []pair {
+ 	pair { (bool)(false), "true" },
+ 	pair { (*int8)(nil), "*int8(0)" },
+ 	pair { (**int8)(nil), "**int8(0)" },
+-	pair { ([5]int32){}, "[5]int32{0, 0, 0, 0, 0}" },
++	pair { [5]int32{}, "[5]int32{0, 0, 0, 0, 0}" },
+ 	pair { (**integer)(nil), "**reflect_test.integer(0)" },
+ 	pair { (map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}" },
+ 	pair { (chan<-string)(nil), "chan<- string" },
+-	pair { (struct {c chan *int32; d float32}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
++	pair { struct {c chan *int32; d float32}{}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
+ 	pair { (func(a int8, b int32))(nil), "func(int8, int32)(0)" },
+-	pair { (struct {c func(chan *integer, *int8)}){}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}" },
+-	pair { (struct {a int8; b int32}){}, "struct { a int8; b int32 }{0, 0}" },
+-	pair { (struct {a int8; b int8; c int32}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
++	pair { struct {c func(chan *integer, *int8)}{}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}" },
++	pair { struct {a int8; b int32}{}, "struct { a int8; b int32 }{0, 0}" },
++	pair { struct {a int8; b int8; c int32}{}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
+ }
+ 
+ func testType(t *testing.T, i int, typ Type, want string) {
+diff --git a/test/fixedbugs/bug207.go b/test/fixedbugs/bug207.go
+new file mode 100644
+index 0000000000..de68cfe66b
+--- /dev/null
++++ b/test/fixedbugs/bug207.go
+@@ -0,0 +1,12 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var _ = []int{}
++var _ = ([]int){}	// ERROR "syntax"
++var _ = [...]int{}
++var _ = ([...]int){}	// ERROR "syntax"
+diff --git a/test/parentype.go b/test/parentype.go
+index e534cb4070..dd9c4891c9 100644
+--- a/test/parentype.go
++++ b/test/parentype.go
+@@ -10,8 +10,6 @@ func f(interface{})
+ func g() {}
+ func main() {
+ 	f(map[string]string{"a":"b","c":"d"});
+-	f((map[string]string){"a":"b","c":"d"});
+-	f((map[string]func()){"a":g,"c":g});
+ 	f(make(chan(<-chan int)));
+ 	f(make(chan<-(chan int)));
+ }

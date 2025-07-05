@@ -8,7 +8,7 @@ Date:   Tue Mar 5 14:31:17 2013 -0800
     R=golang-dev, rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/7479044
-
+---
  src/cmd/vet/doc.go       |  6 ++++++
  src/cmd/vet/main.go      | 15 ++++++++++-----
  src/cmd/vet/method.go    |  2 +-
@@ -16,3 +16,130 @@ Date:   Tue Mar 5 14:31:17 2013 -0800
  src/cmd/vet/structtag.go |  4 ++--
  src/cmd/vet/taglit.go    |  2 +-
  6 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index f164eaca2a..eb1e436f0b 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -9,6 +9,12 @@ calls whose arguments do not align with the format string. Vet uses heuristics
+ that do not guarantee all reports are genuine problems, but it can find errors
+ not caught by the compilers.
+ 
++Its exit code is 2 for erroneous invocation of the tool, 1 if a
++problem was reported, and 0 otherwise. Note that the tool does not
++check every possible problem and depends on unreliable heuristics
++so it should be used as guidance only, not as a firm indicator of
++program correctness.
++
+ By default all checks are performed, but if explicit flags are provided, only
+ those identified by the flags are performed.
+ 
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 20f6cca1ab..b354d8d77d 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -186,17 +186,21 @@ func doPackage(names []string) {
+ 	for _, name := range names {
+ 		f, err := os.Open(name)
+ 		if err != nil {
+-			errorf("%s: %s", name, err)
++			// Warn but continue to next package.
++			warnf("%s: %s", name, err)
++			return
+ 		}
+ 		defer f.Close()
+ 		data, err := ioutil.ReadAll(f)
+ 		if err != nil {
+-			errorf("%s: %s", name, err)
++			warnf("%s: %s", name, err)
++			return
+ 		}
+ 		checkBuildTag(name, data)
+ 		parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+ 		if err != nil {
+-			errorf("%s: %s", name, err)
++			warnf("%s: %s", name, err)
++			return
+ 		}
+ 		files = append(files, &File{fset: fs, name: name, file: parsedFile})
+ 		astFiles = append(astFiles, parsedFile)
+@@ -229,7 +233,8 @@ func doPackage(names []string) {
+ 
+ func visit(path string, f os.FileInfo, err error) error {
+ 	if err != nil {
+-		errorf("walk error: %s", err)
++		warnf("walk error: %s", err)
++		return err
+ 	}
+ 	// One package per directory. Ignore the files themselves.
+ 	if !f.IsDir() {
+@@ -239,7 +244,7 @@ func visit(path string, f os.FileInfo, err error) error {
+ 	return nil
+ }
+ 
+-// walkDir recursively walks the tree looking for .go files.
++// walkDir recursively walks the tree looking for Go packages.
+ func walkDir(root string) {
+ 	filepath.Walk(root, visit)
+ }
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index bf982dc7ac..8064235f46 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -93,7 +93,7 @@ func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
+ 		actual = strings.TrimPrefix(actual, "func")
+ 		actual = id.Name + actual
+ 
+-		f.Warnf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
++		f.Badf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+ 	}
+ }
+ 
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index fb0fb9f9b7..7bb99b0114 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -366,7 +366,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
+ 		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+ 			if x, ok := sel.X.(*ast.Ident); ok {
+ 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+-					f.Warnf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
++					f.Badf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index 545e420c10..d835788368 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -23,7 +23,7 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+ 
+ 	tag, err := strconv.Unquote(field.Tag.Value)
+ 	if err != nil {
+-		f.Warnf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
++		f.Badf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
+ 		return
+ 	}
+ 
+@@ -31,7 +31,7 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+ 	// new key:value to end and checking that
+ 	// the tag parsing code can find it.
+ 	if reflect.StructTag(tag+` _gofix:"_magic"`).Get("_gofix") != "_magic" {
+-		f.Warnf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
++		f.Badf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
+ 		return
+ 	}
+ }
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index 8ff1a419da..71bd7b71d0 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -64,7 +64,7 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
+ 	// Convert the package name to an import path, and compare to a whitelist.
+ 	path := pkgPath(f, pkg.Name)
+ 	if path == "" {
+-		f.Warnf(c.Pos(), "unresolvable package for %s.%s literal", pkg.Name, s.Sel.Name)
++		f.Badf(c.Pos(), "unresolvable package for %s.%s literal", pkg.Name, s.Sel.Name)
+ 		return
+ 	}
+ 	typeName := path + "." + s.Sel.Name

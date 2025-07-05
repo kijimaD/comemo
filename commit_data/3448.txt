@@ -8,9 +8,147 @@ Date:   Mon Oct 5 21:31:50 2009 -0700
     DELTA=31  (15 added, 3 deleted, 13 changed)
     OCL=35364
     CL=35364
-
+---
  src/cmd/6l/l.h   |  1 -
  src/cmd/6l/obj.c | 24 ++++++++++++++++--------
  src/cmd/8l/l.h   |  1 -
  src/cmd/8l/obj.c | 18 ++++++++++++------
  4 files changed, 28 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 28c37a82c4..c6afa6a323 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -296,7 +296,6 @@ EXTERN	vlong	INITDAT;
+ EXTERN	int32	INITRND;
+ EXTERN	vlong	INITTEXT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+-EXTERN	char*	LIBDIR;
+ EXTERN	Biobuf	bso;
+ EXTERN	int32	bsssize;
+ EXTERN	int	cbc;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 4b40cce617..47cb44f480 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -39,6 +39,8 @@ char	symname[]	= SYMDEF;
+ char	thechar		= '6';
+ char*	thestring 	= "amd64";
+ char*	paramspace	= "FP";
++char*	libdir[16];	// contains "." first, goroot last
++int	nlibdir		= 0;
+ 
+ /*
+  *	-H2 -T4136 -R4096		is plan9 64-bit format
+@@ -96,7 +98,7 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
+-	LIBDIR = nil;
++	libdir[nlibdir++] = ".";	// look in dot first
+ 
+ 	ARGBEGIN {
+ 	default:
+@@ -114,7 +116,11 @@ main(int argc, char *argv[])
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'L':
+-		LIBDIR = EARGF(usage());
++		if(nlibdir >= nelem(libdir)-1) {
++			print("too many -L's: %d\n", nlibdir);
++			usage();
++		}
++		libdir[nlibdir++] = EARGF(usage());
+ 		break;
+ 	case 'T':
+ 		INITTEXT = atolwhex(EARGF(usage()));
+@@ -125,7 +131,6 @@ main(int argc, char *argv[])
+ 	case 'R':
+ 		INITRND = atolwhex(EARGF(usage()));
+ 		break;
+-		break;
+ 	case 'x':	/* produce export table */
+ 		doexp = 1;
+ 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+@@ -146,6 +151,9 @@ main(int argc, char *argv[])
+ 	if(strcmp(goarch, thestring) != 0)
+ 		print("goarch is not known: %s\n", goarch);
+ 
++	// put goroot in the libdir list.
++	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+ 		if(strcmp(goos, "linux") == 0)
+@@ -699,11 +707,11 @@ addlib(char *src, char *obj)
+ 
+ 	if(search) {
+ 		// try dot, -L "libdir", and then goroot.
+-		snprint(pname, sizeof pname, "./%s", name);
+-		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
+-			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
+-		if(access(pname, AEXIST) < 0)
+-			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
++		for(i=0; i<nlibdir; i++) {
++			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
++			if(access(pname, AEXIST) >= 0)
++				break;
++		}
+ 		strcpy(name, pname);
+ 	}
+ 	cleanname(name);
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 1959b2c74d..5b7bcc9296 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -259,7 +259,6 @@ EXTERN	int32	INITDAT;
+ EXTERN	int32	INITRND;
+ EXTERN	int32	INITTEXT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+-EXTERN	char*	LIBDIR;
+ EXTERN	Biobuf	bso;
+ EXTERN	int32	bsssize;
+ EXTERN	int32	casepc;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index aa197be531..565fe765cd 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -42,6 +42,8 @@ char	*noname		= "<none>";
+ char	symname[]	= SYMDEF;
+ char	thechar		= '8';
+ char	*thestring 	= "386";
++char*	libdir[16];	// contains "." first, goroot last
++int	nlibdir		= 0;
+ 
+ /*
+  *	-H0 -T0x40004C -D0x10000000	is garbage unix
+@@ -113,7 +115,11 @@ main(int argc, char *argv[])
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'L':
+-		LIBDIR = EARGF(usage());
++		if(nlibdir >= nelem(libdir)-1) {
++			print("too many -L's: %d\n", nlibdir);
++			usage();
++		}
++		libdir[nlibdir++] = EARGF(usage());
+ 		break;
+ 	case 'T':
+ 		INITTEXT = atolwhex(EARGF(usage()));
+@@ -693,11 +699,11 @@ addlib(char *src, char *obj)
+ 
+ 	if(search) {
+ 		// try dot, -L "libdir", and then goroot.
+-		snprint(pname, sizeof pname, "./%s", name);
+-		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
+-			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
+-		if(access(pname, AEXIST) < 0)
+-			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
++		for(i=0; i<nlibdir; i++) {
++			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
++			if(access(pname, AEXIST) >= 0)
++				break;
++		}
+ 		strcpy(name, pname);
+ 	}
+ 	cleanname(name);

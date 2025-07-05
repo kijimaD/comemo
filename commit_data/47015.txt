@@ -26,6 +26,24 @@ Date:   Fri Feb 19 06:01:25 2021 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/traceback.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index eb185eecd3..53eb689848 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -174,6 +174,12 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// So we don't need to exclude it with the other SP-writing functions.
+ 			flag &^= funcFlag_SPWRITE
+ 		}
++		if frame.pc == pc0 && frame.sp == sp0 && pc0 == gp.syscallpc && sp0 == gp.syscallsp {
++			// Some Syscall functions write to SP, but they do so only after
++			// saving the entry PC/SP using entersyscall.
++			// Since we are using the entry PC/SP, the later SP write doesn't matter.
++			flag &^= funcFlag_SPWRITE
++		}
+ 
+ 		// Found an actual function.
+ 		// Derive frame pointer and link register.

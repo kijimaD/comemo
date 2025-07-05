@@ -14,8 +14,168 @@ Date:   Wed May 19 17:20:45 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os3_solaris.go     |  8 +++++---
  src/runtime/os_solaris.go      |  3 +++
  src/runtime/syscall_solaris.go | 10 ++++++++++
  3 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 39ef831acf..3b1a773ee2 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -172,7 +173,7 @@ func newosproc(mp *m) {
+ 	// Disable signals during create, so that the new thread starts
+ 	// with signals disabled. It will enable them in minit.
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret = pthread_create(&tid, &attr, funcPC(tstart_sysvicall), unsafe.Pointer(mp))
++	ret = pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret != 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+@@ -215,7 +216,7 @@ func miniterrno()
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+-	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
++	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
+ 
+ 	minitSignals()
+ 
+@@ -242,7 +243,7 @@ func setsig(i uint32, fn uintptr) {
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+-		fn = funcPC(sigtramp)
++		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	*((*uintptr)(unsafe.Pointer(&sa._funcptr))) = fn
+ 	sigaction(i, &sa, nil)
+@@ -390,6 +391,7 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
+ }
+ 
+ //go:nosplit
++//go:cgo_unsafe_args
+ func doMmap(addr, n, prot, flags, fd, off uintptr) (uintptr, uintptr) {
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(&libc_mmap))
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 89129e5f1a..8ac1b08f69 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -179,6 +179,7 @@ func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:cgo_unsafe_args
+ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+@@ -208,6 +209,7 @@ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+ }
+ 
+ //go:nosplit
++//go:cgo_unsafe_args
+ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+@@ -237,6 +239,7 @@ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+ }
+ 
+ //go:nosplit
++//go:cgo_unsafe_args
+ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 094516927f..15be8e1c61 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -35,6 +35,7 @@ func pipe1() // declared for vet; do NOT call
+ 
+ //go:nosplit
+ //go:linkname syscall_sysvicall6
++//go:cgo_unsafe_args
+ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	call := libcall{
+ 		fn:   fn,
+@@ -49,6 +50,7 @@ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err
+ 
+ //go:nosplit
+ //go:linkname syscall_rawsysvicall6
++//go:cgo_unsafe_args
+ func syscall_rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	call := libcall{
+ 		fn:   fn,
+@@ -104,6 +106,7 @@ func syscall_dup2(oldfd, newfd uintptr) (val, err uintptr) {
+ 
+ //go:nosplit
+ //go:linkname syscall_execve
++//go:cgo_unsafe_args
+ func syscall_execve(path, argv, envp uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_execve)),
+@@ -123,6 +126,7 @@ func syscall_exit(code uintptr) {
+ 
+ //go:nosplit
+ //go:linkname syscall_fcntl
++//go:cgo_unsafe_args
+ func syscall_fcntl(fd, cmd, arg uintptr) (val, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_fcntl)),
+@@ -181,6 +185,7 @@ func syscall_getpid() (pid, err uintptr) {
+ 
+ //go:nosplit
+ //go:linkname syscall_ioctl
++//go:cgo_unsafe_args
+ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_ioctl)),
+@@ -234,6 +239,7 @@ func syscall_setgid(gid uintptr) (err uintptr) {
+ 
+ //go:nosplit
+ //go:linkname syscall_setgroups
++//go:cgo_unsafe_args
+ func syscall_setgroups(ngid, gid uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setgroups)),
+@@ -270,6 +276,7 @@ func syscall_setuid(uid uintptr) (err uintptr) {
+ 
+ //go:nosplit
+ //go:linkname syscall_setpgid
++//go:cgo_unsafe_args
+ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_setpgid)),
+@@ -281,6 +288,7 @@ func syscall_setpgid(pid, pgid uintptr) (err uintptr) {
+ }
+ 
+ //go:linkname syscall_syscall
++//go:cgo_unsafe_args
+ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_syscall)),
+@@ -294,6 +302,7 @@ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ }
+ 
+ //go:linkname syscall_wait4
++//go:cgo_unsafe_args
+ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.Pointer) (wpid int, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_wait4)),
+@@ -308,6 +317,7 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
+ 
+ //go:nosplit
+ //go:linkname syscall_write
++//go:cgo_unsafe_args
+ func syscall_write(fd, buf, nbyte uintptr) (n, err uintptr) {
+ 	call := libcall{
+ 		fn:   uintptr(unsafe.Pointer(&libc_write)),

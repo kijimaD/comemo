@@ -15,8 +15,247 @@ Date:   Tue Apr 25 18:12:18 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../golang_org/x/net/route/message_darwin_test.go  | 31 ++++---
  .../golang_org/x/net/route/message_freebsd_test.go | 94 +++++++++-------------
  src/vendor/golang_org/x/net/route/message_test.go  | 36 +++++----
  3 files changed, 80 insertions(+), 81 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/route/message_darwin_test.go b/src/vendor/golang_org/x/net/route/message_darwin_test.go
+index 3fdd12df55..316aa75071 100644
+--- a/src/vendor/golang_org/x/net/route/message_darwin_test.go
++++ b/src/vendor/golang_org/x/net/route/message_darwin_test.go
+@@ -7,21 +7,28 @@ package route
+ import "testing"
+ 
+ func TestFetchAndParseRIBOnDarwin(t *testing.T) {
+-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+-		for _, typ := range []RIBType{sysNET_RT_FLAGS, sysNET_RT_DUMP2, sysNET_RT_IFLIST2} {
+-			ms, err := fetchAndParseRIB(af, typ)
++	for _, typ := range []RIBType{sysNET_RT_FLAGS, sysNET_RT_DUMP2, sysNET_RT_IFLIST2} {
++		var lastErr error
++		var ms []Message
++		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++			rs, err := fetchAndParseRIB(af, typ)
+ 			if err != nil {
+-				t.Error(err)
++				lastErr = err
+ 				continue
+ 			}
+-			ss, err := msgs(ms).validate()
+-			if err != nil {
+-				t.Errorf("%v %d %v", addrFamily(af), typ, err)
+-				continue
+-			}
+-			for _, s := range ss {
+-				t.Log(s)
+-			}
++			ms = append(ms, rs...)
++		}
++		if len(ms) == 0 && lastErr != nil {
++			t.Error(typ, lastErr)
++			continue
++		}
++		ss, err := msgs(ms).validate()
++		if err != nil {
++			t.Error(typ, err)
++			continue
++		}
++		for _, s := range ss {
++			t.Log(s)
+ 		}
+ 	}
+ }
+diff --git a/src/vendor/golang_org/x/net/route/message_freebsd_test.go b/src/vendor/golang_org/x/net/route/message_freebsd_test.go
+index 785c273f65..db4b56752c 100644
+--- a/src/vendor/golang_org/x/net/route/message_freebsd_test.go
++++ b/src/vendor/golang_org/x/net/route/message_freebsd_test.go
+@@ -6,26 +6,32 @@ package route
+ 
+ import (
+ 	"testing"
+-	"time"
+ 	"unsafe"
+ )
+ 
+ func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
+-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+-		for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
+-			ms, err := fetchAndParseRIB(af, typ)
+-			if err != nil {
+-				t.Error(err)
+-				continue
+-			}
+-			ss, err := msgs(ms).validate()
++	for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
++		var lastErr error
++		var ms []Message
++		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++			rs, err := fetchAndParseRIB(af, typ)
+ 			if err != nil {
+-				t.Errorf("%v %d %v", addrFamily(af), typ, err)
++				lastErr = err
+ 				continue
+ 			}
+-			for _, s := range ss {
+-				t.Log(s)
+-			}
++			ms = append(ms, rs...)
++		}
++		if len(ms) == 0 && lastErr != nil {
++			t.Error(typ, lastErr)
++			continue
++		}
++		ss, err := msgs(ms).validate()
++		if err != nil {
++			t.Error(typ, err)
++			continue
++		}
++		for _, s := range ss {
++			t.Log(s)
+ 		}
+ 	}
+ }
+@@ -48,58 +54,38 @@ func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
+ 		{typ: sysNET_RT_IFLIST},
+ 		{typ: sysNET_RT_IFLISTL},
+ 	}
+-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++	for i := range tests {
+ 		var lastErr error
+-		for i := 0; i < 3; i++ {
+-			for j := range tests {
+-				var err error
+-				if tests[j].b, err = FetchRIB(af, tests[j].typ, 0); err != nil {
+-					lastErr = err
+-					time.Sleep(10 * time.Millisecond)
+-				}
+-			}
+-			if lastErr == nil {
+-				break
++		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++			rs, err := fetchAndParseRIB(af, tests[i].typ)
++			if err != nil {
++				lastErr = err
++				continue
+ 			}
++			tests[i].msgs = append(tests[i].msgs, rs...)
+ 		}
+-		if lastErr != nil {
+-			t.Error(af, lastErr)
++		if len(tests[i].msgs) == 0 && lastErr != nil {
++			t.Error(tests[i].typ, lastErr)
+ 			continue
+ 		}
+-		for i := range tests {
+-			var err error
+-			if tests[i].msgs, err = ParseRIB(tests[i].typ, tests[i].b); err != nil {
+-				lastErr = err
+-				t.Error(af, err)
+-			}
+-		}
++		tests[i].ss, lastErr = msgs(tests[i].msgs).validate()
+ 		if lastErr != nil {
++			t.Error(tests[i].typ, lastErr)
+ 			continue
+ 		}
+-		for i := range tests {
+-			var err error
+-			tests[i].ss, err = msgs(tests[i].msgs).validate()
+-			if err != nil {
+-				lastErr = err
+-				t.Error(af, err)
+-			}
+-			for _, s := range tests[i].ss {
+-				t.Log(s)
+-			}
++		for _, s := range tests[i].ss {
++			t.Log(s)
+ 		}
+-		if lastErr != nil {
++	}
++	for i := len(tests) - 1; i > 0; i-- {
++		if len(tests[i].ss) != len(tests[i-1].ss) {
++			t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
+ 			continue
+ 		}
+-		for i := len(tests) - 1; i > 0; i-- {
+-			if len(tests[i].ss) != len(tests[i-1].ss) {
+-				t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
+-				continue
+-			}
+-			for j, s1 := range tests[i].ss {
+-				s0 := tests[i-1].ss[j]
+-				if s1 != s0 {
+-					t.Errorf("got %s; want %s", s1, s0)
+-				}
++		for j, s1 := range tests[i].ss {
++			s0 := tests[i-1].ss[j]
++			if s1 != s0 {
++				t.Errorf("got %s; want %s", s1, s0)
+ 			}
+ 		}
+ 	}
+diff --git a/src/vendor/golang_org/x/net/route/message_test.go b/src/vendor/golang_org/x/net/route/message_test.go
+index b3bc60c626..e848dabf4f 100644
+--- a/src/vendor/golang_org/x/net/route/message_test.go
++++ b/src/vendor/golang_org/x/net/route/message_test.go
+@@ -14,21 +14,28 @@ import (
+ )
+ 
+ func TestFetchAndParseRIB(t *testing.T) {
+-	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
+-		for _, typ := range []RIBType{sysNET_RT_DUMP, sysNET_RT_IFLIST} {
+-			ms, err := fetchAndParseRIB(af, typ)
++	for _, typ := range []RIBType{sysNET_RT_DUMP, sysNET_RT_IFLIST} {
++		var lastErr error
++		var ms []Message
++		for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++			rs, err := fetchAndParseRIB(af, typ)
+ 			if err != nil {
+-				t.Error(err)
+-				continue
+-			}
+-			ss, err := msgs(ms).validate()
+-			if err != nil {
+-				t.Errorf("%v %d %v", addrFamily(af), typ, err)
++				lastErr = err
+ 				continue
+ 			}
+-			for _, s := range ss {
+-				t.Log(s)
+-			}
++			ms = append(ms, rs...)
++		}
++		if len(ms) == 0 && lastErr != nil {
++			t.Error(typ, lastErr)
++			continue
++		}
++		ss, err := msgs(ms).validate()
++		if err != nil {
++			t.Error(typ, err)
++			continue
++		}
++		for _, s := range ss {
++			t.Log(typ, s)
+ 		}
+ 	}
+ }
+@@ -145,8 +152,8 @@ func TestRouteMessage(t *testing.T) {
+ 
+ 	var ms []RouteMessage
+ 	for _, af := range []int{sysAF_INET, sysAF_INET6} {
+-		rs, err := fetchAndParseRIB(af, sysNET_RT_DUMP)
+-		if err != nil || len(rs) == 0 {
++		if _, err := fetchAndParseRIB(af, sysNET_RT_DUMP); err != nil {
++			t.Log(err)
+ 			continue
+ 		}
+ 		switch af {
+@@ -228,6 +235,5 @@ func TestRouteMessage(t *testing.T) {
+ 		for _, s := range ss {
+ 			t.Log(s)
+ 		}
+-
+ 	}
+ }

@@ -11,7 +11,7 @@ Date:   Mon Apr 20 13:32:40 2015 -0700
     Change-Id: I23913a8f03834640e9795d48318febb3f88c10f9
     Reviewed-on: https://go-review.googlesource.com/9160
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/lex/input.go     |  3 +--
  src/cmd/asm/internal/lex/tokenizer.go |  6 ++----
  src/cmd/internal/asm/lexbody.go       |  4 ++--
@@ -23,3 +23,325 @@ Date:   Mon Apr 20 13:32:40 2015 -0700
  src/cmd/internal/obj/obj.go           | 33 -----------------------------
  src/cmd/internal/obj/util.go          |  4 ++--
  10 files changed, 44 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 730042b149..7e495b8edf 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -13,7 +13,6 @@ import (
+ 	"text/scanner"
+ 
+ 	"cmd/asm/internal/flags"
+-	"cmd/internal/obj"
+ )
+ 
+ // Input is the main input: a stack of readers and some macro definitions.
+@@ -436,7 +435,7 @@ func (in *Input) line() {
+ 	if tok != '\n' {
+ 		in.Error("unexpected token at end of #line: ", tok)
+ 	}
+-	obj.Linklinehist(linkCtxt, histLine, file, line)
++	linkCtxt.LineHist.Update(histLine, file, line)
+ 	in.Stack.SetPos(line, file)
+ }
+ 
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index 28a4b85253..6a4d95491f 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -10,8 +10,6 @@ import (
+ 	"strings"
+ 	"text/scanner"
+ 	"unicode"
+-
+-	"cmd/internal/obj"
+ )
+ 
+ // A Tokenizer is a simple wrapping of text/scanner.Scanner, configured
+@@ -40,7 +38,7 @@ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
+ 	s.Position.Filename = name
+ 	s.IsIdentRune = isIdentRune
+ 	if file != nil {
+-		obj.Linklinehist(linkCtxt, histLine, name, 0)
++		linkCtxt.LineHist.Push(histLine, name)
+ 	}
+ 	return &Tokenizer{
+ 		s:        &s,
+@@ -149,6 +147,6 @@ func (t *Tokenizer) Close() {
+ 	if t.file != nil {
+ 		t.file.Close()
+ 		// It's an open file, so pop the line history.
+-		obj.Linklinehist(linkCtxt, histLine, "<pop>", 0)
++		linkCtxt.LineHist.Pop(histLine)
+ 	}
+ }
+diff --git a/src/cmd/internal/asm/lexbody.go b/src/cmd/internal/asm/lexbody.go
+index b5e5d1eee2..a1519c8566 100644
+--- a/src/cmd/internal/asm/lexbody.go
++++ b/src/cmd/internal/asm/lexbody.go
+@@ -149,7 +149,7 @@ func newfile(s string, f *os.File) {
+ 	}
+ 
+ 	fi.P = nil
+-	obj.Linklinehist(Ctxt, int(Lineno), s, 0)
++	Ctxt.LineHist.Push(int(Lineno), s)
+ }
+ 
+ var thetext *obj.LSym
+@@ -630,7 +630,7 @@ loop:
+ 	n, _ = i.F.Read(i.B[:])
+ 	if n == 0 {
+ 		i.F.Close()
+-		obj.Linklinehist(Ctxt, int(Lineno), "<pop>", 0)
++		Ctxt.LineHist.Pop(int(Lineno))
+ 		goto pop
+ 	}
+ 	fi.P = i.B[1:n]
+diff --git a/src/cmd/internal/asm/macbody.go b/src/cmd/internal/asm/macbody.go
+index c488ea1e56..4565d3a37f 100644
+--- a/src/cmd/internal/asm/macbody.go
++++ b/src/cmd/internal/asm/macbody.go
+@@ -32,7 +32,6 @@ package asm
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/obj"
+ 	"fmt"
+ 	"os"
+ 	"strings"
+@@ -683,7 +682,7 @@ func maclin() {
+ 	}
+ 
+ nn:
+-	obj.Linklinehist(Ctxt, int(Lineno), symb, int(n))
++	Ctxt.LineHist.Update(int(Lineno), symb, int(n))
+ 	return
+ 
+ bad:
+@@ -796,7 +795,7 @@ func macprag() {
+ 		/*
+ 		 * put pragma-line in as a funny history
+ 		 */
+-		obj.Linklinehist(Ctxt, int(Lineno), symb, -1)
++		Ctxt.AddImport(symb)
+ 		return
+ 	}
+ 	if s != nil && s.Name == "pack" {
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 9e2baec220..92c079e154 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -313,7 +313,7 @@ func Main() {
+ 	lexlineno = 1
+ 
+ 	for _, infile = range flag.Args() {
+-		linehist(infile, 0, 0)
++		linehistpush(infile)
+ 
+ 		curio.infile = infile
+ 		var err error
+@@ -344,7 +344,7 @@ func Main() {
+ 			errorexit()
+ 		}
+ 
+-		linehist("<pop>", 0, 0)
++		linehistpop()
+ 		if curio.bin != nil {
+ 			obj.Bterm(curio.bin)
+ 		}
+@@ -763,7 +763,7 @@ func importfile(f *Val, line int) {
+ 
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+-	linehist(file[len(file)-len(path_)-2:], -1, 1) // acts as #pragma lib
++	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
+ 
+ 	/*
+ 	 * position the input right
+@@ -1654,7 +1654,7 @@ func getlinepragma() int {
+ 	}
+ 
+ 	name = text[:linep-1]
+-	linehist(name, int32(n), 0)
++	linehistupdate(name, n)
+ 	return c
+ 
+ out:
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 74415be49a..33741c3baf 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -199,26 +199,32 @@ func Fatal(fmt_ string, args ...interface{}) {
+ 	errorexit()
+ }
+ 
+-func linehist(file string, off int32, relative int) {
++func linehistpragma(file string) {
+ 	if Debug['i'] != 0 {
+-		if file != "" {
+-			if off < 0 {
+-				fmt.Printf("pragma %s", file)
+-			} else if off > 0 {
+-				fmt.Printf("line %s", file)
+-			} else {
+-				fmt.Printf("import %s", file)
+-			}
+-		} else {
+-			fmt.Printf("end of import")
+-		}
+-		fmt.Printf(" at line %v\n", Ctxt.Line(int(lexlineno)))
++		fmt.Printf("pragma %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
++	}
++	Ctxt.AddImport(file)
++}
++
++func linehistpush(file string) {
++	if Debug['i'] != 0 {
++		fmt.Printf("import %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+ 	}
++	Ctxt.LineHist.Push(int(lexlineno), file)
++}
+ 
+-	if off < 0 && file[0] != '/' && relative == 0 {
+-		file = fmt.Sprintf("%s/%s", Ctxt.Pathname, file)
++func linehistpop() {
++	if Debug['i'] != 0 {
++		fmt.Printf("end of import at line %v\n", Ctxt.Line(int(lexlineno)))
++	}
++	Ctxt.LineHist.Pop(int(lexlineno))
++}
++
++func linehistupdate(file string, off int) {
++	if Debug['i'] != 0 {
++		fmt.Printf("line %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+ 	}
+-	obj.Linklinehist(Ctxt, int(lexlineno), file, int(off))
++	Ctxt.LineHist.Update(int(lexlineno), file, off)
+ }
+ 
+ func setlineno(n *Node) int32 {
+@@ -2345,7 +2351,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 	lineno = lexlineno
+ 	if genwrapper_linehistdone == 0 {
+ 		// All the wrappers can share the same linehist entry.
+-		linehist("<autogenerated>", 0, 0)
++		linehistpush("<autogenerated>")
+ 
+ 		genwrapper_linehistdone = 1
+ 	}
+diff --git a/src/cmd/internal/gc/util.go b/src/cmd/internal/gc/util.go
+index 5dc6561b48..c59af0665b 100644
+--- a/src/cmd/internal/gc/util.go
++++ b/src/cmd/internal/gc/util.go
+@@ -1,7 +1,6 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
+@@ -10,7 +9,7 @@ import (
+ )
+ 
+ func (n *Node) Line() string {
+-	return obj.Linklinefmt(Ctxt, int(n.Lineno), false, false)
++	return Ctxt.LineHist.LineString(int(n.Lineno))
+ }
+ 
+ func atoi(s string) int {
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index dde5d64e17..5486f0d648 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -13,13 +13,13 @@ func TestLineHist(t *testing.T) {
+ 	ctxt := new(Link)
+ 	ctxt.Hash = make(map[SymVer]*LSym)
+ 
+-	Linklinehist(ctxt, 1, "a.c", 0)
+-	Linklinehist(ctxt, 3, "a.h", 0)
+-	Linklinehist(ctxt, 5, "<pop>", 0)
+-	Linklinehist(ctxt, 7, "linedir", 2)
+-	Linklinehist(ctxt, 9, "<pop>", 0)
+-	Linklinehist(ctxt, 11, "b.c", 0)
+-	Linklinehist(ctxt, 13, "<pop>", 0)
++	ctxt.LineHist.Push(1, "a.c")
++	ctxt.LineHist.Push(3, "a.h")
++	ctxt.LineHist.Pop(5)
++	ctxt.LineHist.Update(7, "linedir", 2)
++	ctxt.LineHist.Pop(9)
++	ctxt.LineHist.Push(11, "b.c")
++	ctxt.LineHist.Pop(13)
+ 
+ 	var expect = []string{
+ 		0:  "??:0",
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index 39db2396e7..af3290d3a5 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -241,12 +241,6 @@ func (h *LineHist) LineString(lineno int) string {
+ 	return text
+ }
+ 
+-// TODO(rsc): Replace call sites with use of ctxt.LineHist.
+-// Note that all call sites use showAll=false, showFullPath=false.
+-func Linklinefmt(ctxt *Link, lineno int, showAll, showFullPath bool) string {
+-	return ctxt.LineHist.LineString(lineno)
+-}
+-
+ // FileLine returns the file name and line number
+ // at the top of the stack for the given lineno.
+ func (h *LineHist) FileLine(lineno int) (file string, line int) {
+@@ -287,30 +281,3 @@ func linkgetline(ctxt *Link, lineno int32, f **LSym, l *int32) {
+ func Linkprfile(ctxt *Link, line int) {
+ 	fmt.Printf("%s ", ctxt.LineHist.LineString(line))
+ }
+-
+-// Linklinehist pushes, amends, or pops an entry on the line history stack.
+-// If f != "<pop>" and n == 0, the call pushes the start of a new file named f at lineno.
+-// If f != "<pop>" and n > 0, the call amends the top of the stack to record that lineno
+-// now corresponds to f at line n.
+-// If f == "<pop>", the call pops the topmost entry from the stack, picking up
+-// the parent file at the line following the one where the corresponding push occurred.
+-//
+-// If n < 0, linklinehist records f as a package required by the current compilation
+-// (nothing to do with line numbers).
+-//
+-// TODO(rsc): Replace uses with direct calls to ctxt.Hist methods.
+-func Linklinehist(ctxt *Link, lineno int, f string, n int) {
+-	switch {
+-	case n < 0:
+-		ctxt.AddImport(f)
+-
+-	case f == "<pop>":
+-		ctxt.LineHist.Pop(lineno)
+-
+-	case n == 0:
+-		ctxt.LineHist.Push(lineno, f)
+-
+-	default:
+-		ctxt.LineHist.Update(lineno, f, n)
+-	}
+-}
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index ac49543fdf..317ee4f14d 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -241,7 +241,7 @@ func Atoi(s string) int {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return Linklinefmt(p.Ctxt, int(p.Lineno), false, false)
++	return p.Ctxt.LineHist.LineString(int(p.Lineno))
+ }
+ 
+ var armCondCode = []string{
+@@ -340,7 +340,7 @@ func (ctxt *Link) NewProg() *Prog {
+ }
+ 
+ func (ctxt *Link) Line(n int) string {
+-	return Linklinefmt(ctxt, n, false, false)
++	return ctxt.LineHist.LineString(n)
+ }
+ 
+ func Getcallerpc(interface{}) uintptr {

@@ -12,7 +12,381 @@ Date:   Sun Dec 16 20:19:35 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6946057
-
+---
  src/pkg/net/smtp/smtp.go      |  65 ++++++++++++--
  src/pkg/net/smtp/smtp_test.go | 192 +++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 248 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/smtp/smtp.go b/src/pkg/net/smtp/smtp.go
+index 59f6449f0a..4b91778770 100644
+--- a/src/pkg/net/smtp/smtp.go
++++ b/src/pkg/net/smtp/smtp.go
+@@ -13,6 +13,7 @@ package smtp
+ import (
+ 	"crypto/tls"
+ 	"encoding/base64"
++	"errors"
+ 	"io"
+ 	"net"
+ 	"net/textproto"
+@@ -33,7 +34,10 @@ type Client struct {
+ 	// map of supported extensions
+ 	ext map[string]string
+ 	// supported auth mechanisms
+-	auth []string
++	auth       []string
++	localName  string // the name to use in HELO/EHLO
++	didHello   bool   // whether we've said HELO/EHLO
++	helloError error  // the error from the hello
+ }
+ 
+ // Dial returns a new Client connected to an SMTP server at addr.
+@@ -55,12 +59,33 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
+ 		text.Close()
+ 		return nil, err
+ 	}
+-	c := &Client{Text: text, conn: conn, serverName: host}
+-	err = c.ehlo()
+-	if err != nil {
+-		err = c.helo()
++	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
++	return c, nil
++}
++
++// hello runs a hello exchange if needed.
++func (c *Client) hello() error {
++	if !c.didHello {
++		c.didHello = true
++		err := c.ehlo()
++		if err != nil {
++			c.helloError = c.helo()
++		}
++	}
++	return c.helloError
++}
++
++// Hello sends a HELO or EHLO to the server as the given host name.
++// Calling this method is only necessary if the client needs control
++// over the host name used.  The client will introduce itself as "localhost"
++// automatically otherwise.  If Hello is called, it must be called before
++// any of the other methods.
++func (c *Client) Hello(localName string) error {
++	if c.didHello {
++		return errors.New("smtp: Hello called after other methods")
+ 	}
+-	return c, err
++	c.localName = localName
++	return c.hello()
+ }
+ 
+ // cmd is a convenience function that sends a command and returns the response
+@@ -79,14 +104,14 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
+ // server does not support ehlo.
+ func (c *Client) helo() error {
+ 	c.ext = nil
+-	_, _, err := c.cmd(250, "HELO localhost")
++	_, _, err := c.cmd(250, "HELO %s", c.localName)
+ 	return err
+ }
+ 
+ // ehlo sends the EHLO (extended hello) greeting to the server. It
+ // should be the preferred greeting for servers that support it.
+ func (c *Client) ehlo() error {
+-	_, msg, err := c.cmd(250, "EHLO localhost")
++	_, msg, err := c.cmd(250, "EHLO %s", c.localName)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -113,6 +138,9 @@ func (c *Client) ehlo() error {
+ // StartTLS sends the STARTTLS command and encrypts all further communication.
+ // Only servers that advertise the STARTTLS extension support this function.
+ func (c *Client) StartTLS(config *tls.Config) error {
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	_, _, err := c.cmd(220, "STARTTLS")
+ 	if err != nil {
+ 		return err
+@@ -128,6 +156,9 @@ func (c *Client) StartTLS(config *tls.Config) error {
+ // does not necessarily indicate an invalid address. Many servers
+ // will not verify addresses for security reasons.
+ func (c *Client) Verify(addr string) error {
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	_, _, err := c.cmd(250, "VRFY %s", addr)
+ 	return err
+ }
+@@ -136,6 +167,9 @@ func (c *Client) Verify(addr string) error {
+ // A failed authentication closes the connection.
+ // Only servers that advertise the AUTH extension support this function.
+ func (c *Client) Auth(a Auth) error {
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	encoding := base64.StdEncoding
+ 	mech, resp, err := a.Start(&ServerInfo{c.serverName, c.tls, c.auth})
+ 	if err != nil {
+@@ -178,6 +212,9 @@ func (c *Client) Auth(a Auth) error {
+ // parameter.
+ // This initiates a mail transaction and is followed by one or more Rcpt calls.
+ func (c *Client) Mail(from string) error {
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	cmdStr := "MAIL FROM:<%s>"
+ 	if c.ext != nil {
+ 		if _, ok := c.ext["8BITMIME"]; ok {
+@@ -227,6 +264,9 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
+ 	if err != nil {
+ 		return err
+ 	}
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	if ok, _ := c.Extension("STARTTLS"); ok {
+ 		if err = c.StartTLS(nil); err != nil {
+ 			return err
+@@ -267,6 +307,9 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
+ // Extension also returns a string that contains any parameters the
+ // server specifies for the extension.
+ func (c *Client) Extension(ext string) (bool, string) {
++	if err := c.hello(); err != nil {
++		return false, ""
++	}
+ 	if c.ext == nil {
+ 		return false, ""
+ 	}
+@@ -278,12 +321,18 @@ func (c *Client) Extension(ext string) (bool, string) {
+ // Reset sends the RSET command to the server, aborting the current mail
+ // transaction.
+ func (c *Client) Reset() error {
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	_, _, err := c.cmd(250, "RSET")
+ 	return err
+ }
+ 
+ // Quit sends the QUIT command and closes the connection to the server.
+ func (c *Client) Quit() error {
++	if err := c.hello(); err != nil {
++		return err
++	}
+ 	_, _, err := c.cmd(221, "QUIT")
+ 	if err != nil {
+ 		return err
+diff --git a/src/pkg/net/smtp/smtp_test.go b/src/pkg/net/smtp/smtp_test.go
+index c315d185c9..2a11b26392 100644
+--- a/src/pkg/net/smtp/smtp_test.go
++++ b/src/pkg/net/smtp/smtp_test.go
+@@ -76,7 +76,7 @@ func TestBasic(t *testing.T) {
+ 	bcmdbuf := bufio.NewWriter(&cmdbuf)
+ 	var fake faker
+ 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(basicServer)), bcmdbuf)
+-	c := &Client{Text: textproto.NewConn(fake)}
++	c := &Client{Text: textproto.NewConn(fake), localName: "localhost"}
+ 
+ 	if err := c.helo(); err != nil {
+ 		t.Fatalf("HELO failed: %s", err)
+@@ -88,6 +88,7 @@ func TestBasic(t *testing.T) {
+ 		t.Fatalf("Second EHLO failed: %s", err)
+ 	}
+ 
++	c.didHello = true
+ 	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
+ 		t.Fatalf("Expected AUTH supported")
+ 	}
+@@ -269,3 +270,192 @@ var newClient2Client = `EHLO localhost
+ HELO localhost
+ QUIT
+ `
++
++func TestHello(t *testing.T) {
++
++	if len(helloServer) != len(helloClient) {
++		t.Fatalf("Hello server and client size mismatch")
++	}
++
++	for i := 0; i < len(helloServer); i++ {
++		server := strings.Join(strings.Split(baseHelloServer+helloServer[i], "\n"), "\r\n")
++		client := strings.Join(strings.Split(baseHelloClient+helloClient[i], "\n"), "\r\n")
++		var cmdbuf bytes.Buffer
++		bcmdbuf := bufio.NewWriter(&cmdbuf)
++		var fake faker
++		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
++		c, err := NewClient(fake, "fake.host")
++		if err != nil {
++			t.Fatalf("NewClient: %v", err)
++		}
++		c.localName = "customhost"
++		err = nil
++
++		switch i {
++		case 0:
++			err = c.Hello("customhost")
++		case 1:
++			err = c.StartTLS(nil)
++			if err.Error() == "502 Not implemented" {
++				err = nil
++			}
++		case 2:
++			err = c.Verify("test@example.com")
++		case 3:
++			c.tls = true
++			c.serverName = "smtp.google.com"
++			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
++		case 4:
++			err = c.Mail("test@example.com")
++		case 5:
++			ok, _ := c.Extension("feature")
++			if ok {
++				t.Errorf("Expected FEATURE not to be supported")
++			}
++		case 6:
++			err = c.Reset()
++		case 7:
++			err = c.Quit()
++		case 8:
++			err = c.Verify("test@example.com")
++			if err != nil {
++				err = c.Hello("customhost")
++				if err != nil {
++					t.Errorf("Want error, got none")
++				}
++			}
++		default:
++			t.Fatalf("Unhandled command")
++		}
++
++		if err != nil {
++			t.Errorf("Command %d failed: %v", i, err)
++		}
++
++		bcmdbuf.Flush()
++		actualcmds := cmdbuf.String()
++		if client != actualcmds {
++			t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
++		}
++	}
++}
++
++var baseHelloServer = `220 hello world
++502 EH?
++250-mx.google.com at your service
++250 FEATURE
++`
++
++var helloServer = []string{
++	"",
++	"502 Not implemented\n",
++	"250 User is valid\n",
++	"235 Accepted\n",
++	"250 Sender ok\n",
++	"",
++	"250 Reset ok\n",
++	"221 Goodbye\n",
++	"250 Sender ok\n",
++}
++
++var baseHelloClient = `EHLO customhost
++HELO customhost
++`
++
++var helloClient = []string{
++	"",
++	"STARTTLS\n",
++	"VRFY test@example.com\n",
++	"AUTH PLAIN AHVzZXIAcGFzcw==\n",
++	"MAIL FROM:<test@example.com>\n",
++	"",
++	"RSET\n",
++	"QUIT\n",
++	"VRFY test@example.com\n",
++}
++
++func TestSendMail(t *testing.T) {
++	server := strings.Join(strings.Split(sendMailServer, "\n"), "\r\n")
++	client := strings.Join(strings.Split(sendMailClient, "\n"), "\r\n")
++	var cmdbuf bytes.Buffer
++	bcmdbuf := bufio.NewWriter(&cmdbuf)
++	l, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("Unable to to create listener: %v", err)
++	}
++	defer l.Close()
++
++	go func(l net.Listener, data []string, w *bufio.Writer) {
++		i := 0
++		conn, err := l.Accept()
++		if err != nil {
++			t.Log("Accept error: %v", err)
++			return
++		}
++		defer conn.Close()
++
++		tc := textproto.NewConn(conn)
++		for i < len(data) && data[i] != "" {
++			tc.PrintfLine(data[i])
++			for len(data[i]) >= 4 && data[i][3] == '-' {
++				i++
++				tc.PrintfLine(data[i])
++			}
++			read := false
++			for !read || data[i] == "354 Go ahead" {
++				msg, err := tc.ReadLine()
++				w.Write([]byte(msg + "\r\n"))
++				read = true
++				if err != nil {
++					t.Log("Read error: %v", err)
++					return
++				}
++				if data[i] == "354 Go ahead" && msg == "." {
++					break
++				}
++			}
++			i++
++		}
++	}(l, strings.Split(server, "\r\n"), bcmdbuf)
++
++	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
++To: other@example.com
++Subject: SendMail test
++
++SendMail is working for me.
++`, "\n", "\r\n", -1)))
++
++	if err != nil {
++		t.Errorf("%v", err)
++	}
++
++	bcmdbuf.Flush()
++	actualcmds := cmdbuf.String()
++	if client != actualcmds {
++		t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
++	}
++}
++
++var sendMailServer = `220 hello world
++502 EH?
++250 mx.google.com at your service
++250 Sender ok
++250 Receiver ok
++354 Go ahead
++250 Data ok
++221 Goodbye
++`
++
++var sendMailClient = `EHLO localhost
++HELO localhost
++MAIL FROM:<test@example.com>
++RCPT TO:<other@example.com>
++DATA
++From: test@example.com
++To: other@example.com
++Subject: SendMail test
++
++SendMail is working for me.
++.
++QUIT
++`

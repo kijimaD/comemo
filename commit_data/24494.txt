@@ -9,6 +9,18 @@ Date:   Fri Jul 31 12:03:48 2015 +1000
     Change-Id: I3e6592876bf16d2f9129995b723ecf69c069653d
     Reviewed-on: https://go-review.googlesource.com/12913
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/bench/shootout/timing.sh | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index d8b1486480..78367367a3 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -247,3 +247,6 @@ do
+ 	$i
+ 	runonly echo
+ done
++
++rm *.o *.$EXE # Clean up
++

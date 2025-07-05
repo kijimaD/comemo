@@ -10,7 +10,58 @@ Date:   Mon May 30 16:42:38 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23573
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go |  8 +++++++-
  test/fixedbugs/issue15898.go       | 18 ++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index aac92fd311..4940c97a90 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -104,7 +104,7 @@ func typecheckswitch(n *Node) {
+ 
+ 	n.Type = t
+ 
+-	var def *Node
++	var def, niltype *Node
+ 	for _, ncase := range n.List.Slice() {
+ 		setlineno(n)
+ 		if ncase.List.Len() == 0 {
+@@ -150,6 +150,12 @@ func typecheckswitch(n *Node) {
+ 					var ptr int
+ 					switch {
+ 					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
++						// case nil:
++						if niltype != nil {
++							Yyerror("multiple nil cases in type switch (first at %v)", niltype.Line())
++						} else {
++							niltype = ncase
++						}
+ 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
+ 						Yyerror("%v is not a type", Nconv(n1, FmtLong))
+ 						// reset to original type
+diff --git a/test/fixedbugs/issue15898.go b/test/fixedbugs/issue15898.go
+new file mode 100644
+index 0000000000..7b66ea23dc
+--- /dev/null
++++ b/test/fixedbugs/issue15898.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(e interface{}) {
++	switch e.(type) {
++	case nil, nil: // ERROR "multiple nil cases in type switch"
++	}
++
++	switch e.(type) {
++	case nil:
++	case nil: // ERROR "multiple nil cases in type switch"
++	}
++}

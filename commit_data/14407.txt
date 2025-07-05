@@ -13,6 +13,22 @@ Date:   Thu Nov 15 03:36:19 2012 +1100
     R=golang-dev, agl, iant
     CC=golang-dev
     https://golang.org/cl/6843057
-
+---
  src/pkg/debug/elf/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 25b04d7959..b030b043df 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -700,8 +700,8 @@ func (f *File) gnuVersionInit(str []byte) {
+ // gnuVersion adds Library and Version information to sym,
+ // which came from offset i of the symbol table.
+ func (f *File) gnuVersion(i int, sym *ImportedSymbol) {
+-	// Each entry is two bytes; skip undef entry at beginning.
+-	i = (i + 1) * 2
++	// Each entry is two bytes.
++	i = i * 2
+ 	if i >= len(f.gnuVersym) {
+ 		return
+ 	}

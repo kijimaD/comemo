@@ -9,7 +9,34 @@ Date:   Fri Feb 10 15:56:51 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5645078
-
+---
  src/pkg/math/const.go | 2 +-
  src/pkg/math/gamma.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/const.go b/src/pkg/math/const.go
+index 282561f98b..edb14f6fa4 100644
+--- a/src/pkg/math/const.go
++++ b/src/pkg/math/const.go
+@@ -6,7 +6,7 @@
+ package math
+ 
+ // Mathematical constants.
+-// Reference: http://www.research.att.com/~njas/sequences/Axxxxxx
++// Reference: http://oeis.org/Axxxxxx
+ const (
+ 	E   = 2.71828182845904523536028747135266249775724709369995957496696763 // A001113
+ 	Pi  = 3.14159265358979323846264338327950288419716939937510582097494459 // A000796
+diff --git a/src/pkg/math/gamma.go b/src/pkg/math/gamma.go
+index 2385a53b8a..7c6f421bad 100644
+--- a/src/pkg/math/gamma.go
++++ b/src/pkg/math/gamma.go
+@@ -116,7 +116,7 @@ func stirling(x float64) float64 {
+ //	Gamma(±Inf) = ±Inf
+ //	Gamma(NaN) = NaN
+ // Large values overflow to +Inf.
+-// Negative integer values equal ±Inf.
++// Zero and negative integer arguments return ±Inf.
+ func Gamma(x float64) float64 {
+ 	const Euler = 0.57721566490153286060651209008240243104215933593992 // A001620
+ 	// special cases

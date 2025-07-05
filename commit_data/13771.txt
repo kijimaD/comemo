@@ -7,6 +7,30 @@ Date:   Fri Sep 7 13:56:31 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6490095
-
+---
  src/pkg/go/scanner/scanner.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index c213161c47..3322c58b33 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -125,6 +125,9 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
+ 	s.ErrorCount = 0
+ 
+ 	s.next()
++	if s.ch == '\uFEFF' {
++		s.next() // ignore BOM
++	}
+ }
+ 
+ func (s *Scanner) error(offs int, msg string) {
+@@ -390,7 +393,7 @@ func (s *Scanner) scanEscape(quote rune) {
+ 	for ; i > 0 && s.ch != quote && s.ch >= 0; i-- {
+ 		s.next()
+ 	}
+-	if x > max || 0xd800 <= x && x < 0xe000 {
++	if x > max || 0xD800 <= x && x < 0xE000 {
+ 		s.error(offs, "escape sequence is invalid Unicode code point")
+ 	}
+ }

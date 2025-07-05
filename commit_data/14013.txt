@@ -7,7 +7,316 @@ Date:   Thu Oct 4 07:55:24 2012 +1000
     R=gri
     CC=gobot, golang-dev
     https://golang.org/cl/6592061
-
+---
  src/pkg/go/doc/example.go | 157 +++++++++++++++++++++++++++++++---------------
  src/pkg/go/doc/reader.go  |  73 ++++++++++++++-------
  2 files changed, 157 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 581471ae24..dc899351a6 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -69,6 +69,7 @@ func Examples(files ...*ast.File) []*Example {
+ 			// other top-level declarations, and no tests or
+ 			// benchmarks, use the whole file as the example.
+ 			flist[0].Code = file
++			flist[0].Play = playExampleFile(file)
+ 		}
+ 		list = append(list, flist...)
+ 	}
+@@ -79,18 +80,7 @@ func Examples(files ...*ast.File) []*Example {
+ var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
+ 
+ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
+-	// find the last comment in the function
+-	var last *ast.CommentGroup
+-	for _, cg := range comments {
+-		if cg.Pos() < b.Pos() {
+-			continue
+-		}
+-		if cg.End() > b.End() {
+-			break
+-		}
+-		last = cg
+-	}
+-	if last != nil {
++	if _, last := lastComment(b, comments); last != nil {
+ 		// test that it begins with the correct prefix
+ 		text := last.Text()
+ 		if loc := outputPrefix.FindStringIndex(text); loc != nil {
+@@ -129,18 +119,33 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 		return nil
+ 	}
+ 
+-	// Determine the imports we need based on unresolved identifiers.
+-	// This is a heuristic that presumes package names match base import paths.
+-	// (Should be good enough most of the time.)
+-	var unresolved []*ast.Ident
++	// Find unresolved identifiers 
++	unresolved := make(map[string]bool)
+ 	ast.Inspect(body, func(n ast.Node) bool {
++		// For an expression like fmt.Println, only add "fmt" to the
++		// set of unresolved names.
+ 		if e, ok := n.(*ast.SelectorExpr); ok {
+ 			if id, ok := e.X.(*ast.Ident); ok && id.Obj == nil {
+-				unresolved = append(unresolved, id)
++				unresolved[id.Name] = true
+ 			}
++			return false
++		}
++		if id, ok := n.(*ast.Ident); ok && id.Obj == nil {
++			unresolved[id.Name] = true
+ 		}
+ 		return true
+ 	})
++
++	// Remove predeclared identifiers from unresolved list.
++	for n := range unresolved {
++		if n == "nil" || predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
++			delete(unresolved, n)
++		}
++	}
++
++	// Use unresolved identifiers to determine the imports used by this
++	// example. The heuristic assumes package names match base import
++	// paths. (Should be good enough most of the time.)
+ 	imports := make(map[string]string) // [name]path
+ 	for _, s := range file.Imports {
+ 		p, err := strconv.Unquote(s.Path.Value)
+@@ -155,30 +160,18 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 			}
+ 			n = s.Name.Name
+ 		}
+-		for _, id := range unresolved {
+-			if n == id.Name {
+-				imports[n] = p
+-				break
+-			}
++		if unresolved[n] {
++			imports[n] = p
++			delete(unresolved, n)
+ 		}
+ 	}
+ 
+-	// Synthesize new imports.
+-	importDecl := &ast.GenDecl{
+-		Tok:    token.IMPORT,
+-		Lparen: 1, // Need non-zero Lparen and Rparen so that printer
+-		Rparen: 1, // treats this as a factored import.
+-	}
+-	for n, p := range imports {
+-		s := &ast.ImportSpec{Path: &ast.BasicLit{Value: strconv.Quote(p)}}
+-		if path.Base(p) != n {
+-			s.Name = ast.NewIdent(n)
+-		}
+-		importDecl.Specs = append(importDecl.Specs, s)
++	// If there are other unresolved identifiers, give up because this
++	// synthesized file is not going to build.
++	if len(unresolved) > 0 {
++		return nil
+ 	}
+ 
+-	// TODO(adg): look for other unresolved identifiers and, if found, give up.
+-
+ 	// Filter out comments that are outside the function body.
+ 	var comments []*ast.CommentGroup
+ 	for _, c := range file.Comments {
+@@ -189,17 +182,20 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 	}
+ 
+ 	// Strip "Output:" commment and adjust body end position.
+-	if len(comments) > 0 {
+-		last := comments[len(comments)-1]
+-		if outputPrefix.MatchString(last.Text()) {
+-			comments = comments[:len(comments)-1]
+-			// Copy body, as the original may be used elsewhere.
+-			body = &ast.BlockStmt{
+-				Lbrace: body.Pos(),
+-				List:   body.List,
+-				Rbrace: last.Pos(),
+-			}
++	body, comments = stripOutputComment(body, comments)
++
++	// Synthesize import declaration.
++	importDecl := &ast.GenDecl{
++		Tok:    token.IMPORT,
++		Lparen: 1, // Need non-zero Lparen and Rparen so that printer
++		Rparen: 1, // treats this as a factored import.
++	}
++	for n, p := range imports {
++		s := &ast.ImportSpec{Path: &ast.BasicLit{Value: strconv.Quote(p)}}
++		if path.Base(p) != n {
++			s.Name = ast.NewIdent(n)
+ 		}
++		importDecl.Specs = append(importDecl.Specs, s)
+ 	}
+ 
+ 	// Synthesize main function.
+@@ -210,14 +206,75 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 	}
+ 
+ 	// Synthesize file.
+-	f := &ast.File{
++	return &ast.File{
+ 		Name:     ast.NewIdent("main"),
+ 		Decls:    []ast.Decl{importDecl, funcDecl},
+ 		Comments: comments,
+ 	}
++}
++
++// playExample takes a whole file example and synthesizes a new *ast.File
++// such that the example is function main in package main.
++func playExampleFile(file *ast.File) *ast.File {
++	// Strip copyright comment if present.
++	comments := file.Comments
++	if len(comments) > 0 && strings.HasPrefix(comments[0].Text(), "Copyright") {
++		comments = comments[1:]
++	}
++
++	// Copy declaration slice, rewriting the ExampleX function to main.
++	var decls []ast.Decl
++	for _, d := range file.Decls {
++		if f, ok := d.(*ast.FuncDecl); ok && isTest(f.Name.Name, "Example") {
++			// Copy the FuncDecl, as it may be used elsewhere.
++			newF := *f
++			newF.Name = ast.NewIdent("main")
++			newF.Body, comments = stripOutputComment(f.Body, comments)
++			d = &newF
++		}
++		decls = append(decls, d)
++	}
+ 
+-	// TODO(adg): look for resolved identifiers declared outside function scope
+-	// and include their declarations in the new file.
++	// Copy the File, as it may be used elsewhere.
++	f := *file
++	f.Name = ast.NewIdent("main")
++	f.Decls = decls
++	f.Comments = comments
++	return &f
++}
+ 
+-	return f
++// stripOutputComment finds and removes an "Output:" commment from body 
++// and comments, and adjusts the body block's end position.
++func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
++	// Do nothing if no "Output:" comment found.
++	i, last := lastComment(body, comments)
++	if last == nil || !outputPrefix.MatchString(last.Text()) {
++		return body, comments
++	}
++
++	// Copy body and comments, as the originals may be used elsewhere.
++	newBody := &ast.BlockStmt{
++		Lbrace: body.Lbrace,
++		List:   body.List,
++		Rbrace: last.Pos(),
++	}
++	newComments := make([]*ast.CommentGroup, len(comments)-1)
++	copy(newComments, comments[:i])
++	copy(newComments[i:], comments[i+1:])
++	return newBody, newComments
++}
++
++// lastComment returns the last comment inside the provided block.
++func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
++	pos, end := b.Pos(), b.End()
++	for j, cg := range c {
++		if cg.Pos() < pos {
++			continue
++		}
++		if cg.End() > end {
++			break
++		}
++		i, last = j, cg
++	}
++	return
+ }
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 60b174fecd..f0860391f6 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -515,29 +515,6 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ // ----------------------------------------------------------------------------
+ // Types
+ 
+-var predeclaredTypes = map[string]bool{
+-	"bool":       true,
+-	"byte":       true,
+-	"complex64":  true,
+-	"complex128": true,
+-	"error":      true,
+-	"float32":    true,
+-	"float64":    true,
+-	"int":        true,
+-	"int8":       true,
+-	"int16":      true,
+-	"int32":      true,
+-	"int64":      true,
+-	"rune":       true,
+-	"string":     true,
+-	"uint":       true,
+-	"uint8":      true,
+-	"uint16":     true,
+-	"uint32":     true,
+-	"uint64":     true,
+-	"uintptr":    true,
+-}
+-
+ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int) *Func {
+ 	if f == nil || f.Decl == nil || f.Decl.Recv == nil || len(f.Decl.Recv.List) != 1 {
+ 		return f // shouldn't happen, but be safe
+@@ -772,3 +749,53 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ 	)
+ 	return list
+ }
++
++// ----------------------------------------------------------------------------
++// Predeclared identifiers (minus "nil")
++
++var predeclaredTypes = map[string]bool{
++	"bool":       true,
++	"byte":       true,
++	"complex64":  true,
++	"complex128": true,
++	"error":      true,
++	"float32":    true,
++	"float64":    true,
++	"int":        true,
++	"int8":       true,
++	"int16":      true,
++	"int32":      true,
++	"int64":      true,
++	"rune":       true,
++	"string":     true,
++	"uint":       true,
++	"uint8":      true,
++	"uint16":     true,
++	"uint32":     true,
++	"uint64":     true,
++	"uintptr":    true,
++}
++
++var predeclaredFuncs = map[string]bool{
++	"append":  true,
++	"cap":     true,
++	"close":   true,
++	"complex": true,
++	"copy":    true,
++	"delete":  true,
++	"imag":    true,
++	"len":     true,
++	"make":    true,
++	"new":     true,
++	"panic":   true,
++	"print":   true,
++	"println": true,
++	"real":    true,
++	"recover": true,
++}
++
++var predeclaredConstants = map[string]bool{
++	"iota":  true,
++	"true":  true,
++	"false": true,
++}

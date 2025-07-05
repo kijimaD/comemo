@@ -7,10 +7,83 @@ Date:   Sun Dec 27 09:32:30 2009 -0800
     
     R=ken2
     https://golang.org/cl/181071
-
+---
  src/cmd/gc/go.h      | 3 +--
  src/cmd/gc/reflect.c | 2 +-
  src/cmd/gc/subr.c    | 2 +-
  src/cmd/gc/unsafe.c  | 1 -
  src/cmd/gc/walk.c    | 2 +-
  5 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 01bc7568ae..0f5e13355a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -724,7 +724,7 @@ int	yyparse(void);
+ void	addidir(char*);
+ void	importfile(Val*, int line);
+ void	cannedimports(char*, char*);
+-void	unimportfile();
++void	unimportfile(void);
+ int32	yylex(void);
+ void	typeinit(void);
+ void	lexinit(void);
+@@ -1174,7 +1174,6 @@ void	cgen_ret(Node *n);
+ int	isfat(Type*);
+ void	clearfat(Node *n);
+ void	cgen(Node*, Node*);
+-struct Prog;
+ void	gused(Node*);
+ void	gdata(Node*, Node*, int);
+ void	gdatastring(Node*, Strlit*);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 03d6f5f5a6..85d4ad6d68 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -584,7 +584,7 @@ typename(Type *t)
+ 	return n;
+ }
+ 
+-Sym*
++static Sym*
+ dtypesym(Type *t)
+ {
+ 	int ot, n;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 5826cd3a01..f38992b740 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2085,7 +2085,7 @@ frame(int context)
+ 		case ONAME:
+ 			if(flag)
+ 				print("--- %s frame ---\n", p);
+-			print("%O %S G%ld T\n", n->op, n->sym, n->vargen, n->type);
++			print("%O %S G%ld %T\n", n->op, n->sym, n->vargen, n->type);
+ 			flag = 0;
+ 			break;
+ 
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 9c1f9519af..f94e1c78c9 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -30,7 +30,6 @@ unsafenmagic(Node *fn, NodeList *args)
+ 	}
+ 	r = args->n;
+ 
+-	n = nod(OLITERAL, N, N);
+ 	if(strcmp(s->name, "Sizeof") == 0) {
+ 		typecheck(&r, Erv);
+ 		tr = r->type;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 80b0944d8b..587119c96f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1072,7 +1072,7 @@ ret:
+ 	*np = n;
+ }
+ 
+-Node*
++static Node*
+ makenewvar(Type *t, NodeList **init, Node **nstar)
+ {
+ 	Node *nvar, *nas;

@@ -8,7 +8,7 @@ Date:   Tue Oct 26 21:11:17 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2762041
-
+---
  src/cmd/5g/cgen.c          | 40 +++++++++++++++++++++++++---------------
  src/cmd/5g/gsubr.c         |  2 ++
  src/cmd/6g/cgen.c          | 39 ++++++++++++++++++++++++++++-----------
@@ -24,3 +24,562 @@ Date:   Tue Oct 26 21:11:17 2010 -0700
  src/cmd/gc/walk.c          | 23 ++++++++++++++---------
  src/pkg/runtime/string.goc | 16 ----------------
  14 files changed, 117 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index bbe5b9c0b7..1328f4be64 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -558,9 +558,11 @@ agen(Node *n, Node *res)
+ 		p2 = nil;  // to be patched to panicindex.
+ 		w = n->type->width;
+ 		if(nr->addable) {
+-			agenr(nl, &n3, res);
+-			if(!isconst(nr, CTINT)) {
++			if(!isconst(nr, CTINT))
+ 				tempname(&tmp, types[TINT32]);
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
++			if(!isconst(nr, CTINT)) {
+ 				p2 = cgenindex(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+@@ -572,13 +574,16 @@ agen(Node *n, Node *res)
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 			}
+-			regalloc(&n3, types[tptr], res);
+-			agen(nl, &n3);
++			if(!isconst(nl, CTSTR)) {
++				regalloc(&n3, types[tptr], res);
++				agen(nl, &n3);
++			}
+ 		} else {
+ 			tempname(&tmp, types[TINT32]);
+ 			p2 = cgenindex(nr, &tmp);
+ 			nr = &tmp;
+-			agenr(nl, &n3, res);
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
+ 			regalloc(&n1, tmp.type, N);
+ 			gins(optoas(OAS, tmp.type), &tmp, &n1);
+ 		}
+@@ -592,9 +597,10 @@ agen(Node *n, Node *res)
+ 
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
++			if(isconst(nl, CTSTR))
++				fatal("constant string constant index");
+ 			v = mpgetfix(nr->val.u.xval);
+-			if(isslice(nl->type)) {
+-
++			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+@@ -638,7 +644,10 @@ agen(Node *n, Node *res)
+ 		if(!debug['B'] && !n->etype) {
+ 			// check bounds
+ 			regalloc(&n4, types[TUINT32], N);
+-			if(isslice(nl->type)) {
++			if(isconst(nl, CTSTR)) {
++				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
++				gmove(&n1, &n4);
++			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				n1 = n3;
+ 				n1.op = OINDREG;
+ 				n1.type = types[tptr];
+@@ -656,8 +665,13 @@ agen(Node *n, Node *res)
+ 			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+-
+-		if(isslice(nl->type)) {
++		
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n3, types[tptr], res);
++			p1 = gins(AMOVW, N, &n3);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			p1->from.type = D_CONST;
++		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 			n1 = n3;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+@@ -795,12 +809,8 @@ igen(Node *n, Node *a, Node *res)
+ void
+ agenr(Node *n, Node *a, Node *res)
+ {
+-	Node n1;
+-
+-	tempname(&n1, types[tptr]);
+-	agen(n, &n1);
+ 	regalloc(a, types[tptr], res);
+-	gmove(&n1, a);
++	agen(n, a);
+ }
+ 
+ /*
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 7089b71850..260a9d3f6a 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1678,6 +1678,8 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
+ 		goto odot;
+ 
+ 	case OINDEX:
++		if(n->left->type->etype == TSTRING)
++			return 0;
+ 		cleani += 2;
+ 		reg = &clean[cleani-1];
+ 		reg1 = &clean[cleani-2];
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 1df6b25dd2..d4d22fd610 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -477,8 +477,10 @@ agen(Node *n, Node *res)
+ 				regalloc(&n1, nr->type, N);
+ 				cgen(nr, &n1);
+ 			}
+-			regalloc(&n3, types[tptr], res);
+-			agen(nl, &n3);
++			if(!isconst(nl, CTSTR)) {
++				regalloc(&n3, types[tptr], res);
++				agen(nl, &n3);
++			}
+ 			goto index;
+ 		}
+ 		tempname(&tmp, nr->type);
+@@ -486,8 +488,10 @@ agen(Node *n, Node *res)
+ 		nr = &tmp;
+ 
+ 	irad:
+-		regalloc(&n3, types[tptr], res);
+-		agen(nl, &n3);
++		if(!isconst(nl, CTSTR)) {
++			regalloc(&n3, types[tptr], res);
++			agen(nl, &n3);
++		}
+ 		if(!isconst(nr, CTINT)) {
+ 			regalloc(&n1, nr->type, N);
+ 			cgen(nr, &n1);
+@@ -501,7 +505,7 @@ agen(Node *n, Node *res)
+ 
+ 		// explicit check for nil if array is large enough
+ 		// that we might derive too big a pointer.
+-		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
++		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
+ 			regalloc(&n4, types[tptr], &n3);
+ 			gmove(&n3, &n4);
+ 			n4.op = OINDREG;
+@@ -516,8 +520,10 @@ agen(Node *n, Node *res)
+ 
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
++			if(isconst(nl, CTSTR))
++				fatal("constant string constant index");	// front end should handle
+ 			v = mpgetfix(nr->val.u.xval);
+-			if(isslice(nl->type)) {
++			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+@@ -556,20 +562,21 @@ agen(Node *n, Node *res)
+ 			// check bounds
+ 			n5.op = OXXX;
+ 			t = types[TUINT32];
+-			if(isslice(nl->type)) {
++			if(is64(nr->type))
++				t = types[TUINT64];
++			if(isconst(nl, CTSTR)) {
++				nodconst(&n1, t, nl->val.u.sval->len);
++			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				n1 = n3;
+ 				n1.op = OINDREG;
+ 				n1.type = types[TUINT32];
+ 				n1.xoffset = Array_nel;
+ 				if(is64(nr->type)) {
+-					t = types[TUINT64];
+ 					regalloc(&n5, t, N);
+ 					gmove(&n1, &n5);
+ 					n1 = n5;
+ 				}
+ 			} else {
+-				if(is64(nr->type))
+-					t = types[TUINT64];
+ 				nodconst(&n1, t, nl->type->bound);
+ 			}
+ 			gins(optoas(OCMP, t), &n2, &n1);
+@@ -580,7 +587,16 @@ agen(Node *n, Node *res)
+ 			patch(p1, pc);
+ 		}
+ 
+-		if(isslice(nl->type)) {
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n3, types[tptr], res);
++			p1 = gins(ALEAQ, N, &n3);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			p1->from.scale = 1;
++			p1->from.index = n2.val.u.reg;
++			goto indexdone;
++		}
++
++		if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 			n1 = n3;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+@@ -599,6 +615,7 @@ agen(Node *n, Node *res)
+ 			gmove(&n3, res);
+ 		}
+ 
++	indexdone:
+ 		gmove(&n3, res);
+ 		regfree(&n2);
+ 		regfree(&n3);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 1cd5c650bd..ebb61ea945 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1784,6 +1784,8 @@ sudoaddable(int as, Node *n, Addr *a)
+ 		goto odot;
+ 
+ 	case OINDEX:
++		if(n->left->type->etype == TSTRING)
++			return 0;
+ 		goto oindex;
+ 	}
+ 	return 0;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 810ad4da64..875d434fa7 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -230,8 +230,8 @@ cgen(Node *n, Node *res)
+ 			cgen(nl, res);
+ 			break;
+ 		}
+-		mgen(nl, &n1, res);
+ 		tempname(&n2, n->type);
++		mgen(nl, &n1, res);
+ 		gmove(&n1, &n2);
+ 		gmove(&n2, res);
+ 		mfree(&n1);
+@@ -518,9 +518,11 @@ agen(Node *n, Node *res)
+ 		p2 = nil;  // to be patched to panicindex.
+ 		w = n->type->width;
+ 		if(nr->addable) {
+-			agenr(nl, &n3, res);
+-			if(!isconst(nr, CTINT)) {
++			if(!isconst(nr, CTINT))
+ 				tempname(&tmp, types[TINT32]);
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
++			if(!isconst(nr, CTINT)) {
+ 				p2 = cgenindex(nr, &tmp);
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+@@ -532,13 +534,16 @@ agen(Node *n, Node *res)
+ 				regalloc(&n1, tmp.type, N);
+ 				gmove(&tmp, &n1);
+ 			}
+-			regalloc(&n3, types[tptr], res);
+-			agen(nl, &n3);
++			if(!isconst(nl, CTSTR)) {
++				regalloc(&n3, types[tptr], res);
++				agen(nl, &n3);
++			}
+ 		} else {
+ 			tempname(&tmp, types[TINT32]);
+ 			p2 = cgenindex(nr, &tmp);
+ 			nr = &tmp;
+-			agenr(nl, &n3, res);
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
+ 			regalloc(&n1, tmp.type, N);
+ 			gins(optoas(OAS, tmp.type), &tmp, &n1);
+ 		}
+@@ -549,7 +554,7 @@ agen(Node *n, Node *res)
+ 
+ 		// explicit check for nil if array is large enough
+ 		// that we might derive too big a pointer.
+-		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
++		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
+ 			regalloc(&n4, types[tptr], &n3);
+ 			gmove(&n3, &n4);
+ 			n4.op = OINDREG;
+@@ -564,9 +569,10 @@ agen(Node *n, Node *res)
+ 
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
++			if(isconst(nl, CTSTR))
++				fatal("constant string constant index");
+ 			v = mpgetfix(nr->val.u.xval);
+-			if(isslice(nl->type)) {
+-
++			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+@@ -600,7 +606,9 @@ agen(Node *n, Node *res)
+ 
+ 		if(!debug['B'] && !n->etype) {
+ 			// check bounds
+-			if(isslice(nl->type)) {
++			if(isconst(nl, CTSTR))
++				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
++			else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				n1 = n3;
+ 				n1.op = OINDREG;
+ 				n1.type = types[tptr];
+@@ -614,8 +622,17 @@ agen(Node *n, Node *res)
+ 			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
++		
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n3, types[tptr], res);
++			p1 = gins(ALEAL, N, &n3);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			p1->from.scale = 1;
++			p1->from.index = n2.val.u.reg;
++			goto indexdone;
++		}
+ 
+-		if(isslice(nl->type)) {
++		if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 			n1 = n3;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+@@ -635,6 +652,7 @@ agen(Node *n, Node *res)
+ 			gmove(&n3, res);
+ 		}
+ 
++	indexdone:
+ 		gmove(&n3, res);
+ 		regfree(&n2);
+ 		regfree(&n3);
+@@ -710,8 +728,14 @@ igen(Node *n, Node *a, Node *res)
+ {
+ 	Node n1;
+ 
++	// release register for now, to avoid
++	// confusing tempname.
++	if(res != N && res->op == OREGISTER)
++		reg[res->val.u.reg]--;
+ 	tempname(&n1, types[tptr]);
+ 	agen(n, &n1);
++	if(res != N && res->op == OREGISTER)
++		reg[res->val.u.reg]++;
+ 	regalloc(a, types[tptr], res);
+ 	gmove(&n1, a);
+ 	a->op = OINDREG;
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index ae9a5f2eaf..e1dacf55ad 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -789,6 +789,8 @@ mkvar(Reg *r, Adr *a)
+ 
+ 			// if they overlaps, disable both
+ 			if(overlap(v->offset, v->width, o, w)) {
++				if(debug['R'])
++					print("disable %s\n", v->sym->name);
+ 				v->addr = 1;
+ 				flag = 1;
+ 			}
+@@ -821,7 +823,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->addr = flag;		// funny punning
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2d w=%d %S %D\n", i, et, w, s, a);
++		print("bit=%2d et=%2d w=%d %S %D flag=%d\n", i, et, w, s, a, v->addr);
+ 	ostats.nvar++;
+ 
+ 	bit = blsh(i);
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index bb1a5f5fa6..10559a900f 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -24,7 +24,6 @@ char *runtimeimport =
+ 	"func \"\".cmpstring (? string, ? string) int\n"
+ 	"func \"\".slicestring (? string, ? int, ? int) string\n"
+ 	"func \"\".slicestring1 (? string, ? int) string\n"
+-	"func \"\".indexstring (? string, ? int) uint8\n"
+ 	"func \"\".intstring (? int64) string\n"
+ 	"func \"\".slicebytetostring (? []uint8) string\n"
+ 	"func \"\".sliceinttostring (? []int) string\n"
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index d2396aa09f..65861c7635 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -652,7 +652,6 @@ tempname(Node *n, Type *t)
+ 	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
+ 	statuniqgen++;
+ 	s = lookup(namebuf);
+-
+ 	memset(n, 0, sizeof(*n));
+ 	n->op = ONAME;
+ 	n->sym = s;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 78472d22eb..91a1562f75 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -369,7 +369,7 @@ enum
+ 	ODOTTYPE2,
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+ 	OIND,
+-	OINDEX, OINDEXSTR, OINDEXMAP,
++	OINDEX, OINDEXMAP,
+ 	OKEY, OPARAM,
+ 	OLEN,
+ 	OMAKE, OMAKECHAN, OMAKEMAP, OMAKESLICE,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 32e8b7de55..478aa84e3b 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -59,6 +59,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OPRINT:
+ 	case OPRINTN:
+ 	case OCALL:
++	case OCALLMETH:
++	case OCALLINTER:
++	case OCALLFUNC:
+ 	case OCONV:
+ 	case OCONVNOP:
+ 	case OMAKESLICE:
+@@ -72,6 +75,8 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ORECV:
+ 	case OCONVIFACE:
+ 	case OTPAREN:
++	case OINDEX:
++	case OINDEXMAP:
+ 		nprec = 7;
+ 		break;
+ 
+@@ -328,7 +333,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 
+ 	case OINDEX:
+ 	case OINDEXMAP:
+-	case OINDEXSTR:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, "[");
+ 		exprfmt(f, n->right, 0);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 2279384473..1be706fa2f 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -39,7 +39,6 @@ func concatstring()
+ func cmpstring(string, string) int
+ func slicestring(string, int, int) string
+ func slicestring1(string, int) string
+-func indexstring(string, int) byte
+ func intstring(int64) string
+ func slicebytetostring([]byte) string
+ func sliceinttostring([]int) string
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 614833740a..c4f082612c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -614,7 +614,6 @@ reswitch:
+ 			if(n->right->type != T && !isint[n->right->type->etype])
+ 				yyerror("non-integer string index %#N", n->right);
+ 			n->type = types[TUINT8];
+-			n->op = OINDEXSTR;
+ 			break;
+ 		}
+ 		goto ret;
+@@ -2052,6 +2051,8 @@ islvalue(Node *n)
+ 	case OINDEX:
+ 		if(isfixedarray(n->left->type))
+ 			return islvalue(n->left);
++		if(n->left->type != T && n->left->type->etype == TSTRING)
++			return 0;
+ 		// fall through
+ 	case OIND:
+ 	case ODOTPTR:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index bf20102c7d..757b6d93d6 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1033,22 +1033,35 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 		// if range of type cannot exceed static array bound,
+ 		// disable bounds check
+-		if(!isslice(n->left->type))
++		if(isfixedarray(n->left->type))
+ 		if(n->right->type->width < 4)
+ 		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
+ 			n->etype = 1;
+ 
++		if(isconst(n->left, CTSTR))
++		if(n->right->type->width < 4)
++		if((1<<(8*n->right->type->width)) <= n->left->val.u.sval->len)
++			n->etype = 1;
++
+ 		// check for static out of bounds
+ 		if(isconst(n->right, CTINT) && !n->etype) {
+ 			v = mpgetfix(n->right->val.u.xval);
+ 			len = 1LL<<60;
+ 			t = n->left->type;
++			if(isconst(n->left, CTSTR))
++				len = n->left->val.u.sval->len;
+ 			if(t != T && isptr[t->etype])
+ 				t = t->type;
+ 			if(isfixedarray(t))
+ 				len = t->bound;
+ 			if(v < 0 || v >= (1LL<<31) || v >= len)
+ 				yyerror("index out of bounds");
++			else if(isconst(n->left, CTSTR)) {
++				// replace "abc"[2] with 'b'.
++				// delayed until now because "abc"[2] is not
++				// an ideal constant.
++				nodconst(n, n->type, n->left->val.u.sval->s[v]);
++			}
+ 		}
+ 		goto ret;
+ 
+@@ -1252,14 +1265,6 @@ walkexpr(Node **np, NodeList **init)
+ 		}
+ 		goto ret;
+ 
+-	case OINDEXSTR:
+-		// TODO(rsc): should be done in back end
+-		// sys_indexstring(s, i)
+-		n = mkcall("indexstring", n->type, init,
+-			conv(n->left, types[TSTRING]),
+-			conv(n->right, types[TINT]));
+-		goto ret;
+-
+ 	case OCOPY:
+ 		if(n->right->type->etype == TSTRING)
+ 			fn = syslook("slicestringcopy", 1);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 7bf8f8b37c..1db1c2c2cb 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -200,10 +200,6 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
+ 	l = hindex-lindex;
+ 	so.str = si.str + lindex;
+ 	so.len = l;
+-
+-//	alternate to create a new string
+-//	so = gostringsize(l);
+-//	mcpy(so.str, si.str+lindex, l);
+ }
+ 
+ func slicestring1(si String, lindex int32) (so String) {
+@@ -216,18 +212,6 @@ func slicestring1(si String, lindex int32) (so String) {
+ 	l = si.len-lindex;
+ 	so.str = si.str + lindex;
+ 	so.len = l;
+-
+-//	alternate to create a new string
+-//	so = gostringsize(l);
+-//	mcpy(so.str, si.str+lindex, l);
+-}
+-
+-func indexstring(s String, i int32) (b byte) {
+-	if(i < 0 || i >= s.len) {
+-		·panicindex();
+-	}
+-
+-	b = s.str[i];
+ }
+ 
+ func intstring(v int64) (s String) {

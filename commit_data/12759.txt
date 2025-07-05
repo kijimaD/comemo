@@ -7,6 +7,21 @@ Date:   Tue Mar 27 10:38:10 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5917043
-
+---
  misc/dist/bindist.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index b3265e558e..05db8e7bbd 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -44,7 +44,8 @@ const (
+ )
+ 
+ var preBuildCleanFiles = []string{
+-	"misc/dashboard/godashboard", // old python code
++	"lib/codereview",
++	"misc/dashboard/godashboard",
+ 	"src/cmd/cov",
+ 	"src/cmd/prof",
+ 	"src/pkg/exp",

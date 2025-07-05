@@ -7,8 +7,98 @@ Date:   Wed Oct 9 07:05:43 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14494044
-
+---
  doc/code.html  |  2 +-
  doc/go1.1.html |  4 ++--
  doc/go1.2.html | 14 +++++++-------
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 2bf50601e4..f9aa6ac171 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -576,7 +576,7 @@ provide lists of external Go projects.
+ 
+ <p>
+ For more information on using remote repositories with the <code>go</code> tool, see
+-<code><a href="/cmd/go/#hdr-Remote_import_path_syntax">go help remote</a></code>.
++<code><a href="/cmd/go/#hdr-Remote_import_paths">go help importpath</a></code>.
+ </p>
+ 
+ 
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index a68664954a..87d5f5c876 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -129,7 +129,7 @@ only an infinite "for" loop.
+ <p>
+ In Go 1.1, the rule about final "return" statements is more permissive.
+ It introduces the concept of a
+-<a href="/ref/spec/#Terminating_statements"><em>terminating statement</em></a>,
++<a href="/ref/spec#Terminating_statements"><em>terminating statement</em></a>,
+ a statement that is guaranteed to be the last one a function executes.
+ Examples include
+ "for" loops with no condition and "if-else"
+@@ -191,7 +191,7 @@ more than 2 billion elements on 64-bit platforms.
+ <em>Updating</em>:
+ Most programs will be unaffected by this change.
+ Because Go does not allow implicit conversions between distinct
+-<a href="/ref/spec/#Numeric_types">numeric types</a>,
++<a href="/ref/spec#Numeric_types">numeric types</a>,
+ no programs will stop compiling due to this change.
+ However, programs that contain implicit assumptions
+ that <code>int</code> is only 32 bits may change behavior.
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 4b8efb66c1..9f96836ac1 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -580,8 +580,8 @@ The <a href="/pkg/bufio/"><code>bufio</code></a> package
+ adds <a href="/pkg/bufio/#Reader.Reset"><code>Reset</code></a>
+ methods to <a href="/pkg/bufio/#Reader"><code>Reader</code></a> and
+ <a href="/pkg/bufio/#Writer"><code>Writer</code></a>.
+-These methods allow the <a href="/pkg/Reader/"><code>Readers</code></a>
+-and <a href="/pkg/Writer/"><code>Writers</code></a>
++These methods allow the <a href="/pkg/io/#Reader"><code>Readers</code></a>
++and <a href="/pkg/io/#Writer"><code>Writers</code></a>
+ to be re-used on new input and output readers and writers, saving
+ allocation overhead. 
+ </li>
+@@ -593,7 +593,7 @@ can now decompress concatenated archives.
+ 
+ <li>
+ The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>
+-package adds a <a href="/pkg/compress/flate/#Reset"><code>Reset</code></a> 
++package adds a <a href="/pkg/compress/flate/#Writer.Reset"><code>Reset</code></a> 
+ method on the <a href="/pkg/compress/flate/#Writer"><code>Writer</code></a>,
+ to make it possible to reduce allocation when, for instance, constructing an
+ archive to hold multiple compressed files.
+@@ -621,9 +621,9 @@ method to provide a more efficient way to update an item's position in the heap.
+ 
+ <li>
+ The <a href="/pkg/container/list/"><code>container/list</code></a> package
+-adds the <a href="/pkg/container/list/#MoveBefore"><code>MoveBefore</code></a>
++adds the <a href="/pkg/container/list/#List.MoveBefore"><code>MoveBefore</code></a>
+ and
+-<a href="/pkg/container/list/#MoveAfter"><code>MoveAfter</code></a>
++<a href="/pkg/container/list/#List.MoveAfter"><code>MoveAfter</code></a>
+ methods, which implement the obvious rearrangement.
+ </li>
+ 
+@@ -745,7 +745,7 @@ The default is false, representing the usual two-index form.
+ 
+ <li>
+ The <a href="/pkg/go/build/"><code>go/build</code></a> package adds
+-the <a href="/pkg/go/build/#Package.AllTags"><code>AllTags</code></a> field
++the <code>AllTags</code> field
+ to the <a href="/pkg/go/build/#Package"><code>Package</code></a> type,
+ to make it easier to process build tags.
+ </li>
+@@ -910,7 +910,7 @@ in agreement with that of other printing functions such as "printf".
+ In the <a href="/pkg/time/"><code>time</code></a> package, the
+ <a href="/pkg/time/#Parse"><code>Parse</code></a> function
+ and
+-<a href="/pkg/time/#Format"><code>Format</code></a>
++<a href="/pkg/time/#Time.Format"><code>Format</code></a>
+ method
+ now handle time zone offsets with seconds, such as in the historical
+ date "1871-01-01T05:33:02+00:34:08".

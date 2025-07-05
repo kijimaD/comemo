@@ -15,6 +15,36 @@ Date:   Mon Aug 31 21:39:08 2009 -0700
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=34135
     CL=34177
-
+---
  test/fixedbugs/bug197.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/test/fixedbugs/bug197.go b/test/fixedbugs/bug197.go
+index 501b94ce0f..c205c5bcaa 100644
+--- a/test/fixedbugs/bug197.go
++++ b/test/fixedbugs/bug197.go
+@@ -11,18 +11,18 @@ type U int
+ 
+ var x int
+ 
+-var t T = int(0)	// ERROR "cannot use"
+-var t1 T = int(x)	// ERROR "cannot use"
+-var u U = int(0)	// ERROR "cannot use"
+-var u1 U = int(x)	// ERROR "cannot use"
++var t T = int(0)	// ERROR "cannot use|incompatible"
++var t1 T = int(x)	// ERROR "cannot use|incompatible"
++var u U = int(0)	// ERROR "cannot use|incompatible"
++var u1 U = int(x)	// ERROR "cannot use|incompatible"
+ 
+ type S string
+ var s S
+ 
+ var s1 = s + "hello"
+ var s2 = "hello" + s
+-var s3 = s + string("hello")	// ERROR "invalid operation"
+-var s4 = string("hello") + s	// ERROR "invalid operation"
++var s3 = s + string("hello")	// ERROR "invalid operation|incompatible"
++var s4 = string("hello") + s	// ERROR "invalid operation|incompatible"
+ 
+ var r string
+ 

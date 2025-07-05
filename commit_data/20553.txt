@@ -13,6 +13,29 @@ Date:   Wed Sep 17 13:25:46 2014 -0700
     R=golang-codereviews, dvyukov, khr, rsc
     CC=golang-codereviews
     https://golang.org/cl/145010043
-
+---
  src/runtime/stack.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index b38ee31d48..95a5a123d9 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -806,8 +806,16 @@ runtime·shrinkstack(G *gp)
+ {
+ 	uintptr used, oldsize, newsize;
+ 
+-	if(runtime·readgstatus(gp) == Gdead)
++	if(runtime·readgstatus(gp) == Gdead) {
++		if(gp->stack.lo != 0) {
++			// Free whole stack - it will get reallocated
++			// if G is used again.
++			runtime·stackfree(gp->stack);
++			gp->stack.lo = 0;
++			gp->stack.hi = 0;
++		}
+ 		return;
++	}
+ 	if(gp->stack.lo == 0)
+ 		runtime·throw("missing stack in shrinkstack");
+ 

@@ -12,7 +12,36 @@ Date:   Tue Sep 14 13:18:40 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/predicates.go | 3 ---
  src/cmd/compile/internal/types2/unify.go      | 3 ---
  2 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 473d22675f..aa797fccc7 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -302,9 +302,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration.
+ 		if y, ok := y.(*Named); ok {
+-			x.expand(nil)
+-			y.expand(nil)
+-
+ 			xargs := x.TypeArgs().list()
+ 			yargs := y.TypeArgs().list()
+ 
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index a1e5b3679b..bb69f0d27b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -428,9 +428,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 
+ 	case *Named:
+ 		if y, ok := y.(*Named); ok {
+-			x.expand(nil)
+-			y.expand(nil)
+-
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()
+ 

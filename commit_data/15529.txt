@@ -9,7 +9,52 @@ Date:   Fri Mar 1 05:03:25 2013 -0800
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/7445045
-
+---
  src/cmd/ld/ldpe.c | 13 +++++++------
  src/run.bat       |  2 --
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index f41827befd..39c15e6a14 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -320,12 +320,6 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			goto bad;
+ 	
+ 		s = sym->sym;
+-		if(s->outer != S) {
+-			if(s->dupok)
+-				continue;
+-			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+-			errorexit();
+-		}
+ 		if(sym->sectnum == 0) {// extern
+ 			if(s->type == SDYNIMPORT)
+ 				s->plt = -2; // flag for dynimport in PE object files.
+@@ -344,6 +338,13 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 
+ 		if(sect == nil) 
+ 			return;
++
++		if(s->outer != S) {
++			if(s->dupok)
++				continue;
++			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
++			errorexit();
++		}
+ 		s->sub = sect->sym->sub;
+ 		sect->sym->sub = s;
+ 		s->type = sect->sym->type | SSUB;
+diff --git a/src/run.bat b/src/run.bat
+index 945cce4262..3f950f5414 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -54,8 +54,6 @@ echo.
+ 
+ if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+ echo # Testing race detector.
+-echo # skipping test due to bug (http://code.google.com/p/go/issues/detail?id=4948).
+-goto norace
+ go test -race -i flag
+ if errorlevel 1 goto fail
+ go test -race -short flag

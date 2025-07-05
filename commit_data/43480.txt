@@ -29,7 +29,7 @@ Date:   Fri Feb 14 17:44:00 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                    | 11 +++++
  src/cmd/go/internal/clean/clean.go                |  6 +--
  src/cmd/go/internal/envcmd/env.go                 |  1 +
@@ -46,3 +46,472 @@ Date:   Fri Feb 14 17:44:00 2020 -0500
  src/cmd/go/testdata/script/mod_gomodcache.txt     | 59 +++++++++++++++++++++++
  src/internal/cfg/cfg.go                           |  1 +
  15 files changed, 115 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 61dc6bdda6..7f8f8e92be 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -236,6 +236,7 @@ var (
+ 	GOROOTpkg    = filepath.Join(GOROOT, "pkg")
+ 	GOROOTsrc    = filepath.Join(GOROOT, "src")
+ 	GOROOT_FINAL = findGOROOT_FINAL()
++	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
+@@ -253,6 +254,8 @@ var (
+ 	GOINSECURE = Getenv("GOINSECURE")
+ )
+ 
++var SumdbDir = gopathDir("pkg/sumdb")
++
+ // GetArchEnv returns the name and setting of the
+ // GOARCH-specific architecture environment variable.
+ // If the current architecture has no GOARCH-specific variable,
+@@ -364,3 +367,11 @@ func isGOROOT(path string) bool {
+ 	}
+ 	return stat.IsDir()
+ }
++
++func gopathDir(rel string) string {
++	list := filepath.SplitList(BuildContext.GOPATH)
++	if len(list) == 0 || list[0] == "" {
++		return ""
++	}
++	return filepath.Join(list[0], rel)
++}
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 588969ab4f..d5028de970 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -186,14 +186,14 @@ func runClean(cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if cleanModcache {
+-		if modfetch.PkgMod == "" {
++		if cfg.GOMODCACHE == "" {
+ 			base.Fatalf("go clean -modcache: no module cache")
+ 		}
+ 		if cfg.BuildN || cfg.BuildX {
+-			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
++			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
+ 		}
+ 		if !cfg.BuildN {
+-			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
++			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
+ 				base.Errorf("go clean -modcache: %v", err)
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index d2d5ed9507..252025dc25 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -77,6 +77,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+ 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+ 		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
++		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE},
+ 		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
+ 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
+ 		{Name: "GOOS", Value: cfg.Goos},
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index a2a2601967..a04a13b14f 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -18,7 +18,6 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/modfetch/codehost"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -42,8 +41,7 @@ func testMain(m *testing.M) int {
+ 		log.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+-	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
+-	codehost.WorkRoot = filepath.Join(dir, "codework")
++	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
+ 
+ 	return m.Run()
+ }
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index d6ff068e7b..e3074b775e 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -26,17 +26,17 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-var PkgMod string // $GOPATH/pkg/mod; set by package modload
+-
+ func cacheDir(path string) (string, error) {
+-	if PkgMod == "" {
+-		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
++	if cfg.GOMODCACHE == "" {
++		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
++		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
++		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+ 	}
+ 	enc, err := module.EscapePath(path)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	return filepath.Join(PkgMod, "cache/download", enc, "/@v"), nil
++	return filepath.Join(cfg.GOMODCACHE, "cache/download", enc, "/@v"), nil
+ }
+ 
+ func CachePath(m module.Version, suffix string) (string, error) {
+@@ -63,8 +63,10 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ // along with the directory if the directory does not exist or if the directory
+ // is not completely populated.
+ func DownloadDir(m module.Version) (string, error) {
+-	if PkgMod == "" {
+-		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
++	if cfg.GOMODCACHE == "" {
++		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
++		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
++		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+ 	}
+ 	enc, err := module.EscapePath(m.Path)
+ 	if err != nil {
+@@ -81,7 +83,7 @@ func DownloadDir(m module.Version) (string, error) {
+ 		return "", err
+ 	}
+ 
+-	dir := filepath.Join(PkgMod, enc+"@"+encVer)
++	dir := filepath.Join(cfg.GOMODCACHE, enc+"@"+encVer)
+ 	if fi, err := os.Stat(dir); os.IsNotExist(err) {
+ 		return dir, err
+ 	} else if err != nil {
+@@ -131,11 +133,13 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
+ // user's working directory.
+ // If err is nil, the caller MUST eventually call the unlock function.
+ func SideLock() (unlock func(), err error) {
+-	if PkgMod == "" {
+-		base.Fatalf("go: internal error: modfetch.PkgMod not set")
++	if cfg.GOMODCACHE == "" {
++		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
++		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
++		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
+ 	}
+ 
+-	path := filepath.Join(PkgMod, "cache", "lock")
++	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
+ 	if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+ 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
+ 	}
+@@ -456,7 +460,7 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
+ // just to find out about a commit we already know about
+ // (and have cached under its pseudo-version).
+ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error) {
+-	if PkgMod == "" {
++	if cfg.GOMODCACHE == "" {
+ 		// Do not download to current directory.
+ 		return "", nil, errNotCached
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 5867288c96..d85eddf767 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -153,15 +153,11 @@ func ShortenSHA1(rev string) string {
+ 	return rev
+ }
+ 
+-// WorkRoot is the root of the cached work directory.
+-// It is set by cmd/go/internal/modload.InitMod.
+-var WorkRoot string
+-
+ // WorkDir returns the name of the cached work directory to use for the
+ // given repository type and name.
+ func WorkDir(typ, name string) (dir, lockfile string, err error) {
+-	if WorkRoot == "" {
+-		return "", "", fmt.Errorf("codehost.WorkRoot not set")
++	if cfg.GOMODCACHE == "" {
++		return "", "", fmt.Errorf("neither GOPATH nor GOMODCACHE are set")
+ 	}
+ 
+ 	// We name the work directory for the SHA256 hash of the type and name.
+@@ -173,7 +169,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
+ 		return "", "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
+ 	}
+ 	key := typ + ":" + name
+-	dir = filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
++	dir = filepath.Join(cfg.GOMODCACHE, "cache/vcs", fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
+ 
+ 	if cfg.BuildX {
+ 		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index cc32a1eb51..ba27c70f5a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -57,7 +57,6 @@ func testMain(m *testing.M) int {
+ 		log.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+-	WorkRoot = dir
+ 
+ 	if testenv.HasExternalNetwork() && testenv.HasExec() {
+ 		// Clone gitrepo1 into a local directory.
+diff --git a/src/cmd/go/internal/modfetch/codehost/shell.go b/src/cmd/go/internal/modfetch/codehost/shell.go
+index 835bc53c0d..2762c55720 100644
+--- a/src/cmd/go/internal/modfetch/codehost/shell.go
++++ b/src/cmd/go/internal/modfetch/codehost/shell.go
+@@ -20,6 +20,7 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch/codehost"
+ )
+ 
+@@ -29,7 +30,7 @@ func usage() {
+ }
+ 
+ func main() {
+-	codehost.WorkRoot = "/tmp/vcswork"
++	cfg.GOMODCACHE = "/tmp/vcswork"
+ 	log.SetFlags(0)
+ 	log.SetPrefix("shell: ")
+ 	flag.Usage = usage
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 39830948fb..f69c193b86 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -44,7 +44,7 @@ func testMain(m *testing.M) int {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	codehost.WorkRoot = dir
++	cfg.GOMODCACHE = dir
+ 	return m.Run()
+ }
+ 
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 187d174542..61759c0e6b 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -35,9 +35,10 @@ var downloadCache par.Cache
+ // local download cache and returns the name of the directory
+ // corresponding to the root of the module's file tree.
+ func Download(mod module.Version) (dir string, err error) {
+-	if PkgMod == "" {
+-		// Do not download to current directory.
+-		return "", fmt.Errorf("missing modfetch.PkgMod")
++	if cfg.GOMODCACHE == "" {
++		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
++		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
++		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
+ 	}
+ 
+ 	// The par.Cache here avoids duplicate work.
+@@ -456,7 +457,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error
+ 
+ // checkMod checks the given module's checksum.
+ func checkMod(mod module.Version) {
+-	if PkgMod == "" {
++	if cfg.GOMODCACHE == "" {
+ 		// Do not use current directory.
+ 		return
+ 	}
+@@ -593,7 +594,7 @@ func checkSumDB(mod module.Version, h string) error {
+ // Sum returns the checksum for the downloaded copy of the given module,
+ // if present in the download cache.
+ func Sum(mod module.Version) string {
+-	if PkgMod == "" {
++	if cfg.GOMODCACHE == "" {
+ 		// Do not use current directory.
+ 		return ""
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index ff81ef687e..ef2eb213ed 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -200,8 +200,10 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
+ 		return []byte(c.key), nil
+ 	}
+ 
+-	// GOPATH/pkg is PkgMod/..
+-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
++	if cfg.SumdbDir == "" {
++		return nil, errors.New("could not locate sumdb file: missing $GOPATH")
++	}
++	targ := filepath.Join(cfg.SumdbDir, file)
+ 	data, err = lockedfile.Read(targ)
+ 	if errors.Is(err, os.ErrNotExist) {
+ 		// Treat non-existent as empty, to bootstrap the "latest" file
+@@ -217,7 +219,10 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
+ 		// Should not happen.
+ 		return fmt.Errorf("cannot write key")
+ 	}
+-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
++	if cfg.SumdbDir == "" {
++		return errors.New("could not locate sumdb file: missing $GOPATH")
++	}
++	targ := filepath.Join(cfg.SumdbDir, file)
+ 	os.MkdirAll(filepath.Dir(targ), 0777)
+ 	f, err := lockedfile.Edit(targ)
+ 	if err != nil {
+@@ -247,7 +252,7 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
+ // GOPATH/pkg/mod/cache/download/sumdb,
+ // which will be deleted by "go clean -modcache".
+ func (*dbClient) ReadCache(file string) ([]byte, error) {
+-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
++	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
+ 	data, err := lockedfile.Read(targ)
+ 	// lockedfile.Write does not atomically create the file with contents.
+ 	// There is a moment between file creation and locking the file for writing,
+@@ -261,7 +266,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
+ 
+ // WriteCache updates cached lookups or tiles.
+ func (*dbClient) WriteCache(file string, data []byte) {
+-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
++	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
+ 	os.MkdirAll(filepath.Dir(targ), 0777)
+ 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 19a47bd54f..664a2a1594 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -26,7 +26,6 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modconv"
+ 	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/search"
+ 
+@@ -178,17 +177,6 @@ func Init() {
+ 		base.Fatalf("$GOPATH/go.mod exists but should not")
+ 	}
+ 
+-	oldSrcMod := filepath.Join(list[0], "src/mod")
+-	pkgMod := filepath.Join(list[0], "pkg/mod")
+-	infoOld, errOld := os.Stat(oldSrcMod)
+-	_, errMod := os.Stat(pkgMod)
+-	if errOld == nil && infoOld.IsDir() && errMod != nil && os.IsNotExist(errMod) {
+-		os.Rename(oldSrcMod, pkgMod)
+-	}
+-
+-	modfetch.PkgMod = pkgMod
+-	codehost.WorkRoot = filepath.Join(pkgMod, "cache/vcs")
+-
+ 	cfg.ModulesEnabled = true
+ 	load.ModBinDir = BinDir
+ 	load.ModLookup = Lookup
+@@ -225,13 +213,6 @@ func Init() {
+ 
+ func init() {
+ 	load.ModInit = Init
+-
+-	// Set modfetch.PkgMod and codehost.WorkRoot unconditionally,
+-	// so that go clean -modcache and go mod download can run even without modules enabled.
+-	if list := filepath.SplitList(cfg.BuildContext.GOPATH); len(list) > 0 && list[0] != "" {
+-		modfetch.PkgMod = filepath.Join(list[0], "pkg/mod")
+-		codehost.WorkRoot = filepath.Join(list[0], "pkg/mod/cache/vcs")
+-	}
+ }
+ 
+ // WillBeEnabled checks whether modules should be enabled but does not
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 15470e2685..247e4c40d2 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -15,8 +15,6 @@ import (
+ 	"testing"
+ 
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/modfetch/codehost"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -36,8 +34,7 @@ func testMain(m *testing.M) int {
+ 
+ 	os.Setenv("GOPATH", dir)
+ 	cfg.BuildContext.GOPATH = dir
+-	modfetch.PkgMod = filepath.Join(dir, "pkg/mod")
+-	codehost.WorkRoot = filepath.Join(dir, "codework")
++	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
+ 	return m.Run()
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_gomodcache.txt b/src/cmd/go/testdata/script/mod_gomodcache.txt
+new file mode 100644
+index 0000000000..67a8f07b2c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_gomodcache.txt
+@@ -0,0 +1,59 @@
++# Test GOMODCACHE
++env GO111MODULE=on
++
++# Explicitly set GOMODCACHE
++env GOMODCACHE=$WORK/modcache
++go env GOMODCACHE
++stdout $WORK[/\\]modcache
++go get -d rsc.io/quote@v1.0.0
++exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
++grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
++
++# Ensure GOMODCACHE doesn't affect location of sumdb, but $GOMODCACHE/cache/download/sumdb is still written
++exists $GOPATH/pkg/sumdb
++! exists $WORK/modcache/sumdb
++exists $WORK/modcache/cache/download/sumdb
++
++# Test that the default GOMODCACHE is $GOPATH[0]/pkg/mod
++env GOMODCACHE=
++go env GOMODCACHE
++stdout $GOPATH[/\\]pkg[/\\]mod
++go get -d rsc.io/quote@v1.0.0
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
++grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
++
++# If neither GOMODCACHE or GOPATH are set, GOPATH defaults to the user's $HOME/go, so GOMODCACHE becomes $HOME/go/pkg/mod
++[windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
++[!windows] env HOME=$WORK/home
++env GOMODCACHE=
++env GOPATH=
++go env GOMODCACHE
++stdout $HOME[/\\]go[/\\]pkg[/\\]mod
++
++# If GOMODCACHE isn't set and GOPATH starts with the path list separator, it's an error.
++env GOMODCACHE=
++env GOPATH=${:}$WORK/this/is/ignored
++! go env GOMODCACHE
++stderr 'missing \$GOPATH'
++
++# If GOMODCACHE isn't set and GOPATH has multiple elements only the first is used.
++env GOMODCACHE=
++env GOPATH=$WORK/first/path${:}$WORK/this/is/ignored
++go env GOMODCACHE
++stdout $WORK[/\\]first[/\\]path[/\\]pkg[/\\]mod
++
++env GOMODCACHE=$WORK/modcache
++go mod download rsc.io/quote@v1.0.0
++exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
++
++# Test that the following work even with GO111MODULE=off
++env GO111MODULE=off
++
++# Cleaning modcache
++exists $WORK/modcache
++env GOMODCACHE=$WORK/modcache
++go clean -modcache
++! exists $WORK/modcache
++
++-- go.mod --
++module m
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 0d227ecd10..bdbe9df3e7 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -46,6 +46,7 @@ const KnownEnv = `
+ 	GOINSECURE
+ 	GOMIPS
+ 	GOMIPS64
++	GOMODCACHE
+ 	GONOPROXY
+ 	GONOSUMDB
+ 	GOOS

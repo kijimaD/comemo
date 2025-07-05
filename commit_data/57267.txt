@@ -27,9 +27,168 @@ Date:   Fri May 5 13:31:05 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/config.go |  6 ++--
  src/cmd/link/internal/ld/dwarf.go  |  3 --
  src/cmd/link/internal/ld/elf.go    |  2 ++
  src/cmd/link/internal/ld/main.go   | 59 +++++++++++++++++++++++++++++++++++++-
  4 files changed, 63 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index c0484d6c39..1147362fb4 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -58,8 +58,8 @@ func (mode *BuildMode) Set(s string) error {
+ 	return nil
+ }
+ 
+-func (mode *BuildMode) String() string {
+-	switch *mode {
++func (mode BuildMode) String() string {
++	switch mode {
+ 	case BuildModeUnset:
+ 		return "" // avoid showing a default in usage message
+ 	case BuildModeExe:
+@@ -75,7 +75,7 @@ func (mode *BuildMode) String() string {
+ 	case BuildModePlugin:
+ 		return "plugin"
+ 	}
+-	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
++	return fmt.Sprintf("BuildMode(%d)", uint8(mode))
+ }
+ 
+ // LinkMode indicates whether an external linker is used for the final link.
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index a601fe5a0d..23285de2e1 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1633,9 +1633,6 @@ func dwarfEnabled(ctxt *Link) bool {
+ 	if *FlagW { // disable dwarf
+ 		return false
+ 	}
+-	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
+-		return false
+-	}
+ 	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs || ctxt.HeadType == objabi.Hwasip1 {
+ 		return false
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 713f7739a5..20fa9b05ee 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1491,6 +1491,8 @@ func (ctxt *Link) doelf() {
+ 	if !*FlagS {
+ 		shstrtabAddstring(".symtab")
+ 		shstrtabAddstring(".strtab")
++	}
++	if !*FlagW {
+ 		dwarfaddshstrings(ctxt, shstrtabAddstring)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 7743562909..ccc7d29bf2 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -43,6 +43,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -56,6 +57,7 @@ func init() {
+ 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+ 	flag.Var(&flagExtld, "extld", "use `linker` when linking in external mode")
+ 	flag.Var(&flagExtldflags, "extldflags", "pass `flags` to external linker")
++	flag.Var(&flagW, "w", "disable DWARF generation")
+ }
+ 
+ // Flags used by the linker. The exported flags are used by the architecture-specific packages.
+@@ -90,7 +92,6 @@ var (
+ 	flagH             = flag.Bool("h", false, "halt on error")
+ 	flagN             = flag.Bool("n", false, "dump symbol table")
+ 	FlagS             = flag.Bool("s", false, "disable symbol table")
+-	FlagW             = flag.Bool("w", false, "disable DWARF generation")
+ 	flag8             bool // use 64-bit addresses in symbol table
+ 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
+@@ -106,8 +107,48 @@ var (
+ 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+ 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
++
++	flagW ternaryFlag
++	FlagW = new(bool) // the -w flag, computed in main from flagW
+ )
+ 
++// ternaryFlag is like a boolean flag, but has a default value that is
++// neither true nor false, allowing it to be set from context (e.g. from another
++// flag).
++// *ternaryFlag implements flag.Value.
++type ternaryFlag int
++
++const (
++	ternaryFlagUnset ternaryFlag = iota
++	ternaryFlagFalse
++	ternaryFlagTrue
++)
++
++func (t *ternaryFlag) Set(s string) error {
++	v, err := strconv.ParseBool(s)
++	if err != nil {
++		return err
++	}
++	if v {
++		*t = ternaryFlagTrue
++	} else {
++		*t = ternaryFlagFalse
++	}
++	return nil
++}
++
++func (t *ternaryFlag) String() string {
++	switch *t {
++	case ternaryFlagFalse:
++		return "false"
++	case ternaryFlagTrue:
++		return "true"
++	}
++	return "unset"
++}
++
++func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean flag
++
+ // Main is the main entry point for the linker code.
+ func Main(arch *sys.Arch, theArch Arch) {
+ 	log.SetPrefix("link: ")
+@@ -197,6 +238,15 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	checkStrictDups = *FlagStrictDups
+ 
++	switch flagW {
++	case ternaryFlagFalse:
++		*FlagW = false
++	case ternaryFlagTrue:
++		*FlagW = true
++	case ternaryFlagUnset:
++		*FlagW = *FlagS // -s implies -w if not explicitly set
++	}
++
+ 	if !buildcfg.Experiment.RegabiWrappers {
+ 		abiInternalVer = 0
+ 	}
+@@ -252,6 +302,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 
+ 	if ctxt.Debugvlog != 0 {
++		onOff := func(b bool) string {
++			if b {
++				return "on"
++			}
++			return "off"
++		}
++		ctxt.Logf("build mode: %s, symbol table: %s, DWARF: %s\n", ctxt.BuildMode, onOff(!*FlagS), onOff(dwarfEnabled(ctxt)))
+ 		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
+ 	}
+ 

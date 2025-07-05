@@ -25,7 +25,222 @@ Date:   Wed May 26 15:29:39 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                  |  54 +++++++++-
  .../script/mod_get_update_unrelated_sum.txt        | 120 +++++++++++++++++++++
  2 files changed, 173 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 563f1a988f..8eee723f89 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -38,6 +38,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+@@ -1466,6 +1467,8 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
+ // checkPackageProblems reloads packages for the given patterns and reports
+ // missing and ambiguous package errors. It also reports retractions and
+ // deprecations for resolved modules and modules needed to build named packages.
++// It also adds a sum for each updated module in the build list if we had one
++// before and didn't get one while loading packages.
+ //
+ // We skip missing-package errors earlier in the process, since we want to
+ // resolve pathSets ourselves, but at that point, we don't have enough context
+@@ -1593,9 +1596,52 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 		})
+ 	}
+ 
++	// Load sums for updated modules that had sums before. When we update a
++	// module, we may update another module in the build list that provides a
++	// package in 'all' that wasn't loaded as part of this 'go get' command.
++	// If we don't add a sum for that module, builds may fail later.
++	// Note that an incidentally updated package could still import packages
++	// from unknown modules or from modules in the build list that we didn't
++	// need previously. We can't handle that case without loading 'all'.
++	sumErrs := make([]error, len(r.buildList))
++	for i := range r.buildList {
++		i := i
++		m := r.buildList[i]
++		mActual := m
++		if mRepl := modload.Replacement(m); mRepl.Path != "" {
++			mActual = mRepl
++		}
++		old := module.Version{Path: m.Path, Version: r.initialVersion[m.Path]}
++		if old.Version == "" {
++			continue
++		}
++		oldActual := old
++		if oldRepl := modload.Replacement(old); oldRepl.Path != "" {
++			oldActual = oldRepl
++		}
++		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
++			continue
++		}
++		r.work.Add(func() {
++			if _, err := modfetch.DownloadZip(ctx, mActual); err != nil {
++				verb := "upgraded"
++				if semver.Compare(m.Version, old.Version) < 0 {
++					verb = "downgraded"
++				}
++				replaced := ""
++				if mActual != m {
++					replaced = fmt.Sprintf(" (replaced by %s)", mActual)
++				}
++				err = fmt.Errorf("%s %s %s => %s%s: error finding sum for %s: %v", verb, m.Path, old.Version, m.Version, replaced, mActual, err)
++				sumErrs[i] = err
++			}
++		})
++	}
++
+ 	<-r.work.Idle()
+ 
+-	// Report deprecations, then retractions.
++	// Report deprecations, then retractions, then errors fetching sums.
++	// Only errors fetching sums are hard errors.
+ 	for _, mm := range deprecations {
+ 		if mm.message != "" {
+ 			fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", mm.m.Path, mm.message)
+@@ -1615,6 +1661,12 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 	if retractPath != "" {
+ 		fmt.Fprintf(os.Stderr, "go: to switch to the latest unretracted version, run:\n\tgo get %s@latest\n", retractPath)
+ 	}
++	for _, err := range sumErrs {
++		if err != nil {
++			base.Errorf("go: %v", err)
++		}
++	}
++	base.ExitIfErrors()
+ }
+ 
+ // reportChanges logs version changes to os.Stderr.
+diff --git a/src/cmd/go/testdata/script/mod_get_update_unrelated_sum.txt b/src/cmd/go/testdata/script/mod_get_update_unrelated_sum.txt
+new file mode 100644
+index 0000000000..0093c0eda0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_update_unrelated_sum.txt
+@@ -0,0 +1,120 @@
++# Check that 'go get' adds sums for updated modules if we had sums before,
++# even if we didn't load packages from them.
++# Verifies #44129.
++
++env fmt='{{.ImportPath}}: {{if .Error}}{{.Error.Err}}{{else}}ok{{end}}'
++
++# Control case: before upgrading, we have the sums we need.
++# go list -deps -e -f $fmt .
++# stdout '^rsc.io/quote: ok$'
++# ! stdout rsc.io/sampler  # not imported by quote in this version
++cp go.mod.orig go.mod
++cp go.sum.orig go.sum
++go mod tidy
++cmp go.mod.orig go.mod
++cmp go.sum.orig go.sum
++
++
++# Upgrade a module. This also upgrades rsc.io/quote, and though we didn't load
++# a package from it, we had the sum for its old version, so we need the
++# sum for the new version, too.
++go get -d example.com/upgrade@v0.0.2
++grep '^rsc.io/quote v1.5.2 ' go.sum
++
++# The upgrade still breaks the build because the new version of quote imports
++# rsc.io/sampler, and we don't have its zip sum.
++go list -deps -e -f $fmt
++stdout 'rsc.io/quote: ok'
++stdout 'rsc.io/sampler: missing go.sum entry for module providing package rsc.io/sampler'
++cp go.mod.orig go.mod
++cp go.sum.orig go.sum
++
++
++# Replace the old version with a directory before upgrading.
++# We didn't need a sum for it before (even though we had one), so we won't
++# fetch a new sum.
++go mod edit -replace rsc.io/quote@v1.0.0=./dummy
++go get -d example.com/upgrade@v0.0.2
++! grep '^rsc.io/quote v1.5.2 ' go.sum
++cp go.mod.orig go.mod
++cp go.sum.orig go.sum
++
++
++# Replace the new version with a directory before upgrading.
++# We can't get a sum for a directory.
++go mod edit -replace rsc.io/quote@v1.5.2=./dummy
++go get -d example.com/upgrade@v0.0.2
++! grep '^rsc.io/quote v1.5.2 ' go.sum
++cp go.mod.orig go.mod
++cp go.sum.orig go.sum
++
++
++# Replace the new version with a different version.
++# We should get a sum for that version.
++go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
++go get -d example.com/upgrade@v0.0.2
++! grep '^rsc.io/quote v1.5.2 ' go.sum
++grep '^rsc.io/quote v1.5.1 ' go.sum
++cp go.mod.orig go.mod
++cp go.sum.orig go.sum
++
++
++# Delete the new version's zip (but not mod) from the cache and go offline.
++# 'go get' should fail when fetching the zip.
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++env GOPROXY=off
++! go get -d example.com/upgrade@v0.0.2
++stderr '^go: upgraded rsc.io/quote v1.0.0 => v1.5.2: error finding sum for rsc.io/quote@v1.5.2: module lookup disabled by GOPROXY=off$'
++
++-- go.mod.orig --
++module m
++
++go 1.16
++
++require (
++	example.com/upgrade v0.0.1
++	rsc.io/quote v1.0.0
++)
++
++replace (
++	example.com/upgrade v0.0.1 => ./upgrade1
++	example.com/upgrade v0.0.2 => ./upgrade2
++)
++-- go.sum.orig --
++rsc.io/quote v1.0.0 h1:kQ3IZQzPTiDJxSZI98YaWgxFEhlNdYASHvh+MplbViw=
++rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
++-- go.sum.want --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.0.0 h1:kQ3IZQzPTiDJxSZI98YaWgxFEhlNdYASHvh+MplbViw=
++rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++-- use.go --
++package use
++
++import (
++	_ "example.com/upgrade"
++	_ "rsc.io/quote"
++)
++-- upgrade1/go.mod --
++module example.com/upgrade
++
++go 1.16
++-- upgrade1/upgrade.go --
++package upgrade
++-- upgrade2/go.mod --
++module example.com/upgrade
++
++go 1.16
++
++require rsc.io/quote v1.5.2 // indirect
++-- upgrade2/upgrade.go --
++package upgrade
++-- dummy/go.mod --
++module rsc.io/quote
++
++go 1.16
++-- dummy/quote.go --
++package quote
++

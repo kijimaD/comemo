@@ -15,7 +15,108 @@ Date:   Wed Feb 22 08:42:37 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/net/http/serve_test.go | 28 +++++++++-------------------
  src/net/http/server.go     | 17 -----------------
  2 files changed, 9 insertions(+), 36 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index e11de66077..b2bdeb10a1 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6558,10 +6558,10 @@ func TestQuerySemicolon(t *testing.T) {
+ 	t.Cleanup(func() { afterTest(t) })
+ 
+ 	tests := []struct {
+-		query           string
+-		xNoSemicolons   string
+-		xWithSemicolons string
+-		warning         bool
++		query              string
++		xNoSemicolons      string
++		xWithSemicolons    string
++		expectParseFormErr bool
+ 	}{
+ 		{"?a=1;x=bad&x=good", "good", "bad", true},
+ 		{"?a=1;b=bad&x=good", "good", "good", true},
+@@ -6573,20 +6573,20 @@ func TestQuerySemicolon(t *testing.T) {
+ 		for _, tt := range tests {
+ 			t.Run(tt.query+"/allow=false", func(t *testing.T) {
+ 				allowSemicolons := false
+-				testQuerySemicolon(t, mode, tt.query, tt.xNoSemicolons, allowSemicolons, tt.warning)
++				testQuerySemicolon(t, mode, tt.query, tt.xNoSemicolons, allowSemicolons, tt.expectParseFormErr)
+ 			})
+ 			t.Run(tt.query+"/allow=true", func(t *testing.T) {
+-				allowSemicolons, expectWarning := true, false
+-				testQuerySemicolon(t, mode, tt.query, tt.xWithSemicolons, allowSemicolons, expectWarning)
++				allowSemicolons, expectParseFormErr := true, false
++				testQuerySemicolon(t, mode, tt.query, tt.xWithSemicolons, allowSemicolons, expectParseFormErr)
+ 			})
+ 		}
+ 	})
+ }
+ 
+-func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string, allowSemicolons, expectWarning bool) {
++func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string, allowSemicolons, expectParseFormErr bool) {
+ 	writeBackX := func(w ResponseWriter, r *Request) {
+ 		x := r.URL.Query().Get("x")
+-		if expectWarning {
++		if expectParseFormErr {
+ 			if err := r.ParseForm(); err == nil || !strings.Contains(err.Error(), "semicolon") {
+ 				t.Errorf("expected error mentioning semicolons from ParseForm, got %v", err)
+ 			}
+@@ -6624,16 +6624,6 @@ func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string,
+ 	if got, want := string(slurp), wantX; got != want {
+ 		t.Errorf("Body = %q; want = %q", got, want)
+ 	}
+-
+-	if expectWarning {
+-		if !strings.Contains(logBuf.String(), "semicolon") {
+-			t.Errorf("got %q from ErrorLog, expected a mention of semicolons", logBuf.String())
+-		}
+-	} else {
+-		if strings.Contains(logBuf.String(), "semicolon") {
+-			t.Errorf("got %q from ErrorLog, expected no mention of semicolons", logBuf.String())
+-		}
+-	}
+ }
+ 
+ func TestMaxBytesHandler(t *testing.T) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1ac61f7131..1b3b2f2e3a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2921,23 +2921,9 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
+ 		handler = globalOptionsHandler{}
+ 	}
+ 
+-	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
+-		var allowQuerySemicolonsInUse atomic.Bool
+-		req = req.WithContext(context.WithValue(req.Context(), silenceSemWarnContextKey, func() {
+-			allowQuerySemicolonsInUse.Store(true)
+-		}))
+-		defer func() {
+-			if !allowQuerySemicolonsInUse.Load() {
+-				sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
+-			}
+-		}()
+-	}
+-
+ 	handler.ServeHTTP(rw, req)
+ }
+ 
+-var silenceSemWarnContextKey = &contextKey{"silence-semicolons"}
+-
+ // AllowQuerySemicolons returns a handler that serves requests by converting any
+ // unescaped semicolons in the URL query to ampersands, and invoking the handler h.
+ //
+@@ -2949,9 +2935,6 @@ var silenceSemWarnContextKey = &contextKey{"silence-semicolons"}
+ // AllowQuerySemicolons should be invoked before Request.ParseForm is called.
+ func AllowQuerySemicolons(h Handler) Handler {
+ 	return HandlerFunc(func(w ResponseWriter, r *Request) {
+-		if silenceSemicolonsWarning, ok := r.Context().Value(silenceSemWarnContextKey).(func()); ok {
+-			silenceSemicolonsWarning()
+-		}
+ 		if strings.Contains(r.URL.RawQuery, ";") {
+ 			r2 := new(Request)
+ 			*r2 = *r

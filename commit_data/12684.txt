@@ -10,7 +10,146 @@ Date:   Mon Mar 19 16:51:06 2012 +1100
     R=golang-dev, r, mattn.jp, rsc, rogpeppe, bsiegert, r
     CC=golang-dev
     https://golang.org/cl/5825044
-
+---
  src/pkg/path/filepath/match.go      | 24 +++++++++++++++--------
  src/pkg/path/filepath/match_test.go | 38 ++++++++++++++++++++++---------------
  2 files changed, 39 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 38d264fb97..db8b0260ca 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -7,6 +7,7 @@ package filepath
+ import (
+ 	"errors"
+ 	"os"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -37,6 +38,9 @@ var ErrBadPattern = errors.New("syntax error in pattern")
+ // The only possible returned error is ErrBadPattern, when pattern
+ // is malformed.
+ //
++// On Windows, escaping is disabled. Instead, '\\' is treated as
++// path separator.
++//
+ func Match(pattern, name string) (matched bool, err error) {
+ Pattern:
+ 	for len(pattern) > 0 {
+@@ -95,9 +99,11 @@ Scan:
+ 	for i = 0; i < len(pattern); i++ {
+ 		switch pattern[i] {
+ 		case '\\':
+-			// error check handled in matchChunk: bad pattern.
+-			if i+1 < len(pattern) {
+-				i++
++			if runtime.GOOS != "windows" {
++				// error check handled in matchChunk: bad pattern.
++				if i+1 < len(pattern) {
++					i++
++				}
+ 			}
+ 		case '[':
+ 			inrange = true
+@@ -167,10 +173,12 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+ 			chunk = chunk[1:]
+ 
+ 		case '\\':
+-			chunk = chunk[1:]
+-			if len(chunk) == 0 {
+-				err = ErrBadPattern
+-				return
++			if runtime.GOOS != "windows" {
++				chunk = chunk[1:]
++				if len(chunk) == 0 {
++					err = ErrBadPattern
++					return
++				}
+ 			}
+ 			fallthrough
+ 
+@@ -191,7 +199,7 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
+ 		err = ErrBadPattern
+ 		return
+ 	}
+-	if chunk[0] == '\\' {
++	if chunk[0] == '\\' && runtime.GOOS != "windows" {
+ 		chunk = chunk[1:]
+ 		if len(chunk) == 0 {
+ 			err = ErrBadPattern
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index 7bdc449bc1..7b0ea80179 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -7,6 +7,7 @@ package filepath_test
+ import (
+ 	. "path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -76,21 +77,26 @@ func errp(e error) string {
+ }
+ 
+ func TestMatch(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		// XXX: Don't pass for windows.
+-		return
+-	}
+ 	for _, tt := range matchTests {
+-		ok, err := Match(tt.pattern, tt.s)
++		pattern := tt.pattern
++		s := tt.s
++		if runtime.GOOS == "windows" {
++			if strings.Index(pattern, "\\") >= 0 {
++				// no escape allowed on windows.
++				continue
++			}
++			pattern = Clean(pattern)
++			s = Clean(s)
++		}
++		ok, err := Match(pattern, s)
+ 		if ok != tt.match || err != tt.err {
+-			t.Errorf("Match(%#q, %#q) = %v, %q want %v, %q", tt.pattern, tt.s, ok, errp(err), tt.match, errp(tt.err))
++			t.Errorf("Match(%#q, %#q) = %v, %q want %v, %q", pattern, s, ok, errp(err), tt.match, errp(tt.err))
+ 		}
+ 	}
+ }
+ 
+ // contains returns true if vector contains the string s.
+ func contains(vector []string, s string) bool {
+-	s = ToSlash(s)
+ 	for _, elem := range vector {
+ 		if elem == s {
+ 			return true
+@@ -109,18 +115,20 @@ var globTests = []struct {
+ }
+ 
+ func TestGlob(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		// XXX: Don't pass for windows.
+-		return
+-	}
+ 	for _, tt := range globTests {
+-		matches, err := Glob(tt.pattern)
++		pattern := tt.pattern
++		result := tt.result
++		if runtime.GOOS == "windows" {
++			pattern = Clean(pattern)
++			result = Clean(result)
++		}
++		matches, err := Glob(pattern)
+ 		if err != nil {
+-			t.Errorf("Glob error for %q: %s", tt.pattern, err)
++			t.Errorf("Glob error for %q: %s", pattern, err)
+ 			continue
+ 		}
+-		if !contains(matches, tt.result) {
+-			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
++		if !contains(matches, result) {
++			t.Errorf("Glob(%#q) = %#v want %v", pattern, matches, result)
+ 		}
+ 	}
+ 	for _, pattern := range []string{"no_match", "../*/no_match"} {

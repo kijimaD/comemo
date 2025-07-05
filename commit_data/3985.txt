@@ -8,6 +8,24 @@ Date:   Wed Nov 11 12:00:50 2009 -0800
     
     R=r1, r
     https://golang.org/cl/154061
-
+---
  src/Make.pkg | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 50e1d8d72b..fd8e5bdb61 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -6,7 +6,11 @@ all: package
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
+-elem=$(lastword $(subst /, ,$(TARG)))
++# GNU Make 3.80 has a bug in lastword
++# elem=$(lastword $(subst /, ,$(TARG)))
++TARG_words=$(subst /, ,$(TARG))
++elem=$(word $(words $(TARG_words)),$(TARG_words))
++
+ dir=$(patsubst %/$(elem),%,./$(TARG))
+ pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 

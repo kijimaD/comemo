@@ -14,7 +14,86 @@ Date:   Sun Mar 20 20:24:12 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/example_test.go | 28 ++++++++++++++++++++++++++++
  src/reflect/type.go         | 18 +++++++++++++++---
  2 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/example_test.go b/src/reflect/example_test.go
+index 1147477955..9e2b9b3e97 100644
+--- a/src/reflect/example_test.go
++++ b/src/reflect/example_test.go
+@@ -67,6 +67,34 @@ func ExampleStructTag() {
+ 	// blue gopher
+ }
+ 
++func ExampleStructTag_Lookup() {
++	type S struct {
++		F0 string `alias:"field_0"`
++		F1 string `alias:""`
++		F2 string
++	}
++
++	s := S{}
++	st := reflect.TypeOf(s)
++	for i := 0; i < st.NumField(); i++ {
++		field := st.Field(i)
++		if alias, ok := field.Tag.Lookup("alias"); ok {
++			if alias == "" {
++				fmt.Println("(blank)")
++			} else {
++				fmt.Println(alias)
++			}
++		} else {
++			fmt.Println("(not specified)")
++		}
++	}
++
++	// Output:
++	// field_0
++	// (blank)
++	// (not specified)
++}
++
+ func ExampleTypeOf() {
+ 	// As interface types are only used for static typing, a
+ 	// common idiom to find the reflection Type for an interface
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index f75bfd379d..c7a0313809 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -976,8 +976,20 @@ type StructTag string
+ // Get returns the value associated with key in the tag string.
+ // If there is no such key in the tag, Get returns the empty string.
+ // If the tag does not have the conventional format, the value
+-// returned by Get is unspecified.
++// returned by Get is unspecified. To determine whether a tag is
++// explicitly set to the empty string, use Lookup.
+ func (tag StructTag) Get(key string) string {
++	v, _ := tag.Lookup(key)
++	return v
++}
++
++// Lookup returns the value associated with key in the tag string.
++// If the key is present in the tag the value (which may be empty)
++// is returned. Otherwise the returned value will be the empty string.
++// The ok return value reports whether the value was explicitly set in
++// the tag string. If the tag does not have the conventional format,
++// the value returned by Lookup is unspecified.
++func (tag StructTag) Lookup(key string) (value string, ok bool) {
+ 	// When modifying this code, also update the validateStructTag code
+ 	// in golang.org/x/tools/cmd/vet/structtag.go.
+ 
+@@ -1025,10 +1037,10 @@ func (tag StructTag) Get(key string) string {
+ 			if err != nil {
+ 				break
+ 			}
+-			return value
++			return value, true
+ 		}
+ 	}
+-	return ""
++	return "", false
+ }
+ 
+ // Field returns the i'th struct field.

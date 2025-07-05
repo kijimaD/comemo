@@ -26,7 +26,122 @@ Date:   Mon Nov 27 22:48:11 2017 +0000
     Change-Id: I20eb6c0e514a31f4bba305ac4c24266f39b95fd5
     Reviewed-on: https://go-review.googlesource.com/80077
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/clientserver_test.go | 61 +++++++++++++++++++++++++--------------
  src/net/http/server.go            | 19 ++++++++++++
  2 files changed, 59 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 8738c8ff7c..5017ebe468 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1141,27 +1141,6 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
+ 	}
+ }
+ 
+-// Tests that we support bogus under-100 HTTP statuses, because we historically
+-// have. This might change at some point, but not yet in Go 1.6.
+-func TestBogusStatusWorks_h1(t *testing.T) { testBogusStatusWorks(t, h1Mode) }
+-func TestBogusStatusWorks_h2(t *testing.T) { testBogusStatusWorks(t, h2Mode) }
+-func testBogusStatusWorks(t *testing.T, h2 bool) {
+-	defer afterTest(t)
+-	const code = 7
+-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		w.WriteHeader(code)
+-	}))
+-	defer cst.close()
+-
+-	res, err := cst.c.Get(cst.ts.URL)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if res.StatusCode != code {
+-		t.Errorf("StatusCode = %d; want %d", res.StatusCode, code)
+-	}
+-}
+-
+ func TestInterruptWithPanic_h1(t *testing.T)     { testInterruptWithPanic(t, h1Mode, "boom") }
+ func TestInterruptWithPanic_h2(t *testing.T)     { testInterruptWithPanic(t, h2Mode, "boom") }
+ func TestInterruptWithPanic_nil_h1(t *testing.T) { testInterruptWithPanic(t, h1Mode, nil) }
+@@ -1408,3 +1387,43 @@ func TestBadResponseAfterReadingBody(t *testing.T) {
+ 		t.Errorf("closes = %d; want 1", closes)
+ 	}
+ }
++
++func TestWriteHeader0_h1(t *testing.T) { testWriteHeader0(t, h1Mode) }
++func TestWriteHeader0_h2(t *testing.T) { testWriteHeader0(t, h2Mode) }
++func testWriteHeader0(t *testing.T, h2 bool) {
++	if h2 {
++		t.Skip("skipping until CL 80076 is vendored into std")
++	}
++	defer afterTest(t)
++	gotpanic := make(chan bool, 1)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		defer close(gotpanic)
++		defer func() {
++			if e := recover(); e != nil {
++				got := fmt.Sprintf("%T, %v", e, e)
++				want := "string, invalid WriteHeader code 0"
++				if got != want {
++					t.Errorf("unexpected panic value:\n got: %v\nwant: %v\n", got, want)
++				}
++				gotpanic <- true
++
++				// Set an explicit 503. This also tests that the WriteHeader call panics
++				// before it recorded that an explicit value was set and that bogus
++				// value wasn't stuck.
++				w.WriteHeader(503)
++			}
++		}()
++		w.WriteHeader(0)
++	}))
++	defer cst.close()
++	res, err := cst.c.Get(cst.ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if res.StatusCode != 503 {
++		t.Errorf("Response: %v %q; want 503", res.StatusCode, res.Status)
++	}
++	if !<-gotpanic {
++		t.Error("expected panic in handler")
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7a4ff88baf..45877096e2 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1046,7 +1046,25 @@ func (w *response) Header() Header {
+ // well read them)
+ const maxPostHandlerReadBytes = 256 << 10
+ 
++func checkWriteHeaderCode(code int) {
++	// Issue 22880: require valid WriteHeader status codes.
++	// For now we only enforce that it's three digits.
++	// In the future we might block things over 599 (600 and above aren't defined
++	// at http://httpwg.org/specs/rfc7231.html#status.codes)
++	// and we might block under 200 (once we have more mature 1xx support).
++	// But for now any three digits.
++	//
++	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
++	// no equivalent bogus thing we can realistically send in HTTP/2,
++	// so we'll consistently panic instead and help people find their bugs
++	// early. (We can't return an error from WriteHeader even if we wanted to.)
++	if code < 100 || code > 999 {
++		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
++	}
++}
++
+ func (w *response) WriteHeader(code int) {
++	checkWriteHeaderCode(code)
+ 	if w.conn.hijacked() {
+ 		w.conn.server.logf("http: response.WriteHeader on hijacked connection")
+ 		return
+@@ -3140,6 +3158,7 @@ func (tw *timeoutWriter) Write(p []byte) (int, error) {
+ }
+ 
+ func (tw *timeoutWriter) WriteHeader(code int) {
++	checkWriteHeaderCode(code)
+ 	tw.mu.Lock()
+ 	defer tw.mu.Unlock()
+ 	if tw.timedOut || tw.wroteHeader {

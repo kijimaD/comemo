@@ -7,6 +7,20 @@ Date:   Wed Mar 14 14:02:59 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5784072
-
+---
  src/cmd/godoc/appinit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 343e196f26..6bffedb5c0 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++// +build appengine
+ 
+ package main
+ 

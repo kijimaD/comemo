@@ -36,7 +36,198 @@ Date:   Thu Jun 8 08:26:19 2017 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   | 38 ++++++++++++++------
  src/cmd/link/internal/ppc64/asm.go | 73 +++++++++++++++++++++++++++++---------
  2 files changed, 84 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index def7055707..452332367c 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -328,18 +328,36 @@ func isRuntimeDepPkg(pkg string) bool {
+ 	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
+ }
+ 
++// Estimate the max size needed to hold any new trampolines created for this function. This
++// is used to determine when the section can be split if it becomes too large, to ensure that
++// the trampolines are in the same section as the function that uses them.
++func maxSizeTrampolinesPPC64(s *Symbol, isTramp bool) uint64 {
++	// If Thearch.Trampoline is nil, then trampoline support is not available on this arch.
++	// A trampoline does not need any dependent trampolines.
++	if Thearch.Trampoline == nil || isTramp {
++		return 0
++	}
++
++	n := uint64(0)
++	for ri := range s.R {
++		r := &s.R[ri]
++		if r.Type.IsDirectJump() {
++			n++
++		}
++	}
++	// Trampolines in ppc64 are 4 instructions.
++	return n * 16
++}
++
+ // detect too-far jumps in function s, and add trampolines if necessary
+-// ARM supports trampoline insertion for internal and external linking
+-// PPC64 & PPC64LE support trampoline insertion for internal linking only
++// ARM, PPC64 & PPC64LE support trampoline insertion for internal and external linking
++// On PPC64 & PPC64LE the text sections might be split but will still insert trampolines
++// where necessary.
+ func trampoline(ctxt *Link, s *Symbol) {
+ 	if Thearch.Trampoline == nil {
+ 		return // no need or no support of trampolines on this arch
+ 	}
+ 
+-	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+-		return
+-	}
+-
+ 	for ri := range s.R {
+ 		r := &s.R[ri]
+ 		if !r.Type.IsDirectJump() {
+@@ -2055,14 +2073,14 @@ func (ctxt *Link) textaddress() {
+ 	sect.Vaddr = va
+ 	ntramps := 0
+ 	for _, sym := range ctxt.Textp {
+-		sect, n, va = assignAddress(ctxt, sect, n, sym, va)
++		sect, n, va = assignAddress(ctxt, sect, n, sym, va, false)
+ 
+ 		trampoline(ctxt, sym) // resolve jumps, may add trampolines if jump too far
+ 
+ 		// lay down trampolines after each function
+ 		for ; ntramps < len(ctxt.tramps); ntramps++ {
+ 			tramp := ctxt.tramps[ntramps]
+-			sect, n, va = assignAddress(ctxt, sect, n, tramp, va)
++			sect, n, va = assignAddress(ctxt, sect, n, tramp, va, true)
+ 		}
+ 	}
+ 
+@@ -2088,7 +2106,7 @@ func (ctxt *Link) textaddress() {
+ // assigns address for a text symbol, returns (possibly new) section, its number, and the address
+ // Note: once we have trampoline insertion support for external linking, this function
+ // will not need to create new text sections, and so no need to return sect and n.
+-func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*Section, int, uint64) {
++func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64, isTramp bool) (*Section, int, uint64) {
+ 	sym.Sect = sect
+ 	if sym.Type&SSUB != 0 {
+ 		return sect, n, va
+@@ -2117,7 +2135,7 @@ func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*S
+ 
+ 	// Only break at outermost syms.
+ 
+-	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
++	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(sym, isTramp) > 0x1c00000 {
+ 
+ 		// Set the length for the previous text section
+ 		sect.Length = va - sect.Vaddr
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4425aa25a2..ee4e218125 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -522,13 +522,22 @@ func archrelocaddr(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ // resolve direct jump relocation r in s, and add trampoline if necessary
+ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 
++	// Trampolines are created if the branch offset is too large and the linker cannot insert a call stub to handle it.
++	// For internal linking, trampolines are always created for long calls.
++	// For external linking, the linker can insert a call stub to handle a long call, but depends on having the TOC address in
++	// r2.  For those build modes with external linking where the TOC address is not maintained in r2, trampolines must be created.
++	if ld.Linkmode == ld.LinkExternal && (ctxt.DynlinkingGo() || ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE) {
++		// No trampolines needed since r2 contains the TOC
++		return
++	}
++
+ 	t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
+ 	switch r.Type {
+ 	case objabi.R_CALLPOWER:
+ 
+ 		// If branch offset is too far then create a trampoline.
+ 
+-		if int64(int32(t<<6)>>6) != t || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
++		if (ld.Linkmode == ld.LinkExternal && s.Sect != r.Sym.Sect) || (ld.Linkmode == ld.LinkInternal && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
+ 			var tramp *ld.Symbol
+ 			for i := 0; ; i++ {
+ 
+@@ -552,26 +561,20 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 
+ 				t = ld.Symaddr(tramp) + r.Add - (s.Value + int64(r.Off))
+ 
+-				// If the offset of the trampoline that has been found is within range, use it.
+-				if int64(int32(t<<6)>>6) == t {
++				// With internal linking, the trampoline can be used if it is not too far.
++				// With external linking, the trampoline must be in this section for it to be reused.
++				if (ld.Linkmode == ld.LinkInternal && int64(int32(t<<6)>>6) == t) || (ld.Linkmode == ld.LinkExternal && s.Sect == tramp.Sect) {
+ 					break
+ 				}
+ 			}
+ 			if tramp.Type == 0 {
+-				ctxt.AddTramp(tramp)
+-				tramp.Size = 16 // 4 instructions
+-				tramp.P = make([]byte, tramp.Size)
+-				t = ld.Symaddr(r.Sym) + r.Add
+-				f := t & 0xffff0000
+-				o1 := uint32(0x3fe00000 | (f >> 16)) // lis r31,trampaddr hi (r31 is temp reg)
+-				f = t & 0xffff
+-				o2 := uint32(0x63ff0000 | f) // ori r31,trampaddr lo
+-				o3 := uint32(0x7fe903a6)     // mtctr
+-				o4 := uint32(0x4e800420)     // bctr
+-				ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
+-				ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
+-				ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
+-				ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
++				if ctxt.DynlinkingGo() || ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE {
++					// Should have returned for above cases
++					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
++				} else {
++					ctxt.AddTramp(tramp)
++					gentramp(tramp, r.Sym, int64(r.Add))
++				}
+ 			}
+ 			r.Sym = tramp
+ 			r.Add = 0 // This was folded into the trampoline target address
+@@ -582,6 +585,42 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 	}
+ }
+ 
++func gentramp(tramp, target *ld.Symbol, offset int64) {
++	// Used for default build mode for an executable
++	// Address of the call target is generated using
++	// relocation and doesn't depend on r2 (TOC).
++	tramp.Size = 16 // 4 instructions
++	tramp.P = make([]byte, tramp.Size)
++	t := ld.Symaddr(target) + offset
++	o1 := uint32(0x3fe00000) // lis r31,targetaddr hi
++	o2 := uint32(0x3bff0000) // addi r31,targetaddr lo
++	// With external linking, the target address must be
++	// relocated using LO and HA
++	if ld.Linkmode == ld.LinkExternal {
++		tr := ld.Addrel(tramp)
++		tr.Off = 0
++		tr.Type = objabi.R_ADDRPOWER
++		tr.Siz = 8 // generates 2 relocations:  HA + LO
++		tr.Sym = target
++		tr.Add = offset
++	} else {
++		// adjustment needed if lo has sign bit set
++		// when using addi to compute address
++		val := uint32((t & 0xffff0000) >> 16)
++		if t&0x8000 != 0 {
++			val += 1
++		}
++		o1 |= val                // hi part of addr
++		o2 |= uint32(t & 0xffff) // lo part of addr
++	}
++	o3 := uint32(0x7fe903a6) // mtctr r31
++	o4 := uint32(0x4e800420) // bctr
++	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
++	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
++	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
++	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
++}
++
+ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	if ld.Linkmode == ld.LinkExternal {
+ 		switch r.Type {

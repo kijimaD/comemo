@@ -26,10 +26,187 @@ Date:   Thu Sep 7 14:59:58 2023 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/os_windows.go       | 19 ++++++++++---------
  src/runtime/sys_windows_386.s   | 17 -----------------
  src/runtime/sys_windows_amd64.s | 19 -------------------
  src/runtime/sys_windows_arm.s   | 19 -------------------
  src/runtime/sys_windows_arm64.s | 15 ---------------
  5 files changed, 10 insertions(+), 79 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 576988e107..b77efabe70 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -138,7 +138,6 @@ var (
+ 	// Load ntdll.dll manually during startup, otherwise Mingw
+ 	// links wrong printf function to cgo executable (see issue
+ 	// 12030 for details).
+-	_NtWaitForSingleObject  stdFunction
+ 	_RtlGetCurrentPeb       stdFunction
+ 	_RtlGetNtVersionNumbers stdFunction
+ 
+@@ -269,7 +268,6 @@ func loadOptionalSyscalls() {
+ 	if n32 == 0 {
+ 		throw("ntdll.dll not found")
+ 	}
+-	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
+ 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
+ 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
+ 
+@@ -1069,7 +1067,6 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ }
+ 
+ // These must run on the system stack only.
+-func usleep2(dt int32)
+ 
+ //go:nosplit
+ func osyield_no_g() {
+@@ -1085,23 +1082,27 @@ func osyield() {
+ 
+ //go:nosplit
+ func usleep_no_g(us uint32) {
+-	dt := -10 * int32(us) // relative sleep (negative), 100ns units
+-	usleep2(dt)
++	timeout := uintptr(us) / 1000 // ms units
++	args := [...]uintptr{_INVALID_HANDLE_VALUE, timeout}
++	stdcall_no_g(_WaitForSingleObject, len(args), uintptr(noescape(unsafe.Pointer(&args[0]))))
+ }
+ 
+ //go:nosplit
+ func usleep(us uint32) {
+ 	systemstack(func() {
+-		dt := -10 * int64(us) // relative sleep (negative), 100ns units
++		var h, timeout uintptr
+ 		// If the high-res timer is available and its handle has been allocated for this m, use it.
+ 		// Otherwise fall back to the low-res one, which doesn't need a handle.
+ 		if haveHighResTimer && getg().m.highResTimer != 0 {
+-			h := getg().m.highResTimer
++			h = getg().m.highResTimer
++			dt := -10 * int64(us) // relative sleep (negative), 100ns units
+ 			stdcall6(_SetWaitableTimer, h, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0)
+-			stdcall3(_NtWaitForSingleObject, h, 0, 0)
++			timeout = _INFINITE
+ 		} else {
+-			usleep2(int32(dt))
++			h = _INVALID_HANDLE_VALUE
++			timeout = uintptr(us) / 1000 // ms units
+ 		}
++		stdcall2(_WaitForSingleObject, h, timeout)
+ 	})
+ }
+ 
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index c8d4bf93a7..e71fda78ae 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -234,23 +234,6 @@ TEXT runtime·setldt(SB),NOSPLIT,$0-12
+ 	MOVL	DX, 0(CX)(FS)
+ 	RET
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g may be nil.
+-TEXT runtime·usleep2(SB),NOSPLIT,$20-4
+-	MOVL	dt+0(FP), BX
+-	MOVL	$-1, hi-4(SP)
+-	MOVL	BX, lo-8(SP)
+-	LEAL	lo-8(SP), BX
+-	MOVL	BX, ptime-12(SP)
+-	MOVL	$0, alertable-16(SP)
+-	MOVL	$-1, handle-20(SP)
+-	MOVL	SP, BP
+-	MOVL	runtime·_NtWaitForSingleObject(SB), AX
+-	CALL	AX
+-	MOVL	BP, SP
+-	RET
+-
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ loop:
+ 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index af2b52735d..6cc8e91952 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -243,25 +243,6 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	MOVQ	DI, 0(CX)(GS)
+ 	RET
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g may be nil.
+-// The function leaves room for 4 syscall parameters
+-// (as per windows amd64 calling convention).
+-TEXT runtime·usleep2(SB),NOSPLIT,$48-4
+-	MOVLQSX	dt+0(FP), BX
+-	MOVQ	SP, AX
+-	ANDQ	$~15, SP	// alignment as per Windows requirement
+-	MOVQ	AX, 40(SP)
+-	LEAQ	32(SP), R8  // ptime
+-	MOVQ	BX, (R8)
+-	MOVQ	$-1, CX // handle
+-	MOVQ	$0, DX // alertable
+-	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
+-	CALL	AX
+-	MOVQ	40(SP), SP
+-	RET
+-
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ 	MOVQ	$_INTERRUPT_TIME, DI
+ 	MOVQ	time_lo(DI), AX
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 4b941e40ae..d194899d50 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -195,25 +195,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0, R0
+ 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g may be nil.
+-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	dt+0(FP), R3
+-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
+-	MOVW	R13, R4			// Save SP
+-	SUB	$8, R13			// R13 = R13 - 8
+-	BIC	$0x7, R13		// Align SP for ABI
+-	MOVW	$0, R1			// R1 = FALSE (alertable)
+-	MOVW	$-1, R0			// R0 = handle
+-	MOVW	R13, R2			// R2 = pTime
+-	MOVW	R3, 0(R2)		// time_lo
+-	MOVW	R0, 4(R2)		// time_hi
+-	MOVW	runtime·_NtWaitForSingleObject(SB), R3
+-	BL	(R3)
+-	MOVW	R4, R13			// Restore SP
+-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+-
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+ 
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 4818994ed4..1f6d411b07 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -228,21 +228,6 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
+ 	MOVD	$0, R0
+ 	RET
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g may be nil.
+-TEXT runtime·usleep2(SB),NOSPLIT,$32-4
+-	MOVW	dt+0(FP), R0
+-	MOVD	$16(RSP), R2		// R2 = pTime
+-	MOVD	R0, 0(R2)		// *pTime = -dt
+-	MOVD	$-1, R0			// R0 = handle
+-	MOVD	$0, R1			// R1 = FALSE (alertable)
+-	MOVD	runtime·_NtWaitForSingleObject(SB), R3
+-	SUB	$16, RSP	// skip over saved frame pointer below RSP
+-	BL	(R3)
+-	ADD	$16, RSP
+-	RET
+-
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ 	MOVD	$_INTERRUPT_TIME, R3
+ 	MOVD	time_lo(R3), R0

@@ -23,7 +23,7 @@ Date:   Tue Dec 3 14:42:38 2013 -0800
     R=golang-dev, dvyukov, rsc, cshapiro
     CC=golang-dev
     https://golang.org/cl/21990045
-
+---
  src/pkg/runtime/extern.go  |  3 +++
  src/pkg/runtime/malloc.goc |  5 ++++-
  src/pkg/runtime/malloc.h   |  2 +-
@@ -31,3 +31,167 @@ Date:   Tue Dec 3 14:42:38 2013 -0800
  src/pkg/runtime/runtime.c  |  3 ++-
  src/pkg/runtime/runtime.h  |  3 ++-
  6 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 527e9cdf89..b76c47fca2 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -36,6 +36,9 @@ a comma-separated list of name=val pairs. Supported names are:
+ 	detailed multiline info every X milliseconds, describing state of the scheduler,
+ 	processors, threads and goroutines.
+ 
++	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
++	profiled and a stack trace printed on each object's allocation and free.
++
+ The GOMAXPROCS variable limits the number of operating system threads that
+ can execute user-level Go code simultaneously. There is no limit to the number of threads
+ that can be blocked in system calls on behalf of Go code; those do not count against
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index c3ede4abdd..46d6450c06 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -122,6 +122,9 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+ 		g->stackguard0 = StackPreempt;
+ 
++	if(runtime·debug.allocfreetrace)
++		goto profile;
++
+ 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
+ 		if(size >= rate)
+ 			goto profile;
+@@ -135,7 +138,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
+ 		profile:
+ 			runtime·setblockspecial(v, true);
+-			runtime·MProf_Malloc(v, size);
++			runtime·MProf_Malloc(v, size, typ);
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 2c66c6fa7b..378dcb7338 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -476,7 +476,7 @@ enum
+ 	FlagNoInvokeGC	= 1<<4, // don't invoke GC
+ };
+ 
+-void	runtime·MProf_Malloc(void*, uintptr);
++void	runtime·MProf_Malloc(void*, uintptr, uintptr);
+ void	runtime·MProf_Free(void*, uintptr);
+ void	runtime·MProf_GC(void);
+ int32	runtime·gcprocs(void);
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 5b92cec95c..91bdb42ead 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -247,16 +247,63 @@ found:
+ 	return nil;
+ }
+ 
++static int8*
++typeinfoname(int32 typeinfo)
++{
++	if(typeinfo == TypeInfo_SingleObject)
++		return "single object";
++	else if(typeinfo == TypeInfo_Array)
++		return "array";
++	else if(typeinfo == TypeInfo_Chan)
++		return "channel";
++	runtime·throw("typinfoname: unknown type info");
++	return nil;
++}
++
++static void
++printstackframes(uintptr *stk, int32 nstk)
++{
++	String file;
++	Func *f;
++	int8 *name;
++	uintptr pc;
++	int32 frame;
++	int32 line;
++
++	for(frame = 0; frame < nstk; frame++) {
++		pc = stk[frame];
++		f = runtime·findfunc(pc);
++		if(f != nil) {
++			name = runtime·funcname(f);
++			line = runtime·funcline(f, pc, &file);
++			runtime·printf("\t#%d %p %s %S:%d\n", frame, pc, name, file, line);
++		} else {
++			runtime·printf("\t#%d %p\n", frame, pc);
++		}
++	}
++}
++
+ // Called by malloc to record a profiled block.
+ void
+-runtime·MProf_Malloc(void *p, uintptr size)
++runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
+ {
+-	int32 nstk;
+ 	uintptr stk[32];
+ 	Bucket *b;
++	Type *type;
++	int8 *name;
++	int32 nstk;
+ 
+ 	nstk = runtime·callers(1, stk, 32);
+ 	runtime·lock(&proflock);
++        if(runtime·debug.allocfreetrace) {
++		type = (Type*)(typ & ~3);
++		name = typeinfoname(typ & 3);
++		runtime·printf("MProf_Malloc(p=%p, size=%p, type=%p <%s", p, size, type, name);
++		if(type != nil)
++                	runtime·printf(" of %S", *type->string);
++		runtime·printf(">)\n");
++		printstackframes(stk, nstk);
++	}
+ 	b = stkbucket(MProf, stk, nstk, true);
+ 	b->recent_allocs++;
+ 	b->recent_alloc_bytes += size;
+@@ -275,6 +322,10 @@ runtime·MProf_Free(void *p, uintptr size)
+ 	if(b != nil) {
+ 		b->recent_frees++;
+ 		b->recent_free_bytes += size;
++		if(runtime·debug.allocfreetrace) {
++			runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
++			printstackframes(b->stk, b->nstk);
++		}
+ 	}
+ 	runtime·unlock(&proflock);
+ }
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ab9fed805f..63b78eb55f 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -387,9 +387,10 @@ static struct {
+ 	int8*	name;
+ 	int32*	value;
+ } dbgvar[] = {
++	{"allocfreetrace", &runtime·debug.allocfreetrace},
+ 	{"gctrace", &runtime·debug.gctrace},
+-	{"schedtrace", &runtime·debug.schedtrace},
+ 	{"scheddetail", &runtime·debug.scheddetail},
++	{"schedtrace", &runtime·debug.schedtrace},
+ };
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 129dc7d152..8183e7c810 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -533,9 +533,10 @@ struct CgoMal
+ // Holds variables parsed from GODEBUG env var.
+ struct DebugVars
+ {
++	int32	allocfreetrace;
+ 	int32	gctrace;
+-	int32	schedtrace;
+ 	int32	scheddetail;
++	int32	schedtrace;
+ };
+ 
+ extern bool runtime·precisestack;

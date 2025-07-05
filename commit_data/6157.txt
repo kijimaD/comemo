@@ -12,8 +12,185 @@ Date:   Thu Sep 2 13:48:28 2010 -0400
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/1947041
-
+---
  .hgignore                 |  1 +
  src/cmd/goinstall/doc.go  | 27 +++++++++++++++++---
  src/cmd/goinstall/main.go | 65 +++++++++++++++++++++++++++++++++++++++++------
  3 files changed, 81 insertions(+), 12 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 450a7e17be..54b54366df 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -40,6 +40,7 @@ test/pass.out
+ test/run.out
+ test/times.out
+ test/garbage/*.out
++goinstall.log
+ 
+ syntax:regexp
+ ^bin/
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index 81b8a4316a..5705266d01 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -10,14 +10,33 @@ It maintains a list of public Go packages at http://godashboard.appspot.com/pack
+ 
+ Usage:
+ 	goinstall [flags] importpath...
++	goinstall [flags] -a
+ 
+ Flags and default settings:
++        -a=false          install all previously installed packages
+ 	-dashboard=true   tally public packages on godashboard.appspot.com
+-	-update=false     update already-downloaded packages
++	-log=true         log installed packages to $GOROOT/goinstall.log for use by -a
++	-u=false          update already-downloaded packages
+ 	-v=false          verbose operation
+ 
+-Goinstall installs each of the packages identified on the command line.
+-It installs a package's prerequisites before trying to install the package itself.
++Goinstall installs each of the packages identified on the command line.  It
++installs a package's prerequisites before trying to install the package
++itself. Unless -log=false is specified, goinstall logs the import path of each
++installed package to $GOROOT/goinstall.log for use by goinstall -a.
++
++If the -a flag is given, goinstall reinstalls all previously installed
++packages, reading the list from $GOROOT/goinstall.log.  After updating to a
++new Go release, which deletes all package binaries, running
++
++	goinstall -a
++
++will recompile and reinstall goinstalled packages.
++
++Another common idiom is to use
++
++	goinstall -a -u
++
++to update, recompile, and reinstall all goinstalled packages.
+ 
+ The source code for a package with import path foo/bar is expected
+ to be in the directory $GOROOT/src/pkg/foo/bar/.  If the import
+@@ -54,7 +73,7 @@ if necessary.  The recognized code hosting sites are:
+ 
+ If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)
+ already exists and contains an appropriate checkout, goinstall will not
+-attempt to fetch updates.  The -update flag changes this behavior,
++attempt to fetch updates.  The -u flag changes this behavior,
+ causing goinstall to update all remote packages encountered during
+ the installation.
+ 
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 59eeb64bf4..f0bd9c5b1c 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -12,6 +12,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"runtime"
+@@ -20,19 +21,24 @@ import (
+ 
+ func usage() {
+ 	fmt.Fprint(os.Stderr, "usage: goinstall importpath...\n")
++	fmt.Fprintf(os.Stderr, "\tgoinstall -a\n")
+ 	flag.PrintDefaults()
+ 	os.Exit(2)
+ }
+ 
+ var (
+-	argv0   = os.Args[0]
+-	errors  = false
+-	gobin   = os.Getenv("GOBIN")
+-	parents = make(map[string]string)
+-	root    = runtime.GOROOT()
+-	visit   = make(map[string]status)
++	argv0         = os.Args[0]
++	errors        = false
++	gobin         = os.Getenv("GOBIN")
++	parents       = make(map[string]string)
++	root          = runtime.GOROOT()
++	visit         = make(map[string]status)
++	logfile       = path.Join(root, "goinstall.log")
++	installedPkgs = make(map[string]bool)
+ 
++	allpkg            = flag.Bool("a", false, "install all previously installed packages")
+ 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
++	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
+ 	update            = flag.Bool("u", false, "update already-downloaded packages")
+ 	verbose           = flag.Bool("v", false, "verbose")
+ )
+@@ -59,8 +65,26 @@ func main() {
+ 	// special case - "unsafe" is already installed
+ 	visit["unsafe"] = done
+ 
+-	// install command line arguments
+ 	args := flag.Args()
++	if *allpkg || *logPkgs {
++		readPackageList()
++	}
++	if *allpkg {
++		if len(args) != 0 {
++			usage() // -a and package list both provided
++		}
++		// install all packages that were ever installed
++		if len(installedPkgs) == 0 {
++			fmt.Fprintf(os.Stderr, "%s: no installed packages\n", argv0)
++			os.Exit(1)
++		}
++		args = make([]string, len(installedPkgs), len(installedPkgs))
++		i := 0
++		for pkg := range installedPkgs {
++			args[i] = pkg
++			i++
++		}
++	}
+ 	if len(args) == 0 {
+ 		usage()
+ 	}
+@@ -83,6 +107,29 @@ func printDeps(pkg string) {
+ 	fmt.Fprintf(os.Stderr, "\t%s ->\n", pkg)
+ }
+ 
++// readPackageList reads the list of installed packages from goinstall.log
++func readPackageList() {
++	pkglistdata, _ := ioutil.ReadFile(logfile)
++	pkglist := strings.Fields(string(pkglistdata))
++	for _, pkg := range pkglist {
++		installedPkgs[pkg] = true
++	}
++}
++
++// logPackage logs the named package as installed in goinstall.log, if the package is not found in there
++func logPackage(pkg string) {
++	if installedPkgs[pkg] {
++		return
++	}
++	fout, err := os.Open(logfile, os.O_WRONLY|os.O_APPEND|os.O_CREAT, 0644)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "%s: %s\n", argv0, err)
++		return
++	}
++	fmt.Fprintf(fout, "%s\n", pkg)
++	fout.Close()
++}
++
+ // install installs the package named by path, which is needed by parent.
+ func install(pkg, parent string) {
+ 	// Make sure we're not already trying to install pkg.
+@@ -153,9 +200,11 @@ func install(pkg, parent string) {
+ 		if err := domake(dir, pkg, local); err != nil {
+ 			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
+ 			errors = true
++		} else if !local && *logPkgs {
++			// mark this package as installed in $GOROOT/goinstall.log
++			logPackage(pkg)
+ 		}
+ 	}
+-
+ 	visit[pkg] = done
+ }
+ 

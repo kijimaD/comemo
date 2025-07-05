@@ -33,7 +33,43 @@ Date:   Wed Feb 26 15:12:33 2020 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mbitmap.go | 6 +++++-
  src/runtime/stubs.go   | 7 +++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 55c0282403..2045789fa4 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1921,7 +1921,11 @@ Run:
+ // The bitmask starts at s.startAddr.
+ // The result must be deallocated with dematerializeGCProg.
+ func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
+-	s := mheap_.allocManual((ptrdata/(8*sys.PtrSize)+pageSize-1)/pageSize, &memstats.gc_sys)
++	// Each word of ptrdata needs one bit in the bitmap.
++	bitmapBytes := divRoundUp(ptrdata, 8*sys.PtrSize)
++	// Compute the number of pages needed for bitmapBytes.
++	pages := divRoundUp(bitmapBytes, pageSize)
++	s := mheap_.allocManual(pages, &memstats.gc_sys)
+ 	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
+ 	return s
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index b8d4d6b30a..2c6f027c2c 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -310,6 +310,13 @@ func alignDown(n, a uintptr) uintptr {
+ 	return n &^ (a - 1)
+ }
+ 
++// divRoundUp returns ceil(n / a).
++func divRoundUp(n, a uintptr) uintptr {
++	// a is generally a power of two. This will get inlined and
++	// the compiler will optimize the division.
++	return (n + a - 1) / a
++}
++
+ // checkASM reports whether assembly runtime checks have passed.
+ func checkASM() bool
+ 

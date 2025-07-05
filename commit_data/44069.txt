@@ -14,6 +14,20 @@ Date:   Thu May 7 11:53:58 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 162ef9ba4e..13ccb86a03 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2177,7 +2177,7 @@ func (ctxt *Link) textaddress() {
+ 
+ 	// merge tramps into Textp, keeping Textp in address order
+ 	if ntramps != 0 {
+-		newtextp := make([]loader.Sym, 0, len(ctxt.Textp)+ntramps)
++		newtextp := make([]loader.Sym, 0, len(ctxt.Textp2)+ntramps)
+ 		i := 0
+ 		for _, s := range ctxt.Textp2 {
+ 			for ; i < ntramps && ldr.SymValue(ctxt.tramps[i]) < ldr.SymValue(s); i++ {

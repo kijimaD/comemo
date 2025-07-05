@@ -7,8 +7,71 @@ Date:   Sun Nov 13 22:42:57 2011 -0500
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5369094
-
+---
  src/pkg/time/sys_plan9.go   |  8 --------
  src/pkg/time/sys_unix.go    |  8 --------
  src/pkg/time/sys_windows.go | 13 -------------
  3 files changed, 29 deletions(-)
+
+diff --git a/src/pkg/time/sys_plan9.go b/src/pkg/time/sys_plan9.go
+index a630b3ee03..05089444a0 100644
+--- a/src/pkg/time/sys_plan9.go
++++ b/src/pkg/time/sys_plan9.go
+@@ -9,14 +9,6 @@ import (
+ 	"syscall"
+ )
+ 
+-func sysSleep(t int64) error {
+-	err := syscall.Sleep(t)
+-	if err != nil {
+-		return os.NewSyscallError("sleep", err)
+-	}
+-	return nil
+-}
+-
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+ 	// cannot predict pid, don't want to kill group
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+index 17a6a2d63e..3d313228b0 100644
+--- a/src/pkg/time/sys_unix.go
++++ b/src/pkg/time/sys_unix.go
+@@ -11,14 +11,6 @@ import (
+ 	"syscall"
+ )
+ 
+-func sysSleep(t int64) error {
+-	errno := syscall.Sleep(t)
+-	if errno != 0 && errno != syscall.EINTR {
+-		return os.NewSyscallError("sleep", errno)
+-	}
+-	return nil
+-}
+-
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+ 	syscall.Kill(os.Getpid(), syscall.SIGCHLD)
+diff --git a/src/pkg/time/sys_windows.go b/src/pkg/time/sys_windows.go
+index f9d6e89281..8c7242f427 100644
+--- a/src/pkg/time/sys_windows.go
++++ b/src/pkg/time/sys_windows.go
+@@ -4,19 +4,6 @@
+ 
+ package time
+ 
+-import (
+-	"os"
+-	"syscall"
+-)
+-
+-func sysSleep(t int64) error {
+-	errno := syscall.Sleep(t)
+-	if errno != 0 && errno != syscall.EINTR {
+-		return os.NewSyscallError("sleep", errno)
+-	}
+-	return nil
+-}
+-
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+ }

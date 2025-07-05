@@ -10,10 +10,94 @@ Date:   Thu Oct 13 16:58:04 2011 -0400
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/5282042
-
+---
  doc/go_spec.html       |  7 ++++---
  src/cmd/gc/typecheck.c |  4 ++++
  src/pkg/runtime/chan.c |  3 +++
  test/chan/perm.go      |  4 ++++
  test/closedchan.go     | 11 +++++++++++
  5 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 13f52996c4..810df2c46a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4531,12 +4531,13 @@ BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
+ 
+ <p>
+ For a channel <code>c</code>, the built-in function <code>close(c)</code>
+-marks the channel as unable to accept more values through a send operation;
+-sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
++records that no more values will be sent on the channel.
++It is an error if <code>c</code> is a receive-only channel.
++Sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
++Closing the nil channel also causes a <a href="#Run_time_panics">run-time panic</a>.
+ After calling <code>close</code>, and after any previously
+ sent values have been received, receive operations will return
+ the zero value for the channel's type without blocking.
+-
+ The multi-valued <a href="#Receive_operator">receive operation</a>
+ returns a received value along with an indication of whether the channel is closed.
+ </p>
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 052fc74dff..0b2e6f0ca6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -984,6 +984,10 @@ reswitch:
+ 			yyerror("invalid operation: %#N (non-chan type %T)", n, t);
+ 			goto error;
+ 		}
++		if(!(t->chan & Csend)) {
++			yyerror("invalid operation: %#N (cannot close receive-only channel)", n);
++			goto error;
++		}
+ 		ok |= Etop;
+ 		goto ret;
+ 
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index cc056f65f1..475da233c1 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -1052,6 +1052,9 @@ runtime·closechan(Hchan *c)
+ 	SudoG *sg;
+ 	G* gp;
+ 
++	if(c == nil)
++		runtime·panicstring("close of nil channel");
++
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 038ff94e36..af054450ea 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -48,4 +48,8 @@ func main() {
+ 	case x := <-cs: // ERROR "receive"
+ 		_ = x
+ 	}
++	
++	close(c)
++	close(cs)
++	close(cr)  // ERROR "receive"
+ }
+diff --git a/test/closedchan.go b/test/closedchan.go
+index 95314b3345..0dbe662d84 100644
+--- a/test/closedchan.go
++++ b/test/closedchan.go
+@@ -327,4 +327,15 @@ func main() {
+ 			testclosed(mk(closedasync()))
+ 		}
+ 	}
++	
++	var ch chan int	
++	shouldPanic(func() {
++		close(ch)
++	})
++	
++	ch = make(chan int)
++	close(ch)
++	shouldPanic(func() {
++		close(ch)
++	})
+ }

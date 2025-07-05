@@ -24,6 +24,20 @@ Date:   Mon Oct 17 19:15:37 2016 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 7533232dc9..e7dea696e7 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -128,7 +128,7 @@ func (fd *netFD) Close() error {
+ 		// "write /net/tcp/39/listen: inappropriate use of fd"
+ 		// But without it, Reads on dead conns hang forever.
+ 		// See Issue 9554.
+-		fd.ctl.WriteString("hangup")
++		fd.ctl.WriteString("close")
+ 	}
+ 	err := fd.ctl.Close()
+ 	if fd.data != nil {

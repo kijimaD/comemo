@@ -12,6 +12,21 @@ Date:   Fri Mar 31 12:47:47 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  doc/godebug.md | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 44e5a6e5b4..44f5dfd16d 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -106,7 +106,9 @@ are also treated as invalid.
+ The defaults that will be compiled into a main package
+ are reported by the command:
+ 
++{{raw `
+ 	go list -f '{{.DefaultGODEBUG}}' my/main/package
++`}}
+ 
+ Only differences from the base Go toolchain defaults are reported.
+ 

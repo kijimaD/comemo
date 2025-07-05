@@ -7,6 +7,20 @@ Date:   Mon Sep 27 11:42:58 2010 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/2213048
-
+---
  src/pkg/syscall/ztypes_windows_386.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 0780d190ac..c157a6525c 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -308,7 +308,7 @@ const (
+ 	SO_UPDATE_ACCEPT_CONTEXT = 0x700b
+ 
+ 	IPPROTO_IPV6 = 0x29
+-	IPV6_V6ONLY  = 0x1a
++	IPV6_V6ONLY  = 0x1b
+ 
+ 	SOMAXCONN = 5
+ 

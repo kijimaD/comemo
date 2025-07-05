@@ -18,6 +18,21 @@ Date:   Fri Apr 11 14:11:37 2025 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Bypass: Damien Neil <dneil@google.com>
-
+---
  src/os/root_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index bf1b755ad1..3fec9c5684 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -457,6 +457,9 @@ func TestRootChtimes(t *testing.T) {
+ 				case "js", "plan9":
+ 					times.atime = times.atime.Truncate(1 * time.Second)
+ 					times.mtime = times.mtime.Truncate(1 * time.Second)
++				case "illumos":
++					times.atime = times.atime.Truncate(1 * time.Microsecond)
++					times.mtime = times.mtime.Truncate(1 * time.Microsecond)
+ 				}
+ 
+ 				err := root.Chtimes(test.open, times.atime, times.mtime)

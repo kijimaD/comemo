@@ -10,7 +10,56 @@ Date:   Thu Mar 13 14:45:50 2014 +0900
     R=jsing
     CC=golang-codereviews
     https://golang.org/cl/75140045
-
+---
  src/pkg/net/tcpsockopt_dragonfly.go | 29 +++++++++++++++++++++++++++++
  src/pkg/net/tcpsockopt_unix.go      |  2 +-
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/tcpsockopt_dragonfly.go b/src/pkg/net/tcpsockopt_dragonfly.go
+new file mode 100644
+index 0000000000..d10a77773d
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_dragonfly.go
+@@ -0,0 +1,29 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// The kernel expects milliseconds so round to next highest millisecond.
++	d += (time.Millisecond - time.Nanosecond)
++	msecs := int(time.Duration(d.Nanoseconds()) / time.Millisecond)
++
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, msecs))
++	if err != nil {
++		return err
++	}
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, msecs))
++}
+diff --git a/src/pkg/net/tcpsockopt_unix.go b/src/pkg/net/tcpsockopt_unix.go
+index 15d4fd9651..2693a541d2 100644
+--- a/src/pkg/net/tcpsockopt_unix.go
++++ b/src/pkg/net/tcpsockopt_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux nacl netbsd
++// +build freebsd linux nacl netbsd
+ 
+ package net
+ 

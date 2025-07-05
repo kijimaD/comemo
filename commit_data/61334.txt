@@ -13,9 +13,174 @@ Date:   Tue Sep 17 15:42:26 2024 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/race/norace.go                | 13 +++++++++++++
  src/internal/race/race.go                  | 13 +++++++++++++
  src/internal/runtime/maps/runtime_swiss.go | 27 ++++++++++++++-------------
  src/runtime/race.go                        | 20 ++++++++++++++++++++
  4 files changed, 60 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/race/norace.go b/src/internal/race/norace.go
+index da650489fc..3fb00573a0 100644
+--- a/src/internal/race/norace.go
++++ b/src/internal/race/norace.go
+@@ -7,6 +7,7 @@
+ package race
+ 
+ import (
++	"internal/abi"
+ 	"unsafe"
+ )
+ 
+@@ -30,9 +31,21 @@ func Enable() {
+ func Read(addr unsafe.Pointer) {
+ }
+ 
++func ReadPC(addr unsafe.Pointer, callerpc, pc uintptr) {
++}
++
++func ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
++}
++
+ func Write(addr unsafe.Pointer) {
+ }
+ 
++func WritePC(addr unsafe.Pointer, callerpc, pc uintptr) {
++}
++
++func WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
++}
++
+ func ReadRange(addr unsafe.Pointer, len int) {
+ }
+ 
+diff --git a/src/internal/race/race.go b/src/internal/race/race.go
+index 58198559a9..bfcb24a269 100644
+--- a/src/internal/race/race.go
++++ b/src/internal/race/race.go
+@@ -7,6 +7,7 @@
+ package race
+ 
+ import (
++	"internal/abi"
+ 	"unsafe"
+ )
+ 
+@@ -32,9 +33,21 @@ func Enable()
+ //go:linkname Read
+ func Read(addr unsafe.Pointer)
+ 
++//go:linkname ReadPC
++func ReadPC(addr unsafe.Pointer, callerpc, pc uintptr)
++
++//go:linkname ReadObjectPC
++func ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr)
++
+ //go:linkname Write
+ func Write(addr unsafe.Pointer)
+ 
++//go:linkname WritePC
++func WritePC(addr unsafe.Pointer, callerpc, pc uintptr)
++
++//go:linkname WriteObjectPC
++func WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr)
++
+ //go:linkname ReadRange
+ func ReadRange(addr unsafe.Pointer, len int)
+ 
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index 1cf1dd21e5..b8bc8de0c3 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -10,7 +10,8 @@ import (
+ 	"internal/abi"
+ 	"internal/asan"
+ 	"internal/msan"
+-	//"internal/runtime/sys"
++	"internal/race"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -41,12 +42,12 @@ var zeroVal [abi.ZeroValSize]byte
+ //go:linkname runtime_mapaccess1 runtime.mapaccess1
+ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+ 	// TODO: concurrent checks.
+-	//if raceenabled && m != nil {
+-	//	callerpc := sys.GetCallerPC()
+-	//	pc := abi.FuncPCABIInternal(mapaccess1)
+-	//	racereadpc(unsafe.Pointer(m), callerpc, pc)
+-	//	raceReadObjectPC(t.Key, key, callerpc, pc)
+-	//}
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++		race.ReadObjectPC(typ.Key, key, callerpc, pc)
++	}
+ 	if msan.Enabled && m != nil {
+ 		msan.Read(key, typ.Key.Size_)
+ 	}
+@@ -107,12 +108,12 @@ func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe
+ 	if m == nil {
+ 		panic(errNilAssign)
+ 	}
+-	//if raceenabled {
+-	//	callerpc := sys.GetCallerPC()
+-	//	pc := abi.FuncPCABIInternal(mapassign)
+-	//	racewritepc(unsafe.Pointer(m), callerpc, pc)
+-	//	raceReadObjectPC(t.Key, key, callerpc, pc)
+-	//}
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++		race.ReadObjectPC(typ.Key, key, callerpc, pc)
++	}
+ 	if msan.Enabled {
+ 		msan.Read(key, typ.Key.Size_)
+ 	}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 75ca4f86d5..6b7bbe5245 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -168,6 +168,11 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ 	}
+ }
+ 
++//go:linkname race_ReadObjectPC internal/race.ReadObjectPC
++func race_ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
++	raceReadObjectPC(t, addr, callerpc, pc)
++}
++
+ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ 	kind := t.Kind_ & abi.KindMask
+ 	if kind == abi.Array || kind == abi.Struct {
+@@ -181,12 +186,27 @@ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ 	}
+ }
+ 
++//go:linkname race_WriteObjectPC internal/race.WriteObjectPC
++func race_WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
++	raceWriteObjectPC(t, addr, callerpc, pc)
++}
++
+ //go:noescape
+ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+ 
+ //go:noescape
+ func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+ 
++//go:linkname race_ReadPC internal/race.ReadPC
++func race_ReadPC(addr unsafe.Pointer, callerpc, pc uintptr) {
++	racereadpc(addr, callerpc, pc)
++}
++
++//go:linkname race_WritePC internal/race.WritePC
++func race_WritePC(addr unsafe.Pointer, callerpc, pc uintptr) {
++	racewritepc(addr, callerpc, pc)
++}
++
+ type symbolizeCodeContext struct {
+ 	pc   uintptr
+ 	fn   *byte

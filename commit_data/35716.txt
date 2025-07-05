@@ -11,6 +11,26 @@ Date:   Fri Mar 2 17:19:46 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/vdso_linux_amd64.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index f971ba672b..892b499824 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -11,14 +11,12 @@ const (
+ )
+ 
+ var sym_keys = []symbol_key{
+-	{"__vdso_time", 0xa33c485, 0x821e8e0d, &__vdso_time_sym},
+ 	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &__vdso_gettimeofday_sym},
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
+ }
+ 
+ // initialize with vsyscall fallbacks
+ var (
+-	__vdso_time_sym          uintptr = 0xffffffffff600400
+ 	__vdso_gettimeofday_sym  uintptr = 0xffffffffff600000
+ 	__vdso_clock_gettime_sym uintptr = 0
+ )

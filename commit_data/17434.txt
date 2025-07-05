@@ -15,7 +15,71 @@ Date:   Thu Aug 29 14:31:10 2013 -0700
     R=golang-dev, crawshaw
     CC=golang-dev
     https://golang.org/cl/13407043
-
+---
  src/pkg/regexp/syntax/prog.go      | 29 ++++++++++++++++-------------
  src/pkg/regexp/syntax/prog_test.go | 11 +++++++++++
  2 files changed, 27 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/regexp/syntax/prog.go b/src/pkg/regexp/syntax/prog.go
+index 902d3b3a57..a482a82f21 100644
+--- a/src/pkg/regexp/syntax/prog.go
++++ b/src/pkg/regexp/syntax/prog.go
+@@ -56,23 +56,26 @@ const (
+ // Passing r2 == -1 indicates that the position is
+ // at the end of the text.
+ func EmptyOpContext(r1, r2 rune) EmptyOp {
+-	var op EmptyOp
+-	if r1 < 0 {
+-		op |= EmptyBeginText | EmptyBeginLine
+-	}
+-	if r1 == '\n' {
++	var op EmptyOp = EmptyNoWordBoundary
++	var boundary byte
++	switch {
++	case IsWordChar(r1):
++		boundary = 1
++	case r1 == '\n':
+ 		op |= EmptyBeginLine
++	case r1 < 0:
++		op |= EmptyBeginText | EmptyBeginLine
+ 	}
+-	if r2 < 0 {
+-		op |= EmptyEndText | EmptyEndLine
+-	}
+-	if r2 == '\n' {
++	switch {
++	case IsWordChar(r2):
++		boundary ^= 1
++	case r2 == '\n':
+ 		op |= EmptyEndLine
++	case r2 < 0:
++		op |= EmptyEndText | EmptyEndLine
+ 	}
+-	if IsWordChar(r1) != IsWordChar(r2) {
+-		op |= EmptyWordBoundary
+-	} else {
+-		op |= EmptyNoWordBoundary
++	if boundary != 0 { // IsWordChar(r1) != IsWordChar(r2)
++		op ^= (EmptyWordBoundary | EmptyNoWordBoundary)
+ 	}
+ 	return op
+ }
+diff --git a/src/pkg/regexp/syntax/prog_test.go b/src/pkg/regexp/syntax/prog_test.go
+index 663d5a8d77..cd71abc2a4 100644
+--- a/src/pkg/regexp/syntax/prog_test.go
++++ b/src/pkg/regexp/syntax/prog_test.go
+@@ -103,3 +103,14 @@ func TestCompile(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkEmptyOpContext(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var r1 rune = -1
++		for _, r2 := range "foo, bar, baz\nsome input text.\n" {
++			EmptyOpContext(r1, r2)
++			r1 = r2
++		}
++		EmptyOpContext(r1, -1)
++	}
++}

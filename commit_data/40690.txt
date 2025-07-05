@@ -20,6 +20,24 @@ Date:   Mon Jun 10 22:18:56 2019 -0700
     Change-Id: I0b637b943de003d9efc294f6f1e49b793668d037
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181579
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/html/template/context.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/html/template/context.go b/src/html/template/context.go
+index 7ab3d1fed6..f7d4849928 100644
+--- a/src/html/template/context.go
++++ b/src/html/template/context.go
+@@ -26,7 +26,11 @@ type context struct {
+ }
+ 
+ func (c context) String() string {
+-	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, c.err)
++	var err error
++	if c.err != nil {
++		err = c.err
++	}
++	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, err)
+ }
+ 
+ // eq reports whether two contexts are equal.

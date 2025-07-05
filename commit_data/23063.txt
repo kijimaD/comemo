@@ -17,7 +17,77 @@ Date:   Tue Apr 21 13:13:16 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9169
     Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go      |  8 ++++----
  src/net/http/transport_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 79a418765b..b754472be6 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -931,6 +931,10 @@ func (pc *persistConn) readLoop() {
+ 			}
+ 		}
+ 
++		pc.lk.Lock()
++		pc.numExpectedResponses--
++		pc.lk.Unlock()
++
+ 		// The connection might be going away when we put the
+ 		// idleConn below. When that happens, we close the response channel to signal
+ 		// to roundTrip that the connection is gone. roundTrip waits for
+@@ -1155,10 +1159,6 @@ WaitResponse:
+ 		}
+ 	}
+ 
+-	pc.lk.Lock()
+-	pc.numExpectedResponses--
+-	pc.lk.Unlock()
+-
+ 	if re.err != nil {
+ 		pc.t.setReqCanceler(req.Request, nil)
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index e2c926d500..2d52f17721 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2092,6 +2092,38 @@ func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
+ 	}
+ }
+ 
++// Tests that we don't leak Transport persistConn.readLoop goroutines
++// when a server hangs up immediately after saying it would keep-alive.
++func TestTransportIssue10457(t *testing.T) {
++	defer afterTest(t) // used to fail in goroutine leak check
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		// Send a response with no body, keep-alive
++		// (implicit), and then lie and immediately close the
++		// connection. This forces the Transport's readLoop to
++		// immediately Peek an io.EOF and get to the point
++		// that used to hang.
++		conn, _, _ := w.(Hijacker).Hijack()
++		conn.Write([]byte("HTTP/1.1 200 OK\r\nFoo: Bar\r\nContent-Length: 0\r\n\r\n")) // keep-alive
++		conn.Close()
++	}))
++	defer ts.Close()
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	cl := &Client{Transport: tr}
++	res, err := cl.Get(ts.URL)
++	if err != nil {
++		t.Fatalf("Get: %v", err)
++	}
++	defer res.Body.Close()
++
++	// Just a sanity check that we at least get the response. The real
++	// test here is that the "defer afterTest" above doesn't find any
++	// leaked goroutines.
++	if got, want := res.Header.Get("Foo"), "Bar"; got != want {
++		t.Errorf("Foo header = %q; want %q", got, want)
++	}
++}
++
+ type errorReader struct {
+ 	err error
+ }

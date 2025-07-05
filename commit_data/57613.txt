@@ -14,7 +14,7 @@ Date:   Fri Aug 18 00:54:28 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go             | 17 +++++++++++-----
  src/cmd/compile/internal/noder/helpers.go       |  2 +-
  src/cmd/compile/internal/typecheck/func.go      | 15 ++++++--------
@@ -22,3 +22,176 @@ Date:   Fri Aug 18 00:54:28 2023 -0700
  src/cmd/compile/internal/typecheck/typecheck.go | 26 +------------------------
  src/cmd/compile/internal/typecheck/universe.go  |  1 +
  6 files changed, 22 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 37e2689b97..63a6a3eed2 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -106,9 +106,8 @@ func NewBasicLit(pos src.XPos, val constant.Value) Node {
+ 	n := &BasicLit{val: val}
+ 	n.op = OLITERAL
+ 	n.pos = pos
+-	if k := val.Kind(); k != constant.Unknown {
+-		n.SetType(idealType(k))
+-	}
++	n.SetType(idealType(val.Kind()))
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+@@ -432,15 +431,19 @@ func (n *MakeExpr) SetOp(op Op) {
+ }
+ 
+ // A NilExpr represents the predefined untyped constant nil.
+-// (It may be copied and assigned a type, though.)
+ type NilExpr struct {
+ 	miniExpr
+ }
+ 
+-func NewNilExpr(pos src.XPos) *NilExpr {
++func NewNilExpr(pos src.XPos, typ *types.Type) *NilExpr {
++	if typ == nil {
++		base.FatalfAt(pos, "missing type")
++	}
+ 	n := &NilExpr{}
+ 	n.pos = pos
+ 	n.op = ONIL
++	n.SetType(typ)
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+@@ -498,9 +501,13 @@ type LinksymOffsetExpr struct {
+ }
+ 
+ func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *LinksymOffsetExpr {
++	if typ == nil {
++		base.FatalfAt(pos, "nil type")
++	}
+ 	n := &LinksymOffsetExpr{Linksym: lsym, Offset_: offset}
+ 	n.typ = typ
+ 	n.op = OLINKSYMOFFSET
++	n.SetTypecheck(1)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index ce63e6fafc..628719a922 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -66,7 +66,7 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
+ }
+ 
+ func Nil(pos src.XPos, typ *types.Type) ir.Node {
+-	return typed(typ, ir.NewNilExpr(pos))
++	return ir.NewNilExpr(pos, typ)
+ }
+ 
+ // Expressions
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 3084ac8f34..b727150596 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -17,18 +17,15 @@ import (
+ 
+ // MakeDotArgs package all the arguments that match a ... T parameter into a []T.
+ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
+-	var n ir.Node
+ 	if len(args) == 0 {
+-		n = ir.NewNilExpr(pos)
+-		n.SetType(typ)
+-	} else {
+-		args = append([]ir.Node(nil), args...)
+-		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
+-		lit.SetImplicit(true)
+-		n = lit
++		return ir.NewNilExpr(pos, typ)
+ 	}
+ 
+-	n = Expr(n)
++	args = append([]ir.Node(nil), args...)
++	lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
++	lit.SetImplicit(true)
++
++	n := Expr(lit)
+ 	if n.Type() == nil {
+ 		base.FatalfAt(pos, "mkdotargslice: typecheck failed")
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 75b5d58fee..91d05778f1 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -120,9 +120,7 @@ func LinksymAddr(pos src.XPos, lsym *obj.LSym, typ *types.Type) *ir.AddrExpr {
+ }
+ 
+ func NodNil() ir.Node {
+-	n := ir.NewNilExpr(base.Pos)
+-	n.SetType(types.Types[types.TNIL])
+-	return n
++	return ir.NewNilExpr(base.Pos, types.Types[types.TNIL])
+ }
+ 
+ // AddImplicitDots finds missing fields in obj.field that
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 16e6db6a25..384295b55f 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -177,7 +177,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+ 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
+ 		switch n.Op() {
+-		case ir.ONAME, ir.OTYPE, ir.OLITERAL:
++		case ir.ONAME:
+ 			break
+ 
+ 		default:
+@@ -230,22 +230,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		base.Fatalf("typecheck %v", n.Op())
+ 		panic("unreachable")
+ 
+-	case ir.OLITERAL:
+-		if n.Sym() == nil && n.Type() == nil {
+-			base.Fatalf("literal missing type: %v", n)
+-		}
+-		return n
+-
+-	case ir.ONIL:
+-		return n
+-
+-	// names
+-	case ir.ONONAME:
+-		// Note: adderrorname looks for this string and
+-		// adds context about the outer expression
+-		base.FatalfAt(n.Pos(), "undefined: %v", n.Sym())
+-		panic("unreachable")
+-
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+ 		if n.BuiltinOp != 0 {
+@@ -267,14 +251,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		}
+ 		return n
+ 
+-	case ir.OLINKSYMOFFSET:
+-		// type already set
+-		return n
+-
+-	// types (ODEREF is with exprs)
+-	case ir.OTYPE:
+-		return n
+-
+ 	// type or expr
+ 	case ir.ODEREF:
+ 		n := n.(*ir.StarExpr)
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index a5bfca2157..62f5b628dd 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -70,6 +70,7 @@ func InitUniverse() {
+ 	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
+ 		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
+ 		n.SetType(typ)
++		n.SetTypecheck(1)
+ 		sym.Def = n
+ 		return n
+ 	})

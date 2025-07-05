@@ -12,9 +12,153 @@ Date:   Tue Aug 3 21:43:39 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instance.go   | 44 --------------------------------------------
  src/go/types/named.go      | 40 +++++++++++++++++++++++++++++++++++++++-
  src/go/types/predicates.go |  6 ------
  src/go/types/unify.go      |  3 ---
  4 files changed, 39 insertions(+), 54 deletions(-)
+
+diff --git a/src/go/types/instance.go b/src/go/types/instance.go
+deleted file mode 100644
+index 1223c9f6f1..0000000000
+--- a/src/go/types/instance.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types
+-
+-// TODO(rfindley): move this code to named.go.
+-
+-import "go/token"
+-
+-// instance holds position information for use in lazy instantiation.
+-//
+-// TODO(rfindley): come up with a better name for this type, now that its usage
+-// has changed.
+-type instance struct {
+-	pos     token.Pos   // position of type instantiation; for error reporting only
+-	posList []token.Pos // position of each targ; for error reporting only
+-}
+-
+-// expand ensures that the underlying type of n is instantiated.
+-// The underlying type will be Typ[Invalid] if there was an error.
+-// TODO(rfindley): expand would be a better name for this method, but conflicts
+-// with the existing concept of lazy expansion. Need to reconcile this.
+-func (n *Named) expand() {
+-	if n.instance != nil {
+-		// n must be loaded before instantiation, in order to have accurate
+-		// tparams. This is done implicitly by the call to n.TParams, but making it
+-		// explicit is harmless: load is idempotent.
+-		n.load()
+-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList)
+-		n.underlying = inst
+-		n.fromRHS = inst
+-		n.instance = nil
+-	}
+-}
+-
+-// expand expands uninstantiated named types and leaves all other types alone.
+-// expand does not recurse.
+-func expand(typ Type) Type {
+-	if t, _ := typ.(*Named); t != nil {
+-		t.expand()
+-	}
+-	return typ
+-}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 87eaa3179e..fc53783ab8 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -4,7 +4,10 @@
+ 
+ package types
+ 
+-import "sync"
++import (
++	"go/token"
++	"sync"
++)
+ 
+ // TODO(rfindley) Clean up Named struct below; specifically the fromRHS field (can we use underlying?).
+ 
+@@ -252,3 +255,38 @@ func (n *Named) setUnderlying(typ Type) {
+ 		n.underlying = typ
+ 	}
+ }
++
++// instance holds position information for use in lazy instantiation.
++//
++// TODO(rfindley): come up with a better name for this type, now that its usage
++// has changed.
++type instance struct {
++	pos     token.Pos   // position of type instantiation; for error reporting only
++	posList []token.Pos // position of each targ; for error reporting only
++}
++
++// expand ensures that the underlying type of n is instantiated.
++// The underlying type will be Typ[Invalid] if there was an error.
++// TODO(rfindley): expand would be a better name for this method, but conflicts
++// with the existing concept of lazy expansion. Need to reconcile this.
++func (n *Named) expand() {
++	if n.instance != nil {
++		// n must be loaded before instantiation, in order to have accurate
++		// tparams. This is done implicitly by the call to n.TParams, but making it
++		// explicit is harmless: load is idempotent.
++		n.load()
++		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList)
++		n.underlying = inst
++		n.fromRHS = inst
++		n.instance = nil
++	}
++}
++
++// expand expands uninstantiated named types and leaves all other types alone.
++// expand does not recurse.
++func expand(typ Type) Type {
++	if t, _ := typ.(*Named); t != nil {
++		t.expand()
++	}
++	return typ
++}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index f9cac34a03..23924693fd 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -57,9 +57,6 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
+ func isTyped(typ Type) bool {
+ 	// isTyped is called with types that are not fully
+ 	// set up. Must not call asBasic()!
+-	// A *Named or *instance type is always typed, so
+-	// we only need to check if we have a true *Basic
+-	// type.
+ 	t, _ := typ.(*Basic)
+ 	return t == nil || t.info&IsUntyped == 0
+ }
+@@ -328,9 +325,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *TypeParam:
+ 		// nothing to do (x and y being equal is caught in the very beginning of this function)
+ 
+-	// case *instance:
+-	//	unreachable since types are expanded
+-
+ 	case *top:
+ 		// Either both types are theTop in which case the initial x == y check
+ 		// will have caught them. Otherwise they are not identical.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index da57e533cc..90a5cf7c72 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -456,9 +456,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// are identical if they originate in the same declaration.
+ 		return x == y
+ 
+-	// case *instance:
+-	//	unreachable since types are expanded
+-
+ 	case nil:
+ 		// avoid a crash in case of nil type
+ 

@@ -14,6 +14,25 @@ Date:   Wed Nov 2 17:19:42 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 0ad3cf64e4..3608b04e44 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -42,6 +42,13 @@ import "errors"
+ //	Z07:00 Z or ±hh:mm
+ //	Z07    Z or ±hh
+ //
++// The recognized day of week formats are "Mon" and "Monday".
++// The recognized month formats are "Jan" and "January".
++//
++// Text in the format string that is not recognized as part of the reference
++// time is echoed verbatim during Format and expected to appear verbatim
++// in the input to Parse.
++//
+ // The executable example for time.Format demonstrates the working
+ // of the layout string in detail and is a good reference.
+ //

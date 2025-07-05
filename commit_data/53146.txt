@@ -16,6 +16,30 @@ Date:   Mon Jul 18 13:02:02 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/switch.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/switch.go b/test/switch.go
+index 5e1d85bb68..1806fa7f9b 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -400,4 +400,18 @@ func main() {
+ 	case i > x:
+ 		os.Exit(1)
+ 	}
++
++	// Unified IR converts the tag and all case values to empty
++	// interface, when any of the case values aren't assignable to the
++	// tag value's type. Make sure that `case nil:` compares against the
++	// tag type's nil value (i.e., `(*int)(nil)`), not nil interface
++	// (i.e., `any(nil)`).
++	switch (*int)(nil) {
++	case nil:
++		// ok
++	case any(nil):
++		assert(false, "case any(nil) matched")
++	default:
++		assert(false, "default matched")
++	}
+ }

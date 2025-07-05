@@ -8,7 +8,66 @@ Date:   Thu Oct 18 10:25:50 2012 +1100
     R=r, minux.ma
     CC=golang-dev
     https://golang.org/cl/6618055
-
+---
  src/pkg/exp/html/doc.go          |  2 +-
  src/pkg/exp/html/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/html/doc.go b/src/pkg/exp/html/doc.go
+index 56b194ffb9..4dd453091c 100644
+--- a/src/pkg/exp/html/doc.go
++++ b/src/pkg/exp/html/doc.go
+@@ -84,7 +84,7 @@ example, to process each anchor node in depth-first order:
+ 		if n.Type == html.ElementNode && n.Data == "a" {
+ 			// Do something with n...
+ 		}
+-		for _, c := range n.Child {
++		for c := n.FirstChild; c != nil; c = c.NextSibling {
+ 			f(c)
+ 		}
+ 	}
+diff --git a/src/pkg/exp/html/example_test.go b/src/pkg/exp/html/example_test.go
+new file mode 100644
+index 0000000000..c15e9a2bd8
+--- /dev/null
++++ b/src/pkg/exp/html/example_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This example demonstrates parsing HTML data and walking the resulting tree.
++package html_test
++
++import (
++	"exp/html"
++	"fmt"
++	"log"
++	"strings"
++)
++
++func ExampleParse() {
++	s := `<p>Links:</p><ul><li><a href="foo">Foo</a><li><a href="/bar/baz">BarBaz</a></ul>`
++	doc, err := html.Parse(strings.NewReader(s))
++	if err != nil {
++		log.Fatal(err)
++	}
++	var f func(*html.Node)
++	f = func(n *html.Node) {
++		if n.Type == html.ElementNode && n.Data == "a" {
++			for _, a := range n.Attr {
++				if a.Key == "href" {
++					fmt.Println(a.Val)
++					break
++				}
++			}
++		}
++		for c := n.FirstChild; c != nil; c = c.NextSibling {
++			f(c)
++		}
++	}
++	f(doc)
++	// Output:
++	// foo
++	// /bar/baz
++}

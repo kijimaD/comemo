@@ -8,6 +8,33 @@ Date:   Wed Aug 12 14:40:29 2009 -0700
     DELTA=6  (4 added, 0 deleted, 2 changed)
     OCL=33107
     CL=33110
-
+---
  src/Make.pkg | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index a796260240..2098e2ed9c 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -5,7 +5,9 @@
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
+-dir=$(shell echo $(TARG) | sed 's|[^/]*$$||')
++elem=$(lastword $(subst /, ,$(TARG)))
++dir=$(patsubst %/$(elem),%,$(TARG))
++
+ pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 
+ coverage:
+@@ -24,7 +26,9 @@ nuke: clean
+ testpackage-clean:
+ 	rm -f _test/$(TARG).a _gotest_.$O
+ 
+-install: package
++install: $(pkgdir)/$(TARG).a
++
++$(pkgdir)/$(TARG).a: package
+ 	test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+ 	cp _obj/$(TARG).a $(pkgdir)/$(TARG).a
+ 

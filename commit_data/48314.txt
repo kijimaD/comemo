@@ -12,6 +12,19 @@ Date:   Thu May 6 23:15:37 2021 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/poll/splice_linux_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/poll/splice_linux_test.go b/src/internal/poll/splice_linux_test.go
+index 3629ef1b20..280468c7e7 100644
+--- a/src/internal/poll/splice_linux_test.go
++++ b/src/internal/poll/splice_linux_test.go
+@@ -46,6 +46,7 @@ func TestSplicePipePool(t *testing.T) {
+ 		poll.PutPipe(p)
+ 	}
+ 	ps = nil
++	p = nil
+ 
+ 	// Exploit the timeout of "go test" as a timer for the subsequent verification.
+ 	timeout := 5 * time.Minute

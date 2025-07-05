@@ -7,6 +7,40 @@ Date:   Thu Jun 4 15:49:43 2015 -0700
     Change-Id: I4ff42113c5dda553d6f3d58f0e4836dce7c84710
     Reviewed-on: https://go-review.googlesource.com/10730
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/note.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/note.go b/src/cmd/go/note.go
+index b82850d6b5..6da8a981cc 100644
+--- a/src/cmd/go/note.go
++++ b/src/cmd/go/note.go
+@@ -57,23 +57,23 @@ func readnote(filename, name string, typ int32) ([]byte, error) {
+ 				if err == io.EOF {
+ 					break
+ 				}
+-				return nil, fmt.Errorf("read namesize failed:", err)
++				return nil, fmt.Errorf("read namesize failed: %v", err)
+ 			}
+ 			err = binary.Read(r, f.ByteOrder, &descsize)
+ 			if err != nil {
+-				return nil, fmt.Errorf("read descsize failed:", err)
++				return nil, fmt.Errorf("read descsize failed: %v", err)
+ 			}
+ 			err = binary.Read(r, f.ByteOrder, &noteType)
+ 			if err != nil {
+-				return nil, fmt.Errorf("read type failed:", err)
++				return nil, fmt.Errorf("read type failed: %v", err)
+ 			}
+ 			noteName, err := readwithpad(r, namesize)
+ 			if err != nil {
+-				return nil, fmt.Errorf("read name failed:", err)
++				return nil, fmt.Errorf("read name failed: %v", err)
+ 			}
+ 			desc, err := readwithpad(r, descsize)
+ 			if err != nil {
+-				return nil, fmt.Errorf("read desc failed:", err)
++				return nil, fmt.Errorf("read desc failed: %v", err)
+ 			}
+ 			if name == string(noteName) && typ == noteType {
+ 				return desc, nil

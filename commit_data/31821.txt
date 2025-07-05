@@ -16,6 +16,17 @@ Date:   Sat Mar 18 19:44:37 2017 +0000
     Change-Id: I6dee55c9c321b1a03b41c7124c6a1ea15772c878
     Reviewed-on: https://go-review.googlesource.com/38353
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gofmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 8b22f03f65..a552d4cde4 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -100,4 +100,4 @@ package main
+ 
+ // BUG(rsc): The implementation of -r is a bit slow.
+ // BUG(gri): If -w fails, the restored original file may not have some of the
+-//           original file attributes.
++// original file attributes.

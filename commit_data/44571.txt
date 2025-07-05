@@ -17,7 +17,7 @@ Date:   Wed Jun 17 15:50:14 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go       |  2 +-
  src/cmd/go/internal/fix/fix.go           |  2 +-
  src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
@@ -32,3 +32,374 @@ Date:   Wed Jun 17 15:50:14 2020 -0400
  src/cmd/go/internal/work/build.go        | 20 ++++++++++++--------
  src/cmd/go/internal/work/exec.go         |  7 ++++++-
  13 files changed, 47 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 8af3e3df9c..6bfd7ae21e 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -117,7 +117,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if cleanPkg {
+-		for _, pkg := range load.PackagesAndErrors(args) {
++		for _, pkg := range load.PackagesAndErrors(ctx, args) {
+ 			clean(pkg)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index f16af05fc8..825624fcbb 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -34,7 +34,7 @@ See also: go fmt, go vet.
+ 
+ func runFix(ctx context.Context, cmd *base.Command, args []string) {
+ 	printed := false
+-	for _, pkg := range load.Packages(args) {
++	for _, pkg := range load.Packages(ctx, args) {
+ 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not fixing packages in dependency modules\n")
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 9868efc7ef..f96cff429c 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -64,7 +64,7 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}()
+ 	}
+-	for _, pkg := range load.PackagesAndErrors(args) {
++	for _, pkg := range load.PackagesAndErrors(ctx, args) {
+ 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index fb26f77f95..98c17bba8c 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -176,7 +176,7 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Even if the arguments are .go files, this loop suffices.
+ 	printed := false
+-	for _, pkg := range load.PackagesAndErrors(args) {
++	for _, pkg := range load.PackagesAndErrors(ctx, args) {
+ 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index f7da5270b0..ef43602aca 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -172,7 +172,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// everything.
+ 	load.ClearPackageCache()
+ 
+-	pkgs := load.PackagesForBuild(args)
++	pkgs := load.PackagesForBuild(ctx, args)
+ 
+ 	// Phase 3. Install.
+ 	if *getD {
+@@ -182,7 +182,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
+-	work.InstallPackages(args, pkgs)
++	work.InstallPackages(ctx, args, pkgs)
+ }
+ 
+ // downloadPaths prepares the list of paths to pass to download.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index ef0a5a2f2d..3ec243a759 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -449,9 +449,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	load.IgnoreImports = *listFind
+ 	var pkgs []*load.Package
+ 	if *listE {
+-		pkgs = load.PackagesAndErrors(args)
++		pkgs = load.PackagesAndErrors(ctx, args)
+ 	} else {
+-		pkgs = load.Packages(args)
++		pkgs = load.Packages(ctx, args)
+ 		base.ExitIfErrors()
+ 	}
+ 
+@@ -539,7 +539,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+ 			}
+ 		}
+-		b.Do(a)
++		b.Do(ctx, a)
+ 	}
+ 
+ 	for _, p := range pkgs {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2b5fbb1c5b..32c2ba7912 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -7,6 +7,7 @@ package load
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -30,6 +31,7 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
+ )
+ 
+ var (
+@@ -2123,9 +2125,9 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
+ // to load dependencies of a named package, the named
+ // package is still returned, with p.Incomplete = true
+ // and details in p.DepsErrors.
+-func Packages(args []string) []*Package {
++func Packages(ctx context.Context, args []string) []*Package {
+ 	var pkgs []*Package
+-	for _, pkg := range PackagesAndErrors(args) {
++	for _, pkg := range PackagesAndErrors(ctx, args) {
+ 		if pkg.Error != nil {
+ 			base.Errorf("%v", pkg.Error)
+ 			continue
+@@ -2139,7 +2141,10 @@ func Packages(args []string) []*Package {
+ // *Package for every argument, even the ones that
+ // cannot be loaded at all.
+ // The packages that fail to load will have p.Error != nil.
+-func PackagesAndErrors(patterns []string) []*Package {
++func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
++	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
++	defer span.Done()
++
+ 	for _, p := range patterns {
+ 		// Listing is only supported with all patterns referring to either:
+ 		// - Files that are part of the same directory.
+@@ -2233,8 +2238,8 @@ func ImportPaths(args []string) []*search.Match {
+ // PackagesForBuild is like Packages but exits
+ // if any of the packages or their dependencies have errors
+ // (cannot be built).
+-func PackagesForBuild(args []string) []*Package {
+-	pkgs := PackagesAndErrors(args)
++func PackagesForBuild(ctx context.Context, args []string) []*Package {
++	pkgs := PackagesAndErrors(ctx, args)
+ 	printed := map[*PackageError]bool{}
+ 	for _, pkg := range pkgs {
+ 		if pkg.Error != nil {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 9836a3e2cc..b217196931 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -715,8 +715,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 	work.BuildInit()
+-	pkgs := load.PackagesForBuild(pkgPatterns)
+-	work.InstallPackages(pkgPatterns, pkgs)
++	pkgs := load.PackagesForBuild(ctx, pkgPatterns)
++	work.InstallPackages(ctx, pkgPatterns, pkgs)
+ }
+ 
+ // runQueries looks up modules at target versions in parallel. Results will be
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index ca2c3db92c..3630f68c54 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -79,7 +79,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		p = load.GoFilesPackage(files)
+ 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+-		pkgs := load.PackagesAndErrors(args[:1])
++		pkgs := load.PackagesAndErrors(ctx, args[:1])
+ 		if len(pkgs) == 0 {
+ 			base.Fatalf("go run: no packages loaded from %s", args[0])
+ 		}
+@@ -141,7 +141,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+ 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
+-	b.Do(a)
++	b.Do(ctx, a)
+ }
+ 
+ // buildRunProgram is the action for running a binary that has already
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 6648d4eab4..d71d339828 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -577,7 +577,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	work.VetFlags = testVet.flags
+ 	work.VetExplicit = testVet.explicit
+ 
+-	pkgs = load.PackagesForBuild(pkgArgs)
++	pkgs = load.PackagesForBuild(ctx, pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		base.Fatalf("no packages to test")
+ 	}
+@@ -659,7 +659,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		sort.Strings(all)
+ 
+ 		a := &work.Action{Mode: "go test -i"}
+-		for _, p := range load.PackagesForBuild(all) {
++		for _, p := range load.PackagesForBuild(ctx, all) {
+ 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
+ 				// gccgo's standard library packages
+ 				// can not be reinstalled.
+@@ -667,7 +667,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
+ 		}
+-		b.Do(a)
++		b.Do(ctx, a)
+ 		if !testC || a.Failed {
+ 			return
+ 		}
+@@ -787,7 +787,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	b.Do(root)
++	b.Do(ctx, root)
+ }
+ 
+ // ensures that package p imports the named package
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 717ff2d0aa..58f392eb96 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -67,7 +67,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	pkgs := load.PackagesForBuild(pkgArgs)
++	pkgs := load.PackagesForBuild(ctx, pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		base.Fatalf("no packages to vet")
+ 	}
+@@ -93,5 +93,5 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, pxtest))
+ 		}
+ 	}
+-	b.Do(root)
++	b.Do(ctx, root)
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 2bbee43ab4..d020aa6e9f 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -19,6 +19,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/trace"
+ )
+ 
+ var CmdBuild = &base.Command{
+@@ -350,7 +351,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	var b Builder
+ 	b.Init()
+ 
+-	pkgs := load.PackagesForBuild(args)
++	pkgs := load.PackagesForBuild(ctx, args)
+ 
+ 	explicitO := len(cfg.BuildO) > 0
+ 
+@@ -379,7 +380,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 		depMode = ModeInstall
+ 	}
+ 
+-	pkgs = omitTestOnly(pkgsFilter(load.Packages(args)))
++	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
+ 
+ 	// Special case -o /dev/null by not writing at all.
+ 	if cfg.BuildO == os.DevNull {
+@@ -409,7 +410,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 			if len(a.Deps) == 0 {
+ 				base.Fatalf("go build: no main packages to build")
+ 			}
+-			b.Do(a)
++			b.Do(ctx, a)
+ 			return
+ 		}
+ 		if len(pkgs) > 1 {
+@@ -422,7 +423,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 		p.Stale = true // must build - not up to date
+ 		p.StaleReason = "build -o flag in use"
+ 		a := b.AutoAction(ModeInstall, depMode, p)
+-		b.Do(a)
++		b.Do(ctx, a)
+ 		return
+ 	}
+ 
+@@ -433,7 +434,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	if cfg.BuildBuildmode == "shared" {
+ 		a = b.buildmodeShared(ModeBuild, depMode, args, pkgs, a)
+ 	}
+-	b.Do(a)
++	b.Do(ctx, a)
+ }
+ 
+ var CmdInstall = &base.Command{
+@@ -518,7 +519,7 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
+ 
+ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 	BuildInit()
+-	InstallPackages(args, load.PackagesForBuild(args))
++	InstallPackages(ctx, args, load.PackagesForBuild(ctx, args))
+ }
+ 
+ // omitTestOnly returns pkgs with test-only packages removed.
+@@ -538,7 +539,10 @@ func omitTestOnly(pkgs []*load.Package) []*load.Package {
+ 	return list
+ }
+ 
+-func InstallPackages(patterns []string, pkgs []*load.Package) {
++func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Package) {
++	ctx, span := trace.StartSpan(ctx, "InstallPackages "+strings.Join(patterns, " "))
++	defer span.Done()
++
+ 	if cfg.GOBIN != "" && !filepath.IsAbs(cfg.GOBIN) {
+ 		base.Fatalf("cannot install, GOBIN must be an absolute path")
+ 	}
+@@ -607,7 +611,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
+ 		a = b.buildmodeShared(ModeInstall, ModeInstall, patterns, pkgs, a)
+ 	}
+ 
+-	b.Do(a)
++	b.Do(ctx, a)
+ 	base.ExitIfErrors()
+ 
+ 	// Success. If this command is 'go install' with no arguments
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 071c9d2db9..3ea3293ae1 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -8,6 +8,7 @@ package work
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -31,6 +32,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
+ )
+ 
+ // actionList returns the list of actions in the dag rooted at root
+@@ -54,7 +56,10 @@ func actionList(root *Action) []*Action {
+ }
+ 
+ // do runs the action graph rooted at root.
+-func (b *Builder) Do(root *Action) {
++func (b *Builder) Do(ctx context.Context, root *Action) {
++	ctx, span := trace.StartSpan(ctx, "exec.Builder.Do ("+root.Mode+" "+root.Target+")")
++	defer span.Done()
++
+ 	if !b.IsCmdList {
+ 		// If we're doing real work, take time at the end to trim the cache.
+ 		c := cache.Default()

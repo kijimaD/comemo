@@ -11,7 +11,7 @@ Date:   Thu Oct 12 18:08:04 2023 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/aes/aes_gcm.go        |  6 ++---
  src/crypto/aes/cipher.go         |  2 +-
  src/crypto/aes/ctr_s390x.go      |  2 +-
@@ -56,3 +56,1386 @@ Date:   Thu Oct 12 18:08:04 2023 +0800
  src/crypto/x509/sec1.go          |  2 +-
  src/crypto/x509/x509.go          | 24 +++++++++---------
  43 files changed, 179 insertions(+), 179 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index f77d27969a..036705feca 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -43,7 +43,7 @@ var errOpen = errors.New("cipher: message authentication failed")
+ var _ gcmAble = (*aesCipherGCM)(nil)
+ 
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by crypto/cipher.NewGCM via the gcmAble interface.
++// called by [crypto/cipher.NewGCM] via the gcmAble interface.
+ func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+ 	gcmAesInit(&g.productTable, g.ks)
+@@ -86,7 +86,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
+ 	return
+ }
+ 
+-// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
++// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+@@ -126,7 +126,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	return ret
+ }
+ 
+-// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
++// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index 183c1697c8..a9e6208696 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -26,7 +26,7 @@ func (k KeySizeError) Error() string {
+ 	return "crypto/aes: invalid key size " + strconv.Itoa(int(k))
+ }
+ 
+-// NewCipher creates and returns a new cipher.Block.
++// NewCipher creates and returns a new [cipher.Block].
+ // The key argument should be the AES key,
+ // either 16, 24, or 32 bytes to select
+ // AES-128, AES-192, or AES-256.
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+index 0d3a58e034..921421533a 100644
+--- a/src/crypto/aes/ctr_s390x.go
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -32,7 +32,7 @@ type aesctr struct {
+ }
+ 
+ // NewCTR returns a Stream which encrypts/decrypts using the AES block
+-// cipher in counter mode. The length of iv must be the same as BlockSize.
++// cipher in counter mode. The length of iv must be the same as [BlockSize].
+ func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
+ 	if len(iv) != BlockSize {
+ 		panic("cipher.NewCTR: IV length must equal block size")
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index 3dbf4ba578..2a7f898dc4 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -54,7 +54,7 @@ type gcmAsm struct {
+ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *uint32)
+ 
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by crypto/cipher.NewGCM via the gcmAble interface.
++// called by [crypto/cipher.NewGCM] via the gcmAble interface.
+ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	var h1, h2 uint64
+ 	g := &gcmAsm{cipher: c, ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
+@@ -159,7 +159,7 @@ func (g *gcmAsm) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
+ 	}
+ }
+ 
+-// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
++// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+@@ -183,7 +183,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	return ret
+ }
+ 
+-// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
++// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index d95f1694c6..cf0e28af69 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -57,7 +57,7 @@ var errOpen = errors.New("cipher: message authentication failed")
+ var _ gcmAble = (*aesCipherAsm)(nil)
+ 
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by crypto/cipher.NewGCM via the gcmAble interface.
++// called by [crypto/cipher.NewGCM] via the gcmAble interface.
+ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	var hk gcmHashKey
+ 	c.Encrypt(hk[:], hk[:])
+@@ -200,7 +200,7 @@ func (g *gcmAsm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSi
+ 	}
+ }
+ 
+-// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
++// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+@@ -229,7 +229,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	return ret
+ }
+ 
+-// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
++// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+@@ -301,7 +301,7 @@ const (
+ //go:noescape
+ func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+ 
+-// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
++// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+@@ -326,7 +326,7 @@ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	return ret
+ }
+ 
+-// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
++// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+ func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+diff --git a/src/crypto/cipher/cfb.go b/src/crypto/cipher/cfb.go
+index aae3575da1..7e3f9695b7 100644
+--- a/src/crypto/cipher/cfb.go
++++ b/src/crypto/cipher/cfb.go
+@@ -50,15 +50,15 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
+ 	}
+ }
+ 
+-// NewCFBEncrypter returns a Stream which encrypts with cipher feedback mode,
+-// using the given Block. The iv must be the same length as the Block's block
++// NewCFBEncrypter returns a [Stream] which encrypts with cipher feedback mode,
++// using the given [Block]. The iv must be the same length as the [Block]'s block
+ // size.
+ func NewCFBEncrypter(block Block, iv []byte) Stream {
+ 	return newCFB(block, iv, false)
+ }
+ 
+-// NewCFBDecrypter returns a Stream which decrypts with cipher feedback mode,
+-// using the given Block. The iv must be the same length as the Block's block
++// NewCFBDecrypter returns a [Stream] which decrypts with cipher feedback mode,
++// using the given [Block]. The iv must be the same length as the [Block]'s block
+ // size.
+ func NewCFBDecrypter(block Block, iv []byte) Stream {
+ 	return newCFB(block, iv, true)
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index 3ac0ff74d0..eac8e266cf 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -34,8 +34,8 @@ type ctrAble interface {
+ 	NewCTR(iv []byte) Stream
+ }
+ 
+-// NewCTR returns a Stream which encrypts/decrypts using the given Block in
+-// counter mode. The length of iv must be the same as the Block's block size.
++// NewCTR returns a [Stream] which encrypts/decrypts using the given [Block] in
++// counter mode. The length of iv must be the same as the [Block]'s block size.
+ func NewCTR(block Block, iv []byte) Stream {
+ 	if ctr, ok := block.(ctrAble); ok {
+ 		return ctr.NewCTR(iv)
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 477d26a0e0..928771f05f 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -80,8 +80,8 @@ type gcm struct {
+ // with the standard nonce length.
+ //
+ // In general, the GHASH operation performed by this implementation of GCM is not constant-time.
+-// An exception is when the underlying Block was created by aes.NewCipher
+-// on systems with hardware support for AES. See the crypto/aes package documentation for details.
++// An exception is when the underlying [Block] was created by aes.NewCipher
++// on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
+ func NewGCM(cipher Block) (AEAD, error) {
+ 	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, gcmTagSize)
+ }
+@@ -92,7 +92,7 @@ func NewGCM(cipher Block) (AEAD, error) {
+ //
+ // Only use this function if you require compatibility with an existing
+ // cryptosystem that uses non-standard nonce lengths. All other users should use
+-// NewGCM, which is faster and more resistant to misuse.
++// [NewGCM], which is faster and more resistant to misuse.
+ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+ 	return newGCMWithNonceAndTagSize(cipher, size, gcmTagSize)
+ }
+@@ -104,7 +104,7 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+ //
+ // Only use this function if you require compatibility with an existing
+ // cryptosystem that uses non-standard tag lengths. All other users should use
+-// NewGCM, which is more resistant to misuse.
++// [NewGCM], which is more resistant to misuse.
+ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
+ 	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
+ }
+diff --git a/src/crypto/cipher/io.go b/src/crypto/cipher/io.go
+index 0974ac748e..b70285b406 100644
+--- a/src/crypto/cipher/io.go
++++ b/src/crypto/cipher/io.go
+@@ -9,7 +9,7 @@ import "io"
+ // The Stream* objects are so simple that all their members are public. Users
+ // can create them themselves.
+ 
+-// StreamReader wraps a Stream into an io.Reader. It calls XORKeyStream
++// StreamReader wraps a [Stream] into an [io.Reader]. It calls XORKeyStream
+ // to process each slice of data which passes through.
+ type StreamReader struct {
+ 	S Stream
+@@ -22,10 +22,10 @@ func (r StreamReader) Read(dst []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// StreamWriter wraps a Stream into an io.Writer. It calls XORKeyStream
+-// to process each slice of data which passes through. If any Write call
+-// returns short then the StreamWriter is out of sync and must be discarded.
+-// A StreamWriter has no internal buffering; Close does not need
++// StreamWriter wraps a [Stream] into an io.Writer. It calls XORKeyStream
++// to process each slice of data which passes through. If any [StreamWriter.Write]
++// call returns short then the StreamWriter is out of sync and must be discarded.
++// A StreamWriter has no internal buffering; [StreamWriter.Close] does not need
+ // to be called to flush write data.
+ type StreamWriter struct {
+ 	S   Stream
+diff --git a/src/crypto/cipher/ofb.go b/src/crypto/cipher/ofb.go
+index 1195fdd45a..bdfc977d5e 100644
+--- a/src/crypto/cipher/ofb.go
++++ b/src/crypto/cipher/ofb.go
+@@ -18,7 +18,7 @@ type ofb struct {
+ 	outUsed int
+ }
+ 
+-// NewOFB returns a Stream that encrypts or decrypts using the block cipher b
++// NewOFB returns a [Stream] that encrypts or decrypts using the block cipher b
+ // in output feedback mode. The initialization vector iv's length must be equal
+ // to b's block size.
+ func NewOFB(b Block, iv []byte) Stream {
+diff --git a/src/crypto/crypto.go b/src/crypto/crypto.go
+index 10a1cd8403..2774a6b681 100644
+--- a/src/crypto/crypto.go
++++ b/src/crypto/crypto.go
+@@ -15,7 +15,7 @@ import (
+ // package.
+ type Hash uint
+ 
+-// HashFunc simply returns the value of h so that Hash implements SignerOpts.
++// HashFunc simply returns the value of h so that [Hash] implements [SignerOpts].
+ func (h Hash) HashFunc() Hash {
+ 	return h
+ }
+@@ -171,7 +171,7 @@ type PublicKey any
+ //	    Equal(x crypto.PrivateKey) bool
+ //	}
+ //
+-// as well as purpose-specific interfaces such as Signer and Decrypter, which
++// as well as purpose-specific interfaces such as [Signer] and [Decrypter], which
+ // can be used for increased type safety within applications.
+ type PrivateKey any
+ 
+@@ -198,7 +198,7 @@ type Signer interface {
+ 	Sign(rand io.Reader, digest []byte, opts SignerOpts) (signature []byte, err error)
+ }
+ 
+-// SignerOpts contains options for signing with a Signer.
++// SignerOpts contains options for signing with a [Signer].
+ type SignerOpts interface {
+ 	// HashFunc returns an identifier for the hash function used to produce
+ 	// the message passed to Signer.Sign, or else zero to indicate that no
+diff --git a/src/crypto/des/cipher.go b/src/crypto/des/cipher.go
+index 699e5177ae..b0f456e692 100644
+--- a/src/crypto/des/cipher.go
++++ b/src/crypto/des/cipher.go
+@@ -25,7 +25,7 @@ type desCipher struct {
+ 	subkeys [16]uint64
+ }
+ 
+-// NewCipher creates and returns a new cipher.Block.
++// NewCipher creates and returns a new [cipher.Block].
+ func NewCipher(key []byte) (cipher.Block, error) {
+ 	if len(key) != 8 {
+ 		return nil, KeySizeError(len(key))
+@@ -69,7 +69,7 @@ type tripleDESCipher struct {
+ 	cipher1, cipher2, cipher3 desCipher
+ }
+ 
+-// NewTripleDESCipher creates and returns a new cipher.Block.
++// NewTripleDESCipher creates and returns a new [cipher.Block].
+ func NewTripleDESCipher(key []byte) (cipher.Block, error) {
+ 	if len(key) != 24 {
+ 		return nil, KeySizeError(len(key))
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index a83359996d..4524bd492f 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -155,7 +155,7 @@ GeneratePrimes:
+ }
+ 
+ // GenerateKey generates a public&private key pair. The Parameters of the
+-// PrivateKey must already be valid (see GenerateParameters).
++// [PrivateKey] must already be valid (see [GenerateParameters]).
+ func GenerateKey(priv *PrivateKey, rand io.Reader) error {
+ 	if priv.P == nil || priv.Q == nil || priv.G == nil {
+ 		return errors.New("crypto/dsa: parameters not set up before generating key")
+@@ -200,7 +200,7 @@ func fermatInverse(k, P *big.Int) *big.Int {
+ // to the byte-length of the subgroup. This function does not perform that
+ // truncation itself.
+ //
+-// Be aware that calling Sign with an attacker-controlled PrivateKey may
++// Be aware that calling Sign with an attacker-controlled [PrivateKey] may
+ // require an arbitrary amount of CPU.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+ 	randutil.MaybeReadByte(rand)
+diff --git a/src/crypto/ecdh/ecdh.go b/src/crypto/ecdh/ecdh.go
+index b21b5697d0..b7c26f91e5 100644
+--- a/src/crypto/ecdh/ecdh.go
++++ b/src/crypto/ecdh/ecdh.go
+@@ -114,14 +114,14 @@ type PrivateKey struct {
+ 	publicKeyOnce sync.Once
+ }
+ 
+-// ECDH performs an ECDH exchange and returns the shared secret. The PrivateKey
+-// and PublicKey must use the same curve.
++// ECDH performs an ECDH exchange and returns the shared secret. The [PrivateKey]
++// and [PublicKey] must use the same curve.
+ //
+ // For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
+ // Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
+ // Version 2.0, Section 2.3.5. The result is never the point at infinity.
+ //
+-// For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
++// For [X25519], this performs ECDH as specified in RFC 7748, Section 6.1. If
+ // the result is the all-zero value, ECDH returns an error.
+ func (k *PrivateKey) ECDH(remote *PublicKey) ([]byte, error) {
+ 	if k.curve != remote.curve {
+@@ -141,7 +141,7 @@ func (k *PrivateKey) Bytes() []byte {
+ // Equal returns whether x represents the same private key as k.
+ //
+ // Note that there can be equivalent private keys with different encodings which
+-// would return false from this check but behave the same way as inputs to ECDH.
++// would return false from this check but behave the same way as inputs to [ECDH].
+ //
+ // This check is performed in constant time as long as the key types and their
+ // curve match.
+@@ -182,7 +182,7 @@ func (k *PrivateKey) PublicKey() *PublicKey {
+ }
+ 
+ // Public implements the implicit interface of all standard library private
+-// keys. See the docs of crypto.PrivateKey.
++// keys. See the docs of [crypto.PrivateKey].
+ func (k *PrivateKey) Public() crypto.PublicKey {
+ 	return k.PublicKey()
+ }
+diff --git a/src/crypto/ecdh/nist.go b/src/crypto/ecdh/nist.go
+index 01354fa2cf..b366491544 100644
+--- a/src/crypto/ecdh/nist.go
++++ b/src/crypto/ecdh/nist.go
+@@ -211,7 +211,7 @@ func (c *nistCurve[Point]) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, e
+ 	return p.BytesX()
+ }
+ 
+-// P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
++// P256 returns a [Curve] which implements NIST P-256 (FIPS 186-3, section D.2.3),
+ // also known as secp256r1 or prime256v1.
+ //
+ // Multiple invocations of this function will return the same value, which can
+@@ -230,7 +230,7 @@ var p256Order = []byte{
+ 	0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
+ 	0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51}
+ 
+-// P384 returns a Curve which implements NIST P-384 (FIPS 186-3, section D.2.4),
++// P384 returns a [Curve] which implements NIST P-384 (FIPS 186-3, section D.2.4),
+ // also known as secp384r1.
+ //
+ // Multiple invocations of this function will return the same value, which can
+@@ -251,7 +251,7 @@ var p384Order = []byte{
+ 	0x58, 0x1a, 0x0d, 0xb2, 0x48, 0xb0, 0xa7, 0x7a,
+ 	0xec, 0xec, 0x19, 0x6a, 0xcc, 0xc5, 0x29, 0x73}
+ 
+-// P521 returns a Curve which implements NIST P-521 (FIPS 186-3, section D.2.5),
++// P521 returns a [Curve] which implements NIST P-521 (FIPS 186-3, section D.2.5),
+ // also known as secp521r1.
+ //
+ // Multiple invocations of this function will return the same value, which can
+diff --git a/src/crypto/ecdh/x25519.go b/src/crypto/ecdh/x25519.go
+index dbc3ea9dc8..998e7588a6 100644
+--- a/src/crypto/ecdh/x25519.go
++++ b/src/crypto/ecdh/x25519.go
+@@ -17,7 +17,7 @@ var (
+ 	x25519SharedSecretSize = 32
+ )
+ 
+-// X25519 returns a Curve which implements the X25519 function over Curve25519
++// X25519 returns a [Curve] which implements the X25519 function over Curve25519
+ // (RFC 7748, Section 5).
+ //
+ // Multiple invocations of this function will return the same value, so it can
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index e1503779ae..3ed15a888a 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -68,7 +68,7 @@ func (k *PublicKey) ECDH() (*ecdh.PublicKey, error) {
+ // Equal reports whether pub and x have the same value.
+ //
+ // Two keys are only considered to have the same value if they have the same Curve value.
+-// Note that for example elliptic.P256() and elliptic.P256().Params() are different
++// Note that for example [elliptic.P256] and elliptic.P256().Params() are different
+ // values, as the latter is a generic not constant time implementation.
+ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+ 	xx, ok := x.(*PublicKey)
+@@ -91,7 +91,7 @@ type PrivateKey struct {
+ 
+ // ECDH returns k as a [ecdh.PrivateKey]. It returns an error if the key is
+ // invalid according to the definition of [ecdh.Curve.NewPrivateKey], or if the
+-// Curve is not supported by crypto/ecdh.
++// Curve is not supported by [crypto/ecdh].
+ func (k *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
+ 	c := curveToECDH(k.Curve)
+ 	if c == nil {
+@@ -124,7 +124,7 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
+ 
+ // Equal reports whether priv and x have the same value.
+ //
+-// See PublicKey.Equal for details on how Curve is compared.
++// See [PublicKey.Equal] for details on how Curve is compared.
+ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+ 	xx, ok := x.(*PrivateKey)
+ 	if !ok {
+@@ -145,7 +145,7 @@ func bigIntEqual(a, b *big.Int) bool {
+ //
+ // This method implements crypto.Signer, which is an interface to support keys
+ // where the private part is kept in, for example, a hardware module. Common
+-// uses can use the SignASN1 function in this package directly.
++// uses can use the [SignASN1] function in this package directly.
+ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+ 	return SignASN1(rand, priv, digest)
+ }
+diff --git a/src/crypto/ecdsa/ecdsa_legacy.go b/src/crypto/ecdsa/ecdsa_legacy.go
+index 12a40e4828..0b8489ab66 100644
+--- a/src/crypto/ecdsa/ecdsa_legacy.go
++++ b/src/crypto/ecdsa/ecdsa_legacy.go
+@@ -54,7 +54,7 @@ var errZeroParam = errors.New("zero parameter")
+ // using the private key, priv. If the hash is longer than the bit-length of the
+ // private key's curve order, the hash will be truncated to that length. It
+ // returns the signature as a pair of integers. Most applications should use
+-// SignASN1 instead of dealing directly with r, s.
++// [SignASN1] instead of dealing directly with r, s.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+ 	sig, err := SignASN1(rand, priv, hash)
+ 	if err != nil {
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 96555ada39..290a8e5390 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -24,10 +24,10 @@ import (
+ //
+ // Note that the conventional point at infinity (0, 0) is not considered on the
+ // curve, although it can be returned by Add, Double, ScalarMult, or
+-// ScalarBaseMult (but not the Unmarshal or UnmarshalCompressed functions).
++// ScalarBaseMult (but not the [Unmarshal] or [UnmarshalCompressed] functions).
+ //
+-// Using Curve implementations besides those returned by P224(), P256(), P384(),
+-// and P521() is deprecated.
++// Using Curve implementations besides those returned by [P224], [P256], [P384],
++// and [P521] is deprecated.
+ type Curve interface {
+ 	// Params returns the parameters for the curve.
+ 	Params() *CurveParams
+@@ -70,7 +70,7 @@ var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
+ // GenerateKey returns a public/private key pair. The private key is
+ // generated using the given reader, which must return random data.
+ //
+-// Deprecated: for ECDH, use the GenerateKey methods of the crypto/ecdh package;
++// Deprecated: for ECDH, use the GenerateKey methods of the [crypto/ecdh] package;
+ // for ECDSA, use the GenerateKey function of the crypto/ecdsa package.
+ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err error) {
+ 	N := curve.Params().N
+@@ -144,7 +144,7 @@ type unmarshaler interface {
+ // Assert that the known curves implement unmarshaler.
+ var _ = []unmarshaler{p224, p256, p384, p521}
+ 
+-// Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
++// Unmarshal converts a point, serialized by [Marshal], into an x, y pair. It is
+ // an error if the point is not in uncompressed form, is not on the curve, or is
+ // the point at infinity. On error, x = nil.
+ //
+@@ -174,7 +174,7 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+ 	return
+ }
+ 
+-// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
++// UnmarshalCompressed converts a point, serialized by [MarshalCompressed], into
+ // an x, y pair. It is an error if the point is not in compressed form, is not
+ // on the curve, or is the point at infinity. On error, x = nil.
+ func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
+@@ -230,8 +230,8 @@ func initAll() {
+ 	initP521()
+ }
+ 
+-// P224 returns a Curve which implements NIST P-224 (FIPS 186-3, section D.2.2),
+-// also known as secp224r1. The CurveParams.Name of this Curve is "P-224".
++// P224 returns a [Curve] which implements NIST P-224 (FIPS 186-3, section D.2.2),
++// also known as secp224r1. The CurveParams.Name of this [Curve] is "P-224".
+ //
+ // Multiple invocations of this function will return the same value, so it can
+ // be used for equality checks and switch statements.
+@@ -242,8 +242,8 @@ func P224() Curve {
+ 	return p224
+ }
+ 
+-// P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
+-// also known as secp256r1 or prime256v1. The CurveParams.Name of this Curve is
++// P256 returns a [Curve] which implements NIST P-256 (FIPS 186-3, section D.2.3),
++// also known as secp256r1 or prime256v1. The CurveParams.Name of this [Curve] is
+ // "P-256".
+ //
+ // Multiple invocations of this function will return the same value, so it can
+@@ -255,8 +255,8 @@ func P256() Curve {
+ 	return p256
+ }
+ 
+-// P384 returns a Curve which implements NIST P-384 (FIPS 186-3, section D.2.4),
+-// also known as secp384r1. The CurveParams.Name of this Curve is "P-384".
++// P384 returns a [Curve] which implements NIST P-384 (FIPS 186-3, section D.2.4),
++// also known as secp384r1. The CurveParams.Name of this [Curve] is "P-384".
+ //
+ // Multiple invocations of this function will return the same value, so it can
+ // be used for equality checks and switch statements.
+@@ -267,8 +267,8 @@ func P384() Curve {
+ 	return p384
+ }
+ 
+-// P521 returns a Curve which implements NIST P-521 (FIPS 186-3, section D.2.5),
+-// also known as secp521r1. The CurveParams.Name of this Curve is "P-521".
++// P521 returns a [Curve] which implements NIST P-521 (FIPS 186-3, section D.2.5),
++// also known as secp521r1. The CurveParams.Name of this [Curve] is "P-521".
+ //
+ // Multiple invocations of this function will return the same value, so it can
+ // be used for equality checks and switch statements.
+diff --git a/src/crypto/elliptic/params.go b/src/crypto/elliptic/params.go
+index 1ae57fae9e..716e2c06ba 100644
+--- a/src/crypto/elliptic/params.go
++++ b/src/crypto/elliptic/params.go
+@@ -7,10 +7,10 @@ package elliptic
+ import "math/big"
+ 
+ // CurveParams contains the parameters of an elliptic curve and also provides
+-// a generic, non-constant time implementation of Curve.
++// a generic, non-constant time implementation of [Curve].
+ //
+ // The generic Curve implementation is deprecated, and using custom curves
+-// (those not returned by P224(), P256(), P384(), and P521()) is not guaranteed
++// (those not returned by [P224], [P256], [P384], and [P521]) is not guaranteed
+ // to provide any security property.
+ type CurveParams struct {
+ 	P       *big.Int // the order of the underlying field
+@@ -47,12 +47,12 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
+ 	return x3
+ }
+ 
+-// IsOnCurve implements Curve.IsOnCurve.
++// IsOnCurve implements [Curve.IsOnCurve].
+ //
+-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
+-// provide any security property. For ECDH, use the crypto/ecdh package.
+-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
+-// from P224(), P256(), P384(), or P521().
++// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
++// provide any security property. For ECDH, use the [crypto/ecdh] package.
++// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
++// from [P224], [P256], [P384], or [P521].
+ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+@@ -101,12 +101,12 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
+ 	return
+ }
+ 
+-// Add implements Curve.Add.
++// Add implements [Curve.Add].
+ //
+-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
+-// provide any security property. For ECDH, use the crypto/ecdh package.
+-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
+-// from P224(), P256(), P384(), or P521().
++// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
++// provide any security property. For ECDH, use the [crypto/ecdh] package.
++// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
++// from [P224], [P256], [P384], or [P521].
+ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+@@ -199,12 +199,12 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ 	return x3, y3, z3
+ }
+ 
+-// Double implements Curve.Double.
++// Double implements [Curve.Double].
+ //
+-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
+-// provide any security property. For ECDH, use the crypto/ecdh package.
+-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
+-// from P224(), P256(), P384(), or P521().
++// Deprecated: the [CurveParams】 methods are deprecated and are not guaranteed to
++// provide any security property. For ECDH, use the [crypto/ecdh] package.
++// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
++// from [P224], [P256], [P384], or [P521].
+ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+@@ -278,12 +278,12 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int,
+ 	return x3, y3, z3
+ }
+ 
+-// ScalarMult implements Curve.ScalarMult.
++// ScalarMult implements [Curve.ScalarMult].
+ //
+-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
+-// provide any security property. For ECDH, use the crypto/ecdh package.
+-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
+-// from P224(), P256(), P384(), or P521().
++// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
++// provide any security property. For ECDH, use the [crypto/ecdh] package.
++// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
++// from [P224], [P256], [P384], or [P521].
+ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+@@ -308,12 +308,12 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
+ 	return curve.affineFromJacobian(x, y, z)
+ }
+ 
+-// ScalarBaseMult implements Curve.ScalarBaseMult.
++// ScalarBaseMult implements [Curve.ScalarBaseMult].
+ //
+-// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
+-// provide any security property. For ECDH, use the crypto/ecdh package.
+-// For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
+-// from P224(), P256(), P384(), or P521().
++// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
++// provide any security property. For ECDH, use the [crypto/ecdh] package.
++// For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
++// from [P224], [P256], [P384], or [P521].
+ func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 35b9d5a17a..46ec81b8c5 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -120,12 +120,12 @@ func (h *hmac) Reset() {
+ 	h.marshaled = true
+ }
+ 
+-// New returns a new HMAC hash using the given hash.Hash type and key.
+-// New functions like sha256.New from crypto/sha256 can be used as h.
++// New returns a new HMAC hash using the given [hash.Hash] type and key.
++// New functions like sha256.New from [crypto/sha256] can be used as h.
+ // h must return a new Hash every time it is called.
+ // Note that unlike other hash implementations in the standard library,
+-// the returned Hash does not implement encoding.BinaryMarshaler
+-// or encoding.BinaryUnmarshaler.
++// the returned Hash does not implement [encoding.BinaryMarshaler]
++// or [encoding.BinaryUnmarshaler].
+ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	if boring.Enabled {
+ 		hm := boring.NewHMAC(h, key)
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index ccee4ea3a9..83e9e4c07a 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -96,7 +96,7 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ }
+ 
+ // New returns a new hash.Hash computing the MD5 checksum. The Hash also
+-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
+ // marshal and unmarshal the internal state of the hash.
+ func New() hash.Hash {
+ 	d := new(digest)
+diff --git a/src/crypto/rand/util.go b/src/crypto/rand/util.go
+index 11b1a28ec5..fd67ba27c8 100644
+--- a/src/crypto/rand/util.go
++++ b/src/crypto/rand/util.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // Prime returns a number of the given bit length that is prime with high probability.
+-// Prime will return error for any error returned by rand.Read or if bits < 2.
++// Prime will return error for any error returned by [rand.Read] or if bits < 2.
+ func Prime(rand io.Reader, bits int) (*big.Int, error) {
+ 	if bits < 2 {
+ 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index f08da0e469..67452ec39f 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -26,7 +26,7 @@ func (k KeySizeError) Error() string {
+ 	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k))
+ }
+ 
+-// NewCipher creates and returns a new Cipher. The key argument should be the
++// NewCipher creates and returns a new [Cipher]. The key argument should be the
+ // RC4 key, at least 1 byte and at most 256 bytes.
+ func NewCipher(key []byte) (*Cipher, error) {
+ 	k := len(key)
+@@ -45,7 +45,7 @@ func NewCipher(key []byte) (*Cipher, error) {
+ 	return &c, nil
+ }
+ 
+-// Reset zeros the key data and makes the Cipher unusable.
++// Reset zeros the key data and makes the [Cipher] unusable.
+ //
+ // Deprecated: Reset can't guarantee that the key will be entirely removed from
+ // the process's memory.
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 55fea1ab93..2705036fdd 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -16,7 +16,7 @@ import (
+ // This file implements encryption and decryption using PKCS #1 v1.5 padding.
+ 
+ // PKCS1v15DecryptOptions is for passing options to PKCS #1 v1.5 decryption using
+-// the crypto.Decrypter interface.
++// the [crypto.Decrypter] interface.
+ type PKCS1v15DecryptOptions struct {
+ 	// SessionKeyLen is the length of the session key that is being
+ 	// decrypted. If not zero, then a padding error during decryption will
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 3a377cc9db..b63b6eb01d 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -266,7 +266,7 @@ type PSSOptions struct {
+ 	Hash crypto.Hash
+ }
+ 
+-// HashFunc returns opts.Hash so that PSSOptions implements crypto.SignerOpts.
++// HashFunc returns opts.Hash so that [PSSOptions] implements [crypto.SignerOpts].
+ func (opts *PSSOptions) HashFunc() crypto.Hash {
+ 	return opts.Hash
+ }
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index f0aef1f542..0715421187 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -150,11 +150,11 @@ func bigIntEqual(a, b *big.Int) bool {
+ }
+ 
+ // Sign signs digest with priv, reading randomness from rand. If opts is a
+-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
++// *[PSSOptions] then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
+ // be used. digest must be the result of hashing the input message using
+ // opts.HashFunc().
+ //
+-// This method implements crypto.Signer, which is an interface to support keys
++// This method implements [crypto.Signer], which is an interface to support keys
+ // where the private part is kept in, for example, a hardware module. Common
+ // uses should use the Sign* functions in this package directly.
+ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+@@ -166,8 +166,8 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
+ }
+ 
+ // Decrypt decrypts ciphertext with priv. If opts is nil or of type
+-// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
+-// opts must have type *OAEPOptions and OAEP decryption is done.
++// *[PKCS1v15DecryptOptions] then PKCS #1 v1.5 decryption is performed. Otherwise
++// opts must have type *[OAEPOptions] and OAEP decryption is done.
+ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
+ 	if opts == nil {
+ 		return DecryptPKCS1v15(rand, priv, ciphertext)
+@@ -288,7 +288,7 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ //
+ // Deprecated: The use of this function with a number of primes different from
+ // two is not recommended for the above security, compatibility, and performance
+-// reasons. Use GenerateKey instead.
++// reasons. Use [GenerateKey] instead.
+ //
+ // [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+@@ -471,7 +471,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ }
+ 
+ // ErrMessageTooLong is returned when attempting to encrypt or sign a message
+-// which is too large for the size of the key. When using SignPSS, this can also
++// which is too large for the size of the key. When using [SignPSS], this can also
+ // be returned if the size of the salt is too large.
+ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
+ 
+@@ -704,7 +704,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
+ // The random parameter is legacy and ignored, and it can be nil.
+ //
+ // The label parameter must match the value given when encrypting. See
+-// EncryptOAEP for details.
++// [EncryptOAEP] for details.
+ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+ 	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
+ }
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index bde642d905..ac10fa1557 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -105,7 +105,7 @@ func (d *digest) Reset() {
+ }
+ 
+ // New returns a new hash.Hash computing the SHA1 checksum. The Hash also
+-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
+ // marshal and unmarshal the internal state of the hash.
+ func New() hash.Hash {
+ 	if boring.Enabled {
+@@ -185,7 +185,7 @@ func (d *digest) checkSum() [Size]byte {
+ 	return digest
+ }
+ 
+-// ConstantTimeSum computes the same result of Sum() but in constant time
++// ConstantTimeSum computes the same result of [Sum] but in constant time
+ func (d *digest) ConstantTimeSum(in []byte) []byte {
+ 	d0 := *d
+ 	hash := d0.constSum()
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 2deafbc9fc..0cc7fca0a6 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -144,8 +144,8 @@ func (d *digest) Reset() {
+ }
+ 
+ // New returns a new hash.Hash computing the SHA256 checksum. The Hash
+-// also implements encoding.BinaryMarshaler and
+-// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
++// also implements [encoding.BinaryMarshaler] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New() hash.Hash {
+ 	if boring.Enabled {
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 589e8b6faf..3f976c9c58 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -45,7 +45,7 @@ var (
+ 
+ // CipherSuites returns a list of cipher suites currently implemented by this
+ // package, excluding those with security issues, which are returned by
+-// InsecureCipherSuites.
++// [InsecureCipherSuites].
+ //
+ // The list is sorted by ID. Note that the default cipher suites selected by
+ // this package might depend on logic that can't be captured by a static list,
+@@ -78,7 +78,7 @@ func CipherSuites() []*CipherSuite {
+ // this package and which have security issues.
+ //
+ // Most applications should not use the cipher suites in this list, and should
+-// only use those returned by CipherSuites.
++// only use those returned by [CipherSuites].
+ func InsecureCipherSuites() []*CipherSuite {
+ 	// This list includes RC4, CBC_SHA256, and 3DES cipher suites. See
+ 	// cipherSuitesPreferenceOrder for details.
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index e0885a0da9..656cb68650 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -822,7 +822,7 @@ func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
+ // ticket, and the lifetime we set for all tickets we send.
+ const maxSessionTicketLifetime = 7 * 24 * time.Hour
+ 
+-// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a Config that is
++// Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a [Config] that is
+ // being used concurrently by a TLS client or server.
+ func (c *Config) Clone() *Config {
+ 	if c == nil {
+@@ -1157,9 +1157,9 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
+ // the client that sent the ClientHello. Otherwise, it returns an error
+ // describing the reason for the incompatibility.
+ //
+-// If this ClientHelloInfo was passed to a GetConfigForClient or GetCertificate
+-// callback, this method will take into account the associated Config. Note that
+-// if GetConfigForClient returns a different Config, the change can't be
++// If this [ClientHelloInfo] was passed to a GetConfigForClient or GetCertificate
++// callback, this method will take into account the associated [Config]. Note that
++// if GetConfigForClient returns a different [Config], the change can't be
+ // accounted for by this method.
+ //
+ // This function will call x509.ParseCertificate unless c.Leaf is set, which can
+@@ -1450,7 +1450,7 @@ type lruSessionCacheEntry struct {
+ 	state      *ClientSessionState
+ }
+ 
+-// NewLRUClientSessionCache returns a ClientSessionCache with the given
++// NewLRUClientSessionCache returns a [ClientSessionCache] with the given
+ // capacity that uses an LRU strategy. If capacity is < 1, a default capacity
+ // is used instead.
+ func NewLRUClientSessionCache(capacity int) ClientSessionCache {
+@@ -1499,7 +1499,7 @@ func (c *lruSessionCache) Put(sessionKey string, cs *ClientSessionState) {
+ 	c.m[sessionKey] = elem
+ }
+ 
+-// Get returns the ClientSessionState value associated with a given key. It
++// Get returns the [ClientSessionState] value associated with a given key. It
+ // returns (nil, false) if no value is found.
+ func (c *lruSessionCache) Get(sessionKey string) (*ClientSessionState, bool) {
+ 	c.Lock()
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index c04bd48d6a..647e5b85b6 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -136,21 +136,21 @@ func (c *Conn) RemoteAddr() net.Addr {
+ }
+ 
+ // SetDeadline sets the read and write deadlines associated with the connection.
+-// A zero value for t means Read and Write will not time out.
++// A zero value for t means [Conn.Read] and [Conn.Write] will not time out.
+ // After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
+ func (c *Conn) SetDeadline(t time.Time) error {
+ 	return c.conn.SetDeadline(t)
+ }
+ 
+ // SetReadDeadline sets the read deadline on the underlying connection.
+-// A zero value for t means Read will not time out.
++// A zero value for t means [Conn.Read] will not time out.
+ func (c *Conn) SetReadDeadline(t time.Time) error {
+ 	return c.conn.SetReadDeadline(t)
+ }
+ 
+ // SetWriteDeadline sets the write deadline on the underlying connection.
+-// A zero value for t means Write will not time out.
+-// After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
++// A zero value for t means [Conn.Write] will not time out.
++// After a [Conn.Write] has timed out, the TLS state is corrupt and all future writes will return the same error.
+ func (c *Conn) SetWriteDeadline(t time.Time) error {
+ 	return c.conn.SetWriteDeadline(t)
+ }
+@@ -1173,10 +1173,10 @@ var (
+ 
+ // Write writes data to the connection.
+ //
+-// As Write calls Handshake, in order to prevent indefinite blocking a deadline
+-// must be set for both Read and Write before Write is called when the handshake
+-// has not yet completed. See SetDeadline, SetReadDeadline, and
+-// SetWriteDeadline.
++// As Write calls [Conn.Handshake], in order to prevent indefinite blocking a deadline
++// must be set for both [Conn.Read] and Write before Write is called when the handshake
++// has not yet completed. See [Conn.SetDeadline], [Conn.SetReadDeadline], and
++// [Conn.SetWriteDeadline].
+ func (c *Conn) Write(b []byte) (int, error) {
+ 	// interlock with Close below
+ 	for {
+@@ -1348,10 +1348,10 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
+ 
+ // Read reads data from the connection.
+ //
+-// As Read calls Handshake, in order to prevent indefinite blocking a deadline
+-// must be set for both Read and Write before Read is called when the handshake
+-// has not yet completed. See SetDeadline, SetReadDeadline, and
+-// SetWriteDeadline.
++// As Read calls [Conn.Handshake], in order to prevent indefinite blocking a deadline
++// must be set for both Read and [Conn.Write] before Read is called when the handshake
++// has not yet completed. See [Conn.SetDeadline], [Conn.SetReadDeadline], and
++// [Conn.SetWriteDeadline].
+ func (c *Conn) Read(b []byte) (int, error) {
+ 	if err := c.Handshake(); err != nil {
+ 		return 0, err
+@@ -1435,7 +1435,7 @@ var errEarlyCloseWrite = errors.New("tls: CloseWrite called before handshake com
+ 
+ // CloseWrite shuts down the writing side of the connection. It should only be
+ // called once the handshake has completed and does not call CloseWrite on the
+-// underlying connection. Most callers should just use Close.
++// underlying connection. Most callers should just use [Conn.Close].
+ func (c *Conn) CloseWrite() error {
+ 	if !c.isHandshakeComplete.Load() {
+ 		return errEarlyCloseWrite
+@@ -1463,10 +1463,10 @@ func (c *Conn) closeNotify() error {
+ // protocol if it has not yet been run.
+ //
+ // Most uses of this package need not call Handshake explicitly: the
+-// first Read or Write will call it automatically.
++// first [Conn.Read] or [Conn.Write] will call it automatically.
+ //
+ // For control over canceling or setting a timeout on a handshake, use
+-// HandshakeContext or the Dialer's DialContext method instead.
++// [Conn.HandshakeContext] or the [Dialer]'s DialContext method instead.
+ //
+ // In order to avoid denial of service attacks, the maximum RSA key size allowed
+ // in certificates sent by either the TLS server or client is limited to 8192
+@@ -1485,7 +1485,7 @@ func (c *Conn) Handshake() error {
+ // connection.
+ //
+ // Most uses of this package need not call HandshakeContext explicitly: the
+-// first Read or Write will call it automatically.
++// first [Conn.Read] or [Conn.Write] will call it automatically.
+ func (c *Conn) HandshakeContext(ctx context.Context) error {
+ 	// Delegate to unexported method for named return
+ 	// without confusing documented signature.
+diff --git a/src/crypto/tls/quic.go b/src/crypto/tls/quic.go
+index ba5c2af0fb..3518169bf7 100644
+--- a/src/crypto/tls/quic.go
++++ b/src/crypto/tls/quic.go
+@@ -46,7 +46,7 @@ type QUICConn struct {
+ 	sessionTicketSent bool
+ }
+ 
+-// A QUICConfig configures a QUICConn.
++// A QUICConfig configures a [QUICConn].
+ type QUICConfig struct {
+ 	TLSConfig *Config
+ }
+@@ -163,7 +163,7 @@ func newQUICConn(conn *Conn) *QUICConn {
+ }
+ 
+ // Start starts the client or server handshake protocol.
+-// It may produce connection events, which may be read with NextEvent.
++// It may produce connection events, which may be read with [QUICConn.NextEvent].
+ //
+ // Start must be called at most once.
+ func (q *QUICConn) Start(ctx context.Context) error {
+@@ -182,7 +182,7 @@ func (q *QUICConn) Start(ctx context.Context) error {
+ }
+ 
+ // NextEvent returns the next event occurring on the connection.
+-// It returns an event with a Kind of QUICNoEvent when no events are available.
++// It returns an event with a Kind of [QUICNoEvent] when no events are available.
+ func (q *QUICConn) NextEvent() QUICEvent {
+ 	qs := q.conn.quic
+ 	if last := qs.nextEvent - 1; last >= 0 && len(qs.events[last].Data) > 0 {
+@@ -214,7 +214,7 @@ func (q *QUICConn) Close() error {
+ }
+ 
+ // HandleData handles handshake bytes received from the peer.
+-// It may produce connection events, which may be read with NextEvent.
++// It may produce connection events, which may be read with [QUICConn.NextEvent].
+ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
+ 	c := q.conn
+ 	if c.in.level != level {
+@@ -258,7 +258,7 @@ type QUICSessionTicketOptions struct {
+ }
+ 
+ // SendSessionTicket sends a session ticket to the client.
+-// It produces connection events, which may be read with NextEvent.
++// It produces connection events, which may be read with [QUICConn.NextEvent].
+ // Currently, it can only be called once.
+ func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
+ 	c := q.conn
+@@ -283,7 +283,7 @@ func (q *QUICConn) ConnectionState() ConnectionState {
+ // SetTransportParameters sets the transport parameters to send to the peer.
+ //
+ // Server connections may delay setting the transport parameters until after
+-// receiving the client's transport parameters. See QUICTransportParametersRequired.
++// receiving the client's transport parameters. See [QUICTransportParametersRequired].
+ func (q *QUICConn) SetTransportParameters(params []byte) {
+ 	if params == nil {
+ 		params = []byte{}
+diff --git a/src/crypto/tls/ticket.go b/src/crypto/tls/ticket.go
+index b5ae35b67e..b71e3afdb2 100644
+--- a/src/crypto/tls/ticket.go
++++ b/src/crypto/tls/ticket.go
+@@ -305,7 +305,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
+ 	}, nil
+ }
+ 
+-// EncryptTicket encrypts a ticket with the Config's configured (or default)
++// EncryptTicket encrypts a ticket with the [Config]'s configured (or default)
+ // session ticket keys. It can be used as a [Config.WrapSession] implementation.
+ func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, error) {
+ 	ticketKeys := c.ticketKeys(nil)
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index b529c70523..8509b7dc0d 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -71,7 +71,7 @@ func (l *listener) Accept() (net.Conn, error) {
+ }
+ 
+ // NewListener creates a Listener which accepts connections from an inner
+-// Listener and wraps each connection with Server.
++// Listener and wraps each connection with [Server].
+ // The configuration config must be non-nil and must include
+ // at least one certificate or else set GetCertificate.
+ func NewListener(inner net.Listener, config *Config) net.Listener {
+@@ -109,10 +109,10 @@ func (timeoutError) Temporary() bool { return true }
+ // handshake as a whole.
+ //
+ // DialWithDialer interprets a nil configuration as equivalent to the zero
+-// configuration; see the documentation of Config for the defaults.
++// configuration; see the documentation of [Config] for the defaults.
+ //
+ // DialWithDialer uses context.Background internally; to specify the context,
+-// use Dialer.DialContext with NetDialer set to the desired dialer.
++// use [Dialer.DialContext] with NetDialer set to the desired dialer.
+ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
+ 	return dial(context.Background(), dialer, network, addr, config)
+ }
+@@ -189,10 +189,10 @@ type Dialer struct {
+ // Dial connects to the given network address and initiates a TLS
+ // handshake, returning the resulting TLS connection.
+ //
+-// The returned Conn, if any, will always be of type *Conn.
++// The returned [Conn], if any, will always be of type *[Conn].
+ //
+ // Dial uses context.Background internally; to specify the context,
+-// use DialContext.
++// use [Dialer.DialContext].
+ func (d *Dialer) Dial(network, addr string) (net.Conn, error) {
+ 	return d.DialContext(context.Background(), network, addr)
+ }
+@@ -212,7 +212,7 @@ func (d *Dialer) netDialer() *net.Dialer {
+ // connected, any expiration of the context will not affect the
+ // connection.
+ //
+-// The returned Conn, if any, will always be of type *Conn.
++// The returned [Conn], if any, will always be of type *[Conn].
+ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+ 	c, err := dial(ctx, d.netDialer(), network, addr, d.Config)
+ 	if err != nil {
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index e9b2c122b9..d852d1a6c6 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -241,7 +241,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+ // Subjects returns a list of the DER-encoded subjects of
+ // all of the certificates in the pool.
+ //
+-// Deprecated: if s was returned by SystemCertPool, Subjects
++// Deprecated: if s was returned by [SystemCertPool], Subjects
+ // will not include the system roots.
+ func (s *CertPool) Subjects() [][]byte {
+ 	res := make([][]byte, s.len())
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 6695212a0b..019a53b5dc 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -1011,7 +1011,7 @@ func ParseCertificates(der []byte) ([]*Certificate, error) {
+ // the actual encoded version, so the version for X.509v2 is 1.
+ const x509v2Version = 1
+ 
+-// ParseRevocationList parses a X509 v2 Certificate Revocation List from the given
++// ParseRevocationList parses a X509 v2 [Certificate] Revocation List from the given
+ // ASN.1 DER data.
+ func ParseRevocationList(der []byte) (*RevocationList, error) {
+ 	rl := &RevocationList{}
+diff --git a/src/crypto/x509/pem_decrypt.go b/src/crypto/x509/pem_decrypt.go
+index 682923ac53..4f96cde1b5 100644
+--- a/src/crypto/x509/pem_decrypt.go
++++ b/src/crypto/x509/pem_decrypt.go
+@@ -113,7 +113,7 @@ var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
+ // password used to encrypt it and returns a slice of decrypted DER encoded
+ // bytes. It inspects the DEK-Info header to determine the algorithm used for
+ // decryption. If no DEK-Info header is present, an error is returned. If an
+-// incorrect password is detected an IncorrectPasswordError is returned. Because
++// incorrect password is detected an [IncorrectPasswordError] is returned. Because
+ // of deficiencies in the format, it's not always possible to detect an
+ // incorrect password. In these cases no error will be returned but the
+ // decrypted DER bytes will be random noise.
+diff --git a/src/crypto/x509/pkcs1.go b/src/crypto/x509/pkcs1.go
+index f9d384018a..94c7bbb230 100644
+--- a/src/crypto/x509/pkcs1.go
++++ b/src/crypto/x509/pkcs1.go
+@@ -41,7 +41,7 @@ type pkcs1PublicKey struct {
+ 	E int
+ }
+ 
+-// ParsePKCS1PrivateKey parses an RSA private key in PKCS #1, ASN.1 DER form.
++// ParsePKCS1PrivateKey parses an [RSA] private key in PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
+ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+@@ -96,11 +96,11 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	return key, nil
+ }
+ 
+-// MarshalPKCS1PrivateKey converts an RSA private key to PKCS #1, ASN.1 DER form.
++// MarshalPKCS1PrivateKey converts an [RSA] private key to PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
+-// For a more flexible key format which is not RSA specific, use
+-// MarshalPKCS8PrivateKey.
++// For a more flexible key format which is not [RSA] specific, use
++// [MarshalPKCS8PrivateKey].
+ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	key.Precompute()
+ 
+@@ -132,7 +132,7 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	return b
+ }
+ 
+-// ParsePKCS1PublicKey parses an RSA public key in PKCS #1, ASN.1 DER form.
++// ParsePKCS1PublicKey parses an [RSA] public key in PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
+ func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+@@ -161,7 +161,7 @@ func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+ 	}, nil
+ }
+ 
+-// MarshalPKCS1PublicKey converts an RSA public key to PKCS #1, ASN.1 DER form.
++// MarshalPKCS1PublicKey converts an [RSA] public key to PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
+ func MarshalPKCS1PublicKey(key *rsa.PublicKey) []byte {
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index 74b2f99708..08e9da404c 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -27,8 +27,8 @@ type pkcs8 struct {
+ 
+ // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+ //
+-// It returns a *rsa.PrivateKey, an *ecdsa.PrivateKey, an ed25519.PrivateKey (not
+-// a pointer), or an *ecdh.PrivateKey (for X25519). More types might be supported
++// It returns a *[rsa.PrivateKey], an *[ecdsa.PrivateKey], an [ed25519.PrivateKey] (not
++// a pointer), or an *[ecdh.PrivateKey] (for X25519). More types might be supported
+ // in the future.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+@@ -93,8 +93,8 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
+ 
+ // MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
+ //
+-// The following key types are currently supported: *rsa.PrivateKey,
+-// *ecdsa.PrivateKey, ed25519.PrivateKey (not a pointer), and *ecdh.PrivateKey.
++// The following key types are currently supported: *[rsa.PrivateKey],
++// *[ecdsa.PrivateKey], [ed25519.PrivateKey] (not a pointer), and *[ecdh.PrivateKey].
+ // Unsupported key types result in an error.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 22a50eef39..dfc6abca65 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -102,7 +102,7 @@ type AttributeTypeAndValue struct {
+ }
+ 
+ // AttributeTypeAndValueSET represents a set of ASN.1 sequences of
+-// AttributeTypeAndValue sequences from RFC 2986 (PKCS #10).
++// [AttributeTypeAndValue] sequences from RFC 2986 (PKCS #10).
+ type AttributeTypeAndValueSET struct {
+ 	Type  asn1.ObjectIdentifier
+ 	Value [][]AttributeTypeAndValue `asn1:"set"`
+@@ -119,7 +119,7 @@ type Extension struct {
+ // Name represents an X.509 distinguished name. This only includes the common
+ // elements of a DN. Note that Name is only an approximation of the X.509
+ // structure. If an accurate representation is needed, asn1.Unmarshal the raw
+-// subject or issuer as an RDNSequence.
++// subject or issuer as an [RDNSequence].
+ type Name struct {
+ 	Country, Organization, OrganizationalUnit []string
+ 	Locality, Province                        []string
+@@ -138,7 +138,7 @@ type Name struct {
+ 	ExtraNames []AttributeTypeAndValue
+ }
+ 
+-// FillFromRDNSequence populates n from the provided RDNSequence.
++// FillFromRDNSequence populates n from the provided [RDNSequence].
+ // Multi-entry RDNs are flattened, all entries are added to the
+ // relevant n fields, and the grouping is not preserved.
+ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
+@@ -211,7 +211,7 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
+ 	return append(in, s)
+ }
+ 
+-// ToRDNSequence converts n into a single RDNSequence. The following
++// ToRDNSequence converts n into a single [RDNSequence]. The following
+ // attributes are encoded as multi-value RDNs:
+ //
+ //   - Country
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index 6bfba0d93f..8e81bd4129 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -42,7 +42,7 @@ func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "EC PRIVATE KEY".
+ // For a more flexible key format which is not EC specific, use
+-// MarshalPKCS8PrivateKey.
++// [MarshalPKCS8PrivateKey].
+ func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
+ 	oid, ok := oidFromNamedCurve(key.Curve)
+ 	if !ok {
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 9d80b1d8ba..dfc5092b30 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -63,8 +63,8 @@ type pkixPublicKey struct {
+ // ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form. The encoded
+ // public key is a SubjectPublicKeyInfo structure (see RFC 5280, Section 4.1).
+ //
+-// It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey,
+-// ed25519.PublicKey (not a pointer), or *ecdh.PublicKey (for X25519).
++// It returns a *[rsa.PublicKey], *[dsa.PublicKey], *[ecdsa.PublicKey],
++// [ed25519.PublicKey] (not a pointer), or *[ecdh.PublicKey] (for X25519).
+ // More types might be supported in the future.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+@@ -142,8 +142,8 @@ func marshalPublicKey(pub any) (publicKeyBytes []byte, publicKeyAlgorithm pkix.A
+ // The encoded public key is a SubjectPublicKeyInfo structure
+ // (see RFC 5280, Section 4.1).
+ //
+-// The following key types are currently supported: *rsa.PublicKey,
+-// *ecdsa.PublicKey, ed25519.PublicKey (not a pointer), and *ecdh.PublicKey.
++// The following key types are currently supported: *[rsa.PublicKey],
++// *[ecdsa.PublicKey], [ed25519.PublicKey] (not a pointer), and *[ecdh.PublicKey].
+ // Unsupported key types result in an error.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PUBLIC KEY".
+@@ -779,7 +779,7 @@ type Certificate struct {
+ // involves algorithms that are not currently implemented.
+ var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
+ 
+-// An InsecureAlgorithmError indicates that the SignatureAlgorithm used to
++// An InsecureAlgorithmError indicates that the [SignatureAlgorithm] used to
+ // generate the signature is not secure, and the signature has been rejected.
+ //
+ // To temporarily restore support for SHA-1 signatures, include the value
+@@ -941,7 +941,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 
+ // CheckCRLSignature checks that the signature in crl is from c.
+ //
+-// Deprecated: Use RevocationList.CheckSignatureFrom instead.
++// Deprecated: Use [RevocationList.CheckSignatureFrom] instead.
+ func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) error {
+ 	algo := getSignatureAlgorithmFromAI(crl.SignatureAlgorithm)
+ 	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
+@@ -1679,7 +1679,7 @@ var pemType = "X509 CRL"
+ // will transparently handle PEM encoding as long as there isn't any leading
+ // garbage.
+ //
+-// Deprecated: Use ParseRevocationList instead.
++// Deprecated: Use [ParseRevocationList] instead.
+ func ParseCRL(crlBytes []byte) (*pkix.CertificateList, error) {
+ 	if bytes.HasPrefix(crlBytes, pemCRLPrefix) {
+ 		block, _ := pem.Decode(crlBytes)
+@@ -1692,7 +1692,7 @@ func ParseCRL(crlBytes []byte) (*pkix.CertificateList, error) {
+ 
+ // ParseDERCRL parses a DER encoded CRL from the given bytes.
+ //
+-// Deprecated: Use ParseRevocationList instead.
++// Deprecated: Use [ParseRevocationList] instead.
+ func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
+ 	certList := new(pkix.CertificateList)
+ 	if rest, err := asn1.Unmarshal(derBytes, certList); err != nil {
+@@ -1707,7 +1707,7 @@ func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
+ // contains the given list of revoked certificates.
+ //
+ // Deprecated: this method does not generate an RFC 5280 conformant X.509 v2 CRL.
+-// To generate a standards compliant CRL, use CreateRevocationList instead.
++// To generate a standards compliant CRL, use [CreateRevocationList] instead.
+ func (c *Certificate) CreateCRL(rand io.Reader, priv any, revokedCerts []pkix.RevokedCertificate, now, expiry time.Time) (crlBytes []byte, err error) {
+ 	key, ok := priv.(crypto.Signer)
+ 	if !ok {
+@@ -2192,7 +2192,7 @@ type RevocationListEntry struct {
+ 	ExtraExtensions []pkix.Extension
+ }
+ 
+-// RevocationList represents a Certificate Revocation List (CRL) as specified
++// RevocationList represents a [Certificate] Revocation List (CRL) as specified
+ // by RFC 5280.
+ type RevocationList struct {
+ 	// Raw contains the complete ASN.1 DER content of the CRL (tbsCertList,
+@@ -2277,13 +2277,13 @@ type tbsCertificateList struct {
+ 	Extensions          []pkix.Extension          `asn1:"tag:0,optional,explicit"`
+ }
+ 
+-// CreateRevocationList creates a new X.509 v2 Certificate Revocation List,
++// CreateRevocationList creates a new X.509 v2 [Certificate] Revocation List,
+ // according to RFC 5280, based on template.
+ //
+ // The CRL is signed by priv which should be the private key associated with
+ // the public key in the issuer certificate.
+ //
+-// The issuer may not be nil, and the crlSign bit must be set in KeyUsage in
++// The issuer may not be nil, and the crlSign bit must be set in [KeyUsage] in
+ // order to use it as a CRL issuer.
+ //
+ // The issuer distinguished name CRL field and authority key identifier

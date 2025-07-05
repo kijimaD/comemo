@@ -7,6 +7,22 @@ Date:   Thu Aug 1 18:51:55 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12287043
-
+---
  src/pkg/runtime/asm_arm.s | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 863d9a5064..bdd37215b3 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -204,6 +204,10 @@ TEXT runtime·morestack(SB),7,$-4-0
+ 	MOVW	(g_sched+gobuf_sp)(g), SP
+ 	BL	runtime·newstack(SB)
+ 
++	// Not reached, but make sure the return PC from the call to newstack
++	// is still in this function, and not the beginning of the next.
++	RET
++
+ // Called from reflection library.  Mimics morestack,
+ // reuses stack growth code to create a frame
+ // with the desired args running the desired function.

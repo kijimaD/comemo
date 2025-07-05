@@ -18,6 +18,20 @@ Date:   Thu Mar 10 15:09:17 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 01356f9dd0..fa0d44dae6 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1631,7 +1631,7 @@ func TestListTemplateContextFunction(t *testing.T) {
+ 	}{
+ 		{"GOARCH", runtime.GOARCH},
+ 		{"GOOS", runtime.GOOS},
+-		{"GOROOT", filepath.Clean(runtime.GOROOT())},
++		{"GOROOT", testGOROOT},
+ 		{"GOPATH", os.Getenv("GOPATH")},
+ 		{"CgoEnabled", ""},
+ 		{"UseAllFiles", ""},

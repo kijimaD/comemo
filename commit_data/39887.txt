@@ -12,7 +12,65 @@ Date:   Fri Nov 10 11:50:13 2017 -0500
     Change-Id: I262fd2963ee76fff7ffae8e3cb0e86255694b361
     Reviewed-on: https://go-review.googlesource.com/c/go/+/77350
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/textproto/writer.go      |  5 +++--
  src/net/textproto/writer_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/textproto/writer.go b/src/net/textproto/writer.go
+index 1bc5974c6c..33c146c022 100644
+--- a/src/net/textproto/writer.go
++++ b/src/net/textproto/writer.go
+@@ -58,7 +58,8 @@ type dotWriter struct {
+ }
+ 
+ const (
+-	wstateBeginLine = iota // beginning of line; initial state; must be zero
++	wstateBegin     = iota // initial state; must be zero
++	wstateBeginLine        // beginning of line
+ 	wstateCR               // wrote \r (possibly at end of line)
+ 	wstateData             // writing data in middle of line
+ )
+@@ -68,7 +69,7 @@ func (d *dotWriter) Write(b []byte) (n int, err error) {
+ 	for n < len(b) {
+ 		c := b[n]
+ 		switch d.state {
+-		case wstateBeginLine:
++		case wstateBegin, wstateBeginLine:
+ 			d.state = wstateData
+ 			if c == '.' {
+ 				// escape leading dot
+diff --git a/src/net/textproto/writer_test.go b/src/net/textproto/writer_test.go
+index ac03669fa2..2afef11b5e 100644
+--- a/src/net/textproto/writer_test.go
++++ b/src/net/textproto/writer_test.go
+@@ -33,3 +33,29 @@ func TestDotWriter(t *testing.T) {
+ 		t.Fatalf("wrote %q", s)
+ 	}
+ }
++
++func TestDotWriterCloseEmptyWrite(t *testing.T) {
++	var buf bytes.Buffer
++	w := NewWriter(bufio.NewWriter(&buf))
++	d := w.DotWriter()
++	n, err := d.Write([]byte{})
++	if n != 0 || err != nil {
++		t.Fatalf("Write: %d, %s", n, err)
++	}
++	d.Close()
++	want := "\r\n.\r\n"
++	if s := buf.String(); s != want {
++		t.Fatalf("wrote %q; want %q", s, want)
++	}
++}
++
++func TestDotWriterCloseNoWrite(t *testing.T) {
++	var buf bytes.Buffer
++	w := NewWriter(bufio.NewWriter(&buf))
++	d := w.DotWriter()
++	d.Close()
++	want := "\r\n.\r\n"
++	if s := buf.String(); s != want {
++		t.Fatalf("wrote %q; want %q", s, want)
++	}
++}

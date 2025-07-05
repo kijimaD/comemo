@@ -18,6 +18,22 @@ Date:   Wed May 24 13:52:56 2017 -0700
     Change-Id: Ibf6c807c6cef3b28bfdaf2b68d9bc13503ac21b2
     Reviewed-on: https://go-review.googlesource.com/44091
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/compress/bzip2/huffman.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/compress/bzip2/huffman.go b/src/compress/bzip2/huffman.go
+index 9d574b9bde..dbba9a58b5 100644
+--- a/src/compress/bzip2/huffman.go
++++ b/src/compress/bzip2/huffman.go
+@@ -108,10 +108,6 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
+ 	codes := huffmanCodes(make([]huffmanCode, len(lengths)))
+ 	for i := len(pairs) - 1; i >= 0; i-- {
+ 		if length > pairs[i].length {
+-			// If the code length decreases we shift in order to
+-			// zero any bits beyond the end of the code.
+-			length >>= 32 - pairs[i].length
+-			length <<= 32 - pairs[i].length
+ 			length = pairs[i].length
+ 		}
+ 		codes[i].code = code

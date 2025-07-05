@@ -7,6 +7,10 @@ Date:   Tue Dec 4 20:37:19 2012 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6871057
-
+---
  doc/articles/godoc_documenting_go_code.html | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/articles/godoc_documenting_go_code.html b/doc/articles/godoc_documenting_go_code.html
+old mode 100755
+new mode 100644

@@ -23,6 +23,44 @@ Date:   Sat Dec 5 17:25:28 2020 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index c786a27415..ea57e7398d 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -310,13 +310,13 @@ func genhash(t *types.Type) *obj.LSym {
+ 		// pure memory.
+ 		hashel := hashfor(t.Elem())
+ 
+-		n := ir.Nod(ir.ORANGE, nil, ir.Nod(ir.ODEREF, np, nil))
+-		ni := ir.Node(NewName(lookup("i")))
+-		ni.SetType(types.Types[types.TINT])
+-		n.PtrList().Set1(ni)
+-		n.SetColas(true)
+-		colasdefn(n.List().Slice(), n)
+-		ni = n.List().First()
++		// for i := 0; i < nelem; i++
++		ni := temp(types.Types[types.TINT])
++		init := ir.Nod(ir.OAS, ni, nodintconst(0))
++		cond := ir.Nod(ir.OLT, ni, nodintconst(t.NumElem()))
++		post := ir.Nod(ir.OAS, ni, ir.Nod(ir.OADD, ni, nodintconst(1)))
++		loop := ir.Nod(ir.OFOR, cond, post)
++		loop.PtrInit().Append(init)
+ 
+ 		// h = hashel(&p[i], h)
+ 		call := ir.Nod(ir.OCALL, hashel, nil)
+@@ -326,9 +326,9 @@ func genhash(t *types.Type) *obj.LSym {
+ 		na := ir.Nod(ir.OADDR, nx, nil)
+ 		call.PtrList().Append(na)
+ 		call.PtrList().Append(nh)
+-		n.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
++		loop.PtrBody().Append(ir.Nod(ir.OAS, nh, call))
+ 
+-		fn.PtrBody().Append(n)
++		fn.PtrBody().Append(loop)
+ 
+ 	case types.TSTRUCT:
+ 		// Walk the struct using memhash for runs of AMEM

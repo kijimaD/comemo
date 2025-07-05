@@ -16,6 +16,20 @@ Date:   Fri May 24 15:38:47 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index cbf88e43d2..02e133e31d 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -141,7 +141,7 @@ const (
+ 	LC_SUB_LIBRARY              = 0x15
+ 	LC_TWOLEVEL_HINTS           = 0x16
+ 	LC_PREBIND_CKSUM            = 0x17
+-	LC_LOAD_WEAK_DYLIB          = 0x18
++	LC_LOAD_WEAK_DYLIB          = 0x80000018
+ 	LC_SEGMENT_64               = 0x19
+ 	LC_ROUTINES_64              = 0x1a
+ 	LC_UUID                     = 0x1b

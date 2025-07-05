@@ -15,6 +15,38 @@ Date:   Tue Apr 12 18:14:45 2016 +0300
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/hash/adler32/adler32.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 0c733f751a..21d6a2e1dc 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -42,7 +42,7 @@ func New() hash.Hash32 {
+ 
+ func (d *digest) Size() int { return Size }
+ 
+-func (d *digest) BlockSize() int { return 1 }
++func (d *digest) BlockSize() int { return 4 }
+ 
+ // Add p to the running checksum d.
+ func update(d digest, p []byte) digest {
+@@ -52,6 +52,17 @@ func update(d digest, p []byte) digest {
+ 		if len(p) > nmax {
+ 			p, q = p[:nmax], p[nmax:]
+ 		}
++		for len(p) >= 4 {
++			s1 += uint32(p[0])
++			s2 += s1
++			s1 += uint32(p[1])
++			s2 += s1
++			s1 += uint32(p[2])
++			s2 += s1
++			s1 += uint32(p[3])
++			s2 += s1
++			p = p[4:]
++		}
+ 		for _, x := range p {
+ 			s1 += uint32(x)
+ 			s2 += s1

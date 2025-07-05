@@ -19,6 +19,20 @@ Date:   Fri Oct 11 21:51:01 2019 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ppc64/asm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index ad91be3dad..cf6a2846de 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -550,7 +550,7 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+ 	const prefix = "TOC."
+ 	var tarSym *sym.Symbol
+ 	if strings.HasPrefix(r.Sym.Name, prefix) {
+-		tarSym = ctxt.Syms.ROLookup(strings.TrimPrefix(r.Sym.Name, prefix), 0)
++		tarSym = r.Sym.R[0].Sym
+ 	} else {
+ 		ld.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
+ 	}

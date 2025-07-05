@@ -9,8 +9,50 @@ Date:   Fri Mar 1 16:24:23 2013 -0500
     R=golang-dev, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/7443048
-
+---
  src/pkg/runtime/cgo/asm_arm.s |  2 +-
  src/pkg/runtime/cgo/cgo_arm.c | 12 ++++++++++++
  src/run.bash                  |  1 -
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/asm_arm.s b/src/pkg/runtime/cgo/asm_arm.s
+index 40f0300841..a6ea0dc078 100644
+--- a/src/pkg/runtime/cgo/asm_arm.s
++++ b/src/pkg/runtime/cgo/asm_arm.s
+@@ -19,5 +19,5 @@ TEXT crosscall2(SB),7,$-4
+ 	MOVW	_cgo_load_gm(SB), R0
+ 	BL	(R0)
+ 	MOVW	PC, R14
+-	MOVW	-4(R13), PC
++	MOVW	0(R13), PC
+ 	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, PC]
+diff --git a/src/pkg/runtime/cgo/cgo_arm.c b/src/pkg/runtime/cgo/cgo_arm.c
+new file mode 100644
+index 0000000000..d23f53e77a
+--- /dev/null
++++ b/src/pkg/runtime/cgo/cgo_arm.c
+@@ -0,0 +1,12 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#pragma cgo_import_static x_cgo_load_gm
++extern void x_cgo_load_gm(void);
++void (*_cgo_load_gm)(void) = x_cgo_load_gm;
++
++#pragma cgo_import_static x_cgo_save_gm
++extern void x_cgo_save_gm(void);
++void (*_cgo_save_gm)(void) = x_cgo_save_gm;
++
+diff --git a/src/run.bash b/src/run.bash
+index c5ed919a3b..a026b459ce 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -75,7 +75,6 @@ go run $GOROOT/test/run.go - .
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == openbsd ] || # issue 4878
+-[ "$GOARCH" == arm ] || # issue 4961
+ (xcd ../misc/cgo/test
+ go test
+ ) || exit $?

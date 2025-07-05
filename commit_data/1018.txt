@@ -9,6 +9,19 @@ Date:   Fri Oct 31 14:55:57 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=18183
     CL=18271
-
+---
  test/interface1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/interface1.go b/test/interface1.go
+index 089a8b5c1b..c81cad54ba 100644
+--- a/test/interface1.go
++++ b/test/interface1.go
+@@ -30,6 +30,6 @@ func AddInst(Inst) *Inst {
+ func main() {
+ 	re := new(Regexp);
+ 	print("call addinst\n");
+-	var x Inst = AddInst(new(Start));	// ERROR "illegal"
++	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible"
+ 	print("return from  addinst\n");
+ }

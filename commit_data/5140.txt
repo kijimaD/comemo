@@ -16,7 +16,7 @@ Date:   Thu Mar 25 16:59:02 2010 -0700
     R=rsc, rsc1
     CC=golang-dev, ken2, r
     https://golang.org/cl/758041
-
+---
  src/pkg/go/printer/nodes.go                     | 52 ++++++++++++++++---------
  src/pkg/go/printer/printer.go                   | 36 ++++++++---------
  src/pkg/go/printer/testdata/comments.golden     | 11 +++++-
@@ -27,3 +27,472 @@ Date:   Thu Mar 25 16:59:02 2010 -0700
  src/pkg/go/printer/testdata/expressions.input   | 17 +++++---
  src/pkg/go/printer/testdata/expressions.raw     | 27 ++++++++++---
  9 files changed, 150 insertions(+), 64 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 8a6ac1a171..5e02b0bd44 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -74,7 +74,7 @@ func (p *printer) setComment(g *ast.CommentGroup) {
+ 		// for some reason there are pending comments; this
+ 		// should never happen - handle gracefully and flush
+ 		// all comments up to g, ignore anything after that
+-		p.flush(g.List[0].Pos(), false)
++		p.flush(g.List[0].Pos(), token.ILLEGAL)
+ 	}
+ 	p.comments[0] = g
+ 	p.cindex = 0
+@@ -112,7 +112,6 @@ func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
+ // Compute the key size of a key:value expression.
+ // Returns 0 if the expression doesn't fit onto a single line.
+ func (p *printer) keySize(pair *ast.KeyValueExpr) int {
+-	const infinity = 1e6 // larger than any source line
+ 	if p.nodeSize(pair, infinity) <= infinity {
+ 		// entire expression fits on one line - return key size
+ 		return p.nodeSize(pair.Key, infinity)
+@@ -431,7 +430,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
+ 			}
+-			p.flush(rbrace, false) // make sure we don't loose the last line comment
++			p.flush(rbrace, token.RBRACE) // make sure we don't loose the last line comment
+ 			p.setLineComment("// contains unexported fields")
+ 		}
+ 
+@@ -458,7 +457,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
+ 			}
+-			p.flush(rbrace, false) // make sure we don't loose the last line comment
++			p.flush(rbrace, token.RBRACE) // make sure we don't loose the last line comment
+ 			p.setLineComment("// contains unexported methods")
+ 		}
+ 
+@@ -1224,16 +1223,26 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ 
+ 
+ func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
+-	const maxSize = 90 // adjust as appropriate, this is an approximate value
++	pos1 := b.Pos()
++	pos2 := b.Rbrace
++	if pos1.IsValid() && pos2.IsValid() && pos1.Line != pos2.Line {
++		// opening and closing brace are on different lines - don't make it a one-liner
++		return false
++	}
++	if len(b.List) > 5 || p.commentBefore(pos2) {
++		// too many statements or there is a comment inside - don't make it a one-liner
++		return false
++	}
++	// otherwise, estimate body size
++	const maxSize = 100
+ 	bodySize := 0
+-	switch {
+-	case len(b.List) > 1 || p.commentBefore(b.Rbrace):
+-		return false // too many statements or there is a comment - all bets are off
+-	case len(b.List) == 1:
+-		bodySize = p.nodeSize(b.List[0], maxSize)
++	for i, s := range b.List {
++		if i > 0 {
++			bodySize += 2 // space for a semicolon and blank
++		}
++		bodySize += p.nodeSize(s, maxSize)
+ 	}
+-	// require both headers and overall size to be not "too large"
+-	return headerSize <= maxSize/2 && headerSize+bodySize <= maxSize
++	return headerSize+bodySize <= maxSize
+ }
+ 
+ 
+@@ -1248,13 +1257,18 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
+ 		if isLit {
+ 			sep = blank
+ 		}
++		p.print(sep, b.Pos(), token.LBRACE)
+ 		if len(b.List) > 0 {
+-			p.print(sep, b.Pos(), token.LBRACE, blank)
+-			p.stmt(b.List[0], ignoreMultiLine)
+-			p.print(blank, b.Rbrace, token.RBRACE)
+-		} else {
+-			p.print(sep, b.Pos(), token.LBRACE, b.Rbrace, token.RBRACE)
++			p.print(blank)
++			for i, s := range b.List {
++				if i > 0 {
++					p.print(token.SEMICOLON, blank)
++				}
++				p.stmt(s, ignoreMultiLine)
++			}
++			p.print(blank)
+ 		}
++		p.print(b.Rbrace, token.RBRACE)
+ 		return
+ 	}
+ 
+@@ -1266,12 +1280,12 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
+ 
+ // distance returns the column difference between from and to if both
+ // are on the same line; if they are on different lines (or unknown)
+-// the result is infinity (1<<30).
++// the result is infinity.
+ func distance(from, to token.Position) int {
+ 	if from.IsValid() && to.IsValid() && from.Line == to.Line {
+ 		return to.Column - from.Column
+ 	}
+-	return 1 << 30
++	return infinity
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index f7b55ae3c4..d9df2e819d 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -53,8 +53,8 @@ var (
+ 
+ 
+ // Special positions
+-var noPos token.Position                                      // use noPos when a position is needed but not known
+-var infinity = token.Position{Offset: 1 << 30, Line: 1 << 30} // use infinity to indicate the end of the source
++var noPos token.Position // use noPos when a position is needed but not known
++var infinity = 1 << 30
+ 
+ 
+ // Use ignoreMultiLine if the multiLine information is not important.
+@@ -640,17 +640,16 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
+ 
+ 
+ // intersperseComments consumes all comments that appear before the next token
+-// and prints it together with the buffered whitespace (i.e., the whitespace
++// tok and prints it together with the buffered whitespace (i.e., the whitespace
+ // that needs to be written before the next token). A heuristic is used to mix
+-// the comments and whitespace. The isKeyword parameter indicates if the next
+-// token is a keyword or not. intersperseComments returns true if a pending
++// the comments and whitespace. intersperseComments returns true if a pending
+ // formfeed was dropped from the whitespace buffer.
+ //
+-func (p *printer) intersperseComments(next token.Position, isKeyword bool) (droppedFF bool) {
++func (p *printer) intersperseComments(next token.Position, tok token.Token) (droppedFF bool) {
+ 	var last *ast.Comment
+ 	for ; p.commentBefore(next); p.cindex++ {
+ 		for _, c := range p.comments[p.cindex].List {
+-			p.writeCommentPrefix(c.Pos(), next, last == nil, isKeyword)
++			p.writeCommentPrefix(c.Pos(), next, last == nil, tok.IsKeyword())
+ 			p.writeComment(c)
+ 			last = c
+ 		}
+@@ -663,8 +662,8 @@ func (p *printer) intersperseComments(next token.Position, isKeyword bool) (drop
+ 			p.write([]byte{' '})
+ 		}
+ 		// ensure that there is a newline after a //-style comment
+-		// or if we are at the end of a file after a /*-style comment
+-		return p.writeCommentSuffix(last.Text[1] == '/' || next.Offset == infinity.Offset)
++		// or if we are before a closing '}' or at the end of a file
++		return p.writeCommentSuffix(last.Text[1] == '/' || tok == token.RBRACE || tok == token.EOF)
+ 	}
+ 
+ 	// no comment was written - we should never reach here since
+@@ -743,7 +742,7 @@ func (p *printer) print(args ...interface{}) {
+ 		next := p.pos // estimated position of next item
+ 		var data []byte
+ 		var tag HTMLTag
+-		isKeyword := false
++		var tok token.Token
+ 		switch x := f.(type) {
+ 		case whiteSpace:
+ 			if x == ignore {
+@@ -785,7 +784,7 @@ func (p *printer) print(args ...interface{}) {
+ 			} else {
+ 				data = []byte(x.String())
+ 			}
+-			isKeyword = x.IsKeyword()
++			tok = x
+ 		case token.Position:
+ 			if x.IsValid() {
+ 				next = x // accurate position of next item
+@@ -797,7 +796,7 @@ func (p *printer) print(args ...interface{}) {
+ 		p.pos = next
+ 
+ 		if data != nil {
+-			droppedFF := p.flush(next, isKeyword)
++			droppedFF := p.flush(next, tok)
+ 
+ 			// intersperse extra newlines if present in the source
+ 			// (don't do this in flush as it will cause extra newlines
+@@ -820,14 +819,15 @@ func (p *printer) commentBefore(next token.Position) bool {
+ 
+ 
+ // Flush prints any pending comments and whitespace occuring
+-// textually before the position of the next item. Flush returns
+-// true if a pending formfeed character was dropped from the
+-// whitespace buffer as a result of interspersing comments.
++// textually before the position of the next token tok. Flush
++// returns true if a pending formfeed character was dropped
++// from the whitespace buffer as a result of interspersing
++// comments.
+ //
+-func (p *printer) flush(next token.Position, isKeyword bool) (droppedFF bool) {
++func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
+ 	if p.commentBefore(next) {
+ 		// if there are comments before the next item, intersperse them
+-		droppedFF = p.intersperseComments(next, isKeyword)
++		droppedFF = p.intersperseComments(next, tok)
+ 	} else {
+ 		// otherwise, write any leftover whitespace
+ 		p.writeWhitespace(len(p.buffer))
+@@ -1026,7 +1026,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+ 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n))
+ 			runtime.Goexit()
+ 		}
+-		p.flush(infinity, false)
++		p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
+ 		p.errors <- nil // no errors
+ 	}()
+ 	err := <-p.errors // wait for completion of goroutine
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index f216b0b644..4c9f71d95b 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -411,7 +411,8 @@ func _() {
+ 
+ 
+ // Some interesting interspersed comments
+-func _( /* this */ x /* is */ /* an */ int)	{}
++func _( /* this */ x /* is */ /* an */ int) {
++}
+ 
+ func _( /* no params */ )	{}
+ 
+@@ -421,7 +422,13 @@ func _() {
+ 
+ func ( /* comment1 */ T /* comment2 */ ) _()	{}
+ 
+-func _() { /* one-liner */ }
++func _() { /* one-liner */
++}
++
++func _() {
++	_ = 0
++	/* closing curly brace should be on new line */
++}
+ 
+ 
+ // Line comments with tabs
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 8ed26c5ab1..335e813918 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -424,6 +424,10 @@ func (/* comment1 */ T /* comment2 */) _() {}
+ 
+ func _() { /* one-liner */ }
+ 
++func _() {
++	_ = 0
++	/* closing curly brace should be on new line */ }
++
+ 
+ // Line comments with tabs
+ func _() {
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 9772e837f3..67f16b8052 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -356,7 +356,8 @@ func _() {
+ // formatting of structs
+ type _ struct{}
+ 
+-type _ struct { /* this comment should be visible */ }
++type _ struct { /* this comment should be visible */
++}
+ 
+ type _ struct {
+ 	// this comment should be visible and properly indented
+@@ -588,15 +589,31 @@ func _()	{}
+ func _()	{}
+ 
+ func _()		{ f(1, 2, 3) }
+-func _(x int) int	{ return x + 1 }
+-func _() int		{ type T struct{} }
++func _(x int) int	{ y := x; return y + 1 }
++func _() int		{ type T struct{}; var x T; return x }
++
++// these must remain multi-line since they are multi-line in the source
++func _() {
++	f(1, 2, 3)
++}
++func _(x int) int {
++	y := x
++	return y + 1
++}
++func _() int {
++	type T struct{}
++	var x T
++	return x
++}
+ 
+ 
+ // making function declarations safe for new semicolon rules
+-func _() { /* one-line func */ }
++func _() { /* multi-line func because of comment */
++}
+ 
+ func _() {
+-	/* one-line func */ }
++	/* multi-line func because block is on multiple lines */
++}
+ 
+ 
+ // ellipsis parameters
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 8d63ab7b45..095d1ddace 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -581,22 +581,27 @@ func _() {}  // an empty line before this function
+ func _() {}
+ func _() {}
+ 
++func _() { f(1, 2, 3) }
++func _(x int) int { y := x; return y+1 }
++func _() int { type T struct{}; var x T; return x }
++
++// these must remain multi-line since they are multi-line in the source
+ func _() {
+ 	f(1, 2, 3)
+ }
+ func _(x int) int {
+-	return x+1
++	y := x; return y+1
+ }
+ func _() int {
+-	type T struct{}
++	type T struct{}; var x T; return x
+ }
+ 
+ 
+ // making function declarations safe for new semicolon rules
+-func _() { /* one-line func */ }
++func _() { /* multi-line func because of comment */ }
+ 
+ func _() {
+-/* one-line func */ }
++/* multi-line func because block is on multiple lines */ }
+ 
+ 
+ // ellipsis parameters
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index c35efb8303..21888f6269 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -210,14 +210,31 @@ func _() {
+ 
+ 
+ func _() {
+-	// one-line function literals
++	// one-line function literals (body is on a single line)
+ 	_ = func() {}
+ 	_ = func() int { return 0 }
+-	_ = func(x, y int) bool { return x < y }
++	_ = func(x, y int) bool { m := (x + y) / 2; return m < 0 }
+ 
+-	f(func() {})
+-	f(func() int { return 0 })
+-	f(func(x, y int) bool { return x < y })
++	// multi-line function literals (body is not on one line)
++	_ = func() {
++	}
++	_ = func() int {
++		return 0
++	}
++	_ = func(x, y int) bool {
++		m := (x + y) / 2
++		return x < y
++	}
++
++	f(func() {
++	})
++	f(func() int {
++		return 0
++	})
++	f(func(x, y int) bool {
++		m := (x + y) / 2
++		return x < y
++	})
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index b9fc976a9b..91e5c49dda 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -206,22 +206,27 @@ _ = `foo
+ 
+ 
+ func _() {
+-	// one-line function literals
++	// one-line function literals (body is on a single line)
+ 	_ = func() {}
++	_ = func() int { return 0 }
++	_ = func(x, y int) bool { m := (x+y)/2; return m < 0 }
++
++	// multi-line function literals (body is not on one line)
++	_ = func() {
++	}
+ 	_ = func() int {
+ 		return 0
+ 	}
+ 	_ = func(x, y int) bool {
+-		return x < y
+-	}
++		m := (x+y)/2; return x < y }
+ 
+-	f(func() {})
++	f(func() {
++	})
+ 	f(func() int {
+ 		return 0
+ 	})
+ 	f(func(x, y int) bool {
+-		return x < y
+-	})
++		m := (x+y)/2; return x < y })
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 6ecfe13b56..8a5c64b7f3 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -210,14 +210,31 @@ func _() {
+ 
+ 
+ func _() {
+-	// one-line function literals
++	// one-line function literals (body is on a single line)
+ 	_ = func() {}
+ 	_ = func() int { return 0 }
+-	_ = func(x, y int) bool { return x < y }
++	_ = func(x, y int) bool { m := (x + y) / 2; return m < 0 }
+ 
+-	f(func() {})
+-	f(func() int { return 0 })
+-	f(func(x, y int) bool { return x < y })
++	// multi-line function literals (body is not on one line)
++	_ = func() {
++	}
++	_ = func() int {
++		return 0
++	}
++	_ = func(x, y int) bool {
++		m := (x + y) / 2
++		return x < y
++	}
++
++	f(func() {
++	})
++	f(func() int {
++		return 0
++	})
++	f(func(x, y int) bool {
++		m := (x + y) / 2
++		return x < y
++	})
+ }
+ 
+ 

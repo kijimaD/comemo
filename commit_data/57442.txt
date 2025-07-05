@@ -16,7 +16,51 @@ Date:   Mon Aug 7 15:46:34 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/version.go                             |  7 ++++---
  src/internal/types/testdata/fixedbugs/issue61822.go | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 2f21e98ad8..0f4d064b74 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -131,9 +131,10 @@ func (check *Checker) allowVersion(pkg *Package, at positioner, v version) bool
+ 		return true
+ 	}
+ 
+-	// If the source file declares its Go version, use that to decide.
+-	if check.posVers != nil {
+-		fileStart := check.fset.File(at.Pos()).Pos(0)
++	// If the source file declares its Go version and at references a valid
++	// position, use that to decide.
++	if pos := at.Pos(); pos.IsValid() && check.posVers != nil {
++		fileStart := check.fset.File(pos).Pos(0)
+ 		if src, ok := check.posVers[fileStart]; ok && src.major >= 1 {
+ 			return !src.before(v)
+ 		}
+diff --git a/src/internal/types/testdata/fixedbugs/issue61822.go b/src/internal/types/testdata/fixedbugs/issue61822.go
+new file mode 100644
+index 0000000000..0a91ebb7b2
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue61822.go
+@@ -0,0 +1,19 @@
++// -lang=go1.19
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.20
++
++package p
++
++type I[P any] interface {
++	~string | ~int
++	Error() P
++}
++
++func _[P I[string]]() {
++	var x P
++	var _ error = x
++}

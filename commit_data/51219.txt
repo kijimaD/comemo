@@ -12,7 +12,50 @@ Date:   Thu Dec 16 22:18:26 2021 +0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/reflect/all_test.go | 14 ++++++++++++++
  src/reflect/type.go     |  9 ++++++++-
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 9c8434c22c..866f38e687 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7768,3 +7768,17 @@ func TestMethodCallValueCodePtr(t *testing.T) {
+ 		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
+ 	}
+ }
++
++type A struct{}
++type B[T any] struct{}
++
++func TestIssue50208(t *testing.T) {
++	want1 := "B[reflect_test.A]"
++	if got := TypeOf(new(B[A])).Elem().Name(); got != want1 {
++		t.Errorf("name of type parameter mismatched, want:%s, got:%s", want1, got)
++	}
++	want2 := "B[reflect_test.B[reflect_test.A]]"
++	if got := TypeOf(new(B[B[A]])).Elem().Name(); got != want2 {
++		t.Errorf("name of type parameter mismatched, want:%s, got:%s", want2, got)
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 6217291a3f..4e03dc3382 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -915,7 +915,14 @@ func (t *rtype) Name() string {
+ 	}
+ 	s := t.String()
+ 	i := len(s) - 1
+-	for i >= 0 && s[i] != '.' {
++	sqBrackets := 0
++	for i >= 0 && (s[i] != '.' || sqBrackets != 0) {
++		switch s[i] {
++		case ']':
++			sqBrackets++
++		case '[':
++			sqBrackets--
++		}
+ 		i--
+ 	}
+ 	return s[i+1:]

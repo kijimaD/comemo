@@ -18,8 +18,109 @@ Date:   Fri Sep 18 14:19:22 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
  src/reflect/value.go    | 20 ++++++++++++++++++--
  src/runtime/map.go      |  2 +-
  3 files changed, 48 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5a12699472..abdfe41908 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6006,6 +6006,14 @@ func TestReflectMethodTraceback(t *testing.T) {
+ 	}
+ }
+ 
++func TestSmallZero(t *testing.T) {
++	type T [10]byte
++	typ := TypeOf(T{})
++	if allocs := testing.AllocsPerRun(100, func() { Zero(typ) }); allocs > 0 {
++		t.Errorf("Creating small zero values caused %f allocs, want 0", allocs)
++	}
++}
++
+ func TestBigZero(t *testing.T) {
+ 	const size = 1 << 10
+ 	var v [size]byte
+@@ -6017,6 +6025,27 @@ func TestBigZero(t *testing.T) {
+ 	}
+ }
+ 
++func TestZeroSet(t *testing.T) {
++	type T [16]byte
++	type S struct {
++		a uint64
++		T T
++		b uint64
++	}
++	v := S{
++		a: 0xaaaaaaaaaaaaaaaa,
++		T: T{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
++		b: 0xbbbbbbbbbbbbbbbb,
++	}
++	ValueOf(&v).Elem().Field(1).Set(Zero(TypeOf(T{})))
++	if v != (S{
++		a: 0xaaaaaaaaaaaaaaaa,
++		b: 0xbbbbbbbbbbbbbbbb,
++	}) {
++		t.Fatalf("Setting a field to a Zero value didn't work")
++	}
++}
++
+ func TestFieldByIndexNil(t *testing.T) {
+ 	type P struct {
+ 		F int
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index c6f24a5609..a14131e1f8 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1553,7 +1553,11 @@ func (v Value) Set(x Value) {
+ 	}
+ 	x = x.assignTo("reflect.Set", v.typ, target)
+ 	if x.flag&flagIndir != 0 {
+-		typedmemmove(v.typ, v.ptr, x.ptr)
++		if x.ptr == unsafe.Pointer(&zeroVal[0]) {
++			typedmemclr(v.typ, v.ptr)
++		} else {
++			typedmemmove(v.typ, v.ptr, x.ptr)
++		}
+ 	} else {
+ 		*(*unsafe.Pointer)(v.ptr) = x.ptr
+ 	}
+@@ -2360,11 +2364,23 @@ func Zero(typ Type) Value {
+ 	t := typ.(*rtype)
+ 	fl := flag(t.Kind())
+ 	if ifaceIndir(t) {
+-		return Value{t, unsafe_New(t), fl | flagIndir}
++		var p unsafe.Pointer
++		if t.size <= maxZero {
++			p = unsafe.Pointer(&zeroVal[0])
++		} else {
++			p = unsafe_New(t)
++		}
++		return Value{t, p, fl | flagIndir}
+ 	}
+ 	return Value{t, nil, fl}
+ }
+ 
++// must match declarations in runtime/map.go.
++const maxZero = 1024
++
++//go:linkname zeroVal runtime.zeroVal
++var zeroVal [maxZero]byte
++
+ // New returns a Value representing a pointer to a new zero value
+ // for the specified type. That is, the returned Value's Type is PtrTo(typ).
+ func New(typ Type) Value {
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 8be1d3991d..6f31f23d6f 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1380,5 +1380,5 @@ func reflectlite_maplen(h *hmap) int {
+ 	return h.count
+ }
+ 
+-const maxZero = 1024 // must match value in cmd/compile/internal/gc/walk.go:zeroValSize
++const maxZero = 1024 // must match value in reflect/value.go:maxZero cmd/compile/internal/gc/walk.go:zeroValSize
+ var zeroVal [maxZero]byte

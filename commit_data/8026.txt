@@ -69,10 +69,3879 @@ Date:   Fri Apr 8 12:26:51 2011 -0400
     R=gri, iant, niemeyer, r, rog, gustavo, r2
     CC=golang-dev
     https://golang.org/cl/4281055
-
+---
  src/pkg/reflect/all_test.go      |  393 +++++++-------
  src/pkg/reflect/deepequal.go     |   58 +--
  src/pkg/reflect/tostring_test.go |   54 +-
  src/pkg/reflect/type.go          |  757 +++++++++++++++------------
  src/pkg/reflect/value.go         | 1063 ++++++++++++++++++++++++++++----------
  5 files changed, 1437 insertions(+), 888 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index f616adaac3..bc9157672a 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -207,58 +207,46 @@ func testType(t *testing.T, i int, typ Type, want string) {
+ 
+ func TestTypes(t *testing.T) {
+ 	for i, tt := range typeTests {
+-		testType(t, i, NewValue(tt.i).(*StructValue).Field(0).Type(), tt.s)
++		testType(t, i, NewValue(tt.i).Field(0).Type(), tt.s)
+ 	}
+ }
+ 
+ func TestSet(t *testing.T) {
+ 	for i, tt := range valueTests {
+ 		v := NewValue(tt.i)
+-		switch v := v.(type) {
+-		case *IntValue:
+-			switch v.Type().Kind() {
+-			case Int:
+-				v.Set(132)
+-			case Int8:
+-				v.Set(8)
+-			case Int16:
+-				v.Set(16)
+-			case Int32:
+-				v.Set(32)
+-			case Int64:
+-				v.Set(64)
+-			}
+-		case *UintValue:
+-			switch v.Type().Kind() {
+-			case Uint:
+-				v.Set(132)
+-			case Uint8:
+-				v.Set(8)
+-			case Uint16:
+-				v.Set(16)
+-			case Uint32:
+-				v.Set(32)
+-			case Uint64:
+-				v.Set(64)
+-			}
+-		case *FloatValue:
+-			switch v.Type().Kind() {
+-			case Float32:
+-				v.Set(256.25)
+-			case Float64:
+-				v.Set(512.125)
+-			}
+-		case *ComplexValue:
+-			switch v.Type().Kind() {
+-			case Complex64:
+-				v.Set(532.125 + 10i)
+-			case Complex128:
+-				v.Set(564.25 + 1i)
+-			}
+-		case *StringValue:
+-			v.Set("stringy cheese")
+-		case *BoolValue:
+-			v.Set(true)
++		switch v.Kind() {
++		case Int:
++			v.SetInt(132)
++		case Int8:
++			v.SetInt(8)
++		case Int16:
++			v.SetInt(16)
++		case Int32:
++			v.SetInt(32)
++		case Int64:
++			v.SetInt(64)
++		case Uint:
++			v.SetUint(132)
++		case Uint8:
++			v.SetUint(8)
++		case Uint16:
++			v.SetUint(16)
++		case Uint32:
++			v.SetUint(32)
++		case Uint64:
++			v.SetUint(64)
++		case Float32:
++			v.SetFloat(256.25)
++		case Float64:
++			v.SetFloat(512.125)
++		case Complex64:
++			v.SetComplex(532.125 + 10i)
++		case Complex128:
++			v.SetComplex(564.25 + 1i)
++		case String:
++			v.SetString("stringy cheese")
++		case Bool:
++			v.SetBool(true)
+ 		}
+ 		s := valueToString(v)
+ 		if s != tt.s {
+@@ -270,52 +258,39 @@ func TestSet(t *testing.T) {
+ func TestSetValue(t *testing.T) {
+ 	for i, tt := range valueTests {
+ 		v := NewValue(tt.i)
+-		switch v := v.(type) {
+-		case *IntValue:
+-			switch v.Type().Kind() {
+-			case Int:
+-				v.SetValue(NewValue(int(132)))
+-			case Int8:
+-				v.SetValue(NewValue(int8(8)))
+-			case Int16:
+-				v.SetValue(NewValue(int16(16)))
+-			case Int32:
+-				v.SetValue(NewValue(int32(32)))
+-			case Int64:
+-				v.SetValue(NewValue(int64(64)))
+-			}
+-		case *UintValue:
+-			switch v.Type().Kind() {
+-			case Uint:
+-				v.SetValue(NewValue(uint(132)))
+-			case Uint8:
+-				v.SetValue(NewValue(uint8(8)))
+-			case Uint16:
+-				v.SetValue(NewValue(uint16(16)))
+-			case Uint32:
+-				v.SetValue(NewValue(uint32(32)))
+-			case Uint64:
+-				v.SetValue(NewValue(uint64(64)))
+-			}
+-		case *FloatValue:
+-			switch v.Type().Kind() {
+-			case Float32:
+-				v.SetValue(NewValue(float32(256.25)))
+-			case Float64:
+-				v.SetValue(NewValue(512.125))
+-			}
+-		case *ComplexValue:
+-			switch v.Type().Kind() {
+-			case Complex64:
+-				v.SetValue(NewValue(complex64(532.125 + 10i)))
+-			case Complex128:
+-				v.SetValue(NewValue(complex128(564.25 + 1i)))
+-			}
+-
+-		case *StringValue:
+-			v.SetValue(NewValue("stringy cheese"))
+-		case *BoolValue:
+-			v.SetValue(NewValue(true))
++		switch v.Kind() {
++		case Int:
++			v.Set(NewValue(int(132)))
++		case Int8:
++			v.Set(NewValue(int8(8)))
++		case Int16:
++			v.Set(NewValue(int16(16)))
++		case Int32:
++			v.Set(NewValue(int32(32)))
++		case Int64:
++			v.Set(NewValue(int64(64)))
++		case Uint:
++			v.Set(NewValue(uint(132)))
++		case Uint8:
++			v.Set(NewValue(uint8(8)))
++		case Uint16:
++			v.Set(NewValue(uint16(16)))
++		case Uint32:
++			v.Set(NewValue(uint32(32)))
++		case Uint64:
++			v.Set(NewValue(uint64(64)))
++		case Float32:
++			v.Set(NewValue(float32(256.25)))
++		case Float64:
++			v.Set(NewValue(512.125))
++		case Complex64:
++			v.Set(NewValue(complex64(532.125 + 10i)))
++		case Complex128:
++			v.Set(NewValue(complex128(564.25 + 1i)))
++		case String:
++			v.Set(NewValue("stringy cheese"))
++		case Bool:
++			v.Set(NewValue(true))
+ 		}
+ 		s := valueToString(v)
+ 		if s != tt.s {
+@@ -350,7 +325,7 @@ func TestValueToString(t *testing.T) {
+ 
+ func TestArrayElemSet(t *testing.T) {
+ 	v := NewValue([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+-	v.(*ArrayValue).Elem(4).(*IntValue).Set(123)
++	v.Index(4).SetInt(123)
+ 	s := valueToString(v)
+ 	const want = "[10]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}"
+ 	if s != want {
+@@ -358,7 +333,7 @@ func TestArrayElemSet(t *testing.T) {
+ 	}
+ 
+ 	v = NewValue([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+-	v.(*SliceValue).Elem(4).(*IntValue).Set(123)
++	v.Index(4).SetInt(123)
+ 	s = valueToString(v)
+ 	const want1 = "[]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}"
+ 	if s != want1 {
+@@ -371,14 +346,14 @@ func TestPtrPointTo(t *testing.T) {
+ 	var i int32 = 1234
+ 	vip := NewValue(&ip)
+ 	vi := NewValue(i)
+-	vip.(*PtrValue).Elem().(*PtrValue).PointTo(vi)
++	vip.Elem().Set(vi.Addr())
+ 	if *ip != 1234 {
+ 		t.Errorf("got %d, want 1234", *ip)
+ 	}
+ 
+ 	ip = nil
+-	vp := NewValue(ip).(*PtrValue)
+-	vp.PointTo(vp.Elem())
++	vp := NewValue(ip)
++	vp.Set(Zero(vp.Type()))
+ 	if ip != nil {
+ 		t.Errorf("got non-nil (%p), want nil", ip)
+ 	}
+@@ -388,7 +363,7 @@ func TestPtrSetNil(t *testing.T) {
+ 	var i int32 = 1234
+ 	ip := &i
+ 	vip := NewValue(&ip)
+-	vip.(*PtrValue).Elem().(*PtrValue).Set(nil)
++	vip.Elem().Set(Zero(vip.Elem().Type()))
+ 	if ip != nil {
+ 		t.Errorf("got non-nil (%d), want nil", *ip)
+ 	}
+@@ -397,7 +372,7 @@ func TestPtrSetNil(t *testing.T) {
+ func TestMapSetNil(t *testing.T) {
+ 	m := make(map[string]int)
+ 	vm := NewValue(&m)
+-	vm.(*PtrValue).Elem().(*MapValue).Set(nil)
++	vm.Elem().Set(Zero(vm.Elem().Type()))
+ 	if m != nil {
+ 		t.Errorf("got non-nil (%p), want nil", m)
+ 	}
+@@ -406,16 +381,16 @@ func TestMapSetNil(t *testing.T) {
+ 
+ func TestAll(t *testing.T) {
+ 	testType(t, 1, Typeof((int8)(0)), "int8")
+-	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8")
++	testType(t, 2, Typeof((*int8)(nil)).Elem(), "int8")
+ 
+ 	typ := Typeof((*struct {
+ 		c chan *int32
+ 		d float32
+ 	})(nil))
+ 	testType(t, 3, typ, "*struct { c chan *int32; d float32 }")
+-	etyp := typ.(*PtrType).Elem()
++	etyp := typ.Elem()
+ 	testType(t, 4, etyp, "struct { c chan *int32; d float32 }")
+-	styp := etyp.(*StructType)
++	styp := etyp
+ 	f := styp.Field(0)
+ 	testType(t, 5, f.Type, "chan *int32")
+ 
+@@ -432,22 +407,22 @@ func TestAll(t *testing.T) {
+ 
+ 	typ = Typeof([32]int32{})
+ 	testType(t, 7, typ, "[32]int32")
+-	testType(t, 8, typ.(*ArrayType).Elem(), "int32")
++	testType(t, 8, typ.Elem(), "int32")
+ 
+ 	typ = Typeof((map[string]*int32)(nil))
+ 	testType(t, 9, typ, "map[string] *int32")
+-	mtyp := typ.(*MapType)
++	mtyp := typ
+ 	testType(t, 10, mtyp.Key(), "string")
+ 	testType(t, 11, mtyp.Elem(), "*int32")
+ 
+ 	typ = Typeof((chan<- string)(nil))
+ 	testType(t, 12, typ, "chan<- string")
+-	testType(t, 13, typ.(*ChanType).Elem(), "string")
++	testType(t, 13, typ.Elem(), "string")
+ 
+ 	// make sure tag strings are not part of element type
+ 	typ = Typeof(struct {
+ 		d []uint32 "TAG"
+-	}{}).(*StructType).Field(0).Type
++	}{}).Field(0).Type
+ 	testType(t, 14, typ, "[]uint32")
+ }
+ 
+@@ -457,9 +432,9 @@ func TestInterfaceGet(t *testing.T) {
+ 	}
+ 	inter.e = 123.456
+ 	v1 := NewValue(&inter)
+-	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
++	v2 := v1.Elem().Field(0)
+ 	assert(t, v2.Type().String(), "interface { }")
+-	i2 := v2.(*InterfaceValue).Interface()
++	i2 := v2.Interface()
+ 	v3 := NewValue(i2)
+ 	assert(t, v3.Type().String(), "float64")
+ }
+@@ -470,9 +445,9 @@ func TestInterfaceValue(t *testing.T) {
+ 	}
+ 	inter.e = 123.456
+ 	v1 := NewValue(&inter)
+-	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0)
++	v2 := v1.Elem().Field(0)
+ 	assert(t, v2.Type().String(), "interface { }")
+-	v3 := v2.(*InterfaceValue).Elem()
++	v3 := v2.Elem()
+ 	assert(t, v3.Type().String(), "float64")
+ 
+ 	i3 := v2.Interface()
+@@ -506,9 +481,9 @@ func TestAppend(t *testing.T) {
+ 			e0[j] = NewValue(e)
+ 		}
+ 		// Convert extra from []int to *SliceValue.
+-		e1 := NewValue(test.extra).(*SliceValue)
++		e1 := NewValue(test.extra)
+ 		// Test Append.
+-		a0 := NewValue(test.orig).(*SliceValue)
++		a0 := NewValue(test.orig)
+ 		have0 := Append(a0, e0...).Interface().([]int)
+ 		if !DeepEqual(have0, want) {
+ 			t.Errorf("Append #%d: have %v, want %v", i, have0, want)
+@@ -521,7 +496,7 @@ func TestAppend(t *testing.T) {
+ 			t.Errorf("Append #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
+ 		}
+ 		// Test AppendSlice.
+-		a1 := NewValue(test.orig).(*SliceValue)
++		a1 := NewValue(test.orig)
+ 		have1 := AppendSlice(a1, e1).Interface().([]int)
+ 		if !DeepEqual(have1, want) {
+ 			t.Errorf("AppendSlice #%d: have %v, want %v", i, have1, want)
+@@ -545,8 +520,8 @@ func TestCopy(t *testing.T) {
+ 			t.Fatalf("b != c before test")
+ 		}
+ 	}
+-	aa := NewValue(a).(*SliceValue)
+-	ab := NewValue(b).(*SliceValue)
++	aa := NewValue(a)
++	ab := NewValue(b)
+ 	for tocopy := 1; tocopy <= 7; tocopy++ {
+ 		aa.SetLen(tocopy)
+ 		Copy(ab, aa)
+@@ -660,7 +635,7 @@ func TestDeepEqual(t *testing.T) {
+ func TestTypeof(t *testing.T) {
+ 	for _, test := range deepEqualTests {
+ 		v := NewValue(test.a)
+-		if v == nil {
++		if !v.IsValid() {
+ 			continue
+ 		}
+ 		typ := Typeof(test.a)
+@@ -715,8 +690,8 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
+ 
+ 
+ func check2ndField(x interface{}, offs uintptr, t *testing.T) {
+-	s := NewValue(x).(*StructValue)
+-	f := s.Type().(*StructType).Field(1)
++	s := NewValue(x)
++	f := s.Type().Field(1)
+ 	if f.Offset != offs {
+ 		t.Error("mismatched offsets in structure alignment:", f.Offset, offs)
+ 	}
+@@ -747,36 +722,22 @@ func TestAlignment(t *testing.T) {
+ 	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f))-uintptr(unsafe.Pointer(&x1)), t)
+ }
+ 
+-type IsNiller interface {
+-	IsNil() bool
+-}
+-
+ func Nil(a interface{}, t *testing.T) {
+-	n := NewValue(a).(*StructValue).Field(0).(IsNiller)
++	n := NewValue(a).Field(0)
+ 	if !n.IsNil() {
+ 		t.Errorf("%v should be nil", a)
+ 	}
+ }
+ 
+ func NotNil(a interface{}, t *testing.T) {
+-	n := NewValue(a).(*StructValue).Field(0).(IsNiller)
++	n := NewValue(a).Field(0)
+ 	if n.IsNil() {
+ 		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
+ 	}
+ }
+ 
+ func TestIsNil(t *testing.T) {
+-	// These do not implement IsNil
+-	doNotNil := []interface{}{int(0), float32(0), struct{ a int }{}}
+-	for _, ts := range doNotNil {
+-		ty := Typeof(ts)
+-		v := MakeZero(ty)
+-		if _, ok := v.(IsNiller); ok {
+-			t.Errorf("%s is nilable; should not be", ts)
+-		}
+-	}
+-
+-	// These do implement IsNil.
++	// These implement IsNil.
+ 	// Wrap in extra struct to hide interface type.
+ 	doNil := []interface{}{
+ 		struct{ x *int }{},
+@@ -787,11 +748,9 @@ func TestIsNil(t *testing.T) {
+ 		struct{ x []string }{},
+ 	}
+ 	for _, ts := range doNil {
+-		ty := Typeof(ts).(*StructType).Field(0).Type
+-		v := MakeZero(ty)
+-		if _, ok := v.(IsNiller); !ok {
+-			t.Errorf("%s %T is not nilable; should be", ts, v)
+-		}
++		ty := Typeof(ts).Field(0).Type
++		v := Zero(ty)
++		v.IsNil() // panics if not okay to call
+ 	}
+ 
+ 	// Check the implementations
+@@ -844,7 +803,7 @@ func TestInterfaceExtraction(t *testing.T) {
+ 	}
+ 
+ 	s.w = os.Stdout
+-	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface()
++	v := Indirect(NewValue(&s)).Field(0).Interface()
+ 	if v != s.w.(interface{}) {
+ 		t.Error("Interface() on interface: ", v, s.w)
+ 	}
+@@ -864,7 +823,7 @@ func TestInterfaceEditing(t *testing.T) {
+ 
+ 	// and setting that copy to "bye" should
+ 	// not change the value stored in i.
+-	v.(*StringValue).Set("bye")
++	v.SetString("bye")
+ 	if i.(string) != "hello" {
+ 		t.Errorf(`Set("bye") changed i to %s`, i.(string))
+ 	}
+@@ -872,7 +831,7 @@ func TestInterfaceEditing(t *testing.T) {
+ 	// the same should be true of smaller items.
+ 	i = 123
+ 	v = NewValue(i)
+-	v.(*IntValue).Set(234)
++	v.SetInt(234)
+ 	if i.(int) != 123 {
+ 		t.Errorf("Set(234) changed i to %d", i.(int))
+ 	}
+@@ -880,20 +839,20 @@ func TestInterfaceEditing(t *testing.T) {
+ 
+ func TestNilPtrValueSub(t *testing.T) {
+ 	var pi *int
+-	if pv := NewValue(pi).(*PtrValue); pv.Elem() != nil {
+-		t.Error("NewValue((*int)(nil)).(*PtrValue).Elem() != nil")
++	if pv := NewValue(pi); pv.Elem().IsValid() {
++		t.Error("NewValue((*int)(nil)).Elem().IsValid()")
+ 	}
+ }
+ 
+ func TestMap(t *testing.T) {
+ 	m := map[string]int{"a": 1, "b": 2}
+-	mv := NewValue(m).(*MapValue)
++	mv := NewValue(m)
+ 	if n := mv.Len(); n != len(m) {
+ 		t.Errorf("Len = %d, want %d", n, len(m))
+ 	}
+-	keys := mv.Keys()
++	keys := mv.MapKeys()
+ 	i := 0
+-	newmap := MakeMap(mv.Type().(*MapType))
++	newmap := MakeMap(mv.Type())
+ 	for k, v := range m {
+ 		// Check that returned Keys match keys in range.
+ 		// These aren't required to be in the same order,
+@@ -901,22 +860,22 @@ func TestMap(t *testing.T) {
+ 		// the test easier.
+ 		if i >= len(keys) {
+ 			t.Errorf("Missing key #%d %q", i, k)
+-		} else if kv := keys[i].(*StringValue); kv.Get() != k {
+-			t.Errorf("Keys[%d] = %q, want %q", i, kv.Get(), k)
++		} else if kv := keys[i]; kv.String() != k {
++			t.Errorf("Keys[%q] = %d, want %d", i, kv.Int(), k)
+ 		}
+ 		i++
+ 
+ 		// Check that value lookup is correct.
+-		vv := mv.Elem(NewValue(k))
+-		if vi := vv.(*IntValue).Get(); vi != int64(v) {
++		vv := mv.MapIndex(NewValue(k))
++		if vi := vv.Int(); vi != int64(v) {
+ 			t.Errorf("Key %q: have value %d, want %d", k, vi, v)
+ 		}
+ 
+ 		// Copy into new map.
+-		newmap.SetElem(NewValue(k), NewValue(v))
++		newmap.SetMapIndex(NewValue(k), NewValue(v))
+ 	}
+-	vv := mv.Elem(NewValue("not-present"))
+-	if vv != nil {
++	vv := mv.MapIndex(NewValue("not-present"))
++	if vv.IsValid() {
+ 		t.Errorf("Invalid key: got non-nil value %s", valueToString(vv))
+ 	}
+ 
+@@ -932,14 +891,14 @@ func TestMap(t *testing.T) {
+ 		}
+ 	}
+ 
+-	newmap.SetElem(NewValue("a"), nil)
++	newmap.SetMapIndex(NewValue("a"), Value{})
+ 	v, ok := newm["a"]
+ 	if ok {
+ 		t.Errorf("newm[\"a\"] = %d after delete", v)
+ 	}
+ 
+-	mv = NewValue(&m).(*PtrValue).Elem().(*MapValue)
+-	mv.Set(nil)
++	mv = NewValue(&m).Elem()
++	mv.Set(Zero(mv.Type()))
+ 	if m != nil {
+ 		t.Errorf("mv.Set(nil) failed")
+ 	}
+@@ -948,15 +907,15 @@ func TestMap(t *testing.T) {
+ func TestChan(t *testing.T) {
+ 	for loop := 0; loop < 2; loop++ {
+ 		var c chan int
+-		var cv *ChanValue
++		var cv Value
+ 
+ 		// check both ways to allocate channels
+ 		switch loop {
+ 		case 1:
+ 			c = make(chan int, 1)
+-			cv = NewValue(c).(*ChanValue)
++			cv = NewValue(c)
+ 		case 0:
+-			cv = MakeChan(Typeof(c).(*ChanType), 1)
++			cv = MakeChan(Typeof(c), 1)
+ 			c = cv.Interface().(chan int)
+ 		}
+ 
+@@ -968,22 +927,22 @@ func TestChan(t *testing.T) {
+ 
+ 		// Recv
+ 		c <- 3
+-		if i, ok := cv.Recv(); i.(*IntValue).Get() != 3 || !ok {
+-			t.Errorf("native send 3, reflect Recv %d, %t", i.(*IntValue).Get(), ok)
++		if i, ok := cv.Recv(); i.Int() != 3 || !ok {
++			t.Errorf("native send 3, reflect Recv %d, %t", i.Int(), ok)
+ 		}
+ 
+ 		// TryRecv fail
+ 		val, ok := cv.TryRecv()
+-		if val != nil || ok {
++		if val.IsValid() || ok {
+ 			t.Errorf("TryRecv on empty chan: %s, %t", valueToString(val), ok)
+ 		}
+ 
+ 		// TryRecv success
+ 		c <- 4
+ 		val, ok = cv.TryRecv()
+-		if val == nil {
++		if !val.IsValid() {
+ 			t.Errorf("TryRecv on ready chan got nil")
+-		} else if i := val.(*IntValue).Get(); i != 4 || !ok {
++		} else if i := val.Int(); i != 4 || !ok {
+ 			t.Errorf("native send 4, TryRecv %d, %t", i, ok)
+ 		}
+ 
+@@ -1008,27 +967,27 @@ func TestChan(t *testing.T) {
+ 		// Close
+ 		c <- 123
+ 		cv.Close()
+-		if i, ok := cv.Recv(); i.(*IntValue).Get() != 123 || !ok {
+-			t.Errorf("send 123 then close; Recv %d, %t", i.(*IntValue).Get(), ok)
++		if i, ok := cv.Recv(); i.Int() != 123 || !ok {
++			t.Errorf("send 123 then close; Recv %d, %t", i.Int(), ok)
+ 		}
+-		if i, ok := cv.Recv(); i.(*IntValue).Get() != 0 || ok {
+-			t.Errorf("after close Recv %d, %t", i.(*IntValue).Get(), ok)
++		if i, ok := cv.Recv(); i.Int() != 0 || ok {
++			t.Errorf("after close Recv %d, %t", i.Int(), ok)
+ 		}
+ 	}
+ 
+ 	// check creation of unbuffered channel
+ 	var c chan int
+-	cv := MakeChan(Typeof(c).(*ChanType), 0)
++	cv := MakeChan(Typeof(c), 0)
+ 	c = cv.Interface().(chan int)
+ 	if cv.TrySend(NewValue(7)) {
+ 		t.Errorf("TrySend on sync chan succeeded")
+ 	}
+-	if v, ok := cv.TryRecv(); v != nil || ok {
++	if v, ok := cv.TryRecv(); v.IsValid() || ok {
+ 		t.Errorf("TryRecv on sync chan succeeded")
+ 	}
+ 
+ 	// len/cap
+-	cv = MakeChan(Typeof(c).(*ChanType), 10)
++	cv = MakeChan(Typeof(c), 10)
+ 	c = cv.Interface().(chan int)
+ 	for i := 0; i < 3; i++ {
+ 		c <- i
+@@ -1046,14 +1005,14 @@ func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
+ }
+ 
+ func TestFunc(t *testing.T) {
+-	ret := NewValue(dummy).(*FuncValue).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))})
++	ret := NewValue(dummy).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))})
+ 	if len(ret) != 3 {
+ 		t.Fatalf("Call returned %d values, want 3", len(ret))
+ 	}
+ 
+-	i := ret[0].(*UintValue).Get()
+-	j := ret[1].(*IntValue).Get()
+-	k := ret[2].(*UintValue).Get()
++	i := byte(ret[0].Uint())
++	j := int(ret[1].Int())
++	k := byte(ret[2].Uint())
+ 	if i != 10 || j != 20 || k != 30 {
+ 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k)
+ 	}
+@@ -1068,30 +1027,30 @@ func (p Point) Dist(scale int) int { return p.x*p.x*scale + p.y*p.y*scale }
+ func TestMethod(t *testing.T) {
+ 	// Non-curried method of type.
+ 	p := Point{3, 4}
+-	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get()
++	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Type Method returned %d; want 250", i)
+ 	}
+ 
+-	i = Typeof(&p).Method(0).Func.Call([]Value{NewValue(&p), NewValue(10)})[0].(*IntValue).Get()
++	i = Typeof(&p).Method(0).Func.Call([]Value{NewValue(&p), NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Pointer Type Method returned %d; want 250", i)
+ 	}
+ 
+ 	// Curried method of value.
+-	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
++	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Value Method returned %d; want 250", i)
+ 	}
+ 
+ 	// Curried method of pointer.
+-	i = NewValue(&p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
++	i = NewValue(&p).Method(0).Call([]Value{NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Value Method returned %d; want 250", i)
+ 	}
+ 
+ 	// Curried method of pointer to value.
+-	i = NewValue(p).Addr().Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
++	i = NewValue(p).Addr().Method(0).Call([]Value{NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Value Method returned %d; want 250", i)
+ 	}
+@@ -1105,8 +1064,8 @@ func TestMethod(t *testing.T) {
+ 			Dist(int) int
+ 		}
+ 	}{p}
+-	pv := NewValue(s).(*StructValue).Field(0)
+-	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
++	pv := NewValue(s).Field(0)
++	i = pv.Method(0).Call([]Value{NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Interface Method returned %d; want 250", i)
+ 	}
+@@ -1121,19 +1080,19 @@ func TestInterfaceSet(t *testing.T) {
+ 			Dist(int) int
+ 		}
+ 	}
+-	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue)
+-	sv.Field(0).(*InterfaceValue).Set(NewValue(p))
++	sv := NewValue(&s).Elem()
++	sv.Field(0).Set(NewValue(p))
+ 	if q := s.I.(*Point); q != p {
+ 		t.Errorf("i: have %p want %p", q, p)
+ 	}
+ 
+-	pv := sv.Field(1).(*InterfaceValue)
++	pv := sv.Field(1)
+ 	pv.Set(NewValue(p))
+ 	if q := s.P.(*Point); q != p {
+ 		t.Errorf("i: have %p want %p", q, p)
+ 	}
+ 
+-	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
++	i := pv.Method(0).Call([]Value{NewValue(10)})[0].Int()
+ 	if i != 250 {
+ 		t.Errorf("Interface Method returned %d; want 250", i)
+ 	}
+@@ -1148,7 +1107,7 @@ func TestAnonymousFields(t *testing.T) {
+ 	var field StructField
+ 	var ok bool
+ 	var t1 T1
+-	type1 := Typeof(t1).(*StructType)
++	type1 := Typeof(t1)
+ 	if field, ok = type1.FieldByName("int"); !ok {
+ 		t.Error("no field 'int'")
+ 	}
+@@ -1232,7 +1191,7 @@ var fieldTests = []FTest{
+ 
+ func TestFieldByIndex(t *testing.T) {
+ 	for _, test := range fieldTests {
+-		s := Typeof(test.s).(*StructType)
++		s := Typeof(test.s)
+ 		f := s.FieldByIndex(test.index)
+ 		if f.Name != "" {
+ 			if test.index != nil {
+@@ -1247,8 +1206,8 @@ func TestFieldByIndex(t *testing.T) {
+ 		}
+ 
+ 		if test.value != 0 {
+-			v := NewValue(test.s).(*StructValue).FieldByIndex(test.index)
+-			if v != nil {
++			v := NewValue(test.s).FieldByIndex(test.index)
++			if v.IsValid() {
+ 				if x, ok := v.Interface().(int); ok {
+ 					if x != test.value {
+ 						t.Errorf("%s%v is %d; want %d", s.Name(), test.index, x, test.value)
+@@ -1265,7 +1224,7 @@ func TestFieldByIndex(t *testing.T) {
+ 
+ func TestFieldByName(t *testing.T) {
+ 	for _, test := range fieldTests {
+-		s := Typeof(test.s).(*StructType)
++		s := Typeof(test.s)
+ 		f, found := s.FieldByName(test.name)
+ 		if found {
+ 			if test.index != nil {
+@@ -1287,8 +1246,8 @@ func TestFieldByName(t *testing.T) {
+ 		}
+ 
+ 		if test.value != 0 {
+-			v := NewValue(test.s).(*StructValue).FieldByName(test.name)
+-			if v != nil {
++			v := NewValue(test.s).FieldByName(test.name)
++			if v.IsValid() {
+ 				if x, ok := v.Interface().(int); ok {
+ 					if x != test.value {
+ 						t.Errorf("%s.%s is %d; want %d", s.Name(), test.name, x, test.value)
+@@ -1312,10 +1271,10 @@ func TestImportPath(t *testing.T) {
+ func TestDotDotDot(t *testing.T) {
+ 	// Test example from FuncType.DotDotDot documentation.
+ 	var f func(x int, y ...float64)
+-	typ := Typeof(f).(*FuncType)
++	typ := Typeof(f)
+ 	if typ.NumIn() == 2 && typ.In(0) == Typeof(int(0)) {
+-		sl, ok := typ.In(1).(*SliceType)
+-		if ok {
++		sl := typ.In(1)
++		if sl.Kind() == Slice {
+ 			if sl.Elem() == Typeof(0.0) {
+ 				// ok
+ 				return
+@@ -1346,11 +1305,11 @@ func (*outer) m() {}
+ 
+ func TestNestedMethods(t *testing.T) {
+ 	typ := Typeof((*outer)(nil))
+-	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outer).m).(*FuncValue).Get() {
++	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*outer).m).Pointer() {
+ 		t.Errorf("Wrong method table for outer: (m=%p)", (*outer).m)
+ 		for i := 0; i < typ.NumMethod(); i++ {
+ 			m := typ.Method(i)
+-			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
++			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
+ 		}
+ 	}
+ }
+@@ -1370,21 +1329,21 @@ func (i *innerInt) m() int {
+ 
+ func TestEmbeddedMethods(t *testing.T) {
+ 	typ := Typeof((*outerInt)(nil))
+-	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outerInt).m).(*FuncValue).Get() {
++	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*outerInt).m).Pointer() {
+ 		t.Errorf("Wrong method table for outerInt: (m=%p)", (*outerInt).m)
+ 		for i := 0; i < typ.NumMethod(); i++ {
+ 			m := typ.Method(i)
+-			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
++			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
+ 		}
+ 	}
+ 
+ 	i := &innerInt{3}
+-	if v := NewValue(i).Method(0).Call(nil)[0].(*IntValue).Get(); v != 3 {
++	if v := NewValue(i).Method(0).Call(nil)[0].Int(); v != 3 {
+ 		t.Errorf("i.m() = %d, want 3", v)
+ 	}
+ 
+ 	o := &outerInt{1, innerInt{2}}
+-	if v := NewValue(o).Method(0).Call(nil)[0].(*IntValue).Get(); v != 2 {
++	if v := NewValue(o).Method(0).Call(nil)[0].Int(); v != 2 {
+ 		t.Errorf("i.m() = %d, want 2", v)
+ 	}
+ 
+@@ -1402,7 +1361,7 @@ func TestPtrTo(t *testing.T) {
+ 		typ = PtrTo(typ)
+ 	}
+ 	for i = 0; i < 100; i++ {
+-		typ = typ.(*PtrType).Elem()
++		typ = typ.Elem()
+ 	}
+ 	if typ != Typeof(i) {
+ 		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, Typeof(i))
+@@ -1415,11 +1374,11 @@ func TestAddr(t *testing.T) {
+ 	}
+ 
+ 	v := NewValue(&p)
+-	v = v.(*PtrValue).Elem()
++	v = v.Elem()
+ 	v = v.Addr()
+-	v = v.(*PtrValue).Elem()
+-	v = v.(*StructValue).Field(0)
+-	v.(*IntValue).Set(2)
++	v = v.Elem()
++	v = v.Field(0)
++	v.SetInt(2)
+ 	if p.X != 2 {
+ 		t.Errorf("Addr.Elem.Set failed to set value")
+ 	}
+@@ -1428,12 +1387,12 @@ func TestAddr(t *testing.T) {
+ 	// Exercises generation of PtrTypes not present in the binary.
+ 	v = NewValue(&p)
+ 	v = v.Addr()
+-	v = v.(*PtrValue).Elem()
+-	v = v.(*PtrValue).Elem()
++	v = v.Elem()
++	v = v.Elem()
+ 	v = v.Addr()
+-	v = v.(*PtrValue).Elem()
+-	v = v.(*StructValue).Field(0)
+-	v.(*IntValue).Set(3)
++	v = v.Elem()
++	v = v.Field(0)
++	v.SetInt(3)
+ 	if p.X != 3 {
+ 		t.Errorf("Addr.Elem.Set failed to set value")
+ 	}
+@@ -1443,9 +1402,9 @@ func TestAddr(t *testing.T) {
+ 	v = NewValue(p)
+ 	v0 := v
+ 	v = v.Addr()
+-	v = v.(*PtrValue).Elem()
+-	v = v.(*StructValue).Field(0)
+-	v.(*IntValue).Set(4)
++	v = v.Elem()
++	v = v.Field(0)
++	v.SetInt(4)
+ 	if p.X != 3 { // should be unchanged from last time
+ 		t.Errorf("somehow value Set changed original p")
+ 	}
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index c9beec5066..f5a7814601 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -22,8 +22,8 @@ type visit struct {
+ // comparisons that have already been seen, which allows short circuiting on
+ // recursive types.
+ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+-	if v1 == nil || v2 == nil {
+-		return v1 == v2
++	if !v1.IsValid() || !v2.IsValid() {
++		return v1.IsValid() == v2.IsValid()
+ 	}
+ 	if v1.Type() != v2.Type() {
+ 		return false
+@@ -56,57 +56,47 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ 	// Remember for later.
+ 	visited[h] = &visit{addr1, addr2, typ, seen}
+ 
+-	switch v := v1.(type) {
+-	case *ArrayValue:
+-		arr1 := v
+-		arr2 := v2.(*ArrayValue)
+-		if arr1.Len() != arr2.Len() {
++	switch v1.Kind() {
++	case Array:
++		if v1.Len() != v2.Len() {
+ 			return false
+ 		}
+-		for i := 0; i < arr1.Len(); i++ {
+-			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited, depth+1) {
++		for i := 0; i < v1.Len(); i++ {
++			if !deepValueEqual(v1.Index(i), v2.Index(i), visited, depth+1) {
+ 				return false
+ 			}
+ 		}
+ 		return true
+-	case *SliceValue:
+-		arr1 := v
+-		arr2 := v2.(*SliceValue)
+-		if arr1.Len() != arr2.Len() {
++	case Slice:
++		if v1.Len() != v2.Len() {
+ 			return false
+ 		}
+-		for i := 0; i < arr1.Len(); i++ {
+-			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited, depth+1) {
++		for i := 0; i < v1.Len(); i++ {
++			if !deepValueEqual(v1.Index(i), v2.Index(i), visited, depth+1) {
+ 				return false
+ 			}
+ 		}
+ 		return true
+-	case *InterfaceValue:
+-		i1 := v.Interface()
+-		i2 := v2.Interface()
+-		if i1 == nil || i2 == nil {
+-			return i1 == i2
++	case Interface:
++		if v1.IsNil() || v2.IsNil() {
++			return v1.IsNil() == v2.IsNil()
+ 		}
+-		return deepValueEqual(NewValue(i1), NewValue(i2), visited, depth+1)
+-	case *PtrValue:
+-		return deepValueEqual(v.Elem(), v2.(*PtrValue).Elem(), visited, depth+1)
+-	case *StructValue:
+-		struct1 := v
+-		struct2 := v2.(*StructValue)
+-		for i, n := 0, v.NumField(); i < n; i++ {
+-			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited, depth+1) {
++		return deepValueEqual(v1.Elem(), v2.Elem(), visited, depth+1)
++	case Ptr:
++		return deepValueEqual(v1.Elem(), v2.Elem(), visited, depth+1)
++	case Struct:
++		for i, n := 0, v1.NumField(); i < n; i++ {
++			if !deepValueEqual(v1.Field(i), v2.Field(i), visited, depth+1) {
+ 				return false
+ 			}
+ 		}
+ 		return true
+-	case *MapValue:
+-		map1 := v
+-		map2 := v2.(*MapValue)
+-		if map1.Len() != map2.Len() {
++	case Map:
++		if v1.Len() != v2.Len() {
+ 			return false
+ 		}
+-		for _, k := range map1.Keys() {
+-			if !deepValueEqual(map1.Elem(k), map2.Elem(k), visited, depth+1) {
++		for _, k := range v1.MapKeys() {
++			if !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
+ 				return false
+ 			}
+ 		}
+diff --git a/src/pkg/reflect/tostring_test.go b/src/pkg/reflect/tostring_test.go
+index a1487fdd2f..5f5c52b778 100644
+--- a/src/pkg/reflect/tostring_test.go
++++ b/src/pkg/reflect/tostring_test.go
+@@ -17,29 +17,29 @@ import (
+ // For debugging only.
+ func valueToString(val Value) string {
+ 	var str string
+-	if val == nil {
+-		return "<nil>"
++	if !val.IsValid() {
++		return "<zero Value>"
+ 	}
+ 	typ := val.Type()
+-	switch val := val.(type) {
+-	case *IntValue:
+-		return strconv.Itoa64(val.Get())
+-	case *UintValue:
+-		return strconv.Uitoa64(val.Get())
+-	case *FloatValue:
+-		return strconv.Ftoa64(float64(val.Get()), 'g', -1)
+-	case *ComplexValue:
+-		c := val.Get()
+-		return strconv.Ftoa64(float64(real(c)), 'g', -1) + "+" + strconv.Ftoa64(float64(imag(c)), 'g', -1) + "i"
+-	case *StringValue:
+-		return val.Get()
+-	case *BoolValue:
+-		if val.Get() {
++	switch val.Kind() {
++	case Int, Int8, Int16, Int32, Int64:
++		return strconv.Itoa64(val.Int())
++	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
++		return strconv.Uitoa64(val.Uint())
++	case Float32, Float64:
++		return strconv.Ftoa64(val.Float(), 'g', -1)
++	case Complex64, Complex128:
++		c := val.Complex()
++		return strconv.Ftoa64(real(c), 'g', -1) + "+" + strconv.Ftoa64(imag(c), 'g', -1) + "i"
++	case String:
++		return val.String()
++	case Bool:
++		if val.Bool() {
+ 			return "true"
+ 		} else {
+ 			return "false"
+ 		}
+-	case *PtrValue:
++	case Ptr:
+ 		v := val
+ 		str = typ.String() + "("
+ 		if v.IsNil() {
+@@ -49,7 +49,7 @@ func valueToString(val Value) string {
+ 		}
+ 		str += ")"
+ 		return str
+-	case ArrayOrSliceValue:
++	case Array, Slice:
+ 		v := val
+ 		str += typ.String()
+ 		str += "{"
+@@ -57,22 +57,22 @@ func valueToString(val Value) string {
+ 			if i > 0 {
+ 				str += ", "
+ 			}
+-			str += valueToString(v.Elem(i))
++			str += valueToString(v.Index(i))
+ 		}
+ 		str += "}"
+ 		return str
+-	case *MapValue:
+-		t := typ.(*MapType)
++	case Map:
++		t := typ
+ 		str = t.String()
+ 		str += "{"
+ 		str += "<can't iterate on maps>"
+ 		str += "}"
+ 		return str
+-	case *ChanValue:
++	case Chan:
+ 		str = typ.String()
+ 		return str
+-	case *StructValue:
+-		t := typ.(*StructType)
++	case Struct:
++		t := typ
+ 		v := val
+ 		str += t.String()
+ 		str += "{"
+@@ -84,11 +84,11 @@ func valueToString(val Value) string {
+ 		}
+ 		str += "}"
+ 		return str
+-	case *InterfaceValue:
++	case Interface:
+ 		return typ.String() + "(" + valueToString(val.Elem()) + ")"
+-	case *FuncValue:
++	case Func:
+ 		v := val
+-		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")"
++		return typ.String() + "(" + strconv.Uitoa64(uint64(v.Pointer())) + ")"
+ 	default:
+ 		panic("valueToString: can't print type " + typ.String())
+ 	}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 2cc1f576aa..9f3e0bf682 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -5,14 +5,11 @@
+ // The reflect package implements run-time reflection, allowing a program to
+ // manipulate objects with arbitrary types.  The typical use is to take a
+ // value with static type interface{} and extract its dynamic type
+-// information by calling Typeof, which returns an object with interface
+-// type Type.  That contains a pointer to a struct of type *StructType,
+-// *IntType, etc. representing the details of the underlying type.  A type
+-// switch or type assertion can reveal which.
++// information by calling Typeof, which returns a Type.
+ //
+-// A call to NewValue creates a Value representing the run-time data; it
+-// contains a *StructValue, *IntValue, etc.  MakeZero takes a Type and
+-// returns a Value representing a zero value for that type.
++// A call to NewValue returns a Value representing the run-time data.
++// Zero takes a Type and returns a Value representing a zero value
++// for that type.
+ package reflect
+ 
+ import (
+@@ -22,6 +19,186 @@ import (
+ 	"unsafe"
+ )
+ 
++// Type is the representation of a Go type.
++//
++// Not all methods apply to all kinds of types.  Restrictions,
++// if any, are noted in the documentation for each method.
++// Use the Kind method to find out the kind of type before
++// calling kind-specific methods.  Calling a method
++// inappropriate to the kind of type causes a run-time panic.
++type Type interface {
++	// Methods applicable to all types.
++
++	// Align returns the alignment in bytes of a value of
++	// this type when allocated in memory.
++	Align() int
++
++	// FieldAlign returns the alignment in bytes of a value of
++	// this type when used as a field in a struct.
++	FieldAlign() int
++
++	// Method returns the i'th method in the type's method set.
++	// It panics if i is not in the range [0, NumMethod()).
++	//
++	// For a non-interface type T or *T, the returned Method's Type and Func
++	// fields describe a function whose first argument is the receiver.
++	//
++	// For an interface type, the returned Method's Type field gives the
++	// method signature, without a receiver, and the Func field is nil.
++	Method(int) Method
++
++	// NumMethods returns the number of methods in the type's method set.
++	NumMethod() int
++
++	// Name returns the type's name within its package.
++	// It returns an empty string for unnamed types.
++	Name() string
++
++	// PkgPath returns the type's package path.
++	// The package path is a full package import path like "container/vector".
++	// PkgPath returns an empty string for unnamed types.
++	PkgPath() string
++
++	// Size returns the number of bytes needed to store
++	// a value of the given type; it is analogous to unsafe.Sizeof.
++	Size() uintptr
++
++	// String returns a string representation of the type.
++	// The string representation may use shortened package names
++	// (e.g., vector instead of "container/vector") and is not
++	// guaranteed to be unique among types.  To test for equality,
++	// compare the Types directly.
++	String() string
++
++	// Kind returns the specific kind of this type.
++	Kind() Kind
++
++	// Methods applicable only to some types, depending on Kind.
++	// The methods allowed for each kind are:
++	//
++	//	Int*, Uint*, Float*, Complex*: Bits
++	//	Array: Elem, Len
++	//	Chan: ChanDir, Elem
++	//	Func: In, NumIn, Out, NumOut, IsVariadic.
++	//	Map: Key, Elem
++	//	Ptr: Elem
++	//	Slice: Elem
++	//	Struct: Field, FieldByIndex, FieldByName, FieldByNameFunc, NumField
++
++	// Bits returns the size of the type in bits.
++	// It panics if the type's Kind is not one of the
++	// sized or unsized Int, Uint, Float, or Complex kinds.
++	Bits() int
++
++	// ChanDir returns a channel type's direction.
++	// It panics if the type's Kind is not Chan.
++	ChanDir() ChanDir
++
++	// IsVariadic returns true if a function type's final input parameter
++	// is a "..." parameter.  If so, t.In(t.NumIn() - 1) returns the parameter's
++	// implicit actual type []T.
++	//
++	// For concreteness, if t represents func(x int, y ... float), then
++	//
++	//	t.NumIn() == 2
++	//	t.In(0) is the reflect.Type for "int"
++	//	t.In(1) is the reflect.Type for "[]float"
++	//	t.IsVariadic() == true
++	//
++	// IsVariadic panics if the type's Kind is not Func.
++	IsVariadic() bool
++
++	// Elem returns a type's element type.
++	// It panics if the type's Kind is not Array, Chan, Map, Ptr, or Slice.
++	Elem() Type
++
++	// Field returns a struct type's i'th field.
++	// It panics if the type's Kind is not Struct.
++	// It panics if i is not in the range [0, NumField()).
++	Field(i int) StructField
++
++	// FieldByIndex returns the nested field corresponding
++	// to the index sequence.  It is equivalent to calling Field
++	// successively for each index i.
++	// It panics if the type's Kind is not Struct.
++	FieldByIndex(index []int) StructField
++
++	// FieldByName returns the struct field with the given name
++	// and a boolean indicating if the field was found.
++	FieldByName(name string) (StructField, bool)
++
++	// FieldByNameFunc returns the first struct field with a name
++	// that satisfies the match function and a boolean indicating if
++	// the field was found.
++	FieldByNameFunc(match func(string) bool) (StructField, bool)
++
++	// In returns the type of a function type's i'th input parameter.
++	// It panics if the type's Kind is not Func.
++	// It panics if i is not in the range [0, NumIn()).
++	In(i int) Type
++
++	// Key returns a map type's key type.
++	// It panics if the type's Kind is not Map.
++	Key() Type
++
++	// Len returns an array type's length.
++	// It panics if the type's Kind is not Array.
++	Len() int
++
++	// NumField returns a struct type's field count.
++	// It panics if the type's Kind is not Struct.
++	NumField() int
++
++	// NumIn returns a function type's input parameter count.
++	// It panics if the type's Kind is not Func.
++	NumIn() int
++
++	// NumOut returns a function type's output parameter count.
++	// It panics if the type's Kind is not Func.
++	NumOut() int
++
++	// Out returns the type of a function type's i'th output parameter.
++	// It panics if the type's Kind is not Func.
++	// It panics if i is not in the range [0, NumOut()).
++	Out(i int) Type
++
++	uncommon() *uncommonType
++}
++
++// A Kind represents the specific kind of type that a Type represents.
++// The zero Kind is not a valid kind.
++type Kind uint8
++
++const (
++	Invalid Kind = iota
++	Bool
++	Int
++	Int8
++	Int16
++	Int32
++	Int64
++	Uint
++	Uint8
++	Uint16
++	Uint32
++	Uint64
++	Uintptr
++	Float32
++	Float64
++	Complex64
++	Complex128
++	Array
++	Chan
++	Func
++	Interface
++	Map
++	Ptr
++	Slice
++	String
++	Struct
++	UnsafePointer
++)
++
+ /*
+  * Copy of data structures from ../runtime/type.go.
+  * For comments, see the ones in that file.
+@@ -67,48 +244,6 @@ type uncommonType struct {
+ 	methods []method
+ }
+ 
+-// BoolType represents a boolean type.
+-type BoolType struct {
+-	commonType "bool"
+-}
+-
+-// FloatType represents a float type.
+-type FloatType struct {
+-	commonType "float"
+-}
+-
+-// ComplexType represents a complex type.
+-type ComplexType struct {
+-	commonType "complex"
+-}
+-
+-// IntType represents a signed integer type.
+-type IntType struct {
+-	commonType "int"
+-}
+-
+-// UintType represents a uint type.
+-type UintType struct {
+-	commonType "uint"
+-}
+-
+-// StringType represents a string type.
+-type StringType struct {
+-	commonType "string"
+-}
+-
+-// UnsafePointerType represents an unsafe.Pointer type.
+-type UnsafePointerType struct {
+-	commonType "unsafe.Pointer"
+-}
+-
+-// ArrayType represents a fixed array type.
+-type ArrayType struct {
+-	commonType "array"
+-	elem       *runtime.Type
+-	len        uintptr
+-}
+-
+ // ChanDir represents a channel type's direction.
+ type ChanDir int
+ 
+@@ -118,57 +253,61 @@ const (
+ 	BothDir = RecvDir | SendDir
+ )
+ 
+-// ChanType represents a channel type.
+-type ChanType struct {
++
++// arrayType represents a fixed array type.
++type arrayType struct {
++	commonType "array"
++	elem       *runtime.Type
++	len        uintptr
++}
++
++// chanType represents a channel type.
++type chanType struct {
+ 	commonType "chan"
+ 	elem       *runtime.Type
+ 	dir        uintptr
+ }
+ 
+-// FuncType represents a function type.
+-type FuncType struct {
++// funcType represents a function type.
++type funcType struct {
+ 	commonType "func"
+ 	dotdotdot  bool
+ 	in         []*runtime.Type
+ 	out        []*runtime.Type
+ }
+ 
+-// Method on interface type
++// imethod represents a method on an interface type
+ type imethod struct {
+ 	name    *string
+ 	pkgPath *string
+ 	typ     *runtime.Type
+ }
+ 
+-// InterfaceType represents an interface type.
+-type InterfaceType struct {
++// interfaceType represents an interface type.
++type interfaceType struct {
+ 	commonType "interface"
+ 	methods    []imethod
+ }
+ 
+-// MapType represents a map type.
+-type MapType struct {
++// mapType represents a map type.
++type mapType struct {
+ 	commonType "map"
+ 	key        *runtime.Type
+ 	elem       *runtime.Type
+ }
+ 
+-// PtrType represents a pointer type.
+-type PtrType struct {
++// ptrType represents a pointer type.
++type ptrType struct {
+ 	commonType "ptr"
+ 	elem       *runtime.Type
+ }
+ 
+-// SliceType represents a slice type.
+-type SliceType struct {
++// sliceType represents a slice type.
++type sliceType struct {
+ 	commonType "slice"
+ 	elem       *runtime.Type
+ }
+ 
+-// arrayOrSliceType is an unexported method that guarantees only
+-// arrays and slices implement ArrayOrSliceType.
+-func (*SliceType) arrayOrSliceType() {}
+-
+ // Struct field
+ type structField struct {
+ 	name    *string
+@@ -178,8 +317,8 @@ type structField struct {
+ 	offset  uintptr
+ }
+ 
+-// StructType represents a struct type.
+-type StructType struct {
++// structType represents a struct type.
++type structType struct {
+ 	commonType "struct"
+ 	fields     []structField
+ }
+@@ -194,106 +333,10 @@ type StructType struct {
+ type Method struct {
+ 	PkgPath string // empty for uppercase Name
+ 	Name    string
+-	Type    *FuncType
+-	Func    *FuncValue
++	Type    Type
++	Func    Value
+ }
+ 
+-// Type is the runtime representation of a Go type.
+-// Every type implements the methods listed here.
+-// Some types implement additional interfaces;
+-// use a type switch to find out what kind of type a Type is.
+-// Each type in a program has a unique Type, so == on Types
+-// corresponds to Go's type equality.
+-type Type interface {
+-	// PkgPath returns the type's package path.
+-	// The package path is a full package import path like "container/vector".
+-	// PkgPath returns an empty string for unnamed types.
+-	PkgPath() string
+-
+-	// Name returns the type's name within its package.
+-	// Name returns an empty string for unnamed types.
+-	Name() string
+-
+-	// String returns a string representation of the type.
+-	// The string representation may use shortened package names
+-	// (e.g., vector instead of "container/vector") and is not
+-	// guaranteed to be unique among types.  To test for equality,
+-	// compare the Types directly.
+-	String() string
+-
+-	// Size returns the number of bytes needed to store
+-	// a value of the given type; it is analogous to unsafe.Sizeof.
+-	Size() uintptr
+-
+-	// Bits returns the size of the type in bits.
+-	// It is intended for use with numeric types and may overflow
+-	// when used for composite types.
+-	Bits() int
+-
+-	// Align returns the alignment of a value of this type
+-	// when allocated in memory.
+-	Align() int
+-
+-	// FieldAlign returns the alignment of a value of this type
+-	// when used as a field in a struct.
+-	FieldAlign() int
+-
+-	// Kind returns the specific kind of this type.
+-	Kind() Kind
+-
+-	// Method returns the i'th method in the type's method set.
+-	//
+-	// For a non-interface type T or *T, the returned Method's Type and Func
+-	// fields describe a function whose first argument is the receiver.
+-	//
+-	// For an interface type, the returned Method's Type field gives the
+-	// method signature, without a receiver, and the Func field is nil.
+-	Method(int) Method
+-
+-	// NumMethods returns the number of methods in the type's method set.
+-	NumMethod() int
+-
+-	common() *commonType
+-	uncommon() *uncommonType
+-}
+-
+-// A Kind represents the specific kind of type that a Type represents.
+-// For numeric types, the Kind gives more information than the Type's
+-// dynamic type.  For example, the Type of a float32 is FloatType, but
+-// the Kind is Float32.
+-//
+-// The zero Kind is not a valid kind.
+-type Kind uint8
+-
+-const (
+-	Bool Kind = 1 + iota
+-	Int
+-	Int8
+-	Int16
+-	Int32
+-	Int64
+-	Uint
+-	Uint8
+-	Uint16
+-	Uint32
+-	Uint64
+-	Uintptr
+-	Float32
+-	Float64
+-	Complex64
+-	Complex128
+-	Array
+-	Chan
+-	Func
+-	Interface
+-	Map
+-	Ptr
+-	Slice
+-	String
+-	Struct
+-	UnsafePointer
+-)
+-
+ // High bit says whether type has
+ // embedded pointers,to help garbage collector.
+ const kindMask = 0x7f
+@@ -306,6 +349,7 @@ func (k Kind) String() string {
+ }
+ 
+ var kindNames = []string{
++	Invalid:       "invalid",
+ 	Bool:          "bool",
+ 	Int:           "int",
+ 	Int8:          "int8",
+@@ -352,11 +396,24 @@ func (t *uncommonType) Name() string {
+ 	return *t.name
+ }
+ 
++func (t *commonType) toType() Type {
++	if t == nil {
++		return nil
++	}
++	return t
++}
++
+ func (t *commonType) String() string { return *t.string }
+ 
+ func (t *commonType) Size() uintptr { return t.size }
+ 
+-func (t *commonType) Bits() int { return int(t.size * 8) }
++func (t *commonType) Bits() int {
++	k := t.Kind()
++	if k < Int || k > Complex128 {
++		panic("reflect: Bits of non-arithmetic Type")
++	}
++	return int(t.size) * 8
++}
+ 
+ func (t *commonType) Align() int { return int(t.align) }
+ 
+@@ -377,9 +434,9 @@ func (t *uncommonType) Method(i int) (m Method) {
+ 	if p.pkgPath != nil {
+ 		m.PkgPath = *p.pkgPath
+ 	}
+-	m.Type = toType(*p.typ).(*FuncType)
++	m.Type = toType(p.typ)
+ 	fn := p.tfn
+-	m.Func = &FuncValue{value: value{m.Type, addr(&fn), canSet}}
++	m.Func = Value{&funcValue{value: value{m.Type, addr(&fn), canSet}}}
+ 	return
+ }
+ 
+@@ -393,79 +450,169 @@ func (t *uncommonType) NumMethod() int {
+ // TODO(rsc): 6g supplies these, but they are not
+ // as efficient as they could be: they have commonType
+ // as the receiver instead of *commonType.
+-func (t *commonType) NumMethod() int { return t.uncommonType.NumMethod() }
++func (t *commonType) NumMethod() int {
++	if t.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(t))
++		return tt.NumMethod()
++	}
++	return t.uncommonType.NumMethod()
++}
+ 
+-func (t *commonType) Method(i int) (m Method) { return t.uncommonType.Method(i) }
++func (t *commonType) Method(i int) (m Method) {
++	if t.Kind() == Interface {
++		tt := (*interfaceType)(unsafe.Pointer(t))
++		return tt.Method(i)
++	}
++	return t.uncommonType.Method(i)
++}
+ 
+-func (t *commonType) PkgPath() string { return t.uncommonType.PkgPath() }
++func (t *commonType) PkgPath() string {
++	return t.uncommonType.PkgPath()
++}
+ 
+-func (t *commonType) Name() string { return t.uncommonType.Name() }
++func (t *commonType) Name() string {
++	return t.uncommonType.Name()
++}
+ 
+-// Len returns the number of elements in the array.
+-func (t *ArrayType) Len() int { return int(t.len) }
++func (t *commonType) ChanDir() ChanDir {
++	if t.Kind() != Chan {
++		panic("reflect: ChanDir of non-chan type")
++	}
++	tt := (*chanType)(unsafe.Pointer(t))
++	return ChanDir(tt.dir)
++}
+ 
+-// Elem returns the type of the array's elements.
+-func (t *ArrayType) Elem() Type { return toType(*t.elem) }
++func (t *commonType) IsVariadic() bool {
++	if t.Kind() != Func {
++		panic("reflect: IsVariadic of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return tt.dotdotdot
++}
++
++func (t *commonType) Elem() Type {
++	switch t.Kind() {
++	case Array:
++		tt := (*arrayType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Chan:
++		tt := (*chanType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Map:
++		tt := (*mapType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Ptr:
++		tt := (*ptrType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	case Slice:
++		tt := (*sliceType)(unsafe.Pointer(t))
++		return toType(tt.elem)
++	}
++	panic("reflect; Elem of invalid type")
++}
+ 
+-// arrayOrSliceType is an unexported method that guarantees only
+-// arrays and slices implement ArrayOrSliceType.
+-func (*ArrayType) arrayOrSliceType() {}
++func (t *commonType) Field(i int) StructField {
++	if t.Kind() != Struct {
++		panic("reflect: Field of non-struct type")
++	}
++	tt := (*structType)(unsafe.Pointer(t))
++	return tt.Field(i)
++}
+ 
+-// Dir returns the channel direction.
+-func (t *ChanType) Dir() ChanDir { return ChanDir(t.dir) }
++func (t *commonType) FieldByIndex(index []int) StructField {
++	if t.Kind() != Struct {
++		panic("reflect: FieldByIndex of non-struct type")
++	}
++	tt := (*structType)(unsafe.Pointer(t))
++	return tt.FieldByIndex(index)
++}
+ 
+-// Elem returns the channel's element type.
+-func (t *ChanType) Elem() Type { return toType(*t.elem) }
++func (t *commonType) FieldByName(name string) (StructField, bool) {
++	if t.Kind() != Struct {
++		panic("reflect: FieldByName of non-struct type")
++	}
++	tt := (*structType)(unsafe.Pointer(t))
++	return tt.FieldByName(name)
++}
+ 
+-func (d ChanDir) String() string {
+-	switch d {
+-	case SendDir:
+-		return "chan<-"
+-	case RecvDir:
+-		return "<-chan"
+-	case BothDir:
+-		return "chan"
++func (t *commonType) FieldByNameFunc(match func(string) bool) (StructField, bool) {
++	if t.Kind() != Struct {
++		panic("reflect: FieldByNameFunc of non-struct type")
+ 	}
+-	return "ChanDir" + strconv.Itoa(int(d))
++	tt := (*structType)(unsafe.Pointer(t))
++	return tt.FieldByNameFunc(match)
+ }
+ 
+-// In returns the type of the i'th function input parameter.
+-func (t *FuncType) In(i int) Type {
+-	if i < 0 || i >= len(t.in) {
+-		return nil
++func (t *commonType) In(i int) Type {
++	if t.Kind() != Func {
++		panic("reflect: In of non-func type")
+ 	}
+-	return toType(*t.in[i])
++	tt := (*funcType)(unsafe.Pointer(t))
++	return toType(tt.in[i])
+ }
+ 
+-// DotDotDot returns true if the final function input parameter
+-// is a "..." parameter.  If so, t.In(t.NumIn() - 1) returns the
+-// parameter's underlying static type []T.
+-//
+-// For concreteness, if t is func(x int, y ... float), then
+-//
+-//	t.NumIn() == 2
+-//	t.In(0) is the reflect.Type for "int"
+-//	t.In(1) is the reflect.Type for "[]float"
+-//	t.DotDotDot() == true
+-//
+-func (t *FuncType) DotDotDot() bool { return t.dotdotdot }
++func (t *commonType) Key() Type {
++	if t.Kind() != Map {
++		panic("reflect: Key of non-map type")
++	}
++	tt := (*mapType)(unsafe.Pointer(t))
++	return toType(tt.key)
++}
+ 
+-// NumIn returns the number of input parameters.
+-func (t *FuncType) NumIn() int { return len(t.in) }
++func (t *commonType) Len() int {
++	if t.Kind() != Array {
++		panic("reflect: Len of non-array type")
++	}
++	tt := (*arrayType)(unsafe.Pointer(t))
++	return int(tt.len)
++}
+ 
+-// Out returns the type of the i'th function output parameter.
+-func (t *FuncType) Out(i int) Type {
+-	if i < 0 || i >= len(t.out) {
+-		return nil
++func (t *commonType) NumField() int {
++	if t.Kind() != Struct {
++		panic("reflect: NumField of non-struct type")
+ 	}
+-	return toType(*t.out[i])
++	tt := (*structType)(unsafe.Pointer(t))
++	return len(tt.fields)
+ }
+ 
+-// NumOut returns the number of function output parameters.
+-func (t *FuncType) NumOut() int { return len(t.out) }
++func (t *commonType) NumIn() int {
++	if t.Kind() != Func {
++		panic("reflect; NumIn of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return len(tt.in)
++}
++
++func (t *commonType) NumOut() int {
++	if t.Kind() != Func {
++		panic("reflect; NumOut of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return len(tt.out)
++}
++
++func (t *commonType) Out(i int) Type {
++	if t.Kind() != Func {
++		panic("reflect: Out of non-func type")
++	}
++	tt := (*funcType)(unsafe.Pointer(t))
++	return toType(tt.out[i])
++}
++
++func (d ChanDir) String() string {
++	switch d {
++	case SendDir:
++		return "chan<-"
++	case RecvDir:
++		return "<-chan"
++	case BothDir:
++		return "chan"
++	}
++	return "ChanDir" + strconv.Itoa(int(d))
++}
+ 
+ // Method returns the i'th method in the type's method set.
+-func (t *InterfaceType) Method(i int) (m Method) {
++func (t *interfaceType) Method(i int) (m Method) {
+ 	if i < 0 || i >= len(t.methods) {
+ 		return
+ 	}
+@@ -474,24 +621,12 @@ func (t *InterfaceType) Method(i int) (m Method) {
+ 	if p.pkgPath != nil {
+ 		m.PkgPath = *p.pkgPath
+ 	}
+-	m.Type = toType(*p.typ).(*FuncType)
++	m.Type = toType(p.typ)
+ 	return
+ }
+ 
+ // NumMethod returns the number of interface methods in the type's method set.
+-func (t *InterfaceType) NumMethod() int { return len(t.methods) }
+-
+-// Key returns the map key type.
+-func (t *MapType) Key() Type { return toType(*t.key) }
+-
+-// Elem returns the map element type.
+-func (t *MapType) Elem() Type { return toType(*t.elem) }
+-
+-// Elem returns the pointer element type.
+-func (t *PtrType) Elem() Type { return toType(*t.elem) }
+-
+-// Elem returns the type of the slice's elements.
+-func (t *SliceType) Elem() Type { return toType(*t.elem) }
++func (t *interfaceType) NumMethod() int { return len(t.methods) }
+ 
+ type StructField struct {
+ 	PkgPath   string // empty for uppercase Name
+@@ -504,18 +639,18 @@ type StructField struct {
+ }
+ 
+ // Field returns the i'th struct field.
+-func (t *StructType) Field(i int) (f StructField) {
++func (t *structType) Field(i int) (f StructField) {
+ 	if i < 0 || i >= len(t.fields) {
+ 		return
+ 	}
+ 	p := t.fields[i]
+-	f.Type = toType(*p.typ)
++	f.Type = toType(p.typ)
+ 	if p.name != nil {
+ 		f.Name = *p.name
+ 	} else {
+ 		t := f.Type
+-		if pt, ok := t.(*PtrType); ok {
+-			t = pt.Elem()
++		if t.Kind() == Ptr {
++			t = t.Elem()
+ 		}
+ 		f.Name = t.Name()
+ 		f.Anonymous = true
+@@ -535,29 +670,24 @@ func (t *StructType) Field(i int) (f StructField) {
+ //            is wrong for FieldByIndex?
+ 
+ // FieldByIndex returns the nested field corresponding to index.
+-func (t *StructType) FieldByIndex(index []int) (f StructField) {
++func (t *structType) FieldByIndex(index []int) (f StructField) {
++	f.Type = Type(t.toType())
+ 	for i, x := range index {
+ 		if i > 0 {
+ 			ft := f.Type
+-			if pt, ok := ft.(*PtrType); ok {
+-				ft = pt.Elem()
+-			}
+-			if st, ok := ft.(*StructType); ok {
+-				t = st
+-			} else {
+-				var f0 StructField
+-				f = f0
+-				return
++			if ft.Kind() == Ptr && ft.Elem().Kind() == Struct {
++				ft = ft.Elem()
+ 			}
++			f.Type = ft
+ 		}
+-		f = t.Field(x)
++		f = f.Type.Field(x)
+ 	}
+ 	return
+ }
+ 
+ const inf = 1 << 30 // infinity - no struct has that many nesting levels
+ 
+-func (t *StructType) fieldByNameFunc(match func(string) bool, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
++func (t *structType) fieldByNameFunc(match func(string) bool, mark map[*structType]bool, depth int) (ff StructField, fd int) {
+ 	fd = inf // field depth
+ 
+ 	if mark[t] {
+@@ -578,8 +708,8 @@ L:
+ 			d = depth
+ 		case f.Anonymous:
+ 			ft := f.Type
+-			if pt, ok := ft.(*PtrType); ok {
+-				ft = pt.Elem()
++			if ft.Kind() == Ptr {
++				ft = ft.Elem()
+ 			}
+ 			switch {
+ 			case match(ft.Name()):
+@@ -587,7 +717,8 @@ L:
+ 				d = depth
+ 			case fd > depth:
+ 				// No top-level field yet; look inside nested structs.
+-				if st, ok := ft.(*StructType); ok {
++				if ft.Kind() == Struct {
++					st := (*structType)(unsafe.Pointer(ft.(*commonType)))
+ 					f, d = st.fieldByNameFunc(match, mark, depth+1)
+ 				}
+ 			}
+@@ -626,97 +757,54 @@ L:
+ 
+ // FieldByName returns the struct field with the given name
+ // and a boolean to indicate if the field was found.
+-func (t *StructType) FieldByName(name string) (f StructField, present bool) {
++func (t *structType) FieldByName(name string) (f StructField, present bool) {
+ 	return t.FieldByNameFunc(func(s string) bool { return s == name })
+ }
+ 
+ // FieldByNameFunc returns the struct field with a name that satisfies the
+ // match function and a boolean to indicate if the field was found.
+-func (t *StructType) FieldByNameFunc(match func(string) bool) (f StructField, present bool) {
+-	if ff, fd := t.fieldByNameFunc(match, make(map[*StructType]bool), 0); fd < inf {
++func (t *structType) FieldByNameFunc(match func(string) bool) (f StructField, present bool) {
++	if ff, fd := t.fieldByNameFunc(match, make(map[*structType]bool), 0); fd < inf {
+ 		ff.Index = ff.Index[0 : fd+1]
+ 		f, present = ff, true
+ 	}
+ 	return
+ }
+ 
+-// NumField returns the number of struct fields.
+-func (t *StructType) NumField() int { return len(t.fields) }
+-
+ // Convert runtime type to reflect type.
+-// Same memory layouts, different method sets.
+-func toType(i interface{}) Type {
+-	switch v := i.(type) {
+-	case nil:
+-		return nil
+-	case *runtime.BoolType:
+-		return (*BoolType)(unsafe.Pointer(v))
+-	case *runtime.FloatType:
+-		return (*FloatType)(unsafe.Pointer(v))
+-	case *runtime.ComplexType:
+-		return (*ComplexType)(unsafe.Pointer(v))
+-	case *runtime.IntType:
+-		return (*IntType)(unsafe.Pointer(v))
+-	case *runtime.StringType:
+-		return (*StringType)(unsafe.Pointer(v))
+-	case *runtime.UintType:
+-		return (*UintType)(unsafe.Pointer(v))
+-	case *runtime.UnsafePointerType:
+-		return (*UnsafePointerType)(unsafe.Pointer(v))
+-	case *runtime.ArrayType:
+-		return (*ArrayType)(unsafe.Pointer(v))
+-	case *runtime.ChanType:
+-		return (*ChanType)(unsafe.Pointer(v))
+-	case *runtime.FuncType:
+-		return (*FuncType)(unsafe.Pointer(v))
+-	case *runtime.InterfaceType:
+-		return (*InterfaceType)(unsafe.Pointer(v))
+-	case *runtime.MapType:
+-		return (*MapType)(unsafe.Pointer(v))
+-	case *runtime.PtrType:
+-		return (*PtrType)(unsafe.Pointer(v))
+-	case *runtime.SliceType:
+-		return (*SliceType)(unsafe.Pointer(v))
+-	case *runtime.StructType:
+-		return (*StructType)(unsafe.Pointer(v))
+-	}
+-	println(i)
+-	panic("toType")
+-}
+-
+-// ArrayOrSliceType is the common interface implemented
+-// by both ArrayType and SliceType.
+-type ArrayOrSliceType interface {
+-	Type
+-	Elem() Type
+-	arrayOrSliceType() // Guarantees only Array and Slice implement this interface.
++func toType(p *runtime.Type) Type {
++	type hdr struct {
++		x interface{}
++		t commonType
++	}
++	t := &(*hdr)(unsafe.Pointer(p)).t
++	return t.toType()
+ }
+ 
+ // Typeof returns the reflection Type of the value in the interface{}.
+-func Typeof(i interface{}) Type { return toType(unsafe.Typeof(i)) }
++func Typeof(i interface{}) Type {
++	type hdr struct {
++		typ *byte
++		val *commonType
++	}
++	rt := unsafe.Typeof(i)
++	t := (*(*hdr)(unsafe.Pointer(&rt))).val
++	return t.toType()
++}
+ 
+ // ptrMap is the cache for PtrTo.
+ var ptrMap struct {
+ 	sync.RWMutex
+-	m map[Type]*PtrType
+-}
+-
+-// runtimePtrType is the runtime layout for a *PtrType.
+-// The memory immediately before the *PtrType is always
+-// the canonical runtime.Type to be used for a *runtime.Type
+-// describing this PtrType.
+-type runtimePtrType struct {
+-	runtime.Type
+-	runtime.PtrType
++	m map[*commonType]*ptrType
+ }
+ 
+ // PtrTo returns the pointer type with element t.
+ // For example, if t represents type Foo, PtrTo(t) represents *Foo.
+-func PtrTo(t Type) *PtrType {
++func PtrTo(t Type) Type {
+ 	// If t records its pointer-to type, use it.
+-	ct := t.common()
++	ct := t.(*commonType)
+ 	if p := ct.ptrToThis; p != nil {
+-		return toType(*p).(*PtrType)
++		return toType(p)
+ 	}
+ 
+ 	// Otherwise, synthesize one.
+@@ -726,35 +814,34 @@ func PtrTo(t Type) *PtrType {
+ 	// the type structures in read-only memory.
+ 	ptrMap.RLock()
+ 	if m := ptrMap.m; m != nil {
+-		if p := m[t]; p != nil {
++		if p := m[ct]; p != nil {
+ 			ptrMap.RUnlock()
+-			return p
++			return p.commonType.toType()
+ 		}
+ 	}
+ 	ptrMap.RUnlock()
+ 	ptrMap.Lock()
+ 	if ptrMap.m == nil {
+-		ptrMap.m = make(map[Type]*PtrType)
++		ptrMap.m = make(map[*commonType]*ptrType)
+ 	}
+-	p := ptrMap.m[t]
++	p := ptrMap.m[ct]
+ 	if p != nil {
+ 		// some other goroutine won the race and created it
+ 		ptrMap.Unlock()
+ 		return p
+ 	}
+ 
+-	// runtime.Type value is always right before type structure.
+-	// 2*ptrSize is size of interface header
+-	rt := (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - uintptr(unsafe.Sizeof(runtime.Type(nil)))))
+-
+-	rp := new(runtimePtrType)
+-	rp.Type = &rp.PtrType
++	var rt struct {
++		i runtime.Type
++		ptrType
++	}
++	rt.i = (*runtime.PtrType)(unsafe.Pointer(&rt.ptrType))
+ 
+-	// initialize rp.PtrType using *byte's PtrType as a prototype.
++	// initialize p using *byte's PtrType as a prototype.
+ 	// have to do assignment as PtrType, not runtime.PtrType,
+ 	// in order to write to unexported fields.
+-	p = (*PtrType)(unsafe.Pointer(&rp.PtrType))
+-	bp := (*PtrType)(unsafe.Pointer(unsafe.Typeof((*byte)(nil)).(*runtime.PtrType)))
++	p = &rt.ptrType
++	bp := (*ptrType)(unsafe.Pointer(unsafe.Typeof((*byte)(nil)).(*runtime.PtrType)))
+ 	*p = *bp
+ 
+ 	s := "*" + *ct.string
+@@ -769,9 +856,9 @@ func PtrTo(t Type) *PtrType {
+ 
+ 	p.uncommonType = nil
+ 	p.ptrToThis = nil
+-	p.elem = rt
++	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - uintptr(unsafe.Offsetof(rt.ptrType))))
+ 
+-	ptrMap.m[t] = (*PtrType)(unsafe.Pointer(&rp.PtrType))
++	ptrMap.m[ct] = p
+ 	ptrMap.Unlock()
+-	return p
++	return p.commonType.toType()
+ }
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 01a40ec9a4..eeae6cce54 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -41,10 +41,482 @@ func memmove(adst, asrc addr, n uintptr) {
+ 	}
+ }
+ 
+-// Value is the common interface to reflection values.
+-// The implementations of Value (e.g., ArrayValue, StructValue)
++// Value is the reflection interface to a Go value.
++//
++// Not all methods apply to all kinds of values.  Restrictions,
++// if any, are noted in the documentation for each method.
++// Use the Kind method to find out the kind of value before
++// calling kind-specific methods.  Calling a method
++// inappropriate to the kind of type causes a run time panic.
++//
++// The zero Value represents no value.
++// Its IsValid method returns false, its Kind method returns Invalid,
++// its String method returns "<invalid Value>", and all other methods panic.
++// Most functions and methods never return an invalid value.
++// If one does, its documentation states the conditions explicitly.
++type Value struct {
++	Internal valueInterface
++}
++
++// TODO(rsc): This implementation of Value is a just a façade
++// in front of the old implementation, now called valueInterface.
++// A future CL will change it to a real implementation.
++// Changing the API is already a big enough step for one CL.
++
++// A ValueError occurs when a Value method is invoked on
++// a Value that does not support it.  Such cases are documented
++// in the description of each method.
++type ValueError struct {
++	Method string
++	Kind   Kind
++}
++
++func (e *ValueError) String() string {
++	if e.Kind == 0 {
++		return "reflect: call of " + e.Method + " on zero Value"
++	}
++	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
++}
++
++// methodName returns the name of the calling method,
++// assumed to be two stack frames above.
++func methodName() string {
++	pc, _, _, _ := runtime.Caller(2)
++	f := runtime.FuncForPC(pc)
++	if f == nil {
++		return "unknown method"
++	}
++	return f.Name()
++}
++
++func (v Value) internal() valueInterface {
++	vi := v.Internal
++	if vi == nil {
++		panic(&ValueError{methodName(), 0})
++	}
++	return vi
++}
++
++func (v Value) panicIfNot(want Kind) valueInterface {
++	vi := v.Internal
++	if vi == nil {
++		panic(&ValueError{methodName(), 0})
++	}
++	if k := vi.Kind(); k != want {
++		panic(&ValueError{methodName(), k})
++	}
++	return vi
++}
++
++func (v Value) panicIfNots(wants []Kind) valueInterface {
++	vi := v.Internal
++	if vi == nil {
++		panic(&ValueError{methodName(), 0})
++	}
++	k := vi.Kind()
++	for _, want := range wants {
++		if k == want {
++			return vi
++		}
++	}
++	panic(&ValueError{methodName(), k})
++}
++
++// Addr returns a pointer value representing the address of v.
++// It panics if CanAddr() returns false.
++// Addr is typically used to obtain a pointer to a struct field
++// or slice element in order to call a method that requires a
++// pointer receiver.
++func (v Value) Addr() Value {
++	return v.internal().Addr()
++}
++
++// Bool returns v's underlying value.
++// It panics if v's kind is not Bool.
++func (v Value) Bool() bool {
++	u := v.panicIfNot(Bool).(*boolValue)
++	return u.Get()
++}
++
++// CanAddr returns true if the value's address can be obtained with Addr.
++// Such values are called addressable.  A value is addressable if it is
++// an element of a slice, an element of an addressable array,
++// a field of an addressable struct, the result of dereferencing a pointer,
++// or the result of a call to NewValue, MakeChan, MakeMap, or Zero.
++// If CanAddr returns false, calling Addr will panic.
++func (v Value) CanAddr() bool {
++	return v.internal().CanAddr()
++}
++
++// CanSet returns true if the value of v can be changed.
++// Values obtained by the use of unexported struct fields
++// can be read but not set.
++// If CanSet returns false, calling Set or any type-specific
++// setter (e.g., SetBool, SetInt64) will panic.
++func (v Value) CanSet() bool {
++	return v.internal().CanSet()
++}
++
++// Call calls the function v with the input parameters in.
++// It panics if v's Kind is not Func.
++// It returns the output parameters as Values.
++func (v Value) Call(in []Value) []Value {
++	return v.panicIfNot(Func).(*funcValue).Call(in)
++}
++
++var capKinds = []Kind{Array, Chan, Slice}
++
++type capper interface {
++	Cap() int
++}
++
++// Cap returns v's capacity.
++// It panics if v's Kind is not Array, Chan, or Slice.
++func (v Value) Cap() int {
++	return v.panicIfNots(capKinds).(capper).Cap()
++}
++
++// Close closes the channel v.
++// It panics if v's Kind is not Chan.
++func (v Value) Close() {
++	v.panicIfNot(Chan).(*chanValue).Close()
++}
++
++var complexKinds = []Kind{Complex64, Complex128}
++
++// Complex returns v's underlying value, as a complex128.
++// It panics if v's Kind is not Complex64 or Complex128
++func (v Value) Complex() complex128 {
++	return v.panicIfNots(complexKinds).(*complexValue).Get()
++}
++
++var interfaceOrPtr = []Kind{Interface, Ptr}
++
++type elemer interface {
++	Elem() Value
++}
++
++// Elem returns the value that the interface v contains
++// or that the pointer v points to.
++// It panics if v's Kind is not Interface or Ptr.
++// It returns the zero Value if v is nil.
++func (v Value) Elem() Value {
++	return v.panicIfNots(interfaceOrPtr).(elemer).Elem()
++}
++
++// Field returns the i'th field of the struct v.
++// It panics if v's Kind is not Struct.
++func (v Value) Field(i int) Value {
++	return v.panicIfNot(Struct).(*structValue).Field(i)
++}
++
++// FieldByIndex returns the nested field corresponding to index.
++// It panics if v's Kind is not struct.
++func (v Value) FieldByIndex(index []int) Value {
++	return v.panicIfNot(Struct).(*structValue).FieldByIndex(index)
++}
++
++// FieldByName returns the struct field with the given name.
++// It returns the zero Value if no field was found.
++// It panics if v's Kind is not struct.
++func (v Value) FieldByName(name string) Value {
++	return v.panicIfNot(Struct).(*structValue).FieldByName(name)
++}
++
++// FieldByNameFunc returns the struct field with a name
++// that satisfies the match function.
++// It panics if v's Kind is not struct.
++// It returns the zero Value if no field was found.
++func (v Value) FieldByNameFunc(match func(string) bool) Value {
++	return v.panicIfNot(Struct).(*structValue).FieldByNameFunc(match)
++}
++
++var floatKinds = []Kind{Float32, Float64}
++
++// Float returns v's underlying value, as an float64.
++// It panics if v's Kind is not Float32 or Float64
++func (v Value) Float() float64 {
++	return v.panicIfNots(floatKinds).(*floatValue).Get()
++}
++
++var arrayOrSlice = []Kind{Array, Slice}
++
++// Index returns v's i'th element.
++// It panics if v's Kind is not Array or Slice.
++func (v Value) Index(i int) Value {
++	return v.panicIfNots(arrayOrSlice).(arrayOrSliceValue).Elem(i)
++}
++
++var intKinds = []Kind{Int, Int8, Int16, Int32, Int64}
++
++// Int returns v's underlying value, as an int64.
++// It panics if v's Kind is not a sized or unsized Int kind.
++func (v Value) Int() int64 {
++	return v.panicIfNots(intKinds).(*intValue).Get()
++}
++
++// Interface returns v's value as an interface{}.
++// If v is a method obtained by invoking Value.Method
++// (as opposed to Type.Method), Interface cannot return an
++// interface value, so it panics.
++func (v Value) Interface() interface{} {
++	return v.internal().Interface()
++}
++
++// InterfaceData returns the interface v's value as a uintptr pair.
++// It panics if v's Kind is not Interface.
++func (v Value) InterfaceData() [2]uintptr {
++	return v.panicIfNot(Interface).(*interfaceValue).Get()
++}
++
++var nilKinds = []Kind{Chan, Func, Interface, Map, Ptr, Slice}
++
++type isNiller interface {
++	IsNil() bool
++}
++
++// IsNil returns true if v is a nil value.
++// It panics if v's Kind is not Chan, Func, Interface, Map, Ptr, or Slice.
++func (v Value) IsNil() bool {
++	return v.panicIfNots(nilKinds).(isNiller).IsNil()
++}
++
++// IsValid returns true if v represents a value.
++// It returns false if v is the zero Value.
++// If IsValid returns false, all other methods except String panic.
++// Most functions and methods never return an invalid value.
++// If one does, its documentation states the conditions explicitly.
++func (v Value) IsValid() bool {
++	return v.Internal != nil
++}
++
++// Kind returns v's Kind.
++// If v is the zero Value (IsValid returns false), Kind returns Invalid.
++func (v Value) Kind() Kind {
++	if v.Internal == nil {
++		return Invalid
++	}
++	return v.internal().Kind()
++}
++
++var lenKinds = []Kind{Array, Chan, Map, Slice}
++
++type lenner interface {
++	Len() int
++}
++
++// Len returns v's length.
++// It panics if v's Kind is not Array, Chan, Map, or Slice.
++func (v Value) Len() int {
++	return v.panicIfNots(lenKinds).(lenner).Len()
++}
++
++// MapIndex returns the value associated with key in the map v.
++// It panics if v's Kind is not Map.
++// It returns the zero Value if key is not found in the map.
++func (v Value) MapIndex(key Value) Value {
++	return v.panicIfNot(Map).(*mapValue).Elem(key)
++}
++
++// MapKeys returns a slice containing all the keys present in the map,
++// in unspecified order.
++// It panics if v's Kind is not Map.
++func (v Value) MapKeys() []Value {
++	return v.panicIfNot(Map).(*mapValue).Keys()
++}
++
++// Method returns a function value corresponding to v's i'th method.
++// The arguments to a Call on the returned function should not include
++// a receiver; the returned function will always use v as the receiver.
++func (v Value) Method(i int) Value {
++	return v.internal().Method(i)
++}
++
++// NumField returns the number of fields in the struct v.
++// It panics if v's Kind is not Struct.
++func (v Value) NumField() int {
++	return v.panicIfNot(Struct).(*structValue).NumField()
++}
++
++// OverflowComplex returns true if the complex128 x cannot be represented by v's type.
++// It panics if v's Kind is not Complex64 or Complex128.
++func (v Value) OverflowComplex(x complex128) bool {
++	return v.panicIfNots(complexKinds).(*complexValue).Overflow(x)
++}
++
++// OverflowFloat returns true if the float64 x cannot be represented by v's type.
++// It panics if v's Kind is not Float32 or Float64.
++func (v Value) OverflowFloat(x float64) bool {
++	return v.panicIfNots(floatKinds).(*floatValue).Overflow(x)
++}
++
++// OverflowInt returns true if the int64 x cannot be represented by v's type.
++// It panics if v's Kind is not a sized or unsized Int kind.
++func (v Value) OverflowInt(x int64) bool {
++	return v.panicIfNots(intKinds).(*intValue).Overflow(x)
++}
++
++// OverflowUint returns true if the uint64 x cannot be represented by v's type.
++// It panics if v's Kind is not a sized or unsized Uint kind.
++func (v Value) OverflowUint(x uint64) bool {
++	return v.panicIfNots(uintKinds).(*uintValue).Overflow(x)
++}
++
++var pointerKinds = []Kind{Chan, Func, Map, Ptr, Slice, UnsafePointer}
++
++type uintptrGetter interface {
++	Get() uintptr
++}
++
++// Pointer returns v's value as a uintptr.
++// It returns uintptr instead of unsafe.Pointer so that
++// code using reflect cannot obtain unsafe.Pointers
++// without importing the unsafe package explicitly.
++// It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
++func (v Value) Pointer() uintptr {
++	return v.panicIfNots(pointerKinds).(uintptrGetter).Get()
++}
++
++
++// Recv receives and returns a value from the channel v.
++// It panics if v's Kind is not Chan.
++// The receive blocks until a value is ready.
++// The boolean value ok is true if the value x corresponds to a send
++// on the channel, false if it is a zero value received because the channel is closed.
++func (v Value) Recv() (x Value, ok bool) {
++	return v.panicIfNot(Chan).(*chanValue).Recv()
++}
++
++// Send sends x on the channel v.
++// It panics if v's kind is not Chan or if x's type is not the same type as v's element type.
++func (v Value) Send(x Value) {
++	v.panicIfNot(Chan).(*chanValue).Send(x)
++}
++
++// Set assigns x to the value v; x must have the same type as v.
++// It panics if CanSet() returns false or if x is the zero Value.
++func (v Value) Set(x Value) {
++	x.internal()
++	v.internal().SetValue(x)
++}
++
++// SetBool sets v's underlying value.
++// It panics if v's Kind is not Bool or if CanSet() is false.
++func (v Value) SetBool(x bool) {
++	v.panicIfNot(Bool).(*boolValue).Set(x)
++}
++
++// SetComplex sets v's underlying value to x.
++// It panics if v's Kind is not Complex64 or Complex128, or if CanSet() is false.
++func (v Value) SetComplex(x complex128) {
++	v.panicIfNots(complexKinds).(*complexValue).Set(x)
++}
++
++// SetFloat sets v's underlying value to x.
++// It panics if v's Kind is not Float32 or Float64, or if CanSet() is false.
++func (v Value) SetFloat(x float64) {
++	v.panicIfNots(floatKinds).(*floatValue).Set(x)
++}
++
++// SetInt sets v's underlying value to x.
++// It panics if v's Kind is not a sized or unsized Int kind, or if CanSet() is false.
++func (v Value) SetInt(x int64) {
++	v.panicIfNots(intKinds).(*intValue).Set(x)
++}
++
++// SetLen sets v's length to n.
++// It panics if v's Kind is not Slice.
++func (v Value) SetLen(n int) {
++	v.panicIfNot(Slice).(*sliceValue).SetLen(n)
++}
++
++// SetMapIndex sets the value associated with key in the map v to val.
++// It panics if v's Kind is not Map.
++// If val is the zero Value, SetMapIndex deletes the key from the map.
++func (v Value) SetMapIndex(key, val Value) {
++	v.panicIfNot(Map).(*mapValue).SetElem(key, val)
++}
++
++// SetUint sets v's underlying value to x.
++// It panics if v's Kind is not a sized or unsized Uint kind, or if CanSet() is false.
++func (v Value) SetUint(x uint64) {
++	v.panicIfNots(uintKinds).(*uintValue).Set(x)
++}
++
++// SetPointer sets the unsafe.Pointer value v to x.
++// It panics if v's Kind is not UnsafePointer.
++func (v Value) SetPointer(x unsafe.Pointer) {
++	v.panicIfNot(UnsafePointer).(*unsafePointerValue).Set(x)
++}
++
++// SetString sets v's underlying value to x.
++// It panics if v's Kind is not String or if CanSet() is false.
++func (v Value) SetString(x string) {
++	v.panicIfNot(String).(*stringValue).Set(x)
++}
++
++// BUG(rsc): Value.Slice should allow slicing arrays.
++
++// Slice returns a slice of v.
++// It panics if v's Kind is not Slice.
++func (v Value) Slice(beg, end int) Value {
++	return v.panicIfNot(Slice).(*sliceValue).Slice(beg, end)
++}
++
++// String returns the string v's underlying value, as a string.
++// String is a special case because of Go's String method convention.
++// Unlike the other getters, it does not panic if v's Kind is not String.
++// Instead, it returns a string of the form "<T value>" where T is v's type.
++func (v Value) String() string {
++	vi := v.Internal
++	if vi == nil {
++		return "<invalid Value>"
++	}
++	if vi.Kind() == String {
++		return vi.(*stringValue).Get()
++	}
++	return "<" + vi.Type().String() + " Value>"
++}
++
++// TryRecv attempts to receive a value from the channel v but will not block.
++// It panics if v's Kind is not Chan.
++// If the receive cannot finish without blocking, x is the zero Value.
++// The boolean ok is true if the value x corresponds to a send
++// on the channel, false if it is a zero value received because the channel is closed.
++func (v Value) TryRecv() (x Value, ok bool) {
++	return v.panicIfNot(Chan).(*chanValue).TryRecv()
++}
++
++// TrySend attempts to send x on the channel v but will not block.
++// It panics if v's Kind is not Chan.
++// It returns true if the value was sent, false otherwise.
++func (v Value) TrySend(x Value) bool {
++	return v.panicIfNot(Chan).(*chanValue).TrySend(x)
++}
++
++// Type returns v's type.
++func (v Value) Type() Type {
++	return v.internal().Type()
++}
++
++var uintKinds = []Kind{Uint, Uint8, Uint16, Uint32, Uint64, Uintptr}
++
++// Uint returns v's underlying value, as a uint64.
++// It panics if v's Kind is not a sized or unsized Uint kind.
++func (v Value) Uint() uint64 {
++	return v.panicIfNots(uintKinds).(*uintValue).Get()
++}
++
++// UnsafeAddr returns a pointer to v's data.
++// It is for advanced clients that also import the "unsafe" package.
++func (v Value) UnsafeAddr() uintptr {
++	return v.internal().UnsafeAddr()
++}
++
++// valueInterface is the common interface to reflection values.
++// The implementations of Value (e.g., arrayValue, structValue)
+ // have additional type-specific methods.
+-type Value interface {
++type valueInterface interface {
+ 	// Type returns the value's type.
+ 	Type() Type
+ 
+@@ -64,7 +536,7 @@ type Value interface {
+ 	// Such values are called addressable.  A value is addressable if it is
+ 	// an element of a slice, an element of an addressable array,
+ 	// a field of an addressable struct, the result of dereferencing a pointer,
+-	// or the result of a call to NewValue, MakeChan, MakeMap, or MakeZero.
++	// or the result of a call to NewValue, MakeChan, MakeMap, or Zero.
+ 	// If CanAddr returns false, calling Addr will panic.
+ 	CanAddr() bool
+ 
+@@ -72,17 +544,19 @@ type Value interface {
+ 	// If the value is not addressable, Addr panics.
+ 	// Addr is typically used to obtain a pointer to a struct field or slice element
+ 	// in order to call a method that requires a pointer receiver.
+-	Addr() *PtrValue
++	Addr() Value
+ 
+ 	// UnsafeAddr returns a pointer to the underlying data.
+ 	// It is for advanced clients that also import the "unsafe" package.
+ 	UnsafeAddr() uintptr
+ 
+-	// Method returns a FuncValue corresponding to the value's i'th method.
+-	// The arguments to a Call on the returned FuncValue
+-	// should not include a receiver; the FuncValue will use
++	// Method returns a funcValue corresponding to the value's i'th method.
++	// The arguments to a Call on the returned funcValue
++	// should not include a receiver; the funcValue will use
+ 	// the value as the receiver.
+-	Method(i int) *FuncValue
++	Method(i int) Value
++
++	Kind() Kind
+ 
+ 	getAddr() addr
+ }
+@@ -97,7 +571,7 @@ const (
+ // value is the common implementation of most values.
+ // It is embedded in other, public struct types, but always
+ // with a unique tag like "uint" or "float" so that the client cannot
+-// convert from, say, *UintValue to *FloatValue.
++// convert from, say, *uintValue to *floatValue.
+ type value struct {
+ 	typ  Type
+ 	addr addr
+@@ -106,7 +580,9 @@ type value struct {
+ 
+ func (v *value) Type() Type { return v.typ }
+ 
+-func (v *value) Addr() *PtrValue {
++func (v *value) Kind() Kind { return v.typ.Kind() }
++
++func (v *value) Addr() Value {
+ 	if !v.CanAddr() {
+ 		panic("reflect: cannot take address of value")
+ 	}
+@@ -119,7 +595,7 @@ func (v *value) Addr() *PtrValue {
+ 	// the caller would get the address of a -
+ 	// but it doesn't match the Go model.
+ 	// The language doesn't let you say &&v.
+-	return newValue(PtrTo(v.typ), addr(&a), flag).(*PtrValue)
++	return newValue(PtrTo(v.typ), addr(&a), flag)
+ }
+ 
+ func (v *value) UnsafeAddr() uintptr { return uintptr(v.addr) }
+@@ -127,7 +603,8 @@ func (v *value) UnsafeAddr() uintptr { return uintptr(v.addr) }
+ func (v *value) getAddr() addr { return v.addr }
+ 
+ func (v *value) Interface() interface{} {
+-	if typ, ok := v.typ.(*InterfaceType); ok {
++	typ := v.typ
++	if typ.Kind() == Interface {
+ 		// There are two different representations of interface values,
+ 		// one if the interface type has methods and one if it doesn't.
+ 		// These two representations require different expressions
+@@ -153,16 +630,16 @@ func (v *value) CanAddr() bool { return v.flag&canAddr != 0 }
+  * basic types
+  */
+ 
+-// BoolValue represents a bool value.
+-type BoolValue struct {
++// boolValue represents a bool value.
++type boolValue struct {
+ 	value "bool"
+ }
+ 
+ // Get returns the underlying bool value.
+-func (v *BoolValue) Get() bool { return *(*bool)(v.addr) }
++func (v *boolValue) Get() bool { return *(*bool)(v.addr) }
+ 
+ // Set sets v to the value x.
+-func (v *BoolValue) Set(x bool) {
++func (v *boolValue) Set(x bool) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -170,15 +647,15 @@ func (v *BoolValue) Set(x bool) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *BoolValue) SetValue(x Value) { v.Set(x.(*BoolValue).Get()) }
++func (v *boolValue) SetValue(x Value) { v.Set(x.Bool()) }
+ 
+-// FloatValue represents a float value.
+-type FloatValue struct {
++// floatValue represents a float value.
++type floatValue struct {
+ 	value "float"
+ }
+ 
+ // Get returns the underlying int value.
+-func (v *FloatValue) Get() float64 {
++func (v *floatValue) Get() float64 {
+ 	switch v.typ.Kind() {
+ 	case Float32:
+ 		return float64(*(*float32)(v.addr))
+@@ -189,7 +666,7 @@ func (v *FloatValue) Get() float64 {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *FloatValue) Set(x float64) {
++func (v *floatValue) Set(x float64) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -204,7 +681,7 @@ func (v *FloatValue) Set(x float64) {
+ }
+ 
+ // Overflow returns true if x cannot be represented by the type of v.
+-func (v *FloatValue) Overflow(x float64) bool {
++func (v *floatValue) Overflow(x float64) bool {
+ 	if v.typ.Size() == 8 {
+ 		return false
+ 	}
+@@ -215,15 +692,15 @@ func (v *FloatValue) Overflow(x float64) bool {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *FloatValue) SetValue(x Value) { v.Set(x.(*FloatValue).Get()) }
++func (v *floatValue) SetValue(x Value) { v.Set(x.Float()) }
+ 
+-// ComplexValue represents a complex value.
+-type ComplexValue struct {
++// complexValue represents a complex value.
++type complexValue struct {
+ 	value "complex"
+ }
+ 
+ // Get returns the underlying complex value.
+-func (v *ComplexValue) Get() complex128 {
++func (v *complexValue) Get() complex128 {
+ 	switch v.typ.Kind() {
+ 	case Complex64:
+ 		return complex128(*(*complex64)(v.addr))
+@@ -234,7 +711,7 @@ func (v *ComplexValue) Get() complex128 {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *ComplexValue) Set(x complex128) {
++func (v *complexValue) Set(x complex128) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -248,16 +725,33 @@ func (v *ComplexValue) Set(x complex128) {
+ 	}
+ }
+ 
++// How did we forget this one?
++func (v *complexValue) Overflow(x complex128) bool {
++	if v.typ.Size() == 16 {
++		return false
++	}
++	r := real(x)
++	i := imag(x)
++	if r < 0 {
++		r = -r
++	}
++	if i < 0 {
++		i = -i
++	}
++	return math.MaxFloat32 <= r && r <= math.MaxFloat64 ||
++		math.MaxFloat32 <= i && i <= math.MaxFloat64
++}
++
+ // Set sets v to the value x.
+-func (v *ComplexValue) SetValue(x Value) { v.Set(x.(*ComplexValue).Get()) }
++func (v *complexValue) SetValue(x Value) { v.Set(x.Complex()) }
+ 
+-// IntValue represents an int value.
+-type IntValue struct {
++// intValue represents an int value.
++type intValue struct {
+ 	value "int"
+ }
+ 
+ // Get returns the underlying int value.
+-func (v *IntValue) Get() int64 {
++func (v *intValue) Get() int64 {
+ 	switch v.typ.Kind() {
+ 	case Int:
+ 		return int64(*(*int)(v.addr))
+@@ -274,7 +768,7 @@ func (v *IntValue) Get() int64 {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *IntValue) Set(x int64) {
++func (v *intValue) Set(x int64) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -295,10 +789,10 @@ func (v *IntValue) Set(x int64) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *IntValue) SetValue(x Value) { v.Set(x.(*IntValue).Get()) }
++func (v *intValue) SetValue(x Value) { v.Set(x.Int()) }
+ 
+ // Overflow returns true if x cannot be represented by the type of v.
+-func (v *IntValue) Overflow(x int64) bool {
++func (v *intValue) Overflow(x int64) bool {
+ 	bitSize := uint(v.typ.Bits())
+ 	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+ 	return x != trunc
+@@ -310,16 +804,16 @@ type StringHeader struct {
+ 	Len  int
+ }
+ 
+-// StringValue represents a string value.
+-type StringValue struct {
++// stringValue represents a string value.
++type stringValue struct {
+ 	value "string"
+ }
+ 
+ // Get returns the underlying string value.
+-func (v *StringValue) Get() string { return *(*string)(v.addr) }
++func (v *stringValue) Get() string { return *(*string)(v.addr) }
+ 
+ // Set sets v to the value x.
+-func (v *StringValue) Set(x string) {
++func (v *stringValue) Set(x string) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -327,15 +821,18 @@ func (v *StringValue) Set(x string) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *StringValue) SetValue(x Value) { v.Set(x.(*StringValue).Get()) }
++func (v *stringValue) SetValue(x Value) {
++	// Do the kind check explicitly, because x.String() does not.
++	v.Set(x.panicIfNot(String).(*stringValue).Get())
++}
+ 
+-// UintValue represents a uint value.
+-type UintValue struct {
++// uintValue represents a uint value.
++type uintValue struct {
+ 	value "uint"
+ }
+ 
+ // Get returns the underlying uuint value.
+-func (v *UintValue) Get() uint64 {
++func (v *uintValue) Get() uint64 {
+ 	switch v.typ.Kind() {
+ 	case Uint:
+ 		return uint64(*(*uint)(v.addr))
+@@ -354,7 +851,7 @@ func (v *UintValue) Get() uint64 {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *UintValue) Set(x uint64) {
++func (v *uintValue) Set(x uint64) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -377,17 +874,17 @@ func (v *UintValue) Set(x uint64) {
+ }
+ 
+ // Overflow returns true if x cannot be represented by the type of v.
+-func (v *UintValue) Overflow(x uint64) bool {
++func (v *uintValue) Overflow(x uint64) bool {
+ 	bitSize := uint(v.typ.Bits())
+ 	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+ 	return x != trunc
+ }
+ 
+ // Set sets v to the value x.
+-func (v *UintValue) SetValue(x Value) { v.Set(x.(*UintValue).Get()) }
++func (v *uintValue) SetValue(x Value) { v.Set(x.Uint()) }
+ 
+-// UnsafePointerValue represents an unsafe.Pointer value.
+-type UnsafePointerValue struct {
++// unsafePointerValue represents an unsafe.Pointer value.
++type unsafePointerValue struct {
+ 	value "unsafe.Pointer"
+ }
+ 
+@@ -395,10 +892,10 @@ type UnsafePointerValue struct {
+ // Get returns uintptr, not unsafe.Pointer, so that
+ // programs that do not import "unsafe" cannot
+ // obtain a value of unsafe.Pointer type from "reflect".
+-func (v *UnsafePointerValue) Get() uintptr { return uintptr(*(*unsafe.Pointer)(v.addr)) }
++func (v *unsafePointerValue) Get() uintptr { return uintptr(*(*unsafe.Pointer)(v.addr)) }
+ 
+ // Set sets v to the value x.
+-func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
++func (v *unsafePointerValue) Set(x unsafe.Pointer) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -406,8 +903,10 @@ func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *UnsafePointerValue) SetValue(x Value) {
+-	v.Set(unsafe.Pointer(x.(*UnsafePointerValue).Get()))
++func (v *unsafePointerValue) SetValue(x Value) {
++	// Do the kind check explicitly, because x.UnsafePointer
++	// applies to more than just the UnsafePointer Kind.
++	v.Set(unsafe.Pointer(x.panicIfNot(UnsafePointer).(*unsafePointerValue).Get()))
+ }
+ 
+ func typesMustMatch(t1, t2 Type) {
+@@ -421,9 +920,9 @@ func typesMustMatch(t1, t2 Type) {
+  */
+ 
+ // ArrayOrSliceValue is the common interface
+-// implemented by both ArrayValue and SliceValue.
+-type ArrayOrSliceValue interface {
+-	Value
++// implemented by both arrayValue and sliceValue.
++type arrayOrSliceValue interface {
++	valueInterface
+ 	Len() int
+ 	Cap() int
+ 	Elem(i int) Value
+@@ -432,7 +931,7 @@ type ArrayOrSliceValue interface {
+ 
+ // grow grows the slice s so that it can hold extra more values, allocating
+ // more capacity if needed. It also returns the old and new slice lengths.
+-func grow(s *SliceValue, extra int) (*SliceValue, int, int) {
++func grow(s Value, extra int) (Value, int, int) {
+ 	i0 := s.Len()
+ 	i1 := i0 + extra
+ 	if i1 < i0 {
+@@ -453,24 +952,25 @@ func grow(s *SliceValue, extra int) (*SliceValue, int, int) {
+ 			}
+ 		}
+ 	}
+-	t := MakeSlice(s.Type().(*SliceType), i1, m)
++	t := MakeSlice(s.Type(), i1, m)
+ 	Copy(t, s)
+ 	return t, i0, i1
+ }
+ 
+ // Append appends the values x to a slice s and returns the resulting slice.
+ // Each x must have the same type as s' element type.
+-func Append(s *SliceValue, x ...Value) *SliceValue {
++func Append(s Value, x ...Value) Value {
+ 	s, i0, i1 := grow(s, len(x))
++	sa := s.panicIfNot(Slice).(*sliceValue)
+ 	for i, j := i0, 0; i < i1; i, j = i+1, j+1 {
+-		s.Elem(i).SetValue(x[j])
++		sa.Elem(i).Set(x[j])
+ 	}
+ 	return s
+ }
+ 
+ // AppendSlice appends a slice t to a slice s and returns the resulting slice.
+ // The slices s and t must have the same element type.
+-func AppendSlice(s, t *SliceValue) *SliceValue {
++func AppendSlice(s, t Value) Value {
+ 	s, i0, i1 := grow(s, t.Len())
+ 	Copy(s.Slice(i0, i1), t)
+ 	return s
+@@ -479,51 +979,56 @@ func AppendSlice(s, t *SliceValue) *SliceValue {
+ // Copy copies the contents of src into dst until either
+ // dst has been filled or src has been exhausted.
+ // It returns the number of elements copied.
+-// The arrays dst and src must have the same element type.
+-func Copy(dst, src ArrayOrSliceValue) int {
++// Dst and src each must be a slice or array, and they
++// must have the same element type.
++func Copy(dst, src Value) int {
+ 	// TODO: This will have to move into the runtime
+ 	// once the real gc goes in.
+-	de := dst.Type().(ArrayOrSliceType).Elem()
+-	se := src.Type().(ArrayOrSliceType).Elem()
++	de := dst.Type().Elem()
++	se := src.Type().Elem()
+ 	typesMustMatch(de, se)
+ 	n := dst.Len()
+ 	if xn := src.Len(); n > xn {
+ 		n = xn
+ 	}
+-	memmove(dst.addr(), src.addr(), uintptr(n)*de.Size())
++	memmove(dst.panicIfNots(arrayOrSlice).(arrayOrSliceValue).addr(),
++		src.panicIfNots(arrayOrSlice).(arrayOrSliceValue).addr(),
++		uintptr(n)*de.Size())
+ 	return n
+ }
+ 
+-// An ArrayValue represents an array.
+-type ArrayValue struct {
++// An arrayValue represents an array.
++type arrayValue struct {
+ 	value "array"
+ }
+ 
+ // Len returns the length of the array.
+-func (v *ArrayValue) Len() int { return v.typ.(*ArrayType).Len() }
++func (v *arrayValue) Len() int { return v.typ.Len() }
+ 
+ // Cap returns the capacity of the array (equal to Len()).
+-func (v *ArrayValue) Cap() int { return v.typ.(*ArrayType).Len() }
++func (v *arrayValue) Cap() int { return v.typ.Len() }
+ 
+ // addr returns the base address of the data in the array.
+-func (v *ArrayValue) addr() addr { return v.value.addr }
++func (v *arrayValue) addr() addr { return v.value.addr }
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v.
+-func (v *ArrayValue) Set(x *ArrayValue) {
++func (v *arrayValue) Set(x *arrayValue) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+ 	typesMustMatch(v.typ, x.typ)
+-	Copy(v, x)
++	Copy(Value{v}, Value{x})
+ }
+ 
+ // Set sets v to the value x.
+-func (v *ArrayValue) SetValue(x Value) { v.Set(x.(*ArrayValue)) }
++func (v *arrayValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Array).(*arrayValue))
++}
+ 
+ // Elem returns the i'th element of v.
+-func (v *ArrayValue) Elem(i int) Value {
+-	typ := v.typ.(*ArrayType).Elem()
++func (v *arrayValue) Elem(i int) Value {
++	typ := v.typ.Elem()
+ 	n := v.Len()
+ 	if i < 0 || i >= n {
+ 		panic("array index out of bounds")
+@@ -543,28 +1048,28 @@ type SliceHeader struct {
+ 	Cap  int
+ }
+ 
+-// A SliceValue represents a slice.
+-type SliceValue struct {
++// A sliceValue represents a slice.
++type sliceValue struct {
+ 	value "slice"
+ }
+ 
+-func (v *SliceValue) slice() *SliceHeader { return (*SliceHeader)(v.value.addr) }
++func (v *sliceValue) slice() *SliceHeader { return (*SliceHeader)(v.value.addr) }
+ 
+ // IsNil returns whether v is a nil slice.
+-func (v *SliceValue) IsNil() bool { return v.slice().Data == 0 }
++func (v *sliceValue) IsNil() bool { return v.slice().Data == 0 }
+ 
+ // Len returns the length of the slice.
+-func (v *SliceValue) Len() int { return int(v.slice().Len) }
++func (v *sliceValue) Len() int { return int(v.slice().Len) }
+ 
+ // Cap returns the capacity of the slice.
+-func (v *SliceValue) Cap() int { return int(v.slice().Cap) }
++func (v *sliceValue) Cap() int { return int(v.slice().Cap) }
+ 
+ // addr returns the base address of the data in the slice.
+-func (v *SliceValue) addr() addr { return addr(v.slice().Data) }
++func (v *sliceValue) addr() addr { return addr(v.slice().Data) }
+ 
+ // SetLen changes the length of v.
+ // The new length n must be between 0 and the capacity, inclusive.
+-func (v *SliceValue) SetLen(n int) {
++func (v *sliceValue) SetLen(n int) {
+ 	s := v.slice()
+ 	if n < 0 || n > int(s.Cap) {
+ 		panic("reflect: slice length out of range in SetLen")
+@@ -574,7 +1079,7 @@ func (v *SliceValue) SetLen(n int) {
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v.
+-func (v *SliceValue) Set(x *SliceValue) {
++func (v *sliceValue) Set(x *sliceValue) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -583,23 +1088,25 @@ func (v *SliceValue) Set(x *SliceValue) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *SliceValue) SetValue(x Value) { v.Set(x.(*SliceValue)) }
++func (v *sliceValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Slice).(*sliceValue))
++}
+ 
+ // Get returns the uintptr address of the v.Cap()'th element.  This gives
+ // the same result for all slices of the same array.
+ // It is mainly useful for printing.
+-func (v *SliceValue) Get() uintptr {
+-	typ := v.typ.(*SliceType)
++func (v *sliceValue) Get() uintptr {
++	typ := v.typ
+ 	return uintptr(v.addr()) + uintptr(v.Cap())*typ.Elem().Size()
+ }
+ 
+ // Slice returns a sub-slice of the slice v.
+-func (v *SliceValue) Slice(beg, end int) *SliceValue {
++func (v *sliceValue) Slice(beg, end int) Value {
+ 	cap := v.Cap()
+ 	if beg < 0 || end < beg || end > cap {
+ 		panic("slice index out of bounds")
+ 	}
+-	typ := v.typ.(*SliceType)
++	typ := v.typ
+ 	s := new(SliceHeader)
+ 	s.Data = uintptr(v.addr()) + uintptr(beg)*typ.Elem().Size()
+ 	s.Len = end - beg
+@@ -611,12 +1118,12 @@ func (v *SliceValue) Slice(beg, end int) *SliceValue {
+ 	if v.flag&canStore != 0 {
+ 		flag |= canStore
+ 	}
+-	return newValue(typ, addr(s), flag).(*SliceValue)
++	return newValue(typ, addr(s), flag)
+ }
+ 
+ // Elem returns the i'th element of v.
+-func (v *SliceValue) Elem(i int) Value {
+-	typ := v.typ.(*SliceType).Elem()
++func (v *sliceValue) Elem(i int) Value {
++	typ := v.typ.Elem()
+ 	n := v.Len()
+ 	if i < 0 || i >= n {
+ 		panic("reflect: slice index out of range")
+@@ -631,30 +1138,33 @@ func (v *SliceValue) Elem(i int) Value {
+ 
+ // MakeSlice creates a new zero-initialized slice value
+ // for the specified slice type, length, and capacity.
+-func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
++func MakeSlice(typ Type, len, cap int) Value {
++	if typ.Kind() != Slice {
++		panic("reflect: MakeSlice of non-slice type")
++	}
+ 	s := &SliceHeader{
+ 		Data: uintptr(unsafe.NewArray(typ.Elem(), cap)),
+ 		Len:  len,
+ 		Cap:  cap,
+ 	}
+-	return newValue(typ, addr(s), canAddr|canSet|canStore).(*SliceValue)
++	return newValue(typ, addr(s), canAddr|canSet|canStore)
+ }
+ 
+ /*
+  * chan
+  */
+ 
+-// A ChanValue represents a chan.
+-type ChanValue struct {
++// A chanValue represents a chan.
++type chanValue struct {
+ 	value "chan"
+ }
+ 
+ // IsNil returns whether v is a nil channel.
+-func (v *ChanValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
++func (v *chanValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v.
+-func (v *ChanValue) Set(x *ChanValue) {
++func (v *chanValue) Set(x *chanValue) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -663,11 +1173,13 @@ func (v *ChanValue) Set(x *ChanValue) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *ChanValue) SetValue(x Value) { v.Set(x.(*ChanValue)) }
++func (v *chanValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Chan).(*chanValue))
++}
+ 
+ // Get returns the uintptr value of v.
+ // It is mainly useful for printing.
+-func (v *ChanValue) Get() uintptr { return *(*uintptr)(v.addr) }
++func (v *chanValue) Get() uintptr { return *(*uintptr)(v.addr) }
+ 
+ // implemented in ../pkg/runtime/reflect.cgo
+ func makechan(typ *runtime.ChanType, size uint32) (ch *byte)
+@@ -678,59 +1190,59 @@ func chanlen(ch *byte) int32
+ func chancap(ch *byte) int32
+ 
+ // Close closes the channel.
+-func (v *ChanValue) Close() {
++func (v *chanValue) Close() {
+ 	ch := *(**byte)(v.addr)
+ 	chanclose(ch)
+ }
+ 
+-func (v *ChanValue) Len() int {
++func (v *chanValue) Len() int {
+ 	ch := *(**byte)(v.addr)
+ 	return int(chanlen(ch))
+ }
+ 
+-func (v *ChanValue) Cap() int {
++func (v *chanValue) Cap() int {
+ 	ch := *(**byte)(v.addr)
+ 	return int(chancap(ch))
+ }
+ 
+ // internal send; non-blocking if selected != nil
+-func (v *ChanValue) send(x Value, selected *bool) {
+-	t := v.Type().(*ChanType)
+-	if t.Dir()&SendDir == 0 {
++func (v *chanValue) send(x Value, selected *bool) {
++	t := v.Type()
++	if t.ChanDir()&SendDir == 0 {
+ 		panic("send on recv-only channel")
+ 	}
+ 	typesMustMatch(t.Elem(), x.Type())
+ 	ch := *(**byte)(v.addr)
+-	chansend(ch, (*byte)(x.getAddr()), selected)
++	chansend(ch, (*byte)(x.internal().getAddr()), selected)
+ }
+ 
+ // internal recv; non-blocking if selected != nil
+-func (v *ChanValue) recv(selected *bool) (Value, bool) {
+-	t := v.Type().(*ChanType)
+-	if t.Dir()&RecvDir == 0 {
++func (v *chanValue) recv(selected *bool) (Value, bool) {
++	t := v.Type()
++	if t.ChanDir()&RecvDir == 0 {
+ 		panic("recv on send-only channel")
+ 	}
+ 	ch := *(**byte)(v.addr)
+-	x := MakeZero(t.Elem())
++	x := Zero(t.Elem())
+ 	var ok bool
+-	chanrecv(ch, (*byte)(x.getAddr()), selected, &ok)
++	chanrecv(ch, (*byte)(x.internal().getAddr()), selected, &ok)
+ 	return x, ok
+ }
+ 
+ // Send sends x on the channel v.
+-func (v *ChanValue) Send(x Value) { v.send(x, nil) }
++func (v *chanValue) Send(x Value) { v.send(x, nil) }
+ 
+ // Recv receives and returns a value from the channel v.
+ // The receive blocks until a value is ready.
+ // The boolean value ok is true if the value x corresponds to a send
+ // on the channel, false if it is a zero value received because the channel is closed.
+-func (v *ChanValue) Recv() (x Value, ok bool) {
++func (v *chanValue) Recv() (x Value, ok bool) {
+ 	return v.recv(nil)
+ }
+ 
+ // TrySend attempts to sends x on the channel v but will not block.
+ // It returns true if the value was sent, false otherwise.
+-func (v *ChanValue) TrySend(x Value) bool {
++func (v *chanValue) TrySend(x Value) bool {
+ 	var selected bool
+ 	v.send(x, &selected)
+ 	return selected
+@@ -741,25 +1253,29 @@ func (v *ChanValue) TrySend(x Value) bool {
+ // If the receive can finish without blocking, TryRecv returns x != nil.
+ // The boolean value ok is true if the value x corresponds to a send
+ // on the channel, false if it is a zero value received because the channel is closed.
+-func (v *ChanValue) TryRecv() (x Value, ok bool) {
++func (v *chanValue) TryRecv() (x Value, ok bool) {
+ 	var selected bool
+ 	x, ok = v.recv(&selected)
+ 	if !selected {
+-		return nil, false
++		return Value{}, false
+ 	}
+ 	return x, ok
+ }
+ 
+ // MakeChan creates a new channel with the specified type and buffer size.
+-func MakeChan(typ *ChanType, buffer int) *ChanValue {
++func MakeChan(typ Type, buffer int) Value {
++	if typ.Kind() != Chan {
++		panic("reflect: MakeChan of non-chan type")
++	}
+ 	if buffer < 0 {
+ 		panic("MakeChan: negative buffer size")
+ 	}
+-	if typ.Dir() != BothDir {
++	if typ.ChanDir() != BothDir {
+ 		panic("MakeChan: unidirectional channel type")
+ 	}
+-	v := MakeZero(typ).(*ChanValue)
+-	*(**byte)(v.addr) = makechan((*runtime.ChanType)(unsafe.Pointer(typ)), uint32(buffer))
++	v := Zero(typ)
++	ch := v.panicIfNot(Chan).(*chanValue)
++	*(**byte)(ch.addr) = makechan((*runtime.ChanType)(unsafe.Pointer(typ.(*commonType))), uint32(buffer))
+ 	return v
+ }
+ 
+@@ -767,23 +1283,23 @@ func MakeChan(typ *ChanType, buffer int) *ChanValue {
+  * func
+  */
+ 
+-// A FuncValue represents a function value.
+-type FuncValue struct {
++// A funcValue represents a function value.
++type funcValue struct {
+ 	value       "func"
+ 	first       *value
+ 	isInterface bool
+ }
+ 
+ // IsNil returns whether v is a nil function.
+-func (v *FuncValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
++func (v *funcValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
+ 
+ // Get returns the uintptr value of v.
+ // It is mainly useful for printing.
+-func (v *FuncValue) Get() uintptr { return *(*uintptr)(v.addr) }
++func (v *funcValue) Get() uintptr { return *(*uintptr)(v.addr) }
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v.
+-func (v *FuncValue) Set(x *FuncValue) {
++func (v *funcValue) Set(x *funcValue) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -792,21 +1308,23 @@ func (v *FuncValue) Set(x *FuncValue) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *FuncValue) SetValue(x Value) { v.Set(x.(*FuncValue)) }
++func (v *funcValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Func).(*funcValue))
++}
+ 
+-// Method returns a FuncValue corresponding to v's i'th method.
+-// The arguments to a Call on the returned FuncValue
+-// should not include a receiver; the FuncValue will use v
++// Method returns a funcValue corresponding to v's i'th method.
++// The arguments to a Call on the returned funcValue
++// should not include a receiver; the funcValue will use v
+ // as the receiver.
+-func (v *value) Method(i int) *FuncValue {
++func (v *value) Method(i int) Value {
+ 	t := v.Type().uncommon()
+ 	if t == nil || i < 0 || i >= len(t.methods) {
+-		return nil
++		panic("reflect: Method index out of range")
+ 	}
+ 	p := &t.methods[i]
+ 	fn := p.tfn
+-	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), 0}, first: v, isInterface: false}
+-	return fv
++	fv := &funcValue{value: value{toType(p.typ), addr(&fn), 0}, first: v, isInterface: false}
++	return Value{fv}
+ }
+ 
+ // implemented in ../pkg/runtime/*/asm.s
+@@ -820,23 +1338,23 @@ type tiny struct {
+ // If fv is a method obtained by invoking Value.Method
+ // (as opposed to Type.Method), Interface cannot return an
+ // interface value, so it panics.
+-func (fv *FuncValue) Interface() interface{} {
++func (fv *funcValue) Interface() interface{} {
+ 	if fv.first != nil {
+-		panic("FuncValue: cannot create interface value for method with bound receiver")
++		panic("funcValue: cannot create interface value for method with bound receiver")
+ 	}
+ 	return fv.value.Interface()
+ }
+ 
+ // Call calls the function fv with input parameters in.
+ // It returns the function's output parameters as Values.
+-func (fv *FuncValue) Call(in []Value) []Value {
+-	t := fv.Type().(*FuncType)
++func (fv *funcValue) Call(in []Value) []Value {
++	t := fv.Type()
+ 	nin := len(in)
+ 	if fv.first != nil && !fv.isInterface {
+ 		nin++
+ 	}
+ 	if nin != t.NumIn() {
+-		panic("FuncValue: wrong argument count")
++		panic("funcValue: wrong argument count")
+ 	}
+ 	nout := t.NumOut()
+ 
+@@ -906,7 +1424,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 		a := uintptr(tv.Align())
+ 		off = (off + a - 1) &^ (a - 1)
+ 		n := tv.Size()
+-		memmove(addr(ptr+off), v.getAddr(), n)
++		memmove(addr(ptr+off), v.internal().getAddr(), n)
+ 		off += n
+ 	}
+ 	off = (off + ptrSize - 1) &^ (ptrSize - 1)
+@@ -922,9 +1440,9 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 		tv := t.Out(i)
+ 		a := uintptr(tv.Align())
+ 		off = (off + a - 1) &^ (a - 1)
+-		v := MakeZero(tv)
++		v := Zero(tv)
+ 		n := tv.Size()
+-		memmove(v.getAddr(), addr(ptr+off), n)
++		memmove(v.internal().getAddr(), addr(ptr+off), n)
+ 		ret[i] = v
+ 		off += n
+ 	}
+@@ -936,40 +1454,37 @@ func (fv *FuncValue) Call(in []Value) []Value {
+  * interface
+  */
+ 
+-// An InterfaceValue represents an interface value.
+-type InterfaceValue struct {
++// An interfaceValue represents an interface value.
++type interfaceValue struct {
+ 	value "interface"
+ }
+ 
+ // IsNil returns whether v is a nil interface value.
+-func (v *InterfaceValue) IsNil() bool { return v.Interface() == nil }
++func (v *interfaceValue) IsNil() bool { return v.Interface() == nil }
+ 
+ // No single uinptr Get because v.Interface() is available.
+ 
+ // Get returns the two words that represent an interface in the runtime.
+ // Those words are useful only when playing unsafe games.
+-func (v *InterfaceValue) Get() [2]uintptr {
++func (v *interfaceValue) Get() [2]uintptr {
+ 	return *(*[2]uintptr)(v.addr)
+ }
+ 
+ // Elem returns the concrete value stored in the interface value v.
+-func (v *InterfaceValue) Elem() Value { return NewValue(v.Interface()) }
++func (v *interfaceValue) Elem() Value { return NewValue(v.Interface()) }
+ 
+ // ../runtime/reflect.cgo
+-func setiface(typ *InterfaceType, x *interface{}, addr addr)
++func setiface(typ *interfaceType, x *interface{}, addr addr)
+ 
+ // Set assigns x to v.
+-func (v *InterfaceValue) Set(x Value) {
+-	var i interface{}
+-	if x != nil {
+-		i = x.Interface()
+-	}
++func (v *interfaceValue) Set(x Value) {
++	i := x.Interface()
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+ 	// Two different representations; see comment in Get.
+ 	// Empty interface is easy.
+-	t := v.typ.(*InterfaceType)
++	t := (*interfaceType)(unsafe.Pointer(v.typ.(*commonType)))
+ 	if t.NumMethod() == 0 {
+ 		*(*interface{})(v.addr) = i
+ 		return
+@@ -980,16 +1495,16 @@ func (v *InterfaceValue) Set(x Value) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *InterfaceValue) SetValue(x Value) { v.Set(x) }
++func (v *interfaceValue) SetValue(x Value) { v.Set(x) }
+ 
+-// Method returns a FuncValue corresponding to v's i'th method.
+-// The arguments to a Call on the returned FuncValue
+-// should not include a receiver; the FuncValue will use v
++// Method returns a funcValue corresponding to v's i'th method.
++// The arguments to a Call on the returned funcValue
++// should not include a receiver; the funcValue will use v
+ // as the receiver.
+-func (v *InterfaceValue) Method(i int) *FuncValue {
+-	t := v.Type().(*InterfaceType)
++func (v *interfaceValue) Method(i int) Value {
++	t := (*interfaceType)(unsafe.Pointer(v.Type().(*commonType)))
+ 	if t == nil || i < 0 || i >= len(t.methods) {
+-		return nil
++		panic("reflect: Method index out of range")
+ 	}
+ 	p := &t.methods[i]
+ 
+@@ -999,25 +1514,25 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
+ 
+ 	// Function pointer is at p.perm in the table.
+ 	fn := tab.Fn[i]
+-	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), 0}, first: data, isInterface: true}
+-	return fv
++	fv := &funcValue{value: value{toType(p.typ), addr(&fn), 0}, first: data, isInterface: true}
++	return Value{fv}
+ }
+ 
+ /*
+  * map
+  */
+ 
+-// A MapValue represents a map value.
+-type MapValue struct {
++// A mapValue represents a map value.
++type mapValue struct {
+ 	value "map"
+ }
+ 
+ // IsNil returns whether v is a nil map value.
+-func (v *MapValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
++func (v *mapValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v.
+-func (v *MapValue) Set(x *MapValue) {
++func (v *mapValue) Set(x *mapValue) {
+ 	if !v.CanSet() {
+ 		panic(cannotSet)
+ 	}
+@@ -1030,17 +1545,13 @@ func (v *MapValue) Set(x *MapValue) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *MapValue) SetValue(x Value) {
+-	if x == nil {
+-		v.Set(nil)
+-		return
+-	}
+-	v.Set(x.(*MapValue))
++func (v *mapValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Map).(*mapValue))
+ }
+ 
+ // Get returns the uintptr value of v.
+ // It is mainly useful for printing.
+-func (v *MapValue) Get() uintptr { return *(*uintptr)(v.addr) }
++func (v *mapValue) Get() uintptr { return *(*uintptr)(v.addr) }
+ 
+ // implemented in ../pkg/runtime/reflect.cgo
+ func mapaccess(m, key, val *byte) bool
+@@ -1053,36 +1564,36 @@ func makemap(t *runtime.MapType) *byte
+ 
+ // Elem returns the value associated with key in the map v.
+ // It returns nil if key is not found in the map.
+-func (v *MapValue) Elem(key Value) Value {
+-	t := v.Type().(*MapType)
++func (v *mapValue) Elem(key Value) Value {
++	t := v.Type()
+ 	typesMustMatch(t.Key(), key.Type())
+ 	m := *(**byte)(v.addr)
+ 	if m == nil {
+-		return nil
++		return Value{}
+ 	}
+-	newval := MakeZero(t.Elem())
+-	if !mapaccess(m, (*byte)(key.getAddr()), (*byte)(newval.getAddr())) {
+-		return nil
++	newval := Zero(t.Elem())
++	if !mapaccess(m, (*byte)(key.internal().getAddr()), (*byte)(newval.internal().getAddr())) {
++		return Value{}
+ 	}
+ 	return newval
+ }
+ 
+ // SetElem sets the value associated with key in the map v to val.
+ // If val is nil, Put deletes the key from map.
+-func (v *MapValue) SetElem(key, val Value) {
+-	t := v.Type().(*MapType)
++func (v *mapValue) SetElem(key, val Value) {
++	t := v.Type()
+ 	typesMustMatch(t.Key(), key.Type())
+ 	var vaddr *byte
+-	if val != nil {
++	if val.IsValid() {
+ 		typesMustMatch(t.Elem(), val.Type())
+-		vaddr = (*byte)(val.getAddr())
++		vaddr = (*byte)(val.internal().getAddr())
+ 	}
+ 	m := *(**byte)(v.addr)
+-	mapassign(m, (*byte)(key.getAddr()), vaddr)
++	mapassign(m, (*byte)(key.internal().getAddr()), vaddr)
+ }
+ 
+ // Len returns the number of keys in the map v.
+-func (v *MapValue) Len() int {
++func (v *mapValue) Len() int {
+ 	m := *(**byte)(v.addr)
+ 	if m == nil {
+ 		return 0
+@@ -1092,8 +1603,8 @@ func (v *MapValue) Len() int {
+ 
+ // Keys returns a slice containing all the keys present in the map,
+ // in unspecified order.
+-func (v *MapValue) Keys() []Value {
+-	tk := v.Type().(*MapType).Key()
++func (v *mapValue) Keys() []Value {
++	tk := v.Type().Key()
+ 	m := *(**byte)(v.addr)
+ 	mlen := int32(0)
+ 	if m != nil {
+@@ -1103,8 +1614,8 @@ func (v *MapValue) Keys() []Value {
+ 	a := make([]Value, mlen)
+ 	var i int
+ 	for i = 0; i < len(a); i++ {
+-		k := MakeZero(tk)
+-		if !mapiterkey(it, (*byte)(k.getAddr())) {
++		k := Zero(tk)
++		if !mapiterkey(it, (*byte)(k.internal().getAddr())) {
+ 			break
+ 		}
+ 		a[i] = k
+@@ -1114,9 +1625,13 @@ func (v *MapValue) Keys() []Value {
+ }
+ 
+ // MakeMap creates a new map of the specified type.
+-func MakeMap(typ *MapType) *MapValue {
+-	v := MakeZero(typ).(*MapValue)
+-	*(**byte)(v.addr) = makemap((*runtime.MapType)(unsafe.Pointer(typ)))
++func MakeMap(typ Type) Value {
++	if typ.Kind() != Map {
++		panic("reflect: MakeMap of non-map type")
++	}
++	v := Zero(typ)
++	m := v.panicIfNot(Map).(*mapValue)
++	*(**byte)(m.addr) = makemap((*runtime.MapType)(unsafe.Pointer(typ.(*commonType))))
+ 	return v
+ }
+ 
+@@ -1124,21 +1639,21 @@ func MakeMap(typ *MapType) *MapValue {
+  * ptr
+  */
+ 
+-// A PtrValue represents a pointer.
+-type PtrValue struct {
++// A ptrValue represents a pointer.
++type ptrValue struct {
+ 	value "ptr"
+ }
+ 
+ // IsNil returns whether v is a nil pointer.
+-func (v *PtrValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
++func (v *ptrValue) IsNil() bool { return *(*uintptr)(v.addr) == 0 }
+ 
+ // Get returns the uintptr value of v.
+ // It is mainly useful for printing.
+-func (v *PtrValue) Get() uintptr { return *(*uintptr)(v.addr) }
++func (v *ptrValue) Get() uintptr { return *(*uintptr)(v.addr) }
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v, and x.Elem().CanSet() must be true.
+-func (v *PtrValue) Set(x *PtrValue) {
++func (v *ptrValue) Set(x *ptrValue) {
+ 	if x == nil {
+ 		*(**uintptr)(v.addr) = nil
+ 		return
+@@ -1156,25 +1671,21 @@ func (v *PtrValue) Set(x *PtrValue) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *PtrValue) SetValue(x Value) {
+-	if x == nil {
+-		v.Set(nil)
+-		return
+-	}
+-	v.Set(x.(*PtrValue))
++func (v *ptrValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Ptr).(*ptrValue))
+ }
+ 
+ // PointTo changes v to point to x.
+ // If x is a nil Value, PointTo sets v to nil.
+-func (v *PtrValue) PointTo(x Value) {
+-	if x == nil {
++func (v *ptrValue) PointTo(x Value) {
++	if !x.IsValid() {
+ 		*(**uintptr)(v.addr) = nil
+ 		return
+ 	}
+ 	if !x.CanSet() {
+ 		panic("cannot set x; cannot point to x")
+ 	}
+-	typesMustMatch(v.typ.(*PtrType).Elem(), x.Type())
++	typesMustMatch(v.typ.Elem(), x.Type())
+ 	// TODO: This will have to move into the runtime
+ 	// once the new gc goes in.
+ 	*(*uintptr)(v.addr) = x.UnsafeAddr()
+@@ -1182,39 +1693,39 @@ func (v *PtrValue) PointTo(x Value) {
+ 
+ // Elem returns the value that v points to.
+ // If v is a nil pointer, Elem returns a nil Value.
+-func (v *PtrValue) Elem() Value {
++func (v *ptrValue) Elem() Value {
+ 	if v.IsNil() {
+-		return nil
++		return Value{}
+ 	}
+ 	flag := canAddr
+ 	if v.flag&canStore != 0 {
+ 		flag |= canSet | canStore
+ 	}
+-	return newValue(v.typ.(*PtrType).Elem(), *(*addr)(v.addr), flag)
++	return newValue(v.typ.Elem(), *(*addr)(v.addr), flag)
+ }
+ 
+ // Indirect returns the value that v points to.
+ // If v is a nil pointer, Indirect returns a nil Value.
+ // If v is not a pointer, Indirect returns v.
+ func Indirect(v Value) Value {
+-	if pv, ok := v.(*PtrValue); ok {
+-		return pv.Elem()
++	if v.Kind() != Ptr {
++		return v
+ 	}
+-	return v
++	return v.panicIfNot(Ptr).(*ptrValue).Elem()
+ }
+ 
+ /*
+  * struct
+  */
+ 
+-// A StructValue represents a struct value.
+-type StructValue struct {
++// A structValue represents a struct value.
++type structValue struct {
+ 	value "struct"
+ }
+ 
+ // Set assigns x to v.
+ // The new value x must have the same type as v.
+-func (v *StructValue) Set(x *StructValue) {
++func (v *structValue) Set(x *structValue) {
+ 	// TODO: This will have to move into the runtime
+ 	// once the gc goes in.
+ 	if !v.CanSet() {
+@@ -1225,13 +1736,15 @@ func (v *StructValue) Set(x *StructValue) {
+ }
+ 
+ // Set sets v to the value x.
+-func (v *StructValue) SetValue(x Value) { v.Set(x.(*StructValue)) }
++func (v *structValue) SetValue(x Value) {
++	v.Set(x.panicIfNot(Struct).(*structValue))
++}
+ 
+ // Field returns the i'th field of the struct.
+-func (v *StructValue) Field(i int) Value {
+-	t := v.typ.(*StructType)
++func (v *structValue) Field(i int) Value {
++	t := v.typ
+ 	if i < 0 || i >= t.NumField() {
+-		return nil
++		panic("reflect: Field index out of range")
+ 	}
+ 	f := t.Field(i)
+ 	flag := v.flag
+@@ -1243,102 +1756,102 @@ func (v *StructValue) Field(i int) Value {
+ }
+ 
+ // FieldByIndex returns the nested field corresponding to index.
+-func (t *StructValue) FieldByIndex(index []int) (v Value) {
+-	v = t
++func (t *structValue) FieldByIndex(index []int) (v Value) {
++	v = Value{t}
+ 	for i, x := range index {
+ 		if i > 0 {
+-			if p, ok := v.(*PtrValue); ok {
+-				v = p.Elem()
++			if v.Kind() == Ptr {
++				v = v.Elem()
+ 			}
+-			if s, ok := v.(*StructValue); ok {
+-				t = s
+-			} else {
+-				v = nil
+-				return
++			if v.Kind() != Struct {
++				return Value{}
+ 			}
+ 		}
+-		v = t.Field(x)
++		v = v.Field(x)
+ 	}
+ 	return
+ }
+ 
+ // FieldByName returns the struct field with the given name.
+ // The result is nil if no field was found.
+-func (t *StructValue) FieldByName(name string) Value {
+-	if f, ok := t.Type().(*StructType).FieldByName(name); ok {
++func (t *structValue) FieldByName(name string) Value {
++	if f, ok := t.Type().FieldByName(name); ok {
+ 		return t.FieldByIndex(f.Index)
+ 	}
+-	return nil
++	return Value{}
+ }
+ 
+ // FieldByNameFunc returns the struct field with a name that satisfies the
+ // match function.
+ // The result is nil if no field was found.
+-func (t *StructValue) FieldByNameFunc(match func(string) bool) Value {
+-	if f, ok := t.Type().(*StructType).FieldByNameFunc(match); ok {
++func (t *structValue) FieldByNameFunc(match func(string) bool) Value {
++	if f, ok := t.Type().FieldByNameFunc(match); ok {
+ 		return t.FieldByIndex(f.Index)
+ 	}
+-	return nil
++	return Value{}
+ }
+ 
+ // NumField returns the number of fields in the struct.
+-func (v *StructValue) NumField() int { return v.typ.(*StructType).NumField() }
++func (v *structValue) NumField() int { return v.typ.NumField() }
+ 
+ /*
+  * constructors
+  */
+ 
+ // NewValue returns a new Value initialized to the concrete value
+-// stored in the interface i.  NewValue(nil) returns nil.
++// stored in the interface i.  NewValue(nil) returns the zero Value.
+ func NewValue(i interface{}) Value {
+ 	if i == nil {
+-		return nil
++		return Value{}
+ 	}
+-	t, a := unsafe.Reflect(i)
+-	return newValue(toType(t), addr(a), canSet|canAddr|canStore)
++	_, a := unsafe.Reflect(i)
++	return newValue(Typeof(i), addr(a), canSet|canAddr|canStore)
+ }
+ 
+ func newValue(typ Type, addr addr, flag uint32) Value {
+ 	v := value{typ, addr, flag}
+-	switch typ.(type) {
+-	case *ArrayType:
+-		return &ArrayValue{v}
+-	case *BoolType:
+-		return &BoolValue{v}
+-	case *ChanType:
+-		return &ChanValue{v}
+-	case *FloatType:
+-		return &FloatValue{v}
+-	case *FuncType:
+-		return &FuncValue{value: v}
+-	case *ComplexType:
+-		return &ComplexValue{v}
+-	case *IntType:
+-		return &IntValue{v}
+-	case *InterfaceType:
+-		return &InterfaceValue{v}
+-	case *MapType:
+-		return &MapValue{v}
+-	case *PtrType:
+-		return &PtrValue{v}
+-	case *SliceType:
+-		return &SliceValue{v}
+-	case *StringType:
+-		return &StringValue{v}
+-	case *StructType:
+-		return &StructValue{v}
+-	case *UintType:
+-		return &UintValue{v}
+-	case *UnsafePointerType:
+-		return &UnsafePointerValue{v}
++	switch typ.Kind() {
++	case Array:
++		return Value{&arrayValue{v}}
++	case Bool:
++		return Value{&boolValue{v}}
++	case Chan:
++		return Value{&chanValue{v}}
++	case Float32, Float64:
++		return Value{&floatValue{v}}
++	case Func:
++		return Value{&funcValue{value: v}}
++	case Complex64, Complex128:
++		return Value{&complexValue{v}}
++	case Int, Int8, Int16, Int32, Int64:
++		return Value{&intValue{v}}
++	case Interface:
++		return Value{&interfaceValue{v}}
++	case Map:
++		return Value{&mapValue{v}}
++	case Ptr:
++		return Value{&ptrValue{v}}
++	case Slice:
++		return Value{&sliceValue{v}}
++	case String:
++		return Value{&stringValue{v}}
++	case Struct:
++		return Value{&structValue{v}}
++	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
++		return Value{&uintValue{v}}
++	case UnsafePointer:
++		return Value{&unsafePointerValue{v}}
+ 	}
+ 	panic("newValue" + typ.String())
+ }
+ 
+-// MakeZero returns a zero Value for the specified Type.
+-func MakeZero(typ Type) Value {
++// Zero returns a Value representing a zero value for the specified type.
++// The result is different from the zero value of the Value struct,
++// which represents no value at all.
++// For example, Zero(Typeof(42)) returns a Value with Kind Int and value 0.
++func Zero(typ Type) Value {
+ 	if typ == nil {
+-		return nil
++		panic("reflect: Zero(nil)")
+ 	}
+ 	return newValue(typ, addr(unsafe.New(typ)), canSet|canAddr|canStore)
+ }

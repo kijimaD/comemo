@@ -11,6 +11,39 @@ Date:   Tue Apr 27 10:45:33 2010 -0700
     R=gri
     CC=golang-dev, rsc
     https://golang.org/cl/1010042
-
+---
  src/cmd/godoc/godoc.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index daadef8c4d..bf8912e1da 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -783,8 +783,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
+ 
+ // Template formatter for "time" format.
+ func timeFmt(w io.Writer, x interface{}, format string) {
+-	// note: os.FileInfo.Mtime_ns is in uint64 in ns!
+-	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
++	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x.(int64)/1e9).String()))
+ }
+ 
+ 
+@@ -885,7 +884,7 @@ func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
+ 		Title     string
+ 		Subtitle  string
+ 		PkgRoots  []string
+-		Timestamp uint64 // int64 to be compatible with os.FileInfo.Mtime_ns
++		Timestamp int64
+ 		Query     string
+ 		Version   string
+ 		Menu      []byte
+@@ -897,7 +896,7 @@ func servePage(c *http.Conn, title, subtitle, query string, content []byte) {
+ 		Title:     title,
+ 		Subtitle:  subtitle,
+ 		PkgRoots:  fsMap.PrefixList(),
+-		Timestamp: uint64(ts) * 1e9, // timestamp in ns
++		Timestamp: ts * 1e9, // timestamp in ns
+ 		Query:     query,
+ 		Version:   runtime.Version(),
+ 		Menu:      nil,

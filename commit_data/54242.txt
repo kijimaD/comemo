@@ -11,7 +11,49 @@ Date:   Thu Sep 29 20:49:07 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/cov/mreader.go     | 6 +++---
  src/cmd/internal/cov/readcovdata.go | 3 ++-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/cov/mreader.go b/src/cmd/internal/cov/mreader.go
+index c20bccd3b2..17dcfff05b 100644
+--- a/src/cmd/internal/cov/mreader.go
++++ b/src/cmd/internal/cov/mreader.go
+@@ -72,12 +72,12 @@ func (r *MReader) Seek(offset int64, whence int) (int64, error) {
+ 		return r.rdr.MustSeek(offset, whence), nil
+ 	}
+ 	switch whence {
+-	case os.SEEK_SET:
++	case io.SeekStart:
+ 		r.off = offset
+ 		return offset, nil
+-	case os.SEEK_CUR:
++	case io.SeekCurrent:
+ 		return r.off, nil
+-	case os.SEEK_END:
++	case io.SeekEnd:
+ 		r.off = int64(len(r.fileView)) + offset
+ 		return r.off, nil
+ 	}
+diff --git a/src/cmd/internal/cov/readcovdata.go b/src/cmd/internal/cov/readcovdata.go
+index 9e660649eb..263148b993 100644
+--- a/src/cmd/internal/cov/readcovdata.go
++++ b/src/cmd/internal/cov/readcovdata.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/pods"
++	"io"
+ 	"os"
+ )
+ 
+@@ -191,7 +192,7 @@ func (r *CovDataReader) visitPod(p pods.Pod) error {
+ 		return r.fatal("unable to stat metafile %s: %v", p.MetaFile, err)
+ 	}
+ 	fileView := br.SliceRO(uint64(fi.Size()))
+-	br.MustSeek(0, os.SEEK_SET)
++	br.MustSeek(0, io.SeekStart)
+ 
+ 	r.verb(1, "fileView for pod is length %d", len(fileView))
+ 

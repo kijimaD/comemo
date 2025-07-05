@@ -7,7 +7,54 @@ Date:   Mon Aug 22 11:03:17 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4921041
-
+---
  src/pkg/Makefile          | 22 ----------------------
  src/pkg/os/error_plan9.go |  1 +
  2 files changed, 1 insertion(+), 22 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ac36aaf0ca..84d5607837 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -189,29 +189,7 @@ endif
+ 
+ ifeq ($(GOOS),plan9)
+ NOPLAN9BUILD=\
+-	crypto/tls\
+-	exp/gui/x11\
+-	expvar\
+-	http\
+-	http/cgi\
+-	http/fcgi\
+-	http/httptest\
+-	http/pprof\
+-	http/spdy\
+-	mail\
+-	mime/multipart\
+-	net\
+-	net/dict\
+-	net/textproto\
+-	netchan\
+ 	os/signal\
+-	rpc\
+-	rpc/jsonrpc\
+-	smtp\
+-	syslog\
+-	websocket\
+-	../cmd/godoc\
+-	../cmd/goinstall\
+ 
+ DIRS:=$(filter-out $(NOPLAN9BUILD),$(DIRS))
+ endif
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index cacfc150c4..91ace6d97a 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -48,6 +48,7 @@ var (
+ 	EPERM   = Eperm
+ 	EISDIR  = syscall.EISDIR
+ 
++	EBADF        = NewError("bad file descriptor")
+ 	ENAMETOOLONG = NewError("file name too long")
+ 	ERANGE       = NewError("math result not representable")
+ 	EPIPE        = NewError("Broken Pipe")

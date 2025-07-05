@@ -10,6 +10,20 @@ Date:   Wed Aug 30 07:50:13 2017 -0700
     Change-Id: I1a302c1e40ca89acbc76897e39097ecd04865460
     Reviewed-on: https://go-review.googlesource.com/60290
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/context/context.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 892ff27c65..0fbb572b8e 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -136,7 +136,7 @@ type Context interface {
+ 	// 	// userKey is the key for user.User values in Contexts. It is
+ 	// 	// unexported; clients use user.NewContext and user.FromContext
+ 	// 	// instead of using this key directly.
+-	// 	var userKey key = 0
++	// 	var userKey key
+ 	//
+ 	// 	// NewContext returns a new Context that carries value u.
+ 	// 	func NewContext(ctx context.Context, u *User) context.Context {

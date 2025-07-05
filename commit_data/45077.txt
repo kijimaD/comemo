@@ -24,9 +24,63 @@ Date:   Wed Sep 30 00:47:48 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/go.mod                | 2 +-
  src/go.sum                | 4 ++--
  src/net/http/h2_bundle.go | 1 +
  src/vendor/modules.txt    | 2 +-
  4 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 86e3c8c5b7..3bdfbef052 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.16
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+-	golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321
++	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
+ 	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
+ 	golang.org/x/text v0.3.4-0.20200826142016-a8b467125457 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 86a8c4be2a..6a03887409 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -3,8 +3,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a h1:vclmkQCjlDX5OydZ9wv8rBCcS0QyQY66Mpf/7BZbInM=
+ golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321 h1:lleNcKRbcaC8MqgLwghIkzZ2JBQAb7QQ9MiwRt1BisA=
+-golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
++golang.org/x/net v0.0.0-20200927032502-5d4f70055728 h1:5wtQIAulKU5AbLQOkjxl32UufnIOqgBX72pS0AV14H0=
++golang.org/x/net v0.0.0-20200927032502-5d4f70055728/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 458e0b7646..5b92eb234b 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -5265,6 +5265,7 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 		if len(data) > 0 {
+ 			wrote, err := st.body.Write(data)
+ 			if err != nil {
++				sc.sendWindowUpdate(nil, int(f.Length)-wrote)
+ 				return http2streamError(id, http2ErrCodeStreamClosed)
+ 			}
+ 			if wrote != len(data) {
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index d53b647310..36d76e77b5 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321
++# golang.org/x/net v0.0.0-20200927032502-5d4f70055728
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

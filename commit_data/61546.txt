@@ -23,10 +23,108 @@ Date:   Mon Nov 18 13:43:58 2024 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/executable_dragonfly.go |  2 ++
  src/os/executable_freebsd.go   |  2 ++
  src/os/executable_netbsd.go    | 14 ++++++++++++++
  src/os/executable_procfs.go    |  4 +---
  src/os/executable_sysctl.go    |  8 +++-----
  5 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/executable_dragonfly.go b/src/os/executable_dragonfly.go
+index 19c2ae890f..939c6f6ebb 100644
+--- a/src/os/executable_dragonfly.go
++++ b/src/os/executable_dragonfly.go
+@@ -10,3 +10,5 @@ const (
+ 	_KERN_PROC          = 14
+ 	_KERN_PROC_PATHNAME = 9
+ )
++
++var executableMIB = [4]int32{_CTL_KERN, _KERN_PROC, _KERN_PROC_PATHNAME, -1}
+diff --git a/src/os/executable_freebsd.go b/src/os/executable_freebsd.go
+index 95f1a93cb9..da40fcb32a 100644
+--- a/src/os/executable_freebsd.go
++++ b/src/os/executable_freebsd.go
+@@ -10,3 +10,5 @@ const (
+ 	_KERN_PROC          = 14
+ 	_KERN_PROC_PATHNAME = 12
+ )
++
++var executableMIB = [4]int32{_CTL_KERN, _KERN_PROC, _KERN_PROC_PATHNAME, -1}
+diff --git a/src/os/executable_netbsd.go b/src/os/executable_netbsd.go
+new file mode 100644
+index 0000000000..fd075390e6
+--- /dev/null
++++ b/src/os/executable_netbsd.go
+@@ -0,0 +1,14 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++// From NetBSD's <sys/sysctl.h>
++const (
++	_CTL_KERN           = 1
++	_KERN_PROC_ARGS     = 48
++	_KERN_PROC_PATHNAME = 5
++)
++
++var executableMIB = [4]int32{_CTL_KERN, _KERN_PROC_ARGS, -1, _KERN_PROC_PATHNAME}
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 6a2cd10be7..a52631c0bb 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || netbsd
++//go:build linux
+ 
+ package os
+ 
+@@ -19,8 +19,6 @@ func executable() (string, error) {
+ 		return "", errors.New("Executable not implemented for " + runtime.GOOS)
+ 	case "linux", "android":
+ 		procfn = "/proc/self/exe"
+-	case "netbsd":
+-		procfn = "/proc/curproc/exe"
+ 	}
+ 	path, err := Readlink(procfn)
+ 
+diff --git a/src/os/executable_sysctl.go b/src/os/executable_sysctl.go
+index 3c2aeacf7d..8b52e92c41 100644
+--- a/src/os/executable_sysctl.go
++++ b/src/os/executable_sysctl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build freebsd || dragonfly
++//go:build freebsd || dragonfly || netbsd
+ 
+ package os
+ 
+@@ -12,11 +12,9 @@ import (
+ )
+ 
+ func executable() (string, error) {
+-	mib := [4]int32{_CTL_KERN, _KERN_PROC, _KERN_PROC_PATHNAME, -1}
+-
+ 	n := uintptr(0)
+ 	// get length
+-	_, _, err := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, 0, uintptr(unsafe.Pointer(&n)), 0, 0)
++	_, _, err := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&executableMIB[0])), 4, 0, uintptr(unsafe.Pointer(&n)), 0, 0)
+ 	if err != 0 {
+ 		return "", err
+ 	}
+@@ -24,7 +22,7 @@ func executable() (string, error) {
+ 		return "", nil
+ 	}
+ 	buf := make([]byte, n)
+-	_, _, err = syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&mib[0])), 4, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n)), 0, 0)
++	_, _, err = syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&executableMIB[0])), 4, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n)), 0, 0)
+ 	if err != 0 {
+ 		return "", err
+ 	}

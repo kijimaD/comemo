@@ -12,6 +12,20 @@ Date:   Thu Apr 30 03:01:22 2015 -0700
     Change-Id: I1229e9fcc2e28ba2c9b0b79f73638e35dbbe8bbf
     Reviewed-on: https://go-review.googlesource.com/9517
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/progs/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+index 035e663872..dbd232b597 100755
+--- a/doc/progs/run.go
++++ b/doc/progs/run.go
+@@ -169,7 +169,7 @@ var tests = []testcase{
+ 	{"image_package6", `^8 4 true$`},
+ 
+ 	// other
+-	{"go1", `^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$`},
++	{"go1", `^Christmas is a holiday: true .*go1.go already exists$`},
+ 	{"slices", ""},
+ }
+ 

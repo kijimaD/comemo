@@ -8,6 +8,25 @@ Date:   Mon Feb 18 15:46:36 2013 +0400
     R=golang-dev, fullung
     CC=golang-dev
     https://golang.org/cl/7319050
-
+---
  src/pkg/runtime/debug/garbage_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/debug/garbage_test.go b/src/pkg/runtime/debug/garbage_test.go
+index b8e2d622a6..ba536c746f 100644
+--- a/src/pkg/runtime/debug/garbage_test.go
++++ b/src/pkg/runtime/debug/garbage_test.go
+@@ -71,11 +71,12 @@ func TestReadGCStats(t *testing.T) {
+ 	}
+ }
+ 
+-var big = make([]byte, 1<<20)
++var big []byte
+ 
+ func TestFreeOSMemory(t *testing.T) {
+ 	var ms1, ms2 runtime.MemStats
+ 
++	big = make([]byte, 1<<20)
+ 	big = nil
+ 	runtime.GC()
+ 	runtime.ReadMemStats(&ms1)

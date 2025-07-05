@@ -11,7 +11,34 @@ Date:   Tue Feb 27 15:39:42 2018 -0800
     Change-Id: I58b2951efb3fb40b3366874c79fd653591ae0e99
     Reviewed-on: https://go-review.googlesource.com/97519
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/interfaces.go | 2 +-
  src/go/types/typexpr.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+index 66669ce36b..d82f1c83eb 100644
+--- a/src/go/types/interfaces.go
++++ b/src/go/types/interfaces.go
+@@ -186,7 +186,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
+ 		check.interfaces[tname] = nil // computation started but not complete
+ 	}
+ 
+-	if iface.Methods == nil {
++	if iface.Methods.List == nil {
+ 		// fast track for empty interface
+ 		info = &emptyIfaceInfo
+ 	} else {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 7ba5fd4389..18234cb19d 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -473,7 +473,7 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
+ 
+ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named, path []*TypeName) {
+ 	// fast-track empty interface
+-	if iface.Methods == nil {
++	if iface.Methods.List == nil {
+ 		ityp.allMethods = markComplete
+ 		return
+ 	}

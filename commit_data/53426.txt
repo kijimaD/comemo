@@ -17,7 +17,7 @@ Date:   Thu Jul 14 16:35:37 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/modlegacy/src/new/go.mod       |  1 -
  src/cmd/go/testdata/modlegacy/src/new/new.go       |  3 --
  src/cmd/go/testdata/modlegacy/src/new/p1/p1.go     |  7 ----
@@ -30,3 +30,140 @@ Date:   Thu Jul 14 16:35:37 2022 -0400
  src/cmd/go/testdata/modlegacy/src/old/p2/p2.go     |  1 -
  src/cmd/go/testdata/script/list_legacy_mod.txt     | 48 ++++++++++++++++++++++
  11 files changed, 48 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/go.mod b/src/cmd/go/testdata/modlegacy/src/new/go.mod
+deleted file mode 100644
+index d0dd46d314..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/go.mod
++++ /dev/null
+@@ -1 +0,0 @@
+-module "new/v2"
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/new.go b/src/cmd/go/testdata/modlegacy/src/new/new.go
+deleted file mode 100644
+index e99c47a6a8..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/new.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package new
+-
+-import _ "new/v2/p2"
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/p1/p1.go b/src/cmd/go/testdata/modlegacy/src/new/p1/p1.go
+deleted file mode 100644
+index 4539f40919..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/p1/p1.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p1
+-
+-import _ "old/p2"
+-import _ "new/v2"
+-import _ "new/v2/p2"
+-import _ "new/sub/v2/x/v1/y" // v2 is module, v1 is directory in module
+-import _ "new/sub/inner/x"   // new/sub/inner/go.mod overrides new/sub/go.mod
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/p2/p2.go b/src/cmd/go/testdata/modlegacy/src/new/p2/p2.go
+deleted file mode 100644
+index 9b9052f541..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/p2/p2.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p2
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/sub/go.mod b/src/cmd/go/testdata/modlegacy/src/new/sub/go.mod
+deleted file mode 100644
+index 484d20c6b2..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/sub/go.mod
++++ /dev/null
+@@ -1 +0,0 @@
+-module new/sub/v2
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/sub/inner/go.mod b/src/cmd/go/testdata/modlegacy/src/new/sub/inner/go.mod
+deleted file mode 100644
+index ba3934541f..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/sub/inner/go.mod
++++ /dev/null
+@@ -1 +0,0 @@
+-module new/sub/inner
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/sub/inner/x/x.go b/src/cmd/go/testdata/modlegacy/src/new/sub/inner/x/x.go
+deleted file mode 100644
+index 823aafd071..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/sub/inner/x/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package x
+diff --git a/src/cmd/go/testdata/modlegacy/src/new/sub/x/v1/y/y.go b/src/cmd/go/testdata/modlegacy/src/new/sub/x/v1/y/y.go
+deleted file mode 100644
+index 789ca715ec..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/new/sub/x/v1/y/y.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package y
+diff --git a/src/cmd/go/testdata/modlegacy/src/old/p1/p1.go b/src/cmd/go/testdata/modlegacy/src/old/p1/p1.go
+deleted file mode 100644
+index 90527483ab..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/old/p1/p1.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package p1
+-
+-import _ "old/p2"
+-import _ "new/p1"
+-import _ "new"
+diff --git a/src/cmd/go/testdata/modlegacy/src/old/p2/p2.go b/src/cmd/go/testdata/modlegacy/src/old/p2/p2.go
+deleted file mode 100644
+index 9b9052f541..0000000000
+--- a/src/cmd/go/testdata/modlegacy/src/old/p2/p2.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p2
+diff --git a/src/cmd/go/testdata/script/list_legacy_mod.txt b/src/cmd/go/testdata/script/list_legacy_mod.txt
+new file mode 100644
+index 0000000000..ab901d7c34
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_legacy_mod.txt
+@@ -0,0 +1,48 @@
++# In GOPATH mode, module legacy support does path rewriting very similar to vendoring.
++
++env GO111MODULE=off
++
++go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' old/p1
++stdout ^new/p1$
++
++go list -f '{{range .Imports}}{{.}}{{"\n"}}{{end}}' new/p1
++stdout ^new/p2$           # not new/v2/p2
++! stdout ^new/v2
++stdout ^new/sub/x/v1/y$   # not new/sub/v2/x/v1/y
++! stdout ^new/sub/v2
++stdout ^new/sub/inner/x # not new/sub/v2/inner/x
++
++go build old/p1 new/p1
++
++-- new/go.mod --
++module "new/v2"
++-- new/new.go --
++package new
++
++import _ "new/v2/p2"
++-- new/p1/p1.go --
++package p1
++
++import _ "old/p2"
++import _ "new/v2"
++import _ "new/v2/p2"
++import _ "new/sub/v2/x/v1/y" // v2 is module, v1 is directory in module
++import _ "new/sub/inner/x"   // new/sub/inner/go.mod overrides new/sub/go.mod
++-- new/p2/p2.go --
++package p2
++-- new/sub/go.mod --
++module new/sub/v2
++-- new/sub/inner/go.mod --
++module new/sub/inner
++-- new/sub/inner/x/x.go --
++package x
++-- new/sub/x/v1/y/y.go --
++package y
++-- old/p1/p1.go --
++package p1
++
++import _ "old/p2"
++import _ "new/p1"
++import _ "new"
++-- old/p2/p2.go --
++package p2

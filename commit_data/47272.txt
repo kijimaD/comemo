@@ -15,6 +15,28 @@ Date:   Tue Mar 9 10:38:30 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/sendfile_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index db72daa328..54e51fa0ab 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -367,7 +366,7 @@ func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
+ 	}
+ 	defer conn.Close()
+ 
+-	n, err := io.Copy(ioutil.Discard, conn)
++	n, err := io.Copy(io.Discard, conn)
+ 	if err != nil {
+ 		t.Fatalf("expected nil error, but got %v", err)
+ 	}

@@ -12,7 +12,43 @@ Date:   Fri May 6 00:53:42 2016 -0400
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_linux_mips64x.go | 11 +++++++++++
  src/runtime/os_linux_noauxv.go  |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 92b5c82af7..8039b2fac9 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -9,6 +9,17 @@ package runtime
+ 
+ var randomNumber uint32
+ 
++func archauxv(tag, val uintptr) {
++	switch tag {
++	case _AT_RANDOM:
++		// sysargs filled in startupRandomData, but that
++		// pointer may not be word aligned, so we must treat
++		// it as a byte array.
++		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
++			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
++	}
++}
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
+diff --git a/src/runtime/os_linux_noauxv.go b/src/runtime/os_linux_noauxv.go
+index 0b46f594ce..22522dd803 100644
+--- a/src/runtime/os_linux_noauxv.go
++++ b/src/runtime/os_linux_noauxv.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!arm,!arm64
++// +build !amd64,!arm,!arm64,!mips64,!mips64le
+ 
+ package runtime
+ 

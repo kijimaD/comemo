@@ -23,9 +23,98 @@ Date:   Wed Oct 7 22:25:25 2015 +0000
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  8 --------
  src/cmd/compile/internal/gc/lex.go |  4 +---
  src/go/types/stdlib_test.go        |  1 +
  test/fixedbugs/issue11362.go       | 15 +++++++++++++++
  4 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index e5ddf9f50a..b6d44d5fc3 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1595,8 +1595,6 @@ func Sconv(s *Sym, flag int) string {
+ 
+ 	sf := flag
+ 	sm := setfmode(&flag)
+-	var r int
+-	_ = r
+ 	str := symfmt(s, flag)
+ 	flag = sf
+ 	fmtmode = sm
+@@ -1631,8 +1629,6 @@ func Tconv(t *Type, flag int) string {
+ 		flag |= obj.FmtUnsigned
+ 	}
+ 
+-	var r int
+-	_ = r
+ 	str := typefmt(t, flag)
+ 
+ 	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
+@@ -1659,8 +1655,6 @@ func Nconv(n *Node, flag int) string {
+ 	sf := flag
+ 	sm := setfmode(&flag)
+ 
+-	var r int
+-	_ = r
+ 	var str string
+ 	switch fmtmode {
+ 	case FErr, FExp:
+@@ -1693,8 +1687,6 @@ func Hconv(l *NodeList, flag int) string {
+ 
+ 	sf := flag
+ 	sm := setfmode(&flag)
+-	var r int
+-	_ = r
+ 	sep := "; "
+ 	if fmtmode == FDbg {
+ 		sep = "\n"
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 1fafdf453c..340e37fc6b 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -595,9 +595,7 @@ func findpkg(name string) (file string, ok bool) {
+ 	// local imports should be canonicalized already.
+ 	// don't want to see "encoding/../encoding/base64"
+ 	// as different from "encoding/base64".
+-	var q string
+-	_ = q
+-	if path.Clean(name) != name {
++	if q := path.Clean(name); q != name {
+ 		Yyerror("non-canonical import path %q (should be %q)", name, q)
+ 		return "", false
+ 	}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index c6c946e976..8fc2ee1451 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -150,6 +150,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue7746.go",   // large constants - consumes too much memory
+ 		"issue11326.go",  // large constants
+ 		"issue11326b.go", // large constants
++		"issue11362.go",  // canonical import path check
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue11362.go b/test/fixedbugs/issue11362.go
+new file mode 100644
+index 0000000000..680b0e540f
+--- /dev/null
++++ b/test/fixedbugs/issue11362.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 11362: prints empty canonical import path
++
++package main
++
++import _ "unicode//utf8" // ERROR "non-canonical import path .unicode//utf8. \(should be .unicode/utf8.\)" "can't find import: .unicode//utf8."
++
++func main() {
++}
++

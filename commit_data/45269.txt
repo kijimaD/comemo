@@ -28,7 +28,7 @@ Date:   Thu Oct 15 15:52:58 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/internal/atomic/asm_386.s       | 17 ++++--
  src/runtime/internal/atomic/asm_arm.s       | 89 +++++++++++++++++++----------
  src/runtime/internal/atomic/atomic_mipsx.go |  2 +-
@@ -36,3 +36,327 @@ Date:   Thu Oct 15 15:52:58 2020 -0400
  src/runtime/internal/atomic/unaligned.go    |  9 +++
  src/sync/atomic/atomic_test.go              |  9 ++-
  6 files changed, 96 insertions(+), 39 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/asm_386.s
+index 357ca95625..bcefff373f 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/asm_386.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ // bool Cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+@@ -44,7 +45,6 @@ TEXT ·Loadint64(SB), NOSPLIT, $0-12
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
+ 	JMP	·Xadd64(SB)
+ 
+-
+ // bool ·Cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+ //	if(*val == *old){
+@@ -54,10 +54,11 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
+ //		return 0;
+ //	}
+ TEXT ·Cas64(SB), NOSPLIT, $0-21
++	NO_LOCAL_POINTERS
+ 	MOVL	ptr+0(FP), BP
+ 	TESTL	$7, BP
+ 	JZ	2(PC)
+-	MOVL	0, BP // crash with nil ptr deref
++	CALL	·panicUnaligned(SB)
+ 	MOVL	old_lo+4(FP), AX
+ 	MOVL	old_hi+8(FP), DX
+ 	MOVL	new_lo+12(FP), BX
+@@ -98,11 +99,12 @@ TEXT ·Xadd(SB), NOSPLIT, $0-12
+ 	RET
+ 
+ TEXT ·Xadd64(SB), NOSPLIT, $0-20
++	NO_LOCAL_POINTERS
+ 	// no XADDQ so use CMPXCHG8B loop
+ 	MOVL	ptr+0(FP), BP
+ 	TESTL	$7, BP
+ 	JZ	2(PC)
+-	MOVL	0, AX // crash when unaligned
++	CALL	·panicUnaligned(SB)
+ 	// DI:SI = delta
+ 	MOVL	delta_lo+4(FP), SI
+ 	MOVL	delta_hi+8(FP), DI
+@@ -144,11 +146,12 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	·Xchg(SB)
+ 
+ TEXT ·Xchg64(SB),NOSPLIT,$0-20
++	NO_LOCAL_POINTERS
+ 	// no XCHGQ so use CMPXCHG8B loop
+ 	MOVL	ptr+0(FP), BP
+ 	TESTL	$7, BP
+ 	JZ	2(PC)
+-	MOVL	0, AX // crash when unaligned
++	CALL	·panicUnaligned(SB)
+ 	// CX:BX = new
+ 	MOVL	new_lo+4(FP), BX
+ 	MOVL	new_hi+8(FP), CX
+@@ -188,10 +191,11 @@ TEXT ·StoreRel(SB), NOSPLIT, $0-8
+ 
+ // uint64 atomicload64(uint64 volatile* addr);
+ TEXT ·Load64(SB), NOSPLIT, $0-12
++	NO_LOCAL_POINTERS
+ 	MOVL	ptr+0(FP), AX
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
++	CALL	·panicUnaligned(SB)
+ 	MOVQ	(AX), M0
+ 	MOVQ	M0, ret+4(FP)
+ 	EMMS
+@@ -199,10 +203,11 @@ TEXT ·Load64(SB), NOSPLIT, $0-12
+ 
+ // void ·Store64(uint64 volatile* addr, uint64 v);
+ TEXT ·Store64(SB), NOSPLIT, $0-12
++	NO_LOCAL_POINTERS
+ 	MOVL	ptr+0(FP), AX
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
++	CALL	·panicUnaligned(SB)
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+ 	MOVQ	val+4(FP), M0
+ 	MOVQ	M0, (AX)
+diff --git a/src/runtime/internal/atomic/asm_arm.s b/src/runtime/internal/atomic/asm_arm.s
+index db1267423d..c3d1d9025d 100644
+--- a/src/runtime/internal/atomic/asm_arm.s
++++ b/src/runtime/internal/atomic/asm_arm.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ // bool armcas(int32 *val, int32 old, int32 new)
+ // Atomically:
+@@ -96,11 +97,7 @@ TEXT ·Xaddint64(SB),NOSPLIT,$0-20
+ // atomics with locks.
+ 
+ TEXT armCas64<>(SB),NOSPLIT,$0-21
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
++	// addr is already in R1
+ 	MOVW	old_lo+4(FP), R2
+ 	MOVW	old_hi+8(FP), R3
+ 	MOVW	new_lo+12(FP), R4
+@@ -129,11 +126,7 @@ cas64fail:
+ 	RET
+ 
+ TEXT armXadd64<>(SB),NOSPLIT,$0-20
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
++	// addr is already in R1
+ 	MOVW	delta_lo+4(FP), R2
+ 	MOVW	delta_hi+8(FP), R3
+ 
+@@ -155,11 +148,7 @@ add64loop:
+ 	RET
+ 
+ TEXT armXchg64<>(SB),NOSPLIT,$0-20
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
++	// addr is already in R1
+ 	MOVW	new_lo+4(FP), R2
+ 	MOVW	new_hi+8(FP), R3
+ 
+@@ -179,11 +168,7 @@ swap64loop:
+ 	RET
+ 
+ TEXT armLoad64<>(SB),NOSPLIT,$0-12
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
++	// addr is already in R1
+ 
+ 	LDREXD	(R1), R2	// loads R2 and R3
+ 	DMB	MB_ISH
+@@ -193,11 +178,7 @@ TEXT armLoad64<>(SB),NOSPLIT,$0-12
+ 	RET
+ 
+ TEXT armStore64<>(SB),NOSPLIT,$0-12
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)	// crash. AND.S above left only low 3 bits in R2.
++	// addr is already in R1
+ 	MOVW	val_lo+4(FP), R2
+ 	MOVW	val_hi+8(FP), R3
+ 
+@@ -213,35 +194,83 @@ store64loop:
+ 	DMB	MB_ISH
+ 	RET
+ 
+-TEXT ·Cas64(SB),NOSPLIT,$0-21
++// The following functions all panic if their address argument isn't
++// 8-byte aligned. Since we're calling back into Go code to do this,
++// we have to cooperate with stack unwinding. In the normal case, the
++// functions tail-call into the appropriate implementation, which
++// means they must not open a frame. Hence, when they go down the
++// panic path, at that point they push the LR to create a real frame
++// (they don't need to pop it because panic won't return).
++
++TEXT ·Cas64(SB),NOSPLIT,$-4-21
++	NO_LOCAL_POINTERS
++	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	3(PC)
++	MOVW.W	R14, -4(R13) // prepare a real frame
++	BL	·panicUnaligned(SB)
++
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+ 	JMP	armCas64<>(SB)
+ 	JMP	·goCas64(SB)
+ 
+-TEXT ·Xadd64(SB),NOSPLIT,$0-20
++TEXT ·Xadd64(SB),NOSPLIT,$-4-20
++	NO_LOCAL_POINTERS
++	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	3(PC)
++	MOVW.W	R14, -4(R13) // prepare a real frame
++	BL	·panicUnaligned(SB)
++
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+ 	JMP	armXadd64<>(SB)
+ 	JMP	·goXadd64(SB)
+ 
+-TEXT ·Xchg64(SB),NOSPLIT,$0-20
++TEXT ·Xchg64(SB),NOSPLIT,$-4-20
++	NO_LOCAL_POINTERS
++	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	3(PC)
++	MOVW.W	R14, -4(R13) // prepare a real frame
++	BL	·panicUnaligned(SB)
++
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+ 	JMP	armXchg64<>(SB)
+ 	JMP	·goXchg64(SB)
+ 
+-TEXT ·Load64(SB),NOSPLIT,$0-12
++TEXT ·Load64(SB),NOSPLIT,$-4-12
++	NO_LOCAL_POINTERS
++	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	3(PC)
++	MOVW.W	R14, -4(R13) // prepare a real frame
++	BL	·panicUnaligned(SB)
++
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+ 	JMP	armLoad64<>(SB)
+ 	JMP	·goLoad64(SB)
+ 
+-TEXT ·Store64(SB),NOSPLIT,$0-12
++TEXT ·Store64(SB),NOSPLIT,$-4-12
++	NO_LOCAL_POINTERS
++	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	3(PC)
++	MOVW.W	R14, -4(R13) // prepare a real frame
++	BL	·panicUnaligned(SB)
++
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 0e2d77ade1..b99bfe7dbf 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -34,7 +34,7 @@ func spinUnlock(state *uint32)
+ func lockAndCheck(addr *uint64) {
+ 	// ensure 8-byte alignment
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+-		addr = nil
++		panicUnaligned()
+ 	}
+ 	// force dereference before taking lock
+ 	_ = *addr
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index b0a8fa0610..a9f95077c0 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -73,8 +73,15 @@ func TestXadduintptrOnUint64(t *testing.T) {
+ 
+ func shouldPanic(t *testing.T, name string, f func()) {
+ 	defer func() {
+-		if recover() == nil {
++		// Check that all GC maps are sane.
++		runtime.GC()
++
++		err := recover()
++		want := "unaligned 64-bit atomic operation"
++		if err == nil {
+ 			t.Errorf("%s did not panic", name)
++		} else if s, _ := err.(string); s != want {
++			t.Errorf("%s: wanted panic %q, got %q", name, want, err)
+ 		}
+ 	}()
+ 	f()
+diff --git a/src/runtime/internal/atomic/unaligned.go b/src/runtime/internal/atomic/unaligned.go
+new file mode 100644
+index 0000000000..a859de4144
+--- /dev/null
++++ b/src/runtime/internal/atomic/unaligned.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package atomic
++
++func panicUnaligned() {
++	panic("unaligned 64-bit atomic operation")
++}
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 83e7c8d763..eadc962f70 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1397,8 +1397,15 @@ func TestStoreLoadRelAcq64(t *testing.T) {
+ 
+ func shouldPanic(t *testing.T, name string, f func()) {
+ 	defer func() {
+-		if recover() == nil {
++		// Check that all GC maps are sane.
++		runtime.GC()
++
++		err := recover()
++		want := "unaligned 64-bit atomic operation"
++		if err == nil {
+ 			t.Errorf("%s did not panic", name)
++		} else if s, _ := err.(string); s != want {
++			t.Errorf("%s: wanted panic %q, got %q", name, want, err)
+ 		}
+ 	}()
+ 	f()

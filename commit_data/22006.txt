@@ -45,7 +45,230 @@ Date:   Wed Feb 11 20:37:56 2015 -0500
     Change-Id: Iaf7649efcf97e09f44d1f5bc74bb563a11f225de
     Reviewed-on: https://go-review.googlesource.com/4850
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/yacc/doc.go  | 27 +++++++++++++++---
  src/cmd/yacc/yacc.go | 77 +++++++++++++++++++++++++++++++++++++---------------
  2 files changed, 78 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/yacc/doc.go b/src/cmd/yacc/doc.go
+index 702c9f0d25..7839dcfa9c 100644
+--- a/src/cmd/yacc/doc.go
++++ b/src/cmd/yacc/doc.go
+@@ -24,8 +24,8 @@ The directory $GOROOT/cmd/yacc/testdata/expr is a yacc program
+ for a very simple expression parser. See expr.y and main.go in that
+ directory for examples of how to write and build yacc programs.
+ 
+-The generated parser is reentrant. Parse expects to be given an
+-argument that conforms to the following interface:
++The generated parser is reentrant. The parsing function yyParse expects
++to be given an argument that conforms to the following interface:
+ 
+ 	type yyLexer interface {
+ 		Lex(lval *yySymType) int
+@@ -36,8 +36,27 @@ Lex should return the token identifier, and place other token
+ information in lval (which replaces the usual yylval).
+ Error is equivalent to yyerror in the original yacc.
+ 
+-Code inside the parser may refer to the variable yylex,
+-which holds the yyLexer passed to Parse.
++Code inside the grammar actions may refer to the variable yylex,
++which holds the yyLexer passed to yyParse.
++
++Clients that need to understand more about the parser state can
++create the parser separately from invoking it. The function yyNewParser
++returns a yyParser conforming to the following interface:
++
++	type yyParser interface {
++		Parse(yyLex) int
++		Lookahead() int
++	}
++
++Parse runs the parser; the top-level call yyParse(yylex) is equivalent
++to yyNewParser().Parse(yylex).
++
++Lookahead can be called during grammar actions to read (but not consume)
++the value of the current lookahead token, as returned by yylex.Lex.
++If there is no current lookahead token (because the parser has not called Lex
++or has consumed the token returned by the most recent call to Lex),
++Lookahead returns -1. Calling Lookahead is equivalent to reading
++yychar from within in a grammar action.
+ 
+ Multiple grammars compiled into a single program should be placed in
+ distinct packages.  If that is impossible, the "-p prefix" flag to
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 24692dc166..68e59e5b45 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -3205,6 +3205,26 @@ type $$Lexer interface {
+ 	Error(s string)
+ }
+ 
++type $$Parser interface {
++	Parse($$Lexer) int
++	Lookahead() int
++}
++
++type $$ParserImpl struct {
++	lookahead func() int
++}
++
++func (p *$$ParserImpl) Lookahead() int {
++	return p.lookahead()
++}
++
++func $$NewParser() $$Parser {
++	p := &$$ParserImpl{
++		lookahead: func() int { return -1 },
++	}
++	return p
++}
++
+ const $$Flag = -1000
+ 
+ func $$Tokname(c int) string {
+@@ -3226,42 +3246,46 @@ func $$Statname(s int) string {
+ 	return __yyfmt__.Sprintf("state-%v", s)
+ }
+ 
+-func $$lex1(lex $$Lexer, lval *$$SymType) int {
+-	c := 0
+-	char := lex.Lex(lval)
++func $$lex1(lex $$Lexer, lval *$$SymType) (char, token int) {
++	token = 0
++	char = lex.Lex(lval)
+ 	if char <= 0 {
+-		c = $$Tok1[0]
++		token = $$Tok1[0]
+ 		goto out
+ 	}
+ 	if char < len($$Tok1) {
+-		c = $$Tok1[char]
++		token = $$Tok1[char]
+ 		goto out
+ 	}
+ 	if char >= $$Private {
+ 		if char < $$Private+len($$Tok2) {
+-			c = $$Tok2[char-$$Private]
++			token = $$Tok2[char-$$Private]
+ 			goto out
+ 		}
+ 	}
+ 	for i := 0; i < len($$Tok3); i += 2 {
+-		c = $$Tok3[i+0]
+-		if c == char {
+-			c = $$Tok3[i+1]
++		token = $$Tok3[i+0]
++		if token == char {
++			token = $$Tok3[i+1]
+ 			goto out
+ 		}
+ 	}
+ 
+ out:
+-	if c == 0 {
+-		c = $$Tok2[1] /* unknown char */
++	if token == 0 {
++		token = $$Tok2[1] /* unknown char */
+ 	}
+ 	if $$Debug >= 3 {
+-		__yyfmt__.Printf("lex %s(%d)\n", $$Tokname(c), uint(char))
++		__yyfmt__.Printf("lex %s(%d)\n", $$Tokname(token), uint(char))
+ 	}
+-	return c
++	return char, token
+ }
+ 
+ func $$Parse($$lex $$Lexer) int {
++	return $$NewParser().Parse($$lex)
++}
++
++func ($$rcvr *$$ParserImpl) Parse($$lex $$Lexer) int {
+ 	var $$n int
+ 	var $$lval $$SymType
+ 	var $$VAL $$SymType
+@@ -3272,6 +3296,13 @@ func $$Parse($$lex $$Lexer) int {
+ 	Errflag := 0 /* error recovery flag */
+ 	$$state := 0
+ 	$$char := -1
++	$$token := -1 // $$char translated into internal numbering
++	$$rcvr.lookahead = func() int { return $$char }
++	defer func() {
++		// Make sure we report no lookahead when not parsing.
++		$$char = -1
++		$$token = -1
++	}()
+ 	$$p := -1
+ 	goto $$stack
+ 
+@@ -3284,7 +3315,7 @@ ret1:
+ $$stack:
+ 	/* put a state and value onto the stack */
+ 	if $$Debug >= 4 {
+-		__yyfmt__.Printf("char %v in %v\n", $$Tokname($$char), $$Statname($$state))
++		__yyfmt__.Printf("char %v in %v\n", $$Tokname($$token), $$Statname($$state))
+ 	}
+ 
+ 	$$p++
+@@ -3302,15 +3333,16 @@ $$newstate:
+ 		goto $$default /* simple state */
+ 	}
+ 	if $$char < 0 {
+-		$$char = $$lex1($$lex, &$$lval)
++		$$char, $$token = $$lex1($$lex, &$$lval)
+ 	}
+-	$$n += $$char
++	$$n += $$token
+ 	if $$n < 0 || $$n >= $$Last {
+ 		goto $$default
+ 	}
+ 	$$n = $$Act[$$n]
+-	if $$Chk[$$n] == $$char { /* valid shift */
++	if $$Chk[$$n] == $$token { /* valid shift */
+ 		$$char = -1
++		$$token = -1
+ 		$$VAL = $$lval
+ 		$$state = $$n
+ 		if Errflag > 0 {
+@@ -3324,7 +3356,7 @@ $$default:
+ 	$$n = $$Def[$$state]
+ 	if $$n == -2 {
+ 		if $$char < 0 {
+-			$$char = $$lex1($$lex, &$$lval)
++			$$char, $$token = $$lex1($$lex, &$$lval)
+ 		}
+ 
+ 		/* look through exception table */
+@@ -3337,7 +3369,7 @@ $$default:
+ 		}
+ 		for xi += 2; ; xi += 2 {
+ 			$$n = $$Exca[xi+0]
+-			if $$n < 0 || $$n == $$char {
++			if $$n < 0 || $$n == $$token {
+ 				break
+ 			}
+ 		}
+@@ -3354,7 +3386,7 @@ $$default:
+ 			Nerrs++
+ 			if $$Debug >= 1 {
+ 				__yyfmt__.Printf("%s", $$Statname($$state))
+-				__yyfmt__.Printf(" saw %s\n", $$Tokname($$char))
++				__yyfmt__.Printf(" saw %s\n", $$Tokname($$token))
+ 			}
+ 			fallthrough
+ 
+@@ -3382,12 +3414,13 @@ $$default:
+ 
+ 		case 3: /* no shift yet; clobber input char */
+ 			if $$Debug >= 2 {
+-				__yyfmt__.Printf("error recovery discards %s\n", $$Tokname($$char))
++				__yyfmt__.Printf("error recovery discards %s\n", $$Tokname($$token))
+ 			}
+-			if $$char == $$EofCode {
++			if $$token == $$EofCode {
+ 				goto ret1
+ 			}
+ 			$$char = -1
++			$$token = -1
+ 			goto $$newstate /* try again in the same state */
+ 		}
+ 	}

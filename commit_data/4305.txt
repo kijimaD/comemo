@@ -8,8 +8,152 @@ Date:   Thu Dec 3 17:14:32 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/165049
-
+---
  src/pkg/gob/decode.go    |  4 ++--
  src/pkg/gob/type.go      | 14 +++++++-------
  src/pkg/gob/type_test.go | 16 ++++++++--------
  3 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index d12e97b3cd..3cf1233539 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -611,7 +611,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
+ 		}
+ 	}
+ 	if op == nil {
+-		return nil, os.ErrorString("ignore can't handle type " + wireId.String())
++		return nil, os.ErrorString("ignore can't handle type " + wireId.string())
+ 	}
+ 	return op, nil;
+ }
+@@ -718,7 +718,7 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
+ 			continue;
+ 		}
+ 		if !dec.compatibleType(localField.Type, wireField.id) {
+-			details := " (" + wireField.id.String() + " incompatible with " + localField.Type.String() + ") in type " + remoteId.Name();
++			details := " (" + wireField.id.string() + " incompatible with " + localField.Type.String() + ") in type " + remoteId.Name();
+ 			return nil, os.ErrorString("gob: wrong type for field " + wireField.name + details);
+ 		}
+ 		op, indir, err := dec.decOpFor(wireField.id, localField.Type, localField.Name);
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 53e0169e96..08aaca5dc2 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -42,7 +42,7 @@ type gobType interface {
+ 	id() typeId;
+ 	setId(id typeId);
+ 	Name() string;
+-	String() string;
++	string() string;	// not public; only for debugging
+ 	safeString(seen map[typeId]bool) string;
+ }
+ 
+@@ -63,8 +63,8 @@ func (t typeId) gobType() gobType {
+ 	return idToType[t];
+ }
+ 
+-// String returns the string representation of the type associated with the typeId.
+-func (t typeId) String() string	{ return t.gobType().String() }
++// string returns the string representation of the type associated with the typeId.
++func (t typeId) string() string	{ return t.gobType().string() }
+ 
+ // Name returns the name of the type associated with the typeId.
+ func (t typeId) Name() string	{ return t.gobType().Name() }
+@@ -79,7 +79,7 @@ func (t *commonType) id() typeId	{ return t._id }
+ 
+ func (t *commonType) setId(id typeId)	{ t._id = id }
+ 
+-func (t *commonType) String() string	{ return t.name }
++func (t *commonType) string() string	{ return t.name }
+ 
+ func (t *commonType) safeString(seen map[typeId]bool) string {
+ 	return t.name
+@@ -132,7 +132,7 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
+ 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen));
+ }
+ 
+-func (a *arrayType) String() string	{ return a.safeString(make(map[typeId]bool)) }
++func (a *arrayType) string() string	{ return a.safeString(make(map[typeId]bool)) }
+ 
+ // Slice type
+ type sliceType struct {
+@@ -154,7 +154,7 @@ func (s *sliceType) safeString(seen map[typeId]bool) string {
+ 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen));
+ }
+ 
+-func (s *sliceType) String() string	{ return s.safeString(make(map[typeId]bool)) }
++func (s *sliceType) string() string	{ return s.safeString(make(map[typeId]bool)) }
+ 
+ // Struct type
+ type fieldType struct {
+@@ -183,7 +183,7 @@ func (s *structType) safeString(seen map[typeId]bool) string {
+ 	return str;
+ }
+ 
+-func (s *structType) String() string	{ return s.safeString(make(map[typeId]bool)) }
++func (s *structType) string() string	{ return s.safeString(make(map[typeId]bool)) }
+ 
+ func newStructType(name string) *structType {
+ 	s := &structType{commonType{name: name}, nil};
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index 6983d66129..f1f44bdc29 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -36,8 +36,8 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
+ // Sanity checks
+ func TestBasic(t *testing.T) {
+ 	for _, tt := range basicTypes {
+-		if tt.id.String() != tt.str {
+-			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.String())
++		if tt.id.string() != tt.str {
++			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.string())
+ 		}
+ 		if tt.id == 0 {
+ 			t.Errorf("id for %q is zero", tt.str)
+@@ -49,15 +49,15 @@ func TestBasic(t *testing.T) {
+ func TestReregistration(t *testing.T) {
+ 	newtyp := getTypeUnlocked("int", reflect.Typeof(int(0)));
+ 	if newtyp != tInt.gobType() {
+-		t.Errorf("reregistration of %s got new type", newtyp.String())
++		t.Errorf("reregistration of %s got new type", newtyp.string())
+ 	}
+ 	newtyp = getTypeUnlocked("uint", reflect.Typeof(uint(0)));
+ 	if newtyp != tUint.gobType() {
+-		t.Errorf("reregistration of %s got new type", newtyp.String())
++		t.Errorf("reregistration of %s got new type", newtyp.string())
+ 	}
+ 	newtyp = getTypeUnlocked("string", reflect.Typeof("hello"));
+ 	if newtyp != tString.gobType() {
+-		t.Errorf("reregistration of %s got new type", newtyp.String())
++		t.Errorf("reregistration of %s got new type", newtyp.string())
+ 	}
+ }
+ 
+@@ -78,7 +78,7 @@ func TestArrayType(t *testing.T) {
+ 	if a3int == a3bool {
+ 		t.Errorf("registration of [3]bool creates same type as [3]int")
+ 	}
+-	str := a3bool.String();
++	str := a3bool.string();
+ 	expected := "[3]bool";
+ 	if str != expected {
+ 		t.Errorf("array printed as %q; expected %q", str, expected)
+@@ -98,7 +98,7 @@ func TestSliceType(t *testing.T) {
+ 	if sbool == sint {
+ 		t.Errorf("registration of []bool creates same type as []int")
+ 	}
+-	str := sbool.String();
++	str := sbool.string();
+ 	expected := "[]bool";
+ 	if str != expected {
+ 		t.Errorf("slice printed as %q; expected %q", str, expected)
+@@ -124,7 +124,7 @@ type Foo struct {
+ 
+ func TestStructType(t *testing.T) {
+ 	sstruct := getTypeUnlocked("Foo", reflect.Typeof(Foo{}));
+-	str := sstruct.String();
++	str := sstruct.string();
+ 	// If we can print it correctly, we built it correctly.
+ 	expected := "Foo = struct { a int; b int; c string; d bytes; e float; f float; g Bar = struct { x string; }; h Bar; i Foo; }";
+ 	if str != expected {

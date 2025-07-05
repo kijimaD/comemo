@@ -8,6 +8,36 @@ Date:   Mon Aug 31 18:10:11 2009 -0700
     DELTA=10  (9 added, 0 deleted, 1 changed)
     OCL=34163
     CL=34166
-
+---
  src/pkg/runtime/proc.c | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index bd8e954929..06859b09ca 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -265,6 +265,15 @@ readylocked(G *g)
+ 		matchmg();
+ }
+ 
++// Same as readylocked but a different symbol so that
++// debuggers can set a breakpoint here and catch all
++// new goroutines.
++static void
++newprocreadylocked(G *g)
++{
++	readylocked(g);
++}
++
+ // Pass g to m for running.
+ static void
+ mnextg(M *m, G *g)
+@@ -739,7 +748,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	goidgen++;
+ 	newg->goid = goidgen;
+ 
+-	readylocked(newg);
++	newprocreadylocked(newg);
+ 	unlock(&sched);
+ 
+ //printf(" goid=%d\n", newg->goid);

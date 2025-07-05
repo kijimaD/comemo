@@ -11,10 +11,355 @@ Date:   Mon Oct 22 11:21:56 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go             | 79 ++++++++++++++++++++++++---------------
  src/cmd/go/internal/work/exec.go  | 23 ++++++++++--
  src/cmd/go/internal/work/gc.go    | 41 ++++++++++++++++++--
  src/cmd/go/internal/work/gccgo.go |  6 ++-
  test/run.go                       | 15 +++++++-
  5 files changed, 124 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 49f4a5e6a7..08cdbf2694 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -682,7 +683,7 @@ func runInstall(dir string, ch chan struct{}) {
+ 	}
+ 
+ 	// Is the target up-to-date?
+-	var gofiles, missing []string
++	var gofiles, sfiles, missing []string
+ 	stale := rebuildall
+ 	files = filter(files, func(p string) bool {
+ 		for _, suf := range depsuffix {
+@@ -698,6 +699,8 @@ func runInstall(dir string, ch chan struct{}) {
+ 		}
+ 		if strings.HasSuffix(p, ".go") {
+ 			gofiles = append(gofiles, p)
++		} else if strings.HasSuffix(p, ".s") {
++			sfiles = append(sfiles, p)
+ 		}
+ 		if t.After(ttarg) {
+ 			stale = true
+@@ -778,10 +781,42 @@ func runInstall(dir string, ch chan struct{}) {
+ 		return
+ 	}
+ 
++	asmArgs := []string{
++		pathf("%s/asm", tooldir),
++		"-I", workdir,
++		"-I", pathf("%s/pkg/include", goroot),
++		"-D", "GOOS_" + goos,
++		"-D", "GOARCH_" + goarch,
++		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
++	}
++	if goarch == "mips" || goarch == "mipsle" {
++		// Define GOMIPS_value from gomips.
++		asmArgs = append(asmArgs, "-D", "GOMIPS_"+gomips)
++	}
++	if goarch == "mips64" || goarch == "mipsle64" {
++		// Define GOMIPS64_value from gomips64.
++		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
++	}
++	goasmh := pathf("%s/go_asm.h", workdir)
++
++	// Collect symabis from assembly code.
++	var symabis string
++	if len(sfiles) > 0 {
++		symabis = pathf("%s/symabis", workdir)
++		var wg sync.WaitGroup
++		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-symabis", "-o", symabis)
++		asmabis = append(asmabis, sfiles...)
++		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
++			fatalf("cannot write empty go_asm.h: %s", err)
++		}
++		bgrun(&wg, path, asmabis...)
++		bgwait(&wg)
++	}
++
+ 	var archive string
+ 	// The next loop will compile individual non-Go files.
+ 	// Hand the Go files to the compiler en masse.
+-	// For package runtime, this writes go_asm.h, which
++	// For packages containing assembly, this writes go_asm.h, which
+ 	// the assembly files will need.
+ 	pkg := dir
+ 	if strings.HasPrefix(dir, "cmd/") && strings.Count(dir, "/") == 1 {
+@@ -794,18 +829,22 @@ func runInstall(dir string, ch chan struct{}) {
+ 	} else {
+ 		archive = b
+ 	}
++
++	// Compile Go code.
+ 	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkg}
+ 	if gogcflags != "" {
+ 		compile = append(compile, strings.Fields(gogcflags)...)
+ 	}
+ 	if dir == "runtime" {
+-		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
++		compile = append(compile, "-+")
++	}
++	if len(sfiles) > 0 {
++		compile = append(compile, "-asmhdr", goasmh)
+ 	}
+-	if dir == "internal/bytealg" {
+-		// TODO: why don't we generate go_asm.h for all packages
+-		// that have any assembly?
+-		compile = append(compile, "-asmhdr", pathf("%s/go_asm.h", workdir))
++	if symabis != "" {
++		compile = append(compile, "-symabis", symabis)
+ 	}
++
+ 	compile = append(compile, gofiles...)
+ 	var wg sync.WaitGroup
+ 	// We use bgrun and immediately wait for it instead of calling run() synchronously.
+@@ -815,31 +854,9 @@ func runInstall(dir string, ch chan struct{}) {
+ 	bgwait(&wg)
+ 
+ 	// Compile the files.
+-	for _, p := range files {
+-		if !strings.HasSuffix(p, ".s") {
+-			continue
+-		}
+-
+-		var compile []string
++	for _, p := range sfiles {
+ 		// Assembly file for a Go package.
+-		compile = []string{
+-			pathf("%s/asm", tooldir),
+-			"-I", workdir,
+-			"-I", pathf("%s/pkg/include", goroot),
+-			"-D", "GOOS_" + goos,
+-			"-D", "GOARCH_" + goarch,
+-			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
+-		}
+-
+-		if goarch == "mips" || goarch == "mipsle" {
+-			// Define GOMIPS_value from gomips.
+-			compile = append(compile, "-D", "GOMIPS_"+gomips)
+-		}
+-
+-		if goarch == "mips64" || goarch == "mipsle64" {
+-			// Define GOMIPS64_value from gomips64.
+-			compile = append(compile, "-D", "GOMIPS64_"+gomips64)
+-		}
++		compile := asmArgs[:len(asmArgs):len(asmArgs)]
+ 
+ 		doclean := true
+ 		b := pathf("%s/%s", workdir, filepath.Base(p))
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 92e814ee6f..a7f9058b58 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -601,6 +601,12 @@ func (b *Builder) build(a *Action) (err error) {
+ 		return nil
+ 	}
+ 
++	// Collect symbol ABI requirements from assembly.
++	symabis, err := BuildToolchain.symabis(b, a, sfiles)
++	if err != nil {
++		return err
++	}
++
+ 	// Prepare Go import config.
+ 	// We start it off with a comment so it can't be empty, so icfg.Bytes() below is never nil.
+ 	// It should never be empty anyway, but there have been bugs in the past that resulted
+@@ -632,7 +638,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 
+ 	// Compile Go.
+ 	objpkg := objdir + "_pkg_.a"
+-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
++	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), symabis, len(sfiles) > 0, gofiles)
+ 	if len(out) > 0 {
+ 		output := b.processOutput(out)
+ 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+@@ -1967,13 +1973,18 @@ func mkAbs(dir, f string) string {
+ type toolchain interface {
+ 	// gc runs the compiler in a specific directory on a set of files
+ 	// and returns the name of the generated output file.
+-	gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
++	//
++	// TODO: This argument list is long. Consider putting it in a struct.
++	gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+ 	// cc runs the toolchain's C compiler in a directory on a C file
+ 	// to produce an output file.
+ 	cc(b *Builder, a *Action, ofile, cfile string) error
+ 	// asm runs the assembler in a specific directory on specific files
+ 	// and returns a list of named output files.
+ 	asm(b *Builder, a *Action, sfiles []string) ([]string, error)
++	// symabis scans the symbol ABIs from sfiles and returns the
++	// path to the output symbol ABIs file, or "" if none.
++	symabis(b *Builder, a *Action, sfiles []string) (string, error)
+ 	// pack runs the archive packer in a specific directory to create
+ 	// an archive from a set of object files.
+ 	// typically it is run in the object directory.
+@@ -2004,7 +2015,7 @@ func (noToolchain) linker() string {
+ 	return ""
+ }
+ 
+-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
++func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+ 	return "", nil, noCompiler()
+ }
+ 
+@@ -2012,6 +2023,10 @@ func (noToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 	return nil, noCompiler()
+ }
+ 
++func (noToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
++	return "", noCompiler()
++}
++
+ func (noToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
+ 	return noCompiler()
+ }
+@@ -2695,7 +2710,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
+ 
+ 	p := load.GoFilesPackage(srcs)
+ 
+-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, false, srcs); e != nil {
++	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, "", false, srcs); e != nil {
+ 		return "32", nil
+ 	}
+ 	return "64", nil
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 5a0bd1c2cf..fed4a0b8cf 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -36,7 +36,7 @@ func (gcToolchain) linker() string {
+ 	return base.Tool("link")
+ }
+ 
+-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+ 	p := a.Package
+ 	objdir := a.Objdir
+ 	if archive != "" {
+@@ -98,6 +98,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
+ 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+ 		gcargs = append(gcargs, "-goversion", runtimeVersion)
+ 	}
++	if symabis != "" {
++		gcargs = append(gcargs, "-symabis", symabis)
++	}
+ 
+ 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
+ 	if compilingRuntime {
+@@ -218,8 +221,7 @@ func trimDir(dir string) string {
+ 	return dir
+ }
+ 
+-func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
+-	p := a.Package
++func asmArgs(a *Action, p *load.Package) []interface{} {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
+ 	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+@@ -241,6 +243,13 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+ 	}
+ 
++	return args
++}
++
++func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
++	p := a.Package
++	args := asmArgs(a, p)
++
+ 	var ofiles []string
+ 	for _, sfile := range sfiles {
+ 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+@@ -253,6 +262,32 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 	return ofiles, nil
+ }
+ 
++func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
++	if len(sfiles) == 0 {
++		return "", nil
++	}
++
++	p := a.Package
++	symabis := a.Objdir + "symabis"
++	args := asmArgs(a, p)
++	args = append(args, "-symabis", "-o", symabis)
++	for _, sfile := range sfiles {
++		args = append(args, mkAbs(p.Dir, sfile))
++	}
++
++	// Supply an empty go_asm.h as if the compiler had been run.
++	// -symabis parsing is lax enough that we don't need the
++	// actual definitions that would appear in go_asm.h.
++	if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
++		return "", err
++	}
++
++	if err := b.run(a, p.Dir, p.ImportPath, nil, args...); err != nil {
++		return "", err
++	}
++	return symabis, nil
++}
++
+ // toolVerify checks that the command line args writes the same output file
+ // if run using newTool instead.
+ // Unused now but kept around for future use.
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index b89d07ead0..784a4ae1b3 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -51,7 +51,7 @@ func checkGccgoBin() {
+ 	os.Exit(2)
+ }
+ 
+-func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+ 	p := a.Package
+ 	objdir := a.Objdir
+ 	out := "_go_.o"
+@@ -172,6 +172,10 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
+ 	return ofiles, nil
+ }
+ 
++func (gccgoToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
++	return "", nil
++}
++
+ func gccgoArchive(basedir, imp string) string {
+ 	end := filepath.FromSlash(imp + ".a")
+ 	afile := filepath.Join(basedir, end)
+diff --git a/test/run.go b/test/run.go
+index 6a050b0049..a01fd6a957 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -807,10 +807,23 @@ func (t *test) run() {
+ 			}
+ 
+ 		}
++		if len(asms) > 0 {
++			if err := ioutil.WriteFile(filepath.Join(longdir, "go_asm.h"), nil, 0666); err != nil {
++				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
++				return
++			}
++			cmd := []string{goTool(), "tool", "asm", "-symabis", "-o", "symabis"}
++			cmd = append(cmd, asms...)
++			_, err = runcmd(cmd...)
++			if err != nil {
++				t.err = err
++				break
++			}
++		}
+ 		var objs []string
+ 		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+ 		if len(asms) > 0 {
+-			cmd = append(cmd, "-asmhdr", "go_asm.h")
++			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
+ 		}
+ 		cmd = append(cmd, gos...)
+ 		_, err := runcmd(cmd...)

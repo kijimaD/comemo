@@ -21,7 +21,7 @@ Date:   Sun Jan 17 02:38:41 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/base.go       |  4 ---
  src/cmd/compile/internal/base/link.go       | 36 ++++++++++++++++++++++
  src/cmd/compile/internal/dwarfgen/dwarf.go  |  2 +-
@@ -33,3 +33,251 @@ Date:   Sun Jan 17 02:38:41 2021 -0800
  src/cmd/compile/internal/typecheck/syms.go  | 11 ++++---
  src/cmd/compile/internal/types/sym.go       | 47 ++++++++---------------------
  10 files changed, 67 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/base.go b/src/cmd/compile/internal/base/base.go
+index 5a30fa6a33..3b9bc3a8af 100644
+--- a/src/cmd/compile/internal/base/base.go
++++ b/src/cmd/compile/internal/base/base.go
+@@ -6,12 +6,8 @@ package base
+ 
+ import (
+ 	"os"
+-
+-	"cmd/internal/obj"
+ )
+ 
+-var Ctxt *obj.Link
+-
+ var atExitFuncs []func()
+ 
+ func AtExit(f func()) {
+diff --git a/src/cmd/compile/internal/base/link.go b/src/cmd/compile/internal/base/link.go
+new file mode 100644
+index 0000000000..49fe4352b2
+--- /dev/null
++++ b/src/cmd/compile/internal/base/link.go
+@@ -0,0 +1,36 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base
++
++import (
++	"cmd/internal/obj"
++)
++
++var Ctxt *obj.Link
++
++// TODO(mdempsky): These should probably be obj.Link methods.
++
++// PkgLinksym returns the linker symbol for name within the given
++// package prefix. For user packages, prefix should be the package
++// path encoded with objabi.PathToPrefix.
++func PkgLinksym(prefix, name string, abi obj.ABI) *obj.LSym {
++	if name == "_" {
++		// TODO(mdempsky): Cleanup callers and Fatalf instead.
++		return linksym(prefix, "_", abi)
++	}
++	return linksym(prefix, prefix+"."+name, abi)
++}
++
++// Linkname returns the linker symbol for the given name as it might
++// appear within a //go:linkname directive.
++func Linkname(name string, abi obj.ABI) *obj.LSym {
++	return linksym("_", name, abi)
++}
++
++// linksym is an internal helper function for implementing the above
++// exported APIs.
++func linksym(pkg, name string, abi obj.ABI) *obj.LSym {
++	return Ctxt.LookupABIInit(name, abi, func(r *obj.LSym) { r.Pkg = pkg })
++}
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 2440e3c8d3..bf039c8fbb 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -28,7 +28,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ 	if fn.Nname != nil {
+ 		expect := fn.Linksym()
+ 		if fnsym.ABI() == obj.ABI0 {
+-			expect = fn.Sym().LinksymABI0()
++			expect = fn.LinksymABI(obj.ABI0)
+ 		}
+ 		if fnsym != expect {
+ 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 4afdadf57b..0a9db92d96 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -133,9 +133,10 @@ func (n *Func) copy() Node                         { panic(n.no("copy")) }
+ func (n *Func) doChildren(do func(Node) bool) bool { return doNodes(n.Body, do) }
+ func (n *Func) editChildren(edit func(Node) Node)  { editNodes(n.Body, edit) }
+ 
+-func (f *Func) Type() *types.Type  { return f.Nname.Type() }
+-func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
+-func (f *Func) Linksym() *obj.LSym { return f.Nname.Linksym() }
++func (f *Func) Type() *types.Type                { return f.Nname.Type() }
++func (f *Func) Sym() *types.Sym                  { return f.Nname.Sym() }
++func (f *Func) Linksym() *obj.LSym               { return f.Nname.Linksym() }
++func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi) }
+ 
+ // An Inline holds fields used for function bodies that can be inlined.
+ type Inline struct {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 64de42382e..fa0639600c 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -226,7 +226,8 @@ func (n *Name) SetWalkdef(x uint8) {
+ 	n.bits.set2(miniWalkdefShift, x)
+ }
+ 
+-func (n *Name) Linksym() *obj.LSym { return n.sym.Linksym() }
++func (n *Name) Linksym() *obj.LSym               { return n.sym.Linksym() }
++func (n *Name) LinksymABI(abi obj.ABI) *obj.LSym { return n.sym.LinksymABI(abi) }
+ 
+ func (*Name) CanBeNtype()    {}
+ func (*Name) CanBeAnSSASym() {}
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index b5da420872..5bebce1db5 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -161,11 +161,11 @@ func selectLSym(f *ir.Func, hasBody bool) {
+ 
+ 		var wrapperABI obj.ABI
+ 		needABIWrapper := false
+-		defABI, hasDefABI := symabiDefs[nam.Sym().LinksymName()]
++		defABI, hasDefABI := symabiDefs[nam.Linksym().Name]
+ 		if hasDefABI && defABI == obj.ABI0 {
+ 			// Symbol is defined as ABI0. Create an
+ 			// Internal -> ABI0 wrapper.
+-			f.LSym = nam.Sym().LinksymABI0()
++			f.LSym = nam.LinksymABI(obj.ABI0)
+ 			needABIWrapper, wrapperABI = true, obj.ABIInternal
+ 		} else {
+ 			f.LSym = nam.Linksym()
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 72db4430a5..8ed0e6101c 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7403,9 +7403,9 @@ func callTargetLSym(callee *ir.Name, callerLSym *obj.LSym) *obj.LSym {
+ 		}
+ 	} else {
+ 		// check for case 2 above
+-		defABI, hasDefABI := symabiDefs[callee.Sym().LinksymName()]
++		defABI, hasDefABI := symabiDefs[lsym.Name]
+ 		if hasDefABI && defABI == obj.ABI0 {
+-			lsym = callee.Sym().LinksymABI0()
++			lsym = callee.LinksymABI(obj.ABI0)
+ 		}
+ 	}
+ 	return lsym
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 6ef99b50c7..b06fd7aa4b 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -287,7 +287,7 @@ func NeedFuncSym(s *types.Sym) {
+ 
+ func WriteFuncSyms() {
+ 	sort.Slice(funcsyms, func(i, j int) bool {
+-		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
++		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
+ 	})
+ 	for _, s := range funcsyms {
+ 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index f6ff2ee5da..202a932e6c 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -86,14 +86,17 @@ func InitRuntime() {
+ // LookupRuntimeFunc looks up Go function name in package runtime. This function
+ // must follow the internal calling convention.
+ func LookupRuntimeFunc(name string) *obj.LSym {
+-	s := ir.Pkgs.Runtime.Lookup(name)
+-	s.SetFunc(true)
+-	return s.Linksym()
++	return LookupRuntimeABI(name, obj.ABIInternal)
+ }
+ 
+ // LookupRuntimeVar looks up a variable (or assembly function) name in package
+ // runtime. If this is a function, it may have a special calling
+ // convention.
+ func LookupRuntimeVar(name string) *obj.LSym {
+-	return ir.Pkgs.Runtime.Lookup(name).Linksym()
++	return LookupRuntimeABI(name, obj.ABI0)
++}
++
++// LookupRuntimeABI looks up a name in package runtime using the given ABI.
++func LookupRuntimeABI(name string, abi obj.ABI) *obj.LSym {
++	return base.PkgLinksym("runtime", name, abi)
+ }
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 2914e2ed3f..0e66ed348b 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -64,53 +64,30 @@ func (sym *Sym) IsBlank() bool {
+ 	return sym != nil && sym.Name == "_"
+ }
+ 
+-func (sym *Sym) LinksymName() string {
+-	if sym.IsBlank() {
+-		return "_"
+-	}
+-	if sym.Linkname != "" {
+-		return sym.Linkname
+-	}
+-	return sym.Pkg.Prefix + "." + sym.Name
+-}
+-
+ // Deprecated: This method should not be used directly. Instead, use a
+ // higher-level abstraction that directly returns the linker symbol
+ // for a named object. For example, reflectdata.TypeLinksym(t) instead
+ // of reflectdata.TypeSym(t).Linksym().
+ func (sym *Sym) Linksym() *obj.LSym {
+-	if sym == nil {
+-		return nil
+-	}
+-	initPkg := func(r *obj.LSym) {
+-		if sym.Linkname != "" {
+-			r.Pkg = "_"
+-		} else {
+-			r.Pkg = sym.Pkg.Prefix
+-		}
+-	}
++	abi := obj.ABI0
+ 	if sym.Func() {
+-		// This is a function symbol. Mark it as "internal ABI".
+-		return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
++		abi = obj.ABIInternal
+ 	}
+-	return base.Ctxt.LookupInit(sym.LinksymName(), initPkg)
++	return sym.LinksymABI(abi)
+ }
+ 
+-// LinksymABI0 looks up or creates an ABI0 linker symbol for "sym",
+-// in cases where we want to specifically select the ABI0 version of
+-// a symbol (typically used only for ABI wrappers).
+-func (sym *Sym) LinksymABI0() *obj.LSym {
++// Deprecated: This method should not be used directly. Instead, use a
++// higher-level abstraction that directly returns the linker symbol
++// for a named object. For example, (*ir.Name).LinksymABI(abi) instead
++// of (*ir.Name).Sym().LinksymABI(abi).
++func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
+ 	if sym == nil {
+-		return nil
++		base.Fatalf("nil symbol")
+ 	}
+-	initPkg := func(r *obj.LSym) {
+-		if sym.Linkname != "" {
+-			r.Pkg = "_"
+-		} else {
+-			r.Pkg = sym.Pkg.Prefix
+-		}
++	if sym.Linkname != "" {
++		return base.Linkname(sym.Linkname, abi)
+ 	}
+-	return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABI0, initPkg)
++	return base.PkgLinksym(sym.Pkg.Prefix, sym.Name, abi)
+ }
+ 
+ // Less reports whether symbol a is ordered before symbol b.

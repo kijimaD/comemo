@@ -18,7 +18,7 @@ Date:   Fri Mar 20 00:06:10 2015 -0400
     Change-Id: I7ff681c20d2c3eb6ad11dd7b3a37b1f3dda23965
     Reviewed-on: https://go-review.googlesource.com/7862
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/gc/builtin.go         |   1 +
  src/cmd/internal/gc/builtin/runtime.go |   1 +
  src/cmd/internal/gc/cgen.go            |  38 ++++----
@@ -32,3 +32,569 @@ Date:   Fri Mar 20 00:06:10 2015 -0400
  src/runtime/iface.go                   |   8 ++
  test/interface/assertinline.go         |  53 +++++++++++
  12 files changed, 303 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/internal/gc/builtin.go b/src/cmd/internal/gc/builtin.go
+index f1a8ed8a31..d39bc2b02f 100644
+--- a/src/cmd/internal/gc/builtin.go
++++ b/src/cmd/internal/gc/builtin.go
+@@ -64,6 +64,7 @@ const runtimeimport = "" +
+ 	"func @\"\".assertI2I2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n" +
+ 	"func @\"\".assertI2T (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n" +
+ 	"func @\"\".assertI2T2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n" +
++	"func @\"\".panicdottype (@\"\".have·1 *byte, @\"\".want·2 *byte, @\"\".iface·3 *byte)\n" +
+ 	"func @\"\".ifaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
+ 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
+ 	"func @\"\".ifacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n" +
+diff --git a/src/cmd/internal/gc/builtin/runtime.go b/src/cmd/internal/gc/builtin/runtime.go
+index 0e1ebea06e..554d787feb 100644
+--- a/src/cmd/internal/gc/builtin/runtime.go
++++ b/src/cmd/internal/gc/builtin/runtime.go
+@@ -79,6 +79,7 @@ func assertI2I(typ *byte, iface any, ret *any)
+ func assertI2I2(typ *byte, iface any, ret *any) bool
+ func assertI2T(typ *byte, iface any, ret *any)
+ func assertI2T2(typ *byte, iface any, ret *any) bool
++func panicdottype(have, want, iface *byte)
+ 
+ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 610f251070..7566dda5be 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -54,6 +54,10 @@ func Cgen(n *Node, res *Node) {
+ 			Cgen_eface(n, res)
+ 		}
+ 		return
++
++	case ODOTTYPE:
++		cgen_dottype(n, res, nil)
++		return
+ 	}
+ 
+ 	if n.Ullman >= UINF {
+@@ -1224,12 +1228,19 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				Agenr(nl, &n3, res)
+ 			} else {
+ 				if nl.Addable == 0 {
++					if res != nil && res.Op == OREGISTER { // give up res, which we don't need yet.
++						Regfree(res)
++					}
++
+ 					// igen will need an addressable node.
+ 					var tmp2 Node
+ 					Tempname(&tmp2, nl.Type)
+-
+ 					Cgen(nl, &tmp2)
+ 					nl = &tmp2
++
++					if res != nil && res.Op == OREGISTER { // reacquire res
++						Regrealloc(res)
++					}
+ 				}
+ 
+ 				Igen(nl, &nlen, res)
+@@ -1448,16 +1459,10 @@ func Agen(n *Node, res *Node) {
+ 		cgen_call(n, 0)
+ 		cgen_aret(n, res)
+ 
+-	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
++	case OEFACE, ODOTTYPE, OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+ 		var n1 Node
+ 		Tempname(&n1, n.Type)
+-		Cgen_slice(n, &n1)
+-		Agen(&n1, res)
+-
+-	case OEFACE:
+-		var n1 Node
+-		Tempname(&n1, n.Type)
+-		Cgen_eface(n, &n1)
++		Cgen(n, &n1)
+ 		Agen(&n1, res)
+ 
+ 	case OINDEX:
+@@ -1520,15 +1525,12 @@ func addOffset(res *Node, offset int64) {
+ 	Regfree(&n2)
+ }
+ 
+-/*
+- * generate:
+- *	newreg = &n;
+- *	res = newreg
+- *
+- * on exit, a has been changed to be *newreg.
+- * caller must Regfree(a).
+- * The generated code checks that the result is not *nil.
+- */
++// Igen computes the address &n, stores it in a register r,
++// and rewrites a to refer to *r. The chosen r may be the
++// stack pointer, it may be borrowed from res, or it may
++// be a newly allocated register. The caller must call Regfree(a)
++// to free r when the address is no longer needed.
++// The generated code ensures that &n is not nil.
+ func Igen(n *Node, a *Node, res *Node) {
+ 	if Debug['g'] != 0 {
+ 		Dump("\nigen-n", n)
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 9686092517..445efc9ad0 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -406,6 +406,166 @@ func Cgen_eface(n *Node, res *Node) {
+ 	Cgen(n.Left, &dst)
+ }
+ 
++/*
++ * generate one of:
++ *	res, resok = x.(T)
++ *	res = x.(T) (when resok == nil)
++ * n.Left is x
++ * n.Type is T
++ */
++func cgen_dottype(n *Node, res, resok *Node) {
++	if Debug_typeassert > 0 {
++		Warn("type assertion inlined")
++	}
++	//	iface := n.Left
++	//	r1 := iword(iface)
++	//	if n.Left is non-empty interface {
++	//		r1 = *r1
++	//	}
++	//	if r1 == T {
++	//		res = idata(iface)
++	//		resok = true
++	//	} else {
++	//		assert[EI]2T(x, T, nil) // (when resok == nil; does not return)
++	//		resok = false // (when resok != nil)
++	//	}
++	//
++	var iface Node
++	Igen(n.Left, &iface, res)
++	var r1, r2 Node
++	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
++	Regalloc(&r1, byteptr, nil)
++	iface.Type = byteptr
++	Cgen(&iface, &r1)
++	if !isnilinter(n.Left.Type) {
++		// Holding itab, want concrete type in second word.
++		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
++		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
++		r2 = r1
++		r2.Op = OINDREG
++		r2.Xoffset = int64(Widthptr)
++		Cgen(&r2, &r1)
++		Patch(p, Pc)
++	}
++	Regalloc(&r2, byteptr, nil)
++	Cgen(typename(n.Type), &r2)
++	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
++	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
++	iface.Xoffset += int64(Widthptr)
++	Cgen(&iface, &r1)
++	Regfree(&iface)
++
++	if resok == nil {
++		r1.Type = res.Type
++		Cgen(&r1, res)
++		q := Gbranch(obj.AJMP, nil, 0)
++		Patch(p, Pc)
++
++		fn := syslook("panicdottype", 0)
++		dowidth(fn.Type)
++		call := Nod(OCALLFUNC, fn, nil)
++		r1.Type = byteptr
++		r2.Type = byteptr
++		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
++		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
++		gen(call)
++		Regfree(&r1)
++		Regfree(&r2)
++		Thearch.Gins(obj.AUNDEF, nil, nil)
++		Patch(q, Pc)
++	} else {
++		// This half is handling the res, resok = x.(T) case,
++		// which is called from gen, not cgen, and is consequently fussier
++		// about blank assignments. We have to avoid calling cgen for those.
++		Regfree(&r2)
++		r1.Type = res.Type
++		if !isblank(res) {
++			Cgen(&r1, res)
++		}
++		Regfree(&r1)
++		if !isblank(resok) {
++			Cgen(Nodbool(true), resok)
++		}
++		q := Gbranch(obj.AJMP, nil, 0)
++		Patch(p, Pc)
++		if !isblank(res) {
++			n := nodnil()
++			n.Type = res.Type
++			Cgen(n, res)
++		}
++		if !isblank(resok) {
++			Cgen(Nodbool(false), resok)
++		}
++		Patch(q, Pc)
++	}
++}
++
++/*
++ * generate:
++ *	res, resok = x.(T)
++ * n.Left is x
++ * n.Type is T
++ */
++func Cgen_As2dottype(n, res, resok *Node) {
++	if Debug_typeassert > 0 {
++		Warn("type assertion inlined")
++	}
++	//	iface := n.Left
++	//	r1 := iword(iface)
++	//	if n.Left is non-empty interface {
++	//		r1 = *r1
++	//	}
++	//	if r1 == T {
++	//		res = idata(iface)
++	//		resok = true
++	//	} else {
++	//		res = nil
++	//		resok = false
++	//	}
++	//
++	var iface Node
++	Igen(n.Left, &iface, nil)
++	var r1, r2 Node
++	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
++	Regalloc(&r1, byteptr, res)
++	iface.Type = byteptr
++	Cgen(&iface, &r1)
++	if !isnilinter(n.Left.Type) {
++		// Holding itab, want concrete type in second word.
++		Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, Nodintconst(0))
++		p := Gbranch(Thearch.Optoas(OEQ, byteptr), nil, -1)
++		r2 = r1
++		r2.Op = OINDREG
++		r2.Xoffset = int64(Widthptr)
++		Cgen(&r2, &r1)
++		Patch(p, Pc)
++	}
++	Regalloc(&r2, byteptr, nil)
++	Cgen(typename(n.Type), &r2)
++	Thearch.Gins(Thearch.Optoas(OCMP, byteptr), &r1, &r2)
++	p := Gbranch(Thearch.Optoas(ONE, byteptr), nil, -1)
++	iface.Type = n.Type
++	iface.Xoffset += int64(Widthptr)
++	Cgen(&iface, &r1)
++	if iface.Op != 0 {
++		Regfree(&iface)
++	}
++	Cgen(&r1, res)
++	q := Gbranch(obj.AJMP, nil, 0)
++	Patch(p, Pc)
++
++	fn := syslook("panicdottype", 0)
++	dowidth(fn.Type)
++	call := Nod(OCALLFUNC, fn, nil)
++	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
++	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
++	gen(call)
++	Regfree(&r1)
++	Regfree(&r2)
++	Thearch.Gins(obj.AUNDEF, nil, nil)
++	Patch(q, Pc)
++}
++
+ /*
+  * generate:
+  *	res = s[lo, hi];
+@@ -831,6 +991,9 @@ func gen(n *Node) {
+ 		}
+ 		Cgen_as(n.Left, n.Right)
+ 
++	case OAS2DOTTYPE:
++		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N)
++
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+ 
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index c33664f854..6dd17c18bc 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -490,6 +490,7 @@ var Debug [256]int
+ var debugstr string
+ 
+ var Debug_checknil int
++var Debug_typeassert int
+ 
+ var importmyname *Sym // my name for package
+ 
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 61e8281f95..9c097706fb 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -44,8 +44,9 @@ var debugtab = []struct {
+ 	name string
+ 	val  *int
+ }{
+-	{"nil", &Debug_checknil},
+-	{"disablenil", &Disable_checknil},
++	{"nil", &Debug_checknil},          // print information about nil checks
++	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
++	{"disablenil", &Disable_checknil}, // disable nil checks
+ }
+ 
+ // Our own isdigit, isspace, isalpha, isalnum that take care
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index f7e9d4ba2b..4092b32f2d 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -1108,8 +1108,16 @@ func orderexpr(np **Node, order *Order) {
+ 			n.Alloc = ordertemp(n.Type.Type, order, false)
+ 		}
+ 
+-	case ORECV,
+-		ODOTTYPE:
++	case ODOTTYPE, ODOTTYPE2:
++		orderexpr(&n.Left, order)
++		// TODO(rsc): The Isfat is for consistency with componentgen and walkexpr.
++		// It needs to be removed in all three places.
++		// That would allow inlining x.(struct{*int}) the same as x.(*int).
++		if !isdirectiface(n.Type) || Isfat(n.Type) || flag_race != 0 {
++			n = ordercopyexpr(n, n.Type, order, 1)
++		}
++
++	case ORECV:
+ 		orderexpr(&n.Left, order)
+ 		n = ordercopyexpr(n, n.Type, order, 1)
+ 
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index f76f66e5eb..2db5bd67a1 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -3472,9 +3472,7 @@ func typecheckas2(n *Node) {
+ 			goto out
+ 		}
+ 		switch r.Op {
+-		case OINDEXMAP,
+-			ORECV,
+-			ODOTTYPE:
++		case OINDEXMAP, ORECV, ODOTTYPE:
+ 			switch r.Op {
+ 			case OINDEXMAP:
+ 				n.Op = OAS2MAPR
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 2784648a85..c6ad507e27 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -670,14 +670,27 @@ func walkexpr(np **Node, init **NodeList) {
+ 		default:
+ 			walkexpr(&n.Right, init)
+ 
+-			// x = i.(T); n->left is x, n->right->left is i.
+-		// orderstmt made sure x is addressable.
+ 		case ODOTTYPE:
++			// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
++			// It needs to be removed in all three places.
++			// That would allow inlining x.(struct{*int}) the same as x.(*int).
++			if isdirectiface(n.Right.Type) && !Isfat(n.Right.Type) && flag_race == 0 {
++				// handled directly during cgen
++				walkexpr(&n.Right, init)
++				break
++			}
++
++			// x = i.(T); n->left is x, n->right->left is i.
++			// orderstmt made sure x is addressable.
+ 			walkexpr(&n.Right.Left, init)
+ 
+ 			n1 := Nod(OADDR, n.Left, nil)
+ 			r := n.Right // i.(T)
+ 
++			if Debug_typeassert > 0 {
++				Warn("type assertion not inlined")
++			}
++
+ 			buf := "assert" + type2IET(r.Left.Type) + "2" + type2IET(r.Type)
+ 			fn := syslook(buf, 1)
+ 			substArgTypes(fn, r.Left.Type, r.Type)
+@@ -686,9 +699,9 @@ func walkexpr(np **Node, init **NodeList) {
+ 			walkexpr(&n, init)
+ 			goto ret
+ 
+-			// x = <-c; n->left is x, n->right->left is c.
+-		// orderstmt made sure x is addressable.
+ 		case ORECV:
++			// x = <-c; n->left is x, n->right->left is c.
++			// orderstmt made sure x is addressable.
+ 			walkexpr(&n.Right.Left, init)
+ 
+ 			n1 := Nod(OADDR, n.Left, nil)
+@@ -851,13 +864,23 @@ func walkexpr(np **Node, init **NodeList) {
+ 		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
+ 		goto ret
+ 
+-	// res, ok = i.(T)
+-	// orderstmt made sure a is addressable.
+ 	case OAS2DOTTYPE:
++		e := n.Rlist.N // i.(T)
++		// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
++		// It needs to be removed in all three places.
++		// That would allow inlining x.(struct{*int}) the same as x.(*int).
++		if isdirectiface(e.Type) && !Isfat(e.Type) && flag_race == 0 {
++			// handled directly during gen.
++			walkexprlistsafe(n.List, init)
++			walkexpr(&e.Left, init)
++			goto ret
++		}
++
++		// res, ok = i.(T)
++		// orderstmt made sure a is addressable.
+ 		*init = concat(*init, n.Ninit)
+ 		n.Ninit = nil
+ 
+-		e := n.Rlist.N // i.(T)
+ 		walkexprlistsafe(n.List, init)
+ 		walkexpr(&e.Left, init)
+ 		t := e.Type    // T
+@@ -889,6 +912,9 @@ func walkexpr(np **Node, init **NodeList) {
+ 				fast = Nod(ONE, nodnil(), tab)
+ 			}
+ 			if fast != nil {
++				if Debug_typeassert > 0 {
++					Warn("type assertion (ok only) inlined")
++				}
+ 				n = Nod(OAS, ok, fast)
+ 				typecheck(&n, Etop)
+ 				goto ret
+@@ -903,6 +929,9 @@ func walkexpr(np **Node, init **NodeList) {
+ 		}
+ 		resptr.Etype = 1 // addr does not escape
+ 
++		if Debug_typeassert > 0 {
++			Warn("type assertion not inlined")
++		}
+ 		buf := "assert" + fromKind + "2" + toKind + "2"
+ 		fn := syslook(buf, 1)
+ 		substArgTypes(fn, from.Type, t)
+@@ -911,9 +940,12 @@ func walkexpr(np **Node, init **NodeList) {
+ 		typecheck(&n, Etop)
+ 		goto ret
+ 
+-	case ODOTTYPE,
+-		ODOTTYPE2:
+-		Fatal("walkexpr ODOTTYPE") // should see inside OAS or OAS2 only
++	case ODOTTYPE, ODOTTYPE2:
++		if !isdirectiface(n.Type) || Isfat(n.Type) {
++			Fatal("walkexpr ODOTTYPE") // should see inside OAS only
++		}
++		walkexpr(&n.Left, init)
++		goto ret
+ 
+ 	case OCONVIFACE:
+ 		walkexpr(&n.Left, init)
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index d8af4f156d..4280306ac5 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -43,25 +43,6 @@ func (e *TypeAssertionError) Error() string {
+ 		": missing method " + e.missingMethod
+ }
+ 
+-// For calling from C.
+-func newTypeAssertionError(ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
+-	var s1, s2, s3, meth string
+-
+-	if ps1 != nil {
+-		s1 = *ps1
+-	}
+-	if ps2 != nil {
+-		s2 = *ps2
+-	}
+-	if ps3 != nil {
+-		s3 = *ps3
+-	}
+-	if pmeth != nil {
+-		meth = *pmeth
+-	}
+-	*ret = &TypeAssertionError{s1, s2, s3, meth}
+-}
+-
+ // An errorString represents a runtime error described by a single string.
+ type errorString string
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index d94c3919c8..c60aa47b2f 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -165,6 +165,14 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer)
+ 	return
+ }
+ 
++func panicdottype(have, want, iface *_type) {
++	haveString := ""
++	if have != nil {
++		haveString = *have._string
++	}
++	panic(&TypeAssertionError{*iface._string, haveString, *want._string, ""})
++}
++
+ func assertI2T(t *_type, i fInterface, r unsafe.Pointer) {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+diff --git a/test/interface/assertinline.go b/test/interface/assertinline.go
+new file mode 100644
+index 0000000000..faa848a18c
+--- /dev/null
++++ b/test/interface/assertinline.go
+@@ -0,0 +1,53 @@
++// errorcheck -0 -d=typeassert
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func assertptr(x interface{}) *int {
++	return x.(*int) // ERROR "type assertion inlined"
++}
++
++func assertptr2(x interface{}) (*int, bool) {
++	z, ok := x.(*int) // ERROR "type assertion inlined"
++	return z, ok
++}
++
++func assertfunc(x interface{}) func() {
++	return x.(func()) // ERROR "type assertion inlined"
++}
++
++func assertfunc2(x interface{}) (func(), bool) {
++	z, ok := x.(func()) // ERROR "type assertion inlined"
++	return z, ok
++}
++
++// TODO(rsc): struct{*int} is stored directly in the interface
++// and should be possible to fetch back out of the interface,
++// but more of the general data movement code needs to
++// realize that before we can inline the assertion.
++
++func assertstruct(x interface{}) struct{ *int } {
++	return x.(struct{ *int }) // ERROR "type assertion not inlined"
++}
++
++func assertstruct2(x interface{}) (struct{ *int }, bool) {
++	z, ok := x.(struct{ *int }) // ERROR "type assertion not inlined"
++	return z, ok
++}
++
++func assertbig(x interface{}) complex128 {
++	return x.(complex128) // ERROR "type assertion not inlined"
++}
++
++func assertbig2(x interface{}) (complex128, bool) {
++	z, ok := x.(complex128) // ERROR "type assertion not inlined"
++	return z, ok
++}
++
++func assertbig2ok(x interface{}) (complex128, bool) {
++	_, ok := x.(complex128) // ERROR "type assertion [(]ok only[)] inlined"
++	return 0, ok
++}

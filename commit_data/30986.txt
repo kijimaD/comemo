@@ -17,7 +17,67 @@ Date:   Fri Dec 23 12:00:07 2016 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  2 ++
  test/fixedbugs/issue18410.go         | 40 ++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 350c867725..89eec60216 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1078,6 +1078,8 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
+ 
+ 		var r *Node
+ 		if n.Right != nil {
++			// n.Right is stack temporary used as backing store.
++			init.Append(nod(OAS, n.Right, nil)) // zero backing store, just in case (#18410)
+ 			r = nod(OADDR, n.Right, nil)
+ 			r = typecheck(r, Erv)
+ 		} else {
+diff --git a/test/fixedbugs/issue18410.go b/test/fixedbugs/issue18410.go
+new file mode 100644
+index 0000000000..e9c6f862eb
+--- /dev/null
++++ b/test/fixedbugs/issue18410.go
+@@ -0,0 +1,40 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This checks partially initialized structure literals
++// used to create value.method functions have their
++// non-initialized fields properly zeroed/nil'd
++
++package main
++
++type X struct {
++	A, B, C *int
++}
++
++//go:noinline
++func (t X) Print() {
++	if t.B != nil {
++		panic("t.B must be nil")
++	}
++}
++
++//go:noinline
++func caller(f func()) {
++	f()
++}
++
++//go:noinline
++func test() {
++	var i, j int
++	x := X{A: &i, C: &j}
++	caller(func() { X{A: &i, C: &j}.Print() })
++	caller(X{A: &i, C: &j}.Print)
++	caller(x.Print)
++}
++
++func main() {
++	test()
++}

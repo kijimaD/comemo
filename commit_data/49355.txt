@@ -14,6 +14,19 @@ Date:   Tue May 18 16:01:43 2021 +1000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/defs_openbsd.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 8d323449d1..f818dc4453 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -26,6 +26,7 @@ package runtime
+ #include <sys/signal.h>
+ #include <errno.h>
+ #include <fcntl.h>
++#include <pthread.h>
+ #include <signal.h>
+ */
+ import "C"

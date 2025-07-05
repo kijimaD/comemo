@@ -10,7 +10,7 @@ Date:   Tue Aug 11 15:29:40 2015 +1000
     Change-Id: I7f1608b58581d21df4db58f0db654fef79e33a90
     Reviewed-on: https://go-review.googlesource.com/13481
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/internal/rsc.io/arm/armasm/ext_test.go | 2 +-
  src/cmd/internal/rsc.io/x86/x86asm/ext_test.go | 2 +-
  src/crypto/ecdsa/ecdsa_test.go                 | 8 ++++----
@@ -21,3 +21,154 @@ Date:   Tue Aug 11 15:29:40 2015 +1000
  src/net/http/transport_test.go                 | 2 +-
  src/path/filepath/path_test.go                 | 8 ++++----
  9 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/rsc.io/arm/armasm/ext_test.go b/src/cmd/internal/rsc.io/arm/armasm/ext_test.go
+index aa87cf930a..429fd88694 100644
+--- a/src/cmd/internal/rsc.io/arm/armasm/ext_test.go
++++ b/src/cmd/internal/rsc.io/arm/armasm/ext_test.go
+@@ -178,7 +178,7 @@ func testExtDis(
+ 	t.Logf("%d test cases, %d expected mismatches, %d failures; %.0f cases/second", totalTests, totalSkips, totalErrors, float64(totalTests)/time.Since(start).Seconds())
+ 
+ 	if err := <-errc; err != nil {
+-		t.Fatal("external disassembler: %v", err)
++		t.Fatalf("external disassembler: %v", err)
+ 	}
+ 
+ }
+diff --git a/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go b/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go
+index bb56c0d913..35ac3cf557 100644
+--- a/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go
++++ b/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go
+@@ -177,7 +177,7 @@ func testExtDis(
+ 	t.Logf("%d test cases, %d expected mismatches, %d failures; %.0f cases/second", totalTests, totalSkips, totalErrors, float64(totalTests)/time.Since(start).Seconds())
+ 
+ 	if err := <-errc; err != nil {
+-		t.Fatal("external disassembler: %v", err)
++		t.Fatalf("external disassembler: %v", err)
+ 	}
+ 
+ }
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 169944dfb2..2bd31b850e 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -91,11 +91,11 @@ func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
+ 
+ 	if s0.Cmp(s1) == 0 {
+ 		// This should never happen.
+-		t.Errorf("%s: the signatures on two different messages were the same")
++		t.Errorf("%s: the signatures on two different messages were the same", tag)
+ 	}
+ 
+ 	if r0.Cmp(r1) == 0 {
+-		t.Errorf("%s: the nonce used for two diferent messages was the same")
++		t.Errorf("%s: the nonce used for two diferent messages was the same", tag)
+ 	}
+ }
+ 
+@@ -126,11 +126,11 @@ func testINDCCA(t *testing.T, c elliptic.Curve, tag string) {
+ 	}
+ 
+ 	if s0.Cmp(s1) == 0 {
+-		t.Errorf("%s: two signatures of the same message produced the same result")
++		t.Errorf("%s: two signatures of the same message produced the same result", tag)
+ 	}
+ 
+ 	if r0.Cmp(r1) == 0 {
+-		t.Errorf("%s: two signatures of the same message produced the same nonce")
++		t.Errorf("%s: two signatures of the same message produced the same nonce", tag)
+ 	}
+ }
+ 
+diff --git a/src/crypto/rsa/pkcs1v15_test.go b/src/crypto/rsa/pkcs1v15_test.go
+index 89253751ec..47444f311c 100644
+--- a/src/crypto/rsa/pkcs1v15_test.go
++++ b/src/crypto/rsa/pkcs1v15_test.go
+@@ -160,7 +160,7 @@ func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
+ 		}
+ 
+ 		if test.out != "FAIL" && !bytes.Equal(plaintext, []byte(test.out)) {
+-			t.Errorf("#%d: incorrect plaintext: got %x, want %x", plaintext, test.out)
++			t.Errorf("#%d: incorrect plaintext: got %x, want %x", i, plaintext, test.out)
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 20c2bd6d4d..438fb3140a 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -84,7 +84,7 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
+ 	s.Close()
+ 	if len(expectedSubStr) == 0 {
+ 		if err != nil && err != io.EOF {
+-			t.Errorf("Got error: %s; expected to succeed", err, expectedSubStr)
++			t.Errorf("Got error: %s; expected to succeed", err)
+ 		}
+ 	} else if err == nil || !strings.Contains(err.Error(), expectedSubStr) {
+ 		t.Errorf("Got error: %s; expected to match substring '%s'", err, expectedSubStr)
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index c2583bfee3..18327a6a72 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -1488,7 +1488,7 @@ func TestErrorInvalidTypeId(t *testing.T) {
+ 		var foo struct{}
+ 		err := d.Decode(&foo)
+ 		if err != errBadType {
+-			t.Fatal("decode: expected %s, got %s", errBadType, err)
++			t.Fatalf("decode: expected %s, got %s", errBadType, err)
+ 		}
+ 	}
+ }
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index 0eeb3e600e..fecefc4053 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -24,7 +24,7 @@ func TestCorruptedInputs(t *testing.T) {
+ 	for _, data := range tests {
+ 		events, err := Parse(strings.NewReader(data))
+ 		if err == nil || events != nil {
+-			t.Fatalf("no error on input: %q\n", t)
++			t.Fatalf("no error on input: %q\n", data)
+ 		}
+ 	}
+ }
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index c21d4afa87..cc19342c30 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2645,7 +2645,7 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
+ 		req.Header.Set("User-Agent", "x") // known value for test
+ 		res, err := tr.RoundTrip(req)
+ 		if err != nil {
+-			t.Error("RoundTrip: %v", err)
++			t.Errorf("RoundTrip: %v", err)
+ 			close(resc)
+ 			return
+ 		}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 1c32e27a54..153a39829d 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -402,18 +402,18 @@ func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool)
+ func chtmpdir(t *testing.T) (restore func()) {
+ 	oldwd, err := os.Getwd()
+ 	if err != nil {
+-		t.Fatal("chtmpdir: %v", err)
++		t.Fatalf("chtmpdir: %v", err)
+ 	}
+ 	d, err := ioutil.TempDir("", "test")
+ 	if err != nil {
+-		t.Fatal("chtmpdir: %v", err)
++		t.Fatalf("chtmpdir: %v", err)
+ 	}
+ 	if err := os.Chdir(d); err != nil {
+-		t.Fatal("chtmpdir: %v", err)
++		t.Fatalf("chtmpdir: %v", err)
+ 	}
+ 	return func() {
+ 		if err := os.Chdir(oldwd); err != nil {
+-			t.Fatal("chtmpdir: %v", err)
++			t.Fatalf("chtmpdir: %v", err)
+ 		}
+ 		os.RemoveAll(d)
+ 	}

@@ -8,6 +8,23 @@ Date:   Thu Aug 14 14:35:00 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/124360043
-
+---
  src/pkg/reflect/all_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index f122711731..50d223f923 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1052,6 +1052,11 @@ func TestChan(t *testing.T) {
+ 		ok = cv.TrySend(ValueOf(6))
+ 		if !ok {
+ 			t.Errorf("TrySend on empty chan failed")
++			select {
++			case x := <-c:
++				t.Errorf("TrySend failed but it did send %d", x)
++			default:
++			}
+ 		} else {
+ 			if i = <-c; i != 6 {
+ 				t.Errorf("TrySend 6, recv %d", i)

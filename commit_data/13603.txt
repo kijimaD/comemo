@@ -7,6 +7,24 @@ Date:   Wed Aug 8 15:41:47 2012 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/6458097
-
+---
  src/pkg/io/io.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 7c863c16d3..5187eff70a 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -131,9 +131,9 @@ type ReadWriteSeeker interface {
+ 
+ // ReaderFrom is the interface that wraps the ReadFrom method.
+ //
+-// ReadFrom reads data from r until EOF. The return value n is the
+-// number of bytes read. Any error except io.EOF encountered during
+-// the read is also returned.
++// ReadFrom reads data from r until EOF or error.
++// The return value n is the number of bytes read.
++// Any error except io.EOF encountered during the read is also returned.
+ //
+ // The Copy function uses ReaderFrom if available.
+ type ReaderFrom interface {

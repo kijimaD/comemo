@@ -7,7 +7,7 @@ Date:   Thu Feb 18 23:33:21 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194151
-
+---
  src/pkg/runtime/embedded/README                   |   4 -
  src/pkg/runtime/embedded/mem.c                    |  40 ----------
  src/pkg/runtime/pchw/386/signal.c                 |   1 -
@@ -30,3 +30,333 @@ Date:   Thu Feb 18 23:33:21 2010 -0800
  src/pkg/runtime/{pchw => tiny}/signals.h          |   0
  src/pkg/runtime/{embedded => tiny}/thread.c       |   2 +-
  21 files changed, 58 insertions(+), 142 deletions(-)
+
+diff --git a/src/pkg/runtime/embedded/README b/src/pkg/runtime/embedded/README
+deleted file mode 100644
+index 6ca7985319..0000000000
+--- a/src/pkg/runtime/embedded/README
++++ /dev/null
+@@ -1,4 +0,0 @@
+-small embedded target for arm
+-define the c function write to make debug output work
+-
+-
+diff --git a/src/pkg/runtime/embedded/mem.c b/src/pkg/runtime/embedded/mem.c
+deleted file mode 100644
+index 0232c6c8e5..0000000000
+--- a/src/pkg/runtime/embedded/mem.c
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "malloc.h"
+-
+-// Assume there's an arbitrary amount of memory starting at "end".
+-
+-void*
+-SysAlloc(uintptr ask)
+-{
+-	static byte *p;
+-	extern byte end[];
+-	byte *q;
+-	
+-	if(p == nil) {
+-		p = end;
+-		p += 7 & -(uintptr)p;
+-	}
+-	ask += 7 & -ask;
+-
+-	q = p;
+-	p += ask;
+-	·memclr(q, ask);
+-	return q;
+-}
+-
+-void
+-SysFree(void *v, uintptr n)
+-{
+-	USED(v, n);
+-}
+-
+-void
+-SysUnused(void *v, uintptr n)
+-{
+-	USED(v, n);
+-}
+-
+diff --git a/src/pkg/runtime/pchw/386/signal.c b/src/pkg/runtime/pchw/386/signal.c
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/pchw/386/signal.c
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/pchw/os.h b/src/pkg/runtime/pchw/os.h
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/pchw/os.h
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/pchw/thread.c b/src/pkg/runtime/pchw/thread.c
+deleted file mode 100644
+index 4feb9a5e19..0000000000
+--- a/src/pkg/runtime/pchw/thread.c
++++ /dev/null
+@@ -1,89 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-int8 *goos = "pchw";
+-
+-extern void ·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
+-
+-int32
+-write(int32 fd, void *v, int32 len)
+-{
+-	·write(fd, v, len, len);
+-	return len;
+-}
+-
+-void
+-minit(void)
+-{
+-}
+-
+-void
+-osinit(void)
+-{
+-}
+-
+-void
+-initsig(void)
+-{
+-}
+-
+-void
+-exit(int32)
+-{
+-	for(;;);
+-}
+-
+-// single processor, no interrupts,
+-// so no need for real concurrency or atomicity
+-
+-void
+-newosproc(M *m, G *g, void *stk, void (*fn)(void))
+-{
+-	USED(m, g, stk, fn);
+-	throw("newosproc");
+-}
+-
+-void
+-lock(Lock *l)
+-{
+-	if(m->locks < 0)
+-		throw("lock count");
+-	m->locks++;
+-	if(l->key != 0)
+-		throw("deadlock");
+-	l->key = 1;
+-}
+-
+-void
+-unlock(Lock *l)
+-{
+-	m->locks--;
+-	if(m->locks < 0)
+-		throw("lock count");
+-	if(l->key != 1)
+-		throw("unlock of unlocked lock");
+-	l->key = 0;
+-}
+-
+-void
+-noteclear(Note *n)
+-{
+-	n->lock.key = 0;
+-}
+-
+-void
+-notewakeup(Note *n)
+-{
+-	n->lock.key = 1;
+-}
+-
+-void
+-notesleep(Note *n)
+-{
+-	if(n->lock.key != 1)
+-		throw("notesleep");
+-}
+-
+diff --git a/src/pkg/runtime/embedded/arm/defs.h b/src/pkg/runtime/tiny/386/defs.h
+similarity index 100%
+rename from src/pkg/runtime/embedded/arm/defs.h
+rename to src/pkg/runtime/tiny/386/defs.h
+diff --git a/src/pkg/runtime/pchw/386/rt0.s b/src/pkg/runtime/tiny/386/rt0.s
+similarity index 100%
+rename from src/pkg/runtime/pchw/386/rt0.s
+rename to src/pkg/runtime/tiny/386/rt0.s
+diff --git a/src/pkg/runtime/tiny/386/signal.c b/src/pkg/runtime/tiny/386/signal.c
+new file mode 100644
+index 0000000000..a39a481cc2
+--- /dev/null
++++ b/src/pkg/runtime/tiny/386/signal.c
+@@ -0,0 +1,10 @@
++// just the write function
++
++extern void ·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
++
++int32
++write(int32 fd, void *v, int32 len)
++{
++	·write(fd, v, len, len);
++	return len;
++}
+diff --git a/src/pkg/runtime/pchw/386/sys.s b/src/pkg/runtime/tiny/386/sys.s
+similarity index 100%
+rename from src/pkg/runtime/pchw/386/sys.s
+rename to src/pkg/runtime/tiny/386/sys.s
+diff --git a/src/pkg/runtime/pchw/README b/src/pkg/runtime/tiny/README
+similarity index 60%
+rename from src/pkg/runtime/pchw/README
+rename to src/pkg/runtime/tiny/README
+index 4987f58ff2..1a39e4251e 100755
+--- a/src/pkg/runtime/pchw/README
++++ b/src/pkg/runtime/tiny/README
+@@ -1,16 +1,22 @@
+ This directory contains a simple example of how one might
+-start Go running on bare hardware.  It is very primitive but
+-can run go/test/sieve.go, the concurrent prime sieve, on a
+-uniprocessor.  It has only been tested using the Bochs emulator.
++start Go running on bare hardware. There is currently code
++for 386 and arm.
++
++
++386
++
++It is very primitive but can run go/test/sieve.go, the concurrent
++prime sieve, on a uniprocessor.  It has only been tested using the
++Bochs emulator.
+ 
+ To run, first build the tools by running all.bash with GOARCH=386
+ and GOOS set to your normal GOOS (linux, darwin).  Then:
+ 
+-	export GOOS=pchw
++	export GOOS=tiny
+ 	cd $GOROOT/src/pkg/runtime
+ 	make clean
+ 	make install
+-	cd pchw
++	cd tiny
+ 	8g $GOROOT/test/sieve.go
+ 	8l sieve.8
+ 	8l -a sieve.8 >sieve.asm	# can consult sieve.asm for debugging
+@@ -22,8 +28,43 @@ You may have to tweak the .bochsrc depending on your system,
+ and you may need to install the Bochs emulator.
+ 
+ 
++ARM
++
++First build the toolchain using GOARCH=arm and GOOS=linux. When
++you build your embedded code set GOARCH=tiny.
++
++	export GOOS=tiny
++	cd $GOROOT/src/pkg/runtime
++	make clean
++	make install
++
++On arm the tiny runtime doesn't define a low level write function. You can either
++define a stub if you don't need debug output, or more usefully, define it to
++print to some debug serial port. Here is a sample function that prints to
++the DBGU on an at91sam7s:
++
++#define DBGU_CSR  ((uint32*)   0xFFFFF214) // (DBGU) Channel Status Register
++#define US_TXRDY        ((uint32) 0x1 <<  1) // (DBGU) TXRDY Interrupt
++#define DBGU_THR  ((uint32*)   0xFFFFF21C) // (DBGU) Transmitter Holding Register
++
++int32
++write(int32 fd, void* b, int32 n)
++{
++	uint32 i;
++	uint8* s = (uint8*)b;
++
++	for (i = 0; i < n; i++) {
++		while ((*DBGU_CSR & US_TXRDY) == 0) {
++		}
++		*DBGU_THR = *s;
++		s++;
++	}
++	return n;
++}
++
++
+ 
+-The bootblock is from MIT's xv6 project and carries this notice:
++The 386 bootblock is from MIT's xv6 project and carries this notice:
+ 
+     The xv6 software is:
+     
+diff --git a/src/pkg/runtime/pchw/386/defs.h b/src/pkg/runtime/tiny/arm/defs.h
+similarity index 100%
+rename from src/pkg/runtime/pchw/386/defs.h
+rename to src/pkg/runtime/tiny/arm/defs.h
+diff --git a/src/pkg/runtime/embedded/arm/rt0.s b/src/pkg/runtime/tiny/arm/rt0.s
+similarity index 100%
+rename from src/pkg/runtime/embedded/arm/rt0.s
+rename to src/pkg/runtime/tiny/arm/rt0.s
+diff --git a/src/pkg/runtime/embedded/arm/signal.c b/src/pkg/runtime/tiny/arm/signal.c
+similarity index 100%
+rename from src/pkg/runtime/embedded/arm/signal.c
+rename to src/pkg/runtime/tiny/arm/signal.c
+diff --git a/src/pkg/runtime/embedded/arm/sys.s b/src/pkg/runtime/tiny/arm/sys.s
+similarity index 100%
+rename from src/pkg/runtime/embedded/arm/sys.s
+rename to src/pkg/runtime/tiny/arm/sys.s
+diff --git a/src/pkg/runtime/pchw/bootblock b/src/pkg/runtime/tiny/bootblock
+similarity index 100%
+rename from src/pkg/runtime/pchw/bootblock
+rename to src/pkg/runtime/tiny/bootblock
+diff --git a/src/pkg/runtime/pchw/dot-bochsrc b/src/pkg/runtime/tiny/dot-bochsrc
+similarity index 100%
+rename from src/pkg/runtime/pchw/dot-bochsrc
+rename to src/pkg/runtime/tiny/dot-bochsrc
+diff --git a/src/pkg/runtime/pchw/io.go b/src/pkg/runtime/tiny/io.go
+similarity index 100%
+rename from src/pkg/runtime/pchw/io.go
+rename to src/pkg/runtime/tiny/io.go
+diff --git a/src/pkg/runtime/pchw/mem.c b/src/pkg/runtime/tiny/mem.c
+similarity index 100%
+rename from src/pkg/runtime/pchw/mem.c
+rename to src/pkg/runtime/tiny/mem.c
+diff --git a/src/pkg/runtime/embedded/os.h b/src/pkg/runtime/tiny/os.h
+similarity index 100%
+rename from src/pkg/runtime/embedded/os.h
+rename to src/pkg/runtime/tiny/os.h
+diff --git a/src/pkg/runtime/pchw/signals.h b/src/pkg/runtime/tiny/signals.h
+similarity index 100%
+rename from src/pkg/runtime/pchw/signals.h
+rename to src/pkg/runtime/tiny/signals.h
+diff --git a/src/pkg/runtime/embedded/thread.c b/src/pkg/runtime/tiny/thread.c
+similarity index 97%
+rename from src/pkg/runtime/embedded/thread.c
+rename to src/pkg/runtime/tiny/thread.c
+index 49b764b6d9..e3e8a34b60 100644
+--- a/src/pkg/runtime/embedded/thread.c
++++ b/src/pkg/runtime/tiny/thread.c
+@@ -4,7 +4,7 @@
+ 
+ #include "runtime.h"
+ 
+-int8 *goos = "embedded";
++int8 *goos = "tiny";
+ 
+ void
+ minit(void)

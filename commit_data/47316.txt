@@ -13,6 +13,29 @@ Date:   Tue Mar 2 06:05:00 2021 +0000
     Reviewed-by: eric fang <eric.fang@arm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: eric fang <eric.fang@arm.com>
-
+---
  src/cmd/compile/internal/ssagen/pgen.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index c2225ce950..8fa5980dab 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -19,7 +19,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+-	"cmd/internal/sys"
+ )
+ 
+ // cmpstackvarlt reports whether the stack variable a sorts before b.
+@@ -133,9 +132,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		} else {
+ 			lastHasPtr = false
+ 		}
+-		if Arch.LinkArch.InFamily(sys.PPC64) {
+-			s.stksize = types.Rnd(s.stksize, int64(types.PtrSize))
+-		}
+ 		n.SetFrameOffset(-s.stksize)
+ 	}
+ 

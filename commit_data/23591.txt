@@ -11,8 +11,54 @@ Date:   Thu May 28 13:48:47 2015 +0200
     Reviewed-by: David Symonds <dsymonds@golang.org>
     Run-TryBot: David Symonds <dsymonds@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go               |   3 +++
  src/archive/tar/reader_test.go          |  19 +++++++++++++++++++
  src/archive/tar/testdata/issue10968.tar | Bin 0 -> 512 bytes
  3 files changed, 22 insertions(+)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index cd23fb57d6..ae0b97e840 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -791,6 +791,9 @@ func (sfr *sparseFileReader) Read(b []byte) (n int, err error) {
+ 		// Otherwise, we're at the end of the file
+ 		return 0, io.EOF
+ 	}
++	if sfr.tot < sfr.sp[0].offset {
++		return 0, io.ErrUnexpectedEOF
++	}
+ 	if sfr.pos < sfr.sp[0].offset {
+ 		// We're in a hole
+ 		n = sfr.readHole(b, sfr.sp[0].offset)
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index ab1e8445a4..6ffb383a22 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -757,3 +757,22 @@ func TestNegativeHdrSize(t *testing.T) {
+ 	}
+ 	io.Copy(ioutil.Discard, r)
+ }
++
++// This used to hang in (*sparseFileReader).readHole due to missing
++// verification of sparse offsets against file size.
++func TestIssue10968(t *testing.T) {
++	f, err := os.Open("testdata/issue10968.tar")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	r := NewReader(f)
++	_, err = r.Next()
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = io.Copy(ioutil.Discard, r)
++	if err != io.ErrUnexpectedEOF {
++		t.Fatalf("expected %q, got %q", io.ErrUnexpectedEOF, err)
++	}
++}
+diff --git a/src/archive/tar/testdata/issue10968.tar b/src/archive/tar/testdata/issue10968.tar
+new file mode 100644
+index 0000000000..1cc837bcff
+Binary files /dev/null and b/src/archive/tar/testdata/issue10968.tar differ

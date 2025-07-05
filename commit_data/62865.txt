@@ -11,7 +11,7 @@ Date:   Tue Mar 4 19:18:22 2025 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/runtime/gc/malloc.go | 47 +++++++++++++++++++++++++++++++++++++
  src/runtime/lock_spinbit.go       |  5 ++--
  src/runtime/malloc.go             | 22 +++++++++++-------
@@ -19,3 +19,288 @@ Date:   Tue Mar 4 19:18:22 2025 +0000
  src/runtime/mfinal.go             |  3 ++-
  src/runtime/msize.go              |  6 ++---
  6 files changed, 74 insertions(+), 58 deletions(-)
+
+diff --git a/src/internal/runtime/gc/malloc.go b/src/internal/runtime/gc/malloc.go
+new file mode 100644
+index 0000000000..5eb99e2f0d
+--- /dev/null
++++ b/src/internal/runtime/gc/malloc.go
+@@ -0,0 +1,47 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import "internal/goarch"
++
++const (
++	ptrBits = 8 * goarch.PtrSize
++
++	// A malloc header is functionally a single type pointer, but
++	// we need to use 8 here to ensure 8-byte alignment of allocations
++	// on 32-bit platforms. It's wasteful, but a lot of code relies on
++	// 8-byte alignment for 8-byte atomics.
++	MallocHeaderSize = 8
++
++	// The minimum object size that has a malloc header, exclusive.
++	//
++	// The size of this value controls overheads from the malloc header.
++	// The minimum size is bound by writeHeapBitsSmall, which assumes that the
++	// pointer bitmap for objects of a size smaller than this doesn't cross
++	// more than one pointer-word boundary. This sets an upper-bound on this
++	// value at the number of bits in a uintptr, multiplied by the pointer
++	// size in bytes.
++	//
++	// We choose a value here that has a natural cutover point in terms of memory
++	// overheads. This value just happens to be the maximum possible value this
++	// can be.
++	//
++	// A span with heap bits in it will have 128 bytes of heap bits on 64-bit
++	// platforms, and 256 bytes of heap bits on 32-bit platforms. The first size
++	// class where malloc headers match this overhead for 64-bit platforms is
++	// 512 bytes (8 KiB / 512 bytes * 8 bytes-per-header = 128 bytes of overhead).
++	// On 32-bit platforms, this same point is the 256 byte size class
++	// (8 KiB / 256 bytes * 8 bytes-per-header = 256 bytes of overhead).
++	//
++	// Guaranteed to be exactly at a size class boundary. The reason this value is
++	// an exclusive minimum is subtle. Suppose we're allocating a 504-byte object
++	// and its rounded up to 512 bytes for the size class. If minSizeForMallocHeader
++	// is 512 and an inclusive minimum, then a comparison against minSizeForMallocHeader
++	// by the two values would produce different results. In other words, the comparison
++	// would not be invariant to size-class rounding. Eschewing this property means a
++	// more complex check or possibly storing additional state to determine whether a
++	// span has malloc headers.
++	MinSizeForMallocHeader = goarch.PtrSize * ptrBits
++)
+diff --git a/src/runtime/lock_spinbit.go b/src/runtime/lock_spinbit.go
+index 9bca4bd824..e338ebeb44 100644
+--- a/src/runtime/lock_spinbit.go
++++ b/src/runtime/lock_spinbit.go
+@@ -9,6 +9,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/gc"
+ 	"unsafe"
+ )
+ 
+@@ -60,7 +61,7 @@ const (
+ 	mutexSpinning    = 0x100
+ 	mutexStackLocked = 0x200
+ 	mutexMMask       = 0x3FF
+-	mutexMOffset     = mallocHeaderSize // alignment of heap-allocated Ms (those other than m0)
++	mutexMOffset     = gc.MallocHeaderSize // alignment of heap-allocated Ms (those other than m0)
+ 
+ 	mutexActiveSpinCount  = 4
+ 	mutexActiveSpinSize   = 30
+@@ -90,7 +91,7 @@ type mWaitList struct {
+ 
+ // lockVerifyMSize confirms that we can recreate the low bits of the M pointer.
+ func lockVerifyMSize() {
+-	size := roundupsize(unsafe.Sizeof(mPadded{}), false) + mallocHeaderSize
++	size := roundupsize(unsafe.Sizeof(mPadded{}), false) + gc.MallocHeaderSize
+ 	if size&mutexMMask != 0 {
+ 		print("M structure uses sizeclass ", size, "/", hex(size), " bytes; ",
+ 			"incompatible with mutex flag mask ", hex(mutexMMask), "\n")
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 554cfa6fcf..010f20bf94 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -116,7 +116,11 @@ const (
+ 	maxSmallSize  = gc.MaxSmallSize
+ 	pageSize      = 1 << gc.PageShift
+ 	pageMask      = pageSize - 1
+-	_PageSize     = pageSize // Unused. Left for viewcore.
++
++	// Unused. Left for viewcore.
++	_PageSize              = pageSize
++	minSizeForMallocHeader = gc.MinSizeForMallocHeader
++	mallocHeaderSize       = gc.MallocHeaderSize
+ 
+ 	// _64bit = 1 on 64-bit systems, 0 on 32-bit systems
+ 	_64bit = 1 << (^uintptr(0) >> 63) / 2
+@@ -434,7 +438,7 @@ func mallocinit() {
+ 		if gc.SizeClassToNPages[i] > 1 {
+ 			sizeClassesUpToMinSizeForMallocHeaderAreOnePage = false
+ 		}
+-		if minSizeForMallocHeader == uintptr(gc.SizeClassToSize[i]) {
++		if gc.MinSizeForMallocHeader == uintptr(gc.SizeClassToSize[i]) {
+ 			minSizeForMallocHeaderIsSizeClass = true
+ 			break
+ 		}
+@@ -447,7 +451,7 @@ func mallocinit() {
+ 	}
+ 	// Check that the pointer bitmap for all small sizes without a malloc header
+ 	// fits in a word.
+-	if minSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
++	if gc.MinSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
+ 		throw("max pointer/scan bitmap size for headerless objects is too large")
+ 	}
+ 
+@@ -1042,7 +1046,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// Actually do the allocation.
+ 	var x unsafe.Pointer
+ 	var elemsize uintptr
+-	if size <= maxSmallSize-mallocHeaderSize {
++	if size <= maxSmallSize-gc.MallocHeaderSize {
+ 		if typ == nil || !typ.Pointers() {
+ 			if size < maxTinySize {
+ 				x, elemsize = mallocgcTiny(size, typ)
+@@ -1074,8 +1078,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		// Poison the space between the end of the requested size of x
+ 		// and the end of the slot. Unpoison the requested allocation.
+ 		frag := elemsize - size
+-		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-mallocHeaderSize {
+-			frag -= mallocHeaderSize
++		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-gc.MallocHeaderSize {
++			frag -= gc.MallocHeaderSize
+ 		}
+ 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
+ 		asanunpoison(x, size-asanRZ)
+@@ -1449,7 +1453,7 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr)
+ 
+ 	checkGCTrigger := false
+ 	c := getMCache(mp)
+-	size += mallocHeaderSize
++	size += gc.MallocHeaderSize
+ 	var sizeclass uint8
+ 	if size <= gc.SmallSizeMax-8 {
+ 		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
+@@ -1468,8 +1472,8 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr)
+ 		memclrNoHeapPointers(x, size)
+ 	}
+ 	header := (**_type)(x)
+-	x = add(x, mallocHeaderSize)
+-	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-mallocHeaderSize, typ, header, span)
++	x = add(x, gc.MallocHeaderSize)
++	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-gc.MallocHeaderSize, typ, header, span)
+ 
+ 	// Ensure that the stores above that initialize x to
+ 	// type-safe memory and set the heap bits occur before
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 148b2d788e..e705676785 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -59,60 +59,23 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/gc"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+-const (
+-	// A malloc header is functionally a single type pointer, but
+-	// we need to use 8 here to ensure 8-byte alignment of allocations
+-	// on 32-bit platforms. It's wasteful, but a lot of code relies on
+-	// 8-byte alignment for 8-byte atomics.
+-	mallocHeaderSize = 8
+-
+-	// The minimum object size that has a malloc header, exclusive.
+-	//
+-	// The size of this value controls overheads from the malloc header.
+-	// The minimum size is bound by writeHeapBitsSmall, which assumes that the
+-	// pointer bitmap for objects of a size smaller than this doesn't cross
+-	// more than one pointer-word boundary. This sets an upper-bound on this
+-	// value at the number of bits in a uintptr, multiplied by the pointer
+-	// size in bytes.
+-	//
+-	// We choose a value here that has a natural cutover point in terms of memory
+-	// overheads. This value just happens to be the maximum possible value this
+-	// can be.
+-	//
+-	// A span with heap bits in it will have 128 bytes of heap bits on 64-bit
+-	// platforms, and 256 bytes of heap bits on 32-bit platforms. The first size
+-	// class where malloc headers match this overhead for 64-bit platforms is
+-	// 512 bytes (8 KiB / 512 bytes * 8 bytes-per-header = 128 bytes of overhead).
+-	// On 32-bit platforms, this same point is the 256 byte size class
+-	// (8 KiB / 256 bytes * 8 bytes-per-header = 256 bytes of overhead).
+-	//
+-	// Guaranteed to be exactly at a size class boundary. The reason this value is
+-	// an exclusive minimum is subtle. Suppose we're allocating a 504-byte object
+-	// and its rounded up to 512 bytes for the size class. If minSizeForMallocHeader
+-	// is 512 and an inclusive minimum, then a comparison against minSizeForMallocHeader
+-	// by the two values would produce different results. In other words, the comparison
+-	// would not be invariant to size-class rounding. Eschewing this property means a
+-	// more complex check or possibly storing additional state to determine whether a
+-	// span has malloc headers.
+-	minSizeForMallocHeader = goarch.PtrSize * ptrBits
+-)
+-
+ // heapBitsInSpan returns true if the size of an object implies its ptr/scalar
+ // data is stored at the end of the span, and is accessible via span.heapBits.
+ //
+ // Note: this works for both rounded-up sizes (span.elemsize) and unrounded
+-// type sizes because minSizeForMallocHeader is guaranteed to be at a size
++// type sizes because gc.MinSizeForMallocHeader is guaranteed to be at a size
+ // class boundary.
+ //
+ //go:nosplit
+ func heapBitsInSpan(userSize uintptr) bool {
+-	// N.B. minSizeForMallocHeader is an exclusive minimum so that this function is
++	// N.B. gc.MinSizeForMallocHeader is an exclusive minimum so that this function is
+ 	// invariant under size-class rounding on its input.
+-	return userSize <= minSizeForMallocHeader
++	return userSize <= gc.MinSizeForMallocHeader
+ }
+ 
+ // typePointers is an iterator over the pointers in a heap object.
+@@ -189,7 +152,7 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ 	if spc.sizeclass() != 0 {
+ 		// Pull the allocation header from the first word of the object.
+ 		typ = *(**_type)(unsafe.Pointer(addr))
+-		addr += mallocHeaderSize
++		addr += gc.MallocHeaderSize
+ 	} else {
+ 		typ = span.largeType
+ 		if typ == nil {
+@@ -567,7 +530,7 @@ func (span *mspan) heapBits() []uintptr {
+ 		if span.spanclass.noscan() {
+ 			throw("heapBits called for noscan")
+ 		}
+-		if span.elemsize > minSizeForMallocHeader {
++		if span.elemsize > gc.MinSizeForMallocHeader {
+ 			throw("heapBits called for span class that should have a malloc header")
+ 		}
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 281be9cac6..40ebdf4ad0 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -10,6 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/gc"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+ )
+@@ -467,7 +468,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 
+ 	// Move base forward if we've got an allocation header.
+ 	if !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+-		base += mallocHeaderSize
++		base += gc.MallocHeaderSize
+ 	}
+ 
+ 	if uintptr(e.data) != base {
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index 428a86e5aa..09da7459b2 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -15,10 +15,10 @@ import "internal/runtime/gc"
+ // minus any inline space for metadata.
+ func roundupsize(size uintptr, noscan bool) (reqSize uintptr) {
+ 	reqSize = size
+-	if reqSize <= maxSmallSize-mallocHeaderSize {
++	if reqSize <= maxSmallSize-gc.MallocHeaderSize {
+ 		// Small object.
+-		if !noscan && reqSize > minSizeForMallocHeader { // !noscan && !heapBitsInSpan(reqSize)
+-			reqSize += mallocHeaderSize
++		if !noscan && reqSize > gc.MinSizeForMallocHeader { // !noscan && !heapBitsInSpan(reqSize)
++			reqSize += gc.MallocHeaderSize
+ 		}
+ 		// (reqSize - size) is either mallocHeaderSize or 0. We need to subtract mallocHeaderSize
+ 		// from the result if we have one, since mallocgc will add it back in.

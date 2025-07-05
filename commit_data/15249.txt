@@ -9,7 +9,82 @@ Date:   Thu Feb 14 14:49:04 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7300109
-
+---
  src/cmd/8g/ggen.c           | 20 --------------------
  test/fixedbugs/issue4785.go | 20 ++++++++++++++++++++
  2 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 465177f136..30663aabe5 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -1053,35 +1053,16 @@ x87:
+ 	goto ret;
+ 
+ sse:
+-	if(nr->ullman >= UINF) {
+-		if(!nl->addable) {
+-			tempname(&n1, nl->type);
+-			cgen(nl, &n1);
+-			nl = &n1;
+-		}
+-		if(!nr->addable) {
+-			tempname(&tmp, nr->type);
+-			cgen(nr, &tmp);
+-			nr = &tmp;
+-		}
+-		regalloc(&n2, nr->type, N);
+-		cgen(nr, &n2);
+-		nr = &n2;
+-		goto ssecmp;
+-	}
+-
+ 	if(!nl->addable) {
+ 		tempname(&n1, nl->type);
+ 		cgen(nl, &n1);
+ 		nl = &n1;
+ 	}
+-
+ 	if(!nr->addable) {
+ 		tempname(&tmp, nr->type);
+ 		cgen(nr, &tmp);
+ 		nr = &tmp;
+ 	}
+-
+ 	regalloc(&n2, nr->type, N);
+ 	gmove(nr, &n2);
+ 	nr = &n2;
+@@ -1092,7 +1073,6 @@ sse:
+ 		nl = &n3;
+ 	}
+ 
+-ssecmp:
+ 	if(a == OGE || a == OGT) {
+ 		// only < and <= work right with NaN; reverse if needed
+ 		r = nr;
+diff --git a/test/fixedbugs/issue4785.go b/test/fixedbugs/issue4785.go
+new file mode 100644
+index 0000000000..c3dd6297d8
+--- /dev/null
++++ b/test/fixedbugs/issue4785.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 4785: used to fail to compile
++
++package main
++
++func t(x, y interface{}) interface{} {
++	return x.(float64) > y.(float64)
++}
++
++func main() {
++	v := t(1.0, 2.0)
++	if v != false {
++		panic("bad comparison")
++	}
++}

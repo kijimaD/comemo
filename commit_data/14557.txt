@@ -11,6 +11,29 @@ Date:   Tue Dec 4 14:11:33 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/6869060
-
+---
  src/pkg/container/heap/example_test.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/container/heap/example_test.go b/src/pkg/container/heap/example_test.go
+index 2050bc8359..70f654a007 100644
+--- a/src/pkg/container/heap/example_test.go
++++ b/src/pkg/container/heap/example_test.go
+@@ -37,15 +37,10 @@ func (pq PriorityQueue) Swap(i, j int) {
+ func (pq *PriorityQueue) Push(x interface{}) {
+ 	// Push and Pop use pointer receivers because they modify the slice's length,
+ 	// not just its contents.
+-	// To simplify indexing expressions in these methods, we save a copy of the
+-	// slice object. We could instead write (*pq)[i].
+-	a := *pq
+-	n := len(a)
+-	a = a[0 : n+1]
++	n := len(*pq)
+ 	item := x.(*Item)
+ 	item.index = n
+-	a[n] = item
+-	*pq = a
++	*pq = append(*pq, item)
+ }
+ 
+ func (pq *PriorityQueue) Pop() interface{} {

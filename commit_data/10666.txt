@@ -7,10 +7,98 @@ Date:   Thu Dec 8 11:26:49 2011 -0800
     R=r, rsc, r
     CC=golang-dev
     https://golang.org/cl/5469045
-
+---
  doc/effective_go.html |  5 +++++
  doc/effective_go.tmpl |  1 +
  doc/go_tutorial.html  |  6 ++++++
  doc/go_tutorial.tmpl  |  2 ++
  doc/tmpltohtml.go     | 12 +++++++++++-
  5 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 8ce72fc196..e825f747ab 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1,4 +1,9 @@
+ <!-- Effective Go -->
++<!--
++  DO NOT EDIT: created by
++    tmpltohtml effective_go.tmpl
++-->
++
+ 
+ <h2 id="introduction">Introduction</h2>
+ 
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index bd19f95d34..8ca4902c3b 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -1,4 +1,5 @@
+ <!-- Effective Go -->
++{{donotedit}}
+ 
+ <h2 id="introduction">Introduction</h2>
+ 
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 423abe8b0a..145ea21106 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -1,4 +1,10 @@
+ <!-- A Tutorial for the Go Programming Language -->
++<!--
++  DO NOT EDIT: created by
++    tmpltohtml go_tutorial.tmpl
++-->
++
++
+ <h2>Introduction</h2>
+ <p>
+ This document is a tutorial introduction to the basics of the Go programming
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index d1219b47ed..2a583e2f49 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -1,4 +1,6 @@
+ <!-- A Tutorial for the Go Programming Language -->
++{{donotedit}}
++
+ <h2>Introduction</h2>
+ <p>
+ This document is a tutorial introduction to the basics of the Go programming
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index 1e3424cf5e..84a47d6ed2 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -35,6 +35,11 @@ func Usage() {
+ 	os.Exit(2)
+ }
+ 
++var templateFuncs = template.FuncMap{
++	"code":      code,
++	"donotedit": donotedit,
++}
++
+ func main() {
+ 	flag.Usage = Usage
+ 	flag.Parse()
+@@ -44,7 +49,7 @@ func main() {
+ 
+ 	// Read and parse the input.
+ 	name := flag.Args()[0]
+-	tmpl := template.New(name).Funcs(template.FuncMap{"code": code})
++	tmpl := template.New(name).Funcs(templateFuncs)
+ 	if _, err := tmpl.ParseFiles(name); err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -80,6 +85,11 @@ func format(arg interface{}) string {
+ 	return ""
+ }
+ 
++func donotedit() string {
++	// No editing please.
++	return fmt.Sprintf("<!--\n  DO NOT EDIT: created by\n    tmpltohtml %s\n-->\n", flag.Args()[0])
++}
++
+ func code(file string, arg ...interface{}) (string, error) {
+ 	text := contents(file)
+ 	var command string

@@ -22,7 +22,36 @@ Date:   Fri Nov 13 15:48:05 2020 +0100
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  doc/go1.16.html            | 4 ++++
  src/syscall/dll_windows.go | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index a2f39893be..92cadff713 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -501,6 +501,10 @@ Do not send CLs removing the interior tags from such phrases.
+     <p><!-- CL 261917 -->
+       <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> on Windows has a new NoInheritHandles field that disables inheriting handles when creating a new process.
+     </p>
++
++    <p><!-- CL 269761, golang.org/issue/42584 -->
++      <a href="/pkg/syscall/#DLLError"><code>DLLError</code></a> on Windows now has an Unwrap function for unwrapping its underlying error.
++    </p>
+   </dd>
+ </dl><!-- syscall -->
+ 
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index c54feec56a..d99da00089 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -20,6 +20,8 @@ type DLLError struct {
+ 
+ func (e *DLLError) Error() string { return e.Msg }
+ 
++func (e *DLLError) Unwrap() error { return e.Err }
++
+ // Implemented in ../runtime/syscall_windows.go.
+ 
+ func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)

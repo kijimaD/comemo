@@ -7,6 +7,25 @@ Date:   Wed Apr 3 16:32:42 2019 -0400
     Change-Id: I8de5aa64a24e77e0ef876918fcace7668769ebc2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171022
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/runtime2.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index cfea1cd45f..8d749f3d7c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -22,6 +22,13 @@ const (
+ 	// If you add to this list, add to the list
+ 	// of "okay during garbage collection" status
+ 	// in mgcmark.go too.
++	//
++	// TODO(austin): The _Gscan bit could be much lighter-weight.
++	// For example, we could choose not to run _Gscanrunnable
++	// goroutines found in the run queue, rather than CAS-looping
++	// until they become _Grunnable. And transitions like
++	// _Gscanwaiting -> _Gscanrunnable are actually okay because
++	// they don't affect stack ownership.
+ 
+ 	// _Gidle means this goroutine was just allocated and has not
+ 	// yet been initialized.

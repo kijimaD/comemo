@@ -9,6 +9,20 @@ Date:   Wed Aug 14 12:47:06 2013 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12829044
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 140febb008..012e0365bb 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -494,7 +494,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 
+ 	// Gcc wrapper unpacks the C argument struct
+ 	// and calls the actual C function.
+-	fmt.Fprintf(fgcc, "__attribute__ ((visibility (\"hidden\"))) void\n")
++	fmt.Fprintf(fgcc, "void\n")
+ 	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fgcc, "{\n")
+ 	if n.AddError {

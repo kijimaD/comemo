@@ -10,8 +10,53 @@ Date:   Wed Feb 26 12:21:31 2014 -0500
     R=golang-codereviews, minux.ma, iant
     CC=golang-codereviews
     https://golang.org/cl/69200043
-
+---
  src/pkg/runtime/arch_amd64.h    | 4 ----
  src/pkg/runtime/arch_amd64p32.h | 4 ----
  src/pkg/runtime/runtime.h       | 2 ++
  3 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index 88b68cc6df..060c4d4f53 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -11,10 +11,6 @@ enum {
+ #else
+ 	RuntimeGogoBytes = 64,
+ #endif
+-#ifdef GOOS_nacl
+-	PhysPageSize = 65536,
+-#else
+ 	PhysPageSize = 4096,
+-#endif
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_amd64p32.h b/src/pkg/runtime/arch_amd64p32.h
+index 88b68cc6df..073a9e30e1 100644
+--- a/src/pkg/runtime/arch_amd64p32.h
++++ b/src/pkg/runtime/arch_amd64p32.h
+@@ -6,11 +6,7 @@ enum {
+ 	thechar = '6',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-#ifdef GOOS_solaris
+-	RuntimeGogoBytes = 80,
+-#else
+ 	RuntimeGogoBytes = 64,
+-#endif
+ #ifdef GOOS_nacl
+ 	PhysPageSize = 65536,
+ #else
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0069d5a774..e040c18272 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -795,6 +795,8 @@ int32	runtime·charntorune(int32*, uint8*, int32);
+  * first output value. Almost all code should write such
+  * functions in .goc files, where goc2c (part of cmd/dist)
+  * can arrange the correct alignment for the target system.
++ * Goc2c also takes care of conveying to the garbage collector
++ * which parts of the argument list are inputs vs outputs.
+  *
+  * Therefore, do NOT use this macro if at all possible.
+  */ 

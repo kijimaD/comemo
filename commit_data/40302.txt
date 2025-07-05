@@ -14,7 +14,56 @@ Date:   Tue Apr 30 16:18:53 2019 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modcmd/vendor.go      | 2 ++
  src/cmd/go/testdata/script/mod_vendor.txt | 3 ++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 7265e62a2f..44cabd5dea 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
++	"sort"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -72,6 +73,7 @@ func runVendor(cmd *base.Command, args []string) {
+ 			if cfg.BuildV {
+ 				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
+ 			}
++			sort.Strings(pkgs)
+ 			for _, pkg := range pkgs {
+ 				fmt.Fprintf(&buf, "%s\n", pkg)
+ 				if cfg.BuildV {
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 25a77a3670..eae4f2946c 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -18,6 +18,7 @@ stderr '^y'
+ stderr '^# z v1.0.0 => ./z'
+ stderr '^z'
+ ! stderr '^w'
++grep 'a/foo/bar/b\na/foo/bar/c' vendor/modules.txt # must be sorted
+ 
+ go list -f {{.Dir}} x
+ stdout 'src[\\/]x'
+@@ -126,6 +127,7 @@ func TestDir(t *testing.T) {
+ }
+ -- a/foo/bar/c/main.go --
+ package c
++import _ "a/foo/bar/b"
+ -- a/foo/bar/c/main_test.go --
+ package c
+ 
+@@ -190,7 +192,6 @@ import _ "a"
+ -- testdata2.go --
+ package m
+ 
+-import _ "a/foo/bar/b"
+ import _ "a/foo/bar/c"
+ -- v1.go --
+ package m

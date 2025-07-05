@@ -16,7 +16,56 @@ Date:   Sun Aug 14 00:35:24 2022 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/singleflight/singleflight.go | 10 ++++------
  src/net/lookup.go                         |  2 +-
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/singleflight/singleflight.go b/src/internal/singleflight/singleflight.go
+index 07b3f40ec0..19d5a94a0b 100644
+--- a/src/internal/singleflight/singleflight.go
++++ b/src/internal/singleflight/singleflight.go
+@@ -65,10 +65,8 @@ func (g *Group) Do(key string, fn func() (any, error)) (v any, err error, shared
+ }
+ 
+ // DoChan is like Do but returns a channel that will receive the
+-// results when they are ready. The second result is true if the function
+-// will eventually be called, false if it will not (because there is
+-// a pending request with this key).
+-func (g *Group) DoChan(key string, fn func() (any, error)) (<-chan Result, bool) {
++// results when they are ready.
++func (g *Group) DoChan(key string, fn func() (any, error)) <-chan Result {
+ 	ch := make(chan Result, 1)
+ 	g.mu.Lock()
+ 	if g.m == nil {
+@@ -78,7 +76,7 @@ func (g *Group) DoChan(key string, fn func() (any, error)) (<-chan Result, bool)
+ 		c.dups++
+ 		c.chans = append(c.chans, ch)
+ 		g.mu.Unlock()
+-		return ch, false
++		return ch
+ 	}
+ 	c := &call{chans: []chan<- Result{ch}}
+ 	c.wg.Add(1)
+@@ -87,7 +85,7 @@ func (g *Group) DoChan(key string, fn func() (any, error)) (<-chan Result, bool)
+ 
+ 	go g.doCall(c, key, fn)
+ 
+-	return ch, true
++	return ch
+ }
+ 
+ // doCall handles the single call for a key.
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 3cc53f1db6..b283c67945 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -316,7 +316,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 
+ 	lookupKey := network + "\000" + host
+ 	dnsWaitGroup.Add(1)
+-	ch, _ := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
++	ch := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
+ 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
+ 	})
+ 

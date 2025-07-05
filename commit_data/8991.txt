@@ -12,6 +12,20 @@ Date:   Sat Jul 9 15:10:39 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4684044
-
+---
  src/pkg/http/triv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index bff6a106d9..54b12333f5 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -138,7 +138,7 @@ func main() {
+ 	expvar.Publish("counter", ctr)
+ 
+ 	http.Handle("/", http.HandlerFunc(Logger))
+-	http.Handle("/go/", http.FileServer(*webroot, "/go/"))
++	http.Handle("/go/", http.StripPrefix("/go/", http.FileServer(http.Dir(*webroot))))
+ 	http.Handle("/flags", http.HandlerFunc(FlagServer))
+ 	http.Handle("/args", http.HandlerFunc(ArgServer))
+ 	http.Handle("/go/hello", http.HandlerFunc(HelloServer))

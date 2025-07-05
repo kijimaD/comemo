@@ -9,7 +9,76 @@ Date:   Tue Feb 7 18:00:30 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5642056
-
+---
  src/pkg/net/http/httputil/reverseproxy.go      |  7 ++++-
  src/pkg/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++
  2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index 1072e2e342..9c4bd6e09a 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -55,11 +55,16 @@ func singleJoiningSlash(a, b string) string {
+ // target's path is "/base" and the incoming request was for "/dir",
+ // the target request will be for /base/dir.
+ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
++	targetQuery := target.RawQuery
+ 	director := func(req *http.Request) {
+ 		req.URL.Scheme = target.Scheme
+ 		req.URL.Host = target.Host
+ 		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+-		req.URL.RawQuery = target.RawQuery
++		if targetQuery == "" || req.URL.RawQuery == "" {
++			req.URL.RawQuery = targetQuery + req.URL.RawQuery
++		} else {
++			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
++		}
+ 	}
+ 	return &ReverseProxy{Director: director}
+ }
+diff --git a/src/pkg/net/http/httputil/reverseproxy_test.go b/src/pkg/net/http/httputil/reverseproxy_test.go
+index 655784b30d..28e9c90ad3 100644
+--- a/src/pkg/net/http/httputil/reverseproxy_test.go
++++ b/src/pkg/net/http/httputil/reverseproxy_test.go
+@@ -69,3 +69,41 @@ func TestReverseProxy(t *testing.T) {
+ 		t.Errorf("got body %q; expected %q", g, e)
+ 	}
+ }
++
++var proxyQueryTests = []struct {
++	baseSuffix string // suffix to add to backend URL
++	reqSuffix  string // suffix to add to frontend's request URL
++	want       string // what backend should see for final request URL (without ?)
++}{
++	{"", "", ""},
++	{"?sta=tic", "?us=er", "sta=tic&us=er"},
++	{"", "?us=er", "us=er"},
++	{"?sta=tic", "", "sta=tic"},
++}
++
++func TestReverseProxyQuery(t *testing.T) {
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("X-Got-Query", r.URL.RawQuery)
++		w.Write([]byte("hi"))
++	}))
++	defer backend.Close()
++
++	for i, tt := range proxyQueryTests {
++		backendURL, err := url.Parse(backend.URL + tt.baseSuffix)
++		if err != nil {
++			t.Fatal(err)
++		}
++		frontend := httptest.NewServer(NewSingleHostReverseProxy(backendURL))
++		req, _ := http.NewRequest("GET", frontend.URL+tt.reqSuffix, nil)
++		req.Close = true
++		res, err := http.DefaultClient.Do(req)
++		if err != nil {
++			t.Fatalf("%d. Get: %v", i, err)
++		}
++		if g, e := res.Header.Get("X-Got-Query"), tt.want; g != e {
++			t.Errorf("%d. got query %q; expected %q", i, g, e)
++		}
++		res.Body.Close()
++		frontend.Close()
++	}
++}

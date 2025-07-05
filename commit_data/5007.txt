@@ -7,6 +7,24 @@ Date:   Sun Mar 7 11:17:36 2010 -0800
     R=rsc, adg, r
     CC=golang-dev
     https://golang.org/cl/264041
-
+---
  src/pkg/regexp/all_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index c847bcd23b..c1f6795e72 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -5,12 +5,9 @@
+ package regexp
+ 
+ import (
+-	"bytes"
+-	"io"
+ 	"os"
+ 	"strings"
+ 	"testing"
+-	"utf8"
+ )
+ 
+ var good_re = []string{

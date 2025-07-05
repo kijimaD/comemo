@@ -8,7 +8,7 @@ Date:   Wed Nov 19 16:14:31 2008 -0800
     DELTA=682  (275 added, 301 deleted, 106 changed)
     OCL=19638
     CL=19642
-
+---
  src/lib/math/asin.go  |  18 ++--
  src/lib/math/atan.go  |  31 ++----
  src/lib/math/atan2.go |  10 +-
@@ -28,3 +28,1265 @@ Date:   Wed Nov 19 16:14:31 2008 -0800
  src/lib/math/test.go  | 273 ++++++++++++++++++++++++++++++++++++++++++++++++++
  test/mathtest.go      | 211 --------------------------------------
  18 files changed, 385 insertions(+), 411 deletions(-)
+
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+index a4a7e67cae..91875d35f8 100644
+--- a/src/lib/math/asin.go
++++ b/src/lib/math/asin.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "math"
++import "math"
+ 
+ /*
+  * asin(arg) and acos(arg) return the arcsin, arccos,
+@@ -18,9 +18,7 @@ const
+ 	pio2 = .15707963267948966192313216e1
+ )
+ 
+-export func
+-asin(arg float64)float64
+-{
++export func Asin(arg float64) float64 {
+ 	var temp, x float64;
+ 	var sign bool;
+ 
+@@ -34,11 +32,11 @@ asin(arg float64)float64
+ 		return sys.NaN();
+ 	}
+ 
+-	temp = sqrt(1 - x*x);
++	temp = Sqrt(1 - x*x);
+ 	if x > 0.7 {
+-		temp = pio2 - atan(temp/x);
++		temp = pio2 - Atan(temp/x);
+ 	} else {
+-		temp = atan(x/temp);
++		temp = Atan(x/temp);
+ 	}
+ 
+ 	if sign {
+@@ -47,11 +45,9 @@ asin(arg float64)float64
+ 	return temp;
+ }
+ 
+-export func
+-acos(arg float64)float64
+-{
++export func Acos(arg float64) float64 {
+ 	if(arg > 1 || arg < -1) {
+ 		return sys.NaN();
+ 	}
+-	return pio2 - asin(arg);
++	return pio2 - Asin(arg);
+ }
+diff --git a/src/lib/math/atan.go b/src/lib/math/atan.go
+index aa4c29234a..43990fe40f 100644
+--- a/src/lib/math/atan.go
++++ b/src/lib/math/atan.go
+@@ -13,7 +13,6 @@ package math
+  *	coefficients are #5077 from Hart & Cheney. (19.56D)
+  */
+ 
+-
+ const
+ (
+ 	p4	= .161536412982230228262e2;
+@@ -36,13 +35,9 @@ const
+  *	xatan evaluates a series valid in the
+  *	range [-0.414...,+0.414...]. (tan(pi/8))
+  */
+-func
+-xatan(arg float64) float64
+-{
+-	var argsq, value float64;
+-
+-	argsq = arg*arg;
+-	value = ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
++func Xatan(arg float64) float64 {
++	argsq := arg*arg;
++	value := ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
+ 	value = value/(((((argsq + q4)*argsq + q3)*argsq + q2)*argsq + q1)*argsq + q0);
+ 	return value*arg;
+ }
+@@ -51,29 +46,23 @@ xatan(arg float64) float64
+  *	satan reduces its argument (known to be positive)
+  *	to the range [0,0.414...] and calls xatan.
+  */
+-func
+-satan(arg float64) float64
+-{
+-
++func Satan(arg float64) float64 {
+ 	if arg < sq2m1 {
+-		return xatan(arg);
++		return Xatan(arg);
+ 	}
+ 	if arg > sq2p1 {
+-		return pio2 - xatan(1/arg);
++		return pio2 - Xatan(1/arg);
+ 	}
+-	return pio4 + xatan((arg-1)/(arg+1));
++	return pio4 + Xatan((arg-1)/(arg+1));
+ }
+ 
+ /*
+  *	atan makes its argument positive and
+  *	calls the inner routine satan.
+  */
+-export func
+-atan(arg float64) float64
+-{
+-
++export func Atan(arg float64) float64 {
+ 	if arg > 0 {
+-		return satan(arg);
++		return Satan(arg);
+ 	}
+-	return -satan(-arg);
++	return -Satan(-arg);
+ }
+diff --git a/src/lib/math/atan2.go b/src/lib/math/atan2.go
+index 64bf21a9e7..f0b3842581 100644
+--- a/src/lib/math/atan2.go
++++ b/src/lib/math/atan2.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "math"
++import "math"
+ 
+ /*
+  *	atan2 discovers what quadrant the angle
+@@ -17,18 +17,14 @@ const
+ 	pi	= .3141592653589793238462643383276e1;
+ )
+ 
+-export func
+-atan2(arg1, arg2 float64) float64
+-{
+-	var x float64;
+-
++export func Atan2(arg1, arg2 float64) float64 {
+ 	if arg1+arg2 == arg1 {
+ 		if arg1 >= 0 {
+ 			return pio2;
+ 		}
+ 		return -pio2;
+ 	}
+-	x = atan(arg1/arg2);
++	x := Atan(arg1/arg2);
+ 	if arg2 < 0 {
+ 		if x <= 0 {
+ 			return x + pi;
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+index 243460b2b1..9bc26d2b67 100644
+--- a/src/lib/math/exp.go
++++ b/src/lib/math/exp.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "math"
++import "math"
+ 
+ /*
+  *	exp returns the exponential func of its
+@@ -26,12 +26,7 @@ const
+ 	maxf	= 10000;
+ )
+ 
+-export func
+-exp(arg float64) float64
+-{
+-	var x, fract, temp1, temp2, xsq float64;
+-	var ent int;
+-
++export func Exp(arg float64) float64 {
+ 	if arg == 0. {
+ 		return 1;
+ 	}
+@@ -42,11 +37,11 @@ exp(arg float64) float64
+ 		return sys.Inf(1)
+ 	}
+ 
+-	x = arg*log2e;
+-	ent = int(floor(x));
+-	fract = (x-float64(ent)) - 0.5;
+-	xsq = fract*fract;
+-	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
+-	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;
++	x := arg*log2e;
++	ent := int(Floor(x));
++	fract := (x-float64(ent)) - 0.5;
++	xsq := fract*fract;
++	temp1 := ((p2*xsq+p1)*xsq+p0)*fract;
++	temp2 := ((xsq+q2)*xsq+q1)*xsq + q0;
+ 	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
+ }
+diff --git a/src/lib/math/fabs.go b/src/lib/math/fabs.go
+index c0baa89569..7117db0b71 100644
+--- a/src/lib/math/fabs.go
++++ b/src/lib/math/fabs.go
+@@ -4,12 +4,10 @@
+ 
+ package math
+ 
+-export func
+-fabs(arg float64) float64
+-{
+-
++export func Fabs(arg float64) float64 {
+ 	if arg < 0 {
+ 		return -arg;
+ 	}
+ 	return arg;
+ }
++
+diff --git a/src/lib/math/floor.go b/src/lib/math/floor.go
+index 1ca0d05ad0..421c29299b 100644
+--- a/src/lib/math/floor.go
++++ b/src/lib/math/floor.go
+@@ -9,25 +9,18 @@ package math
+  * (resp least >=)
+  */
+ 
+-export func
+-floor(arg float64) float64
+-{
+-	var fract, d float64;
+-
+-	d = arg;
+-	if d < 0 {
+-		d,fract = sys.modf(-d);
++export func Floor(arg float64) float64 {
++	if arg < 0 {
++		d, fract := sys.modf(-arg);
+ 		if fract != 0.0 {
+ 			d = d+1;
+ 		}
+ 		return -d;
+ 	}
+-	d,fract = sys.modf(d);
++	d, fract := sys.modf(arg);
+ 	return d;
+ }
+ 
+-export func
+-ceil(arg float64) float64
+-{
+-	return -floor(-arg);
++export func Ceil(arg float64) float64 {
++	return -Floor(-arg);
+ }
+diff --git a/src/lib/math/fmod.go b/src/lib/math/fmod.go
+index 11ede447d1..488ee4321f 100644
+--- a/src/lib/math/fmod.go
++++ b/src/lib/math/fmod.go
+@@ -8,13 +8,7 @@ package math
+  *	floating-point mod func without infinity or NaN checking
+  */
+ 
+-export func
+-fmod(x, y float64) float64
+-{
+-	var yexp, rexp int;
+-	var r, yfr, rfr float64;
+-	var sign bool;
+-
++export func Fmod(x, y float64) float64 {
+ 	if y == 0 {
+ 		return x;
+ 	}
+@@ -22,17 +16,16 @@ fmod(x, y float64) float64
+ 		y = -y;
+ 	}
+ 
+-	yfr,yexp = sys.frexp(y);
+-	sign = false;
++	yfr, yexp := sys.frexp(y);
++	sign := false;
++	r := x;
+ 	if x < 0 {
+ 		r = -x;
+ 		sign = true;
+-	} else {
+-		r = x;
+ 	}
+ 
+ 	for r >= y {
+-		rfr,rexp = sys.frexp(r);
++		rfr, rexp := sys.frexp(r);
+ 		if rfr < yfr {
+ 			rexp = rexp - 1;
+ 		}
+diff --git a/src/lib/math/hypot.go b/src/lib/math/hypot.go
+index d1afac9e3f..6295c124ac 100644
+--- a/src/lib/math/hypot.go
++++ b/src/lib/math/hypot.go
+@@ -12,11 +12,7 @@ package math
+  *	Vol. 27, Number 6, pp. 577-581, Nov. 1983
+  */
+ 
+-export func
+-hypot(p, q float64) float64
+-{
+-	var r, s, pfac float64;
+-
++export func Hypot(p, q float64) float64 {
+ 	if p < 0 {
+ 		p = -p;
+ 	}
+@@ -25,22 +21,20 @@ hypot(p, q float64) float64
+ 	}
+ 
+ 	if p < q {
+-		r = p;
+-		p = q;
+-		q = r;
++		p, q = q, p;
+ 	}
+ 
+ 	if p == 0 {
+ 		return 0;
+ 	}
+ 
+-	pfac = p;
++	pfac := p;
+ 	q = q/p;
+-	r = q;
++	r := q;
+ 	p = 1;
+ 	for {
+ 		r = r*r;
+-		s = r+4;
++		s := r+4;
+ 		if s == 4 {
+ 			return p*pfac;
+ 		}
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+index 5cd73bf89e..e51c72980f 100644
+--- a/src/lib/math/log.go
++++ b/src/lib/math/log.go
+@@ -5,7 +5,7 @@
+ package math
+ 
+ /*
+- *	log returns the natural logarithm of its floating
++ *	Log returns the natural logarithm of its floating
+  *	point argument.
+  *
+  *	The coefficients are #2705 from Hart & Cheney. (19.38D)
+@@ -16,7 +16,7 @@ package math
+ const
+ (
+ 	log2	=   .693147180559945309e0;
+-	ln10o1	=   .4342944819032518276511;
++	ln10u1	=   .4342944819032518276511;
+ 	sqrto2	=   .707106781186547524e0;
+ 	p0	=  -.240139179559210510e2;
+ 	p1	=   .309572928215376501e2;
+@@ -27,17 +27,12 @@ const
+ 	q2	=  -.891110902798312337e1;
+ )
+ 
+-export func
+-log(arg float64) float64
+-{
+-	var x, z, zsq, temp float64;
+-	var exp int;
+-
++export func Log(arg float64) float64 {
+ 	if arg <= 0 {
+ 		return sys.NaN();
+ 	}
+ 
+-	x,exp = sys.frexp(arg);
++	x, exp := sys.frexp(arg);
+ 	for x < 0.5 {
+ 		x = x*2;
+ 		exp = exp-1;
+@@ -47,21 +42,18 @@ log(arg float64) float64
+ 		exp = exp-1;
+ 	}
+ 
+-	z = (x-1) / (x+1);
+-	zsq = z*z;
++	z := (x-1) / (x+1);
++	zsq := z*z;
+ 
+-	temp = ((p3*zsq + p2)*zsq + p1)*zsq + p0;
++	temp := ((p3*zsq + p2)*zsq + p1)*zsq + p0;
+ 	temp = temp/(((zsq + q2)*zsq + q1)*zsq + q0);
+ 	temp = temp*z + float64(exp)*log2;
+ 	return temp;
+ }
+ 
+-export func
+-log10(arg float64) float64
+-{
+-
++export func Log10(arg float64) float64 {
+ 	if arg <= 0 {
+ 		return sys.NaN();
+ 	}
+-	return log(arg) * ln10o1;
++	return Log(arg) * ln10u1;
+ }
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index 2a6b19023d..9e63db74b9 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -4,20 +4,15 @@
+ 
+ package math
+ 
+-import		math "math"
++import "math"
+ 
+ /*
+ 	arg1 ^ arg2 (exponentiation)
+  */
+ 
+-export func
+-pow(arg1,arg2 float64) float64
+-{
+-	var temp float64;
+-	var l int32;
+-
++export func Pow(arg1,arg2 float64) float64 {
+ 	if arg2 < 0 {
+-		return 1/pow(arg1, -arg2);
++		return 1/Pow(arg1, -arg2);
+ 	}
+ 	if arg1 <= 0 {
+ 		if(arg1 == 0) {
+@@ -27,30 +22,30 @@ pow(arg1,arg2 float64) float64
+ 			return 0;
+ 		}
+ 
+-		temp = floor(arg2);
++		temp := Floor(arg2);
+ 		if temp != arg2 {
+ 			panic(sys.NaN());
+ 		}
+ 
+-		l = int32(temp);
++		l := int32(temp);
+ 		if l&1 != 0 {
+-			return -pow(-arg1, arg2);
++			return -Pow(-arg1, arg2);
+ 		}
+-		return pow(-arg1, arg2);
++		return Pow(-arg1, arg2);
+ 	}
+ 
+-	temp = floor(arg2);
++	temp := Floor(arg2);
+ 	if temp != arg2 {
+ 		if arg2-temp == .5 {
+ 			if temp == 0 {
+-				return sqrt(arg1);
++				return Sqrt(arg1);
+ 			}
+-			return pow(arg1, temp) * sqrt(arg1);
++			return Pow(arg1, temp) * Sqrt(arg1);
+ 		}
+-		return exp(arg2 * log(arg1));
++		return Exp(arg2 * Log(arg1));
+ 	}
+ 
+-	l = int32(temp);
++	l := int32(temp);
+ 	temp = 1;
+ 	for {
+ 		if l&1 != 0 {
+diff --git a/src/lib/math/pow10.go b/src/lib/math/pow10.go
+index 6c02655db8..e1e9c2e056 100644
+--- a/src/lib/math/pow10.go
++++ b/src/lib/math/pow10.go
+@@ -16,22 +16,18 @@ package math
+ const	tabsize		= 70;
+ var	tab[tabsize]	float64;
+ 
+-export func
+-pow10(e int) float64 
+-{
++export func Pow10(e int) float64 {
+ 	if e < 0 {
+-		return 1/pow10(-e);
++		return 1/Pow10(-e);
+ 	}
+ 	if e < tabsize {
+ 		return tab[e];
+ 	}
+ 	m := e/2;
+-	return pow10(m) * pow10(e-m);
++	return Pow10(m) * Pow10(e-m);
+ }
+ 
+-func
+-init()
+-{
++func init() {
+ 	tab[0] = 1.0e0;
+ 	tab[1] = 1.0e1;
+ 	for i:=2; i<tabsize; i++ {
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index cc8e39fbcb..635e60d219 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -18,25 +18,22 @@ const
+         piu2	=  .6366197723675813430755350e0;	// 2/pi
+ )
+ 
+-func
+-sinus(arg float64, quad int) float64
+-{
+-	var e, f, ysq, x, y, temp1, temp2 float64;
+-	var k int32;
+-
+-	x = arg;
++func Sinus(arg float64, quad int) float64 {
++	x := arg;
+ 	if(x < 0) {
+ 		x = -x;
+ 		quad = quad+2;
+ 	}
+ 	x = x * piu2;	/* underflow? */
++	var y float64;
+ 	if x > 32764 {
+-		e,y = sys.modf(x);
++		var e float64;
++		e, y = sys.modf(x);
+ 		e = e + float64(quad);
+-		temp1,f = sys.modf(0.25*e);
++		temp1, f := sys.modf(0.25*e);
+ 		quad = int(e - 4*f);
+ 	} else {
+-		k = int32(x);
++		k := int32(x);
+ 		y = x - float64(k);
+ 		quad = (quad + int(k)) & 3;
+ 	}
+@@ -48,23 +45,19 @@ sinus(arg float64, quad int) float64
+ 		y = -y;
+ 	}
+ 
+-	ysq = y*y;
+-	temp1 = ((((p4*ysq+p3)*ysq+p2)*ysq+p1)*ysq+p0)*y;
+-	temp2 = ((((ysq+q3)*ysq+q2)*ysq+q1)*ysq+q0);
++	ysq := y*y;
++	temp1 := ((((p4*ysq+p3)*ysq+p2)*ysq+p1)*ysq+p0)*y;
++	temp2 := ((((ysq+q3)*ysq+q2)*ysq+q1)*ysq+q0);
+ 	return temp1/temp2;
+ }
+ 
+-export func
+-cos(arg float64) float64
+-{
++export func Cos(arg float64) float64 {
+ 	if arg < 0 {
+ 		arg = -arg;
+ 	}
+-	return sinus(arg, 1);
++	return Sinus(arg, 1);
+ }
+ 
+-export func
+-sin(arg float64) float64
+-{
+-	return sinus(arg, 0);
++export func Sin(arg float64) float64 {
++	return Sinus(arg, 0);
+ }
+diff --git a/src/lib/math/sinh.go b/src/lib/math/sinh.go
+index a3684c46a3..e1fde0ac27 100644
+--- a/src/lib/math/sinh.go
++++ b/src/lib/math/sinh.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "math"
++import "math"
+ 
+ /*
+  *	sinh(arg) returns the hyperbolic sine of its floating-
+@@ -31,27 +31,23 @@ const
+ 	q2	= -0.173678953558233699533450911e+3;
+ )
+ 
+-export func
+-sinh(arg float64) float64
+-{
+-	var temp, argsq float64;
+-	var sign bool;
+-
+-	sign = false;
++export func Sinh(arg float64) float64 {
++	sign := false;
+ 	if arg < 0 {
+ 		arg = -arg;
+ 		sign = true;
+ 	}
+ 
++	var temp float64;
+ 	switch true {
+ 	case arg > 21:
+-		temp = exp(arg)/2;
++		temp = Exp(arg)/2;
+ 
+ 	case arg > 0.5:
+-		temp = (exp(arg) - exp(-arg))/2;
++		temp = (Exp(arg) - Exp(-arg))/2;
+ 
+ 	default:
+-		argsq = arg*arg;
++		argsq := arg*arg;
+ 		temp = (((p3*argsq+p2)*argsq+p1)*argsq+p0)*arg;
+ 		temp = temp/(((argsq+q2)*argsq+q1)*argsq+q0);
+ 	}
+@@ -62,14 +58,12 @@ sinh(arg float64) float64
+ 	return temp;
+ }
+ 
+-export func
+-cosh(arg float64) float64
+-{
++export func Cosh(arg float64) float64 {
+ 	if arg < 0 {
+ 		arg = - arg;
+ 	}
+ 	if arg > 21 {
+-		return exp(arg)/2;
++		return Exp(arg)/2;
+ 	}
+-	return (exp(arg) + exp(-arg))/2;
++	return (Exp(arg) + Exp(-arg))/2;
+ }
+diff --git a/src/lib/math/sqrt.go b/src/lib/math/sqrt.go
+index 76b499e880..6459b31acd 100644
+--- a/src/lib/math/sqrt.go
++++ b/src/lib/math/sqrt.go
+@@ -11,12 +11,7 @@ package math
+  *	calls frexp
+  */
+ 
+-export func
+-sqrt(arg float64) float64
+-{
+-	var x, temp float64;
+-	var exp, i int;
+-
++export func Sqrt(arg float64) float64 {
+ 	if sys.isInf(arg, 1) {
+ 		return arg;
+ 	}
+@@ -28,7 +23,7 @@ sqrt(arg float64) float64
+ 		return 0;
+ 	}
+ 
+-	x,exp = sys.frexp(arg);
++	x,exp := sys.frexp(arg);
+ 	for x < 0.5 {
+ 		x = x*2;
+ 		exp = exp-1;
+@@ -38,7 +33,7 @@ sqrt(arg float64) float64
+ 		x = x*2;
+ 		exp = exp-1;
+ 	}
+-	temp = 0.5 * (1+x);
++	temp := 0.5 * (1+x);
+ 
+ 	for exp > 60 {
+ 		temp = temp * float64(1<<30);
+@@ -56,7 +51,7 @@ sqrt(arg float64) float64
+ 		temp = temp / float64(exp);
+ 	}
+ 
+-	for i=0; i<=4; i=i+1 {
++	for i:=0; i<=4; i++ {
+ 		temp = 0.5*(temp + arg/temp);
+ 	}
+ 	return temp;
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+index ffcf7f661a..fff36c67bc 100644
+--- a/src/lib/math/tan.go
++++ b/src/lib/math/tan.go
+@@ -22,23 +22,18 @@ const
+         piu4	=  .1273239544735162686151070107e+1;	// 4/pi
+ )
+ 
+-export func
+-tan(arg float64) float64
+-{
+-	var temp, e, x, xsq float64;
+-	var i int32;
+-	var flag, sign bool;
+-
+-	flag = false;
+-	sign = false;
+-	x = arg;
++export func Tan(arg float64) float64 {
++	flag := false;
++	sign := false;
++	x := arg;
+ 	if(x < 0) {
+ 		x = -x;
+ 		sign = true;
+ 	}
+ 	x = x * piu4;   /* overflow? */
+-	e,x = sys.modf(x);
+-	i = int32(e);
++	var e float64;
++	e, x = sys.modf(x);
++	i := int32(e);
+ 
+ 	switch i & 3 {
+ 	case 1:
+@@ -54,8 +49,8 @@ tan(arg float64) float64
+ 		sign = !sign;
+ 	}
+ 
+-	xsq = x*x;
+-	temp = ((((p4*xsq+p3)*xsq+p2)*xsq+p1)*xsq+p0)*x;
++	xsq := x*x;
++	temp := ((((p4*xsq+p3)*xsq+p2)*xsq+p1)*xsq+p0)*x;
+ 	temp = temp/(((xsq+q2)*xsq+q1)*xsq+q0);
+ 
+ 	if flag {
+diff --git a/src/lib/math/tanh.go b/src/lib/math/tanh.go
+index dc6a0dd4a7..45f7723ee9 100644
+--- a/src/lib/math/tanh.go
++++ b/src/lib/math/tanh.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import		math "math"
++import "math"
+ 
+ /*
+  *	tanh(arg) computes the hyperbolic tangent of its floating
+@@ -14,18 +14,16 @@ import		math "math"
+  *	would cause overflow improperly.
+  */
+ 
+-export func
+-tanh(arg float64) float64
+-{
++export func Tanh(arg float64) float64 {
+ 	if arg < 0 {
+ 		arg = -arg;
+ 		if arg > 21 {
+ 			return -1;
+ 		}
+-		return -sinh(arg)/cosh(arg);
++		return -Sinh(arg)/Cosh(arg);
+ 	}
+ 	if arg > 21 {
+ 		return 1;
+ 	}
+-	return sinh(arg)/cosh(arg);
++	return Sinh(arg)/Cosh(arg);
+ }
+diff --git a/src/lib/math/test.go b/src/lib/math/test.go
+new file mode 100644
+index 0000000000..b4eb8bb0eb
+--- /dev/null
++++ b/src/lib/math/test.go
+@@ -0,0 +1,273 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && (./$A.out || echo BUG: math fails)
++
++package math
++
++import (
++	"math";
++	"testing";
++)
++
++var vf = []float64 {
++	  4.9790119248836735e+00,
++	  7.7388724745781045e+00,
++	 -2.7688005719200159e-01,
++	 -5.0106036182710749e+00,
++	  9.6362937071984173e+00,
++	  2.9263772392439646e+00,
++	  5.2290834314593066e+00,
++	  2.7279399104360102e+00,
++	  1.8253080916808550e+00,
++	 -8.6859247685756013e+00,
++}
++var asin = []float64 {
++	  5.2117697218417440e-01,
++	  8.8495619865825236e-01,
++	 -2.7691544662819413e-02,
++	 -5.2482360935268932e-01,
++	  1.3002662421166553e+00,
++	  2.9698415875871901e-01,
++	  5.5025938468083364e-01,
++	  2.7629597861677200e-01,
++	  1.8355989225745148e-01,
++	 -1.0523547536021498e+00,
++}
++var atan = []float64 {
++	  1.3725902621296217e+00,
++	  1.4422906096452980e+00,
++	 -2.7011324359471755e-01,
++	 -1.3738077684543379e+00,
++	  1.4673921193587666e+00,
++	  1.2415173565870167e+00,
++	  1.3818396865615167e+00,
++	  1.2194305844639670e+00,
++	  1.0696031952318783e+00,
++	 -1.4561721938838085e+00,
++}
++var exp = []float64 {
++	  1.4533071302642137e+02,
++	  2.2958822575694450e+03,
++	  7.5814542574851664e-01,
++	  6.6668778421791010e-03,
++	  1.5310493273896035e+04,
++	  1.8659907517999329e+01,
++	  1.8662167355098713e+02,
++	  1.5301332413189379e+01,
++	  6.2047063430646876e+00,
++	  1.6894712385826522e-04,
++}
++var floor = []float64 {
++	  4.0000000000000000e+00,
++	  7.0000000000000000e+00,
++	 -1.0000000000000000e+00,
++	 -6.0000000000000000e+00,
++	  9.0000000000000000e+00,
++	  2.0000000000000000e+00,
++	  5.0000000000000000e+00,
++	  2.0000000000000000e+00,
++	  1.0000000000000000e+00,
++	 -9.0000000000000000e+00,
++}
++var log = []float64 {
++	  1.6052314626930630e+00,
++	  2.0462560018708768e+00,
++	 -1.2841708730962657e+00,
++	  1.6115563905281544e+00,
++	  2.2655365644872018e+00,
++	  1.0737652208918380e+00,
++	  1.6542360106073545e+00,
++	  1.0035467127723465e+00,
++	  6.0174879014578053e-01,
++	  2.1617038728473527e+00,
++}
++var pow = []float64 {
++	  9.5282232631648415e+04,
++	  5.4811599352999900e+07,
++	  5.2859121715894400e-01,
++	  9.7587991957286472e-06,
++	  4.3280643293460450e+09,
++	  8.4406761805034551e+02,
++	  1.6946633276191194e+05,
++	  5.3449040147551940e+02,
++	  6.6881821384514159e+01,
++	  2.0609869004248744e-09,
++}
++var sin = []float64 {
++	 -9.6466616586009283e-01,
++	  9.9338225271646543e-01,
++	 -2.7335587039794395e-01,
++	  9.5586257685042800e-01,
++	 -2.0994210667799692e-01,
++	  2.1355787807998605e-01,
++	 -8.6945689711673619e-01,
++	  4.0195666811555783e-01,
++	  9.6778633541688000e-01,
++	 -6.7344058690503452e-01,
++}
++var sinh = []float64 {
++	  7.2661916084208533e+01,
++	  1.1479409110035194e+03,
++	 -2.8043136512812520e-01,
++	 -7.4994290911815868e+01,
++	  7.6552466042906761e+03,
++	  9.3031583421672010e+00,
++	  9.3308157558281088e+01,
++	  7.6179893137269143e+00,
++	  3.0217691805496156e+00,
++	 -2.9595057572444951e+03,
++}
++var sqrt = []float64 {
++	  2.2313699659365484e+00,
++	  2.7818829009464263e+00,
++	  5.2619393496314792e-01,
++	  2.2384377628763938e+00,
++	  3.1042380236055380e+00,
++	  1.7106657298385224e+00,
++	  2.2867189227054791e+00,
++	  1.6516476350711160e+00,
++	  1.3510396336454586e+00,
++	  2.9471892997524950e+00,
++}
++var tan = []float64 {
++	 -3.6613165650402277e+00,
++	  8.6490023264859754e+00,
++	 -2.8417941955033615e-01,
++	  3.2532901859747287e+00,
++	  2.1472756403802937e-01,
++	 -2.1860091071106700e-01,
++	 -1.7600028178723679e+00,
++	 -4.3898089147528178e-01,
++	 -3.8438855602011305e+00,
++	  9.1098879337768517e-01,
++}
++var tanh = []float64 {
++	  9.9990531206936328e-01,
++	  9.9999962057085307e-01,
++	 -2.7001505097318680e-01,
++	 -9.9991110943061700e-01,
++	  9.9999999146798441e-01,
++	  9.9427249436125233e-01,
++	  9.9994257600983156e-01,
++	  9.9149409509772863e-01,
++	  9.4936501296239700e-01,
++	 -9.9999994291374019e-01,
++}
++
++func Close(a,b float64) bool {
++	d := a-b;
++	if d < 0 {
++		d = -d;
++	}
++
++	e := float64(1e-14);
++	if a != 0 {
++		e = e*a;
++		if e < 0 {
++			e = -e;
++		}
++	}
++	return d < e;
++}
++
++export func TestAsin(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Asin(vf[i]/10); !Close(asin[i], f) {
++			t.Errorf("math.Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i]);
++		}
++	}
++}
++
++export func TestAtan(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Atan(vf[i]); !Close(atan[i], f) {
++			t.Errorf("math.Atan(%g) = %g, want %g\n", vf[i], f, atan[i]);
++		}
++	}
++}
++
++export func TestExp(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Exp(vf[i]); !Close(exp[i], f) {
++			t.Errorf("math.Exp(%g) = %g, want %g\n", vf[i], f, exp[i]);
++		}
++	}
++}
++
++export func TestFloor(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Floor(vf[i]); !Close(floor[i], f) {
++			t.Errorf("math.Floor(%g) = %g, want %g\n", vf[i], f, floor[i]);
++		}
++	}
++}
++
++export func TestLog(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := math.Fabs(vf[i]);
++		if f := math.Log(a); !Close(log[i], f) {
++			t.Errorf("math.Log(%g) = %g, want %g\n", a, f, floor[i]);
++		}
++	}
++}
++
++export func TestPow(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Pow(10, vf[i]); !Close(pow[i], f) {
++			t.Errorf("math.Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i]);
++		}
++	}
++}
++
++export func TestSin(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Sin(vf[i]); !Close(sin[i], f) {
++			t.Errorf("math.Sin(%g) = %g, want %g\n", vf[i], f, sin[i]);
++		}
++	}
++}
++
++export func TestSinh(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Sinh(vf[i]); !Close(sinh[i], f) {
++			t.Errorf("math.Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i]);
++		}
++	}
++}
++
++export func TestSqrt(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := math.Fabs(vf[i]);
++		if f := math.Sqrt(a); !Close(sqrt[i], f) {
++			t.Errorf("math.Sqrt(%g) = %g, want %g\n", a, f, floor[i]);
++		}
++	}
++}
++
++export func TestTan(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Tan(vf[i]); !Close(tan[i], f) {
++			t.Errorf("math.Tan(%g) = %g, want %g\n", vf[i], f, tan[i]);
++		}
++	}
++}
++
++export func TestTanh(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := math.Tanh(vf[i]); !Close(tanh[i], f) {
++			t.Errorf("math.Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i]);
++		}
++	}
++}
++
++export func TestHypot(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := math.Fabs(tanh[i]*math.Sqrt(2));
++		if f := math.Hypot(tanh[i], tanh[i]); !Close(a, f) {
++			t.Errorf("math.Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a);
++		}
++	}
++}
++
+diff --git a/test/mathtest.go b/test/mathtest.go
+deleted file mode 100644
+index acfb9bab72..0000000000
+--- a/test/mathtest.go
++++ /dev/null
+@@ -1,211 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $F.go && $L $F.$A && (./$A.out || echo BUG: math fails)
+-
+-package main
+-
+-import (
+-	"fmt";
+-	"math";
+-)
+-
+-const	length	= 10;
+-
+-var
+-(
+-	vf	[length]float64;
+-	asin	[length]float64;
+-	atan	[length]float64;
+-	exp	[length]float64;
+-	floor	[length]float64;
+-	log	[length]float64;
+-	pow	[length]float64;
+-	sin	[length]float64;
+-	sinh	[length]float64;
+-	sqrt	[length]float64;
+-	tan	[length]float64;
+-	tanh	[length]float64;
+-)
+-
+-func	ck(a,b float64);
+-
+-func
+-main()
+-{
+-	for i:=0; i<length; i++ {
+-		f := vf[i];
+-
+-		ck(asin[i], math.asin(f/10));
+-		ck(atan[i], math.atan(f));
+-		ck(exp[i], math.exp(f));
+-		ck(floor[i], math.floor(f));
+-		ck(log[i], math.log(math.fabs(f)));
+-		ck(pow[i], math.pow(10, f));
+-		ck(sin[i], math.sin(f));
+-		ck(sinh[i], math.sinh(f));
+-		ck(sqrt[i], math.sqrt(math.fabs(f)));
+-		ck(tan[i], math.tan(f));
+-		ck(tanh[i], math.tanh(f));
+-		ck(math.fabs(tanh[i]*math.sqrt(2)),
+-			math.hypot(tanh[i], tanh[i]));
+-	}
+-}
+-
+-func
+-ck(a,b float64)
+-{
+-	d := a-b;
+-	if d < 0 {
+-		d = -d;
+-	}
+-
+-	e := float64(1e-13);
+-	if a != 0 {
+-		e = e*a;
+-		if e < 0 {
+-			e = -e;
+-		}
+-	}
+-
+-	if d > e {
+-		panic(fmt.sprintf("%.17g %.17g", a, b));
+-	}
+-}
+-
+-func
+-init()
+-{
+-	vf[0]		=  4.9790119248836735e+00;
+-	vf[1]		=  7.7388724745781045e+00;
+-	vf[2]		= -2.7688005719200159e-01;
+-	vf[3]		= -5.0106036182710749e+00;
+-	vf[4]		=  9.6362937071984173e+00;
+-	vf[5]		=  2.9263772392439646e+00;
+-	vf[6]		=  5.2290834314593066e+00;
+-	vf[7]		=  2.7279399104360102e+00;
+-	vf[8]		=  1.8253080916808550e+00;
+-	vf[9]		= -8.6859247685756013e+00;
+-
+-	asin[0]		=  5.2117697218417440e-01;
+-	asin[1]		=  8.8495619865825236e-01;
+-	asin[2]		= -2.7691544662819413e-02;
+-	asin[3]		= -5.2482360935268932e-01;
+-	asin[4]		=  1.3002662421166553e+00;
+-	asin[5]		=  2.9698415875871901e-01;
+-	asin[6]		=  5.5025938468083364e-01;
+-	asin[7]		=  2.7629597861677200e-01;
+-	asin[8]		=  1.8355989225745148e-01;
+-	asin[9]		= -1.0523547536021498e+00;
+-
+-	atan[0]		=  1.3725902621296217e+00;
+-	atan[1]		=  1.4422906096452980e+00;
+-	atan[2]		= -2.7011324359471755e-01;
+-	atan[3]		= -1.3738077684543379e+00;
+-	atan[4]		=  1.4673921193587666e+00;
+-	atan[5]		=  1.2415173565870167e+00;
+-	atan[6]		=  1.3818396865615167e+00;
+-	atan[7]		=  1.2194305844639670e+00;
+-	atan[8]		=  1.0696031952318783e+00;
+-	atan[9]		= -1.4561721938838085e+00;
+-
+-	exp[0]		=  1.4533071302642137e+02;
+-	exp[1]		=  2.2958822575694450e+03;
+-	exp[2]		=  7.5814542574851664e-01;
+-	exp[3]		=  6.6668778421791010e-03;
+-	exp[4]		=  1.5310493273896035e+04;
+-	exp[5]		=  1.8659907517999329e+01;
+-	exp[6]		=  1.8662167355098713e+02;
+-	exp[7]		=  1.5301332413189379e+01;
+-	exp[8]		=  6.2047063430646876e+00;
+-	exp[9]		=  1.6894712385826522e-04;
+-
+-	floor[0]	=  4.0000000000000000e+00;
+-	floor[1]	=  7.0000000000000000e+00;
+-	floor[2]	= -1.0000000000000000e+00;
+-	floor[3]	= -6.0000000000000000e+00;
+-	floor[4]	=  9.0000000000000000e+00;
+-	floor[5]	=  2.0000000000000000e+00;
+-	floor[6]	=  5.0000000000000000e+00;
+-	floor[7]	=  2.0000000000000000e+00;
+-	floor[8]	=  1.0000000000000000e+00;
+-	floor[9]	= -9.0000000000000000e+00;
+-
+-	log[0]		=  1.6052314626930630e+00;
+-	log[1]		=  2.0462560018708768e+00;
+-	log[2]		= -1.2841708730962657e+00;
+-	log[3]		=  1.6115563905281544e+00;
+-	log[4]		=  2.2655365644872018e+00;
+-	log[5]		=  1.0737652208918380e+00;
+-	log[6]		=  1.6542360106073545e+00;
+-	log[7]		=  1.0035467127723465e+00;
+-	log[8]		=  6.0174879014578053e-01;
+-	log[9]		=  2.1617038728473527e+00;
+-
+-	pow[0]		=  9.5282232631648415e+04;
+-	pow[1]		=  5.4811599352999900e+07;
+-	pow[2]		=  5.2859121715894400e-01;
+-	pow[3]		=  9.7587991957286472e-06;
+-	pow[4]		=  4.3280643293460450e+09;
+-	pow[5]		=  8.4406761805034551e+02;
+-	pow[6]		=  1.6946633276191194e+05;
+-	pow[7]		=  5.3449040147551940e+02;
+-	pow[8]		=  6.6881821384514159e+01;
+-	pow[9]		=  2.0609869004248744e-09;
+-
+-	sin[0]		= -9.6466616586009283e-01;
+-	sin[1]		=  9.9338225271646543e-01;
+-	sin[2]		= -2.7335587039794395e-01;
+-	sin[3]		=  9.5586257685042800e-01;
+-	sin[4]		= -2.0994210667799692e-01;
+-	sin[5]		=  2.1355787807998605e-01;
+-	sin[6]		= -8.6945689711673619e-01;
+-	sin[7]		=  4.0195666811555783e-01;
+-	sin[8]		=  9.6778633541688000e-01;
+-	sin[9]		= -6.7344058690503452e-01;
+-
+-	sinh[0]		=  7.2661916084208533e+01;
+-	sinh[1]		=  1.1479409110035194e+03;
+-	sinh[2]		= -2.8043136512812520e-01;
+-	sinh[3]		= -7.4994290911815868e+01;
+-	sinh[4]		=  7.6552466042906761e+03;
+-	sinh[5]		=  9.3031583421672010e+00;
+-	sinh[6]		=  9.3308157558281088e+01;
+-	sinh[7]		=  7.6179893137269143e+00;
+-	sinh[8]		=  3.0217691805496156e+00;
+-	sinh[9]		= -2.9595057572444951e+03;
+-
+-	sqrt[0]		=  2.2313699659365484e+00;
+-	sqrt[1]		=  2.7818829009464263e+00;
+-	sqrt[2]		=  5.2619393496314792e-01;
+-	sqrt[3]		=  2.2384377628763938e+00;
+-	sqrt[4]		=  3.1042380236055380e+00;
+-	sqrt[5]		=  1.7106657298385224e+00;
+-	sqrt[6]		=  2.2867189227054791e+00;
+-	sqrt[7]		=  1.6516476350711160e+00;
+-	sqrt[8]		=  1.3510396336454586e+00;
+-	sqrt[9]		=  2.9471892997524950e+00;
+-
+-	tan[0]		= -3.6613165650402277e+00;
+-	tan[1]		=  8.6490023264859754e+00;
+-	tan[2]		= -2.8417941955033615e-01;
+-	tan[3]		=  3.2532901859747287e+00;
+-	tan[4]		=  2.1472756403802937e-01;
+-	tan[5]		= -2.1860091071106700e-01;
+-	tan[6]		= -1.7600028178723679e+00;
+-	tan[7]		= -4.3898089147528178e-01;
+-	tan[8]		= -3.8438855602011305e+00;
+-	tan[9]		=  9.1098879337768517e-01;
+-
+-	tanh[0]		=  9.9990531206936328e-01;
+-	tanh[1]		=  9.9999962057085307e-01;
+-	tanh[2]		= -2.7001505097318680e-01;
+-	tanh[3]		= -9.9991110943061700e-01;
+-	tanh[4]		=  9.9999999146798441e-01;
+-	tanh[5]		=  9.9427249436125233e-01;
+-	tanh[6]		=  9.9994257600983156e-01;
+-	tanh[7]		=  9.9149409509772863e-01;
+-	tanh[8]		=  9.4936501296239700e-01;
+-	tanh[9]		= -9.9999994291374019e-01;
+-}

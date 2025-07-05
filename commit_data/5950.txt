@@ -8,6 +8,19 @@ Date:   Wed Aug 4 13:33:24 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/1850052
-
+---
  src/pkg/bytes/bytes_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 5d3e9f66a1..b91ae5734d 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -212,6 +212,7 @@ type ExplodeTest struct {
+ }
+ 
+ var explodetests = []ExplodeTest{
++	ExplodeTest{"", -1, []string{}},
+ 	ExplodeTest{abcd, -1, []string{"a", "b", "c", "d"}},
+ 	ExplodeTest{faces, -1, []string{"☺", "☻", "☹"}},
+ 	ExplodeTest{abcd, 2, []string{"a", "bcd"}},

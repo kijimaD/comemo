@@ -10,6 +10,23 @@ Date:   Wed May 22 11:03:10 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9658043
-
+---
  src/pkg/log/syslog/syslog.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 8bdd9825e1..3d7ab6febd 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -258,10 +258,9 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
+ 	}
+ 
+ 	timestamp := time.Now().Format(time.RFC3339)
+-	fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
++	return fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
+ 		p, timestamp, w.hostname,
+ 		w.tag, os.Getpid(), msg, nl)
+-	return len(msg), nil
+ }
+ 
+ // NewLogger creates a log.Logger whose output is written to

@@ -14,6 +14,20 @@ Date:   Mon May 1 12:41:56 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mpagealloc_64bit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index 0ebeafad61..1418831a50 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -90,7 +90,7 @@ func (p *pageAlloc) sysInit(test bool) {
+ // sysGrow performs architecture-dependent operations on heap
+ // growth for the page allocator, such as mapping in new memory
+ // for summaries. It also updates the length of the slices in
+-// [.summary.
++// p.summary.
+ //
+ // base is the base of the newly-added heap memory and limit is
+ // the first address past the end of the newly-added heap memory.

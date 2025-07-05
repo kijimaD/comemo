@@ -10,7 +10,58 @@ Date:   Mon Jan 12 14:03:59 2015 -0800
     Change-Id: I21da2d63a60d8ae278ade9bb71ae0c314a2cf9b5
     Reviewed-on: https://go-review.googlesource.com/2674
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/dist/sys_windows.go |  2 +-
  src/make.bat                | 16 ++++++++++++----
  2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index c6867fb895..e9bfe9e3d9 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -11,7 +11,7 @@ import (
+ 
+ var (
+ 	modkernel32       = syscall.NewLazyDLL("kernel32.dll")
+-	procGetSystemInfo = syscall.NewProc("GetSystemInfo")
++	procGetSystemInfo = modkernel32.NewProc("GetSystemInfo")
+ )
+ 
+ // see http://msdn.microsoft.com/en-us/library/windows/desktop/ms724958(v=vs.85).aspx
+diff --git a/src/make.bat b/src/make.bat
+index 8d035b0d22..945c8cc5f9 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -56,13 +56,17 @@ cd src
+ if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
+ set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
+ 
+-echo ##### Building C bootstrap tool.
++echo ##### Building Go bootstrap tool.
+ echo cmd/dist
+ if not exist ..\bin\tool mkdir ..\bin\tool
+-:: Windows has no glob expansion, so spell out cmd/dist/*.c.
+-gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildgo.c cmd/dist/buildruntime.c cmd/dist/main.c cmd/dist/windows.c cmd/dist/arm.c
++if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
++if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
++setlocal
++set GOROOT=%GOROOT_BOOTSTRAP%
++"%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
++endlocal
+ if errorlevel 1 goto fail
+-.\cmd\dist\dist env -wp >env.bat
++.\cmd\dist\dist env -w -p >env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+@@ -113,6 +117,10 @@ mkdir "%GOTOOLDIR%" 2>NUL
+ copy cmd\dist\dist.exe "%GOTOOLDIR%\"
+ goto end
+ 
++:bootstrapfail
++echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
++echo "Set GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4."
++
+ :fail
+ set GOBUILDFAIL=1
+ if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%

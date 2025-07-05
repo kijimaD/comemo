@@ -13,9 +13,123 @@ Date:   Tue Jan 4 20:53:23 2022 +0800
     Run-TryBot: Zhuo Meng <mzh@golangcn.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  misc/cgo/testsanitizers/cc_test.go |  2 +-
  src/cmd/internal/sys/supported.go  |  2 +-
  src/runtime/asan/asan.go           |  2 +-
  src/runtime/asan_riscv64.s         | 68 ++++++++++++++++++++++++++++++++++++++
  4 files changed, 71 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 31850e2441..d2f3bb1ed9 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -493,7 +493,7 @@ func mSanSupported(goos, goarch string) bool {
+ func aSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+-		return goarch == "amd64" || goarch == "arm64"
++		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64"
+ 	default:
+ 		return false
+ 	}
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index d36a4baec7..1d74f6b5e6 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -40,7 +40,7 @@ func MSanSupported(goos, goarch string) bool {
+ func ASanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+-		return goarch == "arm64" || goarch == "amd64"
++		return goarch == "arm64" || goarch == "amd64" || goarch == "riscv64"
+ 	default:
+ 		return false
+ 	}
+diff --git a/src/runtime/asan/asan.go b/src/runtime/asan/asan.go
+index 3e41d60d93..4359f41e3f 100644
+--- a/src/runtime/asan/asan.go
++++ b/src/runtime/asan/asan.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build asan && linux && (arm64 || amd64)
++//go:build asan && linux && (arm64 || amd64 || riscv64)
+ 
+ package asan
+ 
+diff --git a/src/runtime/asan_riscv64.s b/src/runtime/asan_riscv64.s
+new file mode 100644
+index 0000000000..6fcd94d4b1
+--- /dev/null
++++ b/src/runtime/asan_riscv64.s
+@@ -0,0 +1,68 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++
++#include "go_asm.h"
++#include "textflag.h"
++
++// Called from instrumented code.
++// func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
++TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
++	MOV	addr+0(FP), X10
++	MOV	sz+8(FP), X11
++	MOV	sp+16(FP), X12
++	MOV	pc+24(FP), X13
++	// void __asan_read_go(void *addr, uintptr_t sz);
++	MOV	$__asan_read_go(SB), X14
++	JMP	asancall<>(SB)
++
++// func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
++TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
++	MOV	addr+0(FP), X10
++	MOV	sz+8(FP), X11
++	MOV	sp+16(FP), X12
++	MOV	pc+24(FP), X13
++	// void __asan_write_go(void *addr, uintptr_t sz);
++	MOV	$__asan_write_go(SB), X14
++	JMP	asancall<>(SB)
++
++// func runtime·asanunpoison(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanunpoison(SB), NOSPLIT, $0-16
++	MOV	addr+0(FP), X10
++	MOV	sz+8(FP), X11
++	// void __asan_unpoison_go(void *addr, uintptr_t sz);
++	MOV	$__asan_unpoison_go(SB), X14
++	JMP	asancall<>(SB)
++
++// func runtime·asanpoison(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
++	MOV	addr+0(FP), X10
++	MOV	sz+8(FP), X11
++	// void __asan_poison_go(void *addr, uintptr_t sz);
++	MOV	$__asan_poison_go(SB), X14
++	JMP	asancall<>(SB)
++
++// func runtime·asanregisterglobals(addr unsafe.Pointer, n uintptr)
++TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
++	MOV	addr+0(FP), X10
++	MOV	n+8(FP), X11
++	// void __asan_register_globals_go(void *addr, uintptr_t n);
++	MOV	$__asan_register_globals_go(SB), X14
++	JMP	asancall<>(SB)
++
++// Switches SP to g0 stack and calls (X14). Arguments already set.
++TEXT	asancall<>(SB), NOSPLIT, $0-0
++	MOV	X2, X8		// callee-saved
++	BEQZ	g, g0stack	// no g, still on a system stack
++	MOV	g_m(g), X21
++	MOV	m_g0(X21), X21
++	BEQ	X21, g, g0stack
++
++	MOV	(g_sched+gobuf_sp)(X21), X2
++
++g0stack:
++	JALR	RA, X14
++	MOV	X8, X2
++	RET

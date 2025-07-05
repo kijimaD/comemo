@@ -26,7 +26,68 @@ Date:   Tue Nov 23 18:03:47 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/objfile/objfile.go | 9 +++++++++
  src/debug/gosym/pclntab.go          | 8 ++++----
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index dcfd158ec2..d890a0b756 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -152,6 +152,15 @@ func (e *Entry) PCLineTable() (Liner, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	syms, err := e.raw.symbols()
++	if err == nil {
++		for _, s := range syms {
++			if s.Name == "runtime.text" {
++				textStart = s.Addr
++				break
++			}
++		}
++	}
+ 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+ }
+ 
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index a687c406b2..d9ae8b73a9 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -54,7 +54,7 @@ type LineTable struct {
+ 	binary      binary.ByteOrder
+ 	quantum     uint32
+ 	ptrsize     uint32
+-	textStart   uintptr // address of runtime.text symbol (1.18+)
++	textStart   uint64 // address of runtime.text symbol (1.18+)
+ 	funcnametab []byte
+ 	cutab       []byte
+ 	funcdata    []byte
+@@ -249,7 +249,7 @@ func (t *LineTable) parsePclnTab() {
+ 	case ver118:
+ 		t.nfunctab = uint32(offset(0))
+ 		t.nfiletab = uint32(offset(1))
+-		t.textStart = uintptr(offset(2))
++		t.textStart = t.PC // use the start PC instead of reading from the table, which may be unrelocated
+ 		t.funcnametab = data(3)
+ 		t.cutab = data(4)
+ 		t.filetab = data(5)
+@@ -402,7 +402,7 @@ func (f funcTab) Count() int {
+ func (f funcTab) pc(i int) uint64 {
+ 	u := f.uint(f.functab[2*i*f.sz:])
+ 	if f.version >= ver118 {
+-		u += uint64(f.textStart)
++		u += f.textStart
+ 	}
+ 	return u
+ }
+@@ -444,7 +444,7 @@ func (f *funcData) entryPC() uint64 {
+ 	if f.t.version >= ver118 {
+ 		// TODO: support multiple text sections.
+ 		// See runtime/symtab.go:(*moduledata).textAddr.
+-		return uint64(f.t.binary.Uint32(f.data)) + uint64(f.t.textStart)
++		return uint64(f.t.binary.Uint32(f.data)) + f.t.textStart
+ 	}
+ 	return f.t.uintptr(f.data)
+ }

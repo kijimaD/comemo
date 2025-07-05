@@ -24,8 +24,45 @@ Date:   Mon Nov 12 21:54:16 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_libinit_windows.c | 1 +
  src/runtime/cgo/gcc_windows_386.c     | 1 +
  src/runtime/cgo/gcc_windows_amd64.c   | 1 +
  3 files changed, 3 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index b6f51b3e4d..248d59fd69 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -9,6 +9,7 @@
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <errno.h>
+ 
+ #include "libcgo.h"
+ 
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index f2ff710f60..9184b91393 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -7,6 +7,7 @@
+ #include <process.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <errno.h>
+ #include "libcgo.h"
+ 
+ static void threadentry(void*);
+diff --git a/src/runtime/cgo/gcc_windows_amd64.c b/src/runtime/cgo/gcc_windows_amd64.c
+index 511ab44fa9..7192a24631 100644
+--- a/src/runtime/cgo/gcc_windows_amd64.c
++++ b/src/runtime/cgo/gcc_windows_amd64.c
+@@ -7,6 +7,7 @@
+ #include <process.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <errno.h>
+ #include "libcgo.h"
+ 
+ static void threadentry(void*);

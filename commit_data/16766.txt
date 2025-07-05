@@ -20,6 +20,38 @@ Date:   Mon Jul 15 10:52:38 2013 +1000
     R=golang-dev, minux.ma, adg
     CC=golang-dev
     https://golang.org/cl/10893044
-
+---
  misc/dist/darwin/scripts/postinstall | 21 +++++++++++++++++----
  1 file changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/misc/dist/darwin/scripts/postinstall b/misc/dist/darwin/scripts/postinstall
+index 4410a3004e..35c840a37b 100755
+--- a/misc/dist/darwin/scripts/postinstall
++++ b/misc/dist/darwin/scripts/postinstall
+@@ -10,9 +10,22 @@ find . -type d -exec chmod ugo+rx \{\} \;
+ chmod o-w .
+ 
+ echo "Installing miscellaneous files:"
+-XCODE_MISC_DIR="/Library/Application Support/Developer/Shared/Xcode/Specifications/"
+-if [ -d "$XCODE_MISC_DIR" ]; then
+-	echo "  XCode"
+-	cp $GOROOT/misc/xcode/* $XCODE_MISC_DIR
++XCODE_SHARED_DIR="/Library/Application Support/Developer/Shared/Xcode"
++XCODE_MISC_DIR="$XCODE_SHARED_DIR/Specifications/"
++if [ -d "$XCODE_SHARED_DIR" ]; then
++	# Create the XCODE_MISC_DIR if it doesn't exist already
++	mkdir -p "$XCODE_MISC_DIR"
++
++	version=`/usr/bin/xcodebuild -version | sed -n -E 's/^Xcode ([0-9]+)\..*$/\1/p'`
++        
++        # Since command line tools are optional with Xcode 4, a failure of the 
++	# xcodebuild -version command is interpreted as meaning Xcode 4 is the 
++	# version used.
++	if [[ $? -ne 0 ]]; then
++		version=4
++	fi
++
++        echo "  Xcode $version"
++	cp $GOROOT/misc/xcode/$version/* "$XCODE_MISC_DIR"
+ fi
+ 

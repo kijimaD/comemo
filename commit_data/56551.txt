@@ -26,7 +26,63 @@ Date:   Fri Mar 10 12:33:59 2023 +0000
     Auto-Submit: Damien Neil <dneil@google.com>
     Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/serve_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  2 +-
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 819152658b..a21518b563 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6756,3 +6756,37 @@ func testHeadBody(t *testing.T, mode testMode, chunked bool, method string) {
+ 		}
+ 	}
+ }
++
++// TestContentLengthResponseCanBeNilled verifies that the Content-Length is set by default
++// or disabled when the header is set to nil.
++func TestDisableContentLength(t *testing.T) { run(t, testDisableContentLength) }
++func testDisableContentLength(t *testing.T, mode testMode) {
++	if mode == http2Mode {
++		t.Skip("skipping until h2_bundle.go is updated; see https://go-review.googlesource.com/c/net/+/471535")
++	}
++
++	noCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header()["Content-Length"] = nil // disable the default Content-Length response
++		fmt.Fprintf(w, "OK")
++	}))
++
++	res, err := noCL.c.Get(noCL.ts.URL)
++	if err != nil {
++		t.Error(err)
++	}
++	if got, haveCL := res.Header["Content-Length"]; haveCL {
++		t.Errorf("Unexpected Content-Length: %q", got)
++	}
++
++	withCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "OK")
++	}))
++
++	res, err = withCL.c.Get(withCL.ts.URL)
++	if err != nil {
++		t.Error(err)
++	}
++	if got := res.Header.Get("Content-Length"); got != "2" {
++		t.Errorf("Content-Length: %q; want 2", got)
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9bd381ff48..e82669a180 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1317,7 +1317,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	// send a Content-Length header.
+ 	// Further, we don't send an automatic Content-Length if they
+ 	// set a Transfer-Encoding, because they're generally incompatible.
+-	if w.handlerDone.Load() && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
++	if w.handlerDone.Load() && !trailers && !hasTE && bodyAllowedForStatus(w.status) && !header.has("Content-Length") && (!isHEAD || len(p) > 0) {
+ 		w.contentLength = int64(len(p))
+ 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
+ 	}

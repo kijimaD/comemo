@@ -7,6 +7,21 @@ Date:   Mon Jul 4 10:26:03 2011 +1000
     R=golang-dev, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/4645078
-
+---
  src/pkg/go/build/path.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index 8ad39fb0f2..ea588abbd6 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -88,6 +88,9 @@ func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
+ 		if path, err = filepath.Abs(path); err != nil {
+ 			return
+ 		}
++		if path, err = filepath.EvalSymlinks(path); err != nil {
++			return
++		}
+ 		for _, t := range Path {
+ 			tpath := t.SrcDir() + string(filepath.Separator)
+ 			if !strings.HasPrefix(path, tpath) {

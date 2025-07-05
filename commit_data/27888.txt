@@ -11,6 +11,26 @@ Date:   Mon Apr 18 04:50:19 2016 -0400
     Change-Id: I3670145c7cac45cb4fb3121ffc039cfb7fa7c87a
     Reviewed-on: https://go-review.googlesource.com/22171
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e1b26d9c68..4dfae2743d 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5686,3 +5686,14 @@ func TestNameBytesAreAligned(t *testing.T) {
+ 		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
+ 	}
+ }
++
++func TestMethodPkgPathReadable(t *testing.T) {
++	// Reading the Method type for an unexported method triggers an
++	// offset resolution via p.name.pkgPath(). Make sure it uses a
++	// valid base pointer for the offset.
++	v := ValueOf(embed{})
++	m := v.Type().Method(0)
++	if m.PkgPath != "reflect" {
++		t.Errorf(`PkgPath=%q, want "reflect"`, m.PkgPath)
++	}
++}

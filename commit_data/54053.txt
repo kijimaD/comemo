@@ -27,8 +27,73 @@ Date:   Fri Sep 16 14:27:01 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 15 ++++++++-------
  src/go/internal/gcimporter/support.go         | 14 ++++++++++++++
  src/go/internal/gcimporter/ureader.go         |  5 +++++
  3 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 54fda86208..8c86bac54c 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -173,13 +173,14 @@ func TestImportTypeparamTests(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	skip := map[string]string{
+-		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+-		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
+-		"issue50417.go": "inconsistent interface member sorting",
+-		"issue53419.go": "fails to compile",
+-		"issue53477.go": "fails to compile",
+-		"issue55101.go": "fails to compile",
++	var skip map[string]string
++	if !goexperiment.Unified {
++		// The Go 1.18 frontend still fails several cases.
++		skip = map[string]string{
++			"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
++			"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
++			"issue55101.go": "fails to compile",
++		}
+ 	}
+ 
+ 	for _, entry := range list {
+diff --git a/src/go/internal/gcimporter/support.go b/src/go/internal/gcimporter/support.go
+index af3b6cbbcc..7ed8c9a404 100644
+--- a/src/go/internal/gcimporter/support.go
++++ b/src/go/internal/gcimporter/support.go
+@@ -167,3 +167,17 @@ type typeInfo struct {
+ 	idx     pkgbits.Index
+ 	derived bool
+ }
++
++// See cmd/compile/internal/types.SplitVargenSuffix.
++func splitVargenSuffix(name string) (base, suffix string) {
++	i := len(name)
++	for i > 0 && name[i-1] >= '0' && name[i-1] <= '9' {
++		i--
++	}
++	const dot = "·"
++	if i >= len(dot) && name[i-len(dot):i] == dot {
++		i -= len(dot)
++		return name[:i], name[i:]
++	}
++	return name, ""
++}
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 53bb9bacb0..ad8e9a43d9 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -469,6 +469,11 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 		return objPkg, objName
+ 	}
+ 
++	// Ignore local types promoted to global scope (#55110).
++	if _, suffix := splitVargenSuffix(objName); suffix != "" {
++		return objPkg, objName
++	}
++
+ 	if objPkg.Scope().Lookup(objName) == nil {
+ 		dict := pr.objDictIdx(idx)
+ 

@@ -21,6 +21,24 @@ Date:   Fri Feb 9 11:47:26 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/cgo/gcc_libinit.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 68f4a02379..09ba38b6d0 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -4,6 +4,12 @@
+ 
+ //go:build unix
+ 
++// When cross-compiling with clang to linux/armv5, atomics are emulated
++// and cause a compiler warning. This results in a build failure since
++// cgo uses -Werror. See #65290.
++#pragma GCC diagnostic ignored "-Wpragmas"
++#pragma GCC diagnostic ignored "-Watomic-alignment"
++
+ #include <pthread.h>
+ #include <errno.h>
+ #include <stdio.h>

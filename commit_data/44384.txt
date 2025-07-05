@@ -11,7 +11,59 @@ Date:   Fri Jun 19 15:19:59 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go | 10 +++++-----
  src/cmd/link/internal/ld/data.go |  2 +-
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index d4e358cebc..216e9b6cc4 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -45,7 +45,7 @@ func asmb(ctxt *Link) {
+ 		writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+ 		for _, sect := range Segtext.Sections[1:] {
+ 			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
+-			writeParallel(&wg, Datblk, ctxt, offset, sect.Vaddr, sect.Length)
++			writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
+ 		}
+ 	} else {
+ 		// TODO why can't we handle all sections this way?
+@@ -55,20 +55,20 @@ func asmb(ctxt *Link) {
+ 			if sect.Name == ".text" {
+ 				writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+ 			} else {
+-				writeParallel(&wg, Datblk, ctxt, offset, sect.Vaddr, sect.Length)
++				writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
+ 			}
+ 		}
+ 	}
+ 
+ 	if Segrodata.Filelen > 0 {
+-		writeParallel(&wg, Datblk, ctxt, Segrodata.Fileoff, Segrodata.Vaddr, Segrodata.Filelen)
++		writeParallel(&wg, datblk, ctxt, Segrodata.Fileoff, Segrodata.Vaddr, Segrodata.Filelen)
+ 	}
+ 
+ 	if Segrelrodata.Filelen > 0 {
+-		writeParallel(&wg, Datblk, ctxt, Segrelrodata.Fileoff, Segrelrodata.Vaddr, Segrelrodata.Filelen)
++		writeParallel(&wg, datblk, ctxt, Segrelrodata.Fileoff, Segrelrodata.Vaddr, Segrelrodata.Filelen)
+ 	}
+ 
+-	writeParallel(&wg, Datblk, ctxt, Segdata.Fileoff, Segdata.Vaddr, Segdata.Filelen)
++	writeParallel(&wg, datblk, ctxt, Segdata.Fileoff, Segdata.Vaddr, Segdata.Filelen)
+ 
+ 	writeParallel(&wg, dwarfblk, ctxt, Segdwarf.Fileoff, Segdwarf.Vaddr, Segdwarf.Filelen)
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ed7129a156..5234a2406a 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -928,7 +928,7 @@ func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, leng
+ 	}
+ }
+ 
+-func Datblk(ctxt *Link, out *OutBuf, addr, size int64) {
++func datblk(ctxt *Link, out *OutBuf, addr, size int64) {
+ 	writeDatblkToOutBuf(ctxt, out, addr, size)
+ }
+ 

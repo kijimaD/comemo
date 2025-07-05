@@ -9,6 +9,67 @@ Date:   Tue Feb 4 12:23:03 2020 +0000
     Change-Id: I4bf74c9f6e9b0e5fa96ca4d35c4ce404e07583b2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217697
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.14.html | 28 ++++++++++++++--------------
  1 file changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index af08e8e580..549c3e008a 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -579,7 +579,7 @@ TODO
+   </dd>
+ </dl><!-- log -->
+ 
+-<dl id="go/doc"><dt><a href="/go/doc/">go/doc</a></dt>
++<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+   <dd>
+     <p><!-- CL 204830 -->
+       The new
+@@ -683,7 +683,7 @@ TODO
+   </dd>
+ </dl><!-- net/http -->
+ 
+-<dl id="net/http/httptest"><dt><a href="/net/http/httptest/">net/http/httptest</a></dt>
++<dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
+   <dd>
+     <p><!-- CL 201557 -->
+       The
+@@ -706,6 +706,18 @@ TODO
+   </dd>
+ </dl><!-- net/textproto -->
+ 
++<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
++  <dd>
++    <p><!-- CL 187739 -->
++      On Windows,
++      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
++      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
++      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
++      and Control-Break generate a <code>syscall.SIGINT</code> signal.
++    </p>
++
++</dl><!-- os/signal -->
++
+ <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+   <dd>
+     <p><!-- CL 191617 -->
+@@ -755,18 +767,6 @@ TODO
+     </p>
+ </dl><!-- runtime/pprof -->
+ 
+-<dl id="signal"><dt><a href="/pkg/signal/">signal</a></dt>
+-  <dd>
+-    <p><!-- CL 187739 -->
+-      On Windows,
+-      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
+-      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
+-      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
+-      and Control-Break generate a <code>syscall.SIGINT</code> signal.
+-    </p>
+-
+-</dl><!-- signal -->
+-
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p>

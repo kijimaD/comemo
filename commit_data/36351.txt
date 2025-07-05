@@ -7,6 +7,20 @@ Date:   Sat Apr 21 23:30:44 2018 +0700
     Change-Id: Ia2c87473d63175db6cb36a21be0769ae9fcb4f8b
     Reviewed-on: https://go-review.googlesource.com/108695
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index a7304af53d..7282b26ec4 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -482,7 +482,7 @@ func symMerge(data Interface, a, m, b int) {
+ 	}
+ }
+ 
+-// Rotate two consecutives blocks u = data[a:m] and v = data[m:b] in data:
++// Rotate two consecutive blocks u = data[a:m] and v = data[m:b] in data:
+ // Data of the form 'x u v y' is changed to 'x v u y'.
+ // Rotate performs at most b-a many calls to data.Swap.
+ // Rotate assumes non-degenerate arguments: a < m && m < b.

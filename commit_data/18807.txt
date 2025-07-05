@@ -8,6 +8,20 @@ Date:   Fri Mar 7 23:17:44 2014 +0100
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/72240045
-
+---
  src/pkg/runtime/lock_sema.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 927bf11f84..ff8fdfd423 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin netbsd openbsd plan9 solaris windows
++// +build darwin nacl netbsd openbsd plan9 solaris windows
+ 
+ #include "runtime.h"
+ #include "stack.h"

@@ -70,9 +70,157 @@ Date:   Sun Mar 10 14:41:17 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cache.go    | 21 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/deadcode.go | 25 ++++++++++++++++++++++---
  src/cmd/compile/internal/ssa/func.go     | 27 +++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/print.go    |  1 +
  4 files changed, 71 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index 7438a81b72..6c8cc50e1e 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -25,6 +25,13 @@ type Cache struct {
+ 	scrSparseSet  []*sparseSet // scratch sparse sets to be re-used.
+ 	scrSparseMap  []*sparseMap // scratch sparse maps to be re-used.
+ 	scrPoset      []*poset     // scratch poset to be reused
++	// deadcode contains reusable slices specifically for the deadcode pass.
++	// It gets special treatment because of the frequency with which it is run.
++	deadcode struct {
++		liveOrderStmts []*Value
++		live           []bool
++		q              []*Value
++	}
+ 
+ 	ValueToProgAfter []*obj.Prog
+ 	debugState       debugState
+@@ -49,4 +56,18 @@ func (c *Cache) Reset() {
+ 		xl[i] = nil
+ 	}
+ 
++	// liveOrderStmts gets used multiple times during compilation of a function.
++	// We don't know where the high water mark was, so reslice to cap and search.
++	c.deadcode.liveOrderStmts = c.deadcode.liveOrderStmts[:cap(c.deadcode.liveOrderStmts)]
++	no := sort.Search(len(c.deadcode.liveOrderStmts), func(i int) bool { return c.deadcode.liveOrderStmts[i] == nil })
++	xo := c.deadcode.liveOrderStmts[:no]
++	for i := range xo {
++		xo[i] = nil
++	}
++	c.deadcode.q = c.deadcode.q[:cap(c.deadcode.q)]
++	nq := sort.Search(len(c.deadcode.q), func(i int) bool { return c.deadcode.q[i] == nil })
++	xq := c.deadcode.q[:nq]
++	for i := range xq {
++		xq[i] = nil
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 72cce448ce..3c0f8f858a 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -9,9 +9,12 @@ import (
+ )
+ 
+ // findlive returns the reachable blocks and live values in f.
++// The caller should call f.retDeadcodeLive(live) when it is done with it.
+ func findlive(f *Func) (reachable []bool, live []bool) {
+ 	reachable = ReachableBlocks(f)
+-	live, _ = liveValues(f, reachable)
++	var order []*Value
++	live, order = liveValues(f, reachable)
++	f.retDeadcodeLiveOrderStmts(order)
+ 	return
+ }
+ 
+@@ -48,8 +51,21 @@ func ReachableBlocks(f *Func) []bool {
+ // to be statements in reversed data flow order.
+ // The second result is used to help conserve statement boundaries for debugging.
+ // reachable is a map from block ID to whether the block is reachable.
++// The caller should call f.retDeadcodeLive(live) and f.retDeadcodeLiveOrderStmts(liveOrderStmts)
++// when they are done with the return values.
+ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
+-	live = make([]bool, f.NumValues())
++	live = f.newDeadcodeLive()
++	if cap(live) < f.NumValues() {
++		live = make([]bool, f.NumValues())
++	} else {
++		live = live[:f.NumValues()]
++		for i := range live {
++			live[i] = false
++		}
++	}
++
++	liveOrderStmts = f.newDeadcodeLiveOrderStmts()
++	liveOrderStmts = liveOrderStmts[:0]
+ 
+ 	// After regalloc, consider all values to be live.
+ 	// See the comment at the top of regalloc.go and in deadcode for details.
+@@ -61,7 +77,8 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
+ 	}
+ 
+ 	// Find all live values
+-	q := make([]*Value, 0, 64) // stack-like worklist of unscanned values
++	q := f.Cache.deadcode.q[:0]
++	defer func() { f.Cache.deadcode.q = q }()
+ 
+ 	// Starting set: all control values of reachable blocks are live.
+ 	// Calls are live (because callee can observe the memory state).
+@@ -163,6 +180,8 @@ func deadcode(f *Func) {
+ 
+ 	// Find live values.
+ 	live, order := liveValues(f, reachable)
++	defer f.retDeadcodeLive(live)
++	defer f.retDeadcodeLiveOrderStmts(order)
+ 
+ 	// Remove dead & duplicate entries from namedValues map.
+ 	s := f.newSparseSet(f.NumValues())
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 7e7e2042d9..fe02dd434a 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -153,6 +153,33 @@ func (f *Func) retPoset(po *poset) {
+ 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
+ }
+ 
++// newDeadcodeLive returns a slice for the
++// deadcode pass to use to indicate which values are live.
++func (f *Func) newDeadcodeLive() []bool {
++	r := f.Cache.deadcode.live
++	f.Cache.deadcode.live = nil
++	return r
++}
++
++// retDeadcodeLive returns a deadcode live value slice for re-use.
++func (f *Func) retDeadcodeLive(live []bool) {
++	f.Cache.deadcode.live = live
++}
++
++// newDeadcodeLiveOrderStmts returns a slice for the
++// deadcode pass to use to indicate which values
++// need special treatment for statement boundaries.
++func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
++	r := f.Cache.deadcode.liveOrderStmts
++	f.Cache.deadcode.liveOrderStmts = nil
++	return r
++}
++
++// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
++func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
++	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
++}
++
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
+ 	var v *Value
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index d66530a373..58e4c3bbbe 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -83,6 +83,7 @@ func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
+ 
+ func fprintFunc(p funcPrinter, f *Func) {
+ 	reachable, live := findlive(f)
++	defer f.retDeadcodeLive(live)
+ 	p.header(f)
+ 	printed := make([]bool, f.NumValues())
+ 	for _, b := range f.Blocks {

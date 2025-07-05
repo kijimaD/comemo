@@ -14,7 +14,42 @@ Date:   Tue Dec 24 01:24:43 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go         | 2 +-
  src/internal/poll/splice_linux.go | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index fd256ee000..a64c2b3241 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -168,7 +168,7 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	"internal/cfg":     {"L0"},
+-	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
++	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows", "internal/syscall/unix"},
+ 	"internal/testlog": {"L0"},
+ 	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
+ 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 4f97298417..5b17ae8551 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -5,6 +5,7 @@
+ package poll
+ 
+ import (
++	"internal/syscall/unix"
+ 	"sync/atomic"
+ 	"syscall"
+ 	"unsafe"
+@@ -169,7 +170,7 @@ func newTempPipe() (prfd, pwfd int, sc string, err error) {
+ 		defer atomic.StorePointer(&disableSplice, unsafe.Pointer(p))
+ 
+ 		// F_GETPIPE_SZ was added in 2.6.35, which does not have the -EAGAIN bug.
+-		if _, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fds[0]), syscall.F_GETPIPE_SZ, 0); errno != 0 {
++		if _, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fds[0]), syscall.F_GETPIPE_SZ, 0); errno != 0 {
+ 			*p = true
+ 			destroyTempPipe(fds[0], fds[1])
+ 			return -1, -1, "fcntl", errno

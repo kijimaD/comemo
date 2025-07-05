@@ -18,6 +18,25 @@ Date:   Tue Apr 12 13:34:42 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index dae74d91d2..ce86f73cda 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2112,12 +2112,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ 			return si < sj
+ 		})
+ 	} else {
+-		// PCLNTAB was built internally, and has the proper order based on value.
+-		// Sort the symbols as such.
+-		for k, s := range syms {
+-			sl[k].val = ldr.SymValue(s)
+-		}
+-		sort.Slice(sl, func(i, j int) bool { return sl[i].val < sl[j].val })
++		// PCLNTAB was built internally, and already has the proper order.
+ 	}
+ 
+ 	// Set alignment, construct result

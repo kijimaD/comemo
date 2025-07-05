@@ -10,6 +10,20 @@ Date:   Thu Sep 17 16:22:14 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/time_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/time_test.go b/src/runtime/time_test.go
+index bf29561144..a8dab7db8e 100644
+--- a/src/runtime/time_test.go
++++ b/src/runtime/time_test.go
+@@ -38,7 +38,7 @@ func TestFakeTime(t *testing.T) {
+ 	}
+ 
+ 	t.Logf("raw stdout: %q", stdout.String())
+-	t.Logf("raw stderr: %q", stdout.String())
++	t.Logf("raw stderr: %q", stderr.String())
+ 
+ 	f1, err1 := parseFakeTime(stdout.Bytes())
+ 	if err1 != nil {

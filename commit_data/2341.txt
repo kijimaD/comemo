@@ -8,8 +8,86 @@ Date:   Fri May 29 13:46:43 2009 -0700
     DELTA=46  (46 added, 0 deleted, 0 changed)
     OCL=29569
     CL=29614
-
+---
  test/bugs/bug155.go | 23 +++++++++++++++++++++++
  test/bugs/bug156.go | 21 +++++++++++++++++++++
  test/golden.out     | 10 ++++++++++
  3 files changed, 54 insertions(+)
+
+diff --git a/test/bugs/bug155.go b/test/bugs/bug155.go
+new file mode 100644
+index 0000000000..312c8e6a96
+--- /dev/null
++++ b/test/bugs/bug155.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A || echo BUG: bug155
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const big uint64 = 1<<63
++
++func f(a uint64) uint64 {
++	return a << big
++}
++
++func main() {
++	f(1)
++}
++
++/*
++main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
++main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
++main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
++*/
+diff --git a/test/bugs/bug156.go b/test/bugs/bug156.go
+new file mode 100644
+index 0000000000..0b77a72d91
+--- /dev/null
++++ b/test/bugs/bug156.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go || echo BUG: bug156
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(a int64) int64 {
++	const b int64 = 0;
++	n := a &^ b;
++	return n;
++}
++
++func main() {
++	f(1)
++}
++
++/*
++bug156.go:7: constant 18446744073709551615 overflows int64
++*/
+diff --git a/test/golden.out b/test/golden.out
+index b5dbddffe6..98348e753a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -104,6 +104,16 @@ BUG should compile
+ 5 7
+ BUG: should crash
+ 
++=========== bugs/bug155.go
++main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
++main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
++main·f: doasm: notfound from=75 to=13 (82)    SHLQ    $-9223372036854775808,BX
++BUG: bug155
++
++=========== bugs/bug156.go
++bugs/bug156.go:7: constant 18446744073709551615 overflows int64
++BUG: bug156
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

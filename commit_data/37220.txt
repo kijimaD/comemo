@@ -21,6 +21,22 @@ Date:   Tue Jul 10 00:44:21 2018 -0400
     Change-Id: I6b652eb555bc03b84405aae08b0b25d111fbb8b0
     Reviewed-on: https://go-review.googlesource.com/122879
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/pprof/readlineui.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/pprof/readlineui.go b/src/cmd/pprof/readlineui.go
+index 6e91816f9b..bf2f321184 100644
+--- a/src/cmd/pprof/readlineui.go
++++ b/src/cmd/pprof/readlineui.go
+@@ -34,6 +34,10 @@ type readlineUI struct {
+ }
+ 
+ func newReadlineUI() driver.UI {
++	// disable readline UI in dumb terminal. (golang.org/issue/26254)
++	if v := strings.ToLower(os.Getenv("TERM")); v == "" || v == "dumb" {
++		return nil
++	}
+ 	// test if we can use terminal.ReadLine
+ 	// that assumes operation in the raw mode.
+ 	oldState, err := terminal.MakeRaw(0)

@@ -9,9 +9,122 @@ Date:   Tue Dec 10 11:30:12 2013 +1100
     R=minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/35790045
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue6833.go  | 27 +++++++++++++++++++++++++++
  misc/cgo/test/issue6833_c.c | 10 ++++++++++
  src/cmd/cgo/out.go          | 26 ++++++++++++++++----------
  4 files changed, 54 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index b7c6d28769..fd21f6802b 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -43,6 +43,7 @@ func TestCflags(t *testing.T)              { testCflags(t) }
+ func Test5337(t *testing.T)                { test5337(t) }
+ func Test5548(t *testing.T)                { test5548(t) }
+ func Test5603(t *testing.T)                { test5603(t) }
++func Test6833(t *testing.T)                { test6833(t) }
+ func Test3250(t *testing.T)                { test3250(t) }
+ func TestCallbackStack(t *testing.T)       { testCallbackStack(t) }
+ func TestFpVar(t *testing.T)               { testFpVar(t) }
+diff --git a/misc/cgo/test/issue6833.go b/misc/cgo/test/issue6833.go
+new file mode 100644
+index 0000000000..e12d534222
+--- /dev/null
++++ b/misc/cgo/test/issue6833.go
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++extern unsigned long long issue6833Func(unsigned int, unsigned long long);
++*/
++import "C"
++
++import "testing"
++
++//export GoIssue6833Func
++func GoIssue6833Func(aui uint, aui64 uint64) uint64 {
++	return aui64 + uint64(aui)
++}
++
++func test6833(t *testing.T) {
++	ui := 7
++	ull := uint64(0x4000300020001000)
++	v := uint64(C.issue6833Func(C.uint(ui), C.ulonglong(ull)))
++	exp := uint64(ui) + ull
++	if v != exp {
++		t.Errorf("issue6833Func() returns %x, expected %x", v, exp)
++	}
++}
+diff --git a/misc/cgo/test/issue6833_c.c b/misc/cgo/test/issue6833_c.c
+new file mode 100644
+index 0000000000..a77b425b5c
+--- /dev/null
++++ b/misc/cgo/test/issue6833_c.c
+@@ -0,0 +1,10 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++ 
++unsigned long long
++issue6833Func(unsigned int aui, unsigned long long aull) {
++	return GoIssue6833Func(aui, aull);
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 83ab95251c..0c32e4ca15 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -529,15 +529,8 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	}
+ 	// We're trying to write a gcc struct that matches 6c/8c/5c's layout.
+ 	// Use packed attribute to force no padding in this struct in case
+-	// gcc has different packing requirements.  For example,
+-	// on 386 Windows, gcc wants to 8-align int64s, but 8c does not.
+-	// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
+-	// and http://golang.org/issue/5603.
+-	extraAttr := ""
+-	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
+-		extraAttr = ", __gcc_struct__"
+-	}
+-	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__%v)) *a = v;\n", ctype, extraAttr)
++	// gcc has different packing requirements.
++	fmt.Fprintf(fgcc, "\t%s %v *a = v;\n", ctype, p.packedAttribute())
+ 	fmt.Fprintf(fgcc, "\t")
+ 	if t := n.FuncType.Result; t != nil {
+ 		fmt.Fprintf(fgcc, "a->r = ")
+@@ -618,6 +611,19 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+ 	fmt.Fprintf(fgcc, "\n")
+ }
+ 
++// packedAttribute returns host compiler struct attribute that will be
++// used to match 6c/8c/5c's struct layout. For example, on 386 Windows,
++// gcc wants to 8-align int64s, but 8c does not.
++// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
++// and http://golang.org/issue/5603.
++func (p *Package) packedAttribute() string {
++	s := "__attribute__((__packed__"
++	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
++		s += ", __gcc_struct__"
++	}
++	return s + "))"
++}
++
+ // Write out the various stubs we need to support functions exported
+ // from Go so that they are callable from C.
+ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+@@ -727,7 +733,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgcc, "\n%s\n", s)
+ 		fmt.Fprintf(fgcc, "{\n")
+-		fmt.Fprintf(fgcc, "\t%s __attribute__((packed)) a;\n", ctype)
++		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
+ 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
+ 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
+ 		}

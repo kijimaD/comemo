@@ -7,6 +7,26 @@ Date:   Thu Jan 19 12:23:30 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5557059
-
+---
  src/pkg/net/net.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 7db7dfd134..609fee242d 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -24,12 +24,12 @@ type Addr interface {
+ type Conn interface {
+ 	// Read reads data from the connection.
+ 	// Read can be made to time out and return a net.Error with Timeout() == true
+-	// after a fixed time limit; see SetTimeout and SetReadTimeout.
++	// after a fixed time limit; see SetDeadline and SetReadDeadline.
+ 	Read(b []byte) (n int, err error)
+ 
+ 	// Write writes data to the connection.
+ 	// Write can be made to time out and return a net.Error with Timeout() == true
+-	// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
+ 	Write(b []byte) (n int, err error)
+ 
+ 	// Close closes the connection.

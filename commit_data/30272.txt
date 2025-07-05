@@ -14,9 +14,165 @@ Date:   Fri Oct 28 14:22:13 2016 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 28 +++++++++++++++++++---------
  test/ddd1.go                             |  5 ++---
  test/fixedbugs/issue4215.go              | 22 +++++++++++-----------
  test/fixedbugs/issue6750.go              |  2 +-
  4 files changed, 33 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 039b447259..2a087cd40b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2692,12 +2692,12 @@ notenough:
+ 			// Method expressions have the form T.M, and the compiler has
+ 			// rewritten those to ONAME nodes but left T in Left.
+ 			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
+-				yyerror("not enough arguments in call to method expression %v, got %s want %v", call, nl.retsigerr(), tstruct)
++				yyerror("not enough arguments in call to method expression %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
+ 			} else {
+-				yyerror("not enough arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
++				yyerror("not enough arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
+ 			}
+ 		} else {
+-			yyerror("not enough arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
++			yyerror("not enough arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
+ 		}
+ 		if n != nil {
+ 			n.Diag = 1
+@@ -2708,9 +2708,9 @@ notenough:
+ 
+ toomany:
+ 	if call != nil {
+-		yyerror("too many arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
++		yyerror("too many arguments in call to %v\n\thave %s\n\twant %v", call, nl.retsigerr(isddd), tstruct)
+ 	} else {
+-		yyerror("too many arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
++		yyerror("too many arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
+ 	}
+ 	goto out
+ }
+@@ -2738,17 +2738,27 @@ func (t *Type) sigrepr() string {
+ 
+ // retsigerr returns the signature of the types
+ // at the respective return call site of a function.
+-func (nl Nodes) retsigerr() string {
++func (nl Nodes) retsigerr(isddd bool) string {
+ 	if nl.Len() < 1 {
+ 		return "()"
+ 	}
+ 
+ 	var typeStrings []string
+-	for _, n := range nl.Slice() {
+-		typeStrings = append(typeStrings, n.Type.sigrepr())
++	if nl.Len() == 1 && nl.First().Type != nil && nl.First().Type.IsFuncArgStruct() {
++		for _, f := range nl.First().Type.Fields().Slice() {
++			typeStrings = append(typeStrings, f.Type.sigrepr())
++		}
++	} else {
++		for _, n := range nl.Slice() {
++			typeStrings = append(typeStrings, n.Type.sigrepr())
++		}
+ 	}
+ 
+-	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
++	ddd := ""
++	if isddd {
++		ddd = "..."
++	}
++	return fmt.Sprintf("(%s%s)", strings.Join(typeStrings, ", "), ddd)
+ }
+ 
+ // type check composite
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 7ea04f31c3..cf6a3a5873 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -27,9 +27,9 @@ func tuple() (int, int, int) { return 1, 2, 3 }
+ 
+ var (
+ 	_ = sum(tuple())
+-	_ = sum(tuple()...) // ERROR "multiple-value|[.][.][.]"
++	_ = sum(tuple()...) // ERROR "multiple-value"
+ 	_ = sum3(tuple())
+-	_ = sum3(tuple()...) // ERROR "multiple-value|[.][.][.]" "not enough"
++	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
+ )
+ 
+ type T []T
+@@ -59,4 +59,3 @@ func bad(args ...int) {
+ 	_ = [...]byte("foo") // ERROR "[.][.][.]"
+ 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
+ }
+-
+diff --git a/test/fixedbugs/issue4215.go b/test/fixedbugs/issue4215.go
+index 7b8903fede..795d48d7f5 100644
+--- a/test/fixedbugs/issue4215.go
++++ b/test/fixedbugs/issue4215.go
+@@ -7,28 +7,28 @@
+ package main
+ 
+ func foo() (int, int) {
+-	return 2.3 // ERROR "not enough arguments to return, got \(number\) want \(int, int\)"
++	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)"
+ }
+ 
+ func foo2() {
+-	return int(2), 2 // ERROR "too many arguments to return, got \(int, number\) want \(\)"
++	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)"
+ }
+ 
+ func foo3(v int) (a, b, c, d int) {
+ 	if v >= 0 {
+-		return 1 // ERROR "not enough arguments to return, got \(number\) want \(int, int, int, int\)"
++		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)"
+ 	}
+-	return 2, 3 // ERROR "not enough arguments to return, got \(number, number\) want \(int, int, int, int\)"
++	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)"
+ }
+ 
+ func foo4(name string) (string, int) {
+ 	switch name {
+ 	case "cow":
+-		return "moo" // ERROR "not enough arguments to return, got \(string\) want \(string, int\)"
++		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)"
+ 	case "dog":
+-		return "dog", 10, true // ERROR "too many arguments to return, got \(string, number, bool\) want \(string, int\)"
++		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)"
+ 	case "fish":
+-		return "" // ERROR "not enough arguments to return, got \(string\) want \(string, int\)"
++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)"
+ 	default:
+ 		return "lizard", 10
+ 	}
+@@ -40,14 +40,14 @@ type U float64
+ 
+ func foo5() (S, T, U) {
+ 	if false {
+-		return "" // ERROR "not enough arguments to return, got \(string\) want \(S, T, U\)"
++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)"
+ 	} else {
+ 		ptr := new(T)
+-		return ptr // ERROR "not enough arguments to return, got \(\*T\) want \(S, T, U\)"
++		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)"
+ 	}
+-	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return, got \(\*S, number, number, number, bool\) want \(S, T, U\)"
++	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)"
+ }
+ 
+ func foo6() (T, string) {
+-	return "T", true, true // ERROR "too many arguments to return, got \(string, bool, bool\) want \(T, string\)"
++	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)"
+ }
+diff --git a/test/fixedbugs/issue6750.go b/test/fixedbugs/issue6750.go
+index 8854bf9e09..dbbb454435 100644
+--- a/test/fixedbugs/issue6750.go
++++ b/test/fixedbugs/issue6750.go
+@@ -18,5 +18,5 @@ func printmany(nums ...int) {
+ func main() {
+ 	printmany(1, 2, 3)
+ 	printmany([]int{1, 2, 3}...)
+-	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call to printmany, got \(number, string, \[\]int\) want \(...int\)"
++	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call to printmany\n\thave \(number, string, \[\]int\.\.\.\)\n\twant \(...int\)"
+ }

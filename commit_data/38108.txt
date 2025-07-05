@@ -14,6 +14,20 @@ Date:   Wed Oct 3 09:20:29 2018 +0000
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/driver/driver.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 1e54b4cf2c..70b3ddc470 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -469,7 +469,7 @@ type RowsAffected int64
+ var _ Result = RowsAffected(0)
+ 
+ func (RowsAffected) LastInsertId() (int64, error) {
+-	return 0, errors.New("no LastInsertId available")
++	return 0, errors.New("LastInsertId is not supported by this driver")
+ }
+ 
+ func (v RowsAffected) RowsAffected() (int64, error) {

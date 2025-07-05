@@ -10,9 +10,273 @@ Date:   Wed Feb 15 16:16:30 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5665044
-
+---
  src/pkg/html/template/clone_test.go | 107 +++++++++++++++++++++++++++++++++++-
  src/pkg/html/template/template.go   |  73 +++++++++++++++++++++---
  src/pkg/text/template/multi_test.go |   2 +-
  src/pkg/text/template/template.go   |   8 +--
  4 files changed, 176 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/html/template/clone_test.go b/src/pkg/html/template/clone_test.go
+index 39788173b9..384b4f0e83 100644
+--- a/src/pkg/html/template/clone_test.go
++++ b/src/pkg/html/template/clone_test.go
+@@ -7,9 +7,10 @@ package template
+ import (
+ 	"bytes"
+ 	"testing"
++	"text/template/parse"
+ )
+ 
+-func TestClone(t *testing.T) {
++func TestCloneList(t *testing.T) {
+ 	tests := []struct {
+ 		input, want, wantClone string
+ 	}{
+@@ -90,3 +91,107 @@ func TestClone(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestAddParseTree(t *testing.T) {
++	root := Must(New("root").Parse(`{{define "a"}} {{.}} {{template "b"}} {{.}} "></a>{{end}}`))
++	tree, err := parse.Parse("t", `{{define "b"}}<a href="{{end}}`, "", "", nil, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	added := Must(root.AddParseTree("b", tree["b"]))
++	b := new(bytes.Buffer)
++	err = added.ExecuteTemplate(b, "a", "1>0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got, want := b.String(), ` 1&gt;0 <a href=" 1%3e0 "></a>`; got != want {
++		t.Errorf("got %q want %q", got, want)
++	}
++}
++
++func TestClone(t *testing.T) {
++	// The {{.}} will be executed with data "<i>*/" in different contexts.
++	// In the t0 template, it will be in a text context.
++	// In the t1 template, it will be in a URL context.
++	// In the t2 template, it will be in a JavaScript context.
++	// In the t3 template, it will be in a CSS context.
++	const tmpl = `{{define "a"}}{{template "lhs"}}{{.}}{{template "rhs"}}{{end}}`
++	b := new(bytes.Buffer)
++
++	// Create an incomplete template t0.
++	t0 := Must(New("t0").Parse(tmpl))
++
++	// Clone t0 as t1.
++	t1 := Must(t0.Clone())
++	Must(t1.Parse(`{{define "lhs"}} <a href=" {{end}}`))
++	Must(t1.Parse(`{{define "rhs"}} "></a> {{end}}`))
++
++	// Execute t1.
++	b.Reset()
++	if err := t1.ExecuteTemplate(b, "a", "<i>*/"); err != nil {
++		t.Fatal(err)
++	}
++	if got, want := b.String(), ` <a href=" %3ci%3e*/ "></a> `; got != want {
++		t.Errorf("t1: got %q want %q", got, want)
++	}
++
++	// Clone t0 as t2.
++	t2 := Must(t0.Clone())
++	Must(t2.Parse(`{{define "lhs"}} <p onclick="javascript: {{end}}`))
++	Must(t2.Parse(`{{define "rhs"}} "></p> {{end}}`))
++
++	// Execute t2.
++	b.Reset()
++	if err := t2.ExecuteTemplate(b, "a", "<i>*/"); err != nil {
++		t.Fatal(err)
++	}
++	if got, want := b.String(), ` <p onclick="javascript: &#34;\u003ci\u003e*/&#34; "></p> `; got != want {
++		t.Errorf("t2: got %q want %q", got, want)
++	}
++
++	// Clone t0 as t3, but do not execute t3 yet.
++	t3 := Must(t0.Clone())
++	Must(t3.Parse(`{{define "lhs"}} <style> {{end}}`))
++	Must(t3.Parse(`{{define "rhs"}} </style> {{end}}`))
++
++	// Complete t0.
++	Must(t0.Parse(`{{define "lhs"}} ( {{end}}`))
++	Must(t0.Parse(`{{define "rhs"}} ) {{end}}`))
++
++	// Clone t0 as t4. Redefining the "lhs" template should fail.
++	t4 := Must(t0.Clone())
++	if _, err := t4.Parse(`{{define "lhs"}} FAIL {{end}}`); err == nil {
++		t.Error(`redefine "lhs": got nil err want non-nil`)
++	}
++
++	// Execute t0.
++	b.Reset()
++	if err := t0.ExecuteTemplate(b, "a", "<i>*/"); err != nil {
++		t.Fatal(err)
++	}
++	if got, want := b.String(), ` ( &lt;i&gt;*/ ) `; got != want {
++		t.Errorf("t0: got %q want %q", got, want)
++	}
++
++	// Clone t0. This should fail, as t0 has already executed.
++	if _, err := t0.Clone(); err == nil {
++		t.Error(`t0.Clone(): got nil err want non-nil`)
++	}
++
++	// Similarly, cloning sub-templates should fail.
++	if _, err := t0.Lookup("a").Clone(); err == nil {
++		t.Error(`t0.Lookup("a").Clone(): got nil err want non-nil`)
++	}
++	if _, err := t0.Lookup("lhs").Clone(); err == nil {
++		t.Error(`t0.Lookup("lhs").Clone(): got nil err want non-nil`)
++	}
++
++	// Execute t3.
++	b.Reset()
++	if err := t3.ExecuteTemplate(b, "a", "<i>*/"); err != nil {
++		t.Fatal(err)
++	}
++	if got, want := b.String(), ` <style> ZgotmplZ </style> `; got != want {
++		t.Errorf("t3: got %q want %q", got, want)
++	}
++}
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 9ffe41413a..b0bae7a54f 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -50,7 +50,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ // ExecuteTemplate applies the template associated with t that has the given
+ // name to the specified data object and writes the output to wr.
+ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+-	tmpl, err := t.lookupAndEscapeTemplate(wr, name)
++	tmpl, err := t.lookupAndEscapeTemplate(name)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -60,7 +60,7 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{})
+ // lookupAndEscapeTemplate guarantees that the template with the given name
+ // is escaped, or returns an error if it cannot be. It returns the named
+ // template.
+-func (t *Template) lookupAndEscapeTemplate(wr io.Writer, name string) (tmpl *Template, err error) {
++func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err error) {
+ 	t.nameSpace.mu.Lock()
+ 	defer t.nameSpace.mu.Unlock()
+ 	tmpl = t.set[name]
+@@ -106,14 +106,71 @@ func (t *Template) Parse(src string) (*Template, error) {
+ 	return t, nil
+ }
+ 
+-// AddParseTree is unimplemented.
+-func (t *Template) AddParseTree(name string, tree *parse.Tree) error {
+-	return fmt.Errorf("html/template: AddParseTree unimplemented")
++// AddParseTree creates a new template with the name and parse tree
++// and associates it with t.
++//
++// It returns an error if t has already been executed.
++func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
++	t.nameSpace.mu.Lock()
++	defer t.nameSpace.mu.Unlock()
++	if t.escaped {
++		return nil, fmt.Errorf("html/template: cannot AddParseTree to %q after it has executed", t.Name())
++	}
++	text, err := t.text.AddParseTree(name, tree)
++	if err != nil {
++		return nil, err
++	}
++	ret := &Template{
++		false,
++		text,
++		t.nameSpace,
++	}
++	t.set[name] = ret
++	return ret, nil
+ }
+ 
+-// Clone is unimplemented.
+-func (t *Template) Clone(name string) error {
+-	return fmt.Errorf("html/template: Clone unimplemented")
++// Clone returns a duplicate of the template, including all associated
++// templates. The actual representation is not copied, but the name space of
++// associated templates is, so further calls to Parse in the copy will add
++// templates to the copy but not to the original. Clone can be used to prepare
++// common templates and use them with variant definitions for other templates
++// by adding the variants after the clone is made.
++//
++// It returns an error if t has already been executed.
++func (t *Template) Clone() (*Template, error) {
++	t.nameSpace.mu.Lock()
++	defer t.nameSpace.mu.Unlock()
++	if t.escaped {
++		return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
++	}
++	textClone, err := t.text.Clone()
++	if err != nil {
++		return nil, err
++	}
++	ret := &Template{
++		false,
++		textClone,
++		&nameSpace{
++			set: make(map[string]*Template),
++		},
++	}
++	for _, x := range textClone.Templates() {
++		name := x.Name()
++		src := t.set[name]
++		if src == nil || src.escaped {
++			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
++		}
++		x.Tree = &parse.Tree{
++			Name: x.Tree.Name,
++			Root: x.Tree.Root.CopyList(),
++		}
++		ret.set[name] = &Template{
++			false,
++			x,
++			ret.nameSpace,
++		}
++	}
++	return ret, nil
+ }
+ 
+ // New allocates a new HTML template with the given name.
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index 274f5ef147..f205e6be1b 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -193,7 +193,7 @@ func TestClone(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	clone := root.Clone()
++	clone := Must(root.Clone())
+ 	// Add variants to both.
+ 	_, err = root.Parse(cloneText3)
+ 	if err != nil {
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index 87e39d3af7..7494f9d8c4 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -69,9 +69,9 @@ func (t *Template) init() {
+ // templates. The actual representation is not copied, but the name space of
+ // associated templates is, so further calls to Parse in the copy will add
+ // templates to the copy but not to the original. Clone can be used to prepare
+-// common templates and use them with variant definitions for other templates by
+-// adding the variants after the clone is made.
+-func (t *Template) Clone() *Template {
++// common templates and use them with variant definitions for other templates
++// by adding the variants after the clone is made.
++func (t *Template) Clone() (*Template, error) {
+ 	nt := t.copy(nil)
+ 	nt.init()
+ 	nt.tmpl[t.name] = nt
+@@ -89,7 +89,7 @@ func (t *Template) Clone() *Template {
+ 	for k, v := range t.execFuncs {
+ 		nt.execFuncs[k] = v
+ 	}
+-	return nt
++	return nt, nil
+ }
+ 
+ // copy returns a shallow copy of t, with common set to the argument.

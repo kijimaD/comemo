@@ -15,8 +15,84 @@ Date:   Tue Nov 20 12:30:14 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/root_darwin.go |  6 +++---
  src/os/file.go                 | 18 ++++++++++--------
  src/os/os_test.go              |  9 ++++++---
  3 files changed, 19 insertions(+), 14 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index ae69a2fadd..4a02c07596 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -66,10 +66,10 @@ func execSecurityRoots() (*CertPool, error) {
+ 		"/Library/Keychains/System.keychain",
+ 	}
+ 
+-	home := os.UserHomeDir()
+-	if home == "" {
++	home, err := os.UserHomeDir()
++	if err != nil {
+ 		if debugExecDarwinRoots {
+-			println("crypto/x509: can't get user home directory")
++			println("crypto/x509: can't get user home directory: %v", err)
+ 		}
+ 	} else {
+ 		args = append(args,
+diff --git a/src/os/file.go b/src/os/file.go
+index d9c5c57c17..9b7863e9b6 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -386,22 +386,24 @@ func UserCacheDir() (string, error) {
+ // On Unix, including macOS, it returns the $HOME environment variable.
+ // On Windows, it returns %USERPROFILE%.
+ // On Plan 9, it returns the $home environment variable.
+-func UserHomeDir() string {
++func UserHomeDir() (string, error) {
++	env, enverr := "HOME", "$HOME"
+ 	switch runtime.GOOS {
+ 	case "windows":
+-		return Getenv("USERPROFILE")
++		env, enverr = "USERPROFILE", "%userprofile%"
+ 	case "plan9":
+-		return Getenv("home")
++		env, enverr = "home", "$home"
+ 	case "nacl", "android":
+-		return "/"
++		return "/", nil
+ 	case "darwin":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+-			return "/"
++			return "/", nil
+ 		}
+-		fallthrough
+-	default:
+-		return Getenv("HOME")
+ 	}
++	if v := Getenv(env); v != "" {
++		return v, nil
++	}
++	return "", errors.New(enverr + " is not defined")
+ }
+ 
+ // Chmod changes the mode of the named file to mode.
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index d838272215..9c4d5dada9 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2300,9 +2300,12 @@ func TestDoubleCloseError(t *testing.T) {
+ }
+ 
+ func TestUserHomeDir(t *testing.T) {
+-	dir := UserHomeDir()
+-	if dir == "" {
+-		t.Fatal("UserHomeDir returned an empty string")
++	dir, err := UserHomeDir()
++	if dir == "" && err == nil {
++		t.Fatal("UserHomeDir returned an empty string but no error")
++	}
++	if err != nil {
++		t.Skipf("UserHomeDir failed: %v", err)
+ 	}
+ 	fi, err := Stat(dir)
+ 	if err != nil {

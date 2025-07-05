@@ -7,7 +7,7 @@ Date:   Fri Feb 5 01:40:58 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198044
-
+---
  src/cmd/5a/a.h     |  5 ++---
  src/cmd/5a/lex.c   |  8 ++++++--
  src/cmd/6a/a.h     |  5 ++---
@@ -18,3 +18,272 @@ Date:   Fri Feb 5 01:40:58 2010 -0800
  src/cmd/cc/lex.c   | 23 ++++++++++++-----------
  src/cmd/cc/lexbody |  9 ++++-----
  9 files changed, 41 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index a6b75e2b7e..6cd5af8c6b 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -54,7 +54,6 @@ typedef	struct	Hist	Hist;
+ #define	NSYMB		8192
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
+-#define	NINCLUDE	10
+ #define	NHUNK		10000
+ #define	EOF		(-1)
+ #define	IGN		(-2)
+@@ -128,13 +127,13 @@ enum
+ 
+ EXTERN	char	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+-EXTERN	char*	Dlist[30];
++EXTERN	char**	Dlist;
+ EXTERN	int	nDlist;
+ EXTERN	Hist*	ehist;
+ EXTERN	int	newflag;
+ EXTERN	Hist*	hist;
+ EXTERN	char*	hunk;
+-EXTERN	char*	include[NINCLUDE];
++EXTERN	char**	include;
+ EXTERN	Io*	iofree;
+ EXTERN	Io*	ionext;
+ EXTERN	Io*	iostack;
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 53ffab2831..e0235d4e67 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -62,7 +62,7 @@ main(int argc, char *argv[])
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+ 	outfile = 0;
+-	include[ninclude++] = ".";
++	setinclude(".");
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -76,8 +76,12 @@ main(int argc, char *argv[])
+ 
+ 	case 'D':
+ 		p = ARGF();
+-		if(p)
++		if(p) {
++			if (nDlist%8 == 0) 
++				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
++					8*sizeof(char *));
+ 			Dlist[nDlist++] = p;
++		}
+ 		break;
+ 
+ 	case 'I':
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index 34b69b6ea7..a713acc9f2 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -57,7 +57,6 @@ typedef	struct	Gen2 	Gen2;
+ #define	NSYMB		500
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
+-#define	NINCLUDE	10
+ #define	NHUNK		10000
+ #define	EOF		(-1)
+ #define	IGN		(-2)
+@@ -141,13 +140,13 @@ enum
+ 
+ EXTERN	char	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+-EXTERN	char*	Dlist[30];
++EXTERN	char**	Dlist;
+ EXTERN	int	nDlist;
+ EXTERN	Hist*	ehist;
+ EXTERN	int	newflag;
+ EXTERN	Hist*	hist;
+ EXTERN	char*	hunk;
+-EXTERN	char*	include[NINCLUDE];
++EXTERN	char**	include;
+ EXTERN	Io*	iofree;
+ EXTERN	Io*	ionext;
+ EXTERN	Io*	iostack;
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index f5e99342f8..81273b2975 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -65,7 +65,7 @@ main(int argc, char *argv[])
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+ 	outfile = 0;
+-	include[ninclude++] = ".";
++	setinclude(".");
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -79,8 +79,12 @@ main(int argc, char *argv[])
+ 
+ 	case 'D':
+ 		p = ARGF();
+-		if(p)
++		if(p) {
++			if (nDlist%8 == 0)
++				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
++					8*sizeof(char *));
+ 			Dlist[nDlist++] = p;
++		}
+ 		break;
+ 
+ 	case 'I':
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index 9b38f5fbd1..035db25514 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -57,7 +57,6 @@ typedef	struct	Gen2 	Gen2;
+ #define	NSYMB		500
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
+-#define	NINCLUDE	10
+ #define	NHUNK		10000
+ #define	EOF		(-1)
+ #define	IGN		(-2)
+@@ -142,13 +141,13 @@ enum
+ 
+ EXTERN	char	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+-EXTERN	char*	Dlist[30];
++EXTERN	char**	Dlist;
+ EXTERN	int	nDlist;
+ EXTERN	Hist*	ehist;
+ EXTERN	int	newflag;
+ EXTERN	Hist*	hist;
+ EXTERN	char*	hunk;
+-EXTERN	char*	include[NINCLUDE];
++EXTERN	char**	include;
+ EXTERN	Io*	iofree;
+ EXTERN	Io*	ionext;
+ EXTERN	Io*	iostack;
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 41d9c51904..6903e2c66a 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -65,7 +65,7 @@ main(int argc, char *argv[])
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+ 	outfile = 0;
+-	include[ninclude++] = ".";
++	setinclude(".");
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -79,8 +79,12 @@ main(int argc, char *argv[])
+ 
+ 	case 'D':
+ 		p = ARGF();
+-		if(p)
++		if(p) {
++			if (nDlist%8 == 0)
++				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
++					8*sizeof(char *));
+ 			Dlist[nDlist++] = p;
++		}
+ 		break;
+ 
+ 	case 'I':
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 62a33ae5e7..6098bc53ac 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -475,7 +475,7 @@ EXTERN	Decl*	firstdcl;
+ EXTERN	int	fperror;
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	char*	hunk;
+-EXTERN	char*	include[20];
++EXTERN	char**	include;
+ EXTERN	Io*	iofree;
+ EXTERN	Io*	ionext;
+ EXTERN	Io*	iostack;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index b722ab15f6..63916e2a14 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -82,7 +82,7 @@ pathchar(void)
+ void
+ main(int argc, char *argv[])
+ {
+-	char *defs[50], *p;
++	char **defs, *p;
+ 	int nproc, nout, i, c, ndef;
+ 
+ 	ensuresymb(NSYMB);
+@@ -94,8 +94,9 @@ main(int argc, char *argv[])
+ 
+ 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
+ 	ndef = 0;
++	defs = nil;
+ 	outfile = 0;
+-	include[ninclude++] = ".";
++	setinclude(".");
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -119,6 +120,9 @@ main(int argc, char *argv[])
+ 	case 'D':
+ 		p = ARGF();
+ 		if(p) {
++			if(ndef%8 == 0)
++				defs = allocn(defs, ndef*sizeof(char *), 
++					8*sizeof(char *));
+ 			defs[ndef++] = p;
+ 			dodefine(p);
+ 		}
+@@ -193,7 +197,7 @@ int
+ compile(char *file, char **defs, int ndef)
+ {
+ 	char *ofile, incfile[20];
+-	char *p, *av[100], opt[256];
++	char *p, **av, opt[256];
+ 	int i, c, fd[2];
+ 	static int first = 1;
+ 
+@@ -283,6 +287,7 @@ compile(char *file, char **defs, int ndef)
+ 			close(fd[0]);
+ 			dup(fd[1], 1);
+ 			close(fd[1]);
++			av = alloc((ndef+ninclude+5)*sizeof(char *));
+ 			av[0] = CPP;
+ 			i = 1;
+ 			if(debug['.']){
+@@ -1548,14 +1553,10 @@ setinclude(char *p)
+ 			if(strcmp(p, include[i]) == 0)
+ 				return;
+ 
+-		if(i >= ninclude)
+-			include[ninclude++] = p;
+-
+-		if(ninclude > nelem(include)) {
+-			diag(Z, "ninclude too small %d", nelem(include));
+-			exits("ninclude");
+-		}
+-
++		if(ninclude%8 == 0)
++			include = allocn(include, ninclude*sizeof(char *), 
++				8*sizeof(char *));
++		include[ninclude++] = p;
+ 	}
+ }
+ 
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 6be2bce92f..c026a8d239 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -149,11 +149,10 @@ setinclude(char *p)
+ 	for(i=1; i < ninclude; i++)
+ 		if(strcmp(p, include[i]) == 0)
+ 			return;
+-
+-	if(ninclude >= nelem(include)) {
+-		yyerror("ninclude too small %d", nelem(include));
+-		exits("ninclude");
+-	}
++	
++	if(ninclude%8 == 0)
++		include = allocn(include, ninclude*sizeof(char *), 
++			8*sizeof(char *));
+ 	include[ninclude++] = p;
+ }
+ 

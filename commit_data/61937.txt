@@ -13,6 +13,40 @@ Date:   Wed Dec 18 11:28:18 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 22 ++++++++++++----------
  1 file changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5a981f8bc1..06bd01bc5b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -876,16 +876,18 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	if t.extLink() && !t.compileOnly {
+-		t.registerTest("external linking, -buildmode=exe",
+-			&goTest{
+-				variant:   "exe_external",
+-				timeout:   60 * time.Second,
+-				buildmode: "exe",
+-				ldflags:   "-linkmode=external",
+-				env:       []string{"CGO_ENABLED=1"},
+-				pkg:       "crypto/internal/fips140test",
+-				runTests:  "TestFIPSCheck",
+-			})
++		if goos != "android" { // Android does not support non-PIE linking
++			t.registerTest("external linking, -buildmode=exe",
++				&goTest{
++					variant:   "exe_external",
++					timeout:   60 * time.Second,
++					buildmode: "exe",
++					ldflags:   "-linkmode=external",
++					env:       []string{"CGO_ENABLED=1"},
++					pkg:       "crypto/internal/fips140test",
++					runTests:  "TestFIPSCheck",
++				})
++		}
+ 		if t.externalLinkPIE() && !disablePIE {
+ 			t.registerTest("external linking, -buildmode=pie",
+ 				&goTest{

@@ -11,7 +11,7 @@ Date:   Sat Aug 17 12:11:29 2013 +0900
     R=golang-dev, rsc
     CC=golang-dev, minux.ma
     https://golang.org/cl/12949045
-
+---
  src/pkg/runtime/defs_netbsd.go      | 16 ++++++++++++++--
  src/pkg/runtime/defs_netbsd_386.h   | 23 +++++++++++++++++++++--
  src/pkg/runtime/defs_netbsd_amd64.h | 24 ++++++++++++++++++++++--
@@ -27,3 +27,465 @@ Date:   Sat Aug 17 12:11:29 2013 +0900
  src/pkg/runtime/sys_netbsd_amd64.s  | 31 +++++++++++++++++++++++++++++++
  src/pkg/runtime/sys_netbsd_arm.s    | 30 ++++++++++++++++++++++++++++++
  14 files changed, 182 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_netbsd.go b/src/pkg/runtime/defs_netbsd.go
+index c543593fa4..d1c4cbe96c 100644
+--- a/src/pkg/runtime/defs_netbsd.go
++++ b/src/pkg/runtime/defs_netbsd.go
+@@ -20,6 +20,7 @@ package runtime
+ #include <sys/types.h>
+ #include <sys/mman.h>
+ #include <sys/signal.h>
++#include <sys/event.h>
+ #include <sys/time.h>
+ #include <sys/ucontext.h>
+ #include <sys/unistd.h>
+@@ -29,6 +30,9 @@ package runtime
+ import "C"
+ 
+ const (
++	EINTR  = C.EINTR
++	EFAULT = C.EFAULT
++
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+ 	PROT_WRITE = C.PROT_WRITE
+@@ -44,8 +48,6 @@ const (
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 
+-	EINTR = C.EINTR
+-
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+@@ -97,6 +99,14 @@ const (
+ 	ITIMER_REAL    = C.ITIMER_REAL
+ 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
+ 	ITIMER_PROF    = C.ITIMER_PROF
++
++	EV_ADD       = C.EV_ADD
++	EV_DELETE    = C.EV_DELETE
++	EV_CLEAR     = C.EV_CLEAR
++	EV_RECEIPT   = 0
++	EV_ERROR     = C.EV_ERROR
++	EVFILT_READ  = C.EVFILT_READ
++	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+ 
+ type Sigaltstack C.struct_sigaltstack
+@@ -111,3 +121,5 @@ type Itimerval C.struct_itimerval
+ 
+ type McontextT C.mcontext_t
+ type UcontextT C.ucontext_t
++
++type Kevent C.struct_kevent
+diff --git a/src/pkg/runtime/defs_netbsd_386.h b/src/pkg/runtime/defs_netbsd_386.h
+index 04c380e3f0..7fd66959f3 100644
+--- a/src/pkg/runtime/defs_netbsd_386.h
++++ b/src/pkg/runtime/defs_netbsd_386.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -18,8 +21,6 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -71,6 +72,14 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_RECEIPT	= 0,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= 0x0,
++	EVFILT_WRITE	= 0x1,
+ };
+ 
+ typedef struct Sigaltstack Sigaltstack;
+@@ -82,6 +91,7 @@ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+ typedef struct McontextT McontextT;
+ typedef struct UcontextT UcontextT;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -133,6 +143,15 @@ struct UcontextT {
+ 	int32	__uc_pad[4];
+ };
+ 
++struct Kevent {
++	uint32	ident;
++	uint32	filter;
++	uint32	flags;
++	uint32	fflags;
++	int64	data;
++	int32	udata;
++};
++
+ 
+ #pragma pack off
+ // Created by cgo -cdefs - DO NOT EDIT
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.h b/src/pkg/runtime/defs_netbsd_amd64.h
+index 3d3f576d31..972af165b7 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.h
++++ b/src/pkg/runtime/defs_netbsd_amd64.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -18,8 +21,6 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -71,6 +72,14 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_RECEIPT	= 0,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= 0x0,
++	EVFILT_WRITE	= 0x1,
+ };
+ 
+ typedef struct Sigaltstack Sigaltstack;
+@@ -82,6 +91,7 @@ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+ typedef struct McontextT McontextT;
+ typedef struct UcontextT UcontextT;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -137,6 +147,16 @@ struct UcontextT {
+ 	McontextT	uc_mcontext;
+ };
+ 
++struct Kevent {
++	uint64	ident;
++	uint32	filter;
++	uint32	flags;
++	uint32	fflags;
++	byte	Pad_cgo_0[4];
++	int64	data;
++	int64	udata;
++};
++
+ 
+ #pragma pack off
+ // Created by cgo -cdefs - DO NOT EDIT
+diff --git a/src/pkg/runtime/defs_netbsd_arm.h b/src/pkg/runtime/defs_netbsd_arm.h
+index 26b55222e2..c6f5b1c47c 100644
+--- a/src/pkg/runtime/defs_netbsd_arm.h
++++ b/src/pkg/runtime/defs_netbsd_arm.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -18,8 +21,6 @@ enum {
+ 	SA_RESTART	= 0x2,
+ 	SA_ONSTACK	= 0x1,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -71,6 +72,14 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_RECEIPT	= 0,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= 0x0,
++	EVFILT_WRITE	= 0x1,
+ };
+ 
+ typedef struct Sigaltstack Sigaltstack;
+@@ -82,6 +91,7 @@ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
+ typedef struct McontextT McontextT;
+ typedef struct UcontextT UcontextT;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -137,6 +147,16 @@ struct UcontextT {
+ 	int32	__uc_pad[2];
+ };
+ 
++struct Kevent {
++	uint32	ident;
++	uint32	filter;
++	uint32	flags;
++	uint32	fflags;
++	int64	data;
++	int32	udata;
++};
++
++
+ #pragma pack off
+ // Created by cgo -cdefs - DO NOT EDIT
+ // cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 3fb347c74f..6e802134c9 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd,amd64 freebsd,386 linux openbsd windows
++// +build darwin freebsd,amd64 freebsd,386 linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index d3883dfb3c..4b895c8cf6 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd,amd64 freebsd,386 openbsd
++// +build darwin freebsd,amd64 freebsd,386 netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
+ 
+ // Integrated network poller (kqueue-based implementation).
+ 
+@@ -40,7 +41,7 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
+ 	ev[0].flags = EV_ADD|EV_CLEAR;
+ 	ev[0].fflags = 0;
+ 	ev[0].data = 0;
+-	ev[0].udata = (byte*)pd;
++	ev[0].udata = (kevent_udata)pd;
+ 	ev[1] = ev[0];
+ 	ev[1].filter = EVFILT_WRITE;
+ 	n = runtime·kevent(kq, ev, 2, nil, 0, nil);
+diff --git a/src/pkg/runtime/netpoll_stub.c b/src/pkg/runtime/netpoll_stub.c
+index a785936e41..bdef4e0d93 100644
+--- a/src/pkg/runtime/netpoll_stub.c
++++ b/src/pkg/runtime/netpoll_stub.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd,arm netbsd plan9
++// +build freebsd,arm plan9
+ 
+ #include "runtime.h"
+ 
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index 8024109753..b4f49e0235 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -4,6 +4,8 @@
+ 
+ #define SS_DISABLE 4
+ 
++typedef byte* kevent_udata;
++
+ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
+ int32	runtime·bsdthread_register(void);
+ int32	runtime·mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index e9be1362c1..c1853e65d6 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -4,6 +4,8 @@
+ 
+ #define SS_DISABLE 4
+ 
++typedef byte* kevent_udata;
++
+ int32	runtime·thr_new(ThrParam*, int32);
+ void	runtime·sigpanic(void);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index c193ae0b4a..55743c8d54 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -8,6 +8,8 @@
+ #define SIG_UNBLOCK 2
+ #define SIG_SETMASK 3
+ 
++typedef uintptr kevent_udata;
++
+ struct sigaction;
+ 
+ void	runtime·sigpanic(void);
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index dbfa4b69f5..4746b314f2 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -8,6 +8,8 @@
+ #define SIG_UNBLOCK 2
+ #define SIG_SETMASK 3
+ 
++typedef byte* kevent_udata;
++
+ struct sigaction;
+ 
+ void	runtime·sigpanic(void);
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index f7a3dbac41..05de55e93a 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -343,3 +343,32 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	RET
+ 
+ GLOBL runtime·tlsoffset(SB),$4
++
++// int32 runtime·kqueue(void)
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	MOVL	$344, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
++TEXT runtime·kevent(SB),NOSPLIT,$0
++	MOVL	$435, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
++
++// int32 runtime·closeonexec(int32 fd)
++TEXT runtime·closeonexec(SB),NOSPLIT,$32
++	MOVL	$92, AX		// fcntl
++	// 0(SP) is where the caller PC would be; kernel skips it
++	MOVL	fd+0(FP), BX
++	MOVL	BX, 4(SP)	// fd
++	MOVL	$2, 8(SP)	// F_SETFD
++	MOVL	$1, 12(SP)	// FD_CLOEXEC
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	RET
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index b7a64004f0..fcbced548f 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -311,3 +311,34 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVL	$0, AX
+ 	RET
+ 
++// int32 runtime·kqueue(void)
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	MOVQ	$0, DI
++	MOVL	$344, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
++TEXT runtime·kevent(SB),NOSPLIT,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVQ	32(SP), R10
++	MOVL	40(SP), R8
++	MOVQ	48(SP), R9
++	MOVL	$435, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// void runtime·closeonexec(int32 fd)
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
++	MOVL	8(SP), DI	// fd
++	MOVQ	$2, SI		// F_SETFD
++	MOVQ	$1, DX		// FD_CLOEXEC
++	MOVL	$92, AX		// fcntl
++	SYSCALL
++	RET
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index 4a5b889966..b2eb74ee33 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -288,6 +288,36 @@ TEXT runtime·sysctl(SB),NOSPLIT,$8
+ 	SUB $4, R13
+ 	RET
+ 
++// int32 runtime·kqueue(void)
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	SWI $0xa00158	// sys_kqueue
++	RSB.CS $0, R0
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
++TEXT runtime·kevent(SB),NOSPLIT,$8
++	MOVW 0(FP), R0	// kq
++	MOVW 4(FP), R1	// changelist
++	MOVW 8(FP), R2	// nchanges
++	MOVW 12(FP), R3	// eventlist
++	MOVW 16(FP), R4	// nevents
++	MOVW R4, 4(R13)
++	MOVW 20(FP), R4	// timeout
++	MOVW R4, 8(R13)
++	ADD $4, R13	// pass arg 5 and 6 on stack
++	SWI $0xa001b3	// sys___kevent50
++	RSB.CS $0, R0
++	SUB $4, R13
++	RET
++
++// void runtime·closeonexec(int32 fd)
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
++	MOVW 0(FP), R0	// fd
++	MOVW $2, R1	// F_SETFD
++	MOVW $1, R2	// FD_CLOEXEC
++	SWI $0xa0005c	// sys_fcntl
++	RET
++
+ TEXT runtime·casp(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 

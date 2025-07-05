@@ -7,7 +7,32 @@ Date:   Mon Jan 24 18:09:10 2011 +1000
     R=nigeltao, r2
     CC=golang-dev
     https://golang.org/cl/4061044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 067d3a0c47..3656f0a7db 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -96,6 +96,7 @@ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter Mundy <go.peter.90@gmail.com>
+ Peter Williams <pwil3058@gmail.com>
++Pieter Droogendijk <pieter@binky.org.uk>
+ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d4cdd45f9d..fe28865f0c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -148,6 +148,7 @@ Peter Mundy <go.peter.90@gmail.com>
+ Péter Szabó <pts@google.com>
+ Peter Williams <pwil3058@gmail.com>
+ Phil Pennock <pdp@golang.org>
++Pieter Droogendijk <pieter@binky.org.uk>
+ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>

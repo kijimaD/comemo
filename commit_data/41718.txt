@@ -11,6 +11,27 @@ Date:   Tue Oct 22 00:54:22 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/exec/exec_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 60a8d0228b..19d2111743 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -453,13 +453,13 @@ var testedAlreadyLeaked = false
+ 
+ // basefds returns the number of expected file descriptors
+ // to be present in a process at start.
+-// stdin, stdout, stderr, epoll/kqueue, maybe testlog
++// stdin, stdout, stderr, epoll/kqueue, epoll/kqueue pipe, maybe testlog
+ func basefds() uintptr {
+ 	n := os.Stderr.Fd() + 1
+ 	// The poll (epoll/kqueue) descriptor can be numerically
+ 	// either between stderr and the testlog-fd, or after
+ 	// testlog-fd.
+-	if poll.IsPollDescriptor(n) {
++	for poll.IsPollDescriptor(n) {
+ 		n++
+ 	}
+ 	for _, arg := range os.Args {

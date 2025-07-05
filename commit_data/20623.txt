@@ -20,8 +20,49 @@ Date:   Wed Sep 24 19:18:01 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/144530046
-
+---
  src/bytes/bytes.s   |  5 -----
  src/cmd/go/build.go |  2 +-
  src/net/empty.s     | 10 ----------
  3 files changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/src/bytes/bytes.s b/src/bytes/bytes.s
+deleted file mode 100644
+index 55103bae05..0000000000
+--- a/src/bytes/bytes.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is here just to make the go tool happy.
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 27bd307378..fcc6b699be 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1630,7 +1630,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
+ 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+ 	if p.Standard {
+ 		switch p.ImportPath {
+-		case "os", "runtime/pprof", "sync", "time":
++		case "bytes", "net", "os", "runtime/pprof", "sync", "time":
+ 			extFiles++
+ 		}
+ 	}
+diff --git a/src/net/empty.s b/src/net/empty.s
+deleted file mode 100644
+index f0b255a0cf..0000000000
+--- a/src/net/empty.s
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !cgo
+-
+-// This file is required to prevent compiler errors
+-// when the package built with CGO_ENABLED=0.
+-// Otherwise the compiler says:
+-// pkg/net/fd_poll_runtime.go:15: missing function body

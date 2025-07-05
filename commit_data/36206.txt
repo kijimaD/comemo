@@ -32,7 +32,55 @@ Date:   Fri Apr 6 16:19:30 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Yury Smolsky <yury@smolsky.by>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_nacl.go          |  9 +++++++++
  src/runtime/sys_nacl_amd64p32.s | 16 ++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index d03cb8faf2..7b8a7d548e 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -289,6 +289,15 @@ type gsignalStack struct{}
+ 
+ var writelock uint32 // test-and-set spin lock for write
+ 
++// lastfaketime stores the last faketime value written to fd 1 or 2.
++var lastfaketime int64
++
++// lastfaketimefd stores the fd to which lastfaketime was written.
++//
++// Subsequent writes to the same fd may use the same timestamp,
++// but the timestamp must increase if the fd changes.
++var lastfaketimefd int32
++
+ /*
+ An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.
+ 
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index ff4c2e7bb5..4c4d509576 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -89,6 +89,22 @@ playback:
+ 	CMPL BX, $0
+ 	JNE playback
+ 
++	MOVQ runtime·lastfaketime(SB), CX
++	MOVL runtime·lastfaketimefd(SB), BX
++	CMPL DI, BX
++	JE samefd
++
++	// If the current fd doesn't match the fd of the previous write,
++	// ensure that the timestamp is strictly greater. That way, we can
++	// recover the original order even if we read the fds separately.
++	INCQ CX
++	MOVL DI, runtime·lastfaketimefd(SB)
++
++samefd:
++	CMPQ AX, CX
++	CMOVQLT CX, AX
++	MOVQ AX, runtime·lastfaketime(SB)
++
+ 	// Playback header: 0 0 P B <8-byte time> <4-byte data length>
+ 	MOVL $(('B'<<24) | ('P'<<16)), 0(SP)
+ 	BSWAPQ AX

@@ -40,7 +40,7 @@ Date:   Sun Apr 16 08:22:44 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/compile/internal/gc/obj.go |  4 ----
  src/cmd/internal/obj/data.go       |  9 +++++++--
  src/cmd/internal/obj/objfile.go    |  6 ++++++
@@ -50,3 +50,158 @@ Date:   Sun Apr 16 08:22:44 2017 -0700
  src/cmd/link/internal/ld/lib.go    |  2 +-
  src/debug/pe/file_test.go          |  2 +-
  8 files changed, 42 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 29cdb5684e..83e64e728e 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -259,10 +259,6 @@ func addGCLocals() {
+ }
+ 
+ func duintxx(s *obj.LSym, off int, v uint64, wid int) int {
+-	if s.Type == 0 {
+-		// TODO(josharian): Do this in obj.prepwrite instead.
+-		s.Type = objabi.SDATA
+-	}
+ 	if off&(wid-1) != 0 {
+ 		Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)
+ 	}
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index ab873123fc..8b1bdb1056 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -73,8 +73,13 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+ 	if off < 0 || siz < 0 || off >= 1<<30 {
+ 		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
+ 	}
+-	if s.Type == objabi.SBSS || s.Type == objabi.STLSBSS {
+-		ctxt.Diag("cannot supply data for BSS var")
++	switch s.Type {
++	case objabi.Sxxx, objabi.SBSS:
++		s.Type = objabi.SDATA
++	case objabi.SNOPTRBSS:
++		s.Type = objabi.SNOPTRDATA
++	case objabi.STLSBSS:
++		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
+ 	}
+ 	l := off + int64(siz)
+ 	s.Grow(l)
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 2528064a82..c550d43f26 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -128,6 +128,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 		}
+ 	}
+ 	for _, s := range ctxt.Data {
++		if len(s.P) > 0 {
++			switch s.Type {
++			case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
++				ctxt.Diag("cannot provide data for %v sym %v", s.Type, s.Name)
++			}
++		}
+ 		w.wr.Write(s.P)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index c8d282712b..5c86c20e73 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -171,7 +171,11 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+ 	if flag&RODATA != 0 {
+ 		s.Type = objabi.SRODATA
+ 	} else if flag&NOPTR != 0 {
+-		s.Type = objabi.SNOPTRBSS
++		if s.Type == objabi.SDATA {
++			s.Type = objabi.SNOPTRDATA
++		} else {
++			s.Type = objabi.SNOPTRBSS
++		}
+ 	} else if flag&TLSBSS != 0 {
+ 		s.Type = objabi.STLSBSS
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8aa6cde603..d724c596c1 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1141,21 +1141,16 @@ func addinitarrdata(ctxt *Link, s *Symbol) {
+ }
+ 
+ func dosymtype(ctxt *Link) {
+-	for _, s := range ctxt.Syms.Allsym {
+-		if len(s.P) > 0 {
+-			if s.Type == SBSS {
+-				s.Type = SDATA
+-			}
+-			if s.Type == SNOPTRBSS {
+-				s.Type = SNOPTRDATA
+-			}
+-		}
+-		// Create a new entry in the .init_array section that points to the
+-		// library initializer function.
+-		switch Buildmode {
+-		case BuildmodeCArchive, BuildmodeCShared:
+-			if s.Name == *flagEntrySymbol {
+-				addinitarrdata(ctxt, s)
++	switch Buildmode {
++	case BuildmodeCArchive, BuildmodeCShared:
++		for _, s := range ctxt.Syms.Allsym {
++			// Create a new entry in the .init_array section that points to the
++			// library initializer function.
++			switch Buildmode {
++			case BuildmodeCArchive, BuildmodeCShared:
++				if s.Name == *flagEntrySymbol {
++					addinitarrdata(ctxt, s)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 3f09b35864..fd3664c2ed 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -177,6 +177,18 @@ func ldpeError(ctxt *Link, input *bio.Reader, pkg string, length int64, pn strin
+ 
+ 		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
+ 			s.Type = SNOPTRBSS
++			// It seems like this shouldn't happen, but it does, with symbol "runtime/cgo(.bss)".
++			// TODO: Figure out why and either document why it is ok or fix it at the source--
++			// either by eliminating the all-zero data or
++			// by making this SNOPTRDATA (IMAGE_SCN_CNT_INITIALIZED_DATA) to begin with.
++			if len(data) > 0 {
++				for _, x := range data {
++					if x != 0 {
++						Errorf(s, "non-zero data in .bss section: %q", data)
++					}
++				}
++				s.Type = SNOPTRDATA
++			}
+ 
+ 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
+ 			s.Type = SNOPTRDATA
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0297eb5b60..0f3b46d972 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1943,7 +1943,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 				continue
+ 			}
+ 			if len(s.P) > 0 {
+-				Errorf(s, "should not be bss (size=%d type=%d special=%v)", len(s.P), s.Type, s.Attr.Special())
++				Errorf(s, "should not be bss (size=%d type=%v special=%v)", len(s.P), s.Type, s.Attr.Special())
+ 			}
+ 			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
+ 
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 7957083639..100516f0ba 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -341,7 +341,7 @@ func testDWARF(t *testing.T, linktype int) {
+ 	args = append(args, src)
+ 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("building test executable failed: %s %s", err, out)
++		t.Fatalf("building test executable for linktype %d failed: %s %s", linktype, err, out)
+ 	}
+ 	out, err = exec.Command(exe).CombinedOutput()
+ 	if err != nil {

@@ -40,6 +40,49 @@ Date:   Mon Feb 20 07:10:37 2023 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/sin_s390x.s | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/math/sin_s390x.s b/src/math/sin_s390x.s
+index 7eb2206ca9..79d564b938 100644
+--- a/src/math/sin_s390x.s
++++ b/src/math/sin_s390x.s
+@@ -73,6 +73,10 @@ TEXT ·sinAsm(SB),NOSPLIT,$0-16
+ 	BLTU    L17
+ 	FMOVD   F0, F5
+ L2:
++	MOVD    $sincosxlim<>+0(SB), R1
++	FMOVD   0(R1), F1
++	FCMPU   F5, F1
++	BGT     L16
+ 	MOVD    $sincoss7<>+0(SB), R1
+ 	FMOVD   0(R1), F4
+ 	MOVD    $sincoss6<>+0(SB), R1
+@@ -205,6 +209,8 @@ L15:
+ 	RET
+ 
+ 
++L16:
++	BR     ·sin(SB)		//tail call
+ sinIsZero:
+ 	FMOVD   F0, ret+8(FP)
+ 	RET
+@@ -223,6 +229,10 @@ TEXT ·cosAsm(SB),NOSPLIT,$0-16
+ 	BLTU    L35
+ 	FMOVD   F0, F1
+ L21:
++	MOVD    $sincosxlim<>+0(SB), R1
++	FMOVD   0(R1), F2
++	FCMPU   F1, F2
++	BGT     L30
+ 	MOVD    $sincosc7<>+0(SB), R1
+ 	FMOVD   0(R1), F4
+ 	MOVD    $sincosc6<>+0(SB), R1
+@@ -354,3 +364,6 @@ L34:
+ 	FNEG    F0, F0
+ 	FMOVD   F0, ret+8(FP)
+ 	RET
++
++L30:
++	BR     ·cos(SB)		//tail call

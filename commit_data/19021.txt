@@ -9,7 +9,32 @@ Date:   Thu Apr 3 16:00:05 2014 -0400
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/81400045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 22b573eda0..72b422d28c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -109,6 +109,7 @@ David du Colombier <0intro@gmail.com>
+ David Forsythe <dforsythe@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Jakob Fritz <david.jakob.fritz@gmail.com>
++David Thomas <davidthomas426@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Dean Prichard <dean.prichard@gmail.com>
+ Denis Brandolini <denis.brandolini@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 3c4eb2c704..a0a01fdae8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -173,6 +173,7 @@ David Jakob Fritz <david.jakob.fritz@gmail.com>
+ David McLeish <davemc@google.com>
+ David Presotto <presotto@gmail.com>
+ David Symonds <dsymonds@golang.org>
++David Thomas <davidthomas426@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Dean Prichard <dean.prichard@gmail.com>
+ Denis Brandolini <denis.brandolini@gmail.com>

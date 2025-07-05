@@ -15,7 +15,7 @@ Date:   Fri Feb 1 08:35:33 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7064048
-
+---
  src/cmd/6c/sgen.c  |  5 ++++-
  src/cmd/6g/cgen.c  |  8 ++++++--
  src/cmd/6g/ggen.c  | 10 +++++++++-
@@ -26,3 +26,161 @@ Date:   Fri Feb 1 08:35:33 2013 -0800
  src/cmd/gc/lex.c   |  2 ++
  src/make.bash      |  7 +++++--
  9 files changed, 34 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index 42045f8fa1..2402a020da 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -126,7 +126,10 @@ xcom(Node *n)
+ 		break;
+ 
+ 	case ONAME:
+-		n->addable = 10;
++		if(flag_largemodel)
++			n->addable = 9;
++		else
++			n->addable = 10;
+ 		if(n->class == CPARAM || n->class == CAUTO)
+ 			n->addable = 11;
+ 		break;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 41694100b5..0fa7730521 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -737,8 +737,12 @@ agenr(Node *n, Node *a, Node *res)
+ 			regalloc(&n3, types[tptr], res);
+ 			p1 = gins(ALEAQ, N, &n3);
+ 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+-			p1->from.scale = 1;
+-			p1->from.index = n2.val.u.reg;
++			if(flag_largemodel) {
++				gins(AADDQ, &n2, &n3);
++			} else {
++				p1->from.scale = 1;
++				p1->from.index = n2.val.u.reg;
++			}
+ 			goto indexdone;
+ 		}
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index d8ac6cef63..4cb8244f05 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -59,6 +59,7 @@ ginscall(Node *f, int proc)
+ {
+ 	Prog *p;
+ 	Node reg, con;
++	Node r1;
+ 
+ 	switch(proc) {
+ 	default:
+@@ -76,7 +77,14 @@ ginscall(Node *f, int proc)
+ 	case 1:	// call in new proc (go)
+ 	case 2:	// deferred call (defer)
+ 		nodreg(&reg, types[TINT64], D_CX);
+-		gins(APUSHQ, f, N);
++		if(flag_largemodel) {
++			regalloc(&r1, f->type, f);
++			gmove(f, &r1);
++			gins(APUSHQ, &r1, N);
++			regfree(&r1);
++		} else {
++			gins(APUSHQ, f, N);
++		}
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(APUSHQ, &con, N);
+ 		if(proc == 1)
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 65d5ad786f..61a8d96d53 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -554,6 +554,10 @@ ismem(Node *n)
+ 	case ONAME:
+ 	case OPARAM:
+ 		return 1;
++	case OADDR:
++		if(flag_largemodel)
++			return 1;
++		break;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index f9e1546ca3..5cad8d92b4 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -528,6 +528,7 @@ EXTERN	int	packflg;
+ EXTERN	int	fproundflg;
+ EXTERN	int	textflag;
+ EXTERN	int	dataflag;
++EXTERN	int	flag_largemodel;
+ EXTERN	int	ncontin;
+ EXTERN	int	canreach;
+ EXTERN	int	warnreach;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index b5408cf9ec..16238153ec 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -174,6 +174,8 @@ main(int argc, char *argv[])
+ 	flagcount("t", "debug code generation", &debug['t']);
+ 	flagcount("w", "enable warnings", &debug['w']);
+ 	flagcount("v", "increase debug verbosity", &debug['v']);	
++	if(thechar == '6')
++		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
+ 	
+ 	flagparse(&argc, &argv, usage);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1afd1ca56e..9d2ff4d466 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -941,6 +941,7 @@ EXTERN	int	compiling_runtime;
+ EXTERN	int	compiling_wrappers;
+ EXTERN	int	pure_go;
+ EXTERN	int	flag_race;
++EXTERN	int	flag_largemodel;
+ 
+ EXTERN	int	nointerface;
+ EXTERN	int	fieldtrack_enabled;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index d50b07ddca..9a01768493 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -257,6 +257,8 @@ main(int argc, char *argv[])
+ 	flagcount("w", "debug type checking", &debug['w']);
+ 	flagcount("x", "debug lexer", &debug['x']);
+ 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
++	if(thechar == '6')
++		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
+ 
+ 	flagparse(&argc, &argv, usage);
+ 
+diff --git a/src/make.bash b/src/make.bash
+index 1190b93ffa..6c78f93ce6 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -23,6 +23,9 @@
+ # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+ # building the commands.
+ #
++# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
++# building.
++#
+ # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+ # to include all cgo related files, .c and .go file with "cgo"
+ # build directive, in the build. Set it to 0 to ignore them.
+@@ -129,12 +132,12 @@ echo
+ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ 	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+ 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++		"$GOTOOLDIR"/go_bootstrap install -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ 	echo
+ fi
+ 
+ echo "# Building packages and commands for $GOOS/$GOARCH."
+-"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++"$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ echo
+ 
+ rm -f "$GOTOOLDIR"/go_bootstrap

@@ -19,6 +19,22 @@ Date:   Mon Jun 9 22:54:54 2025 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/internal/trace/trace_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/trace/trace_test.go b/src/internal/trace/trace_test.go
+index 0aa297d762..7eb50d0f4e 100644
+--- a/src/internal/trace/trace_test.go
++++ b/src/internal/trace/trace_test.go
+@@ -600,6 +600,10 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 			godebug += "," + extraGODEBUG
+ 		}
+ 		cmd.Env = append(cmd.Env, "GODEBUG="+godebug)
++		if _, ok := os.LookupEnv("GOTRACEBACK"); !ok {
++			// Unless overriden, set GOTRACEBACK=crash.
++			cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
++		}
+ 
+ 		// Capture stdout and stderr.
+ 		//

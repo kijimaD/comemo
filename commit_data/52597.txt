@@ -13,6 +13,20 @@ Date:   Thu May 12 10:28:51 2022 +0900
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 0ba2dd57c5..8f43470819 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -105,7 +105,7 @@ endlocal
+ if errorlevel 1 goto fail
+ .\cmd\dist\dist.exe env -w -p >env.bat
+ if errorlevel 1 goto fail
+-call env.bat
++call .\env.bat
+ del env.bat
+ if x%vflag==x-v echo.
+ 

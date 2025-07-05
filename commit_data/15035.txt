@@ -27,8 +27,53 @@ Date:   Wed Jan 30 09:10:32 2013 -0800
     R=adg, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7196050
-
+---
  src/pkg/encoding/json/decode.go       | 2 +-
  src/pkg/encoding/json/decode_test.go  | 6 ++++++
  src/pkg/encoding/json/scanner_test.go | 3 ---
  3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 95e9120918..e6e15b00d6 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -742,7 +742,7 @@ func (d *decodeState) valueInterface() interface{} {
+ 
+ // arrayInterface is like array but returns []interface{}.
+ func (d *decodeState) arrayInterface() []interface{} {
+-	var v []interface{}
++	var v = make([]interface{}, 0)
+ 	for {
+ 		// Look ahead for ] - can only happen on first iteration.
+ 		op := d.scanWhile(scanSkipSpace)
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index a91c6da01d..b65687e4a4 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -239,6 +239,12 @@ var unmarshalTests = []unmarshalTest{
+ 	{in: `[1, 2, 3]`, ptr: new([1]int), out: [1]int{1}},
+ 	{in: `[1, 2, 3]`, ptr: new([5]int), out: [5]int{1, 2, 3, 0, 0}},
+ 
++	// empty array to interface test
++	{in: `[]`, ptr: new([]interface{}), out: []interface{}{}},
++	{in: `null`, ptr: new([]interface{}), out: []interface{}(nil)},
++	{in: `{"T":[]}`, ptr: new(map[string]interface{}), out: map[string]interface{}{"T": []interface{}{}}},
++	{in: `{"T":null}`, ptr: new(map[string]interface{}), out: map[string]interface{}{"T": interface{}(nil)}},
++
+ 	// composite tests
+ 	{in: allValueIndent, ptr: new(All), out: allValue},
+ 	{in: allValueCompact, ptr: new(All), out: allValue},
+diff --git a/src/pkg/encoding/json/scanner_test.go b/src/pkg/encoding/json/scanner_test.go
+index adb35715b9..77d3455d30 100644
+--- a/src/pkg/encoding/json/scanner_test.go
++++ b/src/pkg/encoding/json/scanner_test.go
+@@ -277,9 +277,6 @@ func genArray(n int) []interface{} {
+ 	if f > n {
+ 		f = n
+ 	}
+-	if n > 0 && f == 0 {
+-		f = 1
+-	}
+ 	x := make([]interface{}, f)
+ 	for i := range x {
+ 		x[i] = genValue(((i+1)*n)/f - (i*n)/f)

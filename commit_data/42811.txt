@@ -12,6 +12,34 @@ Date:   Tue Jan 21 12:23:20 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 47cf5f15da..5a22280218 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -22,6 +22,7 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"io"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
+@@ -264,7 +265,13 @@ func genRulesSuffix(arch arch, suff string) {
+ 	fset := token.NewFileSet()
+ 	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments)
+ 	if err != nil {
+-		log.Fatal(err)
++		filename := fmt.Sprintf("%s_broken.go", arch.name)
++		if err := ioutil.WriteFile(filename, buf.Bytes(), 0644); err != nil {
++			log.Printf("failed to dump broken code to %s: %v", filename, err)
++		} else {
++			log.Printf("dumped broken code to %s", filename)
++		}
++		log.Fatalf("failed to parse generated code for arch %s: %v", arch.name, err)
+ 	}
+ 	tfile := fset.File(file.Pos())
+ 

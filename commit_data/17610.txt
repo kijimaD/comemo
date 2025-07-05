@@ -8,7 +8,34 @@ Date:   Mon Sep 16 16:13:27 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/13660046
-
+---
  src/cmd/nm/doc.go | 2 +-
  src/cmd/nm/nm.c   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index 480c1c3dde..8e88e2e639 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -17,7 +17,7 @@ This implementation adds the flag -S, which prints each symbol's size
+ in decimal after its address.
+ 
+ Usage:
+-	go tool nm [-aghnsTu] file
++	go tool nm [-aghnsSTu] file
+ 
+ */
+ package main
+diff --git a/src/cmd/nm/nm.c b/src/cmd/nm/nm.c
+index aa056b8825..b5e1ca0b6b 100644
+--- a/src/cmd/nm/nm.c
++++ b/src/cmd/nm/nm.c
+@@ -72,7 +72,7 @@ void	zenter(Sym*);
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: nm [-aghnsTu] file ...\n");
++	fprint(2, "usage: nm [-aghnsSTu] file ...\n");
+ 	exits("usage");
+ }
+ 

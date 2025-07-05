@@ -17,7 +17,107 @@ Date:   Wed Aug 5 23:10:46 2020 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/gc_test.go      | 17 ++++++++++++-----
  src/runtime/metrics_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 9edebdada6..7870f31ae9 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -518,7 +518,7 @@ func BenchmarkReadMemStats(b *testing.B) {
+ 	hugeSink = nil
+ }
+ 
+-func BenchmarkReadMemStatsLatency(b *testing.B) {
++func applyGCLoad(b *testing.B) func() {
+ 	// We’ll apply load to the runtime with maxProcs-1 goroutines
+ 	// and use one more to actually benchmark. It doesn't make sense
+ 	// to try to run this test with only 1 P (that's what
+@@ -563,6 +563,14 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
+ 			runtime.KeepAlive(hold)
+ 		}()
+ 	}
++	return func() {
++		close(done)
++		wg.Wait()
++	}
++}
++
++func BenchmarkReadMemStatsLatency(b *testing.B) {
++	stop := applyGCLoad(b)
+ 
+ 	// Spend this much time measuring latencies.
+ 	latencies := make([]time.Duration, 0, 1024)
+@@ -579,12 +587,11 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
+ 		runtime.ReadMemStats(&ms)
+ 		latencies = append(latencies, time.Now().Sub(start))
+ 	}
+-	close(done)
+-	// Make sure to stop the timer before we wait! The goroutines above
+-	// are very heavy-weight and not easy to stop, so we could end up
++	// Make sure to stop the timer before we wait! The load created above
++	// is very heavy-weight and not easy to stop, so we could end up
+ 	// confusing the benchmarking framework for small b.N.
+ 	b.StopTimer()
+-	wg.Wait()
++	stop()
+ 
+ 	// Disable the default */op metrics.
+ 	// ns/op doesn't mean anything because it's an average, but we
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index f00aad07c4..d925b057b0 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -7,8 +7,10 @@ package runtime_test
+ import (
+ 	"runtime"
+ 	"runtime/metrics"
++	"sort"
+ 	"strings"
+ 	"testing"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -112,3 +114,39 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
+ 	}
+ }
++
++func BenchmarkReadMetricsLatency(b *testing.B) {
++	stop := applyGCLoad(b)
++
++	// Spend this much time measuring latencies.
++	latencies := make([]time.Duration, 0, 1024)
++	_, samples := prepareAllMetricsSamples()
++
++	// Hit metrics.Read continuously and measure.
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		start := time.Now()
++		metrics.Read(samples)
++		latencies = append(latencies, time.Now().Sub(start))
++	}
++	// Make sure to stop the timer before we wait! The load created above
++	// is very heavy-weight and not easy to stop, so we could end up
++	// confusing the benchmarking framework for small b.N.
++	b.StopTimer()
++	stop()
++
++	// Disable the default */op metrics.
++	// ns/op doesn't mean anything because it's an average, but we
++	// have a sleep in our b.N loop above which skews this significantly.
++	b.ReportMetric(0, "ns/op")
++	b.ReportMetric(0, "B/op")
++	b.ReportMetric(0, "allocs/op")
++
++	// Sort latencies then report percentiles.
++	sort.Slice(latencies, func(i, j int) bool {
++		return latencies[i] < latencies[j]
++	})
++	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
++	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
++	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
++}

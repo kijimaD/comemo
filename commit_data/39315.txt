@@ -12,7 +12,7 @@ Date:   Thu Feb 21 17:38:53 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../altpath/{src => testdata}/common/common.go     |   0
  .../{src => testdata}/plugin-mismatch/main.go      |   2 +-
  misc/cgo/testplugin/overlaydir_test.go             |  81 +++++++++
@@ -53,3 +53,701 @@ Date:   Thu Feb 21 17:38:53 2019 -0500
  .../cgo/testplugin/{ => testdata}/unnamed2/main.go |   2 +
  src/cmd/dist/test.go                               |   2 +-
  39 files changed, 288 insertions(+), 120 deletions(-)
+
+diff --git a/misc/cgo/testplugin/altpath/src/common/common.go b/misc/cgo/testplugin/altpath/testdata/common/common.go
+similarity index 100%
+rename from misc/cgo/testplugin/altpath/src/common/common.go
+rename to misc/cgo/testplugin/altpath/testdata/common/common.go
+diff --git a/misc/cgo/testplugin/altpath/src/plugin-mismatch/main.go b/misc/cgo/testplugin/altpath/testdata/plugin-mismatch/main.go
+similarity index 94%
+rename from misc/cgo/testplugin/altpath/src/plugin-mismatch/main.go
+rename to misc/cgo/testplugin/altpath/testdata/plugin-mismatch/main.go
+index 8aacafc453..bfb4ba45aa 100644
+--- a/misc/cgo/testplugin/altpath/src/plugin-mismatch/main.go
++++ b/misc/cgo/testplugin/altpath/testdata/plugin-mismatch/main.go
+@@ -10,7 +10,7 @@ import "C"
+ // The common package imported here does not match the common package
+ // imported by plugin1. A program that attempts to load plugin1 and
+ // plugin-mismatch should produce an error.
+-import "common"
++import "testplugin/common"
+ 
+ func ReadCommonX() int {
+ 	return common.X
+diff --git a/misc/cgo/testplugin/overlaydir_test.go b/misc/cgo/testplugin/overlaydir_test.go
+new file mode 100644
+index 0000000000..b68436ac03
+--- /dev/null
++++ b/misc/cgo/testplugin/overlaydir_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package plugin_test
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	symBase, err := filepath.Rel(srcRoot, dstRoot)
++	if err != nil {
++		symBase, err = filepath.Abs(srcRoot)
++		if err != nil {
++			return err
++		}
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+new file mode 100644
+index 0000000000..8bea9e5356
+--- /dev/null
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -0,0 +1,192 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package plugin_test
++
++import (
++	"bytes"
++	"context"
++	"fmt"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++	"time"
++)
++
++var gcflags string = os.Getenv("GO_GCFLAGS")
++
++func TestMain(m *testing.M) {
++	log.SetFlags(log.Lshortfile)
++
++	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
++	// declaring the same path.
++
++	GOPATH, err := ioutil.TempDir("", "plugin_test")
++	if err != nil {
++		log.Panic(err)
++	}
++	defer os.RemoveAll(GOPATH)
++
++	modRoot := filepath.Join(GOPATH, "src", "testplugin")
++	altRoot := filepath.Join(GOPATH, "alt", "src", "testplugin")
++	for srcRoot, dstRoot := range map[string]string{
++		"testdata":                           modRoot,
++		filepath.Join("altpath", "testdata"): altRoot,
++	} {
++		if err := overlayDir(dstRoot, srcRoot); err != nil {
++			log.Panic(err)
++		}
++		if err := ioutil.WriteFile(filepath.Join(dstRoot, "go.mod"), []byte("module testplugin\n"), 0666); err != nil {
++			log.Panic(err)
++		}
++	}
++
++	os.Setenv("GOPATH", filepath.Join(GOPATH, "alt"))
++	if err := os.Chdir(altRoot); err != nil {
++		log.Panic(err)
++	}
++	goCmd(nil, "build", "-buildmode=plugin", "-o", filepath.Join(modRoot, "plugin-mismatch.so"), "./plugin-mismatch")
++
++	os.Setenv("GOPATH", GOPATH)
++	if err := os.Chdir(modRoot); err != nil {
++		log.Panic(err)
++	}
++
++	os.Setenv("LD_LIBRARY_PATH", modRoot)
++
++	goCmd(nil, "build", "-i", "-buildmode=plugin", "./plugin1")
++	goCmd(nil, "build", "-buildmode=plugin", "./plugin2")
++	so, err := ioutil.ReadFile("plugin2.so")
++	if err != nil {
++		log.Panic(err)
++	}
++	if err := ioutil.WriteFile("plugin2-dup.so", so, 0444); err != nil {
++		log.Panic(err)
++	}
++
++	goCmd(nil, "build", "-buildmode=plugin", "-o=sub/plugin1.so", "./sub/plugin1")
++	goCmd(nil, "build", "-buildmode=plugin", "-o=unnamed1.so", "./unnamed1/main.go")
++	goCmd(nil, "build", "-buildmode=plugin", "-o=unnamed2.so", "./unnamed2/main.go")
++	goCmd(nil, "build", "-o", "host.exe", "./host")
++
++	os.Exit(m.Run())
++}
++
++func goCmd(t *testing.T, op string, args ...string) {
++	if t != nil {
++		t.Helper()
++	}
++	run(t, "go", append([]string{op, "-gcflags", gcflags}, args...)...)
++}
++
++func run(t *testing.T, bin string, args ...string) string {
++	cmd := exec.Command(bin, args...)
++	cmd.Stderr = new(strings.Builder)
++	out, err := cmd.Output()
++	if err != nil {
++		if t == nil {
++			log.Panicf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++		} else {
++			t.Helper()
++			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++		}
++	}
++
++	return string(bytes.TrimSpace(out))
++}
++
++func TestDWARFSections(t *testing.T) {
++	// test that DWARF sections are emitted for plugins and programs importing "plugin"
++	if runtime.GOOS != "darwin" {
++		// On macOS, for some reason, the linker doesn't add debug sections to .so,
++		// see issue #27502.
++		goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
++	}
++	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
++}
++
++func TestRunHost(t *testing.T) {
++	run(t, "./host.exe")
++}
++
++func TestUniqueTypesAndItabs(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "./iface_a")
++	goCmd(t, "build", "-buildmode=plugin", "./iface_b")
++	goCmd(t, "build", "-o", "iface.exe", "./iface")
++	run(t, "./iface.exe")
++}
++
++func TestIssue18676(t *testing.T) {
++	// make sure we don't add the same itab twice.
++	// The buggy code hangs forever, so use a timeout to check for that.
++	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue18676/plugin.go")
++	goCmd(t, "build", "-o", "issue18676.exe", "./issue18676/main.go")
++
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	cmd := exec.CommandContext(ctx, "./issue18676.exe")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++}
++
++func TestIssue19534(t *testing.T) {
++	// Test that we can load a plugin built in a path with non-alpha characters.
++	goCmd(t, "build", "-buildmode=plugin", "-ldflags='-pluginpath=issue.19534'", "-o", "plugin.so", "./issue19534/plugin.go")
++	goCmd(t, "build", "-o", "issue19534.exe", "./issue19534/main.go")
++	run(t, "./issue19534.exe")
++}
++
++func TestIssue18584(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue18584/plugin.go")
++	goCmd(t, "build", "-o", "issue18584.exe", "./issue18584/main.go")
++	run(t, "./issue18584.exe")
++}
++
++func TestIssue19418(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-ldflags=-X main.Val=linkstr", "-o", "plugin.so", "./issue19418/plugin.go")
++	goCmd(t, "build", "-o", "issue19418.exe", "./issue19418/main.go")
++	run(t, "./issue19418.exe")
++}
++
++func TestIssue19529(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue19529/plugin.go")
++}
++
++func TestIssue22175(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue22175_plugin1.so", "./issue22175/plugin1.go")
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue22175_plugin2.so", "./issue22175/plugin2.go")
++	goCmd(t, "build", "-o", "issue22175.exe", "./issue22175/main.go")
++	run(t, "./issue22175.exe")
++}
++
++func TestIssue22295(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue.22295.so", "./issue22295.pkg")
++	goCmd(t, "build", "-o", "issue22295.exe", "./issue22295.pkg/main.go")
++	run(t, "./issue22295.exe")
++}
++
++func TestIssue24351(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue24351.so", "./issue24351/plugin.go")
++	goCmd(t, "build", "-o", "issue24351.exe", "./issue24351/main.go")
++	run(t, "./issue24351.exe")
++}
++
++func TestIssue25756(t *testing.T) {
++	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
++	goCmd(t, "build", "-o", "issue25756.exe", "./issue25756/main.go")
++	// Fails intermittently, but 20 runs should cause the failure
++	for n := 20; n > 0; n-- {
++		t.Run(fmt.Sprint(n), func(t *testing.T) {
++			t.Parallel()
++			run(t, "./issue25756.exe")
++		})
++	}
++}
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+deleted file mode 100755
+index 1b94bc4bad..0000000000
+--- a/misc/cgo/testplugin/test.bash
++++ /dev/null
+@@ -1,109 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2016 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-if [ ! -f src/host/host.go ]; then
+-	cwd=$(pwd)
+-	echo "misc/cgo/testplugin/test.bash is running in $cwd" 1>&2
+-	exit 1
+-fi
+-
+-goos=$(go env GOOS)
+-goarch=$(go env GOARCH)
+-
+-function cleanup() {
+-	rm -f plugin*.so unnamed*.so iface*.so life.so issue*
+-	rm -rf host pkg sub iface
+-}
+-trap cleanup EXIT
+-
+-rm -rf pkg sub
+-mkdir sub
+-
+-GOPATH=$(pwd) go build -i -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin1
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin2
+-cp plugin2.so plugin2-dup.so
+-GOPATH=$(pwd)/altpath go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin-mismatch
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed1.so unnamed1/main.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed2.so unnamed2/main.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" host
+-
+-# test that DWARF sections are emitted for plugins and programs importing "plugin"
+-if [ $GOOS != "darwin" ]; then
+-	# On macOS, for some reason, the linker doesn't add debug sections to .so,
+-	# see issue #27502.
+-	go run src/checkdwarf/main.go plugin2.so plugin2.UnexportedNameReuse
+-fi
+-go run src/checkdwarf/main.go host main.main
+-
+-LD_LIBRARY_PATH=$(pwd) ./host
+-
+-# Test that types and itabs get properly uniqified.
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin iface_a
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin iface_b
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" iface
+-LD_LIBRARY_PATH=$(pwd) ./iface
+-
+-function _timeout() (
+-	set -e
+-	$2 &
+-	p=$!
+-	(sleep $1; kill $p 2>/dev/null) &
+-	p2=$!
+-	wait $p 2>/dev/null
+-	kill -0 $p2 2>/dev/null
+-)
+-
+-# Test for issue 18676 - make sure we don't add the same itab twice.
+-# The buggy code hangs forever, so use a timeout to check for that.
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue18676/plugin.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue18676 src/issue18676/main.go
+-_timeout 10s ./issue18676
+-
+-# Test for issue 19534 - that we can load a plugin built in a path with non-alpha
+-# characters
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -ldflags='-pluginpath=issue.19534' -o plugin.so src/issue19534/plugin.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19534 src/issue19534/main.go
+-./issue19534
+-
+-# Test for issue 18584
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue18584/plugin.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue18584 src/issue18584/main.go
+-./issue18584
+-
+-# Test for issue 19418
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin "-ldflags=-X main.Val=linkstr" -o plugin.so src/issue19418/plugin.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19418 src/issue19418/main.go
+-./issue19418
+-
+-# Test for issue 19529
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue19529/plugin.go
+-
+-# Test for issue 22175
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue22175_plugin1.so src/issue22175/plugin1.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue22175_plugin2.so src/issue22175/plugin2.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22175 src/issue22175/main.go
+-./issue22175
+-
+-# Test for issue 22295
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue.22295.so issue22295.pkg
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22295 src/issue22295.pkg/main.go
+-./issue22295
+-
+-# Test for issue 24351
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue24351.so src/issue24351/plugin.go
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue24351 src/issue24351/main.go
+-./issue24351
+-
+-# Test for issue 25756
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o life.so issue25756/plugin
+-GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue25756 src/issue25756/main.go
+-# Fails intermittently, but 20 runs should cause the failure
+-for i in `seq 1 20`;
+-do
+-  ./issue25756 > /dev/null
+-done
+diff --git a/misc/cgo/testplugin/src/checkdwarf/main.go b/misc/cgo/testplugin/testdata/checkdwarf/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/checkdwarf/main.go
+rename to misc/cgo/testplugin/testdata/checkdwarf/main.go
+diff --git a/misc/cgo/testplugin/src/common/common.go b/misc/cgo/testplugin/testdata/common/common.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/common/common.go
+rename to misc/cgo/testplugin/testdata/common/common.go
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/testdata/host/host.go
+similarity index 99%
+rename from misc/cgo/testplugin/src/host/host.go
+rename to misc/cgo/testplugin/testdata/host/host.go
+index 0ca17da3de..a3799328cd 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/testdata/host/host.go
+@@ -11,7 +11,7 @@ import (
+ 	"plugin"
+ 	"strings"
+ 
+-	"common"
++	"testplugin/common"
+ )
+ 
+ func init() {
+diff --git a/misc/cgo/testplugin/src/iface/main.go b/misc/cgo/testplugin/testdata/iface/main.go
+similarity index 97%
+rename from misc/cgo/testplugin/src/iface/main.go
+rename to misc/cgo/testplugin/testdata/iface/main.go
+index 5e7e4d8b48..7b4ea97442 100644
+--- a/misc/cgo/testplugin/src/iface/main.go
++++ b/misc/cgo/testplugin/testdata/iface/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"iface_i"
++	"testplugin/iface_i"
+ 	"log"
+ 	"plugin"
+ )
+diff --git a/misc/cgo/testplugin/src/iface_a/a.go b/misc/cgo/testplugin/testdata/iface_a/a.go
+similarity index 91%
+rename from misc/cgo/testplugin/src/iface_a/a.go
+rename to misc/cgo/testplugin/testdata/iface_a/a.go
+index 29d2e27764..357f7e827e 100644
+--- a/misc/cgo/testplugin/src/iface_a/a.go
++++ b/misc/cgo/testplugin/testdata/iface_a/a.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "iface_i"
++import "testplugin/iface_i"
+ 
+ //go:noinline
+ func F() interface{} {
+diff --git a/misc/cgo/testplugin/src/iface_b/b.go b/misc/cgo/testplugin/testdata/iface_b/b.go
+similarity index 91%
+rename from misc/cgo/testplugin/src/iface_b/b.go
+rename to misc/cgo/testplugin/testdata/iface_b/b.go
+index 29d2e27764..357f7e827e 100644
+--- a/misc/cgo/testplugin/src/iface_b/b.go
++++ b/misc/cgo/testplugin/testdata/iface_b/b.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "iface_i"
++import "testplugin/iface_i"
+ 
+ //go:noinline
+ func F() interface{} {
+diff --git a/misc/cgo/testplugin/src/iface_i/i.go b/misc/cgo/testplugin/testdata/iface_i/i.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/iface_i/i.go
+rename to misc/cgo/testplugin/testdata/iface_i/i.go
+diff --git a/misc/cgo/testplugin/src/issue18584/main.go b/misc/cgo/testplugin/testdata/issue18584/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue18584/main.go
+rename to misc/cgo/testplugin/testdata/issue18584/main.go
+diff --git a/misc/cgo/testplugin/src/issue18584/plugin.go b/misc/cgo/testplugin/testdata/issue18584/plugin.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue18584/plugin.go
+rename to misc/cgo/testplugin/testdata/issue18584/plugin.go
+diff --git a/misc/cgo/testplugin/src/issue18676/dynamodbstreamsevt/definition.go b/misc/cgo/testplugin/testdata/issue18676/dynamodbstreamsevt/definition.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue18676/dynamodbstreamsevt/definition.go
+rename to misc/cgo/testplugin/testdata/issue18676/dynamodbstreamsevt/definition.go
+diff --git a/misc/cgo/testplugin/src/issue18676/main.go b/misc/cgo/testplugin/testdata/issue18676/main.go
+similarity index 96%
+rename from misc/cgo/testplugin/src/issue18676/main.go
+rename to misc/cgo/testplugin/testdata/issue18676/main.go
+index c75409dafe..b1dadbedf2 100644
+--- a/misc/cgo/testplugin/src/issue18676/main.go
++++ b/misc/cgo/testplugin/testdata/issue18676/main.go
+@@ -17,8 +17,8 @@ package main
+ 
+ import (
+ 	"encoding/json"
+-	"issue18676/dynamodbstreamsevt"
+ 	"plugin"
++	"testplugin/issue18676/dynamodbstreamsevt"
+ )
+ 
+ func main() {
+diff --git a/misc/cgo/testplugin/src/issue18676/plugin.go b/misc/cgo/testplugin/testdata/issue18676/plugin.go
+similarity index 82%
+rename from misc/cgo/testplugin/src/issue18676/plugin.go
+rename to misc/cgo/testplugin/testdata/issue18676/plugin.go
+index 8a3b85a75c..e7fc74f777 100644
+--- a/misc/cgo/testplugin/src/issue18676/plugin.go
++++ b/misc/cgo/testplugin/testdata/issue18676/plugin.go
+@@ -6,6 +6,6 @@ package main
+ 
+ import "C"
+ 
+-import "issue18676/dynamodbstreamsevt"
++import "testplugin/issue18676/dynamodbstreamsevt"
+ 
+ func F(evt *dynamodbstreamsevt.Event) {}
+diff --git a/misc/cgo/testplugin/src/issue19418/main.go b/misc/cgo/testplugin/testdata/issue19418/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue19418/main.go
+rename to misc/cgo/testplugin/testdata/issue19418/main.go
+diff --git a/misc/cgo/testplugin/src/issue19418/plugin.go b/misc/cgo/testplugin/testdata/issue19418/plugin.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue19418/plugin.go
+rename to misc/cgo/testplugin/testdata/issue19418/plugin.go
+diff --git a/misc/cgo/testplugin/src/issue19529/plugin.go b/misc/cgo/testplugin/testdata/issue19529/plugin.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue19529/plugin.go
+rename to misc/cgo/testplugin/testdata/issue19529/plugin.go
+diff --git a/misc/cgo/testplugin/src/issue19534/main.go b/misc/cgo/testplugin/testdata/issue19534/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue19534/main.go
+rename to misc/cgo/testplugin/testdata/issue19534/main.go
+diff --git a/misc/cgo/testplugin/src/issue19534/plugin.go b/misc/cgo/testplugin/testdata/issue19534/plugin.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue19534/plugin.go
+rename to misc/cgo/testplugin/testdata/issue19534/plugin.go
+diff --git a/misc/cgo/testplugin/src/issue22175/main.go b/misc/cgo/testplugin/testdata/issue22175/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue22175/main.go
+rename to misc/cgo/testplugin/testdata/issue22175/main.go
+diff --git a/misc/cgo/testplugin/src/issue22175/plugin1.go b/misc/cgo/testplugin/testdata/issue22175/plugin1.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue22175/plugin1.go
+rename to misc/cgo/testplugin/testdata/issue22175/plugin1.go
+diff --git a/misc/cgo/testplugin/src/issue22175/plugin2.go b/misc/cgo/testplugin/testdata/issue22175/plugin2.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue22175/plugin2.go
+rename to misc/cgo/testplugin/testdata/issue22175/plugin2.go
+diff --git a/misc/cgo/testplugin/src/issue22295.pkg/main.go b/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue22295.pkg/main.go
+rename to misc/cgo/testplugin/testdata/issue22295.pkg/main.go
+diff --git a/misc/cgo/testplugin/src/issue22295.pkg/plugin.go b/misc/cgo/testplugin/testdata/issue22295.pkg/plugin.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue22295.pkg/plugin.go
+rename to misc/cgo/testplugin/testdata/issue22295.pkg/plugin.go
+diff --git a/misc/cgo/testplugin/src/issue24351/main.go b/misc/cgo/testplugin/testdata/issue24351/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue24351/main.go
+rename to misc/cgo/testplugin/testdata/issue24351/main.go
+diff --git a/misc/cgo/testplugin/src/issue24351/plugin.go b/misc/cgo/testplugin/testdata/issue24351/plugin.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue24351/plugin.go
+rename to misc/cgo/testplugin/testdata/issue24351/plugin.go
+diff --git a/misc/cgo/testplugin/src/issue25756/main.go b/misc/cgo/testplugin/testdata/issue25756/main.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue25756/main.go
+rename to misc/cgo/testplugin/testdata/issue25756/main.go
+diff --git a/misc/cgo/testplugin/src/issue25756/plugin/c-life.c b/misc/cgo/testplugin/testdata/issue25756/plugin/c-life.c
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue25756/plugin/c-life.c
+rename to misc/cgo/testplugin/testdata/issue25756/plugin/c-life.c
+diff --git a/misc/cgo/testplugin/src/issue25756/plugin/life.go b/misc/cgo/testplugin/testdata/issue25756/plugin/life.go
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue25756/plugin/life.go
+rename to misc/cgo/testplugin/testdata/issue25756/plugin/life.go
+diff --git a/misc/cgo/testplugin/src/issue25756/plugin/life.h b/misc/cgo/testplugin/testdata/issue25756/plugin/life.h
+similarity index 100%
+rename from misc/cgo/testplugin/src/issue25756/plugin/life.h
+rename to misc/cgo/testplugin/testdata/issue25756/plugin/life.h
+diff --git a/misc/cgo/testplugin/src/plugin1/plugin1.go b/misc/cgo/testplugin/testdata/plugin1/plugin1.go
+similarity index 97%
+rename from misc/cgo/testplugin/src/plugin1/plugin1.go
+rename to misc/cgo/testplugin/testdata/plugin1/plugin1.go
+index 0a9fa2f2c1..136c179b65 100644
+--- a/misc/cgo/testplugin/src/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/testdata/plugin1/plugin1.go
+@@ -8,7 +8,7 @@ package main
+ import "C"
+ 
+ import (
+-	"common"
++	"testplugin/common"
+ 	"reflect"
+ )
+ 
+diff --git a/misc/cgo/testplugin/src/plugin2/plugin2.go b/misc/cgo/testplugin/testdata/plugin2/plugin2.go
+similarity index 97%
+rename from misc/cgo/testplugin/src/plugin2/plugin2.go
+rename to misc/cgo/testplugin/testdata/plugin2/plugin2.go
+index a67f2de27a..37168a13e1 100644
+--- a/misc/cgo/testplugin/src/plugin2/plugin2.go
++++ b/misc/cgo/testplugin/testdata/plugin2/plugin2.go
+@@ -12,7 +12,7 @@ import "C"
+ // void cfunc() {} // uses cgo_topofstack
+ 
+ import (
+-	"common"
++	"testplugin/common"
+ 	"reflect"
+ 	"strings"
+ )
+diff --git a/misc/cgo/testplugin/src/sub/plugin1/plugin1.go b/misc/cgo/testplugin/testdata/sub/plugin1/plugin1.go
+similarity index 93%
+rename from misc/cgo/testplugin/src/sub/plugin1/plugin1.go
+rename to misc/cgo/testplugin/testdata/sub/plugin1/plugin1.go
+index cf9000c4a4..5f891b09a3 100644
+--- a/misc/cgo/testplugin/src/sub/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/testdata/sub/plugin1/plugin1.go
+@@ -7,7 +7,7 @@ package main
+ // // No C code required.
+ import "C"
+ 
+-import "common"
++import "testplugin/common"
+ 
+ func F() int { return 17 }
+ 
+diff --git a/misc/cgo/testplugin/unnamed1/main.go b/misc/cgo/testplugin/testdata/unnamed1/main.go
+similarity index 96%
+rename from misc/cgo/testplugin/unnamed1/main.go
+rename to misc/cgo/testplugin/testdata/unnamed1/main.go
+index caf09c9e89..dd1777b418 100644
+--- a/misc/cgo/testplugin/unnamed1/main.go
++++ b/misc/cgo/testplugin/testdata/unnamed1/main.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ // // No C code required.
+diff --git a/misc/cgo/testplugin/unnamed2/main.go b/misc/cgo/testplugin/testdata/unnamed2/main.go
+similarity index 95%
+rename from misc/cgo/testplugin/unnamed2/main.go
+rename to misc/cgo/testplugin/testdata/unnamed2/main.go
+index 7ef66109c5..757436f250 100644
+--- a/misc/cgo/testplugin/unnamed2/main.go
++++ b/misc/cgo/testplugin/testdata/unnamed2/main.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ // // No C code required.
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6392321091..a03803b911 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -701,7 +701,7 @@ func (t *tester) registerTests() {
+ 			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))
+ 		}
+ 		if t.supportedBuildmode("plugin") {
+-			t.registerTest("testplugin", "../misc/cgo/testplugin", "./test.bash")
++			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600))
+ 		}
+ 		if gohostos == "linux" && goarch == "amd64" {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")

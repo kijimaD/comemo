@@ -9,6 +9,20 @@ Date:   Sat Aug 21 00:26:26 2021 +0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/net/http/header.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index cc9c28e3d0..5c77cbb882 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -196,7 +196,7 @@ func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptra
+ 	for _, kv := range kvs {
+ 		if !httpguts.ValidHeaderFieldName(kv.key) {
+ 			// This could be an error. In the common case of
+-			// writing reponse headers, however, we have no good
++			// writing response headers, however, we have no good
+ 			// way to provide the error back to the server
+ 			// handler, so just drop invalid headers instead.
+ 			continue

@@ -12,7 +12,34 @@ Date:   Tue Mar 30 07:23:53 2021 +0000
     Reviewed-by: Ben Shi <powerman1st@163.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/crypto/elliptic/p256.go            | 2 +-
  src/crypto/elliptic/p256_asm_ppc64le.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/elliptic/p256.go b/src/crypto/elliptic/p256.go
+index 3bb7bb70b6..b2b12c8f13 100644
+--- a/src/crypto/elliptic/p256.go
++++ b/src/crypto/elliptic/p256.go
+@@ -327,7 +327,7 @@ func p256ReduceDegree(out *[p256Limbs]uint32, tmp [17]uint64) {
+ 	var tmp2 [18]uint32
+ 	var carry, x, xMask uint32
+ 
+-	// tmp contains 64-bit words with the same 29,28,29-bit positions as an
++	// tmp contains 64-bit words with the same 29,28,29-bit positions as a
+ 	// field element. So the top of an element of tmp might overlap with
+ 	// another element two positions down. The following loop eliminates
+ 	// this overlap.
+diff --git a/src/crypto/elliptic/p256_asm_ppc64le.s b/src/crypto/elliptic/p256_asm_ppc64le.s
+index 924e365c6c..69e96e2696 100644
+--- a/src/crypto/elliptic/p256_asm_ppc64le.s
++++ b/src/crypto/elliptic/p256_asm_ppc64le.s
+@@ -870,7 +870,7 @@ TEXT ·p256FromMont(SB), NOSPLIT, $0-48
+  *                                                                *Mi obra de arte de siglo XXI @vpaprots
+  *
+  *
+- * First group is special, doesnt get the two inputs:
++ * First group is special, doesn't get the two inputs:
+  *                                             +--------+--------+<-+
+  *                                     +-------|  ADD2  |  ADD1  |--|-----+
+  *                                     |       +--------+--------+  |     |

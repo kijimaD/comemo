@@ -14,9 +14,155 @@ Date:   Thu Dec 24 18:49:35 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/stmt.go        |  4 ----
  src/cmd/compile/internal/typecheck/stmt.go | 17 ++++++++++-------
  src/cmd/compile/internal/walk/order.go     |  5 +++--
  src/cmd/compile/internal/walk/range.go     | 14 +++++++-------
  4 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 453153c024..cfda6fd234 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -300,7 +300,6 @@ type RangeStmt struct {
+ 	Value    Node
+ 	Body     Nodes
+ 	HasBreak bool
+-	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
+ 	Prealloc *Name
+ }
+ 
+@@ -312,9 +311,6 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
+ 	return n
+ }
+ 
+-func (n *RangeStmt) Type() *types.Type     { return n.typ }
+-func (n *RangeStmt) SetType(x *types.Type) { n.typ = x }
+-
+ // A ReturnStmt is a return statement.
+ type ReturnStmt struct {
+ 	miniStmt
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index dfa224b318..fe9ef400bb 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -11,13 +11,20 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++func RangeExprType(t *types.Type) *types.Type {
++	if t.IsPtr() && t.Elem().IsArray() {
++		return t.Elem()
++	}
++	return t
++}
++
+ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 	n.X = Expr(n.X)
+-
+-	t := n.X.Type()
+-	if t == nil {
++	if n.X.Type() == nil {
+ 		return
+ 	}
++
++	t := RangeExprType(n.X.Type())
+ 	// delicate little dance.  see typecheckas2
+ 	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
+ 		n.Key = AssignExpr(n.Key)
+@@ -25,10 +32,6 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 	if n.Value != nil && !ir.DeclaredBy(n.Value, n) {
+ 		n.Value = AssignExpr(n.Value)
+ 	}
+-	if t.IsPtr() && t.Elem().IsArray() {
+-		t = t.Elem()
+-	}
+-	n.SetType(t)
+ 
+ 	var tk, tv *types.Type
+ 	toomany := false
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index ef95dc14c7..1e41cfc6aa 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -843,7 +843,8 @@ func (o *orderState) stmt(n ir.Node) {
+ 		n.X = o.expr(n.X, nil)
+ 
+ 		orderBody := true
+-		switch n.Type().Kind() {
++		xt := typecheck.RangeExprType(n.X.Type())
++		switch xt.Kind() {
+ 		default:
+ 			base.Fatalf("order.stmt range %v", n.Type())
+ 
+@@ -885,7 +886,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 
+ 			// n.Prealloc is the temp for the iterator.
+ 			// hiter contains pointers and needs to be zeroed.
+-			n.Prealloc = o.newTemp(reflectdata.MapIterType(n.Type()), true)
++			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
+ 		}
+ 		n.Key = o.exprInPlace(n.Key)
+ 		n.Value = o.exprInPlace(n.Value)
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 5ecd577f74..49a69e9751 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -56,9 +56,8 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 	//	hb: hidden bool
+ 	//	a, v1, v2: not hidden aggregate, val 1, 2
+ 
+-	t := nrange.Type()
+-
+ 	a := nrange.X
++	t := typecheck.RangeExprType(a.Type())
+ 	lno := ir.SetPos(a)
+ 
+ 	v1, v2 := nrange.Key, nrange.Value
+@@ -113,7 +112,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		}
+ 
+ 		// for v1, v2 := range ha { body }
+-		if cheapComputableIndex(nrange.Type().Elem().Width) {
++		if cheapComputableIndex(t.Elem().Width) {
+ 			// v1, v2 = hv1, ha[hv1]
+ 			tmp := ir.NewIndexExpr(base.Pos, ha, hv1)
+ 			tmp.SetBounded(true)
+@@ -142,7 +141,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		ifGuard.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
+ 		nfor.SetOp(ir.OFORUNTIL)
+ 
+-		hp := typecheck.Temp(types.NewPtr(nrange.Type().Elem()))
++		hp := typecheck.Temp(types.NewPtr(t.Elem()))
+ 		tmp := ir.NewIndexExpr(base.Pos, ha, ir.NewInt(0))
+ 		tmp.SetBounded(true)
+ 		init = append(init, ir.NewAssignStmt(base.Pos, hp, typecheck.NodAddr(tmp)))
+@@ -335,7 +334,8 @@ func isMapClear(n *ir.RangeStmt) bool {
+ 		return false
+ 	}
+ 
+-	if n.Op() != ir.ORANGE || n.Type().Kind() != types.TMAP || n.Key == nil || n.Value != nil {
++	t := n.X.Type()
++	if n.Op() != ir.ORANGE || t.Kind() != types.TMAP || n.Key == nil || n.Value != nil {
+ 		return false
+ 	}
+ 
+@@ -360,7 +360,7 @@ func isMapClear(n *ir.RangeStmt) bool {
+ 	}
+ 
+ 	// Keys where equality is not reflexive can not be deleted from maps.
+-	if !types.IsReflexive(m.Type().Key()) {
++	if !types.IsReflexive(t.Key()) {
+ 		return false
+ 	}
+ 
+@@ -416,7 +416,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 		return nil
+ 	}
+ 
+-	elemsize := loop.Type().Elem().Width
++	elemsize := typecheck.RangeExprType(loop.X.Type()).Elem().Width
+ 	if elemsize <= 0 || !ir.IsZero(stmt.Y) {
+ 		return nil
+ 	}
